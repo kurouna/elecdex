@@ -299,8 +299,11 @@ function artRowOf(poses, name) {
   return poses.rows.length + PIECES.length + k
 }
 
-/** The words of a row of frames.txt: the clock, 4 pictures and their ends, the transitions. */
-export const SEQ_W = 10
+/**
+ * The words of a row of frames.txt: the clock, 4 pictures and their ends, the transitions
+ * (engine/look.e16.ts SEQ_W; the tests hold the file to it, a row of it for each pose row).
+ */
+const SEQ_W = 10
 function framesText(poses) {
   const lines = [
     "# ELECFIGHTER: each pose row's pictures in turn, the same for every slot (docs/elec16-",
@@ -356,20 +359,24 @@ function transText(poses) {
   return `${lines.join('\n')}\n`
 }
 
-/** The frames of a throw in throws.txt, each way (pose-book.mjs THROW_KS). */
-export const THROW_KS = 27
+/**
+ * The throw both ways, as many frames each as pose-book.mjs writes (its THROW_KS): the engine
+ * takes the count from the table's length (look.e16.ts), and the tests hold it to hit.e16.ts's.
+ */
 function throwsText(poses) {
+  const n = poses.throws.fwd.length
   const lines = [
     '# ELECFIGHTER: the throw frame by frame (docs/elec16-elecfighter-design.md 7.9; poses.json',
-    '# `throws`, written by scripts/elecfighter-art.mjs), shared by every slot: 27 frames forward,',
-    "# then 27 back, by the thrower's frames since it took hold. A frame of 4 words: the thrower's",
-    "# art row | turned about << 8, the thrown's the same, where the thrown is drawn from the",
-    '# thrower (share: sixteenths of the gap they stood at | points more ahead << 8, each signed),',
-    '# and points up.',
+    `# \`throws\`, written by scripts/elecfighter-art.mjs), shared by every slot: ${n} frames forward,`,
+    `# then ${n} back, by the thrower's frames since it took hold (it is free at ${n}). A frame of 4`,
+    "# words: the thrower's art row | turned about << 8, the thrown's the same (read only to 15:",
+    '# from the slam at 16 it is down), where the thrown is drawn from the thrower (share:',
+    '# sixteenths of the way from the thrower to where it stands, below 0 of the way to where the',
+    '# slam lands it | points more ahead << 8, each signed), and points up.',
   ]
   for (const way of ['fwd', 'back']) {
     const frames = poses.throws[way]
-    if (frames.length !== THROW_KS) throw new Error(`the throw ${way}: ${frames.length} frames`)
+    if (frames.length !== n) throw new Error(`the throw ${way}: ${frames.length} frames, not ${n}`)
     frames.forEach(([a, ta, d, td, share, off, dy], k) => {
       const words = [
         artRowOf(poses, a) | (ta << 8),

@@ -2,24 +2,63 @@ import { readFileSync } from 'node:fs'
 import { CHANNELS } from '@shared/elec16/apu'
 import { readCart } from '@shared/elec16/cartridge'
 import { channelFrames, compileSongs, loopFrames, type Song } from '@shared/elec16/kit/mml'
-import { Elec16 } from '@shared/elec16/machine'
-import { XRAM_MAX } from '@shared/elec16/map'
+import type { Elec16 } from '@shared/elec16/machine'
 import { padBit } from '@shared/elec16/pad'
 import { rasterLines } from '@shared/elec16/video'
 import { fromBase64 } from '@shared/emu/base64'
 import { describe, expect, it } from 'vitest'
 import {
-  buildKit,
-  frames,
-  globalsOf,
-  pictureFile,
-  ROM,
-  ramPoke,
-  ramWord,
-  settle,
-  tap,
-  word,
-} from './elec16-kit-helpers'
+  addr,
+  assetsText,
+  at,
+  bigText,
+  boot,
+  built,
+  C,
+  C2,
+  CLOCK,
+  cart,
+  DIR,
+  fight,
+  globals,
+  I,
+  kept,
+  LOG_ROW,
+  MIRROR,
+  MV,
+  MV2,
+  meta,
+  moves,
+  O,
+  O2,
+  opponents,
+  PH,
+  perLine,
+  place,
+  power,
+  profiles,
+  put,
+  ROOT_ROW,
+  read,
+  row,
+  rowOf,
+  rowText,
+  SC,
+  SC2,
+  SLOT_IDS,
+  SOUND_STATE,
+  ST,
+  ST2,
+  shown,
+  sizeOf,
+  step,
+  steps,
+  table,
+  toSelect,
+  until,
+  untilFree,
+} from './elec16-elecfighter-support'
+import { frames, pictureFile, tap, word } from './elec16-kit-helpers'
 
 /**
  * ELECFIGHTER (docs/elec16-elecfighter-design.md), phases P0 to P3: built from its folder as
@@ -28,214 +67,9 @@ import {
  * of cells each (P3), their boxes drafted from the drawings; a test drives
  * either through the fighters' one entry (`ctl` 2 and `extHeld`, the buttons as the engine reads
  * them) or the pad, places them by their RAM, and reads the outcome there by the globals' names.
+ * The CPU and whole matches played are in the files beside it (elec16-elecfighter-support.ts
+ * says which).
  */
-
-const DIR = 'resources/elec16/games/elecfighter'
-const meta = JSON.parse(readFileSync(`${DIR}/game.json`, 'utf8'))
-const built = buildKit(DIR, meta)
-if ('errors' in built) throw new Error(JSON.stringify(built.errors))
-const cart = built.image
-const at = globalsOf(built.report.asm)
-const assetsText = built.report.assets
-const asmText = built.report.asm
-const addr = (name: string) => {
-  const a = at.get(name)
-  if (a === undefined) throw new Error(`no ${name}`)
-  return a
-}
-const read = (m: Elec16, name: string, k = 0) => ramWord(m, addr(name) + k * 2)
-const put = (m: Elec16, name: string, v: number, k = 0) => ramPoke(m, addr(name) + k * 2, v)
-
-/** The engine's buttons (input.e16.ts), its states (fighter.e16.ts), its phases (main.e16.ts). */
-const I = { up: 1, down: 2, back: 4, fwd: 8, lp: 16, hp: 32, lk: 64, hk: 128 }
-const ST = { stand: 0, crouch: 1, prejump: 2, jump: 3, land: 4, attack: 5, hit: 6, guard: 7 }
-const ST2 = { down: 8, wake: 9, dead: 10, throw: 11, thrown: 12, dash: 13, backdash: 14 }
-const PH = { round: 0, fight: 1, over: 2, end: 3 }
-/** The screens (engine/main.e16.ts `screen`), design 5.4's. */
-const SC = { boot: 1, title: 2, controls: 3, select: 4, versus: 5, fight: 6, result: 7 }
-const SC2 = { cont: 8, over: 9, clear: 10, best: 11 }
-/** The moves' rows (moves.txt). */
-const MV = { sLP: 0, sHP: 1, sLK: 2, sHK: 3, cLP: 4, cHP: 5, cLK: 6, cHK: 7, jLP: 8, jHP: 9 }
-const MV2 = { jLK: 10, jHK: 11, throw: 12 }
-const C = { startup: 0, active: 1, recovery: 2, damage: 3, hitstun: 5, blockstun: 6, stop: 7 }
-const C2 = { height: 10, kind: 11, flags: 12 }
-
-/** A slot's tables, as moves.txt, profile.txt and poses.txt hold them. */
-function table(file: string, width: number): number[][] {
-  const words = readFileSync(`${DIR}/${file}`, 'utf8')
-    .replace(/#.*$/gm, '')
-    .split(/\s+/)
-    .filter(Boolean)
-    .map(Number)
-  const rows: number[][] = []
-  for (let k = 0; k < words.length; k += width) rows.push(words.slice(k, k + width))
-  return rows
-}
-const SLOT_IDS = ['s1', 's2', 's3', 's4']
-const moves = SLOT_IDS.map((s) => table(`fighters/${s}/moves.txt`, 16))
-const profiles = SLOT_IDS.map((s) => table(`fighters/${s}/profile.txt`, 16)[0] ?? [])
-const S1 = moves[0] ?? []
-const row = (m: number) => S1[m] ?? []
-
-/** The ladder's last place, ROOT (cpu/opponents.txt's MIRROR): P1's own slot against it. */
-const MIRROR = 3
-
-const CLOCK = { second: 12, minute: 34, hour: 5, day: 8, month: 10, year: 2026, weekday: 4 }
-
-/** PLAY-320 with the clock at `clock` (and `save` in its save RAM), the cartridge started. */
-function power(clock = CLOCK, save?: Uint8Array): Elec16 {
-  const m = Elec16.boot(ROM.image, 'play-320', undefined, XRAM_MAX)
-  m.setClock(clock)
-  settle(m, cart)
-  if (save !== undefined) m.insertCart(cart, new Uint8Array(32), save)
-  tap(m, padBit('start'), cart)
-  return m
-}
-
-/** Frames until the screen is `sc`, at most `n`. */
-function until(m: Elec16, sc: number, n = 600): void {
-  for (let k = 0; k < n && read(m, 'screen') !== sc; k++) frames(m, 1, cart)
-  expect(read(m, 'screen')).toBe(sc)
-}
-
-/** The cartridge started and its boot log skipped with START: the title. */
-function boot(clock = CLOCK, save?: Uint8Array): Elec16 {
-  const m = power(clock, save)
-  expect(read(m, 'screen')).toBe(SC.boot)
-  tap(m, padBit('start'), cart)
-  until(m, SC.title, 20)
-  return m
-}
-
-/** From the title: START, VERSUS CPU (the controls the first time, START past them), the select. */
-function toSelect(m: Elec16): void {
-  tap(m, padBit('start'), cart)
-  tap(m, padBit('a'), cart)
-  if (read(m, 'screen') === SC.controls) tap(m, padBit('start'), cart)
-  until(m, SC.select, 4)
-}
-
-/**
- * From the title to the fight: the select's cursor starts on P1's `slot` (S1 BALANCE unless said)
- * and A takes it; the ladder from its place `at` (0 the first, PACKET in S2 RUSH, for S1); the
- * versus and the round's banner go by until the fight begins, each side driven as `drive` says
- * (2 from outside, 1 the CPU). From a machine at its title, or a clock to boot one by.
- */
-function fight(
-  from: Elec16 | typeof CLOCK = CLOCK,
-  drive: [number, number] = [2, 2],
-  slot = 0,
-  at = 0,
-): Elec16 {
-  if (from instanceof Elec16) return fightFrom(from, drive, slot, at)
-  // A fight from a clock is played from its first frame once, kept as the core's snapshot and
-  // restored for each test that asks for it again: the boot log, the menus, the versus and the
-  // round's banner cost a fifth of a second each time (a test checks that a restored machine
-  // plays on as the one it was taken from).
-  const key = JSON.stringify([from, drive, slot, at])
-  let bytes = FOUGHT.get(key)
-  if (bytes === undefined) {
-    bytes = fightFrom(boot(from), drive, slot, at).snapshot()
-    FOUGHT.set(key, bytes)
-  }
-  return again(bytes)
-}
-
-/** Fights begun, as snapshots, by the clock, the drive, the slot and the place they began from. */
-const FOUGHT = new Map<string, Uint8Array>()
-
-/** A machine back from its snapshot, the cartridge's ROM put back in its slot. */
-function again(bytes: Uint8Array): Elec16 {
-  const m = Elec16.restore(ROM.image, bytes)
-  if (m === null || !m.attachCartRom(cart, new Uint8Array(32))) throw new Error('no snapshot')
-  return m
-}
-
-function fightFrom(m: Elec16, drive: [number, number], slot: number, at: number): Elec16 {
-  put(m, 'choice', slot, 0)
-  put(m, 'choice', at, 1)
-  toSelect(m)
-  tap(m, padBit('a'), cart)
-  put(m, 'ctl', drive[0], 0)
-  put(m, 'ctl', drive[1], 1)
-  for (let k = 0; k < 400 && (read(m, 'screen') !== SC.fight || read(m, 'phase') !== PH.fight); k++)
-    frames(m, 1, cart)
-  expect(read(m, 'phase')).toBe(PH.fight)
-  return m
-}
-
-/** One frame with these buttons held by P1 and P2 (both driven from outside). */
-function step(m: Elec16, h0 = 0, h1 = 0): void {
-  put(m, 'extHeld', h0, 0)
-  put(m, 'extHeld', h1, 1)
-  frames(m, 1, cart)
-}
-
-function steps(m: Elec16, n: number, h0 = 0, h1 = 0): void {
-  for (let k = 0; k < n; k++) step(m, h0, h1)
-}
-
-/**
- * The two placed `apart` points from the middle each (P1 left, facing right), standing; their
- * last frame's place in `was` too. A frame passes with nothing held so the poses settle.
- */
-function place(m: Elec16, x0: number, x1: number): void {
-  for (const i of [0, 1]) {
-    put(m, 'fX', (i === 0 ? x0 : x1) * 16, i)
-    put(m, 'was', (i === 0 ? x0 : x1) * 16, i)
-    put(m, 'fY', 0, i)
-    put(m, 'fAir', 0, i)
-    put(m, 'fState', ST.stand, i)
-    put(m, 'fStun', 0, i)
-    put(m, 'fPush', 0, i)
-  }
-  put(m, 'fFace', x0 < x1 ? 1 : 0, 0)
-  put(m, 'fFace', x0 < x1 ? 0 : 1, 1)
-  put(m, 'hitstop', 0)
-  step(m)
-}
-
-/** Frames until fighter `i` is free (standing or crouching), at most `n`. */
-function untilFree(m: Elec16, i: number, n: number, h0 = 0, h1 = 0): number {
-  for (let k = 0; k < n; k++) {
-    const st = read(m, 'fState', i)
-    if (st === ST.stand || st === ST.crouch) return k
-    step(m, h0, h1)
-  }
-  return n
-}
-
-/** The game's RAM: its globals and arrays (0280-1FFF). */
-const globals = (m: Elec16) => m.state.ram.slice(0x280, 0x2000)
-
-/** Video memory's sprite table: how many sprites cover each of the screen's 288 lines. */
-function perLine(m: Elec16): number[] {
-  const mem = m.state.video?.mem ?? new Uint8Array()
-  const lines = new Array<number>(288).fill(0)
-  for (let k = 0; k < 128; k++) {
-    const w = (n: number) =>
-      (mem[0xc000 + k * 8 + n * 2] ?? 0) | ((mem[0xc000 + k * 8 + n * 2 + 1] ?? 0) << 8)
-    const size = w(3) & 3
-    if (size === 3) continue
-    const y = (w(1) << 16) >> 16
-    const h = 8 << size
-    for (let l = Math.max(0, y); l < Math.min(288, y + h); l++) lines[l] = (lines[l] ?? 0) + 1
-  }
-  return lines
-}
-
-/** The sprites shown (OAM, size not hidden) whose left edge is left of `x`. */
-function spritesLeftOf(m: Elec16, x: number): number {
-  const mem = m.state.video?.mem ?? new Uint8Array()
-  let n = 0
-  for (let k = 0; k < 128; k++) {
-    const w = (i: number) =>
-      (mem[0xc000 + k * 8 + i * 2] ?? 0) | ((mem[0xc000 + k * 8 + i * 2 + 1] ?? 0) << 8)
-    if ((w(3) & 3) === 3) continue
-    if ((w(0) << 16) >> 16 < x) n++
-  }
-  return n
-}
 
 describe('ELECFIGHTER as built', () => {
   it('is what games.json holds (on the shelf from P3), and its folder keeps its build', () => {
@@ -823,17 +657,6 @@ describe('ELECFIGHTER moving (P0)', () => {
     expect(read(m, 'camX')).toBe(275 - 160)
   })
 
-  it('keeps z and its speed 0 through a whole match of the stand-ins', () => {
-    const m = fight(CLOCK, [1, 1])
-    for (let k = 0; k < 1500 && read(m, 'outcome') === 0; k++) {
-      frames(m, 1, cart)
-      for (const i of [0, 1]) {
-        expect(read(m, 'fZ', i)).toBe(0)
-        expect(read(m, 'fVZ', i)).toBe(0)
-      }
-    }
-  })
-
   it('changes nothing for L and R', () => {
     const run = (extra: number) => {
       const m = fight(CLOCK, [0, 2])
@@ -1340,73 +1163,6 @@ describe('ELECFIGHTER rounds (design 7.2)', () => {
   })
 })
 
-/** BG1's row `y` as the font's words (a cell of another tile reads as a space). */
-function rowText(m: Elec16, y: number): string {
-  const mem = m.state.video?.mem ?? new Uint8Array()
-  let s = ''
-  for (let x = 0; x < 40; x++) {
-    const at = 0xa000 + y * 128 + x * 2
-    const t = ((mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)) & 0x3ff
-    // The font from tile 0, the band's bold font from 64: both from the space.
-    s += t < 128 ? String.fromCharCode(32 + (t & 63)) : ' '
-  }
-  return s.trim()
-}
-
-/** The large letters (engine/draw.e16.ts, art/big.png), 2 tiles by 3 each, in their order. */
-const BIG_CHARS = 'ABCDEFGHIKLMNOPRSTUVWY.?123'
-const BIG_TILE = Number(/export const BIG_TILE = (0x[0-9a-f]+)/.exec(assetsText)?.[1])
-
-/** BG1's row `y` read as the tops of large letters (a narrow space between words). */
-function bigText(m: Elec16, y: number): string {
-  const mem = m.state.video?.mem ?? new Uint8Array()
-  let s = ''
-  for (let x = 0; x < 40; x++) {
-    const at = 0xa000 + y * 128 + x * 2
-    const t = (((mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)) & 0x3ff) - BIG_TILE
-    if (t >= 0 && t < BIG_CHARS.length * 6) {
-      if (t % 6 === 0) s += BIG_CHARS[t / 6]
-    } else s += ' '
-  }
-  return s.trim().replace(/ +/g, ' ')
-}
-
-/** A global's size in bytes: an array's as e16c lays it out, a word's 2. */
-function sizeOf(name: string): number {
-  const m = new RegExp(`^${name} = 0x[0-9a-f]+ ; (\\d+) bytes$`, 'm').exec(asmText)
-  return m ? Number(m[1]) : 2
-}
-
-/** The kit's sound's state (lib/sound.e16.ts): it goes on through a pause, the music muted. */
-const SOUND_STATE = [
-  'chBank',
-  'chSong',
-  'chAt',
-  'chLoop',
-  'chWait',
-  'chGate',
-  'chFreq',
-  'lastFreq',
-  'chLen',
-  'chHeld',
-  'chDrop',
-  'chVol',
-  'chInstVol',
-  'chOn',
-  'muted',
-  'opTook',
-  'sfxHeard',
-]
-
-/** Colour `k` of palette slot `slot` as shown, and as kept (`palCopy`). */
-const shown = (m: Elec16, slot: number, k: number) => {
-  const mem = m.state.video?.mem ?? new Uint8Array()
-  const at = 0xc400 + slot * 32 + k * 2
-  return (mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)
-}
-const kept = (m: Elec16, slot: number, k: number) => read(m, 'palCopy', slot * 16 + k)
-
-const LOG_ROW = 34
 const throwDamage = (s: number) => moves[s]?.[MV2.throw]?.[C.damage] ?? 0
 
 describe('ELECFIGHTER throws (P2, design 7.9)', () => {
@@ -1767,381 +1523,6 @@ describe('ELECFIGHTER dashes (P2, design 6.2)', () => {
   })
 })
 
-/** cpu/opponents.txt's columns, and its rows. */
-const O = { think: 2, rGuard: 3, rAA: 4, rPunish: 5, rTech: 6, rSwitch: 7, guard: 8, aa: 9 }
-const O2 = { punish: 10, read: 11, range: 12, pattern: 18, habit: 19, min: 20, max: 21 }
-const O3 = { whim: 23 }
-const OPP_W = 32
-const ROOT_ROW = 4
-const opponents = table('cpu/opponents.txt', OPP_W)
-/** The actions' numbers (cpu/ai.e16.ts): WAIT keeps the distance it likes. */
-const WAIT = 8
-
-/** Column `c` of the row CPU fighter `i` plays by, as met (in RAM, scaled by the ladder). */
-const setRow = (m: Elec16, i: number, c: number, v: number) => put(m, 'opp', v, i * OPP_W + c)
-const rowOf = (m: Elec16, i: number, c: number) => read(m, 'opp', i * OPP_W + c)
-
-/**
- * CPU fighter 1 kept still for a test: no whim, no habit, no anti-air or punish, not wary of the
- * other's swinging, waiting where it stands (its liked distance the one it is at) with nothing
- * new chosen for a long while.
- */
-function still(m: Elec16): void {
-  put(m, 'swing', 0, 1)
-  setRow(m, 1, O3.whim, 0)
-  setRow(m, 1, O.think, 250)
-  setRow(m, 1, O2.pattern, 0)
-  setRow(m, 1, O.aa, 0)
-  setRow(m, 1, O2.punish, 0)
-  setRow(m, 1, O2.range, Math.abs(read(m, 'fX', 1) - read(m, 'fX', 0)) >> 4)
-  put(m, 'plan', WAIT, 1)
-  put(m, 'planT', 250, 1)
-  put(m, 'thinkT', 250, 1)
-  // Its presses before forgotten: a back pressed in a backdash's taps it was drawing before, and
-  // the guard's back now, would be the two taps of one (seen 2026-10-08, a seed that drew it).
-  for (let k = 0; k < 16; k++) put(m, 'ringD', 0, 16 + k)
-}
-
-/**
- * One frame of the CPU (P2) with `plan` forced (-1: thinking afresh) and P1 holding `p1`, played
- * on as it is and, from its snapshot, with P1 moved to the CPU's other side (from its left far
- * out of a throw's reach, from its right near) in another state: the CPU's buttons both times.
- */
-function cpuTwice(m: Elec16, plan: number, p1: number): [number, number] {
-  if (plan >= 0) {
-    put(m, 'plan', plan, 1)
-    put(m, 'planT', 30, 1)
-  } else put(m, 'thinkT', 0, 1)
-  const b = again(m.snapshot())
-  const x1 = read(b, 'fX', 1)
-  put(b, 'fX', read(b, 'fX', 0) < x1 ? x1 + 100 * 16 : x1 - 30 * 16, 0)
-  put(b, 'fState', read(b, 'fState', 0) === ST.attack ? ST.stand : ST.attack, 0)
-  put(b, 'fMove', MV2.throw, 0)
-  put(b, 'fY', 0, 0)
-  // P1's body box now (its pose's, `bx` word 2) made far wider: the throw's range is the
-  // other's body as its slot stands, never as it is posed this frame.
-  put(b, 'bx', read(b, 'bx', 2) + 60, 2)
-  step(m, p1)
-  step(b, p1)
-  return [read(m, 'cpuHeld', 1), read(b, 'cpuHeld', 1)]
-}
-
-describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
-  it('guards on sight only what starts slower than its reaction, and never reads nearer than it', () => {
-    /** P1's `button` (a crouching move with down) against the CPU of reaction R: how it landed. */
-    const landed = (r: number, button: number) => {
-      const m = fight(CLOCK, [2, 1])
-      still(m)
-      place(m, 236, 270)
-      still(m)
-      setRow(m, 1, O.rGuard, r)
-      setRow(m, 1, O.rSwitch, r)
-      setRow(m, 1, O.guard, 256)
-      steps(m, 40)
-      still(m)
-      let s = 0
-      for (let k = 0; k < 30; k++) {
-        step(m, k === 0 ? button : button & I.down, 0)
-        s = Math.max(s, read(m, 'struck', 0))
-      }
-      const reactions = [O.rGuard, O.rAA, O.rPunish, O.rSwitch].map((c) => rowOf(m, 1, c))
-      expect(read(m, 'seenLate', 1)).toBeGreaterThanOrEqual(Math.min(...reactions))
-      expect(read(m, 'seenLate', 1)).toBeGreaterThanOrEqual(r)
-      return s
-    }
-    const sweep = row(MV.cHK)[C.startup] ?? 0
-    expect(sweep).toBe(10)
-    // The sweep starts in 10: seen 10 frames late, too late; 9, in time.
-    expect(landed(10, I.down | I.hk)).toBe(1)
-    expect(landed(9, I.down | I.hk)).toBe(2)
-    // The light kick (5) is never seen in time, even by the quickest (8).
-    expect(landed(8, I.down | I.lk)).toBe(1)
-    // The standing heavy kick (11), by 10.
-    expect(landed(10, I.hk)).toBe(2)
-    // The table: no reaction under 8 but the tech's, and the ladder takes 2 off each place.
-    for (const r of opponents) {
-      for (const c of [O.rGuard, O.rAA, O.rPunish, O.rSwitch])
-        expect(r[c]).toBeGreaterThanOrEqual(8)
-    }
-  })
-
-  it('chooses the same buttons whatever the other is doing now: it sees only the ring of what was', () => {
-    // Found in review 2026-10-08: the throw's range and "its back to the wall" read the other's
-    // place now (fX), not as seen R frames late. Each frame is played twice from the same
-    // snapshot, once with P1 moved to the CPU's other side, in another state, in RAM just before
-    // it: the CPU's buttons for that frame (chosen before P1 moves) must be the same.
-    const THROW = 5
-    // At the left wall with P1 beside it (its back to the wall), the throw planned or not; and
-    // the throw planned in the open.
-    for (const c of [
-      { cpu: 60, p1: 100, plan: THROW },
-      { cpu: 60, p1: 100, plan: -1 },
-      { cpu: 300, p1: 270, plan: THROW },
-    ]) {
-      const m = fight(CLOCK, [2, 1], 0, 3)
-      place(m, c.p1, c.cpu)
-      for (let k = 0; k < 120 && read(m, 'phase') === PH.fight; k++) {
-        const [now, moved] = cpuTwice(m, c.plan, k & 8 ? I.fwd : 0)
-        expect(moved, `frame ${k} of ${JSON.stringify(c)}`).toBe(now)
-        // Each run goes on from the true one.
-        if (k % 30 === 29) place(m, c.p1, c.cpu)
-      }
-    }
-  })
-
-  it('combos no more than 4 hits on one who stands still, whichever opponent', () => {
-    for (const at of [0, 1, 2, 3]) {
-      const m = fight(CLOCK, [2, 1], 0, at)
-      let hit = 0
-      // A round is enough: every opponent knocks the one standing still out in it.
-      for (let k = 0; k < 3000 && read(m, 'phase') === PH.fight; k++) {
-        step(m)
-        if (read(m, 'struck', 1) !== 0) hit++
-      }
-      expect(hit, `place ${at}`).toBeGreaterThan(0)
-      expect(read(m, 'fComboMax', 0), `place ${at}`).toBeLessThanOrEqual(4)
-    }
-  })
-
-  it("shows each opponent's habit as a tendency: due at counts drawn afresh, out by its chance, never always", () => {
-    const cases = [
-      // PACKET, its lights guarded; MAINFRAME, the person walking back; DAEMON, in and out on
-      // its gap; KERNEL (P1 in S2 RUSH, so it is met third), its heavies guarded.
-      { slot: 0, at: 0, row: 0, p1: (_: number) => I.back | I.down },
-      { slot: 0, at: 1, row: 1, p1: (k: number) => ((k >> 6) & 1 ? I.back : I.fwd) },
-      { slot: 0, at: 2, row: 2, p1: (_: number) => I.back | I.down },
-      { slot: 1, at: 2, row: 3, p1: (_: number) => I.back | I.down },
-    ]
-    for (const c of cases) {
-      const r = opponents[c.row] ?? []
-      const chance = (r[O2.habit] ?? 0) / 256
-      expect(chance).toBeGreaterThan(0)
-      expect(chance).toBeLessThanOrEqual(0.7)
-      const { due, fired, drawn, whims } = habitWatched(c.slot, c.at, c.p1)
-      const why = `row ${c.row}: ${fired} of ${due}, ${drawn.join(' ')}`
-      expect(due, why).toBeGreaterThanOrEqual(8)
-      expect(fired, why).toBeGreaterThan(0)
-      expect(fired, why).toBeLessThan(due)
-      expect(Math.abs(fired / due - chance), why).toBeLessThan(0.3)
-      expect(Math.min(...drawn)).toBeGreaterThanOrEqual(r[O2.min] ?? 0)
-      expect(Math.max(...drawn)).toBeLessThanOrEqual(r[O2.max] ?? 0)
-      expect(new Set(drawn).size, why).toBeGreaterThanOrEqual(2)
-      expect(
-        drawn.some((d, k) => k > 0 && d === drawn[k - 1]),
-        why,
-      ).toBe(false)
-      expect(whims, why).toBeGreaterThan(0)
-    }
-  })
-
-  it('gives S4 a body no nearer than the others and DAEMON a range at the tip of its long kick', () => {
-    // Measured 2026-10-08, two CPUs of the same scaling, sides taken in turn: S4 under DAEMON
-    // lost all 4 matches against each slot, and 0 of 4 against S1 even under KERNEL's row -
-    // its drafted hurt boxes stood 3 points ahead of everyone's (its long guard arms and knee
-    // taken for the body), and DAEMON liked 90 points, out of its own reach (67 with the heavy
-    // kick, 76 the sweep) and inside the others' heavy punch. After (boxes, range, its habit at
-    // 100 in 256), in 6 seeds a pairing: 2, 1 and 1 of 6 against S1, S2 and S3.
-    const art = SLOT_IDS.map((s) => table(`fighters/${s}/poses.txt`, 24))
-    const front = (s: number, pose: number, boxes: number[]) =>
-      Math.max(
-        ...boxes.map((k) => {
-          const b = art[s]?.[pose] ?? []
-          return (b[k * 4 + 2] ?? 0) === 0 ? -99 : (b[k * 4] ?? 0) + (b[k * 4 + 2] ?? 0)
-        }),
-      )
-    const body = (s: number) => front(s, 0, [1, 2, 3])
-    // Standing, guarding, at rest: S4 is the slim one (slots.json's girth 0.88).
-    for (const pose of [0, 7, 60]) {
-      expect(front(3, pose, [1, 2, 3])).toBeLessThanOrEqual(
-        Math.max(front(0, pose, [1, 2, 3]), front(2, pose, [1, 2, 3])),
-      )
-    }
-    // The power slot's heavy punch reaches as the standard's (design 3.1).
-    const active = (s: number, m: number) => (moves[s]?.[m]?.[14] ?? 0) + 1
-    expect(front(2, active(2, MV.sHP), [4, 5])).toBe(front(0, active(0, MV.sHP), [4, 5]))
-    // DAEMON's liked range: past its heavy kick's tip on a standing S1 by at most its width, and
-    // within its sweep's.
-    const tip = (m: number) => front(3, active(3, m), [4, 5]) + body(0) - 1
-    const daemon = opponents[2] ?? []
-    expect(daemon[0]).toBe(3)
-    expect(daemon[O2.range] ?? 0).toBeGreaterThanOrEqual(tip(MV.sHK))
-    expect((daemon[O2.range] ?? 0) - (daemon[13] ?? 0)).toBeLessThanOrEqual(tip(MV.sHK))
-    expect(daemon[O2.range] ?? 0).toBeLessThanOrEqual(tip(MV.cHK))
-  })
-
-  it('reads more the later it is met, but never one that does not read at all', () => {
-    // Found in review 2026-10-08: KERNEL's read of 0 became 52 as the third met.
-    const kernel = opponents[3] ?? []
-    expect(kernel[O2.read]).toBe(0)
-    const m = fight(CLOCK, [2, 1], 1, 2)
-    expect(read(m, 'ladder', 2)).toBe(3)
-    expect(rowOf(m, 1, O2.read)).toBe(0)
-    // One that reads, met later, reads more: DAEMON as the third.
-    const d = fight(CLOCK, [2, 1], 0, 2)
-    expect(rowOf(d, 1, O2.read)).toBe((opponents[2]?.[O2.read] ?? 0) + 2 * 26)
-  })
-
-  it('has ROOT read a habit kept up, and lose to it changed', () => {
-    const m = fight(CLOCK, [2, 1], 0, MIRROR)
-    expect(rowOf(m, 1, O2.read)).toBe(Math.min(255, (opponents[4]?.[O2.read] ?? 0) + 3 * 26))
-    const wake = (button: number) => wakeBeside(m, button)
-    // Counted from here: the seed (the select's press) may give it a read before.
-    const hits = read(m, 'readHits', 1)
-    const miss = read(m, 'readMiss', 1)
-    const kept = Array.from({ length: 10 }, () => wake(I.down | I.lp))
-    // Twice before it knows; from then on it reads the strike and is crouched guarding.
-    expect(kept.slice(0, 2).map((r) => r.guarded)).toEqual([1, 1])
-    expect(kept.slice(2).map((r) => r.guarded)).toEqual(Array(8).fill(2))
-    // Eight reads of the habit right (another of the fight's moments may be read right too).
-    expect(read(m, 'readHits', 1) - hits).toBeGreaterThanOrEqual(8)
-    expect(read(m, 'readMiss', 1) - miss).toBe(0)
-    // The habit changed: still reading the strike, it guards and is thrown.
-    const changed = wake(I.fwd | I.hp)
-    expect(changed.threw).toBe(1)
-    expect(read(m, 'readMiss', 1) - miss).toBe(1)
-  })
-
-  it('logs READ when a read was right', () => {
-    const m = fight(CLOCK, [2, 1], 0, MIRROR)
-    const logged = Array.from({ length: 6 }, () => wakeBeside(m, I.down | I.lp).log)
-    expect(logged.slice(0, 2)).not.toContain('> READ')
-    expect(logged.slice(2)).toEqual(Array(4).fill('> READ'))
-  })
-})
-
-/**
- * Against the CPU of ladder place `at` (P1 in `slot`, driven by `p1` frame by frame and never
- * falling, so the habit is watched as long as the test runs): its habit's counts once it has
- * been due 16 times (at most 6,000 frames: DAEMON's gap comes round in 600; at 8, tried
- * 2026-10-08, DAEMON had taken no whim yet) - times due, times out, the counts drawn in order -
- * and its whims.
- */
-function habitWatched(slot: number, at: number, p1: (k: number) => number) {
-  const m = fight(CLOCK, [2, 1], slot, at)
-  for (let k = 0; k < 6000 && read(m, 'outcome') === 0 && read(m, 'habDue', 1) < 16; k++) {
-    put(m, 'fLife', 90, 0)
-    step(m, p1(k))
-  }
-  const n = read(m, 'habDrawnN', 1)
-  const last = Math.min(16, n)
-  return {
-    due: read(m, 'habDue', 1),
-    fired: read(m, 'habFired', 1),
-    drawn: Array.from({ length: last }, (_, k) => read(m, 'habDrawn', 16 + ((n - last + k) & 15))),
-    whims: read(m, 'whims', 1),
-  }
-}
-
-/**
- * P1 knocked down beside ROOT (kept still, always reading, never teching); as it stands,
- * `button`: whether that was guarded, whether it threw, and the log line meanwhile.
- */
-function wakeBeside(m: Elec16, button: number): { guarded: number; threw: number; log: string } {
-  still(m)
-  place(m, 236, 270)
-  for (const i of [0, 1]) put(m, 'fLife', 100, i)
-  put(m, 'fState', ST2.down, 0)
-  put(m, 'fStateT', 30, 0)
-  still(m)
-  setRow(m, 1, O2.read, 256)
-  setRow(m, 1, O.rTech, 30)
-  for (let k = 0; k < 40 && read(m, 'fState', 0) !== ST.stand; k++) step(m)
-  let guarded = 0
-  let threw = 0
-  let log = ''
-  for (let k = 0; k < 14; k++) {
-    step(m, k === 0 ? button : button & I.down)
-    guarded = Math.max(guarded, read(m, 'struck', 0))
-    threw = Math.max(threw, read(m, 'threw', 0))
-    if (k < 3) log = rowText(m, LOG_ROW) || log
-  }
-  steps(m, 30)
-  return { guarded, threw, log }
-}
-
-/** P1's one-button players: a heavy punch, or all four buttons, whenever able. */
-const ONE_BUTTON: Record<string, (k: number) => number> = {
-  hp: (k) => (k & 1 ? I.hp : 0),
-  all: (k) => [I.lp, 0, I.hp, 0, I.lk, 0, I.hk, 0][k & 7] ?? 0,
-}
-/** The ladder's five as met: [P1's slot, the place] (KERNEL is S1's, so P1 takes S2 for it). */
-const MET = { PACKET: [0, 0], MAINFRAME: [0, 1], DAEMON: [0, 2], KERNEL: [1, 2], ROOT: [0, MIRROR] }
-
-/**
- * A round against the CPU of ladder place `at` (P1 in `slot`, the clock's second `second`), P1
- * playing `p1` and standing where it is: who took it (`roundWon`, 1 the CPU); P1's heavies
- * struck in their recovery (the CPU's punishes, whiffed or guarded); the CPU's hits taken, and
- * of them those taken while it walked forward (into an attack under way).
- */
-function oneButton(slot: number, at: number, second: number, p1: (k: number) => number) {
-  const m = fight({ ...CLOCK, second }, [2, 1], slot, at)
-  const heavy = (mv: number) => [MV.sHP, MV.sHK, MV.cHP, MV.cHK].includes(mv)
-  let punished = 0
-  let taken = 0
-  let walking = 0
-  for (let k = 0; k < 7_000 && read(m, 'phase') === PH.fight; k++) {
-    const mv = read(m, 'fMove', 0)
-    const r = moves[slot]?.[mv] ?? []
-    const recovering =
-      read(m, 'fState', 0) === ST.attack &&
-      heavy(mv) &&
-      read(m, 'fMoveF', 0) >= (r[C.startup] ?? 0) + (r[C.active] ?? 0)
-    const free = [ST.stand, ST.crouch].includes(read(m, 'fState', 1))
-    step(m, p1(k), 0)
-    if ([1, 3, 4].includes(read(m, 'struck', 1)) && recovering) punished++
-    if ([1, 3].includes(read(m, 'struck', 0))) {
-      taken++
-      if (free && (read(m, 'outWas', 1) & I.fwd) !== 0) walking++
-    }
-  }
-  expect(read(m, 'phase')).not.toBe(PH.fight)
-  return { won: read(m, 'roundWon'), punished, taken, walking }
-}
-
-describe('ELECFIGHTER the CPU against one button (design 7.7, 7.10)', { timeout: 120_000 }, () => {
-  it('beats a heavy pressed whenever able, and all four mashed: it keeps out of reach and punishes', () => {
-    // Measured 2026-10-08 in four seeds, before (the CPU walking in): the heavy punch beat
-    // PACKET, MAINFRAME, DAEMON and KERNEL 4 of 4 times each, the CPU took 10 of the 60 matches
-    // of the five against the three, and against DAEMON 50 of its 56 hits taken were walking
-    // forward. After, in three seeds: 45 of 45, with 1 to 30 punishes a match. Since P4 a round
-    // each of the heavy punch and the masher, in one seed (the heavy kick is the heavy punch's
-    // kind, and every seed won): the test took two and a half minutes.
-    let won = 0
-    let all = 0
-    let taken = 0
-    let walking = 0
-    for (const [name, [slot, at]] of Object.entries(MET)) {
-      for (const [player, p1] of Object.entries(ONE_BUTTON)) {
-        const r = oneButton(slot ?? 0, at ?? 0, 10, p1)
-        const why = `${name} against ${player}: ${JSON.stringify(r)}`
-        // Never a round without a punish.
-        expect(r.punished, why).toBeGreaterThan(0)
-        if (r.won === 1) won++
-        all++
-        taken += r.taken
-        walking += r.walking
-      }
-    }
-    expect(won / all).toBeGreaterThanOrEqual(0.9)
-    // Walking into an attack under way: before, about half of the CPU's hits taken (DAEMON 14 of
-    // 14); now a hit taken walking in is one the other started as it came, rarely. Counted, not
-    // a share: these ten rounds leave the CPU only 2 to 6 hits taken, so one walking in was 20%
-    // (measured over six clocks after the review: 0 or 1 walking in, of 2 to 6 taken).
-    expect(walking, `${walking} of ${taken} hits taken walking in`).toBeLessThanOrEqual(2)
-  })
-
-  it('plays rounds of about half a minute CPU against CPU', () => {
-    // Measured 2026-10-08: 16.4 s a round on average before (every round a KO); after the CPU
-    // kept to its reach and the life went up by a quarter, 32.5 s over 36 rounds (13 to 66 s).
-    // Since P4 the rounds of the two CPUs' matches the frame budget measures.
-    const { rounds } = cpus()
-    const avg = rounds.reduce((a, b) => a + b, 0) / rounds.length
-    expect(rounds.length).toBeGreaterThanOrEqual(4)
-    expect(avg, rounds.map((r) => r.toFixed(0)).join(' ')).toBeGreaterThanOrEqual(25)
-    expect(avg).toBeLessThanOrEqual(50)
-  })
-})
-
 describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
   /**
    * The globals but the kit's pad and frame count and the sound's channels (the music goes on
@@ -2336,9 +1717,10 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     expect(read(m, 'continues')).toBe(1)
   })
 
-  it('plays a whole ladder CPU against CPU to SYSTEM CLEAR, ROOT last, within the frame', () => {
-    // P1's CPU kept standing and each opponent at one life once the fight is on (a fight to the
-    // end is measured once for the file, cpus()): it beats all four in turn, ROOT last.
+  it('plays a whole ladder CPU against CPU to SYSTEM CLEAR, ROOT last', () => {
+    // P1's CPU kept standing and each opponent at one life once the fight is on: it beats all
+    // four in turn, ROOT last. The frame budget of whole matches is two CPUs' (cpus(), in
+    // elec16-elecfighter-budget.test.ts), which since P4 stand for the ladder.
     const c = boot()
     put(c, 'choice', ROOT_ROW, 2)
     fight(c, [1, 1])
@@ -2356,210 +1738,6 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     expect(read(c, 'ladderEnd')).toBe(1)
     expect(order).toEqual([0, 1, 2, 4])
     expect(read(c, 'continues')).toBe(0)
-    // Measured on 2026-10-08 over a whole ladder of CPUs: 3,950 frames of fighting, 9,240 cycles
-    // on average and 17,069 at worst (design 10.4: 25,000 and 40,000). A frame that loads a
-    // match runs past the frame (76,879: both backgrounds cleared whole, the stage's map and both
-    // slots' tables) and the picture waits a frame there, as it did in P1. With GRID's raster
-    // (the floor a line at a time, about 6,300 cycles a frame for the LINEs, and its tables made
-    // when the camera moves) on 2026-10-08: 17,271 on average and 25,413 at worst. With the
-    // drawn fighters (P3: a pose's cells streamed by one load, its sprites laid from its row, the
-    // palettes' effects, the KO's pieces; in bank 4) on 2026-10-08: 16,673 and 29,116, 16 sprites
-    // at most on a line. With the screens and the sound (P3) on 2026-10-08: 17,191 to 18,030 and
-    // 29,189 to 32,084 (the ladder the seed gives moves with any change to the code before
-    // START), 16 sprites. Since P4 the two CPUs' matches of cpus() stand for the ladder.
-    const r = cpus()
-    expect(r.halted).toBe(false)
-    expect(r.outcomes.every((o) => o !== 0)).toBe(true)
-    expect(r.avg).toBeLessThan(25_000)
-    expect(r.worst).toBeLessThan(40_000)
-    expect(r.line).toBeLessThanOrEqual(32)
-    // With the in-between pictures (a row's pictures in turn, each a copy into the room as the
-    // next frame begins) on 2026-10-08: 19,269 and 32,609. With the transitions and the throw's
-    // frames (fighters/transitions.txt, throws.txt) on 2026-10-08: 19,860 and 31,660.
-    expect(r.avg).toBeLessThanOrEqual(20_200)
-    expect(r.worst).toBeLessThanOrEqual(34_000)
-  })
-})
-
-/**
- * Two CPUs' matches (P1's CPU in S1 against the ladder's first two, the clock's second 20),
- * played once for the file and measured frame by frame (a frame that loads a round or a match
- * is not one of them): the rounds' lengths in seconds, the frames' average and busiest cycles,
- * the most sprites on a line, the outcomes, and whether the machine stopped.
- */
-function playCpus() {
-  const rounds: number[] = []
-  const outcomes: number[] = []
-  let sum = 0
-  let worst = 0
-  let line = 0
-  let n = 0
-  let halted = false
-  for (const at of [0, 1]) {
-    const m = fight({ ...CLOCK, second: 20 }, [1, 1], 0, at)
-    let r = 0
-    for (let k = 0; k < 30_000 && read(m, 'outcome') === 0; k++) {
-      const fighting = read(m, 'phase') === PH.fight
-      const c0 = m.state.cycles
-      frames(m, 1, cart)
-      if (!fighting) continue
-      r++
-      if (read(m, 'phase') !== PH.fight) {
-        rounds.push(r / 60)
-        r = 0
-        continue
-      }
-      const d = m.state.cycles - c0
-      sum += d
-      worst = Math.max(worst, d)
-      line = Math.max(line, ...perLine(m))
-      n++
-    }
-    outcomes.push(read(m, 'outcome'))
-    halted ||= m.state.halt !== null
-  }
-  return { rounds, avg: sum / n, worst, line, outcomes, halted }
-}
-let cpusPlayed: ReturnType<typeof playCpus> | undefined
-const cpus = () => {
-  cpusPlayed ??= playCpus()
-  return cpusPlayed
-}
-
-describe('ELECFIGHTER chance and the frame budget', () => {
-  /** P1 idle on the pad, the stand-in against it: the match's RAM after `n` frames. */
-  const match = (clock: Elec16 | typeof CLOCK = CLOCK, n = 300) => {
-    const m = fight(clock, [0, 1])
-    frames(m, n, cart)
-    return m
-  }
-
-  it('plays the same match from the same clock and buttons, another from another clock', () => {
-    // One played from its first frame, one from the snapshot the tests keep: the same.
-    const a = match(boot())
-    const b = match()
-    expect(globals(a)).toEqual(globals(b))
-    const c = match({ ...CLOCK, second: 13 })
-    const moves = (m: Elec16) => [read(m, 'fX', 1), read(m, 'fLife', 0), read(m, 'fMove', 1)]
-    expect(globals(c)).not.toEqual(globals(a))
-    expect(moves(c)).not.toEqual(moves(a))
-  })
-
-  /** A match played frame by frame: the average and busiest frame's cycles, the most sprites on a line. */
-  function measured(m: Elec16, n: number, pad: (k: number) => number) {
-    let sum = 0
-    let worst = 0
-    let line = 0
-    let k = 0
-    for (; k < n && read(m, 'outcome') === 0; k++) {
-      put(m, 'extHeld', pad(k), 0)
-      const c0 = m.state.cycles
-      frames(m, 1, cart)
-      const d = m.state.cycles - c0
-      sum += d
-      worst = Math.max(worst, d)
-      line = Math.max(line, ...perLine(m))
-    }
-    expect(m.state.halt).toBeNull()
-    return { avg: sum / k, worst, line, frames: k, outcome: read(m, 'outcome') }
-  }
-
-  it('begins a match within a frame: the select to the versus and the fight, two CPUs measuring', () => {
-    // Found in review 2026-10-08: the frame the select gave way to the versus took 212,461
-    // cycles (both sides' reaches measured on the boxes, 60,000 each, a word and a bank a time;
-    // both backgrounds cleared a word at a time, 49,000), over three frames' worth.
-    const m = boot()
-    toSelect(m)
-    tap(m, padBit('a'), cart)
-    put(m, 'ctl', 1, 0)
-    put(m, 'ctl', 1, 1)
-    let worst = 0
-    for (let k = 0; k < 300 && read(m, 'phase') !== PH.fight; k++) {
-      const c0 = m.state.cycles
-      frames(m, 1, cart)
-      worst = Math.max(worst, m.state.cycles - c0)
-    }
-    expect(read(m, 'screen')).toBe(SC.fight)
-    expect(worst).toBeLessThan(66_667)
-
-    // Found in review 2026-10-08: START on the versus's first frame went on at once, and both
-    // sides were measured in that one frame. Pressed as the versus waits for its first frame.
-    const n = boot()
-    toSelect(n)
-    n.pad(padBit('a'))
-    frames(n, 1, cart)
-    n.pad(0)
-    put(n, 'ctl', 1, 0)
-    put(n, 'ctl', 1, 1)
-    for (let k = 0; k < 60 && read(n, 'screen') !== SC.versus; k++) frames(n, 1, cart)
-    expect(read(n, 'screen')).toBe(SC.versus)
-    n.pad(padBit('start'))
-    let first = 0
-    // Found in review 2026-10-08: gone on before the versus laid any sprite, its frames showed
-    // the select's last list - the figure at its left (x 72), on tiles refilled for the fight.
-    let stray = 0
-    for (let k = 0; k < 300 && read(n, 'phase') !== PH.fight; k++) {
-      const c0 = n.state.cycles
-      frames(n, 1, cart)
-      if (k === 1) n.pad(0)
-      first = Math.max(first, n.state.cycles - c0)
-      if (read(n, 'phase') !== PH.fight) stray += spritesLeftOf(n, 80)
-    }
-    expect(read(n, 'screen')).toBe(SC.fight)
-    expect(first).toBeLessThan(66_667)
-    expect(stray).toBe(0)
-  })
-
-  it("plays a scripted fight and two CPUs' matches within their frames, 32 sprites a line", () => {
-    const script = [
-      I.fwd,
-      I.fwd | I.lp,
-      I.hp,
-      I.back,
-      I.down | I.lk,
-      I.up | I.fwd,
-      I.hk,
-      I.down | I.hp,
-      0,
-    ]
-    // Its first 2,400 frames (since P4; before, the match to its end, 2,780 frames): rounds,
-    // a KO and the next round's start come in them.
-    const scripted = measured(
-      fight(CLOCK, [2, 1]),
-      2400,
-      (k) => script[(k >> 4) % script.length] ?? 0,
-    )
-    // Two CPUs' matches are measured once for the file (cpus()).
-    const both = cpus()
-    expect(both.outcomes.every((o) => o !== 0)).toBe(true)
-    // 4 MHz at 60 frames: 66,667 cycles a frame (design 10.4: under 25,000 on average, 40,000 at worst).
-    for (const r of [scripted, both]) {
-      expect(r.avg).toBeLessThan(25_000)
-      expect(r.worst).toBeLessThan(40_000)
-      expect(r.line).toBeLessThanOrEqual(32)
-    }
-    // As measured on 2026-10-08 with the coloured boxes and the CPU (P2): the scripted match
-    // against PACKET 8,230 cycles on average and 15,291 at worst over 3,104 frames, two CPUs'
-    // 8,965 and 16,531 over 3,604 (P1's stand-ins: 7,505 and 15,130); 21 sprites on the busiest
-    // line. The match follows the seed, which takes the cycle counter at START, so any change to
-    // the code plays another: held with room, to be tightened as the phases come. With GRID's
-    // raster (the floor a line at a time) on 2026-10-08: the scripted match 15,451 and 24,489
-    // over 1,749 frames, two CPUs' 16,667 and 24,499 over 3,125. With the drawn fighters (P3) on
-    // 2026-10-08: the scripted match 15,355 and 27,644 over 2,575 frames, two CPUs' 16,521 and
-    // 30,078 over 2,460; 16 sprites on the busiest line. With the screens and the sound (P3: the
-    // kit's sound ticked every frame, the fight's effects heard in the look, the wider bodies) on
-    // 2026-10-08: the scripted match 16,597 and 32,696 over 2,780 frames, two CPUs' 17,430 and
-    // 30,388 over 3,519; 26 sprites on the busiest line.
-    // With the in-between pictures on 2026-10-08 (more pictures, so more copies into the rooms):
-    // the scripted match 18,248 and 33,236.
-    expect(scripted.avg).toBeLessThanOrEqual(18_600)
-    expect(scripted.worst).toBeLessThanOrEqual(34_000)
-    // With places rounded from the way each faces (`pointX`, a call where a shift was) and S4's
-    // and DAEMON's new numbers on 2026-10-08: two CPUs' 18,822 on average and 32,667 at worst.
-    // With the in-between pictures on 2026-10-08: 19,269 and 32,609. With the transitions and
-    // the throw's frames on 2026-10-08: 19,860 and 31,660 (the scripted match 17,693 and 28,215).
-    expect(both.avg).toBeLessThanOrEqual(20_200)
-    expect(both.worst).toBeLessThanOrEqual(33_500)
   })
 })
 
@@ -2580,8 +1758,15 @@ function wordsOf(file: string): number[] {
 const SEQ = wordsOf('fighters/frames.txt')
 const TRANS = wordsOf('fighters/transitions.txt')
 const THROWS = wordsOf('fighters/throws.txt')
-const SEQ_W = 10
-const THROW_KS = 27
+/** The engine's numbers, as its source has them: the test reads them, never copies them. */
+const engineConst = (file: string, name: string) =>
+  Number(
+    new RegExp(`const ${name} = (\\d+)`).exec(readFileSync(`${DIR}/engine/${file}`, 'utf8'))?.[1],
+  )
+const SEQ_W = engineConst('look.e16.ts', 'SEQ_W')
+const PO_WALK = engineConst('fighter.e16.ts', 'PO_WALK')
+/** The throw's frames each way: the thrower's till it is free (hit.e16.ts), the table's rows. */
+const THROW_KS = engineConst('hit.e16.ts', 'THROW_F')
 const PIC_NAMES = readFileSync(`${DIR}/fighters/s1/art.txt`, 'utf8')
   .split('\n')
   .filter((l) => l.trim() !== '' && !l.startsWith('#'))
@@ -2621,14 +1806,20 @@ function transPicWanted(m: Elec16, i: number, row: number, t: number): number | 
   return null
 }
 
-/** The row's own picture by its clock: frames, or the points walked into a step. */
-function rowPicWanted(m: Elec16, i: number, row: number, t0: number): number {
-  const seq = (k: number) => SEQ[row + k] ?? 0
+/**
+ * The row's own picture by its clock: frames, or the points walked into a step - the step the
+ * place is in now (8 points each), whatever step the pose was chosen at before the move.
+ */
+function rowPicWanted(m: Elec16, i: number, row0: number, t0: number): number {
+  let row = row0
   let t = t0
-  if (seq(0) === 1) {
+  if (SEQ[row] === 1) {
     const x = read(m, 'fX', i)
-    t = (read(m, 'fFace', i) !== 0 ? x >> 4 : -((x + 15) >> 4)) & 7
+    const d = read(m, 'fFace', i) !== 0 ? x >> 4 : -((x + 15) >> 4)
+    t = d & 7
+    row = (PO_WALK + ((d >> 3) & 3)) * SEQ_W
   }
+  const seq = (k: number) => SEQ[row + k] ?? 0
   let k = 0
   while (k < 3 && t >= seq(2 + k * 2)) k++
   return seq(1 + k * 2)
@@ -2658,12 +1849,41 @@ function picturesFollow(m: Elec16, n: number, h: (k: number) => [number, number]
 /** A run of pictures with each picture once, in the order they came. */
 const inTurn = (pics: number[]) => pics.filter((p, k) => p !== pics[k - 1]).map((p) => PIC_NAMES[p])
 
+/** The walk's eight pictures, a step and its in-between each, in the order a walk forward shows them. */
+const WALK = ['walk1', 'walk1b', 'walk2', 'walk2b', 'walk3', 'walk3b', 'walk4', 'walk4b']
+/** Pictures that are all the walk's, each the next of the eight round (`by` 1) or the one before (-1). */
+const stepping = (names: (string | undefined)[], by: number) =>
+  names.every((n, k) => {
+    const at = WALK.indexOf(n ?? '')
+    return at >= 0 && (k === 0 || at === (WALK.indexOf(names[k - 1] ?? '') + by + 8) % 8)
+  })
+
 describe('ELECFIGHTER the pictures in turn (design 2.5, 7.9)', () => {
   it('shows each row its pictures by its clock, the walk by its points both ways and mirrored', () => {
     const m = fight()
     place(m, 236, 330)
-    // Both walk in and back: P2 faces left, so its steps run mirrored.
-    picturesFollow(m, 40, (k) => [k < 20 ? I.fwd : I.back, k < 20 ? I.back : I.fwd])
+    // Both walk in and back: P2 faces left, so its steps run mirrored. A walk forward shows the
+    // eight steps in turn, a walk back the same backwards, whichever way it faces.
+    const [w0, w1] = picturesFollow(m, 40, (k) => [
+      k < 20 ? I.fwd : I.back,
+      k < 20 ? I.back : I.fwd,
+    ])
+    for (const [pics, first] of [
+      [w0, 1],
+      [w1, -1],
+    ] as const) {
+      const ahead = inTurn((pics ?? []).slice(2, 20))
+      const back = inTurn((pics ?? []).slice(22))
+      expect(stepping(ahead, first), ahead.join(' ')).toBe(true)
+      expect(stepping(back, -first), back.join(' ')).toBe(true)
+      for (const seen of [ahead, back]) {
+        expect(seen.length, seen.join(' ')).toBeGreaterThanOrEqual(4)
+        expect(
+          seen.some((p) => p?.endsWith('b')),
+          seen.join(' '),
+        ).toBe(true)
+      }
+    }
     // A heavy punch from the stance: wind-up begun, wound, the blow, its follow-through settling.
     place(m, 236, 330)
     steps(m, 30)
@@ -2714,6 +1934,53 @@ describe('ELECFIGHTER the pictures in turn (design 2.5, 7.9)', () => {
         expect(Math.min(...xs)).toBeLessThan(220)
       } else expect(Math.min(...xs)).toBeGreaterThan(230)
     }
+    // Found in review 2026-10-08: a back throw with the thrower's back to a wall was drawn
+    // carried off the stage, behind it, and jumped about 75 points at the slam - the slam's
+    // mirror point lies past the wall, and the walls and the bodies put the thrown back in
+    // front. Drawn, it is carried to where it will really land, and the thrower is not turned.
+    backThrowAtWall(50, 85)
+    backThrowAtWall(462, 427)
+  })
+
+  it('keeps the one held on its feet through the tech window, still from the pull at frame 4', () => {
+    // Found in review 2026-10-08: frames 5-7 lifted the held one 2 to 8 points and pulled it on,
+    // inside the window a tech breaks: it was drawn snapping back to its feet.
+    const word = (way: number, k: number, w: number) => THROWS[(way * THROW_KS + k) * 4 + w] ?? 0
+    for (const way of [0, 1]) {
+      for (let k = 0; k <= 7; k++) {
+        const share = (word(way, k, 2) << 24) >> 24
+        expect([word(way, k, 3), word(way, k, 2) >> 8], `way ${way} frame ${k}`).toEqual([0, 0])
+        expect(share, `way ${way} frame ${k}`).toBeGreaterThanOrEqual(13)
+        if (k > 4) expect(word(way, k, 2), `way ${way} frame ${k}`).toBe(word(way, 4, 2))
+      }
+    }
+    // On the core: through the window the held one's cells stand on the floor where they stood,
+    // and from frame 4 they do not move.
+    for (const way of [I.fwd, I.back]) heldThroughWindow(way)
+  })
+
+  it('holds its tables to their sizes: a row of frames.txt each pose row, the throw both ways', () => {
+    const rows = engineConst('data.e16.ts', 'SHARDS_ROW')
+    const transW = engineConst('look.e16.ts', 'TRANS_W')
+    const throwW = engineConst('look.e16.ts', 'THROW_W')
+    expect([rows, SEQ_W, transW, throwW, THROW_KS]).toEqual([61, 10, 3, 4, 26])
+    // The clock, four pictures and their ends, the transitions' word.
+    expect(SEQ_W).toBe(2 + 2 * engineConst('look.e16.ts', 'SEQ_PICS'))
+    expect(SEQ.length).toBe(rows * SEQ_W)
+    expect(TRANS.length % transW).toBe(0)
+    expect(THROWS.length).toBe(2 * THROW_KS * throwW)
+    // The game's build keeps the throw's table as long: look.e16.ts takes its frames from it.
+    expect(assetsText).toMatch(new RegExp(`THROWS_LEN = 0x${THROWS.length.toString(16)}\\b`))
+    // Every row's transitions lie inside transitions.txt, one after another from the first.
+    let next = 0
+    for (let r = 0; r < rows; r++) {
+      const into = SEQ[r * SEQ_W + SEQ_W - 1] ?? 0
+      if (into === 0) continue
+      expect(into & 255, `row ${r}`).toBe(next)
+      next = (into & 255) + (into >> 8)
+      expect(next, `row ${r}`).toBeLessThanOrEqual(TRANS.length / transW)
+    }
+    expect(next).toBe(TRANS.length / transW)
   })
 
   it('staggers both apart after a throw tech, and plays the air hit, the fall and the wake-up', () => {
@@ -2743,6 +2010,62 @@ describe('ELECFIGHTER the pictures in turn (design 2.5, 7.9)', () => {
   })
 })
 
+/**
+ * P1 (at `x0`, its back to the wall) throws P2 (at `x1`) back: the slam cannot put it behind,
+ * so each frame it is carried is drawn inside the ring and on screen towards where it will
+ * land, in front, the thrower not turned; and at the slam it does not jump.
+ */
+function backThrowAtWall(x0: number, x1: number): void {
+  const m = fight()
+  place(m, x0, x1)
+  // The sprites shown as a frame ends are those the frame before laid, by its camera.
+  let cam = read(m, 'camX')
+  let held = false
+  const lays: { held: boolean; p2: Drawn; p1: Drawn; cam: number }[] = []
+  let landed = 0
+  for (let k = 0; k < 30; k++) {
+    step(m, k === 0 ? I.back | I.hp : 0)
+    lays.push({ held, p2: drawnOf(m, 1), p1: drawnOf(m, 0), cam })
+    if (held && read(m, 'fState', 1) !== ST2.thrown) landed = read(m, 'fX', 1) / 16
+    held = read(m, 'fState', 1) === ST2.thrown
+    cam = read(m, 'camX')
+  }
+  const carried = lays.filter((l) => l.held)
+  const why = `from ${x0}: ${carried.map((l) => `${l.p2.min}..${l.p2.max}`).join(' ')}`
+  expect(carried.length, why).toBe(16)
+  for (const l of carried) {
+    expect(l.p2.min, why).toBeGreaterThanOrEqual(0)
+    expect(l.p2.max, why).toBeLessThanOrEqual(320)
+    expect(l.p2.mid + l.cam, why).toBeGreaterThanOrEqual(32)
+    expect(l.p2.mid + l.cam, why).toBeLessThanOrEqual(480)
+    // Turned only if the thrown lands behind: here it lands in front, as it faces.
+    expect(l.p1.flipped, why).toBe(x0 > x1)
+  }
+  // No jump at the slam: the last frame carried drawn where the slam leaves it.
+  const last = carried.at(-1) as (typeof lays)[number]
+  const after = lays[lays.indexOf(last) + 1] as (typeof lays)[number]
+  expect(Math.abs(after.p2.mid + after.cam - (last.p2.mid + last.cam)), why).toBeLessThanOrEqual(4)
+  expect(Math.abs(last.p2.mid + last.cam - landed), why).toBeLessThanOrEqual(8)
+  expect(x0 < x1 ? landed > x0 : landed < x0).toBe(true)
+}
+
+/** A throw `way` held through its tech window: P2's cells on the floor, still from frame 4. */
+function heldThroughWindow(way: number): void {
+  const m = fight()
+  place(m, 230, 262)
+  const lays: { t: number; p2: Drawn }[] = []
+  let t = -1
+  for (let k = 0; k < 14; k++) {
+    step(m, k === 0 ? way | I.hp : 0)
+    lays.push({ t, p2: drawnOf(m, 1) })
+    t = read(m, 'fState', 1) === ST2.thrown ? read(m, 'fStateT', 0) : -1
+  }
+  const window = lays.filter((l) => l.t >= 0 && l.t <= 7)
+  expect(window.map((l) => l.t)).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+  for (const l of window) expect(l.p2.bottom, `frame ${l.t}`).toBe(window[0]?.p2.bottom)
+  for (const l of window.slice(5)) expect(l.p2.mid, `frame ${l.t}`).toBe(window[4]?.p2.mid)
+}
+
 /** Where P2's cells are drawn (OAM, palette slot 9), their middle in world points. */
 function heldAt(m: Elec16): number {
   const mem = m.state.video?.mem ?? new Uint8Array()
@@ -2754,6 +2077,31 @@ function heldAt(m: Elec16): number {
     xs.push(((w(0) << 16) >> 16) + 8)
   }
   return xs.reduce((s, x) => s + x, 0) / Math.max(1, xs.length) + read(m, 'camX')
+}
+
+/**
+ * A fighter's cells as shown: their left and right ends, middle and lowest edge on screen, and
+ * whether mirrored.
+ */
+type Drawn = { min: number; max: number; mid: number; bottom: number; flipped: boolean }
+
+/** Fighter `i`'s cells in OAM (palette slot 8 + i), on screen. */
+function drawnOf(m: Elec16, i: number): Drawn {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  const xs: number[] = []
+  let bottom = -999
+  let flips = 0
+  for (let k = 0; k < 128; k++) {
+    const w = (n: number) =>
+      (mem[0xc000 + k * 8 + n * 2] ?? 0) | ((mem[0xc000 + k * 8 + n * 2 + 1] ?? 0) << 8)
+    if ((w(3) & 3) === 3 || ((w(2) >> 10) & 7) !== i) continue
+    xs.push((w(0) << 16) >> 16)
+    bottom = Math.max(bottom, ((w(1) << 16) >> 16) + 16)
+    if ((w(2) & 0x2000) !== 0) flips++
+  }
+  const mid = xs.reduce((s, x) => s + x + 8, 0) / Math.max(1, xs.length)
+  const flipped = flips > xs.length / 2
+  return { min: Math.min(...xs), max: Math.max(...xs) + 16, mid, bottom, flipped }
 }
 
 /**

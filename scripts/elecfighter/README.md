@@ -124,9 +124,11 @@ place, turn and pole of two poses interpolated, the limbs solved afresh - and `S
 its pictures as `[picture, until]`: shown while the row's clock is below `until`, the last one
 holding. The clock is the frames since the row began (entering a state again starts it again;
 a hitstop holds it), or for the walk's steps (`step: true`) the points walked into the step
-(0-7), so walking back plays the step backwards. At most four pictures a row. The art script
-writes `fighters/frames.txt` (shared by every slot: a row of 9 words, the clock's kind, then
-four art rows and their ends); `engine/look.e16.ts` (`picStep`) reads it each frame and copies a
+(0-7), so walking back plays the step backwards; the step (8 points each) is the one the place
+is in now, as the clock is, though the engine chose the pose before the frame's move. At most
+four pictures a row. The art script writes `fighters/frames.txt` (shared by every slot: a row
+of 10 words, the clock's kind, four art rows and their ends, and the tenth the row's
+transitions, `first | count << 8`); `engine/look.e16.ts` (`picStep`) reads it each frame and copies a
 new picture into the fighter's room only when it changes. In-betweens have no boxes: the row's
 boxes hold for all its pictures, so the fight plays the same whatever is drawn. In
 `art.txt` they follow the 61 rows and the two KO rows, in `TWEENS`'s order. A row's thresholds
@@ -165,25 +167,29 @@ whose `from` holds the row before is taken; an entry with no pictures stops late
 
 ### The throw (`THROWS`, `fighters/throws.txt`)
 
-Both fighters of a throw show its own pictures, by the thrower's frames since it took hold (0-26:
+Both fighters of a throw show its own pictures, by the thrower's frames since it took hold (0-25:
 the tech window 1-7, the slam at 16, free at 26), forward and back. Keys
 `[frame, thrower, turned, thrown, share, off, dy]`: the thrower's picture and whether it is drawn
-turned about, the thrown's picture, and where the thrown is drawn - `share` sixteenths of the gap
-they stood apart (16 where it stands, -16 as far behind, where the back throw's slam puts it),
-`off` points more ahead of the thrower, `dy` points up. A picture holds to the next key; the
-place moves evenly between keys. The art script writes 27 frames each way (4 words: thrower
-`art | turned << 8`, thrown the same, `share & 255 | off << 8`, `dy`). Only the drawing moves:
-the thrown has no boxes while held, and its place, the tech window, the slam and the damage are
-the engine's (hit.e16.ts).
+turned about, the thrown's picture, and where the thrown is drawn - `share` sixteenths of the way
+from the thrower to where the thrown stands (16 there), and below 0 of the way to where the slam
+will land it (-16 there: the back throw's mirror point, or, with the thrower's back to a wall, in
+front of it, where the walls and the bodies' push put it - look.e16.ts `landX`), `off` points
+more ahead of the thrower, `dy` points up. The thrower is drawn turned only when the thrown
+lands behind it. A picture holds to the next key; the place moves evenly between keys. The art
+script writes 26 frames each way (4 words: thrower `art | turned << 8`, thrown the same,
+`share & 255 | off << 8`, `dy`); the engine takes the count from the table's length. The thrown's
+words from 16 on are never read: from the slam it is down, drawn by its own row. Only the drawing
+moves: the thrown has no boxes while held, and its place, the tech window, the slam and the
+damage are the engine's (hit.e16.ts).
 
 | Frames | Forward: thrower / thrown | Back: thrower / thrown |
 |---|---|---|
 | 0-3 | `throw` / `thrown`, where it stands | the same |
-| 4-7 | `tpull` / `thrown`, pulled in a little (the tech window: still on its feet) | the same |
+| 4-7 | `tpull` / `thrown`, pulled in a little by 4, then still (the tech window: on its feet) | the same |
 | 8-9 | `tpull` / `tlift`, off its feet | `tpull`, `theave` / `tlift`, `tface` over the shoulder |
 | 10-12 | `theave` / `tair` overhead | `theave` / `tinv`, upside down behind |
-| 13-16 | `tslam` / `tair` driven down in front | `tslam` turned / `tair` driven down behind |
-| 16- | `tslam` (the slam's hitstop), `tsettle` from 19 | the same, turned; it faces round when free |
+| 13-15 | `tslam` / `tair` driven down in front | `tslam` turned / `tair` driven down behind (at a wall: in front, `tslam` not turned) |
+| 16-25 | `tslam` (the slam's hitstop), `tsettle` from 19; the thrown is down (its own row) | the same, turned; it faces round when free |
 
 The slam puts the thrown in the down row, whose first picture is the floor's `bounce`.
 
@@ -204,7 +210,7 @@ The slam puts the thrown in the down row, whose first picture is the floor's `bo
    line names (S4's kicks), set that line to the new drawing by hand: a hit box must stay within
    2 points of its limb.
 4. `npm run gen:elec16` rebuilds the game (`compiled.s`, `assets.e16.ts`, games.json).
-5. Check: open the check picture; `npx vitest run tests/unit/elec16-elecfighter.test.ts` (no
+5. Check: open the check picture; `npx vitest run tests/unit/elec16-elecfighter` (its four files; no
    isolated points, the room of 32 cells, every hit box on its limb, light and heavy apart by
    silhouette, the cartridge's banks, the reaches the CPU and the select's REACH bar read). A
    reach that moved may need the design's numbers (3.1), DAEMON's range (`cpu/opponents.txt`)

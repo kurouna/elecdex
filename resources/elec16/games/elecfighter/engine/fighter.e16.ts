@@ -81,7 +81,7 @@ const PO_JUMP = 3
 const PO_LAND = 4
 const PO_HIT = 5
 const PO_GUARD = 7
-const PO_DOWN = 9
+export const PO_DOWN = 9
 const PO_WAKE = 10
 const PO_FALLING = 11
 /** The throw's active pose: the thrower holding. */
@@ -90,7 +90,7 @@ const PO_THROWING = 49
  * Rows that change only the picture (and its boxes): the walk's four steps, the jump coming down,
  * the dashes, held by a throw, the round won, a breath.
  */
-const PO_WALK = 51
+export const PO_WALK = 51
 const PO_JUMP_FALL = 55
 const PO_DASH = 56
 const PO_BACKDASH = 57

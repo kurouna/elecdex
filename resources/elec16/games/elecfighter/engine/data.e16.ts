@@ -137,8 +137,9 @@ const PROF_W = 16
 export const SLOTS = 4
 const slMovesB = words(4)
 const slMovesA = words(4)
-const slPosesB = words(4)
-const slPosesA = words(4)
+/** Each slot's poses.txt: its bank and address (the look reads the down pose's body there). */
+export const slPosesB = words(4)
+export const slPosesA = words(4)
 const slProfB = words(4)
 const slProfA = words(4)
 /** Each slot's number and role, as the HUD shows it. */
@@ -270,7 +271,7 @@ export const SHARDS_AIR = 62
 /** Each fighter's picture row (`art[i * 34 + c]`), and whether its cells wait to be copied. */
 export const art = words(68)
 export const artWant = words(2)
-/** 1 while a fighter's picture is held (its KO pieces): a pose changes only its boxes. */
+/** 1 while a fighter's picture is held (its KO pieces): `picStep` (look.e16.ts) skips it. */
 export const artHold = words(2)
 /** The art row each fighter shows (0xffff: none yet, the next look copies one). */
 export const artPic = words(2)

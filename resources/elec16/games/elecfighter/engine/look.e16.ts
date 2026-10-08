@@ -18,6 +18,7 @@ import {
   SPARK_TILE,
   THROWS_AT,
   THROWS_BANK,
+  THROWS_LEN,
   TRANS_AT,
   TRANS_BANK,
 } from '../assets.e16'
@@ -56,6 +57,8 @@ import {
   prAt,
   SHARDS_AIR,
   SHARDS_ROW,
+  slPosesA,
+  slPosesB,
   tableWord,
 } from './data.e16'
 import { camX } from './draw.e16'
@@ -75,7 +78,12 @@ import {
   fThrowBack,
   fWin,
   fY,
+  half,
+  PO_DOWN,
+  PO_WALK,
   pointX,
+  RING_L,
+  RING_R,
   ST_ATTACK,
   ST_BACKDASH,
   ST_DASH,
@@ -207,8 +215,10 @@ const TRANS_W = 3
 /** Every transition is over by this frame of its row; art row 255 is none. */
 const TRANS_MOST = 16
 const NO_PIC = 255
-/** The throw's frames each way, and a frame's words (thrower, thrown, share | off << 8, up). */
-const THROW_KS = 27
+/**
+ * A throw frame's words (thrower, thrown, share | off << 8, up); its frames each way are as
+ * many as the table holds (`throwWord`: the thrower's frames till it is free, hit.e16.ts THROW_F).
+ */
 const THROW_W = 4
 function picStep(i: u16): void {
   if (artHold[i] !== 0) return
@@ -224,9 +234,14 @@ function picStep(i: u16): void {
   artCopy(i, fSlot[i], pic)
 }
 
-/** The picture of fighter `i`'s row by its clock: a transition's first, else the row's own. */
+/**
+ * The picture of fighter `i`'s row by its clock: a transition's first, else the row's own. A
+ * walk's step is the place's now, as its clock is: the pose was chosen before this frame's move,
+ * and a step's last picture then showed the step's first again (8 points a step, as
+ * fighter.e16.ts `standPose` counts them).
+ */
 function rowPic(i: u16): u16 {
-  const row = fPose[i] * SEQ_W
+  let row = fPose[i] * SEQ_W
   let t = fRowT[i]
   if (t < TRANS_MOST) {
     const p = transPic(i, row, t)
@@ -235,6 +250,7 @@ function rowPic(i: u16): u16 {
   if (tableWord(FRAMES_BANK, FRAMES_AT, row) !== 0) {
     const d = fFace[i] !== 0 ? pointX(i) : wrap16(0 - pointX(i))
     t = d & 7
+    row = (PO_WALK + ((d >> 3) & 3)) * SEQ_W
   }
   let k: u16 = 0
   while (k < SEQ_PICS - 1 && t >= tableWord(FRAMES_BANK, FRAMES_AT, row + 2 + k * 2)) k++
@@ -269,22 +285,74 @@ function transPic(i: u16, row: u16, t: u16): u16 {
  */
 function throwWord(i: u16, w: u16): u16 {
   const a = fState[i] === ST_THROW ? i : 1 - i
-  const k = fStateT[a] < THROW_KS ? fStateT[a] : THROW_KS - 1
-  return tableWord(THROWS_BANK, THROWS_AT, (fThrowBack[a] * THROW_KS + k) * THROW_W + w)
+  const n = THROWS_LEN >> 3
+  const k = fStateT[a] < n ? fStateT[a] : n - 1
+  return tableWord(THROWS_BANK, THROWS_AT, (fThrowBack[a] * n + k) * THROW_W + w)
 }
 
 /**
  * Where held fighter `d` is drawn, in world points: from the thrower by the throw's share of
- * the gap they stand apart (their places are still till the slam) and its points more, ahead
- * of the thrower as it faces.
+ * the way (their places are still till the slam) and its points more, ahead of the thrower as
+ * it faces. A share from 16 to 0 is the way from where the held one stands to the thrower; one
+ * below 0 the way from the thrower to where the slam will land it (`landX`), -16 there.
  */
 function heldX(d: u16): i16 {
   const a = 1 - d
   const xa = i16(pointX(a))
-  const xd = i16(pointX(d))
-  const g = xd > xa ? xd - xa : xa - xd
   const w = throwWord(d, 2)
-  return xa + faceSign(a) * (idiv(g * lowOf(w), 16) + highOf(w))
+  const s = lowOf(w)
+  const to = s < 0 ? landX(d) : i16(pointX(d))
+  return xa + idiv((to - xa) * (s < 0 ? -s : s), 16) + faceSign(a) * highOf(w)
+}
+
+/**
+ * Where the slam will put held fighter `d`, in world points, as the engine will (drawing only:
+ * hit.e16.ts `slam`, then fighter.e16.ts `wall` and `bodies`): a back throw's mirror of its
+ * place about the thrower, kept inside the ring by its down pose's body and parted from the
+ * thrower - so at a wall a back throw may land it in front. Its push after is left out.
+ */
+function landX(d: u16): i16 {
+  const a = 1 - d
+  const xa = i16(pointX(a))
+  let x = i16(pointX(d))
+  if (fThrowBack[a] !== 0) x = xa * 2 - x
+  const s = fSlot[d]
+  const hd = i16(tableWord(slPosesB[s], slPosesA[s], PO_DOWN * POSE_W + 2) >> 1)
+  const ha = i16(half(a))
+  x = inRing(x, hd)
+  // Which is on the left as `bodies` sees it: by place, then by the way each faces.
+  const dLeft = x !== xa ? x < xa : (fFace[1] !== 0 && fFace[0] === 0 ? 1 : 0) === d
+  const reach = ha + hd
+  const gap = dLeft ? xa - x : x - xa
+  if (gap >= reach) return x
+  const each = (reach - gap + 1) >> 1
+  const hl = dLeft ? hd : ha
+  const hr = dLeft ? ha : hd
+  let xl = inRing((dLeft ? x : xa) - each, hl)
+  let xr = inRing((dLeft ? xa : x) + each, hr)
+  const left = reach - (xr - xl)
+  if (left > 0) {
+    if (xl <= i16(RING_L) + hl) xr = xr + left
+    else xl = xl - left
+  }
+  return dLeft ? xl : xr
+}
+
+/** Place `x` kept inside the ring for a body of half `h`. */
+function inRing(x: i16, h: i16): i16 {
+  const lo = i16(RING_L) + h
+  const hi = i16(RING_R) - h
+  return x < lo ? lo : x > hi ? hi : x
+}
+
+/**
+ * Whether thrower `a`'s throw puts the other behind it: where the slam will land it while it
+ * is held, where it is after.
+ */
+function landsBehind(a: u16): bool {
+  const d = 1 - a
+  const x = fState[d] === ST_THROWN ? landX(d) : i16(pointX(d))
+  return faceSign(a) * (x - i16(pointX(a))) < 0
 }
 
 /** Signed places of a cell from its packed word. */
@@ -309,8 +377,10 @@ function bodySprites(i: u16): void {
   let right = fFace[i] !== 0
   const st = fState[i]
   if (st === ST_THROW || st === ST_THROWN) {
-    // Held, drawn where the throw carries it; either drawn turned about where the throw says.
-    if ((throwWord(i, st === ST_THROW ? 0 : 1) & 256) !== 0) right = !right
+    // Held, drawn where the throw carries it; either drawn turned about where the throw says,
+    // the thrower only when the other lands behind it (a back throw at a wall lands in front).
+    const turned = (throwWord(i, st === ST_THROW ? 0 : 1) & 256) !== 0
+    if (turned && (st === ST_THROWN || landsBehind(i))) right = !right
     if (st === ST_THROWN) {
       x = heldX(i) - i16(camX)
       y = i16(groundY) - i16(throwWord(i, 3))

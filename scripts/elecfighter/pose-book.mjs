@@ -923,7 +923,7 @@ const TRANS = [
 const TRANS_MOST = 16
 
 /**
- * The throw (design 7.9) frame by frame, by the thrower's frames since it took hold (0-26: the
+ * The throw (design 7.9) frame by frame, by the thrower's frames since it took hold (0-25: the
  * tech window 1-7, the slam at 16, free at 26), forward and back: the thrower's picture and
  * whether it is drawn turned about (the back throw slams behind it), the thrown's picture, and
  * where the thrown is drawn from the thrower: `share` sixteenths of the gap they stood apart at
@@ -931,11 +931,15 @@ const TRANS_MOST = 16
  * ahead of the thrower as it faces, `dy` points up. Keys `[frame, thrower, turned, thrown, share,
  * off, dy]`: a picture holds to the next key, the place moves evenly between keys. Both are
  * drawn so only: the thrown has no boxes while it is held, and lands where the slam puts it.
+ * Through the tech window (to 7) the held one stays on its feet, where it was pulled to by 4: a
+ * tech leaves it standing there. A back throw's -16 is where the slam will land it (at a wall,
+ * in front: engine/look.e16.ts `landX`).
  */
 const THROWS = {
   fwd: [
     [0, 'throw', 0, 'thrown', 16, 0, 0],
     [4, 'tpull', 0, 'thrown', 13, 0, 0],
+    [7, 'tpull', 0, 'thrown', 13, 0, 0],
     [8, 'tpull', 0, 'tlift', 10, 0, 8],
     [10, 'theave', 0, 'tair', 4, 0, 62],
     [13, 'tslam', 0, 'tair', 12, 0, 30],
@@ -946,6 +950,7 @@ const THROWS = {
   back: [
     [0, 'throw', 0, 'thrown', 16, 0, 0],
     [4, 'tpull', 0, 'thrown', 13, 0, 0],
+    [7, 'tpull', 0, 'thrown', 13, 0, 0],
     [8, 'tpull', 0, 'tlift', 10, 0, 10],
     [9, 'theave', 0, 'tface', 6, 0, 44],
     [11, 'theave', 0, 'tinv', -4, 0, 46],
@@ -955,7 +960,11 @@ const THROWS = {
     [19, 'tsettle', 1, 'tair', -16, 0, 0],
   ],
 }
-const THROW_KS = 27
+/**
+ * The frames written each way: the thrower's 0-25 (at 26 it is free: hit.e16.ts THROW_F). The
+ * thrown's words are read only to 15: at the slam (16) it is down, drawn by its own row.
+ */
+const THROW_KS = 26
 
 const FIST_R = ['hand_r', 'forearm_r', 'upperarm_r']
 const FIST_L = ['hand_l', 'forearm_l', 'upperarm_l']
