@@ -626,6 +626,9 @@ entry (decisions.md). Every option is off until the user turns it on.
     `structuredClone` their arguments (IPC cannot clone a `$state` proxy).
   - A test's own pty session belongs to no pane, and the workspace's reaper ends it about four
     seconds after the panes last changed: go through `runCapture` (terminal.spec.ts).
+- **A failure says whether an elecdex runs outside the tests** (tests/e2e/reporter.ts): an installed app or
+  `npm run dev` left open makes launches and drags fail; the reporter logs it to
+  test-results/elecdex-running.log. Close it and re-run only the failed tests.
 - **A test that hangs must say where**: `launch` and the guarded `quit`/`close` in support.ts warn
   while still going (SLOW_MS) as well as after. A second app on the same profile uses
   `launched.quit()`, never `launched.app.close()`.
