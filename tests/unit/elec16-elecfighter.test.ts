@@ -2137,6 +2137,18 @@ function oamOrder(m: Elec16): { k: number; x: number; y: number; pal: number; si
   return out
 }
 
+/**
+ * Where fighter `i`'s move is, by the move table it fights with: 'startup', 'active', 'recovery',
+ * or null when not attacking.
+ */
+function movePart(m: Elec16, i: number): 'startup' | 'active' | 'recovery' | null {
+  if (read(m, 'fState', i) !== ST.attack) return null
+  const at = (i * 13 + read(m, 'fMove', i)) * 16
+  const s = read(m, 'mv', at + C.startup)
+  const f = read(m, 'fMoveF', i)
+  return f < s ? 'startup' : f < s + read(m, 'mv', at + C.active) ? 'active' : 'recovery'
+}
+
 /** Where P2's cells are drawn (OAM, palette slot 9), their middle in world points. */
 function heldAt(m: Elec16): number {
   const mem = m.state.video?.mem ?? new Uint8Array()
@@ -2264,6 +2276,71 @@ describe('ELECFIGHTER the look (P3, design 2.4)', () => {
       expect(Math.max(...mine), `striker ${striker}`).toBeLessThan(at)
       expect(Math.min(...theirs), `striker ${striker}`).toBeGreaterThan(at)
     }
+  })
+
+  it('draws the striker in front of the one it strikes, even one struck in its own startup', () => {
+    // A heavy landing close in on one starting up its own (a counter hit), either side: through
+    // the hitstop the leg or arm held out lies over the struck body, the spark between them.
+    for (const s of [0, 3])
+      for (const striker of [0, 1])
+        for (const blow of [I.hk, I.hp]) {
+          const m = fight(CLOCK, [2, 2], s)
+          place(m, 230, 262)
+          const press = (i: number, k: number) =>
+            i === striker ? (k < 2 ? blow : 0) : k >= 4 && k < 6 ? I.hk : 0
+          let was = -1
+          for (let k = 0; k < 30 && read(m, 'struck', striker) === 0; k++) {
+            was = read(m, 'fState', 1 - striker)
+            step(m, press(0, k), press(1, k))
+          }
+          const why = `slot ${s} striker ${striker} blow ${blow}`
+          // A counter hit: the one struck was starting up its own heavy kick.
+          expect(read(m, 'struck', striker), why).toBe(3)
+          expect(was, why).toBe(ST.attack)
+          steps(m, 2)
+          expect(read(m, 'hitstop'), why).toBeGreaterThan(0)
+          const order = oamOrder(m)
+          const at = order.find((o) => o.pal === 2 && o.size === 2)?.k ?? -1
+          const mine = order.filter((o) => o.pal === striker).map((o) => o.k)
+          const theirs = order.filter((o) => o.pal === 1 - striker).map((o) => o.k)
+          expect(at, why).toBeGreaterThanOrEqual(0)
+          expect(Math.max(...mine), why).toBeLessThan(at)
+          expect(Math.min(...theirs), why).toBeGreaterThan(at)
+        }
+  })
+
+  it('draws a strike held out in front of one starting up its own, either side, till it is drawn back', () => {
+    // Found looking into a report 2026-10-10 (a heavy kick's leg not seen fully out): a striker
+    // came in front only when the other was not attacking, and P1 otherwise, so P2's heavy kick
+    // held out over a P1 starting up its own went behind P1's body, its far half hidden.
+    for (const s of [0, 3])
+      for (const striker of [0, 1])
+        for (const blow of [I.hk, I.hp]) {
+          const m = fight(CLOCK, [2, 2], s)
+          // Too far apart for either to land: the striker's move goes out whole.
+          place(m, 200, 330)
+          const why = `slot ${s} striker ${striker} blow ${blow}`
+          const seen = new Set<string>()
+          // The other presses its heavy kick as the strike comes out, so it starts up meanwhile.
+          let other0 = -1
+          for (let k = 0; k < 40; k++) {
+            // The sprites a frame lays are shown from the next frame on.
+            const part = movePart(m, striker)
+            const other = movePart(m, 1 - striker)
+            if (other0 < 0 && part === 'active') other0 = k
+            const kick = other0 >= 0 && k < other0 + 2 ? I.hk : 0
+            const ours = k < 2 ? blow : 0
+            step(m, striker === 0 ? ours : kick, striker === 0 ? kick : ours)
+            expect(read(m, 'struck', 0) | read(m, 'struck', 1), why).toBe(0)
+            if (part === null || part === 'startup' || other !== 'startup') continue
+            const order = oamOrder(m)
+            const mine = order.filter((o) => o.pal === striker).map((o) => o.k)
+            const theirs = order.filter((o) => o.pal === 1 - striker).map((o) => o.k)
+            expect(Math.max(...mine), `${why} frame ${k}`).toBeLessThan(Math.min(...theirs))
+            seen.add(part)
+          }
+          expect([...seen].sort(), why).toEqual(['active', 'recovery'])
+        }
   })
 
   it('shows every cell of every picture of every slot where art.txt places it, both ways', () => {

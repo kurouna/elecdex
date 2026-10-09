@@ -125,7 +125,7 @@ export function lookStep(): void {
   // a blow's limb stays whole through the hitstop it is held in (a 32-point spark at the hit box's
   // end, over everything, hid a heavy kick's shin and foot for all its frames held out). A
   // firewall stays over both, as does the spark of a striker drawn behind the other.
-  const front = fState[1] === ST_ATTACK && fState[0] !== ST_ATTACK ? 1 : 0
+  const front = frontOf()
   const back = 1 - front
   fxSprites(0, front)
   fxSprites(1, front)
@@ -134,6 +134,28 @@ export function lookStep(): void {
   bodySprites(back)
   shadow(0)
   shadow(1)
+}
+
+/**
+ * Which fighter is drawn in front (design 2.4): the one whose strike is out - its move in its
+ * active frames (held there through a hitstop) or its recovery - so the limb held out lies over
+ * the other's body, the other attacking too or not (in its startup, P2's leg went behind P1's
+ * body, its far half hidden); of two out, the one that came out later, P1 when together (a
+ * trade). With none out, an attacker in its startup over one not attacking, else P1 (a throw).
+ */
+function frontOf(): u16 {
+  const o0 = outFor(0)
+  const o1 = outFor(1)
+  if (o0 !== NOT_OUT || o1 !== NOT_OUT) return o1 < o0 ? 1 : 0
+  return fState[1] === ST_ATTACK && fState[0] !== ST_ATTACK ? 1 : 0
+}
+
+/** Frames since fighter `i`'s strike came out (its first active frame), or `NOT_OUT`. */
+const NOT_OUT = 0xffff
+function outFor(i: u16): u16 {
+  if (fState[i] !== ST_ATTACK) return NOT_OUT
+  const s = mvAt(i, fMove[i], M_STARTUP)
+  return fMoveF[i] < s ? NOT_OUT : fMoveF[i] - s
 }
 
 /* ---------------- the frame's strikes: sparks, firewalls, flashes ---------------- */
