@@ -2,9 +2,11 @@
   "project": "elecxzy",
   "repository": "https://github.com/kurouna/elecxzy",
   "path": "src/utils/calc",
-  "version": "0.19.2",
-  "commit": "2be5329092eb2c890f65af5557ab21e9c274d251",
-  "copiedAt": "2026-09-19",
+  "version": "0.20.2",
+  "commit": "b942112f14fe8003c7ce87f1535ee12344da5815",
+  "copiedAt": "2026-10-09",
   "license": "MIT",
-  "omitted": ["index.docs.test.ts"]
+  "omitted": [
+    "index.docs.test.ts"
+  ]
 }

@@ -706,8 +706,10 @@ weather and calendar.
   so starting the app later does not announce old news.
 - **Calculator** — not in the default layout: add it from the picker. A line you type into with
   the answer already showing beneath it, and everything answered so far on a tape you can take
-  numbers back out of. Full-width digits, `×` `÷` and a magnitude after digits (`3百万`, `5千`) are
-  read as typed, so an expression can be written without leaving the Japanese keyboard. There are
+  numbers back out of. Full-width digits, `×` `÷`, a magnitude after digits (`3百万`, `5千`) and
+  thousands separators (`1,234,567`; inside a function's brackets a comma still parts its
+  arguments) are read as typed, so an expression can be written without leaving the Japanese
+  keyboard or retyping a figure copied from a document. There are
   constants for bytes, time, percentages and 万・億・兆, functions from `sqrt` to `gcd`, 32-bit bit
   operations, and `ans` for the answer before this one; `rate = 8 * percent` keeps a name in the
   register row for later lines. `0x` adds a 32-column bit map under the answer. `C` clears the

@@ -72,6 +72,9 @@ class CalcError extends Error { }
 
 const SINGLE_CHAR_OPERATORS = new Set(['+', '-', '*', '/', '%', '^', '(', ')', ',', '&', '|', '~', '!']);
 
+const PLAIN_DECIMAL = /^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/;
+const GROUPED_DECIMAL = /^(?:\d{1,3}(?:,\d{3})+(?!\d)(?:\.\d*)?|\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/;
+
 /**
  * 数値リテラルを読む。10 進 (指数つき) のほか 0x / 0b / 0o を受ける。
  * 進数リテラルを受けるのはプログラマ向けエディタとしての実用面が大きい。
@@ -79,8 +82,16 @@ const SINGLE_CHAR_OPERATORS = new Set(['+', '-', '*', '/', '%', '^', '(', ')', '
  * 10 進には後置の位 (3百万 / 5千) も付けられる。日本語の文書に出てくる金額の書き方を
  * そのまま打てるようにするためで、拾う側 (numbers.ts) と同じ規則を kanji.ts から使う。
  * 進数リテラルには付けない — 0xFF万 に意味は無い。
+ *
+ * allowGrouping のときは 3 桁区切りのカンマ (1,234,567) も 1 つの数として読む。規則は
+ * 拾う側 (numbers.ts) と同じ「先頭 1〜3 桁、以降はちょうど 3 桁ずつ」。関数の実引数の中では
+ * カンマは引数の区切りなので読まない — pow(10,100) を 10100 にしてはいけない。
  */
-function readNumber(src: string, start: number): { text: string; value: number; next: number } | null {
+function readNumber(
+    src: string,
+    start: number,
+    allowGrouping: boolean,
+): { text: string; value: number; next: number } | null {
     const radix = /^0[xX][0-9a-fA-F]+|^0[bB][01]+|^0[oO][0-7]+/.exec(src.slice(start));
     if (radix) {
         const text = radix[0];
@@ -88,24 +99,30 @@ function readNumber(src: string, start: number): { text: string; value: number; 
     }
     // 10 進。".5" と "1." の両方を受ける。指数部は e の直後に数字が続くときだけ取り込む
     // (そうしないと "2e" や "3e+" のような打ちかけを数値として飲み込んでしまう)。
-    const dec = /^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/.exec(src.slice(start));
+    // 桁区切りの直後に数字が続く "1,2345" は区切りとして読まない (区切りの打ち間違い)。
+    const dec = (allowGrouping ? GROUPED_DECIMAL : PLAIN_DECIMAL).exec(src.slice(start));
     if (!dec) return null;
     const magnitude = matchKanjiMagnitude(src.slice(start + dec[0].length));
     const text = magnitude ? dec[0] + magnitude : dec[0];
-    const value = Number(dec[0]) * (magnitude ? kanjiMagnitudeValue(magnitude) : 1);
+    const value = Number(dec[0].replace(/,/g, '')) * (magnitude ? kanjiMagnitudeValue(magnitude) : 1);
     if (!Number.isFinite(value)) throw new CalcError(`Number out of range: ${text}`);
     return { text, value, next: start + text.length };
 }
 
 function tokenize(src: string): Token[] {
     const tokens: Token[] = [];
+    // 開いている '(' ごとに「関数呼び出しの括弧か」を積む。名前の直後の '(' が呼び出し。
+    // いちばん内側が呼び出しなら、そこでのカンマは引数の区切りで、桁区切りとしては読まない。
+    // 式の地の部分ではカンマに他の意味が無い (以前はエラーだった) ので、桁区切りとして
+    // 読んでも、これまで計算できた式の答えが変わることはない。
+    const callParens: boolean[] = [];
     let i = 0;
     while (i < src.length) {
         const ch = src[i];
         if (/\s/.test(ch)) { i++; continue; }
 
         if (/[0-9.]/.test(ch)) {
-            const num = readNumber(src, i);
+            const num = readNumber(src, i, callParens[callParens.length - 1] !== true);
             if (!num) throw new CalcError(`Unexpected character: ${ch}`);
             tokens.push({ kind: 'number', text: num.text, value: num.value });
             i = num.next;
@@ -128,6 +145,8 @@ function tokenize(src: string): Token[] {
         }
 
         if (SINGLE_CHAR_OPERATORS.has(ch)) {
+            if (ch === '(') callParens.push(tokens[tokens.length - 1]?.kind === 'name');
+            else if (ch === ')') callParens.pop();
             tokens.push({ kind: 'op', text: ch });
             i++;
             continue;

@@ -72,6 +72,63 @@ describe('evaluateExpression — 数値リテラル', () => {
     });
 });
 
+describe('evaluateExpression — 3 桁区切りのカンマ', () => {
+    it('区切りを外して 1 つの数として読む', () => {
+        expect(value('1,000 + 2,310')).toBe(3310);
+        expect(value('1,234,567*2')).toBe(2469134);
+        expect(value('1,234.5+0.5')).toBe(1235);
+        expect(value('-1,000')).toBe(-1000);
+        expect(value('(1,000+2,000)*3')).toBe(9000);
+        expect(value('1,000万')).toBe(1e7);
+    });
+
+    it('全角のカンマ・読点でも同じ', () => {
+        expect(value('１，０００＋２，３１０')).toBe(3310);
+    });
+
+    it('関数の実引数の中ではカンマは引数の区切りのまま', () => {
+        expect(value('pow(10,100)')).toBe(1e100);
+        expect(value('max(1,234)')).toBe(234);
+        expect(value('sum(1,000)')).toBe(1);
+        // 関数の中でも、ただの括弧の中なら区切りとして読む。
+        expect(value('sqrt((1,000,000))')).toBe(1000);
+    });
+
+    it('関数の括弧を閉じたら、外側の文脈へ戻る', () => {
+        // 閉じ括弧で文脈を戻し損ねると、呼び出しの後ろの 1,000 を区切りとして読めない
+        // (あるいは呼び出しの中の 1,000 を区切りとして読んでしまう)。
+        expect(value('max(1,2)+1,000')).toBe(1002);
+        expect(value('(max(1,2)+1,000)*2')).toBe(2004);
+        expect(value('max(sqrt(4),1,000)')).toBe(2);      // 実引数は 2, 1, 0
+        expect(value('max(1,(2,000))')).toBe(2000);
+        expect(value('1,000+max((1,000),2)')).toBe(2000);
+    });
+
+    it('小数部・指数・位と組み合わせても 1 つの数', () => {
+        expect(value('1,000.')).toBe(1000);
+        expect(value('1,000e3')).toBe(1e6);
+        expect(value('1,234.5e-1')).toBe(123.45);
+        expect(value('1,500万+5千')).toBe(15005000);
+    });
+
+    it('3 桁ずつでない並びは区切りとして読まず、カンマの位置で断る', () => {
+        // 1,2345 を 1,234 と 5 に割って読むと、エラーが 5 を指して打ち間違いの場所が分からない。
+        for (const src of ['1,2345', '1,23', '1234,567', '1,000,0', '1, 000', '.5,000']) {
+            expect(error(src)).toBe('Unexpected token: ,');
+        }
+    });
+
+    it('進数リテラルには付かない', () => {
+        expect(error('0x1,000')).toBe('Unexpected token: ,');
+    });
+
+    it('括弧の釣り合わない入力でも普通のエラーで返る', () => {
+        expect(error('1,000)')).toBe('Unexpected token: )');
+        expect(error(')1,000')).toBe('Unexpected token: )');
+        expect(error('max(1,000')).toBe('Expected )');
+    });
+});
+
 describe('evaluateExpression — 関数と定数', () => {
     it('1 引数関数', () => {
         expect(value('sqrt(16)')).toBe(4);

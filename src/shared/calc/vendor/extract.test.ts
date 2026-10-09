@@ -34,6 +34,11 @@ describe('extractExpressionAt — ポイント位置の式', () => {
         expect(at('見積 1万 + 5千| 円')).toMatchObject({ text: '1万 + 5千', value: 15000 });
     });
 
+    it('桁区切りのカンマを含む式も 1 つの式として拾う', () => {
+        expect(at('合計 1,000 + 2,310| 円')).toMatchObject({ text: '1,000 + 2,310', value: 3310 });
+        expect(at('|1,500万*2')).toMatchObject({ text: '1,500万*2', value: 30000000 });
+    });
+
     it('数字の付かない位は式として成立しないので拾わない', () => {
         expect(at('千葉県|')).toBeNull();
     });
