@@ -364,11 +364,22 @@ test("a saved layout's pane on the library stops the machine the last layout's p
   }
 })
 
-/** CPU seconds used by every Electron process. */
-const cpuSeconds = (app: ElectronApplication) =>
-  app.evaluate(({ app: electronApp }) =>
-    electronApp.getAppMetrics().reduce((sum, m) => sum + (m.cpu.cumulativeCPUUsage ?? 0), 0),
+/** CPU seconds used so far: by every Electron process, and by the page's own renderer. */
+const cpuSeconds = async (app: ElectronApplication, page: Page) => {
+  const pagePid = await (await app.browserWindow(page)).evaluate((win) =>
+    win.webContents.getOSProcessId(),
   )
+  return app.evaluate(({ app: electronApp }, pid) => {
+    let all = 0
+    let own = 0
+    for (const m of electronApp.getAppMetrics()) {
+      const used = m.cpu.cumulativeCPUUsage ?? 0
+      all += used
+      if (m.pid === pid) own += used
+    }
+    return { all, page: own }
+  }, pagePid)
+}
 
 test('a program running costs little more than the pane standing still', async () => {
   // The game's own 60 fps loop is the one exception to the 10 fps loop (decisions.md):
@@ -379,29 +390,55 @@ test('a program running costs little more than the pane standing still', async (
   const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
     await designSize(app, page)
-    const WINDOW_MS = 10_000
-    const measure = async () => {
-      const start = await cpuSeconds(app)
-      await page.waitForTimeout(WINDOW_MS)
-      return ((await cpuSeconds(app)) - start) / (WINDOW_MS / 1000)
+    /** CPU used over `ms`, as a share of one core: the whole app's, and the page's alone. */
+    const measure = async (ms: number) => {
+      const start = await cpuSeconds(app, page)
+      await page.waitForTimeout(ms)
+      const end = await cpuSeconds(app, page)
+      return {
+        all: (end.all - start.all) / (ms / 1000),
+        page: (end.page - start.page) / (ms / 1000),
+      }
     }
     await page.waitForTimeout(3000)
-    const attract = await measure()
+    const attract = (await measure(10_000)).all
     await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'false', {
       timeout: 40_000,
     })
-    const resting = await measure()
+    const resting = (await measure(10_000)).all
     await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
     await loadProgram(page, 'diag/3-corax+')
     await page.waitForTimeout(2000)
-    const running = await measure()
-    await page.keyboard.press('KeyP')
-    await page.waitForTimeout(1000)
-    const paused = await measure()
+    // Running and paused in turn, three times each, so that the whole app drifting over
+    // the minute (it did on the Linux runner, by about as much as the loop costs) falls on
+    // both alike. Corax+ draws its checks and then stands still: what running costs over
+    // paused is the machine's loop alone, a few per cent of a core.
+    const run = page.getByTestId('chip8-run')
+    const runs: { all: number; page: number }[] = []
+    const pauses: { all: number; page: number }[] = []
+    for (let round = 0; round < 3; round++) {
+      runs.push(await measure(4000))
+      await page.keyboard.press('KeyP')
+      await expect(run).toHaveAttribute('data-status', 'paused')
+      await page.waitForTimeout(1000)
+      pauses.push(await measure(4000))
+      await page.keyboard.press('KeyP')
+      await expect(run).toHaveAttribute('data-status', 'running')
+      await page.waitForTimeout(1000)
+    }
+    const mean = (xs: number[]) => xs.reduce((sum, x) => sum + x, 0) / xs.length
+    const running = mean(runs.map((r) => r.all))
+    const paused = mean(pauses.map((r) => r.all))
+    // The loop runs in the page's renderer, and pausing stops it there. The whole app's
+    // figure also carries the GPU process, whose compositing wanders by more than the loop
+    // costs (locally 13-24% of a core from one window to the next, both states alike). Each
+    // state is taken at its least: a collection or a clock tick only ever adds to a window.
+    const runningPage = Math.min(...runs.map((r) => r.page))
+    const pausedPage = Math.min(...pauses.map((r) => r.page))
     const pct = (n: number) => `${(n * 100).toFixed(1)}%`
     const power = await powerNote(app, page)
     console.log(
-      `chip8: library attract ${pct(attract)}, resting ${pct(resting)}, running ${pct(running)}, paused ${pct(paused)} of one core, ${power}`,
+      `chip8: library attract ${pct(attract)}, resting ${pct(resting)}, running ${pct(running)}, paused ${pct(paused)} of one core; the page alone running ${runs.map((r) => pct(r.page)).join(' ')}, paused ${pauses.map((r) => pct(r.page)).join(' ')}; ${power}`,
     )
     expect(running - resting, `running over resting, ${power}`).toBeLessThan(
       process.env.CI ? 1.5 : 0.15,
@@ -409,7 +446,7 @@ test('a program running costs little more than the pane standing still', async (
     expect(attract - resting, `attract over resting, ${power}`).toBeLessThan(
       process.env.CI ? 1.5 : 0.35,
     )
-    expect(paused, `paused against running, ${power}`).toBeLessThan(running)
+    expect(pausedPage, `the page paused against running, ${power}`).toBeLessThan(runningPage)
   } finally {
     await close()
   }

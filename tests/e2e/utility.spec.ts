@@ -1,7 +1,14 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, removeDir, savedLayout, settleLayout, showStatusBar } from './support.js'
+import {
+  launch,
+  poweredOn,
+  removeDir,
+  savedLayout,
+  settleLayout,
+  showStatusBar,
+} from './support.js'
 
 /**
  * The UTILITY pane (docs/architecture.md section 5.16), on main's stand-ins:
@@ -241,7 +248,10 @@ test('Ctrl+Shift+U pops the pane up and puts it away, or walks through the panes
     const popup = page.getByTestId('popup-pane')
     await expect(popup).toHaveAttribute('data-widget', 'utility')
     await expect(popup.getByTestId('utility')).toBeFocused()
+    // Pressed while it powers on, the button moves under the pointer and the click is lost.
+    await poweredOn(popup)
     await popup.locator('[data-testid=utility-mode][data-module=codec]').click({ delay: 20 })
+    await expect(popup.getByTestId('utility')).toHaveAttribute('data-module', 'codec')
     // Pressed again over it: put away, the keyboard back to the shell.
     await page.keyboard.press('Control+Shift+KeyU')
     await expect(popup).toHaveCount(0)

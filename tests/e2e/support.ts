@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { ElectronApplication, Page } from '@playwright/test'
+import type { ElectronApplication, Locator, Page } from '@playwright/test'
 import { _electron as electron, expect, test } from '@playwright/test'
 
 export const MAIN = fileURLToPath(new URL('../../out/main/index.js', import.meta.url))
@@ -356,6 +356,27 @@ export async function zoomSettled(page: Page): Promise<void> {
           .getAnimations()
           .some(
             (a) => (a as CSSAnimation).animationName === 'crt-zoom' && a.playState === 'running',
+          ),
+      ),
+    )
+    .toBe(false)
+}
+
+/**
+ * Waits until a dialog or popup has powered on (`crt-on`). Until then it is
+ * drawn scaled from a line, overshooting on the way, so a button in it moves
+ * between a press and its release, and the click is lost: on the macOS runner
+ * one pressed about 200 ms into a popup's power-on never chose what it was on.
+ */
+export async function poweredOn(target: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      target.evaluate((el) =>
+        el
+          .getAnimations()
+          .some(
+            (a) =>
+              (a as CSSAnimation).animationName === 'crt-power-on' && a.playState === 'running',
           ),
       ),
     )
