@@ -1483,7 +1483,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 **送る側**（resources/shell-integration）
 
 - PowerShell はプロンプトごとに `OSC 9;9;"<ProviderPath>"` を出す（Windows Terminal と同じ形、利用者の決定）。`Path` ではなく `ProviderPath` なので、New-PSDrive の自前のドライブや `FileSystem::\\server\share` も、どのプログラムでも始められる実パスになる。FileSystem 以外のプロバイダ（`HKLM:\` など）にいるときは何も出さない
-- bash / zsh / fish は `OSC 7;file://<host><path>` を出す。パスは **UTF-8 のバイトごと**に % で書く（bash と zsh は関数の中で `local LC_ALL=C`）。文字ごとに書くと符号位置が出て、日本語のフォルダが別のパスになる
+- bash / zsh / fish は `OSC 7;file://<host><path>` を出す。パスは **UTF-8 のバイトごと**に % で書く（bash と zsh は関数の中で `local LC_ALL=C`）。文字ごとに書くと符号位置が出て、日本語のフォルダが別のパスになる。bash はバイトの値を `& 255` で切る（macOS の bash 3.2 は printf の "'c" を符号付きで読み、E3 が FFFFFFFFFFFFFFE3 になって main が復号できず、フォルダを捨てていた。CI の macOS で発見、2026-10-09）
 - zsh の関数で `path` という名前の変数を使わない。zsh は `path` を PATH と結ばれた配列にしているので、`local` にしてもその性質は残り、ループが一つの要素（フォルダ全体）しか見なかった
 
 **受け取る側**（main/pty/osc-parser.ts）

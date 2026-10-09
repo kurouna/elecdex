@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { expect, test } from '@playwright/test'
+import { propagate, twoline2satrec } from '../../src/renderer/lib/sgp4.js'
 import { launch } from './support.js'
 
 /**
@@ -15,6 +16,23 @@ import { launch } from './support.js'
 
 const STATIONS = readFileSync('tests/fixtures/orbits/stations.json', 'utf8')
 const STARLINK = readFileSync('tests/fixtures/orbits/starlink-60.tle', 'utf8')
+
+/**
+ * How many of the stand-in's Starlink satellites SGP4 can place at `at`. The elements are
+ * 2026-09-23's and grow older with every run: one that has come down by then has no
+ * position, and the pane rightly leaves it out - STARLINK-1068 did from 2026-10-08, and
+ * a test that wanted all 60 failed on every run after. Fewer each year (58 at the end of
+ * 2026, 30 at the end of 2027, still ten or so in 2030).
+ */
+function placeable(at: Date): number {
+  const lines = STARLINK.split(/\r?\n/)
+  let n = 0
+  for (let i = 0; i + 2 < lines.length; i += 3) {
+    const r = propagate(twoline2satrec(lines[i + 1] ?? '', lines[i + 2] ?? ''), at)?.position
+    if (r && typeof r !== 'boolean') n += 1
+  }
+  return n
+}
 
 interface Stand {
   url: string
@@ -64,9 +82,11 @@ test('draws the stations from one download, and asks for Starlink only when show
     expect(stand.asked[1]).toContain('GROUP=starlink&FORMAT=tle')
     // The dots are drawn: a worker once left them missing where the page could not start it.
     const map = page.getByTestId('orbit-map')
+    const expected = placeable(new Date())
+    expect(expected, 'every stand-in satellite has come down: take new elements').toBeGreaterThan(0)
     await expect
       .poll(async () => Number(await map.getAttribute('data-starlink')), { timeout: 10_000 })
-      .toBe(60)
+      .toBe(expected)
 
     // The ISS tells its details to the pointer.
     const marks = JSON.parse((await map.getAttribute('data-stations')) ?? '{}') as Record<

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -708,7 +708,9 @@ test('every shell pane can grow its own tabs, and Ctrl+Alt+Shift+Arrow moves bet
 })
 
 test('a shell pane comes back in its last folder; a new pane, or one whose folder has gone, starts where the settings say', async () => {
-  const root = mkdtempSync(path.join(tmpdir(), 'elecdex-cwd-'))
+  // The folder's own name, as the shell reports it: the Windows runner's temporary folder
+  // is C:\Users\RUNNER~1\..., which PowerShell gives back as C:\Users\runneradmin\....
+  const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'elecdex-cwd-')))
   const start = path.join(root, 'start-here')
   // Outside ASCII: PowerShell sends it unencoded (OSC 9;9), the others percent-encoded UTF-8.
   const kept = path.join(root, 'kept-フォルダ é')

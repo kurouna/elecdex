@@ -23,12 +23,19 @@ __elecdex_cwd() {
   # Percent-encode everything outside the unreserved set plus '/'. Byte by
   # byte: in a UTF-8 locale bash steps by character and printf "'c" gives the
   # code point, so a folder named in Japanese was reported as another path.
-  local LC_ALL=C path="$PWD" out='' i c
+  # The byte is masked: macOS's bash 3.2 reads "'c" as a signed char, so E3 came
+  # out as FFFFFFFFFFFFFFE3, which main could not decode and so dropped the folder.
+  # printf -v (bash 3.1 and later) also spares a subshell per byte.
+  local LC_ALL=C path="$PWD" out='' i c n
   for ((i = 0; i < ${#path}; i++)); do
     c=${path:i:1}
     case "$c" in
       [a-zA-Z0-9/._~-]) out+="$c" ;;
-      *) out+=$(printf '%%%02X' "'$c") ;;
+      *)
+        printf -v n '%d' "'$c"
+        printf -v c '%%%02X' $((n & 255))
+        out+=$c
+        ;;
     esac
   done
   __elecdex_esc "7;file://$HOSTNAME$out"

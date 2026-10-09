@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { buildGame } from '../../src/shared/elec16/cart-build.js'
-import { atDesignSize, launch, powerNote, settleLayout } from './support.js'
+import { atDesignSize, type Launched, launch, powerNote, settleLayout } from './support.js'
 
 /**
  * The ELEC-16 pane (docs/elec16.md): the monitor in ROM booting on the LCD, keys from the
@@ -25,6 +25,21 @@ const BESIDE_CLOCK = {
     ],
   },
 }
+
+/**
+ * At the 1920x1080 design size (support.ts): beside the clock the pane keeps its panel open
+ * only with room for it beside the screen (`panelShown`), which a CI runner's screen does not
+ * give - 1024 wide, the pane was 806 pixels, short of the 812 the panel needs, and every test
+ * waiting on a panel tab timed out there.
+ */
+async function atSize(launched: Launched): Promise<Launched> {
+  await atDesignSize(launched.app, launched.page)
+  return launched
+}
+
+/** Launched on a fresh profile with the pane beside the clock, at the design size. */
+const launchBeside = async (): Promise<Launched> =>
+  atSize(await launch(undefined, { layout: BESIDE_CLOCK }))
 
 /** A wide, short pane under the clock: the room the tour once gave it. */
 const UNDER_CLOCK = {
@@ -80,7 +95,7 @@ async function toMonitor(page: Page): Promise<void> {
 }
 
 test('boots to BASIC, sleeps at its prompt, takes keys only while it has the focus, and MON reaches the monitor', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -107,7 +122,7 @@ test('boots to BASIC, sleeps at its prompt, takes keys only while it has the foc
 })
 
 test("the screen's keys type, and BRK gets a program that never ends back", async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -146,7 +161,7 @@ test('pauses behind a tab, and comes back by itself when it was asleep at its pr
 })
 
 test('a pane split beside it keeps its machine, RAM, screen and all', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -173,7 +188,7 @@ test('a pane split beside it keeps its machine, RAM, screen and all', async () =
 })
 
 test('TUNE fits another LCD, keeping the RAM, and changes the skin', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -206,9 +221,8 @@ test('asleep at its prompt it costs what a paused pane does; running costs by it
   // The emulators' loop is the one exception to the 10 fps loop (decisions.md): measured here
   // so a change that makes it expensive shows, and the clocks logged for the 32 MHz limit.
   test.setTimeout(240_000)
-  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { app, page, close } = await launchBeside()
   try {
-    await atDesignSize(app, page)
     await settleLayout(page)
     await booted(page)
     await toMonitor(page)
@@ -299,7 +313,7 @@ const linesOf = (page: Page, id: string) => async (): Promise<string[]> =>
     .map((l) => l.trimEnd())
 
 test("keeps the program through a restart: the unit's battery backup", async () => {
-  const first = await launch(undefined, { layout: BESIDE_CLOCK })
+  const first = await launchBeside()
   let second: Awaited<ReturnType<typeof first.relaunch>> | null = null
   try {
     await settleLayout(first.page)
@@ -409,7 +423,7 @@ test('a second pane on the same unit is told so, and MOVE HERE takes the machine
 })
 
 test('IMPORT puts a picked listing on the card and EXPORT gives it back as text', async () => {
-  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { app, page, close } = await launchBeside()
   const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-pick-'))
   try {
     await settleLayout(page)
@@ -442,7 +456,7 @@ test('IMPORT puts a picked listing on the card and EXPORT gives it back as text'
 })
 
 test("SAVE and LOAD go through main to the unit's card, and FILES lists what is there", async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -461,7 +475,7 @@ test("SAVE and LOAD go through main to the unit's card, and FILES lists what is 
 })
 
 test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, and PASTE types the clipboard", async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -499,7 +513,7 @@ test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, a
 })
 
 test('a right-click on the machine types the clipboard as PASTE does, and another stops it', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -532,7 +546,7 @@ test('a right-click on the machine types the clipboard as PASTE does, and anothe
 test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboard not read', async () => {
   // PLAY-320 has no keys to type on, so PASTE's right-click has nothing to do there; and a
   // button pressed by the right button once held the pad as the left one does.
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -613,7 +627,7 @@ test('PANEL opens a panel shut by hand with one press, in a pane too narrow to k
 })
 
 test('CORE stops the machine at a breakpoint typed in, goes on from it, and steps', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -645,7 +659,7 @@ test('CORE stops the machine at a breakpoint typed in, goes on from it, and step
 })
 
 test('TUNE throws another unit away on a second press, and never the one the pane runs', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -666,7 +680,7 @@ test('TUNE throws another unit away on a second press, and never the one the pan
 })
 
 test('CODE compiles TypeScript at every level, keeps it on the card, and RUN runs it on the machine', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -722,7 +736,7 @@ test('CODE compiles TypeScript at every level, keeps it on the card, and RUN run
 })
 
 test('RESET starts the machine again with its program kept, and the plate lamp follows POWER', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -772,7 +786,7 @@ test('a short, wide pane gets a body that fits it, plate and keys whole, never c
 })
 
 test('CODE compiles the sample it shows, as it is, and says so on every level', async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -790,7 +804,7 @@ test('CODE compiles the sample it shows, as it is, and says so on every level', 
 
 test('CODE keeps what is typed after a RUN when the level is changed', async () => {
   // The pane's state changing (a level chosen) read the card again over the text typed.
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -819,7 +833,7 @@ test('CODE keeps what is typed after a RUN when the level is changed', async () 
 })
 
 test("FILES' LOAD stops a program waiting for a key first, rather than typing into it", async () => {
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -926,7 +940,7 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, CO
   // docs/elec16-play.md, G2: the PLAY ROM's start screen, no FILES and no auto power-off,
   // extended RAM in TUNE and MEM, CODE's RUN calling the program itself.
   test.setTimeout(180_000)
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -978,7 +992,7 @@ test("PLAY-320's body: its buttons pressed from the keys, the pointer and a prog
   // docs/elec16-play.md, G3: the tall or wide body, the twelve buttons drawn pressed from any
   // source, and PAD read by a program; the screen alone as the fourth choice.
   test.setTimeout(180_000)
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -1045,7 +1059,7 @@ test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on aft
   // cartridge DEMO, imported: a game in a unit's slot that later leaves the shelf (as DEMO
   // itself did on 2026-10-06) leaves the slot empty, the machine at its start screen.
   test.setTimeout(300_000)
-  const first = await launch(undefined, { layout: BESIDE_CLOCK })
+  const first = await launchBeside()
   const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-cart-'))
   let running: Awaited<ReturnType<typeof launch>> | null = first
   try {
@@ -1078,7 +1092,7 @@ test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on aft
     // A restart while it plays: the backup has no ROM, which the pane puts back from the shelf.
     running = null
     await first.quit()
-    const again = await launch(first.userData)
+    const again = await atSize(await launch(first.userData))
     running = again
     await settleLayout(again.page)
     await expect
@@ -1127,7 +1141,7 @@ test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on aft
       path.join(first.userData, 'elec16', 'games', 'library.json'),
       JSON.stringify({ version: 1, games: [] }),
     )
-    const gone = await launch(first.userData)
+    const gone = await atSize(await launch(first.userData))
     running = gone
     await settleLayout(gone.page)
     await expect.poll(() => playLines(gone.page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
@@ -1148,7 +1162,7 @@ test("PLAY-320's game kit: ELECLANCE starts from GAMES, its title, then the stag
   // docs/elec16-eleclance.md: the kit's game copies its code into RAM and runs there; in the
   // pane it reaches its title (its own interrupts, sound and save RAM), then the stage.
   test.setTimeout(180_000)
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { page, close } = await launchBeside()
   try {
     await settleLayout(page)
     await booted(page)
@@ -1201,7 +1215,7 @@ test("PLAY-320's DEVELOP: a new game from the template, built, broken on save, m
   // builds it in CODE's worker (its PNGs decoded there, to the bit), main writes back its two
   // files and shelves it, the slot takes it; a save builds again, saying where it went wrong.
   test.setTimeout(180_000)
-  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { app, page, close } = await launchBeside()
   const folder = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-dev-'))
   try {
     await settleLayout(page)
@@ -1275,7 +1289,7 @@ test("PLAY-320's DEVELOP builds ELECLANCE's own folder exactly as npm run gen:el
   // must agree to the byte: compared through compiled.s and assets.e16.ts. A copy with its own
   // id, as a bundled game's id is never taken.
   test.setTimeout(240_000)
-  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { app, page, close } = await launchBeside()
   const folder = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-dev-'))
   const from = path.join(process.cwd(), 'resources', 'elec16', 'games', 'eleclance')
   try {
@@ -1316,7 +1330,7 @@ test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with
   // own resolution - a dot of the canvas read back to see the ship move. SCROLL is a test
   // cartridge (tests/fixtures/elec16/games), imported through GAMES.
   test.setTimeout(180_000)
-  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { app, page, close } = await launchBeside()
   const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-cart-'))
   try {
     await settleLayout(page)
