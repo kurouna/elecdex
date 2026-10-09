@@ -256,14 +256,17 @@ function okDistance(a: number[], b: number[]): number {
 /**
  * The frame budget's pins (cycles), as measured on 2026-10-05 with the smooth sky, the stall
  * and the speed as energy: the scripted sortie, NOCTURNE's fight with the stall out of reach
- * and the same fight with the stall in it. See the tests that use them.
+ * and the same fight with the stall in it. See the tests that use them. The fights re-pinned on
+ * 2026-10-09, when the aces' aim stopped coning round a tail and the close fight began to be
+ * broken off: NOCTURNE flies another fight, nearer and with its gun bearing (32,178 and 52,671
+ * before, the stall's 32,217 and 52,671); the scripted sortie measured 25,980 and 37,865.
  */
 const SORTIE_AVG = 26_351
 const SORTIE_WORST = 37_921
-const HARD_AVG = 32_178
-const HARD_WORST = 52_671
-const STALL_AVG = 32_217
-const STALL_WORST = 52_671
+const HARD_AVG = 36_199
+const HARD_WORST = 49_941
+const STALL_AVG = 36_145
+const STALL_WORST = 49_289
 
 describe('ELECAIRCOMBAT as built', () => {
   it('is what games.json holds, and its folder keeps the constants and the assembly', () => {
@@ -1462,5 +1465,135 @@ describe('ELECAIRCOMBAT art, gradients and smoke', () => {
         }
       }
     }
+  })
+})
+
+// The fight's spacing (docs/elec16-elecaircombat.md section 7): a close fight no seeker locks is
+// broken off and re-entered nose on, and the aces' aim holds on a tail and passes over a head-on.
+describe('ELECAIRCOMBAT spacing', { timeout: 120_000 }, () => {
+  /** The enemy `side` units off the player's right wing, both level and heading north. */
+  function abeam(m: Elec16, side: number): void {
+    pin(m, 0)
+    vecPut(m, V.REL, side, 0, 0)
+  }
+
+  /** Frames held 1,500 abeam, neither seeker on the other, until it separates (500 at most). */
+  function untilItSeparates(m: Elec16): number {
+    let t = 0
+    for (; t < 500; t++) {
+      abeam(m, 1500)
+      put(m, 'damage', 0)
+      frames(m, 1, cart)
+      if (read(m, 'aiState') === 3 && read(m, 'aiRunOut') > 0) break
+    }
+    return t
+  }
+
+  /** Let go: how far it ran out, and the frame it was coming in again pursuing (0: never). */
+  function runAndReturn(m: Elec16): { far: number; back: number } {
+    let far = 0
+    for (let f = 0; f < 600; f++) {
+      put(m, 'damage', 0)
+      frames(m, 1, cart)
+      const d = ramWord(m, addr('eDist'))
+      far = Math.max(far, d)
+      if (far > 3000 && d < far - 1200 && read(m, 'aiState') === 0) return { far, back: f }
+    }
+    return { far, back: 0 }
+  }
+
+  it('breaks off a close fight no seeker locks, the first ace soonest, runs out and comes back nose on', () => {
+    const when: number[] = []
+    for (const k of [0, 4]) {
+      const m = atAce(k)
+      when.push(untilItSeparates(m))
+      const { far, back } = runAndReturn(m)
+      expect(far, `ace ${k}`).toBeGreaterThan(3000)
+      expect(back, `ace ${k}`).toBeGreaterThan(0)
+    }
+    // GANNET after 185 frames, NOCTURNE after 278 (measured 2026-10-09).
+    const [gannet = 0, nocturne = 0] = when
+    expect(gannet).toBeLessThan(nocturne)
+    expect(nocturne).toBeLessThan(400)
+  })
+
+  it('stays in a close fight while the player holds a lock on it', () => {
+    const m = atAce(0)
+    let ran = 0
+    let lockedFor = 0
+    for (let t = 0; t < 400; t++) {
+      pin(m, 1500)
+      put(m, 'damage', 0)
+      frames(m, 1, cart)
+      if (read(m, 'locked') === 1) lockedFor++
+      if (read(m, 'aiState') === 3 && read(m, 'aiRunOut') > 0) ran++
+    }
+    expect(lockedFor).toBeGreaterThan(300)
+    expect(ran).toBe(0)
+  })
+
+  it('turns back once out and keeps coming, not away again under the mark (ORACLE)', () => {
+    const m = atAce(3)
+    // Both heading north, ORACLE 3,400 ahead running out after a pass; the player slow behind.
+    pin(m, 3400)
+    put(m, 'aiState', 3)
+    put(m, 'aiStateT', 170)
+    let nearest = 99999
+    let far = 0
+    for (let t = 0; t < 130; t++) {
+      m.pad(padBit('l'))
+      put(m, 'aiThinkT', 200)
+      put(m, 'damage', 0)
+      frames(m, 1, cart)
+      const d = ramWord(m, addr('eDist'))
+      far = Math.max(far, d)
+      if (far > 3600) nearest = Math.min(nearest, d)
+    }
+    m.pad(0)
+    // Out past 3,600 and back to 2,381; turning away again under the mark, only to 2,750.
+    expect(far).toBeGreaterThan(3600)
+    expect(nearest).toBeLessThan(2600)
+  })
+
+  it("lets an ace's gun bear on the tail of a player flying straight", () => {
+    // The faster three (the others cannot close on a player at cruise), 900 behind.
+    for (let k = 2; k < 5; k++) {
+      const m = atAce(k)
+      onTail(m, 900)
+      vecPut(m, V.REL, 0, -900, 0)
+      let hurt = 0
+      for (let t = 0; t < 600; t++) {
+        put(m, 'pAlt', 5200)
+        put(m, 'aiThinkT', 200)
+        put(m, 'aiState', 0)
+        put(m, 'damage', 0)
+        frames(m, 1, cart)
+        hurt += read(m, 'damage')
+      }
+      // 327, 405 and 558; while the aim coned round the tail in a barrel roll, 114, 60 and 117.
+      expect(hurt, `ace ${k}`).toBeGreaterThan(200)
+    }
+  })
+
+  it('passes over the player head on, where ORACLE flies the gun duel straight in', () => {
+    const miss: number[] = []
+    for (const k of [0, 3]) {
+      const m = atAce(k)
+      headOn(m, 3000)
+      let nearest = 99999
+      for (let t = 0; t < 120; t++) {
+        put(m, 'aiThinkT', 200)
+        put(m, 'aiState', 0)
+        put(m, 'damage', 0)
+        put(m, 'eHP', 100)
+        frames(m, 1, cart)
+        nearest = Math.min(nearest, ramWord(m, addr('eDist')))
+      }
+      miss.push(nearest)
+    }
+    // GANNET 352 clear, ORACLE 6 (GANNET once 10, down the player's gun stream).
+    const [gannet = 0, oracle = 0] = miss
+    expect(gannet).toBeGreaterThan(250)
+    expect(oracle).toBeLessThan(gannet)
   })
 })

@@ -15,7 +15,7 @@ import {
   words,
 } from '../../../../src/shared/e16c/builtins'
 import { aim, rand, randBelow } from '../lib/kit.e16'
-import { enemyFlares, enemyMissile, enemyRound, threatDist } from './arms.e16'
+import { enemyFlares, enemyMissile, enemyRound, locked, threatDist } from './arms.e16'
 import {
   ace,
   aiWants,
@@ -32,7 +32,21 @@ import {
   eSpeed,
 } from './bandit.e16'
 import { pAlt, pVel } from './flight.e16'
-import { abs16, dotq, ONE, V_EF, V_ER, V_EU, V_REL, V_T2, va, vget, vmax, vset } from './math.e16'
+import {
+  abs16,
+  dotq,
+  ONE,
+  V_EF,
+  V_ER,
+  V_EU,
+  V_PF,
+  V_REL,
+  V_T2,
+  va,
+  vget,
+  vmax,
+  vset,
+} from './math.e16'
 
 const PURSUE = 0
 const BREAK = 1
@@ -67,6 +81,11 @@ const aceLockRange = words(5)
 const aceBrake = words(5)
 /** Its missiles' speed, tenths of the player's (off the rail, gaining, at the top). */
 const aceMslTenths = words(5)
+/** Frames of a close fight that goes nowhere it stays in before it separates (`circling`). */
+const aceCircle = words(5)
+/** How far it runs out when it separates, before it turns back nose on (units), and how long at most (frames). */
+const aceRunOut = words(5)
+const aceRunT = words(5)
 
 /** The aces' rows: called once, at the game's start. */
 export function aiInit(): void {
@@ -100,6 +119,21 @@ export function aiInit(): void {
   aceMslTenths[2] = 10
   aceMslTenths[3] = 11
   aceMslTenths[4] = 11
+  aceCircle[0] = 150
+  aceCircle[1] = 165
+  aceCircle[2] = 240
+  aceCircle[3] = 270
+  aceCircle[4] = 270
+  aceRunOut[0] = 4200
+  aceRunOut[1] = 4000
+  aceRunOut[2] = 3600
+  aceRunOut[3] = 4400
+  aceRunOut[4] = 3200
+  aceRunT[0] = 210
+  aceRunT[1] = 190
+  aceRunT[2] = 180
+  aceRunT[3] = 180
+  aceRunT[4] = 160
 }
 
 function has(f: u16): bool {
@@ -125,6 +159,12 @@ let aiScissorT: u16 = 0
 /** While it breaks or zooms against a missile, and its chance (in 100) to turn inside one. */
 export let aiEvading: bool = false
 export let aiDodge: u16 = 25
+/** Frames of a close fight that goes nowhere: near, and neither seeker locked (`circling`). */
+export let aiCircleT: u16 = 0
+/** While it runs out: how far it goes before it turns back (0: the run's end is its time). */
+export let aiRunOut: u16 = 0
+/** Out of a run, turned back for the player: it does not run again on the way in. */
+export let aiBack: bool = false
 
 /** A sortie's start: calm, with its missiles and flares. */
 export function aiNew(): void {
@@ -141,6 +181,9 @@ export function aiNew(): void {
   aiScissorT = 0
   aiEvading = false
   aiDodge = 25 + ace * 10
+  aiCircleT = 0
+  aiRunOut = 0
+  aiBack = false
 }
 
 /** A frame of the ace: think now and then, steer, fire. */
@@ -148,6 +191,7 @@ export function aiStep(): void {
   if (!eAlive) return
   if (aiStateT > 0) aiStateT--
   lookAtPlayer()
+  circling()
   if (aiThinkT > 0) aiThinkT--
   else think()
   every()
@@ -189,6 +233,15 @@ function headOn(): bool {
   return abs16(eBX) < cone && abs16(eBY) < cone && abs16(aiTX) + abs16(aiTY) < aiTZ >> 1
 }
 
+/**
+ * A head-on pass about to be made: each ahead of the other on opposite courses, near. All but
+ * the head-on fighter (who fights the gun duel) pass over the player: with its aim steady, an
+ * ace that held its nose on the player flew down the player's gun stream on every pass.
+ */
+function passing(): bool {
+  return !has(F_HEADON) && aiTZ > 0 && eBZ > 0 && eDist < 2000 && dotq(va(V_EF), va(V_PF)) < -8192
+}
+
 function enemyAlt(): i16 {
   return pAlt + vget(V_REL + 2)
 }
@@ -202,6 +255,16 @@ function think(): void {
   }
   if (threatDist < 2600 && aiState !== BREAK && aiState !== ZOOM && missileSeen()) {
     evade()
+    return
+  }
+  // A close fight gone on too long is broken off, even in the middle of a break.
+  if (aiCircleT > aceCircle[ace] && aiState !== ZOOM && aiState !== HAMMER) {
+    separate()
+    return
+  }
+  // Chased all the way out, the run gains nothing: it turns to fight (the careful one late).
+  if (running() && onItsTail() && aiStateT + 120 - ace * 22 < aceRunT[ace]) {
+    breakTurn()
     return
   }
   if (aiStateT > 0) return
@@ -246,6 +309,41 @@ function extendTime(): u16 {
   return has(F_HEADON) ? 170 : 100 + randBelow(60)
 }
 
+/**
+ * Counts a close fight that goes nowhere: the two near each other, round the same turn or
+ * through break after break, and neither seeker locked (the player's lock it hears as a warning
+ * receiver would). Room, or a lock either way, lets the count fall away.
+ */
+function circling(): void {
+  if (aiState === EXTEND || aiState === FLOOR) {
+    aiCircleT = 0
+    return
+  }
+  if (eDist < 3000 && !locked && aiLockT === 0) aiCircleT++
+  else aiCircleT = aiCircleT > 2 ? aiCircleT - 2 : 0
+}
+
+/**
+ * Out of a close fight neither side wins, as a pilot breaks one off: the climber zooms if it has
+ * the speed (and comes over the top onto the player); the rest run straight out, fast, to the
+ * ace's distance, then turn back nose on - a straight run the player can chase and lock, then a
+ * head-on pass.
+ */
+/** Running out of a close fight, not yet turned back. */
+function running(): bool {
+  return aiState === EXTEND && aiRunOut > 0 && !aiBack
+}
+
+function separate(): void {
+  aiCircleT = 0
+  if (has(F_ZOOM) && eSpeed > eCruise - 40) {
+    to(ZOOM, 90)
+    return
+  }
+  to(EXTEND, aceRunT[ace])
+  aiRunOut = aceRunOut[ace]
+}
+
 function breakTurn(): void {
   // The one-way pilot keeps its side; the others reverse a break they are already in.
   if (aiState === BREAK) aiSide = has(F_ONEWAY) ? aiSide : -aiSide
@@ -259,6 +357,8 @@ function breakTurn(): void {
 function to(s: u16, frames: u16): void {
   aiState = s
   aiStateT = frames
+  aiRunOut = 0
+  aiBack = false
 }
 
 /** What is weighed every frame, not only when it thinks: the feint, the scissors, the climb's top, an overshoot. */
@@ -266,6 +366,8 @@ function every(): void {
   if (aiState === BREAK) breakBeat()
   if (aiState === ZOOM && zoomTop()) to(HAMMER, 80)
   if (aiState === HAMMER && aiStateT === 0) to(PURSUE, 60)
+  // Back from a run with the player in front of it: the pass is a fight again.
+  if (aiState === EXTEND && aiBack && playerAhead(6000)) to(PURSUE, 60)
   // The player has shot past: the punisher is on it at once.
   if (has(F_PUNISH) && aiState !== PURSUE && aiState !== FLOOR && playerAhead(1600)) {
     to(PURSUE, 60)
@@ -304,6 +406,17 @@ function goalOf(): void {
 
 /** The player, led by its velocity for the time a round would take (straight at it head on). */
 function leadGoal(): void {
+  if (passing()) {
+    // Nose to nose and near: over the player's canopy rather than into its gun (a pull, at
+    // once - a pass to the side would wait on the roll).
+    vset(
+      V_T2,
+      -vget(V_REL) + mulShift(vget(V_EU), 600, 14),
+      -vget(V_REL + 1) + mulShift(vget(V_EU + 1), 600, 14),
+      -vget(V_REL + 2) + mulShift(vget(V_EU + 2), 600, 14),
+    )
+    return
+  }
   let t = i16(eDist >> 6)
   if (t > 30) t = 30
   if (has(F_HEADON) && headOn()) t = 0
@@ -326,11 +439,16 @@ function axisGoal(axis: u16, sign: i16, up: i16): void {
 }
 
 /**
- * Away from the player while it runs out; turning back once the time is nearly up - or, for
- * the head-on fighter, once it is far enough to turn and meet the player nose to nose.
+ * Away from the player while it runs out; turning back once the time is nearly up, or once it
+ * is as far as the run goes: a separation's own distance, else 2,400 (room to turn and come
+ * back) - for the head-on fighter 3,600, far enough to meet the player nose to nose. Once turned back it stays turned (`aiBack`): coming in, the distance falls under the
+ * mark again, and a run that looked at the distance alone turned away once more and circled at
+ * the mark until its time ran out.
  */
 function extendGoal(): void {
-  if (aiStateT < 40 || (has(F_HEADON) && eDist > 3600)) {
+  const far = aiRunOut > 0 ? aiRunOut : has(F_HEADON) ? 3600 : 2400
+  if (aiStateT < 40 || eDist > far) aiBack = true
+  if (aiBack) {
     leadGoal()
     return
   }
@@ -352,12 +470,18 @@ function steer(): void {
   let roll: i16 = 0
   let pull: i16 = 0
   const off = abs16(gx) + abs16(gy)
+  const a = aim(gy, gx)
+  const s = i16(a > 127 ? a - 256 : a)
   if (gz > 0 && off * 24 < gz) {
-    // Nearly dead ahead: hold the wings, nudge the nose.
+    // Dead ahead: hold the wings, nudge the nose.
+    pull = gy * 16
+  } else if (gz > 0 && off * 4 < gz) {
+    // Near the nose: a gentle roll and a pull as much as it is above - or, below, a roll that
+    // takes it under and a push. Once this was flown as from afar, a hard roll with a light
+    // pull: on a tail the nose coned round the goal, a barrel roll that never let the gun bear.
+    roll = abs16(s) < 96 ? s * 16 : -gx * 16
     pull = gy * 16
   } else {
-    const a = aim(gy, gx)
-    const s = i16(a > 127 ? a - 256 : a)
     roll = s * 28
     pull = abs16(s) < 36 ? pullFor(gy, gz) : ePullMax >> 2
   }
