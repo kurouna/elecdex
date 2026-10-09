@@ -6,14 +6,16 @@
 #   close as their bodies let them overlap their guards by at most a few points, never their
 #   bodies (the unit test holds it).
 #   S4's kicks (P4 2026-10-08, design 3.1): the standing heavy kick and the sweep reach to the
-#   drawn foot's tip and the point past it a hit box may take (52 and 67: S1's 46 and 60, the
-#   heavy kick redrawn straight 2026-10-08, the sweep made long 2026-10-09), so REACH's bar and
+#   drawn foot's tip and the point past it a hit box may take (53 and 67: S1's 47 and 60, the
+#   heavy kick redrawn straight 2026-10-08, the sweep made long 2026-10-09; the heavy kick's
+#   foot pointed along the shin and the knee bent, the leg aimed higher so the tip stays where
+#   it was, 2026-10-10: the line follows the higher leg, 49 to 87 up), so REACH's bar and
 #   the kicks agree. The light kick's line (41) went when the lights were redrawn fully
-#   extended (2026-10-09): its drafted box, 49, keeps it 6 past S1's and short of the heavy.
+#   extended (2026-10-09): its drafted box, 50, keeps it 6 past S1's and short of the heavy.
 #   The crouching light kick's line (31) takes its drafted 55 back to 52, 4 past S1's
 #   (2026-10-09, the second balance pass): at 55 it struck MAINFRAME's S3 from beyond the
 #   reach of every answer S3 has, and its spam won every round of that match.
-22 4 10 75 42 26
+22 4 10 87 43 38
 31 4 10 29 42 27
 34 4 10 23 57 23
 0 0 -21 100 42 100

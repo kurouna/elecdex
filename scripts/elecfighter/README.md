@@ -200,6 +200,12 @@ The slam puts the thrown in the down row, whose first picture is the floor's `bo
    0.815 m from its hip (shin and foot); asked further, it comes out straight towards the
    point. Give a limb stretched straight its `at` where it lands, not past it: an in-between
    blends the two poses' points, so a point far out keeps the blended limb straight too.
+   A kicking leg reads as thigh, knee, shin and foot only with the knee left bent (15 to 35
+   degrees: the ankle a centimetre or two short of full reach, so check the knee's angle in
+   `poses.json`), its pole in the leg's own plane (a knee turned to the far side shortens the
+   shin on screen) and the foot given `point` (degrees the toes stop short of the shin's line,
+   20 for an ankle stretched out) instead of a `pitch`: a foot aimed in the world stands across
+   a raised leg. A pointed foot lengthens the reach by its length; aim the leg to keep it.
    In-betweens blended from it follow by themselves; to add one, give it a name in `TWEENS` and
    a place in a row's `SEQ`.
 2. `node scripts/elecfighter/pose-book.mjs` writes `poses.json`.

@@ -18,7 +18,7 @@ import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Quaternion, Vector3 } from 'three'
-import { aim, quatOf, reach, rotOf, skeletonOf } from './ik.mjs'
+import { aim, forward, orient, quatOf, reach, rotOf, skeletonOf } from './ik.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SKEL = skeletonOf(join(HERE, 'models/human.gltf'))
@@ -32,7 +32,7 @@ const LEG_L = ['thigh_l', 'shin_l', 'foot_l']
 
 /**
  * A pose from its description: `hips` { t, r }, the torso's rotations, each foot
- * { at, knee (a point the knee turns towards), yaw, pitch, roll } and each fist
+ * { at, knee (a point the knee turns towards), yaw, pitch, roll, or point (along the shin) } and each fist
  * { at (the wrist), elbow, yaw, pitch, roll }; `near` lists far bones drawn as near.
  */
 function solve(d) {
@@ -41,8 +41,10 @@ function solve(d) {
   const limb = (spec, [a, b, c], bend) => {
     if (!spec) return
     reach(SKEL, pose, a, b, c, spec.at, spec.knee ?? spec.elbow, bend)
-    if (spec.yaw !== undefined || spec.pitch !== undefined || spec.roll !== undefined)
-      aim(SKEL, pose, c, spec.yaw ?? 0, spec.pitch ?? 0, spec.roll ?? 0)
+    const aimed = spec.yaw !== undefined || spec.pitch !== undefined || spec.roll !== undefined
+    const share = pointOf(spec)
+    if (share > 0) point(pose, b, c, spec, aimed, share)
+    else if (aimed) aim(SKEL, pose, c, spec.yaw ?? 0, spec.pitch ?? 0, spec.roll ?? 0)
   }
   limb(d.R, LEG_R, 'back')
   limb(d.L, LEG_L, 'back')
@@ -50,6 +52,27 @@ function solve(d) {
   limb(d.lh, ARM_L, 'front')
   if (d.near) pose.near = d.near
   return pose
+}
+
+/**
+ * How far a foot is pointed along its shin: 1 for a foot given `point`, an in-between's share
+ * (`pw`) for one blended from a pointed foot and an aimed one, else 0.
+ */
+const pointOf = (spec) => spec?.pw ?? (spec?.point !== undefined ? 1 : 0)
+
+/**
+ * A kicking foot pointed along its shin (`point`: the toes that many degrees short of the shin's
+ * line, towards the instep; an ankle stretched as far as it goes leaves about 20), turned with
+ * the shin rather than in the world, so the shoe carries the leg's line on instead of standing
+ * across it as a foot aimed in the world does once the leg is up (the standing heavy kick's
+ * toes once pointed at the sky and read as a shin bent up, the knee lost). An in-between turns
+ * `pw` of the way from the aimed foot to the pointed one.
+ */
+function point(pose, shin, foot, spec, aimed, share) {
+  const shinQ = forward(SKEL, pose).get(shin).q
+  const along = shinQ.clone().multiply(quatOf([90 - (spec.point ?? 0), 0, 0]))
+  const plain = aimed ? quatOf([spec.pitch ?? 0, spec.yaw ?? 0, spec.roll ?? 0]) : shinQ.clone()
+  orient(SKEL, pose, foot, plain.slerp(along, Math.min(1, share)))
 }
 
 /** A copy of a description with parts replaced (one level deep). */
@@ -82,6 +105,14 @@ function blend(a, b, t) {
   for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
     if (k === 'near') continue
     out[k] = mix(a[k], b[k])
+  }
+  // A pointed foot's share is blended, never its angle against an aimed foot's nothing.
+  for (const k of ['R', 'L']) {
+    const [u, v] = [pointOf(a[k]), pointOf(b[k])]
+    if (!u && !v) continue
+    out[k].pw = u + (v - u) * t
+    const [p, q] = [a[k]?.point, b[k]?.point]
+    out[k].point = p !== undefined && q !== undefined ? p + (q - p) * t : (p ?? q)
   }
   const near = t < 0.5 ? a.near : b.near
   if (near) out.near = near
@@ -382,7 +413,7 @@ const BOOK = {
     chest: [-2, 6, 0],
     neck: [6, -12, 0],
     head: [16, -14, 0],
-    R: { at: [-0.07, 0.77, 0.69], knee: [-0.15, 1.4, 0.8], yaw: 0, pitch: 8 },
+    R: { at: [-0.07, 0.77, 0.68], knee: [-0.15, 1.4, 0.8], yaw: 0, point: 20 },
     L: { at: [0.1, 0.085, -0.19], knee: [0.4, 0.5, 0.9], yaw: 40 },
     rh: { at: [-0.12, 1.16, 0.18], elbow: [-0.5, 0.9, 0.0] },
     lh: { at: [0.04, 1.34, 0.08], elbow: [0.4, 0.9, -0.2] },
@@ -398,8 +429,11 @@ const BOOK = {
     L: { at: [0.04, 0.62, 0.22], knee: [0.3, 1.4, 0.8], yaw: 0, pitch: 50 },
     near: LEG_FAR,
   }),
-  // The kick lands with the leg straight out at the chest's height, the foot as far as it goes,
-  // the body leaning back over the standing leg to give it the length.
+  // The kick lands with the leg out at the chest's height, the foot as far as it goes, the body
+  // leaning back over the standing leg to give it the length. The knee is left bent a little
+  // (about 35 degrees) with its pole above the leg in its own plane, and the foot pointed along
+  // the shin, so the leg reads as thigh, knee, shin and foot; the leg aims about 40 degrees up
+  // so the pointed toes end where the old upright shoe did (the reach kept, 2026-10-10).
   hk: vary(STAND, {
     hips: { t: [0, -0.08, 0.06], r: [-30, -40, -8] },
     spine: [-16, -10, 0],
@@ -407,7 +441,7 @@ const BOOK = {
     neck: [16, 30, 0],
     head: [18, 24, 0],
     R: { at: [-0.04, 0.085, -0.1], knee: [-0.3, 0.5, 1.0], yaw: -40 },
-    L: { at: [0.02, 1.34, 1.2], knee: [0.6, 1.8, 0.5], yaw: 0, pitch: 70 },
+    L: { at: [0.03, 1.33, 0.71], knee: [0.04, 1.8, 0.5], yaw: 0, point: 20 },
     rh: { at: [-0.34, 0.96, -0.3], elbow: [-0.6, 1.0, -0.1] },
     lh: { at: [0.1, 1.24, -0.08], elbow: [0.4, 0.9, -0.2] },
     near: LEG_FAR,
@@ -418,7 +452,7 @@ const BOOK = {
     neck: [2, 22, 0],
     head: [8, 18, 0],
     R: { at: [-0.04, 0.085, 0.0], knee: [-0.3, 0.5, 1.0], yaw: -30 },
-    L: { at: [0.06, 0.5, 0.46], knee: [0.4, 1.2, 0.6], yaw: 0, pitch: 40 },
+    L: { at: [0.06, 0.5, 0.46], knee: [0.4, 1.2, 0.6], yaw: 0, pitch: 40, point: 30 },
     rh: { at: [-0.16, 1.16, 0.06], elbow: [-0.6, 1.0, 0.0] },
     near: LEG_FAR,
   }),
@@ -470,7 +504,7 @@ const BOOK = {
     hips: { t: [0, -0.58, -0.02], r: [24, 22, 0] },
     spine: [6, 4, 0],
     neck: [-16, -12, 0],
-    R: { at: [-0.07, 0.16, 0.8], knee: [-0.2, 0.8, 0.8], yaw: 0, pitch: 4 },
+    R: { at: [-0.07, 0.16, 0.79], knee: [-0.2, 0.8, 0.8], yaw: 0, pitch: 4 },
   }),
   // The sweep: down on a hand, the hips thrown forward and low, the rear leg swung through the
   // front and slid out straight along the floor as far as it goes; then drawn back.
@@ -488,7 +522,7 @@ const BOOK = {
     neck: [-24, 26, 0],
     head: [0, 22, 0],
     R: { at: [-0.14, 0.085, 0.12], knee: [-0.5, 0.6, 1.0], yaw: -20 },
-    L: { at: [0.01, 0.14, 1.0], knee: [0.3, 0.8, 0.6], yaw: 0, pitch: 6 },
+    L: { at: [0.01, 0.14, 0.99], knee: [0.3, 0.8, 0.6], yaw: 0, pitch: 6 },
     rh: { at: [-0.24, 0.12, 0.44], elbow: [-0.6, 0.6, 0.3] },
     lh: { at: [0.16, 0.76, -0.04], elbow: [0.5, 0.6, -0.3] },
     near: LEG_FAR,
@@ -529,14 +563,15 @@ const BOOK = {
     hips: { t: [0, 0, 0], r: [0, 22, 0] },
     R: { at: [-0.06, 0.36, 0.62], knee: [-0.15, 1.0, 1.0], yaw: 0, pitch: 60 },
   }),
-  // The flying kick: the rear leg driven long and down, the body leaning back from it.
+  // The flying kick: the rear leg driven long and down, the body leaning back from it, the knee
+  // left bent and the foot pointed along the shin (aimed deep enough to keep the reach).
   jhk: vary(TUCK, {
     hips: { t: [0, 0, 0], r: [-14, -20, 0] },
     spine: [-6, -6, 0],
     neck: [10, 18, 0],
     head: [8, 14, 0],
     R: { at: [-0.08, 0.66, 0.22], knee: [-0.2, 1.2, 1.2], yaw: 0, pitch: 40 },
-    L: { at: [0.0, 0.32, 0.84], knee: [0.3, 1.0, 0.6], yaw: 0, pitch: 70 },
+    L: { at: [0.02, 0.38, 0.62], knee: [0.05, 1.0, 0.6], yaw: 0, point: 20 },
     near: LEG_FAR,
   }),
 
