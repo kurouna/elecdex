@@ -26,8 +26,11 @@ import {
   yawBy,
 } from './math.e16'
 
-/** Speeds in sixteenths of a unit a frame. */
-export const SPEED_CRUISE: i16 = 320
+/**
+ * Speeds in sixteenths of a unit a frame. The cruise was 320 until 2026-10-10, when the user
+ * had it raised a little: a turning fight flown without the burner stalled too often.
+ */
+export const SPEED_CRUISE: i16 = 352
 export const SPEED_BURNER: i16 = 464
 export const SPEED_BRAKE: i16 = 200
 /** The most the engine and drag change the speed a frame, sixteenths of a point (3 points). */

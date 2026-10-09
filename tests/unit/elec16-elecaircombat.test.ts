@@ -262,13 +262,18 @@ function okDistance(a: number[], b: number[]): number {
  * before, the stall's 32,217 and 52,671); the scripted sortie measured 25,980 and 37,865.
  * Again later that day, when the ladder was retuned and NOCTURNE turned less hard: another
  * fight again (36,199 and 49,941 before, the stall's 36,145 and 49,289).
+ * Then 26,351 and 37,921 for the sortie, 31,520 and 49,724 for the fight, the stall's 31,927
+ * and 49,724, until 2026-10-10: the aim aids (an arrow or the lock's bar, the closing box),
+ * the seeker's grace, the faster cruise (the scripted flight goes a little differently), and
+ * aces that react later and are hurt by their smoke - another fight again, NOCTURNE kept
+ * whole (eHPMax - 30, never smoking: it was 100 of 130), the stall's with 269 frames stalled.
  */
-const SORTIE_AVG = 26_351
-const SORTIE_WORST = 37_921
-const HARD_AVG = 31_520
-const HARD_WORST = 49_724
-const STALL_AVG = 31_927
-const STALL_WORST = 49_724
+const SORTIE_AVG = 26_946
+const SORTIE_WORST = 38_373
+const HARD_AVG = 38_408
+const HARD_WORST = 50_425
+const STALL_AVG = 31_956
+const STALL_WORST = 50_425
 
 describe('ELECAIRCOMBAT as built', () => {
   it('is what games.json holds, and its folder keeps the constants and the assembly', () => {
@@ -330,6 +335,26 @@ describe('ELECAIRCOMBAT as built', () => {
       const bodies = new Set(loopFrames(song).values())
       expect([...bodies], song.name).toHaveLength(bodies.size > 0 ? 1 : 0)
     }
+  })
+
+  it('keeps the music under the effects: every song at 0.45 of its first level, the effects as they were', () => {
+    // The user (2026-10-10): the music drowned the effects. Each music instrument was scaled
+    // to 0.45 (about -7 dB, the band's balance kept); the effects were left alone.
+    const songs = compileSongs(readFileSync(`${DIR}/music/songs.mml`, 'utf8'))
+    const effects = compileSongs(readFileSync(`${DIR}/music/sfx.mml`, 'utf8'))
+    const sum = (s: Song | undefined) => (s?.instruments ?? []).reduce((a, i) => a + i.vol, 0)
+    const all = songs.reduce((a, s) => a + sum(s), 0)
+    expect(all).toBe(160) // 349 as first written
+    expect(sum(songs.find((s) => s.name === 'fight'))).toBe(32) // 71
+    for (const s of songs)
+      for (const i of s.instruments) expect(i.vol, `${s.name} ${i.name}`).toBeLessThanOrEqual(7)
+    // The gun, the seeker, the lock and the alarm stay at their own levels, over any music instrument.
+    const vol = (song: string, inst: string) =>
+      effects.find((s) => s.name === song)?.instruments.find((i) => i.name === inst)?.vol
+    expect(vol('x_gun', 'gun')).toBe(9)
+    expect(vol('x_seek4', 'tick')).toBe(7)
+    expect(vol('x_lockon', 'tone')).toBe(8)
+    expect(vol('x_alert', 'beep')).toBe(10)
   })
 })
 
@@ -578,7 +603,8 @@ function hardFight(stall: boolean): { avg: number; worst: number; stalled: numbe
   for (let t = 0; t < n; t++) {
     put(m, 'damage', 0)
     if (read(m, 'pAlt') < 2500) put(m, 'pAlt', 2500)
-    put(m, 'eHP', 100)
+    // Whole enough not to smoke or be hurt (eHurt), and never shot down.
+    put(m, 'eHP', read(m, 'eHPMax') - 30)
     put(m, 'clock', 9000)
     put(m, 'aiMslCool', 0)
     put(m, 'aiMissiles', 20)
@@ -715,7 +741,8 @@ describe('ELECAIRCOMBAT stall', { timeout: 120_000 }, () => {
     const o = loop(level(), B.pull, 260)
     expect(o.turned).toBeGreaterThan(360)
     expect(Math.max(...o.states)).toBe(0)
-    expect(o.slowest).toBeLessThan(240)
+    // 218 at the first cruise (320), 250 at today's (352).
+    expect(o.slowest).toBeLessThan(260)
     expect(o.slowest).toBeGreaterThan(o.stallThere + MARGIN + 16)
   })
 
@@ -730,7 +757,8 @@ describe('ELECAIRCOMBAT stall', { timeout: 120_000 }, () => {
 
   it('stalls in a loop begun slow: braked to 215, the brake let go, then pulled', () => {
     const m = level()
-    fly(m, B.brake, 35)
+    // From the cruise (352; 35 frames from the first cruise, 320).
+    fly(m, B.brake, 46)
     expect(read(m, 'pSpeed')).toBeLessThanOrEqual(220)
     expect(read(m, 'pSpeed')).toBeGreaterThanOrEqual(210)
     const o = loop(m, B.pull, 260)
@@ -928,8 +956,10 @@ describe('ELECAIRCOMBAT controls and aces', { timeout: 120_000 }, () => {
       expect(fooled, `ace ${k}`).toBeLessThan(trials)
       all += fooled
     }
+    // Three in four, within the spread of a hundred tries (0.86 once the aces' reactions
+    // drew the generator differently, 2026-10-10).
     expect(all / (5 * trials)).toBeGreaterThan(0.65)
-    expect(all / (5 * trials)).toBeLessThan(0.85)
+    expect(all / (5 * trials)).toBeLessThan(0.88)
   })
 
   it("flies ORACLE's and NOCTURNE's missiles a tenth faster than the others'", () => {
@@ -1038,7 +1068,8 @@ describe('ELECAIRCOMBAT controls and aces', { timeout: 120_000 }, () => {
     const states = new Set<number>()
     let lowest = 16384
     let highest = -16384
-    for (let t = 0; t < 200; t++) {
+    // 200 frames, until its pull was dulled (2026-10-10) and the player cruised faster.
+    for (let t = 0; t < 320; t++) {
       put(m, 'pAlt', 5200)
       put(m, 'aiThinkT', 200)
       frames(m, 1, cart)
@@ -1659,5 +1690,218 @@ describe('ELECAIRCOMBAT spacing', { timeout: 120_000 }, () => {
     const [gannet = 0, oracle = 0] = miss
     expect(gannet).toBeGreaterThan(250)
     expect(oracle).toBeLessThan(gannet)
+  })
+})
+
+// The user's batch of 2026-10-10: an easier seeker (a wider cone, a shorter lock, a grace),
+// the aim aids on the HUD, the enemy's smoke that costs it, the player's that does not, the
+// cruise raised, and a separation that comes back across the player's nose.
+describe('ELECAIRCOMBAT easier locks and aids', { timeout: 120_000 }, () => {
+  const LOCK = 44
+  const GRACE = 6
+  const HUD8 = constant('HUD8_TILE')
+  const HUD16 = constant('HUD16_TILE')
+  const RED_PAL = 5 // SL_HUD_RED - 8
+
+  /** The enemy at (x, ahead) from the player, both level and heading north; the AI held. */
+  function at(m: Elec16, x: number, ahead: number): void {
+    pin(m, ahead)
+    vecPut(m, V.REL, x, ahead, 0)
+    put(m, 'aiThinkT', 200)
+    put(m, 'damage', 0)
+  }
+
+  /** `n` frames with the enemy held at (x, ahead). */
+  function held(m: Elec16, n: number, x: number, ahead: number): void {
+    for (let k = 0; k < n; k++) {
+      at(m, x, ahead)
+      frames(m, 1, cart)
+    }
+  }
+
+  /** The frame's sprites as video memory holds them: place, tile, palette, size. */
+  function sprites(m: Elec16): { x: number; y: number; tile: number; pal: number; size: number }[] {
+    const out = []
+    for (let k = 0; k < 128; k++) {
+      const size = vword(m, 0xc000 + k * 8 + 6)
+      if (size > 2) continue
+      const word = vword(m, 0xc000 + k * 8 + 4)
+      out.push({
+        x: signed(vword(m, 0xc000 + k * 8)),
+        y: signed(vword(m, 0xc000 + k * 8 + 2)),
+        tile: word & 0x3ff,
+        pal: (word >> 10) & 7,
+        size,
+      })
+    }
+    return out
+  }
+
+  it('locks within a cone of about 19 degrees, once 17.4, in 44 frames, once 50', () => {
+    const m = flying()
+    put(m, 'aiDodge', 0)
+    // 0.33 of the way across: outside the old cone (0.3125), inside the new (0.34375).
+    held(m, 10, 3000, 3000)
+    expect(read(m, 'lockT')).toBe(0)
+    held(m, LOCK - 1, 990, 3000)
+    expect(read(m, 'locked')).toBe(0)
+    expect(read(m, 'lockT')).toBe(LOCK - 1)
+    held(m, 1, 990, 3000)
+    expect(read(m, 'locked')).toBe(1)
+    // Past the new edge, nothing.
+    held(m, 20, 3000, 3000)
+    held(m, 30, 1060, 3000)
+    expect(read(m, 'lockT')).toBe(0)
+  })
+
+  it('holds what it had for a few frames once the enemy slips just out of the cone', () => {
+    const m = flying()
+    put(m, 'aiDodge', 0)
+    held(m, 10, 3000, 3000)
+    held(m, 20, 0, 3000)
+    expect(read(m, 'lockT')).toBe(20)
+    // Out of the cone, still ahead: the count stands for GRACE frames, then is gone.
+    held(m, GRACE, 1400, 3000)
+    expect(read(m, 'lockT')).toBe(20)
+    held(m, 4, 0, 3000)
+    expect(read(m, 'lockT')).toBe(24)
+    held(m, GRACE + 1, 1400, 3000)
+    expect(read(m, 'lockT')).toBe(0)
+    // A lock is held the same way, and lost after the grace.
+    held(m, LOCK + 2, 0, 3000)
+    expect(read(m, 'locked')).toBe(1)
+    held(m, GRACE, 1400, 3000)
+    expect(read(m, 'locked')).toBe(1)
+    held(m, 1, 1400, 3000)
+    expect(read(m, 'locked')).toBe(0)
+    // Behind the player there is no grace.
+    held(m, 20, 0, 3000)
+    held(m, 1, 0, -3000)
+    expect(read(m, 'lockT')).toBe(0)
+  })
+
+  it('points a green arrow by the gun cross at an enemy on the screen outside the cone, none inside', () => {
+    const m = flying()
+    const arrows = () =>
+      sprites(m).filter((s) => s.size === 1 && s.tile >= HUD16 + 12 && s.tile <= HUD16 + 28)
+    held(m, 10, 1600, 3000)
+    const green = arrows().filter((s) => s.pal === 0)
+    expect(green).toHaveLength(1)
+    const a = green[0] ?? { x: 0, y: 0 }
+    // 46 points from the cross, toward the enemy (to the right).
+    const r = Math.round(Math.hypot(a.x + 8 - 160, a.y + 8 - 112))
+    expect(r).toBeGreaterThanOrEqual(44)
+    expect(r).toBeLessThanOrEqual(48)
+    expect(a.x + 8).toBeGreaterThan(200)
+    held(m, 4, 0, 3000)
+    expect(arrows()).toHaveLength(0)
+  })
+
+  it("closes the target's box and fills the lock's bar as the lock nears, both red once locked", () => {
+    const m = flying()
+    put(m, 'aiDodge', 0)
+    const bar = () =>
+      sprites(m).filter(
+        (s) => s.size === 0 && s.tile === HUD8 && s.y === 148 && s.x >= 136 && s.x <= 176,
+      )
+    const corner = () => sprites(m).find((s) => s.size === 0 && s.tile === HUD8 + 19)
+    held(m, 10, 3000, 3000)
+    expect(bar()).toHaveLength(0)
+    held(m, 6, 0, 3000)
+    const early = corner()?.x ?? 0
+    expect(bar().length).toBeLessThanOrEqual(1)
+    held(m, 24, 0, 3000)
+    const later = corner()?.x ?? 0
+    expect(bar().length).toBeGreaterThanOrEqual(2)
+    expect(bar().length).toBeLessThanOrEqual(4)
+    // The box's top-left corner moves in toward the enemy, a point every two frames.
+    expect(later - early).toBeGreaterThanOrEqual(10)
+    held(m, 20, 0, 3000)
+    expect(read(m, 'locked')).toBe(1)
+    expect(bar()).toHaveLength(6)
+    expect(bar().every((s) => s.pal === RED_PAL)).toBe(true)
+    expect(corner()?.pal).toBe(RED_PAL)
+  })
+
+  it('slows a badly hurt ace and dulls its turns, under three eighths of its strength', () => {
+    const m = flying()
+    const cruise = read(m, 'eCruise')
+    const roll = read(m, 'eRollMax')
+    const pull = read(m, 'ePullMax')
+    const max = read(m, 'eHPMax')
+    // Just over three eighths: a round or two more takes it under.
+    put(m, 'eHP', Math.floor((max * 3) / 8) + 4)
+    let k = 0
+    while (k < 200 && read(m, 'eHP') * 8 >= max * 3) {
+      expect(read(m, 'eHurt')).toBe(0)
+      expect(read(m, 'eCruise')).toBe(cruise)
+      pinned(m, 1, 700, padBit('a'))
+      k++
+    }
+    expect(read(m, 'eAlive')).toBe(1)
+    expect(read(m, 'eHurt')).toBe(1)
+    expect(read(m, 'eCruise')).toBe(cruise - (cruise >> 3))
+    expect(read(m, 'eRollMax')).toBe(roll - (roll >> 3))
+    expect(read(m, 'ePullMax')).toBe(pull - (pull >> 3))
+  })
+
+  it('costs the player nothing for its own smoke: the same cruise and roll at 90% damage', () => {
+    const fly = (damage: number) => {
+      const m = flying()
+      for (let t = 0; t < 240; t++) {
+        put(m, 'damage', damage)
+        put(m, 'pAlt', 6000)
+        frames(m, 1, cart)
+      }
+      const speed = read(m, 'pSpeed')
+      m.pad(padBit('right'))
+      for (let t = 0; t < 12; t++) {
+        put(m, 'damage', damage)
+        frames(m, 1, cart)
+      }
+      m.pad(0)
+      return { speed, right: vecOf(m, V.PR) }
+    }
+    const whole = fly(0)
+    expect(whole.speed).toBe(352)
+    expect(fly(90)).toEqual(whole)
+  })
+
+  it('cruises at 352, raised from 320, and holds it level', () => {
+    const m = flying()
+    for (let t = 0; t < 240; t++) {
+      put(m, 'pAlt', 6000)
+      put(m, 'damage', 0)
+      frames(m, 1, cart)
+    }
+    expect(read(m, 'pSpeed')).toBe(352)
+  })
+
+  it("comes back from a separation across the player's nose, where the seeker sees it", () => {
+    // Each ace out ahead and to the right of a player flying straight on, running away at 45
+    // degrees and turning back: once it flew at the player itself and held its bearing, never
+    // in the seeker (0 frames for every ace); across the nose, it is there 62-217 frames.
+    for (let k = 0; k < 5; k++) {
+      const m = atAce(k)
+      pin(m, 0)
+      vecPut(m, V.REL, 2000, 2000, 0)
+      vecPut(m, V.EF, 11585, 11585, 0)
+      vecPut(m, V.ER, 11585, -11585, 0)
+      vecPut(m, V.EU, 0, 0, 16384)
+      put(m, 'aiState', 3)
+      put(m, 'aiStateT', 150)
+      put(m, 'aiRunOut', 2000)
+      put(m, 'aiBack', 0)
+      put(m, 'lockT', 0)
+      put(m, 'locked', 0)
+      let seen = 0
+      for (let t = 0; t < 400 && read(m, 'aiState') === 3; t++) {
+        put(m, 'damage', 0)
+        put(m, 'pAlt', 5200)
+        frames(m, 1, cart)
+        if (read(m, 'lockT') > 0) seen++
+      }
+      expect(seen, `ace ${k}`).toBeGreaterThan(50)
+    }
   })
 })

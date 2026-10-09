@@ -90,23 +90,23 @@ const aceRoll = words(5)
 const acePull = words(5)
 
 export function acesInit(): void {
-  aceHP[0] = 120
-  aceHP[1] = 130
-  aceHP[2] = 135
-  aceHP[3] = 160
-  aceHP[4] = 130
+  aceHP[0] = 150
+  aceHP[1] = 300
+  aceHP[2] = 270
+  aceHP[3] = 290
+  aceHP[4] = 300
   aceCruise[0] = 300
   aceCruise[1] = 320
   aceCruise[2] = 336
   aceCruise[3] = 352
   aceCruise[4] = 372
-  aceRoll[0] = 640
-  aceRoll[1] = 660
+  aceRoll[0] = 500
+  aceRoll[1] = 630
   aceRoll[2] = 900
   aceRoll[3] = 940
   aceRoll[4] = 960
-  acePull[0] = 300
-  acePull[1] = 280
+  acePull[0] = 230
+  acePull[1] = 265
   acePull[2] = 400
   acePull[3] = 420
   acePull[4] = 430
@@ -132,6 +132,12 @@ export let eRollMax: i16 = 640
 export let ePullMax: i16 = 300
 /** 1 flying, 0 gone (shot down). */
 export let eAlive: bool = true
+/**
+ * Hurt badly: under three eighths of its strength the ace smokes thick and flies an eighth
+ * slower, rolls and pulls an eighth less (2026-10-10, the user's decision: the enemy's smoke
+ * costs it, the player's is a warning only).
+ */
+export let eHurt: bool = false
 /** Frames it shows white after a hit, and its gun's flash shows. */
 export let eFlash: u16 = 0
 export let eMuzzle: u16 = 0
@@ -154,6 +160,7 @@ export function banditNew(k: u16, dist: i16): void {
   eRollMax = i16(aceRoll[k])
   ePullMax = i16(acePull[k])
   eAlive = true
+  eHurt = false
   eFlash = 0
   eMuzzle = 0
   eRollRate = 0
@@ -206,10 +213,20 @@ export function banditHit(n: i16): bool {
   if (!eAlive) return false
   eHP = eHP - n
   eFlash = 3
-  if (eHP > 0) return false
+  if (eHP > 0) {
+    if (!eHurt && eHP * 8 < eHPMax * 3) hurtBadly()
+    return false
+  }
   eHP = 0
   eAlive = false
   return true
+}
+
+function hurtBadly(): void {
+  eHurt = true
+  eCruise = eCruise - (eCruise >> 3)
+  eRollMax = eRollMax - (eRollMax >> 3)
+  ePullMax = ePullMax - (ePullMax >> 3)
 }
 
 /* ---------------- seen from the cockpit ---------------- */

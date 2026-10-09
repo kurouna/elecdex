@@ -126,18 +126,18 @@ export function aiInit(): void {
   aceMslTenths[2] = 10
   aceMslTenths[3] = 11
   aceMslTenths[4] = 11
-  aceCircle[0] = 150
-  aceCircle[1] = 200
-  aceCircle[2] = 240
-  aceCircle[3] = 270
-  aceCircle[4] = 270
-  aceRunOut[0] = 4200
-  aceRunOut[1] = 4000
+  aceCircle[0] = 110
+  aceCircle[1] = 150
+  aceCircle[2] = 180
+  aceCircle[3] = 200
+  aceCircle[4] = 210
+  aceRunOut[0] = 4800
+  aceRunOut[1] = 4600
   aceRunOut[2] = 3600
   aceRunOut[3] = 4400
   aceRunOut[4] = 3200
-  aceRunT[0] = 210
-  aceRunT[1] = 190
+  aceRunT[0] = 240
+  aceRunT[1] = 220
   aceRunT[2] = 180
   aceRunT[3] = 180
   aceRunT[4] = 160
@@ -192,7 +192,7 @@ export let aiBack: bool = false
 export function aiNew(): void {
   aiState = PURSUE
   aiStateT = 0
-  aiThinkT = 30
+  aiThinkT = FIRST_THINK
   aiGunT = 0
   aiLockT = 0
   aiMslCool = 400
@@ -268,9 +268,23 @@ function enemyAlt(): i16 {
   return pAlt + vget(V_REL + 2)
 }
 
+/**
+ * Reaction times, frames: between its thoughts (48 - 8 x ace + 0-21), its first thought of a
+ * sortie, the punisher's next after it rolls in, and the frames into a run before it notices
+ * it is still chased (168 - 31 x ace). Each is 1.4 times what it was until 2026-10-10 (the
+ * user: slower aces, easier locks): 34 - 6 x ace + 0-15, 30, 20 and 120 - 22 x ace.
+ */
+const THINK_BASE: u16 = 48
+const THINK_STEP: u16 = 8
+const THINK_RAND: u16 = 22
+const FIRST_THINK: u16 = 42
+const PUNISH_THINK: u16 = 28
+const CHASED_BASE: u16 = 168
+const CHASED_STEP: u16 = 31
+
 /** Picks a aiState, then waits as long as this ace takes to react again. */
 function think(): void {
-  aiThinkT = 34 - ace * 6 + randBelow(16)
+  aiThinkT = THINK_BASE - ace * THINK_STEP + randBelow(THINK_RAND)
   if (enemyAlt() < 1400 && vget(V_EF + 2) < 4000) {
     to(FLOOR, 90)
     return
@@ -285,7 +299,7 @@ function think(): void {
     return
   }
   // Chased all the way out, the run gains nothing: it turns to fight (the careful one late).
-  if (running() && onItsTail() && aiStateT + 120 - ace * 22 < aceRunT[ace]) {
+  if (running() && onItsTail() && aiStateT + CHASED_BASE - ace * CHASED_STEP < aceRunT[ace]) {
     breakTurn()
     return
   }
@@ -332,6 +346,13 @@ function extendTime(): u16 {
 }
 
 /**
+ * Its own seeker's frames past which it stays in a close fight for the shot it is about to
+ * have. Until 2026-10-10 any frame of its own seeker held the count, and the scissoring ace,
+ * its nose often across the player, circled for half a minute and more.
+ */
+const CIRCLE_SHOT: u16 = 40
+
+/**
  * Counts a close fight that goes nowhere: the two near each other, round the same turn or
  * through break after break, and neither seeker locked (the player's lock it hears as a warning
  * receiver would). Room, or a lock either way, lets the count fall away.
@@ -341,7 +362,7 @@ function circling(): void {
     aiCircleT = 0
     return
   }
-  if (eDist < 3000 && !locked && aiLockT === 0) aiCircleT++
+  if (eDist < 3000 && !locked && aiLockT < CIRCLE_SHOT) aiCircleT++
   else aiCircleT = aiCircleT > 2 ? aiCircleT - 2 : 0
 }
 
@@ -388,12 +409,13 @@ function every(): void {
   if (aiState === BREAK) breakBeat()
   if (aiState === ZOOM && zoomTop()) to(HAMMER, 80)
   if (aiState === HAMMER && aiStateT === 0) to(PURSUE, 60)
-  // Back from a run with the player in front of it: the pass is a fight again.
-  if (aiState === EXTEND && aiBack && playerAhead(6000)) to(PURSUE, 60)
+  // Back from a run with the player in front of it: the pass is a fight again - out of a
+  // separation only once it has crossed the player's nose, near.
+  if (aiState === EXTEND && aiBack && playerAhead(aiRunOut > 0 ? CROSS_NEAR : 6000)) to(PURSUE, 60)
   // The player has shot past: the punisher is on it at once.
   if (has(F_PUNISH) && aiState !== PURSUE && aiState !== FLOOR && playerAhead(1600)) {
     to(PURSUE, 60)
-    aiThinkT = 20
+    aiThinkT = PUNISH_THINK
   }
 }
 
@@ -469,12 +491,38 @@ function axisGoal(axis: u16, sign: i16, up: i16): void {
  */
 function extendGoal(): void {
   const far = aiRunOut > 0 ? aiRunOut : has(F_HEADON) ? 3600 : 2400
-  if (aiStateT < 40 || eDist > far) aiBack = true
-  if (aiBack) {
-    leadGoal()
-    return
+  if (!aiBack && (aiStateT < 40 || eDist > far)) {
+    aiBack = true
+    // Out of a separation, time to come all the way back across the player's nose.
+    if (aiRunOut > 0 && aiStateT < CROSS_TIME) aiStateT = CROSS_TIME
   }
-  vset(V_T2, vget(V_REL) >> 1, vget(V_REL + 1) >> 1, 2000)
+  if (aiBack && aiRunOut > 0) crossGoal()
+  else if (aiBack) leadGoal()
+  else vset(V_T2, vget(V_REL) >> 1, vget(V_REL + 1) >> 1, 2000)
+}
+
+/**
+ * Coming back from a separation: at a point CROSS_AHEAD in front of the player's nose, led by
+ * the player's way for the time the ace takes to get there (its distance in units over 32,
+ * as frames, at most CROSS_LEAD), rather than at the player - so the way in passes through
+ * the player's sights, a lock to be had (2026-10-10, the user: re-engagements that pass in
+ * front). It fights again once the player is ahead of it within CROSS_NEAR, or when the time
+ * runs out.
+ */
+const CROSS_AHEAD: i16 = 1600
+const CROSS_NEAR: u16 = 1800
+const CROSS_TIME: u16 = 300
+const CROSS_LEAD: i16 = 160
+
+function crossGoal(): void {
+  let t = i16(eDist >> 5)
+  if (t > CROSS_LEAD) t = CROSS_LEAD
+  vset(
+    V_T2,
+    -vget(V_REL) + mulShift(vget(V_PF), CROSS_AHEAD, 14) + mulShift(pVel(0), t, 4),
+    -vget(V_REL + 1) + mulShift(vget(V_PF + 1), CROSS_AHEAD, 14) + mulShift(pVel(1), t, 4),
+    -vget(V_REL + 2) + mulShift(vget(V_PF + 2), CROSS_AHEAD, 14) + mulShift(pVel(2), t, 4),
+  )
 }
 
 /* ---------------- flying to it ---------------- */

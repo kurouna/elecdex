@@ -15,6 +15,7 @@ import {
 } from '../../../../src/shared/e16c/builtins'
 import { aim, colour, cos, FLIP_H, FLIP_V, S8, S16, S32, sin, spr } from '../lib/kit.e16'
 import {
+  inCone,
   inSeeker,
   LOCK_FRAMES,
   locked,
@@ -435,6 +436,8 @@ function targetDraw(): void {
   let half = i16(eSize >> 1) + 4
   if (half < 10) half = 10
   if (half > 36) half = 36
+  // While the seeker tracks, the box closes in on the enemy as the lock nears.
+  if (lockT > 0 && !locked) half = half + (i16(LOCK_FRAMES - lockT) >> 1)
   if (!abovePanel(eSY, half + 10)) return
   const pal = locked ? RED : GREEN
   const corner = HUD8_TILE + 19
@@ -460,18 +463,26 @@ function nameDraw(x: i16, y: i16, pal: u16): void {
   }
 }
 
-/** An arrow at the edge of the HUD pointing the way to turn toward the enemy. */
+/** An arrow at the edge of the HUD pointing the way to turn toward the enemy (off the screen). */
 function arrowDraw(): void {
-  let x = eBX
-  let y = -eBY
+  arrowAt(eBX, -eBY, 70, RED)
+}
+
+/**
+ * An arrow `r` points from the gun cross toward (x, y) - points across and down the screen,
+ * any scale - in palette `pal`.
+ */
+function arrowAt(x0: i16, y0: i16, r: i16, pal: u16): void {
+  let x = x0
+  let y = y0
   while (abs16(x) >= 200 || abs16(y) >= 200) {
     x = x >> 1
     y = y >> 1
   }
   if (x === 0 && y === 0) y = 1
   const a = aim(x, y)
-  const px = i16(CX) + mulShift(cos(a), 70, 8)
-  const py = i16(CY) + mulShift(sin(a), 70, 8)
+  const px = i16(CX) + mulShift(cos(a), r, 8)
+  const py = i16(CY) + mulShift(sin(a), r, 8)
   const d = ((a + 8) >> 4) & 15
   let t = d
   let flips: u16 = 0
@@ -485,12 +496,21 @@ function arrowDraw(): void {
     t = 8 - d
     flips = FLIP_H
   }
-  spr(px - 8 + shakeX(), py - 8 + shakeY(), (HUD16_TILE + 12 + t * 4) | flips | RED, S16)
+  spr(px - 8 + shakeX(), py - 8 + shakeY(), (HUD16_TILE + 12 + t * 4) | flips | pal, S16)
 }
 
-/** The seeker's circle while the enemy is within its reach; the diamond closing; the lock. */
+/**
+ * The seeker's circle while the enemy is within its reach (or just slipped out, LOCK_GRACE);
+ * the diamond closing and the lock's bar filling under the circle; the lock. With the enemy on
+ * the screen but outside the cone, a green arrow by the gun cross says which way to put the
+ * nose (the box alone did not: aim aids, 2026-10-10).
+ */
 function lockDraw(frame: u16): void {
-  if (!eAlive || !inSeeker()) return
+  if (!eAlive) return
+  if (lockT === 0 && !inSeeker()) {
+    if (eOn && !inCone()) arrowAt(eSX - i16(CX), eSY - i16(CY), 46, GREEN)
+    return
+  }
   const q = SEEKER_TILE | GREEN
   spr(CX - 32 + shakeX(), CY - 32 + shakeY(), q, S32)
   spr(CX + shakeX(), CY - 32 + shakeY(), q | FLIP_H, S32)
@@ -499,12 +519,25 @@ function lockDraw(frame: u16): void {
   if (locked) {
     const f = (frame >> 2) & 1
     spr(eSX - 8, eSY - 8, (HUD16_TILE + 4 + f * 4) | RED, S16)
+    lockBar(LOCK_BAR, RED)
     return
   }
   const t = i16(lockT)
   const x = i16(CX) + idiv((eSX - i16(CX)) * t, i16(LOCK_FRAMES))
   const y = i16(CY) + idiv((eSY - i16(CY)) * t, i16(LOCK_FRAMES))
   spr(x - 8, y - 8, (HUD16_TILE + 4) | GREEN, S16)
+  lockBar(div(lockT * LOCK_BAR, LOCK_FRAMES), GREEN)
+}
+
+/** The lock's bar: LOCK_BAR segments under the seeker's circle, `n` of them lit. */
+const LOCK_BAR: u16 = 6
+
+function lockBar(n: u16, pal: u16): void {
+  let k: u16 = 0
+  while (k < n) {
+    spr(CX - 24 + i16(k) * 8 + shakeX(), CY + 36 + shakeY(), HUD8_TILE | pal, S8)
+    k++
+  }
 }
 
 /**

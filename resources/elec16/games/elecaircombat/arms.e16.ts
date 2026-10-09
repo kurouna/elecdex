@@ -352,6 +352,7 @@ export function armsNew(): void {
   flaresLeft = PLAYER_FLARES
   lockT = 0
   locked = false
+  lockGrace = 0
   roundsFired = 0
   roundsHit = 0
   missileCool = 0
@@ -756,29 +757,52 @@ export function missileFlare(k: u16): u16 {
 /** Frames the seeker has held the enemy; locked once it has held it long enough. */
 export let lockT: u16 = 0
 export let locked: bool = false
-export const LOCK_FRAMES = 50
+/**
+ * The frames to a lock, and the frames the seeker keeps what it had (the count, or the lock)
+ * once the enemy slips just out of its cone, still ahead: a pilot's nose wanders, and a lock
+ * once lost at the first frame out was rarely made at all (2026-10-10, the user: easier).
+ */
+export const LOCK_FRAMES = 44
+export const LOCK_GRACE = 6
+/** Frames the enemy has been out of the cone with the seeker still holding on. */
+export let lockGrace: u16 = 0
 
-/** Whether the enemy is where the seeker can see it: ahead, within its cone, in range. */
-export function inSeeker(): bool {
-  if (!eAlive || eBZ <= 0 || eDist > 5600) return false
-  const cone = (eBZ >> 2) + (eBZ >> 4)
+/** Whether the enemy is within the seeker's cone (about 19 degrees off the nose), at any range. */
+export function inCone(): bool {
+  if (!eAlive || eBZ <= 0) return false
+  const cone = (eBZ >> 2) + (eBZ >> 4) + (eBZ >> 5)
   return abs16(eBX) < cone && abs16(eBY) < cone
 }
 
-/** A frame of the seeker: answers 1 the frame it locks, 2 while tracking, 0 otherwise. */
+/** Whether the enemy is where the seeker can see it: ahead, within its cone, in range. */
+export function inSeeker(): bool {
+  return eDist <= 5600 && inCone()
+}
+
+/**
+ * A frame of the seeker: answers 1 the frame it locks, 2 while tracking, 3 while locked, 0
+ * otherwise. Out of the cone but still ahead, it holds on for LOCK_GRACE frames - the count
+ * stands still, a lock stays - before it lets go.
+ */
 export function seekerStep(): u16 {
-  if (!inSeeker()) {
-    lockT = 0
-    locked = false
-    return 0
+  if (inSeeker()) {
+    lockGrace = 0
+    if (locked) return 3
+    lockT++
+    if (lockT >= LOCK_FRAMES) {
+      locked = true
+      return 1
+    }
+    return 2
   }
-  if (locked) return 3
-  lockT++
-  if (lockT >= LOCK_FRAMES) {
-    locked = true
-    return 1
+  if (lockT > 0 && eAlive && eBZ > 0 && lockGrace < LOCK_GRACE) {
+    lockGrace++
+    return locked ? 3 : 2
   }
-  return 2
+  lockT = 0
+  locked = false
+  lockGrace = 0
+  return 0
 }
 
 /* ---------------- what the effects module draws ---------------- */

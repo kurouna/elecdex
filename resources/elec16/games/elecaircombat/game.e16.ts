@@ -166,6 +166,7 @@ import {
   eBZ,
   eHP,
   eHPMax,
+  eHurt,
   eVel,
   viewsInit,
 } from './bandit.e16'
@@ -472,11 +473,12 @@ function ownSmoke(): void {
 
 /**
  * A wounded ace trails smoke, more as it is hurt: a wisp now and then below three quarters,
- * thicker below half, and thick and burning below a quarter.
+ * thicker once it is hurt badly (`eHurt`, under three eighths: slower, turning less), and
+ * thick and burning below a quarter.
  */
 function wounds(): void {
   if (!eAlive || eHP * 4 > eHPMax * 3) return
-  const every: u16 = eHP * 4 < eHPMax ? 3 : eHP * 2 < eHPMax ? 7 : 15
+  const every: u16 = eHP * 4 < eHPMax ? 3 : eHurt ? 7 : 15
   if ((frame & every) !== 0) return
   puffAt(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2), 1)
   if (eHP * 4 < eHPMax && (frame & 7) === 0) sparkAt(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
@@ -531,15 +533,24 @@ let lockToneT: u16 = 0
 let toneOn: bool = false
 
 /**
- * The seeker's tones - short ones while it tracks, rising as the lock nears, two quick ones
- * as it locks, then one steady tone, hushed when the lock is lost - and the missile alarm.
+ * The seeker's tones - short ones while it tracks, rising as the lock nears and coming twice
+ * as often over its second half, two quick ones as it locks, then one steady tone, hushed
+ * when the lock is lost - and the missile alarm.
  */
 function sounds(): void {
-  const s = seekerStep()
+  seekerTones(seekerStep())
+  if (!warned) return
+  const every: u16 = warnDist < 1500 ? 7 : warnDist < 4000 ? 15 : 31
+  if ((frame & every) === 0) sfxAlert()
+}
+
+/** The seeker's tones for what its step answered (`s`, seekerStep's). */
+function seekerTones(s: u16): void {
+  const step = div(lockT * 4, LOCK_FRAMES)
   if (s === 1) {
     sfxLock(true)
     lockToneT = 4
-  } else if (s === 2 && (frame & 7) === 0) sfxSeek(div(lockT * 4, LOCK_FRAMES))
+  } else if (s === 2 && (frame & (step < 2 ? 7 : 3)) === 0) sfxSeek(step)
   else if (s === 3) {
     if (lockToneT > 0) lockToneT--
     else {
@@ -548,9 +559,6 @@ function sounds(): void {
     }
   } else if (s === 0 && toneOn) sfxHush()
   toneOn = s !== 0
-  if (!warned) return
-  const every: u16 = warnDist < 1500 ? 7 : warnDist < 4000 ? 15 : 31
-  if ((frame & every) === 0) sfxAlert()
 }
 
 /** Front to back: the HUD, near clouds, the enemy, effects, far clouds, the sun. */
