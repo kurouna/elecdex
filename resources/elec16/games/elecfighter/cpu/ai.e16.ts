@@ -30,6 +30,7 @@ import {
   O_CHAIN,
   O_FLAGS,
   O_GUARD,
+  O_LATE,
   O_PATTERN,
   O_PUNISH,
   O_R_AA,
@@ -82,7 +83,7 @@ import {
   ST_WAKE,
 } from '../engine/fighter.e16'
 import { I_BACK, I_DOWN, I_FWD, I_HK, I_HP, I_LK, I_LP, I_UP } from '../engine/input.e16'
-import { liveN, seenF, seenL, seenN, seenS, seenX, seenY } from '../engine/main.e16'
+import { liveN, seenF, seenL, seenN, seenS, seenX, seenY, timeLeft } from '../engine/main.e16'
 import { habitStep, histRange, observe } from './habit.e16'
 import { otherHalf, PUNISHERS, punD, thD } from './setup.e16'
 
@@ -580,9 +581,24 @@ function onTurn(i: u16): bool {
   return tempo[i] >= 256
 }
 
-/** Wary of the other: it has been swinging lately. */
+/**
+ * Wary of the other: it has been swinging lately - unless it is pressing (`pressing`), when the
+ * clock, not the other's reach, is what it has to beat.
+ */
 function wary(i: u16): bool {
-  return swing[i] >= WARY
+  return swing[i] >= WARY && !pressing(i)
+}
+
+/**
+ * Behind on life (as the bars show it, a share of each one's whole) with TIME at its row's LATE
+ * or under (0 never): it must close in and fight, for waiting loses the round by TIME UP. A
+ * spammer of one jab who struck first and kept poking was never answered by a wary CPU, and won
+ * 41% of the rounds at the ladder's first place, nearly all by TIME UP (2026-10-10).
+ */
+function pressing(i: u16): bool {
+  // LATE 0 is never: TIME 0 is the round's end.
+  if (timeLeft > row(i, O_LATE)) return false
+  return fLife[i] * prAt(1 - i, P_LIFE) < fLife[1 - i] * prAt(i, P_LIFE)
 }
 
 /**
@@ -623,8 +639,10 @@ function mayCome(i: u16, j: u16, d: u16): bool {
 function heldOff(i: u16, d: u16): u16 {
   const met = metComing(i, d)
   if (met !== 0xffff) return met
-  // A TURTLE's guard walks it back, so only inside the reach (it would leave its range).
-  if (standsGuard(i)) return d > edge(i) ? 0 : I_BACK
+  // A TURTLE's guard walks it back, so only inside the reach (it would leave its range) and
+  // a little more the more the other swings: seen late, a jab spammer walked in from just outside
+  // and struck it standing unguarded (S2 RUSH took 6 of 9 rounds from MAINFRAME, 2026-10-10).
+  if (standsGuard(i)) return d > edge(i) + (swing[i] >> 4) ? 0 : I_BACK
   return d > edge(i) + GUARD_PTS ? 0 : I_BACK | I_DOWN
 }
 
@@ -799,6 +817,8 @@ function think(i: u16, j: u16): void {
   const band = d < NEAR ? 0 : d < MIDDLE ? 1 : 2
   weightsLoad(i, band, situation(i, e))
   let a = drawn()
+  // Pressing, a guard, a wait or a backing off is drawn again: the less likely by its own share.
+  if (a >= A_GUARD && pressing(i)) a = drawn()
   if ((row(i, O_FLAGS) & OF_FEINT) !== 0 && (a === A_MID || a === A_LOW)) {
     if (a === (lastML[i] & 15) && randBelow(256) < FEINT_CHANCE) a = a === A_MID ? A_LOW : A_MID
     lastML[i] = (lastML[i] & 0xff30) | a
@@ -1003,7 +1023,7 @@ function keepRange(i: u16, j: u16, d: u16): u16 {
   let want = liked(i)
   if (wary(i) && want < edge(i) + COME) want = edge(i) + COME
   const w = row(i, O_WIDTH)
-  const turtle = (row(i, O_FLAGS) & OF_TURTLE) !== 0
+  const turtle = (row(i, O_FLAGS) & OF_TURTLE) !== 0 && !pressing(i)
   if (d > want + (turtle ? w * 3 : w)) return stepIn(i, j, d)
   if (wary(i) && d <= edge(i)) return heldOff(i, d)
   if (d + w < want) return I_BACK

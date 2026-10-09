@@ -84,8 +84,10 @@ describe('ELECFIGHTER the CPU against one button (design 7.7, 7.10)', { timeout:
       for (const [name, [slot, at]] of Object.entries(MET)) {
         const r = oneButton(slot ?? 0, at ?? 0, 10, p1)
         const why = `${name} against ${player}: ${JSON.stringify(r)}`
-        // Never a round without a punish.
-        expect(r.punished, why).toBeGreaterThan(0)
+        // Never a round without a punish - unless it was never struck at all: a TURTLE wary of a
+        // masher keeps out of its heavies' reach by its swinging (2026-10-10), and MAINFRAME took
+        // these rounds untouched, every heavy whiffed short of anything to punish.
+        expect(r.punished > 0 || (r.won === 1 && r.taken === 0), why).toBe(true)
         if (r.won === 1) won++
         all++
         taken += r.taken
@@ -132,6 +134,18 @@ describe('ELECFIGHTER the ladder against spammers and a person (design 3.1, 7.10
       expect(roundBy(slot, 0, 10, spammer(I.down | I.lk, MV.cLK)), `S${slot + 1}`).toBe(1)
     }
     expect(roundBy(2, 0, 10, spammer(I.fwd | I.hp, 0, 'throw'))).toBe(1)
+  })
+
+  it('beats a jab pressed whenever able, closing in when behind late (LATE)', () => {
+    // Measured 2026-10-10, eight clocks a slot: the jab's spam took 44% of the rounds at place 0
+    // and 23% at place 1 - it struck first, and the wary CPU never came in again, so most went to
+    // TIME UP with the spammer ahead (a TURTLE also stood unguarded just outside the jab's reach,
+    // seen late, as the spammer walked in). After (LATE, the swinging-wide TURTLE guard): 18% and
+    // 18%. Here rounds each lost before: S2 RUSH against MAINFRAME at place 0 (the guard), and S4
+    // OUTBOX against MAINFRAME at place 1, to TIME (the pressing).
+    const jab = () => spammer(I.lp, MV.sLP)
+    for (const second of [10, 11]) expect(roundBy(1, 0, second, jab()), `S2 ${second}`).toBe(1)
+    expect(roundBy(3, 1, 15, jab()), 'S4 at place 1').toBe(1)
   })
 
   it('is easier at the first place than at ROOT for a person', () => {

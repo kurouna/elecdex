@@ -519,6 +519,7 @@ export const O_EVENT = 22
 export const O_WHIM = 23
 export const O_FLAGS = 24
 export const O_WEIGHTS = 25
+export const O_LATE = 26
 export const OW = 32
 export const OPPONENTS = 5
 /** The flags (column 24); 2 and 8 are kept for later. */
