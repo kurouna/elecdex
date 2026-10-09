@@ -5921,8 +5921,8 @@ acesInit:
   ; bandit.e16.ts:96  aceHP[3] = 140
   li t0, 140
   sw t0, aceHP+6(zero)
-  ; bandit.e16.ts:97  aceHP[4] = 200
-  li t0, 200
+  ; bandit.e16.ts:97  aceHP[4] = 150
+  li t0, 150
   sw t0, aceHP+8(zero)
   ; bandit.e16.ts:98  aceCruise[0] = 300
   li t0, 300
@@ -5942,32 +5942,32 @@ acesInit:
   ; bandit.e16.ts:103  aceRoll[0] = 640
   li t0, 640
   sw t0, aceRoll(zero)
-  ; bandit.e16.ts:104  aceRoll[1] = 760
-  li t0, 760
+  ; bandit.e16.ts:104  aceRoll[1] = 660
+  li t0, 660
   sw t0, aceRoll+2(zero)
-  ; bandit.e16.ts:105  aceRoll[2] = 860
-  li t0, 860
+  ; bandit.e16.ts:105  aceRoll[2] = 900
+  li t0, 900
   sw t0, aceRoll+4(zero)
   ; bandit.e16.ts:106  aceRoll[3] = 940
   li t0, 940
   sw t0, aceRoll+6(zero)
-  ; bandit.e16.ts:107  aceRoll[4] = 1040
-  li t0, 1040
+  ; bandit.e16.ts:107  aceRoll[4] = 960
+  li t0, 960
   sw t0, aceRoll+8(zero)
   ; bandit.e16.ts:108  acePull[0] = 300
   li t0, 300
   sw t0, acePull(zero)
-  ; bandit.e16.ts:109  acePull[1] = 340
-  li t0, 340
+  ; bandit.e16.ts:109  acePull[1] = 280
+  li t0, 280
   sw t0, acePull+2(zero)
-  ; bandit.e16.ts:110  acePull[2] = 380
-  li t0, 380
+  ; bandit.e16.ts:110  acePull[2] = 400
+  li t0, 400
   sw t0, acePull+4(zero)
   ; bandit.e16.ts:111  acePull[3] = 420
   li t0, 420
   sw t0, acePull+6(zero)
-  ; bandit.e16.ts:112  acePull[4] = 470
-  li t0, 470
+  ; bandit.e16.ts:112  acePull[4] = 430
+  li t0, 430
   sw t0, acePull+8(zero)
 .return:
   ret
@@ -9580,8 +9580,8 @@ aiInit:
   ; ai.e16.ts:122  aceCircle[0] = 150
   li t0, 150
   sw t0, aceCircle(zero)
-  ; ai.e16.ts:123  aceCircle[1] = 165
-  li t0, 165
+  ; ai.e16.ts:123  aceCircle[1] = 200
+  li t0, 200
   sw t0, aceCircle+2(zero)
   ; ai.e16.ts:124  aceCircle[2] = 240
   li t0, 240

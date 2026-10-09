@@ -120,7 +120,7 @@ export function aiInit(): void {
   aceMslTenths[3] = 11
   aceMslTenths[4] = 11
   aceCircle[0] = 150
-  aceCircle[1] = 165
+  aceCircle[1] = 200
   aceCircle[2] = 240
   aceCircle[3] = 270
   aceCircle[4] = 270

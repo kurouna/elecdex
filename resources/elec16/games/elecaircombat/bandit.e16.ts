@@ -94,22 +94,22 @@ export function acesInit(): void {
   aceHP[1] = 100
   aceHP[2] = 120
   aceHP[3] = 140
-  aceHP[4] = 200
+  aceHP[4] = 150
   aceCruise[0] = 300
   aceCruise[1] = 320
   aceCruise[2] = 336
   aceCruise[3] = 352
   aceCruise[4] = 372
   aceRoll[0] = 640
-  aceRoll[1] = 760
-  aceRoll[2] = 860
+  aceRoll[1] = 660
+  aceRoll[2] = 900
   aceRoll[3] = 940
-  aceRoll[4] = 1040
+  aceRoll[4] = 960
   acePull[0] = 300
-  acePull[1] = 340
-  acePull[2] = 380
+  acePull[1] = 280
+  acePull[2] = 400
   acePull[3] = 420
-  acePull[4] = 470
+  acePull[4] = 430
 }
 
 /** An ace's callsign. */

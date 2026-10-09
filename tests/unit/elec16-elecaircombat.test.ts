@@ -260,13 +260,15 @@ function okDistance(a: number[], b: number[]): number {
  * 2026-10-09, when the aces' aim stopped coning round a tail and the close fight began to be
  * broken off: NOCTURNE flies another fight, nearer and with its gun bearing (32,178 and 52,671
  * before, the stall's 32,217 and 52,671); the scripted sortie measured 25,980 and 37,865.
+ * Again later that day, when the ladder was retuned and NOCTURNE turned less hard: another
+ * fight again (36,199 and 49,941 before, the stall's 36,145 and 49,289).
  */
 const SORTIE_AVG = 26_351
 const SORTIE_WORST = 37_921
-const HARD_AVG = 36_199
-const HARD_WORST = 49_941
-const STALL_AVG = 36_145
-const STALL_WORST = 49_289
+const HARD_AVG = 31_520
+const HARD_WORST = 49_724
+const STALL_AVG = 31_927
+const STALL_WORST = 49_724
 
 describe('ELECAIRCOMBAT as built', () => {
   it('is what games.json holds, and its folder keeps the constants and the assembly', () => {
