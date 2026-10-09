@@ -12,7 +12,8 @@
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
  *   retro       the retro preset: the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT
- *               CARD and run; a PLAY-320 behind the next tab playing ELECLANCE; then the
+ *               CARD and run; a PLAY-320 behind the next tab playing ELECLANCE, another
+ *               behind the one after starting ELECFIGHTER and fighting, brought forward; then the
  *               CHIP-8 behind its tab, its library playing T8NKS by
  *               itself, loaded, then paused on MEM
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
@@ -34,6 +35,7 @@
  */
 import {
   beats,
+  FIGHT_PANE,
   KEYSTREAM_VOLUME,
   PLAY_PANE,
   playUnits,
@@ -111,7 +113,7 @@ items.push({ id: 'tourcouncil', name: 'council', tree: councilTree })
 items.push({ id: 'tourkeystream', name: 'keystream', tree: keystreamTree })
 // The retro preset as it ships: the ELEC-16 in front in the CLASSIC skin, its panel folded, the
 // CHIP-8 behind its tab open on T8NKS (chip8Archive, CC0), the spectrum under them; a PLAY-320
-// with ELECLANCE goes between the two machines' tabs.
+// with ELECLANCE and one with ELECFIGHTER go between the two machines' tabs.
 const retro = trees.get('retro')
 if (retro === undefined) throw new Error('no preset retro in the built app')
 items.push({
@@ -125,18 +127,18 @@ items.push({
 })
 withPlay(items.at(-1).tree.root)
 
-/** The PLAY-320's pane put after the pocket computer in the retro layout's tab strip. */
+/** The PLAY-320s' panes put after the pocket computer in the retro layout's tab strip. */
 function withPlay(node) {
   if (node.kind === 'split') return node.children.forEach(withPlay)
   if (node.kind !== 'tabs') return
   const at = node.children.findIndex((c) => c.widget === 'elec16')
   if (at >= 0)
-    node.children.splice(at + 1, 0, {
-      kind: 'pane',
-      id: 'tplay',
-      widget: 'elec16',
-      state: PLAY_PANE,
-    })
+    node.children.splice(
+      at + 1,
+      0,
+      { kind: 'pane', id: 'tplay', widget: 'elec16', state: PLAY_PANE },
+      { kind: 'pane', id: 'tfight', widget: 'elec16', state: FIGHT_PANE },
+    )
 }
 
 if (!options.probe) {
@@ -181,44 +183,45 @@ async function throughTheShelf() {
   await wait(300)
   await settled()
   await beat.away()
-  await wait(4000)
+  await wait(3200)
 }
 
 await run(async () => {
   const started = Date.now()
   await wait(1200)
-  await beat.forward('globe', 3200)
+  await beat.forward('globe', 2600)
   await throughTheShelf()
   await toPreset('earth')
   await wait(1500)
-  await beat.issCard()
+  await beat.issCard(2000)
   await wait(1500)
   await toPreset('dev')
   await wait(2000)
   await beat.stopContainer()
-  await beat.commitCard()
+  await beat.commitCard(2000)
   await toPreset('media')
   await beat.musicPlays()
-  await wait(4000)
-  await beat.nextTrack(4500)
+  await wait(3200)
+  await beat.nextTrack(3600)
   await beat.musicStops()
   await toPreset('desk')
   await wait(1200)
   await beat.copies()
   await beat.qrCode()
-  await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 12_000 })
+  await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 6_000 })
   await beat.toLayout(9, 'retro')
   await beat.elec16()
-  await beat.play()
+  await beat.play(3500)
+  await beat.fight(6500)
   await beat.toTab('CHIP-8')
   await beat.chip8(2200)
   await beat.toLayout(7, 'council')
   await wait(800)
-  await beat.councilSits(4000)
+  await beat.councilSits(3000)
   await toPreset('standard')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()
-  await beat.themes()
+  await beat.themes(1600)
   await wait(2500)
   say(`tour: ${((Date.now() - started) / 1000).toFixed(0)} s after the boot`)
   if (exit) await app.close().catch(() => {})

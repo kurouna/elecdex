@@ -1,7 +1,7 @@
 /**
  * What the introduction tours share (demo-tour.mjs, landscape; demo-tour-shorts.mjs, vertical):
  * the council's stand-in model, and the beats themselves - the ISS's card, a container stopped,
- * copies landing, a QR code typed, KEYSTREAM played, ELECLANCE on a PLAY-320, a CHIP-8 program loaded, a motion put to the council, the themes in
+ * copies landing, a QR code typed, KEYSTREAM played, ELECLANCE on a PLAY-320, an ELECFIGHTER bout on a second PLAY-320, a CHIP-8 program loaded, a motion put to the council, the themes in
  * turn - and the music the media beat plays: two of KEYSTREAM's own tracks, rendered to WAV
  * files (keystream-wav.mjs) and played by the spectrum's stand-in, so the spectrum moves with
  * what is heard and nothing of this machine's sound is captured. A tour lays
@@ -16,10 +16,12 @@ import { autoplay, KEYS, keystreamMenu, trackPlan } from './demo-keystream-kit.m
 import { say } from './demo-take.mjs'
 import { cachedTrackWav } from './keystream-wav.mjs'
 
-/* ---- The ELEC-16 units: the pocket computer, and a PLAY-320 with ELECLANCE in its slot ---- */
+/* ---- The ELEC-16 units: the pocket computer, and PLAY-320s with ELECLANCE and ELECFIGHTER ---- */
 
 /** The pane state of a PLAY-320's pane in a tour: the second unit, its coral body, no panel. */
 export const PLAY_PANE = { unit: 'u2', playBody: 'tall', playSkin: 'coral', panel: false }
+/** The third unit's pane, ELECFIGHTER in its slot: the screen alone, so the fight fills it. */
+export const FIGHT_PANE = { unit: 'u3', playBody: 'screen', playSkin: 'graphite', panel: false }
 
 /** Written into the take's profile (`prepare`): the units the retro layout's two machines run. */
 export function playUnits(profile) {
@@ -28,6 +30,7 @@ export function playUnits(profile) {
   const units = [
     { ...unit, id: 'u1', name: 'UNIT 1', model: 'pocket-48' },
     { ...unit, id: 'u2', name: 'UNIT 2', model: 'play-320', xram: 512, cart: 'ELECLANCE' },
+    { ...unit, id: 'u3', name: 'UNIT 3', model: 'play-320', xram: 512, cart: 'ELECFIGHTER' },
   ]
   writeFileSync(path.join(profile, 'elec16', 'units.json'), JSON.stringify({ version: 1, units }))
 }
@@ -372,24 +375,33 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
    * ELECLANCE, A on its title, then the ship weaving and shooting in taps and the lance held.
    * Keys are held for a few frames, as a hand would: the machine looks at the pad once a frame.
    */
-  async function play(hold = 9000) {
-    say('play-320: ELECLANCE')
-    await press(page.getByTestId('tab').filter({ hasText: 'ELEC-16' }).nth(1))
+  /** A key held for a few frames, as a hand would: the machine looks at the pad once a frame. */
+  async function tap(key, ms = 120) {
+    await page.keyboard.down(key)
+    await wait(ms)
+    await page.keyboard.up(key)
+  }
+
+  /**
+   * The `nth` ELEC-16 tab of the retro layout brought forward, its machine resumed - started
+   * behind its tab, it waits paused: coming into sight does not resume a machine - and focused.
+   */
+  async function toMachine(nth, settle = 1500) {
+    await press(page.getByTestId('tab').filter({ hasText: 'ELEC-16' }).nth(nth))
     await wait(300)
     await settled()
-    const pane = paneOf('elec16').nth(1)
+    const pane = paneOf('elec16').nth(nth)
     const machine = pane.getByTestId('elec16')
     await machine.waitFor()
-    // Started behind its tab, it waits paused: coming into sight does not resume a machine.
     const resume = pane.locator('[data-testid=elec16-pause][aria-label=resume]')
     if (await resume.isVisible()) await press(resume)
-    await wait(1500)
+    await wait(settle)
     await machine.focus()
-    const tap = async (key) => {
-      await page.keyboard.down(key)
-      await wait(120)
-      await page.keyboard.up(key)
-    }
+  }
+
+  async function play(hold = 9000) {
+    say('play-320: ELECLANCE')
+    await toMachine(1)
     await tap('Enter')
     await wait(1800)
     await tap('KeyZ')
@@ -404,6 +416,57 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await page.keyboard.down('KeyZ')
     await wait(1500)
     await page.keyboard.up('KeyZ')
+    await away()
+  }
+
+  /**
+   * The PLAY-320 behind the retro layout's `nth` ELEC-16 tab, ELECFIGHTER in its slot: START
+   * loads it, START past the boot log, the title held a moment, START for the menu, A for
+   * VERSUS CPU, START past the controls (shown on a unit's first bout), S4 OUTBOX chosen, A
+   * past the match's introduction; then walking in and blows against the first program for
+   * `hold` ms. The keys as gen-screenshots.mjs plays it (docs/elec16-elecfighter.md 3). The
+   * pane is brought forward for it, the screen alone at its largest, and put back after.
+   */
+  async function fight(hold = 9000, { title = 1800, nth = 2 } = {}) {
+    say('play-320: ELECFIGHTER')
+    await toMachine(nth, 600)
+    await page.keyboard.press('Control+Shift+KeyZ')
+    await wait(900)
+    await paneOf('elec16').nth(nth).getByTestId('elec16').focus()
+    for (const [key, ms] of [
+      ['Enter', 1200],
+      ['Enter', title],
+      ['Enter', 500],
+      ['KeyZ', 800],
+      ['Enter', 900],
+      ['ArrowLeft', 700],
+      ['KeyZ', 1700],
+      ['KeyZ', 2200],
+    ]) {
+      await tap(key)
+      await wait(ms)
+    }
+    say('elecfighter: the bout')
+    // Walk in, a light punch, a heavy kick; walk in, a heavy punch, back, a light kick, a heavy
+    // kick - one key at a time.
+    const moves = [
+      ['ArrowRight', 420],
+      ['KeyA', 90],
+      ['KeyZ', 90],
+      ['ArrowRight', 260],
+      ['KeyS', 90],
+      ['ArrowLeft', 300],
+      ['KeyX', 90],
+      ['KeyZ', 90],
+    ]
+    const until = Date.now() + hold
+    for (let k = 0; Date.now() < until; k++) {
+      const [key, ms] = moves[k % moves.length]
+      await tap(key, ms)
+      await wait(140)
+    }
+    await page.keyboard.press('Control+Shift+KeyZ')
+    await wait(1000)
     await away()
   }
 
@@ -458,6 +521,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     chip8,
     elec16,
     play,
+    fight,
     councilSits,
     themes,
   }

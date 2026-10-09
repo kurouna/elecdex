@@ -20,7 +20,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.22 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.23 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -202,7 +202,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-play-fighter.jpg" alt="An ELEC-16 pane made a PLAY-320 showing its screen alone, in the Tron theme: ELECFIGHTER's first fight on the GRID stage, S4 OUTBOX in blue wire and fill landing a punch with a burst of sparks on S2 RUSH in red, the skyline and the perspective floor behind them, the life bars and TIME above; GAMES beside it with ELECFIGHTER in the slot">
-  <br><sub>ELEC-16 PLAY (PLAY-320) · ELECFIGHTER (<i>unreleased</i>) · Tron · the screen alone, GAMES beside it</sub>
+  <br><sub>ELEC-16 PLAY (PLAY-320) · ELECFIGHTER · Tron · the screen alone, GAMES beside it</sub>
 </p>
 
 - **ELEC-16** — a 16-bit pocket computer of elecdex's own design: its own
@@ -210,7 +210,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
   Made a **PLAY-320**, it is a game console with cartridges, sprites and sixteen sound
   channels, with games of its own - ELECLANCE, ELECAIRCOMBAT, ELECDRILL and the one-on-one
-  fighter ELECFIGHTER (*unreleased*) - and a kit to make games for it.
+  fighter ELECFIGHTER - and a kit to make games for it.
 
 ### Layouts, looks and the rest
 
@@ -920,7 +920,7 @@ weather and calendar.
   block-digging puzzle: a colour's whole group goes at once, blocks left hanging wobble and
   fall, four of a colour that land together vanish in chains, with AIR to mind through five
   strata to the core at 500 m ([docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)) - and
-  **ELECFIGHTER** (*unreleased*), a one-on-one fighter in rounds between nameless humanoid slots -
+  **ELECFIGHTER**, a one-on-one fighter in rounds between nameless humanoid slots -
   the training bodies of an industrial combat simulator: wire-and-fill humans drawn ahead
   of time from low-poly models, light and heavy blows, guards by height, throws and their techs,
   chains, counters and dashes, against four opponent programs each with a mind of its own
