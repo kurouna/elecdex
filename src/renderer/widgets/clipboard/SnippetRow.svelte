@@ -29,7 +29,7 @@ interface Props {
   onremove: () => void
   ondisarm: () => void
   ongrab: (event: PointerEvent) => void
-  onhover: (event: { row: DOMRect; x: number | null } | null) => void
+  onhover: (event: { row: DOMRect; x: number | null; buttons?: DOMRect } | null) => void
 }
 
 const {
@@ -51,8 +51,12 @@ const {
 }: Props = $props()
 
 let rowEl = $state<HTMLElement | null>(null)
+let actionsEl = $state<HTMLElement | null>(null)
+// The row's own buttons (COPY, EDIT, ×) go with it, so a card that must go over the row leaves them in sight.
 const hovered = (x: number | null): void => {
-  if (rowEl !== null) onhover({ row: rowEl.getBoundingClientRect(), x })
+  if (rowEl === null) return
+  const row = rowEl.getBoundingClientRect()
+  onhover(actionsEl === null ? { row, x } : { row, x, buttons: actionsEl.getBoundingClientRect() })
 }
 
 /** A name of its own takes the first line; the text goes under it. */
@@ -94,7 +98,7 @@ const more = $derived(!masked && snippet.lines > shown.length)
       {clipSize(snippet)}{#if snippet.copies > 0}<span class="flag">×{snippet.copies}</span>{/if}{#if current}<span class="flag on" data-testid="snip-current">ON CLIPBOARD</span>{/if}
     </span>
   </span>
-  <span class="actions">
+  <span class="actions" bind:this={actionsEl}>
     <button
       type="button"
       class="copy"

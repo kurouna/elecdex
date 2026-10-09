@@ -237,7 +237,10 @@ let rootEl = $state<HTMLElement | null>(null)
 let hover = $state.raw<{ id: string; anchor: CardAnchor; bounds: CardSize } | null>(null)
 const resting = new HoverRest<string>(() => (hover = null))
 
-function onhover(id: string, event: { row: DOMRect; x: number | null } | null): void {
+function onhover(
+  id: string,
+  event: { row: DOMRect; x: number | null; buttons?: DOMRect } | null,
+): void {
   if (event === null) {
     resting.leave(id)
     return
@@ -247,7 +250,7 @@ function onhover(id: string, event: { row: DOMRect; x: number | null } | null): 
     const box = rootEl.getBoundingClientRect()
     hover = {
       id,
-      anchor: anchorOf(box, event.row, event.x),
+      anchor: anchorOf(box, event.row, event.x, event.buttons),
       bounds: { width: box.width, height: box.height },
     }
   }

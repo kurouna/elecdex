@@ -29,15 +29,19 @@ interface Props {
   onsnip: () => void
   onremove: () => void
   /** The row came under the pointer (with where it is) or the keyboard; null when it left. */
-  onhover: (event: { row: DOMRect; x: number | null } | null) => void
+  onhover: (event: { row: DOMRect; x: number | null; buttons?: DOMRect } | null) => void
 }
 
 const { entry, current, masked, lines, now, copied, onrestore, onsnip, onremove, onhover }: Props =
   $props()
 
 let rowEl = $state<HTMLElement | null>(null)
+let snipEl = $state<HTMLElement | null>(null)
+// The row's own buttons (SNIP and ×) go with it, so a card that must go over the row leaves them in sight.
 const hovered = (x: number | null): void => {
-  if (rowEl !== null) onhover({ row: rowEl.getBoundingClientRect(), x })
+  if (rowEl === null) return
+  const row = rowEl.getBoundingClientRect()
+  onhover(snipEl === null ? { row, x } : { row, x, buttons: snipEl.getBoundingClientRect() })
 }
 
 const shown = $derived(masked ? [maskedPreview(entry)] : previewLines(entry.preview, lines))
@@ -87,6 +91,7 @@ const more = $derived(!masked && entry.lines > shown.length)
     type="button"
     class="snip"
     class:kept={entry.snipped}
+    bind:this={snipEl}
     disabled={!entry.kept}
     aria-label={entry.snipped ? 'kept as a snippet: show it' : 'keep as a snippet'}
     title={entry.snipped ? 'kept as a snippet: show it' : 'keep as a snippet'}

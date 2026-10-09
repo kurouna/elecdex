@@ -72,6 +72,20 @@ describe('cardPlacement', () => {
     )
     expect(cardPlacement({ x: -30, top: 0, bottom: 10 }, bounds, card).left).toBe(CARD_GAP)
   })
+
+  // Found 2026-10-10: in a short clipboard pane a card with room neither below nor above its
+  // row went over the row itself, hiding the row's own × (and SNIP) at its right end.
+  it('keeps clear of the row’s own buttons when it has to go over the row', () => {
+    const short = { width: 400, height: 150 }
+    // Over the row (no room below or above): ends before the buttons at x 340.
+    const over = cardPlacement({ x: 300, top: 40, bottom: 80, clear: 340 }, short, card)
+    expect(over.top).toBe(CARD_GAP)
+    expect(over.left + card.width).toBeLessThanOrEqual(340 - CARD_GAP)
+    // Below the row the buttons are not under it: placed as before.
+    expect(cardPlacement({ x: 300, top: 0, bottom: 20, clear: 340 }, bounds, card)).toEqual(
+      cardPlacement({ x: 300, top: 0, bottom: 20 }, bounds, card),
+    )
+  })
 })
 
 describe('anchorOf', () => {
@@ -80,6 +94,14 @@ describe('anchorOf', () => {
     const row = rect(110, 80, 380, 20)
     expect(anchorOf(pane, row, 200)).toEqual({ x: 100 + POINTER_OFFSET, top: 30, bottom: 50 })
     expect(anchorOf(pane, row, null)).toEqual({ x: 10, top: 30, bottom: 50 })
+    // With the row's own buttons: where they start, so a card over the row stops short of them.
+    const buttons = rect(450, 80, 40, 20)
+    expect(anchorOf(pane, row, 200, buttons)).toEqual({
+      x: 100 + POINTER_OFFSET,
+      top: 30,
+      bottom: 50,
+      clear: 350,
+    })
   })
 })
 

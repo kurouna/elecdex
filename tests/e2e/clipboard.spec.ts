@@ -63,6 +63,49 @@ const beside = (widget: string) => ({
   },
 })
 
+// Found 2026-10-10: in a short pane a row's card had room neither below nor above it and went
+// over the row itself, hiding its × (and SNIP); the card now stops short of the row's buttons.
+test('a card in a short pane leaves the row’s own buttons in sight', async () => {
+  const short = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'column',
+      sizes: [22, 78],
+      children: [
+        { kind: 'pane', id: 'k', widget: 'clipboard' },
+        { kind: 'pane', id: 'c', widget: 'clock' },
+      ],
+    },
+  }
+  const { app, page, close } = await launch(undefined, { layout: short })
+  try {
+    await settleLayout(page)
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+    const long = Array.from({ length: 12 }, (_, k) => `line ${k + 1} of a long copy to read`).join(
+      '\n',
+    )
+    await copied(app, page, 'one')
+    await copy(app, long)
+    await expect.poll(async () => (await texts(page)).length).toBe(2)
+    const row = page.getByTestId('clip-row').first()
+    const box = await row.boundingBox()
+    if (box === null) throw new Error('no row')
+    // The pointer comes in from the right, near the buttons, as it does on its way to ×.
+    await page.mouse.move(box.x + box.width - 90, box.y + box.height / 2, { steps: 4 })
+    await expect(page.getByTestId('clip-card')).toBeVisible()
+    const card = await page.getByTestId('clip-card').boundingBox()
+    const snip = await row.getByTestId('clip-snip').boundingBox()
+    if (card === null || snip === null) throw new Error('no card or buttons')
+    // The pane is too short for the card below or above the row: it goes over the row.
+    expect(card.y < box.y + box.height && card.y + card.height > box.y).toBe(true)
+    expect(card.x + card.width).toBeLessThanOrEqual(snip.x)
+  } finally {
+    await close()
+  }
+})
+
 test('lists copies newest first, puts one back with its HTML, removes and clears', async () => {
   const { app, page, close } = await launch(undefined, { layout: beside('clock') })
   try {

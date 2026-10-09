@@ -38,6 +38,11 @@ export interface CardAnchor {
   x: number
   top: number
   bottom: number
+  /**
+   * Where the row's own buttons start (a history row's SNIP and ×): a card that has to go over
+   * the row, with room neither below nor above it, ends before them so they stay in sight.
+   */
+  clear?: number
 }
 
 export interface CardSize {
@@ -57,22 +62,32 @@ export function cardPlacement(
   card: CardSize,
   gap: number = CARD_GAP,
 ): { left: number; top: number } {
-  const left = Math.max(gap, Math.min(anchor.x, bounds.width - card.width - gap))
+  let left = Math.max(gap, Math.min(anchor.x, bounds.width - card.width - gap))
   const top =
     anchor.bottom + gap + card.height <= bounds.height
       ? anchor.bottom + gap
       : Math.max(gap, anchor.top - gap - card.height)
+  const overRow = top < anchor.bottom && top + card.height > anchor.top
+  if (overRow && anchor.clear !== undefined && left + card.width > anchor.clear - gap) {
+    left = Math.max(gap, anchor.clear - gap - card.width)
+  }
   return { left, top }
 }
 
 /**
  * The anchor of an element, in the pane's pixels: from the pointer's x when the
  * pointer brought the card (a little right of it), or from the element's left
- * edge when the keyboard did.
+ * edge when the keyboard did. With the row's own buttons, where they start.
  */
-export function anchorOf(pane: DOMRect, target: DOMRect, pointerX: number | null): CardAnchor {
+export function anchorOf(
+  pane: DOMRect,
+  target: DOMRect,
+  pointerX: number | null,
+  buttons?: DOMRect,
+): CardAnchor {
   const x = pointerX === null ? target.left : pointerX + POINTER_OFFSET
-  return { x: x - pane.left, top: target.top - pane.top, bottom: target.bottom - pane.top }
+  const at = { x: x - pane.left, top: target.top - pane.top, bottom: target.bottom - pane.top }
+  return buttons === undefined ? at : { ...at, clear: buttons.left - pane.left }
 }
 
 /**
