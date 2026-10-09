@@ -1244,6 +1244,68 @@ describe('ELECAIRCOMBAT arms, as fixed', { timeout: 60_000 }, () => {
   })
 })
 
+// The player's missile (docs/elec16-elecaircombat.md section 6): it steers for where the
+// enemy will be, so a lock is worth a missile; flares and the aces' turns still beat some.
+describe('ELECAIRCOMBAT missiles that hit', { timeout: 60_000 }, () => {
+  /** aiState's values (ai.e16.ts). */
+  const PURSUE = 0
+  const ZOOM = 2
+
+  /**
+   * Ace `a` locked from `behind` units on its tail, then flying `state` on its own (its
+   * thinking held): a missile from the rail, followed to its end. Answers the enemy's loss
+   * and whether a flare drew the missile off. It never dodges; it drops flares only if `odds`.
+   */
+  function lockedShot(a: number, behind: number, state: number, odds = -1) {
+    const m = atAce(a)
+    put(m, 'aiDodge', 0)
+    put(m, 'aiFlares', odds < 0 ? 0 : 4)
+    if (odds >= 0) put(m, 'aceFlareOdds', odds, a)
+    put(m, 'eHP', 200)
+    pinned(m, 52, behind)
+    expect(read(m, 'locked')).toBe(1)
+    pin(m, behind)
+    const hold = () => {
+      put(m, 'aiState', state)
+      put(m, 'aiStateT', 100)
+      put(m, 'aiThinkT', 200)
+      put(m, 'pAlt', 5200)
+    }
+    hold()
+    m.pad(padBit('b'))
+    frames(m, 1, cart)
+    m.pad(0)
+    const slot = [0, 1, 2, 3].find((k) => read(m, 'mOwner', k) === 1)
+    expect(slot).toBeDefined()
+    let flared = false
+    for (let n = 0; n < 200 && read(m, 'mOwner', slot ?? 0) === 1; n++) {
+      hold()
+      frames(m, 1, cart)
+      if (read(m, 'mChase', slot ?? 0) === 1) flared = true
+    }
+    return { loss: 200 - read(m, 'eHP'), flared }
+  }
+
+  it('strikes an ace that pulls up or turns back across it, from a lock on its tail', () => {
+    // Chasing where the enemy was, the missile fell behind its turn and burst behind it
+    // (4) or lost it (0) - from 1,200 to 3,200 behind, every ace; a hard break it caught.
+    for (let a = 0; a < 5; a++) {
+      expect(lockedShot(a, 2000, ZOOM).loss, `ace ${a} zooming`).toBeGreaterThanOrEqual(30)
+    }
+    expect(lockedShot(2, 1200, PURSUE).loss).toBeGreaterThanOrEqual(30)
+    expect(lockedShot(4, 3200, PURSUE).loss).toBeGreaterThanOrEqual(30)
+  })
+
+  it('is drawn off by a flare the ace drops in time, and strikes when the flare fails', () => {
+    const fooled = lockedShot(3, 2000, ZOOM, 256)
+    expect(fooled.flared).toBe(true)
+    expect(fooled.loss).toBeLessThan(18)
+    const missed = lockedShot(3, 2000, ZOOM, 0)
+    expect(missed.flared).toBe(false)
+    expect(missed.loss).toBeGreaterThanOrEqual(30)
+  })
+})
+
 // The panel's figure of our fighter shows each part's damage (docs/elec16-elecaircombat.md
 // section 3): a palette colour per part, chosen by where the blow came from.
 describe('ELECAIRCOMBAT damage by part', { timeout: 60_000 }, () => {

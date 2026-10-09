@@ -90,11 +90,11 @@ const aceRoll = words(5)
 const acePull = words(5)
 
 export function acesInit(): void {
-  aceHP[0] = 90
-  aceHP[1] = 100
-  aceHP[2] = 120
-  aceHP[3] = 140
-  aceHP[4] = 150
+  aceHP[0] = 120
+  aceHP[1] = 130
+  aceHP[2] = 135
+  aceHP[3] = 160
+  aceHP[4] = 130
   aceCruise[0] = 300
   aceCruise[1] = 320
   aceCruise[2] = 336

@@ -124,30 +124,30 @@
 ; calloutT at 0x1c3a
 ; lockToneT at 0x1c3c
 ; toneOn at 0x1c3e
-; aiState at 0x1c9a
-; aiStateT at 0x1c9c
-; aiSide at 0x1c9e
-; aiThinkT at 0x1ca0
-; aiGunT at 0x1ca2
-; aiLockT at 0x1ca4
-; aiMslCool at 0x1ca6
-; aiMissiles at 0x1ca8
-; aiFlares at 0x1caa
-; aiFlareCool at 0x1cac
-; aiFeintT at 0x1cae
-; aiScissorT at 0x1cb0
-; aiEvading at 0x1cb2
-; aiDodge at 0x1cb4
-; aiCircleT at 0x1cb6
-; aiRunOut at 0x1cb8
-; aiBack at 0x1cba
-; aiTX at 0x1cbc
-; aiTY at 0x1cbe
-; aiTZ at 0x1cc0
-; hNX at 0x1cc2
-; hNY at 0x1cc4
-; hC at 0x1cc6
-; hL at 0x1cc8
+; aiState at 0x1cb8
+; aiStateT at 0x1cba
+; aiSide at 0x1cbc
+; aiThinkT at 0x1cbe
+; aiGunT at 0x1cc0
+; aiLockT at 0x1cc2
+; aiMslCool at 0x1cc4
+; aiMissiles at 0x1cc6
+; aiFlares at 0x1cc8
+; aiFlareCool at 0x1cca
+; aiFeintT at 0x1ccc
+; aiScissorT at 0x1cce
+; aiEvading at 0x1cd0
+; aiDodge at 0x1cd2
+; aiCircleT at 0x1cd4
+; aiRunOut at 0x1cd6
+; aiBack at 0x1cd8
+; aiTX at 0x1cda
+; aiTY at 0x1cdc
+; aiTZ at 0x1cde
+; hNX at 0x1ce0
+; hNY at 0x1ce2
+; hC at 0x1ce4
+; hL at 0x1ce6
 palCopy = 0x0280 ; 512 bytes
 oam = 0x0480 ; 1024 bytes
 sines = 0x088a ; 512 bytes
@@ -245,11 +245,14 @@ aceMslTenths = 0x1c72 ; 10 bytes
 aceCircle = 0x1c7c ; 10 bytes
 aceRunOut = 0x1c86 ; 10 bytes
 aceRunT = 0x1c90 ; 10 bytes
-skyArgs = 0x1cca ; 12 bytes
-letters = 0x1cd6 ; 6 bytes
-bestScore = 0x1cdc ; 20 bytes
-bestName = 0x1cf0 ; 30 bytes
-bestTime = 0x1d0e ; 10 bytes
+aceDodge = 0x1c9a ; 10 bytes
+aceFlareOdds = 0x1ca4 ; 10 bytes
+aceFlareGap = 0x1cae ; 10 bytes
+skyArgs = 0x1ce8 ; 12 bytes
+letters = 0x1cf4 ; 6 bytes
+bestScore = 0x1cfa ; 20 bytes
+bestName = 0x1d0e ; 30 bytes
+bestTime = 0x1d2c ; 10 bytes
 
 e16c_init:
   ; sprN = 0
@@ -528,57 +531,57 @@ e16c_init:
   ; toneOn = 0
   sw zero, 0x1c3e(zero)
   ; aiState = 0
-  sw zero, 0x1c9a(zero)
+  sw zero, 0x1cb8(zero)
   ; aiStateT = 0
-  sw zero, 0x1c9c(zero)
+  sw zero, 0x1cba(zero)
   ; aiSide = 1
   li t0, 1
-  sw t0, 0x1c9e(zero)
+  sw t0, 0x1cbc(zero)
   ; aiThinkT = 0
-  sw zero, 0x1ca0(zero)
+  sw zero, 0x1cbe(zero)
   ; aiGunT = 0
-  sw zero, 0x1ca2(zero)
+  sw zero, 0x1cc0(zero)
   ; aiLockT = 0
-  sw zero, 0x1ca4(zero)
+  sw zero, 0x1cc2(zero)
   ; aiMslCool = 0
-  sw zero, 0x1ca6(zero)
+  sw zero, 0x1cc4(zero)
   ; aiMissiles = 0
-  sw zero, 0x1ca8(zero)
+  sw zero, 0x1cc6(zero)
   ; aiFlares = 0
-  sw zero, 0x1caa(zero)
+  sw zero, 0x1cc8(zero)
   ; aiFlareCool = 0
-  sw zero, 0x1cac(zero)
+  sw zero, 0x1cca(zero)
   ; aiFeintT = 0
-  sw zero, 0x1cae(zero)
+  sw zero, 0x1ccc(zero)
   ; aiScissorT = 0
-  sw zero, 0x1cb0(zero)
+  sw zero, 0x1cce(zero)
   ; aiEvading = 0
-  sw zero, 0x1cb2(zero)
+  sw zero, 0x1cd0(zero)
   ; aiDodge = 25
   li t0, 25
-  sw t0, 0x1cb4(zero)
+  sw t0, 0x1cd2(zero)
   ; aiCircleT = 0
-  sw zero, 0x1cb6(zero)
+  sw zero, 0x1cd4(zero)
   ; aiRunOut = 0
-  sw zero, 0x1cb8(zero)
+  sw zero, 0x1cd6(zero)
   ; aiBack = 0
-  sw zero, 0x1cba(zero)
+  sw zero, 0x1cd8(zero)
   ; aiTX = 0
-  sw zero, 0x1cbc(zero)
+  sw zero, 0x1cda(zero)
   ; aiTY = 0
-  sw zero, 0x1cbe(zero)
+  sw zero, 0x1cdc(zero)
   ; aiTZ = 0
-  sw zero, 0x1cc0(zero)
+  sw zero, 0x1cde(zero)
   ; hNX = 0
-  sw zero, 0x1cc2(zero)
+  sw zero, 0x1ce0(zero)
   ; hNY = -256
   li t0, 65280
-  sw t0, 0x1cc4(zero)
+  sw t0, 0x1ce2(zero)
   ; hC = 0
-  sw zero, 0x1cc6(zero)
+  sw zero, 0x1ce4(zero)
   ; hL = 16384
   li t0, 16384
-  sw t0, 0x1cc8(zero)
+  sw t0, 0x1ce6(zero)
   ; palCopy, oam: 1536 bytes of 0
   li t0, 0x0280
   li t1, 1536
@@ -663,12 +666,12 @@ e16c_init:
   li t0, 0x1c22
   li t1, 8
   mset t0, zero, t1
-  ; aceFlags, aceMissiles, aceFlares, aceLockRange, aceBrake, aceMslTenths, aceCircle, aceRunOut, aceRunT: 90 bytes of 0
+  ; aceFlags, aceMissiles, aceFlares, aceLockRange, aceBrake, aceMslTenths, aceCircle, aceRunOut, aceRunT, aceDodge, aceFlareOdds, aceFlareGap: 120 bytes of 0
   li t0, 0x1c40
-  li t1, 90
+  li t1, 120
   mset t0, zero, t1
   ; skyArgs, letters, bestScore, bestName, bestTime: 78 bytes of 0
-  li t0, 0x1cca
+  li t0, 0x1ce8
   li t1, 78
   mset t0, zero, t1
   ret
@@ -5909,20 +5912,20 @@ isqrt:
 
 ; bandit.e16.ts:92 acesInit() at -O1
 acesInit:
-  ; bandit.e16.ts:93  aceHP[0] = 90
-  li t0, 90
-  sw t0, aceHP(zero)
-  ; bandit.e16.ts:94  aceHP[1] = 100
-  li t0, 100
-  sw t0, aceHP+2(zero)
-  ; bandit.e16.ts:95  aceHP[2] = 120
+  ; bandit.e16.ts:93  aceHP[0] = 120
   li t0, 120
+  sw t0, aceHP(zero)
+  ; bandit.e16.ts:94  aceHP[1] = 130
+  li t0, 130
+  sw t0, aceHP+2(zero)
+  ; bandit.e16.ts:95  aceHP[2] = 135
+  li t0, 135
   sw t0, aceHP+4(zero)
-  ; bandit.e16.ts:96  aceHP[3] = 140
-  li t0, 140
+  ; bandit.e16.ts:96  aceHP[3] = 160
+  li t0, 160
   sw t0, aceHP+6(zero)
-  ; bandit.e16.ts:97  aceHP[4] = 150
-  li t0, 150
+  ; bandit.e16.ts:97  aceHP[4] = 130
+  li t0, 130
   sw t0, aceHP+8(zero)
   ; bandit.e16.ts:98  aceCruise[0] = 300
   li t0, 300
@@ -9485,150 +9488,195 @@ sfxStall:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:91 aiInit() at -O1
+; ai.e16.ts:98 aiInit() at -O1
 aiInit:
-  ; ai.e16.ts:92  aceFlags[0] = F_ONEWAY | F_HALFMSL
+  ; ai.e16.ts:99  aceFlags[0] = F_ONEWAY | F_HALFMSL
   li t0, 3
   sw t0, aceFlags(zero)
-  ; ai.e16.ts:93  aceFlags[1] = F_ZOOM
+  ; ai.e16.ts:100  aceFlags[1] = F_ZOOM
   li t0, 4
   sw t0, aceFlags+2(zero)
-  ; ai.e16.ts:94  aceFlags[2] = F_BRAKE
+  ; ai.e16.ts:101  aceFlags[2] = F_BRAKE
   li t0, 8
   sw t0, aceFlags+4(zero)
-  ; ai.e16.ts:95  aceFlags[3] = F_HEADON
+  ; ai.e16.ts:102  aceFlags[3] = F_HEADON
   li t0, 16
   sw t0, aceFlags+6(zero)
-  ; ai.e16.ts:96  aceFlags[4] = F_FEINT | F_PUNISH
+  ; ai.e16.ts:103  aceFlags[4] = F_FEINT | F_PUNISH
   li t0, 96
   sw t0, aceFlags+8(zero)
-  ; ai.e16.ts:97  aceMissiles[0] = 8
+  ; ai.e16.ts:104  aceMissiles[0] = 8
   li t0, 8
   sw t0, aceMissiles(zero)
-  ; ai.e16.ts:98  aceMissiles[1] = 12
+  ; ai.e16.ts:105  aceMissiles[1] = 12
   li t0, 12
   sw t0, aceMissiles+2(zero)
-  ; ai.e16.ts:99  aceMissiles[2] = 16
+  ; ai.e16.ts:106  aceMissiles[2] = 16
   li t0, 16
   sw t0, aceMissiles+4(zero)
-  ; ai.e16.ts:100  aceMissiles[3] = 20
+  ; ai.e16.ts:107  aceMissiles[3] = 20
   li t0, 20
   sw t0, aceMissiles+6(zero)
-  ; ai.e16.ts:101  aceMissiles[4] = 24
+  ; ai.e16.ts:108  aceMissiles[4] = 24
   li t0, 24
   sw t0, aceMissiles+8(zero)
-  ; ai.e16.ts:102  aceFlares[0] = 4
+  ; ai.e16.ts:109  aceFlares[0] = 4
   li t0, 4
   sw t0, aceFlares(zero)
-  ; ai.e16.ts:103  aceFlares[1] = 8
+  ; ai.e16.ts:110  aceFlares[1] = 8
   li t0, 8
   sw t0, aceFlares+2(zero)
-  ; ai.e16.ts:104  aceFlares[2] = 10
+  ; ai.e16.ts:111  aceFlares[2] = 10
   li t0, 10
   sw t0, aceFlares+4(zero)
-  ; ai.e16.ts:105  aceFlares[3] = 12
+  ; ai.e16.ts:112  aceFlares[3] = 12
   li t0, 12
   sw t0, aceFlares+6(zero)
-  ; ai.e16.ts:106  aceFlares[4] = 14
+  ; ai.e16.ts:113  aceFlares[4] = 14
   li t0, 14
   sw t0, aceFlares+8(zero)
-  ; ai.e16.ts:107  aceLockRange[0] = 5200
+  ; ai.e16.ts:114  aceLockRange[0] = 5200
   li t0, 5200
   sw t0, aceLockRange(zero)
-  ; ai.e16.ts:108  aceLockRange[1] = 5200
+  ; ai.e16.ts:115  aceLockRange[1] = 5200
   li t0, 5200
   sw t0, aceLockRange+2(zero)
-  ; ai.e16.ts:109  aceLockRange[2] = 5200
+  ; ai.e16.ts:116  aceLockRange[2] = 5200
   li t0, 5200
   sw t0, aceLockRange+4(zero)
-  ; ai.e16.ts:110  aceLockRange[3] = 8000
+  ; ai.e16.ts:117  aceLockRange[3] = 8000
   li t0, 8000
   sw t0, aceLockRange+6(zero)
-  ; ai.e16.ts:111  aceLockRange[4] = 6000
+  ; ai.e16.ts:118  aceLockRange[4] = 6000
   li t0, 6000
   sw t0, aceLockRange+8(zero)
-  ; ai.e16.ts:112  aceBrake[0] = 80
+  ; ai.e16.ts:119  aceBrake[0] = 80
   li t0, 80
   sw t0, aceBrake(zero)
-  ; ai.e16.ts:113  aceBrake[1] = 80
+  ; ai.e16.ts:120  aceBrake[1] = 80
   li t0, 80
   sw t0, aceBrake+2(zero)
-  ; ai.e16.ts:114  aceBrake[2] = 150
+  ; ai.e16.ts:121  aceBrake[2] = 150
   li t0, 150
   sw t0, aceBrake+4(zero)
-  ; ai.e16.ts:115  aceBrake[3] = 80
+  ; ai.e16.ts:122  aceBrake[3] = 80
   li t0, 80
   sw t0, aceBrake+6(zero)
-  ; ai.e16.ts:116  aceBrake[4] = 110
+  ; ai.e16.ts:123  aceBrake[4] = 110
   li t0, 110
   sw t0, aceBrake+8(zero)
-  ; ai.e16.ts:117  aceMslTenths[0] = 10
+  ; ai.e16.ts:124  aceMslTenths[0] = 10
   li t0, 10
   sw t0, aceMslTenths(zero)
-  ; ai.e16.ts:118  aceMslTenths[1] = 10
+  ; ai.e16.ts:125  aceMslTenths[1] = 10
   li t0, 10
   sw t0, aceMslTenths+2(zero)
-  ; ai.e16.ts:119  aceMslTenths[2] = 10
+  ; ai.e16.ts:126  aceMslTenths[2] = 10
   li t0, 10
   sw t0, aceMslTenths+4(zero)
-  ; ai.e16.ts:120  aceMslTenths[3] = 11
+  ; ai.e16.ts:127  aceMslTenths[3] = 11
   li t0, 11
   sw t0, aceMslTenths+6(zero)
-  ; ai.e16.ts:121  aceMslTenths[4] = 11
+  ; ai.e16.ts:128  aceMslTenths[4] = 11
   li t0, 11
   sw t0, aceMslTenths+8(zero)
-  ; ai.e16.ts:122  aceCircle[0] = 150
+  ; ai.e16.ts:129  aceCircle[0] = 150
   li t0, 150
   sw t0, aceCircle(zero)
-  ; ai.e16.ts:123  aceCircle[1] = 200
+  ; ai.e16.ts:130  aceCircle[1] = 200
   li t0, 200
   sw t0, aceCircle+2(zero)
-  ; ai.e16.ts:124  aceCircle[2] = 240
+  ; ai.e16.ts:131  aceCircle[2] = 240
   li t0, 240
   sw t0, aceCircle+4(zero)
-  ; ai.e16.ts:125  aceCircle[3] = 270
+  ; ai.e16.ts:132  aceCircle[3] = 270
   li t0, 270
   sw t0, aceCircle+6(zero)
-  ; ai.e16.ts:126  aceCircle[4] = 270
+  ; ai.e16.ts:133  aceCircle[4] = 270
   li t0, 270
   sw t0, aceCircle+8(zero)
-  ; ai.e16.ts:127  aceRunOut[0] = 4200
+  ; ai.e16.ts:134  aceRunOut[0] = 4200
   li t0, 4200
   sw t0, aceRunOut(zero)
-  ; ai.e16.ts:128  aceRunOut[1] = 4000
+  ; ai.e16.ts:135  aceRunOut[1] = 4000
   li t0, 4000
   sw t0, aceRunOut+2(zero)
-  ; ai.e16.ts:129  aceRunOut[2] = 3600
+  ; ai.e16.ts:136  aceRunOut[2] = 3600
   li t0, 3600
   sw t0, aceRunOut+4(zero)
-  ; ai.e16.ts:130  aceRunOut[3] = 4400
+  ; ai.e16.ts:137  aceRunOut[3] = 4400
   li t0, 4400
   sw t0, aceRunOut+6(zero)
-  ; ai.e16.ts:131  aceRunOut[4] = 3200
+  ; ai.e16.ts:138  aceRunOut[4] = 3200
   li t0, 3200
   sw t0, aceRunOut+8(zero)
-  ; ai.e16.ts:132  aceRunT[0] = 210
+  ; ai.e16.ts:139  aceRunT[0] = 210
   li t0, 210
   sw t0, aceRunT(zero)
-  ; ai.e16.ts:133  aceRunT[1] = 190
+  ; ai.e16.ts:140  aceRunT[1] = 190
   li t0, 190
   sw t0, aceRunT+2(zero)
-  ; ai.e16.ts:134  aceRunT[2] = 180
+  ; ai.e16.ts:141  aceRunT[2] = 180
   li t0, 180
   sw t0, aceRunT+4(zero)
-  ; ai.e16.ts:135  aceRunT[3] = 180
+  ; ai.e16.ts:142  aceRunT[3] = 180
   li t0, 180
   sw t0, aceRunT+6(zero)
-  ; ai.e16.ts:136  aceRunT[4] = 160
+  ; ai.e16.ts:143  aceRunT[4] = 160
   li t0, 160
   sw t0, aceRunT+8(zero)
+  ; ai.e16.ts:144  aceDodge[0] = 35
+  li t0, 35
+  sw t0, aceDodge(zero)
+  ; ai.e16.ts:145  aceDodge[1] = 35
+  li t0, 35
+  sw t0, aceDodge+2(zero)
+  ; ai.e16.ts:146  aceDodge[2] = 55
+  li t0, 55
+  sw t0, aceDodge+4(zero)
+  ; ai.e16.ts:147  aceDodge[3] = 65
+  li t0, 65
+  sw t0, aceDodge+6(zero)
+  ; ai.e16.ts:148  aceDodge[4] = 70
+  li t0, 70
+  sw t0, aceDodge+8(zero)
+  ; ai.e16.ts:149  aceFlareOdds[0] = 40
+  li t0, 40
+  sw t0, aceFlareOdds(zero)
+  ; ai.e16.ts:150  aceFlareOdds[1] = 150
+  li t0, 150
+  sw t0, aceFlareOdds+2(zero)
+  ; ai.e16.ts:151  aceFlareOdds[2] = 120
+  li t0, 120
+  sw t0, aceFlareOdds+4(zero)
+  ; ai.e16.ts:152  aceFlareOdds[3] = 160
+  li t0, 160
+  sw t0, aceFlareOdds+6(zero)
+  ; ai.e16.ts:153  aceFlareOdds[4] = 175
+  li t0, 175
+  sw t0, aceFlareOdds+8(zero)
+  ; ai.e16.ts:154  aceFlareGap[0] = 150
+  li t0, 150
+  sw t0, aceFlareGap(zero)
+  ; ai.e16.ts:155  aceFlareGap[1] = 135
+  li t0, 135
+  sw t0, aceFlareGap+2(zero)
+  ; ai.e16.ts:156  aceFlareGap[2] = 120
+  li t0, 120
+  sw t0, aceFlareGap+4(zero)
+  ; ai.e16.ts:157  aceFlareGap[3] = 105
+  li t0, 105
+  sw t0, aceFlareGap+6(zero)
+  ; ai.e16.ts:158  aceFlareGap[4] = 90
+  li t0, 90
+  sw t0, aceFlareGap+8(zero)
 .return:
   ret
 
-; ai.e16.ts:139 has(f) at -O1
+; ai.e16.ts:161 has(f) at -O1
 ;   f in a0
 has:
-  ; ai.e16.ts:140  return (aceFlags[ace] & f) !== 0
+  ; ai.e16.ts:162  return (aceFlags[ace] & f) !== 0
   lw t0, 0x1612(zero)
   slli t0, t0, 1
   lw t0, aceFlags(t0)
@@ -9638,121 +9686,119 @@ has:
 .return:
   ret
 
-; ai.e16.ts:170 aiNew() at -O1
+; ai.e16.ts:192 aiNew() at -O1
 aiNew:
-  ; ai.e16.ts:171  aiState = PURSUE
-  sw zero, 0x1c9a(zero)
-  ; ai.e16.ts:172  aiStateT = 0
-  sw zero, 0x1c9c(zero)
-  ; ai.e16.ts:173  aiThinkT = 30
+  ; ai.e16.ts:193  aiState = PURSUE
+  sw zero, 0x1cb8(zero)
+  ; ai.e16.ts:194  aiStateT = 0
+  sw zero, 0x1cba(zero)
+  ; ai.e16.ts:195  aiThinkT = 30
   li t0, 30
-  sw t0, 0x1ca0(zero)
-  ; ai.e16.ts:174  aiGunT = 0
-  sw zero, 0x1ca2(zero)
-  ; ai.e16.ts:175  aiLockT = 0
-  sw zero, 0x1ca4(zero)
-  ; ai.e16.ts:176  aiMslCool = 400
+  sw t0, 0x1cbe(zero)
+  ; ai.e16.ts:196  aiGunT = 0
+  sw zero, 0x1cc0(zero)
+  ; ai.e16.ts:197  aiLockT = 0
+  sw zero, 0x1cc2(zero)
+  ; ai.e16.ts:198  aiMslCool = 400
   li t0, 400
-  sw t0, 0x1ca6(zero)
-  ; ai.e16.ts:177  aiMissiles = aceMissiles[ace]
+  sw t0, 0x1cc4(zero)
+  ; ai.e16.ts:199  aiMissiles = aceMissiles[ace]
   lw t0, 0x1612(zero)
   slli t0, t0, 1
   lw t0, aceMissiles(t0)
-  sw t0, 0x1ca8(zero)
-  ; ai.e16.ts:178  aiFlares = aceFlares[ace]
+  sw t0, 0x1cc6(zero)
+  ; ai.e16.ts:200  aiFlares = aceFlares[ace]
   lw t0, 0x1612(zero)
   slli t0, t0, 1
   lw t0, aceFlares(t0)
-  sw t0, 0x1caa(zero)
-  ; ai.e16.ts:179  aiFlareCool = 0
-  sw zero, 0x1cac(zero)
-  ; ai.e16.ts:180  aiFeintT = 0
-  sw zero, 0x1cae(zero)
-  ; ai.e16.ts:181  aiScissorT = 0
-  sw zero, 0x1cb0(zero)
-  ; ai.e16.ts:182  aiEvading = false
-  sw zero, 0x1cb2(zero)
-  ; ai.e16.ts:183  aiDodge = 25 + ace * 10
+  sw t0, 0x1cc8(zero)
+  ; ai.e16.ts:201  aiFlareCool = 0
+  sw zero, 0x1cca(zero)
+  ; ai.e16.ts:202  aiFeintT = 0
+  sw zero, 0x1ccc(zero)
+  ; ai.e16.ts:203  aiScissorT = 0
+  sw zero, 0x1cce(zero)
+  ; ai.e16.ts:204  aiEvading = false
+  sw zero, 0x1cd0(zero)
+  ; ai.e16.ts:205  aiDodge = aceDodge[ace]
   lw t0, 0x1612(zero)
-  slli t1, t0, 3
   slli t0, t0, 1
-  add t0, t0, t1
-  addi t0, t0, 25
-  sw t0, 0x1cb4(zero)
-  ; ai.e16.ts:184  aiCircleT = 0
-  sw zero, 0x1cb6(zero)
-  ; ai.e16.ts:185  aiRunOut = 0
-  sw zero, 0x1cb8(zero)
-  ; ai.e16.ts:186  aiBack = false
-  sw zero, 0x1cba(zero)
+  lw t0, aceDodge(t0)
+  sw t0, 0x1cd2(zero)
+  ; ai.e16.ts:206  aiCircleT = 0
+  sw zero, 0x1cd4(zero)
+  ; ai.e16.ts:207  aiRunOut = 0
+  sw zero, 0x1cd6(zero)
+  ; ai.e16.ts:208  aiBack = false
+  sw zero, 0x1cd8(zero)
 .return:
   ret
 
-; ai.e16.ts:190 aiStep() at -O1
+; ai.e16.ts:212 aiStep() at -O1
 aiStep:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:191  if (!eAlive) return
+  ; ai.e16.ts:213  if (!eAlive) return
   lw t0, 0x1620(zero)
   bnez t0, .L1
-  ; ai.e16.ts:191  return
+  ; ai.e16.ts:213  return
   j .return
 .L1:
-  ; ai.e16.ts:192  if (aiStateT > 0) aiStateT--
-  lw t0, 0x1c9c(zero)
+  ; ai.e16.ts:214  if (aiStateT > 0) aiStateT--
+  lw t0, 0x1cba(zero)
   bgeu zero, t0, .L2
-  ; ai.e16.ts:192  aiStateT--
-  lw t0, 0x1c9c(zero)
+  ; ai.e16.ts:214  aiStateT--
+  lw t0, 0x1cba(zero)
   addi t0, t0, -1
-  sw t0, 0x1c9c(zero)
+  sw t0, 0x1cba(zero)
 .L2:
-  ; ai.e16.ts:193  lookAtPlayer()
+  ; ai.e16.ts:215  lookAtPlayer()
   call lookAtPlayer
-  ; ai.e16.ts:194  circling()
+  ; ai.e16.ts:216  circling()
   call circling
-  ; ai.e16.ts:195  if (aiThinkT > 0) aiThinkT--
-  lw t0, 0x1ca0(zero)
+  ; ai.e16.ts:217  if (aiThinkT > 0) aiThinkT--
+  lw t0, 0x1cbe(zero)
   bgeu zero, t0, .L3
-  ; ai.e16.ts:195  aiThinkT--
-  lw t0, 0x1ca0(zero)
+  ; ai.e16.ts:217  aiThinkT--
+  lw t0, 0x1cbe(zero)
   addi t0, t0, -1
-  sw t0, 0x1ca0(zero)
+  sw t0, 0x1cbe(zero)
   j .L4
 .L3:
-  ; ai.e16.ts:196  think()
+  ; ai.e16.ts:218  think()
   call think
 .L4:
-  ; ai.e16.ts:197  every()
+  ; ai.e16.ts:219  every()
   call every
-  ; ai.e16.ts:198  aiEvading = aiState === BREAK || aiState === ZOOM
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:220  aiEvading = aiState === BREAK || aiState === ZOOM
+  lw t0, 0x1cb8(zero)
   li t1, 1
   sub t0, t0, t1
   seqz t0, t0
   mv t1, t0
   bnez t1, .L5
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 2
   sub t0, t0, t1
   seqz t0, t0
 .L5:
-  sw t0, 0x1cb2(zero)
-  ; ai.e16.ts:199  goalOf()
+  sw t0, 0x1cd0(zero)
+  ; ai.e16.ts:221  goalOf()
   call goalOf
-  ; ai.e16.ts:200  steer()
+  ; ai.e16.ts:222  steer()
   call steer
-  ; ai.e16.ts:201  weapons()
+  ; ai.e16.ts:223  weapons()
   call weapons
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:211 lookAtPlayer() at -O1
+; ai.e16.ts:233 lookAtPlayer() at -O1
 lookAtPlayer:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:212  aiTX = -dotq(va(V_REL), va(V_ER))
+  ; ai.e16.ts:234  aiTX = -dotq(va(V_REL), va(V_ER))
   li a0, 18
   call va
   addi sp, sp, -2
@@ -9765,8 +9811,8 @@ lookAtPlayer:
   mv a0, t0
   call dotq
   neg t0, a0
-  sw t0, 0x1cbc(zero)
-  ; ai.e16.ts:213  aiTY = -dotq(va(V_REL), va(V_EU))
+  sw t0, 0x1cda(zero)
+  ; ai.e16.ts:235  aiTY = -dotq(va(V_REL), va(V_EU))
   li a0, 18
   call va
   addi sp, sp, -2
@@ -9779,8 +9825,8 @@ lookAtPlayer:
   mv a0, t0
   call dotq
   neg t0, a0
-  sw t0, 0x1cbe(zero)
-  ; ai.e16.ts:214  aiTZ = -dotq(va(V_REL), va(V_EF))
+  sw t0, 0x1cdc(zero)
+  ; ai.e16.ts:236  aiTZ = -dotq(va(V_REL), va(V_EF))
   li a0, 18
   call va
   addi sp, sp, -2
@@ -9793,20 +9839,20 @@ lookAtPlayer:
   mv a0, t0
   call dotq
   neg t0, a0
-  sw t0, 0x1cc0(zero)
+  sw t0, 0x1cde(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:218 onItsTail() at -O1
+; ai.e16.ts:240 onItsTail() at -O1
 ;   cone in s1
 onItsTail:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; ai.e16.ts:219  if (aiTZ > 0 || eBZ <= 0 || eDist > 3200) return false
-  lw t0, 0x1cc0(zero)
+  ; ai.e16.ts:241  if (aiTZ > 0 || eBZ <= 0 || eDist > 3200) return false
+  lw t0, 0x1cde(zero)
   blt zero, t0, .L2
   lw t0, 0x1636(zero)
   bge zero, t0, .L2
@@ -9814,14 +9860,14 @@ onItsTail:
   li t1, 3200
   bgeu t1, t0, .L1
 .L2:
-  ; ai.e16.ts:219  return false
+  ; ai.e16.ts:241  return false
   li a0, 0
   j .return
 .L1:
-  ; ai.e16.ts:220  const cone = eBZ >> 2
+  ; ai.e16.ts:242  const cone = eBZ >> 2
   lw t0, 0x1636(zero)
   srai s1, t0, 2
-  ; ai.e16.ts:221  return abs16(eBX) < cone && abs16(eBY) < cone
+  ; ai.e16.ts:243  return abs16(eBX) < cone && abs16(eBY) < cone
   lw a0, 0x1632(zero)
   call abs16
   slt t0, a0, s1
@@ -9838,15 +9884,15 @@ onItsTail:
   addi sp, sp, 4
   ret
 
-; ai.e16.ts:225 playerAhead(range) at -O1
+; ai.e16.ts:247 playerAhead(range) at -O1
 ;   range in s1
 playerAhead:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; range
-  ; ai.e16.ts:226  return aiTZ > 0 && eDist < range && abs16(aiTX) + abs16(aiTY) < aiTZ
-  lw t0, 0x1cc0(zero)
+  ; ai.e16.ts:248  return aiTZ > 0 && eDist < range && abs16(aiTX) + abs16(aiTY) < aiTZ
+  lw t0, 0x1cde(zero)
   slt t0, zero, t0
   mv t1, t0
   beqz t1, .L2
@@ -9855,9 +9901,9 @@ playerAhead:
 .L2:
   mv t1, t0
   beqz t1, .L1
-  lw a0, 0x1cbc(zero)
+  lw a0, 0x1cda(zero)
   call abs16
-  lw t0, 0x1cbe(zero)
+  lw t0, 0x1cdc(zero)
   addi sp, sp, -2
   sw a0, 0(sp)
   mv a0, t0
@@ -9865,7 +9911,7 @@ playerAhead:
   lw t0, 0(sp)
   addi sp, sp, 2
   add t0, t0, a0
-  lw t1, 0x1cc0(zero)
+  lw t1, 0x1cde(zero)
   slt t0, t0, t1
 .L1:
   mv a0, t0
@@ -9875,26 +9921,26 @@ playerAhead:
   addi sp, sp, 4
   ret
 
-; ai.e16.ts:230 headOn() at -O1
+; ai.e16.ts:252 headOn() at -O1
 ;   cone in s1
 headOn:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; ai.e16.ts:231  if (aiTZ <= 0 || eBZ <= 0) return false
-  lw t0, 0x1cc0(zero)
+  ; ai.e16.ts:253  if (aiTZ <= 0 || eBZ <= 0) return false
+  lw t0, 0x1cde(zero)
   bge zero, t0, .L2
   lw t0, 0x1636(zero)
   blt zero, t0, .L1
 .L2:
-  ; ai.e16.ts:231  return false
+  ; ai.e16.ts:253  return false
   li a0, 0
   j .return
 .L1:
-  ; ai.e16.ts:232  const cone = eBZ >> 2
+  ; ai.e16.ts:254  const cone = eBZ >> 2
   lw t0, 0x1636(zero)
   srai s1, t0, 2
-  ; ai.e16.ts:233  return abs16(eBX) < cone && abs16(eBY) < cone && abs16(aiTX) + abs16(aiTY) < aiTZ >> 1
+  ; ai.e16.ts:255  return abs16(eBX) < cone && abs16(eBY) < cone && abs16(aiTX) + abs16(aiTY) < aiTZ >> 1
   lw a0, 0x1632(zero)
   call abs16
   slt t0, a0, s1
@@ -9906,9 +9952,9 @@ headOn:
 .L4:
   mv t1, t0
   beqz t1, .L3
-  lw a0, 0x1cbc(zero)
+  lw a0, 0x1cda(zero)
   call abs16
-  lw t0, 0x1cbe(zero)
+  lw t0, 0x1cdc(zero)
   addi sp, sp, -2
   sw a0, 0(sp)
   mv a0, t0
@@ -9916,7 +9962,7 @@ headOn:
   lw t0, 0(sp)
   addi sp, sp, 2
   add t0, t0, a0
-  lw t1, 0x1cc0(zero)
+  lw t1, 0x1cde(zero)
   srai t1, t1, 1
   slt t0, t0, t1
 .L3:
@@ -9927,17 +9973,17 @@ headOn:
   addi sp, sp, 4
   ret
 
-; ai.e16.ts:241 passing() at -O1
+; ai.e16.ts:263 passing() at -O1
 passing:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:242  return !has(F_HEADON) && aiTZ > 0 && eBZ > 0 && eDist < 2000 && dotq(va(V_EF), va(V_PF)) < -8192
+  ; ai.e16.ts:264  return !has(F_HEADON) && aiTZ > 0 && eBZ > 0 && eDist < 2000 && dotq(va(V_EF), va(V_PF)) < -8192
   li a0, 16
   call has
   seqz t0, a0
   mv t1, t0
   beqz t1, .L4
-  lw t0, 0x1cc0(zero)
+  lw t0, 0x1cde(zero)
   slt t0, zero, t0
 .L4:
   mv t1, t0
@@ -9971,11 +10017,11 @@ passing:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:245 enemyAlt() at -O1
+; ai.e16.ts:267 enemyAlt() at -O1
 enemyAlt:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:246  return pAlt + vget(V_REL + 2)
+  ; ai.e16.ts:268  return pAlt + vget(V_REL + 2)
   lw t0, 0x15ce(zero)
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -9989,11 +10035,11 @@ enemyAlt:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:250 think() at -O1
+; ai.e16.ts:272 think() at -O1
 think:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:251  aiThinkT = 34 - ace * 6 + randBelow(16)
+  ; ai.e16.ts:273  aiThinkT = 34 - ace * 6 + randBelow(16)
   lw t0, 0x1612(zero)
   slli t1, t0, 2
   slli t0, t0, 1
@@ -10007,8 +10053,8 @@ think:
   lw t0, 0(sp)
   addi sp, sp, 2
   add t0, t0, a0
-  sw t0, 0x1ca0(zero)
-  ; ai.e16.ts:252  if (enemyAlt() < 1400 && vget(V_EF + 2) < 4000) {
+  sw t0, 0x1cbe(zero)
+  ; ai.e16.ts:274  if (enemyAlt() < 1400 && vget(V_EF + 2) < 4000) {
   call enemyAlt
   li t0, 1400
   bge a0, t0, .L1
@@ -10016,67 +10062,67 @@ think:
   call vget
   li t0, 4000
   bge a0, t0, .L1
-  ; ai.e16.ts:253  to(FLOOR, 90)
+  ; ai.e16.ts:275  to(FLOOR, 90)
   li a0, 4
   li a1, 90
   call to
-  ; ai.e16.ts:254  return
+  ; ai.e16.ts:276  return
   j .return
 .L1:
-  ; ai.e16.ts:256  if (threatDist < 2600 && aiState !== BREAK && aiState !== ZOOM && missileSeen()) {
+  ; ai.e16.ts:278  if (threatDist < 2600 && aiState !== BREAK && aiState !== ZOOM && missileSeen()) {
   lw t0, 0x1932(zero)
   li t1, 2600
   bgeu t0, t1, .L2
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 1
   beq t0, t1, .L2
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 2
   beq t0, t1, .L2
   call missileSeen
   beqz a0, .L2
-  ; ai.e16.ts:257  evade()
+  ; ai.e16.ts:279  evade()
   call evade
-  ; ai.e16.ts:258  return
+  ; ai.e16.ts:280  return
   j .return
 .L2:
-  ; ai.e16.ts:261  if (aiCircleT > aceCircle[ace] && aiState !== ZOOM && aiState !== HAMMER) {
-  lw t0, 0x1cb6(zero)
+  ; ai.e16.ts:283  if (aiCircleT > aceCircle[ace] && aiState !== ZOOM && aiState !== HAMMER) {
+  lw t0, 0x1cd4(zero)
   lw t1, 0x1612(zero)
   slli t1, t1, 1
   lw t1, aceCircle(t1)
   bgeu t1, t0, .L3
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 2
   beq t0, t1, .L3
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 5
   beq t0, t1, .L3
-  ; ai.e16.ts:262  separate()
+  ; ai.e16.ts:284  separate()
   call separate
-  ; ai.e16.ts:263  return
+  ; ai.e16.ts:285  return
   j .return
 .L3:
-  ; ai.e16.ts:266  if (running() && onItsTail() && aiStateT + 120 - ace * 22 < aceRunT[ace]) {
-  ; ai.e16.ts:334  return aiState === EXTEND && aiRunOut > 0 && !aiBack
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:288  if (running() && onItsTail() && aiStateT + 120 - ace * 22 < aceRunT[ace]) {
+  ; ai.e16.ts:356  return aiState === EXTEND && aiRunOut > 0 && !aiBack
+  lw t0, 0x1cb8(zero)
   li t1, 3
   sub t0, t0, t1
   seqz t0, t0
   mv t1, t0
   beqz t1, .I1.L2
-  lw t0, 0x1cb8(zero)
+  lw t0, 0x1cd6(zero)
   sltu t0, zero, t0
 .I1.L2:
   mv t1, t0
   beqz t1, .I1_end
-  lw t0, 0x1cba(zero)
+  lw t0, 0x1cd8(zero)
   seqz t0, t0
 .I1_end:
   beqz t0, .L4
   call onItsTail
   beqz a0, .L4
-  lw t0, 0x1c9c(zero)
+  lw t0, 0x1cba(zero)
   lw t1, 0x1612(zero)
   li t2, 22
   mul t1, t1, t2
@@ -10086,39 +10132,39 @@ think:
   slli t1, t1, 1
   lw t1, aceRunT(t1)
   bgeu t0, t1, .L4
-  ; ai.e16.ts:267  breakTurn()
+  ; ai.e16.ts:289  breakTurn()
   call breakTurn
-  ; ai.e16.ts:268  return
+  ; ai.e16.ts:290  return
   j .return
 .L4:
-  ; ai.e16.ts:270  if (aiStateT > 0) return
-  lw t0, 0x1c9c(zero)
+  ; ai.e16.ts:292  if (aiStateT > 0) return
+  lw t0, 0x1cba(zero)
   bgeu zero, t0, .L5
-  ; ai.e16.ts:270  return
+  ; ai.e16.ts:292  return
   j .return
 .L5:
-  ; ai.e16.ts:271  if (onItsTail()) {
+  ; ai.e16.ts:293  if (onItsTail()) {
   call onItsTail
   beqz a0, .L6
-  ; ai.e16.ts:272  tailChoice()
+  ; ai.e16.ts:294  tailChoice()
   call tailChoice
-  ; ai.e16.ts:273  return
+  ; ai.e16.ts:295  return
   j .return
 .L6:
-  ; ai.e16.ts:275  if (eDist < 900 && aiTZ < 0) to(EXTEND, extendTime())
+  ; ai.e16.ts:297  if (eDist < 900 && aiTZ < 0) to(EXTEND, extendTime())
   lw t0, 0x1640(zero)
   li t1, 900
   bgeu t0, t1, .L7
-  lw t0, 0x1cc0(zero)
+  lw t0, 0x1cde(zero)
   bge t0, zero, .L7
-  ; ai.e16.ts:275  to(EXTEND, extendTime())
+  ; ai.e16.ts:297  to(EXTEND, extendTime())
   call extendTime
   mv a1, a0
   li a0, 3
   call to
   j .L8
 .L7:
-  ; ai.e16.ts:276  if (has(F_ZOOM) && eDist > 3400 && enemyAlt() < pAlt + 900) to(ZOOM, 90)
+  ; ai.e16.ts:298  if (has(F_ZOOM) && eDist > 3400 && enemyAlt() < pAlt + 900) to(ZOOM, 90)
   li a0, 4
   call has
   beqz a0, .L9
@@ -10129,13 +10175,13 @@ think:
   lw t0, 0x15ce(zero)
   addi t0, t0, 900
   bge a0, t0, .L9
-  ; ai.e16.ts:276  to(ZOOM, 90)
+  ; ai.e16.ts:298  to(ZOOM, 90)
   li a0, 2
   li a1, 90
   call to
   j .L10
 .L9:
-  ; ai.e16.ts:277  to(PURSUE, 60)
+  ; ai.e16.ts:299  to(PURSUE, 60)
   li a0, 0
   li a1, 60
   call to
@@ -10146,11 +10192,11 @@ think:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:281 missileSeen() at -O1
+; ai.e16.ts:303 missileSeen() at -O1
 missileSeen:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:282  return !has(F_HALFMSL) || randBelow(2) === 0
+  ; ai.e16.ts:304  return !has(F_HALFMSL) || randBelow(2) === 0
   li a0, 2
   call has
   seqz t0, a0
@@ -10167,11 +10213,11 @@ missileSeen:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:286 evade() at -O1
+; ai.e16.ts:308 evade() at -O1
 evade:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:287  if (has(F_ZOOM) && eSpeed > eCruise - 40) to(ZOOM, 80)
+  ; ai.e16.ts:309  if (has(F_ZOOM) && eSpeed > eCruise - 40) to(ZOOM, 80)
   li a0, 4
   call has
   beqz a0, .L1
@@ -10179,13 +10225,13 @@ evade:
   lw t1, 0x161a(zero)
   addi t1, t1, -40
   bge t1, t0, .L1
-  ; ai.e16.ts:287  to(ZOOM, 80)
+  ; ai.e16.ts:309  to(ZOOM, 80)
   li a0, 2
   li a1, 80
   call to
   j .L2
 .L1:
-  ; ai.e16.ts:288  breakTurn()
+  ; ai.e16.ts:310  breakTurn()
   call breakTurn
 .L2:
 .return:
@@ -10193,42 +10239,42 @@ evade:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:292 tailChoice() at -O1
+; ai.e16.ts:314 tailChoice() at -O1
 ;   r in s1
 tailChoice:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; ai.e16.ts:293  if (has(F_ZOOM)) {
+  ; ai.e16.ts:315  if (has(F_ZOOM)) {
   li a0, 4
   call has
   beqz a0, .L1
-  ; ai.e16.ts:294  to(ZOOM, 90)
+  ; ai.e16.ts:316  to(ZOOM, 90)
   li a0, 2
   li a1, 90
   call to
-  ; ai.e16.ts:295  return
+  ; ai.e16.ts:317  return
   j .return
 .L1:
-  ; ai.e16.ts:297  if (has(F_HEADON) && eDist > 1800) {
+  ; ai.e16.ts:319  if (has(F_HEADON) && eDist > 1800) {
   li a0, 16
   call has
   beqz a0, .L2
   lw t0, 0x1640(zero)
   li t1, 1800
   bgeu t1, t0, .L2
-  ; ai.e16.ts:299  to(EXTEND, 150)
+  ; ai.e16.ts:321  to(EXTEND, 150)
   li a0, 3
   li a1, 150
   call to
-  ; ai.e16.ts:300  return
+  ; ai.e16.ts:322  return
   j .return
 .L2:
-  ; ai.e16.ts:302  const r = randBelow(8)
+  ; ai.e16.ts:324  const r = randBelow(8)
   li a0, 8
   call randBelow
   mv s1, a0 ; r
-  ; ai.e16.ts:303  if (r < 6 || has(F_ONEWAY) || has(F_BRAKE)) breakTurn()
+  ; ai.e16.ts:325  if (r < 6 || has(F_ONEWAY) || has(F_BRAKE)) breakTurn()
   li t0, 6
   bltu s1, t0, .L4
   li a0, 1
@@ -10238,11 +10284,11 @@ tailChoice:
   call has
   beqz a0, .L3
 .L4:
-  ; ai.e16.ts:303  breakTurn()
+  ; ai.e16.ts:325  breakTurn()
   call breakTurn
   j .L5
 .L3:
-  ; ai.e16.ts:304  to(EXTEND, 120)
+  ; ai.e16.ts:326  to(EXTEND, 120)
   li a0, 3
   li a1, 120
   call to
@@ -10253,11 +10299,11 @@ tailChoice:
   addi sp, sp, 4
   ret
 
-; ai.e16.ts:308 extendTime() at -O1
+; ai.e16.ts:330 extendTime() at -O1
 extendTime:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:309  return has(F_HEADON) ? 170 : 100 + randBelow(60)
+  ; ai.e16.ts:331  return has(F_HEADON) ? 170 : 100 + randBelow(60)
   li a0, 16
   call has
   beqz a0, .L1
@@ -10274,57 +10320,57 @@ extendTime:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:317 circling() at -O1
+; ai.e16.ts:339 circling() at -O1
 circling:
-  ; ai.e16.ts:318  if (aiState === EXTEND || aiState === FLOOR) {
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:340  if (aiState === EXTEND || aiState === FLOOR) {
+  lw t0, 0x1cb8(zero)
   li t1, 3
   beq t0, t1, .L2
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 4
   bne t0, t1, .L1
 .L2:
-  ; ai.e16.ts:319  aiCircleT = 0
-  sw zero, 0x1cb6(zero)
-  ; ai.e16.ts:320  return
+  ; ai.e16.ts:341  aiCircleT = 0
+  sw zero, 0x1cd4(zero)
+  ; ai.e16.ts:342  return
   ret
 .L1:
-  ; ai.e16.ts:322  if (eDist < 3000 && !locked && aiLockT === 0) aiCircleT++
+  ; ai.e16.ts:344  if (eDist < 3000 && !locked && aiLockT === 0) aiCircleT++
   lw t0, 0x1640(zero)
   li t1, 3000
   bgeu t0, t1, .L3
   lw t0, 0x1980(zero)
   bnez t0, .L3
-  lw t0, 0x1ca4(zero)
+  lw t0, 0x1cc2(zero)
   bne t0, zero, .L3
-  ; ai.e16.ts:322  aiCircleT++
-  lw t0, 0x1cb6(zero)
+  ; ai.e16.ts:344  aiCircleT++
+  lw t0, 0x1cd4(zero)
   addi t0, t0, 1
-  sw t0, 0x1cb6(zero)
+  sw t0, 0x1cd4(zero)
   j .L4
 .L3:
-  ; ai.e16.ts:323  aiCircleT = aiCircleT > 2 ? aiCircleT - 2 : 0
-  lw t0, 0x1cb6(zero)
+  ; ai.e16.ts:345  aiCircleT = aiCircleT > 2 ? aiCircleT - 2 : 0
+  lw t0, 0x1cd4(zero)
   li t1, 2
   bgeu t1, t0, .L5
-  lw t0, 0x1cb6(zero)
+  lw t0, 0x1cd4(zero)
   addi t0, t0, -2
   j .L6
 .L5:
   li t0, 0
 .L6:
-  sw t0, 0x1cb6(zero)
+  sw t0, 0x1cd4(zero)
 .L4:
 .return:
   ret
 
-; ai.e16.ts:337 separate() at -O1
+; ai.e16.ts:359 separate() at -O1
 separate:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:338  aiCircleT = 0
-  sw zero, 0x1cb6(zero)
-  ; ai.e16.ts:339  if (has(F_ZOOM) && eSpeed > eCruise - 40) {
+  ; ai.e16.ts:360  aiCircleT = 0
+  sw zero, 0x1cd4(zero)
+  ; ai.e16.ts:361  if (has(F_ZOOM) && eSpeed > eCruise - 40) {
   li a0, 4
   call has
   beqz a0, .L1
@@ -10332,52 +10378,52 @@ separate:
   lw t1, 0x161a(zero)
   addi t1, t1, -40
   bge t1, t0, .L1
-  ; ai.e16.ts:340  to(ZOOM, 90)
+  ; ai.e16.ts:362  to(ZOOM, 90)
   li a0, 2
   li a1, 90
   call to
-  ; ai.e16.ts:341  return
+  ; ai.e16.ts:363  return
   j .return
 .L1:
-  ; ai.e16.ts:343  to(EXTEND, aceRunT[ace])
+  ; ai.e16.ts:365  to(EXTEND, aceRunT[ace])
   lw t0, 0x1612(zero)
   slli t0, t0, 1
   lw t0, aceRunT(t0)
   li a0, 3
   mv a1, t0
   call to
-  ; ai.e16.ts:344  aiRunOut = aceRunOut[ace]
+  ; ai.e16.ts:366  aiRunOut = aceRunOut[ace]
   lw t0, 0x1612(zero)
   slli t0, t0, 1
   lw t0, aceRunOut(t0)
-  sw t0, 0x1cb8(zero)
+  sw t0, 0x1cd6(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:347 breakTurn() at -O1
+; ai.e16.ts:369 breakTurn() at -O1
 breakTurn:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:349  if (aiState === BREAK) aiSide = has(F_ONEWAY) ? aiSide : -aiSide
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:371  if (aiState === BREAK) aiSide = has(F_ONEWAY) ? aiSide : -aiSide
+  lw t0, 0x1cb8(zero)
   li t1, 1
   bne t0, t1, .L1
-  ; ai.e16.ts:349  aiSide = has(F_ONEWAY) ? aiSide : -aiSide
+  ; ai.e16.ts:371  aiSide = has(F_ONEWAY) ? aiSide : -aiSide
   li a0, 1
   call has
   beqz a0, .L2
-  lw t0, 0x1c9e(zero)
+  lw t0, 0x1cbc(zero)
   j .L3
 .L2:
-  lw t0, 0x1c9e(zero)
+  lw t0, 0x1cbc(zero)
   neg t0, t0
 .L3:
-  sw t0, 0x1c9e(zero)
+  sw t0, 0x1cbc(zero)
   j .L4
 .L1:
-  ; ai.e16.ts:350  aiSide = (rand() & 1) === 0 ? -1 : 1
+  ; ai.e16.ts:372  aiSide = (rand() & 1) === 0 ? -1 : 1
   call rand
   andi t0, a0, 1
   bne t0, zero, .L5
@@ -10386,9 +10432,9 @@ breakTurn:
 .L5:
   li t0, 1
 .L6:
-  sw t0, 0x1c9e(zero)
+  sw t0, 0x1cbc(zero)
 .L4:
-  ; ai.e16.ts:351  to(BREAK, 50 + randBelow(50) - ace * 4)
+  ; ai.e16.ts:373  to(BREAK, 50 + randBelow(50) - ace * 4)
   li a0, 50
   call randBelow
   lw t0, 0x1612(zero)
@@ -10398,7 +10444,7 @@ breakTurn:
   li a0, 1
   mv a1, t1
   call to
-  ; ai.e16.ts:353  aiFeintT = has(F_FEINT) ? 14 + randBelow(8) : 0
+  ; ai.e16.ts:375  aiFeintT = has(F_FEINT) ? 14 + randBelow(8) : 0
   li a0, 32
   call has
   beqz a0, .L7
@@ -10409,158 +10455,158 @@ breakTurn:
 .L7:
   li t0, 0
 .L8:
-  sw t0, 0x1cae(zero)
-  ; ai.e16.ts:354  aiScissorT = 36 + randBelow(10)
+  sw t0, 0x1ccc(zero)
+  ; ai.e16.ts:376  aiScissorT = 36 + randBelow(10)
   li a0, 10
   call randBelow
   addi t0, a0, 36
-  sw t0, 0x1cb0(zero)
+  sw t0, 0x1cce(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:357 to(s, frames) at -O1
+; ai.e16.ts:379 to(s, frames) at -O1
 ;   s in a0
 ;   frames in a1
 to:
-  ; ai.e16.ts:358  aiState = s
-  sw a0, 0x1c9a(zero)
-  ; ai.e16.ts:359  aiStateT = frames
-  sw a1, 0x1c9c(zero)
-  ; ai.e16.ts:360  aiRunOut = 0
-  sw zero, 0x1cb8(zero)
-  ; ai.e16.ts:361  aiBack = false
-  sw zero, 0x1cba(zero)
+  ; ai.e16.ts:380  aiState = s
+  sw a0, 0x1cb8(zero)
+  ; ai.e16.ts:381  aiStateT = frames
+  sw a1, 0x1cba(zero)
+  ; ai.e16.ts:382  aiRunOut = 0
+  sw zero, 0x1cd6(zero)
+  ; ai.e16.ts:383  aiBack = false
+  sw zero, 0x1cd8(zero)
 .return:
   ret
 
-; ai.e16.ts:365 every() at -O1
+; ai.e16.ts:387 every() at -O1
 every:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:366  if (aiState === BREAK) breakBeat()
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:388  if (aiState === BREAK) breakBeat()
+  lw t0, 0x1cb8(zero)
   li t1, 1
   bne t0, t1, .L1
-  ; ai.e16.ts:366  breakBeat()
+  ; ai.e16.ts:388  breakBeat()
   call breakBeat
 .L1:
-  ; ai.e16.ts:367  if (aiState === ZOOM && zoomTop()) to(HAMMER, 80)
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:389  if (aiState === ZOOM && zoomTop()) to(HAMMER, 80)
+  lw t0, 0x1cb8(zero)
   li t1, 2
   bne t0, t1, .L2
   call zoomTop
   beqz a0, .L2
-  ; ai.e16.ts:367  to(HAMMER, 80)
+  ; ai.e16.ts:389  to(HAMMER, 80)
   li a0, 5
   li a1, 80
   call to
 .L2:
-  ; ai.e16.ts:368  if (aiState === HAMMER && aiStateT === 0) to(PURSUE, 60)
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:390  if (aiState === HAMMER && aiStateT === 0) to(PURSUE, 60)
+  lw t0, 0x1cb8(zero)
   li t1, 5
   bne t0, t1, .L3
-  lw t0, 0x1c9c(zero)
+  lw t0, 0x1cba(zero)
   bne t0, zero, .L3
-  ; ai.e16.ts:368  to(PURSUE, 60)
+  ; ai.e16.ts:390  to(PURSUE, 60)
   li a0, 0
   li a1, 60
   call to
 .L3:
-  ; ai.e16.ts:370  if (aiState === EXTEND && aiBack && playerAhead(6000)) to(PURSUE, 60)
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:392  if (aiState === EXTEND && aiBack && playerAhead(6000)) to(PURSUE, 60)
+  lw t0, 0x1cb8(zero)
   li t1, 3
   bne t0, t1, .L4
-  lw t0, 0x1cba(zero)
+  lw t0, 0x1cd8(zero)
   beqz t0, .L4
   li a0, 6000
   call playerAhead
   beqz a0, .L4
-  ; ai.e16.ts:370  to(PURSUE, 60)
+  ; ai.e16.ts:392  to(PURSUE, 60)
   li a0, 0
   li a1, 60
   call to
 .L4:
-  ; ai.e16.ts:372  if (has(F_PUNISH) && aiState !== PURSUE && aiState !== FLOOR && playerAhead(1600)) {
+  ; ai.e16.ts:394  if (has(F_PUNISH) && aiState !== PURSUE && aiState !== FLOOR && playerAhead(1600)) {
   li a0, 64
   call has
   beqz a0, .L5
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   beq t0, zero, .L5
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 4
   beq t0, t1, .L5
   li a0, 1600
   call playerAhead
   beqz a0, .L5
-  ; ai.e16.ts:373  to(PURSUE, 60)
+  ; ai.e16.ts:395  to(PURSUE, 60)
   li a0, 0
   li a1, 60
   call to
-  ; ai.e16.ts:374  aiThinkT = 20
+  ; ai.e16.ts:396  aiThinkT = 20
   li t0, 20
-  sw t0, 0x1ca0(zero)
+  sw t0, 0x1cbe(zero)
 .L5:
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:379 breakBeat() at -O1
+; ai.e16.ts:401 breakBeat() at -O1
 breakBeat:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:380  if (aiFeintT > 0) {
-  lw t0, 0x1cae(zero)
+  ; ai.e16.ts:402  if (aiFeintT > 0) {
+  lw t0, 0x1ccc(zero)
   bgeu zero, t0, .L1
-  ; ai.e16.ts:381  aiFeintT--
-  lw t0, 0x1cae(zero)
+  ; ai.e16.ts:403  aiFeintT--
+  lw t0, 0x1ccc(zero)
   addi t0, t0, -1
-  sw t0, 0x1cae(zero)
-  ; ai.e16.ts:382  if (aiFeintT === 0) aiSide = -aiSide
+  sw t0, 0x1ccc(zero)
+  ; ai.e16.ts:404  if (aiFeintT === 0) aiSide = -aiSide
   bne t0, zero, .L2
-  ; ai.e16.ts:382  aiSide = -aiSide
-  lw t0, 0x1c9e(zero)
+  ; ai.e16.ts:404  aiSide = -aiSide
+  lw t0, 0x1cbc(zero)
   neg t0, t0
-  sw t0, 0x1c9e(zero)
+  sw t0, 0x1cbc(zero)
 .L2:
 .L1:
-  ; ai.e16.ts:384  if (!has(F_BRAKE)) return
+  ; ai.e16.ts:406  if (!has(F_BRAKE)) return
   li a0, 8
   call has
   bnez a0, .L3
-  ; ai.e16.ts:384  return
+  ; ai.e16.ts:406  return
   j .return
 .L3:
-  ; ai.e16.ts:385  if (aiScissorT > 0) aiScissorT--
-  lw t0, 0x1cb0(zero)
+  ; ai.e16.ts:407  if (aiScissorT > 0) aiScissorT--
+  lw t0, 0x1cce(zero)
   bgeu zero, t0, .L4
-  ; ai.e16.ts:385  aiScissorT--
-  lw t0, 0x1cb0(zero)
+  ; ai.e16.ts:407  aiScissorT--
+  lw t0, 0x1cce(zero)
   addi t0, t0, -1
-  sw t0, 0x1cb0(zero)
+  sw t0, 0x1cce(zero)
   j .L5
 .L4:
-  ; ai.e16.ts:386  if (onItsTail()) {
+  ; ai.e16.ts:408  if (onItsTail()) {
   call onItsTail
   beqz a0, .L6
-  ; ai.e16.ts:387  aiSide = -aiSide
-  lw t0, 0x1c9e(zero)
+  ; ai.e16.ts:409  aiSide = -aiSide
+  lw t0, 0x1cbc(zero)
   neg t0, t0
-  sw t0, 0x1c9e(zero)
-  ; ai.e16.ts:388  aiScissorT = 36 + randBelow(10)
+  sw t0, 0x1cbc(zero)
+  ; ai.e16.ts:410  aiScissorT = 36 + randBelow(10)
   li a0, 10
   call randBelow
   addi t0, a0, 36
-  sw t0, 0x1cb0(zero)
-  ; ai.e16.ts:389  if (aiStateT < 40) aiStateT = 40
-  lw t0, 0x1c9c(zero)
+  sw t0, 0x1cce(zero)
+  ; ai.e16.ts:411  if (aiStateT < 40) aiStateT = 40
+  lw t0, 0x1cba(zero)
   li t1, 40
   bgeu t0, t1, .L7
-  ; ai.e16.ts:389  aiStateT = 40
+  ; ai.e16.ts:411  aiStateT = 40
   li t0, 40
-  sw t0, 0x1c9c(zero)
+  sw t0, 0x1cba(zero)
 .L7:
 .L6:
 .L5:
@@ -10569,11 +10615,11 @@ breakBeat:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:394 zoomTop() at -O1
+; ai.e16.ts:416 zoomTop() at -O1
 zoomTop:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:395  return vget(V_EF + 2) > 14000 || eSpeed < eCruise - 110 || aiStateT === 0
+  ; ai.e16.ts:417  return vget(V_EF + 2) > 14000 || eSpeed < eCruise - 110 || aiStateT === 0
   li a0, 11
   call vget
   li t0, 14000
@@ -10587,7 +10633,7 @@ zoomTop:
 .L2:
   mv t1, t0
   bnez t1, .L1
-  lw t0, 0x1c9c(zero)
+  lw t0, 0x1cba(zero)
   sub t0, t0, zero
   seqz t0, t0
 .L1:
@@ -10597,38 +10643,38 @@ zoomTop:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:399 goalOf() at -O1
+; ai.e16.ts:421 goalOf() at -O1
 goalOf:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:400  if (aiState === PURSUE || aiState === HAMMER) leadGoal()
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:422  if (aiState === PURSUE || aiState === HAMMER) leadGoal()
+  lw t0, 0x1cb8(zero)
   beq t0, zero, .L2
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 5
   bne t0, t1, .L1
 .L2:
-  ; ai.e16.ts:400  leadGoal()
+  ; ai.e16.ts:422  leadGoal()
   call leadGoal
   j .L3
 .L1:
-  ; ai.e16.ts:401  if (aiState === BREAK) axisGoal(V_ER, aiSide, ONE >> 2)
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:423  if (aiState === BREAK) axisGoal(V_ER, aiSide, ONE >> 2)
+  lw t0, 0x1cb8(zero)
   li t1, 1
   bne t0, t1, .L4
-  ; ai.e16.ts:401  axisGoal(V_ER, aiSide, ONE >> 2)
-  lw t0, 0x1c9e(zero)
+  ; ai.e16.ts:423  axisGoal(V_ER, aiSide, ONE >> 2)
+  lw t0, 0x1cbc(zero)
   li a0, 12
   mv a1, t0
   li a2, 4096
   call axisGoal
   j .L5
 .L4:
-  ; ai.e16.ts:402  if (aiState === ZOOM) vset(V_T2, vget(V_EF) >> 3, vget(V_EF + 1) >> 3, 16000)
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:424  if (aiState === ZOOM) vset(V_T2, vget(V_EF) >> 3, vget(V_EF + 1) >> 3, 16000)
+  lw t0, 0x1cb8(zero)
   li t1, 2
   bne t0, t1, .L6
-  ; ai.e16.ts:402  vset(V_T2, vget(V_EF) >> 3, vget(V_EF + 1) >> 3, 16000)
+  ; ai.e16.ts:424  vset(V_T2, vget(V_EF) >> 3, vget(V_EF + 1) >> 3, 16000)
   li a0, 9
   call vget
   srai t0, a0, 3
@@ -10646,15 +10692,15 @@ goalOf:
   call vset
   j .L7
 .L6:
-  ; ai.e16.ts:403  if (aiState === EXTEND) extendGoal()
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:425  if (aiState === EXTEND) extendGoal()
+  lw t0, 0x1cb8(zero)
   li t1, 3
   bne t0, t1, .L8
-  ; ai.e16.ts:403  extendGoal()
+  ; ai.e16.ts:425  extendGoal()
   call extendGoal
   j .L9
 .L8:
-  ; ai.e16.ts:404  vset(V_T2, vget(V_EF) >> 1, vget(V_EF + 1) >> 1, 16000)
+  ; ai.e16.ts:426  vset(V_T2, vget(V_EF) >> 1, vget(V_EF + 1) >> 1, 16000)
   li a0, 9
   call vget
   srai t0, a0, 1
@@ -10679,16 +10725,16 @@ goalOf:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:408 leadGoal() at -O1
+; ai.e16.ts:430 leadGoal() at -O1
 ;   t in s1
 leadGoal:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; ai.e16.ts:409  if (passing()) {
+  ; ai.e16.ts:431  if (passing()) {
   call passing
   beqz a0, .L1
-  ; ai.e16.ts:412  vset(
+  ; ai.e16.ts:434  vset(
   li a0, 18
   call vget
   neg t0, a0
@@ -10738,28 +10784,28 @@ leadGoal:
   mv a2, t0
   mv a3, t1
   call vset
-  ; ai.e16.ts:418  return
+  ; ai.e16.ts:440  return
   j .return
 .L1:
-  ; ai.e16.ts:420  let t = i16(eDist >> 6)
+  ; ai.e16.ts:442  let t = i16(eDist >> 6)
   lw t0, 0x1640(zero)
   srli s1, t0, 6
-  ; ai.e16.ts:421  if (t > 30) t = 30
+  ; ai.e16.ts:443  if (t > 30) t = 30
   li t0, 30
   bge t0, s1, .L2
-  ; ai.e16.ts:421  t = 30
+  ; ai.e16.ts:443  t = 30
   li s1, 30 ; t
 .L2:
-  ; ai.e16.ts:422  if (has(F_HEADON) && headOn()) t = 0
+  ; ai.e16.ts:444  if (has(F_HEADON) && headOn()) t = 0
   li a0, 16
   call has
   beqz a0, .L3
   call headOn
   beqz a0, .L3
-  ; ai.e16.ts:422  t = 0
+  ; ai.e16.ts:444  t = 0
   li s1, 0 ; t
 .L3:
-  ; ai.e16.ts:423  vset(
+  ; ai.e16.ts:445  vset(
   li a0, 18
   call vget
   neg t0, a0
@@ -10812,7 +10858,7 @@ leadGoal:
   addi sp, sp, 4
   ret
 
-; ai.e16.ts:432 axisGoal(axis, sign, up) at -O1
+; ai.e16.ts:454 axisGoal(axis, sign, up) at -O1
 ;   axis in s1
 ;   sign in s2
 ;   up in s3
@@ -10825,7 +10871,7 @@ axisGoal:
   mv s1, a0 ; axis
   mv s2, a1 ; sign
   mv s3, a2 ; up
-  ; ai.e16.ts:433  vset(
+  ; ai.e16.ts:455  vset(
   mv a0, s1
   call vget
   srai t0, a0, 1
@@ -10876,16 +10922,16 @@ axisGoal:
   addi sp, sp, 8
   ret
 
-; ai.e16.ts:448 extendGoal() at -O1
+; ai.e16.ts:470 extendGoal() at -O1
 ;   far in s1
 extendGoal:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; ai.e16.ts:449  const far = aiRunOut > 0 ? aiRunOut : has(F_HEADON) ? 3600 : 2400
-  lw t0, 0x1cb8(zero)
+  ; ai.e16.ts:471  const far = aiRunOut > 0 ? aiRunOut : has(F_HEADON) ? 3600 : 2400
+  lw t0, 0x1cd6(zero)
   bgeu zero, t0, .L1
-  lw t0, 0x1cb8(zero)
+  lw t0, 0x1cd6(zero)
   j .L2
 .L1:
   li a0, 16
@@ -10898,26 +10944,26 @@ extendGoal:
 .L4:
 .L2:
   mv s1, t0 ; far
-  ; ai.e16.ts:450  if (aiStateT < 40 || eDist > far) aiBack = true
-  lw t0, 0x1c9c(zero)
+  ; ai.e16.ts:472  if (aiStateT < 40 || eDist > far) aiBack = true
+  lw t0, 0x1cba(zero)
   li t1, 40
   bltu t0, t1, .L6
   lw t0, 0x1640(zero)
   bgeu s1, t0, .L5
 .L6:
-  ; ai.e16.ts:450  aiBack = true
+  ; ai.e16.ts:472  aiBack = true
   li t0, 1
-  sw t0, 0x1cba(zero)
+  sw t0, 0x1cd8(zero)
 .L5:
-  ; ai.e16.ts:451  if (aiBack) {
-  lw t0, 0x1cba(zero)
+  ; ai.e16.ts:473  if (aiBack) {
+  lw t0, 0x1cd8(zero)
   beqz t0, .L7
-  ; ai.e16.ts:452  leadGoal()
+  ; ai.e16.ts:474  leadGoal()
   call leadGoal
-  ; ai.e16.ts:453  return
+  ; ai.e16.ts:475  return
   j .return
 .L7:
-  ; ai.e16.ts:455  vset(V_T2, vget(V_REL) >> 1, vget(V_REL + 1) >> 1, 2000)
+  ; ai.e16.ts:477  vset(V_T2, vget(V_REL) >> 1, vget(V_REL + 1) >> 1, 2000)
   li a0, 18
   call vget
   srai t0, a0, 1
@@ -10939,7 +10985,7 @@ extendGoal:
   addi sp, sp, 4
   ret
 
-; ai.e16.ts:461 steer() at -O1
+; ai.e16.ts:483 steer() at -O1
 ;   gx in s3
 ;   gy in s1
 ;   gz in s2
@@ -10956,7 +11002,7 @@ steer:
   sw s2, 16(sp)
   sw s0, 18(sp)
   mv fp, sp
-  ; ai.e16.ts:462  let gx = dotq(va(V_T2), va(V_ER))
+  ; ai.e16.ts:484  let gx = dotq(va(V_T2), va(V_ER))
   li a0, 27
   call va
   addi sp, sp, -2
@@ -10969,7 +11015,7 @@ steer:
   mv a0, t0
   call dotq
   mv s3, a0 ; gx
-  ; ai.e16.ts:463  let gy = dotq(va(V_T2), va(V_EU))
+  ; ai.e16.ts:485  let gy = dotq(va(V_T2), va(V_EU))
   li a0, 27
   call va
   addi sp, sp, -2
@@ -10982,7 +11028,7 @@ steer:
   mv a0, t0
   call dotq
   mv s1, a0 ; gy
-  ; ai.e16.ts:464  let gz = dotq(va(V_T2), va(V_EF))
+  ; ai.e16.ts:486  let gz = dotq(va(V_T2), va(V_EF))
   li a0, 27
   call va
   addi sp, sp, -2
@@ -10995,14 +11041,14 @@ steer:
   mv a0, t0
   call dotq
   mv s2, a0 ; gz
-  ; ai.e16.ts:465  while (vmax(gx, gy, gz) >= 200) {
+  ; ai.e16.ts:487  while (vmax(gx, gy, gz) >= 200) {
   j .L3
 .L1:
-  ; ai.e16.ts:466  gx = gx >> 1
+  ; ai.e16.ts:488  gx = gx >> 1
   srai s3, s3, 1
-  ; ai.e16.ts:467  gy = gy >> 1
+  ; ai.e16.ts:489  gy = gy >> 1
   srai s1, s1, 1
-  ; ai.e16.ts:468  gz = gz >> 1
+  ; ai.e16.ts:490  gz = gz >> 1
   srai s2, s2, 1
 .L3:
   mv a0, s3
@@ -11011,11 +11057,11 @@ steer:
   call vmax
   li t0, 200
   bge a0, t0, .L1
-  ; ai.e16.ts:470  let roll: i16 = 0
+  ; ai.e16.ts:492  let roll: i16 = 0
   sw zero, 4(fp) ; roll
-  ; ai.e16.ts:471  let pull: i16 = 0
+  ; ai.e16.ts:493  let pull: i16 = 0
   sw zero, 0(fp) ; pull
-  ; ai.e16.ts:472  const off = abs16(gx) + abs16(gy)
+  ; ai.e16.ts:494  const off = abs16(gx) + abs16(gy)
   mv a0, s3
   call abs16
   addi sp, sp, -2
@@ -11026,12 +11072,12 @@ steer:
   addi sp, sp, 2
   add t0, t0, a0
   sw t0, 8(fp) ; off
-  ; ai.e16.ts:473  const a = aim(gy, gx)
+  ; ai.e16.ts:495  const a = aim(gy, gx)
   mv a0, s1
   mv a1, s3
   call aim
   sw a0, 6(fp) ; a
-  ; ai.e16.ts:474  const s = i16(a > 127 ? a - 256 : a)
+  ; ai.e16.ts:496  const s = i16(a > 127 ? a - 256 : a)
   li t0, 127
   lw t1, 6(fp) ; a
   bgeu t0, t1, .L5
@@ -11042,24 +11088,24 @@ steer:
   lw t0, 6(fp)
 .L6:
   sw t0, 2(fp) ; s
-  ; ai.e16.ts:475  if (gz > 0 && off * 24 < gz) {
+  ; ai.e16.ts:497  if (gz > 0 && off * 24 < gz) {
   bge zero, s2, .L7
   lw t0, 8(fp) ; off
   slli t1, t0, 4
   slli t0, t0, 3
   add t0, t0, t1
   bge t0, s2, .L7
-  ; ai.e16.ts:477  pull = gy * 16
+  ; ai.e16.ts:499  pull = gy * 16
   slli t0, s1, 4
   sw t0, 0(fp) ; pull
   j .L8
 .L7:
-  ; ai.e16.ts:478  if (gz > 0 && off * 4 < gz) {
+  ; ai.e16.ts:500  if (gz > 0 && off * 4 < gz) {
   bge zero, s2, .L9
   lw t0, 8(fp) ; off
   slli t0, t0, 2
   bge t0, s2, .L9
-  ; ai.e16.ts:482  roll = abs16(s) < 96 ? s * 16 : -gx * 16
+  ; ai.e16.ts:504  roll = abs16(s) < 96 ? s * 16 : -gx * 16
   lw a0, 2(fp)
   call abs16
   li t0, 96
@@ -11072,17 +11118,17 @@ steer:
   slli t0, t0, 4
 .L11:
   sw t0, 4(fp) ; roll
-  ; ai.e16.ts:483  pull = gy * 16
+  ; ai.e16.ts:505  pull = gy * 16
   slli t0, s1, 4
   sw t0, 0(fp) ; pull
   j .L12
 .L9:
-  ; ai.e16.ts:485  roll = s * 28
+  ; ai.e16.ts:507  roll = s * 28
   li t0, 28
   lw t1, 2(fp) ; s
   mul t1, t1, t0
   sw t1, 4(fp) ; roll
-  ; ai.e16.ts:486  pull = abs16(s) < 36 ? pullFor(gy, gz) : ePullMax >> 2
+  ; ai.e16.ts:508  pull = abs16(s) < 36 ? pullFor(gy, gz) : ePullMax >> 2
   lw a0, 2(fp)
   call abs16
   li t0, 36
@@ -11099,7 +11145,7 @@ steer:
   sw t0, 0(fp) ; pull
 .L12:
 .L8:
-  ; ai.e16.ts:488  aiWants(clampTo(roll, eRollMax), clampTo(pull, ePullMax), speedFor())
+  ; ai.e16.ts:510  aiWants(clampTo(roll, eRollMax), clampTo(pull, ePullMax), speedFor())
   lw t0, 0x161c(zero)
   lw a0, 4(fp)
   mv a1, t0
@@ -11131,7 +11177,7 @@ steer:
   addi sp, sp, 20
   ret
 
-; ai.e16.ts:491 pullFor(gy, gz) at -O1
+; ai.e16.ts:513 pullFor(gy, gz) at -O1
 ;   gy in s1
 ;   gz in s2
 ;   q in s3
@@ -11143,17 +11189,17 @@ pullFor:
   sw s3, 6(sp)
   mv s1, a0 ; gy
   mv s2, a1 ; gz
-  ; ai.e16.ts:492  if (gz <= gy * 2) return ePullMax
+  ; ai.e16.ts:514  if (gz <= gy * 2) return ePullMax
   slli t0, s1, 1
   blt t0, s2, .L1
-  ; ai.e16.ts:492  return ePullMax
+  ; ai.e16.ts:514  return ePullMax
   lw a0, 0x161e(zero)
   j .return
 .L1:
-  ; ai.e16.ts:493  const q = idiv(gy * 64, gz)
+  ; ai.e16.ts:515  const q = idiv(gy * 64, gz)
   slli t0, s1, 6
   div s3, t0, s2
-  ; ai.e16.ts:494  return clampTo(mulShift(ePullMax, q, 4), ePullMax)
+  ; ai.e16.ts:516  return clampTo(mulShift(ePullMax, q, 4), ePullMax)
   lw t0, 0x161e(zero)
   mulq t0, t0, s3, 4
   lw t1, 0x161e(zero)
@@ -11168,78 +11214,78 @@ pullFor:
   addi sp, sp, 8
   ret
 
-; ai.e16.ts:497 clampTo(v, m) at -O1
+; ai.e16.ts:519 clampTo(v, m) at -O1
 ;   v in a0
 ;   m in a1
 clampTo:
-  ; ai.e16.ts:498  if (v > m) return m
+  ; ai.e16.ts:520  if (v > m) return m
   bge a1, a0, .L1
-  ; ai.e16.ts:498  return m
+  ; ai.e16.ts:520  return m
   mv a0, a1
   ret
 .L1:
-  ; ai.e16.ts:499  if (v < -m) return -m
+  ; ai.e16.ts:521  if (v < -m) return -m
   neg t0, a1
   bge a0, t0, .L2
-  ; ai.e16.ts:499  return -m
+  ; ai.e16.ts:521  return -m
   neg a0, a1
 .L2:
-  ; ai.e16.ts:500  return v
+  ; ai.e16.ts:522  return v
 .return:
   ret
 
-; ai.e16.ts:508 speedFor() at -O1
+; ai.e16.ts:530 speedFor() at -O1
 ;   brake in s1
 speedFor:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; ai.e16.ts:509  const brake = i16(aceBrake[ace])
+  ; ai.e16.ts:531  const brake = i16(aceBrake[ace])
   lw t0, 0x1612(zero)
   slli t0, t0, 1
   lw s1, aceBrake(t0)
-  ; ai.e16.ts:510  if (aiState === EXTEND || aiState === HAMMER || eDist > 4500) return eCruise + 120
-  lw t0, 0x1c9a(zero)
+  ; ai.e16.ts:532  if (aiState === EXTEND || aiState === HAMMER || eDist > 4500) return eCruise + 120
+  lw t0, 0x1cb8(zero)
   li t1, 3
   beq t0, t1, .L2
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   li t1, 5
   beq t0, t1, .L2
   lw t0, 0x1640(zero)
   li t1, 4500
   bgeu t1, t0, .L1
 .L2:
-  ; ai.e16.ts:510  return eCruise + 120
+  ; ai.e16.ts:532  return eCruise + 120
   lw t0, 0x161a(zero)
   addi a0, t0, 120
   j .return
 .L1:
-  ; ai.e16.ts:511  if (aiTZ > 0 && eDist < 900) return eCruise - brake
-  lw t0, 0x1cc0(zero)
+  ; ai.e16.ts:533  if (aiTZ > 0 && eDist < 900) return eCruise - brake
+  lw t0, 0x1cde(zero)
   bge zero, t0, .L3
   lw t0, 0x1640(zero)
   li t1, 900
   bgeu t0, t1, .L3
-  ; ai.e16.ts:511  return eCruise - brake
+  ; ai.e16.ts:533  return eCruise - brake
   lw t0, 0x161a(zero)
   sub a0, t0, s1
   j .return
 .L3:
-  ; ai.e16.ts:512  if (has(F_BRAKE) && aiTZ < 0 && eDist < 1800) return eCruise - brake
+  ; ai.e16.ts:534  if (has(F_BRAKE) && aiTZ < 0 && eDist < 1800) return eCruise - brake
   li a0, 8
   call has
   beqz a0, .L4
-  lw t0, 0x1cc0(zero)
+  lw t0, 0x1cde(zero)
   bge t0, zero, .L4
   lw t0, 0x1640(zero)
   li t1, 1800
   bgeu t0, t1, .L4
-  ; ai.e16.ts:512  return eCruise - brake
+  ; ai.e16.ts:534  return eCruise - brake
   lw t0, 0x161a(zero)
   sub a0, t0, s1
   j .return
 .L4:
-  ; ai.e16.ts:513  return eCruise
+  ; ai.e16.ts:535  return eCruise
   lw a0, 0x161a(zero)
 .return:
   lw ra, 0(sp)
@@ -11247,83 +11293,80 @@ speedFor:
   addi sp, sp, 4
   ret
 
-; ai.e16.ts:518 weapons() at -O1
+; ai.e16.ts:540 weapons() at -O1
 weapons:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; ai.e16.ts:519  if (aiGunT > 0) aiGunT--
-  lw t0, 0x1ca2(zero)
-  bgeu zero, t0, .L1
-  ; ai.e16.ts:519  aiGunT--
-  lw t0, 0x1ca2(zero)
-  addi t0, t0, -1
-  sw t0, 0x1ca2(zero)
-.L1:
-  ; ai.e16.ts:520  if (aiMslCool > 0) aiMslCool--
-  lw t0, 0x1ca6(zero)
-  bgeu zero, t0, .L2
-  ; ai.e16.ts:520  aiMslCool--
-  lw t0, 0x1ca6(zero)
-  addi t0, t0, -1
-  sw t0, 0x1ca6(zero)
-.L2:
-  ; ai.e16.ts:521  if (aiFlareCool > 0) aiFlareCool--
-  lw t0, 0x1cac(zero)
-  bgeu zero, t0, .L3
-  ; ai.e16.ts:521  aiFlareCool--
-  lw t0, 0x1cac(zero)
-  addi t0, t0, -1
-  sw t0, 0x1cac(zero)
-.L3:
-  ; ai.e16.ts:522  if (aiTZ > 0) aimAndFire()
+  ; ai.e16.ts:541  if (aiGunT > 0) aiGunT--
   lw t0, 0x1cc0(zero)
+  bgeu zero, t0, .L1
+  ; ai.e16.ts:541  aiGunT--
+  lw t0, 0x1cc0(zero)
+  addi t0, t0, -1
+  sw t0, 0x1cc0(zero)
+.L1:
+  ; ai.e16.ts:542  if (aiMslCool > 0) aiMslCool--
+  lw t0, 0x1cc4(zero)
+  bgeu zero, t0, .L2
+  ; ai.e16.ts:542  aiMslCool--
+  lw t0, 0x1cc4(zero)
+  addi t0, t0, -1
+  sw t0, 0x1cc4(zero)
+.L2:
+  ; ai.e16.ts:543  if (aiFlareCool > 0) aiFlareCool--
+  lw t0, 0x1cca(zero)
+  bgeu zero, t0, .L3
+  ; ai.e16.ts:543  aiFlareCool--
+  lw t0, 0x1cca(zero)
+  addi t0, t0, -1
+  sw t0, 0x1cca(zero)
+.L3:
+  ; ai.e16.ts:544  if (aiTZ > 0) aimAndFire()
+  lw t0, 0x1cde(zero)
   bge zero, t0, .L4
-  ; ai.e16.ts:522  aimAndFire()
+  ; ai.e16.ts:544  aimAndFire()
   call aimAndFire
   j .L5
 .L4:
-  ; ai.e16.ts:523  aiLockT = 0
-  sw zero, 0x1ca4(zero)
+  ; ai.e16.ts:545  aiLockT = 0
+  sw zero, 0x1cc2(zero)
 .L5:
-  ; ai.e16.ts:524  if (threatDist < 1800 && aiFlareCool === 0 && aiFlares > 0) {
+  ; ai.e16.ts:546  if (threatDist < 1800 && aiFlareCool === 0 && aiFlares > 0) {
   lw t0, 0x1932(zero)
   li t1, 1800
   bgeu t0, t1, .L6
-  lw t0, 0x1cac(zero)
+  lw t0, 0x1cca(zero)
   bne t0, zero, .L6
-  lw t0, 0x1caa(zero)
+  lw t0, 0x1cc8(zero)
   bgeu zero, t0, .L6
-  ; ai.e16.ts:525  aiFlareCool = 150 - ace * 15
+  ; ai.e16.ts:547  aiFlareCool = aceFlareGap[ace]
   lw t0, 0x1612(zero)
-  slli t1, t0, 4
-  sub t0, t1, t0
-  li t1, 150
-  sub t1, t1, t0
-  sw t1, 0x1cac(zero)
-  ; ai.e16.ts:526  aiFlares--
-  lw t0, 0x1caa(zero)
+  slli t0, t0, 1
+  lw t0, aceFlareGap(t0)
+  sw t0, 0x1cca(zero)
+  ; ai.e16.ts:548  aiFlares--
+  lw t0, 0x1cc8(zero)
   addi t0, t0, -1
-  sw t0, 0x1caa(zero)
-  ; ai.e16.ts:527  enemyFlares(40 + ace * 30)
+  sw t0, 0x1cc8(zero)
+  ; ai.e16.ts:549  enemyFlares(aceFlareOdds[ace])
   lw t0, 0x1612(zero)
-  li t1, 30
-  mul t0, t0, t1
-  addi a0, t0, 40
+  slli t0, t0, 1
+  lw a0, aceFlareOdds(t0)
   la t0, enemyFlares
   li t1, 261
   call far_call
 .L6:
-  ; ai.e16.ts:530  if (eHP * 4 < eHPMax && aiState === PURSUE && randBelow(64) === 0) to(EXTEND, 90)
+  ; ai.e16.ts:552  if (eHP * 4 < eHPMax && aiState === PURSUE && randBelow(64) === 0) to(EXTEND, 90)
   lw t0, 0x1614(zero)
   slli t0, t0, 2
   lw t1, 0x1616(zero)
   bge t0, t1, .L7
-  lw t0, 0x1c9a(zero)
+  lw t0, 0x1cb8(zero)
   bne t0, zero, .L7
   li a0, 64
   call randBelow
   bne a0, zero, .L7
-  ; ai.e16.ts:530  to(EXTEND, 90)
+  ; ai.e16.ts:552  to(EXTEND, 90)
   li a0, 3
   li a1, 90
   call to
@@ -11333,7 +11376,7 @@ weapons:
   addi sp, sp, 2
   ret
 
-; ai.e16.ts:534 aimAndFire() at -O1
+; ai.e16.ts:556 aimAndFire() at -O1
 ;   off in s1
 ;   duel in s2
 ;   range in s0
@@ -11345,10 +11388,10 @@ aimAndFire:
   sw s2, 4(sp)
   sw s0, 6(sp)
   sw s3, 8(sp)
-  ; ai.e16.ts:535  const off = abs16(aiTX) + abs16(aiTY)
-  lw a0, 0x1cbc(zero)
+  ; ai.e16.ts:557  const off = abs16(aiTX) + abs16(aiTY)
+  lw a0, 0x1cda(zero)
   call abs16
-  lw t0, 0x1cbe(zero)
+  lw t0, 0x1cdc(zero)
   addi sp, sp, -2
   sw a0, 0(sp)
   mv a0, t0
@@ -11356,7 +11399,7 @@ aimAndFire:
   lw t0, 0(sp)
   addi sp, sp, 2
   add s1, t0, a0
-  ; ai.e16.ts:537  const duel = has(F_HEADON) && headOn()
+  ; ai.e16.ts:559  const duel = has(F_HEADON) && headOn()
   li a0, 16
   call has
   mv t1, a0
@@ -11366,7 +11409,7 @@ aimAndFire:
   mv t0, a0
 .L1:
   mv s2, t0 ; duel
-  ; ai.e16.ts:538  const range: u16 = duel ? 2400 : 1700
+  ; ai.e16.ts:560  const range: u16 = duel ? 2400 : 1700
   beqz s2, .L2
   li t0, 2400
   j .L3
@@ -11374,29 +11417,29 @@ aimAndFire:
   li t0, 1700
 .L3:
   mv s0, t0 ; range
-  ; ai.e16.ts:539  if (off * 10 < aiTZ && eDist < range && aiGunT === 0) {
+  ; ai.e16.ts:561  if (off * 10 < aiTZ && eDist < range && aiGunT === 0) {
   slli t1, s1, 3
   slli t0, s1, 1
   add t0, t0, t1
-  lw t1, 0x1cc0(zero)
+  lw t1, 0x1cde(zero)
   bge t0, t1, .L4
   lw t0, 0x1640(zero)
   bgeu t0, s0, .L4
-  lw t0, 0x1ca2(zero)
+  lw t0, 0x1cc0(zero)
   bne t0, zero, .L4
-  ; ai.e16.ts:540  aiGunT = 5 - (ace >> 1)
+  ; ai.e16.ts:562  aiGunT = 5 - (ace >> 1)
   lw t0, 0x1612(zero)
   srli t0, t0, 1
   li t1, 5
   sub t1, t1, t0
-  sw t1, 0x1ca2(zero)
-  ; ai.e16.ts:541  const spread: u16 = 225 - ace * 35
+  sw t1, 0x1cc0(zero)
+  ; ai.e16.ts:563  const spread: u16 = 225 - ace * 35
   lw t0, 0x1612(zero)
   li t1, 35
   mul t0, t0, t1
   li t1, 225
   sub s3, t1, t0
-  ; ai.e16.ts:542  enemyRound(duel ? spread >> 1 : spread)
+  ; ai.e16.ts:564  enemyRound(duel ? spread >> 1 : spread)
   beqz s2, .L5
   srli t0, s3, 1
   j .L6
@@ -11408,10 +11451,10 @@ aimAndFire:
   li t1, 261
   call far_call
 .L4:
-  ; ai.e16.ts:544  if (off * 3 < aiTZ && eDist > 1000 && eDist < aceLockRange[ace]) aiLockT++
+  ; ai.e16.ts:566  if (off * 3 < aiTZ && eDist > 1000 && eDist < aceLockRange[ace]) aiLockT++
   slli t1, s1, 1
   add t0, t1, s1
-  lw t1, 0x1cc0(zero)
+  lw t1, 0x1cde(zero)
   bge t0, t1, .L7
   lw t0, 0x1640(zero)
   li t1, 1000
@@ -11421,26 +11464,26 @@ aimAndFire:
   slli t1, t1, 1
   lw t1, aceLockRange(t1)
   bgeu t0, t1, .L7
-  ; ai.e16.ts:544  aiLockT++
-  lw t0, 0x1ca4(zero)
+  ; ai.e16.ts:566  aiLockT++
+  lw t0, 0x1cc2(zero)
   addi t0, t0, 1
-  sw t0, 0x1ca4(zero)
+  sw t0, 0x1cc2(zero)
   j .L8
 .L7:
-  ; ai.e16.ts:545  aiLockT = 0
-  sw zero, 0x1ca4(zero)
+  ; ai.e16.ts:567  aiLockT = 0
+  sw zero, 0x1cc2(zero)
 .L8:
-  ; ai.e16.ts:546  if (
-  lw t0, 0x1ca4(zero)
+  ; ai.e16.ts:568  if (
+  lw t0, 0x1cc2(zero)
   lw t1, 0x1612(zero)
   slli t2, t1, 4
   sub t1, t2, t1
   li t2, 130
   sub t2, t2, t1
   bgeu t2, t0, .L9
-  lw t0, 0x1ca6(zero)
+  lw t0, 0x1cc4(zero)
   bne t0, zero, .L9
-  lw t0, 0x1ca8(zero)
+  lw t0, 0x1cc6(zero)
   bgeu zero, t0, .L9
   lw t0, 0x1612(zero)
   slli t0, t0, 1
@@ -11449,20 +11492,20 @@ aimAndFire:
   li t1, 261
   call far_call
   beqz a0, .L9
-  ; ai.e16.ts:552  aiMissiles--
-  lw t0, 0x1ca8(zero)
+  ; ai.e16.ts:574  aiMissiles--
+  lw t0, 0x1cc6(zero)
   addi t0, t0, -1
-  sw t0, 0x1ca8(zero)
-  ; ai.e16.ts:553  aiMslCool = 420 - ace * 40
+  sw t0, 0x1cc6(zero)
+  ; ai.e16.ts:575  aiMslCool = 420 - ace * 40
   lw t0, 0x1612(zero)
   slli t1, t0, 5
   slli t0, t0, 3
   add t0, t0, t1
   li t1, 420
   sub t1, t1, t0
-  sw t1, 0x1ca6(zero)
-  ; ai.e16.ts:554  aiLockT = 0
-  sw zero, 0x1ca4(zero)
+  sw t1, 0x1cc4(zero)
+  ; ai.e16.ts:576  aiLockT = 0
+  sw zero, 0x1cc2(zero)
 .L9:
 .return:
   lw ra, 0(sp)
@@ -15660,25 +15703,25 @@ ladder:
   sw s0, 20(sp)
   mv fp, sp
   ; hud.e16.ts:362  if (hL < 1024) return
-  lw t0, 0x1cc8(zero)
+  lw t0, 0x1ce6(zero)
   li t1, 1024
   bge t0, t1, .L1
   ; hud.e16.ts:362  return
   j .return
 .L1:
   ; hud.e16.ts:363  const tx = -hNY
-  lw t0, 0x1cc4(zero)
+  lw t0, 0x1ce2(zero)
   neg t0, t0
   sw t0, 4(fp) ; tx
   ; hud.e16.ts:364  const ty = hNX
-  lw t0, 0x1cc2(zero)
+  lw t0, 0x1ce0(zero)
   sw t0, 6(fp) ; ty
   ; hud.e16.ts:365  ladderStep(tx, ty)
   lw a0, 4(fp)
   lw a1, 6(fp)
   call ladderStep
   ; hud.e16.ts:366  const k = muldiv(192, 16384, u16(hL))
-  lw t0, 0x1cc8(zero)
+  lw t0, 0x1ce6(zero)
   li a0, 192
   li a1, 16384
   mv a2, t0
@@ -15935,13 +15978,13 @@ rung:
   mv s2, a0 ; e
   sw a1, 2(fp) ; c
   ; hud.e16.ts:408  const x0 = i16(CX) - mulShift(hNX, c, 8)
-  lw t0, 0x1cc2(zero)
+  lw t0, 0x1ce0(zero)
   lw t1, 2(fp) ; c
   mulq t0, t0, t1, 8
   li t1, 160
   sub s3, t1, t0
   ; hud.e16.ts:409  const y0 = i16(CY) - mulShift(hNY, c, 8)
-  lw t0, 0x1cc4(zero)
+  lw t0, 0x1ce2(zero)
   lw t1, 2(fp) ; c
   mulq t0, t0, t1, 8
   li t1, 112
@@ -21198,16 +21241,16 @@ quarry:
 
 ; arms.e16.ts:515 missileSteer(k) at -O1
 ;   k in s1
-;   d in s3
+;   d in s2
 ;   ahead in s0
-;   turn in s2
+;   turn in s3
 missileSteer:
   addi sp, sp, -10
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s3, 4(sp)
+  sw s2, 4(sp)
   sw s0, 6(sp)
-  sw s2, 8(sp)
+  sw s3, 8(sp)
   mv s1, a0 ; k
   ; arms.e16.ts:516  if (mChase[k] === 1 && fLife[mFlare[k]] === 0) {
   slli t0, s1, 1
@@ -21247,11 +21290,11 @@ missileSteer:
   mv a2, a0
   mv a0, t1
   call vlen
-  mv s3, a0 ; d
+  mv s2, a0 ; d
   ; arms.e16.ts:522  mNear[k] = d < 400 ? 1 : 0
   slli t0, s1, 1
   addi t0, t0, mNear
-  mv t1, s3
+  mv t1, s2
   li t2, 400
   bgeu t1, t2, .L2
   li t1, 1
@@ -21260,10 +21303,23 @@ missileSteer:
   li t1, 0
 .L3:
   sw t1, 0(t0)
-  ; arms.e16.ts:523  unitOf(V_T0)
+  ; arms.e16.ts:523  if (mOwner[k] === 1 && mChase[k] === 0) leadOn(k, d)
+  slli t0, s1, 1
+  lw t0, mOwner(t0)
+  li t1, 1
+  bne t0, t1, .L4
+  slli t0, s1, 1
+  lw t0, mChase(t0)
+  bne t0, zero, .L4
+  ; arms.e16.ts:523  leadOn(k, d)
+  mv a0, s1
+  mv a1, s2
+  call leadOn
+.L4:
+  ; arms.e16.ts:524  unitOf(V_T0)
   li a0, 21
   call unitOf
-  ; arms.e16.ts:524  const ahead =
+  ; arms.e16.ts:525  const ahead =
   li a0, 21
   call vget
   slli t0, s1, 1
@@ -21289,36 +21345,36 @@ missileSteer:
   lw t1, 0(sp)
   addi sp, sp, 2
   add s0, t1, t0
-  ; arms.e16.ts:528  if (ahead < 4000) {
+  ; arms.e16.ts:529  if (ahead < 4000) {
   li t0, 4000
-  bge s0, t0, .L4
-  ; arms.e16.ts:529  if (d < 300) proximity(k)
+  bge s0, t0, .L5
+  ; arms.e16.ts:530  if (d < 300) proximity(k)
   li t0, 300
-  bgeu s3, t0, .L5
-  ; arms.e16.ts:529  proximity(k)
+  bgeu s2, t0, .L6
+  ; arms.e16.ts:530  proximity(k)
   mv a0, s1
   call proximity
-  j .L6
-.L5:
-  ; arms.e16.ts:530  goBlind(k)
+  j .L7
+.L6:
+  ; arms.e16.ts:531  goBlind(k)
   mv a0, s1
   call goBlind
-.L6:
-  ; arms.e16.ts:531  return
+.L7:
+  ; arms.e16.ts:532  return
   j .return
-.L4:
-  ; arms.e16.ts:533  const turn = i16(mOwner[k] === 1 ? 1520 : 1240)
+.L5:
+  ; arms.e16.ts:534  const turn = i16(mOwner[k] === 1 ? 2000 : 1240)
   slli t0, s1, 1
   lw t0, mOwner(t0)
   li t1, 1
-  bne t0, t1, .L7
-  li t0, 1520
-  j .L8
-.L7:
-  li t0, 1240
+  bne t0, t1, .L8
+  li t0, 2000
+  j .L9
 .L8:
-  mv s2, t0 ; turn
-  ; arms.e16.ts:534  mDX[k] = u16(i16(mDX[k]) + mulShift(vget(V_T0) - i16(mDX[k]), turn, 14))
+  li t0, 1240
+.L9:
+  mv s3, t0 ; turn
+  ; arms.e16.ts:535  mDX[k] = u16(i16(mDX[k]) + mulShift(vget(V_T0) - i16(mDX[k]), turn, 14))
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, mDX(t1)
@@ -21332,14 +21388,14 @@ missileSteer:
   slli t0, s1, 1
   lw t0, mDX(t0)
   sub t0, a0, t0
-  mulq t0, t0, s2, 14
+  mulq t0, t0, s3, 14
   lw t1, 0(sp)
   addi sp, sp, 2
   add t1, t1, t0
   lw t0, 0(sp)
   addi sp, sp, 2
   sw t1, 0(t0)
-  ; arms.e16.ts:535  mDY[k] = u16(i16(mDY[k]) + mulShift(vget(V_T0 + 1) - i16(mDY[k]), turn, 14))
+  ; arms.e16.ts:536  mDY[k] = u16(i16(mDY[k]) + mulShift(vget(V_T0 + 1) - i16(mDY[k]), turn, 14))
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, mDY(t1)
@@ -21353,14 +21409,14 @@ missileSteer:
   slli t0, s1, 1
   lw t0, mDY(t0)
   sub t0, a0, t0
-  mulq t0, t0, s2, 14
+  mulq t0, t0, s3, 14
   lw t1, 0(sp)
   addi sp, sp, 2
   add t1, t1, t0
   lw t0, 0(sp)
   addi sp, sp, 2
   sw t1, 0(t0)
-  ; arms.e16.ts:536  mDZ[k] = u16(i16(mDZ[k]) + mulShift(vget(V_T0 + 2) - i16(mDZ[k]), turn, 14))
+  ; arms.e16.ts:537  mDZ[k] = u16(i16(mDZ[k]) + mulShift(vget(V_T0 + 2) - i16(mDZ[k]), turn, 14))
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, mDZ(t1)
@@ -21374,14 +21430,14 @@ missileSteer:
   slli t0, s1, 1
   lw t0, mDZ(t0)
   sub t0, a0, t0
-  mulq t0, t0, s2, 14
+  mulq t0, t0, s3, 14
   lw t1, 0(sp)
   addi sp, sp, 2
   add t1, t1, t0
   lw t0, 0(sp)
   addi sp, sp, 2
   sw t1, 0(t0)
-  ; arms.e16.ts:537  vset(V_T0, i16(mDX[k]), i16(mDY[k]), i16(mDZ[k]))
+  ; arms.e16.ts:538  vset(V_T0, i16(mDX[k]), i16(mDY[k]), i16(mDZ[k]))
   slli t0, s1, 1
   lw t0, mDX(t0)
   slli t1, s1, 1
@@ -21393,43 +21449,124 @@ missileSteer:
   mv a2, t1
   mv a3, t2
   call vset
-  ; arms.e16.ts:538  vunit(V_T0)
+  ; arms.e16.ts:539  vunit(V_T0)
   li a0, 21
   call vunit
-  ; arms.e16.ts:539  mDX[k] = vec[V_T0]
+  ; arms.e16.ts:540  mDX[k] = vec[V_T0]
   slli t0, s1, 1
   lw t1, vec+42(zero)
   sw t1, mDX(t0)
-  ; arms.e16.ts:540  mDY[k] = vec[V_T0 + 1]
+  ; arms.e16.ts:541  mDY[k] = vec[V_T0 + 1]
   slli t0, s1, 1
   lw t1, vec+44(zero)
   sw t1, mDY(t0)
-  ; arms.e16.ts:541  mDZ[k] = vec[V_T0 + 2]
+  ; arms.e16.ts:542  mDZ[k] = vec[V_T0 + 2]
   slli t0, s1, 1
   lw t1, vec+46(zero)
   sw t1, mDZ(t0)
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s3, 4(sp)
+  lw s2, 4(sp)
   lw s0, 6(sp)
+  lw s3, 8(sp)
+  addi sp, sp, 10
+  ret
+
+; arms.e16.ts:551 leadOn(k, d) at -O1
+;   k in s3
+;   d in s0
+;   t in s1
+;   s in s2
+leadOn:
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s3, 2(sp)
+  sw s0, 4(sp)
+  sw s1, 6(sp)
+  sw s2, 8(sp)
+  mv s3, a0 ; k
+  mv s0, a1 ; d
+  ; arms.e16.ts:552  let t = i16(div(d, (mSpeed[k] >> 4) + 1))
+  slli t0, s3, 1
+  lw t0, mSpeed(t0)
+  srli t0, t0, 4
+  addi t0, t0, 1
+  divu s1, s0, t0
+  ; arms.e16.ts:553  if (t > 31) t = 31
+  li t0, 31
+  bge t0, s1, .L1
+  ; arms.e16.ts:553  t = 31
+  li s1, 31 ; t
+.L1:
+  ; arms.e16.ts:554  const s = t * 1024
+  slli s2, s1, 10
+  ; arms.e16.ts:555  vset(
+  li a0, 21
+  call vget
+  addi sp, sp, -2
+  sw a0, 0(sp)
+  li a0, 0
+  call eVel
+  mulq t0, a0, s2, 14
+  lw t1, 0(sp)
+  addi sp, sp, 2
+  add t1, t1, t0
+  addi sp, sp, -2
+  sw t1, 0(sp)
+  li a0, 22
+  call vget
+  addi sp, sp, -2
+  sw a0, 0(sp)
+  li a0, 1
+  call eVel
+  mulq t0, a0, s2, 14
+  lw t1, 0(sp)
+  addi sp, sp, 2
+  add t1, t1, t0
+  addi sp, sp, -2
+  sw t1, 0(sp)
+  li a0, 23
+  call vget
+  addi sp, sp, -2
+  sw a0, 0(sp)
+  li a0, 2
+  call eVel
+  mulq t0, a0, s2, 14
+  lw t1, 0(sp)
+  addi sp, sp, 2
+  add t1, t1, t0
+  lw t0, 0(sp)
+  addi sp, sp, 2
+  lw t2, 0(sp)
+  addi sp, sp, 2
+  li a0, 21
+  mv a1, t2
+  mv a2, t0
+  mv a3, t1
+  call vset
+.return:
+  lw ra, 0(sp)
+  lw s3, 2(sp)
+  lw s0, 4(sp)
+  lw s1, 6(sp)
   lw s2, 8(sp)
   addi sp, sp, 10
   ret
 
-; arms.e16.ts:544 goBlind(k) at -O1
+; arms.e16.ts:563 goBlind(k) at -O1
 ;   k in a0
 goBlind:
-  ; arms.e16.ts:545  mChase[k] = 2
+  ; arms.e16.ts:564  mChase[k] = 2
   slli t0, a0, 1
   li t1, 2
   sw t1, mChase(t0)
-  ; arms.e16.ts:546  if (mLife[k] > 60) mLife[k] = 60
+  ; arms.e16.ts:565  if (mLife[k] > 60) mLife[k] = 60
   slli t0, a0, 1
   lw t0, mLife(t0)
   li t1, 60
   bgeu t1, t0, .L1
-  ; arms.e16.ts:546  mLife[k] = 60
+  ; arms.e16.ts:565  mLife[k] = 60
   slli t0, a0, 1
   li t1, 60
   sw t1, mLife(t0)
@@ -21437,14 +21574,14 @@ goBlind:
 .return:
   ret
 
-; arms.e16.ts:553 proximity(k) at -O1
+; arms.e16.ts:572 proximity(k) at -O1
 ;   k in s1
 proximity:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; k
-  ; arms.e16.ts:554  boomAt(i16(mX[k]), i16(mY[k]), i16(mZ[k]))
+  ; arms.e16.ts:573  boomAt(i16(mX[k]), i16(mY[k]), i16(mZ[k]))
   slli t0, s1, 1
   lw t0, mX(t0)
   slli t1, s1, 1
@@ -21457,7 +21594,7 @@ proximity:
   la t0, boomAt
   li t1, 260
   call far_call
-  ; arms.e16.ts:555  if (mChase[k] === 0 && mOwner[k] === 1 && eAlive) {
+  ; arms.e16.ts:574  if (mChase[k] === 0 && mOwner[k] === 1 && eAlive) {
   slli t0, s1, 1
   lw t0, mChase(t0)
   bne t0, zero, .L1
@@ -21467,14 +21604,14 @@ proximity:
   bne t0, t1, .L1
   lw t0, 0x1620(zero)
   beqz t0, .L1
-  ; arms.e16.ts:556  missileDodged = 1
+  ; arms.e16.ts:575  missileDodged = 1
   li t0, 1
   sw t0, 0x1934(zero)
-  ; arms.e16.ts:557  banditHit(4)
+  ; arms.e16.ts:576  banditHit(4)
   li a0, 4
   call banditHit
 .L1:
-  ; arms.e16.ts:559  if (mChase[k] === 0 && mOwner[k] === 2) nearMiss = true
+  ; arms.e16.ts:578  if (mChase[k] === 0 && mOwner[k] === 2) nearMiss = true
   slli t0, s1, 1
   lw t0, mChase(t0)
   bne t0, zero, .L2
@@ -21482,11 +21619,11 @@ proximity:
   lw t0, mOwner(t0)
   li t1, 2
   bne t0, t1, .L2
-  ; arms.e16.ts:559  nearMiss = true
+  ; arms.e16.ts:578  nearMiss = true
   li t0, 1
   sw t0, 0x1928(zero)
 .L2:
-  ; arms.e16.ts:560  mOwner[k] = 0
+  ; arms.e16.ts:579  mOwner[k] = 0
   slli t0, s1, 1
   sw zero, mOwner(t0)
 .return:
@@ -21495,7 +21632,7 @@ proximity:
   addi sp, sp, 4
   ret
 
-; arms.e16.ts:564 missileArrives(k, x, y, z) at -O1
+; arms.e16.ts:583 missileArrives(k, x, y, z) at -O1
 ;   k in s1
 ;   x in s2
 ;   y in s3
@@ -21511,7 +21648,7 @@ missileArrives:
   mv s2, a1 ; x
   mv s3, a2 ; y
   mv s0, a3 ; z
-  ; arms.e16.ts:565  if (mChase[k] === 2 || mNear[k] === 0) return false
+  ; arms.e16.ts:584  if (mChase[k] === 2 || mNear[k] === 0) return false
   slli t0, s1, 1
   lw t0, mChase(t0)
   li t1, 2
@@ -21520,14 +21657,14 @@ missileArrives:
   lw t0, mNear(t0)
   bne t0, zero, .L1
 .L2:
-  ; arms.e16.ts:565  return false
+  ; arms.e16.ts:584  return false
   li a0, 0
   j .return
 .L1:
-  ; arms.e16.ts:566  quarry(k)
+  ; arms.e16.ts:585  quarry(k)
   mv a0, s1
   call quarry
-  ; arms.e16.ts:567  if (!within(vget(V_T0), vget(V_T0 + 1), vget(V_T0 + 2), 80)) return false
+  ; arms.e16.ts:586  if (!within(vget(V_T0), vget(V_T0 + 1), vget(V_T0 + 2), mOwner[k] === 1 ? 120 : 80)) return false
   li a0, 21
   call vget
   addi sp, sp, -2
@@ -21538,21 +21675,33 @@ missileArrives:
   sw a0, 0(sp)
   li a0, 23
   call vget
-  lw t0, 0(sp)
-  addi sp, sp, 2
+  slli t0, s1, 1
+  lw t0, mOwner(t0)
   lw t1, 0(sp)
   addi sp, sp, 2
-  mv a1, t0
-  mv a2, a0
-  mv a0, t1
-  li a3, 80
+  lw t2, 0(sp)
+  addi sp, sp, 2
+  mv t3, t0
+  mv t0, t2
+  mv t2, a0
+  li a1, 1
+  bne t3, a1, .L4
+  li t3, 120
+  j .L5
+.L4:
+  li t3, 80
+.L5:
+  mv a0, t0
+  mv a1, t1
+  mv a2, t2
+  mv a3, t3
   call within
   bnez a0, .L3
-  ; arms.e16.ts:567  return false
+  ; arms.e16.ts:586  return false
   li a0, 0
   j .return
 .L3:
-  ; arms.e16.ts:569  metHeadOn =
+  ; arms.e16.ts:588  metHeadOn =
   slli t0, s1, 1
   lw t0, mDX(t0)
   addi sp, sp, -2
@@ -21592,12 +21741,12 @@ missileArrives:
   add t1, t1, t0
   slti t1, t1, -8000
   sw t1, 0x1936(zero)
-  ; arms.e16.ts:574  if (mOwner[k] === 2) {
+  ; arms.e16.ts:593  if (mOwner[k] === 2) {
   slli t0, s1, 1
   lw t0, mOwner(t0)
   li t1, 2
-  bne t0, t1, .L4
-  ; arms.e16.ts:575  missilePart = partFacing(-(i16(mDX[k]) >> 4), -(i16(mDY[k]) >> 4), -(i16(mDZ[k]) >> 4))
+  bne t0, t1, .L6
+  ; arms.e16.ts:594  missilePart = partFacing(-(i16(mDX[k]) >> 4), -(i16(mDY[k]) >> 4), -(i16(mDZ[k]) >> 4))
   slli t0, s1, 1
   lw t0, mDX(t0)
   srai t0, t0, 4
@@ -21615,14 +21764,14 @@ missileArrives:
   mv a2, t2
   call partFacing
   sw a0, 0x1870(zero)
-.L4:
-  ; arms.e16.ts:577  mOwner[k] =
+.L6:
+  ; arms.e16.ts:596  mOwner[k] =
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, mOwner(t1)
   addi t0, t0, mOwner
   li t2, 1
-  bne t1, t2, .L5
+  bne t1, t2, .L7
   slli t1, s1, 1
   lw t1, mChase(t1)
   addi sp, sp, -2
@@ -21635,8 +21784,8 @@ missileArrives:
   lw t0, 0(sp)
   addi sp, sp, 2
   mv t1, a0
-  j .L6
-.L5:
+  j .L8
+.L7:
   slli t1, s1, 1
   lw t1, mChase(t1)
   addi sp, sp, -2
@@ -21649,9 +21798,9 @@ missileArrives:
   lw t0, 0(sp)
   addi sp, sp, 2
   mv t1, a0
-.L6:
+.L8:
   sw t1, 0(t0)
-  ; arms.e16.ts:579  return true
+  ; arms.e16.ts:598  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -21662,7 +21811,7 @@ missileArrives:
   addi sp, sp, 10
   ret
 
-; arms.e16.ts:585 hitByMissile(x, y, z, chase) at -O1
+; arms.e16.ts:604 hitByMissile(x, y, z, chase) at -O1
 ;   x in s1
 ;   y in s2
 ;   z in s3
@@ -21678,53 +21827,60 @@ hitByMissile:
   mv s2, a1 ; y
   mv s3, a2 ; z
   mv s0, a3 ; chase
-  ; arms.e16.ts:586  boomAt(x, y, z)
+  ; arms.e16.ts:605  boomAt(x, y, z)
   mv a0, s1
   mv a1, s2
   mv a2, s3
   la t0, boomAt
   li t1, 260
   call far_call
-  ; arms.e16.ts:587  if (chase !== 0 || !eAlive) return 0
+  ; arms.e16.ts:606  if (chase !== 0 || !eAlive) return 0
   bne s0, zero, .L2
   lw t0, 0x1620(zero)
   bnez t0, .L1
 .L2:
-  ; arms.e16.ts:587  return 0
+  ; arms.e16.ts:606  return 0
   li a0, 0
   j .return
 .L1:
-  ; arms.e16.ts:589  if (aiEvading && randBelow(100) < aiDodge) {
-  lw t0, 0x1cb2(zero)
-  beqz t0, .L3
+  ; arms.e16.ts:609  if ((aiEvading && randBelow(100) < aiDodge) || (metHeadOn && randBelow(2) === 0)) {
+  lw t0, 0x1cd0(zero)
+  beqz t0, .L5
   li a0, 100
   call randBelow
-  lw t0, 0x1cb4(zero)
-  bgeu a0, t0, .L3
-  ; arms.e16.ts:590  missileDodged = 1
+  lw t0, 0x1cd2(zero)
+  bltu a0, t0, .L4
+.L5:
+  lw t0, 0x1936(zero)
+  beqz t0, .L3
+  li a0, 2
+  call randBelow
+  bne a0, zero, .L3
+.L4:
+  ; arms.e16.ts:610  missileDodged = 1
   li t0, 1
   sw t0, 0x1934(zero)
-  ; arms.e16.ts:591  banditHit(4)
+  ; arms.e16.ts:611  banditHit(4)
   li a0, 4
   call banditHit
-  ; arms.e16.ts:592  return 0
+  ; arms.e16.ts:612  return 0
   li a0, 0
   j .return
 .L3:
-  ; arms.e16.ts:594  missileStruck = 1
+  ; arms.e16.ts:614  missileStruck = 1
   li t0, 1
   sw t0, 0x1924(zero)
-  ; arms.e16.ts:595  banditHit(metHeadOn ? 18 : 30)
+  ; arms.e16.ts:615  banditHit(metHeadOn ? 18 : 30)
   lw t0, 0x1936(zero)
-  beqz t0, .L4
+  beqz t0, .L6
   li t0, 18
-  j .L5
-.L4:
+  j .L7
+.L6:
   li t0, 30
-.L5:
+.L7:
   mv a0, t0
   call banditHit
-  ; arms.e16.ts:596  return 0
+  ; arms.e16.ts:616  return 0
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -21735,14 +21891,14 @@ hitByMissile:
   addi sp, sp, 10
   ret
 
-; arms.e16.ts:605 missileOnClear() at -O1
+; arms.e16.ts:625 missileOnClear() at -O1
 missileOnClear:
-  ; arms.e16.ts:606  missileOnPlayer = false
+  ; arms.e16.ts:626  missileOnPlayer = false
   sw zero, 0x1938(zero)
 .return:
   ret
 
-; arms.e16.ts:609 hitPlayerMissile(x, y, z, chase) at -O1
+; arms.e16.ts:629 hitPlayerMissile(x, y, z, chase) at -O1
 ;   x in s1
 ;   y in s2
 ;   z in s3
@@ -21758,20 +21914,20 @@ hitPlayerMissile:
   mv s2, a1 ; y
   mv s3, a2 ; z
   mv s0, a3 ; chase
-  ; arms.e16.ts:610  boomAt(x, y, z)
+  ; arms.e16.ts:630  boomAt(x, y, z)
   mv a0, s1
   mv a1, s2
   mv a2, s3
   la t0, boomAt
   li t1, 260
   call far_call
-  ; arms.e16.ts:611  if (chase === 0) missileOnPlayer = true
+  ; arms.e16.ts:631  if (chase === 0) missileOnPlayer = true
   bne s0, zero, .L1
-  ; arms.e16.ts:611  missileOnPlayer = true
+  ; arms.e16.ts:631  missileOnPlayer = true
   li t0, 1
   sw t0, 0x1938(zero)
 .L1:
-  ; arms.e16.ts:612  return 0
+  ; arms.e16.ts:632  return 0
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -21782,7 +21938,7 @@ hitPlayerMissile:
   addi sp, sp, 10
   ret
 
-; arms.e16.ts:616 missileDraw(k, x, y, z) at -O1
+; arms.e16.ts:636 missileDraw(k, x, y, z) at -O1
 ;   k in s1
 ;   x in 0(fp)
 ;   y in 2(fp)
@@ -21801,13 +21957,13 @@ missileDraw:
   sw a1, 0(fp) ; x
   sw a2, 2(fp) ; y
   sw a3, 4(fp) ; z
-  ; arms.e16.ts:617  vset(V_T0, x, y, z)
+  ; arms.e16.ts:637  vset(V_T0, x, y, z)
   li a0, 21
   lw a1, 0(fp)
   lw a2, 2(fp)
   lw a3, 4(fp)
   call vset
-  ; arms.e16.ts:618  if (!see(V_T0) || !abovePanel(scrY(), 4)) return
+  ; arms.e16.ts:638  if (!see(V_T0) || !abovePanel(scrY(), 4)) return
   li a0, 21
   call see
   beqz a0, .L2
@@ -21816,16 +21972,16 @@ missileDraw:
   call abovePanel
   bnez a0, .L1
 .L2:
-  ; arms.e16.ts:618  return
+  ; arms.e16.ts:638  return
   j .return
 .L1:
-  ; arms.e16.ts:619  const sx = scrX()
+  ; arms.e16.ts:639  const sx = scrX()
   call scrX
   mv s2, a0 ; sx
-  ; arms.e16.ts:620  const sy = scrY()
+  ; arms.e16.ts:640  const sy = scrY()
   call scrY
   mv s3, a0 ; sy
-  ; arms.e16.ts:621  if (mOwner[k] === 2 && mChase[k] === 0) {
+  ; arms.e16.ts:641  if (mOwner[k] === 2 && mChase[k] === 0) {
   slli t0, s1, 1
   lw t0, mOwner(t0)
   li t1, 2
@@ -21833,14 +21989,14 @@ missileDraw:
   slli t0, s1, 1
   lw t0, mChase(t0)
   bne t0, zero, .L3
-  ; arms.e16.ts:622  spr(sx - 4, sy - 4, (HUD8_TILE + 20) | ((SL_HUD_RED - 8) << 10), S8)
+  ; arms.e16.ts:642  spr(sx - 4, sy - 4, (HUD8_TILE + 20) | ((SL_HUD_RED - 8) << 10), S8)
   addi a0, s2, -4
   addi a1, s3, -4
   li a2, 5363
   li a3, 0
   call spr
 .L3:
-  ; arms.e16.ts:624  spr(sx - 4, sy - 4, (SHOTS_TILE + 4 + (rand() & 1)) | ((SL_SHOT - 8) << 10), S8)
+  ; arms.e16.ts:644  spr(sx - 4, sy - 4, (SHOTS_TILE + 4 + (rand() & 1)) | ((SL_SHOT - 8) << 10), S8)
   call rand
   andi t0, a0, 1
   addi t0, t0, 299
@@ -21860,66 +22016,66 @@ missileDraw:
   addi sp, sp, 16
   ret
 
-; arms.e16.ts:628 missileAt(k) at -O1
+; arms.e16.ts:648 missileAt(k) at -O1
 ;   k in a0
 missileAt:
-  ; arms.e16.ts:629  return mOwner[k]
+  ; arms.e16.ts:649  return mOwner[k]
   slli t0, a0, 1
   lw a0, mOwner(t0)
 .return:
   ret
 
-; arms.e16.ts:632 missileX(k) at -O1
+; arms.e16.ts:652 missileX(k) at -O1
 ;   k in a0
 missileX:
-  ; arms.e16.ts:633  return i16(mX[k])
+  ; arms.e16.ts:653  return i16(mX[k])
   slli t0, a0, 1
   lw a0, mX(t0)
 .return:
   ret
 
-; arms.e16.ts:636 missileY(k) at -O1
+; arms.e16.ts:656 missileY(k) at -O1
 ;   k in a0
 missileY:
-  ; arms.e16.ts:637  return i16(mY[k])
+  ; arms.e16.ts:657  return i16(mY[k])
   slli t0, a0, 1
   lw a0, mY(t0)
 .return:
   ret
 
-; arms.e16.ts:641 missileSpeed(k) at -O1
+; arms.e16.ts:661 missileSpeed(k) at -O1
 ;   k in a0
 missileSpeed:
-  ; arms.e16.ts:642  return mSpeed[k]
+  ; arms.e16.ts:662  return mSpeed[k]
   slli t0, a0, 1
   lw a0, mSpeed(t0)
 .return:
   ret
 
-; arms.e16.ts:645 missileChase(k) at -O1
+; arms.e16.ts:665 missileChase(k) at -O1
 ;   k in a0
 missileChase:
-  ; arms.e16.ts:646  return mChase[k]
+  ; arms.e16.ts:666  return mChase[k]
   slli t0, a0, 1
   lw a0, mChase(t0)
 .return:
   ret
 
-; arms.e16.ts:662 playerFlares() at -O1
+; arms.e16.ts:682 playerFlares() at -O1
 ;   k in s1
 playerFlares:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; arms.e16.ts:663  if (flareCool > 0) flareCool--
+  ; arms.e16.ts:683  if (flareCool > 0) flareCool--
   lw t0, 0x197c(zero)
   bgeu zero, t0, .L1
-  ; arms.e16.ts:663  flareCool--
+  ; arms.e16.ts:683  flareCool--
   lw t0, 0x197c(zero)
   addi t0, t0, -1
   sw t0, 0x197c(zero)
 .L1:
-  ; arms.e16.ts:664  if (!pressed(B_X) || flareCool > 0 || flaresLeft === 0) return false
+  ; arms.e16.ts:684  if (!pressed(B_X) || flareCool > 0 || flaresLeft === 0) return false
   li a0, 64
   call pressed
   beqz a0, .L3
@@ -21928,28 +22084,28 @@ playerFlares:
   lw t0, 0x191c(zero)
   bne t0, zero, .L2
 .L3:
-  ; arms.e16.ts:664  return false
+  ; arms.e16.ts:684  return false
   li a0, 0
   j .return
 .L2:
-  ; arms.e16.ts:665  flareCool = 20
+  ; arms.e16.ts:685  flareCool = 20
   li t0, 20
   sw t0, 0x197c(zero)
-  ; arms.e16.ts:666  flaresLeft--
+  ; arms.e16.ts:686  flaresLeft--
   lw t0, 0x191c(zero)
   addi t0, t0, -1
   sw t0, 0x191c(zero)
-  ; arms.e16.ts:667  flarePair(0, 0, 0)
+  ; arms.e16.ts:687  flarePair(0, 0, 0)
   li a0, 0
   li a1, 0
   li a2, 0
   call flarePair
-  ; arms.e16.ts:668  let k: u16 = M_ENEMY
+  ; arms.e16.ts:688  let k: u16 = M_ENEMY
   li s1, 4 ; k
-  ; arms.e16.ts:669  while (k < MN) {
+  ; arms.e16.ts:689  while (k < MN) {
   j .L6
 .L4:
-  ; arms.e16.ts:670  if (mOwner[k] === 2 && mChase[k] === 0 && randBelow(4) !== 0) fooled(k)
+  ; arms.e16.ts:690  if (mOwner[k] === 2 && mChase[k] === 0 && randBelow(4) !== 0) fooled(k)
   slli t0, s1, 1
   lw t0, mOwner(t0)
   li t1, 2
@@ -21960,16 +22116,16 @@ playerFlares:
   li a0, 4
   call randBelow
   beq a0, zero, .L8
-  ; arms.e16.ts:670  fooled(k)
+  ; arms.e16.ts:690  fooled(k)
   mv a0, s1
   call fooled
 .L8:
-  ; arms.e16.ts:671  k++
+  ; arms.e16.ts:691  k++
   addi s1, s1, 1
 .L6:
   li t0, 6
   bltu s1, t0, .L4
-  ; arms.e16.ts:673  return true
+  ; arms.e16.ts:693  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -21977,7 +22133,7 @@ playerFlares:
   addi sp, sp, 4
   ret
 
-; arms.e16.ts:677 enemyFlares(odds) at -O1
+; arms.e16.ts:697 enemyFlares(odds) at -O1
 ;   odds in s2
 ;   k in s1
 enemyFlares:
@@ -21986,7 +22142,7 @@ enemyFlares:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; odds
-  ; arms.e16.ts:678  flarePair(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
+  ; arms.e16.ts:698  flarePair(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
   li a0, 18
   call vget
   addi sp, sp, -2
@@ -22005,12 +22161,12 @@ enemyFlares:
   mv a2, a0
   mv a0, t1
   call flarePair
-  ; arms.e16.ts:679  let k: u16 = 0
+  ; arms.e16.ts:699  let k: u16 = 0
   li s1, 0 ; k
-  ; arms.e16.ts:680  while (k < M_ENEMY) {
+  ; arms.e16.ts:700  while (k < M_ENEMY) {
   j .L3
 .L1:
-  ; arms.e16.ts:681  if (mOwner[k] === 1 && mChase[k] === 0 && randBelow(256) < odds) fooled(k)
+  ; arms.e16.ts:701  if (mOwner[k] === 1 && mChase[k] === 0 && randBelow(256) < odds) fooled(k)
   slli t0, s1, 1
   lw t0, mOwner(t0)
   li t1, 1
@@ -22021,11 +22177,11 @@ enemyFlares:
   li a0, 256
   call randBelow
   bgeu a0, s2, .L5
-  ; arms.e16.ts:681  fooled(k)
+  ; arms.e16.ts:701  fooled(k)
   mv a0, s1
   call fooled
 .L5:
-  ; arms.e16.ts:682  k++
+  ; arms.e16.ts:702  k++
   addi s1, s1, 1
 .L3:
   li t0, 4
@@ -22037,27 +22193,27 @@ enemyFlares:
   addi sp, sp, 6
   ret
 
-; arms.e16.ts:687 fooled(k) at -O1
+; arms.e16.ts:707 fooled(k) at -O1
 ;   k in a0
 fooled:
-  ; arms.e16.ts:688  mChase[k] = 1
+  ; arms.e16.ts:708  mChase[k] = 1
   slli t0, a0, 1
   li t1, 1
   sw t1, mChase(t0)
-  ; arms.e16.ts:689  mFlare[k] = (fNext + FN - 1) % FN
+  ; arms.e16.ts:709  mFlare[k] = (fNext + FN - 1) % FN
   slli t0, a0, 1
   lw t1, 0x197a(zero)
   addi t1, t1, 7
   andi t1, t1, 7
   sw t1, mFlare(t0)
-  ; arms.e16.ts:690  mNear[k] = 1
+  ; arms.e16.ts:710  mNear[k] = 1
   slli t0, a0, 1
   li t1, 1
   sw t1, mNear(t0)
 .return:
   ret
 
-; arms.e16.ts:693 flarePair(x, y, z) at -O1
+; arms.e16.ts:713 flarePair(x, y, z) at -O1
 ;   x in s1
 ;   y in s2
 ;   z in s3
@@ -22070,12 +22226,12 @@ flarePair:
   mv s1, a0 ; x
   mv s2, a1 ; y
   mv s3, a2 ; z
-  ; arms.e16.ts:694  flareAt(x - 20, y, z - 10)
+  ; arms.e16.ts:714  flareAt(x - 20, y, z - 10)
   addi a0, s1, -20
   mv a1, s2
   addi a2, s3, -10
   call flareAt
-  ; arms.e16.ts:695  flareAt(x + 20, y, z - 10)
+  ; arms.e16.ts:715  flareAt(x + 20, y, z - 10)
   addi a0, s1, 20
   mv a1, s2
   addi a2, s3, -10
@@ -22088,29 +22244,29 @@ flarePair:
   addi sp, sp, 8
   ret
 
-; arms.e16.ts:698 flareAt(x, y, z) at -O1
+; arms.e16.ts:718 flareAt(x, y, z) at -O1
 ;   x in a0
 ;   y in a1
 ;   z in a2
 flareAt:
-  ; arms.e16.ts:699  fX[fNext] = u16(x)
+  ; arms.e16.ts:719  fX[fNext] = u16(x)
   lw t0, 0x197a(zero)
   slli t0, t0, 1
   sw a0, fX(t0)
-  ; arms.e16.ts:700  fY[fNext] = u16(y)
+  ; arms.e16.ts:720  fY[fNext] = u16(y)
   lw t0, 0x197a(zero)
   slli t0, t0, 1
   sw a1, fY(t0)
-  ; arms.e16.ts:701  fZ[fNext] = u16(z)
+  ; arms.e16.ts:721  fZ[fNext] = u16(z)
   lw t0, 0x197a(zero)
   slli t0, t0, 1
   sw a2, fZ(t0)
-  ; arms.e16.ts:702  fLife[fNext] = 80
+  ; arms.e16.ts:722  fLife[fNext] = 80
   lw t0, 0x197a(zero)
   slli t0, t0, 1
   li t1, 80
   sw t1, fLife(t0)
-  ; arms.e16.ts:703  fNext = (fNext + 1) % FN
+  ; arms.e16.ts:723  fNext = (fNext + 1) % FN
   lw t0, 0x197a(zero)
   addi t0, t0, 1
   andi t0, t0, 7
@@ -22118,26 +22274,26 @@ flareAt:
 .return:
   ret
 
-; arms.e16.ts:707 flaresStep() at -O1
+; arms.e16.ts:727 flaresStep() at -O1
 ;   k in s1
 flaresStep:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; arms.e16.ts:708  let k: u16 = 0
+  ; arms.e16.ts:728  let k: u16 = 0
   li s1, 0 ; k
-  ; arms.e16.ts:709  while (k < FN) {
+  ; arms.e16.ts:729  while (k < FN) {
   j .L3
 .L1:
-  ; arms.e16.ts:710  if (fLife[k] !== 0) flareStep(k)
+  ; arms.e16.ts:730  if (fLife[k] !== 0) flareStep(k)
   slli t0, s1, 1
   lw t0, fLife(t0)
   beq t0, zero, .L5
-  ; arms.e16.ts:710  flareStep(k)
+  ; arms.e16.ts:730  flareStep(k)
   mv a0, s1
   call flareStep
 .L5:
-  ; arms.e16.ts:711  k++
+  ; arms.e16.ts:731  k++
   addi s1, s1, 1
 .L3:
   li t0, 8
@@ -22148,20 +22304,20 @@ flaresStep:
   addi sp, sp, 4
   ret
 
-; arms.e16.ts:715 flareStep(k) at -O1
+; arms.e16.ts:735 flareStep(k) at -O1
 ;   k in s1
 flareStep:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; k
-  ; arms.e16.ts:716  fLife[k] = fLife[k] - 1
+  ; arms.e16.ts:736  fLife[k] = fLife[k] - 1
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fLife(t1)
   addi t1, t1, -1
   sw t1, fLife(t0)
-  ; arms.e16.ts:717  fX[k] = u16(i16(fX[k]) - (pVel(0) >> 5))
+  ; arms.e16.ts:737  fX[k] = u16(i16(fX[k]) - (pVel(0) >> 5))
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fX(t1)
@@ -22179,7 +22335,7 @@ flareStep:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw t1, 0(t0)
-  ; arms.e16.ts:718  fY[k] = u16(i16(fY[k]) - (pVel(1) >> 5))
+  ; arms.e16.ts:738  fY[k] = u16(i16(fY[k]) - (pVel(1) >> 5))
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fY(t1)
@@ -22197,7 +22353,7 @@ flareStep:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw t1, 0(t0)
-  ; arms.e16.ts:719  fZ[k] = u16(i16(fZ[k]) - (pVel(2) >> 5) - 1)
+  ; arms.e16.ts:739  fZ[k] = u16(i16(fZ[k]) - (pVel(2) >> 5) - 1)
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fZ(t1)
@@ -22216,7 +22372,7 @@ flareStep:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw t1, 0(t0)
-  ; arms.e16.ts:720  vset(V_T0, i16(fX[k]), i16(fY[k]), i16(fZ[k]))
+  ; arms.e16.ts:740  vset(V_T0, i16(fX[k]), i16(fY[k]), i16(fZ[k]))
   slli t0, s1, 1
   lw t0, fX(t0)
   slli t1, s1, 1
@@ -22228,7 +22384,7 @@ flareStep:
   mv a2, t1
   mv a3, t2
   call vset
-  ; arms.e16.ts:721  if (!see(V_T0) || !abovePanel(scrY(), 4)) return
+  ; arms.e16.ts:741  if (!see(V_T0) || !abovePanel(scrY(), 4)) return
   li a0, 21
   call see
   beqz a0, .L2
@@ -22237,10 +22393,10 @@ flareStep:
   call abovePanel
   bnez a0, .L1
 .L2:
-  ; arms.e16.ts:721  return
+  ; arms.e16.ts:741  return
   j .return
 .L1:
-  ; arms.e16.ts:722  spr(scrX() - 4, scrY() - 4, (SHOTS_TILE + 6 + ((fLife[k] >> 1) & 1)) | ((SL_SHOT - 8) << 10), S8)
+  ; arms.e16.ts:742  spr(scrX() - 4, scrY() - 4, (SHOTS_TILE + 6 + ((fLife[k] >> 1) & 1)) | ((SL_SHOT - 8) << 10), S8)
   call scrX
   addi a0, a0, -4
   addi sp, sp, -2
@@ -22265,10 +22421,10 @@ flareStep:
   addi sp, sp, 4
   ret
 
-; arms.e16.ts:726 flareLit(k) at -O1
+; arms.e16.ts:746 flareLit(k) at -O1
 ;   k in a0
 flareLit:
-  ; arms.e16.ts:727  return fLife[k] !== 0
+  ; arms.e16.ts:747  return fLife[k] !== 0
   slli t0, a0, 1
   lw t0, fLife(t0)
   sub t0, t0, zero
@@ -22276,22 +22432,22 @@ flareLit:
 .return:
   ret
 
-; arms.e16.ts:730 missileFlare(k) at -O1
+; arms.e16.ts:750 missileFlare(k) at -O1
 ;   k in a0
 missileFlare:
-  ; arms.e16.ts:731  return mFlare[k]
+  ; arms.e16.ts:751  return mFlare[k]
   slli t0, a0, 1
   lw a0, mFlare(t0)
 .return:
   ret
 
-; arms.e16.ts:742 inSeeker() at -O1
+; arms.e16.ts:762 inSeeker() at -O1
 ;   cone in s1
 inSeeker:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; arms.e16.ts:743  if (!eAlive || eBZ <= 0 || eDist > 5600) return false
+  ; arms.e16.ts:763  if (!eAlive || eBZ <= 0 || eDist > 5600) return false
   lw t0, 0x1620(zero)
   beqz t0, .L2
   lw t0, 0x1636(zero)
@@ -22300,17 +22456,17 @@ inSeeker:
   li t1, 5600
   bgeu t1, t0, .L1
 .L2:
-  ; arms.e16.ts:743  return false
+  ; arms.e16.ts:763  return false
   li a0, 0
   j .return
 .L1:
-  ; arms.e16.ts:744  const cone = (eBZ >> 2) + (eBZ >> 4)
+  ; arms.e16.ts:764  const cone = (eBZ >> 2) + (eBZ >> 4)
   lw t0, 0x1636(zero)
   srai t0, t0, 2
   lw t1, 0x1636(zero)
   srai t1, t1, 4
   add s1, t0, t1
-  ; arms.e16.ts:745  return abs16(eBX) < cone && abs16(eBY) < cone
+  ; arms.e16.ts:765  return abs16(eBX) < cone && abs16(eBY) < cone
   lw a0, 0x1632(zero)
   call abs16
   slt t0, a0, s1
@@ -22327,43 +22483,43 @@ inSeeker:
   addi sp, sp, 4
   ret
 
-; arms.e16.ts:749 seekerStep() at -O1
+; arms.e16.ts:769 seekerStep() at -O1
 seekerStep:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; arms.e16.ts:750  if (!inSeeker()) {
+  ; arms.e16.ts:770  if (!inSeeker()) {
   call inSeeker
   bnez a0, .L1
-  ; arms.e16.ts:751  lockT = 0
+  ; arms.e16.ts:771  lockT = 0
   sw zero, 0x197e(zero)
-  ; arms.e16.ts:752  locked = false
+  ; arms.e16.ts:772  locked = false
   sw zero, 0x1980(zero)
-  ; arms.e16.ts:753  return 0
+  ; arms.e16.ts:773  return 0
   li a0, 0
   j .return
 .L1:
-  ; arms.e16.ts:755  if (locked) return 3
+  ; arms.e16.ts:775  if (locked) return 3
   lw t0, 0x1980(zero)
   beqz t0, .L2
-  ; arms.e16.ts:755  return 3
+  ; arms.e16.ts:775  return 3
   li a0, 3
   j .return
 .L2:
-  ; arms.e16.ts:756  lockT++
+  ; arms.e16.ts:776  lockT++
   lw t0, 0x197e(zero)
   addi t0, t0, 1
   sw t0, 0x197e(zero)
-  ; arms.e16.ts:757  if (lockT >= LOCK_FRAMES) {
+  ; arms.e16.ts:777  if (lockT >= LOCK_FRAMES) {
   li t1, 50
   bltu t0, t1, .L3
-  ; arms.e16.ts:758  locked = true
+  ; arms.e16.ts:778  locked = true
   li t0, 1
   sw t0, 0x1980(zero)
-  ; arms.e16.ts:759  return 1
+  ; arms.e16.ts:779  return 1
   li a0, 1
   j .return
 .L3:
-  ; arms.e16.ts:761  return 2
+  ; arms.e16.ts:781  return 2
   li a0, 2
 .return:
   lw ra, 0(sp)
@@ -22412,29 +22568,29 @@ horizonFind:
   ; horizon.e16.ts:30  hNX = cos(a)
   mv a0, s2
   call cos
-  sw a0, 0x1cc2(zero)
+  sw a0, 0x1ce0(zero)
   ; horizon.e16.ts:31  hNY = sin(a)
   mv a0, s2
   call sin
-  sw a0, 0x1cc4(zero)
+  sw a0, 0x1ce2(zero)
   ; horizon.e16.ts:32  hL = mulShift(rz, hNX * 64, 14) + mulShift(-uz, hNY * 64, 14)
-  lw t0, 0x1cc2(zero)
+  lw t0, 0x1ce0(zero)
   slli t0, t0, 6
   mulq t0, s3, t0, 14
   lw t1, 0(fp) ; uz
   neg t1, t1
-  lw t2, 0x1cc4(zero)
+  lw t2, 0x1ce2(zero)
   slli t2, t2, 6
   mulq t1, t1, t2, 14
   add t0, t0, t1
-  sw t0, 0x1cc8(zero)
+  sw t0, 0x1ce6(zero)
   ; horizon.e16.ts:33  const far: i16 = 19200
   ; horizon.e16.ts:34  if (hL < 64 || u16(abs16(fz)) > u16(hL) * 3) hC = fz > 0 ? far : -far
   li t1, 64
   blt t0, t1, .L2
   mv a0, s1
   call abs16
-  lw t0, 0x1cc8(zero)
+  lw t0, 0x1ce6(zero)
   slli t1, t0, 1
   add t0, t1, t0
   bgeu t0, a0, .L1
@@ -22446,13 +22602,13 @@ horizonFind:
 .L3:
   li t0, 46336
 .L4:
-  sw t0, 0x1cc6(zero)
+  sw t0, 0x1ce4(zero)
   j .L5
 .L1:
   ; horizon.e16.ts:36  const c = i16(muldiv(u16(abs16(fz)), 6144, u16(hL)))
   mv a0, s1
   call abs16
-  lw t0, 0x1cc8(zero)
+  lw t0, 0x1ce6(zero)
   li a1, 6144
   mv a2, t0
   call muldiv
@@ -22465,7 +22621,7 @@ horizonFind:
 .L6:
   lw t0, 2(fp)
 .L7:
-  sw t0, 0x1cc6(zero)
+  sw t0, 0x1ce4(zero)
 .L5:
   ; horizon.e16.ts:39  partialIn((a + 64) & 255)
   addi t0, s2, 64
@@ -22568,9 +22724,9 @@ skyDraw:
   ; horizon.e16.ts:69  horizonFind()
   call horizonFind
   ; horizon.e16.ts:70  const nx = hNX
-  lw s1, 0x1cc2(zero)
+  lw s1, 0x1ce0(zero)
   ; horizon.e16.ts:71  const ny = hNY
-  lw s2, 0x1cc4(zero)
+  lw s2, 0x1ce2(zero)
   ; horizon.e16.ts:72  const across = 39 * nx
   li t0, 39
   mul s3, t0, s1
@@ -22601,7 +22757,7 @@ skyDraw:
   mul t0, t0, s2
   sub t0, t0, s3
   srai t0, t0, 1
-  lw t1, 0x1cc6(zero)
+  lw t1, 0x1ce4(zero)
   add t0, t0, t1
   sw t0, skyArgs+4(zero)
   ; horizon.e16.ts:79  skyArgs[3] = u16(nx)

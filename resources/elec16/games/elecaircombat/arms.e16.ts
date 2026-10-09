@@ -520,6 +520,7 @@ function missileSteer(k: u16): void {
   quarry(k)
   const d = vlen(vget(V_T0), vget(V_T0 + 1), vget(V_T0 + 2))
   mNear[k] = d < 400 ? 1 : 0
+  if (mOwner[k] === 1 && mChase[k] === 0) leadOn(k, d)
   unitOf(V_T0)
   const ahead =
     mulShift(vget(V_T0), i16(mDX[k]), 14) +
@@ -530,7 +531,7 @@ function missileSteer(k: u16): void {
     else goBlind(k)
     return
   }
-  const turn = i16(mOwner[k] === 1 ? 1520 : 1240)
+  const turn = i16(mOwner[k] === 1 ? 2000 : 1240)
   mDX[k] = u16(i16(mDX[k]) + mulShift(vget(V_T0) - i16(mDX[k]), turn, 14))
   mDY[k] = u16(i16(mDY[k]) + mulShift(vget(V_T0 + 1) - i16(mDY[k]), turn, 14))
   mDZ[k] = u16(i16(mDZ[k]) + mulShift(vget(V_T0 + 2) - i16(mDZ[k]), turn, 14))
@@ -539,6 +540,24 @@ function missileSteer(k: u16): void {
   mDX[k] = vec[V_T0]
   mDY[k] = vec[V_T0 + 1]
   mDZ[k] = vec[V_T0 + 2]
+}
+
+/**
+ * The player's missile steers for where the enemy will be when it arrives, not where it is:
+ * the enemy's place in V_T0 moved on by its velocity for the time the missile takes to fly
+ * `d` at its speed (at most 31 frames). Chasing where it is, a missile fell behind every
+ * turn and lost the enemy close by, bursting behind it (`proximity`).
+ */
+function leadOn(k: u16, d: u16): void {
+  let t = i16(div(d, (mSpeed[k] >> 4) + 1))
+  if (t > 31) t = 31
+  const s = t * 1024
+  vset(
+    V_T0,
+    vget(V_T0) + mulShift(eVel(0), s, 14),
+    vget(V_T0 + 1) + mulShift(eVel(1), s, 14),
+    vget(V_T0 + 2) + mulShift(eVel(2), s, 14),
+  )
 }
 
 function goBlind(k: u16): void {
@@ -564,7 +583,7 @@ function proximity(k: u16): void {
 function missileArrives(k: u16, x: i16, y: i16, z: i16): bool {
   if (mChase[k] === 2 || mNear[k] === 0) return false
   quarry(k)
-  if (!within(vget(V_T0), vget(V_T0 + 1), vget(V_T0 + 2), 80)) return false
+  if (!within(vget(V_T0), vget(V_T0 + 1), vget(V_T0 + 2), mOwner[k] === 1 ? 120 : 80)) return false
   // Met head on, the fuse bursts it too early or late: less of a blow.
   metHeadOn =
     mulShift(i16(mDX[k]), vget(V_EF), 14) +
@@ -586,7 +605,8 @@ function hitByMissile(x: i16, y: i16, z: i16, chase: u16): u16 {
   boomAt(x, y, z)
   if (chase !== 0 || !eAlive) return 0
   // An ace breaking hard may turn inside the missile: it bursts close, and only scorches.
-  if (aiEvading && randBelow(100) < aiDodge) {
+  // Met head on, the fuse bursts it early or late, as often as not.
+  if ((aiEvading && randBelow(100) < aiDodge) || (metHeadOn && randBelow(2) === 0)) {
     missileDodged = 1
     banditHit(4)
     return 0

@@ -86,6 +86,13 @@ const aceCircle = words(5)
 /** How far it runs out when it separates, before it turns back nose on (units), and how long at most (frames). */
 const aceRunOut = words(5)
 const aceRunT = words(5)
+/**
+ * Its chance (in 100) to turn inside a missile that reaches it while it breaks or zooms, its
+ * flares' chance (in 256) to fool each missile chasing it, and the frames between its pairs.
+ */
+export const aceDodge = words(5)
+export const aceFlareOdds = words(5)
+export const aceFlareGap = words(5)
 
 /** The aces' rows: called once, at the game's start. */
 export function aiInit(): void {
@@ -134,6 +141,21 @@ export function aiInit(): void {
   aceRunT[2] = 180
   aceRunT[3] = 180
   aceRunT[4] = 160
+  aceDodge[0] = 35
+  aceDodge[1] = 35
+  aceDodge[2] = 55
+  aceDodge[3] = 65
+  aceDodge[4] = 70
+  aceFlareOdds[0] = 40
+  aceFlareOdds[1] = 150
+  aceFlareOdds[2] = 120
+  aceFlareOdds[3] = 160
+  aceFlareOdds[4] = 175
+  aceFlareGap[0] = 150
+  aceFlareGap[1] = 135
+  aceFlareGap[2] = 120
+  aceFlareGap[3] = 105
+  aceFlareGap[4] = 90
 }
 
 function has(f: u16): bool {
@@ -180,7 +202,7 @@ export function aiNew(): void {
   aiFeintT = 0
   aiScissorT = 0
   aiEvading = false
-  aiDodge = 25 + ace * 10
+  aiDodge = aceDodge[ace]
   aiCircleT = 0
   aiRunOut = 0
   aiBack = false
@@ -522,9 +544,9 @@ function weapons(): void {
   if (aiTZ > 0) aimAndFire()
   else aiLockT = 0
   if (threatDist < 1800 && aiFlareCool === 0 && aiFlares > 0) {
-    aiFlareCool = 150 - ace * 15
+    aiFlareCool = aceFlareGap[ace]
     aiFlares--
-    enemyFlares(40 + ace * 30)
+    enemyFlares(aceFlareOdds[ace])
   }
   // A crippled ace runs.
   if (eHP * 4 < eHPMax && aiState === PURSUE && randBelow(64) === 0) to(EXTEND, 90)
