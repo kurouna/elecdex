@@ -597,7 +597,11 @@ weather and calendar.
   Anthropic, OpenAI, Gemini, OpenRouter, or a custom address), adjust the address, and - for a
   hosted service - paste its API key (kept as you leave the field, like every other setting;
   **show** lets you look at what you typed before that, and a key that is held reads as dots -
-  it is never shown again). **test** asks the provider for its models, which then
+  it is never shown again). For Anthropic, use a key created in a workspace (Console -> API keys,
+  choosing a workspace such as Default): a key linked to your user rather than a workspace
+  (`sk-ant-usr-`, made without choosing one) is refused with "the request was not accepted (400):
+  This API key is not scoped to a workspace...", because elecdex does not send the
+  `anthropic-workspace-id` header such a key needs. **test** asks the provider for its models, which then
   complete the model field. In the pane, choose the provider and the model, type, and press Enter
   (Shift+Enter for a new line; Esc or **stop** ends an answer and keeps what was written). Answers
   are drawn as markdown with a copy button on every code block; a model's reasoning, where the

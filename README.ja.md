@@ -578,7 +578,11 @@ Ctrl+Shift+1 から 8 に並んだ状態で始まり、すでにある一覧に�
   （Ctrl+Shift+A）から追加でき、いくつでも置けます。まず *Settings -> AI* でプロバイダーを登録します。プリセット（Ollama、LM Studio、llama.cpp、
   Anthropic、OpenAI、Gemini、OpenRouter、またはカスタムのアドレス）を選び、アドレスを調整し、ホスト型の
   サービスなら API キーを貼り付けます（他の設定と同じく、フィールドを離れたときに保存されます。それまでは
-  **show** で入力内容を確認でき、保存済みのキーは黒丸で表示され、二度と表示されません）。**test** で
+  **show** で入力内容を確認でき、保存済みのキーは黒丸で表示され、二度と表示されません）。Anthropic では、
+  ワークスペースを指定して作ったキー（Console -> API keys で Default などのワークスペースを選ぶ）を使って
+  ください。ワークスペースを指定せずに作った、ユーザーに紐づくキー（`sk-ant-usr-`）は、そのキーに要る
+  `anthropic-workspace-id` ヘッダーを elecdex が送らないため、「the request was not accepted (400): This API
+  key is not scoped to a workspace...」で断られます。**test** で
   プロバイダーにモデルを問い合わせると、その結果がモデル欄の候補になります。ペインでプロバイダーとモデルを
   選び、入力して Enter を押します（Shift+Enter で改行。Esc か **stop** で回答を終わらせ、それまでに
   書かれた分は残ります）。回答は Markdown として描かれ、コードブロックごとにコピーボタンが付きます。

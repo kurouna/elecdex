@@ -514,7 +514,10 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   *Settings -> AI* 中添加一个提供方：选一个预设（Ollama、LM Studio、llama.cpp、Anthropic、
   OpenAI、Gemini、OpenRouter，或自定义地址），调整地址，如果是托管服务，再粘贴它的 API 密钥
   （和其他设置一样，离开输入框时即保存；在此之前可以用 **show** 查看你输入的内容，已保存的密钥
-  显示为圆点——它不会再被显示出来）。**test** 会向提供方请求模型列表，随后可用于补全模型字段。
+  显示为圆点——它不会再被显示出来）。使用 Anthropic 时，请用在工作区中创建的密钥（Console -> API keys，
+  选择 Default 等工作区）：未选择工作区而创建、关联到用户的密钥（`sk-ant-usr-`）会被拒绝，提示
+  "the request was not accepted (400): This API key is not scoped to a workspace..."，因为 elecdex 不发送
+  这种密钥所需的 `anthropic-workspace-id` 请求头。**test** 会向提供方请求模型列表，随后可用于补全模型字段。
   在窗格中选择提供方和模型，输入内容后按 Enter（Shift+Enter 换行；Esc 或 **stop** 结束回答并
   保留已写出的部分）。回答以 markdown 呈现，每个代码块都有复制按钮；模型的推理过程（在提供方
   提供的情况下：Claude 的摘要式思考、`reasoning_content` 或内联的 `<think>`）折叠在

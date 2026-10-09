@@ -547,6 +547,9 @@ OpenAI / Gemini / OpenRouter）と話すペイン（`widgets/aichat`、`shared/a
 **プロバイダは「アドレス + 方言」**。2026 年時点でローカルサーバーのほぼ全部と多くのクラウドが OpenAI の
 `chat/completions` を話すので、方言は 2 つだけにした: `openai`（互換 API。素の fetch + SSE。依存なし）と
 `anthropic`（Messages API。公式 SDK）。新しいサービスはコードではなく `AI_PRESETS` の 1 行で足す。
+Anthropic のアダプタはキーを `X-Api-Key` で送るだけで、`anthropic-workspace-id` は送らない。ワークスペースに
+結び付いたキーを前提にしており、ワークスペースを指定せずに作ったユーザーに紐づくキー（`sk-ant-usr-`）は API が
+400 で断る（README に書いた。プロバイダごとのワークスペース ID は設定のスキーマに触れるので別の判断、issue #17）。
 プロバイダは設定 `ai.providers`（id・表示名・種別・アドレス・既定モデル）、システムプロンプトは `ai.systemPrompt`。
 アドレスはスキーマでは弾かず、使うときに `aiBaseUrl` で正規化する（http/https のみ、認証情報・クエリ・
 フラグメントなし）。手編集の 1 行の誤りで settings.json 全体が既定に落ちるのを避けるため。
