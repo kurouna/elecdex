@@ -1,13 +1,14 @@
 // ELECFIGHTER's look (docs/elec16-elecfighter-design.md 2.3, 2.4, 10.2): each frame's sprites -
-// the effects in front, the fighters from their rooms (the cells of their pose, laid by the pose's
-// places, mirrored with FLIP_H when facing left), a KO's pieces, the shadows behind - and the
-// fighters' palettes, the only way a fighter changes colour: drawn in from the void as a round
-// begins, white for a hit, blue-white behind a hexagonal firewall for a guard, magenta while
-// thrown, the wire blinking under a quarter of the life, and at a KO the fill gone to the void
-// before the body breaks into triangles of its own mesh - cut from the pose it breaks in - that
-// fly apart both ways and fade. The fight's sounds are heard here too, from what the frame did
-// (design 9: engine/audio.e16.ts's effects, by event, never by slot). In bank 4: entered once
-// a frame (`lookStep`), calling the kit and the RAM tables.
+// the firewalls in front, the fighters from their rooms (the cells of their pose, laid by the
+// pose's places, mirrored with FLIP_H when facing left) with a spark between the striker and the
+// struck, a KO's pieces, the shadows behind - and the fighters' palettes, the only way a fighter
+// changes colour: drawn in from the void as a round begins, white for a hit, blue-white behind
+// a hexagonal firewall for a guard, magenta while thrown, the wire blinking under a quarter of
+// the life, and at a KO the fill gone to the void before the body breaks into triangles of its
+// own mesh - cut from the pose it breaks in - that fly apart both ways and fade. The fight's
+// sounds are heard here too, from what the frame did (design 9: engine/audio.e16.ts's effects,
+// by event, never by slot). In bank 4: entered once a frame (`lookStep`), calling the kit and
+// the RAM tables.
 import { type bool, i16, idiv, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import { colour, FLIP_H, mix, palCopy, S16, S32, spr, sprBegin } from '../../lib/kit.e16'
 import {
@@ -92,7 +93,7 @@ import {
   ST_THROW,
   ST_THROWN,
 } from './fighter.e16'
-import { struck, threw, wb } from './hit.e16'
+import { how, struck, threw, W_AA, wb } from './hit.e16'
 import {
   frame,
   PH_END,
@@ -120,11 +121,17 @@ export function lookStep(): void {
   palStep(0)
   palStep(1)
   sprBegin()
-  fxSprites(0)
-  fxSprites(1)
+  // A lower sprite is in front. A spark lies behind its striker's body and over the other's, so
+  // a blow's limb stays whole through the hitstop it is held in (a 32-point spark at the hit box's
+  // end, over everything, hid a heavy kick's shin and foot for all its frames held out). A
+  // firewall stays over both, as does the spark of a striker drawn behind the other.
   const front = fState[1] === ST_ATTACK && fState[0] !== ST_ATTACK ? 1 : 0
+  const back = 1 - front
+  fxSprites(0, front)
+  fxSprites(1, front)
   bodySprites(front)
-  bodySprites(1 - front)
+  if (fxK[front] === FX_SPARK || fxK[front] === FX_BIG) fxSprite(front)
+  bodySprites(back)
   shadow(0)
   shadow(1)
 }
@@ -132,8 +139,8 @@ export function lookStep(): void {
 /* ---------------- the frame's strikes: sparks, firewalls, flashes ---------------- */
 
 /**
- * Each striker's effect: 0 none, 1 the spark, 2 the firewall; its frames, where (world x, screen
- * y).
+ * Each striker's effect: 0 none, 1 the spark, 2 the firewall, 3 the large spark (an anti-air's,
+ * hit.e16.ts `W_AA`); its frames, where (world x, screen y).
  */
 const fxK = words(2)
 const fxT = words(2)
@@ -144,6 +151,11 @@ const flashT = words(2)
 const guardT = words(2)
 const SPARK_F = 9
 const WALL_F = 8
+/** The large spark's frames: as long as its longer hitstop, its three pictures a third each. */
+const BIG_F = 15
+const FX_SPARK = 1
+const FX_WALL = 2
+const FX_BIG = 3
 const FLASH_F = 3
 const GUARD_F = 2
 
@@ -156,7 +168,8 @@ function eventsTake(a: u16): void {
   if (guardT[a] > 0) guardT[a]--
   if (fxK[a] !== 0) {
     fxT[a]++
-    if (fxT[a] >= (fxK[a] === 1 ? SPARK_F : WALL_F)) fxK[a] = 0
+    const k = fxK[a]
+    if (fxT[a] >= (k === FX_SPARK ? SPARK_F : k === FX_BIG ? BIG_F : WALL_F)) fxK[a] = 0
   }
   const s = struck[a]
   if (s === 0) return
@@ -164,11 +177,11 @@ function eventsTake(a: u16): void {
   if (s === 1 || s === 3) hitsN[a]++
   if (s === 2) {
     guardT[d] = GUARD_F
-    fxAt(a, 2)
+    fxAt(a, FX_WALL)
     return
   }
   flashT[d] = FLASH_F
-  if (s !== 4) fxAt(a, 1)
+  if (s !== 4) fxAt(a, (how[a] & W_AA) !== 0 ? FX_BIG : FX_SPARK)
 }
 
 /** An effect where fighter `a`'s hit box strikes: its front end, half way up. */
@@ -182,13 +195,27 @@ function fxAt(a: u16, k: u16): void {
   fxY[a] = u16(i16(groundY) - ((i16(wb[o + 2]) + i16(wb[o + 3])) >> 1))
 }
 
-function fxSprites(a: u16): void {
-  if (fxK[a] === 0) return
+/** Fighter `a`'s effect over both bodies: a firewall, or a spark when `front` is not its striker. */
+function fxSprites(a: u16, front: u16): void {
+  if (fxK[a] === 0 || (fxK[a] !== FX_WALL && a === front)) return
+  fxSprite(a)
+}
+
+/** The effect's picture: the large spark is three sparks, the middle one and two above it. */
+function fxSprite(a: u16): void {
   const t = fxT[a]
+  const k = fxK[a]
   let f: u16 = 0
-  if (fxK[a] === 1) f = t < 3 ? 0 : t < 6 ? 1 : 2
+  if (k === FX_SPARK) f = t < 3 ? 0 : t < 6 ? 1 : 2
+  else if (k === FX_BIG) f = t < 5 ? 0 : t < 10 ? 1 : 2
   else f = t < 4 ? 3 : 4
-  spr(i16(fxX[a]) - i16(camX) - 16, i16(fxY[a]) - 16, (SPARK_TILE + f * 16) | FX_PAL, S32)
+  const x = i16(fxX[a]) - i16(camX) - 16
+  const y = i16(fxY[a]) - 16
+  const tile = (SPARK_TILE + f * 16) | FX_PAL
+  spr(x, y, tile, S32)
+  if (k !== FX_BIG) return
+  spr(x - 14, y - 14, tile | FLIP_H, S32)
+  spr(x + 14, y - 14, tile, S32)
 }
 
 /* ---------------- the fighters ---------------- */

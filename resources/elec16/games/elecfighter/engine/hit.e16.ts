@@ -142,12 +142,23 @@ function strikes(a: u16): bool {
   return false
 }
 
-/** How a strike lands: guarded, a counter hit, on one already struck, on one crouching. */
+/**
+ * How a strike lands: guarded, a counter hit, on one already struck, on one crouching, an
+ * anti-air (a move with the anti-air flag) on one in the air.
+ */
 const W_GUARDED = 1
 const W_COUNTER = 2
 const W_AGAIN = 4
 const W_CROUCH = 8
-const how = words(2)
+export const W_AA = 16
+/**
+ * An anti-air that does its job (design 7.8): its damage twice, its hitstop this much longer,
+ * its spark the large one - the reward for an uppercut's short reach.
+ */
+const AA_DAMAGE = 2
+const AA_STOP = 6
+/** How each fighter's strike of this frame lands (`W_` bits), read by the look for its spark. */
+export const how = words(2)
 const moveOf = words(2)
 
 /**
@@ -374,6 +385,7 @@ function judge(a: u16): void {
   else if (inStartup(d)) w |= W_COUNTER
   if (fState[d] === ST_HIT) w |= W_AGAIN
   if (crouched(d)) w |= W_CROUCH
+  if (fAir[d] !== 0 && (mvAt(a, m, M_FLAGS) & F_ANTIAIR) !== 0) w |= W_AA
   how[a] = w
 }
 
@@ -389,7 +401,8 @@ function deal(a: u16): void {
   // Struck or guarding, it stops walking: only the push moves it. Kept, a walk went on through
   // the stun - and, knocked out, to the match's end, carrying the winner with it.
   fVX[d] = 0
-  const stop = mvAt(a, m, M_HITSTOP)
+  const aa = (w & W_AA) !== 0 && (w & W_GUARDED) === 0
+  const stop = mvAt(a, m, M_HITSTOP) + (aa ? AA_STOP : 0)
   if (stop > hitstop) hitstop = stop
   if ((w & W_GUARDED) !== 0) {
     enter(d, ST_GUARD)
@@ -400,14 +413,15 @@ function deal(a: u16): void {
   }
   const counter = (w & W_COUNTER) !== 0
   const n = (w & W_AGAIN) !== 0 ? fCombo[d] + 1 : 1
-  const dmg = damageOf(mvAt(a, m, M_DAMAGE), n, counter)
+  const dmg = damageOf(mvAt(a, m, M_DAMAGE), n, counter) * (aa ? AA_DAMAGE : 1)
   fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   fCombo[d] = n
   comboNote(d)
   dealt[a] = dmg
   struck[a] = counter ? 3 : 1
-  if (counter) logPost(LOG_COUNTER, a, m)
-  else if ((mvAt(a, m, M_FLAGS) & F_ANTIAIR) !== 0 && fAir[d] !== 0) logPost(LOG_AA, a, m)
+  // An anti-air on a jump attack's startup is a counter hit too: the log names the anti-air.
+  if (aa) logPost(LOG_AA, a, m)
+  else if (counter) logPost(LOG_COUNTER, a, m)
   const push = pushOf(mvAt(a, m, M_PUSH_HIT), weight, toRight)
   const down = (mvAt(a, m, M_FLAGS) & F_KNOCKDOWN) !== 0
   if (down || fAir[d] !== 0 || fLife[d] === 0) {

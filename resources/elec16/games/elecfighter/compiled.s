@@ -2707,7 +2707,7 @@ knockedOut:
   sw t0, 0x0ca0(zero)
   ; engine/main.e16.ts:303  hitstopIs(KO_STOP)
   li s2, 24 ; hitstopIs.n
-  ; engine/hit.e16.ts:163  hitstop = n
+  ; engine/hit.e16.ts:174  hitstop = n
   sw s2, 0x1990(zero)
   ; engine/main.e16.ts:304  roundOver(both ? str('DOUBLE K.O.') : str('K.O.'))
   beqz s1, .L6
@@ -2818,7 +2818,7 @@ frameStep:
   ; engine/main.e16.ts:347  hitstopIs(hitstop - 1)
   lw t0, 0x1990(zero)
   addi s1, t0, -1
-  ; engine/hit.e16.ts:163  hitstop = n
+  ; engine/hit.e16.ts:174  hitstop = n
   sw s1, 0x1990(zero)
   ; engine/main.e16.ts:348  cpuInputs(false)
   li a0, 0
@@ -8103,19 +8103,19 @@ strikes:
   addi sp, sp, 10
   ret
 
-; engine/hit.e16.ts:162 hitstopIs(n) at -O1
+; engine/hit.e16.ts:173 hitstopIs(n) at -O1
 ;   n in a0
 hitstopIs:
-  ; engine/hit.e16.ts:163  hitstop = n
+  ; engine/hit.e16.ts:174  hitstop = n
   sw a0, 0x1990(zero)
 .return:
   ret
 
-; engine/hit.e16.ts:168 scaleOf(n) at -O1
+; engine/hit.e16.ts:179 scaleOf(n) at -O1
 ;   n in a0
 ;   k in a1
 scaleOf:
-  ; engine/hit.e16.ts:169  const k = n > SCALE_LAST ? SCALE_LAST : n
+  ; engine/hit.e16.ts:180  const k = n > SCALE_LAST ? SCALE_LAST : n
   li t0, 6
   bgeu t0, a0, .L1
   li t0, 6
@@ -8124,53 +8124,53 @@ scaleOf:
   mv t0, a0
 .L2:
   mv a1, t0 ; k
-  ; engine/hit.e16.ts:170  if (k === 0) return 256
+  ; engine/hit.e16.ts:181  if (k === 0) return 256
   bne a1, zero, .L3
-  ; engine/hit.e16.ts:170  return 256
+  ; engine/hit.e16.ts:181  return 256
   li a0, 256
   ret
 .L3:
-  ; engine/hit.e16.ts:171  if (k === 1) return 230
+  ; engine/hit.e16.ts:182  if (k === 1) return 230
   li t0, 1
   bne a1, t0, .L4
-  ; engine/hit.e16.ts:171  return 230
+  ; engine/hit.e16.ts:182  return 230
   li a0, 230
   ret
 .L4:
-  ; engine/hit.e16.ts:172  if (k === 2) return 205
+  ; engine/hit.e16.ts:183  if (k === 2) return 205
   li t0, 2
   bne a1, t0, .L5
-  ; engine/hit.e16.ts:172  return 205
+  ; engine/hit.e16.ts:183  return 205
   li a0, 205
   ret
 .L5:
-  ; engine/hit.e16.ts:173  if (k === 3) return 179
+  ; engine/hit.e16.ts:184  if (k === 3) return 179
   li t0, 3
   bne a1, t0, .L6
-  ; engine/hit.e16.ts:173  return 179
+  ; engine/hit.e16.ts:184  return 179
   li a0, 179
   ret
 .L6:
-  ; engine/hit.e16.ts:174  if (k === 4) return 154
+  ; engine/hit.e16.ts:185  if (k === 4) return 154
   li t0, 4
   bne a1, t0, .L7
-  ; engine/hit.e16.ts:174  return 154
+  ; engine/hit.e16.ts:185  return 154
   li a0, 154
   ret
 .L7:
-  ; engine/hit.e16.ts:175  if (k === 5) return 128
+  ; engine/hit.e16.ts:186  if (k === 5) return 128
   li t0, 5
   bne a1, t0, .L8
-  ; engine/hit.e16.ts:175  return 128
+  ; engine/hit.e16.ts:186  return 128
   li a0, 128
   ret
 .L8:
-  ; engine/hit.e16.ts:176  return 102
+  ; engine/hit.e16.ts:187  return 102
   li a0, 102
 .return:
   ret
 
-; engine/hit.e16.ts:180 damageOf(base, n, counter) at -O1
+; engine/hit.e16.ts:191 damageOf(base, n, counter) at -O1
 ;   base in s3
 ;   n in 0(fp)
 ;   counter in 2(fp)
@@ -8187,25 +8187,25 @@ damageOf:
   mv s3, a0 ; base
   sw a1, 0(fp) ; n
   sw a2, 2(fp) ; counter
-  ; engine/hit.e16.ts:181  let f = scaleOf(n - 1)
+  ; engine/hit.e16.ts:192  let f = scaleOf(n - 1)
   lw t0, 0(fp) ; n
   addi a0, t0, -1
   call scaleOf
   mv s1, a0 ; f
-  ; engine/hit.e16.ts:182  if (counter) f = f + ((f * 13) >> 6)
+  ; engine/hit.e16.ts:193  if (counter) f = f + ((f * 13) >> 6)
   lw t0, 2(fp) ; counter
   beqz t0, .L1
-  ; engine/hit.e16.ts:182  f = f + ((f * 13) >> 6)
+  ; engine/hit.e16.ts:193  f = f + ((f * 13) >> 6)
   li t0, 13
   mul t0, s1, t0
   srli t0, t0, 6
   add s1, s1, t0
 .L1:
-  ; engine/hit.e16.ts:183  const d = (base * f + 128) >> 8
+  ; engine/hit.e16.ts:194  const d = (base * f + 128) >> 8
   mul t0, s3, s1
   addi t0, t0, 128
   srli s2, t0, 8
-  ; engine/hit.e16.ts:184  return d === 0 ? 1 : d
+  ; engine/hit.e16.ts:195  return d === 0 ? 1 : d
   bne s2, zero, .L2
   li t0, 1
   j .L3
@@ -8223,24 +8223,24 @@ damageOf:
   addi sp, sp, 14
   ret
 
-; engine/hit.e16.ts:188 struckClear() at -O1
+; engine/hit.e16.ts:199 struckClear() at -O1
 struckClear:
-  ; engine/hit.e16.ts:189  struck[0] = 0
+  ; engine/hit.e16.ts:200  struck[0] = 0
   sw zero, struck(zero)
-  ; engine/hit.e16.ts:190  struck[1] = 0
+  ; engine/hit.e16.ts:201  struck[1] = 0
   sw zero, struck+2(zero)
-  ; engine/hit.e16.ts:191  dealt[0] = 0
+  ; engine/hit.e16.ts:202  dealt[0] = 0
   sw zero, dealt(zero)
-  ; engine/hit.e16.ts:192  dealt[1] = 0
+  ; engine/hit.e16.ts:203  dealt[1] = 0
   sw zero, dealt+2(zero)
-  ; engine/hit.e16.ts:193  threw[0] = 0
+  ; engine/hit.e16.ts:204  threw[0] = 0
   sw zero, threw(zero)
-  ; engine/hit.e16.ts:194  threw[1] = 0
+  ; engine/hit.e16.ts:205  threw[1] = 0
   sw zero, threw+2(zero)
 .return:
   ret
 
-; engine/hit.e16.ts:201 hitsResolve() at -O1
+; engine/hit.e16.ts:212 hitsResolve() at -O1
 ;   t0 in s3
 ;   t1 in s0
 ;   s0 in s1
@@ -8252,71 +8252,71 @@ hitsResolve:
   sw s0, 4(sp)
   sw s1, 6(sp)
   sw s2, 8(sp)
-  ; engine/hit.e16.ts:202  const t0 = throwHolds(0)
+  ; engine/hit.e16.ts:213  const t0 = throwHolds(0)
   li a0, 0
   call throwHolds
   mv s3, a0 ; t0
-  ; engine/hit.e16.ts:203  const t1 = throwHolds(1)
+  ; engine/hit.e16.ts:214  const t1 = throwHolds(1)
   li a0, 1
   call throwHolds
   mv s0, a0 ; t1
-  ; engine/hit.e16.ts:204  if (t0 && t1) {
+  ; engine/hit.e16.ts:215  if (t0 && t1) {
   beqz s3, .L1
   beqz s0, .L1
-  ; engine/hit.e16.ts:205  fHitDone[0] = 1
+  ; engine/hit.e16.ts:216  fHitDone[0] = 1
   li t0, 1
   sw t0, fHitDone(zero)
-  ; engine/hit.e16.ts:206  fHitDone[1] = 1
+  ; engine/hit.e16.ts:217  fHitDone[1] = 1
   li t0, 1
   sw t0, fHitDone+2(zero)
-  ; engine/hit.e16.ts:207  techBoth()
+  ; engine/hit.e16.ts:218  techBoth()
   call techBoth
-  ; engine/hit.e16.ts:208  return
+  ; engine/hit.e16.ts:219  return
   j .return
 .L1:
-  ; engine/hit.e16.ts:210  const s0 = strikes(0)
+  ; engine/hit.e16.ts:221  const s0 = strikes(0)
   li a0, 0
   call strikes
   mv s1, a0 ; s0
-  ; engine/hit.e16.ts:211  const s1 = strikes(1)
+  ; engine/hit.e16.ts:222  const s1 = strikes(1)
   li a0, 1
   call strikes
   mv s2, a0 ; s1
-  ; engine/hit.e16.ts:212  if (s0) judge(0)
+  ; engine/hit.e16.ts:223  if (s0) judge(0)
   beqz s1, .L2
-  ; engine/hit.e16.ts:212  judge(0)
+  ; engine/hit.e16.ts:223  judge(0)
   li a0, 0
   call judge
 .L2:
-  ; engine/hit.e16.ts:213  if (s1) judge(1)
+  ; engine/hit.e16.ts:224  if (s1) judge(1)
   beqz s2, .L3
-  ; engine/hit.e16.ts:213  judge(1)
+  ; engine/hit.e16.ts:224  judge(1)
   li a0, 1
   call judge
 .L3:
-  ; engine/hit.e16.ts:214  if (s0) deal(0)
+  ; engine/hit.e16.ts:225  if (s0) deal(0)
   beqz s1, .L4
-  ; engine/hit.e16.ts:214  deal(0)
+  ; engine/hit.e16.ts:225  deal(0)
   li a0, 0
   call deal
 .L4:
-  ; engine/hit.e16.ts:215  if (s1) deal(1)
+  ; engine/hit.e16.ts:226  if (s1) deal(1)
   beqz s2, .L5
-  ; engine/hit.e16.ts:215  deal(1)
+  ; engine/hit.e16.ts:226  deal(1)
   li a0, 1
   call deal
 .L5:
-  ; engine/hit.e16.ts:216  if (t0 && !s1) hold(0)
+  ; engine/hit.e16.ts:227  if (t0 && !s1) hold(0)
   beqz s3, .L6
   bnez s2, .L6
-  ; engine/hit.e16.ts:216  hold(0)
+  ; engine/hit.e16.ts:227  hold(0)
   li a0, 0
   call hold
 .L6:
-  ; engine/hit.e16.ts:217  if (t1 && !s0) hold(1)
+  ; engine/hit.e16.ts:228  if (t1 && !s0) hold(1)
   beqz s0, .L7
   bnez s1, .L7
-  ; engine/hit.e16.ts:217  hold(1)
+  ; engine/hit.e16.ts:228  hold(1)
   li a0, 1
   call hold
 .L7:
@@ -8329,7 +8329,7 @@ hitsResolve:
   addi sp, sp, 10
   ret
 
-; engine/hit.e16.ts:237 throwHolds(a) at -O1
+; engine/hit.e16.ts:248 throwHolds(a) at -O1
 ;   a in s1
 ;   d in s2
 throwHolds:
@@ -8338,7 +8338,7 @@ throwHolds:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; a
-  ; engine/hit.e16.ts:238  if (fState[a] !== ST_ATTACK || fMove[a] !== MV_THROW) return false
+  ; engine/hit.e16.ts:249  if (fState[a] !== ST_ATTACK || fMove[a] !== MV_THROW) return false
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 5
@@ -8348,11 +8348,11 @@ throwHolds:
   li t1, 12
   beq t0, t1, .L1
 .L2:
-  ; engine/hit.e16.ts:238  return false
+  ; engine/hit.e16.ts:249  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/hit.e16.ts:239  if (!inActive(a) || fHitDone[a] !== 0) return false
+  ; engine/hit.e16.ts:250  if (!inActive(a) || fHitDone[a] !== 0) return false
   mv a0, s1
   call inActive
   beqz a0, .L4
@@ -8360,14 +8360,14 @@ throwHolds:
   lw t0, fHitDone(t0)
   beq t0, zero, .L3
 .L4:
-  ; engine/hit.e16.ts:239  return false
+  ; engine/hit.e16.ts:250  return false
   li a0, 0
   j .return
 .L3:
-  ; engine/hit.e16.ts:240  const d = 1 - a
+  ; engine/hit.e16.ts:251  const d = 1 - a
   li t0, 1
   sub s2, t0, s1
-  ; engine/hit.e16.ts:241  if (fAir[a] !== 0 || fAir[d] !== 0 || fY[d] !== 0) return false
+  ; engine/hit.e16.ts:252  if (fAir[a] !== 0 || fAir[d] !== 0 || fY[d] !== 0) return false
   slli t0, s1, 1
   lw t0, fAir(t0)
   bne t0, zero, .L6
@@ -8378,11 +8378,11 @@ throwHolds:
   lw t0, fY(t0)
   beq t0, zero, .L5
 .L6:
-  ; engine/hit.e16.ts:241  return false
+  ; engine/hit.e16.ts:252  return false
   li a0, 0
   j .return
 .L5:
-  ; engine/hit.e16.ts:242  if (!throwable(fState[d]) || throwInvul(d)) return false
+  ; engine/hit.e16.ts:253  if (!throwable(fState[d]) || throwInvul(d)) return false
   slli t0, s2, 1
   lw a0, fState(t0)
   call throwable
@@ -8391,11 +8391,11 @@ throwHolds:
   call throwInvul
   beqz a0, .L7
 .L8:
-  ; engine/hit.e16.ts:242  return false
+  ; engine/hit.e16.ts:253  return false
   li a0, 0
   j .return
 .L7:
-  ; engine/hit.e16.ts:243  return throwGap(a, fX[a], fX[d]) <= prAt(a, P_THROW)
+  ; engine/hit.e16.ts:254  return throwGap(a, fX[a], fX[d]) <= prAt(a, P_THROW)
   slli t0, s1, 1
   lw t0, fX(t0)
   slli t1, s2, 1
@@ -8420,10 +8420,10 @@ throwHolds:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:247 throwable(st) at -O1
+; engine/hit.e16.ts:258 throwable(st) at -O1
 ;   st in a0
 throwable:
-  ; engine/hit.e16.ts:248  if (st === ST_STAND || st === ST_CROUCH || st === ST_ATTACK || st === ST_LAND) return true
+  ; engine/hit.e16.ts:259  if (st === ST_STAND || st === ST_CROUCH || st === ST_ATTACK || st === ST_LAND) return true
   beq a0, zero, .L2
   li t0, 1
   beq a0, t0, .L2
@@ -8432,11 +8432,11 @@ throwable:
   li t0, 4
   bne a0, t0, .L1
 .L2:
-  ; engine/hit.e16.ts:248  return true
+  ; engine/hit.e16.ts:259  return true
   li a0, 1
   ret
 .L1:
-  ; engine/hit.e16.ts:249  return st === ST_DASH || st === ST_BACKDASH
+  ; engine/hit.e16.ts:260  return st === ST_DASH || st === ST_BACKDASH
   li t0, 13
   sub t0, a0, t0
   seqz t0, t0
@@ -8450,7 +8450,7 @@ throwable:
 .return:
   ret
 
-; engine/hit.e16.ts:253 hold(a) at -O1
+; engine/hit.e16.ts:264 hold(a) at -O1
 ;   a in s1
 ;   d in s2
 hold:
@@ -8459,40 +8459,40 @@ hold:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; a
-  ; engine/hit.e16.ts:254  const d = 1 - a
+  ; engine/hit.e16.ts:265  const d = 1 - a
   li t0, 1
   sub s2, t0, s1
-  ; engine/hit.e16.ts:255  fHitDone[a] = 1
+  ; engine/hit.e16.ts:266  fHitDone[a] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fHitDone(t0)
-  ; engine/hit.e16.ts:256  enter(a, ST_THROW)
+  ; engine/hit.e16.ts:267  enter(a, ST_THROW)
   mv a0, s1
   li a1, 11
   call enter
-  ; engine/hit.e16.ts:257  enter(d, ST_THROWN)
+  ; engine/hit.e16.ts:268  enter(d, ST_THROWN)
   mv a0, s2
   li a1, 12
   call enter
-  ; engine/hit.e16.ts:258  fVX[a] = 0
+  ; engine/hit.e16.ts:269  fVX[a] = 0
   slli t0, s1, 1
   sw zero, fVX(t0)
-  ; engine/hit.e16.ts:259  fVX[d] = 0
+  ; engine/hit.e16.ts:270  fVX[d] = 0
   slli t0, s2, 1
   sw zero, fVX(t0)
-  ; engine/hit.e16.ts:260  fPush[a] = 0
+  ; engine/hit.e16.ts:271  fPush[a] = 0
   slli t0, s1, 1
   sw zero, fPush(t0)
-  ; engine/hit.e16.ts:261  fPush[d] = 0
+  ; engine/hit.e16.ts:272  fPush[d] = 0
   slli t0, s2, 1
   sw zero, fPush(t0)
-  ; engine/hit.e16.ts:262  fStun[d] = 0
+  ; engine/hit.e16.ts:273  fStun[d] = 0
   slli t0, s2, 1
   sw zero, fStun(t0)
-  ; engine/hit.e16.ts:263  fCombo[d] = 0
+  ; engine/hit.e16.ts:274  fCombo[d] = 0
   slli t0, s2, 1
   sw zero, fCombo(t0)
-  ; engine/hit.e16.ts:264  threw[a] = 1
+  ; engine/hit.e16.ts:275  threw[a] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, threw(t0)
@@ -8503,7 +8503,7 @@ hold:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:272 throwsStep() at -O1
+; engine/hit.e16.ts:283 throwsStep() at -O1
 ;   d in s2
 ;   a in s1
 throwsStep:
@@ -8511,54 +8511,54 @@ throwsStep:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; engine/hit.e16.ts:273  let d: u16 = 0
+  ; engine/hit.e16.ts:284  let d: u16 = 0
   li s2, 0 ; d
-  ; engine/hit.e16.ts:274  while (d < 2) {
+  ; engine/hit.e16.ts:285  while (d < 2) {
   j .L3
 .L1:
-  ; engine/hit.e16.ts:275  if (fState[d] === ST_THROWN) thrownStep(d)
+  ; engine/hit.e16.ts:286  if (fState[d] === ST_THROWN) thrownStep(d)
   slli t0, s2, 1
   lw t0, fState(t0)
   li t1, 12
   bne t0, t1, .L5
-  ; engine/hit.e16.ts:275  thrownStep(d)
+  ; engine/hit.e16.ts:286  thrownStep(d)
   mv a0, s2
   call thrownStep
 .L5:
-  ; engine/hit.e16.ts:276  d++
+  ; engine/hit.e16.ts:287  d++
   addi s2, s2, 1
 .L3:
   li t0, 2
   bltu s2, t0, .L1
-  ; engine/hit.e16.ts:278  let a: u16 = 0
+  ; engine/hit.e16.ts:289  let a: u16 = 0
   li s1, 0 ; a
-  ; engine/hit.e16.ts:279  while (a < 2) {
+  ; engine/hit.e16.ts:290  while (a < 2) {
   j .L8
 .L6:
-  ; engine/hit.e16.ts:280  if (fState[a] === ST_THROW) {
+  ; engine/hit.e16.ts:291  if (fState[a] === ST_THROW) {
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 11
   bne t0, t1, .L10
-  ; engine/hit.e16.ts:281  fStateT[a]++
+  ; engine/hit.e16.ts:292  fStateT[a]++
   slli t0, s1, 1
   addi t0, t0, fStateT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:282  if (fStateT[a] >= THROW_F) enter(a, ST_STAND)
+  ; engine/hit.e16.ts:293  if (fStateT[a] >= THROW_F) enter(a, ST_STAND)
   slli t0, s1, 1
   lw t0, fStateT(t0)
   li t1, 26
   bltu t0, t1, .L11
-  ; engine/hit.e16.ts:282  enter(a, ST_STAND)
+  ; engine/hit.e16.ts:293  enter(a, ST_STAND)
   mv a0, s1
   li a1, 0
   call enter
 .L11:
 .L10:
-  ; engine/hit.e16.ts:284  a++
+  ; engine/hit.e16.ts:295  a++
   addi s1, s1, 1
 .L8:
   li t0, 2
@@ -8570,7 +8570,7 @@ throwsStep:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:288 thrownStep(d) at -O1
+; engine/hit.e16.ts:299 thrownStep(d) at -O1
 ;   d in s1
 ;   t in s2
 thrownStep:
@@ -8579,35 +8579,35 @@ thrownStep:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; d
-  ; engine/hit.e16.ts:289  fStateT[d]++
+  ; engine/hit.e16.ts:300  fStateT[d]++
   slli t0, s1, 1
   addi t0, t0, fStateT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:290  const t = fStateT[d]
+  ; engine/hit.e16.ts:301  const t = fStateT[d]
   slli t0, s1, 1
   lw s2, fStateT(t0)
-  ; engine/hit.e16.ts:291  if (t <= TECH_F && techPressed(d)) {
+  ; engine/hit.e16.ts:302  if (t <= TECH_F && techPressed(d)) {
   li t0, 7
   bltu t0, s2, .L1
   mv a0, s1
   call techPressed
   beqz a0, .L1
-  ; engine/hit.e16.ts:292  consume(d, I_ATTACKS)
+  ; engine/hit.e16.ts:303  consume(d, I_ATTACKS)
   mv a0, s1
   li a1, 240
   call consume
-  ; engine/hit.e16.ts:293  techBoth()
+  ; engine/hit.e16.ts:304  techBoth()
   call techBoth
-  ; engine/hit.e16.ts:294  return
+  ; engine/hit.e16.ts:305  return
   j .return
 .L1:
-  ; engine/hit.e16.ts:296  if (t >= SLAM_F) slam(1 - d, d)
+  ; engine/hit.e16.ts:307  if (t >= SLAM_F) slam(1 - d, d)
   li t0, 16
   bltu s2, t0, .L2
-  ; engine/hit.e16.ts:296  slam(1 - d, d)
+  ; engine/hit.e16.ts:307  slam(1 - d, d)
   li t0, 1
   sub a0, t0, s1
   mv a1, s1
@@ -8620,23 +8620,23 @@ thrownStep:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:304 techPressed(d) at -O1
+; engine/hit.e16.ts:315 techPressed(d) at -O1
 ;   d in s1
 techPressed:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; d
-  ; engine/hit.e16.ts:305  if ((heldNow(d) & (I_FWD | I_BACK)) === 0) return false
+  ; engine/hit.e16.ts:316  if ((heldNow(d) & (I_FWD | I_BACK)) === 0) return false
   mv a0, s1
   call heldNow
   andi t0, a0, 12
   bne t0, zero, .L1
-  ; engine/hit.e16.ts:305  return false
+  ; engine/hit.e16.ts:316  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/hit.e16.ts:306  return pressedIn(d, I_HP, fStateT[d]) !== 0
+  ; engine/hit.e16.ts:317  return pressedIn(d, I_HP, fStateT[d]) !== 0
   slli t0, s1, 1
   lw t0, fStateT(t0)
   mv a0, s1
@@ -8651,7 +8651,7 @@ techPressed:
   addi sp, sp, 4
   ret
 
-; engine/hit.e16.ts:310 techBoth() at -O1
+; engine/hit.e16.ts:321 techBoth() at -O1
 ;   l in s2
 ;   r in s3
 ;   i in s1
@@ -8661,7 +8661,7 @@ techBoth:
   sw s2, 2(sp)
   sw s3, 4(sp)
   sw s1, 6(sp)
-  ; engine/hit.e16.ts:311  const l = fX[0] <= fX[1] ? 0 : 1
+  ; engine/hit.e16.ts:322  const l = fX[0] <= fX[1] ? 0 : 1
   lw t0, fX(zero)
   lw t1, fX+2(zero)
   bltu t1, t0, .L1
@@ -8671,42 +8671,42 @@ techBoth:
   li t0, 1
 .L2:
   mv s2, t0 ; l
-  ; engine/hit.e16.ts:312  const r = 1 - l
+  ; engine/hit.e16.ts:323  const r = 1 - l
   li t0, 1
   sub s3, t0, s2
-  ; engine/hit.e16.ts:313  let i: u16 = 0
+  ; engine/hit.e16.ts:324  let i: u16 = 0
   li s1, 0 ; i
-  ; engine/hit.e16.ts:314  while (i < 2) {
+  ; engine/hit.e16.ts:325  while (i < 2) {
   j .L5
 .L3:
-  ; engine/hit.e16.ts:315  enter(i, ST_GUARD)
+  ; engine/hit.e16.ts:326  enter(i, ST_GUARD)
   mv a0, s1
   li a1, 7
   call enter
-  ; engine/hit.e16.ts:316  fStun[i] = TECH_STUN
+  ; engine/hit.e16.ts:327  fStun[i] = TECH_STUN
   slli t0, s1, 1
   li t1, 12
   sw t1, fStun(t0)
-  ; engine/hit.e16.ts:317  fCrouch[i] = 0
+  ; engine/hit.e16.ts:328  fCrouch[i] = 0
   slli t0, s1, 1
   sw zero, fCrouch(t0)
-  ; engine/hit.e16.ts:318  fKnock[i] = 0
+  ; engine/hit.e16.ts:329  fKnock[i] = 0
   slli t0, s1, 1
   sw zero, fKnock(t0)
-  ; engine/hit.e16.ts:319  i++
+  ; engine/hit.e16.ts:330  i++
   addi s1, s1, 1
 .L5:
   li t0, 2
   bltu s1, t0, .L3
-  ; engine/hit.e16.ts:321  fPush[l] = u16(-TECH_PUSH)
+  ; engine/hit.e16.ts:332  fPush[l] = u16(-TECH_PUSH)
   slli t0, s2, 1
   li t1, 65480
   sw t1, fPush(t0)
-  ; engine/hit.e16.ts:322  fPush[r] = TECH_PUSH
+  ; engine/hit.e16.ts:333  fPush[r] = TECH_PUSH
   slli t0, s3, 1
   li t1, 56
   sw t1, fPush(t0)
-  ; engine/hit.e16.ts:323  logPost(LOG_TECH, 0, 0)
+  ; engine/hit.e16.ts:334  logPost(LOG_TECH, 0, 0)
   li a0, 4
   li a1, 0
   li a2, 0
@@ -8719,7 +8719,7 @@ techBoth:
   addi sp, sp, 8
   ret
 
-; engine/hit.e16.ts:330 slam(a, d) at -O1
+; engine/hit.e16.ts:341 slam(a, d) at -O1
 ;   a in s2
 ;   d in s1
 ;   toRight in 2(fp)
@@ -8735,11 +8735,11 @@ slam:
   mv fp, sp
   mv s2, a0 ; a
   mv s1, a1 ; d
-  ; engine/hit.e16.ts:331  if (fThrowBack[a] !== 0) fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
+  ; engine/hit.e16.ts:342  if (fThrowBack[a] !== 0) fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
   slli t0, s2, 1
   lw t0, fThrowBack(t0)
   beq t0, zero, .L1
-  ; engine/hit.e16.ts:331  fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
+  ; engine/hit.e16.ts:342  fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
   slli t0, s1, 1
   slli t1, s2, 1
   lw t1, fX(t1)
@@ -8749,14 +8749,14 @@ slam:
   sub t1, t1, t2
   sw t1, fX(t0)
 .L1:
-  ; engine/hit.e16.ts:332  const toRight = fX[d] > fX[a]
+  ; engine/hit.e16.ts:343  const toRight = fX[d] > fX[a]
   slli t0, s1, 1
   lw t0, fX(t0)
   slli t1, s2, 1
   lw t1, fX(t1)
   sltu t0, t1, t0
   sw t0, 2(fp) ; toRight
-  ; engine/hit.e16.ts:334  const dmg = live() ? damageOf(mvAt(a, MV_THROW, M_DAMAGE), 1, false) : 0
+  ; engine/hit.e16.ts:345  const dmg = live() ? damageOf(mvAt(a, MV_THROW, M_DAMAGE), 1, false) : 0
   call live
   beqz a0, .L2
   mv a0, s2
@@ -8772,7 +8772,7 @@ slam:
   li t0, 0
 .L3:
   mv s3, t0 ; dmg
-  ; engine/hit.e16.ts:335  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
+  ; engine/hit.e16.ts:346  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fLife(t1)
@@ -8788,18 +8788,18 @@ slam:
   sub t1, t1, s3
 .L5:
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:336  dealt[a] = dmg
+  ; engine/hit.e16.ts:347  dealt[a] = dmg
   slli t0, s2, 1
   sw s3, dealt(t0)
-  ; engine/hit.e16.ts:337  struck[a] = 4
+  ; engine/hit.e16.ts:348  struck[a] = 4
   slli t0, s2, 1
   li t1, 4
   sw t1, struck(t0)
-  ; engine/hit.e16.ts:338  enter(d, ST_DOWN)
+  ; engine/hit.e16.ts:349  enter(d, ST_DOWN)
   mv a0, s1
   li a1, 8
   call enter
-  ; engine/hit.e16.ts:339  fPush[d] = pushOf(THROW_PUSH, prAt(d, P_WEIGHT), toRight)
+  ; engine/hit.e16.ts:350  fPush[d] = pushOf(THROW_PUSH, prAt(d, P_WEIGHT), toRight)
   slli t0, s1, 1
   addi t0, t0, fPush
   addi sp, sp, -2
@@ -8814,21 +8814,21 @@ slam:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; engine/hit.e16.ts:340  const stop = mvAt(a, MV_THROW, M_HITSTOP)
+  ; engine/hit.e16.ts:351  const stop = mvAt(a, MV_THROW, M_HITSTOP)
   mv a0, s2
   li a1, 12
   li a2, 7
   call mvAt
   sw a0, 0(fp) ; stop
-  ; engine/hit.e16.ts:341  if (stop > hitstop) hitstop = stop
+  ; engine/hit.e16.ts:352  if (stop > hitstop) hitstop = stop
   lw t0, 0x1990(zero)
   lw t1, 0(fp) ; stop
   bgeu t0, t1, .L6
-  ; engine/hit.e16.ts:341  hitstop = stop
+  ; engine/hit.e16.ts:352  hitstop = stop
   lw t0, 0(fp) ; stop
   sw t0, 0x1990(zero)
 .L6:
-  ; engine/hit.e16.ts:342  logPost(LOG_THROW, a, MV_THROW)
+  ; engine/hit.e16.ts:353  logPost(LOG_THROW, a, MV_THROW)
   li a0, 3
   mv a1, s2
   li a2, 12
@@ -8843,7 +8843,7 @@ slam:
   addi sp, sp, 14
   ret
 
-; engine/hit.e16.ts:346 crouched(d) at -O1
+; engine/hit.e16.ts:357 crouched(d) at -O1
 ;   d in s1
 ;   st in s2
 crouched:
@@ -8852,33 +8852,33 @@ crouched:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; d
-  ; engine/hit.e16.ts:347  const st = fState[d]
+  ; engine/hit.e16.ts:358  const st = fState[d]
   slli t0, s1, 1
   lw s2, fState(t0)
-  ; engine/hit.e16.ts:348  if (st === ST_CROUCH) return true
+  ; engine/hit.e16.ts:359  if (st === ST_CROUCH) return true
   li t0, 1
   bne s2, t0, .L1
-  ; engine/hit.e16.ts:348  return true
+  ; engine/hit.e16.ts:359  return true
   li a0, 1
   j .return
 .L1:
-  ; engine/hit.e16.ts:349  if (st === ST_GUARD || st === ST_HIT) return fCrouch[d] !== 0
+  ; engine/hit.e16.ts:360  if (st === ST_GUARD || st === ST_HIT) return fCrouch[d] !== 0
   li t0, 7
   beq s2, t0, .L3
   li t0, 6
   bne s2, t0, .L2
 .L3:
-  ; engine/hit.e16.ts:349  return fCrouch[d] !== 0
+  ; engine/hit.e16.ts:360  return fCrouch[d] !== 0
   slli t0, s1, 1
   lw t0, fCrouch(t0)
   sub t0, t0, zero
   snez a0, t0
   j .return
 .L2:
-  ; engine/hit.e16.ts:350  if (st === ST_ATTACK) return (mvAt(d, fMove[d], M_KIND) & K_CROUCH) !== 0
+  ; engine/hit.e16.ts:361  if (st === ST_ATTACK) return (mvAt(d, fMove[d], M_KIND) & K_CROUCH) !== 0
   li t0, 5
   bne s2, t0, .L4
-  ; engine/hit.e16.ts:350  return (mvAt(d, fMove[d], M_KIND) & K_CROUCH) !== 0
+  ; engine/hit.e16.ts:361  return (mvAt(d, fMove[d], M_KIND) & K_CROUCH) !== 0
   slli t0, s1, 1
   lw t0, fMove(t0)
   mv a0, s1
@@ -8890,7 +8890,7 @@ crouched:
   snez a0, t0
   j .return
 .L4:
-  ; engine/hit.e16.ts:351  return false
+  ; engine/hit.e16.ts:362  return false
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -8899,7 +8899,7 @@ crouched:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:358 guards(d, height) at -O1
+; engine/hit.e16.ts:369 guards(d, height) at -O1
 ;   d in s1
 ;   height in s2
 ;   guarding in s3
@@ -8911,15 +8911,15 @@ guards:
   sw s3, 6(sp)
   mv s1, a0 ; d
   mv s2, a1 ; height
-  ; engine/hit.e16.ts:359  if (fAir[d] !== 0) return false
+  ; engine/hit.e16.ts:370  if (fAir[d] !== 0) return false
   slli t0, s1, 1
   lw t0, fAir(t0)
   beq t0, zero, .L1
-  ; engine/hit.e16.ts:359  return false
+  ; engine/hit.e16.ts:370  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/hit.e16.ts:360  const guarding = fState[d] === ST_GUARD || (free(d) && holdsBack(d))
+  ; engine/hit.e16.ts:371  const guarding = fState[d] === ST_GUARD || (free(d) && holdsBack(d))
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 7
@@ -8938,28 +8938,28 @@ guards:
 .L3:
 .L2:
   mv s3, t0 ; guarding
-  ; engine/hit.e16.ts:361  if (!guarding) return false
+  ; engine/hit.e16.ts:372  if (!guarding) return false
   bnez s3, .L4
-  ; engine/hit.e16.ts:361  return false
+  ; engine/hit.e16.ts:372  return false
   li a0, 0
   j .return
 .L4:
-  ; engine/hit.e16.ts:362  if (height === H_HIGH) return true
+  ; engine/hit.e16.ts:373  if (height === H_HIGH) return true
   li t0, 1
   bne s2, t0, .L5
-  ; engine/hit.e16.ts:362  return true
+  ; engine/hit.e16.ts:373  return true
   li a0, 1
   j .return
 .L5:
-  ; engine/hit.e16.ts:363  if (height === H_LOW) return crouched(d)
+  ; engine/hit.e16.ts:374  if (height === H_LOW) return crouched(d)
   li t0, 2
   bne s2, t0, .L6
-  ; engine/hit.e16.ts:363  return crouched(d)
+  ; engine/hit.e16.ts:374  return crouched(d)
   mv a0, s1
   call crouched
   j .return
 .L6:
-  ; engine/hit.e16.ts:364  return !crouched(d)
+  ; engine/hit.e16.ts:375  return !crouched(d)
   mv a0, s1
   call crouched
   seqz a0, a0
@@ -8971,7 +8971,7 @@ guards:
   addi sp, sp, 8
   ret
 
-; engine/hit.e16.ts:368 judge(a) at -O1
+; engine/hit.e16.ts:379 judge(a) at -O1
 ;   a in s2
 ;   d in s3
 ;   m in s0
@@ -8984,18 +8984,18 @@ judge:
   sw s0, 6(sp)
   sw s1, 8(sp)
   mv s2, a0 ; a
-  ; engine/hit.e16.ts:369  const d = 1 - a
+  ; engine/hit.e16.ts:380  const d = 1 - a
   li t0, 1
   sub s3, t0, s2
-  ; engine/hit.e16.ts:370  const m = fMove[a]
+  ; engine/hit.e16.ts:381  const m = fMove[a]
   slli t0, s2, 1
   lw s0, fMove(t0)
-  ; engine/hit.e16.ts:371  moveOf[a] = m
+  ; engine/hit.e16.ts:382  moveOf[a] = m
   slli t0, s2, 1
   sw s0, moveOf(t0)
-  ; engine/hit.e16.ts:372  let w: u16 = 0
+  ; engine/hit.e16.ts:383  let w: u16 = 0
   li s1, 0 ; w
-  ; engine/hit.e16.ts:373  if (guards(d, mvAt(a, m, M_HEIGHT))) w |= W_GUARDED
+  ; engine/hit.e16.ts:384  if (guards(d, mvAt(a, m, M_HEIGHT))) w |= W_GUARDED
   mv a0, s2
   mv a1, s0
   li a2, 10
@@ -9004,34 +9004,47 @@ judge:
   mv a0, s3
   call guards
   beqz a0, .L1
-  ; engine/hit.e16.ts:373  w |= W_GUARDED
+  ; engine/hit.e16.ts:384  w |= W_GUARDED
   ori s1, s1, 1
   j .L2
 .L1:
-  ; engine/hit.e16.ts:374  if (inStartup(d)) w |= W_COUNTER
+  ; engine/hit.e16.ts:385  if (inStartup(d)) w |= W_COUNTER
   mv a0, s3
   call inStartup
   beqz a0, .L3
-  ; engine/hit.e16.ts:374  w |= W_COUNTER
+  ; engine/hit.e16.ts:385  w |= W_COUNTER
   ori s1, s1, 2
 .L3:
 .L2:
-  ; engine/hit.e16.ts:375  if (fState[d] === ST_HIT) w |= W_AGAIN
+  ; engine/hit.e16.ts:386  if (fState[d] === ST_HIT) w |= W_AGAIN
   slli t0, s3, 1
   lw t0, fState(t0)
   li t1, 6
   bne t0, t1, .L4
-  ; engine/hit.e16.ts:375  w |= W_AGAIN
+  ; engine/hit.e16.ts:386  w |= W_AGAIN
   ori s1, s1, 4
 .L4:
-  ; engine/hit.e16.ts:376  if (crouched(d)) w |= W_CROUCH
+  ; engine/hit.e16.ts:387  if (crouched(d)) w |= W_CROUCH
   mv a0, s3
   call crouched
   beqz a0, .L5
-  ; engine/hit.e16.ts:376  w |= W_CROUCH
+  ; engine/hit.e16.ts:387  w |= W_CROUCH
   ori s1, s1, 8
 .L5:
-  ; engine/hit.e16.ts:377  how[a] = w
+  ; engine/hit.e16.ts:388  if (fAir[d] !== 0 && (mvAt(a, m, M_FLAGS) & F_ANTIAIR) !== 0) w |= W_AA
+  slli t0, s3, 1
+  lw t0, fAir(t0)
+  beq t0, zero, .L6
+  mv a0, s2
+  mv a1, s0
+  li a2, 12
+  call mvAt
+  andi t0, a0, 4
+  beq t0, zero, .L6
+  ; engine/hit.e16.ts:388  w |= W_AA
+  ori s1, s1, 16
+.L6:
+  ; engine/hit.e16.ts:389  how[a] = w
   slli t0, s2, 1
   sw s1, how(t0)
 .return:
@@ -9043,54 +9056,55 @@ judge:
   addi sp, sp, 10
   ret
 
-; engine/hit.e16.ts:381 deal(a) at -O1
+; engine/hit.e16.ts:393 deal(a) at -O1
 ;   a in s2
 ;   d in s1
 ;   m in s3
 ;   w in 0(fp)
-;   toRight in 6(fp)
-;   weight in 8(fp)
-;   stop in 10(fp)
+;   toRight in 8(fp)
+;   weight in 10(fp)
+;   aa in 4(fp)
+;   stop in 12(fp)
 ;   counter in 2(fp)
-;   n in 12(fp)
-;   dmg in 4(fp)
-;   push in 14(fp)
-;   down in 16(fp)
+;   n in 14(fp)
+;   dmg in 6(fp)
+;   push in 16(fp)
+;   down in 18(fp)
 deal:
-  addi sp, sp, -28
-  sw ra, 18(sp)
-  sw s2, 20(sp)
-  sw s1, 22(sp)
-  sw s3, 24(sp)
-  sw s0, 26(sp)
+  addi sp, sp, -30
+  sw ra, 20(sp)
+  sw s2, 22(sp)
+  sw s1, 24(sp)
+  sw s3, 26(sp)
+  sw s0, 28(sp)
   mv fp, sp
   mv s2, a0 ; a
-  ; engine/hit.e16.ts:382  const d = 1 - a
+  ; engine/hit.e16.ts:394  const d = 1 - a
   li t0, 1
   sub s1, t0, s2
-  ; engine/hit.e16.ts:383  const m = moveOf[a]
+  ; engine/hit.e16.ts:395  const m = moveOf[a]
   slli t0, s2, 1
   lw s3, moveOf(t0)
-  ; engine/hit.e16.ts:384  const w = how[a]
+  ; engine/hit.e16.ts:396  const w = how[a]
   slli t0, s2, 1
   lw t0, how(t0)
   sw t0, 0(fp) ; w
-  ; engine/hit.e16.ts:385  const toRight = fFace[a] !== 0
+  ; engine/hit.e16.ts:397  const toRight = fFace[a] !== 0
   slli t0, s2, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez t0, t0
-  sw t0, 6(fp) ; toRight
-  ; engine/hit.e16.ts:386  const weight = prAt(d, P_WEIGHT)
+  sw t0, 8(fp) ; toRight
+  ; engine/hit.e16.ts:398  const weight = prAt(d, P_WEIGHT)
   mv a0, s1
   li a1, 1
   call prAt
-  sw a0, 8(fp) ; weight
-  ; engine/hit.e16.ts:387  fHitDone[a] = 1
+  sw a0, 10(fp) ; weight
+  ; engine/hit.e16.ts:399  fHitDone[a] = 1
   slli t0, s2, 1
   li t1, 1
   sw t1, fHitDone(t0)
-  ; engine/hit.e16.ts:388  fCrouch[d] = (w & W_CROUCH) !== 0 ? 1 : 0
+  ; engine/hit.e16.ts:400  fCrouch[d] = (w & W_CROUCH) !== 0 ? 1 : 0
   slli t0, s1, 1
   lw t1, 0(fp) ; w
   andi t1, t1, 8
@@ -9103,32 +9117,54 @@ deal:
   li t1, 0
 .L2:
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:391  fVX[d] = 0
+  ; engine/hit.e16.ts:403  fVX[d] = 0
   slli t0, s1, 1
   sw zero, fVX(t0)
-  ; engine/hit.e16.ts:392  const stop = mvAt(a, m, M_HITSTOP)
+  ; engine/hit.e16.ts:404  const aa = (w & W_AA) !== 0 && (w & W_GUARDED) === 0
+  lw t0, 0(fp) ; w
+  andi t0, t0, 16
+  sub t0, t0, zero
+  snez t0, t0
+  mv t1, t0
+  beqz t1, .L3
+  lw t0, 0(fp) ; w
+  andi t0, t0, 1
+  sub t0, t0, zero
+  seqz t0, t0
+.L3:
+  sw t0, 4(fp) ; aa
+  ; engine/hit.e16.ts:405  const stop = mvAt(a, m, M_HITSTOP) + (aa ? AA_STOP : 0)
   mv a0, s2
   mv a1, s3
   li a2, 7
   call mvAt
-  sw a0, 10(fp) ; stop
-  ; engine/hit.e16.ts:393  if (stop > hitstop) hitstop = stop
+  mv t0, a0
+  lw t1, 4(fp)
+  beqz t1, .L4
+  li t1, 6
+  j .L5
+.L4:
+  li t1, 0
+.L5:
+  add t0, t0, t1
+  sw t0, 12(fp) ; stop
+  ; engine/hit.e16.ts:406  if (stop > hitstop) hitstop = stop
   lw t0, 0x1990(zero)
-  lw t1, 10(fp) ; stop
-  bgeu t0, t1, .L3
-  ; engine/hit.e16.ts:393  hitstop = stop
-  lw t0, 10(fp) ; stop
+  lw t1, 12(fp) ; stop
+  bgeu t0, t1, .L6
+  ; engine/hit.e16.ts:406  hitstop = stop
+  lw t0, 12(fp) ; stop
   sw t0, 0x1990(zero)
-.L3:
-  ; engine/hit.e16.ts:394  if ((w & W_GUARDED) !== 0) {
+.L6:
+  ; engine/hit.e16.ts:407  if ((w & W_GUARDED) !== 0) {
   lw t0, 0(fp) ; w
   andi t0, t0, 1
-  beq t0, zero, .L4
-  ; engine/hit.e16.ts:395  enter(d, ST_GUARD)
+  beq t0, zero, .L7
+  ; engine/hit.e16.ts:408  enter(d, ST_GUARD)
   mv a0, s1
   li a1, 7
   call enter
-  ; engine/hit.e16.ts:396  fStun[d] = mvAt(a, m, M_BLOCKSTUN)
+  ; engine/hit.e16.ts:409  fStun[d] = mvAt(a, m, M_BLOCKSTUN)
   slli t0, s1, 1
   addi t0, t0, fStun
   addi sp, sp, -2
@@ -9140,7 +9176,7 @@ deal:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; engine/hit.e16.ts:397  fPush[d] = pushOf(mvAt(a, m, M_PUSH_GUARD), weight, toRight)
+  ; engine/hit.e16.ts:410  fPush[d] = pushOf(mvAt(a, m, M_PUSH_GUARD), weight, toRight)
   slli t0, s1, 1
   addi t0, t0, fPush
   addi sp, sp, -2
@@ -9149,122 +9185,124 @@ deal:
   mv a1, s3
   li a2, 9
   call mvAt
-  lw a1, 8(fp)
-  lw a2, 6(fp)
+  lw a1, 10(fp)
+  lw a2, 8(fp)
   call pushOf
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; engine/hit.e16.ts:398  struck[a] = 2
+  ; engine/hit.e16.ts:411  struck[a] = 2
   slli t0, s2, 1
   li t1, 2
   sw t1, struck(t0)
-  ; engine/hit.e16.ts:399  return
+  ; engine/hit.e16.ts:412  return
   j .return
-.L4:
-  ; engine/hit.e16.ts:401  const counter = (w & W_COUNTER) !== 0
+.L7:
+  ; engine/hit.e16.ts:414  const counter = (w & W_COUNTER) !== 0
   lw t0, 0(fp) ; w
   andi t0, t0, 2
   sub t0, t0, zero
   snez t0, t0
   sw t0, 2(fp) ; counter
-  ; engine/hit.e16.ts:402  const n = (w & W_AGAIN) !== 0 ? fCombo[d] + 1 : 1
+  ; engine/hit.e16.ts:415  const n = (w & W_AGAIN) !== 0 ? fCombo[d] + 1 : 1
   lw t0, 0(fp) ; w
   andi t0, t0, 4
-  beq t0, zero, .L5
+  beq t0, zero, .L8
   slli t0, s1, 1
   lw t0, fCombo(t0)
   addi t0, t0, 1
-  j .L6
-.L5:
+  j .L9
+.L8:
   li t0, 1
-.L6:
-  sw t0, 12(fp) ; n
-  ; engine/hit.e16.ts:403  const dmg = damageOf(mvAt(a, m, M_DAMAGE), n, counter)
+.L9:
+  sw t0, 14(fp) ; n
+  ; engine/hit.e16.ts:416  const dmg = damageOf(mvAt(a, m, M_DAMAGE), n, counter) * (aa ? AA_DAMAGE : 1)
   mv a0, s2
   mv a1, s3
   li a2, 3
   call mvAt
-  lw a1, 12(fp)
+  lw a1, 14(fp)
   lw a2, 2(fp)
   call damageOf
-  sw a0, 4(fp) ; dmg
-  ; engine/hit.e16.ts:404  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
+  mv t0, a0
+  lw t1, 4(fp)
+  beqz t1, .L10
+  li t1, 2
+  j .L11
+.L10:
+  li t1, 1
+.L11:
+  mul t0, t0, t1
+  sw t0, 6(fp) ; dmg
+  ; engine/hit.e16.ts:417  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fLife(t1)
   addi t0, t0, fLife
   mv t2, t1
-  lw t1, 4(fp)
-  bltu t1, t2, .L7
+  lw t1, 6(fp)
+  bltu t1, t2, .L12
   li t1, 0
-  j .L8
-.L7:
+  j .L13
+.L12:
   slli t1, s1, 1
   lw t1, fLife(t1)
-  lw t2, 4(fp) ; dmg
+  lw t2, 6(fp) ; dmg
   sub t1, t1, t2
-.L8:
+.L13:
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:405  fCombo[d] = n
+  ; engine/hit.e16.ts:418  fCombo[d] = n
   slli t0, s1, 1
-  lw t1, 12(fp) ; n
+  lw t1, 14(fp) ; n
   sw t1, fCombo(t0)
-  ; engine/hit.e16.ts:406  comboNote(d)
+  ; engine/hit.e16.ts:419  comboNote(d)
   mv a0, s1
   call comboNote
-  ; engine/hit.e16.ts:407  dealt[a] = dmg
+  ; engine/hit.e16.ts:420  dealt[a] = dmg
   slli t0, s2, 1
-  lw t1, 4(fp) ; dmg
+  lw t1, 6(fp) ; dmg
   sw t1, dealt(t0)
-  ; engine/hit.e16.ts:408  struck[a] = counter ? 3 : 1
+  ; engine/hit.e16.ts:421  struck[a] = counter ? 3 : 1
   slli t0, s2, 1
   addi t0, t0, struck
   lw t1, 2(fp)
-  beqz t1, .L9
+  beqz t1, .L14
   li t1, 3
-  j .L10
-.L9:
+  j .L15
+.L14:
   li t1, 1
-.L10:
+.L15:
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:409  if (counter) logPost(LOG_COUNTER, a, m)
-  lw t0, 2(fp) ; counter
-  beqz t0, .L11
-  ; engine/hit.e16.ts:409  logPost(LOG_COUNTER, a, m)
-  li a0, 1
-  mv a1, s2
-  mv a2, s3
-  call logPost
-  j .L12
-.L11:
-  ; engine/hit.e16.ts:410  if ((mvAt(a, m, M_FLAGS) & F_ANTIAIR) !== 0 && fAir[d] !== 0) logPost(LOG_AA, a, m)
-  mv a0, s2
-  mv a1, s3
-  li a2, 12
-  call mvAt
-  andi t0, a0, 4
-  beq t0, zero, .L13
-  slli t0, s1, 1
-  lw t0, fAir(t0)
-  beq t0, zero, .L13
-  ; engine/hit.e16.ts:410  logPost(LOG_AA, a, m)
+  ; engine/hit.e16.ts:423  if (aa) logPost(LOG_AA, a, m)
+  lw t0, 4(fp) ; aa
+  beqz t0, .L16
+  ; engine/hit.e16.ts:423  logPost(LOG_AA, a, m)
   li a0, 2
   mv a1, s2
   mv a2, s3
   call logPost
-.L13:
-.L12:
-  ; engine/hit.e16.ts:411  const push = pushOf(mvAt(a, m, M_PUSH_HIT), weight, toRight)
+  j .L17
+.L16:
+  ; engine/hit.e16.ts:424  if (counter) logPost(LOG_COUNTER, a, m)
+  lw t0, 2(fp) ; counter
+  beqz t0, .L18
+  ; engine/hit.e16.ts:424  logPost(LOG_COUNTER, a, m)
+  li a0, 1
+  mv a1, s2
+  mv a2, s3
+  call logPost
+.L18:
+.L17:
+  ; engine/hit.e16.ts:425  const push = pushOf(mvAt(a, m, M_PUSH_HIT), weight, toRight)
   mv a0, s2
   mv a1, s3
   li a2, 8
   call mvAt
-  lw a1, 8(fp)
-  lw a2, 6(fp)
+  lw a1, 10(fp)
+  lw a2, 8(fp)
   call pushOf
-  sw a0, 14(fp) ; push
-  ; engine/hit.e16.ts:412  const down = (mvAt(a, m, M_FLAGS) & F_KNOCKDOWN) !== 0
+  sw a0, 16(fp) ; push
+  ; engine/hit.e16.ts:426  const down = (mvAt(a, m, M_FLAGS) & F_KNOCKDOWN) !== 0
   mv a0, s2
   mv a1, s3
   li a2, 12
@@ -9272,29 +9310,29 @@ deal:
   andi t0, a0, 2
   sub t0, t0, zero
   snez t0, t0
-  sw t0, 16(fp) ; down
-  ; engine/hit.e16.ts:413  if (down || fAir[d] !== 0 || fLife[d] === 0) {
-  lw t0, 16(fp) ; down
-  bnez t0, .L15
+  sw t0, 18(fp) ; down
+  ; engine/hit.e16.ts:427  if (down || fAir[d] !== 0 || fLife[d] === 0) {
+  lw t0, 18(fp) ; down
+  bnez t0, .L20
   slli t0, s1, 1
   lw t0, fAir(t0)
-  bne t0, zero, .L15
+  bne t0, zero, .L20
   slli t0, s1, 1
   lw t0, fLife(t0)
-  bne t0, zero, .L14
-.L15:
-  ; engine/hit.e16.ts:414  knock(d, push)
+  bne t0, zero, .L19
+.L20:
+  ; engine/hit.e16.ts:428  knock(d, push)
   mv a0, s1
-  lw a1, 14(fp)
+  lw a1, 16(fp)
   call knock
-  ; engine/hit.e16.ts:415  return
+  ; engine/hit.e16.ts:429  return
   j .return
-.L14:
-  ; engine/hit.e16.ts:417  enter(d, ST_HIT)
+.L19:
+  ; engine/hit.e16.ts:431  enter(d, ST_HIT)
   mv a0, s1
   li a1, 6
   call enter
-  ; engine/hit.e16.ts:418  fStun[d] = mvAt(a, m, M_HITSTUN) + (counter ? 4 : 0)
+  ; engine/hit.e16.ts:432  fStun[d] = mvAt(a, m, M_HITSTUN) + (counter ? 4 : 0)
   slli t0, s1, 1
   addi t0, t0, fStun
   addi sp, sp, -2
@@ -9307,29 +9345,29 @@ deal:
   addi sp, sp, 2
   mv t1, a0
   lw t2, 2(fp)
-  beqz t2, .L16
+  beqz t2, .L21
   li t2, 4
-  j .L17
-.L16:
+  j .L22
+.L21:
   li t2, 0
-.L17:
+.L22:
   add t1, t1, t2
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:419  fPush[d] = push
+  ; engine/hit.e16.ts:433  fPush[d] = push
   slli t0, s1, 1
-  lw t1, 14(fp) ; push
+  lw t1, 16(fp) ; push
   sw t1, fPush(t0)
 .return:
   mv sp, fp
-  lw ra, 18(sp)
-  lw s2, 20(sp)
-  lw s1, 22(sp)
-  lw s3, 24(sp)
-  lw s0, 26(sp)
-  addi sp, sp, 28
+  lw ra, 20(sp)
+  lw s2, 22(sp)
+  lw s1, 24(sp)
+  lw s3, 26(sp)
+  lw s0, 28(sp)
+  addi sp, sp, 30
   ret
 
-; engine/hit.e16.ts:426 knock(d, push) at -O1
+; engine/hit.e16.ts:440 knock(d, push) at -O1
 ;   d in s1
 ;   push in s2
 knock:
@@ -9339,36 +9377,36 @@ knock:
   sw s2, 4(sp)
   mv s1, a0 ; d
   mv s2, a1 ; push
-  ; engine/hit.e16.ts:427  fStun[d] = 0
+  ; engine/hit.e16.ts:441  fStun[d] = 0
   slli t0, s1, 1
   sw zero, fStun(t0)
-  ; engine/hit.e16.ts:428  if (fAir[d] !== 0) {
+  ; engine/hit.e16.ts:442  if (fAir[d] !== 0) {
   slli t0, s1, 1
   lw t0, fAir(t0)
   beq t0, zero, .L1
-  ; engine/hit.e16.ts:429  enter(d, ST_HIT)
+  ; engine/hit.e16.ts:443  enter(d, ST_HIT)
   mv a0, s1
   li a1, 6
   call enter
-  ; engine/hit.e16.ts:430  fKnock[d] = 1
+  ; engine/hit.e16.ts:444  fKnock[d] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fKnock(t0)
-  ; engine/hit.e16.ts:431  fVY[d] = 32
+  ; engine/hit.e16.ts:445  fVY[d] = 32
   slli t0, s1, 1
   li t1, 32
   sw t1, fVY(t0)
-  ; engine/hit.e16.ts:432  fVX[d] = push
+  ; engine/hit.e16.ts:446  fVX[d] = push
   slli t0, s1, 1
   sw s2, fVX(t0)
-  ; engine/hit.e16.ts:433  return
+  ; engine/hit.e16.ts:447  return
   j .return
 .L1:
-  ; engine/hit.e16.ts:435  enter(d, ST_DOWN)
+  ; engine/hit.e16.ts:449  enter(d, ST_DOWN)
   mv a0, s1
   li a1, 8
   call enter
-  ; engine/hit.e16.ts:436  fPush[d] = push
+  ; engine/hit.e16.ts:450  fPush[d] = push
   slli t0, s1, 1
   sw s2, fPush(t0)
 .return:
@@ -16313,47 +16351,43 @@ str_46:
 
   .bank 4
   .org 0xc000
-; engine/look.e16.ts:112 lookStep() at -O1
+; engine/look.e16.ts:113 lookStep() at -O1
 ;   front in s1
+;   back in s2
 lookStep:
-  addi sp, sp, -4
+  addi sp, sp, -6
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; engine/look.e16.ts:113  eventsTake(0)
+  sw s2, 4(sp)
+  ; engine/look.e16.ts:114  eventsTake(0)
   li a0, 0
   call eventsTake
-  ; engine/look.e16.ts:114  eventsTake(1)
+  ; engine/look.e16.ts:115  eventsTake(1)
   li a0, 1
   call eventsTake
-  ; engine/look.e16.ts:115  koStep(0)
+  ; engine/look.e16.ts:116  koStep(0)
   li a0, 0
   call koStep
-  ; engine/look.e16.ts:116  koStep(1)
+  ; engine/look.e16.ts:117  koStep(1)
   li a0, 1
   call koStep
-  ; engine/look.e16.ts:117  picStep(0)
+  ; engine/look.e16.ts:118  picStep(0)
   li a0, 0
   call picStep
-  ; engine/look.e16.ts:118  picStep(1)
+  ; engine/look.e16.ts:119  picStep(1)
   li a0, 1
   call picStep
-  ; engine/look.e16.ts:119  soundStep()
+  ; engine/look.e16.ts:120  soundStep()
   call soundStep
-  ; engine/look.e16.ts:120  palStep(0)
+  ; engine/look.e16.ts:121  palStep(0)
   li a0, 0
   call palStep
-  ; engine/look.e16.ts:121  palStep(1)
+  ; engine/look.e16.ts:122  palStep(1)
   li a0, 1
   call palStep
-  ; engine/look.e16.ts:122  sprBegin()
+  ; engine/look.e16.ts:123  sprBegin()
   call sprBegin
-  ; engine/look.e16.ts:123  fxSprites(0)
-  li a0, 0
-  call fxSprites
-  ; engine/look.e16.ts:124  fxSprites(1)
-  li a0, 1
-  call fxSprites
-  ; engine/look.e16.ts:125  const front = fState[1] === ST_ATTACK && fState[0] !== ST_ATTACK ? 1 : 0
+  ; engine/look.e16.ts:128  const front = fState[1] === ST_ATTACK && fState[0] !== ST_ATTACK ? 1 : 0
   lw t0, fState+2(zero)
   li t1, 5
   bne t0, t1, .L1
@@ -16366,28 +16400,53 @@ lookStep:
   li t0, 0
 .L2:
   mv s1, t0 ; front
-  ; engine/look.e16.ts:126  bodySprites(front)
+  ; engine/look.e16.ts:129  const back = 1 - front
+  li t0, 1
+  sub s2, t0, s1
+  ; engine/look.e16.ts:130  fxSprites(0, front)
+  li a0, 0
+  mv a1, s1
+  call fxSprites
+  ; engine/look.e16.ts:131  fxSprites(1, front)
+  li a0, 1
+  mv a1, s1
+  call fxSprites
+  ; engine/look.e16.ts:132  bodySprites(front)
   mv a0, s1
   call bodySprites
-  ; engine/look.e16.ts:127  bodySprites(1 - front)
-  li t0, 1
-  sub a0, t0, s1
+  ; engine/look.e16.ts:133  if (fxK[front] === FX_SPARK || fxK[front] === FX_BIG) fxSprite(front)
+  slli t0, s1, 1
+  lw t0, fxK(t0)
+  li t1, 1
+  beq t0, t1, .L4
+  slli t0, s1, 1
+  lw t0, fxK(t0)
+  li t1, 3
+  bne t0, t1, .L3
+.L4:
+  ; engine/look.e16.ts:133  fxSprite(front)
+  mv a0, s1
+  call fxSprite
+.L3:
+  ; engine/look.e16.ts:134  bodySprites(back)
+  mv a0, s2
   call bodySprites
-  ; engine/look.e16.ts:128  shadow(0)
+  ; engine/look.e16.ts:135  shadow(0)
   li a0, 0
   call shadow
-  ; engine/look.e16.ts:129  shadow(1)
+  ; engine/look.e16.ts:136  shadow(1)
   li a0, 1
   call shadow
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  addi sp, sp, 4
+  lw s2, 4(sp)
+  addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:154 eventsTake(a) at -O1
+; engine/look.e16.ts:166 eventsTake(a) at -O1
 ;   a in s1
-;   s in s2
+;   k/s in s2
 ;   d in s3
 eventsTake:
   addi sp, sp, -8
@@ -16396,11 +16455,11 @@ eventsTake:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:155  if (flashT[a] > 0) flashT[a]--
+  ; engine/look.e16.ts:167  if (flashT[a] > 0) flashT[a]--
   slli t0, s1, 1
   lw t0, flashT(t0)
   bgeu zero, t0, .L1
-  ; engine/look.e16.ts:155  flashT[a]--
+  ; engine/look.e16.ts:167  flashT[a]--
   slli t0, s1, 1
   addi t0, t0, flashT
   mv t1, t0
@@ -16408,11 +16467,11 @@ eventsTake:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L1:
-  ; engine/look.e16.ts:156  if (guardT[a] > 0) guardT[a]--
+  ; engine/look.e16.ts:168  if (guardT[a] > 0) guardT[a]--
   slli t0, s1, 1
   lw t0, guardT(t0)
   bgeu zero, t0, .L2
-  ; engine/look.e16.ts:156  guardT[a]--
+  ; engine/look.e16.ts:168  guardT[a]--
   slli t0, s1, 1
   addi t0, t0, guardT
   mv t1, t0
@@ -16420,86 +16479,106 @@ eventsTake:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L2:
-  ; engine/look.e16.ts:157  if (fxK[a] !== 0) {
+  ; engine/look.e16.ts:169  if (fxK[a] !== 0) {
   slli t0, s1, 1
   lw t0, fxK(t0)
   beq t0, zero, .L3
-  ; engine/look.e16.ts:158  fxT[a]++
+  ; engine/look.e16.ts:170  fxT[a]++
   slli t0, s1, 1
   addi t0, t0, fxT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/look.e16.ts:159  if (fxT[a] >= (fxK[a] === 1 ? SPARK_F : WALL_F)) fxK[a] = 0
+  ; engine/look.e16.ts:171  const k = fxK[a]
+  slli t0, s1, 1
+  lw s2, fxK(t0)
+  ; engine/look.e16.ts:172  if (fxT[a] >= (k === FX_SPARK ? SPARK_F : k === FX_BIG ? BIG_F : WALL_F)) fxK[a] = 0
   slli t0, s1, 1
   lw t0, fxT(t0)
-  slli t1, s1, 1
-  lw t1, fxK(t1)
+  mv t1, s2
   li t2, 1
   bne t1, t2, .L5
   li t1, 9
   j .L6
 .L5:
+  mv t1, s2
+  li t2, 3
+  bne t1, t2, .L7
+  li t1, 15
+  j .L8
+.L7:
   li t1, 8
+.L8:
 .L6:
   bltu t0, t1, .L4
-  ; engine/look.e16.ts:159  fxK[a] = 0
+  ; engine/look.e16.ts:172  fxK[a] = 0
   slli t0, s1, 1
   sw zero, fxK(t0)
 .L4:
 .L3:
-  ; engine/look.e16.ts:161  const s = struck[a]
+  ; engine/look.e16.ts:174  const s = struck[a]
   slli t0, s1, 1
   lw s2, struck(t0)
-  ; engine/look.e16.ts:162  if (s === 0) return
-  bne s2, zero, .L7
-  ; engine/look.e16.ts:162  return
+  ; engine/look.e16.ts:175  if (s === 0) return
+  bne s2, zero, .L9
+  ; engine/look.e16.ts:175  return
   j .return
-.L7:
-  ; engine/look.e16.ts:163  const d = 1 - a
+.L9:
+  ; engine/look.e16.ts:176  const d = 1 - a
   li t0, 1
   sub s3, t0, s1
-  ; engine/look.e16.ts:164  if (s === 1 || s === 3) hitsN[a]++
+  ; engine/look.e16.ts:177  if (s === 1 || s === 3) hitsN[a]++
   li t0, 1
-  beq s2, t0, .L9
+  beq s2, t0, .L11
   li t0, 3
-  bne s2, t0, .L8
-.L9:
-  ; engine/look.e16.ts:164  hitsN[a]++
+  bne s2, t0, .L10
+.L11:
+  ; engine/look.e16.ts:177  hitsN[a]++
   slli t0, s1, 1
   addi t0, t0, hitsN
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-.L8:
-  ; engine/look.e16.ts:165  if (s === 2) {
+.L10:
+  ; engine/look.e16.ts:178  if (s === 2) {
   li t0, 2
-  bne s2, t0, .L10
-  ; engine/look.e16.ts:166  guardT[d] = GUARD_F
+  bne s2, t0, .L12
+  ; engine/look.e16.ts:179  guardT[d] = GUARD_F
   slli t0, s3, 1
   li t1, 2
   sw t1, guardT(t0)
-  ; engine/look.e16.ts:167  fxAt(a, 2)
+  ; engine/look.e16.ts:180  fxAt(a, FX_WALL)
   mv a0, s1
   li a1, 2
   call fxAt
-  ; engine/look.e16.ts:168  return
+  ; engine/look.e16.ts:181  return
   j .return
-.L10:
-  ; engine/look.e16.ts:170  flashT[d] = FLASH_F
+.L12:
+  ; engine/look.e16.ts:183  flashT[d] = FLASH_F
   slli t0, s3, 1
   li t1, 3
   sw t1, flashT(t0)
-  ; engine/look.e16.ts:171  if (s !== 4) fxAt(a, 1)
+  ; engine/look.e16.ts:184  if (s !== 4) fxAt(a, (how[a] & W_AA) !== 0 ? FX_BIG : FX_SPARK)
   li t0, 4
-  beq s2, t0, .L11
-  ; engine/look.e16.ts:171  fxAt(a, 1)
-  mv a0, s1
-  li a1, 1
+  beq s2, t0, .L13
+  ; engine/look.e16.ts:184  fxAt(a, (how[a] & W_AA) !== 0 ? FX_BIG : FX_SPARK)
+  slli t0, s1, 1
+  lw t0, how(t0)
+  andi t1, t0, 16
+  mv t0, s1
+  li t2, 0
+  beq t1, t2, .L14
+  li t1, 3
+  j .L15
+.L14:
+  li t1, 1
+.L15:
+  mv a0, t0
+  mv a1, t1
   call fxAt
-.L11:
+.L13:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
@@ -16508,29 +16587,29 @@ eventsTake:
   addi sp, sp, 8
   ret
 
-; engine/look.e16.ts:175 fxAt(a, k) at -O1
+; engine/look.e16.ts:188 fxAt(a, k) at -O1
 ;   a in a0
 ;   k in a1
 ;   o in a2
 ;   right in a3
 fxAt:
-  ; engine/look.e16.ts:177  const o = a * POSE_W + 4 * 4
+  ; engine/look.e16.ts:190  const o = a * POSE_W + 4 * 4
   slli t1, a0, 4
   slli t0, a0, 3
   add t0, t0, t1
   addi a2, t0, 16
-  ; engine/look.e16.ts:178  const right = fFace[a] !== 0
+  ; engine/look.e16.ts:191  const right = fFace[a] !== 0
   slli t0, a0, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez a3, t0
-  ; engine/look.e16.ts:179  fxK[a] = k
+  ; engine/look.e16.ts:192  fxK[a] = k
   slli t0, a0, 1
   sw a1, fxK(t0)
-  ; engine/look.e16.ts:180  fxT[a] = 0
+  ; engine/look.e16.ts:193  fxT[a] = 0
   slli t0, a0, 1
   sw zero, fxT(t0)
-  ; engine/look.e16.ts:181  fxX[a] = u16(right ? i16(wb[o + 1]) - 6 : i16(wb[o]) + 6)
+  ; engine/look.e16.ts:194  fxX[a] = u16(right ? i16(wb[o + 1]) - 6 : i16(wb[o]) + 6)
   slli t0, a0, 1
   addi t0, t0, fxX
   mv t1, a3
@@ -16546,7 +16625,7 @@ fxAt:
   addi t1, t1, 6
 .L2:
   sw t1, 0(t0)
-  ; engine/look.e16.ts:182  fxY[a] = u16(i16(groundY) - ((i16(wb[o + 2]) + i16(wb[o + 3])) >> 1))
+  ; engine/look.e16.ts:195  fxY[a] = u16(i16(groundY) - ((i16(wb[o + 2]) + i16(wb[o + 3])) >> 1))
   slli t0, a0, 1
   lw t1, 0x1540(zero)
   addi t2, a2, 2
@@ -16562,85 +16641,178 @@ fxAt:
 .return:
   ret
 
-; engine/look.e16.ts:185 fxSprites(a) at -O1
+; engine/look.e16.ts:199 fxSprites(a, front) at -O1
 ;   a in s1
-;   t in s2
-;   f in s3
+;   front in s2
 fxSprites:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  sw s3, 6(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:186  if (fxK[a] === 0) return
+  mv s2, a1 ; front
+  ; engine/look.e16.ts:200  if (fxK[a] === 0 || (fxK[a] !== FX_WALL && a === front)) return
   slli t0, s1, 1
   lw t0, fxK(t0)
-  bne t0, zero, .L1
-  ; engine/look.e16.ts:186  return
+  beq t0, zero, .L2
+  slli t0, s1, 1
+  lw t0, fxK(t0)
+  li t1, 2
+  beq t0, t1, .L1
+  bne s1, s2, .L1
+.L2:
+  ; engine/look.e16.ts:200  return
   j .return
 .L1:
-  ; engine/look.e16.ts:187  const t = fxT[a]
-  slli t0, s1, 1
-  lw s2, fxT(t0)
-  ; engine/look.e16.ts:188  let f: u16 = 0
-  li s3, 0 ; f
-  ; engine/look.e16.ts:189  if (fxK[a] === 1) f = t < 3 ? 0 : t < 6 ? 1 : 2
-  slli t0, s1, 1
-  lw t0, fxK(t0)
-  li t1, 1
-  bne t0, t1, .L2
-  ; engine/look.e16.ts:189  f = t < 3 ? 0 : t < 6 ? 1 : 2
-  li t0, 3
-  bgeu s2, t0, .L3
-  li t0, 0
-  j .L4
-.L3:
-  li t0, 6
-  bgeu s2, t0, .L5
-  li t0, 1
-  j .L6
-.L5:
-  li t0, 2
-.L6:
-.L4:
-  mv s3, t0 ; f
-  j .L7
-.L2:
-  ; engine/look.e16.ts:190  f = t < 4 ? 3 : 4
-  li t0, 4
-  bgeu s2, t0, .L8
-  li t0, 3
-  j .L9
-.L8:
-  li t0, 4
-.L9:
-  mv s3, t0 ; f
-.L7:
-  ; engine/look.e16.ts:191  spr(i16(fxX[a]) - i16(camX) - 16, i16(fxY[a]) - 16, (SPARK_TILE + f * 16) | FX_PAL, S32)
-  slli t0, s1, 1
-  lw t0, fxX(t0)
-  lw t1, 0x1996(zero)
-  sub t0, t0, t1
-  slli t1, s1, 1
-  lw t1, fxY(t1)
-  slli t2, s3, 4
-  addi t2, t2, 513
-  ori t2, t2, 2048
-  addi a0, t0, -16
-  addi a1, t1, -16
-  mv a2, t2
-  li a3, 2
-  call spr
+  ; engine/look.e16.ts:201  fxSprite(a)
+  mv a0, s1
+  call fxSprite
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
   lw s2, 4(sp)
-  lw s3, 6(sp)
-  addi sp, sp, 8
+  addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:223 picStep(i) at -O1
+; engine/look.e16.ts:205 fxSprite(a) at -O1
+;   a in s2
+;   t in s1
+;   k in 0(fp)
+;   f in s3
+;   x in 2(fp)
+;   y in 4(fp)
+;   tile in 6(fp)
+fxSprite:
+  addi sp, sp, -18
+  sw ra, 8(sp)
+  sw s2, 10(sp)
+  sw s1, 12(sp)
+  sw s3, 14(sp)
+  sw s0, 16(sp)
+  mv fp, sp
+  mv s2, a0 ; a
+  ; engine/look.e16.ts:206  const t = fxT[a]
+  slli t0, s2, 1
+  lw s1, fxT(t0)
+  ; engine/look.e16.ts:207  const k = fxK[a]
+  slli t0, s2, 1
+  lw t0, fxK(t0)
+  sw t0, 0(fp) ; k
+  ; engine/look.e16.ts:208  let f: u16 = 0
+  li s3, 0 ; f
+  ; engine/look.e16.ts:209  if (k === FX_SPARK) f = t < 3 ? 0 : t < 6 ? 1 : 2
+  li t0, 1
+  lw t1, 0(fp) ; k
+  bne t1, t0, .L1
+  ; engine/look.e16.ts:209  f = t < 3 ? 0 : t < 6 ? 1 : 2
+  li t0, 3
+  bgeu s1, t0, .L2
+  li t0, 0
+  j .L3
+.L2:
+  li t0, 6
+  bgeu s1, t0, .L4
+  li t0, 1
+  j .L5
+.L4:
+  li t0, 2
+.L5:
+.L3:
+  mv s3, t0 ; f
+  j .L6
+.L1:
+  ; engine/look.e16.ts:210  if (k === FX_BIG) f = t < 5 ? 0 : t < 10 ? 1 : 2
+  li t0, 3
+  lw t1, 0(fp) ; k
+  bne t1, t0, .L7
+  ; engine/look.e16.ts:210  f = t < 5 ? 0 : t < 10 ? 1 : 2
+  li t0, 5
+  bgeu s1, t0, .L8
+  li t0, 0
+  j .L9
+.L8:
+  li t0, 10
+  bgeu s1, t0, .L10
+  li t0, 1
+  j .L11
+.L10:
+  li t0, 2
+.L11:
+.L9:
+  mv s3, t0 ; f
+  j .L12
+.L7:
+  ; engine/look.e16.ts:211  f = t < 4 ? 3 : 4
+  li t0, 4
+  bgeu s1, t0, .L13
+  li t0, 3
+  j .L14
+.L13:
+  li t0, 4
+.L14:
+  mv s3, t0 ; f
+.L12:
+.L6:
+  ; engine/look.e16.ts:212  const x = i16(fxX[a]) - i16(camX) - 16
+  slli t0, s2, 1
+  lw t0, fxX(t0)
+  lw t1, 0x1996(zero)
+  sub t0, t0, t1
+  addi t0, t0, -16
+  sw t0, 2(fp) ; x
+  ; engine/look.e16.ts:213  const y = i16(fxY[a]) - 16
+  slli t0, s2, 1
+  lw t0, fxY(t0)
+  addi t0, t0, -16
+  sw t0, 4(fp) ; y
+  ; engine/look.e16.ts:214  const tile = (SPARK_TILE + f * 16) | FX_PAL
+  slli t0, s3, 4
+  addi t0, t0, 513
+  ori t0, t0, 2048
+  sw t0, 6(fp) ; tile
+  ; engine/look.e16.ts:215  spr(x, y, tile, S32)
+  lw a0, 2(fp)
+  lw a1, 4(fp)
+  lw a2, 6(fp)
+  li a3, 2
+  call spr
+  ; engine/look.e16.ts:216  if (k !== FX_BIG) return
+  li t0, 3
+  lw t1, 0(fp) ; k
+  beq t1, t0, .L15
+  ; engine/look.e16.ts:216  return
+  j .return
+.L15:
+  ; engine/look.e16.ts:217  spr(x - 14, y - 14, tile | FLIP_H, S32)
+  lw t0, 2(fp) ; x
+  lw t1, 4(fp) ; y
+  li t2, 8192
+  lw t3, 6(fp) ; tile
+  or t3, t3, t2
+  addi a0, t0, -14
+  addi a1, t1, -14
+  mv a2, t3
+  li a3, 2
+  call spr
+  ; engine/look.e16.ts:218  spr(x + 14, y - 14, tile, S32)
+  lw t0, 2(fp) ; x
+  lw t1, 4(fp) ; y
+  addi a0, t0, 14
+  addi a1, t1, -14
+  lw a2, 6(fp)
+  li a3, 2
+  call spr
+.return:
+  mv sp, fp
+  lw ra, 8(sp)
+  lw s2, 10(sp)
+  lw s1, 12(sp)
+  lw s3, 14(sp)
+  lw s0, 16(sp)
+  addi sp, sp, 18
+  ret
+
+; engine/look.e16.ts:250 picStep(i) at -O1
 ;   i in s1
 ;   st in s3
 ;   pic in s2
@@ -16651,25 +16823,25 @@ picStep:
   sw s3, 4(sp)
   sw s2, 6(sp)
   mv s1, a0 ; i
-  ; engine/look.e16.ts:224  if (artHold[i] !== 0) return
+  ; engine/look.e16.ts:251  if (artHold[i] !== 0) return
   slli t0, s1, 1
   lw t0, artHold(t0)
   beq t0, zero, .L1
-  ; engine/look.e16.ts:224  return
+  ; engine/look.e16.ts:251  return
   j .return
 .L1:
-  ; engine/look.e16.ts:225  const st = fState[i]
+  ; engine/look.e16.ts:252  const st = fState[i]
   slli t0, s1, 1
   lw s3, fState(t0)
-  ; engine/look.e16.ts:226  let pic: u16 = 0
+  ; engine/look.e16.ts:253  let pic: u16 = 0
   li s2, 0 ; pic
-  ; engine/look.e16.ts:227  if (st === ST_THROW || st === ST_THROWN) pic = throwWord(i, st === ST_THROW ? 0 : 1) & 255
+  ; engine/look.e16.ts:254  if (st === ST_THROW || st === ST_THROWN) pic = throwWord(i, st === ST_THROW ? 0 : 1) & 255
   li t0, 11
   beq s3, t0, .L3
   li t0, 12
   bne s3, t0, .L2
 .L3:
-  ; engine/look.e16.ts:227  pic = throwWord(i, st === ST_THROW ? 0 : 1) & 255
+  ; engine/look.e16.ts:254  pic = throwWord(i, st === ST_THROW ? 0 : 1) & 255
   mv t0, s1
   mv t1, s3
   li t2, 11
@@ -16685,30 +16857,30 @@ picStep:
   andi s2, a0, 255
   j .L6
 .L2:
-  ; engine/look.e16.ts:229  if (fRowT[i] === 0xffff) return
+  ; engine/look.e16.ts:256  if (fRowT[i] === 0xffff) return
   slli t0, s1, 1
   lw t0, fRowT(t0)
   li t1, 65535
   bne t0, t1, .L7
-  ; engine/look.e16.ts:229  return
+  ; engine/look.e16.ts:256  return
   j .return
 .L7:
-  ; engine/look.e16.ts:230  pic = rowPic(i)
+  ; engine/look.e16.ts:257  pic = rowPic(i)
   mv a0, s1
   call rowPic
   mv s2, a0 ; pic
 .L6:
-  ; engine/look.e16.ts:232  if (pic === artPic[i]) return
+  ; engine/look.e16.ts:259  if (pic === artPic[i]) return
   slli t0, s1, 1
   lw t0, artPic(t0)
   bne s2, t0, .L8
-  ; engine/look.e16.ts:232  return
+  ; engine/look.e16.ts:259  return
   j .return
 .L8:
-  ; engine/look.e16.ts:233  artPic[i] = pic
+  ; engine/look.e16.ts:260  artPic[i] = pic
   slli t0, s1, 1
   sw s2, artPic(t0)
-  ; engine/look.e16.ts:234  artCopy(i, fSlot[i], pic)
+  ; engine/look.e16.ts:261  artCopy(i, fSlot[i], pic)
   slli t0, s1, 1
   lw t0, fSlot(t0)
   mv a0, s1
@@ -16723,7 +16895,7 @@ picStep:
   addi sp, sp, 8
   ret
 
-; engine/look.e16.ts:243 rowPic(i) at -O1
+; engine/look.e16.ts:270 rowPic(i) at -O1
 ;   i in s2
 ;   row in s3
 ;   t in s0
@@ -16736,39 +16908,39 @@ rowPic:
   sw s0, 6(sp)
   sw s1, 8(sp)
   mv s2, a0 ; i
-  ; engine/look.e16.ts:244  let row = fPose[i] * SEQ_W
+  ; engine/look.e16.ts:271  let row = fPose[i] * SEQ_W
   slli t0, s2, 1
   lw t0, fPose(t0)
   slli t1, t0, 3
   slli t0, t0, 1
   add s3, t0, t1
-  ; engine/look.e16.ts:245  let t = fRowT[i]
+  ; engine/look.e16.ts:272  let t = fRowT[i]
   slli t0, s2, 1
   lw s0, fRowT(t0)
-  ; engine/look.e16.ts:246  if (t < TRANS_MOST) {
+  ; engine/look.e16.ts:273  if (t < TRANS_MOST) {
   li t0, 16
   bgeu s0, t0, .L1
-  ; engine/look.e16.ts:247  const p = transPic(i, row, t)
+  ; engine/look.e16.ts:274  const p = transPic(i, row, t)
   mv a0, s2
   mv a1, s3
   mv a2, s0
   call transPic
   mv s1, a0 ; p/d/k
-  ; engine/look.e16.ts:248  if (p !== NO_PIC) return p
+  ; engine/look.e16.ts:275  if (p !== NO_PIC) return p
   li t0, 255
   beq s1, t0, .L2
-  ; engine/look.e16.ts:248  return p
+  ; engine/look.e16.ts:275  return p
   mv a0, s1
   j .return
 .L2:
 .L1:
-  ; engine/look.e16.ts:250  if (tableWord(FRAMES_BANK, FRAMES_AT, row) !== 0) {
+  ; engine/look.e16.ts:277  if (tableWord(FRAMES_BANK, FRAMES_AT, row) !== 0) {
   li a0, 368
   li a1, 49152
   mv a2, s3
   call tableWord
   beq a0, zero, .L3
-  ; engine/look.e16.ts:251  const d = fFace[i] !== 0 ? pointX(i) : wrap16(0 - pointX(i))
+  ; engine/look.e16.ts:278  const d = fFace[i] !== 0 ? pointX(i) : wrap16(0 - pointX(i))
   slli t0, s2, 1
   lw t0, fFace(t0)
   beq t0, zero, .L4
@@ -16782,9 +16954,9 @@ rowPic:
   sub t0, zero, a0
 .L5:
   mv s1, t0 ; p/d/k
-  ; engine/look.e16.ts:252  t = d & 7
+  ; engine/look.e16.ts:279  t = d & 7
   andi s0, s1, 7
-  ; engine/look.e16.ts:253  row = (PO_WALK + ((d >> 3) & 3)) * SEQ_W
+  ; engine/look.e16.ts:280  row = (PO_WALK + ((d >> 3) & 3)) * SEQ_W
   srli t0, s1, 3
   andi t0, t0, 3
   addi t0, t0, 51
@@ -16792,12 +16964,12 @@ rowPic:
   slli t0, t0, 1
   add s3, t0, t1
 .L3:
-  ; engine/look.e16.ts:255  let k: u16 = 0
+  ; engine/look.e16.ts:282  let k: u16 = 0
   li s1, 0 ; p/d/k
-  ; engine/look.e16.ts:256  while (k < SEQ_PICS - 1 && t >= tableWord(FRAMES_BANK, FRAMES_AT, row + 2 + k * 2)) k++
+  ; engine/look.e16.ts:283  while (k < SEQ_PICS - 1 && t >= tableWord(FRAMES_BANK, FRAMES_AT, row + 2 + k * 2)) k++
   j .L8
 .L6:
-  ; engine/look.e16.ts:256  k++
+  ; engine/look.e16.ts:283  k++
   addi s1, s1, 1
 .L8:
   li t0, 3
@@ -16811,7 +16983,7 @@ rowPic:
   call tableWord
   bgeu s0, a0, .L6
 .L10:
-  ; engine/look.e16.ts:257  return tableWord(FRAMES_BANK, FRAMES_AT, row + 1 + k * 2)
+  ; engine/look.e16.ts:284  return tableWord(FRAMES_BANK, FRAMES_AT, row + 1 + k * 2)
   slli t0, s1, 1
   addi t1, s3, 1
   add t1, t1, t0
@@ -16828,7 +17000,7 @@ rowPic:
   addi sp, sp, 10
   ret
 
-; engine/look.e16.ts:264 transPic(i, row, t) at -O1
+; engine/look.e16.ts:291 transPic(i, row, t) at -O1
 ;   i in 8(fp)
 ;   row in 10(fp)
 ;   t in s2
@@ -16850,28 +17022,28 @@ transPic:
   sw a0, 8(fp) ; i
   sw a1, 10(fp) ; row
   mv s2, a2 ; t
-  ; engine/look.e16.ts:265  const w = tableWord(FRAMES_BANK, FRAMES_AT, row + SEQ_TRANS)
+  ; engine/look.e16.ts:292  const w = tableWord(FRAMES_BANK, FRAMES_AT, row + SEQ_TRANS)
   lw t0, 10(fp) ; row
   li a0, 368
   li a1, 49152
   addi a2, t0, 9
   call tableWord
   mv s3, a0 ; w
-  ; engine/look.e16.ts:266  let k = w & 255
+  ; engine/look.e16.ts:293  let k = w & 255
   andi s1, s3, 255
-  ; engine/look.e16.ts:267  const end = k + (w >> 8)
+  ; engine/look.e16.ts:294  const end = k + (w >> 8)
   srli t0, s3, 8
   add t0, s1, t0
   sw t0, 12(fp) ; end
-  ; engine/look.e16.ts:268  const was = fRowWas[i]
+  ; engine/look.e16.ts:295  const was = fRowWas[i]
   lw t0, 8(fp) ; i
   slli t0, t0, 1
   lw t0, fRowWas(t0)
   sw t0, 0(fp) ; was
-  ; engine/look.e16.ts:269  while (k < end) {
+  ; engine/look.e16.ts:296  while (k < end) {
   j .L3
 .L1:
-  ; engine/look.e16.ts:270  const from = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W)
+  ; engine/look.e16.ts:297  const from = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W)
   slli t1, s1, 1
   add t0, t1, s1
   li a0, 368
@@ -16879,7 +17051,7 @@ transPic:
   mv a2, t0
   call tableWord
   sw a0, 2(fp) ; from
-  ; engine/look.e16.ts:271  if (was >= (from & 255) && was <= from >> 8) {
+  ; engine/look.e16.ts:298  if (was >= (from & 255) && was <= from >> 8) {
   lw t0, 2(fp) ; from
   andi t0, t0, 255
   lw t1, 0(fp) ; was
@@ -16888,7 +17060,7 @@ transPic:
   srli t0, t0, 8
   lw t1, 0(fp) ; was
   bltu t0, t1, .L5
-  ; engine/look.e16.ts:272  const a = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W + 1)
+  ; engine/look.e16.ts:299  const a = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W + 1)
   slli t1, s1, 1
   add t0, t1, s1
   li a0, 368
@@ -16896,16 +17068,16 @@ transPic:
   addi a2, t0, 1
   call tableWord
   sw a0, 4(fp) ; a
-  ; engine/look.e16.ts:273  if (t < a >> 8) return a & 255
+  ; engine/look.e16.ts:300  if (t < a >> 8) return a & 255
   lw t0, 4(fp) ; a
   srli t0, t0, 8
   bgeu s2, t0, .L6
-  ; engine/look.e16.ts:273  return a & 255
+  ; engine/look.e16.ts:300  return a & 255
   lw t0, 4(fp) ; a
   andi a0, t0, 255
   j .return
 .L6:
-  ; engine/look.e16.ts:274  const b = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W + 2)
+  ; engine/look.e16.ts:301  const b = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W + 2)
   slli t1, s1, 1
   add t0, t1, s1
   li a0, 368
@@ -16913,7 +17085,7 @@ transPic:
   addi a2, t0, 2
   call tableWord
   sw a0, 6(fp) ; b
-  ; engine/look.e16.ts:275  return t < b >> 8 ? b & 255 : NO_PIC
+  ; engine/look.e16.ts:302  return t < b >> 8 ? b & 255 : NO_PIC
   lw t0, 6(fp) ; b
   srli t0, t0, 8
   bgeu s2, t0, .L7
@@ -16926,12 +17098,12 @@ transPic:
   mv a0, t0
   j .return
 .L5:
-  ; engine/look.e16.ts:277  k++
+  ; engine/look.e16.ts:304  k++
   addi s1, s1, 1
 .L3:
   lw t0, 12(fp) ; end
   bltu s1, t0, .L1
-  ; engine/look.e16.ts:279  return NO_PIC
+  ; engine/look.e16.ts:306  return NO_PIC
   li a0, 255
 .return:
   mv sp, fp
@@ -16943,7 +17115,7 @@ transPic:
   addi sp, sp, 24
   ret
 
-; engine/look.e16.ts:286 throwWord(i, w) at -O1
+; engine/look.e16.ts:313 throwWord(i, w) at -O1
 ;   i in s1
 ;   w in s3
 ;   a in s2
@@ -16957,7 +17129,7 @@ throwWord:
   sw s0, 8(sp)
   mv s1, a0 ; i
   mv s3, a1 ; w
-  ; engine/look.e16.ts:287  const a = fState[i] === ST_THROW ? i : 1 - i
+  ; engine/look.e16.ts:314  const a = fState[i] === ST_THROW ? i : 1 - i
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 11
@@ -16969,8 +17141,8 @@ throwWord:
   sub t0, t0, s1
 .L2:
   mv s2, t0 ; a
-  ; engine/look.e16.ts:288  const n = THROWS_LEN >> 3
-  ; engine/look.e16.ts:289  const k = fStateT[a] < n ? fStateT[a] : n - 1
+  ; engine/look.e16.ts:315  const n = THROWS_LEN >> 3
+  ; engine/look.e16.ts:316  const k = fStateT[a] < n ? fStateT[a] : n - 1
   slli t0, s2, 1
   lw t0, fStateT(t0)
   li t1, 26
@@ -16982,7 +17154,7 @@ throwWord:
   li t0, 25
 .L4:
   mv s0, t0 ; k
-  ; engine/look.e16.ts:290  return tableWord(THROWS_BANK, THROWS_AT, (fThrowBack[a] * n + k) * THROW_W + w)
+  ; engine/look.e16.ts:317  return tableWord(THROWS_BANK, THROWS_AT, (fThrowBack[a] * n + k) * THROW_W + w)
   slli t0, s2, 1
   lw t0, fThrowBack(t0)
   li t1, 26
@@ -17003,7 +17175,7 @@ throwWord:
   addi sp, sp, 10
   ret
 
-; engine/look.e16.ts:299 heldX(d) at -O1
+; engine/look.e16.ts:326 heldX(d) at -O1
 ;   d in s1
 ;   a in s3
 ;   xa in 0(fp)
@@ -17019,23 +17191,23 @@ heldX:
   sw s0, 14(sp)
   mv fp, sp
   mv s1, a0 ; d
-  ; engine/look.e16.ts:300  const a = 1 - d
+  ; engine/look.e16.ts:327  const a = 1 - d
   li t0, 1
   sub s3, t0, s1
-  ; engine/look.e16.ts:301  const xa = i16(pointX(a))
+  ; engine/look.e16.ts:328  const xa = i16(pointX(a))
   mv a0, s3
   call pointX
   sw a0, 0(fp) ; xa
-  ; engine/look.e16.ts:302  const w = throwWord(d, 2)
+  ; engine/look.e16.ts:329  const w = throwWord(d, 2)
   mv a0, s1
   li a1, 2
   call throwWord
   sw a0, 2(fp) ; w
-  ; engine/look.e16.ts:303  const s = lowOf(w)
+  ; engine/look.e16.ts:330  const s = lowOf(w)
   lw a0, 2(fp)
   call lowOf
   mv s2, a0 ; s
-  ; engine/look.e16.ts:304  const to = s < 0 ? landX(d) : i16(pointX(d))
+  ; engine/look.e16.ts:331  const to = s < 0 ? landX(d) : i16(pointX(d))
   bge s2, zero, .L1
   mv a0, s1
   call landX
@@ -17047,7 +17219,7 @@ heldX:
   mv t0, a0
 .L2:
   sw t0, 4(fp) ; to
-  ; engine/look.e16.ts:305  return xa + idiv((to - xa) * (s < 0 ? -s : s), 16) + faceSign(a) * highOf(w)
+  ; engine/look.e16.ts:332  return xa + idiv((to - xa) * (s < 0 ? -s : s), 16) + faceSign(a) * highOf(w)
   lw t0, 0(fp) ; xa
   lw t1, 4(fp) ; to
   sub t1, t1, t0
@@ -17088,7 +17260,7 @@ heldX:
   addi sp, sp, 16
   ret
 
-; engine/look.e16.ts:314 landX(d) at -O1
+; engine/look.e16.ts:341 landX(d) at -O1
 ;   d in 2(fp)
 ;   a in 8(fp)
 ;   xa in s2
@@ -17114,34 +17286,34 @@ landX:
   sw s0, 34(sp)
   mv fp, sp
   sw a0, 2(fp) ; d
-  ; engine/look.e16.ts:315  const a = 1 - d
+  ; engine/look.e16.ts:342  const a = 1 - d
   lw t0, 2(fp) ; d
   li t1, 1
   sub t1, t1, t0
   sw t1, 8(fp) ; a
-  ; engine/look.e16.ts:316  const xa = i16(pointX(a))
+  ; engine/look.e16.ts:343  const xa = i16(pointX(a))
   lw a0, 8(fp)
   call pointX
   mv s2, a0 ; xa
-  ; engine/look.e16.ts:317  let x = i16(pointX(d))
+  ; engine/look.e16.ts:344  let x = i16(pointX(d))
   lw a0, 2(fp)
   call pointX
   mv s1, a0 ; x
-  ; engine/look.e16.ts:318  if (fThrowBack[a] !== 0) x = xa * 2 - x
+  ; engine/look.e16.ts:345  if (fThrowBack[a] !== 0) x = xa * 2 - x
   lw t0, 8(fp) ; a
   slli t0, t0, 1
   lw t0, fThrowBack(t0)
   beq t0, zero, .L1
-  ; engine/look.e16.ts:318  x = xa * 2 - x
+  ; engine/look.e16.ts:345  x = xa * 2 - x
   slli t0, s2, 1
   sub s1, t0, s1
 .L1:
-  ; engine/look.e16.ts:319  const s = fSlot[d]
+  ; engine/look.e16.ts:346  const s = fSlot[d]
   lw t0, 2(fp) ; d
   slli t0, t0, 1
   lw t0, fSlot(t0)
   sw t0, 16(fp) ; s
-  ; engine/look.e16.ts:320  const hd = i16(tableWord(slPosesB[s], slPosesA[s], PO_DOWN * POSE_W + 2) >> 1)
+  ; engine/look.e16.ts:347  const hd = i16(tableWord(slPosesB[s], slPosesA[s], PO_DOWN * POSE_W + 2) >> 1)
   lw t0, 16(fp) ; s
   slli t0, t0, 1
   lw t0, slPosesB(t0)
@@ -17154,27 +17326,27 @@ landX:
   call tableWord
   srli t0, a0, 1
   sw t0, 4(fp) ; hd
-  ; engine/look.e16.ts:321  const ha = i16(half(a))
+  ; engine/look.e16.ts:348  const ha = i16(half(a))
   lw a0, 8(fp)
   call half
   sw a0, 10(fp) ; ha
-  ; engine/look.e16.ts:322  x = inRing(x, hd)
+  ; engine/look.e16.ts:349  x = inRing(x, hd)
   mv a0, s1
   lw a1, 4(fp)
   call inRing
   mv s1, a0 ; x
-  ; engine/look.e16.ts:323  const dLeft = onLeft(d, x, xa)
+  ; engine/look.e16.ts:350  const dLeft = onLeft(d, x, xa)
   lw a0, 2(fp)
   mv a1, s1
   mv a2, s2
   call onLeft
   mv s3, a0 ; dLeft
-  ; engine/look.e16.ts:324  const reach = ha + hd
+  ; engine/look.e16.ts:351  const reach = ha + hd
   lw t0, 4(fp) ; hd
   lw t1, 10(fp) ; ha
   add t1, t1, t0
   sw t1, 12(fp) ; reach
-  ; engine/look.e16.ts:325  const gap = dLeft ? xa - x : x - xa
+  ; engine/look.e16.ts:352  const gap = dLeft ? xa - x : x - xa
   beqz s3, .L2
   sub t0, s2, s1
   j .L3
@@ -17182,22 +17354,22 @@ landX:
   sub t0, s1, s2
 .L3:
   sw t0, 18(fp) ; gap
-  ; engine/look.e16.ts:326  if (gap >= reach) return x
+  ; engine/look.e16.ts:353  if (gap >= reach) return x
   lw t0, 12(fp) ; reach
   lw t1, 18(fp) ; gap
   blt t1, t0, .L4
-  ; engine/look.e16.ts:326  return x
+  ; engine/look.e16.ts:353  return x
   mv a0, s1
   j .return
 .L4:
-  ; engine/look.e16.ts:327  const each = (reach - gap + 1) >> 1
+  ; engine/look.e16.ts:354  const each = (reach - gap + 1) >> 1
   lw t0, 18(fp) ; gap
   lw t1, 12(fp) ; reach
   sub t1, t1, t0
   addi t1, t1, 1
   srai t1, t1, 1
   sw t1, 20(fp) ; each
-  ; engine/look.e16.ts:328  const hl = dLeft ? hd : ha
+  ; engine/look.e16.ts:355  const hl = dLeft ? hd : ha
   beqz s3, .L5
   lw t0, 4(fp)
   j .L6
@@ -17205,7 +17377,7 @@ landX:
   lw t0, 10(fp)
 .L6:
   sw t0, 22(fp) ; hl
-  ; engine/look.e16.ts:329  const hr = dLeft ? ha : hd
+  ; engine/look.e16.ts:356  const hr = dLeft ? ha : hd
   beqz s3, .L7
   lw t0, 10(fp)
   j .L8
@@ -17213,7 +17385,7 @@ landX:
   lw t0, 4(fp)
 .L8:
   sw t0, 24(fp) ; hr
-  ; engine/look.e16.ts:330  let xl = inRing((dLeft ? x : xa) - each, hl)
+  ; engine/look.e16.ts:357  let xl = inRing((dLeft ? x : xa) - each, hl)
   beqz s3, .L9
   mv t0, s1
   j .L10
@@ -17225,7 +17397,7 @@ landX:
   lw a1, 22(fp)
   call inRing
   sw a0, 0(fp) ; xl
-  ; engine/look.e16.ts:331  let xr = inRing((dLeft ? xa : x) + each, hr)
+  ; engine/look.e16.ts:358  let xr = inRing((dLeft ? xa : x) + each, hr)
   beqz s3, .L11
   mv t0, s2
   j .L12
@@ -17237,36 +17409,36 @@ landX:
   lw a1, 24(fp)
   call inRing
   sw a0, 6(fp) ; xr
-  ; engine/look.e16.ts:332  const left = reach - (xr - xl)
+  ; engine/look.e16.ts:359  const left = reach - (xr - xl)
   lw t0, 0(fp) ; xl
   lw t1, 6(fp) ; xr
   sub t1, t1, t0
   lw t0, 12(fp) ; reach
   sub t0, t0, t1
   sw t0, 14(fp) ; left
-  ; engine/look.e16.ts:333  if (left > 0) {
+  ; engine/look.e16.ts:360  if (left > 0) {
   lw t0, 14(fp) ; left
   bge zero, t0, .L13
-  ; engine/look.e16.ts:334  if (xl <= i16(RING_L) + hl) xr = xr + left
+  ; engine/look.e16.ts:361  if (xl <= i16(RING_L) + hl) xr = xr + left
   lw t0, 22(fp) ; hl
   addi t0, t0, 32
   lw t1, 0(fp) ; xl
   blt t0, t1, .L14
-  ; engine/look.e16.ts:334  xr = xr + left
+  ; engine/look.e16.ts:361  xr = xr + left
   lw t0, 14(fp) ; left
   lw t1, 6(fp) ; xr
   add t1, t1, t0
   sw t1, 6(fp) ; xr
   j .L15
 .L14:
-  ; engine/look.e16.ts:335  xl = xl - left
+  ; engine/look.e16.ts:362  xl = xl - left
   lw t0, 14(fp) ; left
   lw t1, 0(fp) ; xl
   sub t1, t1, t0
   sw t1, 0(fp) ; xl
 .L15:
 .L13:
-  ; engine/look.e16.ts:337  return dLeft ? xl : xr
+  ; engine/look.e16.ts:364  return dLeft ? xl : xr
   beqz s3, .L16
   lw t0, 0(fp)
   j .L17
@@ -17284,18 +17456,18 @@ landX:
   addi sp, sp, 36
   ret
 
-; engine/look.e16.ts:344 onLeft(d, x, xa) at -O1
+; engine/look.e16.ts:371 onLeft(d, x, xa) at -O1
 ;   d in a0
 ;   x in a1
 ;   xa in a2
 onLeft:
-  ; engine/look.e16.ts:345  if (x !== xa) return x < xa
+  ; engine/look.e16.ts:372  if (x !== xa) return x < xa
   beq a1, a2, .L1
-  ; engine/look.e16.ts:345  return x < xa
+  ; engine/look.e16.ts:372  return x < xa
   slt a0, a1, a2
   ret
 .L1:
-  ; engine/look.e16.ts:346  return (fFace[1] !== 0 && fFace[0] === 0 ? 1 : 0) === d
+  ; engine/look.e16.ts:373  return (fFace[1] !== 0 && fFace[0] === 0 ? 1 : 0) === d
   lw t0, fFace+2(zero)
   beq t0, zero, .L2
   lw t0, fFace(zero)
@@ -17310,18 +17482,18 @@ onLeft:
 .return:
   ret
 
-; engine/look.e16.ts:350 inRing(x, h) at -O1
+; engine/look.e16.ts:377 inRing(x, h) at -O1
 ;   x in a0
 ;   h in a1
 ;   lo in a2
 ;   hi in a3
 inRing:
-  ; engine/look.e16.ts:351  const lo = i16(RING_L) + h
+  ; engine/look.e16.ts:378  const lo = i16(RING_L) + h
   addi a2, a1, 32
-  ; engine/look.e16.ts:352  const hi = i16(RING_R) - h
+  ; engine/look.e16.ts:379  const hi = i16(RING_R) - h
   li t0, 480
   sub a3, t0, a1
-  ; engine/look.e16.ts:353  return x < lo ? lo : x > hi ? hi : x
+  ; engine/look.e16.ts:380  return x < lo ? lo : x > hi ? hi : x
   bge a0, a2, .L1
   mv t0, a2
   j .L2
@@ -17337,7 +17509,7 @@ inRing:
 .return:
   ret
 
-; engine/look.e16.ts:360 landsBehind(a) at -O1
+; engine/look.e16.ts:387 landsBehind(a) at -O1
 ;   a in s1
 ;   d in s2
 ;   x in s3
@@ -17348,10 +17520,10 @@ landsBehind:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:361  const d = 1 - a
+  ; engine/look.e16.ts:388  const d = 1 - a
   li t0, 1
   sub s2, t0, s1
-  ; engine/look.e16.ts:362  const x = fState[d] === ST_THROWN ? landX(d) : i16(pointX(d))
+  ; engine/look.e16.ts:389  const x = fState[d] === ST_THROWN ? landX(d) : i16(pointX(d))
   slli t0, s2, 1
   lw t0, fState(t0)
   li t1, 12
@@ -17366,7 +17538,7 @@ landsBehind:
   mv t0, a0
 .L2:
   mv s3, t0 ; x
-  ; engine/look.e16.ts:363  return faceSign(a) * (x - i16(pointX(a))) < 0
+  ; engine/look.e16.ts:390  return faceSign(a) * (x - i16(pointX(a))) < 0
   mv a0, s1
   call faceSign
   addi sp, sp, -2
@@ -17386,13 +17558,13 @@ landsBehind:
   addi sp, sp, 8
   ret
 
-; engine/look.e16.ts:367 lowOf(w) at -O1
+; engine/look.e16.ts:394 lowOf(w) at -O1
 ;   w in a0
 ;   v in a1
 lowOf:
-  ; engine/look.e16.ts:368  const v = i16(w & 255)
+  ; engine/look.e16.ts:395  const v = i16(w & 255)
   andi a1, a0, 255
-  ; engine/look.e16.ts:369  return v > 127 ? v - 256 : v
+  ; engine/look.e16.ts:396  return v > 127 ? v - 256 : v
   li t0, 127
   bge t0, a1, .L1
   addi t0, a1, -256
@@ -17404,13 +17576,13 @@ lowOf:
 .return:
   ret
 
-; engine/look.e16.ts:372 highOf(w) at -O1
+; engine/look.e16.ts:399 highOf(w) at -O1
 ;   w in a0
 ;   v in a1
 highOf:
-  ; engine/look.e16.ts:373  const v = i16(w >> 8)
+  ; engine/look.e16.ts:400  const v = i16(w >> 8)
   srli a1, a0, 8
-  ; engine/look.e16.ts:374  return v > 127 ? v - 256 : v
+  ; engine/look.e16.ts:401  return v > 127 ? v - 256 : v
   li t0, 127
   bge t0, a1, .L1
   addi t0, a1, -256
@@ -17422,7 +17594,7 @@ highOf:
 .return:
   ret
 
-; engine/look.e16.ts:378 bodySprites(i) at -O1
+; engine/look.e16.ts:405 bodySprites(i) at -O1
 ;   i in s1
 ;   x in 2(fp)
 ;   y in 6(fp)
@@ -17442,45 +17614,45 @@ bodySprites:
   sw s0, 22(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/look.e16.ts:379  if (shOn[i] !== 0) {
+  ; engine/look.e16.ts:406  if (shOn[i] !== 0) {
   slli t0, s1, 1
   lw t0, shOn(t0)
   beq t0, zero, .L1
-  ; engine/look.e16.ts:380  shardSprites(i)
+  ; engine/look.e16.ts:407  shardSprites(i)
   mv a0, s1
   call shardSprites
-  ; engine/look.e16.ts:381  return
+  ; engine/look.e16.ts:408  return
   j .return
 .L1:
-  ; engine/look.e16.ts:383  let x = i16(pointX(i)) - i16(camX)
+  ; engine/look.e16.ts:410  let x = i16(pointX(i)) - i16(camX)
   mv a0, s1
   call pointX
   lw t0, 0x1996(zero)
   sub t0, a0, t0
   sw t0, 2(fp) ; x
-  ; engine/look.e16.ts:384  let y = i16(groundY) - i16(fY[i] >> 4)
+  ; engine/look.e16.ts:411  let y = i16(groundY) - i16(fY[i] >> 4)
   lw t0, 0x1540(zero)
   slli t1, s1, 1
   lw t1, fY(t1)
   srli t1, t1, 4
   sub t0, t0, t1
   sw t0, 6(fp) ; y
-  ; engine/look.e16.ts:385  let right = fFace[i] !== 0
+  ; engine/look.e16.ts:412  let right = fFace[i] !== 0
   slli t0, s1, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez t0, t0
   sw t0, 0(fp) ; right
-  ; engine/look.e16.ts:386  const st = fState[i]
+  ; engine/look.e16.ts:413  const st = fState[i]
   slli t0, s1, 1
   lw s2, fState(t0)
-  ; engine/look.e16.ts:387  if (st === ST_THROW || st === ST_THROWN) {
+  ; engine/look.e16.ts:414  if (st === ST_THROW || st === ST_THROWN) {
   li t0, 11
   beq s2, t0, .L3
   li t0, 12
   bne s2, t0, .L2
 .L3:
-  ; engine/look.e16.ts:390  const turned = (throwWord(i, st === ST_THROW ? 0 : 1) & 256) !== 0
+  ; engine/look.e16.ts:417  const turned = (throwWord(i, st === ST_THROW ? 0 : 1) & 256) !== 0
   mv t0, s1
   mv t1, s2
   li t2, 11
@@ -17497,7 +17669,7 @@ bodySprites:
   sub t0, t0, zero
   snez t0, t0
   sw t0, 4(fp) ; turned/tile
-  ; engine/look.e16.ts:391  if (turned && (st === ST_THROWN || landsBehind(i))) right = !right
+  ; engine/look.e16.ts:418  if (turned && (st === ST_THROWN || landsBehind(i))) right = !right
   lw t0, 4(fp) ; turned/tile
   beqz t0, .L6
   li t0, 12
@@ -17506,21 +17678,21 @@ bodySprites:
   call landsBehind
   beqz a0, .L6
 .L7:
-  ; engine/look.e16.ts:391  right = !right
+  ; engine/look.e16.ts:418  right = !right
   lw t0, 0(fp) ; right
   seqz t0, t0
   sw t0, 0(fp) ; right
 .L6:
-  ; engine/look.e16.ts:392  if (st === ST_THROWN) {
+  ; engine/look.e16.ts:419  if (st === ST_THROWN) {
   li t0, 12
   bne s2, t0, .L8
-  ; engine/look.e16.ts:393  x = heldX(i) - i16(camX)
+  ; engine/look.e16.ts:420  x = heldX(i) - i16(camX)
   mv a0, s1
   call heldX
   lw t0, 0x1996(zero)
   sub t0, a0, t0
   sw t0, 2(fp) ; x
-  ; engine/look.e16.ts:394  y = i16(groundY) - i16(throwWord(i, 3))
+  ; engine/look.e16.ts:421  y = i16(groundY) - i16(throwWord(i, 3))
   lw t0, 0x1540(zero)
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -17533,7 +17705,7 @@ bodySprites:
   sw t0, 6(fp) ; y
 .L8:
 .L2:
-  ; engine/look.e16.ts:397  const tile = (S1_TILE + i * 128) | (i << 10) | (right ? 0 : FLIP_H)
+  ; engine/look.e16.ts:424  const tile = (S1_TILE + i * 128) | (i << 10) | (right ? 0 : FLIP_H)
   slli t0, s1, 7
   slli t1, s1, 10
   addi t0, t0, 257
@@ -17547,7 +17719,7 @@ bodySprites:
 .L10:
   or t0, t0, t1
   sw t0, 4(fp) ; turned/tile
-  ; engine/look.e16.ts:398  const n = art[i * ART_W + 1]
+  ; engine/look.e16.ts:425  const n = art[i * ART_W + 1]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -17555,12 +17727,12 @@ bodySprites:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 12(fp) ; n
-  ; engine/look.e16.ts:399  let c: u16 = 0
+  ; engine/look.e16.ts:426  let c: u16 = 0
   li s3, 0 ; c
-  ; engine/look.e16.ts:400  while (c < n) {
+  ; engine/look.e16.ts:427  while (c < n) {
   j .L13
 .L11:
-  ; engine/look.e16.ts:401  const w = art[i * ART_W + 2 + c]
+  ; engine/look.e16.ts:428  const w = art[i * ART_W + 2 + c]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -17569,11 +17741,11 @@ bodySprites:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 8(fp) ; w
-  ; engine/look.e16.ts:402  const dx = lowOf(w)
+  ; engine/look.e16.ts:429  const dx = lowOf(w)
   lw a0, 8(fp)
   call lowOf
   sw a0, 10(fp) ; dx
-  ; engine/look.e16.ts:403  spr(right ? x + dx : x - dx - 16, y + highOf(w), tile + c * 4, S16)
+  ; engine/look.e16.ts:430  spr(right ? x + dx : x - dx - 16, y + highOf(w), tile + c * 4, S16)
   lw t0, 0(fp) ; right
   beqz t0, .L15
   lw t0, 10(fp) ; dx
@@ -17602,7 +17774,7 @@ bodySprites:
   mv a2, t2
   li a3, 1
   call spr
-  ; engine/look.e16.ts:404  c++
+  ; engine/look.e16.ts:431  c++
   addi s3, s3, 1
 .L13:
   lw t0, 12(fp) ; n
@@ -17617,7 +17789,7 @@ bodySprites:
   addi sp, sp, 24
   ret
 
-; engine/look.e16.ts:412 shadow(i) at -O1
+; engine/look.e16.ts:439 shadow(i) at -O1
 ;   i in s1
 ;   held in 0(fp)
 ;   x in s2
@@ -17632,21 +17804,21 @@ shadow:
   sw s0, 12(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/look.e16.ts:413  if (shOn[i] !== 0) return
+  ; engine/look.e16.ts:440  if (shOn[i] !== 0) return
   slli t0, s1, 1
   lw t0, shOn(t0)
   beq t0, zero, .L1
-  ; engine/look.e16.ts:413  return
+  ; engine/look.e16.ts:440  return
   j .return
 .L1:
-  ; engine/look.e16.ts:414  const held = fState[i] === ST_THROWN
+  ; engine/look.e16.ts:441  const held = fState[i] === ST_THROWN
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 12
   sub t0, t0, t1
   seqz t0, t0
   sw t0, 0(fp) ; held
-  ; engine/look.e16.ts:415  const x = (held ? heldX(i) : i16(pointX(i))) - i16(camX)
+  ; engine/look.e16.ts:442  const x = (held ? heldX(i) : i16(pointX(i))) - i16(camX)
   lw t0, 0(fp) ; held
   beqz t0, .L2
   mv a0, s1
@@ -17660,7 +17832,7 @@ shadow:
 .L3:
   lw t1, 0x1996(zero)
   sub s2, t0, t1
-  ; engine/look.e16.ts:416  const h = held ? throwWord(i, 3) : fY[i] >> 4
+  ; engine/look.e16.ts:443  const h = held ? throwWord(i, 3) : fY[i] >> 4
   lw t0, 0(fp) ; held
   beqz t0, .L4
   mv a0, s1
@@ -17674,27 +17846,27 @@ shadow:
   srli t0, t0, 4
 .L5:
   sw t0, 2(fp) ; h
-  ; engine/look.e16.ts:417  const y = i16(groundY) - 4
+  ; engine/look.e16.ts:444  const y = i16(groundY) - 4
   lw t0, 0x1540(zero)
   addi s3, t0, -4
-  ; engine/look.e16.ts:418  const t = SHADOW_TILE | FX_PAL
-  ; engine/look.e16.ts:419  if (h < 20) {
+  ; engine/look.e16.ts:445  const t = SHADOW_TILE | FX_PAL
+  ; engine/look.e16.ts:446  if (h < 20) {
   li t0, 20
   lw t1, 2(fp) ; h
   bgeu t1, t0, .L6
-  ; engine/look.e16.ts:420  spr(x - 24, y, t, S16)
+  ; engine/look.e16.ts:447  spr(x - 24, y, t, S16)
   addi a0, s2, -24
   mv a1, s3
   li a2, 2641
   li a3, 1
   call spr
-  ; engine/look.e16.ts:421  spr(x - 8, y, t + 4, S16)
+  ; engine/look.e16.ts:448  spr(x - 8, y, t + 4, S16)
   addi a0, s2, -8
   mv a1, s3
   li a2, 2645
   li a3, 1
   call spr
-  ; engine/look.e16.ts:422  spr(x + 8, y, t | FLIP_H, S16)
+  ; engine/look.e16.ts:449  spr(x + 8, y, t | FLIP_H, S16)
   addi a0, s2, 8
   mv a1, s3
   li a2, 10833
@@ -17702,17 +17874,17 @@ shadow:
   call spr
   j .L7
 .L6:
-  ; engine/look.e16.ts:423  if (h < 50) {
+  ; engine/look.e16.ts:450  if (h < 50) {
   li t0, 50
   lw t1, 2(fp) ; h
   bgeu t1, t0, .L8
-  ; engine/look.e16.ts:424  spr(x - 16, y, t + 8, S16)
+  ; engine/look.e16.ts:451  spr(x - 16, y, t + 8, S16)
   addi a0, s2, -16
   mv a1, s3
   li a2, 2649
   li a3, 1
   call spr
-  ; engine/look.e16.ts:425  spr(x, y, (t + 8) | FLIP_H, S16)
+  ; engine/look.e16.ts:452  spr(x, y, (t + 8) | FLIP_H, S16)
   mv a0, s2
   mv a1, s3
   li a2, 10841
@@ -17720,7 +17892,7 @@ shadow:
   call spr
   j .L9
 .L8:
-  ; engine/look.e16.ts:426  spr(x - 8, y, t + 12, S16)
+  ; engine/look.e16.ts:453  spr(x - 8, y, t + 12, S16)
   addi a0, s2, -8
   mv a1, s3
   li a2, 2653
@@ -17738,7 +17910,7 @@ shadow:
   addi sp, sp, 14
   ret
 
-; engine/look.e16.ts:452 koStep(i) at -O1
+; engine/look.e16.ts:479 koStep(i) at -O1
 ;   i in s1
 ;   over in s2
 koStep:
@@ -17747,7 +17919,7 @@ koStep:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; engine/look.e16.ts:453  const over = phase === PH_OVER || phase === PH_END
+  ; engine/look.e16.ts:480  const over = phase === PH_OVER || phase === PH_END
   lw t0, 0x0c98(zero)
   li t1, 2
   sub t0, t0, t1
@@ -17760,15 +17932,15 @@ koStep:
   seqz t0, t0
 .L1:
   mv s2, t0 ; over
-  ; engine/look.e16.ts:454  if (!over) {
+  ; engine/look.e16.ts:481  if (!over) {
   bnez s2, .L2
-  ; engine/look.e16.ts:455  shOn[i] = 0
+  ; engine/look.e16.ts:482  shOn[i] = 0
   slli t0, s1, 1
   sw zero, shOn(t0)
-  ; engine/look.e16.ts:456  return
+  ; engine/look.e16.ts:483  return
   j .return
 .L2:
-  ; engine/look.e16.ts:458  if (phase === PH_OVER && roundWon === i && phaseT >= WIN_AT) fWin[i] = 1
+  ; engine/look.e16.ts:485  if (phase === PH_OVER && roundWon === i && phaseT >= WIN_AT) fWin[i] = 1
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L3
@@ -17777,19 +17949,19 @@ koStep:
   lw t0, 0x0c9a(zero)
   li t1, 60
   bltu t0, t1, .L3
-  ; engine/look.e16.ts:458  fWin[i] = 1
+  ; engine/look.e16.ts:485  fWin[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fWin(t0)
 .L3:
-  ; engine/look.e16.ts:459  if (fLife[i] !== 0) return
+  ; engine/look.e16.ts:486  if (fLife[i] !== 0) return
   slli t0, s1, 1
   lw t0, fLife(t0)
   beq t0, zero, .L4
-  ; engine/look.e16.ts:459  return
+  ; engine/look.e16.ts:486  return
   j .return
 .L4:
-  ; engine/look.e16.ts:460  if (phase === PH_OVER && phaseT === BREAK_AT && shOn[i] === 0) {
+  ; engine/look.e16.ts:487  if (phase === PH_OVER && phaseT === BREAK_AT && shOn[i] === 0) {
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L5
@@ -17799,18 +17971,18 @@ koStep:
   slli t0, s1, 1
   lw t0, shOn(t0)
   bne t0, zero, .L5
-  ; engine/look.e16.ts:461  shatter(i)
+  ; engine/look.e16.ts:488  shatter(i)
   mv a0, s1
   call shatter
-  ; engine/look.e16.ts:462  sfx(X_SHARDS)
+  ; engine/look.e16.ts:489  sfx(X_SHARDS)
   li a0, 8
   call sfx
 .L5:
-  ; engine/look.e16.ts:464  if (shOn[i] !== 0) shardsMove(i)
+  ; engine/look.e16.ts:491  if (shOn[i] !== 0) shardsMove(i)
   slli t0, s1, 1
   lw t0, shOn(t0)
   beq t0, zero, .L6
-  ; engine/look.e16.ts:464  shardsMove(i)
+  ; engine/look.e16.ts:491  shardsMove(i)
   mv a0, s1
   call shardsMove
 .L6:
@@ -17821,7 +17993,7 @@ koStep:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:472 shatter(i) at -O1
+; engine/look.e16.ts:499 shatter(i) at -O1
 ;   i in s1
 ;   right in 6(fp)
 ;   x0 in 8(fp)
@@ -17843,15 +18015,15 @@ shatter:
   sw s0, 26(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/look.e16.ts:473  artHold[i] = 1
+  ; engine/look.e16.ts:500  artHold[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, artHold(t0)
-  ; engine/look.e16.ts:474  boxPose[i] = 0xffff
+  ; engine/look.e16.ts:501  boxPose[i] = 0xffff
   slli t0, s1, 1
   li t1, 65535
   sw t1, boxPose(t0)
-  ; engine/look.e16.ts:475  artCopy(i, fSlot[i], fAir[i] !== 0 ? SHARDS_AIR : SHARDS_ROW)
+  ; engine/look.e16.ts:502  artCopy(i, fSlot[i], fAir[i] !== 0 ? SHARDS_AIR : SHARDS_ROW)
   slli t0, s1, 1
   lw t0, fSlot(t0)
   slli t1, s1, 1
@@ -17869,28 +18041,28 @@ shatter:
   mv a1, t1
   mv a2, t2
   call artCopy
-  ; engine/look.e16.ts:476  shOn[i] = 1
+  ; engine/look.e16.ts:503  shOn[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, shOn(t0)
-  ; engine/look.e16.ts:477  const right = fFace[i] !== 0
+  ; engine/look.e16.ts:504  const right = fFace[i] !== 0
   slli t0, s1, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez t0, t0
   sw t0, 6(fp) ; right
-  ; engine/look.e16.ts:478  const x0 = i16(pointX(i))
+  ; engine/look.e16.ts:505  const x0 = i16(pointX(i))
   mv a0, s1
   call pointX
   sw a0, 8(fp) ; x0
-  ; engine/look.e16.ts:479  const y0 = i16(groundY) - i16(fY[i] >> 4)
+  ; engine/look.e16.ts:506  const y0 = i16(groundY) - i16(fY[i] >> 4)
   lw t0, 0x1540(zero)
   slli t1, s1, 1
   lw t1, fY(t1)
   srli t1, t1, 4
   sub t0, t0, t1
   sw t0, 12(fp) ; y0
-  ; engine/look.e16.ts:480  const n = art[i * ART_W + 1]
+  ; engine/look.e16.ts:507  const n = art[i * ART_W + 1]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -17898,14 +18070,14 @@ shatter:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 0(fp) ; n
-  ; engine/look.e16.ts:481  let mean: i16 = 0
+  ; engine/look.e16.ts:508  let mean: i16 = 0
   li s3, 0 ; mean
-  ; engine/look.e16.ts:482  let c: u16 = 0
+  ; engine/look.e16.ts:509  let c: u16 = 0
   li s2, 0 ; c
-  ; engine/look.e16.ts:483  while (c < n) {
+  ; engine/look.e16.ts:510  while (c < n) {
   j .L5
 .L3:
-  ; engine/look.e16.ts:484  mean = mean + lowOf(art[i * ART_W + 2 + c])
+  ; engine/look.e16.ts:511  mean = mean + lowOf(art[i * ART_W + 2 + c])
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -17915,24 +18087,24 @@ shatter:
   lw a0, art(t0)
   call lowOf
   add s3, s3, a0
-  ; engine/look.e16.ts:485  c++
+  ; engine/look.e16.ts:512  c++
   addi s2, s2, 1
 .L5:
   lw t0, 0(fp) ; n
   bltu s2, t0, .L3
-  ; engine/look.e16.ts:487  if (n > 0) mean = idiv(mean, i16(n))
+  ; engine/look.e16.ts:514  if (n > 0) mean = idiv(mean, i16(n))
   lw t0, 0(fp) ; n
   bgeu zero, t0, .L7
-  ; engine/look.e16.ts:487  mean = idiv(mean, i16(n))
+  ; engine/look.e16.ts:514  mean = idiv(mean, i16(n))
   lw t0, 0(fp) ; n
   div s3, s3, t0
 .L7:
-  ; engine/look.e16.ts:488  c = 0
+  ; engine/look.e16.ts:515  c = 0
   li s2, 0 ; c
-  ; engine/look.e16.ts:489  while (c < n) {
+  ; engine/look.e16.ts:516  while (c < n) {
   j .L10
 .L8:
-  ; engine/look.e16.ts:490  const w = art[i * ART_W + 2 + c]
+  ; engine/look.e16.ts:517  const w = art[i * ART_W + 2 + c]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -17941,15 +18113,15 @@ shatter:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 10(fp) ; w
-  ; engine/look.e16.ts:491  const dx = lowOf(w)
+  ; engine/look.e16.ts:518  const dx = lowOf(w)
   lw a0, 10(fp)
   call lowOf
   sw a0, 2(fp) ; dx
-  ; engine/look.e16.ts:492  const e = i * 32 + c
+  ; engine/look.e16.ts:519  const e = i * 32 + c
   slli t0, s1, 5
   add t0, t0, s2
   sw t0, 4(fp) ; e
-  ; engine/look.e16.ts:493  const px = right ? x0 + dx : x0 - dx - 16
+  ; engine/look.e16.ts:520  const px = right ? x0 + dx : x0 - dx - 16
   lw t0, 6(fp) ; right
   beqz t0, .L12
   lw t0, 2(fp) ; dx
@@ -17963,7 +18135,7 @@ shatter:
   addi t0, t1, -16
 .L13:
   sw t0, 14(fp) ; px
-  ; engine/look.e16.ts:494  const away = right ? dx - mean : mean - dx
+  ; engine/look.e16.ts:521  const away = right ? dx - mean : mean - dx
   lw t0, 6(fp) ; right
   beqz t0, .L14
   lw t0, 2(fp) ; dx
@@ -17974,13 +18146,13 @@ shatter:
   sub t0, s3, t0
 .L15:
   sw t0, 16(fp) ; away
-  ; engine/look.e16.ts:495  shX[e] = u16(px * 16)
+  ; engine/look.e16.ts:522  shX[e] = u16(px * 16)
   lw t0, 4(fp) ; e
   slli t0, t0, 1
   lw t1, 14(fp) ; px
   slli t1, t1, 4
   sw t1, shX(t0)
-  ; engine/look.e16.ts:498  shY[e] = u16((y0 + highOf(w) - i16((c & 1) * 16)) * 16)
+  ; engine/look.e16.ts:525  shY[e] = u16((y0 + highOf(w) - i16((c & 1) * 16)) * 16)
   lw t0, 4(fp) ; e
   slli t0, t0, 1
   addi t0, t0, shY
@@ -17997,7 +18169,7 @@ shatter:
   lw t1, 0(sp)
   addi sp, sp, 2
   sw t0, 0(t1)
-  ; engine/look.e16.ts:499  shVX[e] = u16(away * 3 + i16((c * 7) & 15) - 8)
+  ; engine/look.e16.ts:526  shVX[e] = u16(away * 3 + i16((c * 7) & 15) - 8)
   lw t0, 4(fp) ; e
   slli t0, t0, 1
   lw t1, 16(fp) ; away
@@ -18009,7 +18181,7 @@ shatter:
   add t1, t1, t2
   addi t1, t1, -8
   sw t1, shVX(t0)
-  ; engine/look.e16.ts:500  shVY[e] = u16(-24 - i16((c * 13) & 31))
+  ; engine/look.e16.ts:527  shVY[e] = u16(-24 - i16((c * 13) & 31))
   lw t0, 4(fp) ; e
   slli t0, t0, 1
   li t1, 13
@@ -18018,7 +18190,7 @@ shatter:
   li t2, 65512
   sub t2, t2, t1
   sw t2, shVY(t0)
-  ; engine/look.e16.ts:501  c++
+  ; engine/look.e16.ts:528  c++
   addi s2, s2, 1
 .L10:
   lw t0, 0(fp) ; n
@@ -18033,34 +18205,34 @@ shatter:
   addi sp, sp, 28
   ret
 
-; engine/look.e16.ts:505 shardsMove(i) at -O1
+; engine/look.e16.ts:532 shardsMove(i) at -O1
 ;   i in a0
 ;   n in a3
 ;   c in a2
 ;   e in a1
 shardsMove:
-  ; engine/look.e16.ts:506  const n = art[i * ART_W + 1]
+  ; engine/look.e16.ts:533  const n = art[i * ART_W + 1]
   slli t1, a0, 5
   slli t0, a0, 1
   add t0, t0, t1
   addi t0, t0, 1
   slli t0, t0, 1
   lw a3, art(t0)
-  ; engine/look.e16.ts:507  let c: u16 = 0
+  ; engine/look.e16.ts:534  let c: u16 = 0
   li a2, 0 ; c
-  ; engine/look.e16.ts:508  while (c < n) {
+  ; engine/look.e16.ts:535  while (c < n) {
   j .L3
 .L1:
-  ; engine/look.e16.ts:509  const e = i * 32 + c
+  ; engine/look.e16.ts:536  const e = i * 32 + c
   slli t0, a0, 5
   add a1, t0, a2
-  ; engine/look.e16.ts:510  shVY[e] = u16(i16(shVY[e]) + GRAVITY)
+  ; engine/look.e16.ts:537  shVY[e] = u16(i16(shVY[e]) + GRAVITY)
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, shVY(t1)
   addi t1, t1, 3
   sw t1, shVY(t0)
-  ; engine/look.e16.ts:511  shX[e] = u16(i16(shX[e]) + i16(shVX[e]))
+  ; engine/look.e16.ts:538  shX[e] = u16(i16(shX[e]) + i16(shVX[e]))
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, shX(t1)
@@ -18068,7 +18240,7 @@ shardsMove:
   lw t2, shVX(t2)
   add t1, t1, t2
   sw t1, shX(t0)
-  ; engine/look.e16.ts:512  shY[e] = u16(i16(shY[e]) + i16(shVY[e]))
+  ; engine/look.e16.ts:539  shY[e] = u16(i16(shY[e]) + i16(shVY[e]))
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, shY(t1)
@@ -18076,14 +18248,14 @@ shardsMove:
   lw t2, shVY(t2)
   add t1, t1, t2
   sw t1, shY(t0)
-  ; engine/look.e16.ts:513  c++
+  ; engine/look.e16.ts:540  c++
   addi a2, a2, 1
 .L3:
   bltu a2, a3, .L1
 .return:
   ret
 
-; engine/look.e16.ts:517 shardSprites(i) at -O1
+; engine/look.e16.ts:544 shardSprites(i) at -O1
 ;   i in s1
 ;   n in 2(fp)
 ;   tile in 4(fp)
@@ -18099,7 +18271,7 @@ shardSprites:
   sw s0, 14(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/look.e16.ts:518  const n = art[i * ART_W + 1]
+  ; engine/look.e16.ts:545  const n = art[i * ART_W + 1]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -18107,7 +18279,7 @@ shardSprites:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 2(fp) ; n
-  ; engine/look.e16.ts:519  const tile = (S1_TILE + i * 128) | (i << 10) | (fFace[i] !== 0 ? 0 : FLIP_H)
+  ; engine/look.e16.ts:546  const tile = (S1_TILE + i * 128) | (i << 10) | (fFace[i] !== 0 ? 0 : FLIP_H)
   slli t0, s1, 7
   slli t1, s1, 10
   addi t0, t0, 257
@@ -18123,24 +18295,24 @@ shardSprites:
 .L2:
   or t0, t0, t1
   sw t0, 4(fp) ; tile
-  ; engine/look.e16.ts:520  let c: u16 = 0
+  ; engine/look.e16.ts:547  let c: u16 = 0
   li s2, 0 ; c
-  ; engine/look.e16.ts:521  while (c < n) {
+  ; engine/look.e16.ts:548  while (c < n) {
   j .L5
 .L3:
-  ; engine/look.e16.ts:522  const e = i * 32 + c
+  ; engine/look.e16.ts:549  const e = i * 32 + c
   slli t0, s1, 5
   add s3, t0, s2
-  ; engine/look.e16.ts:523  const y = i16(shY[e]) >> 4
+  ; engine/look.e16.ts:550  const y = i16(shY[e]) >> 4
   slli t0, s3, 1
   lw t0, shY(t0)
   srai t0, t0, 4
   sw t0, 0(fp) ; y
-  ; engine/look.e16.ts:524  if (y < 300) spr((i16(shX[e]) >> 4) - i16(camX), y, tile + c * 4, S16)
+  ; engine/look.e16.ts:551  if (y < 300) spr((i16(shX[e]) >> 4) - i16(camX), y, tile + c * 4, S16)
   li t0, 300
   lw t1, 0(fp) ; y
   bge t1, t0, .L7
-  ; engine/look.e16.ts:524  spr((i16(shX[e]) >> 4) - i16(camX), y, tile + c * 4, S16)
+  ; engine/look.e16.ts:551  spr((i16(shX[e]) >> 4) - i16(camX), y, tile + c * 4, S16)
   slli t0, s3, 1
   lw t0, shX(t0)
   srai t0, t0, 4
@@ -18155,7 +18327,7 @@ shardSprites:
   li a3, 1
   call spr
 .L7:
-  ; engine/look.e16.ts:525  c++
+  ; engine/look.e16.ts:552  c++
   addi s2, s2, 1
 .L5:
   lw t0, 2(fp) ; n
@@ -18170,7 +18342,7 @@ shardSprites:
   addi sp, sp, 16
   ret
 
-; engine/look.e16.ts:549 palStep(i) at -O1
+; engine/look.e16.ts:576 palStep(i) at -O1
 ;   i in s1
 ;   key in s2
 palStep:
@@ -18179,21 +18351,21 @@ palStep:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; engine/look.e16.ts:550  const key = palWanted(i)
+  ; engine/look.e16.ts:577  const key = palWanted(i)
   mv a0, s1
   call palWanted
   mv s2, a0 ; key
-  ; engine/look.e16.ts:551  if (key === palKey[i]) return
+  ; engine/look.e16.ts:578  if (key === palKey[i]) return
   slli t0, s1, 1
   lw t0, palKey(t0)
   bne s2, t0, .L1
-  ; engine/look.e16.ts:551  return
+  ; engine/look.e16.ts:578  return
   j .return
 .L1:
-  ; engine/look.e16.ts:552  palKey[i] = key
+  ; engine/look.e16.ts:579  palKey[i] = key
   slli t0, s1, 1
   sw s2, palKey(t0)
-  ; engine/look.e16.ts:553  palShow(8 + i, key >> 8, key & 255)
+  ; engine/look.e16.ts:580  palShow(8 + i, key >> 8, key & 255)
   srli t0, s2, 8
   andi t1, s2, 255
   addi a0, s1, 8
@@ -18207,7 +18379,7 @@ palStep:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:559 introStep(t) at -O1
+; engine/look.e16.ts:586 introStep(t) at -O1
 ;   t in s2
 ;   k in s1
 introStep:
@@ -18216,11 +18388,11 @@ introStep:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; t
-  ; engine/look.e16.ts:560  const k = introKey(t)
+  ; engine/look.e16.ts:587  const k = introKey(t)
   mv a0, s2
   call introKey
   mv s1, a0 ; k
-  ; engine/look.e16.ts:561  return k >> 8 === M_NORMAL ? 6 : k & 255
+  ; engine/look.e16.ts:588  return k >> 8 === M_NORMAL ? 6 : k & 255
   srli t0, s1, 8
   bne t0, zero, .L1
   li t0, 6
@@ -18236,7 +18408,7 @@ introStep:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:568 palWanted(i) at -O1
+; engine/look.e16.ts:595 palWanted(i) at -O1
 ;   i in s1
 ;   t in s2
 palWanted:
@@ -18245,11 +18417,11 @@ palWanted:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; engine/look.e16.ts:569  if (shOn[i] !== 0) {
+  ; engine/look.e16.ts:596  if (shOn[i] !== 0) {
   slli t0, s1, 1
   lw t0, shOn(t0)
   beq t0, zero, .L1
-  ; engine/look.e16.ts:570  const t = phaseT > FADE_AT ? phaseT - FADE_AT : 0
+  ; engine/look.e16.ts:597  const t = phaseT > FADE_AT ? phaseT - FADE_AT : 0
   lw t0, 0x0c9a(zero)
   li t1, 96
   bgeu t1, t0, .L2
@@ -18260,7 +18432,7 @@ palWanted:
   li t0, 0
 .L3:
   mv s2, t0 ; t
-  ; engine/look.e16.ts:571  return (M_PIECES << 8) | (t > 16 ? 16 : t)
+  ; engine/look.e16.ts:598  return (M_PIECES << 8) | (t > 16 ? 16 : t)
   li t0, 1792
   mv t1, s2
   li t2, 16
@@ -18273,7 +18445,7 @@ palWanted:
   or a0, t0, t1
   j .return
 .L1:
-  ; engine/look.e16.ts:573  if (phase === PH_OVER && fLife[i] === 0 && phaseT >= VOID_FROM) {
+  ; engine/look.e16.ts:600  if (phase === PH_OVER && fLife[i] === 0 && phaseT >= VOID_FROM) {
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L6
@@ -18283,10 +18455,10 @@ palWanted:
   lw t0, 0x0c9a(zero)
   li t1, 24
   bltu t0, t1, .L6
-  ; engine/look.e16.ts:574  const t = phaseT - VOID_FROM
+  ; engine/look.e16.ts:601  const t = phaseT - VOID_FROM
   lw t0, 0x0c9a(zero)
   addi s2, t0, -24
-  ; engine/look.e16.ts:575  return (M_KO << 8) | (t > 16 ? 16 : t)
+  ; engine/look.e16.ts:602  return (M_KO << 8) | (t > 16 ? 16 : t)
   li t0, 1536
   mv t1, s2
   li t2, 16
@@ -18299,40 +18471,40 @@ palWanted:
   or a0, t0, t1
   j .return
 .L6:
-  ; engine/look.e16.ts:577  if (phase === PH_ROUND) return introKey(phaseT)
+  ; engine/look.e16.ts:604  if (phase === PH_ROUND) return introKey(phaseT)
   lw t0, 0x0c98(zero)
   bne t0, zero, .L9
-  ; engine/look.e16.ts:577  return introKey(phaseT)
+  ; engine/look.e16.ts:604  return introKey(phaseT)
   lw a0, 0x0c9a(zero)
   call introKey
   j .return
 .L9:
-  ; engine/look.e16.ts:578  if (fState[i] === ST_THROWN) return M_THROWN << 8
+  ; engine/look.e16.ts:605  if (fState[i] === ST_THROWN) return M_THROWN << 8
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 12
   bne t0, t1, .L10
-  ; engine/look.e16.ts:578  return M_THROWN << 8
+  ; engine/look.e16.ts:605  return M_THROWN << 8
   li a0, 1024
   j .return
 .L10:
-  ; engine/look.e16.ts:579  if (flashT[i] > 0) return M_FLASH << 8
+  ; engine/look.e16.ts:606  if (flashT[i] > 0) return M_FLASH << 8
   slli t0, s1, 1
   lw t0, flashT(t0)
   bgeu zero, t0, .L11
-  ; engine/look.e16.ts:579  return M_FLASH << 8
+  ; engine/look.e16.ts:606  return M_FLASH << 8
   li a0, 512
   j .return
 .L11:
-  ; engine/look.e16.ts:580  if (guardT[i] > 0) return M_GUARD << 8
+  ; engine/look.e16.ts:607  if (guardT[i] > 0) return M_GUARD << 8
   slli t0, s1, 1
   lw t0, guardT(t0)
   bgeu zero, t0, .L12
-  ; engine/look.e16.ts:580  return M_GUARD << 8
+  ; engine/look.e16.ts:607  return M_GUARD << 8
   li a0, 768
   j .return
 .L12:
-  ; engine/look.e16.ts:581  if (fLife[i] * 4 < prAt(i, P_LIFE) && (frame & 16) !== 0) return M_LOW << 8
+  ; engine/look.e16.ts:608  if (fLife[i] * 4 < prAt(i, P_LIFE) && (frame & 16) !== 0) return M_LOW << 8
   slli t0, s1, 1
   lw t0, fLife(t0)
   slli t0, t0, 2
@@ -18347,11 +18519,11 @@ palWanted:
   lw t0, 0x0c94(zero)
   andi t0, t0, 16
   beq t0, zero, .L13
-  ; engine/look.e16.ts:581  return M_LOW << 8
+  ; engine/look.e16.ts:608  return M_LOW << 8
   li a0, 1280
   j .return
 .L13:
-  ; engine/look.e16.ts:582  return M_NORMAL << 8
+  ; engine/look.e16.ts:609  return M_NORMAL << 8
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -18360,29 +18532,29 @@ palWanted:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:586 introKey(t) at -O1
+; engine/look.e16.ts:613 introKey(t) at -O1
 ;   t in a0
 ;   s in a1
 introKey:
-  ; engine/look.e16.ts:587  if (t < 10) return M_INTRO << 8
+  ; engine/look.e16.ts:614  if (t < 10) return M_INTRO << 8
   li t0, 10
   bgeu a0, t0, .L1
-  ; engine/look.e16.ts:587  return M_INTRO << 8
+  ; engine/look.e16.ts:614  return M_INTRO << 8
   li a0, 256
   ret
 .L1:
-  ; engine/look.e16.ts:588  if (t < 18) return (M_INTRO << 8) | 1
+  ; engine/look.e16.ts:615  if (t < 18) return (M_INTRO << 8) | 1
   li t0, 18
   bgeu a0, t0, .L2
-  ; engine/look.e16.ts:588  return (M_INTRO << 8) | 1
+  ; engine/look.e16.ts:615  return (M_INTRO << 8) | 1
   li a0, 257
   ret
 .L2:
-  ; engine/look.e16.ts:589  const s = 2 + ((t - 18) >> 2)
+  ; engine/look.e16.ts:616  const s = 2 + ((t - 18) >> 2)
   addi t0, a0, -18
   srli t0, t0, 2
   addi a1, t0, 2
-  ; engine/look.e16.ts:590  return s >= 6 ? M_NORMAL << 8 : (M_INTRO << 8) | s
+  ; engine/look.e16.ts:617  return s >= 6 ? M_NORMAL << 8 : (M_INTRO << 8) | s
   li t0, 6
   bltu a1, t0, .L3
   li t0, 0
@@ -18395,7 +18567,7 @@ introKey:
 .return:
   ret
 
-; engine/look.e16.ts:597 palShow(sl, mode, step) at -O1
+; engine/look.e16.ts:624 palShow(sl, mode, step) at -O1
 ;   sl in s2
 ;   mode in s3
 ;   step in 0(fp)
@@ -18414,16 +18586,16 @@ palShow:
   mv s2, a0 ; sl
   mv s3, a1 ; mode
   sw a2, 0(fp) ; step
-  ; engine/look.e16.ts:598  const base = sl * 16
+  ; engine/look.e16.ts:625  const base = sl * 16
   slli t0, s2, 4
   sw t0, 2(fp) ; base
-  ; engine/look.e16.ts:599  const empty = palCopy[base + 13]
+  ; engine/look.e16.ts:626  const empty = palCopy[base + 13]
   lw t0, 2(fp) ; base
   addi t0, t0, 13
   slli t0, t0, 1
   lw t0, palCopy(t0)
   sw t0, 4(fp) ; empty
-  ; engine/look.e16.ts:600  const m = mode === M_INTRO && step >= 6 ? M_NORMAL : mode
+  ; engine/look.e16.ts:627  const m = mode === M_INTRO && step >= 6 ? M_NORMAL : mode
   li t0, 1
   bne s3, t0, .L1
   li t0, 6
@@ -18435,12 +18607,12 @@ palShow:
   mv t0, s3
 .L2:
   sw t0, 6(fp) ; m
-  ; engine/look.e16.ts:601  let k: u16 = 1
+  ; engine/look.e16.ts:628  let k: u16 = 1
   li s1, 1 ; k
-  ; engine/look.e16.ts:602  while (k < 16) {
+  ; engine/look.e16.ts:629  while (k < 16) {
   j .L5
 .L3:
-  ; engine/look.e16.ts:603  colour(sl, k, colourOf(base, k, (m << 8) | step, empty))
+  ; engine/look.e16.ts:630  colour(sl, k, colourOf(base, k, (m << 8) | step, empty))
   lw t0, 6(fp) ; m
   slli t0, t0, 8
   lw t1, 0(fp) ; step
@@ -18454,7 +18626,7 @@ palShow:
   mv a2, a0
   mv a0, s2
   call colour
-  ; engine/look.e16.ts:604  k++
+  ; engine/look.e16.ts:631  k++
   addi s1, s1, 1
 .L5:
   li t0, 16
@@ -18469,10 +18641,10 @@ palShow:
   addi sp, sp, 18
   ret
 
-; engine/look.e16.ts:608 isFill(k) at -O1
+; engine/look.e16.ts:635 isFill(k) at -O1
 ;   k in a0
 isFill:
-  ; engine/look.e16.ts:609  return k >= 3 && k <= 13
+  ; engine/look.e16.ts:636  return k >= 3 && k <= 13
   li t0, 3
   sltu t0, a0, t0
   xori t0, t0, 1
@@ -18486,7 +18658,7 @@ isFill:
 .return:
   ret
 
-; engine/look.e16.ts:613 colourOf(base, k, key, empty) at -O1
+; engine/look.e16.ts:640 colourOf(base, k, key, empty) at -O1
 ;   base in 0(fp)
 ;   k in s1
 ;   key in 6(fp)
@@ -18506,22 +18678,22 @@ colourOf:
   mv s1, a1 ; k
   sw a2, 6(fp) ; key
   sw a3, 2(fp) ; empty
-  ; engine/look.e16.ts:614  const c = palCopy[base + k]
+  ; engine/look.e16.ts:641  const c = palCopy[base + k]
   lw t0, 0(fp) ; base
   add t0, t0, s1
   slli t0, t0, 1
   lw s2, palCopy(t0)
-  ; engine/look.e16.ts:615  const mode = key >> 8
+  ; engine/look.e16.ts:642  const mode = key >> 8
   lw t0, 6(fp) ; key
   srli s3, t0, 8
-  ; engine/look.e16.ts:616  const step = key & 255
+  ; engine/look.e16.ts:643  const step = key & 255
   lw t0, 6(fp) ; key
   andi t0, t0, 255
   sw t0, 4(fp) ; step
-  ; engine/look.e16.ts:617  if (mode === M_INTRO) return introColour(base, k, step, empty)
+  ; engine/look.e16.ts:644  if (mode === M_INTRO) return introColour(base, k, step, empty)
   li t0, 1
   bne s3, t0, .L1
-  ; engine/look.e16.ts:617  return introColour(base, k, step, empty)
+  ; engine/look.e16.ts:644  return introColour(base, k, step, empty)
   lw a0, 0(fp)
   mv a1, s1
   lw a2, 4(fp)
@@ -18529,10 +18701,10 @@ colourOf:
   call introColour
   j .return
 .L1:
-  ; engine/look.e16.ts:618  if (mode === M_KO) return isFill(k) ? mix(c, empty, step) : c
+  ; engine/look.e16.ts:645  if (mode === M_KO) return isFill(k) ? mix(c, empty, step) : c
   li t0, 6
   bne s3, t0, .L2
-  ; engine/look.e16.ts:618  return isFill(k) ? mix(c, empty, step) : c
+  ; engine/look.e16.ts:645  return isFill(k) ? mix(c, empty, step) : c
   mv a0, s1
   call isFill
   beqz a0, .L3
@@ -18548,10 +18720,10 @@ colourOf:
   mv a0, t0
   j .return
 .L2:
-  ; engine/look.e16.ts:619  if (mode === M_PIECES) return mix(isFill(k) ? empty : c, 0, step)
+  ; engine/look.e16.ts:646  if (mode === M_PIECES) return mix(isFill(k) ? empty : c, 0, step)
   li t0, 7
   bne s3, t0, .L5
-  ; engine/look.e16.ts:619  return mix(isFill(k) ? empty : c, 0, step)
+  ; engine/look.e16.ts:646  return mix(isFill(k) ? empty : c, 0, step)
   mv a0, s1
   call isFill
   beqz a0, .L6
@@ -18566,23 +18738,23 @@ colourOf:
   call mix
   j .return
 .L5:
-  ; engine/look.e16.ts:620  if (mode === M_FLASH) return flashColour(c, k)
+  ; engine/look.e16.ts:647  if (mode === M_FLASH) return flashColour(c, k)
   li t0, 2
   bne s3, t0, .L8
-  ; engine/look.e16.ts:620  return flashColour(c, k)
+  ; engine/look.e16.ts:647  return flashColour(c, k)
   mv a0, s2
   mv a1, s1
   call flashColour
   j .return
 .L8:
-  ; engine/look.e16.ts:621  if (k > 2) return c
+  ; engine/look.e16.ts:648  if (k > 2) return c
   li t0, 2
   bgeu t0, s1, .L9
-  ; engine/look.e16.ts:621  return c
+  ; engine/look.e16.ts:648  return c
   mv a0, s2
   j .return
 .L9:
-  ; engine/look.e16.ts:622  return wireColour(base, k, mode)
+  ; engine/look.e16.ts:649  return wireColour(base, k, mode)
   lw a0, 0(fp)
   mv a1, s1
   mv a2, s3
@@ -18597,7 +18769,7 @@ colourOf:
   addi sp, sp, 18
   ret
 
-; engine/look.e16.ts:626 flashColour(c, k) at -O1
+; engine/look.e16.ts:653 flashColour(c, k) at -O1
 ;   c in s1
 ;   k in s2
 flashColour:
@@ -18607,14 +18779,14 @@ flashColour:
   sw s2, 4(sp)
   mv s1, a0 ; c
   mv s2, a1 ; k
-  ; engine/look.e16.ts:627  if (k <= 2) return WHITE
+  ; engine/look.e16.ts:654  if (k <= 2) return WHITE
   li t0, 2
   bltu t0, s2, .L1
-  ; engine/look.e16.ts:627  return WHITE
+  ; engine/look.e16.ts:654  return WHITE
   li a0, 32767
   j .return
 .L1:
-  ; engine/look.e16.ts:628  return k <= 11 ? mix(c, WHITE, 6) : c
+  ; engine/look.e16.ts:655  return k <= 11 ? mix(c, WHITE, 6) : c
   li t0, 11
   bltu t0, s2, .L2
   mv a0, s1
@@ -18634,20 +18806,20 @@ flashColour:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:632 wireColour(base, k, mode) at -O1
+; engine/look.e16.ts:659 wireColour(base, k, mode) at -O1
 ;   base in a0
 ;   k in a1
 ;   mode in a2
 ;   one in a3
 wireColour:
-  ; engine/look.e16.ts:633  const one = k === 1
+  ; engine/look.e16.ts:660  const one = k === 1
   li t0, 1
   sub t0, a1, t0
   seqz a3, t0
-  ; engine/look.e16.ts:634  if (mode === M_GUARD) return one ? GUARD_1 : GUARD_2
+  ; engine/look.e16.ts:661  if (mode === M_GUARD) return one ? GUARD_1 : GUARD_2
   li t0, 3
   bne a2, t0, .L1
-  ; engine/look.e16.ts:634  return one ? GUARD_1 : GUARD_2
+  ; engine/look.e16.ts:661  return one ? GUARD_1 : GUARD_2
   beqz a3, .L2
   li t0, 32696
   j .L3
@@ -18657,10 +18829,10 @@ wireColour:
   mv a0, t0
   ret
 .L1:
-  ; engine/look.e16.ts:635  if (mode === M_THROWN) return one ? THROWN_1 : THROWN_2
+  ; engine/look.e16.ts:662  if (mode === M_THROWN) return one ? THROWN_1 : THROWN_2
   li t0, 4
   bne a2, t0, .L4
-  ; engine/look.e16.ts:635  return one ? THROWN_1 : THROWN_2
+  ; engine/look.e16.ts:662  return one ? THROWN_1 : THROWN_2
   beqz a3, .L5
   li t0, 30111
   j .L6
@@ -18670,24 +18842,24 @@ wireColour:
   mv a0, t0
   ret
 .L4:
-  ; engine/look.e16.ts:636  if (mode === M_LOW && one) return palCopy[base + 2]
+  ; engine/look.e16.ts:663  if (mode === M_LOW && one) return palCopy[base + 2]
   li t0, 5
   bne a2, t0, .L7
   beqz a3, .L7
-  ; engine/look.e16.ts:636  return palCopy[base + 2]
+  ; engine/look.e16.ts:663  return palCopy[base + 2]
   addi t0, a0, 2
   slli t0, t0, 1
   lw a0, palCopy(t0)
   ret
 .L7:
-  ; engine/look.e16.ts:637  return palCopy[base + k]
+  ; engine/look.e16.ts:664  return palCopy[base + k]
   add t0, a0, a1
   slli t0, t0, 1
   lw a0, palCopy(t0)
 .return:
   ret
 
-; engine/look.e16.ts:640 introColour(base, k, step, empty) at -O1
+; engine/look.e16.ts:667 introColour(base, k, step, empty) at -O1
 ;   base in s3
 ;   k in s1
 ;   step in s2
@@ -18705,37 +18877,37 @@ introColour:
   mv s1, a1 ; k
   mv s2, a2 ; step
   sw a3, 0(fp) ; empty
-  ; engine/look.e16.ts:641  const c = palCopy[base + k]
+  ; engine/look.e16.ts:668  const c = palCopy[base + k]
   add t0, s3, s1
   slli t0, t0, 1
   lw t0, palCopy(t0)
   sw t0, 2(fp) ; c
-  ; engine/look.e16.ts:642  if (k === 1 && step === 0) return palCopy[base + 2]
+  ; engine/look.e16.ts:669  if (k === 1 && step === 0) return palCopy[base + 2]
   li t0, 1
   bne s1, t0, .L1
   bne s2, zero, .L1
-  ; engine/look.e16.ts:642  return palCopy[base + 2]
+  ; engine/look.e16.ts:669  return palCopy[base + 2]
   addi t0, s3, 2
   slli t0, t0, 1
   lw a0, palCopy(t0)
   j .return
 .L1:
-  ; engine/look.e16.ts:643  if (!isFill(k)) return c
+  ; engine/look.e16.ts:670  if (!isFill(k)) return c
   mv a0, s1
   call isFill
   bnez a0, .L2
-  ; engine/look.e16.ts:643  return c
+  ; engine/look.e16.ts:670  return c
   lw a0, 2(fp)
   j .return
 .L2:
-  ; engine/look.e16.ts:644  if (step < 2) return empty
+  ; engine/look.e16.ts:671  if (step < 2) return empty
   li t0, 2
   bgeu s2, t0, .L3
-  ; engine/look.e16.ts:644  return empty
+  ; engine/look.e16.ts:671  return empty
   lw a0, 0(fp)
   j .return
 .L3:
-  ; engine/look.e16.ts:645  return mix(empty, c, (step - 1) * 4)
+  ; engine/look.e16.ts:672  return mix(empty, c, (step - 1) * 4)
   addi t0, s2, -1
   slli t0, t0, 2
   lw a0, 0(fp)
@@ -18752,39 +18924,39 @@ introColour:
   addi sp, sp, 14
   ret
 
-; engine/look.e16.ts:662 soundStep() at -O1
+; engine/look.e16.ts:689 soundStep() at -O1
 soundStep:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/look.e16.ts:663  if (phase !== soundPhase) {
+  ; engine/look.e16.ts:690  if (phase !== soundPhase) {
   lw t0, 0x0c98(zero)
   lw t1, 0x1e62(zero)
   beq t0, t1, .L1
-  ; engine/look.e16.ts:664  soundPhase = phase
+  ; engine/look.e16.ts:691  soundPhase = phase
   lw t0, 0x0c98(zero)
   sw t0, 0x1e62(zero)
-  ; engine/look.e16.ts:665  if (phase === PH_ROUND) sfx(X_ROUND)
+  ; engine/look.e16.ts:692  if (phase === PH_ROUND) sfx(X_ROUND)
   lw t0, 0x0c98(zero)
   bne t0, zero, .L2
-  ; engine/look.e16.ts:665  sfx(X_ROUND)
+  ; engine/look.e16.ts:692  sfx(X_ROUND)
   li a0, 9
   call sfx
   j .L3
 .L2:
-  ; engine/look.e16.ts:666  if (phase === PH_FIGHT) sfx(X_FIGHT)
+  ; engine/look.e16.ts:693  if (phase === PH_FIGHT) sfx(X_FIGHT)
   lw t0, 0x0c98(zero)
   li t1, 1
   bne t0, t1, .L4
-  ; engine/look.e16.ts:666  sfx(X_FIGHT)
+  ; engine/look.e16.ts:693  sfx(X_FIGHT)
   li a0, 10
   call sfx
   j .L5
 .L4:
-  ; engine/look.e16.ts:667  if (phase === PH_OVER) sfx(fLife[0] === 0 || fLife[1] === 0 ? X_KO : X_ROUND)
+  ; engine/look.e16.ts:694  if (phase === PH_OVER) sfx(fLife[0] === 0 || fLife[1] === 0 ? X_KO : X_ROUND)
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L6
-  ; engine/look.e16.ts:667  sfx(fLife[0] === 0 || fLife[1] === 0 ? X_KO : X_ROUND)
+  ; engine/look.e16.ts:694  sfx(fLife[0] === 0 || fLife[1] === 0 ? X_KO : X_ROUND)
   lw t0, fLife(zero)
   beq t0, zero, .L9
   lw t0, fLife+2(zero)
@@ -18801,17 +18973,17 @@ soundStep:
 .L5:
 .L3:
 .L1:
-  ; engine/look.e16.ts:669  if (phase === PH_ROUND && phaseT === MAT_AT) sfx(X_MAT)
+  ; engine/look.e16.ts:696  if (phase === PH_ROUND && phaseT === MAT_AT) sfx(X_MAT)
   lw t0, 0x0c98(zero)
   bne t0, zero, .L10
   lw t0, 0x0c9a(zero)
   li t1, 18
   bne t0, t1, .L10
-  ; engine/look.e16.ts:669  sfx(X_MAT)
+  ; engine/look.e16.ts:696  sfx(X_MAT)
   li a0, 13
   call sfx
 .L10:
-  ; engine/look.e16.ts:670  if (phase === PH_FIGHT && timeLeft !== soundTime && timeLeft <= 10 && timeLeft > 0) sfx(X_TIME)
+  ; engine/look.e16.ts:697  if (phase === PH_FIGHT && timeLeft !== soundTime && timeLeft <= 10 && timeLeft > 0) sfx(X_TIME)
   lw t0, 0x0c98(zero)
   li t1, 1
   bne t0, t1, .L11
@@ -18823,17 +18995,17 @@ soundStep:
   bltu t1, t0, .L11
   lw t0, 0x0c9c(zero)
   bgeu zero, t0, .L11
-  ; engine/look.e16.ts:670  sfx(X_TIME)
+  ; engine/look.e16.ts:697  sfx(X_TIME)
   li a0, 11
   call sfx
 .L11:
-  ; engine/look.e16.ts:671  soundTime = timeLeft
+  ; engine/look.e16.ts:698  soundTime = timeLeft
   lw t0, 0x0c9c(zero)
   sw t0, 0x1e64(zero)
-  ; engine/look.e16.ts:672  fighterSounds(0)
+  ; engine/look.e16.ts:699  fighterSounds(0)
   li a0, 0
   call fighterSounds
-  ; engine/look.e16.ts:673  fighterSounds(1)
+  ; engine/look.e16.ts:700  fighterSounds(1)
   li a0, 1
   call fighterSounds
 .return:
@@ -18841,7 +19013,7 @@ soundStep:
   addi sp, sp, 2
   ret
 
-; engine/look.e16.ts:676 fighterSounds(a) at -O1
+; engine/look.e16.ts:703 fighterSounds(a) at -O1
 ;   a in s1
 ;   s in s2
 fighterSounds:
@@ -18850,16 +19022,16 @@ fighterSounds:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:677  const s = struck[a]
+  ; engine/look.e16.ts:704  const s = struck[a]
   slli t0, s1, 1
   lw s2, struck(t0)
-  ; engine/look.e16.ts:678  if (s === 1 || s === 3) sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
+  ; engine/look.e16.ts:705  if (s === 1 || s === 3) sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
   li t0, 1
   beq s2, t0, .L2
   li t0, 3
   bne s2, t0, .L1
 .L2:
-  ; engine/look.e16.ts:678  sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
+  ; engine/look.e16.ts:705  sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
   slli t0, s1, 1
   lw t0, fMove(t0)
   mv a0, s1
@@ -18877,36 +19049,36 @@ fighterSounds:
   call sfx
   j .L5
 .L1:
-  ; engine/look.e16.ts:679  if (s === 2) sfx(X_GUARD)
+  ; engine/look.e16.ts:706  if (s === 2) sfx(X_GUARD)
   li t0, 2
   bne s2, t0, .L6
-  ; engine/look.e16.ts:679  sfx(X_GUARD)
+  ; engine/look.e16.ts:706  sfx(X_GUARD)
   li a0, 2
   call sfx
   j .L7
 .L6:
-  ; engine/look.e16.ts:680  if (s === 4) sfx(X_DOWN)
+  ; engine/look.e16.ts:707  if (s === 4) sfx(X_DOWN)
   li t0, 4
   bne s2, t0, .L8
-  ; engine/look.e16.ts:680  sfx(X_DOWN)
+  ; engine/look.e16.ts:707  sfx(X_DOWN)
   li a0, 7
   call sfx
 .L8:
 .L7:
 .L5:
-  ; engine/look.e16.ts:681  if (threw[a] !== 0) sfx(X_THROW)
+  ; engine/look.e16.ts:708  if (threw[a] !== 0) sfx(X_THROW)
   slli t0, s1, 1
   lw t0, threw(t0)
   beq t0, zero, .L9
-  ; engine/look.e16.ts:681  sfx(X_THROW)
+  ; engine/look.e16.ts:708  sfx(X_THROW)
   li a0, 5
   call sfx
 .L9:
-  ; engine/look.e16.ts:682  stateSounds(a, s)
+  ; engine/look.e16.ts:709  stateSounds(a, s)
   mv a0, s1
   mv a1, s2
   call stateSounds
-  ; engine/look.e16.ts:683  swingSound(a)
+  ; engine/look.e16.ts:710  swingSound(a)
   mv a0, s1
   call swingSound
 .return:
@@ -18916,7 +19088,7 @@ fighterSounds:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:687 stateSounds(a, s) at -O1
+; engine/look.e16.ts:714 stateSounds(a, s) at -O1
 ;   a in s2
 ;   s in s3
 ;   st in s1
@@ -18928,41 +19100,41 @@ stateSounds:
   sw s1, 6(sp)
   mv s2, a0 ; a
   mv s3, a1 ; s
-  ; engine/look.e16.ts:688  const st = fState[a]
+  ; engine/look.e16.ts:715  const st = fState[a]
   slli t0, s2, 1
   lw s1, fState(t0)
-  ; engine/look.e16.ts:689  if (st !== soundSt[a]) {
+  ; engine/look.e16.ts:716  if (st !== soundSt[a]) {
   slli t0, s2, 1
   lw t0, soundSt(t0)
   beq s1, t0, .L1
-  ; engine/look.e16.ts:690  soundSt[a] = st
+  ; engine/look.e16.ts:717  soundSt[a] = st
   slli t0, s2, 1
   sw s1, soundSt(t0)
-  ; engine/look.e16.ts:691  if (st === ST_DASH || st === ST_BACKDASH) sfx(X_DASH)
+  ; engine/look.e16.ts:718  if (st === ST_DASH || st === ST_BACKDASH) sfx(X_DASH)
   li t0, 13
   beq s1, t0, .L3
   li t0, 14
   bne s1, t0, .L2
 .L3:
-  ; engine/look.e16.ts:691  sfx(X_DASH)
+  ; engine/look.e16.ts:718  sfx(X_DASH)
   li a0, 4
   call sfx
   j .L4
 .L2:
-  ; engine/look.e16.ts:692  if (st === ST_LAND) sfx(X_LAND)
+  ; engine/look.e16.ts:719  if (st === ST_LAND) sfx(X_LAND)
   li t0, 4
   bne s1, t0, .L5
-  ; engine/look.e16.ts:692  sfx(X_LAND)
+  ; engine/look.e16.ts:719  sfx(X_LAND)
   li a0, 6
   call sfx
   j .L6
 .L5:
-  ; engine/look.e16.ts:693  if (st === ST_DOWN && s !== 4) sfx(X_DOWN)
+  ; engine/look.e16.ts:720  if (st === ST_DOWN && s !== 4) sfx(X_DOWN)
   li t0, 8
   bne s1, t0, .L7
   li t0, 4
   beq s3, t0, .L7
-  ; engine/look.e16.ts:693  sfx(X_DOWN)
+  ; engine/look.e16.ts:720  sfx(X_DOWN)
   li a0, 7
   call sfx
 .L7:
@@ -18977,7 +19149,7 @@ stateSounds:
   addi sp, sp, 8
   ret
 
-; engine/look.e16.ts:698 swingSound(a) at -O1
+; engine/look.e16.ts:725 swingSound(a) at -O1
 ;   a in s1
 ;   st in s3
 ;   f in s2
@@ -18988,13 +19160,13 @@ swingSound:
   sw s3, 4(sp)
   sw s2, 6(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:699  const st = fState[a]
+  ; engine/look.e16.ts:726  const st = fState[a]
   slli t0, s1, 1
   lw s3, fState(t0)
-  ; engine/look.e16.ts:700  const f = fMoveF[a]
+  ; engine/look.e16.ts:727  const f = fMoveF[a]
   slli t0, s1, 1
   lw s2, fMoveF(t0)
-  ; engine/look.e16.ts:701  if (st === ST_ATTACK && f !== soundF[a] && fMove[a] !== MV_THROW) {
+  ; engine/look.e16.ts:728  if (st === ST_ATTACK && f !== soundF[a] && fMove[a] !== MV_THROW) {
   li t0, 5
   bne s3, t0, .L1
   slli t0, s1, 1
@@ -19004,7 +19176,7 @@ swingSound:
   lw t0, fMove(t0)
   li t1, 12
   beq t0, t1, .L1
-  ; engine/look.e16.ts:702  if (f === mvAt(a, fMove[a], M_STARTUP)) sfx(X_WHIFF)
+  ; engine/look.e16.ts:729  if (f === mvAt(a, fMove[a], M_STARTUP)) sfx(X_WHIFF)
   slli t0, s1, 1
   lw t0, fMove(t0)
   mv a0, s1
@@ -19012,12 +19184,12 @@ swingSound:
   li a2, 0
   call mvAt
   bne s2, a0, .L2
-  ; engine/look.e16.ts:702  sfx(X_WHIFF)
+  ; engine/look.e16.ts:729  sfx(X_WHIFF)
   li a0, 3
   call sfx
 .L2:
 .L1:
-  ; engine/look.e16.ts:704  soundF[a] = st === ST_ATTACK ? f : 0
+  ; engine/look.e16.ts:731  soundF[a] = st === ST_ATTACK ? f : 0
   slli t0, s1, 1
   addi t0, t0, soundF
   mv t1, s3

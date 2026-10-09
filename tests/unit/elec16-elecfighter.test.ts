@@ -1425,6 +1425,47 @@ describe('ELECFIGHTER anti-air and walls (P2, design 7.4, 7.7)', () => {
     expect(rowText(m, LOG_ROW)).toBe('> P1 ANTI-AIR')
   })
 
+  it('rewards an anti-air that does its job: twice the damage, a longer stop, the large spark', () => {
+    /**
+     * P1's crouching heavy punch on P2, in the air or standing (S1 against S1, the ladder's
+     * last: it reaches a standing S1's head, not S2's), what the hit did.
+     */
+    const uppercut = (air: boolean) => {
+      const m = fight(CLOCK, [2, 2], 0, MIRROR)
+      place(m, 236, air ? 256 : 272)
+      if (air) {
+        put(m, 'fAir', 1, 1)
+        put(m, 'fY', 50 * 16, 1)
+        put(m, 'fState', ST.jump, 1)
+      }
+      for (let k = 0; k < 14 && read(m, 'struck', 0) === 0; k++)
+        step(m, k === 0 ? I.down | I.hp : I.down)
+      const hit = {
+        struck: read(m, 'struck', 0),
+        dealt: read(m, 'dealt', 0),
+        aa: (read(m, 'how', 0) >> 4) & 1,
+        stop: read(m, 'hitstop'),
+        knocked: read(m, 'fKnock', 1),
+      }
+      step(m, I.down)
+      return { ...hit, fx: read(m, 'fxK', 0), log: rowText(m, LOG_ROW) }
+    }
+    const base = row(MV.cHP)[C.damage] ?? 0
+    const stop = row(MV.cHP)[C.stop] ?? 0
+    // A jumper hit by it: twice the table's damage, 6 frames more hitstop, knocked down.
+    expect(uppercut(true)).toEqual({
+      struck: 1,
+      dealt: base * 2,
+      aa: 1,
+      stop: stop + 6,
+      knocked: 1,
+      fx: 3,
+      log: '> P1 ANTI-AIR',
+    })
+    // A standing one hit by it: only the table's.
+    expect(uppercut(false)).toMatchObject({ struck: 1, dealt: base, aa: 0, stop, fx: 1 })
+  })
+
   it('pushes the striker back when the one struck is at the wall', () => {
     /** P1's heavy punch on P2 at `x`: how far P1 has gone back 20 frames after. */
     const back = (x: number) => {
@@ -2082,6 +2123,20 @@ function heldThroughWindow(way: number): void {
   for (const l of window.slice(5)) expect(l.p2.mid, `frame ${l.t}`).toBe(window[4]?.p2.mid)
 }
 
+/** The sprites shown, by number: where, their palette slot (from 8) and size. */
+function oamOrder(m: Elec16): { k: number; x: number; y: number; pal: number; size: number }[] {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  const out: { k: number; x: number; y: number; pal: number; size: number }[] = []
+  for (let k = 0; k < 128; k++) {
+    const w = (n: number) =>
+      (mem[0xc000 + k * 8 + n * 2] ?? 0) | ((mem[0xc000 + k * 8 + n * 2 + 1] ?? 0) << 8)
+    const size = w(3) & 3
+    if (size === 3) continue
+    out.push({ k, x: (w(0) << 16) >> 16, y: (w(1) << 16) >> 16, pal: (w(2) >> 10) & 7, size })
+  }
+  return out
+}
+
 /** Where P2's cells are drawn (OAM, palette slot 9), their middle in world points. */
 function heldAt(m: Elec16): number {
   const mem = m.state.video?.mem ?? new Uint8Array()
@@ -2183,6 +2238,71 @@ describe('ELECFIGHTER the look (P3, design 2.4)', () => {
       steps(m, 3, 0, I.down)
       steps(m, 4, 0, guard)
       expect(heldThroughStop(m, guard)).toBeGreaterThan(3)
+    }
+  })
+
+  it('draws a spark behind its striker and over the struck: a heavy kick held out whole', () => {
+    // Found in play 2026-10-09: the spark, drawn over both bodies at the hit box's end, hid a
+    // heavy kick's shin and foot through all the hitstop it is held out in, and the kick looked
+    // as if it never straightened. Every cell was there, under the spark.
+    for (const striker of [0, 1]) {
+      const m = fight()
+      place(m, 236, 291)
+      for (let k = 0; k < 30 && read(m, 'struck', striker) === 0; k++)
+        step(m, striker === 0 && k < 2 ? I.hk : 0, striker === 1 && k < 2 ? I.hk : 0)
+      expect(read(m, 'struck', striker)).toBe(1)
+      // Two frames on, the sprites made with the kick's picture are shown, the hitstop still on.
+      steps(m, 2)
+      expect(read(m, 'hitstop')).toBeGreaterThan(0)
+      const order = oamOrder(m)
+      const spark = order.findIndex((o) => o.pal === 2 && o.size === 2)
+      const mine = order.filter((o) => o.pal === striker).map((o) => o.k)
+      const theirs = order.filter((o) => o.pal === 1 - striker).map((o) => o.k)
+      expect(spark).toBeGreaterThanOrEqual(0)
+      const at = order[spark]?.k ?? 0
+      expect(mine.length).toBe(read(m, 'art', striker * 34 + 1))
+      expect(Math.max(...mine), `striker ${striker}`).toBeLessThan(at)
+      expect(Math.min(...theirs), `striker ${striker}`).toBeGreaterThan(at)
+    }
+  })
+
+  it('shows every cell of every picture of every slot where art.txt places it, both ways', () => {
+    for (let s = 0; s < 4; s++) {
+      const m = fight(CLOCK, [2, 2], s)
+      for (const facing of [1, 0]) {
+        place(m, facing === 1 ? 236 : 300, facing === 1 ? 300 : 236)
+        const art = ARTS[s]
+        if (art === undefined) throw new Error(`no slot ${s}`)
+        art.rows.forEach((row, r) => {
+          // The picture put in P1's room as `artCopy` puts it, held there (as a KO's pieces are).
+          for (let k = 0; k < 34; k++) put(m, 'art', row[k] ?? 0, k)
+          put(m, 'artWant', s + 1, 0)
+          put(m, 'artHold', 1, 0)
+          steps(m, 2)
+          const x = (read(m, 'fX', 0) >> 4) - read(m, 'camX')
+          const y = read(m, 'groundY')
+          const want = Array.from({ length: row[1] ?? 0 }, (_, c) => {
+            const w = row[2 + c] ?? 0
+            const dx = (w << 24) >> 24
+            return `${facing === 1 ? x + dx : x - dx - 16},${y + ((w << 16) >> 24)}`
+          }).sort()
+          const got = oamOrder(m)
+            .filter((o) => o.pal === 0)
+            .map((o) => `${o.x},${o.y}`)
+            .sort()
+          expect(got, `slot ${s} row ${r} facing ${facing}`).toEqual(want)
+          // The room holds the picture's cells as the sheet has them.
+          const mem = m.state.video?.mem ?? new Uint8Array()
+          const room = Number(/export const S1_TILE = (0x[0-9a-f]+)/.exec(built.report.assets)?.[1])
+          for (let c = 0; c < (row[1] ?? 0); c++) {
+            const a = (room + c * 4) * 32
+            expect([...mem.subarray(a, a + 128)], `slot ${s} row ${r} cell ${c}`).toEqual(
+              cellTiles((cx, cy) => art.cell((row[0] ?? 0) + c, cx, cy)),
+            )
+          }
+        })
+        put(m, 'artHold', 0, 0)
+      }
     }
   })
 
