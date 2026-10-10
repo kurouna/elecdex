@@ -9,12 +9,12 @@ import { launch } from './support.js'
  * QUAKE lamp is there only with quake alerts on.
  */
 
-const beside = (share: number) => ({
+const beside = (share: number, direction: 'row' | 'column' = 'row') => ({
   version: 1,
   root: {
     kind: 'split',
     id: 's',
-    direction: 'row',
+    direction,
     sizes: [share, 1 - share],
     children: [
       { kind: 'pane', id: 'cl', widget: 'cluster' },
@@ -73,16 +73,37 @@ async function partsApart(page: Page): Promise<void> {
   }
 }
 
-for (const [width, height, share, tier] of [
-  [1920, 1080, 0.98, 'wide'],
-  [1366, 768, 0.45, 'medium'],
-  [1366, 340, 0.98, 'short'],
-  [1366, 768, 0.22, 'narrow'],
-] as const) {
-  test(`lays itself out ${tier} at ${width}x${height}, its parts never running into each other`, async () => {
-    const { app, page, close } = await launch(undefined, { layout: beside(share) })
+/** A window size, CLUSTER's share of it, and, for the 9:16 tour's tall window, its zoom. */
+type Room = {
+  width: number
+  height: number
+  share: number
+  tier: string
+  column?: true
+  zoom?: number
+}
+
+for (const { width, height, share, tier, column, zoom } of [
+  { width: 1920, height: 1080, share: 0.98, tier: 'wide' },
+  { width: 1366, height: 768, share: 0.45, tier: 'medium' },
+  // The 9:16 tour: 720x1280 through a zoom of 0.75, CLUSTER over a shell. The type grows with
+  // the window's height, and measured in CSS pixels its slots once lay over its lanes.
+  { width: 540, height: 960, share: 0.7, tier: 'medium', column: true, zoom: 0.75 },
+  { width: 1366, height: 340, share: 0.98, tier: 'short' },
+  { width: 1366, height: 768, share: 0.22, tier: 'narrow' },
+] satisfies Room[]) {
+  const how = column === true ? ' over a pane' : ''
+  test(`lays itself out ${tier} at ${width}x${height}${how}, its parts never running into each other`, async () => {
+    const layout = beside(share, column === true ? 'column' : 'row')
+    const { app, page, close } = await launch(undefined, { layout })
     try {
       await sizeTo(app, width, height)
+      if (zoom !== undefined) {
+        await app.evaluate(
+          ({ BrowserWindow }, z) => BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(z),
+          zoom,
+        )
+      }
       await expect(page.getByTestId('cluster')).toHaveAttribute('data-tier', tier)
       // A few readings in, so every lane has something in it.
       await expect(page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)

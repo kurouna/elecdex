@@ -8,6 +8,8 @@ import {
   clusterMessage,
   clusterTier,
   cpuLevel,
+  DESIGN_FONT_PX,
+  designSize,
   formatRate,
   fullestVolume,
   groupCores,
@@ -338,6 +340,9 @@ describe('tiers', () => {
     expect(clusterTier(width - 40, height, 'wide')).not.toBe('wide')
     expect(clusterTier(width + 4, height + 4, 'medium')).toBe('medium')
     expect(clusterTier(width + 40, height + 40, 'medium')).toBe('wide')
+    // Found in the cockpit demo: dragged narrower (short) and back to cockpit's 1110 by 610, the
+    // pane stayed short, its width only 10 px past wide's line.
+    expect(clusterTier(1110, 610, 'short')).toBe('wide')
   })
 
   it('give the spec row only room left over, so it never pushes a pane down a tier', () => {
@@ -357,7 +362,29 @@ describe('tiers', () => {
     expect(showCores('wide', 1178, 492)).toBe(false)
     expect(showCores('medium', 598, 632)).toBe(false)
     expect(showCores('medium', 598, 700)).toBe(false)
-    expect(showCores('medium', 598, 740)).toBe(true)
+    // Two lanes' room for the cores row, which is two lanes high.
+    expect(showCores('medium', 598, 740)).toBe(false)
+    expect(showCores('medium', 598, 790)).toBe(true)
     expect(showCores('short', 1178, 272)).toBe(false)
+  })
+})
+
+describe('designSize', () => {
+  it('measures a pane in the pixels of the 1080-high design size', () => {
+    expect(designSize(800, 600, DESIGN_FONT_PX)).toEqual({ width: 800, height: 600 })
+    // A tall window's larger type: the 9:16 tour's 720x1280 has a root font of about 18.9 px.
+    const tall = designSize(720, 887, 0.0148 * 1280)
+    expect(tall.width).toBeCloseTo(608, 0)
+    expect(tall.height).toBeCloseTo(749, 0)
+    expect(designSize(800, 600, 0)).toEqual({ width: 800, height: 600 })
+  })
+
+  it('keeps the cores row out of the tall tour pane its CSS pixels would let in', () => {
+    // Measured in CSS pixels, this pane took medium with the spec and cores rows, and its
+    // slots lay over its lanes.
+    expect(showCores('medium', 720, 887)).toBe(true)
+    const box = designSize(720, 887, 0.0148 * 1280)
+    const tier = clusterTier(box.width, box.height)
+    expect(showCores(tier, box.width, box.height)).toBe(false)
   })
 })

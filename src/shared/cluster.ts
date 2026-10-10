@@ -384,11 +384,15 @@ export const CLUSTER_TIERS = ['wide', 'medium', 'short', 'compact', 'narrow'] as
 export type ClusterTier = (typeof CLUSTER_TIERS)[number]
 
 /**
- * The room each part needs, in CSS pixels, measured on the mock and in the app. Sizes are
- * the widget's own - the pane's body, under the header PaneHost draws.
+ * The room each part needs, in design pixels: CSS pixels at the 1080-high design size, where
+ * the root font is `DESIGN_FONT_PX`, measured on the mock and in the app. Sizes are the
+ * widget's own - the pane's body, under the header PaneHost draws - turned to design pixels
+ * by `designSize` first.
  */
 export const CLUSTER_ROOM = {
-  wide: { width: 1100, height: 470 },
+  // 1040: the cockpit preset gives CLUSTER about 1110 at 1600 wide, which must be well clear of
+  // the line, or the slack below keeps a pane that was dragged narrower from coming back.
+  wide: { width: 1040, height: 470 },
   /** The lamps and the clock beside the date, above the lanes. */
   mediumTop: 170,
   laneMin: 46,
@@ -407,6 +411,23 @@ export const CLUSTER_ROOM = {
   /** Room a tier is kept for before it gives way, so a drag across a threshold does not flicker. */
   hysteresis: 12,
 } as const
+
+/** The root font CLUSTER_ROOM is measured at: reset.css's 1.48vh of a 1080-high window. */
+export const DESIGN_FONT_PX = 16
+
+/**
+ * A pane's size in design pixels. The type is in rem and the root font follows the window's
+ * height, so a pane in a tall window (the 9:16 tour's 720x1280) holds less than its CSS
+ * pixels say: measured in CSS pixels, its slots once lay over its lanes.
+ */
+export function designSize(
+  width: number,
+  height: number,
+  rootFontPx: number,
+): { width: number; height: number } {
+  const scale = rootFontPx > 0 ? DESIGN_FONT_PX / rootFontPx : 1
+  return { width: width * scale, height: height * scale }
+}
 
 /** Rows the slots take at a width. */
 export function slotRows(width: number): number {
@@ -468,7 +489,8 @@ export function showSpec(tier: ClusterTier, width: number, height: number): bool
 export function showCores(tier: ClusterTier, width: number, height: number): boolean {
   if (tier === 'wide') return height >= CLUSTER_ROOM.wideCores
   if (tier === 'medium') {
-    return height >= mediumNeed(width, LANE_IDS.length + 1) + CLUSTER_ROOM.specRow.grid
+    // The cores row is two lanes high (`.cores-row`), so it needs two lanes' room.
+    return height >= mediumNeed(width, LANE_IDS.length + 2) + CLUSTER_ROOM.specRow.grid
   }
   return false
 }

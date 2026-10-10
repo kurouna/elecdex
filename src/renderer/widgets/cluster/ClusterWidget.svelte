@@ -4,6 +4,7 @@ import {
   clusterLamps,
   clusterMessage,
   clusterTier,
+  designSize,
   LANE_IDS,
   type LaneSecond,
   laneStats,
@@ -168,10 +169,12 @@ $effect(() => {
   if (el === null) return
   const observer = new ResizeObserver((entries) => {
     // The whole of the pane's body, padding and all: the room the tiers are measured against
-    // (CLUSTER_ROOM), not what is left inside the padding.
+    // (CLUSTER_ROOM), not what is left inside the padding - in design pixels, as the type
+    // grows with the window's height. Its root font is a style, read without a layout.
     const border = entries[0]?.borderBoxSize[0]
     if (border === undefined || border.inlineSize <= 0) return
-    const box = { width: border.inlineSize, height: border.blockSize }
+    const rootFont = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+    const box = designSize(border.inlineSize, border.blockSize, rootFont)
     const next = clusterTier(
       box.width,
       box.height,
