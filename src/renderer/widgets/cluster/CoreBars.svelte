@@ -18,7 +18,13 @@ const bars = $derived(groupCores(cores))
 const per = $derived(bars.length === 0 ? 1 : Math.ceil(cores.length / bars.length))
 </script>
 
-<div class="cores" data-testid="cluster-cores" role="img" aria-label="load of each core">
+<div
+  class="cores"
+  data-testid="cluster-cores"
+  role="img"
+  aria-label="load of each core"
+  style:--count={Math.max(1, bars.length)}
+>
   {#each bars as load, i (i)}
     <span class="core" data-level={cpuLevel(load)}>
       <i style:--fill={Math.min(1, Math.max(0, load / 100))}></i>
@@ -31,10 +37,10 @@ const per = $derived(bars.length === 0 ? 1 : Math.ceil(cores.length / bars.lengt
 .cores {
   display: grid;
   grid-auto-flow: column;
-  /* Bars no wider than a lane's thin ones read: spread over the row, never slabs. */
-  grid-auto-columns: minmax(0, 1.4rem);
-  justify-content: space-between;
-  gap: 3px;
+  /* Each bar a little over half its core's share of the width, so they widen with the pane
+     and the row reads as a set of gauges at any size (user's request 2026-10-10). */
+  grid-auto-columns: minmax(0, 1fr);
+  column-gap: max(3px, calc(45% / var(--count)));
   height: 100%;
   min-height: 0;
 }
