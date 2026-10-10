@@ -721,45 +721,39 @@ palKeep:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:179 palMix(slot, rgb, t) at -O1
-;   slot in a0
-;   rgb in a1
-;   t in a2
-;   u in s1
-;   r in 0(fp)
-;   g in 2(fp)
-;   b in 4(fp)
-;   p in s2
-;   k in a3
-;   end in 6(fp)
-;   c in s3
-;   mr in 8(fp)
-;   mg in 10(fp)
-;   mb in 12(fp)
+; lib/kit.e16.ts:179 palMix(slot/end, rgb/b, t/p) at -O1
+;   slot/end in a0
+;   rgb/b in a1
+;   t/p in a2
+;   u in s2
+;   r in s3
+;   g in 0(fp)
+;   k in s1
+;   c/mb in a3
+;   mr in 2(fp)
+;   mg in 4(fp)
 palMix:
-  addi sp, sp, -22
-  sw s1, 14(sp)
-  sw s2, 16(sp)
-  sw s3, 18(sp)
-  sw s0, 20(sp)
+  addi sp, sp, -14
+  sw s2, 6(sp)
+  sw s3, 8(sp)
+  sw s1, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
   ; lib/kit.e16.ts:180  const u = 16 - t
   li t0, 16
-  sub s1, t0, a2
+  sub s2, t0, a2
   ; lib/kit.e16.ts:181  const r = (rgb & 31) * t
   andi t0, a1, 31
-  mul t0, t0, a2
-  sw t0, 0(fp) ; r
+  mul s3, t0, a2
   ; lib/kit.e16.ts:182  const g = ((rgb >> 5) & 31) * t
   srli t0, a1, 5
   andi t0, t0, 31
   mul t0, t0, a2
-  sw t0, 2(fp) ; g
+  sw t0, 0(fp) ; g
   ; lib/kit.e16.ts:183  const b = ((rgb >> 10) & 31) * t
   srli t0, a1, 10
   andi t0, t0, 31
-  mul t0, t0, a2
-  sw t0, 4(fp) ; b
+  mul a1, t0, a2
   ; lib/kit.e16.ts:184  poke16(VPAGE, (PALS + slot * 32) >> 12)
   slli t0, a0, 5
   li t1, 50176
@@ -773,84 +767,77 @@ palMix:
   add t1, t1, t0
   addi t1, t1, 2
   andi t1, t1, 4095
-  addi s2, t1, -8192
+  addi a2, t1, -8192
   ; lib/kit.e16.ts:186  let k = slot * 16 + 1
   slli t0, a0, 4
-  addi a3, t0, 1
+  addi s1, t0, 1
   ; lib/kit.e16.ts:187  const end = slot * 16 + 16
   slli t0, a0, 4
-  addi t0, t0, 16
-  sw t0, 6(fp) ; end
+  addi a0, t0, 16
   ; lib/kit.e16.ts:188  while (k < end) {
   j .L3
 .L1:
   ; lib/kit.e16.ts:189  const c = palCopy[k]
-  slli t0, a3, 1
-  lw s3, palCopy(t0)
+  slli t0, s1, 1
+  lw a3, palCopy(t0)
   ; lib/kit.e16.ts:190  const mr = ((c & 31) * u + r) >> 4
-  andi t0, s3, 31
-  mul t0, t0, s1
-  lw t1, 0(fp) ; r
-  add t0, t0, t1
+  andi t0, a3, 31
+  mul t0, t0, s2
+  add t0, t0, s3
   srli t0, t0, 4
-  sw t0, 8(fp) ; mr
+  sw t0, 2(fp) ; mr
   ; lib/kit.e16.ts:191  const mg = (((c >> 5) & 31) * u + g) >> 4
-  srli t0, s3, 5
+  srli t0, a3, 5
   andi t0, t0, 31
-  mul t0, t0, s1
-  lw t1, 2(fp) ; g
+  mul t0, t0, s2
+  lw t1, 0(fp) ; g
   add t0, t0, t1
   srli t0, t0, 4
-  sw t0, 10(fp) ; mg
+  sw t0, 4(fp) ; mg
   ; lib/kit.e16.ts:192  const mb = (((c >> 10) & 31) * u + b) >> 4
-  srli t0, s3, 10
+  srli t0, a3, 10
   andi t0, t0, 31
-  mul t0, t0, s1
-  lw t1, 4(fp) ; b
-  add t0, t0, t1
-  srli t0, t0, 4
-  sw t0, 12(fp) ; mb
+  mul t0, t0, s2
+  add t0, t0, a1
+  srli a3, t0, 4
   ; lib/kit.e16.ts:193  poke16(p, mr | (mg << 5) | (mb << 10))
-  lw t0, 10(fp) ; mg
+  lw t0, 4(fp) ; mg
   slli t0, t0, 5
-  lw t1, 8(fp) ; mr
+  lw t1, 2(fp) ; mr
   or t1, t1, t0
-  lw t0, 12(fp) ; mb
-  slli t0, t0, 10
+  slli t0, a3, 10
   or t1, t1, t0
-  sw t1, 0(s2)
+  sw t1, 0(a2)
   ; lib/kit.e16.ts:194  p = wrap16(p + 2)
-  addi s2, s2, 2
+  addi a2, a2, 2
   ; lib/kit.e16.ts:195  k++
-  addi a3, a3, 1
+  addi s1, s1, 1
 .L3:
-  lw t0, 6(fp) ; end
-  bltu a3, t0, .L1
+  bltu s1, a0, .L1
 .return:
   mv sp, fp
-  lw s1, 14(sp)
-  lw s2, 16(sp)
-  lw s3, 18(sp)
-  lw s0, 20(sp)
-  addi sp, sp, 22
+  lw s2, 6(sp)
+  lw s3, 8(sp)
+  lw s1, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
-; lib/kit.e16.ts:200 mix(a, b, t) at -O1
-;   a in s1
+; lib/kit.e16.ts:200 mix(a/bl, b, t) at -O1
+;   a/bl in s1
 ;   b in s2
 ;   t in s3
 ;   r in 0(fp)
 ;   g in 2(fp)
-;   bl in 4(fp)
 mix:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s1, 8(sp)
-  sw s2, 10(sp)
-  sw s3, 12(sp)
-  sw s0, 14(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s1, 6(sp)
+  sw s2, 8(sp)
+  sw s3, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
-  mv s1, a0 ; a
+  mv s1, a0 ; a/bl
   mv s2, a1 ; b
   mv s3, a2 ; t
   ; lib/kit.e16.ts:201  const r = mixPart(a & 31, b & 31, t)
@@ -880,23 +867,22 @@ mix:
   mv a1, t1
   mv a2, s3
   call mixPart
-  sw a0, 4(fp) ; bl
+  mv s1, a0 ; a/bl
   ; lib/kit.e16.ts:204  return r | (g << 5) | (bl << 10)
   lw t0, 2(fp) ; g
   slli t0, t0, 5
   lw t1, 0(fp) ; r
   or t1, t1, t0
-  lw t0, 4(fp) ; bl
-  slli t0, t0, 10
+  slli t0, s1, 10
   or a0, t1, t0
 .return:
   mv sp, fp
-  lw ra, 6(sp)
-  lw s1, 8(sp)
-  lw s2, 10(sp)
-  lw s3, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  lw ra, 4(sp)
+  lw s1, 6(sp)
+  lw s2, 8(sp)
+  lw s3, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
 ; lib/kit.e16.ts:207 mixPart(a, b, t) at -O1
@@ -935,49 +921,45 @@ cellAt:
 .return:
   ret
 
-; lib/kit.e16.ts:222 mapRow(b, src, layer, y) at -O1
-;   b in s1
+; lib/kit.e16.ts:222 mapRow(b/old, src, layer, y) at -O1
+;   b/old in s1
 ;   src in s2
 ;   layer in s3
-;   y in 0(fp)
-;   old in 2(fp)
+;   y in s0
 mapRow:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s1, 6(sp)
-  sw s2, 8(sp)
-  sw s3, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  mv s1, a0 ; b
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  sw s3, 6(sp)
+  sw s0, 8(sp)
+  mv s1, a0 ; b/old
   mv s2, a1 ; src
   mv s3, a2 ; layer
-  sw a3, 0(fp) ; y
+  mv s0, a3 ; y
   ; lib/kit.e16.ts:223  const old = bank(b)
   mv a0, s1
   call bank
-  sw a0, 2(fp) ; old
+  mv s1, a0 ; b/old
   ; lib/kit.e16.ts:224  dma(src, cellAt(layer, 0, y), 128)
   mv a0, s3
   li a1, 0
-  lw a2, 0(fp)
+  mv a2, s0
   call cellAt
   mv a1, a0
   mv a0, s2
   li a2, 128
   call dma
   ; lib/kit.e16.ts:225  poke16(IO_BANK, old)
-  lw t0, 2(fp) ; old
-  li t1, 65284
-  sw t0, 0(t1)
+  li t0, 65284
+  sw s1, 0(t0)
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s1, 6(sp)
-  lw s2, 8(sp)
-  lw s3, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  lw s0, 8(sp)
+  addi sp, sp, 10
   ret
 
 ; lib/kit.e16.ts:229 text(at, s, font) at -O1
@@ -1138,15 +1120,13 @@ sprCount:
   ret
 
 ; lib/kit.e16.ts:285 sprShow() at -O1
-;   k in s1
+;   k/n in s1
 ;   was in s2
-;   n in s3
 sprShow:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  sw s3, 6(sp)
   ; lib/kit.e16.ts:286  let k = sprN
   lw s1, 0x0880(zero)
   ; lib/kit.e16.ts:287  const was = sprShown
@@ -1175,11 +1155,11 @@ sprShow:
 .L5:
   mv t0, s2
 .L6:
-  mv s3, t0 ; n
+  mv s1, t0 ; k/n
   ; lib/kit.e16.ts:294  if (n > 0) dma(addr(oam), OAM, n << 3)
-  bgeu zero, s3, .L7
+  bgeu zero, s1, .L7
   ; lib/kit.e16.ts:294  dma(addr(oam), OAM, n << 3)
-  slli t0, s3, 3
+  slli t0, s1, 3
   la a0, oam
   li a1, 49152
   mv a2, t0
@@ -1189,8 +1169,7 @@ sprShow:
   lw ra, 0(sp)
   lw s1, 2(sp)
   lw s2, 4(sp)
-  lw s3, 6(sp)
-  addi sp, sp, 8
+  addi sp, sp, 6
   ret
 
 ; lib/kit.e16.ts:308 padRead() at -O1
@@ -1472,40 +1451,39 @@ randSeed:
 .return:
   ret
 
-; lib/kit.e16.ts:414 scoreAdd(at, n) at -O1
+; lib/kit.e16.ts:414 scoreAdd(at, n/lo) at -O1
 ;   at in a0
-;   n in a1
-;   lo in a2
-;   hi in a3
+;   n/lo in a1
+;   hi in a2
 scoreAdd:
   ; lib/kit.e16.ts:415  let lo = peek16(at) + n
   lw t0, 0(a0)
-  add a2, t0, a1
+  add a1, t0, a1
   ; lib/kit.e16.ts:416  let hi = peek16(at + 2)
-  lw a3, 2(a0)
+  lw a2, 2(a0)
   ; lib/kit.e16.ts:417  while (lo >= 10000) {
   j .L3
 .L1:
   ; lib/kit.e16.ts:418  lo = lo - 10000
   li t0, 10000
-  sub a2, a2, t0
+  sub a1, a1, t0
   ; lib/kit.e16.ts:419  hi++
-  addi a3, a3, 1
+  addi a2, a2, 1
 .L3:
   li t0, 10000
-  bgeu a2, t0, .L1
+  bgeu a1, t0, .L1
   ; lib/kit.e16.ts:421  if (hi > 9999) {
   li t0, 9999
-  bgeu t0, a3, .L5
+  bgeu t0, a2, .L5
   ; lib/kit.e16.ts:422  hi = 9999
-  li a3, 9999 ; hi
+  li a2, 9999 ; hi
   ; lib/kit.e16.ts:423  lo = 9999
-  li a2, 9999 ; lo
+  li a1, 9999 ; n/lo
 .L5:
   ; lib/kit.e16.ts:425  poke16(at, lo)
-  sw a2, 0(a0)
+  sw a1, 0(a0)
   ; lib/kit.e16.ts:426  poke16(at + 2, hi)
-  sw a3, 2(a0)
+  sw a2, 2(a0)
 .return:
   ret
 
@@ -1571,17 +1549,15 @@ scoreShow:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:445 saveRead(off) at -O1
-;   off in s1
+; lib/kit.e16.ts:445 saveRead(off/v) at -O1
+;   off/v in s1
 ;   old in s2
-;   v in s3
 saveRead:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  sw s3, 6(sp)
-  mv s1, a0 ; off
+  mv s1, a0 ; off/v
   ; lib/kit.e16.ts:446  const old = bank(SAVE_BANK)
   li a0, 128
   call bank
@@ -1590,18 +1566,17 @@ saveRead:
   andi t0, s1, 8190
   li t1, 49152
   add t1, t1, t0
-  lw s3, 0(t1)
+  lw s1, 0(t1)
   ; lib/kit.e16.ts:448  poke16(IO_BANK, old)
   li t0, 65284
   sw s2, 0(t0)
   ; lib/kit.e16.ts:449  return v
-  mv a0, s3
+  mv a0, s1
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
   lw s2, 4(sp)
-  lw s3, 6(sp)
-  addi sp, sp, 8
+  addi sp, sp, 6
   ret
 
 ; lib/kit.e16.ts:453 saveWrite(off, v) at -O1
@@ -1680,35 +1655,33 @@ stopChannel:
 .return:
   ret
 
-; lib/sound.e16.ts:74 play(b, at, music) at -O1
+; lib/sound.e16.ts:74 play(b, at, music/c/n) at -O1
 ;   b in 4(fp)
 ;   at in s3
-;   music in 6(fp)
-;   old in 8(fp)
-;   c/n in s2
+;   music/c/n in s2
+;   old in 6(fp)
 ;   k in 0(fp)
 ;   head in 2(fp)
 ;   c in s1
 play:
-  addi sp, sp, -20
-  sw ra, 10(sp)
-  sw s3, 12(sp)
-  sw s2, 14(sp)
-  sw s1, 16(sp)
-  sw s0, 18(sp)
+  addi sp, sp, -18
+  sw ra, 8(sp)
+  sw s3, 10(sp)
+  sw s2, 12(sp)
+  sw s1, 14(sp)
+  sw s0, 16(sp)
   mv fp, sp
   sw a0, 4(fp) ; b
   mv s3, a1 ; at
-  sw a2, 6(fp) ; music
+  mv s2, a2 ; music/c/n
   ; lib/sound.e16.ts:75  const old = bank(b)
   lw a0, 4(fp)
   call bank
-  sw a0, 8(fp) ; old
+  sw a0, 6(fp) ; old
   ; lib/sound.e16.ts:76  if (music) {
-  lw t0, 6(fp) ; music
-  beqz t0, .L1
+  beqz s2, .L1
   ; lib/sound.e16.ts:77  let c: u16 = 0
-  li s2, 0 ; c/n
+  li s2, 0 ; music/c/n
   ; lib/sound.e16.ts:78  while (c < 12) {
   j .L4
 .L2:
@@ -1794,17 +1767,17 @@ play:
   lw t0, 0(fp) ; k
   bltu t0, s2, .L6
   ; lib/sound.e16.ts:102  poke16(IO_BANK, old)
-  lw t0, 8(fp) ; old
+  lw t0, 6(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
 .return:
   mv sp, fp
-  lw ra, 10(sp)
-  lw s3, 12(sp)
-  lw s2, 14(sp)
-  lw s1, 16(sp)
-  lw s0, 18(sp)
-  addi sp, sp, 20
+  lw ra, 8(sp)
+  lw s3, 10(sp)
+  lw s2, 12(sp)
+  lw s1, 14(sp)
+  lw s0, 16(sp)
+  addi sp, sp, 18
   ret
 
 ; lib/sound.e16.ts:106 musicStop() at -O1
@@ -2208,15 +2181,12 @@ endChannel:
 .return:
   ret
 
-; lib/sound.e16.ts:220 startNote(c, freq, frames, held) at -O1
+; lib/sound.e16.ts:220 startNote(c, freq/quiet, frames, held) at -O1
 ;   c in a0
-;   freq in a1
+;   freq/quiet in a1
 ;   frames in a2
 ;   held in a3
-;   quiet in s1
 startNote:
-  addi sp, sp, -2
-  sw s1, 0(sp)
   ; lib/sound.e16.ts:221  chLen[c] = frames
   slli t0, a0, 1
   sw a2, chLen(t0)
@@ -2252,10 +2222,10 @@ startNote:
   sub t0, t0, zero
   snez t0, t0
 .L1:
-  mv s1, t0 ; quiet
+  mv a1, t0 ; freq/quiet
   ; lib/sound.e16.ts:231  poke16(VOL, quiet ? 0 : (chVol[c] * chInstVol[c] * 17 + 128) >> 8)
   li t0, 63558
-  mv t1, s1
+  mv t1, a1
   beqz t1, .L2
   li t1, 0
   j .L3
@@ -2276,61 +2246,57 @@ startNote:
   li t1, 63566
   sw t0, 0(t1)
 .return:
-  lw s1, 0(sp)
-  addi sp, sp, 2
   ret
 
-; lib/sound.e16.ts:236 setInstrument(c, k) at -O1
+; lib/sound.e16.ts:236 setInstrument(c, k/at) at -O1
 ;   c in a0
-;   k in a1
-;   song in a3
-;   at in a2
+;   k/at in a1
+;   song in a2
 setInstrument:
   ; lib/sound.e16.ts:237  const song = chSong[c]
   slli t0, a0, 1
-  lw a3, chSong(t0)
+  lw a2, chSong(t0)
   ; lib/sound.e16.ts:238  const at = song + 2 + peek(song) * 6 + k * 8
-  lbu t0, 0(a3)
+  lbu t0, 0(a2)
   slli t1, t0, 2
   slli t0, t0, 1
   add t0, t0, t1
-  addi t1, a3, 2
+  addi t1, a2, 2
   add t1, t1, t0
   slli t0, a1, 3
-  add a2, t1, t0
+  add a1, t1, t0
   ; lib/sound.e16.ts:239  poke16(CHSEL, c)
   li t0, 63552
   sw a0, 0(t0)
   ; lib/sound.e16.ts:240  poke16(WAVE, peek(at))
-  lbu t0, 0(a2)
+  lbu t0, 0(a1)
   li t1, 63554
   sw t0, 0(t1)
   ; lib/sound.e16.ts:241  chInstVol[c] = peek(at + 1)
   slli t0, a0, 1
-  lbu t1, 1(a2)
+  lbu t1, 1(a1)
   sw t1, chInstVol(t0)
   ; lib/sound.e16.ts:242  poke16(ENV, peek16(at + 2))
-  lw t0, 2(a2)
+  lw t0, 2(a1)
   li t1, 63562
   sw t0, 0(t1)
   ; lib/sound.e16.ts:243  poke16(MOD, peek16(at + 4))
-  lw t0, 4(a2)
+  lw t0, 4(a1)
   li t1, 63564
   sw t0, 0(t1)
   ; lib/sound.e16.ts:244  poke16(PAN, peek(at + 6))
-  lbu t0, 6(a2)
+  lbu t0, 6(a1)
   li t1, 63560
   sw t0, 0(t1)
   ; lib/sound.e16.ts:245  chDrop[c] = peek(at + 7)
   slli t0, a0, 1
-  lbu t1, 7(a2)
+  lbu t1, 7(a1)
   sw t1, chDrop(t0)
 .return:
   ret
 
-; field.e16.ts:58 stratumOf(r) at -O1
-;   r in a0
-;   d in a1
+; field.e16.ts:58 stratumOf(r/d) at -O1
+;   r/d in a0
 stratumOf:
   ; field.e16.ts:59  if (r < GROUND) return 0
   li t0, 6
@@ -2340,25 +2306,25 @@ stratumOf:
   ret
 .L1:
   ; field.e16.ts:60  const d = r - GROUND
-  addi a1, a0, -6
+  addi a0, a0, -6
   ; field.e16.ts:61  return d >= 400 ? 4 : d >= 300 ? 3 : d >= 200 ? 2 : d >= 100 ? 1 : 0
   li t0, 400
-  bltu a1, t0, .L2
+  bltu a0, t0, .L2
   li t0, 4
   j .L3
 .L2:
   li t0, 300
-  bltu a1, t0, .L4
+  bltu a0, t0, .L4
   li t0, 3
   j .L5
 .L4:
   li t0, 200
-  bltu a1, t0, .L6
+  bltu a0, t0, .L6
   li t0, 2
   j .L7
 .L6:
   li t0, 100
-  bltu a1, t0, .L8
+  bltu a0, t0, .L8
   li t0, 1
   j .L9
 .L8:
@@ -2395,15 +2361,13 @@ rowOf:
   ret
 
 ; field.e16.ts:74 fieldNew() at -O1
-;   k in s1
-;   r in s2
+;   k/r in s1
 fieldNew:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s2, 4(sp)
   ; field.e16.ts:75  let k: u16 = 0
-  li s1, 0 ; k
+  li s1, 0 ; k/r
   ; field.e16.ts:76  while (k < 512) {
   j .L3
 .L1:
@@ -2426,18 +2390,18 @@ fieldNew:
   li a0, 0
   call earthFor
   ; field.e16.ts:84  let r: u16 = 0
-  li s2, 0 ; r
+  li s1, 0 ; k/r
   ; field.e16.ts:85  while (r < 31) {
   j .L7
 .L5:
   ; field.e16.ts:86  rowMake(r)
-  mv a0, s2
+  mv a0, s1
   call rowMake
   ; field.e16.ts:87  r++
-  addi s2, s2, 1
+  addi s1, s1, 1
 .L7:
   li t0, 31
-  bltu s2, t0, .L5
+  bltu s1, t0, .L5
   ; field.e16.ts:90  vfill(0x8000, (TANK_TILE + 1) | (SL_PANEL << 10), 4096)
   li a0, 32768
   li a1, 7293
@@ -2446,8 +2410,7 @@ fieldNew:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s2, 4(sp)
-  addi sp, sp, 6
+  addi sp, sp, 4
   ret
 
 ; field.e16.ts:94 fieldAdvance() at -O1
@@ -2604,32 +2567,30 @@ rowMake:
   addi sp, sp, 14
   ret
 
-; field.e16.ts:126 blockFor(c, r, base, above) at -O1
-;   c in s1
-;   r in 0(fp)
-;   base in 4(fp)
-;   above in 6(fp)
-;   p in 2(fp)
-;   left in s2
-;   up in s3
+; field.e16.ts:126 blockFor(c/up, r, base/left, above) at -O1
+;   c/up in s1
+;   r in s3
+;   base/left in s2
+;   above in 2(fp)
+;   p in 0(fp)
 blockFor:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s1, 10(sp)
-  sw s2, 12(sp)
-  sw s3, 14(sp)
-  sw s0, 16(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s1, 6(sp)
+  sw s3, 8(sp)
+  sw s2, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
-  mv s1, a0 ; c
-  sw a1, 0(fp) ; r
-  sw a2, 4(fp) ; base
-  sw a3, 6(fp) ; above
+  mv s1, a0 ; c/up
+  mv s3, a1 ; r
+  mv s2, a2 ; base/left
+  sw a3, 2(fp) ; above
   ; field.e16.ts:127  if (randBelow(100) < levelAlloy(stratumOf(r))) return T_ALLOY
   li a0, 100
   call randBelow
   addi sp, sp, -2
   sw a0, 0(sp)
-  lw a0, 0(fp)
+  mv a0, s3
   call stratumOf
   call levelAlloy
   lw t0, 0(sp)
@@ -2642,21 +2603,20 @@ blockFor:
   ; field.e16.ts:128  const p = randBelow(100)
   li a0, 100
   call randBelow
-  sw a0, 2(fp) ; p
+  sw a0, 0(fp) ; p
   ; field.e16.ts:129  const left = c > 0 ? cells[base + c - 1] & 15 : 0
   bgeu zero, s1, .L2
-  lw t0, 4(fp) ; base
-  add t0, t0, s1
+  add t0, s2, s1
   lbu t0, cells-1(t0)
   andi t0, t0, 15
   j .L3
 .L2:
   li t0, 0
 .L3:
-  mv s2, t0 ; left
+  mv s2, t0 ; base/left
   ; field.e16.ts:130  if (p < 20 && left >= T_RED && left <= T_BLUE) return left
   li t0, 20
-  lw t1, 2(fp) ; p
+  lw t1, 0(fp) ; p
   bgeu t1, t0, .L4
   li t0, 1
   bltu s2, t0, .L4
@@ -2668,9 +2628,8 @@ blockFor:
 .L4:
   ; field.e16.ts:131  const up = r > GROUND ? cells[above + c] & 15 : 0
   li t0, 6
-  lw t1, 0(fp) ; r
-  bgeu t0, t1, .L5
-  lw t0, 6(fp) ; above
+  bgeu t0, s3, .L5
+  lw t0, 2(fp) ; above
   add t0, t0, s1
   lbu t0, cells(t0)
   andi t0, t0, 15
@@ -2678,17 +2637,17 @@ blockFor:
 .L5:
   li t0, 0
 .L6:
-  mv s3, t0 ; up
+  mv s1, t0 ; c/up
   ; field.e16.ts:132  if (p < 34 && up >= T_RED && up <= T_BLUE) return up
   li t0, 34
-  lw t1, 2(fp) ; p
+  lw t1, 0(fp) ; p
   bgeu t1, t0, .L7
   li t0, 1
-  bltu s3, t0, .L7
+  bltu s1, t0, .L7
   li t0, 4
-  bltu t0, s3, .L7
+  bltu t0, s1, .L7
   ; field.e16.ts:132  return up
-  mv a0, s3
+  mv a0, s1
   j .return
 .L7:
   ; field.e16.ts:133  return T_RED + (rand() & 3)
@@ -2697,29 +2656,27 @@ blockFor:
   addi a0, t0, 1
 .return:
   mv sp, fp
-  lw ra, 8(sp)
-  lw s1, 10(sp)
-  lw s2, 12(sp)
-  lw s3, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw ra, 4(sp)
+  lw s1, 6(sp)
+  lw s3, 8(sp)
+  lw s2, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
-; field.e16.ts:137 earthFor(r) at -O1
-;   r in s3
-;   s in s1
+; field.e16.ts:137 earthFor(r/s) at -O1
+;   r/s in s1
 ;   slot in s2
 earthFor:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
-  sw s3, 2(sp)
-  sw s1, 4(sp)
-  sw s2, 6(sp)
-  mv s3, a0 ; r
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  mv s1, a0 ; r/s
   ; field.e16.ts:138  const s = stratumOf(r)
-  mv a0, s3
+  mv a0, s1
   call stratumOf
-  mv s1, a0 ; s
+  mv s1, a0 ; r/s
   ; field.e16.ts:139  const slot = (s & 1) === 0 ? SL_EARTH_A : SL_EARTH_B
   andi t0, s1, 1
   bne t0, zero, .L1
@@ -2739,10 +2696,9 @@ earthFor:
   call palKeep
 .return:
   lw ra, 0(sp)
-  lw s3, 2(sp)
-  lw s1, 4(sp)
-  lw s2, 6(sp)
-  addi sp, sp, 8
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  addi sp, sp, 6
   ret
 
 ; field.e16.ts:147 stampNext() at -O1
@@ -2802,9 +2758,8 @@ stampIt:
 .return:
   ret
 
-; field.e16.ts:169 markAround(i) at -O1
-;   i in a0
-;   r in a1
+; field.e16.ts:169 markAround(i/r) at -O1
+;   i/r in a0
 markAround:
   ; field.e16.ts:170  marks[(i - 17) & 511] = marks[(i - 17) & 511] | 0x80
   addi t0, a0, -17
@@ -2875,45 +2830,42 @@ markAround:
   ori t1, t1, 128
   sb t1, marks(t0)
   ; field.e16.ts:179  const r = i >> 4
-  srli a1, a0, 4
+  srli a0, a0, 4
   ; field.e16.ts:180  rowMarked[(r - 1) & 31] = 1
-  addi t0, a1, -1
+  addi t0, a0, -1
   andi t0, t0, 31
   li t1, 1
   sb t1, rowMarked(t0)
   ; field.e16.ts:181  rowMarked[r] = 1
   li t0, 1
-  sb t0, rowMarked(a1)
+  sb t0, rowMarked(a0)
   ; field.e16.ts:182  rowMarked[(r + 1) & 31] = 1
-  addi t0, a1, 1
+  addi t0, a0, 1
   andi t0, t0, 31
   li t1, 1
   sb t1, rowMarked(t0)
 .return:
   ret
 
-; field.e16.ts:192 fieldDraw(from, rows, most) at -O1
+; field.e16.ts:192 fieldDraw(from, rows, most/r) at -O1
 ;   from in s3
-;   rows in 0(fp)
-;   most in 2(fp)
-;   r in s1
+;   rows in s0
+;   most/r in s1
 ;   row in s2
 fieldDraw:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s3, 6(sp)
-  sw s1, 8(sp)
-  sw s2, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s3, 2(sp)
+  sw s0, 4(sp)
+  sw s1, 6(sp)
+  sw s2, 8(sp)
   mv s3, a0 ; from
-  sw a1, 0(fp) ; rows
-  sw a2, 2(fp) ; most
+  mv s0, a1 ; rows
+  mv s1, a2 ; most/r
   ; field.e16.ts:193  drawLeft = most
-  lw t0, 2(fp) ; most
-  sw t0, 0x10b6(zero)
+  sw s1, 0x10b6(zero)
   ; field.e16.ts:194  let r: u16 = 0
-  li s1, 0 ; r
+  li s1, 0 ; most/r
   ; field.e16.ts:195  while (r < rows) {
   j .L3
 .L1:
@@ -2937,16 +2889,14 @@ fieldDraw:
   ; field.e16.ts:200  r++
   addi s1, s1, 1
 .L3:
-  lw t0, 0(fp) ; rows
-  bltu s1, t0, .L1
+  bltu s1, s0, .L1
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s3, 6(sp)
-  lw s1, 8(sp)
-  lw s2, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s3, 2(sp)
+  lw s0, 4(sp)
+  lw s1, 6(sp)
+  lw s2, 8(sp)
+  addi sp, sp, 10
   ret
 
 ; field.e16.ts:205 rowDraw(row) at -O1
@@ -3016,142 +2966,132 @@ rowDraw:
   addi sp, sp, 10
   ret
 
-; field.e16.ts:223 cellDraw(i, row) at -O1
-;   i in s3
-;   row in 6(fp)
-;   at in 4(fp)
-;   p in s1
-;   v in 0(fp)
-;   t in 2(fp)
-;   tile in s2
+; field.e16.ts:223 cellDraw(i/tile, row) at -O1
+;   i/tile in s1
+;   row in 2(fp)
+;   at/p in s2
+;   v in s3
+;   t in 0(fp)
 cellDraw:
-  addi sp, sp, -18
-  sw ra, 8(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s1, 6(sp)
+  sw s2, 8(sp)
   sw s3, 10(sp)
-  sw s1, 12(sp)
-  sw s2, 14(sp)
-  sw s0, 16(sp)
+  sw s0, 12(sp)
   mv fp, sp
-  mv s3, a0 ; i
-  sw a1, 6(fp) ; row
+  mv s1, a0 ; i/tile
+  sw a1, 2(fp) ; row
   ; field.e16.ts:224  const at = 0x8000 + ((i & 0x1f0) << 4) + 22 + ((i & 15) << 2)
-  andi t0, s3, 496
+  andi t0, s1, 496
   slli t0, t0, 4
   li t1, 32768
   add t1, t1, t0
-  andi t0, s3, 15
+  andi t0, s1, 15
   slli t0, t0, 2
   addi t1, t1, 22
-  add t1, t1, t0
-  sw t1, 4(fp) ; at
+  add s2, t1, t0
   ; field.e16.ts:225  poke16(VPAGE, at >> 12)
-  lw t0, 4(fp) ; at
-  srli t0, t0, 12
+  srli t0, s2, 12
   li t1, 63490
   sw t0, 0(t1)
   ; field.e16.ts:226  const p = VWIN + (at & 0xfff)
-  lw t0, 4(fp) ; at
-  andi t0, t0, 4095
-  addi s1, t0, -8192
+  andi t0, s2, 4095
+  addi s2, t0, -8192
   ; field.e16.ts:227  const v = cells[i]
-  lbu t0, cells(s3)
-  sw t0, 0(fp) ; v
+  lbu s3, cells(s1)
   ; field.e16.ts:228  const t = v & 15
-  lw t0, 0(fp) ; v
-  andi t0, t0, 15
-  sw t0, 2(fp) ; t
+  andi t0, s3, 15
+  sw t0, 0(fp) ; t
   ; field.e16.ts:229  if (t === T_EMPTY || (v & F_LOOSE) !== 0) {
-  lw t0, 2(fp) ; t
+  lw t0, 0(fp) ; t
   beq t0, zero, .L2
-  lw t0, 0(fp) ; v
-  andi t0, t0, 128
+  andi t0, s3, 128
   beq t0, zero, .L1
 .L2:
   ; field.e16.ts:230  groundDraw(p, i, row)
-  mv a0, s1
-  mv a1, s3
-  lw a2, 6(fp)
+  mv a0, s2
+  mv a1, s1
+  lw a2, 2(fp)
   call groundDraw
   ; field.e16.ts:231  return
   j .return
 .L1:
   ; field.e16.ts:233  if (t <= T_BLUE) {
   li t0, 4
-  lw t1, 2(fp) ; t
+  lw t1, 0(fp) ; t
   bltu t0, t1, .L3
   ; field.e16.ts:234  blockDraw(p, i, v)
-  mv a0, s1
-  mv a1, s3
-  lw a2, 0(fp)
+  mv a0, s2
+  mv a1, s1
+  mv a2, s3
   call blockDraw
   ; field.e16.ts:235  return
   j .return
 .L3:
   ; field.e16.ts:237  let tile: u16 = CORE_TILE | (SL_FLASH << 10)
-  li s2, 6453 ; tile
+  li s1, 6453 ; i/tile
   ; field.e16.ts:238  if (t === T_ALLOY) tile = (ALLOY_TILE + ((v >> 4) & 3) * 4) | (SL_PANEL << 10)
   li t0, 5
-  lw t1, 2(fp) ; t
+  lw t1, 0(fp) ; t
   bne t1, t0, .L4
   ; field.e16.ts:238  tile = (ALLOY_TILE + ((v >> 4) & 3) * 4) | (SL_PANEL << 10)
-  lw t0, 0(fp) ; v
-  srli t0, t0, 4
+  srli t0, s3, 4
   andi t0, t0, 3
   slli t0, t0, 2
   addi t0, t0, 281
-  ori s2, t0, 7168
+  ori s1, t0, 7168
   j .L5
 .L4:
   ; field.e16.ts:239  if (t === T_AIR) tile = CAPSULE_TILE | (SL_PANEL << 10)
   li t0, 6
-  lw t1, 2(fp) ; t
+  lw t1, 0(fp) ; t
   bne t1, t0, .L6
   ; field.e16.ts:239  tile = CAPSULE_TILE | (SL_PANEL << 10)
-  li s2, 7469 ; tile
+  li s1, 7469 ; i/tile
 .L6:
 .L5:
   ; field.e16.ts:240  poke16(p, tile)
-  sw s2, 0(s1)
+  sw s1, 0(s2)
   ; field.e16.ts:241  poke16(p + 2, tile + 1)
-  addi t0, s2, 1
-  sw t0, 2(s1)
+  addi t0, s1, 1
+  sw t0, 2(s2)
   ; field.e16.ts:242  poke16(p + 128, tile + 2)
-  addi t0, s2, 2
-  sw t0, 128(s1)
+  addi t0, s1, 2
+  sw t0, 128(s2)
   ; field.e16.ts:243  poke16(p + 130, tile + 3)
-  addi t0, s2, 3
-  sw t0, 130(s1)
+  addi t0, s1, 3
+  sw t0, 130(s2)
 .return:
   mv sp, fp
-  lw ra, 8(sp)
+  lw ra, 4(sp)
+  lw s1, 6(sp)
+  lw s2, 8(sp)
   lw s3, 10(sp)
-  lw s1, 12(sp)
-  lw s2, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
-; field.e16.ts:247 groundDraw(p, i, row) at -O1
-;   p in s1
-;   i in s3
-;   row in 0(fp)
-;   a in 2(fp)
-;   l in 4(fp)
-;   slot in 6(fp)
-;   base in s2
+; field.e16.ts:247 groundDraw(p, i/base, row) at -O1
+;   p in s2
+;   i/base in s1
+;   row in s3
+;   a in 0(fp)
+;   l in 2(fp)
+;   slot in 4(fp)
 groundDraw:
-  addi sp, sp, -18
-  sw ra, 8(sp)
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s2, 8(sp)
   sw s1, 10(sp)
   sw s3, 12(sp)
-  sw s2, 14(sp)
-  sw s0, 16(sp)
+  sw s0, 14(sp)
   mv fp, sp
-  mv s1, a0 ; p
-  mv s3, a1 ; i
-  sw a2, 0(fp) ; row
+  mv s2, a0 ; p
+  mv s1, a1 ; i/base
+  mv s3, a2 ; row
   ; field.e16.ts:248  const a: u16 = solid(cells[(i - 16) & 511]) ? 1 : 0
-  addi t0, s3, -16
+  addi t0, s1, -16
   andi t0, t0, 511
   lbu a0, cells(t0)
   call solid
@@ -3161,9 +3101,9 @@ groundDraw:
 .L1:
   li t0, 0
 .L2:
-  sw t0, 2(fp) ; a
+  sw t0, 0(fp) ; a
   ; field.e16.ts:249  const l: u16 = solid(cells[(i - 1) & 511]) ? 1 : 0
-  addi t0, s3, -1
+  addi t0, s1, -1
   andi t0, t0, 511
   lbu a0, cells(t0)
   call solid
@@ -3173,9 +3113,9 @@ groundDraw:
 .L3:
   li t0, 0
 .L4:
-  sw t0, 4(fp) ; l
+  sw t0, 2(fp) ; l
   ; field.e16.ts:250  const slot = (stratumOf(row) & 1) === 0 ? SL_EARTH_A : SL_EARTH_B
-  lw a0, 0(fp)
+  mv a0, s3
   call stratumOf
   andi t0, a0, 1
   bne t0, zero, .L5
@@ -3184,49 +3124,48 @@ groundDraw:
 .L5:
   li t0, 5
 .L6:
-  sw t0, 6(fp) ; slot
+  sw t0, 4(fp) ; slot
   ; field.e16.ts:251  const base = (GROUND_TILE + (((row + (i & 15) * 3) >> 1) & 1) * 9) | (slot << 10)
-  andi t0, s3, 15
+  andi t0, s1, 15
   slli t1, t0, 1
   add t0, t1, t0
-  lw t1, 0(fp) ; row
-  add t1, t1, t0
-  srli t1, t1, 1
-  andi t1, t1, 1
-  slli t0, t1, 3
-  add t1, t0, t1
-  lw t0, 6(fp) ; slot
-  slli t0, t0, 10
-  addi t1, t1, 179
-  or s2, t1, t0
+  add t0, s3, t0
+  srli t0, t0, 1
+  andi t0, t0, 1
+  slli t1, t0, 3
+  add t0, t1, t0
+  lw t1, 4(fp) ; slot
+  slli t1, t1, 10
+  addi t0, t0, 179
+  or s1, t0, t1
   ; field.e16.ts:252  poke16(p, base + a * 2 + l)
-  lw t0, 2(fp) ; a
+  lw t0, 0(fp) ; a
   slli t0, t0, 1
-  add t0, s2, t0
-  lw t1, 4(fp) ; l
+  add t0, s1, t0
+  lw t1, 2(fp) ; l
   add t0, t0, t1
-  sw t0, 0(s1)
+  sw t0, 0(s2)
   ; field.e16.ts:253  poke16(p + 2, base + 4 + a)
-  lw t0, 2(fp) ; a
-  addi t1, s2, 4
+  lw t0, 0(fp) ; a
+  addi t1, s1, 4
   add t1, t1, t0
-  sw t1, 2(s1)
+  sw t1, 2(s2)
   ; field.e16.ts:254  poke16(p + 128, base + 6 + l)
-  lw t0, 4(fp) ; l
-  addi t1, s2, 6
+  lw t0, 2(fp) ; l
+  addi t1, s1, 6
   add t1, t1, t0
-  sw t1, 128(s1)
+  sw t1, 128(s2)
   ; field.e16.ts:255  poke16(p + 130, base + 8)
-  addi t0, s2, 8
-  sw t0, 130(s1)
+  addi t0, s1, 8
+  sw t0, 130(s2)
 .return:
   mv sp, fp
-  lw ra, 8(sp)
+  lw ra, 6(sp)
+  lw s2, 8(sp)
   lw s1, 10(sp)
   lw s3, 12(sp)
-  lw s2, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw s0, 14(sp)
+  addi sp, sp, 16
   ret
 
 ; field.e16.ts:259 solid(v) at -O1
@@ -3246,135 +3185,131 @@ solid:
 .return:
   ret
 
-; field.e16.ts:267 blockDraw(p, i, v) at -O1
-;   p in s3
-;   i in s1
-;   v in 2(fp)
-;   key in s2
-;   n in 4(fp)
-;   s in 6(fp)
-;   w in 8(fp)
-;   e in 10(fp)
-;   slot in 12(fp)
-;   base in 0(fp)
+; field.e16.ts:267 blockDraw(p, i, v/slot/base) at -O1
+;   p in 0(fp)
+;   i in s2
+;   v/slot/base in s1
+;   key in s3
+;   n in 2(fp)
+;   s in 4(fp)
+;   w in 6(fp)
+;   e in 8(fp)
 blockDraw:
-  addi sp, sp, -24
-  sw ra, 14(sp)
+  addi sp, sp, -20
+  sw ra, 10(sp)
+  sw s2, 12(sp)
+  sw s1, 14(sp)
   sw s3, 16(sp)
-  sw s1, 18(sp)
-  sw s2, 20(sp)
-  sw s0, 22(sp)
+  sw s0, 18(sp)
   mv fp, sp
-  mv s3, a0 ; p
-  mv s1, a1 ; i
-  sw a2, 2(fp) ; v
+  sw a0, 0(fp) ; p
+  mv s2, a1 ; i
+  mv s1, a2 ; v/slot/base
   ; field.e16.ts:268  const key = v & 0xcf
-  lw t0, 2(fp) ; v
-  andi s2, t0, 207
+  andi s3, s1, 207
   ; field.e16.ts:269  const n = like(i - 16, key)
-  addi a0, s1, -16
-  mv a1, s2
+  addi a0, s2, -16
+  mv a1, s3
   call like
-  sw a0, 4(fp) ; n
+  sw a0, 2(fp) ; n
   ; field.e16.ts:270  const s = like(i + 16, key)
-  addi a0, s1, 16
-  mv a1, s2
+  addi a0, s2, 16
+  mv a1, s3
   call like
-  sw a0, 6(fp) ; s
+  sw a0, 4(fp) ; s
   ; field.e16.ts:271  const w = like(i - 1, key)
-  addi a0, s1, -1
-  mv a1, s2
+  addi a0, s2, -1
+  mv a1, s3
   call like
-  sw a0, 8(fp) ; w
+  sw a0, 6(fp) ; w
   ; field.e16.ts:272  const e = like(i + 1, key)
-  addi a0, s1, 1
-  mv a1, s2
+  addi a0, s2, 1
+  mv a1, s3
   call like
-  sw a0, 10(fp) ; e
+  sw a0, 8(fp) ; e
   ; field.e16.ts:273  const slot = (v & F_PEND) !== 0 ? SL_FLASH : v & 15
-  lw t0, 2(fp) ; v
-  andi t0, t0, 64
+  andi t0, s1, 64
   beq t0, zero, .L1
   li t0, 6
   j .L2
 .L1:
-  lw t0, 2(fp) ; v
-  andi t0, t0, 15
+  andi t0, s1, 15
 .L2:
-  sw t0, 12(fp) ; slot
+  mv s1, t0 ; v/slot/base
   ; field.e16.ts:274  const base = QUARTERS_TILE | (slot << 10)
-  lw t0, 12(fp) ; slot
-  slli t0, t0, 10
+  slli t0, s1, 10
   li t1, 159
-  or t1, t1, t0
-  sw t1, 0(fp) ; base
+  or s1, t1, t0
   ; field.e16.ts:275  poke16(p, base + quarter(n, w, like(i - 17, key)))
-  addi a0, s1, -17
-  mv a1, s2
+  addi a0, s2, -17
+  mv a1, s3
   call like
-  lw a1, 8(fp)
+  lw a1, 6(fp)
   mv a2, a0
-  lw a0, 4(fp)
+  lw a0, 2(fp)
   call quarter
-  lw t0, 0(fp) ; base
-  add t0, t0, a0
-  sw t0, 0(s3)
+  add t0, s1, a0
+  lw t1, 0(fp) ; p
+  sw t0, 0(t1)
   ; field.e16.ts:276  poke16(p + 2, base + 5 + quarter(n, e, like(i - 15, key)))
-  lw t0, 0(fp) ; base
-  addi t0, t0, 5
+  lw t0, 0(fp) ; p
+  addi t0, t0, 2
   addi sp, sp, -2
   sw t0, 0(sp)
-  addi a0, s1, -15
-  mv a1, s2
-  call like
-  lw a1, 10(fp)
-  mv a2, a0
-  lw a0, 4(fp)
-  call quarter
-  lw t0, 0(sp)
-  addi sp, sp, 2
-  add t0, t0, a0
-  sw t0, 2(s3)
-  ; field.e16.ts:277  poke16(p + 128, base + 10 + quarter(s, w, like(i + 15, key)))
-  lw t0, 0(fp) ; base
-  addi t0, t0, 10
-  addi sp, sp, -2
-  sw t0, 0(sp)
-  addi a0, s1, 15
-  mv a1, s2
+  addi a0, s2, -15
+  mv a1, s3
   call like
   lw a1, 8(fp)
   mv a2, a0
-  lw a0, 6(fp)
+  lw a0, 2(fp)
   call quarter
-  lw t0, 0(sp)
-  addi sp, sp, 2
+  addi t0, s1, 5
   add t0, t0, a0
-  sw t0, 128(s3)
-  ; field.e16.ts:278  poke16(p + 130, base + 15 + quarter(s, e, like(i + 17, key)))
-  lw t0, 0(fp) ; base
-  addi t0, t0, 15
+  lw t1, 0(sp)
+  addi sp, sp, 2
+  sw t0, 0(t1)
+  ; field.e16.ts:277  poke16(p + 128, base + 10 + quarter(s, w, like(i + 15, key)))
+  lw t0, 0(fp) ; p
+  addi t0, t0, 128
   addi sp, sp, -2
   sw t0, 0(sp)
-  addi a0, s1, 17
-  mv a1, s2
+  addi a0, s2, 15
+  mv a1, s3
   call like
-  lw a1, 10(fp)
+  lw a1, 6(fp)
   mv a2, a0
-  lw a0, 6(fp)
+  lw a0, 4(fp)
   call quarter
-  lw t0, 0(sp)
-  addi sp, sp, 2
+  addi t0, s1, 10
   add t0, t0, a0
-  sw t0, 130(s3)
+  lw t1, 0(sp)
+  addi sp, sp, 2
+  sw t0, 0(t1)
+  ; field.e16.ts:278  poke16(p + 130, base + 15 + quarter(s, e, like(i + 17, key)))
+  lw t0, 0(fp) ; p
+  addi t0, t0, 130
+  addi sp, sp, -2
+  sw t0, 0(sp)
+  addi a0, s2, 17
+  mv a1, s3
+  call like
+  lw a1, 8(fp)
+  mv a2, a0
+  lw a0, 4(fp)
+  call quarter
+  addi t0, s1, 15
+  add t0, t0, a0
+  lw t1, 0(sp)
+  addi sp, sp, 2
+  sw t0, 0(t1)
 .return:
   mv sp, fp
-  lw ra, 14(sp)
+  lw ra, 10(sp)
+  lw s2, 12(sp)
+  lw s1, 14(sp)
   lw s3, 16(sp)
-  lw s1, 18(sp)
-  lw s2, 20(sp)
-  lw s0, 22(sp)
-  addi sp, sp, 24
+  lw s0, 18(sp)
+  addi sp, sp, 20
   ret
 
 ; field.e16.ts:281 like(i, key) at -O1
@@ -3492,31 +3427,29 @@ rowIn:
 .return:
   ret
 
-; fall.e16.ts:49 groupOf(start) at -O1
-;   start in s0
-;   key in s1
+; fall.e16.ts:49 groupOf(start/key) at -O1
+;   start/key in s1
 ;   k in s2
 ;   i in s3
 groupOf:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
-  sw s0, 2(sp)
-  sw s1, 4(sp)
-  sw s2, 6(sp)
-  sw s3, 8(sp)
-  mv s0, a0 ; start
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  sw s3, 6(sp)
+  mv s1, a0 ; start/key
   ; fall.e16.ts:50  stampNext()
   call stampNext
   ; fall.e16.ts:51  found[0] = start
-  sw s0, found(zero)
+  sw s1, found(zero)
   ; fall.e16.ts:52  stampIt(start)
-  mv a0, s0
+  mv a0, s1
   call stampIt
   ; fall.e16.ts:53  foundN = 1
   li t0, 1
   sw t0, 0x12e8(zero)
   ; fall.e16.ts:54  const key = cells[start]
-  lbu s1, cells(s0)
+  lbu s1, cells(s1)
   ; fall.e16.ts:55  if ((key & 15) > T_BLUE) return 1
   andi t0, s1, 15
   li t1, 4
@@ -3562,11 +3495,10 @@ groupOf:
   lw a0, 0x12e8(zero)
 .return:
   lw ra, 0(sp)
-  lw s0, 2(sp)
-  lw s1, 4(sp)
-  lw s2, 6(sp)
-  lw s3, 8(sp)
-  addi sp, sp, 10
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  addi sp, sp, 8
   ret
 
 ; fall.e16.ts:68 reach(i, key) at -O1
@@ -3831,109 +3763,105 @@ suspect:
 
 ; fall.e16.ts:200 suspectsStep(budget) at -O1
 ;   budget in s3
-;   spent in s1
-;   i in s0
-;   cost in s2
+;   spent in s2
+;   i/cost in s1
 suspectsStep:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
   sw s3, 2(sp)
-  sw s1, 4(sp)
-  sw s0, 6(sp)
-  sw s2, 8(sp)
+  sw s2, 4(sp)
+  sw s1, 6(sp)
   mv s3, a0 ; budget
   ; fall.e16.ts:201  let spent: u16 = 0
-  li s1, 0 ; spent
+  li s2, 0 ; spent
   ; fall.e16.ts:202  while (susHead !== susTail && spent < budget) {
   j .L3
 .L1:
   ; fall.e16.ts:203  const i = sus[susHead]
   lw t0, 0x1986(zero)
   slli t0, t0, 1
-  lw s0, sus(t0)
+  lw s1, sus(t0)
   ; fall.e16.ts:204  susHead = (susHead + 1) & 127
   lw t0, 0x1986(zero)
   addi t0, t0, 1
   andi t0, t0, 127
   sw t0, 0x1986(zero)
   ; fall.e16.ts:205  const cost = footing(i)
-  mv a0, s0
+  mv a0, s1
   call footing
-  mv s2, a0 ; cost
+  mv s1, a0 ; i/cost
   ; fall.e16.ts:207  if (cost === FULL) return
   li t0, 65535
-  bne s2, t0, .L5
+  bne s1, t0, .L5
   ; fall.e16.ts:207  return
   j .return
 .L5:
   ; fall.e16.ts:208  spent = spent + cost
-  add s1, s1, s2
+  add s2, s2, s1
 .L3:
   lw t0, 0x1986(zero)
   lw t1, 0x1988(zero)
   beq t0, t1, .L6
-  bltu s1, s3, .L1
+  bltu s2, s3, .L1
 .L6:
 .return:
   lw ra, 0(sp)
   lw s3, 2(sp)
-  lw s1, 4(sp)
-  lw s0, 6(sp)
-  lw s2, 8(sp)
-  addi sp, sp, 10
+  lw s2, 4(sp)
+  lw s1, 6(sp)
+  addi sp, sp, 8
   ret
 
 ; fall.e16.ts:222 underneath(n) at -O1
-;   n in 4(fp)
+;   n in 2(fp)
 ;   join in s3
-;   k in s1
-;   ceiling in 6(fp)
-;   below in s2
+;   k in s2
+;   ceiling in 4(fp)
+;   below/u in s1
 ;   bv in 0(fp)
-;   u in 2(fp)
 underneath:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s3, 10(sp)
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s3, 8(sp)
+  sw s2, 10(sp)
   sw s1, 12(sp)
-  sw s2, 14(sp)
-  sw s0, 16(sp)
+  sw s0, 14(sp)
   mv fp, sp
-  sw a0, 4(fp) ; n
+  sw a0, 2(fp) ; n
   ; fall.e16.ts:223  let join: u16 = 0xff
   li s3, 255 ; join
   ; fall.e16.ts:224  let k: u16 = 0
-  li s1, 0 ; k
+  li s2, 0 ; k
   ; fall.e16.ts:225  const ceiling = top & 31
   lw t0, 0x10b2(zero)
   andi t0, t0, 31
-  sw t0, 6(fp) ; ceiling
+  sw t0, 4(fp) ; ceiling
   ; fall.e16.ts:226  while (k < n) {
   j .L3
 .L1:
   ; fall.e16.ts:228  if (found[k] >> 4 === ceiling) return HELD
-  slli t0, s1, 1
+  slli t0, s2, 1
   lw t0, found(t0)
   srli t0, t0, 4
-  lw t1, 6(fp) ; ceiling
+  lw t1, 4(fp) ; ceiling
   bne t0, t1, .L5
   ; fall.e16.ts:228  return HELD
   li a0, 254
   j .return
 .L5:
   ; fall.e16.ts:229  const below = (found[k] + 16) & 511
-  slli t0, s1, 1
+  slli t0, s2, 1
   lw t0, found(t0)
   addi t0, t0, 16
-  andi s2, t0, 511
+  andi s1, t0, 511
   ; fall.e16.ts:230  const bv = cells[below]
-  lbu t0, cells(s2)
+  lbu t0, cells(s1)
   sw t0, 0(fp) ; bv
   ; fall.e16.ts:231  if ((bv & 15) !== 0 && !stamped(below)) {
   lw t0, 0(fp) ; bv
   andi t0, t0, 15
   beq t0, zero, .L6
-  mv a0, s2
+  mv a0, s1
   call stamped
   bnez a0, .L6
   ; fall.e16.ts:232  if ((bv & F_LOOSE) === 0) return HELD
@@ -3945,68 +3873,58 @@ underneath:
   j .return
 .L7:
   ; fall.e16.ts:233  const u = lbUnit[lbAt[below] - 1]
-  lbu t0, lbAt(s2)
-  lbu t0, lbUnit-1(t0)
-  sw t0, 2(fp) ; u
+  lbu t0, lbAt(s1)
+  lbu s1, lbUnit-1(t0)
   ; fall.e16.ts:234  if (uState[u] === U_WOBBLE) join = u
-  lw t0, 2(fp) ; u
-  slli t0, t0, 1
+  slli t0, s1, 1
   lw t0, uState(t0)
   li t1, 1
   bne t0, t1, .L8
   ; fall.e16.ts:234  join = u
-  lw s3, 2(fp) ; u
+  mv s3, s1 ; join
 .L8:
 .L6:
   ; fall.e16.ts:236  k++
-  addi s1, s1, 1
+  addi s2, s2, 1
 .L3:
-  lw t0, 4(fp) ; n
-  bltu s1, t0, .L1
+  lw t0, 2(fp) ; n
+  bltu s2, t0, .L1
   ; fall.e16.ts:238  return join
   mv a0, s3
 .return:
   mv sp, fp
-  lw ra, 8(sp)
-  lw s3, 10(sp)
+  lw ra, 6(sp)
+  lw s3, 8(sp)
+  lw s2, 10(sp)
   lw s1, 12(sp)
-  lw s2, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw s0, 14(sp)
+  addi sp, sp, 16
   ret
 
 ; fall.e16.ts:242 footing(i) at -O1
-;   i in s2
-;   v in 0(fp)
-;   t in 2(fp)
-;   n in s1
-;   join in s3
-;   g in 4(fp)
-;   u in 6(fp)
+;   i in s3
+;   v/n in s1
+;   t/join in s2
+;   g in 0(fp)
+;   u in 2(fp)
 footing:
-  addi sp, sp, -18
-  sw ra, 8(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s3, 6(sp)
+  sw s1, 8(sp)
   sw s2, 10(sp)
-  sw s1, 12(sp)
-  sw s3, 14(sp)
-  sw s0, 16(sp)
+  sw s0, 12(sp)
   mv fp, sp
-  mv s2, a0 ; i
+  mv s3, a0 ; i
   ; fall.e16.ts:243  const v = cells[i]
-  lbu t0, cells(s2)
-  sw t0, 0(fp) ; v
+  lbu s1, cells(s3)
   ; fall.e16.ts:244  const t = v & 15
-  lw t0, 0(fp) ; v
-  andi t0, t0, 15
-  sw t0, 2(fp) ; t
+  andi s2, s1, 15
   ; fall.e16.ts:245  if (t === T_EMPTY || t >= T_CORE || (v & (F_LOOSE | F_PEND)) !== 0) return 2
-  lw t0, 2(fp) ; t
-  beq t0, zero, .L2
+  beq s2, zero, .L2
   li t0, 7
-  lw t1, 2(fp) ; t
-  bgeu t1, t0, .L2
-  lw t0, 0(fp) ; v
-  andi t0, t0, 192
+  bgeu s2, t0, .L2
+  andi t0, s1, 192
   beq t0, zero, .L1
 .L2:
   ; fall.e16.ts:245  return 2
@@ -4014,16 +3932,16 @@ footing:
   j .return
 .L1:
   ; fall.e16.ts:246  const n = groupOf(i)
-  mv a0, s2
+  mv a0, s3
   call groupOf
-  mv s1, a0 ; n
+  mv s1, a0 ; v/n
   ; fall.e16.ts:247  const join = underneath(n)
   mv a0, s1
   call underneath
-  mv s3, a0 ; join
+  mv s2, a0 ; t/join
   ; fall.e16.ts:248  if (join === HELD) return n + 4
   li t0, 254
-  bne s3, t0, .L3
+  bne s2, t0, .L3
   ; fall.e16.ts:248  return n + 4
   addi a0, s1, 4
   j .return
@@ -4034,7 +3952,7 @@ footing:
   li t1, 96
   bgeu t1, t0, .L4
   ; fall.e16.ts:251  suspect(i)
-  mv a0, s2
+  mv a0, s3
   call suspect
   ; fall.e16.ts:252  return FULL
   li a0, 65535
@@ -4042,30 +3960,30 @@ footing:
 .L4:
   ; fall.e16.ts:254  const g = groupNew()
   call groupNew
-  sw a0, 4(fp) ; g
+  sw a0, 0(fp) ; g
   ; fall.e16.ts:255  const u = g === 0xff ? 0xff : join !== 0xff ? join : unitNew()
   li t0, 255
-  lw t1, 4(fp) ; g
+  lw t1, 0(fp) ; g
   bne t1, t0, .L5
   li t0, 255
   j .L6
 .L5:
   li t0, 255
-  beq s3, t0, .L7
-  mv t0, s3
+  beq s2, t0, .L7
+  mv t0, s2
   j .L8
 .L7:
   call unitNew
   mv t0, a0
 .L8:
 .L6:
-  sw t0, 6(fp) ; u
+  sw t0, 2(fp) ; u
   ; fall.e16.ts:256  if (u === 0xff) {
   li t0, 255
-  lw t1, 6(fp) ; u
+  lw t1, 2(fp) ; u
   bne t1, t0, .L9
   ; fall.e16.ts:257  suspect(i)
-  mv a0, s2
+  mv a0, s3
   call suspect
   ; fall.e16.ts:258  return FULL
   li a0, 65535
@@ -4073,7 +3991,7 @@ footing:
 .L9:
   ; fall.e16.ts:260  if (join === 0xff) loosened++
   li t0, 255
-  bne s3, t0, .L10
+  bne s2, t0, .L10
   ; fall.e16.ts:260  loosened++
   lw t0, 0x1a16(zero)
   addi t0, t0, 1
@@ -4081,20 +3999,20 @@ footing:
 .L10:
   ; fall.e16.ts:261  loosen(n, u, g)
   mv a0, s1
-  lw a1, 6(fp)
-  lw a2, 4(fp)
+  lw a1, 2(fp)
+  lw a2, 0(fp)
   call loosen
   ; fall.e16.ts:263  return n * 4 + 16
   slli t0, s1, 2
   addi a0, t0, 16
 .return:
   mv sp, fp
-  lw ra, 8(sp)
+  lw ra, 4(sp)
+  lw s3, 6(sp)
+  lw s1, 8(sp)
   lw s2, 10(sp)
-  lw s1, 12(sp)
-  lw s3, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
 ; fall.e16.ts:267 loosen(n, u, g) at -O1
@@ -4226,33 +4144,26 @@ loosen:
 ; fall.e16.ts:299 looseTile(c, g) at -O1
 ;   c in s2
 ;   g in s3
-;   v in 2(fp)
-;   t in 0(fp)
-;   m in s1
+;   v/m in s1
+;   t in s0
 looseTile:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s2, 6(sp)
-  sw s3, 8(sp)
-  sw s1, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s3, 4(sp)
+  sw s1, 6(sp)
+  sw s0, 8(sp)
   mv s2, a0 ; c
   mv s3, a1 ; g
   ; fall.e16.ts:300  const v = cells[c]
-  lbu t0, cells(s2)
-  sw t0, 2(fp) ; v
+  lbu s1, cells(s2)
   ; fall.e16.ts:301  const t = v & 15
-  lw t0, 2(fp) ; v
-  andi t0, t0, 15
-  sw t0, 0(fp) ; t
+  andi s0, s1, 15
   ; fall.e16.ts:302  if (t === T_ALLOY) return (ALLOY_TILE + ((v >> 4) & 3) * 4) | (5 << 10)
   li t0, 5
-  lw t1, 0(fp) ; t
-  bne t1, t0, .L1
+  bne s0, t0, .L1
   ; fall.e16.ts:302  return (ALLOY_TILE + ((v >> 4) & 3) * 4) | (5 << 10)
-  lw t0, 2(fp) ; v
-  srli t0, t0, 4
+  srli t0, s1, 4
   andi t0, t0, 3
   slli t0, t0, 2
   addi t0, t0, 281
@@ -4261,14 +4172,13 @@ looseTile:
 .L1:
   ; fall.e16.ts:303  if (t === T_AIR) return CAPSULE_TILE | (5 << 10)
   li t0, 6
-  lw t1, 0(fp) ; t
-  bne t1, t0, .L2
+  bne s0, t0, .L2
   ; fall.e16.ts:303  return CAPSULE_TILE | (5 << 10)
   li a0, 5421
   j .return
 .L2:
   ; fall.e16.ts:304  let m: u16 = 0
-  li s1, 0 ; m
+  li s1, 0 ; v/m
   ; fall.e16.ts:305  if (kin((c - 16) & 511, g)) m = m | 1
   addi t0, s2, -16
   andi a0, t0, 511
@@ -4307,33 +4217,30 @@ looseTile:
 .L6:
   ; fall.e16.ts:309  return (LOOSE_TILE + m * 4) | (t << 10)
   slli t0, s1, 2
-  lw t1, 0(fp) ; t
-  slli t1, t1, 10
+  slli t1, s0, 10
   addi t0, t0, 197
   or a0, t0, t1
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s2, 6(sp)
-  lw s3, 8(sp)
-  lw s1, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s3, 4(sp)
+  lw s1, 6(sp)
+  lw s0, 8(sp)
+  addi sp, sp, 10
   ret
 
-; fall.e16.ts:312 kin(c, g) at -O1
-;   c in a0
+; fall.e16.ts:312 kin(c/j, g) at -O1
+;   c/j in a0
 ;   g in a1
-;   j in a2
 kin:
   ; fall.e16.ts:313  const j = lbAt[c]
-  lbu a2, lbAt(a0)
+  lbu a0, lbAt(a0)
   ; fall.e16.ts:314  return j !== 0 && lbGroup[j - 1] === g
-  sub t0, a2, zero
+  sub t0, a0, zero
   snez t0, t0
   mv t1, t0
   beqz t1, .L1
-  lbu t0, lbGroup-1(a2)
+  lbu t0, lbGroup-1(a0)
   sub t0, t0, a1
   seqz t0, t0
 .L1:
@@ -4506,17 +4413,15 @@ fallStep:
   addi sp, sp, 8
   ret
 
-; fall.e16.ts:367 strikeCheck(u) at -O1
-;   u in s2
+; fall.e16.ts:367 strikeCheck(u/c) at -O1
+;   u/c in s2
 ;   k in s1
-;   c in s3
 strikeCheck:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  sw s3, 6(sp)
-  mv s2, a0 ; u
+  mv s2, a0 ; u/c
   ; fall.e16.ts:368  let k: u16 = 0
   li s1, 0 ; k
   ; fall.e16.ts:369  while (k < lbN) {
@@ -4543,14 +4448,14 @@ strikeCheck:
   sw t0, 0x1884(zero)
   ; fall.e16.ts:373  const c = lbCell[k]
   slli t0, s1, 1
-  lw s3, lbCell(t0)
+  lw s2, lbCell(t0)
   ; fall.e16.ts:374  dropBlock(k)
   mv a0, s1
   call dropBlock
   ; fall.e16.ts:375  cells[c] = T_EMPTY
-  sb zero, cells(s3)
+  sb zero, cells(s2)
   ; fall.e16.ts:376  markAround(c)
-  mv a0, s3
+  mv a0, s2
   call markAround
   ; fall.e16.ts:377  return
   j .return
@@ -4574,15 +4479,13 @@ strikeCheck:
   lw ra, 0(sp)
   lw s2, 2(sp)
   lw s1, 4(sp)
-  lw s3, 6(sp)
-  addi sp, sp, 8
+  addi sp, sp, 6
   ret
 
 ; fall.e16.ts:389 blocker(u) at -O1
 ;   u in a0
 ;   k in a1
-;   below in a2
-;   v in a3
+;   below/v in a2
 blocker:
   ; fall.e16.ts:390  let k: u16 = 0
   li a1, 0 ; k
@@ -4603,11 +4506,11 @@ blocker:
   beq t0, zero, .L6
   ; fall.e16.ts:395  const v = lbUnit[lbAt[below] - 1]
   lbu t0, lbAt(a2)
-  lbu a3, lbUnit-1(t0)
+  lbu a2, lbUnit-1(t0)
   ; fall.e16.ts:396  if (v !== u) return v
-  beq a3, a0, .L7
+  beq a2, a0, .L7
   ; fall.e16.ts:396  return v
-  mv a0, a3
+  mv a0, a2
   ret
 .L7:
 .L6:
@@ -4722,16 +4625,14 @@ down:
 
 ; fall.e16.ts:447 settle(u) at -O1
 ;   u in s3
-;   k in s1
-;   up in s0
+;   k/up in s1
 ;   c in s2
 settle:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
   sw s3, 2(sp)
   sw s1, 4(sp)
-  sw s0, 6(sp)
-  sw s2, 8(sp)
+  sw s2, 6(sp)
   mv s3, a0 ; u
   ; fall.e16.ts:449  if (!touches(u)) return
   mv a0, s3
@@ -4741,7 +4642,7 @@ settle:
   j .return
 .L1:
   ; fall.e16.ts:450  let k: u16 = 0
-  li s1, 0 ; k
+  li s1, 0 ; k/up
   ; fall.e16.ts:451  while (k < lbN) {
   j .L4
 .L2:
@@ -4758,15 +4659,15 @@ settle:
   lw t0, 0x158a(zero)
   bltu s1, t0, .L2
   ; fall.e16.ts:457  let up = true
-  li s0, 1 ; up
+  li s1, 1 ; k/up
   ; fall.e16.ts:458  while (settlePass(u, up)) up = !up
   j .L9
 .L7:
   ; fall.e16.ts:458  up = !up
-  seqz s0, s0
+  seqz s1, s1
 .L9:
   mv a0, s3
-  mv a1, s0
+  mv a1, s1
   call settlePass
   bnez a0, .L7
   ; fall.e16.ts:460  k = lbN
@@ -4823,9 +4724,8 @@ settle:
   lw ra, 0(sp)
   lw s3, 2(sp)
   lw s1, 4(sp)
-  lw s0, 6(sp)
-  lw s2, 8(sp)
-  addi sp, sp, 10
+  lw s2, 6(sp)
+  addi sp, sp, 8
   ret
 
 ; fall.e16.ts:474 settlePass(u, up) at -O1
@@ -4936,54 +4836,48 @@ touches:
 .return:
   ret
 
-; fall.e16.ts:501 rests(k, u) at -O1
-;   k in a0
+; fall.e16.ts:501 rests(k/below/j, u) at -O1
+;   k/below/j in a0
 ;   u in a1
-;   below in a2
-;   bv in a3
-;   j in s1
+;   bv in a2
 rests:
-  addi sp, sp, -2
-  sw s1, 0(sp)
   ; fall.e16.ts:502  const below = (lbCell[k] + 16) & 511
   slli t0, a0, 1
   lw t0, lbCell(t0)
   addi t0, t0, 16
-  andi a2, t0, 511
+  andi a0, t0, 511
   ; fall.e16.ts:503  const bv = cells[below]
-  lbu a3, cells(a2)
+  lbu a2, cells(a0)
   ; fall.e16.ts:504  if ((bv & 15) === 0) return false
-  andi t0, a3, 15
+  andi t0, a2, 15
   bne t0, zero, .L1
   ; fall.e16.ts:504  return false
   li a0, 0
-  j .return
+  ret
 .L1:
   ; fall.e16.ts:505  if ((bv & F_LOOSE) === 0) return true
-  andi t0, a3, 128
+  andi t0, a2, 128
   bne t0, zero, .L2
   ; fall.e16.ts:505  return true
   li a0, 1
-  j .return
+  ret
 .L2:
   ; fall.e16.ts:506  const j = lbAt[below] - 1
-  lbu t0, lbAt(a2)
-  addi s1, t0, -1
+  lbu t0, lbAt(a0)
+  addi a0, t0, -1
   ; fall.e16.ts:507  return lbUnit[j] === u && gSet[lbGroup[j]] !== 0
-  lbu t0, lbUnit(s1)
+  lbu t0, lbUnit(a0)
   sub t0, t0, a1
   seqz t0, t0
   mv t1, t0
   beqz t1, .L3
-  lbu t0, lbGroup(s1)
+  lbu t0, lbGroup(a0)
   lbu t0, gSet(t0)
   sub t0, t0, zero
   snez t0, t0
 .L3:
   mv a0, t0
 .return:
-  lw s1, 0(sp)
-  addi sp, sp, 2
   ret
 
 ; fall.e16.ts:511 dropBlock(k) at -O1
@@ -5146,28 +5040,27 @@ newsClear:
   ret
 
 ; fall.e16.ts:587 chainsStep(now, budget) at -O1
-;   now in 4(fp)
-;   budget in 6(fp)
-;   spent in s2
+;   now in 2(fp)
+;   budget in 4(fp)
+;   spent in s3
 ;   k in s1
 ;   c in 0(fp)
-;   t in 2(fp)
-;   n in s3
+;   t/n in s2
 chainsStep:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s2, 10(sp)
-  sw s1, 12(sp)
-  sw s3, 14(sp)
-  sw s0, 16(sp)
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s3, 8(sp)
+  sw s1, 10(sp)
+  sw s2, 12(sp)
+  sw s0, 14(sp)
   mv fp, sp
-  sw a0, 4(fp) ; now
-  sw a1, 6(fp) ; budget
+  sw a0, 2(fp) ; now
+  sw a1, 4(fp) ; budget
   ; fall.e16.ts:588  landings = landN
   lw t0, 0x1a0a(zero)
   sw t0, 0x1a14(zero)
   ; fall.e16.ts:589  let spent: u16 = 0
-  li s2, 0 ; spent
+  li s3, 0 ; spent
   ; fall.e16.ts:590  let k: u16 = 0
   li s1, 0 ; k
   ; fall.e16.ts:591  while (k < landN && spent < budget) {
@@ -5181,29 +5074,26 @@ chainsStep:
   addi s1, s1, 1
   ; fall.e16.ts:594  const t = cells[c]
   lw t0, 0(fp) ; c
-  lbu t0, cells(t0)
-  sw t0, 2(fp) ; t
+  lbu s2, cells(t0)
   ; fall.e16.ts:595  spent = spent + 2
-  addi s2, s2, 2
+  addi s3, s3, 2
   ; fall.e16.ts:596  if (t < 1 || t > T_BLUE) continue
   li t0, 1
-  lw t1, 2(fp) ; t
-  bltu t1, t0, .L2
+  bltu s2, t0, .L2
   li t0, 4
-  lw t1, 2(fp) ; t
-  bgeu t0, t1, .L5
+  bgeu t0, s2, .L5
   ; fall.e16.ts:596  continue
   j .L2
 .L5:
   ; fall.e16.ts:597  const n = groupOf(c)
   lw a0, 0(fp)
   call groupOf
-  mv s3, a0 ; n
+  mv s2, a0 ; t/n
   ; fall.e16.ts:598  spent = spent + n
-  add s2, s2, s3
+  add s3, s3, s2
   ; fall.e16.ts:599  if (n < 4) continue
   li t0, 4
-  bgeu s3, t0, .L7
+  bgeu s2, t0, .L7
   ; fall.e16.ts:599  continue
   j .L2
 .L7:
@@ -5213,7 +5103,7 @@ chainsStep:
   sw t0, 0x1a0c(zero)
   ; fall.e16.ts:601  vanishedBlocks = vanishedBlocks + n
   lw t0, 0x1a0e(zero)
-  add t0, t0, s3
+  add t0, t0, s2
   sw t0, 0x1a0e(zero)
   ; fall.e16.ts:602  vanishedChain = chain
   lw t0, 0x1a0c(zero)
@@ -5222,20 +5112,20 @@ chainsStep:
   lw t0, 0(fp) ; c
   sw t0, 0x1a12(zero)
   ; fall.e16.ts:604  vanish(n, now + 24, 0)
-  lw t0, 4(fp) ; now
-  mv a0, s3
+  lw t0, 2(fp) ; now
+  mv a0, s2
   addi a1, t0, 24
   li a2, 0
   call vanish
   ; fall.e16.ts:605  spent = spent + n * 2
-  slli t0, s3, 1
-  add s2, s2, t0
+  slli t0, s2, 1
+  add s3, s3, t0
 .L2:
 .L3:
   lw t0, 0x1a0a(zero)
   bgeu s1, t0, .L8
-  lw t0, 6(fp) ; budget
-  bltu s2, t0, .L1
+  lw t0, 4(fp) ; budget
+  bltu s3, t0, .L1
 .L8:
   ; fall.e16.ts:607  if (k > 0 && k < landN) memcpy(addr(landQ), addr(landQ) + k * 2, (landN - k) * 2)
   bgeu zero, s1, .L9
@@ -5263,12 +5153,12 @@ chainsStep:
 .L10:
 .return:
   mv sp, fp
-  lw ra, 8(sp)
-  lw s2, 10(sp)
-  lw s1, 12(sp)
-  lw s3, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw ra, 6(sp)
+  lw s3, 8(sp)
+  lw s1, 10(sp)
+  lw s2, 12(sp)
+  lw s0, 14(sp)
+  addi sp, sp, 16
   ret
 
 ; fall.e16.ts:616 vanish(n, due, step) at -O1
@@ -5638,42 +5528,38 @@ glyph:
 .return:
   ret
 
-; hud.e16.ts:45 figure(cell, n, digits, sl) at -O1
-;   cell in 2(fp)
-;   n in 4(fp)
+; hud.e16.ts:45 figure(cell/at, n/v, digits, sl) at -O1
+;   cell/at in s2
+;   n/v in s1
 ;   digits in 0(fp)
-;   sl in 6(fp)
-;   at in s3
-;   v in s1
-;   k in s2
-;   c in 8(fp)
+;   sl in 2(fp)
+;   k in s3
+;   c in 4(fp)
 figure:
-  addi sp, sp, -20
-  sw ra, 10(sp)
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s2, 8(sp)
+  sw s1, 10(sp)
   sw s3, 12(sp)
-  sw s1, 14(sp)
-  sw s2, 16(sp)
-  sw s0, 18(sp)
+  sw s0, 14(sp)
   mv fp, sp
-  sw a0, 2(fp) ; cell
-  sw a1, 4(fp) ; n
+  mv s2, a0 ; cell/at
+  mv s1, a1 ; n/v
   sw a2, 0(fp) ; digits
-  sw a3, 6(fp) ; sl
+  sw a3, 2(fp) ; sl
   ; hud.e16.ts:46  let at = cell + (digits - 1) * 2
   lw t0, 0(fp) ; digits
   addi t0, t0, -1
   slli t0, t0, 1
-  lw t1, 2(fp) ; cell
-  add s3, t1, t0
+  add s2, s2, t0
   ; hud.e16.ts:47  let v = n
-  lw s1, 4(fp) ; n
   ; hud.e16.ts:48  let k: u16 = 0
-  li s2, 0 ; k
+  li s3, 0 ; k
   ; hud.e16.ts:49  while (k < digits) {
   j .L3
 .L1:
   ; hud.e16.ts:50  const c: u16 = k > 0 && v === 0 ? 32 : 48 + (v % 10)
-  bgeu zero, s2, .L5
+  bgeu zero, s3, .L5
   bne s1, zero, .L5
   li t0, 32
   j .L6
@@ -5686,33 +5572,33 @@ figure:
   sub t0, s1, t0
   addi t0, t0, 48
 .L6:
-  sw t0, 8(fp) ; c
+  sw t0, 4(fp) ; c
   ; hud.e16.ts:51  vpoke(at, glyph(c, sl))
-  lw a0, 8(fp)
-  lw a1, 6(fp)
+  lw a0, 4(fp)
+  lw a1, 2(fp)
   call glyph
   mv a1, a0
-  mv a0, s3
+  mv a0, s2
   call vpoke
   ; hud.e16.ts:52  v = div(v, 10)
   li t1, 52429
   mulhu t0, s1, t1
   srli s1, t0, 3
   ; hud.e16.ts:53  at = at - 2
-  addi s3, s3, -2
+  addi s2, s2, -2
   ; hud.e16.ts:54  k++
-  addi s2, s2, 1
+  addi s3, s3, 1
 .L3:
   lw t0, 0(fp) ; digits
-  bltu s2, t0, .L1
+  bltu s3, t0, .L1
 .return:
   mv sp, fp
-  lw ra, 10(sp)
+  lw ra, 6(sp)
+  lw s2, 8(sp)
+  lw s1, 10(sp)
   lw s3, 12(sp)
-  lw s1, 14(sp)
-  lw s2, 16(sp)
-  lw s0, 18(sp)
-  addi sp, sp, 20
+  lw s0, 14(sp)
+  addi sp, sp, 16
   ret
 
 ; hud.e16.ts:64 band(y, rows) at -O1
@@ -6542,17 +6428,13 @@ scrollIs:
   ret
 
 ; drill.e16.ts:399 pulse() at -O1
-;   p in s2
-;   t in s0
-;   k in s1
-;   turn in s3
+;   p/t/turn in s1
+;   k in s2
 pulse:
-  addi sp, sp, -10
+  addi sp, sp, -6
   sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s0, 4(sp)
-  sw s1, 6(sp)
-  sw s3, 8(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
   ; drill.e16.ts:401  if ((frame & 1) !== 0) return
   lw t0, 0x1d0e(zero)
   andi t0, t0, 1
@@ -6562,38 +6444,38 @@ pulse:
 .L1:
   ; drill.e16.ts:402  const p = frame & 15
   lw t0, 0x1d0e(zero)
-  andi s2, t0, 15
+  andi s1, t0, 15
   ; drill.e16.ts:403  const t: u16 = p < 8 ? p + 4 : 20 - p
   li t0, 8
-  bgeu s2, t0, .L2
-  addi t0, s2, 4
+  bgeu s1, t0, .L2
+  addi t0, s1, 4
   j .L3
 .L2:
   li t0, 20
-  sub t0, t0, s2
+  sub t0, t0, s1
 .L3:
-  mv s0, t0 ; t
+  mv s1, t0 ; p/t/turn
   ; drill.e16.ts:404  let k: u16 = 2
-  li s1, 2 ; k
+  li s2, 2 ; k
   ; drill.e16.ts:405  while (k < 8) {
   j .L6
 .L4:
   ; drill.e16.ts:406  colour(SL_FLASH, k, mix(palCopy[SL_FLASH * 16 + k], 0x3b9f, t))
-  addi t0, s1, 96
+  addi t0, s2, 96
   slli t0, t0, 1
   lw a0, palCopy(t0)
   li a1, 15263
-  mv a2, s0
+  mv a2, s1
   call mix
-  mv a1, s1
+  mv a1, s2
   mv a2, a0
   li a0, 6
   call colour
   ; drill.e16.ts:407  k++
-  addi s1, s1, 1
+  addi s2, s2, 1
 .L6:
   li t0, 8
-  bltu s1, t0, .L4
+  bltu s2, t0, .L4
   ; drill.e16.ts:409  if ((frame & 7) !== 0) return
   lw t0, 0x1d0e(zero)
   andi t0, t0, 7
@@ -6609,9 +6491,9 @@ pulse:
   srli t1, t1, 1
   li t2, 3
   mul t1, t1, t2
-  sub s3, t0, t1
+  sub s1, t0, t1
   ; drill.e16.ts:411  colour(SL_FLASH, 9, palCopy[SL_FLASH * 16 + 9 + turn])
-  addi t0, s3, 105
+  addi t0, s1, 105
   slli t0, t0, 1
   lw t0, palCopy(t0)
   li a0, 6
@@ -6619,7 +6501,7 @@ pulse:
   mv a2, t0
   call colour
   ; drill.e16.ts:412  colour(SL_FLASH, 10, palCopy[SL_FLASH * 16 + 9 + ((turn + 1) % 3)])
-  addi t0, s3, 1
+  addi t0, s1, 1
   li t2, 43691
   mulhu t1, t0, t2
   srli t1, t1, 1
@@ -6634,7 +6516,7 @@ pulse:
   mv a2, t0
   call colour
   ; drill.e16.ts:413  colour(SL_FLASH, 11, palCopy[SL_FLASH * 16 + 9 + ((turn + 2) % 3)])
-  addi t0, s3, 2
+  addi t0, s1, 2
   li t2, 43691
   mulhu t1, t0, t2
   srli t1, t1, 1
@@ -6650,26 +6532,21 @@ pulse:
   call colour
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s0, 4(sp)
-  lw s1, 6(sp)
-  lw s3, 8(sp)
-  addi sp, sp, 10
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  addi sp, sp, 6
   ret
 
-; drill.e16.ts:419 points(n) at -O1
-;   n in s3
-;   left in s1
+; drill.e16.ts:419 points(n/left) at -O1
+;   n/left in s1
 ;   k in s2
 points:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
-  sw s3, 2(sp)
-  sw s1, 4(sp)
-  sw s2, 6(sp)
-  mv s3, a0 ; n
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  mv s1, a0 ; n/left
   ; drill.e16.ts:420  let left = n
-  mv s1, s3 ; left
   ; drill.e16.ts:421  while (left > 0) {
   j .L3
 .L1:
@@ -6704,10 +6581,9 @@ points:
 .L7:
 .return:
   lw ra, 0(sp)
-  lw s3, 2(sp)
-  lw s1, 4(sp)
-  lw s2, 6(sp)
-  addi sp, sp, 8
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  addi sp, sp, 6
   ret
 
 ; drill.e16.ts:433 pace(s) at -O1
@@ -7184,26 +7060,24 @@ scoreFrame:
   ret
 
 ; drill.e16.ts:548 chainScored() at -O1
-;   worth in s1
-;   c in s2
+;   worth in s2
+;   c/y in s1
 ;   x in s3
-;   y in s0
 chainScored:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
-  sw s1, 2(sp)
-  sw s2, 4(sp)
+  sw s2, 2(sp)
+  sw s1, 4(sp)
   sw s3, 6(sp)
-  sw s0, 8(sp)
   ; drill.e16.ts:549  const worth = vanishedBlocks * 20 * vanishedChain
   lw t0, 0x1a0e(zero)
   slli t1, t0, 4
   slli t0, t0, 2
   add t0, t0, t1
   lw t1, 0x1a10(zero)
-  mul s1, t0, t1
+  mul s2, t0, t1
   ; drill.e16.ts:550  points(worth)
-  mv a0, s1
+  mv a0, s2
   call points
   ; drill.e16.ts:551  if (vanishedChain > maxChain) maxChain = vanishedChain
   lw t0, 0x1a10(zero)
@@ -7214,16 +7088,16 @@ chainScored:
   sw t0, 0x1d1e(zero)
 .L1:
   ; drill.e16.ts:552  const c = vanishedAt
-  lw s2, 0x1a12(zero)
+  lw s1, 0x1a12(zero)
   ; drill.e16.ts:553  const x = i16(FIELD_X + (c & 15) * 16) + 8
-  andi t0, s2, 15
+  andi t0, s1, 15
   slli t0, t0, 4
   addi s3, t0, 96
   ; drill.e16.ts:554  const y = i16(rowOf(c >> 4) * 16) - 10
-  srli a0, s2, 4
+  srli a0, s1, 4
   call rowOf
   slli t0, a0, 4
-  addi s0, t0, -10
+  addi s1, t0, -10
   ; drill.e16.ts:555  if (vanishedChain >= 2) {
   lw t0, 0x1a10(zero)
   li t1, 2
@@ -7231,7 +7105,7 @@ chainScored:
   ; drill.e16.ts:556  chainShow(x, y, vanishedChain)
   lw t0, 0x1a10(zero)
   mv a0, s3
-  mv a1, s0
+  mv a1, s1
   mv a2, t0
   la t0, chainShow
   li t1, 258
@@ -7250,8 +7124,8 @@ chainScored:
 .L2:
   ; drill.e16.ts:558  plusShow(x, y, worth)
   mv a0, s3
-  mv a1, s0
-  mv a2, s1
+  mv a1, s1
+  mv a2, s2
   la t0, plusShow
   li t1, 258
   call far_call
@@ -7261,11 +7135,10 @@ chainScored:
   call sfxChain
 .return:
   lw ra, 0(sp)
-  lw s1, 2(sp)
-  lw s2, 4(sp)
+  lw s2, 2(sp)
+  lw s1, 4(sp)
   lw s3, 6(sp)
-  lw s0, 8(sp)
-  addi sp, sp, 10
+  addi sp, sp, 8
   ret
 
 ; drill.e16.ts:563 pickups() at -O1
@@ -7463,8 +7336,7 @@ afterDeath:
   ret
 
 ; drill.e16.ts:617 cameraStep() at -O1
-;   want in a0
-;   shake in a1
+;   want/shake in a0
 cameraStep:
   ; drill.e16.ts:618  let want: u16 = pY > 96 ? pY - 96 : 0
   lw t0, 0x1d96(zero)
@@ -7476,7 +7348,7 @@ cameraStep:
 .L1:
   li t0, 0
 .L2:
-  mv a0, t0 ; want
+  mv a0, t0 ; want/shake
   ; drill.e16.ts:619  if (want < top * 16) want = top * 16
   lw t0, 0x10b2(zero)
   slli t0, t0, 4
@@ -7490,7 +7362,7 @@ cameraStep:
   li t0, 7856
   bgeu t0, a0, .L4
   ; drill.e16.ts:621  want = most
-  li a0, 7856 ; want
+  li a0, 7856 ; want/shake
 .L4:
   ; drill.e16.ts:622  if (want > camY) camY = camY + ((want - camY + 7) >> 3)
   lw t0, 0x1d10(zero)
@@ -7519,7 +7391,7 @@ cameraStep:
 .L7:
 .L6:
   ; drill.e16.ts:624  let shake: u16 = 0
-  li a1, 0 ; shake
+  li a0, 0 ; want/shake
   ; drill.e16.ts:625  if (shakeT > 0) {
   lw t0, 0x1d14(zero)
   bgeu zero, t0, .L8
@@ -7535,11 +7407,11 @@ cameraStep:
 .L9:
   li t0, 0
 .L10:
-  mv a1, t0 ; shake
+  mv a0, t0 ; want/shake
 .L8:
   ; drill.e16.ts:629  view = camY + shake
   lw t0, 0x1d10(zero)
-  add t0, t0, a1
+  add t0, t0, a0
   sw t0, 0x1d12(zero)
   ; drill.e16.ts:630  scrollNext = view
   sw t0, 0x1d16(zero)
@@ -7673,13 +7545,11 @@ drawStep:
   ret
 
 ; drill.e16.ts:663 looseDraw() at -O1
-;   wcol in s1
-;   w in s2
+;   wcol/w in s1
 looseDraw:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s2, 4(sp)
   ; drill.e16.ts:664  if (lbN === 0) {
   lw t0, 0x158a(zero)
   bne t0, zero, .L1
@@ -7691,7 +7561,7 @@ looseDraw:
   ; drill.e16.ts:668  sways()
   call sways
   ; drill.e16.ts:669  let wcol: u16 = 0xffff
-  li s1, 65535 ; wcol
+  li s1, 65535 ; wcol/w
   ; drill.e16.ts:670  if (target !== 0xffff) wcol = target & 15
   lw t0, 0x1882(zero)
   li t1, 65535
@@ -7707,10 +7577,10 @@ looseDraw:
   mv a1, a0
   mv a0, s1
   call looseSprites
-  mv s2, a0 ; w
+  mv s1, a0 ; wcol/w
   ; drill.e16.ts:672  if (w > warn && alive()) sfxWarn()
   lw t0, 0x1d36(zero)
-  bgeu t0, s2, .L3
+  bgeu t0, s1, .L3
   la t0, alive
   li t1, 258
   call far_call
@@ -7719,44 +7589,42 @@ looseDraw:
   call sfxWarn
 .L3:
   ; drill.e16.ts:673  warn = w
-  sw s2, 0x1d36(zero)
+  sw s1, 0x1d36(zero)
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s2, 4(sp)
-  addi sp, sp, 6
+  addi sp, sp, 4
   ret
 
 ; drill.e16.ts:677 looseSprites(wcol, wrow) at -O1
-;   wcol in 14(fp)
-;   wrow in 16(fp)
-;   gk in 18(fp)
-;   w in 0(fp)
+;   wcol in 12(fp)
+;   wrow in 14(fp)
+;   gk in 16(fp)
+;   w in 2(fp)
 ;   k in s1
-;   c in 2(fp)
-;   u in 4(fp)
+;   c in 4(fp)
+;   u/swayOf.left in s2
 ;   col in 6(fp)
 ;   row in 8(fp)
-;   y in s2
-;   x in s3
+;   y in s3
+;   x in 0(fp)
 ;   falling in 10(fp)
-;   swayOf.left in 12(fp)
 looseSprites:
-  addi sp, sp, -30
-  sw ra, 20(sp)
-  sw s1, 22(sp)
-  sw s2, 24(sp)
-  sw s3, 26(sp)
-  sw s0, 28(sp)
+  addi sp, sp, -28
+  sw ra, 18(sp)
+  sw s1, 20(sp)
+  sw s2, 22(sp)
+  sw s3, 24(sp)
+  sw s0, 26(sp)
   mv fp, sp
-  sw a0, 14(fp) ; wcol
-  sw a1, 16(fp) ; wrow
+  sw a0, 12(fp) ; wcol
+  sw a1, 14(fp) ; wrow
   ; drill.e16.ts:679  const gk = frame & 31
   lw t0, 0x1d0e(zero)
   andi t0, t0, 31
-  sw t0, 18(fp) ; gk
+  sw t0, 16(fp) ; gk
   ; drill.e16.ts:680  let w: u16 = 0
-  sw zero, 0(fp) ; w
+  sw zero, 2(fp) ; w
   ; drill.e16.ts:681  let k: u16 = 0
   li s1, 0 ; k
   ; drill.e16.ts:682  while (k < lbN) {
@@ -7765,17 +7633,16 @@ looseSprites:
   ; drill.e16.ts:683  const c = lbCell[k]
   slli t0, s1, 1
   lw t0, lbCell(t0)
-  sw t0, 2(fp) ; c
+  sw t0, 4(fp) ; c
   ; drill.e16.ts:684  const u = lbUnit[k]
-  lbu t0, lbUnit(s1)
-  sw t0, 4(fp) ; u
+  lbu s2, lbUnit(s1)
   ; drill.e16.ts:685  const col = c & 15
-  lw t0, 2(fp) ; c
+  lw t0, 4(fp) ; c
   andi t0, t0, 15
   sw t0, 6(fp) ; col
   ; drill.e16.ts:687  const row = top + (wrap16((c >> 4) - top) & 31)
   lw t0, 0x10b2(zero)
-  lw t1, 2(fp) ; c
+  lw t1, 4(fp) ; c
   srli t1, t1, 4
   lw t2, 0x10b2(zero)
   sub t1, t1, t2
@@ -7786,14 +7653,14 @@ looseSprites:
   lw t0, 8(fp) ; row
   slli t0, t0, 4
   lw t1, 0x1d12(zero)
-  sub s2, t0, t1
+  sub s3, t0, t1
   ; drill.e16.ts:689  let x = i16(FIELD_X + col * 16)
   lw t0, 6(fp) ; col
   slli t0, t0, 4
-  addi s3, t0, 88
+  addi t0, t0, 88
+  sw t0, 0(fp) ; x
   ; drill.e16.ts:690  const falling = uState[u] === U_FALL
-  lw t0, 4(fp) ; u
-  slli t0, t0, 1
+  slli t0, s2, 1
   lw t0, uState(t0)
   li t1, 2
   sub t0, t0, t1
@@ -7803,27 +7670,24 @@ looseSprites:
   lw t0, 10(fp) ; falling
   beqz t0, .L5
   ; drill.e16.ts:691  y = y + i16(uOff[u] >> 2)
-  lw t0, 4(fp) ; u
-  slli t0, t0, 1
+  slli t0, s2, 1
   lw t0, uOff(t0)
   srli t0, t0, 2
-  add s2, s2, t0
+  add s3, s3, t0
   j .L6
 .L5:
   ; drill.e16.ts:693  x = x + swayOf(uTime[u])
-  lw t0, 4(fp) ; u
-  slli t0, t0, 1
-  lw t0, uTime(t0)
-  sw t0, 12(fp) ; swayOf.left
+  slli t0, s2, 1
+  lw s2, uTime(t0)
   ; drill.e16.ts:722  return left < 12 ? swayLast : left < 24 ? swayQuick : swaySlow
-  mv t0, s3
-  lw t1, 12(fp)
+  lw t0, 0(fp)
+  mv t1, s2
   li t2, 12
   bgeu t1, t2, .I1.L1
   lw t1, 0x1d34(zero)
   j .I1_end
 .I1.L1:
-  lw t1, 12(fp)
+  mv t1, s2
   li t2, 24
   bgeu t1, t2, .I1.L3
   lw t1, 0x1d32(zero)
@@ -7831,38 +7695,39 @@ looseSprites:
 .I1.L3:
   lw t1, 0x1d30(zero)
 .I1_end:
-  add s3, t0, t1
+  add t0, t0, t1
+  sw t0, 0(fp) ; x
   ; drill.e16.ts:694  if ((k & 31) === gk) gritUnder(c, x)
   andi t0, s1, 31
-  lw t1, 18(fp) ; gk
+  lw t1, 16(fp) ; gk
   bne t0, t1, .L7
   ; drill.e16.ts:694  gritUnder(c, x)
-  lw a0, 2(fp)
-  mv a1, s3
+  lw a0, 4(fp)
+  lw a1, 0(fp)
   call gritUnder
 .L7:
 .L6:
   ; drill.e16.ts:696  if (col === wcol) w = warnOf(w, row, wrow, falling)
-  lw t0, 14(fp) ; wcol
+  lw t0, 12(fp) ; wcol
   lw t1, 6(fp) ; col
   bne t1, t0, .L8
   ; drill.e16.ts:696  w = warnOf(w, row, wrow, falling)
-  lw a0, 0(fp)
+  lw a0, 2(fp)
   lw a1, 8(fp)
-  lw a2, 16(fp)
+  lw a2, 14(fp)
   lw a3, 10(fp)
   call warnOf
-  sw a0, 0(fp) ; w
+  sw a0, 2(fp) ; w
 .L8:
   ; drill.e16.ts:698  if (u16(y + 15) < 303) spr(x, y, lbTile[k], S16)
   li t0, 303
-  addi t1, s2, 15
+  addi t1, s3, 15
   bgeu t1, t0, .L9
   ; drill.e16.ts:698  spr(x, y, lbTile[k], S16)
   slli t0, s1, 1
   lw t0, lbTile(t0)
-  mv a0, s3
-  mv a1, s2
+  lw a0, 0(fp)
+  mv a1, s3
   mv a2, t0
   li a3, 1
   call spr
@@ -7873,15 +7738,15 @@ looseSprites:
   lw t0, 0x158a(zero)
   bltu s1, t0, .L1
   ; drill.e16.ts:701  return w
-  lw a0, 0(fp)
+  lw a0, 2(fp)
 .return:
   mv sp, fp
-  lw ra, 20(sp)
-  lw s1, 22(sp)
-  lw s2, 24(sp)
-  lw s3, 26(sp)
-  lw s0, 28(sp)
-  addi sp, sp, 30
+  lw ra, 18(sp)
+  lw s1, 20(sp)
+  lw s2, 22(sp)
+  lw s3, 24(sp)
+  lw s0, 26(sp)
+  addi sp, sp, 28
   ret
 
 ; drill.e16.ts:705 warnOf(w, row, wrow, falling) at -O1
@@ -8240,17 +8105,15 @@ airMood:
   addi sp, sp, 4
   ret
 
-; drill.e16.ts:810 stripes(on) at -O1
-;   on in s2
-;   p in s1
+; drill.e16.ts:810 stripes(on/p) at -O1
+;   on/p in s1
 stripes:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s1, 4(sp)
-  mv s2, a0 ; on
+  sw s1, 2(sp)
+  mv s1, a0 ; on/p
   ; drill.e16.ts:811  if (!on) {
-  bnez s2, .L1
+  bnez s1, .L1
   ; drill.e16.ts:812  if (stripesRed !== 0) {
   lw t0, 0x1d3c(zero)
   beq t0, zero, .L2
@@ -8314,9 +8177,8 @@ stripes:
   call colour
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s1, 4(sp)
-  addi sp, sp, 6
+  lw s1, 2(sp)
+  addi sp, sp, 4
   ret
 
 ; drill.e16.ts:827 idle(n) at -O1
@@ -8377,17 +8239,15 @@ idle:
   addi sp, sp, 4
   ret
 
-; level.e16.ts:28 levelSet(l) at -O1
-;   l in s2
-;   old in s3
+; level.e16.ts:28 levelSet(l/old) at -O1
+;   l/old in s2
 ;   k in s1
 levelSet:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
   sw s2, 2(sp)
-  sw s3, 4(sp)
-  sw s1, 6(sp)
-  mv s2, a0 ; l
+  sw s1, 4(sp)
+  mv s2, a0 ; l/old
   ; level.e16.ts:29  level = l > LV_HARD ? LV_NORMAL : l
   li t0, 2
   bgeu t0, s2, .L1
@@ -8400,7 +8260,7 @@ levelSet:
   ; level.e16.ts:30  const old = bank(DIFFICULTY_BANK)
   li a0, 265
   call bank
-  mv s3, a0 ; old
+  mv s2, a0 ; l/old
   ; level.e16.ts:31  let k: u16 = 0
   li s1, 0 ; k
   ; level.e16.ts:32  while (k < ROW) {
@@ -8424,13 +8284,12 @@ levelSet:
   bltu s1, t0, .L3
   ; level.e16.ts:36  poke16(IO_BANK, old)
   li t0, 65284
-  sw s3, 0(t0)
+  sw s2, 0(t0)
 .return:
   lw ra, 0(sp)
   lw s2, 2(sp)
-  lw s3, 4(sp)
-  lw s1, 6(sp)
-  addi sp, sp, 8
+  lw s1, 4(sp)
+  addi sp, sp, 6
   ret
 
 ; level.e16.ts:40 levelAir(s) at -O1
@@ -8896,13 +8755,11 @@ goal:
   ret
 
 ; scenes.e16.ts:135 results() at -O1
-;   place in s2
-;   t in s1
+;   place/t in s1
 results:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s1, 4(sp)
+  sw s1, 2(sp)
   ; scenes.e16.ts:136  music(M_RESULT)
   li a0, 7
   call music
@@ -9025,12 +8882,12 @@ results:
   call idle
   ; scenes.e16.ts:163  const place = tablePlace()
   call tablePlace
-  mv s2, a0 ; place
+  mv s1, a0 ; place/t
   ; scenes.e16.ts:164  if (place < 5) nameEntry(place)
   li t0, 5
-  bgeu s2, t0, .L6
+  bgeu s1, t0, .L6
   ; scenes.e16.ts:164  nameEntry(place)
-  mv a0, s2
+  mv a0, s1
   call nameEntry
   j .L7
 .L6:
@@ -9041,7 +8898,7 @@ results:
   li a3, 6
   call say
   ; scenes.e16.ts:167  let t: u16 = 0
-  li s1, 0 ; t
+  li s1, 0 ; place/t
   ; scenes.e16.ts:168  while (t < 600) {
   j .L10
 .L8:
@@ -9066,9 +8923,8 @@ results:
   call wellClear
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s1, 4(sp)
-  addi sp, sp, 6
+  lw s1, 2(sp)
+  addi sp, sp, 4
   ret
 
 ; scenes.e16.ts:178 scoreAt(at) at -O1
@@ -9461,26 +9317,24 @@ tablePlace:
   addi sp, sp, 4
   ret
 
-; best.e16.ts:112 tableEnter(place, a, b, c) at -O1
-;   place in s2
-;   a in 0(fp)
-;   b in 2(fp)
-;   c in 4(fp)
+; best.e16.ts:112 tableEnter(place/from, a/at, b, c) at -O1
+;   place/from in s2
+;   a/at in s3
+;   b in 0(fp)
+;   c in 2(fp)
 ;   k in s1
-;   from in 6(fp)
-;   at in s3
 tableEnter:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s2, 10(sp)
-  sw s1, 12(sp)
-  sw s3, 14(sp)
-  sw s0, 16(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s2, 6(sp)
+  sw s3, 8(sp)
+  sw s1, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
-  mv s2, a0 ; place
-  sw a1, 0(fp) ; a
-  sw a2, 2(fp) ; b
-  sw a3, 4(fp) ; c
+  mv s2, a0 ; place/from
+  mv s3, a1 ; a/at
+  sw a2, 0(fp) ; b
+  sw a3, 2(fp) ; c
   ; best.e16.ts:113  let k: u16 = 4
   li s1, 4 ; k
   ; best.e16.ts:114  while (k > place) {
@@ -9564,26 +9418,25 @@ tableEnter:
   slli t1, s2, 1
   add t0, t1, s2
   slli t0, t0, 1
-  lw t1, 0(fp) ; a
-  sw t1, bestName(t0)
+  sw s3, bestName(t0)
   ; best.e16.ts:127  bestName[place * 3 + 1] = b
   slli t1, s2, 1
   add t0, t1, s2
   addi t0, t0, 1
   slli t0, t0, 1
-  lw t1, 2(fp) ; b
+  lw t1, 0(fp) ; b
   sw t1, bestName(t0)
   ; best.e16.ts:128  bestName[place * 3 + 2] = c
   slli t1, s2, 1
   add t0, t1, s2
   addi t0, t0, 2
   slli t0, t0, 1
-  lw t1, 4(fp) ; c
+  lw t1, 2(fp) ; c
   sw t1, bestName(t0)
   ; best.e16.ts:129  const from = tableAt(level)
   lw a0, 0x1d3e(zero)
   call tableAt
-  sw a0, 6(fp) ; from
+  mv s2, a0 ; place/from
   ; best.e16.ts:130  k = 0
   li s1, 0 ; k
   ; best.e16.ts:131  while (k < 5) {
@@ -9593,8 +9446,7 @@ tableEnter:
   slli t1, s1, 3
   slli t0, s1, 1
   add t0, t0, t1
-  lw t1, 6(fp) ; from
-  add s3, t1, t0
+  add s3, s2, t0
   ; best.e16.ts:133  saveWrite(at, bestScore[k * 2])
   slli t0, s1, 1
   slli t0, t0, 1
@@ -9647,12 +9499,12 @@ tableEnter:
   bltu s1, t0, .L5
 .return:
   mv sp, fp
-  lw ra, 8(sp)
-  lw s2, 10(sp)
-  lw s1, 12(sp)
-  lw s3, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw ra, 4(sp)
+  lw s2, 6(sp)
+  lw s3, 8(sp)
+  lw s1, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
 ; best.e16.ts:143 tableShow(y) at -O1
@@ -9811,44 +9663,62 @@ tableShow:
   addi sp, sp, 10
   ret
 
-; best.e16.ts:161 scoreDigits(at, k, s) at -O1
+; best.e16.ts:161 scoreDigits(at, k/lo, s) at -O1
 ;   at in 0(fp)
-;   k in 2(fp)
-;   s in 4(fp)
-;   hi in s2
-;   lo in s3
-;   d in s1
+;   k/lo in s1
+;   s in 2(fp)
+;   hi in s3
+;   d in s2
 scoreDigits:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s2, 8(sp)
-  sw s3, 10(sp)
-  sw s1, 12(sp)
-  sw s0, 14(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s1, 6(sp)
+  sw s3, 8(sp)
+  sw s2, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
   sw a0, 0(fp) ; at
-  sw a1, 2(fp) ; k
-  sw a2, 4(fp) ; s
+  mv s1, a1 ; k/lo
+  sw a2, 2(fp) ; s
   ; best.e16.ts:162  let hi = bestScore[k * 2 + 1]
-  lw t0, 2(fp) ; k
-  slli t0, t0, 1
+  slli t0, s1, 1
   addi t0, t0, 1
   slli t0, t0, 1
-  lw s2, bestScore(t0)
-  ; best.e16.ts:163  let lo = bestScore[k * 2]
-  lw t0, 2(fp) ; k
-  slli t0, t0, 1
-  slli t0, t0, 1
   lw s3, bestScore(t0)
+  ; best.e16.ts:163  let lo = bestScore[k * 2]
+  slli t0, s1, 1
+  slli t0, t0, 1
+  lw s1, bestScore(t0)
   ; best.e16.ts:164  let d: u16 = 0
-  li s1, 0 ; d
+  li s2, 0 ; d
   ; best.e16.ts:165  while (d < 4) {
   j .L3
 .L1:
   ; best.e16.ts:166  vpoke(at + 14 - d * 2, glyph(48 + (lo % 10), s))
   lw t0, 0(fp) ; at
-  slli t1, s1, 1
+  slli t1, s2, 1
   addi t0, t0, 14
+  sub t0, t0, t1
+  li t2, 52429
+  mulhu t1, s1, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t1, s1, t1
+  addi sp, sp, -2
+  sw t0, 0(sp)
+  addi a0, t1, 48
+  lw a1, 2(fp)
+  call glyph
+  lw t0, 0(sp)
+  addi sp, sp, 2
+  mv a1, a0
+  mv a0, t0
+  call vpoke
+  ; best.e16.ts:167  vpoke(at + 6 - d * 2, glyph(48 + (hi % 10), s))
+  lw t0, 0(fp) ; at
+  slli t1, s2, 1
+  addi t0, t0, 6
   sub t0, t0, t1
   li t2, 52429
   mulhu t1, s3, t2
@@ -9859,28 +9729,7 @@ scoreDigits:
   addi sp, sp, -2
   sw t0, 0(sp)
   addi a0, t1, 48
-  lw a1, 4(fp)
-  call glyph
-  lw t0, 0(sp)
-  addi sp, sp, 2
-  mv a1, a0
-  mv a0, t0
-  call vpoke
-  ; best.e16.ts:167  vpoke(at + 6 - d * 2, glyph(48 + (hi % 10), s))
-  lw t0, 0(fp) ; at
-  slli t1, s1, 1
-  addi t0, t0, 6
-  sub t0, t0, t1
-  li t2, 52429
-  mulhu t1, s2, t2
-  srli t1, t1, 3
-  li t2, 10
-  mul t1, t1, t2
-  sub t1, s2, t1
-  addi sp, sp, -2
-  sw t0, 0(sp)
-  addi a0, t1, 48
-  lw a1, 4(fp)
+  lw a1, 2(fp)
   call glyph
   lw t0, 0(sp)
   addi sp, sp, 2
@@ -9889,45 +9738,43 @@ scoreDigits:
   call vpoke
   ; best.e16.ts:168  lo = div(lo, 10)
   li t1, 52429
-  mulhu t0, s3, t1
-  srli s3, t0, 3
+  mulhu t0, s1, t1
+  srli s1, t0, 3
   ; best.e16.ts:169  hi = div(hi, 10)
   li t1, 52429
-  mulhu t0, s2, t1
-  srli s2, t0, 3
+  mulhu t0, s3, t1
+  srli s3, t0, 3
   ; best.e16.ts:170  d++
-  addi s1, s1, 1
+  addi s2, s2, 1
 .L3:
   li t0, 4
-  bltu s1, t0, .L1
+  bltu s2, t0, .L1
 .return:
   mv sp, fp
-  lw ra, 6(sp)
-  lw s2, 8(sp)
-  lw s3, 10(sp)
-  lw s1, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  lw ra, 4(sp)
+  lw s1, 6(sp)
+  lw s3, 8(sp)
+  lw s2, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
 ; best.e16.ts:178 letterStep(k, t) at -O1
-;   k in s3
-;   t in 0(fp)
-;   c in s1
-;   j in s2
-;   blink in 2(fp)
+;   k in s2
+;   t in s3
+;   c/j in s1
+;   blink in s0
 letterStep:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s3, 6(sp)
-  sw s1, 8(sp)
-  sw s2, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  mv s3, a0 ; k
-  sw a1, 0(fp) ; t
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s3, 4(sp)
+  sw s1, 6(sp)
+  sw s0, 8(sp)
+  mv s2, a0 ; k
+  mv s3, a1 ; t
   ; best.e16.ts:179  let c = letters[k]
-  slli t0, s3, 1
+  slli t0, s2, 1
   lw s1, letters(t0)
   ; best.e16.ts:180  if (pressed(B_UP)) c = c === 90 ? 65 : c + 1
   li a0, 1
@@ -9941,7 +9788,7 @@ letterStep:
 .L2:
   addi t0, s1, 1
 .L3:
-  mv s1, t0 ; c
+  mv s1, t0 ; c/j
 .L1:
   ; best.e16.ts:181  if (pressed(B_DOWN)) c = c === 65 ? 90 : c - 1
   li a0, 2
@@ -9955,36 +9802,35 @@ letterStep:
 .L5:
   addi t0, s1, -1
 .L6:
-  mv s1, t0 ; c
+  mv s1, t0 ; c/j
 .L4:
   ; best.e16.ts:182  letters[k] = c
-  slli t0, s3, 1
+  slli t0, s2, 1
   sw s1, letters(t0)
   ; best.e16.ts:183  let j: u16 = 0
-  li s2, 0 ; j
+  li s1, 0 ; c/j
   ; best.e16.ts:184  while (j < 3) {
   j .L9
 .L7:
   ; best.e16.ts:185  const blink = j === k && (t & 16) !== 0
-  sub t0, s2, s3
+  sub t0, s1, s2
   seqz t0, t0
   mv t1, t0
   beqz t1, .L11
-  lw t0, 0(fp) ; t
-  andi t0, t0, 16
+  andi t0, s3, 16
   sub t0, t0, zero
   snez t0, t0
 .L11:
-  sw t0, 2(fp) ; blink
+  mv s0, t0 ; blink
   ; best.e16.ts:186  vpoke(cellAt(1, 18 + j, 14), glyph(letters[j], blink ? W_WHITE : W_GOLD))
   li a0, 1
-  addi a1, s2, 18
+  addi a1, s1, 18
   li a2, 14
   call cellAt
-  slli t0, s2, 1
+  slli t0, s1, 1
   lw t1, letters(t0)
   mv t0, a0
-  lw t2, 2(fp)
+  mv t2, s0
   beqz t2, .L12
   li t2, 7
   j .L13
@@ -10002,18 +9848,17 @@ letterStep:
   mv a0, t0
   call vpoke
   ; best.e16.ts:187  j++
-  addi s2, s2, 1
+  addi s1, s1, 1
 .L9:
   li t0, 3
-  bltu s2, t0, .L7
+  bltu s1, t0, .L7
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s3, 6(sp)
-  lw s1, 8(sp)
-  lw s2, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s3, 4(sp)
+  lw s1, 6(sp)
+  lw s0, 8(sp)
+  addi sp, sp, 10
   ret
 
 ; best.e16.ts:192 nameEntry(place) at -O1
@@ -10326,18 +10171,16 @@ aim_:
   addi sp, sp, 6
   ret
 
-; player.e16.ts:125 playerStep(now, frozen) at -O1
+; player.e16.ts:125 playerStep(now, frozen/s) at -O1
 ;   now in s2
-;   frozen in s3
-;   s in s1
+;   frozen/s in s1
 playerStep:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
   sw s2, 2(sp)
-  sw s3, 4(sp)
-  sw s1, 6(sp)
+  sw s1, 4(sp)
   mv s2, a0 ; now
-  mv s3, a1 ; frozen
+  mv s1, a1 ; frozen/s
   ; player.e16.ts:126  dugN = 0
   sw zero, 0x1db0(zero)
   ; player.e16.ts:127  alloyBroken = 0
@@ -10353,7 +10196,7 @@ playerStep:
   sw t0, 0x1da8(zero)
 .L1:
   ; player.e16.ts:130  if (frozen) {
-  beqz s3, .L2
+  beqz s1, .L2
   ; player.e16.ts:131  pT++
   lw t0, 0x1d9a(zero)
   addi t0, t0, 1
@@ -10435,9 +10278,8 @@ playerStep:
 .return:
   lw ra, 0(sp)
   lw s2, 2(sp)
-  lw s3, 4(sp)
-  lw s1, 6(sp)
-  addi sp, sp, 8
+  lw s1, 4(sp)
+  addi sp, sp, 6
   ret
 
 ; player.e16.ts:148 breathe() at -O1
@@ -10701,21 +10543,19 @@ digButton:
 
 ; player.e16.ts:211 step(to) at -O1
 ;   to in s1
-;   v in s2
-;   up in s3
+;   v/up in s2
 step:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  sw s3, 6(sp)
   mv s1, a0 ; to
   ; player.e16.ts:212  const v = at(to, pRow)
   lw t0, 0x1d92(zero)
   mv a0, s1
   mv a1, t0
   call at
-  mv s2, a0 ; v
+  mv s2, a0 ; v/up
   ; player.e16.ts:213  if ((v & 15) === T_AIR && (v & (F_LOOSE | F_PEND)) === 0) collect(cellOf(to, pRow))
   andi t0, s2, 15
   li t1, 6
@@ -10754,18 +10594,18 @@ step:
   sw t0, 0x1da4(zero)
   ; player.e16.ts:223  const up = wrap16(pRow - 1)
   lw t0, 0x1d92(zero)
-  addi s3, t0, -1
+  addi s2, t0, -1
   ; player.e16.ts:224  if (pPush >= 8 && (at(to, up) & 15) === T_EMPTY && (at(pCol, up) & 15) === T_EMPTY) {
   lw t0, 0x1da4(zero)
   li t1, 8
   bltu t0, t1, .L3
   mv a0, s1
-  mv a1, s3
+  mv a1, s2
   call at
   andi t0, a0, 15
   bne t0, zero, .L3
   lw a0, 0x1d90(zero)
-  mv a1, s3
+  mv a1, s2
   call at
   andi t0, a0, 15
   bne t0, zero, .L3
@@ -10783,8 +10623,7 @@ step:
   lw ra, 0(sp)
   lw s1, 2(sp)
   lw s2, 4(sp)
-  lw s3, 6(sp)
-  addi sp, sp, 8
+  addi sp, sp, 6
   ret
 
 ; player.e16.ts:233 standsOn() at -O1
@@ -11147,24 +10986,23 @@ dig:
 
 ; player.e16.ts:322 bite(now) at -O1
 ;   now in 2(fp)
-;   c in s1
+;   c/n in s1
 ;   v in 4(fp)
 ;   t in s2
 ;   x in s3
 ;   y in 0(fp)
-;   n in 6(fp)
 bite:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s1, 10(sp)
-  sw s2, 12(sp)
-  sw s3, 14(sp)
-  sw s0, 16(sp)
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s1, 8(sp)
+  sw s2, 10(sp)
+  sw s3, 12(sp)
+  sw s0, 14(sp)
   mv fp, sp
   sw a0, 2(fp) ; now
   ; player.e16.ts:323  const c = aimed()
   call aimed
-  mv s1, a0 ; c
+  mv s1, a0 ; c/n
   ; player.e16.ts:324  const v = c === 0xffff ? T_EMPTY : cells[c]
   li t0, 65535
   bne s1, t0, .L1
@@ -11263,16 +11101,15 @@ bite:
   ; player.e16.ts:336  const n = groupOf(c)
   mv a0, s1
   call groupOf
-  sw a0, 6(fp) ; n
+  mv s1, a0 ; c/n
   ; player.e16.ts:337  vanish(n, now + 1, 1)
   lw t0, 2(fp) ; now
-  lw a0, 6(fp)
+  mv a0, s1
   addi a1, t0, 1
   li a2, 1
   call vanish
   ; player.e16.ts:338  dugN = n
-  lw t0, 6(fp) ; n
-  sw t0, 0x1db0(zero)
+  sw s1, 0x1db0(zero)
   ; player.e16.ts:339  sfxDig()
   call sfxDig
   ; player.e16.ts:340  dust(x, y, 1)
@@ -11286,12 +11123,12 @@ bite:
 .L12:
 .return:
   mv sp, fp
-  lw ra, 8(sp)
-  lw s1, 10(sp)
-  lw s2, 12(sp)
-  lw s3, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw ra, 6(sp)
+  lw s1, 8(sp)
+  lw s2, 10(sp)
+  lw s3, 12(sp)
+  lw s0, 14(sp)
+  addi sp, sp, 16
   ret
 
 ; player.e16.ts:345 alloyHit(c, now, x, y) at -O1
@@ -11532,38 +11369,34 @@ cheer:
 .return:
   ret
 
-; player.e16.ts:414 playerDraw(camY, frame) at -O1
-;   camY in 2(fp)
-;   frame in s1
-;   x in s2
-;   y in s3
-;   flip in 0(fp)
-;   f in 4(fp)
+; player.e16.ts:414 playerDraw(camY/y, frame/f) at -O1
+;   camY/y in s1
+;   frame/f in s2
+;   x in s3
+;   flip in s0
 playerDraw:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s1, 8(sp)
-  sw s2, 10(sp)
-  sw s3, 12(sp)
-  sw s0, 14(sp)
-  mv fp, sp
-  sw a0, 2(fp) ; camY
-  mv s1, a1 ; frame
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  sw s3, 6(sp)
+  sw s0, 8(sp)
+  mv s1, a0 ; camY/y
+  mv s2, a1 ; frame/f
   ; player.e16.ts:415  if (pSafe > 0 && (frame & 4) !== 0) return
   lw t0, 0x1da8(zero)
   bgeu zero, t0, .L1
-  andi t0, s1, 4
+  andi t0, s2, 4
   beq t0, zero, .L1
   ; player.e16.ts:415  return
   j .return
 .L1:
   ; player.e16.ts:416  const x = i16(FIELD_X + pX)
   lw t0, 0x1d94(zero)
-  addi s2, t0, 88
+  addi s3, t0, 88
   ; player.e16.ts:417  const y = i16(pY - camY)
   lw t0, 0x1d96(zero)
-  lw t1, 2(fp) ; camY
-  sub s3, t0, t1
+  sub s1, t0, s1
   ; player.e16.ts:418  const flip = pFace === 1 ? FLIP_H : 0
   lw t0, 0x1d9c(zero)
   li t1, 1
@@ -11573,11 +11406,11 @@ playerDraw:
 .L2:
   li t0, 0
 .L3:
-  sw t0, 0(fp) ; flip
+  mv s0, t0 ; flip
   ; player.e16.ts:419  const f = frameNow(frame)
-  mv a0, s1
+  mv a0, s2
   call frameNow
-  sw a0, 4(fp) ; f
+  mv s2, a0 ; frame/f
   ; player.e16.ts:420  if (pState === P_DIG && pT >= 2 && pT < 9) bitDraw(x, y, flip)
   lw t0, 0x1d98(zero)
   li t1, 4
@@ -11589,52 +11422,44 @@ playerDraw:
   li t1, 9
   bgeu t0, t1, .L4
   ; player.e16.ts:420  bitDraw(x, y, flip)
-  mv a0, s2
-  mv a1, s3
-  lw a2, 0(fp)
+  mv a0, s3
+  mv a1, s1
+  mv a2, s0
   call bitDraw
 .L4:
   ; player.e16.ts:421  spr(x, y, (DRILLER_TILE + f * 4) | flip, S16)
-  lw t0, 4(fp) ; f
-  slli t0, t0, 2
-  lw t1, 0(fp) ; flip
+  slli t0, s2, 2
   addi t0, t0, 313
-  or t0, t0, t1
-  mv a0, s2
-  mv a1, s3
+  or t0, t0, s0
+  mv a0, s3
+  mv a1, s1
   mv a2, t0
   li a3, 1
   call spr
 .return:
-  mv sp, fp
-  lw ra, 6(sp)
-  lw s1, 8(sp)
-  lw s2, 10(sp)
-  lw s3, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  lw s0, 8(sp)
+  addi sp, sp, 10
   ret
 
-; player.e16.ts:428 warnDraw(camY, frame, how) at -O1
+; player.e16.ts:428 warnDraw(camY, frame/bob, how/fast/sign) at -O1
 ;   camY in s3
-;   frame in s1
-;   how in s2
-;   fast in 0(fp)
-;   sign in 2(fp)
-;   bob in 4(fp)
+;   frame/bob in s2
+;   how/fast/sign in s1
 warnDraw:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s3, 8(sp)
-  sw s1, 10(sp)
-  sw s2, 12(sp)
-  sw s0, 14(sp)
-  mv fp, sp
+  addi sp, sp, -8
+  sw ra, 0(sp)
+  sw s3, 2(sp)
+  sw s2, 4(sp)
+  sw s1, 6(sp)
   mv s3, a0 ; camY
-  mv s1, a1 ; frame
-  mv s2, a2 ; how
+  mv s2, a1 ; frame/bob
+  mv s1, a2 ; how/fast/sign
   ; player.e16.ts:429  if (how === 0 || !alive()) return
-  beq s2, zero, .L2
+  beq s1, zero, .L2
   call alive
   bnez a0, .L1
 .L2:
@@ -11643,20 +11468,18 @@ warnDraw:
 .L1:
   ; player.e16.ts:430  const fast = how === 2 ? 1 : 3
   li t0, 2
-  bne s2, t0, .L3
+  bne s1, t0, .L3
   li t0, 1
   j .L4
 .L3:
   li t0, 3
 .L4:
-  sw t0, 0(fp) ; fast
+  mv s1, t0 ; how/fast/sign
   ; player.e16.ts:431  const sign: u16 = (frame >> fast) & 1
-  lw t0, 0(fp) ; fast
-  srl t0, s1, t0
-  andi t0, t0, 1
-  sw t0, 2(fp) ; sign
+  srl t0, s2, s1
+  andi s1, t0, 1
   ; player.e16.ts:432  const bob: i16 = ((frame >> 2) & 1) !== 0 ? 1 : 0
-  srli t0, s1, 2
+  srli t0, s2, 2
   andi t0, t0, 1
   beq t0, zero, .L5
   li t0, 1
@@ -11664,16 +11487,14 @@ warnDraw:
 .L5:
   li t0, 0
 .L6:
-  sw t0, 4(fp) ; bob
+  mv s2, t0 ; frame/bob
   ; player.e16.ts:433  spr(i16(FIELD_X + pX) + 4, i16(pY - camY) - 10 - bob, (FX_TILE + 10 + sign) | (6 << 10), S8)
   lw t0, 0x1d94(zero)
   lw t1, 0x1d96(zero)
   sub t1, t1, s3
-  lw t2, 4(fp) ; bob
   addi t1, t1, -10
-  sub t1, t1, t2
-  lw t2, 2(fp) ; sign
-  addi t2, t2, 443
+  sub t1, t1, s2
+  addi t2, s1, 443
   ori t2, t2, 6144
   addi a0, t0, 92
   mv a1, t1
@@ -11681,13 +11502,11 @@ warnDraw:
   li a3, 0
   call spr
 .return:
-  mv sp, fp
-  lw ra, 6(sp)
-  lw s3, 8(sp)
-  lw s1, 10(sp)
-  lw s2, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  lw ra, 0(sp)
+  lw s3, 2(sp)
+  lw s2, 4(sp)
+  lw s1, 6(sp)
+  addi sp, sp, 8
   ret
 
 ; player.e16.ts:436 bitDraw(x, y, flip) at -O1
@@ -11975,24 +11794,22 @@ fxAdd:
   addi sp, sp, 6
   ret
 
-; fx.e16.ts:74 pop(x, y, colour, stars) at -O1
+; fx.e16.ts:74 pop(x, y, colour, stars/n) at -O1
 ;   x in s2
 ;   y in s3
-;   colour in 0(fp)
-;   stars in 2(fp)
-;   n in s1
+;   colour in s0
+;   stars/n in s1
 pop:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s2, 6(sp)
-  sw s3, 8(sp)
-  sw s1, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s3, 4(sp)
+  sw s0, 6(sp)
+  sw s1, 8(sp)
   mv s2, a0 ; x
   mv s3, a1 ; y
-  sw a2, 0(fp) ; colour
-  sw a3, 2(fp) ; stars
+  mv s0, a2 ; colour
+  mv s1, a3 ; stars/n
   ; fx.e16.ts:75  fxVel(0, 0)
   li a0, 0
   li a1, 0
@@ -12001,10 +11818,9 @@ pop:
   li a0, 1
   mv a1, s2
   mv a2, s3
-  lw a3, 0(fp)
+  mv a3, s0
   call fxAdd
   ; fx.e16.ts:77  let n = stars
-  lw s1, 2(fp) ; stars
   ; fx.e16.ts:78  while (n > 0) {
   j .L3
 .L1:
@@ -12033,38 +11849,35 @@ pop:
 .L3:
   bltu zero, s1, .L1
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s2, 6(sp)
-  lw s3, 8(sp)
-  lw s1, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s3, 4(sp)
+  lw s0, 6(sp)
+  lw s1, 8(sp)
+  addi sp, sp, 10
   ret
 
-; fx.e16.ts:86 dust(x, y, more) at -O1
+; fx.e16.ts:86 dust(x, y, more/n) at -O1
 ;   x in s2
 ;   y in s3
-;   more in s0
-;   n in s1
+;   more/n in s1
 dust:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s3, 4(sp)
-  sw s0, 6(sp)
-  sw s1, 8(sp)
+  sw s1, 6(sp)
   mv s2, a0 ; x
   mv s3, a1 ; y
-  mv s0, a2 ; more
+  mv s1, a2 ; more/n
   ; fx.e16.ts:87  let n: u16 = more !== 0 ? 4 : 1
-  beq s0, zero, .L1
+  beq s1, zero, .L1
   li t0, 4
   j .L2
 .L1:
   li t0, 1
 .L2:
-  mv s1, t0 ; n
+  mv s1, t0 ; more/n
   ; fx.e16.ts:88  while (n > 0) {
   j .L5
 .L3:
@@ -12096,9 +11909,8 @@ dust:
   lw ra, 0(sp)
   lw s2, 2(sp)
   lw s3, 4(sp)
-  lw s0, 6(sp)
-  lw s1, 8(sp)
-  addi sp, sp, 10
+  lw s1, 6(sp)
+  addi sp, sp, 8
   ret
 
 ; fx.e16.ts:95 sparks(x, y, n) at -O1
@@ -12373,37 +12185,32 @@ fxClear:
 .return:
   ret
 
-; fx.e16.ts:156 fxStep(camY, busy) at -O1
-;   camY in s3
-;   busy in 2(fp)
-;   front in 0(fp)
+; fx.e16.ts:156 fxStep(camY, busy/front) at -O1
+;   camY in s0
+;   busy/front in s3
 ;   k in s1
 ;   kind in s2
 fxStep:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s3, 6(sp)
-  sw s1, 8(sp)
-  sw s2, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  mv s3, a0 ; camY
-  sw a1, 2(fp) ; busy
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s0, 2(sp)
+  sw s3, 4(sp)
+  sw s1, 6(sp)
+  sw s2, 8(sp)
+  mv s0, a0 ; camY
+  mv s3, a1 ; busy/front
   ; fx.e16.ts:157  lite = busy
-  lw t0, 2(fp) ; busy
-  sw t0, 0x1f80(zero)
+  sw s3, 0x1f80(zero)
   ; fx.e16.ts:158  const front = wordsSeen !== 0
   lw t0, 0x1f7e(zero)
   sub t0, t0, zero
-  snez t0, t0
-  sw t0, 0(fp) ; front
+  snez s3, t0
   ; fx.e16.ts:159  wordsSeen = 0
   sw zero, 0x1f7e(zero)
   ; fx.e16.ts:160  let k: u16 = 0
   li s1, 0 ; k
   ; fx.e16.ts:161  if (front) {
-  lw t0, 0(fp) ; front
-  beqz t0, .L9
+  beqz s3, .L9
   ; fx.e16.ts:162  while (k < FX_N) {
   j .L4
 .L2:
@@ -12416,7 +12223,7 @@ fxStep:
   ; fx.e16.ts:164  fxOne(k, kind, camY)
   mv a0, s1
   mv a1, s2
-  mv a2, s3
+  mv a2, s0
   call fxOne
 .L6:
   ; fx.e16.ts:165  k++
@@ -12440,12 +12247,11 @@ fxStep:
   addi t0, t0, 1
   sw t0, 0x1f7e(zero)
   ; fx.e16.ts:173  if (!front) fxOne(k, kind, camY)
-  lw t0, 0(fp) ; front
-  bnez t0, .L13
+  bnez s3, .L13
   ; fx.e16.ts:173  fxOne(k, kind, camY)
   mv a0, s1
   mv a1, s2
-  mv a2, s3
+  mv a2, s0
   call fxOne
   j .L13
 .L11:
@@ -12454,7 +12260,7 @@ fxStep:
   ; fx.e16.ts:174  fxOne(k, kind, camY)
   mv a0, s1
   mv a1, s2
-  mv a2, s3
+  mv a2, s0
   call fxOne
 .L14:
 .L13:
@@ -12464,44 +12270,40 @@ fxStep:
   li t0, 32
   bltu s1, t0, .L7
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s3, 6(sp)
-  lw s1, 8(sp)
-  lw s2, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s0, 2(sp)
+  lw s3, 4(sp)
+  lw s1, 6(sp)
+  lw s2, 8(sp)
+  addi sp, sp, 10
   ret
 
-; fx.e16.ts:184 fxOne(k, kind, camY) at -O1
+; fx.e16.ts:184 fxOne(k, kind/x, camY/y) at -O1
 ;   k in s1
-;   kind in s2
-;   camY in 2(fp)
-;   t in s3
-;   x in 4(fp)
-;   y in 0(fp)
+;   kind/x in s2
+;   camY/y in s3
+;   t in s0
 fxOne:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s1, 8(sp)
-  sw s2, 10(sp)
-  sw s3, 12(sp)
-  sw s0, 14(sp)
-  mv fp, sp
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  sw s3, 6(sp)
+  sw s0, 8(sp)
   mv s1, a0 ; k
-  mv s2, a1 ; kind
-  sw a2, 2(fp) ; camY
+  mv s2, a1 ; kind/x
+  mv s3, a2 ; camY/y
   ; fx.e16.ts:185  const t = fxT[k] + 1
   slli t0, s1, 1
   lw t0, fxT(t0)
-  addi s3, t0, 1
+  addi s0, t0, 1
   ; fx.e16.ts:186  fxT[k] = t
   slli t0, s1, 1
-  sw s3, fxT(t0)
+  sw s0, fxT(t0)
   ; fx.e16.ts:187  if (t >= lifeOf(kind)) {
   mv a0, s2
   call lifeOf
-  bltu s3, a0, .L1
+  bltu s0, a0, .L1
   ; fx.e16.ts:188  fxK[k] = 0
   slli t0, s1, 1
   sw zero, fxK(t0)
@@ -12511,7 +12313,7 @@ fxOne:
   ; fx.e16.ts:191  fxMove(k, kind, t)
   mv a0, s1
   mv a1, s2
-  mv a2, s3
+  mv a2, s0
   call fxMove
   ; fx.e16.ts:192  if (lite && kind < K_CHAIN) return
   lw t0, 0x1f80(zero)
@@ -12524,40 +12326,34 @@ fxOne:
   ; fx.e16.ts:193  const x = i16(fxX[k] >> 4)
   slli t0, s1, 1
   lw t0, fxX(t0)
-  srli t0, t0, 4
-  sw t0, 4(fp) ; x
+  srli s2, t0, 4
   ; fx.e16.ts:194  const y = i16(wrap16(fxY[k] - (camY << 4))) >> 4
   slli t0, s1, 1
   lw t0, fxY(t0)
-  lw t1, 2(fp) ; camY
-  slli t1, t1, 4
+  slli t1, s3, 4
   sub t0, t0, t1
-  srai t0, t0, 4
-  sw t0, 0(fp) ; y
+  srai s3, t0, 4
   ; fx.e16.ts:195  if (y < -16 || y > 296) return
   li t0, 65520
-  lw t1, 0(fp) ; y
-  blt t1, t0, .L4
+  blt s3, t0, .L4
   li t0, 296
-  lw t1, 0(fp) ; y
-  bge t0, t1, .L3
+  bge t0, s3, .L3
 .L4:
   ; fx.e16.ts:195  return
   j .return
 .L3:
   ; fx.e16.ts:196  fxDraw(k, x, y)
   mv a0, s1
-  lw a1, 4(fp)
-  lw a2, 0(fp)
+  mv a1, s2
+  mv a2, s3
   call fxDraw
 .return:
-  mv sp, fp
-  lw ra, 6(sp)
-  lw s1, 8(sp)
-  lw s2, 10(sp)
-  lw s3, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  lw s0, 8(sp)
+  addi sp, sp, 10
   ret
 
 ; fx.e16.ts:200 lifeOf(kind) at -O1
@@ -12922,37 +12718,33 @@ wordsAt:
   addi sp, sp, 14
   ret
 
-; fx.e16.ts:245 sayDraw(x, y, id) at -O1
-;   x in 6(fp)
-;   y in 8(fp)
-;   id in 4(fp)
-;   s in s1
+; fx.e16.ts:245 sayDraw(x/at, y, id/n/c) at -O1
+;   x/at in s3
+;   y in 2(fp)
+;   id/n/c in s1
+;   s in s2
 ;   pal in 0(fp)
-;   n in s2
-;   at in 2(fp)
-;   c in s3
 sayDraw:
-  addi sp, sp, -20
-  sw ra, 10(sp)
-  sw s1, 12(sp)
-  sw s2, 14(sp)
-  sw s3, 16(sp)
-  sw s0, 18(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s3, 6(sp)
+  sw s1, 8(sp)
+  sw s2, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
-  sw a0, 6(fp) ; x
-  sw a1, 8(fp) ; y
-  sw a2, 4(fp) ; id
+  mv s3, a0 ; x/at
+  sw a1, 2(fp) ; y
+  mv s1, a2 ; id/n/c
   ; fx.e16.ts:246  let s = str('AIR +20')
-  la s1, str_31
+  la s2, str_31
   ; fx.e16.ts:247  let pal: u16 = 3
   li t0, 3
   sw t0, 0(fp) ; pal
   ; fx.e16.ts:248  if (id === SAY_AIR_DOWN) {
   li t0, 1
-  lw t1, 4(fp) ; id
-  bne t1, t0, .L1
+  bne s1, t0, .L1
   ; fx.e16.ts:249  s = str('AIR -20')
-  la s1, str_32
+  la s2, str_32
   ; fx.e16.ts:250  pal = 1
   li t0, 1
   sw t0, 0(fp) ; pal
@@ -12960,70 +12752,66 @@ sayDraw:
 .L1:
   ; fx.e16.ts:251  if (id === SAY_LOW_AIR) {
   li t0, 2
-  lw t1, 4(fp) ; id
-  bne t1, t0, .L3
+  bne s1, t0, .L3
   ; fx.e16.ts:252  s = str('LOW AIR!')
-  la s1, str_33
+  la s2, str_33
   ; fx.e16.ts:253  pal = 1
   li t0, 1
   sw t0, 0(fp) ; pal
 .L3:
 .L2:
   ; fx.e16.ts:255  let n: u16 = 0
-  li s2, 0 ; n
+  li s1, 0 ; id/n/c
   ; fx.e16.ts:256  while (peek(s + n) !== 0) n++
   j .L6
 .L4:
   ; fx.e16.ts:256  n++
-  addi s2, s2, 1
+  addi s1, s1, 1
 .L6:
-  add t0, s1, s2
+  add t0, s2, s1
   lbu t0, 0(t0)
   bne t0, zero, .L4
   ; fx.e16.ts:257  let at = inWell(x - i16(n * 4), n)
-  slli t0, s2, 2
-  lw t1, 6(fp) ; x
-  sub a0, t1, t0
-  mv a1, s2
+  slli t0, s1, 2
+  sub a0, s3, t0
+  mv a1, s1
   call inWell
-  sw a0, 2(fp) ; at
+  mv s3, a0 ; x/at
   ; fx.e16.ts:258  let c = peek(s)
-  lbu s3, 0(s1)
+  lbu s1, 0(s2)
   ; fx.e16.ts:259  while (c !== 0) {
   j .L10
 .L8:
   ; fx.e16.ts:260  if (c !== 32) spr(at, y, (FONT_TILE + c - 32) | (pal << 10), S8)
   li t0, 32
-  beq s3, t0, .L12
+  beq s1, t0, .L12
   ; fx.e16.ts:260  spr(at, y, (FONT_TILE + c - 32) | (pal << 10), S8)
   lw t0, 0(fp) ; pal
   slli t0, t0, 10
-  addi t1, s3, -32
+  addi t1, s1, -32
   or t1, t1, t0
-  lw a0, 2(fp)
-  lw a1, 8(fp)
+  mv a0, s3
+  lw a1, 2(fp)
   mv a2, t1
   li a3, 0
   call spr
 .L12:
   ; fx.e16.ts:261  at = at + 8
-  lw t0, 2(fp) ; at
-  addi t0, t0, 8
-  sw t0, 2(fp) ; at
+  addi s3, s3, 8
   ; fx.e16.ts:262  s++
-  addi s1, s1, 1
+  addi s2, s2, 1
   ; fx.e16.ts:263  c = peek(s)
-  lbu s3, 0(s1)
+  lbu s1, 0(s2)
 .L10:
-  bne s3, zero, .L8
+  bne s1, zero, .L8
 .return:
   mv sp, fp
-  lw ra, 10(sp)
-  lw s1, 12(sp)
-  lw s2, 14(sp)
-  lw s3, 16(sp)
-  lw s0, 18(sp)
-  addi sp, sp, 20
+  lw ra, 4(sp)
+  lw s3, 6(sp)
+  lw s1, 8(sp)
+  lw s2, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
 ; fx.e16.ts:268 inWell(at, n) at -O1
@@ -13051,45 +12839,39 @@ inWell:
 .return:
   ret
 
-; fx.e16.ts:280 wordDraw(x, y, kind, n) at -O1
-;   x in 10(fp)
+; fx.e16.ts:280 wordDraw(x/at, y, kind, n/v) at -O1
+;   x/at in s1
 ;   y in s2
-;   kind in 0(fp)
-;   n in 2(fp)
-;   digits in s3
-;   width in 8(fp)
-;   at in s1
-;   d in 4(fp)
-;   v in 6(fp)
-;   gold.c in 12(fp)
+;   kind in 4(fp)
+;   n/v in s3
+;   digits in 2(fp)
+;   width/d in 0(fp)
+;   gold.c in 6(fp)
 wordDraw:
-  addi sp, sp, -24
-  sw ra, 14(sp)
-  sw s2, 16(sp)
-  sw s3, 18(sp)
-  sw s1, 20(sp)
-  sw s0, 22(sp)
+  addi sp, sp, -18
+  sw ra, 8(sp)
+  sw s1, 10(sp)
+  sw s2, 12(sp)
+  sw s3, 14(sp)
+  sw s0, 16(sp)
   mv fp, sp
-  sw a0, 10(fp) ; x
+  mv s1, a0 ; x/at
   mv s2, a1 ; y
-  sw a2, 0(fp) ; kind
-  sw a3, 2(fp) ; n
+  sw a2, 4(fp) ; kind
+  mv s3, a3 ; n/v
   ; fx.e16.ts:281  const digits: u16 = n >= 1000 ? 4 : n >= 100 ? 3 : n >= 10 ? 2 : 1
   li t0, 1000
-  lw t1, 2(fp) ; n
-  bltu t1, t0, .L1
+  bltu s3, t0, .L1
   li t0, 4
   j .L2
 .L1:
   li t0, 100
-  lw t1, 2(fp) ; n
-  bltu t1, t0, .L3
+  bltu s3, t0, .L3
   li t0, 3
   j .L4
 .L3:
   li t0, 10
-  lw t1, 2(fp) ; n
-  bltu t1, t0, .L5
+  bltu s3, t0, .L5
   li t0, 2
   j .L6
 .L5:
@@ -13097,35 +12879,37 @@ wordDraw:
 .L6:
 .L4:
 .L2:
-  mv s3, t0 ; digits
+  sw t0, 2(fp) ; digits
   ; fx.e16.ts:282  const width: u16 = kind === K_CHAIN ? digits + 6 : kind === K_METRES ? digits + 2 : digits + 1
   li t0, 7
-  lw t1, 0(fp) ; kind
+  lw t1, 4(fp) ; kind
   bne t1, t0, .L7
-  addi t0, s3, 6
+  lw t0, 2(fp) ; digits
+  addi t0, t0, 6
   j .L8
 .L7:
   li t0, 10
-  lw t1, 0(fp) ; kind
+  lw t1, 4(fp) ; kind
   bne t1, t0, .L9
-  addi t0, s3, 2
+  lw t0, 2(fp) ; digits
+  addi t0, t0, 2
   j .L10
 .L9:
-  addi t0, s3, 1
+  lw t0, 2(fp) ; digits
+  addi t0, t0, 1
 .L10:
 .L8:
-  sw t0, 8(fp) ; width
+  sw t0, 0(fp) ; width/d
   ; fx.e16.ts:283  let at = inWell(x - i16(width * 4), width)
-  lw t0, 8(fp) ; width
+  lw t0, 0(fp) ; width/d
   slli t0, t0, 2
-  lw t1, 10(fp) ; x
-  sub a0, t1, t0
-  lw a1, 8(fp)
+  sub a0, s1, t0
+  lw a1, 0(fp)
   call inWell
-  mv s1, a0 ; at
+  mv s1, a0 ; x/at
   ; fx.e16.ts:284  if (kind === K_PLUS) {
   li t0, 8
-  lw t1, 0(fp) ; kind
+  lw t1, 4(fp) ; kind
   bne t1, t0, .L11
   ; fx.e16.ts:285  spr(at, y, gold(43), S8)
   mv a0, s1
@@ -13137,32 +12921,30 @@ wordDraw:
   addi s1, s1, 8
 .L11:
   ; fx.e16.ts:288  let d = digits
-  sw s3, 4(fp) ; d
+  lw t0, 2(fp) ; digits
+  sw t0, 0(fp) ; width/d
   ; fx.e16.ts:289  let v = n
-  lw t0, 2(fp) ; n
-  sw t0, 6(fp) ; v
   ; fx.e16.ts:290  while (d > 0) {
   j .L14
 .L12:
   ; fx.e16.ts:291  d--
-  lw t0, 4(fp) ; d
+  lw t0, 0(fp) ; width/d
   addi t0, t0, -1
-  sw t0, 4(fp) ; d
+  sw t0, 0(fp) ; width/d
   ; fx.e16.ts:292  spr(at + i16(d * 8), y, gold(48 + (v % 10)), S8)
-  lw t0, 4(fp) ; d
+  lw t0, 0(fp) ; width/d
   slli t0, t0, 3
   add t0, s1, t0
-  lw t1, 6(fp) ; v
-  li t3, 52429
-  mulhu t2, t1, t3
-  srli t2, t2, 3
-  li t3, 10
-  mul t2, t2, t3
-  sub t1, t1, t2
+  li t2, 52429
+  mulhu t1, s3, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t1, s3, t1
   addi t1, t1, 48
-  sw t1, 12(fp) ; gold.c
+  sw t1, 6(fp) ; gold.c
   ; fx.e16.ts:276  return (FONT_TILE + c - 32) | (7 << 10)
-  lw t1, 12(fp) ; gold.c
+  lw t1, 6(fp) ; gold.c
   addi t1, t1, -32
   ori t1, t1, 7168
   mv a0, t0
@@ -13171,20 +12953,19 @@ wordDraw:
   li a3, 0
   call spr
   ; fx.e16.ts:293  v = div(v, 10)
-  lw t0, 6(fp) ; v
   li t1, 52429
-  mulhu t0, t0, t1
-  srli t0, t0, 3
-  sw t0, 6(fp) ; v
+  mulhu t0, s3, t1
+  srli s3, t0, 3
 .L14:
-  lw t0, 4(fp) ; d
+  lw t0, 0(fp) ; width/d
   bltu zero, t0, .L12
   ; fx.e16.ts:295  if (kind === K_METRES) spr(at + i16(digits * 8) + 8, y, gold(77), S8)
   li t0, 10
-  lw t1, 0(fp) ; kind
+  lw t1, 4(fp) ; kind
   bne t1, t0, .L16
   ; fx.e16.ts:295  spr(at + i16(digits * 8) + 8, y, gold(77), S8)
-  slli t0, s3, 3
+  lw t0, 2(fp) ; digits
+  slli t0, t0, 3
   add t0, s1, t0
   addi a0, t0, 8
   mv a1, s2
@@ -13194,13 +12975,14 @@ wordDraw:
 .L16:
   ; fx.e16.ts:296  if (kind !== K_CHAIN) return
   li t0, 7
-  lw t1, 0(fp) ; kind
+  lw t1, 4(fp) ; kind
   beq t1, t0, .L17
   ; fx.e16.ts:296  return
   j .return
 .L17:
   ; fx.e16.ts:297  at = at + i16(digits * 8) + 8
-  slli t0, s3, 3
+  lw t0, 2(fp) ; digits
+  slli t0, t0, 3
   add t0, s1, t0
   addi s1, t0, 8
   ; fx.e16.ts:298  spr(at, y, gold(67), S8)
@@ -13235,12 +13017,12 @@ wordDraw:
   call spr
 .return:
   mv sp, fp
-  lw ra, 14(sp)
-  lw s2, 16(sp)
-  lw s3, 18(sp)
-  lw s1, 20(sp)
-  lw s0, 22(sp)
-  addi sp, sp, 24
+  lw ra, 8(sp)
+  lw s1, 10(sp)
+  lw s2, 12(sp)
+  lw s3, 14(sp)
+  lw s0, 16(sp)
+  addi sp, sp, 18
   ret
 
 ; panel.e16.ts:23 hudLabels() at -O1
@@ -13393,47 +13175,45 @@ hudLabels:
   addi sp, sp, 2
   ret
 
-; panel.e16.ts:57 hudStep(depth, air, lives, frame) at -O1
-;   depth in s2
-;   air in 0(fp)
-;   lives in s3
-;   frame in 2(fp)
-;   k in s1
+; panel.e16.ts:57 hudStep(depth/k, air, lives, frame) at -O1
+;   depth/k in s1
+;   air in s3
+;   lives in s2
+;   frame in s0
 hudStep:
-  addi sp, sp, -14
-  sw ra, 4(sp)
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s3, 4(sp)
   sw s2, 6(sp)
-  sw s3, 8(sp)
-  sw s1, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  mv s2, a0 ; depth
-  sw a1, 0(fp) ; air
-  mv s3, a2 ; lives
-  sw a3, 2(fp) ; frame
+  sw s0, 8(sp)
+  mv s1, a0 ; depth/k
+  mv s3, a1 ; air
+  mv s2, a2 ; lives
+  mv s0, a3 ; frame
   ; panel.e16.ts:58  if (depth !== shownDepth) {
   lw t0, 0x1f82(zero)
-  beq s2, t0, .L1
+  beq s1, t0, .L1
   ; panel.e16.ts:59  shownDepth = depth
-  sw s2, 0x1f82(zero)
+  sw s1, 0x1f82(zero)
   ; panel.e16.ts:60  bigDepth(depth)
-  mv a0, s2
+  mv a0, s1
   call bigDepth
   ; panel.e16.ts:61  gauge(depth)
-  mv a0, s2
+  mv a0, s1
   call gauge
 .L1:
   ; panel.e16.ts:63  airShow(air, frame)
-  lw a0, 0(fp)
-  lw a1, 2(fp)
+  mv a0, s3
+  mv a1, s0
   call airShow
   ; panel.e16.ts:64  if (lives !== shownLives) {
   lw t0, 0x1f86(zero)
-  beq s3, t0, .L2
+  beq s2, t0, .L2
   ; panel.e16.ts:65  shownLives = lives
-  sw s3, 0x1f86(zero)
+  sw s2, 0x1f86(zero)
   ; panel.e16.ts:66  let k: u16 = 0
-  li s1, 0 ; k
+  li s1, 0 ; depth/k
   ; panel.e16.ts:67  while (k < 8) {
   j .L5
 .L3:
@@ -13445,7 +13225,7 @@ hudStep:
   mv t0, a0
   li t1, 142
   mv t2, s1
-  mv t3, s3
+  mv t3, s2
   bgeu t2, t3, .L7
   li t2, 0
   j .L8
@@ -13468,40 +13248,37 @@ hudStep:
   ; panel.e16.ts:72  scoreLine()
   call scoreLine
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s3, 4(sp)
   lw s2, 6(sp)
-  lw s3, 8(sp)
-  lw s1, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw s0, 8(sp)
+  addi sp, sp, 10
   ret
 
-; panel.e16.ts:76 airShow(air, frame) at -O1
+; panel.e16.ts:76 airShow(air, frame/low) at -O1
 ;   air in s1
-;   frame in s0
-;   low in s2
+;   frame/low in s2
 ;   warn in s3
 airShow:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s0, 4(sp)
-  sw s2, 6(sp)
-  sw s3, 8(sp)
+  sw s2, 4(sp)
+  sw s3, 6(sp)
   mv s1, a0 ; air
-  mv s0, a1 ; frame
+  mv s2, a1 ; frame/low
   ; panel.e16.ts:77  const low: u16 = air <= 25 && (frame & 16) !== 0 ? 1 : 0
   li t0, 25
   bltu t0, s1, .L1
-  andi t0, s0, 16
+  andi t0, s2, 16
   beq t0, zero, .L1
   li t0, 1
   j .L2
 .L1:
   li t0, 0
 .L2:
-  mv s2, t0 ; low
+  mv s2, t0 ; frame/low
   ; panel.e16.ts:78  if (air === shownAir && low === shownLow) return
   lw t0, 0x1f84(zero)
   bne s1, t0, .L3
@@ -13563,10 +13340,9 @@ airShow:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s0, 4(sp)
-  lw s2, 6(sp)
-  lw s3, 8(sp)
-  addi sp, sp, 10
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  addi sp, sp, 8
   ret
 
 ; panel.e16.ts:88 hudCounts(chain, caps) at -O1
@@ -13611,13 +13387,11 @@ hudCounts:
   ret
 
 ; panel.e16.ts:100 scoreLine() at -O1
-;   key in s1
-;   bkey in s2
+;   key/bkey in s1
 scoreLine:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s2, 4(sp)
   ; panel.e16.ts:101  const key = score[0] ^ (score[1] << 3)
   lw t0, score(zero)
   lw t1, score+2(zero)
@@ -13638,12 +13412,12 @@ scoreLine:
   lw t0, best(zero)
   lw t1, best+2(zero)
   slli t1, t1, 3
-  xor s2, t0, t1
+  xor s1, t0, t1
   ; panel.e16.ts:107  if (bkey !== shownBest) {
   lw t0, 0x1f8e(zero)
-  beq s2, t0, .L2
+  beq s1, t0, .L2
   ; panel.e16.ts:108  shownBest = bkey
-  sw s2, 0x1f8e(zero)
+  sw s1, 0x1f8e(zero)
   ; panel.e16.ts:109  scoreShow(cellAt(1, 1, 13), addr(best), (FONT_TILE + 16) | (W_GOLD << 10) | 0x8000)
   li a0, 42626
   la a1, best
@@ -13653,8 +13427,7 @@ scoreLine:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s2, 4(sp)
-  addi sp, sp, 6
+  addi sp, sp, 4
   ret
 
 ; panel.e16.ts:114 stratumShow(s) at -O1
@@ -13743,77 +13516,71 @@ stratumShow:
   addi sp, sp, 6
   ret
 
-; panel.e16.ts:129 bigDepth(depth) at -O1
-;   depth in s3
-;   v in s2
-;   k in s1
+; panel.e16.ts:129 bigDepth(depth/v) at -O1
+;   depth/v in s1
+;   k in s2
 bigDepth:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
-  sw s3, 2(sp)
+  sw s1, 2(sp)
   sw s2, 4(sp)
-  sw s1, 6(sp)
-  mv s3, a0 ; depth
+  mv s1, a0 ; depth/v
   ; panel.e16.ts:130  let v = depth
-  mv s2, s3 ; v
   ; panel.e16.ts:131  let k: u16 = 0
-  li s1, 0 ; k
+  li s2, 0 ; k
   ; panel.e16.ts:132  while (k < 3) {
   j .L3
 .L1:
   ; panel.e16.ts:133  bigDigit(5 - k * 2, v % 10)
-  slli t0, s1, 1
+  slli t0, s2, 1
   li t1, 5
   sub t1, t1, t0
   li t2, 52429
-  mulhu t0, s2, t2
+  mulhu t0, s1, t2
   srli t0, t0, 3
   li t2, 10
   mul t0, t0, t2
-  sub t0, s2, t0
+  sub t0, s1, t0
   mv a0, t1
   mv a1, t0
   call bigDigit
   ; panel.e16.ts:134  v = div(v, 10)
   li t1, 52429
-  mulhu t0, s2, t1
-  srli s2, t0, 3
+  mulhu t0, s1, t1
+  srli s1, t0, 3
   ; panel.e16.ts:135  k++
-  addi s1, s1, 1
+  addi s2, s2, 1
 .L3:
   li t0, 3
-  bltu s1, t0, .L1
+  bltu s2, t0, .L1
   ; panel.e16.ts:137  vpoke(cellAt(1, 7, 4), glyph(77, W_WHITE))
   li a0, 41486
   li a1, 39981
   call vpoke
 .return:
   lw ra, 0(sp)
-  lw s3, 2(sp)
+  lw s1, 2(sp)
   lw s2, 4(sp)
-  lw s1, 6(sp)
-  addi sp, sp, 8
+  addi sp, sp, 6
   ret
 
-; panel.e16.ts:140 bigDigit(x, d) at -O1
-;   x in s2
-;   d in s3
-;   t in s0
+; panel.e16.ts:140 bigDigit(x, d/t) at -O1
+;   x in s3
+;   d/t in s2
 ;   k in s1
 bigDigit:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s3, 4(sp)
-  sw s0, 6(sp)
-  sw s1, 8(sp)
-  mv s2, a0 ; x
-  mv s3, a1 ; d
+  sw s3, 2(sp)
+  sw s2, 4(sp)
+  sw s1, 6(sp)
+  mv s3, a0 ; x
+  mv s2, a1 ; d/t
   ; panel.e16.ts:141  const t = DIGITS_TILE + d * 6
-  slli t1, s3, 2
-  slli t0, s3, 1
+  slli t1, s2, 2
+  slli t0, s2, 1
   add t0, t0, t1
-  addi s0, t0, 64
+  addi s2, t0, 64
   ; panel.e16.ts:142  let k: u16 = 0
   li s1, 0 ; k
   ; panel.e16.ts:143  while (k < 6) {
@@ -13821,13 +13588,13 @@ bigDigit:
 .L1:
   ; panel.e16.ts:144  vpoke(cellAt(1, x + (k & 1), 2 + (k >> 1)), (t + k) | (SL_PANEL << 10) | 0x8000)
   andi t0, s1, 1
-  add t0, s2, t0
+  add t0, s3, t0
   srli t1, s1, 1
   li a0, 1
   mv a1, t0
   addi a2, t1, 2
   call cellAt
-  add t0, s0, s1
+  add t0, s2, s1
   ori t0, t0, 7168
   li t1, 32768
   or a1, t0, t1
@@ -13839,141 +13606,128 @@ bigDigit:
   bltu s1, t0, .L1
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s3, 4(sp)
-  lw s0, 6(sp)
-  lw s1, 8(sp)
-  addi sp, sp, 10
+  lw s3, 2(sp)
+  lw s2, 4(sp)
+  lw s1, 6(sp)
+  addi sp, sp, 8
   ret
 
-; panel.e16.ts:150 gauge(depth) at -O1
-;   depth in s3
-;   at in s2
-;   k in s1
-;   t in s0
+; panel.e16.ts:150 gauge(depth/at) at -O1
+;   depth/at in s1
+;   k in s2
+;   t in s3
 gauge:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
-  sw s3, 2(sp)
+  sw s1, 2(sp)
   sw s2, 4(sp)
-  sw s1, 6(sp)
-  sw s0, 8(sp)
-  mv s3, a0 ; depth
+  sw s3, 6(sp)
+  mv s1, a0 ; depth/at
   ; panel.e16.ts:151  let at = div(depth * 3, 100)
-  slli t1, s3, 1
-  add t0, t1, s3
+  slli t1, s1, 1
+  add t0, t1, s1
   li t1, 5243
   srli t0, t0, 2
   mulhu t0, t0, t1
-  srli s2, t0, 1
+  srli s1, t0, 1
   ; panel.e16.ts:152  if (at > 14) at = 14
   li t0, 14
-  bgeu t0, s2, .L1
+  bgeu t0, s1, .L1
   ; panel.e16.ts:152  at = 14
-  li s2, 14 ; at
+  li s1, 14 ; depth/at
 .L1:
   ; panel.e16.ts:153  let k: u16 = 0
-  li s1, 0 ; k
+  li s2, 0 ; k
   ; panel.e16.ts:154  while (k < 15) {
   j .L4
 .L2:
   ; panel.e16.ts:155  const t: u16 = k < at ? 4 : k === at ? 2 : 3
-  bgeu s1, s2, .L6
+  bgeu s2, s1, .L6
   li t0, 4
   j .L7
 .L6:
-  bne s1, s2, .L8
+  bne s2, s1, .L8
   li t0, 2
   j .L9
 .L8:
   li t0, 3
 .L9:
 .L7:
-  mv s0, t0 ; t
+  mv s3, t0 ; t
   ; panel.e16.ts:156  vpoke(cellAt(1, 4, 16 + k), (ICONS_TILE + t) | (SL_PANEL << 10) | 0x8000)
   li a0, 1
   li a1, 4
-  addi a2, s1, 16
+  addi a2, s2, 16
   call cellAt
-  addi t0, s0, 142
+  addi t0, s3, 142
   ori t0, t0, 7168
   li t1, 32768
   or a1, t0, t1
   call vpoke
   ; panel.e16.ts:157  k++
-  addi s1, s1, 1
+  addi s2, s2, 1
 .L4:
   li t0, 15
-  bltu s1, t0, .L2
+  bltu s2, t0, .L2
 .return:
   lw ra, 0(sp)
-  lw s3, 2(sp)
+  lw s1, 2(sp)
   lw s2, 4(sp)
-  lw s1, 6(sp)
-  lw s0, 8(sp)
-  addi sp, sp, 10
+  lw s3, 6(sp)
+  addi sp, sp, 8
   ret
 
-; panel.e16.ts:162 tank(air) at -O1
-;   air in 4(fp)
-;   level in s3
-;   k in s1
-;   bottom in 0(fp)
-;   f in s2
-;   y in 2(fp)
+; panel.e16.ts:162 tank(air/level) at -O1
+;   air/level in s2
+;   k in s3
+;   bottom/y in s1
+;   f in s0
 tank:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s3, 8(sp)
-  sw s1, 10(sp)
-  sw s2, 12(sp)
-  sw s0, 14(sp)
-  mv fp, sp
-  sw a0, 4(fp) ; air
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s3, 4(sp)
+  sw s1, 6(sp)
+  sw s0, 8(sp)
+  mv s2, a0 ; air/level
   ; panel.e16.ts:163  const level = div(air * 112, 100)
   li t0, 112
-  lw t1, 4(fp) ; air
-  mul t1, t1, t0
-  li t0, 5243
-  srli t1, t1, 2
-  mulhu t1, t1, t0
-  srli s3, t1, 1
+  mul t0, s2, t0
+  li t1, 5243
+  srli t0, t0, 2
+  mulhu t0, t0, t1
+  srli s2, t0, 1
   ; panel.e16.ts:164  let k: u16 = 0
-  li s1, 0 ; k
+  li s3, 0 ; k
   ; panel.e16.ts:165  while (k < 14) {
   j .L3
 .L1:
   ; panel.e16.ts:166  const bottom = k * 8
-  slli t0, s1, 3
-  sw t0, 0(fp) ; bottom
+  slli s1, s3, 3
   ; panel.e16.ts:167  let f: u16 = 0
-  li s2, 0 ; f
+  li s0, 0 ; f
   ; panel.e16.ts:168  if (level >= bottom + 8) f = 8
-  lw t0, 0(fp) ; bottom
-  addi t0, t0, 8
-  bltu s3, t0, .L5
+  addi t0, s1, 8
+  bltu s2, t0, .L5
   ; panel.e16.ts:168  f = 8
-  li s2, 8 ; f
+  li s0, 8 ; f
   j .L6
 .L5:
   ; panel.e16.ts:169  if (level > bottom) f = level - bottom
-  lw t0, 0(fp) ; bottom
-  bgeu t0, s3, .L7
+  bgeu s1, s2, .L7
   ; panel.e16.ts:169  f = level - bottom
-  lw t0, 0(fp) ; bottom
-  sub s2, s3, t0
+  sub s0, s2, s1
 .L7:
 .L6:
   ; panel.e16.ts:170  const y = 16 - k
   li t0, 16
-  sub t0, t0, s1
-  sw t0, 2(fp) ; y
+  sub s1, t0, s3
   ; panel.e16.ts:171  vpoke(cellAt(1, 34, y), (TANK_TILE + f * 2) | (SL_PANEL << 10) | 0x8000)
   li a0, 1
   li a1, 34
-  lw a2, 2(fp)
+  mv a2, s1
   call cellAt
-  slli t0, s2, 1
+  slli t0, s0, 1
   addi t0, t0, 124
   ori t0, t0, 7168
   li t1, 32768
@@ -13982,27 +13736,26 @@ tank:
   ; panel.e16.ts:172  vpoke(cellAt(1, 35, y), (TANK_TILE + f * 2 + 1) | (SL_PANEL << 10) | 0x8000)
   li a0, 1
   li a1, 35
-  lw a2, 2(fp)
+  mv a2, s1
   call cellAt
-  slli t0, s2, 1
+  slli t0, s0, 1
   addi t0, t0, 125
   ori t0, t0, 7168
   li t1, 32768
   or a1, t0, t1
   call vpoke
   ; panel.e16.ts:173  k++
-  addi s1, s1, 1
+  addi s3, s3, 1
 .L3:
   li t0, 14
-  bltu s1, t0, .L1
+  bltu s3, t0, .L1
 .return:
-  mv sp, fp
-  lw ra, 6(sp)
-  lw s3, 8(sp)
-  lw s1, 10(sp)
-  lw s2, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s3, 4(sp)
+  lw s1, 6(sp)
+  lw s0, 8(sp)
+  addi sp, sp, 10
   ret
 
 str_31:
@@ -14277,20 +14030,17 @@ pageShow:
   addi sp, sp, 4
   ret
 
-; title.e16.ts:101 rowsClear(from, to) at -O1
-;   from in s2
-;   to in s3
-;   y in s1
+; title.e16.ts:101 rowsClear(from/y, to) at -O1
+;   from/y in s1
+;   to in s2
 rowsClear:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s3, 4(sp)
-  sw s1, 6(sp)
-  mv s2, a0 ; from
-  mv s3, a1 ; to
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  mv s1, a0 ; from/y
+  mv s2, a1 ; to
   ; title.e16.ts:102  let y = from
-  mv s1, s2 ; y
   ; title.e16.ts:103  while (y < to) {
   j .L3
 .L1:
@@ -14302,13 +14052,12 @@ rowsClear:
   ; title.e16.ts:105  y++
   addi s1, s1, 1
 .L3:
-  bltu s1, s3, .L1
+  bltu s1, s2, .L1
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s3, 4(sp)
-  lw s1, 6(sp)
-  addi sp, sp, 8
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  addi sp, sp, 6
   ret
 
 ; title.e16.ts:110 levelPick(l) at -O1

@@ -144,50 +144,42 @@ videoIn:
   addi sp, sp, 10
   ret
 
-; play/play.e16.ts:111 videoFill(at, value, n) at -O1
-;   at in 2(fp)
-;   value in 4(fp)
-;   n in 6(fp)
-;   left in s1
-;   to in s2
-;   room in 0(fp)
-;   now in s3
+; play/play.e16.ts:111 videoFill(at/to, value, n/left) at -O1
+;   at/to in s2
+;   value in s0
+;   n/left in s1
+;   room/now in s3
 videoFill:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s1, 10(sp)
-  sw s2, 12(sp)
-  sw s3, 14(sp)
-  sw s0, 16(sp)
-  mv fp, sp
-  sw a0, 2(fp) ; at
-  sw a1, 4(fp) ; value
-  sw a2, 6(fp) ; n
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s0, 4(sp)
+  sw s1, 6(sp)
+  sw s3, 8(sp)
+  mv s2, a0 ; at/to
+  mv s0, a1 ; value
+  mv s1, a2 ; n/left
   ; play/play.e16.ts:112  let left = n
-  lw s1, 6(fp) ; n
   ; play/play.e16.ts:113  let to = at
-  lw s2, 2(fp) ; at
   ; play/play.e16.ts:114  while (left > 0) {
   j .L3
 .L1:
   ; play/play.e16.ts:115  const room = PAGE_SIZE - (to & (PAGE_SIZE - 1))
   andi t0, s2, 4095
   li t1, 4096
-  sub t1, t1, t0
-  sw t1, 0(fp) ; room
+  sub s3, t1, t0
   ; play/play.e16.ts:116  const now = left < room ? left : room
-  lw t0, 0(fp) ; room
-  bgeu s1, t0, .L5
+  bgeu s1, s3, .L5
   mv t0, s1
   j .L6
 .L5:
-  lw t0, 0(fp)
+  mv t0, s3
 .L6:
-  mv s3, t0 ; now
+  mv s3, t0 ; room/now
   ; play/play.e16.ts:117  memset(window(to), value, now)
   mv a0, s2
   call window
-  lw a1, 4(fp)
+  mv a1, s0
   mv a2, s3
   mset a0, a1, a2
   ; play/play.e16.ts:118  to += now
@@ -197,65 +189,56 @@ videoFill:
 .L3:
   bltu zero, s1, .L1
 .return:
-  mv sp, fp
-  lw ra, 8(sp)
-  lw s1, 10(sp)
-  lw s2, 12(sp)
-  lw s3, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s0, 4(sp)
+  lw s1, 6(sp)
+  lw s3, 8(sp)
+  addi sp, sp, 10
   ret
 
-; play/play.e16.ts:124 plot(x, y, c) at -O1
-;   x in s1
-;   y in 0(fp)
-;   c in 2(fp)
-;   at in s2
-;   shift in s3
+; play/play.e16.ts:124 plot(x/shift, y/at, c) at -O1
+;   x/shift in s1
+;   y/at in s2
+;   c in s3
 plot:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s1, 6(sp)
-  sw s2, 8(sp)
-  sw s3, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  mv s1, a0 ; x
-  sw a1, 0(fp) ; y
-  sw a2, 2(fp) ; c
+  addi sp, sp, -8
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  sw s3, 6(sp)
+  mv s1, a0 ; x/shift
+  mv s2, a1 ; y/at
+  mv s3, a2 ; c
   ; play/play.e16.ts:125  const at = window(y * ROW_BYTES + (x >> 2))
-  lw t0, 0(fp) ; y
-  slli t1, t0, 6
-  slli t0, t0, 4
+  slli t1, s2, 6
+  slli t0, s2, 4
   add t0, t0, t1
   srli t1, s1, 2
   add a0, t0, t1
   call window
-  mv s2, a0 ; at
+  mv s2, a0 ; y/at
   ; play/play.e16.ts:126  const shift = 6 - ((x & 3) << 1)
   andi t0, s1, 3
   slli t0, t0, 1
   li t1, 6
-  sub s3, t1, t0
+  sub s1, t1, t0
   ; play/play.e16.ts:127  poke(at, (peek(at) & (0xff ^ (3 << shift))) | (c << shift))
   lbu t0, 0(s2)
   li t1, 3
-  sll t1, t1, s3
+  sll t1, t1, s1
   li t2, 255
   xor t2, t2, t1
   and t0, t0, t2
-  lw t1, 2(fp) ; c
-  sll t1, t1, s3
+  sll t1, s3, s1
   or t0, t0, t1
   sb t0, 0(s2)
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s1, 6(sp)
-  lw s2, 8(sp)
-  lw s3, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  addi sp, sp, 8
   ret
 
 ; play/play.e16.ts:133 screenInit() at -O1
@@ -337,44 +320,40 @@ cls:
   addi sp, sp, 2
   ret
 
-; play/play.e16.ts:161 drawChar(c, column, row) at -O1
-;   c in s3
-;   column in 0(fp)
-;   row in 2(fp)
-;   glyph in 4(fp)
-;   x0 in 6(fp)
-;   y0 in 8(fp)
+; play/play.e16.ts:161 drawChar(c/glyph, column/x0, row/y0) at -O1
+;   c/glyph in s3
+;   column/x0 in 0(fp)
+;   row/y0 in 2(fp)
 ;   cx in s1
-;   bits in 10(fp)
+;   bits in 4(fp)
 ;   r in s2
 drawChar:
-  addi sp, sp, -22
-  sw ra, 12(sp)
-  sw s3, 14(sp)
-  sw s1, 16(sp)
-  sw s2, 18(sp)
-  sw s0, 20(sp)
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s3, 8(sp)
+  sw s1, 10(sp)
+  sw s2, 12(sp)
+  sw s0, 14(sp)
   mv fp, sp
-  mv s3, a0 ; c
-  sw a1, 0(fp) ; column
-  sw a2, 2(fp) ; row
+  mv s3, a0 ; c/glyph
+  sw a1, 0(fp) ; column/x0
+  sw a2, 2(fp) ; row/y0
   ; play/play.e16.ts:162  const glyph = font_base() + (c - FIRST_CODE) * 5
   call font_base
   addi t0, s3, -32
   slli t1, t0, 2
   add t0, t1, t0
-  add t0, a0, t0
-  sw t0, 4(fp) ; glyph
+  add s3, a0, t0
   ; play/play.e16.ts:163  const x0 = column * 6
-  lw t0, 0(fp) ; column
+  lw t0, 0(fp) ; column/x0
   slli t1, t0, 2
   slli t0, t0, 1
   add t0, t0, t1
-  sw t0, 6(fp) ; x0
+  sw t0, 0(fp) ; column/x0
   ; play/play.e16.ts:164  const y0 = row * 8
-  lw t0, 2(fp) ; row
+  lw t0, 2(fp) ; row/y0
   slli t0, t0, 3
-  sw t0, 8(fp) ; y0
+  sw t0, 2(fp) ; row/y0
   ; play/play.e16.ts:165  for (let cx: u16 = 0; cx < 6; cx++) {
   li s1, 0 ; cx
   j .L3
@@ -382,24 +361,23 @@ drawChar:
   ; play/play.e16.ts:166  const bits = cx < 5 ? peek(glyph + cx) : 0
   li t0, 5
   bgeu s1, t0, .L5
-  lw t0, 4(fp) ; glyph
-  add t0, t0, s1
+  add t0, s3, s1
   lbu t0, 0(t0)
   j .L6
 .L5:
   li t0, 0
 .L6:
-  sw t0, 10(fp) ; bits
+  sw t0, 4(fp) ; bits
   ; play/play.e16.ts:167  for (let r: u16 = 0; r < 8; r++) plot(x0 + cx, y0 + r, ((bits >> r) & 1) === 1 ? INK : PAPER)
   li s2, 0 ; r
   j .L9
 .L7:
   ; play/play.e16.ts:167  plot(x0 + cx, y0 + r, ((bits >> r) & 1) === 1 ? INK : PAPER)
-  lw t0, 6(fp) ; x0
+  lw t0, 0(fp) ; column/x0
   add t0, t0, s1
-  lw t1, 8(fp) ; y0
+  lw t1, 2(fp) ; row/y0
   add t1, t1, s2
-  lw t2, 10(fp) ; bits
+  lw t2, 4(fp) ; bits
   srl t2, t2, s2
   andi t2, t2, 1
   li t3, 1
@@ -423,12 +401,12 @@ drawChar:
   bltu s1, t0, .L1
 .return:
   mv sp, fp
-  lw ra, 12(sp)
-  lw s3, 14(sp)
-  lw s1, 16(sp)
-  lw s2, 18(sp)
-  lw s0, 20(sp)
-  addi sp, sp, 22
+  lw ra, 6(sp)
+  lw s3, 8(sp)
+  lw s1, 10(sp)
+  lw s2, 12(sp)
+  lw s0, 14(sp)
+  addi sp, sp, 16
   ret
 
 ; play/play.e16.ts:172 scroll() at -O1
@@ -563,17 +541,14 @@ putc:
   addi sp, sp, 4
   ret
 
-; play/play.e16.ts:210 puts(at) at -O1
-;   at in s2
-;   p in s1
+; play/play.e16.ts:210 puts(at/p) at -O1
+;   at/p in s1
 puts:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s1, 4(sp)
-  mv s2, a0 ; at
+  sw s1, 2(sp)
+  mv s1, a0 ; at/p
   ; play/play.e16.ts:211  for (let p = at; peek(p) !== 0; p++) putc(peek(p))
-  mv s1, s2 ; p
   j .L3
 .L1:
   ; play/play.e16.ts:211  putc(peek(p))
@@ -585,9 +560,8 @@ puts:
   bne t0, zero, .L1
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s1, 4(sp)
-  addi sp, sp, 6
+  lw s1, 2(sp)
+  addi sp, sp, 4
   ret
 
 ; play/play.e16.ts:215 locate(column, row) at -O1

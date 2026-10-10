@@ -1,5 +1,6 @@
 import { type BankMap, callLines, mulqLine, O1, REGISTER } from './back1.js'
 import type { BinOp, Fn, Op, Program } from './ir.js'
+import { shareSlots } from './slots.js'
 import { hex, NEAR } from './types.js'
 
 /**
@@ -98,7 +99,8 @@ export function assembly(
   const section = (bank: number | null) => {
     for (const fn of program.fns.filter((f) => f.bank === bank)) {
       if (level === 0) func(out, fn, banks)
-      else for (const line of new O1(fn, near, banks).emit()) out.raw(line)
+      // -O1 first lets locals whose lives never overlap share a place (slots.ts).
+      else for (const line of new O1(shareSlots(fn), near, banks).emit()) out.raw(line)
     }
     strings(out, program, bank)
   }

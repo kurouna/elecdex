@@ -462,3 +462,47 @@ export function inlinedArguments(n: u16): u16 {
   poke(addr(buffer) + 3, 77)
   return wrap16(s + n + byteAt(addr(buffer), 3) + scaleBy(wrap16(n + 1), 5))
 }
+
+let kept: u16 = 0
+
+/** A call between the locals below: more than a few operations, called often, never inlined. */
+function keep(v: u16): u16 {
+  kept = wrap16(kept * 3 + v)
+  kept = kept ^ (v >> 1)
+  return kept
+}
+
+/** Each called once, and writing its parameter: inlined at -O2 with a slot of its own. */
+function doubled(v: u16): u16 {
+  v = wrap16(v + v)
+  return wrap16(v + 1)
+}
+
+function tripled(v: u16): u16 {
+  v = wrap16(v * 3)
+  return wrap16(v + 2)
+}
+
+/**
+ * Locals one after another, each dead once handed on: from -O1 they share places, and the
+ * function needs no frame. Then a local, and a sum on it, read into an expression and still
+ * waiting there while calls put a value on the machine's stack above them and an inlined
+ * body writes its parameter: a place shared with that parameter would be written under them.
+ */
+export function oneAfterAnother(x: u16): u16 {
+  kept = 0
+  const a = wrap16(x + 1)
+  keep(a)
+  const b = wrap16(a * 5 + x)
+  keep(b)
+  const c = wrap16(x + 3)
+  keep(c)
+  const d = wrap16(c + b)
+  keep(d)
+  const e = wrap16(x ^ 0x55)
+  keep(e)
+  const f = wrap16(x * 3)
+  const g = wrap16(f + (keep(1) + (keep(x) + doubled(x))))
+  const h = wrap16(x * 7)
+  return wrap16(g + (h + 1) + (keep(2) + (keep(h) + tripled(h))))
+}

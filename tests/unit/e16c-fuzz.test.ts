@@ -353,7 +353,9 @@ function block(c: Ctx, ind: string, extra: string[] = []): string {
     lines.push(`${ind}const ${name}: bool = ${cond(c)}`)
     c.bools = [...c.bools, name]
   }
-  if (c.g.chance(0.5)) {
+  // Up to two locals a block: enough that some functions keep more than the saved registers
+  // hold, and live in a frame, at -O1.
+  for (let k = c.g.int(3); k > 0; k--) {
     const name = `v${c.labels++}`
     lines.push(`${ind}let ${name}: ${c.signed ? 'i16' : 'u16'} = ${wexpr(c)}`)
     c.locals = [...c.locals, name]

@@ -114,6 +114,9 @@ const CASES: [string, number[]][] = [
   ['inlinedArguments', [0]],
   ['inlinedArguments', [7]],
   ['inlinedArguments', [65000]],
+  ['oneAfterAnother', [0]],
+  ['oneAfterAnother', [9]],
+  ['oneAfterAnother', [0xfff0]],
 ]
 
 /** n divided as the code divideMagic leads to does: MULHU, then the shifts and the add. */
@@ -195,6 +198,21 @@ describe('e16c', () => {
     expect(out.program.fns.find((fn) => fn.name === 'f')?.slots).toEqual(['a', 'bump.x'])
     expect(out.asm).toMatch(/^\s+slli \w+, \w+, 2$/m)
     expect(out.asm).not.toMatch(/^\s+mul /m)
+  })
+
+  it('shares places among locals whose lives never overlap, so -O1 keeps them without a frame', () => {
+    for (const opt of [1, 2] as const) {
+      const out = compile([{ name: SAMPLE, text: readFileSync(SAMPLE, 'utf8') }], {
+        ...OPTIONS,
+        opt,
+      })
+      expect(out.errors).toEqual([])
+      const at = out.asm.indexOf('\noneAfterAnother:')
+      const body = out.asm.slice(at).split(/\n\n/)[0] ?? ''
+      // Nine locals, never more than four alive at once.
+      expect(body, `-O${opt}`).not.toMatch(/\(fp\)/)
+      expect(out.asm.slice(0, at), `-O${opt}`).toMatch(/;\s+a\/\S+ in s\d/)
+    }
   })
 
   it('divides by a constant that is no power of two with MULHU from -O1, by DIVU at -O0', () => {
