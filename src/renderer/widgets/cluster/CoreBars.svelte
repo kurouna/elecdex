@@ -1,11 +1,12 @@
 <script lang="ts">
-import { cpuLevel, groupCores } from '@shared/cluster'
+import { CLUSTER_LIMITS, cpuLevel, groupCores } from '@shared/cluster'
 
 /**
  * Every logical core's load now - no history (user decision 2026-10-10) - a bar
  * each, numbered every fourth. Beyond MAX_CORE_BARS neighbours are put together
  * at their busiest. A bar takes its new height as the reading arrives, without
- * animation, as the lanes do.
+ * animation, as the lanes do. A core at 85% or more is drawn as the CPU pane
+ * draws its hot cores, amber into red (user decision 2026-10-10).
  */
 interface Props {
   cores: readonly number[]
@@ -26,7 +27,7 @@ const per = $derived(bars.length === 0 ? 1 : Math.ceil(cores.length / bars.lengt
   style:--count={Math.max(1, bars.length)}
 >
   {#each bars as load, i (i)}
-    <span class="core" data-level={cpuLevel(load)}>
+    <span class="core" class:hot={load >= CLUSTER_LIMITS.cpu.warn} data-level={cpuLevel(load)}>
       <i style:--fill={Math.min(1, Math.max(0, load / 100))}></i>
       <em class:shown={i % 4 === 0}>{i * per}</em>
     </span>
@@ -68,12 +69,9 @@ const per = $derived(bars.length === 0 ? 1 : Math.ceil(cores.length / bars.lengt
   transform: scaleY(var(--fill, 0));
 }
 
-.core[data-level='warn'] i {
-  background: var(--cluster-warn, var(--warn));
-}
-
-.core[data-level='crit'] i {
-  background: var(--cluster-crit, var(--danger));
+/* As the CPU pane's hot cores (CpuWidget's .hot .fill). */
+.core.hot i {
+  background: linear-gradient(to top, var(--warn), var(--danger));
 }
 
 em {

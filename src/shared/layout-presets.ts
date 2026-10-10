@@ -34,8 +34,8 @@ export const LAYOUT_PRESET_IDS = [
   'media',
   'desk',
   'ai',
-  'retro',
   'cockpit',
+  'retro',
 ] as const
 export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number]
 
@@ -198,6 +198,24 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
       ),
   },
   {
+    // The machine on one pane where the system column would be, large enough at 1600x900 to lay
+    // itself out at its widest with what the machine is and every core, a shell under it and two more one over the other beside it
+    // (user decision 2026-10-10). The one preset without the system column: CLUSTER says what
+    // the column does, and more.
+    id: 'cockpit',
+    name: 'cockpit',
+    description: 'the whole machine on one pane, with shells under it and beside it',
+    build: () =>
+      split(
+        'row',
+        [
+          split('column', [pane('cluster'), pane('terminal')], [0.75, 0.25]),
+          split('column', [pane('terminal'), pane('terminal')], [0.5, 0.5]),
+        ],
+        [0.7, 0.3],
+      ),
+  },
+  {
     // The two machines elecdex runs in one pane, the ELEC-16 in front, and under them the
     // spectrum at sixteen bands: the column the standard layout gives its stage, one pane
     // for whichever machine is played and its sound beside nothing else (user's request
@@ -215,21 +233,6 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
           ),
         ],
         [1],
-      ),
-  },
-  {
-    // The machine on one pane where the system column would be, large enough at 1600x900 to lay
-    // itself out at its widest with what the machine is and every core, a shell under it and two more beside it
-    // (user decision 2026-10-10). The one preset without the system column: CLUSTER says what
-    // the column does, and more.
-    id: 'cockpit',
-    name: 'cockpit',
-    description: 'the whole machine on one pane, with shells under it and beside it',
-    build: () =>
-      split(
-        'row',
-        [split('column', [pane('cluster'), pane('terminal')], [0.75, 0.25]), shells(2)],
-        [0.7, 0.3],
       ),
   },
 ]

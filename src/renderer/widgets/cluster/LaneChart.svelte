@@ -6,11 +6,9 @@ import {
   type LaneId,
   type LaneSecond,
   laneHeight,
-  laneLevel,
   laneScale,
   scaleLabel,
 } from '@shared/cluster'
-import { colourReader } from '../../lib/css-colour.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 
 /**
@@ -21,9 +19,10 @@ import { appearance } from '../../stores/appearance.svelte.ts'
  *
  * Drawn once per second that arrives, with no animation (user decision
  * 2026-10-10). The percentages keep their whole range; the network and the ping
- * are scaled to the minute they show, the top written at the lane's corner. A
- * reading amber or red is a dot of its colour on the line, read by shape as well
- * as colour; an echo that never came back is a red stroke the lane's height.
+ * are scaled to the minute they show, the top written at the lane's corner.
+ * A hot reading changes nothing on the line, as on the CPU pane's charts (user
+ * decision 2026-10-10): the number, the lamp and the message say it. An echo
+ * that never came back is a red stroke the lane's height.
  */
 interface Props {
   lane: LaneId
@@ -38,7 +37,6 @@ let canvas = $state<HTMLCanvasElement | null>(null)
 
 interface Colors {
   line: string
-  warn: string
   crit: string
   guide: string
   label: string
@@ -46,22 +44,14 @@ interface Colors {
   labelSize: number
 }
 
-function readColors(el: HTMLElement): Colors {
+function readColors(el: Element): Colors {
   const style = getComputedStyle(el)
-  // The pane's amber and red are mixes (ClusterWidget's --cluster-warn, --cluster-crit), which
-  // only CSS resolves: read back as the colours a canvas can paint.
-  const mixed = colourReader(el)
-  const rgb = (css: string, fallback: string): string => {
-    const [r, g, b] = mixed(css, [0, 0, 0])
-    return r + g + b === 0 ? fallback : `rgb(${r} ${g} ${b})`
-  }
   const read = (name: string, fallback: string): string =>
     style.getPropertyValue(name).trim() || fallback
   const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
   return {
     line: read('--accent', '#aacfd1'),
-    warn: rgb('var(--cluster-warn, var(--warn))', read('--warn', '#f0c040')),
-    crit: rgb('var(--cluster-crit, var(--danger))', read('--danger', '#e05050')),
+    crit: read('--danger', '#e05050'),
     guide: read('--panel-rule', 'rgba(170,207,209,0.3)'),
     label: read('--text-muted', 'rgba(170,207,209,0.5)'),
     font: read('--font-mono', 'monospace'),
@@ -193,7 +183,7 @@ function drawLine(f: Frame, seconds: readonly LaneSecond[]): void {
     }
     ctx.stroke()
   }
-  drawMarks(f, seconds)
+  drawNewest(f, seconds)
   // An echo that never came back: a red stroke the lane's height.
   ctx.fillStyle = colors.crit
   for (const { age, value } of shown(seconds)) {
@@ -225,22 +215,16 @@ function fillRun(
   ctx.restore()
 }
 
-/** A dot on every reading amber or red, and on the newest. */
-function drawMarks(f: Frame, seconds: readonly LaneSecond[]): void {
-  const { ctx, colors } = f
+/** A dot on the newest reading: where the lane is now. */
+function drawNewest(f: Frame, seconds: readonly LaneSecond[]): void {
   const newest = seconds.length - 1
-  const latest = seconds.findLastIndex((second) => typeof second[lane] === 'number')
-  seconds.forEach((second, i) => {
-    const value = second[lane]
-    const age = newest - i
-    if (typeof value !== 'number' || age >= HISTORY_SECONDS) return
-    const level = laneLevel(lane, value)
-    if (level === 'none' && i !== latest) return
-    ctx.fillStyle = level === 'crit' ? colors.crit : level === 'warn' ? colors.warn : colors.line
-    ctx.beginPath()
-    ctx.arc(xOf(f, age), yOf(f, value), level === 'none' ? 2.5 : 2, 0, Math.PI * 2)
-    ctx.fill()
-  })
+  const i = seconds.findLastIndex((second) => typeof second[lane] === 'number')
+  const value = seconds[i]?.[lane]
+  if (typeof value !== 'number' || newest - i >= HISTORY_SECONDS) return
+  f.ctx.fillStyle = f.colors.line
+  f.ctx.beginPath()
+  f.ctx.arc(xOf(f, newest - i), yOf(f, value), 2.5, 0, Math.PI * 2)
+  f.ctx.fill()
 }
 
 function drawLabel(f: Frame): void {

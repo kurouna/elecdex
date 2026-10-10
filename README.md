@@ -164,6 +164,18 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   by majority or unanimity. The seats use the providers of the AI chat - the same model in all
   three will do.
 
+### cockpit — the whole machine on one pane, and the shells
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Amber theme: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them, a line of the OS, maker, model, chassis, CPU and AWAKE, then a minute of CPU as a line, a bar for each of twelve cores, memory, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells one over the other on the right">
+  <br><sub>cockpit · Amber</sub>
+</p>
+
+- **Cluster** *(unreleased)* — the whole machine on one pane, like a car's instrument cluster: warning lamps and
+  the worst of them in words, the clock and the date, a minute of CPU, memory, disk I/O, network and
+  ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
+  any size, from the full screen to a narrow column.
+
 ### retro — two machines of elecdex's own, and the sound
 
 <p align="center">
@@ -211,18 +223,6 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   Made a **PLAY-320**, it is a game console with cartridges, sprites and sixteen sound
   channels, with games of its own - ELECLANCE, ELECAIRCOMBAT, ELECDRILL and the one-on-one
   fighter ELECFIGHTER - and a kit to make games for it.
-
-### cockpit — the whole machine on one pane, and the shells
-
-<p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Amber theme: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them, a line of the type, OS, maker, model, chassis, CPU and AWAKE, then a minute of CPU as a line, a bar for each of twelve cores, memory, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells as tabs on the right">
-  <br><sub>cockpit · Amber</sub>
-</p>
-
-- **Cluster** *(unreleased)* — the whole machine on one pane, like a car's instrument cluster: warning lamps and
-  the worst of them in words, the clock and the date, a minute of CPU, memory, disk I/O, network and
-  ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
-  any size, from the full screen to a narrow column.
 
 ### Layouts, looks and the rest
 
@@ -434,7 +434,7 @@ Nine **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT and an AI chat - each group as tabs), **media**
 (YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them) and **cockpit** (the CLUSTER pane in place of the system column, a shell under it and two beside it). Every one but cockpit keeps the system column on the left, so a switch
+the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system), **cockpit** (the CLUSTER pane in place of the system column, a shell under it and two one over the other beside it) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one but cockpit keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
@@ -494,7 +494,7 @@ weather and calendar.
   every core's load now sits under CPU. The rest is a row of figures:
   swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and
   the IPv4 address with its interface; and where there is room a line of what the machine is, as the
-  system column says it (type, OS, maker, model, chassis and CPU), with what AWAKE is set to. Each figure opens a card with what it has no room for. It lays itself out in five ways by
+  system column says it (OS, maker, model, chassis and CPU), with what AWAKE is set to. Each figure opens a card with what it has no room for. It lays itself out in five ways by
   its size. A full screen of it idles at 10-15% of one core, less than CPU, memory, traffic and
   disk panes side by side.
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to

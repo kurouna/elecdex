@@ -193,7 +193,8 @@ describe('LAYOUT_PRESETS', () => {
   })
 
   it('gives cockpit the CLUSTER pane in place of the system column, at its widest with every core', () => {
-    expect(places('cockpit')).toEqual([['cluster'], ['terminal'], ['terminal', 'terminal']])
+    // Three shells: one under CLUSTER, two one over the other on the right (user decision 2026-10-10).
+    expect(places('cockpit')).toEqual([['cluster'], ['terminal'], ['terminal'], ['terminal']])
     const shape = layoutShape(presetTree(presetById('cockpit') as LayoutPreset))
     expect(shape.some((r) => LEFT_COLUMN.includes(r.widget))).toBe(false)
     const cluster = shape.find((r) => r.widget === 'cluster')
@@ -364,6 +365,24 @@ describe('seededLayouts', () => {
 
   it('fits on the number keys', () => {
     expect(LAYOUT_PRESETS.length).toBeLessThanOrEqual(KEYED_LAYOUTS)
+  })
+})
+
+describe('the order of the presets', () => {
+  // The LAYOUTS dialog's shelf, the first start's numbered list and the Ctrl+Shift+F keys all
+  // follow this order; retro is last, after cockpit (user decision 2026-10-10).
+  const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai', 'cockpit', 'retro']
+
+  it('is the one the user set, retro last', () => {
+    expect([...LAYOUT_PRESET_IDS]).toEqual(ORDER)
+    expect(LAYOUT_PRESETS.map((preset) => preset.id)).toEqual(ORDER)
+  })
+
+  it('lays the dialog’s shelf out in it, cockpit then retro', () => {
+    const shelf = presetCards([]).map((card) => card.id)
+    expect(shelf).toEqual(ORDER)
+    expect(shelf.indexOf('cockpit')).toBe(shelf.indexOf('retro') - 1)
+    expect(shelf.at(-1)).toBe('retro')
   })
 })
 

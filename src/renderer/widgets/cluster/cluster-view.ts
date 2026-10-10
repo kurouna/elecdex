@@ -32,13 +32,7 @@ import type {
   ProcessList,
 } from '@shared/metrics'
 import type { AwakeState } from '@shared/utility'
-import {
-  formatBytes,
-  formatTotal,
-  osLabel,
-  osVersionLabel,
-  trimHardware,
-} from '../../lib/format.js'
+import { formatBytes, formatTotal, osVersionLabel, trimHardware } from '../../lib/format.js'
 
 /**
  * What each CLUSTER figure says, from the latest readings: the words and numbers
@@ -351,7 +345,7 @@ export function dateText(date: Date): { value: string; note: string } {
 /* ---- The spec row: what the machine is, as the standard layout's system column says it ---- */
 
 export interface SpecItem {
-  key: 'type' | 'os' | 'maker' | 'model' | 'chassis' | 'cpu' | 'awake'
+  key: 'os' | 'maker' | 'model' | 'chassis' | 'cpu' | 'awake'
   label: string
   value: string
 }
@@ -367,7 +361,8 @@ export function cpuName(cpu: CpuInfo): string {
 }
 
 /**
- * TYPE, OS, MANUFACTURER, MODEL and CHASSIS as the system pane words them, the CPU as the CPU
+ * OS, MANUFACTURER, MODEL and CHASSIS as the system pane words them (not TYPE, which the OS
+ * already says, user decision 2026-10-10), the CPU as the CPU
  * pane titles itself with its cores and threads, and AWAKE: what the user set it to, not
  * something it reads (the address went up among the readings, user decision 2026-10-10).
  * Never the host name.
@@ -375,7 +370,6 @@ export function cpuName(cpu: CpuInfo): string {
 export function specItems(r: Pick<Readings, 'os' | 'hardware' | 'cpu' | 'awake'>): SpecItem[] {
   const hw = r.hardware
   return [
-    { key: 'type', label: 'TYPE', value: r.os ? osLabel(r.os.platform) : NONE },
     { key: 'os', label: 'OS', value: r.os ? osVersionLabel(r.os) : NONE },
     { key: 'maker', label: 'MANUFACTURER', value: hw ? trimHardware(hw.manufacturer, 2) : NONE },
     {

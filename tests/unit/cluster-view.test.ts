@@ -160,7 +160,6 @@ describe('the spec row', () => {
   it('says what the standard layout says, in its order', () => {
     const items = specItems(readings())
     expect(items.map((item) => item.label)).toEqual([
-      'TYPE',
       'OS',
       'MANUFACTURER',
       'MODEL',
@@ -169,7 +168,6 @@ describe('the spec row', () => {
       'AWAKE',
     ])
     const value = (key: string) => items.find((item) => item.key === key)?.value
-    expect(value('type')).toBe('win')
     expect(value('maker')).toBe('HP')
     // The model as the system pane trims it: no maker, no chassis, two words.
     expect(value('model')).toBe('EliteBook 630')
