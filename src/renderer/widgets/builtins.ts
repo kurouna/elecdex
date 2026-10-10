@@ -212,9 +212,20 @@ registerBuiltin({
     'proc.list',
     'power.battery',
     'os.uptime',
+    'os.info',
+    'hardware.system',
+    'cpu.info',
   ),
-  // The three its lanes chart each second; the rest are let go behind a tab.
-  keepWhileHidden: sources('cpu.load', 'mem.usage', 'net.throughput'),
+  // The three its lanes chart each second, and the three collected once (free to hold, and a
+  // spec row blanked on every tab switch otherwise); the rest are let go behind a tab.
+  keepWhileHidden: sources(
+    'cpu.load',
+    'mem.usage',
+    'net.throughput',
+    'os.info',
+    'hardware.system',
+    'cpu.info',
+  ),
   minSize: { w: 260, h: 200 },
   zoom: 'full',
   popup: true,

@@ -384,8 +384,8 @@ export const CLUSTER_TIERS = ['wide', 'medium', 'short', 'compact', 'narrow'] as
 export type ClusterTier = (typeof CLUSTER_TIERS)[number]
 
 /**
- * The room each part needs, in CSS pixels, measured on the mock. Sizes are the
- * widget's own - the pane's body, under the header PaneHost draws.
+ * The room each part needs, in CSS pixels, measured on the mock and in the app. Sizes are
+ * the widget's own - the pane's body, under the header PaneHost draws.
  */
 export const CLUSTER_ROOM = {
   wide: { width: 1100, height: 470 },
@@ -400,8 +400,10 @@ export const CLUSTER_ROOM = {
   minWidth: 560,
   short: { height: 200 },
   compact: { width: 460, height: 350 },
-  /** Wide: the cores row goes in from this height. */
-  wideCores: 530,
+  /** The spec row, what the machine is: one line in wide, two in medium's grid. It goes in only where this is left over. */
+  specRow: { line: 40, grid: 75 },
+  /** Wide: the cores row goes in from this height (with the spec row above it, measured). */
+  wideCores: 600,
   /** Room a tier is kept for before it gives way, so a drag across a threshold does not flicker. */
   hysteresis: 12,
 } as const
@@ -449,9 +451,24 @@ export function clusterTier(width: number, height: number, previous?: ClusterTie
   return past ? tier : previous
 }
 
-/** Whether the cores row goes in: only where the lanes keep their least height with it. */
+/**
+ * Whether the spec row (what the machine is) goes in: a narrow pane has it last, under a scroll;
+ * wide and medium only where it is room left over, so it never pushes a pane down a tier.
+ */
+export function showSpec(tier: ClusterTier, width: number, height: number): boolean {
+  if (tier === 'narrow') return true
+  if (tier === 'wide') return height >= CLUSTER_ROOM.wide.height + CLUSTER_ROOM.specRow.line
+  if (tier === 'medium') {
+    return height >= mediumNeed(width, LANE_IDS.length) + CLUSTER_ROOM.specRow.grid
+  }
+  return false
+}
+
+/** Whether the cores row goes in: only where the lanes keep their least height with it, under the spec row. */
 export function showCores(tier: ClusterTier, width: number, height: number): boolean {
   if (tier === 'wide') return height >= CLUSTER_ROOM.wideCores
-  if (tier === 'medium') return height >= mediumNeed(width, LANE_IDS.length + 1)
+  if (tier === 'medium') {
+    return height >= mediumNeed(width, LANE_IDS.length + 1) + CLUSTER_ROOM.specRow.grid
+  }
   return false
 }

@@ -16,9 +16,11 @@ import {
 } from '@shared/cluster'
 import type {
   Battery,
+  CpuInfo,
   CpuLoad,
   DiskIo,
   DiskVolumes,
+  HardwareSystem,
   MemSwap,
   MemUsage,
   MetricSample,
@@ -26,10 +28,17 @@ import type {
   NetInterface,
   NetPing,
   NetThroughput,
+  OsInfo,
   ProcessList,
 } from '@shared/metrics'
 import type { AwakeState } from '@shared/utility'
-import { formatBytes, formatTotal } from '../../lib/format.js'
+import {
+  formatBytes,
+  formatTotal,
+  osLabel,
+  osVersionLabel,
+  trimHardware,
+} from '../../lib/format.js'
 
 /**
  * What each CLUSTER figure says, from the latest readings: the words and numbers
@@ -63,6 +72,10 @@ export interface Readings {
   /** Seconds since boot, counted on to now. */
   uptime: number | null
   awake: AwakeState
+  /** What the machine is: read once, the same for as long as the app runs. */
+  os: OsInfo | null
+  hardware: HardwareSystem | null
+  cpu: CpuInfo | null
 }
 
 const figure = (over: Partial<FigureView> & Pick<FigureView, 'label' | 'value'>): FigureView => ({
@@ -332,4 +345,49 @@ export function dateText(date: Date): { value: string; note: string } {
     value: `${DAYS[date.getDay()]} ${two(date.getDate())} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`,
     note: `WEEK ${isoWeek(date)} · ${zone}`,
   }
+}
+
+/* ---- The spec row: what the machine is, as the standard layout's system column says it ---- */
+
+export interface SpecItem {
+  key: 'type' | 'os' | 'maker' | 'model' | 'chassis' | 'cpu' | 'iface' | 'ip'
+  label: string
+  value: string
+}
+
+/**
+ * The CPU's name as the CPU pane titles itself: systeminformation's brand usually names the
+ * maker already ("Gen Intel® Core™ i5"), so the maker is put in front only when it does not.
+ */
+export function cpuName(cpu: CpuInfo): string {
+  return cpu.brand.toLowerCase().includes(cpu.manufacturer.toLowerCase())
+    ? cpu.brand
+    : `${cpu.manufacturer} ${cpu.brand}`.trim()
+}
+
+/**
+ * TYPE, OS, MANUFACTURER, MODEL and CHASSIS as the system pane words them, the CPU as the CPU
+ * pane titles itself with its cores and threads, and the interface and IPv4 address as the
+ * network status pane shows them. Never the host name (user decision 2026-10-10).
+ */
+export function specItems(r: Pick<Readings, 'os' | 'hardware' | 'cpu' | 'link'>): SpecItem[] {
+  const hw = r.hardware
+  return [
+    { key: 'type', label: 'TYPE', value: r.os ? osLabel(r.os.platform) : NONE },
+    { key: 'os', label: 'OS', value: r.os ? osVersionLabel(r.os) : NONE },
+    { key: 'maker', label: 'MANUFACTURER', value: hw ? trimHardware(hw.manufacturer, 2) : NONE },
+    {
+      key: 'model',
+      label: 'MODEL',
+      value: hw ? trimHardware(hw.model, 2, hw.manufacturer, hw.chassis) : NONE,
+    },
+    { key: 'chassis', label: 'CHASSIS', value: hw?.chassis || NONE },
+    {
+      key: 'cpu',
+      label: 'CPU',
+      value: r.cpu ? `${cpuName(r.cpu)} · ${r.cpu.physicalCores}C/${r.cpu.cores}T` : NONE,
+    },
+    { key: 'iface', label: 'INTERFACE', value: r.link?.iface ?? NONE },
+    { key: 'ip', label: 'IPV4', value: r.link?.ip4 ?? '--.--.--.--' },
+  ]
 }

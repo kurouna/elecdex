@@ -8,22 +8,10 @@ import {
   laneStats,
   volumePercent,
 } from '@shared/cluster'
-import type {
-  Battery,
-  CpuLoad,
-  DiskIo,
-  DiskVolumes,
-  MemSwap,
-  MemUsage,
-  NetConnections,
-  NetInterface,
-  NetPing,
-  NetThroughput,
-  ProcessList,
-} from '@shared/metrics'
-import type { AwakeState } from '@shared/utility'
-import { formatBytes, formatTotal } from '../../lib/format.js'
+import type { CpuLoad, ProcessList } from '@shared/metrics'
+import { formatBytes, formatTotal, osVersionLabel } from '../../lib/format.js'
 import type { CardRow } from '../../lib/hover-card.ts'
+import { cpuName, type Readings } from './cluster-view.js'
 
 /**
  * What the CLUSTER pane's detail cards say (docs/cluster.md §7): only what the
@@ -48,26 +36,15 @@ export const CARD_KEYS = [
   'link',
   'awake',
   'message',
+  'spec',
 ] as const
 export type CardKey = (typeof CARD_KEYS)[number]
 
-export interface CardReadings {
+/** The readings the figures are drawn from, with what only a card needs. */
+export interface CardReadings extends Readings {
   now: number
   tier: ClusterTier
   history: readonly LaneSecond[]
-  load: CpuLoad | null
-  procs: ProcessList | null
-  mem: MemUsage | null
-  swap: MemSwap | null
-  io: DiskIo | null
-  net: NetThroughput | null
-  ping: NetPing | null
-  volumes: DiskVolumes | null
-  conns: NetConnections | null
-  uptime: number | null
-  link: NetInterface | null
-  battery: Battery | null
-  awake: AwakeState
   message: ClusterMessage
 }
 
@@ -89,6 +66,7 @@ export const CARD_TITLES: Readonly<Record<CardKey, string>> = {
   link: 'LINK',
   awake: 'AWAKE',
   message: 'ALERTS',
+  spec: 'THIS MACHINE',
 }
 
 /** Where each card's figures come from, said quietly at its foot. */
@@ -110,6 +88,7 @@ const SOURCES: Readonly<Record<CardKey, string>> = {
   link: 'net.interface · net.throughput',
   awake: 'the UTILITY pane',
   message: 'lamps lit for 10 s or more',
+  spec: 'os.info · hardware.system · cpu.info · net.interface',
 }
 
 const row = (label: string, value: string, muted = false): CardRow =>
@@ -263,6 +242,19 @@ function awakeRows(r: CardReadings, time: (at: number) => string): CardRow[] {
   ]
 }
 
+/** The spec row in full, where its line cut a value short. */
+function specRows(r: CardReadings): CardRow[] {
+  const hw = r.hardware
+  const cpu = r.cpu
+  return [
+    row('OS', r.os ? osVersionLabel(r.os) : '--'),
+    row('MACHINE', hw ? [hw.manufacturer, hw.model, hw.chassis].filter(Boolean).join(' · ') : '--'),
+    row('CPU', cpu ? cpuName(cpu) : '--'),
+    row('CORES', cpu ? `${cpu.physicalCores} cores, ${cpu.cores} threads` : '--'),
+    row('ADDRESS', r.link ? `${r.link.iface ?? '--'} · ${r.link.ip4 ?? '--.--.--.--'}` : '--'),
+  ]
+}
+
 function messageRows(r: CardReadings): CardRow[] {
   const all = r.message.all
   return all.length === 0 ? [row('LIT', 'nothing')] : all.map((text, i) => row(String(i + 1), text))
@@ -288,6 +280,7 @@ export function cardRows(key: CardKey, r: CardReadings, time: (at: number) => st
     link: () => linkRows(r),
     awake: () => awakeRows(r, time),
     message: () => messageRows(r),
+    spec: () => specRows(r),
   }
   return [...rows[key](), row('FROM', SOURCES[key], true)]
 }

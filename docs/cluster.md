@@ -27,6 +27,7 @@
 | 2026-10-10 | cockpit プリセットだけはシステム列を持たない例外にする。CLUSTER が左上、その右と下にターミナル | 利用者の選択（中身がシステム列と重なるため） |
 | 2026-10-10 | レーンとコアの棒はアニメーションしない。値が届いたら棒を 1 本足して描き直すだけ。右端の先頭の点もやめる | 利用者の指定（2 コマで詰める動きが変に見えた） |
 | 2026-10-10 | レーンは棒でなく塗りのある折れ線（CPU ペインと同じ描き方）。CPU・メモリ・ディスク I/O は 0〜100%、ネットワーク（RX と TX で共通）と PING は直近 1 分の最大に合わせた切りのよい目盛りで、上端をレーンに書く。対数目盛りはやめる | 利用者の指摘（PING とネットワークの棒が低すぎて見えない） |
+| 2026-10-10 | 時計・スロットとレーンのあいだに「仕様の行」を置く。standard のシステム列と network status と同じ TYPE・OS・MANUFACTURER・MODEL・CHASSIS・CPU（コアとスレッド）・INTERFACE・IPV4。ホスト名は出さない。wide は 1 行、medium は 4 列×2 行、narrow は最後に 2 列。高さが余るときだけ出し、段を下げない | 利用者の提案（cockpit ではシステム列が無く、機械が何かが見えない） |
 | 2026-10-10 | 既定のレイアウトには入れない。ピッカー（cluster dashboard）か cockpit プリセットから出す | 利用者の決定 |
 | 2026-10-10 | CPU 温度、CPU クロック、外気温、Docker・git の警告灯は入れない | 温度は Windows で常に null、クロックは Windows で実クロックで動かない見込み（未確認）、天気は地点の設定が要り、Docker と git は他ペインの領分 |
 
@@ -59,6 +60,7 @@
 4. **コアの行**（余裕があるときだけ）: 論理コアごとの今の負荷を 1 本ずつ。4 本おきにコア番号。右に「いちばん忙しいコア」と「85% 以上のコアの数」。
 5. **時間軸**（wide だけ）: `−60 s · −45 · −30 · −15 · NOW`。
 6. **スロット**: SWAP、DISK（いちばん埋まっている固定ボリューム）、CONNECTIONS（PEERS）、TOP PROCESS、POWER、UPTIME、LINK ▼ TOTAL、AWAKE。
+7. **仕様の行**（時計・スロットの段とレーンのあいだ。narrow では最後）: TYPE・OS・MANUFACTURER・MODEL・CHASSIS・CPU・INTERFACE・IPV4。値は動かないので一段控えめに描く。切れた値はカードで全部見せる。読むのは `os.info`・`hardware.system`・`cpu.info`（起動中に 1 回だけ集めるソース）と `net.interface`。ホスト名は出さない
 
 ### 2.1 段（tier）
 
@@ -95,12 +97,13 @@
 | TOP PROCESS | `proc.list`（`all`、`top`） | Windows 5 s、ほか 3 s | 離す |
 | POWER、BATT 灯 | `power.battery` | 30 s | 離す |
 | UPTIME | `os.uptime` を最後の値から毎秒進める | 5 s | 離す |
+| 仕様の行 | `os.info`、`hardware.system`、`cpu.info`（起動中に 1 回だけ集める）、`net.interface` | 1 回 | 取り続ける（1 回だけのものは持っていても無料） |
 | QUAKE 灯を出すか | 設定（`settings.quakes.notify`） | 変化時 | — |
 | AWAKE、AWAKE 灯 | `awake` ストア（stores/awake.svelte.ts、App が `init` 済み） | 変化時 | — |
 | QUAKE 灯 | `window.elecdex.quakes.observe`（地球儀ペインと同じ。何も始めない） | 変化時 | — |
 
 - **購読の仕組み**: `metrics` に宣言し、PaneHost に retain してもらう。参照カウントなので、同じソースを読むほかのペインがあっても poll は 1 回で済む
-- **`keepWhileHidden`**: 履歴を描く 1 秒のソース 3 つ（`cpu.load`、`mem.usage`、`net.throughput`）だけにする
+- **`keepWhileHidden`**: 履歴を描く 1 秒のソース 3 つ（`cpu.load`、`mem.usage`、`net.throughput`）と、1 回だけ集める 3 つ（仕様の行）
 - **見えていない間の空白**: DISK I/O と PING の見えていなかった時間は、空白として描く
 - **ペイン状態**: 持たない。選べることが無いため（§9 で足すなら `widgetState.patch` だけで）
 - **`net.sockets`・`net.wifi` は読まない**: 私的なソースなので

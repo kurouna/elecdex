@@ -25,6 +25,7 @@ import {
   recordSecond,
   scaleLabel,
   showCores,
+  showSpec,
   uptimeClock,
 } from '@shared/cluster'
 import type { Battery, DiskVolume } from '@shared/metrics'
@@ -339,11 +340,24 @@ describe('tiers', () => {
     expect(clusterTier(width + 40, height + 40, 'medium')).toBe('wide')
   })
 
+  it('give the spec row only room left over, so it never pushes a pane down a tier', () => {
+    expect(showSpec('wide', 1178, 592)).toBe(true)
+    expect(showSpec('wide', 1178, 480)).toBe(false)
+    expect(showSpec('medium', 598, 632)).toBe(false)
+    expect(showSpec('medium', 598, 660)).toBe(false)
+    expect(showSpec('medium', 598, 700)).toBe(true)
+    expect(showSpec('short', 1178, 272)).toBe(false)
+    expect(showSpec('compact', 478, 472)).toBe(false)
+    expect(showSpec('narrow', 358, 672)).toBe(true)
+  })
+
   it('give the cores row only where the lanes keep their room', () => {
-    expect(showCores('wide', 1178, 592)).toBe(true)
+    expect(showCores('wide', 1178, 612)).toBe(true)
+    expect(showCores('wide', 1178, 592)).toBe(false)
     expect(showCores('wide', 1178, 492)).toBe(false)
     expect(showCores('medium', 598, 632)).toBe(false)
-    expect(showCores('medium', 598, 700)).toBe(true)
+    expect(showCores('medium', 598, 700)).toBe(false)
+    expect(showCores('medium', 598, 740)).toBe(true)
     expect(showCores('short', 1178, 272)).toBe(false)
   })
 })

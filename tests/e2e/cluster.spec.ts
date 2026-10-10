@@ -43,6 +43,7 @@ async function partsApart(page: Page): Promise<void> {
       tier: root.getAttribute('data-tier'),
       lanes,
       below: rect(root.querySelector('.slots.below')),
+      axis: rect(root.querySelector('.axis')),
       scrolls: root.scrollHeight > root.clientHeight + 1,
     }
   })
@@ -61,6 +62,10 @@ async function partsApart(page: Page): Promise<void> {
   const last = lanes.at(-1)
   if (boxes.below !== null && last !== undefined) {
     expect((boxes.below as DOMRect).top).toBeGreaterThanOrEqual(last.bottom - 1)
+  }
+  // The time axis under the lanes is never cut off at the pane's foot.
+  if (boxes.axis !== null && boxes.root !== null) {
+    expect((boxes.axis as DOMRect).bottom).toBeLessThanOrEqual((boxes.root as DOMRect).bottom + 1)
   }
   if (boxes.tier !== 'narrow' && last !== undefined && boxes.root !== null) {
     expect(last.bottom).toBeLessThanOrEqual((boxes.root as DOMRect).bottom + 1)

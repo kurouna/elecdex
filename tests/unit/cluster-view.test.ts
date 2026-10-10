@@ -16,6 +16,7 @@ import {
   type Readings,
   SLOT_KEYS,
   slotFigure,
+  specItems,
   statText,
 } from '../../src/renderer/widgets/cluster/cluster-view.js'
 
@@ -42,6 +43,22 @@ const readings = (over: Partial<Readings> = {}): Readings => ({
   battery: { hasBattery: false, percent: null, isCharging: false, acConnected: true },
   uptime: 12 * 86_400 + 4 * 3600 + 33 * 60 + 7,
   awake: { ...RELEASED, level: 'system', held: true, onBattery: false },
+  os: {
+    platform: 'win32',
+    distro: 'Microsoft Windows 11 Pro',
+    release: '10.0.26300',
+    codename: '',
+    build: '26300',
+    kernel: '10.0.26300',
+    arch: 'x64',
+    hostname: 'someones-laptop',
+  },
+  hardware: {
+    manufacturer: 'HP',
+    model: 'HP EliteBook 630 13 inch G10 Notebook PC',
+    chassis: 'Notebook',
+  },
+  cpu: { manufacturer: 'Intel', brand: 'Core™ i5-1335U', cores: 12, physicalCores: 10 },
   ...over,
 })
 
@@ -129,6 +146,45 @@ describe('slots', () => {
 
   it('are eight', () => {
     expect(SLOT_KEYS).toHaveLength(8)
+  })
+})
+
+describe('the spec row', () => {
+  it('says what the standard layout says, in its order', () => {
+    const items = specItems(readings())
+    expect(items.map((item) => item.label)).toEqual([
+      'TYPE',
+      'OS',
+      'MANUFACTURER',
+      'MODEL',
+      'CHASSIS',
+      'CPU',
+      'INTERFACE',
+      'IPV4',
+    ])
+    const value = (key: string) => items.find((item) => item.key === key)?.value
+    expect(value('type')).toBe('win')
+    expect(value('maker')).toBe('HP')
+    // The model as the system pane trims it: no maker, no chassis, two words.
+    expect(value('model')).toBe('EliteBook 630')
+    expect(value('chassis')).toBe('Notebook')
+    // The maker in front of a brand that does not name it, then cores and threads.
+    expect(value('cpu')).toBe('Intel Core™ i5-1335U · 10C/12T')
+  })
+
+  it('never names the host', () => {
+    const all = specItems(readings())
+      .map((item) => item.value)
+      .join(' ')
+    expect(all).not.toContain('someones-laptop')
+    const rows = cardRows('spec', cardReadings(), (at) => String(at))
+    expect(rows.map((row) => row.value).join(' ')).not.toContain('someones-laptop')
+  })
+
+  it('shows dashes until the facts are read', () => {
+    const items = specItems({ os: null, hardware: null, cpu: null, link: null })
+    expect(items.find((item) => item.key === 'ip')?.value).toBe('--.--.--.--')
+    expect(items.every((item) => item.value.startsWith('--'))).toBe(true)
   })
 })
 

@@ -9,6 +9,7 @@ import {
   laneStats,
   recordSecond,
   showCores,
+  showSpec,
 } from '@shared/cluster'
 import type { QuakeState } from '@shared/quakes'
 import { untrack } from 'svelte'
@@ -31,11 +32,13 @@ import {
   type Readings,
   SLOT_KEYS,
   slotFigure,
+  specItems,
   statText,
 } from './cluster-view.ts'
 import Figure from './Figure.svelte'
 import Lamps from './Lamps.svelte'
 import LaneChart from './LaneChart.svelte'
+import Spec from './Spec.svelte'
 
 /**
  * CLUSTER: the machine on one pane, like a car's instrument cluster
@@ -118,6 +121,9 @@ const readings = $derived.by((): Readings => {
     battery: metrics.get('power.battery'),
     uptime: uptime === null ? null : uptime.data.seconds + Math.max(0, now - uptime.at) / 1000,
     awake: awake.state,
+    os: metrics.get('os.info'),
+    hardware: metrics.get('hardware.system'),
+    cpu: metrics.get('cpu.info'),
   }
 })
 
@@ -155,6 +161,7 @@ $effect(() => {
 let rootEl = $state<HTMLElement | null>(null)
 let tier = $state<ClusterTier>('wide')
 let cores = $state(false)
+let spec = $state(false)
 
 $effect(() => {
   const el = rootEl
@@ -173,6 +180,8 @@ $effect(() => {
     if (next !== untrack(() => tier)) tier = next
     const withCores = showCores(next, box.width, box.height)
     if (withCores !== untrack(() => cores)) cores = withCores
+    const withSpec = showSpec(next, box.width, box.height)
+    if (withSpec !== untrack(() => spec)) spec = withSpec
   })
   observer.observe(el)
   return () => observer.disconnect()
@@ -258,6 +267,13 @@ const cardReadings = $derived.by(
       />
       {#if tier === 'wide'}{@render slots('beside')}{/if}
     </div>
+    {#if spec && (tier === 'wide' || tier === 'medium')}
+      <Spec
+        items={specItems(shown.readings)}
+        columns={tier === 'medium' ? 4 : 0}
+        onhover={cardFor('spec')}
+      />
+    {/if}
   </div>
 
   <div class="lanes">
@@ -299,6 +315,10 @@ const cardReadings = $derived.by(
   </div>
 
   {#if tier === 'medium' || tier === 'narrow'}{@render slots('below')}{/if}
+  <!-- Narrow: what the machine is goes last, under what it is doing. -->
+  {#if spec && tier === 'narrow'}
+    <Spec items={specItems(shown.readings)} columns={2} onhover={cardFor('spec')} />
+  {/if}
 
   {#if hover !== null}
     <ClusterCard key={hover.key} readings={cardReadings} anchor={hover.anchor} bounds={hover.bounds} />
@@ -426,7 +446,7 @@ const cardReadings = $derived.by(
 
 /* Capped, so a tall pane gives lanes room without turning their bars into slabs. */
 [data-tier='wide'] .lanes {
-  grid-auto-rows: minmax(2.9rem, 5.5rem);
+  grid-auto-rows: minmax(2.6rem, 5.5rem);
   align-content: start;
 }
 
