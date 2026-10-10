@@ -5,7 +5,7 @@ import { ALERT_WINDOW_MS, type QuakeState } from './quakes.js'
  * The CLUSTER pane's judgements (docs/cluster.md §4): one pane as a whole
  * dashboard, read from the metric sources main already provides.
  *
- * Every figure the pane draws - a number, its lane's bars, the lane's head, a
+ * Every figure the pane draws - a number, its lane's bars, a
  * core, a lamp and the message line - takes its level from here, so a red
  * number never sits beside an amber lamp for the same reading. Pure: no DOM, no
  * clock but the one passed in.

@@ -4,7 +4,8 @@ import { cpuLevel, groupCores } from '@shared/cluster'
 /**
  * Every logical core's load now - no history (user decision 2026-10-10) - a bar
  * each, numbered every fourth. Beyond MAX_CORE_BARS neighbours are put together
- * at their busiest. A bar steps to its new height in two frames of the loop.
+ * at their busiest. A bar takes its new height as the reading arrives, without
+ * animation, as the lanes do.
  */
 interface Props {
   cores: readonly number[]
@@ -59,7 +60,6 @@ const per = $derived(bars.length === 0 ? 1 : Math.ceil(cores.length / bars.lengt
   background: var(--accent);
   transform-origin: bottom;
   transform: scaleY(var(--fill, 0));
-  transition: transform calc(200ms * var(--motion-scale)) steps(2, end);
 }
 
 .core[data-level='warn'] i {

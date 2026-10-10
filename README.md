@@ -481,8 +481,7 @@ weather and calendar.
   on) — dark until something holds for ten seconds — and the message line saying the worst of them
   in words, with how many more. Under them the clock and the date. Then six lanes, CPU, memory,
   disk I/O, network down and up (on a log scale to 10 Gbps) and ping, each a bar per second for the
-  last minute with its peak and average; a reading is drawn as it arrives, the lane stepping one
-  bar. Where there is room, every core's load now sits under CPU. The rest is a row of figures:
+  last minute with its peak and average, a bar added as each reading arrives. Where there is room, every core's load now sits under CPU. The rest is a row of figures:
   swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and
   AWAKE. Each figure opens a card with what it has no room for. It lays itself out in five ways by
   its size. A full screen of it idles at about 15% of one core, less than CPU, memory, traffic and
