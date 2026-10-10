@@ -1,7 +1,7 @@
 /**
  * What the introduction tours share (demo-tour.mjs, landscape; demo-tour-shorts.mjs, vertical):
  * the council's stand-in model, and the beats themselves - the ISS's card, a container stopped,
- * copies landing, a QR code typed, KEYSTREAM played, ELECLANCE on a PLAY-320, an ELECFIGHTER bout on a second PLAY-320, a CHIP-8 program loaded, a motion put to the council, the themes in
+ * copies landing, a QR code typed, KEYSTREAM played, the CLUSTER pane read card by card, ELECLANCE on a PLAY-320, an ELECFIGHTER bout on a second PLAY-320, a CHIP-8 program loaded, a motion put to the council, the themes in
  * turn - and the music the media beat plays: two of KEYSTREAM's own tracks, rendered to WAV
  * files (keystream-wav.mjs) and played by the spectrum's stand-in, so the spectrum moves with
  * what is heard and nothing of this machine's sound is captured. A tour lays
@@ -132,7 +132,7 @@ export function prepareMusic() {
 /* ---- The beats ---- */
 
 /** The built-in themes the tours end on, in turn, before the one they began in. */
-const THEMES = ['tron', 'amber', 'phosphor', 'white', 'business-dark', 'business-light']
+const THEMES = ['tron', 'amber', 'phosphor', 'white', 'black', 'business-dark', 'business-light']
 
 /**
  * The beats on an open take (demo-take.mjs `openTake`); `theme` is the one it began in, and
@@ -470,6 +470,34 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await away()
   }
 
+  /** Rests the pointer on a CLUSTER figure long enough for its card to open and be read. */
+  async function clusterCard(testid, label, hold) {
+    const target = page.getByTestId(testid).first()
+    if ((await target.count()) === 0) return
+    say(`cluster: ${label}`)
+    await target.hover()
+    await wait(hold)
+  }
+
+  /**
+   * The CLUSTER pane, the machine on one pane: a moment for the whole of it, then the cards of
+   * the CPU lane, the cores and what the machine is.
+   */
+  async function cluster(hold = 2000, { cards = 1800, which = ['cpu', 'cores', 'spec'] } = {}) {
+    say('cluster: the machine on one pane')
+    await page.getByTestId('cluster').waitFor()
+    await away()
+    await wait(hold)
+    const CARDS = {
+      cpu: ['cluster-figure-cpu', 'the CPU lane'],
+      cores: ['cluster-cores-figure', 'every core'],
+      spec: ['cluster-spec', 'what the machine is'],
+    }
+    for (const key of which) await clusterCard(...CARDS[key], cards)
+    await away()
+    await wait(800)
+  }
+
   /** A motion put to the council, the vote, and the resolution held on screen. */
   async function councilSits(hold = 5000) {
     say('council: a motion')
@@ -522,6 +550,8 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     elec16,
     play,
     fight,
+    cluster,
+    clusterCard,
     councilSits,
     themes,
   }

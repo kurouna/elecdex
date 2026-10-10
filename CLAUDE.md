@@ -39,6 +39,7 @@ npm run demo:presets   # the layouts dialog stepping through every preset, for a
 npm run demo:shorts    # the same in a tall 9:16 window, layouts in 2 or 3 tiers (--tiers=2|3; Windows; build first)
 npm run demo:wifi      # the Wi-Fi pane on the train stub, 9:16, cards opening on the way (Windows; build first)
 npm run demo:panes     # DOCKER, CLIPBOARD, NOW PLAYING and UTILITY at work, 16:9, under 30 s (Windows; build first)
+npm run demo:cockpit   # the cockpit preset: CLUSTER's cards, a load on every core, forward, resized, Black (Windows; build first)
 npm run demo:tour      # the introduction video: boot, presets, ORBIT, agents, Docker, media, ELEC, themes (Windows; build first)
 npm run demo:tour-shorts # the same tour, 9:16 in two tiers, under 2 min, for Shorts (Windows; build first)
 npm run demo:keystream # KEYSTREAM: menu previews, a track typed on time through instrument changes, its result (Windows; build first)

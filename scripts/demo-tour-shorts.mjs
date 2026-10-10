@@ -18,8 +18,10 @@
  *               the next tab starts ELECFIGHTER and fights (brought forward), then the CHIP-8
  *               library plays T8NKS by itself, loaded across the width (no panel),
  *               then paused
+ *   cockpit     CLUSTER, the machine on one pane, over a shell: its CPU lane and spec line read
+ *               card by card
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
- *   themes      every built-in theme in turn, on the shells
+ *   themes      every built-in theme in turn (Black among them), on the shells
  *
  * The presets are laid out for a wide screen, so these are layouts of the take's own, kept as
  * saved layouts and reached by their number keys; each keeps the strip on top in the same place.
@@ -115,7 +117,8 @@ const LAYOUTS = [
         0.7,
       ),
   ],
-  // The tenth: past the number keys, reached through the layouts dialog, one row down.
+  // The tenth and eleventh: past the number keys, reached through the layouts dialog, a row down.
+  ['cockpit', () => stack(pane('cluster'), pane('terminal'), 0.8)],
   ['council', () => stack(pane('elec'), pane('globe'), 0.74)],
 ]
 const slot = (name) => LAYOUTS.findIndex(([n]) => n === name) + 1
@@ -150,46 +153,49 @@ const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 await run(async () => {
   const started = Date.now()
   await wait(1000)
-  await beat.forward('globe', 2000)
+  await beat.forward('globe', 1000)
   await beat.throughTheDialog('network')
-  await wait(1800)
+  await wait(1300)
   await beat.toLayout(slot('earth'), 'earth')
-  await wait(1200)
-  await beat.issCard(1800)
+  await wait(900)
+  await beat.issCard(1400)
   await wait(800)
   await beat.toLayout(slot('dev'), 'dev')
-  await wait(2200)
-  await beat.commitCard(1800)
-  await beat.toLayout(slot('docker'), 'docker')
   await wait(1200)
+  await beat.commitCard(1400)
+  await beat.toLayout(slot('docker'), 'docker')
+  await wait(900)
   await beat.stopContainer()
   await beat.copies()
   await wait(600)
   await beat.toLayout(slot('media'), 'media')
   await beat.musicPlays()
-  await wait(2500)
-  await beat.nextTrack(2600)
+  await wait(1300)
+  await beat.nextTrack(1600)
   await beat.musicStops()
   await beat.toLayout(slot('utility'), 'utility')
   await wait(800)
-  await beat.qrCode(2000)
+  await beat.qrCode(1200)
   await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
     previews: [],
-    play: 5_000,
+    play: 2_500,
   })
   await beat.toLayout(slot('retro'), 'retro')
-  await beat.elec16(2000)
-  await beat.fight(5000, { title: 1000, nth: 1 })
+  await beat.elec16(1200)
+  await beat.fight(3800, { title: 1000, nth: 1 })
   await beat.toTab('CHIP-8')
-  await beat.chip8(2200, { mem: false })
+  await beat.chip8(1300, { mem: false })
+  await beat.throughTheDialog('cockpit')
+  // Two cards, not three: the cut stays under its length with the beat in it.
+  await beat.cluster(700, { cards: 1000, which: ['cpu', 'spec'] })
   await beat.throughTheDialog('council')
   await wait(800)
-  await beat.councilSits(2000)
+  await beat.councilSits(1000)
   await beat.toLayout(slot('shell'), 'shell')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()
-  await beat.themes(1000)
-  await wait(1500)
+  await beat.themes(600)
+  await wait(600)
   say(`tour: ${((Date.now() - started) / 1000).toFixed(0)} s after the boot`)
   if (exit) await app.close().catch(() => {})
 })

@@ -61,6 +61,7 @@
     "demo:shorts": "node scripts/demo-shorts.mjs",
     "demo:wifi": "node scripts/demo-wifi.mjs",
     "demo:panes": "node scripts/demo-panes.mjs",
+    "demo:cockpit": "node scripts/demo-cockpit.mjs",
     "demo:tour": "node scripts/demo-tour.mjs",
     "demo:tour-shorts": "node scripts/demo-tour-shorts.mjs",
     "demo:keystream": "node scripts/demo-keystream.mjs",

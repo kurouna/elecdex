@@ -11,13 +11,15 @@
  *               then FEVER CALL from the next button, the spectrum moving with what is heard
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
+ *   cockpit     the cockpit preset by its key: CLUSTER, the machine on one pane, its CPU lane,
+ *               cores and spec line read card by card
  *   retro       the retro preset: the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT
  *               CARD and run; a PLAY-320 behind the next tab playing ELECLANCE, another
  *               behind the one after starting ELECFIGHTER and fighting, brought forward; then the
  *               CHIP-8 behind its tab, its library playing T8NKS by
  *               itself, loaded, then paused on MEM
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
- *   themes      every built-in theme in turn, back to Tron
+ *   themes      every built-in theme in turn (Black among them), back to Tron
  *
  * Everything shown is made up or a stand-in (demo-take.mjs): the home, the repository, the Claude
  * Code folder, the sockets, the Wi-Fi link, the clipboard, the media session and its covers, the
@@ -50,8 +52,20 @@ const options = takeOptions({ width: 1600, height: 900, lead: 10 })
 const intro = !process.argv.includes('--no-intro')
 const exit = process.argv.includes('--exit')
 
-/** The presets in the order the layouts dialog lists them: Ctrl+Shift+F1 .. F6. */
+/** The presets the tour keeps as saved layouts, in the layouts dialog's order. */
 const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk']
+/** Every preset in the dialog's order, for its key: Ctrl+Shift+F1 .. F9 (shared/layout-presets.ts). */
+const PRESET_KEYS = [
+  'standard',
+  'network',
+  'earth',
+  'dev',
+  'media',
+  'desk',
+  'ai',
+  'cockpit',
+  'retro',
+]
 
 const council = await startCouncil()
 const music = prepareMusic()
@@ -164,7 +178,8 @@ const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 async function toPreset(id) {
   say(`preset: ${id}`)
   await beat.letGo()
-  await page.keyboard.press(`Control+Shift+F${ORDER.indexOf(id) + 1}`)
+  // A preset the tour does not keep (cockpit) is added by its key, as a user's first press would.
+  await page.keyboard.press(`Control+Shift+F${PRESET_KEYS.indexOf(id) + 1}`)
   await wait(300)
   await settled()
 }
@@ -208,11 +223,13 @@ await run(async () => {
   await wait(1200)
   await beat.copies()
   await beat.qrCode()
-  await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 6_000 })
+  await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 5_000 })
+  await toPreset('cockpit')
+  await beat.cluster(2400)
   await beat.toLayout(9, 'retro')
   await beat.elec16()
   await beat.play(3500)
-  await beat.fight(6500)
+  await beat.fight(5500)
   await beat.toTab('CHIP-8')
   await beat.chip8(2200)
   await beat.toLayout(7, 'council')
