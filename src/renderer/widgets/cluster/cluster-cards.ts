@@ -34,7 +34,7 @@ export const CARD_KEYS = [
   'power',
   'uptime',
   'link',
-  'awake',
+  'address',
   'message',
   'spec',
 ] as const
@@ -64,7 +64,7 @@ export const CARD_TITLES: Readonly<Record<CardKey, string>> = {
   power: 'POWER',
   uptime: 'UPTIME',
   link: 'LINK',
-  awake: 'AWAKE',
+  address: 'ADDRESS',
   message: 'ALERTS',
   spec: 'THIS MACHINE',
 }
@@ -86,9 +86,9 @@ const SOURCES: Readonly<Record<CardKey, string>> = {
   power: 'power.battery · every 30 s',
   uptime: 'os.uptime',
   link: 'net.interface · net.throughput',
-  awake: 'the UTILITY pane',
+  address: 'net.interface',
   message: 'lamps lit for 10 s or more',
-  spec: 'os.info · hardware.system · cpu.info · net.interface',
+  spec: 'os.info · hardware.system · cpu.info · the UTILITY pane',
 }
 
 const row = (label: string, value: string, muted = false): CardRow =>
@@ -233,17 +233,24 @@ function linkRows(r: CardReadings): CardRow[] {
   ]
 }
 
-function awakeRows(r: CardReadings, time: (at: number) => string): CardRow[] {
-  const { level, until } = r.awake
-  if (level === 'off') return [row('HOLD', 'none: the machine may sleep')]
+function addressRows(r: CardReadings): CardRow[] {
   return [
-    row('HOLD', level === 'display' ? 'the machine and its display' : 'the machine'),
-    row('UNTIL', until === null ? 'turned off' : time(until)),
+    row('INTERFACE', r.link?.iface ?? '--'),
+    row('STATE', r.link?.state ?? '--'),
+    row('NOTE', 'this machine’s address on its own network', true),
   ]
 }
 
+/** AWAKE's hold, on the spec card: what it keeps awake, and until when. */
+function awakeRows(r: CardReadings, time: (at: number) => string): CardRow[] {
+  const { level, until } = r.awake
+  if (level === 'off') return [row('AWAKE', 'off: the machine may sleep')]
+  const what = level === 'display' ? 'the machine and its display' : 'the machine'
+  return [row('AWAKE', `${what}, until ${until === null ? 'turned off' : time(until)}`)]
+}
+
 /** The spec row in full, where its line cut a value short. */
-function specRows(r: CardReadings): CardRow[] {
+function specRows(r: CardReadings, time: (at: number) => string): CardRow[] {
   const hw = r.hardware
   const cpu = r.cpu
   return [
@@ -251,7 +258,7 @@ function specRows(r: CardReadings): CardRow[] {
     row('MACHINE', hw ? [hw.manufacturer, hw.model, hw.chassis].filter(Boolean).join(' · ') : '--'),
     row('CPU', cpu ? cpuName(cpu) : '--'),
     row('CORES', cpu ? `${cpu.physicalCores} cores, ${cpu.cores} threads` : '--'),
-    row('ADDRESS', r.link ? `${r.link.iface ?? '--'} · ${r.link.ip4 ?? '--.--.--.--'}` : '--'),
+    ...awakeRows(r, time),
   ]
 }
 
@@ -278,9 +285,9 @@ export function cardRows(key: CardKey, r: CardReadings, time: (at: number) => st
     power: () => powerRows(r),
     uptime: () => uptimeRows(r, time),
     link: () => linkRows(r),
-    awake: () => awakeRows(r, time),
+    address: () => addressRows(r),
     message: () => messageRows(r),
-    spec: () => specRows(r),
+    spec: () => specRows(r, time),
   }
   return [...rows[key](), row('FROM', SOURCES[key], true)]
 }

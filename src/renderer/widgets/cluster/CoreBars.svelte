@@ -69,11 +69,11 @@ const per = $derived(bars.length === 0 ? 1 : Math.ceil(cores.length / bars.lengt
 }
 
 .core[data-level='warn'] i {
-  background: var(--warn);
+  background: var(--cluster-warn, var(--warn));
 }
 
 .core[data-level='crit'] i {
-  background: var(--danger);
+  background: var(--cluster-crit, var(--danger));
 }
 
 em {

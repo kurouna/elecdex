@@ -326,7 +326,14 @@ const cardReadings = $derived.by(
 </div>
 
 <style>
+/*
+ * The pane's amber and red: the theme's warning and danger colours taken a part of the way
+ * towards its accent, so a hot reading stays in the pane's palette instead of a raw yellow or
+ * red laid over it (user's request 2026-10-10). The lamps keep the app's own.
+ */
 .cluster {
+  --cluster-warn: color-mix(in srgb, var(--warn) 70%, var(--accent));
+  --cluster-crit: color-mix(in srgb, var(--danger) 75%, var(--accent));
   position: relative;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;

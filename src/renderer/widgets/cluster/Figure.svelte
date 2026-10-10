@@ -200,20 +200,20 @@ b.fixed {
 
 [data-level='warn'] .label,
 [data-level='warn'] b {
-  color: var(--warn);
+  color: var(--cluster-warn, var(--warn));
 }
 
 [data-level='warn'] .meter i {
-  background: var(--warn);
+  background: var(--cluster-warn, var(--warn));
 }
 
 [data-level='crit'] .label,
 [data-level='crit'] b {
-  color: var(--danger);
+  color: var(--cluster-crit, var(--danger));
 }
 
 [data-level='crit'] .meter i {
-  background: var(--danger);
+  background: var(--cluster-crit, var(--danger));
 }
 
 [data-level='warn'] .label::before {

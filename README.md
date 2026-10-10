@@ -215,7 +215,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### cockpit — the whole machine on one pane, and the shells
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Amber theme: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and AWAKE beside them, a line of the type, OS, maker, model, chassis, CPU, interface and address, then a minute of CPU as a line, a bar for each of twelve cores, memory, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells as tabs on the right">
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Amber theme: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them, a line of the type, OS, maker, model, chassis, CPU and AWAKE, then a minute of CPU as a line, a bar for each of twelve cores, memory, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells as tabs on the right">
   <br><sub>cockpit · Amber</sub>
 </p>
 
@@ -493,8 +493,8 @@ weather and calendar.
   both ways) and the ping scaled to the minute, the top written in the lane. Where there is room,
   every core's load now sits under CPU. The rest is a row of figures:
   swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and
-  AWAKE; and where there is room a line of what the machine is, as the system column says it (type,
-  OS, maker, model, chassis, CPU, interface and IPv4 address). Each figure opens a card with what it has no room for. It lays itself out in five ways by
+  the IPv4 address with its interface; and where there is room a line of what the machine is, as the
+  system column says it (type, OS, maker, model, chassis and CPU), with what AWAKE is set to. Each figure opens a card with what it has no room for. It lays itself out in five ways by
   its size. A full screen of it idles at 10-15% of one core, less than CPU, memory, traffic and
   disk panes side by side.
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to

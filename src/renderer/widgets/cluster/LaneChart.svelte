@@ -10,6 +10,7 @@ import {
   laneScale,
   scaleLabel,
 } from '@shared/cluster'
+import { colourReader } from '../../lib/css-colour.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 
 /**
@@ -45,15 +46,22 @@ interface Colors {
   labelSize: number
 }
 
-function readColors(el: Element): Colors {
+function readColors(el: HTMLElement): Colors {
   const style = getComputedStyle(el)
+  // The pane's amber and red are mixes (ClusterWidget's --cluster-warn, --cluster-crit), which
+  // only CSS resolves: read back as the colours a canvas can paint.
+  const mixed = colourReader(el)
+  const rgb = (css: string, fallback: string): string => {
+    const [r, g, b] = mixed(css, [0, 0, 0])
+    return r + g + b === 0 ? fallback : `rgb(${r} ${g} ${b})`
+  }
   const read = (name: string, fallback: string): string =>
     style.getPropertyValue(name).trim() || fallback
   const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
   return {
     line: read('--accent', '#aacfd1'),
-    warn: read('--warn', '#f0c040'),
-    crit: read('--danger', '#e05050'),
+    warn: rgb('var(--cluster-warn, var(--warn))', read('--warn', '#f0c040')),
+    crit: rgb('var(--cluster-crit, var(--danger))', read('--danger', '#e05050')),
     guide: read('--panel-rule', 'rgba(170,207,209,0.3)'),
     label: read('--text-muted', 'rgba(170,207,209,0.5)'),
     font: read('--font-mono', 'monospace'),

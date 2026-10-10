@@ -189,7 +189,7 @@ export const SLOT_KEYS = [
   'power',
   'uptime',
   'link',
-  'awake',
+  'address',
 ] as const
 export type SlotKey = (typeof SLOT_KEYS)[number]
 
@@ -296,12 +296,13 @@ export function slotFigure(key: SlotKey, r: Readings): FigureView {
         : figure({ label: 'UPTIME', value: uptimeClock(r.uptime), note: 'SINCE BOOT' })
     case 'link':
       return linkFigure(r.net, r.link)
-    case 'awake':
+    case 'address':
+      // The address changes with the network, so it sits with the readings; the interface under it.
       return figure({
-        label: 'AWAKE',
-        value: AWAKE_WORDS[r.awake.level],
-        word: true,
-        note: 'UTILITY',
+        label: 'ADDRESS',
+        value: r.link?.ip4 ?? '--.--.--.--',
+        note: r.link?.iface ?? NONE,
+        level: r.link?.state === 'down' ? 'crit' : 'none',
       })
   }
 }
@@ -350,7 +351,7 @@ export function dateText(date: Date): { value: string; note: string } {
 /* ---- The spec row: what the machine is, as the standard layout's system column says it ---- */
 
 export interface SpecItem {
-  key: 'type' | 'os' | 'maker' | 'model' | 'chassis' | 'cpu' | 'iface' | 'ip'
+  key: 'type' | 'os' | 'maker' | 'model' | 'chassis' | 'cpu' | 'awake'
   label: string
   value: string
 }
@@ -367,10 +368,11 @@ export function cpuName(cpu: CpuInfo): string {
 
 /**
  * TYPE, OS, MANUFACTURER, MODEL and CHASSIS as the system pane words them, the CPU as the CPU
- * pane titles itself with its cores and threads, and the interface and IPv4 address as the
- * network status pane shows them. Never the host name (user decision 2026-10-10).
+ * pane titles itself with its cores and threads, and AWAKE: what the user set it to, not
+ * something it reads (the address went up among the readings, user decision 2026-10-10).
+ * Never the host name.
  */
-export function specItems(r: Pick<Readings, 'os' | 'hardware' | 'cpu' | 'link'>): SpecItem[] {
+export function specItems(r: Pick<Readings, 'os' | 'hardware' | 'cpu' | 'awake'>): SpecItem[] {
   const hw = r.hardware
   return [
     { key: 'type', label: 'TYPE', value: r.os ? osLabel(r.os.platform) : NONE },
@@ -387,7 +389,6 @@ export function specItems(r: Pick<Readings, 'os' | 'hardware' | 'cpu' | 'link'>)
       label: 'CPU',
       value: r.cpu ? `${cpuName(r.cpu)} · ${r.cpu.physicalCores}C/${r.cpu.cores}T` : NONE,
     },
-    { key: 'iface', label: 'INTERFACE', value: r.link?.iface ?? NONE },
-    { key: 'ip', label: 'IPV4', value: r.link?.ip4 ?? '--.--.--.--' },
+    { key: 'awake', label: 'AWAKE', value: AWAKE_WORDS[r.awake.level] },
   ]
 }

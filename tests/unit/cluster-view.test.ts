@@ -35,7 +35,7 @@ const readings = (over: Partial<Readings> = {}): Readings => ({
   net: { iface: 'Ethernet', rxSec: 1_250_000, txSec: 125_000, rxTotal: 41.8e9, txTotal: 3.9e9 },
   io: { readSec: 2e6, writeSec: 1e6, busy: 7 },
   ping: { host: '1.1.1.1', ms: 14 },
-  link: { iface: 'Ethernet', ip4: null, mac: null, state: 'up' },
+  link: { iface: 'Ethernet', ip4: '192.168.0.12', mac: null, state: 'up' },
   swap: { total: 4e9, used: 1e9, available: 0, active: 0 },
   volumes: { volumes: [volume('C:\\', 300e9), volume('D:\\', 100e9)] },
   conns: { total: 81, unresolved: 2, countries: [{ code: 'JP', count: 41, lat: 0, lon: 0 }] },
@@ -124,7 +124,14 @@ describe('slots', () => {
     expect(slotFigure('conn', r)).toMatchObject({ value: '81', unit: 'PEERS', note: '1 COUNTRIES' })
     expect(slotFigure('link', r)).toMatchObject({ value: '41.80 GB', note: '▲ 3.90 GB' })
     expect(slotFigure('uptime', r)).toMatchObject({ value: '12d 04:33:07' })
-    expect(slotFigure('awake', r)).toMatchObject({ value: 'SYSTEM' })
+    // The address sits with the readings, the interface under it; red when the link is down.
+    expect(slotFigure('address', r)).toMatchObject({
+      value: '192.168.0.12',
+      note: 'Ethernet',
+      level: 'none',
+    })
+    const down = readings({ link: { iface: 'Wi-Fi', ip4: null, mac: null, state: 'down' } })
+    expect(slotFigure('address', down)).toMatchObject({ value: '--.--.--.--', level: 'crit' })
   })
 
   it('say AC without a battery, and the charge with one', () => {
@@ -159,8 +166,7 @@ describe('the spec row', () => {
       'MODEL',
       'CHASSIS',
       'CPU',
-      'INTERFACE',
-      'IPV4',
+      'AWAKE',
     ])
     const value = (key: string) => items.find((item) => item.key === key)?.value
     expect(value('type')).toBe('win')
@@ -182,9 +188,12 @@ describe('the spec row', () => {
   })
 
   it('shows dashes until the facts are read', () => {
-    const items = specItems({ os: null, hardware: null, cpu: null, link: null })
-    expect(items.find((item) => item.key === 'ip')?.value).toBe('--.--.--.--')
-    expect(items.every((item) => item.value.startsWith('--'))).toBe(true)
+    const items = specItems({ ...readings(), os: null, hardware: null, cpu: null })
+    expect(items.filter((item) => item.key !== 'awake').every((item) => item.value === '--')).toBe(
+      true,
+    )
+    // AWAKE is what the user set: never unknown.
+    expect(items.find((item) => item.key === 'awake')?.value).toBe('SYSTEM')
   })
 })
 
