@@ -1050,8 +1050,9 @@ number:
   ; lib/kit.e16.ts:243  at = wrap16(at - 2)
   addi s1, s1, -2
   ; lib/kit.e16.ts:245  const q = div(n, 10)
-  li t0, 10
-  divu t0, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
   sw t0, 0(fp) ; q
   ; lib/kit.e16.ts:246  vpoke(at, wrap16(zero + n - q * 10))
   lw t0, 2(fp) ; zero
@@ -3569,8 +3570,9 @@ fxDraw:
   lw t1, 2(fp) ; kind
   bne t1, t0, .L1
   ; fx.e16.ts:118  spr(x - 8, y - 8, (BLAST_SMALL_TILE + div(t, 3) * 4) | pal, S16)
-  li t0, 3
-  divu t0, s1, t0
+  li t1, 43691
+  mulhu t0, s1, t1
+  srli t0, t0, 1
   slli t0, t0, 2
   addi t0, t0, 230
   ori t0, t0, 5120
@@ -3822,16 +3824,21 @@ numberDraw:
   j .L7
 .L5:
   ; fx.e16.ts:148  spr(at, y, tile + 48 + (n % 10), S8)
-  li t0, 10
-  remu t0, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, s1, t0
   mv a0, s3
   lw a1, 0(fp)
   addi a2, t0, 6597
   li a3, 0
   call spr
   ; fx.e16.ts:149  n = div(n, 10)
-  li t0, 10
-  divu s1, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli s1, t0, 3
   ; fx.e16.ts:150  at = at - 8
   addi s3, s3, -8
   ; fx.e16.ts:151  digits--
@@ -4463,8 +4470,12 @@ farStarsStep:
   j .L3
 .L1:
   ; fx.e16.ts:307  const depth = k % 3
-  li t0, 3
-  remu s2, s1, t0
+  li t1, 43691
+  mulhu t0, s1, t1
+  srli t0, t0, 1
+  li t1, 3
+  mul t0, t0, t1
+  sub s2, s1, t0
   ; fx.e16.ts:309  const every: u16 = depth === 0 ? 3 : depth === 1 ? 1 : 0
   bne s2, zero, .L5
   li t0, 3
@@ -6557,8 +6568,12 @@ shipDraw:
   ; ship.e16.ts:256  spr(x - 8, y + 6, (FLAME_TILE + ((tick >> 1) % 3) * 4) | ((SL_SHIP - 8) << 10), S16)
   lw t0, 0x14e8(zero)
   srli t0, t0, 1
-  li t1, 3
-  remu t0, t0, t1
+  li t2, 43691
+  mulhu t1, t0, t2
+  srli t1, t1, 1
+  li t2, 3
+  mul t1, t1, t2
+  sub t0, t0, t1
   slli t0, t0, 2
   addi a0, s1, -8
   addi a1, s2, 6
@@ -7371,8 +7386,13 @@ foeDraw:
 .L4:
 .L5:
   ; foes.e16.ts:209  spr(x, y, (PIKE_TILE + (t % 50 > 40 ? 4 : 0)) | pal, S16)
-  li t0, 50
-  remu t0, s2, t0
+  li t1, 5243
+  srli t0, s2, 1
+  mulhu t0, t0, t1
+  srli t0, t0, 1
+  li t1, 50
+  mul t0, t0, t1
+  sub t0, s2, t0
   lw t1, 0(fp)
   li t2, 91
   mv t3, t0
@@ -7411,16 +7431,24 @@ foeDraw:
   j .L1
 .L7:
   ; foes.e16.ts:215  spr(x, y, (WARDEN_TILE + (t % 80 > 30 && t % 80 < 50 ? 16 : 0)) | pal, S32)
-  li t0, 80
-  remu t0, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli t0, t0, 6
+  li t1, 80
+  mul t0, t0, t1
+  sub t0, s2, t0
   lw t1, 0(fp)
   li t2, 171
   mv t3, t0
   mv t0, s3
   li a1, 30
   bgeu a1, t3, .L17
-  li t3, 80
-  remu t3, s2, t3
+  li a1, 52429
+  mulhu t3, s2, a1
+  srli t3, t3, 6
+  li a1, 80
+  mul t3, t3, a1
+  sub t3, s2, t3
   li a1, 50
   bgeu t3, a1, .L17
   li t3, 16
@@ -8415,32 +8443,30 @@ scriptStart:
   ret
 
 ; foes.e16.ts:450 scriptSend(kind, x, p) at -O1
-;   kind in s1
+;   kind in s2
 ;   x in s3
-;   p in s2
-;   k in 0(fp)
-;   spawnY.p in 2(fp)
+;   p in s1
+;   k in s0
 scriptSend:
-  addi sp, sp, -14
-  sw ra, 4(sp)
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s3, 4(sp)
   sw s1, 6(sp)
-  sw s3, 8(sp)
-  sw s2, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  mv s1, a0 ; kind
+  sw s0, 8(sp)
+  mv s2, a0 ; kind
   mv s3, a1 ; x
-  mv s2, a2 ; p
+  mv s1, a2 ; p
   ; foes.e16.ts:451  if (kind === C_PICKUP) {
   li t0, 23
-  bne s1, t0, .L1
+  bne s2, t0, .L1
   ; foes.e16.ts:452  item(p === 0 ? IT_BOMB : p === 1 ? IT_LIFE : IT_POWER, i16(x) * 16, 0)
-  bne s2, zero, .L2
+  bne s1, zero, .L2
   li t0, 2
   j .L3
 .L2:
   li t0, 1
-  bne s2, t0, .L4
+  bne s1, t0, .L4
   li t0, 3
   j .L5
 .L4:
@@ -8457,7 +8483,7 @@ scriptSend:
 .L1:
   ; foes.e16.ts:455  if (kind === K_SERPENT && !serpentRoom()) return
   li t0, 10
-  bne s1, t0, .L6
+  bne s2, t0, .L6
   la t0, serpentRoom
   li t1, 259
   call far_call
@@ -8466,48 +8492,43 @@ scriptSend:
   j .return
 .L6:
   ; foes.e16.ts:456  const k = foe(kind, i16(x), spawnY(p), p & 255)
-  sw s2, 2(fp) ; spawnY.p
   ; foes.e16.ts:486  return p >> 8 !== 0 ? i16(p >> 8) : -16
-  lw t0, 2(fp) ; spawnY.p
-  srli t0, t0, 8
+  srli t0, s1, 8
   mv t1, s3
   mv t2, t0
-  mv t0, s1
+  mv t0, s2
   li t3, 0
   beq t2, t3, .I1.L1
-  lw t2, 2(fp) ; spawnY.p
-  srli t2, t2, 8
+  srli t2, s1, 8
   j .I1_end
 .I1.L1:
   li t2, 65520
 .I1_end:
-  andi t3, s2, 255
+  andi t3, s1, 255
   mv a0, t0
   mv a1, t1
   mv a2, t2
   mv a3, t3
   call foe
-  sw a0, 0(fp) ; k
+  mv s0, a0 ; k
   ; foes.e16.ts:457  if (kind === K_SERPENT && k !== 0xffff) serpentBorn(k)
   li t0, 10
-  bne s1, t0, .L7
+  bne s2, t0, .L7
   li t0, 65535
-  lw t1, 0(fp) ; k
-  beq t1, t0, .L7
+  beq s0, t0, .L7
   ; foes.e16.ts:457  serpentBorn(k)
-  lw a0, 0(fp)
+  mv a0, s0
   la t0, serpentBorn
   li t1, 259
   call far_call
 .L7:
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s3, 4(sp)
   lw s1, 6(sp)
-  lw s3, 8(sp)
-  lw s2, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw s0, 8(sp)
+  addi sp, sp, 10
   ret
 
 ; foes.e16.ts:461 scriptStep() at -O1
@@ -9398,8 +9419,9 @@ voltShow:
   mv s1, a1 ; over
   ; score.e16.ts:185  const v = over > 0 ? div(over, 96) * 205 : volt
   bgeu zero, s1, .L1
-  li t0, 96
-  divu t0, s1, t0
+  li t1, 43691
+  mulhu t0, s1, t1
+  srli t0, t0, 6
   li t1, 205
   mul t0, t0, t1
   j .L2
@@ -9561,17 +9583,15 @@ font:
 
 ; audio.e16.ts:57 music(m) at -O1
 ;   m in s1
-;   musicMute.mask in s2
 music:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s2, 4(sp)
   mv s1, a0 ; m
   ; audio.e16.ts:58  musicMute(LAYER)
-  li s2, 2048 ; musicMute.mask
   ; lib/sound.e16.ts:116  muted = mask
-  sw s2, 0x0c8e(zero)
+  li t0, 2048
+  sw t0, 0x0c8e(zero)
   ; audio.e16.ts:59  if (m === M_TITLE) play(SONG_TITLE_BANK, SONG_TITLE_AT, true)
   li t0, 1
   bne s1, t0, .L1
@@ -9643,8 +9663,7 @@ music:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s2, 4(sp)
-  addi sp, sp, 6
+  addi sp, sp, 4
   ret
 
 ; audio.e16.ts:69 musicLayer(on) at -O1
@@ -10613,8 +10632,12 @@ bastionArms:
   sw ra, 0(sp)
   ; boss.e16.ts:133  if (bT % 40 === 0) armFire(1)
   lw t0, 0x175c(zero)
-  li t1, 40
-  remu t0, t0, t1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 5
+  li t2, 40
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L1
   ; boss.e16.ts:133  armFire(1)
   li a0, 1
@@ -10622,8 +10645,12 @@ bastionArms:
 .L1:
   ; boss.e16.ts:134  if (bT % 40 === 20) armFire(2)
   lw t0, 0x175c(zero)
-  li t1, 40
-  remu t0, t0, t1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 5
+  li t2, 40
+  mul t1, t1, t2
+  sub t0, t0, t1
   li t1, 20
   bne t0, t1, .L2
   ; boss.e16.ts:134  armFire(2)
@@ -10632,8 +10659,12 @@ bastionArms:
 .L2:
   ; boss.e16.ts:135  if (bT % 120 === 60) ring(bX, bY, bT & 255, ringOf(16, 28, BK_ORB))
   lw t0, 0x175c(zero)
-  li t1, 120
-  remu t0, t0, t1
+  li t2, 34953
+  mulhu t1, t0, t2
+  srli t1, t1, 6
+  li t2, 120
+  mul t1, t1, t2
+  sub t0, t0, t1
   li t1, 60
   bne t0, t1, .L3
   ; boss.e16.ts:135  ring(bX, bY, bT & 255, ringOf(16, 28, BK_ORB))
@@ -10662,8 +10693,12 @@ bastionSpiral:
   sw t0, 0x175e(zero)
   ; boss.e16.ts:141  if (bT % 6 === 0) ring(bX, bY + 128, spin, ringOf(life[0] < 120 ? 6 : 4, 36, BK_PINK))
   lw t0, 0x175c(zero)
-  li t1, 6
-  remu t0, t0, t1
+  li t2, 43691
+  mulhu t1, t0, t2
+  srli t1, t1, 2
+  li t2, 6
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L1
   ; boss.e16.ts:141  ring(bX, bY + 128, spin, ringOf(life[0] < 120 ? 6 : 4, 36, BK_PINK))
   lw t0, 0x1758(zero)
@@ -10846,8 +10881,13 @@ zenithCannons:
   li t1, 25
   mul t1, s1, t1
   add t0, t0, t1
-  li t1, 50
-  remu t0, t0, t1
+  li t2, 5243
+  srli t1, t0, 1
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 50
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L6
   ; boss.e16.ts:169  fan(x, y, aimed(x, y), fanOf(5, 6, 52, BK_NEEDLE))
   mv a0, s2
@@ -10864,8 +10904,13 @@ zenithCannons:
   li t1, 25
   mul t1, s1, t1
   add t0, t0, t1
-  li t1, 100
-  remu t0, t0, t1
+  li t2, 5243
+  srli t1, t0, 2
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 100
+  mul t1, t1, t2
+  sub t0, t0, t1
   li t1, 70
   bne t0, t1, .L7
   ; boss.e16.ts:170  fan(x, y, 64, fanOf(9, 14, 28, BK_BLUE))
@@ -10921,8 +10966,12 @@ zenithSpiral:
   addi s1, t0, 256
   ; boss.e16.ts:186  if (bT % 5 === 0) {
   lw t0, 0x175c(zero)
-  li t1, 5
-  remu t0, t0, t1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 2
+  li t2, 5
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L2
   ; boss.e16.ts:187  bullet(bX, y, spin & 255, sk(34, BK_PINK))
   lw t0, 0x1758(zero)
@@ -10946,8 +10995,12 @@ zenithSpiral:
 .L2:
   ; boss.e16.ts:190  if (bT % 90 === 0) ring(bX, y, bT & 255, ringOf(10, 20, BK_ORB_BLUE))
   lw t0, 0x175c(zero)
-  li t1, 90
-  remu t0, t0, t1
+  li t2, 11651
+  mulhu t1, t0, t2
+  srli t1, t1, 4
+  li t2, 90
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L3
   ; boss.e16.ts:190  ring(bX, y, bT & 255, ringOf(10, 20, BK_ORB_BLUE))
   lw t0, 0x1758(zero)
@@ -10997,8 +11050,13 @@ zenithBurning:
   addi s1, t0, 256
   ; boss.e16.ts:203  if (bT % 14 === 0) ring(bX, y, spin, ringOf(14, 30, BK_PINK))
   lw t0, 0x175c(zero)
-  li t1, 14
-  remu t0, t0, t1
+  li t2, 18725
+  srli t1, t0, 1
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 14
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L2
   ; boss.e16.ts:203  ring(bX, y, spin, ringOf(14, 30, BK_PINK))
   lw t0, 0x1758(zero)
@@ -11011,13 +11069,21 @@ zenithBurning:
 .L2:
   ; boss.e16.ts:204  if (bT % 40 < 12 && bT % 3 === 0) bullet(bX, y, aimed(bX, y), sk(64, BK_NEEDLE))
   lw t0, 0x175c(zero)
-  li t1, 40
-  remu t0, t0, t1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 5
+  li t2, 40
+  mul t1, t1, t2
+  sub t0, t0, t1
   li t1, 12
   bgeu t0, t1, .L3
   lw t0, 0x175c(zero)
-  li t1, 3
-  remu t0, t0, t1
+  li t2, 43691
+  mulhu t1, t0, t2
+  srli t1, t1, 1
+  li t2, 3
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L3
   ; boss.e16.ts:204  bullet(bX, y, aimed(bX, y), sk(64, BK_NEEDLE))
   lw t0, 0x1758(zero)
@@ -11086,15 +11152,23 @@ dying:
   sw t0, 0x175a(zero)
   ; boss.e16.ts:224  if (bT % 6 === 0) {
   lw t0, 0x175c(zero)
-  li t1, 6
-  remu t0, t0, t1
+  li t2, 43691
+  mulhu t1, t0, t2
+  srli t1, t1, 2
+  li t2, 6
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L1
   ; boss.e16.ts:225  const dx = i16((bT * 37) % 96) - 48
   lw t0, 0x175c(zero)
   li t1, 37
   mul t0, t0, t1
-  li t1, 96
-  remu t0, t0, t1
+  li t2, 43691
+  mulhu t1, t0, t2
+  srli t1, t1, 6
+  li t2, 96
+  mul t1, t1, t2
+  sub t0, t0, t1
   addi s1, t0, -48
   ; boss.e16.ts:226  const dy = i16((bT * 23) % 64) - 32
   lw t0, 0x175c(zero)
@@ -11166,15 +11240,23 @@ dying:
   lw t0, 0x1758(zero)
   li t1, 13
   mul t1, s2, t1
-  li t2, 96
-  remu t1, t1, t2
+  li t3, 43691
+  mulhu t2, t1, t3
+  srli t2, t2, 6
+  li t3, 96
+  mul t2, t2, t3
+  sub t1, t1, t2
   slli t1, t1, 4
   add t0, t0, t1
   lw t1, 0x175a(zero)
   slli t3, s2, 3
   sub t2, t3, s2
-  li t3, 48
-  remu t2, t2, t3
+  li a1, 43691
+  mulhu t3, t2, a1
+  srli t3, t3, 5
+  li a1, 48
+  mul t3, t3, a1
+  sub t2, t2, t3
   slli t2, t2, 4
   add t1, t1, t2
   li a0, 1
@@ -11700,8 +11782,12 @@ bossCharging:
   mv t1, t0
   beqz t1, .L4
   lw t0, 0x175c(zero)
-  li t1, 120
-  remu t0, t0, t1
+  li t2, 34953
+  mulhu t1, t0, t2
+  srli t1, t1, 6
+  li t2, 120
+  mul t1, t1, t2
+  sub t0, t0, t1
   li t1, 44
   sltu t0, t0, t1
   xori t0, t0, 1
@@ -11709,8 +11795,12 @@ bossCharging:
   mv t1, t0
   beqz t1, .L3
   lw t0, 0x175c(zero)
-  li t1, 120
-  remu t0, t0, t1
+  li t2, 34953
+  mulhu t1, t0, t2
+  srli t1, t1, 6
+  li t2, 120
+  mul t1, t1, t2
+  sub t0, t0, t1
   sltiu t0, t0, 60
 .L3:
   mv a0, t0
@@ -11723,8 +11813,13 @@ bossCharging:
   li t1, 25
   mul t1, a0, t1
   add t0, t0, t1
-  li t1, 100
-  remu t0, t0, t1
+  li t2, 5243
+  srli t1, t0, 2
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 100
+  mul t1, t1, t2
+  sub t0, t0, t1
   li t1, 54
   sltu t0, t0, t1
   xori t0, t0, 1
@@ -11734,8 +11829,13 @@ bossCharging:
   li t1, 25
   mul t1, a0, t1
   add t0, t0, t1
-  li t1, 100
-  remu t0, t0, t1
+  li t2, 5243
+  srli t1, t0, 2
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 100
+  mul t1, t1, t2
+  sub t0, t0, t1
   sltiu t0, t0, 70
 .L7:
   mv a0, t0
@@ -11749,8 +11849,12 @@ bossCharging:
   mv t1, t0
   beqz t1, .L8
   lw t0, 0x175c(zero)
-  li t1, 90
-  remu t0, t0, t1
+  li t2, 11651
+  mulhu t1, t0, t2
+  srli t1, t1, 4
+  li t2, 90
+  mul t1, t1, t2
+  sub t0, t0, t1
   li t1, 74
   sltu t0, t0, t1
   xori t0, t0, 1
@@ -11890,13 +11994,18 @@ zenithDraw:
   j .L5
 .L3:
   ; boss.e16.ts:358  spr(x - 48 + i16(k % 3) * 32, y - 32 + i16(div(k, 3)) * 32, (ZENITH_TILE + k * 16) | hull, S32)
-  li t0, 3
-  remu t0, s3, t0
+  li t1, 43691
+  mulhu t0, s3, t1
+  srli t0, t0, 1
+  li t1, 3
+  mul t0, t0, t1
+  sub t0, s3, t0
   slli t0, t0, 5
   addi t1, s1, -48
   add t1, t1, t0
-  li t0, 3
-  divu t0, s3, t0
+  li t2, 43691
+  mulhu t0, s3, t2
+  srli t0, t0, 1
   slli t0, t0, 5
   addi t2, s2, -32
   add t2, t2, t0
@@ -12183,15 +12292,23 @@ warningStep:
   call say
 .L1:
   ; scenes.e16.ts:59  if (t % 60 === 0) sfxSiren()
-  li t0, 60
-  remu t0, s1, t0
+  li t1, 34953
+  mulhu t0, s1, t1
+  srli t0, t0, 5
+  li t1, 60
+  mul t0, t0, t1
+  sub t0, s1, t0
   bne t0, zero, .L2
   ; scenes.e16.ts:59  sfxSiren()
   call sfxSiren
 .L2:
   ; scenes.e16.ts:60  const pulse = t % 60
-  li t0, 60
-  remu s2, s1, t0
+  li t1, 34953
+  mulhu t0, s1, t1
+  srli t0, t0, 5
+  li t1, 60
+  mul t0, t0, t1
+  sub s2, s1, t0
   ; scenes.e16.ts:61  palMix(0, 0x001c, pulse < 30 ? pulse >> 2 : (60 - pulse) >> 2)
   li t0, 0
   li t1, 28
@@ -12424,12 +12541,19 @@ bonus:
   sw s1, 8(sp)
   ; scenes.e16.ts:121  let hi = div(maxChain, 100)
   lw t0, 0x178a(zero)
-  li t1, 100
-  divu s3, t0, t1
+  li t1, 5243
+  srli t0, t0, 2
+  mulhu t0, t0, t1
+  srli s3, t0, 1
   ; scenes.e16.ts:122  let lo = (maxChain % 100) * 100 + bombs * 1000
   lw t0, 0x178a(zero)
-  li t1, 100
-  remu t0, t0, t1
+  li t2, 5243
+  srli t1, t0, 2
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 100
+  mul t1, t1, t2
+  sub t0, t0, t1
   li t1, 100
   mul t0, t0, t1
   lw t1, 0x14ec(zero)
@@ -14635,8 +14759,12 @@ prismMove:
   addi sp, sp, 2
   sw t0, 0(t1)
   ; foes2.e16.ts:35  if (t % 80 === 40 && y > 30 && t < 600) {
-  li t0, 80
-  remu t0, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli t0, t0, 6
+  li t1, 80
+  mul t0, t0, t1
+  sub t0, s2, t0
   li t1, 40
   bne t0, t1, .L5
   li t0, 30
@@ -15285,14 +15413,12 @@ moteMove:
 ;   k in s1
 ;   t in s2
 ;   away in s3
-;   chase.k in s0
 dartMove:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
   sw s3, 6(sp)
-  sw s0, 8(sp)
   mv s1, a0 ; k
   mv s2, a1 ; t
   ; foes2.e16.ts:172  if (t < 40) {
@@ -15304,10 +15430,9 @@ dartMove:
   sw t1, fVY(t0)
   ; foes2.e16.ts:174  fVX[k] = u16(chase(k))
   slli t0, s1, 1
-  mv s0, s1 ; chase.k
   ; foes2.e16.ts:225  return (targetX - i16(fX[k])) >> 5
   lw t1, 0x1440(zero)
-  slli t2, s0, 1
+  slli t2, s1, 1
   lw t2, fX(t2)
   sub t1, t1, t2
   srai t1, t1, 5
@@ -15347,8 +15472,7 @@ dartMove:
   lw s1, 2(sp)
   lw s2, 4(sp)
   lw s3, 6(sp)
-  lw s0, 8(sp)
-  addi sp, sp, 10
+  addi sp, sp, 8
   ret
 
 ; foes2.e16.ts:184 pikeMove(k, t) at -O1
@@ -15390,8 +15514,13 @@ pikeMove:
   sw t1, 0(t0)
   ; foes2.e16.ts:189  if (y >= i16(stop) && t % 50 === 0) {
   blt s0, s3, .L5
-  li t0, 50
-  remu t0, s2, t0
+  li t1, 5243
+  srli t0, s2, 1
+  mulhu t0, t0, t1
+  srli t0, t0, 1
+  li t1, 50
+  mul t0, t0, t1
+  sub t0, s2, t0
   bne t0, zero, .L5
   ; foes2.e16.ts:190  fan(
   slli t0, s1, 1
@@ -15504,8 +15633,12 @@ halberdMove:
   j .return
 .L7:
   ; foes2.e16.ts:206  if (t % 60 === 0) fan(i16(fX[k]), i16(fY[k]) + 160, 64, fanOf(5 + (rank >> 2), 12, 36, BK_PINK))
-  li t0, 60
-  remu t0, s2, t0
+  li t1, 34953
+  mulhu t0, s2, t1
+  srli t0, t0, 5
+  li t1, 60
+  mul t0, t0, t1
+  sub t0, s2, t0
   bne t0, zero, .L9
   ; foes2.e16.ts:206  fan(i16(fX[k]), i16(fY[k]) + 160, 64, fanOf(5 + (rank >> 2), 12, 36, BK_PINK))
   slli t0, s1, 1
@@ -15535,8 +15668,12 @@ halberdMove:
   call fan
 .L9:
   ; foes2.e16.ts:207  if (t % 60 === 30) {
-  li t0, 60
-  remu t0, s2, t0
+  li t1, 34953
+  mulhu t0, s2, t1
+  srli t0, t0, 5
+  li t1, 60
+  mul t0, t0, t1
+  sub t0, s2, t0
   li t1, 30
   bne t0, t1, .L10
   ; foes2.e16.ts:208  const a = aimed(i16(fX[k]), i16(fY[k]))
@@ -15623,8 +15760,12 @@ wardenMove:
   j .return
 .L5:
   ; foes2.e16.ts:219  if (t % 90 === 0) ring(i16(fX[k]), i16(fY[k]), t & 255, ringOf(12 + rank, 24, BK_ORB))
-  li t0, 90
-  remu t0, s2, t0
+  li t1, 11651
+  mulhu t0, s2, t1
+  srli t0, t0, 4
+  li t1, 90
+  mul t0, t0, t1
+  sub t0, s2, t0
   bne t0, zero, .L7
   ; foes2.e16.ts:219  ring(i16(fX[k]), i16(fY[k]), t & 255, ringOf(12 + rank, 24, BK_ORB))
   slli t0, s1, 1
@@ -15656,8 +15797,12 @@ wardenMove:
   call ring
 .L7:
   ; foes2.e16.ts:220  if (t % 80 === 40) foe(K_MOTE, i16(fX[k] >> 4), i16(fY[k] >> 4) + 8, 0)
-  li t0, 80
-  remu t0, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli t0, t0, 6
+  li t1, 80
+  mul t0, t0, t1
+  sub t0, s2, t0
   li t1, 40
   bne t0, t1, .L8
   ; foes2.e16.ts:220  foe(K_MOTE, i16(fX[k] >> 4), i16(fY[k] >> 4) + 8, 0)
@@ -15689,8 +15834,12 @@ foeCharging:
   li t0, 4
   bne a0, t0, .L1
   ; foes2.e16.ts:233  return t % 60 >= 46 && t < 640
-  li t0, 60
-  remu t0, a1, t0
+  li t1, 34953
+  mulhu t0, a1, t1
+  srli t0, t0, 5
+  li t1, 60
+  mul t0, t0, t1
+  sub t0, a1, t0
   li t1, 46
   sltu t0, t0, t1
   xori t0, t0, 1
@@ -15705,8 +15854,12 @@ foeCharging:
   li t0, 5
   bne a0, t0, .L3
   ; foes2.e16.ts:234  return t % 90 >= 70 && t < 760
-  li t0, 90
-  remu t0, a1, t0
+  li t1, 11651
+  mulhu t0, a1, t1
+  srli t0, t0, 4
+  li t1, 90
+  mul t0, t0, t1
+  sub t0, a1, t0
   li t1, 70
   sltu t0, t0, t1
   xori t0, t0, 1
@@ -15718,15 +15871,23 @@ foeCharging:
   ret
 .L3:
   ; foes2.e16.ts:235  return t % 80 >= 26 && t % 80 < 40 && t < 600
-  li t0, 80
-  remu t0, a1, t0
+  li t1, 52429
+  mulhu t0, a1, t1
+  srli t0, t0, 6
+  li t1, 80
+  mul t0, t0, t1
+  sub t0, a1, t0
   li t1, 26
   sltu t0, t0, t1
   xori t0, t0, 1
   mv t1, t0
   beqz t1, .L6
-  li t0, 80
-  remu t0, a1, t0
+  li t1, 52429
+  mulhu t0, a1, t1
+  srli t0, t0, 6
+  li t1, 80
+  mul t0, t0, t1
+  sub t0, a1, t0
   sltiu t0, t0, 40
 .L6:
   mv t1, t0
@@ -16111,8 +16272,10 @@ title:
   ; title.e16.ts:176  if (t === shown) {
   bne s1, s2, .L7
   ; title.e16.ts:177  pageShow((div(t, PAGE) & 1) !== 0)
-  li t0, 300
-  divu t0, s1, t0
+  li t1, 27963
+  srli t0, s1, 2
+  mulhu t0, t0, t1
+  srli t0, t0, 5
   andi t0, t0, 1
   sub t0, t0, zero
   snez a0, t0

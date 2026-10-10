@@ -186,6 +186,8 @@ const stored = (c: Ctx): string => (c.signed ? `u16(${wexpr(c)})` : wexpr(c))
 
 const SIGNED = [0, 1, 2, 3, -1, -2, 7, 100, -100, 255, -255, 32767, -32768]
 const UNSIGNED = [0, 1, 2, 3, 7, 8, 16, 100, 255, 256, 0xff00, 0x7fff, 0x8000, 0xffff]
+/** Divisors with each way of dividing by a constant: 16-bit, shifted first, 17-bit, a power of two. */
+const DIVISORS = [3, 5, 6, 7, 10, 12, 60, 100, 641, 1000, 0x7fff, 0x8001, 0xffff, 1, 16]
 
 function constant(c: Ctx): string {
   if (!c.signed) return String(c.g.chance(0.2) ? c.g.int(65536) : c.g.pick(UNSIGNED))
@@ -222,6 +224,15 @@ const EXPRS: readonly Choice[] = [
   // A signed division by what may be 0 is idiv: the same -1 in both runs.
   [1, (c) => `${c.signed ? 'idiv' : 'div'}(${wexpr(c)}, (${wexpr(c)} | 1))`],
   [1, (c) => `(${wexpr(c)} % (${wexpr(c)} | 1))`],
+  // By a constant (MULHU at -O1, a power of two a shift or a mask): unsigned, never 0.
+  [
+    1,
+    (c) => {
+      const k = c.g.chance(0.5) ? c.g.pick(DIVISORS) : c.g.int(65535) + 1
+      return c.g.chance(0.5) ? `div(${wexpr(c)}, ${k})` : `(${wexpr(c)} % ${k})`
+    },
+    (c) => !c.signed,
+  ],
   // MULQ: two i16s, their whole product shifted (an unsigned program says i16 and back).
   [
     1,

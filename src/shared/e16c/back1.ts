@@ -96,6 +96,43 @@ const NEGATE: Partial<Record<BinOp, BinOp>> = {
 
 const fits14 = (v: number): boolean => v >= -8192 && v <= 8191
 
+/** How a word is divided by a constant without DIVU: see divideMagic. */
+export interface DivideMagic {
+  /** A shift right before the multiply: d's factors of two, where they spare the 17-bit m. */
+  pre: number
+  m: number
+  shift: number
+  /** m is the low 16 bits of a 17-bit multiplier: the quotient is ((n - t) >> 1) + t) >> shift. */
+  add: boolean
+}
+
+/**
+ * A word n divided by d (3 to 65535, no power of two) as the high half of n * m (MULHU)
+ * shifted right by `shift` (Granlund and Montgomery, "Division by invariant integers using
+ * multiplication", 1994). With m = ceil(2^(16+s) / d), n * m / 2^(16+s) is n / d plus
+ * n * e / (d * 2^(16+s)), e = m * d - 2^(16+s); while n * e < 2^(16+s) for every n there is,
+ * that stays under 1 / d, and the floors agree. An even d may divide n by its factors of two
+ * first (`pre`), leaving fewer n to hold to that (100 is 4 times 25). Where neither gives an
+ * m of 16 bits (d = 7), m takes 17 and the top bit is added back without overflow:
+ * t = n * m >> 16, then (((n - t) >> 1) + t) >> (l - 1), l = ceil(log2 d). Every d and n was
+ * checked once (4.3 billion); a test checks every n for many d.
+ */
+export function divideMagic(d: number): DivideMagic {
+  const twos = 31 - Math.clz32(d & -d)
+  for (const pre of twos > 0 ? [0, twos] : [0]) {
+    const odd = d >> pre
+    const most = 0xffff >> pre
+    for (let s = 0; s < 16; s++) {
+      const p = 2 ** (16 + s)
+      const m = Math.ceil(p / odd)
+      if (m > 0xffff) break
+      if ((m * odd - p) * most < p) return { pre, m, shift: s, add: false }
+    }
+  }
+  const l = 32 - Math.clz32(d - 1)
+  return { pre: 0, m: Math.floor((2 ** 16 * (2 ** l - d)) / d) + 1, shift: l - 1, add: true }
+}
+
 /** MULQ by 1 to 15; by 0 the low half of the product is MUL's (MULQ has no amount 0). */
 export const mulqLine = (d: string, a: string, b: string, shift: number): string =>
   shift === 0 ? `mul ${d}, ${a}, ${b}` : `mulq ${d}, ${a}, ${b}, ${shift}`
@@ -623,6 +660,40 @@ export class O1 {
     return true
   }
 
+  /**
+   * `a / k` or `a % k`, unsigned, for a k that is no power of two: the quotient by MULHU
+   * (divideMagic), the remainder a less the quotient times k - 5 to 7 cycles for a quotient
+   * (9 where the multiplier takes 17 bits) and 6 more for a remainder, to `li` and DIVU's or
+   * REMU's 19.
+   */
+  #divideByConstant(a: Value, k: number, remainder: boolean): void {
+    const { pre, m, shift, add } = divideMagic(k)
+    const ra = this.#inReg(a, new Set())
+    // A remainder reads a again at the end: its quotient may not take a's register.
+    const q = remainder ? this.#temp(new Set([ra])) : this.#result([ra])
+    const t = this.#temp(new Set([ra, q]))
+    this.#line(`li ${t}, ${m}`)
+    if (add) {
+      this.#line(`mulhu ${t}, ${ra}, ${t}`)
+      this.#line(`sub ${q}, ${ra}, ${t}`)
+      this.#line(`srli ${q}, ${q}, 1`)
+      this.#line(`add ${q}, ${q}, ${t}`)
+    } else if (pre > 0) {
+      this.#line(`srli ${q}, ${ra}, ${pre}`)
+      this.#line(`mulhu ${q}, ${q}, ${t}`)
+    } else this.#line(`mulhu ${q}, ${ra}, ${t}`)
+    if (shift > 0) this.#line(`srli ${q}, ${q}, ${shift}`)
+    if (!remainder) {
+      this.#stack.push({ kind: 'reg', r: q })
+      return
+    }
+    this.#line(`li ${t}, ${k}`)
+    this.#line(`mul ${q}, ${q}, ${t}`)
+    const d = this.#result([ra, q])
+    this.#line(`sub ${d}, ${ra}, ${q}`)
+    this.#stack.push({ kind: 'reg', r: d })
+  }
+
   /** `a op k` in one instruction where the machine has a form for it; false where it has none. */
   #immediate(op: BinOp, a: Value, k: number): boolean {
     if (op === 'mul') return this.#multiply(a, k)
@@ -631,6 +702,10 @@ export class O1 {
     // Unsigned division and remainder by a power of two are a shift and a mask.
     const u = k & 0xffff
     const power = u !== 0 && (u & (u - 1)) === 0
+    if ((op === 'divu' || op === 'remu') && u !== 0 && !power) {
+      this.#divideByConstant(a, u, op === 'remu')
+      return true
+    }
     if (power && op === 'divu') {
       mnemonic = 'srli'
       imm = Math.log2(u)

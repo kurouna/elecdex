@@ -1291,8 +1291,9 @@ number:
   ; lib/kit.e16.ts:243  at = wrap16(at - 2)
   addi s1, s1, -2
   ; lib/kit.e16.ts:245  const q = div(n, 10)
-  li t0, 10
-  divu t0, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
   sw t0, 0(fp) ; q
   ; lib/kit.e16.ts:246  vpoke(at, wrap16(zero + n - q * 10))
   lw t0, 2(fp) ; zero
@@ -4130,8 +4131,12 @@ sayNumber:
   li t2, 32
   j .L7
 .L6:
-  li t2, 10
-  remu t2, s2, t2
+  li t3, 52429
+  mulhu t2, s2, t3
+  srli t2, t2, 3
+  li t3, 10
+  mul t2, t2, t3
+  sub t2, s2, t2
   addi t2, t2, 48
 .L7:
   mv a0, t0
@@ -4159,8 +4164,9 @@ sayNumber:
 ;   n in a0
 divTen:
   ; sky.e16.ts:241  return div(n, 10)
-  li t0, 10
-  divu a0, a0, t0
+  li t1, 52429
+  mulhu t0, a0, t1
+  srli a0, t0, 3
 .return:
   ret
 
@@ -5308,18 +5314,16 @@ noseFalls:
 
 ; flight.e16.ts:181 playerStep(alive) at -O1
 ;   alive in s1
-;   wr in s3
-;   wp in 0(fp)
-;   bankTurn in s2
-;   rollAsked.wr in 2(fp)
+;   wr in s2
+;   wp in s0
+;   bankTurn in s3
 playerStep:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s1, 6(sp)
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  sw s0, 6(sp)
   sw s3, 8(sp)
-  sw s2, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
   mv s1, a0 ; alive
   ; flight.e16.ts:182  throttle = alive && held(B_R) ? 1 : alive && held(B_L) ? 2 : 0
   beqz s1, .L1
@@ -5352,7 +5356,7 @@ playerStep:
 .L5:
   li t0, 400
 .L6:
-  mv s3, t0 ; wr
+  mv s2, t0 ; wr
   ; flight.e16.ts:185  let wp = alive ? wantedPitch() : -120
   beqz s1, .L7
   call wantedPitch
@@ -5361,37 +5365,35 @@ playerStep:
 .L7:
   li t0, 65416
 .L8:
-  sw t0, 0(fp) ; wp
+  mv s0, t0 ; wp
   ; flight.e16.ts:186  if (stallState !== 0) {
   lw t0, 0x15c8(zero)
   beq t0, zero, .L9
   ; flight.e16.ts:187  wr = rollAsked(wr)
-  sw s3, 2(fp) ; rollAsked.wr
   ; flight.e16.ts:212  return stallState === 2 ? wr >> 1 : wr
   lw t0, 0x15c8(zero)
   li t1, 2
   bne t0, t1, .I1.L1
-  lw t0, 2(fp) ; rollAsked.wr
-  srai t0, t0, 1
+  srai t0, s2, 1
   j .I1_end
 .I1.L1:
-  lw t0, 2(fp)
+  mv t0, s2
 .I1_end:
-  mv s3, t0 ; wr
+  mv s2, t0 ; wr
   ; flight.e16.ts:188  wp = pullAsked(wp)
-  lw a0, 0(fp)
+  mv a0, s0
   call pullAsked
-  sw a0, 0(fp) ; wp
+  mv s0, a0 ; wp
 .L9:
   ; flight.e16.ts:190  rollRate = approach(rollRate, wr, 160)
   lw a0, 0x15d4(zero)
-  mv a1, s3
+  mv a1, s2
   li a2, 160
   call approach
   sw a0, 0x15d4(zero)
   ; flight.e16.ts:191  pitchRate = approach(pitchRate, wp, 60)
   lw a0, 0x15d6(zero)
-  lw a1, 0(fp)
+  mv a1, s0
   li a2, 60
   call approach
   sw a0, 0x15d6(zero)
@@ -5427,20 +5429,20 @@ playerStep:
   call vget
   neg t0, a0
   li t1, 330
-  mulq s2, t0, t1, 14
+  mulq s3, t0, t1, 14
   ; flight.e16.ts:197  if (bankTurn !== 0) {
-  beq s2, zero, .L13
+  beq s3, zero, .L13
   ; flight.e16.ts:198  turnWorld(V_PF, bankTurn)
   li a0, 0
-  mv a1, s2
+  mv a1, s3
   call turnWorld
   ; flight.e16.ts:199  turnWorld(V_PR, bankTurn)
   li a0, 3
-  mv a1, s2
+  mv a1, s3
   call turnWorld
   ; flight.e16.ts:200  turnWorld(V_PU, bankTurn)
   li a0, 6
-  mv a1, s2
+  mv a1, s3
   call turnWorld
 .L13:
   ; flight.e16.ts:204  pSquare = pSquare ^ 1
@@ -5460,13 +5462,12 @@ playerStep:
   ; flight.e16.ts:207  velocityKept()
   call velocityKept
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s1, 6(sp)
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  lw s0, 6(sp)
   lw s3, 8(sp)
-  lw s2, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  addi sp, sp, 10
   ret
 
 ; flight.e16.ts:216 pullAsked(wp) at -O1
@@ -7799,12 +7800,10 @@ points:
 
 ; game.e16.ts:329 sortieSetup(k) at -O1
 ;   k in s1
-;   skyIs.on in s2
 sortieSetup:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s2, 4(sp)
   mv s1, a0 ; k
   ; game.e16.ts:330  mapsClear()
   call mapsClear
@@ -7897,9 +7896,9 @@ sortieSetup:
 .L7:
 .L4:
   ; game.e16.ts:346  skyIs(true)
-  li s2, 1 ; skyIs.on
   ; game.e16.ts:237  skyOn = on
-  sw s2, 0x1c24(zero)
+  li t0, 1
+  sw t0, 0x1c24(zero)
   ; game.e16.ts:347  damage = 0
   sw zero, 0x1c30(zero)
   ; game.e16.ts:348  flown = 0
@@ -7928,8 +7927,7 @@ sortieSetup:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s2, 4(sp)
-  addi sp, sp, 6
+  addi sp, sp, 4
   ret
 
 ; game.e16.ts:357 cloudTint(k) at -O1
@@ -7989,12 +7987,10 @@ cloudTint:
 
 ; game.e16.ts:365 fly(k) at -O1
 ;   k in s1
-;   skyIs.on in s2
 fly:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s2, 4(sp)
   mv s1, a0 ; k
   ; game.e16.ts:366  sortie = k
   sw s1, 0x1c2e(zero)
@@ -8051,9 +8047,8 @@ fly:
   bgeu t1, t0, .L1
   ; game.e16.ts:380  break
   ; game.e16.ts:383  skyIs(false)
-  li s2, 0 ; skyIs.on
   ; game.e16.ts:237  skyOn = on
-  sw s2, 0x1c24(zero)
+  sw zero, 0x1c24(zero)
   ; game.e16.ts:384  gunSound(false)
   li a0, 0
   call gunSound
@@ -8062,8 +8057,7 @@ fly:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s2, 4(sp)
-  addi sp, sp, 6
+  addi sp, sp, 4
   ret
 
 ; game.e16.ts:389 flyFrame() at -O1
@@ -8870,8 +8864,9 @@ seekerTones:
   ; game.e16.ts:549  const step = div(lockT * 4, LOCK_FRAMES)
   lw t0, 0x1980(zero)
   slli t0, t0, 2
-  li t1, 44
-  divu s2, t0, t1
+  li t1, 47663
+  mulhu t0, t0, t1
+  srli s2, t0, 5
   ; game.e16.ts:550  if (s === 1) {
   li t0, 1
   bne s1, t0, .L1
@@ -9026,8 +9021,9 @@ draw:
   lw t1, 0x191c(zero)
   lw t2, 0x191e(zero)
   lw t3, 0x1c34(zero)
-  li a1, 60
-  divu t3, t3, a1
+  li a1, 34953
+  mulhu t3, t3, a1
+  srli t3, t3, 5
   mv a0, t0
   mv a1, t1
   mv a2, t2
@@ -12051,8 +12047,9 @@ wingman:
   bgeu t0, t1, .L5
   andi t0, s2, 511
   slli t0, t0, 3
-  li t1, 3
-  divu t0, t0, t1
+  li t1, 43691
+  mulhu t0, t0, t1
+  srli t0, t0, 1
   j .L6
 .L5:
   li t0, 0
@@ -12835,14 +12832,16 @@ timeSay:
   mv s2, a1 ; y
   mv s0, a2 ; frames
   ; scenes.e16.ts:369  const sec = div(frames, 60)
-  li t0, 60
-  divu s3, s0, t0
+  li t1, 34953
+  mulhu t0, s0, t1
+  srli s3, t0, 5
   ; scenes.e16.ts:370  sayNumber(cellXY(x, y), div(sec, 60), 1, SL_AMBER)
   mv a0, s1
   mv a1, s2
   call cellXY
-  li t0, 60
-  divu a1, s3, t0
+  li t1, 34953
+  mulhu t0, s3, t1
+  srli a1, t0, 5
   li a2, 1
   li a3, 4
   call sayNumber
@@ -12853,18 +12852,27 @@ timeSay:
   li a3, 4
   call sayChar
   ; scenes.e16.ts:372  sayChar(x + 2, y, 48 + div(sec % 60, 10), SL_AMBER)
-  li t0, 60
-  remu t0, s3, t0
-  li t1, 10
-  divu t0, t0, t1
+  li t1, 34953
+  mulhu t0, s3, t1
+  srli t0, t0, 5
+  li t1, 60
+  mul t0, t0, t1
+  sub t0, s3, t0
+  li t1, 52429
+  mulhu t0, t0, t1
+  srli t0, t0, 3
   addi a0, s1, 2
   mv a1, s2
   addi a2, t0, 48
   li a3, 4
   call sayChar
   ; scenes.e16.ts:373  sayChar(x + 3, y, 48 + (sec % 10), SL_AMBER)
-  li t0, 10
-  remu t0, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, s3, t0
   addi a0, s1, 3
   mv a1, s2
   addi a2, t0, 48
@@ -13098,8 +13106,9 @@ results:
   call wait
   ; scenes.e16.ts:420  const timeBonus = div(clock, 60) * 10
   lw t0, 0x1c34(zero)
-  li t1, 60
-  divu t0, t0, t1
+  li t1, 34953
+  mulhu t0, t0, t1
+  srli t0, t0, 5
   slli t1, t0, 3
   slli t0, t0, 1
   add s2, t0, t1
@@ -13238,8 +13247,9 @@ rank:
   sw s2, 4(sp)
   ; scenes.e16.ts:446  const sec = div(clock, 60)
   lw t0, 0x1c34(zero)
-  li t1, 60
-  divu s1, t0, t1
+  li t1, 34953
+  mulhu t0, t0, t1
+  srli s1, t0, 5
   ; scenes.e16.ts:447  const hits = hitsAgainst()
   call hitsAgainst
   mv s2, a0 ; hits
@@ -13330,36 +13340,53 @@ scoreSay:
   li a3, 4
   call sayNumber
   ; scenes.e16.ts:464  sayChar(x + 4, y, 48 + div(lo, 1000), SL_AMBER)
-  li t0, 1000
-  divu t0, s3, t0
+  li t1, 8389
+  srli t0, s3, 3
+  mulhu t0, t0, t1
+  srli t0, t0, 4
   addi a0, s1, 4
   mv a1, s2
   addi a2, t0, 48
   li a3, 4
   call sayChar
   ; scenes.e16.ts:465  sayChar(x + 5, y, 48 + (div(lo, 100) % 10), SL_AMBER)
-  li t0, 100
-  divu t0, s3, t0
-  li t1, 10
-  remu t0, t0, t1
+  li t1, 5243
+  srli t0, s3, 2
+  mulhu t0, t0, t1
+  srli t0, t0, 1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   addi a0, s1, 5
   mv a1, s2
   addi a2, t0, 48
   li a3, 4
   call sayChar
   ; scenes.e16.ts:466  sayChar(x + 6, y, 48 + (div(lo, 10) % 10), SL_AMBER)
-  li t0, 10
-  divu t0, s3, t0
-  li t1, 10
-  remu t0, t0, t1
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   addi a0, s1, 6
   mv a1, s2
   addi a2, t0, 48
   li a3, 4
   call sayChar
   ; scenes.e16.ts:467  sayChar(x + 7, y, 48 + (lo % 10), SL_AMBER)
-  li t0, 10
-  remu t0, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, s3, t0
   addi a0, s1, 7
   mv a1, s2
   addi a2, t0, 48
@@ -13531,8 +13558,9 @@ continueAsk:
   mv a0, s1
   call calmFrame
   ; scenes.e16.ts:512  sayChar(19, 15, 57 - div(t, 60), SL_RED)
-  li t0, 60
-  divu t0, s1, t0
+  li t1, 34953
+  mulhu t0, s1, t1
+  srli t0, t0, 5
   li t1, 57
   sub t1, t1, t0
   li a0, 19
@@ -14544,36 +14572,53 @@ zero4:
   mv s3, a2 ; v
   mv s0, a3 ; s
   ; best.e16.ts:137  sayChar(x, y, 48 + div(v, 1000), s)
-  li t0, 1000
-  divu t0, s3, t0
+  li t1, 8389
+  srli t0, s3, 3
+  mulhu t0, t0, t1
+  srli t0, t0, 4
   mv a0, s1
   mv a1, s2
   addi a2, t0, 48
   mv a3, s0
   call sayChar
   ; best.e16.ts:138  sayChar(x + 1, y, 48 + (div(v, 100) % 10), s)
-  li t0, 100
-  divu t0, s3, t0
-  li t1, 10
-  remu t0, t0, t1
+  li t1, 5243
+  srli t0, s3, 2
+  mulhu t0, t0, t1
+  srli t0, t0, 1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   addi a0, s1, 1
   mv a1, s2
   addi a2, t0, 48
   mv a3, s0
   call sayChar
   ; best.e16.ts:139  sayChar(x + 2, y, 48 + (div(v, 10) % 10), s)
-  li t0, 10
-  divu t0, s3, t0
-  li t1, 10
-  remu t0, t0, t1
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   addi a0, s1, 2
   mv a1, s2
   addi a2, t0, 48
   mv a3, s0
   call sayChar
   ; best.e16.ts:140  sayChar(x + 3, y, 48 + (v % 10), s)
-  li t0, 10
-  remu t0, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, s3, t0
   addi a0, s1, 3
   mv a1, s2
   addi a2, t0, 48
@@ -15085,8 +15130,10 @@ headingSay:
   sw t0, shown+4(zero)
   ; hud.e16.ts:142  sayChar(19, 3, 48 + div(heading, 100), SL_HUD_TEXT)
   lw t0, 0x1bf2(zero)
-  li t1, 100
-  divu t0, t0, t1
+  li t1, 5243
+  srli t0, t0, 2
+  mulhu t0, t0, t1
+  srli t0, t0, 1
   li a0, 19
   li a1, 3
   addi a2, t0, 48
@@ -15094,10 +15141,15 @@ headingSay:
   call sayChar
   ; hud.e16.ts:143  sayChar(20, 3, 48 + (div(heading, 10) % 10), SL_HUD_TEXT)
   lw t0, 0x1bf2(zero)
-  li t1, 10
-  divu t0, t0, t1
-  li t1, 10
-  remu t0, t0, t1
+  li t1, 52429
+  mulhu t0, t0, t1
+  srli t0, t0, 3
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   li a0, 20
   li a1, 3
   addi a2, t0, 48
@@ -15105,8 +15157,12 @@ headingSay:
   call sayChar
   ; hud.e16.ts:144  sayChar(21, 3, 48 + (heading % 10), SL_HUD_TEXT)
   lw t0, 0x1bf2(zero)
-  li t1, 10
-  remu t0, t0, t1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   li a0, 21
   li a1, 3
   addi a2, t0, 48
@@ -15305,36 +15361,53 @@ zeros:
   mv s2, a1 ; y
   mv s3, a2 ; lo
   ; hud.e16.ts:188  sayChar(x, y, 48 + div(lo, 1000), SL_AMBER)
-  li t0, 1000
-  divu t0, s3, t0
+  li t1, 8389
+  srli t0, s3, 3
+  mulhu t0, t0, t1
+  srli t0, t0, 4
   mv a0, s1
   mv a1, s2
   addi a2, t0, 48
   li a3, 4
   call sayChar
   ; hud.e16.ts:189  sayChar(x + 1, y, 48 + (div(lo, 100) % 10), SL_AMBER)
-  li t0, 100
-  divu t0, s3, t0
-  li t1, 10
-  remu t0, t0, t1
+  li t1, 5243
+  srli t0, s3, 2
+  mulhu t0, t0, t1
+  srli t0, t0, 1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   addi a0, s1, 1
   mv a1, s2
   addi a2, t0, 48
   li a3, 4
   call sayChar
   ; hud.e16.ts:190  sayChar(x + 2, y, 48 + (div(lo, 10) % 10), SL_AMBER)
-  li t0, 10
-  divu t0, s3, t0
-  li t1, 10
-  remu t0, t0, t1
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   addi a0, s1, 2
   mv a1, s2
   addi a2, t0, 48
   li a3, 4
   call sayChar
   ; hud.e16.ts:191  sayChar(x + 3, y, 48 + (lo % 10), SL_AMBER)
-  li t0, 10
-  remu t0, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, s3, t0
   addi a0, s1, 3
   mv a1, s2
   addi a2, t0, 48
@@ -15773,8 +15846,12 @@ headingTape:
   ; hud.e16.ts:321  const h = heading
   lw s2, 0x1bf2(zero)
   ; hud.e16.ts:322  const off = i16(h % 5) * 2
-  li t0, 5
-  remu t0, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli t0, t0, 2
+  li t1, 5
+  mul t0, t0, t1
+  sub t0, s2, t0
   slli s3, t0, 1
   ; hud.e16.ts:323  let k: i16 = -4
   li s1, 65532 ; k
@@ -16800,8 +16877,9 @@ lockDraw:
   slli t1, t0, 2
   slli t0, t0, 1
   add t0, t0, t1
-  li t1, 44
-  divu a0, t0, t1
+  li t1, 47663
+  mulhu t0, t0, t1
+  srli a0, t0, 5
   li a1, 0
   call lockBar
 .return:
@@ -18470,8 +18548,12 @@ boomDraw:
 .L8:
   mv t3, s1
 .L9:
-  li a1, 7
-  divu t3, t3, a1
+  li a1, 9363
+  mulhu a1, t3, a1
+  sub t3, t3, a1
+  srli t3, t3, 1
+  add t3, t3, a1
+  srli t3, t3, 2
   slli t3, t3, 2
   add t2, t2, t3
   or t2, t2, s2
@@ -18539,8 +18621,9 @@ puffDraw:
   sw a0, 0(sp)
   call scrY
   slli t0, s1, 2
-  li t1, 45
-  divu t0, t0, t1
+  li t1, 11651
+  mulhu t0, t0, t1
+  srli t0, t0, 3
   slli t0, t0, 2
   addi t0, t0, 461
   ori t0, t0, 3072
@@ -19725,8 +19808,9 @@ assistAim:
 .L3:
   ; arms.e16.ts:120  let t = i16(div(eDist, 70))
   lw t0, 0x1642(zero)
-  li t1, 70
-  divu s1, t0, t1
+  li t1, 59919
+  mulhu t0, t0, t1
+  srli s1, t0, 6
   ; arms.e16.ts:121  if (t > 31) t = 31
   li t0, 31
   bge t0, s1, .L5
@@ -20867,8 +20951,9 @@ launch:
   lw t2, 0(fp) ; tenths
   addi t1, t1, 64
   mul t1, t1, t2
-  li t2, 10
-  divu t1, t1, t2
+  li t2, 52429
+  mulhu t1, t1, t2
+  srli t1, t1, 3
   sw t1, mSpeed(t0)
   ; arms.e16.ts:392  mTop[k] = M_TOP_TENTH * tenths
   slli t0, s1, 1

@@ -763,16 +763,21 @@ unsignedText:
   li t0, 10
   bltu s1, t0, .L1
   ; basic/text.e16.ts:289  n = unsignedText(div(value, 10), out)
-  li t0, 10
-  divu a0, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli a0, t0, 3
   mv a1, s3
   call unsignedText
   mv s2, a0 ; n
 .L1:
   ; basic/text.e16.ts:290  poke(out + n, CH_0 + (value % 10))
   add t0, s3, s2
-  li t1, 10
-  remu t1, s1, t1
+  li t2, 52429
+  mulhu t1, s1, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t1, s1, t1
   addi t1, t1, 48
   sb t1, 0(t0)
   ; basic/text.e16.ts:291  return n + 1
@@ -796,13 +801,18 @@ printUnsigned:
   li t0, 10
   bltu s1, t0, .L1
   ; basic/text.e16.ts:296  printUnsigned(div(value, 10))
-  li t0, 10
-  divu a0, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli a0, t0, 3
   call printUnsigned
 .L1:
   ; basic/text.e16.ts:297  putc(CH_0 + (value % 10))
-  li t0, 10
-  remu t0, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, s1, t0
   addi a0, t0, 48
   call putc
 .return:
@@ -4965,8 +4975,12 @@ separator:
   call putc
 .L6:
   lw t0, 0(zero)
-  li t1, 10
-  remu t0, t0, t1
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
   beq t0, zero, .L8
   lw t0, 0(zero)
   bne t0, zero, .L4
@@ -8087,13 +8101,18 @@ noArgument:
 ;   after in a2
 twoDigits:
   ; basic/strings.e16.ts:486  poke(at, CH_0 + div(v, 10))
-  li t0, 10
-  divu t0, a1, t0
+  li t1, 52429
+  mulhu t0, a1, t1
+  srli t0, t0, 3
   addi t0, t0, 48
   sb t0, 0(a0)
   ; basic/strings.e16.ts:487  poke(at + 1, CH_0 + (v % 10))
-  li t0, 10
-  remu t0, a1, t0
+  li t1, 52429
+  mulhu t0, a1, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, a1, t0
   addi t0, t0, 48
   sb t0, 1(a0)
   ; basic/strings.e16.ts:488  if (after !== 0) poke(at + 2, after)
@@ -9256,9 +9275,13 @@ beepStatement:
   ; basic/strings.e16.ts:801  waitTicks(ms + div(ms * 3 + 124, 125))
   slli t1, s1, 1
   add t0, t1, s1
-  li t1, 125
   addi t0, t0, 124
-  divu t0, t0, t1
+  li t1, 1573
+  mulhu t1, t0, t1
+  sub t0, t0, t1
+  srli t0, t0, 1
+  add t0, t0, t1
+  srli t0, t0, 6
   add a0, s1, t0
   call waitTicks
   ; basic/strings.e16.ts:802  soundMark(false)
@@ -10426,10 +10449,11 @@ gprintStatement:
   ; basic/screen.e16.ts:286  const cols = peek16(COLS)
   lw s1, 4(zero)
   ; basic/screen.e16.ts:287  const after = div(x + 5, 6)
-  li t0, 6
-  addi t1, s2, 5
-  divu t1, t1, t0
-  sw t1, 0(fp) ; n/after
+  addi t0, s2, 5
+  li t1, 43691
+  mulhu t0, t0, t1
+  srli t0, t0, 2
+  sw t0, 0(fp) ; n/after
   ; basic/screen.e16.ts:288  locate(after < cols ? after : cols - 1, row)
   lw t0, 0(fp) ; n/after
   bgeu t0, s1, .L13
@@ -11362,24 +11386,22 @@ loadStatement:
   ret
 
 ; basic/files.e16.ts:320 readListing(keep) at -O1
-;   keep in 8(fp)
+;   keep in 6(fp)
 ;   offset in s3
 ;   n in s1
 ;   room in 0(fp)
 ;   got in 2(fp)
 ;   k in s2
 ;   c in 4(fp)
-;   lineChar.n in 6(fp)
-;   lineChar.c in 10(fp)
 readListing:
-  addi sp, sp, -22
-  sw ra, 12(sp)
-  sw s3, 14(sp)
-  sw s1, 16(sp)
-  sw s2, 18(sp)
-  sw s0, 20(sp)
+  addi sp, sp, -18
+  sw ra, 8(sp)
+  sw s3, 10(sp)
+  sw s1, 12(sp)
+  sw s2, 14(sp)
+  sw s0, 16(sp)
   mv fp, sp
-  sw a0, 8(fp) ; keep
+  sw a0, 6(fp) ; keep
   ; basic/files.e16.ts:321  let offset: u16 = 0
   li s3, 0 ; offset
   ; basic/files.e16.ts:322  let n: u16 = 0
@@ -11424,7 +11446,7 @@ readListing:
   bgeu zero, s1, .L12
   ; basic/files.e16.ts:331  room = lineRead(n, keep, room)
   mv a0, s1
-  lw a1, 8(fp)
+  lw a1, 6(fp)
   lw a2, 0(fp)
   call lineRead
   sw a0, 0(fp) ; room
@@ -11434,21 +11456,15 @@ readListing:
   j .L13
 .L10:
   ; basic/files.e16.ts:333  n = lineChar(n, c)
-  lw t0, 4(fp) ; c
-  sw t0, 10(fp) ; lineChar.c
-  sw s1, 6(fp) ; lineChar.n
   ; basic/files.e16.ts:342  if (n < LINE_MAX) poke(addr(lineBuf) + n, c)
   li t0, 78
-  lw t1, 6(fp) ; lineChar.n
-  bgeu t1, t0, .I1.L1
+  bgeu s1, t0, .I1.L1
   ; basic/files.e16.ts:342  poke(addr(lineBuf) + n, c)
-  lw t0, 6(fp) ; lineChar.n
-  lw t1, 10(fp) ; lineChar.c
-  sb t1, lineBuf(t0)
+  lw t0, 4(fp) ; c
+  sb t0, lineBuf(s1)
 .I1.L1:
   ; basic/files.e16.ts:343  return n + 1
-  lw t0, 6(fp) ; lineChar.n
-  addi s1, t0, 1
+  addi s1, s1, 1
 .L13:
   addi s2, s2, 1
 .L8:
@@ -11463,18 +11479,18 @@ readListing:
   bgeu zero, s1, .L14
   ; basic/files.e16.ts:337  lineRead(n, keep, room)
   mv a0, s1
-  lw a1, 8(fp)
+  lw a1, 6(fp)
   lw a2, 0(fp)
   call lineRead
 .L14:
 .return:
   mv sp, fp
-  lw ra, 12(sp)
-  lw s3, 14(sp)
-  lw s1, 16(sp)
-  lw s2, 18(sp)
-  lw s0, 20(sp)
-  addi sp, sp, 22
+  lw ra, 8(sp)
+  lw s3, 10(sp)
+  lw s1, 12(sp)
+  lw s2, 14(sp)
+  lw s0, 16(sp)
+  addi sp, sp, 18
   ret
 
 ; basic/files.e16.ts:347 lineRead(n, keep, room) at -O1
@@ -13882,13 +13898,18 @@ emitUnsigned:
   li t0, 10
   bltu s1, t0, .L1
   ; basic/monitor.e16.ts:100  emitUnsigned(div(v, 10))
-  li t0, 10
-  divu a0, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli a0, t0, 3
   call emitUnsigned
 .L1:
   ; basic/monitor.e16.ts:101  emit(0x30 + (v % 10))
-  li t0, 10
-  remu t0, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, s1, t0
   addi a0, t0, 48
   call emit
 .return:
@@ -14773,27 +14794,24 @@ sysName:
 ; basic/monitor.e16.ts:415 system(f3, rd, rs1, imm14) at -O1
 ;   f3 in s1
 ;   rd in s3
-;   rs1 in 0(fp)
+;   rs1 in s0
 ;   imm14 in s2
-;   setImm.v in 2(fp)
 system:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s1, 6(sp)
-  sw s3, 8(sp)
-  sw s2, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s3, 4(sp)
+  sw s0, 6(sp)
+  sw s2, 8(sp)
   mv s1, a0 ; f3
   mv s3, a1 ; rd
-  sw a2, 0(fp) ; rs1
+  mv s0, a2 ; rs1
   mv s2, a3 ; imm14
   ; basic/monitor.e16.ts:416  if (f3 === 0) {
   bne s1, zero, .L1
   ; basic/monitor.e16.ts:418  if (rd !== 0 || rs1 !== 0) illegal()
   bne s3, zero, .L3
-  lw t0, 0(fp) ; rs1
-  beq t0, zero, .L2
+  beq s0, zero, .L2
 .L3:
   ; basic/monitor.e16.ts:418  illegal()
   ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
@@ -14832,23 +14850,20 @@ system:
   mv a0, t0
   mv a1, t1
   mv a2, s3
-  lw a3, 0(fp)
+  mv a3, s0
   call decoded
   ; basic/monitor.e16.ts:424  setImm(i16(imm14))
-  sw s2, 2(fp) ; setImm.v
   ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
-  lw t0, 2(fp) ; setImm.v
-  sw t0, 142(zero)
+  sw s2, 142(zero)
 .L7:
 .L5:
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s1, 6(sp)
-  lw s3, 8(sp)
-  lw s2, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s3, 4(sp)
+  lw s0, 6(sp)
+  lw s2, 8(sp)
+  addi sp, sp, 10
   ret
 
 ; basic/monitor.e16.ts:429 upperForm(major, rd, lo, hi) at -O1
@@ -14858,14 +14873,13 @@ system:
 ;   hi in s3
 ;   field in 0(fp)
 ;   setImm.v in 4(fp)
-;   setImm.v in 6(fp)
 upperForm:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s1, 10(sp)
-  sw s2, 12(sp)
-  sw s3, 14(sp)
-  sw s0, 16(sp)
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s1, 8(sp)
+  sw s2, 10(sp)
+  sw s3, 12(sp)
+  sw s0, 14(sp)
   mv fp, sp
   mv s1, a0 ; major
   mv s2, a1 ; rd
@@ -14917,21 +14931,19 @@ upperForm:
   li a3, 0
   call decoded
   ; basic/monitor.e16.ts:438  setImm(i16(field))
-  lw t0, 0(fp) ; field
-  sw t0, 6(fp) ; setImm.v
   ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
-  lw t0, 6(fp) ; setImm.v
+  lw t0, 0(fp) ; field
   sw t0, 142(zero)
 .L4:
 .L2:
 .return:
   mv sp, fp
-  lw ra, 8(sp)
-  lw s1, 10(sp)
-  lw s2, 12(sp)
-  lw s3, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw ra, 6(sp)
+  lw s1, 8(sp)
+  lw s2, 10(sp)
+  lw s3, 12(sp)
+  lw s0, 14(sp)
+  addi sp, sp, 16
   ret
 
 ; basic/monitor.e16.ts:443 registers(f10, f3, rd, rs1) at -O1
@@ -14940,14 +14952,13 @@ upperForm:
 ;   rd in s3
 ;   rs1 in 0(fp)
 ;   amount/key in s1
-;   setImm.v in 4(fp)
 registers:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s2, 8(sp)
-  sw s3, 10(sp)
-  sw s1, 12(sp)
-  sw s0, 14(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s2, 6(sp)
+  sw s3, 8(sp)
+  sw s1, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
   mv s2, a0 ; f10
   sw a1, 2(fp) ; f3
@@ -14976,10 +14987,8 @@ registers:
   lw a3, 0(fp)
   call decoded
   ; basic/monitor.e16.ts:447  setImm(i16(amount))
-  sw s1, 4(fp) ; setImm.v
   ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
-  lw t0, 4(fp) ; setImm.v
-  sw t0, 142(zero)
+  sw s1, 142(zero)
   ; basic/monitor.e16.ts:448  return
   j .return
 .L1:
@@ -15009,12 +15018,12 @@ registers:
   call decoded
 .return:
   mv sp, fp
-  lw ra, 6(sp)
-  lw s2, 8(sp)
-  lw s3, 10(sp)
-  lw s1, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  lw ra, 4(sp)
+  lw s2, 6(sp)
+  lw s3, 8(sp)
+  lw s1, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
 ; basic/monitor.e16.ts:454 decode32(lo, hi) at -O1
@@ -15236,16 +15245,13 @@ decode32:
 ;   r9 in 0(fp)
 ;   reg/off7 in s2
 ;   setImm.v in 2(fp)
-;   setRs2.r in 4(fp)
-;   setImm.v in 6(fp)
-;   setRs2.r in 8(fp)
 quadrant0:
-  addi sp, sp, -20
-  sw ra, 10(sp)
-  sw s1, 12(sp)
-  sw s3, 14(sp)
-  sw s2, 16(sp)
-  sw s0, 18(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s1, 6(sp)
+  sw s3, 8(sp)
+  sw s2, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
   mv s1, a0 ; h
   ; basic/monitor.e16.ts:489  const f3 = h >> 13
@@ -15284,10 +15290,8 @@ quadrant0:
   mv a3, t0
   call decoded
   ; basic/monitor.e16.ts:496  setRs2(reg)
-  sw s2, 4(fp) ; setRs2.r
   ; basic/monitor.e16.ts:190  poke16(D_RS2, r)
-  lw t0, 4(fp) ; setRs2.r
-  sw t0, 140(zero)
+  sw s2, 140(zero)
   j .L3
 .L2:
   ; basic/monitor.e16.ts:498  decoded(reg === 0 ? 0 : str('c.lw'), F_MEM, reg, (h >> 3) & 15)
@@ -15313,10 +15317,8 @@ quadrant0:
   andi t0, t0, 127
   slli s2, t0, 1
   ; basic/monitor.e16.ts:503  setImm(i16(off7))
-  sw s2, 6(fp) ; setImm.v
   ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
-  lw t0, 6(fp) ; setImm.v
-  sw t0, 142(zero)
+  sw s2, 142(zero)
   ; basic/monitor.e16.ts:504  if (f3 === 2) {
   li t0, 2
   bne s3, t0, .L6
@@ -15345,10 +15347,8 @@ quadrant0:
   li a3, 2
   call decoded
   ; basic/monitor.e16.ts:508  setRs2(r9)
-  lw t0, 0(fp) ; r9
-  sw t0, 8(fp) ; setRs2.r
   ; basic/monitor.e16.ts:190  poke16(D_RS2, r)
-  lw t0, 8(fp) ; setRs2.r
+  lw t0, 0(fp) ; r9
   sw t0, 140(zero)
   j .L11
 .L10:
@@ -15374,26 +15374,24 @@ quadrant0:
 .L9:
 .return:
   mv sp, fp
-  lw ra, 10(sp)
-  lw s1, 12(sp)
-  lw s3, 14(sp)
-  lw s2, 16(sp)
-  lw s0, 18(sp)
-  addi sp, sp, 20
+  lw ra, 4(sp)
+  lw s1, 6(sp)
+  lw s3, 8(sp)
+  lw s2, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
 ; basic/monitor.e16.ts:517 shiftC(name, r, amount) at -O1
 ;   name in s3
 ;   r in s1
 ;   amount in s2
-;   setImm.v in s0
 shiftC:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
   sw s3, 2(sp)
   sw s1, 4(sp)
   sw s2, 6(sp)
-  sw s0, 8(sp)
   mv s3, a0 ; name
   mv s1, a1 ; r
   mv s2, a2 ; amount
@@ -15415,17 +15413,15 @@ shiftC:
   mv a3, s1
   call decoded
   ; basic/monitor.e16.ts:522  setImm(i16(amount))
-  mv s0, s2 ; setImm.v
   ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
-  sw s0, 142(zero)
+  sw s2, 142(zero)
 .L3:
 .return:
   lw ra, 0(sp)
   lw s3, 2(sp)
   lw s1, 4(sp)
   lw s2, 6(sp)
-  lw s0, 8(sp)
-  addi sp, sp, 10
+  addi sp, sp, 8
   ret
 
 ; basic/monitor.e16.ts:527 quadrant1(h) at -O1
@@ -15435,14 +15431,13 @@ shiftC:
 ;   raw6 in 0(fp)
 ;   imm6 in 2(fp)
 ;   switch1 in s2
-;   setImm.v in 6(fp)
 quadrant1:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s3, 10(sp)
-  sw s1, 12(sp)
-  sw s2, 14(sp)
-  sw s0, 16(sp)
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s3, 8(sp)
+  sw s1, 10(sp)
+  sw s2, 12(sp)
+  sw s0, 14(sp)
   mv fp, sp
   mv s3, a0 ; h
   ; basic/monitor.e16.ts:528  const f3 = h >> 13
@@ -15461,10 +15456,8 @@ quadrant1:
   srai t0, t0, 10
   sw t0, 2(fp) ; imm6
   ; basic/monitor.e16.ts:532  setImm(imm6)
-  lw t0, 2(fp) ; imm6
-  sw t0, 6(fp) ; setImm.v
   ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
-  lw t0, 6(fp) ; setImm.v
+  lw t0, 2(fp) ; imm6
   sw t0, 142(zero)
   ; basic/monitor.e16.ts:533  switch ((f3 << 1) | ((h >> 2) & 1)) {
   lw t0, 4(fp) ; f3
@@ -15584,12 +15577,12 @@ quadrant1:
 .L1:
 .return:
   mv sp, fp
-  lw ra, 8(sp)
-  lw s3, 10(sp)
-  lw s1, 12(sp)
-  lw s2, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw ra, 6(sp)
+  lw s3, 8(sp)
+  lw s1, 10(sp)
+  lw s2, 12(sp)
+  lw s0, 14(sp)
+  addi sp, sp, 16
   ret
 
 ; basic/monitor.e16.ts:559 jumpsC(h, f3, r) at -O1
@@ -15730,14 +15723,13 @@ pairName:
 ;   rs2 in 0(fp)
 ;   form in s2
 ;   ok in 2(fp)
-;   setRs2.r in 4(fp)
 quadrant2:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s3, 8(sp)
-  sw s1, 10(sp)
-  sw s2, 12(sp)
-  sw s0, 14(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s3, 6(sp)
+  sw s1, 8(sp)
+  sw s2, 10(sp)
+  sw s0, 12(sp)
   mv fp, sp
   mv s3, a0 ; h
   ; basic/monitor.e16.ts:590  const rd = (h >> 8) & 15
@@ -15754,10 +15746,8 @@ quadrant2:
   andi t1, t1, 3
   or s2, t0, t1
   ; basic/monitor.e16.ts:593  setRs2(rs2)
-  lw t0, 0(fp) ; rs2
-  sw t0, 4(fp) ; setRs2.r
   ; basic/monitor.e16.ts:190  poke16(D_RS2, r)
-  lw t0, 4(fp) ; setRs2.r
+  lw t0, 0(fp) ; rs2
   sw t0, 140(zero)
   ; basic/monitor.e16.ts:594  if (form === 8 || form === 9) {
   li t0, 8
@@ -15838,12 +15828,12 @@ quadrant2:
 .L8:
 .return:
   mv sp, fp
-  lw ra, 6(sp)
-  lw s3, 8(sp)
-  lw s1, 10(sp)
-  lw s2, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  lw ra, 4(sp)
+  lw s3, 6(sp)
+  lw s1, 8(sp)
+  lw s2, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
 ; basic/monitor.e16.ts:608 pairChanges(form, rd, rs2) at -O1

@@ -1049,8 +1049,9 @@ number:
   ; lib/kit.e16.ts:243  at = wrap16(at - 2)
   addi s1, s1, -2
   ; lib/kit.e16.ts:245  const q = div(n, 10)
-  li t0, 10
-  divu t0, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
   sw t0, 0(fp) ; q
   ; lib/kit.e16.ts:246  vpoke(at, wrap16(zero + n - q * 10))
   lw t0, 2(fp) ; zero
@@ -2519,10 +2520,15 @@ rowMake:
   bgeu t0, s1, .L1
   li t0, 506
   bgeu s1, t0, .L1
-  li t0, 100
-  addi t1, s1, -6
-  remu t1, t1, t0
-  bne t1, zero, .L1
+  addi t0, s1, -6
+  li t2, 5243
+  srli t1, t0, 2
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 100
+  mul t1, t1, t2
+  sub t0, t0, t1
+  bne t0, zero, .L1
 .L2:
   ; field.e16.ts:109  earthFor(r)
   mv a0, s1
@@ -2572,11 +2578,15 @@ rowMake:
   bltu s1, t0, .L10
   li t0, 506
   bgeu s1, t0, .L10
-  li t0, 10
-  addi t1, s1, -6
-  remu t1, t1, t0
-  li t0, 7
-  bne t1, t0, .L10
+  addi t0, s1, -6
+  li t2, 52429
+  mulhu t1, t0, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t0, t0, t1
+  li t1, 7
+  bne t0, t1, .L10
   ; field.e16.ts:121  cells[base + randBelow(COLS)] = T_AIR
   li a0, 9
   call randBelow
@@ -4711,22 +4721,20 @@ down:
   ret
 
 ; fall.e16.ts:447 settle(u) at -O1
-;   u in s2
+;   u in s3
 ;   k in s1
-;   up in 0(fp)
-;   c in s3
-;   landed.c in 2(fp)
+;   up in s0
+;   c in s2
 settle:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s2, 6(sp)
-  sw s1, 8(sp)
-  sw s3, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  mv s2, a0 ; u
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s3, 2(sp)
+  sw s1, 4(sp)
+  sw s0, 6(sp)
+  sw s2, 8(sp)
+  mv s3, a0 ; u
   ; fall.e16.ts:449  if (!touches(u)) return
-  mv a0, s2
+  mv a0, s3
   call touches
   bnez a0, .L1
   ; fall.e16.ts:449  return
@@ -4739,7 +4747,7 @@ settle:
 .L2:
   ; fall.e16.ts:452  if (lbUnit[k] === u) gSet[lbGroup[k]] = 0
   lbu t0, lbUnit(s1)
-  bne t0, s2, .L6
+  bne t0, s3, .L6
   ; fall.e16.ts:452  gSet[lbGroup[k]] = 0
   lbu t0, lbGroup(s1)
   sb zero, gSet(t0)
@@ -4750,18 +4758,15 @@ settle:
   lw t0, 0x158a(zero)
   bltu s1, t0, .L2
   ; fall.e16.ts:457  let up = true
-  li t0, 1
-  sw t0, 0(fp) ; up
+  li s0, 1 ; up
   ; fall.e16.ts:458  while (settlePass(u, up)) up = !up
   j .L9
 .L7:
   ; fall.e16.ts:458  up = !up
-  lw t0, 0(fp) ; up
-  seqz t0, t0
-  sw t0, 0(fp) ; up
+  seqz s0, s0
 .L9:
-  mv a0, s2
-  lw a1, 0(fp)
+  mv a0, s3
+  mv a1, s0
   call settlePass
   bnez a0, .L7
   ; fall.e16.ts:460  k = lbN
@@ -4773,29 +4778,27 @@ settle:
   addi s1, s1, -1
   ; fall.e16.ts:463  if (lbUnit[k] === u && gSet[lbGroup[k]] !== 0) {
   lbu t0, lbUnit(s1)
-  bne t0, s2, .L15
+  bne t0, s3, .L15
   lbu t0, lbGroup(s1)
   lbu t0, gSet(t0)
   beq t0, zero, .L15
   ; fall.e16.ts:464  const c = lbCell[k]
   slli t0, s1, 1
-  lw s3, lbCell(t0)
+  lw s2, lbCell(t0)
   ; fall.e16.ts:465  cells[c] = cells[c] & ~F_LOOSE
-  lbu t0, cells(s3)
+  lbu t0, cells(s2)
   andi t0, t0, -129
-  sb t0, cells(s3)
+  sb t0, cells(s2)
   ; fall.e16.ts:466  markAround(c)
-  mv a0, s3
+  mv a0, s2
   call markAround
   ; fall.e16.ts:467  landed(c)
-  sw s3, 2(fp) ; landed.c
   ; fall.e16.ts:551  if (landAt === 0xffff) landAt = c
   lw t0, 0x1a18(zero)
   li t1, 65535
   bne t0, t1, .I1.L1
   ; fall.e16.ts:551  landAt = c
-  lw t0, 2(fp) ; landed.c
-  sw t0, 0x1a18(zero)
+  sw s2, 0x1a18(zero)
 .I1.L1:
   ; fall.e16.ts:552  if (landN < 64) {
   lw t0, 0x1a0a(zero)
@@ -4804,8 +4807,7 @@ settle:
   ; fall.e16.ts:553  landQ[landN] = c
   lw t0, 0x1a0a(zero)
   slli t0, t0, 1
-  lw t1, 2(fp) ; landed.c
-  sw t1, landQ(t0)
+  sw s2, landQ(t0)
   ; fall.e16.ts:554  landN++
   lw t0, 0x1a0a(zero)
   addi t0, t0, 1
@@ -4818,13 +4820,12 @@ settle:
 .L13:
   bltu zero, s1, .L11
 .return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s2, 6(sp)
-  lw s1, 8(sp)
-  lw s3, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw ra, 0(sp)
+  lw s3, 2(sp)
+  lw s1, 4(sp)
+  lw s0, 6(sp)
+  lw s2, 8(sp)
+  addi sp, sp, 10
   ret
 
 ; fall.e16.ts:474 settlePass(u, up) at -O1
@@ -5677,8 +5678,12 @@ figure:
   li t0, 32
   j .L6
 .L5:
-  li t0, 10
-  remu t0, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli t0, t0, 3
+  li t1, 10
+  mul t0, t0, t1
+  sub t0, s1, t0
   addi t0, t0, 48
 .L6:
   sw t0, 8(fp) ; c
@@ -5690,8 +5695,9 @@ figure:
   mv a0, s3
   call vpoke
   ; hud.e16.ts:52  v = div(v, 10)
-  li t0, 10
-  divu s1, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli s1, t0, 3
   ; hud.e16.ts:53  at = at - 2
   addi s3, s3, -2
   ; hud.e16.ts:54  k++
@@ -6598,8 +6604,12 @@ pulse:
   ; drill.e16.ts:410  const turn = (frame >> 3) % 3
   lw t0, 0x1d0e(zero)
   srli t0, t0, 3
-  li t1, 3
-  remu s3, t0, t1
+  li t2, 43691
+  mulhu t1, t0, t2
+  srli t1, t1, 1
+  li t2, 3
+  mul t1, t1, t2
+  sub s3, t0, t1
   ; drill.e16.ts:411  colour(SL_FLASH, 9, palCopy[SL_FLASH * 16 + 9 + turn])
   addi t0, s3, 105
   slli t0, t0, 1
@@ -6609,26 +6619,34 @@ pulse:
   mv a2, t0
   call colour
   ; drill.e16.ts:412  colour(SL_FLASH, 10, palCopy[SL_FLASH * 16 + 9 + ((turn + 1) % 3)])
-  li t0, 3
-  addi t1, s3, 1
-  remu t1, t1, t0
-  addi t1, t1, 105
-  slli t1, t1, 1
-  lw t1, palCopy(t1)
+  addi t0, s3, 1
+  li t2, 43691
+  mulhu t1, t0, t2
+  srli t1, t1, 1
+  li t2, 3
+  mul t1, t1, t2
+  sub t0, t0, t1
+  addi t0, t0, 105
+  slli t0, t0, 1
+  lw t0, palCopy(t0)
   li a0, 6
   li a1, 10
-  mv a2, t1
+  mv a2, t0
   call colour
   ; drill.e16.ts:413  colour(SL_FLASH, 11, palCopy[SL_FLASH * 16 + 9 + ((turn + 2) % 3)])
-  li t0, 3
-  addi t1, s3, 2
-  remu t1, t1, t0
-  addi t1, t1, 105
-  slli t1, t1, 1
-  lw t1, palCopy(t1)
+  addi t0, s3, 2
+  li t2, 43691
+  mulhu t1, t0, t2
+  srli t1, t1, 1
+  li t2, 3
+  mul t1, t1, t2
+  sub t0, t0, t1
+  addi t0, t0, 105
+  slli t0, t0, 1
+  lw t0, palCopy(t0)
   li a0, 6
   li a1, 11
-  mv a2, t1
+  mv a2, t0
   call colour
 .return:
   lw ra, 0(sp)
@@ -7324,12 +7342,22 @@ deeper:
   addi t0, t0, -5
   sw t0, 0x1d1c(zero)
   ; drill.e16.ts:581  if (maxDepth % 50 === 0 && maxDepth % 100 !== 0) {
-  li t1, 50
-  remu t0, t0, t1
+  li t2, 5243
+  srli t1, t0, 1
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 50
+  mul t1, t1, t2
+  sub t0, t0, t1
   bne t0, zero, .L1
   lw t0, 0x1d1c(zero)
-  li t1, 100
-  remu t0, t0, t1
+  li t2, 5243
+  srli t1, t0, 2
+  mulhu t1, t1, t2
+  srli t1, t1, 1
+  li t2, 100
+  mul t1, t1, t2
+  sub t0, t0, t1
   beq t0, zero, .L1
   ; drill.e16.ts:582  metresShow(i16(FIELD_X + pX) + 8, i16(pY) - 10, maxDepth)
   lw t0, 0x1d94(zero)
@@ -9065,8 +9093,12 @@ scoreAt:
   slli t0, s1, 1
   addi t1, s3, 14
   sub t1, t1, t0
-  li t0, 10
-  remu t0, s2, t0
+  li t2, 52429
+  mulhu t0, s2, t2
+  srli t0, t0, 3
+  li t2, 10
+  mul t0, t0, t2
+  sub t0, s2, t0
   addi sp, sp, -2
   sw t1, 0(sp)
   addi a0, t0, 48
@@ -9078,8 +9110,9 @@ scoreAt:
   mv a0, t0
   call vpoke
   ; scenes.e16.ts:183  v = div(v, 10)
-  li t0, 10
-  divu s2, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli s2, t0, 3
   ; scenes.e16.ts:184  k++
   addi s1, s1, 1
 .L3:
@@ -9096,8 +9129,12 @@ scoreAt:
   slli t0, s1, 1
   addi t1, s3, 6
   sub t1, t1, t0
-  li t0, 10
-  remu t0, s2, t0
+  li t2, 52429
+  mulhu t0, s2, t2
+  srli t0, t0, 3
+  li t2, 10
+  mul t0, t0, t2
+  sub t0, s2, t0
   addi sp, sp, -2
   sw t1, 0(sp)
   addi a0, t0, 48
@@ -9109,8 +9146,9 @@ scoreAt:
   mv a0, t0
   call vpoke
   ; scenes.e16.ts:190  v = div(v, 10)
-  li t0, 10
-  divu s2, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli s2, t0, 3
   ; scenes.e16.ts:191  k++
   addi s1, s1, 1
 .L7:
@@ -9812,8 +9850,12 @@ scoreDigits:
   slli t1, s1, 1
   addi t0, t0, 14
   sub t0, t0, t1
-  li t1, 10
-  remu t1, s3, t1
+  li t2, 52429
+  mulhu t1, s3, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t1, s3, t1
   addi sp, sp, -2
   sw t0, 0(sp)
   addi a0, t1, 48
@@ -9829,8 +9871,12 @@ scoreDigits:
   slli t1, s1, 1
   addi t0, t0, 6
   sub t0, t0, t1
-  li t1, 10
-  remu t1, s2, t1
+  li t2, 52429
+  mulhu t1, s2, t2
+  srli t1, t1, 3
+  li t2, 10
+  mul t1, t1, t2
+  sub t1, s2, t1
   addi sp, sp, -2
   sw t0, 0(sp)
   addi a0, t1, 48
@@ -9842,11 +9888,13 @@ scoreDigits:
   mv a0, t0
   call vpoke
   ; best.e16.ts:168  lo = div(lo, 10)
-  li t0, 10
-  divu s3, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli s3, t0, 3
   ; best.e16.ts:169  hi = div(hi, 10)
-  li t0, 10
-  divu s2, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli s2, t0, 3
   ; best.e16.ts:170  d++
   addi s1, s1, 1
 .L3:
@@ -10539,25 +10587,22 @@ stand:
   ret
 
 ; player.e16.ts:189 digWanted() at -O1
-;   dir in s2
-;   startDig.dir in s1
+;   dir in s1
 digWanted:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s1, 4(sp)
+  sw s1, 2(sp)
   ; player.e16.ts:190  const dir = digAsked()
   call digAsked
-  mv s2, a0 ; dir
+  mv s1, a0 ; dir
   ; player.e16.ts:191  if (dir > 3) return false
   li t0, 3
-  bgeu t0, s2, .L1
+  bgeu t0, s1, .L1
   ; player.e16.ts:191  return false
   li a0, 0
   j .return
 .L1:
   ; player.e16.ts:192  startDig(dir)
-  mv s1, s2 ; startDig.dir
   ; player.e16.ts:297  pDir = dir
   sw s1, 0x1d9e(zero)
   ; player.e16.ts:298  if (dir < 2) pFace = dir
@@ -10577,9 +10622,8 @@ digWanted:
   li a0, 1
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s1, 4(sp)
-  addi sp, sp, 6
+  lw s1, 2(sp)
+  addi sp, sp, 4
   ret
 
 ; player.e16.ts:197 digAsked() at -O1
@@ -12675,8 +12719,9 @@ fxDraw:
   lw t1, 0(fp) ; kind
   bne t1, t0, .L1
   ; fx.e16.ts:226  spr(x, y, (POP_TILE + div(t, 3) * 4) | (fxA[k] << 10), S16)
-  li t0, 3
-  divu t0, s1, t0
+  li t1, 43691
+  mulhu t0, s1, t1
+  srli t0, t0, 1
   slli t0, t0, 2
   lw t1, 2(fp) ; k
   slli t1, t1, 1
@@ -13107,11 +13152,15 @@ wordDraw:
   lw t0, 4(fp) ; d
   slli t0, t0, 3
   add t0, s1, t0
-  li t1, 10
-  lw t2, 6(fp) ; v
-  remu t2, t2, t1
-  addi t2, t2, 48
-  sw t2, 12(fp) ; gold.c
+  lw t1, 6(fp) ; v
+  li t3, 52429
+  mulhu t2, t1, t3
+  srli t2, t2, 3
+  li t3, 10
+  mul t2, t2, t3
+  sub t1, t1, t2
+  addi t1, t1, 48
+  sw t1, 12(fp) ; gold.c
   ; fx.e16.ts:276  return (FONT_TILE + c - 32) | (7 << 10)
   lw t1, 12(fp) ; gold.c
   addi t1, t1, -32
@@ -13122,10 +13171,11 @@ wordDraw:
   li a3, 0
   call spr
   ; fx.e16.ts:293  v = div(v, 10)
-  li t0, 10
-  lw t1, 6(fp) ; v
-  divu t1, t1, t0
-  sw t1, 6(fp) ; v
+  lw t0, 6(fp) ; v
+  li t1, 52429
+  mulhu t0, t0, t1
+  srli t0, t0, 3
+  sw t0, 6(fp) ; v
 .L14:
   lw t0, 4(fp) ; d
   bltu zero, t0, .L12
@@ -13715,14 +13765,19 @@ bigDepth:
   slli t0, s1, 1
   li t1, 5
   sub t1, t1, t0
-  li t0, 10
-  remu t0, s2, t0
+  li t2, 52429
+  mulhu t0, s2, t2
+  srli t0, t0, 3
+  li t2, 10
+  mul t0, t0, t2
+  sub t0, s2, t0
   mv a0, t1
   mv a1, t0
   call bigDigit
   ; panel.e16.ts:134  v = div(v, 10)
-  li t0, 10
-  divu s2, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli s2, t0, 3
   ; panel.e16.ts:135  k++
   addi s1, s1, 1
 .L3:
@@ -13807,8 +13862,10 @@ gauge:
   ; panel.e16.ts:151  let at = div(depth * 3, 100)
   slli t1, s3, 1
   add t0, t1, s3
-  li t1, 100
-  divu s2, t0, t1
+  li t1, 5243
+  srli t0, t0, 2
+  mulhu t0, t0, t1
+  srli s2, t0, 1
   ; panel.e16.ts:152  if (at > 14) at = 14
   li t0, 14
   bgeu t0, s2, .L1
@@ -13877,8 +13934,10 @@ tank:
   li t0, 112
   lw t1, 4(fp) ; air
   mul t1, t1, t0
-  li t0, 100
-  divu s3, t1, t0
+  li t0, 5243
+  srli t1, t1, 2
+  mulhu t1, t1, t0
+  srli s3, t1, 1
   ; panel.e16.ts:164  let k: u16 = 0
   li s1, 0 ; k
   ; panel.e16.ts:165  while (k < 14) {
@@ -14107,8 +14166,10 @@ title:
   ; title.e16.ts:75  if (t === shown) {
   bne s1, s2, .L7
   ; title.e16.ts:76  helpOn = (div(t, PAGE) & 1) !== 0
-  li t0, 300
-  divu t0, s1, t0
+  li t1, 27963
+  srli t0, s1, 2
+  mulhu t0, t0, t1
+  srli t0, t0, 5
   andi t0, t0, 1
   sub t0, t0, zero
   snez t0, t0
@@ -14748,8 +14809,12 @@ walker:
   sw s2, 6(sp)
   mv s1, a0 ; t
   ; title.e16.ts:240  const phase = t % 240
-  li t0, 240
-  remu s3, s1, t0
+  li t1, 34953
+  mulhu t0, s1, t1
+  srli t0, t0, 7
+  li t1, 240
+  mul t0, t0, t1
+  sub s3, s1, t0
   ; title.e16.ts:241  let f: u16 = 0
   li s2, 0 ; f
   ; title.e16.ts:242  if (phase < 160) {
@@ -14938,10 +15003,15 @@ heapDraw:
   j .L10
 .L8:
   ; title.e16.ts:274  heapCell(k % 20, div(k, 20))
-  li t0, 20
-  remu t0, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli t0, t0, 4
   li t1, 20
-  divu t1, s1, t1
+  mul t0, t0, t1
+  sub t0, s1, t0
+  li t2, 52429
+  mulhu t1, s1, t2
+  srli t1, t1, 4
   mv a0, t0
   mv a1, t1
   call heapCell

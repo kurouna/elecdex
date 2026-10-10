@@ -9,7 +9,8 @@ import { mulShiftWord, word } from './types.js'
  * - a pure function called with constants is run here, in the interpreter, and the call
  *   becomes its answer (a budget stops one that would not end; it is then left a call);
  * - a function that calls nothing is inlined where it is called, when it is tiny or is
- *   called only once;
+ *   called only once, an argument that is a constant, a local or an address read in place
+ *   of its parameter where the callee never writes it;
  * - constants are folded and the identities dropped (x + 0, x * 1, a jump on a constant);
  * - a jump to a jump goes straight on, a jump to the next operation goes, and what no jump
  *   reaches after a jump or a return goes;
@@ -41,7 +42,25 @@ export function optimise(program: Program): Program {
   fns = fns.map((fn) => inlineCalls(fn, inlinable))
   for (let pass = 0; pass < 4; pass++)
     fns = fns.map((fn) => ({ ...fn, body: tidy(simplify(fn.body)) }))
-  return { ...program, fns: reachable(fns) }
+  return { ...program, fns: reachable(fns).map(withoutUnusedSlots) }
+}
+
+/**
+ * A function's slots less those nothing reads or writes any more (a parameter of an inlined
+ * call whose reads became its argument, a local of code folded away): the back end gives
+ * every slot a home, and an unused one would take a saved register or a frame word.
+ */
+function withoutUnusedSlots(fn: Fn): Fn {
+  const used = new Set(fn.body.flatMap((op) => (op.k === 'ld' || op.k === 'st' ? [op.slot] : [])))
+  const kept = fn.slots.map((_, k) => k < fn.params || used.has(k))
+  if (kept.every(Boolean)) return fn
+  const renumbered: number[] = []
+  let next = 0
+  for (const keep of kept) renumbered.push(keep ? next++ : -1)
+  const body = fn.body.map((op) =>
+    op.k === 'ld' || op.k === 'st' ? { ...op, slot: renumbered[op.slot] as number } : op,
+  )
+  return { ...fn, slots: fn.slots.filter((_, k) => kept[k]), body }
 }
 
 /* ---------------- purity ---------------- */
@@ -155,19 +174,56 @@ function inlineCalls(fn: Fn, inlinable: Map<string, Fn>): Fn {
     const base = slots.length
     slots.push(...callee.slots.map((s) => `${callee.name}.${s}`))
     const tag = `.I${++copies}`
-    // The arguments are on the stack, the last on top: into the callee's parameter slots.
-    for (let k = callee.params - 1; k >= 0; k--) body.push({ k: 'st', slot: base + k })
+    const given = takeArguments(body, callee, base)
     const end = `${tag}_end`
-    for (const inner of callee.body) body.push(...relocated(inner, base, tag, end, op.ret))
+    for (const inner of callee.body) body.push(...relocated(inner, base, tag, end, op.ret, given))
     body.push({ k: 'label', name: end })
   }
   return { ...fn, slots, body }
 }
 
+/**
+ * The arguments of an inlined call, on the stack with the last on top, into the callee's
+ * parameter slots. The last ones pushed by a single operation - a constant, a local, an
+ * address - are not stored at all where the callee never writes that parameter: its reads
+ * read the operation itself (the map says which), so `scale(x, 4)` multiplies by a constant
+ * the back end turns into a shift, and the parameter takes no register or frame word. A
+ * local read later is still the value it was: the body is a leaf's, which writes only its own
+ * slots, and the operations after it in the list write nothing.
+ */
+function takeArguments(body: Op[], callee: Fn, base: number): Map<number, Op> {
+  const written = new Set(callee.body.flatMap((op) => (op.k === 'st' ? [op.slot] : [])))
+  let plain = 0
+  while (plain < callee.params && isPlainValue(body[body.length - 1 - plain])) plain++
+  const last = body.splice(body.length - plain)
+  const first = callee.params - plain
+  for (let k = first - 1; k >= 0; k--) body.push({ k: 'st', slot: base + k })
+  const given = new Map<number, Op>()
+  last.forEach((arg, j) => {
+    if (written.has(first + j)) body.push(arg, { k: 'st', slot: base + first + j })
+    else given.set(first + j, arg)
+  })
+  return given
+}
+
+/** An operation that pushes one value and reads nothing that changes: a constant, a local, an address. */
+const isPlainValue = (op: Op | undefined): boolean =>
+  op?.k === 'push' || op?.k === 'ld' || op?.k === 'addr'
+
 /** An operation of an inlined body: slots moved up, labels renamed, a return a jump to the end. */
-function relocated(op: Op, base: number, tag: string, end: string, keepValue: boolean): Op[] {
+function relocated(
+  op: Op,
+  base: number,
+  tag: string,
+  end: string,
+  keepValue: boolean,
+  given: Map<number, Op>,
+): Op[] {
   switch (op.k) {
-    case 'ld':
+    case 'ld': {
+      const arg = given.get(op.slot)
+      return [arg === undefined ? { ...op, slot: op.slot + base } : { ...arg }]
+    }
     case 'st':
       return [{ ...op, slot: op.slot + base }]
     case 'label':

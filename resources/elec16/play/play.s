@@ -668,8 +668,9 @@ putDecimal:
   sw s1, 4(sp)
   mv s2, a0 ; v
   ; play/play.e16.ts:230  const tens = div(v, 10)
-  li t0, 10
-  divu s1, s2, t0
+  li t1, 52429
+  mulhu t0, s2, t1
+  srli s1, t0, 3
   ; play/play.e16.ts:231  if (tens > 0) putDecimal(tens)
   bgeu zero, s1, .L1
   ; play/play.e16.ts:231  putDecimal(tens)

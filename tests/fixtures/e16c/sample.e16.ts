@@ -423,3 +423,42 @@ export function fixedProducts(a: i16, b: i16): u16 {
   const sum = mulShift(i16(a + b), 16384, 14)
   return u16(q + low * 3 + byte * 5 + known + sum * 7)
 }
+
+/**
+ * Unsigned division and remainder by constants that are no power of two (MULHU from -O1): a
+ * 16-bit multiplier, one after the divisor's factors of two (100, 60), one of 17 bits (7), a
+ * quotient into its operand's own register and a remainder that reads its operand again.
+ */
+export function constantQuotients(a: u16, b: u16): u16 {
+  const q = wrap16(div(a, 10) + div(a, 7) * 3 + div(b, 100) + div(a, 65535) + div(b, 40000))
+  const r = wrap16((a % 10) + (b % 7) * 5 + (a % 60) + (b % 641) + (a % 65535) * 9)
+  return wrap16(q * 31 + r + div(wrap16(a + b), 3) + (wrap16(b * 3) % 1000))
+}
+
+function scaleBy(x: u16, k: u16): u16 {
+  return wrap16(x * k)
+}
+
+function bumped(x: u16, k: u16): u16 {
+  x = wrap16(x + k)
+  return wrap16(x * 2)
+}
+
+function byteAt(at: u16, k: u16): u16 {
+  return peek(at + k)
+}
+
+/**
+ * Leaves inlined at -O2 with their arguments read in place of their parameters: a constant,
+ * a local written again after the call, an address; a parameter the callee writes stored as
+ * before; a computed first argument beside a constant second.
+ */
+export function inlinedArguments(n: u16): u16 {
+  let s: u16 = 0
+  for (let i: u16 = 0; i < 4; i++) {
+    s = wrap16(s + scaleBy(i, 6) + bumped(n, i))
+    n = wrap16(n + scaleBy(s, n))
+  }
+  poke(addr(buffer) + 3, 77)
+  return wrap16(s + n + byteAt(addr(buffer), 3) + scaleBy(wrap16(n + 1), 5))
+}

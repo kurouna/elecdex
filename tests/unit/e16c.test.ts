@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { tidyJumps } from '@shared/e16c/back1'
+import { type DivideMagic, divideMagic, tidyJumps } from '@shared/e16c/back1'
 import { e16cMemory } from '@shared/e16c/builtins'
 import { compile, type E16cOptions } from '@shared/e16c/compile'
 import { Interp, OutOfBudget } from '@shared/e16c/interp'
@@ -106,7 +106,21 @@ const CASES: [string, number[]][] = [
   ['fixedProducts', [-32768, -32768]],
   ['fixedProducts', [12345, -23456]],
   ['fixedProducts', [7, 3]],
+  ['constantQuotients', [0, 0]],
+  ['constantQuotients', [65535, 65535]],
+  ['constantQuotients', [12345, 54321]],
+  ['constantQuotients', [9, 40000]],
+  ['constantQuotients', [65534, 39999]],
+  ['inlinedArguments', [0]],
+  ['inlinedArguments', [7]],
+  ['inlinedArguments', [65000]],
 ]
+
+/** n divided as the code divideMagic leads to does: MULHU, then the shifts and the add. */
+function quotientBy({ pre, m, shift, add }: DivideMagic, n: number): number {
+  const t = Math.floor(((add ? n : n >>> pre) * m) / 65536)
+  return (add ? ((n - t) >>> 1) + t : t) >>> shift
+}
 
 describe('e16c', () => {
   it.each([0, 1, 2] as const)(
@@ -166,6 +180,61 @@ describe('e16c', () => {
     expect(out.asm.match(/call mix/g)).toHaveLength(2)
     expect(out.asm).not.toMatch(/call once|^once:/m)
     expect(out.program.fns.map((f) => f.name).sort()).toEqual(['f', 'mix'])
+  })
+
+  it('at -O2 reads an inlined call’s plain arguments in place of the parameters it never writes', () => {
+    const text = [
+      'function scale(x: u16, k: u16): u16 { return wrap16(x * k) }',
+      'function bump(x: u16, k: u16): u16 { x = wrap16(x + k); return x }',
+      'export function f(a: u16): u16 { return wrap16(scale(a, 4) + bump(a, 3)) }',
+    ].join(String.fromCharCode(10))
+    const out = compile([{ name: 'args.ts', text }], { ...OPTIONS, opt: 2 })
+    expect(out.errors).toEqual([])
+    // scale's x and k are a and 4: no slot of their own, and a multiply by 4 is a shift.
+    // bump writes x, which keeps its slot; its k is 3.
+    expect(out.program.fns.find((fn) => fn.name === 'f')?.slots).toEqual(['a', 'bump.x'])
+    expect(out.asm).toMatch(/^\s+slli \w+, \w+, 2$/m)
+    expect(out.asm).not.toMatch(/^\s+mul /m)
+  })
+
+  it('divides by a constant that is no power of two with MULHU from -O1, by DIVU at -O0', () => {
+    const text = [
+      'export function q(x: u16): u16 { return div(x, 10) }',
+      'export function r(x: u16): u16 { return x % 7 }',
+      'export function p(x: u16): u16 { return div(x, 8) + x % 16 }',
+    ].join(String.fromCharCode(10))
+    for (const opt of [0, 1, 2] as const) {
+      const out = compile([{ name: 'd.ts', text }], { ...OPTIONS, opt })
+      expect(out.errors).toEqual([])
+      const body = (fn: string) => out.asm.slice(out.asm.indexOf(`\n${fn}:`)).split(/\n\n/)[0] ?? ''
+      if (opt === 0) {
+        expect(body('q'), '-O0').toMatch(/^\s+divu /m)
+        continue
+      }
+      expect(body('q'), `-O${opt}`).not.toMatch(/^\s+(divu|remu) /m)
+      expect(body('q'), `-O${opt}`).toMatch(/^\s+li \w+, 52429$/m)
+      expect(body('r'), `-O${opt}`).not.toMatch(/^\s+(divu|remu) /m)
+      expect(body('r'), `-O${opt}`).toMatch(/^\s+mulhu /m)
+      expect(body('p'), `-O${opt}`).not.toMatch(/^\s+mulhu /m)
+    }
+  })
+
+  it('finds a MULHU way to divide that gives DIVU’s answer for every word', () => {
+    // Every d and n was checked once (4.3 billion pairs, seconds); here every n for some d.
+    const divisors = [...Array(65536).keys()].filter(
+      (d) => d >= 3 && (d & (d - 1)) !== 0 && (d < 1024 || d % 61 === 0 || d > 65500),
+    )
+    for (const d of divisors) {
+      const magic = divideMagic(d)
+      expect(magic.m, `m for ${d}`).toBeLessThanOrEqual(0xffff)
+      for (let n = 0; n < 65536; n++) {
+        const q = quotientBy(magic, n)
+        if (q !== Math.floor(n / d)) expect(q, `${n} / ${d}`).toBe(Math.floor(n / d))
+      }
+    }
+    expect(divideMagic(10)).toEqual({ pre: 0, m: 52429, shift: 3, add: false })
+    expect(divideMagic(100).pre).toBe(2)
+    expect(divideMagic(7).add).toBe(true)
   })
 
   it('at -O1 drops what follows a jump up to a label, and a jump to the label that comes next', () => {

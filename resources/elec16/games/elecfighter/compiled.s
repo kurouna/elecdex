@@ -1033,8 +1033,9 @@ number:
   ; lib/kit.e16.ts:243  at = wrap16(at - 2)
   addi s1, s1, -2
   ; lib/kit.e16.ts:245  const q = div(n, 10)
-  li t0, 10
-  divu t0, s3, t0
+  li t1, 52429
+  mulhu t0, s3, t1
+  srli t0, t0, 3
   sw t0, 0(fp) ; q
   ; lib/kit.e16.ts:246  vpoke(at, wrap16(zero + n - q * 10))
   lw t0, 2(fp) ; zero
@@ -2674,12 +2675,10 @@ judgeRound:
 
 ; engine/main.e16.ts:300 knockedOut() at -O1
 ;   both in s1
-;   hitstopIs.n in s2
 knockedOut:
-  addi sp, sp, -6
+  addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s2, 4(sp)
   ; engine/main.e16.ts:301  const both = fLife[0] === 0 && fLife[1] === 0
   lw t0, fLife(zero)
   sub t0, t0, zero
@@ -2706,9 +2705,9 @@ knockedOut:
 .L3:
   sw t0, 0x0ca0(zero)
   ; engine/main.e16.ts:303  hitstopIs(KO_STOP)
-  li s2, 24 ; hitstopIs.n
   ; engine/hit.e16.ts:174  hitstop = n
-  sw s2, 0x1990(zero)
+  li t0, 24
+  sw t0, 0x1990(zero)
   ; engine/main.e16.ts:304  roundOver(both ? str('DOUBLE K.O.') : str('K.O.'))
   beqz s1, .L6
   la t0, str_2
@@ -2721,8 +2720,7 @@ knockedOut:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s2, 4(sp)
-  addi sp, sp, 6
+  addi sp, sp, 4
   ret
 
 ; engine/main.e16.ts:308 clockStep() at -O1
@@ -3834,48 +3832,27 @@ prAt:
   ret
 
 ; engine/data.e16.ts:357 stagesIn() at -O1
-;   stagePictures.k in a0
-;   stagePictures.tile in a2
-;   stagePictures.b in a3
-;   stagePictures.at in s1
-;   stagePlaces.k in a1
-;   stagePlaces.n in s2
-;   stagePlaces.mapB in s3
-;   stagePlaces.rows in s0
 stagesIn:
-  addi sp, sp, -8
-  sw s1, 0(sp)
-  sw s2, 2(sp)
-  sw s3, 4(sp)
-  sw s0, 6(sp)
   ; engine/data.e16.ts:358  stagePictures(0, GRID_TILE, GRID_TILES_BANK, GRID_TILES_AT)
-  li s1, 53248 ; stagePictures.at
-  li a3, 355 ; stagePictures.b
-  li a2, 771 ; stagePictures.tile
-  li a0, 0 ; stagePictures.k
   ; engine/data.e16.ts:365  stTile[k] = tile
-  slli t0, a0, 1
-  sw a2, stTile(t0)
+  li t0, 771
+  sw t0, stTile(zero)
   ; engine/data.e16.ts:366  stTilesB[k] = b
-  slli t0, a0, 1
-  sw a3, stTilesB(t0)
+  li t0, 355
+  sw t0, stTilesB(zero)
   ; engine/data.e16.ts:367  stTilesA[k] = at
-  slli t0, a0, 1
-  sw s1, stTilesA(t0)
+  li t0, 53248
+  sw t0, stTilesA(zero)
   ; engine/data.e16.ts:359  stagePlaces(0, GRID_TILES_BYTES, GRID_MAP_BANK, GRID_H)
-  li s0, 36 ; stagePlaces.rows
-  li s3, 356 ; stagePlaces.mapB
-  li s2, 3232 ; stagePlaces.n
-  li a1, 0 ; stagePlaces.k
   ; engine/data.e16.ts:371  stTilesN[k] = n
-  slli t0, a1, 1
-  sw s2, stTilesN(t0)
+  li t0, 3232
+  sw t0, stTilesN(zero)
   ; engine/data.e16.ts:372  stMapB[k] = mapB
-  slli t0, a1, 1
-  sw s3, stMapB(t0)
+  li t0, 356
+  sw t0, stMapB(zero)
   ; engine/data.e16.ts:373  stRows[k] = rows
-  slli t0, a1, 1
-  sw s0, stRows(t0)
+  li t0, 36
+  sw t0, stRows(zero)
   ; engine/data.e16.ts:360  stDataB[0] = STAGE_GRID_BANK
   li t0, 367
   sw t0, stDataB(zero)
@@ -3883,11 +3860,6 @@ stagesIn:
   li t0, 51178
   sw t0, stDataA(zero)
 .return:
-  lw s1, 0(sp)
-  lw s2, 2(sp)
-  lw s3, 4(sp)
-  lw s0, 6(sp)
-  addi sp, sp, 8
   ret
 
 ; engine/data.e16.ts:415 stageLoad(k) at -O1
@@ -10010,8 +9982,9 @@ timeShow:
   ; engine/draw.e16.ts:176  timeShown = t
   sw s1, 0x19ae(zero)
   ; engine/draw.e16.ts:177  const tens = div(t, 10)
-  li t0, 10
-  divu s2, s1, t0
+  li t1, 52429
+  mulhu t0, s1, t1
+  srli s2, t0, 3
   ; engine/draw.e16.ts:178  bigDigit(18, tens)
   li a0, 18
   mv a1, s2
@@ -19662,8 +19635,9 @@ bootLog:
   j .return
 .L5:
   ; scenes/title.e16.ts:107  const k = div(t, LINE_F)
-  li t0, 9
-  divu s2, s1, t0
+  li t1, 58255
+  mulhu t0, s1, t1
+  srli s2, t0, 3
   ; scenes/title.e16.ts:108  if (t === k * LINE_F && k < 7) bootLine(k)
   slli t1, s2, 3
   add t0, t1, s2
@@ -19924,8 +19898,9 @@ titleOnce:
   li s1, 0 ; t
 .L7:
   ; scenes/title.e16.ts:164  const p = div(t, PAGE) & 3
-  li t0, 360
-  divu t0, s1, t0
+  li t1, 11651
+  mulhu t0, s1, t1
+  srli t0, t0, 6
   andi s2, t0, 3
   ; scenes/title.e16.ts:165  if (p !== page) {
   lw t0, 0(fp) ; page
@@ -20610,17 +20585,15 @@ howTo:
 ;   c in s1
 ;   w in 6(fp)
 ;   dx in 8(fp)
-;   placeX.w in 16(fp)
 ;   placeX.v in s2
-;   placeY.w in 18(fp)
 ;   placeY.v in s3
 figure:
-  addi sp, sp, -30
-  sw ra, 20(sp)
-  sw s1, 22(sp)
-  sw s2, 24(sp)
-  sw s3, 26(sp)
-  sw s0, 28(sp)
+  addi sp, sp, -26
+  sw ra, 16(sp)
+  sw s1, 18(sp)
+  sw s2, 20(sp)
+  sw s3, 22(sp)
+  sw s0, 24(sp)
   mv fp, sp
   sw a0, 0(fp) ; x
   sw a1, 10(fp) ; y
@@ -20650,10 +20623,8 @@ figure:
   lw t0, 0(t0)
   sw t0, 6(fp) ; w
   ; scenes/title.e16.ts:346  const dx = placeX(w)
-  lw t0, 6(fp) ; w
-  sw t0, 16(fp) ; placeX.w
   ; scenes/title.e16.ts:327  const v = i16(w & 255)
-  lw t0, 16(fp) ; placeX.w
+  lw t0, 6(fp) ; w
   andi s2, t0, 255
   ; scenes/title.e16.ts:328  return v > 127 ? v - 256 : v
   li t0, 127
@@ -20677,10 +20648,8 @@ figure:
   sub t1, t1, t0
   addi t0, t1, -16
 .L6:
-  lw t1, 6(fp) ; w
-  sw t1, 18(fp) ; placeY.w
   ; scenes/title.e16.ts:332  const v = i16(w >> 8)
-  lw t1, 18(fp) ; placeY.w
+  lw t1, 6(fp) ; w
   srli s3, t1, 8
   ; scenes/title.e16.ts:333  return v > 127 ? v - 256 : v
   lw t1, 10(fp)
@@ -20708,12 +20677,12 @@ figure:
   bltu s1, t0, .L1
 .return:
   mv sp, fp
-  lw ra, 20(sp)
-  lw s1, 22(sp)
-  lw s2, 24(sp)
-  lw s3, 26(sp)
-  lw s0, 28(sp)
-  addi sp, sp, 30
+  lw ra, 16(sp)
+  lw s1, 18(sp)
+  lw s2, 20(sp)
+  lw s3, 22(sp)
+  lw s0, 24(sp)
+  addi sp, sp, 26
   ret
 
 ; scenes/title.e16.ts:355 figWord(tile, sl, right) at -O1
@@ -22664,8 +22633,9 @@ renderShow:
   ; scenes/select.e16.ts:456  const fill = div(pct * 8, 10)
   lw t0, 2(fp) ; pct
   slli t0, t0, 3
-  li t1, 10
-  divu s3, t0, t1
+  li t1, 52429
+  mulhu t0, t0, t1
+  srli s3, t0, 3
   ; scenes/select.e16.ts:457  let c: u16 = 0
   li s1, 0 ; c
   ; scenes/select.e16.ts:458  while (c < 10) {
@@ -23597,8 +23567,9 @@ timeAt:
   j .return
 .L1:
   ; scenes/result.e16.ts:293  const m = div(sec, 60)
-  li t0, 60
-  divu s0, s3, t0
+  li t1, 34953
+  mulhu t0, s3, t1
+  srli s0, t0, 5
   ; scenes/result.e16.ts:294  number(cellAt(1, x, y), m > 99 ? 99 : m, 2, digit())
   li a0, 1
   mv a1, s1
