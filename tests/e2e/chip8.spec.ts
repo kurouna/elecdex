@@ -605,23 +605,22 @@ test('a program whose screen is turned is drawn turned, in the middle of its fra
   })
   try {
     await designSize(app, page)
+    await settleLayout(page)
     await expect(page.getByTestId('chip8-run')).toBeVisible()
-    // Measured once the view has powered on (it opens from a line).
-    const boxes = async () => ({
-      bezel: await page.getByTestId('chip8-bezel').boundingBox(),
-      screen: await runScreen(page).boundingBox(),
-    })
+    // Sub-Terr8nia is turned 270 degrees: taller than wide, and centred in the bezel. Polled
+    // to the end state, as the view powers on from a line: a look in the middle of that once
+    // found the screen tall already but not yet in the middle (CI, Windows).
     await expect
       .poll(async () => {
-        const { screen } = await boxes()
-        return screen !== null && screen.height > screen.width
+        const bezel = await page.getByTestId('chip8-bezel').boundingBox()
+        const screen = await runScreen(page).boundingBox()
+        if (bezel === null || screen === null) return 'no screen'
+        if (screen.height <= screen.width) return 'not turned'
+        const dx = Math.abs(screen.x + screen.width / 2 - (bezel.x + bezel.width / 2))
+        const dy = Math.abs(screen.y + screen.height / 2 - (bezel.y + bezel.height / 2))
+        return dx < 2 && dy < 2 ? 'centred' : `off by ${dx.toFixed(1)}, ${dy.toFixed(1)}`
       })
-      .toBe(true)
-    const { bezel, screen } = await boxes()
-    if (bezel === null || screen === null) throw new Error('no screen')
-    // Sub-Terr8nia is turned 270 degrees: taller than wide, and centred in the bezel.
-    expect(Math.abs(screen.x + screen.width / 2 - (bezel.x + bezel.width / 2))).toBeLessThan(2)
-    expect(Math.abs(screen.y + screen.height / 2 - (bezel.y + bezel.height / 2))).toBeLessThan(2)
+      .toBe('centred')
   } finally {
     await close()
   }
