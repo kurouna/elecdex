@@ -433,14 +433,17 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
    * what its screen shows (demo-play-kit.mjs) for `hold` ms - head-on with the gun and a missile,
    * then the dogfight. Brought forward, the screen alone at its largest, and put back after.
    */
-  async function aircombat(hold = 6000, { nth = 2 } = {}) {
+  async function aircombat(
+    hold = 6000,
+    { nth = 2, title = 2600, controls = 1300, briefing = 1300 } = {},
+  ) {
     say('play-320: ELECAIRCOMBAT')
     await toMachine(nth, 600)
     await page.keyboard.press('Control+Shift+KeyZ')
     await wait(900)
     const pane = paneOf('elec16').nth(nth)
     await pane.getByTestId('elec16').focus()
-    await airTakeOff(page, wait, { title: 2600, controls: 1300, briefing: 1300 })
+    await airTakeOff(page, wait, { title, controls, briefing })
     say('elecaircombat: the sortie')
     await page.keyboard.down('KeyZ')
     await wait(700)

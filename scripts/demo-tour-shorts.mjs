@@ -4,9 +4,10 @@
  * and the same beats (demo-beats.mjs).
  *
  *   boot        the boot sequence, welcoming a made-up user
- *   shell       the shells typed into over the globe, the globe brought forward and back
+ *   shell       the shells typed into over the globe
  *   network     through the layouts dialog: the Wi-Fi link over the connections
- *   earth       ORBIT with the pointer resting on the ISS, over the quakes
+ *   earth       ORBIT over the quakes, brought forward, the pointer resting on the ISS for its
+ *               card, and put back
  *   dev         coding agents at work over the repository, a commit's card
  *   docker      a container stopped (asked twice), copies landing in the clipboard history
  *   media       the television (a stand-in) over KEYSTREAM's tracks playing, the next one
@@ -15,7 +16,7 @@
  *   keystream   the sample plugin over the processor's chart: a track typed on time
  *   retro       the ELEC-16 and the CHIP-8 behind one tab strip over the spectrum, as the retro
  *               preset has them: the ELEC-16 runs SINEWAVE from its SOFT CARD, a PLAY-320 behind
- *               the next tab starts ELECFIGHTER and fights (brought forward), then the CHIP-8
+ *               the next tab flies ELECAIRCOMBAT's first sortie (brought forward), then the CHIP-8
  *               library plays T8NKS by itself, loaded across the width (no panel),
  *               then paused
  *   cockpit     CLUSTER, the machine on one pane, over a shell: its CPU lane and spec line read
@@ -145,7 +146,7 @@ const { app, page, wait, settled, run } = await openTake({
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
   prepare: (profile) => {
     copyKeystream(profile)
-    playUnits(profile)
+    playUnits(profile, { third: 'ELECAIRCOMBAT' })
   },
 })
 const beat = beats({ app, page, wait, settled, theme: options.theme, music })
@@ -153,48 +154,48 @@ const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 await run(async () => {
   const started = Date.now()
   await wait(1000)
-  await beat.forward('globe', 1000)
   await beat.throughTheDialog('network')
-  await wait(1300)
+  await wait(1000)
   await beat.toLayout(slot('earth'), 'earth')
-  await wait(900)
-  await beat.issCard(1400)
+  await wait(600)
+  // ORBIT brought forward, the ISS's card read on the map at its largest.
+  await beat.forward('orbit', 600, { during: () => beat.issCard(1500) })
   await wait(800)
   await beat.toLayout(slot('dev'), 'dev')
-  await wait(1200)
+  await wait(900)
   await beat.commitCard(1400)
   await beat.toLayout(slot('docker'), 'docker')
-  await wait(900)
+  await wait(700)
   await beat.stopContainer()
   await beat.copies()
   await wait(600)
   await beat.toLayout(slot('media'), 'media')
   await beat.musicPlays()
-  await wait(1300)
+  await wait(1000)
   await beat.nextTrack(1600)
   await beat.musicStops()
   await beat.toLayout(slot('utility'), 'utility')
   await wait(800)
-  await beat.qrCode(1200)
+  await beat.qrCode(1000)
   await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
     previews: [],
     play: 2_500,
   })
   await beat.toLayout(slot('retro'), 'retro')
-  await beat.elec16(1200)
-  await beat.fight(3800, { title: 1000, nth: 1 })
+  await beat.elec16(1000)
+  await beat.aircombat(2500, { nth: 1, title: 1500, controls: 900, briefing: 900 })
   await beat.toTab('CHIP-8')
-  await beat.chip8(1300, { mem: false })
+  await beat.chip8(1000, { mem: false })
   await beat.throughTheDialog('cockpit')
   // Two cards, not three: the cut stays under its length with the beat in it.
-  await beat.cluster(700, { cards: 1000, which: ['cpu', 'spec'] })
+  await beat.cluster(400, { cards: 900, which: ['cpu', 'spec'] })
   await beat.throughTheDialog('council')
   await wait(800)
-  await beat.councilSits(1000)
+  await beat.councilSits(800)
   await beat.toLayout(slot('shell'), 'shell')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()
-  await beat.themes(600)
+  await beat.themes(500)
   await wait(600)
   say(`tour: ${((Date.now() - started) / 1000).toFixed(0)} s after the boot`)
   if (exit) await app.close().catch(() => {})
