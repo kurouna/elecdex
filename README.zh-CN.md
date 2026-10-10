@@ -23,7 +23,7 @@
   ▶ <a href="https://youtu.be/HNOaM8O32Hs">2 分钟介绍视频</a> · <a href="https://youtube.com/shorts/BabzwSvyvz0">短视频（竖屏）</a>
 </p>
 
-> **v0.0.25 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.26 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions

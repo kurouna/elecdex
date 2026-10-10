@@ -24,7 +24,7 @@ for Windows, macOS and Linux.
   ▶ <a href="https://youtu.be/HNOaM8O32Hs">Watch the 2-minute tour</a> · <a href="https://youtube.com/shorts/BabzwSvyvz0">Shorts (vertical)</a>
 </p>
 
-> **v0.0.25 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.26 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
