@@ -480,11 +480,13 @@ weather and calendar.
   lamps for LINK, PING, CPU, MEM, DISK, BATT (with a battery), AWAKE and QUAKE (with quake alerts
   on) — dark until something holds for ten seconds — and the message line saying the worst of them
   in words, with how many more. Under them the clock and the date. Then six lanes, CPU, memory,
-  disk I/O, network down and up (on a log scale to 10 Gbps) and ping, each a bar per second for the
-  last minute with its peak and average, a bar added as each reading arrives. Where there is room, every core's load now sits under CPU. The rest is a row of figures:
+  disk I/O, network down and up, and ping, each a line over the last minute with its peak and
+  average, drawn as each reading arrives: CPU, memory and disk on 0-100%, the network (one scale for
+  both ways) and the ping scaled to the minute, the top written in the lane. Where there is room,
+  every core's load now sits under CPU. The rest is a row of figures:
   swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and
   AWAKE. Each figure opens a card with what it has no room for. It lays itself out in five ways by
-  its size. A full screen of it idles at about 15% of one core, less than CPU, memory, traffic and
+  its size. A full screen of it idles at 10-15% of one core, less than CPU, memory, traffic and
   disk panes side by side.
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to
   filter, Enter to launch. Icons take the theme's accent and show their own colours on hover (always, in the Business themes); on

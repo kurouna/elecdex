@@ -192,7 +192,7 @@ function netRows(r: CardReadings, lane: 'rx' | 'tx'): CardRow[] {
     ...statsRows(r, lane, rate),
     row('INTERFACE', r.net?.iface ?? '--'),
     row('SINCE LINK UP', total === undefined ? '--' : formatTotal(total)),
-    row('SCALE', 'log, 1 Mbps to 10 Gbps'),
+    row('SCALE', 'shared by RX and TX, up to the minute’s peak'),
   ]
 }
 
@@ -200,7 +200,7 @@ function pingRows(r: CardReadings): CardRow[] {
   return [
     ...statsRows(r, 'ping', (value) => `${Math.round(value)} ms`),
     row('HOST', r.ping?.host ?? '--'),
-    row('NOTE', 'no echo fills the lane in red', true),
+    row('NOTE', 'an echo that never came back is a red stroke', true),
   ]
 }
 

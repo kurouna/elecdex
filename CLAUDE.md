@@ -325,8 +325,8 @@ user made; do not reverse one without asking.
   other pane, main module or channel knows it is there (user decision 2026-10-10).
   - Every level (a number, its bars, a core, a lamp, the message line) comes from one pure
     judgement in shared/cluster.ts; a lamp lights only when its level has held.
-  - A reading is drawn as it arrives; the lanes add one bar per cpu.load sample, without
-    animation (user decision 2026-10-10), and never scroll on their own. A lamp that does not apply (BATT without a battery, QUAKE with quake
+  - A reading is drawn as it arrives; the lanes are lines redrawn once per cpu.load sample,
+    without animation (user decision 2026-10-10), and never scroll on their own. A lamp that does not apply (BATT without a battery, QUAKE with quake
     alerts off) is left out, never shown dark. No settings.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run

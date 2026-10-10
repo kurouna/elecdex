@@ -16,12 +16,14 @@ import {
   LANE_IDS,
   type LampInput,
   type LaneSecond,
+  laneHeight,
   laneLevel,
-  lanePosition,
+  laneScale,
   laneStats,
-  netPosition,
+  niceCeiling,
   pingLevel,
   recordSecond,
+  scaleLabel,
   showCores,
   uptimeClock,
 } from '@shared/cluster'
@@ -113,16 +115,27 @@ describe('lanes', () => {
     expect(history.at(-1)?.at).toBe(99)
   })
 
-  it('place readings on their scales', () => {
-    expect(lanePosition('cpu', 50)).toBe(0.5)
-    expect(lanePosition('cpu', 120)).toBe(1)
-    expect(lanePosition('ping', null)).toBe(1)
-    expect(lanePosition('ping', undefined)).toBe(0)
-    expect(lanePosition('io', null)).toBe(0)
-    expect(netPosition(0)).toBe(0)
-    expect(netPosition(10_000)).toBeCloseTo(1)
-    expect(netPosition(1000)).toBeLessThan(1)
-    expect(netPosition(100)).toBeLessThan(netPosition(1000))
+  it('scale percentages to 100, and the network and the ping to the minute, to a round top', () => {
+    expect(niceCeiling(0.07)).toBeCloseTo(0.1)
+    expect(niceCeiling(1.3)).toBe(2)
+    expect(niceCeiling(2)).toBe(2)
+    expect(niceCeiling(380)).toBe(500)
+    expect(niceCeiling(0)).toBe(1)
+    const quiet = seconds(60, { rx: 0.004, tx: 0.002, ping: 7 })
+    expect(laneScale(quiet, 'cpu')).toBe(100)
+    expect(laneScale(quiet, 'rx')).toBeCloseTo(0.1)
+    expect(laneScale(quiet, 'ping')).toBe(20)
+    // RX and TX read against each other: one top for both.
+    const busy = [...quiet, second({ rx: 2.4, tx: 0.3, ping: 48 })]
+    expect(laneScale(busy, 'rx')).toBe(5)
+    expect(laneScale(busy, 'tx')).toBe(5)
+    expect(laneScale(busy, 'ping')).toBe(50)
+    expect(scaleLabel('rx', 5)).toBe('5 Mbps')
+    expect(scaleLabel('tx', 2000)).toBe('2 Gbps')
+    expect(scaleLabel('ping', 50)).toBe('50 ms')
+    expect(scaleLabel('mem', 100)).toBe('100%')
+    expect(laneHeight(25, 50)).toBe(0.5)
+    expect(laneHeight(80, 50)).toBe(1)
   })
 
   it('take peak and average over what was read, skipping the seconds without a reading', () => {

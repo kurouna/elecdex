@@ -150,7 +150,7 @@ const cpuSeconds = (app: ElectronApplication) =>
   )
 
 test('a full screen of it stays cheap when idle', async () => {
-  // Measured 2026-10-10 on Windows 11 at 1920x1080: 15% of one core, against 24% for CPU,
+  // Measured 2026-10-10 on Windows 11 at 1920x1080: 10-15% of one core, against 24% for CPU,
   // memory, traffic and disk panes side by side (docs/cluster.md §5). The lanes step once per
   // reading and hold still between, so the loop is let go between readings.
   const { app, page, close } = await launch(undefined, {

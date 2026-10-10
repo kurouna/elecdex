@@ -35,7 +35,7 @@ import {
 } from './cluster-view.ts'
 import Figure from './Figure.svelte'
 import Lamps from './Lamps.svelte'
-import LaneBars from './LaneBars.svelte'
+import LaneChart from './LaneChart.svelte'
 
 /**
  * CLUSTER: the machine on one pane, like a car's instrument cluster
@@ -262,7 +262,7 @@ const cardReadings = $derived.by(
       {@const f = laneFigure(lane, shown.readings)}
       <div class="lane" data-lane={lane}>
         <Figure {...f} note="" meter={null} size="md" cells={LANE_CELLS[lane]} onhover={cardFor(lane)} testid="cluster-figure-{lane}" />
-        <div class="bars"><LaneBars {lane} history={shown.history} {visible} /></div>
+        <div class="bars"><LaneChart {lane} history={shown.history} {visible} /></div>
         {#if stats}
           {@const s = laneStats(shown.history, lane)}
           <div class="stats">

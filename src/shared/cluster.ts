@@ -100,29 +100,60 @@ export function laneLevel(lane: LaneId, value: LaneValue): Level {
   }
 }
 
-/** The top of the network lanes' scale: 10 Gbps, so a fast link is never pinned to the top. */
-export const NET_TOP_MBPS = 10_000
-/** The network lanes' guides, in Mbps. */
-export const NET_GUIDES_MBPS = [1, 10, 100, 1000] as const
-/** A ping this slow fills its lane. */
-export const PING_TOP_MS = 300
+/*
+ * Every lane is a line over a soft fill (user decision 2026-10-10: bars read badly where the
+ * values sit low). Percentages keep their whole range; the network and the ping are scaled to
+ * the minute they show, to a round top, so a quiet link or a quick echo still has a shape.
+ */
 
-/** Where a rate sits on the network lanes' log scale, 0-1. */
-export function netPosition(mbps: number): number {
-  const at = Math.log10(Math.max(0, mbps) + 1) / Math.log10(NET_TOP_MBPS + 1)
-  return Math.min(1, Math.max(0, at))
+/** The least top the auto-scaled lanes are given: a quiet minute is not blown up to fill them. */
+export const LANE_SCALE_FLOOR = { net: 0.1, ping: 20 } as const
+
+/** The round number (1, 2 or 5 of a power of ten) at or above a value. */
+export function niceCeiling(value: number): number {
+  if (!(value > 0)) return 1
+  const power = 10 ** Math.floor(Math.log10(value))
+  const step = [1, 2, 5, 10].find((n) => n * power >= value * (1 - 1e-9)) ?? 10
+  return step * power
 }
 
-const unit = (value: number): number => Math.min(1, Math.max(0, value))
+const numbers = (history: readonly LaneSecond[], lane: LaneId): number[] =>
+  history
+    .slice(-HISTORY_SECONDS)
+    .map((second) => second[lane])
+    .filter((value): value is number => typeof value === 'number')
 
-/** How high a reading stands in its lane, 0-1. No echo fills the ping lane; no reading is nothing. */
-export function lanePosition(lane: LaneId, value: LaneValue): number {
-  if (value === undefined) return 0
-  if (value === null) return lane === 'ping' ? 1 : 0
-  if (lane === 'rx' || lane === 'tx') return netPosition(value)
-  if (lane === 'ping') return unit(value / PING_TOP_MS)
-  return unit(value / 100)
+/**
+ * The top of a lane's scale: 100 for the percentages; for the network the larger of RX's and
+ * TX's peak, so the two lanes read against each other; for the ping its own peak.
+ */
+export function laneScale(history: readonly LaneSecond[], lane: LaneId): number {
+  if (lane === 'rx' || lane === 'tx') {
+    const peak = Math.max(0, ...numbers(history, 'rx'), ...numbers(history, 'tx'))
+    return niceCeiling(Math.max(peak, LANE_SCALE_FLOOR.net))
+  }
+  if (lane === 'ping')
+    return niceCeiling(Math.max(0, ...numbers(history, 'ping'), LANE_SCALE_FLOOR.ping))
+  return 100
 }
+
+/** The top of a lane's scale as its label says it. */
+export function scaleLabel(lane: LaneId, top: number): string {
+  if (lane === 'rx' || lane === 'tx') {
+    return top >= 1000 ? `${top / 1000} Gbps` : `${top} Mbps`
+  }
+  return lane === 'ping' ? `${top} ms` : `${top}%`
+}
+
+/** How high a reading stands against its lane's top, 0-1. */
+export const laneHeight = (value: number, top: number): number =>
+  top > 0 ? Math.min(1, Math.max(0, value / top)) : 0
+
+/**
+ * Seconds without a reading a line still joins across: the ping comes every five and disk I/O
+ * every two. A longer gap (the pane was out of sight) breaks the line.
+ */
+export const LANE_JOIN_SECONDS = 6
 
 /** The highest and the mean of the readings the lane shows; null with none. */
 export function laneStats(
