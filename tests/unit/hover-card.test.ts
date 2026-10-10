@@ -198,7 +198,7 @@ describe('every detail card', () => {
     expect(own).toEqual([])
   })
 
-  it('includes the twelve there are', () => {
+  it('includes the thirteen there are', () => {
     const users = all
       .filter((file) => readFileSync(file, 'utf8').includes("from '../common/HoverCard.svelte'"))
       .map((file) => path.basename(file))
@@ -208,6 +208,7 @@ describe('every detail card', () => {
       'ArtCard.svelte',
       'CardFileCard.svelte',
       'ClipCard.svelte',
+      'ClusterCard.svelte',
       'ContainerCard.svelte',
       'FileCard.svelte',
       'GitCommitCard.svelte',

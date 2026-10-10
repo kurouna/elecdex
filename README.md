@@ -52,6 +52,10 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
   network status and traffic. The default layout idles at about 13% of one core.
+- **Cluster** *(unreleased)* — the whole machine on one pane, like a car's instrument cluster: warning lamps and
+  the worst of them in words, the clock and the date, a minute of CPU, memory, disk I/O, network and
+  ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
+  any size, from the full screen to a narrow column.
 - **Files and apps** — a file browser that follows the shell (click to `cd` or insert a path),
   and a launcher for the Start Menu (Store and other packaged apps included), `/Applications` or
   `.desktop` entries plus your own, most used first.
@@ -472,6 +476,17 @@ weather and calendar.
 - **Disk** — each volume as a bar of used space against its size (amber from 90%, red from 97%),
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
+- **Cluster** *(unreleased)* — not in the default layout: add it from the picker ("cluster dashboard"). On top,
+  lamps for LINK, PING, CPU, MEM, DISK, BATT (with a battery), AWAKE and QUAKE (with quake alerts
+  on) — dark until something holds for ten seconds — and the message line saying the worst of them
+  in words, with how many more. Under them the clock and the date. Then six lanes, CPU, memory,
+  disk I/O, network down and up (on a log scale to 10 Gbps) and ping, each a bar per second for the
+  last minute with its peak and average; a reading is drawn as it arrives, the lane stepping one
+  bar. Where there is room, every core's load now sits under CPU. The rest is a row of figures:
+  swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and
+  AWAKE. Each figure opens a card with what it has no room for. It lays itself out in five ways by
+  its size. A full screen of it idles at about 15% of one core, less than CPU, memory, traffic and
+  disk panes side by side.
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to
   filter, Enter to launch. Icons take the theme's accent and show their own colours on hover (always, in the Business themes); on
   Windows they are drawn by the Windows shell, and apps are named, as the Start Menu shows them -

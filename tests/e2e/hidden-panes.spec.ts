@@ -168,6 +168,7 @@ const WIDGETS = [
   'connections',
   'wifi',
   'throughput',
+  'cluster',
   'filesystem',
   'weather',
   'globe',

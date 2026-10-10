@@ -8,6 +8,7 @@ import CalcWidget from './calc/CalcWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
 import Chip8Widget from './chip8/Chip8Widget.svelte'
 import ClipboardWidget from './clipboard/ClipboardWidget.svelte'
+import ClusterWidget from './cluster/ClusterWidget.svelte'
 import ConnectionsWidget from './connections/ConnectionsWidget.svelte'
 import DockerWidget from './docker/DockerWidget.svelte'
 import ElecWidget from './elec/ElecWidget.svelte'
@@ -186,6 +187,35 @@ registerBuiltin({
   metrics: sources('net.throughput', 'net.ping'),
   keepWhileHidden: sources('net.throughput'),
   minSize: { w: 160, h: 100 },
+  zoom: 'full',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'cluster',
+  title: 'cluster',
+  pickerTitle: 'cluster dashboard',
+  description:
+    'The machine on one pane, like a car’s instrument cluster: lamps, a minute of each reading, every core.',
+  component: ClusterWidget,
+  // Everything it reads comes from sources other panes read too (docs/cluster.md §3).
+  metrics: sources(
+    'cpu.load',
+    'mem.usage',
+    'net.throughput',
+    'disk.io',
+    'net.ping',
+    'net.interface',
+    'mem.swap',
+    'disk.volumes',
+    'net.connections',
+    'proc.list',
+    'power.battery',
+    'os.uptime',
+  ),
+  // The three its lanes chart each second; the rest are let go behind a tab.
+  keepWhileHidden: sources('cpu.load', 'mem.usage', 'net.throughput'),
+  minSize: { w: 260, h: 200 },
   zoom: 'full',
   popup: true,
 })
