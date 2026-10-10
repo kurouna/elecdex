@@ -150,8 +150,8 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### cockpit — 整台机器放进一个面板，再加上 shell
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Amber 主题下的 cockpit 预设：左上方以 CLUSTER 面板取代系统栏——一排警示灯和 ALL SYSTEMS NOMINAL，日期上方的时钟，旁边是交换区、最满的磁盘、连接对象数、最忙的程序、电源、运行时间、链路累计流量和地址，其下一行是操作系统、制造商、型号、机箱、CPU 和 AWAKE；再下面是 CPU 最近一分钟的折线、十二个核心各一根柱，以及内存、磁盘 I/O、网络下行与上行和 PING 的折线及其峰值与平均值；其下是一个 shell，右侧是上下排列的两个 shell">
-  <br><sub>cockpit · Amber</sub>
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black 主题（浅色底、近黑文字和扫描线）下的 cockpit 预设：左上方以 CLUSTER 面板取代系统栏——一排警示灯和 ALL SYSTEMS NOMINAL，日期上方的时钟，旁边是交换区、最满的磁盘、连接对象数、最忙的程序、电源、运行时间、链路累计流量和地址，其下一行是操作系统、制造商、型号、机箱、CPU 和 AWAKE；再下面是 CPU 最近一分钟的折线、十二个核心各一根柱，以及内存、磁盘 I/O、网络下行与上行和 PING 的折线及其峰值与平均值；其下是一个 shell，右侧是上下排列的两个 shell">
+  <br><sub>cockpit · Black</sub>
 </p>
 
 - **仪表盘** *(unreleased)* — 像汽车的仪表盘一样，把整台机器放进一个面板：警示灯和用文字说明的最严重问题、时钟与日期、
@@ -214,7 +214,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 - **布局** — 每个窗格都可以拖动标题来移动，也可以关闭、分屏、放入标签页、调整大小并恢复；
   布局会被保存，也可以重置。一种排布可以命名保存以便日后回到它（Ctrl+Shift+G，或状态栏中的
   *layouts*），也可以从九个预设之一开始。
-- **外观与体验** — 六种可实时切换的主题：用于 HUD 风格的 Tron、Amber、Phosphor 和 White，
+- **外观与体验** — 七种可实时切换的主题：用于 HUD 风格的 Tron、Amber、Phosphor、White，以及把 White 反过来、在浅色底上用近黑文字并带同样扫描线的 Black *(unreleased)*，
   以及采用 Windows 11 配色、系统字体和全彩图标、适合日常办公的 Business (Dark) 和
   Business (Light)——上面的截图里每一种都出现过。先是一段展示本机真实信息的 Linux 风格启动日志，
   随后是 CRT 通电式的启动动画（之后添加的窗格同样会这样通电；关闭的窗格会断电，旁边的窗格随之

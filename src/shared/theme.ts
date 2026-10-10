@@ -103,6 +103,9 @@ export const DEFAULT_THEME_ID = 'tron'
  *  - phosphor: green P1 phosphor, the classic monitor.
  *  - white: a cool white monitor, scanlines and a soft glow. Not pure white on
  *    black: text #D7E0EA on #0A0B0D, the colours of the elec series (elecxzy).
+ *  - black: white turned over - near-black text #0A080D on the pale #D7E0EA,
+ *    with the same scanlines, a light theme with a CRT's lines (user's request
+ *    2026-10-10).
  *  - business-dark / business-light: an ordinary app for the working day, in
  *    Windows 11's dark and light mode colours and the default blue accent, with
  *    its system fonts and a Windows Terminal colour scheme (Campbell, One Half
@@ -156,6 +159,21 @@ export const BUILTIN_THEMES: readonly Theme[] = [
     // A pale accent would wash ANSI colours out if pulled hard towards it.
     terminal: { ansiPull: 0.3 },
     effects: { scanlines: true, glow: 0.3 },
+  },
+  {
+    id: 'black',
+    name: 'Black',
+    author: 'elecdex',
+    // A light ground: status colours go darker and xterm keeps faint colours readable.
+    mode: 'light',
+    // #0A080D as hue, saturation and lightness: the text, as the HUD themes' accent is.
+    accent: { h: 264, s: 24, l: 4 },
+    // #D7E0EA, with raised panels a little lighter and the grid a little darker.
+    surfaces: { s0: '#d7e0ea', s1: '#d7e0ea', s2: '#e4eaf1', line: '#c4ceda' },
+    // A near-black accent would muddy ANSI colours if pulled hard towards it.
+    terminal: { ansiPull: 0.3 },
+    // Scanlines as White's; only a trace of glow, which on a pale ground is ink spreading.
+    effects: { scanlines: true, glow: 0.1 },
   },
   {
     id: 'business-dark',

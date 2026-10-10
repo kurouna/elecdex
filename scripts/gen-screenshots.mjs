@@ -740,7 +740,7 @@ await shoot('business-light', 'elecdex-desk', {
 })
 // cockpit: the CLUSTER pane where the system column would be, given a full minute so its
 // lanes run edge to edge, the pointer over the shells so no figure's card is open.
-await shoot('amber', 'elecdex-cockpit', {
+await shoot('black', 'elecdex-cockpit', {
   layout: preset('cockpit'),
   extra: async (page) => {
     await page.mouse.move(W * 0.85, H / 2)

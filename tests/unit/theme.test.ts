@@ -22,12 +22,13 @@ const custom: Theme = {
 }
 
 describe('built-in themes', () => {
-  it('ships six valid themes, the default among them', () => {
+  it('ships seven valid themes, the default among them', () => {
     expect(BUILTIN_THEMES.map((t) => t.id)).toEqual([
       'tron',
       'amber',
       'phosphor',
       'white',
+      'black',
       'business-dark',
       'business-light',
     ])
@@ -60,6 +61,7 @@ describe('mergeThemes', () => {
       'amber',
       'phosphor',
       'white',
+      'black',
       'business-dark',
       'business-light',
       'ice',
@@ -74,6 +76,7 @@ describe('mergeThemes', () => {
       'amber',
       'phosphor',
       'white',
+      'black',
       'business-dark',
       'business-light',
     ])
@@ -324,5 +327,22 @@ describe('settings patches for the settings dialog', () => {
     // An action this build does not know (from a newer one) is kept, not an error.
     expect(applySettingsPatch(base, { keybindings: { 'no.such': 'Alt+KeyP' } })).not.toBeNull()
     expect(applySettingsPatch(base, { keybindings: { 'pane.add': 42 } })).toBeNull()
+  })
+})
+
+describe('the Black theme', () => {
+  it('is White turned over: #0A080D text on #D7E0EA, light, with scanlines', () => {
+    const black = BUILTIN_THEMES.find((t) => t.id === 'black') as Theme
+    expect(black.mode).toBe('light')
+    const vars = themeVariables(black)
+    expect(vars['--surface-1']).toBe('#d7e0ea')
+    // The text is the accent, near-black: #0A080D is hsl(264 24% 4%).
+    expect(vars['--text-base']).toBe('hsl(var(--accent-h) var(--accent-s) var(--accent-l))')
+    expect([vars['--accent-h'], vars['--accent-s'], vars['--accent-l']]).toEqual([
+      '264',
+      '24%',
+      '4%',
+    ])
+    expect(vars['--scanlines']).toBe('1')
   })
 })

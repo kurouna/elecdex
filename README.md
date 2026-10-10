@@ -167,8 +167,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### cockpit — the whole machine on one pane, and the shells
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Amber theme: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them, a line of the OS, maker, model, chassis, CPU and AWAKE, then a minute of CPU as a line, a bar for each of twelve cores, memory, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells one over the other on the right">
-  <br><sub>cockpit · Amber</sub>
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Black theme, near-black on a pale ground with scanlines: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them, a line of the OS, maker, model, chassis, CPU and AWAKE, then a minute of CPU as a line, a bar for each of twelve cores, memory, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells one over the other on the right">
+  <br><sub>cockpit · Black</sub>
 </p>
 
 - **Cluster** *(unreleased)* — the whole machine on one pane, like a car's instrument cluster: warning lamps and
@@ -235,7 +235,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
   returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the nine
   presets.
-- **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
+- **Look and feel** — seven themes that switch live: Tron, Amber, Phosphor and White for the HUD, Black (White turned
+  over, near-black on a pale ground with the same scanlines) *(unreleased)*,
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
   icons for an ordinary working day - every one of them is in a picture above. A CRT power-on boot
   sequence after a Linux-style boot log of
