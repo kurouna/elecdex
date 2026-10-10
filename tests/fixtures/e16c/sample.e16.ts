@@ -506,3 +506,24 @@ export function oneAfterAnother(x: u16): u16 {
   const h = wrap16(x * 7)
   return wrap16(g + (h + 1) + (keep(2) + (keep(h) + tripled(h))))
 }
+
+/**
+ * More locals alive at once than registers hold, round calls: some live in a frame, read by
+ * sp while calls' answers wait on the machine's stack above it, in a loop and after it.
+ */
+export function manyAlive(x: u16): u16 {
+  kept = 0
+  const a = wrap16(x + 1)
+  const b = wrap16(x * 3)
+  const c = keep(a)
+  const d = wrap16(b ^ c)
+  const e = keep(d)
+  const f = wrap16(e + a)
+  let s: u16 = 0
+  for (let i: u16 = 0; i < 3; i++) {
+    s = wrap16(s + keep(i) * (a + keep(b) + (c + keep(d) + (e + keep(f)))))
+  }
+  return wrap16(
+    s + a + b + c + d + e + f + keep(wrap16(a + keep(wrap16(b + keep(wrap16(c + keep(f))))))),
+  )
+}

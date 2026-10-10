@@ -117,12 +117,24 @@ const CASES: [string, number[]][] = [
   ['oneAfterAnother', [0]],
   ['oneAfterAnother', [9]],
   ['oneAfterAnother', [0xfff0]],
+  ['manyAlive', [0]],
+  ['manyAlive', [5]],
+  ['manyAlive', [0xfffe]],
 ]
 
 /** n divided as the code divideMagic leads to does: MULHU, then the shifts and the add. */
 function quotientBy({ pre, m, shift, add }: DivideMagic, n: number): number {
   const t = Math.floor(((add ? n : n >>> pre) * m) / 65536)
   return (add ? ((n - t) >>> 1) + t : t) >>> shift
+}
+
+/** One function of the sample at a level, as the listing has it: its header, slots and code. */
+function sampleFunction(opt: 1 | 2, name: string): string {
+  const out = compile([{ name: SAMPLE, text: readFileSync(SAMPLE, 'utf8') }], { ...OPTIONS, opt })
+  expect(out.errors).toEqual([])
+  const at = out.asm.search(new RegExp(`^; \\S+ ${name}\\(`, 'm'))
+  expect(at, name).toBeGreaterThanOrEqual(0)
+  return out.asm.slice(at).split(/\n\n/)[0] ?? ''
 }
 
 describe('e16c', () => {
@@ -202,16 +214,19 @@ describe('e16c', () => {
 
   it('shares places among locals whose lives never overlap, so -O1 keeps them without a frame', () => {
     for (const opt of [1, 2] as const) {
-      const out = compile([{ name: SAMPLE, text: readFileSync(SAMPLE, 'utf8') }], {
-        ...OPTIONS,
-        opt,
-      })
-      expect(out.errors).toEqual([])
-      const at = out.asm.indexOf('\noneAfterAnother:')
-      const body = out.asm.slice(at).split(/\n\n/)[0] ?? ''
-      // Nine locals, never more than four alive at once.
-      expect(body, `-O${opt}`).not.toMatch(/\(fp\)/)
-      expect(out.asm.slice(0, at), `-O${opt}`).toMatch(/;\s+a\/\S+ in s\d/)
+      const listing = sampleFunction(opt, 'oneAfterAnother')
+      // Nine locals, never more than four alive at once: every one in a register.
+      expect(listing, `-O${opt}`).not.toMatch(/ in -?\d+\((fp|sp)\)$/m)
+      expect(listing, `-O${opt}`).toMatch(/;\s+a\/\S+ in s\d/)
+    }
+  })
+
+  it('keeps a frame by sp, without fp, and s0 for a local', () => {
+    for (const opt of [1, 2] as const) {
+      const listing = sampleFunction(opt, 'manyAlive')
+      expect(listing, `-O${opt}`).not.toMatch(/\bfp\b/)
+      expect(listing, `-O${opt}`).toMatch(/ in \d+\(sp\)$/m)
+      expect(listing, `-O${opt}`).toMatch(/ in s0$/m)
     }
   })
 

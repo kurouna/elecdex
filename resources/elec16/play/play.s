@@ -322,22 +322,21 @@ cls:
 
 ; play/play.e16.ts:161 drawChar(c/glyph, column/x0, row/y0) at -O1
 ;   c/glyph in s3
-;   column/x0 in 0(fp)
-;   row/y0 in 2(fp)
+;   column/x0 in s0
+;   row/y0 in 0(sp)
 ;   cx in s1
-;   bits in 4(fp)
+;   bits in 2(sp)
 ;   r in s2
 drawChar:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s3, 8(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s3, 6(sp)
+  sw s0, 8(sp)
   sw s1, 10(sp)
   sw s2, 12(sp)
-  sw s0, 14(sp)
-  mv fp, sp
   mv s3, a0 ; c/glyph
-  sw a1, 0(fp) ; column/x0
-  sw a2, 2(fp) ; row/y0
+  mv s0, a1 ; column/x0
+  sw a2, 0(sp) ; row/y0
   ; play/play.e16.ts:162  const glyph = font_base() + (c - FIRST_CODE) * 5
   call font_base
   addi t0, s3, -32
@@ -345,15 +344,13 @@ drawChar:
   add t0, t1, t0
   add s3, a0, t0
   ; play/play.e16.ts:163  const x0 = column * 6
-  lw t0, 0(fp) ; column/x0
-  slli t1, t0, 2
-  slli t0, t0, 1
-  add t0, t0, t1
-  sw t0, 0(fp) ; column/x0
+  slli t1, s0, 2
+  slli t0, s0, 1
+  add s0, t0, t1
   ; play/play.e16.ts:164  const y0 = row * 8
-  lw t0, 2(fp) ; row/y0
+  lw t0, 0(sp) ; row/y0
   slli t0, t0, 3
-  sw t0, 2(fp) ; row/y0
+  sw t0, 0(sp) ; row/y0
   ; play/play.e16.ts:165  for (let cx: u16 = 0; cx < 6; cx++) {
   li s1, 0 ; cx
   j .L3
@@ -367,17 +364,16 @@ drawChar:
 .L5:
   li t0, 0
 .L6:
-  sw t0, 4(fp) ; bits
+  sw t0, 2(sp) ; bits
   ; play/play.e16.ts:167  for (let r: u16 = 0; r < 8; r++) plot(x0 + cx, y0 + r, ((bits >> r) & 1) === 1 ? INK : PAPER)
   li s2, 0 ; r
   j .L9
 .L7:
   ; play/play.e16.ts:167  plot(x0 + cx, y0 + r, ((bits >> r) & 1) === 1 ? INK : PAPER)
-  lw t0, 0(fp) ; column/x0
-  add t0, t0, s1
-  lw t1, 2(fp) ; row/y0
+  add t0, s0, s1
+  lw t1, 0(sp) ; row/y0
   add t1, t1, s2
-  lw t2, 4(fp) ; bits
+  lw t2, 2(sp) ; bits
   srl t2, t2, s2
   andi t2, t2, 1
   li t3, 1
@@ -400,13 +396,12 @@ drawChar:
   li t0, 6
   bltu s1, t0, .L1
 .return:
-  mv sp, fp
-  lw ra, 6(sp)
-  lw s3, 8(sp)
+  lw ra, 4(sp)
+  lw s3, 6(sp)
+  lw s0, 8(sp)
   lw s1, 10(sp)
   lw s2, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
+  addi sp, sp, 14
   ret
 
 ; play/play.e16.ts:172 scroll() at -O1

@@ -6,7 +6,9 @@ import { hex, NEAR, signed } from './types.js'
  * in the compiler against a picture of the stack whose entries are not yet in registers -
  * a constant, a local, an address - until an instruction needs them, so `x + 1` is one
  * `addi` and `if (a < b)` one branch. Locals live in s0-s3 where they fit (the busiest
- * first), the rest in a frame under fp. Values that cross a label sit in fixed registers by
+ * first), the rest in a frame above sp, read by sp: the machine's stack holds what spills over
+ * above it, counted, so a slot's offset is known at every step (fp is not needed, and s0 holds
+ * a local like the others). Values that cross a label sit in fixed registers by
  * their depth; a call keeps what lies below its arguments on the machine's stack. A sum of a
  * register and a constant or a RAM array waits too, so `buffer[i + 1]` is `lbu t0, buffer+1(s1)`.
  */
@@ -141,7 +143,7 @@ export class O1 {
   readonly lines: string[] = []
   readonly #fn: Fn
   #stack: Value[] = []
-  /** Each slot's home: a saved register, or an offset from fp. */
+  /** Each slot's home: a saved register, or an offset into the frame (from sp, with nothing pushed). */
   readonly #home: (string | number)[]
   readonly #saved: string[]
   readonly #frame: number
@@ -185,6 +187,40 @@ export class O1 {
     this.lines.push(`  ${text}`)
   }
 
+  /**
+   * Words the machine's stack holds above the frame (spilled values): a frame slot is that
+   * many words further from sp. None at a label or a jump, where every value is in a register.
+   */
+  #pushed = 0
+
+  /** A frame slot's place by sp, as the machine's stack is now. */
+  #slotAt(home: number | string | undefined): string {
+    if (typeof home !== 'number')
+      throw new Error(`e16c: a slot with no frame place in ${this.#fn.name}`)
+    return `${home + 2 * this.#pushed}(sp)`
+  }
+
+  /** A register onto the machine's stack. */
+  #toStack(r: string): void {
+    this.#line('addi sp, sp, -2')
+    this.#line(`sw ${r}, 0(sp)`)
+    this.#pushed++
+  }
+
+  /** The top of the machine's stack into a register, or dropped (null). */
+  #fromStack(r: string | null): void {
+    if (r !== null) this.#line(`lw ${r}, 0(sp)`)
+    this.#line('addi sp, sp, 2')
+    this.#pushed--
+  }
+
+  /** Where nothing may be left on the machine's stack: a label, a jump, the epilogue. */
+  #nothingPushed(at: string): void {
+    if (this.#pushed !== 0) {
+      throw new Error(`e16c: ${this.#pushed} values left on the stack at ${at} in ${this.#fn.name}`)
+    }
+  }
+
   #comment(text: string): void {
     this.lines.push(`  ; ${text}`)
   }
@@ -196,7 +232,7 @@ export class O1 {
     )
     fn.slots.forEach((name, k) => {
       const home = this.#home[k]
-      this.lines.push(`;   ${name} in ${typeof home === 'number' ? `${home}(fp)` : home}`)
+      this.lines.push(`;   ${name} in ${typeof home === 'number' ? `${home}(sp)` : home}`)
     })
     this.lines.push(`${fn.name}:`)
     this.#prologue()
@@ -215,6 +251,7 @@ export class O1 {
       }
       this.#op(op)
     }
+    if (!this.#dead) this.#nothingPushed('the end')
     this.lines.push('.return:')
     this.#epilogue()
     this.lines.push('')
@@ -222,11 +259,9 @@ export class O1 {
   }
 
   #saveArea(): string[] {
-    return [
-      ...(this.#calls ? ['ra'] : []),
-      ...this.#saved,
-      ...(this.#frame > 0 ? ['s0'] : []),
-    ].filter((r, k, all) => all.indexOf(r) === k)
+    return [...(this.#calls ? ['ra'] : []), ...this.#saved].filter(
+      (r, k, all) => all.indexOf(r) === k,
+    )
   }
 
   #prologue(): void {
@@ -236,14 +271,12 @@ export class O1 {
     save.forEach((r, k) => {
       this.#line(`sw ${r}, ${this.#frame + k * 2}(sp)`)
     })
-    if (this.#frame > 0) this.#line('mv fp, sp')
     for (let k = 0; k < this.#fn.params; k++) this.#toHome(k, ARGS[k] as string)
   }
 
   #epilogue(): void {
     const save = this.#saveArea()
     const size = save.length * 2 + this.#frame
-    if (this.#frame > 0) this.#line('mv sp, fp')
     save.forEach((r, k) => {
       this.#line(`lw ${r}, ${this.#frame + k * 2}(sp)`)
     })
@@ -282,8 +315,7 @@ export class O1 {
       if (!this.#owns(v)) continue
       // A sum in its own temporary is added up there first.
       if (v.kind === 'sum') this.#add(v.r, v)
-      this.#line('addi sp, sp, -2')
-      this.#line(`sw ${v.r}, 0(sp)`)
+      this.#toStack(v.r)
       this.#stack[k] = { kind: 'spilled' }
     }
   }
@@ -304,8 +336,7 @@ export class O1 {
     for (let k = values.length - 1; k >= 0; k--) {
       if (values[k]?.kind !== 'spilled') continue
       const r = this.#temp(this.#held(values))
-      this.#line(`lw ${r}, 0(sp)`)
-      this.#line('addi sp, sp, 2')
+      this.#fromStack(r)
       values[k] = { kind: 'reg', r }
     }
   }
@@ -330,13 +361,12 @@ export class O1 {
         const home = this.#home[v.slot]
         if (typeof home === 'string') return home
         const r = this.#temp(avoid)
-        this.#line(`lw ${r}, ${home}(fp) ; ${this.#fn.slots[v.slot]}`)
+        this.#line(`lw ${r}, ${this.#slotAt(home)} ; ${this.#fn.slots[v.slot]}`)
         return r
       }
       case 'spilled': {
         const r = this.#temp(avoid)
-        this.#line(`lw ${r}, 0(sp)`)
-        this.#line('addi sp, sp, 2')
+        this.#fromStack(r)
         return r
       }
       case 'sum': {
@@ -419,7 +449,7 @@ export class O1 {
       const r = this.#temp(avoid)
       if (v.kind === 'sum') this.#add(r, v)
       else if (typeof home === 'string') this.#line(`mv ${r}, ${home}`)
-      else this.#line(`lw ${r}, ${home}(fp)`)
+      else this.#line(`lw ${r}, ${this.#slotAt(home)}`)
       this.#stack[k] = { kind: 'reg', r }
     })
   }
@@ -431,7 +461,7 @@ export class O1 {
     if (typeof home === 'string') {
       if (home !== from)
         this.#line(from === 'zero' ? `li ${home}, 0 ; ${name}` : `mv ${home}, ${from} ; ${name}`)
-    } else this.#line(`sw ${from}, ${home}(fp) ; ${name}`)
+    } else this.#line(`sw ${from}, ${this.#slotAt(home)} ; ${name}`)
   }
 
   /**
@@ -779,7 +809,11 @@ export class O1 {
       case 'label': {
         // Reached by falling through: the picture is put in its label registers. After a
         // jump or a return nothing falls through, and the depth is the jumps' to it.
-        if (!this.#dead) this.#canonical()
+        if (!this.#dead) {
+          this.#canonical()
+          this.#nothingPushed(op.name)
+        }
+        this.#pushed = 0
         const depth = this.#dead ? (this.#depths.get(op.name) ?? 0) : this.#stack.length
         this.lines.push(`${op.name}:`)
         this.#atLabel(depth)
@@ -788,6 +822,7 @@ export class O1 {
       }
       case 'jmp':
         this.#canonical()
+        this.#nothingPushed(`j ${op.to}`)
         this.#line(`j ${op.to}`)
         this.#dead = true
         return
@@ -822,7 +857,7 @@ export class O1 {
     if (v.kind === 'const') this.#line(`li ${to}, ${v.v & 0xffff}`)
     else if (v.kind === 'addr') this.#line(`la ${to}, ${v.label}`)
     else if (v.kind === 'sum') this.#add(to, v)
-    else if (typeof home === 'number') this.#line(`lw ${to}, ${home}(fp)`)
+    else if (typeof home === 'number') this.#line(`lw ${to}, ${this.#slotAt(home)}`)
     else if (v.kind === 'reg' && this.#retarget(v.r, to)) return
     else {
       const r = this.#inReg(v, new Set([...avoid, to]))
@@ -850,6 +885,8 @@ export class O1 {
         return
       case 'ret':
         if (op.value) this.#move('a0', this.#pop(), new Set())
+        if (this.#pushed > 0) this.#line(`addi sp, sp, ${2 * this.#pushed}`)
+        this.#pushed = 0
         // With nothing to restore, the epilogue is `ret` itself: no jump to it.
         this.#line(this.#saveArea().length === 0 && this.#frame === 0 ? 'ret' : 'j .return')
         this.#dead = true
@@ -911,7 +948,7 @@ export class O1 {
 
   #drop(): void {
     const v = this.#pop()
-    if (v.kind === 'spilled') this.#line('addi sp, sp, 2')
+    if (v.kind === 'spilled') this.#fromStack(null)
   }
 
   #dup(): void {
@@ -1010,11 +1047,9 @@ function homes(fn: Fn, leaf: boolean, deepest: number): Homes {
   const temps = [...TEMPS]
   if (leaf) leafHomes(fn, byUse(fn, uses), Math.max(4, deepest), home, temps)
   const rest = byUse(fn, uses).filter((slot) => home[slot] === undefined)
-  // With a frame, s0 is fp; without one, all four saved registers hold locals.
-  const registers = rest.length <= 4 ? SAVED : SAVED.slice(0, 3)
   let frame = 0
   rest.forEach((slot, rank) => {
-    const r = registers[rank]
+    const r = SAVED[rank]
     if (r !== undefined) home[slot] = r
     else {
       home[slot] = frame

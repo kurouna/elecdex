@@ -9,8 +9,9 @@ import { hex, NEAR } from './types.js'
  * preceded by its source line, every slot named - since the generated assembly is what is
  * built and shipped, and what CORE shows.
  *
- * The calling convention is the ROM's: arguments in a0-a3, the answer in a0, s0-s3 kept. A
- * function keeps its locals in a frame under fp (s0), saved with ra on entry. At -O0 the
+ * The calling convention is the ROM's: arguments in a0-a3, the answer in a0, s0-s3 kept. At
+ * -O0 a function keeps its locals in a frame under fp (s0), saved with ra on entry (-O1 keeps
+ * what does not fit its registers in a frame read by sp, back1.ts), and the
  * expression stack is the machine's stack: every value pushed and popped through t0 and t1
  * (t2 holds an address being worked out).
  */
