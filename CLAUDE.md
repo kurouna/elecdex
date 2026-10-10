@@ -95,7 +95,7 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  manual), elec16-kit.md (making its games), elec16-eleclance.md,
                  elec16-elecaircombat.md, elec16-elecdrill.md, elec16-elecfighter.md (the four
                  games), elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER's design),
-                 cluster.md (the CLUSTER pane),
+                 cluster.md (the CLUSTER pane), demos.md (making, changing and recording the demos),
                  screenshots/ (README images)
 ```
 
@@ -655,7 +655,7 @@ entry (decisions.md). Every option is off until the user turns it on.
   council talk to a stand-in (no model, no key). Regenerate after a visible change to a theme, a
   preset or the default layout; a new theme or preset gets a shot in all three READMEs.
 - **The introduction demo** (`npm run demo:tour`, its 9:16 cut `demo-tour-shorts.mjs` under two
-  minutes) is updated with every release (user decision 2026-09-27): a new central or showy
+  minutes; docs/demos.md says how every demo is recorded, built and changed, and the traps met) is updated with every release (user decision 2026-09-27): a new central or showy
   feature gets a beat, a beat no longer true goes. About two minutes, boot first and themes last,
   stand-ins only (demo-take.mjs: nothing of this machine read, pressed or kept awake, no one's
   pages or artwork, no model or key; the music is KEYSTREAM's own tracks). The beats live once in
