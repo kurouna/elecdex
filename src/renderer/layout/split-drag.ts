@@ -38,6 +38,26 @@ export function sizesWithDelta(node: SplitNode, index: number, delta: number): n
   return sizes
 }
 
+/**
+ * The split's sizes with the two panes either side of divider `index` sharing
+ * their room evenly: what a double click on it does. Like a drag, it leaves the
+ * other panes alone.
+ */
+export function sizesEvened(node: SplitNode, index: number): number[] {
+  const half = ((node.sizes[index] ?? 0) + (node.sizes[index + 1] ?? 0)) / 2
+  const sizes = [...node.sizes]
+  sizes[index] = half
+  sizes[index + 1] = half
+  return sizes
+}
+
+/** A double click on a divider: its two panes even. One already even is left as it is. */
+export function evenDivider(node: SplitNode, index: number): void {
+  const sizes = sizesEvened(node, index)
+  if (sizes.every((size, i) => Math.abs(size - (node.sizes[i] ?? 0)) < 1e-9)) return
+  layout.resize(node.id, sizes)
+}
+
 /** One press on a divider: resizes until the pointer is released. */
 export function startDividerDrag(down: PointerEvent, divider: Divider): void {
   const handle = down.currentTarget

@@ -4,6 +4,8 @@ import type { WeatherLocation } from '@shared/weather-report'
 export interface LayoutSwitchRequest {
   name: string
   shells: number
+  /** Asked for a reset to the default layout rather than a switch, which the dialog says. */
+  reset?: true
   answer: (go: boolean) => void
 }
 
@@ -128,7 +130,7 @@ class UiStore {
   layoutSwitch = $state.raw<LayoutSwitchRequest | null>(null)
 
   /** Asks, and resolves with the answer; every other dialog answers it no (`clearFor`). */
-  askLayoutSwitch(question: { name: string; shells: number }): Promise<boolean> {
+  askLayoutSwitch(question: Omit<LayoutSwitchRequest, 'answer'>): Promise<boolean> {
     // Only one at a time: the one already on screen is the one being answered.
     if (this.layoutSwitch !== null) return Promise.resolve(false)
     this.clearFor('switch')

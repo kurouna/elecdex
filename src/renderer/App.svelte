@@ -12,6 +12,7 @@ import PopupPane from './layout/PopupPane.svelte'
 import { popupPaneId } from './layout/popup.ts'
 import SwitchLayoutDialog from './layout/SwitchLayoutDialog.svelte'
 import Workspace from './layout/Workspace.svelte'
+import { chordHint } from './lib/chord-hint.ts'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
 import { plugins } from './plugins/plugins.svelte.ts'
 import QuakeAlert from './QuakeAlert.svelte'
@@ -178,7 +179,7 @@ function toggleSound(): void {
       type="button"
       class="control toggle"
       onclick={() => ui.openPanePicker()}
-      title="Add a pane (Ctrl+Shift+A)"
+      title={chordHint('Add a pane', 'pane.add')}
       data-testid="add-pane"
     >
       + pane
@@ -187,7 +188,7 @@ function toggleSound(): void {
       type="button"
       class="control toggle"
       onclick={() => ui.openLayouts()}
-      title="Saved layouts (Ctrl+Shift+G)"
+      title={chordHint('Saved layouts', 'layout.saved')}
       data-testid="open-layouts"
     >
       {layout.activeLayout === null ? 'layouts' : `layout · ${layout.activeLayout.name}`}
@@ -195,7 +196,7 @@ function toggleSound(): void {
     <ConfirmButton
       label="reset layout"
       action="reset"
-      title="Restore the default layout (Ctrl+Shift+Backspace)"
+      title={chordHint('Restore the default layout', 'layout.reset')}
       testid="reset-layout"
       onconfirm={() => void layout.reset()}
     />
@@ -232,7 +233,7 @@ function toggleSound(): void {
     <ConfirmButton
       label="exit"
       action="exit"
-      title="Quit elecdex (Ctrl+Shift+Q)"
+      title={chordHint('Quit elecdex', 'app.quit')}
       testid="exit"
       onconfirm={() => window.elecdex.system.quit()}
     />

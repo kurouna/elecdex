@@ -1206,3 +1206,55 @@ describe('random operation sequences keep the invariants', () => {
     }
   })
 })
+
+describe('normalizeTree and duplicate ids', () => {
+  // A layout.json edited by hand, or a layouts.json carried from elsewhere, can
+  // repeat an id. Two siblings with one key stop the workspace drawing at all, and
+  // two nodes anywhere with one id are closed and moved as one.
+  const ids = (root: LayoutNode): string[] => {
+    const seen: string[] = []
+    walk(root, (node) => seen.push(node.id))
+    return seen
+  }
+
+  it('gives a repeated id to the first node only, and the others ids of their own', () => {
+    const a = pane('clock', { id: 'same' })
+    const b = pane('calendar', { id: 'same' })
+    const c = pane('rss', { id: 'same' })
+    const t = tree(split('row', [a, tabs([b, c])]))
+    const fixed = normalizeTree(t, fallbackNode())
+    assertInvariants(fixed.root)
+    expect(shapeOf(fixed.root)).toBe('row(clock tabs(calendar rss))')
+    expect(collectPanes(fixed.root)[0]?.id).toBe('same')
+    expect(new Set(ids(fixed.root)).size).toBe(ids(fixed.root).length)
+  })
+
+  it('tells apart a split, a group and a pane that share one id', () => {
+    const t = tree({
+      kind: 'split',
+      id: 'x',
+      direction: 'row',
+      sizes: [0.5, 0.5],
+      children: [
+        { kind: 'tabs', id: 'x', activeIndex: 0, children: [pane('a', { id: 'x' }), pane('b')] },
+        pane('c', { id: 'x' }),
+      ],
+    })
+    const fixed = normalizeTree(t, fallbackNode())
+    assertInvariants(fixed.root)
+    expect(fixed.root.id).toBe('x')
+  })
+
+  it('keeps every id of a tree that repeats none, and the state that goes with it', () => {
+    const shell = pane('terminal', { state: { sessionId: 's1' } })
+    const t = tree(split('row', [pane('clock'), tabs([shell, pane('rss')])]))
+    const fixed = normalizeTree(t, fallbackNode())
+    expect(ids(fixed.root)).toEqual(ids(t.root))
+    expect(findNode(fixed.root, shell.id)).toEqual(shell)
+  })
+
+  it('leaves a lone pane as it is, the same object', () => {
+    const only = pane('clock')
+    expect(normalizeTree(tree(only), fallbackNode()).root).toBe(only)
+  })
+})

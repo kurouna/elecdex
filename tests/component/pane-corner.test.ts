@@ -12,6 +12,7 @@ CSSStyleSheet.prototype.replaceSync ??= () => {}
 const { default: PaneHost } = await import('../../src/renderer/layout/PaneHost.svelte')
 const { default: TabsHost } = await import('../../src/renderer/layout/TabsHost.svelte')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
 await import('../../src/renderer/widgets/builtins.ts')
 
 /**
@@ -25,6 +26,7 @@ beforeEach(() => {
   vi.stubGlobal('elecdex', {
     layout: { save: vi.fn(async () => {}) },
     metrics: { subscribe: vi.fn(() => () => {}) },
+    system: { platform: 'win32' },
   })
   vi.stubGlobal('matchMedia', () => ({ matches: false }))
 })
@@ -154,5 +156,43 @@ describe('a tab group', () => {
     layout.closingId = null
     flushSync()
     expect(host.classList.contains('crt-off')).toBe(false)
+  })
+})
+
+describe('the keys its buttons name', () => {
+  const before = appearance.settings
+
+  afterEach(() => {
+    appearance.settings = before
+  })
+
+  it('are the ones bound now, not the defaults', () => {
+    appearance.settings = {
+      ...before,
+      keybindings: { 'pane.close': 'Ctrl+Alt+KeyX', 'pane.zoom': null },
+    }
+    const node = pane('clock')
+    const { container } = render(PaneHost, { props: { node, visible: true, tabbed: false } })
+    flushSync()
+    expect(byTestId(container, 'pane-close')?.title).toBe('Close pane (Ctrl+Alt+X)')
+    expect(byTestId(container, 'pane-zoom')?.title).toBe('Bring the pane forward')
+  })
+})
+
+describe('the strip’s +', () => {
+  afterEach(() => {
+    layout.closingId = null
+  })
+
+  it('adds beside a tab that stays, not the first while it powers off', () => {
+    const first = pane('terminal')
+    const second = pane('terminal')
+    const node = tabs([first, second], 0)
+    const add = vi.spyOn(layout, 'addTab').mockImplementation(() => {})
+    layout.closingId = first.id
+    const { container } = render(TabsHost, { props: { node } })
+    flushSync()
+    byTestId(container, 'tab-new')?.click()
+    expect(add).toHaveBeenCalledWith(second.id, 'terminal')
   })
 })

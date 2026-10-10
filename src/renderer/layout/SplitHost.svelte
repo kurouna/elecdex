@@ -2,7 +2,7 @@
 import type { SplitNode } from '@shared/schemas/layout'
 import { layout } from '../stores/layout.svelte.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
-import { sizesWithDelta, startDividerDrag } from './split-drag.ts'
+import { evenDivider, sizesWithDelta, startDividerDrag } from './split-drag.ts'
 
 interface Props {
   node: SplitNode
@@ -67,6 +67,7 @@ function onHandleKeydown(event: KeyboardEvent, index: number): void {
         aria-valuemax={95}
         data-testid="split-handle"
         onpointerdown={(e) => startDrag(e, index)}
+        ondblclick={() => evenDivider(node, index)}
         onkeydown={(e) => onHandleKeydown(e, index)}
       ></div>
     {/if}

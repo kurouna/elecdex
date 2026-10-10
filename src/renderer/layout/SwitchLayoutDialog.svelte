@@ -4,8 +4,8 @@ import { appearance } from '../stores/appearance.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 
 /**
- * The question asked before a saved layout replaces a workspace with shells in
- * it.
+ * The question asked before a saved layout - or the default one, by the reset
+ * shortcut - replaces a workspace with shells in it.
  *
  * Applying a layout ends the shells of the panes it replaces - the same as
  * closing those panes - and a shortcut is one keystroke, so this stands between
@@ -15,6 +15,8 @@ import { ui } from '../stores/ui.svelte.ts'
  */
 
 const request = $derived(ui.layoutSwitch)
+/** The keyboard's reset asks the same question (layout.confirmReset), in its own words. */
+const verb = $derived(request?.reset === true ? 'reset' : 'switch')
 let dialog = $state<HTMLDivElement | null>(null)
 
 $effect(() => {
@@ -59,17 +61,18 @@ function onKeydown(event: KeyboardEvent): void {
       transition:crtPower
       role="alertdialog"
       aria-modal="true"
-      aria-label="Switch layout"
+      aria-label={request.reset === true ? 'Reset layout' : 'Switch layout'}
       tabindex="-1"
       data-testid="switch-layout-dialog"
     >
       <header class="hud-label">
-        <span>switch layout</span>
+        <span>{verb} layout</span>
         <span>enter go · esc stay</span>
       </header>
       <div class="shell-frame body">
         <p class="what">
-          Going to <b data-testid="switch-layout-name">{request.name}</b> replaces the workspace.
+          {request.reset === true ? 'Resetting to' : 'Going to'}
+          <b data-testid="switch-layout-name">{request.name}</b> replaces the workspace.
         </p>
         <p class="cost" data-testid="switch-layout-cost">
           {request.shells === 1 ? 'One shell ends' : `${request.shells} shells end`}, as they would
@@ -85,11 +88,11 @@ function onKeydown(event: KeyboardEvent): void {
             onclick={() => answer(true)}
             data-testid="switch-layout-go"
           >
-            switch
+            {verb}
           </button>
         </div>
         <button type="button" class="always" onclick={always} data-testid="switch-layout-always">
-          switch, and stop asking
+          {verb}, and stop asking
         </button>
       </div>
     </div>

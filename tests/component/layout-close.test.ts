@@ -353,6 +353,63 @@ describe('a change during a close', () => {
     const [[tree]] = saved.mock.calls as [[LayoutTree]]
     expect(collectPanes(tree.root).map((p) => p.id)).toEqual([b.id])
   })
+
+  it('closing a pair while one of its tabs powers off closes the tab that is left', () => {
+    // Finishing b's close collapses the pair into c, so the group's id has gone by
+    // the time its × is taken: the close still meant every tab, and c is what is left.
+    const group = tabs([b, c], 0)
+    load(split('row', [a, group]), b.id)
+    layout.close(b.id)
+    layout.close(group.id)
+    expect(ids()).toEqual([a.id, c.id])
+    expect(layout.closingId).toBe(c.id)
+    vi.advanceTimersByTime(CLOSE_SETTLE_MS)
+    expect(ids()).toEqual([a.id])
+  })
+
+  it('closing a group that a close in progress has taken away entirely does nothing more', () => {
+    // The group's last two panes: one closing, the other closed with it.
+    const group = tabs([b, c], 0)
+    load(split('row', [a, group]), b.id)
+    layout.close(group.id)
+    vi.mocked(sfx.play).mockClear()
+    layout.close(b.id)
+    expect(ids()).toEqual([a.id])
+    expect(layout.closingId).toBeNull()
+    expect(sfx.play).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['addTab', (gone: string) => layout.addTab(gone, 'rss')],
+    ['split', (gone: string) => layout.split(gone, 'right', 'rss')],
+  ])('%s beside a pane that went with the close leaves focus on a pane that is there', (_, add) => {
+    load(split('row', [a, b, c]), a.id)
+    layout.close(a.id)
+    vi.mocked(sfx.play).mockClear()
+    add(a.id)
+    expect(ids()).toEqual([b.id, c.id])
+    expect(layout.focusedPaneId).toBe(b.id)
+    expect(sfx.play).not.toHaveBeenCalled()
+    // The keys that act on the focused pane still reach one.
+    layout.closeFocused()
+    expect(layout.closingId).toBe(b.id)
+  })
+})
+
+describe('moving focus with none', () => {
+  const a = pane('clock')
+  const b = pane('calendar')
+  const c = pane('weather')
+
+  it.each([
+    [1, 0],
+    [-1, 2],
+  ])('cycling by %i from no pane starts at an end', (delta, expected) => {
+    load(split('row', [a, b, c]), a.id)
+    layout.focusedPaneId = null
+    layout.cycleFocus(delta)
+    expect(layout.focusedPaneId).toBe([a.id, b.id, c.id][expected])
+  })
 })
 
 describe('measureFrames', () => {

@@ -500,7 +500,8 @@ user made; do not reverse one without asking.
 ### Panes and layout
 
 - **Layout state** is a persisted tree; every change goes through a pure op in
-  src/shared/layout-ops.ts. Widgets change their pane state only with
+  src/shared/layout-ops.ts, and every tree from disk through `normalizeTree` (ids made unique:
+  a repeated key stops the workspace drawing). Widgets change their pane state only with
   `widgetState.patch(paneId, change)` (stores/widget-state.svelte.ts; undefined removes a key) -
   never `layout.patchPaneState` or spreading `state` into `setPaneState`. A tabbed pane is split,
   moved beside or dropped on through its group, and a group holds only panes, of any widget.
@@ -537,7 +538,8 @@ user made; do not reverse one without asking.
   broken entry is dropped alone; the file is never discarded whole. `KEYED_LAYOUTS`
   (Ctrl+Shift+1..9 by place): change shared/layouts.ts, keybindings.ts and Workspace.svelte
   together (a unit test). Switching asks first while shells are open (`layout.confirmSwitch`), a
-  promise the switch awaits: whatever takes the screen from it must answer it.
+  promise the switch awaits: whatever takes the screen from it must answer it. The keyboard
+  reset asks the same question (`confirmReset`); a reset button asks by its second click.
   - **Presets** (shared/layout-presets.ts) are templates, never a second kind of layout: choosing
     one adds a saved layout carrying `preset` that then follows the work. Each keeps the default
     system column at its width and heights (all but cockpit, whose CLUSTER pane does its job:
@@ -550,7 +552,8 @@ user made; do not reverse one without asking.
 - **Shortcuts** are data (src/shared/keybindings.ts), handled in Workspace.svelte; never a key
   check elsewhere. A chord includes Ctrl/Alt or is a function key. `scope: 'global'` actions are
   main's OS registrations, out of the page keymap, the list and "reset all", and `conflicts`
-  reports the app action as the loser while the OS holds the keys.
+  reports the app action as the loser while the OS holds the keys. A tooltip names a chord
+  through `chordHint` (lib/chord-hint.ts), as it is bound now - never a chord written out.
 - **Open and close with the CRT effect** (styles/crt.css, lib/crt-transitions.ts): everything that
   appears or goes over the workspace powers on and off.
   - Panes: `layout.arrived`; closing via `layout.closingId` and a `crt-extend` clip

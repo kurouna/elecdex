@@ -205,6 +205,28 @@ test('a divider resizes its neighbours from the keyboard and the size persists',
   }
 })
 
+test('a double click on a divider shares its two panes evenly, and the sizes persist', async () => {
+  const { page, userData, close } = await launch()
+  try {
+    const rootSplit = page.locator('[data-testid=split]').first()
+    const handle = rootSplit.locator(':scope > [data-testid=split-handle]').first()
+    await settleLayout(page)
+    await handle.dblclick()
+    const saved = await waitForSaved(userData, (json) => {
+      const sizes = (JSON.parse(json) as { root: { sizes?: number[] } }).root.sizes
+      return sizes !== undefined && Math.abs((sizes[0] ?? 0) - (sizes[1] ?? 0)) < 1e-6
+    })
+    const [left, right, ...rest] = JSON.parse(saved).root.sizes as number[]
+    // The system column and its neighbour share what the two of them had; the
+    // rest are left as they were.
+    expect(left).toBeCloseTo(right ?? 0, 6)
+    expect(rest).toHaveLength(1)
+    expect(rest[0]).toBeCloseTo(0.18, 6)
+  } finally {
+    await close()
+  }
+})
+
 test('the layout and its shells survive a window reload', async () => {
   const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
@@ -353,6 +375,51 @@ test('a hand-edited layout.json is honoured and normalised', async () => {
   }
 })
 
+test('a layout.json that repeats an id still draws every pane', async () => {
+  const first = await launch()
+  const { userData } = first
+  await first.quit()
+
+  // Edited by hand: two tabs and a pane beside them, all with one id. Siblings with
+  // one key once stopped the workspace drawing at all.
+  writeFileSync(
+    layoutFile(userData),
+    JSON.stringify({
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 'root',
+        direction: 'row',
+        sizes: [1, 1],
+        children: [
+          { kind: 'pane', id: 'same', widget: 'clock' },
+          {
+            kind: 'tabs',
+            id: 'group',
+            activeIndex: 0,
+            children: [
+              { kind: 'pane', id: 'same', widget: 'calendar' },
+              { kind: 'pane', id: 'same', widget: 'cpu' },
+            ],
+          },
+        ],
+      },
+    }),
+    'utf8',
+  )
+
+  const second = await launch(userData)
+  try {
+    const panes = second.page.locator('[data-testid=pane]')
+    await expect(panes).toHaveCount(3)
+    const ids = await panes.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))
+    expect(new Set(ids).size).toBe(3)
+    await expect(second.page.getByTestId('tab')).toHaveCount(2)
+  } finally {
+    await second.close()
+  }
+})
+
 test('an unknown widget id renders a visible placeholder instead of breaking the layout', async () => {
   const first = await launch()
   const { userData } = first
@@ -390,14 +457,28 @@ test('an unknown widget id renders a visible placeholder instead of breaking the
   }
 })
 
-test('reset restores the default layout', async () => {
+test('reset restores the default layout, asking first while shells are open', async () => {
   const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
     await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
     await expect(terminalPane(page)).toHaveCount(2)
 
+    // A reset ends every shell, as a switch does, so the keyboard's is asked about
+    // the same way; staying leaves the workspace as it was.
     await page.keyboard.press('Control+Shift+Backspace')
+    const ask = page.getByTestId('switch-layout-dialog')
+    await expect(ask).toBeVisible()
+    await expect(ask).toContainText('reset layout')
+    await expect(ask.getByTestId('switch-layout-name')).toHaveText('the default layout')
+    await expect(ask.getByTestId('switch-layout-cost')).toContainText('2 shells')
+    await ask.getByTestId('switch-layout-cancel').click()
+    await expect(ask).toHaveCount(0)
+    await expect(terminalPane(page)).toHaveCount(2)
+
+    await page.keyboard.press('Control+Shift+Backspace')
+    await expect(ask.getByTestId('switch-layout-go')).toHaveText('reset')
+    await ask.getByTestId('switch-layout-go').click()
     await expect(page.locator('[data-testid=pane]')).toHaveCount(17)
     await expect(terminalPane(page)).toHaveCount(1)
   } finally {

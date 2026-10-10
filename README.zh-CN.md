@@ -317,10 +317,10 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+← / → | 当前标签组（例如 shell 的标签页）中的上一个 / 下一个标签页 |
 | Ctrl+Alt+Shift+← / → | 在 shell 中：上一个 / 下一个 shell 窗格（或 shell 标签组） |
 | Ctrl+Shift+A | 添加窗格：任意组件，放在当前窗格右侧、下方或作为其旁边的标签页 |
-| Ctrl+Shift+Backspace | 重置为默认布局 |
+| Ctrl+Shift+Backspace | 重置为默认布局（有 shell 打开时，与切换布局一样先询问） |
 | Ctrl+Shift+G | 已保存布局：给当前排布命名保存，或回到某个布局 |
 | Ctrl+Shift+1 … 9 | 应用前九个已保存布局，顺序与对话框中的列表一致 |
-| Ctrl+Shift+F1 … F7 | 切换到预设：standard、network、earth、dev、media、desk、ai |
+| Ctrl+Shift+F1 … F9 | 切换到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro |
 | Ctrl+Shift+L | 搜索启动器（若布局中没有，则在工作区上方弹出一个） |
 | Ctrl+Shift+U | 实用工具窗格（有多个时每按一次切换到下一个）；布局中没有时弹出，再按一次关闭（Linux 上 IBus 可能占用此键用于 Unicode 输入，请改绑） |
 | Ctrl+Shift+S | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
@@ -331,6 +331,7 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+Q | 退出（即使关闭窗口只会把 elecdex 隐藏到通知区域，此键也会退出） |
 | Ctrl+Alt+Shift+E | 在任何应用中显示或隐藏 elecdex（Wayland 会话中不可用；默认关闭，需在 *Settings → Window* 中开启） |
 | 分隔条上的方向键 | 调整大小（按住 Shift 步长更大） |
+| 双击分隔条 | 让两侧的两个窗格平分空间 |
 
 elecdex 启动时焦点在 shell 上。在 shell 中，选中文本即复制，右键粘贴，与 PuTTY 或 Windows
 Terminal 相同；Ctrl+C 仍是 shell 的中断键。搜索栏跳到的匹配项不会被复制——只有你自己选中的

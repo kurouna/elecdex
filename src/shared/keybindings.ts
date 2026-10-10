@@ -218,6 +218,24 @@ export function effectiveBindings(
  * UI can say so. System-wide actions are left out: main takes their keys before
  * the page could see them.
  */
+/**
+ * The chord an action is on now, as a button's tooltip names it: the user's
+ * binding, formatted; null when it is unbound or not on this platform. A tooltip
+ * that names the default chord sends someone who rebound it to the wrong keys.
+ */
+export function actionChord(
+  action: KeybindingAction,
+  overrides: KeybindingOverrides,
+  platform: NodeJS.Platform,
+): string | null {
+  const chord = effectiveBindings(overrides, platform)[action]
+  return chord === null ? null : formatChord(chord)
+}
+
+/** A button's words with its chord after them in brackets, or the words alone. */
+export const withChord = (text: string, chord: string | null): string =>
+  chord === null ? text : `${text} (${chord})`
+
 export function keymap(
   overrides: KeybindingOverrides,
   platform: NodeJS.Platform,

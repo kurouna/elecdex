@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
-const { startDividerDrag } = await import('../../src/renderer/layout/split-drag.ts')
+const { evenDivider, sizesEvened, startDividerDrag } = await import(
+  '../../src/renderer/layout/split-drag.ts'
+)
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 
 /**
@@ -133,5 +135,33 @@ describe('dragging a divider', () => {
     expect(captured.size).toBe(0)
     handle.dispatchEvent(pointer('pointermove', 700))
     expect(sizes()).toEqual([0.5, 0.5])
+  })
+})
+
+describe('double-clicking a divider', () => {
+  const c = pane('rss')
+  const three = (): SplitNode => split('row', [a, b, c], [0.2, 0.5, 0.3])
+
+  it('shares the two panes it divides evenly, and leaves the others alone', () => {
+    const node = three()
+    const even = sizesEvened(node, 1).map((size) => Math.round(size * 100) / 100)
+    expect(even).toEqual([0.2, 0.4, 0.4])
+    expect(sizesEvened(node, 0).map((size) => Math.round(size * 100) / 100)).toEqual([
+      0.35, 0.35, 0.3,
+    ])
+  })
+
+  it('resizes the split in the layout', () => {
+    layout.tree = { version: LAYOUT_VERSION, root: split('row', [a, b], [0.3, 0.7]) }
+    evenDivider(root(), 0)
+    expect(sizes()).toEqual([0.5, 0.5])
+  })
+
+  it('does nothing to a split that is already even there', () => {
+    layout.tree = { version: LAYOUT_VERSION, root: split('row', [a, b], [0.5, 0.5]) }
+    // The store's own copy: it hands back its state, not the object it was given.
+    const before = layout.tree
+    evenDivider(root(), 0)
+    expect(layout.tree).toBe(before)
   })
 })

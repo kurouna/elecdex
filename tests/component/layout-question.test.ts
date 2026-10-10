@@ -23,12 +23,17 @@ const WITH_SHELL: LayoutTree = {
 }
 
 let applied: string[]
+let resets: number
 
 const stub = (): void => {
   vi.stubGlobal('elecdex', {
     layout: {
       load: async () => ONE,
       save: vi.fn(async () => ONE),
+      reset: vi.fn(async () => {
+        resets += 1
+        return ONE
+      }),
       saved: {
         list: async () => [
           { id: 'one', name: 'one', active: false },
@@ -49,6 +54,7 @@ const stub = (): void => {
 
 beforeEach(() => {
   applied = []
+  resets = 0
   ui.answerLayoutSwitch(false)
   layout.loaded = false
   layout.tree = ONE
@@ -139,5 +145,37 @@ describe('switching', () => {
     await layout.loadSaved()
     expect(await layout.switchTo('no-such-layout')).toBe(false)
     expect(applied).toEqual([])
+  })
+})
+
+describe('resetting from the keyboard', () => {
+  it('asks first while a shell is open, and leaves the workspace alone on no', async () => {
+    await layout.load()
+    layout.tree = WITH_SHELL
+    const asked = layout.confirmReset()
+    await vi.waitFor(() => expect(ui.layoutSwitch).not.toBeNull())
+    expect(ui.layoutSwitch?.reset).toBe(true)
+    expect(ui.layoutSwitch?.shells).toBe(1)
+    ui.answerLayoutSwitch(false)
+    expect(await asked).toBe(false)
+    expect(resets).toBe(0)
+    expect(layout.tree).toEqual(WITH_SHELL)
+  })
+
+  it('resets on yes', async () => {
+    await layout.load()
+    layout.tree = WITH_SHELL
+    const asked = layout.confirmReset()
+    await vi.waitFor(() => expect(ui.layoutSwitch).not.toBeNull())
+    ui.answerLayoutSwitch(true)
+    expect(await asked).toBe(true)
+    expect(resets).toBe(1)
+  })
+
+  it('resets without asking when no shell would end by it', async () => {
+    await layout.load()
+    expect(await layout.confirmReset()).toBe(true)
+    expect(ui.layoutSwitch).toBeNull()
+    expect(resets).toBe(1)
   })
 })

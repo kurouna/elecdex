@@ -74,10 +74,10 @@ $effect(() => {
   }
 })
 
-// Re-arm the reaper whenever the set of panes changes.
+// Re-arm the reaper whenever the set of panes changes - only then: `paneIds` stays the
+// same through a resize, a tab click or a pane's state written, which `panes` does not.
 $effect(() => {
-  // Touch the dependency explicitly so the effect re-runs on layout changes.
-  void layout.panes.length
+  void layout.paneIds
 
   armReaper()
 
@@ -91,7 +91,11 @@ function armReaper(): void {
   if (reapTimer !== null) clearTimeout(reapTimer)
   reapTimer = setTimeout(() => {
     reapTimer = null
-    void reapOrphanSessions()
+    reapOrphanSessions().catch((error: unknown) => {
+      // Main did not answer: look again in a while rather than wait for the panes to change.
+      console.error('[elecdex] could not end the shells no pane claims', error)
+      if (reapTimer === null) armReaper()
+    })
   }, REAP_DELAY_MS)
 }
 
@@ -165,7 +169,8 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   },
   'focus.next': () => layout.cycleFocus(1),
   'focus.previous': () => layout.cycleFocus(-1),
-  'layout.reset': () => void layout.reset(),
+  // Asked first while shells are open, as a switch is: a reset ends them too.
+  'layout.reset': () => void layout.confirmReset(),
   'layout.saved': () => ui.openLayouts(),
   // A slot with nothing saved in it leaves the keys to the focused pane.
   'layout.saved1': () => applySavedSlot(0),

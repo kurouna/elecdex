@@ -82,7 +82,8 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
       class="select"
       aria-label="New tab"
       onclick={() => {
-        const first = panes[0]
+        // Beside a tab that stays: the first may be the one powering off.
+        const first = panes.find((p) => p.id !== layout.closingId)
         if (first) layout.addTab(first.id, first.widget)
       }}
       data-testid="tab-new"><span class="upright">+</span></button

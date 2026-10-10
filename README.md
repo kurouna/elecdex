@@ -349,10 +349,10 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+← / → | previous / next tab in the focused tab group, such as the shell's tabs |
 | Ctrl+Alt+Shift+← / → | from a shell: previous / next shell pane (or group of shell tabs) |
 | Ctrl+Shift+A | add a pane: any widget, right of, below or as a tab beside the focused pane |
-| Ctrl+Shift+Backspace | reset to the default layout |
+| Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open, as a switch does) |
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
 | Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
-| Ctrl+Shift+F1 … F7 | go to a preset: standard, network, earth, dev, media, desk, ai |
+| Ctrl+Shift+F1 … F9 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro |
 | Ctrl+Shift+L | search the launcher (pops one up over the workspace if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up if the layout has none - pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
@@ -363,6 +363,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+Q | quit (also when closing only hides elecdex to the notification area) |
 | Ctrl+Alt+Shift+E | show or hide elecdex from any app (not in a Wayland session; off until turned on in *Settings → Window*) |
 | Arrow keys on a divider | resize (Shift for larger steps) |
+| Double-click on a divider | share the room of the two panes beside it evenly |
 
 The shell has focus when elecdex starts. In a shell, selecting text copies it and a right-click
 pastes, as in PuTTY or Windows Terminal; Ctrl+C stays the shell's interrupt. A match the search

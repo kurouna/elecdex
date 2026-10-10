@@ -1,4 +1,6 @@
 <script lang="ts">
+import { chordHint } from '../lib/chord-hint.ts'
+
 /**
  * The buttons in a pane's top-right corner: ⤢ to bring it forward (only for a
  * widget that gains from the room, registry.ts) and × to close it. One picture for
@@ -46,7 +48,7 @@ const closeLabel = $derived(kind === 'group' ? `close all ${count ?? 0} tabs` : 
 const closeTitle = $derived(
   kind === 'group'
     ? `Close all ${count ?? 0} tabs (a tab's × closes one)`
-    : 'Close pane (Ctrl+Shift+W)',
+    : chordHint('Close pane', 'pane.close'),
 )
 </script>
 
@@ -57,7 +59,7 @@ const closeTitle = $derived(
     class:alone={zoomed}
     aria-pressed={zoomed}
     aria-label={`${zoomed ? 'put back' : 'bring forward'} ${title}`}
-    title={zoomed ? 'Put the pane back (Ctrl+Shift+Z)' : 'Bring the pane forward (Ctrl+Shift+Z)'}
+    title={chordHint(zoomed ? 'Put the pane back' : 'Bring the pane forward', 'pane.zoom')}
     onclick={(e) => {
       e.stopPropagation()
       onzoom()

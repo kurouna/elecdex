@@ -112,10 +112,50 @@ export function normalize(node: LayoutNode): LayoutNode | null {
   return { ...node, children: kept, sizes: normalizeSizes(keptSizes, kept.length) }
 }
 
-/** Normalises a whole tree, substituting `fallback` if it collapsed entirely. */
+/**
+ * Normalises a whole tree, substituting `fallback` if it collapsed entirely.
+ *
+ * Ids are made unique first. A layout.json edited by hand, or a layouts.json
+ * carried from another machine, may repeat one: two siblings with one id stop
+ * the workspace drawing at all (a keyed list throws), and two nodes anywhere
+ * with one id would be closed and moved as one.
+ */
 export function normalizeTree(tree: LayoutTree, fallback: LayoutNode): LayoutTree {
-  const root = normalize(tree.root)
+  const root = normalize(uniqueIds(tree.root))
   return { version: LAYOUT_VERSION, root: root ?? fallback }
+}
+
+/**
+ * The node with every repeated id after its first use given a new one. A tree
+ * that repeats none - every tree the app makes - comes back as the same object.
+ */
+function uniqueIds(root: LayoutNode): LayoutNode {
+  const seen = new Set<string>()
+  let repeated = false
+  walk(root, (node) => {
+    if (seen.has(node.id)) repeated = true
+    seen.add(node.id)
+  })
+  if (!repeated) return root
+  const used = new Set<string>()
+  const fresh = (node: LayoutNode): string => {
+    if (!used.has(node.id)) {
+      used.add(node.id)
+      return node.id
+    }
+    let id = newId(node.kind[0])
+    while (seen.has(id) || used.has(id)) id = newId(node.kind[0])
+    used.add(id)
+    return id
+  }
+  const rename = (node: LayoutNode): LayoutNode => {
+    const id = fresh(node)
+    if (node.kind === 'pane') return id === node.id ? node : { ...node, id }
+    if (node.kind === 'tabs') return { ...node, id, children: node.children.map(renamePane) }
+    return { ...node, id, children: node.children.map(rename) }
+  }
+  const renamePane = (node: PaneNode): PaneNode => rename(node) as PaneNode
+  return rename(root)
 }
 
 /** Depth-first walk over every node. */

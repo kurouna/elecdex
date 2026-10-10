@@ -20,7 +20,12 @@ import {
   visiblePanes,
 } from '@shared/layout-ops'
 import type { SavedLayoutSummary } from '@shared/layouts'
-import { LAYOUT_VERSION, type LayoutTree, type SplitDirection } from '@shared/schemas/layout'
+import {
+  LAYOUT_VERSION,
+  type LayoutNode,
+  type LayoutTree,
+  type SplitDirection,
+} from '@shared/schemas/layout'
 import { flushSync } from 'svelte'
 import {
   SWITCH_GAP_MS,
@@ -113,6 +118,13 @@ class LayoutStore {
   loaded = $state(false)
 
   readonly panes = $derived(collectPanes(this.tree.root))
+  /**
+   * Every pane's id in tree order, as one string: unlike `panes`, a new array on
+   * every change to the tree, it changes only when a pane comes or goes. The
+   * workspace's shell reaper waits on it, so a divider dragged, a tab clicked or
+   * a pane's state written does not keep putting the reaper off.
+   */
+  readonly paneIds = $derived(this.panes.map((p) => p.id).join(' '))
   readonly visible = $derived(visiblePanes(this.tree.root))
   /** The visible panes that stay: what the keyboard can move to. */
   private readonly shown = $derived(this.visible.filter((p) => p.id !== this.closingId))
@@ -276,10 +288,16 @@ class LayoutStore {
   private write(): Promise<void> {
     const done = window.elecdex.layout
       .save(this.snapshot())
-      .catch((error: unknown) => {
-        // Surface it: a save that fails quietly loses the user's layout on next launch.
-        console.error('[elecdex] failed to save layout', error)
-      })
+      .then(
+        () => {
+          this.saveFailing = false
+        },
+        (error: unknown) => {
+          // Surface it: a save that fails quietly loses the user's layout on next launch.
+          console.error('[elecdex] failed to save layout', error)
+          this.warnSaveFailed()
+        },
+      )
       .then(() => {
         if (this.saving === done) this.saving = null
       })
@@ -289,6 +307,18 @@ class LayoutStore {
 
   /** The save in flight, if any. */
   private saving: Promise<void> | null = null
+  /** True from a failed save until one goes through, so the user is told once, not per save. */
+  private saveFailing = false
+
+  private warnSaveFailed(): void {
+    if (this.saveFailing) return
+    this.saveFailing = true
+    toasts.show({
+      title: 'could not save the layout',
+      body: 'Changes to the arrangement may be lost when elecdex closes. Every change tries again.',
+      tone: 'danger',
+    })
+  }
 
   /**
    * Writes a pending save immediately and waits for main to have it, for
@@ -465,8 +495,13 @@ class LayoutStore {
   split(paneId: string, direction: SplitDirection, widget: string): void {
     this.settle()
     const incoming = pane(widget)
+    const next = splitPane(this.tree, paneId, direction, incoming)
+    // A target that has gone - it may have gone with the close just finished -
+    // adds nothing, so nothing is focused, powered on or heard either: focus on a
+    // pane that was never made would leave every key for the focused pane dead.
+    if (next === this.tree) return
     this.arriving = incoming.id
-    this.commit(splitPane(this.tree, paneId, direction, incoming))
+    this.commit(next)
     this.focusedPaneId = incoming.id
     sfx.play('expand')
   }
@@ -483,8 +518,11 @@ class LayoutStore {
   addTab(siblingPaneId: string, widget: string): void {
     this.settle()
     const incoming = pane(widget)
+    const next = addTab(this.tree, siblingPaneId, incoming)
+    // As for a split: a sibling that has gone adds nothing.
+    if (next === this.tree) return
     this.arriving = incoming.id
-    this.commit(addTab(this.tree, siblingPaneId, incoming))
+    this.commit(next)
     this.focusedPaneId = incoming.id
     sfx.play('folder')
   }
@@ -565,25 +603,41 @@ class LayoutStore {
   close(nodeId: string): void {
     // Its tab's × still takes a click while it powers off; that is the same close.
     if (nodeId === this.closingId) return
-    const node = findNode(this.tree.root, nodeId)
+    const asked = findNode(this.tree.root, nodeId)
     // Closed from the front: it keeps the room it was pinned in to power off in.
     // A group closed with its shown tab in front does the same, pinned by that tab.
     const zoomed = this.zoomedPaneId
     const inFront =
       zoomed !== null &&
-      (zoomed === nodeId || (node?.kind === 'tabs' && findNode(node, zoomed) !== null))
+      (zoomed === nodeId || (asked?.kind === 'tabs' && findNode(asked, zoomed) !== null))
     this.settleFor(inFront ? zoomed : null)
+    // Found again in the tree the settle left, which may no longer hold it.
+    const node = asked === null ? null : this.remainsOf(asked)
     if (node === null) return
+    const id = node.id
     sfx.play('collapse')
     // A group is always on screen; a pane is not when it is a tab behind another.
-    const shown = node.kind === 'tabs' || this.visible.some((p) => p.id === nodeId)
+    const shown = node.kind === 'tabs' || this.visible.some((p) => p.id === id)
     if (!shown || this.closeMotion?.animates() !== true) {
-      this.remove(nodeId)
+      this.remove(id)
       return
     }
-    this.closingId = nodeId
-    this.focusedPaneId = focusIn(closeNode(this.tree, nodeId, fallbackNode()), this.focusedPaneId)
+    this.closingId = id
+    this.focusedPaneId = focusIn(closeNode(this.tree, id, fallbackNode()), this.focusedPaneId)
     this.closeTimer = setTimeout(() => this.finishClosing(), CLOSE_SETTLE_MS)
+  }
+
+  /**
+   * What is left now of a node asked to close before a close in progress was
+   * finished: the node itself, or - for a pair of tabs that finishing it has
+   * collapsed into its other tab - that tab, since closing the group meant every
+   * tab. Null when it has gone altogether.
+   */
+  private remainsOf(asked: LayoutNode): LayoutNode | null {
+    const now = findNode(this.tree.root, asked.id)
+    if (now !== null || asked.kind !== 'tabs') return now
+    const left = asked.children.filter((child) => findNode(this.tree.root, child.id) !== null)
+    return left.length === 1 ? (left[0] ?? null) : null
   }
 
   /** The power-off has played: remove the pane and uncover what took its room. */
@@ -678,11 +732,34 @@ class LayoutStore {
     // Written out first, not dropped: a save still pending belongs to the layout
     // being left, which main writes back into it before the reset clears it.
     await this.flush()
-    const tree = await window.elecdex.layout.reset()
+    let tree: LayoutTree
+    try {
+      tree = await window.elecdex.layout.reset()
+    } catch (error) {
+      // The workspace stays as it is: main did not reset it, so nothing on screen changes.
+      console.error('[elecdex] could not reset the layout', error)
+      toasts.show({
+        title: 'could not reset the layout',
+        body: 'The workspace is as it was.',
+        tone: 'danger',
+      })
+      return
+    }
     // The default arrangement belongs to no saved layout; main has cleared it.
     this.markActive(null)
     await this.replaceTree(tree)
     await this.loadSaved()
+  }
+
+  /**
+   * The reset the keyboard asks for: like a switch, it ends every shell, so it
+   * asks the same question first (`mayReplace`); the buttons ask by needing a
+   * second click. True when it went ahead.
+   */
+  async confirmReset(): Promise<boolean> {
+    if (!(await this.mayReplace('the default layout', true))) return false
+    await this.reset()
+    return true
   }
 
   /**
@@ -816,7 +893,20 @@ class LayoutStore {
   async applySaved(id: string): Promise<boolean> {
     await this.flush()
     const tree = await this.ask((saved) => saved.apply(id))
-    if (tree === null || tree === undefined) return false
+    // Main could not be asked: `ask` has said so.
+    if (tree === undefined) return false
+    if (tree === null) {
+      // Main no longer has it, or cannot read it (a layouts.json changed by hand,
+      // or written by a newer elecdex): a key that does nothing says why, and the
+      // list is read again so it stops offering what is not there.
+      toasts.show({
+        title: 'the layout could not be applied',
+        body: 'It is no longer saved, or was saved by a newer elecdex. The list now shows what is on disk.',
+        tone: 'warn',
+      })
+      await this.loadSaved()
+      return false
+    }
     // Which layout is now being worked in, before the effect rather than after
     // it: main has already decided, and a second switch pressed while the panes
     // are still coming on asks this list which one it is in.
@@ -858,10 +948,10 @@ class LayoutStore {
    * not turned the question off. Also the question a preset asks before it is
    * added (layout/presets.ts), so both ways in say the same thing.
    */
-  async mayReplace(name: string): Promise<boolean> {
+  async mayReplace(name: string, reset = false): Promise<boolean> {
     const shells = this.panes.filter((node) => node.widget === 'terminal').length
     if (shells === 0 || !appearance.settings.layout.confirmSwitch) return true
-    return ui.askLayoutSwitch({ name, shells })
+    return ui.askLayoutSwitch(reset ? { name, shells, reset } : { name, shells })
   }
 
   async removeSaved(id: string): Promise<void> {
@@ -959,8 +1049,11 @@ class LayoutStore {
     const order = this.shown
     if (order.length === 0) return
     const current = order.findIndex((p) => p.id === this.focusedPaneId)
-    const from = current === -1 ? 0 : current
-    const next = order[(from + delta + order.length) % order.length]
+    // From no pane, forward starts at the first and back at the last.
+    const next =
+      current === -1
+        ? order[delta > 0 ? 0 : order.length - 1]
+        : order[(current + delta + order.length) % order.length]
     if (next) this.focus(next.id)
   }
 }

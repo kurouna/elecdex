@@ -356,6 +356,8 @@ test('panes with WebGL canvases survive being moved again and again', async () =
     // would otherwise compound until titles sit under dividers.
     if (i > 0) {
       await page.keyboard.press('Control+Shift+Backspace')
+      // The shells open end with the reset, so it asks first.
+      await page.getByTestId('switch-layout-go').click()
       await expect(strip).toHaveCount(3)
       // The default layout arrives powering on, pane by pane: pressing on a
       // title before that ends presses where the pane is going to be.

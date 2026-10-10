@@ -343,10 +343,10 @@ elecdex はフルスクリーンで起動します。**F11** でフルスクリ�
 | Ctrl+Shift+← / → | フォーカス中のタブグループ（シェルのタブなど）で前 / 次のタブへ |
 | Ctrl+Alt+Shift+← / → | シェルから: 前 / 次のシェルペイン（またはシェルのタブグループ）へ |
 | Ctrl+Shift+A | ペインを追加: 任意のウィジェットを、フォーカス中のペインの右・下、またはその隣のタブとして |
-| Ctrl+Shift+Backspace | 既定のレイアウトに戻す |
+| Ctrl+Shift+Backspace | 既定のレイアウトに戻す（シェルが開いていれば、切り替えと同じく先に確認する） |
 | Ctrl+Shift+G | 保存したレイアウト: 今の配置に名前を付けて残す、または保存した配置に戻る |
 | Ctrl+Shift+1 … 9 | 保存したレイアウトのうち、ダイアログに並ぶ順で最初の九つを適用 |
-| Ctrl+Shift+F1 … F7 | プリセットへ切り替え: standard、network、earth、dev、media、desk、ai |
+| Ctrl+Shift+F1 … F9 | プリセットへ切り替え: standard、network、earth、dev、media、desk、ai、cockpit、retro |
 | Ctrl+Shift+L | ランチャーを検索（レイアウトになければワークスペースの上にポップアップ） |
 | Ctrl+Shift+U | Utility ペインへ（複数あれば押すたびに次へ）。レイアウトになければポップアップし、もう一度押すと閉じる（Linux の IBus がこのキーを Unicode 入力に使う環境では、割り当てを変えてください） |
 | Ctrl+Shift+S | 選択中のタブのシェルにフォーカス（シェルペインがなければ追加） |
@@ -357,6 +357,7 @@ elecdex はフルスクリーンで起動します。**F11** でフルスクリ�
 | Ctrl+Shift+Q | 終了（閉じても elecdex を通知領域に隠すだけの設定のときも終了します） |
 | Ctrl+Alt+Shift+E | どのアプリからでも elecdex を表示 / 非表示（Wayland セッションでは不可。*Settings → Window* でオンにするまでオフ） |
 | 区切り線の上で矢印キー | サイズ変更（Shift で大きく動かす） |
+| 区切り線をダブルクリック | 両隣の 2 つのペインで広さを等分する |
 
 elecdex の起動時には、シェルにフォーカスがあります。シェルでは、PuTTY や Windows Terminal と同じように、
 テキストを選択するとコピーされ、右クリックで貼り付けられます。Ctrl+C はシェルの割り込みのままです。

@@ -1,5 +1,6 @@
 <script lang="ts">
 import ConfirmButton from '../ConfirmButton.svelte'
+import { chordHint } from '../lib/chord-hint.ts'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
 import { revealSelected } from '../lib/list-selection.ts'
 import { plugins } from '../plugins/plugins.svelte.ts'
@@ -198,7 +199,7 @@ function onKeydown(event: KeyboardEvent): void {
           <ConfirmButton
             label="reset layout"
             action="reset"
-            title="Restore the default layout (Ctrl+Shift+Backspace)"
+            title={chordHint('Restore the default layout', 'layout.reset')}
             testid="pane-picker-reset"
             onconfirm={() => {
               returnFocus = null

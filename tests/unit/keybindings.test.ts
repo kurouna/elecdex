@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  actionChord,
   availableOn,
   chordFromEvent,
   conflicts,
@@ -11,6 +12,7 @@ import {
   keymap,
   normalizeChord,
   withBinding,
+  withChord,
 } from '../../src/shared/keybindings.js'
 import { LAYOUT_PRESETS } from '../../src/shared/layout-presets.js'
 import { KEYED_LAYOUTS } from '../../src/shared/layouts.js'
@@ -188,5 +190,29 @@ describe('the preset keys', () => {
   it('takes no chord another action already has', () => {
     const chords = KEYBINDING_ACTIONS.map((action) => action.chord)
     expect(new Set(chords).size).toBe(chords.length)
+  })
+})
+
+describe('the chord a button names', () => {
+  it('is the action’s own, as the user has bound it', () => {
+    expect(actionChord('pane.close', {}, 'win32')).toBe('Ctrl+Shift+W')
+    expect(actionChord('pane.close', { 'pane.close': 'Ctrl+Alt+KeyX' }, 'win32')).toBe('Ctrl+Alt+X')
+    expect(actionChord('pane.close', { 'pane.close': null }, 'win32')).toBeNull()
+    expect(actionChord('layout.reset', {}, 'darwin')).toBe('Ctrl+Shift+Backspace')
+  })
+
+  it('is none for an action this platform does not have', () => {
+    const local = KEYBINDING_ACTIONS.find((a) => 'platforms' in a)
+    if (local === undefined) throw new Error('every action is on every platform')
+    const elsewhere = (['win32', 'darwin', 'linux'] as const).find(
+      (platform) => !availableOn(local.id, platform),
+    )
+    if (elsewhere === undefined) throw new Error(`${local.id} is everywhere`)
+    expect(actionChord(local.id, {}, elsewhere)).toBeNull()
+  })
+
+  it('goes in brackets after the words, and leaves them alone when there is none', () => {
+    expect(withChord('Close pane', 'Ctrl+Shift+W')).toBe('Close pane (Ctrl+Shift+W)')
+    expect(withChord('Close pane', null)).toBe('Close pane')
   })
 })
