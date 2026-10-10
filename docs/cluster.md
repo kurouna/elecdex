@@ -24,6 +24,8 @@ architecture.md §5.20 に要約を移し、ここは詳細として残す。
 | 2026-10-10 | 当てはまらない警告灯は出さない。地震の通知がオフなら QUAKE を、電池の無い機械では BATT を、行から外す | 利用者の指定 |
 | 2026-10-10 | 設定項目は持たない | 利用者の指定 |
 | 2026-10-10 | プリセットは実装の最後に足す。CLUSTER の右と下（または右か下）にターミナル | 利用者の案 |
+| 2026-10-10 | 名前はペインが `cluster`（見出し CLUSTER、ピッカーは cluster dashboard）、プリセットが `cockpit` | 利用者の選択 |
+| 2026-10-10 | cockpit プリセットだけはシステム列を持たない例外にする。CLUSTER が左上、その右と下にターミナル | 利用者の選択（中身がシステム列と重なるため） |
 | 2026-10-10 | CPU 温度、CPU クロック、外気温、Docker・git の警告灯は入れない | 温度は Windows で常に null、クロックは Windows で実クロックで動かない見込み（未確認）、天気は地点の設定が要り、Docker と git は他ペインの領分 |
 
 ## 1. 目的と非目的
@@ -168,7 +170,7 @@ architecture.md §5.20 に要約を移し、ここは詳細として残す。
 
 **既存に足すもの**（どれも一覧に 1 行ずつ）
 
-- `src/renderer/widgets/builtins.ts`: `registerBuiltin` を 1 つ
+- `src/renderer/widgets/builtins.ts`: `registerBuiltin` を 1 つ（`id: 'cluster'`、`title: 'cluster'`、`pickerTitle: 'cluster dashboard'`）
   - `metrics` には §3 のソースを宣言する
   - `keepWhileHidden` は 3 つ
   - `zoom: 'full'`、`popup: true`
@@ -186,6 +188,22 @@ architecture.md §5.20 に要約を移し、ここは詳細として残す。
 - ウィジェットが読むのは既存のストア 2 つ（`metrics`、`awake`）と、公開 API 1 つ（`quakes.observe`）だけ
 - 判定は `shared/cluster.ts` に閉じ、ページの部品は描くことだけをする
 - 既存のチャート部品（StreamChart）は時間の扱いが違うので使わず、共有するのは `onFrame`、`onBoundary`、`Digits`、`HoverCard` だけ
+
+### 6.1 cockpit プリセット（実装の最後）
+
+- **並び**: CLUSTER を左上（幅 6 割、高さ 6 割強）に置き、その下にターミナル、右に高さいっぱいのターミナル
+  - 幅 1920 の画面で CLUSTER が wide の段に入る幅にする
+  - 各ペインの `minSize` は守る
+- **システム列の例外**: このプリセットだけシステム列を持たない（2026-10-10、利用者の選択）
+  - layout-presets.ts の決まりの文と単体テストに、例外を 1 つだけ明記する
+  - ほかのプリセットの決まりは変えない
+- **CLAUDE.md の手順どおりに足すもの**:
+  - `LAYOUT_PRESET_IDS` の末尾（9 番目なので Ctrl+Shift+9）
+  - keybindings.ts と Workspace.svelte
+  - LAYOUTS ダイアログの幅
+  - layout-presets.spec.ts の `PRESETS`
+  - README 3 か国語のスクリーンショットと数
+- **既存の利用者**: 新しいプリセットは初回起動だけに与えるので、既存の保存レイアウトの一覧には足されない（2026-09-24 の決定）。LAYOUTS ダイアログから選べる
 
 ## 7. 詳細カード
 
@@ -233,6 +251,4 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。
 
 ## 9. 未決事項
 
-1. **名前**: ペイン（id・見出し・ピッカーの名前）とプリセットの名前。実装の前に決める。
-2. **プリセットとシステム列**: いまのプリセットはすべて既定のシステム列（左の列）を同じ幅で持つ（layout-presets.ts、単体テスト）。CLUSTER のプリセットだけそれを持たない例外にするか、システム列を残してその右に置くか。
-3. **既定のレイアウト**: 入れない想定。
+1. **既定のレイアウト**: 入れない想定。
