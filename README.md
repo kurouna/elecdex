@@ -20,7 +20,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.24 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.25 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -171,7 +171,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   <br><sub>cockpit · Black</sub>
 </p>
 
-- **Cluster** *(unreleased)* — the whole machine on one pane, like a car's instrument cluster: warning lamps and
+- **Cluster** — the whole machine on one pane, like a car's instrument cluster: warning lamps and
   the worst of them in words, the clock and the date, a minute of CPU, memory, disk I/O, network and
   ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
   any size, from the full screen to a narrow column.
@@ -236,7 +236,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the nine
   presets.
 - **Look and feel** — seven themes that switch live: Tron, Amber, Phosphor and White for the HUD, Black (White turned
-  over, near-black on a pale ground with the same scanlines) *(unreleased)*,
+  over, near-black on a pale ground with the same scanlines),
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
   icons for an ordinary working day - every one of them is in a picture above. A CRT power-on boot
   sequence after a Linux-style boot log of
@@ -485,7 +485,7 @@ weather and calendar.
 - **Disk** — each volume as a bar of used space against its size (amber from 90%, red from 97%),
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
-- **Cluster** *(unreleased)* — in the cockpit preset, or add it from the picker ("cluster dashboard"). On top,
+- **Cluster** — in the cockpit preset, or add it from the picker ("cluster dashboard"). On top,
   lamps for LINK, PING, CPU, MEM, DISK, BATT (with a battery), AWAKE and QUAKE (with quake alerts
   on) — dark until something holds for ten seconds — and the message line saying the worst of them
   in words, with how many more. Under them the clock and the date. Then six lanes, CPU, memory,
