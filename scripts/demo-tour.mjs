@@ -19,7 +19,8 @@
  *               CHIP-8 behind its tab, its library playing T8NKS by
  *               itself, loaded, then paused on MEM
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
- *   themes      every built-in theme in turn (Black among them), back to Tron
+ *   themes      every built-in theme in turn (Black among them), back to the take's own (Tron;
+ *               `npm run demo:tour-black` takes the whole tour in Black)
  *
  * Everything shown is made up or a stand-in (demo-take.mjs): the home, the repository, the Claude
  * Code folder, the sockets, the Wi-Fi link, the clipboard, the media session and its covers, the
