@@ -19,7 +19,8 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
  *
  * Every preset keeps the default layout's system column at the same width and
  * heights, so a switch between them changes the stage and leaves the
- * instruments where the eye expects them. A preset turns nothing on: Starlink,
+ * instruments where the eye expects them - all but cockpit, whose CLUSTER pane
+ * says what the column does and more (user decision 2026-10-10). A preset turns nothing on: Starlink,
  * quake alerts and the like stay the user's to opt into.
  *
  * Everything here is pure: main and the page both call it, and the tests do.
@@ -34,6 +35,7 @@ export const LAYOUT_PRESET_IDS = [
   'desk',
   'ai',
   'retro',
+  'cockpit',
 ] as const
 export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number]
 
@@ -215,7 +217,27 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
         [1],
       ),
   },
+  {
+    // The machine on one pane where the system column would be, wide enough at 1600 to lay
+    // itself out at its widest with every core, a shell under it and two more beside it
+    // (user decision 2026-10-10). The one preset without the system column: CLUSTER says what
+    // the column does, and more.
+    id: 'cockpit',
+    name: 'cockpit',
+    description: 'the whole machine on one pane, with shells under it and beside it',
+    build: () =>
+      split(
+        'row',
+        [split('column', [pane('cluster'), pane('terminal')], [0.7, 0.3]), shells(2)],
+        [0.7, 0.3],
+      ),
+  },
 ]
+
+/** The presets that keep the system column on their left: every one but cockpit. */
+export const WITH_SYSTEM_COLUMN: readonly LayoutPresetId[] = LAYOUT_PRESET_IDS.filter(
+  (id) => id !== 'cockpit',
+)
 
 export function presetById(id: unknown): LayoutPreset | null {
   return LAYOUT_PRESETS.find((preset) => preset.id === id) ?? null

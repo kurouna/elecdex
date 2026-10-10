@@ -160,8 +160,11 @@ $effect(() => {
   const el = rootEl
   if (el === null) return
   const observer = new ResizeObserver((entries) => {
-    const box = entries[0]?.contentRect
-    if (box === undefined || box.width <= 0) return
+    // The whole of the pane's body, padding and all: the room the tiers are measured against
+    // (CLUSTER_ROOM), not what is left inside the padding.
+    const border = entries[0]?.borderBoxSize[0]
+    if (border === undefined || border.inlineSize <= 0) return
+    const box = { width: border.inlineSize, height: border.blockSize }
     const next = clusterTier(
       box.width,
       box.height,

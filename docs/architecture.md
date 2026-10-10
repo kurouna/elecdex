@@ -500,8 +500,8 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 
 **プリセット**（`shared/layout-presets.ts`、2026-09-24）: 用途別の配置を組み込みで持つ。standard（既定
 レイアウトそのもの）/ network（地球儀・connections を 3:2・シェル）/ earth（ORBIT・地球儀・地震・天気・シェル）/
-dev（AI AGENT、Docker とシェルのタブ、clipboard・timer・シェルのタブを縦に、右に GIT と AI チャットのタブ。前面は見えている間だけ読む Docker と clipboard と、差分に全高が要る GIT。§5.17。2026-10-01 に利用者の指定で組み直した）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（3 列: notes の下に timer と calculator、tasks の下に clipboard、calendar の下に utility。シェルなし。clipboard は見えている間だけ読むのでタブに重ねない。§5.14。2026-09-27 に utility を入れるため 2 列から組み直した。§5.16）/ ai（AI チャット 2 つを上下に、右の広い列に ELEC system。§5.7・§5.8。2026-10-01 追加）/ retro（ELEC-16 と CHIP-8 をタブにした 1 つのペイン、その下に 16 バンドの spectrum。§5.18・§5.19。2026-10-04 追加）の 8 つ。どれも既定の左カラム（システム列）を同じ幅・同じ高さで
-左端に持つので、切り替えると計器盤はそのままで右の舞台だけが替わって見える。名前は ORBIT ペインと重ならない
+dev（AI AGENT、Docker とシェルのタブ、clipboard・timer・シェルのタブを縦に、右に GIT と AI チャットのタブ。前面は見えている間だけ読む Docker と clipboard と、差分に全高が要る GIT。§5.17。2026-10-01 に利用者の指定で組み直した）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（3 列: notes の下に timer と calculator、tasks の下に clipboard、calendar の下に utility。シェルなし。clipboard は見えている間だけ読むのでタブに重ねない。§5.14。2026-09-27 に utility を入れるため 2 列から組み直した。§5.16）/ ai（AI チャット 2 つを上下に、右の広い列に ELEC system。§5.7・§5.8。2026-10-01 追加）/ retro（ELEC-16 と CHIP-8 をタブにした 1 つのペイン、その下に 16 バンドの spectrum。§5.18・§5.19。2026-10-04 追加）/ cockpit（左上に CLUSTER、その下にシェル、右にシェル 2 つのタブ。§5.20。2026-10-10 追加）の 9 つ。cockpit 以外は既定の左カラム（システム列）を同じ幅・同じ高さで
+左端に持つので、切り替えると計器盤はそのままで右の舞台だけが替わって見える。cockpit だけは、CLUSTER が列の役目を果たすので列を持たない（2026-10-10、利用者の決定。`WITH_SYSTEM_COLUMN`）。名前は ORBIT ペインと重ならない
 ように earth にした（利用者の判断）。
 
 - **プリセットは雛形で、2 種類目のレイアウトではない**。選ぶと、そのプリセットから作った保存レイアウトを
@@ -1465,7 +1465,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 - **判定**: 純粋関数として `shared/cluster.ts` にまとめる。ページの部品（`widgets/cluster/`）は描くだけ
 - **描画**: 値は届いたその場で描き、レーンは値ごとに 1 本詰める
 
-設計、決定の記録、負荷の測定は **[cluster.md](cluster.md)** に書く。cockpit プリセットはまだ。
+設計、決定の記録、負荷の測定は **[cluster.md](cluster.md)** に書く。cockpit プリセット（§5.6）は CLUSTER を左上に置く。
 
 ## 6. ターミナル設計
 

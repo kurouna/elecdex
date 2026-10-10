@@ -2,7 +2,7 @@
 
 1 枚で済むダッシュボード。車の計器盤のように、システム・ネットワーク・デスクの状態を 1 つのペインに
 まとめ、利用者が並べ方に悩まなくて済むようにする。大きさに合わせて組み替わり、値は壁時計の秒にそろって
-動く。ペインは実装済み（2026-10-10）、cockpit プリセットはまだ（§6.1）。要約は architecture.md §5.20。
+動く。ペインと cockpit プリセットは実装済み（2026-10-10）。要約は architecture.md §5.20。
 
 見た目の合意はモック（Artifact「elecdex CLUSTER」第 6 版）で取った。モックの数値は作り物で、
 描き方（SVG と CSS トランジション）は実装と違う（§5）。
@@ -199,16 +199,16 @@
 - 判定は `shared/cluster.ts` に閉じ、ページの部品は描くことだけをする
 - 既存のチャート部品（StreamChart）は時間の扱いが違うので使わず、共有するのは `onBoundary`、`Digits`、`HoverCard` だけ
 
-### 6.1 cockpit プリセット（実装の最後）
+### 6.1 cockpit プリセット
 
-- **並び**: CLUSTER を左上（幅 6 割、高さ 6 割強）に置き、その下にターミナル、右に高さいっぱいのターミナル
-  - 幅 1920 の画面で CLUSTER が wide の段に入る幅にする
+- **並び**: CLUSTER を左上（幅 7 割、高さ 7 割）に置き、その下にシェル、右に高さいっぱいのシェル 2 つのタブ
+  - README のスクリーンショット（1600×900）でも CLUSTER が wide の段でコアの行まで出る大きさにする（単体テストが `clusterTier` で確かめる）
   - 各ペインの `minSize` は守る
 - **システム列の例外**: このプリセットだけシステム列を持たない（2026-10-10、利用者の選択）
   - layout-presets.ts の決まりの文と単体テストに、例外を 1 つだけ明記する
   - ほかのプリセットの決まりは変えない
 - **CLAUDE.md の手順どおりに足すもの**:
-  - `LAYOUT_PRESET_IDS` の末尾（9 番目なので Ctrl+Shift+9）
+  - `LAYOUT_PRESET_IDS` の末尾（9 番目。プリセットのキーは Ctrl+Shift+F9、番号のキーは Ctrl+Shift+9）
   - keybindings.ts と Workspace.svelte
   - LAYOUTS ダイアログの幅
   - layout-presets.spec.ts の `PRESETS`

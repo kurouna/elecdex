@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { clusterTier, showCores } from '@shared/cluster'
 import { describe, expect, it } from 'vitest'
 import {
   defaultLayoutNode,
@@ -17,6 +18,7 @@ import {
   presetCards,
   presetTree,
   seededLayouts,
+  WITH_SYSTEM_COLUMN,
   withPresetLayout,
   withPresetRestored,
 } from '../../src/shared/layout-presets.js'
@@ -107,9 +109,10 @@ describe('LAYOUT_PRESETS', () => {
     }
   })
 
-  it('keeps the system column, at the same width and heights, on the left of every one', () => {
+  it('keeps the system column, at the same width and heights, on the left of every one but cockpit', () => {
     const column = layoutShape(defaultLayoutNode()).filter((r) => LEFT_COLUMN.includes(r.widget))
-    for (const preset of LAYOUT_PRESETS) {
+    expect([...WITH_SYSTEM_COLUMN]).toEqual(LAYOUT_PRESET_IDS.filter((id) => id !== 'cockpit'))
+    for (const preset of LAYOUT_PRESETS.filter((p) => WITH_SYSTEM_COLUMN.includes(p.id))) {
       const shape = layoutShape(preset.build())
       const left = shape.filter((r) => LEFT_COLUMN.includes(r.widget))
       expect(left, preset.id).toEqual(column)
@@ -187,6 +190,26 @@ describe('LAYOUT_PRESETS', () => {
     const shape = layoutShape(presetTree(presetById('ai') as LayoutPreset))
     const width = (widget: string) => shape.find((r) => r.widget === widget)?.w ?? 0
     expect(width('elec')).toBeGreaterThan(width('aichat'))
+  })
+
+  it('gives cockpit the CLUSTER pane in place of the system column, at its widest with every core', () => {
+    expect(places('cockpit')).toEqual([['cluster'], ['terminal'], ['terminal', 'terminal']])
+    const shape = layoutShape(presetTree(presetById('cockpit') as LayoutPreset))
+    expect(shape.some((r) => LEFT_COLUMN.includes(r.widget))).toBe(false)
+    const cluster = shape.find((r) => r.widget === 'cluster')
+    expect(cluster?.x).toBe(0)
+    expect(cluster?.y).toBe(0)
+    // The README's shot is taken at 1600x900, a workspace of about 1600x850; a pane's body is
+    // about 30 px shorter than the pane and 2 px narrower.
+    for (const [w, h] of [
+      [1600, 850],
+      [1920, 1030],
+    ] as const) {
+      const width = (cluster?.w ?? 0) * w - 2
+      const height = (cluster?.h ?? 0) * h - 30
+      expect(clusterTier(width, height), `${w}x${h}`).toBe('wide')
+      expect(showCores('wide', width, height), `${w}x${h}`).toBe(true)
+    }
   })
 
   it('puts both machines behind one tab strip in retro, the spectrum under them at 16 bands', () => {

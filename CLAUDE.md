@@ -538,7 +538,8 @@ user made; do not reverse one without asking.
   promise the switch awaits: whatever takes the screen from it must answer it.
   - **Presets** (shared/layout-presets.ts) are templates, never a second kind of layout: choosing
     one adds a saved layout carrying `preset` that then follows the work. Each keeps the default
-    system column at its width and heights, every pane at its `minSize` (a unit test). Only a
+    system column at its width and heights (all but cockpit, whose CLUSTER pane does its job:
+    `WITH_SYSTEM_COLUMN`, user decision 2026-10-10), every pane at its `minSize` (a unit test). Only a
     first start is given them; an existing list is never added to (user decision 2026-09-24).
     Decisions are pure (there and layout-shape.ts); only layout/presets.ts knows presets in the
     page. A new preset also needs its key (keybindings.ts, Workspace.svelte), the LAYOUTS

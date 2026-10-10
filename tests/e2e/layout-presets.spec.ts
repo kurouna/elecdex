@@ -15,7 +15,7 @@ import { launch, SINGLE_TERMINAL, settleLayout, showStatusBar, terminalPane } fr
 
 const SEED = { ELECDEX_SEED_LAYOUTS: '1' }
 const NO_SWITCH_PROMPT = { layout: { confirmSwitch: false } } as const
-const PRESETS = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai', 'retro']
+const PRESETS = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai', 'retro', 'cockpit']
 
 const widget = (page: Page, id: string) => page.locator(`[data-testid=pane][data-widget="${id}"]`)
 const card = (page: Page, id: string) =>
@@ -77,11 +77,14 @@ test('a first start has every preset on the number keys, and only a first start'
     // One forgotten, and the app started again: nothing comes back.
     await expect(card(first.page, 'ai').getByTestId('layouts-preset-badge')).toHaveText('on 7')
     await expect(card(first.page, 'retro').getByTestId('layouts-preset-badge')).toHaveText('on 8')
+    await expect(card(first.page, 'cockpit').getByTestId('layouts-preset-badge')).toHaveText('on 9')
     const remove = first.page.getByTestId('layouts-remove').nth(PRESETS.length - 1)
     await remove.click()
     await remove.click()
     await expect(first.page.getByTestId('layouts-item')).toHaveCount(PRESETS.length - 1)
-    await expect(card(first.page, 'retro').getByTestId('layouts-preset-badge')).toHaveText('+ add')
+    await expect(card(first.page, 'cockpit').getByTestId('layouts-preset-badge')).toHaveText(
+      '+ add',
+    )
     await first.page.keyboard.press('Escape')
 
     launched = await first.relaunch()
@@ -306,8 +309,8 @@ test('the preset shelf scrolls sideways when it does not fit, by wheel and by ke
     await card(page, 'standard').focus()
     for (let i = 1; i < PRESETS.length; i += 1) await page.keyboard.press('ArrowRight')
     // The last card: along the whole shelf.
-    await expect(card(page, 'retro')).toBeFocused()
-    await expect(card(page, 'retro')).toBeInViewport({ ratio: 0.9 })
+    await expect(card(page, 'cockpit')).toBeFocused()
+    await expect(card(page, 'cockpit')).toBeInViewport({ ratio: 0.9 })
     expect(await scroll()).toBeGreaterThan(0)
   } finally {
     await close()

@@ -33,9 +33,9 @@ for Windows, macOS and Linux.
 
 ## Features
 
-The panes are arranged by what you are doing: eight **layout presets** put the right ones on
-screen at a key each - **Ctrl+Shift+F1** to **F8** - and every one keeps the system column on the
-left, so a switch changes the stage and leaves the instruments where they were. The
+The panes are arranged by what you are doing: nine **layout presets** put the right ones on
+screen at a key each - **Ctrl+Shift+F1** to **F9** - and every one but cockpit keeps the system
+column on the left, so a switch changes the stage and leaves the instruments where they were. The
 features below are grouped by the preset that shows them, and each picture is that preset in a
 different theme.
 
@@ -52,10 +52,6 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
   network status and traffic. The default layout idles at about 13% of one core.
-- **Cluster** *(unreleased)* — the whole machine on one pane, like a car's instrument cluster: warning lamps and
-  the worst of them in words, the clock and the date, a minute of CPU, memory, disk I/O, network and
-  ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
-  any size, from the full screen to a narrow column.
 - **Files and apps** — a file browser that follows the shell (click to `cd` or insert a path),
   and a launcher for the Start Menu (Store and other packaged apps included), `/Applications` or
   `.desktop` entries plus your own, most used first.
@@ -216,16 +212,28 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   channels, with games of its own - ELECLANCE, ELECAIRCOMBAT, ELECDRILL and the one-on-one
   fighter ELECFIGHTER - and a kit to make games for it.
 
+### cockpit — the whole machine on one pane, and the shells
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Amber theme: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and AWAKE beside them, then a minute of CPU as a line, a bar for each of twelve cores, memory, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells as tabs on the right">
+  <br><sub>cockpit · Amber</sub>
+</p>
+
+- **Cluster** *(unreleased)* — the whole machine on one pane, like a car's instrument cluster: warning lamps and
+  the worst of them in words, the clock and the date, a minute of CPU, memory, disk I/O, network and
+  ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
+  any size, from the full screen to a narrow column.
+
 ### Layouts, looks and the rest
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the eight presets as saved layouts numbered 1 to 8, each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails, where each stands, and their keys Ctrl+Shift+F1 to F8">
+  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the nine presets as saved layouts numbered 1 to 9, each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails, where each stands, and their keys Ctrl+Shift+F1 to F9">
   <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
-  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the eight
+  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the nine
   presets.
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
@@ -422,16 +430,16 @@ way to stop asking (*Settings → General → Layouts*). The old arrangement pow
 off like a tube and the new one comes up pane by pane, as at boot — and not at all with motion
 reduced.
 
-Eight **presets** sit under the list, each drawn as a small map of its panes:
+Nine **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT and an AI chat - each group as tabs), **media**
 (YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one keeps the system column on the left, so a switch
+the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them) and **cockpit** (the CLUSTER pane in place of the system column, a shell under it and two beside it). Every one but cockpit keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
-preset has a key of its own, Ctrl+Shift+F1 to F8, which does the same from anywhere. A new
-install starts with all eight on Ctrl+Shift+1 to 8; an existing list is never added to.
+preset has a key of its own, Ctrl+Shift+F1 to F9, which does the same from anywhere. A new
+install starts with all nine on Ctrl+Shift+1 to 9; an existing list is never added to.
 
 They are kept in one file that holds nothing belonging to this machine: **copy `layouts.json` to
 another computer and your arrangements come with you.** The dialog's *layouts.json* button shows it
@@ -476,7 +484,7 @@ weather and calendar.
 - **Disk** — each volume as a bar of used space against its size (amber from 90%, red from 97%),
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
-- **Cluster** *(unreleased)* — not in the default layout: add it from the picker ("cluster dashboard"). On top,
+- **Cluster** *(unreleased)* — in the cockpit preset, or add it from the picker ("cluster dashboard"). On top,
   lamps for LINK, PING, CPU, MEM, DISK, BATT (with a battery), AWAKE and QUAKE (with quake alerts
   on) — dark until something holds for ten seconds — and the message line saying the worst of them
   in words, with how many more. Under them the clock and the date. Then six lanes, CPU, memory,
