@@ -215,9 +215,14 @@ function readHud(canvas, { sky, sea }) {
  * at the sortie's start, as the HUD's altitude has its five digits. While `gate.off` (`hands`)
  * the pad is let go of.
  */
-export async function airDogfight(page, wait, ms, { missiles = true, gate = null } = {}) {
+export async function airDogfight(
+  page,
+  wait,
+  ms,
+  { missiles = true, gate = null, screen = page.getByTestId('elec16-play-screen') } = {},
+) {
+  // `screen`: the one to read where a layout has more than one PLAY-320 (the tour's retro).
   const pilot = airPilot(page, wait, missiles)
-  const screen = page.getByTestId('elec16-play-screen')
   const colours = dayColours()
   const until = Date.now() + ms
   while (Date.now() < until) {

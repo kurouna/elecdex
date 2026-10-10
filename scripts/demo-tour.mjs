@@ -3,9 +3,10 @@
  * what looks best - in about two minutes.
  *
  *   boot        the boot sequence, welcoming a made-up user
- *   standard    the shells typed into, the globe brought forward and put back
+ *   standard    the shells typed into
  *   network     through the layouts dialog: the Wi-Fi link segment by segment, the connections
- *   earth       ORBIT with the pointer resting on the ISS, the quakes, the weather
+ *   earth       ORBIT brought forward, the pointer resting on the ISS for its card, and put
+ *               back; the quakes, the weather
  *   dev         coding agents at work, a container stopped (asked twice), a commit's card
  *   media       the television and the timeline (stand-ins); KEYSTREAM's BOOT SEQUENCE playing,
  *               then FEVER CALL from the next button, the spectrum moving with what is heard
@@ -15,7 +16,7 @@
  *               cores and spec line read card by card
  *   retro       the retro preset: the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT
  *               CARD and run; a PLAY-320 behind the next tab playing ELECLANCE, another
- *               behind the one after starting ELECFIGHTER and fighting, brought forward; then the
+ *               behind the one after starting ELECAIRCOMBAT and flying its first sortie, brought forward; then the
  *               CHIP-8 behind its tab, its library playing T8NKS by
  *               itself, loaded, then paused on MEM
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
@@ -128,7 +129,7 @@ items.push({ id: 'tourcouncil', name: 'council', tree: councilTree })
 items.push({ id: 'tourkeystream', name: 'keystream', tree: keystreamTree })
 // The retro preset as it ships: the ELEC-16 in front in the CLASSIC skin, its panel folded, the
 // CHIP-8 behind its tab open on T8NKS (chip8Archive, CC0), the spectrum under them; a PLAY-320
-// with ELECLANCE and one with ELECFIGHTER go between the two machines' tabs.
+// with ELECLANCE and one with ELECAIRCOMBAT go between the two machines' tabs.
 const retro = trees.get('retro')
 if (retro === undefined) throw new Error('no preset retro in the built app')
 items.push({
@@ -169,7 +170,7 @@ const { app, page, wait, settled, run } = await openTake({
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
   prepare: (profile) => {
     copyKeystream(profile)
-    playUnits(profile)
+    playUnits(profile, { third: 'ELECAIRCOMBAT' })
   },
 })
 
@@ -205,12 +206,12 @@ async function throughTheShelf() {
 await run(async () => {
   const started = Date.now()
   await wait(1200)
-  await beat.forward('globe', 2600)
   await throughTheShelf()
   await toPreset('earth')
   await wait(1500)
-  await beat.issCard(2000)
-  await wait(1500)
+  // ORBIT brought forward, the ISS's card read on the map at its largest.
+  await beat.forward('orbit', 1600, { during: () => beat.issCard(2400) })
+  await wait(800)
   await toPreset('dev')
   await wait(2000)
   await beat.stopContainer()
@@ -230,7 +231,7 @@ await run(async () => {
   await beat.toLayout(9, 'retro')
   await beat.elec16()
   await beat.play(3500)
-  await beat.fight(5500)
+  await beat.aircombat(6000)
   await beat.toTab('CHIP-8')
   await beat.chip8(2200)
   await beat.toLayout(7, 'council')

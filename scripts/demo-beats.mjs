@@ -1,7 +1,7 @@
 /**
  * What the introduction tours share (demo-tour.mjs, landscape; demo-tour-shorts.mjs, vertical):
  * the council's stand-in model, and the beats themselves - the ISS's card, a container stopped,
- * copies landing, a QR code typed, KEYSTREAM played, the CLUSTER pane read card by card, ELECLANCE on a PLAY-320, an ELECFIGHTER bout on a second PLAY-320, a CHIP-8 program loaded, a motion put to the council, the themes in
+ * copies landing, a QR code typed, KEYSTREAM played, the CLUSTER pane read card by card, ELECLANCE on a PLAY-320, an ELECFIGHTER bout or an ELECAIRCOMBAT sortie on a second PLAY-320, a CHIP-8 program loaded, a motion put to the council, the themes in
  * turn - and the music the media beat plays: two of KEYSTREAM's own tracks, rendered to WAV
  * files (keystream-wav.mjs) and played by the spectrum's stand-in, so the spectrum moves with
  * what is heard and nothing of this machine's sound is captured. A tour lays
@@ -13,6 +13,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { PROJECT } from './demo-fixtures.mjs'
 import { autoplay, KEYS, keystreamMenu, trackPlan } from './demo-keystream-kit.mjs'
+import { airDogfight, airTakeOff, letGoAll } from './demo-play-kit.mjs'
 import { say } from './demo-take.mjs'
 import { cachedTrackWav } from './keystream-wav.mjs'
 
@@ -20,17 +21,17 @@ import { cachedTrackWav } from './keystream-wav.mjs'
 
 /** The pane state of a PLAY-320's pane in a tour: the second unit, its coral body, no panel. */
 export const PLAY_PANE = { unit: 'u2', playBody: 'tall', playSkin: 'coral', panel: false }
-/** The third unit's pane, ELECFIGHTER in its slot: the screen alone, so the fight fills it. */
+/** The third unit's pane, ELECFIGHTER or ELECAIRCOMBAT in its slot: the screen alone, filling it. */
 export const FIGHT_PANE = { unit: 'u3', playBody: 'screen', playSkin: 'graphite', panel: false }
 
 /** Written into the take's profile (`prepare`): the units the retro layout's two machines run. */
-export function playUnits(profile) {
+export function playUnits(profile, { third = 'ELECFIGHTER' } = {}) {
   mkdirSync(path.join(profile, 'elec16'), { recursive: true })
   const unit = { clock: 4, autoOff: 10, created: 0 }
   const units = [
     { ...unit, id: 'u1', name: 'UNIT 1', model: 'pocket-48' },
     { ...unit, id: 'u2', name: 'UNIT 2', model: 'play-320', xram: 512, cart: 'ELECLANCE' },
-    { ...unit, id: 'u3', name: 'UNIT 3', model: 'play-320', xram: 512, cart: 'ELECFIGHTER' },
+    { ...unit, id: 'u3', name: 'UNIT 3', model: 'play-320', xram: 512, cart: third },
   ]
   writeFileSync(path.join(profile, 'elec16', 'units.json'), JSON.stringify({ version: 1, units }))
 }
@@ -202,12 +203,14 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
   }
 
   /** A pane brought forward, and put back. */
-  async function forward(widget, hold = 3000) {
+  async function forward(widget, hold = 3000, { during = null } = {}) {
     say(`${widget}: forward and back`)
     await paneOf(widget).click({ position: { x: 40, y: 60 } })
     await wait(400)
     await page.keyboard.press('Control+Shift+KeyZ')
     await wait(hold)
+    // Something shown on the pane while it is forward (the ISS's card on ORBIT's map).
+    if (during !== null) await during()
     await page.keyboard.press('Control+Shift+KeyZ')
     await wait(1200)
   }
@@ -320,6 +323,11 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await wait(900)
     say('keystream: plays')
     await menu.start('normal', TRACK_INSTRUMENT, TRACK.plan)
+    // `play` counts from the first note typed, not from START: the track's count-in comes
+    // first, and a hold from START once left before anything was played.
+    await page
+      .waitForFunction(() => window.__keystreamDemo.pressed > 0, null, { timeout: 15_000 })
+      .catch(() => {})
     await wait(play)
     await page.evaluate(() => {
       window.__keystreamDemo.armed = false
@@ -416,6 +424,33 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await page.keyboard.down('KeyZ')
     await wait(1500)
     await page.keyboard.up('KeyZ')
+    await away()
+  }
+
+  /**
+   * The PLAY-320 behind the retro layout's `nth` ELEC-16 tab, ELECAIRCOMBAT in its slot (`playUnits`
+   * with `third`): START, its title, controls and briefing, then the first sortie flown from
+   * what its screen shows (demo-play-kit.mjs) for `hold` ms - head-on with the gun and a missile,
+   * then the dogfight. Brought forward, the screen alone at its largest, and put back after.
+   */
+  async function aircombat(hold = 6000, { nth = 2 } = {}) {
+    say('play-320: ELECAIRCOMBAT')
+    await toMachine(nth, 600)
+    await page.keyboard.press('Control+Shift+KeyZ')
+    await wait(900)
+    const pane = paneOf('elec16').nth(nth)
+    await pane.getByTestId('elec16').focus()
+    await airTakeOff(page, wait, { title: 2600, controls: 1300, briefing: 1300 })
+    say('elecaircombat: the sortie')
+    await page.keyboard.down('KeyZ')
+    await wait(700)
+    await page.keyboard.press('KeyX')
+    await wait(1600)
+    await page.keyboard.up('KeyZ')
+    await airDogfight(page, wait, hold, { screen: pane.getByTestId('elec16-play-screen') })
+    await letGoAll(page)
+    await page.keyboard.press('Control+Shift+KeyZ')
+    await wait(1000)
     await away()
   }
 
@@ -550,6 +585,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     elec16,
     play,
     fight,
+    aircombat,
     cluster,
     clusterCard,
     councilSits,
