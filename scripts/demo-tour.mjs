@@ -166,6 +166,12 @@ const { app, page, wait, settled, run, caption } = await openTake({
   options: { ...options, lead: 0 },
   standIn,
   intro,
+  // What elecdex is, over the boot; the take's own captions go on from the presets.
+  opening: {
+    log: 'elecdex — a sci-fi terminal emulator and system monitor',
+    title: 'A modern rewrite of eDEX-UI, free and open source',
+    shell: 'Shells, the machine and the world, on one screen',
+  },
   env: music.env,
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
   prepare: (profile) => {
@@ -206,7 +212,6 @@ async function throughTheShelf() {
 await run(async () => {
   const started = Date.now()
   // Each caption goes up as its beat begins and stays until the next: none of them waits.
-  await caption('elecdex — a sci-fi terminal and system monitor')
   await wait(1200)
   await caption('Nine layout presets to start from')
   await throughTheShelf()

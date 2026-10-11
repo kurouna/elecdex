@@ -142,7 +142,9 @@ export function withDemoState(tree, standIn) {
  * The window, on a profile whose saved layouts are `items` and whose workspace is the first of
  * them. Resolves with what a take drives it by. `env` is laid over the take's environment: a
  * take of its own stub (the Wi-Fi demo's train) says so there. `prepare` is given the profile
- * folder before the app starts, for what a take needs in it (a plugin's folder).
+ * folder before the app starts, for what a take needs in it (a plugin's folder). `opening` are
+ * the captions before the take: `log` over the boot log, `title` over its title card, `shell`
+ * while the first shell is typed into (any of them may be left out).
  */
 export async function openTake({
   items,
@@ -151,6 +153,7 @@ export async function openTake({
   env = {},
   settings = {},
   intro = false,
+  opening = {},
   prepare = () => {},
 }) {
   const profile = mkdtempSync(path.join(tmpdir(), 'elecdex-demo-'))
@@ -304,6 +307,34 @@ export async function openTake({
     void snap()
   }
 
+  /** A caption at the bottom (`showCaption`), or none for null; nothing with --no-captions. */
+  const caption = async (text) => {
+    if (!options.captions) return
+    if (text !== null) say(`caption: ${text}`)
+    await showCaption(page, text)
+  }
+
+  /**
+   * The boot played out with the opening's captions, each put up as its part of the boot
+   * appears. Only waits on what the page shows, so the boot takes as long as without them; a
+   * click on it would skip it.
+   */
+  const bootPlays = async () => {
+    const boot = page.getByTestId('boot-screen')
+    if (opening.log !== undefined) {
+      await boot.waitFor({ timeout: 60_000 }).catch(() => {})
+      await caption(opening.log)
+    }
+    if (opening.title !== undefined) {
+      await page
+        .locator('[data-testid=boot-screen][data-phase=title]')
+        .waitFor({ timeout: 60_000 })
+        .catch(() => {})
+      await caption(opening.title)
+    }
+    await boot.waitFor({ state: 'detached', timeout: 60_000 }).catch(() => {})
+  }
+
   /** Waits out the probe, or the lead before the take; false when there is no take to run. */
   const ready = async () => {
     if (options.probe) {
@@ -314,13 +345,9 @@ export async function openTake({
     keepShots(options.shots)
     say(`window up - the take starts in ${options.lead} s`)
     await wait((options.lead * 1000) / pace)
-    // The boot plays out: a click on it would skip it.
-    if (intro)
-      await page
-        .getByTestId('boot-screen')
-        .waitFor({ state: 'detached', timeout: 60_000 })
-        .catch(() => {})
+    if (intro) await bootPlays()
     // The typing is the take's opening, and the first switch follows it at once.
+    if (opening.shell !== undefined) await caption(opening.shell)
     say('shell: types')
     await shellAtWork()
     return true
@@ -339,13 +366,6 @@ export async function openTake({
     }
     end()
     await app.close().catch(() => {})
-  }
-
-  /** A caption at the bottom (`showCaption`), or none for null; nothing with --no-captions. */
-  const caption = async (text) => {
-    if (!options.captions) return
-    if (text !== null) say(`caption: ${text}`)
-    await showCaption(page, text)
   }
 
   return { app, page, wait, settled, run, caption }
