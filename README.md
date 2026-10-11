@@ -17,11 +17,11 @@ A science-fiction desktop terminal emulator and system monitor — a ground-up r
 for Windows, macOS and Linux.
 
 <p align="center">
-  <a href="https://youtu.be/HNOaM8O32Hs">
+  <a href="https://youtu.be/LgbC3Iubot0">
     <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
   </a>
   <br>
-  ▶ <a href="https://youtu.be/HNOaM8O32Hs">Watch the 2-minute tour</a> · <a href="https://youtube.com/shorts/BabzwSvyvz0">Shorts (vertical)</a>
+  ▶ <a href="https://youtu.be/LgbC3Iubot0">Watch the 2-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
 > **v0.0.27 — pre-release.** Everything below works today; builds are unsigned. What is marked

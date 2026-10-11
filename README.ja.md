@@ -17,11 +17,11 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
 一から書き直したもので、Windows・macOS・Linux に対応しています。
 
 <p align="center">
-  <a href="https://youtu.be/HNOaM8O32Hs">
+  <a href="https://youtu.be/LgbC3Iubot0">
     <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron テーマの elecdex：左にシステムモニター、中央にランチャーとファイルブラウザーを備えた 3 つのシェルタブ、右にワールドビュー、マーケット、天気、カレンダー">
   </a>
   <br>
-  ▶ <a href="https://youtu.be/HNOaM8O32Hs">2 分の紹介動画</a> · <a href="https://youtube.com/shorts/BabzwSvyvz0">ショート（縦型）</a>
+  ▶ <a href="https://youtu.be/LgbC3Iubot0">2 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
 </p>
 
 > **v0.0.27 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。

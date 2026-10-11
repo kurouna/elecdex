@@ -16,11 +16,11 @@
 [eDEX-UI](https://github.com/GitSquared/edex-ui)（已于 2021 年归档），支持 Windows、macOS 和 Linux。
 
 <p align="center">
-  <a href="https://youtu.be/HNOaM8O32Hs">
+  <a href="https://youtu.be/LgbC3Iubot0">
     <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron 主题下的 elecdex：左侧是系统监视器，中间是三个 shell 标签页以及启动器和文件浏览器，右侧是世界视图、行情、天气和日历">
   </a>
   <br>
-  ▶ <a href="https://youtu.be/HNOaM8O32Hs">2 分钟介绍视频</a> · <a href="https://youtube.com/shorts/BabzwSvyvz0">短视频（竖屏）</a>
+  ▶ <a href="https://youtu.be/LgbC3Iubot0">2 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
 > **v0.0.27 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
