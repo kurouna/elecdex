@@ -70,17 +70,15 @@ videoOut:
   mcpy a0, a1, a2
   ; play/play.e16.ts:96  memcpy(to + first, window(at + first), n - first)
   add t0, s3, s1
-  add t1, s2, s1
+  add a0, s2, s1
   addi sp, sp, -2
   sw t0, 0(sp)
-  mv a0, t1
   call window
-  sub t0, s0, s1
+  sub a2, s0, s1
   lw t1, 0(sp)
   addi sp, sp, 2
   mv a1, a0
   mv a0, t1
-  mv a2, t0
   mcpy a0, a1, a2
 .return:
   lw ra, 0(sp)
@@ -130,10 +128,8 @@ videoIn:
   ; play/play.e16.ts:107  memcpy(window(at + first), from + first, n - first)
   add a0, s2, s1
   call window
-  add t0, s3, s1
-  sub t1, s0, s1
-  mv a1, t0
-  mv a2, t1
+  add a1, s3, s1
+  sub a2, s0, s1
   mcpy a0, a1, a2
 .return:
   lw ra, 0(sp)
@@ -425,9 +421,8 @@ scroll:
   ; play/play.e16.ts:175  videoIn(addr(rowBuffer), y * ROW_BYTES, ROW_BYTES)
   slli t1, s1, 6
   slli t0, s1, 4
-  add t0, t0, t1
+  add a1, t0, t1
   la a0, rowBuffer
-  mv a1, t0
   li a2, 80
   call videoIn
   addi s1, s1, 1
@@ -514,11 +509,9 @@ putc:
   j .return
 .L5:
   ; play/play.e16.ts:204  drawChar(c, curX, curY)
-  lw t0, 0x0100(zero)
-  lw t1, 0x0102(zero)
+  lw a1, 0x0100(zero)
+  lw a2, 0x0102(zero)
   mv a0, s1
-  mv a1, t0
-  mv a2, t1
   call drawChar
   ; play/play.e16.ts:205  curX++
   lw t0, 0x0100(zero)

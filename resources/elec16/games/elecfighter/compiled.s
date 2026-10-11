@@ -605,13 +605,11 @@ palette:
   ; lib/kit.e16.ts:153  load(PALETTES_BANK, PALETTES_AT + row * 32, PALS + slot * 32, 32)
   slli t0, s1, 5
   li t1, 49730
-  add t1, t1, t0
+  add a1, t1, t0
   slli t0, s2, 5
   li t2, 50176
-  add t2, t2, t0
+  add a2, t2, t0
   li a0, 265
-  mv a1, t1
-  mv a2, t2
   li a3, 32
   call load
 .return:
@@ -816,30 +814,24 @@ mix:
   mv s2, a1 ; b
   mv s3, a2 ; t
   ; lib/kit.e16.ts:201  const r = mixPart(a & 31, b & 31, t)
-  andi t0, s1, 31
-  andi t1, s2, 31
-  mv a0, t0
-  mv a1, t1
+  andi a0, s1, 31
+  andi a1, s2, 31
   mv a2, s3
   call mixPart
   mv s0, a0 ; r
   ; lib/kit.e16.ts:202  const g = mixPart((a >> 5) & 31, (b >> 5) & 31, t)
   srli t0, s1, 5
-  andi t0, t0, 31
+  andi a0, t0, 31
   srli t1, s2, 5
-  andi t1, t1, 31
-  mv a0, t0
-  mv a1, t1
+  andi a1, t1, 31
   mv a2, s3
   call mixPart
   sw a0, 0(sp) ; g
   ; lib/kit.e16.ts:203  const bl = mixPart((a >> 10) & 31, (b >> 10) & 31, t)
   srli t0, s1, 10
-  andi t0, t0, 31
+  andi a0, t0, 31
   srli t1, s2, 10
-  andi t1, t1, 31
-  mv a0, t0
-  mv a1, t1
+  andi a1, t1, 31
   mv a2, s3
   call mixPart
   mv s1, a0 ; a/bl
@@ -1012,9 +1004,8 @@ number:
   slli t2, s0, 3
   slli t1, s0, 1
   add t1, t1, t2
-  sub t0, t0, t1
+  sub a1, t0, t1
   mv a0, s1
-  mv a1, t0
   call vpoke
   ; lib/kit.e16.ts:247  n = q
   mv s3, s0 ; n
@@ -1128,10 +1119,9 @@ sprShow:
   ; lib/kit.e16.ts:294  if (n > 0) dma(addr(oam), OAM, n << 3)
   bgeu zero, s1, .L7
   ; lib/kit.e16.ts:294  dma(addr(oam), OAM, n << 3)
-  slli t0, s1, 3
+  slli a2, s1, 3
   la a0, oam
   li a1, 49152
-  mv a2, t0
   call dma
 .L7:
 .return:
@@ -1497,16 +1487,14 @@ scoreShow:
   mv s2, a1 ; at
   mv s3, a2 ; zero
   ; lib/kit.e16.ts:438  number(cell, peek16(at + 2), 4, zero)
-  lw t0, 2(s2)
+  lw a1, 2(s2)
   mv a0, s1
-  mv a1, t0
   li a2, 4
   mv a3, s3
   call number
   ; lib/kit.e16.ts:439  number(wrap16(cell + 8), peek16(at), 4, zero)
-  lw t0, 0(s2)
+  lw a1, 0(s2)
   addi a0, s1, 8
-  mv a1, t0
   li a2, 4
   mv a3, s3
   call number
@@ -1983,13 +1971,10 @@ oneOp:
   lbu t0, 1(s1)
   lbu t1, 2(s1)
   slli t1, t1, 8
-  or t0, t0, t1
-  lbu t1, 3(s1)
-  lbu t2, 4(s1)
+  or a1, t0, t1
+  lbu a2, 3(s1)
+  lbu a3, 4(s1)
   mv a0, s2
-  mv a1, t0
-  mv a2, t1
-  mv a3, t2
   call startNote
   ; lib/sound.e16.ts:172  opTook = true
   li t0, 1
@@ -2002,15 +1987,12 @@ oneOp:
   lbu t0, 1(s1)
   lbu t1, 2(s1)
   slli t1, t1, 8
-  or t0, t0, t1
+  or a1, t0, t1
   slli t1, s2, 1
-  lw t1, chLen(t1)
+  lw a2, chLen(t1)
   slli t2, s2, 1
-  lw t2, chHeld(t2)
+  lw a3, chHeld(t2)
   mv a0, s2
-  mv a1, t0
-  mv a2, t1
-  mv a3, t2
   call startNote
   ; lib/sound.e16.ts:176  opTook = true
   li t0, 1
@@ -2021,15 +2003,12 @@ oneOp:
 .L4:
   ; lib/sound.e16.ts:179  startNote(c, lastFreq[c], chLen[c], chHeld[c])
   slli t0, s2, 1
-  lw t0, lastFreq(t0)
+  lw a1, lastFreq(t0)
   slli t1, s2, 1
-  lw t1, chLen(t1)
+  lw a2, chLen(t1)
   slli t2, s2, 1
-  lw t2, chHeld(t2)
+  lw a3, chHeld(t2)
   mv a0, s2
-  mv a1, t0
-  mv a2, t1
-  mv a3, t2
   call startNote
   ; lib/sound.e16.ts:180  opTook = true
   li t0, 1
@@ -2065,9 +2044,8 @@ oneOp:
   j .return
 .L7:
   ; lib/sound.e16.ts:193  setInstrument(c, peek(at + 1))
-  lbu t0, 1(s1)
+  lbu a1, 1(s1)
   mv a0, s2
-  mv a1, t0
   call setInstrument
   ; lib/sound.e16.ts:194  return wrap16(at + 2)
   addi a0, s1, 2
@@ -2842,10 +2820,8 @@ pictureStep:
   li t1, 260
   call far_call
   ; engine/main.e16.ts:377  hudStep(timeLeft, frame)
-  lw t0, 0x0c9c(zero)
-  lw t1, 0x0c94(zero)
-  mv a0, t0
-  mv a1, t1
+  lw a0, 0x0c9c(zero)
+  lw a1, 0x0c94(zero)
   call hudStep
   ; engine/main.e16.ts:378  logStep()
   call logStep
@@ -2994,9 +2970,8 @@ inputsGather:
   slli t0, s1, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
-  snez t0, t0
+  snez a1, t0
   mv a0, s1
-  mv a1, t0
   call inputPad
   j .L8
 .L7:
@@ -3065,9 +3040,8 @@ cpuInputs:
 .L7:
   ; engine/main.e16.ts:441  inputHeld(i, cpuHeld[i])
   slli t0, s1, 1
-  lw t0, cpuHeld(t0)
+  lw a1, cpuHeld(t0)
   mv a0, s1
-  mv a1, t0
   call inputHeld
 .L5:
   ; engine/main.e16.ts:443  i++
@@ -3252,9 +3226,8 @@ fighterLoad:
   slli t0, t0, 4
   slli t0, t0, 1
   slli t1, s1, 1
-  lw t1, slMovesA(t1)
+  lw a1, slMovesA(t1)
   addi a0, t0, mv
-  mv a1, t1
   li a2, 416
   mcpy a0, a1, a2
   ; engine/data.e16.ts:210  poke16(IO_BANK, old)
@@ -3269,9 +3242,8 @@ fighterLoad:
   slli t0, s2, 4
   slli t0, t0, 1
   slli t1, s1, 1
-  lw t1, slProfA(t1)
+  lw a1, slProfA(t1)
   addi a0, t0, pr
-  mv a1, t1
   li a2, 32
   mcpy a0, a1, a2
   ; engine/data.e16.ts:213  poke16(IO_BANK, old)
@@ -3456,11 +3428,9 @@ poseWords:
   slli t0, s1, 1
   lw t0, slPosesA(t0)
   slli t1, s2, 1
-  add t0, t0, t1
-  slli t1, s3, 1
+  add a1, t0, t1
+  slli a2, s3, 1
   mv a0, s0
-  mv a1, t0
-  mv a2, t1
   mcpy a0, a1, a2
   ; engine/data.e16.ts:259  poke16(IO_BANK, old)
   lw t0, 0(sp) ; old
@@ -3578,21 +3548,18 @@ artStream:
   andi t0, s2, 63
   slli t0, t0, 7
   li t1, 49152
-  add t1, t1, t0
+  add a1, t1, t0
   slli t0, s1, 7
   addi t0, t0, 257
-  slli t0, t0, 5
+  slli a2, t0, 5
   slli t3, s1, 5
   slli t2, s1, 1
   add t2, t2, t3
   addi t2, t2, 1
   slli t2, t2, 1
   lw t2, art(t2)
-  slli t2, t2, 7
+  slli a3, t2, 7
   mv a0, s3
-  mv a1, t1
-  mv a2, t0
-  mv a3, t2
   call load
   ; engine/data.e16.ts:306  artWant[i] = 0
   slli t0, s1, 1
@@ -3640,9 +3607,8 @@ artPut:
   slli t1, s1, 1
   add t1, t1, t2
   slli t1, t1, 1
-  add t0, t0, t1
+  add a1, t0, t1
   mv a0, s3
-  mv a1, t0
   li a2, 68
   mcpy a0, a1, a2
   ; engine/data.e16.ts:320  poke16(IO_BANK, old)
@@ -3655,18 +3621,14 @@ artPut:
   slli t0, s2, 1
   lw t0, slCellsB(t0)
   srli t1, s1, 6
-  add t0, t0, t1
+  add a0, t0, t1
   andi t1, s1, 63
   slli t1, t1, 7
   li t2, 49152
-  add t2, t2, t1
-  slli t1, s0, 5
+  add a1, t2, t1
+  slli a2, s0, 5
   lw t3, 2(s3)
-  slli t3, t3, 7
-  mv a0, t0
-  mv a1, t2
-  mv a2, t1
-  mv a3, t3
+  slli a3, t3, 7
   call load
 .return:
   lw ra, 2(sp)
@@ -3791,9 +3753,8 @@ stageLoad:
   mv s2, a0 ; old/y
   ; engine/data.e16.ts:419  memcpy(addr(stageWords), stDataA[k], S_WORDS * 2)
   slli t0, s1, 1
-  lw t0, stDataA(t0)
+  lw a1, stDataA(t0)
   la a0, stageWords
-  mv a1, t0
   li a2, 326
   mcpy a0, a1, a2
   ; engine/data.e16.ts:420  poke16(IO_BANK, old)
@@ -3812,18 +3773,14 @@ stageLoad:
   call palKeep
   ; engine/data.e16.ts:424  load(stTilesB[k], stTilesA[k], stTile[k] * 32, stTilesN[k])
   slli t0, s1, 1
-  lw t0, stTilesB(t0)
+  lw a0, stTilesB(t0)
   slli t1, s1, 1
-  lw t1, stTilesA(t1)
+  lw a1, stTilesA(t1)
   slli t2, s1, 1
   lw t2, stTile(t2)
-  slli t2, t2, 5
+  slli a2, t2, 5
   slli t3, s1, 1
-  lw t3, stTilesN(t3)
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
-  mv a3, t3
+  lw a3, stTilesN(t3)
   call load
   ; engine/data.e16.ts:425  let y: u16 = 0
   li s2, 0 ; old/y
@@ -3832,12 +3789,10 @@ stageLoad:
 .L1:
   ; engine/data.e16.ts:427  mapRow(stMapB[k], 0xc000 + y * 128, 0, y)
   slli t0, s1, 1
-  lw t0, stMapB(t0)
+  lw a0, stMapB(t0)
   slli t1, s2, 7
   li t2, 49152
-  add t2, t2, t1
-  mv a0, t0
-  mv a1, t2
+  add a1, t2, t1
   li a2, 0
   mv a3, s2
   call mapRow
@@ -4010,11 +3965,9 @@ stageShow:
   ; engine/data.e16.ts:480  raster_lines(addr(lineTab) + lineBack * 2, stageWords[S_HORIZON], stageWords[S_LAST])
   lw t0, 0x176a(zero)
   slli t0, t0, 1
-  lw t1, stageWords+4(zero)
-  lw t2, stageWords+12(zero)
+  lw a1, stageWords+4(zero)
+  lw a2, stageWords+12(zero)
   addi a0, t0, lineTab
-  mv a1, t1
-  mv a2, t2
   call raster_lines
   ; engine/data.e16.ts:481  lineBack = LINES_MAX - lineBack
   lw t0, 0x176a(zero)
@@ -4143,9 +4096,8 @@ oppLoad:
   add t0, t0, s1
   slli t0, t0, 1
   lw t1, 0(sp) ; k/less
-  add t1, s3, t1
+  add t2, s3, t1
   addi t0, t0, opp
-  mv t2, t1
   mv t1, s0
   bltu t1, t2, .L11
   lw t1, 0(sp) ; k/less
@@ -4734,10 +4686,9 @@ inputHeld:
   slli t0, s1, 1
   lw t0, lastHeld(t0)
   not t0, t0
-  and t0, s2, t0
+  and a2, s2, t0
   mv a0, s1
   mv a1, s2
-  mv a2, t0
   call inputPut
   ; engine/input.e16.ts:131  lastHeld[i] = held
   slli t0, s1, 1
@@ -4758,9 +4709,8 @@ inputExt:
   mv s1, a0 ; i
   ; engine/input.e16.ts:136  inputHeld(i, extHeld[i])
   slli t0, s1, 1
-  lw t0, extHeld(t0)
+  lw a1, extHeld(t0)
   mv a0, s1
-  mv a1, t0
   call inputHeld
 .return:
   lw ra, 0(sp)
@@ -5065,9 +5015,8 @@ fighterReset:
   sw zero, fRowWas(t0)
   ; engine/fighter.e16.ts:210  poseLoad(i, fSlot[i], PO_STAND)
   slli t0, s1, 1
-  lw t0, fSlot(t0)
+  lw a1, fSlot(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 0
   call poseLoad
 .return:
@@ -5646,9 +5595,8 @@ attackTry:
   call consume
   ; engine/fighter.e16.ts:327  moveStart(i, posture * 4 + col)
   slli t0, s0, 2
-  add t0, t0, s2
+  add a1, t0, s2
   mv a0, s3
-  mv a1, t0
   call moveStart
   ; engine/fighter.e16.ts:328  return true
   li a0, 1
@@ -5700,12 +5648,10 @@ throwTry:
 .L2:
   ; engine/fighter.e16.ts:341  if (throwGap(i, was[i], was[d]) > prAt(i, P_THROW)) return false
   slli t0, s1, 1
-  lw t0, was(t0)
+  lw a1, was(t0)
   slli t1, s3, 1
-  lw t1, was(t1)
+  lw a2, was(t1)
   mv a0, s1
-  mv a1, t0
-  mv a2, t1
   call throwGap
   addi sp, sp, -2
   sw a0, 0(sp)
@@ -6687,9 +6633,8 @@ poseSet:
   sw s2, fPose(t0)
   ; engine/fighter.e16.ts:513  poseLoad(i, fSlot[i], p)
   slli t0, s1, 1
-  lw t0, fSlot(t0)
+  lw a1, fSlot(t0)
   mv a0, s1
-  mv a1, t0
   mv a2, s2
   call poseLoad
 .return:
@@ -6912,11 +6857,10 @@ inStartup:
   slli t0, s1, 1
   lw t0, fMoveF(t0)
   slli t1, s1, 1
-  lw t1, fMove(t1)
+  lw a1, fMove(t1)
   addi sp, sp, -2
   sw t0, 0(sp)
   mv a0, s1
-  mv a1, t1
   li a2, 0
   call mvAt
   lw t0, 0(sp)
@@ -6952,9 +6896,8 @@ inActive:
 .L1:
   ; engine/fighter.e16.ts:563  const s = mvAt(i, fMove[i], M_STARTUP)
   slli t0, s1, 1
-  lw t0, fMove(t0)
+  lw a1, fMove(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 0
   call mvAt
   mv s2, a0 ; s
@@ -6967,9 +6910,8 @@ inActive:
   mv t1, t0
   beqz t1, .L2
   slli t0, s1, 1
-  lw t0, fMove(t0)
+  lw a1, fMove(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 1
   call mvAt
   add t0, s2, a0
@@ -7790,9 +7732,8 @@ strikes:
 .L1:
   ; engine/hit.e16.ts:130  if (mvAt(a, fMove[a], M_HEIGHT) === H_THROW) return false
   slli t0, s1, 1
-  lw t0, fMove(t0)
+  lw a1, fMove(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 10
   call mvAt
   li t0, 4
@@ -7836,9 +7777,8 @@ strikes:
   add t0, t0, t1
   addi t0, t0, 3
   slli t0, t0, 1
-  lw t0, wb(t0)
+  lw a1, wb(t0)
   mv a0, s3
-  mv a1, t0
   call upperSafe
   bnez a0, .L13
   ; engine/hit.e16.ts:137  return true
@@ -8151,12 +8091,10 @@ throwHolds:
 .L7:
   ; engine/hit.e16.ts:254  return throwGap(a, fX[a], fX[d]) <= prAt(a, P_THROW)
   slli t0, s1, 1
-  lw t0, fX(t0)
+  lw a1, fX(t0)
   slli t1, s2, 1
-  lw t1, fX(t1)
+  lw a2, fX(t1)
   mv a0, s1
-  mv a1, t0
-  mv a2, t1
   call throwGap
   addi sp, sp, -2
   sw a0, 0(sp)
@@ -8389,10 +8327,9 @@ techPressed:
 .L1:
   ; engine/hit.e16.ts:317  return pressedIn(d, I_HP, fStateT[d]) !== 0
   slli t0, s1, 1
-  lw t0, fStateT(t0)
+  lw a2, fStateT(t0)
   mv a0, s1
   li a1, 32
-  mv a2, t0
   call pressedIn
   sub t0, a0, zero
   snez a0, t0
@@ -8523,9 +8460,8 @@ slam:
   ; engine/hit.e16.ts:346  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   slli t0, s1, 1
   slli t1, s1, 1
-  lw t1, fLife(t1)
+  lw t2, fLife(t1)
   addi t0, t0, fLife
-  mv t2, t1
   mv t1, s3
   bltu t1, t2, .L4
   li t1, 0
@@ -8625,9 +8561,8 @@ crouched:
   bne s2, t0, .L4
   ; engine/hit.e16.ts:361  return (mvAt(d, fMove[d], M_KIND) & K_CROUCH) !== 0
   slli t0, s1, 1
-  lw t0, fMove(t0)
+  lw a1, fMove(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 11
   call mvAt
   andi t0, a0, 4
@@ -8970,9 +8905,8 @@ deal:
   ; engine/hit.e16.ts:417  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   slli t0, s1, 1
   slli t1, s1, 1
-  lw t1, fLife(t1)
+  lw t2, fLife(t1)
   addi t0, t0, fLife
-  mv t2, t1
   lw t1, 6(sp)
   bltu t1, t2, .L12
   li t1, 0
@@ -9204,9 +9138,8 @@ say:
   addi t1, s2, -32
   or t1, t1, t0
   li t0, 32768
-  or t1, t1, t0
+  or a1, t1, t0
   mv a0, s1
-  mv a1, t1
   call vpoke
   ; engine/draw.e16.ts:75  at = wrap16(at + 2)
   addi s1, s1, 2
@@ -9503,10 +9436,9 @@ lowStep:
   slli t0, s1, 4
   addi t0, t0, 5
   slli t0, t0, 1
-  lw t0, palCopy(t0)
+  lw a2, palCopy(t0)
   mv a0, s1
   li a1, 5
-  mv a2, t0
   call colour
   j .L6
 .L5:
@@ -9581,16 +9513,14 @@ barDraw:
   mv s2, a0 ; i
   ; engine/draw.e16.ts:150  const l = barPoints(i, fLife[i])
   slli t0, s2, 1
-  lw t0, fLife(t0)
+  lw a1, fLife(t0)
   mv a0, s2
-  mv a1, t0
   call barPoints
   mv s0, a0 ; l
   ; engine/draw.e16.ts:151  const t = barPoints(i, trail[i])
   slli t0, s2, 1
-  lw t0, trail(t0)
+  lw a1, trail(t0)
   mv a0, s2
-  mv a1, t0
   call barPoints
   sw a0, 0(sp) ; t
   ; engine/draw.e16.ts:152  const sl = (SL_P1 + i) << 10
@@ -9635,9 +9565,8 @@ barDraw:
 .L5:
   ; engine/draw.e16.ts:159  vpoke(cellAt(1, 37 - c, BAR_ROW), tile | FLIP)
   li t0, 37
-  sub t0, t0, s1
+  sub a1, t0, s1
   li a0, 1
-  mv a1, t0
   li a2, 2
   call cellAt
   li t0, 8192
@@ -9735,9 +9664,8 @@ timeShow:
   slli t1, s2, 3
   slli t0, s2, 1
   add t0, t0, t1
-  sub t0, s1, t0
+  sub a1, s1, t0
   li a0, 20
-  mv a1, t0
   call bigDigit
 .return:
   lw ra, 0(sp)
@@ -9893,20 +9821,18 @@ bigSay:
 .L7:
   ; engine/draw.e16.ts:223  vpoke(cellAt(1, at, y + r), t + r * 2)
   lw t0, 0(sp) ; y
-  add t0, t0, s3
+  add a2, t0, s3
   li a0, 1
   mv a1, s2
-  mv a2, t0
   call cellAt
   slli t0, s3, 1
   add a1, s1, t0
   call vpoke
   ; engine/draw.e16.ts:224  vpoke(cellAt(1, at + 1, y + r), t + r * 2 + 1)
   lw t0, 0(sp) ; y
-  add t0, t0, s3
+  add a2, t0, s3
   li a0, 1
   addi a1, s2, 1
-  mv a2, t0
   call cellAt
   slli t0, s3, 1
   add t0, s1, t0
@@ -9974,10 +9900,9 @@ bandShow:
   sw s1, 4(sp)
   mv s2, a0 ; s
   ; engine/draw.e16.ts:241  vfill(cellAt(1, 0, bandAt), (HUD_TILE + T_BAND_TOP) | (SL_P1 << 10) | FRONT, 40)
-  lw t0, 0x1998(zero)
+  lw a2, 0x1998(zero)
   li a0, 1
   li a1, 0
-  mv a2, t0
   call cellAt
   li a1, 33966
   li a2, 40
@@ -9989,10 +9914,9 @@ bandShow:
 .L1:
   ; engine/draw.e16.ts:244  vfill(cellAt(1, 0, bandAt + r), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
   lw t0, 0x1998(zero)
-  add t0, t0, s1
+  add a2, t0, s1
   li a0, 1
   li a1, 0
-  mv a2, t0
   call cellAt
   li a1, 33965
   li a2, 40
@@ -10036,10 +9960,9 @@ bandClear:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; engine/draw.e16.ts:262  vfill(cellAt(1, 0, bandAt), HUD_TILE + T_CLEAR, 64 * BAND_ROWS)
-  lw t0, 0x1998(zero)
+  lw a2, 0x1998(zero)
   li a0, 1
   li a1, 0
-  mv a2, t0
   call cellAt
   li a1, 168
   li a2, 384
@@ -10089,12 +10012,9 @@ logStep:
   li a2, 0
   call palMix
   ; engine/draw.e16.ts:299  logDraw(logWait[0], logWait[1], logWait[2])
-  lw t0, logWait(zero)
-  lw t1, logWait+2(zero)
-  lw t2, logWait+4(zero)
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
+  lw a0, logWait(zero)
+  lw a1, logWait+2(zero)
+  lw a2, logWait+4(zero)
   la t0, logDraw
   li t1, 259
   call far_call
@@ -10193,9 +10113,8 @@ hudRows:
   mv a2, s1
   call cellAt
   li t0, 64
-  mul t0, t0, s2
+  mul a2, t0, s2
   li a1, 168
-  mv a2, t0
   call vfill
 .return:
   lw ra, 0(sp)
@@ -10427,9 +10346,8 @@ matchPlay:
   mv a2, s2
   call oppLoad
   ; scenes/match.e16.ts:171  oppLoad(0, choice[2], 0)
-  lw t0, choice+4(zero)
+  lw a1, choice+4(zero)
   li a0, 0
-  mv a1, t0
   li a2, 0
   call oppLoad
   ; scenes/match.e16.ts:172  fSlot[0] = choice[0]
@@ -10448,14 +10366,12 @@ matchPlay:
 .L2:
   sw t1, 0(t0)
   ; scenes/match.e16.ts:174  fighterLoad(0, fSlot[0])
-  lw t0, fSlot(zero)
+  lw a1, fSlot(zero)
   li a0, 0
-  mv a1, t0
   call fighterLoad
   ; scenes/match.e16.ts:175  fighterLoad(1, fSlot[1])
-  lw t0, fSlot+2(zero)
+  lw a1, fSlot+2(zero)
   li a0, 1
-  mv a1, t0
   call fighterLoad
   ; scenes/match.e16.ts:176  sidePalette()
   call sidePalette
@@ -10731,10 +10647,9 @@ hudDraw:
   ; scenes/match.e16.ts:268  say(2, 1, slName[fSlot[0]], SL_P1)
   lw t0, fSlot(zero)
   slli t0, t0, 1
-  lw t0, slName(t0)
+  lw a2, slName(t0)
   li a0, 2
   li a1, 1
-  mv a2, t0
   li a3, 1
   call say
   ; scenes/match.e16.ts:269  say(13, 1, str('P1'), SL_DIM)
@@ -10752,10 +10667,9 @@ hudDraw:
   ; scenes/match.e16.ts:271  say(28, 1, slName[fSlot[1]], SL_DIM)
   lw t0, fSlot+2(zero)
   slli t0, t0, 1
-  lw t0, slName(t0)
+  lw a2, slName(t0)
   li a0, 28
   li a1, 1
-  mv a2, t0
   li a3, 3
   call say
   ; scenes/match.e16.ts:272  say(18, 3, str('TIME'), SL_DIM)
@@ -10765,15 +10679,13 @@ hudDraw:
   li a3, 3
   call say
   ; scenes/match.e16.ts:273  lamps(15, wins[0], false)
-  lw t0, wins(zero)
+  lw a1, wins(zero)
   li a0, 15
-  mv a1, t0
   li a2, 0
   call lamps
   ; scenes/match.e16.ts:274  lamps(23, wins[1], true)
-  lw t0, wins+2(zero)
+  lw a1, wins+2(zero)
   li a0, 23
-  mv a1, t0
   li a2, 1
   call lamps
   ; scenes/match.e16.ts:275  hudFresh()
@@ -10863,10 +10775,9 @@ lamps:
 .L7:
   li t3, 0
 .L8:
-  add t2, t2, t3
+  add a2, t2, t3
   mv a0, t0
   mv a1, t1
-  mv a2, t2
   li a3, 1
   call hudTile
   ; scenes/match.e16.ts:291  k++
@@ -11002,9 +10913,8 @@ bandSub:
   ; scenes/match.e16.ts:330  let at = cellAt(1, 20 - (n >> 1), y)
   srli t0, s2, 1
   li t1, 20
-  sub t1, t1, t0
+  sub a1, t1, t0
   li a0, 1
-  mv a1, t1
   mv a2, s1
   call cellAt
   mv s1, a0 ; y/at
@@ -11019,9 +10929,8 @@ bandSub:
   addi t0, t0, 32
   ori t0, t0, 1024
   li t1, 32768
-  or t0, t0, t1
+  or a1, t0, t1
   mv a0, s1
-  mv a1, t0
   call vpoke
   ; scenes/match.e16.ts:334  at = wrap16(at + 2)
   addi s1, s1, 2
@@ -11177,9 +11086,8 @@ apartAt:
   lw s2, seenX(t0)
   ; cpu/ai.e16.ts:268  const b = seenX[seenAt(i, 1 - i, age)]
   li t0, 1
-  sub t0, t0, s1
+  sub a1, t0, s1
   mv a0, s1
-  mv a1, t0
   mv a2, s3
   call seenAt
   slli t0, a0, 1
@@ -11804,11 +11712,10 @@ guard:
   mv a0, t2
   mv a1, t3
   call row
-  lw t0, 0(sp)
+  lw a1, 0(sp)
   addi sp, sp, 2
   lw t1, 0(sp)
   addi sp, sp, 2
-  mv a1, t0
   mv a2, a0
   mv a0, t1
   call seenAt
@@ -12205,10 +12112,9 @@ reaches:
   slli t0, t0, 1
   lw t0, reach(t0)
   li t1, 1
-  sub t1, t1, s2
+  sub a0, t1, s2
   addi sp, sp, -2
   sw t0, 0(sp)
-  mv a0, t1
   call half
   lw t0, 0(sp)
   addi sp, sp, 2
@@ -12352,12 +12258,11 @@ swingStep:
   slli t0, s1, 1
   slli t1, s2, 1
   lw t1, seenS(t1)
-  srli t1, t1, 8
+  srli a1, t1, 8
   addi t0, t0, swA
   addi sp, sp, -2
   sw t0, 0(sp)
   mv a0, s3
-  mv a1, t1
   call reaches
   lw t0, 0(sp)
   addi sp, sp, 2
@@ -12930,10 +12835,9 @@ pressing:
   slli t0, s1, 1
   lw t0, fLife(t0)
   li t1, 1
-  sub t1, t1, s1
+  sub a0, t1, s1
   addi sp, sp, -2
   sw t0, 0(sp)
-  mv a0, t1
   li a1, 0
   call prAt
   lw t0, 0(sp)
@@ -13986,10 +13890,8 @@ patternStep:
   li t0, 4
   bgeu s2, t0, .L1
   slli t0, s1, 1
-  lw t0, patNo(t0)
-  slli t1, s2, 1
-  mv a0, t0
-  mv a1, t1
+  lw a0, patNo(t0)
+  slli a1, s2, 1
   call patternWord
   mv t0, a0
   j .L2
@@ -14008,9 +13910,8 @@ patternStep:
 .L3:
   ; cpu/ai.e16.ts:800  const f = patternWord(patNo[i], k * 2 + 1)
   slli t0, s1, 1
-  lw t0, patNo(t0)
+  lw a0, patNo(t0)
   slli t1, s2, 1
-  mv a0, t0
   addi a1, t1, 1
   call patternWord
   mv s2, a0 ; k/f
@@ -16122,9 +16023,8 @@ outFor:
 .L1:
   ; engine/look.e16.ts:157  const s = mvAt(i, fMove[i], M_STARTUP)
   slli t0, s1, 1
-  lw t0, fMove(t0)
+  lw a1, fMove(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 0
   call mvAt
   mv s2, a0 ; s
@@ -16477,10 +16377,9 @@ fxSprite:
 .L15:
   ; engine/look.e16.ts:239  spr(x - 14, y - 14, tile | FLIP_H, S32)
   li t0, 8192
-  or t0, s3, t0
+  or a2, s3, t0
   addi a0, s1, -14
   addi a1, s2, -14
-  mv a2, t0
   li a3, 2
   call spr
   ; engine/look.e16.ts:240  spr(x + 14, y - 14, tile, S32)
@@ -16568,9 +16467,8 @@ picStep:
   sw s2, artPic(t0)
   ; engine/look.e16.ts:283  artCopy(i, fSlot[i], pic)
   slli t0, s1, 1
-  lw t0, fSlot(t0)
+  lw a1, fSlot(t0)
   mv a0, s1
-  mv a1, t0
   mv a2, s2
   call artCopy
 .return:
@@ -16662,20 +16560,18 @@ rowPic:
   bgeu s1, t0, .L10
   slli t0, s1, 1
   addi t1, s3, 2
-  add t1, t1, t0
+  add a2, t1, t0
   li a0, 367
   li a1, 49152
-  mv a2, t1
   call tableWord
   bgeu s0, a0, .L6
 .L10:
   ; engine/look.e16.ts:306  return tableWord(FRAMES_BANK, FRAMES_AT, row + 1 + k * 2)
   slli t0, s1, 1
   addi t1, s3, 1
-  add t1, t1, t0
+  add a2, t1, t0
   li a0, 367
   li a1, 49152
-  mv a2, t1
   call tableWord
 .return:
   lw ra, 0(sp)
@@ -16721,10 +16617,9 @@ transPic:
 .L1:
   ; engine/look.e16.ts:319  const from = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W)
   slli t1, s2, 1
-  add t0, t1, s2
+  add a2, t1, s2
   li a0, 367
   li a1, 50372
-  mv a2, t0
   call tableWord
   sw a0, 0(sp) ; from
   ; engine/look.e16.ts:320  if (was >= (from & 255) && was <= from >> 8) {
@@ -16827,10 +16722,9 @@ throwWord:
   mul t0, t0, t1
   add t0, t0, s3
   slli t0, t0, 2
-  add t0, t0, s2
+  add a2, t0, s2
   li a0, 367
   li a1, 50762
-  mv a2, t0
   call tableWord
 .return:
   lw ra, 0(sp)
@@ -16963,11 +16857,9 @@ landX:
   lw s2, fSlot(t0)
   ; engine/look.e16.ts:369  const hd = i16(tableWord(slPosesB[s], slPosesA[s], PO_DOWN * POSE_W + 2) >> 1)
   slli t0, s2, 1
-  lw t0, slPosesB(t0)
+  lw a0, slPosesB(t0)
   slli t1, s2, 1
-  lw t1, slPosesA(t1)
-  mv a0, t0
-  mv a1, t1
+  lw a1, slPosesA(t1)
   li a2, 218
   call tableWord
   srli s2, a0, 1
@@ -17383,15 +17275,12 @@ bodySprites:
   lw a0, 8(sp)
   call highOf
   lw t0, 6(sp) ; y
-  add t0, t0, a0
+  add a1, t0, a0
   slli t1, s3, 2
   lw t2, 4(sp) ; turned/tile
-  add t2, t2, t1
-  lw t1, 0(sp)
+  add a2, t2, t1
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
-  mv a1, t0
-  mv a2, t2
   li a3, 1
   call spr
   ; engine/look.e16.ts:453  c++
@@ -17913,13 +17802,11 @@ shardSprites:
   lw t0, shX(t0)
   srai t0, t0, 4
   lw t1, 0x1996(zero)
-  sub t0, t0, t1
+  sub a0, t0, t1
   slli t1, s2, 2
   lw t2, 2(sp) ; tile
-  add t2, t2, t1
-  mv a0, t0
+  add a2, t2, t1
   mv a1, s0
-  mv a2, t2
   li a3, 1
   call spr
 .L7:
@@ -17961,11 +17848,9 @@ palStep:
   slli t0, s1, 1
   sw s2, palKey(t0)
   ; engine/look.e16.ts:602  palShow(8 + i, key >> 8, key & 255)
-  srli t0, s2, 8
-  andi t1, s2, 255
+  srli a1, s2, 8
+  andi a2, s2, 255
   addi a0, s1, 8
-  mv a1, t0
-  mv a2, t1
   call palShow
 .return:
   lw ra, 0(sp)
@@ -18199,10 +18084,9 @@ palShow:
 .L3:
   ; engine/look.e16.ts:652  colour(sl, k, colourOf(base, k, (m << 8) | step, empty))
   slli t0, s2, 8
-  or t0, t0, s0
+  or a2, t0, s0
   lw a0, 0(sp)
   mv a1, s1
-  mv a2, t0
   lw a3, 2(sp)
   call colourOf
   mv a1, s1
@@ -18484,10 +18368,9 @@ introColour:
 .L3:
   ; engine/look.e16.ts:694  return mix(empty, c, (step - 1) * 4)
   addi t0, s2, -1
-  slli t0, t0, 2
+  slli a2, t0, 2
   mv a0, s0
   lw a1, 0(sp)
-  mv a2, t0
   call mix
 .return:
   lw ra, 2(sp)
@@ -18607,9 +18490,8 @@ fighterSounds:
 .L2:
   ; engine/look.e16.ts:727  sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
   slli t0, s1, 1
-  lw t0, fMove(t0)
+  lw a1, fMove(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 11
   call mvAt
   andi t0, a0, 2
@@ -18752,9 +18634,8 @@ swingSound:
   beq t0, t1, .L1
   ; engine/look.e16.ts:751  if (f === mvAt(a, fMove[a], M_STARTUP)) sfx(X_WHIFF)
   slli t0, s1, 1
-  lw t0, fMove(t0)
+  lw a1, fMove(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 0
   call mvAt
   bne s2, a0, .L2
@@ -18952,13 +18833,11 @@ sfx:
   ; engine/audio.e16.ts:126  play(fxSong[k * 2], fxSong[k * 2 + 1], false)
   slli t0, s1, 1
   slli t0, t0, 1
-  lw t0, fxSong(t0)
+  lw a0, fxSong(t0)
   slli t1, s1, 1
   addi t1, t1, 1
   slli t1, t1, 1
-  lw t1, fxSong(t1)
-  mv a0, t0
-  mv a1, t1
+  lw a1, fxSong(t1)
   li a2, 0
   call play
 .return:
@@ -18995,13 +18874,11 @@ music:
   ; engine/audio.e16.ts:137  play(songs[m * 2], songs[m * 2 + 1], true)
   slli t0, s1, 1
   slli t0, t0, 1
-  lw t0, songs(t0)
+  lw a0, songs(t0)
   slli t1, s1, 1
   addi t1, t1, 1
   slli t1, t1, 1
-  lw t1, songs(t1)
-  mv a0, t0
-  mv a1, t1
+  lw a1, songs(t1)
   li a2, 1
   call play
 .return:
@@ -19348,10 +19225,9 @@ titleOnce:
   sub t1, s1, t1
   seqz t1, t1
 .L10:
-  lw t2, 0x1fee(zero)
+  lw a2, 0x1fee(zero)
   mv a0, t0
   mv a1, t1
-  mv a2, t2
   call figuresStep
   ; scenes/title.e16.ts:171  t++
   addi s2, s2, 1
@@ -19512,9 +19388,8 @@ titleDraw:
   ; scenes/title.e16.ts:223  mapRow(TITLE_MAP_BANK, 0xc000 + y * 128, 0, y)
   slli t0, s2, 7
   li t1, 49152
-  add t1, t1, t0
+  add a1, t1, t0
   li a0, 358
-  mv a1, t1
   li a2, 0
   mv a3, s2
   call mapRow
@@ -19594,9 +19469,8 @@ typeShow:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; scenes/title.e16.ts:244  say(
-  lw t0, 0x181c(zero)
+  lw t2, 0x181c(zero)
   li t1, 33
-  mv t2, t0
   li t0, 8
   li t3, 0
   bne t2, t3, .L1
@@ -19772,19 +19646,16 @@ figuresStep:
   slli t0, s1, 2
   add t0, t0, t1
   slli t1, s1, 1
-  lw t1, figTile(t1)
-  sltiu t2, s1, 2
+  lw a0, figTile(t1)
+  sltiu a2, s1, 2
   addi t0, t0, fig
   addi sp, sp, -2
   sw t0, 0(sp)
-  mv a0, t1
   addi a1, s1, 11
-  mv a2, t2
   call figWord
-  lw t0, 0(sp)
+  lw a2, 0(sp)
   addi sp, sp, 2
   li a1, 244
-  mv a2, t0
   mv a3, a0
   mv a0, s2
   call figure
@@ -20056,13 +19927,11 @@ figure:
 .I2.L1:
   mv t2, s1
 .I2_end:
-  add t1, t1, t2
+  add a1, t1, t2
   slli t2, s3, 2
   lw t3, 2(sp) ; t
-  add t3, t3, t2
+  add a2, t3, t2
   mv a0, t0
-  mv a1, t1
-  mv a2, t3
   li a3, 1
   call spr
   ; scenes/title.e16.ts:348  c++
@@ -20497,9 +20366,8 @@ setShow:
   call say
 .L2:
   ; scenes/title.e16.ts:459  say(22, 30, logOff[0] !== 0 ? str('LOG OFF') : str('LOG ON '), SL_P1)
-  lw t0, logOff(zero)
+  lw t2, logOff(zero)
   li t1, 30
-  mv t2, t0
   li t0, 22
   li t3, 0
   beq t2, t3, .L3
@@ -20892,18 +20760,16 @@ bustDraw:
 .L1:
   ; scenes/select.e16.ts:172  const t = tableWord(BUST_CELLS_BANK, BUST_CELLS_AT, s * BUST_CELLS + k)
   slli t0, s2, 6
-  add t0, t0, s1
+  add a2, t0, s1
   li a0, 367
   li a1, 53736
-  mv a2, t0
   call tableWord
   sw a0, 0(sp) ; t
   ; scenes/select.e16.ts:173  vpoke(cellAt(0, x0 + (k & 7), BUST_ROW + (k >> 3)), (BUSTS_TILE + t) | (sl << 10))
   andi t0, s1, 7
-  add t0, s0, t0
+  add a1, s0, t0
   srli t1, s1, 3
   li a0, 0
-  mv a1, t0
   addi a2, t1, 4
   call cellAt
   lw t0, 0(sp) ; t
@@ -21103,9 +20969,8 @@ nameAt:
   addi t1, s3, -32
   or t1, t1, t0
   li t0, 32768
-  or t1, t1, t0
+  or a1, t1, t0
   mv a0, s2
-  mv a1, t1
   call vpoke
   ; scenes/select.e16.ts:216  at = wrap16(at + 2)
   addi s2, s2, 2
@@ -21158,10 +21023,9 @@ panel:
   bltu s1, t0, .L1
   ; scenes/select.e16.ts:231  say(PANEL_X, 17, slName[s], SL_P1)
   slli t0, s2, 1
-  lw t0, slName(t0)
+  lw a2, slName(t0)
   li a0, 19
   li a1, 17
-  mv a2, t0
   li a3, 1
   call say
   ; scenes/select.e16.ts:232  say(36, 17, str('P1'), SL_DIM)
@@ -21177,28 +21041,24 @@ panel:
   mv a0, s2
   call barsOf
   ; scenes/select.e16.ts:235  barRow(22, str('POWER'), bars[0])
-  lw t0, bars(zero)
+  lw a2, bars(zero)
   li a0, 22
   la a1, str_125
-  mv a2, t0
   call barRow
   ; scenes/select.e16.ts:236  barRow(24, str('SPEED'), bars[1])
-  lw t0, bars+2(zero)
+  lw a2, bars+2(zero)
   li a0, 24
   la a1, str_126
-  mv a2, t0
   call barRow
   ; scenes/select.e16.ts:237  barRow(26, str('REACH'), bars[2])
-  lw t0, bars+4(zero)
+  lw a2, bars+4(zero)
   li a0, 26
   la a1, str_127
-  mv a2, t0
   call barRow
   ; scenes/select.e16.ts:238  barRow(28, str('DEFENSE'), bars[3])
-  lw t0, bars+6(zero)
+  lw a2, bars+6(zero)
   li a0, 28
   la a1, str_128
-  mv a2, t0
   call barRow
 .return:
   lw ra, 0(sp)
@@ -21215,11 +21075,10 @@ slotWords:
   sw s1, 2(sp)
   mv s1, a0 ; s
   ; scenes/select.e16.ts:243  lineSay(PANEL_X, 19, SLOT_LINES, s * 2)
-  slli t0, s1, 1
+  slli a3, s1, 1
   li a0, 19
   li a1, 19
   la a2, str_0
-  mv a3, t0
   call lineSay
   ; scenes/select.e16.ts:244  lineSay(PANEL_X, 20, SLOT_LINES, s * 2 + 1)
   slli t0, s1, 1
@@ -21287,9 +21146,8 @@ lineSay:
   addi t0, s2, -32
   ori t0, t0, 1024
   li t1, 32768
-  or t0, t0, t1
+  or a1, t0, t1
   mv a0, s3
-  mv a1, t0
   call vpoke
   ; scenes/select.e16.ts:272  at = wrap16(at + 2)
   addi s3, s3, 2
@@ -21685,10 +21543,9 @@ versusRun:
   ; scenes/select.e16.ts:390  say(5, 2, slName[fSlot[0]], SL_P1)
   lw t0, fSlot(zero)
   slli t0, t0, 1
-  lw t0, slName(t0)
+  lw a2, slName(t0)
   li a0, 5
   li a1, 2
-  mv a2, t0
   li a3, 1
   call say
   ; scenes/select.e16.ts:391  say(24, 2, str('CPU'), SL_DIM)
@@ -21700,10 +21557,9 @@ versusRun:
   ; scenes/select.e16.ts:392  say(28, 2, slName[fSlot[1]], SL_P1)
   lw t0, fSlot+2(zero)
   slli t0, t0, 1
-  lw t0, slName(t0)
+  lw a2, slName(t0)
   li a0, 28
   li a1, 2
-  mv a2, t0
   li a3, 1
   call say
   ; scenes/select.e16.ts:393  bigSay(18, 4, str('VS'), SL_BIG)
@@ -21720,10 +21576,9 @@ versusRun:
   call say
   ; scenes/select.e16.ts:395  say(19, NAME_Y, oppName[k], SL_P1)
   slli t0, s1, 1
-  lw t0, oppName(t0)
+  lw a2, oppName(t0)
   li a0, 19
   li a1, 8
-  mv a2, t0
   li a3, 1
   call say
   ; scenes/select.e16.ts:396  programLines(k)
@@ -22005,9 +21860,8 @@ renderShow:
 .L6:
   mv s2, t0 ; from/part
   ; scenes/select.e16.ts:461  vpoke(
-  add t0, s0, s3
+  add a1, s0, s3
   li a0, 1
-  mv a1, t0
   li a2, 32
   call cellAt
   slli t1, s2, 3
@@ -22049,11 +21903,10 @@ programLines:
   ; scenes/select.e16.ts:476  lineSay(6, PROG_ROW + n, PROGRAM_LINES, k * 3 + n)
   slli t1, s2, 1
   add t0, t1, s2
-  add t0, t0, s1
+  add a3, t0, s1
   li a0, 6
   addi a1, s1, 10
   la a2, str_1
-  mv a3, t0
   call lineSay
   ; scenes/select.e16.ts:477  n++
   addi s1, s1, 1
@@ -22192,14 +22045,12 @@ saveKeep:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; scenes/result.e16.ts:109  saveWrite(SV_TYPE, buttonSet)
-  lw t0, 0x181c(zero)
+  lw a1, 0x181c(zero)
   li a0, 2
-  mv a1, t0
   call saveWrite
   ; scenes/result.e16.ts:110  saveWrite(SV_LOG, logOff[0])
-  lw t0, logOff(zero)
+  lw a1, logOff(zero)
   li a0, 4
-  mv a1, t0
   call saveWrite
 .return:
   lw ra, 0(sp)
@@ -22228,9 +22079,8 @@ controlsSeenSet:
   ; scenes/result.e16.ts:119  saveWrite(SV_FLAGS, saveRead(SV_FLAGS) | F_CONTROLS)
   li a0, 8
   call saveRead
-  ori t0, a0, 1
+  ori a1, a0, 1
   li a0, 8
-  mv a1, t0
   call saveWrite
 .return:
   lw ra, 0(sp)
@@ -22278,9 +22128,8 @@ resultShow:
   addi sp, sp, 2
   bgeu a0, t0, .L3
   ; scenes/result.e16.ts:136  saveWrite(SV_STREAK, streak)
-  lw t0, 0x1ffa(zero)
+  lw a1, 0x1ffa(zero)
   li a0, 10
-  mv a1, t0
   call saveWrite
   j .L3
 .L1:
@@ -22318,29 +22167,25 @@ resultShow:
   call say
   ; scenes/result.e16.ts:144  say(16, 6, oppName[k], SL_P1)
   slli t0, s2, 1
-  lw t0, oppName(t0)
+  lw a2, oppName(t0)
   li a0, 16
   li a1, 6
-  mv a2, t0
   li a3, 1
   call say
   ; scenes/result.e16.ts:145  statRow(8, str('HITS'), hitsN[0])
-  lw t0, hitsN(zero)
+  lw a2, hitsN(zero)
   li a0, 8
   la a1, str_138
-  mv a2, t0
   call statRow
   ; scenes/result.e16.ts:146  statRow(9, str('MAX COMBO'), fComboMax[1])
-  lw t0, fComboMax+2(zero)
+  lw a2, fComboMax+2(zero)
   li a0, 9
   la a1, str_139
-  mv a2, t0
   call statRow
   ; scenes/result.e16.ts:147  statRow(10, str('TIME LEFT'), timeLeft)
-  lw t0, 0x0c9c(zero)
+  lw a2, 0x0c9c(zero)
   li a0, 10
   la a1, str_140
-  mv a2, t0
   call statRow
   ; scenes/result.e16.ts:148  say(10, 11, str('ROUNDS'), SL_DIM)
   li a0, 10
@@ -22349,9 +22194,8 @@ resultShow:
   li a3, 3
   call say
   ; scenes/result.e16.ts:149  number(cellAt(1, 26, 11), wins[0], 1, digit())
-  lw t0, wins(zero)
+  lw a1, wins(zero)
   li a0, 42420
-  mv a1, t0
   li a2, 1
   li a3, 33808
   call number
@@ -22362,17 +22206,15 @@ resultShow:
   li a3, 1
   call say
   ; scenes/result.e16.ts:151  number(cellAt(1, 28, 11), wins[1], 1, digit())
-  lw t0, wins+2(zero)
+  lw a1, wins+2(zero)
   li a0, 42424
-  mv a1, t0
   li a2, 1
   li a3, 33808
   call number
   ; scenes/result.e16.ts:152  statRow(12, str('STREAK'), streak)
-  lw t0, 0x1ffa(zero)
+  lw a2, 0x1ffa(zero)
   li a0, 12
   la a1, str_143
-  mv a2, t0
   call statRow
   ; scenes/result.e16.ts:153  say(14, 30, str('PRESS START'), SL_P1)
   li a0, 14
@@ -22728,10 +22570,8 @@ systemClear:
   li t1, 260
   call far_call
   ; scenes/result.e16.ts:256  recordClear(choice[0], clearSec)
-  lw t0, choice(zero)
-  lw t1, 0x19d8(zero)
-  mv a0, t0
-  mv a1, t1
+  lw a0, choice(zero)
+  lw a1, 0x19d8(zero)
   call recordClear
   ; scenes/result.e16.ts:257  resultDim(10)
   li a0, 10
@@ -22745,10 +22585,9 @@ systemClear:
   ; scenes/result.e16.ts:260  say(15, 8, slName[choice[0]], SL_P1)
   lw t0, choice(zero)
   slli t0, t0, 1
-  lw t0, slName(t0)
+  lw a2, slName(t0)
   li a0, 15
   li a1, 8
-  mv a2, t0
   li a3, 1
   call say
   ; scenes/result.e16.ts:261  say(10, 10, str('CLEAR TIME'), SL_DIM)
@@ -22758,10 +22597,9 @@ systemClear:
   li a3, 3
   call say
   ; scenes/result.e16.ts:262  timeAt(24, 10, clearSec)
-  lw t0, 0x19d8(zero)
+  lw a2, 0x19d8(zero)
   li a0, 24
   li a1, 10
-  mv a2, t0
   call timeAt
   ; scenes/result.e16.ts:263  say(10, 11, str('CONTINUES'), SL_DIM)
   li a0, 10
@@ -22770,10 +22608,9 @@ systemClear:
   li a3, 3
   call say
   ; scenes/result.e16.ts:264  count3(26, 11, continues)
-  lw t0, 0x19d6(zero)
+  lw a2, 0x19d6(zero)
   li a0, 26
   li a1, 11
-  mv a2, t0
   call count3
   ; scenes/result.e16.ts:265  if (newRecord[0] !== 0) say(15, 13, str('NEW RECORD'), SL_P1)
   lw t0, newRecord(zero)
@@ -22990,12 +22827,10 @@ bestDraw:
   mv s3, a0 ; at
   ; scenes/result.e16.ts:310  say(4, y + 4 + s, slName[s], SL_P1)
   addi t0, s1, 4
-  add t0, t0, s2
+  add a1, t0, s2
   slli t1, s2, 1
-  lw t1, slName(t1)
+  lw a2, slName(t1)
   li a0, 4
-  mv a1, t0
-  mv a2, t1
   li a3, 1
   call say
   ; scenes/result.e16.ts:311  count3(20, y + 4 + s, saveRead(at))
@@ -23005,9 +22840,8 @@ bestDraw:
   sw t0, 0(sp)
   mv a0, s3
   call saveRead
-  lw t0, 0(sp)
+  lw a1, 0(sp)
   addi sp, sp, 2
-  mv a1, t0
   mv a2, a0
   li a0, 20
   call count3
@@ -23018,9 +22852,8 @@ bestDraw:
   sw t0, 0(sp)
   addi a0, s3, 2
   call saveRead
-  lw t0, 0(sp)
+  lw a1, 0(sp)
   addi sp, sp, 2
-  mv a1, t0
   mv a2, a0
   li a0, 29
   call timeAt
@@ -23512,9 +23345,8 @@ observe:
 .L4:
   ; cpu/habit.e16.ts:233  tally(j, watchSit[i], did)
   slli t0, s1, 1
-  lw t0, watchSit(t0)
+  lw a1, watchSit(t0)
   mv a0, s3
-  mv a1, t0
   mv a2, s2
   call tally
   ; cpu/habit.e16.ts:234  readCheck(i, did)
@@ -24538,9 +24370,8 @@ triggered:
   ; cpu/habit.e16.ts:419  const heavy = (mvAt(i, seenS[e] >> 8, M_KIND) & K_HEAVY) !== 0
   slli t0, s3, 1
   lw t0, seenS(t0)
-  srli t0, t0, 8
+  srli a1, t0, 8
   mv a0, s2
-  mv a1, t0
   li a2, 11
   call mvAt
   andi t0, a0, 2
@@ -24739,11 +24570,10 @@ measured:
   beqz s3, .L1
   ; cpu/setup.e16.ts:95  poseWords(fSlot[f], p * POSE_W + 16, 8, addr(bw) + BW_HIT * 2)
   slli t0, s1, 1
-  lw t0, fSlot(t0)
+  lw a0, fSlot(t0)
   slli t2, s2, 4
   slli t1, s2, 3
   add t1, t1, t2
-  mv a0, t0
   addi a1, t1, 16
   li a2, 8
   li a3, bw+24
@@ -24752,11 +24582,10 @@ measured:
 .L1:
   ; cpu/setup.e16.ts:96  poseWords(fSlot[f], p * POSE_W + 4, 12, addr(bw) + BW_HURT * 2)
   slli t0, s1, 1
-  lw t0, fSlot(t0)
+  lw a0, fSlot(t0)
   slli t2, s2, 4
   slli t1, s2, 3
   add t1, t1, t2
-  mv a0, t0
   addi a1, t1, 4
   li a2, 12
   la a3, bw

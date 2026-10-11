@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { type DivideMagic, divideMagic, tidyJumps } from '@shared/e16c/back1'
+import { type DivideMagic, divideMagic, retargetLine, tidyJumps } from '@shared/e16c/back1'
 import { e16cMemory } from '@shared/e16c/builtins'
 import { compile, type E16cOptions } from '@shared/e16c/compile'
 import { Interp, OutOfBudget } from '@shared/e16c/interp'
@@ -120,6 +120,9 @@ const CASES: [string, number[]][] = [
   ['manyAlive', [0]],
   ['manyAlive', [5]],
   ['manyAlive', [0xfffe]],
+  ['argsInPlace', [0, 0]],
+  ['argsInPlace', [3, 0xfff0]],
+  ['argsInPlace', [0x8000, 77]],
 ]
 
 /** n divided as the code divideMagic leads to does: MULHU, then the shifts and the add. */
@@ -268,6 +271,52 @@ describe('e16c', () => {
     expect(divideMagic(10)).toEqual({ pre: 0, m: 52429, shift: 3, add: false })
     expect(divideMagic(100).pre).toBe(2)
     expect(divideMagic(7).add).toBe(true)
+  })
+
+  it('at -O1 finds where a moved temporary was computed, so that line can write the target', () => {
+    const at = (lines: string[], from: string, to: string) => retargetLine(lines, from, to)
+    // Past lines that touch neither register; comments and a slot's note do not count.
+    expect(at(['  andi t0, s1, 31', '  andi t1, s2, 31'], 't0', 'a0')).toBe(0)
+    expect(at(['  lw t0, 4(sp) ; x', '  ; FILE:3  f(x)', '  li a1, 2'], 't0', 'a0')).toBe(0)
+    expect(at(['  mulq t0, s1, s2, 14', '  csrr t1, 3072'], 't0', 'a2')).toBe(0)
+    // The line may read the target itself: it reads before it writes.
+    expect(at(['  add t1, a1, t0'], 't1', 'a1')).toBe(0)
+    expect(at(['  lw t0, 0(a0)'], 't0', 'a0')).toBe(0)
+    // Not when a line between reads or writes the target, or reads the temporary.
+    expect(at(['  add t0, s1, s2', '  addi t1, a0, 1'], 't0', 'a0')).toBe(-1)
+    expect(at(['  add t0, s1, s2', '  li a0, 3'], 't0', 'a0')).toBe(-1)
+    expect(at(['  add t0, s1, s2', '  addi t1, t0, 1'], 't0', 'a0')).toBe(-1)
+    expect(at(['  lw t0, 0(s1)', '  sw a1, 0(a0)'], 't0', 'a0')).toBe(-1)
+    expect(at(['  lw t0, 2(sp)', '  sw t0, 0(sp)'], 't0', 'a0')).toBe(-1)
+    // Nor across a label, a jump, a branch, a call, an ECALL, a block move or assembly.
+    for (const wall of [
+      '.L1:',
+      '  j .L2',
+      '  bnez s1, .L2',
+      '  call f',
+      '  ecall',
+      '  mcpy a0, a1, a2',
+      '  ; end asm',
+    ]) {
+      expect(at(['  add t0, s1, s2', wall], 't0', 'a3'), wall).toBe(-1)
+    }
+    // A store, a branch or a call wrote nothing to retarget.
+    expect(at(['  call g'], 'a0', 'a1')).toBe(-1)
+    expect(at([], 't0', 'a0')).toBe(-1)
+  })
+
+  it('at -O1 computes an argument into its register, not a temporary moved there', () => {
+    const text = [
+      'declare function pair(a: u16, b: u16): u16',
+      'export function two(x: u16, y: u16): u16 { return wrap16(pair(x & 31, y & 31) + x + y) }',
+    ].join(String.fromCharCode(10))
+    for (const opt of [1, 2] as const) {
+      const out = compile([{ name: 'args.ts', text }], { ...OPTIONS, opt })
+      expect(out.errors).toEqual([])
+      expect(out.asm, `-O${opt}`).toMatch(/^\s+andi a0, s\d, 31$/m)
+      expect(out.asm, `-O${opt}`).toMatch(/^\s+andi a1, s\d, 31$/m)
+      expect(out.asm, `-O${opt}`).not.toMatch(/^\s+mv a[01], t\d$/m)
+    }
   })
 
   it('at -O1 drops what follows a jump up to a label, and a jump to the label that comes next', () => {

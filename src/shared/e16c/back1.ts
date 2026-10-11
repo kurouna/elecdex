@@ -465,16 +465,17 @@ export class O1 {
   }
 
   /**
-   * A temporary just computed and now stored in a register home: the instruction that
-   * computed it writes the home instead (`addi t0, s1, 1` then `mv s1, t0` is `addi s1, s1, 1`).
+   * A temporary computed and now moved into a register (a home, an argument, a0 to return):
+   * the instruction that computed it writes that register instead, when nothing since has
+   * read or written it (`retargetLine`) - `addi t0, s1, 1` then `mv s1, t0` is
+   * `addi s1, s1, 1`, and `andi t0, s1, 31`, `andi t1, s2, 31`, `mv a0, t0`, `mv a1, t1` are
+   * two `andi`s. The temporary is dead once moved: the picture holds it nowhere else.
    */
-  #retarget(from: string, home: string): boolean {
+  #retarget(from: string, to: string): boolean {
     if (!this.#temps.includes(from)) return false
-    const last = this.lines[this.lines.length - 1] ?? ''
-    const m = /^ {2}([a-z.]+) ([a-z0-9]+), (.*)$/.exec(last)
-    if (m === null || m[2] !== from || /^(s[bw]|b|j|call)/.test(m[1] ?? '')) return false
-    // Reading the temporary in the same instruction is fine: it is dead once stored.
-    this.lines[this.lines.length - 1] = `  ${m[1]} ${home}, ${m[3]}`
+    const k = retargetLine(this.lines, from, to)
+    if (k < 0) return false
+    this.lines[k] = (this.lines[k] as string).replace(/^( {2}[a-z.]+ )[a-z0-9]+,/, `$1${to},`)
     return true
   }
 
@@ -1094,6 +1095,37 @@ function leafHomes(
 /** The slots, the busiest first. */
 function byUse(fn: Fn, uses: number[]): number[] {
   return fn.slots.map((_, k) => k).sort((x, y) => (uses[y] ?? 0) - (uses[x] ?? 0))
+}
+
+/** The registers -O1's lines name (a label read as one only makes a line more careful). */
+const REGISTER_NAME = /\b(zero|ra|sp|gp|t[0-3]|a[0-3]|s[0-3])\b/g
+
+/** Lines nothing is retargeted across: control goes elsewhere, or registers change unseen. */
+const WALL = /^ {2}(j|jr|ret|call|ecall|wfi|mcpy|mset|csrw|b[a-z]*)\b/
+
+/**
+ * The line that last wrote temporary `from`, going back from the end of `lines`, when it may
+ * write `to` instead: no line since reads or writes `to` or reads `from`, and no label, jump,
+ * branch, call, ECALL, block move or asm block lies between. -1 when there is none. The line
+ * itself may read `to`, as it reads before it writes; a store writes no register.
+ */
+export function retargetLine(lines: string[], from: string, to: string): number {
+  if (from === to) return -1
+  for (let k = lines.length - 1; k >= 0; k--) {
+    const line = lines[k] as string
+    if (line === `  ${ASM_START}` || line === `  ${ASM_END}`) return -1
+    if (/^[.\w]+:/.test(line) || WALL.test(line)) return -1
+    if (line.startsWith('  ;') || line === '') continue
+    const m = /^ {2}([a-z.]+) ?(.*)$/.exec(line.replace(/\s*;.*$/, ''))
+    if (m === null) return -1
+    const regs = (m[2] ?? '').match(REGISTER_NAME) ?? []
+    const store = m[1] === 'sw' || m[1] === 'sb'
+    const written = store ? undefined : regs[0]
+    if (written === from) return k
+    const read = store ? regs : regs.slice(1)
+    if (written === to || read.includes(to) || read.includes(from)) return -1
+  }
+  return -1
 }
 
 /** The marks around an asm block, which tidyJumps leaves whole. */

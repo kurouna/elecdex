@@ -635,11 +635,10 @@ expand:
   j .L8
 .L6:
   ; basic/text.e16.ts:262  n = give(out, n, max, peek(w))
-  lbu t0, 0(s2)
+  lbu a3, 0(s2)
   lw a0, 0(sp)
   mv a1, s3
   lw a2, 2(sp)
-  mv a3, t0
   call give
   mv s3, a0 ; n
   ; basic/text.e16.ts:263  w++
@@ -820,12 +819,10 @@ place:
   lw t0, 0x0106(zero)
   add s1, t0, s1
   ; basic/edit.e16.ts:65  locate(cell % cols, startY + div(cell, cols))
-  remu t0, s1, s2
+  remu a0, s1, s2
   lw t1, 0x0108(zero)
   divu t2, s1, s2
-  add t1, t1, t2
-  mv a0, t0
-  mv a1, t1
+  add a1, t1, t2
   call locate
 .return:
   lw ra, 0(sp)
@@ -888,12 +885,10 @@ redraw:
   sw t0, 0x0108(zero)
 .L5:
   ; basic/edit.e16.ts:85  clearRest(cell % cols, startY + div(cell, cols))
-  remu t0, s2, s1
+  remu a0, s2, s1
   lw t1, 0x0108(zero)
   divu t2, s2, s1
-  add t1, t1, t2
-  mv a0, t0
-  mv a1, t1
+  add a1, t1, t2
   call clearRest
   ; basic/edit.e16.ts:86  place(at)
   lw a0, 0(sp)
@@ -947,14 +942,12 @@ clearRest:
   ; basic/edit.e16.ts:97  memset(at + p * peek16(PLANE), 0, width - col * 6)
   lw t0, 10(zero)
   mul t0, s3, t0
-  add t0, s2, t0
+  add a0, s2, t0
   slli t2, s1, 2
   slli t1, s1, 1
   add t1, t1, t2
-  sub t1, s0, t1
-  mv a0, t0
+  sub a2, s0, t1
   li a1, 0
-  mv a2, t1
   mset a0, a1, a2
   addi s3, s3, 1
 .L5:
@@ -997,12 +990,10 @@ editLine:
   ; basic/edit.e16.ts:113  at = length
   sw s2, 0x010c(zero)
   ; basic/edit.e16.ts:114  redraw(buf, n, 0, at)
-  lw t0, 0x010a(zero)
-  lw t1, 0x010c(zero)
+  lw a1, 0x010a(zero)
+  lw a3, 0x010c(zero)
   mv a0, s3
-  mv a1, t0
   li a2, 0
-  mv a3, t1
   call redraw
   ; basic/edit.e16.ts:115  poke16(IO_CURMODE, 6)
   li t0, 6
@@ -1106,9 +1097,8 @@ editKey:
   ; basic/edit.e16.ts:141  erase(buf, k === K_BS)
   li t0, 8
   sub t0, s1, t0
-  seqz t0, t0
+  seqz a1, t0
   mv a0, s2
-  mv a1, t0
   call erase
   j .L6
 .L4:
@@ -1118,11 +1108,9 @@ editKey:
   lw t0, 0x010a(zero)
   bgeu t0, s3, .L7
   ; basic/edit.e16.ts:142  n = openSpace(buf, n, at)
-  lw t0, 0x010a(zero)
-  lw t1, 0x010c(zero)
+  lw a1, 0x010a(zero)
+  lw a2, 0x010c(zero)
   mv a0, s2
-  mv a1, t0
-  mv a2, t1
   call openSpace
   sw a0, 0x010a(zero)
   j .L8
@@ -1266,11 +1254,9 @@ erase:
 .L4:
 .L3:
   ; basic/edit.e16.ts:168  n = takeOut(buf, n, at)
-  lw t0, 0x010a(zero)
-  lw t1, 0x010c(zero)
+  lw a1, 0x010a(zero)
+  lw a2, 0x010c(zero)
   mv a0, s1
-  mv a1, t0
-  mv a2, t1
   call takeOut
   sw a0, 0x010a(zero)
 .return:
@@ -1308,13 +1294,11 @@ write:
   addi t0, t0, 1
   sw t0, 0x010c(zero)
   ; basic/edit.e16.ts:176  redraw(buf, n, at - 1, at)
-  lw t0, 0x010a(zero)
+  lw a1, 0x010a(zero)
   lw t1, 0x010c(zero)
-  lw t2, 0x010c(zero)
+  lw a3, 0x010c(zero)
   mv a0, s1
-  mv a1, t0
   addi a2, t1, -1
-  mv a3, t2
   call redraw
 .return:
   lw ra, 0(sp)
@@ -1437,10 +1421,9 @@ takeOut:
   addi t0, s1, 1
   bgeu t0, s2, .L1
   ; basic/edit.e16.ts:200  memcpy(buf + at, buf + at + 1, n - at - 1)
-  add t0, s3, s1
+  add a0, s3, s1
   add t1, s3, s1
   sub t2, s2, s1
-  mv a0, t0
   addi a1, t1, 1
   addi a2, t2, -1
   mcpy a0, a1, a2
@@ -1478,11 +1461,9 @@ openSpace:
   bgeu s1, s3, .L1
   ; basic/edit.e16.ts:207  memcpy(buf + at + 1, buf + at, n - at)
   add t0, s2, s1
-  add t1, s2, s1
-  sub t2, s3, s1
+  add a1, s2, s1
+  sub a2, s3, s1
   addi a0, t0, 1
-  mv a1, t1
-  mv a2, t2
   mcpy a0, a1, a2
 .L1:
   ; basic/edit.e16.ts:208  poke(buf + at, CH_SPACE)
@@ -2432,10 +2413,9 @@ literal:
   li t1, 65366
   sw t0, 0(t1)
   ; basic/basic.e16.ts:600  math(M_PARSE, at, txt)
-  lw t0, 0x010e(zero)
+  lw a2, 0x010e(zero)
   li a0, 56
   mv a1, s1
-  mv a2, t0
   call math
   ; basic/basic.e16.ts:601  const n = peek16(MATH_ARG)
   li t0, 65366
@@ -3447,9 +3427,8 @@ primary:
 .L4:
   li t2, 0
 .L5:
-  sub t1, t1, t2
+  sub a1, t1, t2
   mv a0, t0
-  mv a1, t1
   call pushString
   ; basic/basic.e16.ts:865  return
   j .return
@@ -3515,9 +3494,8 @@ variableValue:
   j .L3
 .L2:
   ; basic/basic.e16.ts:886  pushString(at + 1, peek(at))
-  lbu t0, 0(s1)
+  lbu a1, 0(s1)
   addi a0, s1, 1
-  mv a1, t0
   call pushString
 .L3:
   ; basic/basic.e16.ts:887  return
@@ -3646,11 +3624,9 @@ functionCall:
   sw a0, 0(sp)
   call top
   call toWord
-  lbu t0, 0(a0)
-  lw t1, 0(sp)
+  lbu a1, 0(a0)
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
-  mv a1, t0
   call setInt
   ; basic/basic.e16.ts:931  return
   j .return
@@ -3851,14 +3827,12 @@ storeLine:
   ; basic/basic.e16.ts:984  const size = peek16(old + 2)
   lw s2, 2(s1)
   ; basic/basic.e16.ts:985  move(old + size, old, progEnd + 2 - (old + size))
-  add t0, s1, s2
+  add a0, s1, s2
   lw t1, 0x0112(zero)
   add t2, s1, s2
   addi t1, t1, 2
-  sub t1, t1, t2
-  mv a0, t0
+  sub a2, t1, t2
   mv a1, s1
-  mv a2, t1
   call move
   ; basic/basic.e16.ts:986  progEnd -= size
   lw t0, 0x0112(zero)
@@ -3892,13 +3866,11 @@ storeLine:
   lw s1, 0x0112(zero)
 .L4:
   ; basic/basic.e16.ts:993  move(at, at + size, progEnd + 2 - at)
-  add t0, s1, s2
+  add a1, s1, s2
   lw t1, 0x0112(zero)
   addi t1, t1, 2
-  sub t1, t1, s1
+  sub a2, t1, s1
   mv a0, s1
-  mv a1, t0
-  mv a2, t1
   call move
   ; basic/basic.e16.ts:994  poke16(at, n)
   sw s3, 0(s1)
@@ -5150,14 +5122,12 @@ returnStatement:
   lw t0, 0x012c(zero)
   slli t0, t0, 1
   slli t0, t0, 1
-  lw t0, gosubStack(t0)
+  lw a0, gosubStack(t0)
   lw t1, 0x012c(zero)
   slli t1, t1, 1
   addi t1, t1, 1
   slli t1, t1, 1
-  lw t1, gosubStack(t1)
-  mv a0, t0
-  mv a1, t1
+  lw a1, gosubStack(t1)
   call jump
 .return:
   lw ra, 0(sp)
@@ -5420,10 +5390,8 @@ nextStatement:
   addi t0, s3, 1
   sw t0, 0x012a(zero)
   ; basic/basic.e16.ts:1438  jump(peek16(e + 18), peek16(e + 20))
-  lw t0, 18(s2)
-  lw t1, 20(s2)
-  mv a0, t0
-  mv a1, t1
+  lw a0, 18(s2)
+  lw a1, 20(s2)
   call jump
 .return:
   lw ra, 0(sp)
@@ -5531,10 +5499,8 @@ contStatement:
   call fail
 .L1:
   ; basic/basic.e16.ts:1478  startRun(contLine, contTxt)
-  lw t0, 0x0130(zero)
-  lw t1, 0x0132(zero)
-  mv a0, t0
-  mv a1, t1
+  lw a0, 0x0130(zero)
+  lw a1, 0x0132(zero)
   call startRun
 .return:
   lw ra, 0(sp)
@@ -5966,17 +5932,15 @@ storeTypedLine:
   ; basic/basic.e16.ts:1604  if (keep) storeLine(n, txt, rest)
   beqz s3, .L4
   ; basic/basic.e16.ts:1604  storeLine(n, txt, rest)
-  lw t0, 0x010e(zero)
+  lw a1, 0x010e(zero)
   mv a0, s2
-  mv a1, t0
   mv a2, s1
   call storeLine
   j .L5
 .L4:
   ; basic/basic.e16.ts:1605  checkLength(n, txt)
-  lw t0, 0x010e(zero)
+  lw a1, 0x010e(zero)
   mv a0, s2
-  mv a1, t0
   la t0, checkLength
   li t1, 3
   call far_call
@@ -6047,21 +6011,18 @@ enter:
   beqz t0, .L3
 .L4:
   ; basic/basic.e16.ts:1626  checkLength(n, txt)
-  lw t0, 0x010e(zero)
+  lw a1, 0x010e(zero)
   mv a0, s1
-  mv a1, t0
   la t0, checkLength
   li t1, 3
   call far_call
   ; basic/basic.e16.ts:1627  storeLine(n, txt, length - (txt - addr(tokens)))
-  lw t0, 0x010e(zero)
+  lw a1, 0x010e(zero)
   lw t1, 0x010e(zero)
   la t2, tokens
   sub t1, t1, t2
-  sub t1, s3, t1
+  sub a2, s3, t1
   mv a0, s1
-  mv a1, t0
-  mv a2, t1
   call storeLine
   ; basic/basic.e16.ts:1628  recallNo = n
   sw s1, 0x013e(zero)
@@ -6318,10 +6279,9 @@ recall:
   j .return
 .L2:
   ; basic/basic.e16.ts:1717  move(addr(lastLine), addr(lineBuf), lastLength)
-  lw t0, 0x0142(zero)
+  lw a2, 0x0142(zero)
   la a0, lastLine
   la a1, lineBuf
-  mv a2, t0
   call move
   ; basic/basic.e16.ts:1718  return lastLength
   lw a0, 0x0142(zero)
@@ -6654,10 +6614,9 @@ dimension:
   lw t1, 2(sp) ; count
   mul t1, t1, t0
   addi t1, t1, 11
-  andi t1, t1, -2
+  andi a2, t1, -2
   mv a0, s1
   mv a1, s0
-  mv a2, t1
   call newRecord
   mv s1, a0 ; kind/rec
   ; basic/strings.e16.ts:179  poke16(rec + VAR_HEAD, d1)
@@ -7114,9 +7073,8 @@ join:
   addi a0, t0, -16
   call setNsp
   ; basic/strings.e16.ts:284  pushString(at, na + nb)
-  add t0, s1, s2
+  add a1, s1, s2
   mv a0, s0
-  mv a1, t0
   call pushString
 .return:
   lw ra, 2(sp)
@@ -7278,9 +7236,8 @@ moreFunctions:
 .L7:
   li t1, 65314
 .L8:
-  lw t1, 0(t1)
+  lw a1, 0(t1)
   mv a0, t0
-  mv a1, t1
   call setInt
   ; basic/strings.e16.ts:317  setStrType(false)
   li a0, 0
@@ -7868,23 +7825,20 @@ noArgument:
   bne s2, t0, .L3
   ; basic/strings.e16.ts:471  twoDigits(at, peek(IO_CLOCK + 2), 0x3a)
   li t0, 65338
-  lbu t0, 0(t0)
+  lbu a1, 0(t0)
   mv a0, s1
-  mv a1, t0
   li a2, 58
   call twoDigits
   ; basic/strings.e16.ts:472  twoDigits(at + 3, peek(IO_CLOCK + 1), 0x3a)
   li t0, 65337
-  lbu t0, 0(t0)
+  lbu a1, 0(t0)
   addi a0, s1, 3
-  mv a1, t0
   li a2, 58
   call twoDigits
   ; basic/strings.e16.ts:473  twoDigits(at + 6, peek(IO_CLOCK), 0)
   li t0, 65336
-  lbu t0, 0(t0)
+  lbu a1, 0(t0)
   addi a0, s1, 6
-  mv a1, t0
   li a2, 0
   call twoDigits
   ; basic/strings.e16.ts:474  pushString(at, 8)
@@ -7901,23 +7855,20 @@ noArgument:
   call twoDigits
   ; basic/strings.e16.ts:478  twoDigits(at + 2, peek(IO_CLOCK + 5), CH_MINUS)
   li t0, 65341
-  lbu t0, 0(t0)
+  lbu a1, 0(t0)
   addi a0, s1, 2
-  mv a1, t0
   li a2, 45
   call twoDigits
   ; basic/strings.e16.ts:479  twoDigits(at + 5, peek(IO_CLOCK + 4), CH_MINUS)
   li t0, 65340
-  lbu t0, 0(t0)
+  lbu a1, 0(t0)
   addi a0, s1, 5
-  mv a1, t0
   li a2, 45
   call twoDigits
   ; basic/strings.e16.ts:480  twoDigits(at + 8, peek(IO_CLOCK + 3), 0)
   li t0, 65339
-  lbu t0, 0(t0)
+  lbu a1, 0(t0)
   addi a0, s1, 8
-  mv a1, t0
   li a2, 0
   call twoDigits
   ; basic/strings.e16.ts:481  pushString(at, 10)
@@ -8389,9 +8340,8 @@ takeString:
 .L22:
 .L13:
   ; basic/strings.e16.ts:605  pushString(start, end - start)
-  sub t0, s1, s0
+  sub a1, s1, s0
   mv a0, s0
-  mv a1, t0
   call pushString
   ; basic/strings.e16.ts:606  storeString(at, room)
   lw a0, 0(sp)
@@ -9496,10 +9446,8 @@ locateStatement:
   call fail
 .L1:
   ; basic/screen.e16.ts:133  locate(u16(atX), u16(atY))
-  lw t0, 0x061e(zero)
-  lw t1, 0x0620(zero)
-  mv a0, t0
-  mv a1, t1
+  lw a0, 0x061e(zero)
+  lw a1, 0x0620(zero)
   call locate
 .return:
   lw ra, 0(sp)
@@ -9560,22 +9508,19 @@ lineStatement:
   ; basic/screen.e16.ts:155  if (box === 0) line(x1, y1, atX, atY)
   bne s1, zero, .L3
   ; basic/screen.e16.ts:155  line(x1, y1, atX, atY)
-  lw t0, 0x061e(zero)
-  lw t1, 0x0620(zero)
+  lw a2, 0x061e(zero)
+  lw a3, 0x0620(zero)
   mv a0, s2
   mv a1, s3
-  mv a2, t0
-  mv a3, t1
   call line
   j .L4
 .L3:
   ; basic/screen.e16.ts:156  rectangle(x1, y1, box === 2)
   li t0, 2
   sub t0, s1, t0
-  seqz t0, t0
+  seqz a2, t0
   mv a0, s2
   mv a1, s3
-  mv a2, t0
   call rectangle
 .L4:
 .return:
@@ -9849,40 +9794,28 @@ circleStatement:
   lw t0, 2(sp) ; filled
   beqz t0, .L6
   ; basic/screen.e16.ts:222  span(cx - x, cx + x, cy + y)
-  sub t0, s0, s2
-  add t1, s0, s2
+  sub a0, s0, s2
+  add a1, s0, s2
   lw t2, 0(sp) ; cy
-  add t2, t2, s1
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
+  add a2, t2, s1
   call span
   ; basic/screen.e16.ts:223  span(cx - x, cx + x, cy - y)
-  sub t0, s0, s2
-  add t1, s0, s2
+  sub a0, s0, s2
+  add a1, s0, s2
   lw t2, 0(sp) ; cy
-  sub t2, t2, s1
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
+  sub a2, t2, s1
   call span
   ; basic/screen.e16.ts:224  span(cx - y, cx + y, cy + x)
-  sub t0, s0, s1
-  add t1, s0, s1
+  sub a0, s0, s1
+  add a1, s0, s1
   lw t2, 0(sp) ; cy
-  add t2, t2, s2
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
+  add a2, t2, s2
   call span
   ; basic/screen.e16.ts:225  span(cx - y, cx + y, cy - x)
-  sub t0, s0, s1
-  add t1, s0, s1
+  sub a0, s0, s1
+  add a1, s0, s1
   lw t2, 0(sp) ; cy
-  sub t2, t2, s2
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
+  sub a2, t2, s2
   call span
   j .L7
 .L6:
@@ -9941,59 +9874,43 @@ eight:
   mv s3, a2 ; x
   mv s0, a3 ; y
   ; basic/screen.e16.ts:240  dot(cx + x, cy + y, DOT_ON)
-  add t0, s1, s3
-  add t1, s2, s0
-  mv a0, t0
-  mv a1, t1
+  add a0, s1, s3
+  add a1, s2, s0
   li a2, 1
   call dot
   ; basic/screen.e16.ts:241  dot(cx - x, cy + y, DOT_ON)
-  sub t0, s1, s3
-  add t1, s2, s0
-  mv a0, t0
-  mv a1, t1
+  sub a0, s1, s3
+  add a1, s2, s0
   li a2, 1
   call dot
   ; basic/screen.e16.ts:242  dot(cx + x, cy - y, DOT_ON)
-  add t0, s1, s3
-  sub t1, s2, s0
-  mv a0, t0
-  mv a1, t1
+  add a0, s1, s3
+  sub a1, s2, s0
   li a2, 1
   call dot
   ; basic/screen.e16.ts:243  dot(cx - x, cy - y, DOT_ON)
-  sub t0, s1, s3
-  sub t1, s2, s0
-  mv a0, t0
-  mv a1, t1
+  sub a0, s1, s3
+  sub a1, s2, s0
   li a2, 1
   call dot
   ; basic/screen.e16.ts:244  dot(cx + y, cy + x, DOT_ON)
-  add t0, s1, s0
-  add t1, s2, s3
-  mv a0, t0
-  mv a1, t1
+  add a0, s1, s0
+  add a1, s2, s3
   li a2, 1
   call dot
   ; basic/screen.e16.ts:245  dot(cx - y, cy + x, DOT_ON)
-  sub t0, s1, s0
-  add t1, s2, s3
-  mv a0, t0
-  mv a1, t1
+  sub a0, s1, s0
+  add a1, s2, s3
   li a2, 1
   call dot
   ; basic/screen.e16.ts:246  dot(cx + y, cy - x, DOT_ON)
-  add t0, s1, s0
-  sub t1, s2, s3
-  mv a0, t0
-  mv a1, t1
+  add a0, s1, s0
+  sub a1, s2, s3
   li a2, 1
   call dot
   ; basic/screen.e16.ts:247  dot(cx - y, cy - x, DOT_ON)
-  sub t0, s1, s0
-  sub t1, s2, s3
-  mv a0, t0
-  mv a1, t1
+  sub a0, s1, s0
+  sub a1, s2, s3
   li a2, 1
   call dot
 .return:
@@ -10114,17 +10031,15 @@ gprintStatement:
   call hex
   slli t0, a0, 4
   add t1, s1, s3
-  lbu t1, 1(t1)
+  lbu a0, 1(t1)
   addi sp, sp, -2
   sw t0, 0(sp)
-  mv a0, t1
   call hex
   lw t0, 0(sp)
   addi sp, sp, 2
-  add t0, t0, a0
+  add a2, t0, a0
   mv a0, s2
   lw a1, 0(sp)
-  mv a2, t0
   call column
   ; basic/screen.e16.ts:277  x++
   addi s2, s2, 1
@@ -10137,10 +10052,9 @@ gprintStatement:
   ; basic/screen.e16.ts:279  column(x, row, u16(toInt(top())) & 0xff)
   call top
   call toInt
-  andi t0, a0, 255
+  andi a2, a0, 255
   mv a0, s2
   lw a1, 0(sp)
-  mv a2, t0
   call column
 .L10:
   ; basic/screen.e16.ts:280  if (!strType) x++
@@ -10286,10 +10200,8 @@ pointFunction:
   li a0, 41
   call expect
   ; basic/screen.e16.ts:312  const at = cell(atX, atY)
-  lw t0, 0x061e(zero)
-  lw t1, 0x0620(zero)
-  mv a0, t0
-  mv a1, t1
+  lw a0, 0x061e(zero)
+  lw a1, 0x0620(zero)
   call cell
   mv s1, a0 ; at/on
   ; basic/screen.e16.ts:313  const on = at !== 0 && (peek(at) & (1 << (u16(atY) & 7))) !== 0
@@ -10901,9 +10813,8 @@ saveStatement:
   li t0, 78
   bgeu t0, a0, .L8
   ; basic/files.e16.ts:265  failIn(E_LONG, peek16(at))
-  lw t0, 0(s1)
+  lw a1, 0(s1)
   li a0, 21
-  mv a1, t0
   call failIn
 .L8:
   lw t0, 2(s1)
@@ -10940,10 +10851,9 @@ saveStatement:
   ; basic/files.e16.ts:275  const length = digits + 1 + expand(at + 4, line + digits + 1, 77 - digits)
   add t0, s0, s3
   li t1, 77
-  sub t1, t1, s3
+  sub a2, t1, s3
   addi a0, s2, 4
   addi a1, t0, 1
-  mv a2, t1
   call expand
   addi t0, s3, 1
   add s3, t0, a0
@@ -11037,11 +10947,10 @@ loadStatement:
 .L4:
   ; basic/files.e16.ts:302  cardMust(OP_READ, 0, to, CODE_AREA_END - to)
   li t0, 31744
-  sub t0, t0, s1
+  sub a3, t0, s1
   li a0, 2
   li a1, 0
   mv a2, s1
-  mv a3, t0
   call cardMust
   ; basic/files.e16.ts:303  return
   j .return
@@ -11633,11 +11542,10 @@ fill:
   ; basic/files.e16.ts:445  cardMust(OP_READ, fileOffset[n - 1], addr(fileBuf) + (n - 1) * FILE_BUF, FILE_BUF)
   addi t0, s1, -1
   slli t0, t0, 1
-  lw t0, fileOffset(t0)
+  lw a1, fileOffset(t0)
   addi t1, s1, -1
   slli t1, t1, 6
   li a0, 2
-  mv a1, t0
   addi a2, t1, fileBuf
   li a3, 64
   call cardMust
@@ -14613,11 +14521,10 @@ registers:
   lw t1, 0(sp) ; f3
   or s1, t0, t1
   ; basic/monitor.e16.ts:451  decoded(blockRegisters(key, rd, rs1, peek16(D_RS2)) ? rName(key) : 0, F_R, rd, rs1)
-  lw t0, 140(zero)
+  lw a3, 140(zero)
   mv a0, s1
   mv a1, s3
   mv a2, s0
-  mv a3, t0
   call blockRegisters
   beqz a0, .L4
   mv a0, s1
@@ -14878,11 +14785,10 @@ quadrant0:
   bne s0, t0, .L2
   ; basic/monitor.e16.ts:495  decoded(str('c.sw'), F_S, 0, (h >> 3) & 15)
   srli t0, s1, 3
-  andi t0, t0, 15
+  andi a3, t0, 15
   la a0, str_127
   li a1, 5
   li a2, 0
-  mv a3, t0
   call decoded
   ; basic/monitor.e16.ts:496  setRs2(reg)
   ; basic/monitor.e16.ts:190  poke16(D_RS2, r)
@@ -14897,11 +14803,10 @@ quadrant0:
   la t0, str_128
 .L5:
   srli t1, s1, 3
-  andi t1, t1, 15
+  andi a3, t1, 15
   mv a0, t0
   li a1, 3
   mv a2, s3
-  mv a3, t1
   call decoded
 .L3:
   ; basic/monitor.e16.ts:500  return
@@ -15738,9 +15643,8 @@ disasmInto:
   lbu t0, 2(s2)
   lbu t1, 3(s2)
   slli t1, t1, 8
-  or t0, t0, t1
+  or a1, t0, t1
   mv a0, s1
-  mv a1, t0
   call decode32
   j .L2
 .L1:
@@ -15839,9 +15743,8 @@ unassemble:
   li a0, 32
   call emit
   ; basic/monitor.e16.ts:735  at = u16(at + disasmInto(at, peek16(OUT_AT)))
-  lw t0, 130(zero)
+  lw a1, 130(zero)
   mv a0, s1
-  mv a1, t0
   call disasmInto
   add s1, s1, a0
   ; basic/monitor.e16.ts:736  puts(LINEBUF)
@@ -16518,11 +16421,10 @@ ask:
   call tempString
   sw a0, 0(sp) ; reply
   ; basic/link.e16.ts:100  const got: i16 = link(question, reply, room, askType)
-  lw t0, 0x07fe(zero)
+  lw a3, 0x07fe(zero)
   mv a0, s1
   lw a1, 0(sp)
   mv a2, s0
-  mv a3, t0
   call link
   mv s1, a0 ; question/got/status
   ; basic/link.e16.ts:101  if (got < 0) {

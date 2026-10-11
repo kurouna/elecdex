@@ -527,3 +527,24 @@ export function manyAlive(x: u16): u16 {
     s + a + b + c + d + e + f + keep(wrap16(a + keep(wrap16(b + keep(wrap16(c + keep(f))))))),
   )
 }
+
+/** Three arguments, read in an order of its own: called often, never inlined. */
+function mix3(a: u16, b: u16, c: u16): u16 {
+  kept = wrap16(kept * 5 + a)
+  return wrap16((a ^ (b << 1)) + c * 3 + kept)
+}
+
+/**
+ * Arguments computed straight into their registers: masks, sums, loads from an array, a
+ * call's answer in a0 read into another argument, arguments that read each other's sources,
+ * and a value moved into an argument after another argument was written.
+ */
+export function argsInPlace(x: u16, y: u16): u16 {
+  kept = 0
+  table[3] = wrap16(x * 7)
+  let s = mix3(x & 31, y & 31, wrap16(x + y))
+  s = wrap16(s + mix3(table[3], wrap16(s - x), y ^ s))
+  s = wrap16(s + mix3(keep(x) & 7, wrap16(keep(y) + 1), s))
+  s = wrap16(s + mix3(y, x, wrap16(mix3(s, y, x) + 2)))
+  return wrap16(s + keep(wrap16(s + table[3])))
+}

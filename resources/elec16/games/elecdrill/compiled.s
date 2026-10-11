@@ -621,13 +621,11 @@ palette:
   ; lib/kit.e16.ts:153  load(PALETTES_BANK, PALETTES_AT + row * 32, PALS + slot * 32, 32)
   slli t0, s1, 5
   li t1, 49730
-  add t1, t1, t0
+  add a1, t1, t0
   slli t0, s2, 5
   li t2, 50176
-  add t2, t2, t0
+  add a2, t2, t0
   li a0, 260
-  mv a1, t1
-  mv a2, t2
   li a3, 32
   call load
 .return:
@@ -832,30 +830,24 @@ mix:
   mv s2, a1 ; b
   mv s3, a2 ; t
   ; lib/kit.e16.ts:201  const r = mixPart(a & 31, b & 31, t)
-  andi t0, s1, 31
-  andi t1, s2, 31
-  mv a0, t0
-  mv a1, t1
+  andi a0, s1, 31
+  andi a1, s2, 31
   mv a2, s3
   call mixPart
   mv s0, a0 ; r
   ; lib/kit.e16.ts:202  const g = mixPart((a >> 5) & 31, (b >> 5) & 31, t)
   srli t0, s1, 5
-  andi t0, t0, 31
+  andi a0, t0, 31
   srli t1, s2, 5
-  andi t1, t1, 31
-  mv a0, t0
-  mv a1, t1
+  andi a1, t1, 31
   mv a2, s3
   call mixPart
   sw a0, 0(sp) ; g
   ; lib/kit.e16.ts:203  const bl = mixPart((a >> 10) & 31, (b >> 10) & 31, t)
   srli t0, s1, 10
-  andi t0, t0, 31
+  andi a0, t0, 31
   srli t1, s2, 10
-  andi t1, t1, 31
-  mv a0, t0
-  mv a1, t1
+  andi a1, t1, 31
   mv a2, s3
   call mixPart
   mv s1, a0 ; a/bl
@@ -1028,9 +1020,8 @@ number:
   slli t2, s0, 3
   slli t1, s0, 1
   add t1, t1, t2
-  sub t0, t0, t1
+  sub a1, t0, t1
   mv a0, s1
-  mv a1, t0
   call vpoke
   ; lib/kit.e16.ts:247  n = q
   mv s3, s0 ; n
@@ -1144,10 +1135,9 @@ sprShow:
   ; lib/kit.e16.ts:294  if (n > 0) dma(addr(oam), OAM, n << 3)
   bgeu zero, s1, .L7
   ; lib/kit.e16.ts:294  dma(addr(oam), OAM, n << 3)
-  slli t0, s1, 3
+  slli a2, s1, 3
   la a0, oam
   li a1, 49152
-  mv a2, t0
   call dma
 .L7:
 .return:
@@ -1513,16 +1503,14 @@ scoreShow:
   mv s2, a1 ; at
   mv s3, a2 ; zero
   ; lib/kit.e16.ts:438  number(cell, peek16(at + 2), 4, zero)
-  lw t0, 2(s2)
+  lw a1, 2(s2)
   mv a0, s1
-  mv a1, t0
   li a2, 4
   mv a3, s3
   call number
   ; lib/kit.e16.ts:439  number(wrap16(cell + 8), peek16(at), 4, zero)
-  lw t0, 0(s2)
+  lw a1, 0(s2)
   addi a0, s1, 8
-  mv a1, t0
   li a2, 4
   mv a3, s3
   call number
@@ -1999,13 +1987,10 @@ oneOp:
   lbu t0, 1(s1)
   lbu t1, 2(s1)
   slli t1, t1, 8
-  or t0, t0, t1
-  lbu t1, 3(s1)
-  lbu t2, 4(s1)
+  or a1, t0, t1
+  lbu a2, 3(s1)
+  lbu a3, 4(s1)
   mv a0, s2
-  mv a1, t0
-  mv a2, t1
-  mv a3, t2
   call startNote
   ; lib/sound.e16.ts:172  opTook = true
   li t0, 1
@@ -2018,15 +2003,12 @@ oneOp:
   lbu t0, 1(s1)
   lbu t1, 2(s1)
   slli t1, t1, 8
-  or t0, t0, t1
+  or a1, t0, t1
   slli t1, s2, 1
-  lw t1, chLen(t1)
+  lw a2, chLen(t1)
   slli t2, s2, 1
-  lw t2, chHeld(t2)
+  lw a3, chHeld(t2)
   mv a0, s2
-  mv a1, t0
-  mv a2, t1
-  mv a3, t2
   call startNote
   ; lib/sound.e16.ts:176  opTook = true
   li t0, 1
@@ -2037,15 +2019,12 @@ oneOp:
 .L4:
   ; lib/sound.e16.ts:179  startNote(c, lastFreq[c], chLen[c], chHeld[c])
   slli t0, s2, 1
-  lw t0, lastFreq(t0)
+  lw a1, lastFreq(t0)
   slli t1, s2, 1
-  lw t1, chLen(t1)
+  lw a2, chLen(t1)
   slli t2, s2, 1
-  lw t2, chHeld(t2)
+  lw a3, chHeld(t2)
   mv a0, s2
-  mv a1, t0
-  mv a2, t1
-  mv a3, t2
   call startNote
   ; lib/sound.e16.ts:180  opTook = true
   li t0, 1
@@ -2081,9 +2060,8 @@ oneOp:
   j .return
 .L7:
   ; lib/sound.e16.ts:193  setInstrument(c, peek(at + 1))
-  lbu t0, 1(s1)
+  lbu a1, 1(s1)
   mv a0, s2
-  mv a1, t0
   call setInstrument
   ; lib/sound.e16.ts:194  return wrap16(at + 2)
   addi a0, s1, 2
@@ -4011,11 +3989,10 @@ loosen:
   ; fall.e16.ts:285  lbTile[k] = looseTile(lbCell[k], g)
   slli t0, s1, 1
   slli t1, s1, 1
-  lw t1, lbCell(t1)
+  lw a0, lbCell(t1)
   addi t0, t0, lbTile
   addi sp, sp, -2
   sw t0, 0(sp)
-  mv a0, t1
   lw a1, 2(sp)
   call looseTile
   lw t0, 0(sp)
@@ -5054,10 +5031,9 @@ chainsStep:
   slli t0, s1, 1
   lw t1, 0x1a0a(zero)
   sub t1, t1, s1
-  slli t1, t1, 1
+  slli a2, t1, 1
   la a0, landQ
   addi a1, t0, landQ
-  mv a2, t1
   mcpy a0, a1, a2
 .L9:
   ; fall.e16.ts:608  landN = landN - k
@@ -5113,9 +5089,8 @@ vanish:
   ; fall.e16.ts:622  pend(c, wrap16(due + u16(mulShift(i16(k), i16(step), 2))))
   lw t0, 0(sp) ; step
   mulq t0, s1, t0, 2
-  add t0, s0, t0
+  add a1, s0, t0
   mv a0, s2
-  mv a1, t0
   call pend
   ; fall.e16.ts:623  k++
   addi s1, s1, 1
@@ -5359,9 +5334,8 @@ say:
   slli t0, s0, 10
   or t0, zero, t0
   li t1, 32768
-  or t0, t0, t1
+  or a2, t0, t1
   mv a1, s3
-  mv a2, t0
   call text
 .return:
   lw ra, 0(sp)
@@ -5562,13 +5536,11 @@ bandDraw:
   slli t0, s2, 4
   lw t1, 0x1d06(zero)
   slli t2, s1, 4
-  add t1, t1, t2
+  add a1, t1, t2
   slli t2, s3, 2
   addi t2, t2, 147
-  ori t2, t2, 5120
+  ori a2, t2, 5120
   addi a0, t0, 88
-  mv a1, t1
-  mv a2, t2
   li a3, 1
   call spr
   ; hud.e16.ts:77  k++
@@ -6181,9 +6153,8 @@ panelsIn:
   ; drill.e16.ts:339  mapRow(PANELS_MAP_BANK, 0xc000 + y * 128, 1, y)
   slli t0, s1, 7
   li t1, 49152
-  add t1, t1, t0
+  add a1, t1, t0
   li a0, 263
-  mv a1, t1
   li a2, 1
   mv a3, s1
   call mapRow
@@ -6236,11 +6207,9 @@ logoIn:
   j .L7
 .L5:
   ; drill.e16.ts:356  vpoke(cellAt(1, x + c, y + r), peek16(0xc000 + r * 128 + c * 2) | 0x8000)
-  add t0, s3, s2
-  add t1, s0, s1
+  add a1, s3, s2
+  add a2, s0, s1
   li a0, 1
-  mv a1, t0
-  mv a2, t1
   call cellAt
   slli t0, s1, 7
   li t1, 49152
@@ -6403,10 +6372,9 @@ pulse:
   ; drill.e16.ts:411  colour(SL_FLASH, 9, palCopy[SL_FLASH * 16 + 9 + turn])
   addi t0, s1, 105
   slli t0, t0, 1
-  lw t0, palCopy(t0)
+  lw a2, palCopy(t0)
   li a0, 6
   li a1, 9
-  mv a2, t0
   call colour
   ; drill.e16.ts:412  colour(SL_FLASH, 10, palCopy[SL_FLASH * 16 + 9 + ((turn + 1) % 3)])
   addi t0, s1, 1
@@ -6418,10 +6386,9 @@ pulse:
   sub t0, t0, t1
   addi t0, t0, 105
   slli t0, t0, 1
-  lw t0, palCopy(t0)
+  lw a2, palCopy(t0)
   li a0, 6
   li a1, 10
-  mv a2, t0
   call colour
   ; drill.e16.ts:413  colour(SL_FLASH, 11, palCopy[SL_FLASH * 16 + 9 + ((turn + 2) % 3)])
   addi t0, s1, 2
@@ -6433,10 +6400,9 @@ pulse:
   sub t0, t0, t1
   addi t0, t0, 105
   slli t0, t0, 1
-  lw t0, palCopy(t0)
+  lw a2, palCopy(t0)
   li a0, 6
   li a1, 11
-  mv a2, t0
   call colour
 .return:
   lw ra, 0(sp)
@@ -6802,9 +6768,8 @@ fieldStep:
   call sfxCapsule
   ; drill.e16.ts:517  bubbles(i16(FIELD_X + pX) + 8, i16(pY))
   lw t0, 0x1d94(zero)
-  lw t1, 0x1d96(zero)
+  lw a1, 0x1d96(zero)
   addi a0, t0, 96
-  mv a1, t1
   la t0, bubbles
   li t1, 258
   call far_call
@@ -6859,10 +6824,9 @@ pops:
   ; drill.e16.ts:531  pop(i16(FIELD_X + (c & 15) * 16), i16(y), t, (k & 1) + (t <= T_BLUE ? 0 : 1))
   andi t0, s2, 15
   slli t0, t0, 4
-  andi t1, s1, 1
+  andi t3, s1, 1
   addi t0, t0, 88
   mv t2, s3
-  mv t3, t1
   mv t1, s0
   mv a1, s3
   li a2, 4
@@ -6872,11 +6836,10 @@ pops:
 .L5:
   li a1, 1
 .L6:
-  add t3, t3, a1
+  add a3, t3, a1
   mv a0, t0
   mv a1, t1
   mv a2, t2
-  mv a3, t3
   la t0, pop
   li t1, 258
   call far_call
@@ -7011,10 +6974,9 @@ chainScored:
   li t1, 2
   bltu t0, t1, .L2
   ; drill.e16.ts:556  chainShow(x, y, vanishedChain)
-  lw t0, 0x1a10(zero)
+  lw a2, 0x1a10(zero)
   mv a0, s3
   mv a1, s1
-  mv a2, t0
   la t0, chainShow
   li t1, 258
   call far_call
@@ -7065,9 +7027,8 @@ pickups:
   call sfxCapsule
   ; drill.e16.ts:567  bubbles(i16(FIELD_X + pX) + 8, i16(pY))
   lw t0, 0x1d94(zero)
-  lw t1, 0x1d96(zero)
+  lw a1, 0x1d96(zero)
   addi a0, t0, 96
-  mv a1, t1
   la t0, bubbles
   li t1, 258
   call far_call
@@ -7143,10 +7104,9 @@ deeper:
   ; drill.e16.ts:582  metresShow(i16(FIELD_X + pX) + 8, i16(pY) - 10, maxDepth)
   lw t0, 0x1d94(zero)
   lw t1, 0x1d96(zero)
-  lw t2, 0x1d1c(zero)
+  lw a2, 0x1d1c(zero)
   addi a0, t0, 96
   addi a1, t1, -10
-  mv a2, t2
   la t0, metresShow
   li t1, 258
   call far_call
@@ -7171,16 +7131,14 @@ landDust:
   ; drill.e16.ts:593  dust(i16(FIELD_X + (c & 15) * 16) + 8, i16(rowOf(c >> 4) * 16) + 14, 0)
   andi t0, s1, 15
   slli t0, t0, 4
-  srli t1, s1, 4
+  srli a0, s1, 4
   addi t0, t0, 96
   addi sp, sp, -2
   sw t0, 0(sp)
-  mv a0, t1
   call rowOf
   slli t0, a0, 4
-  lw t1, 0(sp)
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
   addi a1, t0, 14
   li a2, 0
   la t0, dust
@@ -7393,12 +7351,9 @@ drawStep:
   ; drill.e16.ts:648  bandDraw()
   call bandDraw
   ; drill.e16.ts:650  warnDraw(view, frame, warn)
-  lw t0, 0x1d12(zero)
-  lw t1, 0x1d0e(zero)
-  lw t2, 0x1d36(zero)
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
+  lw a0, 0x1d12(zero)
+  lw a1, 0x1d0e(zero)
+  lw a2, 0x1d36(zero)
   la t0, warnDraw
   li t1, 258
   call far_call
@@ -7408,41 +7363,31 @@ drawStep:
   sw t0, 0(sp)
   call spent
   li t0, 30000
-  sltu t0, t0, a0
-  lw t1, 0(sp)
+  sltu a1, t0, a0
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
-  mv a1, t0
   la t0, fxStep
   li t1, 258
   call far_call
   ; drill.e16.ts:652  looseDraw()
   call looseDraw
   ; drill.e16.ts:653  playerDraw(view, frame)
-  lw t0, 0x1d12(zero)
-  lw t1, 0x1d0e(zero)
-  mv a0, t0
-  mv a1, t1
+  lw a0, 0x1d12(zero)
+  lw a1, 0x1d0e(zero)
   la t0, playerDraw
   li t1, 258
   call far_call
   ; drill.e16.ts:654  hudStep(maxDepth, air, lives, frame)
-  lw t0, 0x1d1c(zero)
-  lw t1, 0x1daa(zero)
-  lw t2, 0x1d18(zero)
-  lw t3, 0x1d0e(zero)
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
-  mv a3, t3
+  lw a0, 0x1d1c(zero)
+  lw a1, 0x1daa(zero)
+  lw a2, 0x1d18(zero)
+  lw a3, 0x1d0e(zero)
   la t0, hudStep
   li t1, 258
   call far_call
   ; drill.e16.ts:655  hudCounts(maxChain, capsules)
-  lw t0, 0x1d1e(zero)
-  lw t1, 0x1db6(zero)
-  mv a0, t0
-  mv a1, t1
+  lw a0, 0x1d1e(zero)
+  lw a1, 0x1db6(zero)
   la t0, hudCounts
   li t1, 258
   call far_call
@@ -7630,10 +7575,9 @@ looseSprites:
   bgeu t1, t0, .L9
   ; drill.e16.ts:698  spr(x, y, lbTile[k], S16)
   slli t0, s1, 1
-  lw t0, lbTile(t0)
+  lw a2, lbTile(t0)
   mv a0, s0
   mv a1, s3
-  mv a2, t0
   li a3, 1
   call spr
 .L9:
@@ -7891,10 +7835,9 @@ earthFlash:
   li t0, 5
 .L2:
   lw t1, 0x1d38(zero)
-  srli t1, t1, 1
+  srli a2, t1, 1
   mv a0, t0
   li a1, 32767
-  mv a2, t1
   call palMix
 .return:
   lw ra, 0(sp)
@@ -8024,10 +7967,9 @@ stripes:
   ; drill.e16.ts:813  stripesRed = 0
   sw zero, 0x1d3c(zero)
   ; drill.e16.ts:814  colour(SL_PANEL, 9, palCopy[SL_PANEL * 16 + 9])
-  lw t0, palCopy+242(zero)
+  lw a2, palCopy+242(zero)
   li a0, 7
   li a1, 9
-  mv a2, t0
   call colour
 .L2:
   ; drill.e16.ts:816  return
@@ -8048,9 +7990,8 @@ stripes:
   srli t0, t0, 2
   andi s1, t0, 7
   ; drill.e16.ts:821  colour(SL_PANEL, 9, mix(palCopy[SL_PANEL * 16 + 9], 0x0c1f, p < 4 ? p * 4 : (8 - p) * 4))
-  lw t0, palCopy+242(zero)
+  lw t2, palCopy+242(zero)
   li t1, 9
-  mv t2, t0
   li t0, 7
   li t3, 3103
   mv a1, s1
@@ -8071,11 +8012,10 @@ stripes:
   mv a2, a1
   mv a1, t3
   call mix
-  lw t0, 0(sp)
+  lw a1, 0(sp)
   addi sp, sp, 2
   lw t1, 0(sp)
   addi sp, sp, 2
-  mv a1, t0
   mv a2, a0
   mv a0, t1
   call colour
@@ -8114,22 +8054,16 @@ idle:
   ; drill.e16.ts:833  looseDraw()
   call looseDraw
   ; drill.e16.ts:834  playerDraw(view, frame)
-  lw t0, 0x1d12(zero)
-  lw t1, 0x1d0e(zero)
-  mv a0, t0
-  mv a1, t1
+  lw a0, 0x1d12(zero)
+  lw a1, 0x1d0e(zero)
   la t0, playerDraw
   li t1, 258
   call far_call
   ; drill.e16.ts:836  hudStep(maxDepth, air, lives, frame)
-  lw t0, 0x1d1c(zero)
-  lw t1, 0x1daa(zero)
-  lw t2, 0x1d18(zero)
-  lw t3, 0x1d0e(zero)
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
-  mv a3, t3
+  lw a0, 0x1d1c(zero)
+  lw a1, 0x1daa(zero)
+  lw a2, 0x1d18(zero)
+  lw a3, 0x1d0e(zero)
   la t0, hudStep
   li t1, 258
   call far_call
@@ -8441,9 +8375,8 @@ stratumBanner:
   call say
   ; scenes.e16.ts:80  figure(cellAt(1, 19, 26), s * 1000, 5, W_GOLD)
   li t0, 1000
-  mul t0, s1, t0
+  mul a1, s1, t0
   li a0, 44326
-  mv a1, t0
   li a2, 5
   li a3, 6
   call figure
@@ -8599,9 +8532,8 @@ goal:
   ; scenes.e16.ts:122  figure(cellAt(1, 23, 21), air * 100, 5, W_GOLD)
   lw t0, 0x1daa(zero)
   li t1, 100
-  mul t0, t0, t1
+  mul a1, t0, t1
   li a0, 43694
-  mv a1, t0
   li a2, 5
   li a3, 6
   call figure
@@ -8617,9 +8549,8 @@ goal:
   ; scenes.e16.ts:125  figure(cellAt(1, 23, 23), lives * 5000, 5, W_GOLD)
   lw t0, 0x1d18(zero)
   li t1, 5000
-  mul t0, t0, t1
+  mul a1, t0, t1
   li a0, 43950
-  mv a1, t0
   li a2, 5
   li a3, 6
   call figure
@@ -8680,9 +8611,8 @@ results:
   li a3, 6
   call say
   ; scenes.e16.ts:140  say(
-  lw t0, 0x1d3e(zero)
+  lw t2, 0x1d3e(zero)
   li t1, 7
-  mv t2, t0
   li t0, 17
   li t3, 0
   bne t2, t3, .L1
@@ -8710,9 +8640,8 @@ results:
   li a3, 7
   call say
   ; scenes.e16.ts:147  figure(cellAt(1, 24, 9), maxDepth, 3, W_GOLD)
-  lw t0, 0x1d1c(zero)
+  lw a1, 0x1d1c(zero)
   li a0, 42160
-  mv a1, t0
   li a2, 3
   li a3, 6
   call figure
@@ -8742,9 +8671,8 @@ results:
   li a3, 7
   call say
   ; scenes.e16.ts:154  figure(cellAt(1, 24, 13), maxChain, 4, W_GOLD)
-  lw t0, 0x1d1e(zero)
+  lw a1, 0x1d1e(zero)
   li a0, 42672
-  mv a1, t0
   li a2, 4
   li a3, 6
   call figure
@@ -8758,9 +8686,8 @@ results:
   li a3, 7
   call say
   ; scenes.e16.ts:157  figure(cellAt(1, 24, 15), capsules, 4, W_GOLD)
-  lw t0, 0x1db6(zero)
+  lw a1, 0x1db6(zero)
   li a0, 42928
-  mv a1, t0
   li a2, 4
   li a3, 6
   call figure
@@ -8774,9 +8701,8 @@ results:
   li a3, 7
   call say
   ; scenes.e16.ts:160  figure(cellAt(1, 26, 17), continues, 2, W_RED)
-  lw t0, 0x1d20(zero)
+  lw a1, 0x1d20(zero)
   li a0, 43188
-  mv a1, t0
   li a2, 2
   li a3, 1
   call figure
@@ -9004,9 +8930,8 @@ levelKeep:
   lw t0, 0x1d3e(zero)
   beq a0, t0, .L1
   ; best.e16.ts:65  saveWrite(LEVEL_AT, level)
-  lw t0, 0x1d3e(zero)
+  lw a1, 0x1d3e(zero)
   li a0, 54
-  mv a1, t0
   call saveWrite
 .L1:
 .return:
@@ -9149,9 +9074,8 @@ tableFresh:
   li t0, 5
   sub t0, t0, s1
   li t1, 1000
-  mul t0, t0, t1
+  mul a1, t0, t1
   mv a0, s2
-  mv a1, t0
   call saveWrite
   ; best.e16.ts:93  saveWrite(at + 2, 0)
   addi a0, s2, 2
@@ -9162,9 +9086,8 @@ tableFresh:
   sub t0, t0, s1
   slli t1, t0, 4
   slli t0, t0, 2
-  add t0, t0, t1
+  add a1, t0, t1
   addi a0, s2, 4
-  mv a1, t0
   call saveWrite
   ; best.e16.ts:95  saveWrite(at + 6, 0x4952)
   addi a0, s2, 6
@@ -9352,23 +9275,20 @@ tableEnter:
   ; best.e16.ts:133  saveWrite(at, bestScore[k * 2])
   slli t0, s1, 1
   slli t0, t0, 1
-  lw t0, bestScore(t0)
+  lw a1, bestScore(t0)
   mv a0, s3
-  mv a1, t0
   call saveWrite
   ; best.e16.ts:134  saveWrite(at + 2, bestScore[k * 2 + 1])
   slli t0, s1, 1
   addi t0, t0, 1
   slli t0, t0, 1
-  lw t0, bestScore(t0)
+  lw a1, bestScore(t0)
   addi a0, s3, 2
-  mv a1, t0
   call saveWrite
   ; best.e16.ts:135  saveWrite(at + 4, bestDepth[k])
   slli t0, s1, 1
-  lw t0, bestDepth(t0)
+  lw a1, bestDepth(t0)
   addi a0, s3, 4
-  mv a1, t0
   call saveWrite
   ; best.e16.ts:136  saveWrite(at + 6, bestName[k * 3] | (bestName[k * 3 + 1] << 8))
   slli t1, s1, 1
@@ -9381,18 +9301,16 @@ tableEnter:
   slli t1, t1, 1
   lw t1, bestName(t1)
   slli t1, t1, 8
-  or t0, t0, t1
+  or a1, t0, t1
   addi a0, s3, 6
-  mv a1, t0
   call saveWrite
   ; best.e16.ts:137  saveWrite(at + 8, bestName[k * 3 + 2])
   slli t1, s1, 1
   add t0, t1, s1
   addi t0, t0, 2
   slli t0, t0, 1
-  lw t0, bestName(t0)
+  lw a1, bestName(t0)
   addi a0, s3, 8
-  mv a1, t0
   call saveWrite
   ; best.e16.ts:138  k++
   addi s1, s1, 1
@@ -9834,13 +9752,10 @@ nameEntry:
   bltu s2, t0, .L1
 .L6:
   ; best.e16.ts:212  tableEnter(place, letters[0], letters[1], letters[2])
-  lw t0, letters(zero)
-  lw t1, letters+2(zero)
-  lw t2, letters+4(zero)
+  lw a1, letters(zero)
+  lw a2, letters+2(zero)
+  lw a3, letters+4(zero)
   mv a0, s3
-  mv a1, t0
-  mv a2, t1
-  mv a3, t2
   call tableEnter
   ; best.e16.ts:213  idle(60)
   li a0, 60
@@ -10448,9 +10363,8 @@ step:
   sw s2, 4(sp)
   mv s1, a0 ; to
   ; player.e16.ts:212  const v = at(to, pRow)
-  lw t0, 0x1d92(zero)
+  lw a1, 0x1d92(zero)
   mv a0, s1
-  mv a1, t0
   call at
   mv s2, a0 ; v/up
   ; player.e16.ts:213  if ((v & 15) === T_AIR && (v & (F_LOOSE | F_PEND)) === 0) collect(cellOf(to, pRow))
@@ -10460,16 +10374,14 @@ step:
   andi t0, s2, 192
   bne t0, zero, .L1
   ; player.e16.ts:213  collect(cellOf(to, pRow))
-  lw t0, 0x1d92(zero)
+  lw a1, 0x1d92(zero)
   mv a0, s1
-  mv a1, t0
   call cellOf
   call collect
 .L1:
   ; player.e16.ts:214  if ((at(to, pRow) & 15) === T_EMPTY) {
-  lw t0, 0x1d92(zero)
+  lw a1, 0x1d92(zero)
   mv a0, s1
-  mv a1, t0
   call at
   andi t0, a0, 15
   bne t0, zero, .L2
@@ -10532,9 +10444,8 @@ standsOn:
   sw s2, 2(sp)
   sw s1, 4(sp)
   ; player.e16.ts:234  const below = cellOf(pCol, pRow + 1)
-  lw t0, 0x1d90(zero)
+  lw a0, 0x1d90(zero)
   lw t1, 0x1d92(zero)
-  mv a0, t0
   addi a1, t1, 1
   call cellOf
   mv s2, a0 ; below
@@ -10620,9 +10531,8 @@ walk:
 .L5:
   li t1, 18
 .L6:
-  add t0, t0, t1
+  add a0, t0, t1
   lw t1, 0x1d96(zero)
-  mv a0, t0
   addi a1, t1, 14
   li a2, 0
   call dust
@@ -11198,11 +11108,9 @@ comeBack:
   j .L3
 .L1:
   ; player.e16.ts:392  const c = cellOf(pCol, pRow - k)
-  lw t0, 0x1d90(zero)
+  lw a0, 0x1d90(zero)
   lw t1, 0x1d92(zero)
-  sub t1, t1, s1
-  mv a0, t0
-  mv a1, t1
+  sub a1, t1, s1
   call cellOf
   mv s3, a0 ; c
   ; player.e16.ts:393  const t = cells[c] & 15
@@ -11322,10 +11230,9 @@ playerDraw:
   ; player.e16.ts:421  spr(x, y, (DRILLER_TILE + f * 4) | flip, S16)
   slli t0, s2, 2
   addi t0, t0, 313
-  or t0, t0, s0
+  or a2, t0, s0
   mv a0, s3
   mv a1, s1
-  mv a2, t0
   li a3, 1
   call spr
 .return:
@@ -11385,12 +11292,10 @@ warnDraw:
   lw t1, 0x1d96(zero)
   sub t1, t1, s3
   addi t1, t1, -10
-  sub t1, t1, s2
+  sub a1, t1, s2
   addi t2, s1, 443
-  ori t2, t2, 6144
+  ori a2, t2, 6144
   addi a0, t0, 92
-  mv a1, t1
-  mv a2, t2
   li a3, 0
   call spr
 .return:
@@ -11435,14 +11340,12 @@ bitDraw:
 .L2:
   li t1, 65523
 .L3:
-  add t0, t0, t1
+  add a0, t0, t1
   slli t1, s3, 2
   addi t1, t1, 409
   ori t1, t1, 6144
-  or t1, t1, s0
-  mv a0, t0
+  or a2, t1, s0
   mv a1, s2
-  mv a2, t1
   li a3, 1
   call spr
   j .L4
@@ -11454,10 +11357,9 @@ bitDraw:
   ; player.e16.ts:440  spr(x, y + 13, (BIT_TILE + 8 + spin * 4) | pal, S16)
   slli t0, s3, 2
   addi t0, t0, 417
-  ori t0, t0, 6144
+  ori a2, t0, 6144
   mv a0, s1
   addi a1, s2, 13
-  mv a2, t0
   li a3, 1
   call spr
   j .L6
@@ -11465,10 +11367,9 @@ bitDraw:
   ; player.e16.ts:441  spr(x, y - 13, (BIT_TILE + 16 + spin * 4) | pal, S16)
   slli t0, s3, 2
   addi t0, t0, 425
-  ori t0, t0, 6144
+  ori a2, t0, 6144
   mv a0, s1
   addi a1, s2, -13
-  mv a2, t0
   li a3, 1
   call spr
 .L6:
@@ -11725,9 +11626,8 @@ pop:
   li a0, 24
   call randBelow
   neg t0, a0
-  lw t1, 0(sp)
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
   addi a1, t0, -20
   call fxVel
   ; fx.e16.ts:80  fxAdd(K_STAR, x + 4, y + 4, 0)
@@ -11782,9 +11682,8 @@ dust:
   li a0, 12
   call randBelow
   neg t0, a0
-  lw t1, 0(sp)
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
   addi a1, t0, -4
   call fxVel
   ; fx.e16.ts:90  fxAdd(K_DUST, x - 4, y - 4, 0)
@@ -11830,9 +11729,8 @@ sparks:
   li a0, 40
   call randBelow
   neg t0, a0
-  lw t1, 0(sp)
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
   addi a1, t0, -8
   call fxVel
   ; fx.e16.ts:98  fxAdd(K_SPARK, x - 4, y - 4, 0)
@@ -11879,9 +11777,8 @@ bubbles:
   li a0, 12
   call randBelow
   neg t0, a0
-  lw t1, 0(sp)
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
   addi a1, t0, -10
   call fxVel
   ; fx.e16.ts:107  fxAdd(K_BUBBLE, x + i16(randBelow(12)) - 6, y + 4, 0)
@@ -12413,10 +12310,9 @@ fxDraw:
   lw t1, fxA(t1)
   slli t1, t1, 10
   addi t0, t0, 261
-  or t0, t0, t1
+  or a2, t0, t1
   mv a0, s2
   mv a1, s3
-  mv a2, t0
   li a3, 1
   call spr
   j .L2
@@ -12425,10 +12321,9 @@ fxDraw:
   li t0, 2
   bne s0, t0, .L3
   ; fx.e16.ts:227  spr(x, y, (FX_TILE + (t >> 2 > 3 ? 3 : t >> 2)) | fx, S8)
-  srli t0, s1, 2
+  srli t3, s1, 2
   mv t1, s3
   li t2, 433
-  mv t3, t0
   mv t0, s2
   li a1, 3
   bgeu a1, t3, .L4
@@ -12438,10 +12333,9 @@ fxDraw:
   srli t3, s1, 2
 .L5:
   add t2, t2, t3
-  ori t2, t2, 6144
+  ori a2, t2, 6144
   mv a0, t0
   mv a1, t1
-  mv a2, t2
   li a3, 0
   call spr
   j .L6
@@ -12453,10 +12347,9 @@ fxDraw:
   srli t0, s1, 1
   andi t0, t0, 1
   addi t0, t0, 437
-  ori t0, t0, 6144
+  ori a2, t0, 6144
   mv a0, s2
   mv a1, s3
-  mv a2, t0
   li a3, 0
   call spr
   j .L8
@@ -12477,10 +12370,9 @@ fxDraw:
   li t3, 0
 .L11:
   add t2, t2, t3
-  ori t2, t2, 6144
+  ori a2, t2, 6144
   mv a0, t0
   mv a1, t1
-  mv a2, t2
   li a3, 0
   call spr
   j .L12
@@ -12509,10 +12401,9 @@ fxDraw:
   srli t0, s1, 2
   andi t0, t0, 1
   addi t0, t0, 441
-  ori t0, t0, 6144
+  ori a2, t0, 6144
   mv a0, s2
   mv a1, s3
-  mv a2, t0
   li a3, 0
   call spr
   j .L18
@@ -12574,20 +12465,18 @@ wordsAt:
   bne s2, t0, .L2
   ; fx.e16.ts:240  sayDraw(x, y, fxA[k])
   slli t0, s1, 1
-  lw t0, fxA(t0)
+  lw a2, fxA(t0)
   mv a0, s3
   mv a1, s0
-  mv a2, t0
   call sayDraw
   j .L3
 .L2:
   ; fx.e16.ts:241  wordDraw(x, y, kind, fxA[k])
   slli t0, s1, 1
-  lw t0, fxA(t0)
+  lw a3, fxA(t0)
   mv a0, s3
   mv a1, s0
   mv a2, s2
-  mv a3, t0
   call wordDraw
 .L3:
 .return:
@@ -12665,10 +12554,9 @@ sayDraw:
   ; fx.e16.ts:260  spr(at, y, (FONT_TILE + c - 32) | (pal << 10), S8)
   slli t0, s0, 10
   addi t1, s1, -32
-  or t1, t1, t0
+  or a2, t1, t0
   mv a0, s3
   lw a1, 0(sp)
-  mv a2, t1
   li a3, 0
   call spr
 .L12:
@@ -12803,7 +12691,7 @@ wordDraw:
   addi s0, s0, -1
   ; fx.e16.ts:292  spr(at + i16(d * 8), y, gold(48 + (v % 10)), S8)
   slli t0, s0, 3
-  add t0, s1, t0
+  add a0, s1, t0
   li t2, 52429
   mulhu t1, s3, t2
   srli t1, t1, 3
@@ -12815,10 +12703,8 @@ wordDraw:
   ; fx.e16.ts:276  return (FONT_TILE + c - 32) | (7 << 10)
   lw t1, 4(sp) ; gold.c
   addi t1, t1, -32
-  ori t1, t1, 7168
-  mv a0, t0
+  ori a2, t1, 7168
   mv a1, s2
-  mv a2, t1
   li a3, 0
   call spr
   ; fx.e16.ts:293  v = div(v, 10)
@@ -12987,9 +12873,8 @@ hudLabels:
   li a3, 6
   call say
   ; panel.e16.ts:39  say(
-  lw t0, 0x1d3e(zero)
+  lw t2, 0x1d3e(zero)
   li t1, 30
-  mv t2, t0
   li t0, 31
   li t3, 0
   bne t2, t3, .L1
@@ -13102,9 +12987,8 @@ hudStep:
   add t1, t1, t2
   ori t1, t1, 7168
   li t2, 32768
-  or t1, t1, t2
+  or a1, t1, t2
   mv a0, t0
-  mv a1, t1
   call vpoke
   ; panel.e16.ts:69  k++
   addi s1, s1, 1
@@ -13401,15 +13285,13 @@ bigDepth:
   ; panel.e16.ts:133  bigDigit(5 - k * 2, v % 10)
   slli t0, s2, 1
   li t1, 5
-  sub t1, t1, t0
+  sub a0, t1, t0
   li t2, 52429
   mulhu t0, s1, t2
   srli t0, t0, 3
   li t2, 10
   mul t0, t0, t2
-  sub t0, s1, t0
-  mv a0, t1
-  mv a1, t0
+  sub a1, s1, t0
   call bigDigit
   ; panel.e16.ts:134  v = div(v, 10)
   li t1, 52429
@@ -13455,10 +13337,9 @@ bigDigit:
 .L1:
   ; panel.e16.ts:144  vpoke(cellAt(1, x + (k & 1), 2 + (k >> 1)), (t + k) | (SL_PANEL << 10) | 0x8000)
   andi t0, s1, 1
-  add t0, s3, t0
+  add a1, s3, t0
   srli t1, s1, 1
   li a0, 1
-  mv a1, t0
   addi a2, t1, 2
   call cellAt
   add t0, s2, s1
@@ -13694,16 +13575,13 @@ signAt:
   mv s1, a0 ; x
   mv s2, a1 ; y
   ; title.e16.ts:50  spr(i16(x * 8), i16(y * 8), (FX_TILE + 10 + ((frame >> 3) & 1)) | (6 << 10), S8)
-  slli t0, s1, 3
-  slli t1, s2, 3
+  slli a0, s1, 3
+  slli a1, s2, 3
   lw t2, 0x1d0e(zero)
   srli t2, t2, 3
   andi t2, t2, 1
   addi t2, t2, 443
-  ori t2, t2, 6144
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
+  ori a2, t2, 6144
   li a3, 0
   call spr
 .return:
@@ -14504,10 +14382,9 @@ walker:
 .L11:
   li t3, 0
 .L12:
-  or t2, t2, t3
+  or a2, t2, t3
   mv a0, t0
   mv a1, t1
-  mv a2, t2
   li a3, 1
   call spr
 .return:
@@ -14624,12 +14501,10 @@ heapDraw:
   srli t0, t0, 4
   li t1, 20
   mul t0, t0, t1
-  sub t0, s1, t0
+  sub a0, s1, t0
   li t2, 52429
   mulhu t1, s1, t2
-  srli t1, t1, 4
-  mv a0, t0
-  mv a1, t1
+  srli a1, t1, 4
   call heapCell
   ; title.e16.ts:275  k++
   addi s1, s1, 1
@@ -14735,10 +14610,9 @@ heapCell:
   li t1, 159
   or s0, t1, t0
   ; title.e16.ts:293  const at = cellAt(0, x * 2, 32 + y * 2)
-  slli t0, s2, 1
+  slli a1, s2, 1
   slli t1, s3, 1
   li a0, 0
-  mv a1, t0
   addi a2, t1, 32
   call cellAt
   sw a0, 0(sp) ; at
@@ -14751,9 +14625,8 @@ heapCell:
   mv a2, a0
   lw a0, 6(sp)
   call quarterOf
-  add t0, s0, a0
+  add a1, s0, a0
   lw a0, 0(sp)
-  mv a1, t0
   call vpoke
   ; title.e16.ts:295  vpoke(at + 2, base + 5 + quarterOf(n, e, heapAt(x + 1, up, c)))
   lw t0, 0(sp) ; at
@@ -14769,11 +14642,9 @@ heapCell:
   lw a0, 8(sp)
   call quarterOf
   addi t0, s0, 5
-  add t0, t0, a0
-  lw t1, 0(sp)
+  add a1, t0, a0
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
-  mv a1, t0
   call vpoke
   ; title.e16.ts:296  vpoke(at + 128, base + 10 + quarterOf(s, w, heapAt(left, y + 1, c)))
   lw t0, 0(sp) ; at
@@ -14789,11 +14660,9 @@ heapCell:
   lw a0, 10(sp)
   call quarterOf
   addi t0, s0, 10
-  add t0, t0, a0
-  lw t1, 0(sp)
+  add a1, t0, a0
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
-  mv a1, t0
   call vpoke
   ; title.e16.ts:297  vpoke(at + 130, base + 15 + quarterOf(s, e, heapAt(x + 1, y + 1, c)))
   lw t0, 0(sp) ; at
@@ -14809,11 +14678,9 @@ heapCell:
   lw a0, 10(sp)
   call quarterOf
   addi t0, s0, 15
-  add t0, t0, a0
-  lw t1, 0(sp)
+  add a1, t0, a0
+  lw a0, 0(sp)
   addi sp, sp, 2
-  mv a0, t1
-  mv a1, t0
   call vpoke
 .return:
   lw ra, 14(sp)

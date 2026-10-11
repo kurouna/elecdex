@@ -317,7 +317,12 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
  * and its whims.
  */
 function habitWatched(slot: number, at: number, p1: (k: number) => number) {
-  const m = fight(CLOCK, [2, 1], slot, at)
+  // Chance is seeded from the cycle counter too, so faster code moves which clocks show a whim
+  // in every row: CLOCK's second 12 until e16c wrote computed values straight into their
+  // registers (2026-10-11). On eight clocks the habits and whims held (rows 0-3, fired of 128:
+  // 84 88 50 79 before, 72 92 52 81 after; whims 21 75 15 131 and 29 88 9 127; a clock with
+  // none in a row happens either way).
+  const m = fight({ ...CLOCK, second: 10 }, [2, 1], slot, at)
   for (let k = 0; k < 6000 && read(m, 'outcome') === 0 && read(m, 'habDue', 1) < 16; k++) {
     put(m, 'fLife', 90, 0)
     step(m, p1(k))
