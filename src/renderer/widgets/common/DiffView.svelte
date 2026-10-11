@@ -315,6 +315,7 @@ function jump(step: 1 | -1): void {
     {:else if diff.hunks.length === 0}
       <p class="note">no changes in the text</p>
     {:else}
+      <div class="lines" class:split data-testid="diff-lines">
       {#each hunks as hunk, h (h)}
         <div class="band"><span>{hunk.header}</span> <span class="ctx">{hunk.context}</span></div>
         {#if split}
@@ -340,6 +341,7 @@ function jump(step: 1 | -1): void {
           {/each}
         {/if}
       {/each}
+      </div>
       {#if diff.cut}<p class="note">… cut here: the rest is too long to draw</p>{/if}
     {/if}
   </div>
@@ -520,6 +522,8 @@ function jump(step: 1 | -1): void {
 }
 
 .body {
+  /* The width the side-by-side columns are halves of (cqw), its scroll bar left out. */
+  container-type: inline-size;
   overflow: auto;
   min-height: 0;
   font-family: var(--font-mono);
@@ -609,6 +613,35 @@ function jump(step: 1 | -1): void {
   image-rendering: auto;
 }
 
+/*
+ * The lines, as wide as the longest of them and never narrower than the view:
+ * a long line scrolls the body sideways rather than being cut, and every row's
+ * colour runs the whole width.
+ */
+.lines {
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Scrolled to its end, a line's last character keeps clear of the edge. */
+.ln .code {
+  padding-right: var(--space-2);
+}
+
+/*
+ * Side by side, the rows' halves share the two columns, so the rule between
+ * them stays straight. Each is half the view, or as wide as its own longest
+ * line: a long new line leaves the old side where it was.
+ */
+.lines.split {
+  display: grid;
+  grid-template-columns: minmax(50cqw, max-content) minmax(50cqw, max-content);
+}
+
+.lines.split .band {
+  grid-column: 1 / -1;
+}
+
 /* A hunk's head: where it starts, and the function git found it in. */
 .band {
   padding: 0.05rem var(--space-2);
@@ -624,18 +657,17 @@ function jump(step: 1 | -1): void {
 
 .ln {
   display: grid;
-  grid-template-columns: 3.4em 3.4em 1.3em minmax(0, 1fr);
+  grid-template-columns: 3.4em 3.4em 1.3em auto;
   white-space: pre;
   color: var(--text);
 }
 
 .pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  display: contents;
 }
 
 .pair .ln {
-  grid-template-columns: 3.4em 1.3em minmax(0, 1fr);
+  grid-template-columns: 3.4em 1.3em auto;
 }
 
 .pair .ln.left {
@@ -673,11 +705,6 @@ function jump(step: 1 | -1): void {
 
 .del .sign {
   color: var(--danger);
-}
-
-.code {
-  overflow: hidden;
-  text-overflow: clip;
 }
 
 .mark {

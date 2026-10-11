@@ -106,6 +106,57 @@ test('follows a repository through an edit, staging and a commit', async () => {
   }
 })
 
+test('scrolls a long line into view sideways, unified and side by side', async () => {
+  const repo = makeRepo()
+  const { app, page, close } = await launch(undefined, { layout: single })
+  try {
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await watchRepo(page, app, repo)
+    const long = `const greeting = "${'hello '.repeat(80)}END_OF_LINE"`
+    writeFileSync(path.join(repo, 'app.ts'), `${long}\nexport default greeting\n`)
+    const row = page.locator('[data-testid="git-file"][data-path="app.ts"]')
+    await expect(row).toHaveAttribute('data-area', 'unstaged', { timeout: 10_000 })
+    const body = page.getByTestId('diff-body')
+    const added = page.locator('[data-testid="diff-line"][data-kind="add"]').first()
+
+    for (const mode of ['diff-unified', 'diff-split'] as const) {
+      await page.getByTestId(mode).click()
+      await expect(added).toContainText('END_OF_LINE')
+      // The line is not cut: the body is wider than its view, and scrolled to its end shows the end.
+      const reach = await body.evaluate((el) => {
+        el.scrollLeft = el.scrollWidth
+        const view = el.getBoundingClientRect()
+        const line = [...el.querySelectorAll('[data-kind="add"] .code')].at(-1) as HTMLElement
+        const range = document.createRange()
+        range.selectNodeContents(line)
+        const end = range.getBoundingClientRect().right
+        const right = view.left + el.clientLeft + el.clientWidth
+        return { wider: el.scrollWidth > el.clientWidth, end, right, left: view.left }
+      })
+      expect(reach.wider, mode).toBe(true)
+      expect(reach.end, mode).toBeLessThanOrEqual(reach.right + 1)
+      expect(reach.end, mode).toBeGreaterThan(reach.left)
+      await body.evaluate((el) => {
+        el.scrollLeft = 0
+      })
+    }
+
+    // Side by side, every row's halves meet at one line, however long either side is, and
+    // only the new side is widened by its long line: the old side stays half the view.
+    const edges = await page
+      .locator('[data-testid="diff-lines"] .ln.left')
+      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().right)))
+    expect(new Set(edges).size).toBe(1)
+    const half = await body.evaluate(
+      (el) => el.getBoundingClientRect().left + el.clientLeft + el.clientWidth / 2,
+    )
+    expect(Math.abs((edges[0] ?? 0) - half)).toBeLessThanOrEqual(2)
+  } finally {
+    await close()
+    removeDir(repo)
+  }
+})
+
 test('draws a file as text, whatever it holds, and lists new files', async () => {
   const repo = makeRepo()
   const { app, page, close } = await launch(undefined, { layout: single })
