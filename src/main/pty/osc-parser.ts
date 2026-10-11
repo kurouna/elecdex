@@ -15,7 +15,10 @@
  *   OSC 133 ; C                           ST   command execution start
  *   OSC 133 ; D [ ; <exitCode> ]          ST   command finished
  *
- * ST is either BEL (0x07) or ESC \ (0x1b 0x5c).
+ * ST is either BEL (0x07) or ESC \ (0x1b 0x5c). Any other ESC, or CAN (0x18) or
+ * SUB (0x1a), ends the string unfinished, as in xterm and the VT parsers it
+ * follows: what was buffered goes through as it came, and the ESC begins the
+ * next sequence.
  *
  * Consumed sequences are stripped from the returned data so xterm never sees
  * them. Everything else passes through byte-for-byte, including sequences that
@@ -33,6 +36,8 @@ const BEL = 0x07
 const ESC = 0x1b
 const BACKSLASH = 0x5c
 const OSC = 0x5d // ']' - the byte after ESC that starts an OSC string
+const CAN = 0x18
+const SUB = 0x1a
 
 /**
  * Hard cap on a buffered sequence. Beyond this we give up on the sequence and
@@ -127,25 +132,42 @@ export class OscParser {
         this.finishSequence(out, events)
         return
       }
-      // A stray ESC inside the payload; keep both bytes and carry on.
-      this.seq.push(ESC, byte)
-    } else if (byte === BEL) {
+      // Any other ESC ends the string unfinished and begins a sequence of its
+      // own. Kept as payload instead, everything after an unterminated OSC was
+      // held back until a BEL or the size cap - output and prompt unseen.
+      this.abandonSequence(out)
+      this.state = 'esc'
+      this.stepEsc(byte, out)
+      return
+    }
+    if (byte === BEL) {
       this.finishSequence(out, events)
       return
-    } else if (byte === ESC) {
-      this.oscSawEsc = true
-    } else {
-      this.seq.push(byte)
     }
+    if (byte === ESC) {
+      this.oscSawEsc = true
+      return
+    }
+    if (byte === CAN || byte === SUB) {
+      this.abandonSequence(out)
+      out.push(byte)
+      return
+    }
+    this.seq.push(byte)
 
     if (this.seq.length > MAX_SEQUENCE_BYTES) {
       // A sequence this long is never one of ours. Give up on it and flush what
       // we buffered as plain output, so the buffer cannot grow without bound.
-      out.push(ESC, OSC, ...this.seq)
-      this.seq = []
-      this.oscSawEsc = false
-      this.state = 'text'
+      this.abandonSequence(out)
     }
+  }
+
+  /** Passes an unfinished OSC string through as it came, for the terminal to judge. */
+  private abandonSequence(out: number[]): void {
+    out.push(ESC, OSC, ...this.seq)
+    this.seq = []
+    this.oscSawEsc = false
+    this.state = 'text'
   }
 
   /** Drops any partially-buffered sequence. Call when the session ends. */

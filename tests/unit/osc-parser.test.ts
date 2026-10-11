@@ -219,11 +219,35 @@ describe('OscParser: hostile input', () => {
   })
 
   it('rejects a cwd carrying control characters', () => {
-    // A stray ESC stays part of the payload (it does not terminate the string), so
-    // the sequence completes with a control char in the path. Reporting that would let
-    // a hostile stream smuggle escape codes into wherever we display the cwd.
-    const { events } = feed('\u001b]7;file:///tm\u001bXp\u0007')
+    // Reporting such a path would let a hostile stream smuggle escape codes into
+    // wherever we display the cwd.
+    const { events } = feed('\u001b]7;file:///tm\u0001p\u0007')
     expect(events).toEqual([])
+  })
+
+  it('ends an OSC string at any other ESC, passing it and what follows straight through', () => {
+    // An unterminated OSC once held back everything after it - a command's
+    // output and the next prompt - until a BEL or 4 kB more output came.
+    const input = '\u001b]0;title\u001b[31mred\r\n$ '
+    const { text, events } = feed(input)
+    expect(text).toBe(input)
+    expect(events).toEqual([])
+    expect(feedByteByByte(input).text).toBe(input)
+  })
+
+  it('reads our sequence when one OSC string begins inside another', () => {
+    const { text, events } = feed(`\u001b]0;tit${osc('7;file:///tmp')}after`)
+    expect(text).toBe('\u001b]0;titafter')
+    expect(events).toEqual([{ cwd: '/tmp' }])
+  })
+
+  it('ends an OSC string at CAN or SUB, as xterm does', () => {
+    for (const cancel of ['\u0018', '\u001a']) {
+      const input = `\u001b]7;file:///tmp${cancel}output`
+      const { text, events } = feed(input)
+      expect(text).toBe(input)
+      expect(events).toEqual([])
+    }
   })
 
   it('forgets a partial sequence after reset', () => {
