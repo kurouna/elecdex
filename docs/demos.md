@@ -45,9 +45,9 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `--shots=<dir>` | 2 秒ごとにスクリーンショットを保存する。撮れたものを確かめるため |
 | `--exit` | 最後に窓を閉じる（tour、tour-shorts、cockpit、games、keystream、panes、snippets、whatsnew など） |
 | `--no-intro` | 起動画面を飛ばす（tour、tour-shorts） |
-| `--no-captions` | 下の英語の字幕を出さない（字幕を付けたデモ: いまは tour） |
+| `--no-captions` | 下の英語の字幕を出さない（字幕を付けたデモ: tour、tour-black、tour-shorts） |
 
-字幕は `openTake` が返す `caption(text)` で出す（`null` で消す）。デモがページに足す要素で、クリックもポインターも
+字幕は `openTake` が返す `caption(text)` で出す（`null` で消す）。紹介デモの字幕の文面は demo-beats.mjs の `CAPTIONS` と `OPENING` に 1 回だけ書き、横型と縦型の両方が使う。デモがページに足す要素で、クリックもポインターも
 下へ通し、何も待たないので、操作も長さも字幕のないときと同じ。画面の下中央に出す（Web ペインはページの上に
 別に描かれるので、その位置を避けている。media プリセットの Web ペインは左上と右の列）。テーマの色で `crt-on` で現れる。
 起動画面のあいだの字幕は `openTake` の `opening` で渡す（`log` は起動ログ、`title` はタイトル、`shell` は最初のシェルに打つあいだ）。起動画面の場面が変わるのを待って出すだけなので、起動の長さは変わらない。

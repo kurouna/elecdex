@@ -90,11 +90,14 @@ async function showCaption(page, text) {
         holder.id = id
         holder.setAttribute('aria-hidden', 'true')
         Object.assign(holder.style, {
+          // Across the width with the box centred in it: a holder put at left 50% would give the
+          // box only half the window, and a caption in the tall window wrapped at every word.
           position: 'fixed',
-          left: '50%',
+          left: '24px',
+          right: '24px',
           bottom: '36px',
-          transform: 'translateX(-50%)',
-          maxWidth: 'calc(100% - 48px)',
+          display: 'flex',
+          justifyContent: 'center',
           zIndex: '2147483000',
           pointerEvents: 'none',
         })

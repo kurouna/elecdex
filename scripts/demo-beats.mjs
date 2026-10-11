@@ -36,6 +36,41 @@ export function playUnits(profile, { third = 'ELECFIGHTER' } = {}) {
   writeFileSync(path.join(profile, 'elec16', 'units.json'), JSON.stringify({ version: 1, units }))
 }
 
+/* ---- The captions both cuts put at the bottom (demo-take.mjs `caption`), in English ---- */
+
+/** What elecdex is, over the boot (`openTake`'s `opening`); the presets follow. */
+export const OPENING = {
+  log: 'elecdex — a sci-fi terminal emulator and system monitor',
+  title: 'A modern rewrite of eDEX-UI, free and open source',
+  shell: 'Shells, the machine and the world, on one screen',
+}
+
+/** A caption for each beat, by name. The vertical cut's own layouts have a few of their own. */
+export const CAPTIONS = {
+  presets: 'Nine layout presets to start from',
+  earth: 'earth — satellites, earthquakes and the weather',
+  orbit: 'Bring a pane forward: the ISS on the ORBIT map',
+  dev: 'dev — coding agents at work, Docker and git',
+  container: 'Stop a container with two presses',
+  commit: 'Every commit has its card',
+  media: 'media — what is playing, and the sound as a spectrum',
+  desk: 'desk — notes, tasks and what you copied',
+  qr: 'A QR code from what you type',
+  keystream: 'Plugins: KEYSTREAM, a rhythm game',
+  cockpit: 'cockpit — the whole machine on one pane',
+  retro: 'retro — ELEC-16, a pocket computer of its own',
+  play: 'PLAY-320: the same machine as a game console',
+  chip8: 'CHIP-8, with a library of programs',
+  council: 'ELEC — three AI units vote on a motion',
+  themes: 'Themes, light and dark',
+  outro: 'elecdex — free and open source, GPL-3.0',
+  // The vertical cut: layouts of its own rather than the presets, the agents apart from Docker.
+  layouts: 'Layouts of your own, a key away',
+  agents: 'Coding agents at work, and git',
+  copies: 'Docker, and what you copied',
+  tasks: 'Tasks, and a QR code from what you type',
+}
+
 /* ---- The council's stand-in: answers as a local model streams them, no model and no key ---- */
 
 export const MOTION = 'Should we move the team to a four-day working week next quarter?'

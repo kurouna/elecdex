@@ -35,8 +35,10 @@
  */
 import {
   beats,
+  CAPTIONS,
   FIGHT_PANE,
   KEYSTREAM_VOLUME,
+  OPENING,
   playUnits,
   prepareMusic,
   startCouncil,
@@ -137,11 +139,13 @@ if (!options.probe) {
   say(`the window opens in ${options.lead} s - start the recorder`)
   await new Promise((resolve) => setTimeout(resolve, options.lead * 1000))
 }
-const { app, page, wait, settled, run } = await openTake({
+const { app, page, wait, settled, run, caption } = await openTake({
   items,
   options: { ...options, lead: 0 },
   standIn,
   intro,
+  // What elecdex is, over the boot, as in the landscape tour (demo-beats.mjs).
+  opening: OPENING,
   env: music.env,
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
   prepare: (profile) => {
@@ -153,49 +157,67 @@ const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 
 await run(async () => {
   const started = Date.now()
+  // Each caption goes up as its beat begins and stays until the next: none of them waits.
   await wait(1000)
+  await caption(CAPTIONS.layouts)
   await beat.throughTheDialog('network')
   await wait(1000)
+  await caption(CAPTIONS.earth)
   await beat.toLayout(slot('earth'), 'earth')
   await wait(600)
   // ORBIT brought forward, the ISS's card read on the map at its largest.
+  await caption(CAPTIONS.orbit)
   await beat.forward('orbit', 600, { during: () => beat.issCard(1500) })
   await wait(800)
+  await caption(CAPTIONS.agents)
   await beat.toLayout(slot('dev'), 'dev')
   await wait(900)
+  await caption(CAPTIONS.commit)
   await beat.commitCard(1400)
+  await caption(CAPTIONS.copies)
   await beat.toLayout(slot('docker'), 'docker')
   await wait(700)
   await beat.stopContainer()
   await beat.copies()
   await wait(600)
+  await caption(CAPTIONS.media)
   await beat.toLayout(slot('media'), 'media')
   await beat.musicPlays()
   await wait(1000)
   await beat.nextTrack(1600)
   await beat.musicStops()
+  await caption(CAPTIONS.tasks)
   await beat.toLayout(slot('utility'), 'utility')
   await wait(800)
   await beat.qrCode(1000)
+  await caption(CAPTIONS.keystream)
   await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
     previews: [],
     play: 2_500,
   })
+  await caption(CAPTIONS.retro)
   await beat.toLayout(slot('retro'), 'retro')
   await beat.elec16(1000)
+  await caption(CAPTIONS.play)
   await beat.aircombat(2500, { nth: 1, title: 1500, controls: 900, briefing: 900 })
+  await caption(CAPTIONS.chip8)
   await beat.toTab('CHIP-8')
   await beat.chip8(1000, { mem: false })
+  await caption(CAPTIONS.cockpit)
   await beat.throughTheDialog('cockpit')
   // Two cards, not three: the cut stays under its length with the beat in it.
   await beat.cluster(400, { cards: 900, which: ['cpu', 'spec'] })
+  await caption(CAPTIONS.council)
   await beat.throughTheDialog('council')
   await wait(800)
   await beat.councilSits(800)
+  await caption(null)
   await beat.toLayout(slot('shell'), 'shell')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()
+  await caption(CAPTIONS.themes)
   await beat.themes(500)
+  await caption(CAPTIONS.outro)
   await wait(600)
   say(`tour: ${((Date.now() - started) / 1000).toFixed(0)} s after the boot`)
   if (exit) await app.close().catch(() => {})

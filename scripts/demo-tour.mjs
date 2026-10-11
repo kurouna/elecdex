@@ -39,8 +39,10 @@
  */
 import {
   beats,
+  CAPTIONS,
   FIGHT_PANE,
   KEYSTREAM_VOLUME,
+  OPENING,
   PLAY_PANE,
   playUnits,
   prepareMusic,
@@ -167,11 +169,7 @@ const { app, page, wait, settled, run, caption } = await openTake({
   standIn,
   intro,
   // What elecdex is, over the boot; the take's own captions go on from the presets.
-  opening: {
-    log: 'elecdex — a sci-fi terminal emulator and system monitor',
-    title: 'A modern rewrite of eDEX-UI, free and open source',
-    shell: 'Shells, the machine and the world, on one screen',
-  },
+  opening: OPENING,
   env: music.env,
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
   prepare: (profile) => {
@@ -213,49 +211,49 @@ await run(async () => {
   const started = Date.now()
   // Each caption goes up as its beat begins and stays until the next: none of them waits.
   await wait(1200)
-  await caption('Nine layout presets to start from')
+  await caption(CAPTIONS.presets)
   await throughTheShelf()
-  await caption('earth — satellites, earthquakes and the weather')
+  await caption(CAPTIONS.earth)
   await toPreset('earth')
   await wait(1500)
   // ORBIT brought forward, the ISS's card read on the map at its largest.
-  await caption('Bring a pane forward: the ISS on the ORBIT map')
+  await caption(CAPTIONS.orbit)
   await beat.forward('orbit', 1600, { during: () => beat.issCard(2400) })
   await wait(800)
-  await caption('dev — coding agents at work, Docker and git')
+  await caption(CAPTIONS.dev)
   await toPreset('dev')
   await wait(2000)
-  await caption('Stop a container with two presses')
+  await caption(CAPTIONS.container)
   await beat.stopContainer()
-  await caption('Every commit has its card')
+  await caption(CAPTIONS.commit)
   await beat.commitCard(2000)
-  await caption('media — what is playing, and the sound as a spectrum')
+  await caption(CAPTIONS.media)
   await toPreset('media')
   await beat.musicPlays()
   await wait(3200)
   await beat.nextTrack(3600)
   await beat.musicStops()
-  await caption('desk — notes, tasks and what you copied')
+  await caption(CAPTIONS.desk)
   await toPreset('desk')
   await wait(1200)
   await beat.copies()
-  await caption('A QR code from what you type')
+  await caption(CAPTIONS.qr)
   await beat.qrCode()
-  await caption('Plugins: KEYSTREAM, a rhythm game')
+  await caption(CAPTIONS.keystream)
   await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 5_000 })
-  await caption('cockpit — the whole machine on one pane')
+  await caption(CAPTIONS.cockpit)
   await toPreset('cockpit')
   await beat.cluster(2400)
-  await caption('retro — ELEC-16, a pocket computer of its own')
+  await caption(CAPTIONS.retro)
   await beat.toLayout(9, 'retro')
   await beat.elec16()
-  await caption('PLAY-320: the same machine as a game console')
+  await caption(CAPTIONS.play)
   await beat.play(3500)
   await beat.aircombat(6000)
-  await caption('CHIP-8, with a library of programs')
+  await caption(CAPTIONS.chip8)
   await beat.toTab('CHIP-8')
   await beat.chip8(2200)
-  await caption('ELEC — three AI units vote on a motion')
+  await caption(CAPTIONS.council)
   await beat.toLayout(7, 'council')
   await wait(800)
   await beat.councilSits(3000)
@@ -263,9 +261,9 @@ await run(async () => {
   await toPreset('standard')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()
-  await caption('Themes, light and dark')
+  await caption(CAPTIONS.themes)
   await beat.themes(1600)
-  await caption('elecdex — free and open source, GPL-3.0')
+  await caption(CAPTIONS.outro)
   await wait(2500)
   say(`tour: ${((Date.now() - started) / 1000).toFixed(0)} s after the boot`)
   if (exit) await app.close().catch(() => {})
