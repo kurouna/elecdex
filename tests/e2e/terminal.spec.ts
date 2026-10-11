@@ -461,6 +461,68 @@ test('detaching leaves the session alive, and it can be reattached', async () =>
   await page.evaluate((sessionId) => window.elecdex.pty.dispose(sessionId), id)
 })
 
+test('typing still reaches a shell after a later attach of its session lets go', async () => {
+  // Preload kept one port per session for writes: a second attach took the
+  // first one's place, and letting it go left the pane still attached writing
+  // into nothing - its keys never reached the shell.
+  const marker = `still-${Date.now()}`
+  const output = await page.evaluate(async (text) => {
+    const noop = {
+      onData: () => {},
+      onExit: () => {},
+      onCwd: () => {},
+      onCommandEnd: () => {},
+      onIntegrationUnavailable: () => {},
+    }
+    const session = await window.elecdex.pty.create({ cols: 120, rows: 40 })
+    const decoder = new TextDecoder()
+    let seen = ''
+    const first = await window.elecdex.pty.attach(session.id, {
+      ...noop,
+      onData: (chunk) => {
+        seen += decoder.decode(chunk, { stream: true })
+      },
+    })
+    const second = await window.elecdex.pty.attach(session.id, noop)
+    second()
+    await new Promise((r) => setTimeout(r, 1200))
+    window.elecdex.pty.write(session.id, `echo ${text}\r`)
+    const deadline = Date.now() + 15_000
+    while (!new RegExp(`${text}\\r?\\n`).test(seen) && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100))
+    }
+    first()
+    await window.elecdex.pty.dispose(session.id)
+    return seen
+  }, marker)
+  expect(output).toMatch(new RegExp(`${marker}\\r?\\n`))
+})
+
+test('two attaches of one session asked at once both get their port', async () => {
+  // Preload waited for one port per session: a second attach asked before the
+  // first one's port arrived took its place, and the first waited for ever.
+  const settled = await page.evaluate(async () => {
+    const noop = {
+      onData: () => {},
+      onExit: () => {},
+      onCwd: () => {},
+      onCommandEnd: () => {},
+      onIntegrationUnavailable: () => {},
+    }
+    const session = await window.elecdex.pty.create({})
+    const timeout = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 5000))
+    const both = Promise.all([
+      window.elecdex.pty.attach(session.id, noop),
+      window.elecdex.pty.attach(session.id, noop),
+    ])
+    const result = await Promise.race([both, timeout])
+    if (result !== 'timeout') for (const detach of result) detach()
+    await window.elecdex.pty.dispose(session.id)
+    return result === 'timeout' ? 'timeout' : 'both'
+  })
+  expect(settled).toBe('both')
+})
+
 test('a reattaching pane receives the screen, then live output', async () => {
   const marker = `replay-${Date.now()}`
   const after = `live-${Date.now()}`

@@ -78,43 +78,79 @@ import { contextBridge, ipcRenderer } from 'electron'
  * callbacks. See docs/architecture.md section 4.3.
  */
 
+/*
+ * One session can have several attaches at once - a pane remounting while its
+ * last mount lets go, a test reading the screen - so every table here holds a
+ * list per session, in order. Main answers attaches in the order they are
+ * asked, so the first port to arrive is the first waiter's. Kept as one entry
+ * per session, a second attach once took the first one's place: the first
+ * waited for its port for ever, or, once the second let go, every key typed in
+ * the pane still attached went nowhere.
+ */
+
 /** Ports handed to us by main, keyed by session id, awaiting an attach. */
-const ports = new Map<string, MessagePort>()
-/** Sessions whose port has not arrived yet, with the resolver waiting for it. */
-const pending = new Map<string, (port: MessagePort) => void>()
+const ports = new Map<string, MessagePort[]>()
+/** Attaches whose port has not arrived yet, with the resolvers waiting for it. */
+const pending = new Map<string, ((port: MessagePort) => void)[]>()
+
+function pushTo<T>(table: Map<string, T[]>, id: string, item: T): void {
+  const list = table.get(id)
+  if (list) list.push(item)
+  else table.set(id, [item])
+}
+
+function shiftFrom<T>(table: Map<string, T[]>, id: string): T | undefined {
+  const list = table.get(id)
+  const item = list?.shift()
+  if (list?.length === 0) table.delete(id)
+  return item
+}
+
+function removeFrom<T>(table: Map<string, T[]>, id: string, item: T): void {
+  const list = table.get(id)
+  if (!list) return
+  const at = list.indexOf(item)
+  if (at !== -1) list.splice(at, 1)
+  if (list.length === 0) table.delete(id)
+}
 
 ipcRenderer.on(CH.pty.port, (event, payload: { id: string }) => {
   const port = event.ports[0]
   if (!port) return
 
-  const waiting = pending.get(payload.id)
-  if (waiting) {
-    pending.delete(payload.id)
-    waiting(port)
-  } else {
-    ports.set(payload.id, port)
-  }
+  const waiting = shiftFrom(pending, payload.id)
+  if (waiting) waiting(port)
+  else pushTo(ports, payload.id, port)
 })
 
-/** Resolves once main has transferred the port for `id`. */
-function awaitPort(id: string): Promise<MessagePort> {
-  const existing = ports.get(id)
-  if (existing) {
-    ports.delete(id)
-    return Promise.resolve(existing)
+/** The port main transfers for this attach of `id`, and a way to stop waiting for it. */
+function awaitPort(id: string): { port: Promise<MessagePort>; cancel(): void } {
+  const existing = shiftFrom(ports, id)
+  if (existing) return { port: Promise.resolve(existing), cancel: () => {} }
+  let waiter: ((port: MessagePort) => void) | null = null
+  const port = new Promise<MessagePort>((resolve) => {
+    waiter = resolve
+    pushTo(pending, id, resolve)
+  })
+  return {
+    port,
+    cancel: () => {
+      if (waiter !== null) removeFrom(pending, id, waiter)
+    },
   }
-  return new Promise((resolve) => pending.set(id, resolve))
 }
 
 async function attach(id: string, handlers: PtyHandlers): Promise<() => void> {
   // Ask for the port first, then wait: main posts it during the invoke, so the
   // listener above may well receive it before this promise settles.
-  const portPromise = awaitPort(id)
+  const awaited = awaitPort(id)
   const ok = (await ipcRenderer.invoke(CH.pty.attach, id)) as boolean
   if (!ok) {
-    pending.delete(id)
+    // Main sends no port for a refused attach.
+    awaited.cancel()
     throw new Error(`No such terminal session: ${id}`)
   }
+  const portPromise = awaited.port
 
   const port = await portPromise
   let detached = false
@@ -141,22 +177,25 @@ async function attach(id: string, handlers: PtyHandlers): Promise<() => void> {
     }
   }
   port.start()
-  live.set(id, port)
+  pushTo(live, id, port)
 
   return () => {
     if (detached) return
     detached = true
     port.onmessage = null
     port.close()
-    if (live.get(id) === port) live.delete(id)
+    removeFrom(live, id, port)
   }
 }
 
-/** Attached ports, so write/resize can reach the right session synchronously. */
-const live = new Map<string, MessagePort>()
+/**
+ * Attached ports, so write/resize can reach the right session synchronously:
+ * the newest, while any attach of the session is still held.
+ */
+const live = new Map<string, MessagePort[]>()
 
 function post(id: string, request: PtyPortRequest): void {
-  live.get(id)?.postMessage(request)
+  live.get(id)?.at(-1)?.postMessage(request)
 }
 
 /*
