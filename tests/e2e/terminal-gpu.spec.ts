@@ -139,12 +139,13 @@ async function ink(): Promise<Ink> {
 
 /**
  * A screenful of solid blocks less a column and the two rows a prompt needs, sized
- * by what the shell itself reports.
+ * by what the shell itself reports. The block is written as its UTF-8 bytes in
+ * octal: macOS's bash 3.2 printf knows no \u and printed it as six characters.
  */
 function fillCommand(platform: NodeJS.Platform): string {
   return platform === 'win32'
     ? '$s = $Host.UI.RawUI.WindowSize; 1..($s.Height - 2) | % { [string][char]0x2588 * ($s.Width - 1) }'
-    : "for i in $(seq $(($(tput lines) - 2))); do printf '\\u2588%.0s' $(seq $(($(tput cols) - 1))); echo; done"
+    : "for i in $(seq $(($(tput lines) - 2))); do printf '\\342\\226\\210%.0s' $(seq $(($(tput cols) - 1))); echo; done"
 }
 
 const clearCommand = (platform: NodeJS.Platform): string =>
