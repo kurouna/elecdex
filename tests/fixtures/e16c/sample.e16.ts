@@ -548,3 +548,22 @@ export function argsInPlace(x: u16, y: u16): u16 {
   s = wrap16(s + mix3(y, x, wrap16(mix3(s, y, x) + 2)))
   return wrap16(s + keep(wrap16(s + table[3])))
 }
+
+/**
+ * Division and remainder by constants with many values waiting in registers around them, so
+ * the temporaries MULHU's way needs are found by putting others on the machine's stack.
+ */
+export function quotientsUnderLoad(a: u16, b: u16): u16 {
+  const p = wrap16(
+    a * 3 +
+      wrap16(b * 5) *
+        wrap16(
+          wrap16(a * 7) +
+            wrap16(
+              wrap16(b * 9) +
+                wrap16(wrap16(a * 11) + wrap16(div(b, 7) + (a % 100) + div(wrap16(a + b), 641))),
+            ),
+        ),
+  )
+  return wrap16(p + (b % 7) * div(p, 10))
+}

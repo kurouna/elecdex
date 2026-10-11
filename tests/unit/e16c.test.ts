@@ -123,6 +123,9 @@ const CASES: [string, number[]][] = [
   ['argsInPlace', [0, 0]],
   ['argsInPlace', [3, 0xfff0]],
   ['argsInPlace', [0x8000, 77]],
+  ['quotientsUnderLoad', [0, 0]],
+  ['quotientsUnderLoad', [65535, 65534]],
+  ['quotientsUnderLoad', [1234, 54321]],
 ]
 
 /** n divided as the code divideMagic leads to does: MULHU, then the shifts and the add. */

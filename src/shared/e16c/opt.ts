@@ -47,8 +47,9 @@ export function optimise(program: Program): Program {
 
 /**
  * A function's slots less those nothing reads or writes any more (a parameter of an inlined
- * call whose reads became its argument, a local of code folded away): the back end gives
- * every slot a home, and an unused one would take a saved register or a frame word.
+ * call whose reads became its argument, a local of code folded away). The back end's shared
+ * places (slots.ts) would give one no register of its own either, but would name it in the
+ * listing beside a slot in use (`keep/lineChar.n`); the program e16c answers lists none.
  */
 function withoutUnusedSlots(fn: Fn): Fn {
   const used = new Set(fn.body.flatMap((op) => (op.k === 'ld' || op.k === 'st' ? [op.slot] : [])))
