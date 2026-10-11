@@ -44,6 +44,7 @@ export const say = (text) => console.log(`${new Date().toTimeString().slice(0, 8
  *   --stay=3         seconds each layout stays on screen
  *   --theme=tron     any built-in theme
  *   --shots=<dir>    also save a screenshot every two seconds there, to look the take over
+ *   --no-captions    leave out the captions a take puts at the bottom (`caption`)
  */
 export function takeOptions(defaults) {
   const option = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
@@ -63,7 +64,60 @@ export function takeOptions(defaults) {
     stay: number('stay', 3),
     theme: option('theme') ?? 'tron',
     shots: option('shots'),
+    captions: !process.argv.includes('--no-captions'),
   }
+}
+
+/** The caption's element: the take's own, never the app's. */
+const CAPTION_ID = 'elecdex-demo-caption'
+
+/**
+ * Puts `text` at the bottom centre of the window as a caption, or takes it away (null). It
+ * stays until the next one. It is an element the take adds to the page, so it is in the
+ * --shots pictures, and it lets every click and pointer through, so a hover card or a press
+ * behaves as without it. It waits for nothing: a caption never moves a take's timing. Bottom
+ * centre is clear of the web panes, views drawn over the page in their own places (the media
+ * preset's are top left and down the right). It powers on with the app's `crt-on`, in the
+ * theme's colours, so it changes with the themes.
+ */
+async function showCaption(page, text) {
+  await page
+    .evaluate(
+      ([id, words]) => {
+        document.getElementById(id)?.remove()
+        if (words === null) return
+        const holder = document.createElement('div')
+        holder.id = id
+        holder.setAttribute('aria-hidden', 'true')
+        Object.assign(holder.style, {
+          position: 'fixed',
+          left: '50%',
+          bottom: '36px',
+          transform: 'translateX(-50%)',
+          maxWidth: 'calc(100% - 48px)',
+          zIndex: '2147483000',
+          pointerEvents: 'none',
+        })
+        // crt-on makes its element position: relative, so it goes on a box inside the holder.
+        const box = document.createElement('div')
+        box.className = 'crt-on'
+        box.textContent = words
+        Object.assign(box.style, {
+          padding: '8px 22px',
+          background: 'color-mix(in srgb, var(--surface-1) 88%, transparent)',
+          border: '1px solid var(--panel-border)',
+          color: 'var(--accent-strong)',
+          font: '500 22px/1.3 var(--font-display)',
+          letterSpacing: '0.04em',
+          textAlign: 'center',
+          boxShadow: '0 4px 18px rgb(0 0 0 / 0.45)',
+        })
+        holder.append(box)
+        document.body.append(holder)
+      },
+      [CAPTION_ID, text],
+    )
+    .catch(() => {})
 }
 
 /** The made-up data every take shows, ready before the window opens. */
@@ -287,5 +341,12 @@ export async function openTake({
     await app.close().catch(() => {})
   }
 
-  return { app, page, wait, settled, run }
+  /** A caption at the bottom (`showCaption`), or none for null; nothing with --no-captions. */
+  const caption = async (text) => {
+    if (!options.captions) return
+    if (text !== null) say(`caption: ${text}`)
+    await showCaption(page, text)
+  }
+
+  return { app, page, wait, settled, run, caption }
 }
