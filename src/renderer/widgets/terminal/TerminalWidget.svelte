@@ -53,6 +53,8 @@ let host = $state<HTMLDivElement | null>(null)
 let term = $state.raw<Terminal | null>(null)
 let fit: FitAddon | null = null
 let webgl: WebglKeeper | null = null
+/** Tells the shell the terminal's size if it has not been told it yet; set once attached. */
+let syncSize: (() => void) | null = null
 // State: the search bar is rendered only once its addon exists.
 let search = $state.raw<SearchAddon | null>(null)
 let searchOpen = $state(false)
@@ -227,12 +229,19 @@ $effect(() => {
     terminal.onData((data) => window.elecdex.pty.write(id, data))
     detachClipboard = bindClipboard(terminal, el)
     const t = terminal
+    /** The size the shell was last told, so a pane shown again can tell whether it is stale. */
+    let told = ''
     const sendSize = (): void => {
       if (resizeTimer !== null) clearTimeout(resizeTimer)
       resizeTimer = setTimeout(() => {
         resizeTimer = null
-        // A pane hidden since the size was taken will send its real one when shown.
-        if (!disposed && hasSize(el)) window.elecdex.pty.resize(id, t.cols, t.rows)
+        // A pane hidden since the size was taken sends its real one when shown
+        // (syncSize, from the fit); before the attach there is no shell to tell.
+        if (disposed || !hasSize(el) || detach === null) return
+        const size = `${t.cols}x${t.rows}`
+        if (size === told) return
+        told = size
+        window.elecdex.pty.resize(id, t.cols, t.rows)
       }, PTY_RESIZE_SETTLE_MS)
     }
     terminal.onResize(sendSize)
@@ -268,6 +277,12 @@ $effect(() => {
       return
     }
     detach = off
+    // Hidden before a new size had held, a pane once never told the shell: shown
+    // again at that size, xterm reports no resize, and the shell went on
+    // wrapping at the old width. Every fit of a shown pane checks.
+    syncSize = () => {
+      if (resizeTimer === null && `${t.cols}x${t.rows}` !== told) sendSize()
+    }
 
     // Fit on container size changes rather than on a timer. The original
     // project re-fitted every 10 seconds from inside its data handler and
@@ -282,6 +297,7 @@ $effect(() => {
 
   return () => {
     disposed = true
+    syncSize = null
     if (resizeTimer !== null) clearTimeout(resizeTimer)
     observer?.disconnect()
     detach?.()
@@ -415,6 +431,7 @@ function safeFit(): void {
   } catch {
     // No layout yet, or the pane is detached.
   }
+  syncSize?.()
 }
 </script>
 
