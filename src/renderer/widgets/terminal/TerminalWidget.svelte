@@ -16,6 +16,7 @@ import { ui } from '../../stores/ui.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import TerminalSearch from './TerminalSearch.svelte'
+import { WebglKeeper } from './webgl-keeper.ts'
 import './xterm-css.ts'
 import {
   buildXtermTheme,
@@ -51,6 +52,7 @@ let host = $state<HTMLDivElement | null>(null)
 // the pane is already active before its session has been created.
 let term = $state.raw<Terminal | null>(null)
 let fit: FitAddon | null = null
+let webgl: WebglKeeper | null = null
 // State: the search bar is rendered only once its addon exists.
 let search = $state.raw<SearchAddon | null>(null)
 let searchOpen = $state(false)
@@ -199,14 +201,19 @@ $effect(() => {
     terminal.open(el)
 
     // WebGL must load after open(), and can fail where there is no usable GPU -
-    // fall back to the DOM renderer rather than showing a blank pane.
-    try {
-      const webgl = new WebglAddon()
-      webgl.onContextLoss(() => webgl.dispose())
-      terminal.loadAddon(webgl)
-    } catch {
-      // DOM renderer it is.
-    }
+    // the DOM renderer draws instead of a blank pane. A lost context (a crashed
+    // video driver) drops to the DOM renderer at once; see WebglKeeper.
+    const drawn = terminal
+    webgl = new WebglKeeper({
+      element: el,
+      create: () => new WebglAddon(),
+      load: (addon) => drawn.loadAddon(addon),
+      visible: () => hasSize(el),
+      changed: () => {
+        safeFit()
+        drawn.refresh(0, drawn.rows - 1)
+      },
+    })
 
     term = terminal
     fit = fitAddon
@@ -279,6 +286,9 @@ $effect(() => {
     observer?.disconnect()
     detach?.()
     detachClipboard?.()
+    // Before the contexts are let go, or that would read as a loss to recover from.
+    webgl?.dispose()
+    webgl = null
     // Before dispose, which removes the canvases this has to find.
     releaseWebglContexts(el)
     terminal?.dispose()
@@ -398,6 +408,8 @@ function hasSize(el: HTMLElement): boolean {
 
 function safeFit(): void {
   if (host === null || !hasSize(host)) return
+  // A pane coming back into view may take WebGL again after a lost context.
+  webgl?.resume()
   try {
     fit?.fit()
   } catch {
