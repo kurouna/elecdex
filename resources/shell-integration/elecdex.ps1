@@ -36,9 +36,10 @@ function global:__Elecdex-Cwd {
 
 # PowerShell has no preexec hook. The prompt function runs after each command,
 # so emit D (finished) for the previous command, then the markers for the new
-# prompt. C (execution start) is emitted from the PSReadLine key handler below
-# when it is available, and otherwise skipped - D and the cwd are what the UI
-# actually needs.
+# prompt. C (execution start) is not emitted: it could only come from taking
+# over Enter in PSReadLine, which replaced any Enter binding of the user's own
+# profile and, when the handler failed, kept Enter from running the line - for a command
+# duration nothing shows. D and the cwd are what the UI needs.
 $global:__elecdexOriginalPrompt = $function:prompt
 
 function global:prompt {
@@ -60,15 +61,3 @@ function global:prompt {
     $global:LASTEXITCODE = $exit
 }
 
-if (Get-Module -ListAvailable -Name PSReadLine) {
-    try {
-        Import-Module PSReadLine -ErrorAction Stop
-        Set-PSReadLineKeyHandler -Chord Enter -ScriptBlock {
-            __Elecdex-Esc '133;C'
-            [Microsoft.PowerShell.PSConsoleReadLine]::AcceptLine()
-        }
-    } catch {
-        # PSReadLine unavailable or locked down: the prompt hook alone still
-        # gives us cwd and exit codes.
-    }
-}
