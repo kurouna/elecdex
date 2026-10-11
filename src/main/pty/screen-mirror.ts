@@ -23,12 +23,29 @@ const { Terminal } = headless
 /** Matches the renderer's scrollback, so reattaching loses nothing it had. */
 export const MIRROR_SCROLLBACK = 10_000
 
+/**
+ * Output written but not yet parsed, past which the session's PTY is paused.
+ *
+ * xterm parses on main's event loop at about 10 MB/s (measured, Windows
+ * development machine) and throws once 50 MB wait - an uncaught exception that
+ * ends the app and every shell in it. A PTY on Linux or macOS gives far more
+ * than that to `yes` or a large `cat`; ConPTY sends screen updates, which stay
+ * well below it.
+ */
+export const MIRROR_HIGH_WATER = 2 * 1024 * 1024
+/** Backlog under which a paused PTY is resumed. */
+export const MIRROR_LOW_WATER = 256 * 1024
+
 export class ScreenMirror {
   private readonly terminal: InstanceType<typeof Terminal>
   private readonly serializer = new SerializeAddon()
   /** Snapshots waiting on the parser, settled early if the session ends first. */
   private readonly waiting = new Set<() => void>()
   private disposed = false
+  /** Bytes written and not yet parsed. */
+  private backlog = 0
+  /** Called once the backlog falls to MIRROR_LOW_WATER. */
+  private drained: (() => void) | null = null
 
   constructor(cols: number, rows: number) {
     this.terminal = new Terminal({
@@ -46,7 +63,26 @@ export class ScreenMirror {
   }
 
   write(chunk: Uint8Array): void {
-    if (!this.disposed) this.terminal.write(chunk)
+    if (this.disposed) return
+    const size = chunk.length
+    this.backlog += size
+    this.terminal.write(chunk, () => {
+      this.backlog -= size
+      if (this.backlog > MIRROR_LOW_WATER || this.drained === null) return
+      const drained = this.drained
+      this.drained = null
+      drained()
+    })
+  }
+
+  /** Whether so much waits to be parsed that the source should pause. */
+  get full(): boolean {
+    return this.backlog > MIRROR_HIGH_WATER
+  }
+
+  /** Calls `then` once, when the backlog has fallen to MIRROR_LOW_WATER. */
+  whenDrained(then: () => void): void {
+    this.drained = then
   }
 
   resize(cols: number, rows: number): void {

@@ -43,6 +43,8 @@ interface Session {
   integrationTimer: NodeJS.Timeout | undefined
   commandStartedAt: number | null
   exited: boolean
+  /** Paused while the mirror catches up; see MIRROR_HIGH_WATER. */
+  paused: boolean
   /** The screen as the shell has drawn it, snapshotted for an attaching pane. */
   mirror: ScreenMirror
   createdAt: number
@@ -84,6 +86,7 @@ export class PtyManager {
       integrationTimer: undefined,
       commandStartedAt: null,
       exited: false,
+      paused: false,
       mirror: new ScreenMirror(cols, rows),
       createdAt: Date.now(),
     }
@@ -224,6 +227,21 @@ export class PtyManager {
     if (clean.length > 0) {
       session.mirror.write(clean)
       this.events.onData(session.id, clean)
+      if (session.mirror.full) this.pauseUntilDrained(session)
     }
+  }
+
+  /**
+   * Holds the shell's output back until the mirror has parsed what it has: the
+   * shell blocks on a full PTY, as it would on a slow terminal.
+   */
+  private pauseUntilDrained(session: Session): void {
+    if (session.paused) return
+    session.paused = true
+    session.pty.pause()
+    session.mirror.whenDrained(() => {
+      session.paused = false
+      if (!session.exited && this.sessions.has(session.id)) session.pty.resume()
+    })
   }
 }
