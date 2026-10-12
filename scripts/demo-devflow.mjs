@@ -24,7 +24,8 @@
  * Windows only, like the screenshots. Run `npm run build` first, then `npm run demo:devflow`.
  * The window opens after the lead (`--lead`, 10 s); close it to end, or pass `--exit`. The other
  * options are demo-take.mjs's (`takeOptions`): 1600x900 unless told otherwise, `--pace` on every
- * pause, `--shots=<dir>` to look the take over, `--no-captions`.
+ * pause, `--shots=<dir>` to look the take over, `--no-captions`. `--ja` puts the captions in
+ * Japanese (`npm run demo:devflow-ja`); the app and what happens in it stay the same.
  */
 import { spawn } from 'node:child_process'
 import { appendFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -39,7 +40,7 @@ const options = takeOptions({ width: 1600, height: 900, lead: 10 })
 const exit = process.argv.includes('--exit')
 
 /** The captions, in the order the take puts them up. */
-const CAPTIONS = {
+const ENGLISH = {
   standard: 'Start from the standard layout',
   dialog: 'Ctrl+Shift+G opens the layouts',
   pick: 'Choose dev from the presets, then Enter',
@@ -55,6 +56,24 @@ const CAPTIONS = {
   shell: 'And a shell of your own, whenever you need one',
   outro: 'dev — everything but the editor, on one screen',
 }
+/** The same in Japanese, for the Japanese cut (`--ja`, `npm run demo:devflow-ja`). */
+const JAPANESE = {
+  standard: 'standard レイアウトから始めます',
+  dialog: 'Ctrl+Shift+G でレイアウトの一覧を開きます',
+  pick: 'プリセットから dev を選んで Enter',
+  arrive: 'dev — AI エージェントとコーディングするためのレイアウト',
+  agent: 'AI AGENT：Claude Code のセッションの動きを一手ずつ追えます',
+  git: 'GIT：エージェントが変えたファイルが、その場で並びます',
+  diff: 'ファイルを開けば差分が見られます。エージェントからは目を離さずに',
+  tests: 'テスト中：マシンの負荷は左のシステム列でわかります',
+  commit: 'コミットはグラフに。マウスを置けば内容がまるごと見られます',
+  docker: 'DOCKER：サービスを再起動して、変更を試します',
+  clipboard: 'CLIPBOARD：コピーしたものが残り、すぐに貼り直せます',
+  chat: '困ったら、リポジトリの後ろの AI CHAT に聞けます',
+  shell: '自分で操作したいときは、シェルもすぐそこに',
+  outro: 'dev — エディタ以外は、この 1 画面で完結',
+}
+const CAPTIONS = process.argv.includes('--ja') ? JAPANESE : ENGLISH
 
 const QUESTION =
   'The pass tests pass on my machine but fail in the container: expected 18:18, got 09:18. Why?'
