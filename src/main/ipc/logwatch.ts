@@ -1,16 +1,12 @@
-import { realpathSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { CH } from '@shared/channels'
-import { looksBinary } from '@shared/logwatch/encoding'
-import { isPattern, patternFor } from '@shared/logwatch/files'
 import {
   isEncodingChoice,
   isExplainToken,
   isLogFormat,
   isLogId,
   type LogExplainRequest,
-  type LogFileRef,
   parseExplainRequest,
   parseSubscribeRequest,
 } from '@shared/logwatch/types'
@@ -18,6 +14,7 @@ import { app, BrowserWindow, dialog, type WebContents } from 'electron'
 import { LogCatalog } from '../logwatch/catalog.js'
 import { LogExplainer } from '../logwatch/explain.js'
 import { nodeFs } from '../logwatch/node-fs.js'
+import { type Pick, registerChosen } from '../logwatch/register.js'
 import { LogWatchService } from '../logwatch/service.js'
 import type { ElecLinks } from './elec.js'
 import { whenPageGoes } from './page-gone.js'
@@ -29,8 +26,6 @@ import { registerTable } from './table.js'
  * the picker; main reads only files of its own catalog, and only while a page shows them.
  * EXPLAIN asks the AI settings' providers through the chat's adapters and keys.
  */
-
-type Pick = { file: LogFileRef } | { problem: string } | null
 
 export function registerLogWatchIpc(
   settings: SettingsHandle,
@@ -105,7 +100,7 @@ export function registerLogWatchIpc(
           : await dialog.showOpenDialog(options)
         const chosen = picked.canceled ? undefined : picked.filePaths[0]
         if (chosen === undefined) return null
-        return register(catalog, chosen, newest === true)
+        return registerChosen(catalog, chosen, newest === true, Date.now())
       },
       [CH.logwatch.describe]: (_event, id) => {
         if (!isLogId(id)) return null
@@ -140,33 +135,4 @@ export function registerLogWatchIpc(
       unregister()
     },
   }
-}
-
-/** Checks a chosen file, and adds it (or its folder and pattern) to the catalog. */
-async function register(catalog: LogCatalog, chosen: string, newest: boolean): Promise<Pick> {
-  let file: string
-  try {
-    file = realpathSync.native(chosen)
-  } catch {
-    return { problem: 'that file cannot be found' }
-  }
-  const facts = await nodeFs.stat(file)
-  if ('denied' in facts) return { problem: 'this user may not read that file' }
-  if (!('size' in facts)) return { problem: 'that file cannot be read' }
-  try {
-    if (looksBinary(await nodeFs.read(file, 0, 8192))) {
-      return { problem: 'that is not a text file' }
-    }
-  } catch {
-    return { problem: 'that file cannot be read' }
-  }
-  const pattern = newest ? patternFor(path.basename(file)) : null
-  if (pattern !== null && !isPattern(pattern)) {
-    return { problem: 'its name has nothing that changes from file to file: watch it alone' }
-  }
-  const entry =
-    pattern === null
-      ? catalog.add(file, null, Date.now())
-      : catalog.add(path.dirname(file), pattern, Date.now())
-  return { file: catalog.ref(entry) }
 }

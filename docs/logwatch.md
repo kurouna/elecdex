@@ -369,6 +369,21 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。行にな�
 
 ## 13. テスト
 
+2026-10-12、レビューの修正の不具合を受けて、カバレッジ（v8、一時的に入れて測った）と振る舞いの一覧の
+両方から穴を探し、埋めた。LOG WATCH の単体と部品のテストで、分岐の 65% → 約 80%、service.ts の文 97%。
+残りは canvas の描画（jsdom は描けない。スクリーンショットで確かめる）と、e2e で確かめるウィジェットのつなぎ。
+
+| ファイル | 中身 |
+|----------|------|
+| \`logwatch.test.ts\` | 純粋関数（検査、文字コード、伏せ字と署名、1 行の長さに比例する速さ、読み取り、保持、急増、ファイル、EXPLAIN の本文） |
+| \`logwatch-formats.test.ts\`、\`logwatch-formats-edges.test.ts\` | 形式ごとの読み取りと、その端（レベルの数値、エポック秒、構造のない値、syslog の \`-\`、W3C の欠けた列、壊れた日付、混ざった判定、Windows-1252） |
+| \`logwatch-service.test.ts\`、\`logwatch-service-edges.test.ts\` | main の追従（実ファイルと仮想時計）。差し替え・削除・権限・読み取り中の縮み（copytruncate）、隠れている間の差し替えと帯、2 つの文字コード、隠れた 8 ファイルを超えたとき、知らない id、変化の束、状態だけの送信、\`since\` の端、破棄、パターン |
+| \`logwatch-main.test.ts\` | カタログ（壊れた行だけ捨てる）、選んだファイルの検査（\`registerChosen\`）、Node のファイルシステム |
+| \`logwatch-explain.test.ts\` | EXPLAIN（プロバイダの選び方、平文 http の鍵、検索後の答え、途中で止まった答え、送る間隔、時間切れ、破棄） |
+| \`logwatch-view.test.ts\` | 画面の判断（絞り込み、畳み込み、高さ、時刻、パターン、エラーの目印、カード） |
+| \`tests/component/logwatch-widget.test.ts\`、\`logwatch-parts.test.ts\` | ウィジェット（届いた行、見えている間だけの購読、PAUSE、急増のランプ、EXPLAIN の早い完了）と部品（一覧、トレース、追従と NEW の数、ERROR BAR、PATTERNS、設定、カード） |
+| \`tests/e2e/logwatch.spec.ts\`、\`logwatch-edges.spec.ts\` | アプリで: 追記、トレース、MASK、絞り込み、PATTERNS、タブの後ろ、Shift_JIS、グラフと ERROR BAR、EXPLAIN、ローテーション、削除と再作成、最新を追う、断る理由、知らない id、最小化、COPY、形式と時刻、RECENT、応答のない EXPLAIN、レベル・PAUSE・WRAP（折り返した行と次の行が重ならないこと） |
+
 - **単体**: 形式ごとの判定と正規化（作り物の各形式のサンプル）、続きの行、署名、NEW の学習期間、畳み込み、
   急増、伏せ字、トークン、ローテーションの判定、UTF-16 と Shift_JIS、途中で切れた行、長すぎる行、バイナリ
 - **main**（実ファイル、一時フォルダ）: 追記分だけを読む、リネームと切り詰めのローテーション、フォルダ＋

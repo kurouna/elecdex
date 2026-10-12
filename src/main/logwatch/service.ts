@@ -161,6 +161,12 @@ interface Source<P> {
   /** When the last pane went; null while one shows it or before any did. */
   dormantSince: number | null
   read: number
+  /**
+   * The byte just before `offset`, as it was read. A file cut short and written past that place
+   * again before the next look (logrotate's copytruncate, an app that rewrites its log) has the
+   * same identity and is no shorter; that byte having changed is what tells.
+   */
+  lastByte: number | null
 }
 
 const isFacts = (result: StatResult): result is FileFacts => 'size' in result
@@ -311,6 +317,7 @@ export class LogWatchService<P> {
       gathering: false,
       dormantSince: null,
       read: 0,
+      lastByte: null,
     }
     this.#sources.set(id, source)
     return source
@@ -459,6 +466,7 @@ export class LogWatchService<P> {
     // Another file: read from its start, said in the stream.
     source.offset = 0
     source.facts = null
+    source.lastByte = null
     const name = this.#deps.fs.basename(next)
     this.#restartAll(source, (reader) =>
       reader.mark({ kind: 'mark', at: this.#deps.now(), mark: 'switched', name }),
@@ -513,6 +521,8 @@ export class LogWatchService<P> {
     if (source.offset === null) {
       source.offset = facts.size
       source.facts = facts
+      source.lastByte =
+        facts.size > 0 ? ((await this.#deps.fs.read(file, facts.size - 1, 1))[0] ?? null) : null
     }
     source.head = await this.#deps.fs.read(file, 0, 4)
     for (const channel of opening) await this.#open(source, file, channel)
@@ -635,23 +645,20 @@ export class LogWatchService<P> {
   /** Reads where the file grew, for every channel shown; `away` when coming back to it. */
   async #pull(source: Source<P>, away: number | null): Promise<void> {
     if (this.#disposed || !source.awake) return
-    // A channel nobody shows misses what is read now: it opens afresh when shown again.
-    for (const [choice, channel] of source.channels) {
-      if (channel.pages.size === 0) source.channels.delete(choice)
-    }
+    this.#dropUnshown(source)
     const facts = await this.#stat(source)
     const file = source.file
     if (facts === null || source.offset === null || file === null) return
-    this.#noticeRotation(source, facts)
+    if (facts.size === source.offset && !this.#replaced(source, facts)) return
+    await this.#noticeRotation(source, file, facts)
     source.facts = facts
     const from = source.offset ?? 0
     if (facts.size === from) return
     const partial = facts.size - from > LOG_LIMITS.tailBytes
-    const reserved = new Map<Channel<P>, number>()
     if (away !== null) {
+      // A number set aside in each channel for the banner, before the lines it will sum up.
       this.#shown(source, (channel, reader) => {
         const after = reader.reserve()
-        reserved.set(channel, after)
         channel.tally = { after, last: after, lines: 0, err: 0, warn: 0, fresh: 0 }
       })
     }
@@ -664,22 +671,42 @@ export class LogWatchService<P> {
         facts.size,
         partial,
       )
-      if (away !== null) this.#markAway(source, reserved, away, partial)
+      if (away !== null) this.#markAway(source, away, partial)
     } finally {
       source.gathering = false
       for (const channel of source.channels.values()) channel.tally = null
     }
   }
 
-  /** A file replaced (another identity) or cut short: read again from its start, said in the stream. */
-  #noticeRotation(source: Source<P>, facts: FileFacts): void {
-    const before = source.facts
-    const replaced = before !== null && (facts.ino !== before.ino || facts.birth !== before.birth)
-    if (!replaced && facts.size >= (source.offset ?? 0)) return
+  /** A channel nobody shows misses what is read now: it opens afresh when shown again. */
+  #dropUnshown(source: Source<P>): void {
+    for (const [choice, channel] of source.channels) {
+      if (channel.pages.size === 0) source.channels.delete(choice)
+    }
+  }
+
+  /**
+   * A file replaced (another identity), cut short, or cut and written past where it was
+   * (the byte before that place changed): read again from its start, said in the stream.
+   */
+  async #noticeRotation(source: Source<P>, file: string, facts: FileFacts): Promise<void> {
+    const offset = source.offset ?? 0
+    let rewritten = this.#replaced(source, facts) || facts.size < offset
+    if (!rewritten && offset > 0 && source.lastByte !== null) {
+      const probe = await this.#deps.fs.read(file, offset - 1, 1)
+      rewritten = probe[0] !== source.lastByte
+    }
+    if (!rewritten) return
     source.offset = 0
+    source.lastByte = null
     this.#restartAll(source, (reader) =>
       reader.mark({ kind: 'mark', at: this.#deps.now(), mark: 'rotated' }),
     )
+  }
+
+  #replaced(source: Source<P>, facts: FileFacts): boolean {
+    const before = source.facts
+    return before !== null && (facts.ino !== before.ino || facts.birth !== before.birth)
   }
 
   /**
@@ -707,6 +734,7 @@ export class LogWatchService<P> {
       }
       at += chunk.length
       source.read += chunk.length
+      source.lastByte = chunk[chunk.length - 1] ?? source.lastByte
     }
     return at
   }
@@ -732,24 +760,18 @@ export class LogWatchService<P> {
   }
 
   /** What came while no pane showed the file, said once before it, where anything came. */
-  #markAway(
-    source: Source<P>,
-    reserved: Map<Channel<P>, number>,
-    from: number,
-    partial: boolean,
-  ): void {
+  #markAway(source: Source<P>, from: number, partial: boolean): void {
     const now = this.#deps.now()
     this.#shown(source, (channel, reader) => {
-      const seq = reserved.get(channel)
-      if (seq === undefined) return
+      if (channel.tally === null) return
       // The open entry is part of what came: given up now, it is counted with the rest.
       for (const line of reader.flush()) this.#emit(channel, line)
       channel.fed = false
       const tally = channel.tally
-      if (tally === null || tally.lines === 0) return
+      if (tally.lines === 0) return
       const mark: LogItem = {
         kind: 'mark',
-        seq,
+        seq: tally.after,
         at: now,
         mark: 'away',
         from,

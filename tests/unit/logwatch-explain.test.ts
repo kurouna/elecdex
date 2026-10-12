@@ -40,7 +40,11 @@ const REQUEST: LogExplainRequest = {
   mask: true,
 }
 
-function rig(adapter: Partial<ProviderAdapter>, providers: AiProvider[] = [PROVIDER]) {
+function rig(
+  adapter: Partial<ProviderAdapter>,
+  providers: AiProvider[] = [PROVIDER],
+  key: string | null = null,
+) {
   const sent: LogExplainEvent[] = []
   const asked: StreamRequest[] = []
   const timers = new Map<number, () => void>()
@@ -48,7 +52,7 @@ function rig(adapter: Partial<ProviderAdapter>, providers: AiProvider[] = [PROVI
   const explainer = new LogExplainer<string>({
     providers: () => providers,
     systemPrompt: () => '日本語で',
-    keyFor: () => null,
+    keyFor: () => key,
     adapter: async () => ({
       models: async () => [],
       stream: async (request, sink) => {
@@ -167,5 +171,91 @@ describe('LogExplainer', () => {
       done: true,
       failure: 'link error: no answer within 180 seconds',
     })
+  })
+
+  it('asks the provider and model of the pane and model, or the first provider and its own model when gone', async () => {
+    const second = { ...PROVIDER, id: 'p2', name: 'Other', model: 'big' } as AiProvider
+    const r = rig({}, [PROVIDER, second])
+    r.explainer.start('a', { ...REQUEST, provider: 'p2', model: 'custom' })
+    await settle()
+    expect(r.asked.at(-1)?.model).toBe('custom')
+    // Found writing these tests: a provider removed from the settings was "no provider at all".
+    r.explainer.start('b', { ...REQUEST, provider: 'gone', model: 'custom' })
+    await settle()
+    expect(r.asked.at(-1)?.model).toBe('small')
+    expect(r.sent.at(-1)?.provider).toBe('Local')
+  })
+
+  it('refuses where the AI settings would: a key over plain http to another network', () => {
+    const remote = { ...PROVIDER, baseUrl: 'http://203.0.113.5/v1' } as AiProvider
+    const refused = rig({}, [remote], 'sk-secret').explainer.start('page', REQUEST)
+    expect(refused).toEqual({ problem: expect.stringContaining('plain http') })
+    // Without a key, nothing secret travels: it may be asked.
+    expect(rig({}, [remote], null).explainer.start('page', REQUEST)).toHaveProperty('token')
+  })
+
+  it('takes the answer after a search, and says how an answer ended short', async () => {
+    const searched = rig({
+      stream: async (_request, sink) => {
+        sink.text('Searching... ')
+        sink.text('The answer.')
+        return { answer: 'The answer.' }
+      },
+    })
+    searched.explainer.start('page', REQUEST)
+    await settle()
+    expect(searched.sent.at(-1)?.text).toBe('The answer.')
+    const cut = rig({
+      stream: async (_request, sink) => {
+        sink.text('Half')
+        return { stop: 'length', note: 'max tokens' }
+      },
+    })
+    cut.explainer.start('page', REQUEST)
+    await settle()
+    expect(cut.sent.at(-1)).toMatchObject({
+      text: 'Half',
+      done: true,
+      failure: 'truncated: max tokens',
+    })
+  })
+
+  it('sends what is written at most once a flush, whole each time', async () => {
+    let finish: () => void = () => {}
+    const r = rig({
+      stream: (_request, sink) =>
+        new Promise((resolve) => {
+          sink.text('a')
+          sink.text('b')
+          sink.text('c')
+          finish = () => resolve({})
+        }),
+    })
+    r.explainer.start('page', REQUEST)
+    await settle()
+    expect(r.sent).toHaveLength(0)
+    const flush = [...r.timers.entries()].at(-1)
+    flush?.[1]()
+    expect(r.sent).toEqual([expect.objectContaining({ text: 'abc', done: false })])
+    finish()
+    await settle()
+    expect(r.sent.at(-1)).toMatchObject({ text: 'abc', done: true })
+  })
+
+  it('lets go of everything on dispose', async () => {
+    const r = rig({
+      stream: (request) =>
+        new Promise((_resolve, reject) =>
+          request.signal.addEventListener('abort', () => reject(new Error('x'))),
+        ),
+    })
+    r.explainer.start('a', REQUEST)
+    r.explainer.start('b', REQUEST)
+    await settle()
+    r.explainer.dispose()
+    await settle()
+    expect(r.explainer.busy('a') || r.explainer.busy('b')).toBe(false)
+    expect(r.timers.size).toBe(0)
+    expect(r.sent).toHaveLength(0)
   })
 })

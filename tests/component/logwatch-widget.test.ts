@@ -109,6 +109,43 @@ const texts = () =>
   screen.queryAllByTestId('logwatch-row').map((row) => row.querySelector('.msg')?.textContent)
 
 describe('LogWatchWidget', () => {
+  it('lights ERROR BURST only once errors have come fast for two seconds, and lets it go', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    vi.setSystemTime(new Date(2026, 9, 12, 12, 0, 0, 100))
+    try {
+      render(LogWatchWidget, {
+        props: {
+          paneId: `b${seq}`,
+          title: 'log watch',
+          props: {},
+          state: { file: ID },
+          active: true,
+        },
+      })
+      await settle()
+      const errors = Array.from({ length: 8 }, (_, i) => ({
+        ...line(`boom ${i}`, 'ERR'),
+        at: Date.now(),
+      }))
+      deliver?.({ key: `${ID}/auto`, reset: true, items: errors, status })
+      await settle()
+      const lampText = () => screen.getByTestId('logwatch-lamp').textContent ?? ''
+      expect(lampText()).toContain('LIVE')
+      vi.advanceTimersByTime(1000)
+      await settle()
+      expect(lampText()).toContain('LIVE')
+      vi.advanceTimersByTime(1000)
+      await settle()
+      expect(lampText()).toContain('ERROR BURST')
+      // Fifteen seconds on, they are no longer recent: the lamp goes out at once.
+      vi.advanceTimersByTime(16_000)
+      await settle()
+      expect(lampText()).toContain('LIVE')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('draws what is delivered, and what is added after', async () => {
     render(LogWatchWidget, {
       props: {

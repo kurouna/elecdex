@@ -64,14 +64,16 @@ export class LogExplainer<P> {
   start(page: P, request: LogExplainRequest): ExplainStart {
     if (this.#asking.has(page)) return { problem: 'an answer is still being written' }
     const providers = this.#deps.providers()
-    const provider =
-      request.provider === '' ? providers[0] : providers.find((p) => p.id === request.provider)
+    // The pane's own while it is listed, else the first, as the AI chat pane chooses; the pane's
+    // model goes only with the pane's own provider.
+    const own = providers.find((p) => p.id === request.provider)
+    const provider = own ?? providers[0]
     if (provider === undefined) return { problem: 'no AI provider is set up in the settings' }
     const target = targetFor(providers, this.#deps.keyFor, provider.id)
     if (typeof target === 'string') return { problem: target }
     const found = this.#deps.context(request)
     if (found === null) return { problem: 'that line is no longer held: choose it again' }
-    const model = request.model !== '' ? request.model : provider.model
+    const model = own !== undefined && request.model !== '' ? request.model : provider.model
     const asking: Asking = {
       token: this.#deps.newId(),
       abort: new AbortController(),

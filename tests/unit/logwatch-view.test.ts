@@ -288,3 +288,82 @@ describe('the card', () => {
     expect(encodingLabel('utf-8', 'utf-8')).toBe('UTF-8')
   })
 })
+
+describe('the view at its edges', () => {
+  it('reads the choices that are strings and the PATTERNS tab', () => {
+    expect(
+      readLogPane({
+        tab: 'patterns',
+        time: 'rel',
+        provider: 'p1',
+        model: 'm',
+        mask: true,
+        wrap: true,
+        fold: false,
+      }),
+    ).toMatchObject({
+      tab: 'patterns',
+      time: 'rel',
+      provider: 'p1',
+      model: 'm',
+      mask: true,
+      wrap: true,
+      fold: false,
+    })
+    expect(readLogPane({ provider: 3, model: null }).provider).toBe('')
+  })
+
+  it('says times in hours and days, a long delta whole, and a line before its predecessor', () => {
+    const at = (offset: number) => buildRows([line({ at: NOW - offset })], ALL)[0] as Row
+    expect(timeText(at(30_000), 'rel', NOW)).toBe('30s ago')
+    expect(timeText(at(2 * 3_600_000), 'rel', NOW)).toBe('2h ago')
+    expect(timeText(at(3 * 86_400_000), 'rel', NOW)).toBe('3d ago')
+    expect(timeText(at(-5000), 'rel', NOW)).toBe('0s ago')
+    const rows = buildRows(
+      [
+        line({ at: NOW }),
+        line({ sig: 'b', at: NOW + 2_000_000 }),
+        line({ sig: 'c', at: NOW + 1_999_000 }),
+      ],
+      ALL,
+    )
+    expect(timeText(rows[1] as Row, 'delta', NOW)).toBe('+2000')
+    expect(timeText(rows[2] as Row, 'delta', NOW)).toBe('−1.000')
+  })
+
+  it('words every mark', () => {
+    const rotated = markText({ kind: 'mark', seq: 0, at: NOW, mark: 'rotated' }, clockText)
+    expect(rotated).toContain('the file was replaced')
+    const away = markText(
+      {
+        kind: 'mark',
+        seq: 0,
+        at: NOW,
+        mark: 'away',
+        from: NOW - 60_000,
+        lines: 1,
+        err: 0,
+        warn: 0,
+        fresh: 0,
+        partial: false,
+        until: 1,
+      },
+      clockText,
+    )
+    expect(away).toBe('while hidden 11:59:00–12:00:00')
+    expect(encodingLabel('auto', 'something-new')).toBe('auto · something-new')
+  })
+
+  it('makes no card for a mark, and a trace of its lines and the count past them when open', () => {
+    const mark: LogMark = { kind: 'mark', seq: 0, at: NOW, mark: 'rotated' }
+    expect(lineCardRows({ item: mark, reps: 1, last: mark, prev: null }, false)).toEqual([])
+    expect(rowLines({ item: mark, reps: 1, last: mark, prev: null }, true, true, 10)).toBe(1)
+  })
+
+  it('marks matches with a global expression as given, and counts patterns past the minute as none in it', () => {
+    expect(hitParts('a-a', /a/g).filter((p) => p.hit)).toHaveLength(2)
+    const old = tallyPatterns([line({ at: NOW - 120_000 })], NOW)
+    expect(old[0]?.recent.every((n) => n === 0)).toBe(true)
+    expect(old[0]?.count).toBe(1)
+  })
+})

@@ -25,7 +25,17 @@ const EntrySchema = z.object({
 
 const FileSchema = z.object({
   version: z.literal(1).default(1),
-  files: z.array(EntrySchema).catch([]).default([]),
+  // A broken entry is dropped alone: one bad line must not empty the list of files used before.
+  files: z
+    .array(z.unknown())
+    .transform((items) =>
+      items.flatMap((item) => {
+        const parsed = EntrySchema.safeParse(item)
+        return parsed.success ? [parsed.data] : []
+      }),
+    )
+    .catch([])
+    .default([]),
 })
 
 export interface LogEntryRecord {
