@@ -315,3 +315,35 @@ test('the level switches, PAUSE and WRAP change what is shown, and stay with the
     removeDir(dir)
   }
 })
+
+test('the name of the file shows its whole path, and a click on it chooses another', async () => {
+  const { dir, file } = folder()
+  writeFileSync(file, lines(1, 1))
+  const other = path.join(dir, 'other.log')
+  writeFileSync(other, lines(1, 1, 'other'))
+  const { app, page, close } = await launch(undefined, { layout: single() })
+  try {
+    await choose(page, app, file)
+    const name = page.getByTestId('logwatch-file')
+    await expect(name).toHaveText('app.log')
+    await name.hover()
+    await expect(page.getByTestId('logwatch-file-card')).toContainText(file)
+    await expect(page.getByTestId('logwatch-file-card')).toContainText(
+      'click the name to choose another file',
+    )
+    await pickerAnswers(app, other)
+    await name.click()
+    await expect(name).toHaveText('other.log', { timeout: 5000 })
+    await expect(rows(page).first()).toContainText('other 1')
+    // Closed without a choice: nothing changes.
+    await app.evaluate(({ dialog }) => {
+      dialog.showOpenDialog = (async () => ({ canceled: true, filePaths: [] })) as never
+    })
+    await name.click()
+    await page.waitForTimeout(500)
+    await expect(name).toHaveText('other.log')
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+})

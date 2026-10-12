@@ -1,16 +1,19 @@
 import { maskText, SECRET_NAME, signatureText } from '@shared/logwatch/text'
 import {
   ENCODING_NAMES,
+  FORMAT_NAMES,
   groupOf,
   isEncodingChoice,
   LEVEL_GROUP_IDS,
   type LevelGroup,
   LOG_LIMITS,
   type LogEncodingChoice,
+  type LogFileRef,
   type LogItem,
   type LogLevel,
   type LogLine,
   type LogMark,
+  type LogStatus,
 } from '@shared/logwatch/types'
 import type { CardRow } from '../../lib/hover-card.ts'
 
@@ -382,4 +385,31 @@ export function hitParts(text: string, match: RegExp | null): { text: string; hi
 export function encodingLabel(choice: LogEncodingChoice, decided: string): string {
   const name = ENCODING_NAMES[decided as LogEncodingChoice] ?? decided
   return choice === 'auto' ? `auto · ${name}` : name
+}
+
+/**
+ * The card of the file the pane follows (the name in the status row): where it is in full, what
+ * a pattern is reading now, how it is read, and what is wrong with it, if anything.
+ */
+export function fileCardRows(
+  file: LogFileRef,
+  status: LogStatus | null,
+  choice: LogEncodingChoice,
+): CardRow[] {
+  const rows: CardRow[] = [{ label: file.pattern === null ? 'file' : 'folder', value: file.path }]
+  if (file.pattern !== null) {
+    rows.push({ label: 'newest', value: status?.file ?? 'nothing matches yet' })
+  }
+  if (status !== null) {
+    const how = file.format === null ? 'detected' : 'set by hand'
+    rows.push({ label: 'format', value: `${FORMAT_NAMES[status.format]} (${how})` })
+    rows.push({ label: 'encoding', value: encodingLabel(choice, status.encoding) })
+    rows.push({
+      label: 'read',
+      value: `${Math.round(status.read / 1024).toLocaleString()} KB since opened`,
+      muted: true,
+    })
+    if (status.problem !== null) rows.push({ label: 'problem', value: status.problem })
+  }
+  return rows
 }

@@ -7,6 +7,7 @@ import {
   compileFilter,
   encodingLabel,
   errorMarks,
+  fileCardRows,
   hitParts,
   lineCardRows,
   markText,
@@ -365,5 +366,64 @@ describe('the view at its edges', () => {
     const old = tallyPatterns([line({ at: NOW - 120_000 })], NOW)
     expect(old[0]?.recent.every((n) => n === 0)).toBe(true)
     expect(old[0]?.count).toBe(1)
+  })
+})
+
+describe('the card of the file followed', () => {
+  const status = {
+    state: 'reading' as const,
+    problem: null,
+    file: 'app-20261012.log',
+    format: 'jsonl' as const,
+    encoding: 'utf-8' as const,
+    garbled: false,
+    read: 2048,
+  }
+  const file = {
+    id: '0123456789abcdef',
+    name: 'app.log',
+    folder: '~/logs',
+    path: '/home/dev/logs/app.log',
+    pattern: null,
+    format: null,
+  }
+
+  it('says the whole path, how it is read, and how much', () => {
+    expect(fileCardRows(file, status, 'auto')).toEqual([
+      { label: 'file', value: '/home/dev/logs/app.log' },
+      { label: 'format', value: 'JSON lines (detected)' },
+      { label: 'encoding', value: 'auto · UTF-8' },
+      { label: 'read', value: '2 KB since opened', muted: true },
+    ])
+  })
+
+  it('says the folder and pattern, and the newest file read, or that none matches', () => {
+    const followed = {
+      ...file,
+      name: 'app-*.log',
+      path: '/home/dev/logs/app-*.log',
+      pattern: 'app-*.log',
+      format: 'plain' as const,
+    }
+    const rows = fileCardRows(followed, status, 'shift_jis')
+    expect(rows.slice(0, 3)).toEqual([
+      { label: 'folder', value: '/home/dev/logs/app-*.log' },
+      { label: 'newest', value: 'app-20261012.log' },
+      { label: 'format', value: 'JSON lines (set by hand)' },
+    ])
+    expect(
+      fileCardRows(
+        followed,
+        { ...status, file: null, problem: 'nothing matches app-*.log' },
+        'auto',
+      ),
+    ).toContainEqual({
+      label: 'problem',
+      value: 'nothing matches app-*.log',
+    })
+    expect(fileCardRows(followed, null, 'auto')).toEqual([
+      { label: 'folder', value: '/home/dev/logs/app-*.log' },
+      { label: 'newest', value: 'nothing matches yet' },
+    ])
   })
 })

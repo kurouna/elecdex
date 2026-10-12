@@ -31,6 +31,7 @@ import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import { feedFor } from './feed.svelte.ts'
 import LogExplain from './LogExplain.svelte'
+import LogFileCard from './LogFileCard.svelte'
 import LogLanes from './LogLanes.svelte'
 import LogLineCard from './LogLineCard.svelte'
 import LogPatterns from './LogPatterns.svelte'
@@ -282,9 +283,39 @@ function onhover(row: Row | null, event: { row: DOMRect; x: number | null } | nu
   )
 }
 
+/* ---- The file's card, and choosing another ---- */
+
+let fileHover = $state.raw<{ anchor: CardAnchor; bounds: CardSize } | null>(null)
+const fileRest = new HoverRest<'file'>(() => (fileHover = null))
+
+function showFileCard(target: HTMLElement, x: number | null): void {
+  fileRest.enter(
+    'file',
+    () => {
+      if (rootEl === null) return
+      const box = rootEl.getBoundingClientRect()
+      fileHover = {
+        anchor: anchorOf(box, target.getBoundingClientRect(), x),
+        bounds: { width: box.width, height: box.height },
+      }
+    },
+    x === null,
+  )
+}
+
+/** A click on the file's name: the picker, to follow the newest like it if that is what it does. */
+function chooseAnother(): void {
+  fileRest.leave()
+  void pick(file?.pattern != null)
+}
+
 $effect(() => {
-  if (!visible) resting.leave()
+  if (!visible) {
+    resting.leave()
+    fileRest.leave()
+  }
 })
+$effect(() => () => fileRest.dispose())
 $effect(() => () => resting.dispose())
 
 /* ---- The header's words ---- */
@@ -359,12 +390,24 @@ $effect(() => {
       <span class="figure err"><small>ERR 5 MIN</small><b data-testid="logwatch-err">{counts.ERR}</b></span>
       <span class="figure warn"><small>WARN 5 MIN</small><b>{counts.WRN}</b></span>
       <span class="where" data-testid="logwatch-where">
-        <b>{status?.file ?? file?.name ?? ''}</b>
+        <button
+          type="button"
+          class="file"
+          onclick={chooseAnother}
+          onpointerenter={(event) => showFileCard(event.currentTarget, event.clientX)}
+          onpointerleave={() => fileRest.leave()}
+          onfocus={(event) => showFileCard(event.currentTarget, null)}
+          onblur={() => fileRest.leave()}
+          data-testid="logwatch-file">{status?.file ?? file?.name ?? ''}</button
+        >
         {#if status}· {FORMAT_NAMES[status.format]} · {encodingLabel(choices.encoding, status.encoding)}{/if}
       </span>
     </header>
     {#if status?.problem}
       <p class="problem" data-testid="logwatch-state-problem">{status.problem}</p>
+    {/if}
+    {#if problem !== null}
+      <p class="problem" data-testid="logwatch-problem">{problem}</p>
     {/if}
     {#if status?.garbled}
       <button
@@ -462,6 +505,15 @@ $effect(() => {
     </footer>
   {/if}
 
+  {#if fileHover !== null && file !== null}
+    <LogFileCard
+      {file}
+      {status}
+      encoding={choices.encoding}
+      anchor={fileHover.anchor}
+      bounds={fileHover.bounds}
+    />
+  {/if}
   {#if hover !== null && hover.row.item.kind === 'line'}
     <LogLineCard row={hover.row} mask={choices.mask} anchor={hover.anchor} bounds={hover.bounds} />
   {/if}
@@ -654,12 +706,25 @@ $effect(() => {
   text-overflow: ellipsis;
 }
 
-.where b {
+/* The file's name: a button that says so on the pointer (underline), and chooses another. */
+.file {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
   font-family: var(--font-mono);
   font-weight: 500;
   font-size: var(--step--1);
   letter-spacing: 0;
-  color: var(--text);
+  cursor: pointer;
+  text-decoration: underline dotted var(--accent-dim);
+  text-underline-offset: 3px;
+}
+
+.file:hover,
+.file:focus-visible {
+  color: var(--accent-strong);
+  text-decoration-color: var(--accent);
 }
 
 .garbled {

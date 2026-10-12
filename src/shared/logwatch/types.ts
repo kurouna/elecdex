@@ -104,6 +104,11 @@ export interface LogFileRef {
   name: string
   /** Where it is, for the eye only (home as `~`); never handed back to main. */
   folder: string
+  /**
+   * The whole of it - the file, or the folder and the pattern - for the card that says which
+   * file the pane follows. For the eye only, like `folder`: main takes ids, never this.
+   */
+  path: string
   /** Set when the pane follows the newest file whose name matches. */
   pattern: string | null
   /** The dialect set for it by hand; null when it is detected. */

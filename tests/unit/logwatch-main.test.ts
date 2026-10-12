@@ -52,11 +52,16 @@ describe('LogCatalog', () => {
       id: entry.id,
       name: 'app.log',
       folder: `~${path.sep}logs`,
+      path: path.join(sub, 'app.log'),
       pattern: null,
       format: null,
     })
     const followed = c.ref(c.add(sub, 'app-*.log', 2))
-    expect(followed).toMatchObject({ name: 'app-*.log', folder: `~${path.sep}logs` })
+    expect(followed).toMatchObject({
+      name: 'app-*.log',
+      folder: `~${path.sep}logs`,
+      path: path.join(sub, 'app-*.log'),
+    })
     expect(displayFolder('/elsewhere', dir)).toBe('/elsewhere')
     expect(displayFolder(`${dir}x${path.sep}y`, dir)).toBe(`${dir}x${path.sep}y`)
   })

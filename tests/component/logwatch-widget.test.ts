@@ -22,11 +22,21 @@ const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
  */
 
 const ID = '0123456789abcdef'
-const FILE: LogFileRef = { id: ID, name: 'app.log', folder: '~/logs', pattern: null, format: null }
+const FILE: LogFileRef = {
+  id: ID,
+  name: 'app.log',
+  folder: '~/logs',
+  path: '/home/dev/logs/app.log',
+  pattern: null,
+  format: null,
+}
 
 let deliver: ((event: LogWatchEvent) => void) | null = null
 let requests: LogSubscribeRequest[] = []
 let subscriptions = 0
+let describeAs: LogFileRef = FILE
+let picks: boolean[] = []
+let pickAnswer: unknown = null
 
 let seq = 0
 const line = (text: string, level: LogLine['level'] = 'INF'): LogLine => ({
@@ -61,6 +71,9 @@ beforeEach(() => {
   deliver = null
   requests = []
   subscriptions = 0
+  describeAs = FILE
+  picks = []
+  pickAnswer = null
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: false,
     media: query,
@@ -75,6 +88,14 @@ beforeEach(() => {
       disconnect() {}
     },
   )
+  // Cards power on and off through animate(): finished at once here, as in the Docker pane's tests.
+  Element.prototype.getAnimations ??= () => []
+  Element.prototype.animate = function animate(_frames, options) {
+    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
+    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
+    setTimeout(() => animation.onfinish?.(), length)
+    return animation as unknown as Animation
+  }
   vi.stubGlobal('elecdex', {
     logwatch: {
       subscribe: (request: LogSubscribeRequest, handler: (event: LogWatchEvent) => void) => {
@@ -86,7 +107,11 @@ beforeEach(() => {
           deliver = null
         }
       },
-      describe: async () => FILE,
+      describe: async () => describeAs,
+      pick: async (newest: boolean) => {
+        picks.push(newest)
+        return pickAnswer
+      },
       recent: async () => [],
       onExplained: () => () => {},
     },
@@ -96,6 +121,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   cleanup()
+  Reflect.deleteProperty(Element.prototype, 'animate')
   vi.restoreAllMocks()
   await layout.flush()
   vi.unstubAllGlobals()
@@ -109,6 +135,65 @@ const texts = () =>
   screen.queryAllByTestId('logwatch-row').map((row) => row.querySelector('.msg')?.textContent)
 
 describe('LogWatchWidget', () => {
+  it('shows the whole path on the name of the file, and chooses another on a click', async () => {
+    render(LogWatchWidget, {
+      props: {
+        paneId: `f${seq}`,
+        title: 'log watch',
+        props: {},
+        state: { file: ID },
+        active: true,
+      },
+    })
+    await settle()
+    deliver?.({ key: `${ID}/auto`, reset: true, items: [line('x')], status })
+    await settle()
+    const name = screen.getByTestId('logwatch-file')
+    expect(name.textContent).toBe('app.log')
+    name.focus()
+    await settle()
+    expect(screen.getByTestId('logwatch-file-card').textContent).toContain('/home/dev/logs/app.log')
+    pickAnswer = { problem: 'that is not a text file' }
+    name.click()
+    await settle()
+    expect(picks).toEqual([false])
+    expect(screen.getByTestId('logwatch-problem').textContent).toBe('that is not a text file')
+    // A card closes a moment after it is left (lib/hover-card.ts), then powers off.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    await settle()
+    expect(screen.queryByTestId('logwatch-file-card')).toBeNull()
+  })
+
+  it('chooses the newest like it again for a pane that follows a pattern', async () => {
+    describeAs = {
+      ...FILE,
+      name: 'app-*.log',
+      path: '/home/dev/logs/app-*.log',
+      pattern: 'app-*.log',
+    }
+    render(LogWatchWidget, {
+      props: {
+        paneId: `g${seq}`,
+        title: 'log watch',
+        props: {},
+        state: { file: ID },
+        active: true,
+      },
+    })
+    await settle()
+    deliver?.({
+      key: `${ID}/auto`,
+      reset: true,
+      items: [line('x')],
+      status: { ...status, file: 'app-2.log' },
+    })
+    await settle()
+    expect(screen.getByTestId('logwatch-file').textContent).toBe('app-2.log')
+    screen.getByTestId('logwatch-file').click()
+    await settle()
+    expect(picks).toEqual([true])
+  })
+
   it('lights ERROR BURST only once errors have come fast for two seconds, and lets it go', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     vi.setSystemTime(new Date(2026, 9, 12, 12, 0, 0, 100))

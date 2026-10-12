@@ -85,6 +85,7 @@ export class LogCatalog {
       id: entry.id,
       name: entry.pattern ?? path.basename(entry.path),
       folder: displayFolder(folder, this.home),
+      path: entry.pattern === null ? entry.path : path.join(entry.path, entry.pattern),
       pattern: entry.pattern,
       format: entry.format,
     }
