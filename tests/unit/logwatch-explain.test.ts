@@ -44,6 +44,7 @@ function rig(
   adapter: Partial<ProviderAdapter>,
   providers: AiProvider[] = [PROVIDER],
   key: string | null = null,
+  more: LogLine[] = [],
 ) {
   const sent: LogExplainEvent[] = []
   const asked: StreamRequest[] = []
@@ -65,6 +66,7 @@ function rig(
         [4, line(4, 'INFO before')],
         [5, line(5, 'ERROR mail to rin@example.com failed')],
         [6, line(6, 'WARN after')],
+        ...more.map((l) => [l.seq, l] as const),
       ])
       const found = request.seqs.map((seq) => held.get(seq))
       return found.every((l) => l !== undefined) ? (found as LogLine[]) : null
@@ -273,21 +275,10 @@ describe('LogExplainer', () => {
 
   it('refuses a choice too long to send, rather than send part of it', () => {
     const long = line(7, `ERROR ${'x'.repeat(20_000)}`)
-    const r = rig({})
-    const explainer = new LogExplainer<string>({
-      ...(r.explainer as unknown as object),
-      providers: () => [PROVIDER],
-      systemPrompt: () => '',
-      keyFor: () => null,
-      adapter: async () => ({ models: async () => [], stream: async () => ({}) }),
-      lines: () => [long],
-      newId: () => 'token-x',
-      setTimer: () => 1,
-      clearTimer: () => {},
-      send: () => {},
-    })
-    expect(explainer.start('page', REQUEST)).toEqual({
+    const r = rig({}, [PROVIDER], null, [long])
+    expect(r.explainer.start('page', { ...REQUEST, seqs: [7] })).toEqual({
       problem: 'too long to send (over 12,000 characters): choose fewer lines',
     })
+    expect(r.asked).toHaveLength(0)
   })
 })

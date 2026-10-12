@@ -441,7 +441,7 @@ describe('pages, encodings and sources together', () => {
     expect(r.last('r')).toMatchObject({ reset: false, items: [] })
   })
 
-  it('adds no banner when nothing came while hidden', async () => {
+  it('adds only the opened mark across a quiet hide', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 1))
     const r = rig(one(file))

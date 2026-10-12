@@ -516,7 +516,11 @@ export class LogWatchService<P> {
       return
     }
     channel.waiting.delete(page)
-    channel.sentStatus = said
+    // Marked as sent only when no other page follows: one that does has not been told this state
+    // yet, and the next delivery must tell it (found in review: a state changed in the same beat
+    // a second page came was never sent to the first).
+    const following = [...channel.pages].some((p) => p !== page && !channel.waiting.has(p))
+    if (!following) channel.sentStatus = said
     this.#deps.send(page, { key: channel.key, ...this.#since(channel, wait.since), status })
   }
 
@@ -601,7 +605,9 @@ export class LogWatchService<P> {
     const reader = channel.reader
     if (sample === null || reader === null) return
     const lines = countBreaks(sample)
-    if (lines === 0 || (!force && lines < JUDGE_LINES && sample.length < JUDGE_BYTES)) return
+    // Without a break it waits only until JUDGE_BYTES: a tool writing progress with \r alone would
+    // otherwise grow the sample with the file, copied whole at every read.
+    if (sample.length < JUDGE_BYTES && (lines === 0 || (!force && lines < JUDGE_LINES))) return
     channel.sample = null
     if (channel.choice === 'auto') {
       channel.encoding = detectEncoding(source.head.length > 0 ? source.head : sample, sample)

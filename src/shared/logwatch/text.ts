@@ -75,18 +75,25 @@ const MASK = '•••'
 // Each starts only where a run of its characters starts, and the parts that may repeat are
 // bounded: a long line must cost one pass, not one pass from every place in it.
 const EMAIL = /(?<![\w.+-])[\w.+-]{1,64}@[\w-]{1,63}(?:\.[\w-]{1,63}){1,8}\b/g
+/**
+ * The words that name a secret, one list for both the text's mask and the card's fields: they
+ * once differed, and a cookie the card hid went to EXPLAIN as it was.
+ */
+const SECRET_WORDS =
+  'password|passwd|pwd|secret|token|api[_-]?key|apikey|auth|credential|session|cookie'
 const BEARER = /\b(Bearer|Basic|token)\s+[\w.~+/-]{8,}=*/gi
 /**
  * A value named as a secret: \`password=x\`, \`token: x\`, and JSON's \`"password":"x"\` (the name's
  * closing quote before the colon). Names up to 120 characters either side of the word are long
  * enough for \`spring.datasource.hikari.data-source-properties.password\`; bounded, it stays one pass.
  */
-const SECRET_VALUE =
-  /(?<![\w.-])([\w.-]{0,120}?(?:password|passwd|pwd|secret|token|api[_-]?key|apikey|auth|credential|session)[\w.-]{0,120})("?\s*[=:]\s*)("[^"]*"|'[^']*'|[^\s,;&}]+)/gi
+const SECRET_VALUE = new RegExp(
+  `(?<![\\w.-])([\\w.-]{0,120}?(?:${SECRET_WORDS})[\\w.-]{0,120})("?\\s*[=:]\\s*)("[^"]*"|'[^']*'|[^\\s,;&}]+)`,
+  'gi',
+)
 
 /** A field's name that says its value is a secret: the card masks the value whatever it looks like. */
-export const SECRET_NAME =
-  /password|passwd|pwd|secret|token|api[_-]?key|apikey|auth|credential|session|cookie/i
+export const SECRET_NAME = new RegExp(SECRET_WORDS, 'i')
 /** Hyphens are left out, so a UUID (an id, not a key) stays as it is; a digit is required. */
 const LONG_SECRET = /(?<![A-Za-z0-9+/_])[A-Za-z0-9+/_]{32,}={0,2}/g
 

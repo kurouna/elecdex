@@ -1,4 +1,12 @@
-import { appendFileSync, mkdtempSync, renameSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { charsOf, trimHeld } from '@shared/logwatch/held'
@@ -384,7 +392,7 @@ describe('LogWatchService', () => {
 
   it('sends every line of a long gap once, in order, with a beat in the middle of reading it', async () => {
     // Found in review: a beat between two chunks of the gap sent lines to nobody (the only page
-    // was still waiting), then the banner went out twice and a line never.
+    // was still waiting), and a line never arrived.
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 1))
     let gate: (() => void) | null = null
@@ -462,6 +470,38 @@ describe('LogWatchService', () => {
     for (const page of ['a', 'b']) {
       expect(r.sent.filter((s) => s.page === page).at(-1)?.event.status.state).toBe('waiting')
     }
+  })
+
+  it('tells a page following a state that changed in the beat another page came', async () => {
+    // Found in review: the page brought up to date marked the state as sent for every page.
+    const file = path.join(dir, 'app.log')
+    writeFileSync(file, lines(1, 1))
+    const r = rig({ [ID]: { path: file, pattern: null, format: null } })
+    r.service.subscribe('a', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    const since = r.held('a').at(-1)?.seq ?? -1
+    unlinkSync(file)
+    r.watches.get(dir)?.('app.log')
+    await r.advance(SETTLE_MS)
+    r.service.subscribe('b', { id: ID, encoding: 'auto', since })
+    await r.advance(DELIVER_MS * 2)
+    for (const page of ['a', 'b']) {
+      expect(r.sent.filter((s) => s.page === page).at(-1)?.event.status.state).toBe('waiting')
+    }
+  })
+
+  it('judges a file written without a line break once enough has come, not holding it all', async () => {
+    // Found in review: a file opened empty kept every byte until a line break came.
+    const file = path.join(dir, 'app.log')
+    writeFileSync(file, '')
+    const r = rig({ [ID]: { path: file, pattern: null, format: null } })
+    r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    appendFileSync(file, `progress ${'#'.repeat(100_000)}\r`)
+    r.watches.get(dir)?.('app.log')
+    await r.advance(SETTLE_MS + LOOK_MS + DELIVER_MS)
+    expect(r.sent.at(-1)?.event.status.state).toBe('reading')
+    expect(r.texts('page').some((text) => text.startsWith('progress'))).toBe(true)
   })
 
   it('lists the folder of a pattern again only for a name that could be a newer file', async () => {

@@ -70,7 +70,7 @@
 - **EXPLAIN**: 開いている間、一覧の下に（§7）
 - **足元**: 行を選んでいないときは「click lines to copy them or have AI explain them」と「n lines kept of N ·
   read n KB」。選んでいる間は「n lines chosen · Ctrl+click adds · Shift+click a run」（macOS は ⌘）と
-  LET GO、COPY、EXPLAIN（§7、§9）。
+  CLEAR、COPY、EXPLAIN（§7、§9）。
   AI の設定にプロバイダがなければ、EXPLAIN の代わりに「EXPLAIN · SET UP AI」を出し、設定の ai を開く。設定のパネルの
   explain の欄も同じ（2026-10-12、利用者が EXPLAIN の使い方を見つけられなかった: ボタンごと出していなかったため）
 - **何も出ていないとき**: 絞り込みやレベルで全部が隠れていれば「no line held matches the levels and the filter
@@ -208,9 +208,9 @@ DOM、Node、時計を触らない純粋関数にし、単体テストで固め�
 - **トークン**（`tokens`）: 本文の数値と単位、IP、パス、`key=`、引用文字列、id を色分けの種類に分ける。
   `lib/highlight.ts` と同じく、テキストとして描き、HTML にはしない
 - **伏せ字**（`maskText`）: IPv4 / IPv6、メールアドレス、数字を含む 32 文字以上の英数字（鍵らしいもの。ハイフンの
-  入る UUID は id なので残す）、`Bearer …`、名前に password / secret / token / key / auth / session などを含む値を
+  入る UUID は id なので残す）、`Bearer …`、名前に password / secret / token / key / auth / session / cookie などを含む値を
   伏せる（`password=x`、`token: x`、JSON の `"password":"x"`。名前は前後 120 字まで）。詳細カードでは、名前が
-  そう言うフィールドの値を、見た目によらず伏せる。時刻（`12:04:01`）は IPv6 と取り違えない。どの正規表現も、
+  そう言うフィールドの値を、見た目によらず伏せる。名前の語は本文とカードで 1 つの一覧（`SECRET_WORDS`。2026-10-12、レビューで、カードが伏せる cookie を EXPLAIN がそのまま送っていたのを見つけた）。時刻（`12:04:01`）は IPv6 と取り違えない。どの正規表現も、
   長い 1 行で行の長さの 2 乗にならないよう、始まる位置を連なりの頭に限り、繰り返しに上限を付ける
 
 **どこで解析するか**: main（読んだ直後に解析し、解析済みのエントリを送る）。1000 行/秒で 1 バッチ（0.25 秒分）
@@ -228,7 +228,7 @@ DOM、Node、時計を触らない純粋関数にし、単体テストで固め�
 - 届いた行は一度だけ光る。アクセント色の重ねを不透明度で消すだけで、キーフレームで色は動かさない
 - 行をクリックすると選択になる（EXPLAIN とコピーの対象。§7、§9）。Ctrl+クリック（macOS は ⌘）で足し引き、
   Shift+クリックで直前に触れた行からの連なり（行だけ。区切りは入らない）。選んだ行のうち、レベルや絞り込みで
-  いま見えていないものはコピーも送信もしない（`chosenLines`）。足元の LET GO か、ひとつだけ選んだ行の
+  いま見えていないものはコピーも送信もしない（`chosenLines`）。足元の CLEAR か、ひとつだけ選んだ行の
   もう一度のクリックで放す
 
 ### 6.2 追従
@@ -275,7 +275,7 @@ DOM、Node、時計を触らない純粋関数にし、単体テストで固め�
   止める）。畳んだ行（×n）は、その最初の 1 行を選ぶ
   - MASK が ON なら伏せた状態で送る。OFF のときは、送る前の画面に「MASK is off」と出す
   - 本文は 12,000 字まで、選べるのは 200 行まで。超えるときは一部を落として送ることはせず、「too long to
-    send」と断る（選んだものと違うものを送らないため）。選んだ行がもう持たれていなければ断る
+    send」と断る（選んだものと違うものを送らないため）。1 行が長すぎるときは、MASK で縮んで全体が収まっても断る（`explainFits`。レビューで見つけた: 切ってから伏せていたので、行の末尾が黙って落ちていた）。選んだ行がもう持たれていなければ断る
 - **main で**（`main/logwatch/explain.ts`）: ページから受け取るのは、ファイルの id、文字コード、選んだ行の
   `seq` の並び、プロバイダ、モデル、伏せるかだけ。行は main が自分のバッファから `seq` で引き
   （`LogWatchService.lines`）、ひとつでもなければ何も送らない
@@ -317,8 +317,8 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。行にな�
 ランプの理由（読めない理由など）はカードではなく、ランプの下の 1 行で言う。レーンの棒とパターンの行には
 カードを付けない（v1）。
 
-行を選ぶと、足元に LET GO、COPY と EXPLAIN（プロバイダがなければ SET UP AI）が出る。COPY は選んだ行の
-うち見えているものの生の行と続きの行を、書かれた順に、ほかのペインと同じく main を通して（`utility.copy`）
+行を選ぶと、足元に CLEAR、COPY と EXPLAIN（プロバイダがなければ SET UP AI）が出る。COPY は選んだ行の
+うち見えているものの生の行と続きの行（省いた行数の注記も。EXPLAIN と同じ `lineText`）を、書かれた順に、ほかのペインと同じく main を通して（`utility.copy`）
 クリップボードに置く。MASK が ON なら伏せてから置く。
 
 ## 10. チャンネルと境界
@@ -401,7 +401,7 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。行にな�
 | （UI の見直し、2026-10-12） | 設定のフルパスと ANOTHER FILE、SET UP AI、足元の案内、空のときの言葉、短い一覧での ERROR BAR の位置、EXPLAIN の行の差し替え |
 | `logwatch-explain.test.ts` | EXPLAIN（プロバイダの選び方、平文 http の鍵、検索後の答え、途中で止まった答え、送る間隔、時間切れ、破棄） |
 | `logwatch-view.test.ts` | 画面の判断（絞り込み、畳み込み、高さ、時刻、パターン、エラーの目印、カード） |
-| `tests/component/logwatch-widget.test.ts`、`logwatch-parts.test.ts` | ウィジェット（届いた行、見えている間だけの購読、PAUSE、急増のランプ、EXPLAIN の早い完了、複数行の選択と COPY と LET GO）と部品（一覧、選び方、トレース、追従と NEW の数、ERROR BAR、PATTERNS、設定、カード） |
+| `tests/component/logwatch-widget.test.ts`、`logwatch-parts.test.ts` | ウィジェット（届いた行、見えている間だけの購読、PAUSE、急増のランプ、EXPLAIN の早い完了、複数行の選択と COPY と CLEAR）と部品（一覧、選び方、トレース、追従と NEW の数、ERROR BAR、PATTERNS、設定、カード） |
 | `tests/e2e/logwatch.spec.ts`、`logwatch-edges.spec.ts` | アプリで: 追記、トレース、MASK、絞り込み、PATTERNS、タブの後ろ、Shift_JIS、グラフと ERROR BAR、EXPLAIN、ローテーション、削除と再作成、最新を追う、断る理由、知らない id、最小化、COPY、Shift での連なりと見えない行を送らないこと、形式と時刻、RECENT、応答のない EXPLAIN、レベル・PAUSE・WRAP（折り返した行と次の行が重ならないこと） |
 
 - **単体**: 形式ごとの判定と正規化（作り物の各形式のサンプル）、続きの行、署名、NEW の学習期間、畳み込み、

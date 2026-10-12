@@ -178,6 +178,10 @@ describe('text', () => {
     // through, and JSON's quote before the colon was never matched.
     expect(maskText('{"password":"hunter2","user":"aki"}')).not.toContain('hunter2')
     expect(maskText('{"password":"hunter2","user":"aki"}')).toContain('"user":"aki"')
+    // Found in review: the card hid a cookie field by name, while the text sent and copied kept it.
+    expect(maskText('cookie=abc123; session=xyz')).toBe('cookie=•••; session=•••')
+    expect(maskText('{"cookie":"sid=abc","path":"/"}')).not.toContain('sid=abc')
+    expect(maskText('Set-Cookie: sid=abc123')).not.toContain('abc123')
     expect(
       maskText('spring.datasource.hikari.data-source-properties.password=hunter2'),
     ).not.toContain('hunter2')
@@ -514,11 +518,22 @@ describe('explain', () => {
       line(NOW, 'INF', { seq: i, raw: `${i}${'y'.repeat(3000)}` }),
     )
     const text = explainText(long, false)
-    expect(explainFits(text)).toBe(false)
+    expect(explainFits(long, text)).toBe(false)
     for (let i = 0; i < 5; i++) expect(text).toContain(`${i}yyy`)
-    expect(explainFits(explainText([target], false))).toBe(true)
+    expect(explainFits([target], explainText([target], false))).toBe(true)
     const huge = line(NOW, 'INF', { raw: 'z'.repeat(LOG_LIMITS.explainChars * 3) })
-    expect(explainFits(explainText([huge], false))).toBe(false)
+    expect(explainFits([huge], explainText([huge], false))).toBe(false)
+  })
+
+  it('refuses a line too long even when masking would make the cut text fit', () => {
+    // Found in review: each line was cut to what could be sent and then masked, and masking
+    // shortened it under the limit - the end of the line went unsent and unsaid.
+    const key = 'A1'.repeat(40)
+    const raw = `${key} ${key} ${key} ${'x'.repeat(LOG_LIMITS.explainChars)} THE-END`
+    const long = line(NOW, 'ERR', { raw })
+    const masked = explainText([long], true)
+    expect(masked.length).toBeLessThanOrEqual(LOG_LIMITS.explainChars)
+    expect(explainFits([long], masked)).toBe(false)
   })
 
   it('adds the user’s own instructions after its own', () => {

@@ -205,7 +205,7 @@ test('chooses a run with Shift, and copies only the chosen lines still shown', a
     expect(text).toContain('INFO three')
     expect(text).not.toContain('two')
     expect(text).not.toContain('four')
-    await page.getByTestId('logwatch-let-go').click()
+    await page.getByTestId('logwatch-clear').click()
     await expect(page.getByTestId('logwatch-chosen')).toHaveCount(0)
   } finally {
     await close()

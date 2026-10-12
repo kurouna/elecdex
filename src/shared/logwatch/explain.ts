@@ -22,7 +22,8 @@ export function explainSystem(userPrompt: string): string {
   return own === '' ? EXPLAIN_SYSTEM : `${EXPLAIN_SYSTEM}\n\n${own}`
 }
 
-function lineText(line: LogLine): string {
+/** A line as EXPLAIN sends it and COPY copies it: the line, its trace, and how much was left out. */
+export function lineText(line: LogLine): string {
   const more = line.more.length === 0 ? '' : `\n${line.more.join('\n')}`
   const cut = line.moreCut > 0 ? `\n... ${line.moreCut} more lines` : ''
   return `${line.raw}${more}${cut}`
@@ -48,5 +49,11 @@ export function explainText(lines: readonly LogLine[], mask: boolean): string {
   ].join('\n')
 }
 
-/** Whether a question may be sent: within `explainChars`. */
-export const explainFits = (text: string): boolean => text.length <= LOG_LIMITS.explainChars
+/**
+ * Whether a question may be sent: within `explainChars`, and no line cut to make it so - masking
+ * shortens a line after it was cut to what could be sent, so the text alone may fit when a line
+ * did not.
+ */
+export const explainFits = (lines: readonly LogLine[], text: string): boolean =>
+  text.length <= LOG_LIMITS.explainChars &&
+  lines.every((line) => lineText(line).length <= LOG_LIMITS.explainChars)

@@ -1,4 +1,5 @@
 import type {
+  LogExplainRequest,
   LogFileRef,
   LogLine,
   LogSubscribeRequest,
@@ -15,6 +16,8 @@ const { default: LogExplain } = await import(
   '../../src/renderer/widgets/logwatch/LogExplain.svelte'
 )
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
+const { defaultSettings } = await import('@shared/settings')
 
 /**
  * The LOG WATCH pane over a stand-in for main: it follows a file only while seen, adds what is
@@ -38,6 +41,7 @@ let describeAs: LogFileRef = FILE
 let picks: boolean[] = []
 let pickAnswer: unknown = null
 let copies: string[] = []
+let previews: LogExplainRequest[] = []
 
 let seq = 0
 const line = (text: string, level: LogLine['level'] = 'INF'): LogLine => ({
@@ -70,6 +74,7 @@ const status = {
 
 beforeEach(() => {
   copies = []
+  previews = []
   deliver = null
   requests = []
   subscriptions = 0
@@ -116,6 +121,10 @@ beforeEach(() => {
       },
       recent: async () => [],
       onExplained: () => () => {},
+      preview: async (request: LogExplainRequest) => {
+        previews.push(structuredClone(request))
+        return 'the text'
+      },
     },
     layout: { save: vi.fn(async () => {}) },
     system: { platform: 'win32' },
@@ -307,7 +316,7 @@ describe('LogWatchWidget', () => {
     expect(screen.getByTestId('logwatch-explain-setup').textContent).toContain('SET UP AI')
   })
 
-  it('chooses several lines, copies only those, and lets them go', async () => {
+  it('chooses several lines, copies only those, and clears the choice', async () => {
     render(LogWatchWidget, {
       props: {
         paneId: `m${seq}`,
@@ -337,10 +346,46 @@ describe('LogWatchWidget', () => {
     screen.getByTestId('logwatch-copy').click()
     await settle()
     expect(copies.at(-1)).toBe('three\nfour')
-    screen.getByTestId('logwatch-let-go').click()
+    screen.getByTestId('logwatch-clear').click()
     await settle()
     expect(screen.queryByTestId('logwatch-chosen')).toBeNull()
     expect(rows().some((row) => row.classList.contains('selected'))).toBe(false)
+  })
+
+  it('asks EXPLAIN of the provider the pane chose, leaving the fallback to main', async () => {
+    // Found in review: the page sent the first provider when the pane's was gone, and main then
+    // sent it the pane's model, meant for the other.
+    appearance.settings = {
+      ...defaultSettings(),
+      sound: { enabled: false, volume: 0 },
+      ai: {
+        ...defaultSettings().ai,
+        providers: [
+          { id: 'p1', name: 'One', kind: 'openai', baseUrl: 'http://localhost:1/v1', model: 'm1' },
+        ],
+      },
+    }
+    try {
+      render(LogWatchWidget, {
+        props: {
+          paneId: `e${seq}`,
+          title: 'log watch',
+          props: {},
+          state: { file: ID, provider: 'gone', model: 'custom' },
+          active: true,
+        },
+      })
+      await settle()
+      deliver?.({ key: `${ID}/auto`, reset: true, items: [line('ask me')], status })
+      await settle()
+      screen.getByTestId('logwatch-row').click()
+      await settle()
+      screen.getByTestId('logwatch-explain-open').click()
+      await settle()
+      expect(previews.at(-1)).toMatchObject({ provider: 'gone', model: 'custom' })
+    } finally {
+      appearance.settings = defaultSettings()
+    }
   })
 
   it('holds the stream on PAUSE, counting what is held, and lets it all go after', async () => {

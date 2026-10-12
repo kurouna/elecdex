@@ -10,8 +10,8 @@ import { describeFailure, isUnreachable, type ProviderAdapter } from '../ai/adap
 import { targetFor } from '../ai/target.js'
 
 /**
- * EXPLAIN (docs/logwatch.md §7): one line of a log, and the lines before it, asked of a provider
- * of the AI settings - on a press only, one answer at a time for a page, given up after
+ * EXPLAIN (docs/logwatch.md §7): the lines of a log the user chose, and nothing else, asked of a
+ * provider of the AI settings - on a press only, one answer at a time for a page, given up after
  * `EXPLAIN_TIMEOUT_MS`. What is sent is put together here from what main read, never from text
  * the page sends; the key stays in main. Free of Electron: everything comes in.
  */
@@ -77,7 +77,7 @@ export class LogExplainer<P> {
     const lines = this.#deps.lines(request)
     if (lines === null) return { problem: 'a line chosen is no longer held: choose again' }
     const text = explainText(lines, request.mask)
-    if (!explainFits(text)) {
+    if (!explainFits(lines, text)) {
       return {
         problem: `too long to send (over ${LOG_LIMITS.explainChars.toLocaleString()} characters): choose fewer lines`,
       }

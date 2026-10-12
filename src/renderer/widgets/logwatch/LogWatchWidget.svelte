@@ -1,4 +1,5 @@
 <script lang="ts">
+import { lineText } from '@shared/logwatch/explain'
 import {
   bursting,
   burstLit,
@@ -114,7 +115,7 @@ async function pick(newest: boolean): Promise<void> {
 function use(id: string): void {
   choosing = false
   problem = null
-  letGo()
+  clearChosen()
   explaining = null
   sfx.play('folder')
   patch({ file: id, muted: undefined })
@@ -242,7 +243,7 @@ function select(row: Row, how: ChooseHow): void {
   anchor = next.anchor
 }
 
-function letGo(): void {
+function clearChosen(): void {
   chosen = new Set()
   anchor = null
 }
@@ -253,7 +254,7 @@ $effect(() => () => copied.dispose())
 
 async function copy(): Promise<void> {
   if (chosenShown.length === 0) return
-  const raw = chosenShown.map((line) => [line.raw, ...line.more].join('\n')).join('\n')
+  const raw = chosenShown.map(lineText).join('\n')
   const text = choices.mask ? maskText(raw) : raw
   if (await copied.through('line', () => window.elecdex.utility.copy({ kind: 'text', text }))) {
     sfx.play('folder')
@@ -272,7 +273,9 @@ function explain(): void {
     id: choices.file,
     encoding: choices.encoding,
     seqs: chosenShown.map((line) => line.seq),
-    provider: provider.id,
+    // As chosen, not as resolved here: main falls back to the first provider itself, and sends
+    // the pane's model only to the pane's own provider.
+    provider: choices.provider,
     model: choices.model,
     mask: choices.mask,
   }
@@ -537,7 +540,7 @@ $effect(() => {
             ? '1 line chosen'
             : `${chosenShown.length} lines chosen`} · {addKey}+click adds · Shift+click a run</span
         >
-        <button type="button" onclick={letGo} data-testid="logwatch-let-go">LET GO</button>
+        <button type="button" onclick={clearChosen} data-testid="logwatch-clear">CLEAR</button>
         <button type="button" onclick={() => void copy()} data-testid="logwatch-copy">{copied.key === 'line' ? 'COPIED' : 'COPY'}</button>
         {#if provider !== null}
           <button type="button" onclick={explain} data-testid="logwatch-explain-open">EXPLAIN</button>
@@ -933,8 +936,4 @@ $effect(() => {
   cursor: pointer;
 }
 
-.foot button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
 </style>

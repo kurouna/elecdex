@@ -4,6 +4,7 @@ import {
   FORMAT_NAMES,
   groupOf,
   isEncodingChoice,
+  isLogId,
   LEVEL_GROUP_IDS,
   type LevelGroup,
   LOG_LIMITS,
@@ -57,7 +58,7 @@ export function readLogPane(state: Record<string, unknown> | undefined): LogPane
   const strings = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
   return {
-    file: typeof s.file === 'string' && /^[0-9a-f]{16}$/.test(s.file) ? s.file : null,
+    file: isLogId(s.file) ? s.file : null,
     encoding: isEncodingChoice(s.encoding) ? s.encoding : 'auto',
     time: TIME_MODES.includes(s.time as TimeMode) ? (s.time as TimeMode) : 'abs',
     wrap: s.wrap === true,
@@ -96,7 +97,7 @@ export interface Row {
   item: LogItem
   /** Lines folded into this row, itself included. */
   reps: number
-  /** The latest of them: its time is shown, and EXPLAIN asks about it. */
+  /** The latest of them: its time is shown. COPY and EXPLAIN take `item`, the first. */
   last: LogItem
   /** The row's line before, for the time since it. */
   prev: LogLine | null
