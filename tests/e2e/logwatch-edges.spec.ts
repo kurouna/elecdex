@@ -347,3 +347,53 @@ test('the name of the file shows its whole path, and a click on it chooses anoth
     removeDir(dir)
   }
 })
+
+test('without an AI provider, EXPLAIN says where to set one up, and goes there', async () => {
+  const { dir, file } = folder()
+  writeFileSync(file, lines(1, 1))
+  const { app, page, close } = await launch(undefined, { layout: single() })
+  try {
+    await choose(page, app, file)
+    await expect(page.getByTestId('logwatch-hint')).toContainText('click a line')
+    await rows(page).first().click()
+    await page.getByTestId('logwatch-explain-setup').click()
+    await expect(page.getByTestId('settings-dialog')).toBeVisible()
+    await expect(page.locator('[data-testid=settings-section][data-section=ai]')).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+})
+
+test('EXPLAIN on another line while the panel is open asks about that one instead', async () => {
+  const { dir, file } = folder()
+  writeFileSync(file, `${stamp()} ERROR first trouble\n${stamp()} WARN second trouble\n`)
+  const { app, page, close } = await launch(undefined, {
+    layout: single(),
+    settings: {
+      sound: { enabled: false },
+      ai: {
+        providers: [
+          { id: 'p', name: 'P', kind: 'openai', baseUrl: 'http://127.0.0.1:1/v1', model: 'm' },
+        ],
+      },
+    },
+  })
+  try {
+    await choose(page, app, file)
+    await rows(page).filter({ hasText: 'first trouble' }).click()
+    await page.getByTestId('logwatch-explain-open').click()
+    await expect(page.getByTestId('logwatch-explain-preview')).toContainText('first trouble')
+    await rows(page).filter({ hasText: 'second trouble' }).click()
+    await page.getByTestId('logwatch-explain-open').click()
+    await expect(page.getByTestId('logwatch-explain-preview')).toContainText('Explain this entry:')
+    const preview = (await page.getByTestId('logwatch-explain-preview').textContent()) ?? ''
+    expect(preview.slice(preview.indexOf('Explain this entry:'))).toContain('second trouble')
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+})

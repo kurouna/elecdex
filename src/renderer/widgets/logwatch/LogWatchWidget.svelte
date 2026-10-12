@@ -10,6 +10,7 @@ import {
 import { maskText } from '@shared/logwatch/text'
 import {
   FORMAT_NAMES,
+  groupOf,
   LEVEL_GROUP_IDS,
   type LevelGroup,
   type LogExplainRequest,
@@ -25,6 +26,7 @@ import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import { ui } from '../../stores/ui.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
@@ -195,6 +197,28 @@ function toggleMute(sig: string): void {
   const next = muted.has(sig) ? choices.muted.filter((s) => s !== sig) : [...choices.muted, sig]
   patch({ muted: next.length === 0 ? undefined : next })
 }
+
+/**
+ * Lines held of each level group: what each switch shows or hides (the five minutes' figures are
+ * the lanes' and the status row's).
+ */
+const heldByGroup = $derived.by(() => {
+  const counted: Record<LevelGroup, number> = { DBG: 0, INF: 0, WRN: 0, ERR: 0 }
+  for (const item of shownItems) if (item.kind === 'line') counted[groupOf(item.level)]++
+  return counted
+})
+const heldLines = $derived(heldByGroup.DBG + heldByGroup.INF + heldByGroup.WRN + heldByGroup.ERR)
+
+/** What the stream says when it shows no line: none came yet, or the filter lets none through. */
+const emptyWords = $derived(
+  rows.some((row) => row.item.kind === 'line')
+    ? null
+    : heldLines > 0
+      ? 'no line held matches the levels and the filter shown'
+      : status?.state === 'reading'
+        ? 'no lines yet: they appear here as they are written'
+        : null,
+)
 
 const patterns = $derived(choices.tab === 'patterns' ? tallyPatterns(shownItems, now) : [])
 
@@ -419,6 +443,7 @@ $effect(() => {
     {/if}
     {#if settingsOpen}
       <LogSettings
+        {file}
         {choices}
         format={file?.format ?? null}
         detected={status?.format ?? null}
@@ -432,6 +457,7 @@ $effect(() => {
           settingsOpen = false
           choosing = true
         }}
+        onsetupai={() => ui.openSettings('ai')}
       />
     {/if}
     {#if choices.chart}
@@ -449,7 +475,7 @@ $effect(() => {
           data-group={group}
           aria-pressed={!hidden.has(group)}
           onclick={() => toggleGroup(group)}
-          data-testid="logwatch-level">{group}<em>{counts[group]}</em></button
+          data-testid="logwatch-level">{group}<em>{heldByGroup[group]}</em></button
         >
       {/each}
       <input
@@ -480,26 +506,36 @@ $effect(() => {
         mask={choices.mask}
         match={lastGood}
         {selected}
+        empty={emptyWords}
         onselect={select}
         {onhover}
       />
     {/if}
     {#if explaining !== null}
-      <LogExplain
-        request={explaining}
-        to={`${provider?.name ?? ''} · ${choices.model || provider?.model || ''}`}
-        onclose={() => (explaining = null)}
-      />
+      <!-- Another line asked about starts afresh: an answer still being written for the last stops. -->
+      {#key explaining}
+        <LogExplain
+          request={explaining}
+          to={`${provider?.name ?? ''} · ${choices.model || provider?.model || ''}`}
+          onclose={() => (explaining = null)}
+        />
+      {/key}
     {/if}
     <footer class="foot">
       {#if selectedLine !== null}
-        <span class="chosen">line chosen</span>
+        <span class="chosen" data-testid="logwatch-chosen">1 line chosen · click it again to let go</span>
         <button type="button" onclick={() => void copy()} data-testid="logwatch-copy">{copied.key === 'line' ? 'COPIED' : 'COPY'}</button>
         {#if provider !== null}
-          <button type="button" onclick={explain} disabled={explaining !== null} data-testid="logwatch-explain-open">EXPLAIN</button>
+          <button type="button" onclick={explain} data-testid="logwatch-explain-open">EXPLAIN</button>
+        {:else}
+          <!-- Without a provider EXPLAIN cannot ask anyone: it says where one is set up. -->
+          <button type="button" class="setup" onclick={() => ui.openSettings('ai')} data-testid="logwatch-explain-setup"
+            >EXPLAIN · SET UP AI</button
+          >
         {/if}
       {:else}
-        <span data-testid="logwatch-kept">{items.filter((item) => item.kind === 'line').length.toLocaleString()} lines kept of {keepLines.toLocaleString()} · read {((status?.read ?? 0) / 1024).toFixed(0)} KB</span>
+        <span class="hint" data-testid="logwatch-hint">click a line to copy it or have AI explain it</span>
+        <span data-testid="logwatch-kept">{heldLines.toLocaleString()} lines kept of {keepLines.toLocaleString()} · read {((status?.read ?? 0) / 1024).toFixed(0)} KB</span>
       {/if}
       <span class="quiet">read only while shown · nothing written</span>
     </footer>
@@ -861,6 +897,15 @@ $effect(() => {
 
 .foot .chosen {
   color: var(--text);
+}
+
+.foot .hint {
+  color: var(--text);
+}
+
+.foot .setup {
+  border-style: dashed;
+  color: var(--text-muted);
 }
 
 .foot button {

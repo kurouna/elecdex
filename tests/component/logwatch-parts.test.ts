@@ -241,6 +241,14 @@ describe('LogSettings', () => {
   ] as AiProvider[]
   const settings = (overrides: Record<string, unknown> = {}) => {
     const props = {
+      file: {
+        id: '0123456789abcdef',
+        name: 'app.log',
+        folder: '~/logs',
+        path: '/home/dev/logs/app.log',
+        pattern: null,
+        format: null,
+      },
       choices: view.readLogPane({}),
       format: null,
       detected: 'jsonl' as const,
@@ -251,6 +259,7 @@ describe('LogSettings', () => {
       onformat: vi.fn(),
       onapp: vi.fn(),
       onchoose: vi.fn(),
+      onsetupai: vi.fn(),
       ...overrides,
     }
     render(LogSettings, { props })
@@ -301,13 +310,18 @@ describe('LogSettings', () => {
       { keepLines: 20000 },
       { initialLines: 2000 },
     ])
+    // The whole path beside ANOTHER FILE, which file it is never in doubt.
+    expect(screen.getByTestId('logwatch-settings-path').textContent).toBe('/home/dev/logs/app.log')
     await fireEvent.click(screen.getByTestId('logwatch-change'))
     expect(props.onchoose).toHaveBeenCalled()
   })
 
   it('offers EXPLAIN’s provider and model only with providers', async () => {
-    settings()
+    const bare = settings()
     expect(screen.queryByTestId('logwatch-provider')).toBeNull()
+    // Without a provider, it says where one is set up.
+    await fireEvent.click(screen.getByTestId('logwatch-setup-ai'))
+    expect(bare.onsetupai).toHaveBeenCalled()
     cleanup()
     const props = settings({ providers })
     expect((screen.getByTestId('logwatch-model') as HTMLInputElement).placeholder).toBe('small')

@@ -294,6 +294,8 @@ describe('LogWatchWidget', () => {
     await settle()
     expect(screen.getByTestId('logwatch-copy')).toBeTruthy()
     expect(screen.queryByTestId('logwatch-explain-open')).toBeNull()
+    // Without a provider it says where one is set up, rather than not being there at all.
+    expect(screen.getByTestId('logwatch-explain-setup').textContent).toContain('SET UP AI')
   })
 
   it('holds the stream on PAUSE, counting what is held, and lets it all go after', async () => {

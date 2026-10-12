@@ -427,3 +427,16 @@ describe('the card of the file followed', () => {
     ])
   })
 })
+
+describe('the error bar beside a short stream', () => {
+  it('puts each mark beside its row, not spread over the whole bar', () => {
+    // Found reviewing the screen: with the lines filling half the pane, the marks ran down to
+    // the bottom of the bar, far from their rows.
+    const rows = buildRows([line({ sig: 'a' }), line({ sig: 'b', level: 'ERR' })], ALL)
+    const offsets = rowOffsets([1, 1])
+    expect(errorMarks(rows, offsets)).toEqual([{ at: 0.5, level: 'ERR' }])
+    expect(errorMarks(rows, offsets, 20)).toEqual([{ at: 0.05, level: 'ERR' }])
+    // A stream longer than the view: the stream's own height.
+    expect(errorMarks(rows, offsets, 1)).toEqual([{ at: 0.5, level: 'ERR' }])
+  })
+})

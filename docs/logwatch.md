@@ -66,8 +66,14 @@
   `/正規表現/` の絞り込み、PAUSE、MASK、WRAP、ミュート中のパターンの数（押すと PATTERNS へ）
 - **本体**: STREAM なら行の一覧と右端のミニマップ、PATTERNS ならパターンの表（§6.4）
 - **EXPLAIN**: 開いている間、一覧の下に（§7）
-- **足元**: 「n lines kept of N · read n KB」と「read only while shown · nothing written」。行を選んでいる間は
-  COPY と EXPLAIN（§7、§9）
+- **足元**: 行を選んでいないときは「click a line to copy it or have AI explain it」と「n lines kept of N ·
+  read n KB」。選んでいる間は「1 line chosen · click it again to let go」と COPY と EXPLAIN（§7、§9）。
+  AI の設定にプロバイダがなければ、EXPLAIN の代わりに「EXPLAIN · SET UP AI」を出し、設定の ai を開く。設定のパネルの
+  explain の欄も同じ（2026-10-12、利用者が EXPLAIN の使い方を見つけられなかった: ボタンごと出していなかったため）
+- **何も出ていないとき**: 絞り込みやレベルで全部が隠れていれば「no line held matches the levels and the filter
+  shown」、まだ 1 行もなければ「no lines yet: they appear here as they are written」を一覧の中ほどに出す
+- **レベルのボタンの数**: 保持している行のうち、そのボタンが出し入れする行の数（5 分の件数はレーンと状態の行）
+- **設定のパネル**: 「this file, in every pane」の欄に、フルパスと ANOTHER FILE を並べる（利用者の提案）
 
 ### 2.1 幅による組み替え
 
@@ -237,7 +243,7 @@ DOM、Node、時計を触らない純粋関数にし、単体テストで固め�
   一致した部分を塗る
 - ミュートしたパターンは一覧に出さない
 - 右端のミニマップ（ERROR BAR）に、絞り込んだ行の中での ERR と WARN の位置を目印で出し、今見ている範囲を枠で
-  示す。クリックでそこへ移る
+  示す。クリックでそこへ移る。一覧がペインより短いときは、目印を行の横に置く（バー全体に引き伸ばさない）
 
 ### 6.4 PATTERNS タブ
 
@@ -258,7 +264,8 @@ DOM、Node、時計を触らない純粋関数にし、単体テストで固め�
 - **出す条件**: AI の設定にプロバイダが 1 つ以上あるときだけ、ボタンを出す。なければボタンごと出さない
 - **選び方**: AI チャットと同じく、ペイン状態にプロバイダの id とモデル名を持ち、ないときはそのプロバイダの
   既定のモデルを使う。設定のパネルに選択欄を置く
-- **流れ**: 行を選んで（クリック）足元の EXPLAIN を押すと、一覧の下（ペインの高さの 45% まで）に送る本文を見せ
+- **流れ**: 開いている間に別の行で EXPLAIN を押すと、その行に替わる（書かれている途中の答えは止める）。
+  行を選んで（クリック）足元の EXPLAIN を押すと、一覧の下（ペインの高さの 45% まで）に送る本文を見せ
   （選んだ行、その前の行、スタックトレース、判定した形式とファイル名）、SEND を押したときだけ送る。畳んだ行
   （×n）は、その一番新しい 1 行を選ぶ
   - 前の行数は 10 行（固定。2026-10-12、利用者の決定）
@@ -380,14 +387,15 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。行にな�
 
 | ファイル | 中身 |
 |----------|------|
-| \`logwatch.test.ts\` | 純粋関数（検査、文字コード、伏せ字と署名、1 行の長さに比例する速さ、読み取り、保持、急増、ファイル、EXPLAIN の本文） |
-| \`logwatch-formats.test.ts\`、\`logwatch-formats-edges.test.ts\` | 形式ごとの読み取りと、その端（レベルの数値、エポック秒、構造のない値、syslog の \`-\`、W3C の欠けた列、壊れた日付、混ざった判定、Windows-1252） |
-| \`logwatch-service.test.ts\`、\`logwatch-service-edges.test.ts\` | main の追従（実ファイルと仮想時計）。差し替え・削除・権限・読み取り中の縮み（copytruncate）、隠れている間の差し替えと帯、2 つの文字コード、隠れた 8 ファイルを超えたとき、知らない id、変化の束、状態だけの送信、\`since\` の端、破棄、パターン |
-| \`logwatch-main.test.ts\` | カタログ（壊れた行だけ捨てる）、選んだファイルの検査（\`registerChosen\`）、Node のファイルシステム |
-| \`logwatch-explain.test.ts\` | EXPLAIN（プロバイダの選び方、平文 http の鍵、検索後の答え、途中で止まった答え、送る間隔、時間切れ、破棄） |
-| \`logwatch-view.test.ts\` | 画面の判断（絞り込み、畳み込み、高さ、時刻、パターン、エラーの目印、カード） |
-| \`tests/component/logwatch-widget.test.ts\`、\`logwatch-parts.test.ts\` | ウィジェット（届いた行、見えている間だけの購読、PAUSE、急増のランプ、EXPLAIN の早い完了）と部品（一覧、トレース、追従と NEW の数、ERROR BAR、PATTERNS、設定、カード） |
-| \`tests/e2e/logwatch.spec.ts\`、\`logwatch-edges.spec.ts\` | アプリで: 追記、トレース、MASK、絞り込み、PATTERNS、タブの後ろ、Shift_JIS、グラフと ERROR BAR、EXPLAIN、ローテーション、削除と再作成、最新を追う、断る理由、知らない id、最小化、COPY、形式と時刻、RECENT、応答のない EXPLAIN、レベル・PAUSE・WRAP（折り返した行と次の行が重ならないこと） |
+| `logwatch.test.ts` | 純粋関数（検査、文字コード、伏せ字と署名、1 行の長さに比例する速さ、読み取り、保持、急増、ファイル、EXPLAIN の本文） |
+| `logwatch-formats.test.ts`、`logwatch-formats-edges.test.ts` | 形式ごとの読み取りと、その端（レベルの数値、エポック秒、構造のない値、syslog の `-`、W3C の欠けた列、壊れた日付、混ざった判定、Windows-1252） |
+| `logwatch-service.test.ts`、`logwatch-service-edges.test.ts` | main の追従（実ファイルと仮想時計）。差し替え・削除・権限・読み取り中の縮み（copytruncate）、隠れている間の差し替えと帯、2 つの文字コード、隠れた 8 ファイルを超えたとき、知らない id、変化の束、状態だけの送信、`since` の端、破棄、パターン |
+| `logwatch-main.test.ts` | カタログ（壊れた行だけ捨てる）、選んだファイルの検査（`registerChosen`）、Node のファイルシステム |
+| （UI の見直し、2026-10-12） | 設定のフルパスと ANOTHER FILE、SET UP AI、足元の案内、空のときの言葉、短い一覧での ERROR BAR の位置、EXPLAIN の行の差し替え |
+| `logwatch-explain.test.ts` | EXPLAIN（プロバイダの選び方、平文 http の鍵、検索後の答え、途中で止まった答え、送る間隔、時間切れ、破棄） |
+| `logwatch-view.test.ts` | 画面の判断（絞り込み、畳み込み、高さ、時刻、パターン、エラーの目印、カード） |
+| `tests/component/logwatch-widget.test.ts`、`logwatch-parts.test.ts` | ウィジェット（届いた行、見えている間だけの購読、PAUSE、急増のランプ、EXPLAIN の早い完了）と部品（一覧、トレース、追従と NEW の数、ERROR BAR、PATTERNS、設定、カード） |
+| `tests/e2e/logwatch.spec.ts`、`logwatch-edges.spec.ts` | アプリで: 追記、トレース、MASK、絞り込み、PATTERNS、タブの後ろ、Shift_JIS、グラフと ERROR BAR、EXPLAIN、ローテーション、削除と再作成、最新を追う、断る理由、知らない id、最小化、COPY、形式と時刻、RECENT、応答のない EXPLAIN、レベル・PAUSE・WRAP（折り返した行と次の行が重ならないこと） |
 
 - **単体**: 形式ごとの判定と正規化（作り物の各形式のサンプル）、続きの行、署名、NEW の学習期間、畳み込み、
   急増、伏せ字、トークン、ローテーションの判定、UTF-16 と Shift_JIS、途中で切れた行、長すぎる行、バイナリ

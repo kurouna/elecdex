@@ -37,12 +37,25 @@ interface Props {
   match: RegExp | null
   /** The seq of the row chosen (for EXPLAIN, COPY), or null. */
   selected: number | null
+  /** Said in the middle when no line is shown, or null. */
+  empty?: string | null
   onselect: (row: Row) => void
   onhover: (row: Row | null, event: { row: DOMRect; x: number | null } | null) => void
 }
 
-const { rows, time, now, wrap, errorBar, mask, match, selected, onselect, onhover }: Props =
-  $props()
+const {
+  rows,
+  time,
+  now,
+  wrap,
+  errorBar,
+  mask,
+  match,
+  selected,
+  empty = null,
+  onselect,
+  onhover,
+}: Props = $props()
 
 /** Rows drawn above and below what is in sight, so a quick scroll shows no gap. */
 const OVERSCAN = 20
@@ -211,7 +224,9 @@ function onkey(row: Row, event: KeyboardEvent): void {
   }
 }
 
-const marks = $derived(errorBar ? errorMarks(rows, offsets) : [])
+/** The height the bar stands for, in lines: the stream's, or the view's when it is shorter. */
+const barLines = $derived(Math.max(totalLines, viewHeight / lineHeight))
+const marks = $derived(errorBar ? errorMarks(rows, offsets, barLines) : [])
 const shownText = (text: string): string => (mask ? maskText(text) : text)
 const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.item : null)
 </script>
@@ -230,6 +245,9 @@ const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.ite
     role="list"
   >
     <span class="probe" bind:this={probe} aria-hidden="true">0000000000</span>
+    {#if empty !== null}
+      <p class="empty" data-testid="logwatch-empty">{empty}</p>
+    {/if}
     <div class="space" style:height="{totalLines * lineHeight}px">
       {#each shown as { row, index } (row.item.seq)}
         {@const line = lineOf(row)}
@@ -314,8 +332,8 @@ const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.ite
       {#if totalLines > 0}
         <span
           class="view"
-          style:top="{(scrollTop / (totalLines * lineHeight)) * 100}%"
-          style:height="{Math.min(100, (viewHeight / (totalLines * lineHeight)) * 100)}%"
+          style:top="{(scrollTop / (barLines * lineHeight)) * 100}%"
+          style:height="{Math.min(100, (viewHeight / (barLines * lineHeight)) * 100)}%"
         ></span>
       {/if}
     </div>
@@ -359,6 +377,19 @@ const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.ite
 
 .space {
   position: relative;
+}
+
+.empty {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  right: 0;
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .row,

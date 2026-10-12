@@ -283,8 +283,13 @@ export function tallyPatterns(items: readonly LogItem[], now: number): PatternRo
 export function errorMarks(
   rows: readonly Row[],
   offsets: Float64Array,
+  /**
+   * The lines the bar stands for: the stream's, or the view's when the stream is shorter - a
+   * mark lies beside its row, not spread over the whole bar.
+   */
+  span: number = offsets[rows.length] ?? 0,
 ): { at: number; level: 'ERR' | 'WRN' }[] {
-  const total = offsets[rows.length] ?? 0
+  const total = Math.max(span, offsets[rows.length] ?? 0)
   if (total === 0) return []
   const marks: { at: number; level: 'ERR' | 'WRN' }[] = []
   let lastAt = -1

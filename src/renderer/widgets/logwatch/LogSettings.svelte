@@ -8,6 +8,7 @@ import {
   LOG_ENCODINGS,
   LOG_FORMATS,
   type LogEncodingChoice,
+  type LogFileRef,
   type LogFormat,
 } from '@shared/logwatch/types'
 import type { LogPaneChoices, TimeMode } from './view.ts'
@@ -18,6 +19,8 @@ import type { LogPaneChoices, TimeMode } from './view.ts'
  * for every LOG WATCH pane, then EXPLAIN's provider when the AI settings have any.
  */
 interface Props {
+  /** The file followed, its whole path shown beside ANOTHER FILE. */
+  file: LogFileRef | null
   choices: LogPaneChoices
   /** The dialect set for the file, or null when it is detected; and what was detected. */
   format: LogFormat | null
@@ -29,9 +32,12 @@ interface Props {
   onformat: (format: LogFormat | null) => void
   onapp: (change: { keepLines?: number; initialLines?: number }) => void
   onchoose: () => void
+  /** Opens the settings' AI section, where a provider is added. */
+  onsetupai: () => void
 }
 
 const {
+  file,
   choices,
   format,
   detected,
@@ -42,6 +48,7 @@ const {
   onformat,
   onapp,
   onchoose,
+  onsetupai,
 }: Props = $props()
 
 const TIMES: { value: TimeMode; label: string }[] = [
@@ -104,6 +111,13 @@ const provider = $derived(providers.find((p) => p.id === choices.provider) ?? pr
   </label>
 
   <p class="title">this file, in every pane</p>
+  <div class="group file">
+    <span>file</span>
+    <code data-testid="logwatch-settings-path">{file?.path ?? ''}</code>
+    <button type="button" class="choose" onclick={onchoose} data-testid="logwatch-change"
+      >ANOTHER FILE</button
+    >
+  </div>
   <label class="group">
     <span>format</span>
     <select
@@ -120,9 +134,6 @@ const provider = $derived(providers.find((p) => p.id === choices.provider) ?? pr
       {/each}
     </select>
   </label>
-  <button type="button" class="choose" onclick={onchoose} data-testid="logwatch-change"
-    >ANOTHER FILE</button
-  >
 
   <p class="title">every log watch pane</p>
   <div class="group" role="radiogroup" aria-label="lines kept">
@@ -177,6 +188,14 @@ const provider = $derived(providers.find((p) => p.id === choices.provider) ?? pr
         data-testid="logwatch-model"
       />
     </label>
+  {:else}
+    <p class="title">explain</p>
+    <div class="group">
+      <span>no AI provider yet: EXPLAIN asks one of the AI settings</span>
+      <button type="button" class="choose" onclick={onsetupai} data-testid="logwatch-setup-ai"
+        >SET UP AI</button
+      >
+    </div>
   {/if}
 </div>
 
@@ -238,6 +257,21 @@ const provider = $derived(providers.find((p) => p.id === choices.provider) ?? pr
 .choose:hover,
 .group button:hover {
   color: var(--text);
+}
+
+.file {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+.file code {
+  min-width: 0;
+  margin-right: var(--space-2);
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text);
+  text-transform: none;
 }
 
 select,
