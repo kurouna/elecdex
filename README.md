@@ -24,7 +24,7 @@ for Windows, macOS and Linux.
   ▶ <a href="https://youtu.be/LgbC3Iubot0">Watch the 2-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.27 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.28 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -111,7 +111,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Docker** — the containers of the Docker engine on your computer, by Compose
   project: up or down, healthy or not, their published ports (a click opens one in the browser)
   and what each uses; start, stop, restart and pause from the row.
-- **Log Watch** *(unreleased)* — a log file followed as it grows: levels coloured, stack traces
+- **Log Watch** — a log file followed as it grows: levels coloured, stack traces
   folded, repeats counted, patterns never seen before marked NEW, an error burst lit, and
   **EXPLAIN** to ask the model of your AI settings about the lines you choose.
 - Tabs keep the rest at hand: a shell behind Docker, the clipboard history with a timer and one
@@ -612,7 +612,7 @@ weather and calendar.
   Nothing is written to disk or logged, and no plugin can reach it. An engine on another machine,
   over TLS or ssh is not used. **NO DAEMON** says nothing answers (start Docker Desktop, or the
   service), **DENIED** that this user may not open the socket (on Linux, the docker group).
-- **Log Watch** *(unreleased)* — in the dev preset, or add it from the picker ("log watch").
+- **Log Watch** — in the dev preset, or add it from the picker ("log watch").
   **SELECT LOG FILE** picks a file; **FOLLOW THE NEWEST LIKE IT** follows the newest file in its
   folder whose name differs only in its numbers (a log that starts a new file each day or each
   run). The pane reads the last lines on opening and then only what is appended, and only while it

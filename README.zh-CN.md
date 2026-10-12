@@ -23,7 +23,7 @@
   ▶ <a href="https://youtu.be/LgbC3Iubot0">2 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
-> **v0.0.27 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.28 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -100,7 +100,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   提交图，随改动实时更新——可以在旁边的窗格里看着 AI 代理干活。可以 FETCH，以及仅快进的 PULL。每个仓库一个窗格。
 - **Docker** — 你电脑上 Docker 引擎的容器，按 Compose 项目分组：运行与否、
   健康与否、公开的端口（点击在浏览器中打开）以及各自的资源占用；在行上即可启动、停止、重启和暂停。
-- **Log Watch** *(unreleased)* — 跟随不断增长的日志文件：按级别着色、折叠堆栈跟踪、合并重复行、
+- **Log Watch** — 跟随不断增长的日志文件：按级别着色、折叠堆栈跟踪、合并重复行、
   为首次出现的模式标记 NEW、错误激增时点亮指示灯，并可用 **EXPLAIN** 让 AI 设置中的模型解释所选的行。
 - 其余的以标签页放在手边：Docker 后面是一个 shell，底部是剪贴板历史、计时器和另一个 shell，
   GIT 后面是 AI 聊天和 Log Watch。
@@ -527,7 +527,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   或收起时，不会询问引擎。不写入磁盘或日志，插件也无法访问。不使用其他机器上、经 TLS 或 ssh 的引擎。
   **NO DAEMON** 表示没有响应（请启动 Docker Desktop 或服务），**DENIED** 表示当前用户无法打开套接字
   （Linux 上请加入 docker 组）。
-- **Log Watch** *(unreleased)* — 在 dev 预设中，或从选择器添加（"log watch"）。**SELECT LOG FILE**
+- **Log Watch** — 在 dev 预设中，或从选择器添加（"log watch"）。**SELECT LOG FILE**
   选择一个文件；**FOLLOW THE NEWEST LIKE IT** 则跟随同一文件夹中名称仅数字不同的最新文件（适合每天或每次
   运行新建文件的日志）。打开时读取末尾的若干行，之后只读取追加的部分，且只在可见时读取：位于其他标签页之后
   或窗口收起时什么也不读，回来时把期间写入的内容像其他行一样显示到最新。可识别 JSON Lines（pino、bunyan、
