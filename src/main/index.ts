@@ -16,6 +16,7 @@ import { registerFsIpc } from './ipc/fs.js'
 import { registerGitIpc } from './ipc/git.js'
 import { registerLauncherIpc } from './ipc/launcher.js'
 import { registerLayoutIpc } from './ipc/layout.js'
+import { registerLogWatchIpc } from './ipc/logwatch.js'
 import { registerMarketsIpc } from './ipc/markets.js'
 import { registerNotesIpc } from './ipc/notes.js'
 import { registerNowPlayingIpc } from './ipc/now-playing.js'
@@ -106,6 +107,7 @@ let updatesIpc: { dispose: () => void } | null = null
 let audioIpc: { dispose: () => void } | null = null
 let pluginsIpc: { dispose: () => void } | null = null
 let webIpc: { dispose: () => void } | null = null
+let logWatchIpc: { dispose: () => void } | null = null
 let background: Background | null = null
 
 app.whenReady().then(() => {
@@ -133,6 +135,7 @@ app.whenReady().then(() => {
   const ai = registerAiIpc(settings)
   aiIpc = ai
   aiLinks = ai.links
+  logWatchIpc = registerLogWatchIpc(settings, ai.links)
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
   notesIpc = registerNotesIpc()
@@ -235,6 +238,8 @@ app.on('will-quit', () => {
   pluginsIpc = null
   webIpc?.dispose()
   webIpc = null
+  logWatchIpc?.dispose()
+  logWatchIpc = null
   background?.dispose()
   background = null
 })

@@ -177,6 +177,7 @@ const WIDGETS = [
   'aichat',
   'elec',
   'git',
+  'logwatch',
   'agents',
   'orbit',
   'rss',
@@ -247,6 +248,7 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       clipboard: await window.elecdex.clipboard.watching(),
       nowPlaying: await window.elecdex.nowPlaying.watching(),
       docker: await window.elecdex.docker.watching(),
+      logwatch: await window.elecdex.logwatch.watching(),
     }))
   try {
     await expect(page.getByTestId('pane')).toHaveCount(WIDGETS.length + 1)
@@ -262,6 +264,7 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       clipboard: [],
       nowPlaying: [],
       docker: [],
+      logwatch: [],
     })
     // Once the start is over (a shell's first prompt, the launcher's catalog, the one-off readings),
     // the page writes nothing into any of them: no figure, no clock, no pulse. The one-off readings

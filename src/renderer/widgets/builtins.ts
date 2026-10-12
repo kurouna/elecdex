@@ -17,6 +17,7 @@ import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GitWidget from './git/GitWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
 import LauncherWidget from './launcher/LauncherWidget.svelte'
+import LogWatchWidget from './logwatch/LogWatchWidget.svelte'
 import MarketsWidget from './markets/MarketsWidget.svelte'
 import ClockWidget from './monitor/ClockWidget.svelte'
 import CpuWidget from './monitor/CpuWidget.svelte'
@@ -318,6 +319,18 @@ registerBuiltin({
     'A git repository, read only: the files changed, the diff of each, and the last commits, kept current as they change.',
   component: GitWidget,
   minSize: { w: 260, h: 160 },
+  multiple: true,
+  zoom: 'full',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'logwatch',
+  title: 'log watch',
+  description:
+    'A log file followed as it grows, read only where it grew: levels, stack traces folded, repeats counted, patterns never seen before marked, error bursts lit, and EXPLAIN for a line through the AI settings.',
+  component: LogWatchWidget,
+  minSize: { w: 300, h: 180 },
   multiple: true,
   zoom: 'full',
   popup: true,

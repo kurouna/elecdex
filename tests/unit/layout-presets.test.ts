@@ -175,7 +175,7 @@ describe('LAYOUT_PRESETS', () => {
       ['agents'],
       ['docker', 'terminal'],
       ['clipboard', 'timer', 'terminal'],
-      ['git', 'aichat'],
+      ['git', 'aichat', 'logwatch'],
     ])
     const shown = layoutShape(presetTree(presetById('dev') as LayoutPreset))
     expect(shown.filter((r) => r.tabs > 1).map((r) => r.widget)).toEqual([
@@ -246,7 +246,7 @@ describe('LAYOUT_PRESETS', () => {
         expect(h * 718, `${preset.id}: ${widget}`).toBeGreaterThanOrEqual(min?.h ?? 0)
       }
     }
-    expect(behindTabs(presetById('dev') as LayoutPreset)).toHaveLength(7)
+    expect(behindTabs(presetById('dev') as LayoutPreset)).toHaveLength(8)
   })
 
   it('builds a fresh tree every time, with ids of its own', () => {

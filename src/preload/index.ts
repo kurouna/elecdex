@@ -47,6 +47,13 @@ import type { GitDiff, GitFile, GitLog, GitRepoRef, GitState } from '@shared/git
 import type { GitSyncResult } from '@shared/git-sync'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { SavedLayoutSummary } from '@shared/layouts'
+import {
+  keyOf,
+  type LogExplainEvent,
+  type LogFileRef,
+  type LogSubscribeRequest,
+  type LogWatchEvent,
+} from '@shared/logwatch/types'
 import { chartKey, type MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { Note, NotesFile } from '@shared/notes'
@@ -369,6 +376,43 @@ const subscribeGit = keyedSubscriptions<GitState>({
   keyOf: (state) => state.repoId,
 })
 
+/**
+ * LOG WATCH: one subscription a file and encoding, as the page's feed for it (one a key) asks.
+ * What arrives is added to what the page holds, so a second handler on the same key would miss
+ * what came before it: the page shares its one feed between panes instead.
+ */
+const logHandlers = new Map<string, Set<(event: LogWatchEvent) => void>>()
+
+ipcRenderer.on(CH.logwatch.event, (_event, payload: LogWatchEvent) => {
+  for (const handler of logHandlers.get(payload.key) ?? []) handler(payload)
+})
+
+function subscribeLog(
+  request: LogSubscribeRequest,
+  handler: (event: LogWatchEvent) => void,
+): () => void {
+  const key = keyOf(request.id, request.encoding)
+  let set = logHandlers.get(key)
+  if (!set) {
+    set = new Set()
+    logHandlers.set(key, set)
+    ipcRenderer.send(CH.logwatch.subscribe, request)
+  }
+  set.add(handler)
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    const current = logHandlers.get(key)
+    if (!current) return
+    current.delete(handler)
+    if (current.size === 0) {
+      logHandlers.delete(key)
+      ipcRenderer.send(CH.logwatch.unsubscribe, request.id, request.encoding)
+    }
+  }
+}
+
 const subscribeFeed = keyedSubscriptions<FeedUpdate>({
   subscribe: CH.feeds.subscribe,
   unsubscribe: CH.feeds.unsubscribe,
@@ -688,6 +732,26 @@ const api: ElecdexApi = {
     seal: (secret) => ipcRenderer.invoke(CH.utility.seal, secret) as Promise<string | null>,
     unseal: (sealed) => ipcRenderer.invoke(CH.utility.unseal, sealed) as Promise<string | null>,
     copy: (what) => ipcRenderer.invoke(CH.utility.copy, what) as Promise<boolean>,
+  },
+  logwatch: {
+    subscribe: (request, handler) => subscribeLog(request, handler),
+    pick: (newest) =>
+      ipcRenderer.invoke(CH.logwatch.pick, newest) as Promise<
+        { file: LogFileRef } | { problem: string } | null
+      >,
+    describe: (id) => ipcRenderer.invoke(CH.logwatch.describe, id) as Promise<LogFileRef | null>,
+    recent: () => ipcRenderer.invoke(CH.logwatch.recent) as Promise<LogFileRef[]>,
+    setFormat: (id, format) =>
+      ipcRenderer.invoke(CH.logwatch.setFormat, id, format) as Promise<boolean>,
+    preview: (request) =>
+      ipcRenderer.invoke(CH.logwatch.preview, request) as Promise<string | null>,
+    explain: (request) =>
+      ipcRenderer.invoke(CH.logwatch.explain, request) as Promise<
+        { token: string } | { problem: string }
+      >,
+    cancelExplain: (token) => ipcRenderer.send(CH.logwatch.cancelExplain, token),
+    onExplained: (handler) => listen<LogExplainEvent>(CH.logwatch.explained, handler),
+    watching: () => ipcRenderer.invoke(CH.logwatch.watching) as Promise<string[]>,
   },
   agents: {
     subscribe: (handler) => subscribeAgents('board', handler),

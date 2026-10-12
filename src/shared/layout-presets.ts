@@ -110,7 +110,8 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
     // written runs in, with a shell behind them, and at the foot what was copied
     // lately, a timer and one more shell (user decision 2026-10-01). The panes in
     // front are the ones that read only while seen - the engine, the clipboard -
-    // so a fresh dev layout shows them working.
+    // so a fresh dev layout shows them working. The log of what is being run waits as a third
+    // tab beside git and the chat (user decision 2026-10-12).
     id: 'dev',
     name: 'dev',
     description: 'coding agents at work, the containers they run, and the repository they change',
@@ -126,7 +127,7 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
             ],
             [0.42, 0.28, 0.3],
           ),
-          tabs([pane('git'), pane('aichat')]),
+          tabs([pane('git'), pane('aichat'), pane('logwatch')]),
         ],
         [0.415, 0.585],
       ),

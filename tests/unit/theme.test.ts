@@ -173,6 +173,7 @@ describe('settings', () => {
       web: { tint: false },
       agents: { sources: ['claude-code'] },
       git: { openCommand: '' },
+      logWatch: { keepLines: 5000, initialLines: 500 },
       chip8: { core: true, volume: 0.5 },
       elec16: {
         volume: 0.5,

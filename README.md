@@ -95,7 +95,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 
 <p align="center">
   <a href="https://youtu.be/YLxHhQ7wAyE">
-    <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use, a shell tab behind it; below that a clipboard history of made-up copies, with a timer and a shell in the tabs behind; a GIT pane on the right, an AI chat tab behind it, with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
+    <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use, a shell tab behind it; below that a clipboard history of made-up copies, with a timer and a shell in the tabs behind; a GIT pane on the right, an AI chat tab and a log watch tab behind it, with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
   </a>
   <br><sub>dev · Phosphor</sub>
   <br>
@@ -111,8 +111,11 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Docker** — the containers of the Docker engine on your computer, by Compose
   project: up or down, healthy or not, their published ports (a click opens one in the browser)
   and what each uses; start, stop, restart and pause from the row.
+- **Log Watch** *(unreleased)* — a log file followed as it grows: levels coloured, stack traces
+  folded, repeats counted, patterns never seen before marked NEW, an error burst lit, and
+  **EXPLAIN** to ask the model of your AI settings about a line.
 - Tabs keep the rest at hand: a shell behind Docker, the clipboard history with a timer and one
-  more shell at the foot, and an AI chat behind GIT for a question on the side.
+  more shell at the foot, and an AI chat and Log Watch behind GIT.
 
 ### media — watch, scroll, and see the sound
 
@@ -442,7 +445,7 @@ reduced.
 
 Nine **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
-(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT and an AI chat - each group as tabs), **media**
+(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT, an AI chat and Log Watch - each group as tabs), **media**
 (YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
 the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system), **cockpit** (the CLUSTER pane in place of the system column, a shell under it and two one over the other beside it) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one but cockpit keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
@@ -609,6 +612,23 @@ weather and calendar.
   Nothing is written to disk or logged, and no plugin can reach it. An engine on another machine,
   over TLS or ssh is not used. **NO DAEMON** says nothing answers (start Docker Desktop, or the
   service), **DENIED** that this user may not open the socket (on Linux, the docker group).
+- **Log Watch** *(unreleased)* — in the dev preset, or add it from the picker ("log watch").
+  **SELECT LOG FILE** picks a file; **FOLLOW THE NEWEST LIKE IT** follows the newest file in its
+  folder whose name differs only in its numbers (a log that starts a new file each day or each
+  run). The pane reads the last lines on opening and then only what is appended, and only while it
+  is seen: behind another tab or with the window put away nothing is read, and on coming back what
+  was written meanwhile arrives under a banner summing it up. It recognises JSON lines (pino,
+  bunyan, Serilog...), logfmt, syslog, Apache and nginx access logs, IIS's W3C files and the common
+  "time [level] text", and reads the rest as plain lines. Levels are coloured, stack traces fold
+  under their line, a run of one pattern folds into ×n, a pattern seen for the first time is marked
+  NEW, and errors coming much faster than before light ERROR BURST. Five minutes of lines by level
+  above, the errors and warnings marked down the right, a filter (text or `/regex/`), PAUSE, MASK
+  (addresses, e-mail and credentials hidden), WRAP, and a PATTERNS tab with each pattern's count
+  and MUTE. A rotated or truncated file is read again from its start. The encoding is detected
+  (UTF-8, UTF-16, Shift_JIS, EUC-JP...) and can be chosen by hand when the text looks garbled. With
+  a provider in the AI settings, **EXPLAIN** shows the line and the ten before it, as they will be
+  sent, and sends them only on **SEND**. Nothing is ever written to the file.
+  `node scripts/log-feed.mjs` writes a made-up log to try it with.
 - **Markets** — indices, currencies and anything Yahoo Finance quotes, about once a minute, as
   sparklines, candlesticks or bars of the change (in the list's order, or sorted by it). The rows
   share the pane: two columns when it is wide, one line each when it is short, and candles across

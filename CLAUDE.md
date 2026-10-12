@@ -57,6 +57,7 @@ node scripts/elecfighter-art.mjs [stage|title|screens]  # ELECFIGHTER's pictures
 node scripts/elecfighter/serve.mjs       # ELECFIGHTER's design viewer (viewer.html): the same three.js scene the bitmaps come from
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
+node scripts/log-feed.mjs [file] [--format=jsonl|logfmt|generic|syslog|clf|plain] [--rate=20] [--encoding=utf-8|utf-16le|shift_jis] [--rotate=60]  # a made-up log for LOG WATCH
 ```
 
 Single tests: `npx vitest run tests/unit/<file>.test.ts`,
@@ -97,7 +98,7 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  elec16-elecaircombat.md, elec16-elecdrill.md, elec16-elecfighter.md (the four
                  games), elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER's design),
                  cluster.md (the CLUSTER pane), logwatch.md and logwatch-mock/ (the LOG WATCH
-                 pane, designed), demos.md (making, changing and recording the demos),
+                 pane), demos.md (making, changing and recording the demos),
                  screenshots/ (README images)
 ```
 
@@ -332,6 +333,21 @@ user made; do not reverse one without asking.
   - A reading is drawn as it arrives; the lanes are lines redrawn once per cpu.load sample,
     without animation (user decision 2026-10-10), and never scroll on their own. A lamp that does not apply (BATT without a battery, QUAKE with quake
     alerts off) is left out, never shown dark. No settings.
+- **The LOG WATCH pane reads a log only while it is seen** (§5.21, docs/logwatch.md,
+  shared/logwatch/, main/logwatch/). Files only (Windows event logs wait for the user, decision
+  2026-10-12); one file a pane, chosen through main's picker and known by id (`log-files.json`),
+  never a path from the page. Nothing is ever written to the file.
+  - Main watches the file's folder and looks once a second only while a page shows it, reads only
+    where the file grew, never holds it open, and on coming back reads the gap (its end past 4 MB)
+    under an `away` mark. Nothing while hidden, no notification.
+  - Parsing is pure (shared/logwatch) and runs in main (measured: about 1 ms a quarter second at
+    1000 lines/s). One channel per file and encoding in main, one feed per key in the page
+    (feed.svelte.ts), shared by panes; the feed's array is replaced, never grown in place.
+  - EXPLAIN only on a press, only with an AI provider set: main puts the text together from what
+    it read (`explainText`, the same for preview and send), masked when MASK is on; the key stays
+    in main, the answer is drawn from the markdown tree.
+  - Tests write logs in a temp folder and replace `dialog.showOpenDialog`; `scripts/log-feed.mjs`
+    is for trying it by hand.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).

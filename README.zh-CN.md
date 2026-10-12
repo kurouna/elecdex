@@ -86,7 +86,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 
 <p align="center">
   <a href="https://youtu.be/YLxHhQ7wAyE">
-    <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor 主题下的 dev 预设：AI AGENT 窗格显示两个 Claude Code 会话，其中一个正忙，有子代理在工作、测试在后台运行，并列出它修改的文件；下面是 DOCKER 窗格，按 Compose 项目（ledger 和 shop）列出虚构的容器及其健康状态、端口和占用；其后是一个 shell 标签页；再下面是虚构复制内容的剪贴板历史，其后是计时器和 shell 的标签页；右侧的 GIT 窗格打开同一个检出，显示 passes.ts 的 diff，以及提交图和鼠标悬停处某个提交的卡片，其后是一个 AI 聊天标签页">
+    <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor 主题下的 dev 预设：AI AGENT 窗格显示两个 Claude Code 会话，其中一个正忙，有子代理在工作、测试在后台运行，并列出它修改的文件；下面是 DOCKER 窗格，按 Compose 项目（ledger 和 shop）列出虚构的容器及其健康状态、端口和占用；其后是一个 shell 标签页；再下面是虚构复制内容的剪贴板历史，其后是计时器和 shell 的标签页；右侧的 GIT 窗格打开同一个检出，显示 passes.ts 的 diff，以及提交图和鼠标悬停处某个提交的卡片，其后是 AI 聊天和 LOG WATCH 标签页">
   </a>
   <br><sub>dev · Phosphor</sub>
   <br>
@@ -100,8 +100,10 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   提交图，随改动实时更新——可以在旁边的窗格里看着 AI 代理干活。可以 FETCH，以及仅快进的 PULL。每个仓库一个窗格。
 - **Docker** — 你电脑上 Docker 引擎的容器，按 Compose 项目分组：运行与否、
   健康与否、公开的端口（点击在浏览器中打开）以及各自的资源占用；在行上即可启动、停止、重启和暂停。
+- **Log Watch** *(unreleased)* — 跟随不断增长的日志文件：按级别着色、折叠堆栈跟踪、合并重复行、
+  为首次出现的模式标记 NEW、错误激增时点亮指示灯，并可用 **EXPLAIN** 让 AI 设置中的模型解释某一行。
 - 其余的以标签页放在手边：Docker 后面是一个 shell，底部是剪贴板历史、计时器和另一个 shell，
-  GIT 后面是一个 AI 聊天，方便顺手问个问题。
+  GIT 后面是 AI 聊天和 Log Watch。
 
 ### media — 看视频、刷信息流、看见声音
 
@@ -395,7 +397,7 @@ elecdex 在前台时按下它会把 elecdex 收起；在其他地方按下则把
 
 列表下方有九个**预设**，每个都画成其窗格的小地图：**standard**（默认布局）、
 **network**（地球和 shell，旁边是 Wi-Fi 和连接）、**earth**（ORBIT、地球、地震和天气）、**dev**（AI AGENT；
-Docker 和 shell；剪贴板、计时器和 shell；GIT 和 AI 聊天——每组都是标签页）、**media**（YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页）、
+Docker 和 shell；剪贴板、计时器和 shell；GIT、AI 聊天和 Log Watch——每组都是标签页）、**media**（YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页）、
 **desk**（记事、计时器、计算器、任务、日历、剪贴板和实用工具）、**ai**（上下两个 AI 聊天和 ELEC system）、**cockpit**（以 CLUSTER 面板取代系统栏，下方一个 shell，右侧上下两个 shell）以及 **retro**（ELEC-16 和 CHIP-8 作为一个窗格的标签页，下方是 16 段频谱）。除 cockpit 外，每个预设都把系统栏留在左侧，所以切换时换的是
 舞台，仪表仍在原处。选择一个预设会用它新建一个布局并切换过去——此后它就是你的布局之一，
 跟随你的工作——再次选择它会回到那个布局，而不会再新建一个；↺ 把它恢复为预设原样。每个预设
@@ -525,6 +527,17 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   或收起时，不会询问引擎。不写入磁盘或日志，插件也无法访问。不使用其他机器上、经 TLS 或 ssh 的引擎。
   **NO DAEMON** 表示没有响应（请启动 Docker Desktop 或服务），**DENIED** 表示当前用户无法打开套接字
   （Linux 上请加入 docker 组）。
+- **Log Watch** *(unreleased)* — 在 dev 预设中，或从选择器添加（"log watch"）。**SELECT LOG FILE**
+  选择一个文件；**FOLLOW THE NEWEST LIKE IT** 则跟随同一文件夹中名称仅数字不同的最新文件（适合每天或每次
+  运行新建文件的日志）。打开时读取末尾的若干行，之后只读取追加的部分，且只在可见时读取：位于其他标签页之后
+  或窗口收起时什么也不读，回来时把期间写入的内容放在一条汇总横幅之下显示。可识别 JSON Lines（pino、bunyan、
+  Serilog 等）、logfmt、syslog、Apache 和 nginx 访问日志、IIS 的 W3C 格式以及常见的"时间 [级别] 正文"，
+  其余按普通行读取。按级别着色，堆栈跟踪折叠在所属行之下，同一模式的连续行合并为 ×n，首次出现的模式标记
+  NEW，错误明显增多时点亮 ERROR BURST。上方是按级别统计的 5 分钟行数，右侧标出错误和警告的位置，另有过滤
+  （文本或 `/正则/`）、PAUSE、MASK（隐藏地址、邮箱和凭据）、WRAP，以及显示各模式计数并可 MUTE 的
+  PATTERNS 标签页。文件轮转或截断后从头重新读取。自动识别编码（UTF-8、UTF-16、Shift_JIS、EUC-JP 等），
+  出现乱码时可手动选择。AI 设置中有提供方时，**EXPLAIN** 会按发送时的原样显示该行及其前 10 行，只有按下
+  **SEND** 才发送。从不写入文件。`node scripts/log-feed.mjs` 可写出用于试用的虚构日志。
 - **行情** — 指数、汇率以及 Yahoo Finance 提供报价的任何品种，大约每分钟更新一次，可显示为
   迷你走势线、K 线或涨跌柱（按列表顺序，或按涨跌排序）。各行共享窗格空间：窗格宽时分两栏，
   矮时每行一条，K 线横跨名称下方的整行。点击某个代码，它的图表会占满整个窗格——带价格轴、

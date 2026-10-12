@@ -53,6 +53,14 @@ import type {
 import type { GitSyncAction, GitSyncResult } from './git-sync.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { SavedLayoutSummary } from './layouts.js'
+import type {
+  LogExplainEvent,
+  LogExplainRequest,
+  LogFileRef,
+  LogFormat,
+  LogSubscribeRequest,
+  LogWatchEvent,
+} from './logwatch/types.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { Note, NotesFile } from './notes.js'
@@ -681,6 +689,37 @@ export interface GitApi {
   watching(): Promise<string[]>
 }
 
+/**
+ * The LOG WATCH pane (docs/logwatch.md): log files known to the page by id, followed while a pane
+ * shows them, read only where they grew. Nothing is written to them.
+ */
+export interface LogWatchApi {
+  /**
+   * Follows a file in an encoding: what the page lacks after `since` at once (or everything,
+   * `reset`), then what is read, on the quarter seconds. Returns an unsubscribe.
+   */
+  subscribe(request: LogSubscribeRequest, handler: (event: LogWatchEvent) => void): () => void
+  /**
+   * Main opens a file picker. `newest`: follow the newest file in its folder whose name is like
+   * the one chosen. Null when the picker was closed; a problem when the file cannot be followed.
+   */
+  pick(newest: boolean): Promise<{ file: LogFileRef } | { problem: string } | null>
+  /** Files watched before on this machine, most recent first. */
+  recent(): Promise<LogFileRef[]>
+  /** A file as the page may know it; null for an id this machine does not know. */
+  describe(id: string): Promise<LogFileRef | null>
+  /** Reads a file in a dialect from now on (null: detected), every pane following it afresh. */
+  setFormat(id: string, format: LogFormat | null): Promise<boolean>
+  /** What EXPLAIN would send for a line; null when main no longer holds it. */
+  preview(request: LogExplainRequest): Promise<string | null>
+  /** Asks a provider about a line; the answer comes to `onExplained` under the token. */
+  explain(request: LogExplainRequest): Promise<{ token: string } | { problem: string }>
+  cancelExplain(token: string): void
+  onExplained(handler: (event: LogExplainEvent) => void): () => void
+  /** Diagnostics: the file ids main is following. */
+  watching(): Promise<string[]>
+}
+
 export interface QuakesApi {
   /**
    * Keeps the earthquake list and tsunami state current while subscribed (a quakes pane). The
@@ -913,6 +952,7 @@ export interface ElecdexApi {
   chip8: Chip8Api
   elec16: Elec16Api
   git: GitApi
+  logwatch: LogWatchApi
   orbits: OrbitsApi
   agents: AgentsApi
   ai: AiApi

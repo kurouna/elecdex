@@ -502,7 +502,7 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 
 **プリセット**（`shared/layout-presets.ts`、2026-09-24）: 用途別の配置を組み込みで持つ。standard（既定
 レイアウトそのもの）/ network（地球儀・connections を 3:2・シェル）/ earth（ORBIT・地球儀・地震・天気・シェル）/
-dev（AI AGENT、Docker とシェルのタブ、clipboard・timer・シェルのタブを縦に、右に GIT と AI チャットのタブ。前面は見えている間だけ読む Docker と clipboard と、差分に全高が要る GIT。§5.17。2026-10-01 に利用者の指定で組み直した）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（3 列: notes の下に timer と calculator、tasks の下に clipboard、calendar の下に utility。シェルなし。clipboard は見えている間だけ読むのでタブに重ねない。§5.14。2026-09-27 に utility を入れるため 2 列から組み直した。§5.16）/ ai（AI チャット 2 つを上下に、右の広い列に ELEC system。§5.7・§5.8。2026-10-01 追加）/ cockpit（左上に CLUSTER、その下にシェル、右に上下 2 段のシェル。§5.20。2026-10-10 追加）/ retro（ELEC-16 と CHIP-8 をタブにした 1 つのペイン、その下に 16 バンドの spectrum。§5.18・§5.19。2026-10-04 追加。2026-10-10 に cockpit の後ろ、最後へ）の 9 つ。cockpit 以外は既定の左カラム（システム列）を同じ幅・同じ高さで
+dev（AI AGENT、Docker とシェルのタブ、clipboard・timer・シェルのタブを縦に、右に GIT と AI チャットと LOG WATCH のタブ（LOG WATCH は 2026-10-12 追加、§5.21）。前面は見えている間だけ読む Docker と clipboard と、差分に全高が要る GIT。§5.17。2026-10-01 に利用者の指定で組み直した）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（3 列: notes の下に timer と calculator、tasks の下に clipboard、calendar の下に utility。シェルなし。clipboard は見えている間だけ読むのでタブに重ねない。§5.14。2026-09-27 に utility を入れるため 2 列から組み直した。§5.16）/ ai（AI チャット 2 つを上下に、右の広い列に ELEC system。§5.7・§5.8。2026-10-01 追加）/ cockpit（左上に CLUSTER、その下にシェル、右に上下 2 段のシェル。§5.20。2026-10-10 追加）/ retro（ELEC-16 と CHIP-8 をタブにした 1 つのペイン、その下に 16 バンドの spectrum。§5.18・§5.19。2026-10-04 追加。2026-10-10 に cockpit の後ろ、最後へ）の 9 つ。cockpit 以外は既定の左カラム（システム列）を同じ幅・同じ高さで
 左端に持つので、切り替えると計器盤はそのままで右の舞台だけが替わって見える。cockpit だけは、CLUSTER が列の役目を果たすので列を持たない（2026-10-10、利用者の決定。`WITH_SYSTEM_COLUMN`）。名前は ORBIT ペインと重ならない
 ように earth にした（利用者の判断）。
 
@@ -1469,16 +1469,17 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 
 設計、決定の記録、負荷の測定は **[cluster.md](cluster.md)** に書く。cockpit プリセット（§5.6）は CLUSTER を左上に置く。
 
-### 5.21 LOG WATCH ペイン（ログファイルを見張る、設計段階）
+### 5.21 LOG WATCH ペイン（ログファイルを見張る）
 
-組み込みペイン `logwatch`（ピッカーでは log watch、既定のレイアウトには入れず、dev プリセットの GIT と AI チャットのタブに加える）。利用者が選んだログファイルを 1 ペインに 1 つ見張り、追記された分だけを読んで解析して見せる。ファイルには何も書かない（2026-10-12、設計段階）。
+組み込みペイン `logwatch`（ピッカーでは log watch、既定のレイアウトには入れず、dev プリセットの GIT と AI チャットのタブに加える）。利用者が選んだログファイルを 1 ペインに 1 つ見張り、追記された分だけを読んで解析して見せる。ファイルには何も書かない（2026-10-12）。
 - **ソース**: ファイルだけ。main の選択で登録し、id で知る（`log-files.json`、GIT ペインと同じ）。フォルダ＋パターンで一番新しいファイルを追える。Windows イベントログは別のペインの候補で、利用者の指示があるまで扱わない
-- **読み取り**: 見えている間だけ。`fs.watch` と、購読中だけの 1 秒ごとの `stat`。前回の位置の続きだけを読み、ローテーションを見分ける。隠れている間は何もせず、戻ったら差分を読んで帯にまとめる
+- **読み取り**（main、`main/logwatch/service.ts`、Electron に依存しない）: 見えている間だけ。フォルダの `fs.watch` と、購読中だけの 1 秒ごとの `stat`。前回の位置の続きだけを読み、ローテーションを見分ける。隠れている間は何もせず、戻ったら差分を読んで帯にまとめる。ファイルと文字コードの組ごとに main とページで 1 つずつを、ペイン同士で共有する
 - **解析**: 純粋関数（`shared/logwatch/`）。形式の判定、レベル、続きの行、パターン（署名）、繰り返しの畳み込み、初めて見るパターン（NEW）、エラーの急増
 - **EXPLAIN**: 選んだ行を、AI の設定のプロバイダとモデルで説明させる。押したときだけ送り、送る本文は main が組み立てる
-- **ペインごとの選択**: 文字コード（auto で判別し、文字化けしたら利用者が指定）、レーンと右端のミニマップの表示
+- **ペインごとの選択**: 文字コード（auto で判別し、文字化けしたら利用者が指定）、レーンと右端の ERROR BAR の表示、時刻の見せ方、折り返し、畳み込み、MASK。保持行数と開いたときに読む行数は全ペイン共通の設定（`logWatch`）
+- **負荷**: 1000 行/秒で main の解析は 0.25 秒分が約 1 ms。ページは 5k 行で 1 コアの 2.4%（decisions.md）
 
-設計、決定の記録、未決事項は **[logwatch.md](logwatch.md)** に、見た目のたたき台は [logwatch-mock/index.html](logwatch-mock/index.html) に置く。
+設計、決定の記録、測定は **[logwatch.md](logwatch.md)** に、見た目のたたき台は [logwatch-mock/index.html](logwatch-mock/index.html) に置く。
 
 ## 6. ターミナル設計
 

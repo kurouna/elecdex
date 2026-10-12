@@ -3,6 +3,12 @@ import { isAgentSource } from './agents.js'
 import { AI_LIMITS, AiProviderSchema } from './ai.js'
 import { defaultElecSettings, ElecSettingsSchema } from './elec.js'
 import { ELEC16_SKINS } from './elec16-units.js'
+import {
+  DEFAULT_INITIAL_LINES,
+  DEFAULT_KEEP_LINES,
+  INITIAL_LINES,
+  KEEP_LINES,
+} from './logwatch/types.js'
 import { PLUGIN_ID, type PluginSettings, PluginSettingsSchema } from './plugins.js'
 import { INTENSITIES, MAGNITUDES } from './quakes.js'
 import { DEFAULT_THEME_ID } from './theme.js'
@@ -245,6 +251,23 @@ export const SettingsSchema = z.object({
       openCommand: z.string().max(1000).catch('').default(''),
     })
     .default({ openCommand: '' }),
+  /** The LOG WATCH pane (docs/logwatch.md section 8): the same for every pane. */
+  logWatch: z
+    .object({
+      /** Lines kept to scroll back through, the oldest going first. */
+      keepLines: z
+        .number()
+        .refine((n) => (KEEP_LINES as readonly number[]).includes(n))
+        .catch(DEFAULT_KEEP_LINES)
+        .default(DEFAULT_KEEP_LINES),
+      /** Lines read from the end when a pane opens a file, as tail -n. */
+      initialLines: z
+        .number()
+        .refine((n) => (INITIAL_LINES as readonly number[]).includes(n))
+        .catch(DEFAULT_INITIAL_LINES)
+        .default(DEFAULT_INITIAL_LINES),
+    })
+    .default({ keepLines: DEFAULT_KEEP_LINES, initialLines: DEFAULT_INITIAL_LINES }),
   /** The CHIP-8 pane (docs/architecture.md section 5.18). */
   chip8: z
     .object({
@@ -330,6 +353,7 @@ export interface SettingsPatch {
   /** `seats` and `personas` replace the whole list. */
   elec?: Partial<Settings['elec']>
   chip8?: Partial<Settings['chip8']>
+  logWatch?: Partial<Settings['logWatch']>
   elec16?: Partial<Settings['elec16']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
   plugins?: Record<string, Partial<PluginSettings> | null>
@@ -368,6 +392,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     ai: merge(current.ai, p.ai),
     elec: merge(current.elec, p.elec),
     chip8: merge(current.chip8, p.chip8),
+    logWatch: merge(current.logWatch, p.logWatch),
     elec16: merge(current.elec16, p.elec16),
     terminal: merge(current.terminal, p.terminal),
     plugins: mergePlugins(current.plugins, p.plugins),

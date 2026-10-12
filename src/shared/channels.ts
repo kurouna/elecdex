@@ -267,6 +267,27 @@ export const CH = {
     /** A fetch or a fast-forward pull (shared/git-sync.ts). */
     sync: 'git:sync',
   },
+  /** The LOG WATCH pane (shared/logwatch/): log files followed by id, read only where they grew. */
+  logwatch: {
+    /** renderer -> main, fire and forget: follow a file in an encoding (LogSubscribeRequest). */
+    subscribe: 'logwatch:subscribe',
+    unsubscribe: 'logwatch:unsubscribe',
+    /** main -> renderer: a LogWatchEvent. */
+    event: 'logwatch:event',
+    /** Main opens a file picker; the page never hands over a path. */
+    pick: 'logwatch:pick',
+    describe: 'logwatch:describe',
+    recent: 'logwatch:recent',
+    /** The dialect a file is read in, or null for detection. */
+    setFormat: 'logwatch:set-format',
+    /** What EXPLAIN would send, put together in main. */
+    preview: 'logwatch:preview',
+    explain: 'logwatch:explain',
+    cancelExplain: 'logwatch:cancel-explain',
+    /** main -> renderer: a LogExplainEvent. */
+    explained: 'logwatch:explained',
+    watching: 'logwatch:watching',
+  },
   /** The AI chat pane (shared/ai.ts). A key goes to main and never comes back. */
   ai: {
     /** What the page may know of each provider's key (AiProviderStatus[]). */
