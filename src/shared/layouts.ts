@@ -23,7 +23,7 @@ import { LayoutTreeSchema } from './schemas/layout.js'
  */
 
 /** Enough for the handful of arrangements a person actually switches between. */
-export const MAX_SAVED_LAYOUTS = 12
+export const MAX_SAVED_LAYOUTS = 20
 
 /**
  * How many of them a number key applies: the first nine, by their place in the

@@ -458,7 +458,7 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 ### 5.6 保存レイアウト（名前を付けた配置）
 
 `LayoutTree` がデータなので、**配置に名前を付けて持っておく**のは木をもう1本持つだけで済む
-（`src/shared/layouts.ts`、`layouts.json`、最大12件）。
+（`src/shared/layouts.ts`、`layouts.json`、最大20件）。
 
 **作業に追従する**。ファイルは名前付きの配置の一覧と `active`（いま作業中の id）を持ち、main は
 `layout.save` のたびにその木を active のエントリにも書き戻す。スナップショット方式（明示的に
@@ -1641,7 +1641,7 @@ const ThemeSchema = z.object({
 ```
 settings.json       # zod 検証付き。未知キーは保持したまま警告。ショートカットの変更もここ（keybindings）
 layout.json         # LayoutTree（version 付き、マイグレータあり）。生きている配置は常にこの1つ
-layouts.json        # 名前を付けて保存した配置と、いま作業中のもの（shared/layouts.ts。最大12件）
+layouts.json        # 名前を付けて保存した配置と、いま作業中のもの（shared/layouts.ts。最大20件）
                     # 機械に依存する状態（セッション id）を含まないので、他の PC にそのまま持っていける
 notes.json          # メモ本文（main 所有。ペインは noteId だけを持つ）
 tasks.json          # タスクとリスト（main 所有。期限の通知も main がスケジュールする）
