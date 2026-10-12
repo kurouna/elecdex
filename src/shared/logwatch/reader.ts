@@ -147,13 +147,14 @@ export class LogReader {
       raw: line.slice(0, LOG_LIMITS.rawChars),
       sig,
       fresh,
-      cut: cut || read.text.length > LOG_LIMITS.textChars,
+      cut: cut || read.text.length > LOG_LIMITS.textChars || line.length > LOG_LIMITS.rawChars,
     }
   }
 
   #continue(entry: LogLine, line: string): void {
-    if (entry.more.length < LOG_LIMITS.moreLines)
+    if (entry.more.length < LOG_LIMITS.moreLines) {
       entry.more.push(line.slice(0, LOG_LIMITS.rawChars))
-    else entry.moreCut++
+      if (line.length > LOG_LIMITS.rawChars) entry.cut = true
+    } else entry.moreCut++
   }
 }

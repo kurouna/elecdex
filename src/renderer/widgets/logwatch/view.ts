@@ -334,21 +334,23 @@ export function lineCardRows(row: Row, masked: boolean): CardRow[] {
         : `${when} (when read: the line has no time)`,
     },
   ]
-  if (item.source !== '') rows.push({ label: 'source', value: item.source })
+  // Masked, everything the card says of the line is: the pattern keeps what is not a number or
+  // an id - an address, a name - and the source is the line's own text too.
+  const shown = (text: string): string => (masked ? maskText(text) : text)
+  if (item.source !== '') rows.push({ label: 'source', value: shown(item.source) })
   for (const [key, value] of item.fields) {
     // Masked, a field named as a secret hides its value whatever it looks like.
-    const shown = !masked ? value : SECRET_NAME.test(key) ? '•••' : maskText(value)
-    rows.push({ label: key, value: shown })
+    rows.push({ label: key, value: masked && SECRET_NAME.test(key) ? '•••' : shown(value) })
   }
   rows.push({
     label: 'pattern',
-    value: `${signatureText(item.sig)}${row.reps > 1 ? ` · ${row.reps} in a row` : ''}`,
+    value: `${shown(signatureText(item.sig))}${row.reps > 1 ? ` · ${row.reps} in a row` : ''}`,
     muted: true,
   })
   if (item.cut)
     rows.push({
       label: 'cut',
-      value: `longer than the ${LOG_LIMITS.textChars.toLocaleString()} characters kept`,
+      value: 'longer than what is kept: COPY and EXPLAIN take it cut',
       muted: true,
     })
   return rows

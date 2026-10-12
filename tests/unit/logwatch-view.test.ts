@@ -268,6 +268,19 @@ describe('the card', () => {
     expect(lineCardRows(untimed, false)[0]?.value).toContain('when read')
   })
 
+  it('masks every row of the card while MASK is on: the source and the pattern too', () => {
+    // Found in review: the pattern keeps what is not a number or an id, such as an address.
+    const item = line({
+      source: 'mailer rin@example.com',
+      text: 'login failed for rin@example.com',
+      sig: 'INF api login failed for rin@example.com',
+    })
+    const masked = lineCardRows({ item, reps: 1, last: item, prev: null }, true)
+    expect(masked.map((row) => row.value).join(' ')).not.toContain('example.com')
+    const plain = lineCardRows({ item, reps: 1, last: item, prev: null }, false)
+    expect(plain.find((row) => row.label === 'source')?.value).toBe('mailer rin@example.com')
+  })
+
   it('words marks and encodings', () => {
     expect(
       markText({ kind: 'mark', seq: 0, at: NOW, mark: 'opened', lines: 1500 }, clockText),

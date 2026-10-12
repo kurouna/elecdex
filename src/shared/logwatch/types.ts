@@ -142,7 +142,7 @@ export interface LogLine {
   sig: string
   /** The first time this pattern was seen since the pane started following. */
   fresh: boolean
-  /** The line was longer than `lineChars`. */
+  /** Kept shorter than written: the line, its text or a line of its trace past what is kept. */
   cut: boolean
 }
 

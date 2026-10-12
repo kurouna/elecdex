@@ -158,6 +158,9 @@ let frozen = $state.raw<LogItem[] | null>(null)
 $effect(() => {
   void feed
   frozen = null
+  // Numbers of another feed mean nothing here: a choice and an open EXPLAIN go with it.
+  clearChosen()
+  explaining = null
 })
 const shownItems = $derived(frozen ?? items)
 const heldBack = $derived.by(() => {
@@ -528,7 +531,7 @@ $effect(() => {
       {#key explaining}
         <LogExplain
           request={explaining}
-          to={`${provider?.name ?? ''} · ${choices.model || provider?.model || ''}`}
+          to={`${provider?.name ?? ''} · ${(provider?.id === choices.provider && choices.model) || provider?.model || ''}`}
           onclose={() => (explaining = null)}
         />
       {/key}

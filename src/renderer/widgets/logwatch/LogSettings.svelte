@@ -59,6 +59,8 @@ const TIMES: { value: TimeMode; label: string }[] = [
 
 const short = (n: number): string => (n >= 1000 ? `${n / 1000}k` : String(n))
 const provider = $derived(providers.find((p) => p.id === choices.provider) ?? providers[0])
+/** The pane's model, only while its own provider is the one shown: main uses it only then. */
+const ownModel = $derived(provider?.id === choices.provider ? choices.model : '')
 </script>
 
 <div class="settings" data-testid="logwatch-settings">
@@ -181,10 +183,13 @@ const provider = $derived(providers.find((p) => p.id === choices.provider) ?? pr
       <span>model</span>
       <input
         type="text"
-        value={choices.model}
+        value={ownModel}
         placeholder={provider?.model ?? ''}
         spellcheck="false"
-        onchange={(event) => onpane({ model: event.currentTarget.value.trim() || undefined })}
+        onchange={(event) =>
+          // With the provider shown, which may be the first by default: main sends a pane's
+          // model only to the pane's own provider.
+          onpane({ provider: provider?.id, model: event.currentTarget.value.trim() || undefined })}
         data-testid="logwatch-model"
       />
     </label>

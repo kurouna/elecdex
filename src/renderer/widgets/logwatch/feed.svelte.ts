@@ -63,10 +63,24 @@ export class LogFeed {
     this.items = next
     this.version++
   }
+
+  /** Lets go of what it holds: it asks main for everything when it is used again. */
+  forget(): void {
+    if (this.items.length === 0) return
+    this.items = []
+    this.#held = 0
+    this.status = null
+    this.version++
+  }
 }
 
 /** Feeds kept with what they hold after their last pane went. */
 const KEPT = 8
+/**
+ * Every feed made, by key. One past the kept forgets its lines but stays here: a hidden pane
+ * still holds it, and a second feed of the same key would never be sent what came before
+ * (preload subscribes a key once).
+ */
 const feeds = new Map<string, LogFeed>()
 
 /** The page's feed for a file and an encoding, made the first time it is asked for. */
@@ -82,9 +96,8 @@ export function feedFor(id: string, encoding: LogEncodingChoice): LogFeed {
 }
 
 function forgetOld(): void {
-  if (feeds.size < KEPT) return
-  const idle = [...feeds.values()]
-    .filter((feed) => !feed.inUse)
-    .sort((a, b) => a.lastUsed - b.lastUsed)
-  for (const feed of idle.slice(0, feeds.size - KEPT + 1)) feeds.delete(feed.key)
+  const holding = [...feeds.values()].filter((feed) => feed.items.length > 0)
+  if (holding.length < KEPT) return
+  const idle = holding.filter((feed) => !feed.inUse).sort((a, b) => a.lastUsed - b.lastUsed)
+  for (const feed of idle.slice(0, holding.length - KEPT + 1)) feed.forget()
 }

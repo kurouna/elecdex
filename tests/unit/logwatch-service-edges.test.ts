@@ -1,7 +1,15 @@
-import { appendFileSync, mkdtempSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { LogItem, LogLine, LogWatchEvent } from '@shared/logwatch/types'
+import { LOG_LIMITS, type LogItem, type LogLine, type LogWatchEvent } from '@shared/logwatch/types'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { LogEntryRecord } from '../../src/main/logwatch/catalog.js'
 import { nodeFs } from '../../src/main/logwatch/node-fs.js'
@@ -204,6 +212,39 @@ describe('files that change under the pane', () => {
     fail = false
     await r.advance(LOOK_MS + DELIVER_MS)
     expect(r.texts('p').at(-1)).toBe('line 2')
+  })
+
+  it('reads again only what was not sent when a read fails midway through a long range', async () => {
+    // Found in review: where the file was read to moved only when the whole range was read, so
+    // a failure in its second chunk sent the first chunk's lines twice.
+    const file = path.join(dir, 'app.log')
+    writeFileSync(file, lines(1, 1))
+    let failAt = Number.POSITIVE_INFINITY
+    const r = rig(one(file), {
+      keep: 200_000,
+      fs: {
+        read: async (target, start, length) => {
+          if (start >= failAt) {
+            failAt = Number.POSITIVE_INFINITY
+            throw new Error('EBUSY: resource busy')
+          }
+          return nodeFs.read(target, start, length)
+        },
+      },
+    })
+    r.service.subscribe('p', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    const size = statSync(file).size
+    // Longer than one chunk: the second read fails once.
+    appendFileSync(file, lines(2, 100_000, 'row'))
+    failAt = size + LOG_LIMITS.chunkBytes
+    await r.advance(LOOK_MS + DELIVER_MS)
+    expect(r.last('p')?.status.state).toBe('error')
+    await r.advance(LOOK_MS + DELIVER_MS)
+    const texts = r.texts('p').filter((text) => text.startsWith('row'))
+    expect(texts.at(-1)).toBe('row 100000')
+    expect(texts).toHaveLength(99_999)
+    expect(new Set(texts).size).toBe(texts.length)
   })
 
   it('reads a file that shrank between the stat and the read without going wrong', async () => {

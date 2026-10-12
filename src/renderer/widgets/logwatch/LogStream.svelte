@@ -292,7 +292,7 @@ const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.ite
           >
             <span class="t">{timeText(row, time, now)}</span>
             <span class="lvl">{line.level}</span>
-            <span class="src">{line.source}</span>
+            <span class="src">{shownText(line.source)}</span>
             <span class="msg"
               >{#each tokens(shownText(line.text)) as part, i (i)}<span class="k-{part.kind}"
                   >{#each hitParts(part.text, match) as piece, j (j)}{#if piece.hit}<mark>{piece.text}</mark

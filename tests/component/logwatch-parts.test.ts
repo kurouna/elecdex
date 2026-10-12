@@ -309,11 +309,21 @@ describe('LogSettings', () => {
     await fireEvent.change(screen.getByTestId('logwatch-provider'), { target: { value: 'p2' } })
     await fireEvent.change(screen.getByTestId('logwatch-model'), { target: { value: '  big-2 ' } })
     await fireEvent.change(screen.getByTestId('logwatch-model'), { target: { value: '' } })
+    // The pane's choices are not given back here, so the first provider is still the one shown:
+    // a model is kept with the provider shown, which is the only one main sends it to.
     expect(props.onpane.mock.calls.map((c) => c[0])).toEqual([
       { provider: 'p2', model: undefined },
-      { model: 'big-2' },
-      { model: undefined },
+      { provider: 'p1', model: 'big-2' },
+      { provider: 'p1', model: undefined },
     ])
+  })
+
+  it('shows a model typed for another provider as nothing, as main would not send it', () => {
+    // Found in review: a model kept with a provider since removed was shown with the first.
+    settings({ providers, choices: view.readLogPane({ provider: 'gone', model: 'custom' }) })
+    const model = screen.getByTestId('logwatch-model') as HTMLInputElement
+    expect(model.value).toBe('')
+    expect(model.placeholder).toBe('small')
   })
 })
 

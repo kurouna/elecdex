@@ -5,7 +5,13 @@ import {
   looksBinary,
   looksGarbled,
 } from '@shared/logwatch/encoding'
-import { EXPLAIN_SYSTEM, explainFits, explainSystem, explainText } from '@shared/logwatch/explain'
+import {
+  EXPLAIN_SYSTEM,
+  explainFits,
+  explainSystem,
+  explainText,
+  lineText,
+} from '@shared/logwatch/explain'
 import {
   countBreaks,
   isPattern,
@@ -523,6 +529,19 @@ describe('explain', () => {
     expect(explainFits([target], explainText([target], false))).toBe(true)
     const huge = line(NOW, 'INF', { raw: 'z'.repeat(LOG_LIMITS.explainChars * 3) })
     expect(explainFits([huge], explainText([huge], false))).toBe(false)
+  })
+
+  it('says a line kept shorter than written is cut, in what is sent and copied', () => {
+    // Found in review: a line past the 4,000 characters kept went out shorter, saying nothing.
+    const reader = new LogReader('plain')
+    const [long, short] = [
+      ...reader.read(`${'w'.repeat(LOG_LIMITS.rawChars + 10)}\nshort\n`, NOW, false),
+      ...reader.flush(),
+    ]
+    expect(long?.cut).toBe(true)
+    expect(lineText(long as LogLine)).toContain('(cut: longer than what is kept)')
+    expect(short?.cut).toBe(false)
+    expect(lineText(short as LogLine)).toBe('short')
   })
 
   it('refuses a line too long even when masking would make the cut text fit', () => {

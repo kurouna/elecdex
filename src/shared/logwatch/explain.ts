@@ -25,8 +25,10 @@ export function explainSystem(userPrompt: string): string {
 /** A line as EXPLAIN sends it and COPY copies it: the line, its trace, and how much was left out. */
 export function lineText(line: LogLine): string {
   const more = line.more.length === 0 ? '' : `\n${line.more.join('\n')}`
-  const cut = line.moreCut > 0 ? `\n... ${line.moreCut} more lines` : ''
-  return `${line.raw}${more}${cut}`
+  const left = line.moreCut > 0 ? `\n... ${line.moreCut} more lines` : ''
+  // Kept shorter than written: said, so neither a model nor a paste takes it for the whole line.
+  const cut = line.cut ? '\n... (cut: longer than what is kept)' : ''
+  return `${line.raw}${more}${left}${cut}`
 }
 
 /**

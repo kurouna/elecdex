@@ -636,7 +636,7 @@ export class LogWatchService<P> {
     if (facts.size === from) return
     // Past 4 MB (a long time hidden, or a flood), only the end is read: the latest lines.
     const partial = facts.size - from > LOG_LIMITS.tailBytes
-    source.offset = await this.#readRange(
+    await this.#readRange(
       source,
       file,
       partial ? facts.size - LOG_LIMITS.tailBytes : from,
@@ -687,7 +687,7 @@ export class LogWatchService<P> {
     start: number,
     end: number,
     inside: boolean,
-  ): Promise<number> {
+  ): Promise<void> {
     let at = start
     while (at < end) {
       const chunk = await this.#deps.fs.read(file, at, Math.min(LOG_LIMITS.chunkBytes, end - at))
@@ -700,10 +700,12 @@ export class LogWatchService<P> {
         this.#feed(source, chunk, () => 0)
       }
       at += chunk.length
+      // Moved on chunk by chunk, not when the range is done: a read failing midway (the file
+      // locked a moment on Windows) would otherwise read again what was already sent.
+      source.offset = at
       source.read += chunk.length
       source.lastByte = chunk[chunk.length - 1] ?? source.lastByte
     }
-    return at
   }
 
   /** Bytes to every channel shown, each from where `from` says it starts. */
