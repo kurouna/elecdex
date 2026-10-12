@@ -28,7 +28,7 @@ const raw = $derived(row.item.kind === 'line' ? shown(row.item.raw) : '')
     <span class="level">{row.item.kind === 'line' ? row.item.level : ''}</span>
     <span>click to choose it for EXPLAIN and COPY</span>
   </p>
-  <CardRows rows={lineCardRows(row, shown)} />
+  <CardRows rows={lineCardRows(row, mask)} />
   <p class="raw">{raw}</p>
 </HoverCard>
 

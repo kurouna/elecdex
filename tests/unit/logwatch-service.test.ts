@@ -1,6 +1,7 @@
 import { appendFileSync, mkdtempSync, renameSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { charsOf, trimHeld } from '@shared/logwatch/held'
 import type { LogItem, LogLine, LogWatchEvent } from '@shared/logwatch/types'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { LogEntryRecord } from '../../src/main/logwatch/catalog.js'
@@ -493,5 +494,65 @@ describe('LogWatchService', () => {
     r.limits.keep = 2
     await r.advance(DELIVER_MS * 2)
     expect(r.service.context(ID, 'auto', r.held('page')[0]?.seq ?? -1)).toBeNull()
+  })
+
+  it('keeps the banner of a gap longer than the lines kept, until its lines are gone', async () => {
+    // Found checking the review's fixes: main kept the banner at the front for good, while the
+    // page let it go at once. Both now hold by the same rule, replayed here as the page does.
+    const file = path.join(dir, 'app.log')
+    writeFileSync(file, lines(1, 1))
+    const r = rig({ [ID]: { path: file, pattern: null, format: null } }, 10, 5)
+    const page = (): LogItem[] => {
+      let items: LogItem[] = []
+      for (const { event } of r.sent) {
+        items = event.reset ? [...event.items] : [...items, ...event.items]
+        trimHeld(
+          items,
+          10,
+          items.reduce((n, item) => n + charsOf(item), 0),
+        )
+      }
+      return items
+    }
+    const shown = () => page().map((item) => (item.kind === 'line' ? item.text : item.mark))
+    r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    const since = r.held('page').at(-1)?.seq ?? -1
+    r.service.unsubscribe('page', ID, 'auto')
+    appendFileSync(file, lines(2, 31))
+    r.service.subscribe('page', { id: ID, encoding: 'auto', since })
+    await r.advance(DELIVER_MS * 2)
+    expect(shown()[0]).toBe('away')
+    expect(page()[0]).toMatchObject({ lines: 30 })
+    appendFileSync(file, lines(32, 32))
+    await r.advance(LOOK_MS + DELIVER_MS)
+    expect(shown()).toEqual([
+      'away',
+      ...Array.from({ length: 8 }, (_, i) => `line ${24 + i}`),
+      'line 32',
+    ])
+    appendFileSync(file, lines(33, 41))
+    await r.advance(LOOK_MS + DELIVER_MS)
+    expect(shown()).toEqual(Array.from({ length: 10 }, (_, i) => `line ${32 + i}`))
+    // Main holds the same: the line before the newest nine is the oldest kept.
+    const last = page().at(-1)?.seq ?? -1
+    expect(r.service.context(ID, 'auto', last)?.before.map((l) => l.text)).toEqual(
+      Array.from({ length: 9 }, (_, i) => `line ${32 + i}`),
+    )
+  })
+
+  it('forgets the bytes of a file not yet judged when it is replaced', async () => {
+    // Found checking the review's fixes: the old file's bytes stayed in front of the new one's.
+    const file = path.join(dir, 'app.log')
+    writeFileSync(file, '')
+    const r = rig({ [ID]: { path: file, pattern: null, format: null } })
+    r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    appendFileSync(file, 'OLD half')
+    await r.advance(LOOK_MS)
+    renameSync(file, `${file}.1`)
+    writeFileSync(file, '2026-10-12 12:00:00 INFO new\n')
+    await r.advance(LOOK_MS + DELIVER_MS * 3)
+    expect(r.texts('page')).toEqual(['new'])
   })
 })

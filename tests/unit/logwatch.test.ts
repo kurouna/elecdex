@@ -14,6 +14,7 @@ import {
   patternFor,
 } from '@shared/logwatch/files'
 import { detectFormat, logfmtPairs } from '@shared/logwatch/formats'
+import { charsOf, HELD_CHARS, trimHeld } from '@shared/logwatch/held'
 import {
   BUCKET_MS,
   BUCKETS,
@@ -32,6 +33,7 @@ import {
   isLogId,
   keyOf,
   LOG_LIMITS,
+  type LogItem,
   type LogLine,
   parseExplainRequest,
   parseSubscribeRequest,
@@ -166,6 +168,16 @@ describe('text', () => {
     expect(maskText('Authorization: Bearer eyJhbGciOi.payload')).not.toContain('eyJ')
     expect(maskText('key AKIAABCDEFGHIJKLMNOP1234567890abcd')).toBe('key •••')
     expect(maskText('peer fe80::1 and 2001:db8:0:0:0:0:2:1')).toBe('peer ••• and •••')
+  })
+
+  it('masks a secret named in JSON, or under a long name', () => {
+    // Found checking the review's fixes: the bound put on names for speed (40) let longer ones
+    // through, and JSON's quote before the colon was never matched.
+    expect(maskText('{"password":"hunter2","user":"aki"}')).not.toContain('hunter2')
+    expect(maskText('{"password":"hunter2","user":"aki"}')).toContain('"user":"aki"')
+    expect(
+      maskText('spring.datasource.hikari.data-source-properties.password=hunter2'),
+    ).not.toContain('hunter2')
   })
 
   it('leaves times, ids and words alone when masking', () => {
@@ -342,6 +354,57 @@ const line = (at: number, level: LogLine['level'], extra: Partial<LogLine> = {})
   fresh: false,
   cut: false,
   ...extra,
+})
+
+describe('what is held', () => {
+  const away = (seq: number, until: number): LogItem => ({
+    kind: 'mark',
+    seq,
+    at: NOW,
+    mark: 'away',
+    from: NOW,
+    lines: 9,
+    err: 0,
+    warn: 0,
+    fresh: 0,
+    partial: false,
+    until,
+  })
+  const numbered = (seq: number, text = 't'): LogLine => line(NOW, 'INF', { seq, text, raw: '' })
+  const total = (items: LogItem[]) => items.reduce((sum, item) => sum + charsOf(item), 0)
+
+  it('drops the oldest past the lines kept', () => {
+    const items: LogItem[] = [1, 2, 3, 4].map((seq) => numbered(seq))
+    const left = trimHeld(items, 2, total(items))
+    expect(items.map((item) => item.seq)).toEqual([3, 4])
+    expect(left).toBe(total(items))
+  })
+
+  it('drops the oldest past the characters held, whatever the count', () => {
+    const big = 'x'.repeat(HELD_CHARS / 2)
+    const items: LogItem[] = [numbered(1, big), numbered(2, big), numbered(3, 'small')]
+    trimHeld(items, 1000, total(items))
+    expect(items.map((item) => item.seq)).toEqual([2, 3])
+  })
+
+  it('keeps the banner while lines it sums up are held, and lets it go with the last', () => {
+    // Found checking the review's fixes: the banner was kept at the front for good in main,
+    // while the page dropped it at once.
+    const items: LogItem[] = [away(10, 14), 11, 12, 13, 14, 15, 16].map((item) =>
+      typeof item === 'number' ? numbered(item) : item,
+    )
+    trimHeld(items, 4, total(items))
+    expect(items.map((item) => item.seq)).toEqual([10, 14, 15, 16])
+    items.push(numbered(17))
+    trimHeld(items, 4, total(items))
+    expect(items.map((item) => item.seq)).toEqual([15, 16, 17])
+  })
+
+  it('treats a banner that covers nothing held as any oldest item', () => {
+    const items: LogItem[] = [away(10, 12), numbered(13), numbered(14)]
+    trimHeld(items, 2, total(items))
+    expect(items.map((item) => item.seq)).toEqual([13, 14])
+  })
 })
 
 describe('rates', () => {

@@ -158,6 +158,8 @@ export type LogMark =
       fresh: number
       /** Only the end of what was written while hidden was read. */
       partial: boolean
+      /** The number of the last line it sums up: it is held while any of them is. */
+      until: number
     }
 
 export type LogItem = LogLine | LogMark

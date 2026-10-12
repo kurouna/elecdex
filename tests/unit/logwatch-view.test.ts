@@ -178,6 +178,7 @@ describe('heights', () => {
       mark: 'away',
       from: NOW,
       lines: 1,
+      until: 2,
       err: 0,
       warn: 0,
       fresh: 0,
@@ -251,16 +252,29 @@ describe('error marks', () => {
 describe('the card', () => {
   it('says what the row has no room for, masked as the row is', () => {
     const [row] = buildRows(
-      [line({ timed: true, zoned: false, fields: [['client', '10.0.0.1']], cut: true }), line()],
+      [
+        line({
+          timed: true,
+          zoned: false,
+          fields: [
+            ['client', '10.0.0.1'],
+            ['session_id', 'abc123'],
+          ],
+          cut: true,
+        }),
+        line(),
+      ],
       ALL,
     )
-    const rows = lineCardRows(row as Row, (text) => text.replace('10.0.0.1', '•••'))
+    const rows = lineCardRows(row as Row, true)
     expect(rows.find((r) => r.label === 'time')?.value).toContain('no zone given')
     expect(rows.find((r) => r.label === 'client')?.value).toBe('•••')
+    // A field named as a secret hides its value, whatever the value looks like.
+    expect(rows.find((r) => r.label === 'session_id')?.value).toBe('•••')
     expect(rows.find((r) => r.label === 'pattern')?.value).toContain('2 in a row')
     expect(rows.some((r) => r.label === 'cut')).toBe(true)
     const untimed = buildRows([line({ timed: false })], ALL)[0] as Row
-    expect(lineCardRows(untimed, (t) => t)[0]?.value).toContain('when read')
+    expect(lineCardRows(untimed, false)[0]?.value).toContain('when read')
   })
 
   it('words marks and encodings', () => {

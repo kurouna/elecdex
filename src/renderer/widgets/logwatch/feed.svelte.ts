@@ -1,3 +1,4 @@
+import { charsOf, trimHeld } from '@shared/logwatch/held'
 import type { LogEncodingChoice, LogItem, LogStatus, LogWatchEvent } from '@shared/logwatch/types'
 import { keyOf } from '@shared/logwatch/types'
 import { refCounted } from '../../lib/ref-counted.ts'
@@ -17,6 +18,8 @@ export class LogFeed {
   readonly id: string
   readonly encoding: LogEncodingChoice
   items: LogItem[] = []
+  /** Characters held in `items`. */
+  #held = 0
   version = $state(0)
   status = $state.raw<LogStatus | null>(null)
   /** Followed by a pane now. */
@@ -51,9 +54,13 @@ export class LogFeed {
     this.status = event.status
     if (!event.reset && event.items.length === 0) return
     const next = event.reset ? event.items : this.items.concat(event.items)
-    // The setting itself, read now: the feed outlives the pane that made it.
-    const over = next.length - appearance.settings.logWatch.keepLines
-    this.items = over > 0 ? next.slice(over) : next
+    const added = event.reset ? next : event.items
+    this.#held =
+      (event.reset ? 0 : this.#held) + added.reduce((sum, item) => sum + charsOf(item), 0)
+    // As main holds them (shared/logwatch/held.ts), with the setting itself, read now: the feed
+    // outlives the pane that made it.
+    this.#held = trimHeld(next, appearance.settings.logWatch.keepLines, this.#held)
+    this.items = next
     this.version++
   }
 }

@@ -1,4 +1,4 @@
-import { signatureText } from '@shared/logwatch/text'
+import { maskText, SECRET_NAME, signatureText } from '@shared/logwatch/text'
 import {
   ENCODING_NAMES,
   groupOf,
@@ -304,7 +304,7 @@ export function errorMarks(
 }
 
 /** The card of a line: what the row has no room for. */
-export function lineCardRows(row: Row, mask: (text: string) => string): CardRow[] {
+export function lineCardRows(row: Row, masked: boolean): CardRow[] {
   const item = row.item
   if (item.kind !== 'line') return []
   const when = new Date(row.last.at).toLocaleString(undefined, {
@@ -326,7 +326,11 @@ export function lineCardRows(row: Row, mask: (text: string) => string): CardRow[
     },
   ]
   if (item.source !== '') rows.push({ label: 'source', value: item.source })
-  for (const [key, value] of item.fields) rows.push({ label: key, value: mask(value) })
+  for (const [key, value] of item.fields) {
+    // Masked, a field named as a secret hides its value whatever it looks like.
+    const shown = !masked ? value : SECRET_NAME.test(key) ? '•••' : maskText(value)
+    rows.push({ label: key, value: shown })
+  }
   rows.push({
     label: 'pattern',
     value: `${signatureText(item.sig)}${row.reps > 1 ? ` · ${row.reps} in a row` : ''}`,

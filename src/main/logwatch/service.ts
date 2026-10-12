@@ -1,6 +1,7 @@
 import { badChars, detectEncoding, looksGarbled } from '@shared/logwatch/encoding'
 import { countBreaks, lineStart, matchesPattern } from '@shared/logwatch/files'
 import { detectFormat } from '@shared/logwatch/formats'
+import { charsOf, trimHeld } from '@shared/logwatch/held'
 import { LogReader, splitLines } from '@shared/logwatch/reader'
 import {
   keyOf,
@@ -99,9 +100,15 @@ interface Channel<P> {
   encoding: LogEncoding
   reader: LogReader | null
   decoder: TextDecoder
+  /** In the order of their numbers. */
   items: LogItem[]
-  /** Read, and not yet sent. */
-  outbox: LogItem[]
+  /** Characters held in `items` (shared/logwatch/held.ts). */
+  held: number
+  /**
+   * The number of the last item delivered: the ones after it are read and not yet sent. A page
+   * brought up to date gets those up to it; the next delivery, which every page gets, the rest.
+   */
+  sentSeq: number
   pages: Set<P>
   /** Pages to be brought up to date. */
   waiting: Map<P, Waiting>
@@ -111,7 +118,14 @@ interface Channel<P> {
    * What came while no pane showed the file, counted as it is read (after the number set aside for
    * the banner): the lines kept may be fewer than came.
    */
-  tally: { after: number; lines: number; err: number; warn: number; fresh: number } | null
+  tally: {
+    after: number
+    last: number
+    lines: number
+    err: number
+    warn: number
+    fresh: number
+  } | null
   /** Bytes came since the last delivery: the open entry may still grow. */
   fed: boolean
   bad: number
@@ -311,7 +325,8 @@ export class LogWatchService<P> {
       reader: null,
       decoder: new TextDecoder(encoding),
       items: [],
-      outbox: [],
+      held: 0,
+      sentSeq: -1,
       pages: new Set(),
       waiting: new Map(),
       sample: null,
@@ -522,11 +537,11 @@ export class LogWatchService<P> {
   }
 
   /**
-   * What a page holding up to `since` lacks: the rest, or everything when it holds a gap. The
-   * outbox - always the end of the items - is left to the next delivery, which every page gets.
+   * What a page holding up to `since` lacks: the rest, or everything when it holds a gap - of
+   * what has been delivered. What has not is left to the next delivery, which every page gets.
    */
   #since(channel: Channel<P>, since: number): { reset: boolean; items: LogItem[] } {
-    const sent = channel.items.slice(0, channel.items.length - channel.outbox.length)
+    const sent = channel.items.filter((item) => item.seq <= channel.sentSeq)
     const first = channel.items[0]
     const last = channel.items.at(-1)
     const continues =
@@ -553,12 +568,13 @@ export class LogWatchService<P> {
     }
     const bytes = await this.#deps.fs.read(file, start, end - start)
     const now = this.#deps.now()
-    channel.outbox = []
     if (countBreaks(bytes) === 0 && start === 0) {
       // Nothing to judge by yet: a reader in waiting, and the bytes kept until there is.
       channel.reader = new LogReader(source.entry.format ?? 'plain', this.#takeSeqs())
       channel.sample = bytes.slice()
-      channel.items = [channel.reader.mark({ kind: 'mark', at: now, mark: 'opened', lines: 0 })]
+      this.#hold(channel, [
+        channel.reader.mark({ kind: 'mark', at: now, mark: 'opened', lines: 0 }),
+      ])
       return
     }
     if (channel.choice === 'auto') channel.encoding = detectEncoding(source.head, bytes)
@@ -570,12 +586,19 @@ export class LogWatchService<P> {
     channel.reader = reader
     this.#count(channel, text)
     const lines = [...reader.read(text, now, true), ...reader.flush()].slice(-want)
-    channel.items = [
+    this.#hold(channel, [
       ...lines,
       reader.mark({ kind: 'mark', at: now, mark: 'opened', lines: lines.length }),
-    ]
-    this.#trim(channel)
+    ])
     source.read += body.length
+  }
+
+  /** The opening's items, all counted as sent: pages get them as they are brought up to date. */
+  #hold(channel: Channel<P>, items: LogItem[]): void {
+    channel.items = items
+    channel.held = items.reduce((sum, item) => sum + charsOf(item), 0)
+    channel.sentSeq = items.at(-1)?.seq ?? -1
+    this.#trim(channel)
   }
 
   #takeSeqs(): number {
@@ -629,7 +652,7 @@ export class LogWatchService<P> {
       this.#shown(source, (channel, reader) => {
         const after = reader.reserve()
         reserved.set(channel, after)
-        channel.tally = { after, lines: 0, err: 0, warn: 0, fresh: 0 }
+        channel.tally = { after, last: after, lines: 0, err: 0, warn: 0, fresh: 0 }
       })
     }
     source.gathering = away !== null
@@ -676,11 +699,7 @@ export class LogWatchService<P> {
       const chunk = await this.#deps.fs.read(file, at, Math.min(LOG_LIMITS.chunkBytes, end - at))
       if (chunk.length === 0) break
       if (at === start && inside) {
-        this.#shown(source, (channel, reader) => {
-          for (const line of reader.flush()) this.#emit(channel, line)
-          reader.restart()
-          channel.decoder = new TextDecoder(channel.encoding)
-        })
+        this.#shown(source, (channel, reader) => this.#restart(channel, reader))
         // Each channel from the first whole line in its own encoding: UTF-16 breaks lie on even places.
         this.#feed(source, chunk, (channel) => lineStart(chunk, false, channel.encoding, at))
       } else {
@@ -739,20 +758,31 @@ export class LogWatchService<P> {
         warn: tally.warn,
         fresh: tally.fresh,
         partial,
+        until: tally.last,
       }
       insertBySeq(channel.items, mark)
-      insertBySeq(channel.outbox, mark)
+      channel.held += charsOf(mark)
     })
   }
 
   /** Every channel shown starts its reading afresh, after a mark saying why. */
   #restartAll(source: Source<P>, mark: (reader: LogReader) => LogItem): void {
     this.#shown(source, (channel, reader) => {
-      for (const line of reader.flush()) this.#emit(channel, line)
-      reader.restart()
-      channel.decoder = new TextDecoder(channel.encoding)
+      this.#restart(channel, reader)
       this.#emit(channel, mark(reader))
     })
+  }
+
+  /**
+   * A channel's reading starts afresh (another file, or a place inside it): the open entry is
+   * complete, the half line and the decoder's half character are forgotten, and so are the bytes
+   * of a file not yet judged - they were the old file's, or from before a gap.
+   */
+  #restart(channel: Channel<P>, reader: LogReader): void {
+    for (const line of reader.flush()) this.#emit(channel, line)
+    reader.restart()
+    channel.decoder = new TextDecoder(channel.encoding)
+    if (channel.sample !== null) channel.sample = new Uint8Array()
   }
 
   #shown(source: Source<P>, run: (channel: Channel<P>, reader: LogReader) => void): void {
@@ -764,20 +794,19 @@ export class LogWatchService<P> {
   #emit(channel: Channel<P>, item: LogItem): void {
     const tally = channel.tally
     if (tally !== null && item.kind === 'line' && item.seq > tally.after) {
+      tally.last = item.seq
       tally.lines++
       if (item.level === 'ERR' || item.level === 'FTL') tally.err++
       if (item.level === 'WRN') tally.warn++
       if (item.fresh) tally.fresh++
     }
     channel.items.push(item)
-    channel.outbox.push(item)
+    channel.held += charsOf(item)
     this.#trim(channel)
   }
 
   #trim(channel: Channel<P>): void {
-    const keep = this.#deps.keepLines()
-    trimFront(channel.items, keep)
-    trimFront(channel.outbox, keep)
+    channel.held = trimHeld(channel.items, this.#deps.keepLines(), channel.held)
   }
 
   #count(channel: Channel<P>, text: string): void {
@@ -823,8 +852,7 @@ export class LogWatchService<P> {
 
   #deliverChannel(source: Source<P>, channel: Channel<P>): void {
     if (channel.reader === null || channel.pages.size === 0) return
-    // Pages still waiting get all of it when they are brought up to date: the outbox is kept, so
-    // it stays the end of the items and nothing goes to nobody.
+    // With every page still waiting, nothing is delivered: each gets it all when brought up to date.
     if (channel.waiting.size === channel.pages.size) return
     // What is held follows the setting at once, even with nothing new (the setting was lowered).
     this.#trim(channel)
@@ -837,24 +865,15 @@ export class LogWatchService<P> {
     channel.fed = false
     const status = this.#status(source, channel)
     const said = JSON.stringify(status)
-    if (channel.outbox.length === 0 && said === channel.sentStatus) return
-    const event: LogWatchEvent = { key: channel.key, reset: false, items: channel.outbox, status }
-    channel.outbox = []
+    let first = channel.items.length
+    while (first > 0 && (channel.items[first - 1]?.seq ?? -1) > channel.sentSeq) first--
+    const items = channel.items.slice(first)
+    if (items.length === 0 && said === channel.sentStatus) return
+    const event: LogWatchEvent = { key: channel.key, reset: false, items, status }
+    channel.sentSeq = items.at(-1)?.seq ?? channel.sentSeq
     channel.sentStatus = said
     for (const page of channel.pages) if (!channel.waiting.has(page)) this.#deps.send(page, event)
   }
-}
-
-/**
- * Drops the oldest items past `keep` - but a banner of what came while hidden, once it is the
- * oldest, stays: what it sums up is often more than the lines kept.
- */
-function trimFront(items: LogItem[], keep: number): void {
-  const over = items.length - keep
-  if (over <= 0) return
-  const lead = items[0]
-  if (lead?.kind === 'mark' && lead.mark === 'away' && items.length > 1) items.splice(1, over)
-  else items.splice(0, over)
 }
 
 /** Puts an item among others in the order of their numbers. */
