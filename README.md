@@ -94,8 +94,12 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### dev — agents at work, the containers they run, and the repository they change
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use, a shell tab behind it; below that a clipboard history of made-up copies, with a timer and a shell in the tabs behind; a GIT pane on the right, an AI chat tab behind it, with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
+  <a href="https://youtu.be/YLxHhQ7wAyE">
+    <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use, a shell tab behind it; below that a clipboard history of made-up copies, with a timer and a shell in the tabs behind; a GIT pane on the right, an AI chat tab behind it, with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
+  </a>
   <br><sub>dev · Phosphor</sub>
+  <br>
+  ▶ <a href="https://youtu.be/YLxHhQ7wAyE">Watch the dev layout at work</a> (1 min) · <a href="https://youtu.be/eLKHc9nyWgc">日本語版</a>
 </p>
 
 - **AI Agent** *(experimental)* — the Claude Code sessions at work on your computer: what

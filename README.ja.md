@@ -91,8 +91,12 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### dev — 作業中のエージェント、動かしているコンテナ、変えているリポジトリ
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor テーマの dev プリセット：2 つの Claude Code セッション（1 つはサブエージェントが作業中でテストがバックグラウンドで実行中）と変更したファイルを表示する AI AGENT ペイン、その下に架空のコンテナを Compose のプロジェクト（ledger と shop）ごとにヘルス・ポート・使用量とともに並べる DOCKER ペイン、その後ろにシェルのタブ。さらに下に架空のコピーを並べたクリップボード履歴、その後ろにタイマーとシェルのタブ。右に同じチェックアウトを表示する GIT ペイン（passes.ts の差分と、ポインターを置いたコミットのカード付きのコミットグラフ）、その後ろに AI チャットのタブ">
+  <a href="https://youtu.be/eLKHc9nyWgc">
+    <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor テーマの dev プリセット：2 つの Claude Code セッション（1 つはサブエージェントが作業中でテストがバックグラウンドで実行中）と変更したファイルを表示する AI AGENT ペイン、その下に架空のコンテナを Compose のプロジェクト（ledger と shop）ごとにヘルス・ポート・使用量とともに並べる DOCKER ペイン、その後ろにシェルのタブ。さらに下に架空のコピーを並べたクリップボード履歴、その後ろにタイマーとシェルのタブ。右に同じチェックアウトを表示する GIT ペイン（passes.ts の差分と、ポインターを置いたコミットのカード付きのコミットグラフ）、その後ろに AI チャットのタブ">
+  </a>
   <br><sub>dev · Phosphor</sub>
+  <br>
+  ▶ <a href="https://youtu.be/eLKHc9nyWgc">dev レイアウトの使い方の動画</a>（1 分）· <a href="https://youtu.be/YLxHhQ7wAyE">英語版</a>
 </p>
 
 - **AI Agent** *(実験的)* — このコンピューターで作業中の Claude Code セッションを表示します。

@@ -85,8 +85,12 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### dev — 工作中的 AI 代理、它们运行的容器，以及它们修改的仓库
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor 主题下的 dev 预设：AI AGENT 窗格显示两个 Claude Code 会话，其中一个正忙，有子代理在工作、测试在后台运行，并列出它修改的文件；下面是 DOCKER 窗格，按 Compose 项目（ledger 和 shop）列出虚构的容器及其健康状态、端口和占用；其后是一个 shell 标签页；再下面是虚构复制内容的剪贴板历史，其后是计时器和 shell 的标签页；右侧的 GIT 窗格打开同一个检出，显示 passes.ts 的 diff，以及提交图和鼠标悬停处某个提交的卡片，其后是一个 AI 聊天标签页">
+  <a href="https://youtu.be/YLxHhQ7wAyE">
+    <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor 主题下的 dev 预设：AI AGENT 窗格显示两个 Claude Code 会话，其中一个正忙，有子代理在工作、测试在后台运行，并列出它修改的文件；下面是 DOCKER 窗格，按 Compose 项目（ledger 和 shop）列出虚构的容器及其健康状态、端口和占用；其后是一个 shell 标签页；再下面是虚构复制内容的剪贴板历史，其后是计时器和 shell 的标签页；右侧的 GIT 窗格打开同一个检出，显示 passes.ts 的 diff，以及提交图和鼠标悬停处某个提交的卡片，其后是一个 AI 聊天标签页">
+  </a>
   <br><sub>dev · Phosphor</sub>
+  <br>
+  ▶ <a href="https://youtu.be/YLxHhQ7wAyE">dev 布局使用演示视频</a>（1 分钟，英文字幕）
 </p>
 
 - **AI Agent** *（实验性）* — 你电脑上正在工作的 Claude Code 会话：每个会话此刻在做什么、
