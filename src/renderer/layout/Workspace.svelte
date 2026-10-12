@@ -182,6 +182,7 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'layout.saved7': () => applySavedSlot(6),
   'layout.saved8': () => applySavedSlot(7),
   'layout.saved9': () => applySavedSlot(8),
+  'layout.saved10': () => applySavedSlot(9),
   // The presets' keys: the layout made from each, or a new one (layout/presets.ts).
   'layout.preset.standard': () => void goToPreset('standard'),
   'layout.preset.network': () => void goToPreset('network'),

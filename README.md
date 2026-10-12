@@ -355,7 +355,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+A | add a pane: any widget, right of, below or as a tab beside the focused pane |
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open, as a switch does) |
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
-| Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
+| Ctrl+Shift+1 … 9, 0 | apply the first ten saved layouts, in the order the dialog lists them (0 is the tenth) |
 | Ctrl+Shift+F1 … F9 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro |
 | Ctrl+Shift+L | search the launcher (pops one up over the workspace if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up if the layout has none - pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
@@ -427,7 +427,7 @@ is rearranged and nothing is saved: a shell keeps its session and a web pane its
 starts with every pane in its place.
 
 An arrangement worth keeping can be saved by name — **Ctrl+Shift+G**, or *layouts* in the status
-bar — and returned to later; the first nine are on Ctrl+Shift+1 to 9, and on the numbered buttons
+bar — and returned to later; the first ten are on Ctrl+Shift+1 to 9 and 0, and on the numbered buttons
 at the left of the status bar. A layout follows the work: the one you are in is marked, and
 whatever you do to the workspace is kept in it, so coming back finds it as you left it. Resetting
 the layout leaves all of them, and what you arrange after that belongs to none until you save it or

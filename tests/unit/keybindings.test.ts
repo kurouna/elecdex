@@ -152,7 +152,8 @@ describe('the saved layout slots', () => {
       (action) => action.chord,
     )
     expect(chords).toEqual(
-      Array.from({ length: KEYED_LAYOUTS }, (_, i) => `Ctrl+Shift+Digit${i + 1}`),
+      // Along the row of number keys: 1 to 9, then 0 for the tenth.
+      Array.from({ length: KEYED_LAYOUTS }, (_, i) => `Ctrl+Shift+Digit${(i + 1) % 10}`),
     )
     expect(new Set(chords).size).toBe(chords.length)
   })

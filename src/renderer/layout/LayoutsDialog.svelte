@@ -8,7 +8,7 @@ import {
   presetTree,
 } from '@shared/layout-presets'
 import { layoutShape } from '@shared/layout-shape'
-import { cleanLayoutName, KEYED_LAYOUTS, MAX_SAVED_LAYOUTS } from '@shared/layouts'
+import { cleanLayoutName, KEYED_LAYOUTS, MAX_SAVED_LAYOUTS, slotKey } from '@shared/layouts'
 import { tick } from 'svelte'
 import ConfirmButton from '../ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
@@ -357,7 +357,7 @@ function revealFile(): void {
             <li>
               <!-- The place in the list is the number key that applies it. -->
               <span class="slot" class:none={i >= KEYED_LAYOUTS} data-testid="layouts-slot">
-                {i < KEYED_LAYOUTS ? i + 1 : '·'}
+                {i < KEYED_LAYOUTS ? slotKey(i) : '·'}
               </span>
               {#if renaming !== null && renaming.id === entry.id}
                 <input

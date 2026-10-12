@@ -995,3 +995,51 @@ test('a hand edit made while the app is running survives a reload', async () => 
     await close()
   }
 })
+
+test('Ctrl+Shift+0 applies the tenth saved layout, shown as 0', async () => {
+  let launched = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    // Nine calendars, then a notes pane tenth and a clock eleventh: only the
+    // tenth answers the key, and the eleventh has none.
+    const single = (widget: string) => ({
+      version: 1,
+      root: { kind: 'pane', id: 'p', widget },
+    })
+    const items = Array.from({ length: 11 }, (_, i) => ({
+      id: `slot${String(i + 1).padStart(2, '0')}`,
+      name: `layout ${i + 1}`,
+      tree: single(i === 9 ? 'notes' : i === 10 ? 'clock' : 'calendar'),
+    }))
+    writeFileSync(
+      path.join(launched.userData, 'layouts.json'),
+      JSON.stringify({ version: 1, items, active: null }),
+      'utf8',
+    )
+    launched = await launched.relaunch()
+    const { page } = launched
+
+    await showStatusBar(page)
+    const slots = page.getByTestId('layout-slot')
+    await expect(slots).toHaveCount(10)
+    await expect(slots.nth(8)).toHaveText('9')
+    await expect(slots.nth(9)).toHaveText('0')
+    await expect(slots.nth(9)).toHaveAttribute('data-name', 'layout 10')
+
+    await page.keyboard.press('Control+Shift+KeyG')
+    const rows = page.getByTestId('layouts-slot')
+    await expect(rows).toHaveCount(11)
+    await expect(rows.nth(9)).toHaveText('0')
+    await expect(rows.nth(10)).toHaveText('·')
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+
+    await page.keyboard.press('Control+Shift+Digit0')
+    await expect(page.locator('[data-testid=pane][data-widget=notes]')).toHaveCount(1)
+    await expect(terminalPane(page)).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})

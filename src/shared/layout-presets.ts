@@ -5,6 +5,7 @@ import {
   MAX_SAVED_LAYOUTS,
   type SavedLayout,
   type SavedLayoutSummary,
+  slotKey,
 } from './layouts.js'
 import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layout.js'
 
@@ -339,8 +340,8 @@ export interface PresetCard {
   description: string
   /** The saved layout made from it, or null when it is not among them. */
   savedId: string | null
-  /** The number key that applies that layout, or null for none. */
-  slot: number | null
+  /** The number key that applies that layout (`slotKey`), or null for none. */
+  slot: string | null
   /** That layout is the one being worked in. */
   active: boolean
 }
@@ -361,7 +362,7 @@ export function presetCards(saved: readonly SavedLayoutSummary[]): PresetCard[] 
       name: preset.name,
       description: preset.description,
       savedId: entry?.id ?? null,
-      slot: entry !== undefined && at < KEYED_LAYOUTS ? at + 1 : null,
+      slot: entry !== undefined && at < KEYED_LAYOUTS ? slotKey(at) : null,
       active: entry?.active ?? false,
     }
   })

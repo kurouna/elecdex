@@ -397,7 +397,7 @@ describe('presetCards', () => {
     const cards = presetCards(summarize(items, 'bbbb'))
     const card = (id: string) => cards.find((c) => c.id === id)
     expect(cards.map((c) => c.id)).toEqual([...LAYOUT_PRESET_IDS])
-    expect(card('dev')).toMatchObject({ savedId: 'bbbb', slot: 2, active: true })
+    expect(card('dev')).toMatchObject({ savedId: 'bbbb', slot: '2', active: true })
     // Tenth in the list: kept, but on no key.
     expect(card('desk')).toMatchObject({ savedId: 'cccc', slot: null, active: false })
     expect(card('earth')).toMatchObject({ savedId: null, slot: null, active: false })
@@ -406,8 +406,8 @@ describe('presetCards', () => {
 
   it('badges a card by where it stands', () => {
     const base = { id: 'dev' as const, name: 'dev', description: '' }
-    expect(presetBadge({ ...base, savedId: 'a', slot: 2, active: true })).toBe('in this one')
-    expect(presetBadge({ ...base, savedId: 'a', slot: 2, active: false })).toBe('on 2')
+    expect(presetBadge({ ...base, savedId: 'a', slot: '2', active: true })).toBe('in this one')
+    expect(presetBadge({ ...base, savedId: 'a', slot: '2', active: false })).toBe('on 2')
     expect(presetBadge({ ...base, savedId: 'a', slot: null, active: false })).toBe('kept')
     expect(presetBadge({ ...base, savedId: null, slot: null, active: false })).toBe('+ add')
   })

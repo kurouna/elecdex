@@ -26,12 +26,21 @@ import { LayoutTreeSchema } from './schemas/layout.js'
 export const MAX_SAVED_LAYOUTS = 20
 
 /**
- * How many of them a number key applies: the first nine, by their place in the
- * list (shared/keybindings.ts has one action each). The rest are kept and can be
- * applied from the dialog, and moving one into the first nine is how it gets a
- * key - which is what the dialog's up and down buttons are for.
+ * How many of them a number key applies: the first ten, by their place in the
+ * list (shared/keybindings.ts has one action each), the tenth on 0 as the keys
+ * run along the keyboard. The rest are kept and can be applied from the dialog,
+ * and moving one into the first ten is how it gets a key - which is what the
+ * dialog's up and down buttons are for.
  */
-export const KEYED_LAYOUTS = 9
+export const KEYED_LAYOUTS = 10
+
+/**
+ * The number key of the layout at this place in the list, as the status bar and
+ * the dialog show it: 1 to 9, then 0 for the tenth, so the label is the key.
+ */
+export function slotKey(at: number): string {
+  return String((at + 1) % 10)
+}
 
 export const SavedLayoutSchema = z.object({
   /** Assigned by main, so the renderer cannot collide two of them. */
