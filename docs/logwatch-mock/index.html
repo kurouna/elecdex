@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOG WATCH mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of the LOG WATCH pane, standalone: no elecdex code, made-up log lines.
+ * Colours follow tokens.css (primitive -> semantic) so the themes can be switched.
+ */
+:root {
+  --accent-h: 183; --accent-s: 22%; --accent-l: 74%;
+  --surface-1: #05080d; --surface-2: #0b1118; --grid: #262828;
+  --hue-danger: 0; --hue-warn: 45; --hue-ok: 130; --hue-info: 212;
+  --status-l: 60%;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --text: var(--accent);
+  --text-muted: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --danger: hsl(var(--hue-danger) 80% var(--status-l));
+  --warn: hsl(var(--hue-warn) 85% calc(var(--status-l) - 2%));
+  --ok: hsl(var(--hue-ok) 60% calc(var(--status-l) - 8%));
+  --info: hsl(var(--hue-info) 85% calc(var(--status-l) + 6%));
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --step--2: 0.625rem; --step--1: 0.75rem; --step-0: 0.875rem; --step-1: 1.125rem;
+  --tracking-wide: 0.12em;
+}
+:root[data-theme="green"] { --accent-h: 120; --accent-s: 100%; --accent-l: 45%; --surface-1: #000; --surface-2: #031003; --grid: #0d1f0d; }
+:root[data-theme="black"] { --accent-h: 0; --accent-s: 0%; --accent-l: 86%; --surface-1: #000; --surface-2: #0d0d0d; --grid: #141414; }
+:root[data-theme="business"] {
+  --accent-h: 214; --accent-s: 55%; --accent-l: 34%; --surface-1: #f4f6f9; --surface-2: #ffffff; --grid: #e2e6ec;
+  --status-l: 42%; color-scheme: light;
+}
+html { font-size: clamp(14px, 1.48vh, 22px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; color: var(--text); font-family: var(--font-ui);
+  background-color: var(--surface-1);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 2.2rem 2.2rem;
+  padding: 1rem;
+}
+button { font: inherit; color: inherit; }
+
+/* ---------- mock controls (not part of the pane) ---------- */
+.mockbar {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; align-items: center;
+  font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase;
+  margin-bottom: 0.8rem; color: var(--text-muted);
+}
+.mockbar .grp { display: flex; gap: 0.25rem; align-items: center; }
+.mockbar .grp > span { margin-right: 0.3rem; }
+.mockbar button {
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.1rem 0.5rem; cursor: pointer;
+  font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide);
+}
+.mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--surface-1); border-color: var(--accent); }
+.note { font-size: var(--step--1); color: var(--text-muted); margin: 0.6rem 0 0; max-width: 70rem; line-height: 1.6; text-transform: none; letter-spacing: 0; }
+
+/* ---------- the pane ---------- */
+.stage { display: flex; gap: 1rem; align-items: stretch; }
+.pane {
+  position: relative; display: flex; flex-direction: column; min-width: 0;
+  height: min(78vh, 52rem); width: 64rem; max-width: 100%;
+  border-top: 1px solid var(--panel-rule);
+}
+.pane.narrow { width: 30rem; }
+.pane::before, .pane::after {
+  content: ""; position: absolute; top: -1px; width: 1px; height: 0.4rem; background: var(--panel-rule);
+}
+.pane::before { left: 0; } .pane::after { right: 0; }
+.hud {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+  padding: 0.15rem 0.4rem 0.2rem; white-space: nowrap; min-width: 0;
+}
+.hud .title { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: 0.04em; }
+.hud .sub { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+.hud .sub b { color: var(--text); font-weight: 500; }
+
+.status {
+  display: flex; align-items: center; gap: 0.9rem; padding: 0.15rem 0.4rem;
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; flex-wrap: wrap;
+}
+.lamp { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; }
+.lamp i { width: 0.5rem; height: 0.5rem; transform: rotate(45deg); background: var(--accent); display: inline-block; }
+.lamp i.beat { animation: beat 0.5s ease-out; }
+@keyframes beat { from { opacity: 0.25; } to { opacity: 1; } }
+.lamp.paused i { background: transparent; outline: 1px solid var(--accent); }
+.lamp.burst { color: var(--danger); }
+.lamp.burst i { background: var(--danger); }
+.figure { display: flex; flex-direction: column; line-height: 1.15; }
+.figure small { color: var(--text-muted); font-size: var(--step--2); }
+.figure span { font-family: var(--font-mono); font-size: var(--step--1); text-transform: none; letter-spacing: 0; }
+.figure.err span { color: var(--danger); } .figure.warn span { color: var(--warn); }
+.spacer { flex: 1; }
+.btn {
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.45rem; cursor: pointer;
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase;
+}
+.btn:hover { border-color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--surface-1); border-color: var(--accent); }
+
+.lanes { position: relative; height: 3.2rem; margin: 0.2rem 0.4rem 0.9rem; border-bottom: 1px solid var(--panel-rule); }
+.lanes canvas { width: 100%; height: 100%; display: block; }
+.lanes .axis { position: absolute; right: 0; top: calc(100% + 1px); font-size: var(--step--2); color: var(--text-muted); font-family: var(--font-mono); }
+.lanes .axis.l { left: 0; right: auto; }
+
+.tabs { display: flex; gap: 0.2rem; padding: 0.3rem 0.4rem 0; align-items: center; flex-wrap: wrap; }
+.tab {
+  background: transparent; border: 1px solid var(--panel-rule); border-bottom: none; padding: 0.1rem 0.7rem; cursor: pointer;
+  font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+}
+.tab[aria-selected="true"] { color: var(--surface-1); background: var(--accent); border-color: var(--accent); }
+.filters { display: flex; gap: 0.3rem; align-items: center; padding: 0.3rem 0.4rem; border-top: 1px solid var(--panel-rule); flex-wrap: wrap; }
+.lv {
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.02rem 0.4rem; cursor: pointer;
+  font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted);
+}
+.lv[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
+.lv[data-l="ERR"][aria-pressed="true"] { color: var(--danger); border-color: var(--danger); }
+.lv[data-l="WRN"][aria-pressed="true"] { color: var(--warn); border-color: var(--warn); }
+.lv em { font-style: normal; opacity: 0.7; margin-left: 0.25rem; }
+.search {
+  flex: 1; min-width: 8rem; background: transparent; border: 1px solid var(--panel-rule); color: var(--text);
+  font-family: var(--font-mono); font-size: var(--step--1); padding: 0.1rem 0.4rem; outline: none;
+}
+.search:focus { border-color: var(--accent); }
+.search.bad { border-color: var(--danger); }
+.chip {
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+  border: 1px dashed var(--panel-rule); padding: 0 0.4rem; cursor: pointer; background: transparent; font-family: var(--font-ui);
+}
+
+/* ---------- the stream ---------- */
+.body { position: relative; flex: 1; min-height: 0; display: flex; }
+.stream {
+  flex: 1; overflow-y: auto; overflow-x: hidden; min-width: 0; font-family: var(--font-mono); font-size: var(--step--1);
+  scrollbar-width: none; padding-bottom: 0.4rem;
+}
+.stream::-webkit-scrollbar { display: none; }
+.row {
+  position: relative; display: grid; grid-template-columns: auto 2.6rem 4.6rem 1fr auto; gap: 0.6rem; align-items: baseline;
+  padding: 0.08rem 0.6rem 0.08rem 0.4rem; line-height: 1.45; border-left: 2px solid transparent;
+}
+.narrow .row { grid-template-columns: auto 2.6rem 1fr auto; }
+.narrow .row .src { display: none; }
+.row:hover { background: var(--accent-faint); }
+.row.lv-ERR, .row.lv-FTL { border-left-color: var(--danger); }
+.row.lv-WRN { border-left-color: var(--warn); }
+/* A line that arrives lights once: an overlay fading by opacity, never a colour animation. */
+.row.fresh::after {
+  content: ""; position: absolute; inset: 0; background: var(--accent); opacity: 0; pointer-events: none;
+  animation: arrive 0.9s ease-out;
+}
+@keyframes arrive { from { opacity: 0.16; } to { opacity: 0; } }
+.t { color: var(--text-muted); white-space: nowrap; }
+.lvl { font-weight: 700; font-size: var(--step--2); text-align: center; padding: 0 0.15rem; border: 1px solid var(--panel-rule); color: var(--text-muted); }
+.lv-INF .lvl { color: var(--text); border-color: var(--accent-dim); }
+.lv-DBG .lvl, .lv-TRC .lvl { opacity: 0.7; }
+.lv-WRN .lvl { color: var(--warn); border-color: var(--warn); }
+.lv-ERR .lvl, .lv-FTL .lvl { color: var(--surface-1); background: var(--danger); border-color: var(--danger); }
+.src { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.wrap .msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+.lv-DBG .msg, .lv-TRC .msg { opacity: 0.65; }
+.tail { display: flex; gap: 0.3rem; align-items: baseline; white-space: nowrap; }
+.rep { color: var(--accent-strong); font-weight: 700; font-size: var(--step--2); }
+.new {
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); font-weight: 600;
+  color: var(--surface-1); background: var(--info); padding: 0 0.3rem;
+}
+.more { color: var(--text-muted); cursor: pointer; font-size: var(--step--2); font-family: var(--font-ui); letter-spacing: var(--tracking-wide); }
+.more:hover { color: var(--text); }
+.trace { grid-column: 3 / -1; white-space: pre; color: var(--text-muted); font-size: var(--step--2); overflow-x: auto; padding: 0.15rem 0 0.2rem 0.6rem; border-left: 1px solid var(--panel-rule); line-height: 1.5; }
+.narrow .trace { grid-column: 2 / -1; }
+/* tokens in a message, drawn as text */
+.k-num { color: var(--accent-strong); }
+.k-str { color: var(--ok); }
+.k-ip { color: var(--info); }
+.k-path { text-decoration: underline; text-decoration-color: var(--accent-dim); text-underline-offset: 2px; }
+.k-key { color: var(--text-muted); }
+.k-id { color: var(--text-muted); font-style: italic; }
+.k-mask { color: var(--text-muted); letter-spacing: -0.1em; }
+.k-hit { background: var(--warn); color: var(--surface-1); }
+.sep {
+  display: flex; align-items: center; gap: 0.6rem; margin: 0.3rem 0.4rem; font-family: var(--font-ui);
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+}
+.sep::before, .sep::after { content: ""; flex: 1; border-top: 1px dashed var(--panel-rule); }
+.away {
+  margin: 0.3rem 0.4rem; padding: 0.3rem 0.6rem; border: 1px solid var(--panel-border); display: flex; gap: 1rem;
+  align-items: center; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase;
+  background: var(--accent-faint); flex-wrap: wrap;
+}
+.away b { font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; text-transform: none; font-size: var(--step--1); }
+.away .e { color: var(--danger); } .away .w { color: var(--warn); }
+
+/* minimap of where the errors and warnings are */
+.minimap { position: relative; width: 0.7rem; border-left: 1px solid var(--panel-rule); margin-left: 0.15rem; cursor: pointer; }
+.minimap i { position: absolute; left: 1px; right: 1px; height: 2px; }
+.minimap i.e { background: var(--danger); }
+.minimap i.w { background: var(--warn); opacity: 0.8; }
+.minimap .view { position: absolute; left: 0; right: 0; border: 1px solid var(--accent-dim); background: var(--accent-faint); }
+
+.follow {
+  position: absolute; bottom: 0.8rem; left: 50%; transform: translateX(-50%); background: var(--surface-2);
+  border: 1px solid var(--accent); padding: 0.15rem 0.8rem; cursor: pointer; font-family: var(--font-ui);
+  font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; display: none;
+}
+.follow.show { display: block; }
+.follow .e { color: var(--danger); margin-left: 0.4rem; }
+
+.foot {
+  display: flex; justify-content: space-between; gap: 1rem; padding: 0.2rem 0.4rem; border-top: 1px solid var(--panel-rule);
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+}
+.foot span { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- patterns ---------- */
+.patterns { flex: 1; overflow-y: auto; font-family: var(--font-mono); font-size: var(--step--1); display: none; }
+.patterns.show { display: block; }
+.prow { display: grid; grid-template-columns: 3.6rem 2.6rem 1fr 6rem 3.2rem 3rem; gap: 0.6rem; align-items: center; padding: 0.12rem 0.6rem 0.12rem 0.4rem; border-left: 2px solid transparent; }
+.narrow .prow { grid-template-columns: 3.2rem 2.6rem 1fr 3rem; }
+.narrow .prow .spark, .narrow .prow .seen { display: none; }
+.prow.head { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); position: sticky; top: 0; background: var(--surface-1); }
+.prow.muted { opacity: 0.4; }
+.prow .cnt { text-align: right; color: var(--accent-strong); }
+.prow .sig { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph { color: var(--info); }
+.spark { display: flex; align-items: flex-end; gap: 1px; height: 0.9rem; }
+.spark i { flex: 1; background: var(--accent-dim); min-height: 1px; }
+.prow.lv-ERR .spark i { background: var(--danger); } .prow.lv-WRN .spark i { background: var(--warn); }
+.seen { color: var(--text-muted); font-size: var(--step--2); text-align: right; }
+
+/* ---------- hover card ---------- */
+.card {
+  position: absolute; z-index: 5; width: min(30rem, 92%); background: var(--surface-2); border: 1px solid var(--panel-border);
+  padding: 0.5rem 0.7rem; font-family: var(--font-mono); font-size: var(--step--1); display: none; pointer-events: none;
+  box-shadow: 0 0.4rem 1.6rem rgb(0 0 0 / 0.45);
+}
+.card.show { display: block; animation: crt 0.18s ease-out; }
+@keyframes crt { from { transform: scaleY(0.02); opacity: 0.4; } to { transform: scaleY(1); opacity: 1; } }
+.card h4 { margin: 0 0 0.35rem; font-family: var(--font-ui); font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); display: flex; justify-content: space-between; }
+.card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.8rem; margin: 0; }
+.card dt { color: var(--text-muted); } .card dd { margin: 0; overflow-wrap: anywhere; }
+.card .raw { margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px solid var(--panel-rule); color: var(--text-muted); font-size: var(--step--2); overflow-wrap: anywhere; }
+.card .sigline { margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px solid var(--panel-rule); font-size: var(--step--2); }
+
+/* ---------- settings panel ---------- */
+.settings {
+  position: absolute; z-index: 6; right: 0.4rem; top: 4.4rem; width: 22rem; background: var(--surface-2);
+  border: 1px solid var(--panel-border); padding: 0.6rem 0.8rem 0.8rem; display: none; font-size: var(--step--1);
+}
+.settings.show { display: block; animation: crt 0.18s ease-out; }
+.settings h5 { margin: 0.5rem 0 0.3rem; font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--panel-rule); padding-bottom: 0.15rem; }
+.settings h5:first-child { margin-top: 0; }
+.settings .opt { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin: 0.3rem 0; }
+.settings .seg { display: flex; gap: 0.15rem; }
+.settings .seg .btn { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.settings p { margin: 0.2rem 0 0; font-size: var(--step--2); color: var(--text-muted); line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="mockbar">
+  <div class="grp"><span>Theme</span>
+    <button type="button" data-theme="tron" aria-pressed="true">Tron</button><button type="button" data-theme="green">Green</button><button type="button" data-theme="black">Black</button><button type="button" data-theme="business">Business</button>
+  </div>
+  <div class="grp"><span>Width</span><button type="button" data-width="wide" aria-pressed="true">Wide</button><button type="button" data-width="narrow">Narrow</button></div>
+  <div class="grp"><span>Flow</span><button type="button" data-rate="2">Slow</button><button type="button" data-rate="12" aria-pressed="true">Normal</button><button type="button" data-rate="400">Flood</button></div>
+  <div class="grp"><span>Simulate</span><button type="button" id="sim-hide">Hide pane 8 s</button><button type="button" id="sim-rotate">Rotate file</button><button type="button" id="sim-burst">Error burst</button></div>
+</div>
+
+<div class="stage">
+  <section class="pane" id="pane">
+    <div class="hud">
+      <span class="title">LOG WATCH</span>
+      <span class="sub"><b>app.log</b> · ~/work/shop/logs · JSON LINES · UTF-8</span>
+    </div>
+    <div class="status">
+      <span class="lamp" id="lamp"><i></i><span id="lamp-text">LIVE</span></span>
+      <span class="figure"><small>RATE</small><span id="f-rate">0/s</span></span>
+      <span class="figure err"><small>ERR 5 MIN</small><span id="f-err">0</span></span>
+      <span class="figure warn"><small>WARN 5 MIN</small><span id="f-warn">0</span></span>
+      <span class="figure"><small>PATTERNS</small><span id="f-pat">0</span></span>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="b-pause" aria-pressed="false">Pause</button>
+      <button type="button" class="btn" id="b-mask" aria-pressed="false">Mask</button>
+      <button type="button" class="btn" id="b-wrap" aria-pressed="false">Wrap</button>
+      <button type="button" class="btn" id="b-set" aria-pressed="false">⚙</button>
+    </div>
+    <div class="lanes"><canvas id="lanes"></canvas><span class="axis l">−5 min</span><span class="axis">now</span></div>
+    <div class="tabs">
+      <button type="button" class="tab" data-tab="stream" aria-selected="true">Stream</button>
+      <button type="button" class="tab" data-tab="patterns" aria-selected="false">Patterns</button>
+    </div>
+    <div class="filters">
+      <button type="button" class="lv" data-l="DBG" aria-pressed="false">DBG<em id="c-DBG">0</em></button>
+      <button type="button" class="lv" data-l="INF" aria-pressed="true">INF<em id="c-INF">0</em></button>
+      <button type="button" class="lv" data-l="WRN" aria-pressed="true">WRN<em id="c-WRN">0</em></button>
+      <button type="button" class="lv" data-l="ERR" aria-pressed="true">ERR<em id="c-ERR">0</em></button>
+      <input class="search" id="search" placeholder="filter  —  text, or /regex/" spellcheck="false">
+      <button type="button" class="chip" id="muted-chip">0 muted</button>
+    </div>
+    <div class="body">
+      <div class="stream" id="stream"></div>
+      <div class="patterns" id="patterns"></div>
+      <div class="minimap" id="minimap"></div>
+      <button type="button" class="follow" id="follow"></button>
+      <div class="card" id="card"></div>
+    </div>
+    <div class="foot">
+      <span id="foot-l">0 lines kept of 5,000 · read 0 B</span>
+      <span>read only while shown · nothing written</span>
+    </div>
+    <div class="settings" id="settings">
+      <h5>This pane</h5>
+      <div class="opt"><span>Time</span><span class="seg" data-opt="time"><button type="button" class="btn" data-v="abs" aria-pressed="true">12:04:01.231</button><button type="button" class="btn" data-v="rel">3s ago</button><button type="button" class="btn" data-v="delta">+0.118</button></span></div>
+      <div class="opt"><span>Collapse repeats</span><span class="seg" data-opt="collapse"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
+      <div class="opt"><span>Format</span><span class="seg" data-opt="format"><button type="button" class="btn" data-v="auto" aria-pressed="true">auto · JSONL</button><button type="button" class="btn" data-v="plain">plain</button></span></div>
+      <h5>Settings ▸ Logs (every pane)</h5>
+      <div class="opt"><span>Lines kept</span><span class="seg" data-opt="keep"><button type="button" class="btn" data-v="1000">1k</button><button type="button" class="btn" data-v="5000" aria-pressed="true">5k</button><button type="button" class="btn" data-v="20000">20k</button><button type="button" class="btn" data-v="50000">50k</button></span></div>
+      <div class="opt"><span>Lines on open</span><span class="seg" data-opt="initial"><button type="button" class="btn" data-v="100">100</button><button type="button" class="btn" data-v="500" aria-pressed="true">500</button><button type="button" class="btn" data-v="2000">2k</button></span></div>
+      <p>Lines kept is the scrollback, like a terminal's: the oldest go first. Lines on open is <code>tail -n</code>: what is read from the end when a pane opens or a file is chosen.</p>
+    </div>
+  </section>
+</div>
+<p class="note">モック: すべて架空のログです。行にマウスを止めると詳細カード、ERR の「+n lines」でスタックトレース、上へスクロールすると追従が止まって「▼ n NEW」。Patterns タブで署名ごとの件数と MUTE。⚙ はペインの表示と、設定（保持行数・開いたときの行数）。上の Simulate で、隠れている間の差分読み・ローテーション・エラーの急増を試せます。</p>
+
+<script>
+'use strict';
+// ---------- made-up log source ----------
+const SERVICES = ['api', 'db', 'worker', 'auth', 'cache', 'mailer'];
+const T = [
+  ['INF', 'api', () => `GET /users/${n(1, 9999)} 200 ${n(3, 40)}ms`, 30],
+  ['INF', 'api', () => `POST /orders 201 ${n(20, 140)}ms order=${hex(8)}`, 10],
+  ['DBG', 'cache', () => `hit key="session:${hex(6)}" ttl=${n(10, 600)}s`, 18],
+  ['DBG', 'db', () => `pool size=${n(4, 16)} idle=${n(0, 6)} waiting=0`, 6],
+  ['INF', 'worker', () => `job ${uuid()} done in ${n(80, 900)}ms queue="emails"`, 8],
+  ['INF', 'auth', () => `login ok user="${pick(['aki', 'mika', 'rin', 'sora'])}@example.com" from ${ip()}`, 5],
+  ['WRN', 'db', () => `slow query ${n(500, 2400)}ms table="orders" rows=${n(1000, 90000)}`, 3],
+  ['WRN', 'api', () => `rate limit near ${n(80, 99)}% client=${ip()}`, 2],
+  ['ERR', 'worker', () => `job ${uuid()} failed: ECONNRESET upstream="payments"`, 1, true],
+  ['INF', 'mailer', () => `sent ${n(1, 40)} mails batch=${hex(6)}`, 3],
+];
+const RARE = [
+  ['WRN', 'auth', () => `token refresh retried ${n(2, 5)} times for user="rin@example.com"`],
+  ['ERR', 'db', () => `deadlock detected on table="stock" tx=${hex(10)}`, true],
+  ['INF', 'api', () => `config reloaded from /etc/shop/api.yaml`],
+  ['WRN', 'cache', () => `evicted ${n(100, 900)} keys, memory ${n(85, 97)}%`],
+];
+const STACK = [
+  'Error: read ECONNRESET',
+  '    at TLSWrap.onStreamRead (node:internal/stream_base_commons:216:20)',
+  '    at PaymentClient.charge (/srv/shop/src/payments/client.ts:88:13)',
+  '    at async Job.run (/srv/shop/src/worker/job.ts:41:7)',
+  '    at async Queue.next (/srv/shop/src/worker/queue.ts:120:5)',
+  'Caused by: socket hang up',
+  '    at Socket.onclose (node:_http_client:477:23)',
+];
+function n(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+function hex(k) { let s = ''; while (s.length < k) s += Math.floor(Math.random() * 16).toString(16); return s; }
+function uuid() { return `${hex(8)}-${hex(4)}-${hex(4)}-${hex(4)}-${hex(12)}`; }
+function ip() { return `10.${n(0, 9)}.${n(0, 255)}.${n(1, 254)}`; }
+const WEIGHT = T.reduce((s, t) => s + t[3], 0);
+let burstUntil = 0;
+function makeEntry(at) {
+  let t;
+  if (Date.now() < burstUntil && Math.random() < 0.6) t = T[8];
+  else if (Math.random() < 0.012) t = pick(RARE);
+  else { let r = Math.random() * WEIGHT; for (const x of T) { r -= x[3]; if (r < 0) { t = x; break; } } }
+  const [lvl, src, f, , stack] = t;
+  const msg = f();
+  const e = { time: at, lvl, src, msg, stack: stack || t[4] === true ? STACK : null, pid: n(2100, 2140) };
+  e.raw = JSON.stringify({ time: new Date(at).toISOString(), level: lvl.toLowerCase(), svc: src, pid: e.pid, msg });
+  return e;
+}
+
+// ---------- pure parts: signature, tokens, mask ----------
+const RE_UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+function signature(msg) {
+  return msg.replace(RE_UUID, '{id}').replace(/"[^"]*"/g, '{s}').replace(/\b\d{1,3}(\.\d{1,3}){3}\b/g, '{ip}')
+    .replace(/\b[0-9a-f]{6,}\b/g, '{id}').replace(/\d+(\.\d+)?/g, '{n}');
+}
+const TOKEN = /("[^"]*")|(\b\d{1,3}(?:\.\d{1,3}){3}\b)|([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\b[0-9a-f]{6,}\b)|(\/[\w./-]+)|(\b\w+=)|(\b\d+(?:\.\d+)?(?:ms|s|%|KB|MB)?\b)/g;
+const MASKED = /("[^"@]*@[^"]*")|(\b\d{1,3}(?:\.\d{1,3}){3}\b)/;
+function paint(el, msg, hit) {
+  el.textContent = '';
+  let last = 0;
+  for (const m of msg.matchAll(TOKEN)) {
+    if (m.index > last) text(el, msg.slice(last, m.index), hit);
+    const cls = m[1] ? 'k-str' : m[2] ? 'k-ip' : m[3] ? 'k-id' : m[4] ? 'k-path' : m[5] ? 'k-key' : 'k-num';
+    if (state.mask && MASKED.test(m[0])) span(el, 'k-mask', m[2] ? '•••.•••' : '"•••••"');
+    else span(el, cls, m[0], hit);
+    last = m.index + m[0].length;
+  }
+  if (last < msg.length) text(el, msg.slice(last), hit);
+}
+function span(el, cls, s, hit) { const x = document.createElement('span'); x.className = cls; text(x, s, hit); el.appendChild(x); }
+function text(el, s, hit) {
+  if (!hit) { el.appendChild(document.createTextNode(s)); return; }
+  let last = 0;
+  for (const m of s.matchAll(hit)) {
+    if (!m[0]) break;
+    el.appendChild(document.createTextNode(s.slice(last, m.index)));
+    const h = document.createElement('span'); h.className = 'k-hit'; h.textContent = m[0]; el.appendChild(h);
+    last = m.index + m[0].length;
+  }
+  el.appendChild(document.createTextNode(s.slice(last)));
+}
+
+// ---------- state ----------
+const state = {
+  rate: 12, paused: false, hidden: false, mask: false, wrap: false, time: 'abs', collapse: true,
+  keep: 5000, initial: 500, levels: new Set(['INF', 'WRN', 'ERR']), filter: null, tab: 'stream',
+  following: true, pending: 0, pendingErr: 0, bytes: 0,
+};
+const entries = [];          // kept lines (oldest first)
+const sigs = new Map();      // signature -> { lvl, count, first, last, buckets[], muted }
+const buckets = [];          // 60 x 5 s, by the log's own time: { DBG, INF, WRN, ERR }
+const away = [];             // what came while the pane was hidden
+const $ = (id) => document.getElementById(id);
+const stream = $('stream');
+
+function bucketOf(t) { return Math.floor(t / 5000); }
+function count(e) {
+  const b = bucketOf(e.time);
+  let slot = buckets.find((x) => x.b === b);
+  if (!slot) { slot = { b, DBG: 0, INF: 0, WRN: 0, ERR: 0 }; buckets.push(slot); }
+  slot[e.lvl]++;
+  const now = bucketOf(Date.now());
+  while (buckets.length && buckets[0].b < now - 59) buckets.shift();
+}
+function learn(e, live) {
+  const sig = `${e.lvl} ${e.src} ${signature(e.msg)}`;
+  let s = sigs.get(sig);
+  const isNew = !s && live;
+  if (!s) { s = { sig, lvl: e.lvl, src: e.src, text: signature(e.msg), count: 0, first: e.time, last: e.time, muted: false, recent: new Array(12).fill(0) }; sigs.set(sig, s); }
+  s.count++; s.last = e.time; s.recent[11]++;
+  e.sig = sig; e.isNew = isNew;
+  return s;
+}
+function visible(e) {
+  if (!state.levels.has(e.lvl === 'FTL' ? 'ERR' : e.lvl)) return false;
+  if (sigs.get(e.sig)?.muted) return false;
+  if (state.filter && !state.filter.test(e.msg) && !state.filter.test(e.src)) return false;
+  return true;
+}
+
+// ---------- drawing rows ----------
+function fmtTime(e, prev) {
+  if (state.time === 'rel') { const s = Math.round((Date.now() - e.time) / 1000); return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`; }
+  if (state.time === 'delta') return prev ? `+${((e.time - prev.time) / 1000).toFixed(3)}` : '+0.000';
+  const d = new Date(e.time);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+}
+function rowFor(e, prev, fresh) {
+  const r = document.createElement('div');
+  r.className = `row lv-${e.lvl}${fresh ? ' fresh' : ''}`;
+  r._e = e;
+  const t = document.createElement('span'); t.className = 't'; t.textContent = fmtTime(e, prev);
+  const l = document.createElement('span'); l.className = 'lvl'; l.textContent = e.lvl;
+  const s = document.createElement('span'); s.className = 'src'; s.textContent = e.src;
+  const m = document.createElement('span'); m.className = 'msg'; paint(m, e.msg, state.filter);
+  const tail = document.createElement('span'); tail.className = 'tail';
+  r.append(t, l, s, m, tail);
+  decorate(r);
+  return r;
+}
+function decorate(r) {
+  const e = r._e, tail = r.lastChild;
+  tail.textContent = '';
+  if (e.reps > 1) { const x = document.createElement('span'); x.className = 'rep'; x.textContent = `×${e.reps}`; tail.appendChild(x); }
+  if (e.isNew) { const x = document.createElement('span'); x.className = 'new'; x.textContent = 'NEW'; tail.appendChild(x); }
+  if (e.stack) {
+    const x = document.createElement('span'); x.className = 'more'; x.textContent = r._open ? '▾ fold' : `▸ +${e.stack.length} lines`;
+    x.onclick = () => { r._open = !r._open; toggleTrace(r); decorate(r); };
+    tail.appendChild(x);
+  }
+}
+function toggleTrace(r) {
+  const old = r.querySelector('.trace');
+  if (old) { old.remove(); return; }
+  const tr = document.createElement('div'); tr.className = 'trace'; tr.textContent = r._e.stack.join('\n'); r.appendChild(tr);
+}
+function rebuild() {
+  stream.textContent = '';
+  let prev = null;
+  const frag = document.createDocumentFragment();
+  for (const x of entries) {
+    if (x.kind === 'sep') { frag.appendChild(sepFor(x)); continue; }
+    if (x.kind === 'away') { frag.appendChild(awayFor(x)); continue; }
+    if (!visible(x)) continue;
+    frag.appendChild(rowFor(x, prev, false)); prev = x;
+  }
+  stream.appendChild(frag);
+  if (state.following) stream.scrollTop = stream.scrollHeight;
+  minimap();
+}
+function sepFor(x) { const d = document.createElement('div'); d.className = 'sep'; d.textContent = x.text; return d; }
+function awayFor(x) {
+  const d = document.createElement('div'); d.className = 'away';
+  d.innerHTML = '<span>While hidden</span>';
+  const add = (label, v, cls) => { const s = document.createElement('span'); s.textContent = `${label} `; const b = document.createElement('b'); b.textContent = v; if (cls) b.className = cls; s.appendChild(b); d.appendChild(s); };
+  add('', x.span); add('lines', x.lines.toLocaleString()); add('ERR', x.err, 'e'); add('WARN', x.warn, 'w');
+  if (x.newPatterns) add('new patterns', x.newPatterns);
+  return d;
+}
+
+// ---------- arriving ----------
+let lastShown = null;
+function take(batch, live) {
+  const frag = document.createDocumentFragment();
+  let added = 0;
+  for (const e of batch) {
+    state.bytes += e.raw.length + 1;
+    count(e);
+    learn(e, live);
+    const tailE = lastEntry();
+    if (state.collapse && tailE && tailE.sig === e.sig && !e.isNew) {
+      tailE.reps = (tailE.reps || 1) + 1; tailE.time = e.time;
+      const r = stream.lastElementChild;
+      if (r && r._e === tailE) { decorate(r); r.firstChild.textContent = fmtTime(tailE, null); }
+      continue;
+    }
+    entries.push(e);
+    if (!visible(e)) continue;
+    frag.appendChild(rowFor(e, lastShown, live)); lastShown = e; added++;
+    if (!state.following || state.hover) { state.pending++; if (e.lvl === 'ERR') state.pendingErr++; }
+  }
+  stream.appendChild(frag);
+  trim();
+  if (state.following && !state.hover) stream.scrollTop = stream.scrollHeight;
+  return added;
+}
+function lastEntry() { for (let i = entries.length - 1; i >= 0; i--) if (!entries[i].kind) return entries[i]; return null; }
+function trim() {
+  let drop = entries.length - state.keep;
+  if (drop <= 0) return;
+  const gone = new Set(entries.splice(0, drop));
+  while (stream.firstElementChild && (gone.has(stream.firstElementChild._e) || !stream.firstElementChild._e)) {
+    if (!stream.firstElementChild._e && drop-- <= 0) break;
+    stream.firstElementChild.remove();
+  }
+}
+
+// ---------- the 0.25 s delivery (main batches on the quarter seconds) ----------
+let carry = 0, lastBeat = 0, perSecond = [];
+function tick() {
+  const now = Date.now();
+  carry += state.rate / 4;
+  const k = Math.floor(carry); carry -= k;
+  const batch = [];
+  for (let i = 0; i < k; i++) batch.push(makeEntry(now - (k - i) * (250 / Math.max(k, 1))));
+  perSecond.push(k); if (perSecond.length > 4) perSecond.shift();
+  if (state.hidden || state.paused) {
+    // Hidden: nothing is read; the file grows on disk. Paused: read, held back from the screen.
+    away.push(...batch);
+  } else if (batch.length) {
+    take(batch, true);
+    if (now - lastBeat > 500) { const i = $('lamp').firstElementChild; i.classList.remove('beat'); void i.offsetWidth; i.classList.add('beat'); lastBeat = now; }
+  }
+  for (const s of sigs.values()) if (now % 5000 < 250) { s.recent.shift(); s.recent.push(0); }
+  figures();
+}
+function figures() {
+  const sum = (l) => buckets.reduce((a, b) => a + b[l], 0);
+  $('f-rate').textContent = `${perSecond.reduce((a, b) => a + b, 0)}/s`;
+  $('f-err').textContent = sum('ERR'); $('f-warn').textContent = sum('WRN');
+  $('f-pat').textContent = sigs.size;
+  for (const l of ['DBG', 'INF', 'WRN', 'ERR']) $(`c-${l}`).textContent = sum(l);
+  const lines = entries.filter((x) => !x.kind).length;
+  $('foot-l').textContent = `${lines.toLocaleString()} lines kept of ${state.keep.toLocaleString()} · read ${(state.bytes / 1024).toFixed(0)} KB`;
+  const recentErr = buckets.slice(-3).reduce((a, b) => a + b.ERR, 0);
+  const lamp = $('lamp');
+  lamp.classList.toggle('burst', recentErr >= 8);
+  lamp.classList.toggle('paused', state.paused);
+  $('lamp-text').textContent = state.paused ? `PAUSED ${away.length ? `· ${away.length} HELD` : ''}` : recentErr >= 8 ? 'ERROR BURST' : 'LIVE';
+  $('muted-chip').textContent = `${[...sigs.values()].filter((s) => s.muted).length} muted`;
+  follow();
+}
+
+// ---------- lanes ----------
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function lanes() {
+  const c = $('lanes'), r = c.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  c.width = r.width * dpr; c.height = r.height * dpr;
+  const g = c.getContext('2d'); g.scale(dpr, dpr);
+  const now = bucketOf(Date.now()), w = r.width / 60, h = r.height - 2;
+  const max = Math.max(8, ...buckets.map((b) => b.DBG + b.INF + b.WRN + b.ERR));
+  const col = { DBG: css('--accent-faint'), INF: css('--accent-dim'), WRN: css('--warn'), ERR: css('--danger') };
+  for (const b of buckets) {
+    const x = (59 - (now - b.b)) * w;
+    let y = h;
+    for (const l of ['ERR', 'WRN', 'INF', 'DBG']) {
+      const bh = (b[l] / max) * h;
+      g.fillStyle = col[l]; g.fillRect(x + 1, y - bh, Math.max(1, w - 2), bh); y -= bh;
+    }
+  }
+}
+
+// ---------- minimap, follow ----------
+function minimap() {
+  const m = $('minimap'); m.textContent = '';
+  const rows = stream.children, total = stream.scrollHeight || 1, mh = m.clientHeight;
+  for (const r of rows) {
+    const e = r._e; if (!e || (e.lvl !== 'ERR' && e.lvl !== 'WRN')) continue;
+    const i = document.createElement('i'); i.className = e.lvl === 'ERR' ? 'e' : 'w';
+    i.style.top = `${(r.offsetTop / total) * mh}px`; m.appendChild(i);
+  }
+  const v = document.createElement('div'); v.className = 'view';
+  v.style.top = `${(stream.scrollTop / total) * mh}px`; v.style.height = `${Math.max(6, (stream.clientHeight / total) * mh)}px`;
+  m.appendChild(v);
+}
+function follow() {
+  const f = $('follow');
+  f.classList.toggle('show', state.tab === 'stream' && (!state.following || state.hover) && state.pending > 0);
+  f.textContent = `▼ ${state.pending} NEW`;
+  if (state.pendingErr) { const e = document.createElement('span'); e.className = 'e'; e.textContent = `${state.pendingErr} ERR`; f.appendChild(e); }
+}
+stream.addEventListener('scroll', () => {
+  const atEnd = stream.scrollTop + stream.clientHeight >= stream.scrollHeight - 4;
+  if (atEnd && !state.following) { state.following = true; state.pending = 0; state.pendingErr = 0; }
+  if (!atEnd) state.following = false;
+  if (Math.abs(stream.scrollTop - (stream._top ?? 0)) > 2) { $('card').classList.remove('show'); cardRow = null; }
+  stream._top = stream.scrollTop;
+  follow();
+});
+$('follow').onclick = () => { state.following = true; state.pending = 0; state.pendingErr = 0; stream.scrollTop = stream.scrollHeight; follow(); };
+$('minimap').onclick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); stream.scrollTop = ((ev.clientY - r.top) / r.height) * stream.scrollHeight - stream.clientHeight / 2; };
+
+// ---------- hover card ----------
+let rest = 0, cardRow = null;
+stream.addEventListener('mousemove', (ev) => {
+  const r = ev.target.closest('.row');
+  if (r === cardRow) return;
+  cardRow = r; $('card').classList.remove('show'); clearTimeout(rest);
+  if (r) rest = setTimeout(() => showCard(r), 450);
+});
+stream.addEventListener('mouseenter', () => { state.hover = true; });
+stream.addEventListener('mouseleave', () => { state.hover = false; if (state.following) { state.pending = 0; state.pendingErr = 0; stream.scrollTop = stream.scrollHeight; } cardRow = null; clearTimeout(rest); $('card').classList.remove('show'); });
+function showCard(r) {
+  const e = r._e, s = sigs.get(e.sig), c = $('card');
+  c.textContent = '';
+  const h = document.createElement('h4');
+  h.innerHTML = '<span>Entry</span>';
+  const hs = document.createElement('span'); hs.textContent = new Date(e.time).toLocaleString(); h.appendChild(hs);
+  const dl = document.createElement('dl');
+  const fields = { level: e.lvl, svc: e.src, pid: e.pid, ...Object.fromEntries([...e.msg.matchAll(/(\w+)=("[^"]*"|\S+)/g)].map((m) => [m[1], m[2]])) };
+  for (const [k, v] of Object.entries(fields)) { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = state.mask && MASKED.test(String(v)) ? '•••••' : v; dl.append(dt, dd); }
+  const sg = document.createElement('div'); sg.className = 'sigline';
+  sg.textContent = `pattern ${s.text}  ·  ${s.count}× since ${new Date(s.first).toLocaleTimeString()}${e.reps > 1 ? `  ·  ${e.reps} in a row` : ''}`;
+  const raw = document.createElement('div'); raw.className = 'raw'; raw.textContent = state.mask ? e.raw.replace(/\d{1,3}(\.\d{1,3}){3}|[\w.]+@[\w.]+/g, '•••') : e.raw;
+  c.append(h, dl, sg, raw);
+  const body = stream.parentElement.getBoundingClientRect(), rr = r.getBoundingClientRect();
+  c.classList.add('show');
+  const below = rr.bottom - body.top + 4, above = rr.top - body.top - c.offsetHeight - 4;
+  c.style.top = `${below + c.offsetHeight < body.height ? below : Math.max(0, above)}px`;
+  c.style.left = `${Math.min(Math.max(8, rr.left - body.left + 60), body.width - c.offsetWidth - 16)}px`;
+}
+
+// ---------- patterns ----------
+function patterns() {
+  const p = $('patterns'); p.textContent = '';
+  const head = document.createElement('div'); head.className = 'prow head';
+  head.innerHTML = '<span style="text-align:right">count</span><span>lvl</span><span>pattern</span><span class="spark-h">last minute</span><span class="seen">last</span><span></span>';
+  if (document.getElementById('pane').classList.contains('narrow')) head.children[3].remove();
+  p.appendChild(head);
+  const list = [...sigs.values()].sort((a, b) => (b.lvl === 'ERR') - (a.lvl === 'ERR') || b.count - a.count);
+  for (const s of list) {
+    const r = document.createElement('div'); r.className = `prow lv-${s.lvl}${s.muted ? ' muted' : ''}`;
+    const c = document.createElement('span'); c.className = 'cnt'; c.textContent = s.count.toLocaleString();
+    const l = document.createElement('span'); l.className = 'lvl'; l.textContent = s.lvl;
+    const g = document.createElement('span'); g.className = 'sig';
+    const src = document.createElement('span'); src.className = 'k-key'; src.textContent = `${s.src}  `; g.appendChild(src);
+    for (const part of s.text.split(/(\{\w+\})/)) { const x = document.createElement('span'); if (/^\{\w+\}$/.test(part)) x.className = 'ph'; x.textContent = part; g.appendChild(x); }
+    const sp = document.createElement('span'); sp.className = 'spark'; const mx = Math.max(1, ...s.recent);
+    for (const v of s.recent) { const i = document.createElement('i'); i.style.height = `${(v / mx) * 100}%`; sp.appendChild(i); }
+    const seen = document.createElement('span'); seen.className = 'seen'; seen.textContent = `${Math.round((Date.now() - s.last) / 1000)}s`;
+    const b = document.createElement('button'); b.className = 'btn'; b.textContent = s.muted ? 'unmute' : 'mute';
+    b.onclick = () => { s.muted = !s.muted; patterns(); rebuild(); figures(); };
+    r.append(c, l, g, sp, seen, b);
+    p.appendChild(r);
+  }
+}
+
+// ---------- controls ----------
+document.querySelectorAll('.tab').forEach((b) => b.onclick = () => {
+  state.tab = b.dataset.tab;
+  document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+  stream.style.display = state.tab === 'stream' ? '' : 'none';
+  $('minimap').style.display = state.tab === 'stream' ? '' : 'none';
+  $('patterns').classList.toggle('show', state.tab === 'patterns');
+  if (state.tab === 'patterns') patterns();
+});
+document.querySelectorAll('.lv').forEach((b) => b.onclick = () => {
+  const l = b.dataset.l, on = !state.levels.has(l);
+  on ? state.levels.add(l) : state.levels.delete(l);
+  b.setAttribute('aria-pressed', String(on)); rebuild();
+});
+$('search').oninput = (ev) => {
+  const v = ev.target.value.trim();
+  ev.target.classList.remove('bad');
+  try {
+    const m = v.match(/^\/(.+)\/([a-z]*)$/);
+    state.filter = !v ? null : m ? new RegExp(m[1], m[2].includes('g') ? m[2] : `${m[2]}g`) : new RegExp(v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  } catch { ev.target.classList.add('bad'); return; }
+  rebuild();
+};
+function toggle(id, key, after) { $(id).onclick = () => { state[key] = !state[key]; $(id).setAttribute('aria-pressed', String(state[key])); after?.(); }; }
+toggle('b-mask', 'mask', rebuild);
+toggle('b-wrap', 'wrap', () => { $('pane').classList.toggle('wrap', state.wrap); });
+toggle('b-pause', 'paused', () => { if (!state.paused) release(null); figures(); });
+$('b-set').onclick = () => { const s = $('settings').classList.toggle('show'); $('b-set').setAttribute('aria-pressed', String(s)); };
+document.querySelectorAll('.seg').forEach((g) => g.querySelectorAll('.btn').forEach((b) => b.onclick = () => {
+  g.querySelectorAll('.btn').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  const k = g.dataset.opt, v = b.dataset.v;
+  if (k === 'keep' || k === 'initial') state[k] = Number(v);
+  if (k === 'time') state.time = v;
+  if (k === 'collapse') state.collapse = v === 'on';
+  if (k === 'keep') { trim(); rebuild(); }
+  if (k === 'time') rebuild();
+  figures();
+}));
+document.querySelectorAll('[data-theme]').forEach((b) => { if (b.tagName === 'BUTTON') b.onclick = () => {
+  document.documentElement.dataset.theme = b.dataset.theme;
+  document.querySelectorAll('button[data-theme]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+}; });
+document.querySelectorAll('[data-width]').forEach((b) => b.onclick = () => {
+  $('pane').classList.toggle('narrow', b.dataset.width === 'narrow');
+  document.querySelectorAll('[data-width]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  if (state.tab === 'patterns') patterns();
+  setTimeout(() => { lanes(); minimap(); }, 0);
+});
+document.querySelectorAll('[data-rate]').forEach((b) => b.onclick = () => {
+  state.rate = Number(b.dataset.rate);
+  document.querySelectorAll('[data-rate]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+});
+// Hidden: nothing read. Shown again: the gap is read from the file at once (its tail if
+// it is long), and summed up in one banner before the lines.
+let hiddenAt = 0;
+$('sim-hide').onclick = () => {
+  if (state.hidden) return;
+  state.hidden = true; hiddenAt = Date.now(); $('pane').style.opacity = '0.25'; $('sim-hide').textContent = 'Hidden…';
+  setTimeout(() => { state.hidden = false; $('pane').style.opacity = ''; $('sim-hide').textContent = 'Hide pane 8 s'; release(hiddenAt); }, 8000);
+};
+function release(since) {
+  if (!away.length) return;
+  const batch = away.splice(0);
+  if (since) {
+    const before = sigs.size;
+    for (const e of batch) learn(e, false);
+    const news = sigs.size - before;
+    for (const s of sigs.values()) s.count -= batch.filter((e) => e.sig === s.sig).length;
+    const t = (x) => new Date(x).toLocaleTimeString();
+    const a = { kind: 'away', span: `${t(since)}–${t(Date.now())}`, lines: batch.length, err: batch.filter((e) => e.lvl === 'ERR').length, warn: batch.filter((e) => e.lvl === 'WRN').length, newPatterns: news };
+    entries.push(a); stream.appendChild(awayFor(a));
+  }
+  take(batch, false);
+  figures();
+}
+$('sim-rotate').onclick = () => {
+  const x = { kind: 'sep', text: `rotated ${new Date().toLocaleTimeString()} · app.log is a new file · reading from its start` };
+  entries.push(x); stream.appendChild(sepFor(x));
+  if (state.following) stream.scrollTop = stream.scrollHeight;
+};
+$('sim-burst').onclick = () => { burstUntil = Date.now() + 6000; };
+
+// ---------- start: the tail of the file, learnt without NEW marks ----------
+(function start() {
+  const now = Date.now(), batch = [];
+  for (let i = 0; i < state.initial; i++) batch.push(makeEntry(now - (state.initial - i) * 520));
+  const sep = { kind: 'sep', text: `last ${state.initial} lines of app.log · following` };
+  take(batch, false);
+  entries.push(sep); stream.appendChild(sepFor(sep));
+  stream.scrollTop = stream.scrollHeight;
+  figures(); lanes(); minimap();
+  setInterval(tick, 250);
+  setInterval(() => { lanes(); minimap(); if (state.tab === 'patterns') patterns(); if (state.time === 'rel') rebuild(); }, 1000);
+  addEventListener('resize', () => { lanes(); minimap(); });
+})();
+</script>
+</body>
+</html>

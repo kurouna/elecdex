@@ -15,7 +15,8 @@
       "!**/.svelte-check",
       "!**/*.code-workspace",
       "!src/shared/calc/vendor",
-      "!resources/elec16/games/games.json"
+      "!resources/elec16/games/games.json",
+      "!docs/logwatch-mock"
     ]
   },
   "formatter": {

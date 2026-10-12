@@ -96,7 +96,8 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  manual), elec16-kit.md (making its games), elec16-eleclance.md,
                  elec16-elecaircombat.md, elec16-elecdrill.md, elec16-elecfighter.md (the four
                  games), elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER's design),
-                 cluster.md (the CLUSTER pane), demos.md (making, changing and recording the demos),
+                 cluster.md (the CLUSTER pane), logwatch.md and logwatch-mock/ (the LOG WATCH
+                 pane, designed), demos.md (making, changing and recording the demos),
                  screenshots/ (README images)
 ```
 
