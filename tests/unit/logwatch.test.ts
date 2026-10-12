@@ -5,7 +5,7 @@ import {
   looksBinary,
   looksGarbled,
 } from '@shared/logwatch/encoding'
-import { EXPLAIN_SYSTEM, explainSystem, explainText } from '@shared/logwatch/explain'
+import { EXPLAIN_SYSTEM, explainFits, explainSystem, explainText } from '@shared/logwatch/explain'
 import {
   countBreaks,
   isPattern,
@@ -62,13 +62,16 @@ describe('requests from the page', () => {
     const ok = {
       id: '0123456789abcdef',
       encoding: 'auto',
-      seq: 3,
+      seqs: [3, 5],
       provider: '',
       model: '',
       mask: true,
     }
     expect(parseExplainRequest(ok)).toEqual(ok)
-    expect(parseExplainRequest({ ...ok, seq: -1 })).toBeNull()
+    expect(parseExplainRequest({ ...ok, seqs: [3, 3, 5] })?.seqs).toEqual([3, 5])
+    for (const seqs of [[], [-1], [1.5], 'x', Array.from({ length: 201 }, (_, i) => i)]) {
+      expect(parseExplainRequest({ ...ok, seqs })).toBeNull()
+    }
     expect(parseExplainRequest({ ...ok, mask: 'yes' })).toBeNull()
     expect(parseExplainRequest({ ...ok, model: 'x'.repeat(500) })).toBeNull()
   })
@@ -357,19 +360,6 @@ const line = (at: number, level: LogLine['level'], extra: Partial<LogLine> = {})
 })
 
 describe('what is held', () => {
-  const away = (seq: number, until: number): LogItem => ({
-    kind: 'mark',
-    seq,
-    at: NOW,
-    mark: 'away',
-    from: NOW,
-    lines: 9,
-    err: 0,
-    warn: 0,
-    fresh: 0,
-    partial: false,
-    until,
-  })
   const numbered = (seq: number, text = 't'): LogLine => line(NOW, 'INF', { seq, text, raw: '' })
   const total = (items: LogItem[]) => items.reduce((sum, item) => sum + charsOf(item), 0)
 
@@ -385,25 +375,6 @@ describe('what is held', () => {
     const items: LogItem[] = [numbered(1, big), numbered(2, big), numbered(3, 'small')]
     trimHeld(items, 1000, total(items))
     expect(items.map((item) => item.seq)).toEqual([2, 3])
-  })
-
-  it('keeps the banner while lines it sums up are held, and lets it go with the last', () => {
-    // Found checking the review's fixes: the banner was kept at the front for good in main,
-    // while the page dropped it at once.
-    const items: LogItem[] = [away(10, 14), 11, 12, 13, 14, 15, 16].map((item) =>
-      typeof item === 'number' ? numbered(item) : item,
-    )
-    trimHeld(items, 4, total(items))
-    expect(items.map((item) => item.seq)).toEqual([10, 14, 15, 16])
-    items.push(numbered(17))
-    trimHeld(items, 4, total(items))
-    expect(items.map((item) => item.seq)).toEqual([15, 16, 17])
-  })
-
-  it('treats a banner that covers nothing held as any oldest item', () => {
-    const items: LogItem[] = [away(10, 12), numbered(13), numbered(14)]
-    trimHeld(items, 2, total(items))
-    expect(items.map((item) => item.seq)).toEqual([13, 14])
   })
 })
 
@@ -514,35 +485,40 @@ describe('files', () => {
 
 describe('explain', () => {
   const target = line(NOW, 'ERR', {
+    seq: 7,
     raw: 'ERROR login failed for rin@example.com',
     more: ['  at auth (a.js:1)'],
     moreCut: 2,
   })
 
-  it('sends the entry and the lines before it, masked when asked', () => {
-    const before = [line(NOW - 1, 'INF', { raw: 'INFO from 10.0.0.1' })]
-    const text = explainText(target, before, { file: 'app.log', format: 'generic' }, true)
-    expect(text).toContain('Log file: app.log (text), values masked as •••')
-    expect(text).toContain('INFO from •••')
-    expect(text).toContain('ERROR login failed for •••\n  at auth (a.js:1)\n... 2 more lines')
-    expect(text).not.toContain('example.com')
-    expect(explainText(target, [], { file: 'a', format: 'plain' }, false)).not.toContain(
-      'Lines before it',
+  it('sends the chosen line with its trace, and nothing else', () => {
+    // User decision 2026-10-12: nothing goes to a model that was not chosen - no lines around,
+    // no file name, nothing of how it was read.
+    const text = explainText([target], false)
+    expect(text).toBe(
+      'Explain this log line:\n```\nERROR login failed for rin@example.com\n  at auth (a.js:1)\n... 2 more lines\n```',
     )
   })
 
-  it('takes ten lines before at most, and drops the oldest when too long', () => {
-    const many = Array.from({ length: 30 }, (_, i) => line(NOW, 'INF', { raw: `line ${i}` }))
-    const text = explainText(target, many, { file: 'a', format: 'plain' }, false)
-    expect(text).toContain('line 29')
-    expect(text).toContain('line 20')
-    expect(text).not.toContain('line 19')
-    const long = Array.from({ length: 10 }, (_, i) =>
-      line(NOW, 'INF', { raw: `${i}${'y'.repeat(3000)}` }),
+  it('sends several chosen lines in the order they were written, masked when asked', () => {
+    const earlier = line(NOW, 'INF', { seq: 3, raw: 'INFO from 10.0.0.1' })
+    const text = explainText([target, earlier], true)
+    expect(text.startsWith('Explain these 2 log lines (values masked as •••):')).toBe(true)
+    expect(text.indexOf('INFO from •••')).toBeLessThan(text.indexOf('ERROR login failed for •••'))
+    expect(text).not.toContain('example.com')
+    expect(text).not.toContain('10.0.0.1')
+  })
+
+  it('cuts nothing of a choice: one too long does not fit, and is not sent', () => {
+    const long = Array.from({ length: 5 }, (_, i) =>
+      line(NOW, 'INF', { seq: i, raw: `${i}${'y'.repeat(3000)}` }),
     )
-    const cut = explainText(target, long, { file: 'a', format: 'plain' }, false)
-    expect(cut.length).toBeLessThanOrEqual(LOG_LIMITS.explainChars)
-    expect(cut).toContain('login failed')
+    const text = explainText(long, false)
+    expect(explainFits(text)).toBe(false)
+    for (let i = 0; i < 5; i++) expect(text).toContain(`${i}yyy`)
+    expect(explainFits(explainText([target], false))).toBe(true)
+    const huge = line(NOW, 'INF', { raw: 'z'.repeat(LOG_LIMITS.explainChars * 3) })
+    expect(explainFits(explainText([huge], false))).toBe(false)
   })
 
   it('adds the user’s own instructions after its own', () => {

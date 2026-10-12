@@ -4,7 +4,7 @@ import type {
   LogSubscribeRequest,
   LogWatchEvent,
 } from '@shared/logwatch/types'
-import { cleanup, render, screen } from '@testing-library/svelte'
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -37,6 +37,7 @@ let subscriptions = 0
 let describeAs: LogFileRef = FILE
 let picks: boolean[] = []
 let pickAnswer: unknown = null
+let copies: string[] = []
 
 let seq = 0
 const line = (text: string, level: LogLine['level'] = 'INF'): LogLine => ({
@@ -68,6 +69,7 @@ const status = {
 }
 
 beforeEach(() => {
+  copies = []
   deliver = null
   requests = []
   subscriptions = 0
@@ -116,6 +118,13 @@ beforeEach(() => {
       onExplained: () => () => {},
     },
     layout: { save: vi.fn(async () => {}) },
+    system: { platform: 'win32' },
+    utility: {
+      copy: async (request: { text: string }) => {
+        copies.push(request.text)
+        return true
+      },
+    },
   })
 })
 
@@ -298,6 +307,42 @@ describe('LogWatchWidget', () => {
     expect(screen.getByTestId('logwatch-explain-setup').textContent).toContain('SET UP AI')
   })
 
+  it('chooses several lines, copies only those, and lets them go', async () => {
+    render(LogWatchWidget, {
+      props: {
+        paneId: `m${seq}`,
+        title: 'log watch',
+        props: {},
+        state: { file: ID },
+        active: true,
+      },
+    })
+    await settle()
+    deliver?.({
+      key: `${ID}/auto`,
+      reset: true,
+      items: [line('one'), line('two'), line('three'), line('four')],
+      status,
+    })
+    await settle()
+    const rows = () => screen.getAllByTestId('logwatch-row')
+    await fireEvent.click(rows()[0] as HTMLElement)
+    await fireEvent.click(rows()[2] as HTMLElement, { ctrlKey: true })
+    expect(screen.getByTestId('logwatch-chosen').textContent).toContain('2 lines chosen')
+    screen.getByTestId('logwatch-copy').click()
+    await settle()
+    expect(copies.at(-1)).toBe('one\nthree')
+    await fireEvent.click(rows()[3] as HTMLElement, { shiftKey: true })
+    expect(screen.getByTestId('logwatch-chosen').textContent).toContain('2 lines chosen')
+    screen.getByTestId('logwatch-copy').click()
+    await settle()
+    expect(copies.at(-1)).toBe('three\nfour')
+    screen.getByTestId('logwatch-let-go').click()
+    await settle()
+    expect(screen.queryByTestId('logwatch-chosen')).toBeNull()
+    expect(rows().some((row) => row.classList.contains('selected'))).toBe(false)
+  })
+
   it('holds the stream on PAUSE, counting what is held, and lets it all go after', async () => {
     render(LogWatchWidget, {
       props: {
@@ -351,7 +396,7 @@ describe('LogExplain', () => {
     })
     render(LogExplain, {
       props: {
-        request: { id: ID, encoding: 'auto', seq: 1, provider: '', model: '', mask: false },
+        request: { id: ID, encoding: 'auto', seqs: [1], provider: '', model: '', mask: false },
         to: 'Local · m',
         onclose: () => {},
       },

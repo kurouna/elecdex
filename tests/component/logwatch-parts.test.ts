@@ -88,7 +88,7 @@ const streamProps = (overrides: Record<string, unknown> = {}) => ({
   errorBar: true,
   mask: false,
   match: null,
-  selected: null,
+  chosen: new Set<number>(),
   onselect: vi.fn(),
   onhover: vi.fn(),
   ...overrides,
@@ -123,15 +123,27 @@ describe('LogStream', () => {
     expect(screen.queryByTestId('logwatch-trace')).toBeNull()
   })
 
-  it('chooses a row by a click or Enter, and marks the chosen one', async () => {
+  it('chooses rows by a click or Enter, adding with Ctrl or ⌘, a run with Shift', async () => {
     const props = streamProps()
     const { rerender } = render(LogStream, { props })
     await settle()
     const [first] = screen.getAllByTestId('logwatch-row')
-    await fireEvent.click(first as HTMLElement)
-    await fireEvent.keyDown(first as HTMLElement, { key: 'Enter' })
-    expect(props.onselect).toHaveBeenCalledTimes(2)
-    await rerender({ selected: props.rows[0]?.last.seq ?? null })
+    const row = first as HTMLElement
+    await fireEvent.click(row)
+    await fireEvent.keyDown(row, { key: 'Enter' })
+    await fireEvent.click(row, { ctrlKey: true })
+    await fireEvent.click(row, { metaKey: true })
+    await fireEvent.click(row, { shiftKey: true })
+    await fireEvent.keyDown(row, { key: ' ', shiftKey: true })
+    expect(props.onselect.mock.calls.map((call) => call[1])).toEqual([
+      'one',
+      'one',
+      'toggle',
+      'toggle',
+      'range',
+      'range',
+    ])
+    await rerender({ chosen: new Set([props.rows[0]?.item.seq ?? -1]) })
     expect(screen.getAllByTestId('logwatch-row')[0]?.classList.contains('selected')).toBe(true)
   })
 
@@ -174,37 +186,6 @@ describe('LogStream', () => {
     await settle()
     expect(screen.getByTestId('logwatch-reps').textContent).toBe('×3')
     expect(screen.getByTestId('logwatch-new')).toBeTruthy()
-  })
-
-  it('words a banner of what came while hidden', async () => {
-    const away = {
-      kind: 'mark' as const,
-      seq: seq++,
-      at: NOW,
-      mark: 'away' as const,
-      from: NOW - 60_000,
-      lines: 1200,
-      err: 3,
-      warn: 4,
-      fresh: 2,
-      partial: true,
-      until: seq + 10,
-    }
-    render(LogStream, {
-      props: streamProps({ rows: [{ item: away, reps: 1, last: away, prev: null }] }),
-    })
-    await settle()
-    const mark = screen.getByTestId('logwatch-mark')
-    expect(mark.dataset.mark).toBe('away')
-    for (const words of [
-      '1,200 lines',
-      '3 ERR',
-      '4 WARN',
-      '2 new patterns',
-      'only the end was read',
-    ]) {
-      expect(mark.textContent).toContain(words)
-    }
   })
 })
 

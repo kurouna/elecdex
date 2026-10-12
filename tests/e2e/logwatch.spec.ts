@@ -11,9 +11,10 @@ import { launch, removeDir } from './support.js'
  *
  * What only the running app shows: that main follows the file the picker returns (the picker is
  * replaced in main) and sends what is appended without being asked; that a pane behind another
- * tab reads nothing and, shown again, gets what was written meanwhile under a banner; that the
- * encoding and the pane's switches take; and that EXPLAIN sends what it showed to the provider
- * of the AI settings - a stand-in served here - and draws the answer.
+ * tab reads nothing and, shown again, gets what was written meanwhile as the latest lines; that
+ * the encoding and the pane's switches take; and that EXPLAIN sends what it showed - the lines
+ * chosen and nothing else - to the provider of the AI settings, a stand-in served here, and draws
+ * the answer.
  */
 
 let server: Server
@@ -131,7 +132,7 @@ test('follows a file, shows what is appended, and stops when the pane goes', asy
   }
 })
 
-test('behind another tab nothing is read; shown again, what came meanwhile arrives under a banner', async () => {
+test('behind another tab nothing is read; shown again, what came meanwhile arrives as the latest lines', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-'))
   const file = path.join(dir, 'app.log')
   writeFileSync(file, lines(1, 1))
@@ -159,11 +160,10 @@ test('behind another tab nothing is read; shown again, what came meanwhile arriv
     await page.waitForTimeout(1500)
     expect(await watching(page)).toEqual([])
     await show('l')
-    const away = page.locator('[data-testid=logwatch-mark][data-mark=away]')
-    await expect(away).toContainText('2 lines', { timeout: 5000 })
-    await expect(away).toContainText('1 ERR')
-    await expect(away).toContainText('1 WARN')
-    await expect(rows(page)).toHaveCount(3)
+    await expect(rows(page)).toHaveCount(3, { timeout: 5000 })
+    await expect(rows(page).last()).toContainText('two')
+    // No banner of what came (user decision 2026-10-12): the lines, as any others.
+    await expect(page.getByTestId('logwatch-mark')).toHaveCount(1)
   } finally {
     await close()
     removeDir(dir)
@@ -227,7 +227,7 @@ test('the chart and the error bar can be turned off, and stay off', async () => 
   }
 })
 
-test('EXPLAIN shows what it will send, sends it on a press, and draws the answer', async () => {
+test('EXPLAIN shows what it will send - the lines chosen, only those - sends it on a press, and draws the answer', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-'))
   const file = path.join(dir, 'app.log')
   writeFileSync(file, `${lines(1, 2)}2026-10-12 12:00:09 ERROR mail to rin@example.com failed\n`)
@@ -250,10 +250,17 @@ test('EXPLAIN shows what it will send, sends it on a press, and draws the answer
   try {
     await choose(page, app, file)
     await rows(page).filter({ hasText: 'mail to' }).click()
+    await rows(page)
+      .filter({ hasText: 'request 1' })
+      .click({ modifiers: ['ControlOrMeta'] })
+    await expect(page.getByTestId('logwatch-chosen')).toContainText('2 lines chosen')
     await page.getByTestId('logwatch-explain-open').click()
     const preview = page.getByTestId('logwatch-explain-preview')
+    await expect(preview).toContainText('Explain these 2 log lines')
     await expect(preview).toContainText('mail to ••• failed')
-    await expect(preview).toContainText('request 2 done')
+    await expect(preview).toContainText('request 1 done')
+    // The line between them was not chosen, and is not sent.
+    await expect(preview).not.toContainText('request 2 done')
     expect(asked).toHaveLength(0)
     const shown = await preview.textContent()
     await page.getByTestId('logwatch-explain-send').click()

@@ -26,7 +26,7 @@ const raw = $derived(row.item.kind === 'line' ? shown(row.item.raw) : '')
 <HoverCard {anchor} {bounds} width="min(34rem, 92%)" testid="logwatch-card">
   <p class="head">
     <span class="level">{row.item.kind === 'line' ? row.item.level : ''}</span>
-    <span>click to choose it for EXPLAIN and COPY</span>
+    <span>click to choose it for COPY and EXPLAIN</span>
   </p>
   <CardRows rows={lineCardRows(row, mask)} />
   <p class="raw">{raw}</p>

@@ -24,33 +24,11 @@ export function charsOf(item: LogItem): number {
 
 /**
  * Drops the oldest items until `items` (holding `chars` characters) is within both bounds, and
- * answers the characters left. A banner of what came while hidden that has come to be the oldest
- * stays while lines it sums up are still held - what it sums up is often more than the lines
- * kept, and without it they would seem to have come while watched - and goes with the last of
- * them. Two splices at most, however many go.
+ * answers the characters left. One splice, however many go.
  */
 export function trimHeld(items: LogItem[], keep: number, chars: number): number {
   let held = chars
   const over = (gone: number): boolean => items.length - gone > keep || held > HELD_CHARS
-  const banner = items[0]
-  if (banner?.kind === 'mark' && banner.mark === 'away') {
-    let gone = 0
-    for (let i = 1; over(gone) && i < items.length; i++) {
-      const item = items[i]
-      if (item === undefined || item.seq > banner.until) break
-      held -= charsOf(item)
-      gone++
-    }
-    if (gone > 0) {
-      items.splice(1, gone)
-      // The last of its lines gone, it goes with them.
-      const after = items[1]
-      if (after === undefined || after.seq > banner.until) {
-        items.splice(0, 1)
-        held -= charsOf(banner)
-      }
-    }
-  }
   let gone = 0
   while (over(gone) && gone < items.length) {
     const item = items[gone]

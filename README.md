@@ -113,7 +113,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   and what each uses; start, stop, restart and pause from the row.
 - **Log Watch** *(unreleased)* — a log file followed as it grows: levels coloured, stack traces
   folded, repeats counted, patterns never seen before marked NEW, an error burst lit, and
-  **EXPLAIN** to ask the model of your AI settings about a line.
+  **EXPLAIN** to ask the model of your AI settings about the lines you choose.
 - Tabs keep the rest at hand: a shell behind Docker, the clipboard history with a timer and one
   more shell at the foot, and an AI chat and Log Watch behind GIT.
 
@@ -617,7 +617,7 @@ weather and calendar.
   folder whose name differs only in its numbers (a log that starts a new file each day or each
   run). The pane reads the last lines on opening and then only what is appended, and only while it
   is seen: behind another tab or with the window put away nothing is read, and on coming back what
-  was written meanwhile arrives under a banner summing it up. It recognises JSON lines (pino,
+  was written meanwhile arrives like any other lines, up to the latest. It recognises JSON lines (pino,
   bunyan, Serilog...), logfmt, syslog, Apache and nginx access logs, IIS's W3C files and the common
   "time [level] text", and reads the rest as plain lines. Levels are coloured, stack traces fold
   under their line, a run of one pattern folds into ×n, a pattern seen for the first time is marked
@@ -626,8 +626,9 @@ weather and calendar.
   (addresses, e-mail and credentials hidden), WRAP, and a PATTERNS tab with each pattern's count
   and MUTE. A rotated or truncated file is read again from its start. The encoding is detected
   (UTF-8, UTF-16, Shift_JIS, EUC-JP...) and can be chosen by hand when the text looks garbled. With
-  a provider in the AI settings, **EXPLAIN** shows the line and the ten before it, as they will be
-  sent, and sends them only on **SEND**. Nothing is ever written to the file.
+  a provider in the AI settings, **EXPLAIN** shows the lines you chose (Ctrl+click adds one,
+  Shift+click a run; ⌘ on a Mac) as they will be sent, and sends them only on **SEND** - those lines
+  and nothing else, not the lines around them nor the file's name. Nothing is ever written to the file.
   `node scripts/log-feed.mjs` writes a made-up log to try it with.
 - **Markets** — indices, currencies and anything Yahoo Finance quotes, about once a minute, as
   sparklines, candlesticks or bars of the change (in the list's order, or sorted by it). The rows

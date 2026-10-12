@@ -5,6 +5,7 @@ import { tick } from 'svelte'
 import { SvelteSet } from 'svelte/reactivity'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import {
+  type ChooseHow,
   clockText,
   errorMarks,
   hitParts,
@@ -35,11 +36,11 @@ interface Props {
   errorBar: boolean
   mask: boolean
   match: RegExp | null
-  /** The seq of the row chosen (for EXPLAIN, COPY), or null. */
-  selected: number | null
+  /** The rows chosen (for EXPLAIN, COPY), by the number of each one's first line. */
+  chosen: ReadonlySet<number>
   /** Said in the middle when no line is shown, or null. */
   empty?: string | null
-  onselect: (row: Row) => void
+  onselect: (row: Row, how: ChooseHow) => void
   onhover: (row: Row | null, event: { row: DOMRect; x: number | null } | null) => void
 }
 
@@ -51,7 +52,7 @@ const {
   errorBar,
   mask,
   match,
-  selected,
+  chosen,
   empty = null,
   onselect,
   onhover,
@@ -217,10 +218,14 @@ function focusRow(row: Row, event: FocusEvent): void {
   onhover(row, { row: target.getBoundingClientRect(), x: null })
 }
 
+/** Ctrl (⌘) adds or takes away, Shift chooses a run: as lists everywhere choose. */
+const howOf = (event: MouseEvent | KeyboardEvent): ChooseHow =>
+  event.shiftKey ? 'range' : event.ctrlKey || event.metaKey ? 'toggle' : 'one'
+
 function onkey(row: Row, event: KeyboardEvent): void {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
-    onselect(row)
+    onselect(row, howOf(event))
   }
 }
 
@@ -255,7 +260,6 @@ const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.ite
           {@const mark = row.item}
           <div
             class="mark"
-            class:away={mark.mark === 'away'}
             style:top="{(offsets[index] ?? 0) * lineHeight}px"
             style:height="{(heights[index] ?? 1) * lineHeight}px"
             data-testid="logwatch-mark"
@@ -263,21 +267,12 @@ const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.ite
             role="listitem"
           >
             <span class="what">{markText(mark, clockText)}</span>
-            {#if mark.mark === 'away'}
-              <span class="sums">
-                <span><b>{mark.lines.toLocaleString()}</b> lines</span>
-                <span class="err"><b>{mark.err}</b> ERR</span>
-                <span class="warn"><b>{mark.warn}</b> WARN</span>
-                {#if mark.fresh > 0}<span><b>{mark.fresh}</b> new patterns</span>{/if}
-                {#if mark.partial}<span class="partial">only the end was read</span>{/if}
-              </span>
-            {/if}
           </div>
         {:else if line !== null}
           <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
           <div
             class="row lv-{line.level}"
-            class:selected={selected === row.last.seq}
+            class:selected={chosen.has(row.item.seq)}
             class:arrive={row.last.seq > arrivedAfter}
             style:top="{(offsets[index] ?? 0) * lineHeight}px"
             role="listitem"
@@ -285,7 +280,11 @@ const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.ite
             data-testid="logwatch-row"
             data-seq={line.seq}
             data-level={line.level}
-            onclick={() => onselect(row)}
+            onclick={(event) => {
+              // A Shift-click would also select the text between: the lines are chosen instead.
+              if (event.shiftKey) window.getSelection()?.removeAllRanges()
+              onselect(row, howOf(event))
+            }}
             onkeydown={(event) => onkey(row, event)}
             onpointerenter={(event) => hover(row, event)}
             onpointerleave={() => onhover(null, null)}
@@ -602,42 +601,11 @@ mark {
   color: var(--text-muted);
 }
 
-.mark:not(.away)::before,
-.mark:not(.away)::after {
+.mark::before,
+.mark::after {
   content: "";
   flex: 1;
   border-top: 1px dashed var(--panel-rule);
-}
-
-.mark.away {
-  border: 1px solid var(--panel-border);
-  background: var(--accent-faint);
-  color: var(--text);
-}
-
-.sums {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 1rem;
-}
-
-.sums b {
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-.sums .err b {
-  color: var(--danger);
-}
-
-.sums .warn b {
-  color: var(--warn);
-}
-
-.partial {
-  color: var(--warn);
 }
 
 .bar {

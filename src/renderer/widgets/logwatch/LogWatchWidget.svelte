@@ -17,7 +17,6 @@ import {
   type LogFileRef,
   type LogFormat,
   type LogItem,
-  type LogLine,
 } from '@shared/logwatch/types'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
@@ -41,6 +40,9 @@ import LogSettings from './LogSettings.svelte'
 import LogStream from './LogStream.svelte'
 import {
   buildRows,
+  type ChooseHow,
+  chooseRows,
+  chosenLines,
   compileFilter,
   encodingLabel,
   type Row,
@@ -52,7 +54,7 @@ import {
  * LOG WATCH (docs/logwatch.md): one log file, followed while the pane is seen - behind another
  * tab or with the window put away nothing is read, and on coming back main reads what was
  * written meanwhile. Main reads and parses; this pane filters, folds and draws, and asks main
- * to EXPLAIN a line on a press.
+ * to EXPLAIN the lines chosen - only those - on a press.
  */
 const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
 const visible = $derived(seen(inTab))
@@ -112,7 +114,7 @@ async function pick(newest: boolean): Promise<void> {
 function use(id: string): void {
   choosing = false
   problem = null
-  selected = null
+  letGo()
   explaining = null
   sfx.play('folder')
   patch({ file: id, muted: undefined })
@@ -224,17 +226,25 @@ const patterns = $derived(choices.tab === 'patterns' ? tallyPatterns(shownItems,
 
 /* ---- Choosing a line ---- */
 
-let selected = $state<number | null>(null)
-const selectedLine = $derived(
-  selected === null
-    ? null
-    : ((items.find((item) => item.kind === 'line' && item.seq === selected) as
-        | LogLine
-        | undefined) ?? null),
-)
+/**
+ * The lines chosen, by the number of each row's first line: a click chooses one, Ctrl (⌘ on a
+ * Mac) adds or takes away one, Shift chooses a run. Only the chosen lines that are shown are
+ * copied or sent (`chosenLines`).
+ */
+let chosen = $state.raw<ReadonlySet<number>>(new Set())
+let anchor: number | null = null
+const chosenShown = $derived(chosenLines(rows, chosen))
+const addKey = window.elecdex.system.platform === 'darwin' ? '⌘' : 'Ctrl'
 
-function select(row: Row): void {
-  selected = selected === row.last.seq ? null : row.last.seq
+function select(row: Row, how: ChooseHow): void {
+  const next = chooseRows(chosen, anchor, rows, row, how)
+  chosen = next.chosen
+  anchor = next.anchor
+}
+
+function letGo(): void {
+  chosen = new Set()
+  anchor = null
 }
 
 /** COPY says so for a moment; through main, as every pane copies (the tests' stand-in catches it). */
@@ -242,9 +252,8 @@ const copied = new CopyFlag()
 $effect(() => () => copied.dispose())
 
 async function copy(): Promise<void> {
-  const line = selectedLine
-  if (line === null) return
-  const raw = [line.raw, ...line.more].join('\n')
+  if (chosenShown.length === 0) return
+  const raw = chosenShown.map((line) => [line.raw, ...line.more].join('\n')).join('\n')
   const text = choices.mask ? maskText(raw) : raw
   if (await copied.through('line', () => window.elecdex.utility.copy({ kind: 'text', text }))) {
     sfx.play('folder')
@@ -258,11 +267,11 @@ const provider = $derived(providers.find((p) => p.id === choices.provider) ?? pr
 let explaining = $state.raw<LogExplainRequest | null>(null)
 
 function explain(): void {
-  if (selected === null || choices.file === null || provider === null) return
+  if (chosenShown.length === 0 || choices.file === null || provider === null) return
   explaining = {
     id: choices.file,
     encoding: choices.encoding,
-    seq: selected,
+    seqs: chosenShown.map((line) => line.seq),
     provider: provider.id,
     model: choices.model,
     mask: choices.mask,
@@ -505,7 +514,7 @@ $effect(() => {
         errorBar={choices.errorBar}
         mask={choices.mask}
         match={lastGood}
-        {selected}
+        {chosen}
         empty={emptyWords}
         onselect={select}
         {onhover}
@@ -522,8 +531,13 @@ $effect(() => {
       {/key}
     {/if}
     <footer class="foot">
-      {#if selectedLine !== null}
-        <span class="chosen" data-testid="logwatch-chosen">1 line chosen · click it again to let go</span>
+      {#if chosenShown.length > 0}
+        <span class="chosen" data-testid="logwatch-chosen"
+          >{chosenShown.length === 1
+            ? '1 line chosen'
+            : `${chosenShown.length} lines chosen`} · {addKey}+click adds · Shift+click a run</span
+        >
+        <button type="button" onclick={letGo} data-testid="logwatch-let-go">LET GO</button>
         <button type="button" onclick={() => void copy()} data-testid="logwatch-copy">{copied.key === 'line' ? 'COPIED' : 'COPY'}</button>
         {#if provider !== null}
           <button type="button" onclick={explain} data-testid="logwatch-explain-open">EXPLAIN</button>
@@ -534,7 +548,7 @@ $effect(() => {
           >
         {/if}
       {:else}
-        <span class="hint" data-testid="logwatch-hint">click a line to copy it or have AI explain it</span>
+        <span class="hint" data-testid="logwatch-hint">click lines to copy them or have AI explain them</span>
         <span data-testid="logwatch-kept">{heldLines.toLocaleString()} lines kept of {keepLines.toLocaleString()} · read {((status?.read ?? 0) / 1024).toFixed(0)} KB</span>
       {/if}
       <span class="quiet">read only while shown · nothing written</span>

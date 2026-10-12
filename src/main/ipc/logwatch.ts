@@ -52,8 +52,8 @@ export function registerLogWatchIpc(
     systemPrompt: () => settings.current().ai.systemPrompt,
     keyFor: ai.keyFor,
     adapter: ai.adapter,
-    context: (request: LogExplainRequest) =>
-      service.context(request.id, request.encoding, request.seq),
+    lines: (request: LogExplainRequest) =>
+      service.lines(request.id, request.encoding, request.seqs),
     newId: () => crypto.randomUUID(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),

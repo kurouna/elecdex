@@ -1,6 +1,11 @@
 import { type AiProvider, type AiProviderKind, type ChatStop, STOP_CODES } from '@shared/ai'
-import { explainSystem, explainText } from '@shared/logwatch/explain'
-import type { LogExplainEvent, LogExplainRequest, LogFormat, LogLine } from '@shared/logwatch/types'
+import { explainFits, explainSystem, explainText } from '@shared/logwatch/explain'
+import {
+  LOG_LIMITS,
+  type LogExplainEvent,
+  type LogExplainRequest,
+  type LogLine,
+} from '@shared/logwatch/types'
 import { describeFailure, isUnreachable, type ProviderAdapter } from '../ai/adapter.js'
 import { targetFor } from '../ai/target.js'
 
@@ -20,9 +25,8 @@ export interface ExplainDeps<P> {
   systemPrompt(): string
   keyFor(providerId: string): string | null
   adapter(kind: AiProviderKind): Promise<ProviderAdapter>
-  context(
-    request: LogExplainRequest,
-  ): { target: LogLine; before: LogLine[]; file: string; format: LogFormat } | null
+  /** The lines the request names, only those; null when any is no longer held. */
+  lines(request: LogExplainRequest): LogLine[] | null
   newId(): string
   setTimer(fn: () => void, ms: number): unknown
   clearTimer(handle: unknown): void
@@ -49,11 +53,10 @@ export class LogExplainer<P> {
     this.#deps = deps
   }
 
-  /** What would be sent, for the pane to show before SEND; null when the line is gone. */
+  /** What would be sent, for the pane to show before SEND; null when a chosen line is gone. */
   preview(request: LogExplainRequest): string | null {
-    const found = this.#deps.context(request)
-    if (found === null) return null
-    return explainText(found.target, found.before, found, request.mask)
+    const lines = this.#deps.lines(request)
+    return lines === null ? null : explainText(lines, request.mask)
   }
 
   /** Whether a page has an answer being written. */
@@ -71,8 +74,14 @@ export class LogExplainer<P> {
     if (provider === undefined) return { problem: 'no AI provider is set up in the settings' }
     const target = targetFor(providers, this.#deps.keyFor, provider.id)
     if (typeof target === 'string') return { problem: target }
-    const found = this.#deps.context(request)
-    if (found === null) return { problem: 'that line is no longer held: choose it again' }
+    const lines = this.#deps.lines(request)
+    if (lines === null) return { problem: 'a line chosen is no longer held: choose again' }
+    const text = explainText(lines, request.mask)
+    if (!explainFits(text)) {
+      return {
+        problem: `too long to send (over ${LOG_LIMITS.explainChars.toLocaleString()} characters): choose fewer lines`,
+      }
+    }
     const model = own !== undefined && request.model !== '' ? request.model : provider.model
     const asking: Asking = {
       token: this.#deps.newId(),
@@ -93,7 +102,7 @@ export class LogExplainer<P> {
       baseUrl: target.baseUrl,
       key: target.key,
       model,
-      text: explainText(found.target, found.before, found, request.mask),
+      text,
     })
     return { token: asking.token }
   }

@@ -2,6 +2,8 @@ import type { LogItem, LogLine, LogMark } from '@shared/logwatch/types'
 import { describe, expect, it } from 'vitest'
 import {
   buildRows,
+  chooseRows,
+  chosenLines,
   clockText,
   columns,
   compileFilter,
@@ -172,20 +174,8 @@ describe('heights', () => {
     expect(rowLines(row, false, false, 10)).toBe(1)
     expect(rowLines(row, false, true, 10)).toBe(3)
     expect(rowLines(row, true, false, 10)).toBe(4)
-    const away: LogMark = {
-      kind: 'mark',
-      seq: 1,
-      at: NOW,
-      mark: 'away',
-      from: NOW,
-      lines: 1,
-      until: 2,
-      err: 0,
-      warn: 0,
-      fresh: 0,
-      partial: false,
-    }
-    expect(rowLines({ item: away, reps: 1, last: away, prev: null }, false, false, 10)).toBe(2)
+    const mark: LogMark = { kind: 'mark', seq: 1, at: NOW, mark: 'opened', lines: 3 }
+    expect(rowLines({ item: mark, reps: 1, last: mark, prev: null }, false, false, 10)).toBe(1)
   })
 
   it('finds the row at a height', () => {
@@ -335,23 +325,6 @@ describe('the view at its edges', () => {
   it('words every mark', () => {
     const rotated = markText({ kind: 'mark', seq: 0, at: NOW, mark: 'rotated' }, clockText)
     expect(rotated).toContain('the file was replaced')
-    const away = markText(
-      {
-        kind: 'mark',
-        seq: 0,
-        at: NOW,
-        mark: 'away',
-        from: NOW - 60_000,
-        lines: 1,
-        err: 0,
-        warn: 0,
-        fresh: 0,
-        partial: false,
-        until: 1,
-      },
-      clockText,
-    )
-    expect(away).toBe('while hidden 11:59:00–12:00:00')
     expect(encodingLabel('auto', 'something-new')).toBe('auto · something-new')
   })
 
@@ -438,5 +411,51 @@ describe('the error bar beside a short stream', () => {
     expect(errorMarks(rows, offsets, 20)).toEqual([{ at: 0.05, level: 'ERR' }])
     // A stream longer than the view: the stream's own height.
     expect(errorMarks(rows, offsets, 1)).toEqual([{ at: 0.5, level: 'ERR' }])
+  })
+})
+
+describe('choosing lines', () => {
+  const items: LogItem[] = [
+    line({ text: 'a', sig: 'a' }),
+    { kind: 'mark', seq: seq++, at: NOW, mark: 'rotated' },
+    line({ text: 'b', sig: 'b' }),
+    line({ text: 'c', sig: 'c', level: 'DBG' }),
+    line({ text: 'd', sig: 'd' }),
+  ]
+  const rows = buildRows(items, ALL)
+  const at = (i: number): Row => rows[i] as Row
+  const seqOf = (i: number): number => at(i).item.seq
+
+  it('chooses one on a click, and lets it go on a second', () => {
+    const one = chooseRows(new Set(), null, rows, at(0), 'one')
+    expect([...one.chosen]).toEqual([seqOf(0)])
+    const other = chooseRows(one.chosen, one.anchor, rows, at(2), 'one')
+    expect([...other.chosen]).toEqual([seqOf(2)])
+    expect(chooseRows(other.chosen, other.anchor, rows, at(2), 'one')).toEqual({
+      chosen: new Set(),
+      anchor: null,
+    })
+  })
+
+  it('adds and takes away one with Ctrl, and chooses a run of lines with Shift', () => {
+    let state = chooseRows(new Set(), null, rows, at(0), 'one')
+    state = chooseRows(state.chosen, state.anchor, rows, at(4), 'toggle')
+    expect([...state.chosen].sort()).toEqual([seqOf(0), seqOf(4)].sort())
+    state = chooseRows(state.chosen, state.anchor, rows, at(0), 'toggle')
+    expect([...state.chosen]).toEqual([seqOf(4)])
+    // From the last one touched (the one just let go of); the mark between is no line.
+    const run = chooseRows(state.chosen, state.anchor, rows, at(4), 'range')
+    expect([...run.chosen].sort()).toEqual([0, 2, 3, 4].map(seqOf).sort())
+    expect(run.anchor).toBe(seqOf(0))
+    // Shift with nothing to start from chooses only that one.
+    expect([...chooseRows(new Set(), null, rows, at(3), 'range').chosen]).toEqual([seqOf(3)])
+  })
+
+  it('gives only the chosen lines shown, in order: a hidden one is neither copied nor sent', () => {
+    const chosen = new Set([seqOf(4), seqOf(3), seqOf(0), seqOf(1)])
+    expect(chosenLines(rows, chosen).map((l) => l.text)).toEqual(['a', 'c', 'd'])
+    const shown = buildRows(items, { ...ALL, hidden: new Set(['DBG']) })
+    expect(chosenLines(shown, chosen).map((l) => l.text)).toEqual(['a', 'd'])
+    expect(chosenLines(rows, new Set())).toEqual([])
   })
 })

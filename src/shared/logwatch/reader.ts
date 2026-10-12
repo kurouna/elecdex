@@ -69,11 +69,6 @@ export class LogReader {
     return this.#nextSeq
   }
 
-  /** A number set aside now for an item made later, to sit before the lines read meanwhile. */
-  reserve(): number {
-    return this.#nextSeq++
-  }
-
   /** A mark in the stream, numbered with the lines. */
   mark<M extends Omit<LogMark, 'seq'>>(mark: M): M & { seq: number } {
     return { ...mark, seq: this.#nextSeq++ }

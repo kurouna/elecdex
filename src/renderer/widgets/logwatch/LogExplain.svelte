@@ -112,7 +112,7 @@ function stop(): void {
     {/if}
     {#if token === null}
       {#if missing}
-        <p class="note">that line is no longer held: choose it again</p>
+        <p class="note">a line chosen is no longer held: choose again</p>
       {:else if preview !== null}
         <p class="note">sent only when you press SEND{request.mask ? '' : ' · MASK is off: the values go as written'}</p>
         <pre class="preview" data-testid="logwatch-explain-preview">{preview}</pre>

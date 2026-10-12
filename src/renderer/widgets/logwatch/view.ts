@@ -187,7 +187,7 @@ function columnsOf(line: LogLine): number {
 /** Lines a row takes: one, or its text wrapped to `cols`, and its trace when open. */
 export function rowLines(row: Row, open: boolean, wrap: boolean, cols: number): number {
   const item = row.item
-  if (item.kind === 'mark') return item.mark === 'away' ? 2 : 1
+  if (item.kind === 'mark') return 1
   const own = wrap && cols > 0 ? Math.max(1, Math.ceil(columnsOf(item) / cols)) : 1
   if (!open) return own
   return own + item.more.length + (item.moreCut > 0 ? 1 : 0)
@@ -362,8 +362,6 @@ export function markText(mark: LogMark, clock: (at: number) => string): string {
       return `${clock(mark.at)} · the file was replaced · reading the new one from its start`
     case 'switched':
       return `${clock(mark.at)} · switched to ${mark.name}`
-    case 'away':
-      return `while hidden ${clock(mark.from)}–${clock(mark.at)}`
   }
 }
 
@@ -417,4 +415,48 @@ export function fileCardRows(
     if (status.problem !== null) rows.push({ label: 'problem', value: status.problem })
   }
   return rows
+}
+
+/** How a click chooses: the line alone, one more or one less (Ctrl/⌘), or a run (Shift). */
+export type ChooseHow = 'one' | 'toggle' | 'range'
+
+/**
+ * The lines chosen after a click on `row`, by the number of each row's first line (a row's
+ * number does not change as repeats fold into it), and the row a run starts from. A click on the
+ * one line chosen lets it go.
+ */
+export function chooseRows(
+  chosen: ReadonlySet<number>,
+  anchor: number | null,
+  rows: readonly Row[],
+  row: Row,
+  how: ChooseHow,
+): { chosen: Set<number>; anchor: number | null } {
+  const seq = row.item.seq
+  if (how === 'toggle') {
+    const next = new Set(chosen)
+    if (next.has(seq)) next.delete(seq)
+    else next.add(seq)
+    return { chosen: next, anchor: seq }
+  }
+  const from = anchor === null ? -1 : rows.findIndex((r) => r.item.seq === anchor)
+  if (how === 'range' && from >= 0) {
+    const to = rows.indexOf(row)
+    const [a, b] = from <= to ? [from, to] : [to, from]
+    const run = rows.slice(a, b + 1).filter((r) => r.item.kind === 'line')
+    return { chosen: new Set(run.map((r) => r.item.seq)), anchor }
+  }
+  const alone = chosen.size === 1 && chosen.has(seq)
+  return { chosen: alone ? new Set() : new Set([seq]), anchor: alone ? null : seq }
+}
+
+/**
+ * The lines chosen, among the rows shown, in their order: a line the levels or the filter hide
+ * now is not sent or copied - only what can be seen chosen goes anywhere.
+ */
+export function chosenLines(rows: readonly Row[], chosen: ReadonlySet<number>): LogLine[] {
+  if (chosen.size === 0) return []
+  return rows.flatMap((row) =>
+    row.item.kind === 'line' && chosen.has(row.item.seq) ? [row.item] : [],
+  )
 }

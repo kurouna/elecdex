@@ -171,7 +171,7 @@ describe('LogWatchService', () => {
     expect([...r.timers.values()].some((t) => t.at === r.now() + SETTLE_MS)).toBe(false)
   })
 
-  it('reads nothing while hidden, and the gap with a banner on coming back', async () => {
+  it('reads nothing while hidden, and on coming back what came, as the latest lines', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 3).replace('INFO line 3', 'ERROR line 3'))
     const r = rig({ [ID]: { path: file, pattern: null, format: null } })
@@ -192,17 +192,19 @@ describe('LogWatchService', () => {
     expect(events.every((event) => !event.reset)).toBe(true)
     const after = r.held('page')
     expect(after.slice(0, before.length)).toEqual(before)
-    const away = after.find((item) => item.kind === 'mark' && item.mark === 'away')
-    expect(away).toMatchObject({ lines: 4, err: 1, warn: 1, partial: false })
+    // No banner of its own (user decision 2026-10-12): the lines, as any others.
+    expect(after.slice(before.length).map((item) => item.kind)).toEqual([
+      'line',
+      'line',
+      'line',
+      'line',
+    ])
     expect(r.texts('page').slice(-4)).toEqual(['line 4', 'line 5', 'boom', 'careful'])
-    // The banner sits before what it sums up, by place and by number.
-    const at = after.indexOf(away as LogItem)
-    expect(after[at + 1]).toMatchObject({ text: 'line 4' })
     const seqs = after.map((item) => item.seq)
     expect([...seqs].sort((a, b) => a - b)).toEqual(seqs)
   })
 
-  it('reads only the end of a long gap, and says so', async () => {
+  it('reads only the end of a long gap: the latest lines', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 1))
     const r = rig({ [ID]: { path: file, pattern: null, format: null } })
@@ -211,13 +213,14 @@ describe('LogWatchService', () => {
     const since = r.held('page').at(-1)?.seq ?? -1
     r.service.unsubscribe('page', ID, 'auto')
     appendFileSync(file, `${'x'.repeat(100)}\n`.repeat(50_000))
+    appendFileSync(file, lines(2, 2, 'last'))
     r.service.subscribe('page', { id: ID, encoding: 'auto', since })
     await r.advance(DELIVER_MS * 2)
-    const away = r.held('page').find((item) => item.kind === 'mark' && item.mark === 'away')
-    expect(away).toMatchObject({ partial: true })
-    expect(r.texts('page').every((text) => text === 'line 1' || text === 'x'.repeat(100))).toBe(
-      true,
-    )
+    const texts = r.texts('page')
+    expect(texts.at(-1)).toBe('last 2')
+    // About 4 MB of the 5 MB written: the end, from its first whole line.
+    expect(texts.length).toBeLessThan(45_000)
+    expect(texts.slice(1, -1).every((text) => text === 'x'.repeat(100))).toBe(true)
   })
 
   it('shares one reading between two pages, without sending anything twice', async () => {
@@ -324,26 +327,29 @@ describe('LogWatchService', () => {
     await r.settle()
     appendFileSync(file, lines(2, 40))
     await r.advance(LOOK_MS + DELIVER_MS * 2)
-    const context = r.service.context(ID, 'auto', r.held('page').at(-1)?.seq ?? 0)
-    expect(context?.target.text).toBe('line 40')
-    expect(context?.before.map((l) => l.text)).toEqual(
-      Array.from({ length: 9 }, (_, i) => `line ${31 + i}`),
+    const seqs = r.held('page').flatMap((item) => (item.kind === 'line' ? [item.seq] : []))
+    // Lines past the ten kept are gone in main too: asked for with them, nothing is answered.
+    expect(r.service.lines(ID, 'auto', seqs)).toBeNull()
+    expect(r.service.lines(ID, 'auto', seqs.slice(-10))?.map((l) => l.text)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `line ${31 + i}`),
     )
   })
 
-  it('gives EXPLAIN the line and the ten before it', async () => {
+  it('gives EXPLAIN the chosen lines and only those, or nothing if one is gone', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 30))
     const r = rig({ [ID]: { path: file, pattern: null, format: null } }, 5000, 2000)
     r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
     await r.settle()
-    const target = r.held('page').find((item) => item.kind === 'line' && item.text === 'line 25')
-    const context = r.service.context(ID, 'auto', target?.seq ?? -1)
-    expect(context?.before.map((l) => l.text)).toEqual(
-      Array.from({ length: 10 }, (_, i) => `line ${15 + i}`),
-    )
-    expect(context).toMatchObject({ file: 'app.log', format: 'plain' })
-    expect(r.service.context(ID, 'auto', 12345)).toBeNull()
+    const seqOf = (text: string) =>
+      r.held('page').find((item) => item.kind === 'line' && item.text === text)?.seq ?? -1
+    const chosen = r.service.lines(ID, 'auto', [seqOf('line 25'), seqOf('line 3')])
+    expect(chosen?.map((l) => l.text)).toEqual(['line 3', 'line 25'])
+    expect(r.service.lines(ID, 'auto', [seqOf('line 25'), 12345])).toBeNull()
+    expect(r.service.lines(ID, 'utf-8', [seqOf('line 25')])).toBeNull()
+    // The opening mark has a number too, but is no line: never sent.
+    const mark = r.held('page').find((item) => item.kind === 'mark')?.seq ?? -1
+    expect(r.service.lines(ID, 'auto', [mark])).toBeNull()
   })
 
   it('reads afresh in a dialect set by hand', async () => {
@@ -376,7 +382,7 @@ describe('LogWatchService', () => {
     expect(r.timers.size).toBe(0)
   })
 
-  it('delivers nothing while gathering a long gap, so every line arrives once, after its banner', async () => {
+  it('sends every line of a long gap once, in order, with a beat in the middle of reading it', async () => {
     // Found in review: a beat between two chunks of the gap sent lines to nobody (the only page
     // was still waiting), then the banner went out twice and a line never.
     const file = path.join(dir, 'app.log')
@@ -414,7 +420,6 @@ describe('LogWatchService', () => {
     const seqs = held.map((item) => item.seq)
     expect(new Set(seqs).size).toBe(seqs.length)
     expect([...seqs].sort((a, b) => a - b)).toEqual(seqs)
-    expect(held.filter((item) => item.kind === 'mark' && item.mark === 'away')).toHaveLength(1)
     const texts = r.texts('page')
     expect(texts).toHaveLength(120_001)
     expect(texts.at(-1)).toBe('line 120001')
@@ -493,12 +498,12 @@ describe('LogWatchService', () => {
     await r.settle()
     r.limits.keep = 2
     await r.advance(DELIVER_MS * 2)
-    expect(r.service.context(ID, 'auto', r.held('page')[0]?.seq ?? -1)).toBeNull()
+    const first = r.held('page').find((item) => item.kind === 'line')?.seq ?? -1
+    expect(r.service.lines(ID, 'auto', [first])).toBeNull()
   })
 
-  it('keeps the banner of a gap longer than the lines kept, until its lines are gone', async () => {
-    // Found checking the review's fixes: main kept the banner at the front for good, while the
-    // page let it go at once. Both now hold by the same rule, replayed here as the page does.
+  it('holds the same lines in main and the page, by the same rule, past the lines kept', async () => {
+    // Found checking the review's fixes: main and the page held by different rules.
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 1))
     const r = rig({ [ID]: { path: file, pattern: null, format: null } }, 10, 5)
@@ -514,31 +519,21 @@ describe('LogWatchService', () => {
       }
       return items
     }
-    const shown = () => page().map((item) => (item.kind === 'line' ? item.text : item.mark))
     r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
     await r.settle()
-    const since = r.held('page').at(-1)?.seq ?? -1
-    r.service.unsubscribe('page', ID, 'auto')
-    appendFileSync(file, lines(2, 31))
-    r.service.subscribe('page', { id: ID, encoding: 'auto', since })
-    await r.advance(DELIVER_MS * 2)
-    expect(shown()[0]).toBe('away')
-    expect(page()[0]).toMatchObject({ lines: 30 })
-    appendFileSync(file, lines(32, 32))
+    appendFileSync(file, lines(2, 41))
     await r.advance(LOOK_MS + DELIVER_MS)
-    expect(shown()).toEqual([
-      'away',
-      ...Array.from({ length: 8 }, (_, i) => `line ${24 + i}`),
-      'line 32',
-    ])
-    appendFileSync(file, lines(33, 41))
-    await r.advance(LOOK_MS + DELIVER_MS)
-    expect(shown()).toEqual(Array.from({ length: 10 }, (_, i) => `line ${32 + i}`))
-    // Main holds the same: the line before the newest nine is the oldest kept.
-    const last = page().at(-1)?.seq ?? -1
-    expect(r.service.context(ID, 'auto', last)?.before.map((l) => l.text)).toEqual(
-      Array.from({ length: 9 }, (_, i) => `line ${32 + i}`),
+    const held = page()
+    expect(held.map((item) => (item.kind === 'line' ? item.text : item.mark))).toEqual(
+      Array.from({ length: 10 }, (_, i) => `line ${32 + i}`),
     )
+    expect(
+      r.service.lines(
+        ID,
+        'auto',
+        held.map((item) => item.seq),
+      ),
+    ).toHaveLength(10)
   })
 
   it('forgets the bytes of a file not yet judged when it is replaced', async () => {

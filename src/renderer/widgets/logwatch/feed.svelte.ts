@@ -8,7 +8,7 @@ import { appearance } from '../../stores/appearance.svelte.ts'
  * What the page holds of one file in one encoding, shared by the panes that show it
  * (docs/logwatch.md §6). Subscribed while one of them is seen; between, it keeps what it held,
  * and asks main only for what came after its last item - which main reads from where it stopped,
- * with a banner for what was written meanwhile.
+ * sending what was written meanwhile as any other lines.
  *
  * The items are a plain array, never a `$state` proxy: tens of thousands of lines would be
  * wrapped one by one. `version` is what the panes follow.

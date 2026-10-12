@@ -8,7 +8,6 @@ import {
   LOG_LIMITS,
   type LogEncoding,
   type LogEncodingChoice,
-  type LogFormat,
   type LogItem,
   type LogLine,
   type LogStatus,
@@ -114,18 +113,6 @@ interface Channel<P> {
   waiting: Map<P, Waiting>
   /** Bytes held until there is enough to judge the encoding and the dialect by; null once judged. */
   sample: Uint8Array | null
-  /**
-   * What came while no pane showed the file, counted as it is read (after the number set aside for
-   * the banner): the lines kept may be fewer than came.
-   */
-  tally: {
-    after: number
-    last: number
-    lines: number
-    err: number
-    warn: number
-    fresh: number
-  } | null
   /** Bytes came since the last delivery: the open entry may still grow. */
   fed: boolean
   bad: number
@@ -153,11 +140,6 @@ interface Source<P> {
   looks: number
   /** Reads one at a time. */
   busy: Promise<void>
-  /**
-   * Reading what came while no pane showed it: nothing is delivered until the banner that sums it
-   * up is in place, so what was read before the banner never goes out ahead of it.
-   */
-  gathering: boolean
   /** When the last pane went; null while one shows it or before any did. */
   dormantSince: number | null
   read: number
@@ -252,25 +234,18 @@ export class LogWatchService<P> {
     void this.#queue(source, () => this.#catchUp(source))
   }
 
-  /** The line and the lines before it, for EXPLAIN; null when it is no longer held. */
-  context(
-    id: string,
-    encoding: LogEncodingChoice,
-    seq: number,
-  ): { target: LogLine; before: LogLine[]; file: string; format: LogFormat } | null {
-    const source = this.#sources.get(id)
-    const channel = source?.channels.get(encoding)
-    const reader = channel?.reader ?? null
-    if (source === undefined || channel === undefined || reader === null) return null
-    const at = channel.items.findIndex((item) => item.seq === seq)
-    const target = channel.items[at]
-    if (target === undefined || target.kind !== 'line') return null
-    const before = channel.items
-      .slice(0, at)
-      .filter((item): item is LogLine => item.kind === 'line')
-      .slice(-LOG_LIMITS.explainBefore)
-    const file = this.#deps.fs.basename(source.file ?? source.entry.path)
-    return { target, before, file, format: reader.format }
+  /**
+   * The lines chosen for EXPLAIN, by number, and only those; null when any of them is no longer
+   * held (sending the rest would send other than what was chosen).
+   */
+  lines(id: string, encoding: LogEncodingChoice, seqs: readonly number[]): LogLine[] | null {
+    const channel = this.#sources.get(id)?.channels.get(encoding)
+    if (channel === undefined || channel.reader === null) return null
+    const wanted = new Set(seqs)
+    const found = channel.items.filter(
+      (item): item is LogLine => item.kind === 'line' && wanted.has(item.seq),
+    )
+    return found.length === wanted.size ? found : null
   }
 
   /** Once every read queued so far is done (the tests' wait). */
@@ -314,7 +289,6 @@ export class LogWatchService<P> {
       settle: null,
       looks: 0,
       busy: Promise.resolve(),
-      gathering: false,
       dormantSince: null,
       read: 0,
       lastByte: null,
@@ -337,7 +311,6 @@ export class LogWatchService<P> {
       pages: new Set(),
       waiting: new Map(),
       sample: null,
-      tally: null,
       fed: false,
       bad: 0,
       chars: 0,
@@ -345,11 +318,14 @@ export class LogWatchService<P> {
     }
   }
 
-  /** A pane shows it: watching, and reading what was written while none did. */
+  /**
+   * A pane shows it: watching, and reading what was written while none did - it comes as the
+   * latest lines, as any others (user decision 2026-10-12: no banner of its own).
+   */
   #wake(source: Source<P>): void {
     if (source.awake) return
     source.awake = true
-    const away = source.dormantSince
+    const wasHidden = source.dormantSince !== null
     source.dormantSince = null
     const folder =
       source.entry.pattern === null ? this.#deps.fs.dirname(source.entry.path) : source.entry.path
@@ -358,9 +334,7 @@ export class LogWatchService<P> {
     source.watcher = this.#deps.fs.watch(folder, (changed) => this.#heard(source, name, changed))
     this.#deliver.start()
     this.#look.start()
-    if (away !== null && source.offset !== null) {
-      void this.#queue(source, () => this.#pull(source, away))
-    }
+    if (wasHidden && source.offset !== null) void this.#queue(source, () => this.#pull(source))
   }
 
   /** No pane shows it any more: it stops watching, keeping its place. */
@@ -421,7 +395,7 @@ export class LogWatchService<P> {
     if (source.settle !== null || !source.awake) return
     source.settle = this.#deps.setTimer(() => {
       source.settle = null
-      void this.#queue(source, () => this.#pull(source, null))
+      void this.#queue(source, () => this.#pull(source))
     }, SETTLE_MS)
   }
 
@@ -642,8 +616,8 @@ export class LogWatchService<P> {
     for (const line of judged.read(text, now, false)) this.#emit(channel, line)
   }
 
-  /** Reads where the file grew, for every channel shown; `away` when coming back to it. */
-  async #pull(source: Source<P>, away: number | null): Promise<void> {
+  /** Reads where the file grew, for every channel shown. */
+  async #pull(source: Source<P>): Promise<void> {
     if (this.#disposed || !source.awake) return
     this.#dropUnshown(source)
     const facts = await this.#stat(source)
@@ -654,28 +628,15 @@ export class LogWatchService<P> {
     source.facts = facts
     const from = source.offset ?? 0
     if (facts.size === from) return
+    // Past 4 MB (a long time hidden, or a flood), only the end is read: the latest lines.
     const partial = facts.size - from > LOG_LIMITS.tailBytes
-    if (away !== null) {
-      // A number set aside in each channel for the banner, before the lines it will sum up.
-      this.#shown(source, (channel, reader) => {
-        const after = reader.reserve()
-        channel.tally = { after, last: after, lines: 0, err: 0, warn: 0, fresh: 0 }
-      })
-    }
-    source.gathering = away !== null
-    try {
-      source.offset = await this.#readRange(
-        source,
-        file,
-        partial ? facts.size - LOG_LIMITS.tailBytes : from,
-        facts.size,
-        partial,
-      )
-      if (away !== null) this.#markAway(source, away, partial)
-    } finally {
-      source.gathering = false
-      for (const channel of source.channels.values()) channel.tally = null
-    }
+    source.offset = await this.#readRange(
+      source,
+      file,
+      partial ? facts.size - LOG_LIMITS.tailBytes : from,
+      facts.size,
+      partial,
+    )
   }
 
   /** A channel nobody shows misses what is read now: it opens afresh when shown again. */
@@ -759,34 +720,6 @@ export class LogWatchService<P> {
     })
   }
 
-  /** What came while no pane showed the file, said once before it, where anything came. */
-  #markAway(source: Source<P>, from: number, partial: boolean): void {
-    const now = this.#deps.now()
-    this.#shown(source, (channel, reader) => {
-      if (channel.tally === null) return
-      // The open entry is part of what came: given up now, it is counted with the rest.
-      for (const line of reader.flush()) this.#emit(channel, line)
-      channel.fed = false
-      const tally = channel.tally
-      if (tally.lines === 0) return
-      const mark: LogItem = {
-        kind: 'mark',
-        seq: tally.after,
-        at: now,
-        mark: 'away',
-        from,
-        lines: tally.lines,
-        err: tally.err,
-        warn: tally.warn,
-        fresh: tally.fresh,
-        partial,
-        until: tally.last,
-      }
-      insertBySeq(channel.items, mark)
-      channel.held += charsOf(mark)
-    })
-  }
-
   /** Every channel shown starts its reading afresh, after a mark saying why. */
   #restartAll(source: Source<P>, mark: (reader: LogReader) => LogItem): void {
     this.#shown(source, (channel, reader) => {
@@ -814,14 +747,6 @@ export class LogWatchService<P> {
   }
 
   #emit(channel: Channel<P>, item: LogItem): void {
-    const tally = channel.tally
-    if (tally !== null && item.kind === 'line' && item.seq > tally.after) {
-      tally.last = item.seq
-      tally.lines++
-      if (item.level === 'ERR' || item.level === 'FTL') tally.err++
-      if (item.level === 'WRN') tally.warn++
-      if (item.fresh) tally.fresh++
-    }
     channel.items.push(item)
     channel.held += charsOf(item)
     this.#trim(channel)
@@ -861,13 +786,13 @@ export class LogWatchService<P> {
       const unopened = [...source.channels.values()].some(
         (channel) => channel.reader === null && channel.pages.size > 0,
       )
-      void this.#queue(source, () => (unopened ? this.#catchUp(source) : this.#pull(source, null)))
+      void this.#queue(source, () => (unopened ? this.#catchUp(source) : this.#pull(source)))
     }
   }
 
   #deliverAll(): void {
     for (const source of this.#sources.values()) {
-      if (!source.awake || source.gathering) continue
+      if (!source.awake) continue
       for (const channel of source.channels.values()) this.#deliverChannel(source, channel)
     }
   }
@@ -896,13 +821,6 @@ export class LogWatchService<P> {
     channel.sentStatus = said
     for (const page of channel.pages) if (!channel.waiting.has(page)) this.#deps.send(page, event)
   }
-}
-
-/** Puts an item among others in the order of their numbers. */
-function insertBySeq(items: LogItem[], item: LogItem): void {
-  const at = items.findIndex((other) => other.seq > item.seq)
-  if (at < 0) items.push(item)
-  else items.splice(at, 0, item)
 }
 
 function unknownStatus(): LogStatus {

@@ -339,13 +339,18 @@ user made; do not reverse one without asking.
   never a path from the page. Nothing is ever written to the file.
   - Main watches the file's folder and looks once a second only while a page shows it, reads only
     where the file grew, never holds it open, and on coming back reads the gap (its end past 4 MB)
-    under an `away` mark. Nothing while hidden, no notification.
+    as any other lines - no banner (user decision 2026-10-12). Nothing while hidden, no
+    notification.
   - Parsing is pure (shared/logwatch) and runs in main (measured: about 1 ms a quarter second at
     1000 lines/s). One channel per file and encoding in main, one feed per key in the page
     (feed.svelte.ts), shared by panes; the feed's array is replaced, never grown in place.
-  - EXPLAIN only on a press, only with an AI provider set: main puts the text together from what
-    it read (`explainText`, the same for preview and send), masked when MASK is on; the key stays
-    in main, the answer is drawn from the markdown tree.
+  - EXPLAIN only on a press, only with an AI provider set, and only the lines the user chose
+    (user decision 2026-10-12: nothing reaches a model unintended) - never the lines around them,
+    the file's name or path. The page sends their numbers; main takes them from what it holds
+    (`lines`), puts the text together (`explainText`, the same for preview and send), masked
+    when MASK is on, and refuses rather than cut a choice too long. A chosen line the filter hides
+    is neither sent nor copied (`chosenLines`). The key stays in main, the answer is drawn from
+    the markdown tree.
   - Tests write logs in a temp folder and replace `dialog.showOpenDialog`; `scripts/log-feed.mjs`
     is for trying it by hand.
 - **No location prompts.** Chromium permission requests are denied except clipboard

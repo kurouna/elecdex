@@ -86,9 +86,9 @@ export const LOG_LIMITS = {
   patterns: 2000,
   /** Patterns a pane may mute. */
   muted: 200,
-  /** Lines before the chosen one that go with EXPLAIN (user decision 2026-10-12). */
-  explainBefore: 10,
-  /** EXPLAIN's whole text, at most; the oldest context lines go first. */
+  /** Lines that may be chosen for EXPLAIN at once. */
+  explainLines: 200,
+  /** EXPLAIN's whole text, at most: a longer choice is not sent (nothing of it is cut). */
   explainChars: 12_000,
 } as const
 
@@ -151,21 +151,6 @@ export type LogMark =
   | { kind: 'mark'; seq: number; at: number; mark: 'opened'; lines: number }
   | { kind: 'mark'; seq: number; at: number; mark: 'rotated' }
   | { kind: 'mark'; seq: number; at: number; mark: 'switched'; name: string }
-  | {
-      kind: 'mark'
-      seq: number
-      at: number
-      mark: 'away'
-      from: number
-      lines: number
-      err: number
-      warn: number
-      fresh: number
-      /** Only the end of what was written while hidden was read. */
-      partial: boolean
-      /** The number of the last line it sums up: it is held while any of them is. */
-      until: number
-    }
 
 export type LogItem = LogLine | LogMark
 
@@ -214,8 +199,8 @@ export interface LogSubscribeRequest {
 export interface LogExplainRequest {
   id: string
   encoding: LogEncodingChoice
-  /** The line to explain. */
-  seq: number
+  /** The lines chosen, by number: only these are sent (user decision 2026-10-12). */
+  seqs: number[]
   /** A provider of the AI settings, by id; empty for the first. */
   provider: string
   /** Empty for the provider's own. */
@@ -261,13 +246,19 @@ const isShortText = (value: unknown, max: number): value is string =>
 
 export function parseExplainRequest(raw: unknown): LogExplainRequest | null {
   if (typeof raw !== 'object' || raw === null) return null
-  const { id, encoding, seq, provider, model, mask } = raw as Record<string, unknown>
-  if (!isLogId(id) || !isEncodingChoice(encoding) || !isSeq(seq) || seq < 0) return null
+  const { id, encoding, seqs, provider, model, mask } = raw as Record<string, unknown>
+  if (!isLogId(id) || !isEncodingChoice(encoding) || !isSeqList(seqs)) return null
   if (!isShortText(provider, 100) || !isShortText(model, 120) || typeof mask !== 'boolean') {
     return null
   }
-  return { id, encoding, seq, provider, model, mask }
+  return { id, encoding, seqs: [...new Set(seqs)], provider, model, mask }
 }
+
+const isSeqList = (value: unknown): value is number[] =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.length <= LOG_LIMITS.explainLines &&
+  value.every((seq) => isSeq(seq) && seq >= 0)
 
 export const isExplainToken = (value: unknown): value is string =>
   typeof value === 'string' && /^[0-9a-z-]{8,64}$/i.test(value)

@@ -34,7 +34,7 @@ const PROVIDER = {
 const REQUEST: LogExplainRequest = {
   id: '0123456789abcdef',
   encoding: 'auto',
-  seq: 5,
+  seqs: [5],
   provider: '',
   model: '',
   mask: true,
@@ -60,15 +60,15 @@ function rig(
         return (adapter.stream ?? (async () => ({})))(request, sink)
       },
     }),
-    context: (request) =>
-      request.seq === 5
-        ? {
-            target: line(5, 'ERROR mail to rin@example.com failed'),
-            before: [line(4, 'INFO before')],
-            file: 'app.log',
-            format: 'plain',
-          }
-        : null,
+    lines: (request) => {
+      const held = new Map([
+        [4, line(4, 'INFO before')],
+        [5, line(5, 'ERROR mail to rin@example.com failed')],
+        [6, line(6, 'WARN after')],
+      ])
+      const found = request.seqs.map((seq) => held.get(seq))
+      return found.every((l) => l !== undefined) ? (found as LogLine[]) : null
+    },
     newId: () => `token-${next}`,
     setTimer: (fn) => {
       const id = next++
@@ -96,7 +96,9 @@ describe('LogExplainer', () => {
     })
     const preview = r.explainer.preview(REQUEST)
     expect(preview).toContain('ERROR mail to ••• failed')
-    expect(preview).toContain('INFO before')
+    // Only what was chosen: not the line before it, nor the one after.
+    expect(preview).not.toContain('INFO before')
+    expect(preview).not.toContain('WARN after')
     const started = r.explainer.start('page', REQUEST)
     expect(started).toEqual({ token: 'token-1' })
     await settle()
@@ -118,7 +120,7 @@ describe('LogExplainer', () => {
       problem: 'no AI provider is set up in the settings',
     })
     const r = rig({ stream: () => new Promise(() => {}) })
-    expect(r.explainer.start('page', { ...REQUEST, seq: 9 })).toMatchObject({
+    expect(r.explainer.start('page', { ...REQUEST, seqs: [5, 9] })).toMatchObject({
       problem: expect.stringContaining('no longer held'),
     })
     expect(r.explainer.start('page', REQUEST)).toHaveProperty('token')
@@ -257,5 +259,35 @@ describe('LogExplainer', () => {
     expect(r.explainer.busy('a') || r.explainer.busy('b')).toBe(false)
     expect(r.timers.size).toBe(0)
     expect(r.sent).toHaveLength(0)
+  })
+
+  it('sends several chosen lines together, in their order, and only those', async () => {
+    const r = rig({})
+    r.explainer.start('page', { ...REQUEST, seqs: [6, 4], mask: false })
+    await settle()
+    const text = r.asked[0]?.messages[0]?.text ?? ''
+    expect(text.startsWith('Explain these 2 log lines:')).toBe(true)
+    expect(text.indexOf('INFO before')).toBeLessThan(text.indexOf('WARN after'))
+    expect(text).not.toContain('ERROR mail')
+  })
+
+  it('refuses a choice too long to send, rather than send part of it', () => {
+    const long = line(7, `ERROR ${'x'.repeat(20_000)}`)
+    const r = rig({})
+    const explainer = new LogExplainer<string>({
+      ...(r.explainer as unknown as object),
+      providers: () => [PROVIDER],
+      systemPrompt: () => '',
+      keyFor: () => null,
+      adapter: async () => ({ models: async () => [], stream: async () => ({}) }),
+      lines: () => [long],
+      newId: () => 'token-x',
+      setTimer: () => 1,
+      clearTimer: () => {},
+      send: () => {},
+    })
+    expect(explainer.start('page', REQUEST)).toEqual({
+      problem: 'too long to send (over 12,000 characters): choose fewer lines',
+    })
   })
 })

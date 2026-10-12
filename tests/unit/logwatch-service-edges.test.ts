@@ -119,7 +119,7 @@ function rig(
 const one = (file: string): Entries => ({ [ID]: { path: file, pattern: null, format: null } })
 
 describe('files that change under the pane', () => {
-  it('reads a file replaced while hidden from its start, under the banner of what came', async () => {
+  it('reads a file replaced while hidden from its start', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 3, 'old'))
     const r = rig(one(file))
@@ -132,10 +132,7 @@ describe('files that change under the pane', () => {
     r.service.subscribe('p', { id: ID, encoding: 'auto', since })
     await r.advance(DELIVER_MS * 2)
     expect(r.texts('p')).toEqual(['old 1', 'old 2', 'old 3', 'new 1', 'new 2'])
-    expect(r.marks('p')).toEqual(['opened', 'rotated', 'away'])
-    expect(r.held('p').find((item) => item.kind === 'mark' && item.mark === 'away')).toMatchObject({
-      lines: 2,
-    })
+    expect(r.marks('p')).toEqual(['opened', 'rotated'])
   })
 
   it('waits while the file is gone, and reads the new one from its start', async () => {
@@ -368,7 +365,6 @@ describe('pages, encodings and sources together', () => {
     const lastOf = (id: string) => r.sent.filter((s) => s.page === id).at(-1)?.event
     // The forgotten one opens afresh (its own last lines); the kept one reads the gap.
     expect(r.sent.filter((s) => s.page === first).some((s, i) => i > 0 && s.event.reset)).toBe(true)
-    expect(r.marks(recent, `${recent}/auto`)).toContain('away')
     expect(
       lastOf(recent)?.items.some((item) => item.kind === 'line' && item.text === 'line 2'),
     ).toBe(true)
@@ -492,7 +488,7 @@ describe('a pattern', () => {
     expect(r.last('p')?.status.file).toBe('app-1.log')
   })
 
-  it('moves on to a newer file that came while hidden, under the banner', async () => {
+  it('moves on to a newer file that came while hidden', async () => {
     writeFileSync(path.join(dir, 'app-1.log'), lines(1, 1, 'one'))
     const r = rig({ [ID]: { path: dir, pattern: 'app-*.log', format: null } })
     r.service.subscribe('p', { id: ID, encoding: 'auto', since: -1 })
