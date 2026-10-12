@@ -3,7 +3,7 @@
  * it is used - everything but the editor on one screen, with English captions.
  *
  *   arrive      how to get there: from the standard layout, Ctrl+Shift+G for the layouts
- *               dialog, dev chosen, Enter
+ *               dialog, dev chosen from the presets, Enter
  *   agent       the AI AGENT pane following a Claude Code session: a subagent ends, files are
  *               written, the tests run in the background - the processor's chart and the top
  *               processes on the left rising with them - and the work is committed
@@ -42,7 +42,7 @@ const exit = process.argv.includes('--exit')
 const CAPTIONS = {
   standard: 'Start from the standard layout',
   dialog: 'Ctrl+Shift+G opens the layouts',
-  pick: 'Choose dev, then Enter',
+  pick: 'Choose dev from the presets, then Enter',
   arrive: 'dev — a layout for coding with AI agents',
   agent: 'AI AGENT: what your Claude Code session is doing, step by step',
   git: 'GIT: the files it changes, as it changes them',
@@ -403,7 +403,9 @@ async function ownShell() {
 
 /**
  * How to get there, said first: from the standard layout, Ctrl+Shift+G for the layouts
- * dialog, one row down to dev (the presets are every new profile's saved layouts), Enter.
+ * dialog, along the presets to dev's card, Enter. A preset already made into a saved layout
+ * (as every new profile's are) is gone to rather than added again, so the take's dev, with its
+ * repository and session, is the one that arrives.
  */
 async function toDev() {
   await caption(CAPTIONS.standard)
@@ -415,8 +417,14 @@ async function toDev() {
   await page.getByTestId('layouts-dialog').waitFor()
   await wait(2000)
   await caption(CAPTIONS.pick)
-  await page.keyboard.press('ArrowDown')
-  await wait(1400)
+  await page.locator('[data-testid=layouts-preset][data-preset="standard"]').focus()
+  await wait(600)
+  // standard, network, earth, dev: the dialog's order (shared/layout-presets.ts).
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('ArrowRight')
+    await wait(450)
+  }
+  await wait(900)
   await page.keyboard.press('Enter')
   await wait(300)
   await settled()

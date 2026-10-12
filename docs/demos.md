@@ -23,7 +23,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:tour-black` | 同じものを Black テーマで（`--theme=black`） | 同上 |
 | `demo:tour-shorts` | 紹介デモの 9:16 版（2 段のレイアウト） | 540×960 を zoom 0.75（720×1280 として描く）、起動込みで 2 分以内 |
 | `demo:cockpit` | cockpit プリセット単独（カード、全コアの負荷、前に出す、境目のドラッグ、テーマ） | 1600×900、Black、約 61 秒 |
-| `demo:devflow` | dev プリセットの紹介と使い方（standard から Ctrl+Shift+G で dev へ、エージェント、Git の差分とコミット、テストの負荷、Docker の再起動、クリップボード、AI チャット、シェル）。英語の字幕付き | 1600×900、約 62 秒 |
+| `demo:devflow` | dev プリセットの紹介と使い方（standard から Ctrl+Shift+G のダイアログでプリセットの dev を選ぶ、エージェント、Git の差分とコミット、テストの負荷、Docker の再起動、クリップボード、AI チャット、シェル）。英語の字幕付き | 1600×900、約 62 秒 |
 | `demo:keystream` | KEYSTREAM の曲を通しで | |
 | `demo:games` | PLAY-320 の 3 本のゲーム | |
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
