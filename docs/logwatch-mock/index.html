@@ -266,6 +266,21 @@ button { font: inherit; color: inherit; }
 .settings .opt { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin: 0.3rem 0; }
 .settings .seg { display: flex; gap: 0.15rem; }
 .settings .seg .btn { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+/* The sliders icon every pane opens its settings with (widgets/common/SettingsButton.svelte). */
+.settings-toggle { width: 1.4rem; height: 1.4rem; padding: 0.15rem; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; }
+.settings-toggle:hover, .settings-toggle[aria-pressed="true"] { color: var(--accent); }
+.settings-toggle svg { display: block; width: 100%; height: 100%; }
+.settings select {
+  background: var(--surface-2); color: var(--text); border: 1px solid var(--panel-rule); font-family: var(--font-mono);
+  font-size: var(--step--2); padding: 0.05rem 0.3rem;
+}
+.garbled {
+  display: none; border: 1px solid var(--warn); color: var(--warn); padding: 0 0.4rem; cursor: pointer; background: transparent;
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase;
+}
+.garbled.show { display: inline-block; }
+.pane.no-lanes .lanes { display: none; }
+.pane.no-minimap .minimap { display: none !important; }
 .settings p { margin: 0.2rem 0 0; font-size: var(--step--2); color: var(--text-muted); line-height: 1.5; }
 </style>
 </head>
@@ -276,14 +291,14 @@ button { font: inherit; color: inherit; }
   </div>
   <div class="grp"><span>Width</span><button type="button" data-width="wide" aria-pressed="true">Wide</button><button type="button" data-width="narrow">Narrow</button></div>
   <div class="grp"><span>Flow</span><button type="button" data-rate="2">Slow</button><button type="button" data-rate="12" aria-pressed="true">Normal</button><button type="button" data-rate="400">Flood</button></div>
-  <div class="grp"><span>Simulate</span><button type="button" id="sim-hide">Hide pane 8 s</button><button type="button" id="sim-rotate">Rotate file</button><button type="button" id="sim-burst">Error burst</button></div>
+  <div class="grp"><span>Simulate</span><button type="button" id="sim-sjis">Shift_JIS lines</button><button type="button" id="sim-hide">Hide pane 8 s</button><button type="button" id="sim-rotate">Rotate file</button><button type="button" id="sim-burst">Error burst</button></div>
 </div>
 
 <div class="stage">
   <section class="pane" id="pane">
     <div class="hud">
       <span class="title">LOG WATCH</span>
-      <span class="sub"><b>app.log</b> · ~/work/shop/logs · JSON LINES · UTF-8</span>
+      <span class="sub"><b>app.log</b> · ~/work/shop/logs · JSON LINES · <span id="enc-label">AUTO · UTF-8</span></span>
     </div>
     <div class="status">
       <span class="lamp" id="lamp"><i></i><span id="lamp-text">LIVE</span></span>
@@ -295,7 +310,8 @@ button { font: inherit; color: inherit; }
       <button type="button" class="btn" id="b-pause" aria-pressed="false">Pause</button>
       <button type="button" class="btn" id="b-mask" aria-pressed="false">Mask</button>
       <button type="button" class="btn" id="b-wrap" aria-pressed="false">Wrap</button>
-      <button type="button" class="btn" id="b-set" aria-pressed="false">⚙</button>
+      <button type="button" class="garbled" id="garbled">Text looks garbled · encoding ▸</button>
+      <button type="button" class="settings-toggle" id="b-set" aria-label="log watch settings" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg></button>
     </div>
     <div class="lanes"><canvas id="lanes"></canvas><span class="axis l">−5 min</span><span class="axis">now</span></div>
     <div class="tabs">
@@ -326,6 +342,9 @@ button { font: inherit; color: inherit; }
       <div class="opt"><span>Time</span><span class="seg" data-opt="time"><button type="button" class="btn" data-v="abs" aria-pressed="true">12:04:01.231</button><button type="button" class="btn" data-v="rel">3s ago</button><button type="button" class="btn" data-v="delta">+0.118</button></span></div>
       <div class="opt"><span>Collapse repeats</span><span class="seg" data-opt="collapse"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
       <div class="opt"><span>Format</span><span class="seg" data-opt="format"><button type="button" class="btn" data-v="auto" aria-pressed="true">auto · JSONL</button><button type="button" class="btn" data-v="plain">plain</button></span></div>
+      <div class="opt"><span>Encoding</span><select id="enc"><option value="auto">auto</option><option value="utf-8">UTF-8</option><option value="utf-16le">UTF-16LE</option><option value="utf-16be">UTF-16BE</option><option value="shift_jis">Shift_JIS</option><option value="euc-jp">EUC-JP</option><option value="windows-1252">Windows-1252</option></select></div>
+      <div class="opt"><span>Chart</span><span class="seg" data-opt="lanes"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
+      <div class="opt"><span>Error bar (right)</span><span class="seg" data-opt="minimap"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
       <h5>Settings ▸ Logs (every pane)</h5>
       <div class="opt"><span>Lines kept</span><span class="seg" data-opt="keep"><button type="button" class="btn" data-v="1000">1k</button><button type="button" class="btn" data-v="5000" aria-pressed="true">5k</button><button type="button" class="btn" data-v="20000">20k</button><button type="button" class="btn" data-v="50000">50k</button></span></div>
       <div class="opt"><span>Lines on open</span><span class="seg" data-opt="initial"><button type="button" class="btn" data-v="100">100</button><button type="button" class="btn" data-v="500" aria-pressed="true">500</button><button type="button" class="btn" data-v="2000">2k</button></span></div>
@@ -333,7 +352,7 @@ button { font: inherit; color: inherit; }
     </div>
   </section>
 </div>
-<p class="note">モック: すべて架空のログです。行にマウスを止めると詳細カード、ERR の「+n lines」でスタックトレース、上へスクロールすると追従が止まって「▼ n NEW」。Patterns タブで署名ごとの件数と MUTE。⚙ はペインの表示と、設定（保持行数・開いたときの行数）。上の Simulate で、隠れている間の差分読み・ローテーション・エラーの急増を試せます。</p>
+<p class="note">モック: すべて架空のログです。行にマウスを止めると詳細カード、ERR の「+n lines」でスタックトレース、上へスクロールすると追従が止まって「▼ n NEW」。Patterns タブで署名ごとの件数と MUTE。右上のスライダーのアイコンはペインの表示と、設定（保持行数・開いたときの行数）。上の Simulate で、隠れている間の差分読み・ローテーション・エラーの急増を試せます。</p>
 
 <script>
 'use strict';
@@ -420,6 +439,7 @@ function text(el, s, hit) {
 
 // ---------- state ----------
 const state = {
+  encoding: 'auto',
   rate: 12, paused: false, hidden: false, mask: false, wrap: false, time: 'abs', collapse: true,
   keep: 5000, initial: 500, levels: new Set(['INF', 'WRN', 'ERR']), filter: null, tab: 'stream',
   following: true, pending: 0, pendingErr: 0, bytes: 0,
@@ -729,6 +749,8 @@ document.querySelectorAll('.seg').forEach((g) => g.querySelectorAll('.btn').forE
   if (k === 'collapse') state.collapse = v === 'on';
   if (k === 'keep') { trim(); rebuild(); }
   if (k === 'time') rebuild();
+  if (k === 'lanes') { $('pane').classList.toggle('no-lanes', v === 'off'); lanes(); }
+  if (k === 'minimap') { $('pane').classList.toggle('no-minimap', v === 'off'); }
   figures();
 }));
 document.querySelectorAll('[data-theme]').forEach((b) => { if (b.tagName === 'BUTTON') b.onclick = () => {
@@ -774,6 +796,33 @@ $('sim-rotate').onclick = () => {
   if (state.following) stream.scrollTop = stream.scrollHeight;
 };
 $('sim-burst').onclick = () => { burstUntil = Date.now() + 6000; };
+// A Shift_JIS writer: auto reads it as UTF-8 until the replacement characters give it away;
+// the pane then offers the encoding, and choosing it reads the kept lines again.
+const SJIS = [
+  ['ERR', 'batch', 'Ú±É¸sµÜµ½ host=10.0.3.12', '接続に失敗しました host=10.0.3.12'],
+  ['WRN', 'batch', 'ÄsµÄ¢Ü· 3 ñÚ', '再試行しています 3 回目'],
+  ['INF', 'batch', 'ª®¹µÜµ½ rows=1200', '処理が完了しました rows=1200'],
+].map(([l, src, bad, good]) => [l, src, bad.replace(/[\u0080-\u00ff]/g, (c) => (c.charCodeAt(0) % 3 ? '\ufffd' : c)), good])
+$('sim-sjis').onclick = () => {
+  const now = Date.now()
+  const batch = SJIS.map(([lvl, src, bad, good], i) => {
+    const sj = state.encoding === 'shift_jis'
+    const e = { time: now + i, lvl, src, msg: sj ? good : bad, good, bad, stack: null, pid: 3001 }
+    e.raw = JSON.stringify({ level: lvl.toLowerCase(), svc: src, msg: e.msg })
+    return e
+  })
+  take(batch, true)
+  if (state.encoding !== 'shift_jis') $('garbled').classList.add('show')
+}
+$('garbled').onclick = () => { $('settings').classList.add('show'); $('b-set').setAttribute('aria-pressed', 'true'); $('enc').focus() }
+$('enc').onchange = (ev) => {
+  state.encoding = ev.target.value
+  $('enc-label').textContent = state.encoding === 'auto' ? 'AUTO · UTF-8' : state.encoding.toUpperCase()
+  const sj = state.encoding === 'shift_jis'
+  for (const e of entries) if (e.good) { e.msg = sj ? e.good : e.bad; learn(e, false) }
+  $('garbled').classList.toggle('show', !sj && entries.some((e) => e.good))
+  rebuild()
+}
 
 // ---------- start: the tail of the file, learnt without NEW marks ----------
 (function start() {
