@@ -11,6 +11,14 @@ const IPV6 =
   /(?<![\w:])(?:(?:[0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}:)+:(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?|::(?:[0-9a-f]{1,4}(?::[0-9a-f]{1,4})*)?)(?![\w:])/gi
 const QUOTED = /"[^"]*"|'[^']*'/g
 const HEX_ID = /\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{6,}\b/gi
+/**
+ * A long opaque token that is not plain hex - `sk_live_4d40…`, a base64 key, a session id with
+ * a prefix: twenty characters or more, two digits and a letter. Without it every line naming
+ * one was a pattern of its own (found recording the demo). No slash, so a path keeps its shape
+ * (`/users/{n}/orders/{n}`). It starts only at the head of a run (the look-behind), so the
+ * look-aheads read each run once.
+ */
+const OPAQUE = /(?<![\w+-])(?=[\w+-]*\d[\w+-]*\d)(?=[\w+-]*[A-Za-z])[\w+-]{20,}={0,2}/g
 const NUMBER = /\d+(?:\.\d+)?/g
 
 /** How much of a text makes its pattern: two lines that differ further on are one pattern. */
@@ -28,6 +36,7 @@ export function signature(level: string, source: string, text: string): string {
     .replace(IPV4, '{ip}')
     .replace(IPV6, '{ip}')
     .replace(HEX_ID, '{id}')
+    .replace(OPAQUE, '{id}')
     .replace(NUMBER, '{n}')
   return `${level} ${source} ${shape}`
 }

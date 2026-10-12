@@ -60,7 +60,7 @@ const EVENTS = [
   [6, 'INFO', 'auth', () => `login ok user="${pick(USERS)}@example.com" from ${ip()}`],
   [3, 'WARN', 'db', () => `slow query ${n(500, 2400)}ms table="orders" rows=${n(1000, 90000)}`],
   [2, 'WARN', 'api', () => `rate limit near ${n(80, 99)}% client=${ip()}`],
-  [1, 'INFO', 'api', () => `token issued api_key=${hex(32)} for partner="acme"`],
+  [1, 'INFO', 'api', () => `token issued api_key=sk_live_${hex(24)} for partner="acme"`],
 ]
 const WEIGHT = EVENTS.reduce((sum, e) => sum + e[0], 0)
 const PAYMENT_FAILED = () => ({

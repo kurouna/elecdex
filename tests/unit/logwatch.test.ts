@@ -155,6 +155,25 @@ describe('text', () => {
     expect(signature('INF', '', 'user "aki" in')).toBe(signature('INF', '', 'user "rin" in'))
   })
 
+  it('makes one pattern of lines naming different long tokens that are not plain hex', () => {
+    // Found recording the demo: every key with a prefix was a pattern of its own.
+    const key = (k: string) => signature('INF', 'api', `token issued api_key=${k} for acme`)
+    expect(key('key_prod_4d406179849c33450d0ec6b1')).toBe(key('key_prod_f9a2c81b0e7d4f3a9c8b7a61'))
+    expect(signatureText(key('key_prod_4d406179849c33450d0ec6b1'))).toBe(
+      'token issued api_key={id} for acme',
+    )
+    expect(key('dGhpcyBpcyBhIHRlc3Qga2V5MTIz==')).toBe(key('YW5vdGhlciB0ZXN0IGtleTk4NzY1=='))
+    // Words, short names and names with one number stay what they are.
+    for (const text of [
+      'reading configuration_from_environment',
+      'backup user_profile_2024 done',
+      'GET /api/v2/orders 200',
+      'GET /users/12345/orders/67890/items 200',
+    ]) {
+      expect(signatureText(signature('INF', '', text))).not.toContain('{id}')
+    }
+  })
+
   it('cuts a text into coloured parts, every character once', () => {
     const text = 'GET /users/12 200 31ms user="aki" from 10.0.0.1 id=ab12cd34ef'
     const parts = tokens(text)
