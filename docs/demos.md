@@ -23,6 +23,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:tour-black` | 同じものを Black テーマで（`--theme=black`） | 同上 |
 | `demo:tour-shorts` | 紹介デモの 9:16 版（2 段のレイアウト） | 540×960 を zoom 0.75（720×1280 として描く）、起動込みで 2 分以内 |
 | `demo:cockpit` | cockpit プリセット単独（カード、全コアの負荷、前に出す、境目のドラッグ、テーマ） | 1600×900、Black、約 61 秒 |
+| `demo:devflow` | dev プリセットの紹介と使い方（standard から Ctrl+Shift+G で dev へ、エージェント、Git の差分とコミット、テストの負荷、Docker の再起動、クリップボード、AI チャット、シェル）。英語の字幕付き | 1600×900、約 62 秒 |
 | `demo:keystream` | KEYSTREAM の曲を通しで | |
 | `demo:games` | PLAY-320 の 3 本のゲーム | |
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
@@ -45,7 +46,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `--shots=<dir>` | 2 秒ごとにスクリーンショットを保存する。撮れたものを確かめるため |
 | `--exit` | 最後に窓を閉じる（tour、tour-shorts、cockpit、games、keystream、panes、snippets、whatsnew など） |
 | `--no-intro` | 起動画面を飛ばす（tour、tour-shorts） |
-| `--no-captions` | 下の英語の字幕を出さない（字幕を付けたデモ: tour、tour-black、tour-shorts） |
+| `--no-captions` | 下の英語の字幕を出さない（字幕を付けたデモ: tour、tour-black、tour-shorts、devflow） |
 
 字幕は `openTake` が返す `caption(text)` で出す（`null` で消す）。紹介デモの字幕の文面は demo-beats.mjs の `CAPTIONS` と `OPENING` に 1 回だけ書き、横型と縦型の両方が使う。デモがページに足す要素で、クリックもポインターも
 下へ通し、何も待たないので、操作も長さも字幕のないときと同じ。画面の下中央に出す（Web ペインはページの上に
