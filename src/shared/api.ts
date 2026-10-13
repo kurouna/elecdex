@@ -208,11 +208,11 @@ export interface BackgroundApi {
   suspendShortcut(on: boolean): void
 }
 
+/**
+ * What a page may ask of a new shell: where, and how big. Never which program or with what
+ * arguments - main starts the platform's shell itself (CLAUDE.md: no path-taking "run").
+ */
 export interface PtyCreateOptions {
-  /** Shell executable. Defaults to the platform shell. */
-  shell?: string
-  /** Extra arguments, appended after the shell-integration arguments. */
-  args?: string[]
   cwd?: string
   cols?: number
   rows?: number

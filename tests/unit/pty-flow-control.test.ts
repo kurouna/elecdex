@@ -111,3 +111,27 @@ describe('a shell writing faster than the mirror parses', () => {
     expect(pty.resumes).toBe(0)
   })
 })
+
+describe('a shell whose integration never reports', () => {
+  it('tells a pane attaching after the grace that there is no tracking', async () => {
+    // Found in review: the grace's end was said to the panes attached then and kept nowhere,
+    // so a pane attaching later (a move, a reload) showed "…" for ever.
+    vi.useFakeTimers()
+    try {
+      const { INTEGRATION_GRACE_MS } = await import('../../src/main/pty/pty-manager.js')
+      const unavailable: string[] = []
+      const manager = new PtyManager({
+        ...noEvents,
+        onIntegrationUnavailable: (id: string) => unavailable.push(id),
+      })
+      const { id } = manager.create({ shell: '/bin/bash' })
+      expect(manager.stateFor(id)?.integrationResolved).toBe(false)
+      vi.advanceTimersByTime(INTEGRATION_GRACE_MS)
+      expect(unavailable).toEqual([id])
+      expect(manager.stateFor(id)?.integrationResolved).toBe(true)
+      manager.disposeAll()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

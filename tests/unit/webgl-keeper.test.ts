@@ -15,11 +15,11 @@ class FakeAddon implements ITerminalAddon {
   }
 }
 
-function harness(options: { failCreate?: boolean } = {}) {
+function harness(options: { failCreate?: boolean; hidden?: boolean } = {}) {
   const element = new EventTarget()
   const made: FakeAddon[] = []
   const loaded: ITerminalAddon[] = []
-  let visible = true
+  let visible = options.hidden !== true
   const changed = vi.fn()
   const keeper = new WebglKeeper({
     element,
@@ -49,6 +49,18 @@ describe('WebglKeeper', () => {
   })
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('takes no context for a pane mounted out of sight, and one when it is shown', () => {
+    // Found in review: every shell tab took a WebGL context at mount, hidden ones too, and a
+    // dozen of them pushed the shown pane off WebGL (Chromium keeps about sixteen).
+    const h = harness({ hidden: true })
+    expect(h.loaded).toHaveLength(0)
+    expect(h.keeper.active).toBe(false)
+    h.setVisible(true)
+    h.keeper.resume()
+    expect(h.loaded).toHaveLength(1)
+    expect(h.changed).toHaveBeenCalledTimes(1)
   })
 
   it('loads WebGL at once, without telling of a change', () => {

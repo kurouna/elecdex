@@ -1,9 +1,12 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buildInjection,
   detectShellKind,
   outsideAsar,
   POWERSHELL_INIT_ENV,
+  removeShellStaging,
   terminalEnv,
 } from '../../src/main/pty/shell-integration.js'
 
@@ -45,6 +48,20 @@ describe('buildInjection', () => {
     expect(injection.env.ZDOTDIR).not.toBe('/home/me/.config/zsh')
     // The script needs the original in order to source the user's own rc back.
     expect(injection.env.ELECDEX_USER_ZDOTDIR).toBe('/home/me/.config/zsh')
+  })
+
+  it('stages zsh once a run, and removes it at quit', () => {
+    // Found in review: a folder a zsh, never removed - one left in the temp folder per tab.
+    const first = buildInjection('/bin/zsh', { HOME: '/home/me' }).env.ZDOTDIR ?? ''
+    const second = buildInjection('/bin/zsh', { HOME: '/home/me' }).env.ZDOTDIR ?? ''
+    expect(second).toBe(first)
+    expect(existsSync(path.join(first, '.zshrc'))).toBe(true)
+    removeShellStaging()
+    expect(existsSync(first)).toBe(false)
+    // A zsh after that gets a folder again.
+    const third = buildInjection('/bin/zsh', { HOME: '/home/me' }).env.ZDOTDIR ?? ''
+    expect(existsSync(path.join(third, '.zshrc'))).toBe(true)
+    removeShellStaging()
   })
 
   it('falls back to HOME when zsh has no ZDOTDIR', () => {

@@ -1,0 +1,85 @@
+// @vitest-environment jsdom
+import { ClipboardAddon } from '@xterm/addon-clipboard'
+import type { Terminal } from '@xterm/xterm'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  CLIPBOARD_WRITE_ONLY,
+  HeldInput,
+  opensLink,
+} from '../../src/renderer/widgets/terminal/input.js'
+
+/**
+ * What reaches the shell from the pane and the clipboard (widgets/terminal/input.ts): OSC 52
+ * may set the clipboard but never read it, and keys typed before the shell is reached are kept.
+ */
+
+/** Enough of a terminal for the clipboard addon: its OSC handler, and what it types back. */
+function fakeTerminal() {
+  let osc: ((data: string) => boolean | Promise<boolean>) | null = null
+  const typed: string[] = []
+  const terminal = {
+    parser: {
+      registerOscHandler: (
+        _code: number,
+        handler: (data: string) => boolean | Promise<boolean>,
+      ) => {
+        osc = handler
+        return { dispose() {} }
+      },
+    },
+    input: (data: string) => typed.push(data),
+  }
+  return { terminal: terminal as unknown as Terminal, typed, osc: (data: string) => osc?.(data) }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+describe('OSC 52', () => {
+  it('answers a query with nothing: the clipboard is never handed to a program', async () => {
+    // Found in review: the default provider answered with what was copied - a password just
+    // copied, to any program that printed the query.
+    const readText = vi.fn(async () => 'hunter2')
+    const writeText = vi.fn(async () => {})
+    vi.stubGlobal('navigator', { clipboard: { readText, writeText } })
+    const fake = fakeTerminal()
+    new ClipboardAddon(undefined, CLIPBOARD_WRITE_ONLY).activate(fake.terminal)
+    await fake.osc('c;?')
+    expect(readText).not.toHaveBeenCalled()
+    expect(fake.typed.join('')).not.toContain(btoa('hunter2'))
+    // A yank still lands on the clipboard.
+    await fake.osc(`c;${btoa('yanked')}`)
+    expect(writeText).toHaveBeenCalledWith('yanked')
+    // Only the clipboard, not the primary selection.
+    await fake.osc(`p;${btoa('primary')}`)
+    expect(writeText).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('HeldInput', () => {
+  it('keeps what is typed before the shell is reached, then sends it in order', () => {
+    // Found in review: keys typed before the attach went to no port and were lost.
+    const sent: string[] = []
+    const send = (data: string) => sent.push(data)
+    const held = new HeldInput()
+    held.type('l', send)
+    held.type('s', send)
+    expect(sent).toEqual([])
+    held.release(send)
+    expect(sent).toEqual(['l', 's'])
+    held.type('\r', send)
+    expect(sent).toEqual(['l', 's', '\r'])
+    held.release(send)
+    expect(sent).toEqual(['l', 's', '\r'])
+  })
+})
+
+describe('links', () => {
+  it('open on Ctrl+click or ⌘+click, not on a plain click', () => {
+    // Found in review: a click meant for focus or a selection opened the browser.
+    expect(opensLink({ ctrlKey: false, metaKey: false })).toBe(false)
+    expect(opensLink({ ctrlKey: true, metaKey: false })).toBe(true)
+    expect(opensLink({ ctrlKey: false, metaKey: true })).toBe(true)
+  })
+})

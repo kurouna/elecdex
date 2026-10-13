@@ -28,9 +28,11 @@ vi.mock('electron', () => ({
 // The real manager spawns shells through node-pty; a list of fake sessions is enough here.
 const sessions = new Map<string, { id: string }>()
 const created: string[] = []
+const asked: unknown[] = []
 vi.mock('../../src/main/pty/pty-manager.js', () => ({
   PtyManager: class {
-    create() {
+    create(opts: unknown) {
+      asked.push(opts)
       const id = `s${sessions.size + 1}`
       sessions.set(id, { id })
       created.push(id)
@@ -67,6 +69,24 @@ beforeEach(() => {
   handlers.clear()
   sessions.clear()
   created.length = 0
+  asked.length = 0
+})
+
+describe('pty.create from the page', () => {
+  it('takes a folder and a size, never a program or its arguments', async () => {
+    // Found in review: the page's shell and args went straight to spawn - any program, any
+    // arguments, from the sandboxed page.
+    registerPtyIpc(settings)
+    await invoke(CH.pty.create, {
+      shell: 'C:\\Windows\\System32\\calc.exe',
+      args: ['/c', 'whoami'],
+      cols: 99_999,
+      rows: 40,
+    })
+    expect(asked[0]).not.toHaveProperty('shell')
+    expect(asked[0]).not.toHaveProperty('args')
+    expect(asked[0]).toMatchObject({ cols: 1000, rows: 40 })
+  })
 })
 
 describe('pty IPC while quitting', () => {

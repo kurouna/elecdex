@@ -151,8 +151,9 @@ interface ElecdexApi {
       onData(chunk: Uint8Array): void
       onExit(code: number, signal?: number): void
       onCwd(cwd: string): void
-      onProcess(name: string): void
-    }): () => void            // detach
+      onCommandEnd(exitCode: number | null, durationMs: number): void
+      onIntegrationUnavailable(): void
+    }): Promise<() => void>   // detach
     write(id: PtySessionId, data: string): void
     resize(id: PtySessionId, cols: number, rows: number): void
     dispose(id: PtySessionId): Promise<void>
@@ -208,18 +209,19 @@ interface ElecdexApi {
 `contextBridge` は `MessagePort` をそのまま渡せないため、**preload が port を保持して中継する**。
 
 ```
-renderer: elecdex.pty.create()
-  → preload: ipcRenderer.invoke("pty:create", opts)
-    → main: node-pty spawn → MessageChannelMain 生成
-           → webContents.postMessage("pty:port", { id }, [port2])
-           → main は port1 に PTY 出力を post、port1 から受けた入力を pty.write
-  → preload: ipcRenderer.on("pty:port", e => ports.set(id, e.ports[0]))
-  → renderer: pty.attach(id, handlers) → preload が port.onmessage を handlers へ流す
+renderer: elecdex.pty.create({ cwd? })        // フォルダと大きさだけ。シェルや引数はページから指定できない
+  → main: 既定のシェルを spawn（シェル統合を注入）し、セッションの id を返す
+renderer: elecdex.pty.attach(id, handlers)
+  → preload: ipcRenderer.invoke("pty:attach", id)
+    → main: アタッチごとに MessageChannelMain を作り、webContents.postMessage("pty:port", { id }, [port2])
+           → いまの画面（スナップショット）、フォルダと統合の状態（catchUp）、以後の出力を port1 に post
+  → preload: アタッチ順の表に port を受け、port.onmessage を handlers へ流す。write/resize は最新の port へ
 ```
 
-- `ipcMain.on` の全メッセージが通る共有経路を避けられ、**1セッション1チャネルで独立**する
+- `ipcMain.on` の全メッセージが通る共有経路を避けられ、**アタッチごとに独立したチャネル**になる（同じシェルに
+  2 つのペインがつながっても両方が書ける。2026-10-11 の決定）
 - ペイロードは `Uint8Array`（構造化クローン、文字列化コストなし）
-- セッション破棄時に port を close し、preload 側の Map からも削除（リーク防止）
+- ページが去ると port も閉じ、main と preload の表から消える（`whenPageGoes` の代わりに port の close で落とす）
 
 ### 4.4 メトリクス購読
 
@@ -1502,7 +1504,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 
 - `resources/shell-integration/` に bash / zsh / fish / pwsh 用の注入スクリプトを同梱
 - PTY 起動時に注入する: bash は `--init-file`、zsh は `ZDOTDIR` 差し替え、fish は `XDG_DATA_DIRS`、pwsh は `-NoExit -Command`（スクリプト本体は環境変数で渡す。理由は [decisions.md](decisions.md)）
-- main の `OscParser` が PTY 出力ストリームから該当シーケンスを抽出（xterm には渡さず消費）し、`onCwd` / `onProcess` として通知する
+- main の `OscParser` が PTY 出力ストリームから該当シーケンスを抽出（xterm には渡さず消費）し、`onCwd` / `onCommandEnd` として通知する。10 秒の猶予のあいだに何も来なければ `onIntegrationUnavailable`。猶予を過ぎてからアタッチしたペインにも、その結果をセッションに残して伝える（2026-10-13、レビューで: 後からのペインは「…」のままだった）
 - ネイティブ取得へのフォールバック（`/proc` や `lsof` の低頻度ポーリング）は設計時に考えたが入れていない。注入が効かないシェルでは CWD 追従が働かないだけで、ポーリングは一切しない
 - 報告された CWD はペインの状態 `cwd` に置かれ、レイアウトと一緒に保存される。復元は下の 6.2.1
 - 副産物として「直前コマンドの終了コード」「実行時間」が取れる。セッション情報には入れているが、タブに終了コードを出すバッジは意図して無効にしてある（シェルそのものが終了したときの `exited N` だけを出す）
@@ -1545,7 +1547,9 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 **テスト**: osc-parser.test.ts（9;9 の受け取りと素通し）、start-directory.test.ts（フォールバックと待ちの打ち切り）、pty-ipc.test.ts（待つ間の終了）、shell-cwd-scripts.test.ts（各シェルの本物のスクリプトで ASCII 外のフォルダ。CI では zsh と fish を入れる）、terminal.spec.ts（再起動でのフォルダの復元、新しいペイン、消えたフォルダ）
 
 ### 6.3 シェル解決
-`which` 相当を main 側で実装し、`shell-env` 相当（ログインシェルの環境変数取り込み、原版 issue #366）も main で行う。`TERM=xterm-256color` / `COLORTERM=truecolor` / `TERM_PROGRAM=elecdex` を付与する。
+シェルは main が環境から決める（`defaultShell`: Windows は Windows PowerShell、ほかは `SHELL`）。ページはシェルも引数も指定できない（2026-10-13、レビューで: ページの `shell` と `args` がそのまま spawn に渡っていた）。PATH の検索やログインシェルの環境の取り込みはしない。`TERM=xterm-256color` / `COLORTERM=truecolor` / `TERM_PROGRAM=elecdex` を付与する。zsh の ZDOTDIR は 1 回の起動で 1 つのフォルダを使い、終了時に消す。
+
+ページの側（widgets/terminal/input.ts）: OSC 52 はクリップボードへの書き込みだけを受け、読み取りの問い合わせには何も返さない（クリップボードの中身をプログラムに渡さない）。シェルが出したリンクは Ctrl+クリック（⌘+クリック）で開く。アタッチ前に打ったキーは保って、つながったら順に送る。隠れたタブのペインは WebGL のコンテキストを取らず、見えたときに取る。
 
 ---
 

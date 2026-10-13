@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -47,6 +47,29 @@ export interface Injection {
 export function outsideAsar(p: string): string {
   return p.replace(/([\\/])app\.asar([\\/])/, '$1app.asar.unpacked$2')
 }
+
+/**
+ * zsh's ZDOTDIR for every zsh of this run: the file is the same each time. One folder, removed
+ * at quit - made per shell and never removed, every zsh tab left one in the temp folder.
+ */
+let zshStaging: string | null = null
+
+function stagedZshrc(dir: string): string {
+  if (zshStaging !== null && existsSync(zshStaging)) return zshStaging
+  zshStaging = mkdtempSync(path.join(tmpdir(), 'elecdex-zsh-'))
+  copyFileSync(path.join(dir, 'elecdex.zsh'), path.join(zshStaging, '.zshrc'))
+  return zshStaging
+}
+
+/** Removes what the shells of this run were given to start with (zsh's folder). */
+export function removeShellStaging(): void {
+  if (zshStaging === null) return
+  rmSync(zshStaging, { recursive: true, force: true })
+  zshStaging = null
+}
+
+/** The PowerShell script, read once: it does not change while the app runs. */
+let cachedPowerShellScript: string | null = null
 
 let cachedScriptsDir: string | null = null
 function scriptsDir(): string {
@@ -120,8 +143,7 @@ export function buildInjection(shellPath: string, env: Record<string, string>): 
     case 'zsh': {
       // zsh only reads .zshrc from $ZDOTDIR, so hand it a directory containing
       // ours and tell the script where the real one was.
-      const staging = mkdtempSync(path.join(tmpdir(), 'elecdex-zsh-'))
-      copyFileSync(path.join(dir, 'elecdex.zsh'), path.join(staging, '.zshrc'))
+      const staging = stagedZshrc(dir)
       const userZdotdir = env.ZDOTDIR ?? env.HOME ?? ''
       return {
         args: [],
@@ -157,13 +179,14 @@ export function buildInjection(shellPath: string, env: Record<string, string>): 
       // -EncodedCommand, and Windows' scan of a new process held CreateProcess
       // for 1.4 s on that - in main, synchronously, so the window drew nothing
       // just as the boot log should have begun (decisions.md).
-      // The script takes the variable out of the environment first, so nothing
-      // the shell starts inherits it.
+      // The script takes the variable out of the environment first, so nothing started from
+      // the prompt inherits it (what the user's profile starts before it runs still does).
       //
       // Deliberately not wrapped in a try/catch: a missing or unreadable script
       // is a broken build, and reporting it as "this shell is unsupported"
       // would hide the bug behind a plausible-looking degraded mode.
-      const script = readFileSync(path.join(dir, 'elecdex.ps1'), 'utf8')
+      cachedPowerShellScript ??= readFileSync(path.join(dir, 'elecdex.ps1'), 'utf8')
+      const script = cachedPowerShellScript
       // PowerShell has already run the user's profile by the time this executes,
       // so it is purely additive; -NoExit keeps the session interactive.
       return {

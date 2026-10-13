@@ -51,7 +51,9 @@ export class WebglKeeper {
   constructor(options: WebglKeeperOptions) {
     this.options = options
     options.element.addEventListener('webglcontextlost', this.lost, true)
-    this.load()
+    // Only on screen: a pane mounted behind a tab took a context of the ~16 Chromium keeps, and
+    // a dozen shell tabs pushed the shown one off WebGL. resume() takes it when it is shown.
+    if (options.visible()) this.load()
   }
 
   /** Whether the terminal is drawn by WebGL now. */

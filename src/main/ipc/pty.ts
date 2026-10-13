@@ -9,6 +9,7 @@ import {
   type WebContents,
 } from 'electron'
 import { PtyManager } from '../pty/pty-manager.js'
+import { removeShellStaging } from '../pty/shell-integration.js'
 import { resolveShellDirectory, resolveStartDirectory } from '../pty/start-directory.js'
 import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
@@ -146,6 +147,7 @@ export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
   const closeSessions = (): void => {
     closing = true
     manager.disposeAll()
+    removeShellStaging()
     for (const set of ports.values()) for (const { port } of set) port.close()
     ports.clear()
   }
@@ -211,14 +213,14 @@ function asSessionId(raw: unknown): string | null {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw) ? raw : null
 }
 
-function validateCreateOptions(raw: unknown): PtyCreateOptions {
+export function validateCreateOptions(raw: unknown): PtyCreateOptions {
   if (typeof raw !== 'object' || raw === null) return {}
   const o = raw as Record<string, unknown>
 
   const opts: PtyCreateOptions = {}
-  if (typeof o.shell === 'string' && o.shell.length > 0) opts.shell = o.shell
+  // A shell or arguments the page names are not taken: they once went straight to spawn, so a
+  // page could start any program with any arguments (found in review).
   if (typeof o.cwd === 'string' && o.cwd.length > 0) opts.cwd = o.cwd
-  if (Array.isArray(o.args)) opts.args = o.args.filter((a): a is string => typeof a === 'string')
   if (typeof o.cols === 'number' && Number.isFinite(o.cols)) opts.cols = clampDim(o.cols)
   if (typeof o.rows === 'number' && Number.isFinite(o.rows)) opts.rows = clampDim(o.rows)
   return opts

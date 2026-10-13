@@ -15,6 +15,7 @@ import { sessions, shellName } from '../../stores/sessions.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
+import { CLIPBOARD_WRITE_ONLY, HeldInput, opensLink } from './input.ts'
 import TerminalSearch from './TerminalSearch.svelte'
 import { WebglKeeper } from './webgl-keeper.ts'
 import './xterm-css.ts'
@@ -94,7 +95,7 @@ function recordFolder(cwd: string | null): void {
  * is still alive, otherwise creates one. This is what makes a pane survive a
  * window reload with its shell intact.
  */
-async function adoptSession(): Promise<string | null> {
+async function adoptSession(gone: () => boolean): Promise<string | null> {
   const recorded = typeof paneState?.sessionId === 'string' ? paneState.sessionId : null
 
   if (recorded !== null) {
@@ -114,6 +115,12 @@ async function adoptSession(): Promise<string | null> {
   try {
     const folder = lastFolder()
     const created = await window.elecdex.pty.create(folder === undefined ? {} : { cwd: folder })
+    // Closed while the shell was made: end it now, not written into a pane that has gone and
+    // left for the reaper.
+    if (gone()) {
+      void window.elecdex.pty.dispose(created.id)
+      return null
+    }
     sessions.patch(paneId, {
       sessionId: created.id,
       shell: shellName(created.shell),
@@ -166,7 +173,7 @@ $effect(() => {
   let resizeTimer: ReturnType<typeof setTimeout> | null = null
 
   void (async () => {
-    const id = await adoptSession()
+    const id = await adoptSession(() => disposed)
     if (id === null || disposed) return
 
     terminal = new Terminal({
@@ -185,7 +192,10 @@ $effect(() => {
 
     const fitAddon = new FitAddon()
     terminal.loadAddon(fitAddon)
-    terminal.loadAddon(new ClipboardAddon())
+    // OSC 52 may write the clipboard (a yank in vim or tmux) but never read it: answered, a
+    // query handed whatever was copied - a password - to any program printing one (found in
+    // review), as most terminals refuse.
+    terminal.loadAddon(new ClipboardAddon(undefined, CLIPBOARD_WRITE_ONLY))
 
     const searchAddon = new SearchAddon()
     terminal.loadAddon(searchAddon)
@@ -193,7 +203,9 @@ $effect(() => {
     // A link goes to the user's browser, never into a pane: what a shell prints
     // is not a site elecdex chose to show. main refuses anything but http(s).
     terminal.loadAddon(
-      new WebLinksAddon((_event, uri) => void window.elecdex.system.openExternal(uri)),
+      new WebLinksAddon((event, uri) => {
+        if (opensLink(event)) void window.elecdex.system.openExternal(uri)
+      }),
     )
 
     const unicode = new Unicode11Addon()
@@ -226,7 +238,9 @@ $effect(() => {
     // rather than xterm's default 80x24.
     safeFit()
 
-    terminal.onData((data) => window.elecdex.pty.write(id, data))
+    const typed = new HeldInput()
+    const send = (data: string): void => window.elecdex.pty.write(id, data)
+    terminal.onData((data) => typed.type(data, send))
     detachClipboard = bindClipboard(terminal, el)
     const t = terminal
     /** The size the shell was last told, so a pane shown again can tell whether it is stale. */
@@ -277,6 +291,7 @@ $effect(() => {
       return
     }
     detach = off
+    typed.release(send)
     // Hidden before a new size had held, a pane once never told the shell: shown
     // again at that size, xterm reports no resize, and the shell went on
     // wrapping at the old width. Every fit of a shown pane checks.

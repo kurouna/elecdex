@@ -220,7 +220,21 @@ test('closing a pane gives its WebGL contexts back at once', async () => {
             return gl !== null && !gl.isContextLost()
           }).length,
       )
-    await expect.poll(liveContexts, { timeout: 20_000 }).toBeGreaterThanOrEqual(4)
+    // The globe and the shell in front; the shells behind their tabs take none until shown
+    // (found in review: every tab took one, and a dozen shells pushed the shown one off WebGL).
+    await expect.poll(liveContexts, { timeout: 20_000 }).toBeGreaterThanOrEqual(2)
+    const hiddenShellContexts = () =>
+      page.evaluate(
+        () =>
+          [...document.querySelectorAll('[data-testid=tabs-host] [data-testid=pane]')]
+            .filter((paneEl) => (paneEl as HTMLElement).offsetParent === null)
+            .flatMap((paneEl) => [...paneEl.querySelectorAll('canvas')])
+            .filter((canvas) => canvas.getContext('webgl2') !== null).length,
+      )
+    expect(await hiddenShellContexts()).toBe(0)
+    // The last tab shown takes its own, and keeps it once behind again.
+    await shellTabs.last().click()
+    await expect.poll(liveContexts, { timeout: 20_000 }).toBeGreaterThanOrEqual(3)
 
     // Keep hold of the contexts of the panes about to close, which leave the DOM.
     await page.evaluate(() => {

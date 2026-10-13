@@ -14,13 +14,21 @@ import { buildInjection, defaultShell, terminalEnv } from './shell-integration.j
  * detach and reattach (a moved pane, a window reload, a tab reparented) without
  * the shell noticing. See docs/architecture.md section 5.3.
  *
- * Output is delivered over a MessagePort, one channel per session, rather than
+ * Output is delivered over a MessagePort, one channel per attach, rather than
  * the localhost WebSocket the original project used - so there are no ports to
  * allocate, no 5-session cap, and nothing on the machine can read the stream.
  */
 
 /** How long after the last OSC before we decide shell integration is not working. */
-const INTEGRATION_GRACE_MS = 10_000
+export const INTEGRATION_GRACE_MS = 10_000
+
+/**
+ * What main itself may choose of a shell: the page's options, and the program - for the tests'
+ * stand-in only; the IPC never fills it.
+ */
+export interface PtySpawnOptions extends PtyCreateOptions {
+  shell?: string
+}
 
 export interface PtySessionEvents {
   onData(id: string, chunk: Uint8Array): void
@@ -41,6 +49,8 @@ interface Session {
   integrated: boolean
   integrationSeen: boolean
   integrationTimer: NodeJS.Timeout | undefined
+  /** The grace went by with nothing heard: a pane attaching later is told there is no tracking. */
+  integrationGaveUp: boolean
   commandStartedAt: number | null
   exited: boolean
   /** Paused while the mirror catches up; see MIRROR_HIGH_WATER. */
@@ -58,7 +68,7 @@ export class PtyManager {
     this.events = events
   }
 
-  create(opts: PtyCreateOptions): PtySessionSummary {
+  create(opts: PtySpawnOptions): PtySessionSummary {
     const baseEnv = terminalEnv(process.env, APP_VERSION)
     const shell = opts.shell ?? defaultShell(baseEnv)
     const injection = buildInjection(shell, baseEnv)
@@ -67,7 +77,7 @@ export class PtyManager {
     const id = randomUUID()
     const cols = opts.cols ?? 80
     const rows = opts.rows ?? 24
-    const pty = spawn(shell, [...injection.args, ...(opts.args ?? [])], {
+    const pty = spawn(shell, injection.args, {
       name: 'xterm-256color',
       cols,
       rows,
@@ -84,6 +94,7 @@ export class PtyManager {
       integrated: injection.supported,
       integrationSeen: false,
       integrationTimer: undefined,
+      integrationGaveUp: false,
       commandStartedAt: null,
       exited: false,
       paused: false,
@@ -102,16 +113,17 @@ export class PtyManager {
       session.mirror.dispose()
     })
 
+    // A shell with nothing injected is resolved at once (stateFor): a pane attaching is told so.
     if (injection.supported) {
       session.integrationTimer = setTimeout(() => {
-        if (!session.integrationSeen) this.events.onIntegrationUnavailable(id)
+        if (session.integrationSeen) return
+        // Kept, not only said: a pane attaching after the grace was otherwise never told, and
+        // showed "…" for ever (found in review).
+        session.integrationGaveUp = true
+        this.events.onIntegrationUnavailable(id)
       }, INTEGRATION_GRACE_MS)
       // Do not hold the app open just to report a missing integration.
       session.integrationTimer.unref?.()
-    } else {
-      // Nothing was injected, so tell the UI straight away rather than making
-      // it wait out the grace period for information that will never arrive.
-      queueMicrotask(() => this.events.onIntegrationUnavailable(id))
     }
 
     return this.summarize(session)
@@ -177,7 +189,8 @@ export class PtyManager {
     return {
       cwd: session.cwd,
       // Either integration has reported, or we know it never will.
-      integrationResolved: session.integrationSeen || !session.integrated,
+      integrationResolved:
+        session.integrationSeen || !session.integrated || session.integrationGaveUp,
     }
   }
 
