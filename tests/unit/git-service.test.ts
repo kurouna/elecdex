@@ -33,6 +33,12 @@ interface Harness {
   fire(relative: string): void
   advance(ms: number): Promise<void>
   status: { output: string }
+  /** Each status call takes the next of these, if any, and answers only once it settles. */
+  holds: Promise<void>[]
+  /** The repository's config as `git config --get-regexp` prints it. */
+  config: { output: string }
+  /** Every watch fails, as a watcher's error event closes it. */
+  lose(): void
   /** Whether git can be found; false makes every call fail as a missing git does. */
   git: { present: boolean }
 }
@@ -62,6 +68,9 @@ function harness(
   let now = 1_000_000
   const timers: { at: number; fn: () => void }[] = []
   const listeners: ((relative: string) => void)[] = []
+  const losers: (() => void)[] = []
+  const holds: Promise<void>[] = []
+  const config = { output: options.config ?? '' }
   const published: GitState[] = []
   const calls: string[][] = []
   const status = { output: '# branch.oid aaaaaaa\0# branch.head main\0' }
@@ -87,15 +96,26 @@ function harness(
       if (!git.present) return { ok: false, stdout: '', stderr: '', missing: true, tooLarge: false }
       const command = commandOf(args)
       if (command === 'rev-parse') return ok(`${path.join(ROOT, '.git')}\n`)
-      if (command === 'config') return ok(options.config ?? '')
-      if (command === 'status') return ok(status.output)
+      if (command === 'config') return ok(config.output)
+      if (command === 'status') {
+        // What git saw is what was there when it started, however late it answers.
+        const seen = status.output
+        await holds.shift()
+        return ok(seen)
+      }
       if (command === 'log') return log(args)
       return ok('')
     },
     repo: (id) => (id === ID && options.known !== false ? { id, name: 'app', path: ROOT } : null),
-    watch: (_folder, onChange) => {
+    watch: (_folder, onChange, onLost) => {
       listeners.push(onChange)
-      return { close: () => listeners.splice(listeners.indexOf(onChange), 1) }
+      losers.push(onLost)
+      return {
+        close: () => {
+          listeners.splice(listeners.indexOf(onChange), 1)
+          losers.splice(losers.indexOf(onLost), 1)
+        },
+      }
     },
     exists: () => true,
     readText: async () => 'hello\n',
@@ -123,7 +143,12 @@ function harness(
     published,
     calls,
     status,
+    holds,
+    config,
     git,
+    lose: () => {
+      for (const lost of [...losers]) lost()
+    },
     fire: (relative) => {
       for (const listener of [...listeners]) listener(relative)
     },
@@ -306,6 +331,8 @@ describe('the git service', () => {
     }
     // And no signature check, which would run gpg.program, on any call.
     expect(GIT_FLAGS).toEqual(expect.arrayContaining(['log.showSignature=false']))
+    // Nor a config that drops empty context lines (they numbered the rest of a hunk one short).
+    expect(GIT_FLAGS).toEqual(expect.arrayContaining(['diff.suppressBlankEmpty=false']))
   })
 
   it('keeps a repository nobody shows for a while, so a return is one reading, not a start', async () => {
@@ -338,6 +365,62 @@ describe('the git service', () => {
     h.service.watch(ID)
     await h.advance(0)
     expect(setup(h.calls)).toBe(4)
+  })
+
+  it('never lets a reading begun before a pane went land after the one made on its return', async () => {
+    // Found in review: the parked entry was read again while its old reading was still in git,
+    // and the old one, answering last, put a stale state on screen with nothing to mend it.
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    let release = (): void => {}
+    h.holds.push(new Promise<void>((resolve) => (release = resolve)))
+    h.status.output = '# branch.oid bbbbbbb # branch.head old '
+    h.fire('a.txt')
+    await h.advance(MIN_GAP_MS)
+    expect(statusCalls(h.calls)).toBe(2)
+    // The pane goes behind a tab and comes back while that reading is still out.
+    h.service.unwatch(ID)
+    h.status.output = '# branch.oid ccccccc # branch.head fresh '
+    h.service.watch(ID)
+    await h.advance(0)
+    expect(h.service.snapshot(ID).branch.head).toBe('fresh')
+    release()
+    await h.advance(0)
+    expect(h.service.snapshot(ID).branch.head).toBe('fresh')
+    expect(h.published.at(-1)?.branch.head).toBe('fresh')
+    // And it still follows changes.
+    h.status.output = '# branch.oid ddddddd # branch.head later '
+    h.fire('b.txt')
+    await h.advance(2000)
+    expect(h.service.snapshot(ID).branch.head).toBe('later')
+  })
+
+  it('starts over when a watch fails, rather than following nothing from then on', async () => {
+    // Found in review: the watcher's error closed it and asked for one reading; that reading
+    // succeeded, and no change was followed again until the pane was closed and opened.
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    h.lose()
+    await h.advance(MIN_GAP_MS)
+    const before = statusCalls(h.calls)
+    h.fire('a.txt')
+    await h.advance(2000)
+    expect(statusCalls(h.calls)).toBe(before + 1)
+  })
+
+  it('asks for the filters again when the config changes, and empties a new one', async () => {
+    // Found in review: the guard was made once at the start, so a filter added while the pane
+    // was open (git lfs install --local) ran on the next reading.
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    h.config.output = "local	filter.y.clean sh -c 'evil'"
+    h.fire(path.join('.git', 'config'))
+    await h.advance(2000)
+    const status = h.calls.filter((args) => commandOf(args) === 'status').at(-1)
+    expect(status?.slice(0, 2)).toEqual(['-c', 'filter.y.clean='])
   })
 
   it('tries again after a failure, so a pane mends itself once git is there', async () => {
@@ -461,7 +544,18 @@ describe('the git service', () => {
 
 describe('starting the open command', () => {
   it('never runs a program, script or shortcut when no command is set', () => {
-    for (const file of ['setup.bat', 'tool.EXE', 'run.ps1', 'x.lnk', 'a.js', 'go.cmd']) {
+    // .sh and .py too: Git for Windows and the Python launcher run them on a double-click.
+    for (const file of [
+      'setup.bat',
+      'tool.EXE',
+      'run.ps1',
+      'x.lnk',
+      'a.js',
+      'go.cmd',
+      'setup.sh',
+      'install.py',
+      'gui.pyw',
+    ]) {
       expect(runsWhenOpened(`C:\\w\\${file}`, 'win32')).toBe(true)
     }
     expect(runsWhenOpened('/w/Tool.app', 'darwin')).toBe(true)

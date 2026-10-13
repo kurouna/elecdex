@@ -36,6 +36,13 @@ export const GIT_FLAGS: readonly string[] = [
   'color.ui=false',
   '-c',
   'log.showSignature=false',
+  // An empty context line printed as "" rather than " " was dropped, and every later line of
+  // its hunk numbered one short (found in review).
+  '-c',
+  'diff.suppressBlankEmpty=false',
+  // The graph and the cards read UTF-8, whatever a user's config re-encodes the log into.
+  '-c',
+  'i18n.logOutputEncoding=utf-8',
 ]
 
 /** A diff larger than this is not drawn; git's output is cut here. */

@@ -26,6 +26,7 @@ import { type GitResult, gitError, type RunGit } from './run.js'
  *  - Signature checks (`merge.verifySignatures` runs `gpg.program`), submodules
  *    (fetched and checked out under their own config) and a merge, a rebase or an
  *    autostash chosen in config: all turned off on the command line.
+ *  - The `ext::` transport, which runs a command named in a URL: never allowed.
  *  - A password prompt: git is told there is no terminal, and a transport that
  *    waits anyway is stopped at `SYNC_TIMEOUT_MS`.
  *
@@ -81,10 +82,19 @@ export class GitSync {
       const git = (args: readonly string[], timeoutMs?: number): Promise<GitResult> =>
         this.deps.run(
           target.path,
-          [...target.guard, '-c', `core.hooksPath=${this.deps.hooksDir()}`, ...args],
+          [
+            ...target.guard,
+            '-c',
+            `core.hooksPath=${this.deps.hooksDir()}`,
+            '-c',
+            'protocol.ext.allow=never',
+            ...args,
+          ],
           timeoutMs === undefined ? undefined : { timeoutMs },
         )
-      const before = target.state.branch.oid
+      // HEAD as it is now, not as main last read it: a commit made in the terminal a moment
+      // before the press was counted as pulled (found in review).
+      const before = action === 'pull' ? await this.head(git, target.state.branch.oid) : null
       const done = await git(ARGS[action], SYNC_TIMEOUT_MS)
       // Whatever came of it, refs may have moved: the pane reads again.
       this.deps.moved(id)
@@ -110,6 +120,15 @@ export class GitSync {
   ): Promise<GitSyncResult> {
     const commits = before === null ? 0 : await this.count(git, `${before}..HEAD`)
     return commits === 0 ? result('current') : result('pulled', '', commits)
+  }
+
+  private async head(
+    git: (args: readonly string[]) => Promise<GitResult>,
+    fallback: string | null,
+  ): Promise<string | null> {
+    const read = await git(['rev-parse', '--verify', '-q', 'HEAD'])
+    const oid = read.stdout.trim()
+    return read.ok && /^[0-9a-f]{40,64}$/.test(oid) ? oid : fallback
   }
 
   private async count(

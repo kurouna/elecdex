@@ -1,10 +1,12 @@
 <script lang="ts">
-import type { GitArea, GitFile } from '@shared/git'
+import type { GitFile } from '@shared/git'
+import { tick } from 'svelte'
 import { flip } from 'svelte/animate'
 import { HoverRest } from '../../lib/hover-card.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { repoFilePath } from './file-card.ts'
 import { foldOut, landIn } from './motion.ts'
+import { fileListRows, keyOf, menuPlace, opensInTree } from './rows.ts'
 
 /**
  * The files a repository has changed, in the lists git keeps them in - or the
@@ -20,7 +22,6 @@ interface Props {
   selected: string | null
   /** Showing a commit's files rather than the working tree. */
   commit: boolean
-  counts: Record<GitArea, number> | null
   dropped: number
   /** Rows arriving now are the first reading, not a change: no motion. */
   still: boolean
@@ -36,7 +37,6 @@ const {
   files,
   selected,
   commit,
-  counts,
   dropped,
   still,
   repoPath,
@@ -46,43 +46,7 @@ const {
   onhover,
 }: Props = $props()
 
-const AREAS: { area: GitArea; label: string }[] = [
-  { area: 'conflicted', label: 'CONFLICTED' },
-  { area: 'staged', label: 'STAGED' },
-  { area: 'unstaged', label: 'UNSTAGED' },
-  { area: 'untracked', label: 'UNTRACKED' },
-]
-
-const keyOf = (file: GitFile): string => `${file.area}:${file.path}`
-
-/** One flat list with section heads, so rows can move between sections with flip. */
-const rows = $derived.by(() => {
-  if (commit) return files.map((file) => ({ kind: 'file' as const, key: keyOf(file), file }))
-  const out: (
-    | { kind: 'head'; key: string; label: string; count: number; area: GitArea }
-    | { kind: 'file'; key: string; file: GitFile }
-  )[] = []
-  // A file is keyed by its path, so staging it moves its row; only a file in two
-  // lists at once (staged, then edited again) keys its second row by the list too.
-  const used = new Set<string>()
-  for (const { area, label } of AREAS) {
-    const inArea = files.filter((file) => file.area === area)
-    if (inArea.length === 0) continue
-    out.push({
-      kind: 'head',
-      key: `head:${area}`,
-      label,
-      count: counts?.[area] ?? inArea.length,
-      area,
-    })
-    for (const file of inArea) {
-      const key = used.has(file.path) ? `file:${file.path}:${area}` : `file:${file.path}`
-      used.add(file.path)
-      out.push({ kind: 'file', key, file })
-    }
-  }
-  return out
-})
+const rows = $derived(fileListRows(files, commit))
 
 /** Cells lit in the five-cell gauge: added then removed, in proportion, at least one each. */
 function cells(file: GitFile): ('a' | 'd' | '')[] {
@@ -103,14 +67,26 @@ const name = (path: string): string => path.slice(path.lastIndexOf('/') + 1)
 
 let menu = $state<{ file: GitFile; x: number; y: number } | null>(null)
 let list = $state<HTMLElement | null>(null)
+let menuEl = $state<HTMLElement | null>(null)
 
-function showMenu(event: MouseEvent, file: GitFile): void {
+async function showMenu(event: MouseEvent, file: GitFile): Promise<void> {
   event.preventDefault()
   const box = list?.getBoundingClientRect()
-  menu = {
-    file,
+  const at = {
     x: event.clientX - (box?.left ?? 0),
     y: event.clientY - (box?.top ?? 0) + (list?.scrollTop ?? 0),
+  }
+  menu = { file, ...at }
+  // Drawn once where it was asked for, then kept inside what the list shows.
+  await tick()
+  if (menuEl === null || list === null || menu?.file !== file) return
+  menu = {
+    file,
+    ...menuPlace(
+      at,
+      { width: menuEl.offsetWidth, height: menuEl.offsetHeight },
+      { width: list.clientWidth, top: list.scrollTop, height: list.clientHeight },
+    ),
   }
 }
 
@@ -164,8 +140,8 @@ $effect(() => () => resting.dispose())
           onfocus={(event) => point(file, event)}
           onblur={() => resting.leave(keyOf(file))}
           onclick={() => onselect(file)}
-          ondblclick={() => onopen(file)}
-          oncontextmenu={(event) => showMenu(event, file)}
+          ondblclick={() => opensInTree(file, commit) && onopen(file)}
+          oncontextmenu={(event) => void showMenu(event, file)}
         >
           <span class="code c-{file.code === '?' ? 'Q' : file.code}">{file.code}</span>
           <span class="path"><span class="dir">{folder(file.path)}</span><span class="name"
@@ -191,11 +167,13 @@ $effect(() => () => resting.dispose())
 
   {#if menu !== null}
     {@const file = menu.file}
-    <div class="menu" role="menu" style:left="{menu.x}px" style:top="{menu.y}px" data-testid="git-menu">
-      <button type="button" role="menuitem" onclick={() => { onopen(file); menu = null }}>Open</button>
+    <div class="menu" role="menu" style:left="{menu.x}px" style:top="{menu.y}px" data-testid="git-menu" bind:this={menuEl}>
+      {#if opensInTree(file, commit)}
+        <button type="button" role="menuitem" onclick={() => { onopen(file); menu = null }}>Open</button>
+      {/if}
       <button type="button" role="menuitem" onclick={() => copy(file.path)}>Copy relative path</button>
       <button type="button" role="menuitem" onclick={() => copy(fullPath(file))}>Copy full path</button>
-      {#if !commit || file.code !== 'D'}
+      {#if opensInTree(file, commit)}
         <button type="button" role="menuitem" onclick={() => { onreveal(file); menu = null }}
           >Show in folder</button
         >

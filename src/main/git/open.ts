@@ -101,6 +101,17 @@ const RUNS_ON: Record<string, readonly string[]> = {
     '.scf',
     '.inf',
     '.settingcontent-ms',
+    // What an installer associates with its interpreter: Git for Windows runs .sh in Git Bash
+    // on a double-click, the Python launcher .py, and Ruby, Perl and AutoHotkey theirs.
+    '.sh',
+    '.py',
+    '.pyw',
+    '.pyz',
+    '.pyzw',
+    '.rb',
+    '.rbw',
+    '.pl',
+    '.ahk',
   ],
   darwin: [
     '.app',

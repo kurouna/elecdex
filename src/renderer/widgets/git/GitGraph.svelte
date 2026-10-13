@@ -3,6 +3,7 @@ import { ago } from '@shared/ai'
 import { type GitGraphCommit, type GitLog, type GitLogScope, LOG_MAX, LOG_PAGE } from '@shared/git'
 import { type GraphEdge, graphRows } from '@shared/git-graph'
 import { HoverRest } from '../../lib/hover-card.ts'
+import GitRefChip from './GitRefChip.svelte'
 import { landIn } from './motion.ts'
 
 /**
@@ -113,8 +114,6 @@ function leave(commit: GitGraphCommit): void {
 }
 
 $effect(() => () => resting.dispose())
-
-const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
 </script>
 
 <div class="graph-head">
@@ -175,11 +174,8 @@ const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
       </svg>
       <span class="hash">{commit.short}</span>
       <span class="subj"
-        >{#each commit.refs as ref (`${ref.kind}:${ref.name}`)}<span
-            class="ref {ref.kind}"
-            class:current={ref.current}
-            data-testid="git-ref"
-            data-kind={ref.kind}>{REF_MARK[ref.kind]}{ref.name}</span
+        >{#each commit.refs as ref (`${ref.kind}:${ref.name}`)}<span class="chip"
+            ><GitRefChip {ref} testid="git-ref" /></span
           >{/each}{commit.subject}</span
       >
       <span class="when">{ago(commit.time * 1000, now)}</span>
@@ -312,29 +308,8 @@ const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
   white-space: nowrap;
 }
 
-.ref {
+.chip {
   margin-right: 0.4rem;
-  padding: 0 0.3rem;
-  border: 1px solid var(--accent-dim);
-  color: var(--text);
-  font-family: var(--font-ui);
-  letter-spacing: 0.06em;
-}
-
-.ref.current,
-.ref.head {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.ref.remote {
-  border-style: dashed;
-  color: var(--text-muted);
-}
-
-.ref.tag {
-  border-color: var(--warn);
-  color: var(--warn);
 }
 
 .empty {

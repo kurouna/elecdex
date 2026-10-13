@@ -54,8 +54,11 @@ export interface Watch {
 export interface GitServiceDeps {
   run: RunGit
   repo(id: string): GitRepoRef | null
-  /** Watches a folder and everything below it; `relative` is the changed path in it. */
-  watch(folder: string, onChange: (relative: string) => void): Watch | null
+  /**
+   * Watches a folder and everything below it; `relative` is the changed path in it. `onLost`:
+   * the watch failed and closed itself (a folder briefly locked on Windows), so nothing more comes.
+   */
+  watch(folder: string, onChange: (relative: string) => void, onLost: () => void): Watch | null
   exists(file: string): boolean
   /** A file's text, or null when it is missing, unreadable or larger than `max` bytes. */
   readText(file: string, max: number): Promise<string | 'too-large' | null>
@@ -104,6 +107,13 @@ interface Watched {
   refsMoved: boolean
   /** `-c` pairs that empty the filters this repository's own config defines. */
   guard: string[]
+  /** The repository's config changed: its filters are asked for again before the next reading. */
+  configMoved: boolean
+  /**
+   * Bumped when the entry is taken back from the park or started over: a reading begun before
+   * then neither publishes nor clears `reading` (found in review: it landed after the fresh one).
+   */
+  generation: number
   state: GitState
 }
 
@@ -117,7 +127,9 @@ const SUBMODULES = '--ignore-submodules=dirty'
 /** Changes in the git folder that move the history the graph shows: HEAD, a ref, the packed refs. */
 const movesHistory = (inGitDir: string): boolean =>
   /^(HEAD|packed-refs|refs([/].*)?)$/.test(inGitDir.split(path.sep).join('/'))
-const DIFF_FLAGS = ['--no-color', '--no-ext-diff', '--no-textconv', SUBMODULES, '-M', '-U3']
+/** What every diff is read with: no external program, no conversion, no submodule's tree. */
+const SAFE_DIFF = ['--no-ext-diff', '--no-textconv', SUBMODULES]
+const DIFF_FLAGS = ['--no-color', ...SAFE_DIFF, '-M', '-U3']
 
 /**
  * The filter drivers a repository's own config defines (`filter.<name>.clean`
@@ -198,7 +210,9 @@ export class GitService {
     if (parked !== null) {
       this.watched.set(id, parked)
       this.follow(parked)
-      // What changed while nobody looked: one reading, published only if it differs.
+      // What changed while nobody looked: one reading. Every listed file counts as written
+      // again (its diff may have moved with the same counts), so it is published when there are
+      // files; the page lights its lamp only when what it shows differs (`isNews`).
       void this.read(parked)
       return
     }
@@ -214,6 +228,8 @@ export class GitService {
       touched: new Set(),
       refsMoved: false,
       guard: [],
+      configMoved: false,
+      generation: 0,
       state: { ...emptyState(id), repo: ref },
     }
     this.watched.set(id, entry)
@@ -246,7 +262,13 @@ export class GitService {
     this.parked.delete(id)
     if (kept === undefined || this.deps.now() - kept.at >= PARK_MS) return null
     if (kept.entry.ref.path !== ref.path) return null
-    Object.assign(kept.entry, { reading: false, again: false, pendingSince: null, touched: 'all' })
+    Object.assign(kept.entry, {
+      reading: false,
+      again: false,
+      pendingSince: null,
+      touched: 'all',
+      generation: kept.entry.generation + 1,
+    })
     return kept.entry
   }
 
@@ -269,17 +291,36 @@ export class GitService {
       this.settle(entry, this.failure(entry, found))
       return
     }
+    const guard = await this.guardOf(root)
+    if (!this.isCurrent(entry)) return
+    entry.guard = guard
+    entry.gitDir = path.resolve(found.stdout.trim())
+    this.follow(entry)
+    await this.read(entry)
+  }
+
+  /** The `-c` pairs that empty the filters the repository's own config defines. */
+  private async guardOf(root: string): Promise<string[]> {
     const filters = await this.deps.run(root, [
       'config',
       '--get-regexp',
       '--show-scope',
       '^filter\\.',
     ])
+    return filterGuard(filters.stdout)
+  }
+
+  /**
+   * A watch failed and closed itself: start over a moment later, watches and all. Before, the
+   * one reading it asked for succeeded and the pane stopped following for good (found in review).
+   */
+  private lost(entry: Watched): void {
     if (!this.isCurrent(entry)) return
-    entry.guard = filterGuard(filters.stdout)
-    entry.gitDir = path.resolve(found.stdout.trim())
-    this.follow(entry)
-    await this.read(entry)
+    if (entry.timer !== null) this.deps.clearTimer(entry.timer)
+    entry.timer = this.deps.setTimer(() => {
+      entry.timer = null
+      this.restart(entry)
+    }, MIN_GAP_MS)
   }
 
   /** Watches the working tree, and the git folder where it lies outside it (a linked worktree). */
@@ -288,23 +329,38 @@ export class GitService {
     const gitDir = entry.gitDir
     if (gitDir === null) return
     const insideRoot = path.relative(root, gitDir)
-    const rootWatch = this.deps.watch(root, (relative) => {
-      const inGit = pathIn(insideRoot, relative)
-      if (!changeMatters(relative, inGit)) return
-      if (inGit === null) this.touch(entry, relative)
-      else if (movesHistory(inGit)) entry.refsMoved = true
-      this.changed(entry)
-    })
+    const lost = (): void => this.lost(entry)
+    const rootWatch = this.deps.watch(
+      root,
+      (relative) => {
+        const inGit = pathIn(insideRoot, relative)
+        if (!changeMatters(relative, inGit)) return
+        if (inGit === null) this.touch(entry, relative)
+        else this.gitDirChanged(entry, inGit)
+        this.changed(entry)
+      },
+      lost,
+    )
     if (rootWatch !== null) entry.watches.push(rootWatch)
     // A linked worktree keeps its git folder elsewhere; its index and HEAD are there.
     if (insideRoot.startsWith('..') || path.isAbsolute(insideRoot)) {
-      const gitWatch = this.deps.watch(gitDir, (relative) => {
-        if (!changeMatters(relative, relative)) return
-        if (movesHistory(relative)) entry.refsMoved = true
-        this.changed(entry)
-      })
+      const gitWatch = this.deps.watch(
+        gitDir,
+        (relative) => {
+          if (!changeMatters(relative, relative)) return
+          this.gitDirChanged(entry, relative)
+          this.changed(entry)
+        },
+        lost,
+      )
       if (gitWatch !== null) entry.watches.push(gitWatch)
     }
+  }
+
+  /** What a change in the git folder means beyond a reading: the graph, or the filters. */
+  private gitDirChanged(entry: Watched, inGit: string): void {
+    if (movesHistory(inGit)) entry.refsMoved = true
+    if (inGit.split(path.sep).join('/') === 'config') entry.configMoved = true
   }
 
   /** Remembers a changed working-tree path, so a file whose counts stayed the same is still read again. */
@@ -343,6 +399,7 @@ export class GitService {
   /** Reads the repository and publishes it if anything the pane shows is different. */
   private async read(entry: Watched): Promise<void> {
     if (!this.isCurrent(entry)) return
+    const generation = entry.generation
     entry.reading = true
     entry.again = false
     entry.pendingSince = null
@@ -351,18 +408,28 @@ export class GitService {
     entry.touched = new Set()
     const refsMoved = entry.refsMoved
     entry.refsMoved = false
+    const configMoved = entry.configMoved
+    entry.configMoved = false
+    const mine = (): boolean => this.isCurrent(entry) && entry.generation === generation
     try {
+      // A filter added while the pane is open (`git lfs install --local`) is emptied too.
+      if (configMoved) {
+        const guard = await this.guardOf(entry.ref.path)
+        if (mine()) entry.guard = guard
+      }
       const next = await this.reading(entry, refsMoved)
       // A listed file written again with the same counts is a new diff all the same.
       const rewritten =
         touched === 'all'
           ? next.files.length > 0
           : next.files.some((file) => touched.has(file.path))
-      if (this.isCurrent(entry)) this.settle(entry, next, rewritten)
+      if (mine()) this.settle(entry, next, rewritten)
     } finally {
-      entry.reading = false
-      // Something changed while git was reading: what it read may be stale.
-      if (entry.again && this.isCurrent(entry)) this.changed(entry)
+      if (entry.generation === generation) {
+        entry.reading = false
+        // Something changed while git was reading: what it read may be stale.
+        if (entry.again && this.isCurrent(entry)) this.changed(entry)
+      }
     }
   }
 
@@ -385,6 +452,8 @@ export class GitService {
     for (const watch of entry.watches) watch.close()
     entry.watches = []
     entry.gitDir = null
+    entry.generation += 1
+    entry.reading = false
     void this.start(entry)
   }
 
@@ -418,17 +487,8 @@ export class GitService {
     const parsed = parseStatus(status.stdout)
     const headMoved = parsed.branch.oid !== entry.state.branch.oid || entry.state.readAt === 0
     const [unstaged, staged, log] = await Promise.all([
-      this.git(entry, ['diff', '--numstat', '-z', '--no-ext-diff', '--no-textconv', SUBMODULES]),
-      this.git(entry, [
-        'diff',
-        '--cached',
-        '--numstat',
-        '-z',
-        '--no-ext-diff',
-        '--no-textconv',
-        SUBMODULES,
-        '-M',
-      ]),
+      this.git(entry, ['diff', '--numstat', '-z', ...SAFE_DIFF]),
+      this.git(entry, ['diff', '--cached', '--numstat', '-z', ...SAFE_DIFF, '-M']),
       headMoved && parsed.branch.oid !== null
         ? this.git(entry, ['log', '-n1', '-z', `--format=${LOG_FORMAT}`])
         : Promise.resolve(null),

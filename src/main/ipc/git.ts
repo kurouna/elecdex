@@ -184,15 +184,20 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
  * Watches a folder and everything in it. Windows and macOS watch a tree with
  * one handle; Linux has Node walk it and watch each folder.
  */
-function watchTree(folder: string, onChange: (relative: string) => void): Watch | null {
+function watchTree(
+  folder: string,
+  onChange: (relative: string) => void,
+  onLost: () => void,
+): Watch | null {
   try {
     const watcher = watch(folder, { recursive: true, persistent: false }, (_event, name) => {
       onChange(typeof name === 'string' ? name : '')
     })
-    // A folder deleted or made unreadable: one more reading, which says so.
+    // A folder deleted, made unreadable or briefly locked: the service starts over, and its
+    // reading says which.
     watcher.on('error', () => {
       watcher.close()
-      onChange('.')
+      onLost()
     })
     return watcher
   } catch {

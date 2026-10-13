@@ -752,7 +752,7 @@ export function splitRows(lines: readonly DiffLine[]): SplitRow[] {
 
 /** What in the git folder says the repository changed; the rest is git's own bookkeeping. */
 const GIT_DIR_SIGNALS =
-  /^(HEAD|index|packed-refs|MERGE_HEAD|CHERRY_PICK_HEAD|REVERT_HEAD|BISECT_LOG|refs(\/.*)?|rebase-merge(\/.*)?|rebase-apply(\/.*)?)$/
+  /^(HEAD|index|config|packed-refs|MERGE_HEAD|CHERRY_PICK_HEAD|REVERT_HEAD|BISECT_LOG|refs(\/.*)?|rebase-merge(\/.*)?|rebase-apply(\/.*)?)$/
 
 /**
  * Whether a change the watcher reported can change what the pane shows. Inside

@@ -99,17 +99,23 @@ describe('the words it ends with', () => {
 describe('GitSync', () => {
   it('pulls fast-forward only, with no hooks, no merge and nothing of submodules or signatures', async () => {
     const { sync, calls, moved } = harness(readState({ behind: 2 }), (args) =>
-      args.includes('rev-list') ? answer('2\n') : answer(),
+      args.includes('rev-list')
+        ? answer('2\n')
+        : args.includes('rev-parse')
+          ? answer(`${'b'.repeat(40)}\n`)
+          : answer(),
     )
     const result = await sync.run(ID, 'pull')
     expect(result).toEqual({ action: 'pull', code: 'pulled', commits: 2, message: '' })
 
-    const pull = calls[0]
+    const pull = calls[1]
     expect(pull?.args).toEqual([
       '-c',
       'filter.x.clean=',
       '-c',
       'core.hooksPath=/app/git-no-hooks',
+      '-c',
+      'protocol.ext.allow=never',
       'pull',
       '--ff-only',
       '--no-rebase',
@@ -119,8 +125,10 @@ describe('GitSync', () => {
     ])
     // A network round trip is given far longer than a reading.
     expect(pull?.timeoutMs).toBe(120_000)
-    // Counted from the commit main last read HEAD at.
-    expect(calls[1]?.args).toContain(`${'a'.repeat(40)}..HEAD`)
+    // Counted from HEAD read just before the pull, not main's last reading (found in review:
+    // a commit made in the terminal a moment before was counted as pulled).
+    expect(calls[0]?.args.slice(-4)).toEqual(['rev-parse', '--verify', '-q', 'HEAD'])
+    expect(calls[2]?.args).toContain(`${'b'.repeat(40)}..HEAD`)
     expect(moved).toEqual([ID])
   })
 
@@ -142,7 +150,8 @@ describe('GitSync', () => {
       message: '',
     })
     expect(calls[0]?.args).toContain('core.hooksPath=/app/git-no-hooks')
-    expect(calls[0]?.args.slice(4)).toEqual(['fetch', '--no-recurse-submodules'])
+    expect(calls[0]?.args).toContain('protocol.ext.allow=never')
+    expect(calls[0]?.args.slice(6)).toEqual(['fetch', '--no-recurse-submodules'])
     expect(calls[1]?.args).toContain('HEAD..@{upstream}')
   })
 

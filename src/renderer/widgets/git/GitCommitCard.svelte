@@ -2,6 +2,7 @@
 import type { GitFile, GitGraphCommit } from '@shared/git'
 import type { CardAnchor, CardSize } from '../../lib/hover-card.ts'
 import HoverCard from '../common/HoverCard.svelte'
+import GitRefChip from './GitRefChip.svelte'
 
 /**
  * The whole of a commit, shown while the pointer rests on its row in the graph:
@@ -34,7 +35,6 @@ const summary = $derived.by(() => {
 })
 
 const when = $derived(new Date(commit.time * 1000).toLocaleString())
-const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
 </script>
 
 <HoverCard {anchor} {bounds} testid="git-card">
@@ -46,7 +46,7 @@ const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
   {#if commit.refs.length > 0}
     <p class="refs">
       {#each commit.refs as ref (`${ref.kind}:${ref.name}`)}
-        <span class="ref {ref.kind}" class:current={ref.current}>{REF_MARK[ref.kind]}{ref.name}</span>
+        <GitRefChip {ref} />
       {/each}
     </p>
   {/if}
@@ -90,30 +90,8 @@ p {
   flex-wrap: wrap;
   gap: 0.3rem;
   margin-top: 0.25rem;
-}
-
-.ref {
-  padding: 0 0.3rem;
-  border: 1px solid var(--accent-dim);
-  font-family: var(--font-ui);
+  /* The chips are labels; what the card says about the commit is read at --step--1. */
   font-size: var(--step--2);
-  letter-spacing: 0.06em;
-}
-
-.ref.current,
-.ref.head {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.ref.remote {
-  border-style: dashed;
-  color: var(--text-muted);
-}
-
-.ref.tag {
-  border-color: var(--warn);
-  color: var(--warn);
 }
 
 .subject {
@@ -142,6 +120,6 @@ p {
   padding-top: 0.25rem;
   border-top: 1px solid var(--panel-rule);
   color: var(--text-muted);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
 }
 </style>

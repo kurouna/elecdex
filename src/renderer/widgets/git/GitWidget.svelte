@@ -1,6 +1,5 @@
 <script lang="ts">
 import {
-  type GitArea,
   type GitDiff,
   type GitFile,
   type GitGraphCommit,
@@ -33,6 +32,7 @@ import GitCommitCard from './GitCommitCard.svelte'
 import GitFileCard from './GitFileCard.svelte'
 import GitFiles from './GitFiles.svelte'
 import GitGraph from './GitGraph.svelte'
+import { isNews, keyOf } from './rows.ts'
 
 /**
  * One git repository, read only: its branch, what changed, the diff of the file
@@ -110,13 +110,17 @@ $effect(() => {
     shownRepo = id
   }
   if (id === null || !visible) return
+  // Coming back with a reading on screen: main's next one is news only if it differs.
+  let back = untrack(() => (repoState?.readAt ?? 0) !== 0)
   return window.elecdex.git.subscribe(id, (next) => {
     const before = untrack(() => repoState)
     // Main's word before its first reading after a return is not news: keep what is shown.
     if (next.readAt === 0 && before !== null && before.readAt !== 0 && next.problem === null) return
     repoState = next
     // The first reading is what the repository is, not a change to it.
-    if (before === null || before.readAt === 0) return
+    const news = isNews(before, next, back)
+    if (before !== null && next.readAt !== before.readAt) back = false
+    if (!news || before === null) return
     quiet = false
     received += 1
     if (before.branch.head !== next.branch.head) switching = true
@@ -144,7 +148,6 @@ $effect(() => (visible && repoState?.operation ? pulse.use() : undefined))
 
 /** The files shown: the working tree's, or the chosen commit's. */
 const files = $derived(commit !== null ? (commitFiles ?? []) : (repoState?.files ?? []))
-const keyOf = (file: GitFile): string => `${file.area}:${file.path}`
 /** The chosen file if it is still listed, else the first one: a pane always shows a diff if it can. */
 const selected = $derived(files.find((file) => keyOf(file) === chosen) ?? files[0] ?? null)
 
@@ -265,7 +268,11 @@ async function syncRepo(action: GitSyncAction): Promise<void> {
   syncing = action
   try {
     const result = await window.elecdex.git.sync(repoId, action)
-    if (result === null) return
+    if (result === null) {
+      // Main would not run it for this page: say so rather than nothing.
+      toasts.show({ title: `CANNOT ${action.toUpperCase()}`, body: where, tone: 'warn' })
+      return
+    }
     toasts.show({
       title: syncHeadline(result),
       body: [where, result.message].filter(Boolean).join(' — '),
@@ -361,12 +368,6 @@ $effect(() => {
     filesOf.clear()
   }
 })
-
-const counts = $derived.by(() => {
-  const by: Record<GitArea, number> = { staged: 0, unstaged: 0, untracked: 0, conflicted: 0 }
-  for (const file of repoState?.files ?? []) by[file.area] += 1
-  return by
-})
 </script>
 
 <div class="git" data-testid="git" data-pane-id={paneId} bind:this={rootEl}>
@@ -403,7 +404,7 @@ const counts = $derived.by(() => {
     </div>
   {:else}
     <header class="head" data-testid="git-head">
-      {#key received}<span class="lamp" class:rx={received > 0} aria-hidden="true"></span>{/key}
+      {#key received}<span class="lamp" class:rx={received > 0} aria-hidden="true" data-testid="git-lamp" data-received={received}></span>{/key}
       <span class="chip" data-testid="git-branch" title={repoState?.branch.upstream ?? 'no upstream'}
         >⎇ {repoState?.branch.head ?? (repoState?.branch.oid ? 'DETACHED' : '…')}</span
       >
@@ -489,7 +490,6 @@ const counts = $derived.by(() => {
           {files}
           selected={selected === null ? null : keyOf(selected)}
           commit={commit !== null}
-          counts={commit !== null ? null : counts}
           dropped={commit !== null ? 0 : (repoState?.dropped ?? 0)}
           still={quiet}
           onselect={(file) => setState({ chosen: keyOf(file) })}
@@ -673,6 +673,7 @@ const counts = $derived.by(() => {
 
 /* The receive lamp: dark, and lit once each time main sends a changed state. */
 .lamp {
+  position: relative;
   flex-shrink: 0;
   width: 0.45rem;
   height: 0.45rem;
@@ -680,15 +681,29 @@ const counts = $derived.by(() => {
   background: var(--panel-rule);
 }
 
-.lamp.rx {
+/* Lit by the opacity of a lit dot over the dark one, never a colour in keyframes. */
+.lamp::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0.45rem var(--ok);
+  content: '';
+  opacity: 0;
+}
+
+.lamp.rx::after {
   animation: git-rx calc(700ms * var(--motion-scale)) ease-out;
 }
 
 @keyframes git-rx {
   0%,
   30% {
-    background: var(--ok);
-    box-shadow: 0 0 0.45rem var(--ok);
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
   }
 }
 

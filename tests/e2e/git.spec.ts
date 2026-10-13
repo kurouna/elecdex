@@ -702,3 +702,43 @@ test('fetches and pulls fast-forward only on two presses, running none of the re
     removeDir(source)
   }
 })
+
+test('lands the kept reading quietly on a return from behind a tab, and lights for a change', async () => {
+  // Found in review: the receive lamp lit on every return, as if the repository had changed.
+  const repo = makeRepo()
+  writeFileSync(path.join(repo, 'app.ts'), 'const greeting = "hi"\nexport default greeting\n')
+  const { app, page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'tabs',
+        id: 't',
+        activeIndex: 0,
+        children: [
+          { kind: 'pane', id: 'g', widget: 'git' },
+          { kind: 'pane', id: 'c', widget: 'clock' },
+        ],
+      },
+    },
+  })
+  const show = (id: string) => page.locator(`[data-testid=tab][data-pane-id=${id}]`).click()
+  const received = () => page.getByTestId('git-lamp').getAttribute('data-received')
+  try {
+    await watchRepo(page, app, repo)
+    await expect(page.locator('[data-testid="git-file"][data-path="app.ts"]')).toBeVisible()
+    const before = await received()
+    await show('c')
+    await expect.poll(() => page.evaluate(() => window.elecdex.git.watching())).toEqual([])
+    await show('g')
+    await expect.poll(() => page.evaluate(() => window.elecdex.git.watching())).toHaveLength(1)
+    // Main's kept reading, then the one it makes on the return: neither is news.
+    await page.waitForTimeout(2500)
+    expect(await received()).toBe(before)
+    writeFileSync(path.join(repo, 'more.ts'), 'export {}\n')
+    await expect(page.locator('[data-testid="git-file"][data-path="more.ts"]')).toBeVisible()
+    expect(Number(await received())).toBeGreaterThan(Number(before))
+  } finally {
+    await close()
+    removeDir(repo)
+  }
+})
