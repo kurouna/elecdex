@@ -1132,7 +1132,8 @@ edited by hand, and moved aside to `layout.json.bak` rather than discarded when 
 
 The saved layouts live in `layouts.json`, which holds each one by name plus the id of the one being
 worked in. It carries nothing that belongs to this machine — a terminal's session id is stripped on
-the way in — so **the file can be copied to another computer as it is**, and a new shell never
+the way in — so **the file can be copied to another computer as it is** (it does keep each web
+pane's last page, the video a YouTube pane was on among them), and a new shell never
 rewrites it. One entry that cannot be read is dropped on its own, leaving the rest; a file
 that cannot be read at all is moved aside to `layouts.json.bak`.
 

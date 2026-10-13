@@ -32,10 +32,9 @@ export interface WebPreset {
    */
   userAgent?: string
   /**
-   * Kept out of the add-pane picker, while panes and links that name it still work: the
-   * plain YouTube pane cannot be signed in (Google refuses an embedded browser), so the
-   * television one is the one to add. A layout saved with it, and a YouTube link opened
-   * from another pane, still land here.
+   * Kept out of the add-pane picker, while layouts that name it still open it: the plain
+   * YouTube pane cannot be signed in (Google refuses an embedded browser), so the television
+   * one is the one to add.
    */
   unlisted?: boolean
 }
@@ -51,6 +50,13 @@ export interface WebPreset {
 const TELEVISION =
   'Mozilla/5.0 (Linux; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) Version/6.0 TV Safari/537.36'
 
+/**
+ * YouTube's own hosts, and Google's sign-in and cookie consent pages, which YouTube sends a
+ * pane to. Not the whole of google.com: Gmail, Drive and the rest opened inside the pane, which
+ * has no address bar, under the television's user agent (found in review).
+ */
+const YOUTUBE_HOSTS = ['youtube.com', 'youtu.be', 'accounts.google.com', 'consent.google.com']
+
 export const WEB_PRESETS: readonly WebPreset[] = [
   {
     id: 'browser',
@@ -65,7 +71,7 @@ export const WEB_PRESETS: readonly WebPreset[] = [
     title: 'youtube',
     description: 'YouTube in a pane. Other sites open in your browser.',
     home: 'https://www.youtube.com/',
-    hosts: ['youtube.com', 'youtu.be', 'google.com'],
+    hosts: YOUTUBE_HOSTS,
     // The television pane is offered instead: only that one can be signed in.
     unlisted: true,
   },
@@ -75,7 +81,7 @@ export const WEB_PRESETS: readonly WebPreset[] = [
     description:
       "YouTube's television interface: the remote-control layout, and the only YouTube pane that can be signed in - with a code entered on a phone.",
     home: 'https://www.youtube.com/tv',
-    hosts: ['youtube.com', 'youtu.be', 'google.com'],
+    hosts: YOUTUBE_HOSTS,
     userAgent: TELEVISION,
   },
   {
@@ -214,6 +220,23 @@ export function loadFailure(code: number, description: string): string {
   const words = LOAD_FAILURES[description]
   if (words !== undefined) return `${words} (${description})`
   return description || `error ${code}`
+}
+
+/**
+ * The page "open in your browser" hands out: the page itself, but a video in YouTube's
+ * television interface (`/tv#/watch?v=ID`) as the video's own page, which a desktop browser
+ * shows (found in review: it was given the television interface).
+ */
+export function externalPage(raw: string): string {
+  const url = httpUrl(raw)
+  if (url === null || !hostMatches(url.hostname, 'youtube.com') || url.pathname !== '/tv') {
+    return raw
+  }
+  const hash = url.hash.slice(1)
+  const query = hash.startsWith('/watch?') ? new URLSearchParams(hash.slice(7)) : null
+  const video = query?.get('v')
+  if (video == null || !/^[\w-]{1,32}$/.test(video)) return raw
+  return `https://www.youtube.com/watch?v=${video}`
 }
 
 /** The longest address a pane sends main, typed or saved. */

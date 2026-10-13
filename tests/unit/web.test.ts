@@ -2,6 +2,7 @@ import { applySettingsPatch, defaultSettings } from '@shared/settings'
 import { BUILTIN_THEMES, type Theme } from '@shared/theme'
 import {
   colorSchemeCss,
+  externalPage,
   hostMatches,
   hslToHex,
   loadFailure,
@@ -148,6 +149,27 @@ describe('pageToKeep', () => {
   })
 })
 
+describe('externalPage', () => {
+  it("gives a desktop browser a television video as the video's own page", () => {
+    // Found in review: "open in your browser" handed out the television interface.
+    expect(externalPage('https://www.youtube.com/tv#/watch?v=dQw4w9WgXcQ&list=a')).toBe(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    )
+  })
+
+  it('leaves every other page as it is', () => {
+    for (const page of [
+      'https://www.youtube.com/tv',
+      'https://www.youtube.com/tv#/browse',
+      'https://www.youtube.com/watch?v=1',
+      'https://x.com/home',
+      'https://www.youtube.com/tv#/watch?v=<script>',
+    ]) {
+      expect(externalPage(page)).toBe(page)
+    }
+  })
+})
+
 describe('loadFailure', () => {
   it('says the common failures in words, and keeps the code beside them', () => {
     expect(loadFailure(-105, 'ERR_NAME_NOT_RESOLVED')).toBe(
@@ -184,6 +206,16 @@ describe('navigationVerdict', () => {
     const youtube = preset('youtube')
     expect(navigationVerdict(youtube, 'https://www.youtube.com/watch?v=1')).toBe('allow')
     expect(navigationVerdict(youtube, 'https://accounts.google.com/signin')).toBe('allow')
+    expect(navigationVerdict(youtube, 'https://consent.google.com/ml?continue=x')).toBe('allow')
+    // Found in review: the whole of google.com was the pane's, Gmail and Drive included.
+    for (const elsewhere of [
+      'https://mail.google.com/',
+      'https://drive.google.com/',
+      'https://www.google.com/search?q=a',
+    ]) {
+      expect(navigationVerdict(youtube, elsewhere)).toBe('external')
+      expect(navigationVerdict(preset('youtubetv'), elsewhere)).toBe('external')
+    }
     expect(navigationVerdict(youtube, 'https://example.com/')).toBe('external')
     expect(navigationVerdict(preset('x'), 'https://t.co/abc')).toBe('allow')
     expect(navigationVerdict(preset('x'), 'https://www.youtube.com/')).toBe('external')

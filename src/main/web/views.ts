@@ -2,6 +2,7 @@ import { CH } from '@shared/channels'
 import { chordFromEvent } from '@shared/keybindings'
 import {
   colorSchemeCss,
+  externalPage,
   httpUrl,
   loadFailure,
   navigationVerdict,
@@ -230,7 +231,7 @@ export class WebViews {
         if (entry.preset.home !== null) this.load(entry, entry.preset.home)
         return
       case 'external':
-        void openExternalIfSafe(contents.getURL())
+        void openExternalIfSafe(externalPage(contents.getURL()))
         return
       case 'tint':
         entry.tintChoice = command.on
