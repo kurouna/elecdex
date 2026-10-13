@@ -527,6 +527,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   或收起时，不会询问引擎。不写入磁盘或日志，插件也无法访问。不使用其他机器上、经 TLS 或 ssh 的引擎。
   **NO DAEMON** 表示没有响应（请启动 Docker Desktop 或服务），**DENIED** 表示当前用户无法打开套接字
   （Linux 上请加入 docker 组）。
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-logwatch.jpg" alt="Business (Dark) 主题，LOG WATCH 窗格占满中间一栏，查看一个虚构商店 API 的日志：指示灯显示 ERROR BURST，顶部是按级别统计的 5 分钟行数、右端红色升高；级别以彩色标签显示，重复的行合并为 ×2、×3，选中了标有 NEW 的 deadlock 行和一条扣款失败的行，下方是替身模型给出的 EXPLAIN 回答（两行的含义和要检查的地方）">
+  <br><sub>Log Watch · Business (Dark) · 选中两行并 EXPLAIN</sub>
+</p>
+
 - **Log Watch** — 在 dev 预设中，或从选择器添加（"log watch"）。**SELECT LOG FILE**
   选择一个文件；**FOLLOW THE NEWEST LIKE IT** 则跟随同一文件夹中名称仅数字不同的最新文件（适合每天或每次
   运行新建文件的日志）。打开时读取末尾的若干行，之后只读取追加的部分，且只在可见时读取：位于其他标签页之后

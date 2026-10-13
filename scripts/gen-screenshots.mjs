@@ -23,6 +23,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { _electron as electron } from '@playwright/test'
+import { startCouncil } from './demo-beats.mjs'
 import {
   claudeFolder,
   demoRepository,
@@ -35,6 +36,14 @@ import {
   SESSION,
   seedOrbits,
 } from './demo-fixtures.mjs'
+import {
+  DEADLOCK as DEADLOCK_LINE,
+  history,
+  LOG_ID,
+  live,
+  logFiles,
+  PAYMENT_FAILED as PAYMENT_LINE,
+} from './demo-logfeed.mjs'
 import {
   airTakeOff,
   drillDig,
@@ -248,6 +257,69 @@ const chip8Layout = {
     ],
     [0.18, 0.64, 0.18],
   ),
+}
+
+/*
+ * The LOG WATCH pane in the middle column on the made-up shop API's log (demo-logfeed.mjs),
+ * written while the shot is taken: errors come fast and light ERROR BURST, and two lines
+ * chosen are EXPLAINed by a stand-in (no model, no key).
+ */
+const logwatchLayout = {
+  version: 1,
+  root: split(
+    'row',
+    [
+      split(
+        'column',
+        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
+        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
+      ),
+      { ...pane('logwatch'), state: { file: LOG_ID } },
+      split(
+        'column',
+        ['globe', 'markets', 'weather', 'calendar'].map(pane),
+        [0.3, 0.25, 0.22, 0.23],
+      ),
+    ],
+    [0.18, 0.64, 0.18],
+  ),
+}
+
+const LOGWATCH_ANSWER = [
+  '**Two separate problems, one likely cause.**',
+  '',
+  '1. `ECONNRESET` from **payments**: the payment service closed the connection mid-request. Bursts like this usually mean it restarted, or its load balancer dropped idle sockets.',
+  '2. The **deadlock on `stock`**: two transactions lock rows in a different order - likely charge retries overlapping with stock updates.',
+  '',
+  '**Check** the payment service’s restarts at that time; retry with backoff, and lock `stock` rows in one order (by id) in both paths.',
+].join('\n')
+
+/**
+ * Errors coming fast, then a deadlock and a failed charge chosen (a click, Ctrl+click) and
+ * EXPLAINed; the shot is taken once the answer is in, the burst still lit.
+ */
+async function explaining(page) {
+  // Off the stream: a pointer resting on it holds the stream where it is (NEW below).
+  await page.mouse.move(W / 2, 4)
+  live.burst(14_000)
+  await page.waitForTimeout(4500)
+  live.queue.push(DEADLOCK_LINE(), PAYMENT_LINE())
+  await page.waitForTimeout(800)
+  const rows = page.getByTestId('logwatch-row')
+  await rows.filter({ hasText: 'deadlock' }).last().click()
+  await rows
+    .filter({ hasText: 'ECONNRESET' })
+    .last()
+    .click({ modifiers: ['Control'] })
+  await page.getByTestId('logwatch-explain-open').click()
+  await page.getByTestId('logwatch-explain-send').click()
+  await page.mouse.move(W / 2, 4)
+  await page
+    .getByTestId('logwatch-explain-answer')
+    .filter({ hasText: 'one order' })
+    .waitFor({ timeout: 20_000 })
+  await page.getByTestId('logwatch-lamp').filter({ hasText: 'ERROR BURST' }).waitFor()
+  await page.waitForTimeout(600)
 }
 
 /*
@@ -804,6 +876,20 @@ await shoot('phosphor', 'elecdex-retro', {
   extra: sinewave,
 })
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
+// LOG WATCH on a made-up log written while the shot is taken, its EXPLAIN answered by a stand-in.
+if (only.length === 0 || only.includes('elecdex-logwatch')) {
+  const council = await startCouncil({ chat: LOGWATCH_ANSWER })
+  history()
+  live.start()
+  await shoot('business-dark', 'elecdex-logwatch', {
+    layout: logwatchLayout,
+    settings: council.settings,
+    prepare: logFiles,
+    extra: explaining,
+  })
+  live.stop()
+  council.close()
+}
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
 // ELEC-16 PLAY: one shot a game, each in a body, a colour and a theme of its own.
 await shoot('business-dark', 'elecdex-play', {

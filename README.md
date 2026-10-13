@@ -612,6 +612,12 @@ weather and calendar.
   Nothing is written to disk or logged, and no plugin can reach it. An engine on another machine,
   over TLS or ssh is not used. **NO DAEMON** says nothing answers (start Docker Desktop, or the
   service), **DENIED** that this user may not open the socket (on Linux, the docker group).
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-logwatch.jpg" alt="The Business (Dark) theme with a LOG WATCH pane filling the middle column on a made-up shop API's log: the lamp reading ERROR BURST, five minutes of lines by level along the top with a red rise at the right, levels in coloured tags, repeated lines folded into ×2 and ×3, a deadlock line marked NEW and chosen with a failed charge, and below them EXPLAIN's answer from a stand-in model saying what the two lines mean and what to check">
+  <br><sub>Log Watch · Business (Dark) · two lines chosen and explained</sub>
+</p>
+
 - **Log Watch** — in the dev preset, or add it from the picker ("log watch").
   **SELECT LOG FILE** picks a file; **FOLLOW THE NEWEST LIKE IT** follows the newest file in its
   folder whose name differs only in its numbers (a log that starts a new file each day or each

@@ -593,6 +593,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   TLS、ssh 越しのエンジンは使いません。**NO DAEMON** は応答がないこと（Docker Desktop かサービスを
   起動してください）、**DENIED** はこのユーザーがソケットを開けないこと（Linux では docker グループ）を
   示します。
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-logwatch.jpg" alt="Business (Dark) テーマで、中央の列いっぱいに架空のショップ API のログを見る LOG WATCH ペイン：ランプは ERROR BURST、上にレベル別の 5 分間の行数があり右端で赤く伸びている。レベルを色の札で示し、繰り返しの行を ×2、×3 にまとめ、NEW の付いた deadlock の行と失敗した決済の行を選び、その下に代役のモデルによる EXPLAIN の答え（2 行の意味と確かめること）">
+  <br><sub>Log Watch · Business (Dark) · 2 行を選んで EXPLAIN</sub>
+</p>
+
 - **Log Watch** — dev プリセットに入っているほか、ピッカーから追加できます（"log watch"）。
   **SELECT LOG FILE** でファイルを選びます。**FOLLOW THE NEWEST LIKE IT** は、同じフォルダで名前が数字だけ
   違うファイルのうち一番新しいものを追います（日ごと、実行ごとに新しいファイルを作るログ向け）。開いたときに
