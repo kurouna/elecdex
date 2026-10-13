@@ -8,7 +8,8 @@
  *   network     through the layouts dialog: the Wi-Fi link over the connections
  *   earth       ORBIT over the quakes, brought forward, the pointer resting on the ISS for its
  *               card, and put back
- *   dev         coding agents at work over the repository, a commit's card
+ *   dev         coding agents at work over the repository, a commit's card, LOG WATCH
+ *               behind GIT's tab lighting ERROR BURST on a made-up log
  *   docker      a container stopped (asked twice), copies landing in the clipboard history
  *   media       the television (a stand-in) over KEYSTREAM's tracks playing, the next one
  *               from the button, and the spectrum moving with them
@@ -44,6 +45,7 @@ import {
   startCouncil,
 } from './demo-beats.mjs'
 import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
+import { history, LOG_ID, live } from './demo-logfeed.mjs'
 import { openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 
 const options = takeOptions({ width: 540, height: 960, zoom: 0.75, lead: 10 })
@@ -86,7 +88,7 @@ const LAYOUTS = [
   ['shell', () => stack(tabs(pane('terminal'), pane('terminal')), pane('globe'), 0.6)],
   ['network', () => stack(pane('wifi', { window: '1m' }), pane('connections'), 0.56)],
   ['earth', () => stack(pane('orbit'), pane('quakes'), 0.56)],
-  ['dev', () => stack(pane('agents'), pane('git'), 0.42)],
+  ['dev', () => stack(pane('agents'), tabs(pane('git'), pane('logwatch', { file: LOG_ID })), 0.42)],
   ['docker', () => stack(pane('docker'), pane('clipboard'), 0.52)],
   [
     'media',
@@ -128,6 +130,9 @@ const slot = (name) => LAYOUTS.findIndex(([n]) => n === name) + 1
 
 const council = await startCouncil()
 const music = prepareMusic()
+// The made-up log, written from now to the end: its pane behind GIT's tab shows it.
+history()
+live.start()
 const { standIn } = await prepareData()
 const items = LAYOUTS.map(([name, build], i) => ({
   id: `vtour${i}${name}`,
@@ -158,10 +163,10 @@ const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 await run(async () => {
   const started = Date.now()
   // Each caption goes up as its beat begins and stays until the next: none of them waits.
-  await wait(1000)
+  await wait(600)
   await caption(CAPTIONS.layouts)
   await beat.throughTheDialog('network')
-  await wait(1000)
+  await wait(700)
   await caption(CAPTIONS.earth)
   await beat.toLayout(slot('earth'), 'earth')
   await wait(600)
@@ -169,48 +174,52 @@ await run(async () => {
   await caption(CAPTIONS.orbit)
   await beat.forward('orbit', 600, { during: () => beat.issCard(1500) })
   await wait(800)
+  // Errors start coming as the layout arrives: ERROR BURST is lit when LOG WATCH comes forward.
+  live.burst(9000)
   await caption(CAPTIONS.agents)
   await beat.toLayout(slot('dev'), 'dev')
   await wait(900)
   await caption(CAPTIONS.commit)
-  await beat.commitCard(1400)
+  await beat.commitCard(1100)
+  await caption(CAPTIONS.logwatch)
+  await beat.logWatch(900)
   await caption(CAPTIONS.copies)
   await beat.toLayout(slot('docker'), 'docker')
   await wait(700)
   await beat.stopContainer()
   await beat.copies()
-  await wait(600)
+  await wait(300)
   await caption(CAPTIONS.media)
   await beat.toLayout(slot('media'), 'media')
   await beat.musicPlays()
   await wait(1000)
-  await beat.nextTrack(1600)
+  await beat.nextTrack(1200)
   await beat.musicStops()
   await caption(CAPTIONS.tasks)
   await beat.toLayout(slot('utility'), 'utility')
   await wait(800)
-  await beat.qrCode(1000)
+  await beat.qrCode(800)
   await caption(CAPTIONS.keystream)
   await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
     previews: [],
-    play: 2_500,
+    play: 2_000,
   })
   await caption(CAPTIONS.retro)
   await beat.toLayout(slot('retro'), 'retro')
-  await beat.elec16(1000)
+  await beat.elec16(700)
   await caption(CAPTIONS.play)
-  await beat.aircombat(2500, { nth: 1, title: 1500, controls: 900, briefing: 900 })
+  await beat.aircombat(1800, { nth: 1, title: 1500, controls: 900, briefing: 900 })
   await caption(CAPTIONS.chip8)
   await beat.toTab('CHIP-8')
-  await beat.chip8(1000, { mem: false })
+  await beat.chip8(700, { mem: false })
   await caption(CAPTIONS.cockpit)
   await beat.throughTheDialog('cockpit')
   // Two cards, not three: the cut stays under its length with the beat in it.
-  await beat.cluster(400, { cards: 900, which: ['cpu', 'spec'] })
+  await beat.cluster(300, { cards: 750, which: ['cpu', 'spec'] })
   await caption(CAPTIONS.council)
   await beat.throughTheDialog('council')
   await wait(800)
-  await beat.councilSits(800)
+  await beat.councilSits(500)
   await caption(null)
   await beat.toLayout(slot('shell'), 'shell')
   // The switch ended the shells: the new one is given something to show while the themes change.
@@ -225,3 +234,4 @@ await run(async () => {
 // Closed here, not in the take: a take the window ended early would leave the stand-in
 // listening, and Node running with nothing to do.
 council.close()
+live.stop()

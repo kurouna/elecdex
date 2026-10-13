@@ -53,6 +53,7 @@ export const CAPTIONS = {
   dev: 'dev — coding agents at work, Docker and git',
   container: 'Stop a container with two presses',
   commit: 'Every commit has its card',
+  logwatch: 'LOG WATCH: logs as they grow, error bursts lit',
   media: 'media — what is playing, and the sound as a spectrum',
   desk: 'desk — notes, tasks and what you copied',
   qr: 'A QR code from what you type',
@@ -282,6 +283,20 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
       .hover({ position: { x: 120, y: 10 } })
     await wait(hold)
     await away()
+  }
+
+  /**
+   * The LOG WATCH pane behind its tab, brought to the front on the made-up log as errors come
+   * fast: `burst` set them coming a few seconds before, so ERROR BURST lights as it arrives.
+   */
+  async function logWatch(hold = 3000) {
+    await toTab('LOG WATCH')
+    await page
+      .getByTestId('logwatch-lamp')
+      .filter({ hasText: 'ERROR BURST' })
+      .waitFor({ timeout: 6000 })
+      .catch(() => {})
+    await wait(hold)
   }
 
   /** Copies made elsewhere, landing in the clipboard history one after another. */
@@ -613,6 +628,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     issCard,
     stopContainer,
     commitCard,
+    logWatch,
     copies,
     musicPlays,
     nextTrack,

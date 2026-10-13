@@ -7,7 +7,8 @@
  *   network     through the layouts dialog: the Wi-Fi link segment by segment, the connections
  *   earth       ORBIT brought forward, the pointer resting on the ISS for its card, and put
  *               back; the quakes, the weather
- *   dev         coding agents at work, a container stopped (asked twice), a commit's card
+ *   dev         coding agents at work, a container stopped (asked twice), a commit's card,
+ *               LOG WATCH behind GIT's tab lighting ERROR BURST on a made-up log
  *   media       the television and the timeline (stand-ins); KEYSTREAM's BOOT SEQUENCE playing,
  *               then FEVER CALL from the next button, the spectrum moving with what is heard
  *   desk        copies landing in the clipboard history, a QR code typed
@@ -49,6 +50,7 @@ import {
   startCouncil,
 } from './demo-beats.mjs'
 import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
+import { history, live } from './demo-logfeed.mjs'
 import { MAIN, openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 import { presetTrees, withState } from './preset-shots.mjs'
 
@@ -73,6 +75,9 @@ const PRESET_KEYS = [
 
 const council = await startCouncil()
 const music = prepareMusic()
+// The made-up log, written from now to the end: its pane in the dev preset shows it.
+history()
+live.start()
 
 /* ---- The saved layouts: the six presets, the council, KEYSTREAM, then retro ---- */
 
@@ -225,8 +230,12 @@ await run(async () => {
   await wait(2000)
   await caption(CAPTIONS.container)
   await beat.stopContainer()
+  // Errors start coming while the commit's card is read: ERROR BURST is lit as LOG WATCH comes.
+  live.burst(9000)
   await caption(CAPTIONS.commit)
   await beat.commitCard(2000)
+  await caption(CAPTIONS.logwatch)
+  await beat.logWatch(2600)
   await caption(CAPTIONS.media)
   await toPreset('media')
   await beat.musicPlays()
@@ -248,8 +257,8 @@ await run(async () => {
   await beat.toLayout(9, 'retro')
   await beat.elec16()
   await caption(CAPTIONS.play)
-  await beat.play(3500)
-  await beat.aircombat(6000)
+  await beat.play(3000)
+  await beat.aircombat(5000)
   await caption(CAPTIONS.chip8)
   await beat.toTab('CHIP-8')
   await beat.chip8(2200)
@@ -271,3 +280,4 @@ await run(async () => {
 // Closed here, not in the take: a take the window ended early would leave the stand-in
 // listening, and Node running with nothing to do.
 council.close()
+live.stop()

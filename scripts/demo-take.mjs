@@ -24,6 +24,7 @@ import {
   SESSION,
   seedOrbits,
 } from './demo-fixtures.mjs'
+import { LOG_ID, logFiles } from './demo-logfeed.mjs'
 import { noGamepads } from './demo-play-kit.mjs'
 import { deskFiles, mediaStandIn, withState } from './preset-shots.mjs'
 
@@ -138,6 +139,8 @@ export function withDemoState(tree, standIn) {
     git: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
     rss: { feeds: [standIn.feedUrl] },
     spectrum: { bands: 16 },
+    // The made-up log (demo-logfeed.mjs): written only while a take runs its writer.
+    logwatch: { file: LOG_ID },
   })
 }
 
@@ -190,6 +193,7 @@ export async function openTake({
     }),
   )
   gitRepos(profile)
+  logFiles(profile)
   seedOrbits(profile)
   deskFiles(profile)
   prepare(profile)

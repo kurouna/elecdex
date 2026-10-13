@@ -19,7 +19,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 
 | コマンド | 内容 | 大きさ・長さ |
 |---|---|---|
-| `demo:tour` | 紹介デモ（起動画面、プリセット、ORBIT、エージェント、Docker、メディア、KEYSTREAM、cockpit、retro、ELEC、テーマ） | 1600×900、起動のあと約 156 秒 |
+| `demo:tour` | 紹介デモ（起動画面、プリセット、ORBIT、エージェント、Docker、LOG WATCH、メディア、KEYSTREAM、cockpit、retro、ELEC、テーマ） | 1600×900、起動のあと約 163 秒 |
 | `demo:tour-black` | 同じものを Black テーマで（`--theme=black`） | 同上 |
 | `demo:tour-shorts` | 紹介デモの 9:16 版（2 段のレイアウト） | 540×960 を zoom 0.75（720×1280 として描く）、起動込みで 2 分以内 |
 | `demo:cockpit` | cockpit プリセット単独（カード、全コアの負荷、前に出す、境目のドラッグ、テーマ） | 1600×900、Black、約 61 秒 |
@@ -80,6 +80,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo-beats.mjs` | 紹介デモの横型と縦型が共有する「場面」（beat）。ISS のカード、コンテナの停止、KEYSTREAM、CLUSTER、ELEC-16、PLAY-320、CHIP-8、ELEC、テーマなど。場面はここに 1 回だけ書き、両方の版から呼ぶ |
 | `demo-tour.mjs` / `demo-tour-shorts.mjs` | 場面の並びと待ち時間。レイアウトの木（縦型は独自の 2 段レイアウト）とユニット（`playUnits`） |
 | `demo-fixtures.mjs` | 代役の世界（ホーム、リポジトリ、Claude Code のフォルダー） |
+| `demo-logfeed.mjs` | LOG WATCH に映す架空のショップ API のログ。固定の種から書くので毎回同じ。`logFiles` がプロファイルの log-files.json に入れ、`live` がテイクのあいだ書き足す（`burst` でエラーを急に増やす） |
 | `demo-play-kit.mjs` | PLAY-320 のゲームをキーで遊ぶ（ELECAIRCOMBAT は画面の HUD を読んで飛ぶ） |
 | `demo-keystream-kit.mjs` | KEYSTREAM の曲を譜面どおりに打つ仕掛けと、メニューの歩き方 |
 | `preset-shots.mjs` | ビルドしたアプリからプリセットの木を取り出す。メディアの代役ページとデスクの中身 |
