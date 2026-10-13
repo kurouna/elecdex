@@ -166,9 +166,58 @@ export function pageToReopen(
   current: string,
   saved: string | null,
 ): string | null {
-  if (saved === null || saved === '' || saved === current) return null
+  if (saved === null || saved === '' || saved === current || saved === pageToKeep(current)) {
+    return null
+  }
   return navigationVerdict(preset, saved) === 'allow' ? saved : null
 }
+
+/** Query and fragment keys that carry a sign-in: a callback page's tokens and codes. */
+const SIGN_IN_KEYS =
+  /^(access_token|id_token|refresh_token|code|oauth_token|oauth_verifier|token|state|session_state|client_secret|password|ticket|saml(request|response))$/i
+
+/**
+ * The page a pane writes into its state - and so into layout.json and the saved layouts - for a
+ * restart to open again: the page as it is, but a sign-in callback (`?code=`, `#access_token=`)
+ * only by its path, never its tokens (found in review). A fragment that routes (YouTube's
+ * television interface: `#/watch?v=`) is kept.
+ */
+export function pageToKeep(raw: string): string {
+  const url = httpUrl(raw)
+  if (url === null) return raw
+  const hash = url.hash.slice(1)
+  const hashQuery = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : hash
+  const carries = (params: URLSearchParams): boolean =>
+    [...params.keys()].some((key) => SIGN_IN_KEYS.test(key))
+  if (!carries(url.searchParams) && !carries(new URLSearchParams(hashQuery))) return raw
+  return `${url.origin}${url.pathname}`
+}
+
+/**
+ * What a page that did not load says in the pane: Chromium's code, in words for the common
+ * ones, the code kept beside them.
+ */
+const LOAD_FAILURES: Record<string, string> = {
+  ERR_NAME_NOT_RESOLVED: 'no such site: the name did not resolve',
+  ERR_INTERNET_DISCONNECTED: 'not connected to the internet',
+  ERR_CONNECTION_REFUSED: 'the site refused the connection',
+  ERR_CONNECTION_TIMED_OUT: 'the site did not answer in time',
+  ERR_TIMED_OUT: 'the site did not answer in time',
+  ERR_CONNECTION_RESET: 'the connection was cut',
+  ERR_ADDRESS_UNREACHABLE: 'the address cannot be reached',
+  ERR_CERT_AUTHORITY_INVALID: 'the certificate is not one to trust',
+  ERR_CERT_COMMON_NAME_INVALID: 'the certificate is for another site',
+  ERR_CERT_DATE_INVALID: 'the certificate has expired or is not valid yet',
+}
+
+export function loadFailure(code: number, description: string): string {
+  const words = LOAD_FAILURES[description]
+  if (words !== undefined) return `${words} (${description})`
+  return description || `error ${code}`
+}
+
+/** The longest address a pane sends main, typed or saved. */
+export const WEB_URL_MAX = 8192
 
 /**
  * A new window a page asks for: a sign-in popup (window.open with a size, which
@@ -289,12 +338,12 @@ export const WebPaneIdSchema = z.string().min(1).max(64)
 export const WebClaimSchema = z.string().min(1).max(64)
 
 export const WebCommandSchema = z.discriminatedUnion('t', [
-  z.object({ t: z.literal('address'), input: z.string().max(4096) }),
+  z.object({ t: z.literal('address'), input: z.string().max(WEB_URL_MAX) }),
   /**
    * The page the pane's state names, changed under a mounted pane (another saved layout's pane
    * of the same id): gone to only on the preset's site (`pageToReopen`), never handed out.
    */
-  z.object({ t: z.literal('reopen'), url: z.string().max(4096) }),
+  z.object({ t: z.literal('reopen'), url: z.string().max(WEB_URL_MAX) }),
   z.object({ t: z.literal('back') }),
   z.object({ t: z.literal('forward') }),
   z.object({ t: z.literal('reload') }),

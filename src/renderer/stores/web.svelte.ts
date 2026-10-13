@@ -75,10 +75,6 @@ class WebStore {
   }
 
   /**
-   * Keeps main's picture of the theme current while at least one web pane is
-   * mounted: the tint, the colour scheme pages are asked for and their ground.
-   */
-  /**
    * Measures the overlays every frame while a web pane is mounted.
    *
    * The observer and the transition events above catch an overlay that changed
@@ -103,6 +99,10 @@ class WebStore {
     }, FRAME_INTERVAL)
   }
 
+  /**
+   * Keeps main's picture of the theme current while at least one web pane is
+   * mounted: the tint, the colour scheme pages are asked for and their ground.
+   */
   retain(): () => void {
     this.panes += 1
     if (this.panes === 1) {

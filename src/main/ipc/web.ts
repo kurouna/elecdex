@@ -4,6 +4,7 @@ import type { Settings } from '@shared/settings'
 import {
   presetOfWidget,
   WEB_PRESETS,
+  WEB_URL_MAX,
   WebAppearanceSchema,
   WebClaimSchema,
   WebCommandSchema,
@@ -23,7 +24,7 @@ import { registerTable } from './table.js'
  * here; a pane id only reaches a view the asking page owns (WebViews).
  */
 
-const UrlSchema = z.string().max(8192).nullable()
+const UrlSchema = z.string().max(WEB_URL_MAX).nullable()
 
 export function registerWebIpc(settings: SettingsHandle): { dispose: () => void } {
   // Tests point the presets at a local stub (tests/e2e/support.ts).

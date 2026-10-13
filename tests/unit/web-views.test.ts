@@ -156,7 +156,10 @@ vi.mock('electron', () => ({
     },
   },
 }))
-vi.mock('../../src/main/web/partition.js', () => ({ webSession: () => ({}) }))
+vi.mock('../../src/main/web/partition.js', async (original) => ({
+  ...(await original<typeof import('../../src/main/web/partition.js')>()),
+  webSession: () => ({}),
+}))
 vi.mock('../../src/main/app-windows.js', () => ({
   markHelperWindow: (win: unknown) => hoisted.helpers.push(win),
 }))
@@ -373,6 +376,12 @@ describe('WebViews', () => {
       nodeIntegration: false,
     })
     expect(popup.overrideBrowserWindowOptions.webPreferences).not.toHaveProperty('preload')
+    // The view's own rules, to the letter (found in review: the popup had DevTools packaged).
+    expect(popup.overrideBrowserWindowOptions.webPreferences).toMatchObject({
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      devTools: true,
+    })
 
     expect(open('https://www.youtube.com/watch?v=9', 'foreground-tab')).toEqual({ action: 'deny' })
     expect(contents.url).toBe('https://www.youtube.com/watch?v=9')
@@ -383,7 +392,7 @@ describe('WebViews', () => {
 
     // The popup is a helper window, and opens nothing further itself.
     const child = new FakeContents()
-    contents.emit('did-create-window', { webContents: child })
+    contents.emit('did-create-window', Object.assign(new EventEmitter(), { webContents: child }))
     expect(hoisted.helpers).toHaveLength(1)
     expect(child.openHandler?.({ url: 'https://a.test/', disposition: 'new-window' })).toEqual({
       action: 'deny',
@@ -619,10 +628,66 @@ describe('WebViews', () => {
     contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://ads.test/', false)
     expect(owner.sent.filter(([, s]) => (s as { error: unknown }).error !== null)).toEqual([])
     contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://x.com/', true)
-    expect(owner.sent.at(-1)?.[1]).toMatchObject({ error: 'ERR_NAME_NOT_RESOLVED' })
+    expect(owner.sent.at(-1)?.[1]).toMatchObject({
+      error: 'no such site: the name did not resolve (ERR_NAME_NOT_RESOLVED)',
+    })
     // A new page clears it.
     contents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false })
     contents.emit('did-navigate')
+    expect(owner.sent.at(-1)?.[1]).toMatchObject({ error: null })
+  })
+
+  it('opens one sign-in popup at a time, and closes it with the pane', () => {
+    // Found in review: a page could open windows without end, and they outlived the pane.
+    views.open(asOwner(owner), 'p', 'a', preset('browser'), null)
+    const contents = view().webContents
+    const open = () =>
+      contents.openHandler?.({ url: 'https://example.com/login', disposition: 'new-window' })
+    expect(open()).toMatchObject({ action: 'allow' })
+    const popup = Object.assign(new EventEmitter(), {
+      webContents: new FakeContents(),
+      destroyed: false,
+      isDestroyed() {
+        return this.destroyed
+      },
+      focus: vi.fn(),
+      close: vi.fn(function (this: { destroyed: boolean; emit: (e: string) => void }) {
+        this.destroyed = true
+        this.emit('closed')
+      }),
+    })
+    contents.emit('did-create-window', popup)
+    expect(open()).toEqual({ action: 'deny' })
+    expect(popup.focus).toHaveBeenCalled()
+    // Its own redirects stay on the web, as its navigations do.
+    const redirect = { url: 'ms-settings:privacy', isMainFrame: true, preventDefault: vi.fn() }
+    popup.webContents.emit('will-redirect', redirect)
+    expect(redirect.preventDefault).toHaveBeenCalled()
+    views.close(asOwner(owner), 'p', 'a')
+    expect(popup.close).toHaveBeenCalled()
+  })
+
+  it('opens another popup once the first is closed', () => {
+    views.open(asOwner(owner), 'p', 'a', preset('browser'), null)
+    const contents = view().webContents
+    const open = () =>
+      contents.openHandler?.({ url: 'https://example.com/login', disposition: 'new-window' })
+    open()
+    const popup = Object.assign(new EventEmitter(), { webContents: new FakeContents() })
+    contents.emit('did-create-window', popup)
+    popup.emit('closed')
+    expect(open()).toMatchObject({ action: 'allow' })
+  })
+
+  it('reloads from the context menu as the toolbar does, clearing the error', () => {
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    const contents = view().webContents
+    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://x.com/', true)
+    contents.emit('context-menu', {}, { isEditable: false, editFlags: {}, linkURL: '' })
+    const items = hoisted.menus.at(-1) as Array<{ label?: string; click?: () => void }>
+    items.find((item) => item.label === 'Reload')?.click?.()
+    expect(contents.reload).toHaveBeenCalled()
+    contents.emit('did-start-loading')
     expect(owner.sent.at(-1)?.[1]).toMatchObject({ error: null })
   })
 

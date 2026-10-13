@@ -1,5 +1,5 @@
 <script lang="ts">
-import { presetOfWidget, type WebRect, type WebState } from '@shared/web'
+import { pageToKeep, presetOfWidget, type WebRect, type WebState } from '@shared/web'
 import { untrack } from 'svelte'
 import { paneDrag } from '../../layout/pane-drag.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
@@ -109,10 +109,11 @@ $effect(() => {
   if (url === undefined || url === '' || url === reported) return
   reported = url
   const id = paneId
+  const kept = pageToKeep(url)
   // Untracked: writing the tree must not make this effect depend on the tree.
   untrack(() => {
     const current = paneState
-    if (current?.url !== url) widgetState.patch(id, { url })
+    if (current?.url !== kept) widgetState.patch(id, { url: kept })
   })
 })
 
@@ -123,7 +124,9 @@ $effect(() => {
   const saved = typeof paneState?.url === 'string' ? paneState.url : null
   untrack(() => {
     const current = page
-    if (current === null || saved === null || saved === '' || saved === current.url) return
+    if (current === null || saved === null || saved === '') return
+    // What this pane wrote of the page it is on is no other page.
+    if (saved === current.url || saved === pageToKeep(current.url)) return
     api.command(paneId, { t: 'reopen', url: saved })
   })
 })
@@ -149,11 +152,13 @@ function measure(): void {
     width: Math.round(box.width),
     height: Math.round(box.height),
   }
+  // Read untracked: the effect that measures would otherwise run again after each change.
+  const last = untrack(() => rect)
   if (
-    rect?.x !== next.x ||
-    rect.y !== next.y ||
-    rect.width !== next.width ||
-    rect.height !== next.height
+    last?.x !== next.x ||
+    last.y !== next.y ||
+    last.width !== next.width ||
+    last.height !== next.height
   ) {
     rect = next
   }

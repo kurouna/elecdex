@@ -4,7 +4,9 @@ import {
   colorSchemeCss,
   hostMatches,
   hslToHex,
+  loadFailure,
   navigationVerdict,
+  pageToKeep,
   pageToReopen,
   paneTint,
   parseAddress,
@@ -115,6 +117,44 @@ describe('hostMatches', () => {
     expect(hostMatches('m.youtube.com', 'youtube.com')).toBe(true)
     expect(hostMatches('notyoutube.com', 'youtube.com')).toBe(false)
     expect(hostMatches('youtube.com.evil.test', 'youtube.com')).toBe(false)
+  })
+})
+
+describe('pageToKeep', () => {
+  it('keeps a page as it is, a routing fragment included', () => {
+    for (const page of [
+      'https://www.youtube.com/watch?v=1&t=30',
+      'https://www.youtube.com/tv#/watch?v=abc',
+      'https://x.com/home',
+    ]) {
+      expect(pageToKeep(page)).toBe(page)
+    }
+  })
+
+  it('keeps a sign-in callback only by its path, never its tokens', () => {
+    // Found in review: the last page went into layout.json as it was, a token in its fragment.
+    expect(pageToKeep('https://x.com/i/callback#access_token=abc&state=1')).toBe(
+      'https://x.com/i/callback',
+    )
+    expect(pageToKeep('https://accounts.google.com/o/oauth2?code=4/xyz&scope=a')).toBe(
+      'https://accounts.google.com/o/oauth2',
+    )
+    expect(pageToKeep('https://example.com/#/cb?id_token=e30')).toBe('https://example.com/')
+  })
+
+  it('takes the page kept of the one a view is on as that page, not another to go to', () => {
+    const on = 'https://x.com/i/callback?code=1'
+    expect(pageToReopen(preset('x'), on, pageToKeep(on))).toBeNull()
+  })
+})
+
+describe('loadFailure', () => {
+  it('says the common failures in words, and keeps the code beside them', () => {
+    expect(loadFailure(-105, 'ERR_NAME_NOT_RESOLVED')).toBe(
+      'no such site: the name did not resolve (ERR_NAME_NOT_RESOLVED)',
+    )
+    expect(loadFailure(-999, 'ERR_SOMETHING_ELSE')).toBe('ERR_SOMETHING_ELSE')
+    expect(loadFailure(-999, '')).toBe('error -999')
   })
 })
 

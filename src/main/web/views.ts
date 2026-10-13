@@ -3,6 +3,7 @@ import { chordFromEvent } from '@shared/keybindings'
 import {
   colorSchemeCss,
   httpUrl,
+  loadFailure,
   navigationVerdict,
   pageToReopen,
   paneTint,
@@ -16,7 +17,6 @@ import {
   windowVerdict,
 } from '@shared/web'
 import {
-  app,
   BrowserWindow,
   type BrowserWindowConstructorOptions,
   type ContextMenuParams,
@@ -30,7 +30,7 @@ import {
 } from 'electron'
 import { markHelperWindow } from '../app-windows.js'
 import { openExternalIfSafe } from '../window.js'
-import { webSession } from './partition.js'
+import { pagePreferences, webSession } from './partition.js'
 
 /**
  * The web panes' views, by pane id (docs/architecture.md section 5.4).
@@ -79,6 +79,11 @@ interface Entry {
   leaving: number
   /** Counts the pictures asked for after a change of colours: the latest asking is the one that counts. */
   picturing: number
+  /**
+   * The sign-in popup this pane's page opened, while it is open: one at a time, closed with the
+   * pane (found in review: a page could open windows without end, and they outlived the pane).
+   */
+  popup: BrowserWindow | null
 }
 
 /** Chromium's code for a load that was replaced by another (a redirect, a new navigation). */
@@ -99,6 +104,8 @@ const LEAVE_SCRIPT =
   "document.fullscreenElement ? document.exitFullscreen().then(() => 'left') : 'not in'"
 const LEAVE_TRIES = 25
 const LEAVE_RETRY_MS = 80
+/** How long one asking out of fullscreen may take: a page could answer never. */
+const LEAVE_ANSWER_MS = 500
 /** How often, and how far apart, a picture that came back unchanged is taken again (`refreshPicture`). */
 const REPICTURE_TRIES = 4
 const REPICTURE_WAIT_MS = 150
@@ -272,16 +279,7 @@ export class WebViews {
 
   private create(owner: WebContents, paneId: string, claim: string, preset: WebPreset): Entry {
     const view = new WebContentsView({
-      webPreferences: {
-        session: webSession(),
-        sandbox: true,
-        contextIsolation: true,
-        nodeIntegration: false,
-        webSecurity: true,
-        allowRunningInsecureContent: false,
-        spellcheck: false,
-        devTools: !app.isPackaged,
-      },
+      webPreferences: { session: webSession(), ...pagePreferences() },
     })
     // Before anything is loaded: a site serves its television interface by the user agent.
     if (preset.userAgent !== undefined) view.webContents.setUserAgent(preset.userAgent)
@@ -304,6 +302,7 @@ export class WebViews {
       fullscreen: false,
       leaving: 0,
       picturing: 0,
+      popup: null,
     }
     this.entries.set(paneId, entry)
     this.watchPolicy(entry)
@@ -422,7 +421,10 @@ export class WebViews {
     for (let tries = 0; tries < LEAVE_TRIES; tries += 1) {
       if (contents.isDestroyed() || entry.leaving !== asking) return
       // Rejects when the document has gone meanwhile, or would not leave: asked again either way.
-      const answer: unknown = await contents.executeJavaScript(LEAVE_SCRIPT).catch(() => null)
+      const answer: unknown = await Promise.race([
+        contents.executeJavaScript(LEAVE_SCRIPT).catch(() => null),
+        new Promise((resolve) => setTimeout(resolve, LEAVE_ANSWER_MS, null)),
+      ])
       if (answer === 'left') return
       await new Promise((resolve) => setTimeout(resolve, LEAVE_RETRY_MS))
     }
@@ -439,6 +441,8 @@ export class WebViews {
 
   private destroy(entry: Entry): void {
     if (this.entries.get(entry.paneId) === entry) this.entries.delete(entry.paneId)
+    if (entry.popup !== null && !entry.popup.isDestroyed()) entry.popup.close()
+    entry.popup = null
     this.conceal(entry)
     windowOf(entry.owner)?.contentView.removeChildView(entry.view)
     if (!entry.view.webContents.isDestroyed()) entry.view.webContents.close()
@@ -491,6 +495,11 @@ export class WebViews {
     contents.setWindowOpenHandler(({ url, disposition }) => {
       switch (windowVerdict(entry.preset, url, disposition)) {
         case 'popup':
+          // One at a time: a page asking again while it is open has it brought forward.
+          if (entry.popup !== null && !entry.popup.isDestroyed()) {
+            entry.popup.focus()
+            return { action: 'deny' }
+          }
           return { action: 'allow', overrideBrowserWindowOptions: this.popupOptions(entry) }
         case 'same-pane':
           this.load(entry, url)
@@ -502,7 +511,13 @@ export class WebViews {
           return { action: 'deny' }
       }
     })
-    contents.on('did-create-window', (popup) => watchPopup(popup))
+    contents.on('did-create-window', (popup) => {
+      watchPopup(popup)
+      entry.popup = popup
+      popup.on('closed', () => {
+        if (entry.popup === popup) entry.popup = null
+      })
+    })
   }
 
   private popupOptions(entry: Entry): BrowserWindowConstructorOptions {
@@ -513,13 +528,7 @@ export class WebViews {
       backgroundColor: this.appearance.background,
       // Kept above a fullscreen workspace; macOS gives a child of a fullscreen window its own space.
       ...(parent !== null && process.platform !== 'darwin' ? { parent } : {}),
-      webPreferences: {
-        session: webSession(),
-        sandbox: true,
-        contextIsolation: true,
-        nodeIntegration: false,
-        spellcheck: false,
-      },
+      webPreferences: { session: webSession(), ...pagePreferences() },
     }
   }
 
@@ -536,7 +545,7 @@ export class WebViews {
     })
     contents.on('did-fail-load', (_event, code, description, _url, isMainFrame) => {
       if (!isMainFrame || code === ERR_ABORTED) return
-      entry.error = description || `error ${code}`
+      entry.error = loadFailure(code, description)
       send()
     })
     contents.on('render-process-gone', (_event, details) => {
@@ -576,7 +585,8 @@ export class WebViews {
       if (input.type === 'mouseDown' || input.type === 'touchStart') focused()
     })
     contents.on('context-menu', (_event, params) => {
-      Menu.buildFromTemplate(contextMenu(entry, params)).popup()
+      const run = (command: WebCommand): void => this.command(entry.owner, entry.paneId, command)
+      Menu.buildFromTemplate(contextMenu(entry, params, run)).popup()
     })
   }
 
@@ -709,18 +719,26 @@ function watchPopup(popup: BrowserWindow): void {
     void openExternalIfSafe(url)
     return { action: 'deny' }
   })
-  popup.webContents.on('will-navigate', (event) => {
+  const guard = (event: { url: string; preventDefault: () => void }): void => {
     if (httpUrl(event.url) === null) event.preventDefault()
+  }
+  popup.webContents.on('will-navigate', guard)
+  popup.webContents.on('will-redirect', (event) => {
+    if (event.isMainFrame) guard(event)
   })
 }
 
-function contextMenu(entry: Entry, params: ContextMenuParams): MenuItemConstructorOptions[] {
-  const contents = entry.view.webContents
-  const history = contents.navigationHistory
+/** `run` is the pane's own commands, so Reload here clears an error as the toolbar's does. */
+function contextMenu(
+  entry: Entry,
+  params: ContextMenuParams,
+  run: (command: WebCommand) => void,
+): MenuItemConstructorOptions[] {
+  const history = entry.view.webContents.navigationHistory
   const items: MenuItemConstructorOptions[] = [
-    { label: 'Back', enabled: history.canGoBack(), click: () => history.goBack() },
-    { label: 'Forward', enabled: history.canGoForward(), click: () => history.goForward() },
-    { label: 'Reload', click: () => contents.reload() },
+    { label: 'Back', enabled: history.canGoBack(), click: () => run({ t: 'back' }) },
+    { label: 'Forward', enabled: history.canGoForward(), click: () => run({ t: 'forward' }) },
+    { label: 'Reload', click: () => run({ t: 'reload' }) },
     { type: 'separator' },
   ]
   if (params.isEditable) {

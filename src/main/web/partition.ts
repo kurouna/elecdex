@@ -1,4 +1,4 @@
-import { type Session, session } from 'electron'
+import { app, type Session, session, type WebPreferences } from 'electron'
 import { browserUserAgent } from '../user-agent.js'
 
 /**
@@ -32,9 +32,30 @@ export function webSession(): Session {
   return ses
 }
 
-/** Signs out of every site: cookies, storage and the cache. */
+/**
+ * How every page of a web pane runs, in its view or in a sign-in popup, besides its session (`webSession`): one object, so the two
+ * cannot drift apart (found in review: the popup had DevTools in a packaged build).
+ */
+export function pagePreferences(): WebPreferences {
+  return {
+    sandbox: true,
+    contextIsolation: true,
+    nodeIntegration: false,
+    webSecurity: true,
+    allowRunningInsecureContent: false,
+    spellcheck: false,
+    devTools: !app.isPackaged,
+  }
+}
+
+/**
+ * Signs out of every site: cookies, storage and the cache, and the HTTP sign-ins (Basic, NTLM)
+ * and connections the network keeps, which outlived the rest before (found in review).
+ */
 export async function clearWebData(): Promise<void> {
   const ses = webSession()
   await ses.clearStorageData()
   await ses.clearCache()
+  await ses.clearAuthCache()
+  await ses.closeAllConnections()
 }
