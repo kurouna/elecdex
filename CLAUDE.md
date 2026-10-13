@@ -135,9 +135,10 @@ user made; do not reverse one without asking.
     the ones it charts, and once-only ones. List a new charted source there.
   - Everything else a pane subscribes to, or writes on a timer or pulse, is taken only while it is
     `seen` (stores/window-state.svelte.ts), keeping what it showed. Only a shell, an answer being
-    written, a timer or alarm, quake alerts and plugins (`ctx.views`) go on unseen.
+    written, a timer or alarm, quake alerts, plugins (`ctx.views`) and web pages go on unseen: a
+    web pane's page (a video) keeps playing behind a tab and in a minimised window (§5.4).
   - tests/e2e/hidden-panes.spec.ts checks every built-in pane behind a tab and in a minimised
-    window; a unit test holds its list to builtins.ts.
+    window (web panes, the exception above, apart); a unit test holds its list to builtins.ts.
 - **The connections pane reads the kernel, not the network** (src/services/metrics/sockets/, one
   file per platform behind `RawSocket`). Peers are placed with the bundled GeoIP database, never a
   lookup service. `net.sockets` is the one reading a plugin can never be granted: every metric

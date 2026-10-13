@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest'
  * checks that it does nothing there. Its list is written out by hand, so a new
  * widget left out of it would never be checked: this holds the list to the
  * registry. The registry imports Svelte components, which a unit test cannot
- * load, so both files are read as text.
+ * load, so both files are read as text. The web panes are registered by preset, not by a
+ * literal id, and are left out on purpose: their pages go on unseen (CLAUDE.md, §5.4).
  */
 
 const read = (file: string): string => readFileSync(new URL(file, import.meta.url), 'utf8')

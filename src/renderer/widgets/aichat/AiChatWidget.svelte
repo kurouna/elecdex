@@ -1378,8 +1378,10 @@ summary.cut::-webkit-details-marker {
   color: var(--accent);
 }
 
+/* The reasoning is read, at the reading size; its summary line is a label (user decision 2026-10-14). */
 .thinking p {
   margin: var(--space-1) 0 0;
+  font-size: var(--step--1);
   padding-left: var(--space-2);
   border-left: 1px dashed var(--panel-rule);
   white-space: pre-wrap;

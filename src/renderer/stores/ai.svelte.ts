@@ -12,6 +12,8 @@ class AiStore {
   // Replaced whole with each change from main, never changed in place: no deep proxy.
   chats = $state.raw<ChatSummary[]>([])
   keys = $state.raw<Record<string, AiKeyStorage>>({})
+  /** Providers whose key was typed for another address than theirs now. */
+  moved = $state.raw<Record<string, boolean>>({})
 
   /** Called while a chat pane or the AI settings are mounted; returns the release. */
   readonly use = refCounted(() => this.start())
@@ -21,6 +23,7 @@ class AiStore {
     const api = window.elecdex.ai
     const status = (list: AiProviderStatus[]): void => {
       this.keys = Object.fromEntries(list.map((entry) => [entry.id, entry.key]))
+      this.moved = Object.fromEntries(list.map((entry) => [entry.id, entry.moved]))
     }
     const offChats = api.onChats((list) => {
       this.chats = list

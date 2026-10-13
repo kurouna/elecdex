@@ -235,10 +235,26 @@ test('a provider is added in the settings; its key goes to main and never comes 
 
     // Nowhere the page can read, and not in the file people copy around.
     const status = await page.evaluate(() => window.elecdex.ai.providers())
-    expect(status).toEqual([{ id: 'custom', key: 'stored' }])
+    expect(status).toEqual([{ id: 'custom', key: 'stored', moved: false }])
     expect(await page.content()).not.toContain('sk-e2e-secret')
     expect(readFileSync(path.join(userData, 'settings.json'), 'utf8')).not.toContain('sk-e2e')
     expect(readFileSync(path.join(userData, 'ai-keys.json'), 'utf8')).not.toContain('sk-e2e')
+
+    // Given another address, the provider is sent no key until it is typed again there (found
+    // in review: the key went to whatever host the address then named).
+    const elsewhere = origin.replace('127.0.0.1', 'localhost')
+    await provider.getByTestId('ai-address').fill(`${elsewhere}/v1`)
+    await provider.getByTestId('ai-address').press('Tab')
+    await expect(provider.getByTestId('ai-key-state')).toContainText('another address')
+    const before = seen.length
+    await provider.getByTestId('ai-test').click()
+    await expect.poll(() => seen.length).toBeGreaterThan(before)
+    expect(seen.at(-1)?.headers.authorization).toBeUndefined()
+    await key.fill('sk-e2e-secret')
+    await key.press('Enter')
+    await expect(provider.getByTestId('ai-key-state')).toContainText('key held')
+    await provider.getByTestId('ai-test').click()
+    await expect.poll(() => seen.at(-1)?.headers.authorization).toBe('Bearer sk-e2e-secret')
 
     // Removing the provider forgets its key with it.
     await provider.getByTestId('ai-remove').click()

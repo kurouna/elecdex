@@ -2,7 +2,7 @@ import path from 'node:path'
 import type { GitState } from '@shared/git'
 import { describe, expect, it } from 'vitest'
 import { launchPlan, resolveOnPath, runsWhenOpened } from '../../src/main/git/open.js'
-import { GIT_FLAGS, type GitResult } from '../../src/main/git/run.js'
+import { GIT_FLAGS, type GitResult, killTree, runGit } from '../../src/main/git/run.js'
 import {
   filterGuard,
   GitService,
@@ -633,5 +633,32 @@ describe('the recent repositories', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+})
+
+describe('a git that takes too long', () => {
+  it('is ended with everything it started: the tree on Windows, the group elsewhere', () => {
+    // Found in review: only git itself was stopped, and its helpers - a credential window still
+    // asking for a password - were left behind after the pane said TIMED OUT.
+    const spawned: string[][] = []
+    const killed: [number, string][] = []
+    const deps = (platform: NodeJS.Platform) => ({
+      platform,
+      spawn: (command: string, args: readonly string[]) => spawned.push([command, ...args]),
+      kill: (pid: number, signal: NodeJS.Signals) => {
+        killed.push([pid, signal])
+      },
+    })
+    killTree(4242, deps('win32'))
+    expect(spawned).toEqual([['taskkill', '/pid', '4242', '/T', '/F']])
+    killTree(4242, deps('linux'))
+    expect(killed).toEqual([[-4242, 'SIGKILL']])
+  })
+
+  it('says it timed out', async () => {
+    // hash-object --stdin waits on its input, which nobody gives it.
+    const result = await runGit(process.cwd(), ['hash-object', '--stdin'], { timeoutMs: 300 })
+    expect(result.timedOut).toBe(true)
+    expect(result.ok).toBe(false)
   })
 })

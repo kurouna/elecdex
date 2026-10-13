@@ -233,6 +233,17 @@ const quakeState = (over: Partial<QuakeState> = {}): QuakeState => ({
 })
 
 describe('lamps', () => {
+  it('light PING only on echoes of the last few seconds, not one lost before the pane was hidden', () => {
+    // Found in review: an echo lost minutes before, out of sight, and one lost on the return lit
+    // PING red at once.
+    const ping = (history: LaneSecond[]) =>
+      clusterLamps(input({ history })).find((lamp) => lamp.id === 'ping')?.state
+    const away = [second({ ping: null }), ...seconds(120), second({ ping: null })]
+    expect(ping(away)).toBe('off')
+    const now = [...seconds(120), second({ ping: null }), ...seconds(4), second({ ping: null })]
+    expect(ping(now)).toBe('crit')
+  })
+
   it('are all dark on a quiet machine, in their order', () => {
     const lamps = clusterLamps(input())
     expect(lamps.map((one) => one.id)).toEqual(['link', 'ping', 'cpu', 'mem', 'disk', 'awake'])

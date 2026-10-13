@@ -266,6 +266,12 @@ export function takesPdf(provider: Pick<AiProvider, 'kind' | 'baseUrl'>): boolea
 }
 
 /** On this computer or network, reached in the clear: the kind of server that asks for no key. */
+/** The origin a provider's key is kept for: its address's scheme, host and port. */
+export function aiOrigin(raw: string): string | null {
+  const url = aiBaseUrl(raw)
+  return url === null ? null : new URL(url).origin
+}
+
 export function isLocalAddress(raw: string): boolean {
   const url = aiBaseUrl(raw)
   return url?.startsWith('http:') === true && keyMayTravel(url)
@@ -485,6 +491,8 @@ export type AiKeyStorage = 'stored' | 'session' | null
 export interface AiProviderStatus {
   id: string
   key: AiKeyStorage
+  /** The key held was typed for another address: none is sent until it is typed again. */
+  moved: boolean
 }
 
 export const CHAT_VERSION = 1

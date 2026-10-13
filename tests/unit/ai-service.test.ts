@@ -11,7 +11,13 @@ import {
   type StreamSink,
 } from '../../src/main/ai/adapter.js'
 import { ChatFiles } from '../../src/main/ai/files.js'
-import { emptyKeyFile, type KeyFile, KeyVault, stubCodec } from '../../src/main/ai/keys.js'
+import {
+  emptyKeyFile,
+  type KeyFile,
+  KeyFileSchema,
+  KeyVault,
+  stubCodec,
+} from '../../src/main/ai/keys.js'
 import { AiChatService } from '../../src/main/ai/service.js'
 import { ChatStore } from '../../src/main/ai/store.js'
 
@@ -512,5 +518,57 @@ describe('keys', () => {
     expect(vault.set('openai', '   ')).toBeNull()
     expect(vault.set('../x', 'sk-abc')).toBeNull()
     expect(vault.set('openai', 'x'.repeat(AI_LIMITS.key + 1))).toBeNull()
+  })
+})
+
+describe('a key and the address it was typed for', () => {
+  const vaultOn = () => {
+    let file: KeyFile = emptyKeyFile()
+    const vault = new KeyVault({
+      codec: stubCodec,
+      load: () => file,
+      save: (next) => {
+        file = next
+      },
+    })
+    return { vault, file: () => file }
+  }
+
+  it('goes only to that address, and to another once typed again there', () => {
+    // Found in review: the key went to whatever https host the provider's address then named.
+    const { vault, file } = vaultOn()
+    vault.set('openai', 'sk-abc', 'https://api.openai.com')
+    expect(vault.get('openai', 'https://api.openai.com')).toBe('sk-abc')
+    expect(vault.get('openai', 'https://evil.example')).toBeNull()
+    expect(vault.moved('openai', 'https://evil.example')).toBe(true)
+    vault.set('openai', 'sk-abc', 'https://evil.example')
+    expect(vault.get('openai', 'https://evil.example')).toBe('sk-abc')
+    expect(vault.moved('openai', 'https://evil.example')).toBe(false)
+    // Forgetting the key forgets where it was for.
+    vault.remove('openai')
+    expect(file().origins).toEqual({})
+  })
+
+  it('binds a key kept before there were addresses to the first it is sent to', () => {
+    const { vault, file } = vaultOn()
+    vault.set('openai', 'sk-old')
+    expect(vault.get('openai', 'https://api.openai.com')).toBe('sk-old')
+    expect(file().origins).toEqual({ openai: 'https://api.openai.com' })
+    expect(vault.get('openai', 'https://other.example')).toBeNull()
+  })
+
+  it('holds a session key to its address too', () => {
+    const vault = new KeyVault({
+      codec: { ...stubCodec, available: () => false },
+      load: emptyKeyFile,
+      save: () => {},
+    })
+    vault.set('openai', 'sk-mem', 'https://api.openai.com')
+    expect(vault.get('openai', 'https://other.example')).toBeNull()
+    expect(vault.get('openai', 'https://api.openai.com')).toBe('sk-mem')
+  })
+
+  it('reads a key file from before the addresses were kept', () => {
+    expect(KeyFileSchema.parse({ version: 1, keys: { a: 'eA==' } }).origins).toEqual({})
   })
 })

@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 
 /**
  * Runs git for the git pane: to read, and for the two writes the user presses
@@ -68,21 +68,62 @@ export type RunGit = (
   options?: { timeoutMs?: number },
 ) => Promise<GitResult>
 
+/** What ending a process tree needs: a way to start taskkill, and to signal a group. */
+export interface TreeKillDeps {
+  platform: NodeJS.Platform
+  spawn(command: string, args: readonly string[]): void
+  kill(pid: number, signal: NodeJS.Signals): void
+}
+
+const TREE_KILL: TreeKillDeps = {
+  platform: process.platform,
+  spawn: (command, args) => {
+    spawn(command, [...args], { windowsHide: true, stdio: 'ignore' }).on('error', () => {})
+  },
+  kill: (pid, signal) => process.kill(pid, signal),
+}
+
+/**
+ * Ends git and everything it started. Stopping git alone left its helpers behind - on Windows
+ * git-remote-https, ssh, or Git Credential Manager's window still asking for a password after
+ * the pane had said TIMED OUT (found in review). Windows has no process groups: taskkill /T
+ * walks the tree. Elsewhere git leads a group of its own (`detached`), signalled whole.
+ */
+export function killTree(pid: number, deps: TreeKillDeps = TREE_KILL): void {
+  if (deps.platform === 'win32') {
+    deps.spawn('taskkill', ['/pid', String(pid), '/T', '/F'])
+    return
+  }
+  try {
+    deps.kill(-pid, 'SIGKILL')
+  } catch {
+    try {
+      deps.kill(pid, 'SIGKILL')
+    } catch {
+      // Gone already.
+    }
+  }
+}
+
 export const runGit: RunGit = (cwd, args, options) =>
   new Promise((resolve) => {
-    execFile(
+    let timedOut = false
+    const child = execFile(
       'git',
       [...GIT_FLAGS, ...args],
       {
         cwd,
         encoding: 'utf8',
         maxBuffer: MAX_OUTPUT,
-        timeout: options?.timeoutMs ?? TIMEOUT_MS,
         windowsHide: true,
+        // Its own process group, so a timeout ends its helpers too (killTree). execFile hands
+        // its options to spawn, which takes this; its own type leaves it out.
+        ...({ detached: process.platform !== 'win32' } as object),
         // Never stop to ask for a password or an editor: there is nobody to answer.
         env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true', GIT_PAGER: 'cat' },
       },
       (error, stdout, stderr) => {
+        clearTimeout(timer)
         const code = (error as NodeJS.ErrnoException | null)?.code
         resolve({
           ok: error === null,
@@ -90,10 +131,15 @@ export const runGit: RunGit = (cwd, args, options) =>
           stderr: String(stderr ?? ''),
           missing: code === 'ENOENT',
           tooLarge: code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER',
-          timedOut: (error as { killed?: boolean } | null)?.killed === true,
+          timedOut,
         })
       },
     )
+    const timer = setTimeout(() => {
+      timedOut = true
+      if (child.pid !== undefined) killTree(child.pid)
+      else child.kill()
+    }, options?.timeoutMs ?? TIMEOUT_MS)
   })
 
 /** A file's bytes as git holds them (`git show <rev>:<path>`), or null when it has none there. */

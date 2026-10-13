@@ -4,9 +4,11 @@ import {
   AI_PROVIDER_ID,
   type AiKeyStorage,
   type AiModelsResult,
+  type AiProvider,
   type AiProviderKind,
   type AiProviderStatus,
   ATTACH_LIMITS,
+  aiOrigin,
   CHAT_ID,
   type ChatEvent,
   type ChatSendResult,
@@ -112,6 +114,12 @@ export function registerAiIpc(settings: SettingsHandle): {
     save: keyFile.save,
   })
 
+  /** A provider's key, for a request to its address as the settings have it now. */
+  const keyFor = (id: string): string | null => {
+    const provider = settings.current().ai.providers.find((p) => p.id === id)
+    return provider === undefined ? null : vault.get(id, aiOrigin(provider.baseUrl))
+  }
+
   const broadcast = (channel: string, payload: unknown): void => {
     for (const win of appWindows()) {
       if (!win.webContents.isDestroyed()) win.webContents.send(channel, payload)
@@ -145,7 +153,7 @@ export function registerAiIpc(settings: SettingsHandle): {
       providers: () => settings.current().ai.providers,
       systemPrompt: () => settings.current().ai.systemPrompt,
       compact: () => settings.current().ai.compact,
-      keyFor: (id) => vault.get(id),
+      keyFor,
       adapter: adapterFor,
       now: () => Date.now(),
       newId: () => crypto.randomUUID(),
@@ -162,15 +170,19 @@ export function registerAiIpc(settings: SettingsHandle): {
   }
 
   const statuses = (): AiProviderStatus[] =>
-    settings.current().ai.providers.map((p) => ({ id: p.id, key: vault.storage(p.id) }))
+    settings.current().ai.providers.map((p) => ({
+      id: p.id,
+      key: vault.storage(p.id),
+      moved: vault.moved(p.id, aiOrigin(p.baseUrl)),
+    }))
 
-  // A provider added or removed, in the dialog or by hand, changes the answer too.
-  let listed = settings
-    .current()
-    .ai.providers.map((p) => p.id)
-    .join(',')
+  // A provider added, removed or given another address, in the dialog or by hand, changes the
+  // answer too.
+  const listing = (providers: readonly AiProvider[]): string =>
+    providers.map((p) => `${p.id}=${p.baseUrl}`).join('\n')
+  let listed = listing(settings.current().ai.providers)
   settings.onChange((next) => {
-    const ids = next.ai.providers.map((p) => p.id).join(',')
+    const ids = listing(next.ai.providers)
     if (ids === listed) return
     listed = ids
     broadcast(CH.ai.providersChanged, statuses())
@@ -214,8 +226,10 @@ export function registerAiIpc(settings: SettingsHandle): {
         const id = asProvider(rawId)
         if (id === null || typeof rawKey !== 'string') return null
         // Only for a provider that is listed: a key with no address would be a key for anywhere.
-        if (!settings.current().ai.providers.some((p) => p.id === id)) return null
-        const storage = vault.set(id, rawKey)
+        const provider = settings.current().ai.providers.find((p) => p.id === id)
+        if (provider === undefined) return null
+        // Kept for the address it was typed beside, and sent only there.
+        const storage = vault.set(id, rawKey, aiOrigin(provider.baseUrl))
         broadcast(CH.ai.providersChanged, statuses())
         return storage
       },
@@ -320,7 +334,7 @@ export function registerAiIpc(settings: SettingsHandle): {
   })
 
   // The ELEC system asks the same providers, with the same keys and adapters.
-  const links: ElecLinks = { keyFor: (id) => vault.get(id), adapter: adapterFor }
+  const links: ElecLinks = { keyFor, adapter: adapterFor }
   const elec = registerElecIpc(settings, links)
 
   return {

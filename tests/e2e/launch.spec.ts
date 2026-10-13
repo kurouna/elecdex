@@ -99,3 +99,21 @@ test('reports the package version, not the Electron version', async () => {
   expect(info.version).toBe(PACKAGE_VERSION)
   expect(info.version).not.toBe(info.versions.electron)
 })
+
+test("has no application menu, so Electron's own keys reach nothing", async () => {
+  // Found in review: the default menu's Ctrl+R reloaded the workspace and Ctrl+0/=/- zoomed it
+  // when a web pane or a dialog had the keys and did not use them.
+  expect(await app.evaluate(({ Menu }) => Menu.getApplicationMenu() === null)).toBe(true)
+  await page.evaluate(() => {
+    ;(window as unknown as { __kept: number }).__kept = 1
+  })
+  await page.keyboard.press('Control+r')
+  await page.keyboard.press('Control+Equal')
+  await page.waitForTimeout(800)
+  expect(await page.evaluate(() => (window as unknown as { __kept?: number }).__kept)).toBe(1)
+  expect(
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]?.webContents.getZoomLevel(),
+    ),
+  ).toBe(0)
+})

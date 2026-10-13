@@ -32,6 +32,12 @@ export const CLUSTER_LIMITS = {
   holdSeconds: 10,
   /** Echoes (one every five seconds) a ping level must last. */
   holdEchoes: 2,
+  /**
+   * Seconds back an echo still counts for the PING lamp. Out of sight the pane asks for none,
+   * and an echo lost minutes before, with one lost on the return, lit it at once (found in
+   * review, user decision 2026-10-14): two echoes, five seconds apart, and a little slack.
+   */
+  echoSeconds: 15,
 } as const
 
 const byPercent = (value: number, limits: { warn: number; crit: number }): Level =>
@@ -172,10 +178,16 @@ export function laneStats(
 /**
  * The level a lane has kept through its last `count` readings - the mildest of
  * them - or none until there have been that many. A lamp lights on this, so a
- * moment's spike leaves it dark.
+ * moment's spike leaves it dark. `within`: only the readings of the last so many seconds count.
  */
-export function heldLevel(history: readonly LaneSecond[], lane: LaneId, count: number): Level {
-  const readings = history.map((second) => second[lane]).filter((value) => value !== undefined)
+export function heldLevel(
+  history: readonly LaneSecond[],
+  lane: LaneId,
+  count: number,
+  within: number = Number.POSITIVE_INFINITY,
+): Level {
+  const recent = Number.isFinite(within) ? history.slice(-within) : history
+  const readings = recent.map((second) => second[lane]).filter((value) => value !== undefined)
   if (readings.length < count) return 'none'
   return readings
     .slice(-count)
@@ -274,7 +286,7 @@ function linkLamp(link: NetInterface | null): Lamp {
 }
 
 function pingLamp(history: readonly LaneSecond[]): Lamp {
-  const level = heldLevel(history, 'ping', CLUSTER_LIMITS.holdEchoes)
+  const level = heldLevel(history, 'ping', CLUSTER_LIMITS.holdEchoes, CLUSTER_LIMITS.echoSeconds)
   const last = history.map((second) => second.ping).findLast((value) => value !== undefined)
   const text = last === null ? 'PING · NO ECHO' : `PING · ${Math.round(last ?? 0)} ms`
   return lit('ping', level, text)

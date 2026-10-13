@@ -325,6 +325,11 @@ function addressProblem(provider: AiProvider): string | null {
       <p class="note problem" data-testid="ai-key-refused">
         that key was not kept - a key is up to {AI_LIMITS.key} characters, with nothing else pasted along
       </p>
+    {:else if held !== null && ai.moved[provider.id] === true}
+      <!-- Sent only to the address it was typed for: a changed address is sent no key. -->
+      <p class="note problem" data-testid="ai-key-state">
+        the key held was typed for another address - type it again to use it here
+      </p>
     {:else}
       <p class="note" class:problem={held === 'session'} data-testid="ai-key-state">
         {held === null ? 'no key held' : KEY_WORDS[held]}
