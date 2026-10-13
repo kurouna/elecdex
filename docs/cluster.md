@@ -139,7 +139,7 @@
 - **`laneScale(history, lane)`、`scaleLabel`、`niceCeiling`**: レーンの目盛りの上端とその書き方
 - **`formatRate`**: 1000 Mbps を超えたら Gbps に切り替える
 - **`groupCores(cores, max = 32)`**: 32 本を超えるコアは隣どうしをまとめ、束の最大を描く
-- **カードの行**（`widgets/cluster/cards.ts`、純粋）: 行に無いことだけを返す（§7）。detail-cards.test.ts に足す
+- **カードの行**（`widgets/cluster/cluster-cards.ts`、純粋）: 行に無いことだけを返す（§7）。テストは cluster-view.test.ts
 
 ## 5. 描画と動き
 
@@ -179,11 +179,14 @@
 
 - `src/shared/cluster.ts`: §4 の純粋関数と閾値
 - `src/renderer/widgets/cluster/ClusterWidget.svelte`: 購読した値の読み取り、秒の境目での確定、段の選択、各部品の配置
-- `src/renderer/widgets/cluster/Lanes.svelte`: レーンとコアの行を描く 1 枚の canvas
-- `src/renderer/widgets/cluster/Readout.svelte`: 数字の見せ方の 1 種類。中で `Digits` を使う
-- `src/renderer/widgets/cluster/Lamps.svelte`: 警告灯とメッセージ行
-- `src/renderer/widgets/cluster/cards.ts`: カードの行（純粋）
-- `tests/unit/cluster.test.ts`、`tests/unit/cluster-cards.test.ts`、`tests/component/cluster.test.ts`、`tests/e2e/cluster.spec.ts`
+- `src/renderer/widgets/cluster/LaneChart.svelte`: レーン 1 本の canvas。大きさと色は観測のたび、描くのはサンプルのたびに 1 回（同じ秒と同じ面なら描かない）
+- `src/renderer/widgets/cluster/CoreBars.svelte`: コアの棒
+- `src/renderer/widgets/cluster/Figure.svelte`: 数字の見せ方の 1 種類。中で `Digits` を使う
+- `src/renderer/widgets/cluster/Spec.svelte`: 機械の仕様の行
+- `src/renderer/widgets/cluster/cluster-view.ts`: 数字・スロット・時計の見せ方（純粋）
+- `src/renderer/widgets/cluster/Lamps.svelte`: 警告灯とメッセージ行。赤い灯は見えている間だけパルスを持つ
+- `src/renderer/widgets/cluster/cluster-cards.ts`: カードの行（純粋）
+- `tests/unit/cluster.test.ts`、`tests/unit/cluster-view.test.ts`、`tests/component/cluster-lamps.test.ts`、`tests/e2e/cluster.spec.ts`
 
 **既存に足すもの**（どれも一覧に 1 行ずつ）
 

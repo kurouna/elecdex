@@ -13,13 +13,17 @@ interface Props {
   message: ClusterMessage
   /** Lets the words wrap, where the pane is too narrow for one line. */
   wrap: boolean
+  /** On screen: a red lamp breathes only while it can be seen. */
+  visible: boolean
   onhover: (event: { box: DOMRect; x: number | null } | null) => void
 }
 
-const { lamps, message, wrap, onhover }: Props = $props()
+const { lamps, message, wrap, visible, onhover }: Props = $props()
 
 const red = $derived(lamps.some((lamp) => lamp.state === 'crit'))
-$effect(() => (red ? pulse.use() : undefined))
+// Out of sight the lamps keep what they showed, and the pulse is let go (found in review: a
+// red lamp held it, four writes a second, behind a tab and in a minimised window).
+$effect(() => (red && visible ? pulse.use() : undefined))
 
 const line = $derived(message.more > 0 ? `${message.text} · +${message.more} MORE` : message.text)
 
@@ -30,7 +34,7 @@ const enter = (x: number | null): void => {
 </script>
 
 <div class="lamps" class:wrap>
-  <ul data-testid="cluster-lamps" data-pulse={red ? pulse.phase : undefined}>
+  <ul data-testid="cluster-lamps" data-pulse={red && visible ? pulse.phase : undefined}>
     {#each lamps as lamp (lamp.id)}
       <li data-state={lamp.state} data-lamp={lamp.id}>
         <span class="off">{lamp.id.toUpperCase()}</span>

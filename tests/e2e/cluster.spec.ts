@@ -197,3 +197,67 @@ test('a full screen of it stays cheap when idle', async () => {
     await close()
   }
 })
+
+test('opens a card by its figure in the narrow column, however far it is scrolled', async () => {
+  // Found in review: the card was placed in the scrolled column, as far above its figure as the
+  // column had been scrolled.
+  const { app, page, close } = await launch(undefined, { layout: beside(0.22) })
+  try {
+    await sizeTo(app, 1366, 560)
+    const cluster = page.getByTestId('cluster')
+    await expect(cluster).toHaveAttribute('data-tier', 'narrow')
+    await expect(page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
+    const slot = page.getByTestId('cluster-slot-address')
+    await cluster.evaluate((el) => {
+      el.scrollTop = el.scrollHeight
+    })
+    expect(await cluster.evaluate((el) => el.scrollTop)).toBeGreaterThan(120)
+    await slot.hover()
+    const card = page.getByTestId('cluster-card')
+    await expect(card).toBeVisible()
+    const [cardBox, slotBox, paneBox] = await Promise.all([
+      card.boundingBox(),
+      slot.boundingBox(),
+      cluster.boundingBox(),
+    ])
+    if (cardBox === null || slotBox === null || paneBox === null) throw new Error('no box')
+    // Next to its figure, above or below it, and inside what the pane shows. Loosely: the rows
+    // above may still be filling in and move it a line; scrolled wrong, it was the scroll away.
+    const near = Math.min(
+      Math.abs(cardBox.y - (slotBox.y + slotBox.height)),
+      Math.abs(cardBox.y + cardBox.height - slotBox.y),
+    )
+    expect(near).toBeLessThan(80)
+    expect(cardBox.y).toBeGreaterThanOrEqual(paneBox.y - 1)
+    expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(paneBox.y + paneBox.height + 1)
+  } finally {
+    await close()
+  }
+})
+
+test('draws each lane once a reading, not once for every source', async () => {
+  // Found in review: each cpu.load sample reset every lane's bitmap and drew it twice.
+  const { page, close } = await launch(undefined, { layout: beside(0.7) })
+  try {
+    await expect(page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
+    // Once the layout has come in: its panes power on growing, which is a resize each frame.
+    await page.waitForTimeout(3000)
+    const draws = await page.evaluate(async () => {
+      const proto = CanvasRenderingContext2D.prototype
+      const clear = proto.clearRect
+      let count = 0
+      proto.clearRect = function (this: CanvasRenderingContext2D, ...args) {
+        if (this.canvas.closest('[data-testid=cluster]') !== null) count += 1
+        return clear.apply(this, args)
+      }
+      await new Promise((resolve) => setTimeout(resolve, 3000))
+      proto.clearRect = clear
+      return count
+    })
+    // Six lanes, one cpu.load sample a second: about eighteen in three seconds, never twice that.
+    expect(draws).toBeGreaterThan(0)
+    expect(draws).toBeLessThanOrEqual(6 * 4)
+  } finally {
+    await close()
+  }
+})

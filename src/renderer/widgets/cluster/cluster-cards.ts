@@ -124,8 +124,11 @@ function topProcesses(procs: ProcessList | null, count: number): string {
 
 function dateRows(r: CardReadings): CardRow[] {
   const now = new Date(r.now)
-  const start = new Date(now.getFullYear(), 0, 0)
-  const day = Math.floor((now.getTime() - start.getTime()) / 86_400_000)
+  // Counted in whole calendar days, so a day an hour short (summer time) is still a day.
+  const day =
+    (Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) -
+      Date.UTC(now.getFullYear(), 0, 0)) /
+    86_400_000
   const year = new Date(now.getFullYear(), 1, 29).getMonth() === 1 ? 366 : 365
   return [row('DAY', `${day} of ${year}`), row('QUARTER', `Q${Math.floor(now.getMonth() / 3) + 1}`)]
 }
@@ -233,9 +236,9 @@ function linkRows(r: CardReadings): CardRow[] {
   ]
 }
 
+/** The interface is under the address already: the card says what the slot has no room for. */
 function addressRows(r: CardReadings): CardRow[] {
   return [
-    row('INTERFACE', r.link?.iface ?? '--'),
     row('STATE', r.link?.state ?? '--'),
     row('NOTE', 'this machine’s address on its own network', true),
   ]

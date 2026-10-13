@@ -126,7 +126,14 @@ export function laneFigure(lane: LaneId, r: Readings): FigureView {
       return percentFigure('mem', memPercent(r.mem))
     case 'io': {
       const busy = r.io?.busy ?? null
-      if (busy === null) return figure({ label: LANE_LABELS.io, value: NONE, word: true })
+      // Speeds read but no busy figure (a system that does not say): said, not left as if waiting.
+      if (busy === null) {
+        return figure({
+          label: LANE_LABELS.io,
+          value: r.io?.readSec == null && r.io?.writeSec == null ? NONE : 'N/A',
+          word: true,
+        })
+      }
       return figure({
         label: LANE_LABELS.io,
         value: String(Math.round(busy)),
@@ -238,10 +245,13 @@ function topFigure(procs: ProcessList | null): FigureView {
 
 function powerFigure(battery: Battery | null): FigureView {
   if (battery === null) return figure({ label: 'POWER', value: NONE, word: true })
-  if (!battery.hasBattery || battery.percent === null) {
+  if (!battery.hasBattery) {
     return figure({ label: 'POWER', value: 'AC', word: true, note: 'NO BATTERY' })
   }
   const state = battery.isCharging ? 'CHARGING' : battery.acConnected ? 'AC' : 'DISCHARGING'
+  // A battery that does not say how full it is is still a battery (found in review: NO BATTERY).
+  if (battery.percent === null)
+    return figure({ label: 'POWER', value: NONE, word: true, note: state })
   return figure({
     label: 'POWER',
     value: String(Math.round(battery.percent)),

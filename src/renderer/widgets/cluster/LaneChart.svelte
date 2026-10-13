@@ -9,6 +9,7 @@ import {
   laneScale,
   scaleLabel,
 } from '@shared/cluster'
+import { untrack } from 'svelte'
 import { appearance } from '../../stores/appearance.svelte.ts'
 
 /**
@@ -68,6 +69,19 @@ function warnAt(): number | null {
   return null
 }
 
+/**
+ * The canvas as the last measure left it: its size in CSS pixels and its colours. Set up once a
+ * canvas and a theme, apart from the drawing, which is once a sample (found in review: each
+ * sample made a new observer, reset the bitmap twice and read the styles again).
+ */
+let surface = $state.raw<{
+  ctx: CanvasRenderingContext2D
+  width: number
+  height: number
+  ratio: number
+  colors: Colors
+} | null>(null)
+
 $effect(() => {
   void appearance.revision
   const el = canvas
@@ -75,38 +89,59 @@ $effect(() => {
   const ctx = el.getContext('2d')
   if (ctx === null) return
   const colors = readColors(el)
-  const seconds = history
-  let width = 0
-  let height = 0
-  let ratio = 1
-
-  const resize = (): void => {
-    ratio = window.devicePixelRatio || 1
-    width = el.clientWidth
-    height = el.clientHeight
-    el.width = Math.max(1, Math.round(width * ratio))
-    el.height = Math.max(1, Math.round(height * ratio))
+  const measure = (width: number, height: number): void => {
+    const ratio = window.devicePixelRatio || 1
+    const w = Math.max(1, Math.round(width * ratio))
+    const h = Math.max(1, Math.round(height * ratio))
+    // Setting the size clears the bitmap: only when it changed.
+    if (el.width !== w) el.width = w
+    if (el.height !== h) el.height = h
+    // A neighbour's digits moving can report the same size again: no new drawing for that.
+    const last = untrack(() => surface)
+    if (
+      last?.width === width &&
+      last.height === height &&
+      last.ratio === ratio &&
+      last.colors === colors
+    )
+      return
+    surface = { ctx, width, height, ratio, colors }
   }
-
-  const draw = (): void => {
-    if (width <= 0 || height <= 0) return
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
-    ctx.clearRect(0, 0, width, height)
-    const top = laneScale(seconds, lane)
-    const frame: Frame = { ctx, width, height, top, colors }
-    drawGuide(frame)
-    drawLine(frame, seconds)
-    drawLabel(frame)
-  }
-
-  const observer = new ResizeObserver(() => {
-    resize()
-    draw()
+  const observer = new ResizeObserver((entries) => {
+    const box = entries[0]?.contentRect
+    if (box !== undefined) measure(box.width, box.height)
   })
   observer.observe(el)
-  resize()
-  draw()
   return () => observer.disconnect()
+})
+
+/** What was drawn last, so the same is not drawn twice. */
+let drawn: { seconds: readonly LaneSecond[] | null; surface: unknown } = {
+  seconds: null,
+  surface: null,
+}
+
+$effect(() => {
+  const s = surface
+  const seconds = history
+  if (s === null || !visible || s.width <= 0 || s.height <= 0) return
+  // The pane hands over a new view with every reading of any source; the lane is drawn again
+  // only for a new second or a new surface.
+  if (seconds === drawn.seconds && s === drawn.surface) return
+  drawn = { seconds, surface: s }
+  s.ctx.setTransform(s.ratio, 0, 0, s.ratio, 0, 0)
+  s.ctx.clearRect(0, 0, s.width, s.height)
+  const frame: Frame = {
+    ctx: s.ctx,
+    width: s.width,
+    height: s.height,
+    top: laneScale(seconds, lane),
+    colors: s.colors,
+  }
+  drawGuide(frame)
+  // The scale first: the line goes over it, rather than the words over the oldest readings.
+  drawLabel(frame)
+  drawLine(frame, seconds)
 })
 
 interface Frame {

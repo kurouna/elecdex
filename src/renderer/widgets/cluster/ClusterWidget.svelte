@@ -1,5 +1,6 @@
 <script lang="ts">
 import {
+  busiestCore,
   type ClusterTier,
   clusterLamps,
   clusterMessage,
@@ -152,15 +153,19 @@ const view = $derived.by(() => {
   }
 })
 let shown = $state.raw(untrack(() => view))
+// Read only while seen: behind a tab the history still moves each second, and the view made of
+// it was computed and thrown away (found in review).
 $effect(() => {
-  const next = view
-  if (visible) shown = next
+  if (!visible) return
+  shown = view
 })
 
 /* ---- Its size: the tier, and whether the cores row goes in ---- */
 
 let rootEl = $state<HTMLElement | null>(null)
 let tier = $state<ClusterTier>('wide')
+/** Before the first measure the tier is only a default: the first is judged on its own. */
+let measured = false
 let cores = $state(false)
 let spec = $state(false)
 
@@ -175,11 +180,10 @@ $effect(() => {
     if (border === undefined || border.inlineSize <= 0) return
     const rootFont = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
     const box = designSize(border.inlineSize, border.blockSize, rootFont)
-    const next = clusterTier(
-      box.width,
-      box.height,
-      untrack(() => tier),
-    )
+    // The first measure has no tier to hold to (found in review: a pane first opened just under
+    // a line stayed the default, which the same pane resized there would not).
+    const next = clusterTier(box.width, box.height, measured ? untrack(() => tier) : undefined)
+    measured = true
     if (next !== untrack(() => tier)) tier = next
     const withCores = showCores(next, box.width, box.height)
     if (withCores !== untrack(() => cores)) cores = withCores
@@ -195,7 +199,13 @@ const stats = $derived(tier === 'wide')
 
 /* ---- Detail cards ---- */
 
-let hover = $state.raw<{ key: CardKey; anchor: CardAnchor; bounds: CardSize } | null>(null)
+let hover = $state.raw<{
+  key: CardKey
+  anchor: CardAnchor
+  bounds: CardSize
+  /** How far the narrow tier's column was scrolled: the card's layer is moved down by it. */
+  scroll: number
+} | null>(null)
 const resting = new HoverRest<CardKey>(() => (hover = null))
 
 function cardFor(key: CardKey) {
@@ -211,6 +221,7 @@ function cardFor(key: CardKey) {
         key,
         anchor: anchorOf(pane, event.box, event.x),
         bounds: { width: pane.width, height: pane.height },
+        scroll: rootEl.scrollTop,
       }
     }
     resting.enter(key, show, event.x === null)
@@ -254,6 +265,7 @@ const cardReadings = $derived.by(
       lamps={shown.lamps}
       message={shown.message}
       wrap={tier !== 'wide'}
+      {visible}
       onhover={cardFor('message')}
     />
     <div class="when">
@@ -295,7 +307,7 @@ const cardReadings = $derived.by(
       </div>
       {#if lane === 'cpu' && cores}
         {@const all = shown.readings.load?.cores ?? []}
-        {@const top = all.reduce((best, load, i) => (load > (all[best] ?? -1) ? i : best), 0)}
+        {@const top = busiestCore(all)?.index ?? 0}
         <div class="lane cores-row">
           <Figure label="CORES" value={String(all.length)} unit="THREADS" size="md" onhover={cardFor('cores')} testid="cluster-cores-figure" />
           <div class="bars"><CoreBars cores={all} /></div>
@@ -324,7 +336,10 @@ const cardReadings = $derived.by(
   {/if}
 
   {#if hover !== null}
-    <ClusterCard key={hover.key} readings={cardReadings} anchor={hover.anchor} bounds={hover.bounds} />
+    <!-- Over what the pane shows, scrolled or not (found in review: scrolled, the card was off). -->
+    <div class="card-layer" style:top="{hover.scroll}px" style:height="{hover.bounds.height}px">
+      <ClusterCard key={hover.key} readings={cardReadings} anchor={hover.anchor} bounds={hover.bounds} />
+    </div>
   {/if}
 </div>
 
@@ -338,6 +353,14 @@ const cardReadings = $derived.by(
   min-height: 0;
   padding: 0.6rem 0.9rem;
   overflow: hidden;
+}
+
+.card-layer {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  pointer-events: none;
 }
 
 .top {

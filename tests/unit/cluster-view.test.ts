@@ -91,6 +91,10 @@ describe('lane figures', () => {
       word: true,
     })
     expect(laneFigure('cpu', readings({ load: null })).value).toBe('--')
+    // Found in review: a system that reads the speeds but no busy share looked as if waiting.
+    expect(
+      laneFigure('io', readings({ io: { readSec: 1000, writeSec: 0, busy: null } })).value,
+    ).toBe('N/A')
   })
 
   it('mark a hot CPU', () => {
@@ -144,6 +148,33 @@ describe('slots', () => {
       level: 'crit',
       note: 'DISCHARGING',
     })
+  })
+
+  it('say a battery that does not tell its charge is a battery, not none', () => {
+    // Found in review: it read AC · NO BATTERY while the BATT lamp was there.
+    const unknown = readings({
+      battery: { hasBattery: true, percent: null, isCharging: false, acConnected: false },
+    })
+    expect(slotFigure('power', unknown)).toMatchObject({ value: '--', note: 'DISCHARGING' })
+  })
+
+  it('count the day of the year in calendar days, summer time or not', () => {
+    // Found in review: after the spring change the first hour of a day was the day before.
+    const zone = process.env.TZ
+    process.env.TZ = 'America/New_York'
+    try {
+      const at = new Date(2026, 2, 9, 0, 30).getTime()
+      const rows = cardRows('date', cardReadings({ now: at }), String)
+      expect(rows.find((r) => r.label === 'DAY')?.value).toBe('68 of 365')
+    } finally {
+      if (zone === undefined) delete process.env.TZ
+      else process.env.TZ = zone
+    }
+  })
+
+  it("say on the address's card what its slot has no room for, not the interface again", () => {
+    const rows = cardRows('address', cardReadings(), String).map((r) => r.label)
+    expect(rows).not.toContain('INTERFACE')
   })
 
   it('say a link that is down', () => {
