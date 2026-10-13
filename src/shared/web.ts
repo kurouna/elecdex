@@ -27,6 +27,13 @@ export interface WebPreset {
    */
   hosts: readonly string[] | null
   /**
+   * Of the hosts, the ones a sized `window.open` opens as a sign-in popup (Google's, Apple's).
+   * Such a window on the site's own hosts opens in the pane: X's own intents and share pages
+   * were a stray second X with no toolbar (found in review). The browser, with no hosts of its
+   * own, opens every sized window as a popup.
+   */
+  signIn?: readonly string[]
+  /**
    * What the pane tells the site it is, where the site serves a different interface to
    * a television. Left out, the pages are served the browser's own user agent.
    */
@@ -72,6 +79,7 @@ export const WEB_PRESETS: readonly WebPreset[] = [
     description: 'YouTube in a pane. Other sites open in your browser.',
     home: 'https://www.youtube.com/',
     hosts: YOUTUBE_HOSTS,
+    signIn: ['accounts.google.com'],
     // The television pane is offered instead: only that one can be signed in.
     unlisted: true,
   },
@@ -82,6 +90,7 @@ export const WEB_PRESETS: readonly WebPreset[] = [
       "YouTube's television interface: the remote-control layout, and the only YouTube pane that can be signed in - with a code entered on a phone.",
     home: 'https://www.youtube.com/tv',
     hosts: YOUTUBE_HOSTS,
+    signIn: ['accounts.google.com'],
     userAgent: TELEVISION,
   },
   {
@@ -91,6 +100,7 @@ export const WEB_PRESETS: readonly WebPreset[] = [
     home: 'https://x.com/home',
     // t.co is X's link shortener: it redirects, and the redirect is checked in turn.
     hosts: ['x.com', 'twitter.com', 't.co', 'accounts.google.com', 'appleid.apple.com'],
+    signIn: ['accounts.google.com', 'appleid.apple.com'],
   },
 ]
 
@@ -126,7 +136,7 @@ export function withHomes(presets: readonly WebPreset[], spec: string | undefine
   return presets.map((preset) => {
     const home = homes.get(preset.id)
     if (home === undefined || preset.home === null) return preset
-    return { ...preset, home: home.toString(), hosts: [home.hostname] }
+    return { ...preset, home: home.toString(), hosts: [home.hostname], signIn: [home.hostname] }
   })
 }
 
@@ -178,6 +188,19 @@ export function pageToReopen(
   return navigationVerdict(preset, saved) === 'allow' ? saved : null
 }
 
+/**
+ * Hosts whose pages only pass a link on: X's t.co answers a browser with a page whose script
+ * goes on to the link. Such a page is never the pane's page to keep, and when it hands the link
+ * to the browser the pane goes back to where it was (found in review: the t.co page was saved,
+ * and every start opened the link in the browser again, the pane left on a blank page).
+ */
+const PASS_THROUGH = ['t.co']
+
+export function passesThrough(raw: string): boolean {
+  const url = httpUrl(raw)
+  return url !== null && PASS_THROUGH.some((host) => hostMatches(url.hostname, host))
+}
+
 /** Query and fragment keys that carry a sign-in: a callback page's tokens and codes. */
 const SIGN_IN_KEYS =
   /^(access_token|id_token|refresh_token|code|oauth_token|oauth_verifier|token|state|session_state|client_secret|password|ticket|saml(request|response))$/i
@@ -188,7 +211,8 @@ const SIGN_IN_KEYS =
  * only by its path, never its tokens (found in review). A fragment that routes (YouTube's
  * television interface: `#/watch?v=`) is kept.
  */
-export function pageToKeep(raw: string): string {
+export function pageToKeep(raw: string): string | null {
+  if (passesThrough(raw)) return null
   const url = httpUrl(raw)
   if (url === null) return raw
   const hash = url.hash.slice(1)
@@ -254,7 +278,13 @@ export function windowVerdict(preset: WebPreset, raw: string, disposition: strin
   const verdict = navigationVerdict(preset, raw)
   if (verdict !== 'allow') return verdict
   if (raw === 'about:blank') return 'block'
-  return disposition === 'new-window' ? 'popup' : 'same-pane'
+  return disposition === 'new-window' && opensAsPopup(preset, raw) ? 'popup' : 'same-pane'
+}
+
+function opensAsPopup(preset: WebPreset, raw: string): boolean {
+  if (preset.hosts === null) return true
+  const host = httpUrl(raw)?.hostname ?? ''
+  return (preset.signIn ?? []).some((signIn) => hostMatches(host, signIn))
 }
 
 /**

@@ -9,6 +9,7 @@ import {
   pageToReopen,
   paneTint,
   parseAddress,
+  passesThrough,
   tintCss,
   type WebAppearance,
   type WebCommand,
@@ -487,7 +488,10 @@ export class WebViews {
       const verdict = navigationVerdict(entry.preset, event.url)
       if (verdict === 'allow') return
       event.preventDefault()
-      if (verdict === 'external') void openExternalIfSafe(event.url)
+      if (verdict !== 'external') return
+      void openExternalIfSafe(event.url)
+      // A page that only passed the link on is left: back to the page it was opened from.
+      if (passesThrough(contents.getURL())) this.leavePassThrough(entry)
     }
     contents.on('will-navigate', guard)
     contents.on('will-redirect', (event) => {
@@ -519,6 +523,12 @@ export class WebViews {
         if (entry.popup === popup) entry.popup = null
       })
     })
+  }
+
+  private leavePassThrough(entry: Entry): void {
+    const history = entry.view.webContents.navigationHistory
+    if (history.canGoBack()) history.goBack()
+    else if (entry.preset.home !== null) this.load(entry, entry.preset.home)
   }
 
   private popupOptions(entry: Entry): BrowserWindowConstructorOptions {

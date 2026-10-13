@@ -11,6 +11,7 @@ import {
   pageToReopen,
   paneTint,
   parseAddress,
+  passesThrough,
   presetOfWidget,
   tintCss,
   WEB_PRESETS,
@@ -48,7 +49,7 @@ describe('web presets', () => {
 
   it('offers the television pane rather than the plain YouTube one, which still resolves', () => {
     // Only the television pane can be signed in, so it is the one in the picker; a layout
-    // saved with the plain one, and a YouTube link from another pane, still land there.
+    // saved with the plain one still opens it.
     expect(WEB_PRESETS.filter((p) => p.unlisted === true).map((p) => p.id)).toEqual(['youtube'])
     expect(presetOfWidget('web.youtube')?.id).toBe('youtube')
   })
@@ -146,6 +147,16 @@ describe('pageToKeep', () => {
   it('takes the page kept of the one a view is on as that page, not another to go to', () => {
     const on = 'https://x.com/i/callback?code=1'
     expect(pageToReopen(preset('x'), on, pageToKeep(on))).toBeNull()
+  })
+})
+
+describe('passing a link on', () => {
+  it('keeps no page of t.co, which only hands the link on', () => {
+    // Found in review: the t.co page was saved, and every start opened its link again.
+    expect(pageToKeep('https://t.co/AbCdEf123')).toBeNull()
+    expect(passesThrough('https://t.co/AbCdEf123')).toBe(true)
+    expect(passesThrough('https://x.com/home')).toBe(false)
+    expect(passesThrough('https://not-t.co/')).toBe(false)
   })
 })
 
@@ -248,6 +259,15 @@ describe('windowVerdict', () => {
 
   it('opens a sign-in popup on a preset host as a window', () => {
     expect(windowVerdict(x, 'https://accounts.google.com/o/oauth2', 'new-window')).toBe('popup')
+  })
+
+  it("opens a sized window on the site's own hosts in the pane, not as a second X", () => {
+    // Found in review: X's intents and share pages opened as a stray window with no toolbar.
+    expect(windowVerdict(x, 'https://x.com/intent/post?text=a', 'new-window')).toBe('same-pane')
+    expect(windowVerdict(x, 'https://appleid.apple.com/auth/authorize', 'new-window')).toBe('popup')
+    expect(windowVerdict(preset('browser'), 'https://example.com/login', 'new-window')).toBe(
+      'popup',
+    )
   })
 
   it('opens other links on the hosts in the pane itself', () => {

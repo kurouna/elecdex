@@ -110,6 +110,8 @@ $effect(() => {
   reported = url
   const id = paneId
   const kept = pageToKeep(url)
+  // A page that only passes a link on (t.co) is not where the pane is.
+  if (kept === null) return
   // Untracked: writing the tree must not make this effect depend on the tree.
   untrack(() => {
     const current = paneState

@@ -679,6 +679,26 @@ describe('WebViews', () => {
     expect(open()).toMatchObject({ action: 'allow' })
   })
 
+  it('goes back from a page that only passed a link on to the browser', async () => {
+    // Found in review: the pane was left on t.co's blank page after the link went to the browser.
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    const contents = view().webContents
+    contents.url = 'https://t.co/AbCdEf'
+    contents.history.back = true
+    const goBack = contents.history.goBack
+    const away = { url: 'https://news.example/article', preventDefault: vi.fn() }
+    contents.emit('will-navigate', away)
+    expect(away.preventDefault).toHaveBeenCalled()
+    expect(goBack).toHaveBeenCalled()
+    await flush()
+    expect(hoisted.opened).toEqual(['https://news.example/article'])
+    // From X's own page, a link off the site goes to the browser and the pane stays.
+    contents.url = 'https://x.com/home'
+    goBack.mockClear()
+    contents.emit('will-navigate', { url: 'https://news.example/b', preventDefault: vi.fn() })
+    expect(goBack).not.toHaveBeenCalled()
+  })
+
   it('reloads from the context menu as the toolbar does, clearing the error', () => {
     views.open(asOwner(owner), 'p', 'a', preset('x'), null)
     const contents = view().webContents
