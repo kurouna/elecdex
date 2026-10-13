@@ -578,6 +578,72 @@ describe('summaries, when they are on', () => {
     expect(calls).toEqual([1, 1, 1, 2, 1, 1, 2])
   })
 
+  it('is asked without reasoning, and stopped once it holds all that is kept of it', async () => {
+    // Found in review: the summary ran to the model's end, reasoning first, for text then cut.
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3]) await turn(h, chatId, n)
+    expect(h.service.send(chatId, { provider: 'roomy', model: 'tiny', text: big(4) })).toEqual({
+      ok: true,
+    })
+    await h.settle()
+    const call = h.pending.at(-1) as Pending
+    expect(summarising(call.request)).toBe(true)
+    expect(call.request.noThinking).toBe(true)
+    call.sink.text('z'.repeat(2000))
+    expect(call.request.signal.aborted).toBe(false)
+    call.sink.text('z'.repeat(2000))
+    expect(call.request.signal.aborted).toBe(true)
+    await h.settle()
+    // What it wrote is the summary, and the question goes on.
+    expect(h.store.get(chatId)?.context?.summary?.text).toHaveLength(409 * 4)
+    expect(summarising(h.pending.at(-1)?.request)).toBe(false)
+  })
+
+  it('is not asked for where there is no room for one: a conversation cut only for its files', async () => {
+    // Found in review: a hosted provider sends conversations whole (window 0, room 0), but a cut
+    // for the bytes of its images asked for a summary of nothing, twice a cut.
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    const chat = h.store.get(chatId)
+    if (chat === null) throw new Error('no chat')
+    const image = (n: number) => ({
+      id: `img-${n}`,
+      kind: 'image' as const,
+      name: `photo-${n}.jpg`,
+      mime: 'image/jpeg' as const,
+      bytes: 9 * 1024 * 1024,
+      sha256: String(n).repeat(64).slice(0, 64),
+      tokens: 1000,
+      width: 100,
+      height: 100,
+    })
+    const said = (n: number, role: 'user' | 'assistant', extra = {}) => ({
+      id: `00000000-0000-4000-8000-${String(900 + n).padStart(12, '0')}`,
+      role,
+      text: `${role} ${n}`,
+      at: n,
+      ...extra,
+    })
+    h.store.save({
+      ...chat,
+      messages: [
+        said(1, 'user', { attachments: [image(1)] }),
+        said(2, 'assistant'),
+        said(3, 'user', { attachments: [image(2)] }),
+        said(4, 'assistant'),
+      ],
+    })
+    expect(h.service.send(chatId, { provider: 'hosted', model: 'large', text: 'Q5' })).toEqual({
+      ok: true,
+    })
+    await h.settle()
+    await h.settle()
+    expect(h.pending.some((call) => summarising(call.request))).toBe(false)
+    // It was cut all the same: the first image does not go.
+    expect(h.store.get(chatId)?.context?.from).toBeDefined()
+  })
+
   it('stopped while it is summarised, nothing is asked and what there is is kept', async () => {
     const h = harness(dir, true)
     const chatId = h.service.create() as string

@@ -5,6 +5,7 @@ import {
   aiBaseUrl,
   applyChatEvent,
   type ChatAttachment,
+  type ChatEvent,
   type ChatMessage,
   type ChatView,
   compactCount,
@@ -17,7 +18,7 @@ import {
   tokensPerSecond,
   usageText,
 } from '@shared/ai'
-import { tick } from 'svelte'
+import { tick, untrack } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
@@ -33,7 +34,7 @@ import CodeLine from '../common/CodeLine.svelte'
 import SessionLog from '../common/SessionLog.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
-import { ChatDraft } from './draft.svelte.ts'
+import { ChatDraft, composed } from './draft.svelte.ts'
 import FileCard from './FileCard.svelte'
 import Markdown from './Markdown.svelte'
 import ModelField from './ModelField.svelte'
@@ -71,6 +72,8 @@ let view = $state.raw<ChatView>(EMPTY_VIEW)
 /** The conversation the view belongs to: a pane switched to another shows nothing of the last one. */
 let viewOf: string | null = null
 let problem = $state<string | null>(null)
+/** Main's word, and the pane's, for a question while an answer is written: gone once it ends. */
+const STILL_WRITING = 'an answer is still being written'
 
 $effect(() => {
   const chatId = choice.chat
@@ -79,18 +82,15 @@ $effect(() => {
   if (chatId === null) return
   let off: (() => void) | null = null
   const follow = (): void => {
+    // Main brings every listener up to date before a snapshot, the new one too: a piece before
+    // this subscription's first snapshot is in that snapshot, not a hole (found in review: each
+    // one started over, a second subscription and snapshot, on every reload or move).
+    let primed = false
     off = window.elecdex.ai.subscribe(chatId, (event) => {
       if (viewOf !== chatId) return
-      // Deleted, here or from another pane: main says so, and the pane lets go of it.
-      if (event.type === 'snapshot' && event.chat === null) {
-        save({ chat: undefined })
-        return
-      }
-      const next = applyChatEvent(view, event)
-      if (next !== 'resync') {
-        view = next
-        return
-      }
+      if (event.type === 'snapshot') primed = true
+      else if (!primed) return
+      if (take(event)) return
       // A piece went missing: start over from a snapshot rather than show a text with a hole.
       off?.()
       follow()
@@ -99,6 +99,19 @@ $effect(() => {
   follow()
   return () => off?.()
 })
+
+/** Takes what main sent into the view; false when a piece went missing. */
+function take(event: ChatEvent): boolean {
+  // Deleted, here or from another pane: main says so, and the pane lets go of it.
+  if (event.type === 'snapshot' && event.chat === null) {
+    save({ chat: undefined })
+    return true
+  }
+  const next = applyChatEvent(view, event)
+  if (next === 'resync') return false
+  view = next
+  return true
+}
 
 const messages = $derived(view.chat?.messages ?? [])
 
@@ -161,12 +174,21 @@ $effect(() => {
   if (busy) return pulse.use()
 })
 
-/** An answer that ends while this pane watches is heard: landed, or lost. */
+/**
+ * An answer that ends while this pane watches is heard: landed, or lost. Not one left behind by
+ * opening another conversation, or by its own deletion (found in review: either played it).
+ */
 let wasBusy = false
+let busyChat: string | null = null
 $effect(() => {
   const now = busy
-  if (wasBusy && !now) sfx.play(FAILED_STOPS.has(messages.at(-1)?.stop) ? 'glitch' : 'granted')
+  const chat = choice.chat
+  if (wasBusy && !now && chat === busyChat) {
+    sfx.play(FAILED_STOPS.has(messages.at(-1)?.stop) ? 'glitch' : 'granted')
+    if (untrack(() => problem) === STILL_WRITING) problem = null
+  }
   wasBusy = now
+  busyChat = chat
 })
 
 /** The pane's heading names the conversation; the model is already in the bar below it. */
@@ -205,9 +227,10 @@ $effect(() => {
   })
 })
 
-let draft = $state('')
+const left = untrack(() => composed.get(paneId))
+let draft = $state(left?.text ?? '')
 /** The earlier question being rewritten; sending replaces it and everything after it. */
-let editing = $state<string | null>(null)
+let editing = $state<string | null>(left?.editing ?? null)
 let composer = $state<HTMLTextAreaElement | null>(null)
 
 /** The files for the next question: waiting in main under the draft id kept in pane state. */
@@ -218,6 +241,12 @@ const files = new ChatDraft(() => {
 })
 $effect(() => {
   void files.use(choice.filesDraft)
+})
+if (left?.editing != null) files.edit(left.kept)
+$effect(() => {
+  const now = { text: draft, editing, kept: files.kept }
+  if (now.text === '' && now.editing === null) composed.delete(paneId)
+  else composed.set(paneId, now)
 })
 
 /** What goes with a question besides its text: the draft's files, and those an edit keeps. */
@@ -232,10 +261,32 @@ async function ask(
   replaceFrom?: string,
   carried: Carried = {},
 ): Promise<boolean> {
-  if (provider === null || model === '' || busy) return false
+  if (provider === null || model === '') return false
+  // Said, rather than an Enter that does nothing; and one question at a time from this pane,
+  // before main has said it is answering (found in review: a double Enter made two conversations).
+  if (busy || sending) {
+    if (busy) problem = STILL_WRITING
+    return false
+  }
+  sending = true
+  try {
+    return await asked(provider.id, text, replaceFrom, carried)
+  } finally {
+    sending = false
+  }
+}
+
+let sending = false
+
+async function asked(
+  providerId: string,
+  text: string | undefined,
+  replaceFrom: string | undefined,
+  carried: Carried,
+): Promise<boolean> {
   problem = null
   const request = {
-    provider: provider.id,
+    provider: providerId,
     model,
     ...(text === undefined ? {} : { text }),
     ...(replaceFrom === undefined ? {} : { replaceFrom }),

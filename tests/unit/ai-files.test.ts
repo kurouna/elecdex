@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type AiProvider, type Chat, ChatSchema } from '@shared/ai'
 import type { AttachmentView } from '@shared/ai-attach'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ProviderAdapter,
   StreamRequest,
@@ -206,6 +206,29 @@ describe('a question with files', () => {
     expect(h.chat(chatId).title).toBe('diagram.png')
     const call = await h.called(1)
     expect(call.request.messages[0]?.text).toBe('')
+  })
+
+  it('leaves no file behind when the conversation that would name it is not saved', () => {
+    // Found in review: the files were written first, as they must be, and stayed when the save
+    // that followed failed, named by no message.
+    const h = harness(dir)
+    const chatId = h.service.create() as string
+    h.attach('diagram.png', png(10, 10))
+    const save = vi.spyOn(ChatStore.prototype, 'save').mockReturnValueOnce(false)
+    try {
+      expect(
+        h.service.send(chatId, {
+          provider: 'local',
+          model: 'llava',
+          text: 'q',
+          ...h.carried(DRAFT),
+        }),
+      ).toMatchObject({ ok: false })
+    } finally {
+      save.mockRestore()
+    }
+    const folder = path.join(dir, `${chatId}.files`)
+    expect(existsSync(folder) ? readdirSync(folder) : []).toEqual([])
   })
 
   it('with neither text nor files is refused', () => {

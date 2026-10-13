@@ -13,6 +13,7 @@ const { appearance } = await import('../../src/renderer/stores/appearance.svelte
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { sfx } = await import('../../src/renderer/stores/sound.svelte.ts')
 const { paneMeta } = await import('../../src/renderer/stores/pane-meta.svelte.ts')
+const { composed } = await import('../../src/renderer/widgets/aichat/draft.svelte.ts')
 
 /**
  * The chat pane against a hand-driven main: what it asks for and when, how it
@@ -100,6 +101,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  composed.clear()
   patchPaneState.mockRestore()
   vi.unstubAllGlobals()
 })
@@ -206,6 +208,85 @@ describe('AiChatWidget', () => {
 
     await emit({ type: 'snapshot', chatId: CHAT_ID, chat: chat(), run: run('Hello world') })
     expect(screen.getByTestId('aichat-run').textContent).toContain('Hello world')
+  })
+
+  it('takes a piece sent before its first snapshot as part of that snapshot, not a hole', async () => {
+    // Found in review: main brings every listener up to date before a snapshot, the new one
+    // too, and each such piece started the pane over - a second subscription and snapshot.
+    withProvider()
+    mount({ chat: CHAT_ID })
+    await settle()
+    await emit(delta(0, 'Hel'))
+    await emit({ type: 'snapshot', chatId: CHAT_ID, chat: chat(), run: run('Hel') })
+    await emit(delta(3, 'lo'))
+    expect(ai.subscribe).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('aichat-run').textContent).toContain('Hello')
+  })
+
+  it('sends one question for a double Enter, before main has said it is answering', async () => {
+    // Found in review: two conversations were made and two requests sent.
+    withProvider()
+    let made = (_id: string): void => {}
+    ai.create?.mockImplementationOnce(() => new Promise((resolve) => (made = resolve)))
+    mount()
+    await settle()
+    const input = screen.getByTestId('aichat-input') as HTMLTextAreaElement
+    await fireEvent.input(input, { target: { value: 'once' } })
+    await fireEvent.keyDown(input, { key: 'Enter' })
+    await fireEvent.keyDown(input, { key: 'Enter' })
+    made(CHAT_ID)
+    await settle()
+    expect(ai.create).toHaveBeenCalledTimes(1)
+    expect(ai.send).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps what was typed when the pane is moved, which remounts it', async () => {
+    // Found in review: the files of a question survived a move, and its words did not.
+    withProvider()
+    mount()
+    await settle()
+    await fireEvent.input(screen.getByTestId('aichat-input'), {
+      target: { value: 'a long question' },
+    })
+    cleanup()
+    mount()
+    await settle()
+    expect((screen.getByTestId('aichat-input') as HTMLTextAreaElement).value).toBe(
+      'a long question',
+    )
+  })
+
+  it('says why Enter does nothing while an answer is written, and lets it go once it ends', async () => {
+    withProvider()
+    mount({ chat: CHAT_ID })
+    await settle()
+    await emit({ type: 'snapshot', chatId: CHAT_ID, chat: chat(), run: run('so far') })
+    const input = screen.getByTestId('aichat-input') as HTMLTextAreaElement
+    await fireEvent.input(input, { target: { value: 'next' } })
+    await fireEvent.keyDown(input, { key: 'Enter' })
+    await settle()
+    expect(screen.getByTestId('aichat-problem').textContent).toContain('still being written')
+    expect(ai.send).not.toHaveBeenCalled()
+    await emit({ type: 'snapshot', chatId: CHAT_ID, chat: chat(), run: null })
+    expect(screen.queryByTestId('aichat-problem')).toBeNull()
+  })
+
+  it('is silent when another conversation is opened while an answer is written', async () => {
+    // Found in review: leaving the answer played its end.
+    withProvider()
+    const play = vi.spyOn(sfx, 'play').mockImplementation(() => {})
+    const { rerender } = mount({ chat: CHAT_ID })
+    await settle()
+    await emit({ type: 'snapshot', chatId: CHAT_ID, chat: chat(), run: run('so far') })
+    play.mockClear()
+    await rerender({
+      paneId: 'p',
+      state: { chat: '22222222-2222-4222-8222-222222222222' },
+    } as never)
+    await settle()
+    expect(play).not.toHaveBeenCalledWith('granted')
+    expect(play).not.toHaveBeenCalledWith('glitch')
+    play.mockRestore()
   })
 
   it("marks an answer that failed with a code, and keeps the provider's own words in view", async () => {

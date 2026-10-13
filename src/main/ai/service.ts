@@ -332,7 +332,11 @@ export class AiChatService {
    */
   private keep(chat: Chat, request: ChatRequest, pending: readonly PendingFile[]): string | null {
     if (!this.deps.files.commit(chat.id, pending)) return 'the files could not be kept'
-    if (!this.deps.store.save(chat)) return 'the conversation could not be saved'
+    if (!this.deps.store.save(chat)) {
+      // Written first so the chat never names a file that is not there; not saved, they go again.
+      this.deps.files.prune(chat.id, filesNamed(this.deps.store.get(chat.id)?.messages ?? []))
+      return 'the conversation could not be saved'
+    }
     if (request.draft !== undefined && pending.length > 0) this.deps.files.forget(request.draft)
     // A question rewritten may have left files that no message names any more.
     if (request.replaceFrom !== undefined) {
@@ -443,7 +447,9 @@ export class AiChatService {
     const covered = kept === undefined ? -1 : messages.findIndex((m) => m.id === kept.before)
     const summary = covered > 0 && covered <= cut.from ? kept : undefined
     const unspoken = summary === undefined || covered < cut.from
-    const asks = compacts && unspoken && this.mayAskSummary(chatId, from)
+    // No room, no summary: a conversation sent whole (window 0) and cut only for its files had
+    // a summary of nothing asked for, twice (found in review).
+    const asks = compacts && room > 0 && unspoken && this.mayAskSummary(chatId, from)
     return {
       typed,
       system: summary === undefined ? typed : withSummary(typed, summary.text),
@@ -503,6 +509,11 @@ export class AiChatService {
     const { outgoing } = running
     if (outgoing.transcript === undefined || outgoing.from === undefined) return
     let text = ''
+    // Stopped once it has all that is kept of it, rather than left to run to the model's end;
+    // and no reasoning where the dialect can say so (found in review: it was spent on a summary).
+    const enough = new AbortController()
+    const stop = (): void => enough.abort()
+    running.abort.signal.addEventListener('abort', stop, { once: true })
     try {
       await adapter.stream(
         {
@@ -511,17 +522,21 @@ export class AiChatService {
           model,
           system: compactPrompt(outgoing.room),
           messages: [{ role: 'user', text: outgoing.transcript }],
-          signal: running.abort.signal,
+          signal: enough.signal,
+          noThinking: true,
         },
         {
           text: (piece) => {
             if (text.length < AI_LIMITS.summary) text += piece
+            if (text.length >= AI_LIMITS.summary) enough.abort()
           },
           thinking: () => {},
         },
       )
     } catch {
-      text = ''
+      if (!enough.signal.aborted || running.abort.signal.aborted) text = ''
+    } finally {
+      running.abort.signal.removeEventListener('abort', stop)
     }
     // Stopped, or deleted, while it was written: there is no question to go on to.
     if (running.finished) return

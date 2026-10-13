@@ -85,6 +85,31 @@ describe('what a file is', () => {
     const withExif = new Uint8Array([...plain.subarray(0, 2), ...exif, ...plain.subarray(2)])
     expect(classify('a.jpg', plain)).toMatchObject({ kind: 'image' })
     expect(classify('a.jpg', withExif)).toMatchObject({ ok: false, code: 'unreadable' })
+    // Found in review: XMP (which carries GPS too), Photoshop's IPTC and a comment passed.
+    const segment = (marker: number, id: number[]) => {
+      const body = [...id, 0, 0, 0x47, 0x50]
+      const length = body.length + 2
+      return [0xff, marker, length >> 8, length & 0xff, ...body]
+    }
+    const XMP = [...'http://ns.adobe.com/xap/1.0/'].map((c) => c.charCodeAt(0))
+    const ICC = [...'ICC_PROFILE'].map((c) => c.charCodeAt(0))
+    const ADOBE = [...'Adobe'].map((c) => c.charCodeAt(0))
+    const insert = (part: number[]) =>
+      new Uint8Array([...plain.subarray(0, 2), ...part, ...plain.subarray(2)])
+    for (const written of [
+      segment(0xe1, XMP),
+      segment(0xed, [0x50, 0x68]),
+      segment(0xfe, [0x68]),
+    ]) {
+      expect(classify('a.jpg', insert(written))).toMatchObject({ ok: false, code: 'unreadable' })
+    }
+    // A colour profile and Adobe's coding note say nothing of anyone.
+    expect(classify('a.jpg', insert(segment(0xe2, ICC)))).toMatchObject({ kind: 'image' })
+    expect(classify('a.jpg', insert(segment(0xee, ADOBE)))).toMatchObject({ kind: 'image' })
+    expect(classify('a.jpg', insert(segment(0xe2, [0x4d, 0x50, 0x46])))).toMatchObject({
+      ok: false,
+      code: 'unreadable',
+    })
     // A PNG with a text chunk after its header.
     const chunk = [0, 0, 0, 3, 0x74, 0x45, 0x58, 0x74, 0x61, 0x62, 0x63, 0, 0, 0, 0]
     const png10 = png(10, 10)

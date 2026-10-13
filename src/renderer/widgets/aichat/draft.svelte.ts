@@ -2,6 +2,20 @@ import { ATTACH_LIMITS, type ChatAttachment } from '@shared/ai'
 import type { AttachCode, AttachmentView } from '@shared/ai-attach'
 import { pastedName, prepare } from './attach.ts'
 
+/**
+ * What a pane's composer holds, by pane id: a moved pane remounts, and a long question typed in
+ * it was lost while its files were found again (found in review). Memory only, like the files'
+ * draft in main: a restart forgets both. An edit carries the files it keeps, so a rewrite taken
+ * up again does not lose them.
+ */
+export interface Composed {
+  text: string
+  editing: string | null
+  kept: readonly ChatAttachment[]
+}
+
+export const composed = new Map<string, Composed>()
+
 /** A file still being read or made small, shown as a chip until main has it. */
 export interface Reading {
   key: number

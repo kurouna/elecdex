@@ -81,7 +81,7 @@ const PNG_WRITTEN = new Set(
  * every image again, which leaves all of it behind; one that still has it did not come that way.
  */
 export function carriesMetadata(bytes: Uint8Array, format: 'png' | 'jpeg'): boolean {
-  return format === 'png' ? pngWritten(bytes) : jpegExif(bytes)
+  return format === 'png' ? pngWritten(bytes) : jpegWritten(bytes)
 }
 
 /**
@@ -98,16 +98,31 @@ function pngWritten(bytes: Uint8Array): boolean {
   return false
 }
 
-/** Whether a JPEG has an EXIF segment before its frame. */
-function jpegExif(bytes: Uint8Array): boolean {
+/** "ICC_PROFILE": the colour profile an encoder may write in APP2, which says nothing of anyone. */
+const ICC_PROFILE = [0x49, 0x43, 0x43, 0x5f, 0x50, 0x52, 0x4f, 0x46, 0x49, 0x4c, 0x45]
+
+/**
+ * Whether a JPEG has, before its frame, a segment a camera or an editor wrote: any APP1 (EXIF,
+ * and XMP, which carries GPS as well), APP3 to APP13 (APP13 is Photoshop's, with IPTC), APP15, a
+ * comment, or an APP2 that is not a colour profile. JFIF's APP0 and Adobe's APP14 hold no more
+ * than how the picture is coded. Before, only an EXIF APP1 counted (found in review: a JPEG the
+ * page could not decode was passed on with its XMP).
+ */
+function jpegWritten(bytes: Uint8Array): boolean {
   let at = 2
   while (at + 9 < bytes.length && bytes[at] === 0xff) {
     const marker = bytes[at + 1] ?? 0
     if (isFrame(marker)) return false
-    if (marker === 0xe1 && startsWith(bytes, [0x45, 0x78, 0x69, 0x66], at + 4)) return true
+    if (segmentWritten(bytes, at, marker)) return true
     at = nextMarker(bytes, at, marker)
   }
   return false
+}
+
+function segmentWritten(bytes: Uint8Array, at: number, marker: number): boolean {
+  if (marker === 0xfe) return true
+  if (marker === 0xe2) return !startsWith(bytes, ICC_PROFILE, at + 4)
+  return marker >= 0xe1 && marker <= 0xef && marker !== 0xee
 }
 
 const be16 = (bytes: Uint8Array, at: number): number =>
