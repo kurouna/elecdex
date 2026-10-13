@@ -4,6 +4,8 @@
 # it must source the user's real dotfiles itself. See
 # src/main/pty/shell-integration.ts.
 
+# Guard against this shell sourcing it twice. Not exported: a zsh started from this one is set
+# up anew.
 if [[ -n "$ELECDEX_SHELL_INTEGRATION" ]]; then return 0; fi
 ELECDEX_SHELL_INTEGRATION=1
 

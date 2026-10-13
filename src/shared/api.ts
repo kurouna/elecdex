@@ -223,8 +223,6 @@ export interface PtySessionSummary {
   shell: string
   /** Last reported working directory, or null before the first OSC 7. */
   cwd: string | null
-  /** Whether an integration script was injected for this shell. */
-  shellIntegration: boolean
   createdAt: number
 }
 

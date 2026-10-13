@@ -51,6 +51,9 @@ export function linkSettings(raw: unknown): unknown {
   return { ...r, on: true, ai: { ...ai, on: r.on === true } }
 }
 
+/** The shells' type size: where it starts, and how small and large it goes. */
+export const TERMINAL_FONT = { base: 13, min: 8, max: 32 } as const
+
 export const SettingsSchema = z.object({
   version: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
   /** Theme id; an id no theme has falls back to the default theme. */
@@ -72,8 +75,25 @@ export const SettingsSchema = z.object({
        * home instead (main/pty/start-directory.ts).
        */
       startDirectory: z.string().max(1024).default(''),
+      /** The shells' type size, in pixels: Ctrl+Shift+= and Ctrl+Shift+- step it. */
+      fontSize: z
+        .number()
+        .int()
+        .min(TERMINAL_FONT.min)
+        .max(TERMINAL_FONT.max)
+        .catch(TERMINAL_FONT.base)
+        .default(TERMINAL_FONT.base),
+      /** Ask before pasting text of more than one line: each line break would run a command. */
+      confirmPaste: z.boolean().catch(true).default(true),
+      /** What a bell (BEL) from the shell does: a flash of the pane, the sound, both or nothing. */
+      bell: z.enum(['both', 'flash', 'sound', 'off']).catch('both').default('both'),
     })
-    .default({ startDirectory: '' }),
+    .default({
+      startDirectory: '',
+      fontSize: TERMINAL_FONT.base,
+      confirmPaste: true,
+      bell: 'both',
+    }),
   launcher: z
     .object({
       /** List the platform's own applications (Start Menu, /Applications, .desktop files). */
@@ -405,3 +425,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
   const parsed = SettingsSchema.safeParse(merged)
   return parsed.success ? parsed.data : null
 }
+
+/** The shells' type size a step larger or smaller, within its range. */
+export const stepFontSize = (size: number, step: number): number =>
+  Math.min(TERMINAL_FONT.max, Math.max(TERMINAL_FONT.min, Math.round(size) + step))

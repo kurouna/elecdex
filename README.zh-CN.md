@@ -43,7 +43,7 @@
 
 elecdex 启动时的默认布局，即页首那张图（Tron）。
 
-- **终端** — 真正的 shell（PowerShell、bash、zsh、fish），标签页和分屏数量不限。shell 集成会
+- **终端** — 真正的 shell（PowerShell（已安装时为 7）、bash、zsh、fish），标签页和分屏数量不限。shell 集成会
   报告工作目录和退出码，Windows 上也一样；窗格被移动或重新加载后，会话的回滚缓冲区依然保留。
   下次启动时每个窗格都回到它最后所在的文件夹；新打开的窗格从设置指定的文件夹开始。
   启动时焦点在 shell 上；选中文本即复制，右键粘贴。Ctrl+Shift+F 在回滚缓冲区中查找文本，
@@ -331,6 +331,8 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+U | 实用工具窗格（有多个时每按一次切换到下一个）；布局中没有时弹出，再按一次关闭（Linux 上 IBus 可能占用此键用于 Unicode 输入，请改绑） |
 | Ctrl+Shift+S | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
 | Ctrl+Shift+F | 在 shell 的回滚缓冲区中查找（Enter / Shift+Enter 下一个和上一个，Escape 关闭） |
+| Ctrl+Shift+K | 清除 shell 的回滚缓冲区 |
+| Ctrl+Shift+= / - | 放大 / 缩小所有 shell 的字号 |
 | Ctrl+Shift+. | 设置 |
 | F11 | 切换全屏 |
 | Ctrl+Shift+M | 最小化窗口（Windows、Linux） |
@@ -431,7 +433,13 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   完整路径。已退出的 shell 会在其标签页上注明，并附上退出码。新 shell 从主目录启动，或从
   *Settings → General → Terminal* 中设置的文件夹启动（"~" 表示主目录；已不存在的文件夹会回退到
   主目录）。**Ctrl+Shift+F** 在窗格上方打开搜索栏：匹配项用主题色标出并计数，Enter 和
-  Shift+Enter 在其间跳转。shell 输出的 URL 是链接，按 Ctrl+单击（⌘+单击）会在浏览器中打开。
+  Shift+Enter 在其间跳转；**Aa**、**ab** 和 **.*** 分别切换区分大小写、全字匹配和正则表达式。
+  shell 输出的 URL 是链接，按 Ctrl+单击（⌘+单击）会在浏览器中打开。粘贴多行文本前会先确认（每个换行
+  都会执行一条命令），也可以选择不再询问。已退出的 shell 按任意键即在原文件夹重新启动。响铃时窗格边缘
+  闪烁并发出声音（也可在 *Settings → General → Terminal* 中只选其一或都关闭）；后台标签页里的 shell 有输出时，
+  其标签页会显示一个点，切换过去后消失。**Ctrl+Shift+K** 清除回滚缓冲区；**Ctrl+Shift+=** 和
+  **Ctrl+Shift+-** 放大或缩小所有 shell 的字号（字号也在设置中）。在 Windows 上，如果 PowerShell 7
+  安装在通常的位置就使用它，否则使用 Windows PowerShell；没有相关设置。
 - **系统** — 日期和星期、运行时间、操作系统类型，以及带电池计量的电源（绿色，低于 20% 时变红）；
   完整的操作系统版本和架构（就像 `uname` 或 `winver` 显示的那样）；机器的制造商、型号和机箱类型。
   应用运行期间不会变化的信息只读取一次，不做轮询。

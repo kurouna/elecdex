@@ -6,17 +6,26 @@ import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
+import { untrack } from 'svelte'
 import { displayPath } from '../../layout/tab-labels.ts'
 import { releaseWebglContexts } from '../../lib/webgl.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { boot } from '../../stores/boot.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sessions, shellName } from '../../stores/sessions.svelte.ts'
+import { sfx } from '../../stores/sound.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
-import { CLIPBOARD_WRITE_ONLY, HeldInput, opensLink } from './input.ts'
-import TerminalSearch from './TerminalSearch.svelte'
+import {
+  BellRate,
+  CLIPBOARD_WRITE_ONLY,
+  HeldInput,
+  opensLink,
+  pasteLines,
+  pasteNeedsAsking,
+} from './input.ts'
+import TerminalSearch, { type SearchHow } from './TerminalSearch.svelte'
 import { WebglKeeper } from './webgl-keeper.ts'
 import './xterm-css.ts'
 import {
@@ -34,7 +43,7 @@ import {
  * so a terminal is simply a leaf like every other widget. That is what lets the
  * same terminal be split, tabbed, or placed anywhere in the tree.
  */
-const { paneId, state: paneState, active }: WidgetProps = $props()
+const { paneId, state: paneState, active, visible = true }: WidgetProps = $props()
 
 /**
  * How long a size must hold before the shell is told about it.
@@ -75,6 +84,39 @@ let searchFocus = $state(0)
 let selectionIsSearch = false
 
 const info = $derived(sessions.get(paneId))
+
+/**
+ * Bumped to start the pane's shell again after it ended: the terminal is made afresh on a new
+ * session in the folder the last one was in (a key pressed on "[process exited]").
+ */
+let generation = $state(0)
+
+/** Output came while this pane was behind another tab: its tab is marked until it is shown. */
+let activity = $state(false)
+$effect(() => {
+  if (visible) activity = false
+})
+
+/** The pane flashing for a bell, for a moment. */
+let ringing = $state(false)
+const bells = new BellRate()
+let ringTimer: ReturnType<typeof setTimeout> | null = null
+$effect(() => () => {
+  if (ringTimer !== null) clearTimeout(ringTimer)
+})
+
+function bell(): void {
+  const mode = appearance.settings.terminal.bell
+  if (mode === 'off' || !bells.ring(performance.now())) return
+  if (mode !== 'flash') sfx.play('glitch')
+  if (mode === 'sound') return
+  ringing = true
+  if (ringTimer !== null) clearTimeout(ringTimer)
+  ringTimer = setTimeout(() => {
+    ringing = false
+    ringTimer = null
+  }, 260)
+}
 
 /**
  * The folder the pane's shell was last in, kept in the pane's state so that a
@@ -150,20 +192,18 @@ $effect(() => {
           tooltip: `${info.shell} — ${displayPath(info.cwd)}`,
         }
       : { subtitle: info.integrationPending ? '…' : 'no tracking', tooltip: info.shell }),
+    // A command's exit code is not shown on the tab (user decision): only the shell's own end.
     ...(info.exited !== null
       ? { badge: `exited ${info.exited.code}`, badgeKind: 'warn' as const }
-      : // 表示を無効化: コマンド終了コードのバッジ表示
-        // : info.lastCommand !== null &&
-        //     info.lastCommand.exitCode !== null &&
-        //     info.lastCommand.exitCode !== 0
-        //   ? { badge: String(info.lastCommand.exitCode), badgeKind: 'danger' as const }
-        {}),
+      : {}),
+    ...(activity ? { activity: true } : {}),
   })
 })
 
 $effect(() => {
   const el = host
   if (el === null) return
+  void generation
 
   let disposed = false
   let detach: (() => void) | null = null
@@ -184,7 +224,7 @@ $effect(() => {
       // Right-click pastes (below), so it must not also select a word first.
       rightClickSelectsWord: false,
       fontFamily: monoFontFamily(el),
-      fontSize: 13,
+      fontSize: untrack(() => appearance.settings.terminal.fontSize),
       lineHeight: 1.15,
       theme: buildXtermTheme(paletteFromCss(el), appearance.theme.terminal?.ansi),
       minimumContrastRatio: minimumContrastRatio(appearance.theme.mode),
@@ -240,7 +280,12 @@ $effect(() => {
 
     const typed = new HeldInput()
     const send = (data: string): void => window.elecdex.pty.write(id, data)
-    terminal.onData((data) => typed.type(data, send))
+    terminal.onData((data) => {
+      // Its shell has ended: a key starts a new one where it was, rather than going nowhere.
+      if (untrack(() => sessions.get(paneId).exited) !== null) restart()
+      else typed.type(data, send)
+    })
+    terminal.onBell(bell)
     detachClipboard = bindClipboard(terminal, el)
     const t = terminal
     /** The size the shell was last told, so a pane shown again can tell whether it is stale. */
@@ -264,7 +309,11 @@ $effect(() => {
     let off: () => void
     try {
       off = await window.elecdex.pty.attach(id, {
-        onData: (chunk) => terminal?.write(decoder.decode(chunk, { stream: true })),
+        onData: (chunk) => {
+          terminal?.write(decoder.decode(chunk, { stream: true }))
+          // Assigned only when it changes: output comes many times a second.
+          if (!untrack(() => visible) && !untrack(() => activity)) activity = true
+        },
         onCwd: (cwd) => {
           sessions.patch(paneId, { cwd, integrationPending: false })
           recordFolder(cwd)
@@ -274,7 +323,9 @@ $effect(() => {
         onIntegrationUnavailable: () => sessions.patch(paneId, { integrationPending: false }),
         onExit: (code, signal) => {
           sessions.patch(paneId, { exited: { code, signal } })
-          terminal?.write(`\r\n\u001b[2m[process exited with code ${code}]\u001b[0m\r\n`)
+          terminal?.write(
+            `\r\n\u001b[2m[process exited with code ${code} · press a key to start a new shell]\u001b[0m\r\n`,
+          )
         },
       })
     } catch (cause) {
@@ -333,6 +384,42 @@ $effect(() => {
   }
 })
 
+/**
+ * A new shell where the ended one was: the pane forgets its session and is made again, which
+ * starts one in the folder kept beside it (lastFolder).
+ */
+function restart(): void {
+  widgetState.patch(paneId, { sessionId: undefined })
+  sessions.patch(paneId, {
+    sessionId: null,
+    exited: null,
+    error: null,
+    lastCommand: null,
+    integrationPending: true,
+  })
+  generation += 1
+}
+
+// The shells' type size, from the settings (Ctrl+Shift+= and -): every terminal follows it.
+$effect(() => {
+  const size = appearance.settings.terminal.fontSize
+  const t = term
+  if (t === null || t.options.fontSize === size) return
+  t.options.fontSize = size
+  safeFit()
+})
+
+// The shortcut (Ctrl+Shift+K), answered by the pane that has the keyboard, remembered by number
+// as find is: the scrollback goes, the line being typed stays.
+let clearSeen = ui.shellClear
+$effect(() => {
+  const request = ui.shellClear
+  const mine = active
+  if (request === clearSeen) return
+  clearSeen = request
+  if (mine) term?.clear()
+})
+
 // A theme switch restyles the terminal in place: palette, and font if it changed.
 $effect(() => {
   void appearance.revision
@@ -380,17 +467,40 @@ function bindClipboard(t: Terminal, el: HTMLElement): () => void {
     t.focus()
     navigator.clipboard
       .readText()
-      .then((text) => {
-        if (text !== '') t.paste(text)
-      })
+      .then((text) => void pasteChecked(t, text))
       .catch(() => {})
   }
   el.addEventListener('contextmenu', paste)
+  // The keyboard's paste (Ctrl+Shift+V, Shift+Insert) arrives as the textarea's paste event,
+  // which xterm would pass straight in: taken here, through the same question.
+  const keyPaste = (event: ClipboardEvent): void => {
+    const text = event.clipboardData?.getData('text/plain') ?? ''
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    void pasteChecked(t, text)
+  }
+  el.addEventListener('paste', keyPaste, true)
   return () => {
     selection.dispose()
     el.removeEventListener('mousedown', press)
     el.removeEventListener('contextmenu', paste)
+    el.removeEventListener('paste', keyPaste, true)
   }
+}
+
+/** Pastes, asking first when the text has a line break and the settings ask (PasteDialog). */
+async function pasteChecked(t: Terminal, text: string): Promise<void> {
+  if (text === '') return
+  if (pasteNeedsAsking(text, appearance.settings.terminal.confirmPaste)) {
+    const preview = text
+      .split(/\r\n|\r|\n/)
+      .slice(0, 12)
+      .join('\n')
+    const go = await ui.askPaste({ lines: pasteLines(text), preview })
+    t.focus()
+    if (!go) return
+  }
+  t.paste(text)
 }
 
 // The shortcut (Ctrl+Shift+F), answered by the pane that has the keyboard. The
@@ -409,10 +519,11 @@ $effect(() => {
 })
 
 /** Moves the selection to a match, with the clipboard held back while it does. */
-function runSearch(addon: SearchAddon, query: string, back: boolean): void {
+function runSearch(addon: SearchAddon, query: string, back: boolean, how: SearchHow): void {
   const el = host
   if (el === null) return
   const options = {
+    ...how,
     // Incremental only going forward: it expands the selection while the term is
     // still being typed, which is what the addon supports for findNext alone.
     incremental: !back,
@@ -455,11 +566,14 @@ function safeFit(): void {
 {:else}
   <div class="frame">
     <div class="host" bind:this={host} data-testid="terminal-host"></div>
+    {#if ringing}
+      <div class="bell" aria-hidden="true" data-testid="terminal-bell"></div>
+    {/if}
     {#if searchOpen && search !== null}
       {@const addon = search}
       <TerminalSearch
         {addon}
-        find={(query, back) => runSearch(addon, query, back)}
+        find={(query, back, how) => runSearch(addon, query, back, how)}
         focusToken={searchFocus}
         onclose={closeSearch}
       />
@@ -482,6 +596,26 @@ function safeFit(): void {
   width: 100%;
   height: 100%;
   padding: var(--space-1) var(--space-2);
+}
+
+/* A bell: the pane's edge lit a moment, by opacity alone (never a colour in keyframes). */
+.bell {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border: 2px solid var(--accent-strong);
+  pointer-events: none;
+  opacity: 0;
+  animation: bell-flash 260ms ease-out;
+}
+
+@keyframes bell-flash {
+  from {
+    opacity: calc(0.9 * var(--motion-scale, 1) + 0.1);
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .error {

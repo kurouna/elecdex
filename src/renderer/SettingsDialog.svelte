@@ -21,9 +21,10 @@ import {
   withBinding,
 } from '@shared/keybindings'
 import { INTENSITIES, intensityLabel, MAGNITUDES, resolveQuakeSource } from '@shared/quakes'
-import type { Settings, SettingsPatch } from '@shared/settings'
+import { type Settings, type SettingsPatch, stepFontSize, TERMINAL_FONT } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
+import { chordHint } from './lib/chord-hint.ts'
 import { backdropShade, crtPower, dialogDelay } from './lib/crt-transitions.ts'
 import PluginSettings from './plugins/PluginSettings.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
@@ -475,6 +476,43 @@ function describeUpdate(status: UpdateStatus): string {
                   New shells start here; open shells stay where they are. "~" stands for your home folder.
                 {/if}
               </p>
+              <label class="row">
+                <span>type size</span>
+                <input
+                  type="number"
+                  min={TERMINAL_FONT.min}
+                  max={TERMINAL_FONT.max}
+                  value={settings.terminal.fontSize}
+                  onchange={(e) => {
+                    const size = Number(e.currentTarget.value)
+                    if (Number.isFinite(size)) patch({ terminal: { fontSize: stepFontSize(size, 0) } })
+                  }}
+                  data-testid="settings-terminal-font"
+                />
+                <output>px · {chordHint('larger', 'shell.fontBigger')} · {chordHint('smaller', 'shell.fontSmaller')}</output>
+              </label>
+              <label class="row">
+                <span>ask before pasting several lines</span>
+                <input
+                  type="checkbox"
+                  checked={settings.terminal.confirmPaste}
+                  onchange={(e) => patch({ terminal: { confirmPaste: e.currentTarget.checked } })}
+                  data-testid="settings-terminal-confirm-paste"
+                />
+              </label>
+              <label class="row">
+                <span>bell</span>
+                <select
+                  value={settings.terminal.bell}
+                  onchange={(e) => patch({ terminal: { bell: e.currentTarget.value as Settings['terminal']['bell'] } })}
+                  data-testid="settings-terminal-bell"
+                >
+                  <option value="both">flash and sound</option>
+                  <option value="flash">flash</option>
+                  <option value="sound">sound</option>
+                  <option value="off">off</option>
+                </select>
+              </label>
             </section>
 
             <section>

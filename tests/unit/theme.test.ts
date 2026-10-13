@@ -1,4 +1,4 @@
-import { applySettingsPatch, defaultSettings, SettingsSchema } from '@shared/settings'
+import { applySettingsPatch, defaultSettings, SettingsSchema, stepFontSize } from '@shared/settings'
 import {
   BUILTIN_THEMES,
   DEFAULT_THEME_ID,
@@ -158,7 +158,7 @@ describe('settings', () => {
       theme: 'tron',
       sound: { enabled: true, volume: 0.5 },
       motion: 'system',
-      terminal: { startDirectory: '' },
+      terminal: { startDirectory: '', fontSize: 13, confirmPaste: true, bell: 'both' },
       launcher: { showSystem: true, items: [] },
       keybindings: {},
       window: {
@@ -229,7 +229,21 @@ describe('settings', () => {
   })
 
   it('the terminal starts at home by default, and takes a folder by patch or hand edit', () => {
-    expect(defaultSettings().terminal).toEqual({ startDirectory: '' })
+    expect(defaultSettings().terminal).toEqual({
+      startDirectory: '',
+      fontSize: 13,
+      confirmPaste: true,
+      bell: 'both',
+    })
+    // A size out of range, or a bell it does not know, falls back rather than failing the file.
+    const odd = SettingsSchema.parse({ terminal: { fontSize: 99, bell: 'loud' } }).terminal
+    expect(odd.fontSize).toBe(13)
+    expect(odd.bell).toBe('both')
+    // The shortcuts step it within its range.
+    expect(stepFontSize(13, 1)).toBe(14)
+    expect(stepFontSize(8, -1)).toBe(8)
+    expect(stepFontSize(32, 1)).toBe(32)
+    expect(stepFontSize(12.6, 0)).toBe(13)
     expect(SettingsSchema.parse({ terminal: {} }).terminal.startDirectory).toBe('')
     const next = applySettingsPatch(defaultSettings(), {
       terminal: { startDirectory: 'D:\\work' },

@@ -40,3 +40,35 @@ export class HeldInput {
  */
 export const opensLink = (event: Pick<MouseEvent, 'ctrlKey' | 'metaKey'>): boolean =>
   event.ctrlKey || event.metaKey
+
+/**
+ * Whether a paste asks first: text with a line break, while the setting asks. Each break is an
+ * Enter - several commands run at once from a clipboard holding more than was meant.
+ */
+export const pasteNeedsAsking = (text: string, confirm: boolean): boolean =>
+  confirm && /[\r\n]/.test(text)
+
+/** The lines a paste holds, as the question counts them: a last line break makes no line. */
+export function pasteLines(text: string): number {
+  return text.replace(/(\r\n|\r|\n)$/, '').split(/\r\n|\r|\n/).length
+}
+
+/**
+ * Bells taken at most once a `gap`: a program ringing in a loop (`yes $'\a'`) would otherwise
+ * flash and sound without rest.
+ */
+export class BellRate {
+  private readonly gap: number
+  private last = Number.NEGATIVE_INFINITY
+
+  constructor(gap = 500) {
+    this.gap = gap
+  }
+
+  /** Whether this bell, at `now`, is one to show and sound. */
+  ring(now: number): boolean {
+    if (now - this.last < this.gap) return false
+    this.last = now
+    return true
+  }
+}

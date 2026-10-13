@@ -8,7 +8,8 @@
 #   OSC 7   ; file://<host><cwd>   the working directory
 #   OSC 133 ; A / B / C / D;<code> the prompt / input / exec / finished markers
 
-# Guard against double-sourcing (a nested interactive bash, for instance).
+# Guard against this shell sourcing it twice. Not exported: a bash started from this one is a
+# new shell, and is set up anew.
 if [ -n "$ELECDEX_SHELL_INTEGRATION" ]; then return 0 2>/dev/null || exit 0; fi
 ELECDEX_SHELL_INTEGRATION=1
 

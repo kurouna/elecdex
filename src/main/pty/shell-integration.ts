@@ -202,11 +202,24 @@ export function buildInjection(shellPath: string, env: Record<string, string>): 
 }
 
 /**
- * The default shell for this platform, used when the user has not configured one.
+ * The shell for this platform; there is no setting for it. On Windows, PowerShell 7 where it
+ * is installed in its usual place (user decision 2026-10-13), else Windows PowerShell - looked
+ * for on disk, never by starting a process. A ComSpec naming PowerShell is taken as it is.
  */
-export function defaultShell(env: Record<string, string>): string {
-  if (process.platform === 'win32') {
-    return env.ComSpec?.toLowerCase().includes('powershell') ? env.ComSpec : 'powershell.exe'
+export function defaultShell(
+  env: Record<string, string>,
+  platform: NodeJS.Platform = process.platform,
+  exists: (file: string) => boolean = existsSync,
+): string {
+  if (platform === 'win32') {
+    if (env.ComSpec?.toLowerCase().includes('powershell')) return env.ComSpec
+    const pwsh = path.win32.join(
+      env.ProgramFiles ?? 'C:\\Program Files',
+      'PowerShell',
+      '7',
+      'pwsh.exe',
+    )
+    return exists(pwsh) ? pwsh : 'powershell.exe'
   }
   return env.SHELL ?? '/bin/bash'
 }

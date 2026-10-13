@@ -9,6 +9,14 @@ export interface LayoutSwitchRequest {
   answer: (go: boolean) => void
 }
 
+/** A paste of several lines waiting to be let into a shell. */
+export interface PasteRequest {
+  lines: number
+  /** The first lines, as the question shows them. */
+  preview: string
+  answer: (go: boolean) => void
+}
+
 /** A pane waiting for the user to pick a place. */
 export interface LocationRequest {
   current: WeatherLocation
@@ -16,7 +24,7 @@ export interface LocationRequest {
 }
 
 /** The overlays over the workspace, of which one at most is showing - but for `OVER`. */
-type Overlay = 'picker' | 'layouts' | 'switch' | 'settings' | 'location' | 'popup'
+type Overlay = 'picker' | 'layouts' | 'switch' | 'paste' | 'settings' | 'location' | 'popup'
 
 /** Those the user closes; a layout switch is answered instead. */
 const CLOSABLE = ['picker', 'layouts', 'settings', 'location', 'popup'] as const
@@ -57,6 +65,7 @@ class UiStore {
    */
   private clearFor(opening: Overlay): void {
     if (opening !== 'switch') this.answerLayoutSwitch(false)
+    if (opening !== 'paste') this.answerPaste(false)
     const others = CLOSABLE.filter((overlay) => overlay !== opening && overlay !== OVER[opening])
     this.closing(others.some((overlay) => this.showing(overlay)))
     for (const overlay of others) this.hide(overlay)
@@ -149,6 +158,28 @@ class UiStore {
   }
 
   /**
+   * The question asked before a paste of several lines goes into a shell: each line break runs
+   * what is before it. A request, as the layout switch is, for the terminal to await.
+   */
+  paste = $state.raw<PasteRequest | null>(null)
+
+  askPaste(question: Omit<PasteRequest, 'answer'>): Promise<boolean> {
+    if (this.paste !== null) return Promise.resolve(false)
+    this.clearFor('paste')
+    return new Promise<boolean>((resolve) => {
+      this.paste = { ...question, answer: resolve }
+    })
+  }
+
+  answerPaste(go: boolean): void {
+    const request = this.paste
+    if (request === null) return
+    this.closing(true)
+    this.paste = null
+    request.answer(go)
+  }
+
+  /**
    * The last pane called up by its shortcut (layout/summon.ts), for the pane to
    * answer (lib/summoned.svelte.ts). Numbered, so the same call twice still
    * arrives, and timed, so a pane mounting in answer can tell a fresh call
@@ -178,6 +209,13 @@ class UiStore {
     this.shellFind += 1
   }
 
+  /** Bumped to ask the focused shell to clear its scrollback; remembered by number, as find is. */
+  shellClear = $state(0)
+
+  clearShell(): void {
+    this.shellClear += 1
+  }
+
   settingsOpen = $state(false)
   /** True while the settings dialog is capturing a new shortcut: app shortcuts stand down. */
   recordingShortcut = $state(false)
@@ -199,6 +237,7 @@ class UiStore {
       this.locationRequest !== null ||
       this.layoutsOpen ||
       this.layoutSwitch !== null ||
+      this.paste !== null ||
       this.popup !== null
     )
   }

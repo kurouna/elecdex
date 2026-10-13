@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { bringWindowBack, launch, putWindowAway, removeDir } from './support.js'
+import { bringWindowBack, launch, putWindowAway, removeDir, SINGLE_TERMINAL } from './support.js'
 
 /**
  * Entrance and exit effects: the calendar's wave, a new pane's power-on, a closed
@@ -1055,5 +1055,25 @@ test('a toast powers on like the rest of the HUD, and just appears with motion r
       await close()
       removeDir(dir)
     }
+  }
+})
+
+test('the question before a paste of several lines powers on and off as a dialog does', async () => {
+  const { page, app, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  try {
+    const host = page
+      .locator('[data-testid=pane][data-widget=terminal]')
+      .getByTestId('terminal-host')
+    await expect(host).toBeVisible()
+    await app.evaluate(({ clipboard }) => clipboard.writeText('echo one\necho two'))
+    await host.click({ button: 'right', position: { x: 60, y: 60 } })
+    const dialog = page.getByTestId('paste-dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toHaveCSS('animation-name', 'crt-power-on')
+    const closing = await keysThen(page, [ESCAPE], '[data-testid=paste-dialog]')
+    expect(closing).toMatchObject({ present: true, inert: true, beam: true, backdropInert: true })
+    await expect(dialog).toHaveCount(0)
+  } finally {
+    await close()
   }
 })

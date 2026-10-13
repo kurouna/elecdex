@@ -4,6 +4,8 @@
 # automatically AFTER the user's own config - no need to source anything back.
 # See src/main/pty/shell-integration.ts.
 
+# Guard against this shell reading it twice (exit ends the reading of this file, not the shell).
+# Global, not exported: a fish started from this one is set up anew.
 if set -q ELECDEX_SHELL_INTEGRATION
     exit 0
 end

@@ -64,6 +64,11 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
         <span class="upright">
           <span class="name" class:place={place !== null} data-testid="tab-label">{name}</span>
           {#if meta.badge}<span class="badge {meta.badgeKind ?? 'danger'}">{meta.badge}</span>{/if}
+          {#if meta.activity && index !== activeIndex}<span
+              class="activity"
+              aria-label="new output"
+              data-testid="tab-activity"></span
+            >{/if}
         </span>
       </button>
       <button
@@ -196,6 +201,16 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
   font-family: var(--font-mono);
   font-size: var(--step--2);
   font-weight: 700;
+}
+
+/* Output came behind this tab: a dot in the accent, gone once the tab is shown. */
+.activity {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-left: var(--space-1);
+  border-radius: 50%;
+  background: var(--accent-strong);
 }
 
 .badge.danger {

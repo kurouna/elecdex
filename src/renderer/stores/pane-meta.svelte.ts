@@ -27,6 +27,8 @@ export interface PaneMeta {
   /** Short status marker, e.g. a non-zero exit code. */
   badge?: string
   badgeKind?: 'danger' | 'warn' | 'ok'
+  /** Something came while the pane was behind another tab (a shell's output): its tab is marked. */
+  activity?: boolean
 }
 
 class PaneMetaStore {

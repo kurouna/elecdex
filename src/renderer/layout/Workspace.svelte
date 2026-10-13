@@ -5,6 +5,7 @@ import {
   type KeybindingAction,
   keymap,
 } from '@shared/keybindings'
+import { stepFontSize } from '@shared/settings'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { boot } from '../stores/boot.svelte.ts'
@@ -91,7 +92,7 @@ function armReaper(): void {
   if (reapTimer !== null) clearTimeout(reapTimer)
   reapTimer = setTimeout(() => {
     reapTimer = null
-    reapOrphanSessions().catch((error: unknown) => {
+    reapOrphans().catch((error: unknown) => {
       // Main did not answer: look again in a while rather than wait for the panes to change.
       console.error('[elecdex] could not end the shells no pane claims', error)
       if (reapTimer === null) armReaper()
@@ -99,7 +100,7 @@ function armReaper(): void {
   }, REAP_DELAY_MS)
 }
 
-async function reapOrphanSessions(): Promise<void> {
+async function reapOrphans(): Promise<void> {
   if (!layout.loaded) return
 
   // Forget store entries for panes that are gone, so the store does not grow.
@@ -198,6 +199,10 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'shell.focus': () => focusShell(),
   // Searches the shell that has the keyboard, or the one the keys would go to.
   'shell.find': () => findInShell(),
+  'shell.clear': () => clearShell(),
+  // Every shell's type size, from the settings: no shell needs the keyboard for it.
+  'shell.fontBigger': () => stepShellFont(1),
+  'shell.fontSmaller': () => stepShellFont(-1),
   // Only in a tab group: elsewhere a shell keeps the keys (PSReadLine selects by word).
   'tab.next': () => layout.cycleTab(1),
   'tab.previous': () => layout.cycleTab(-1),
@@ -261,6 +266,26 @@ function findInShell(): boolean {
     layout.focus(pane)
   }
   ui.findInShell()
+  return true
+}
+
+/** Clears the scrollback of the shell that has the keyboard, or the one the keys would go to. */
+function clearShell(): boolean {
+  const focused = layout.panes.find((p) => p.id === layout.focusedPaneId)
+  if (focused?.widget !== 'terminal') {
+    const pane = layout.shellToFocus()
+    if (pane === null) return false
+    layout.focus(pane)
+  }
+  ui.clearShell()
+  return true
+}
+
+/** The shells' type size a step larger or smaller (settings.terminal.fontSize). */
+function stepShellFont(step: number): boolean {
+  const size = appearance.settings.terminal.fontSize
+  const next = stepFontSize(size, step)
+  if (next !== size) void appearance.patch({ terminal: { fontSize: next } })
   return true
 }
 

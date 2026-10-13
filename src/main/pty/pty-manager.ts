@@ -209,7 +209,6 @@ export class PtyManager {
       id: session.id,
       shell: session.shell,
       cwd: session.cwd,
-      shellIntegration: session.integrated,
       createdAt: session.createdAt,
     }
   }

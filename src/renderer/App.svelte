@@ -31,6 +31,7 @@ import TitleBar from './TitleBar.svelte'
 import Toasts from './Toasts.svelte'
 import UpdateNotice from './UpdateNotice.svelte'
 import WindowCorner from './WindowCorner.svelte'
+import PasteDialog from './widgets/terminal/PasteDialog.svelte'
 
 let info = $state<AppInfo | null>(null)
 
@@ -246,6 +247,7 @@ function toggleSound(): void {
 <PopupPane />
 <LayoutsDialog />
 <SwitchLayoutDialog />
+<PasteDialog />
 <LocationPicker />
 <SettingsDialog />
 <UpdateNotice />

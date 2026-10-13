@@ -3,6 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buildInjection,
+  defaultShell,
   detectShellKind,
   outsideAsar,
   POWERSHELL_INIT_ENV,
@@ -180,5 +181,24 @@ describe('outsideAsar', () => {
   it('is idempotent', () => {
     const once = outsideAsar('/r/app.asar/resources')
     expect(outsideAsar(once)).toBe(once)
+  })
+})
+
+describe('defaultShell', () => {
+  const pwsh = 'C:\\Program Files\\PowerShell\\7\\pwsh.exe'
+
+  it('takes PowerShell 7 on Windows where it is installed, else Windows PowerShell', () => {
+    const env = { ProgramFiles: 'C:\\Program Files' }
+    expect(defaultShell(env, 'win32', (file) => file === pwsh)).toBe(pwsh)
+    expect(defaultShell(env, 'win32', () => false)).toBe('powershell.exe')
+    // Where ProgramFiles is not set, its usual place.
+    expect(defaultShell({}, 'win32', (file) => file === pwsh)).toBe(pwsh)
+  })
+
+  it('takes a ComSpec that names PowerShell as it is, and SHELL elsewhere', () => {
+    const comspec = 'C:\\Tools\\powershell.exe'
+    expect(defaultShell({ ComSpec: comspec }, 'win32', () => true)).toBe(comspec)
+    expect(defaultShell({ SHELL: '/bin/zsh' }, 'darwin', () => true)).toBe('/bin/zsh')
+    expect(defaultShell({}, 'linux', () => true)).toBe('/bin/bash')
   })
 })

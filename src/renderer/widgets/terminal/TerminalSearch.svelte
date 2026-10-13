@@ -1,3 +1,12 @@
+<script lang="ts" module>
+/** How a search matches: by case, as a regular expression, by whole words. */
+export interface SearchHow {
+  caseSensitive: boolean
+  regex: boolean
+  wholeWord: boolean
+}
+</script>
+
 <script lang="ts">
 import type { SearchAddon } from '@xterm/addon-search'
 
@@ -16,7 +25,7 @@ import type { SearchAddon } from '@xterm/addon-search'
 interface Props {
   addon: SearchAddon
   /** Runs a search and moves the selection to the match. */
-  find: (term: string, back: boolean) => void
+  find: (term: string, back: boolean, how: SearchHow) => void
   /** Bumped by the shortcut to put the keyboard back in the box, text selected. */
   focusToken: number
   onclose: () => void
@@ -27,6 +36,15 @@ const { addon, find, focusToken, onclose }: Props = $props()
 let query = $state('')
 let box = $state<HTMLInputElement | null>(null)
 let results = $state<{ index: number; count: number } | null>(null)
+/** Kept while the bar is open; a new bar starts plain. */
+let how = $state<SearchHow>({ caseSensitive: false, regex: false, wholeWord: false })
+
+/** A switch turned: the search runs again with it, from where it is. */
+function toggle(key: keyof SearchHow): void {
+  how = { ...how, [key]: !how[key] }
+  box?.focus()
+  onInput()
+}
 
 // The addon reports counts only while decorations are on, which they are.
 $effect(() => {
@@ -49,7 +67,7 @@ $effect(() => {
 
 function step(back: boolean): void {
   if (query === '') return
-  find(query, back)
+  find(query, back, how)
 }
 
 function onInput(): void {
@@ -58,7 +76,7 @@ function onInput(): void {
     results = null
     return
   }
-  find(query, false)
+  find(query, false, how)
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -96,6 +114,30 @@ const tally = $derived.by(() => {
     aria-label="Find in the shell"
     data-testid="terminal-search-box"
   />
+  <button
+    type="button"
+    class="switch"
+    aria-pressed={how.caseSensitive}
+    aria-label="Match case"
+    onclick={() => toggle('caseSensitive')}
+    data-testid="terminal-search-case">Aa</button
+  >
+  <button
+    type="button"
+    class="switch"
+    aria-pressed={how.wholeWord}
+    aria-label="Whole words"
+    onclick={() => toggle('wholeWord')}
+    data-testid="terminal-search-word">ab</button
+  >
+  <button
+    type="button"
+    class="switch"
+    aria-pressed={how.regex}
+    aria-label="Regular expression"
+    onclick={() => toggle('regex')}
+    data-testid="terminal-search-regex">.*</button
+  >
   <span class="tally" class:none={results?.count === 0} data-testid="terminal-search-tally"
     >{tally}</span
   >
@@ -123,7 +165,7 @@ const tally = $derived.by(() => {
 }
 
 input {
-  width: 14ch;
+  width: 20ch;
   padding: 0.1rem var(--space-1);
   border: none;
   background: transparent;
@@ -155,4 +197,15 @@ button {
 button:hover {
   color: var(--text);
 }
+
+/* A switch on is lit and framed: Aa, ab and .* read as off until pressed. */
+.switch {
+  border: 1px solid transparent;
+}
+
+.switch[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 </style>

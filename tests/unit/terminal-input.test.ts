@@ -3,9 +3,12 @@ import { ClipboardAddon } from '@xterm/addon-clipboard'
 import type { Terminal } from '@xterm/xterm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  BellRate,
   CLIPBOARD_WRITE_ONLY,
   HeldInput,
   opensLink,
+  pasteLines,
+  pasteNeedsAsking,
 } from '../../src/renderer/widgets/terminal/input.js'
 
 /**
@@ -81,5 +84,31 @@ describe('links', () => {
     expect(opensLink({ ctrlKey: false, metaKey: false })).toBe(false)
     expect(opensLink({ ctrlKey: true, metaKey: false })).toBe(true)
     expect(opensLink({ ctrlKey: false, metaKey: true })).toBe(true)
+  })
+})
+
+describe('pasting several lines', () => {
+  it('asks only for text with a line break, while the setting asks', () => {
+    expect(pasteNeedsAsking('ls -la', true)).toBe(false)
+    expect(pasteNeedsAsking('ls\nrm -rf build', true)).toBe(true)
+    expect(pasteNeedsAsking('ls\r', true)).toBe(true)
+    expect(pasteNeedsAsking('ls\nrm -rf build', false)).toBe(false)
+  })
+
+  it('counts the lines as they will run, a last line break making none', () => {
+    expect(pasteLines('a')).toBe(1)
+    expect(pasteLines('a\nb')).toBe(2)
+    expect(pasteLines('a\r\nb\r\n')).toBe(2)
+    expect(pasteLines('a\rb\rc')).toBe(3)
+  })
+})
+
+describe('BellRate', () => {
+  it('takes a bell at most once in its gap', () => {
+    const bells = new BellRate(500)
+    expect(bells.ring(1000)).toBe(true)
+    expect(bells.ring(1200)).toBe(false)
+    expect(bells.ring(1499)).toBe(false)
+    expect(bells.ring(1500)).toBe(true)
   })
 })

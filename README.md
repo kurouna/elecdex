@@ -47,7 +47,7 @@ different theme.
 
 The arrangement elecdex opens with, in the picture at the top (Tron).
 
-- **Terminal** — real shells (PowerShell, bash, zsh, fish) in unlimited tabs and splits. Shell
+- **Terminal** — real shells (PowerShell - 7 where it is installed - bash, zsh, fish) in unlimited tabs and splits. Shell
   integration reports the working directory and exit codes, on Windows too, and a session keeps
   its scrollback when its pane is moved or reloaded. Each pane starts again in its last folder at
   the next start; a new pane starts in the folder the settings name. The shell has focus at start; selecting text
@@ -364,6 +364,8 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up if the layout has none - pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
+| Ctrl+Shift+K | clear the shell's scrollback |
+| Ctrl+Shift+= / - | larger or smaller type in every shell |
 | Ctrl+Shift+. | settings |
 | F11 | toggle fullscreen |
 | Ctrl+Shift+M | minimize the window (Windows, Linux) |
@@ -487,7 +489,15 @@ weather and calendar.
   tab, with its exit code. New shells start in the home folder, or in the folder set under *Settings → General →
   Terminal* ("~" for home; a folder that no longer exists falls back to home). **Ctrl+Shift+F**
   opens a search bar over the pane: matches are marked in the theme's colour and counted, Enter
-  and Shift+Enter step through them. A URL the shell prints is a link, and Ctrl+click (⌘+click) opens it in your browser.
+  and Shift+Enter step through them; **Aa**, **ab** and **.*** match by case, by whole word and as a
+  regular expression. A URL the shell prints is a link, and Ctrl+click (⌘+click) opens it in your browser.
+  Text of several lines pasted asks first (each line break runs a command), with a way to stop asking.
+  A shell that has exited starts again in its folder on a key. A bell flashes the pane's edge and
+  sounds (or one, or neither, under *Settings → General → Terminal*), and a shell that writes
+  behind another tab marks its tab with a dot until it is shown. **Ctrl+Shift+K** clears the
+  scrollback; **Ctrl+Shift+=** and **Ctrl+Shift+-** make every shell's type larger or smaller (the
+  size is also in the settings). On Windows the shell is PowerShell 7 where it is installed in its
+  usual place, else Windows PowerShell; there is no setting for it.
 - **System** — date and weekday, uptime, OS type, and power with a battery gauge (green, red below
   20%); the full OS version and architecture (as `uname` or `winver` would put it); the machine's
   maker, model and chassis. What cannot change while the app runs is read once, not polled.
