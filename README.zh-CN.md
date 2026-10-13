@@ -438,8 +438,8 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   都会执行一条命令），也可以选择不再询问。已退出的 shell 按任意键即在原文件夹重新启动。响铃时窗格边缘
   闪烁并发出声音（也可在 *Settings → General → Terminal* 中只选其一或都关闭）；后台标签页里的 shell 有输出时，
   其标签页会显示一个点，切换过去后消失。**Ctrl+Shift+K** 清除回滚缓冲区；**Ctrl+Shift+=** 和
-  **Ctrl+Shift+-** 放大或缩小所有 shell 的字号（字号也在设置中）。在 Windows 上，如果 PowerShell 7
-  安装在通常的位置就使用它，否则使用 Windows PowerShell；没有相关设置。
+  **Ctrl+Shift+-** 放大或缩小所有 shell 的字号（字号也在设置中）。在 Windows 上，如果已安装 PowerShell 7
+  （通过安装程序或 Microsoft Store）就使用它，否则使用 Windows PowerShell；没有相关设置。
 - **系统** — 日期和星期、运行时间、操作系统类型，以及带电池计量的电源（绿色，低于 20% 时变红）；
   完整的操作系统版本和架构（就像 `uname` 或 `winver` 显示的那样）；机器的制造商、型号和机箱类型。
   应用运行期间不会变化的信息只读取一次，不做轮询。

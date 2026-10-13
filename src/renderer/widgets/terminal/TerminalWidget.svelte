@@ -99,6 +99,8 @@ $effect(() => {
 
 /** The pane flashing for a bell, for a moment. */
 let ringing = $state(false)
+/** Bells taken, on the frame for the tests: a flash of a quarter second is easily missed. */
+let rung = $state(0)
 const bells = new BellRate()
 let ringTimer: ReturnType<typeof setTimeout> | null = null
 $effect(() => () => {
@@ -111,6 +113,7 @@ function bell(): void {
   if (mode !== 'flash') sfx.play('glitch')
   if (mode === 'sound') return
   ringing = true
+  rung += 1
   if (ringTimer !== null) clearTimeout(ringTimer)
   ringTimer = setTimeout(() => {
     ringing = false
@@ -564,7 +567,7 @@ function safeFit(): void {
 {#if info.error !== null}
   <p class="error" data-testid="terminal-error">{info.error}</p>
 {:else}
-  <div class="frame">
+  <div class="frame" data-bells={rung}>
     <div class="host" bind:this={host} data-testid="terminal-host"></div>
     {#if ringing}
       <div class="bell" aria-hidden="true" data-testid="terminal-bell"></div>

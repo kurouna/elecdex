@@ -195,6 +195,16 @@ describe('defaultShell', () => {
     expect(defaultShell({}, 'win32', (file) => file === pwsh)).toBe(pwsh)
   })
 
+  it('takes the Microsoft Store alias when PowerShell 7 came from the Store', () => {
+    // Found by the user: the Store's copy is not under Program Files, and its alias in the
+    // user's WindowsApps is a link existsSync cannot follow.
+    const alias = 'C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps\\pwsh.exe'
+    const env = { ProgramFiles: 'C:\\Program Files', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local' }
+    expect(defaultShell(env, 'win32', (file) => file === alias)).toBe(alias)
+    // The installer's copy first, where both are there.
+    expect(defaultShell(env, 'win32', () => true)).toBe(pwsh)
+  })
+
   it('takes a ComSpec that names PowerShell as it is, and SHELL elsewhere', () => {
     const comspec = 'C:\\Tools\\powershell.exe'
     expect(defaultShell({ ComSpec: comspec }, 'win32', () => true)).toBe(comspec)

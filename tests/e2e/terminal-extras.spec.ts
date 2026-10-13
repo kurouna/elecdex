@@ -156,7 +156,8 @@ test('a shell writing behind its tab marks the tab until it is shown', async () 
     await tabs.nth(1).click()
     await expect(tabs.nth(0).getByTestId('tab-activity')).toBeVisible({ timeout: 15_000 })
     await tabs.nth(0).click()
-    await expect(page.getByTestId('tab-activity')).toHaveCount(0)
+    // Gone from the tab shown; the other shell may write behind it too (its prompt, late).
+    await expect(tabs.nth(0).getByTestId('tab-activity')).toHaveCount(0)
   } finally {
     await launched.close()
   }
@@ -168,13 +169,14 @@ test('a bell flashes the pane', async () => {
   try {
     await ready(page)
     const pane = terminalPane(page).first()
-    const rang = pane.getByTestId('terminal-bell').waitFor({ state: 'attached', timeout: 15_000 })
+    // Counted on the frame: a flash of a quarter second was missed now and then.
+    const bells = () => pane.locator('[data-bells]').getAttribute('data-bells')
     await typeInto(
       page,
       pane,
       platform === 'win32' ? 'Write-Host -NoNewline ([char]7)' : "printf '\\a'",
     )
-    await rang
+    await expect.poll(bells, { timeout: 15_000 }).toBe('1')
   } finally {
     await launched.close()
   }

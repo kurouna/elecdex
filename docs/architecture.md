@@ -1549,7 +1549,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 ### 6.3 シェル解決
 シェルは main が環境から決める（`defaultShell`: Windows は Windows PowerShell、ほかは `SHELL`）。ページはシェルも引数も指定できない（2026-10-13、レビューで: ページの `shell` と `args` がそのまま spawn に渡っていた）。PATH の検索やログインシェルの環境の取り込みはしない。`TERM=xterm-256color` / `COLORTERM=truecolor` / `TERM_PROGRAM=elecdex` を付与する。zsh の ZDOTDIR は 1 回の起動で 1 つのフォルダを使い、終了時に消す。
 
-Windows では、PowerShell 7 が `%ProgramFiles%\PowerShell\7\pwsh.exe` にあればそれを、なければ Windows PowerShell を使う（2026-10-13、利用者の決定。プロセスは起こさず、ファイルの有無だけを見る）。
+Windows では、PowerShell 7 が `%ProgramFiles%\PowerShell\7\pwsh.exe`（インストーラー）か `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`（Microsoft Store のエイリアス）にあればそれを、なければ Windows PowerShell を使う（2026-10-13、利用者の決定。プロセスは起こさず、ファイルの有無だけを見る。Store の本体はバージョン名のフォルダにあって利用者には開けないので、エイリアスを使う。エイリアスはたどれないリンクで `existsSync` には見えないため `lstat` で見る）。
 
 ペインのまわり（TerminalWidget、2026-10-13）: 終了したシェルはキーで同じフォルダに新しく始まる（ペインがセッションを忘れて作り直す）。複数行の貼り付けは `PasteDialog` で先に聞く（右クリックとキーボードの貼り付けの両方。`terminal.confirmPaste`、「やめる」付き）。ベル（BEL）は `terminal.bell` のとおりに縁の光と音、0.5 秒に 1 度まで。後ろのタブで出力が来るとタブに点（`paneMeta.activity`、見えたら消える）。検索は大文字小文字・単語単位・正規表現を切り替えられる。`shell.clear`（Ctrl+Shift+K）でスクロールバックを消し、`shell.fontBigger` / `shell.fontSmaller`（Ctrl+Shift+= / -）で `terminal.fontSize` を全シェルに。
 

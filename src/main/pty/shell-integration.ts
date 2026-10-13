@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -202,24 +202,48 @@ export function buildInjection(shellPath: string, env: Record<string, string>): 
 }
 
 /**
+ * Whether a file is there, links included: the Microsoft Store's app execution alias
+ * (WindowsApps\pwsh.exe) is a link nothing may follow, so existsSync, which follows it, says no
+ * (EACCES) to a shell that starts.
+ */
+function present(file: string): boolean {
+  try {
+    lstatSync(file)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Where PowerShell 7 is looked for on Windows, in order: its installer's folder, then the
+ * Microsoft Store's alias in the user's WindowsApps (the Store's own folder is named by version
+ * and closed to the user, so the alias is the stable way in).
+ */
+export function pwshCandidates(env: Record<string, string>): string[] {
+  const candidates = [
+    path.win32.join(env.ProgramFiles ?? 'C:\\Program Files', 'PowerShell', '7', 'pwsh.exe'),
+  ]
+  if (env.LOCALAPPDATA !== undefined) {
+    candidates.push(path.win32.join(env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'pwsh.exe'))
+  }
+  return candidates
+}
+
+/**
  * The shell for this platform; there is no setting for it. On Windows, PowerShell 7 where it
- * is installed in its usual place (user decision 2026-10-13), else Windows PowerShell - looked
- * for on disk, never by starting a process. A ComSpec naming PowerShell is taken as it is.
+ * is installed - by its installer or from the Microsoft Store (user decision 2026-10-13) - else
+ * Windows PowerShell: looked for on disk, never by starting a process. A ComSpec naming
+ * PowerShell is taken as it is.
  */
 export function defaultShell(
   env: Record<string, string>,
   platform: NodeJS.Platform = process.platform,
-  exists: (file: string) => boolean = existsSync,
+  exists: (file: string) => boolean = present,
 ): string {
   if (platform === 'win32') {
     if (env.ComSpec?.toLowerCase().includes('powershell')) return env.ComSpec
-    const pwsh = path.win32.join(
-      env.ProgramFiles ?? 'C:\\Program Files',
-      'PowerShell',
-      '7',
-      'pwsh.exe',
-    )
-    return exists(pwsh) ? pwsh : 'powershell.exe'
+    return pwshCandidates(env).find((file) => exists(file)) ?? 'powershell.exe'
   }
   return env.SHELL ?? '/bin/bash'
 }

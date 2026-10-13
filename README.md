@@ -496,8 +496,8 @@ weather and calendar.
   sounds (or one, or neither, under *Settings → General → Terminal*), and a shell that writes
   behind another tab marks its tab with a dot until it is shown. **Ctrl+Shift+K** clears the
   scrollback; **Ctrl+Shift+=** and **Ctrl+Shift+-** make every shell's type larger or smaller (the
-  size is also in the settings). On Windows the shell is PowerShell 7 where it is installed in its
-  usual place, else Windows PowerShell; there is no setting for it.
+  size is also in the settings). On Windows the shell is PowerShell 7 where it is installed (by its
+  installer or from the Microsoft Store), else Windows PowerShell; there is no setting for it.
 - **System** — date and weekday, uptime, OS type, and power with a battery gauge (green, red below
   20%); the full OS version and architecture (as `uname` or `winver` would put it); the machine's
   maker, model and chassis. What cannot change while the app runs is read once, not polled.
