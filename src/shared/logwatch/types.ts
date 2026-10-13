@@ -196,6 +196,12 @@ export interface LogSubscribeRequest {
   since: number
 }
 
+/** What EXPLAIN would send, and whether it may: the pane says "too long" before SEND. */
+export interface LogExplainPreview {
+  text: string
+  fits: boolean
+}
+
 export interface LogExplainRequest {
   id: string
   encoding: LogEncodingChoice

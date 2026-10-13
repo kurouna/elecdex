@@ -152,7 +152,7 @@ const ownModel = $derived(provider?.id === choices.provider ? choices.model : ''
     {/each}
   </div>
   <div class="group" role="radiogroup" aria-label="lines on opening">
-    <span>lines on opening</span>
+    <span>lines on opening <em>· at the next open</em></span>
     {#each INITIAL_LINES as n (n)}
       <button
         type="button"

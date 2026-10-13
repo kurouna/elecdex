@@ -191,6 +191,42 @@ describe('files that change under the pane', () => {
     expect(r.texts('p').at(-1)).toBe('line 2')
   })
 
+  it('says an error thrown at opening, rather than opening for ever', async () => {
+    // Found in review: a read failing at opening (the file held by its writer) never reached
+    // the page, which went on showing OPENING.
+    const file = path.join(dir, 'app.log')
+    writeFileSync(file, lines(1, 3))
+    let fail = true
+    const r = rig(one(file), {
+      fs: {
+        read: async (target, start, length) => {
+          if (fail) throw new Error('EBUSY: resource busy')
+          return nodeFs.read(target, start, length)
+        },
+      },
+    })
+    r.service.subscribe('p', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    expect(r.last('p')?.status).toMatchObject({ state: 'error', problem: 'EBUSY: resource busy' })
+    fail = false
+    await r.advance(LOOK_MS + DELIVER_MS)
+    expect(r.texts('p')).toEqual(['line 1', 'line 2', 'line 3'])
+  })
+
+  it('marks no line NEW of the first ones written to a file opened empty', async () => {
+    // Found in review: with nothing learnt, every first line of an empty file was NEW.
+    const file = path.join(dir, 'app.log')
+    writeFileSync(file, '')
+    const r = rig(one(file))
+    r.service.subscribe('p', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    appendFileSync(file, lines(1, 30))
+    await r.advance(LOOK_MS + DELIVER_MS)
+    const held = r.held('p').filter((item) => item.kind === 'line')
+    expect(held.length).toBeGreaterThan(0)
+    expect(held.some((item) => item.kind === 'line' && item.fresh)).toBe(false)
+  })
+
   it('says an error thrown while reading, and goes on at the next look', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 1))

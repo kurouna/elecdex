@@ -98,7 +98,8 @@ const EMAIL = /(?<![\w.+-])[\w.+-]{1,64}@[\w-]{1,63}(?:\.[\w-]{1,63}){1,8}\b/g
  */
 const SECRET_WORDS =
   'password|passwd|pwd|secret|token|api[_-]?key|apikey|auth|credential|session|cookie'
-const BEARER = /\b(Bearer|Basic|token)\s+[\w.~+/-]{8,}=*/gi
+/** Spaces and tabs only between: across a line break it took the next line's start for a key. */
+const BEARER = /\b(Bearer|Basic|token)[ \t]+[\w.~+/-]{8,}=*/gi
 /**
  * A value named as a secret: \`password=x\`, \`token: x\`, and JSON's \`"password":"x"\` (the name's
  * closing quote before the colon). Names up to 120 characters either side of the word are long

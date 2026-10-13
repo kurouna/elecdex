@@ -123,7 +123,7 @@ beforeEach(() => {
       onExplained: () => () => {},
       preview: async (request: LogExplainRequest) => {
         previews.push(structuredClone(request))
-        return 'the text'
+        return { text: 'the text', fits: true }
       },
     },
     layout: { save: vi.fn(async () => {}) },
@@ -413,14 +413,102 @@ describe('LogWatchWidget', () => {
   })
 })
 
+describe('LogWatchWidget, from the review', () => {
+  const mount = (id: string) =>
+    render(LogWatchWidget, {
+      props: { paneId: id, title: 'log watch', props: {}, state: { file: ID }, active: true },
+    })
+
+  it('empties the filter on Escape', async () => {
+    mount(`f${seq}`)
+    await settle()
+    deliver?.({ key: `${ID}/auto`, reset: true, items: [line('one'), line('two')], status })
+    await settle()
+    const filter = screen.getByTestId('logwatch-filter') as HTMLInputElement
+    await fireEvent.input(filter, { target: { value: 'one' } })
+    await settle()
+    expect(screen.getAllByTestId('logwatch-row')).toHaveLength(1)
+    await fireEvent.keyDown(filter, { key: 'Escape' })
+    await settle()
+    expect(filter.value).toBe('')
+    expect(screen.getAllByTestId('logwatch-row')).toHaveLength(2)
+  })
+
+  it('takes the garbled notice to the encoding itself', async () => {
+    mount(`g${seq}`)
+    await settle()
+    deliver?.({
+      key: `${ID}/auto`,
+      reset: true,
+      items: [line('Ã©')],
+      status: { ...status, garbled: true },
+    })
+    await settle()
+    screen.getByTestId('logwatch-garbled').click()
+    await settle()
+    expect(document.activeElement).toBe(screen.getByTestId('logwatch-encoding'))
+  })
+
+  it('reads the file again when the dialect main reads it in changes', async () => {
+    // Found in review: a format set by hand in another pane left this one saying "detected".
+    let asked = 0
+    const before = describeAs
+    describeAs = { ...FILE, format: null }
+    const counting = window.elecdex.logwatch.describe
+    window.elecdex.logwatch.describe = async (id: string) => {
+      asked++
+      return counting(id)
+    }
+    mount(`h${seq}`)
+    await settle()
+    deliver?.({ key: `${ID}/auto`, reset: true, items: [line('one')], status })
+    await settle()
+    const first = asked
+    describeAs = { ...FILE, format: 'jsonl' }
+    deliver?.({
+      key: `${ID}/auto`,
+      reset: true,
+      items: [line('one')],
+      status: { ...status, format: 'jsonl' },
+    })
+    await settle()
+    expect(asked).toBeGreaterThan(first)
+    describeAs = before
+  })
+})
+
 describe('LogExplain', () => {
+  it('says a choice is too long before SEND, and offers no SEND', async () => {
+    // Found in review: the refusal came only from main, after SEND was pressed.
+    vi.stubGlobal('elecdex', {
+      logwatch: {
+        preview: async () => ({ text: 'x'.repeat(20), fits: false }),
+        onExplained: () => () => {},
+        explain: vi.fn(),
+        cancelExplain: () => {},
+      },
+    })
+    render(LogExplain, {
+      props: {
+        request: { id: ID, encoding: 'auto', seqs: [1, 2], provider: '', model: '', mask: true },
+        to: 'Local · m',
+        onclose: () => {},
+      },
+    })
+    await settle()
+    expect(screen.getByTestId('logwatch-explain-too-long').textContent).toContain(
+      'too long to send',
+    )
+    expect(screen.queryByTestId('logwatch-explain-send')).toBeNull()
+  })
+
   it('keeps an answer that ends before the press is answered', async () => {
     // Found in review: a provider failing at once could send its last word before main's answer
     // to SEND, and the panel then said WRITING for ever.
     let hear: ((event: unknown) => void) | null = null
     vi.stubGlobal('elecdex', {
       logwatch: {
-        preview: async () => 'the text',
+        preview: async () => ({ text: 'the text', fits: true }),
         onExplained: (handler: (event: unknown) => void) => {
           hear = handler
           return () => {}

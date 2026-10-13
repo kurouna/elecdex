@@ -113,8 +113,10 @@ export interface RowFilter {
 export function shows(line: LogLine, filter: RowFilter): boolean {
   if (filter.hidden.has(groupOf(line.level))) return false
   if (filter.muted.has(line.sig)) return false
-  if (filter.match !== null && !filter.match.test(line.text) && !filter.match.test(line.source)) {
-    return false
+  const match = filter.match
+  // The trace too: an exception's class is often only there, under the line.
+  if (match !== null && !match.test(line.text) && !match.test(line.source)) {
+    return line.more.some((more) => match.test(more))
   }
   return true
 }
@@ -360,7 +362,9 @@ export function lineCardRows(row: Row, masked: boolean): CardRow[] {
 export function markText(mark: LogMark, clock: (at: number) => string): string {
   switch (mark.mark) {
     case 'opened':
-      return `last ${mark.lines.toLocaleString()} lines · following`
+      return mark.lines === 0
+        ? 'following from its start'
+        : `last ${mark.lines.toLocaleString()} lines · following`
     case 'rotated':
       return `${clock(mark.at)} · the file was replaced · reading the new one from its start`
     case 'switched':

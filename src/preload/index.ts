@@ -50,6 +50,7 @@ import type { SavedLayoutSummary } from '@shared/layouts'
 import {
   keyOf,
   type LogExplainEvent,
+  type LogExplainPreview,
   type LogFileRef,
   type LogSubscribeRequest,
   type LogWatchEvent,
@@ -744,7 +745,7 @@ const api: ElecdexApi = {
     setFormat: (id, format) =>
       ipcRenderer.invoke(CH.logwatch.setFormat, id, format) as Promise<boolean>,
     preview: (request) =>
-      ipcRenderer.invoke(CH.logwatch.preview, request) as Promise<string | null>,
+      ipcRenderer.invoke(CH.logwatch.preview, request) as Promise<LogExplainPreview | null>,
     explain: (request) =>
       ipcRenderer.invoke(CH.logwatch.explain, request) as Promise<
         { token: string } | { problem: string }

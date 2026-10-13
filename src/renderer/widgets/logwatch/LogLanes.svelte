@@ -1,5 +1,6 @@
 <script lang="ts">
 import { BUCKET_MS, type LevelCounts } from '@shared/logwatch/rate'
+import { untrack } from 'svelte'
 import { observeCanvas } from '../../lib/canvas.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 
@@ -25,8 +26,13 @@ $effect(() => {
   })
 })
 
+/** What the lanes show, as text: the canvas is drawn again only when it changes. */
+const shown = $derived(buckets.map((b) => `${b.DBG},${b.INF},${b.WRN},${b.ERR}`).join('|'))
+
 $effect(() => {
   void appearance.revision
+  void shown
+  const drawn = untrack(() => buckets)
   const el = canvas
   const { width, height, ratio } = size
   if (el === null || width === 0 || height === 0) return
@@ -43,10 +49,10 @@ $effect(() => {
   }
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
   ctx.clearRect(0, 0, width, height)
-  const tallest = Math.max(8, ...buckets.map((b) => b.DBG + b.INF + b.WRN + b.ERR))
-  const pitch = width / Math.max(1, buckets.length)
+  const tallest = Math.max(8, ...drawn.map((b) => b.DBG + b.INF + b.WRN + b.ERR))
+  const pitch = width / Math.max(1, drawn.length)
   const bar = Math.max(1, pitch - Math.max(1, Math.min(3, pitch * 0.2)))
-  buckets.forEach((counts, i) => {
+  drawn.forEach((counts, i) => {
     let y = height
     for (const group of ['ERR', 'WRN', 'INF', 'DBG'] as const) {
       const h = (counts[group] / tallest) * (height - 1)

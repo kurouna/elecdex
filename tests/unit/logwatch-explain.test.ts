@@ -96,7 +96,9 @@ describe('LogExplainer', () => {
         return {}
       },
     })
-    const preview = r.explainer.preview(REQUEST)
+    const shown = r.explainer.preview(REQUEST)
+    expect(shown?.fits).toBe(true)
+    const preview = shown?.text ?? ''
     expect(preview).toContain('ERROR mail to ••• failed')
     // Only what was chosen: not the line before it, nor the one after.
     expect(preview).not.toContain('INFO before')

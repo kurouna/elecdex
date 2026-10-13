@@ -1,10 +1,16 @@
 import { type AiProvider, type AiProviderKind, type ChatStop, STOP_CODES } from '@shared/ai'
-import { explainFits, explainSystem, explainText } from '@shared/logwatch/explain'
 import {
-  LOG_LIMITS,
-  type LogExplainEvent,
-  type LogExplainRequest,
-  type LogLine,
+  explainFits,
+  explainSystem,
+  explainTarget,
+  explainText,
+  TOO_LONG,
+} from '@shared/logwatch/explain'
+import type {
+  LogExplainEvent,
+  LogExplainPreview,
+  LogExplainRequest,
+  LogLine,
 } from '@shared/logwatch/types'
 import { describeFailure, isUnreachable, type ProviderAdapter } from '../ai/adapter.js'
 import { targetFor } from '../ai/target.js'
@@ -53,10 +59,15 @@ export class LogExplainer<P> {
     this.#deps = deps
   }
 
-  /** What would be sent, for the pane to show before SEND; null when a chosen line is gone. */
-  preview(request: LogExplainRequest): string | null {
+  /**
+   * What would be sent, for the pane to show before SEND, and whether it may be; null when a
+   * chosen line is gone.
+   */
+  preview(request: LogExplainRequest): LogExplainPreview | null {
     const lines = this.#deps.lines(request)
-    return lines === null ? null : explainText(lines, request.mask)
+    if (lines === null) return null
+    const text = explainText(lines, request.mask)
+    return { text, fits: explainFits(lines, text) }
   }
 
   /** Whether a page has an answer being written. */
@@ -67,22 +78,15 @@ export class LogExplainer<P> {
   start(page: P, request: LogExplainRequest): ExplainStart {
     if (this.#asking.has(page)) return { problem: 'an answer is still being written' }
     const providers = this.#deps.providers()
-    // The pane's own while it is listed, else the first, as the AI chat pane chooses; the pane's
-    // model goes only with the pane's own provider.
-    const own = providers.find((p) => p.id === request.provider)
-    const provider = own ?? providers[0]
-    if (provider === undefined) return { problem: 'no AI provider is set up in the settings' }
+    const chosen = explainTarget(providers, request.provider, request.model)
+    if (chosen === null) return { problem: 'no AI provider is set up in the settings' }
+    const { provider, model } = chosen
     const target = targetFor(providers, this.#deps.keyFor, provider.id)
     if (typeof target === 'string') return { problem: target }
     const lines = this.#deps.lines(request)
     if (lines === null) return { problem: 'a line chosen is no longer held: choose again' }
     const text = explainText(lines, request.mask)
-    if (!explainFits(lines, text)) {
-      return {
-        problem: `too long to send (over ${LOG_LIMITS.explainChars.toLocaleString()} characters): choose fewer lines`,
-      }
-    }
-    const model = own !== undefined && request.model !== '' ? request.model : provider.model
+    if (!explainFits(lines, text)) return { problem: TOO_LONG }
     const asking: Asking = {
       token: this.#deps.newId(),
       abort: new AbortController(),

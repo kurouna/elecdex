@@ -1,3 +1,4 @@
+import type { AiProvider } from '../ai.js'
 import { maskText } from './text.js'
 import { LOG_LIMITS, type LogLine } from './types.js'
 
@@ -49,6 +50,36 @@ export function explainText(lines: readonly LogLine[], mask: boolean): string {
     ...ordered.map((line) => shown(lineText(line).slice(0, LOG_LIMITS.explainChars + 1))),
     '```',
   ].join('\n')
+}
+
+/**
+ * What COPY puts on the clipboard: the chosen lines in order, each masked on its own as EXPLAIN
+ * masks them - masked whole, a key at a line's end took the next line's start with it.
+ */
+export function copyText(lines: readonly LogLine[], mask: boolean): string {
+  return [...lines]
+    .sort((a, b) => a.seq - b.seq)
+    .map((line) => (mask ? maskText(lineText(line)) : lineText(line)))
+    .join('\n')
+}
+
+/** What main answers when a choice does not fit, and the pane says before SEND. */
+export const TOO_LONG = `too long to send (over ${LOG_LIMITS.explainChars.toLocaleString('en-US')} characters): choose fewer lines`
+
+/**
+ * Who EXPLAIN asks: the pane's own provider while it is listed, else the first, as the AI chat
+ * pane chooses; the pane's model only with its own provider, else that provider's. One rule for
+ * main and for the labels that name it.
+ */
+export function explainTarget(
+  providers: readonly AiProvider[],
+  providerId: string,
+  model: string,
+): { provider: AiProvider; model: string } | null {
+  const own = providers.find((p) => p.id === providerId)
+  const provider = own ?? providers[0]
+  if (provider === undefined) return null
+  return { provider, model: own !== undefined && model !== '' ? model : provider.model }
 }
 
 /**

@@ -72,8 +72,11 @@ export const DELIVER_MS = 250
 export const LOOK_MS = 1000
 /** A burst of changes is read once, this long after the first. */
 export const SETTLE_MS = 200
-/** A pattern's folder is listed again at least this often, in looks. */
-const RESCAN_LOOKS = 10
+/**
+ * A pattern's folder is listed again at least this often, by the clock: counted in calls it was
+ * listed at every settle of a busy file, a stat of every match each time (found in review).
+ */
+const RESCAN_MS = 10_000
 /** Sources kept with their place after the last pane went. */
 const DORMANT_KEPT = 8
 /** Numbers per channel: a channel made again starts far beyond the last one's. */
@@ -137,7 +140,8 @@ interface Source<P> {
   awake: boolean
   watcher: { close(): void } | null
   settle: unknown
-  looks: number
+  /** When the pattern's folder was last listed; -Infinity lists it at the next look. */
+  listedAt: number
   /** Reads one at a time. */
   busy: Promise<void>
   /** When the last pane went; null while one shows it or before any did. */
@@ -152,6 +156,18 @@ interface Source<P> {
 }
 
 const isFacts = (result: StatResult): result is FileFacts => 'size' in result
+
+/** Byte arrays one after another, as one. */
+function joinBytes(parts: readonly Uint8Array[]): Uint8Array {
+  if (parts.length === 1) return parts[0] as Uint8Array
+  const joined = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0))
+  let at = 0
+  for (const part of parts) {
+    joined.set(part, at)
+    at += part.length
+  }
+  return joined
+}
 
 export class LogWatchService<P> {
   readonly #deps: LogWatchDeps<P>
@@ -287,7 +303,7 @@ export class LogWatchService<P> {
       awake: false,
       watcher: null,
       settle: null,
-      looks: 0,
+      listedAt: Number.NEGATIVE_INFINITY,
       busy: Promise.resolve(),
       dormantSince: null,
       read: 0,
@@ -385,8 +401,9 @@ export class LogWatchService<P> {
     } else {
       const current = source.file === null ? null : this.#deps.fs.basename(source.file)
       const other = changed === null || changed.toLowerCase() !== current?.toLowerCase()
-      if (other && (changed === null || matchesPattern(changed, pattern))) source.looks = 0
-      else if (other) return
+      if (other && (changed === null || matchesPattern(changed, pattern))) {
+        source.listedAt = Number.NEGATIVE_INFINITY
+      } else if (other) return
     }
     this.#changed(source)
   }
@@ -400,11 +417,13 @@ export class LogWatchService<P> {
   }
 
   #queue(source: Source<P>, step: () => Promise<void>): Promise<void> {
-    source.busy = source.busy.then(step).catch((error: unknown) => {
-      source.state = 'error'
-      source.problem = error instanceof Error ? error.message : String(error)
-    })
+    source.busy = source.busy.then(step).catch((error: unknown) => this.#failed(source, error))
     return source.busy
+  }
+
+  #failed(source: Source<P>, error: unknown): void {
+    source.state = 'error'
+    source.problem = error instanceof Error ? error.message : String(error)
   }
 
   /* ---- Reading ---- */
@@ -413,7 +432,8 @@ export class LogWatchService<P> {
   async #locate(source: Source<P>): Promise<void> {
     const { pattern, path: folder } = source.entry
     if (pattern === null) return
-    if (source.file !== null && source.looks++ % RESCAN_LOOKS !== 0) return
+    const now = this.#deps.now()
+    if (source.file !== null && now - source.listedAt < RESCAN_MS) return
     const names = await this.#deps.fs.list(folder)
     let newest: { file: string; mtime: number } | null = null
     // Names written with a date or a count sort the newest last: past 2000 matches, the last
@@ -430,8 +450,8 @@ export class LogWatchService<P> {
         newest = { file, mtime: facts.mtime }
       }
     }
-    // Listed now: the next listing is due after RESCAN_LOOKS looks, or a name heard in the folder.
-    source.looks = 1
+    // Listed now: the next listing is due after RESCAN_MS, or at a name heard in the folder.
+    source.listedAt = now
     const next = newest?.file ?? null
     if (next === source.file) return
     const before = source.file
@@ -477,7 +497,9 @@ export class LogWatchService<P> {
   /** Brings the pages waiting up to date, opening the channels not yet open where it can. */
   async #catchUp(source: Source<P>): Promise<void> {
     if (this.#disposed) return
-    await this.#openWaiting(source)
+    // A file that cannot be read at opening (held by its writer, its rights changed) is said so:
+    // thrown past here, the pages waiting were never told and showed OPENING for ever.
+    await this.#openWaiting(source).catch((error: unknown) => this.#failed(source, error))
     for (const channel of source.channels.values()) {
       for (const [page, wait] of channel.waiting) this.#tell(source, channel, page, wait)
     }
@@ -549,12 +571,16 @@ export class LogWatchService<P> {
     const want = this.#deps.initialLines()
     let start = end
     let breaks = 0
+    // The steps read back are kept and joined: the tail is read once, not counted then read again.
+    const steps: Uint8Array[] = []
     while (start > 0 && breaks <= want && end - start < LOG_LIMITS.tailBytes) {
       const from = Math.max(0, start - BACK_STEP)
-      breaks += countBreaks(await this.#deps.fs.read(file, from, start - from))
+      const step = await this.#deps.fs.read(file, from, start - from)
+      steps.unshift(step)
+      breaks += countBreaks(step)
       start = from
     }
-    const bytes = await this.#deps.fs.read(file, start, end - start)
+    const bytes = joinBytes(steps)
     const now = this.#deps.now()
     if (countBreaks(bytes) === 0 && start === 0) {
       // Nothing to judge by yet: a reader in waiting, and the bytes kept until there is.
@@ -619,7 +645,8 @@ export class LogWatchService<P> {
     const judged = new LogReader(format, reader.nextSeq)
     channel.reader = judged
     this.#count(channel, text)
-    for (const line of judged.read(text, now, false)) this.#emit(channel, line)
+    // Learning, as the opening's tail is: on a file opened empty every first line would be NEW.
+    for (const line of judged.read(text, now, true)) this.#emit(channel, line)
   }
 
   /** Reads where the file grew, for every channel shown. */

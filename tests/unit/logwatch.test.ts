@@ -6,9 +6,11 @@ import {
   looksGarbled,
 } from '@shared/logwatch/encoding'
 import {
+  copyText,
   EXPLAIN_SYSTEM,
   explainFits,
   explainSystem,
+  explainTarget,
   explainText,
   lineText,
 } from '@shared/logwatch/explain'
@@ -446,6 +448,9 @@ describe('rates', () => {
       ERR: 0,
     }))
     expect(ratePerSecond(buckets)).toBe(2)
+    // Now's own bucket has only begun: left out, a steady stream does not read half its rate.
+    buckets[buckets.length - 1] = { DBG: 0, INF: 1, WRN: 0, ERR: 0 }
+    expect(ratePerSecond(buckets)).toBe(2)
   })
 
   it('calls a burst only when errors come much faster than before', () => {
@@ -575,6 +580,33 @@ describe('explain', () => {
     expect(lineText(long as LogLine)).toContain('(cut: longer than what is kept)')
     expect(short?.cut).toBe(false)
     expect(lineText(short as LogLine)).toBe('short')
+  })
+
+  it('masks a key within its own line, never the next', () => {
+    // Found in review: "token" at a line's end took the next line's start for a key.
+    expect(maskText('invalid token\nTraceback (most recent call last)')).toBe(
+      'invalid token\nTraceback (most recent call last)',
+    )
+    const a = line(NOW, 'ERR', { seq: 1, raw: 'refused: bad token' })
+    const b = line(NOW, 'INF', { seq: 2, raw: '2026-10-12T12:00:00Z retrying now' })
+    expect(copyText([b, a], true)).toBe('refused: bad token\n2026-10-12T12:00:00Z retrying now')
+    expect(copyText([a, b], false)).toBe(`${lineText(a)}\n${lineText(b)}`)
+  })
+
+  it('asks the pane provider while listed, else the first, the model only with its own', () => {
+    const p1 = {
+      id: 'p1',
+      name: 'One',
+      kind: 'openai',
+      baseUrl: 'http://127.0.0.1/v1',
+      model: 'm1',
+    } as const
+    const p2 = { ...p1, id: 'p2', name: 'Two', model: 'm2' }
+    expect(explainTarget([p1, p2], 'p2', 'big')).toEqual({ provider: p2, model: 'big' })
+    expect(explainTarget([p1, p2], 'p2', '')).toEqual({ provider: p2, model: 'm2' })
+    expect(explainTarget([p1, p2], 'gone', 'big')).toEqual({ provider: p1, model: 'm1' })
+    expect(explainTarget([p1, p2], '', 'big')).toEqual({ provider: p1, model: 'm1' })
+    expect(explainTarget([], 'p1', '')).toBeNull()
   })
 
   it('refuses a line too long even when masking would make the cut text fit', () => {

@@ -435,3 +435,50 @@ test('EXPLAIN on another line while the panel is open asks about that one instea
     removeDir(dir)
   }
 })
+
+test('keeps COPY, CLEAR and EXPLAIN inside a narrow pane with lines chosen', async () => {
+  // Found in review: the footer did not wrap or give way, and EXPLAIN went off the pane's edge.
+  const { dir, file } = folder()
+  writeFileSync(file, `${stamp()} ERROR first trouble\n${stamp()} WARN second trouble\n`)
+  const { app, page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: [0.15, 0.85],
+        children: [
+          { kind: 'pane', id: 'l', widget: 'logwatch', state: { fold: false } },
+          { kind: 'pane', id: 'c', widget: 'clock' },
+        ],
+      },
+    },
+    settings: {
+      sound: { enabled: false },
+      ai: {
+        providers: [
+          { id: 'p', name: 'P', kind: 'openai', baseUrl: 'http://127.0.0.1:1/v1', model: 'm' },
+        ],
+      },
+    },
+  })
+  try {
+    await choose(page, app, file)
+    await rows(page).filter({ hasText: 'first' }).click()
+    await rows(page)
+      .filter({ hasText: 'second' })
+      .click({ modifiers: ['ControlOrMeta'] })
+    const pane = await page.locator('[data-testid=pane][data-widget=logwatch]').boundingBox()
+    expect(pane?.width ?? 0).toBeLessThan(480)
+    for (const id of ['logwatch-clear', 'logwatch-copy', 'logwatch-explain-open']) {
+      const box = await page.getByTestId(id).boundingBox()
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
+        (pane?.x ?? 0) + (pane?.width ?? 0),
+      )
+    }
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+})

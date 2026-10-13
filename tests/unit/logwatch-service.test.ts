@@ -530,6 +530,30 @@ describe('LogWatchService', () => {
     expect(listed).toBe(before + 1)
   })
 
+  it('lists the folder of a pattern by the clock, not at every settle of a busy file', async () => {
+    // Found in review: counted in calls, the folder was listed every ~2 s on a busy file.
+    writeFileSync(path.join(dir, 'app-1.log'), lines(1, 1))
+    let listed = 0
+    const r = rig({ [ID]: { path: dir, pattern: 'app-*.log', format: null } }, 5000, 5, {
+      list: async (folder) => {
+        listed++
+        return nodeFs.list(folder)
+      },
+    })
+    r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    const before = listed
+    for (let i = 0; i < 20; i++) {
+      appendFileSync(path.join(dir, 'app-1.log'), lines(2 + i, 2 + i))
+      r.watches.get(dir)?.('app-1.log')
+      await r.advance(SETTLE_MS + 100)
+    }
+    // Six seconds of appends: under the ten seconds between listings.
+    expect(listed).toBe(before)
+    await r.advance(10_000)
+    expect(listed).toBeGreaterThan(before)
+  })
+
   it('holds no more than the lines kept as soon as the setting is lowered', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 5))

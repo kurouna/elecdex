@@ -144,6 +144,13 @@ describe('buildRows', () => {
     expect(shown({ match: /boom|db/ })).toEqual(['e', 'w'])
   })
 
+  it('finds a line by its trace too', () => {
+    // Found in review: an exception's class only under the line was not found.
+    const traced = line({ sig: 'x', text: 'job failed', more: ['TimeoutError: no answer'] })
+    expect(buildRows([traced], { ...ALL, match: /TimeoutError/ })).toHaveLength(1)
+    expect(buildRows([traced], { ...ALL, match: /nothing/ })).toHaveLength(0)
+  })
+
   it('gives each row the line before it, for the time since', () => {
     const rows = buildRows([line({ at: NOW }), line({ sig: 'x', at: NOW + 1500 })], ALL)
     expect(timeText(rows[1] as Row, 'delta', NOW)).toBe('+1.500')
@@ -285,6 +292,10 @@ describe('the card', () => {
     expect(
       markText({ kind: 'mark', seq: 0, at: NOW, mark: 'opened', lines: 1500 }, clockText),
     ).toBe('last 1,500 lines · following')
+    // A file opened empty is followed from its start, not "the last 0 lines".
+    expect(markText({ kind: 'mark', seq: 0, at: NOW, mark: 'opened', lines: 0 }, clockText)).toBe(
+      'following from its start',
+    )
     expect(
       markText({ kind: 'mark', seq: 0, at: NOW, mark: 'switched', name: 'b.log' }, clockText),
     ).toBe('12:00:00 · switched to b.log')

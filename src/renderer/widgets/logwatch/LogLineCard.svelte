@@ -59,7 +59,11 @@ p {
   font-size: var(--step--1);
   color: var(--text-muted);
   overflow-wrap: anywhere;
-  max-height: 8lh;
+  /* Eight lines at most, ending in an ellipsis rather than mid-word with nothing said. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
   overflow: hidden;
 }
 </style>

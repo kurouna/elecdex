@@ -43,9 +43,13 @@ export function totals(buckets: readonly LevelCounts[]): LevelCounts {
   return sum
 }
 
-/** Lines a second over the last few seconds of the buckets: the RATE figure. */
+/**
+ * Lines a second over the ten seconds before now's bucket: the RATE figure. Now's own is left
+ * out - it has only begun, and counted in, a steady stream read half its rate at each bucket's
+ * start (found in review).
+ */
 export function ratePerSecond(buckets: readonly LevelCounts[]): number {
-  const recent = buckets.slice(-2)
+  const recent = buckets.slice(-3, -1)
   const lines = recent.reduce((sum, b) => sum + b.DBG + b.INF + b.WRN + b.ERR, 0)
   return Math.round(lines / ((recent.length * BUCKET_MS) / 1000))
 }

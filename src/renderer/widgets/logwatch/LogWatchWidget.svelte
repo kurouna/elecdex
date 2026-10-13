@@ -1,5 +1,5 @@
 <script lang="ts">
-import { lineText } from '@shared/logwatch/explain'
+import { copyText, explainTarget } from '@shared/logwatch/explain'
 import {
   bursting,
   burstLit,
@@ -8,7 +8,6 @@ import {
   ratePerSecond,
   totals,
 } from '@shared/logwatch/rate'
-import { maskText } from '@shared/logwatch/text'
 import {
   FORMAT_NAMES,
   groupOf,
@@ -19,6 +18,7 @@ import {
   type LogFormat,
   type LogItem,
 } from '@shared/logwatch/types'
+import { tick } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
@@ -83,6 +83,23 @@ $effect(() => {
     if (gone) return
     file = ref
     unknown = ref === null
+  })
+  return () => {
+    gone = true
+  }
+})
+
+/**
+ * The file's entry read again when the dialect main reads it in changes: another pane on the
+ * same file may have set it by hand, and this pane's panel and card would go on saying "detected".
+ */
+$effect(() => {
+  const id = choices.file
+  const format = status?.format
+  if (id === null || format === undefined) return
+  let gone = false
+  void window.elecdex.logwatch.describe(id).then((ref) => {
+    if (!gone && ref !== null && ref.id === id) file = ref
   })
   return () => {
     gone = true
@@ -223,7 +240,9 @@ const emptyWords = $derived(
       ? 'no line held matches the levels and the filter shown'
       : status?.state === 'reading'
         ? 'no lines yet: they appear here as they are written'
-        : null,
+        : status?.state === 'waiting' && status.problem === null
+          ? 'waiting for the file to appear: it is read from its start then'
+          : null,
 )
 
 const patterns = $derived(choices.tab === 'patterns' ? tallyPatterns(shownItems, now) : [])
@@ -257,8 +276,7 @@ $effect(() => () => copied.dispose())
 
 async function copy(): Promise<void> {
   if (chosenShown.length === 0) return
-  const raw = chosenShown.map(lineText).join('\n')
-  const text = choices.mask ? maskText(raw) : raw
+  const text = copyText(chosenShown, choices.mask)
   if (await copied.through('line', () => window.elecdex.utility.copy({ kind: 'text', text }))) {
     sfx.play('folder')
   }
@@ -267,7 +285,9 @@ async function copy(): Promise<void> {
 /* ---- EXPLAIN ---- */
 
 const providers = $derived(appearance.settings.ai.providers)
-const provider = $derived(providers.find((p) => p.id === choices.provider) ?? providers[0] ?? null)
+/** Who EXPLAIN asks, by main's own rule: the pane's provider while listed, else the first. */
+const target = $derived(explainTarget(providers, choices.provider, choices.model))
+const provider = $derived(target?.provider ?? null)
 let explaining = $state.raw<LogExplainRequest | null>(null)
 
 function explain(): void {
@@ -287,6 +307,13 @@ function explain(): void {
 /* ---- Settings ---- */
 
 let settingsOpen = $state(false)
+
+/** The panel opened at the encoding, for text that looks garbled. */
+async function toEncoding(): Promise<void> {
+  settingsOpen = true
+  await tick()
+  rootEl?.querySelector<HTMLElement>('[data-testid=logwatch-encoding]')?.focus()
+}
 
 function setFormat(format: LogFormat | null): void {
   if (choices.file === null) return
@@ -452,7 +479,7 @@ $effect(() => {
       <button
         type="button"
         class="garbled"
-        onclick={() => (settingsOpen = true)}
+        onclick={() => void toEncoding()}
         data-testid="logwatch-garbled">TEXT LOOKS GARBLED · CHOOSE THE ENCODING ▸</button
       >
     {/if}
@@ -500,6 +527,13 @@ $effect(() => {
         placeholder="filter — text, or /regex/"
         spellcheck="false"
         bind:value={filterText}
+        onkeydown={(event) => {
+          // Escape empties a filter typed, as a search field does.
+          if (event.key === 'Escape' && filterText !== '') {
+            event.stopPropagation()
+            filterText = ''
+          }
+        }}
         data-testid="logwatch-filter"
       />
       <button type="button" class="chip" aria-pressed={frozen !== null} onclick={() => (frozen = frozen === null ? items : null)} data-testid="logwatch-pause">PAUSE</button>
@@ -531,7 +565,7 @@ $effect(() => {
       {#key explaining}
         <LogExplain
           request={explaining}
-          to={`${provider?.name ?? ''} · ${(provider?.id === choices.provider && choices.model) || provider?.model || ''}`}
+          to={target === null ? '' : `${target.provider.name} · ${target.model}`}
           onclose={() => (explaining = null)}
         />
       {/key}
@@ -539,9 +573,8 @@ $effect(() => {
     <footer class="foot">
       {#if chosenShown.length > 0}
         <span class="chosen" data-testid="logwatch-chosen"
-          >{chosenShown.length === 1
-            ? '1 line chosen'
-            : `${chosenShown.length} lines chosen`} · {addKey}+click adds · Shift+click a run</span
+          ><span class="count">{chosenShown.length === 1 ? '1 line chosen' : `${chosenShown.length} lines chosen`}</span
+          ><span class="keys"> · {addKey}+click adds · Shift+click a run</span></span
         >
         <button type="button" onclick={clearChosen} data-testid="logwatch-clear">CLEAR</button>
         <button type="button" onclick={() => void copy()} data-testid="logwatch-copy">{copied.key === 'line' ? 'COPIED' : 'COPY'}</button>
@@ -911,12 +944,29 @@ $effect(() => {
 
 .foot .quiet {
   margin-left: auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* At a narrow width the words give way, never the buttons: EXPLAIN was pushed off the edge. */
 .foot .chosen {
+  display: flex;
+  min-width: 0;
   color: var(--text);
+}
+
+.foot .count,
+.foot button {
+  flex-shrink: 0;
+}
+
+.foot .keys,
+.foot .hint,
+.foot [data-testid='logwatch-kept'] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .foot .hint {

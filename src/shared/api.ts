@@ -55,6 +55,7 @@ import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { SavedLayoutSummary } from './layouts.js'
 import type {
   LogExplainEvent,
+  LogExplainPreview,
   LogExplainRequest,
   LogFileRef,
   LogFormat,
@@ -711,7 +712,7 @@ export interface LogWatchApi {
   /** Reads a file in a dialect from now on (null: detected), every pane following it afresh. */
   setFormat(id: string, format: LogFormat | null): Promise<boolean>
   /** What EXPLAIN would send for a line; null when main no longer holds it. */
-  preview(request: LogExplainRequest): Promise<string | null>
+  preview(request: LogExplainRequest): Promise<LogExplainPreview | null>
   /** Asks a provider about a line; the answer comes to `onExplained` under the token. */
   explain(request: LogExplainRequest): Promise<{ token: string } | { problem: string }>
   cancelExplain(token: string): void

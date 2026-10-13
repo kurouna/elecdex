@@ -46,7 +46,7 @@ const pieces = (text: string): { text: string; slot: boolean }[] =>
       <span class="count">{pattern.count.toLocaleString()}</span>
       <span class="lvl">{pattern.level}</span>
       <span class="sig"
-        >{#if pattern.source !== ''}<span class="src">{pattern.source}</span>{/if}{#each pieces(pattern.text) as piece, i (i)}<span
+        >{#if pattern.source !== ''}<span class="src">{mask ? maskText(pattern.source) : pattern.source}</span>{/if}{#each pieces(pattern.text) as piece, i (i)}<span
             class:slot={piece.slot}>{piece.text}</span
           >{/each}</span
       >

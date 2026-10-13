@@ -213,6 +213,18 @@ describe('LogPatterns', () => {
     await rerender({ patterns: [] })
     expect(screen.getByText('no lines held yet')).toBeTruthy()
   })
+
+  it('masks the source too while MASK is on', () => {
+    // Found in review: the stream and the card masked a source, this tab did not.
+    const patterns = view.tallyPatterns(
+      [line('sent', { source: 'mailer rin@example.com', sig: 'INF mailer sent' })],
+      NOW,
+    )
+    render(LogPatterns, {
+      props: { patterns, muted: new Set<string>(), now: NOW, mask: true, ontoggle: vi.fn() },
+    })
+    expect(screen.getByTestId('logwatch-pattern').textContent).not.toContain('example.com')
+  })
 })
 
 describe('LogSettings', () => {

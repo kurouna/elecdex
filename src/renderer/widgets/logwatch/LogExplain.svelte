@@ -1,5 +1,6 @@
 <script lang="ts">
-import type { LogExplainEvent, LogExplainRequest } from '@shared/logwatch/types'
+import { TOO_LONG } from '@shared/logwatch/explain'
+import type { LogExplainEvent, LogExplainPreview, LogExplainRequest } from '@shared/logwatch/types'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import Markdown from '../aichat/Markdown.svelte'
@@ -18,7 +19,7 @@ interface Props {
 
 const { request, to, onclose }: Props = $props()
 
-let preview = $state<string | null>(null)
+let preview = $state.raw<LogExplainPreview | null>(null)
 let missing = $state(false)
 let token = $state<string | null>(null)
 let answer = $state.raw<LogExplainEvent | null>(null)
@@ -32,10 +33,10 @@ $effect(() => {
   token = null
   answer = null
   problem = null
-  void window.elecdex.logwatch.preview(asked).then((text) => {
+  void window.elecdex.logwatch.preview(asked).then((shown) => {
     if (gone) return
-    preview = text
-    missing = text === null
+    preview = shown
+    missing = shown === null
   })
   return () => {
     gone = true
@@ -95,6 +96,8 @@ function stop(): void {
     {#if writing}
       <span class="lamp" data-pulse={pulse.phase}>WRITING</span>
       <button type="button" onclick={stop} data-testid="logwatch-explain-stop">STOP</button>
+    {:else if token === null && preview !== null && !preview.fits}
+      <span class="refused" data-testid="logwatch-explain-too-long">{TOO_LONG}</span>
     {:else if token === null}
       <button
         type="button"
@@ -115,7 +118,7 @@ function stop(): void {
         <p class="note">a line chosen is no longer held: choose again</p>
       {:else if preview !== null}
         <p class="note">sent only when you press SEND{request.mask ? '' : ' · MASK is off: the values go as written'}</p>
-        <pre class="preview" data-testid="logwatch-explain-preview">{preview}</pre>
+        <pre class="preview" data-testid="logwatch-explain-preview">{preview.text}</pre>
       {/if}
     {:else if answer !== null}
       {#if answer.failure !== null}
