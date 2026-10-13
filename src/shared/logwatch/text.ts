@@ -12,6 +12,13 @@ const IPV6 =
 const QUOTED = /"[^"]*"|'[^']*'/g
 const HEX_ID = /\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{6,}\b/gi
 /**
+ * Eight digits or more standing alone are an id too: a hex id that happened to draw no letter
+ * (one in forty of eight characters) made a second pattern, `charge {n} failed` beside
+ * `charge {id} failed`. A count that long is rare; an epoch time is one either way. Not a part
+ * of a decimal number.
+ */
+const DIGIT_ID = /(?<![\w.])\d{8,}(?![\w.])/g
+/**
  * A long opaque token that is not plain hex - `sk_live_4d40…`, a base64 key, a session id with
  * a prefix: twenty characters or more, two digits and a letter. Without it every line naming
  * one was a pattern of its own (found recording the demo). No slash, so a path keeps its shape
@@ -36,6 +43,7 @@ export function signature(level: string, source: string, text: string): string {
     .replace(IPV4, '{ip}')
     .replace(IPV6, '{ip}')
     .replace(HEX_ID, '{id}')
+    .replace(DIGIT_ID, '{id}')
     .replace(OPAQUE, '{id}')
     .replace(NUMBER, '{n}')
   return `${level} ${source} ${shape}`

@@ -155,6 +155,20 @@ describe('text', () => {
     expect(signature('INF', '', 'user "aki" in')).toBe(signature('INF', '', 'user "rin" in'))
   })
 
+  it('makes one pattern of hex ids whether or not they drew a letter', () => {
+    // Found in the demo: an eight-character hex id of digits alone made a second pattern.
+    const charge = (id: string) => signature('ERR', 'worker', `charge ${id} failed after 1200ms`)
+    expect(charge('45699089')).toBe(charge('4b811cdd'))
+    expect(signatureText(charge('45699089'))).toBe('charge {id} failed after {n}ms')
+    expect(signatureText(signature('INF', '', 'at 1760313600123 order=12345678'))).toBe(
+      'at {id} order={id}',
+    )
+    // Shorter counts, decimals and numbers with a unit stay numbers.
+    expect(signatureText(signature('INF', '', 'rows=9890 took 0.123456789s size 1048576'))).toBe(
+      'rows={n} took {n}s size {n}',
+    )
+  })
+
   it('makes one pattern of lines naming different long tokens that are not plain hex', () => {
     // Found recording the demo: every key with a prefix was a pattern of its own.
     const key = (k: string) => signature('INF', 'api', `token issued api_key=${k} for acme`)
