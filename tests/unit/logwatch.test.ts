@@ -587,6 +587,12 @@ describe('explain', () => {
     expect(maskText('invalid token\nTraceback (most recent call last)')).toBe(
       'invalid token\nTraceback (most recent call last)',
     )
+    for (const scheme of ['Bearer', 'Basic']) {
+      expect(maskText(`no ${scheme}\n2026-10-12T12:00:00Z next`)).toBe(
+        `no ${scheme}\n2026-10-12T12:00:00Z next`,
+      )
+      expect(maskText(`${scheme} abcdefgh12345`)).toBe(`${scheme} •••`)
+    }
     const a = line(NOW, 'ERR', { seq: 1, raw: 'refused: bad token' })
     const b = line(NOW, 'INF', { seq: 2, raw: '2026-10-12T12:00:00Z retrying now' })
     expect(copyText([b, a], true)).toBe('refused: bad token\n2026-10-12T12:00:00Z retrying now')

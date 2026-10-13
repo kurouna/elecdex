@@ -383,6 +383,8 @@ describe('LogWatchWidget', () => {
       screen.getByTestId('logwatch-explain-open').click()
       await settle()
       expect(previews.at(-1)).toMatchObject({ provider: 'gone', model: 'custom' })
+      // Named as main will ask: the first provider, with its own model, not the pane's.
+      expect(screen.getByTestId('logwatch-explain').textContent).toContain('One · m1')
     } finally {
       appearance.settings = defaultSettings()
     }
@@ -418,6 +420,19 @@ describe('LogWatchWidget, from the review', () => {
     render(LogWatchWidget, {
       props: { paneId: id, title: 'log watch', props: {}, state: { file: ID }, active: true },
     })
+
+  it('says it waits for a file that is not there yet', async () => {
+    mount(`w${seq}`)
+    await settle()
+    deliver?.({
+      key: `${ID}/auto`,
+      reset: true,
+      items: [],
+      status: { ...status, state: 'waiting' },
+    })
+    await settle()
+    expect(screen.getByTestId('logwatch-empty').textContent).toContain('waiting for the file')
+  })
 
   it('empties the filter on Escape', async () => {
     mount(`f${seq}`)
@@ -473,6 +488,9 @@ describe('LogWatchWidget, from the review', () => {
     })
     await settle()
     expect(asked).toBeGreaterThan(first)
+    screen.getByTestId('logwatch-settings-toggle').click()
+    await settle()
+    expect((screen.getByTestId('logwatch-format') as HTMLSelectElement).value).toBe('jsonl')
     describeAs = before
   })
 })

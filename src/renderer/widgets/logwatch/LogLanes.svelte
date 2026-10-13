@@ -7,7 +7,8 @@ import { appearance } from '../../stores/appearance.svelte.ts'
 /**
  * Five minutes of lines, five seconds a bar, stacked by level: errors at the foot in the
  * danger colour, warnings above them, the rest in the accent's shades (docs/logwatch.md §2).
- * Plain 2D canvas, drawn again once a second while seen (the window moves on), and on a theme.
+ * Plain 2D canvas, drawn again when what it shows changes (a count, or the window moving on a
+ * bar), and on a theme - not at every second's new array of the same counts.
  */
 interface Props {
   buckets: readonly LevelCounts[]

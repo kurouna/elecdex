@@ -278,6 +278,8 @@ describe('LogExplainer', () => {
   it('refuses a choice too long to send, rather than send part of it', () => {
     const long = line(7, `ERROR ${'x'.repeat(20_000)}`)
     const r = rig({}, [PROVIDER], null, [long])
+    // The preview says so first, for the pane to show before SEND.
+    expect(r.explainer.preview({ ...REQUEST, seqs: [7] })?.fits).toBe(false)
     expect(r.explainer.start('page', { ...REQUEST, seqs: [7] })).toEqual({
       problem: 'too long to send (over 12,000 characters): choose fewer lines',
     })

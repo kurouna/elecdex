@@ -213,6 +213,28 @@ describe('files that change under the pane', () => {
     expect(r.texts('p')).toEqual(['line 1', 'line 2', 'line 3'])
   })
 
+  it('reads the tail once at opening, not counted and then read again', async () => {
+    // Found in review: the back-scan's bytes were read a second time to be parsed.
+    const file = path.join(dir, 'app.log')
+    writeFileSync(file, lines(1, 2000))
+    let read = 0
+    const r = rig(one(file), {
+      fs: {
+        read: async (target, start, length) => {
+          const bytes = await nodeFs.read(target, start, length)
+          read += bytes.length
+          return bytes
+        },
+      },
+    })
+    r.service.subscribe('p', { id: ID, encoding: 'auto', since: -1 })
+    await r.settle()
+    expect(r.texts('p').at(-1)).toBe('line 2000')
+    // The file once, with the few bytes of its head (a BOM) and the one that tells a rewrite;
+    // read twice it was about double.
+    expect(read).toBeLessThan(statSync(file).size + 64)
+  })
+
   it('marks no line NEW of the first ones written to a file opened empty', async () => {
     // Found in review: with nothing learnt, every first line of an empty file was NEW.
     const file = path.join(dir, 'app.log')
