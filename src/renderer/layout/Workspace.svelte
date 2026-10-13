@@ -271,18 +271,18 @@ function findInShell(): boolean {
 
 /** Clears the scrollback of the shell that has the keyboard, or the one the keys would go to. */
 function clearShell(): boolean {
+  // Only the shell that has the keyboard: a scrollback is not undone, and the shell the keys
+  // would go to may be one the user is not looking at (found in review).
   const focused = layout.panes.find((p) => p.id === layout.focusedPaneId)
-  if (focused?.widget !== 'terminal') {
-    const pane = layout.shellToFocus()
-    if (pane === null) return false
-    layout.focus(pane)
-  }
+  if (focused?.widget !== 'terminal') return false
   ui.clearShell()
   return true
 }
 
 /** The shells' type size a step larger or smaller (settings.terminal.fontSize). */
 function stepShellFont(step: number): boolean {
+  // With no shell open the keys are left to the pane that has them (a web page zooms with them).
+  if (!layout.panes.some((p) => p.widget === 'terminal')) return false
   const size = appearance.settings.terminal.fontSize
   const next = stepFontSize(size, step)
   if (next !== size) void appearance.patch({ terminal: { fontSize: next } })

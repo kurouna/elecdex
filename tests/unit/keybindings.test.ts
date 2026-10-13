@@ -62,6 +62,19 @@ describe('keybindings', () => {
     expect(formatChord('Ctrl+Alt+Digit1')).toBe('Ctrl+Alt+1')
   })
 
+  it('names a mark as this keyboard prints it, where one is known', () => {
+    // Found in review: on a Japanese keyboard the Equal key prints "^", and "Ctrl+Shift+=" there
+    // was the key that makes the type smaller.
+    const jis = { Equal: '^', Minus: '-', BracketLeft: '@', BracketRight: '[', KeyA: 'a' }
+    expect(formatChord('Ctrl+Shift+Equal', jis)).toBe('Ctrl+Shift+^')
+    expect(formatChord('Ctrl+Shift+BracketLeft', jis)).toBe('Ctrl+Shift+@')
+    // Letters and digits keep their names; without labels, a US keyboard's.
+    expect(formatChord('Ctrl+Shift+KeyA', jis)).toBe('Ctrl+Shift+A')
+    expect(formatChord('Ctrl+Shift+Equal')).toBe('Ctrl+Shift+=')
+    // A label that is not one character (a dead key's name) is not used.
+    expect(formatChord('Ctrl+Shift+Equal', { Equal: 'Dead' })).toBe('Ctrl+Shift+=')
+  })
+
   it('applies overrides, falls back from invalid ones, and can unbind', () => {
     const bindings = effectiveBindings(
       {

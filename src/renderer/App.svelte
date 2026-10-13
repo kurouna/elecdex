@@ -14,6 +14,7 @@ import SwitchLayoutDialog from './layout/SwitchLayoutDialog.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { chordHint } from './lib/chord-hint.ts'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
+import { keyLabels } from './lib/key-labels.svelte.ts'
 import { plugins } from './plugins/plugins.svelte.ts'
 import QuakeAlert from './QuakeAlert.svelte'
 import SettingsDialog from './SettingsDialog.svelte'
@@ -93,7 +94,7 @@ const layoutChords = $derived.by(() => {
   )
   return layoutButtons.map((_, i) => {
     const chord = bindings[`layout.saved${i + 1}` as KeybindingAction]
-    return chord === null ? null : formatChord(chord)
+    return chord === null ? null : formatChord(chord, keyLabels.map)
   })
 })
 

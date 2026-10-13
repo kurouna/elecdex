@@ -594,6 +594,7 @@ const api: ElecdexApi = {
     attach,
     write: (id, data) => post(id, { t: 'write', data }),
     resize: (id, cols, rows) => post(id, { t: 'resize', cols, rows }),
+    clearScrollback: (id) => post(id, { t: 'clear' }),
     dispose: (id) => ipcRenderer.invoke(CH.pty.dispose, id) as Promise<void>,
     list: () => ipcRenderer.invoke(CH.pty.list) as Promise<PtySessionSummary[]>,
   },

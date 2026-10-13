@@ -24,6 +24,8 @@ import {
   opensLink,
   pasteLines,
   pasteNeedsAsking,
+  pastePreview,
+  validPattern,
 } from './input.ts'
 import TerminalSearch, { type SearchHow } from './TerminalSearch.svelte'
 import { WebglKeeper } from './webgl-keeper.ts'
@@ -56,6 +58,9 @@ const { paneId, state: paneState, active, visible = true }: WidgetProps = $props
  * while panes are rearranged, which this delay absorbs.
  */
 const PTY_RESIZE_SETTLE_MS = 120
+
+/** How long after attaching the screen sent with it is taken to have come. */
+const ATTACH_SETTLE_MS = 600
 
 let host = $state<HTMLDivElement | null>(null)
 // State, so the focus effect below runs again once the terminal exists: at startup
@@ -135,6 +140,9 @@ function recordFolder(cwd: string | null): void {
   if (cwd !== null && cwd !== lastFolder()) widgetState.patch(paneId, { cwd })
 }
 
+/** What a live session's pane shows of its end: nothing. */
+const LIVE = { exited: null, error: null, lastCommand: null } as const
+
 /**
  * Adopts a session: reuses the one recorded in the pane's layout state when it
  * is still alive, otherwise creates one. This is what makes a pane survive a
@@ -148,6 +156,7 @@ async function adoptSession(gone: () => boolean): Promise<string | null> {
     const found = alive.find((s) => s.id === recorded)
     if (found) {
       sessions.patch(paneId, {
+        ...LIVE,
         sessionId: found.id,
         shell: shellName(found.shell),
         cwd: found.cwd,
@@ -166,7 +175,11 @@ async function adoptSession(gone: () => boolean): Promise<string | null> {
       void window.elecdex.pty.dispose(created.id)
       return null
     }
+    // A new shell, perhaps for a pane whose last one ended: nothing of that end stays (found in
+    // review: a pane remounted after its shell exited kept "exited", and its first key started a
+    // third shell).
     sessions.patch(paneId, {
+      ...LIVE,
       sessionId: created.id,
       shell: shellName(created.shell),
       cwd: created.cwd,
@@ -214,9 +227,15 @@ $effect(() => {
   let terminal: Terminal | null = null
   let observer: ResizeObserver | null = null
   let resizeTimer: ReturnType<typeof setTimeout> | null = null
+  /** Whether output now is the shell's own, for the tab's dot; not the screen sent on attaching. */
+  let watching = false
+  let watchTimer: ReturnType<typeof setTimeout> | null = null
 
   void (async () => {
-    const id = await adoptSession(() => disposed)
+    // Untracked: the pane's state is read to adopt a session, and its every change (the folder
+    // after a cd) made the whole terminal again - its screen, scroll and what was being typed
+    // (found in review). A restart asks for a new one through `generation`.
+    const id = await untrack(() => adoptSession(() => disposed))
     if (id === null || disposed) return
 
     terminal = new Terminal({
@@ -231,6 +250,14 @@ $effect(() => {
       lineHeight: 1.15,
       theme: buildXtermTheme(paletteFromCss(el), appearance.theme.terminal?.ansi),
       minimumContrastRatio: minimumContrastRatio(appearance.theme.mode),
+      // A link a program marks (OSC 8) opens as a printed one does, on Ctrl+click: without this,
+      // xterm asked with window.confirm() on a plain click, blocking the page, then opened
+      // nothing (found in review).
+      linkHandler: {
+        activate: (event, uri) => {
+          if (opensLink(event)) void window.elecdex.system.openExternal(uri)
+        },
+      },
     })
 
     const fitAddon = new FitAddon()
@@ -283,10 +310,15 @@ $effect(() => {
 
     const typed = new HeldInput()
     const send = (data: string): void => window.elecdex.pty.write(id, data)
+    const ended = (): boolean => untrack(() => sessions.get(paneId).exited) !== null
     terminal.onData((data) => {
-      // Its shell has ended: a key starts a new one where it was, rather than going nowhere.
-      if (untrack(() => sessions.get(paneId).exited) !== null) restart()
-      else typed.type(data, send)
+      if (!ended()) typed.type(data, send)
+    })
+    // Its shell has ended: a key starts a new one where it was. A key, not any data - a
+    // program that died with focus or mouse reports on would restart it on a click (found in
+    // review).
+    terminal.onKey(() => {
+      if (ended()) restart()
     })
     terminal.onBell(bell)
     detachClipboard = bindClipboard(terminal, el)
@@ -314,8 +346,10 @@ $effect(() => {
       off = await window.elecdex.pty.attach(id, {
         onData: (chunk) => {
           terminal?.write(decoder.decode(chunk, { stream: true }))
-          // Assigned only when it changes: output comes many times a second.
-          if (!untrack(() => visible) && !untrack(() => activity)) activity = true
+          // Assigned only when it changes: output comes many times a second. Not for what comes
+          // first, the screen sent as the pane attaches (every tab behind another was marked
+          // after a reload, found in review).
+          if (watching && !untrack(() => visible) && !untrack(() => activity)) activity = true
         },
         onCwd: (cwd) => {
           sessions.patch(paneId, { cwd, integrationPending: false })
@@ -346,6 +380,10 @@ $effect(() => {
     }
     detach = off
     typed.release(send)
+    // The screen it was sent on attaching has come by now; what comes after is the shell's.
+    watchTimer = setTimeout(() => {
+      watching = true
+    }, ATTACH_SETTLE_MS)
     // Hidden before a new size had held, a pane once never told the shell: shown
     // again at that size, xterm reports no resize, and the shell went on
     // wrapping at the old width. Every fit of a shown pane checks.
@@ -368,6 +406,7 @@ $effect(() => {
     disposed = true
     syncSize = null
     if (resizeTimer !== null) clearTimeout(resizeTimer)
+    if (watchTimer !== null) clearTimeout(watchTimer)
     observer?.disconnect()
     detach?.()
     detachClipboard?.()
@@ -420,7 +459,11 @@ $effect(() => {
   const mine = active
   if (request === clearSeen) return
   clearSeen = request
-  if (mine) term?.clear()
+  if (!mine || term === null) return
+  term.clear()
+  // Main's copy too: an attach (a move, a reload) would otherwise bring it all back.
+  const id = sessions.get(paneId).sessionId
+  if (id !== null) window.elecdex.pty.clearScrollback(id)
 })
 
 // A theme switch restyles the terminal in place: palette, and font if it changed.
@@ -495,11 +538,7 @@ function bindClipboard(t: Terminal, el: HTMLElement): () => void {
 async function pasteChecked(t: Terminal, text: string): Promise<void> {
   if (text === '') return
   if (pasteNeedsAsking(text, appearance.settings.terminal.confirmPaste)) {
-    const preview = text
-      .split(/\r\n|\r|\n/)
-      .slice(0, 12)
-      .join('\n')
-    const go = await ui.askPaste({ lines: pasteLines(text), preview })
+    const go = await ui.askPaste({ lines: pasteLines(text), ...pastePreview(text) })
     t.focus()
     if (!go) return
   }
@@ -522,9 +561,11 @@ $effect(() => {
 })
 
 /** Moves the selection to a match, with the clipboard held back while it does. */
-function runSearch(addon: SearchAddon, query: string, back: boolean, how: SearchHow): void {
+function runSearch(addon: SearchAddon, query: string, back: boolean, how: SearchHow): boolean {
   const el = host
-  if (el === null) return
+  if (el === null) return true
+  // The addon makes a RegExp of it unguarded: "(" half typed threw on every key (found in review).
+  if (how.regex && !validPattern(query)) return false
   const options = {
     ...how,
     // Incremental only going forward: it expands the selection while the term is
@@ -535,6 +576,7 @@ function runSearch(addon: SearchAddon, query: string, back: boolean, how: Search
   selectionIsSearch = true
   if (back) addon.findPrevious(query, options)
   else addon.findNext(query, options)
+  return true
 }
 
 function closeSearch(): void {

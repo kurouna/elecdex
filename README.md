@@ -345,6 +345,10 @@ starts in a window and `--no-intro` skips the boot sequence.
 
 ## Keyboard
 
+Keys are named as a US keyboard prints them; they are the same keys on others (on a Japanese
+keyboard, Ctrl+Shift+= is Ctrl+Shift+^ and Ctrl+Shift+[ / ] are Ctrl+Shift+@ / [). The app's
+own lists and tooltips name them as your keyboard prints them.
+
 | Shortcut | Action |
 | --- | --- |
 | Ctrl+Shift+E | split the focused pane (a tab: its whole group) to the right |

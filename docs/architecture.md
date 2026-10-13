@@ -1547,11 +1547,13 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 **テスト**: osc-parser.test.ts（9;9 の受け取りと素通し）、start-directory.test.ts（フォールバックと待ちの打ち切り）、pty-ipc.test.ts（待つ間の終了）、shell-cwd-scripts.test.ts（各シェルの本物のスクリプトで ASCII 外のフォルダ。CI では zsh と fish を入れる）、terminal.spec.ts（再起動でのフォルダの復元、新しいペイン、消えたフォルダ）
 
 ### 6.3 シェル解決
-シェルは main が環境から決める（`defaultShell`: Windows は Windows PowerShell、ほかは `SHELL`）。ページはシェルも引数も指定できない（2026-10-13、レビューで: ページの `shell` と `args` がそのまま spawn に渡っていた）。PATH の検索やログインシェルの環境の取り込みはしない。`TERM=xterm-256color` / `COLORTERM=truecolor` / `TERM_PROGRAM=elecdex` を付与する。zsh の ZDOTDIR は 1 回の起動で 1 つのフォルダを使い、終了時に消す。
+シェルは main が環境から決める（`defaultShell`: Windows は PowerShell 7 があればそれ、なければ Windows PowerShell。ほかは `SHELL`。見つけた PowerShell 7 が起動しなければ Windows PowerShell に切り替える）。ページはシェルも引数も指定できない（2026-10-13、レビューで: ページの `shell` と `args` がそのまま spawn に渡っていた）。PATH の検索やログインシェルの環境の取り込みはしない。`TERM=xterm-256color` / `COLORTERM=truecolor` / `TERM_PROGRAM=elecdex` を付与する。zsh の ZDOTDIR は 1 回の起動で 1 つのフォルダを使い、終了時に消す。
 
 Windows では、PowerShell 7 が `%ProgramFiles%\PowerShell\7\pwsh.exe`（インストーラー）か `%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe`（Microsoft Store のエイリアス）にあればそれを、なければ Windows PowerShell を使う（2026-10-13、利用者の決定。プロセスは起こさず、ファイルの有無だけを見る。Store の本体はバージョン名のフォルダにあって利用者には開けないので、エイリアスを使う。エイリアスはたどれないリンクで `existsSync` には見えないため `lstat` で見る）。
 
 ペインのまわり（TerminalWidget、2026-10-13）: 終了したシェルはキーで同じフォルダに新しく始まる（ペインがセッションを忘れて作り直す）。複数行の貼り付けは `PasteDialog` で先に聞く（右クリックとキーボードの貼り付けの両方。`terminal.confirmPaste`、「やめる」付き）。ベル（BEL）は `terminal.bell` のとおりに縁の光と音、0.5 秒に 1 度まで。後ろのタブで出力が来るとタブに点（`paneMeta.activity`、見えたら消える）。検索は大文字小文字・単語単位・正規表現を切り替えられる。`shell.clear`（Ctrl+Shift+K）でスクロールバックを消し、`shell.fontBigger` / `shell.fontSmaller`（Ctrl+Shift+= / -）で `terminal.fontSize` を全シェルに。
+
+ペインのまわりの追補（2026-10-14、変更のレビューで）: ペインの状態（`cd` のたびのフォルダ）が変わっても端末を作り直さない（セッションを選ぶところを `untrack`）。Ctrl+Shift+K は main の写し（`ScreenMirror`）のスクロールバックも消す（つなぎ直しで戻らない）。作った・つないだセッションでは終了の表示を消す。終了したシェルの再開は `onKey` で（フォーカスやマウスの報告では始めない）。OSC 8 のリンクも Ctrl+クリック（`linkHandler`。xterm の既定の `confirm()` を使わない）。正規表現の途中は「not a pattern」。タブの点はつないだ直後の画面（スナップショット）では付けない。貼り付けの確認はタブ・改行以外の制御文字でも聞き、見本は ^X で見せ「and N more lines」を添える。ダイアログで、ボタンに当てた Enter はそのボタン。Ctrl+Shift+K はキーボードを持つシェルだけ、文字の大きさのキーはシェルがあるときだけ取る。
 
 ページの側（widgets/terminal/input.ts）: OSC 52 はクリップボードへの書き込みだけを受け、読み取りの問い合わせには何も返さない（クリップボードの中身をプログラムに渡さない）。シェルが出したリンクは Ctrl+クリック（⌘+クリック）で開く。アタッチ前に打ったキーは保って、つながったら順に送る。隠れたタブのペインは WebGL のコンテキストを取らず、見えたときに取る。
 

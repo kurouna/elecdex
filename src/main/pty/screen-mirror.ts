@@ -85,6 +85,14 @@ export class ScreenMirror {
     this.drained = then
   }
 
+  /** The scrollback dropped, the screen kept, as xterm's clear() does; after what was written. */
+  clear(): void {
+    if (this.disposed) return
+    this.terminal.write('', () => {
+      if (!this.disposed) this.terminal.clear()
+    })
+  }
+
   resize(cols: number, rows: number): void {
     if (!this.disposed) this.terminal.resize(cols, rows)
   }

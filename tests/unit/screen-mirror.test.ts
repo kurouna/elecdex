@@ -57,6 +57,17 @@ describe('ScreenMirror', () => {
     mirror.dispose()
   })
 
+  it('drops its scrollback when cleared, so an attach does not bring it back', async () => {
+    // Found in review: Ctrl+Shift+K cleared the pane, and the next attach replayed it all.
+    const mirror = new ScreenMirror(20, 3)
+    for (let i = 0; i < 10; i++) mirror.write(bytes(`line ${i}\r\n`))
+    mirror.clear()
+    const lines = await renderInto(await mirror.snapshot(), 20, 3)
+    expect(lines.some((line) => line.startsWith('line 0'))).toBe(false)
+    expect(lines.length).toBeLessThanOrEqual(3)
+    mirror.dispose()
+  })
+
   it('covers every chunk written before the snapshot was requested', async () => {
     const mirror = new ScreenMirror(20, 5)
     // No await between the write and the snapshot: the parser has not run yet.

@@ -249,6 +249,8 @@ export interface PtyApi {
   attach(id: string, handlers: PtyHandlers): Promise<() => void>
   write(id: string, data: string): void
   resize(id: string, cols: number, rows: number): void
+  /** Clears the session's scrollback in main, as the pane clears its own. */
+  clearScrollback(id: string): void
   dispose(id: string): Promise<void>
   list(): Promise<PtySessionSummary[]>
 }

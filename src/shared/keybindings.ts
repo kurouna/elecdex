@@ -172,7 +172,13 @@ export function normalizeChord(chord: string): string | null {
 }
 
 /** "Ctrl+Shift+KeyA" -> "Ctrl+Shift+A", "BracketRight" -> "]", for display. */
-export function formatChord(chord: string): string {
+/**
+ * A chord as the user reads it. A key is named as `labels` says this keyboard prints it, where
+ * it is one of the marks whose place differs between layouts: a Japanese keyboard's Equal key
+ * prints "^", its BracketLeft "@" (found in review: "Ctrl+Shift+=" was the key that makes the type
+ * smaller there). Without labels, a US keyboard's.
+ */
+export function formatChord(chord: string, labels: Readonly<Record<string, string>> = {}): string {
   const KEY_NAMES: Record<string, string> = {
     BracketLeft: '[',
     BracketRight: ']',
@@ -192,7 +198,12 @@ export function formatChord(chord: string): string {
   }
   return chord
     .split('+')
-    .map((part) => KEY_NAMES[part] ?? part.replace(/^Key/, '').replace(/^Digit/, ''))
+    .map((part) => {
+      const named = KEY_NAMES[part]
+      if (named === undefined) return part.replace(/^Key/, '').replace(/^Digit/, '')
+      const printed = labels[part]
+      return printed !== undefined && printed.length === 1 ? printed : named
+    })
     .join('+')
 }
 
@@ -231,9 +242,10 @@ export function actionChord(
   action: KeybindingAction,
   overrides: KeybindingOverrides,
   platform: NodeJS.Platform,
+  labels: Readonly<Record<string, string>> = {},
 ): string | null {
   const chord = effectiveBindings(overrides, platform)[action]
-  return chord === null ? null : formatChord(chord)
+  return chord === null ? null : formatChord(chord, labels)
 }
 
 /** A button's words with its chord after them in brackets, or the words alone. */

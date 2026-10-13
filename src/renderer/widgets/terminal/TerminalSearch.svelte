@@ -25,7 +25,8 @@ import type { SearchAddon } from '@xterm/addon-search'
 interface Props {
   addon: SearchAddon
   /** Runs a search and moves the selection to the match. */
-  find: (term: string, back: boolean, how: SearchHow) => void
+  /** False when the text is not a regular expression yet (with .* on): nothing was searched. */
+  find: (term: string, back: boolean, how: SearchHow) => boolean
   /** Bumped by the shortcut to put the keyboard back in the box, text selected. */
   focusToken: number
   onclose: () => void
@@ -36,6 +37,8 @@ const { addon, find, focusToken, onclose }: Props = $props()
 let query = $state('')
 let box = $state<HTMLInputElement | null>(null)
 let results = $state<{ index: number; count: number } | null>(null)
+/** The text is not a regular expression yet, with .* on. */
+let invalid = $state(false)
 /** Kept while the bar is open; a new bar starts plain. */
 let how = $state<SearchHow>({ caseSensitive: false, regex: false, wholeWord: false })
 
@@ -67,16 +70,21 @@ $effect(() => {
 
 function step(back: boolean): void {
   if (query === '') return
-  find(query, back, how)
+  invalid = !find(query, back, how)
 }
 
 function onInput(): void {
   if (query === '') {
     addon.clearDecorations()
     results = null
+    invalid = false
     return
   }
-  find(query, false, how)
+  invalid = !find(query, false, how)
+  if (invalid) {
+    addon.clearDecorations()
+    results = null
+  }
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -96,6 +104,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 /** "3/12", or "no matches" once something has been typed. */
 const tally = $derived.by(() => {
+  if (invalid) return 'not a pattern'
   if (query === '' || results === null) return ''
   if (results.count === 0) return 'no matches'
   // resultIndex is -1 when there are more matches than the addon will mark.
@@ -138,7 +147,7 @@ const tally = $derived.by(() => {
     onclick={() => toggle('regex')}
     data-testid="terminal-search-regex">.*</button
   >
-  <span class="tally" class:none={results?.count === 0} data-testid="terminal-search-tally"
+  <span class="tally" class:none={invalid || results?.count === 0} data-testid="terminal-search-tally"
     >{tally}</span
   >
   <button type="button" title="Previous match (Shift+Enter)" onclick={() => step(true)}>‹</button>

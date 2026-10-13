@@ -12,6 +12,7 @@ import { cleanLayoutName, KEYED_LAYOUTS, MAX_SAVED_LAYOUTS, slotKey } from '@sha
 import { tick } from 'svelte'
 import ConfirmButton from '../ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
+import { keyLabels } from '../lib/key-labels.svelte.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
@@ -84,7 +85,10 @@ const presetChords = $derived.by(() => {
   return new Map(
     LAYOUT_PRESETS.map((preset) => {
       const chord = bindings[`layout.preset.${preset.id}` as KeybindingAction]
-      return [preset.id, chord === null || chord === undefined ? null : formatChord(chord)]
+      return [
+        preset.id,
+        chord === null || chord === undefined ? null : formatChord(chord, keyLabels.map),
+      ]
     }),
   )
 })

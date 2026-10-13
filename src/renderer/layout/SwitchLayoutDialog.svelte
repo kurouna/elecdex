@@ -36,6 +36,8 @@ function always(): void {
 
 function onKeydown(event: KeyboardEvent): void {
   if (request === null) return
+  // Enter on a button presses that button: on "stay here" it switched, ending the shells.
+  if (event.key === 'Enter' && event.target instanceof HTMLButtonElement) return
   if (event.key === 'Escape' || event.key === 'Enter') {
     event.preventDefault()
     event.stopPropagation()

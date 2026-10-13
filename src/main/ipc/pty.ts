@@ -122,6 +122,7 @@ export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
           const request = validatePortRequest(msg.data)
           if (request === null) return
           if (request.t === 'write') manager.write(id, request.data)
+          else if (request.t === 'clear') manager.clearScrollback(id)
           else manager.resize(id, request.cols, request.rows)
         })
         const attached: Attached = { port: port1, backlog: [] }
@@ -242,5 +243,6 @@ function validatePortRequest(raw: unknown): PtyPortRequest | null {
     if (!Number.isFinite(o.cols) || !Number.isFinite(o.rows)) return null
     return { t: 'resize', cols: o.cols, rows: o.rows }
   }
+  if (o.t === 'clear') return { t: 'clear' }
   return null
 }

@@ -23,6 +23,27 @@ import { buildInjection, defaultShell, terminalEnv } from './shell-integration.j
 export const INTEGRATION_GRACE_MS = 10_000
 
 /**
+ * What to try when the shell found will not start: on Windows, Windows PowerShell after a
+ * PowerShell 7 that is there and broken (a Store alias left behind by the app's removal).
+ */
+export function fallbackShells(shell: string, platform: NodeJS.Platform): string[] {
+  return platform === 'win32' && /pwsh(\.exe)?$/i.test(shell) ? ['powershell.exe'] : []
+}
+
+/** The first of the shells that starts; the last one's failure if none does. */
+export function startFirst<T>(shells: readonly string[], start: (shell: string) => T): T {
+  let failure: unknown = new Error('no shell to start')
+  for (const shell of shells) {
+    try {
+      return start(shell)
+    } catch (error) {
+      failure = error
+    }
+  }
+  throw failure
+}
+
+/**
  * What main itself may choose of a shell: the page's options, and the program - for the tests'
  * stand-in only; the IPC never fills it.
  */
@@ -70,20 +91,26 @@ export class PtyManager {
 
   create(opts: PtySpawnOptions): PtySessionSummary {
     const baseEnv = terminalEnv(process.env, APP_VERSION)
-    const shell = opts.shell ?? defaultShell(baseEnv)
-    const injection = buildInjection(shell, baseEnv)
-    const env = { ...baseEnv, ...injection.env }
-
     const id = randomUUID()
     const cols = opts.cols ?? 80
     const rows = opts.rows ?? 24
-    const pty = spawn(shell, injection.args, {
-      name: 'xterm-256color',
-      cols,
-      rows,
-      cwd: opts.cwd ?? env.HOME ?? process.cwd(),
-      env,
-    })
+    const start = (shell: string) => {
+      const injection = buildInjection(shell, baseEnv)
+      const env = { ...baseEnv, ...injection.env }
+      const pty = spawn(shell, injection.args, {
+        name: 'xterm-256color',
+        cols,
+        rows,
+        cwd: opts.cwd ?? env.HOME ?? process.cwd(),
+        env,
+      })
+      return { shell, injection, pty }
+    }
+    const chosen = opts.shell ?? defaultShell(baseEnv)
+    const { shell, injection, pty } = startFirst(
+      [chosen, ...fallbackShells(chosen, process.platform)],
+      start,
+    )
 
     const session: Session = {
       id,
@@ -133,6 +160,11 @@ export class PtyManager {
     const session = this.sessions.get(id)
     if (!session || session.exited) return
     session.pty.write(data)
+  }
+
+  /** Drops the scrollback main keeps for the session, as the pane's own was (Ctrl+Shift+K). */
+  clearScrollback(id: string): void {
+    this.sessions.get(id)?.mirror.clear()
   }
 
   resize(id: string, cols: number, rows: number): void {

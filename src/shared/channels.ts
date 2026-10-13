@@ -536,3 +536,5 @@ export type PtyPortMessage =
 export type PtyPortRequest =
   | { t: 'write'; data: string }
   | { t: 'resize'; cols: number; rows: number }
+  /** The scrollback cleared (Ctrl+Shift+K): main's copy too, or an attach would bring it back. */
+  | { t: 'clear' }

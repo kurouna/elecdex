@@ -1,5 +1,6 @@
 import { actionChord, type KeybindingAction, withChord } from '@shared/keybindings'
 import { appearance } from '../stores/appearance.svelte.ts'
+import { keyLabels } from './key-labels.svelte.ts'
 
 /**
  * A button's tooltip naming the shortcut that does the same, as it is bound now
@@ -10,5 +11,8 @@ export function chordHint(text: string, action: KeybindingAction): string {
   // Without the bridge's platform (a component test) no chord can be named surely.
   const platform = window.elecdex?.system?.platform
   if (platform === undefined) return text
-  return withChord(text, actionChord(action, appearance.settings.keybindings, platform))
+  return withChord(
+    text,
+    actionChord(action, appearance.settings.keybindings, platform, keyLabels.map),
+  )
 }

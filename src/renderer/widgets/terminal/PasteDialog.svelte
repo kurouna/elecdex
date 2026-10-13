@@ -24,6 +24,8 @@ function always(): void {
 
 function onKeydown(event: KeyboardEvent): void {
   if (request === null) return
+  // Enter on a button presses that button: on "don't paste" it pasted (found in review).
+  if (event.key === 'Enter' && event.target instanceof HTMLButtonElement) return
   if (event.key === 'Escape' || event.key === 'Enter') {
     event.preventDefault()
     event.stopPropagation()
@@ -62,6 +64,7 @@ function onKeydown(event: KeyboardEvent): void {
           {request.lines} lines: each line break runs what is before it in the shell.
         </p>
         <pre class="preview" data-testid="paste-preview">{request.preview}</pre>
+        {#if request.more > 0}<p class="more" data-testid="paste-more">and {request.more} more {request.more === 1 ? 'line' : 'lines'}</p>{/if}
         <div class="buttons">
           <button type="button" onclick={() => ui.answerPaste(false)} data-testid="paste-cancel">
             don't paste
@@ -156,12 +159,16 @@ button:hover {
   color: var(--accent-strong);
 }
 
+.more {
+  color: var(--text-muted);
+}
+
 .always {
   align-self: flex-end;
   padding: 0;
   border: none;
   color: var(--text-muted);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   text-decoration: underline;
 }
 

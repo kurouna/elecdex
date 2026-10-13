@@ -26,6 +26,7 @@ import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
 import { chordHint } from './lib/chord-hint.ts'
 import { backdropShade, crtPower, dialogDelay } from './lib/crt-transitions.ts'
+import { keyLabels } from './lib/key-labels.svelte.ts'
 import PluginSettings from './plugins/PluginSettings.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { background } from './stores/background.svelte.ts'
@@ -738,12 +739,12 @@ function describeUpdate(status: UpdateStatus): string {
                   onclick={() => (recording === 'window.toggle' ? stopRecording() : startRecording('window.toggle'))}
                   data-testid="settings-global-shortcut-chord"
                 >
-                  {recording === 'window.toggle' ? 'press keys…' : toggleChord === null ? 'none' : formatChord(toggleChord)}
+                  {recording === 'window.toggle' ? 'press keys…' : toggleChord === null ? 'none' : formatChord(toggleChord, keyLabels.map)}
                 </button>
                 <button
                   type="button"
                   class="link"
-                  title={`Default: ${formatChord(defaultChord('window.toggle'))}`}
+                  title={`Default: ${formatChord(defaultChord('window.toggle'), keyLabels.map)}`}
                   disabled={!('window.toggle' in settings.keybindings)}
                   onclick={() => setBinding('window.toggle', undefined)}
                   data-testid="settings-global-shortcut-reset"
@@ -840,7 +841,7 @@ function describeUpdate(status: UpdateStatus): string {
                           onclick={() => (recording === action.id ? stopRecording() : startRecording(action.id))}
                           data-testid="keybinding-chord"
                         >
-                          {recording === action.id ? 'press keys…' : chord === null ? 'none' : formatChord(chord)}
+                          {recording === action.id ? 'press keys…' : chord === null ? 'none' : formatChord(chord, keyLabels.map)}
                         </button>
                       </td>
                       <td class="state">

@@ -12,8 +12,10 @@ export interface LayoutSwitchRequest {
 /** A paste of several lines waiting to be let into a shell. */
 export interface PasteRequest {
   lines: number
-  /** The first lines, as the question shows them. */
+  /** The first lines, as the question shows them (control characters made visible). */
   preview: string
+  /** Lines the preview leaves out. */
+  more: number
   answer: (go: boolean) => void
 }
 

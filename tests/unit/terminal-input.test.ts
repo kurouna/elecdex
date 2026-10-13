@@ -9,6 +9,8 @@ import {
   opensLink,
   pasteLines,
   pasteNeedsAsking,
+  pastePreview,
+  validPattern,
 } from '../../src/renderer/widgets/terminal/input.js'
 
 /**
@@ -100,6 +102,32 @@ describe('pasting several lines', () => {
     expect(pasteLines('a\nb')).toBe(2)
     expect(pasteLines('a\r\nb\r\n')).toBe(2)
     expect(pasteLines('a\rb\rc')).toBe(3)
+  })
+})
+
+describe('the paste question', () => {
+  it('asks for other control keys a shell acts on too, not for a tab', () => {
+    // Found in review: Ctrl+O runs the line in readline without a line break.
+    expect(pasteNeedsAsking('ls\u000f', true)).toBe(true)
+    expect(pasteNeedsAsking('a\tb', true)).toBe(false)
+  })
+
+  it('shows what it holds: control characters made visible, and how much is left out', () => {
+    const text = Array.from({ length: 15 }, (_, i) => `line ${i}`).join('\n')
+    const { preview, more } = pastePreview(text)
+    expect(preview.split('\n')).toHaveLength(12)
+    expect(more).toBe(3)
+    expect(pastePreview('rm\u000frf').preview).toBe('rm^Orf')
+    expect(pastePreview('a\u202eb').preview).toBe('a<U+202E>b')
+    expect(pastePreview('x\u007f').preview).toBe('x^?')
+  })
+})
+
+describe('validPattern', () => {
+  it('says whether a regular expression can be made of what is typed', () => {
+    expect(validPattern('err.r')).toBe(true)
+    expect(validPattern('(')).toBe(false)
+    expect(validPattern('[a-')).toBe(false)
   })
 })
 

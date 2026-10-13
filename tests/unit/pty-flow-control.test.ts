@@ -112,6 +112,31 @@ describe('a shell writing faster than the mirror parses', () => {
   })
 })
 
+describe('starting the shell', () => {
+  it('falls back to Windows PowerShell when the PowerShell 7 found will not start', async () => {
+    // Found in review: a Store alias left behind by the app's removal is found, and fails.
+    const { fallbackShells, startFirst } = await import('../../src/main/pty/pty-manager.js')
+    const tried: string[] = []
+    const started = startFirst(
+      ['C:\\Users\\me\\WindowsApps\\pwsh.exe', ...fallbackShells('pwsh.exe', 'win32')],
+      (shell) => {
+        tried.push(shell)
+        if (shell.endsWith('pwsh.exe')) throw new Error('File not found')
+        return shell
+      },
+    )
+    expect(started).toBe('powershell.exe')
+    expect(tried).toHaveLength(2)
+    expect(fallbackShells('/bin/zsh', 'darwin')).toEqual([])
+    expect(fallbackShells('powershell.exe', 'win32')).toEqual([])
+    expect(() =>
+      startFirst(['a'], () => {
+        throw new Error('nope')
+      }),
+    ).toThrow('nope')
+  })
+})
+
 describe('a shell whose integration never reports', () => {
   it('tells a pane attaching after the grace that there is no tracking', async () => {
     // Found in review: the grace's end was said to the panes attached then and kept nowhere,

@@ -46,7 +46,39 @@ export const opensLink = (event: Pick<MouseEvent, 'ctrlKey' | 'metaKey'>): boole
  * Enter - several commands run at once from a clipboard holding more than was meant.
  */
 export const pasteNeedsAsking = (text: string, confirm: boolean): boolean =>
-  confirm && /[\r\n]/.test(text)
+  confirm && CONTROL.test(text)
+
+/**
+ * A line break, or another control key a shell may act on as it is pasted (Ctrl+O runs the line
+ * in readline): anything below a space but a tab, and DEL.
+ */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what is looked for
+const CONTROL = /[\u0000-\u0008\u000a-\u001f\u007f]/
+
+/** Lines the paste question shows. */
+const PREVIEW_LINES = 12
+
+/**
+ * The question's view of a paste: its first lines, control characters shown as ^X (and bidi
+ * marks as <U+XXXX>) so nothing in it is hidden, and how many lines are left out.
+ */
+export function pastePreview(text: string): { preview: string; more: number } {
+  const lines = text.replace(/(\r\n|\r|\n)$/, '').split(/\r\n|\r|\n/)
+  const shown = lines.slice(0, PREVIEW_LINES).map((line) =>
+    line
+      .replace(
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what is shown
+        /[\u0000-\u0008\u000b-\u001f]/g,
+        (c) => `^${String.fromCharCode(c.charCodeAt(0) + 64)}`,
+      )
+      .replace(/\u007f/g, '^?')
+      .replace(
+        /[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,
+        (c) => `<U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}>`,
+      ),
+  )
+  return { preview: shown.join('\n'), more: Math.max(0, lines.length - PREVIEW_LINES) }
+}
 
 /** The lines a paste holds, as the question counts them: a last line break makes no line. */
 export function pasteLines(text: string): number {
@@ -70,5 +102,15 @@ export class BellRate {
     if (now - this.last < this.gap) return false
     this.last = now
     return true
+  }
+}
+
+/** Whether a search for a regular expression can be made of the text: one half typed cannot. */
+export function validPattern(text: string): boolean {
+  try {
+    new RegExp(text)
+    return true
+  } catch {
+    return false
   }
 }
