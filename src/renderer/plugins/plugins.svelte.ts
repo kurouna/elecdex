@@ -1,4 +1,4 @@
-import { isMetricSourceId } from '@shared/metrics'
+import { isPluginMetricSource } from '@shared/metrics'
 import type { Block, SelectOption, Tone } from '@shared/plugin-api'
 import { keyLabels } from '@shared/plugin-keys'
 import { type KeySoundNote, readKeymap, readNotes, type SoundNote } from '@shared/plugin-sound'
@@ -24,9 +24,9 @@ import {
 import { SvelteMap } from 'svelte/reactivity'
 import { nextFrame } from '../lib/frame-loop.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
-import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
+import { widgetState } from '../stores/widget-state.svelte.ts'
 import { windowState } from '../stores/window-state.svelte.ts'
 import { registerDynamic, unregisterDynamic } from '../widgets/registry.ts'
 import { HeldNotes } from './held.ts'
@@ -415,7 +415,7 @@ class Runner {
       return
     }
     attached.state = value
-    layout.setPaneState(pane, { plugin: JSON.parse(json) as unknown })
+    widgetState.patch(pane, { plugin: JSON.parse(json) as unknown })
   }
 
   private badge(pane: string, text: string | null, tone: Tone | undefined): void {
@@ -450,7 +450,9 @@ class Runner {
       return
     }
     const granted = this.host.grant(this.id)
-    if (!isMetricSourceId(id) || !granted.metrics.includes(id) || this.metricReleases.has(id)) {
+    // A source a plugin may be given, and was: never a private one (net.sockets), whatever
+    // settings.json says.
+    if (!isPluginMetricSource(id) || !granted.metrics.includes(id) || this.metricReleases.has(id)) {
       return
     }
     const release = window.elecdex.metrics.subscribe(id, (sample) =>
@@ -1005,7 +1007,16 @@ export class PluginHost {
   }
 
   setOptions(id: string, key: string, options: readonly SelectOption[]): void {
+    // Only a select the plugin declared: any key took a new entry, without bound.
+    const declared = this.entry(id)?.descriptor?.settings.some(
+      (s) => s.key === key && s.type === 'select',
+    )
+    if (declared !== true) return
     this.options.set(id, { ...(this.options.get(id) ?? {}), [key]: options })
+    // A stored value the new options no longer hold falls back: the worker is told so now, not
+    // at the next change of some other setting.
+    const runner = this.runners.get(id)
+    if (runner?.running) runner.settings(this.values(id))
   }
 
   /** Copies a runner's plugin-wide state into each of its panes' views. */

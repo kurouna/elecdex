@@ -139,6 +139,26 @@ describe('what is taken out of the folder', () => {
     })
   })
 
+  it('takes no file through a link to a folder, which the scanner would not follow', () => {
+    // Found in review: `lib -> ../elsewhere` listed as a link, not a folder, and its files were
+    // copied all the same.
+    const linked: SourceTree = {
+      list: (relative) =>
+        relative === ''
+          ? [
+              { name: 'index.ts', kind: 'file' },
+              { name: 'lib', kind: 'other' },
+            ]
+          : relative === 'lib'
+            ? [{ name: 'x.ts', kind: 'file' }]
+            : [],
+      size: () => 10,
+      read: (relative) =>
+        relative === 'index.ts' ? "import './lib/x'\nexport default {}" : 'export const x = 1',
+    }
+    expect(planInstall(linked)).toEqual({ error: expect.stringContaining('lib/x') })
+  })
+
   it('follows an import through the files it reaches, once each', () => {
     const plan = planInstall(
       tree({
@@ -298,6 +318,21 @@ describe('installing into the plugins folder', () => {
     )
     // Nothing is left behind from the copy.
     expect(readdirSync(plugins)).toEqual(['pomodoro'])
+  })
+
+  it('asks before replacing one whose name differs only by case', () => {
+    // Found in review: on Windows and macOS "Pomodoro" is the folder "pomodoro", and an install
+    // that compared names with case removed it without asking.
+    installFromFolder({ pluginsDir: plugins, source })
+    const other = path.join(root, 'elsewhere', 'Pomodoro')
+    mkdirSync(path.join(other, 'lib'), { recursive: true })
+    writeFileSync(path.join(other, 'index.ts'), "import './lib/timer'\nexport default { v: 2 }")
+    writeFileSync(path.join(other, 'lib', 'timer.ts'), 'export const t = 2')
+    expect(installFromFolder({ pluginsDir: plugins, source: other })).toEqual({
+      status: 'exists',
+      name: 'Pomodoro',
+    })
+    expect(readFileSync(path.join(plugins, 'pomodoro', 'index.ts'), 'utf8')).not.toContain('v: 2')
   })
 
   it('asks before replacing one of the same name, and replaces it when told to', () => {

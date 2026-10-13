@@ -71,7 +71,10 @@ function describe(p: Permissions): string[] {
     ...p.hosts
       .filter((h) => !p.session.includes(h))
       .map((h) => `reach ${h} over the internet, without cookies`),
-    ...p.session.map((h) => `use ${h} signed in as you - it sees what that site shows you`),
+    ...p.session.map(
+      (h) =>
+        `use ${h} signed in as you - it sees what that site shows you (you sign in once, in a window of its own; sign out here)`,
+    ),
     ...(p.background ? ['keep running while none of its panes is open'] : []),
     ...(p.notify ? ['play a sound and show system notifications'] : []),
     ...(p.keys
@@ -184,7 +187,16 @@ async function install(): Promise<void> {
 {#each entries as entry (entry.key)}
   {@const d = entry.descriptor}
   {@const stored = d ? appearance.settings.plugins[d.id] : undefined}
-  <section class="plugin" data-testid="settings-plugin" data-plugin={d?.id ?? entry.key} data-status={entry.status}>
+  <section
+    class="plugin"
+    class:just={installed !== null && installed.name === entry.key}
+    {@attach (el) => {
+      if (installed !== null && installed.name === entry.key) el.scrollIntoView({ block: 'nearest' })
+    }}
+    data-testid="settings-plugin"
+    data-plugin={d?.id ?? entry.key}
+    data-status={entry.status}
+  >
     <div class="head">
       <span class="name">{d?.title ?? entry.key}</span>
       <span class="chip status-{entry.status}">{STATUS[entry.status]}</span>
@@ -248,7 +260,7 @@ async function install(): Promise<void> {
       <div class="values">
         {#each d.settings as def (def.key)}
           {@const value = currentValue(d.id, def.key)}
-          <label class="row" title={def.description ?? ''}>
+          <label class="row">
             <span>{def.label}</span>
             {#if def.type === 'boolean'}
               <input type="checkbox" checked={value === true} onchange={(e) => setValue(d.id, def, e.currentTarget.checked)} data-testid="plugin-setting" data-key={def.key} />
@@ -269,7 +281,7 @@ async function install(): Promise<void> {
               />
             {:else if def.type === 'select'}
               <select value={value} onchange={(e) => setValue(d.id, def, e.currentTarget.value)} data-testid="plugin-setting" data-key={def.key}>
-                {#each optionsOf(d.id, def) as option (option.value)}
+                {#each optionsOf(d.id, def) as option, i (i)}
                   <option value={option.value}>{option.label}</option>
                 {/each}
               </select>
@@ -286,6 +298,7 @@ async function install(): Promise<void> {
               />
             {/if}
           </label>
+          {#if def.description}<p class="describe" data-testid="plugin-setting-description">{def.description}</p>{/if}
         {/each}
       </div>
     {/if}
@@ -387,6 +400,19 @@ input.path:focus,
 select:focus {
   border-color: var(--accent);
   outline: none;
+}
+
+/* A setting's own words, under it: what an offset or a choice is for. */
+.describe {
+  margin: -0.2rem 0 var(--space-2) 11rem;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+}
+
+/* The plugin just installed, where the note says to turn it on. */
+.plugin.just {
+  outline: 1px solid var(--accent);
 }
 
 .note {

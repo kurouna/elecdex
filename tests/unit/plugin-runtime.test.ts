@@ -1,6 +1,6 @@
 import { bundle } from '@main/plugins/folder'
 import { pluginRuntime, stripGlobals } from '@shared/plugin-runtime'
-import type { HostMessage } from '@shared/plugins'
+import { type HostMessage, PLUGIN_LIMITS } from '@shared/plugins'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -213,6 +213,41 @@ describe('the plugin runtime', () => {
     await vi.waitFor(() =>
       expect(p.of('log').map((m) => m.text)).toEqual(['got 200 true', 'failed not granted']),
     )
+  })
+
+  it('refuses a fetch the page would drop, rather than leave it unanswered', async () => {
+    // Found in review: a header that is not a string, or a URL too long, failed the page's
+    // check and the promise never settled.
+    const p = run({
+      'index.ts': `export default {
+        apiVersion: 1, id: 'x', title: 'X',
+        async service(ctx) {
+          for (const [url, headers] of [
+            ['https://a.example/', { 'x-n': 1 }],
+            ['https://a.example/' + 'x'.repeat(3000), {}],
+          ]) {
+            try { await ctx.fetch(url, { headers }) } catch (e) { ctx.log('refused') }
+          }
+        },
+        view() {},
+      }`,
+    })
+    p.send(start())
+    await vi.waitFor(() => expect(p.of('log').map((m) => m.text)).toEqual(['refused', 'refused']))
+    expect(p.of('fetch')).toEqual([])
+  })
+
+  it('holds the limits the page holds, written out in its own text', () => {
+    // The runtime refers to nothing outside itself, so its limits are copies: kept equal here.
+    const text = pluginRuntime.toString()
+    const literal = (name: string) => {
+      const found = new RegExp(`const ${name} = ([\\d *_]+)`).exec(text)?.[1]
+      return found === undefined ? Number.NaN : Number(Function(`return ${found}`)())
+    }
+    expect(literal('STATE_BYTES')).toBe(PLUGIN_LIMITS.stateBytes)
+    expect(literal('STORAGE_BYTES')).toBe(PLUGIN_LIMITS.storageBytes)
+    expect(literal('NOTES_PER_CALL')).toBe(PLUGIN_LIMITS.notesPerCall)
+    expect(literal('SURFACE_SIDE')).toBe(PLUGIN_LIMITS.surfaceSide)
   })
 
   it('sends a click to the pane’s view and to the service', () => {

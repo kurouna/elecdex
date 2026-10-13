@@ -401,10 +401,29 @@ export function pluginRuntime(
       },
     },
     fetch(url: string, init?: { headers?: Record<string, string> }): Promise<unknown> {
+      // Refused here what the page would drop unanswered: the promise never settled (found in
+      // review). The same bounds as the page's schema (shared/plugins.ts), written out: this text
+      // refers to nothing outside itself.
+      const address = String(url)
+      const headers = { ...(init?.headers ?? {}) }
+      const names = Object.keys(headers)
+      if (address.length > 2048)
+        return Promise.reject(new TypeError('the URL is longer than 2048 characters'))
+      if (names.length > 32) return Promise.reject(new TypeError('more than 32 headers'))
+      for (const name of names) {
+        const value = (headers as Record<string, unknown>)[name]
+        if (name.length > 64 || typeof value !== 'string' || value.length > 4096) {
+          return Promise.reject(
+            new TypeError(
+              `header "${name.slice(0, 64)}" must be a string of at most 4096 characters`,
+            ),
+          )
+        }
+      }
       const id = nextFetch++
       return new Promise((resolve, reject) => {
         fetches.set(id, { resolve, reject })
-        post({ t: 'fetch', id, url: String(url), headers: { ...(init?.headers ?? {}) } })
+        post({ t: 'fetch', id, url: address, headers })
       })
     },
     storage: {

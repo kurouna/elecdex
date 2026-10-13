@@ -341,6 +341,12 @@ export const PLUGIN_METRIC_SOURCE_IDS = [
 ] as const satisfies readonly MetricSourceId[]
 
 const KNOWN = new Set<string>(METRIC_SOURCE_IDS)
+const FOR_PLUGINS = new Set<string>(PLUGIN_METRIC_SOURCE_IDS)
+
+/** A source a plugin may be given: never a private one (net.sockets, Wi-Fi). */
+export function isPluginMetricSource(value: unknown): value is MetricSourceId {
+  return typeof value === 'string' && FOR_PLUGINS.has(value)
+}
 
 /** Narrows an untrusted string - from IPC or a plugin - to a known id. */
 export function isMetricSourceId(value: unknown): value is MetricSourceId {

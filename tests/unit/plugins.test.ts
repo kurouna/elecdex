@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { PLUGIN_METRIC_SOURCE_IDS } from '@shared/metrics'
+import { isPluginMetricSource, PLUGIN_METRIC_SOURCE_IDS } from '@shared/metrics'
 import {
   checkPluginUrl,
+  GrantSchema,
   grantFor,
   isCovered,
   isPluginHost,
@@ -116,6 +117,15 @@ describe('plugin consent', () => {
     notify: true,
   }
 
+  it('keeps in a grant only the readings a plugin may ever have', () => {
+    // Found in review: settings.json edited by hand could grant net.sockets, and the host
+    // subscribed it.
+    const grant = GrantSchema.parse({ metrics: ['cpu.load', 'net.sockets', 'net.wifi', 'made.up'] })
+    expect(grant.metrics).toEqual(['cpu.load'])
+    expect(isPluginMetricSource('net.sockets')).toBe(false)
+    expect(isPluginMetricSource('cpu.load')).toBe(true)
+  })
+
   it('covers exactly what was agreed to, and no more', () => {
     expect(isCovered(asked, grantFor(asked))).toBe(true)
     expect(isCovered(NO_PERMISSIONS, NO_PERMISSIONS)).toBe(true)
@@ -187,6 +197,22 @@ describe('plugin blocks', () => {
     expect(blocks.map((b) => b.t)).toEqual(['big', 'text'])
     expect(problems).toHaveLength(2)
     expect(readBlocks('nope').problems).toEqual(['render() takes an array of blocks'])
+  })
+
+  it('drop a list whose rows share an id, saying why', () => {
+    // Found in review: two rows of one id broke the pane's keyed list.
+    const { blocks, problems } = readBlocks([
+      {
+        t: 'list',
+        items: [
+          { id: 'a', text: 'one' },
+          { id: 'a', text: 'two' },
+        ],
+      },
+      { t: 'text', text: 'ok' },
+    ])
+    expect(blocks.map((b) => b.t)).toEqual(['text'])
+    expect(problems).toHaveLength(1)
   })
 
   it('clip long text and long lists instead of refusing them', () => {
@@ -264,6 +290,20 @@ describe('plugin worker messages', () => {
     expect(
       WorkerMessageSchema.safeParse({ t: 'fetch', id: 1, url: 'x'.repeat(3000) }).success,
     ).toBe(false)
+  })
+
+  it('carry a bounded number of request headers', () => {
+    const headers = (n: number) =>
+      Object.fromEntries(Array.from({ length: n }, (_, i) => [`x-h${i}`, 'v']))
+    const fetching = (n: number) =>
+      WorkerMessageSchema.safeParse({
+        t: 'fetch',
+        id: 1,
+        url: 'https://a.example/',
+        headers: headers(n),
+      }).success
+    expect(fetching(32)).toBe(true)
+    expect(fetching(33)).toBe(false)
   })
 
   it('name only plain storage keys', () => {

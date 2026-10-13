@@ -18,6 +18,9 @@ vi.mock('../../src/renderer/plugins/worker.ts', () => ({
   createWorker: (source: PluginSource) => factory(source),
 }))
 vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({ layout: { setPaneState: vi.fn() } }))
+vi.mock('../../src/renderer/stores/widget-state.svelte.ts', () => ({
+  widgetState: { patch: vi.fn() },
+}))
 
 const { plugins } = await import('../../src/renderer/plugins/plugins.svelte.ts')
 const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
@@ -310,9 +313,11 @@ describe('a plugin pane', () => {
   })
 
   it('keeps pane state within its limit even when a plugin posts around the runtime', async () => {
-    const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
-    const setPaneState = vi.mocked(layout.setPaneState)
-    setPaneState.mockClear()
+    // Through widgetState, as every widget writes its pane state (found in review: it was
+    // layout.setPaneState, which replaces the whole of it).
+    const { widgetState } = await import('../../src/renderer/stores/widget-state.svelte.ts')
+    const patch = vi.mocked(widgetState.patch)
+    patch.mockClear()
     const code = `export default {
       apiVersion: 1, id: 'hoarder', title: 'hoarder',
       view(ctx) {
@@ -339,7 +344,7 @@ describe('a plugin pane', () => {
     })
     pane('hoarder')
     await settle()
-    expect(setPaneState.mock.calls).toEqual([['pane-1', { plugin: { small: true } }]])
+    expect(patch.mock.calls).toEqual([['pane-1', { plugin: { small: true } }]])
     expect(screen.getByTestId('plugin-error').textContent).toMatch(/at most 64 KiB/)
   })
 
@@ -621,8 +626,8 @@ describe('a plugin pane', () => {
     await settle()
     expect(screen.getByText('mounts: 1')).toBeTruthy()
     // Its own set, written into the layout, comes back to the pane as its state.
-    const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
-    expect(layout.setPaneState).toHaveBeenLastCalledWith('pane-1', { plugin: { n: 1 } })
+    const { widgetState } = await import('../../src/renderer/stores/widget-state.svelte.ts')
+    expect(widgetState.patch).toHaveBeenLastCalledWith('pane-1', { plugin: { n: 1 } })
     await view.rerender({ state: { plugin: { n: 1 } } })
     await settle()
     expect(screen.getByText('mounts: 1')).toBeTruthy()
@@ -857,6 +862,75 @@ describe('keys for a plugin pane (apiVersion 2)', () => {
       'focus false Q',
     ])
     expect(screen.queryByTestId('plugin-keys')).toBeNull()
+  })
+
+  it('subscribes no private reading, whatever settings.json grants', async () => {
+    // Found in review: a grant written by hand could name net.sockets, and the host took it.
+    const subscribe = vi.fn(() => () => {})
+    window.elecdex.metrics.subscribe = subscribe as never
+    const code = `export default {
+      apiVersion: 1, id: 'peek', title: 'peek', permissions: { metrics: ['cpu.load'] },
+      view(ctx) {
+        self.postMessage({ t: 'metrics', id: 'net.sockets', on: true })
+        self.postMessage({ t: 'metrics', id: 'cpu.load', on: true })
+        ctx.render([{ t: 'text', text: 'drawn' }])
+      },
+    }`
+    // In-process, "self" in the plugin is this test's global: route its post to the host.
+    factory = (s) => {
+      const worker = inProcess(s)
+      let deliver: (data: unknown) => void = () => {}
+      vi.stubGlobal('postMessage', (m: unknown) => deliver(structuredClone(m)))
+      return {
+        ...worker,
+        onMessage: (h) => {
+          deliver = h
+          worker.onMessage(h)
+        },
+      }
+    }
+    const granted = grantFor({ ...NO_PERMISSIONS, metrics: ['cpu.load'] })
+    await startHost([source('peek.ts', code)], {
+      peek: {
+        enabled: true,
+        key: 'peek.ts',
+        // As settings.json might hold it, past the schema.
+        granted: { ...granted, metrics: ['cpu.load', 'net.sockets'] as never },
+        values: {},
+      },
+    })
+    pane('peek')
+    await settle()
+    expect(subscribe.mock.calls.map((call) => (call as unknown[])[0])).toEqual(['cpu.load'])
+  })
+
+  it('takes options only for a declared select, and tells the worker the value they settle', async () => {
+    // Found in review: any key took a new entry, and a stored value the new options dropped
+    // reached the worker only at some later change of another setting.
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const code = `export default {
+      apiVersion: 1, id: 'modes', title: 'modes',
+      settings: [{ key: 'mode', type: 'select', label: 'Mode', default: 'a',
+        options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }] }],
+      service(ctx) {
+        ctx.on('settings', () => ctx.log('mode ' + ctx.settings.mode))
+        ctx.setOptions('nope', [{ value: 'x', label: 'X' }])
+        ctx.setOptions('mode', [{ value: 'a', label: 'A' }, { value: 'c', label: 'C' }])
+      },
+      view(ctx) { ctx.render([{ t: 'text', text: 'drawn' }]) },
+    }`
+    await startHost([source('modes.ts', code)], {
+      modes: {
+        enabled: true,
+        key: 'modes.ts',
+        granted: grantFor(NO_PERMISSIONS),
+        values: { mode: 'b' },
+      },
+    })
+    pane('modes')
+    await settle()
+    expect(plugins.values('modes')).toEqual({ mode: 'a' })
+    expect(info.mock.calls.map((call) => call[1])).toContain('mode a')
   })
 
   it('does not take the keys of a pane whose plugin was not given them', async () => {

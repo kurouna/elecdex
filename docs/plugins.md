@@ -123,15 +123,16 @@ zod で検証し、id 重複・不正な権限・不正な設定定義はその�
 ### 4.2 プラグインの Worker
 
 ```
-[prologue]  fetch / XMLHttpRequest / WebSocket / EventSource / importScripts / Worker /
-            SharedWorker / indexedDB / caches / BroadcastChannel / RTCPeerConnection を
+[prologue]  fetch / XMLHttpRequest / WebSocket / WebTransport / EventSource / importScripts /
+            Worker / SharedWorker / indexedDB / caches / BroadcastChannel / RTCPeerConnection /
+            Notification を
             自身とプロトタイプの両方から消す。モジュール表と相対 require を用意
 [plugin]    sucrase 変換済みのモジュール表
 [runtime]   ctx を組み立て、ホストとのメッセージを処理
 ```
 
 - **classic Worker**。CSP の `script-src` に `blob:` は無く `worker-src blob:` だけで動く。`eval` も CSP で使えない
-- グローバルの消去は多層防御にすぎない。真の封じ込めはアプリ CSP。**CSP を緩める変更をしたら再監査必須**（テストで CSP 文字列を固定する）
+- グローバルの消去は多層防御にすぎない。真の封じ込めはアプリ CSP。**CSP を緩める変更をしたら再監査必須**（tests/unit/plugin-csp.test.ts が CSP 文字列を固定する）
 - Worker を動かす条件
   - `background` 同意済み: 有効な間ずっと（アプリ起動中）
   - それ以外: そのプラグインのペインが1つ以上ある間。最後のペインが閉じたら terminate
@@ -235,7 +236,8 @@ type Block =
 - **色は指定できない**。`tone` を semantic トークンに写す（`accent` はテーマの差し色）。テーマ切替と Business (Light) の暗色補正に自動で追従
 - `time` はホストが毎秒描き直す（countdown は `mm:ss`、relative は「2h 13m」）。view が毎秒 render しなくてよい
 - `signin` はホストが描くボタンで、**利用者のクリックでだけ**ログイン窓が開く。プラグインから窓を開く API は無い
-- 上限: ブロック 200、文字列 2,000 字、`spark` 512 点、`chart` 系列 8・各 1,024 点、`table` 200 行、`list` 200 件。ブロック数の超過はペインに注記し、文字列と配列は黙って切り詰める
+- 上限: ブロック 200、文字列 2,000 字、`spark` 512 点、`chart` 系列 8・各 1,024 点・目盛りと補助線 16・高さ 40〜400、`table` 200 行・12 列、`list` 200 件、`buttons` 8 個。ブロック数の超過はペインに注記し、文字列と配列は黙って切り詰める。`list` の行の `id` は重ねない（同じ `id` の行があるとブロックごと落とし、理由をペインに出す）
+- `time` は `size: 'md' | 'lg'` で大きさを選べる
 - ホストが zod で検証する。不正なブロックはそれだけ落とし、理由をペインに出す。HTML は解釈しない
 - `link` は、文字列がサイト名や URL に見えるなら `href` のホストと一致しなければ落とす。一致しても、描くときは開くサイトのホスト名を文字列の隣に必ず出す（表示と遷移先の食い違いによる誘導を防ぐ）
 
@@ -279,11 +281,15 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 
 ### 8.2 `ctx.notify`
 
-`permissions.notify` に同意したプラグインだけ。アプリ内ではペインを光らせ、インターフェース音が有効ならチャイムを鳴らす（`sound: false` で鳴らさない）。ウィンドウが前面にないときはシステム通知も出す。1 分に 6 回まで。
+`permissions.notify` に同意したプラグインだけ。アプリ内ではペインを光らせ、インターフェース音が有効ならチャイムを鳴らす（`sound: false` で鳴らさない）。ウィンドウが前面にないときはシステム通知も出す。システム通知は main が数え、続けて 2 回まで、その後は 1 分に 6 回まで（光とチャイムはインターフェース音の間隔だけで抑える）。
 
 ### 8.3 状態
 
 `settings.plugins[<id>] = { enabled, granted: { metrics, hosts, session, background, notify }, values }`
+
+- `granted.metrics` にはプラグインに渡せる指標（`PLUGIN_METRIC_SOURCE_IDS`）しか残らない。settings.json を手で書いても `net.sockets` などの非公開の指標は読み込みで落ち、ホストも購読しない（2026-10-14、レビューで）
+- 設定の `secret: true` は入力欄を伏せるだけで、値は settings.json に平文で入り、Worker にもそのまま渡る（AI のキーのような暗号化はしない）。見られて困るものは、プラグインが自分で `ctx.storage` に置くか、サインイン（§7.1）を使う
+- 設定の `description` は欄の下に出る（ツールチップにはしない）
 
 - 新しく見つかったプラグインは `enabled: false`
 - 有効化時に権限を平易な説明付きで見せて同意を取る

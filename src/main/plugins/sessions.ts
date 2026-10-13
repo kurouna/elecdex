@@ -49,6 +49,8 @@ export function rawRequest(
       method: 'GET',
       session: ses,
       useSessionCookies: options.session,
+      // Without a session of its own, nothing of the shared one - no HTTP auth it may hold.
+      ...(options.session ? {} : { credentials: 'omit' as const }),
       redirect: 'manual',
       cache: 'no-store',
     })

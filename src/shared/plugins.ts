@@ -247,7 +247,15 @@ function issues(error: z.ZodError): string {
 
 /** What the user agreed to, per plugin, in settings.json. */
 export const GrantSchema = z.object({
-  metrics: z.array(z.string().max(40)).max(64).default([]),
+  // Only sources a plugin may ever be given: one written into settings.json by hand (net.sockets)
+  // is dropped, not honoured (found in review).
+  metrics: z
+    .array(z.string().max(40))
+    .max(64)
+    .default([])
+    .transform((ids) =>
+      ids.filter((id) => (PLUGIN_METRIC_SOURCE_IDS as readonly string[]).includes(id)),
+    ),
   hosts: z.array(z.string().max(253)).max(32).default([]),
   session: z.array(z.string().max(253)).max(8).default([]),
   background: z.boolean().default(false),
@@ -449,7 +457,13 @@ const BlockSchema = z.discriminatedUnion('t', [
   }),
   z.object({
     t: z.literal('list'),
-    items: capped(z.object({ id: short, text, sub: text.optional(), tone }), PLUGIN_LIMITS.rows),
+    items: capped(
+      z.object({ id: short, text, sub: text.optional(), tone }),
+      PLUGIN_LIMITS.rows,
+    ).refine(
+      (items) => new Set(items.map((item) => item.id)).size === items.length,
+      'two rows with the same id',
+    ),
     action: short.optional(),
   }),
   z.object({
@@ -543,7 +557,10 @@ export const WorkerMessageSchema = z.discriminatedUnion('t', [
     t: z.literal('fetch'),
     id: z.int().nonnegative(),
     url: z.string().max(2048),
-    headers: z.record(z.string().max(64), z.string().max(4096)).optional(),
+    headers: z
+      .record(z.string().max(64), z.string().max(4096))
+      .refine((headers) => Object.keys(headers).length <= 32, 'more than 32 headers')
+      .optional(),
   }),
   z.object({
     t: z.literal('storage'),

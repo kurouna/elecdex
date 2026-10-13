@@ -29,7 +29,7 @@ import { transformFile } from './folder.js'
  */
 
 /** Source files, at most this deep and this many - the scanner's own limits. */
-const LIMITS = { files: PLUGIN_LIMITS.files, bytes: PLUGIN_LIMITS.sourceBytes, depth: 4 }
+const LIMITS = { files: PLUGIN_LIMITS.files, bytes: PLUGIN_LIMITS.sourceBytes }
 
 export type EntryKind = 'file' | 'dir' | 'other'
 
@@ -203,6 +203,14 @@ function isCodeFile(tree: SourceTree, relative: string): boolean {
   if (segments.some((segment) => isNoise(segment))) return false
   const name = segments[segments.length - 1] ?? ''
   if (!isCode(name)) return false
+  // Every folder on the way is a folder, not a link to one: the scanner follows none, and an
+  // install through `lib -> ../elsewhere` copied files from outside the plugin (found in review).
+  for (let i = 0; i < segments.length - 1; i++) {
+    const above = segments.slice(0, i).join('/')
+    const folder = segments[i]
+    if (!tree.list(above).some((entry) => entry.kind === 'dir' && entry.name === folder))
+      return false
+  }
   const parent = segments.slice(0, -1).join('/')
   return tree.list(parent).some((entry) => entry.kind === 'file' && entry.name === name)
 }
@@ -282,7 +290,11 @@ export function installFromFolder(options: InstallOptions): InstallResult {
   const sources = plan.files.map((file) => ({ path: file, source: tree.read(file) }))
 
   const target = path.join(plugins, name)
-  const exists = readdirSync(plugins, { withFileTypes: true }).some((entry) => entry.name === name)
+  // Compared without case: on Windows and macOS "Pomodoro" is the folder "pomodoro", and an
+  // install that did not ask would remove it (found in review).
+  const exists = readdirSync(plugins, { withFileTypes: true }).some(
+    (entry) => entry.name.toLowerCase() === name.toLowerCase(),
+  )
   if (exists && options.replace !== true) return { status: 'exists', name }
 
   const staging = path.join(plugins, `.installing-${name}`)
