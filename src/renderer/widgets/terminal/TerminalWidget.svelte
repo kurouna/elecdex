@@ -437,7 +437,8 @@ const named = $derived(typeof paneState?.sessionId === 'string' ? paneState.sess
 $effect(() => {
   const wanted = named
   const shown = untrack(() => sessions.get(paneId).sessionId)
-  if (shown !== null && wanted !== shown) generation += 1
+  // Written untracked: `+=` reads it, and the effect then ran again on its own write.
+  if (shown !== null && wanted !== shown) generation = untrack(() => generation) + 1
 })
 
 /**
