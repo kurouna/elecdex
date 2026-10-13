@@ -427,6 +427,20 @@ $effect(() => {
 })
 
 /**
+ * The shell the pane's state names, apart from the rest of the state: a cd changes the folder
+ * and must not make the terminal again, but another saved layout's pane of the same id keeps
+ * this one mounted and names its own shell (or none), which the pane then takes up. Untracking
+ * the whole state lost that, and the pane went on showing the last layout's shell under a state
+ * that named another (found in the full run after the review).
+ */
+const named = $derived(typeof paneState?.sessionId === 'string' ? paneState.sessionId : null)
+$effect(() => {
+  const wanted = named
+  const shown = untrack(() => sessions.get(paneId).sessionId)
+  if (shown !== null && wanted !== shown) generation += 1
+})
+
+/**
  * A new shell where the ended one was: the pane forgets its session and is made again, which
  * starts one in the folder kept beside it (lastFolder).
  */
