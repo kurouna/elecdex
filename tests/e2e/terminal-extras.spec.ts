@@ -252,7 +252,10 @@ test('a cleared scrollback stays cleared when the page comes back', async () => 
     await page.reload()
     await ready(page)
     await page.waitForTimeout(1500)
-    expect(await share()).toBeGreaterThan(0.75)
+    // Not the whole screen alone: attached at another size, ConPTY paints its screen again,
+    // which goes into the scrollback (0.4 to 0.64 on GitHub's runner). Brought back, the 300
+    // lines held the slider near 0.1.
+    expect(await share()).toBeGreaterThan(0.3)
   } finally {
     await launched.close()
   }

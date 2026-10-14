@@ -7,11 +7,13 @@ import {
   type Chip8SlotInfo,
   tunedConfig,
 } from '@shared/chip8-library'
+import { untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import Splitter from '../common/Splitter.svelte'
 import Attract from './Attract.svelte'
@@ -36,6 +38,8 @@ import Thumb from './Thumb.svelte'
  * left and right change tab; in the search, up, down and Enter do the same.
  */
 interface Props {
+  /** The pane it is in, for what is typed to be kept through a move. */
+  paneId?: string
   programs: Chip8Program[]
   loaded: boolean
   filter: LibraryFilter
@@ -69,6 +73,7 @@ const {
   onfilter,
   onselect,
   onload,
+  paneId = '',
 }: Props = $props()
 
 /**
@@ -93,7 +98,9 @@ $effect(() => () => {
   if (dozing !== null) clearTimeout(dozing)
 })
 
-let query = $state('')
+let query = $state(untrack(() => recallTyped(paneId, 'query')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'query', query))
 let hidden = $state.raw<Platform[]>([])
 
 const matches = (program: Chip8Program, words: string): boolean =>

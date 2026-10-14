@@ -1,4 +1,11 @@
-import { appendFileSync, mkdtempSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  mkdtempSync,
+  realpathSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -364,7 +371,9 @@ test('the name of the file shows its whole path, and a click on it chooses anoth
     const name = page.getByTestId('logwatch-file')
     await expect(name).toHaveText('app.log')
     await name.hover()
-    await expect(page.getByTestId('logwatch-file-card')).toContainText(file)
+    // As the system names it: on GitHub's runners the temp folder comes as a short 8.3 name
+    // (RUNNER~1), and main shows the file by its real path.
+    await expect(page.getByTestId('logwatch-file-card')).toContainText(realpathSync.native(file))
     await expect(page.getByTestId('logwatch-file-card')).toContainText(
       'click the name to choose another file',
     )

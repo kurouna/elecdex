@@ -18,11 +18,12 @@ import {
   type LogFormat,
   type LogItem,
 } from '@shared/logwatch/types'
-import { tick } from 'svelte'
+import { tick, untrack } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -199,7 +200,9 @@ const burst = $derived(burstLit(streak))
 
 /* ---- The filter ---- */
 
-let filterText = $state('')
+let filterText = $state(untrack(() => recallTyped(paneId, 'filter')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'filter', filterText))
 const filter = $derived(compileFilter(filterText))
 let lastGood = $state.raw<RegExp | null>(null)
 $effect(() => {

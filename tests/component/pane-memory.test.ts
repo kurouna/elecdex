@@ -14,3 +14,26 @@ describe('memory kept by pane', () => {
     composed.clear()
   })
 })
+
+describe('what is typed in a short field', () => {
+  it('is kept by pane and field through a remount, and let go with the pane', async () => {
+    // Found in the sweep: a filter or a symbol being typed was lost when the pane moved.
+    const { keepTyped, recallTyped } = await import('../../src/renderer/lib/pane-memory.ts')
+    keepTyped('p1', 'filter', 'error')
+    keepTyped('p1', 'query', '10.0')
+    keepTyped('p2', 'filter', 'warn')
+    expect(recallTyped('p1', 'filter')).toBe('error')
+    expect(recallTyped('p1', 'other')).toBe('')
+    keepTyped('p1', 'query', '')
+    expect(recallTyped('p1', 'query')).toBe('')
+    forgetGonePanes(new Set(['p2']))
+    expect(recallTyped('p1', 'filter')).toBe('')
+    expect(recallTyped('p2', 'filter')).toBe('warn')
+  })
+
+  it('is not kept for a popped-up pane, which starts afresh each time it opens', async () => {
+    const { keepTyped, recallTyped } = await import('../../src/renderer/lib/pane-memory.ts')
+    keepTyped('popup:launcher', 'filter', 'code')
+    expect(recallTyped('popup:launcher', 'filter')).toBe('')
+  })
+})

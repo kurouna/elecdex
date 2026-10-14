@@ -10,7 +10,9 @@ import {
   sortAlarms,
   WEEKDAY_NAMES,
 } from '@shared/alarms'
+import { untrack } from 'svelte'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { alarms } from '../../stores/alarms.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
@@ -30,14 +32,20 @@ import Readout from '../common/Readout.svelte'
 interface Props {
   /** Now, from the pane's shared tick, so the waits all count down together. */
   now: number
+  /** The pane it is in, for what is typed to be kept through a move. */
+  paneId?: string
 }
 
-const { now }: Props = $props()
+const { now, paneId = '' }: Props = $props()
 
 $effect(() => alarms.use())
 
-let draftTime = $state('')
-let draftLabel = $state('')
+let draftTime = $state(untrack(() => recallTyped(paneId, 'alarm-time')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'alarm-time', draftTime))
+let draftLabel = $state(untrack(() => recallTyped(paneId, 'alarm-label')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'alarm-label', draftLabel))
 /** The alarm whose days are being picked, if any. */
 let editing = $state<string | null>(null)
 

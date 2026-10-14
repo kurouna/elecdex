@@ -569,7 +569,7 @@ $effect(() => {
       />
     </div>
   {:else}
-    <AlarmList {now} />
+    <AlarmList {now} {paneId} />
   {/if}
 </div>
 

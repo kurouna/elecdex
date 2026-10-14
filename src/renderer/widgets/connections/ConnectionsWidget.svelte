@@ -4,6 +4,7 @@ import { groupByProcess, inView, matches, type SocketView, socketKey } from '@sh
 import { untrack } from 'svelte'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
 import { GhostTracker } from '../../lib/ghosts.ts'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
@@ -36,7 +37,9 @@ const view = $derived<SocketView>(paneState?.view === 'listening' ? 'listening' 
 const masked = $derived(paneState?.mask === true)
 const collapsed = $derived(new Set(asStrings(paneState?.collapsed)))
 
-let query = $state('')
+let query = $state(untrack(() => recallTyped(paneId, 'query')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'query', query))
 let hovered = $state<string | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {

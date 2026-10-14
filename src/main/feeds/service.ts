@@ -221,6 +221,28 @@ export class FeedService {
     }
     const queued = this.queue.indexOf(url)
     if (queued >= 0) this.queue.splice(queued, 1)
+    this.forgetIdle()
+  }
+
+  /**
+   * Keeps in memory what the cache on disk keeps: the feeds watched, and of the rest the most
+   * recently checked, up to CACHE_MAX_FEEDS. Before, every feed ever watched stayed for the life
+   * of the process (found in the sweep).
+   */
+  private forgetIdle(): void {
+    if (this.feeds.size <= CACHE_MAX_FEEDS) return
+    const idle = [...this.feeds]
+      .filter(([url]) => !this.watched.has(url) && !this.inFlight.has(url))
+      .sort((a, b) => (a[1].checkedAt ?? 0) - (b[1].checkedAt ?? 0))
+    for (const [url] of idle) {
+      if (this.feeds.size <= CACHE_MAX_FEEDS) break
+      this.feeds.delete(url)
+    }
+  }
+
+  /** Feeds held in memory, watched or not. */
+  held(): number {
+    return this.feeds.size
   }
 
   watching(): string[] {

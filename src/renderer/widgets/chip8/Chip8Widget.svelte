@@ -382,6 +382,7 @@ onDestroy(() => {
   {:else}
     <div class="view crt-on" style:--crt-delay="{POWER_OFF_MS}ms" transition:crtPower>
       <LibraryView
+        {paneId}
         bind:this={library}
         programs={chip8Library.programs}
         loaded={chip8Library.loaded}

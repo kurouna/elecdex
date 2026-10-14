@@ -22,6 +22,7 @@ import {
   type WatchSymbol,
 } from '@shared/markets'
 import { untrack } from 'svelte'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
@@ -110,7 +111,9 @@ let updates = $state.raw<Record<string, MarketUpdate>>({})
 /** Symbols whose price just moved, and which way, for a brief flash. */
 let flashes = $state.raw<Record<string, 'up' | 'down'>>({})
 let settingsOpen = $state(false)
-let draft = $state('')
+let draft = $state(untrack(() => recallTyped(paneId, 'symbol')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'symbol', draft))
 /** The board powers on when it comes back from a chart, not when the pane opens (the pane does that). */
 let cameBack = $state(false)
 

@@ -77,11 +77,22 @@ interface ChartState {
   stale: boolean
 }
 
+/**
+ * Charts no pane watches are kept a while - a pane back from behind a tab finds its data fresh
+ * and asks Yahoo for nothing - but not for ever: at most this many, each for at most an hour.
+ * Before, every symbol ever watched stayed, up to its bars, for the life of the process (found
+ * in the sweep). Its quote goes with its last chart.
+ */
+export const IDLE_CHARTS_MAX = 32
+export const IDLE_CHART_MS = 60 * 60_000
+
 export class MarketService {
   private readonly deps: MarketDeps
   private readonly quotes = new Map<string, QuoteState>()
   private readonly charts = new Map<string, ChartState>()
   private readonly watched = new Set<string>()
+  /** Charts no pane watches, by key, and since when. */
+  private readonly idleSince = new Map<string, number>()
   private timer: unknown = null
   private failures = 0
   private running = false
@@ -115,6 +126,7 @@ export class MarketService {
     const key = chartKey(symbol, range)
     if (this.watched.has(key)) return
     this.watched.add(key)
+    this.idleSince.delete(key)
     if (!this.quotes.has(symbol)) {
       this.quotes.set(symbol, { quote: null, updatedAt: null, error: null })
     }
@@ -155,11 +167,33 @@ export class MarketService {
   }
 
   unwatch(symbol: string, range: ChartRange = DEFAULT_RANGE): void {
-    this.watched.delete(chartKey(symbol, range))
+    const key = chartKey(symbol, range)
+    if (!this.watched.delete(key)) return
+    this.idleSince.set(key, this.deps.now())
+    this.forgetIdle()
     if (this.watched.size === 0 && this.timer !== null) {
       this.deps.clearTimer(this.timer)
       this.timer = null
     }
+  }
+
+  /** Lets go of the charts idle longest or for too long, and the quotes no chart needs. */
+  private forgetIdle(): void {
+    const now = this.deps.now()
+    // A Map keeps its order of insertion: the first entries are the longest idle.
+    for (const [key, since] of this.idleSince) {
+      if (this.idleSince.size <= IDLE_CHARTS_MAX && now - since < IDLE_CHART_MS) break
+      this.idleSince.delete(key)
+      this.charts.delete(key)
+    }
+    const charted = new Set([...this.charts.values()].map((chart) => chart.symbol))
+    for (const symbol of [...this.quotes.keys()])
+      if (!charted.has(symbol)) this.quotes.delete(symbol)
+  }
+
+  /** Charts and quotes held, watched or not: the sweep's check that they are let go. */
+  held(): { charts: number; quotes: number } {
+    return { charts: this.charts.size, quotes: this.quotes.size }
   }
 
   /** The symbols being quoted. */

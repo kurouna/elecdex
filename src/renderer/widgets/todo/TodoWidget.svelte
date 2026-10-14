@@ -8,8 +8,10 @@ import {
   type TaskBand,
   urgency,
 } from '@shared/tasks'
+import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -60,7 +62,9 @@ const list = $derived(tasks.lists.find((entry) => entry.id === listId) ?? tasks.
  */
 const showCompleted = $derived(paneState?.showCompleted !== false)
 
-let draft = $state('')
+let draft = $state(untrack(() => recallTyped(paneId, 'task')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'task', draft))
 let settingsOpen = $state(false)
 let listsOpen = $state(false)
 /** The task whose row is playing its completion, so the strike can be drawn. */

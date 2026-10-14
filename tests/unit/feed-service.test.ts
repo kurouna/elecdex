@@ -366,3 +366,22 @@ describe('reading a feed', () => {
     )
   })
 })
+
+describe('feeds no pane watches', () => {
+  it('are kept in memory as the cache on disk keeps them, not every one ever watched', async () => {
+    // Found in the sweep: every feed URL ever watched stayed in main until quit.
+    const h = harness()
+    for (let i = 0; i < CACHE_MAX_FEEDS + 10; i++) {
+      const url = `https://f${i}.test/feed.xml`
+      h.service.watch(url)
+      await h.settle()
+      h.service.unwatch(url)
+    }
+    expect(h.service.held()).toBe(CACHE_MAX_FEEDS)
+    // The ones kept are the most recently checked: the first ones went.
+    expect(h.service.snapshot('https://f0.test/feed.xml').items).toEqual([])
+    expect(h.service.snapshot(`https://f${CACHE_MAX_FEEDS + 9}.test/feed.xml`).items).toHaveLength(
+      1,
+    )
+  })
+})

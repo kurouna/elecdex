@@ -13,6 +13,8 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   CLOSED_INTERVAL_MS,
+  IDLE_CHART_MS,
+  IDLE_CHARTS_MAX,
   MarketService,
   QUOTE_INTERVAL_MS,
   RETRY_BACKOFF_MS,
@@ -252,5 +254,31 @@ describe('MarketService', () => {
     await h.advance(30 * MIN)
     expect(h.quoteCalls()).toHaveLength(1)
     expect(h.service.watching()).toEqual([])
+  })
+})
+
+describe('charts no pane watches', () => {
+  it('are kept a while for a pane coming back, but not every one ever watched', async () => {
+    // Found in the sweep: every symbol ever watched stayed in main, with its bars, until quit.
+    const h = harness()
+    for (let i = 0; i < IDLE_CHARTS_MAX + 10; i++) {
+      h.service.watch(`S${i}`)
+      h.service.unwatch(`S${i}`)
+    }
+    expect(h.service.held()).toEqual({ charts: IDLE_CHARTS_MAX, quotes: IDLE_CHARTS_MAX })
+    // A pane back from behind a tab finds its chart there, quoted, and asks for nothing new.
+    h.service.watch('X')
+    await h.advance(WATCH_BATCH_MS)
+    h.service.unwatch('X')
+    const asked = h.calls.length
+    h.service.watch('X')
+    await h.advance(WATCH_BATCH_MS)
+    expect(h.calls.length).toBe(asked)
+    // Away for longer than an hour, it is let go, and asked for afresh.
+    h.service.unwatch('X')
+    await h.advance(IDLE_CHART_MS)
+    h.service.watch('Y')
+    h.service.unwatch('Y')
+    expect(h.service.snapshot('X').quote).toBeNull()
   })
 })

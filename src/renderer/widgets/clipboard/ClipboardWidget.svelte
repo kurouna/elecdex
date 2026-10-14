@@ -1,10 +1,12 @@
 <script lang="ts">
 import { CLIP_MAX_ENTRIES, type ClipBoard, filterEntries } from '@shared/clipboard'
 import { SNIPPET_LIMITS, type SnippetView } from '@shared/snippets'
+import { untrack } from 'svelte'
 import { flip } from 'svelte/animate'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -39,7 +41,9 @@ const showView = (next: View): void =>
   widgetState.patch(paneId, { view: next === 'history' ? undefined : next })
 
 let board = $state.raw<ClipBoard | null>(null)
-let query = $state('')
+let query = $state(untrack(() => recallTyped(paneId, 'query')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'query', query))
 
 /** Entries that arrived while the pane was watching, lit until their highlight ends. */
 let fresh = $state.raw<ReadonlySet<string>>(new Set())

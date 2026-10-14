@@ -6,6 +6,7 @@ import { untrack } from 'svelte'
 import { type CanvasSize, observeCanvas } from '../../lib/canvas.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { POINTER_OFFSET } from '../../lib/hover-card.ts'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import type { SatRec } from '../../lib/sgp4.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -95,7 +96,9 @@ let starlink = $state.raw<OrbitUpdate | null>(null)
 let canvas = $state<HTMLCanvasElement | null>(null)
 let size = $state.raw<CanvasSize | null>(null)
 let choosing = $state(false)
-let query = $state('')
+let query = $state(untrack(() => recallTyped(paneId, 'query')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'query', query))
 
 /** What the header and the readouts say; assigned only when it changes. */
 let gmt = $state('')

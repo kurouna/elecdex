@@ -345,3 +345,18 @@ describe('TodoWidget behind another tab', () => {
     expect(marks).toEqual([undefined, undefined, undefined, undefined])
   })
 })
+
+describe('TodoWidget moved', () => {
+  it('keeps the task being typed when the pane is moved, which remounts it', async () => {
+    // Found in the sweep: what was typed was lost with a move.
+    await mount()
+    const input = screen.getByTestId('todo-input') as HTMLInputElement
+    input.value = 'call the bank'
+    input.dispatchEvent(new Event('input'))
+    flushSync()
+    cleanup()
+    await mount()
+    expect((screen.getByTestId('todo-input') as HTMLInputElement).value).toBe('call the bank')
+    input.value = ''
+  })
+})

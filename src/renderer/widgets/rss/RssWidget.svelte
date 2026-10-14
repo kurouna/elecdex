@@ -12,6 +12,7 @@ import { untrack } from 'svelte'
 import { flip } from 'svelte/animate'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
 import { NewAbove } from '../../lib/new-above.svelte.ts'
+import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
@@ -41,7 +42,9 @@ const feedKey = $derived(feeds.join('\n'))
 
 let updates = $state.raw<Record<string, FeedUpdate>>({})
 let editing = $state(false)
-let draft = $state('')
+let draft = $state(untrack(() => recallTyped(paneId, 'feed')))
+// Kept through a move, which remounts the pane (lib/pane-memory.ts).
+$effect(() => keepTyped(paneId, 'feed', draft))
 let problem = $state<string | null>(null)
 
 /**
