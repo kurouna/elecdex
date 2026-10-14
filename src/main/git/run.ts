@@ -108,6 +108,8 @@ export function killTree(pid: number, deps: TreeKillDeps = TREE_KILL): void {
 export const runGit: RunGit = (cwd, args, options) =>
   new Promise((resolve) => {
     let timedOut = false
+    // Declared before execFile, whose callback clears it: never read before it is set.
+    let timer: NodeJS.Timeout | undefined
     const child = execFile(
       'git',
       [...GIT_FLAGS, ...args],
@@ -123,7 +125,7 @@ export const runGit: RunGit = (cwd, args, options) =>
         env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true', GIT_PAGER: 'cat' },
       },
       (error, stdout, stderr) => {
-        clearTimeout(timer)
+        if (timer !== undefined) clearTimeout(timer)
         const code = (error as NodeJS.ErrnoException | null)?.code
         resolve({
           ok: error === null,
@@ -135,7 +137,7 @@ export const runGit: RunGit = (cwd, args, options) =>
         })
       },
     )
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       timedOut = true
       if (child.pid !== undefined) killTree(child.pid)
       else child.kill()

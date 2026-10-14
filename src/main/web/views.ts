@@ -423,10 +423,15 @@ export class WebViews {
     for (let tries = 0; tries < LEAVE_TRIES; tries += 1) {
       if (contents.isDestroyed() || entry.leaving !== asking) return
       // Rejects when the document has gone meanwhile, or would not leave: asked again either way.
+      let timer: NodeJS.Timeout | undefined
       const answer: unknown = await Promise.race([
         contents.executeJavaScript(LEAVE_SCRIPT).catch(() => null),
-        new Promise((resolve) => setTimeout(resolve, LEAVE_ANSWER_MS, null)),
+        new Promise((resolve) => {
+          timer = setTimeout(resolve, LEAVE_ANSWER_MS, null)
+        }),
       ])
+      // An answer in time leaves no timer behind it (issue 19).
+      clearTimeout(timer)
       if (answer === 'left') return
       await new Promise((resolve) => setTimeout(resolve, LEAVE_RETRY_MS))
     }

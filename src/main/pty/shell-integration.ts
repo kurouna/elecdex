@@ -224,6 +224,14 @@ export function pwshCandidates(env: Record<string, string>): string[] {
   const candidates = [
     path.win32.join(env.ProgramFiles ?? 'C:\\Program Files', 'PowerShell', '7', 'pwsh.exe'),
   ]
+  // A copy of one's own (the zip unpacked there), and the .NET global tool (issue 19).
+  if (env.LOCALAPPDATA !== undefined) {
+    candidates.push(path.win32.join(env.LOCALAPPDATA, 'Programs', 'PowerShell', '7', 'pwsh.exe'))
+  }
+  if (env.USERPROFILE !== undefined) {
+    candidates.push(path.win32.join(env.USERPROFILE, '.dotnet', 'tools', 'pwsh.exe'))
+  }
+  // The Store's alias last: left behind when the app is removed, it is found and fails.
   if (env.LOCALAPPDATA !== undefined) {
     candidates.push(path.win32.join(env.LOCALAPPDATA, 'Microsoft', 'WindowsApps', 'pwsh.exe'))
   }

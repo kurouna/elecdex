@@ -7,6 +7,7 @@ import {
 } from '@shared/keybindings'
 import { stepFontSize } from '@shared/settings'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
+import { forgetGonePanes } from '../lib/pane-memory.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { boot } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
@@ -106,6 +107,7 @@ async function reapOrphans(): Promise<void> {
   // Forget store entries for panes that are gone, so the store does not grow.
   const paneIds = new Set(layout.panes.map((p) => p.id))
   sessions.retainOnly(paneIds)
+  forgetGonePanes(paneIds)
 
   // Web pages whose pane is gone, closed while this page was away (a reload).
   for (const paneId of await window.elecdex.web.list()) {

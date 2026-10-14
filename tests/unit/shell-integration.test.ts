@@ -205,6 +205,21 @@ describe('defaultShell', () => {
     expect(defaultShell(env, 'win32', () => true)).toBe(pwsh)
   })
 
+  it("takes a copy of the user's own and the .NET tool, before the Store's alias", () => {
+    // Issue 19: a zip unpacked into the user's programs, or the dotnet global tool, was missed.
+    const env = {
+      ProgramFiles: 'C:\\Program Files',
+      LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local',
+      USERPROFILE: 'C:\\Users\\me',
+    }
+    const own = 'C:\\Users\\me\\AppData\\Local\\Programs\\PowerShell\\7\\pwsh.exe'
+    const tool = 'C:\\Users\\me\\.dotnet\\tools\\pwsh.exe'
+    const alias = 'C:\\Users\\me\\AppData\\Local\\Microsoft\\WindowsApps\\pwsh.exe'
+    expect(defaultShell(env, 'win32', (file) => file === own)).toBe(own)
+    expect(defaultShell(env, 'win32', (file) => file === tool)).toBe(tool)
+    expect(defaultShell(env, 'win32', (file) => file === own || file === alias)).toBe(own)
+  })
+
   it('takes a ComSpec that names PowerShell as it is, and SHELL elsewhere', () => {
     const comspec = 'C:\\Tools\\powershell.exe'
     expect(defaultShell({ ComSpec: comspec }, 'win32', () => true)).toBe(comspec)

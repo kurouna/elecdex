@@ -554,6 +554,9 @@ async function pasteChecked(t: Terminal, text: string): Promise<void> {
   if (text === '') return
   if (pasteNeedsAsking(text, appearance.settings.terminal.confirmPaste)) {
     const go = await ui.askPaste({ lines: pasteLines(text), ...pastePreview(text) })
+    // The pane closed, or its shell started again, while the question was open: that terminal
+    // is gone, and nothing goes into it (issue 19).
+    if (term !== t) return
     t.focus()
     if (!go) return
   }

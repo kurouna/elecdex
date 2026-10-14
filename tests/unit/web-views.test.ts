@@ -774,6 +774,21 @@ describe('WebViews', () => {
       expect(view().bounds).toEqual(RECT)
     })
 
+    it('leaves no timer behind an answer that came in time', async () => {
+      // Issue 19: each asking left its 500 ms timeout running after the page had answered.
+      views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      const contents = view().webContents
+      contents.inFullscreen = true
+      contents.emit('enter-html-full-screen')
+      const before = vi.getTimerCount()
+      await views.hide(asOwner(owner), 'p', 'a', false)
+      // The page has answered by the next turn; nothing of the asking is left waiting.
+      await vi.advanceTimersByTimeAsync(0)
+      expect(contents.inFullscreen).toBe(false)
+      expect(vi.getTimerCount()).toBeLessThanOrEqual(before)
+    })
+
     it('a request made while hidden is refused, however long the window takes to become fullscreen', async () => {
       views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
       views.show(asOwner(owner), 'p', 'a', RECT)

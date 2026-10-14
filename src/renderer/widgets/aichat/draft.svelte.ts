@@ -1,5 +1,6 @@
 import { ATTACH_LIMITS, type ChatAttachment } from '@shared/ai'
 import type { AttachCode, AttachmentView } from '@shared/ai-attach'
+import { keepsByPane } from '../../lib/pane-memory.ts'
 import { pastedName, prepare } from './attach.ts'
 
 /**
@@ -15,6 +16,11 @@ export interface Composed {
 }
 
 export const composed = new Map<string, Composed>()
+
+// A pane closed with words in it no longer holds them in memory until a restart (issue 19).
+keepsByPane((alive) => {
+  for (const paneId of composed.keys()) if (!alive.has(paneId)) composed.delete(paneId)
+})
 
 /** A file still being read or made small, shown as a chip until main has it. */
 export interface Reading {
