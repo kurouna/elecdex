@@ -1,6 +1,7 @@
-import { type FSWatcher, watch } from 'node:fs'
+import { watch } from 'node:fs'
 import { CH } from '@shared/channels'
 import type { WebContents } from 'electron'
+import { DirWatches } from '../fs/dir-watches.js'
 import { listDrives, readDirectory, validatePath } from '../fs/listing.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { whenPageGoes } from './page-gone.js'
@@ -14,51 +15,27 @@ import { registerTable } from './table.js'
  * and every watch of a page dropped when that page reloads or closes.
  */
 
-/** Changes within this window are reported once; a `git checkout` touches hundreds. */
-const CHANGE_DEBOUNCE_MS = 200
-
 export function registerFsIpc(): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const watchers = new Map<string, { watcher: FSWatcher; timer: NodeJS.Timeout | null }>()
-
-  const notify = (dir: string): void => {
-    for (const sender of registry.subscribers(dir)) {
-      if (!sender.isDestroyed()) sender.send(CH.fs.changed, dir)
-    }
-  }
-
-  const open = (dir: string): void => {
-    try {
-      const watcher = watch(dir, { persistent: false }, () => {
-        const entry = watchers.get(dir)
-        if (!entry || entry.timer !== null) return
-        entry.timer = setTimeout(() => {
-          entry.timer = null
-          notify(dir)
-        }, CHANGE_DEBOUNCE_MS)
+  const watches = new DirWatches({
+    watch: (dir, onChange, onError) => {
+      const watcher = watch(dir, { persistent: false }, onChange)
+      watcher.on('error', () => {
+        watcher.close()
+        onError()
       })
-      // A watched directory that is deleted or becomes unreadable: stop quietly.
-      // The widget still refreshes on the next cwd change.
-      watcher.on('error', () => close(dir))
-      watchers.set(dir, { watcher, timer: null })
-    } catch {
-      // Not watchable (permissions, a network path). Listings still work.
-    }
-  }
-
-  const close = (dir: string): void => {
-    const entry = watchers.get(dir)
-    if (!entry) return
-    if (entry.timer !== null) clearTimeout(entry.timer)
-    entry.watcher.close()
-    watchers.delete(dir)
-  }
-
-  const syncWatchers = (): void => {
-    const active = new Set(registry.activeSources())
-    for (const dir of [...watchers.keys()]) if (!active.has(dir)) close(dir)
-    for (const dir of active) if (!watchers.has(dir)) open(dir)
-  }
+      return watcher
+    },
+    notify: (dir) => {
+      for (const sender of registry.subscribers(dir)) {
+        if (!sender.isDestroyed()) sender.send(CH.fs.changed, dir)
+      }
+    },
+    active: () => registry.activeSources(),
+    setTimer: (fn, ms) => setTimeout(fn, ms),
+    clearTimer: (timer) => clearTimeout(timer as NodeJS.Timeout),
+  })
+  const syncWatchers = (): void => watches.sync()
 
   const track = (sender: WebContents): void => {
     const drop = (): void => {
@@ -93,7 +70,7 @@ export function registerFsIpc(): { dispose: () => void } {
 
   return {
     dispose: () => {
-      for (const dir of [...watchers.keys()]) close(dir)
+      watches.dispose()
       unregister()
     },
   }

@@ -1,4 +1,5 @@
 <script lang="ts">
+import type { CandlePoint } from '@shared/markets'
 import {
   barScale,
   CHART_RANGES,
@@ -321,6 +322,27 @@ const tone = (row: Row) => {
 
 const signed = (percent: number): string =>
   `${percent >= 0 ? '+' : '−'}${Math.abs(percent).toFixed(2)}%`
+
+/**
+ * A row's sparkline, made once for its candles: given as fresh arrays, every line on the board
+ * was drawn again whenever anything of the board changed - a quote, the hover, the clock (found
+ * in the sweep). The same candles and range give the same arrays.
+ */
+const sparks = new WeakMap<
+  readonly CandlePoint[],
+  { range: unknown; points: { t: number; v: number }[]; dividers: number[] }
+>()
+function sparkOf(candles: readonly CandlePoint[], range: Parameters<typeof dividerIndices>[1]) {
+  const kept = sparks.get(candles)
+  if (kept !== undefined && kept.range === range) return kept
+  const made = {
+    range,
+    points: candles.map((c) => ({ t: c.t, v: c.c })),
+    dividers: dividerIndices(candles, range),
+  }
+  sparks.set(candles, made)
+  return made
+}
 </script>
 
 
@@ -473,12 +495,12 @@ const signed = (percent: number): string =>
               {#if view === 'candles'}
                 <Candlestick candles={row.update?.candles ?? []} baseline={row.update?.base ?? null} {range} />
               {:else}
-                {@const candles = row.update?.candles ?? []}
+                {@const line = sparkOf(row.update?.candles ?? [], range)}
                 <Sparkline
-                  points={candles.map((c) => ({ t: c.t, v: c.c }))}
+                  points={line.points}
                   baseline={row.update?.base ?? null}
                   up={(row.move?.change ?? 0) >= 0}
-                  dividers={dividerIndices(candles, range)}
+                  dividers={line.dividers}
                 />
               {/if}
             </span>

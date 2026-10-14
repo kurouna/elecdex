@@ -288,7 +288,7 @@ function toggleFinished(session: AgentSession): void {
           >
             <span
               class="lamp"
-              class:blink={session.status === 'busy' && pulse.phase === 2}
+              class:blink={visible && session.status === 'busy' && pulse.phase === 2}
               aria-hidden="true"
             ></span>
             <span class="status" data-testid="agent-status">{STATUS_LABEL[session.status]}</span>

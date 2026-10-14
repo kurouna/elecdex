@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { LauncherEntry } from '@shared/launcher'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { onSummoned } from '../../lib/summoned.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -135,7 +136,7 @@ function blink(id: string): Promise<void> {
   })
 }
 
-async function launch(entry: LauncherEntry | undefined): Promise<void> {
+const launch = oneAtATime(async (entry: LauncherEntry | undefined): Promise<void> => {
   if (!entry) return
   const blinkDone = blink(entry.id)
   sfx.play('granted')
@@ -155,7 +156,7 @@ async function launch(entry: LauncherEntry | undefined): Promise<void> {
   setTimeout(() => {
     status = null
   }, 4000)
-}
+})
 
 function onFilterKey(event: KeyboardEvent): void {
   if (event.key === 'Enter') {

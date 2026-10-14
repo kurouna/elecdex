@@ -1,6 +1,7 @@
 <script lang="ts">
 import { evaluateAt } from '@shared/calc'
 import { type Note, noteTitle } from '@shared/notes'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { notes } from '../../stores/notes.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -162,7 +163,7 @@ function keepTyped(id: string, body: string): void {
 // either way the last keystrokes have to reach main before this goes.
 $effect(() => () => flushNow())
 
-async function newNote(): Promise<void> {
+const newNote = oneAtATime(async (): Promise<void> => {
   flushNow()
   const note = await notes.create()
   if (note === null) {
@@ -171,7 +172,7 @@ async function newNote(): Promise<void> {
   }
   select(note.id)
   area?.focus()
-}
+})
 
 /** Deletes a note - the one shown, or one picked out of the switcher. */
 function removeNote(target?: Note): void {
@@ -306,6 +307,11 @@ $effect(() => {
     ...(dirtyAt === null ? {} : { badge: '*' }),
   })
 })
+
+/** One save dialog for a double press, not two (found in the sweep). */
+const exportNote = oneAtATime(async (id: string): Promise<void> => {
+  await window.elecdex.notes.export(id)
+})
 </script>
 
 <div class="notes" data-testid="notes" data-dirty={dirtyAt !== null || undefined}>
@@ -359,7 +365,7 @@ $effect(() => {
         type="button"
         class="row-action"
         onclick={() => {
-          if (noteId !== null) void window.elecdex.notes.export(noteId)
+          if (noteId !== null) void exportNote(noteId)
         }}
         data-testid="notes-export">save as .md…</button
       >

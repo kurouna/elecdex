@@ -19,7 +19,13 @@ const STATIONS = readFileSync('tests/fixtures/orbits/stations.json', 'utf8')
 const STARLINK = readFileSync('tests/fixtures/orbits/starlink-60.tle', 'utf8')
 const HOUR = 60 * 60_000
 
-function harness(options: { status?: number; saved?: Partial<Record<OrbitSet, OrbitCache>> } = {}) {
+function harness(
+  options: {
+    status?: number
+    saved?: Partial<Record<OrbitSet, OrbitCache>>
+    saveFails?: boolean
+  } = {},
+) {
   let now = Date.UTC(2026, 8, 23, 3, 0, 0)
   const timers: { at: number; fn: () => void }[] = []
   const asked: string[] = []
@@ -53,6 +59,7 @@ function harness(options: { status?: number; saved?: Partial<Record<OrbitSet, Or
     },
     load: (set) => disk[set] ?? null,
     save: (set, cache) => {
+      if (options.saveFails) throw new Error('ENOSPC')
       disk[set] = cache
     },
     publish: (update) => published.push(update),
@@ -90,6 +97,16 @@ function harness(options: { status?: number; saved?: Partial<Record<OrbitSet, Or
 }
 
 describe('the orbit service', () => {
+  it('still shows what it fetched, and asks again in time, when its cache cannot be written', async () => {
+    // Found in the sweep: the throw left the elements unpublished and the set never asked again.
+    const h = harness({ saveFails: true })
+    h.service.watch('stations')
+    await h.advance(0)
+    expect(h.published.at(-1)?.elements.map((e) => e.id)).toEqual([25544, 48274])
+    await h.advance(ORBIT_REFRESH_MS.stations)
+    expect(h.asked).toHaveLength(2)
+  })
+
   it('asks for nothing until a pane shows a set', async () => {
     const h = harness()
     await h.advance(3 * 24 * HOUR)

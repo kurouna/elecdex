@@ -23,6 +23,7 @@ import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { ai } from '../../stores/ai.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
@@ -30,6 +31,7 @@ import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import CodeLine from '../common/CodeLine.svelte'
 import SessionLog from '../common/SessionLog.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
@@ -57,7 +59,9 @@ import Payload from './Payload.svelte'
  * Files go with a question when the user picks them (+), drops them on the pane or pastes a
  * picture: read here as bytes, never a path, and judged by main (shared/ai-attach.ts).
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** On screen: the pulse and the elapsed seconds are drawn only then; the answer goes on unseen. */
+const visible = $derived(seen(inTab))
 
 const choice = $derived(paneAiChat(paneState))
 const providers = $derived(appearance.settings.ai.providers)
@@ -160,7 +164,7 @@ const startedAt = $derived(run?.startedAt ?? null)
 let elapsed = $state(0)
 
 $effect(() => {
-  if (startedAt === null) return
+  if (startedAt === null || !visible) return
   const began = startedAt
   const count = (): void => {
     const next = Math.max(0, Math.floor((Date.now() - began) / 1000))
@@ -171,7 +175,7 @@ $effect(() => {
 })
 
 $effect(() => {
-  if (busy) return pulse.use()
+  if (busy && visible) return pulse.use()
 })
 
 /**
@@ -658,13 +662,18 @@ const host = $derived.by(() => {
   const url = provider === null ? null : aiBaseUrl(provider.baseUrl)
   return url === null ? null : new URL(url).host
 })
+
+/** One save dialog for a double press, not two (found in the sweep). */
+const exportChat = oneAtATime(async (id: string): Promise<void> => {
+  await window.elecdex.ai.export(id)
+})
 </script>
 
 <div
   class="chat"
   data-testid="aichat"
   data-busy={busy}
-  data-pulse={busy ? pulse.phase : undefined}
+  data-pulse={busy && visible ? pulse.phase : undefined}
   bind:this={root}
   role="presentation"
   ondragenter={dragEnter}
@@ -748,7 +757,7 @@ const host = $derived.by(() => {
         suffix={(chat) => String(chat.messages)}
         testids={{ list: 'aichat-history', item: 'aichat-history-item', delete: 'aichat-history-delete' }}
         onopen={openChat}
-        onexport={(id) => void window.elecdex.ai.export(id)}
+        onexport={(id) => void exportChat(id)}
         ondelete={(id) => void removeChat(id)}
       />
     {/if}
@@ -840,7 +849,7 @@ const host = $derived.by(() => {
             <span class="rule"></span>
             <span class="meta live" data-testid="aichat-telemetry">
               {#if run.text === '' && run.thinking === ''}
-                <span class="sweep" aria-hidden="true">{SWEEP[pulse.phase] ?? SWEEP[0]}</span>
+                <span class="sweep" aria-hidden="true">{SWEEP[visible ? pulse.phase : 0] ?? SWEEP[0]}</span>
               {:else}
                 <span class="lamp rx" aria-hidden="true"></span>
               {/if}{phase} · T+{elapsed}s · {compactCount(run.text.length + run.thinking.length)} ch

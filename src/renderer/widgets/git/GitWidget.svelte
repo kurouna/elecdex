@@ -20,6 +20,7 @@ import { untrack } from 'svelte'
 import ConfirmButton from '../../ConfirmButton.svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize } from '../../lib/hover-card.ts'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
@@ -225,7 +226,7 @@ $effect(() => {
   }
 })
 
-async function pick(): Promise<void> {
+const pick = oneAtATime(async (): Promise<void> => {
   problem = null
   const result = await window.elecdex.git.pick()
   if (result === null) return
@@ -235,7 +236,7 @@ async function pick(): Promise<void> {
   }
   choosing = false
   setState({ repo: result.repo.id, chosen: null, commit: null })
-}
+})
 
 function useRepo(id: string): void {
   choosing = false
@@ -245,7 +246,7 @@ function useRepo(id: string): void {
 
 /** The fetch or pull under way from this pane; its button steps with the shared pulse meanwhile. */
 let syncing = $state<GitSyncAction | null>(null)
-$effect(() => (syncing !== null ? pulse.use() : undefined))
+$effect(() => (visible && syncing !== null ? pulse.use() : undefined))
 
 const SYNC_BUSY: Record<GitSyncAction, string> = { fetch: 'FETCHING', pull: 'PULLING' }
 
@@ -412,7 +413,7 @@ $effect(() => {
         <span class="ab">↑{repoState.branch.ahead} ↓{repoState.branch.behind}</span>
       {/if}
       {#if repoState?.operation}
-        <span class="chip warn" data-testid="git-operation" data-phase={pulse.phase}
+        <span class="chip warn" data-testid="git-operation" data-phase={visible ? pulse.phase : 0}
           >{repoState.operation.toUpperCase()}</span
         >
       {/if}
@@ -424,7 +425,7 @@ $effect(() => {
       <span class="sync">
         {#each GIT_SYNC_ACTIONS as action (action)}
           {#if syncing === action}
-            <span class="busy" data-phase={pulse.phase} data-testid="git-{action}-busy"
+            <span class="busy" data-phase={visible ? pulse.phase : 0} data-testid="git-{action}-busy"
               >{SYNC_BUSY[action]}</span
             >
           {:else}

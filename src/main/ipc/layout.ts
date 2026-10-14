@@ -16,7 +16,7 @@ import {
   withSavedLayout,
 } from '@shared/layouts'
 import { type LayoutTree, LayoutTreeSchema, migrateLayout } from '@shared/schemas/layout'
-import { app } from 'electron'
+import { app, shell } from 'electron'
 import { JsonStore } from '../store/json-store.js'
 import { registerTable } from './table.js'
 
@@ -125,7 +125,9 @@ export function registerLayoutIpc(): { dispose: () => void } {
         setActive(null)
         return fresh
       },
-      [CH.layout.revealFile]: () => store.path,
+      // Shown by main, which knows the file: no channel takes a path from the page (found in the
+      // sweep: a reveal took any path the page named).
+      [CH.layout.revealFile]: () => shell.showItemInFolder(store.path),
       [CH.layout.savedList]: () => {
         // From disk, as the live layout is read: the list is asked for when a page
         // loads and when the dialog opens, so this is cheap - and it is what lets a
@@ -167,7 +169,7 @@ export function registerLayoutIpc(): { dispose: () => void } {
         setActive(entry.id)
         return tree
       },
-      [CH.layout.savedFile]: () => saved.path,
+      [CH.layout.savedReveal]: () => shell.showItemInFolder(saved.path),
       [CH.layout.savedAddPreset]: (_event, rawPreset: unknown) => {
         const current = readSaved()
         const added = withPresetLayout(current.items, rawPreset, newLayoutId(current.items))

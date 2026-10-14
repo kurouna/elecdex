@@ -1,6 +1,7 @@
 <script lang="ts">
 import { TOO_LONG } from '@shared/logwatch/explain'
 import type { LogExplainEvent, LogExplainPreview, LogExplainRequest } from '@shared/logwatch/types'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import Markdown from '../aichat/Markdown.svelte'
@@ -15,9 +16,11 @@ interface Props {
   /** The provider and model it will go to, for the eye. */
   to: string
   onclose: () => void
+  /** On screen: the WRITING lamp steps with the pulse only then; the answer goes on. */
+  visible?: boolean
 }
 
-const { request, to, onclose }: Props = $props()
+const { request, to, onclose, visible = true }: Props = $props()
 
 let preview = $state.raw<LogExplainPreview | null>(null)
 let missing = $state(false)
@@ -63,14 +66,14 @@ $effect(() =>
 )
 
 const writing = $derived(token !== null && answer?.done !== true)
-$effect(() => (writing ? pulse.use() : undefined))
+$effect(() => (writing && visible ? pulse.use() : undefined))
 
 // An answer being written stops when the panel goes.
 $effect(() => () => {
   if (token !== null && answer?.done !== true) window.elecdex.logwatch.cancelExplain(token)
 })
 
-async function send(): Promise<void> {
+const send = oneAtATime(async (): Promise<void> => {
   problem = null
   sfx.play('expand')
   const started = await window.elecdex.logwatch.explain($state.snapshot(request))
@@ -82,7 +85,7 @@ async function send(): Promise<void> {
   token = started.token
   if (early?.token === started.token) take(early)
   early = null
-}
+})
 
 function stop(): void {
   if (token !== null) window.elecdex.logwatch.cancelExplain(token)
@@ -94,7 +97,7 @@ function stop(): void {
     <span class="title">EXPLAIN</span>
     <span class="to">{answer?.provider ?? to}{answer ? ` · ${answer.model}` : ''}</span>
     {#if writing}
-      <span class="lamp" data-pulse={pulse.phase}>WRITING</span>
+      <span class="lamp" data-pulse={visible ? pulse.phase : 0}>WRITING</span>
       <button type="button" onclick={stop} data-testid="logwatch-explain-stop">STOP</button>
     {:else if token === null && preview !== null && !preview.fits}
       <span class="refused" data-testid="logwatch-explain-too-long">{TOO_LONG}</span>

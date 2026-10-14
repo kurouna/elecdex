@@ -50,3 +50,17 @@ describe('ClockWidget', () => {
     expect(seconds()).toBe('45')
   })
 })
+
+describe('ClockWidget behind another tab', () => {
+  it('stands still while it is not the tab shown, and is right as soon as it is', async () => {
+    // Found in the sweep: a clock behind a tab ticked every second for no one.
+    const { rerender } = render(ClockWidget, { props: { paneId: 'p', visible: false } as never })
+    flushSync()
+    vi.advanceTimersByTime(5000)
+    flushSync()
+    expect(seconds()).toBe('30')
+    await rerender({ paneId: 'p', visible: true } as never)
+    flushSync()
+    expect(seconds()).toBe('35')
+  })
+})

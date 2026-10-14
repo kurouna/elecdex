@@ -321,3 +321,27 @@ describe('TodoWidget', () => {
     expect(pane.dataset.pulse).toBeUndefined()
   })
 })
+
+describe('TodoWidget behind another tab', () => {
+  it('asks for no beat for a late task while it is not the tab shown', async () => {
+    // Found in the sweep: a late row pulsed four times a second behind a tab, all day.
+    file.tasks = [task({ id: 'late', title: 'overdue', due: NOW - 3_600_000 })]
+    render(TodoWidget, { props: { paneId: 'p', state: {}, visible: false } as never })
+    await settle()
+    changed?.(structuredClone(file))
+    await settle()
+    const pane = screen.getByTestId('todo')
+    expect(pane.querySelector('.row.late')).not.toBeNull()
+    // Another pane, shown, beats: this one is not drawn again for it.
+    const { pulse } = await import('../../src/renderer/lib/pulse.svelte.ts')
+    const release = pulse.use()
+    const marks: Array<string | undefined> = []
+    for (let step = 0; step < 4; step++) {
+      vi.advanceTimersByTime(250)
+      flushSync()
+      marks.push(pane.dataset.pulse)
+    }
+    release()
+    expect(marks).toEqual([undefined, undefined, undefined, undefined])
+  })
+})

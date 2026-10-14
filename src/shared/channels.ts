@@ -10,7 +10,6 @@ export const CH = {
     /** Facts about the machine for the boot log (MachineFacts); slower than info. */
     machine: 'system:machine',
     openExternal: 'system:open-external',
-    revealInFolder: 'system:reveal-in-folder',
     toggleDevTools: 'system:toggle-devtools',
     setFullscreen: 'system:set-fullscreen',
     toggleFullscreen: 'system:toggle-fullscreen',
@@ -44,7 +43,7 @@ export const CH = {
     savedRemove: 'layout:saved-remove',
     savedRename: 'layout:saved-rename',
     savedMove: 'layout:saved-move',
-    savedFile: 'layout:saved-file',
+    savedReveal: 'layout:saved-reveal',
     /** Presets (shared/layout-presets.ts): made into a saved layout, or one put back. */
     savedAddPreset: 'layout:saved-add-preset',
     savedRestorePreset: 'layout:saved-restore-preset',
@@ -70,7 +69,7 @@ export const CH = {
   },
   themes: {
     list: 'themes:list',
-    folder: 'themes:folder',
+    reveal: 'themes:reveal',
     /** main -> renderer: the theme catalog after a theme file changed. */
     changed: 'themes:changed',
   },

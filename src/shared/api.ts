@@ -165,8 +165,6 @@ export interface SystemApi {
   machine(): Promise<MachineFacts>
   /** Opens a http(s) URL in the user's default browser. Rejects anything else. */
   openExternal(url: string): Promise<void>
-  /** Reveals a path in the OS file manager. */
-  revealInFolder(path: string): Promise<void>
   toggleDevTools(): void
   setFullscreen(on: boolean): void
   toggleFullscreen(): void
@@ -260,8 +258,8 @@ export interface LayoutApi {
   /** Persists the tree. Returns the normalised value that was actually written. */
   save(tree: LayoutTree): Promise<LayoutTree>
   reset(): Promise<LayoutTree>
-  /** Absolute path of layout.json, for a "reveal in folder" action. */
-  filePath(): Promise<string>
+  /** Shows layout.json in the system's file manager. Main knows the file; the page names none. */
+  reveal(): Promise<void>
   /**
    * Arrangements kept by name (shared/layouts.ts), in a file of their own. The
    * trees stay in main: the renderer lists names and asks for one to be applied,
@@ -284,8 +282,8 @@ export interface SavedLayoutsApi {
    * put on a number shortcut. Unchanged at either end.
    */
   move(id: string, delta: number): Promise<SavedLayoutSummary[]>
-  /** Absolute path of layouts.json, which is the file to copy to another machine. */
-  filePath(): Promise<string>
+  /** Shows layouts.json, the file to copy to another machine, in the system's file manager. */
+  reveal(): Promise<void>
   /**
    * Makes a preset one of the saved layouts, or finds the one already made from
    * it, and answers with the list and that layout's id - null when the preset is
@@ -834,8 +832,8 @@ export interface ThemeCatalog {
 export interface ThemesApi {
   /** Built-in themes overlaid with those in the user's themes folder. */
   list(): Promise<ThemeCatalog>
-  /** Absolute path of the user's themes folder. */
-  folder(): Promise<string>
+  /** Shows the user's themes folder in the system's file manager. */
+  reveal(): Promise<void>
   onChange(handler: (catalog: ThemeCatalog) => void): () => void
 }
 

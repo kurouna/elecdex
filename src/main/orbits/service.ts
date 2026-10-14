@@ -165,7 +165,13 @@ export class OrbitService {
       state.fetching = false
     }
     state.cache = next
-    this.deps.save(set, next)
+    // A cache that cannot be written costs the cache, not the elements just fetched: before, the
+    // throw left them unpublished and the set never asked again (found in the sweep).
+    try {
+      this.deps.save(set, next)
+    } catch {
+      // Kept in memory; written with the next download.
+    }
     this.deps.publish(this.snapshot(set))
     this.schedule(set)
   }

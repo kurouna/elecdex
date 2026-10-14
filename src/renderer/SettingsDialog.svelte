@@ -376,7 +376,7 @@ function describeUpdate(status: UpdateStatus): string {
                 <button
                   type="button"
                   class="link"
-                  onclick={() => void window.elecdex.themes.folder().then((dir) => window.elecdex.system.revealInFolder(dir))}
+                  onclick={() => void window.elecdex.themes.reveal()}
                 >
                   themes folder
                 </button>

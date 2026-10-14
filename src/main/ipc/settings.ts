@@ -162,7 +162,7 @@ export function registerSettingsIpc(): SettingsHandle {
       },
 
       [CH.themes.list]: (): ThemeCatalog => catalog,
-      [CH.themes.folder]: () => themesDir,
+      [CH.themes.reveal]: () => shell.showItemInFolder(themesDir),
       // Opens settings.json in the user's editor, for things the UI does not edit yet.
       [CH.settings.openFile]: async () => {
         if (!existsSync(settingsFile)) store.write(settings)

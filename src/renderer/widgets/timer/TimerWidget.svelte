@@ -25,6 +25,7 @@ import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import type { Bar } from '../common/bars.ts'
 import LevelBars from '../common/LevelBars.svelte'
 import Readout from '../common/Readout.svelte'
@@ -50,7 +51,9 @@ import TimerCard from './TimerCard.svelte'
  * loop reads as a broken instrument. Laps are taken at full precision.
  */
 
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** On screen: the loop draws only then; a countdown still lands on its own timer unseen. */
+const visible = $derived(seen(inTab))
 
 const chrono = $derived<ChronoPane>(readChrono(paneState))
 const mode = $derived(chrono.mode)
@@ -67,7 +70,7 @@ let custom = $state('')
 const ticking = $derived(stopwatch.running || timers.some((timer) => timer.running))
 
 $effect(() => {
-  if (!ticking) return
+  if (!ticking || !visible) return
   return onFrame(() => {
     now = Date.now()
   })
@@ -101,6 +104,7 @@ $effect(() => {
 // A stopped chrono still has to be right when the pane is mounted or shown again.
 $effect(() => {
   void ticking
+  void visible
   now = Date.now()
 })
 
@@ -110,7 +114,7 @@ $effect(() => {
  * lands in the same frame as the clock's; nothing is drawn in between.
  */
 $effect(() => {
-  if (mode !== 'alarm' || ticking) return
+  if (mode !== 'alarm' || ticking || !visible) return
   return onBoundary(60_000, () => {
     now = Date.now()
   })
@@ -527,6 +531,7 @@ $effect(() => {
         <TimerCard
           {timer}
           {now}
+          {visible}
           onstart={() => startTimer(timer)}
           onstop={() => stopTimer(timer)}
           onreset={() => resetTimer(timer)}

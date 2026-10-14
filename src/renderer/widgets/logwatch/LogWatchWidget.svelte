@@ -22,6 +22,7 @@ import { tick } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -117,7 +118,7 @@ $effect(() => {
   }
 })
 
-async function pick(newest: boolean): Promise<void> {
+const pick = oneAtATime(async (newest: boolean): Promise<void> => {
   problem = null
   const result = await window.elecdex.logwatch.pick(newest)
   if (result === null) return
@@ -127,7 +128,7 @@ async function pick(newest: boolean): Promise<void> {
     return
   }
   use(result.file.id)
-}
+})
 
 function use(id: string): void {
   choosing = false
@@ -449,7 +450,7 @@ $effect(() => {
       ontoggle={() => (settingsOpen = !settingsOpen)}
     />
     <header class="status" data-testid="logwatch-status" data-state={status?.state ?? 'opening'}>
-      <span class="lamp" data-tone={lamp.tone} data-pulse={lamp.tone === 'ok' ? pulse.phase : 0} data-testid="logwatch-lamp"
+      <span class="lamp" data-tone={lamp.tone} data-pulse={lamp.tone === 'ok' && visible ? pulse.phase : 0} data-testid="logwatch-lamp"
         ><i></i>{lamp.word}</span
       >
       <span class="figure"><small>RATE</small><b>{rate}/s</b></span>
@@ -567,6 +568,7 @@ $effect(() => {
           request={explaining}
           to={target === null ? '' : `${target.provider.name} · ${target.model}`}
           onclose={() => (explaining = null)}
+          {visible}
         />
       {/key}
     {/if}

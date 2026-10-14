@@ -24,6 +24,8 @@ interface Props {
   onsurface?: (id: string, element: HTMLCanvasElement) => () => void
   /** The view's mount in its worker: canvases are made anew for each (CanvasBlock). */
   epoch?: number
+  /** On screen: blocks that tick (time) take their ticks only then. */
+  visible?: boolean
 }
 
 const {
@@ -33,6 +35,7 @@ const {
   onlink,
   onsurface = () => () => {},
   epoch = 0,
+  visible = true,
 }: Props = $props()
 
 /** A canvas with no height takes the rest of the pane, so the blocks fill it. */
@@ -55,7 +58,7 @@ const lit = (value: number, segments: number) => Math.round(value * segments)
         >
       </div>
     {:else if block.t === 'time'}
-      <TimeBlock at={block.at} style={block.style} label={block.label} tone={block.tone} size={block.size} />
+      <TimeBlock at={block.at} style={block.style} label={block.label} tone={block.tone} size={block.size} {visible} />
     {:else if block.t === 'rows'}
       <dl class="rows">
         {#each block.rows as row, r (r)}

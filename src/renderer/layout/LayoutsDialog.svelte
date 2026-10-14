@@ -301,9 +301,7 @@ function enter(): void {
 }
 
 function revealFile(): void {
-  void window.elecdex.layout.saved
-    .filePath()
-    .then((file) => window.elecdex.system.revealInFolder(file))
+  void window.elecdex.layout.saved.reveal()
 }
 </script>
 

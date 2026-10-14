@@ -142,3 +142,27 @@ test("has no menu of Electron's, so its own keys reach nothing", async () => {
     ),
   ).toBe(0)
 })
+
+test('reveals only the files main knows, and takes no path from the page', async () => {
+  // Found in the sweep: a reveal channel showed any path the page named.
+  await app.evaluate(({ shell }) => {
+    const shown: string[] = []
+    ;(globalThis as unknown as { __shown: string[] }).__shown = shown
+    shell.showItemInFolder = (file: string) => {
+      shown.push(file)
+    }
+  })
+  expect(await page.evaluate(() => 'revealInFolder' in (window.elecdex.system as object))).toBe(
+    false,
+  )
+  await page.evaluate(async () => {
+    await window.elecdex.layout.saved.reveal()
+    await window.elecdex.themes.reveal()
+    await window.elecdex.layout.reveal()
+  })
+  const shown = await app.evaluate(() => (globalThis as unknown as { __shown: string[] }).__shown)
+  expect(shown).toHaveLength(3)
+  expect(shown[0]).toMatch(/layouts\.json$/)
+  expect(shown[1]).toMatch(/themes$/)
+  expect(shown[2]).toMatch(/layout\.json$/)
+})

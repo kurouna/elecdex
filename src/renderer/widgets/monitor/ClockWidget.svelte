@@ -1,6 +1,7 @@
 <script lang="ts">
 import { formatClock, zoneAbbreviation } from '../../lib/format.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import Digits from '../common/Digits.svelte'
 import type { WidgetProps } from '../registry.ts'
 
@@ -17,15 +18,20 @@ import type { WidgetProps } from '../registry.ts'
  * rather than simply to be different. Only the column that changed plays it, so
  * the hours sit still through the hour.
  */
-const { paneId }: WidgetProps = $props()
+const { paneId, visible: inTab = true }: WidgetProps = $props()
+const visible = $derived(seen(inTab))
 
 let now = $state(new Date())
 
-$effect(() =>
-  onBoundary(1000, () => {
+// Behind a tab it ticked every second for no one (found in the sweep); shown again, it is right
+// at once.
+$effect(() => {
+  if (!visible) return
+  now = new Date()
+  return onBoundary(1000, () => {
     now = new Date()
-  }),
-)
+  })
+})
 
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 // The abbreviation changes only with daylight saving; once a minute is plenty. It

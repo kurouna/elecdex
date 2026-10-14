@@ -138,11 +138,19 @@ export function parseProcMounts(text: string): MountEntry[] {
 }
 
 /** Resolves null if `fn` has not settled in time: a disconnected network drive can hang. */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return Promise.race([
-    promise,
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
-  ])
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  let timer: NodeJS.Timeout | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms)
+      }),
+    ])
+  } finally {
+    // Settled in time: its timeout goes too, rather than run on once per drive.
+    clearTimeout(timer)
+  }
 }
 
 async function driveAt(root: string, label: string): Promise<DriveInfo | null> {

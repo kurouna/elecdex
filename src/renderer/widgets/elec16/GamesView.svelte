@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { Elec16Game } from '@shared/elec16-units'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import type { DevGame } from './dev-game.svelte.ts'
 
@@ -62,11 +63,11 @@ $effect(() => {
   return window.elecdex.elec16.onGamesChange(() => void load())
 })
 
-async function importGame(): Promise<void> {
+const importGame = oneAtATime(async (): Promise<void> => {
   sfx.play('panel')
   const done = await window.elecdex.elec16.importGame()
   problem = done === null || done.ok ? null : done.problem
-}
+})
 
 /** The imported game REMOVE is armed for: a second press within a few seconds takes it off. */
 let armed = $state<string | null>(null)

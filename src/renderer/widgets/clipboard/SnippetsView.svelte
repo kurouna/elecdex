@@ -10,6 +10,7 @@ import {
 import { tick, untrack } from 'svelte'
 import { flip } from 'svelte/animate'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import SnippetCard from './SnippetCard.svelte'
@@ -240,7 +241,7 @@ function addedProblem(result: SnippetAdded): string | null {
   return 'not saved: the text is empty or too long'
 }
 
-async function save(draft: { name: string; text: string }): Promise<void> {
+const save = oneAtATime(async (draft: { name: string; text: string }): Promise<void> => {
   const open = editing
   if (open === null) return
   if (open.id === null) {
@@ -266,7 +267,7 @@ async function save(draft: { name: string; text: string }): Promise<void> {
   editing = null
   await tick()
   focusCopy(id)
-}
+})
 
 function cancel(): void {
   const id = editing?.id ?? null

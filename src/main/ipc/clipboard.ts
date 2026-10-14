@@ -60,10 +60,14 @@ export function registerClipboardIpc(): { dispose: () => void; writer: Clipboard
         subscribers.add(event.sender)
       },
       [CH.clipboard.unsubscribe]: (event) => subscribers.drop(event.sender),
-      [CH.clipboard.remove]: (_event, id) => {
-        if (isClipId(id)) watcher.remove(id)
+      // Only from a page that shows the pane, as NOW PLAYING's presses: a page with no clipboard
+      // pane could empty the system clipboard (found in the sweep).
+      [CH.clipboard.remove]: (event, id) => {
+        if (isClipId(id) && subscribers.has(event.sender)) watcher.remove(id)
       },
-      [CH.clipboard.clear]: () => void watcher.clear(),
+      [CH.clipboard.clear]: (event) => {
+        if (subscribers.has(event.sender)) void watcher.clear()
+      },
       [CH.clipboard.pause]: (_event, paused) => {
         if (typeof paused === 'boolean') watcher.setPaused(paused)
       },

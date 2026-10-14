@@ -569,7 +569,6 @@ const api: ElecdexApi = {
     info: () => ipcRenderer.invoke(CH.system.info) as Promise<AppInfo>,
     machine: () => ipcRenderer.invoke(CH.system.machine) as Promise<MachineFacts>,
     openExternal: (url) => ipcRenderer.invoke(CH.system.openExternal, url) as Promise<void>,
-    revealInFolder: (path) => ipcRenderer.invoke(CH.system.revealInFolder, path) as Promise<void>,
     toggleDevTools: () => ipcRenderer.send(CH.system.toggleDevTools),
     setFullscreen: (on) => ipcRenderer.send(CH.system.setFullscreen, on),
     toggleFullscreen: () => ipcRenderer.send(CH.system.toggleFullscreen),
@@ -913,7 +912,7 @@ const api: ElecdexApi = {
   },
   themes: {
     list: () => ipcRenderer.invoke(CH.themes.list) as Promise<ThemeCatalog>,
-    folder: () => ipcRenderer.invoke(CH.themes.folder) as Promise<string>,
+    reveal: () => ipcRenderer.invoke(CH.themes.reveal) as Promise<void>,
     onChange: (handler) => listen<ThemeCatalog>(CH.themes.changed, handler),
   },
   fs: {
@@ -932,7 +931,7 @@ const api: ElecdexApi = {
     load: () => ipcRenderer.invoke(CH.layout.load) as Promise<LayoutTree>,
     save: (tree) => ipcRenderer.invoke(CH.layout.save, tree) as Promise<LayoutTree>,
     reset: () => ipcRenderer.invoke(CH.layout.reset) as Promise<LayoutTree>,
-    filePath: () => ipcRenderer.invoke(CH.layout.revealFile) as Promise<string>,
+    reveal: () => ipcRenderer.invoke(CH.layout.revealFile) as Promise<void>,
     saved: {
       list: () => ipcRenderer.invoke(CH.layout.savedList) as Promise<SavedLayoutSummary[]>,
       save: (name, tree) =>
@@ -944,7 +943,7 @@ const api: ElecdexApi = {
         ipcRenderer.invoke(CH.layout.savedRename, id, name) as Promise<SavedLayoutSummary[]>,
       move: (id, delta) =>
         ipcRenderer.invoke(CH.layout.savedMove, id, delta) as Promise<SavedLayoutSummary[]>,
-      filePath: () => ipcRenderer.invoke(CH.layout.savedFile) as Promise<string>,
+      reveal: () => ipcRenderer.invoke(CH.layout.savedReveal) as Promise<void>,
       addPreset: (presetId) =>
         ipcRenderer.invoke(CH.layout.savedAddPreset, presetId) as Promise<{
           list: SavedLayoutSummary[]

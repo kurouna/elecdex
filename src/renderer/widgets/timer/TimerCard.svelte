@@ -24,6 +24,8 @@ interface Props {
   timer: TimerEntry
   /** Now, from the pane's shared tick, so every card moves in the same frame. */
   now: number
+  /** On screen: an urgent countdown breathes on the pulse only then. */
+  visible?: boolean
   onstart: () => void
   onstop: () => void
   onreset: () => void
@@ -34,7 +36,17 @@ interface Props {
   onadd: (minutes: number) => void
 }
 
-const { timer, now, onstart, onstop, onreset, onremove, onduration, onadd }: Props = $props()
+const {
+  timer,
+  now,
+  visible = true,
+  onstart,
+  onstop,
+  onreset,
+  onremove,
+  onduration,
+  onadd,
+}: Props = $props()
 
 let ladder = $state<HTMLDivElement | null>(null)
 let segments = $state(24)
@@ -54,7 +66,7 @@ const tone = $derived<'accent' | 'warn' | 'danger' | 'ok'>(
 )
 
 // The ladder pulses through the last ten seconds, on the shared beat (lib/pulse.svelte.ts).
-$effect(() => (urgent ? pulse.use() : undefined))
+$effect(() => (urgent && visible ? pulse.use() : undefined))
 
 const minutes = $derived(Math.round(timer.durationMs / 60_000))
 
@@ -101,7 +113,7 @@ function setCustom(): void {
   data-timer={timer.id}
   data-running={timer.running || undefined}
 >
-  <div class="ladder" bind:this={ladder} data-pulse={urgent ? pulse.phase : undefined}>
+  <div class="ladder" bind:this={ladder} data-pulse={urgent && visible ? pulse.phase : undefined}>
     <SegmentMeter
       value={left}
       {segments}

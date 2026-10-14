@@ -9,6 +9,7 @@ import {
   urgency,
 } from '@shared/tasks'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -16,6 +17,7 @@ import { sfx } from '../../stores/sound.svelte.ts'
 import { tasks } from '../../stores/tasks.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import Readout from '../common/Readout.svelte'
 import SegmentMeter from '../common/SegmentMeter.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
@@ -34,7 +36,9 @@ import type { WidgetProps } from '../registry.ts'
  * another tab, or never opened, and the reminder still arrives.
  */
 
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** On screen: the late pulse and the T-minus tick only then, and the time is taken again on return. */
+const visible = $derived(seen(inTab))
 
 const BANDS: readonly TaskBand[] = ['overdue', 'today', 'tomorrow', 'later', 'someday']
 
@@ -93,13 +97,16 @@ const fine = $derived(soonest !== null && soonest - now < 86_400_000)
 
 /** Something is late: its row pulses, and only then is the beat asked for. */
 const anyLate = $derived(soonest !== null && soonest < now)
-$effect(() => (anyLate ? pulse.use() : undefined))
+// Behind a tab the late row pulsed and the T-minus ticked all day (found in the sweep).
+$effect(() => (anyLate && visible ? pulse.use() : undefined))
 
-$effect(() =>
-  onBoundary(fine ? 1000 : 60_000, () => {
+$effect(() => {
+  if (!visible) return
+  now = Date.now()
+  return onBoundary(fine ? 1000 : 60_000, () => {
     now = Date.now()
-  }),
-)
+  })
+})
 
 /** The header's T-minus, or null when nothing in this list is waiting. */
 const countdown = $derived.by(() => {
@@ -286,13 +293,13 @@ function clearDone(): void {
   })
 }
 
-async function newList(): Promise<void> {
+const newList = oneAtATime(async (): Promise<void> => {
   const name = `list ${tasks.lists.length + 1}`
   const made = await tasks.addList(name)
   if (made === null) return
   save({ listId: made.id })
   listsOpen = false
-}
+})
 
 const timeOf = (task: Task): string => {
   if (task.due === undefined) return ''
@@ -330,7 +337,7 @@ $effect(() => {
 })
 </script>
 
-<div class="todo" data-testid="todo" data-pulse={anyLate ? pulse.phase : undefined}>
+<div class="todo" data-testid="todo" data-pulse={anyLate && visible ? pulse.phase : undefined}>
   <SettingsButton
     open={settingsOpen}
     label="tasks settings"

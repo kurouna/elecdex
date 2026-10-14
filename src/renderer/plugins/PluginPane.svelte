@@ -2,6 +2,7 @@
 import { keyFate } from '@shared/plugin-keys'
 import { untrack } from 'svelte'
 import { ui } from '../stores/ui.svelte.ts'
+import { seen } from '../stores/window-state.svelte.ts'
 import type { WidgetProps } from '../widgets/registry.ts'
 import Blocks from './Blocks.svelte'
 import { NOTIFY_GLOW_MS, plugins } from './plugins.svelte.ts'
@@ -12,7 +13,8 @@ import { NOTIFY_GLOW_MS, plugins } from './plugins.svelte.ts'
  * waiting for consent, broken, or gone from the folder - with the way to fix it.
  */
 
-const { paneId, state: saved, widget = '' }: WidgetProps = $props()
+const { paneId, state: saved, widget = '', visible: inTab = true }: WidgetProps = $props()
+const shown = $derived(seen(inTab))
 
 const id = $derived(widget.startsWith('plugin:') ? widget.slice('plugin:'.length) : '')
 const entry = $derived(plugins.entry(id))
@@ -198,6 +200,7 @@ const openSettings = () => ui.openSettings('plugins')
       <Blocks
         blocks={view?.blocks ?? []}
         epoch={view?.epoch ?? 0}
+        visible={shown}
         onsurface={(block, canvas) => plugins.surface(id, paneId, block, canvas)}
         onaction={(action, item) => plugins.action(id, paneId, action, item)}
         onsignin={(host) => void window.elecdex.plugins.signIn(id, host)}

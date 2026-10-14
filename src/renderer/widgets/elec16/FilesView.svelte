@@ -3,6 +3,7 @@ import type { Elec16FileInfo } from '@shared/elec16-units'
 import { untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import CardFileCard from './CardFileCard.svelte'
 import { loadLine } from './file-card.ts'
 
@@ -65,7 +66,7 @@ const pickedSoft = $derived(
 )
 const line = $derived(picked === null ? null : loadLine(picked.name))
 
-async function importFile(): Promise<void> {
+const importFile = oneAtATime(async (): Promise<void> => {
   if (unit === null) return
   const result = await api.import(unit)
   if (result === null) return
@@ -73,14 +74,14 @@ async function importFile(): Promise<void> {
     ? { text: `Imported as ${result.name}.`, bad: false }
     : { text: result.problem, bad: true }
   if (result.ok) picked = { name: result.name, soft: false }
-}
+})
 
-async function exportFile(): Promise<void> {
+const exportFile = oneAtATime(async (): Promise<void> => {
   if (unit === null || picked === null) return
   const name = picked.name
   const done = await api.export(unit, name)
   if (done) said = { text: `Exported ${name}.`, bad: false }
-}
+})
 
 async function load(): Promise<void> {
   if (line === null) return

@@ -477,3 +477,18 @@ test('writes, moves, edits and deletes snippets', async () => {
     await close()
   }
 })
+
+test('empties the clipboard only for a page that shows the pane', async () => {
+  // Found in the sweep: any page could empty the system clipboard, with no clipboard pane open.
+  const { app, page, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock' } },
+  })
+  try {
+    await copy(app, 'keep me')
+    await page.evaluate(() => window.elecdex.clipboard.clear())
+    await page.waitForTimeout(300)
+    expect((await held(app))?.text).toBe('keep me')
+  } finally {
+    await close()
+  }
+})

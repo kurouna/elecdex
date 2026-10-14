@@ -1,10 +1,9 @@
 import os from 'node:os'
-import path from 'node:path'
 import type { AppInfo, HostFacts } from '@shared/api'
 import { HIDDEN_SWITCH } from '@shared/background'
 import { CH } from '@shared/channels'
 import { titleBarColors } from '@shared/title-bar'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { APP_VERSION } from '../build-info.js'
 import { machineFacts } from '../machine-facts.js'
 import { openExternalIfSafe, setTitleBarColors, windowStateOf } from '../window.js'
@@ -72,11 +71,6 @@ export function registerSystemIpc(): void {
         const url = asString(rawUrl)
         if (url === null) return
         await openExternalIfSafe(url)
-      },
-      [CH.system.revealInFolder]: (_event, rawPath: unknown) => {
-        const target = asString(rawPath)
-        if (target === null) return
-        shell.showItemInFolder(path.resolve(target))
       },
       [CH.system.windowState]: (event) =>
         windowStateOf(BrowserWindow.fromWebContents(event.sender)),

@@ -10,6 +10,7 @@ import {
   sortAlarms,
   WEEKDAY_NAMES,
 } from '@shared/alarms'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { alarms } from '../../stores/alarms.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
@@ -58,7 +59,7 @@ const soonest = $derived.by(() => {
   return best
 })
 
-async function add(): Promise<void> {
+const add = oneAtATime(async (): Promise<void> => {
   const time = parseTimeOfDay(draftTime)
   if (time === null) {
     sfx.play('glitch')
@@ -73,7 +74,7 @@ async function add(): Promise<void> {
   draftTime = ''
   draftLabel = ''
   sfx.play('panel')
-}
+})
 
 function toggle(alarm: Alarm): void {
   void alarms.update(alarm.id, { enabled: !alarm.enabled })

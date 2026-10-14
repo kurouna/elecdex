@@ -1,4 +1,5 @@
 <script lang="ts">
+import { untrack } from 'svelte'
 import Digits from '../widgets/common/Digits.svelte'
 import { countdown, dateOf, relative, ticker, timeOfDay } from './ticker.svelte.ts'
 
@@ -12,14 +13,17 @@ interface Props {
   label?: string | undefined
   tone?: string | undefined
   size?: 'md' | 'lg' | undefined
+  /** On screen: the second is taken only then, and the figure kept as it was meanwhile. */
+  visible?: boolean
 }
 
-const { at, style, label, tone, size = 'md' }: Props = $props()
+const { at, style, label, tone, size = 'md', visible = true }: Props = $props()
 
-$effect(() => ticker.use())
+// Behind a tab every time block ticked each second for no one (found in the sweep).
+$effect(() => (visible ? ticker.use() : undefined))
 
 const text = $derived.by(() => {
-  const now = ticker.now
+  const now = visible ? ticker.now : untrack(() => ticker.now)
   if (style === 'countdown') return countdown(at, now)
   if (style === 'relative') return relative(at, now)
   if (style === 'clock') return timeOfDay(at)

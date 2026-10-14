@@ -1,3 +1,19 @@
+<script lang="ts" module>
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
+import { keepsByPane } from '../../lib/pane-memory.ts'
+
+/** Each pane's motion being typed, by pane id; let go when the pane is gone. */
+const motions = new Map<string, string>()
+keepsByPane((alive) => {
+  for (const id of motions.keys()) if (!alive.has(id)) motions.delete(id)
+})
+
+/** One save dialog for a double press, not two (found in the sweep). */
+const exportSession = oneAtATime(async (id: string): Promise<void> => {
+  await window.elecdex.elec.export(id)
+})
+</script>
+
 <script lang="ts">
 import { compactCount, FAILED_STOPS, STOP_CODES, usageText } from '@shared/ai'
 import {
@@ -19,6 +35,7 @@ import {
   unitLabel,
 } from '@shared/elec'
 import { untrack } from 'svelte'
+import { seen } from '../../stores/window-state.svelte.ts'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
@@ -53,7 +70,9 @@ import Stage, { type Readout, type UnitView } from './Stage.svelte'
  *   Enter        submit        Shift+Enter  a new line
  *   Esc          stop the deliberation
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** On screen: the pulse and the elapsed seconds are drawn only then; the council sits on unseen. */
+const visible = $derived(seen(inTab))
 
 const choice = $derived(paneElec(paneState))
 const providers = $derived(appearance.settings.ai.providers)
@@ -77,8 +96,13 @@ $effect(() => {
   if (sessionId === null) return
   let off: (() => void) | null = null
   const follow = (): void => {
+    // A piece before this subscription's first snapshot is in that snapshot, not a hole: main
+    // brings every listener up to date first (as the chat, found in the sweep after its review).
+    let primed = false
     off = window.elecdex.elec.subscribe(sessionId, (event) => {
       if (viewOf !== sessionId) return
+      if (event.type === 'snapshot') primed = true
+      else if (!primed) return
       // Deleted, here or from another pane: main says so, and the pane lets go of it.
       if (event.type === 'snapshot' && event.session === null) {
         save({ session: undefined })
@@ -136,7 +160,7 @@ const startedAt = $derived(busy ? (session?.createdAt ?? null) : null)
 let elapsed = $state(0)
 
 $effect(() => {
-  if (startedAt === null) return
+  if (startedAt === null || !visible) return
   const began = startedAt
   const count = (): void => {
     const next = Math.max(0, Math.floor((Date.now() - began) / 1000))
@@ -147,7 +171,7 @@ $effect(() => {
 })
 
 $effect(() => {
-  if (busy) return pulse.use()
+  if (busy && visible) return pulse.use()
 })
 
 const ballotOf = (unit: UnitIndex, r: number): Ballot | undefined =>
@@ -345,13 +369,28 @@ $effect(() => () => {
   if (holdTimer !== null) clearTimeout(holdTimer)
 })
 
-let draft = $state('')
+/** The motion being typed, kept by pane through a move, which remounts (lib/pane-memory.ts). */
+let draft = $state(untrack(() => motions.get(paneId) ?? ''))
+$effect(() => {
+  if (draft === '') motions.delete(paneId)
+  else motions.set(paneId, draft)
+})
 let composer = $state<HTMLTextAreaElement | null>(null)
+/** A motion on its way to main, before main has said the council sits: one at a time. */
+let submitting = false
 
 async function submit(text: string): Promise<boolean> {
-  if (busy || blocked !== null || providers.length === 0) return false
+  if (busy || submitting || blocked !== null || providers.length === 0) return false
   problem = null
-  const result = await window.elecdex.elec.submit(text)
+  // Before main answers the pane is not busy yet: a second Enter put a second motion to a
+  // second council, the first left sitting unwatched (found in the sweep after the chat's).
+  submitting = true
+  let result: Awaited<ReturnType<typeof window.elecdex.elec.submit>>
+  try {
+    result = await window.elecdex.elec.submit(text)
+  } finally {
+    submitting = false
+  }
   if (!result.ok) {
     problem = result.error
     return false
@@ -434,7 +473,7 @@ function telemetry(ballot: Ballot): string | null {
   data-testid="elec"
   data-busy={busy}
   data-outcome={outcome ?? undefined}
-  data-pulse={busy ? pulse.phase : undefined}
+  data-pulse={busy && visible ? pulse.phase : undefined}
 >
   <SettingsButton open={false} label="ai settings" testid="elec-settings" ontoggle={() => ui.openSettings('ai')} />
 
@@ -514,7 +553,7 @@ function telemetry(ballot: Ballot): string | null {
         deleteTitle="Delete this deliberation"
         testids={{ list: 'elec-log', item: 'elec-log-item', delete: 'elec-log-delete' }}
         onopen={openSession}
-        onexport={(id) => void window.elecdex.elec.export(id)}
+        onexport={(id) => void exportSession(id)}
         ondelete={(id) => void removeSession(id)}
       >
         {#snippet badge(entry)}
@@ -563,7 +602,7 @@ function telemetry(ballot: Ballot): string | null {
       <span class="label">resolution</span>
       <span class="rule"></span>
       {#if busy}
-        <span class="pending"><span class="sweep" aria-hidden="true">{SWEEP[pulse.phase] ?? SWEEP[0]}</span>deliberating</span>
+        <span class="pending"><span class="sweep" aria-hidden="true">{SWEEP[visible ? pulse.phase : 0] ?? SWEEP[0]}</span>deliberating</span>
       {:else if holding}
         <!-- The hold: the strip says nothing until the council's lights are out. -->
       {:else if outcome === null}

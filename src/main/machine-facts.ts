@@ -80,11 +80,18 @@ export function gpuDevices(info: unknown): MachineFacts['gpus'] {
   })
 }
 
-function gpuInfo(): Promise<unknown> {
-  return Promise.race([
-    app.getGPUInfo('basic').catch(() => null),
-    new Promise((resolve) => setTimeout(() => resolve(null), GPU_TIMEOUT_MS)),
-  ])
+async function gpuInfo(): Promise<unknown> {
+  let timer: NodeJS.Timeout | undefined
+  try {
+    return await Promise.race([
+      app.getGPUInfo('basic').catch(() => null),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), GPU_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 function volumeOf(dir: string): MachineFacts['volume'] {

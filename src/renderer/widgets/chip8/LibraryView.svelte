@@ -11,6 +11,7 @@ import { afterBlink } from '../../lib/blink.ts'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import Splitter from '../common/Splitter.svelte'
 import Attract from './Attract.svelte'
@@ -195,7 +196,7 @@ const sheetProgram = $derived(
 )
 let importProblem = $state<string | null>(null)
 
-async function importFile(): Promise<void> {
+const importFile = oneAtATime(async (): Promise<void> => {
   const result = await window.elecdex.chip8.import().catch(() => null)
   if (result === null) return
   if (!result.ok) {
@@ -209,7 +210,7 @@ async function importFile(): Promise<void> {
   onfilter('imported')
   onselect(result.program.id)
   sheet = { program: result.program, guess: result.guess, already: result.already }
-}
+})
 
 function closeSheet(): void {
   sheet = null

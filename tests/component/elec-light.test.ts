@@ -318,3 +318,49 @@ describe("the council's light", () => {
     expect(stage().classList.contains('was-on')).toBe(false)
   })
 })
+
+describe('the council pane, as the chat was found wanting', () => {
+  it('takes a piece sent before its first snapshot as part of it, not a hole to start over for', () => {
+    // Found in the sweep: each such piece made a second subscription and snapshot.
+    render(ElecWidget, { props: props() })
+    flushSync()
+    piece('So ')
+    snapshot(sitting('So '))
+    piece('it ')
+    expect(window.elecdex.elec.subscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('puts one motion for a double Enter, before main has said the council sits', async () => {
+    // Found in the sweep: a second Enter put a second motion to a second council.
+    let answer = (_value: { ok: true; sessionId: string }): void => {}
+    vi.mocked(window.elecdex.elec.submit).mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    )
+    render(ElecWidget, { props: props({}) })
+    flushSync()
+    const input = screen.getByTestId('elec-input') as HTMLTextAreaElement
+    input.value = 'Shall we?'
+    input.dispatchEvent(new Event('input'))
+    flushSync()
+    for (let i = 0; i < 2; i++) {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    }
+    answer({ ok: true, sessionId: ID })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(window.elecdex.elec.submit).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the motion being typed when the pane is moved, which remounts it', () => {
+    // Found in the sweep: the chat's words survived a move, the council's did not.
+    render(ElecWidget, { props: props({}) })
+    flushSync()
+    const input = screen.getByTestId('elec-input') as HTMLTextAreaElement
+    input.value = 'A long motion'
+    input.dispatchEvent(new Event('input'))
+    flushSync()
+    cleanup()
+    render(ElecWidget, { props: props({}) })
+    flushSync()
+    expect((screen.getByTestId('elec-input') as HTMLTextAreaElement).value).toBe('A long motion')
+  })
+})
