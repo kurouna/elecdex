@@ -25,6 +25,7 @@ import {
 } from '@shared/elec16-units'
 import { app, BrowserWindow, dialog, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
+import type { KeyLookup } from '../ai/target.js'
 import { appWindows } from '../app-windows.js'
 import { devHandlers } from '../elec16/dev-handlers.js'
 import { DevFolders, templateFiles } from '../elec16/devgame.js'
@@ -51,7 +52,7 @@ import { registerTable } from './table.js'
 
 /** What the AI service needs of the AI chat's side: the keys and the adapters. */
 export interface Elec16AiLinks {
-  keyFor(providerId: string): string | null
+  keyFor(providerId: string): ReturnType<KeyLookup>
   adapter(kind: AiProviderKind): Promise<ProviderAdapter>
 }
 

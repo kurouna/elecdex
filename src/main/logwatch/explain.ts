@@ -13,7 +13,7 @@ import type {
   LogLine,
 } from '@shared/logwatch/types'
 import { describeFailure, isUnreachable, type ProviderAdapter } from '../ai/adapter.js'
-import { targetFor } from '../ai/target.js'
+import { type KeyLookup, targetFor } from '../ai/target.js'
 
 /**
  * EXPLAIN (docs/logwatch.md §7): the lines of a log the user chose, and nothing else, asked of a
@@ -29,7 +29,7 @@ export interface ExplainDeps<P> {
   providers(): readonly AiProvider[]
   /** The user's own instructions of the AI settings. */
   systemPrompt(): string
-  keyFor(providerId: string): string | null
+  keyFor(providerId: string): ReturnType<KeyLookup>
   adapter(kind: AiProviderKind): Promise<ProviderAdapter>
   /** The lines the request names, only those; null when any is no longer held. */
   lines(request: LogExplainRequest): LogLine[] | null

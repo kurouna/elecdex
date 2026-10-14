@@ -100,10 +100,35 @@ test('reports the package version, not the Electron version', async () => {
   expect(info.version).not.toBe(info.versions.electron)
 })
 
-test("has no application menu, so Electron's own keys reach nothing", async () => {
+test("has no menu of Electron's, so its own keys reach nothing", async () => {
   // Found in review: the default menu's Ctrl+R reloaded the workspace and Ctrl+0/=/- zoomed it
-  // when a web pane or a dialog had the keys and did not use them.
-  expect(await app.evaluate(({ Menu }) => Menu.getApplicationMenu() === null)).toBe(true)
+  // when a web pane or a dialog had the keys and did not use them. macOS has the app and Edit
+  // menus it expects (issue 18), and nothing that reloads or zooms.
+  const menu = await app.evaluate(({ Menu }) => {
+    const roles: string[] = []
+    const walk = (items: Electron.MenuItem[]): void => {
+      for (const item of items) {
+        roles.push(String(item.role ?? '').toLowerCase())
+        if (item.submenu) walk(item.submenu.items)
+      }
+    }
+    const current = Menu.getApplicationMenu()
+    if (current !== null) walk(current.items)
+    return { present: current !== null, roles }
+  })
+  expect(menu.present).toBe(process.platform === 'darwin')
+  if (process.platform === 'darwin')
+    expect(menu.roles).toEqual(expect.arrayContaining(['copy', 'paste']))
+  for (const role of [
+    'reload',
+    'forcereload',
+    'resetzoom',
+    'zoomin',
+    'zoomout',
+    'toggledevtools',
+  ]) {
+    expect(menu.roles).not.toContain(role)
+  }
   await page.evaluate(() => {
     ;(window as unknown as { __kept: number }).__kept = 1
   })

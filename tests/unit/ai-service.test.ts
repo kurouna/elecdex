@@ -20,6 +20,7 @@ import {
 } from '../../src/main/ai/keys.js'
 import { AiChatService } from '../../src/main/ai/service.js'
 import { ChatStore } from '../../src/main/ai/store.js'
+import { KEY_MOVED, targetFor } from '../../src/main/ai/target.js'
 
 const LOCAL: AiProvider = {
   id: 'local',
@@ -570,5 +571,17 @@ describe('a key and the address it was typed for', () => {
 
   it('reads a key file from before the addresses were kept', () => {
     expect(KeyFileSchema.parse({ version: 1, keys: { a: 'eA==' } }).origins).toEqual({})
+  })
+})
+
+describe('a request for a provider whose key was typed for another address', () => {
+  it('is refused in words, not sent without the key to be refused as a wrong one', () => {
+    // Issue 18: the request went without its key and the provider's 401 read as a broken key.
+    const refused = targetFor([LOCAL], () => KEY_MOVED, LOCAL.id)
+    expect(refused).toBe(
+      `${LOCAL.name}: its key was typed for another address - type it again in the AI settings to use it here`,
+    )
+    expect(targetFor([LOCAL], () => 'sk-here', LOCAL.id)).toMatchObject({ key: 'sk-here' })
+    expect(targetFor([LOCAL], () => null, LOCAL.id)).toMatchObject({ key: null })
   })
 })

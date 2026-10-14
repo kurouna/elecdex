@@ -246,10 +246,12 @@ test('a provider is added in the settings; its key goes to main and never comes 
     await provider.getByTestId('ai-address').fill(`${elsewhere}/v1`)
     await provider.getByTestId('ai-address').press('Tab')
     await expect(provider.getByTestId('ai-key-state')).toContainText('another address')
+    // And asking says why, rather than going without the key to be refused as if it were wrong
+    // (issue 18).
     const before = seen.length
     await provider.getByTestId('ai-test').click()
-    await expect.poll(() => seen.length).toBeGreaterThan(before)
-    expect(seen.at(-1)?.headers.authorization).toBeUndefined()
+    await expect(provider.getByTestId('ai-test-result')).toContainText('another address')
+    expect(seen.length).toBe(before)
     await key.fill('sk-e2e-secret')
     await key.press('Enter')
     await expect(provider.getByTestId('ai-key-state')).toContainText('key held')

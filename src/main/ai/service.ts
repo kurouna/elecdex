@@ -37,7 +37,7 @@ import {
 } from './adapter.js'
 import type { ChatFiles, PendingFile } from './files.js'
 import type { ChatStore } from './store.js'
-import { type Target, targetFor } from './target.js'
+import { type KeyLookup, type Target, targetFor } from './target.js'
 
 /**
  * The conversations and the answers being written.
@@ -80,7 +80,7 @@ export interface AiDeps {
   systemPrompt(): string
   /** Whether what stays behind of a long conversation is summarised (settings: `ai.compact`). */
   compact(): boolean
-  keyFor(providerId: string): string | null
+  keyFor(providerId: string): ReturnType<KeyLookup>
   adapter(kind: AiProviderKind): Promise<ProviderAdapter>
   now(): number
   newId(): string

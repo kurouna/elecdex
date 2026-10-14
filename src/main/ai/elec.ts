@@ -31,7 +31,7 @@ import {
   type StreamResult,
 } from './adapter.js'
 import type { SessionStore } from './store.js'
-import { type Target, targetFor } from './target.js'
+import { type KeyLookup, type Target, targetFor } from './target.js'
 
 /**
  * The ELEC system's deliberations: a motion put to three units, each a provider
@@ -56,7 +56,7 @@ export interface ElecDeps {
   store: SessionStore
   providers(): readonly AiProvider[]
   settings(): ElecSettings
-  keyFor(providerId: string): string | null
+  keyFor(providerId: string): ReturnType<KeyLookup>
   adapter(kind: AiProviderKind): Promise<ProviderAdapter>
   now(): number
   newId(): string

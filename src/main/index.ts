@@ -1,6 +1,7 @@
 import { backgroundCapabilities, HIDDEN_SWITCH, isWayland } from '@shared/background'
 import { ELECDEX_APP_ID } from '@shared/now-playing'
 import { app, dialog, Menu } from 'electron'
+import { appMenuTemplate } from './app-menu.js'
 import { appWindows } from './app-windows.js'
 import { type Background, registerBackground } from './background/index.js'
 import { registerAgentsIpc } from './ipc/agents.js'
@@ -111,10 +112,10 @@ let logWatchIpc: { dispose: () => void } | null = null
 let background: Background | null = null
 
 app.whenReady().then(() => {
-  // No application menu: Electron's default one held accelerators of its own - Ctrl+R reloading
-  // the workspace, Ctrl+0, Ctrl+= and Ctrl+- zooming it - that took keys a web pane or a dialog
-  // did not use (found in review). Every shortcut is the keymap's (shared/keybindings.ts).
-  Menu.setApplicationMenu(null)
+  // Never Electron's default menu, whose Ctrl+R and zoom keys took keys a web pane or a dialog
+  // did not use; on macOS only the app and Edit menus the system expects (app-menu.ts).
+  const menu = appMenuTemplate(process.platform)
+  Menu.setApplicationMenu(menu === null ? null : Menu.buildFromTemplate(menu))
   registerSystemIpc()
   const settings = registerSettingsIpc()
   settingsIpc = settings

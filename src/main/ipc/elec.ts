@@ -15,6 +15,7 @@ import { app, dialog, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
 import { ElecService } from '../ai/elec.js'
 import { SessionStore } from '../ai/store.js'
+import type { KeyLookup } from '../ai/target.js'
 import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { whenPageGoes } from './page-gone.js'
@@ -33,7 +34,7 @@ import { registerTable } from './table.js'
 const ORPHAN_GRACE_MS = 3000
 
 export interface ElecLinks {
-  keyFor(providerId: string): string | null
+  keyFor(providerId: string): ReturnType<KeyLookup>
   adapter(kind: AiProviderKind): Promise<ProviderAdapter>
 }
 

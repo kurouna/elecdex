@@ -32,6 +32,7 @@ import { ChatFiles, notAFile } from '../ai/files.js'
 import { emptyKeyFile, KeyFileSchema, KeyVault } from '../ai/keys.js'
 import { AiChatService } from '../ai/service.js'
 import { ChatStore } from '../ai/store.js'
+import { KEY_MOVED, type KeyLookup } from '../ai/target.js'
 import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { secretCodec } from '../secrets/system.js'
@@ -115,9 +116,11 @@ export function registerAiIpc(settings: SettingsHandle): {
   })
 
   /** A provider's key, for a request to its address as the settings have it now. */
-  const keyFor = (id: string): string | null => {
+  const keyFor: KeyLookup = (id) => {
     const provider = settings.current().ai.providers.find((p) => p.id === id)
-    return provider === undefined ? null : vault.get(id, aiOrigin(provider.baseUrl))
+    if (provider === undefined) return null
+    const origin = aiOrigin(provider.baseUrl)
+    return vault.moved(id, origin) ? KEY_MOVED : vault.get(id, origin)
   }
 
   const broadcast = (channel: string, payload: unknown): void => {

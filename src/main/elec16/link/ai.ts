@@ -15,7 +15,7 @@ import {
   type StreamRequest,
   type WireMessage,
 } from '../../ai/adapter.js'
-import { type Target, targetFor } from '../../ai/target.js'
+import { type KeyLookup, type Target, targetFor } from '../../ai/target.js'
 import type { LinkContext, LinkService } from './hub.js'
 
 /**
@@ -34,7 +34,7 @@ export interface AiLinkDeps {
   providers(): readonly AiProvider[]
   /** The provider TUNE chose; empty for none. */
   provider(): string
-  keyFor(providerId: string): string | null
+  keyFor(providerId: string): ReturnType<KeyLookup>
   adapter(kind: AiProviderKind): Promise<ProviderAdapter>
   /** Today's date, for the model (the searches). */
   today(): string
