@@ -533,8 +533,10 @@ test('a right-click on the machine types the clipboard as PASTE does, and anothe
         configurable: true,
       })
     })
-    await page.getByTestId('elec16-device').click({ button: 'right' })
+    // The tab first, then the press: opened after it, a fast runner had typed the whole text by
+    // the time the button was looked at, and saw PASTE again (ubuntu, 2026-10-15).
     await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await page.getByTestId('elec16-device').click({ button: 'right' })
     await expect(page.getByTestId('elec16-paste')).toContainText('stop paste')
     await page.getByTestId('elec16-device').click({ button: 'right' })
     await expect(page.getByTestId('elec16-paste')).toHaveText('paste')
