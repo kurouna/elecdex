@@ -716,7 +716,7 @@ entry (decisions.md). Every option is off until the user turns it on.
 - Svelte 5 runes. `$state.snapshot` before sending state over IPC or to a worker.
 - Comments explain *why*, in full sentences; match the surrounding density.
 - Library versions are pinned to the latest release; an exception is recorded in decisions.md
-  (e.g. `@types/node` follows Electron's Node, electron-vite's beta).
+  (e.g. `@types/node` follows Electron's Node).
 - Files main writes by renaming go through `replaceFile` (main/store/replace-file.ts), never a bare
   `renameSync`.
 - Renderer-only and build-time packages are devDependencies; main's runtime ones are

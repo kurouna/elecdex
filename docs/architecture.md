@@ -43,7 +43,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 |---|---|---|---|
 | シェル | Electron | 44.x | Chromium 最新系。`sandbox: true` + `contextIsolation: true` |
 | 言語 | TypeScript | **7.0.2**（native）+ 6.0.3（JS API） | `typescript@6.0.3` を JS Compiler API 用に、`@typescript/native@npm:typescript@7.0.2` をネイティブコンパイラとして併置。`svelte-check --tsgo` で Svelte も TS7 で型検査する（elecxzy と同じ TS7 運用）|
-| ビルド | electron-vite | 6.0.0-beta.7 (Vite 8.3.4、Rolldown + Oxc) | main / preload / renderer の3ターゲット + HMR。Vite 8 を受け付ける electron-vite は 6 のベータだけなので、それを使う（[decisions.md](decisions.md)） |
+| ビルド | electron-vite | 6.0.0 (Vite 8.3.4、Rolldown + Oxc) | main / preload / renderer の3ターゲット + HMR。Vite 8 を受け付ける 6 の正式版（[decisions.md](decisions.md)） |
 | UI | Svelte | 5.x (runes) | VDOM なし。常駐する UI の更新コストが小さい（動きは共有の 10 fps フレームループに載せる。[decisions.md](decisions.md)） |
 | スタイル | 素のCSS + CSS変数デザイントークン + Svelte scoped CSS | — | Tailwind 不採用（clip-path/SVG装飾主体のため） |
 | 端末 | `@xterm/xterm` | 6.x | addon: fit 0.11 / webgl 0.19 / unicode11 0.9 / search 0.16 / web-links 0.12 / serialize 0.14 / clipboard 0.2 |
