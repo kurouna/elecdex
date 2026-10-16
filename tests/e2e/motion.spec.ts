@@ -3,7 +3,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { bringWindowBack, launch, putWindowAway, removeDir, SINGLE_TERMINAL } from './support.js'
+import {
+  bringWindowBack,
+  keepLayout,
+  launch,
+  putWindowAway,
+  removeDir,
+  SINGLE_TERMINAL,
+} from './support.js'
 
 /**
  * Entrance and exit effects: the calendar's wave, a new pane's power-on, a closed
@@ -817,16 +824,6 @@ const watchSwitch = (page: Page, code: string) =>
     },
     code,
   )
-
-/** Saves the workspace under a name, from the layouts dialog. */
-async function keepLayout(page: Page, name: string): Promise<void> {
-  await page.keyboard.press('Control+Shift+KeyG')
-  await page.getByTestId('layouts-name').fill(name)
-  await page.getByTestId('layouts-save').click()
-  await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
-  await page.keyboard.press('Escape')
-  await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
-}
 
 test('a layout switch powers the old arrangement off and brings the new one on', async () => {
   const { page, close } = await launch(undefined, {

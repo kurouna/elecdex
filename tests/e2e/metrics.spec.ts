@@ -74,40 +74,12 @@ test('every monitoring widget shows live data', async () => {
 })
 
 test('the collector is never started for a layout without monitoring widgets', async () => {
-  const first = await launch()
-  await first.quit()
-  writeFileSync(path.join(first.userData, 'layout.json'), JSON.stringify(TERMINAL_ONLY))
-
-  const second = await launch(first.userData)
+  const second = await launch(undefined, { layout: TERMINAL_ONLY })
   try {
     await second.page.waitForTimeout(3000)
     expect(await stats(second.page)).toEqual({ active: [], collections: {}, running: false })
   } finally {
     await second.close()
-  }
-})
-
-test('polling stops when the last widget reading a source goes away', async () => {
-  const { page, close } = await launch()
-  try {
-    await expect
-      .poll(async () => (await stats(page)).active, { timeout: 20_000 })
-      .toContain('cpu.load')
-
-    // cpu.load is read only by the CPU widget; proc.list also by top processes.
-    await closeWidget(page, 'cpu')
-    await expect
-      .poll(async () => (await stats(page)).active, { timeout: 10_000 })
-      .not.toContain('cpu.load')
-    expect((await stats(page)).active).toContain('proc.list')
-
-    // And the count really stops moving - not just the reported set.
-    await page.waitForTimeout(2000) // let an in-flight collection land
-    const before = (await stats(page)).collections['cpu.load'] ?? 0
-    await page.waitForTimeout(4000)
-    expect((await stats(page)).collections['cpu.load'] ?? 0).toBe(before)
-  } finally {
-    await close()
   }
 })
 
@@ -149,7 +121,7 @@ test('removing every monitoring widget stops every source', async () => {
   }
 })
 
-test('a reloaded page does not leave its subscriptions behind', async () => {
+test('polling stops when the last widget reading a source goes away, a reloaded page leaving no subscriptions behind', async () => {
   const { page, close } = await launch()
   try {
     await expect
@@ -164,10 +136,18 @@ test('a reloaded page does not leave its subscriptions behind', async () => {
       .poll(async () => (await stats(page)).active, { timeout: 20_000 })
       .toContain('cpu.load')
 
+    // cpu.load is read only by the CPU widget; proc.list also by top processes.
     await closeWidget(page, 'cpu')
     await expect
       .poll(async () => (await stats(page)).active, { timeout: 10_000 })
       .not.toContain('cpu.load')
+    expect((await stats(page)).active).toContain('proc.list')
+
+    // And the count really stops moving - not just the reported set.
+    await page.waitForTimeout(2000) // let an in-flight collection land
+    const before = (await stats(page)).collections['cpu.load'] ?? 0
+    await page.waitForTimeout(4000)
+    expect((await stats(page)).collections['cpu.load'] ?? 0).toBe(before)
   } finally {
     await close()
   }

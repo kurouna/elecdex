@@ -3,7 +3,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { buildGame } from '../../src/shared/elec16/cart-build.js'
-import { atDesignSize, type Launched, launch, powerNote, settleLayout } from './support.js'
+import {
+  atDesignSize,
+  cpuSeconds,
+  type Launched,
+  launch,
+  powerNote,
+  settleLayout,
+} from './support.js'
 
 /**
  * The ELEC-16 pane (docs/elec16.md): the monitor in ROM booting on the LCD, keys from the
@@ -210,12 +217,6 @@ test('TUNE fits another LCD, keeping the RAM, and changes the skin', async () =>
     await close()
   }
 })
-
-/** CPU seconds used by every Electron process. */
-const cpuSeconds = (app: ElectronApplication) =>
-  app.evaluate(({ app: electronApp }) =>
-    electronApp.getAppMetrics().reduce((sum, m) => sum + (m.cpu.cumulativeCPUUsage ?? 0), 0),
-  )
 
 test('asleep at its prompt it costs what a paused pane does; running costs by its clock', async () => {
   // The emulators' loop is the one exception to the 10 fps loop (decisions.md): measured here

@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { _electron as electron, expect, test } from '@playwright/test'
+import { MAIN, STUB_ENV } from './support.js'
 
-const MAIN = fileURLToPath(new URL('../../out/main/index.js', import.meta.url))
 /** The version being built, so this test does not need editing on every release. */
 const PACKAGE_VERSION = (
   JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
@@ -17,19 +16,10 @@ let page: Page
 test.beforeAll(async () => {
   app = await electron.launch({
     args: [MAIN, '--windowed', '--no-intro'],
-    // Closed ports: this spec must not reach any real service (the default layout
-    // has a weather pane and a market board, and the update check runs too).
-    env: {
-      ...process.env,
-      NODE_ENV: 'test',
-      ELECDEX_JMA_BASE_URL: 'http://127.0.0.1:9/bosai',
-      ELECDEX_MET_BASE_URL: 'http://127.0.0.1:9/weatherapi',
-      ELECDEX_NWS_BASE_URL: 'http://127.0.0.1:9/nws',
-      ELECDEX_MARKETS_STUB_URL: 'http://127.0.0.1:9/markets',
-      ELECDEX_UPDATES_URL: 'http://127.0.0.1:9/releases/latest',
-      ELECDEX_USGS_BASE_URL: 'http://127.0.0.1:9/usgs',
-      ELECDEX_NOAA_BASE_URL: 'http://127.0.0.1:9/noaa',
-    },
+    // Closed ports and stand-ins, as every other launch: this spec must not reach any real
+    // service (the default layout has a weather pane and a market board, and the update check
+    // runs too), nor this machine's sockets, clipboard, media, tray or Claude Code folder.
+    env: { ...process.env, NODE_ENV: 'test', ...STUB_ENV },
   })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')

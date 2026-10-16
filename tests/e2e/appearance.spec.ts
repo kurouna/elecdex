@@ -121,16 +121,12 @@ test('a hand edit to settings.json applies while the app runs', async () => {
 })
 
 test('a settings.json broken before launch is kept through startup and quit', async () => {
-  const first = await launch()
-  const dir = first.userData
-  const file = path.join(dir, 'settings.json')
   const broken = '{ "theme": "amber", '
-  let running: Awaited<ReturnType<typeof launch>> | null = null
+  const broke = await launch(undefined, { files: { 'settings.json': broken } })
+  const dir = broke.userData
+  const file = path.join(dir, 'settings.json')
+  let running: Awaited<ReturnType<typeof launch>> | null = broke
   try {
-    await first.quit()
-    writeFileSync(file, broken)
-    const broke = await launch(dir)
-    running = broke
     // Defaults apply, but the user's file is where they left it.
     await expect.poll(() => rootVar(broke.page, '--accent-h')).toBe('183')
     expect(readFileSync(file, 'utf8')).toBe(broken)

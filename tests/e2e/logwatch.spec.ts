@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, removeDir } from './support.js'
+import { launch, pickerAnswers, removeDir } from './support.js'
 
 /**
  * The LOG WATCH pane against log files written by the test in a temp folder (docs/logwatch.md).
@@ -64,12 +64,6 @@ function stamp(): string {
   const t = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`
-}
-
-async function pickerAnswers(app: ElectronApplication, file: string): Promise<void> {
-  await app.evaluate(({ dialog }, answer) => {
-    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-  }, file)
 }
 
 const watching = (page: Page) => page.evaluate(() => window.elecdex.logwatch.watching())
@@ -272,24 +266,6 @@ test('EXPLAIN shows what it will send - the lines chosen, only those - sends it 
     expect(asked[0]?.text).toBe(shown)
     expect(asked[0]?.text).not.toContain('example.com')
     expect(asked[0]?.system).toContain('Answer briefly.')
-  } finally {
-    await close()
-    removeDir(dir)
-  }
-})
-
-test('without an AI provider there is no EXPLAIN', async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-'))
-  const file = path.join(dir, 'app.log')
-  writeFileSync(file, lines(1, 1))
-  const { app, page, close } = await launch(undefined, {
-    layout: { version: 1, root: { kind: 'pane', id: 'l', widget: 'logwatch' } },
-  })
-  try {
-    await choose(page, app, file)
-    await rows(page).first().click()
-    await expect(page.getByTestId('logwatch-copy')).toBeVisible()
-    await expect(page.getByTestId('logwatch-explain-open')).toHaveCount(0)
   } finally {
     await close()
     removeDir(dir)

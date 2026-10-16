@@ -1,20 +1,12 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import type { ElectronApplication } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, SINGLE_TERMINAL, showStatusBar, terminalPane } from './support.js'
+import { exited, launch, SINGLE_TERMINAL, showStatusBar, terminalPane } from './support.js'
 
 /**
  * Leaving the app. In fullscreen the window has no frame and no close button,
  * so the app has to provide its own way out.
  */
-
-/** Resolves once the app's main process has exited. */
-function exited(app: ElectronApplication): Promise<void> {
-  const child = app.process()
-  if (child.exitCode !== null) return Promise.resolve()
-  return new Promise((resolve) => child.once('exit', () => resolve()))
-}
 
 test('the exit button asks for a second click, then quits', async () => {
   const { app, page, close } = await launch()
@@ -26,8 +18,7 @@ test('the exit button asks for a second click, then quits', async () => {
     await expect(button).toHaveClass(/armed/)
 
     // The first click alone does not quit, and the confirmation lapses.
-    await page.waitForTimeout(3500)
-    await expect(button).not.toHaveClass(/armed/)
+    await expect(button).not.toHaveClass(/armed/, { timeout: 6000 })
     expect(app.process().exitCode).toBeNull()
 
     const gone = exited(app)

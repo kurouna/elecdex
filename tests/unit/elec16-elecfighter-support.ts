@@ -18,12 +18,15 @@ import {
  * ELECFIGHTER's tests' common part (docs/elec16-elecfighter-design.md): the game built from its
  * folder as gen:elec16 builds it, fights begun from the title (kept as snapshots), the fighters
  * driven through their one entry (`ctl` 2 and `extHeld`) or the pad, placed by their RAM and
- * read there by the globals' names, and the screens' text. Its tests are in four files that
+ * read there by the globals' names, and the screens' text. Its tests are in six files that
  * vitest runs side by side, the core playing a few hundred frames a second: one file of them all
- * took two to four minutes (2026-10-08). elec16-elecfighter.test.ts has the rules, the pictures
+ * took two to four minutes (2026-10-08), and the rounds against players in one file 144 s, the
+ * longest file of the suite (2026-10-16). elec16-elecfighter.test.ts has the rules, the pictures
  * and the screens; elec16-elecfighter-cpu.test.ts the CPU's eyes, habits and reads;
- * elec16-elecfighter-play.test.ts the rounds against one-button players;
- * elec16-elecfighter-budget.test.ts two CPUs' matches and the frame budget.
+ * elec16-elecfighter-play.test.ts the rounds against one-button players,
+ * elec16-elecfighter-ladder.test.ts against spammers and elec16-elecfighter-person.test.ts
+ * against the tests' person; elec16-elecfighter-budget.test.ts two CPUs' matches and the frame
+ * budget.
  */
 
 export const DIR = 'resources/elec16/games/elecfighter'
@@ -666,4 +669,15 @@ export function person(seed: number, skill: Skill = PERSON): Player {
     p.out = p.decide(m)
     return p.out
   }
+}
+
+/** A round against the CPU of ladder place `at`, P1 in `slot` played by `p1`: 0 if P1 took it. */
+export function roundBy(slot: number, at: number, second: number, p1: Player): number {
+  const m = fight({ ...CLOCK, second }, [2, 1], slot, at)
+  for (let k = 0; k < 7_000 && read(m, 'phase') === PH.fight; k++) {
+    put(m, 'extHeld', p1(m), 0)
+    frames(m, 1, cart)
+  }
+  expect(read(m, 'phase')).not.toBe(PH.fight)
+  return read(m, 'roundWon')
 }

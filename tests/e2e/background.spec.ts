@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import electronPath from 'electron'
-import { launch, MAIN } from './support.js'
+import { exited, launch, MAIN } from './support.js'
 
 /**
  * Running in the background (Windows): closing and minimising to the
@@ -74,12 +74,6 @@ const showWithoutRestore = (app: ElectronApplication) =>
 
 const restoreWindow = (app: ElectronApplication) =>
   app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.restore())
-
-function exited(app: ElectronApplication): Promise<void> {
-  const child = app.process()
-  if (child.exitCode !== null) return Promise.resolve()
-  return new Promise((resolve) => child.once('exit', () => resolve()))
-}
 
 const withWindow = (options: Record<string, boolean>) => ({
   sound: { enabled: false },

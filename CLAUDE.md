@@ -630,7 +630,7 @@ entry (decisions.md). Every option is off until the user turns it on.
 ### Tests
 
 - **Tests never contact external services, and never touch the machine.** tests/e2e/support.ts
-  sets, by default:
+  sets, by default, in `STUB_ENV` (a spec that starts the app itself spreads it in too):
   - closed ports for `ELECDEX_JMA_BASE_URL` (also quakes and tsunamis), `ELECDEX_MET_BASE_URL`,
     `ELECDEX_NWS_BASE_URL`, `ELECDEX_USGS_BASE_URL`, `ELECDEX_NOAA_BASE_URL`,
     `ELECDEX_CELESTRAK_BASE_URL`, `ELECDEX_MARKETS_STUB_URL`, `ELECDEX_UPDATES_URL` and

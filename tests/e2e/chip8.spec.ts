@@ -6,6 +6,7 @@ import {
   atDesignSize,
   launch,
   launchOnTwoLayouts,
+  pickerAnswers,
   powerNote,
   removeDir,
   settleLayout,
@@ -381,11 +382,12 @@ const cpuSeconds = async (app: ElectronApplication, page: Page) => {
   }, pagePid)
 }
 
-test('a program running costs little more than the pane standing still', async () => {
+test('a program running costs little more than the pane standing still, the attract mode resting after half a minute', async () => {
   // The game's own 60 fps loop is the one exception to the 10 fps loop (decisions.md):
   // measured here so a change that makes it expensive shows. The library's attract mode
-  // plays while someone is at it and rests after half a minute; resting, the library costs
-  // what a still pane does.
+  // plays while someone is at it and rests after half a minute with nobody at the library;
+  // resting, its screen stands still and the library costs what a still pane does. (One test
+  // for both, as each waits out the half minute.)
   test.setTimeout(150_000)
   const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
@@ -400,12 +402,19 @@ test('a program running costs little more than the pane standing still', async (
         page: (end.page - start.page) / (ms / 1000),
       }
     }
+    await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'true')
     await page.waitForTimeout(3000)
     const attract = (await measure(10_000)).all
     await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'false', {
       timeout: 40_000,
     })
+    const still = await attractScreen(page).evaluate((c: HTMLCanvasElement) => c.toDataURL())
     const resting = (await measure(10_000)).all
+    expect(await attractScreen(page).evaluate((c: HTMLCanvasElement) => c.toDataURL())).toBe(still)
+    // The pointer over the library wakes it.
+    await page.getByTestId('chip8-library').hover()
+    await page.mouse.move(1200, 500)
+    await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'true')
     await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
     await loadProgram(page, 'diag/3-corax+')
     await page.waitForTimeout(2000)
@@ -558,28 +567,6 @@ test('a program from chip8Archive loads and runs in its own colours when asked',
     // Br8kout's author made its ground #ca2553.
     await expect.poll(ground).toEqual([0xca, 0x25, 0x53])
     expect(themed).not.toEqual([0xca, 0x25, 0x53])
-  } finally {
-    await close()
-  }
-})
-
-test('the attract mode rests after half a minute with nobody at the library', async () => {
-  test.setTimeout(90_000)
-  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
-  try {
-    await designSize(app, page)
-    await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'true')
-    await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'false', {
-      timeout: 40_000,
-    })
-    // Resting, its screen stands still.
-    const still = await attractScreen(page).evaluate((c: HTMLCanvasElement) => c.toDataURL())
-    await page.waitForTimeout(1000)
-    expect(await attractScreen(page).evaluate((c: HTMLCanvasElement) => c.toDataURL())).toBe(still)
-    // The pointer over the library wakes it.
-    await page.getByTestId('chip8-library').hover()
-    await page.mouse.move(1200, 500)
-    await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'true')
   } finally {
     await close()
   }
@@ -808,13 +795,6 @@ const TWO_PANES = {
       { kind: 'pane', id: 'b', widget: 'chip8' },
     ],
   },
-}
-
-/** Replaces main's file picker with one that answers `file`. */
-async function pickerAnswers(app: ElectronApplication, file: string): Promise<void> {
-  await app.evaluate(({ dialog }, answer) => {
-    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-  }, file)
 }
 
 test('IMPORT takes a picked file in, to rename, run as another machine and remove', async () => {

@@ -57,20 +57,6 @@ test('the calculator answers as you type, keeps a tape, and has it again after a
   }
 })
 
-test('a refused line stays where it was typed, and says why', async () => {
-  const { page, close } = await launch(undefined, { layout: single('calc') })
-  try {
-    const input = page.getByTestId('calc-input')
-    await input.fill('1/0')
-    await input.press('Enter')
-    await expect(page.getByTestId('calc-error')).toHaveText(/Division by zero/)
-    await expect(input).toHaveValue('1/0')
-    await expect(page.getByTestId('calc-tape-row')).toHaveCount(0)
-  } finally {
-    await close()
-  }
-})
-
 test('a note is written to notes.json, not into the layout, and survives its pane', async () => {
   let launched = await launch(undefined, { layout: single('notes') })
   try {

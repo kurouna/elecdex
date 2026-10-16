@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -58,6 +58,11 @@ export interface LaunchOptions {
    * machine.
    */
   settings?: unknown
+  /**
+   * Files to find in the profile at the first start, by path inside it, written as they are (a
+   * broken settings.json, an awake.json). Saves a launch made only to create the folder.
+   */
+  files?: Record<string, string>
 }
 
 const QUIET = { sound: { enabled: false } }
@@ -98,16 +103,17 @@ const NO_CLAUDE_DIR = path.join(tmpdir(), 'elecdex-e2e-no-claude')
 const UNREACHABLE_WEB =
   'youtube=http://127.0.0.1:9/youtube/,youtubetv=http://127.0.0.1:9/tv/,x=http://127.0.0.1:9/x/'
 
-/**
- * Deletes a throwaway userData folder. Windows can keep a file in it locked for a
- * moment after the app exits (EPERM); retry, and leave a stubborn temp folder
- * behind rather than fail a test that passed.
- */
 /** The live layout as main last wrote it, or null before its first save. */
 export function savedLayout(userData: string): string | null {
   const file = path.join(userData, 'layout.json')
   return existsSync(file) ? readFileSync(file, 'utf8') : null
 }
+
+/**
+ * Deletes a throwaway userData folder. Windows can keep a file in it locked for a
+ * moment after the app exits (EPERM); retry, and leave a stubborn temp folder
+ * behind rather than fail a test that passed.
+ */
 
 export function removeDir(dir: string): void {
   try {
@@ -166,6 +172,57 @@ async function closeApp(app: ElectronApplication): Promise<void> {
   }
 }
 
+/**
+ * What every launch of the app in a test is given: closed ports for every service, and a
+ * stand-in for everything of this machine's (CLAUDE.md, Tests). A spec that starts the app
+ * itself spreads this in too.
+ */
+export const STUB_ENV: Record<string, string> = {
+  ELECDEX_JMA_BASE_URL: UNREACHABLE_JMA,
+  ELECDEX_MET_BASE_URL: UNREACHABLE_MET,
+  ELECDEX_NWS_BASE_URL: UNREACHABLE_NWS,
+  ELECDEX_MARKETS_STUB_URL: UNREACHABLE_MARKETS,
+  ELECDEX_UPDATES_URL: UNREACHABLE_UPDATES,
+  ELECDEX_USGS_BASE_URL: UNREACHABLE_USGS,
+  ELECDEX_NOAA_BASE_URL: UNREACHABLE_NOAA,
+  ELECDEX_CELESTRAK_BASE_URL: UNREACHABLE_CELESTRAK,
+  // The AI AGENT pane reads Claude Code's own folder; a test gives it a made-up one.
+  ELECDEX_CLAUDE_DIR: NO_CLAUDE_DIR,
+  ELECDEX_WEB_HOMES: UNREACHABLE_WEB,
+  // A steady tone and a made-up mixer: never the machine's sound or volume.
+  ELECDEX_AUDIO_STUB: '1',
+  // An in-memory tray, shortcut and sign-in entry: never the machine's taskbar,
+  // keys or Run key (src/main/background).
+  ELECDEX_BACKGROUND_STUB: '1',
+  // A made-up socket table: never where this machine has actually been
+  // (src/services/metrics/sockets/stub.ts).
+  ELECDEX_SOCKETS_STUB: '1',
+  // A made-up Wi-Fi link, echoes and log: never this machine's network, its
+  // addresses or where it has connected, and no ping leaves the machine
+  // (src/services/metrics/wifi/stub.ts).
+  ELECDEX_WIFI_STUB: '1',
+  // A stand-in clipboard: never what this machine has copied, and nothing put on
+  // its clipboard (src/main/clipboard/stub.ts). Specs copy through
+  // globalThis.__elecdexClipboard.
+  ELECDEX_CLIPBOARD_STUB: '1',
+  // A stand-in media session: never what this machine is playing, and no player's
+  // button pressed (src/main/media/stub.ts). Specs change the track through
+  // globalThis.__elecdexNowPlaying.
+  ELECDEX_NOWPLAYING_STUB: '1',
+  // A stand-in Docker engine: never this machine's containers, and none started or
+  // stopped (src/main/docker/stub.ts). Specs change it through globalThis.__elecdexDocker.
+  ELECDEX_DOCKER_STUB: '1',
+  // A stand-in power-save blocker and power source: no run keeps this machine awake
+  // (src/main/awake/stub.ts). Specs read the hold through globalThis.__elecdexAwake.
+  ELECDEX_AWAKE_STUB: '1',
+  // A reversible stand-in for the system's encryption: never the Keychain or a
+  // keyring, and never the prompt either may show (src/main/ai/keys.ts).
+  ELECDEX_AI_KEYS_STUB: '1',
+  // A new profile starts with no saved layouts, as every spec but the presets' own
+  // expects; a real first start is given the presets (shared/layout-presets.ts).
+  ELECDEX_SEED_LAYOUTS: '0',
+}
+
 export async function launch(userData?: string, options: LaunchOptions = {}): Promise<Launched> {
   const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
   // Only on a fresh directory: a relaunch keeps whatever the app saved.
@@ -174,6 +231,10 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
   }
   if (options.layout !== undefined) {
     writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(options.layout))
+  }
+  for (const [name, text] of Object.entries(options.files ?? {})) {
+    mkdirSync(path.dirname(path.join(dir, name)), { recursive: true })
+    writeFileSync(path.join(dir, name), text)
   }
   const args = [MAIN, '--windowed', `--user-data-dir=${dir}`]
   if (!options.intro) args.push('--no-intro')
@@ -190,49 +251,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
     args,
     env: {
       ...process.env,
+      ...STUB_ENV,
       ELECDEX_JMA_BASE_URL: options.jmaBaseUrl ?? UNREACHABLE_JMA,
-      ELECDEX_MET_BASE_URL: UNREACHABLE_MET,
-      ELECDEX_NWS_BASE_URL: UNREACHABLE_NWS,
-      ELECDEX_MARKETS_STUB_URL: UNREACHABLE_MARKETS,
-      ELECDEX_UPDATES_URL: UNREACHABLE_UPDATES,
-      ELECDEX_USGS_BASE_URL: UNREACHABLE_USGS,
-      ELECDEX_NOAA_BASE_URL: UNREACHABLE_NOAA,
       ELECDEX_CELESTRAK_BASE_URL: options.celestrakBaseUrl ?? UNREACHABLE_CELESTRAK,
-      // The AI AGENT pane reads Claude Code's own folder; a test gives it a made-up one.
-      ELECDEX_CLAUDE_DIR: NO_CLAUDE_DIR,
-      ELECDEX_WEB_HOMES: UNREACHABLE_WEB,
-      // A steady tone and a made-up mixer: never the machine's sound or volume.
-      ELECDEX_AUDIO_STUB: '1',
-      // An in-memory tray, shortcut and sign-in entry: never the machine's taskbar,
-      // keys or Run key (src/main/background).
-      ELECDEX_BACKGROUND_STUB: '1',
-      // A made-up socket table: never where this machine has actually been
-      // (src/services/metrics/sockets/stub.ts).
-      ELECDEX_SOCKETS_STUB: '1',
-      // A made-up Wi-Fi link, echoes and log: never this machine's network, its
-      // addresses or where it has connected, and no ping leaves the machine
-      // (src/services/metrics/wifi/stub.ts).
-      ELECDEX_WIFI_STUB: '1',
-      // A stand-in clipboard: never what this machine has copied, and nothing put on
-      // its clipboard (src/main/clipboard/stub.ts). Specs copy through
-      // globalThis.__elecdexClipboard.
-      ELECDEX_CLIPBOARD_STUB: '1',
-      // A stand-in media session: never what this machine is playing, and no player's
-      // button pressed (src/main/media/stub.ts). Specs change the track through
-      // globalThis.__elecdexNowPlaying.
-      ELECDEX_NOWPLAYING_STUB: '1',
-      // A stand-in Docker engine: never this machine's containers, and none started or
-      // stopped (src/main/docker/stub.ts). Specs change it through globalThis.__elecdexDocker.
-      ELECDEX_DOCKER_STUB: '1',
-      // A stand-in power-save blocker and power source: no run keeps this machine awake
-      // (src/main/awake/stub.ts). Specs read the hold through globalThis.__elecdexAwake.
-      ELECDEX_AWAKE_STUB: '1',
-      // A reversible stand-in for the system's encryption: never the Keychain or a
-      // keyring, and never the prompt either may show (src/main/ai/keys.ts).
-      ELECDEX_AI_KEYS_STUB: '1',
-      // A new profile starts with no saved layouts, as every spec but the presets' own
-      // expects; a real first start is given the presets (shared/layout-presets.ts).
-      ELECDEX_SEED_LAYOUTS: '0',
       ...options.env,
     },
   })
@@ -572,3 +593,33 @@ export function selectedRow(page: Page, listbox: string): Promise<SelectedRow | 
     }
   }, listbox)
 }
+
+/** Makes main's next file or folder picker answer `answer` (a path), as a person picking it. */
+export async function pickerAnswers(app: ElectronApplication, answer: string): Promise<void> {
+  await app.evaluate(({ dialog }, picked) => {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [picked] })) as never
+  }, answer)
+}
+
+/** Resolves once the app's process has ended (at once if it already has). */
+export function exited(app: ElectronApplication): Promise<void> {
+  const child = app.process()
+  if (child.exitCode !== null) return Promise.resolve()
+  return new Promise((resolve) => child.once('exit', () => resolve()))
+}
+
+/** Keeps the layout on screen as a saved layout named `name`, through the layouts dialog. */
+export async function keepLayout(page: Page, name: string): Promise<void> {
+  await page.keyboard.press('Control+Shift+KeyG')
+  await page.getByTestId('layouts-name').fill(name)
+  await page.getByTestId('layouts-save').click()
+  await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+}
+
+/** The CPU seconds every process of the app has used so far, together. */
+export const cpuSeconds = (app: ElectronApplication) =>
+  app.evaluate(({ app: electronApp }) =>
+    electronApp.getAppMetrics().reduce((sum, m) => sum + (m.cpu.cumulativeCPUUsage ?? 0), 0),
+  )

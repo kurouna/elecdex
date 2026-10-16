@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, removeDir } from './support.js'
+import { launch, pickerAnswers, removeDir } from './support.js'
 
 /**
  * The git pane against a real repository made for the test in a temp folder.
@@ -41,13 +41,6 @@ function makeRepo(): string {
 
 const git = (dir: string, ...args: string[]) =>
   execFileSync('git', args, { cwd: dir, stdio: 'pipe' })
-
-/** Replaces the folder picker in main with one that answers `folder`. */
-async function pickerAnswers(app: ElectronApplication, folder: string): Promise<void> {
-  await app.evaluate(({ dialog }, answer) => {
-    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-  }, folder)
-}
 
 const single = { version: 1, root: { kind: 'pane', id: 'g', widget: 'git' } }
 

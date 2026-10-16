@@ -83,29 +83,6 @@ test('several lines pasted ask first; a line alone goes straight in', async () =
   }
 })
 
-test('Ctrl+Shift+K clears the scrollback of the shell that has the keys', async () => {
-  const launched = await launch(undefined, { layout: SINGLE_TERMINAL })
-  const { page, platform } = launched
-  try {
-    await ready(page)
-    const pane = terminalPane(page).first()
-    // xterm 6 draws its own scrollbar: its slider's share of the track is the screen's share of
-    // the buffer - small with a long scrollback, the whole track once it is cleared.
-    const share = () =>
-      pane.locator('.xterm-scrollable-element .scrollbar.vertical').evaluate((track) => {
-        const slider = track.querySelector('.slider')
-        const whole = track.getBoundingClientRect().height
-        return whole === 0 || slider === null ? 1 : slider.getBoundingClientRect().height / whole
-      })
-    await typeInto(page, pane, platform === 'win32' ? '1..300 | % { $_ }' : 'seq 300')
-    await expect.poll(share, { timeout: 20_000 }).toBeLessThan(0.5)
-    await page.keyboard.press('Control+Shift+KeyK')
-    await expect.poll(share, { timeout: 5000 }).toBeGreaterThan(0.75)
-  } finally {
-    await launched.close()
-  }
-})
-
 test('Ctrl+Shift+= and - step every shell type size, and leave the page zoom alone', async () => {
   const launched = await launch(undefined, { layout: SINGLE_TERMINAL })
   const { page, app } = launched
@@ -226,12 +203,14 @@ test('a cd keeps the terminal it is typed into, rather than making it again', as
   }
 })
 
-test('a cleared scrollback stays cleared when the page comes back', async () => {
+test('Ctrl+Shift+K clears the scrollback of the shell that has the keys, and it stays cleared when the page comes back', async () => {
   // Found in review: only the pane was cleared; main's copy brought it all back on attaching.
   const launched = await launch(undefined, { layout: SINGLE_TERMINAL })
   const { page, platform } = launched
   try {
     await ready(page)
+    // xterm 6 draws its own scrollbar: its slider's share of the track is the screen's share of
+    // the buffer - small with a long scrollback, the whole track once it is cleared.
     const share = () =>
       terminalPane(page)
         .first()

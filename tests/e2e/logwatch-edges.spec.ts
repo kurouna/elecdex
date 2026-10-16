@@ -10,7 +10,7 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, removeDir } from './support.js'
+import { launch, pickerAnswers, removeDir } from './support.js'
 
 /**
  * LOG WATCH in the running app at the edges (docs/logwatch.md): a file rotated, deleted and made
@@ -27,12 +27,6 @@ const stamp = (): string => {
 }
 const lines = (from: number, to: number, word = 'line'): string =>
   Array.from({ length: to - from + 1 }, (_, i) => `${stamp()} INFO ${word} ${from + i}\n`).join('')
-
-async function pickerAnswers(app: ElectronApplication, file: string): Promise<void> {
-  await app.evaluate(({ dialog }, answer) => {
-    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-  }, file)
-}
 
 const single = (state?: Record<string, unknown>) => ({
   version: 1,
@@ -402,6 +396,9 @@ test('without an AI provider, EXPLAIN says where to set one up, and goes there',
     await choose(page, app, file)
     await expect(page.getByTestId('logwatch-hint')).toContainText('click lines')
     await rows(page).first().click()
+    // Copy is there, EXPLAIN itself is not: only the way to set a provider up.
+    await expect(page.getByTestId('logwatch-copy')).toBeVisible()
+    await expect(page.getByTestId('logwatch-explain-open')).toHaveCount(0)
     await page.getByTestId('logwatch-explain-setup').click()
     await expect(page.getByTestId('settings-dialog')).toBeVisible()
     await expect(page.locator('[data-testid=settings-section][data-section=ai]')).toHaveAttribute(

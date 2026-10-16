@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import {
@@ -141,17 +141,20 @@ test('AWAKE holds, goes on with the pane closed, and is taken up again after a r
 })
 
 test('a hold that ended while elecdex was not running is off at the start', async () => {
-  const first = await launch(undefined, { layout: beside })
-  const dir = first.userData
-  let running = first
+  const now = Date.now()
+  const running = await launch(undefined, {
+    layout: beside,
+    files: {
+      'awake.json': JSON.stringify({
+        version: 1,
+        level: 'system',
+        until: now - 60_000,
+        since: now - 3_660_000,
+      }),
+    },
+  })
+  const dir = running.userData
   try {
-    await first.quit()
-    const now = Date.now()
-    writeFileSync(
-      path.join(dir, 'awake.json'),
-      JSON.stringify({ version: 1, level: 'system', until: now - 60_000, since: now - 3_660_000 }),
-    )
-    running = await launch(dir)
     await expect(running.page.getByTestId('awake-state')).toHaveText('RELEASED')
     expect(await held(running.app)).toEqual([])
     expect(JSON.parse(readFileSync(path.join(dir, 'awake.json'), 'utf8'))).toMatchObject({

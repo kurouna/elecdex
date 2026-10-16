@@ -42,6 +42,10 @@ export default defineConfig({
         test: {
           name: 'component',
           environment: 'jsdom',
+          // A VM context per file instead of a worker that builds jsdom afresh for each: files
+          // stay apart, and the project took 10 s instead of 33 s (measured 2026-10-16, 78
+          // files; making jsdom was half of all the suite's time before).
+          pool: 'vmThreads',
           include: ['tests/component/**/*.test.ts'],
           setupFiles: ['tests/component/setup.ts'],
         },

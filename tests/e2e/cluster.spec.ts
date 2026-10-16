@@ -1,5 +1,5 @@
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch } from './support.js'
+import { cpuSeconds, type Launched, launch } from './support.js'
 
 /**
  * The CLUSTER pane (docs/cluster.md): the machine on one pane, read from the
@@ -83,7 +83,7 @@ type Room = {
   zoom?: number
 }
 
-for (const { width, height, share, tier, column, zoom } of [
+const ROOMS = [
   { width: 1920, height: 1080, share: 0.98, tier: 'wide' },
   { width: 1366, height: 768, share: 0.45, tier: 'medium' },
   // The 9:16 tour: 720x1280 through a zoom of 0.75, CLUSTER over a shell. The type grows with
@@ -91,28 +91,39 @@ for (const { width, height, share, tier, column, zoom } of [
   { width: 540, height: 960, share: 0.7, tier: 'medium', column: true, zoom: 0.75 },
   { width: 1366, height: 340, share: 0.98, tier: 'short' },
   { width: 1366, height: 768, share: 0.22, tier: 'narrow' },
-] satisfies Room[]) {
-  const how = column === true ? ' over a pane' : ''
-  test(`lays itself out ${tier} at ${width}x${height}${how}, its parts never running into each other`, async () => {
-    const layout = beside(share, column === true ? 'column' : 'row')
-    const { app, page, close } = await launch(undefined, { layout })
-    try {
+] satisfies Room[]
+
+test.describe('in every room', () => {
+  // One app for every room: each takes its layout through a save and a reload (as switching to
+  // it would), its window size and its zoom, rather than a launch of its own.
+  let launched: Launched
+  test.beforeAll(async () => {
+    launched = await launch(undefined, { layout: beside(0.5) })
+  })
+  test.afterAll(async () => {
+    await launched?.close()
+  })
+
+  for (const { width, height, share, tier, column, zoom } of ROOMS) {
+    const how = column === true ? ' over a pane' : ''
+    test(`lays itself out ${tier} at ${width}x${height}${how}, its parts never running into each other`, async () => {
+      const { app, page } = launched
+      const layout = beside(share, column === true ? 'column' : 'row')
+      await page.evaluate((tree) => window.elecdex.layout.save(tree as never), layout)
+      await page.reload()
+      await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
       await sizeTo(app, width, height)
-      if (zoom !== undefined) {
-        await app.evaluate(
-          ({ BrowserWindow }, z) => BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(z),
-          zoom,
-        )
-      }
+      await app.evaluate(
+        ({ BrowserWindow }, z) => BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(z),
+        zoom ?? 1,
+      )
       await expect(page.getByTestId('cluster')).toHaveAttribute('data-tier', tier)
       // A few readings in, so every lane has something in it.
       await expect(page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
       await partsApart(page)
-    } finally {
-      await close()
-    }
-  })
-}
+    })
+  }
+})
 
 test('shows the readings, rolls the clock, and opens a figure’s card', async () => {
   const { page, close } = await launch(undefined, { layout: beside(0.7) })
@@ -168,12 +179,6 @@ test('shows the QUAKE lamp only while quake alerts are on', async () => {
     await close()
   }
 })
-
-/** CPU seconds used by every Electron process. */
-const cpuSeconds = (app: ElectronApplication) =>
-  app.evaluate(({ app: electronApp }) =>
-    electronApp.getAppMetrics().reduce((sum, m) => sum + (m.cpu.cumulativeCPUUsage ?? 0), 0),
-  )
 
 test('a full screen of it stays cheap when idle', async () => {
   // Measured 2026-10-10 on Windows 11 at 1920x1080: 10-15% of one core, against 24% for CPU,

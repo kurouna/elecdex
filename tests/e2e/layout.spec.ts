@@ -1,9 +1,9 @@
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import {
+  keepLayout,
   launch,
   launchOnTwoLayouts,
   SINGLE_TERMINAL,
@@ -315,13 +315,10 @@ test('a save lands while another program keeps reading layout.json', async () =>
 })
 
 test('a corrupt layout.json is quarantined, not lost, and the default is used', async () => {
-  const first = await launch()
-  const { userData } = first
-  await first.quit()
-
-  writeFileSync(layoutFile(userData), '{ "version": 1, "root": { this is not json', 'utf8')
-
-  const second = await launch(userData)
+  const second = await launch(undefined, {
+    files: { 'layout.json': '{ "version": 1, "root": { this is not json' },
+  })
+  const { userData } = second
   try {
     await expect(second.page.locator('[data-testid=pane]')).toHaveCount(17)
     const backup = `${layoutFile(userData)}.bak`
@@ -333,14 +330,9 @@ test('a corrupt layout.json is quarantined, not lost, and the default is used', 
 })
 
 test('a hand-edited layout.json is honoured and normalised', async () => {
-  const first = await launch()
-  const { userData } = first
-  await first.quit()
-
   // A split with one child and unnormalised sizes: the engine must collapse it.
-  writeFileSync(
-    layoutFile(userData),
-    JSON.stringify({
+  const second = await launch(undefined, {
+    layout: {
       version: 1,
       root: {
         kind: 'split',
@@ -358,11 +350,8 @@ test('a hand-edited layout.json is honoured and normalised', async () => {
           },
         ],
       },
-    }),
-    'utf8',
-  )
-
-  const second = await launch(userData)
+    },
+  })
   try {
     const widgets = await second.page.$$eval('[data-testid=pane]', (els) =>
       els.map((e) => e.getAttribute('data-widget')),
@@ -376,15 +365,10 @@ test('a hand-edited layout.json is honoured and normalised', async () => {
 })
 
 test('a layout.json that repeats an id still draws every pane', async () => {
-  const first = await launch()
-  const { userData } = first
-  await first.quit()
-
   // Edited by hand: two tabs and a pane beside them, all with one id. Siblings with
   // one key once stopped the workspace drawing at all.
-  writeFileSync(
-    layoutFile(userData),
-    JSON.stringify({
+  const second = await launch(undefined, {
+    layout: {
       version: 1,
       root: {
         kind: 'split',
@@ -404,11 +388,8 @@ test('a layout.json that repeats an id still draws every pane', async () => {
           },
         ],
       },
-    }),
-    'utf8',
-  )
-
-  const second = await launch(userData)
+    },
+  })
   try {
     const panes = second.page.locator('[data-testid=pane]')
     await expect(panes).toHaveCount(3)
@@ -421,13 +402,8 @@ test('a layout.json that repeats an id still draws every pane', async () => {
 })
 
 test('an unknown widget id renders a visible placeholder instead of breaking the layout', async () => {
-  const first = await launch()
-  const { userData } = first
-  await first.quit()
-
-  writeFileSync(
-    layoutFile(userData),
-    JSON.stringify({
+  const second = await launch(undefined, {
+    layout: {
       version: 1,
       root: {
         kind: 'split',
@@ -440,11 +416,8 @@ test('an unknown widget id renders a visible placeholder instead of breaking the
           { kind: 'pane', id: 'c', widget: 'no-such-widget' },
         ],
       },
-    }),
-    'utf8',
-  )
-
-  const second = await launch(userData)
+    },
+  })
   try {
     await expect(second.page.getByTestId('pane-missing')).toContainText('no-such-widget')
     // A plugin pane says the plugin is not in the folder, and keeps its place for when it is.
@@ -485,19 +458,6 @@ test('reset restores the default layout, asking first while shells are open', as
     await close()
   }
 })
-
-/**
- * Keeps the workspace under a name from the layouts dialog, and closes it again.
- * Four tests here do this, so it lives once.
- */
-async function keepLayout(page: Page, name: string): Promise<void> {
-  await page.keyboard.press('Control+Shift+KeyG')
-  await page.getByTestId('layouts-name').fill(name)
-  await page.getByTestId('layouts-save').click()
-  await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
-  await page.keyboard.press('Escape')
-  await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
-}
 
 /**
  * Switching between saved layouts without the question about the shells, which
