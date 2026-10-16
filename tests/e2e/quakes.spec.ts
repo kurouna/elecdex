@@ -54,7 +54,7 @@ function entry(
     at,
     anm: `${TEST}${place[0]}`,
     en_anm: `${TEST}${place[1]}`,
-    cod: '+38.3+142.4-40000/',
+    cod: '+31.2+146.8-40000/',
     mag,
     maxi,
   }
@@ -109,9 +109,9 @@ test.beforeEach(() => {
   requests = []
   served = {
     [JMA_QUAKES]: JSON.stringify([
-      entry('strong', 3, '5+', ['宮城県沖', 'Off the Coast of Miyagi Prefecture']),
-      entry('weak', 2, '3', ['茨城県南部', 'Southern Ibaraki Prefecture'], '3.8'),
-      entry('old', 180, '6-', ['石川県能登地方', 'Noto Region, Ishikawa Prefecture'], '6.0'),
+      entry('strong', 3, '5+', ['翠浜県沖', 'Off the Coast of Suihama Prefecture']),
+      entry('weak', 2, '3', ['白砂県南部', 'Southern Shirasuna Prefecture'], '3.8'),
+      entry('old', 180, '6-', ['霞野県北部', 'Northern Kasumino Prefecture'], '6.0'),
     ]),
     [JMA_TSUNAMI]: '[]',
   }
@@ -165,7 +165,7 @@ test('the quakes pane lists Japan by intensity, asks only JMA, and closing it st
     await expect(rows).toHaveCount(3, { timeout: 20_000 })
     await expect(rows.nth(0)).toHaveAttribute('data-id', 'weak')
     await expect(rows.nth(0)).toHaveClass(/moderate/)
-    await expect(rows.nth(0)).toContainText('[TEST] Southern Ibaraki Prefecture')
+    await expect(rows.nth(0)).toContainText('[TEST] Southern Shirasuna Prefecture')
     await expect(rows.nth(1)).toHaveClass(/severe/)
     await expect(rows.nth(1).locator('.badge')).toHaveText('5+')
     await expect(rows.nth(1)).toContainText('M5.1 · 40 km')
@@ -212,7 +212,7 @@ test('an alert announces a recent strong earthquake once, marks the globe, and n
     await expect(alerts.first()).toHaveAttribute('data-id', 'strong')
     await expect(alerts.first()).toHaveClass(/severe/)
     await expect(page.getByTestId('quake-alert-text')).toHaveText(
-      '[TEST] 宮城県沖 · 震度5強 · M5.1 · 深さ40km',
+      '[TEST] 翠浜県沖 · 震度5強 · M5.1 · 深さ40km',
     )
     await expect(alerts.first()).toContainText('出典：気象庁 · 緊急地震速報ではありません')
 
@@ -324,7 +324,7 @@ test('an alert reaches the system notifications when no window is in front', asy
       (await app.evaluate(() => (globalThis as { __notified?: string[] }).__notified)) ?? []
     expect(notified).toContain('Earthquake')
     expect(notified).toContain(
-      '[TEST] Off the Coast of Miyagi Prefecture · Shindo 5+ · M5.1 · depth 40 km',
+      '[TEST] Off the Coast of Suihama Prefecture · Shindo 5+ · M5.1 · depth 40 km',
     )
     expect(notified).toContain('Source: JMA')
 
@@ -343,9 +343,9 @@ test('an alert reaches the system notifications when no window is in front', asy
 test('a JMA tsunami warning shows a card with its areas, folds into a tab, and says when it is lifted', async () => {
   served[JMA_TSUNAMI] = tsunamiListing('warning_VTSE41_0.json')
   served['/bosai/tsunami/data/warning_VTSE41_0.json'] = tsunamiReport([
-    ['宮城県', '62', '1'],
-    ['岩手県', '51', '3'],
-    ['青森県太平洋沿岸', '71'],
+    ['翠浜県', '62', '1'],
+    ['霞野県', '51', '3'],
+    ['白砂県外洋沿岸', '71'],
   ])
   const { page, close } = await launch(undefined, {
     layout: single('clock'),
@@ -359,7 +359,7 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
     await expect(card).toHaveAttribute('data-level', 'warning')
     await expect(card).toHaveClass(/severe/)
     await expect(page.getByTestId('tsunami-level')).toHaveText('津波警報')
-    await expect(page.getByTestId('tsunami-summary')).toHaveText('[TEST] 岩手県 ほか 1 区域')
+    await expect(page.getByTestId('tsunami-summary')).toHaveText('[TEST] 霞野県 ほか 1 区域')
     await expect(card).toContainText('ただちに避難してください')
     // No earthquake reaches intensity 7: only the tsunami is announced.
     await expect(page.getByTestId('quake-alert')).toHaveCount(0)
@@ -367,7 +367,7 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
     await page.getByTestId('tsunami-toggle').click()
     const areas = page.getByTestId('tsunami-areas').locator('li')
     await expect(areas).toHaveCount(2)
-    await expect(areas.first()).toHaveText('津波警報 [TEST] 岩手県 ただちに津波来襲と予測 3 m')
+    await expect(areas.first()).toHaveText('津波警報 [TEST] 霞野県 ただちに津波来襲と予測 3 m')
 
     // Folded, it stays in sight as a tab; the tab opens it again. Each powers off as the other comes.
     const [cardSel, tabSel] = ['[data-testid=tsunami-alert]', '[data-testid=tsunami-tab]']
@@ -386,7 +386,7 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
 
     // Lifted: the card says so. (Alerts off and on make main check again at once.)
     served[JMA_TSUNAMI] = tsunamiListing('lifted_VTSE41_1.json')
-    served['/bosai/tsunami/data/lifted_VTSE41_1.json'] = tsunamiReport([['岩手県', '50']])
+    served['/bosai/tsunami/data/lifted_VTSE41_1.json'] = tsunamiReport([['霞野県', '50']])
     await page.evaluate(async () => {
       await window.elecdex.settings.patch({ quakes: { notify: false } })
       await window.elecdex.settings.patch({ quakes: { notify: true } })
@@ -407,9 +407,9 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
 
 test('the banners left close up behind one that goes', async () => {
   served[JMA_QUAKES] = JSON.stringify([
-    entry('first', 3, '5+', ['宮城県沖', 'Off the Coast of Miyagi Prefecture']),
-    entry('second', 4, '5+', ['福島県沖', 'Off the Coast of Fukushima Prefecture']),
-    entry('third', 5, '5+', ['茨城県沖', 'Off the Coast of Ibaraki Prefecture']),
+    entry('first', 3, '5+', ['翠浜県沖', 'Off the Coast of Suihama Prefecture']),
+    entry('second', 4, '5+', ['霞野県沖', 'Off the Coast of Kasumino Prefecture']),
+    entry('third', 5, '5+', ['白砂県沖', 'Off the Coast of Shirasuna Prefecture']),
   ])
   const { page, close } = await launch(undefined, {
     layout: single('clock'),
@@ -471,7 +471,7 @@ test('the banners left close up behind one that goes', async () => {
 
 test('a major tsunami warning powers on like every card, then breathes', async () => {
   served[JMA_TSUNAMI] = tsunamiListing('major_VTSE41_0.json')
-  served['/bosai/tsunami/data/major_VTSE41_0.json'] = tsunamiReport([['宮城県', '52', '10']])
+  served['/bosai/tsunami/data/major_VTSE41_0.json'] = tsunamiReport([['翠浜県', '52', '10']])
   const { page, close } = await launch(undefined, {
     layout: single('clock'),
     settings: japan({ notify: true, minIntensity: '7' }),
@@ -511,7 +511,7 @@ test('a major tsunami warning breathes as the motion setting says, whatever the 
   ] as const
   for (const { motion, os, breathes } of cases) {
     served[JMA_TSUNAMI] = tsunamiListing('major_VTSE41_0.json')
-    served['/bosai/tsunami/data/major_VTSE41_0.json'] = tsunamiReport([['宮城県', '52', '10']])
+    served['/bosai/tsunami/data/major_VTSE41_0.json'] = tsunamiReport([['翠浜県', '52', '10']])
     const { page, close } = await launch(undefined, {
       layout: single('clock'),
       settings: { ...japan({ notify: true, minIntensity: '7' }), motion },
@@ -539,10 +539,10 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
           type: 'earthquake',
           time: now - 10 * 60_000,
           mag: 6.4,
-          place: `${TEST}110 miles SE of Amchitka, Alaska`,
+          place: `${TEST}110 miles SE of Kestrel Point, Arvenland`,
           url: 'https://earthquake.usgs.gov/earthquakes/eventpage/us-big',
         },
-        geometry: { coordinates: [-178.5, 51.2, 20] },
+        geometry: { coordinates: [-160.3, 38.5, 20] },
       },
       {
         id: 'us-small',
@@ -550,9 +550,9 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
           type: 'earthquake',
           time: now - 5 * 60_000,
           mag: 4.8,
-          place: `${TEST}Fiji region`,
+          place: `${TEST}Corallin Islands region`,
         },
-        geometry: { coordinates: [178, -17.8, 550] },
+        geometry: { coordinates: [-150.6, -24.1, 550] },
       },
     ],
   })
@@ -563,7 +563,7 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
   )
     .replace('<strong>Category:</strong> Information', '<strong>Category:</strong> Warning')
     .replaceAll('2026-09-11T10:49:50Z', updated)
-    .replaceAll('110 miles SE of Amchitka', `${TEST}110 miles SE of Amchitka`)
+    .replaceAll('110 miles SE of Kestrel Point', `${TEST}110 miles SE of Kestrel Point`)
 
   const { page, close } = await launch(undefined, {
     layout: single('quakes'),
@@ -585,7 +585,7 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
     const strip = page.getByTestId('quakes-tsunami')
     await expect(strip).toHaveAttribute('data-level', 'warning')
     await expect(strip).toContainText('Tsunami warning')
-    await expect(strip).toContainText('[TEST] 110 miles SE of Amchitka')
+    await expect(strip).toContainText('[TEST] 110 miles SE of Kestrel Point')
 
     // Announced: the tsunami card and the M6.4, not the M4.8.
     await expect(page.getByTestId('tsunami-alert')).toContainText(
@@ -594,7 +594,7 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
     await expect(page.getByTestId('tsunami-alert')).toContainText('follow local authorities')
     await expect(page.getByTestId('quake-alert')).toHaveCount(1)
     await expect(page.getByTestId('quake-alert-text')).toHaveText(
-      '[TEST] 110 miles SE of Amchitka, Alaska · M6.4 · depth 20 km',
+      '[TEST] 110 miles SE of Kestrel Point, Arvenland · M6.4 · depth 20 km',
     )
     expect(requests.some((r) => r.startsWith('/bosai'))).toBe(false)
     expect(requests).toContain('/noaa/events/xml/PHEBAtom.xml')
@@ -606,7 +606,7 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
 test('a new earthquake slides in with a highlight; while scrolled down it waits behind a pill; another source brings nothing new', async () => {
   served[JMA_QUAKES] = JSON.stringify(
     Array.from({ length: 30 }, (_, i) =>
-      entry(`q${i}`, 10 + i * 5, '3', ['茨城県南部', 'Southern Ibaraki Prefecture'], '4.0'),
+      entry(`q${i}`, 10 + i * 5, '3', ['白砂県南部', 'Southern Shirasuna Prefecture'], '4.0'),
     ),
   )
   const { app, page, close } = await launch(undefined, {

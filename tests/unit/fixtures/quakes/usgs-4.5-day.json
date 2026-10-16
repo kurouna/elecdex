@@ -13,7 +13,7 @@
       "type": "Feature",
       "properties": {
         "mag": 4.6,
-        "place": "120 km NE of Hengchun, Taiwan",
+        "place": "120 km NE of Lindmoor, Arvenland",
         "time": 1789339481471,
         "updated": 1789342014040,
         "tz": null,
@@ -37,11 +37,11 @@
         "gap": 124,
         "magType": "mww",
         "type": "earthquake",
-        "title": "M 4.6 - 120 km NE of Hengchun, Taiwan"
+        "title": "M 4.6 - 120 km NE of Lindmoor, Arvenland"
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [121.6019, 22.7398, 10]
+        "coordinates": [-142.6019, 30.7398, 10]
       },
       "id": "us7000th8v"
     },
@@ -49,7 +49,7 @@
       "type": "Feature",
       "properties": {
         "mag": 5.1,
-        "place": "50 km N of Ruteng, Indonesia",
+        "place": "50 km N of Saltreach, Corallin Islands",
         "time": 1789339201303,
         "updated": 1789341380040,
         "tz": null,
@@ -73,11 +73,11 @@
         "gap": 39,
         "magType": "mb",
         "type": "earthquake",
-        "title": "M 5.1 - 50 km N of Ruteng, Indonesia"
+        "title": "M 5.1 - 50 km N of Saltreach, Corallin Islands"
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [120.3822, -8.1597, 10]
+        "coordinates": [-128.3822, -8.1597, 10]
       },
       "id": "us7000th8u"
     },
@@ -85,7 +85,7 @@
       "type": "Feature",
       "properties": {
         "mag": 4.9,
-        "place": "86 km SSW of Isangel, Vanuatu",
+        "place": "86 km SSW of Wrenhaven, Corallin Islands",
         "time": 1789328503663,
         "updated": 1789329676040,
         "tz": null,
@@ -109,11 +109,11 @@
         "gap": 113,
         "magType": "mb",
         "type": "earthquake",
-        "title": "M 4.9 - 86 km SSW of Isangel, Vanuatu"
+        "title": "M 4.9 - 86 km SSW of Wrenhaven, Corallin Islands"
       },
       "geometry": {
         "type": "Point",
-        "coordinates": [168.8337, -20.2006, 10]
+        "coordinates": [-135.8337, -20.2006, 10]
       },
       "id": "us7000th81"
     }

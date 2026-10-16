@@ -34,9 +34,9 @@ describe('parseUsgsFeed', () => {
     expect(quakes[0]).toMatchObject({
       source: 'usgs',
       id: 'us7000th8v',
-      area: { ja: '120 km NE of Hengchun, Taiwan', en: '120 km NE of Hengchun, Taiwan' },
-      lat: 22.7398,
-      lon: 121.6019,
+      area: { ja: '120 km NE of Lindmoor, Arvenland', en: '120 km NE of Lindmoor, Arvenland' },
+      lat: 30.7398,
+      lon: -142.6019,
       depthKm: 10,
       magnitude: 4.6,
       maxIntensity: null,
@@ -87,19 +87,19 @@ const jmaReport = {
       Forecast: {
         Item: [
           {
-            Area: { Name: '宮城県', Code: '220' },
+            Area: { Name: '翠浜県', Code: '220' },
             Category: { Kind: { Name: '津波注意報', Code: '62' } },
             FirstHeight: { ArrivalTime: '2026-09-14T12:20:00+09:00' },
             MaxHeight: { TsunamiHeight: '1' },
           },
           {
-            Area: { Name: '岩手県', Code: '210' },
+            Area: { Name: '霞野県', Code: '210' },
             Category: { Kind: { Name: '津波警報', Code: '51' } },
             FirstHeight: { Condition: 'ただちに津波来襲と予測' },
             MaxHeight: { TsunamiHeight: '3' },
           },
           {
-            Area: { Name: '青森県太平洋沿岸', Code: '201' },
+            Area: { Name: '白砂県外洋沿岸', Code: '201' },
             Category: { Kind: { Name: '津波予報（若干の海面変動）', Code: '71' } },
           },
         ],
@@ -137,21 +137,21 @@ describe('JMA tsunami', () => {
     })
     expect(tsunami?.areas).toEqual([
       {
-        name: '岩手県',
+        name: '霞野県',
         level: 'warning',
         arrivalAt: null,
         arrivalNote: 'ただちに津波来襲と予測',
         height: '3',
       },
       {
-        name: '宮城県',
+        name: '翠浜県',
         level: 'advisory',
         arrivalAt: Date.parse('2026-09-14T12:20:00+09:00'),
         arrivalNote: null,
         height: '1',
       },
     ])
-    expect(tsunamiSummary(tsunami as Tsunami, 'ja')).toBe('岩手県 ほか 1 区域')
+    expect(tsunamiSummary(tsunami as Tsunami, 'ja')).toBe('霞野県 ほか 1 区域')
   })
 
   it('reads a major warning, and none when only forecasts or liftings remain', () => {
@@ -185,12 +185,12 @@ describe('NOAA tsunami', () => {
     expect(tsunami).toMatchObject({
       source: 'noaa',
       level: 'warning',
-      region: '110 miles SE of Amchitka, Alaska',
+      region: '110 miles SE of Kestrel Point, Arvenland',
       headline: 'NWS National Tsunami Warning Center Palmer AK',
       url: 'https://www.tsunami.gov/events/PAAQ/2026/09/11/tl74mn/1/WEAK53/WEAK53.txt',
       issuedAt: Date.parse('2026-09-14T03:00:00Z'),
     })
-    expect(tsunami?.areas.map((a) => a.name)).toEqual(['110 miles SE of Amchitka, Alaska'])
+    expect(tsunami?.areas.map((a) => a.name)).toEqual(['110 miles SE of Kestrel Point, Arvenland'])
     const next = parseNoaaTsunamiFeed(warning.replaceAll('03:00:00Z', '04:00:00Z'), now)
     expect(next?.eventId).toBe(tsunami?.eventId)
     // Taken as over six hours after the last bulletin (NOAA sends no lifting in these feeds).
@@ -226,7 +226,7 @@ describe('NOAA tsunami without a position', () => {
       .replace(/<geo:long>[^<]*<\/geo:long>/, '')
     const now = Date.parse('2026-09-14T03:30:00Z')
     const first = parseNoaaTsunamiFeed(noGeo, now)
-    expect(first?.eventId).toContain('110 miles SE of Amchitka, Alaska')
+    expect(first?.eventId).toContain('110 miles SE of Kestrel Point, Arvenland')
     const later = parseNoaaTsunamiFeed(noGeo.replaceAll('03:00:00Z', '04:00:00Z'), now)
     expect(later?.eventId).toBe(first?.eventId)
   })

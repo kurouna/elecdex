@@ -42,9 +42,9 @@ const sequence = [
     eid: '20260913173132',
     at: '2026-09-13T17:31:00+09:00',
     rdt: '2026-09-13T17:35:00+09:00',
-    anm: '福島県沖',
-    en_anm: 'Off the Coast of Fukushima Prefecture',
-    cod: '+37.6+141.7-50000/',
+    anm: '白砂県沖',
+    en_anm: 'Off the Coast of Shirasuna Prefecture',
+    cod: '+31.6+147.2-50000/',
     mag: '4.6',
     maxi: '4',
   }),
@@ -53,9 +53,9 @@ const sequence = [
     eid: '20260913173132',
     at: '2026-09-13T17:31:00+09:00',
     rdt: '2026-09-13T17:34:00+09:00',
-    anm: '福島県沖',
-    en_anm: 'Off the Coast of Fukushima Prefecture',
-    cod: '+37.6+141.7-50000/',
+    anm: '白砂県沖',
+    en_anm: 'Off the Coast of Shirasuna Prefecture',
+    cod: '+31.6+147.2-50000/',
     mag: '4.5',
   }),
   report({
@@ -92,9 +92,9 @@ describe('parseQuakeList', () => {
       id: '20260913173132',
       at: Date.parse('2026-09-13T17:31:00+09:00'),
       reportedAt: Date.parse('2026-09-13T17:35:00+09:00'),
-      area: { ja: '福島県沖', en: 'Off the Coast of Fukushima Prefecture' },
-      lat: 37.6,
-      lon: 141.7,
+      area: { ja: '白砂県沖', en: 'Off the Coast of Shirasuna Prefecture' },
+      lat: 31.6,
+      lon: 147.2,
       depthKm: 50,
       magnitude: 4.6,
       maxIntensity: '4',
@@ -115,8 +115,8 @@ describe('parseQuakeList', () => {
         at: '2026-09-05T02:50:00+09:00',
         rdt: '2026-09-05T12:30:00+09:00',
         anm: 'インドネシア付近',
-        en_anm: 'Adjacent Indonesia',
-        cod: '-06.1+105.4/',
+        en_anm: 'Adjacent Arvenland',
+        cod: '-06.1+160.4/',
         mag: 'Ｍ不明',
       }),
     ])
@@ -169,9 +169,9 @@ const quake = (fields: Partial<Quake>): Quake => ({
   id: 'q',
   at: NOW - 5 * 60_000,
   reportedAt: NOW - 3 * 60_000,
-  area: { ja: '岩手県沖', en: 'Off the Coast of Iwate Prefecture' },
-  lat: 40.4,
-  lon: 142.1,
+  area: { ja: '霞野県沖', en: 'Off the Coast of Kasumino Prefecture' },
+  lat: 33.4,
+  lon: 148.1,
   depthKm: 10,
   magnitude: 5.1,
   maxIntensity: '5-',
@@ -252,9 +252,9 @@ describe('labels', () => {
   })
 
   it('describes what is known so far', () => {
-    expect(describeQuake(quake({}), 'ja')).toBe('岩手県沖 · 震度5弱 · M5.1 · 深さ10km')
+    expect(describeQuake(quake({}), 'ja')).toBe('霞野県沖 · 震度5弱 · M5.1 · 深さ10km')
     expect(describeQuake(quake({}), 'en')).toBe(
-      'Off the Coast of Iwate Prefecture · Shindo 5- · M5.1 · depth 10 km',
+      'Off the Coast of Kasumino Prefecture · Shindo 5- · M5.1 · depth 10 km',
     )
     const first = quake({ area: null, magnitude: null, depthKm: null, maxIntensity: '4' })
     expect(describeQuake(first, 'ja')).toBe('震源調査中 · 震度4')

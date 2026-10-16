@@ -28,9 +28,9 @@ function entry(eid: string, minutesAgo: number, maxi: string) {
     eid,
     at,
     rdt: at,
-    anm: '岩手県沖',
-    en_anm: 'Off the Coast of Iwate Prefecture',
-    cod: '+40.4+142.1-10000/',
+    anm: '霞野県沖',
+    en_anm: 'Off the Coast of Kasumino Prefecture',
+    cod: '+33.4+148.1-10000/',
     mag: '5.1',
     maxi,
   }
@@ -55,7 +55,7 @@ const tsunamiReport = (code: string) => ({
   Body: {
     Tsunami: {
       Forecast: {
-        Item: [{ Area: { Name: '岩手県' }, Category: { Kind: { Code: code } } }],
+        Item: [{ Area: { Name: '霞野県' }, Category: { Kind: { Code: code } } }],
       },
     },
   },
@@ -470,7 +470,7 @@ describe('notificationsFor', () => {
     const alert = h.alerts[0] as QuakeAlert
     const [tsunami, quake] = notificationsFor(alert, 'en')
     expect(tsunami?.title).toMatch(/^Tsunami warning · \d\d:\d\d$/)
-    expect(tsunami?.body).toContain('Amchitka')
+    expect(tsunami?.body).toContain('Kestrel Point')
     expect(tsunami?.body).toContain('NOAA')
     expect(quake?.title).toMatch(/^Earthquake \d\d:\d\d · M6\.4$/)
     expect(quake?.body).toBe('Somewhere far · M6.4 · depth 20 km\nSource: USGS')
@@ -485,6 +485,6 @@ describe('notificationsFor', () => {
     const [only, ...rest] = notificationsFor(h.alerts[0] as QuakeAlert, 'ja')
     expect(rest).toEqual([])
     expect(only?.title).toMatch(/^地震情報 \d\d:\d\d · 震度6弱$/)
-    expect(only?.body).toBe('岩手県沖 · 震度6弱 · M5.1 · 深さ10km\n出典：気象庁')
+    expect(only?.body).toBe('霞野県沖 · 震度6弱 · M5.1 · 深さ10km\n出典：気象庁')
   })
 })
