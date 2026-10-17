@@ -22,6 +22,7 @@ import MarketsWidget from './markets/MarketsWidget.svelte'
 import ClockWidget from './monitor/ClockWidget.svelte'
 import CpuWidget from './monitor/CpuWidget.svelte'
 import DiskWidget from './monitor/DiskWidget.svelte'
+import GpuWidget from './monitor/GpuWidget.svelte'
 import MemoryWidget from './monitor/MemoryWidget.svelte'
 import NetstatWidget from './monitor/NetstatWidget.svelte'
 import SysinfoWidget from './monitor/SysinfoWidget.svelte'
@@ -113,6 +114,19 @@ registerBuiltin({
   metrics: sources('mem.usage', 'mem.swap'),
   // The swap line carries mem.swap forward on mem.usage's clock: both are charted.
   keepWhileHidden: sources('mem.usage', 'mem.swap'),
+  minSize: { w: 160, h: 80 },
+  zoom: 'full',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'gpu',
+  title: 'gpu',
+  description: 'GPU load and video memory over the last minute, and now.',
+  component: GpuWidget,
+  metrics: sources('gpu.usage'),
+  // Its load and VRAM lines are charted.
+  keepWhileHidden: sources('gpu.usage'),
   minSize: { w: 160, h: 80 },
   zoom: 'full',
   popup: true,
@@ -216,12 +230,15 @@ registerBuiltin({
     'os.info',
     'hardware.system',
     'cpu.info',
+    'gpu.usage',
   ),
-  // The three its lanes chart each second, and the three collected once (free to hold, and a
-  // spec row blanked on every tab switch otherwise); the rest are let go behind a tab.
+  // The four its lanes chart each second (the GPU's lane and VRAM lamp too), and the three
+  // collected once (free to hold, and a spec row blanked on every tab switch otherwise); the
+  // rest are let go behind a tab.
   keepWhileHidden: sources(
     'cpu.load',
     'mem.usage',
+    'gpu.usage',
     'net.throughput',
     'os.info',
     'hardware.system',

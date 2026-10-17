@@ -58,7 +58,7 @@ describe.runIf(process.platform === 'win32')('the Windows sampler, for real', ()
         await new Promise((resolve) => setTimeout(resolve, 1000))
       }
       expect(sampler.readings.get('net') ?? 0).toBeGreaterThan(3)
-      for (const kind of ['proc', 'tcp', 'ping', 'dio', 'drives'] as const) {
+      for (const kind of ['proc', 'tcp', 'ping', 'dio', 'drives', 'gpu'] as const) {
         expect(sampler.readings.get(kind) ?? 0, kind).toBe(0)
       }
       // A top list opens: processes are read, straight away and twice for the CPU share.
@@ -84,6 +84,40 @@ describe.runIf(process.platform === 'win32')('the Windows sampler, for real', ()
       await sampler.tcpRemotes()
       const { names } = await sampler.tcpSockets()
       expect(names.size).toBeGreaterThan(0)
+    } finally {
+      sampler.stop()
+    }
+  }, 60_000)
+
+  it('reads the GPU only once asked, off the loop, and goes on with the rest meanwhile', async () => {
+    const sampler = new WindowsSampler('127.0.0.1')
+    try {
+      await sampler.throughput()
+      // Opening the counters took up to 5 s, once: on a pool thread, so the network goes on
+      // being read while the GPU's first reading is awaited.
+      const net = sampler.readings.get('net') ?? 0
+      // Settled at once, so a failure below leaves no rejection unheard.
+      const pending = sampler.gpuUsage().then(
+        (usage) => ({ usage }),
+        (error: unknown) => ({ error }),
+      )
+      for (let i = 0; i < 3; i += 1) {
+        await sampler.throughput()
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+      // Opened on the loop, the first open (up to 5 s) would have held every reading back.
+      expect(sampler.readings.get('net') ?? 0).toBeGreaterThan(net)
+      const settled = await pending
+      if ('error' in settled) throw settled.error
+      const { usage } = settled
+      const info = await sampler.gpuInfo()
+      // A machine with GPU counters names its adapter; one without (a CI runner) says none.
+      if (usage.name === null) expect(info.adapters).toEqual([])
+      else {
+        expect(info.adapters.map((a) => a.name)).toContain(usage.name)
+        expect(usage.vramUsed).not.toBeNull()
+      }
+      expect(sampler.readings.get('proc') ?? 0).toBe(0)
     } finally {
       sampler.stop()
     }

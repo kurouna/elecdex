@@ -22,13 +22,18 @@ const milder = (a: Level, b: Level): Level => (RANK[a] <= RANK[b] ? a : b)
 export const CLUSTER_LIMITS = {
   cpu: { warn: 85, crit: 95 },
   mem: { warn: 85, crit: 95 },
+  /**
+   * The GPU's own memory: past it, what a model or a game holds spills into shared system memory
+   * and runs many times slower. The GPU's load has no limit: a GPU at 100% is one doing its work.
+   */
+  vram: { warn: 90, crit: 97 },
   disk: { warn: 90, crit: 95 },
   /** Disk busy time: amber only - a busy disk is not yet a fault. */
   io: { warn: 90 },
   pingMs: { warn: 150 },
   /** While discharging, percent left. */
   battery: { warn: 20, crit: 10 },
-  /** Seconds a CPU or memory level must last before its lamp lights. */
+  /** Seconds a CPU, memory or VRAM level must last before its lamp lights. */
   holdSeconds: 10,
   /** Echoes (one every five seconds) a ping level must last. */
   holdEchoes: 2,
@@ -45,6 +50,7 @@ const byPercent = (value: number, limits: { warn: number; crit: number }): Level
 
 export const cpuLevel = (percent: number): Level => byPercent(percent, CLUSTER_LIMITS.cpu)
 export const memLevel = (percent: number): Level => byPercent(percent, CLUSTER_LIMITS.mem)
+export const vramLevel = (percent: number): Level => byPercent(percent, CLUSTER_LIMITS.vram)
 export const diskLevel = (percent: number): Level => byPercent(percent, CLUSTER_LIMITS.disk)
 
 /** Disk busy time; null where the platform does not say, which is not a fault. */
@@ -65,9 +71,19 @@ export function batteryLevel(battery: Battery | null): Level {
 
 /* ---------- lanes ---------- */
 
-/** The lanes, top to bottom (user decision 2026-10-10). */
-export const LANE_IDS = ['cpu', 'mem', 'io', 'rx', 'tx', 'ping'] as const
+/**
+ * The lanes, top to bottom (user decision 2026-10-10); GPU under memory, only on a machine whose
+ * GPU can be read (user decision 2026-10-17).
+ */
+export const LANE_IDS = ['cpu', 'mem', 'gpu', 'io', 'rx', 'tx', 'ping'] as const
 export type LaneId = (typeof LANE_IDS)[number]
+
+/** The lanes drawn here: the GPU's is left out where it cannot be read, never shown empty. */
+export const clusterLanes = (gpu: boolean): readonly LaneId[] =>
+  gpu ? LANE_IDS : LANE_IDS.filter((lane) => lane !== 'gpu')
+
+/** What a second keeps: the lanes, and VRAM in use, which no lane draws but its lamp waits on. */
+export type SeriesId = LaneId | 'vram'
 
 /**
  * A lane's reading for one second. `undefined` is no reading that second (the
@@ -76,8 +92,8 @@ export type LaneId = (typeof LANE_IDS)[number]
  */
 export type LaneValue = number | null | undefined
 
-/** One second of every lane: CPU and memory in percent, network in Mbps, ping in ms. */
-export type LaneSecond = { readonly at: number } & { readonly [K in LaneId]: LaneValue }
+/** One second of every lane: CPU, memory, GPU and VRAM in percent, network in Mbps, ping in ms. */
+export type LaneSecond = { readonly at: number } & { readonly [K in SeriesId]: LaneValue }
 
 /** Seconds a lane shows. One more is kept: the one stepping in at the right edge. */
 export const HISTORY_SECONDS = 60
@@ -90,13 +106,15 @@ export function recordSecond(
   return [...history, second].slice(-(HISTORY_SECONDS + 1))
 }
 
-export function laneLevel(lane: LaneId, value: LaneValue): Level {
+export function laneLevel(lane: SeriesId, value: LaneValue): Level {
   if (value === undefined) return 'none'
   switch (lane) {
     case 'cpu':
       return value === null ? 'none' : cpuLevel(value)
     case 'mem':
       return value === null ? 'none' : memLevel(value)
+    case 'vram':
+      return value === null ? 'none' : vramLevel(value)
     case 'io':
       return ioLevel(value)
     case 'ping':
@@ -123,7 +141,7 @@ export function niceCeiling(value: number): number {
   return step * power
 }
 
-const numbers = (history: readonly LaneSecond[], lane: LaneId): number[] =>
+const numbers = (history: readonly LaneSecond[], lane: SeriesId): number[] =>
   history
     .slice(-HISTORY_SECONDS)
     .map((second) => second[lane])
@@ -182,7 +200,7 @@ export function laneStats(
  */
 export function heldLevel(
   history: readonly LaneSecond[],
-  lane: LaneId,
+  lane: SeriesId,
   count: number,
   within: number = Number.POSITIVE_INFINITY,
 ): Level {
@@ -250,7 +268,17 @@ export const volumePercent = usedPercent
 
 /* ---------- lamps and the message line ---------- */
 
-export const LAMP_IDS = ['link', 'ping', 'cpu', 'mem', 'disk', 'batt', 'awake', 'quake'] as const
+export const LAMP_IDS = [
+  'link',
+  'ping',
+  'cpu',
+  'mem',
+  'vram',
+  'disk',
+  'batt',
+  'awake',
+  'quake',
+] as const
 export type LampId = (typeof LAMP_IDS)[number]
 
 /** A lamp dark, on for information (AWAKE), or lit amber or red. */
@@ -268,6 +296,8 @@ export interface LampInput {
   link: NetInterface | null
   volumes: DiskVolumes | null
   battery: Battery | null
+  /** The GPU can be read here: the VRAM lamp is shown only then. */
+  gpu: boolean
   /** AWAKE holds the machine (or its display) awake. */
   awake: boolean
   /** Quake alerts on in the settings: the QUAKE lamp is shown only then. */
@@ -292,11 +322,13 @@ function pingLamp(history: readonly LaneSecond[]): Lamp {
   return lit('ping', level, text)
 }
 
-function percentLamp(input: LampInput, id: 'cpu' | 'mem'): Lamp {
+const PERCENT_NAMES = { cpu: 'CPU', mem: 'MEMORY', vram: 'VRAM' } as const
+
+function percentLamp(input: LampInput, id: 'cpu' | 'mem' | 'vram'): Lamp {
   const level = heldLevel(input.history, id, CLUSTER_LIMITS.holdSeconds)
   const now = input.history.at(-1)?.[id]
   const limit = CLUSTER_LIMITS[id][level === 'crit' ? 'crit' : 'warn']
-  const name = id === 'cpu' ? 'CPU' : 'MEMORY'
+  const name = PERCENT_NAMES[id]
   const top = id === 'cpu' && input.topProcess !== null ? ` · TOP ${input.topProcess}` : ''
   const text = `${name} ${Math.round(now ?? 0)}% · OVER ${limit}% FOR ${CLUSTER_LIMITS.holdSeconds} s${top}`
   return lit(id, level, text)
@@ -345,7 +377,8 @@ function quakeLamp(input: LampInput): Lamp | null {
 
 /**
  * The lamps in their fixed order. One that does not apply here - BATT on a
- * machine without a battery, QUAKE with quake alerts off - is left out, never
+ * machine without a battery, VRAM where the GPU cannot be read, QUAKE with
+ * quake alerts off - is left out, never
  * shown dark: dark would read as "all is well" (user decision 2026-10-10).
  */
 export function clusterLamps(input: LampInput): Lamp[] {
@@ -354,6 +387,7 @@ export function clusterLamps(input: LampInput): Lamp[] {
     pingLamp(input.history),
     percentLamp(input, 'cpu'),
     percentLamp(input, 'mem'),
+    input.gpu ? percentLamp(input, 'vram') : null,
     diskLamp(input.volumes),
     batteryLamp(input.battery),
     { id: 'awake', state: input.awake ? 'info' : 'off', text: null },
@@ -408,10 +442,10 @@ export const CLUSTER_ROOM = {
   /** The lamps and the clock beside the date, above the lanes. */
   mediumTop: 170,
   laneMin: 46,
-  /** A row of slots, and how wide a slot is with its gap. */
+  /** A row of slots, and how wide a slot is with its gap; ten, five to a row in wide (user decision 2026-10-17). */
   slotRow: 64,
   slotWidth: 140,
-  slots: 8,
+  slots: 10,
   padding: 40,
   minWidth: 560,
   short: { height: 200 },
@@ -420,6 +454,8 @@ export const CLUSTER_ROOM = {
   specRow: { line: 40, grid: 75 },
   /** Wide: the cores row goes in from this height (with the spec row above it, measured). */
   wideCores: 600,
+  /** The lanes wide's heights were measured with; each one more (the GPU's) asks a lane's room. */
+  baseLanes: 6,
   /** Room a tier is kept for before it gives way, so a drag across a threshold does not flicker. */
   hysteresis: 12,
 } as const
@@ -447,6 +483,10 @@ export function slotRows(width: number): number {
   return Math.ceil(CLUSTER_ROOM.slots / perRow)
 }
 
+/** What wide needs in height beyond its measured lanes: a lane's room for each one more. */
+const wideExtra = (lanes: number): number =>
+  Math.max(0, lanes - CLUSTER_ROOM.baseLanes) * CLUSTER_ROOM.laneMin
+
 /** The height medium needs at a width: the top, `lanes` lanes and the slot rows. */
 const mediumNeed = (width: number, lanes: number): number =>
   CLUSTER_ROOM.mediumTop +
@@ -454,11 +494,11 @@ const mediumNeed = (width: number, lanes: number): number =>
   slotRows(width) * CLUSTER_ROOM.slotRow +
   CLUSTER_ROOM.padding
 
-function tierAt(width: number, height: number): ClusterTier {
+function tierAt(width: number, height: number, lanes: number): ClusterTier {
   const room = CLUSTER_ROOM
   if (width < room.compact.width) return 'narrow'
-  if (width >= room.wide.width && height >= room.wide.height) return 'wide'
-  if (width >= room.minWidth && height >= mediumNeed(width, LANE_IDS.length)) return 'medium'
+  if (width >= room.wide.width && height >= room.wide.height + wideExtra(lanes)) return 'wide'
+  if (width >= room.minWidth && height >= mediumNeed(width, lanes)) return 'medium'
   if (width >= room.minWidth && height >= room.short.height) return 'short'
   return height >= room.compact.height ? 'compact' : 'narrow'
 }
@@ -466,20 +506,25 @@ function tierAt(width: number, height: number): ClusterTier {
 const order = (tier: ClusterTier): number => CLUSTER_TIERS.indexOf(tier)
 
 /**
- * The tier for a pane of this size. Given the tier it has, it keeps it until
- * the size is a little past the line, so dragging along a threshold does not
+ * The tier for a pane of this size with `lanes` lanes. Given the tier it has, it keeps it
+ * until the size is a little past the line, so dragging along a threshold does not
  * flip the layout back and forth.
  */
-export function clusterTier(width: number, height: number, previous?: ClusterTier): ClusterTier {
-  const tier = tierAt(width, height)
+export function clusterTier(
+  width: number,
+  height: number,
+  previous?: ClusterTier,
+  lanes: number = CLUSTER_ROOM.baseLanes,
+): ClusterTier {
+  const tier = tierAt(width, height, lanes)
   if (previous === undefined || previous === tier) return tier
   const slack = CLUSTER_ROOM.hysteresis
   // Growing, the larger tier must still hold with a little less room; shrinking, the
   // smaller one with a little more. Otherwise the pane stays as it was.
   const growing = order(tier) < order(previous)
   const check = growing
-    ? tierAt(width - slack, height - slack)
-    : tierAt(width + slack, height + slack)
+    ? tierAt(width - slack, height - slack, lanes)
+    : tierAt(width + slack, height + slack, lanes)
   const past = growing ? order(check) < order(previous) : order(check) > order(previous)
   return past ? tier : previous
 }
@@ -488,21 +533,28 @@ export function clusterTier(width: number, height: number, previous?: ClusterTie
  * Whether the spec row (what the machine is) goes in: a narrow pane has it last, under a scroll;
  * wide and medium only where it is room left over, so it never pushes a pane down a tier.
  */
-export function showSpec(tier: ClusterTier, width: number, height: number): boolean {
+export function showSpec(
+  tier: ClusterTier,
+  width: number,
+  height: number,
+  lanes: number = CLUSTER_ROOM.baseLanes,
+): boolean {
   if (tier === 'narrow') return true
-  if (tier === 'wide') return height >= CLUSTER_ROOM.wide.height + CLUSTER_ROOM.specRow.line
-  if (tier === 'medium') {
-    return height >= mediumNeed(width, LANE_IDS.length) + CLUSTER_ROOM.specRow.grid
-  }
+  if (tier === 'wide')
+    return height >= CLUSTER_ROOM.wide.height + wideExtra(lanes) + CLUSTER_ROOM.specRow.line
+  if (tier === 'medium') return height >= mediumNeed(width, lanes) + CLUSTER_ROOM.specRow.grid
   return false
 }
 
 /** Whether the cores row goes in: only where the lanes keep their least height with it, under the spec row. */
-export function showCores(tier: ClusterTier, width: number, height: number): boolean {
-  if (tier === 'wide') return height >= CLUSTER_ROOM.wideCores
-  if (tier === 'medium') {
-    // The cores row is two lanes high (`.cores-row`), so it needs two lanes' room.
-    return height >= mediumNeed(width, LANE_IDS.length + 2) + CLUSTER_ROOM.specRow.grid
-  }
+export function showCores(
+  tier: ClusterTier,
+  width: number,
+  height: number,
+  lanes: number = CLUSTER_ROOM.baseLanes,
+): boolean {
+  if (tier === 'wide') return height >= CLUSTER_ROOM.wideCores + wideExtra(lanes)
+  // The cores row is two lanes high (`.cores-row`), so it needs two lanes' room.
+  if (tier === 'medium') return height >= mediumNeed(width, lanes + 2) + CLUSTER_ROOM.specRow.grid
   return false
 }

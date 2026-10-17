@@ -42,24 +42,32 @@ interface Colors {
   guide: string
   label: string
   font: string
-  labelSize: number
 }
 
 function readColors(el: Element): Colors {
   const style = getComputedStyle(el)
   const read = (name: string, fallback: string): string =>
     style.getPropertyValue(name).trim() || fallback
-  const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
   return {
     line: read('--accent', '#aacfd1'),
     crit: read('--danger', '#e05050'),
     guide: read('--panel-rule', 'rgba(170,207,209,0.3)'),
     label: read('--text-muted', 'rgba(170,207,209,0.5)'),
     font: read('--font-mono', 'monospace'),
-    // --step--2: the smallest the type scale allows.
-    labelSize: Math.max(8, Math.round(root * 0.625)),
   }
 }
+
+/**
+ * The scale's type, --step--2 (the smallest the type scale allows) of the root font, which follows
+ * the window's height: read at each measure, not once a canvas (found adding the GPU lane: a lane
+ * that came in later, at another window size, wrote its scale smaller than the rest, which kept
+ * the size of the window they were first drawn in).
+ */
+const labelSize = (): number =>
+  Math.max(
+    8,
+    Math.round(Number.parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.625),
+  )
 
 /** Where amber starts on this lane, for a faint guide; none for the network. */
 function warnAt(): number | null {
@@ -79,6 +87,7 @@ let surface = $state.raw<{
   width: number
   height: number
   ratio: number
+  labelSize: number
   colors: Colors
 } | null>(null)
 
@@ -91,6 +100,7 @@ $effect(() => {
   const colors = readColors(el)
   const measure = (width: number, height: number): void => {
     const ratio = window.devicePixelRatio || 1
+    const size = labelSize()
     const w = Math.max(1, Math.round(width * ratio))
     const h = Math.max(1, Math.round(height * ratio))
     // Setting the size clears the bitmap: only when it changed.
@@ -102,10 +112,11 @@ $effect(() => {
       last?.width === width &&
       last.height === height &&
       last.ratio === ratio &&
+      last.labelSize === size &&
       last.colors === colors
     )
       return
-    surface = { ctx, width, height, ratio, colors }
+    surface = { ctx, width, height, ratio, labelSize: size, colors }
   }
   const observer = new ResizeObserver((entries) => {
     const box = entries[0]?.contentRect
@@ -136,6 +147,7 @@ $effect(() => {
     width: s.width,
     height: s.height,
     top: laneScale(seconds, lane),
+    labelSize: s.labelSize,
     colors: s.colors,
   }
   drawGuide(frame)
@@ -150,6 +162,7 @@ interface Frame {
   height: number
   /** The top of the scale, in the lane's unit. */
   top: number
+  labelSize: number
   colors: Colors
 }
 
@@ -265,7 +278,7 @@ function drawNewest(f: Frame, seconds: readonly LaneSecond[]): void {
 function drawLabel(f: Frame): void {
   const { ctx, colors } = f
   ctx.fillStyle = colors.label
-  ctx.font = `${colors.labelSize}px ${colors.font}`
+  ctx.font = `${f.labelSize}px ${colors.font}`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
   ctx.fillText(scaleLabel(lane, f.top), 0, 0)
@@ -273,7 +286,13 @@ function drawLabel(f: Frame): void {
 </script>
 
 <!-- The figures beside it say the same in words: the chart is a picture of them. -->
-<canvas bind:this={canvas} class="chart" data-testid="cluster-lane-{lane}" aria-hidden="true"></canvas>
+<canvas
+  bind:this={canvas}
+  class="chart"
+  data-testid="cluster-lane-{lane}"
+  data-label-size={surface?.labelSize}
+  aria-hidden="true"
+></canvas>
 
 <style>
 .chart {

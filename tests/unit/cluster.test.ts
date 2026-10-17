@@ -5,6 +5,7 @@ import {
   CLUSTER_LIMITS,
   CLUSTER_ROOM,
   clusterLamps,
+  clusterLanes,
   clusterMessage,
   clusterTier,
   cpuLevel,
@@ -29,6 +30,7 @@ import {
   showCores,
   showSpec,
   uptimeClock,
+  vramLevel,
 } from '@shared/cluster'
 import type { Battery, DiskVolume } from '@shared/metrics'
 import type { Quake, QuakeState } from '@shared/quakes'
@@ -38,6 +40,8 @@ const second = (over: Partial<LaneSecond> = {}): LaneSecond => ({
   at: 0,
   cpu: 10,
   mem: 40,
+  gpu: undefined,
+  vram: undefined,
   io: 5,
   rx: 1,
   tx: 0.1,
@@ -71,6 +75,7 @@ const input = (over: Partial<LampInput> = {}): LampInput => ({
   link: { iface: 'Ethernet', ip4: null, mac: null, state: 'up' },
   volumes: { volumes: [volume('C:\\', 50)] },
   battery: null,
+  gpu: false,
   awake: false,
   quakeAlerts: false,
   quakes: null,
@@ -90,6 +95,14 @@ describe('levels', () => {
     expect(pingLevel(149)).toBe('none')
     expect(pingLevel(150)).toBe('warn')
     expect(pingLevel(null)).toBe('crit')
+    expect(vramLevel(89.9)).toBe('none')
+    expect(vramLevel(90)).toBe('warn')
+    expect(vramLevel(97)).toBe('crit')
+  })
+
+  it('never judge the GPU busy: a GPU at 100% is doing its work', () => {
+    expect(laneLevel('gpu', 100)).toBe('none')
+    expect(laneLevel('vram', 98)).toBe('crit')
   })
 
   it('count a battery only while it runs down', () => {
@@ -163,8 +176,18 @@ describe('lanes', () => {
     expect(heldLevel(history.slice(2), 'ping', CLUSTER_LIMITS.holdEchoes)).toBe('none')
   })
 
-  it('run top to bottom as the user set them', () => {
-    expect([...LANE_IDS]).toEqual(['cpu', 'mem', 'io', 'rx', 'tx', 'ping'])
+  it('run top to bottom as the user set them, the GPU under memory', () => {
+    expect([...LANE_IDS]).toEqual(['cpu', 'mem', 'gpu', 'io', 'rx', 'tx', 'ping'])
+  })
+
+  it('leave the GPU lane out where the GPU cannot be read', () => {
+    expect([...clusterLanes(true)]).toEqual([...LANE_IDS])
+    expect([...clusterLanes(false)]).toEqual(['cpu', 'mem', 'io', 'rx', 'tx', 'ping'])
+  })
+
+  it('scale the GPU lane to 100', () => {
+    expect(laneScale(seconds(5, { gpu: 3 }), 'gpu')).toBe(100)
+    expect(scaleLabel('gpu', 100)).toBe('100%')
   })
 })
 
@@ -248,6 +271,25 @@ describe('lamps', () => {
     const lamps = clusterLamps(input())
     expect(lamps.map((one) => one.id)).toEqual(['link', 'ping', 'cpu', 'mem', 'disk', 'awake'])
     expect(lamps.every((one) => one.state === 'off')).toBe(true)
+  })
+
+  it('light VRAM after it has held, and leave it out where the GPU cannot be read', () => {
+    expect(clusterLamps(input()).map((one) => one.id)).not.toContain('vram')
+    const ids = clusterLamps(input({ gpu: true })).map((one) => one.id)
+    expect(ids).toEqual(['link', 'ping', 'cpu', 'mem', 'vram', 'disk', 'awake'])
+    const brief = clusterLamps(
+      input({ gpu: true, history: [...seconds(9, { vram: 50 }), second({ vram: 99 })] }),
+    )
+    expect(lamp(brief, 'vram')?.state).toBe('off')
+    const held = clusterLamps(input({ gpu: true, history: seconds(10, { vram: 93 }) }))
+    expect(lamp(held, 'vram')).toEqual({
+      id: 'vram',
+      state: 'warn',
+      text: 'VRAM 93% · OVER 90% FOR 10 s',
+    })
+    // A busy GPU lights nothing.
+    const busy = clusterLamps(input({ gpu: true, history: seconds(10, { gpu: 100, vram: 20 }) }))
+    expect(busy.every((one) => one.state === 'off')).toBe(true)
   })
 
   it('leave out BATT without a battery and QUAKE with alerts off', () => {
@@ -335,7 +377,9 @@ describe('tiers', () => {
   it('fit the sizes the mock was checked at', () => {
     expect(clusterTier(1178, 592)).toBe('wide')
     expect(clusterTier(1598, 872)).toBe('wide')
-    expect(clusterTier(598, 632)).toBe('medium')
+    // Ten slots, four to a row here, take three rows: medium needs a row more than with eight.
+    expect(clusterTier(598, 632)).toBe('short')
+    expect(clusterTier(598, 700)).toBe('medium')
     expect(clusterTier(598, 272)).toBe('short')
     expect(clusterTier(1178, 232)).toBe('short')
     expect(clusterTier(698, 392)).toBe('short')
@@ -359,9 +403,9 @@ describe('tiers', () => {
   it('give the spec row only room left over, so it never pushes a pane down a tier', () => {
     expect(showSpec('wide', 1178, 592)).toBe(true)
     expect(showSpec('wide', 1178, 480)).toBe(false)
-    expect(showSpec('medium', 598, 632)).toBe(false)
-    expect(showSpec('medium', 598, 660)).toBe(false)
-    expect(showSpec('medium', 598, 700)).toBe(true)
+    expect(showSpec('medium', 598, 700)).toBe(false)
+    expect(showSpec('medium', 598, 740)).toBe(false)
+    expect(showSpec('medium', 598, 760)).toBe(true)
     expect(showSpec('short', 1178, 272)).toBe(false)
     expect(showSpec('compact', 478, 472)).toBe(false)
     expect(showSpec('narrow', 358, 672)).toBe(true)
@@ -371,12 +415,29 @@ describe('tiers', () => {
     expect(showCores('wide', 1178, 612)).toBe(true)
     expect(showCores('wide', 1178, 592)).toBe(false)
     expect(showCores('wide', 1178, 492)).toBe(false)
-    expect(showCores('medium', 598, 632)).toBe(false)
     expect(showCores('medium', 598, 700)).toBe(false)
+    expect(showCores('medium', 598, 760)).toBe(false)
     // Two lanes' room for the cores row, which is two lanes high.
-    expect(showCores('medium', 598, 740)).toBe(false)
-    expect(showCores('medium', 598, 790)).toBe(true)
+    expect(showCores('medium', 598, 800)).toBe(false)
+    expect(showCores('medium', 598, 850)).toBe(true)
     expect(showCores('short', 1178, 272)).toBe(false)
+  })
+
+  it('ask a lane more room of every tier for the GPU lane', () => {
+    const { width, height } = CLUSTER_ROOM.wide
+    const seven = LANE_IDS.length
+    expect(clusterTier(width + 10, height + 10)).toBe('wide')
+    expect(clusterTier(width + 10, height + 10, undefined, seven)).not.toBe('wide')
+    expect(clusterTier(width + 10, height + CLUSTER_ROOM.laneMin + 10, undefined, seven)).toBe(
+      'wide',
+    )
+    expect(clusterTier(598, 700, undefined, seven)).toBe('short')
+    expect(clusterTier(598, 730, undefined, seven)).toBe('medium')
+    expect(showSpec('wide', 1178, 520)).toBe(true)
+    expect(showSpec('wide', 1178, 520, seven)).toBe(false)
+    expect(showCores('wide', 1178, 612)).toBe(true)
+    expect(showCores('wide', 1178, 612, seven)).toBe(false)
+    expect(showCores('wide', 1178, 660, seven)).toBe(true)
   })
 })
 

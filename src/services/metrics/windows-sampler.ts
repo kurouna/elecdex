@@ -3,6 +3,8 @@ import type {
   Battery,
   DiskIo,
   DiskVolumes,
+  GpuInfo,
+  GpuUsage,
   MemSwap,
   NetInterface,
   NetPing,
@@ -12,6 +14,15 @@ import type {
 } from '@shared/metrics'
 import type { NetWifi, NetWifiEvents } from '@shared/wifi'
 import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
+import {
+  GPU_SOURCE,
+  GPU_SOURCE_ENV,
+  GPU_STEP,
+  parseGpuRows,
+  type RawGpu,
+  windowsGpuInfo,
+  windowsGpuUsage,
+} from './gpu/windows.js'
 import { SAMPLER_KINDS, SamplerDemand, type SamplerKind } from './sampler-demand.js'
 import {
   parseWifiLine,
@@ -121,6 +132,7 @@ export type SamplerLine =
   | { kind: 'wlan'; data: RawWlan[] }
   | { kind: 'probe'; data: RawProbe }
   | { kind: 'wlanlog'; data: RawWlanEvent[] }
+  | { kind: 'gpu'; data: RawGpu[] }
 
 // ---------------------------------------------------------------------------
 // Pure computations
@@ -382,6 +394,8 @@ export function parseSamplerLine(line: string): SamplerLine | null {
             data: { r: finite(data.r), w: finite(data.w), idle: finiteOrNull(data.idle) },
           }
         : null
+    case 'gpu':
+      return { kind: 'gpu', data: parseGpuRows(data) }
     default:
       return parseWifiLine(t, data) ?? null
   }
@@ -402,6 +416,7 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' 
  *   every tick       interface byte counters; Wi-Fi and its echoes (wifi/windows.ts)
  *   every 5 ticks    process table, interface addresses, TCP sockets, ping, the WLAN log
  *   every 2 ticks    disk read/write rates and busy time (performance counters)
+ *   every tick       GPU engine loads and memory (gpu/windows.ts), while wanted
  *   every 30 ticks   power status, page file (the only WMI read), drives
  *
  * The socket table comes from iphlpapi's GetExtendedTcpTable, because it is the
@@ -569,6 +584,8 @@ $ErrorActionPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Windows.Forms
 $parent = ${parentPid}
 $tcpSource = @'${TCP_TABLE_SOURCE}'@
+$gpuSource = $env:${GPU_SOURCE_ENV}
+$gpuMode = 'unset'
 $pinger = New-Object System.Net.NetworkInformation.Ping
 ${WLAN_SCRIPT}
 $tick = 0
@@ -752,6 +769,7 @@ ${probeStep(pingHost)}
       }
     }
   }
+${GPU_STEP}
   $fresh = @{}
 
   try { [Console]::Out.Flush() } catch { exit 0 }
@@ -778,8 +796,11 @@ export type StartSampler = (script: string) => ChildProcessWithoutNullStreams
 
 // The script is passed as a command, never written to or run from a file,
 // so Windows' ExecutionPolicy does not apply to it.
+// The GPU's C# goes beside it in the environment: on the command line as well, the two passed
+// Windows' 32,767-character limit (spawn ENAMETOOLONG).
 const startPowerShell: StartSampler = (text) =>
   spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', text], {
+    env: { ...process.env, [GPU_SOURCE_ENV]: GPU_SOURCE },
     windowsHide: true,
   })
 
@@ -811,6 +832,7 @@ export class WindowsSampler {
   private probe: (RawProbe & { at: number }) | null = null
   /** The WLAN log's records by record id, gathered from the first read of the day on. */
   private wlanLog: Map<number, RawWlanEvent> | null = null
+  private gpu: RawGpu[] | null = null
   private readonly demand = new SamplerDemand()
   /** Readings received, by kind: what the sampler actually did, for the tests to hold it to. */
   readonly readings = new Map<string, number>()
@@ -911,6 +933,17 @@ export class WindowsSampler {
     return { events: toWifiEvents(this.wlanLog?.values() ?? [], Date.now()) }
   }
 
+  /** The adapters, from the first reading: DXGI's list is read once, when the counters open. */
+  async gpuInfo(): Promise<GpuInfo> {
+    await this.until(['gpu'], () => this.gpu !== null)
+    return windowsGpuInfo(this.gpu ?? [])
+  }
+
+  async gpuUsage(): Promise<GpuUsage> {
+    await this.until(['gpu'], () => this.gpu !== null)
+    return windowsGpuUsage(this.gpu ?? [])
+  }
+
   stop(): void {
     if (this.idleTimer) clearInterval(this.idleTimer)
     this.idleTimer = null
@@ -1000,6 +1033,9 @@ export class WindowsSampler {
         break
       case 'wlanlog':
         this.wlanLog = null
+        break
+      case 'gpu':
+        this.gpu = null
         break
     }
   }
@@ -1113,6 +1149,9 @@ export class WindowsSampler {
         break
       case 'probe':
         this.probe = { ...parsed.data, at }
+        break
+      case 'gpu':
+        this.gpu = parsed.data
         break
       case 'wlanlog': {
         const log = this.wlanLog ?? new Map<number, RawWlanEvent>()

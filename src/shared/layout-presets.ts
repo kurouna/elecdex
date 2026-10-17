@@ -189,13 +189,18 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
     // Two conversations one over the other, and the council on the right with
     // the most room, which its three plates are drawn for (user decision
     // 2026-10-01). Both kinds of pane ask a provider only when the user sends,
-    // so the preset costs nothing until then.
+    // so the preset costs nothing until then. Under the council the GPU, which a
+    // model run on this machine leans on (user decision 2026-10-17).
     id: 'ai',
     name: 'ai',
-    description: 'two conversations with models, and a council of three to put a motion to',
+    description:
+      'two conversations with models, a council of three to put a motion to, and the GPU they run on',
     build: () =>
       withSystemColumn(
-        [split('column', [pane('aichat'), pane('aichat')], [0.5, 0.5]), pane('elec')],
+        [
+          split('column', [pane('aichat'), pane('aichat')], [0.5, 0.5]),
+          split('column', [pane('elec'), pane('gpu')], [0.74, 0.26]),
+        ],
         [0.45, 0.55],
       ),
   },

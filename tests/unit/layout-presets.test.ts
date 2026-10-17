@@ -185,11 +185,15 @@ describe('LAYOUT_PRESETS', () => {
     ])
   })
 
-  it('stacks two chats beside the council in ai, the council with the wider column', () => {
-    expect(places('ai')).toEqual([['aichat'], ['aichat'], ['elec']])
+  it('stacks two chats beside the council in ai, the council with the wider column and the GPU under it', () => {
+    expect(places('ai')).toEqual([['aichat'], ['aichat'], ['elec'], ['gpu']])
     const shape = layoutShape(presetTree(presetById('ai') as LayoutPreset))
-    const width = (widget: string) => shape.find((r) => r.widget === widget)?.w ?? 0
-    expect(width('elec')).toBeGreaterThan(width('aichat'))
+    const row = (widget: string) => shape.find((r) => r.widget === widget)
+    expect(row('elec')?.w ?? 0).toBeGreaterThan(row('aichat')?.w ?? 0)
+    // The GPU under the council, as wide, and a good deal lower (user decision 2026-10-17).
+    expect(row('gpu')?.w).toBe(row('elec')?.w)
+    expect(row('gpu')?.y ?? 0).toBeGreaterThan(row('elec')?.y ?? 0)
+    expect(row('gpu')?.h ?? 0).toBeLessThan((row('elec')?.h ?? 0) / 2)
   })
 
   it('gives cockpit the CLUSTER pane in place of the system column, at its widest with every core', () => {

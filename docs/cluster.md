@@ -33,6 +33,9 @@
 | 2026-10-10 | 仕様の行から TYPE を外す（OS が同じことを言う） | 利用者の決定 |
 | 2026-10-10 | 既定のレイアウトには入れない。ピッカー（cluster dashboard）か cockpit プリセットから出す | 利用者の決定 |
 | 2026-10-10 | CPU 温度、CPU クロック、外気温、Docker・git の警告灯は入れない | 温度は Windows で常に null、クロックは Windows で実クロックで動かない見込み（未確認）、天気は地点の設定が要り、Docker と git は他ペインの領分 |
+| 2026-10-17 | GPU のレーンを MEMORY の下に入れる（7 本）。GPU が読めない機械ではレーンを出さない | 利用者の決定（issue 22） |
+| 2026-10-17 | スロットに MEMORY と VRAM を足して 10 個にし、wide では 5 列 × 2 行に並べる（MEMORY・VRAM・SWAP・DISK・CONNECTIONS / TOP PROCESS・POWER・UPTIME・LINK・ADDRESS）。VRAM は GPU が読める機械だけ | 利用者の決定 |
+| 2026-10-17 | 警告灯に VRAM を足す（MEM の次、90% で注意・97% で危険、10 秒続いたら）。GPU の負荷には灯を付けない | 利用者の決定（GPU 100% はゲームや LLM では正常。VRAM があふれると共有メモリに落ちて遅くなる） |
 
 ## 1. 目的と非目的
 
@@ -52,18 +55,18 @@
 
 上から順に:
 
-1. **警告灯の行**: `LINK PING CPU MEM DISK BATT AWAKE QUAKE` の 8 語と、その右のメッセージ行。
+1. **警告灯の行**: `LINK PING CPU MEM VRAM DISK BATT AWAKE QUAKE` の 9 語と、その右のメッセージ行。VRAM は GPU が読める機械だけ。
    - 点いた灯のうちいちばん重いものをメッセージ行が言葉で言い、ほかにもあれば `+N MORE` と添える
    - メッセージ行の詳細カードは点いている全部を並べる
 2. **時計と日付**: 時計（`--step-4`）と、曜日入りの日付（`--step-2`、レーンの数字と同じ）。注記は ISO 週番号と UTC オフセット。
-3. **レーン**: CPU、（コアの行）、MEMORY、DISK I/O、NETWORK ▼ RX、NETWORK ▲ TX、PING。各レーンは次の 3 つでできている。
+3. **レーン**: CPU、（コアの行）、MEMORY、GPU（読める機械だけ）、DISK I/O、NETWORK ▼ RX、NETWORK ▲ TX、PING。各レーンは次の 3 つでできている。
    - 左: ラベルと数字。数字は右寄せで、いちばん広い値の幅を取るので単位が動かない
    - 中: 60 秒の棒の履歴
    - 右: 60 秒のピークと平均
 4. **コアの行**（余裕があるときだけ）: 論理コアごとの今の負荷を 1 本ずつ。4 本おきにコア番号。右に「いちばん忙しいコア」と「85% 以上のコアの数」。
 5. **時間軸**（wide だけ）: `−60 s · −45 · −30 · −15 · NOW`。
-6. **スロット**: SWAP、DISK（いちばん埋まっている固定ボリューム）、CONNECTIONS（PEERS）、TOP PROCESS、POWER、UPTIME、LINK ▼ TOTAL、ADDRESS（IPv4、注記にインターフェース）。
-7. **仕様の行**（時計・スロットの段とレーンのあいだ。narrow では最後）: OS・MANUFACTURER・MODEL・CHASSIS・CPU・AWAKE（利用者の設定）。値は動かないので一段控えめに描く。切れた値はカードで全部見せる。読むのは `os.info`・`hardware.system`・`cpu.info`（起動中に 1 回だけ集めるソース）と `net.interface`。ホスト名は出さない
+6. **スロット**: MEMORY（使用量 / 総量）、VRAM（GPU 自身のメモリ、読める機械だけ）、SWAP、DISK（いちばん埋まっている固定ボリューム）、CONNECTIONS（PEERS）、TOP PROCESS、POWER、UPTIME、LINK ▼ TOTAL、ADDRESS（IPv4、注記にインターフェース）。
+7. **仕様の行**（時計・スロットの段とレーンのあいだ。narrow では最後）: OS・MANUFACTURER・MODEL・CHASSIS・CPU・GPU（読める機械だけ）・AWAKE（利用者の設定）。値は動かないので一段控えめに描く。切れた値はカードで全部見せる。読むのは `os.info`・`hardware.system`・`cpu.info`（起動中に 1 回だけ集めるソース）と `net.interface`。ホスト名は出さない
 
 ### 2.1 段（tier）
 
@@ -72,25 +75,28 @@
 
 | 段 | 条件（目安） | 並べ方 |
 |----|------|--------|
-| wide | 幅 1040 以上、高さ 470 以上 | 時計の上に日付を積み、右にスロット 4×2。レーンは 1 列、高さ 40–72 px、時間軸あり |
+| wide | 幅 1040 以上、高さ 470 以上（GPU のレーンがあればレーン 1 本ぶん高く） | 時計の上に日付を積み、右にスロット 5×2。レーンは 1 列、高さ 40–72 px、時間軸あり |
 | medium | 幅 560 以上で、全部が入る高さ | 時計と日付を横に、スロットは下に。ピークと平均はカードへ |
-| short | 幅 560 以上、高さ 200 以上 | 時計を一段小さく。レーンは 2 列 3 行、スロットなし |
+| short | 幅 560 以上、高さ 200 以上 | 時計を一段小さく。レーンは 2 列 3 行（GPU があれば 4 行）、スロットなし |
 | compact | 幅 460 以上、高さ 350 以上 | レーンは 1 列で 34 px から。スロットなし |
 | narrow | それ以外 | 縦に積んでスクロール。警告灯は折り返す |
 
-- **コアの行**: wide では高さ 600 以上、medium ではレーン 8 行ぶん（コアの行はレーン 2 行の高さ）入るときだけ出す
+- **コアの行**: wide では高さ 600 以上（GPU のレーンがあれば 646 以上）、medium ではレーンとコアの行（レーン 2 行の高さ）が入るときだけ出す
+- **レーンの数**: 段の判定はレーンの本数を受け取る（`clusterTier(w, h, prev, lanes)`）。GPU のレーンが加わると、どの段も 1 本ぶんの高さを多く求める
+- **スロットの行数**: medium はスロットを 1 行に 4 つ並べるので、10 個で 3 行になる。8 個のときより medium に要る高さが 1 行ぶん増えた（2026-10-17）。9:16 の紹介デモ（720×1280 を 0.75 倍）の CLUSTER は、GPU があると medium から short になる
 - **大きさはデザインのピクセルで測る**: 文字は rem で、ルートの文字の大きさは窓の高さに比例する（reset.css の 1.48vh）。段の数字は 1080 の高さ（ルート 16 px）での CSS ピクセルで、ペインの大きさは `designSize` で 16 / ルートの文字の大きさ倍してから比べる。CSS ピクセルのまま比べていたときは、9:16 の紹介デモ（720×1280）で文字が 1.2 倍になり、medium のスロットがレーンに重なった（2026-10-10、e2e で確認）
 - **境目のちらつき防止**: 段は数 px のヒステリシスで選ぶ。ドラッグ中に行き来しないため
 - **確認したサイズ**: 1180×620、600×660、600×300、1180×260、360×700、700×420、480×500、1600×900
 
 ## 3. データ
 
-すべて既存の仕組みから読む。新しい IPC、metrics のソース、main のサービスは作らない。
+すべて既存の仕組みから読む。新しい IPC、metrics のソース、main のサービスは作らない（GPU の `gpu.usage` は GPU ペインと共通のソースで、CLUSTER のために作ったものではない）。
 
 | 表示 | ソース | 周期 | 後ろのタブで |
 |------|--------|------|--------------|
 | CPU レーン、コアの行 | `cpu.load`（`total`、`cores`） | 1 s | 取り続ける |
-| MEMORY | `mem.usage` | 1 s | 取り続ける |
+| MEMORY（レーンとスロット） | `mem.usage` | 1 s | 取り続ける |
+| GPU レーン、VRAM のスロットと灯、仕様の行の GPU | `gpu.usage`（`load`、`vramUsed`、`vramTotal`、`name`。`name` が null なら GPU を出さない） | 1 s | 取り続ける |
 | NETWORK RX / TX、LINK TOTAL | `net.throughput`（`rxSec`、`txSec`、`rxTotal`、`txTotal`、`iface`） | 1 s | 取り続ける |
 | DISK I/O | `disk.io`（`busy`、`readSec`、`writeSec`） | 2 s | 離す |
 | PING | `net.ping`（`ms`、`host`） | 5 s | 離す |
@@ -107,7 +113,7 @@
 | QUAKE 灯 | `window.elecdex.quakes.observe`（地球儀ペインと同じ。何も始めない） | 変化時 | — |
 
 - **購読の仕組み**: `metrics` に宣言し、PaneHost に retain してもらう。参照カウントなので、同じソースを読むほかのペインがあっても poll は 1 回で済む
-- **`keepWhileHidden`**: 履歴を描く 1 秒のソース 3 つ（`cpu.load`、`mem.usage`、`net.throughput`）と、1 回だけ集める 3 つ（仕様の行）
+- **`keepWhileHidden`**: 履歴を描く 1 秒のソース 4 つ（`cpu.load`、`mem.usage`、`gpu.usage`、`net.throughput`）と、1 回だけ集める 3 つ（仕様の行）
 - **見えていない間の空白**: DISK I/O と PING の見えていなかった時間は、空白として描く
 - **ペイン状態**: 持たない。選べることが無いため（§9 で足すなら `widgetState.patch` だけで）
 - **`net.sockets`・`net.wifi` は読まない**: 私的なソースなので
@@ -126,6 +132,7 @@
 
 - **`level(source, value)`**: なし・注意・危険を返す。数字・棒・コア・警告灯・メッセージがすべてこれに従う
   - CPU と MEMORY: 85% で注意、95% で危険
+  - VRAM: 90% で注意、97% で危険。GPU の負荷は判定しない（2026-10-17）
   - DISK（ボリューム）: 90% で注意、95% で危険
   - DISK I/O: 90% で注意
   - PING: 150 ms で注意、応答なしで危険
@@ -134,7 +141,7 @@
   - 灯が点くのは、同じ段階が 10 秒続いたときだけ。PING は応答 2 回ぶんで、数えるのは直近 15 秒の応答だけ（隠れていた間の古い失敗で戻った直後に点かないように。利用者の決定 2026-10-14）。下回ればすぐ消える（境目を行き来する CPU で点滅するのは仕様、同日）
   - LINK は `state` が down なら即座に点ける
 - **`message(lamps)`**: いちばん重い灯の文と、ほかの灯の数。重さが同じなら警告灯の並び順で決める
-- **`clusterTier(w, h, prev)`**: §2.1 の段。ヒステリシスつき
+- **`clusterTier(w, h, prev, lanes)`**: §2.1 の段。ヒステリシスつき。`clusterLanes(gpu)` と `clusterSlots(gpu)` が GPU の有無で出すレーンとスロットを決める
 - **`coresRow(tier, w, h)`**: コアの行を出すかどうか
 - **`laneScale(history, lane)`、`scaleLabel`、`niceCeiling`**: レーンの目盛りの上端とその書き方
 - **`formatRate`**: 1000 Mbps を超えたら Gbps に切り替える

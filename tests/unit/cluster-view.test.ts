@@ -9,7 +9,9 @@ import {
 } from '../../src/renderer/widgets/cluster/cluster-cards.js'
 import {
   clockText,
+  clusterSlots,
   dateText,
+  hasGpu,
   isoWeek,
   LANE_LABELS,
   laneFigure,
@@ -29,6 +31,18 @@ const volume = (mount: string, used: number): DiskVolume => ({
   used,
 })
 
+const GIB = 1024 ** 3
+
+const GPU = {
+  name: 'Stub Graphics',
+  load: 64,
+  engines: { graphics: 64, compute: 12, copy: 3, video: null },
+  vramUsed: 11.2 * GIB,
+  vramTotal: 12 * GIB,
+  sharedUsed: 0.5 * GIB,
+  sharedTotal: 16 * GIB,
+}
+
 const readings = (over: Partial<Readings> = {}): Readings => ({
   load: { total: 42.4, cores: [10, 80, 30, 50] },
   mem: { total: 32e9, used: 16e9, free: 16e9 },
@@ -42,6 +56,7 @@ const readings = (over: Partial<Readings> = {}): Readings => ({
   procs: { all: 312, top: [{ pid: 1, name: 'msedge', cpu: 6.4, mem: 3 }] },
   battery: { hasBattery: false, percent: null, isCharging: false, acConnected: true },
   uptime: 12 * 86_400 + 4 * 3600 + 33 * 60 + 7,
+  gpu: null,
   awake: { ...RELEASED, level: 'system', held: true, onBattery: false },
   os: {
     platform: 'win32',
@@ -102,7 +117,7 @@ describe('lane figures', () => {
   })
 
   it('have their labels in the lanes’ order', () => {
-    expect(Object.keys(LANE_LABELS)).toEqual(['cpu', 'mem', 'io', 'rx', 'tx', 'ping'])
+    expect(Object.keys(LANE_LABELS)).toEqual(['cpu', 'mem', 'gpu', 'io', 'rx', 'tx', 'ping'])
   })
 
   it('write peaks and means in the lane’s unit', () => {
@@ -182,12 +197,68 @@ describe('slots', () => {
     expect(slotFigure('link', down)).toMatchObject({ value: 'DOWN', level: 'crit', note: 'Wi-Fi' })
   })
 
-  it('are eight', () => {
-    expect(SLOT_KEYS).toHaveLength(8)
+  it('are ten, memory and VRAM first, five to a row in wide', () => {
+    expect(SLOT_KEYS).toHaveLength(10)
+    expect(SLOT_KEYS.slice(0, 2)).toEqual(['ram', 'vram'])
+  })
+
+  it('leave VRAM out where the GPU cannot be read', () => {
+    expect(clusterSlots(false)).not.toContain('vram')
+    expect(clusterSlots(false)).toHaveLength(9)
+    expect(clusterSlots(true)).toEqual(SLOT_KEYS)
+    expect(hasGpu(readings())).toBe(false)
+    expect(hasGpu(readings({ gpu: { ...GPU, name: null } }))).toBe(false)
+    expect(hasGpu(readings({ gpu: GPU }))).toBe(true)
+  })
+
+  it('say memory and VRAM as a share and as amounts', () => {
+    expect(slotFigure('ram', readings())).toMatchObject({
+      label: 'MEMORY',
+      value: '50',
+      unit: '%',
+      meter: 0.5,
+      note: '14.9 / 29.8 GiB',
+      level: 'none',
+    })
+    expect(slotFigure('vram', readings({ gpu: GPU }))).toMatchObject({
+      label: 'VRAM',
+      value: '93',
+      meter: expect.closeTo(0.93, 2),
+      note: '11.2 / 12.0 GiB',
+      level: 'warn',
+    })
+    expect(slotFigure('vram', readings())).toMatchObject({ value: '--', word: true })
+  })
+})
+
+describe('the GPU lane', () => {
+  it('says the load with no level, a busy GPU being no fault', () => {
+    expect(laneFigure('gpu', readings({ gpu: { ...GPU, load: 100 } }))).toMatchObject({
+      label: 'GPU LOAD',
+      value: '100',
+      unit: '%',
+      level: 'none',
+    })
+    expect(laneFigure('gpu', readings())).toMatchObject({ value: '--', word: true })
   })
 })
 
 describe('the spec row', () => {
+  it('names the GPU after the CPU, only where it can be read', () => {
+    expect(specItems(readings()).map((item) => item.key)).not.toContain('gpu')
+    const items = specItems(readings({ gpu: GPU }))
+    expect(items.map((item) => item.label)).toEqual([
+      'OS',
+      'MANUFACTURER',
+      'MODEL',
+      'CHASSIS',
+      'CPU',
+      'GPU',
+      'AWAKE',
+    ])
+    expect(items.find((item) => item.key === 'gpu')?.value).toBe('Stub Graphics')
+  })
+
   it('says what the standard layout says, in its order', () => {
     const items = specItems(readings())
     expect(items.map((item) => item.label)).toEqual([
@@ -245,6 +316,8 @@ const history: LaneSecond[] = Array.from({ length: 5 }, (_, i) => ({
   at: i,
   cpu: 10 + i,
   mem: 50,
+  gpu: 30,
+  vram: 93,
   io: 5,
   rx: 1,
   tx: 0.1,
@@ -286,6 +359,20 @@ describe('cards', () => {
     expect(values('top')).not.toContain('msedge')
     expect(values('uptime').join(' ')).not.toContain('12d')
     expect(values('cores').join(' ')).toContain('#1 80%')
+  })
+
+  it('name the adapter and its engines on the GPU card, and its shared memory on VRAM’s', () => {
+    const r = cardReadings({ gpu: GPU })
+    const gpu = cardRows('gpu', r, time)
+    expect(gpu.find((row) => row.label === 'ADAPTER')?.value).toBe('Stub Graphics')
+    expect(gpu.find((row) => row.label === 'ENGINES')?.value).toBe('3D 64% · COMPUTE 12% · COPY 3%')
+    const vram = cardRows('vram', r, time)
+    expect(vram.find((row) => row.label === 'SHARED')?.value).toContain('of')
+    // Linux names no engines: the row is left out, not shown empty.
+    const plain = cardReadings({
+      gpu: { ...GPU, engines: { graphics: null, compute: null, copy: null, video: null } },
+    })
+    expect(cardRows('gpu', plain, time).map((row) => row.label)).not.toContain('ENGINES')
   })
 
   it('list every volume, marking the one shown', () => {

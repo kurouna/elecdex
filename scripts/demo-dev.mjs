@@ -426,6 +426,8 @@ const app = await electron.launch({
     ELECDEX_NOWPLAYING_STUB: 'demo',
     // A made-up Docker engine (the dev layout): never this machine's containers.
     ELECDEX_DOCKER_STUB: 'demo',
+    // A made-up GPU: never this machine's adapter or its load.
+    ELECDEX_GPU_STUB: 'demo',
     // No tray icon or system-wide shortcut from a recording run.
     ELECDEX_BACKGROUND_STUB: '1',
   },

@@ -162,6 +162,7 @@ const WIDGETS = [
   'sysinfo',
   'cpu',
   'memory',
+  'gpu',
   'disk',
   'toplist',
   'netstat',
@@ -201,6 +202,7 @@ const WIDGETS = [
 const KEPT = [
   'cpu.info',
   'cpu.load',
+  'gpu.usage',
   'hardware.system',
   'mem.swap',
   'mem.usage',

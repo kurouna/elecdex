@@ -31,6 +31,8 @@ export type MetricId =
   | 'net.connections'
   | 'disk.volumes'
   | 'disk.io'
+  | 'gpu.info'
+  | 'gpu.usage'
 
 /** What the plugin may do. Each item is shown to the user, who agrees before the plugin runs. */
 export interface PluginPermissions {

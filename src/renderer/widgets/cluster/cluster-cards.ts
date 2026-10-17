@@ -23,10 +23,13 @@ export const CARD_KEYS = [
   'cpu',
   'cores',
   'mem',
+  'gpu',
   'io',
   'rx',
   'tx',
   'ping',
+  'ram',
+  'vram',
   'swap',
   'disk',
   'conn',
@@ -53,10 +56,13 @@ export const CARD_TITLES: Readonly<Record<CardKey, string>> = {
   cpu: 'CPU LOAD',
   cores: 'CORES',
   mem: 'MEMORY',
+  gpu: 'GPU LOAD',
   io: 'DISK I/O',
   rx: 'NETWORK ▼ RX',
   tx: 'NETWORK ▲ TX',
   ping: 'PING',
+  ram: 'MEMORY',
+  vram: 'VRAM',
   swap: 'SWAP',
   disk: 'DISK',
   conn: 'CONNECTIONS',
@@ -75,10 +81,13 @@ const SOURCES: Readonly<Record<CardKey, string>> = {
   cpu: 'cpu.load · proc.list',
   cores: 'cpu.load',
   mem: 'mem.usage',
+  gpu: 'gpu.usage',
   io: 'disk.io · every 2 s',
   rx: 'net.throughput',
   tx: 'net.throughput',
   ping: 'net.ping · every 5 s',
+  ram: 'mem.usage',
+  vram: 'gpu.usage',
   swap: 'mem.swap · every 10 s',
   disk: 'disk.volumes · every 30 s',
   conn: 'net.connections · every 5 s',
@@ -88,7 +97,7 @@ const SOURCES: Readonly<Record<CardKey, string>> = {
   link: 'net.interface · net.throughput',
   address: 'net.interface',
   message: 'lamps lit for 10 s or more',
-  spec: 'os.info · hardware.system · cpu.info · the UTILITY pane',
+  spec: 'os.info · hardware.system · cpu.info · gpu.usage · the UTILITY pane',
 }
 
 const row = (label: string, value: string, muted = false): CardRow =>
@@ -155,6 +164,60 @@ function memRows(r: CardReadings): CardRow[] {
   const usage =
     mem === null ? [] : [row('USED', formatBytes(mem.used)), row('FREE', formatBytes(mem.free))]
   return [...statsRows(r, 'mem', percent), ...usage]
+}
+
+/** The engine kinds the GPU reports, in a fixed order; Linux reports none. */
+function engineText(r: CardReadings): string | null {
+  const engines = r.gpu?.engines
+  if (engines === undefined) return null
+  const named: Array<[string, number | null]> = [
+    ['3D', engines.graphics],
+    ['COMPUTE', engines.compute],
+    ['COPY', engines.copy],
+    ['VIDEO', engines.video],
+  ]
+  const known = named.flatMap(([name, value]) =>
+    value === null ? [] : [`${name} ${percent(value)}`],
+  )
+  return known.length === 0 ? null : known.join(' · ')
+}
+
+function gpuRows(r: CardReadings): CardRow[] {
+  const engines = engineText(r)
+  return [
+    ...statsRows(r, 'gpu', percent),
+    row('ADAPTER', r.gpu?.name ?? '--'),
+    ...(engines === null ? [] : [row('ENGINES', engines)]),
+    row(
+      'NOTE',
+      'the busiest engine, as Task Manager counts it; no lamp: a busy GPU is working',
+      true,
+    ),
+  ]
+}
+
+/** The memory slot says how much of how much: its card, what is free and the minute's peak. */
+function ramRows(r: CardReadings): CardRow[] {
+  const { peak } = laneStats(r.history, 'mem')
+  return [
+    row('FREE', r.mem === null ? '--' : formatBytes(r.mem.free)),
+    row('PEAK 60 s', peak === null ? '--' : percent(peak)),
+  ]
+}
+
+function vramRows(r: CardReadings): CardRow[] {
+  const gpu = r.gpu
+  const shared =
+    gpu?.sharedUsed == null
+      ? '--'
+      : gpu.sharedTotal === null
+        ? formatBytes(gpu.sharedUsed)
+        : `${formatBytes(gpu.sharedUsed)} of ${formatBytes(gpu.sharedTotal)}`
+  return [
+    row('ADAPTER', gpu?.name ?? '--'),
+    row('SHARED', shared),
+    row('NOTE', 'past its own memory, a model spills into shared memory and slows', true),
+  ]
 }
 
 function ioRows(r: CardReadings): CardRow[] {
@@ -261,6 +324,7 @@ function specRows(r: CardReadings, time: (at: number) => string): CardRow[] {
     row('MACHINE', hw ? [hw.manufacturer, hw.model, hw.chassis].filter(Boolean).join(' · ') : '--'),
     row('CPU', cpu ? cpuName(cpu) : '--'),
     row('CORES', cpu ? `${cpu.physicalCores} cores, ${cpu.cores} threads` : '--'),
+    ...(r.gpu?.name == null ? [] : [row('GPU', r.gpu.name)]),
     ...awakeRows(r, time),
   ]
 }
@@ -277,10 +341,13 @@ export function cardRows(key: CardKey, r: CardReadings, time: (at: number) => st
     cpu: () => cpuRows(r),
     cores: () => coreRows(r),
     mem: () => memRows(r),
+    gpu: () => gpuRows(r),
     io: () => ioRows(r),
     rx: () => netRows(r, 'rx'),
     tx: () => netRows(r, 'tx'),
     ping: () => pingRows(r),
+    ram: () => ramRows(r),
+    vram: () => vramRows(r),
     swap: () => swapRows(r),
     disk: () => diskRows(r),
     conn: () => connRows(r),

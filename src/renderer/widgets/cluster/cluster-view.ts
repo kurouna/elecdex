@@ -13,6 +13,7 @@ import {
   pingLevel,
   uptimeClock,
   volumePercent,
+  vramLevel,
 } from '@shared/cluster'
 import type {
   Battery,
@@ -20,6 +21,7 @@ import type {
   CpuLoad,
   DiskIo,
   DiskVolumes,
+  GpuUsage,
   HardwareSystem,
   MemSwap,
   MemUsage,
@@ -65,6 +67,8 @@ export interface Readings {
   battery: Battery | null
   /** Seconds since boot, counted on to now. */
   uptime: number | null
+  /** Its `name` is null where the GPU cannot be read: then the GPU lane, VRAM lamp and slot are left out. */
+  gpu: GpuUsage | null
   awake: AwakeState
   /** What the machine is: read once, the same for as long as the app runs. */
   os: OsInfo | null
@@ -86,6 +90,7 @@ const NONE = '--'
 export const LANE_LABELS: Readonly<Record<LaneId, string>> = {
   cpu: 'CPU LOAD',
   mem: 'MEMORY',
+  gpu: 'GPU LOAD',
   io: 'DISK I/O',
   rx: 'NETWORK ▼ RX',
   tx: 'NETWORK ▲ TX',
@@ -96,6 +101,7 @@ export const LANE_LABELS: Readonly<Record<LaneId, string>> = {
 export const LANE_CELLS: Readonly<Record<LaneId, string>> = {
   cpu: '1.86em',
   mem: '1.86em',
+  gpu: '1.86em',
   io: '1.86em',
   rx: '2.6em',
   tx: '2.6em',
@@ -104,6 +110,15 @@ export const LANE_CELLS: Readonly<Record<LaneId, string>> = {
 
 const memPercent = (mem: MemUsage | null): number | null =>
   mem === null || mem.total <= 0 ? null : (mem.used / mem.total) * 100
+
+/** The share of the GPU's own memory in use; null where it is not known. */
+export const vramPercent = (gpu: GpuUsage | null): number | null =>
+  gpu === null || gpu.vramUsed === null || gpu.vramTotal === null || gpu.vramTotal <= 0
+    ? null
+    : Math.min(100, (gpu.vramUsed / gpu.vramTotal) * 100)
+
+/** The GPU can be read here: its lane, lamp, slot and spec item go in. */
+export const hasGpu = (r: Pick<Readings, 'gpu'>): boolean => r.gpu !== null && r.gpu.name !== null
 
 function rateFigure(lane: 'rx' | 'tx', net: NetThroughput | null): FigureView {
   if (net === null) return figure({ label: LANE_LABELS[lane], value: NONE, word: true })
@@ -117,6 +132,40 @@ function percentFigure(lane: 'cpu' | 'mem', value: number | null): FigureView {
   return figure({ label: LANE_LABELS[lane], value: String(Math.round(value)), unit: '%', level })
 }
 
+/** No level: a GPU at 100% is doing its work (CLUSTER_LIMITS.vram says what is a fault). */
+function gpuFigure(gpu: GpuUsage | null): FigureView {
+  const load = gpu?.load ?? null
+  return load === null
+    ? figure({ label: LANE_LABELS.gpu, value: NONE, word: true })
+    : figure({ label: LANE_LABELS.gpu, value: String(Math.round(load)), unit: '%' })
+}
+
+function ioFigure(io: DiskIo | null): FigureView {
+  const busy = io?.busy ?? null
+  // Speeds read but no busy figure (a system that does not say): said, not left as if waiting.
+  if (busy === null) {
+    return figure({
+      label: LANE_LABELS.io,
+      value: io?.readSec == null && io?.writeSec == null ? NONE : 'N/A',
+      word: true,
+    })
+  }
+  return figure({
+    label: LANE_LABELS.io,
+    value: String(Math.round(busy)),
+    unit: '% BUSY',
+    level: ioLevel(busy),
+  })
+}
+
+function pingFigure(ping: NetPing | null): FigureView {
+  if (ping === null) return figure({ label: LANE_LABELS.ping, value: NONE, word: true })
+  const ms = ping.ms
+  const level = pingLevel(ms)
+  if (ms === null) return figure({ label: LANE_LABELS.ping, value: 'LOST', word: true, level })
+  return figure({ label: LANE_LABELS.ping, value: String(Math.round(ms)), unit: 'ms', level })
+}
+
 /** A lane's number now. */
 export function laneFigure(lane: LaneId, r: Readings): FigureView {
   switch (lane) {
@@ -124,33 +173,15 @@ export function laneFigure(lane: LaneId, r: Readings): FigureView {
       return percentFigure('cpu', r.load?.total ?? null)
     case 'mem':
       return percentFigure('mem', memPercent(r.mem))
-    case 'io': {
-      const busy = r.io?.busy ?? null
-      // Speeds read but no busy figure (a system that does not say): said, not left as if waiting.
-      if (busy === null) {
-        return figure({
-          label: LANE_LABELS.io,
-          value: r.io?.readSec == null && r.io?.writeSec == null ? NONE : 'N/A',
-          word: true,
-        })
-      }
-      return figure({
-        label: LANE_LABELS.io,
-        value: String(Math.round(busy)),
-        unit: '% BUSY',
-        level: ioLevel(busy),
-      })
-    }
+    case 'gpu':
+      return gpuFigure(r.gpu)
+    case 'io':
+      return ioFigure(r.io)
     case 'rx':
     case 'tx':
       return rateFigure(lane, r.net)
-    case 'ping': {
-      if (r.ping === null) return figure({ label: LANE_LABELS.ping, value: NONE, word: true })
-      const ms = r.ping.ms
-      const level = pingLevel(ms)
-      if (ms === null) return figure({ label: LANE_LABELS.ping, value: 'LOST', word: true, level })
-      return figure({ label: LANE_LABELS.ping, value: String(Math.round(ms)), unit: 'ms', level })
-    }
+    case 'ping':
+      return pingFigure(r.ping)
   }
 }
 
@@ -161,12 +192,20 @@ export function laneFigure(lane: LaneId, r: Readings): FigureView {
  */
 export function laneSecond(
   load: MetricSample<'cpu.load'>,
-  r: { mem: MemUsage | null; net: NetThroughput | null; io: DiskIo | null; ping: NetPing | null },
+  r: {
+    mem: MemUsage | null
+    gpu: GpuUsage | null
+    net: NetThroughput | null
+    io: DiskIo | null
+    ping: NetPing | null
+  },
 ): LaneSecond {
   return {
     at: load.at,
     cpu: load.data.total,
     mem: memPercent(r.mem) ?? undefined,
+    gpu: r.gpu?.load ?? undefined,
+    vram: vramPercent(r.gpu) ?? undefined,
     rx: r.net === null ? undefined : bytesToMbps(r.net.rxSec),
     tx: r.net === null ? undefined : bytesToMbps(r.net.txSec),
     io: r.io === null ? undefined : r.io.busy,
@@ -181,8 +220,13 @@ export function statText(lane: LaneId, value: number | null): { value: string; u
   return { value: String(Math.round(value)), unit: lane === 'ping' ? 'ms' : '%' }
 }
 
-/** The slots, in their order: what the lanes do not say. */
+/**
+ * The slots, in their order: what the lanes do not say, five to a row in wide - memory and VRAM
+ * as amounts first (user decision 2026-10-17). `ram` is the memory slot, `mem` its lane.
+ */
 export const SLOT_KEYS = [
+  'ram',
+  'vram',
   'swap',
   'disk',
   'conn',
@@ -193,6 +237,42 @@ export const SLOT_KEYS = [
   'address',
 ] as const
 export type SlotKey = (typeof SLOT_KEYS)[number]
+
+/** The slots drawn here: VRAM is left out where the GPU cannot be read. */
+export const clusterSlots = (gpu: boolean): readonly SlotKey[] =>
+  gpu ? SLOT_KEYS : SLOT_KEYS.filter((key) => key !== 'vram')
+
+const GIB = 1024 ** 3
+
+/** "7.4 / 15.7 GiB": what is in use of how much, in one unit. */
+const ofTotal = (used: number, total: number): string =>
+  `${(used / GIB).toFixed(1)} / ${(total / GIB).toFixed(1)} GiB`
+
+function ramFigure(mem: MemUsage | null): FigureView {
+  const percent = memPercent(mem)
+  if (mem === null || percent === null) return figure({ label: 'MEMORY', value: NONE, word: true })
+  return figure({
+    label: 'MEMORY',
+    value: String(Math.round(percent)),
+    unit: '%',
+    meter: percent / 100,
+    note: ofTotal(mem.used, mem.total),
+    level: memLevel(percent),
+  })
+}
+
+function vramFigure(gpu: GpuUsage | null): FigureView {
+  const percent = vramPercent(gpu)
+  if (gpu === null || percent === null) return figure({ label: 'VRAM', value: NONE, word: true })
+  return figure({
+    label: 'VRAM',
+    value: String(Math.round(percent)),
+    unit: '%',
+    meter: percent / 100,
+    note: ofTotal(gpu.vramUsed ?? 0, gpu.vramTotal ?? 0),
+    level: vramLevel(percent),
+  })
+}
 
 function swapFigure(swap: MemSwap | null): FigureView {
   if (swap === null) return figure({ label: 'SWAP', value: NONE, word: true })
@@ -284,6 +364,10 @@ const AWAKE_WORDS = { off: 'OFF', system: 'SYSTEM', display: 'DISPLAY' } as cons
 
 export function slotFigure(key: SlotKey, r: Readings): FigureView {
   switch (key) {
+    case 'ram':
+      return ramFigure(r.mem)
+    case 'vram':
+      return vramFigure(r.gpu)
     case 'swap':
       return swapFigure(r.swap)
     case 'disk':
@@ -355,7 +439,7 @@ export function dateText(date: Date): { value: string; note: string } {
 /* ---- The spec row: what the machine is, as the standard layout's system column says it ---- */
 
 export interface SpecItem {
-  key: 'os' | 'maker' | 'model' | 'chassis' | 'cpu' | 'awake'
+  key: 'os' | 'maker' | 'model' | 'chassis' | 'cpu' | 'gpu' | 'awake'
   label: string
   value: string
 }
@@ -375,10 +459,14 @@ export function cpuName(cpu: CpuInfo): string {
  * already says, user decision 2026-10-10), the CPU as the CPU
  * pane titles itself with its cores and threads, and AWAKE: what the user set it to, not
  * something it reads (the address went up among the readings, user decision 2026-10-10).
- * Never the host name.
+ * The GPU after the CPU, where it can be read. Never the host name.
  */
-export function specItems(r: Pick<Readings, 'os' | 'hardware' | 'cpu' | 'awake'>): SpecItem[] {
+export function specItems(
+  r: Pick<Readings, 'os' | 'hardware' | 'cpu' | 'gpu' | 'awake'>,
+): SpecItem[] {
   const hw = r.hardware
+  const gpu: SpecItem[] =
+    r.gpu?.name == null ? [] : [{ key: 'gpu', label: 'GPU', value: r.gpu.name }]
   return [
     { key: 'os', label: 'OS', value: r.os ? osVersionLabel(r.os) : NONE },
     { key: 'maker', label: 'MANUFACTURER', value: hw ? trimHardware(hw.manufacturer, 2) : NONE },
@@ -393,6 +481,7 @@ export function specItems(r: Pick<Readings, 'os' | 'hardware' | 'cpu' | 'awake'>
       label: 'CPU',
       value: r.cpu ? `${cpuName(r.cpu)} · ${r.cpu.physicalCores}C/${r.cpu.cores}T` : NONE,
     },
+    ...gpu,
     { key: 'awake', label: 'AWAKE', value: AWAKE_WORDS[r.awake.level] },
   ]
 }

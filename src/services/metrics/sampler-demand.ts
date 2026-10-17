@@ -25,6 +25,7 @@ export const SAMPLER_KINDS = [
   'wlan',
   'probe',
   'wlanlog',
+  'gpu',
 ] as const
 export type SamplerKind = (typeof SAMPLER_KINDS)[number]
 
@@ -46,6 +47,7 @@ export const WANTED_FOR_MS: Record<SamplerKind, number> = {
   wlan: 15_000,
   probe: 15_000,
   wlanlog: 30_000,
+  gpu: 15_000,
 }
 
 export class SamplerDemand {

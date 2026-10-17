@@ -218,6 +218,9 @@ export const STUB_ENV: Record<string, string> = {
   // A reversible stand-in for the system's encryption: never the Keychain or a
   // keyring, and never the prompt either may show (src/main/ai/keys.ts).
   ELECDEX_AI_KEYS_STUB: '1',
+  // A made-up GPU: every machine draws the same panes - CI's runners have none - and the
+  // GPU lane, lamp and slot are always in CLUSTER (src/services/metrics/gpu/stub.ts).
+  ELECDEX_GPU_STUB: '1',
   // A new profile starts with no saved layouts, as every spec but the presets' own
   // expects; a real first start is given the presets (shared/layout-presets.ts).
   ELECDEX_SEED_LAYOUTS: '0',

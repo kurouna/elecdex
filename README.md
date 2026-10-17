@@ -55,7 +55,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   shell prints opens in your browser on Ctrl+click (⌘+click on a Mac).
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
-  network status and traffic. The default layout idles at about 13% of one core.
+  network status and traffic, and *(unreleased)* the GPU's load and video memory. The default
+  layout idles at about 13% of one core.
 - **Files and apps** — a file browser that follows the shell (click to `cd` or insert a path),
   and a launcher for the Start Menu (Store and other packaged apps included), `/Applications` or
   `.desktop` entries plus your own, most used first.
@@ -149,10 +150,10 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   what you copy while it is on screen, to put back with a click, and under the calendar the
   utility pane (keep the machine awake, QR codes, encoding and hashes).
 
-### ai — two conversations and a council
+### ai — two conversations, a council, and the GPU they run on
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai preset in the Business (Dark) theme, every answer written by a stand-in made for the picture: two AI chat panes one over the other - the top one on Ollama with a question about watching a folder in Node.js answered with a code block, and a second answer arriving, its heading reading RX with the seconds and characters so far; the bottom one on LM Studio, answering what git pull --ff-only refuses to do - and on the right an ELEC system pane, LOGOS and PATHOS lit green with APPROVE, ETHOS outvoted with REJECT, the resolution strip reading APPROVED 2-1-0-0">
+  <img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai preset in the Business (Dark) theme, every answer written by a stand-in made for the picture: two AI chat panes one over the other - the top one on Ollama with a question about watching a folder in Node.js answered with a code block, and a second answer arriving, its heading reading RX with the seconds and characters so far; the bottom one on LM Studio, answering what git pull --ff-only refuses to do - and on the right an ELEC system pane, LOGOS and PATHOS lit green with APPROVE, ETHOS outvoted with REJECT, the resolution strip reading APPROVED 2-1-0-0; under it a GPU pane charting a made-up adapter's load and video memory over a minute, with its engines and VRAM and shared memory as bars">
   <br><sub>ai · Business (Dark) — the answers are a stand-in's, made for the picture</sub>
 </p>
 
@@ -163,6 +164,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   Text files, images and PDFs go with a question - picked with **+**, dropped on
   the pane or pasted as a picture; an image is made small and drawn again before it is sent, so
   what a camera wrote into the file (where a photo was taken) never leaves.
+- **GPU** *(unreleased)* — under the council, the GPU's load and how full its own memory is: what a
+  model run on this machine leans on.
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-elec.jpg" alt="The Tron theme with an ELEC system pane filling the middle column: three plates of one size in a triangle around a hexagonal core, LOGOS and PATHOS lit green with APPROVE and ETHOS, outvoted with REJECT, stepped back in dim red, the resolution strip reading APPROVED 2-1-0-0, and the three statements below">
@@ -178,13 +181,13 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### cockpit — the whole machine on one pane, and the shells
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Black theme, near-black on a pale ground with scanlines: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them, a line of the OS, maker, model, chassis, CPU and AWAKE, then a minute of CPU as a line, a bar for each of twelve cores, memory, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells one over the other on the right">
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Black theme, near-black on a pale ground with scanlines: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, memory, VRAM, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them in two rows of five, a line of the OS, maker, model, chassis, CPU, a made-up GPU and AWAKE, then a minute of CPU as a line, a bar for each of sixteen cores, memory, GPU, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells one over the other on the right">
   <br><sub>cockpit · Black</sub>
 </p>
 
 - **Cluster** — the whole machine on one pane, like a car's instrument cluster: warning lamps and
-  the worst of them in words, the clock and the date, a minute of CPU, memory, disk I/O, network and
-  ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
+  the worst of them in words, the clock and the date, a minute of CPU, memory, GPU *(unreleased)*,
+  disk I/O, network and ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
   any size, from the full screen to a narrow column.
 
 ### retro — two machines of elecdex's own, and the sound
@@ -453,7 +456,7 @@ Nine **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT, an AI chat and Log Watch - each group as tabs), **media**
 (YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system), **cockpit** (the CLUSTER pane in place of the system column, a shell under it and two one over the other beside it) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one but cockpit keeps the system column on the left, so a switch
+the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system over the GPU pane), **cockpit** (the CLUSTER pane in place of the system column, a shell under it and two one over the other beside it) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one but cockpit keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
@@ -508,20 +511,31 @@ weather and calendar.
 - **CPU** — two graphs of the cores' average load, or a bar per logical core (toggle in the pane).
 - **Memory** — the share in use and swap over the last minute, scrolling in step with the CPU
   graphs, with bars for the amounts now.
+- **GPU** *(unreleased)* — in the ai preset, or add it from the picker. The GPU's load and the share of
+  its own memory (VRAM) in use over the last minute, the load of each kind of engine (3D, compute,
+  copy, video), and bars for the VRAM and the shared memory in use now. It shows the adapter with
+  the most memory of its own - the card, where there is one beside the processor's graphics - and
+  counts load as Task Manager does, by the busiest engine. On Windows it is read from the
+  system's performance counters by the same long-lived sampler as the rest, never a process per
+  reading (about 0.3% of one core); on Linux only from what the amdgpu driver reports; on macOS,
+  and on Linux with NVIDIA or Intel graphics, the pane says it has nothing to read.
 - **Disk** — each volume as a bar of used space against its size (amber from 90%, red from 97%),
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
 - **Cluster** — in the cockpit preset, or add it from the picker ("cluster dashboard"). On top,
-  lamps for LINK, PING, CPU, MEM, DISK, BATT (with a battery), AWAKE and QUAKE (with quake alerts
-  on) — dark until something holds for ten seconds — and the message line saying the worst of them
-  in words, with how many more. Under them the clock and the date. Then six lanes, CPU, memory,
-  disk I/O, network down and up, and ping, each a line over the last minute with its peak and
-  average, drawn as each reading arrives: CPU, memory and disk on 0-100%, the network (one scale for
-  both ways) and the ping scaled to the minute, the top written in the lane. Where there is room,
-  every core's load now sits under CPU. The rest is a row of figures:
-  swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and
-  the IPv4 address with its interface; and where there is room a line of what the machine is, as the
-  system column says it (OS, maker, model, chassis and CPU), with what AWAKE is set to. Each figure opens a card with what it has no room for. It lays itself out in five ways by
+  lamps for LINK, PING, CPU, MEM, VRAM (where the GPU can be read; *unreleased*), DISK, BATT (with a
+  battery), AWAKE and QUAKE (with quake alerts on) — dark until something holds for ten seconds —
+  and the message line saying the worst of them in words, with how many more. A busy GPU lights
+  nothing: a GPU at 100% is doing its work; VRAM nearly full is what slows a model. Under them the
+  clock and the date. Then six lanes, CPU, memory, disk I/O, network down and up, and ping - seven
+  with the GPU's under memory where it can be read *(unreleased)* - each a line over the last
+  minute with its peak and average, drawn as each reading arrives: CPU, memory, GPU and disk on
+  0-100%, the network (one scale for both ways) and the ping scaled to the minute, the top written
+  in the lane. Where there is room, every core's load now sits under CPU. The rest is two rows of
+  five figures: memory and VRAM as amounts *(unreleased)*, swap, the fullest disk, connections, the
+  busiest program, power, uptime, the link's total and the IPv4 address with its interface; and
+  where there is room a line of what the machine is, as the system column says it (OS, maker,
+  model, chassis, CPU and GPU), with what AWAKE is set to. Each figure opens a card with what it has no room for. It lays itself out in five ways by
   its size. A full screen of it idles at 10-15% of one core, less than CPU, memory, traffic and
   disk panes side by side.
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to

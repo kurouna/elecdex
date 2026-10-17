@@ -709,6 +709,8 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
       ELECDEX_NOWPLAYING_STUB: 'demo',
       // A made-up Docker engine (the dev layout): never this machine's containers.
       ELECDEX_DOCKER_STUB: 'demo',
+      // A made-up GPU: never this machine's adapter or its load.
+      ELECDEX_GPU_STUB: 'demo',
       // A stand-in power-save blocker: a shot never keeps this machine awake.
       ELECDEX_AWAKE_STUB: '1',
       ...env,

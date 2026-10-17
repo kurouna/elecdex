@@ -6,7 +6,8 @@ import { cpuSeconds, type Launched, launch } from './support.js'
  * metric sources other panes read too. Its judgements are unit-tested
  * (cluster.test.ts); here, that it lays itself out by its size without parts
  * running into each other, that its figures and cards come up, and that the
- * QUAKE lamp is there only with quake alerts on.
+ * QUAKE lamp is there only with quake alerts on. The tests' made-up GPU
+ * (STUB_ENV) gives it seven lanes; a machine without one, six.
  */
 
 const beside = (share: number, direction: 'row' | 'column' = 'row') => ({
@@ -48,7 +49,7 @@ async function partsApart(page: Page): Promise<void> {
     }
   })
   const lanes = boxes.lanes as DOMRect[]
-  expect(lanes).toHaveLength(6)
+  expect(lanes).toHaveLength(7)
   for (let i = 1; i < lanes.length; i++) {
     const before = lanes[i - 1]
     const lane = lanes[i]
@@ -87,8 +88,9 @@ const ROOMS = [
   { width: 1920, height: 1080, share: 0.98, tier: 'wide' },
   { width: 1366, height: 768, share: 0.45, tier: 'medium' },
   // The 9:16 tour: 720x1280 through a zoom of 0.75, CLUSTER over a shell. The type grows with
-  // the window's height, and measured in CSS pixels its slots once lay over its lanes.
-  { width: 540, height: 960, share: 0.7, tier: 'medium', column: true, zoom: 0.75 },
+  // the window's height, and measured in CSS pixels its slots once lay over its lanes. With the
+  // GPU's lane and ten slots it is short (it was medium with six lanes and eight slots).
+  { width: 540, height: 960, share: 0.7, tier: 'short', column: true, zoom: 0.75 },
   { width: 1366, height: 340, share: 0.98, tier: 'short' },
   { width: 1366, height: 768, share: 0.22, tier: 'narrow' },
 ] satisfies Room[]
@@ -168,6 +170,40 @@ test('shows the readings, rolls the clock, and opens a figure’s card', async (
   }
 })
 
+test('shows the GPU lane, the VRAM lamp and slot and the GPU in the spec, and leaves them out without one', async () => {
+  const { page, close } = await launch(undefined, { layout: beside(0.98) })
+  try {
+    await expect(page.getByTestId('cluster-figure-gpu')).toContainText(/\d+\s*%/)
+    await expect(page.locator('[data-lamp="vram"]')).toHaveCount(1)
+    await expect(page.getByTestId('cluster-slot-vram')).toContainText('3.2 / 8.0 GiB')
+    await expect(page.getByTestId('cluster-slot-ram')).toContainText(/\d+\.\d \/ \d+\.\d GiB/)
+    // The lamps in their order, VRAM after MEM.
+    const order = await page
+      .getByTestId('cluster-lamps')
+      .locator('[data-lamp]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('data-lamp')))
+    expect(order.indexOf('vram')).toBe(order.indexOf('mem') + 1)
+  } finally {
+    await close()
+  }
+  const none = await launch(undefined, {
+    layout: beside(0.98),
+    env: { ELECDEX_GPU_STUB: 'none' },
+  })
+  try {
+    await expect(none.page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
+    // Given time for a GPU reading to come: it says none, and nothing of it is drawn.
+    await none.page.waitForTimeout(3000)
+    await expect(none.page.locator('[data-lane]')).toHaveCount(6)
+    await expect(none.page.getByTestId('cluster-figure-gpu')).toHaveCount(0)
+    await expect(none.page.locator('[data-lamp="vram"]')).toHaveCount(0)
+    await expect(none.page.getByTestId('cluster-slot-vram')).toHaveCount(0)
+    await expect(none.page.getByTestId('cluster-slot-ram')).toHaveCount(1)
+  } finally {
+    await none.close()
+  }
+})
+
 test('shows the QUAKE lamp only while quake alerts are on', async () => {
   const { page, close } = await launch(undefined, {
     layout: beside(0.7),
@@ -240,6 +276,34 @@ test('opens a card by its figure in the narrow column, however far it is scrolle
   }
 })
 
+test('writes every lane’s scale at the type size of the window it is in now', async () => {
+  // Found adding the GPU lane: the size was read once a canvas, so after the window changed size
+  // the lanes kept the old one, and a lane that came in later (the GPU's) wrote its scale smaller.
+  const { app, page, close } = await launch(undefined, { layout: beside(0.98) })
+  try {
+    await sizeTo(app, 1920, 1080)
+    await expect(page.getByTestId('cluster-figure-gpu')).toContainText(/\d/)
+    await sizeTo(app, 1600, 900)
+    const sizes = () =>
+      page.evaluate(() => {
+        const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+        const lanes = [...document.querySelectorAll('[data-testid^=cluster-lane-]')]
+        return {
+          want: Math.max(8, Math.round(root * 0.625)),
+          have: lanes.map((el) => Number(el.getAttribute('data-label-size'))),
+        }
+      })
+    await expect
+      .poll(async () => {
+        const { want, have } = await sizes()
+        return have.length === 7 && have.every((size) => size === want)
+      })
+      .toBe(true)
+  } finally {
+    await close()
+  }
+})
+
 test('draws each lane once a reading, not once for every source', async () => {
   // Found in review: each cpu.load sample reset every lane's bitmap and drew it twice.
   const { page, close } = await launch(undefined, { layout: beside(0.7) })
@@ -259,9 +323,9 @@ test('draws each lane once a reading, not once for every source', async () => {
       proto.clearRect = clear
       return count
     })
-    // Six lanes, one cpu.load sample a second: about eighteen in three seconds, never twice that.
+    // Seven lanes, one cpu.load sample a second: about 21 in three seconds, never twice that.
     expect(draws).toBeGreaterThan(0)
-    expect(draws).toBeLessThanOrEqual(6 * 4)
+    expect(draws).toBeLessThanOrEqual(7 * 4)
   } finally {
     await close()
   }

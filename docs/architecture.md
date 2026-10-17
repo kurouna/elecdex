@@ -1466,7 +1466,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 ### 5.20 CLUSTER ペイン（1 枚のダッシュボード）
 
 組み込みペイン `cluster`（ピッカーでは cluster dashboard、既定のレイアウトには入れない）。車の計器盤のように、システム・ネットワーク・デスクの状態を 1 つのペインにまとめる。
-- **並び**: 警告灯の行、時計と日付、60 秒のレーン（CPU・MEMORY・DISK I/O・NETWORK RX/TX・PING）、余裕があればコアごとの今の負荷、スロット
+- **並び**: 警告灯の行、時計と日付、60 秒のレーン（CPU・MEMORY・GPU・DISK I/O・NETWORK RX/TX・PING。GPU は読める機械だけ）、余裕があればコアごとの今の負荷、スロット（wide では 5 列 × 2 行）
 - **段**: ペインの大きさから 5 段（wide・medium・short・compact・narrow）に組み替わる
 - **疎結合**: main がすでに出しているもの（metrics のソース、awake ストア、`quakes.observe`）だけを読み、main・preload・ほかのペインには手を入れない（2026-10-10、利用者の指定）
 
@@ -1486,6 +1486,19 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 - **負荷**: 1000 行/秒で main の解析は 0.25 秒分が約 1 ms。ページは 5k 行で 1 コアの 2.4%（decisions.md）
 
 設計、決定の記録、測定は **[logwatch.md](logwatch.md)** に、見た目のたたき台は [logwatch-mock/index.html](logwatch-mock/index.html) に置く。
+
+### 5.22 GPU ペイン（GPU の負荷と VRAM）
+
+組み込みペイン `gpu`（既定のレイアウトには入れず、ai プリセットの ELEC SYSTEM の下に置く）。GPU の負荷と、GPU 自身のメモリ（VRAM）と共有メモリの使用量を、メモリペインと同じ形で見せる: 1 分の折れ線（負荷、薄い線で VRAM の割合）、エンジンの種類ごとの負荷（3D・COMPUTE・COPY・VIDEO）、今の量の棒。ローカル LLM・ゲーム・動画の処理で効く値で、CPU ペインでは見えなかった（issue #22、2026-10-17）。
+
+- **ソース**: `gpu.info`（アダプタの名前・メーカー・専用と共有のメモリ量、1 回だけ）と `gpu.usage`（1 秒ごと）。見せるのは専用メモリがいちばん大きいアダプタ（内蔵 GPU と外付けがあれば外付け）。負荷は「エンジンごとにプロセスを合計し、そのいちばん忙しいもの」で、タスクマネージャーと同じ数え方。どちらもプラグインに許可できる側（`PLUGIN_METRIC_SOURCE_IDS`）
+- **Windows**: 常駐のサンプラー（`WindowsSampler`）の種類 `gpu` として、WDDM のパフォーマンスカウンタ `GPU Engine` と `GPU Adapter Memory` を読む。読み取りごとにプロセスは起こさない。エンジンの表は 1 行が 1 プロセス × 1 エンジンで数百行あるので、一度だけコンパイルする C# で読んで合計する（`services/metrics/gpu/windows.ts`）。アダプタの名前と量は DXGI で一度だけ読む（WMI の AdapterRAM は 4 GB で止まる）。カウンタを開くのは初回 0.5〜5 秒かかるので、スレッドプールで開き、サンプラーのループを止めない。C# はスクリプトに埋め込まず環境変数で渡す（埋め込むとコマンドラインが 32,767 文字を超えた）
+- **Linux**: amdgpu が sysfs に出すファイル（`gpu_busy_percent`、`mem_info_vram_*`、`mem_info_gtt_*`）だけを読む。NVIDIA は nvidia-smi か NVML、i915 は手段がなく、プロセスを毎回起こすことになるので読まない
+- **macOS**: プロセスを起こさずに読む手段がない（ioreg）ので読まない
+- **読めない機械**: `gpu.usage` の `name` が null。ペインは「NO GPU READING ON THIS MACHINE」と言い、CLUSTER は GPU のレーン・VRAM の警告灯・VRAM のスロット・仕様の行の GPU を出さない（暗く出すのでもない）
+- **購読**: 他のソースと同じく参照カウントで、購読が 0 になればサンプラーの `gpu` も 15 秒で失効して読まなくなる。グラフにするので `keepWhileHidden`
+- **負荷**: 1 秒ごとの読み取りで、PowerShell 側が 1 コアの 0.34%（decisions.md）
+- **テスト**: `ELECDEX_GPU_STUB`（`1`・`demo`・`none`）。e2e は既定で `1`
 
 ## 6. ターミナル設計
 

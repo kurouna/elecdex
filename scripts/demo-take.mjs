@@ -222,6 +222,8 @@ export async function openTake({
       ELECDEX_NOWPLAYING_STUB: 'demo',
       // A made-up Docker engine (the dev layout): never this machine's containers.
       ELECDEX_DOCKER_STUB: 'demo',
+      // A made-up GPU: never this machine's adapter or its load.
+      ELECDEX_GPU_STUB: 'demo',
       ELECDEX_AUDIO_STUB: 'demo',
       ELECDEX_WEB_HOMES: standIn.homes,
       // No tray icon or system-wide shortcut from a recording run, and nothing kept awake.

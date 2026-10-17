@@ -75,13 +75,14 @@ const enter = (x: number | null): void => {
   gap: 0.35rem 1.2rem;
 }
 
-/* Two columns: the OS and the CPU a row each, the short ones paired in the cells left over. */
+/* Two columns: the OS, the CPU and the GPU a row each, the short ones paired in the cells left over. */
 .spec.two {
   grid-auto-flow: row dense;
 }
 
 .spec.two .item[data-spec='os'],
-.spec.two .item[data-spec='cpu'] {
+.spec.two .item[data-spec='cpu'],
+.spec.two .item[data-spec='gpu'] {
   grid-column: 1 / -1;
 }
 

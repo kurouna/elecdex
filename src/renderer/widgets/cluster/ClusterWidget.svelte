@@ -3,10 +3,10 @@ import {
   busiestCore,
   type ClusterTier,
   clusterLamps,
+  clusterLanes,
   clusterMessage,
   clusterTier,
   designSize,
-  LANE_IDS,
   type LaneSecond,
   laneStats,
   recordSecond,
@@ -27,12 +27,13 @@ import CoreBars from './CoreBars.svelte'
 import type { CardKey, CardReadings } from './cluster-cards.ts'
 import {
   clockText,
+  clusterSlots,
   dateText,
+  hasGpu,
   LANE_CELLS,
   laneFigure,
   laneSecond,
   type Readings,
-  SLOT_KEYS,
   slotFigure,
   specItems,
   statText,
@@ -45,13 +46,14 @@ import Spec from './Spec.svelte'
 /**
  * CLUSTER: the machine on one pane, like a car's instrument cluster
  * (docs/cluster.md). The lamps and the message line, the clock and the date,
- * sixty seconds of six lanes, every core's load where there is room, and the
- * slots - all from the metric sources main already provides, the AWAKE store and
- * the quake list, so nothing outside this folder knows the pane is here.
+ * sixty seconds of six lanes (seven with a GPU that can be read), every core's
+ * load where there is room, and the slots - all from the metric sources main
+ * already provides, the AWAKE store and the quake list, so nothing outside this
+ * folder knows the pane is here.
  *
  * A reading is drawn the frame it arrives; the lanes step once per cpu.load
  * sample. Everything shown follows the readings only while the pane is seen; the
- * lanes' own history goes on behind a tab (the three sources it charts are
+ * lanes' own history goes on behind a tab (the four sources it charts are
  * `keepWhileHidden`), so it has no gap when the pane comes back.
  */
 const { visible: inTab = true }: WidgetProps = $props()
@@ -72,6 +74,7 @@ $effect(() => {
   lastAt = load.at
   untrack(() => {
     const mem = metrics.get('mem.usage')
+    const gpu = metrics.get('gpu.usage')
     const net = metrics.get('net.throughput')
     // Disk I/O and the ping come less often: each goes in the second it arrived, once.
     const io = metrics.sample('disk.io')
@@ -82,7 +85,13 @@ $effect(() => {
     if (pingNew) pingAt = ping.at
     history = recordSecond(
       history,
-      laneSecond(load, { mem, net, io: ioNew ? io.data : null, ping: pingNew ? ping.data : null }),
+      laneSecond(load, {
+        mem,
+        gpu,
+        net,
+        io: ioNew ? io.data : null,
+        ping: pingNew ? ping.data : null,
+      }),
     )
   })
 })
@@ -122,6 +131,7 @@ const readings = $derived.by((): Readings => {
     procs: metrics.get('proc.list'),
     battery: metrics.get('power.battery'),
     uptime: uptime === null ? null : uptime.data.seconds + Math.max(0, now - uptime.at) / 1000,
+    gpu: metrics.get('gpu.usage'),
     awake: awake.state,
     os: metrics.get('os.info'),
     hardware: metrics.get('hardware.system'),
@@ -136,6 +146,7 @@ const view = $derived.by(() => {
     link: readings.link,
     volumes: readings.volumes,
     battery: readings.battery,
+    gpu: hasGpu(readings),
     awake: readings.awake.level !== 'off',
     quakeAlerts,
     quakes,
@@ -160,6 +171,12 @@ $effect(() => {
   shown = view
 })
 
+/* ---- What is drawn here: the GPU's lane, lamp and slot only where it can be read ---- */
+
+const gpu = $derived(hasGpu(shown.readings))
+const lanes = $derived(clusterLanes(gpu))
+const slotKeys = $derived(clusterSlots(gpu))
+
 /* ---- Its size: the tier, and whether the cores row goes in ---- */
 
 let rootEl = $state<HTMLElement | null>(null)
@@ -168,6 +185,8 @@ let tier = $state<ClusterTier>('wide')
 let measured = false
 let cores = $state(false)
 let spec = $state(false)
+/** The pane's last size in design pixels, judged again when a lane comes or goes. */
+let box = $state.raw<{ width: number; height: number } | null>(null)
 
 $effect(() => {
   const el = rootEl
@@ -179,19 +198,27 @@ $effect(() => {
     const border = entries[0]?.borderBoxSize[0]
     if (border === undefined || border.inlineSize <= 0) return
     const rootFont = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
-    const box = designSize(border.inlineSize, border.blockSize, rootFont)
-    // The first measure has no tier to hold to (found in review: a pane first opened just under
-    // a line stayed the default, which the same pane resized there would not).
-    const next = clusterTier(box.width, box.height, measured ? untrack(() => tier) : undefined)
-    measured = true
-    if (next !== untrack(() => tier)) tier = next
-    const withCores = showCores(next, box.width, box.height)
-    if (withCores !== untrack(() => cores)) cores = withCores
-    const withSpec = showSpec(next, box.width, box.height)
-    if (withSpec !== untrack(() => spec)) spec = withSpec
+    box = designSize(border.inlineSize, border.blockSize, rootFont)
   })
   observer.observe(el)
   return () => observer.disconnect()
+})
+
+$effect(() => {
+  const size = box
+  const count = lanes.length
+  if (size === null) return
+  untrack(() => {
+    // The first measure has no tier to hold to (found in review: a pane first opened just under
+    // a line stayed the default, which the same pane resized there would not).
+    const next = clusterTier(size.width, size.height, measured ? tier : undefined, count)
+    measured = true
+    if (next !== tier) tier = next
+    const withCores = showCores(next, size.width, size.height, count)
+    if (withCores !== cores) cores = withCores
+    const withSpec = showSpec(next, size.width, size.height, count)
+    if (withSpec !== spec) spec = withSpec
+  })
 })
 
 const small = $derived(tier === 'short' || tier === 'compact')
@@ -246,7 +273,7 @@ const cardReadings = $derived.by(
 
 {#snippet slots(where: string)}
   <div class="slots {where}" data-testid="cluster-slots">
-    {#each SLOT_KEYS as key (key)}
+    {#each slotKeys as key (key)}
       {@const f = slotFigure(key, shown.readings)}
       <Figure {...f} onhover={cardFor(key)} testid="cluster-slot-{key}" />
     {/each}
@@ -292,7 +319,7 @@ const cardReadings = $derived.by(
   </div>
 
   <div class="lanes">
-    {#each LANE_IDS as lane (lane)}
+    {#each lanes as lane (lane)}
       {@const f = laneFigure(lane, shown.readings)}
       <div class="lane" data-lane={lane}>
         <Figure {...f} note="" meter={null} size="md" cells={LANE_CELLS[lane]} onhover={cardFor(lane)} testid="cluster-figure-{lane}" />
@@ -461,9 +488,10 @@ const cardReadings = $derived.by(
   grid-area: 2 / 1;
 }
 
+/* Five to a row, two rows (user decision 2026-10-17): nine without a GPU, the tenth cell empty. */
 [data-tier='wide'] .slots.beside {
   grid-area: 1 / 2 / 3 / 3;
-  grid-template-columns: repeat(4, minmax(6.9rem, 1fr));
+  grid-template-columns: repeat(5, minmax(6.9rem, 1fr));
   gap: 0.6rem 1.25rem;
   align-self: center;
   padding-left: 1.5rem;

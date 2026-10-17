@@ -73,6 +73,81 @@ test('every monitoring widget shows live data', async () => {
   }
 })
 
+const GPU_ONLY = {
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 's',
+    direction: 'row',
+    sizes: [0.5, 0.5],
+    children: [
+      { kind: 'pane', id: 'g', widget: 'gpu' },
+      { kind: 'pane', id: 't', widget: 'terminal' },
+    ],
+  },
+} as const
+
+test('the GPU pane charts the made-up GPU, and says so on a machine with none', async () => {
+  const { page, close } = await launch(undefined, { layout: GPU_ONLY })
+  try {
+    // The stub's adapter, its load between 20% and 40%, its VRAM 40% of 8 GiB.
+    await expect(page.getByTestId('gpu-load')).toHaveText(/^[234]\d%$/, { timeout: 20_000 })
+    await expect(page.getByTestId('gpu-vram')).toHaveText(/^3\.2 GiB \/ 8\.0 GiB$/i)
+    await expect(page.getByTestId('gpu-engines')).toContainText('3D')
+    await expect
+      .poll(async () =>
+        Number(await page.getByTestId('gpu-vram-bar').getAttribute('data-fraction')),
+      )
+      .toBeCloseTo(0.4, 2)
+    await expect(page.locator('[data-testid=pane][data-widget=gpu]')).toContainText('Stub Graphics')
+  } finally {
+    await close()
+  }
+  const none = await launch(undefined, { layout: GPU_ONLY, env: { ELECDEX_GPU_STUB: 'none' } })
+  try {
+    await expect(none.page.getByTestId('gpu-none')).toBeVisible({ timeout: 20_000 })
+    await expect(none.page.getByTestId('gpu-chart')).toHaveCount(0)
+  } finally {
+    await none.close()
+  }
+})
+
+test('closing the GPU pane stops reading the GPU', async () => {
+  const { page, close } = await launch(undefined, { layout: GPU_ONLY })
+  try {
+    await expect
+      .poll(async () => (await stats(page)).active, { timeout: 20_000 })
+      .toContain('gpu.usage')
+    await closeWidget(page, 'gpu')
+    await expect
+      .poll(async () => (await stats(page)).active, { timeout: 10_000 })
+      .not.toContain('gpu.usage')
+    await page.waitForTimeout(2000) // let an in-flight collection land
+    const before = (await stats(page)).collections['gpu.usage'] ?? 0
+    await page.waitForTimeout(4000)
+    expect((await stats(page)).collections['gpu.usage'] ?? 0).toBe(before)
+  } finally {
+    await close()
+  }
+})
+
+test('on Windows the GPU is read for real from the sampler, or said to be unreadable', async () => {
+  test.skip(process.platform !== 'win32', 'the sampler is Windows only')
+  // No stub: this machine's own counters, through the long-lived PowerShell (gpu/windows.ts).
+  const { page, close } = await launch(undefined, {
+    layout: GPU_ONLY,
+    env: { ELECDEX_GPU_STUB: '' },
+  })
+  try {
+    const load = page.getByTestId('gpu-load')
+    const none = page.getByTestId('gpu-none')
+    await expect(load.or(none)).toBeVisible({ timeout: 30_000 })
+    if (await load.isVisible()) await expect(load).toHaveText(/^\d+(\.\d)?%$/, { timeout: 30_000 })
+  } finally {
+    await close()
+  }
+})
+
 test('the collector is never started for a layout without monitoring widgets', async () => {
   const second = await launch(undefined, { layout: TERMINAL_ONLY })
   try {

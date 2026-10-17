@@ -249,6 +249,44 @@ export interface DiskIo {
   busy: number | null
 }
 
+/** A graphics adapter, as the system names it. */
+export interface GpuAdapter {
+  name: string
+  /** 'NVIDIA', 'AMD', 'Intel', 'Apple', or '' when the PCI vendor is not one of them. */
+  vendor: string
+  /** Memory of its own, bytes: VRAM on a card, the carve-out on an integrated GPU. */
+  dedicated: number
+  /** System memory it may borrow, bytes; 0 where the platform does not say. */
+  shared: number
+}
+
+/** The machine's graphics adapters, read once; empty where none can be read (macOS, most of Linux). */
+export interface GpuInfo {
+  adapters: GpuAdapter[]
+}
+
+/**
+ * The busiest-memoried adapter's load and memory, every second (docs/architecture.md §5.22).
+ * `name` is null where no adapter can be read, and then every figure is null.
+ */
+export interface GpuUsage {
+  name: string | null
+  /** 0-100: the busiest engine, as Task Manager counts it. */
+  load: number | null
+  /** 0-100 per kind of engine, the busiest of each; null where the kind is not reported. */
+  engines: {
+    graphics: number | null
+    compute: number | null
+    copy: number | null
+    video: number | null
+  }
+  /** Bytes. */
+  vramUsed: number | null
+  vramTotal: number | null
+  sharedUsed: number | null
+  sharedTotal: number | null
+}
+
 /** Every source and the shape of the sample it produces. */
 export interface MetricSamples {
   'cpu.info': CpuInfo
@@ -271,6 +309,8 @@ export interface MetricSamples {
   'net.wifi.events': NetWifiEvents
   'disk.volumes': DiskVolumes
   'disk.io': DiskIo
+  'gpu.info': GpuInfo
+  'gpu.usage': GpuUsage
 }
 
 export type MetricSourceId = keyof MetricSamples
@@ -296,6 +336,8 @@ export const METRIC_SOURCE_IDS = [
   'net.wifi.events',
   'disk.volumes',
   'disk.io',
+  'gpu.info',
+  'gpu.usage',
 ] as const satisfies readonly MetricSourceId[]
 
 /** Readings that are never a plugin's to ask for, whatever its descriptor says. */
@@ -338,6 +380,8 @@ export const PLUGIN_METRIC_SOURCE_IDS = [
   'net.connections',
   'disk.volumes',
   'disk.io',
+  'gpu.info',
+  'gpu.usage',
 ] as const satisfies readonly MetricSourceId[]
 
 const KNOWN = new Set<string>(METRIC_SOURCE_IDS)

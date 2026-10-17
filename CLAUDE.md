@@ -81,7 +81,7 @@ src/main/        main process: window, ipc/ (handlers, table.ts), store/ (json f
                  chip8/, launcher/, audio/, plugins/, web/, background/, reminders/, updates/, awake/,
                  docker/, secrets/, metrics/ (the broker between the collector and pages),
                  boundary-timer.ts (readings on the wall clock's grid)
-src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/)
+src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/, gpu/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas (schemas/), channel names and pure logic used by both sides;
                  calc/ (vendor/ is elecxzy's evaluator, the wrapper beside it is ours)
@@ -355,6 +355,13 @@ user made; do not reverse one without asking.
     the markdown tree.
   - Tests write logs in a temp folder and replace `dialog.showOpenDialog`; `scripts/log-feed.mjs`
     is for trying it by hand.
+- **The GPU is read without a process per reading** (§5.22, services/metrics/gpu/). Windows: the
+  sampler's `gpu` kind, WDDM's performance counters summed in C# compiled once and opened on a
+  pool thread (never on the sampler's loop), handed over in `ELECDEX_GPU_SOURCE` (in the script it
+  passed the command line's limit). Linux: amdgpu's sysfs only; macOS and other drivers read
+  nothing. Where it cannot be read, `gpu.usage`'s `name` is null: the pane says so and CLUSTER
+  leaves out its lane, VRAM lamp, slot and spec item - never drawn dark. No lamp on GPU load (user
+  decision 2026-10-17).
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).
@@ -646,6 +653,7 @@ entry (decisions.md). Every option is off until the user turns it on.
   - `ELECDEX_AWAKE_STUB=1`: no real power-save blocker or power source;
   - `ELECDEX_AI_KEYS_STUB=1`: a reversible stand-in for `safeStorage`; AI providers are a spec's
     local stub;
+  - `ELECDEX_GPU_STUB=1`: a made-up GPU, so every machine draws the same panes (`=demo`, `=none`);
   - `ELECDEX_SEED_LAYOUTS=0`: no presets in a new profile (layout-presets.spec.ts turns it on).
   A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`. Keep it that way.
 - **Every bug found gets a test** that fails on the old code and passes on the fix, covering the
