@@ -26,7 +26,7 @@ import {
 } from '@shared/ai-attach'
 import { CH } from '@shared/channels'
 import { exportFileName } from '@shared/validate'
-import { app, dialog, net, type WebContents } from 'electron'
+import { app, net, type WebContents } from 'electron'
 import type { FetchLike, ProviderAdapter } from '../ai/adapter.js'
 import { ChatFiles, notAFile } from '../ai/files.js'
 import { emptyKeyFile, KeyFileSchema, KeyVault } from '../ai/keys.js'
@@ -35,6 +35,7 @@ import { ChatStore } from '../ai/store.js'
 import { KEY_MOVED, type KeyLookup } from '../ai/target.js'
 import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { showSaveDialogFor } from '../save-dialog.js'
 import { secretCodec } from '../secrets/system.js'
 import { cacheFile } from '../store/cache-file.js'
 import { type ElecLinks, registerElecIpc } from './elec.js'
@@ -253,12 +254,12 @@ export function registerAiIpc(settings: SettingsHandle): {
         const chatId = asChat(raw)
         return chatId !== null && chats().remove(chatId)
       },
-      [CH.ai.export]: async (_event, raw): Promise<string | null> => {
+      [CH.ai.export]: async (event, raw): Promise<string | null> => {
         const chatId = asChat(raw)
         const chat = chatId === null ? null : chats().get(chatId)
         if (chat === null) return null
         // The renderer has no filesystem; the path comes from the user's own dialog.
-        const result = await dialog.showSaveDialog({
+        const result = await showSaveDialogFor(event.sender, {
           defaultPath: exportFileName(chat.title, 'chat'),
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         })

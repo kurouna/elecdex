@@ -50,6 +50,11 @@ import { pagePreferences, webSession } from './partition.js'
 export interface WebViewsOptions {
   /** The chord -> action map in effect, for shortcuts pressed in a page. */
   keymap: () => ReadonlyMap<string, string>
+  /**
+   * The actions the page in `owner` has said do nothing now (issue 20): a web page keeps
+   * their keys - outside a tab group, Ctrl+Shift+Arrow selects by word there.
+   */
+  leftToPage: (owner: WebContents) => ReadonlySet<string>
 }
 
 interface Entry {
@@ -584,7 +589,8 @@ export class WebViews {
         shiftKey: input.shift,
       })
       const action = chord === null ? undefined : this.options.keymap().get(chord)
-      if (action === undefined) return
+      // A shortcut that would do nothing is not taken: the page gets the key as if it were unbound.
+      if (action === undefined || this.options.leftToPage(entry.owner).has(action)) return
       event.preventDefault()
       send(entry.owner, 'shortcut', action)
     })

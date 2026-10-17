@@ -10,8 +10,9 @@ import {
   noteTitle,
 } from '@shared/notes'
 import { exportFileName } from '@shared/validate'
-import { app, dialog } from 'electron'
+import { app } from 'electron'
 import { appWindows } from '../app-windows.js'
+import { showSaveDialogFor } from '../save-dialog.js'
 import { JsonStore } from '../store/json-store.js'
 import { watchUserFile } from '../store/watch-user-file.js'
 import { registerTable } from './table.js'
@@ -104,13 +105,13 @@ export function registerNotesIpc(): { dispose: () => void } {
         return true
       },
 
-      [CH.notes.export]: async (_event, id: unknown): Promise<string | null> => {
+      [CH.notes.export]: async (event, id: unknown): Promise<string | null> => {
         if (typeof id !== 'string') return null
         const note = notes.notes.find((entry) => entry.id === id)
         if (note === undefined) return null
 
         // The renderer has no filesystem; the path comes from the user's own dialog.
-        const result = await dialog.showSaveDialog({
+        const result = await showSaveDialogFor(event.sender, {
           defaultPath: exportFileName(noteTitle(note.body), 'note'),
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         })

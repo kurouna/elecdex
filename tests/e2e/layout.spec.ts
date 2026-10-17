@@ -1003,3 +1003,57 @@ test('Ctrl+Shift+0 applies the tenth saved layout, shown as 0', async () => {
     await launched.close()
   }
 })
+
+test('in a text field in a tab group, Ctrl+Shift+Arrow selects by word rather than switching tabs', async () => {
+  const launched = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 'root',
+        direction: 'row',
+        sizes: [1, 1],
+        children: [
+          { kind: 'pane', id: 'side', widget: 'clock' },
+          {
+            kind: 'tabs',
+            id: 'group',
+            activeIndex: 0,
+            children: [
+              { kind: 'pane', id: 'note', widget: 'notes' },
+              { kind: 'pane', id: 'other', widget: 'calendar' },
+            ],
+          },
+        ],
+      },
+    },
+  })
+  try {
+    const { page } = launched
+    const activeTab = () =>
+      page
+        .locator('[data-testid=tabs-host] li.active [data-testid=tab]')
+        .getAttribute('data-pane-id')
+    await page.getByTestId('notes-new').click()
+    const body = page.getByTestId('notes-body')
+    await body.fill('alpha beta gamma')
+    await body.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 0))
+    await expect(page.locator('[data-testid=pane][data-pane-id=note]')).toHaveClass(/focused/)
+
+    // In the note the keys are the text's (issue 20): a word is selected, the tab stays.
+    await body.press('Control+Shift+ArrowRight')
+    expect(await body.evaluate((el: HTMLTextAreaElement) => el.selectionEnd)).toBeGreaterThan(0)
+    expect(await activeTab()).toBe('note')
+    await body.press('Control+Shift+ArrowLeft')
+    expect(await activeTab()).toBe('note')
+
+    // Out of the field, in the same pane, they switch tabs again.
+    await body.evaluate((el: HTMLTextAreaElement) => el.blur())
+    await page.keyboard.press('Control+Shift+ArrowRight')
+    await expect.poll(activeTab).toBe('other')
+    await page.keyboard.press('Control+Shift+ArrowLeft')
+    await expect.poll(activeTab).toBe('note')
+  } finally {
+    await launched.close()
+  }
+})

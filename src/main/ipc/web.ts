@@ -1,6 +1,7 @@
 import { CH } from '@shared/channels'
 import { keymap } from '@shared/keybindings'
 import type { Settings } from '@shared/settings'
+import { LeftToPageSchema } from '@shared/shortcut-applies'
 import {
   presetOfWidget,
   WEB_PRESETS,
@@ -13,9 +14,11 @@ import {
   type WebState,
   withHomes,
 } from '@shared/web'
+import type { WebContents } from 'electron'
 import { z } from 'zod'
 import { clearWebData } from '../web/partition.js'
 import { WebViews } from '../web/views.js'
+import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
 
@@ -25,11 +28,16 @@ import { registerTable } from './table.js'
  */
 
 const UrlSchema = z.string().max(WEB_URL_MAX).nullable()
+const NOTHING: ReadonlySet<string> = new Set()
 
 export function registerWebIpc(settings: SettingsHandle): { dispose: () => void } {
   // Tests point the presets at a local stub (tests/e2e/support.ts).
   const presets = withHomes(WEB_PRESETS, process.env.ELECDEX_WEB_HOMES)
   let bindings: { from: Settings['keybindings']; map: ReadonlyMap<string, string> } | null = null
+  // Per page, as the page last said; a reloaded page starts again from nothing, as its own
+  // record of what it sent does.
+  const leftToPage = new WeakMap<WebContents, ReadonlySet<string>>()
+  const leftToPageKey = {}
   const views = new WebViews({
     keymap: () => {
       const current = settings.current().keybindings
@@ -38,6 +46,7 @@ export function registerWebIpc(settings: SettingsHandle): { dispose: () => void 
       }
       return bindings.map
     },
+    leftToPage: (page) => leftToPage.get(page) ?? NOTHING,
   })
 
   const unregister = registerTable({
@@ -95,6 +104,13 @@ export function registerWebIpc(settings: SettingsHandle): { dispose: () => void 
       },
       // Only ever the asking page itself.
       [CH.web.focusWorkspace]: (event) => event.sender.focus(),
+      [CH.web.leaveToPage]: (event, raw: unknown) => {
+        const actions = LeftToPageSchema.safeParse(raw)
+        if (!actions.success) return
+        const page = event.sender
+        whenPageGoes(page, leftToPageKey, () => leftToPage.delete(page))
+        leftToPage.set(page, actions.data)
+      },
     },
   })
 

@@ -5,9 +5,12 @@ import {
   type KeybindingAction,
   keymap,
 } from '@shared/keybindings'
+import { neighbourShell, neighbourTab } from '@shared/layout-ops'
 import { stepFontSize } from '@shared/settings'
+import { type ShortcutFacts, shortcutApplies, shortcutsLeftToPage } from '@shared/shortcut-applies'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
 import { forgetGonePanes } from '../lib/pane-memory.ts'
+import { editingText } from '../lib/text-field.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { boot } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
@@ -151,7 +154,12 @@ function claim(event: KeyboardEvent): void {
 
 const bindings = $derived(keymap(appearance.settings.keybindings, window.elecdex.system.platform))
 
-/** An action returns false when it does not apply, leaving the key to the focused pane. */
+/**
+ * What each shortcut does. Whether it applies now is not decided here but by
+ * `shortcutApplies` (shared/shortcut-applies.ts), which `run` asks first: the same answer
+ * tells main which keys a focused web page keeps. An action may still return false when
+ * what it found has changed under it (a close finished first), leaving the key alone.
+ */
 // biome-ignore lint/suspicious/noConfusingVoidType: most actions return nothing
 const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   // Add a pane: brings back any widget that was closed.
@@ -167,8 +175,7 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   // outside a tab group leaves the tab keys to the shell.
   'pane.zoom': () => {
     const target = layout.zoomedPaneId ?? layout.focusedPaneId
-    if (target === null || layout.zoomModeFor(target) === null) return false
-    layout.toggleZoom(target)
+    if (target !== null) layout.toggleZoom(target)
   },
   'focus.next': () => layout.cycleFocus(1),
   'focus.previous': () => layout.cycleFocus(-1),
@@ -217,7 +224,7 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   // Fullscreen has no window frame and no close button; this is the way out.
   'app.quit': () => window.elecdex.system.quit(),
   // System-wide: main registers it with the OS, so the page never receives it.
-  'window.toggle': () => false,
+  'window.toggle': () => {},
 }
 
 /**
@@ -243,15 +250,10 @@ function focusShell(): void {
   ui.focusShell()
 }
 
-/**
- * Applies the saved layout in a slot; false when nothing is saved there, so the
- * keys go to the focused pane instead.
- */
-function applySavedSlot(index: number): boolean {
+/** Applies the saved layout in a slot (an empty one does not apply: `shortcutApplies`). */
+function applySavedSlot(index: number): void {
   const entry = layout.savedLayouts[index]
-  if (entry === undefined) return false
-  void layout.switchTo(entry.id)
-  return true
+  if (entry !== undefined) void layout.switchTo(entry.id)
 }
 
 /**
@@ -272,23 +274,19 @@ function findInShell(): boolean {
 }
 
 /** Clears the scrollback of the shell that has the keyboard, or the one the keys would go to. */
-function clearShell(): boolean {
-  // Only the shell that has the keyboard: a scrollback is not undone, and the shell the keys
-  // would go to may be one the user is not looking at (found in review).
-  const focused = layout.panes.find((p) => p.id === layout.focusedPaneId)
-  if (focused?.widget !== 'terminal') return false
+function clearShell(): void {
+  // Only the shell that has the keyboard (`shortcutApplies`): a scrollback is not undone,
+  // and the shell the keys would go to may be one the user is not looking at (found in review).
   ui.clearShell()
-  return true
 }
 
 /** The shells' type size a step larger or smaller (settings.terminal.fontSize). */
-function stepShellFont(step: number): boolean {
-  // With no shell open the keys are left to the pane that has them (a web page zooms with them).
-  if (!layout.panes.some((p) => p.widget === 'terminal')) return false
+function stepShellFont(step: number): void {
+  // With no shell open the keys are left to the pane that has them (`shortcutApplies`): a
+  // web page zooms with them.
   const size = appearance.settings.terminal.fontSize
   const next = stepFontSize(size, step)
   if (next !== size) void appearance.patch({ terminal: { fontSize: next } })
-  return true
 }
 
 /** Moves to the next or previous shell pane and puts the keyboard in its terminal. */
@@ -298,12 +296,38 @@ function cycleShell(delta: number): boolean {
   return true
 }
 
+const isShell = (widget: string): boolean => widget === 'terminal'
+
+/**
+ * What decides whether the conditional shortcuts apply, with `paneId` as the focused pane.
+ * Reads only reactive state, so the web pane's answer below follows the layout by itself.
+ */
+function shortcutFacts(paneId: string | null, editing: boolean): ShortcutFacts {
+  const root = layout.tree.root
+  const focused = layout.panes.find((p) => p.id === paneId)
+  const zoomTarget = layout.zoomedPaneId ?? paneId
+  return {
+    focusedIsShell: focused !== undefined && isShell(focused.widget),
+    zoomable: zoomTarget !== null && layout.zoomModeFor(zoomTarget) !== null,
+    savedCount: layout.savedLayouts.length,
+    anyShell: layout.panes.some((p) => isShell(p.widget)),
+    shellToFind: layout.shellToFocus() !== null,
+    inTabGroup: paneId !== null && neighbourTab(root, paneId, 1) !== null,
+    otherShell: paneId !== null && neighbourShell(root, paneId, 1, isShell) !== null,
+    editingText: editing,
+  }
+}
+
 /** Shortcuts that still work with a dialog open. */
 const THROUGH_DIALOGS = new Set<KeybindingAction>(['app.quit', 'window.fullscreen'])
-/** Runs a shortcut's action; false when it did not apply. */
-function run(action: KeybindingAction): boolean {
+/**
+ * Runs a shortcut's action; false when it did not apply. `editing`: the keyboard is in one
+ * of the workspace's text fields, which keep the keys that select by word.
+ */
+function run(action: KeybindingAction, editing: boolean): boolean {
   // A dialog over the workspace: nothing behind it should change unseen.
   if (ui.dialogOpen && !throughDialog(action)) return false
+  if (!shortcutApplies(action, shortcutFacts(layout.focusedPaneId, editing))) return false
   return ACTIONS[action]() !== false
 }
 
@@ -329,7 +353,7 @@ function onKeydown(event: KeyboardEvent): void {
   const chord = chordFromEvent(event)
   if (chord === null) return
   const action = bindings.get(chord)
-  if (action !== undefined && run(action)) claim(event)
+  if (action !== undefined && run(action, editingText())) claim(event)
 }
 
 const isAction = (id: string): id is KeybindingAction => KEYBINDING_ACTIONS.some((a) => a.id === id)
@@ -340,7 +364,8 @@ const isAction = (id: string): id is KeybindingAction => KEYBINDING_ACTIONS.some
 $effect(() =>
   window.elecdex.web.onShortcut((action) => {
     if (!isAction(action)) return
-    run(action)
+    // The page has the keyboard, so no text field of the workspace's does.
+    run(action, false)
     const focused = layout.panes.find((p) => p.id === layout.focusedPaneId)
     if (ui.dialogOpen || !focused?.widget.startsWith(WEB_WIDGET_PREFIX)) {
       window.elecdex.web.focusWorkspace()
@@ -348,6 +373,24 @@ $effect(() =>
   }),
 )
 $effect(() => window.elecdex.web.onFocused((paneId) => layout.focus(paneId)))
+
+/**
+ * The shortcuts that would do nothing while the focused pane is a web pane, as one string so
+ * the effect below runs only when they change. Main leaves their keys to the page (issue 20):
+ * outside a tab group Ctrl+Shift+Arrow selects by word there, and with no shell open
+ * Ctrl+Shift+= zooms it. A text field inside the page cannot be seen from here, so in a tab
+ * group the tab keys still switch tabs from a page.
+ */
+const leftToWebPage = $derived.by(() => {
+  const paneId = layout.focusedPaneId
+  const focused = layout.panes.find((p) => p.id === paneId)
+  if (paneId === null || !focused?.widget.startsWith(WEB_WIDGET_PREFIX)) return ''
+  return shortcutsLeftToPage(shortcutFacts(paneId, false)).join(' ')
+})
+$effect(() => {
+  const ids = leftToWebPage
+  window.elecdex.web.leaveToPage(ids === '' ? [] : ids.split(' '))
+})
 
 // A pending debounced save would be lost if the window went away first.
 function onBeforeUnload(): void {

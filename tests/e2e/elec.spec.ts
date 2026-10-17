@@ -3,7 +3,7 @@ import { createServer, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launch } from './support'
+import { launch, saveDialogAnswers } from './support'
 
 /**
  * The ELEC system pane against a provider served from this machine, speaking the
@@ -190,6 +190,14 @@ test('a motion is voted by three units, resolved, and is there after a restart',
 
     const files = readdirSync(path.join(userData, 'elec'))
     expect(files).toHaveLength(1)
+
+    // Exported as markdown through a save dialog owned by the window (issue 20).
+    const exportTo = path.join(userData, 'exported-motion.md')
+    const dialogs = await saveDialogAnswers(launched.app, exportTo)
+    const sessionId = (await page.evaluate(() => window.elecdex.elec.sessions()))[0]?.id ?? ''
+    expect(await page.evaluate((id) => window.elecdex.elec.export(id), sessionId)).toBe(exportTo)
+    expect(readFileSync(exportTo, 'utf8')).toContain('Adopt the four-day week?')
+    expect(await dialogs()).toEqual([{ owned: true }])
 
     await launched.quit()
   } catch (error) {

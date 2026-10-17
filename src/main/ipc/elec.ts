@@ -11,13 +11,14 @@ import {
   sessionMarkdown,
 } from '@shared/elec'
 import { exportFileName } from '@shared/validate'
-import { app, dialog, type WebContents } from 'electron'
+import { app, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
 import { ElecService } from '../ai/elec.js'
 import { SessionStore } from '../ai/store.js'
 import type { KeyLookup } from '../ai/target.js'
 import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { showSaveDialogFor } from '../save-dialog.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
@@ -117,12 +118,12 @@ export function registerElecIpc(
         const sessionId = asSession(raw)
         return sessionId !== null && council().remove(sessionId)
       },
-      [CH.elec.export]: async (_event, raw): Promise<string | null> => {
+      [CH.elec.export]: async (event, raw): Promise<string | null> => {
         const sessionId = asSession(raw)
         const session = sessionId === null ? null : council().get(sessionId)
         if (session === null) return null
         // The renderer has no filesystem; the path comes from the user's own dialog.
-        const result = await dialog.showSaveDialog({
+        const result = await showSaveDialogFor(event.sender, {
           defaultPath: exportFileName(session.title, 'motion'),
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         })

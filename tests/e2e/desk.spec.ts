@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, putWindowAway } from './support.js'
+import { launch, putWindowAway, saveDialogAnswers } from './support.js'
 
 /**
  * The desk panes: the calculator, the notes, the tasks and the chrono.
@@ -80,6 +80,25 @@ test('a note is written to notes.json, not into the layout, and survives its pan
     await expect(launched.page.getByTestId('notes-body')).toHaveValue(/release steps/)
   } finally {
     await launched.close()
+  }
+})
+
+test('a note is exported as markdown through a save dialog over the window', async () => {
+  const { app, page, userData, close } = await launch(undefined, { layout: single('notes') })
+  try {
+    await page.getByTestId('notes-new').click()
+    await page.getByTestId('notes-body').fill('# export me\nbody')
+    await expect(page.getByTestId('notes-status')).toContainText('wrote', { timeout: 5000 })
+    const target = path.join(userData, 'exported-note.md')
+    const dialogs = await saveDialogAnswers(app, target)
+    await page.getByTestId('notes-settings-toggle').click()
+    await page.getByTestId('notes-export').click()
+    await expect.poll(() => existsSync(target)).toBe(true)
+    expect(readFileSync(target, 'utf8')).toBe('# export me\nbody')
+    // Owned by the window (issue 20): a dialog of its own could open behind a fullscreen app.
+    expect(await dialogs()).toEqual([{ owned: true }])
+  } finally {
+    await close()
   }
 })
 

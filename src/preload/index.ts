@@ -892,6 +892,7 @@ const api: ElecdexApi = {
     setAppearance: (appearance) => ipcRenderer.send(CH.web.appearance, appearance),
     focus: (paneId) => ipcRenderer.send(CH.web.focus, paneId),
     focusWorkspace: () => ipcRenderer.send(CH.web.focusWorkspace),
+    leaveToPage: (actions) => ipcRenderer.send(CH.web.leaveToPage, actions),
     clearData: () => ipcRenderer.invoke(CH.web.clearData) as Promise<void>,
     onState: (paneId, handler) =>
       listen<WebState>(CH.web.state, (state) => {

@@ -48,6 +48,7 @@ const api = {
   setAppearance: vi.fn((appearance: WebAppearance) => void sent(appearance)),
   focus: vi.fn(),
   focusWorkspace: vi.fn(),
+  leaveToPage: vi.fn(),
   clearData: vi.fn(async () => {}),
   onState: (paneId: string, handler: (state: WebState) => void) => {
     states.set(paneId, handler)

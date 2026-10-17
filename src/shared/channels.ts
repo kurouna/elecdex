@@ -430,6 +430,11 @@ export const CH = {
     focus: 'web:focus',
     /** renderer -> main, fire and forget: take the keyboard back from any page. */
     focusWorkspace: 'web:focus-workspace',
+    /**
+     * renderer -> main, fire and forget: the shortcut action ids that do nothing now, whose keys
+     * a focused web page keeps (shared/shortcut-applies.ts). Forgotten when the page goes.
+     */
+    leaveToPage: 'web:leave-to-page',
     /** Deletes the web panes' cookies, storage and cache. */
     clearData: 'web:clear-data',
     /** main -> renderer: a WebState. */

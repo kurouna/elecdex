@@ -811,6 +811,11 @@ export interface WebApi {
   focus(paneId: string): void
   /** Takes the keyboard back from a page, for the workspace element that has focus. */
   focusWorkspace(): void
+  /**
+   * The shortcut action ids that would do nothing for the focused web pane now: main leaves
+   * their keys to its page (a word selected, the page zoomed) rather than taking them.
+   */
+  leaveToPage(actions: string[]): void
   /** Signs out of every site: deletes the web panes' cookies, storage and cache. */
   clearData(): Promise<void>
   /** The pane's page changed. Returns an unsubscribe. */

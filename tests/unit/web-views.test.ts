@@ -177,7 +177,12 @@ const look = (accent: string) => ({ accent, tint: true, dark: true, background: 
 let owner: FakeContents
 let win: FakeWindow
 let views: InstanceType<typeof WebViews>
-const keymap = new Map([['Ctrl+Shift+KeyA', 'pane.add']])
+const keymap = new Map([
+  ['Ctrl+Shift+KeyA', 'pane.add'],
+  ['Ctrl+Shift+ArrowRight', 'tab.next'],
+])
+/** What the page has said a focused web page keeps (issue 20). */
+let leftToPage: ReadonlySet<string> = new Set()
 
 const asOwner = (contents: FakeContents) => contents as unknown as Electron.WebContents
 /** The CSS in a document, told apart: the tint's filter and the colour scheme. */
@@ -194,7 +199,8 @@ beforeEach(() => {
   hoisted.helpers.length = 0
   owner = new FakeContents()
   win = new FakeWindow(owner)
-  views = new WebViews({ keymap: () => keymap })
+  leftToPage = new Set()
+  views = new WebViews({ keymap: () => keymap, leftToPage: () => leftToPage })
 })
 
 describe('WebViews', () => {
@@ -619,6 +625,43 @@ describe('WebViews', () => {
     expect(owner.sent).toEqual([])
     contents.emit('input-event', {}, { type: 'mouseDown' })
     expect(owner.sent).toEqual([['web:focused', 'p']])
+  })
+
+  it('leaves the page a shortcut its owner says would do nothing, and still takes the rest (issue 20)', () => {
+    // Asked about the page that owns the view, not some other page.
+    const asked: unknown[] = []
+    views = new WebViews({
+      keymap: () => keymap,
+      leftToPage: (page) => {
+        asked.push(page)
+        return leftToPage
+      },
+    })
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    const contents = view().webContents
+    const press = (code: string) => {
+      const event = { preventDefault: vi.fn() }
+      contents.emit('before-input-event', event, {
+        type: 'keyDown',
+        code,
+        control: true,
+        meta: false,
+        alt: false,
+        shift: true,
+      })
+      return event.preventDefault
+    }
+    leftToPage = new Set(['tab.next'])
+    expect(press('ArrowRight')).not.toHaveBeenCalled()
+    expect(asked).toEqual([owner])
+    expect(owner.sent.filter(([channel]) => channel === 'web:shortcut')).toEqual([])
+    // The other keys are still the app's.
+    expect(press('KeyA')).toHaveBeenCalled()
+    expect(owner.sent).toContainEqual(['web:shortcut', 'pane.add'])
+    // Once it applies again, the key is taken again.
+    leftToPage = new Set()
+    expect(press('ArrowRight')).toHaveBeenCalled()
+    expect(owner.sent).toContainEqual(['web:shortcut', 'tab.next'])
   })
 
   it('reports load failures, but not loads replaced by another', () => {

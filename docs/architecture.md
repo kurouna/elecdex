@@ -405,6 +405,7 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 
 **ショートカット**: ビューにフォーカスがあるとキー入力は workspace に届かない。
 - main がビューの `before-input-event` で、keybindings.ts の実効キーマップ（settings の上書きを含む）に一致するキーだけを取り、アクション id を renderer に送る。Workspace は自分の keydown と同じ処理でそれを実行する
+- ただし、今押しても何もしないアクション（タブグループ外の `tab.next` / `tab.previous`、シェルのないときの `shell.fontBigger` / `shell.fontSmaller`、空きスロットの `layout.savedN` など）のキーは取らず、ページに渡す（issue 20）。何もしないかどうかは `shortcutApplies`（shared/shortcut-applies.ts）だけが決め、Workspace は実行前にこれを聞く。フォーカス中のペインが Web ペインのとき、Workspace はその答えから「ページに渡すアクション id の集合」を派生させ、変わったときだけ `web.leaveToPage` で main に送る（zod で既知の id だけ、重複なし、上限あり）。main はページ（webContents）ごとに持ち、そのページの再読み込みと破棄で忘れる（`whenPageGoes`）。常に効くキー（Ctrl+Shift+W など）は集合に入らない。ページ内のテキスト欄は workspace から見えないので、タブグループの中ではタブキーはページからでもタブを切り替える
 - それ以外のキーはページに渡す（コードは必ず Ctrl/Alt かファンクションキーを含むので、文字入力は奪わない）
 - ページ内でマウスを押したとき（`input-event` の mouseDown / touchStart）と `focus` イベントで、main が renderer に伝え、そのペインにフォーカスを移す。WebContentsView は `focus` を出さないことがある（Windows、Electron 44 で確認）
 - 転送したアクションの後、フォーカスが Web ペインにない（またはダイアログが開いた）ときは、renderer が `focusWorkspace` で main に workspace の webContents へキーボードを戻させる。アクションが DOM 上で移したフォーカス（シェルなど）が、そのまま効く

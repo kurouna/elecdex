@@ -963,6 +963,64 @@ test.describe('web panes', () => {
     }
   })
 
+  test('leave the page the keys of shortcuts that would do nothing, and still take the rest', async () => {
+    // A web pane beside a clock: no tab group, no shell, so the tab keys and the shells' type
+    // size do nothing here (issue 20) - and were taken from the page all the same.
+    const app = await start()
+    const { page } = app
+    try {
+      await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      await app.app.evaluate(({ BrowserWindow }) => {
+        const view = BrowserWindow.getAllWindows()[0]?.contentView.children[0]
+        const contents = (view as Electron.WebContentsView).webContents
+        contents.focus()
+        for (const type of ['mouseDown', 'mouseUp'] as const) {
+          contents.sendInputEvent({ type, x: 5, y: 5, button: 'left', clickCount: 1 })
+        }
+      })
+      await expect(webPane(page)).toHaveClass(/focused/)
+      await inPage(
+        app,
+        `const field = document.querySelector('#field')
+         field.value = 'alpha beta gamma'
+         field.focus()
+         window.__keys = []
+         addEventListener('keydown', (event) => window.__keys.push(event.code))
+         1`,
+      )
+      const press = (keyCode: string, modifiers: string[] = []) =>
+        app.app.evaluate(
+          ({ BrowserWindow }, { keyCode, modifiers }) => {
+            const view = BrowserWindow.getAllWindows()[0]?.contentView.children[0]
+            const contents = (view as Electron.WebContentsView).webContents
+            for (const type of ['keyDown', 'keyUp'] as const) {
+              contents.sendInputEvent({ type, keyCode, modifiers: modifiers as ['control'] })
+            }
+          },
+          { keyCode, modifiers },
+        )
+
+      // Ctrl+Shift+Arrow selects by word in the page's field. Pressed again until it does: the
+      // workspace tells main what the page keeps a moment after the pane takes the keyboard.
+      await expect
+        .poll(async () => {
+          await inPage(app, 'document.querySelector("#field").setSelectionRange(0, 0); 1')
+          await press('Right', ['control', 'shift'])
+          return inPage<number>(app, 'document.querySelector("#field").selectionEnd')
+        })
+        .toBeGreaterThan(0)
+      // With no shell open, Ctrl+Shift+= is the page's too (a page zooms with it).
+      await press('=', ['control', 'shift'])
+      await expect.poll(() => inPage<string[]>(app, 'window.__keys')).toContain('Equal')
+
+      // A shortcut that always applies is still the app's: Ctrl+Shift+W closes the pane.
+      await press('W', ['control', 'shift'])
+      await expect(webPane(page)).toHaveCount(0)
+    } finally {
+      await app.close()
+    }
+  })
+
   test('the browser opens typed addresses and refuses anything that is not a web page', async () => {
     const app = await launch(undefined, { layout: layoutWith('web.browser') })
     const { page } = app

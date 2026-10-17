@@ -601,6 +601,26 @@ export async function pickerAnswers(app: ElectronApplication, answer: string): P
   }, answer)
 }
 
+/**
+ * Makes main's save dialogs answer `answer` (a path), or cancel with null, and answers how
+ * each was opened: over the elecdex window (`owned`), or as a window of its own.
+ */
+export async function saveDialogAnswers(
+  app: ElectronApplication,
+  answer: string | null,
+): Promise<() => Promise<{ owned: boolean }[]>> {
+  await app.evaluate(({ BrowserWindow, dialog }, filePath) => {
+    const opened: { owned: boolean }[] = []
+    ;(globalThis as { __saveDialogs?: unknown }).__saveDialogs = opened
+    dialog.showSaveDialog = (async (...args: unknown[]) => {
+      opened.push({ owned: args.length === 2 && args[0] instanceof BrowserWindow })
+      return { canceled: filePath === null, filePath: filePath ?? '' }
+    }) as never
+  }, answer)
+  return () =>
+    app.evaluate(() => (globalThis as { __saveDialogs?: { owned: boolean }[] }).__saveDialogs ?? [])
+}
+
 /** Resolves once the app's process has ended (at once if it already has). */
 export function exited(app: ElectronApplication): Promise<void> {
   const child = app.process()

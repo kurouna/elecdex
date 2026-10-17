@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import { launch } from './support'
+import { launch, saveDialogAnswers } from './support'
 
 /**
  * The AI chat pane against providers served from this machine: one that speaks
@@ -377,6 +377,14 @@ test('an answer streams in, is drawn as markdown, and is there after a restart',
     expect(request?.headers.authorization).toBeUndefined()
     expect(await active(page)).toEqual([])
     await expect(pane(page).getByTestId('pane-subtitle')).toContainText(/Say hi in JavaScript/i)
+
+    // Exported as markdown through a save dialog owned by the window (issue 20).
+    const exportTo = path.join(userData, 'exported-chat.md')
+    const dialogs = await saveDialogAnswers(launched.app, exportTo)
+    const chatId = (await page.evaluate(() => window.elecdex.ai.chats()))[0]?.id ?? ''
+    expect(await page.evaluate((id) => window.elecdex.ai.export(id), chatId)).toBe(exportTo)
+    expect(readFileSync(exportTo, 'utf8')).toContain('Say hi in JavaScript')
+    expect(await dialogs()).toEqual([{ owned: true }])
 
     expect(readdirSync(path.join(userData, 'chats'))).toHaveLength(1)
     await launched.quit()
