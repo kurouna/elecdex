@@ -7,9 +7,9 @@
  * to the baseline, so a line that stays low keeps a full-strength fill under it even when an
  * earlier spike is still in view. One gradient for the whole area, from the peak, left CPU and
  * traffic almost bare: their lines sit near the baseline most of the time. A linear gradient
- * cannot vary its length across x, so the area is clipped to the line and painted in narrow
- * strips, each with its own gradient; strip edges fall on whole device pixels, where abutting
- * rectangles leave no antialiasing seams.
+ * cannot vary its length across x, so the area is painted in narrow strips, each with its own
+ * gradient and each running up to the line (`strip`); strip edges fall on whole device pixels,
+ * where abutting strips leave no antialiasing seams.
  *
  * The far end of the gradient is the same colour with no alpha (relative colour syntax, so any
  * colour a theme gives works). Plain `transparent` is transparent *black*, and the canvas
@@ -38,12 +38,6 @@ export function fillArea(
   const clear = `rgb(from ${color} r g b / 0)`
   ctx.save()
   ctx.globalAlpha = options.alpha
-  ctx.beginPath()
-  ctx.moveTo(first[0], baseline)
-  for (const [x, y] of points) ctx.lineTo(x, y)
-  ctx.lineTo(last[0], baseline)
-  ctx.closePath()
-  ctx.clip()
 
   const scale = ctx.getTransform().a || 1
   const step = STRIP_PX / scale
@@ -59,11 +53,39 @@ export function fillArea(
       gradient.addColorStop(0, color)
       gradient.addColorStop(1, clear)
       ctx.fillStyle = gradient
-      ctx.fillRect(from, Math.min(edge, baseline), step, Math.abs(baseline - edge))
+      strip(ctx, points, i, Math.max(from, first[0]), Math.min(to, last[0]), baseline)
     }
     from = to
   }
   ctx.restore()
+}
+
+/**
+ * One strip, from the baseline up to the line and along it: the area under the line, without a
+ * clip. Clipped to the line instead, a GPU-drawn canvas kept a mask for every path it was
+ * clipped to - a new path each draw - and the default layout's charts took the GPU process from
+ * about 230 MB to 770-1030 MB within a minute (measured 2026-10-18, docs/decisions.md).
+ */
+function strip(
+  ctx: CanvasRenderingContext2D,
+  points: readonly Point[],
+  i: number,
+  from: number,
+  to: number,
+  baseline: number,
+): void {
+  ctx.beginPath()
+  ctx.moveTo(from, baseline)
+  ctx.lineTo(from, yAt(points, i, from))
+  for (let j = i + 1; j < points.length; j++) {
+    const p = points[j]
+    if (p === undefined || p[0] >= to) break
+    if (p[0] > from) ctx.lineTo(p[0], p[1])
+  }
+  ctx.lineTo(to, yAt(points, i, to))
+  ctx.lineTo(to, baseline)
+  ctx.closePath()
+  ctx.fill()
 }
 
 /** The line's y furthest from the baseline between `from` and `to`, starting at segment `i`. */

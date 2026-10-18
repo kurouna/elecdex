@@ -394,6 +394,7 @@ async function appUsage(app: ElectronApplication) {
     return {
       cpuSeconds: metrics.reduce((sum, m) => sum + (m.cpu.cumulativeCPUUsage ?? 0), 0),
       workingSetMb: metrics.reduce((sum, m) => sum + m.memory.workingSetSize, 0) / 1024,
+      gpuMb: (metrics.find((m) => m.type === 'GPU')?.memory.workingSetSize ?? 0) / 1024,
     }
   })
 }
@@ -403,13 +404,16 @@ test('the full monitoring layout stays cheap when idle', async () => {
   // noisy CI machines; locally the default layout measures ~12% of one core
   // and ~600MB. (On Windows the metrics sampler runs as a separate PowerShell
   // outside Electron's own process list, adding about 1% more.)
+  test.setTimeout(120_000)
   const { app, page, close } = await launch()
   try {
     await app.evaluate(({ BrowserWindow }) => {
       const [win] = BrowserWindow.getAllWindows()
       win?.setContentSize(1920, 1080)
     })
-    await page.waitForTimeout(15_000) // startup collections, fonts, first paints
+    // Startup collections, fonts, first paints - and the GPU process, whose caches fill over the
+    // first 30-50 s: measured at 35 s, a growth there showed in some runs only (2026-10-18).
+    await page.waitForTimeout(45_000)
 
     const WINDOW_MS = 20_000
     const start = await appUsage(app)
@@ -419,7 +423,7 @@ test('the full monitoring layout stays cheap when idle', async () => {
     const percentOfOneCore = ((end.cpuSeconds - start.cpuSeconds) / (WINDOW_MS / 1000)) * 100
     const power = await powerNote(app, page)
     console.log(
-      `idle: ${percentOfOneCore.toFixed(1)}% of one core, ${end.workingSetMb.toFixed(0)} MB working set, ${power}`,
+      `idle: ${percentOfOneCore.toFixed(1)}% of one core, ${end.workingSetMb.toFixed(0)} MB working set (GPU process ${end.gpuMb.toFixed(0)} MB), ${power}`,
     )
     // CI runners have no GPU (the globe renders in software) and share their
     // cores, so the number there says more about the runner than about elecdex:
@@ -431,6 +435,10 @@ test('the full monitoring layout stays cheap when idle', async () => {
     // budget is the local one, where the default layout measures ~12% and ~600MB.
     expect(percentOfOneCore, `% of one core, ${power}`).toBeLessThan(process.env.CI ? 300 : 40)
     expect(end.workingSetMb, `MB working set, ${power}`).toBeLessThan(process.env.CI ? 1500 : 1200)
+    // The GPU process on its own: the charts' fill, clipped to its line, once grew it from about
+    // 230 MB to 770-1030 MB, the whole then passing the ceiling above in some runs (2026-10-18).
+    // Not on CI, which draws in software, and whose numbers say more about the runner.
+    if (!process.env.CI) expect(end.gpuMb, `MB in the GPU process, ${power}`).toBeLessThan(450)
   } finally {
     await close()
   }
