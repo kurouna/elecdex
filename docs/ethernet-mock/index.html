@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ETHERNET mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of the ETHERNET pane, standalone: no elecdex code, every figure made up.
+ * It follows the Wi-Fi pane (ref-wifi-forward.png, ref-wifi-narrow.png) part for part:
+ * header, chips, path strip, verdict, ribbons, the middle panel, timeline, log, detail.
+ * Colours follow tokens.css (primitive -> semantic, status colours copied) so the themes switch.
+ * Second version: after three reviews (UX consistency, network correctness, visual rules).
+ */
+:root {
+  --accent-h: 183; --accent-s: 22%; --accent-l: 74%;
+  --surface-1: #05080d; --surface-2: #0b1118; --grid: #161b1f;
+  --hue-danger: 0; --hue-warn: 45; --hue-ok: 130; --hue-info: 212; --glow: 1;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --text: var(--accent);
+  --text-muted: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --danger: hsl(var(--hue-danger) 80% 60%);
+  --warn: hsl(var(--hue-warn) 85% 58%);
+  --ok: hsl(var(--hue-ok) 60% 52%);
+  --info: hsl(var(--hue-info) 85% 66%);
+  --app-bg: var(--surface-1);
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --step--2: 0.625rem; --step--1: 0.75rem; --step-0: 0.875rem; --step-1: 1.125rem; --step-2: 1.5rem;
+  --tracking-wide: 0.12em;
+}
+:root[data-theme="green"] { --accent-h: 120; --accent-s: 100%; --accent-l: 45%; --surface-1: #000; --surface-2: #031003; --grid: #0d1f0d; }
+:root[data-theme="amber"] { --accent-h: 36; --accent-s: 100%; --accent-l: 55%; --surface-1: #000; --surface-2: #120b00; --grid: #1d1405; }
+:root[data-theme="black"] { --accent-h: 0; --accent-s: 0%; --accent-l: 86%; --surface-1: #000; --surface-2: #0d0d0d; --grid: #141414; }
+:root[data-theme="business"] {
+  --accent-h: 214; --accent-s: 55%; --accent-l: 34%; --surface-1: #f4f6f9; --surface-2: #ffffff; --grid: #e2e6ec; --glow: 0;
+  --danger: hsl(var(--hue-danger) 75% 44%); --warn: hsl(var(--hue-warn) 95% 36%);
+  --ok: hsl(var(--hue-ok) 60% 32%); --info: hsl(var(--hue-info) 80% 40%);
+  color-scheme: light;
+}
+html { font-size: clamp(14px, 1.48vh, 20px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; color: var(--text); font-family: var(--font-ui);
+  background-color: var(--surface-1);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 2.2rem 2.2rem;
+  padding: 1rem;
+}
+button { font: inherit; color: inherit; }
+
+/* ---------- mock controls (not part of the pane) ---------- */
+.mockbar {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; align-items: center;
+  font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase;
+  margin-bottom: 0.8rem; color: var(--text-muted);
+}
+.mockbar .grp { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+.mockbar .grp > span { margin-right: 0.3rem; }
+.mockbar button {
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.1rem 0.5rem; cursor: pointer;
+  font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide);
+}
+.mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--surface-1); border-color: var(--accent); }
+.note { font-size: var(--step--1); color: var(--text-muted); margin: 0.6rem 0 0; max-width: 80rem; line-height: 1.6; }
+
+/* ---------- the pane's frame (the real pane's chrome stands in) ---------- */
+.frame {
+  position: relative; background: var(--surface-1); border: 1px solid var(--panel-border);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  padding: 0.35rem 0.6rem 0.6rem; overflow: hidden;
+}
+.frame.wide { width: min(100%, 110rem); }
+.frame.narrow { width: min(100%, 40rem); }
+.frame.preset { width: 620px; height: 455px; }
+.frame.preset .eth { height: calc(100% - 1.6rem); }
+.title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; min-width: 0; }
+.title { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: 0.04em; }
+.title-right { font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.title-right .why { font-family: var(--font-display); font-size: var(--step--1); margin-right: 0.5rem; }
+.title-right .why[data-tone="bad"] { color: var(--danger); }
+.title-right .why[data-tone="warn"] { color: var(--warn); }
+.title-right .fwd { margin-left: 0.6rem; color: var(--text); }
+
+.eth { display: flex; flex-direction: column; gap: 0.35rem; min-height: 0; min-width: 0; }
+.eth > * { min-width: 0; }
+
+/* ---------- header ---------- */
+.head { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+.port { width: 1.05rem; height: 0.85rem; flex: none; }
+.port path { fill: none; stroke: var(--text); stroke-width: 1.4; }
+.port .lit { fill: var(--ok); } .port .dark { fill: var(--accent-dim); }
+.name { font-family: var(--font-display); font-size: var(--step-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.state { font-family: var(--font-display); font-size: var(--step--1); letter-spacing: var(--tracking-wide); white-space: nowrap; }
+.state[data-state="online"] { color: var(--ok); }
+.state[data-state="warn"] { color: var(--warn); }
+.state[data-state="down"] { color: var(--danger); }
+.state[data-state="idle"] { color: var(--text-muted); }
+.head .grow { flex: 1; }
+.mos { display: inline-flex; align-items: baseline; gap: 0.3rem; font-family: var(--font-mono); white-space: nowrap; }
+.mos small { font-size: var(--step--2); color: var(--text-muted); letter-spacing: var(--tracking-wide); }
+.mos b { font-size: var(--step-1); font-weight: 500; }
+.mos .bars { display: inline-flex; gap: 2px; transform: skewX(-20deg); }
+.mos .bars i { width: 3px; height: 0.8rem; background: var(--accent-dim); }
+.mos .bars i.on { background: var(--text); }
+.mos[data-tone="warn"] b { color: var(--warn); } .mos[data-tone="warn"] .bars i.on { background: var(--warn); }
+.mos[data-tone="bad"] b { color: var(--danger); } .mos[data-tone="bad"] .bars i.on { background: var(--danger); }
+.btn { font-family: var(--font-display); font-size: var(--step--2); letter-spacing: var(--tracking-wide); padding: 0.12rem 0.45rem; border: 1px solid var(--panel-rule); background: transparent; cursor: pointer; }
+.btn.on { background: var(--accent-faint); border-color: var(--accent); }
+.chips { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; font-family: var(--font-mono); font-size: var(--step--1); padding: 0.05rem 0.45rem; border: 1px solid var(--panel-rule); background: transparent; }
+.chip.on { border-color: var(--accent); background: var(--accent-faint); }
+.chip .pt { display: inline-flex; gap: 1px; }
+.chip .pt i { width: 3px; height: 0.55rem; background: var(--ok); }
+.chip .pt.off i { background: var(--accent-dim); }
+.chip small { color: var(--text-muted); }
+
+/* ---------- path strip (as PathStrip.svelte) ---------- */
+.path { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto; align-items: start; }
+.station { --tone: var(--accent); display: flex; flex-direction: column; align-items: center; min-width: 0; font-family: var(--font-mono); text-align: center; }
+[data-health="warn"] { --tone: var(--warn); }
+[data-health="bad"] { --tone: var(--danger); }
+[data-health="idle"] { --tone: var(--accent-dim); }
+.node {
+  display: grid; place-items: center; min-width: 4.6rem; height: 1.55rem; padding: 0 0.5rem;
+  border: 1px solid var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  box-shadow: inset 0 0 calc(var(--glow) * 0.6rem) color-mix(in srgb, var(--tone) 45%, transparent);
+}
+.node .nm { font-family: var(--font-display); font-size: var(--step--1); letter-spacing: var(--tracking-wide); color: var(--tone); text-shadow: 0 0 calc(var(--glow) * 0.45rem) var(--tone); }
+.station .main { margin-top: 0.2rem; font-size: var(--step--1); color: var(--text); white-space: nowrap; }
+.station .sub { min-height: 1.2em; font-size: var(--step--1); color: var(--text-muted); white-space: nowrap; }
+.station[data-health="idle"] .main { color: var(--text-muted); }
+.station.culprit { position: relative; z-index: 1; }
+.station.culprit .node { background: var(--tone); transform: scale(1.18); }
+.station.culprit .nm { color: var(--app-bg); font-weight: 600; text-shadow: none; }
+.station.culprit .main { margin-top: 0.35rem; font-weight: 600; color: var(--tone); }
+.station.culprit .sub { color: var(--tone); }
+.wire { --tone: var(--accent); position: relative; height: 1.55rem; margin: 0 0.25rem; overflow: hidden; }
+.wire::before { content: ""; position: absolute; inset: calc(50% - 1px) 0 auto; height: 2px; background: color-mix(in srgb, var(--tone) 55%, transparent); }
+.wire.lost::before { background: repeating-linear-gradient(90deg, var(--danger) 0 4px, transparent 4px 7px); }
+.wire.dark::before { background: var(--accent-faint); }
+.wire svg { position: absolute; inset: 0.1rem 0; width: 100%; height: calc(100% - 0.2rem); opacity: 0.55; }
+.wire svg path { fill: none; stroke: var(--tone); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.wire .packet { position: absolute; inset: calc(50% - 1px) 0 auto; height: 2px; transform: translateX(calc(var(--at) * (100% - 14px))); }
+.wire .packet::before { content: ""; position: absolute; top: -1px; left: 0; width: 14px; height: 4px; background: linear-gradient(90deg, transparent, var(--accent-strong)); box-shadow: 0 0 calc(var(--glow) * 0.5rem) var(--accent-strong); }
+
+.verdict { --tone: var(--accent); display: flex; align-items: baseline; gap: 0.5rem; margin: 0; padding: 0.2rem 0.5rem; border-left: 3px solid var(--tone); background: linear-gradient(90deg, color-mix(in srgb, var(--tone) 14%, transparent), transparent 70%); min-width: 0; }
+.verdict .tag { font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); }
+.verdict .cause { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: var(--tracking-wide); color: var(--tone); text-shadow: 0 0 calc(var(--glow) * 0.5rem) var(--tone); white-space: nowrap; }
+.verdict .evidence { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text); min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.1rem 0.9rem; margin: -0.1rem 0 0; padding-left: 0.6rem; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.legend b { font-weight: 400; color: var(--text); }
+.legend i { display: inline-block; width: 0.55rem; height: 0.55rem; margin: 0 0.2rem 0 0.35rem; vertical-align: -0.05rem; background: var(--accent); }
+.legend i.watch { background: var(--warn); } .legend i.cause { background: var(--danger); }
+.legend i.lost { background: repeating-linear-gradient(135deg, var(--danger) 0 1.5px, transparent 1.5px 4px); outline: 1px solid var(--danger); outline-offset: -1px; }
+.ribbons { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 2px 0.3rem; align-items: center; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.ribbon { display: grid; grid-template-columns: repeat(60, 1fr); gap: 2px; height: 0.7rem; }
+.ribbon i { background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.ribbon i.none { background: var(--accent-faint); }
+.ribbon i.watch { background: var(--warn); }
+.ribbon i.cause { background: var(--danger); }
+.ribbon i.lost { background: repeating-linear-gradient(135deg, var(--danger) 0 1.5px, transparent 1.5px 4px); outline: 1px solid var(--danger); outline-offset: -1px; }
+
+/* ---------- the LINK panel (where the Wi-Fi pane has its radio) ---------- */
+.linkpanel { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0.4rem 1rem; align-items: start; }
+.stairs { --tone: var(--accent); display: flex; flex-direction: column; align-items: center; gap: 0.1rem; }
+.ladder { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; align-items: end; width: 100%; height: 4rem; }
+.ladder .st { display: flex; flex-direction: column; justify-content: flex-end; height: 100%; position: relative; }
+.ladder .st i { display: block; border: 1px solid var(--accent-dim); background: var(--accent-faint); }
+.ladder .st.lit i { border-color: var(--tone); background: color-mix(in srgb, var(--tone) 65%, transparent); }
+.ladder .st.beyond i { background: none; border-style: dashed; opacity: 0.55; }
+.ladder .st .max { position: absolute; left: 50%; transform: translateX(-50%); font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); white-space: nowrap; }
+.ladder-axis { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; width: 100%; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); text-align: center; letter-spacing: -0.04em; }
+.ladder-axis .now { color: var(--text); font-weight: 700; }
+.speed { display: flex; align-items: baseline; gap: 0.3rem; color: var(--tone); font-family: var(--font-display); }
+.speed b { font-size: var(--step-2); font-weight: 500; text-shadow: 0 0 calc(var(--glow) * 0.5rem) currentColor; }
+.speed small { font-size: var(--step--1); color: var(--text-muted); }
+.grade { font-family: var(--font-display); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--tone); text-align: center; }
+.grade small { display: block; color: var(--text-muted); }
+.linkright { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.stdrow { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+.hex { width: 3.2rem; height: 2.6rem; flex: none; display: grid; place-items: center; position: relative; }
+.hex svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.hex polygon { fill: var(--accent-faint); stroke: var(--text); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.hex b { position: relative; font-family: var(--font-display); font-size: var(--step-0); font-weight: 500; }
+.util { flex: 1; display: grid; grid-template-columns: 0.8rem minmax(0, 1fr) auto; gap: 0.15rem 0.4rem; align-items: center; font-family: var(--font-mono); font-size: var(--step--1); min-width: 0; }
+.util .cap { grid-column: 1 / -1; font-size: var(--step--2); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.util .track { height: 0.3rem; background: var(--accent-faint); position: relative; }
+.util .track i { position: absolute; inset: 0 auto 0 0; background: var(--text); }
+.util .val { text-align: right; white-space: nowrap; }
+.util .val small { color: var(--text-muted); }
+.counts { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-family: var(--font-mono); font-size: var(--step--1); }
+.counts span { white-space: nowrap; color: var(--text-muted); }
+.counts b { font-weight: 400; color: var(--text); padding: 0 0.15rem; }
+.counts b.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.counts b.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 14%, transparent); }
+.counts .info b { color: var(--text-muted); }
+.flags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.flag { font-family: var(--font-display); font-size: var(--step--2); letter-spacing: var(--tracking-wide); padding: 0.05rem 0.4rem; border: 1px solid var(--panel-rule); color: var(--text-muted); white-space: nowrap; }
+.flag.on { color: var(--text); border-color: var(--accent); background: var(--accent-faint); }
+.flag.on.suspect { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.caution, .aside { font-family: var(--font-mono); font-size: var(--step--1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3em; }
+.caution { color: var(--warn); }
+.caution::before { content: "\25B3  "; }
+.aside { color: var(--text-muted); }
+.aside::before { content: "\2139  "; }
+
+/* ---------- tabs ---------- */
+.tabs { display: flex; gap: 0.2rem; border-bottom: 1px solid var(--panel-rule); }
+.tabs button { background: transparent; border: none; border-bottom: 2px solid transparent; padding: 0.15rem 0.6rem; cursor: pointer; font-family: var(--font-display); font-size: var(--step--1); letter-spacing: var(--tracking-wide); color: var(--text-muted); }
+.tabs button.on { color: var(--text); border-bottom-color: var(--text); }
+.tabs .n { margin-left: 0.3rem; font-size: var(--step--2); }
+
+/* ---------- timeline: shapes in SVG, every word in HTML at a token size ---------- */
+.tl-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.tl-head .lbl { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text); }
+.tl-head .sw { display: inline-block; width: 0.55rem; height: 0.55rem; vertical-align: -0.05rem; margin-right: 0.2rem; }
+.tl-head .grow { flex: 1; }
+.win { display: inline-flex; }
+.win button { background: transparent; border: 1px solid var(--panel-rule); margin-left: -1px; padding: 0 0.45rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--1); color: var(--text-muted); }
+.win button.on { color: var(--text); border-color: var(--accent); background: var(--accent-faint); }
+.timeline { position: relative; }
+.timeline svg { display: block; width: 100%; }
+.timeline .lane { position: absolute; left: 0; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); cursor: help; }
+.timeline .scl { position: absolute; right: 0; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); white-space: nowrap; background: color-mix(in srgb, var(--surface-1) 80%, transparent); padding: 0 0.15rem; }
+.timeline .nw { position: absolute; transform: translate(-50%, -50%); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); }
+.timeline .rule { stroke: var(--panel-rule); stroke-dasharray: 1 3; vector-effect: non-scaling-stroke; }
+.timeline .unwatched { fill: url(#hatch); }
+.timeline .band { fill: url(#hatch-accent); }
+.timeline .band.fell { fill: var(--warn); }
+.timeline .down { fill: url(#hatch-red); }
+.timeline .crc { fill: var(--danger); }
+.timeline .bc { fill: color-mix(in srgb, var(--warn) 75%, transparent); }
+.timeline .rtt { fill: none; stroke: var(--text); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.timeline .rtt-gw { fill: none; stroke: var(--text); stroke-width: 1; stroke-dasharray: 2 2; opacity: 0.8; vector-effect: non-scaling-stroke; }
+.timeline .loss { fill: var(--danger); }
+.timeline .up { fill: color-mix(in srgb, var(--accent) 60%, transparent); }
+.timeline .dn { fill: color-mix(in srgb, var(--accent) 30%, transparent); }
+.timeline .capline { stroke: var(--text-muted); stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.timeline .ev-line { stroke-width: 1; opacity: 0.6; vector-effect: non-scaling-stroke; }
+.timeline .ev { position: absolute; transform: translateX(-50%); font-size: var(--step--1); line-height: 1; }
+
+/* ---------- log (as EventLog.svelte) ---------- */
+.log-head { display: flex; align-items: baseline; gap: 0.8rem; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.log-head .lbl { font-family: var(--font-ui); letter-spacing: var(--tracking-wide); color: var(--text); }
+.log-head [data-hint] { border-bottom: 1px dotted var(--text-muted); }
+.watchbar { position: relative; height: 0.55rem; margin: 0.2rem 0 0.1rem; background: repeating-linear-gradient(135deg, var(--panel-rule) 0 1px, transparent 1px 5px); }
+.watchbar i { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.watchbar i.dn { background: var(--danger); min-width: 2px; }
+.watchaxis { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.log { list-style: none; margin: 0.2rem 0 0; padding: 0; font-family: var(--font-mono); font-size: var(--step--1); }
+.log li { display: grid; grid-template-columns: auto 1em 8.6em minmax(0, 1fr) auto 3em; gap: 0.5rem; align-items: baseline; padding: 0.05rem 0.2rem; }
+.log li:nth-child(odd) { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.log .t { color: var(--text-muted); }
+.log .k { white-space: nowrap; }
+.log .d { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log .dur { color: var(--warn); white-space: nowrap; }
+.log .gap { color: var(--text-muted); text-align: right; }
+.log [data-kind="lost"] .k, .log [data-kind="lost"] .m { color: var(--danger); }
+.log [data-kind="connected"] .k, .log [data-kind="connected"] .m, .log [data-kind="back"] .k, .log [data-kind="back"] .m { color: var(--ok); }
+.log [data-kind="speed"] .k, .log [data-kind="speed"] .m, .log [data-kind="upstream"] .k, .log [data-kind="upstream"] .m, .log [data-kind="crc"] .k, .log [data-kind="crc"] .m, .log [data-kind="storm"] .k, .log [data-kind="storm"] .m { color: var(--warn); }
+
+/* ---------- detail (as Detail.svelte) ---------- */
+.detail { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0.6rem 1.2rem; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.05rem 0.8rem; font-family: var(--font-mono); font-size: var(--step--1); align-content: start; margin: 0; }
+.kv dt { font-size: var(--step--2); color: var(--text-muted); padding-top: 0.12rem; }
+.kv dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kv dd small { color: var(--text-muted); }
+.kv dd .warn { color: var(--warn); }
+.kv dd.gone { color: var(--text-muted); }
+.ctr { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 3.5rem; gap: 0.05rem 0.6rem; font-family: var(--font-mono); font-size: var(--step--1); align-content: start; align-items: center; }
+.ctr .h { font-size: var(--step--2); color: var(--text-muted); text-align: right; }
+.ctr .h:first-child { text-align: left; }
+.ctr .k { font-size: var(--step--2); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctr .k.host::after { content: " · host"; opacity: 0.7; }
+.ctr .v { text-align: right; }
+.ctr .v.warn { color: var(--warn); } .ctr .v.bad { color: var(--danger); } .ctr .v.na { color: var(--text-muted); }
+.ctr .b { height: 0.3rem; background: var(--accent-faint); position: relative; }
+.ctr .b i { position: absolute; inset: 0 auto 0 0; background: var(--text); }
+.ctr .b i.warn { background: var(--warn); } .ctr .b i.bad { background: var(--danger); }
+
+.empty { font-family: var(--font-display); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-align: center; padding: 2rem 0; margin: 0; }
+.empty small { display: block; margin-top: 0.4rem; font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: 0; }
+
+/* ---------- layouts (as WifiWidget.svelte) ---------- */
+.upper.wide { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+.upper.wide .left { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.lower.wide { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0.6rem 1.2rem; }
+.slot { min-height: 0; overflow: hidden; }
+.frame.preset .slot { flex: 1; }
+
+/* ---------- hint card (as HoverCard) ---------- */
+.card {
+  position: fixed; z-index: 10; max-width: 22rem; pointer-events: none;
+  background: var(--surface-2); border: 1px solid var(--panel-border); padding: 0.5rem 0.65rem;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  font-family: var(--font-mono); font-size: var(--step--1); line-height: 1.45;
+}
+.card h4 { margin: 0 0 0.25rem; font-family: var(--font-display); font-size: var(--step--1); letter-spacing: var(--tracking-wide); font-weight: 500; }
+.card p { margin: 0 0 0.3rem; color: var(--text); }
+.card .lim { color: var(--text-muted); font-size: var(--step--2); }
+.card .now { margin-top: 0.3rem; padding-top: 0.25rem; border-top: 1px solid var(--panel-rule); }
+.card .now b { font-family: var(--font-display); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); font-weight: 500; margin-right: 0.4rem; }
+[data-hint] { cursor: help; }
+</style>
+</head>
+<body>
+<div class="mockbar" id="mockbar"></div>
+<div id="stage"></div>
+<p class="note" id="note"></p>
+<div class="card" id="card" hidden></div>
+
+<script>
+'use strict'
+/* ======================= made-up machine ======================= */
+const SPEEDS = [10, 100, 500, 1000, 2500, 5000, 10000]
+const SPEED_WORD = { 10: '10', 100: '100', 500: '500', 1000: '1G', 2500: '2.5G', 5000: '5G', 10000: '10G' }
+const GLYPH = { 10: '10M', 100: '100M', 500: '500M', 1000: '1G', 2500: '2.5G', 5000: '5G', 10000: '10G' }
+const STANDARD = { 10: '10BASE-T', 100: '100BASE-TX', 500: '1000BASE-T at 500M', 1000: '1000BASE-T', 2500: '2.5GBASE-T', 5000: '5GBASE-T', 10000: '10GBASE-T' }
+
+/* ETHER_LIMITS, as the draft has them after review. */
+const LIMITS = {
+  gatewayRtt: { warn: 5, bad: 20 }, gatewayJitter: { warn: 5, bad: 15 }, gatewayLoss: { warn: 3, bad: 10 },
+  internetRtt: { warn: 120, bad: 250 }, internetJitter: { warn: 30, bad: 60 }, internetLoss: { warn: 1, bad: 5 },
+  crc: { warn: { share: 0.01, count: 5 }, bad: { share: 0.1, count: 20 } },
+  drops: { warn: 2, bad: 4 }, broadcast: { warn: 300, bad: 3000, sustainS: 30 },
+}
+
+const BASE = {
+  adapter: 'Realtek Gaming GbE Family Controller', short: 'Realtek GbE', bus: 'PCIe', busDetail: 'PCIe 2.5 GT/s x1',
+  driver: 'Realtek 10.71 · 2024-03-12', mac: '02:00:5e:10:00:02', ip: '192.0.2.31/24', gateway: '192.0.2.1',
+  dns: '192.0.2.1', ipv6: '2001:db8::31', dhcp: 'on · lease 23h 41m', mtu: 1500,
+  state: 'up', speed: 1000, cap: 1000, seenBest: 1000, setting: 'auto', duplex: 'full', autoneg: true,
+  power: { eee: false, green: true, gigalite: true, powersave: true },
+  jumbo: false, flow: 'rx+tx', vlan: null, wol: true, dot1x: 'not in use', auth: true,
+  gw: [0.6, 0.2], net: [18, 2], gwLoss: 0, netLoss: 0, crcPerMille: 0, bcast: 22, mcast: 60,
+  flapEvery: 0, downshiftAt: null, upstreamGap: null, route: 'default',
+  down: 24, up: 3.2,
+}
+
+const SCENARIOS = {
+  clear: { label: 'CLEAR', note: '1 Gb/s の全二重で安定。省電力の札は on だが、何も起きていないので普通の札のまま、注意の行も出ない。' },
+  partner: { label: 'PARTNER 100M', speed: 100, seenBest: 100, note: 'ずっと 100 Mb/s（相手のルーターや ONU のポートが 100M）。直せないことが多いので判定にはせず、速度の下に BELOW MAX と出すだけ。全体は CLEAR。' },
+  downshift: { label: 'DOWNSHIFT', speed: 100, downshiftAt: 150, note: '見ている間に 1 Gb/s → 100 Mb/s へ落ちた（この機械で前に見た速度より下）。これは warn。ケーブルの 1 対の断を疑う。通信量は 100 Mb/s の天井に張り付く。' },
+  flapping: { label: 'FLAPPING', flapEvery: 120, note: '2 分ごとに 3 秒リンクが切れる（10 分で 4 回 = bad）。省電力が on なので、その札が警告色になり、注意の行が 1 行出る。' },
+  crc: { label: 'CRC ERRORS', crcPerMille: 3.2, net: [24, 6], note: 'CRC エラーが 0.3%、1 分に数百（bad は 0.1% かつ 20 件）。速度の表示は 1 Gb/s のまま普通の色で、原因は CRC の数字の札が示す。' },
+  mismatch: { label: 'MISMATCH', setting: '100 Mb/s full', speed: 100, seenBest: 100, autoneg: false, crcPerMille: 1.4, note: 'PC 側を 100M 全二重に固定、相手は自動 → 相手が半二重に落ちる典型的な不一致。PC は full と言うので、固定 + CRC エラーで「相手が半二重かもしれない」と根拠に出す。' },
+  half: { label: 'HALF', speed: 100, seenBest: 100, duplex: 'half', gw: [3, 4], note: 'PC は自動、相手（スイッチ）が固定 → PC が半二重を報告。半二重は値がちょうど half のときだけ bad（unknown は half にしない）。' },
+  storm: { label: 'STORM', bcast: 2400, gw: [6, 8], gwLoss: 4, note: '受信のブロードキャストが毎秒 2,400（中央値、30 秒続いた）。ゲートウェイも揺れているので「ループかもしれない」と言う。マルチキャストは別に出し、判定に使わない。' },
+  multicast: { label: 'IPTV MULTICAST', mcast: 1600, note: 'IPTV（ひかり TV など）でマルチキャストが毎秒 1,600。ブロードキャストは少ないので嵐ではない。全体は CLEAR、マルチキャストは情報として出す。' },
+  local: { label: 'ROUTER', gw: [28, 14], gwLoss: 5, net: [46, 18], note: 'リンクは健全で、ゲートウェイの往復が遅い（ルーターの負荷）。原因の局は GATEWAY。' },
+  upstream: { label: 'UPSTREAM LOST', upstreamGap: [0, 50], note: 'ゲートウェイは応答し、インターネットへの往復だけが失われている。見出しの状態は ONLINE のまま（Wi-Fi と同じ語の組）。' },
+  vpn: { label: 'VPN / OTHER ROUTE', route: 'vpn', note: 'インターネットへの往復は VPN（既定の経路）を通る。INTERNET の局は「via VPN」として判定から外し、LINK と GATEWAY だけを判定する。Wi-Fi が既定の経路のときも同じ形で「via Wi-Fi」。' },
+  usb: { label: 'USB DOCK', adapter: 'USB Gigabit Ethernet (dock)', short: 'Dock GbE', bus: 'USB', busDetail: 'USB', down: 276, power: { eee: true, green: false, gigalite: false, powersave: false }, note: 'ドックの USB アダプタ。通信量が 280 Mb/s 付近で頭打ち。Windows では USB の速度が読めないので判定にせず、情報の行で示す（Linux では親の USB の速度が読めるので判定にできる）。' },
+  auth: { label: '802.1X', auth: false, dot1x: 'not authenticated', note: 'リンクは上がったが 802.1X の認証が済んでいない（NotAuthenticated）。DHCP の失敗とは言わない。認証の中身は読まない。' },
+  unplugged: { label: 'NO CARRIER', state: 'nocable', note: 'アダプタはあるがケーブルがない。Wi-Fi の NO CARRIER と同じ語。中段の LINK パネルは出さず、L3 は —、ping もしない。' },
+  none: { label: 'NO ADAPTER', state: 'none', note: '有線のアダプタが一枚もない機械。Wi-Fi の NO ADAPTER と同じ形。' },
+}
+
+function scenario(id) {
+  const s = SCENARIOS[id]
+  return { ...BASE, ...s, power: { ...BASE.power, ...(s.power ?? {}) } }
+}
+
+function rng(seed) {
+  let a = seed >>> 0
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/* One point a second for the last hour; `ago` 0 is now. Watched only for the last 12 minutes. */
+const WATCHED = 720
+function series(sc, tick) {
+  const pts = []
+  for (let ago = 3599; ago >= 0; ago--) {
+    const abs = tick - ago
+    const rr = rng(abs * 2654435761)
+    const n = () => rr() * 2 - 1
+    if (ago >= WATCHED || sc.state !== 'up') { pts.push({ ago, watched: ago < WATCHED, up: false, carrier: false }); continue }
+    let up = true
+    if (sc.flapEvery && ((abs % sc.flapEvery) + sc.flapEvery) % sc.flapEvery < 3) up = false
+    const speed = sc.downshiftAt !== null && ago > sc.downshiftAt ? 1000 : sc.speed
+    const bursty = 0.5 + 0.5 * Math.sin(abs / 37) * Math.sin(abs / 11)
+    let down = up ? Math.max(0.2, sc.down * bursty + n() * 3) : 0
+    if (up && sc.downshiftAt !== null && ago <= sc.downshiftAt) down = 70 + 22 * rr()
+    if (up && sc.bus === 'USB') down = 262 + n() * 10
+    down = Math.min(down, speed * 0.96)
+    const upMb = up ? Math.min(speed * 0.5, Math.max(0.05, sc.up * (0.6 + 0.4 * rr()))) : 0
+    const pkts = Math.round(((down + upMb) * 1e6) / 8 / 900)
+    const crc = up && sc.crcPerMille ? Math.max(0, Math.round((pkts * sc.crcPerMille) / 1000 + n() * 2)) : 0
+    const gwLost = !up || rr() * 100 < sc.gwLoss
+    const gw = !sc.auth ? undefined : gwLost ? null : Math.max(0.2, sc.gw[0] + n() * sc.gw[1])
+    let netLost = !up || rr() * 100 < sc.netLoss
+    if (sc.upstreamGap && ago >= sc.upstreamGap[0] && ago <= sc.upstreamGap[1]) netLost = true
+    const net = sc.route !== 'default' || !sc.auth ? undefined : netLost ? null : Math.max(2, sc.net[0] + n() * sc.net[1] + (gw ?? 0))
+    const bcast = up ? Math.max(0, sc.bcast + n() * sc.bcast * 0.25) : 0
+    const mcast = up ? Math.max(0, sc.mcast + n() * sc.mcast * 0.2) : 0
+    pts.push({ ago, watched: true, carrier: true, up, speed: up ? speed : 0, down, upMb, pkts, crc, gw, net, bcast, mcast })
+  }
+  return pts
+}
+
+/* ======================= judgement (as diagnoseEthernet would, after review) ======================= */
+const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null }
+function stats(vals) {
+  const got = vals.filter((v) => v !== null)
+  let j = 0
+  for (let i = 1; i < got.length; i++) j += Math.abs(got[i] - got[i - 1])
+  return { median: median(got), jitter: got.length > 1 ? j / (got.length - 1) : null, loss: vals.length ? ((vals.length - got.length) / vals.length) * 100 : 0 }
+}
+const over = (v, l) => (v === null || v === undefined ? 'idle' : v >= l.bad ? 'bad' : v >= l.warn ? 'warn' : 'ok')
+const worse = (a, b) => { const o = ['idle', 'ok', 'warn', 'bad']; return o.indexOf(a) >= o.indexOf(b) ? a : b }
+/* Whole milliseconds, as the Wi-Fi pane writes them: an ICMP echo measures no finer. */
+const ms = (v) => (v === null || v === undefined ? '—' : v < 1 ? '<1 ms' : `${Math.round(v)} ms`)
+const jit = (v) => (v === null || v === undefined ? '' : ` ±${Math.round(v)}`)
+const pct = (v, d = 1) => `${v.toFixed(d)}%`
+const mbps = (v) => (v >= 1000 ? `${+(v / 1000).toFixed(1)} Gb/s` : `${Math.round(v)} Mb/s`)
+const rate = (mb) => (mb >= 1 ? `${mb.toFixed(1)} Mb/s` : `${Math.round(mb * 1000)} kb/s`)
+const POWER_NAMES = { eee: 'EEE', green: 'GREEN', gigalite: 'GIGA LITE', powersave: 'POWER SAVE' }
+
+function judge(sc, pts) {
+  // Echoes while the link was down blame the link, so they stay out of the gateway's and internet's figures.
+  const last = pts.slice(-60).filter((p) => p.watched && p.carrier && p.up)
+  const now = pts[pts.length - 1]
+  const gw = stats(last.filter((p) => p.gw !== undefined).map((p) => p.gw))
+  const net = stats(last.filter((p) => p.net !== undefined).map((p) => p.net))
+  const ten = pts.slice(-600).filter((p) => p.watched && p.carrier)
+  const pk = ten.reduce((s, p) => s + (p.pkts ?? 0), 0)
+  const crc = ten.reduce((s, p) => s + (p.crc ?? 0), 0)
+  const crcShare = pk ? (crc / pk) * 100 : 0
+  const crcHealth = crc >= LIMITS.crc.bad.count && crcShare >= LIMITS.crc.bad.share ? 'bad' : crc >= LIMITS.crc.warn.count && crcShare >= LIMITS.crc.warn.share ? 'warn' : 'ok'
+  let drops = 0
+  for (let i = 1; i < ten.length; i++) if (ten[i - 1].up && !ten[i].up) drops++
+  const bc = median(pts.slice(-30).filter((p) => p.up).map((p) => p.bcast)) ?? 0
+  const mc = median(pts.slice(-30).filter((p) => p.up).map((p) => p.mcast)) ?? 0
+  const powerOn = Object.entries(sc.power).filter(([, v]) => v).map(([k]) => POWER_NAMES[k])
+  const speedNow = now.up ? now.speed : 0
+  const before = sc.downshiftAt !== null ? 1000 : sc.seenBest
+  const fell = speedNow > 0 && speedNow < before
+  const speedHealth = !speedNow ? 'idle' : speedNow <= 10 || sc.duplex === 'half' ? 'bad' : fell ? 'warn' : 'ok'
+  const grade = !speedNow ? '' : speedNow <= 10 ? '10 Mb/s' : sc.duplex === 'half' ? 'HALF DUPLEX' : fell ? 'DOWNSHIFTED' : speedNow < sc.cap ? 'BELOW MAX' : 'BEST'
+  const suspectPower = powerOn.length > 0 && sc.setting === 'auto' && (drops > 0 || fell)
+  const f = { gw, net, crc, crcShare, crcHealth, drops, bc, mc, now, powerOn, pk, speedNow, speedHealth, grade, suspectPower, fell }
+
+  const linkWhy = []
+  let link = 'ok'
+  if (speedHealth === 'warn' || speedHealth === 'bad') { link = worse(link, speedHealth); linkWhy.push(sc.duplex === 'half' ? 'half duplex' : speedNow <= 10 ? 'linked at 10 Mb/s' : `fell to ${mbps(speedNow)} from ${mbps(before)}`) }
+  if (crcHealth !== 'ok') { link = worse(link, crcHealth); linkWhy.push(`CRC errors ${pct(crcShare, 2)}, ${crc} in 10 min${sc.setting !== 'auto' ? '; speed fixed here: the other end may be at half duplex' : ''}`) }
+  const dh = over(drops, LIMITS.drops)
+  if (dh === 'warn' || dh === 'bad') { link = worse(link, dh); linkWhy.push(`${drops} drops in 10 min${suspectPower ? ', power saving on' : ''}`) }
+  const bh = over(bc, LIMITS.broadcast)
+  if (bh === 'warn' || bh === 'bad') { link = worse(link, bh); linkWhy.push(`broadcast ${Math.round(bc).toLocaleString('en')}/s${gw.loss > 2 ? ' with gateway loss: a loop?' : ''}`) }
+  f.linkWhy = linkWhy
+
+  const segments = {
+    pc: 'ok', link,
+    gateway: worse(over(gw.median, LIMITS.gatewayRtt), worse(over(gw.jitter, LIMITS.gatewayJitter), over(gw.loss, LIMITS.gatewayLoss))),
+    internet: sc.route !== 'default' ? 'idle' : worse(over(net.median, LIMITS.internetRtt), worse(over(net.jitter, LIMITS.internetJitter), over(net.loss, LIMITS.internetLoss))),
+  }
+  const off = { pc: 'ok', link: 'bad', gateway: 'idle', internet: 'idle' }
+  if (sc.state === 'none') return { ...f, seg: { pc: 'idle', link: 'idle', gateway: 'idle', internet: 'idle' }, cause: 'WAITING', health: 'warn', evidence: 'no wired adapter' }
+  if (sc.state === 'nocable') return { ...f, seg: off, cause: 'NO CARRIER', health: 'bad', evidence: 'no cable, or nothing at its other end', culprit: 'link' }
+  if (!now.up) return { ...f, seg: off, cause: 'LINK LOST', health: 'bad', evidence: `the link dropped just now; ${drops + 1} drops in 10 min`, culprit: 'link' }
+  if (!sc.auth) return { ...f, seg: { ...segments, link: 'bad', gateway: 'idle', internet: 'idle' }, cause: 'AUTH', health: 'bad', evidence: 'link up at ' + mbps(speedNow) + ', 802.1X not authenticated yet', culprit: 'link' }
+  const lostRun = sc.route === 'default' && pts.slice(-4).every((p) => p.net === null) && pts.slice(-4).every((p) => p.gw !== null)
+  if (lostRun) return { ...f, seg: { ...segments, internet: 'bad' }, cause: 'UPSTREAM LOST', health: 'bad', evidence: `gateway ${ms(gw.median)}, internet not answering`, culprit: 'internet' }
+  // As the Wi-Fi pane's judgeSegments: every bad first, nearest first; then every warn.
+  const why = {
+    link: () => linkWhy.join('; '),
+    gateway: () => `gateway ${ms(gw.median)}${jit(gw.jitter)}, loss ${pct(gw.loss)}`,
+    internet: () => `internet ${ms(net.median)}${jit(net.jitter)}, loss ${pct(net.loss)}`,
+  }
+  const word = { link: 'LINK', gateway: 'LOCAL', internet: 'UPSTREAM' }
+  for (const h of ['bad', 'warn']) for (const s of ['link', 'gateway', 'internet']) if (segments[s] === h) return { ...f, seg: segments, cause: word[s], health: h, evidence: why[s](), culprit: s }
+  const tail = sc.route === 'default' ? `internet ${ms(net.median)}${jit(net.jitter)}, loss ${pct(net.loss)}; ` : `internet via ${sc.route === 'vpn' ? 'VPN' : 'Wi-Fi'}, not judged here; `
+  return { ...f, seg: segments, cause: 'CLEAR', health: 'ok', evidence: `${tail}gateway ${ms(gw.median)}` }
+}
+
+function mosOf(s) {
+  if (s.median === null) return null
+  const d = s.median + 2 * (s.jitter ?? 0) + 10
+  let R = 93.2 - (d < 160 ? d / 40 : (d - 120) / 10) - s.loss * 2.5
+  R = Math.max(0, Math.min(100, R))
+  return Math.max(1, Math.min(4.5, 1 + 0.035 * R + R * (R - 60) * (100 - R) * 7e-6))
+}
+
+/* ======================= hint cards (ETHER_LIMITS quoted, never retyped) ======================= */
+const L = LIMITS
+const HINTS = {
+  mos: (j) => ({ t: 'MOS', p: 'An estimate of how a voice call would sound, from the internet\'s delay, jitter and loss (a simplified ITU-T G.107). Not a measurement.', lim: '3.6 and over fine · under 3.1 poor', now: (mosOf(j.net) ?? 0).toFixed(1) }),
+  'station-pc': (j) => ({ t: 'PC', p: 'This machine\'s traffic through the adapter. The line to LINK is the link\'s use: traffic over the link speed, the last minute.', lim: 'not judged', now: `↑ ${rate(j.now.upMb ?? 0)} · ↓ ${rate(j.now.down ?? 0)}` }),
+  'station-link': (j, sc) => ({ t: 'LINK', p: 'The cable, the ports at both ends and this adapter: a fall in speed, half duplex, CRC errors, drops and broadcast floods.', lim: `CRC warn ${L.crc.warn.count} and ${L.crc.warn.share}% · bad ${L.crc.bad.count} and ${L.crc.bad.share}% in 10 min · drops warn ${L.drops.warn} · bad ${L.drops.bad} in 10 min`, now: j.linkWhy.length ? j.linkWhy.join('; ') : `${mbps(j.speedNow || sc.speed)} ${sc.duplex}, nothing wrong` }),
+  'station-gateway': (j) => ({ t: 'GATEWAY', p: 'Your router, one cable away, echoed from this adapter\'s own address. On a wire it answers within a millisecond or two.', lim: `rtt warn ${L.gatewayRtt.warn} · bad ${L.gatewayRtt.bad} ms · jitter ${L.gatewayJitter.warn} / ${L.gatewayJitter.bad} ms · loss ${L.gatewayLoss.warn} / ${L.gatewayLoss.bad}%`, now: `${ms(j.gw.median)}${jit(j.gw.jitter)} · loss ${pct(j.gw.loss)}` }),
+  'station-internet': (j, sc) => ({ t: 'INTERNET', p: sc.route === 'default' ? 'The same echo the Wi-Fi and network status panes read: one round serves all three.' : `The echo leaves by the default route, which is ${sc.route === 'vpn' ? 'a VPN' : 'Wi-Fi'}, not this adapter: shown, not judged here.`, lim: `rtt warn ${L.internetRtt.warn} · bad ${L.internetRtt.bad} ms · loss ${L.internetLoss.warn} / ${L.internetLoss.bad}%`, now: `${ms(j.net.median)}${jit(j.net.jitter)} · loss ${pct(j.net.loss)}` }),
+  cause: (j) => ({ t: 'CAUSE', p: 'The nearest part of the path that is wrong, from the last minute (ten for the link\'s counters). A fault near the machine shows in everything beyond it, so it is suspected first.', lim: '', now: `${j.cause}: ${j.evidence}` }),
+  ribbons: () => ({ t: 'ECHOES', p: 'One square a second for the last minute: the gateway (GW) and the internet (NET). Coloured by the limits; hatched when the echo did not come back.', lim: `gateway ${L.gatewayRtt.warn} / ${L.gatewayRtt.bad} ms · internet ${L.internetRtt.warn} / ${L.internetRtt.bad} ms`, now: '' }),
+  speed: (j, sc) => ({ t: 'LINK SPEED', p: 'What the two ends agreed on. A fall from a speed this adapter had before is a fault (a damaged pair, a port); a speed below the adapter\'s best that never changed is usually the other end, and only noted.', lim: 'fell from a speed seen before: watch · 10 Mb/s or half duplex: cause', now: `${mbps(j.speedNow)} of ${mbps(sc.cap)} · ${j.grade} · setting ${sc.setting}` }),
+  standard: (j) => ({ t: 'STANDARD', p: 'The Ethernet standard of this speed over copper.', lim: '', now: STANDARD[j.speedNow] ?? '—' }),
+  util: (j, sc) => ({ t: 'LINK USE', p: 'Traffic against the link speed.' + (sc.bus === 'USB' ? ' This adapter is on USB: on a USB 2.0 port it tops out near 280 Mb/s whatever the link says. Windows cannot tell the port\'s speed, so it is noted, not judged.' : ' A line flat at a ceiling below the speed points at the bus, the far end or the plan.'), lim: 'not judged', now: `↓ ${rate(j.now.down ?? 0)} · ↑ ${rate(j.now.upMb ?? 0)}` }),
+  crc: (j) => ({ t: 'CRC ERRORS', p: 'Frames that arrived damaged. A good cable shows none; a few a day is noise. Discards and unknown protocols are this machine\'s own and are not counted here.', lim: `warn ${L.crc.warn.count} errors and ${L.crc.warn.share}% · bad ${L.crc.bad.count} and ${L.crc.bad.share}% of packets in 10 min`, now: `${j.crc} in ${j.pk.toLocaleString('en')} packets · ${pct(j.crcShare, 3)}` }),
+  drops: (j) => ({ t: 'DROPS', p: 'The link down for under a minute and back, while watched. Unplugging, docking and sleep are not counted. A steady interval points at power saving or a dock.', lim: `warn ${L.drops.warn} · bad ${L.drops.bad} in 10 minutes`, now: `${j.drops} in 10 min` }),
+  broadcast: (j) => ({ t: 'BROADCAST', p: 'Frames to everyone, received per second (the median over 30 s, so a network scan does not count). A loop between switch ports multiplies them until the LAN slows.', lim: `warn ${L.broadcast.warn}/s · bad ${L.broadcast.bad.toLocaleString('en')}/s held ${L.broadcast.sustainS} s · a home LAN is usually under 50/s`, now: `${Math.round(j.bc).toLocaleString('en')}/s` }),
+  multicast: (j) => ({ t: 'MULTICAST', p: 'Frames to a group: discovery (mDNS, SSDP), IPv6, and IPTV, which can send thousands a second. Shown, never judged.', lim: 'not judged', now: `${Math.round(j.mc).toLocaleString('en')}/s` }),
+  power: (j) => ({ t: 'POWER SAVING', p: 'Driver settings that lower the speed or sleep the link when idle. Read, never changed. Marked only after a drop or a fall in speed has been seen with them on.', lim: 'shown, not judged', now: j.powerOn.length ? `on: ${j.powerOn.join(', ')}` : 'all off' }),
+  jumbo: () => ({ t: 'JUMBO FRAMES', p: 'Frames larger than 1500 bytes. Every device on the LAN must accept them, or large packets vanish.', lim: 'not judged', now: '' }),
+  'adapter-chip': () => ({ t: 'ADAPTERS', p: 'Every wired adapter in this machine. Each keeps its own hour of history; the gateway is echoed from each one\'s own address.', lim: '', now: '' }),
+  'lane-link': () => ({ t: 'LINK', p: 'The link\'s speed as a step, solid where it fell below what it was; red hatch while down.', lim: '', now: '' }),
+  'lane-l2': () => ({ t: 'L2', p: 'CRC errors (red) and broadcast frames (amber) per second, on one scale.', lim: '', now: '' }),
+  watched: () => ({ t: 'WHILE WATCHED', p: 'No OS keeps a log of a wired link going down that every driver writes, so the log holds what this pane saw. Linux adds the drops it counted while unseen.', lim: '', now: '' }),
+}
+
+/* ======================= rendering ======================= */
+const ui = { scenario: 'clear', size: 'wide', theme: 'tron', dual: false, tab: 'timeline', win: 300, chip: 0, mask: false, live: true, tick: 100000 }
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+const masked = (s) => (ui.mask ? s.replace(/[0-9a-f]+(?=[.:/]|$)/gi, '•') : s)
+
+function portIcon(sc, j) {
+  const c = sc.state === 'up' && j.now.up ? 'lit' : 'dark'
+  return `<svg class="port" viewBox="0 0 21 17"><path d="M1 1h19v11h-4v4H5v-4H1z"/><rect class="${c}" x="5" y="4" width="2" height="4"/><rect class="${c}" x="9.5" y="4" width="2" height="4"/><rect class="${c}" x="14" y="4" width="2" height="4"/></svg>`
+}
+
+/* The Wi-Fi pane's set of state words, plus AUTHENTICATING for 802.1X. */
+function stateWord(sc, j) {
+  if (sc.state === 'none') return ['NO ADAPTER', 'idle']
+  if (sc.state === 'nocable' || !j.now.up) return ['NO CARRIER', 'down']
+  if (!sc.auth) return ['AUTHENTICATING', 'warn']
+  return ['ONLINE', 'online']
+}
+
+function header(sc, j) {
+  const mos = sc.route === 'default' && sc.state === 'up' ? mosOf(j.net) : null
+  const tone = mos === null ? 'idle' : mos >= 3.6 ? 'ok' : mos >= 3.1 ? 'warn' : 'bad'
+  const [word, st] = stateWord(sc, j)
+  const chips = ui.dual
+    ? `<div class="chips" data-hint="adapter-chip">${[['Realtek GbE', '1 Gb/s', true], ['Dock GbE', 'no carrier', false]].map(([n, s, ok], i) => `<button class="chip ${ui.chip === i ? 'on' : ''}" data-chip="${i}"><span class="pt ${ok ? '' : 'off'}"><i></i><i></i><i></i></span>${n} <small>${s}</small></button>`).join('')}</div>`
+    : ''
+  return `<div class="head">${portIcon(sc, j)}<span class="name">${sc.state === 'none' ? '—' : esc(sc.short)}</span><span class="state" data-state="${st}">◆ ${word}</span><span class="grow"></span>
+    <span class="mos" data-tone="${tone}" data-hint="mos"><small>MOS</small><b>${mos === null ? '—' : mos.toFixed(1)}</b><span class="bars">${[1, 2, 3, 4, 5].map((n) => `<i class="${mos !== null && mos >= n - 0.25 ? 'on' : ''}"></i>`).join('')}</span></span>
+    <button class="btn ${ui.mask ? 'on' : ''}" data-act="mask">MASK</button><button class="btn" data-act="copy">COPY</button></div>${chips}`
+}
+
+function spark(values, max) {
+  let d = ''
+  values.forEach((x, i) => {
+    if (x === null || x === undefined) return
+    const X = (i / (values.length - 1)) * 100
+    const Y = 18 - Math.min(1, x / max) * 16
+    d += `${d && values[i - 1] != null ? 'L' : 'M'}${X.toFixed(1)} ${Y.toFixed(1)}`
+  })
+  return `<svg viewBox="0 0 100 20" preserveAspectRatio="none"><path d="${d}"/></svg>`
+}
+
+function pathStrip(sc, j, pts) {
+  const last = pts.slice(-60)
+  const at = (ui.tick % 4) / 4
+  const off = sc.state !== 'up'
+  const n = j.now
+  const st = (id, name, main, sub) => `<div class="station ${j.culprit === id ? 'culprit' : ''}" data-health="${j.seg[id]}" data-hint="station-${id}"><div class="node"><span class="nm">${name}</span></div><div class="main">${main}</div><div class="sub">${sub}</div></div>`
+  const wire = (vals, max, lost, dark) => `<div class="wire ${lost ? 'lost' : ''} ${dark ? 'dark' : ''}">${dark ? '' : spark(vals, max)}${dark || lost ? '' : `<span class="packet" style="--at:${at}"></span>`}</div>`
+  const linkMain = sc.state === 'none' ? '—' : off || !n.up ? 'no carrier' : `${mbps(n.speed)} ${sc.duplex}`
+  const linkSub = off || !n.up ? '' : j.crc ? `crc ${pct(j.crcShare, 2)}` : 'crc 0'
+  const use = last.map((p) => (p.up ? (p.down + p.upMb) / (p.speed || 1000) : null))
+  const noEcho = off || !sc.auth
+  const via = sc.route === 'vpn' ? 'via VPN' : 'via Wi-Fi'
+  const routed = sc.route !== 'default'
+  return `<div class="path">
+    ${st('pc', 'PC', off ? '—' : `↑ ${rate(n.upMb ?? 0)}`, off ? '' : `↓ ${rate(n.down ?? 0)}`)}
+    ${wire(use, 1, false, off)}
+    ${st('link', 'LINK', linkMain, linkSub)}
+    ${wire(last.map((p) => p.gw), 10, !noEcho && n.gw === null, noEcho)}
+    ${st('gateway', 'GATEWAY', noEcho ? '—' : `${ms(j.gw.median)}${jit(j.gw.jitter)}`, noEcho ? '' : `loss ${pct(j.gw.loss)}`)}
+    ${wire(last.map((p) => p.net), 150, !noEcho && !routed && n.net === null, noEcho || routed)}
+    ${st('internet', 'INTERNET', noEcho ? '—' : routed ? via : `${ms(j.net.median)}${jit(j.net.jitter)}`, noEcho ? '' : routed ? 'not judged' : `loss ${pct(j.net.loss)}`)}
+  </div>`
+}
+
+function verdict(j) {
+  return `<p class="verdict" data-health="${j.health === 'ok' ? '' : j.health}" data-hint="cause"><span class="tag">CAUSE ▸</span><span class="cause">${j.cause}</span><span class="evidence">${esc(j.evidence)}</span></p>`
+}
+
+function ribbons(sc, j, pts) {
+  const last = pts.slice(-60)
+  const cell = (p, key, l) => {
+    if (!p.watched || !p.carrier || p[key] === undefined) return 'none'
+    if (p[key] === null) return 'lost'
+    return p[key] >= l.bad ? 'cause' : p[key] >= l.warn ? 'watch' : ''
+  }
+  const g = sc.state === 'up' && j.gw.median !== null ? `<b>${ms(j.gw.median)}${jit(j.gw.jitter)}</b>` : '<b>—</b>'
+  return `<div class="legend" data-hint="ribbons"><span>${g} median ± jitter</span><span><b>loss</b> echoes lost</span><span><i></i>fine<i class="watch"></i>watch<i class="cause"></i>cause</span><span><i style="width:.35rem"></i>1 s <i class="lost"></i>lost</span></div>
+  <div class="ribbons" data-hint="ribbons"><span>GW</span><div class="ribbon">${last.map((p) => `<i class="${cell(p, 'gw', LIMITS.gatewayRtt)}"></i>`).join('')}</div>
+  <span>NET</span><div class="ribbon">${last.map((p) => `<i class="${cell(p, 'net', LIMITS.internetRtt)}"></i>`).join('')}</div></div>`
+}
+
+/* The speed ladder: coloured by the speed's own judgement, never by errors or drops. */
+function stairs(sc, j) {
+  const tone = j.speedHealth === 'bad' ? 'var(--danger)' : j.speedHealth === 'warn' ? 'var(--warn)' : 'var(--accent)'
+  const now = j.speedNow
+  const bars = SPEEDS.map((s, i) => {
+    const cls = now && s <= now ? 'st lit' : s > sc.cap ? 'st beyond' : 'st'
+    const h = 22 + i * 13
+    return `<span class="${cls}"><i style="height:${h}%"></i>${s === sc.cap ? `<span class="max" style="bottom:${h + 4}%">max</span>` : ''}</span>`
+  }).join('')
+  const axis = SPEEDS.map((s) => `<span class="${s === now ? 'now' : ''}">${SPEED_WORD[s]}</span>`).join('')
+  const big = now >= 1000 ? [+(now / 1000).toFixed(1), 'Gb/s'] : [now, 'Mb/s']
+  return `<div class="stairs" style="--tone:${tone}" data-hint="speed"><div class="ladder">${bars}</div><div class="ladder-axis">${axis}</div>
+    <div class="speed"><b>${big[0]}</b><small>${big[1]}</small></div>
+    <div class="grade">${j.grade}<small>${sc.duplex.toUpperCase()} DUPLEX · ${sc.autoneg ? 'AUTO' : 'FIXED'}</small></div></div>`
+}
+
+function linkPanel(sc, j) {
+  const n = j.now
+  const cap = j.speedNow || sc.speed
+  const pctOf = (v) => Math.min(100, (v / cap) * 100)
+  const flag = (k, on, hint = '') => `<span class="flag ${on ? 'on' : ''} ${on && hint === 'power' && j.suspectPower ? 'suspect' : ''}" ${hint ? `data-hint="${hint}"` : ''}>${k}</span>`
+  const tone = (h) => (h === 'warn' || h === 'bad' ? h : '')
+  const caution = j.suspectPower ? '<div class="caution" data-hint="power">power saving on: the link may sleep or slow when idle</div>' : ''
+  const aside = sc.bus === 'USB' ? `<div class="aside" data-hint="util">USB adapter, flat near ${Math.round(n.down)} Mb/s: a USB 2.0 port?</div>` : ''
+  return `<div class="linkpanel">${stairs(sc, j)}
+    <div class="linkright">
+      <div class="stdrow"><div class="hex" data-hint="standard"><svg viewBox="0 0 48 42" preserveAspectRatio="none"><polygon points="12,1 36,1 47,21 36,41 12,41 1,21"/></svg><b>${GLYPH[j.speedNow] ?? '—'}</b></div>
+        <div class="util" data-hint="util"><span class="cap">${STANDARD[j.speedNow] ?? '—'} · link use · ${esc(sc.busDetail)}</span>
+          <span>↓</span><span class="track"><i style="width:${pctOf(n.down)}%"></i></span><span class="val">${rate(n.down)} <small>${Math.round(pctOf(n.down))}%</small></span>
+          <span>↑</span><span class="track"><i style="width:${pctOf(n.upMb)}%"></i></span><span class="val">${rate(n.upMb)} <small>${Math.round(pctOf(n.upMb))}%</small></span></div></div>
+      <div class="counts"><span data-hint="crc">crc <b class="${tone(j.crcHealth)}">${j.crc ? pct(j.crcShare, 2) : '0'}</b></span><span data-hint="drops">drops <b class="${tone(over(j.drops, LIMITS.drops))}">${j.drops}</b> /10 min</span><span data-hint="broadcast">broadcast <b class="${tone(over(j.bc, LIMITS.broadcast))}">${Math.round(j.bc).toLocaleString('en')}</b>/s</span><span class="info" data-hint="multicast">multicast <b>${Math.round(j.mc).toLocaleString('en')}</b>/s</span></div>
+      <div class="flags">${flag('EEE', sc.power.eee, 'power')}${flag('GREEN', sc.power.green, 'power')}${flag('GIGA LITE', sc.power.gigalite, 'power')}${flag('POWER SAVE', sc.power.powersave, 'power')}${flag('JUMBO', sc.jumbo, 'jumbo')}${flag('FLOW', !!sc.flow)}${flag('VLAN', sc.vlan !== null)}${flag('WOL', sc.wol)}</div>
+      ${caution || aside || '<div class="aside" style="visibility:hidden">.</div>'}
+    </div></div>`
+}
+
+/* ---- timeline: shapes in a stretched SVG, every word in HTML ---- */
+function timeline(sc, j, pts, H, titled) {
+  const W = 1000, left = 52
+  const win = ui.win
+  const view = pts.slice(-win)
+  const foldLoss = H < 180
+  const lanes = foldLoss
+    ? [['LINK', 'lane-link', 0.16], ['L2', 'lane-l2', 0.18], ['RTT', '', 0.3], ['TRAFFIC', '', 0.26], ['EVENTS', '', 0.1]]
+    : [['LINK', 'lane-link', 0.13], ['L2', 'lane-l2', 0.15], ['RTT', '', 0.24], ['LOSS', '', 0.08], ['TRAFFIC', '', 0.28], ['EVENTS', '', 0.12]]
+  const plotW = W - left - 4
+  const x = (i) => left + (i / (win - 1)) * plotW
+  const bw = Math.max(0.6, plotW / win)
+  let y0 = 2
+  const ys = {}
+  lanes.forEach(([n, , f]) => { ys[n] = [y0, (H - 4) * f]; y0 += (H - 4) * f })
+  const words = []
+  const pctY = (y) => `${(y / H) * 100}%`
+  let g = `<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--panel-rule)" stroke-width="1"/></pattern>
+    <pattern id="hatch-red" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="4" stroke="var(--danger)" stroke-width="1.5"/></pattern>
+    <pattern id="hatch-accent" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="3" stroke="var(--accent-dim)" stroke-width="1.6"/></pattern></defs>`
+  for (const [n, hint] of lanes) {
+    const [ty, th] = ys[n]
+    words.push(`<span class="lane" style="top:${pctY(ty)}" ${hint ? `data-hint="${hint}"` : ''}>${n}</span>`)
+    g += `<line class="rule" x1="${left}" x2="${W}" y1="${ty + th}" y2="${ty + th}"/>`
+  }
+  const firstWatched = view.findIndex((p) => p.watched)
+  if (firstWatched > 0) {
+    g += `<rect class="unwatched" x="${left}" y="0" width="${x(firstWatched) - left}" height="${H}"/>`
+    words.push(`<span class="nw" style="left:${((left + x(firstWatched)) / 2 / W) * 100}%;top:50%">NOT WATCHED</span>`)
+  }
+  const live = sc.state === 'up'
+  { // LINK: the speed as a step; solid where it fell below what it was
+    const [ty, th] = ys.LINK
+    const before = sc.downshiftAt !== null ? 1000 : sc.seenBest
+    view.forEach((p, i) => {
+      if (!p.watched || !live) return
+      if (!p.up) { g += `<rect class="down" x="${x(i)}" y="${ty + 1}" width="${bw + 0.5}" height="${th - 2}"/>`; return }
+      const h = ((SPEEDS.indexOf(p.speed) + 1) / SPEEDS.length) * (th - 2)
+      g += `<rect class="band ${p.speed < before ? 'fell' : ''}" x="${x(i)}" y="${ty + th - 1 - h}" width="${bw + 0.5}" height="${h}"/>`
+    })
+    if (live) words.push(`<span class="scl" style="top:${pctY(ty)}">${mbps(sc.cap)} max</span>`)
+  }
+  { // L2: CRC errors and broadcast per second, one scale
+    const [ty, th] = ys.L2
+    const mx = Math.max(LIMITS.broadcast.warn * 1.2, ...view.map((p) => (p.crc ?? 0) + (p.bcast ?? 0)))
+    const warnY = ty + th - 1 - (LIMITS.broadcast.warn / mx) * (th - 2)
+    if (live) g += `<line class="capline" x1="${left}" x2="${W}" y1="${warnY}" y2="${warnY}"/>`
+    view.forEach((p, i) => {
+      if (!p.watched || !p.up) return
+      const hc = ((p.crc ?? 0) / mx) * (th - 2), hb = ((p.bcast ?? 0) / mx) * (th - 2)
+      if (hb > 0.3) g += `<rect class="bc" x="${x(i)}" y="${ty + th - 1 - hb - hc}" width="${Math.max(1, bw)}" height="${hb}"/>`
+      if (hc > 0) g += `<rect class="crc" x="${x(i)}" y="${ty + th - 1 - hc}" width="${Math.max(1, bw)}" height="${Math.max(1, hc)}"/>`
+    })
+    if (live) words.push(`<span class="scl" style="top:${pctY(ty)}">${Math.round(mx).toLocaleString('en')}/s</span>`)
+  }
+  { // RTT: the ceiling follows the data, in fixed steps
+    const [ty, th] = ys.RTT
+    const vals = view.flatMap((p) => [p.gw, p.net]).filter((v) => v !== null && v !== undefined).sort((a, b) => a - b)
+    const p95 = vals.length ? vals[Math.floor(vals.length * 0.95)] : 20
+    const mx = [20, 50, 100, 150, 250, 500].find((s) => s >= p95 * 1.4) ?? 500
+    const line = (key) => { let d = '', pen = false; view.forEach((p, i) => { const v = p.watched ? p[key] : null; if (v === null || v === undefined) { pen = false; return } const Y = ty + th - 1 - Math.min(1, v / mx) * (th - 4); d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)} ${Y.toFixed(1)}`; pen = true }); return d }
+    g += `<path class="rtt" d="${line('net')}"/><path class="rtt-gw" d="${line('gw')}"/>`
+    if (foldLoss) view.forEach((p, i) => { if (p.watched && p.up && p.net === null) g += `<rect class="loss" x="${x(i)}" y="${ty + th - 3}" width="${Math.max(1, bw)}" height="3"/>` })
+    if (live) words.push(`<span class="scl" style="top:${pctY(ty)}">${mx} ms</span>`)
+  }
+  if (!foldLoss) { const [ty, th] = ys.LOSS; view.forEach((p, i) => { if (p.watched && p.up && p.net === null) g += `<rect class="loss" x="${x(i)}" y="${ty + 1}" width="${Math.max(1, bw)}" height="${th - 2}"/>` }) }
+  { // TRAFFIC: up above the middle, down below; the link's ceiling when traffic nears it
+    const [ty, th] = ys.TRAFFIC
+    const mid = ty + th * 0.35
+    const maxDown = Math.max(1, ...view.map((p) => (p.watched ? p.down ?? 0 : 0)))
+    const maxUp = Math.max(0.5, ...view.map((p) => (p.watched ? p.upMb ?? 0 : 0)))
+    const ceiling = j.speedNow || sc.speed
+    const near = maxDown > ceiling * 0.7
+    const scaleDown = near ? ceiling : maxDown * 1.15
+    view.forEach((p, i) => {
+      if (!p.watched || !p.up) return
+      const hu = Math.min(1, p.upMb / (maxUp * 1.15)) * (th * 0.35 - 1)
+      const hd = Math.min(1, p.down / scaleDown) * (th * 0.65 - 1)
+      g += `<rect class="up" x="${x(i)}" y="${mid - hu}" width="${bw + 0.3}" height="${hu}"/><rect class="dn" x="${x(i)}" y="${mid}" width="${bw + 0.3}" height="${hd}"/>`
+    })
+    if (near) { const Y = mid + (th * 0.65 - 1); g += `<line class="capline" x1="${left}" x2="${W}" y1="${Y}" y2="${Y}"/>` }
+    if (live) {
+      words.push(`<span class="scl" style="top:${pctY(ty)}">↑ ${rate(maxUp * 1.15)}</span>`)
+      words.push(`<span class="scl" style="top:${pctY(ty + th * 0.72)}">${near ? `↓ link ${mbps(ceiling)}` : `↓ ${rate(scaleDown)}`}</span>`)
+    }
+  }
+  { // EVENTS
+    const [ty] = ys.EVENTS
+    eventsOf(sc, pts).filter((e) => e.ago < win).forEach((e) => {
+      const i = win - 1 - e.ago
+      const col = e.kind === 'lost' ? 'var(--danger)' : e.kind === 'connected' || e.kind === 'back' ? 'var(--ok)' : 'var(--warn)'
+      g += `<line class="ev-line" x1="${x(i)}" x2="${x(i)}" y1="0" y2="${ty + 2}" stroke="${col}"/>`
+      words.push(`<span class="ev" style="left:${(x(i) / W) * 100}%;top:${pctY(ty + 3)};color:${col}">${MARKS[e.kind]}</span>`)
+    })
+  }
+  const sw = (bg, l) => `<span><i class="sw" style="background:${bg}"></i>${l}</span>`
+  const head = `<div class="tl-head">${titled ? '<span class="lbl">TIMELINE</span>' : ''}<span>━ internet</span><span>┅ gateway</span>${sw('color-mix(in srgb,var(--accent) 60%,transparent)', 'up')}${sw('color-mix(in srgb,var(--accent) 30%,transparent)', 'down')}${sw('var(--warn)', 'fell')}${sw('var(--danger)', 'crc')}${sw('repeating-linear-gradient(135deg,var(--danger) 0 1.5px,transparent 1.5px 4px)', 'link lost')}<span class="grow"></span>
+    <span class="win">${[[60, '1M'], [300, '5M'], [900, '15M'], [3600, '60M']].map(([s, l]) => `<button class="${ui.win === s ? 'on' : ''}" data-win="${s}">${l}</button>`).join('')}</span></div>`
+  return `${head}<div class="timeline" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px">${g}</svg>${words.join('')}</div>`
+}
+
+/* ---- events: what the pane saw (the Wi-Fi pane's words where they mean the same) ---- */
+const MARKS = { lost: '▼', connected: '▲', speed: '◆', upstream: '◌', back: '●', crc: '◆', storm: '◆' }
+function eventsOf(sc, pts) {
+  const ev = []
+  const w = pts.filter((p) => p.watched && p.carrier)
+  for (let i = 1; i < w.length; i++) {
+    const a = w[i - 1], b = w[i]
+    if (a.up && !b.up) { let k = i; while (k < w.length && !w[k].up) k++; ev.push({ ago: b.ago, kind: 'lost', k: 'LINK LOST', d: 'nothing at the other end of the cable', dur: `down ${k - i}s` }) }
+    if (!a.up && b.up) ev.push({ ago: b.ago, kind: 'connected', k: 'CONNECTED', d: `${mbps(b.speed)} ${sc.duplex} · ${sc.autoneg ? 'auto-negotiated' : 'fixed'}` })
+    if (a.up && b.up && a.speed !== b.speed) ev.push({ ago: b.ago, kind: 'speed', k: 'SPEED', d: `${mbps(a.speed)} → ${mbps(b.speed)}` })
+    if (a.up && b.up && a.net !== null && b.net === null && w.slice(i, i + 4).every((p) => p.net === null)) ev.push({ ago: b.ago, kind: 'upstream', k: 'UPSTREAM LOST', d: 'gateway up, internet silent' })
+    if (a.net === null && b.net != null && a.up && w.slice(Math.max(0, i - 4), i).every((p) => p.net === null)) ev.push({ ago: b.ago, kind: 'back', k: 'UPSTREAM BACK', d: `internet ${ms(b.net)}` })
+  }
+  if (sc.crcPerMille >= 1) ev.push({ ago: 540, kind: 'crc', k: 'CRC ERRORS', d: 'over the limit for 10 min' })
+  if (sc.bcast >= 300) ev.push({ ago: 400, kind: 'storm', k: 'BROADCAST', d: 'over 300/s for 30 s' })
+  return ev.sort((a, b) => a.ago - b.ago)
+}
+const clock = (ago) => new Date(Date.UTC(2026, 9, 18, 9, 31, 41) - ago * 1000).toISOString().slice(11, 19)
+
+function log(sc, pts) {
+  const ev = eventsOf(sc, pts)
+  const rows = ev.map((e, i) => {
+    const prev = ev.slice(i + 1).find((x) => x.kind === e.kind)
+    const gap = prev ? `+${Math.round((prev.ago - e.ago) / 60)}m` : ''
+    return `<li data-kind="${e.kind}"><span class="t">${clock(e.ago)}</span><span class="m">${MARKS[e.kind]}</span><span class="k">${e.k}</span><span class="d">${esc(e.d)}</span><span class="dur">${e.dur ?? ''}</span><span class="gap">${gap}</span></li>`
+  })
+  const segs = []
+  let start = null
+  pts.forEach((p, i) => { if (p.watched && start === null) start = i; if ((!p.watched || i === pts.length - 1) && start !== null) { segs.push([start, i]); start = null } })
+  const downs = pts.map((p, i) => (p.watched && p.carrier && !p.up ? i : -1)).filter((i) => i >= 0)
+  const bar = segs.map(([a, b]) => `<i style="left:${(a / 3600) * 100}%;width:${((b - a) / 3600) * 100}%"></i>`).join('') + downs.map((i) => `<i class="dn" style="left:${(i / 3600) * 100}%;width:0.1%"></i>`).join('')
+  return `<div class="log-head"><span class="lbl">LOG</span><span data-hint="watched">${ev.length} event${ev.length === 1 ? '' : 's'}, while watched</span></div>
+    <div class="watchbar">${bar}</div><div class="watchaxis"><span>-60 m</span><span>-45</span><span>-30</span><span>-15</span><span>now</span></div>
+    <ul class="log">${rows.join('')}</ul>`
+}
+
+function detail(sc, j, pts) {
+  const live = sc.state === 'up'
+  const min = pts.slice(-60).filter((p) => p.up)
+  const sum = (k) => min.reduce((s, p) => s + (p[k] ?? 0), 0)
+  const rxp = Math.round(sum('pkts') * 0.82), txp = Math.round(sum('pkts') * 0.18)
+  const busier = Math.max(1, rxp, txp)
+  const fmt = (v) => (v === null ? '—' : v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}k` : `${Math.round(v)}`)
+  // As Detail.svelte: packets against the busier direction; trouble as a share, the bar half full at bad.
+  const rows = [
+    ['rx packets', rxp * 412, rxp, 'pk'], ['tx packets', txp * 412, txp, 'pk'],
+    ['rx broadcast', sum('bcast') * 380, sum('bcast'), 'bc'], ['rx multicast', sum('mcast') * 380, sum('mcast'), 'info'],
+    ['rx crc errors', sum('crc') * 30, sum('crc'), 'crc'], ['tx errors', 0, 0, 'crc'],
+    ['rx discards', sc.crcPerMille ? 41 : 2, 0, 'host'], ['tx discards', null, null, 'host'], ['unknown protos', 1204, 3, 'host'],
+  ]
+  const ctr = rows.map(([k, t, m, kind]) => {
+    const key = `<span class="k ${kind === 'host' ? 'host' : ''}">${k}</span>`
+    if (!live || m === null) return `${key}<span class="v na">${live && t !== null ? fmt(t) : '—'}</span><span class="v na">—</span><span class="b"></span>`
+    let w = 0, tone = ''
+    if (kind === 'pk') w = (m / busier) * 100
+    else if (kind === 'crc') { const s = rxp ? (m / rxp) * 100 : 0; tone = s >= LIMITS.crc.bad.share ? 'bad' : s >= LIMITS.crc.warn.share ? 'warn' : ''; w = Math.min(100, (s / LIMITS.crc.bad.share) * 50) }
+    else if (kind === 'bc') { const s = m / 60; tone = over(s, LIMITS.broadcast).replace(/ok|idle/, ''); w = Math.min(100, (s / LIMITS.broadcast.bad) * 50) }
+    return `${key}<span class="v">${fmt(t)}</span><span class="v ${tone}">${fmt(m)}</span><span class="b">${w ? `<i class="${tone}" style="width:${w}%"></i>` : ''}</span>`
+  }).join('')
+  const gone = (v) => (live ? v : '—')
+  const kv = [
+    ['adapter', esc(sc.adapter)], ['driver', esc(sc.driver)], ['bus', esc(sc.busDetail)],
+    ['link', live ? `${mbps(j.speedNow || sc.speed)} ${sc.duplex} <small>· best ${mbps(sc.cap)}</small>` : '—'],
+    ['setting', sc.setting === 'auto' ? 'auto-negotiate' : `<span class="warn">fixed ${esc(sc.setting)}</span>`],
+    ['power', j.powerOn.length ? `${j.powerOn.join(' · ')} <small>on</small>` : 'all off'],
+    ['frames', `MTU ${sc.mtu} · jumbo ${sc.jumbo ? 'on' : 'off'} · flow ${sc.flow}`],
+    ['VLAN', sc.vlan ?? '—'], ['802.1X', sc.dot1x],
+    ['address', gone(masked(sc.ip))], ['IPv6', gone(masked(sc.ipv6))], ['gateway', gone(masked(sc.gateway))], ['DNS', gone(masked(sc.dns))],
+    ['DHCP', gone(sc.dhcp)], ['MAC', ui.mask ? '••:••:••:••:••:••' : sc.mac],
+    ['route', !live ? '—' : sc.route === 'default' ? 'default route' : `<span class="warn">internet via ${sc.route === 'vpn' ? 'VPN' : 'Wi-Fi'}</span>`],
+    ['echo host', masked('192.0.2.53')],
+  ]
+  return `<div class="detail"><dl class="kv">${kv.map(([k, v]) => `<dt>${k}</dt><dd class="${v === '—' ? 'gone' : ''}">${v}</dd>`).join('')}</dl>
+    <div class="ctr"><span class="h">packets</span><span class="h">total</span><span class="h">/min</span><span></span>${ctr}</div></div>`
+}
+
+/* ---- the pane ---- */
+let lastJudge = null
+function render() {
+  document.documentElement.dataset.theme = ui.theme === 'tron' ? '' : ui.theme
+  const sc = scenario(ui.scenario)
+  const pts = series(sc, ui.tick)
+  const j = judge(sc, pts)
+  lastJudge = [j, sc]
+  const tone = j.health === 'ok' ? 'ok' : j.health
+  const words = sc.state === 'up' && j.now.up ? `${mbps(j.speedNow)} · ${sc.duplex} · ${esc(sc.bus)}` : ''
+  const fwd = ui.size === 'wide' ? '<span class="fwd">⤡</span>' : ''
+  const title = `<div class="title-row"><span class="title">ETHERNET</span><span class="title-right"><span class="why" data-tone="${tone}">${j.cause === 'CLEAR' ? '' : j.cause.toLowerCase()}</span>${words}${fwd}</span></div>`
+  const head = header(sc, j)
+  if (sc.state === 'none') return stage(`<div class="frame ${ui.size}">${title}<div class="eth">${head}<p class="empty">NO WIRED ADAPTER<small>the Wi-Fi pane reads this machine's wireless link</small></p></div></div>`)
+  const strip = pathStrip(sc, j, pts) + verdict(j) + ribbons(sc, j, pts)
+  const live = sc.state === 'up'
+  const lp = live ? linkPanel(sc, j) : ''
+  let body
+  if (ui.size === 'wide') {
+    body = `<div class="upper wide"><div class="left">${strip}</div><div>${lp}</div></div>
+      ${timeline(sc, j, pts, 280, true)}
+      <div class="lower wide"><div>${log(sc, pts)}</div><div>${detail(sc, j, pts)}</div></div>`
+  } else if (ui.size === 'narrow') {
+    body = `${strip}${lp}${timeline(sc, j, pts, 230, true)}${log(sc, pts)}${detail(sc, j, pts)}`
+  } else {
+    const tabs = [['timeline', 'TIMELINE'], ...(live ? [['link', 'LINK']] : []), ['log', 'LOG'], ['detail', 'DETAIL']]
+    const tab = tabs.some(([id]) => id === ui.tab) ? ui.tab : 'timeline'
+    const n = eventsOf(sc, pts).length
+    const slot = tab === 'timeline' ? timeline(sc, j, pts, 150, false) : tab === 'link' ? lp : tab === 'log' ? log(sc, pts) : detail(sc, j, pts)
+    body = `${strip}<div class="tabs">${tabs.map(([id, l]) => `<button class="${tab === id ? 'on' : ''}" data-tab="${id}">${l}${id === 'log' ? `<span class="n">${n}</span>` : ''}</button>`).join('')}</div><div class="slot">${slot}</div>`
+  }
+  stage(`<div class="frame ${ui.size}">${title}<div class="eth">${head}${body}</div></div>`)
+}
+function stage(html) { document.getElementById('stage').innerHTML = html; document.getElementById('note').textContent = SCENARIOS[ui.scenario].note }
+
+/* ---- mock bar ---- */
+function bar() {
+  const grp = (label, key, opts) => `<div class="grp"><span>${label}</span>${opts.map(([v, l]) => `<button data-set="${key}" data-val="${v}" aria-pressed="${String(ui[key]) === String(v)}">${l}</button>`).join('')}</div>`
+  document.getElementById('mockbar').innerHTML =
+    grp('case', 'scenario', Object.entries(SCENARIOS).map(([k, v]) => [k, v.label])) +
+    grp('size', 'size', [['wide', 'forward'], ['narrow', 'pane'], ['preset', 'network preset 620×455']]) +
+    grp('theme', 'theme', [['tron', 'tron'], ['amber', 'amber'], ['green', 'green'], ['black', 'black'], ['business', 'business']]) +
+    grp('adapters', 'dual', [[false, 'one'], [true, 'two']]) +
+    grp('clock', 'live', [[true, 'live'], [false, 'paused']])
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button')
+  if (!b) return
+  if (b.dataset.set) { const v = b.dataset.val; ui[b.dataset.set] = v === 'true' ? true : v === 'false' ? false : v; bar() }
+  if (b.dataset.win) ui.win = Number(b.dataset.win)
+  if (b.dataset.tab) ui.tab = b.dataset.tab
+  if (b.dataset.chip) ui.chip = Number(b.dataset.chip)
+  if (b.dataset.act === 'mask') ui.mask = !ui.mask
+  if (b.dataset.act === 'copy') { b.textContent = 'COPIED'; return }
+  render()
+})
+
+/* ---- hint cards: open after a rest, inside the window ---- */
+const card = document.getElementById('card')
+let rest = 0
+document.addEventListener('mouseover', (e) => {
+  const el = e.target.closest('[data-hint]')
+  clearTimeout(rest)
+  if (!el) { card.hidden = true; return }
+  rest = setTimeout(() => {
+    const h = lastJudge && HINTS[el.dataset.hint]?.(...lastJudge)
+    if (!h) return
+    card.innerHTML = `<h4>${h.t}</h4><p>${esc(h.p)}</p>${h.lim ? `<div class="lim">${esc(h.lim)}</div>` : ''}${h.now ? `<div class="now"><b>NOW</b>${esc(h.now)}</div>` : ''}`
+    card.hidden = false
+    const r = el.getBoundingClientRect()
+    const cw = card.offsetWidth, ch = card.offsetHeight
+    card.style.left = `${Math.min(innerWidth - cw - 8, Math.max(8, r.left))}px`
+    card.style.top = `${r.bottom + ch + 8 < innerHeight ? r.bottom + 6 : r.top - ch - 6}px`
+  }, 350)
+})
+
+// ?scenario=flapping&size=preset&theme=amber&tab=link&win=900&dual=true&live=false: the state to open in.
+for (const [k, v] of new URLSearchParams(location.search)) {
+  if (!(k in ui)) continue
+  ui[k] = v === 'true' ? true : v === 'false' ? false : typeof ui[k] === 'number' ? Number(v) : v
+}
+bar()
+render()
+setInterval(() => { if (ui.live && card.hidden) { ui.tick++; render() } }, 1000)
+</script>
+</body>
+</html>

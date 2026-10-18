@@ -16,7 +16,8 @@
       "!**/*.code-workspace",
       "!src/shared/calc/vendor",
       "!resources/elec16/games/games.json",
-      "!docs/logwatch-mock"
+      "!docs/logwatch-mock",
+      "!docs/ethernet-mock"
     ]
   },
   "formatter": {
