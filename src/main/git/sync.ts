@@ -131,7 +131,8 @@ export class GitSync {
           timeoutMs === undefined ? undefined : { timeoutMs },
         )
       return action === 'push'
-        ? await this.push(id, git, target.state.branch.head, result)
+        ? // syncBlocked has refused a detached HEAD already.
+          await this.push(id, git, target.state.branch.head ?? '', result)
         : await this.take(id, git, action, target.state.branch.oid, result)
     } finally {
       this.running.delete(id)
@@ -167,21 +168,24 @@ export class GitSync {
   /**
    * The branch onto its upstream as the branch's own config names it - never the
    * `origin/main` spelling, which a remote with a slash in its name makes ambiguous -
-   * and only what HEAD has that the upstream lacks, counted just before.
+   * and only what the branch has that the upstream lacks, counted just before.
+   *
+   * Everything is of the branch main last read, by name, never of HEAD: checked out to
+   * another branch in the terminal a moment before the press, HEAD would have been
+   * counted while that branch was pushed (found in review).
    */
-  private async push(
-    id: string,
-    git: Git,
-    branch: string | null,
-    result: Result,
-  ): Promise<GitSyncResult> {
-    const remote = branch === null ? '' : await this.config(git, `branch.${branch}.remote`)
-    const merge = branch === null ? '' : await this.config(git, `branch.${branch}.merge`)
-    if (branch === null || !isPushRemote(remote) || !isBranchRef(merge)) {
+  private async push(id: string, git: Git, branch: string, result: Result): Promise<GitSyncResult> {
+    const remote = await this.config(git, `branch.${branch}.remote`)
+    const merge = await this.config(git, `branch.${branch}.merge`)
+    if (!isPushRemote(remote) || !isBranchRef(merge)) {
       return result('refused', 'the branch has no upstream on a remote: push -u in the terminal')
     }
-    const commits = await this.count(git, '@{upstream}..HEAD')
-    if (commits === 0) return result('current')
+    const commits = await this.count(git, `${branch}@{upstream}..refs/heads/${branch}`)
+    if (commits === 0) {
+      // main's reading had something to push, so the branch has moved since: read it again.
+      this.deps.moved(id)
+      return result('current')
+    }
     const done = await git(
       [...ARGS.push, '--', remote, `refs/heads/${branch}:${merge}`],
       SYNC_TIMEOUT_MS,

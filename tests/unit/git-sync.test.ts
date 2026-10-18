@@ -324,8 +324,10 @@ describe('PUSH', () => {
     ])
     expect(push?.timeoutMs).toBe(120_000)
     expect(push?.args.some((arg) => arg.startsWith('+') || arg.startsWith('--force'))).toBe(false)
-    // Counted just before, not from main's last reading.
-    expect(calls.some((call) => call.args.includes('@{upstream}..HEAD'))).toBe(true)
+    // Counted just before, not from main's last reading, and of the branch pushed by name,
+    // never of HEAD (found in review: HEAD may be another branch by the second press).
+    expect(calls.some((call) => call.args.includes('main@{upstream}..refs/heads/main'))).toBe(true)
+    expect(calls.some((call) => call.args.some((arg) => arg.includes('HEAD')))).toBe(false)
     expect(moved).toEqual([ID])
   })
 
@@ -349,10 +351,12 @@ describe('PUSH', () => {
     }
   })
 
-  it('pushes nothing when the branch has caught up since main last read it', async () => {
-    const { sync, calls } = harness(readState({ ahead: 1 }), pushing(answer(), {}, '0\n'))
+  it('pushes nothing when the branch has caught up since main last read it, and reads it again', async () => {
+    const { sync, calls, moved } = harness(readState({ ahead: 1 }), pushing(answer(), {}, '0\n'))
     expect(await sync.run(ID, 'push')).toMatchObject({ code: 'current' })
     expect(calls.some((call) => call.args.includes('push'))).toBe(false)
+    // Found in review: the pane went on showing ↑1, its PUSH pressable, until the watcher saw it.
+    expect(moved).toEqual([ID])
   })
 
   it('tells a remote that has moved on from one that refused for its own reasons', async () => {

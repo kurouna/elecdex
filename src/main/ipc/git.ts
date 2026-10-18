@@ -163,7 +163,8 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
         return true
       },
       [CH.git.watching]: () => service.watching(),
-      // FETCH and PULL: only for a repository this very page shows, and only as main last read it.
+      // FETCH, PULL and PUSH: only for a repository this very page shows, and only as main last
+      // read it.
       [CH.git.sync]: async (event, repoId, action) => {
         if (!isRepoId(repoId) || !isSyncAction(action)) return null
         if (!registry.subscribers(repoId).has(event.sender)) return null

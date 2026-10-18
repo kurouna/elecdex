@@ -1,8 +1,8 @@
 import { execFile, spawn } from 'node:child_process'
 
 /**
- * Runs git for the git pane: to read, and for the two writes the user presses
- * (sync.ts: fetch and a fast-forward pull), which add their own guards.
+ * Runs git for the git pane: to read, and for the three writes the user presses
+ * (sync.ts: fetch, a fast-forward pull and a push), which add their own guards.
  *
  * A repository's own config can name programs for git to run - a file system
  * monitor (`core.fsmonitor`), an external diff, a text converter - so a

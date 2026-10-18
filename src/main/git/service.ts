@@ -177,7 +177,7 @@ export class GitService {
   }
 
   /**
-   * What a fetch or pull needs of a repository a pane shows: its folder, the
+   * What a fetch, pull or push needs of a repository a pane shows: its folder, the
    * `-c` pairs that empty its own filters, and main's last reading of it. Null
    * for one that is not shown, or not yet read as a repository.
    */
@@ -189,7 +189,7 @@ export class GitService {
 
   /**
    * Reads a repository again after main itself has written to it (a fetch, a
-   * pull), history included, rather than leaving it to the watcher to notice.
+   * pull, a push), history included, rather than leaving it to the watcher to notice.
    */
   moved(id: string): void {
     const entry = this.watched.get(id)
