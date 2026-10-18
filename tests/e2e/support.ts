@@ -201,6 +201,9 @@ export const STUB_ENV: Record<string, string> = {
   // addresses or where it has connected, and no ping leaves the machine
   // (src/services/metrics/wifi/stub.ts).
   ELECDEX_WIFI_STUB: '1',
+  // A made-up wired link and its echoes: never this machine's adapters or
+  // addresses, and no ping leaves the machine (src/services/metrics/ethernet/stub.ts).
+  ELECDEX_ETHER_STUB: '1',
   // A stand-in clipboard: never what this machine has copied, and nothing put on
   // its clipboard (src/main/clipboard/stub.ts). Specs copy through
   // globalThis.__elecdexClipboard.

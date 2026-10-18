@@ -24,11 +24,11 @@ import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
+import HintCard from '../netpath/HintCard.svelte'
 import type { WidgetProps } from '../registry.ts'
 import Detail from './Detail.svelte'
 import EventLog from './EventLog.svelte'
-import HintCard from './HintCard.svelte'
-import { shortAdapter } from './hints.ts'
+import { lookupHint, shortAdapter } from './hints.ts'
 import { wifiHistory } from './history.svelte.ts'
 import PathStrip from './PathStrip.svelte'
 import RadioPanel from './RadioPanel.svelte'
@@ -158,18 +158,25 @@ const stateWord = $derived.by(() => {
 
 const mosTone = $derived(mos === null ? 'idle' : mos >= 3.6 ? 'ok' : mos >= 3.1 ? 'warn' : 'bad')
 
+/**
+ * The header's words: the band, channel and signal while connected; otherwise
+ * which adapter - the badge already names the state, and said it twice before.
+ */
+function subtitleOf(l: WifiLink | null, word: string): string {
+  if (l === null) return word.toLowerCase()
+  if (l.state !== 'connected') return shortAdapter(l.adapter)
+  const band = bandOf(l.freqMhz)
+  return [
+    band === null ? null : `${band} GHz`,
+    l.channel === null ? null : `ch ${l.channel}`,
+    l.rssi === null ? null : `${l.rssi} dBm`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 $effect(() => {
-  const band = bandOf(link?.freqMhz ?? null)
-  const words =
-    link === null || link.state !== 'connected'
-      ? stateWord.toLowerCase()
-      : [
-          band === null ? null : `${band} GHz`,
-          link.channel === null ? null : `ch ${link.channel}`,
-          link.rssi === null ? null : `${link.rssi} dBm`,
-        ]
-          .filter(Boolean)
-          .join(' · ')
+  const words = subtitleOf(link, stateWord)
   paneMeta.set(paneId, {
     subtitle: sample === null ? 'acquiring the link…' : words,
     ...(diagnosis.health !== 'ok'
@@ -346,7 +353,7 @@ const hintContext = $derived({
         </div>
       {/if}
     </div>
-    <HintCard {root} context={hintContext} />
+    <HintCard {root} kind="wifi" lookup={(key) => lookupHint(key, hintContext)} />
   {/if}
 </div>
 

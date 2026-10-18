@@ -10,9 +10,11 @@ import {
 import { untrack } from 'svelte'
 import { nextFrame, onFrame } from '../../lib/frame-loop.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
+import { labelsChanged, type TimelineLabels } from '../netpath/draw.ts'
 import {
   drawTimeline,
   LABEL_WIDTH,
+  LANE_NAMES,
   laneBoxes,
   latencyTop,
   megabits,
@@ -29,7 +31,9 @@ import {
  * away. The crosshair reads every lane at one moment.
  *
  * Redrawn once a second on the frame loop - the wall clock's second, as every
- * timed screen update here - and when the pointer moves.
+ * timed screen update here - and when the pointer moves. The words - the lanes'
+ * names, the scales, NOT WATCHED and the events' marks - are HTML laid over the
+ * canvas at steps of the type scale, where the draw says they go.
  */
 interface Props {
   points: readonly WifiPoint[]
@@ -46,6 +50,10 @@ let canvas = $state<HTMLCanvasElement | null>(null)
 let hoverX = $state<number | null>(null)
 let width = $state(0)
 let height = $state(0)
+/** Where the last draw put the words; replaced only when they move. */
+let labels = $state.raw<TimelineLabels | null>(null)
+const boxes = $derived(laneBoxes(height))
+const eventsBox = $derived(boxes.find((b) => b.lane === 'events') ?? null)
 
 const span = $derived(windowMs(windowId))
 
@@ -75,7 +83,7 @@ $effect(() => {
     const from = to - span
     const columns = Math.max(1, Math.min(span / 1000, Math.floor((width - LABEL_WIDTH) / 2)))
     const buckets = bucketize(points, from, to, columns)
-    drawTimeline({ ctx, width, height, ratio }, palette, {
+    const next = drawTimeline({ ctx, width, height, ratio }, palette, {
       buckets,
       events,
       from,
@@ -84,6 +92,7 @@ $effect(() => {
       trafficTop: trafficTop(buckets),
       hoverX,
     })
+    if (labelsChanged(labels, next)) labels = next
   }
 
   const observer = new ResizeObserver((entries) => {
@@ -160,15 +169,35 @@ const ms = (v: number | null | undefined): string =>
     }}
   >
     <canvas bind:this={canvas}></canvas>
-    <!-- The lanes' names, drawn on the canvas, each with the card that explains its lane. -->
-    {#each laneBoxes(height) as box (box.lane)}
+    <!-- The lanes' names, each with the card that explains its lane. -->
+    {#each boxes as box (box.lane)}
       <span
         class="lane-name"
         style:top="{box.y}px"
         style:height="{box.h}px"
-        data-hint="lane-{box.lane === 'latency' ? 'rtt' : box.lane}"
-      ></span>
+        data-hint="lane-{box.lane === 'latency' ? 'rtt' : box.lane}">{LANE_NAMES[box.lane]}</span
+      >
     {/each}
+    {#if labels !== null}
+      {#each labels.scales as scale (scale.text)}
+        <span class="scale" style:top="{scale.y}px">{scale.text}</span>
+      {/each}
+      {#each labels.unwatched as run (run.x0)}
+        {#if run.x1 - run.x0 >= 110}
+          <span class="unwatched" style:left="{(run.x0 + run.x1) / 2}px" data-hint="not-watched">NOT WATCHED</span>
+        {/if}
+      {/each}
+      {#if eventsBox !== null}
+        {#each labels.events as mark (mark.key)}
+          <span
+            class="mark"
+            data-tone={mark.tone}
+            style:left="{mark.x}px"
+            style:top="{eventsBox.y + eventsBox.h / 2}px">{mark.glyph}</span
+          >
+        {/each}
+      {/if}
+    {/if}
     {#if hovered !== null}
       <div
         class="readout"
@@ -288,7 +317,57 @@ header {
   position: absolute;
   left: 0;
   width: 44px;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  color: var(--text-muted);
   cursor: help;
+}
+
+/* A lane's scale, top right of it, on the ground so a line under it does not cross the figure. */
+.scale {
+  position: absolute;
+  right: 2px;
+  padding: 0 0.15rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  line-height: 1.2;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--app-bg) 75%, transparent);
+  pointer-events: none;
+}
+
+.unwatched {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+}
+
+.mark {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  line-height: 1;
+  color: var(--accent-strong);
+  pointer-events: none;
+}
+
+.mark[data-tone='ok'] {
+  color: var(--ok);
+}
+
+.mark[data-tone='warn'] {
+  color: var(--warn);
+}
+
+.mark[data-tone='danger'] {
+  color: var(--danger);
 }
 
 canvas {

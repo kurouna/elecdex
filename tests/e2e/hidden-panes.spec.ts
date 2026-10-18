@@ -168,6 +168,7 @@ const WIDGETS = [
   'netstat',
   'connections',
   'wifi',
+  'ethernet',
   'throughput',
   'cluster',
   'filesystem',

@@ -12,6 +12,7 @@ import {
   type WifiCounters,
   type WifiLink,
 } from '@shared/wifi'
+import type { Hint } from '../netpath/draw.js'
 import { megabits } from './draw.js'
 
 /**
@@ -25,13 +26,7 @@ import { megabits } from './draw.js'
  * quoted from WIFI_LIMITS, not written out again.
  */
 
-export interface Hint {
-  title: string
-  /** What it is and how to read it: a sentence or two a line. */
-  body: string[]
-  /** The limits it is judged by, when it has any. */
-  limits?: string
-}
+export type { Hint }
 
 /** What the pane knows when a card opens, for its NOW line. */
 export interface HintContext {
@@ -316,6 +311,15 @@ function STATIC_SCAN(): Hint {
 export function hintFor(key: string): Hint | null {
   if (key.startsWith('c-')) return COUNTERS[key.slice(2) as keyof WifiCounters] ?? null
   return STATIC[key] ?? null
+}
+
+/** The card and its NOW line together, for the pane's HintCard. */
+export function lookupHint(
+  key: string,
+  c: HintContext,
+): { hint: Hint; live: string | null } | null {
+  const hint = hintFor(key)
+  return hint === null ? null : { hint, live: liveFor(key, c) }
 }
 
 /** What a figure reads now, for the card's NOW line; null when there is nothing live to say. */

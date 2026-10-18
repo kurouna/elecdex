@@ -82,7 +82,7 @@ src/main/        main process: window, ipc/ (handlers, table.ts), store/ (json f
                  chip8/, launcher/, audio/, plugins/, web/, background/, reminders/, updates/, awake/,
                  docker/, secrets/, metrics/ (the broker between the collector and pages),
                  boundary-timer.ts (readings on the wall clock's grid)
-src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/, gpu/)
+src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/, ethernet/, gpu/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas (schemas/), channel names and pure logic used by both sides;
                  calc/ (vendor/ is elecxzy's evaluator, the wrapper beside it is ours)
@@ -100,7 +100,8 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  elec16-elecaircombat.md, elec16-elecdrill.md, elec16-elecfighter.md (the four
                  games), elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER's design),
                  cluster.md (the CLUSTER pane), logwatch.md and logwatch-mock/ (the LOG WATCH
-                 pane), demos.md (making, changing and recording the demos),
+                 pane), ethernet-mock/ (the Ethernet pane's mock, beside the Wi-Fi pane's
+                 shots), demos.md (making, changing and recording the demos),
                  screenshots/ (README images)
 ```
 
@@ -155,6 +156,22 @@ user made; do not reverse one without asking.
   - `net.wifi` and `net.wifi.events` are private and not kept while hidden. Judgements are pure
     in shared/wifi.ts. Every `data-hint` figure has a card in widgets/wifi/hints.ts quoting
     `WIFI_LIMITS` (a unit test checks).
+- **The Ethernet pane reads the cable without a process per reading** (§5.23, shared/ethernet.ts,
+  services/metrics/ethernet/; the Wi-Fi pane's sibling, sharing shared/netpath.ts and
+  widgets/netpath/). Windows: the sampler's `ether` kind, `GetIfTable2` rows of type 6, medium 14,
+  HardwareInterface and not FilterInterface; the duplex and the driver's settings in a runspace of
+  the sampler's (never on its loop), read by keyword, never changed. The interface GUID, the device
+  ids and a profile's name never leave the script; the C# goes in the sampler's environment (its
+  command line stays under 32,000, a unit test checks).
+  - One source, `net.ethernet`, private, not kept while hidden. No OS log is read: the log is what
+    the pane saw. Gateways are echoed from each adapter's own address (`IcmpSendEcho2Ex`, `ping -I` /
+    `-S`), Wi-Fi's too; one internet echo serves three panes.
+  - Judgements are pure (`diagnoseEthernet`, `ETHER_LIMITS`): a fall from the speed seen is a fault,
+    a steady low speed only BELOW MAX; CRC errors need a count and a share; discards are the host's;
+    drops come back within a minute; multicast is never judged. The speed is coloured by the speed's
+    judgement only. Power saving is named only after a drop or a fall was seen with it on.
+  - No words on a canvas, in this pane or Wi-Fi's: lane names, scales and marks are HTML over it.
+  - Tests: `ELECDEX_ETHER_STUB=1` (and every case of docs/ethernet-mock).
 - **The clipboard pane reads only while it is seen** (§5.14, shared/clipboard.ts,
   main/clipboard/). Main reads (Electron's async API, never the page) on the quarter seconds,
   only while a pane is subscribed and not paused; what is copied unseen is never kept. The
@@ -656,6 +673,7 @@ entry (decisions.md). Every option is off until the user turns it on.
   - `ELECDEX_SOCKETS_STUB=1`: a made-up socket table (`=demo` for screenshots);
   - `ELECDEX_CLIPBOARD_STUB=1`, `ELECDEX_NOWPLAYING_STUB=1`: stand-ins in main (`=demo`);
   - `ELECDEX_WIFI_STUB=1`: a made-up link, echoes and log (`=train`, `=dual`, `=demo`);
+  - `ELECDEX_ETHER_STUB=1`: a made-up wired link and echoes (`=flapping`, `=crc`, `=dual`, `=demo`, ...);
   - `ELECDEX_DOCKER_STUB=1`: a stand-in engine (`=demo`, `=down`, `=denied`);
   - `ELECDEX_AWAKE_STUB=1`: no real power-save blocker or power source;
   - `ELECDEX_AI_KEYS_STUB=1`: a reversible stand-in for `safeStorage`; AI providers are a spec's

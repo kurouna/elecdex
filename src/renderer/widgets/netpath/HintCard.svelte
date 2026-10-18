@@ -1,32 +1,35 @@
 <script lang="ts">
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import HoverCard from '../common/HoverCard.svelte'
-import { type HintContext, hintFor, liveFor } from './hints.ts'
+import type { Hint } from './draw.ts'
 
 /**
  * The card that explains a figure when the pointer rests on it: what it is, how
- * to read it, the limits it is judged by, and what it reads now - the pane's
- * figures are an engineer's, and each is a word or two on screen.
+ * to read it, the limits it is judged by, and what it reads now - the Wi-Fi and
+ * Ethernet panes' figures are an engineer's, and each is a word or two on screen.
  *
- * Any element in the pane with `data-hint="<key>"` has one (hints.ts holds the
- * words); this listens once on the pane rather than on each of them. It opens
- * after a short rest, so a pointer passing over the pane opens nothing; the frame,
- * its place and its timing are every detail card's (HoverCard, architecture.md
- * §7.4). The NOW line follows the readings while it is open.
+ * Any element in the pane with `data-hint="<key>"` has one (each pane's hints.ts
+ * holds the words, handed in as `lookup`); this listens once on the pane rather
+ * than on each of them. It opens after a short rest, so a pointer passing over
+ * the pane opens nothing; the frame, its place and its timing are every detail
+ * card's (HoverCard, architecture.md §7.4). The NOW line follows the readings
+ * while it is open.
  */
 interface Props {
   /** The pane's root, which the card is laid out in (position: relative). */
   root: HTMLElement | null
-  context: HintContext
+  /** The card for a key, and what it reads now; null for a key the pane does not know. */
+  lookup: (key: string) => { hint: Hint; live: string | null } | null
+  /** `wifi` or `ether`: the test ids' prefix. */
+  kind: string
 }
 
-const { root, context }: Props = $props()
+const { root, lookup, kind }: Props = $props()
 
 let key = $state<string | null>(null)
 let place = $state.raw<{ anchor: CardAnchor; bounds: CardSize } | null>(null)
 
-const hint = $derived(key === null ? null : hintFor(key))
-const live = $derived(key === null ? null : liveFor(key, context))
+const found = $derived(key === null ? null : lookup(key))
 
 $effect(() => {
   const el = root
@@ -70,12 +73,12 @@ $effect(() => {
 })
 </script>
 
-{#if hint !== null && place !== null}
-  <HoverCard anchor={place.anchor} bounds={place.bounds} width="22rem" testid="wifi-hint" data-key={key}>
-    <b class="title">{hint.title}</b>
-    {#each hint.body as line, i (i)}<p>{line}</p>{/each}
-    {#if hint.limits}<p class="limits"><span>LIMITS</span> {hint.limits}</p>{/if}
-    {#if live !== null}<p class="now" data-testid="wifi-hint-now"><span>NOW</span> {live}</p>{/if}
+{#if found !== null && place !== null}
+  <HoverCard anchor={place.anchor} bounds={place.bounds} width="22rem" testid="{kind}-hint" data-key={key}>
+    <b class="title">{found.hint.title}</b>
+    {#each found.hint.body as line, i (i)}<p>{line}</p>{/each}
+    {#if found.hint.limits}<p class="limits"><span>LIMITS</span> {found.hint.limits}</p>{/if}
+    {#if found.live !== null}<p class="now" data-testid="{kind}-hint-now"><span>NOW</span> {found.live}</p>{/if}
   </HoverCard>
 {/if}
 

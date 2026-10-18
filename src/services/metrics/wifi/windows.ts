@@ -297,7 +297,8 @@ function WlanNics {
     $info = NicInfo $a
     $script:nics[$id] = $a
     $script:nicInfo[$id] = $info
-    if ($a.OperationalStatus -eq 'Up' -and $info['gw']) { $script:wlanGws += @{ l = $id; a = $info['gw'] } }
+    # The echo leaves from this adapter's own address (ElecdexEther.Echo), so a cable on the same router is not taken for it.
+    if ($a.OperationalStatus -eq 'Up' -and $info['gw']) { $script:wlanGws += @{ l = $id; a = $info['gw']; s = $info['ip4'] } }
   }
 }
 
@@ -369,9 +370,11 @@ function EmitWlanLog {
 `
 
 /**
- * The loop's part: one echo round serves both the network status pane (`ping`,
- * every five ticks) and the Wi-Fi pane (`probe`, every tick, with each connected
- * adapter's gateway, echoed at once).
+ * The loop's part: one echo round serves the network status pane (`ping`, every
+ * five ticks) and the Wi-Fi and Ethernet panes (`probe`, every tick, with each
+ * connected adapter's gateway, echoed at once - each from its adapter's own
+ * address, through ElecdexEther (ethernet/windows.ts), so that two adapters on
+ * the same router are told apart; .NET's pingers only where that did not compile).
  * `$host` is the validated ping host.
  */
 export const probeStep = (pingHost: string): string => `
@@ -379,22 +382,31 @@ export const probeStep = (pingHost: string): string => `
   $pingDue = Due 'ping' 5
   if ($probeOn -or $pingDue) {
     $gws = @()
-    if ($probeOn) { $gws = @(WlanGateways) }
+    if ($probeOn) { $gws = @(@(WlanGateways) + @(EtherGateways) | Select-Object -First 4) }
     $tNet = $null
     try { $tNet = $pinger.SendPingAsync('${pingHost}', 900) } catch {}
-    $sent = @()
-    for ($i = 0; $i -lt $gws.Count; $i++) {
-      $t = $null
-      try { $t = $gwPingers[$i].SendPingAsync($gws[$i]['a'], 900) } catch {}
-      $sent += @{ g = $gws[$i]; t = $t }
+    $echoes = @()
+    if ($gws.Count -gt 0 -and (EtherReady)) {
+      $src = [string[]]@($gws | ForEach-Object { if ($_['s']) { $_['s'] } else { '0.0.0.0' } })
+      $dst = [string[]]@($gws | ForEach-Object { $_['a'] })
+      $rtts = [ElecdexEther]::Echo($src, $dst, 900)
+      for ($i = 0; $i -lt $gws.Count; $i++) { $echoes += @{ l = $gws[$i]['l']; a = $gws[$i]['a']; r = $rtts[$i] } }
+    } elseif ($gws.Count -gt 0) {
+      $sent = @()
+      for ($i = 0; $i -lt $gws.Count; $i++) {
+        $t = $null
+        try { $t = $gwPingers[$i].SendPingAsync($gws[$i]['a'], 900) } catch {}
+        $sent += @{ g = $gws[$i]; t = $t }
+      }
+      $echoes = @(foreach ($x in $sent) { @{ l = $x.g['l']; a = $x.g['a']; r = (PingResult $x.t) } })
     }
     $ms = PingResult $tNet
-    $echoes = @(foreach ($x in $sent) { @{ l = $x.g['l']; a = $x.g['a']; r = (PingResult $x.t) } })
-    if ($probeOn) { Emit 'probe' @{ net = $ms; gws = $echoes } }
+    if ($probeOn) { Emit 'probe' @{ net = $ms; gws = @($echoes) } }
     if ($pingDue) { Emit 'ping' @{ ms = $ms } }
   }
   if ($want.ContainsKey('wlan')) { EmitWlan }
   if (Due 'wlanlog' 5) { EmitWlanLog }
+  if ($want.ContainsKey('ether')) { EmitEther } else { $etherGws = @() }
 `
 
 // ---------------------------------------------------------------------------

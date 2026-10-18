@@ -1,3 +1,4 @@
+import type { NetEthernet } from './ethernet.js'
 import type { NetWifi, NetWifiEvents } from './wifi.js'
 
 /**
@@ -307,6 +308,7 @@ export interface MetricSamples {
   'net.sockets': NetSockets
   'net.wifi': NetWifi
   'net.wifi.events': NetWifiEvents
+  'net.ethernet': NetEthernet
   'disk.volumes': DiskVolumes
   'disk.io': DiskIo
   'gpu.info': GpuInfo
@@ -334,6 +336,7 @@ export const METRIC_SOURCE_IDS = [
   'net.sockets',
   'net.wifi',
   'net.wifi.events',
+  'net.ethernet',
   'disk.volumes',
   'disk.io',
   'gpu.info',
@@ -347,6 +350,8 @@ export const PRIVATE_METRIC_SOURCE_IDS = [
   // machine has been, as much as the socket table is (user decision 2026-09-25).
   'net.wifi',
   'net.wifi.events',
+  // The wired adapter's addresses and what carries the way out: kept private, as Wi-Fi's.
+  'net.ethernet',
 ] as const satisfies readonly MetricSourceId[]
 
 /**

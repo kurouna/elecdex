@@ -1266,6 +1266,9 @@ Stop とペインを閉じたときの停止）。
   ネットワーク状態だけなら従来どおり 5 秒ごと。ゲートウェイへの ping は Wi-Fi ペインが見えているときだけ。
   Linux / macOS は `ping -i 1` を相手ごとに 1 本だけ常駐させて行を読み（`wifi/ping-stream.ts`）、ネットワーク状態の
   ping はそれが動いている間はその値を使う（`peek`、自分では起動しない）。
+  ゲートウェイへの往復は、アダプタ自身のアドレスを送信元にして打つ（2026-10-18、§5.23。Windows は `IcmpSendEcho2Ex`、
+  Linux は `ping -I`、macOS は `ping -S`）。.NET の `Ping` は送信元を選べず、同じルーターに有線でも繋いでいると、どちらの
+  往復も既定の経路の側だけを通っていた。
 - **サンプラー**: 種類 `wlan`（毎秒）、`probe`（毎秒）、`wlanlog`（5 秒ごと）。WLAN の C# は、初めて必要になったとき
   に一度だけコンパイルする。接続プロファイルとアドレスは接続が変わったとき（状態かチャネルの変化）と 10 秒ごとに
   だけ読み、毎秒読むのはバイトカウンタだけ。ループはスリープの長さを固定せず、次の壁時計の秒まで待つ。
@@ -1525,6 +1528,99 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 - **購読**: 他のソースと同じく参照カウントで、購読が 0 になればサンプラーの `gpu` も 15 秒で失効して読まなくなる。グラフにするので `keepWhileHidden`
 - **負荷**: 1 秒ごとの読み取りで、PowerShell 側が 1 コアの 0.34%（decisions.md）
 - **テスト**: `ELECDEX_GPU_STUB`（`1`・`demo`・`none`）。e2e は既定で `1`
+
+### 5.23 ETHERNET ペイン（有線 LAN の経路診断）
+
+有線で繋いでいるとき、どこで問題が起きているかを示す（2026-10-18、利用者の依頼）。Wi-Fi ペイン（§5.12）の有線版で、
+目的も同じ：通話や配信の品質が悪いとき、自分か、ケーブル・ポート・アダプタか、ルーターか、回線かを切り分ける。
+ピッカー名は "Ethernet status"、見出しは ETHERNET。既定のレイアウトにもプリセットにも入れない。見た目のたたき台は
+モック [ethernet-mock/index.html](ethernet-mock/index.html)（16 の場合、3 つの大きさ、5 つのテーマ。Wi-Fi ペインの
+実画面 ref-wifi-*.png と並べて、UX の統一・有線の診断・見た目の規約の 3 つの観点でレビューして直した）。
+
+- **有線の故障は通信を止めるより遅くする**ので、遅くするものでリンクを判定する：見ている間の速度の低下（1 Gb/s から
+  100 Mb/s、ケーブルの 1 対の断）、半二重、CRC エラー、数分おきの断（EEE・Green Ethernet、ドックの再接続）、ブロード
+  キャストの嵐（スイッチのループ）、802.1X の認証待ち、USB 2.0 のポート。
+- **アダプタの選び方**: Windows は IP Helper の `GetIfTable2`（`MIB_IF_ROW2`、64 ビットで 1352 バイト。オフセットは
+  この PC で .NET の値と照合した）で、Type 6・PhysicalMediumType 14・HardwareInterface が立ち FilterInterface が立たない
+  行。この PC で .NET が `Ethernet` と呼ぶ 19 行（フィルタ層、Up の仮想、Bluetooth PAN、カーネルデバッガー）から物理の
+  1 枚だけが残る。Linux は `/sys/class/net` の type 1 で、無線・`/virtual/`・ブリッジ・ボンド・テザリング（`rndis_host`
+  など）でないもの。macOS は `networksetup -listallhardwareports` の Ethernet・USB・Thunderbolt の LAN（Thunderbolt Bridge と
+  裸の「Thunderbolt n」は除く）。
+- **Windows の読み取り**（サンプラーの種類 `ether`、毎秒、見えている間だけ）: C# の `ElecdexEther`（一度だけコンパイル）が
+  状態・速度・カウンタ（フレーム、非ユニキャスト、ブロードキャストのバイト、受信エラー、破棄、未知のプロトコル）を読む。
+  アドレスと接続プロファイルの疎通、既定の経路のインターフェース（`GetBestInterface`）は、アダプタが変わったときと
+  10 秒ごと。二重、バス（PCIe の速度と幅）、ドライバ、詳細設定（`*SpeedDuplex` の今の値と選べる最大＝能力、`*EEE`、
+  `*FlowControl`、`*JumboPacket`、`*WakeOnMagicPacket`、Realtek の `EnableGreenEthernet`・`GigaLite`・`PowerSavingMode`・
+  `AutoDisableGigabit`・`AdvancedEEE`、Intel の `ReduceSpeedOnPowerDown`）は、アダプタが現れたときとリンクが上がるたびに、
+  **サンプラーの中の別のランスペース**で読む（`Get-NetAdapter` の冷えた 1 回目が 1.4 秒かかり、ループを止めると全ペインの
+  読み取りが遅れるため）。設定は**キーワード**で読む（表示名はドライバの言語に訳される）。何も変えない（Set- や Disable- の
+  コマンドレットがないことを単体テストが確かめる）。C# とランスペースのスクリプトはサンプラーの環境変数で渡す
+  （スクリプトに入れたらコマンドラインが 37,253 文字になり、32,767 を超えた。今は 30,923 文字で、単体テストが 32,000 未満を
+  確かめる）。
+- **スクリプトから出さないもの**: インターフェースの GUID（プロファイルとアドレスの照合にだけ使い、出す前に消す。id は
+  `if<インデックス>`）、ComponentID のベンダー ID・機種 ID（バスはその最初の語だけ）、接続プロファイルの名前、DNS サフィックス、
+  DHCP サーバー。COPY のレポートは MAC と IPv6 を常に、MASK のときはアドレスも隠す。
+- **Linux**: sysfs のファイルだけ（`carrier`、`operstate` の dormant は 802.1X、`speed`・`duplex` は切れている間 -1、
+  `carrier_down_count`（なければ `carrier_changes` の半分）、`statistics/` の CRC・フレーム・長さのエラー、破棄、マルチキャスト、
+  衝突、親の USB 機器の `speed`）。能力・EEE・ブロードキャストの数は読めない（`no-capability`、`no-broadcast`、`no-settings`）。
+- **macOS**: `ifconfig` の media 行（速度・二重・flow-control・energy-efficient-ethernet）、`netstat -I -b`、`route -n get default`。
+  プロセスを起こすので 10 秒おきに読み、その間は最後の答えを使う。
+- **往復**: 往復の数は増やさない。サンプラーの `probe` が Wi-Fi と有線のゲートウェイを合わせて最大 4 つ、**各アダプタ自身の
+  アドレスを送信元にして**（`IcmpSendEcho2Ex`）同時に打つ。.NET の `Ping` は送信元を選べず、同じルーターに Wi-Fi と有線で
+  繋ぐと、両方の往復が既定の経路の側だけを通って両方の値として数えられていた（Wi-Fi ペインもこれで正しくなった）。
+  Linux / macOS は常駐の `ping` を `-I <if>` / `-S <addr>` で。インターネットへの往復は 1 つで、Wi-Fi・ETHERNET・ネットワーク
+  状態の 3 つのペインが読む。表示は整数の ms で、1 ms 未満は `<1 ms`。
+- **ソース**: `net.ethernet`（毎秒）だけ。`keepWhileHidden` に入れず、プラグインには出さない（`PRIVATE_METRIC_SOURCE_IDS`）。
+  **OS のログは読まない**：有線の断をメーカーによらず記録するログはない（`NetworkProfile/Operational` はアダプタを書かず、
+  `Dhcp-Client/Admin` は SSID と MAC を書き、ドライバの System ログはメーカーごとに番号が違う）。イベントはペインが見たもので、
+  Linux だけ、見ていなかった間の断を `carrier_down_count` の増分から 1 行出す。
+- **診断**（`diagnoseEthernet`、純粋関数、`ETHER_LIMITS` の一か所）: 往復は直近 1 分、リンクのカウンタは直近 10 分。リンクが
+  切れていた秒の往復は数えない（それはリンクのせい）。先に止める条件：アダプタなし、無効、`NO CARRIER`、`LINK LOST`（今切れた）、
+  `AUTH`（NotAuthenticated。認証の中身は読まない）、アドレスなし（上がってから 45 秒はスパニングツリーを待つ）、サインイン、
+  上りの喪失。そのあと Wi-Fi と同じ順（bad を近い順に、なければ warn を近い順に）。
+  - 速度：見ている間に**前に出ていた速度より下がった**ら warn、10 Mb/s と半二重は bad。アダプタの能力より低いまま変わらない
+    速度は相手側のことなので判定せず `BELOW MAX` と書くだけ。前に出ていた速度はページの履歴がアダプタごとに覚える。二重の
+    unknown は half にしない。速度を手で固定していて CRC エラーがあれば、根拠に「相手が半二重かもしれない」と書く。
+  - CRC エラー：受信エラーだけ（Linux は CRC・フレーム・長さ）。破棄と未知のプロトコルはこの機械の側として `host` と書き、
+    判定しない。件数と割合の両方：warn 5 件かつ 0.01%、bad 20 件かつ 0.1%（10 分）。
+  - 断：下がって 60 秒以内に戻ったもの。warn 2、bad 4（10 分）。省電力が on で速度が自動なら根拠に添える。
+  - ブロードキャスト：Windows は受信のブロードキャストのバイトを 60（ARP の大きさ）で割って数える（多めに出る）。直近 30 秒の
+    中央値が warn 300/s、bad 3000/s（10 秒のスキャンでは鳴らない）。「ループかも」はゲートウェイの損失も上がっているときだけ。
+    マルチキャスト（IPTV は毎秒 1,000 を超える）は出すだけで判定しない。
+  - USB：Linux で親の USB が 480 Mb/s で、受信が 20 秒 250〜350 Mb/s に ±5% で張り付いていたら warn。Windows は USB の速度が
+    読めないので情報の行だけ。
+  - ゲートウェイ：RTT warn 5 / bad 20 ms、ジッタ 5 / 15 ms、損失 3 / 10%（家庭のルーターは ping を後回しにし間引く）。
+    インターネットと自分の上りは Wi-Fi と同じ `PATH_LIMITS`。既定の経路が Wi-Fi や VPN のとき、INTERNET の局は `via Wi-Fi` /
+    `via VPN` で判定せず、MOS も出さない。
+- **画面**: Wi-Fi ペインと同じ骨組み（見出し行、チップ、経路の帯、判定、凡例、リボン、中段、タブ、タイムライン、ログ、詳細、
+  説明カード、MASK、COPY、前面での 2 列）。経路の帯と説明カードは Wi-Fi と共有の部品（widgets/netpath/）。違うのは:
+  - 見出しの絵はポートの形（リンク中は端子が点く）、名前はアダプタの短い名前、状態は Wi-Fi の語の組に `AUTHENTICATING`。
+    ケーブルがないとき、バッジが状態を言うので副題はアダプタ（Wi-Fi も同じに直した）。
+  - PC と LINK の間の線は直近 1 分の**リンクの使用率**。LINK の局は `1 Gb/s full` と `crc 0`。
+  - **LINK パネル**（Wi-Fi の電波の位置）: 速度の段（10M・100M・500M・1G・2.5G・5G・10G、能力に `max`、能力の先は破線）と
+    大きな速度、等級の語（BEST・BELOW MAX・DOWNSHIFTED・HALF DUPLEX・SLOW）。**段と数字は速度と二重の判定の色だけで塗る**
+    （CRC が原因でも 1 Gb/s は普通の色。原因の数字の方に、その色の下地を敷く）。規格の六角形（`1G`）と使用率の ↓↑、数の行
+    （crc・drops・broadcast・multicast）、設定の札、1 行の注意（省電力は、on のまま断か速度の低下を見たときだけ黄色にし、行を
+    出す。行の場所は空でも取っておく）。ケーブルがないときは出さず、タブにも出さない。
+  - タイムラインのレーン: LINK（速度の段の帯。ふだんは斜線、前より下がった所は黄の塗り、断は赤の斜線）、L2（CRC を赤、
+    ブロードキャストを黄で積む。床は嵐の warn 線）、RTT、LOSS、TRAFFIC（リンク速度の 7 割を超えたら目盛りをリンク速度に）、EVENTS。
+  - ログ: LINK LOST・CONNECTED（`down 3s`）・SPEED・DUPLEX・UPSTREAM LOST / BACK・SIGN-IN・CRC ERRORS・BROADCAST。上の帯は
+    過去 24 時間の代わりに、見ていた 1 時間（断は赤）。
+  - 詳細: アダプタ、ドライバ、バス、リンク、設定、省電力、フレーム、802.1X、アドレス（リンク中だけ）、経路、エコーの相手。
+    カウンタは Detail.svelte と同じ棒の規則で、ドライバが埋めないものは行ごと出さない。
+- **段組み**（`etherSections`）: 幅 1100 以上で 2 列。幅 480 未満では LINK パネルが段を上に、詳細が 1 列になり、それぞれ約
+  2 倍の高さになる（スタブで実測）ので、その高さで積むかタブにするかを決める（最初は狭い枠でタイムラインが潰れた）。
+- **文字**: canvas に文字を描かない。レーン名・目盛り・NOT WATCHED・イベントの記号は canvas の上の HTML で、`--step--2` /
+  `--step--1`。Wi-Fi のタイムラインとリボンも同じに直した（以前は canvas に 8〜10px で描いていて、型の段の下限を割っていた）。
+  凡例の例の数値も実データにした（Wi-Fi は `18 ms ±2` の固定だった）。
+- **テスト**: 単体 `ethernet.test.ts`（判定・断・嵐・順序・イベント・段組み・レポート）、`ethernet-readers.test.ts`（各 OS の
+  パーサ、行の選び方、出さないもの、変えないこと、コマンドラインの長さ）、`ethernet-hints.test.ts`（カードの網羅としきい値の
+  引用）、コンポーネント `ethernet-widget.test.ts`、e2e `ethernet.spec.ts` と `hidden-panes.spec.ts`。スタブ `ELECDEX_ETHER_STUB`
+  （`1`、`flapping`、`downshift`、`crc`、`mismatch`、`half`、`storm`、`multicast`、`router`、`upstream`、`vpn`、`usb`、`auth`、
+  `unplugged`、`none`、`dual`、`demo`）。
+- **未検証**: この PC の有線はケーブルが挿さっていないので、リンク中の値（速度・二重・カウンタの増え方）、しきい値、負荷は
+  まだ実機で測っていない。リンクの変化を NDIS の WMI イベントで受ける（1 秒未満の断を見落とさない）のと、Tcpip 4199（IP の重複）
+  を読むのも、実機で確かめてからにする。Linux と macOS はパーサを単体テストしただけ。
 
 ## 6. ターミナル設計
 

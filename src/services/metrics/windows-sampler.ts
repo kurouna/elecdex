@@ -1,4 +1,5 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
+import type { NetEthernet } from '@shared/ethernet'
 import type {
   Battery,
   DiskIo,
@@ -14,6 +15,16 @@ import type {
 } from '@shared/metrics'
 import type { NetWifi, NetWifiEvents } from '@shared/wifi'
 import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
+import {
+  ETHER_INFO_ENV,
+  ETHER_INFO_SCRIPT,
+  ETHER_SOURCE,
+  ETHER_SOURCE_ENV,
+  etherScript,
+  parseEtherLine,
+  type RawEtherLine,
+  toNetEthernet,
+} from './ethernet/windows.js'
 import {
   GPU_SOURCE,
   GPU_SOURCE_ENV,
@@ -133,6 +144,7 @@ export type SamplerLine =
   | { kind: 'probe'; data: RawProbe }
   | { kind: 'wlanlog'; data: RawWlanEvent[] }
   | { kind: 'gpu'; data: RawGpu[] }
+  | { kind: 'ether'; data: RawEtherLine }
 
 // ---------------------------------------------------------------------------
 // Pure computations
@@ -396,6 +408,8 @@ export function parseSamplerLine(line: string): SamplerLine | null {
         : null
     case 'gpu':
       return { kind: 'gpu', data: parseGpuRows(data) }
+    case 'ether':
+      return { kind: 'ether', data: parseEtherLine(data) }
     default:
       return parseWifiLine(t, data) ?? null
   }
@@ -413,7 +427,8 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' 
 
 /**
  * The loop PowerShell runs, one tick per second:
- *   every tick       interface byte counters; Wi-Fi and its echoes (wifi/windows.ts)
+ *   every tick       interface byte counters; Wi-Fi and its echoes (wifi/windows.ts);
+ *                    the wired adapters, while wanted (ethernet/windows.ts)
  *   every 5 ticks    process table, interface addresses, TCP sockets, ping, the WLAN log
  *   every 2 ticks    disk read/write rates and busy time (performance counters)
  *   every tick       GPU engine loads and memory (gpu/windows.ts), while wanted
@@ -588,6 +603,7 @@ $gpuSource = $env:${GPU_SOURCE_ENV}
 $gpuMode = 'unset'
 $pinger = New-Object System.Net.NetworkInformation.Ping
 ${WLAN_SCRIPT}
+${etherScript(pingHost)}
 $tick = 0
 $tcpMode = 'unset'
 $diskRead = $null
@@ -677,7 +693,7 @@ function EmitTcp {
 }
 function Emit($t, $data) {
   try {
-    [Console]::Out.WriteLine((ConvertTo-Json -Compress -Depth 4 -InputObject @{ t = $t; data = $data }))
+    [Console]::Out.WriteLine((ConvertTo-Json -Compress -Depth 8 -InputObject @{ t = $t; data = $data }))
   } catch { exit 0 }
 }
 while ($true) {
@@ -796,11 +812,20 @@ export type StartSampler = (script: string) => ChildProcessWithoutNullStreams
 
 // The script is passed as a command, never written to or run from a file,
 // so Windows' ExecutionPolicy does not apply to it.
-// The GPU's C# goes beside it in the environment: on the command line as well, the two passed
-// Windows' 32,767-character limit (spawn ENAMETOOLONG).
+// The GPU's and the cable's C# go beside it in the environment: on the command line as well,
+// they passed Windows' 32,767-character limit (spawn ENAMETOOLONG).
+export const SAMPLER_ENV = {
+  [GPU_SOURCE_ENV]: GPU_SOURCE,
+  [ETHER_SOURCE_ENV]: ETHER_SOURCE,
+  [ETHER_INFO_ENV]: ETHER_INFO_SCRIPT,
+}
+
+/** The script the sampler runs, for the test that holds it under the command line's limit. */
+export const samplerScript = (pingHost: string): string => script(process.pid, pingHost)
+
 const startPowerShell: StartSampler = (text) =>
   spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', text], {
-    env: { ...process.env, [GPU_SOURCE_ENV]: GPU_SOURCE },
+    env: { ...process.env, ...SAMPLER_ENV },
     windowsHide: true,
   })
 
@@ -833,6 +858,8 @@ export class WindowsSampler {
   /** The WLAN log's records by record id, gathered from the first read of the day on. */
   private wlanLog: Map<number, RawWlanEvent> | null = null
   private gpu: RawGpu[] | null = null
+  private etherPrevious: { at: number; data: RawEtherLine } | null = null
+  private etherCurrent: { at: number; data: RawEtherLine } | null = null
   private readonly demand = new SamplerDemand()
   /** Readings received, by kind: what the sampler actually did, for the tests to hold it to. */
   readonly readings = new Map<string, number>()
@@ -931,6 +958,27 @@ export class WindowsSampler {
   async wifiEvents(): Promise<NetWifiEvents> {
     await this.until(['wlanlog'], () => this.wlanLog !== null)
     return { events: toWifiEvents(this.wlanLog?.values() ?? [], Date.now()) }
+  }
+
+  /**
+   * The wired adapters and the last round of echoes, which carries their gateways'
+   * echoes beside Wi-Fi's: one round for every pane.
+   */
+  async ethernet(): Promise<NetEthernet> {
+    await this.until(['ether', 'probe'], () => this.etherCurrent !== null && this.probe !== null)
+    const probe = this.probe
+    return toNetEthernet(
+      this.etherPrevious,
+      this.etherCurrent as { at: number; data: RawEtherLine },
+      probe === null
+        ? null
+        : {
+            at: probe.at,
+            host: this.pingHost,
+            internet: probe.net,
+            gateways: probe.gws.map((g) => ({ link: g.l, address: g.a, rtt: g.r })),
+          },
+    )
   }
 
   /** The adapters, from the first reading: DXGI's list is read once, when the counters open. */
@@ -1036,6 +1084,9 @@ export class WindowsSampler {
         break
       case 'gpu':
         this.gpu = null
+        break
+      case 'ether':
+        this.etherPrevious = this.etherCurrent = null
         break
     }
   }
@@ -1152,6 +1203,10 @@ export class WindowsSampler {
         break
       case 'gpu':
         this.gpu = parsed.data
+        break
+      case 'ether':
+        this.etherPrevious = this.etherCurrent
+        this.etherCurrent = { at, data: parsed.data }
         break
       case 'wlanlog': {
         const log = this.wlanLog ?? new Map<number, RawWlanEvent>()

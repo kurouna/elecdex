@@ -26,14 +26,32 @@ export function parsePingReply(line: string): number | null {
   return m === null ? null : Number(m[1])
 }
 
-export type SpawnPing = (target: string) => ChildProcess
+/**
+ * `source` sends the echo from one adapter: the interface on Linux (`-I`), the
+ * adapter's address on macOS (`-S`). Without it, two adapters on the same router
+ * would both be echoed by whichever route the system prefers.
+ */
+export type SpawnPing = (target: string, source: string | null) => ChildProcess
 
-const spawnPing: SpawnPing = (target) =>
-  spawn('ping', ['-n', '-i', '1', target], { stdio: ['ignore', 'pipe', 'ignore'] })
+/** The arguments of one long-lived ping, from a source when one is given. */
+export function pingArgs(
+  target: string,
+  source: string | null,
+  platform = process.platform,
+): string[] {
+  const from = source === null ? [] : platform === 'darwin' ? ['-S', source] : ['-I', source]
+  return ['-n', '-i', '1', ...from, target]
+}
+
+const spawnPing: SpawnPing = (target, source) =>
+  spawn('ping', pingArgs(target, source), { stdio: ['ignore', 'pipe', 'ignore'] })
+
+const SAFE = /^[A-Za-z0-9.:_-]+$/
 
 export class PingStream {
   private child: ChildProcess | null = null
   private target: string | null = null
+  private source: string | null = null
   private started = 0
   private lastReply = 0
   private lastMs: number | null = null
@@ -49,13 +67,18 @@ export class PingStream {
    * The round trip to `target` this second: a number, null for a loss, or
    * undefined while there is no answer to give (no target, just started).
    */
-  read(target: string | null, now = Date.now()): number | null | undefined {
+  read(
+    target: string | null,
+    now = Date.now(),
+    source: string | null = null,
+  ): number | null | undefined {
     this.lastAsked = now
-    if (target === null || !/^[A-Za-z0-9.:-]+$/.test(target)) {
+    if (target === null || !SAFE.test(target) || (source !== null && !SAFE.test(source))) {
       this.end()
       return undefined
     }
-    if (target !== this.target || this.child === null) this.begin(target, now)
+    if (target !== this.target || source !== this.source || this.child === null)
+      this.begin(target, source, now)
     if (now - this.started < WARM_MS && now - this.lastReply > FRESH_MS) return undefined
     return now - this.lastReply <= FRESH_MS ? this.lastMs : null
   }
@@ -75,17 +98,19 @@ export class PingStream {
     this.child?.kill()
     this.child = null
     this.target = null
+    this.source = null
     if (this.idle !== null) clearInterval(this.idle)
     this.idle = null
   }
 
-  private begin(target: string, now: number): void {
+  private begin(target: string, source: string | null, now: number): void {
     this.end()
     this.target = target
+    this.source = source
     this.started = now
     this.lastReply = 0
     this.lastMs = null
-    const child = this.start(target)
+    const child = this.start(target, source)
     this.child = child
     let buffer = ''
     child.stdout?.setEncoding('utf8')

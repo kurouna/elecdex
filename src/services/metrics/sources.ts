@@ -26,6 +26,7 @@ import type {
 } from '@shared/metrics'
 import si from 'systeminformation'
 import { type DiskCounters, diskIoBetween, parseDiskstats, posixVolumes } from './disks.js'
+import { readEthernet } from './ethernet/index.js'
 import { summarizeConnections } from './geoip.js'
 import { readGpuInfo, readGpuUsage } from './gpu/index.js'
 import { parseBsdNetstat, parseProcNetTcp, publicRemotes } from './net-connections.js'
@@ -321,6 +322,12 @@ async function diskIo(): Promise<DiskIo> {
 const netWifi = () => readWifi(windowsSampler, PING_HOST)
 const netWifiEvents = () => readWifiEvents(windowsSampler)
 
+/**
+ * The Ethernet pane's wired adapters and the echo round they share with Wi-Fi
+ * (ethernet/index.ts). Read only while the pane is seen.
+ */
+const netEthernet = () => readEthernet(windowsSampler, PING_HOST)
+
 export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'cpu.info': { once: true, collect: cpuInfo },
   'cpu.load': { intervalMs: 1000, collect: cpuLoad },
@@ -341,6 +348,7 @@ export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'net.sockets': { intervalMs: byPlatform(5000, 3000), collect: netSockets },
   'net.wifi': { intervalMs: 1000, collect: netWifi },
   'net.wifi.events': { intervalMs: 5000, collect: netWifiEvents },
+  'net.ethernet': { intervalMs: 1000, collect: netEthernet },
   'disk.volumes': { intervalMs: 30_000, collect: diskVolumes },
   'disk.io': { intervalMs: 2000, collect: diskIo },
   // Once for the names and sizes; every second for the load, like cpu.load, beside which it is charted.

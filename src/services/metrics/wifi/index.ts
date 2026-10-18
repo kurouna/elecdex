@@ -38,7 +38,9 @@ function gatewayEchoes(links: readonly WifiLink[], now: number): WifiGatewayEcho
   for (const link of up) {
     const stream = gatewayPings.get(link.id) ?? new PingStream()
     gatewayPings.set(link.id, stream)
-    const rtt = stream.read(link.gateway, now)
+    // From this adapter: its interface on Linux, its address on macOS.
+    const source = process.platform === 'darwin' ? link.ip4 : link.id
+    const rtt = stream.read(link.gateway, now, source)
     if (rtt !== undefined && link.gateway !== null)
       echoes.push({ link: link.id, address: link.gateway, rtt })
   }
@@ -69,6 +71,14 @@ export async function readWifi(sampler: WindowsSampler | null, host: string): Pr
         ? ['bssid-location', 'ssid-location', 'no-log', 'no-counters']
         : ['bssid-location', 'no-log'],
   }
+}
+
+/**
+ * The internet's round trip this second from the one long-lived echo, for the
+ * Ethernet pane on Linux and macOS: one stream serves both panes.
+ */
+export function readInternet(host: string, now: number): number | null | undefined {
+  return internetPing.read(host, now)
 }
 
 /**

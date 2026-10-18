@@ -588,6 +588,20 @@ weather and calendar.
   gateway echo and its own history.
   Nothing that needs your location is read, so there is no BSSID and no scan of the networks
   around. The echoes run only while the pane is on screen.
+- **Ethernet** *(unreleased)* — the Wi-Fi pane's sibling for a cable: where a wired connection is
+  failing, segment by segment - PC, LINK, GATEWAY, INTERNET. A wired fault rarely stops traffic; it
+  slows it, so the link is judged by what slows it: a fall from the speed it had (1 Gb/s to
+  100 Mb/s, a damaged pair), half duplex, CRC errors (a count and a share over ten minutes),
+  drops that come back within a minute, and a broadcast flood. A link that was always slower than
+  the adapter could go is the other end's, and only noted (BELOW MAX). The link panel shows the
+  speed on a ladder with the adapter's best, the link's use each way, and the driver's settings -
+  EEE, Green Ethernet, Gigabit Lite, jumbo frames, flow control - read and never changed; power
+  saving turns yellow only after a drop or a fall in speed was seen with it on. The gateway is
+  echoed from the adapter's own address, so a cable and Wi-Fi on the same router are told apart;
+  when the internet leaves by Wi-Fi or a VPN, it is shown and not judged. No system keeps a log of
+  a wired link's drops that every driver writes, so the log holds what the pane saw while on
+  screen. **MASK**, **COPY**, the cards, the timeline and the two columns brought forward are the
+  Wi-Fi pane's.
 - **AI Agent** *(experimental)* — one card per running Claude Code session: its name and
   folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
   in its view and written, and its answers. Below them, the subagents it started and the commands
@@ -1262,6 +1276,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
 | Orbital elements | [CelesTrak](https://celestrak.org/) GP data (from the 18th and 19th Space Defense Squadrons via [Space-Track.org](https://www.space-track.org/)): `GROUP=stations` as OMM JSON, `GROUP=starlink` as TLE | Positions are computed on your computer; only elements are downloaded. Following CelesTrak's [usage policy](https://celestrak.org/usage-policy.php): only while an ORBIT pane shows the set, the stations at most twice a day and Starlink at most once a day (CelesTrak updates every two hours), kept on disk across restarts, an identifying User-Agent, and nothing more for a day after any answer but a 200. Credited in the pane. |
 | Wi-Fi pane | Your own gateway, and `1.1.1.1` (the host the network status pane already pings) | One echo to each a second, and only while a Wi-Fi pane is on screen; the internet's echo is the one the network status pane reads too, so the host is not asked twice. The rest - the signal, the channel, the connection log - is read from the operating system, never from a service. On Windows the network's name comes from the connection profile and nothing behind the location permission is read (no BSSID, no scan); on macOS the name stays hidden without Location Services, which elecdex never asks for. |
+| Ethernet pane *(unreleased)* | Your own gateway, from the wired adapter's own address, and `1.1.1.1` | As the Wi-Fi pane: one echo to each a second, only while the pane is on screen, the internet's echo the one the Wi-Fi and network status panes read too. The link, its counters and the driver's settings are read from the operating system and never changed; the adapter's ids and the network's name are not read. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 
 ## Third-party assets

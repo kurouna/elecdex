@@ -17,12 +17,17 @@ import { bucketize, diagnose, pathFigures, WIFI_LIMITS, type WifiLink } from '..
  */
 
 const DIR = path.join(import.meta.dirname, '../../src/renderer/widgets/wifi')
+/** The parts it shares with the Ethernet pane, whose markup carries its keys too. */
+const SHARED = path.join(import.meta.dirname, '../../src/renderer/widgets/netpath')
 
 /** Every hint key the pane's markup can produce, templates expanded. */
 function keysInMarkup(): string[] {
-  const text = readdirSync(DIR)
-    .filter((f) => f.endsWith('.svelte'))
-    .map((f) => readFileSync(path.join(DIR, f), 'utf8'))
+  const text = [DIR, SHARED]
+    .flatMap((dir) =>
+      readdirSync(dir)
+        .filter((f) => f.endsWith('.svelte'))
+        .map((f) => readFileSync(path.join(dir, f), 'utf8')),
+    )
     .join('\n')
   const keys = new Set<string>()
   for (const m of text.matchAll(/data-hint="([a-z0-9-]+)"/g)) if (m[1]) keys.add(m[1])
