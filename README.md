@@ -24,7 +24,7 @@ for Windows, macOS and Linux.
   ▶ <a href="https://youtu.be/LgbC3Iubot0">Watch the 2-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.34 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.35 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -75,7 +75,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   listing every TCP socket by the program holding it, both placed with a bundled GeoIP database;
   nothing is looked up online. The socket table sits under the globe.
 - **Wi-Fi and Ethernet** — one over the other, where the wireless link and the cable are failing,
-  segment by segment (see *Panes*). *(Ethernet unreleased.)*
+  segment by segment (see *Panes*).
 
 ### earth — overhead and underfoot
 
@@ -590,7 +590,7 @@ weather and calendar.
   gateway echo and its own history.
   Nothing that needs your location is read, so there is no BSSID and no scan of the networks
   around. The echoes run only while the pane is on screen.
-- **Ethernet** *(unreleased)* — the Wi-Fi pane's sibling for a cable: where a wired connection is
+- **Ethernet** — the Wi-Fi pane's sibling for a cable: where a wired connection is
   failing, segment by segment - PC, LINK, GATEWAY, INTERNET. A wired fault rarely stops traffic; it
   slows it, so the link is judged by what slows it: a fall from the speed it had (1 Gb/s to
   100 Mb/s, a damaged pair), half duplex, CRC errors (a count and a share over ten minutes),
@@ -1286,7 +1286,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
 | Orbital elements | [CelesTrak](https://celestrak.org/) GP data (from the 18th and 19th Space Defense Squadrons via [Space-Track.org](https://www.space-track.org/)): `GROUP=stations` as OMM JSON, `GROUP=starlink` as TLE | Positions are computed on your computer; only elements are downloaded. Following CelesTrak's [usage policy](https://celestrak.org/usage-policy.php): only while an ORBIT pane shows the set, the stations at most twice a day and Starlink at most once a day (CelesTrak updates every two hours), kept on disk across restarts, an identifying User-Agent, and nothing more for a day after any answer but a 200. Credited in the pane. |
 | Wi-Fi pane | Your own gateway, and `1.1.1.1` (the host the network status pane already pings) | One echo to each a second, and only while a Wi-Fi pane is on screen; the internet's echo is the one the network status pane reads too, so the host is not asked twice. The rest - the signal, the channel, the connection log - is read from the operating system, never from a service. On Windows the network's name comes from the connection profile and nothing behind the location permission is read (no BSSID, no scan); on macOS the name stays hidden without Location Services, which elecdex never asks for. |
-| Ethernet pane *(unreleased)* | Your own gateway, from the wired adapter's own address, and `1.1.1.1` | As the Wi-Fi pane: one echo to each a second, only while the pane is on screen, the internet's echo the one the Wi-Fi and network status panes read too. The link, its counters and the driver's settings are read from the operating system and never changed; the adapter's ids and the network's name are not read. |
+| Ethernet pane | Your own gateway, from the wired adapter's own address, and `1.1.1.1` | As the Wi-Fi pane: one echo to each a second, only while the pane is on screen, the internet's echo the one the Wi-Fi and network status panes read too. The link, its counters and the driver's settings are read from the operating system and never changed; the adapter's ids and the network's name are not read. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 
 ## Third-party assets

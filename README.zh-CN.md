@@ -23,7 +23,7 @@
   ▶ <a href="https://youtu.be/LgbC3Iubot0">2 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
-> **v0.0.34 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.35 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -67,7 +67,6 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 - **世界视图与连接** — 一个显示本机连接去向的地球，以及一个按持有程序列出每个 TCP 套接字的
   窗格，两者都用内置的 GeoIP 数据库定位，不做任何在线查询。套接字列表位于地球下方。
 - **Wi-Fi 与 Ethernet** — 上下排列，逐段指出无线和有线连接在哪里出了问题（见*窗格*）。
-  *（Ethernet 为 unreleased）*
 
 ### earth — 头顶与脚下
 
@@ -510,7 +509,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   在宽屏上放大时窗格分为两栏，站点之间的连线上画出该段最近一分钟的曲线，日志上方以横条显示过去
   24 小时的连接。有多个无线网卡时，页眉下方的小标签用来选择跟随哪一个，网关 ping 与历史各自独立。凡是需要位置信息的都不读取，
   因此没有 BSSID，也不扫描周围的网络。ping 只在窗格显示在屏幕上时进行。
-- **Ethernet** *(unreleased)* — 有线版的 Wi-Fi 窗格：逐段（PC、LINK、GATEWAY、INTERNET）指出有线
+- **Ethernet** — 有线版的 Wi-Fi 窗格：逐段（PC、LINK、GATEWAY、INTERNET）指出有线
   连接在哪里出了问题。有线故障很少让流量中断，而是让它变慢，所以按变慢的原因判断链路：从曾有的速度下降
   （1 Gb/s 降到 100 Mb/s，线缆一对断开）、半双工、CRC 错误（十分钟内的数量和比例）、一分钟内恢复的断开
   （在 Windows 和 Linux 上，还会根据系统自己的计数发现一秒以内的断开）、广播风暴，以及其他机器占用网卡的
@@ -1026,7 +1025,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 网页窗格 | 你在 Browser、YouTube 或 X 窗格中打开的网站 | 由应用的沙箱化浏览器视图像普通浏览器一样加载，且只在这类窗格存在时加载；elecdex 本身不向它们发送任何东西。Cookie 和网站数据保存在应用数据文件夹中（`Partitions/web`），直到执行 *sign out of all sites*。YouTube 和 X 依据其各自的条款使用。 |
 | 轨道根数 | [CelesTrak](https://celestrak.org/) GP 数据（来自第 18 和第 19 太空防御中队，经由 [Space-Track.org](https://www.space-track.org/)）：`GROUP=stations` 为 OMM JSON，`GROUP=starlink` 为 TLE | 位置在你的电脑上计算；只下载轨道根数。遵循 CelesTrak 的[使用政策](https://celestrak.org/usage-policy.php)：只在 ORBIT 窗格显示该组时获取，空间站最多每天两次，Starlink 最多每天一次（CelesTrak 每两小时更新一次），保存在磁盘上并跨重启保留，使用可识别的 User-Agent，收到非 200 的任何响应后一天内不再请求。在窗格中署名。 |
 | Wi-Fi 窗格 | 你自己的网关，以及 `1.1.1.1`（网络状态窗格本来就在 ping 的主机） | 每秒各一次 ping，且只在 Wi-Fi 窗格显示在屏幕上时进行；对互联网的 ping 与网络状态窗格读取的是同一个，因此不会重复询问同一主机。其余一切——信号、信道、连接日志——都从操作系统读取，从不询问外部服务。在 Windows 上网络名称取自连接配置文件，任何需要位置权限的内容（BSSID、扫描）都不读取；在 macOS 上没有定位服务时网络名称保持隐藏，而 elecdex 从不请求该权限。 |
-| Ethernet 窗格 *(unreleased)* | 你自己的网关（从有线网卡自己的地址发出），以及 `1.1.1.1` | 与 Wi-Fi 窗格相同：每秒各一次，只在窗格显示在屏幕上时进行，对互联网的 ping 与 Wi-Fi 窗格和网络状态窗格读取的是同一个。链路、计数器和驱动设置从操作系统读取，从不更改；不读取网卡的 ID 和网络名称。 |
+| Ethernet 窗格 | 你自己的网关（从有线网卡自己的地址发出），以及 `1.1.1.1` | 与 Wi-Fi 窗格相同：每秒各一次，只在窗格显示在屏幕上时进行，对互联网的 ping 与 Wi-Fi 窗格和网络状态窗格读取的是同一个。链路、计数器和驱动设置从操作系统读取，从不更改；不读取网卡的 ID 和网络名称。 |
 | 更新检查 | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | 启用时（默认）在启动 15 秒后请求一次最新发布的版本，此后每天一次。不下载也不安装任何东西：有新版本时会显示一条通知，点击打开其页面。 |
 
 ## 第三方资源
