@@ -347,6 +347,21 @@ test("hangs a subagent's own subagent under it, and folds them together once bot
       outerRow.getByTestId('agent-task-children').getByTestId('agent-task'),
     ).toContainText('Check the notices')
     await expect(page.getByTestId('agent-running')).toHaveText('2 RUNNING')
+    // A running subagent of a subagent shows its last step, from its own record.
+    const inner = outerRow.getByTestId('agent-task-children').getByTestId('agent-task-row')
+    await expect(inner.getByTestId('agent-task-step')).toContainText('notices.ts')
+
+    // A rest on either row gives that task's card, placed by that row alone.
+    const detail = page.getByTestId('agent-detail')
+    await inner.hover()
+    await expect(detail).toHaveAttribute('data-kind', 'task')
+    await expect(page.getByTestId('agent-detail-title')).toHaveText('Check the notices')
+    await page.mouse.move(2, 2)
+    await expect(detail).toHaveCount(0)
+    await outerRow.getByTestId('agent-task-row').first().hover()
+    await expect(page.getByTestId('agent-detail-title')).toHaveText('Review the release')
+    await page.mouse.move(2, 2)
+    await expect(detail).toHaveCount(0)
 
     // Its report reaches the subagent that started it: it ends there, as that record says.
     appendFileSync(
@@ -369,8 +384,7 @@ test("hangs a subagent's own subagent under it, and folds them together once bot
     await expect(tasks).toHaveCount(0)
     await finished.click()
     await expect(tasks).toHaveCount(2)
-    const inner = outerRow.getByTestId('agent-task-children').getByTestId('agent-task-state')
-    await expect(inner).toHaveText('DONE')
+    await expect(inner.getByTestId('agent-task-state')).toHaveText('DONE')
   } finally {
     await close()
     removeDir(dir)

@@ -80,6 +80,19 @@ describe('the AGENT cards', () => {
     expect(rows.at(-1)).toEqual({ label: 'ID', value: session().id, muted: true })
   })
 
+  it("count a subagent's own tasks with the session's", () => {
+    const nested = session({
+      tasks: [
+        task({
+          state: 'done',
+          endedAt: 60_000,
+          children: [task({ id: 't3' }), task({ id: 't4', state: 'failed', endedAt: 1 })],
+        }),
+      ],
+    })
+    expect(value(sessionRows(nested, 0, time), 'TASKS')).toBe('1 done · 1 running · 1 failed')
+  })
+
   it('say when only the end of a long record was read, and leave out what is not known', () => {
     const rows = sessionRows(
       session({

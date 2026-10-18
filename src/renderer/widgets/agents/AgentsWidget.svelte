@@ -226,26 +226,32 @@ function toggleFinished(session: AgentSession): void {
 </script>
 
 {#snippet taskRow(session: AgentSession, task: AgentTask)}
-  <li
-    class="node task"
-    data-state={task.state}
-    data-testid="agent-task"
-    onpointerenter={(event) => point({ kind: 'task', session: session.id, task: task.id }, event)}
-    onpointerleave={() => unpoint({ kind: 'task', session: session.id, task: task.id })}
-  >
-    <span class="kind">{task.kind === 'agent' ? 'AGENT' : 'SHELL'}</span>
-    <span class="task-state" data-testid="agent-task-state">{TASK_LABEL[task.state]}</span>
-    <span class="task-title">{task.title}</span>
-    <span class="task-when">{lasted(task)}</span>
-    {#if task.state === 'running' && task.activity}
-      <span class="step" data-testid="agent-task-step"
-        ><span class="tool">{task.activity.tool.toUpperCase()}</span>
-        {task.activity.detail}</span
-      >
-    {/if}
+  <li class="node" data-state={task.state} data-testid="agent-task">
+    <!-- The row alone takes the pointer: a card for it is placed by its own line, not by
+         the branch of what it started, which hangs below. -->
+    <div
+      class="task"
+      data-state={task.state}
+      data-testid="agent-task-row"
+      role="group"
+      aria-label={task.title}
+      onpointerenter={(event) => point({ kind: 'task', session: session.id, task: task.id }, event)}
+      onpointerleave={() => unpoint({ kind: 'task', session: session.id, task: task.id })}
+    >
+      <span class="kind">{task.kind === 'agent' ? 'AGENT' : 'SHELL'}</span>
+      <span class="task-state" data-testid="agent-task-state">{TASK_LABEL[task.state]}</span>
+      <span class="task-title">{task.title}</span>
+      <span class="task-when">{lasted(task)}</span>
+      {#if task.state === 'running' && task.activity}
+        <span class="step" data-testid="agent-task-step"
+          ><span class="tool">{task.activity.tool.toUpperCase()}</span>
+          {task.activity.detail}</span
+        >
+      {/if}
+    </div>
     {#if task.children.length > 0}
       <!-- What a subagent started in turn hangs from it, one step further in. -->
-      <ul class="tree children" data-testid="agent-task-children">
+      <ul class="tree" data-testid="agent-task-children">
         {#each task.children as child (child.id)}
           {@render taskRow(session, child)}
         {/each}
@@ -870,11 +876,6 @@ function toggleFinished(session: AgentSession): void {
 .step {
   grid-column: 3 / -1;
   color: var(--text);
-}
-
-/* Under a subagent, across its row, its own tasks hang from a line below its first columns. */
-.children {
-  grid-column: 1 / -1;
 }
 
 .fold {

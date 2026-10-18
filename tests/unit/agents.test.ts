@@ -1081,6 +1081,136 @@ describe('the Claude Code source', () => {
     source.stop()
   }, 20_000)
 
+  it("hangs a subagent's background command under it, ended by the notice in its record", async () => {
+    const { id, record } = claudeFolder(process.pid)
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_p', 'Run the checks', {})])}\n`)
+    const sub = subagent(id, 'p1', 'toolu_p', 'foreground', [
+      answer('s1', [shellCall('toolu_sh', 'Run the whole suite', true)], '2026-10-18T02:58:00Z'),
+      result(
+        'toolu_sh',
+        'Command running in background with ID: b77',
+        false,
+        '2026-10-18T02:58:01Z',
+      ),
+    ])
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    const child = () => source.sessions(AT)[0]?.tasks[0]?.children[0]
+    await vi.waitFor(() => expect(child()).toMatchObject({ kind: 'shell', state: 'running' }), {
+      timeout: 5000,
+    })
+    appendFileSync(
+      sub,
+      `${idNotice({ task: 'b77', status: 'failed', at: '2026-10-18T02:58:30Z', as: 'user' })}\n`,
+    )
+    await vi.waitFor(() => expect(child()?.state).toBe('failed'), { timeout: 5000 })
+    // A command has nothing under it.
+    expect(child()?.children).toEqual([])
+    source.stop()
+  }, 20_000)
+
+  it("cuts a subagent's finished tasks as a session's are, and keeps every running one", async () => {
+    const { id, record } = claudeFolder(process.pid)
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_p', 'Fan out', {})])}\n`)
+    const calls = Array.from({ length: 15 }, (_, i) => `toolu_k${i}`)
+    subagent(id, 'p1', 'toolu_p', 'foreground', [
+      answer(
+        's1',
+        calls.map((call, i) => agentCall(call, `Look ${i}`, { run_in_background: true })),
+        '2026-10-18T02:58:00Z',
+      ),
+      ...calls.map((call, i) =>
+        result(
+          call,
+          `Async agent launched successfully.\nagentId: k${i}`,
+          false,
+          '2026-10-18T02:58:01Z',
+        ),
+      ),
+      // All but the last two have reported.
+      ...calls.slice(0, 13).map((_, i) =>
+        JSON.stringify({
+          type: 'user',
+          timestamp: '2026-10-18T02:58:20Z',
+          message: { role: 'user', content: `<agent-message from="k${i}">` },
+          origin: { kind: 'peer', from: `k${i}`, senderTaskId: `k${i}`, handback: true },
+        }),
+      ),
+    ])
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    const children = () => source.sessions(AT)[0]?.tasks[0]?.children ?? []
+    await vi.waitFor(() => expect(children().filter((t) => t.state === 'done')).toHaveLength(10), {
+      timeout: 5000,
+    })
+    expect(children()).toHaveLength(12)
+    expect(children().filter((t) => t.state === 'running')).toHaveLength(2)
+    // Once out of the time a finished one is kept, only the running ones stay.
+    expect(source.sessions(AT + 11 * 60_000)[0]?.tasks[0]?.children).toHaveLength(2)
+    source.stop()
+  }, 20_000)
+
+  it("draws subagents started by subagents four levels under the session's own, no deeper", async () => {
+    // A chain of subagents each starting the next: a1 by the session, a2 by a1, ... a7 by a6.
+    const { id, record } = claudeFolder(process.pid)
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_1', 'Level 1', {})])}\n`)
+    for (let n = 1; n <= 7; n++) {
+      subagent(
+        id,
+        `a${n}`,
+        `toolu_${n}`,
+        'foreground',
+        n < 7
+          ? [
+              answer(
+                `s${n}`,
+                [agentCall(`toolu_${n + 1}`, `Level ${n + 1}`, {})],
+                '2026-10-18T02:58:00Z',
+              ),
+            ]
+          : [],
+        n > 1 ? `a${n - 1}` : undefined,
+      )
+    }
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    const levels = () => {
+      const titles: string[] = []
+      for (let task = source.sessions(AT)[0]?.tasks[0]; task !== undefined; task = task.children[0])
+        titles.push(task.title)
+      return titles
+    }
+    await vi.waitFor(() => expect(levels()).toHaveLength(5), { timeout: 5000 })
+    expect(levels()).toEqual(['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5'])
+    source.stop()
+  }, 20_000)
+
+  it("does not guess how a subagent's own tasks ended when the session went", async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_p', 'Fan out', {})])}\n`)
+    subagent(id, 'p1', 'toolu_p', 'foreground', [
+      answer(
+        's1',
+        [agentCall('toolu_c', 'Look', { run_in_background: true })],
+        '2026-10-18T02:58:00Z',
+      ),
+    ])
+    subagent(id, 'c1', 'toolu_c', 'background', steps(work, '2026-10-18T02:58:05Z'), 'p1')
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await vi.waitFor(() => expect(source.sessions(AT)[0]?.tasks[0]?.children).toHaveLength(1), {
+      timeout: 5000,
+    })
+    writeFileSync(
+      path.join(dir, 'sessions', `${process.pid}.json`),
+      JSON.stringify({ pid: 2 ** 22 + 12_345, sessionId: id, cwd: work, status: 'busy' }),
+    )
+    ;(source as unknown as { scan(): void }).scan()
+    const [task] = source.sessions(AT)[0]?.tasks ?? []
+    source.stop()
+    expect([task?.state, task?.children[0]?.state]).toEqual(['unknown', 'unknown'])
+  }, 20_000)
+
   it('keeps every running task on the card, and cuts only finished ones', async () => {
     const { record } = claudeFolder(process.pid)
     const now = Date.now()
