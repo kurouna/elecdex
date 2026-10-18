@@ -1662,10 +1662,9 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
   低く出ることがある。2.5G・5G のアダプタではまだ試していない。
 - **Windows の USB の速度は読めない**ので、USB 2.0 のポートの判定は Linux だけ。Windows はバスが USB とだけ書く。
 - **断の OS のログはない**ので、ペインを閉じていた間の断は Windows と macOS ではわからない（Linux は `carrier_down_count` の
-  増分を 1 行出す）。IP アドレスの衝突は Tcpip 4199 があるので Windows では過去 24 時間までさかのぼる。
+  増分を 1 行出す）。IP アドレスの衝突は Tcpip 4199 があるので、Windows ではペインを開く前のものも読む（過去 24 時間を読み、LOG にはほかの行と同じ直近 1 時間を出す）。
 - **Linux と macOS は実機で使っていない**: パーサを単体テストし、GitHub Actions の e2e がスタブで通るだけ。Linux の
   `carrier_down_count` による 1 秒未満の断、macOS の `ifconfig` の media 行の読み方は、実物の出力で確かめていない。
-- **導入デモ**（`demo:tour`）にはまだ ETHERNET の場面がない（次のリリースで足す）。
 
 ## 6. ターミナル設計
 

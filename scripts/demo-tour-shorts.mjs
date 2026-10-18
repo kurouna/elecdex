@@ -5,7 +5,7 @@
  *
  *   boot        the boot sequence, welcoming a made-up user
  *   shell       the shells typed into over the globe
- *   network     through the layouts dialog: the Wi-Fi link over the connections
+ *   network     through the layouts dialog: Wi-Fi over Ethernet; ETHERNET brought forward, its LINK card
  *   earth       ORBIT over the quakes, brought forward, the pointer resting on the ISS for its
  *               card, and put back
  *   dev         coding agents at work over the repository, a commit's card, LOG WATCH
@@ -86,7 +86,7 @@ const stack = (top, bottom, share) => ({
  */
 const LAYOUTS = [
   ['shell', () => stack(tabs(pane('terminal'), pane('terminal')), pane('globe'), 0.6)],
-  ['network', () => stack(pane('wifi', { window: '1m' }), pane('connections'), 0.56)],
+  ['network', () => stack(pane('wifi', { window: '1m' }), pane('ethernet', { window: '1m' }), 0.5)],
   ['earth', () => stack(pane('orbit'), pane('quakes'), 0.56)],
   ['dev', () => stack(pane('agents'), tabs(pane('git'), pane('logwatch', { file: LOG_ID })), 0.42)],
   ['docker', () => stack(pane('docker'), pane('clipboard'), 0.52)],
@@ -166,7 +166,8 @@ await run(async () => {
   await wait(600)
   await caption(CAPTIONS.layouts)
   await beat.throughTheDialog('network')
-  await wait(700)
+  await caption(CAPTIONS.network)
+  await beat.forward('ethernet', 500, { during: () => beat.etherCard(1300) })
   await caption(CAPTIONS.earth)
   await beat.toLayout(slot('earth'), 'earth')
   await wait(600)

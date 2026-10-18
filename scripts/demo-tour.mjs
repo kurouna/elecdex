@@ -4,7 +4,8 @@
  *
  *   boot        the boot sequence, welcoming a made-up user
  *   standard    the shells typed into
- *   network     through the layouts dialog: the Wi-Fi link segment by segment, the connections
+ *   network     through the layouts dialog: Wi-Fi over Ethernet, the globe over the connections;
+ *               ETHERNET brought forward, the pointer on its LINK station for its card
  *   earth       ORBIT brought forward, the pointer resting on the ISS for its card, and put
  *               back; the quakes, the weather
  *   dev         coding agents at work, a container stopped (asked twice), a commit's card,
@@ -128,8 +129,14 @@ const items = ORDER.map((id, i) => {
     id: `tour${i}${id}`,
     name: id,
     preset: id,
-    // The desk's utility pane opens on QR, ready for an address.
-    tree: id === 'desk' ? withState(shown, { utility: { module: 'qr', qrKind: 'url' } }) : shown,
+    // The desk's utility pane opens on QR, ready for an address; network's panes on the minute,
+    // where the seconds they have watched since the switch fill the timeline.
+    tree:
+      id === 'desk'
+        ? withState(shown, { utility: { module: 'qr', qrKind: 'url' } })
+        : id === 'network'
+          ? withState(shown, { wifi: { window: '1m' }, ethernet: { window: '1m' } })
+          : shown,
   }
 })
 items.push({ id: 'tourcouncil', name: 'council', tree: councilTree })
@@ -209,7 +216,7 @@ async function throughTheShelf() {
   await wait(300)
   await settled()
   await beat.away()
-  await wait(3200)
+  await wait(1200)
 }
 
 await run(async () => {
@@ -218,6 +225,8 @@ await run(async () => {
   await wait(1200)
   await caption(CAPTIONS.presets)
   await throughTheShelf()
+  await caption(CAPTIONS.network)
+  await beat.forward('ethernet', 1200, { during: () => beat.etherCard(2200) })
   await caption(CAPTIONS.earth)
   await toPreset('earth')
   await wait(1500)

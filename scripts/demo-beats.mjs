@@ -48,6 +48,7 @@ export const OPENING = {
 /** A caption for each beat, by name. The vertical cut's own layouts have a few of their own. */
 export const CAPTIONS = {
   presets: 'Nine layout presets to start from',
+  network: 'network — Wi-Fi and the cable, segment by segment',
   earth: 'earth — satellites, earthquakes and the weather',
   orbit: 'Bring a pane forward: the ISS on the ORBIT map',
   dev: 'dev — coding agents at work, Docker and git',
@@ -259,6 +260,16 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     if (box === null || !marks.ISS) return
     say('orbit: the ISS')
     await page.mouse.move(box.x + marks.ISS[0], box.y + marks.ISS[1], { steps: 12 })
+    await wait(hold)
+    await away()
+  }
+
+  /** The pointer on the Ethernet pane's LINK station, for its card: the speed, duplex and best. */
+  async function etherCard(hold = 2200) {
+    const link = paneOf('ethernet').locator('[data-testid=ether-station][data-station=link]')
+    if ((await link.count()) === 0) return
+    say('ethernet: the link card')
+    await link.first().hover()
     await wait(hold)
     await away()
   }
@@ -626,6 +637,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     shellTypes,
     forward,
     issCard,
+    etherCard,
     stopContainer,
     commitCard,
     logWatch,
