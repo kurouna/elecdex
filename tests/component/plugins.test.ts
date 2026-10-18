@@ -574,7 +574,8 @@ describe('a plugin pane', () => {
     ])
     expect(gradients.at(-1)).toEqual([0, 70, 0, 40])
 
-    // Nothing to fill: one point, or a line lying on its baseline.
+    // Nothing to fill: one point, a line lying on its baseline, or one with no width (a
+    // plugin's points all at one x, found in review: a strip of width 0 was drawn).
     reset()
     const flat: Array<[number, number]> = [
       [0, 80],
@@ -582,6 +583,14 @@ describe('a plugin pane', () => {
     ]
     fillArea(ctx, [[0, 30]], { baseline: 80, color: 'red', alpha: 0.3 })
     fillArea(ctx, flat, { baseline: 80, color: 'red', alpha: 0.3 })
+    fillArea(
+      ctx,
+      [
+        [10.5, 20],
+        [10.5, 40],
+      ],
+      { baseline: 80, color: 'red', alpha: 0.3 },
+    )
     expect(calls).toEqual([])
     expect(strips).toEqual([])
   })

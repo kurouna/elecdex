@@ -141,7 +141,7 @@
   - 灯が点くのは、同じ段階が 10 秒続いたときだけ。PING は応答 2 回ぶんで、数えるのは直近 15 秒の応答だけ（隠れていた間の古い失敗で戻った直後に点かないように。利用者の決定 2026-10-14）。下回ればすぐ消える（境目を行き来する CPU で点滅するのは仕様、同日）
   - LINK は `state` が down なら即座に点ける
 - **`message(lamps)`**: いちばん重い灯の文と、ほかの灯の数。重さが同じなら警告灯の並び順で決める
-- **`clusterTier(w, h, prev, lanes)`**: §2.1 の段。ヒステリシスつき。`clusterLanes(gpu)` と `clusterSlots(gpu)` が GPU の有無で出すレーンとスロットを決める
+- **`clusterTier(w, h, prev, { lanes, slots })`**: §2.1 の段。ヒステリシスつき。`clusterLanes(gpu)` と `clusterSlots(gpu)` が GPU の有無で出すレーンとスロットを決める
 - **`coresRow(tier, w, h)`**: コアの行を出すかどうか
 - **`laneScale(history, lane)`、`scaleLabel`、`niceCeiling`**: レーンの目盛りの上端とその書き方
 - **`formatRate`**: 1000 Mbps を超えたら Gbps に切り替える

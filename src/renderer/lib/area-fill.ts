@@ -31,7 +31,8 @@ export function fillArea(
 ): void {
   const first = points[0]
   const last = points.at(-1)
-  if (first === undefined || last === undefined || points.length < 2) return
+  // No width, no area: one point, or a plugin's points all at one x.
+  if (first === undefined || last === undefined || !(last[0] > first[0])) return
   const { baseline, color } = options
   if (points.every(([, y]) => y === baseline)) return
 
