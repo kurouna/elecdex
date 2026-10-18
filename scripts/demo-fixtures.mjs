@@ -342,9 +342,45 @@ export function claudeFolder() {
   write(path.join(subagents, 'agent-b3e4.jsonl'), [
     answer(11, [tool('v1', 'Read', { file_path: file('src\\orbit\\shadow.ts') })]),
     answer(7, [tool('v2', 'WebFetch', { url: 'https://celestrak.org/columns/v03n01/' })]),
+    // It starts a subagent of its own (Claude Code 2.1.299), which hangs under it.
+    answer(5, [
+      tool('v4', 'Agent', {
+        description: 'Gather the reference eclipse times',
+        subagent_type: 'Explore',
+        run_in_background: true,
+        prompt: 'Look.',
+      }),
+    ]),
+    JSON.stringify({
+      type: 'user',
+      timestamp: new Date(now - 5 * 60_000 + 1000).toISOString(),
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'v4',
+            content: 'Async agent launched successfully.\nagentId: c5f6 (internal ID)',
+          },
+        ],
+      },
+    }),
     answer(2, [
       tool('v3', 'Bash', { description: 'Compare the shadow entry with the reference times' }),
     ]),
+  ])
+  write(path.join(subagents, 'agent-c5f6.meta.json'), [
+    JSON.stringify({
+      agentType: 'Explore',
+      toolUseId: 'v4',
+      parentAgentId: 'b3e4',
+      spawnDepth: 2,
+      requestShape: 'background',
+    }),
+  ])
+  write(path.join(subagents, 'agent-c5f6.jsonl'), [
+    answer(4, [tool('x1', 'Glob', { pattern: 'fixtures/eclipse/*.json' })]),
+    answer(1, [tool('x2', 'Read', { file_path: file('fixtures\\eclipse\\iss-2026-10.json') })]),
   ])
 
   write(path.join(projectFolder(dir, WEATHER), `${OTHER}.jsonl`), [
