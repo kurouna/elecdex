@@ -24,7 +24,7 @@ for Windows, macOS and Linux.
   ▶ <a href="https://youtu.be/LgbC3Iubot0">Watch the 2-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.33 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.34 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -55,7 +55,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   shell prints opens in your browser on Ctrl+click (⌘+click on a Mac).
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
-  network status and traffic, and *(unreleased)* the GPU's load and video memory. The default
+  network status and traffic, and the GPU's load and video memory. The default
   layout idles at about 13% of one core.
 - **Files and apps** — a file browser that follows the shell (click to `cd` or insert a path),
   and a launcher for the Start Menu (Store and other packaged apps included), `/Applications` or
@@ -96,7 +96,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 
 <p align="center">
   <a href="https://youtu.be/YLxHhQ7wAyE">
-    <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use, a shell tab behind it; below that a clipboard history of made-up copies, with a timer and a shell in the tabs behind; a GIT pane on the right, an AI chat tab and a log watch tab behind it, with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
+    <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work, a subagent of its own hanging under it, and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use, a shell tab behind it; below that a clipboard history of made-up copies, with a timer and a shell in the tabs behind; a GIT pane on the right, an AI chat tab and a log watch tab behind it, with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
   </a>
   <br><sub>dev · Phosphor</sub>
   <br>
@@ -164,7 +164,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   Text files, images and PDFs go with a question - picked with **+**, dropped on
   the pane or pasted as a picture; an image is made small and drawn again before it is sent, so
   what a camera wrote into the file (where a photo was taken) never leaves.
-- **GPU** *(unreleased)* — under the council, the GPU's load and how full its own memory is: what a
+- **GPU** — under the council, the GPU's load and how full its own memory is: what a
   model run on this machine leans on.
 
 <p align="center">
@@ -186,7 +186,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 </p>
 
 - **Cluster** — the whole machine on one pane, like a car's instrument cluster: warning lamps and
-  the worst of them in words, the clock and the date, a minute of CPU, memory, GPU *(unreleased)*,
+  the worst of them in words, the clock and the date, a minute of CPU, memory, GPU,
   disk I/O, network and ping, every core's load when there is room, and the rest at a glance. It rearranges itself for
   any size, from the full screen to a narrow column.
 
@@ -511,7 +511,7 @@ weather and calendar.
 - **CPU** — two graphs of the cores' average load, or a bar per logical core (toggle in the pane).
 - **Memory** — the share in use and swap over the last minute, scrolling in step with the CPU
   graphs, with bars for the amounts now.
-- **GPU** *(unreleased)* — in the ai preset, or add it from the picker. The GPU's load and the share of
+- **GPU** — in the ai preset, or add it from the picker. The GPU's load and the share of
   its own memory (VRAM) in use over the last minute, the load of each kind of engine (3D, compute,
   copy, video), and bars for the VRAM and the shared memory in use now. It shows the adapter with
   the most memory of its own - the card, where there is one beside the processor's graphics - and
@@ -523,16 +523,16 @@ weather and calendar.
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
 - **Cluster** — in the cockpit preset, or add it from the picker ("cluster dashboard"). On top,
-  lamps for LINK, PING, CPU, MEM, VRAM (where the GPU can be read; *unreleased*), DISK, BATT (with a
+  lamps for LINK, PING, CPU, MEM, VRAM (where the GPU can be read), DISK, BATT (with a
   battery), AWAKE and QUAKE (with quake alerts on) — dark until something holds for ten seconds —
   and the message line saying the worst of them in words, with how many more. A busy GPU lights
   nothing: a GPU at 100% is doing its work; VRAM nearly full is what slows a model. Under them the
   clock and the date. Then six lanes, CPU, memory, disk I/O, network down and up, and ping - seven
-  with the GPU's under memory where it can be read *(unreleased)* - each a line over the last
+  with the GPU's under memory where it can be read - each a line over the last
   minute with its peak and average, drawn as each reading arrives: CPU, memory, GPU and disk on
   0-100%, the network (one scale for both ways) and the ping scaled to the minute, the top written
   in the lane. Where there is room, every core's load now sits under CPU. The rest is two rows of
-  five figures: memory and VRAM as amounts *(unreleased)*, swap, the fullest disk, connections, the
+  five figures: memory and VRAM as amounts, swap, the fullest disk, connections, the
   busiest program, power, uptime, the link's total and the IPv4 address with its interface; and
   where there is room a line of what the machine is, as the system column says it (OS, maker,
   model, chassis, CPU and GPU), with what AWAKE is set to. Each figure opens a card with what it has no room for. It lays itself out in five ways by
@@ -592,7 +592,8 @@ weather and calendar.
   folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
   in its view and written, and its answers. Below them, the subagents it started and the commands
   it left running in the background: running, done, failed or stopped, with a running subagent's
-  own last step, hung from the session as a tree. The finished ones fold into one row that says
+  own last step, hung from the session as a tree; what a subagent starts in turn hangs under it.
+  The finished ones fold into one row that says
   how they ended (click it to see them) and stay ten minutes. Open a card for the tools it has used and the files it
   has changed; a file opens as a diff against the copy Claude Code kept before the session first
   touched it (what a subagent changed is marked SUB, and has no such copy). Read from Claude Code's own folder (`~/.claude`, or `CLAUDE_CONFIG_DIR`) only
