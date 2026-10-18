@@ -744,8 +744,18 @@ entry (decisions.md). Every option is off until the user turns it on.
   commit.
 - **The README's status line** names the last released version, marks main-only work
   *unreleased*, and says macOS and Linux are not sufficiently verified.
-- **Releases**: the whole Playwright suite first; then bump `package.json` and push tag
-  `v<version>` (.github/workflows/release.yml makes a pre-release a person promotes).
+- **Releases** (the procedure, user decision 2026-10-18), in this order:
+  1. Bump `package.json` (and package-lock.json, `npm version --no-git-tag-version`); in all
+     three READMEs, name the new version in the status line and drop the *unreleased* marks of
+     what it carries.
+  2. Run every test: `npm run verify`, `npm run build`, then the whole `npx playwright test`.
+     Only when all are green (a failure here is fixed, or shown to be this machine's, first).
+  3. Commit `chore(release): v<version> / v<version> をリリース`, tag `v<version>`, push the
+     branch and the tag (.github/workflows/release.yml makes a pre-release a person promotes).
+  4. Once the release workflow is done, read the release and its notes (`gh release view`):
+     the assets for every platform, and the notes in English and Japanese.
+  5. Read the CI run of the pushed commit. A failing test is fixed, committed and pushed; a
+     fault in the shipped code that is not severe does not need a new release.
 - **The builds are unsigned**: the README's *If a warning appears* (per OS) and release.yml's
   notes (English and Japanese) say the same; change both.
 
