@@ -1,17 +1,16 @@
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { engineFigures, memoryFraction } from '@shared/gpu'
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  engineFigures,
-  memoryFraction,
-  memoryText,
-} from '../../src/renderer/widgets/monitor/gpu-view.js'
+import { chartPoints, memoryText } from '../../src/renderer/widgets/monitor/gpu-view.js'
 import { NO_GPU, vendorName } from '../../src/services/metrics/gpu/common.js'
 import { linuxGpuInfo, linuxGpuUsage, readSysfsGpus } from '../../src/services/metrics/gpu/linux.js'
 import { gpuStubFrom, stubGpuInfo, stubGpuUsage } from '../../src/services/metrics/gpu/stub.js'
 import {
   GPU_SOURCE,
+  GPU_SOURCE_ENV,
   GPU_STEP,
   parseGpuRows,
   primaryGpu,
@@ -110,6 +109,59 @@ describe('the Windows GPU reading', () => {
   })
 })
 
+describe.runIf(process.platform === 'win32')('the Windows GPU rows, compiled', () => {
+  // The C#'s rows from made-up adapters, counters and loads: compiled as the sampler does.
+  const SCRIPT = `
+    Add-Type -TypeDefinition $env:${GPU_SOURCE_ENV}
+    function Card($luid, $ded) {
+      $a = New-Object 'ElecdexGpu+Adapter'; $a.Luid = $luid; $a.Name = 'Card'; $a.Dedicated = $ded; $a
+    }
+    $none = New-Object 'System.Collections.Generic.List[ElecdexGpu+Adapter]'
+    $two = New-Object 'System.Collections.Generic.List[ElecdexGpu+Adapter]'
+    $two.Add((Card 'luid_igpu' 1)); $two.Add((Card 'luid_dgpu' 8))
+    # The software renderer's memory counters, which DXGI's list leaves out.
+    $mem = New-Object 'System.Collections.Generic.Dictionary[string,double[]]'
+    $mem['luid_sw'] = [double[]](1, 2)
+    $loads = New-Object 'System.Collections.Generic.Dictionary[string,System.Collections.Generic.Dictionary[string,double]]'
+    $igpu = New-Object 'System.Collections.Generic.Dictionary[string,double]'
+    $igpu['load'] = 12; $loads['luid_igpu'] = $igpu
+    @{
+      listedNone = @([ElecdexGpu]::Rows($none, $true, $null, $mem))
+      unlisted = @([ElecdexGpu]::Rows($none, $false, $null, $mem))
+      idle = @([ElecdexGpu]::Rows($two, $true, $loads, $mem))
+      first = @([ElecdexGpu]::Rows($two, $true, $null, $mem))
+    } | ConvertTo-Json -Depth 4 -Compress
+  `
+  const rows = (): Record<string, unknown[]> =>
+    JSON.parse(
+      execFileSync(
+        'powershell.exe',
+        ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', SCRIPT],
+        {
+          env: { ...process.env, [GPU_SOURCE_ENV]: GPU_SOURCE },
+          encoding: 'utf8',
+        },
+      ),
+    )
+
+  it('reads no GPU from the software renderer, and an idle card as 0, not unknown', () => {
+    const out = rows()
+    // Found in review: with DXGI's list empty (a VM), the software renderer's counters came back
+    // as a nameless "GPU". Only without DXGI are the counters' own adapters used.
+    expect(windowsGpuUsage(parseGpuRows(out.listedNone))).toEqual(NO_GPU)
+    expect(parseGpuRows(out.unlisted).map((r) => r.luid)).toEqual(['luid_sw'])
+    // Found in review: a laptop's card that no process used had no load at all, drawn as --.
+    const idle = parseGpuRows(out.idle)
+    expect(idle.map((r) => [r.luid, r.load])).toEqual([
+      ['luid_igpu', 12],
+      ['luid_dgpu', 0],
+    ])
+    expect(windowsGpuUsage(idle).load).toBe(0)
+    // The first reading after opening still has no load: there is nothing to difference yet.
+    expect(parseGpuRows(out.first).map((r) => r.load)).toEqual([null, null])
+  }, 60_000)
+})
+
 describe('the Linux GPU reading', () => {
   let root = ''
   afterEach(() => {
@@ -150,6 +202,16 @@ describe('the Linux GPU reading', () => {
     ])
   })
 
+  it('takes an empty or blank file for no reading, not for 0', async () => {
+    root = mkdtempSync(join(tmpdir(), 'elecdex-drm-'))
+    // Found in review: Number('') is 0, so an empty file read as idle and empty memory.
+    card('card0', { gpu_busy_percent: '\n' })
+    card('card1', { gpu_busy_percent: '5\n', mem_info_vram_used: '', mem_info_vram_total: ' \n' })
+    const gpus = await readSysfsGpus(root)
+    expect(gpus.map((gpu) => gpu.card)).toEqual(['card1'])
+    expect(gpus[0]).toMatchObject({ busy: 5, vramUsed: null, vramTotal: null })
+  })
+
   it('says none where there is no DRM folder at all', async () => {
     const gpus = await readSysfsGpus(join(tmpdir(), 'elecdex-no-such-drm'))
     expect(gpus).toEqual([])
@@ -186,6 +248,12 @@ describe('the GPU pane’s words', () => {
     expect(memoryFraction(3, 0)).toBeNull()
     expect(memoryText(null, 12)).toBe('--')
     expect(memoryText(1024 ** 3, null)).toMatch(/^1\.0 GiB$/i)
+  })
+
+  it('charts memory from a sample that has no load yet', () => {
+    const first = { ...stubGpuUsage('1', 0), load: null, vramUsed: 2 * GIB, vramTotal: 8 * GIB }
+    expect(chartPoints(first)).toEqual({ load: null, vram: 25 })
+    expect(chartPoints({ ...first, load: 40, vramTotal: null })).toEqual({ load: 40, vram: null })
   })
 
   it('lists the engine kinds reported, in a fixed order, none on Linux', () => {

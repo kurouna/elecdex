@@ -2,6 +2,7 @@ import {
   ALL_CLEAR,
   batteryLevel,
   busiestCore,
+  CLUSTER_BASE,
   CLUSTER_LIMITS,
   CLUSTER_ROOM,
   clusterLamps,
@@ -425,7 +426,7 @@ describe('tiers', () => {
 
   it('ask a lane more room of every tier for the GPU lane', () => {
     const { width, height } = CLUSTER_ROOM.wide
-    const seven = LANE_IDS.length
+    const seven = { lanes: LANE_IDS.length, slots: 10 }
     expect(clusterTier(width + 10, height + 10)).toBe('wide')
     expect(clusterTier(width + 10, height + 10, undefined, seven)).not.toBe('wide')
     expect(clusterTier(width + 10, height + CLUSTER_ROOM.laneMin + 10, undefined, seven)).toBe(
@@ -438,6 +439,14 @@ describe('tiers', () => {
     expect(showCores('wide', 1178, 612)).toBe(true)
     expect(showCores('wide', 1178, 612, seven)).toBe(false)
     expect(showCores('wide', 1178, 660, seven)).toBe(true)
+  })
+
+  it('count the slots the pane has: one fewer without a GPU', () => {
+    // Found in review: three slots to a row, nine take three rows, but ten were always counted,
+    // and a pane without a GPU was asked for a fourth row and dropped to short.
+    expect(clusterTier(580, 690)).toBe('medium')
+    expect(clusterTier(580, 690, undefined, { lanes: CLUSTER_BASE.lanes, slots: 10 })).toBe('short')
+    expect(clusterTier(580, 790, undefined, { lanes: LANE_IDS.length, slots: 10 })).toBe('medium')
   })
 })
 

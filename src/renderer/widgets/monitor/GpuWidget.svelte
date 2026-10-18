@@ -1,4 +1,5 @@
 <script lang="ts">
+import { engineFigures, memoryFraction } from '@shared/gpu'
 import { untrack } from 'svelte'
 import { formatPercent } from '../../lib/format.ts'
 import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
@@ -8,7 +9,7 @@ import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import StreamChart from '../common/StreamChart.svelte'
 import type { WidgetProps } from '../registry.ts'
-import { engineFigures, memoryFraction, memoryText } from './gpu-view.ts'
+import { chartPoints, memoryText } from './gpu-view.ts'
 
 /**
  * The GPU over the last minute, drawn as the memory pane is: its load as a
@@ -35,11 +36,11 @@ const vramSeries = new TimeSeries(CHART_WINDOW_MS + 5000)
 
 $effect(() => {
   const sample = live
-  if (sample === null || sample.data.load === null) return
-  const vram = memoryFraction(sample.data.vramUsed, sample.data.vramTotal)
+  if (sample === null) return
+  const { load, vram } = chartPoints(sample.data)
   untrack(() => {
-    loadSeries.push(sample.at, sample.data.load ?? 0)
-    if (vram !== null) vramSeries.push(sample.at, vram * 100)
+    if (load !== null) loadSeries.push(sample.at, load)
+    if (vram !== null) vramSeries.push(sample.at, vram)
   })
 })
 

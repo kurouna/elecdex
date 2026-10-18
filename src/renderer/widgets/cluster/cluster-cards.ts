@@ -8,6 +8,7 @@ import {
   laneStats,
   volumePercent,
 } from '@shared/cluster'
+import { engineFigures } from '@shared/gpu'
 import type { CpuLoad, ProcessList } from '@shared/metrics'
 import { formatBytes, formatTotal, osVersionLabel } from '../../lib/format.js'
 import type { CardRow } from '../../lib/hover-card.ts'
@@ -168,17 +169,7 @@ function memRows(r: CardReadings): CardRow[] {
 
 /** The engine kinds the GPU reports, in a fixed order; Linux reports none. */
 function engineText(r: CardReadings): string | null {
-  const engines = r.gpu?.engines
-  if (engines === undefined) return null
-  const named: Array<[string, number | null]> = [
-    ['3D', engines.graphics],
-    ['COMPUTE', engines.compute],
-    ['COPY', engines.copy],
-    ['VIDEO', engines.video],
-  ]
-  const known = named.flatMap(([name, value]) =>
-    value === null ? [] : [`${name} ${percent(value)}`],
-  )
+  const known = engineFigures(r.gpu ?? null).map((e) => `${e.label} ${percent(e.value)}`)
   return known.length === 0 ? null : known.join(' · ')
 }
 

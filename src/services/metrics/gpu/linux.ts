@@ -24,8 +24,10 @@ export interface SysfsGpu {
 }
 
 const numberIn = (text: string | null): number | null => {
-  if (text === null) return null
-  const value = Number(text.trim())
+  // An empty file is no reading: Number('') is 0.
+  const trimmed = text?.trim() ?? ''
+  if (trimmed === '') return null
+  const value = Number(trimmed)
   return Number.isFinite(value) ? value : null
 }
 

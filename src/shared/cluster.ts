@@ -442,10 +442,9 @@ export const CLUSTER_ROOM = {
   /** The lamps and the clock beside the date, above the lanes. */
   mediumTop: 170,
   laneMin: 46,
-  /** A row of slots, and how wide a slot is with its gap; ten, five to a row in wide (user decision 2026-10-17). */
+  /** A row of slots, and how wide a slot is with its gap; five to a row in wide (user decision 2026-10-17). */
   slotRow: 64,
   slotWidth: 140,
-  slots: 10,
   padding: 40,
   minWidth: 560,
   short: { height: 200 },
@@ -454,8 +453,6 @@ export const CLUSTER_ROOM = {
   specRow: { line: 40, grid: 75 },
   /** Wide: the cores row goes in from this height (with the spec row above it, measured). */
   wideCores: 600,
-  /** The lanes wide's heights were measured with; each one more (the GPU's) asks a lane's room. */
-  baseLanes: 6,
   /** Room a tier is kept for before it gives way, so a drag across a threshold does not flicker. */
   hysteresis: 12,
 } as const
@@ -477,28 +474,41 @@ export function designSize(
   return { width: width * scale, height: height * scale }
 }
 
-/** Rows the slots take at a width. */
-export function slotRows(width: number): number {
-  const perRow = Math.max(1, Math.floor((width - 32) / CLUSTER_ROOM.slotWidth))
-  return Math.ceil(CLUSTER_ROOM.slots / perRow)
+/**
+ * What the pane holds: its lanes and its slots, each one fewer where the GPU cannot be read (the
+ * page counts them, `clusterLanes` and `clusterSlots`). Found in review: measured with ten slots
+ * always, a pane without a GPU, three slots to a row, was asked for a fourth row it did not have.
+ */
+export interface ClusterShape {
+  lanes: number
+  slots: number
 }
 
-/** What wide needs in height beyond its measured lanes: a lane's room for each one more. */
-const wideExtra = (lanes: number): number =>
-  Math.max(0, lanes - CLUSTER_ROOM.baseLanes) * CLUSTER_ROOM.laneMin
+/** Without a GPU: the six lanes wide's heights were measured with, and nine slots. */
+export const CLUSTER_BASE: ClusterShape = { lanes: 6, slots: 9 }
 
-/** The height medium needs at a width: the top, `lanes` lanes and the slot rows. */
-const mediumNeed = (width: number, lanes: number): number =>
+/** Rows the slots take at a width. */
+export function slotRows(width: number, slots: number = CLUSTER_BASE.slots): number {
+  const perRow = Math.max(1, Math.floor((width - 32) / CLUSTER_ROOM.slotWidth))
+  return Math.ceil(slots / perRow)
+}
+
+/** What wide needs in height beyond its measured lanes: a lane's room for each one more (the GPU's). */
+const wideExtra = (shape: ClusterShape): number =>
+  Math.max(0, shape.lanes - CLUSTER_BASE.lanes) * CLUSTER_ROOM.laneMin
+
+/** The height medium needs at a width: the top, the lanes and the slot rows. */
+const mediumNeed = (width: number, shape: ClusterShape): number =>
   CLUSTER_ROOM.mediumTop +
-  lanes * CLUSTER_ROOM.laneMin +
-  slotRows(width) * CLUSTER_ROOM.slotRow +
+  shape.lanes * CLUSTER_ROOM.laneMin +
+  slotRows(width, shape.slots) * CLUSTER_ROOM.slotRow +
   CLUSTER_ROOM.padding
 
-function tierAt(width: number, height: number, lanes: number): ClusterTier {
+function tierAt(width: number, height: number, shape: ClusterShape): ClusterTier {
   const room = CLUSTER_ROOM
   if (width < room.compact.width) return 'narrow'
-  if (width >= room.wide.width && height >= room.wide.height + wideExtra(lanes)) return 'wide'
-  if (width >= room.minWidth && height >= mediumNeed(width, lanes)) return 'medium'
+  if (width >= room.wide.width && height >= room.wide.height + wideExtra(shape)) return 'wide'
+  if (width >= room.minWidth && height >= mediumNeed(width, shape)) return 'medium'
   if (width >= room.minWidth && height >= room.short.height) return 'short'
   return height >= room.compact.height ? 'compact' : 'narrow'
 }
@@ -506,7 +516,7 @@ function tierAt(width: number, height: number, lanes: number): ClusterTier {
 const order = (tier: ClusterTier): number => CLUSTER_TIERS.indexOf(tier)
 
 /**
- * The tier for a pane of this size with `lanes` lanes. Given the tier it has, it keeps it
+ * The tier for a pane of this size and shape. Given the tier it has, it keeps it
  * until the size is a little past the line, so dragging along a threshold does not
  * flip the layout back and forth.
  */
@@ -514,17 +524,17 @@ export function clusterTier(
   width: number,
   height: number,
   previous?: ClusterTier,
-  lanes: number = CLUSTER_ROOM.baseLanes,
+  shape: ClusterShape = CLUSTER_BASE,
 ): ClusterTier {
-  const tier = tierAt(width, height, lanes)
+  const tier = tierAt(width, height, shape)
   if (previous === undefined || previous === tier) return tier
   const slack = CLUSTER_ROOM.hysteresis
   // Growing, the larger tier must still hold with a little less room; shrinking, the
   // smaller one with a little more. Otherwise the pane stays as it was.
   const growing = order(tier) < order(previous)
   const check = growing
-    ? tierAt(width - slack, height - slack, lanes)
-    : tierAt(width + slack, height + slack, lanes)
+    ? tierAt(width - slack, height - slack, shape)
+    : tierAt(width + slack, height + slack, shape)
   const past = growing ? order(check) < order(previous) : order(check) > order(previous)
   return past ? tier : previous
 }
@@ -537,12 +547,12 @@ export function showSpec(
   tier: ClusterTier,
   width: number,
   height: number,
-  lanes: number = CLUSTER_ROOM.baseLanes,
+  shape: ClusterShape = CLUSTER_BASE,
 ): boolean {
   if (tier === 'narrow') return true
   if (tier === 'wide')
-    return height >= CLUSTER_ROOM.wide.height + wideExtra(lanes) + CLUSTER_ROOM.specRow.line
-  if (tier === 'medium') return height >= mediumNeed(width, lanes) + CLUSTER_ROOM.specRow.grid
+    return height >= CLUSTER_ROOM.wide.height + wideExtra(shape) + CLUSTER_ROOM.specRow.line
+  if (tier === 'medium') return height >= mediumNeed(width, shape) + CLUSTER_ROOM.specRow.grid
   return false
 }
 
@@ -551,10 +561,13 @@ export function showCores(
   tier: ClusterTier,
   width: number,
   height: number,
-  lanes: number = CLUSTER_ROOM.baseLanes,
+  shape: ClusterShape = CLUSTER_BASE,
 ): boolean {
-  if (tier === 'wide') return height >= CLUSTER_ROOM.wideCores + wideExtra(lanes)
+  if (tier === 'wide') return height >= CLUSTER_ROOM.wideCores + wideExtra(shape)
   // The cores row is two lanes high (`.cores-row`), so it needs two lanes' room.
-  if (tier === 'medium') return height >= mediumNeed(width, lanes + 2) + CLUSTER_ROOM.specRow.grid
+  if (tier === 'medium')
+    return (
+      height >= mediumNeed(width, { ...shape, lanes: shape.lanes + 2 }) + CLUSTER_ROOM.specRow.grid
+    )
   return false
 }

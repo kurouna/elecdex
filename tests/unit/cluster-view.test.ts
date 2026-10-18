@@ -1,4 +1,4 @@
-import { clusterMessage, type LaneSecond } from '@shared/cluster'
+import { CLUSTER_BASE, clusterLanes, clusterMessage, type LaneSecond } from '@shared/cluster'
 import type { DiskVolume } from '@shared/metrics'
 import { RELEASED } from '@shared/utility'
 import { describe, expect, it } from 'vitest'
@@ -20,6 +20,7 @@ import {
   slotFigure,
   specItems,
   statText,
+  vramPercent,
 } from '../../src/renderer/widgets/cluster/cluster-view.js'
 
 const volume = (mount: string, used: number): DiskVolume => ({
@@ -206,9 +207,21 @@ describe('slots', () => {
     expect(clusterSlots(false)).not.toContain('vram')
     expect(clusterSlots(false)).toHaveLength(9)
     expect(clusterSlots(true)).toEqual(SLOT_KEYS)
+    // The tiers are measured with this shape where no GPU is read.
+    expect({ lanes: clusterLanes(false).length, slots: clusterSlots(false).length }).toEqual(
+      CLUSTER_BASE,
+    )
     expect(hasGpu(readings())).toBe(false)
     expect(hasGpu(readings({ gpu: { ...GPU, name: null } }))).toBe(false)
     expect(hasGpu(readings({ gpu: GPU }))).toBe(true)
+  })
+
+  it('keep VRAM in 0-100, as the GPU pane does', () => {
+    expect(vramPercent({ ...GPU, vramUsed: 6 * GIB })).toBe(50)
+    expect(vramPercent({ ...GPU, vramUsed: 13 * GIB })).toBe(100)
+    expect(vramPercent({ ...GPU, vramUsed: -1 })).toBe(0)
+    expect(vramPercent({ ...GPU, vramTotal: null })).toBeNull()
+    expect(vramPercent(null)).toBeNull()
   })
 
   it('say memory and VRAM as a share and as amounts', () => {

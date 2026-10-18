@@ -206,17 +206,17 @@ $effect(() => {
 
 $effect(() => {
   const size = box
-  const count = lanes.length
+  const shape = { lanes: lanes.length, slots: slotKeys.length }
   if (size === null) return
   untrack(() => {
     // The first measure has no tier to hold to (found in review: a pane first opened just under
     // a line stayed the default, which the same pane resized there would not).
-    const next = clusterTier(size.width, size.height, measured ? tier : undefined, count)
+    const next = clusterTier(size.width, size.height, measured ? tier : undefined, shape)
     measured = true
     if (next !== tier) tier = next
-    const withCores = showCores(next, size.width, size.height, count)
+    const withCores = showCores(next, size.width, size.height, shape)
     if (withCores !== cores) cores = withCores
-    const withSpec = showSpec(next, size.width, size.height, count)
+    const withSpec = showSpec(next, size.width, size.height, shape)
     if (withSpec !== spec) spec = withSpec
   })
 })

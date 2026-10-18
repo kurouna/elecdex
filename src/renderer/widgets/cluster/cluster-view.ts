@@ -15,6 +15,7 @@ import {
   volumePercent,
   vramLevel,
 } from '@shared/cluster'
+import { memoryFraction } from '@shared/gpu'
 import type {
   Battery,
   CpuInfo,
@@ -112,10 +113,10 @@ const memPercent = (mem: MemUsage | null): number | null =>
   mem === null || mem.total <= 0 ? null : (mem.used / mem.total) * 100
 
 /** The share of the GPU's own memory in use; null where it is not known. */
-export const vramPercent = (gpu: GpuUsage | null): number | null =>
-  gpu === null || gpu.vramUsed === null || gpu.vramTotal === null || gpu.vramTotal <= 0
-    ? null
-    : Math.min(100, (gpu.vramUsed / gpu.vramTotal) * 100)
+export function vramPercent(gpu: GpuUsage | null): number | null {
+  const fraction = gpu === null ? null : memoryFraction(gpu.vramUsed, gpu.vramTotal)
+  return fraction === null ? null : fraction * 100
+}
 
 /** The GPU can be read here: its lane, lamp, slot and spec item go in. */
 export const hasGpu = (r: Pick<Readings, 'gpu'>): boolean => r.gpu !== null && r.gpu.name !== null

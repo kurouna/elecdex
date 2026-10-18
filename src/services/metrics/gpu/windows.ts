@@ -63,7 +63,7 @@ public static class ElecdexGpu {
   [DllImport("dxgi.dll")]
   static extern int CreateDXGIFactory1(ref Guid riid, [MarshalAs(UnmanagedType.Interface)] out IDXGIFactory1 factory);
 
-  class Adapter {
+  public class Adapter {
     public string Luid;
     public string Name = "";
     public uint Vendor;
@@ -71,6 +71,8 @@ public static class ElecdexGpu {
   }
 
   static List<Adapter> adapters = new List<Adapter>();
+  // Whether DXGI answered: if it did, its list is the hardware, even when that is none.
+  static bool listed = false;
   static PerformanceCounterCategory engines, memory;
   static Dictionary<string, CounterSample> before = new Dictionary<string, CounterSample>();
 
@@ -85,6 +87,7 @@ public static class ElecdexGpu {
       Guid iid = typeof(IDXGIFactory1).GUID;
       IDXGIFactory1 factory;
       if (CreateDXGIFactory1(ref iid, out factory) != 0) return list;
+      listed = true;
       for (uint i = 0; i < 16; i++) {
         IDXGIAdapter1 a;
         if (factory.EnumAdapters1(i, out a) != 0) break;
@@ -222,9 +225,15 @@ public static class ElecdexGpu {
     Dictionary<string, double[]> mem = null;
     try { loads = Loads(); } catch { }
     try { mem = Memory(); } catch { }
-    List<Adapter> list = adapters;
-    // Without DXGI the adapters are the counters' own, nameless and of unknown size.
-    if (list.Count == 0 && mem != null) {
+    return Rows(adapters, listed, loads, mem);
+  }
+
+  // A row per adapter. Without DXGI the adapters are the counters' own, nameless and of unknown
+  // size; with it, only its hardware ones (found in review: on a machine with none, the software
+  // renderer's counters came back as a nameless GPU). An adapter no process uses has engines at
+  // rest: load 0 once there are loads, not none (the card of a laptop running on its other GPU).
+  public static object[] Rows(List<Adapter> list, bool dxgi, Dictionary<string, Dictionary<string, double>> loads, Dictionary<string, double[]> mem) {
+    if (!dxgi && list.Count == 0 && mem != null) {
       list = new List<Adapter>();
       foreach (string luid in mem.Keys) { Adapter a = new Adapter(); a.Luid = luid; list.Add(a); }
     }
@@ -237,6 +246,7 @@ public static class ElecdexGpu {
       row["ded"] = (double)a.Dedicated;
       row["shr"] = (double)a.Shared;
       Dictionary<string, double> l;
+      if (loads != null) row["load"] = 0.0;
       if (loads != null && loads.TryGetValue(a.Luid, out l)) foreach (KeyValuePair<string, double> kv in l) row[kv.Key] = kv.Value;
       double[] m;
       if (mem != null && mem.TryGetValue(a.Luid, out m)) { row["du"] = m[0]; row["su"] = m[1]; }
