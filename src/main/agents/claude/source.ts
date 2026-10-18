@@ -85,6 +85,8 @@ interface Tracked extends Reading {
 
 interface Subagent extends Reading {
   file: string
+  /** Its agent id, which a subagent it starts names as its parent. */
+  agent: string
   /** Which call started it, from its meta file; null until that has been read. */
   meta: SubagentMeta | null
 }
@@ -403,7 +405,14 @@ export class ClaudeCodeSource implements AgentSource {
       }
       // A known one is read on its own changes; only a new one is read from here.
       const file = path.join(folder, name)
-      const sub: Subagent = { file, meta: readMeta(file), ...fresh(), reading: false, again: false }
+      const sub: Subagent = {
+        file,
+        agent,
+        meta: readMeta(file),
+        ...fresh(),
+        reading: false,
+        again: false,
+      }
       entry.subagents.set(agent, sub)
       void this.readSubagent(entry, sub)
     }
@@ -477,19 +486,17 @@ export class ClaudeCodeSource implements AgentSource {
     return new Map([...own.slice(-(FILES_SHOWN - room)), ...(room > 0 ? theirs.slice(-room) : [])])
   }
 
-  /** The session's tasks: running first, then the newest, and a finished one only for a while. */
+  /**
+   * The session's tasks, and under each subagent what it started in turn. Every subagent's
+   * record is in the session's one folder; its meta file names the call that started it and,
+   * for one a subagent started, that subagent (Claude Code 2.1.299), whose record holds the call.
+   */
   private tasks(entry: Tracked, now: number): AgentTask[] {
     const subs = new Map<string, Subagent>()
-    for (const sub of entry.subagents.values()) if (sub.meta) subs.set(sub.meta.toolUseId, sub)
-    return [...entry.tally.tasks.entries()]
-      .map(([id, mark]) => taskOf(id, mark, subs.get(id), entry.ended))
-      .filter((task) => task.endedAt === null || now - task.endedAt <= ENDED_KEPT_MS)
-      .sort(
-        (a, b) =>
-          Number(b.state === 'running') - Number(a.state === 'running') ||
-          b.startedAt - a.startedAt,
-      )
-      .filter((task, i) => task.state === 'running' || i < TASKS_SHOWN)
+    for (const sub of entry.subagents.values()) {
+      if (sub.meta) subs.set(subKey(sub.meta.parent ?? '', sub.meta.toolUseId), sub)
+    }
+    return taskList(entry.tally, '', { subs, ended: entry.ended, now }, 0)
   }
 
   private session(entry: Tracked, now: number): AgentSession {
@@ -578,10 +585,60 @@ export class ClaudeCodeSource implements AgentSource {
   }
 }
 
+/** A subagent by the agent that started it ('' for the session) and the call in its record. */
+const subKey = (parent: string, call: string): string => `${parent}|${call}`
+
+/** Subagents starting subagents: deeper than this, the tree stops (a loop in the files, say). */
+const DEPTH_SHOWN = 4
+
+interface TaskContext {
+  subs: Map<string, Subagent>
+  ended: number | null
+  now: number
+}
+
 /**
- * A task as the page gets it. One that ended says so in the session's record,
- * or is a subagent the session waited for and has answered after; one still
- * running when its session went is `unknown`.
+ * The tasks a record started: running first, then the newest, a finished one only for a
+ * while; each subagent's own under it, by the same rules.
+ */
+function taskList(tally: Tally, parent: string, context: TaskContext, depth: number): AgentTask[] {
+  return [...tally.tasks.entries()]
+    .map(([id, mark]) => {
+      const sub = context.subs.get(subKey(parent, id))
+      const task = taskOf(id, mark, sub, context.ended)
+      if (sub !== undefined && depth < DEPTH_SHOWN) {
+        task.children = taskList(sub.tally, sub.agent, context, depth + 1)
+      }
+      return task
+    })
+    .filter((task) => task.endedAt === null || context.now - task.endedAt <= ENDED_KEPT_MS)
+    .sort(
+      (a, b) =>
+        Number(b.state === 'running') - Number(a.state === 'running') || b.startedAt - a.startedAt,
+    )
+    .filter((task, i) => task.state === 'running' || i < TASKS_SHOWN)
+}
+
+/**
+ * How a task ended, if it has: by what its starter's record says, or, for a subagent that was
+ * waited for, by its starter answering again. A subagent whose own record moved on after that
+ * (`moved`) was sent another message, or went on once a background subagent of its own
+ * reported: it runs again, whatever came before.
+ */
+function taskEnd(
+  mark: TaskMark,
+  background: boolean,
+  moved: number,
+): { state: AgentTaskState; at: number } | null {
+  if (mark.ended !== null && moved <= mark.ended.at) return mark.ended
+  const answered = mark.kind === 'agent' && !background ? mark.answeredAt : null
+  return answered !== null && answered >= moved ? { state: 'done', at: answered } : null
+}
+
+/**
+ * A task as the page gets it. One that ended says so in the record of whoever
+ * started it, or is a subagent that was waited for and has been answered after;
+ * one still running when its session went is `unknown`.
  */
 function taskOf(
   id: string,
@@ -591,17 +648,9 @@ function taskOf(
 ): AgentTask {
   // The call's own flag, or Claude Code's word that it ran in the background by default.
   const background = mark.background || sub?.meta?.background === true
-  const answered = mark.kind === 'agent' && !background ? mark.answeredAt : null
-  // A subagent that moved on after its last notice was sent another message: it runs again.
-  const resumed = mark.ended !== null && (sub?.tally.activity?.at ?? 0) > mark.ended.at
-  const ended = resumed ? null : mark.ended
-  const end: { state: AgentTaskState; at: number } | null =
-    ended ??
-    (answered !== null
-      ? { state: 'done', at: answered }
-      : sessionEnded !== null
-        ? { state: 'unknown', at: sessionEnded }
-        : null)
+  const end =
+    taskEnd(mark, background, sub?.tally.activity?.at ?? 0) ??
+    (sessionEnded !== null ? { state: 'unknown' as const, at: sessionEnded } : null)
   let steps = 0
   for (const count of sub?.tally.tools.values() ?? []) steps += count
   return {
@@ -615,6 +664,7 @@ function taskOf(
     endedAt: end?.at ?? null,
     activity: sub?.tally.activity ?? null,
     steps,
+    children: [],
   }
 }
 

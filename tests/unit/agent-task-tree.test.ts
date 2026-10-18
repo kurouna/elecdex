@@ -1,13 +1,18 @@
 import type { AgentTask, AgentTaskState } from '@shared/agents'
 import { describe, expect, it } from 'vitest'
-import { openFolds, taskTree, toggleFold } from '../../src/renderer/widgets/agents/task-tree.js'
+import {
+  everyTask,
+  openFolds,
+  taskTree,
+  toggleFold,
+} from '../../src/renderer/widgets/agents/task-tree.js'
 
 /**
  * The AGENT pane's tasks as a tree under their session: what runs is always in
  * sight, what has finished folds into one row, opened per session.
  */
 
-const task = (id: string, state: AgentTaskState): AgentTask => ({
+const task = (id: string, state: AgentTaskState, children: AgentTask[] = []): AgentTask => ({
   id,
   kind: 'agent',
   title: id,
@@ -18,6 +23,7 @@ const task = (id: string, state: AgentTaskState): AgentTask => ({
   endedAt: state === 'running' ? null : 1,
   activity: null,
   steps: 0,
+  children,
 })
 
 describe('taskTree', () => {
@@ -45,6 +51,26 @@ describe('taskTree', () => {
       { state: 'failed', count: 1 },
       { state: 'unknown', count: 1 },
     ])
+  })
+
+  it('keeps a finished subagent in sight while a subagent of its own still runs', () => {
+    // Claude Code 2.1.299: a subagent reports, and goes on once a background one of its own does.
+    const tree = taskTree([
+      task('a', 'done', [task('a1', 'running'), task('a2', 'done')]),
+      task('b', 'done', [task('b1', 'done')]),
+    ])
+    expect(tree.running.map((t) => t.id)).toEqual(['a'])
+    expect(tree.finished.map((t) => t.id)).toEqual(['b'])
+    // The fold counts the branches it holds, not what hangs under them.
+    expect(tree.tally).toEqual([{ state: 'done', count: 1 }])
+  })
+
+  it('lists every task of a tree, each before what it started', () => {
+    const tasks = [
+      task('a', 'done', [task('a1', 'running', [task('a11', 'done')])]),
+      task('b', 'done'),
+    ]
+    expect(everyTask(tasks).map((t) => t.id)).toEqual(['a', 'a1', 'a11', 'b'])
   })
 
   it('has nothing to fold when nothing has finished', () => {

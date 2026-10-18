@@ -132,6 +132,12 @@ function readAssistant(line: Record<string, unknown>, tally: Tally): void {
 function readTool(block: Record<string, unknown>, at: number, tally: Tally): void {
   const name = str(block.name)
   const input = (block.input ?? {}) as Record<string, unknown>
+  // A subagent's report goes to its caller through this call (Claude Code 2.1.299): its answer,
+  // as the last text of a turn is, not a step of its work.
+  if (name === HANDBACK) {
+    tally.activity = { tool: 'reply', detail: clip(str(input.message)), at }
+    return
+  }
   const shown = toolName(name)
   tally.tools.set(shown, (tally.tools.get(shown) ?? 0) + 1)
   tally.activity = { tool: shown, detail: toolDetail(name, input), at }
@@ -159,6 +165,8 @@ function readTool(block: Record<string, unknown>, at: number, tally: Tally): voi
   }
   if (STOPS.has(name)) stopTask(str(input.task_id) || str(input.shell_id), at, tally)
 }
+
+const HANDBACK = 'SubagentHandback'
 
 /** The tools that stop a background task by the id Claude Code gave it. */
 const STOPS = new Set(['TaskStop', 'KillShell', 'KillBash'])
@@ -213,9 +221,11 @@ function settle(task: TaskMark, text: string, error: boolean, at: number): void 
   const launched = /^Async agent launched/.test(text)
   const id = /agentId: ([0-9a-z]+)/i.exec(text)?.[1] ?? /with ID: ([0-9a-z]+)/i.exec(text)?.[1]
   if (launched) task.background = true
-  if (id !== undefined && (launched || task.kind === 'shell')) task.taskId = id
+  // A subagent's id comes back whether it was waited for or not: one waited for can go on
+  // after its report (resumed, or with background work of its own) and is noticed by it.
+  if (id !== undefined) task.taskId = id
   // A subagent the session waited for answers with its report: it has finished.
-  else if (task.kind === 'agent' && !task.background) task.ended = { state: 'done', at }
+  if (task.kind === 'agent' && !task.background) task.ended = { state: 'done', at }
 }
 
 /** A call that starts a task: any subagent, and a command left to run in the background. */
@@ -275,9 +285,28 @@ function readNotice(line: Record<string, unknown>, tally: Tally): void {
   // Stopped with background work of its own still running: the subagent goes on, and a
   // later notice ends it. Its note is Claude Code's words, as the statuses are.
   if (INTERIM.test(/<note>([^<]*)<\/note>/.exec(text)?.[1] ?? '')) return
-  const at = Date.parse(str(line.timestamp)) || task.startedAt
-  // A subagent sent another message runs again, and ends again: the latest notice is the one.
+  endAt(task, state, Date.parse(str(line.timestamp)) || task.startedAt)
+}
+
+/** A subagent sent another message runs again, and ends again: the latest end is the one. */
+function endAt(task: TaskMark, state: AgentTaskState, at: number): void {
   if (task.ended === null || at > task.ended.at) task.ended = { state, at }
+}
+
+/**
+ * A subagent's report reaching the subagent that started it in the background (Claude Code
+ * 2.1.299): a peer message Claude Code marks as a hand-back, from the task's own id. In a
+ * subagent's record this is how such a task ends; no notice follows. The marks are Claude
+ * Code's own, outside the message, so a report that quotes them is not taken.
+ */
+function readHandback(line: Record<string, unknown>, tally: Tally): void {
+  const origin = line.origin as Record<string, unknown> | undefined
+  if (origin?.kind !== 'peer' || origin.handback !== true) return
+  const from = str(origin.senderTaskId)
+  if (from === '') return
+  for (const task of tally.tasks.values()) {
+    if (task.taskId === from) endAt(task, 'done', Date.parse(str(line.timestamp)) || task.startedAt)
+  }
 }
 
 /**
@@ -305,7 +334,7 @@ function readBackups(line: Record<string, unknown>, cwd: string, tally: Tally): 
  * quotes are the record's own, so a tool's output that mentions them (escaped) is not taken.
  */
 const WANTED =
-  /"role":"assistant"|"type":"custom-title"|"type":"file-history-(snapshot|delta)"|"type":"queue-operation"|"kind":"task-notification"/
+  /"role":"assistant"|"type":"custom-title"|"type":"file-history-(snapshot|delta)"|"type":"queue-operation"|"kind":"task-notification"|"handback":true/
 
 /** A line longer than this (a tool's output, an image) is never one worth parsing. */
 export const LINE_LIMIT = 4 * 1024 * 1024
@@ -327,6 +356,7 @@ export function readLines(text: string, cwd: string, tally: Tally): string {
     else if (str(line.type).startsWith('file-history-')) readBackups(line, cwd, tally)
     else {
       readNotice(line, tally)
+      readHandback(line, tally)
       readResult(line, tally)
     }
   }
@@ -337,6 +367,11 @@ export function readLines(text: string, cwd: string, tally: Tally): string {
 export interface SubagentMeta {
   toolUseId: string
   background: boolean
+  /**
+   * The subagent whose call started it (`parentAgentId`, Claude Code 2.1.299), whose record
+   * holds that call; null for one the session started.
+   */
+  parent: string | null
 }
 
 export function readSubagentMeta(text: string): SubagentMeta | null {
@@ -348,7 +383,11 @@ export function readSubagentMeta(text: string): SubagentMeta | null {
   }
   const toolUseId = str(data.toolUseId)
   if (toolUseId === '') return null
-  return { toolUseId, background: data.requestShape === 'background' }
+  return {
+    toolUseId,
+    background: data.requestShape === 'background',
+    parent: str(data.parentAgentId) || null,
+  }
 }
 
 /** A session as `sessions/<pid>.json` has it, or null for anything else. */

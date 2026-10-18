@@ -14,7 +14,7 @@ import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
 import AgentCard, { type AgentDetail } from './AgentCard.svelte'
 import { span } from './cards.ts'
-import { openFolds, taskTree, toggleFold } from './task-tree.ts'
+import { everyTask, openFolds, taskTree, toggleFold } from './task-tree.ts'
 
 /**
  * AGENT (experimental): the coding agents at work on this machine - one card
@@ -151,7 +151,7 @@ const TASK_LABEL: Record<AgentTaskState, string> = {
 const lasted = (task: AgentTask): string => span((task.endedAt ?? now) - task.startedAt)
 
 const running = (session: AgentSession): number =>
-  session.tasks.filter((task) => task.state === 'running').length
+  everyTask(session.tasks).filter((task) => task.state === 'running').length
 
 /**
  * The detail card: a session (its head), a task or a changed file, while the
@@ -202,7 +202,7 @@ const detail = $derived.by((): AgentDetail | null => {
   if (session === undefined) return null
   if (pointed.kind === 'session') return { kind: 'session', session }
   if (pointed.kind === 'task') {
-    const task = session.tasks.find((t) => t.id === pointed.task)
+    const task = everyTask(session.tasks).find((t) => t.id === pointed.task)
     return task === undefined ? null : { kind: 'task', session, task }
   }
   const file = session.files.find((f) => f.key === pointed.file)
@@ -242,6 +242,14 @@ function toggleFinished(session: AgentSession): void {
         ><span class="tool">{task.activity.tool.toUpperCase()}</span>
         {task.activity.detail}</span
       >
+    {/if}
+    {#if task.children.length > 0}
+      <!-- What a subagent started in turn hangs from it, one step further in. -->
+      <ul class="tree children" data-testid="agent-task-children">
+        {#each task.children as child (child.id)}
+          {@render taskRow(session, child)}
+        {/each}
+      </ul>
     {/if}
   </li>
 {/snippet}
@@ -862,6 +870,11 @@ function toggleFinished(session: AgentSession): void {
 .step {
   grid-column: 3 / -1;
   color: var(--text);
+}
+
+/* Under a subagent, across its row, its own tasks hang from a line below its first columns. */
+.children {
+  grid-column: 1 / -1;
 }
 
 .fold {

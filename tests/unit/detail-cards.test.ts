@@ -31,6 +31,7 @@ const task = (over: Partial<AgentTask> = {}): AgentTask => ({
   endedAt: null,
   activity: { tool: 'Grep', detail: 'oldApi(', at: 0 },
   steps: 12,
+  children: [],
   ...over,
 })
 

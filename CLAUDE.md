@@ -478,8 +478,11 @@ user made; do not reverse one without asking.
     model's own except a task's ending notice or a waiting call's result (matched by id in the
     record's own quotes).
   - Subagents and background commands are a session's tasks, ended by `<task-notification>` (an
-    interim one ends nothing), TaskStop or their own result; a subagent is read from its own
-    record under `<session>/subagents/`; still running when the session went is `unknown`, never done.
+    interim one ends nothing), TaskStop, their own result or a hand-back marked by Claude Code
+    (`origin.handback`); a subagent is read from its own record under `<session>/subagents/`;
+    still running when the session went is `unknown`, never done. What a subagent starts hangs
+    under it (`children`), found by its meta file's `parentAgentId`; a subagent whose record
+    moves on past its end runs again.
   - Tests never read this machine's `~/.claude` (`ELECDEX_CLAUDE_DIR`).
 - **The ELEC system pane** (§5.8, shared/elec.ts, main/ai/elec.ts) runs a motion past LOGOS, ETHOS
   and PATHOS on the AI chat's providers, under the same rules; settings in `elec`, of which a

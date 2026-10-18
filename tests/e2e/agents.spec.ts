@@ -272,3 +272,107 @@ test('shows the subagents and background commands a session runs, until they end
     removeDir(dir)
   }
 })
+
+test("hangs a subagent's own subagent under it, and folds them together once both end", async () => {
+  // Claude Code 2.1.299: a subagent's subagent keeps its record in the session's one folder,
+  // its meta file naming the subagent that started it; that subagent's record holds the call.
+  const { dir, record } = claudeFolder()
+  const work = path.join(dir, 'work')
+  const stamp = (offset = 0) => new Date(Date.now() + offset).toISOString()
+  const call = (message: string, id: string, input: Record<string, unknown>, at = stamp()) =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: at,
+      message: {
+        id: message,
+        role: 'assistant',
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', id, name: 'Agent', input: { prompt: 'Look.', ...input } }],
+      },
+    })
+  const result = (id: string, text: string, at = stamp()) =>
+    JSON.stringify({
+      type: 'user',
+      timestamp: at,
+      message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: text }] },
+    })
+  appendFileSync(
+    record,
+    `${call('m-outer', 'toolu_outer', { description: 'Review the release' })}\n`,
+  )
+  const subagents = path.join(dir, 'projects', 'work', ID, 'subagents')
+  mkdirSync(subagents, { recursive: true })
+  writeFileSync(
+    path.join(subagents, 'agent-p1.meta.json'),
+    JSON.stringify({
+      agentType: 'general-purpose',
+      toolUseId: 'toolu_outer',
+      spawnDepth: 1,
+      requestShape: 'foreground',
+    }),
+  )
+  const outer = path.join(subagents, 'agent-p1.jsonl')
+  writeFileSync(
+    outer,
+    `${[
+      call('s-outer', 'toolu_inner', { description: 'Check the notices', run_in_background: true }),
+      result('toolu_inner', 'Async agent launched successfully.\nagentId: c1 (internal ID)'),
+    ].join('\n')}\n`,
+  )
+  writeFileSync(
+    path.join(subagents, 'agent-c1.meta.json'),
+    JSON.stringify({
+      agentType: 'Explore',
+      toolUseId: 'toolu_inner',
+      parentAgentId: 'p1',
+      spawnDepth: 2,
+      requestShape: 'background',
+    }),
+  )
+  writeFileSync(
+    path.join(subagents, 'agent-c1.jsonl'),
+    `${line([{ type: 'tool_use', name: 'Write', input: { file_path: path.join(work, 'notices.ts') } }])}\n`,
+  )
+
+  const { page, close } = await launch(undefined, {
+    layout: single,
+    env: { ELECDEX_CLAUDE_DIR: dir },
+  })
+  try {
+    const tasks = page.getByTestId('agent-task')
+    const outerRow = tasks.filter({ hasText: 'Review the release' })
+    await expect(tasks).toHaveCount(2, { timeout: 15_000 })
+    // Under the subagent that started it, not beside it as the session's own.
+    await expect(
+      outerRow.getByTestId('agent-task-children').getByTestId('agent-task'),
+    ).toContainText('Check the notices')
+    await expect(page.getByTestId('agent-running')).toHaveText('2 RUNNING')
+
+    // Its report reaches the subagent that started it: it ends there, as that record says.
+    appendFileSync(
+      outer,
+      `${JSON.stringify({
+        type: 'user',
+        timestamp: stamp(),
+        message: { role: 'user', content: '<agent-message from="c1">\n  Nothing missing.' },
+        origin: { kind: 'peer', from: 'c1', senderTaskId: 'c1', handback: true },
+      })}\n`,
+    )
+    await expect(page.getByTestId('agent-running')).toHaveText('1 RUNNING', { timeout: 10_000 })
+    // The session waited for the outer one: its call returns, and both are done.
+    appendFileSync(
+      record,
+      `${result('toolu_outer', 'Report delivered.\nagentId: p1', stamp(1000))}\n`,
+    )
+    const finished = page.getByTestId('agent-finished')
+    await expect(finished).toContainText('1 FINISHED', { timeout: 10_000 })
+    await expect(tasks).toHaveCount(0)
+    await finished.click()
+    await expect(tasks).toHaveCount(2)
+    const inner = outerRow.getByTestId('agent-task-children').getByTestId('agent-task-state')
+    await expect(inner).toHaveText('DONE')
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+})

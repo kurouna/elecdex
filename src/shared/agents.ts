@@ -42,7 +42,10 @@ export interface AgentFile {
   subagent: boolean
 }
 
-/** A subagent the session started, or a command it left running in the background. */
+/**
+ * A subagent the session started, or a command it left running in the background - or one a
+ * subagent started, under it.
+ */
 export type AgentTaskKind = 'agent' | 'shell'
 
 /**
@@ -68,6 +71,11 @@ export interface AgentTask {
   activity: AgentActivity | null
   /** Tool calls a subagent has made so far. */
   steps: number
+  /**
+   * What a subagent started in turn - its own subagents and background commands - ordered
+   * and cut as a session's tasks are; empty for a command.
+   */
+  children: AgentTask[]
 }
 
 export interface AgentSession {

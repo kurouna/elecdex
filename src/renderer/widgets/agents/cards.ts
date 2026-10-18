@@ -1,6 +1,7 @@
 import type { AgentFile, AgentSession, AgentTask, AgentTaskState } from '@shared/agents'
 import { AGENT_SOURCE_NAMES } from '@shared/agents'
 import type { CardRow } from '../../lib/hover-card.ts'
+import { everyTask } from './task-tree.js'
 
 /**
  * What the AGENT pane's detail cards say (AgentCard.svelte, the frame being every
@@ -76,7 +77,8 @@ export function sessionRows(
       value: `${session.activity.tool.toUpperCase()} ${session.activity.detail}`.trim(),
     })
   }
-  if (session.tasks.length > 0) rows.push({ label: 'TASKS', value: taskCounts(session.tasks) })
+  if (session.tasks.length > 0)
+    rows.push({ label: 'TASKS', value: taskCounts(everyTask(session.tasks)) })
   if (session.files.length > 0) {
     const created = session.files.filter((f) => f.created).length
     const changed = session.files.length - created

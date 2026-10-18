@@ -3,7 +3,8 @@ import type { AgentTask, AgentTaskState } from '@shared/agents'
 /**
  * How the AGENT pane lays out a session's tasks: the running ones always in
  * sight, the finished ones folded into one row that says how they ended, opened
- * by the user per session. Pure, so the fold's rules are tested without a page.
+ * by the user per session. A subagent's own tasks hang under it and go where it
+ * goes. Pure, so the fold's rules are tested without a page.
  */
 
 export interface TaskTree {
@@ -15,15 +16,27 @@ export interface TaskTree {
 
 const ENDINGS = ['done', 'failed', 'stopped', 'unknown'] as const
 
+/** A task and everything under it, the task first. */
+export function everyTask(tasks: readonly AgentTask[]): AgentTask[] {
+  return tasks.flatMap((task) => [task, ...everyTask(task.children)])
+}
+
+/**
+ * Whether anything in a task's branch still runs. A subagent that has reported while a
+ * subagent of its own goes on stays in sight with it, rather than folded away.
+ */
+const running = (task: AgentTask): boolean =>
+  task.state === 'running' || task.children.some(running)
+
 /** Splits a session's tasks, keeping main's order (newest first) within each part. */
 export function taskTree(tasks: readonly AgentTask[]): TaskTree {
-  const running = tasks.filter((task) => task.state === 'running')
-  const finished = tasks.filter((task) => task.state !== 'running')
+  const live = tasks.filter(running)
+  const finished = tasks.filter((task) => !running(task))
   const tally = ENDINGS.map((state) => ({
     state,
     count: finished.filter((task) => task.state === state).length,
   })).filter((entry) => entry.count > 0)
-  return { running, finished, tally }
+  return { running: live, finished, tally }
 }
 
 /**
