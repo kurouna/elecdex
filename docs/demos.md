@@ -30,7 +30,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
 | `demo:panes` / `demo:snippets` / `demo:wifi` / `demo:dev` / `demo:elec` / `demo:presets` / `demo:shorts` | X 用の短いもの | |
 | `demo:whatsnew` / `demo:whatsnew22` | そのリリースで増えたもの | |
-| `demo:whatsnew34` | v0.0.34 で増えたもの（ai プリセットの GPU ペインを前に出す、cockpit の CLUSTER の GPU レーンと VRAM のスロット、dev のサブエージェントが起動したサブエージェント、GIT ペインの PUSH を 2 回押しで代役のリモートへ） | 1600×900、約 51 秒 |
+| `demo:whatsnew34` | v0.0.34 で増えたもの。どれもペインを前に出して見せる（dev プリセットで、AI AGENT のサブエージェントが起動したサブエージェントとそのカード、GIT ペインの PUSH を 2 回押しで代役のリモートへ、GIT の隣のタブに置いた GPU ペイン。最後に cockpit の CLUSTER の GPU レーンと VRAM のスロット） | 1600×900、約 48 秒 |
 
 一覧と一言の説明は CLAUDE.md の Commands にもある。各スクリプトの先頭のコメントに、場面の並びと何が代役かが書いてある。
 

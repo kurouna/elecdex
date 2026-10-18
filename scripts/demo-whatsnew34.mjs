@@ -1,16 +1,15 @@
 /**
- * What v0.0.34 added since v0.0.33, for a landscape video (X, the release notes): the new things
- * in the order they will be noticed, the most striking first.
+ * What v0.0.34 added since v0.0.33, for a landscape video (X, the release notes), each pane
+ * brought forward (Ctrl+Shift+Z) so its detail reads:
  *
- *   gpu       the ai preset, where the take opens: the new GPU pane under ELEC SYSTEM - load and
- *             VRAM over the last minute, each engine, the memory bar - brought forward and put
- *             back. It opens first because a pane charts only what came since it opened.
- *   cockpit   the cockpit preset (Ctrl+Shift+F8): CLUSTER's new GPU lane under memory, its card,
- *             and the MEMORY and VRAM slots and the spec row, each card read in turn
- *   agents    the dev preset (Ctrl+Shift+F4): a subagent's own subagent hanging under it in the
- *             agent's task tree, still at work, and its card
+ *   agents    the dev preset, where the take opens: a subagent's own subagent hanging under it in
+ *             the agent's task tree, still at work, and its card
  *   push      the git pane's new PUSH: a commit ahead of origin, the first press saying what goes
  *             where and that no hooks run, the second pushing it, never forced
+ *   gpu       the new GPU pane, a tab beside git for the take - load and VRAM over the last
+ *             minute, each engine, the memory bars
+ *   cockpit   the cockpit preset (Ctrl+Shift+F8): CLUSTER's new GPU lane under memory, its card,
+ *             and the VRAM slot and the spec row
  *
  * Everything shown is made up or a stand-in (demo-take.mjs): the home, the repository and the
  * remote it pushes to (a bare repository in the demo home), the Claude Code folder, the GPU (the
@@ -66,7 +65,7 @@ function remoteBehind() {
   ])
 }
 
-/* ---- The saved layouts: the cockpit, ai and dev presets ---- */
+/* ---- The saved layouts: the dev preset with the GPU pane, and the cockpit preset ---- */
 
 const { standIn } = await prepareData()
 remoteBehind()
@@ -77,7 +76,26 @@ const preset = (id) => {
   if (tree === undefined) throw new Error(`no preset ${id} in the built app`)
   return { id: `new${id}`, name: id, preset: id, tree: withDemoState(tree, standIn) }
 }
-const items = [preset('ai'), preset('cockpit'), preset('dev')]
+
+/**
+ * The GPU pane as one more tab beside git's, so it charts from the take's first second: a pane
+ * charts only what came since it opened, and one opened on a layout switch would come forward
+ * nearly empty. Behind its tab it keeps charting (its source is kept while hidden).
+ */
+function withGpuTab(node) {
+  if (node.kind === 'tabs' && node.children.some((child) => child.widget === 'git')) {
+    return {
+      ...node,
+      children: [...node.children, { kind: 'pane', id: 'demo-gpu', widget: 'gpu' }],
+    }
+  }
+  return node.kind === 'split' ? { ...node, children: node.children.map(withGpuTab) } : node
+}
+const dev = preset('dev')
+const items = [
+  { ...dev, tree: { ...dev.tree, root: withGpuTab(dev.tree.root) } },
+  preset('cockpit'),
+]
 
 const { app, page, wait, settled, run } = await openTake({
   items,
@@ -106,78 +124,110 @@ async function card(target, label, hold = 2600) {
   await wait(hold)
 }
 
-/* ---- 1. CLUSTER's GPU ---- */
+/**
+ * A pane brought forward (Ctrl+Shift+Z) so its detail reads, what is shown on it meanwhile, and
+ * put back. The press that gives it the keyboard lands on its title, where nothing opens.
+ */
+async function forward(widget, during) {
+  say(`${widget}: brought forward`)
+  await paneOf(widget)
+    .first()
+    .click({ position: { x: 160, y: 10 } })
+  await wait(300)
+  await page.keyboard.press('Control+Shift+KeyZ')
+  await wait(1500)
+  await during()
+  await away()
+  await page.keyboard.press('Control+Shift+KeyZ')
+  await wait(1300)
+}
+
+/* ---- 1. The agent's tree ---- */
+
+async function nestedAgents() {
+  const agents = paneOf('agents')
+  await agents.getByTestId('agent-task-children').first().waitFor({ timeout: 20_000 })
+  say('dev: the agent, the repository, and the GPU behind its tab')
+  await wait(2500)
+  await forward('agents', async () => {
+    say("agents: a subagent's own subagent hangs under it")
+    await wait(2800)
+    const nested = agents.getByTestId('agent-task-children').first()
+    await card(
+      nested.getByTestId('agent-task-row').first(),
+      'agents: the nested subagent at work',
+      3200,
+    )
+  })
+}
+
+/* ---- 2. PUSH ---- */
+
+async function push() {
+  const gitPane = paneOf('git')
+  const button = gitPane.getByTestId('git-push')
+  await gitPane.getByTestId('git-head').filter({ hasText: '↑1' }).waitFor({ timeout: 20_000 })
+  await forward('git', async () => {
+    say('git: one commit ahead of origin')
+    await wait(2200)
+    say('git: PUSH, the first press says where, and that no hooks run')
+    await press(button)
+    await wait(2800)
+    say('git: the second press pushes it, never forced')
+    await press(button)
+    await page
+      .getByTestId('toast')
+      .filter({ hasText: 'PUSHED' })
+      .last()
+      .waitFor({ timeout: 30_000 })
+    await away()
+    await gitPane.getByTestId('git-head').filter({ hasText: '↑0' }).waitFor({ timeout: 10_000 })
+    await wait(2800)
+  })
+}
+
+/* ---- 3. The GPU pane ---- */
+
+async function gpuPane() {
+  say('gpu: its tab beside git')
+  await press(
+    page
+      .getByTestId('tab')
+      .filter({ hasText: /^\s*gpu\s*$/i })
+      .first(),
+  )
+  const gpu = paneOf('gpu')
+  await gpu.getByTestId('gpu-chart').waitFor({ timeout: 20_000 })
+  await away()
+  await wait(1500)
+  await forward('gpu', async () => {
+    say('gpu: load and VRAM over the last minute, each engine, the memory')
+    await wait(6500)
+  })
+}
+
+/* ---- 4. CLUSTER's GPU ---- */
 
 async function clusterGpu() {
   await page.getByTestId('cluster').waitFor({ timeout: 20_000 })
   await page.getByTestId('cluster-figure-gpu').waitFor({ timeout: 20_000 })
   say('cluster: the GPU lane under memory')
-  await wait(3200)
+  await wait(2600)
   await card(page.getByTestId('cluster-figure-gpu'), 'cluster: the GPU lane card')
-  await card(page.getByTestId('cluster-slot-ram'), 'cluster: the MEMORY slot', 2200)
   await card(page.getByTestId('cluster-slot-vram'), 'cluster: the VRAM slot', 2200)
   await card(page.getByTestId('cluster-spec'), 'cluster: the GPU in the spec row', 2200)
   await away()
   await wait(1000)
 }
 
-/* ---- 2. The GPU pane ---- */
-
-async function gpuPane() {
-  const gpu = paneOf('gpu')
-  await gpu.getByTestId('gpu-chart').waitFor({ timeout: 20_000 })
-  say('gpu: load and VRAM over the last minute')
-  await wait(7000)
-  await beat.forward('gpu', 6000)
-  await away()
-  await wait(1200)
-}
-
-/* ---- 3. The agent's tree, and PUSH ---- */
-
-async function nestedAgents() {
-  const agents = paneOf('agents')
-  const nested = agents.getByTestId('agent-task-children').first()
-  await nested.waitFor({ timeout: 20_000 })
-  say("agents: a subagent's own subagent hangs under it")
-  await wait(3200)
-  await card(
-    nested.getByTestId('agent-task-row').first(),
-    'agents: the nested subagent at work',
-    2800,
-  )
-  await away()
-  await wait(1000)
-}
-
-async function push() {
-  const gitPane = paneOf('git')
-  const button = gitPane.getByTestId('git-push')
-  await gitPane.getByTestId('git-head').filter({ hasText: '↑1' }).waitFor({ timeout: 20_000 })
-  say('git: one commit ahead of origin')
-  await wait(2200)
-  say('git: PUSH, the first press says where, and that no hooks run')
-  await press(button)
-  await wait(2600)
-  say('git: the second press pushes it, never forced')
-  await press(button)
-  await page.getByTestId('toast').filter({ hasText: 'PUSHED' }).last().waitFor({ timeout: 30_000 })
-  await away()
-  await wait(2000)
-  await gitPane.getByTestId('git-head').filter({ hasText: '↑0' }).waitFor({ timeout: 10_000 })
-  await wait(2200)
-}
-
 await run(async () => {
   await settled()
   const started = Date.now()
+  await nestedAgents()
+  await push()
   await gpuPane()
   await toPreset('cockpit', 'F8')
   await clusterGpu()
-  await toPreset('dev', 'F4')
-  await wait(1200)
-  await nestedAgents()
-  await push()
   say(`take: ${((Date.now() - started) / 1000).toFixed(1)} s`)
   if (exit) await app.close().catch(() => {})
 })
