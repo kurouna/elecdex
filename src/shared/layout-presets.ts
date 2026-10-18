@@ -62,9 +62,6 @@ function withSystemColumn(stage: LayoutNode[], shares: number[]): LayoutNode {
   )
 }
 
-const shells = (count: number): LayoutNode =>
-  tabs(Array.from({ length: count }, () => pane('terminal')))
-
 export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
   {
     id: 'standard',
@@ -73,17 +70,18 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
     build: defaultLayoutNode,
   },
   {
-    // The globe over the shells, two to one, in three fifths of the stage; beside
-    // them the Wi-Fi pane over the socket table, half and half (user decision
-    // 2026-09-25). Status and traffic are in the system column already.
+    // The globe over the socket table, two to one, in three fifths of the stage;
+    // beside them the Wi-Fi pane over the Ethernet pane, half and half (user
+    // decisions 2026-09-25, 2026-10-18: the sockets took the shells' place, the
+    // cable theirs). Status and traffic are in the system column already.
     id: 'network',
     name: 'network',
-    description: 'the wireless link, who this machine talks to, and where in the world they are',
+    description: 'both links, who this machine talks to, and where in the world they are',
     build: () =>
       withSystemColumn(
         [
-          split('column', [pane('globe'), shells(2)], [2 / 3, 1 / 3]),
-          split('column', [pane('wifi'), pane('connections')], [0.5, 0.5]),
+          split('column', [pane('globe'), pane('connections')], [2 / 3, 1 / 3]),
+          split('column', [pane('wifi'), pane('ethernet')], [0.5, 0.5]),
         ],
         [0.6, 0.4],
       ),
@@ -207,18 +205,17 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
   {
     // The machine on one pane where the system column would be, large enough at 1600x900 to lay
     // itself out at its widest with what the machine is and every core, a shell under it, and
-    // beside it the world view over the Wi-Fi pane (user decisions 2026-10-10, 2026-10-18). The
+    // beside it the Wi-Fi pane over the Ethernet pane (user decisions 2026-10-10, 2026-10-18). The
     // one preset without the system column: CLUSTER says what the column does, and more.
     id: 'cockpit',
     name: 'cockpit',
-    description:
-      'the whole machine on one pane, a shell under it, the world and the link beside it',
+    description: 'the whole machine on one pane, a shell under it, both links beside it',
     build: () =>
       split(
         'row',
         [
           split('column', [pane('cluster'), pane('terminal')], [0.75, 0.25]),
-          split('column', [pane('globe'), pane('wifi')], [0.5, 0.5]),
+          split('column', [pane('wifi'), pane('ethernet')], [0.5, 0.5]),
         ],
         [0.7, 0.3],
       ),

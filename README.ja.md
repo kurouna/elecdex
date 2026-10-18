@@ -66,14 +66,15 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### network — このマシンの通信相手
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-network.jpg" alt="Amber テーマの network プリセット：左にシステムの列、接続先への弧を描くアンバーのワールドビューの地球儀とその下に横長のシェル。右に、架空の回線で PC からインターネットまでの区間がすべて正常と示す Wi-Fi ペイン（1 分幅のタイムライン付き）と、プログラムごとのソケット（firefox、code、elecdex、thunderbird、curl、ssh、syncthing）を一覧する connections ペイン">
+  <img src="./docs/screenshots/elecdex-network.jpg" alt="Amber テーマの network プリセット：左にシステムの列、接続先への弧を描くアンバーのワールドビューの地球儀と、その下にプログラムごとのソケット（firefox、code、elecdex、thunderbird）を一覧する connections ペイン。右に、Wi-Fi ペインとその下の Ethernet ペイン。どちらも架空の回線で、PC からインターネットまでの区間がすべて正常（1 分幅のタイムライン付き、有線は 1 Gb/s 全二重）">
   <br><sub>network · Amber</sub>
 </p>
 
 - **ワールドビューと接続** — このマシンの接続先を示す地球儀と、すべての TCP ソケットを保持しているプログラム
   ごとに一覧するペイン。どちらも同梱の GeoIP データベースで位置を求めるので、
-  オンラインで問い合わせることはありません。地球儀の下のシェルは ping や traceroute のためのものです。
-- **Wi-Fi** — ソケット一覧の上で、無線のどの区間で問題が起きているかを示します（*ペイン* を参照）。
+  オンラインで問い合わせることはありません。ソケットの一覧は地球儀の下にあります。
+- **Wi-Fi と Ethernet** — 上下に並び、無線とケーブルのどの区間で問題が起きているかを示します（*ペイン* を参照）。
+  *（Ethernet は unreleased）*
 
 ### earth — 頭上と足もと
 
@@ -174,10 +175,10 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
   判断して APPROVE、REJECT、ABSTAIN のいずれかに投票し、ペインが多数決または全会一致で
   議決します。各席は AI チャットのプロバイダーを使います。3 席すべてが同じモデルでも構いません。
 
-### cockpit — 機械のすべてを 1 枚に、シェルと世界とリンク
+### cockpit — 機械のすべてを 1 枚に、シェルと 2 つのリンク
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black テーマ（淡い地に黒に近い文字と走査線）の cockpit プリセット：左上、システムの列の代わりに CLUSTER ペイン。ALL SYSTEMS NOMINAL と並ぶ警告灯の行、日付の上の時計、その横に 5 つずつ 2 行でメモリ・VRAM・スワップ・いちばん埋まっているディスク・接続先の数・いちばん重いプログラム・電源・稼働時間・リンクの通信量・アドレス、その下に OS・メーカー・モデル・筐体・CPU・架空の GPU・AWAKE の行。その下に CPU の 1 分間の折れ線、16 コアの棒、メモリ・GPU・ディスク I/O・ネットワークの受信と送信・PING の折れ線とピークと平均。その下にシェル。右に、接続先へ弧を描く world view の地球儀と、その下に架空のリンクの Wi-Fi ペイン">
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black テーマ（淡い地に黒に近い文字と走査線）の cockpit プリセット：左上、システムの列の代わりに CLUSTER ペイン。ALL SYSTEMS NOMINAL と並ぶ警告灯の行、日付の上の時計、その横に 5 つずつ 2 行でメモリ・VRAM・スワップ・いちばん埋まっているディスク・接続先の数・いちばん重いプログラム・電源・稼働時間・リンクの通信量・アドレス、その下に OS・メーカー・モデル・筐体・CPU・架空の GPU・AWAKE の行。その下に CPU の 1 分間の折れ線、16 コアの棒、メモリ・GPU・ディスク I/O・ネットワークの受信と送信・PING の折れ線とピークと平均。その下にシェル。右に、Wi-Fi ペインとその下の Ethernet ペイン（どちらも架空のリンク）">
   <br><sub>cockpit · Black</sub>
 </p>
 
@@ -443,9 +444,9 @@ Escape、もう一度のショートカット、ボタン、または暗幕の�
 新しい配置は起動時と同じようにペインごとに立ち上がります。動きを減らす設定では、この演出はありません。
 
 一覧の下には 9 つの **プリセット** が、それぞれペインの並びを小さな図にして並んでいます。
-**standard**（既定のレイアウト）、**network**（地球儀とシェル、その横に Wi-Fi と connections）、**earth**（ORBIT、地球儀、
+**standard**（既定のレイアウト）、**network**（地球儀の下に connections、その横に Wi-Fi の下に Ethernet）、**earth**（ORBIT、地球儀、
 地震、天気）、**dev**（AI AGENT、Docker とシェル、clipboard と timer とシェル、GIT と AI チャットと Log Watch。組ごとにタブ）、**media**（YouTube (TV) とその下の now playing・spectrum・mixer、
-タブに重ねた X と RSS）、**desk**（notes、timer、calculator、tasks、calendar、clipboard、utility）、**ai**（上下に 2 つの AI チャットと、GPU ペインの上に ELEC system）、**cockpit**（システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に world view と、その下に Wi-Fi）、**retro**（ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum）です。cockpit 以外は左端にシステムの列を
+タブに重ねた X と RSS）、**desk**（notes、timer、calculator、tasks、calendar、clipboard、utility）、**ai**（上下に 2 つの AI チャットと、GPU ペインの上に ELEC system）、**cockpit**（システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に Wi-Fi と、その下に Ethernet）、**retro**（ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum）です。cockpit 以外は左端にシステムの列を
 持つので、切り替えても計器はそのままで、舞台だけが替わります。プリセットを選ぶと、そこから作ったレイアウトが
 追加されてそこへ切り替わり、以後は作業に追従する自分のレイアウトになります。もう一度選ぶと、別のものを
 追加せずにそのレイアウトへ戻ります。↺ でプリセットの状態に戻せます。プリセットにはそれぞれ専用のキー

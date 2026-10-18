@@ -93,7 +93,7 @@ test('on a train, names the way out lost, and logs the drops and the change of c
   }
 })
 
-test('the network preset puts the Wi-Fi pane over the socket table, beside the globe over the shells', async () => {
+test('the network preset puts the Wi-Fi pane over the Ethernet pane, beside the globe over the sockets', async () => {
   const { page, close } = await launch(undefined, {
     env: { ELECDEX_SEED_LAYOUTS: '1' },
     settings: { layout: { confirmSwitch: false } },
@@ -103,7 +103,7 @@ test('the network preset puts the Wi-Fi pane over the socket table, beside the g
     // Measured once the layout stands still: while it arrives, each pane powers on
     // scaled from a line (the Wi-Fi pane was once measured at 186x2), which a box
     // taken as soon as the pane is visible caught more often than not.
-    await expect(page.locator('[data-testid=pane][data-widget=wifi]')).toBeVisible({
+    await expect(page.locator('[data-testid=pane][data-widget=ethernet]')).toBeVisible({
       timeout: 20_000,
     })
     await settleLayout(page)
@@ -113,18 +113,19 @@ test('the network preset puts the Wi-Fi pane over the socket table, beside the g
       if (b === null) throw new Error(`${widget} has no box`)
       return b
     }
-    const [globe, terminal, wifi, connections] = [
+    const [globe, connections, wifi, ethernet] = [
       await box('globe'),
-      await box('terminal'),
-      await box('wifi'),
       await box('connections'),
+      await box('wifi'),
+      await box('ethernet'),
     ]
-    // Left: the globe over the shells, two to one. Right: Wi-Fi over sockets, half and half.
-    expect(terminal.y).toBeGreaterThan(globe.y + globe.height - 40)
-    expect(globe.height / terminal.height).toBeGreaterThan(1.6)
-    expect(connections.y).toBeGreaterThan(wifi.y + wifi.height - 40)
-    expect(Math.abs(wifi.height - connections.height)).toBeLessThan(wifi.height * 0.15)
+    // Left: the globe over the sockets, two to one. Right: Wi-Fi over Ethernet, half and half.
+    expect(connections.y).toBeGreaterThan(globe.y + globe.height - 40)
+    expect(globe.height / connections.height).toBeGreaterThan(1.6)
+    expect(ethernet.y).toBeGreaterThan(wifi.y + wifi.height - 40)
+    expect(Math.abs(wifi.height - ethernet.height)).toBeLessThan(wifi.height * 0.15)
     expect(wifi.x).toBeGreaterThan(globe.x + globe.width - 20)
+    await expect(page.locator('[data-testid=pane][data-widget=terminal]')).toHaveCount(0)
   } finally {
     await close()
   }

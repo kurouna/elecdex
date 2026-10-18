@@ -196,10 +196,22 @@ describe('LAYOUT_PRESETS', () => {
     expect(row('gpu')?.h ?? 0).toBeLessThan((row('elec')?.h ?? 0) / 2)
   })
 
+  it('puts the globe over the sockets in network, beside Wi-Fi over Ethernet, with no shell', () => {
+    // The sockets took the shells' place, and the cable the sockets' (user decision 2026-10-18).
+    const shape = layoutShape(presetTree(presetById('network') as LayoutPreset))
+    const row = (widget: string) => shape.find((r) => r.widget === widget)
+    expect(shape.some((r) => r.widget === 'terminal')).toBe(false)
+    expect(row('connections')?.x).toBe(row('globe')?.x)
+    expect(row('connections')?.y ?? 0).toBeGreaterThan(row('globe')?.y ?? 0)
+    expect(row('ethernet')?.x).toBe(row('wifi')?.x)
+    expect(row('ethernet')?.h).toBe(row('wifi')?.h)
+    expect(row('wifi')?.x ?? 0).toBeGreaterThan(row('globe')?.x ?? 0)
+  })
+
   it('gives cockpit the CLUSTER pane in place of the system column, at its widest with every core', () => {
-    // A shell under CLUSTER (user decision 2026-10-10); on the right the world view over the
-    // Wi-Fi pane (user decision 2026-10-18).
-    expect(places('cockpit')).toEqual([['cluster'], ['terminal'], ['globe'], ['wifi']])
+    // A shell under CLUSTER (user decision 2026-10-10); on the right the Wi-Fi pane over the
+    // Ethernet pane (user decision 2026-10-18).
+    expect(places('cockpit')).toEqual([['cluster'], ['terminal'], ['wifi'], ['ethernet']])
     const shape = layoutShape(presetTree(presetById('cockpit') as LayoutPreset))
     expect(shape.some((r) => LEFT_COLUMN.includes(r.widget))).toBe(false)
     const cluster = shape.find((r) => r.widget === 'cluster')

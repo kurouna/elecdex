@@ -504,8 +504,8 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 終了時の保存・破損した layouts.json・演出とモーション低減）。
 
 **プリセット**（`shared/layout-presets.ts`、2026-09-24）: 用途別の配置を組み込みで持つ。standard（既定
-レイアウトそのもの）/ network（地球儀・connections を 3:2・シェル）/ earth（ORBIT・地球儀・地震・天気・シェル）/
-dev（AI AGENT、Docker とシェルのタブ、clipboard・timer・シェルのタブを縦に、右に GIT と AI チャットと LOG WATCH のタブ（LOG WATCH は 2026-10-12 追加、§5.21）。前面は見えている間だけ読む Docker と clipboard と、差分に全高が要る GIT。§5.17。2026-10-01 に利用者の指定で組み直した）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（3 列: notes の下に timer と calculator、tasks の下に clipboard、calendar の下に utility。シェルなし。clipboard は見えている間だけ読むのでタブに重ねない。§5.14。2026-09-27 に utility を入れるため 2 列から組み直した。§5.16）/ ai（AI チャット 2 つを上下に、右の広い列に ELEC system。§5.7・§5.8。2026-10-01 追加）/ cockpit（左上に CLUSTER、その下にシェル、右に world view と、その下に Wi-Fi。§5.20。2026-10-10 追加、右列は 2026-10-18 にシェル 2 つから変更）/ retro（ELEC-16 と CHIP-8 をタブにした 1 つのペイン、その下に 16 バンドの spectrum。§5.18・§5.19。2026-10-04 追加。2026-10-10 に cockpit の後ろ、最後へ）の 9 つ。cockpit 以外は既定の左カラム（システム列）を同じ幅・同じ高さで
+レイアウトそのもの）/ network（地球儀の下に connections を 2:1、右に Wi-Fi の下に ETHERNET を 1:1。2026-10-18 にシェルを connections に、connections を ETHERNET に替えた。シェルのないプリセット）/ earth（ORBIT・地球儀・地震・天気・シェル）/
+dev（AI AGENT、Docker とシェルのタブ、clipboard・timer・シェルのタブを縦に、右に GIT と AI チャットと LOG WATCH のタブ（LOG WATCH は 2026-10-12 追加、§5.21）。前面は見えている間だけ読む Docker と clipboard と、差分に全高が要る GIT。§5.17。2026-10-01 に利用者の指定で組み直した）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（3 列: notes の下に timer と calculator、tasks の下に clipboard、calendar の下に utility。シェルなし。clipboard は見えている間だけ読むのでタブに重ねない。§5.14。2026-09-27 に utility を入れるため 2 列から組み直した。§5.16）/ ai（AI チャット 2 つを上下に、右の広い列に ELEC system。§5.7・§5.8。2026-10-01 追加）/ cockpit（左上に CLUSTER、その下にシェル、右に Wi-Fi と、その下に ETHERNET。§5.20。2026-10-10 追加、右列は 2026-10-18 にシェル 2 つから world view と Wi-Fi に、同じ日に Wi-Fi と ETHERNET に変更）/ retro（ELEC-16 と CHIP-8 をタブにした 1 つのペイン、その下に 16 バンドの spectrum。§5.18・§5.19。2026-10-04 追加。2026-10-10 に cockpit の後ろ、最後へ）の 9 つ。cockpit 以外は既定の左カラム（システム列）を同じ幅・同じ高さで
 左端に持つので、切り替えると計器盤はそのままで右の舞台だけが替わって見える。cockpit だけは、CLUSTER が列の役目を果たすので列を持たない（2026-10-10、利用者の決定。`WITH_SYSTEM_COLUMN`）。名前は ORBIT ペインと重ならない
 ように earth にした（利用者の判断）。
 
@@ -1533,7 +1533,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 
 有線で繋いでいるとき、どこで問題が起きているかを示す（2026-10-18、利用者の依頼）。Wi-Fi ペイン（§5.12）の有線版で、
 目的も同じ：通話や配信の品質が悪いとき、自分か、ケーブル・ポート・アダプタか、ルーターか、回線かを切り分ける。
-ピッカー名は "Ethernet status"、見出しは ETHERNET。既定のレイアウトにもプリセットにも入れない。見た目のたたき台は
+ピッカー名は "Ethernet status"、見出しは ETHERNET。既定のレイアウトには入れず、network プリセット（Wi-Fi の下）と cockpit プリセット（右列の下）に入れる（2026-10-18、利用者の決定）。見た目のたたき台は
 モック [ethernet-mock/index.html](ethernet-mock/index.html)（16 の場合、3 つの大きさ、5 つのテーマ。Wi-Fi ペインの
 実画面 ref-wifi-*.png と並べて、UX の統一・有線の診断・見た目の規約の 3 つの観点でレビューして直した）。
 

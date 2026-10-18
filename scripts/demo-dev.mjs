@@ -422,6 +422,8 @@ const app = await electron.launch({
     HOME,
     ELECDEX_CLAUDE_DIR: claude,
     ELECDEX_WIFI_STUB: 'demo',
+    // A made-up wired link (network and cockpit): never this machine's adapters.
+    ELECDEX_ETHER_STUB: 'demo',
     ELECDEX_CLIPBOARD_STUB: 'demo',
     ELECDEX_NOWPLAYING_STUB: 'demo',
     // A made-up Docker engine (the dev layout): never this machine's containers.

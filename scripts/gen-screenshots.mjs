@@ -704,6 +704,8 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
       HOME,
       // A made-up Wi-Fi link in every shot: never this machine's network or addresses.
       ELECDEX_WIFI_STUB: 'demo',
+      // And a made-up wired link: never this machine's adapters or addresses.
+      ELECDEX_ETHER_STUB: 'demo',
       // A made-up clipboard history (the desk shot): never what this machine has copied.
       ELECDEX_CLIPBOARD_STUB: 'demo',
       ELECDEX_NOWPLAYING_STUB: 'demo',
@@ -763,10 +765,10 @@ const preset = (id) => {
 // Each preset in a theme of its own, so the README shows every theme at work: standard is
 // the default layout, which a profile without layout.json opens with.
 await shoot('tron', 'elecdex-tron')
-// The Wi-Fi timeline on its one-minute span: a shot is taken half a minute after the start, and
-// five minutes of timeline would be mostly the time before it (NOT WATCHED).
+// The Wi-Fi and Ethernet timelines on their one-minute span: a shot is taken half a minute after
+// the start, and five minutes of timeline would be mostly the time before it (NOT WATCHED).
 await shoot('amber', 'elecdex-network', {
-  layout: withState(preset('network'), { wifi: { window: '1m' } }),
+  layout: withState(preset('network'), { wifi: { window: '1m' }, ethernet: { window: '1m' } }),
   env: { ELECDEX_SOCKETS_STUB: 'demo' },
 })
 await shoot('tron', 'elecdex-earth', {
@@ -815,7 +817,7 @@ await shoot('business-light', 'elecdex-desk', {
 // cockpit: the CLUSTER pane where the system column would be, given a full minute so its
 // lanes run edge to edge, the pointer over the shell so no figure's card is open.
 await shoot('black', 'elecdex-cockpit', {
-  layout: preset('cockpit'),
+  layout: withState(preset('cockpit'), { wifi: { window: '1m' }, ethernet: { window: '1m' } }),
   extra: async (page) => {
     await page.mouse.move(W * 0.35, H * 0.9)
     await page.waitForTimeout(35_000)
