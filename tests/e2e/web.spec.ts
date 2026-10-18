@@ -1000,15 +1000,27 @@ test.describe('web panes', () => {
           { keyCode, modifiers },
         )
 
-      // Ctrl+Shift+Arrow selects by word in the page's field. Pressed again until it does: the
-      // workspace tells main what the page keeps a moment after the pane takes the keyboard.
+      // Ctrl+Shift+Arrow, the tab keys with no tab group, reaches the page. Pressed again until
+      // it does: the workspace tells main what the page keeps a moment after the pane takes the
+      // keyboard.
       await expect
         .poll(async () => {
-          await inPage(app, 'document.querySelector("#field").setSelectionRange(0, 0); 1')
+          await inPage(app, 'window.__keys = []; 1')
           await press('Right', ['control', 'shift'])
-          return inPage<number>(app, 'document.querySelector("#field").selectionEnd')
+          return inPage<string[]>(app, 'window.__keys')
         })
-        .toBeGreaterThan(0)
+        .toContain('ArrowRight')
+      // And it selects by word in the field. Not on macOS, where a field edits through the
+      // system's reading of a real key press, which an event sent to the page does not make:
+      // nothing moved there even with Cmd+Shift+Arrow, though the key had reached the page
+      // (found on CI's macOS runner).
+      if (process.platform !== 'darwin') {
+        await inPage(app, 'document.querySelector("#field").setSelectionRange(0, 0); 1')
+        await press('Right', ['control', 'shift'])
+        await expect
+          .poll(() => inPage<number>(app, 'document.querySelector("#field").selectionEnd'))
+          .toBeGreaterThan(0)
+      }
       // With no shell open, Ctrl+Shift+= is the page's too (a page zooms with it).
       await press('=', ['control', 'shift'])
       await expect.poll(() => inPage<string[]>(app, 'window.__keys')).toContain('Equal')
