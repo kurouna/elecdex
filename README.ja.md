@@ -174,10 +174,10 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
   判断して APPROVE、REJECT、ABSTAIN のいずれかに投票し、ペインが多数決または全会一致で
   議決します。各席は AI チャットのプロバイダーを使います。3 席すべてが同じモデルでも構いません。
 
-### cockpit — 機械のすべてを 1 枚に、そしてシェル
+### cockpit — 機械のすべてを 1 枚に、シェルと世界とリンク
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black テーマ（淡い地に黒に近い文字と走査線）の cockpit プリセット：左上、システムの列の代わりに CLUSTER ペイン。ALL SYSTEMS NOMINAL と並ぶ警告灯の行、日付の上の時計、その横に 5 つずつ 2 行でメモリ・VRAM・スワップ・いちばん埋まっているディスク・接続先の数・いちばん重いプログラム・電源・稼働時間・リンクの通信量・アドレス、その下に OS・メーカー・モデル・筐体・CPU・架空の GPU・AWAKE の行。その下に CPU の 1 分間の折れ線、16 コアの棒、メモリ・GPU・ディスク I/O・ネットワークの受信と送信・PING の折れ線とピークと平均。その下にシェル、右に上下に並べた 2 つのシェル">
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black テーマ（淡い地に黒に近い文字と走査線）の cockpit プリセット：左上、システムの列の代わりに CLUSTER ペイン。ALL SYSTEMS NOMINAL と並ぶ警告灯の行、日付の上の時計、その横に 5 つずつ 2 行でメモリ・VRAM・スワップ・いちばん埋まっているディスク・接続先の数・いちばん重いプログラム・電源・稼働時間・リンクの通信量・アドレス、その下に OS・メーカー・モデル・筐体・CPU・架空の GPU・AWAKE の行。その下に CPU の 1 分間の折れ線、16 コアの棒、メモリ・GPU・ディスク I/O・ネットワークの受信と送信・PING の折れ線とピークと平均。その下にシェル。右に、接続先へ弧を描く world view の地球儀と、その下に架空のリンクの Wi-Fi ペイン">
   <br><sub>cockpit · Black</sub>
 </p>
 
@@ -445,7 +445,7 @@ Escape、もう一度のショートカット、ボタン、または暗幕の�
 一覧の下には 9 つの **プリセット** が、それぞれペインの並びを小さな図にして並んでいます。
 **standard**（既定のレイアウト）、**network**（地球儀とシェル、その横に Wi-Fi と connections）、**earth**（ORBIT、地球儀、
 地震、天気）、**dev**（AI AGENT、Docker とシェル、clipboard と timer とシェル、GIT と AI チャットと Log Watch。組ごとにタブ）、**media**（YouTube (TV) とその下の now playing・spectrum・mixer、
-タブに重ねた X と RSS）、**desk**（notes、timer、calculator、tasks、calendar、clipboard、utility）、**ai**（上下に 2 つの AI チャットと、GPU ペインの上に ELEC system）、**cockpit**（システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に上下 2 段のシェル）、**retro**（ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum）です。cockpit 以外は左端にシステムの列を
+タブに重ねた X と RSS）、**desk**（notes、timer、calculator、tasks、calendar、clipboard、utility）、**ai**（上下に 2 つの AI チャットと、GPU ペインの上に ELEC system）、**cockpit**（システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に world view と、その下に Wi-Fi）、**retro**（ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum）です。cockpit 以外は左端にシステムの列を
 持つので、切り替えても計器はそのままで、舞台だけが替わります。プリセットを選ぶと、そこから作ったレイアウトが
 追加されてそこへ切り替わり、以後は作業に追従する自分のレイアウトになります。もう一度選ぶと、別のものを
 追加せずにそのレイアウトへ戻ります。↺ でプリセットの状態に戻せます。プリセットにはそれぞれ専用のキー

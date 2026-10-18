@@ -197,8 +197,9 @@ describe('LAYOUT_PRESETS', () => {
   })
 
   it('gives cockpit the CLUSTER pane in place of the system column, at its widest with every core', () => {
-    // Three shells: one under CLUSTER, two one over the other on the right (user decision 2026-10-10).
-    expect(places('cockpit')).toEqual([['cluster'], ['terminal'], ['terminal'], ['terminal']])
+    // A shell under CLUSTER (user decision 2026-10-10); on the right the world view over the
+    // Wi-Fi pane (user decision 2026-10-18).
+    expect(places('cockpit')).toEqual([['cluster'], ['terminal'], ['globe'], ['wifi']])
     const shape = layoutShape(presetTree(presetById('cockpit') as LayoutPreset))
     expect(shape.some((r) => LEFT_COLUMN.includes(r.widget))).toBe(false)
     const cluster = shape.find((r) => r.widget === 'cluster')

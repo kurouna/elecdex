@@ -206,18 +206,19 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
   },
   {
     // The machine on one pane where the system column would be, large enough at 1600x900 to lay
-    // itself out at its widest with what the machine is and every core, a shell under it and two more one over the other beside it
-    // (user decision 2026-10-10). The one preset without the system column: CLUSTER says what
-    // the column does, and more.
+    // itself out at its widest with what the machine is and every core, a shell under it, and
+    // beside it the world view over the Wi-Fi pane (user decisions 2026-10-10, 2026-10-18). The
+    // one preset without the system column: CLUSTER says what the column does, and more.
     id: 'cockpit',
     name: 'cockpit',
-    description: 'the whole machine on one pane, with shells under it and beside it',
+    description:
+      'the whole machine on one pane, a shell under it, the world and the link beside it',
     build: () =>
       split(
         'row',
         [
           split('column', [pane('cluster'), pane('terminal')], [0.75, 0.25]),
-          split('column', [pane('terminal'), pane('terminal')], [0.5, 0.5]),
+          split('column', [pane('globe'), pane('wifi')], [0.5, 0.5]),
         ],
         [0.7, 0.3],
       ),

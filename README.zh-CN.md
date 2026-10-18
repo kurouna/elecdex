@@ -158,10 +158,10 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   REJECT 或 ABSTAIN，窗格按多数决或全体一致作出决议。席位使用 AI 聊天的提供方——三个席位都用
   同一个模型也可以。
 
-### cockpit — 整台机器放进一个面板，再加上 shell
+### cockpit — 整台机器放进一个面板，再加上 shell、世界和链路
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black 主题（浅色底、近黑文字和扫描线）下的 cockpit 预设：左上方以 CLUSTER 面板取代系统栏——一排警示灯和 ALL SYSTEMS NOMINAL，日期上方的时钟，旁边两排各五个数值：内存、显存、交换区、最满的磁盘、连接对象数、最忙的程序、电源、运行时间、链路累计流量和地址，其下一行是操作系统、制造商、型号、机箱、CPU、虚构的 GPU 和 AWAKE；再下面是 CPU 最近一分钟的折线、十六个核心各一根柱，以及内存、GPU、磁盘 I/O、网络下行与上行和 PING 的折线及其峰值与平均值；其下是一个 shell，右侧是上下排列的两个 shell">
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black 主题（浅色底、近黑文字和扫描线）下的 cockpit 预设：左上方以 CLUSTER 面板取代系统栏——一排警示灯和 ALL SYSTEMS NOMINAL，日期上方的时钟，旁边两排各五个数值：内存、显存、交换区、最满的磁盘、连接对象数、最忙的程序、电源、运行时间、链路累计流量和地址，其下一行是操作系统、制造商、型号、机箱、CPU、虚构的 GPU 和 AWAKE；再下面是 CPU 最近一分钟的折线、十六个核心各一根柱，以及内存、GPU、磁盘 I/O、网络下行与上行和 PING 的折线及其峰值与平均值；其下是一个 shell；右侧上方是向连接对象画出弧线的地球视图，下方是虚构链路的 Wi-Fi 面板">
   <br><sub>cockpit · Black</sub>
 </p>
 
@@ -404,7 +404,7 @@ elecdex 在前台时按下它会把 elecdex 收起；在其他地方按下则把
 列表下方有九个**预设**，每个都画成其窗格的小地图：**standard**（默认布局）、
 **network**（地球和 shell，旁边是 Wi-Fi 和连接）、**earth**（ORBIT、地球、地震和天气）、**dev**（AI AGENT；
 Docker 和 shell；剪贴板、计时器和 shell；GIT、AI 聊天和 Log Watch——每组都是标签页）、**media**（YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页）、
-**desk**（记事、计时器、计算器、任务、日历、剪贴板和实用工具）、**ai**（上下两个 AI 聊天，以及位于 GPU 窗格之上的 ELEC system）、**cockpit**（以 CLUSTER 面板取代系统栏，下方一个 shell，右侧上下两个 shell）以及 **retro**（ELEC-16 和 CHIP-8 作为一个窗格的标签页，下方是 16 段频谱）。除 cockpit 外，每个预设都把系统栏留在左侧，所以切换时换的是
+**desk**（记事、计时器、计算器、任务、日历、剪贴板和实用工具）、**ai**（上下两个 AI 聊天，以及位于 GPU 窗格之上的 ELEC system）、**cockpit**（以 CLUSTER 面板取代系统栏，下方一个 shell，右侧上方是地球视图、下方是 Wi-Fi）以及 **retro**（ELEC-16 和 CHIP-8 作为一个窗格的标签页，下方是 16 段频谱）。除 cockpit 外，每个预设都把系统栏留在左侧，所以切换时换的是
 舞台，仪表仍在原处。选择一个预设会用它新建一个布局并切换过去——此后它就是你的布局之一，
 跟随你的工作——再次选择它会回到那个布局，而不会再新建一个；↺ 把它恢复为预设原样。每个预设
 都有自己的按键 Ctrl+Shift+F1 到 F9，在任何地方都能做同样的事。全新安装时，这九个预设会占据

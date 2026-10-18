@@ -813,11 +813,11 @@ await shoot('business-light', 'elecdex-desk', {
   prepare: deskFiles,
 })
 // cockpit: the CLUSTER pane where the system column would be, given a full minute so its
-// lanes run edge to edge, the pointer over the shells so no figure's card is open.
+// lanes run edge to edge, the pointer over the shell so no figure's card is open.
 await shoot('black', 'elecdex-cockpit', {
   layout: preset('cockpit'),
   extra: async (page) => {
-    await page.mouse.move(W * 0.85, H / 2)
+    await page.mouse.move(W * 0.35, H * 0.9)
     await page.waitForTimeout(35_000)
     // Off the second, so the clock's digits are not caught rolling in.
     await page.waitForTimeout(1000 - (Date.now() % 1000) + 450)

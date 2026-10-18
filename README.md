@@ -178,10 +178,10 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   by majority or unanimity. The seats use the providers of the AI chat - the same model in all
   three will do.
 
-### cockpit — the whole machine on one pane, and the shells
+### cockpit — the whole machine on one pane, a shell, the world and the link
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Black theme, near-black on a pale ground with scanlines: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, memory, VRAM, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them in two rows of five, a line of the OS, maker, model, chassis, CPU, a made-up GPU and AWAKE, then a minute of CPU as a line, a bar for each of sixteen cores, memory, GPU, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it and two shells one over the other on the right">
+  <img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit preset in the Black theme, near-black on a pale ground with scanlines: the CLUSTER pane in the top left in place of the system column - the lamps in a row with ALL SYSTEMS NOMINAL, the clock over the date, memory, VRAM, swap, the fullest disk, connections, the busiest program, power, uptime, the link's total and the address beside them in two rows of five, a line of the OS, maker, model, chassis, CPU, a made-up GPU and AWAKE, then a minute of CPU as a line, a bar for each of sixteen cores, memory, GPU, disk I/O, network down and up and ping as lines with their peaks and averages - a shell under it; on the right the world view globe with arcs to where connections go, over the Wi-Fi pane on a made-up link">
   <br><sub>cockpit · Black</sub>
 </p>
 
@@ -456,7 +456,7 @@ Nine **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT, an AI chat and Log Watch - each group as tabs), **media**
 (YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system over the GPU pane), **cockpit** (the CLUSTER pane in place of the system column, a shell under it and two one over the other beside it) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one but cockpit keeps the system column on the left, so a switch
+the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system over the GPU pane), **cockpit** (the CLUSTER pane in place of the system column, a shell under it, and the world view over the Wi-Fi pane beside it) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one but cockpit keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
