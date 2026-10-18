@@ -9,6 +9,8 @@ import {
   type AgentStatus,
   type AgentTask,
   type AgentTaskState,
+  branchEndedAt,
+  branchRunning,
   ENDED_KEPT_MS,
 } from '@shared/agents'
 import { addedFileDiff, type GitDiff, looksBinary, MAX_UNTRACKED_BYTES } from '@shared/git'
@@ -599,7 +601,10 @@ interface TaskContext {
 
 /**
  * The tasks a record started: running first, then the newest, a finished one only for a
- * while; each subagent's own under it, by the same rules.
+ * while; each subagent's own under it, by the same rules. Running and finished are of the
+ * whole branch: a subagent that has reported while one of its own runs on is kept and
+ * ordered as running, or it fell behind newer finished tasks and, past the time an ended
+ * task is kept, out of sight with its running child (found in review).
  */
 function taskList(tally: Tally, parent: string, context: TaskContext, depth: number): AgentTask[] {
   return [...tally.tasks.entries()]
@@ -611,12 +616,14 @@ function taskList(tally: Tally, parent: string, context: TaskContext, depth: num
       }
       return task
     })
-    .filter((task) => task.endedAt === null || context.now - task.endedAt <= ENDED_KEPT_MS)
+    .filter((task) => {
+      const ended = branchEndedAt(task)
+      return ended === null || context.now - ended <= ENDED_KEPT_MS
+    })
     .sort(
-      (a, b) =>
-        Number(b.state === 'running') - Number(a.state === 'running') || b.startedAt - a.startedAt,
+      (a, b) => Number(branchRunning(b)) - Number(branchRunning(a)) || b.startedAt - a.startedAt,
     )
-    .filter((task, i) => task.state === 'running' || i < TASKS_SHOWN)
+    .filter((task, i) => branchRunning(task) || i < TASKS_SHOWN)
 }
 
 /**

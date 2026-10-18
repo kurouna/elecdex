@@ -1150,6 +1150,55 @@ describe('the Claude Code source', () => {
     source.stop()
   }, 20_000)
 
+  it('keeps a subagent that has reported in sight while a subagent of its own runs on', async () => {
+    // Found in review: the cut read only the subagent's own state and end, so a reported
+    // subagent fell behind newer finished tasks, and out of the time an ended one is kept,
+    // its running child with it.
+    const { id, record, work } = claudeFolder(process.pid)
+    const shells = Array.from({ length: 14 }, (_, i) => shellCall(`d${i}`, `Done ${i}`, true))
+    appendFileSync(
+      record,
+      `${[
+        answer('m1', [agentCall('toolu_p', 'Fan out', {})], '2026-10-18T02:57:00Z'),
+        answer('m2', shells, '2026-10-18T02:57:30Z'),
+        ...shells.map((call) => notice('queue', call.id, 'completed', '2026-10-18T02:58:30Z')),
+        result('toolu_p', 'Report delivered.\nagentId: p1', false, '2026-10-18T02:58:10Z'),
+        answer('m3', [{ type: 'text', text: 'Noted.' }], '2026-10-18T02:58:11Z'),
+      ].join('\n')}\n`,
+    )
+    subagent(id, 'p1', 'toolu_p', 'foreground', [
+      answer(
+        's1',
+        [agentCall('toolu_c', 'Look on', { run_in_background: true })],
+        '2026-10-18T02:57:05Z',
+      ),
+      result(
+        'toolu_c',
+        'Async agent launched successfully.\nagentId: c1',
+        false,
+        '2026-10-18T02:57:06Z',
+      ),
+    ])
+    subagent(id, 'c1', 'toolu_c', 'background', steps(work, '2026-10-18T02:58:05Z'), 'p1')
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    const fanOut = (at: number) => source.sessions(at)[0]?.tasks.find((t) => t.title === 'Fan out')
+    await vi.waitFor(
+      () => expect(source.sessions(AT)[0]?.tasks.length).toBeGreaterThanOrEqual(12),
+      {
+        timeout: 5000,
+      },
+    )
+    await vi.waitFor(() => expect(fanOut(AT)?.children[0]?.state).toBe('running'), {
+      timeout: 5000,
+    })
+    // Running in its branch, it goes first, ahead of the fourteen newer finished commands.
+    expect(source.sessions(AT)[0]?.tasks[0]).toMatchObject({ title: 'Fan out', state: 'done' })
+    // Long after it reported, it stays with its child; the finished commands have gone.
+    expect(source.sessions(AT + 11 * 60_000)[0]?.tasks.map((t) => t.title)).toEqual(['Fan out'])
+    source.stop()
+  }, 20_000)
+
   it("draws subagents started by subagents four levels under the session's own, no deeper", async () => {
     // A chain of subagents each starting the next: a1 by the session, a2 by a1, ... a7 by a6.
     const { id, record } = claudeFolder(process.pid)

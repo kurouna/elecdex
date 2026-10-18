@@ -78,6 +78,25 @@ export interface AgentTask {
   children: AgentTask[]
 }
 
+/**
+ * Whether anything in a task's branch still runs. A subagent that has reported while a
+ * subagent of its own goes on is at work with it: main keeps and orders it so, and the
+ * pane keeps it in sight rather than folded away.
+ */
+export const branchRunning = (task: AgentTask): boolean =>
+  task.state === 'running' || task.children.some(branchRunning)
+
+/** When the last of a task's branch ended, or null while any of it has not. */
+export function branchEndedAt(task: AgentTask): number | null {
+  let last = task.endedAt
+  for (const child of task.children) {
+    if (last === null) return null
+    const ended = branchEndedAt(child)
+    last = ended === null ? null : Math.max(last, ended)
+  }
+  return last
+}
+
 export interface AgentSession {
   source: AgentSourceId
   id: string

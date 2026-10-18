@@ -1,4 +1,4 @@
-import type { AgentTask, AgentTaskState } from '@shared/agents'
+import { type AgentTask, type AgentTaskState, branchEndedAt, branchRunning } from '@shared/agents'
 import { describe, expect, it } from 'vitest'
 import {
   everyTask,
@@ -24,6 +24,25 @@ const task = (id: string, state: AgentTaskState, children: AgentTask[] = []): Ag
   activity: null,
   steps: 0,
   children,
+})
+
+describe('a branch of tasks', () => {
+  const ended = (id: string, at: number, children: AgentTask[] = []): AgentTask => ({
+    ...task(id, 'done', children),
+    endedAt: at,
+  })
+
+  it('runs while anything in it runs, however deep', () => {
+    expect(branchRunning(ended('a', 1))).toBe(false)
+    expect(branchRunning(ended('a', 1, [ended('b', 2, [task('c', 'running')])]))).toBe(true)
+  })
+
+  it('ends when the last of it ends, and not while any of it runs', () => {
+    expect(branchEndedAt(ended('a', 5))).toBe(5)
+    expect(branchEndedAt(ended('a', 5, [ended('b', 9), ended('c', 7)]))).toBe(9)
+    expect(branchEndedAt(ended('a', 5, [ended('b', 9, [task('c', 'running')])]))).toBeNull()
+    expect(branchEndedAt(task('a', 'running', [ended('b', 9)]))).toBeNull()
+  })
 })
 
 describe('taskTree', () => {

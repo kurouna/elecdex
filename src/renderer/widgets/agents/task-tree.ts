@@ -1,4 +1,4 @@
-import type { AgentTask, AgentTaskState } from '@shared/agents'
+import { type AgentTask, type AgentTaskState, branchRunning } from '@shared/agents'
 
 /**
  * How the AGENT pane lays out a session's tasks: the running ones always in
@@ -21,17 +21,10 @@ export function everyTask(tasks: readonly AgentTask[]): AgentTask[] {
   return tasks.flatMap((task) => [task, ...everyTask(task.children)])
 }
 
-/**
- * Whether anything in a task's branch still runs. A subagent that has reported while a
- * subagent of its own goes on stays in sight with it, rather than folded away.
- */
-const running = (task: AgentTask): boolean =>
-  task.state === 'running' || task.children.some(running)
-
 /** Splits a session's tasks, keeping main's order (newest first) within each part. */
 export function taskTree(tasks: readonly AgentTask[]): TaskTree {
-  const live = tasks.filter(running)
-  const finished = tasks.filter((task) => !running(task))
+  const live = tasks.filter(branchRunning)
+  const finished = tasks.filter((task) => !branchRunning(task))
   const tally = ENDINGS.map((state) => ({
     state,
     count: finished.filter((task) => task.state === state).length,
