@@ -4,6 +4,7 @@ import {
   hsl,
   hslToHex,
   searchDecorations,
+  withBoxGlyphs,
 } from '../../src/renderer/widgets/terminal/xterm-theme.js'
 
 const base = {
@@ -161,5 +162,32 @@ describe('searchDecorations', () => {
       Number.parseInt(p, 16),
     ) as [number, number, number]
     expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeGreaterThan(8)
+  })
+})
+
+describe('withBoxGlyphs', () => {
+  it('puts fonts with box and block glyphs before the generic families, never before the theme’s own', () => {
+    expect(withBoxGlyphs('"JetBrains Mono Variable", ui-monospace, monospace')).toBe(
+      '"JetBrains Mono Variable", "Cascadia Mono", Consolas, Menlo, "DejaVu Sans Mono", ui-monospace, monospace',
+    )
+  })
+
+  it('names each font once, however the theme quoted it', () => {
+    expect(
+      withBoxGlyphs(
+        '"Cascadia Mono", Consolas, "JetBrains Mono Variable", ui-monospace, monospace',
+      ),
+    ).toBe(
+      '"Cascadia Mono", Consolas, "JetBrains Mono Variable", Menlo, "DejaVu Sans Mono", ui-monospace, monospace',
+    )
+    expect(withBoxGlyphs("'menlo', monospace")).toBe(
+      `'menlo', "Cascadia Mono", Consolas, "DejaVu Sans Mono", monospace`,
+    )
+  })
+
+  it('goes at the end of a stack with no generic family', () => {
+    expect(withBoxGlyphs('Iosevka')).toBe(
+      'Iosevka, "Cascadia Mono", Consolas, Menlo, "DejaVu Sans Mono"',
+    )
   })
 })

@@ -210,5 +210,40 @@ export function paletteFromCss(el: Element): PaletteInput {
  */
 export function monoFontFamily(el: Element): string {
   const value = getComputedStyle(el).getPropertyValue('--font-mono').trim()
-  return value === '' ? 'ui-monospace, monospace' : value
+  return withBoxGlyphs(value === '' ? 'ui-monospace, monospace' : value)
+}
+
+/**
+ * Monospaced fonts with box drawing and block elements, one or more on every
+ * platform: Windows (Cascadia Mono, Consolas), macOS (Menlo) and Linux (DejaVu
+ * Sans Mono).
+ */
+export const BOX_GLYPH_FONTS = ['Cascadia Mono', 'Consolas', 'Menlo', 'DejaVu Sans Mono'] as const
+
+const GENERIC_FAMILIES = new Set(['ui-monospace', 'monospace'])
+
+/**
+ * The stack with BOX_GLYPH_FONTS before its generic families. The bundled
+ * JetBrains Mono carries only the Latin, Cyrillic, Greek and Vietnamese subsets,
+ * so a box or block character falls past it. WebGL draws those itself
+ * (`customGlyphs`), but the DOM renderer - all there is once Chromium has
+ * turned the GPU off - takes the font, and on a Japanese Windows `monospace` is
+ * a CJK font that draws them full width: each block was 13 px on a 7.8 px cell,
+ * running over its neighbours and past the screen's edge. A font the machine
+ * does not have is skipped, and CJK text still falls through to the generic
+ * family, where it belongs.
+ */
+export function withBoxGlyphs(stack: string): string {
+  const families = stack
+    .split(',')
+    .map((f) => f.trim())
+    .filter((f) => f !== '')
+  const named = (f: string): string => f.replace(/^["']|["']$/g, '').toLowerCase()
+  const have = new Set(families.map(named))
+  const add = BOX_GLYPH_FONTS.filter((f) => !have.has(f.toLowerCase())).map((f) =>
+    f.includes(' ') ? `"${f}"` : f,
+  )
+  const at = families.findIndex((f) => GENERIC_FAMILIES.has(named(f)))
+  const cut = at < 0 ? families.length : at
+  return [...families.slice(0, cut), ...add, ...families.slice(cut)].join(', ')
 }
