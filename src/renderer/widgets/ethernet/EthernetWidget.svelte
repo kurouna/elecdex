@@ -93,7 +93,10 @@ const diagnosis = $derived(diagnoseEthernet(link, figures))
 const culprit = $derived(etherCulprit(diagnosis))
 const mos = $derived(link?.route === 'default' ? mosOf(figures.internet) : null)
 const events = $derived(
-  mergeEtherEvents(etherEvents(points.filter((p) => p.at > now - 3_600_000)), conflictEvents(link)),
+  mergeEtherEvents(
+    etherEvents(points.filter((p) => p.at > now - 3_600_000)),
+    conflictEvents(link, now - 3_600_000),
+  ),
 )
 
 // What the reader could not read reaches the screen, once each (lib/fault-report.ts).
@@ -279,7 +282,7 @@ const example = $derived(
 )
 
 let root = $state<HTMLElement | null>(null)
-const hintContext = $derived({ link, figures, diagnosis, mos, host: probe?.host ?? null })
+const hintContext = $derived({ link, figures, diagnosis, mos, host: probe?.host ?? null, rates })
 </script>
 
 <div class="ether" data-testid="ether" data-pane-id={paneId} bind:this={root} {@attach observe}>

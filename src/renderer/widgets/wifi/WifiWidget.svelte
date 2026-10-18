@@ -110,7 +110,6 @@ const sections = $derived(wifiSections(width, height))
 /** The tabs the lower part offers: the radio among them when it has no room of its own. */
 const tabs = $derived(VIEWS.filter((v) => v !== 'radio' || !sections.radio))
 const view = $derived<View>(tabs.includes(asked) ? asked : 'timeline')
-const showRadio = $derived(sections.radio || (!sections.stacked && view === 'radio'))
 const TAB_LABELS: Record<View, string> = {
   timeline: 'TIMELINE',
   radio: 'RADIO',
@@ -314,7 +313,7 @@ const hintContext = $derived({
           {/each}
         </div>
       {/if}
-      {#if !sections.stacked && view === 'radio' && showRadio}
+      {#if !sections.stacked && view === 'radio'}
         <div class="slot radio-slot">
           {#if link !== null && link.state === 'connected'}
             <RadioPanel {link} wide={sections.radioWide} />

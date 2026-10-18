@@ -1,5 +1,6 @@
 <script lang="ts">
 import {
+  counterHealth,
   ETHER_LIMITS,
   type EtherCounters,
   type EtherLink,
@@ -130,21 +131,20 @@ function reach(key: keyof EtherCounters, kind: Kind): number {
   const frames = Math.max(1, rates.rxPackets ?? 0, rates.txPackets ?? 0)
   if (kind === 'frames' || kind === 'broadcast') return Math.min(1, rate / frames)
   if (kind === 'trouble')
-    return Math.min(
-      1,
-      ((rate / Math.max(1, rates.rxPackets ?? 0)) * 100) / ETHER_LIMITS.crc.badShare / 2,
-    )
+    return Math.min(1, ((rate / Math.max(1, framesFor(key))) * 100) / ETHER_LIMITS.crc.badShare / 2)
   return 0
+}
+
+/** The frames a trouble counter is a share of: those sent for what goes wrong on the way out. */
+function framesFor(key: keyof EtherCounters): number {
+  const out = key === 'txErrors' || key === 'collisions'
+  return (out ? rates?.txPackets : rates?.rxPackets) ?? 0
 }
 
 function severity(key: keyof EtherCounters, kind: Kind): 'ok' | 'warn' | 'bad' {
   if (kind !== 'trouble' || rates === null) return 'ok'
-  const share = ((rates[key] ?? 0) / Math.max(1, rates.rxPackets ?? 0)) * 100
-  return share >= ETHER_LIMITS.crc.badShare
-    ? 'bad'
-    : share >= ETHER_LIMITS.crc.warnShare
-      ? 'warn'
-      : 'ok'
+  const health = counterHealth(rates[key] ?? 0, framesFor(key))
+  return health === 'bad' || health === 'warn' ? health : 'ok'
 }
 </script>
 

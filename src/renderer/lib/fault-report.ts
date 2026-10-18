@@ -64,7 +64,10 @@ function say(source: string, message: string, tone: 'warn' | 'danger', body: str
         label: 'copy details',
         primary: true,
         run: () => {
-          void details(source, message).then((text) => navigator.clipboard.writeText(text))
+          // A refused copy is not another fault to report: caught here, never left unhandled.
+          void details(source, message)
+            .then((text) => navigator.clipboard.writeText(text))
+            .catch(() => undefined)
         },
       },
       { label: 'dismiss', run: () => undefined },
@@ -74,18 +77,23 @@ function say(source: string, message: string, tone: 'warn' | 'danger', body: str
 
 /** A toast for each problem a reader reported that was not yet said. */
 export function reportProblems(source: string, problems: readonly string[]): void {
-  for (const message of problems)
+  for (const problem of problems) {
+    const message = faultText(problem)
     say(
       source,
-      message.slice(0, MAX_LENGTH),
+      message,
       'warn',
       `${message}. The pane goes on with what it has. Copy the details to report it.`,
     )
+  }
 }
 
 /** A red toast for an exception: where, and its message. */
 export function reportFault(source: string, error: unknown): void {
-  const message = faultText(error)
+  sayFault(source, faultText(error))
+}
+
+function sayFault(source: string, message: string): void {
   say(source, message, 'danger', `${message}. Copy the details to report it.`)
 }
 
@@ -98,9 +106,9 @@ const IGNORED = [/ResizeObserver loop/]
 /** Exceptions nothing in the page caught, as toasts. Returns the way to stop. */
 export function watchPageFaults(target: Window = window): () => void {
   const onError = (event: ErrorEvent): void => {
-    const message = event.error ?? event.message
-    if (IGNORED.some((pattern) => pattern.test(faultText(message)))) return
-    reportFault('elecdex', message)
+    const message = faultText(event.error ?? event.message)
+    if (IGNORED.some((pattern) => pattern.test(message))) return
+    sayFault('elecdex', message)
   }
   const onRejection = (event: PromiseRejectionEvent): void => reportFault('elecdex', event.reason)
   target.addEventListener('error', onError)

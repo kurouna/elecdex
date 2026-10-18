@@ -1129,9 +1129,9 @@ export class WindowsSampler {
       if (this.child !== child) return
       this.child = null
       this.exitReason ??= `Windows sampler exited with code ${code}`
-      // Stale counters would produce one bogus interval after a restart.
-      this.netPrevious = this.netCurrent = null
-      this.procPrevious = this.procCurrent = null
+      // Stale counters would produce one bogus interval after a restart, and a reading from
+      // before the exit would be served as current while the next one starts: forget them all.
+      for (const kind of SAMPLER_KINDS) this.forget(kind)
     })
 
     // Also what is wanted, on the sampler's own clock: a kind nobody asks for any more must stop

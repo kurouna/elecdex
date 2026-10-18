@@ -1586,7 +1586,9 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
   Linux / macOS は常駐の `ping` を `-I <if>` / `-S <addr>` で。インターネットへの往復は 1 つで、Wi-Fi・ETHERNET・ネットワーク
   状態の 3 つのペインが読む。表示は整数の ms で、1 ms 未満は `<1 ms`。
 - **ソース**: `net.ethernet`（毎秒）だけ。`keepWhileHidden` に入れず、プラグインには出さない（`PRIVATE_METRIC_SOURCE_IDS`）。
-  **断の OS のログは読まない**：有線の断をメーカーによらず記録するログはない（`NetworkProfile/Operational` はアダプタを書かず、
+  **OS のログは読まない。例外は 2 つだけ**：(1) NDIS の切断イベントの数（中身は読まない）、(2) Tcpip 4199（IP アドレスの衝突。
+  時刻とどの有線のアドレスかだけで、相手の MAC は出さない）。どちらも Windows で、ペインが見えている間だけ（下の Windows の
+  読み取り）。有線の断をメーカーによらず記録するログはない（`NetworkProfile/Operational` はアダプタを書かず、
   `Dhcp-Client/Admin` は SSID と MAC を書き、ドライバの System ログはメーカーごとに番号が違う）。イベントはペインが見たもので、
   Linux だけ、見ていなかった間の断を `carrier_down_count` の増分から 1 行出す。
 - **診断**（`diagnoseEthernet`、純粋関数、`ETHER_LIMITS` の一か所）: 往復は直近 1 分、リンクのカウンタは直近 10 分。リンクが
@@ -1932,7 +1934,7 @@ elecdex/
 │  │  └─ background/       # 通知領域のアイコン、システム全体のショートカット、login/（OS ごと）
 │  ├─ services/            # utilityProcess
 │  │  ├─ metrics.worker.ts
-│  │  └─ metrics/          # scheduler、sources、windows-sampler、geoip、sockets/（OS ごと）
+│  │  └─ metrics/          # scheduler、sources、windows-sampler、geoip、sockets/・wifi/・ethernet/・gpu/（OS ごと）
 │  ├─ preload/index.ts     # 唯一の境界
 │  └─ renderer/
 │     ├─ index.html / main.ts / App.svelte / BootScreen / SettingsDialog / TitleBar / Toasts / ...

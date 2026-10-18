@@ -10,6 +10,7 @@ import type {
   PowerKey,
 } from '@shared/ethernet'
 import type { PathInternet, PathProbe } from '@shared/netpath'
+import { rate } from '../wifi/windows.js'
 
 /**
  * Ethernet on Windows, read inside the long-lived sampler (windows-sampler.ts),
@@ -302,6 +303,7 @@ $etherSource = $env:${ETHER_SOURCE_ENV}
 $etherInfoScript = $env:${ETHER_INFO_ENV}
 $etherWatchSource = $env:${ETHER_WATCH_ENV}
 $etherWatch = 'unset'
+$etherWatching = $false
 $etherErr = @()
 $etherConflicts = @{}
 $etherConflictLast = -1
@@ -344,11 +346,15 @@ function EtherWatchStart {
       EtherProblem ('the link-event watcher did not compile: ' + $_.Exception.Message)
     }
   }
-  if ($script:etherWatch -ne 'ok') { return }
+  if ($script:etherWatch -ne 'ok' -or $script:etherWatching) { return }
   $why = [ElecdexEtherWatch]::Start()
-  if ($why) { $script:etherWatch = 'none'; EtherProblem ('NDIS link events are not available: ' + $why) }
+  if ($why) { $script:etherWatch = 'none'; EtherProblem ('NDIS link events are not available: ' + $why) } else { $script:etherWatching = $true }
 }
-function EtherWatchStop { if ($script:etherWatch -eq 'ok') { [ElecdexEtherWatch]::Stop() } }
+# Stopped once when the pane stops being seen. A settings read under way is left to finish and
+# be collected when the pane is back: stopping a running pipeline would hold the loop up.
+function EtherWatchStop {
+  if ($script:etherWatching) { [ElecdexEtherWatch]::Stop(); $script:etherWatching = $false }
+}
 
 # Tcpip's address conflicts from the last day, then only newer: the time, and which of the wired
 # addresses it was. Neither the other machine's hardware address nor the message leaves.
@@ -360,10 +366,10 @@ function EtherConflictStep($rows) {
     for ($e = $reader.ReadEvent(); $null -ne $e; $e = $reader.ReadEvent()) {
       if ($e.RecordId -gt $script:etherConflictLast) { $script:etherConflictLast = $e.RecordId }
       $ip = @($e.Properties | ForEach-Object { [string]$_.Value } | Where-Object { $_ -match '^\\d{1,3}(\\.\\d{1,3}){3}$' -and $_ -ne '0.0.0.0' }) | Select-Object -First 1
-      if (-not $ip) { continue }
-      $script:etherConflicts[[long]$e.RecordId] = @{ at = [long](($e.TimeCreated.ToUniversalTime() - [DateTime]'1970-01-01').TotalMilliseconds); ip = $ip }
+      if ($ip) { $script:etherConflicts[[long]$e.RecordId] = @{ at = [long](($e.TimeCreated.ToUniversalTime() - [DateTime]'1970-01-01').TotalMilliseconds); ip = $ip } }
+      $e.Dispose()
     }
-  } catch { EtherProblem ('the address-conflict log could not be read: ' + $_.Exception.Message) }
+  } catch { EtherProblem ('the address-conflict log could not be read: ' + $_.Exception.Message) } finally { if ($reader) { $reader.Dispose(); $reader = $null } }
   if ($script:etherConflictLast -lt 0) { $script:etherConflictLast = 0 }
   $cut = [long](([DateTime]::UtcNow - [DateTime]'1970-01-01').TotalMilliseconds) - 86400000
   foreach ($k in @($script:etherConflicts.Keys)) { if ($script:etherConflicts[$k].at -lt $cut) { $script:etherConflicts.Remove($k) } }
@@ -399,12 +405,25 @@ function EtherNics($rows) {
 
 # Adapters newly seen, or whose link just came up, are read again in the runspace: one at a time.
 function EtherInfoStep($rows) {
+  EtherInfoCollect
+  $busy = if ($null -ne $script:etherJob) { $script:etherJob.ix } else { @() }
   foreach ($r in $rows) {
     $i = [int]$r['i']
     $up = $r['m'] -eq 1
-    if (-not $script:etherInfo.ContainsKey($i) -or ($up -and $script:etherMedia[$i] -ne 1)) { $script:etherAsk[$i] = $true }
+    $unknown = -not $script:etherInfo.ContainsKey($i) -and $busy -notcontains $i
+    if ($unknown -or ($up -and $script:etherMedia[$i] -ne 1)) { $script:etherAsk[$i] = $true }
     $script:etherMedia[$i] = $r['m']
   }
+  if ($null -eq $script:etherJob -and $script:etherAsk.Count -gt 0) {
+    $ps = [powershell]::Create()
+    $ix = @($script:etherAsk.Keys)
+    [void]$ps.AddScript($script:etherInfoScript).AddArgument($ix).AddArgument($script:etherKeywords)
+    $script:etherJob = @{ ps = $ps; h = $ps.BeginInvoke(); ix = $ix }
+    $script:etherAsk = @{}
+  }
+}
+
+function EtherInfoCollect {
   if ($null -ne $script:etherJob -and $script:etherJob.h.IsCompleted) {
     try {
       foreach ($x in $script:etherJob.ps.EndInvoke($script:etherJob.h)) {
@@ -414,12 +433,6 @@ function EtherInfoStep($rows) {
     } catch { EtherProblem ('the settings of the adapters could not be read: ' + $_.Exception.Message) }
     $script:etherJob.ps.Dispose()
     $script:etherJob = $null
-  }
-  if ($null -eq $script:etherJob -and $script:etherAsk.Count -gt 0) {
-    $ps = [powershell]::Create()
-    [void]$ps.AddScript($script:etherInfoScript).AddArgument(@($script:etherAsk.Keys)).AddArgument($script:etherKeywords)
-    $script:etherJob = @{ ps = $ps; h = $ps.BeginInvoke() }
-    $script:etherAsk = @{}
   }
 }
 
@@ -779,12 +792,6 @@ function countersOf(c: RawEtherCounters | null): EtherCounters | null {
     rxUnknown: c.iun,
     collisions: null,
   }
-}
-
-/** Bytes per second between two readings; null across a reset or with no baseline. */
-function rate(now: number | null, then: number | null | undefined, seconds: number): number | null {
-  if (now === null || then == null || seconds <= 0 || now < then) return null
-  return (now - then) / seconds
 }
 
 /** "2024-03-12" from whatever date text the driver gives; the text cut short otherwise. */

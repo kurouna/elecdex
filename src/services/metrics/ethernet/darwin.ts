@@ -123,6 +123,12 @@ export function routeInterface(text: string): string | null {
   return /interface:\s*(\S+)/.exec(text)?.[1] ?? null
 }
 
+/** The default route's gateway, an IPv4 address, from the same answer: the gateway of its interface. */
+export function routeGateway(text: string): string | null {
+  const gateway = /gateway:\s*(\S+)/.exec(text)?.[1] ?? null
+  return gateway !== null && /^\d{1,3}(\.\d{1,3}){3}$/.test(gateway) ? gateway : null
+}
+
 const PORTS_MS = 60_000
 const LINK_MS = 10_000
 
@@ -144,13 +150,22 @@ export class DarwinEtherReader {
         at: now,
         list: wiredPorts(await out('networksetup', ['-listallhardwareports'])),
       }
-    const def = routeInterface(await out('route', ['-n', 'get', 'default']))
-    const links = await Promise.all(this.ports.list.map((p) => this.link(p.port, p.device, def)))
+    const route = await out('route', ['-n', 'get', 'default'])
+    const def = routeInterface(route)
+    const gateway = routeGateway(route)
+    const links = await Promise.all(
+      this.ports.list.map((p) => this.link(p.port, p.device, def, gateway)),
+    )
     this.cache = { at: now, links }
     return links
   }
 
-  private async link(port: string, device: string, def: string | null): Promise<EtherLink> {
+  private async link(
+    port: string,
+    device: string,
+    def: string | null,
+    defGateway: string | null,
+  ): Promise<EtherLink> {
     const [ifconfig, netstat] = await Promise.all([
       out('ifconfig', [device]),
       out('netstat', ['-I', device, '-b']),
@@ -177,7 +192,8 @@ export class DarwinEtherReader {
       ip4: up ? (v4?.address ?? null) : null,
       prefix4: up && v4?.cidr ? Number(v4.cidr.split('/')[1]) : null,
       ip6: [],
-      gateway: null,
+      // Only the default route's gateway is known, and only for its own interface.
+      gateway: up && device === def ? defGateway : null,
       dns: [],
       mtu: media.mtu,
       dhcp: null,

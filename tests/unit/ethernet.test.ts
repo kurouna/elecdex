@@ -5,6 +5,7 @@ import {
   buildEtherReport,
   CONFLICT_WINDOW_MS,
   conflictEvents,
+  counterHealth,
   diagnoseEthernet,
   dropsIn,
   type EtherLink,
@@ -17,6 +18,7 @@ import {
   etherSections,
   mergeEtherEvents,
   powerSuspect,
+  quickDropPoints,
   quickDrops,
   recentConflict,
   speedGrade,
@@ -344,6 +346,18 @@ describe('the pane’s shape', () => {
     })
   })
 
+  it('wide but too short to stack: one column, the panel counted in the height it takes', () => {
+    // 1200 x 500: beside the path the panel would fit, but one column draws it above the
+    // lower part, where its 140 px leave the timeline no room.
+    expect(etherSections(1200, 500)).toEqual({
+      link: false,
+      stacked: false,
+      wide: false,
+      linkWide: true,
+    })
+    expect(etherSections(1200, 600).link).toBe(true)
+  })
+
   it('in the network preset’s slot: the panel as a tab, the rest as tabs', () => {
     const s = etherSections(620, 455)
     expect(s.stacked).toBe(false)
@@ -435,11 +449,13 @@ describe('drops inside a second', () => {
 })
 
 describe('an address conflict', () => {
-  it('is the verdict while it is recent, blamed on the link, with the address', () => {
-    const { diagnosis } = judged('conflict', 20)
+  it('is the verdict while it is recent, blamed on the link, never naming the address', () => {
+    const { diagnosis, link } = judged('conflict', 20)
     expect(diagnosis.cause).toBe('address-conflict')
     expect(diagnosis.health).toBe('bad')
-    expect(diagnosis.evidence).toContain('192.0.2.')
+    // The verdict is drawn, carded and copied whatever MASK says: the address stays out of it.
+    expect(diagnosis.evidence).toContain('this adapter’s address')
+    expect(diagnosis.evidence).not.toContain(link.ip4 as string)
     expect(etherCulprit(diagnosis)).toBe('link')
     expect(judged('conflict', 4).diagnosis.cause).toBe('ok')
   })
@@ -460,5 +476,66 @@ describe('an address conflict', () => {
     const merged = mergeEtherEvents(etherEvents(points), logged)
     expect(merged.map((e) => e.at)).toEqual([...merged.map((e) => e.at)].sort((a, b) => b - a))
     expect(merged.some((e) => e.kind === 'conflict')).toBe(true)
+  })
+})
+
+describe('what the review found', () => {
+  it('a drop inside a second marks its column down, as one the readings saw', () => {
+    const { points } = played('steady', 4)
+    const [a, b, c, d] = points as [EtherPoint, EtherPoint, EtherPoint, EtherPoint]
+    const quick = [
+      { ...a, carrierDowns: 0 },
+      { ...b, carrierDowns: 0 },
+      { ...c, carrierDowns: 1 },
+      { ...d, carrierDowns: 1 },
+    ]
+    expect([...quickDropPoints(quick)]).toEqual([quick[2]])
+    // Across a gap the rise is the drops while not watched, never one inside a second.
+    const gap = [quick[1] as EtherPoint, { ...(quick[2] as EtherPoint), at: b.at + 60_000 }]
+    expect(quickDropPoints(gap).size).toBe(0)
+    const buckets = etherBuckets(quick, a.at - 500, d.at + 500, 4)
+    expect(buckets.map((x) => x.down)).toEqual([false, false, true, false])
+  })
+
+  it('a column whose speeds are unknown has no speed, not an infinite one', () => {
+    const { points } = played('steady', 2)
+    const blind = points.map((p) => ({ ...p, speed: null }))
+    const [bucket] = etherBuckets(
+      blind,
+      (blind[0] as EtherPoint).at - 500,
+      (blind[1] as EtherPoint).at + 500,
+      1,
+    )
+    expect(bucket?.speed).toBeNull()
+  })
+
+  it('a silent internet with no gateway asked is not the upstream lost', () => {
+    const { points, link, best } = played('steady', 20)
+    const noGateway = points.map((p) => ({ ...p, gateway: undefined, internet: null }))
+    const now = (noGateway[noGateway.length - 1] as EtherPoint).at
+    const figures = etherFigures(noGateway, now, best)
+    expect(diagnoseEthernet(link, figures).cause).not.toBe('upstream-lost')
+    expect(etherEvents(noGateway).map((e) => e.kind)).not.toContain('upstream-lost')
+    // With the gateway answering it still is.
+    const answering = points.map((p) => ({ ...p, gateway: 1, internet: null }))
+    expect(diagnoseEthernet(link, etherFigures(answering, now, best)).cause).toBe('upstream-lost')
+  })
+
+  it('conflicts: one row a moment, and only from the window the log covers', () => {
+    const { link } = judged('conflict', 20)
+    const at = link.conflicts[0] as number
+    const twice = { ...link, conflicts: [at, at, at - 7_200_000] }
+    expect(conflictEvents(twice).map((e) => e.at)).toEqual([at, at - 7_200_000])
+    expect(conflictEvents(twice, at - 3_600_000).map((e) => e.at)).toEqual([at])
+    expect(new Set(conflictEvents(twice).map((e) => e.key)).size).toBe(2)
+  })
+
+  it('a trouble counter needs a count and a share, as CRC errors do', () => {
+    // One damaged frame a minute on an idle link: a large share, but no count.
+    expect(counterHealth(0.1, 10)).toBe('ok')
+    // Two a minute in 1,000 frames: 20 in ten minutes at 0.2 %.
+    expect(counterHealth(2, 1000)).toBe('bad')
+    expect(counterHealth(1, 5000)).toBe('warn')
+    expect(counterHealth(1, 100_000)).toBe('ok')
   })
 })

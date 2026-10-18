@@ -1,6 +1,7 @@
 import {
   ETHER_CAUSE_LABELS,
   ETHER_LIMITS,
+  type EtherCounters,
   type EtherDiagnosis,
   type EtherFigures,
   type EtherLink,
@@ -31,6 +32,32 @@ export interface EtherHintContext {
   diagnosis: EtherDiagnosis
   mos: number | null
   host: string | null
+  /** The counters' rates a minute, for a counter's NOW line. */
+  rates?: Partial<Record<keyof EtherCounters, number | null>> | null
+}
+
+/** The counter each `c-` card in the detail's table explains. */
+export const ETHER_COUNTER_FIELDS: Record<string, keyof EtherCounters> = {
+  'c-rxPackets': 'rxPackets',
+  'c-txPackets': 'txPackets',
+  'c-broadcast': 'rxNonUnicast',
+  'c-multicast': 'rxMulticast',
+  'c-rxErrors': 'rxErrors',
+  'c-txErrors': 'txErrors',
+  'c-collisions': 'collisions',
+  'c-rxDiscards': 'rxDiscards',
+  'c-txDiscards': 'txDiscards',
+  'c-rxUnknown': 'rxUnknown',
+}
+
+/** A counter's total since the adapter came up, and its rate, as Wi-Fi's cards say them. */
+function counterLive(key: string, c: EtherHintContext): string | null {
+  const field = ETHER_COUNTER_FIELDS[key]
+  const total = field === undefined ? null : c.link?.counters?.[field]
+  if (field === undefined || total == null) return null
+  const rate = c.rates?.[field]
+  const perMinute = rate == null ? '' : `, ${Math.round(rate).toLocaleString('en')} a minute`
+  return `${Math.round(total).toLocaleString('en')} since the adapter came up${perMinute}`
 }
 
 const L = ETHER_LIMITS
@@ -390,6 +417,7 @@ function linkLive(c: EtherHintContext): string | null {
 
 /** What a figure reads now, for the card's NOW line; null when there is nothing live to say. */
 export function etherLiveFor(key: string, c: EtherHintContext): string | null {
+  if (key.startsWith('c-')) return counterLive(key, c)
   return FIGURES[key]?.(c) ?? null
 }
 

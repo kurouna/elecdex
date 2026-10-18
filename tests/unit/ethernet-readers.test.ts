@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parseIfconfig,
   parseNetstat,
+  routeGateway,
   routeInterface,
   wiredPorts,
 } from '../../src/services/metrics/ethernet/darwin'
@@ -218,9 +219,31 @@ describe('Windows', () => {
     expect(ETHER_WATCH_SOURCE).toContain('e.NewEvent["InstanceName"]')
     expect(ETHER_WATCH_SOURCE).not.toMatch(/NdisStatusMediaSpecificIndication|Data\b/)
     // The watcher goes when the pane stops being seen.
-    expect(samplerScript('1.1.1.1')).toMatch(
-      /elseif \(.*\$etherWatch -eq 'ok'\) \{ .*EtherWatchStop \}/,
+    expect(samplerScript('1.1.1.1')).toMatch(/elseif \(.*\$etherWatching\) \{ .*EtherWatchStop \}/)
+    // Stopped once: the flag goes down with it, so a closed pane does not stop it every second.
+    expect(ETHER_SCRIPT).toMatch(
+      /function EtherWatchStop \{\s*if \(\$script:etherWatching\) \{ \[ElecdexEtherWatch\]::Stop\(\); \$script:etherWatching = \$false \}/,
     )
+  })
+
+  it('the Wi-Fi gateways leave the echo round when nothing wants Wi-Fi, as Ethernet’s do', () => {
+    expect(samplerScript('1.1.1.1')).toContain(
+      "if ($want.ContainsKey('wlan')) { EmitWlan } elseif ($wlanGws.Count -gt 0) { $wlanGws = @() }",
+    )
+  })
+
+  it('reads an adapter’s settings once: a read under way is collected first and not asked again', () => {
+    const step = ETHER_SCRIPT.slice(ETHER_SCRIPT.indexOf('function EtherInfoStep'))
+    expect(step.indexOf('EtherInfoCollect')).toBeLessThan(step.indexOf('foreach ($r in $rows)'))
+    expect(step).toContain('$busy -notcontains $i')
+    expect(step).toContain('ix = $ix')
+  })
+
+  it('gives the event logs’ handles back', () => {
+    for (const script of [ETHER_SCRIPT, samplerScript('1.1.1.1')]) {
+      expect(script).toContain('$e.Dispose()')
+      expect(script).toContain('$reader.Dispose()')
+    }
   })
 
   it('takes of an address conflict only its time and which wired address it was', () => {
@@ -377,8 +400,12 @@ describe('macOS', () => {
     })
   })
 
-  it('names the default route’s interface', () => {
-    expect(routeInterface('   route to: default\n  interface: en7\n')).toBe('en7')
+  it('names the default route’s interface, and its gateway when it is an IPv4 address', () => {
+    const route = '   route to: default\n    gateway: 192.0.2.1\n  interface: en7\n'
+    expect(routeInterface(route)).toBe('en7')
+    expect(routeGateway(route)).toBe('192.0.2.1')
+    expect(routeGateway('   route to: default\n    gateway: link#7\n')).toBeNull()
+    expect(routeGateway('   route to: default\n  interface: utun3\n')).toBeNull()
   })
 })
 

@@ -363,8 +363,9 @@ function EmitWlanLog {
         g = $d['InterfaceGuid']; ssid = $d['SSID']; code = $d['ReasonCode']; why = $why
       })
       if ($e.RecordId -gt $script:logLast) { $script:logLast = $e.RecordId }
+      $e.Dispose()
     }
-  } catch {}
+  } catch {} finally { if ($reader) { $reader.Dispose(); $reader = $null } }
   Emit 'wlanlog' @($rows | Select-Object -Last 200)
 }
 `
@@ -404,9 +405,9 @@ export const probeStep = (pingHost: string): string => `
     if ($probeOn) { Emit 'probe' @{ net = $ms; gws = @($echoes) } }
     if ($pingDue) { Emit 'ping' @{ ms = $ms } }
   }
-  if ($want.ContainsKey('wlan')) { EmitWlan }
+  if ($want.ContainsKey('wlan')) { EmitWlan } elseif ($wlanGws.Count -gt 0) { $wlanGws = @() }
   if (Due 'wlanlog' 5) { EmitWlanLog }
-  if ($want.ContainsKey('ether')) { EmitEther } elseif ($etherGws.Count -gt 0 -or $etherWatch -eq 'ok') { $etherGws = @(); EtherWatchStop }
+  if ($want.ContainsKey('ether')) { EmitEther } elseif ($etherGws.Count -gt 0 -or $etherWatching) { $etherGws = @(); EtherWatchStop }
 `
 
 // ---------------------------------------------------------------------------
@@ -614,8 +615,12 @@ const COUNTER_MAP = (c: RawWlanCounters): WifiCounters => ({
 })
 
 /** Bytes per second between two readings of a counter; null across a reset or with no baseline. */
-export function rate(now: number | null, then: number | null, seconds: number): number | null {
-  if (now === null || then === null || seconds <= 0 || now < then) return null
+export function rate(
+  now: number | null,
+  then: number | null | undefined,
+  seconds: number,
+): number | null {
+  if (now === null || then == null || seconds <= 0 || now < then) return null
   return (now - then) / seconds
 }
 

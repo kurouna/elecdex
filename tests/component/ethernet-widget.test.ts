@@ -315,3 +315,13 @@ describe('EthernetWidget, when the reader has a problem', () => {
     expect(screen.getByTestId('ether-name').textContent).toBe('Gigabit Ethernet Adapter')
   })
 })
+
+describe('the Ethernet log, as the review read it', () => {
+  it('says the hour was quiet rather than showing nothing', async () => {
+    const { default: EventLog } = await import(
+      '../../src/renderer/widgets/ethernet/EventLog.svelte'
+    )
+    render(EventLog, { props: { events: [], points: [], now: base, dropEvery: null } })
+    expect(screen.getByTestId('ether-log-empty').textContent).toContain('nothing happened')
+  })
+})

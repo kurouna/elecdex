@@ -28,14 +28,11 @@ import {
  */
 
 export {
-  drawRibbons,
-  echoTone,
   LABEL_WIDTH,
   megabits,
   type Palette,
   readPalette,
   sparkPath,
-  type Tone,
   unwatchedRuns,
 } from '../netpath/draw.js'
 

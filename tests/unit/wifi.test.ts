@@ -338,6 +338,12 @@ describe('diagnose', () => {
     expect(d.health).toBe('bad')
   })
 
+  it('a silent internet with no gateway asked is not the way out gone', () => {
+    const blind = minute(now, (i) => (i >= 54 ? { internet: null, gateway: undefined } : {}))
+    expect(judge(blind).cause).not.toBe('upstream-lost')
+    expect(derivedEvents(blind).map((e) => e.kind)).not.toContain('upstream-lost')
+  })
+
   it('blames the radio before the hops after it', () => {
     const weak = minute(now, () => ({ rssi: -80, gateway: 90, internet: 300 }))
     expect(judge(weak).cause).toBe('radio')

@@ -38,6 +38,7 @@ const KINDS: EtherEventKind[] = [
   'crc',
   'broadcast',
   'unseen',
+  'conflict',
 ]
 
 /** Every hint key the pane's markup can produce, templates expanded. */
@@ -99,6 +100,17 @@ describe('the Ethernet pane’s cards', () => {
     expect(etherLiveFor('power', c)).toBe('on: GREEN, GIGA LITE, POWER SAVE')
     expect(etherLiveFor('f-echo', c)).toBe('192.0.2.53')
     expect(lookupEtherHint('made-up', c)).toBeNull()
+  })
+
+  it('a counter’s card says its total and its rate, as Wi-Fi’s do', () => {
+    const c = { ...context(), rates: { rxErrors: 3, rxNonUnicast: 4920 } }
+    const total = c.link?.counters?.rxErrors ?? 0
+    expect(etherLiveFor('c-rxErrors', c)).toBe(
+      `${Math.round(total).toLocaleString('en')} since the adapter came up, 3 a minute`,
+    )
+    expect(etherLiveFor('c-broadcast', c)).toContain('4,920 a minute')
+    expect(etherLiveFor('c-txErrors', { ...c, rates: null })).toContain('since the adapter came up')
+    expect(etherLiveFor('c-made-up', c)).toBeNull()
   })
 })
 

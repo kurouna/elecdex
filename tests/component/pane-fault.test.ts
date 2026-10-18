@@ -103,3 +103,32 @@ describe('the reports', () => {
     expect(toasts.items).toHaveLength(2)
   })
 })
+
+describe('what the review found', () => {
+  it('a copy the clipboard refuses is not another fault: no rejection left unhandled', async () => {
+    const target = new EventTarget() as unknown as Window
+    const stop = watchPageFaults(target)
+    const seen: unknown[] = []
+    const onRejection = (event: PromiseRejectionEvent): void => {
+      seen.push(event.reason)
+    }
+    window.addEventListener('unhandledrejection', onRejection)
+    clipboard.writeText.mockRejectedValueOnce(new Error('Document is not focused.'))
+    reportProblems('ETHERNET', ['a made-up failure'])
+    toasts.items[0]?.actions.find((a) => a.label === 'copy details')?.run()
+    await vi.waitFor(() => expect(clipboard.writeText).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    window.removeEventListener('unhandledrejection', onRejection)
+    stop()
+    expect(seen).toEqual([])
+    expect(toasts.items).toHaveLength(1)
+  })
+
+  it('a problem is said as one line, the toast and the copy alike', () => {
+    reportProblems('ETHERNET', [`two\n  lines ${'x'.repeat(400)}`])
+    const body = toasts.items[0]?.body ?? ''
+    expect(body.startsWith('two lines x')).toBe(true)
+    expect(body).not.toContain('\n')
+    expect(body.length).toBeLessThan(300 + 80)
+  })
+})

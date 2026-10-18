@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { EtherEvent, EtherPoint } from '@shared/ethernet'
+import { type EtherEvent, type EtherPoint, quickDropPoints } from '@shared/ethernet'
 import { ETHER_EVENT_MARKS } from './draw.ts'
 
 /**
@@ -67,6 +67,8 @@ const hour = $derived.by(() => {
   const down: number[] = []
   let start: number | null = null
   let previous: EtherPoint | null = null
+  // A drop inside a second leaves no reading down: the system's count marks it instead.
+  const quick = quickDropPoints(points)
   for (const p of points) {
     if (p.at < from) continue
     if (start === null) start = p.at
@@ -74,7 +76,7 @@ const hour = $derived.by(() => {
       watched.push({ left: share(start), width: share(previous.at) - share(start) })
       start = p.at
     }
-    if (p.state === 'no-carrier') down.push(share(p.at))
+    if (p.state === 'no-carrier' || quick.has(p)) down.push(share(p.at))
     previous = p
   }
   if (start !== null && previous !== null)
@@ -111,6 +113,8 @@ const hour = $derived.by(() => {
         <span class="down">{e.downFor === null ? '' : `down ${e.downFor}s`}</span>
         <span class="since">{since ?? ''}</span>
       </li>
+    {:else}
+      <li class="empty" data-testid="ether-log-empty">nothing happened in the hour watched</li>
     {/each}
   </ol>
 </section>
@@ -250,5 +254,10 @@ time,
 
 .down {
   color: var(--warn);
+}
+.empty {
+  display: block;
+  padding: 0.3rem;
+  color: var(--text-muted);
 }
 </style>

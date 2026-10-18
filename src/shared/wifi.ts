@@ -539,7 +539,9 @@ export function pathFigures(
   const tail = recent.slice(-GONE_AFTER)
   const upstreamGone =
     tail.length === GONE_AFTER &&
-    tail.every((p) => p.internet === null && p.gateway !== null && p.state === 'connected')
+    tail.every(
+      (p) => p.internet === null && typeof p.gateway === 'number' && p.state === 'connected',
+    )
   const drag = correlation(
     recent
       .filter((p) => p.up !== null && typeof p.internet === 'number')
@@ -740,7 +742,7 @@ function changesBetween(previous: WifiPoint | null, p: WifiPoint): TrackEvent[] 
 
 /** The way out going (a run of lost echoes with the gateway answering) and coming back. */
 function wayOut(way: { lostRun: number; gone: boolean }, p: WifiPoint): TrackEvent[] {
-  const lost = p.internet === null && p.gateway !== null && p.state === 'connected'
+  const lost = p.internet === null && typeof p.gateway === 'number' && p.state === 'connected'
   way.lostRun = lost ? way.lostRun + 1 : 0
   if (!way.gone && way.lostRun === GONE_AFTER) {
     way.gone = true

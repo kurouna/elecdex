@@ -341,8 +341,10 @@ function drawTraffic(
     ctx.strokeStyle = p.muted
     ctx.setLineDash([4, 3])
     ctx.beginPath()
-    ctx.moveTo(plot.x, Math.round(box.y + box.h) - 0.5)
-    ctx.lineTo(plot.x + plot.w, Math.round(box.y + box.h) - 0.5)
+    for (const y of [Math.round(mid - half) + 0.5, Math.round(mid + half) - 0.5]) {
+      ctx.moveTo(plot.x, y)
+      ctx.lineTo(plot.x + plot.w, y)
+    }
     ctx.stroke()
     ctx.setLineDash([])
   }

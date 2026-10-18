@@ -238,12 +238,17 @@ export function withBoxGlyphs(stack: string): string {
     .split(',')
     .map((f) => f.trim())
     .filter((f) => f !== '')
-  const named = (f: string): string => f.replace(/^["']|["']$/g, '').toLowerCase()
+  const named = (f: string): string =>
+    f
+      .replace(/^["']|["']$/g, '')
+      .trim()
+      .toLowerCase()
   const have = new Set(families.map(named))
   const add = BOX_GLYPH_FONTS.filter((f) => !have.has(f.toLowerCase())).map((f) =>
     f.includes(' ') ? `"${f}"` : f,
   )
-  const at = families.findIndex((f) => GENERIC_FAMILIES.has(named(f)))
+  // Only a bare keyword is generic: a quoted "monospace" is a family by that name.
+  const at = families.findIndex((f) => GENERIC_FAMILIES.has(f.toLowerCase()))
   const cut = at < 0 ? families.length : at
   return [...families.slice(0, cut), ...add, ...families.slice(cut)].join(', ')
 }

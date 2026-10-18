@@ -471,6 +471,21 @@ function seenDrop(
 }
 
 /**
+ * The readings that end a drop inside a second: the system counted one since the
+ * reading before. Not across a gap in the watching, where a rise is the drops
+ * while not watched (`unseen`), as `dropsIn` counts it.
+ */
+export function quickDropPoints(points: readonly EtherPoint[]): Set<EtherPoint> {
+  const out = new Set<EtherPoint>()
+  for (let i = 1; i < points.length; i++) {
+    const previous = points[i - 1] as EtherPoint
+    const p = points[i] as EtherPoint
+    if (p.at - previous.at <= 5000 && quickDrops(previous, p) > 0) out.add(p)
+  }
+  return out
+}
+
+/**
  * Drops in the stretch: the link down and back within a minute, the adapter not
  * switched off - those the readings saw, and those inside a second that only the
  * system's count saw.
@@ -537,7 +552,7 @@ export function etherFigures(
   const tail = points.filter((p) => p.at <= now).slice(-GONE_AFTER)
   const upstreamGone =
     tail.length === GONE_AFTER &&
-    tail.every((p) => isUp(p) && p.internet === null && p.gateway !== null)
+    tail.every((p) => isUp(p) && p.internet === null && typeof p.gateway === 'number')
   const ten = points.filter((p) => p.at > now - LINK_WINDOW_MS && p.at <= now)
   // Counted a second at a time from counters a second apart: whole frames over the ten minutes.
   const errors = Math.round(sum(ten.map((p) => p.errors)))
@@ -579,6 +594,18 @@ export function errorHealth(errors: number, share: number | null): Health {
   if (errors >= l.badCount && share >= l.badShare) return 'bad'
   if (errors >= l.warnCount && share >= l.warnShare) return 'warn'
   return 'ok'
+}
+
+/**
+ * A trouble counter's colour in the detail's table, judged as the link's CRC
+ * errors are: by a count and a share together, so one damaged frame on an idle
+ * link is not red. Rates are a minute's; the count is taken over the ten minutes
+ * the limits are set for. `frames` is the same direction's: errors on the way
+ * out against frames sent.
+ */
+export function counterHealth(perMinute: number, framesPerMinute: number): Health {
+  const share = (perMinute / Math.max(1, framesPerMinute)) * 100
+  return errorHealth(perMinute * (LINK_WINDOW_MS / 60_000), share)
 }
 
 /** The speed and duplex judged: a fall from what this adapter had is a fault; a steady low speed is the other end's. */
@@ -712,7 +739,8 @@ function stopped(link: EtherLink | null, f: EtherFigures): EtherDiagnosis | null
       cause: 'address-conflict',
       health: 'bad',
       segments: down,
-      evidence: `another machine claimed ${link.ip4 ?? 'this address'} ${Math.max(1, Math.round((f.now - conflict) / 60_000))} min ago`,
+      // Never the address itself: the verdict is drawn, carded and copied whatever MASK says.
+      evidence: `another machine claimed this adapter’s address ${Math.max(1, Math.round((f.now - conflict) / 60_000))} min ago`,
     }
   if (link.ip4 === null && link.ip6.length === 0) return noAddress(f)
   return null
@@ -991,7 +1019,7 @@ function linkChanges(walk: Walk, a: EtherPoint, b: EtherPoint): EtherEvent[] {
 }
 
 function wayOut(walk: Walk, p: EtherPoint): EtherEvent[] {
-  const lost = isUp(p) && p.internet === null && p.gateway !== null
+  const lost = isUp(p) && p.internet === null && typeof p.gateway === 'number'
   walk.lostRun = lost ? walk.lostRun + 1 : 0
   if (!walk.gone && walk.lostRun === GONE_AFTER) {
     walk.gone = true
@@ -1030,10 +1058,10 @@ function counted(walk: Walk, p: EtherPoint): EtherEvent[] {
 }
 
 /** The address conflicts the system logged for this adapter, as events (the last day). */
-export function conflictEvents(link: EtherLink | null): EtherEvent[] {
-  return (link?.conflicts ?? []).map((at) =>
-    event(at, 'conflict', 'another machine claims this address'),
-  )
+export function conflictEvents(link: EtherLink | null, since = 0): EtherEvent[] {
+  // The log can hold two records of the same millisecond; one row each moment, keyed by it.
+  const moments = [...new Set(link?.conflicts ?? [])].filter((at) => at > since)
+  return moments.map((at) => event(at, 'conflict', 'another machine claims this address'))
 }
 
 /** The pane's own events and the system's conflicts together, newest first. */
@@ -1080,16 +1108,19 @@ export function etherBuckets(
   count: number,
 ): EtherBucket[] {
   const width = (to - from) / Math.max(1, count)
+  const quick = quickDropPoints(points)
   return columnsOf(points, from, to, count).map((column, i) => {
     const asked = column.filter((p) => p.internet !== undefined)
-    const speeds = column.filter(isUp).map((p) => p.speed)
+    const speeds = column
+      .filter(isUp)
+      .map((p) => p.speed)
+      .filter((s): s is number => s !== null)
     return {
       from: from + i * width,
       to: from + (i + 1) * width,
       count: column.length,
-      speed:
-        speeds.length === 0 ? null : Math.min(...speeds.map((s) => s ?? Number.POSITIVE_INFINITY)),
-      down: column.some((p) => p.state === 'no-carrier'),
+      speed: speeds.length === 0 ? null : Math.min(...speeds),
+      down: column.some((p) => p.state === 'no-carrier' || quick.has(p)),
       errors: maxOf(column.map((p) => p.errors)),
       broadcast: maxOf(column.map((p) => p.broadcast)),
       gateway: spread(column.map((p) => p.gateway)),
@@ -1147,14 +1178,19 @@ export const ETHER_NARROW_BELOW = 480
  */
 export function etherSections(width: number, height: number): EtherSections {
   const h = ETHER_SECTION_HEIGHTS
-  const wide = width >= ETHER_WIDE_FROM
   const narrow = width < ETHER_NARROW_BELOW
-  // Forward and wide, the panel sits beside the path and costs no height.
-  const panelHeight = wide ? 0 : narrow ? h.linkNarrow : h.link
-  const link = height >= h.header + h.path + panelHeight + h.timeline
-  const room = height - h.header - h.path - (link ? panelHeight : 0)
-  const stacked = room >= h.timeline + h.log + (narrow ? h.detailNarrow : h.detail)
-  return { link, stacked, wide: stacked && wide, linkWide: !narrow }
+  const withPanel = (panelHeight: number): { link: boolean; stacked: boolean } => {
+    const link = height >= h.header + h.path + panelHeight + h.timeline
+    const room = height - h.header - h.path - (link ? panelHeight : 0)
+    return { link, stacked: room >= h.timeline + h.log + (narrow ? h.detailNarrow : h.detail) }
+  }
+  // Two columns put the panel beside the path, costing no height - but only when the pane
+  // stacks; one column draws it above the lower part, so its height is counted then.
+  if (width >= ETHER_WIDE_FROM) {
+    const beside = withPanel(0)
+    if (beside.stacked) return { ...beside, wide: true, linkWide: true }
+  }
+  return { ...withPanel(narrow ? h.linkNarrow : h.link), wide: false, linkWide: !narrow }
 }
 
 // ---------------------------------------------------------------------------

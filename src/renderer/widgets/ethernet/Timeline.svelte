@@ -136,6 +136,8 @@ $effect(() => {
   void span
   void hoverX
   void bestSeen
+  void speedMbps
+  void capMbps
   untrack(() => {
     if (drawNow !== null) nextFrame(drawNow)
   })

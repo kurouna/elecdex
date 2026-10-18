@@ -81,7 +81,7 @@ const rows = $derived<[string, string][]>([
     'scan',
     `background ${yesNo(link.backgroundScan)} · streaming mode ${yesNo(link.streamingMode)}`,
   ],
-  ['address', `${addr(link.ip4)}${link.prefix4 === null ? '' : `/${link.prefix4}`}`],
+  ['address', `${addr(link.ip4)}${link.prefix4 === null || mask ? '' : `/${link.prefix4}`}`],
   ['IPv6', link.ip6.length === 0 ? '—' : link.ip6.map(addr).join(', ')],
   ['gateway', addr(link.gateway)],
   ['DNS', link.dns.length === 0 ? '—' : link.dns.map(addr).join(', ')],

@@ -191,3 +191,14 @@ describe('withBoxGlyphs', () => {
     )
   })
 })
+
+describe('withBoxGlyphs, as the review read it', () => {
+  it('takes only a bare keyword for a generic family, and names with spaces inside their quotes once', () => {
+    expect(withBoxGlyphs('"monospace", Iosevka')).toBe(
+      '"monospace", Iosevka, "Cascadia Mono", Consolas, Menlo, "DejaVu Sans Mono"',
+    )
+    expect(withBoxGlyphs('" Consolas ", monospace')).toBe(
+      '" Consolas ", "Cascadia Mono", Menlo, "DejaVu Sans Mono", monospace',
+    )
+  })
+})

@@ -1,7 +1,7 @@
 import type { EtherLimit, EtherLink, NetEthernet } from '@shared/ethernet'
 import type { GatewayEcho } from '@shared/netpath'
 import { readInternet } from '../wifi/index.js'
-import { PingStream } from '../wifi/ping-stream.js'
+import { gatewayEchoes, type PingStream } from '../wifi/ping-stream.js'
 import type { WindowsSampler } from '../windows-sampler.js'
 import { DarwinEtherReader } from './darwin.js'
 import { LinuxEtherReader } from './linux.js'
@@ -28,25 +28,12 @@ const startedAt = Date.now()
 let reader: { read(): Promise<EtherLink[]> } | null = null
 const gatewayPings = new Map<string, PingStream>()
 
-function gatewayEchoes(links: readonly EtherLink[], now: number): GatewayEcho[] {
-  const up = links.filter((l) => l.state === 'up' && l.gateway !== null).slice(0, 4)
-  for (const [id, stream] of gatewayPings) {
-    if (up.some((l) => l.id === id)) continue
-    stream.end()
-    gatewayPings.delete(id)
-  }
-  const echoes: GatewayEcho[] = []
-  for (const link of up) {
-    const stream = gatewayPings.get(link.id) ?? new PingStream()
-    gatewayPings.set(link.id, stream)
-    // From this port: its interface on Linux, its address on macOS.
-    const source = process.platform === 'darwin' ? link.ip4 : link.id
-    const rtt = stream.read(link.gateway, now, source)
-    if (rtt !== undefined && link.gateway !== null)
-      echoes.push({ link: link.id, address: link.gateway, rtt })
-  }
-  return echoes
-}
+const etherEchoes = (links: readonly EtherLink[], now: number): GatewayEcho[] =>
+  gatewayEchoes(
+    gatewayPings,
+    links.filter((l) => l.state === 'up'),
+    now,
+  )
 
 const LIMITS: Record<string, EtherLimit[]> = {
   linux: ['no-log', 'no-capability', 'no-broadcast', 'no-settings'],
@@ -87,7 +74,7 @@ async function readOnce(sampler: WindowsSampler | null, host: string): Promise<N
   reader ??= process.platform === 'linux' ? new LinuxEtherReader() : new DarwinEtherReader()
   const links = await reader.read()
   const now = Date.now()
-  const gateways = gatewayEchoes(links, now)
+  const gateways = etherEchoes(links, now)
   const internet = readInternet(host, now)
   return {
     links,

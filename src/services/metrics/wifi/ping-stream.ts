@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
+import type { GatewayEcho } from '@shared/netpath'
 
 /**
  * One long-lived `ping` per target, for the platforms where the Windows
@@ -138,4 +139,41 @@ export class PingStream {
     }, 5000)
     this.idle.unref?.()
   }
+}
+
+/** An adapter whose gateway is echoed: its id, its address and its gateway. */
+export interface EchoedLink {
+  id: string
+  ip4: string | null
+  gateway: string | null
+}
+
+/**
+ * The gateway echo of each adapter given, at most four, one long-lived stream
+ * each kept in `pings` by adapter id; the streams of adapters no longer given
+ * are ended. The Wi-Fi and Ethernet readers each keep their own map and pass
+ * the adapters that are up.
+ */
+export function gatewayEchoes(
+  pings: Map<string, PingStream>,
+  links: readonly EchoedLink[],
+  now: number,
+): GatewayEcho[] {
+  const up = links.filter((l) => l.gateway !== null).slice(0, 4)
+  for (const [id, stream] of pings) {
+    if (up.some((l) => l.id === id)) continue
+    stream.end()
+    pings.delete(id)
+  }
+  const echoes: GatewayEcho[] = []
+  for (const link of up) {
+    const stream = pings.get(link.id) ?? new PingStream()
+    pings.set(link.id, stream)
+    // From this adapter: its interface on Linux, its address on macOS.
+    const source = process.platform === 'darwin' ? link.ip4 : link.id
+    const rtt = stream.read(link.gateway, now, source)
+    if (rtt !== undefined && link.gateway !== null)
+      echoes.push({ link: link.id, address: link.gateway, rtt })
+  }
+  return echoes
 }
