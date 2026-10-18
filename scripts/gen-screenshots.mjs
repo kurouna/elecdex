@@ -14,7 +14,7 @@
  * a scripted pad (demo-play-kit.mjs's, and elecfighter below), with no gamepad of this machine
  * reaching the page.
  *
- * Shots for posting (`social-elec-sitting`, `social-elec-approved`) are taken only when named,
+ * Shots for posting (`social-elec-sitting`, `social-elec-approved`, `social-ethernet-popup`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
  * so nothing of the machine is in them.
  */
@@ -767,7 +767,7 @@ const preset = (id) => {
 await shoot('tron', 'elecdex-tron')
 // The Wi-Fi and Ethernet timelines on their one-minute span: a shot is taken half a minute after
 // the start, and five minutes of timeline would be mostly the time before it (NOT WATCHED).
-await shoot('amber', 'elecdex-network', {
+await shoot('white', 'elecdex-network', {
   layout: withState(preset('network'), { wifi: { window: '1m' }, ethernet: { window: '1m' } }),
   env: { ELECDEX_SOCKETS_STUB: 'demo' },
 })
@@ -937,5 +937,26 @@ for (const [name, extra, pace] of [
     social: true,
   })
   standIn.close()
+}
+// For posting: the Ethernet pane popped up over the standard layout, on a made-up cable taking
+// CRC errors, its timeline on one minute. Only when named.
+if (only.includes('social-ethernet-popup')) {
+  await shoot('tron', 'social-ethernet-popup', {
+    env: { ELECDEX_ETHER_STUB: 'crc' },
+    social: true,
+    extra: async (page) => {
+      await page.keyboard.press('Control+Shift+KeyA')
+      const picker = page.getByTestId('pane-picker')
+      await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
+      await picker.locator('[data-testid=pane-picker-item][data-widget=ethernet]').click()
+      const popup = page.getByTestId('popup-pane')
+      await popup.getByTestId('ether-name').waitFor()
+      await popup.locator('[data-testid=ether-window][data-window="1m"]').click()
+      // A minute of readings, so the timeline runs edge to edge.
+      await page.waitForTimeout(62_000)
+      await page.mouse.move(W / 2, 5)
+      await page.waitForTimeout(800)
+    },
+  })
 }
 console.log(`wrote ${OUT}`)

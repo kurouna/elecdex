@@ -67,8 +67,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### network — who this machine talks to
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-network.jpg" alt="The network preset in the Amber theme: the system column on the left, the world view globe in amber with arcs to where connections go, and under it the connections pane listing sockets by program - firefox, code, elecdex, thunderbird; on the right the Wi-Fi pane over the Ethernet pane, each on a made-up link with every segment from the PC to the internet clear and a one-minute timeline - the cable at 1 Gb/s full duplex">
-  <br><sub>network · Amber</sub>
+  <img src="./docs/screenshots/elecdex-network.jpg" alt="The network preset in the White theme: the system column on the left, the world view globe in white with arcs to where connections go, and under it the connections pane listing sockets by program - firefox, code, elecdex, thunderbird; on the right the Wi-Fi pane over the Ethernet pane, each on a made-up link with every segment from the PC to the internet clear and a one-minute timeline - the cable at 1 Gb/s full duplex">
+  <br><sub>network · White</sub>
 </p>
 
 - **World view and connections** — a globe of where the machine's connections go, and a pane
@@ -535,7 +535,9 @@ weather and calendar.
   five figures: memory and VRAM as amounts, swap, the fullest disk, connections, the
   busiest program, power, uptime, the link's total and the IPv4 address with its interface; and
   where there is room a line of what the machine is, as the system column says it (OS, maker,
-  model, chassis, CPU and GPU), with what AWAKE is set to. Each figure opens a card with what it has no room for. It lays itself out in five ways by
+  model, chassis, CPU and GPU), with what AWAKE is set to. The link is the adapter that carries the
+  default route - the cable or Wi-Fi, whichever the internet leaves by - not the two added up, and
+  its total counts from when that adapter came up. Each figure opens a card with what it has no room for. It lays itself out in five ways by
   its size. A full screen of it idles at 10-15% of one core, less than CPU, memory, traffic and
   disk panes side by side.
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to
