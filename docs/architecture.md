@@ -990,7 +990,7 @@ Stop とペインを閉じたときの停止）。
 
 利用者が選んだリポジトリを 1 ペインに 1 つ、読むだけで映す（v0.0.14 の後、2026-09-23）。変更ファイルの一覧、
 選んだファイルの差分、コミットのグラフ。stage も commit もしない（ターミナルでする）。書き込むのは、利用者が
-押した FETCH と PULL（fast-forward のみ）だけ（2026-09-30）。
+押した FETCH と PULL（fast-forward のみ）（2026-09-30）と PUSH（強制しない、2026-10-18）だけ。
 
 - **リポジトリの指定**: ペインの SELECT REPOSITORY で main がフォルダ選択を開き、`git rev-parse
   --show-toplevel` で最上位を確かめて `git-repos.json` に登録し、16 桁の id だけを返す。ペイン状態は id
@@ -1014,18 +1014,32 @@ Stop とペインを閉じたときの停止）。
   実際の git で確かめた。利用者自身の Git LFS などには触れない）。サブモジュールの中の作業ツリーは
   `--ignore-submodules=dirty` で見に行かない（そこでは別の設定で status が走るため。コミットが動いたことは見える）。
   `--no-optional-locks` で status に index を書かせない（利用者の git と index.lock を取り合わない）。
-- **FETCH と PULL**（`main/git/sync.ts`、`shared/git-sync.ts`、2026-09-30、利用者の依頼と決定）: ヘッダの 2 つの
-  ボタン。どちらも ConfirmButton の 2 回押しで、実行中は拍に合わせて FETCHING / PULLING が点滅する。結果はトーストで、
-  短いコード（`PULLED 3 COMMITS`・`FETCHED · 2 COMMITS BEHIND`・`DIVERGED`・`PULL FAILED`）の横に git 自身の
-  言葉を添える。読み取りの GitService とは別のモジュールにし、後で push を足すならここに足す。
+- **FETCH・PULL・PUSH**（`main/git/sync.ts`、`shared/git-sync.ts`、2026-09-30、PUSH は 2026-10-18、利用者の依頼と
+  決定）: ヘッダの 3 つのボタン。どれも ConfirmButton の 2 回押しで、実行中は拍に合わせて FETCHING / PULLING /
+  PUSHING が点滅する。結果はトーストで、短いコード（`PULLED 3 COMMITS`・`FETCHED · 2 COMMITS BEHIND`・
+  `PUSHED 2 COMMITS`・`DIVERGED`・`REJECTED`・`PULL FAILED`）の横に git 自身の言葉を添える。読み取りの
+  GitService とは別のモジュールにし、ほかの書き込みを足すならここに足す。
   - pull は `--ff-only` だけ（`--no-rebase --no-autostash --no-verify-signatures --no-recurse-submodules`）。
     マージコミットもコンフリクトもエディタも起きない。分岐していれば失敗させ、`rev-list --left-right` で
     分岐と分かれば DIVERGED と「ターミナルで merge / rebase を」を出す。main の最後の読み取りで分岐が
     分かっていれば、ネットワークに行く前に断る（`syncBlocked`。ボタンも押せない）。
+  - push は、ブランチをその上流へ送るだけ。上流は `origin/main` という書き方ではなく（スラッシュを含むリモート名で
+    取り違える）、ブランチの設定 `branch.<名前>.remote` と `branch.<名前>.merge` から読み、refspec を 1 つ必ず書く:
+    `push --porcelain --no-verify --no-follow-tags --no-signed --recurse-submodules=no -- <remote>
+    refs/heads/<ブランチ>:<merge>`。書かなければ `push.default=matching` で全ブランチが、`remote.<名前>.push` で
+    別の参照が送られ、`push.followTags` でタグが、`push.gpgSign` で `gpg.program` が走る。`+` も `--force` 系も
+    使わない。リモートが先へ進んでいれば git が断り（porcelain の `!` 行の `[rejected]`）、REJECTED と
+    「FETCH してから PULL を」を出す。リモート自身の拒否（`[remote rejected]`）は git の言葉のまま FAILED。
+    押す直前に `@{upstream}..HEAD` を数え直し、0 なら送らない。ボタンは ahead が 0、behind がある、分岐している、
+    上流が無いときは押せない。上流の無いブランチは、どのリモートに送るかを推し量らず、ターミナルの
+    `push -u` に任せる（利用者の決定、2026-10-18）。上流がこのリポジトリ自身（`.`）のときも送らない。
+    1 回目に押すと `push ↑2 to origin/main · no hooks` と、何件をどこへ送るかと、フックが走らないことを示す。
   - **フックは一切走らせない**: 毎回 `-c core.hooksPath=<userData/git-no-hooks>`（main の空フォルダ）。
     fetch でも `reference-transaction` が、pull では `post-merge` も走り、husky のように `core.hooksPath` を
     作業ツリーの中に向けたリポジトリでは、取り込んだコミットが次に走るプログラムを書き換えられるため。
-    e2e（git.spec）で、作業ツリー内のフックが git 単体では走り、ペインからの FETCH・PULL・失敗した PULL では
+    push の `pre-push` も走らない（`--no-verify` も付ける）ので、pre-push でテストや lint を走らせている
+    リポジトリはそれなしで送られる。FETCH・PULL と揃えた利用者の決定（2026-10-18）で、押す前の表示がそう言う。
+    e2e（git.spec）で、作業ツリー内のフックが git 単体では走り、ペインからの FETCH・PULL・失敗した PULL・PUSH では
     走らないことを確かめる（ガードを外すと `reference-transaction` が走って失敗することも確認）。
   - 認証や ssh、プロキシは利用者自身の設定をそのまま使う（それが無ければサインインできない）。端末は無いと
     伝え（`GIT_TERMINAL_PROMPT=0`）、それでも待つ転送は 120 秒で止めて TIMED OUT と言う。

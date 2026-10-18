@@ -13,6 +13,7 @@ import {
   GIT_SYNC_ACTIONS,
   type GitSyncAction,
   SYNC_DONE,
+  SYNC_WARN,
   syncBlocked,
   syncHeadline,
 } from '@shared/git-sync'
@@ -244,23 +245,40 @@ function useRepo(id: string): void {
   setState({ repo: id, chosen: null, commit: null })
 }
 
-/** The fetch or pull under way from this pane; its button steps with the shared pulse meanwhile. */
+/** The fetch, pull or push under way from this pane; its button steps with the shared pulse meanwhile. */
 let syncing = $state<GitSyncAction | null>(null)
 $effect(() => (visible && syncing !== null ? pulse.use() : undefined))
 
-const SYNC_BUSY: Record<GitSyncAction, string> = { fetch: 'FETCHING', pull: 'PULLING' }
+const SYNC_BUSY: Record<GitSyncAction, string> = {
+  fetch: 'FETCHING',
+  pull: 'PULLING',
+  push: 'PUSHING',
+}
 
 function syncTitle(action: GitSyncAction): string {
   const blocked = syncBlocked(repoState, action)
   if (blocked !== null) return `Cannot ${action}: ${blocked}`
   const upstream = repoState?.branch.upstream ?? ''
+  if (action === 'push') {
+    return `Push this branch onto ${upstream}, never forced. No hooks run: pre-push checks are skipped`
+  }
   return action === 'pull'
     ? `Pull ${upstream} into this branch, fast-forward only (no merge, no rebase, no hooks)`
     : `Fetch from the remote of ${upstream}, leaving the working tree as it is`
 }
 
 /**
- * Runs a fetch or a fast-forward pull in main and says how it ended: the short
+ * What the armed button says. A push names what goes where, and that its hooks do not run:
+ * a repository that checks in pre-push (husky's tests, a linter) is pushed without them.
+ */
+function syncArmed(action: GitSyncAction): string {
+  if (action !== 'push') return action
+  const branch = repoState?.branch
+  return `push ↑${branch?.ahead ?? 0} to ${branch?.upstream ?? ''} · no hooks`
+}
+
+/**
+ * Runs a fetch, a fast-forward pull or a push in main and says how it ended: the short
  * code first, git's own words beside it. The new state arrives by the usual way.
  */
 async function syncRepo(action: GitSyncAction): Promise<void> {
@@ -277,7 +295,7 @@ async function syncRepo(action: GitSyncAction): Promise<void> {
     toasts.show({
       title: syncHeadline(result),
       body: [where, result.message].filter(Boolean).join(' — '),
-      tone: SYNC_DONE.has(result.code) ? 'ok' : result.code === 'diverged' ? 'warn' : 'danger',
+      tone: SYNC_DONE.has(result.code) ? 'ok' : SYNC_WARN.has(result.code) ? 'warn' : 'danger',
     })
   } finally {
     syncing = null
@@ -431,7 +449,7 @@ $effect(() => {
           {:else}
             <ConfirmButton
               label={action.toUpperCase()}
-              {action}
+              action={syncArmed(action)}
               title={syncTitle(action)}
               testid="git-{action}"
               disabled={syncing !== null || syncBlocked(repoState, action) !== null}
@@ -757,7 +775,7 @@ $effect(() => {
   white-space: nowrap;
 }
 
-/* FETCH and PULL: two presses each, like every write the app makes on a click. */
+/* FETCH, PULL and PUSH: two presses each, like every write the app makes on a click. */
 .sync {
   display: flex;
   flex-shrink: 0;

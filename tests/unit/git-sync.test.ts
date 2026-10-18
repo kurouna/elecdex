@@ -1,11 +1,19 @@
 import { emptyState, type GitState } from '@shared/git'
-import { type GitSyncResult, parseLeftRight, syncBlocked, syncHeadline } from '@shared/git-sync'
+import {
+  type GitSyncResult,
+  isBranchRef,
+  isPushRemote,
+  parseLeftRight,
+  parsePushPorcelain,
+  syncBlocked,
+  syncHeadline,
+} from '@shared/git-sync'
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from '../../src/main/git/run.js'
 import { GitSync } from '../../src/main/git/sync.js'
 
 /**
- * The git pane's FETCH and PULL: when they may run, what git is asked, and how
+ * The git pane's FETCH, PULL and PUSH: when they may run, what git is asked, and how
  * each way of ending is told. git itself is made up here; git.spec.ts runs the
  * real one against a real remote.
  */
@@ -212,5 +220,184 @@ describe('GitSync', () => {
     expect(await first).toMatchObject({ code: 'fetched' })
     // Free again once it has ended.
     expect(await slow.run(ID, 'pull')).toMatchObject({ code: 'current' })
+  })
+})
+
+describe('PUSH', () => {
+  // `git push --porcelain` as git 2.54 writes it (checked against a local bare remote).
+  const porcelain = (flag: string, summary: string, to = 'refs/heads/main') =>
+    `To C:/remote/o.git\n${flag}\trefs/heads/main:${to}\t${summary}\nDone\n`
+
+  /** git as a push meets it: the branch's config, the count, then the push itself. */
+  const pushing =
+    (push: GitResult, config: Record<string, string> = {}, ahead = '2\n') =>
+    (args: readonly string[]): GitResult => {
+      if (args.includes('config')) {
+        const key = args.at(-1) ?? ''
+        const value = {
+          'branch.main.remote': 'origin',
+          'branch.main.merge': 'refs/heads/main',
+          ...config,
+        }[key]
+        return value === undefined || value === '' ? answer('', false) : answer(`${value}\n`)
+      }
+      if (args.includes('rev-list')) return answer(ahead)
+      return push
+    }
+
+  it('pushes only a branch ahead of its upstream and behind it in nothing', () => {
+    expect(syncBlocked(readState({ ahead: 2 }), 'push')).toBeNull()
+    expect(syncBlocked(readState(), 'push')).toBe('nothing to push')
+    expect(syncBlocked(readState({ behind: 1 }), 'push')).toBe('behind its upstream: pull first')
+    expect(syncBlocked(readState({ ahead: 1, behind: 1 }), 'push')).toMatch(/terminal/)
+    expect(syncBlocked(readState({ ahead: 1, head: null }), 'push')).toBe('HEAD is detached')
+  })
+
+  it('leaves a branch with no upstream to the terminal, naming push -u', () => {
+    expect(syncBlocked(readState({ ahead: 1, upstream: null }), 'push')).toBe(
+      'the branch has no upstream: push -u in the terminal',
+    )
+  })
+
+  it('reads the line for its own ref from the porcelain output', () => {
+    expect(parsePushPorcelain(porcelain(' ', 'acbcea5..5d799bb'), 'refs/heads/main')).toEqual({
+      flag: ' ',
+      summary: 'acbcea5..5d799bb',
+    })
+    expect(
+      parsePushPorcelain(porcelain('!', '[rejected] (fetch first)'), 'refs/heads/main'),
+    ).toEqual({ flag: '!', summary: '[rejected] (fetch first)' })
+    expect(
+      parsePushPorcelain(porcelain('*', '[new branch]', 'refs/heads/x'), 'refs/heads/main'),
+    ).toBeNull()
+    expect(parsePushPorcelain('error: something\r\n', 'refs/heads/main')).toBeNull()
+  })
+
+  it('takes from the config only a remote and a branch a push may name', () => {
+    expect(isPushRemote('origin')).toBe(true)
+    expect(isPushRemote('my/fork')).toBe(true)
+    for (const remote of ['', '.', '--receive-pack=evil', 'a b'])
+      expect(isPushRemote(remote)).toBe(false)
+    expect(isBranchRef('refs/heads/feature/x')).toBe(true)
+    for (const ref of ['', 'main', 'refs/tags/v1', '+refs/heads/main', 'refs/heads/a:b'])
+      expect(isBranchRef(ref)).toBe(false)
+  })
+
+  it('tells the ways it ends in short', () => {
+    const line = (code: GitSyncResult['code'], commits = 0) =>
+      syncHeadline({ action: 'push', code, commits, message: '' })
+    expect(line('pushed', 1)).toBe('PUSHED 1 COMMIT')
+    expect(line('pushed', 3)).toBe('PUSHED 3 COMMITS')
+    expect(line('rejected')).toBe('REJECTED')
+    expect(line('refused')).toBe('CANNOT PUSH')
+    expect(line('failed')).toBe('PUSH FAILED')
+  })
+
+  it('names its one refspec onto the upstream, with no force, no hooks and nothing else', async () => {
+    const { sync, calls, moved } = harness(
+      readState({ ahead: 2 }),
+      pushing(answer(porcelain(' ', 'acbcea5..5d799bb'))),
+    )
+    expect(await sync.run(ID, 'push')).toEqual({
+      action: 'push',
+      code: 'pushed',
+      commits: 2,
+      message: '',
+    })
+    const push = calls.at(-1)
+    expect(push?.args).toEqual([
+      '-c',
+      'filter.x.clean=',
+      '-c',
+      'core.hooksPath=/app/git-no-hooks',
+      '-c',
+      'protocol.ext.allow=never',
+      'push',
+      '--porcelain',
+      '--no-verify',
+      '--no-follow-tags',
+      '--no-signed',
+      '--recurse-submodules=no',
+      '--',
+      'origin',
+      'refs/heads/main:refs/heads/main',
+    ])
+    expect(push?.timeoutMs).toBe(120_000)
+    expect(push?.args.some((arg) => arg.startsWith('+') || arg.startsWith('--force'))).toBe(false)
+    // Counted just before, not from main's last reading.
+    expect(calls.some((call) => call.args.includes('@{upstream}..HEAD'))).toBe(true)
+    expect(moved).toEqual([ID])
+  })
+
+  it('pushes onto the upstream the config names, whatever the remote is called', async () => {
+    const { sync, calls } = harness(
+      readState({ ahead: 1, upstream: 'my/fork/release' }),
+      pushing(answer(porcelain(' ', 'a..b', 'refs/heads/release')), {
+        'branch.main.remote': 'my/fork',
+        'branch.main.merge': 'refs/heads/release',
+      }),
+    )
+    expect(await sync.run(ID, 'push')).toMatchObject({ code: 'pushed', commits: 2 })
+    expect(calls.at(-1)?.args.slice(-2)).toEqual(['my/fork', 'refs/heads/main:refs/heads/release'])
+  })
+
+  it('pushes nothing for an upstream in this repository or one the config does not name', async () => {
+    for (const config of [{ 'branch.main.remote': '.' }, { 'branch.main.merge': '' }]) {
+      const { sync, calls } = harness(readState({ ahead: 1 }), pushing(answer(), config))
+      expect(await sync.run(ID, 'push')).toMatchObject({ code: 'refused' })
+      expect(calls.some((call) => call.args.includes('push'))).toBe(false)
+    }
+  })
+
+  it('pushes nothing when the branch has caught up since main last read it', async () => {
+    const { sync, calls } = harness(readState({ ahead: 1 }), pushing(answer(), {}, '0\n'))
+    expect(await sync.run(ID, 'push')).toMatchObject({ code: 'current' })
+    expect(calls.some((call) => call.args.includes('push'))).toBe(false)
+  })
+
+  it('tells a remote that has moved on from one that refused for its own reasons', async () => {
+    const rejected = harness(
+      readState({ ahead: 1 }),
+      pushing({
+        ...answer(porcelain('!', '[rejected] (fetch first)'), false),
+        stderr: 'error: failed to push some refs',
+      }),
+    )
+    expect(await rejected.sync.run(ID, 'push')).toMatchObject({
+      code: 'rejected',
+      message: 'the remote has commits this branch lacks: FETCH, then PULL',
+    })
+
+    const declined = harness(
+      readState({ ahead: 1 }),
+      pushing(answer(porcelain('!', '[remote rejected] (pre-receive hook declined)'), false)),
+    )
+    expect(await declined.sync.run(ID, 'push')).toMatchObject({
+      code: 'failed',
+      message: '[remote rejected] (pre-receive hook declined)',
+    })
+
+    const current = harness(
+      readState({ ahead: 1 }),
+      pushing(answer(porcelain('=', '[up to date]'))),
+    )
+    expect(await current.sync.run(ID, 'push')).toMatchObject({ code: 'current' })
+  })
+
+  it('says why when git writes no line for the ref, and stops on a transport that never answers', async () => {
+    const failed = harness(
+      readState({ ahead: 1 }),
+      pushing({
+        ...answer('', false),
+        stderr: "fatal: 'origin' does not appear to be a git repository",
+      }),
+    )
+    expect(await failed.sync.run(ID, 'push')).toMatchObject({
+      code: 'failed',
+      message: "'origin' does not appear to be a git repository",
+    })
+
+    const slow = harness(readState({ ahead: 1 }), pushing(answer('', false, { timedOut: true })))
+    expect(await slow.sync.run(ID, 'push')).toMatchObject({ code: 'timeout' })
   })
 })

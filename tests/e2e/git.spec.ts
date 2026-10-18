@@ -696,6 +696,96 @@ test('fetches and pulls fast-forward only on two presses, running none of the re
   }
 })
 
+test('pushes the branch onto its upstream alone on two presses, never forced, running no hook', async () => {
+  // A remote with a second branch, a clone the pane shows, and another clone that moves it on.
+  const source = makeRepo()
+  git(source, 'branch', 'side')
+  const root = mkdtempSync(path.join(tmpdir(), 'elecdex-git-remote-'))
+  const origin = path.join(root, 'origin.git')
+  const work = path.join(root, 'work')
+  const other = path.join(root, 'other')
+  git(root, 'clone', '-q', '--bare', source, origin)
+  for (const dir of [work, other]) {
+    git(root, 'clone', '-q', '-c', 'core.autocrlf=false', origin, dir)
+    git(dir, 'config', 'user.email', 'test@example.test')
+    git(dir, 'config', 'user.name', 'Test')
+  }
+  const none = path.join(root, 'none')
+  // A commit of the test's own runs no hook, so the marker speaks only of the app.
+  const commit = (dir: string, subject: string) => {
+    writeFileSync(path.join(dir, `${subject.replaceAll(' ', '-')}.txt`), `${subject}\n`)
+    git(dir, 'add', '.')
+    git(dir, '-c', `core.hooksPath=${none}`, 'commit', '-q', '-m', subject)
+  }
+  const remoteRef = (ref: string) => git(origin, 'rev-parse', ref).toString().trim()
+
+  // Config that would send more than the branch: every matching branch, tags along with it.
+  git(work, 'config', 'push.default', 'matching')
+  git(work, 'config', 'push.followTags', 'true')
+  git(work, 'checkout', '-q', 'side')
+  commit(work, 'side commit')
+  git(work, 'checkout', '-q', 'main')
+  const side = remoteRef('refs/heads/side')
+
+  // A pre-push hook where husky keeps one: git left to itself runs it.
+  const marker = path.join(root, 'hook-ran')
+  mkdirSync(path.join(work, '.husky'))
+  writeFileSync(
+    path.join(work, '.husky', 'pre-push'),
+    `#!/bin/sh\necho pre-push >> "${marker.replaceAll('\\', '/')}"\n`,
+    { mode: 0o755 },
+  )
+  git(work, 'config', 'core.hooksPath', '.husky')
+  commit(work, 'local commit')
+  git(work, '-c', `core.hooksPath=${none}`, 'tag', '-a', '-m', 'v1', 'v1')
+
+  const { app, page, close } = await launch(undefined, { layout: single })
+  try {
+    await watchRepo(page, app, work)
+    await expect(page.getByTestId('git-head')).toContainText('↑1')
+    const toast = page.getByTestId('toast')
+
+    // One press arms and says where it goes and that no hooks run; the second pushes.
+    const push = page.getByTestId('git-push')
+    await push.click()
+    await expect(push).toContainText('click again to push ↑1 to origin/main · no hooks')
+    await push.click()
+    await expect(toast.last()).toContainText('PUSHED 1 COMMIT', { timeout: 30_000 })
+    expect(remoteRef('refs/heads/main')).toBe(git(work, 'rev-parse', 'HEAD').toString().trim())
+    await expect(page.getByTestId('git-head')).toContainText('↑0', { timeout: 10_000 })
+    // Nothing else went: not the matching branch, not the tag; and the hook did not run.
+    expect(remoteRef('refs/heads/side')).toBe(side)
+    expect(git(origin, 'tag', '--list').toString().trim()).toBe('')
+    expect(existsSync(marker) ? readFileSync(marker, 'utf8') : '').toBe('')
+    // Up to date, there is nothing to press.
+    await expect(push).toBeDisabled()
+
+    // The remote moves on before the pane has fetched: the push is refused, not forced.
+    git(other, 'pull', '-q', '--ff-only')
+    commit(other, 'other commit')
+    git(other, 'push', '-q', 'origin', 'main')
+    const theirs = remoteRef('refs/heads/main')
+    commit(work, 'second local commit')
+    await expect(page.getByTestId('git-head')).toContainText('↑1', { timeout: 10_000 })
+    await push.click()
+    await push.click()
+    await expect(toast.last()).toContainText('REJECTED', { timeout: 30_000 })
+    await expect(toast.last()).toContainText('FETCH, then PULL')
+    expect(remoteRef('refs/heads/main')).toBe(theirs)
+
+    // A branch with no upstream is left to the terminal.
+    git(work, 'checkout', '-q', '-b', 'topic')
+    await expect(page.getByTestId('git-branch')).toContainText('topic', { timeout: 10_000 })
+    await expect(push).toBeDisabled()
+    await expect(push).toHaveAttribute('title', /push -u in the terminal/)
+    expect(existsSync(marker) ? readFileSync(marker, 'utf8') : '').toBe('')
+  } finally {
+    await close()
+    removeDir(root)
+    removeDir(source)
+  }
+})
+
 test('lands the kept reading quietly on a return from behind a tab, and lights for a change', async () => {
   // Found in review: the receive lamp lit on every return, as if the repository had changed.
   const repo = makeRepo()

@@ -446,13 +446,16 @@ user made; do not reverse one without asking.
   - No tools, MCP, branching or prompt profiles (user decisions 2026-09-20/21). Do not add them
     without asking: a model that can start processes or read files needs a consent design like
     the plugins' first. The model never reads a file of its own accord.
-- **The git pane** (§5.9, shared/git.ts, main/git/) reads, and writes only FETCH and PULL (two
-  presses each); never stages, commits, checks out, merges or rebases. Repositories are chosen
+- **The git pane** (§5.9, shared/git.ts, main/git/) reads, and writes only FETCH, PULL and PUSH
+  (two presses each); never stages, commits, checks out, merges or rebases. Repositories are chosen
   through main's picker and known by id (`git-repos.json`), so a layout carries no path; a pane
   is tied to no other pane.
-  - FETCH/PULL live in main/git/sync.ts, apart from the reading GitService; a later write (a push)
+  - FETCH/PULL/PUSH live in main/git/sync.ts, apart from the reading GitService; a later write
     goes there too. PULL is `--ff-only` only (user decision 2026-09-30);
-    diverged, it refuses. No hook runs (`core.hooksPath` is main's empty folder). `syncBlocked`
+    diverged, it refuses. PUSH names its one refspec, the branch onto the upstream its config
+    names, never `+` or `--force`; behind or rejected, it refuses; no upstream, it leaves
+    `push -u` to the terminal (user decision 2026-10-18). No hook runs, pre-push neither, and
+    the armed PUSH says so (`core.hooksPath` is main's empty folder). `syncBlocked`
     is checked against main's own reading, one at a time per repository, only for a page showing
     it.
   - git always runs with `GIT_FLAGS` (main/git/run.ts) and the diff flags; repository filters are

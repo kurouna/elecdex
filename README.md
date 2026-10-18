@@ -108,7 +108,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   of every file it changed, read from Claude Code's own records on this machine.
 - **Git** — a repository you choose: the files changed, the diff of each with its syntax
   coloured, and the commit graph with its branches and tags, kept current as they change - watch an
-  AI agent work in the next pane. FETCH, and PULL fast-forward only. One pane per repository.
+  AI agent work in the next pane. FETCH, PULL fast-forward only, and PUSH, never forced. One pane per repository.
 - **Docker** — the containers of the Docker engine on your computer, by Compose
   project: up or down, healthy or not, their published ports (a click opens one in the browser)
   and what each uses; start, stop, restart and pause from the row.
@@ -620,8 +620,11 @@ weather and calendar.
   commits at a time with **MORE** - where a click opens a commit's files and diff and a rest on one
   shows the whole of it: its message, author, date and what it changed. **FETCH** and **PULL**
   (each pressed twice) bring the branch up to date: a pull is a fast-forward only - when both sides
-  have moved on it says DIVERGED and leaves the merge or rebase to the terminal - and runs none of
-  the repository's hooks. Nothing else is written: stage and commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
+  have moved on it says DIVERGED and leaves the merge or rebase to the terminal. **PUSH** (pressed
+  twice too) sends the branch onto its upstream and nothing else, never forced: when the remote has
+  moved on it says REJECTED, and a branch with no upstream is left to `git push -u` in the terminal.
+  None of them runs the repository's hooks - a push skips its pre-push checks, and says so before
+  the second press. Nothing else is written: stage and commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
   in `settings.json` (`{file}` and `{line}` are filled in, e.g. `code -g "{file}:{line}"`),
   or with the system's own application when it is empty. git must be on PATH.
 - **Docker** — in the dev preset, or add it from the picker ("docker
