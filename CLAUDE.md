@@ -161,17 +161,22 @@ user made; do not reverse one without asking.
   widgets/netpath/). Windows: the sampler's `ether` kind, `GetIfTable2` rows of type 6, medium 14,
   HardwareInterface and not FilterInterface; the duplex and the driver's settings in a runspace of
   the sampler's (never on its loop), read by keyword, never changed. The interface GUID, the device
-  ids and a profile's name never leave the script; the C# goes in the sampler's environment (its
-  command line stays under 32,000, a unit test checks).
-  - One source, `net.ethernet`, private, not kept while hidden. No OS log is read: the log is what
-    the pane saw. Gateways are echoed from each adapter's own address (`IcmpSendEcho2Ex`, `ping -I` /
+  ids and a profile's name never leave the script; the C# and the pane's functions go in the
+  sampler's environment (its command line stays under 32,000, a unit test checks).
+  - One source, `net.ethernet`, private, not kept while hidden. No OS log of drops is read: the log
+    is what the pane saw. Two system sources only while seen: NDIS's disconnect events, counted by
+    adapter and never parsed (sub-second drops), and Tcpip 4199 (an address conflict: its time and
+    which wired address, never the other machine's MAC). Gateways are echoed from each adapter's own address (`IcmpSendEcho2Ex`, `ping -I` /
     `-S`), Wi-Fi's too; one internet echo serves three panes.
   - Judgements are pure (`diagnoseEthernet`, `ETHER_LIMITS`): a fall from the speed seen is a fault,
     a steady low speed only BELOW MAX; CRC errors need a count and a share; discards are the host's;
     drops come back within a minute; multicast is never judged. The speed is coloured by the speed's
     judgement only. Power saving is named only after a drop or a fall was seen with it on.
   - No words on a canvas, in this pane or Wi-Fi's: lane names, scales and marks are HTML over it.
-  - Tests: `ELECDEX_ETHER_STUB=1` (and every case of docs/ethernet-mock).
+  - What a reader could not read travels as `problems` and is a toast, once each.
+  - Tests: `ELECDEX_ETHER_STUB=1` (every case of docs/ethernet-mock, plus `conflict`, `problem`).
+  - Its limits, unverified with a cable or on Linux and macOS, are listed in §5.23.1 and the
+    README: keep both until someone has tried them.
 - **The clipboard pane reads only while it is seen** (§5.14, shared/clipboard.ts,
   main/clipboard/). Main reads (Electron's async API, never the page) on the quarter seconds,
   only while a pane is subscribed and not paused; what is copied unseen is never kept. The
@@ -574,6 +579,10 @@ user made; do not reverse one without asking.
   (layout/summon.ts) with its chord in keybindings.ts; `summonChoice` decides where it goes and
   the widget answers via `onSummoned` - never a branch for one widget in the shared part, nor a
   flag of its own in `ui`.
+- **Faults are said, not swallowed** (lib/fault-report.ts, layout/PaneFault.svelte): every
+  built-in widget, in the layout or popped up, sits in `PaneFault`, so a throw stops that pane
+  alone (RETRY) and is a red toast; an exception nothing in the page caught is one too. Once per
+  message, a few a minute; COPY DETAILS copies only the message, the version and the platform.
 - **Remounts happen.** Moving a pane remounts its widget: keep what must survive in pane state or
   main (a shell reattaches to its session).
 - **Terminal sizing.** Never fit a hidden pane or send transient sizes to the PTY (ConPTY rewraps

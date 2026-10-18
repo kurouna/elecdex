@@ -202,12 +202,64 @@ export const ADVANCED_KEYWORDS = [
 ] as const
 
 /**
+ * NDIS's own word that a link went down, as it happens: the second-by-second
+ * reading misses a link that drops and comes back inside a second (EEE's
+ * interop trouble does that). WMI's `MSNdis_StatusMediaDisconnect` event, which
+ * needs no administrator and no process, is counted per adapter from when the
+ * pane began to watch; only the count leaves, keyed by the adapter's
+ * description, and the watcher stops when the pane stops being seen. The event's
+ * payload is not read (it was not seen with a cable on this machine, so its
+ * layout is not trusted). Compiled apart from ElecdexEther, with a reference to
+ * System.Management, so a machine where it fails loses only the count.
+ */
+export const ETHER_WATCH_SOURCE = `
+using System;
+using System.Collections.Concurrent;
+using System.Management;
+
+public class ElecdexEtherWatch {
+  static ManagementEventWatcher watcher;
+  static readonly ConcurrentDictionary<string, long> downs = new ConcurrentDictionary<string, long>();
+
+  public static string Start() {
+    if (watcher != null) return "";
+    try {
+      watcher = new ManagementEventWatcher(new ManagementScope("root\\\\wmi"), new WqlEventQuery("SELECT * FROM MSNdis_StatusMediaDisconnect"));
+      watcher.EventArrived += (s, e) => {
+        object name = e.NewEvent["InstanceName"];
+        if (name != null) downs.AddOrUpdate(name.ToString(), 1, (k, v) => v + 1);
+      };
+      watcher.Start();
+      return "";
+    } catch (Exception e) {
+      watcher = null;
+      return e.Message;
+    }
+  }
+
+  public static void Stop() {
+    if (watcher == null) return;
+    try { watcher.Stop(); watcher.Dispose(); } catch {}
+    watcher = null;
+    downs.Clear();
+  }
+
+  public static long Downs(string name) {
+    long n;
+    return name != null && downs.TryGetValue(name, out n) ? n : 0;
+  }
+}
+`
+
+/**
  * The C# and the runspace's script go to the sampler in its environment, not in
  * its script: on the command line as well, they took it past Windows' 32,767
  * characters (as the GPU's C# did before them).
  */
 export const ETHER_SOURCE_ENV = 'ELECDEX_ETHER_SOURCE'
 export const ETHER_INFO_ENV = 'ELECDEX_ETHER_INFO'
+export const ETHER_WATCH_ENV = 'ELECDEX_ETHER_WATCH'
+export const ETHER_SCRIPT_ENV = 'ELECDEX_ETHER_SCRIPT'
 
 /**
  * What the runspace reads of each adapter it is given: only these fields, as
@@ -234,20 +286,25 @@ foreach ($i in $indexes) {
     $r.adv = $props
     $hw = Get-NetAdapterHardwareInfo -InterfaceDescription $a.InterfaceDescription -ErrorAction SilentlyContinue
     if ($hw) { $r.ps = [string]$hw.PcieLinkSpeed; $r.pw = [string]$hw.PcieLinkWidth }
-  } catch {}
+  } catch { $r.err = [string]$_.Exception.Message }
   $r
 }
 `
 
 /**
  * The PowerShell the sampler runs for Ethernet: functions only, called from its
- * loop (EmitEther), and the gateways the echo round adds (EtherGateways).
- * `pingHost` is the validated ping host, whose route says which adapter the
- * internet's echo leaves by.
+ * loop (EmitEther), and the gateways the echo round adds (EtherGateways). It too
+ * goes in the environment (ETHER_SCRIPT_ENV), dot-sourced by `etherScript`, so
+ * its functions and state live in the sampler's own scope.
  */
-export const etherScript = (pingHost: string): string => `
+export const ETHER_SCRIPT = `
 $etherSource = $env:${ETHER_SOURCE_ENV}
 $etherInfoScript = $env:${ETHER_INFO_ENV}
+$etherWatchSource = $env:${ETHER_WATCH_ENV}
+$etherWatch = 'unset'
+$etherErr = @()
+$etherConflicts = @{}
+$etherConflictLast = -1
 $etherKeywords = @(${ADVANCED_KEYWORDS.map((k) => `'${k}'`).join(', ')})
 $etherMode = 'unset'
 $etherKey = ''
@@ -261,11 +318,55 @@ $etherMedia = @{}
 $etherAsk = @{}
 $etherJob = $null
 
+# What went wrong, said once each and sent with the next reading: the pane shows it, so a fault
+# reaches whoever can report it rather than a console nobody reads.
+function EtherProblem($what) {
+  $m = ([string]$what).Trim()
+  if ($m.Length -gt 300) { $m = $m.Substring(0, 300) }
+  if ($m -and $script:etherErr -notcontains $m -and $script:etherErr.Count -lt 5) { $script:etherErr += $m }
+}
+
 function EtherReady {
   if ($script:etherMode -eq 'unset') {
-    try { Add-Type -TypeDefinition $script:etherSource; $script:etherMode = 'ok' } catch { $script:etherMode = 'none' }
+    try { Add-Type -TypeDefinition $script:etherSource; $script:etherMode = 'ok' } catch {
+      $script:etherMode = 'none'
+      EtherProblem ('the wired reader did not compile: ' + $_.Exception.Message)
+    }
   }
   return $script:etherMode -eq 'ok'
+}
+
+# NDIS's disconnect events, counted while the pane is seen (ETHER_WATCH_SOURCE).
+function EtherWatchStart {
+  if ($script:etherWatch -eq 'unset') {
+    try { Add-Type -TypeDefinition $script:etherWatchSource -ReferencedAssemblies System.Management; $script:etherWatch = 'ok' } catch {
+      $script:etherWatch = 'none'
+      EtherProblem ('the link-event watcher did not compile: ' + $_.Exception.Message)
+    }
+  }
+  if ($script:etherWatch -ne 'ok') { return }
+  $why = [ElecdexEtherWatch]::Start()
+  if ($why) { $script:etherWatch = 'none'; EtherProblem ('NDIS link events are not available: ' + $why) }
+}
+function EtherWatchStop { if ($script:etherWatch -eq 'ok') { [ElecdexEtherWatch]::Stop() } }
+
+# Tcpip's address conflicts from the last day, then only newer: the time, and which of the wired
+# addresses it was. Neither the other machine's hardware address nor the message leaves.
+function EtherConflictStep($rows) {
+  $when = if ($script:etherConflictLast -lt 0) { 'TimeCreated[timediff(@SystemTime) <= 86400000]' } else { 'EventRecordID > ' + $script:etherConflictLast }
+  try {
+    $query = New-Object System.Diagnostics.Eventing.Reader.EventLogQuery('System', [System.Diagnostics.Eventing.Reader.PathType]::LogName, ("*[System[Provider[@Name='Tcpip'] and EventID=4199 and " + $when + ']]'))
+    $reader = New-Object System.Diagnostics.Eventing.Reader.EventLogReader($query)
+    for ($e = $reader.ReadEvent(); $null -ne $e; $e = $reader.ReadEvent()) {
+      if ($e.RecordId -gt $script:etherConflictLast) { $script:etherConflictLast = $e.RecordId }
+      $ip = @($e.Properties | ForEach-Object { [string]$_.Value } | Where-Object { $_ -match '^\\d{1,3}(\\.\\d{1,3}){3}$' -and $_ -ne '0.0.0.0' }) | Select-Object -First 1
+      if (-not $ip) { continue }
+      $script:etherConflicts[[long]$e.RecordId] = @{ at = [long](($e.TimeCreated.ToUniversalTime() - [DateTime]'1970-01-01').TotalMilliseconds); ip = $ip }
+    }
+  } catch { EtherProblem ('the address-conflict log could not be read: ' + $_.Exception.Message) }
+  if ($script:etherConflictLast -lt 0) { $script:etherConflictLast = 0 }
+  $cut = [long](([DateTime]::UtcNow - [DateTime]'1970-01-01').TotalMilliseconds) - 86400000
+  foreach ($k in @($script:etherConflicts.Keys)) { if ($script:etherConflicts[$k].at -lt $cut) { $script:etherConflicts.Remove($k) } }
 }
 
 # The way out of every connection profile but Wi-Fi's, by adapter. Only the level leaves.
@@ -293,7 +394,7 @@ function EtherNics($rows) {
     if ($a) { $script:etherNic[$r['g']] = NicInfo $a }
   }
   $script:etherProfile = EtherProfiles
-  $script:etherRoute = [ElecdexEther]::Route('${pingHost}')
+  $script:etherRoute = [ElecdexEther]::Route($script:etherPingHost)
 }
 
 # Adapters newly seen, or whose link just came up, are read again in the runspace: one at a time.
@@ -305,7 +406,12 @@ function EtherInfoStep($rows) {
     $script:etherMedia[$i] = $r['m']
   }
   if ($null -ne $script:etherJob -and $script:etherJob.h.IsCompleted) {
-    try { foreach ($x in $script:etherJob.ps.EndInvoke($script:etherJob.h)) { $script:etherInfo[[int]$x['i']] = $x } } catch {}
+    try {
+      foreach ($x in $script:etherJob.ps.EndInvoke($script:etherJob.h)) {
+        $script:etherInfo[[int]$x['i']] = $x
+        if ($x['err']) { EtherProblem ('the settings of an adapter could not be read: ' + $x['err']) }
+      }
+    } catch { EtherProblem ('the settings of the adapters could not be read: ' + $_.Exception.Message) }
     $script:etherJob.ps.Dispose()
     $script:etherJob = $null
   }
@@ -318,8 +424,10 @@ function EtherInfoStep($rows) {
 }
 
 function EmitEther {
-  if (-not (EtherReady)) { Emit 'ether' @{ rows = @(); route = $null }; return }
-  $rows = @([ElecdexEther]::Rows())
+  if (-not (EtherReady)) { Emit 'ether' @{ rows = @(); route = $null; err = @($script:etherErr) }; $script:etherErr = @(); return }
+  EtherWatchStart
+  $rows = @()
+  try { $rows = @([ElecdexEther]::Rows()) } catch { EtherProblem ('the adapters could not be read: ' + $_.Exception.Message) }
   $key = ($rows | ForEach-Object { '{0}:{1}:{2}' -f $_['i'], $_['m'], $_['rs'] }) -join ','
   if ($key -ne $script:etherKey -or $script:tick - $script:etherAt -ge 10) {
     EtherNics $rows
@@ -327,6 +435,7 @@ function EmitEther {
     $script:etherAt = $script:tick
   }
   EtherInfoStep $rows
+  if ($script:etherConflictLast -lt 0 -or $script:tick % 5 -eq 0) { EtherConflictStep }
   $script:etherGws = @()
   foreach ($r in $rows) {
     $g = $r['g']
@@ -336,13 +445,27 @@ function EmitEther {
     $info = $script:etherInfo[[int]$r['i']]
     if ($info) { $r['inf'] = $info }
     if ($r['m'] -eq 1 -and $r['gw'] -and $r['ip4']) { $script:etherGws += @{ l = 'if' + $r['i']; a = $r['gw']; s = $r['ip4'] } }
+    if ($script:etherWatch -eq 'ok') { $r['dn'] = [ElecdexEtherWatch]::Downs($r['d']) }
+    $ip = $r['ip4']
+    $r['cf'] = @($script:etherConflicts.Values | Where-Object { $ip -and $_.ip -eq $ip } | ForEach-Object { $_.at })
     # The GUID matched the profile and the addresses; it goes no further.
     $r.Remove('g')
   }
-  Emit 'ether' @{ rows = $rows; route = $script:etherRoute }
+  Emit 'ether' @{ rows = $rows; route = $script:etherRoute; err = @($script:etherErr) }
+  $script:etherErr = @()
 }
 
 function EtherGateways { return @($script:etherGws) }
+`
+
+/**
+ * What the sampler's own script carries for Ethernet: the ping host (validated),
+ * whose route says which adapter the internet's echo leaves by, and the line
+ * that brings in ETHER_SCRIPT from the environment.
+ */
+export const etherScript = (pingHost: string): string => `
+$etherPingHost = '${pingHost}'
+. ([scriptblock]::Create($env:${ETHER_SCRIPT_ENV}))
 `
 
 // ---------------------------------------------------------------------------
@@ -404,6 +527,10 @@ export interface RawEther {
   lease: number | null
   lvl: string | null
   inf: RawEtherInfo | null
+  /** NDIS's disconnect events for this adapter since the pane began to watch; null without the watcher. */
+  dn: number | null
+  /** When Tcpip logged a conflict for this adapter's address, the last day, epoch ms. */
+  cf: number[]
 }
 
 export interface RawEtherRoute {
@@ -414,6 +541,8 @@ export interface RawEtherRoute {
 export interface RawEtherLine {
   rows: RawEther[]
   route: RawEtherRoute | null
+  /** What went wrong in the script since the last line, in its words. */
+  err: string[]
 }
 
 type Row = Record<string, unknown>
@@ -427,9 +556,9 @@ const num = (v: unknown): number | null => {
 const text = (v: unknown, max = 256): string | null =>
   typeof v === 'string' && v !== '' ? v.slice(0, max) : null
 const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : v == null ? [] : [v])
-const texts = (v: unknown, max = 8): string[] =>
+const texts = (v: unknown, max = 8, length = 64): string[] =>
   list(v)
-    .map((x) => text(x, 64))
+    .map((x) => text(x, length))
     .filter((x): x is string => x !== null)
     .slice(0, max)
 
@@ -508,10 +637,15 @@ export function parseEtherLine(data: unknown): RawEtherLine {
       lease: num(r.lease),
       lvl: text(r.lvl, 64),
       inf: info(r.inf),
+      dn: num(r.dn),
+      cf: list(r.cf)
+        .map(num)
+        .filter((at): at is number => at !== null && at > 0)
+        .slice(-50),
     }))
     .filter((r) => r.i >= 0)
   const route = isRow(d.route) ? { i: num(d.route.i), k: text(d.route.k, 16) } : null
-  return { rows, route }
+  return { rows, route, err: texts(d.err, 5, 300) }
 }
 
 // ---------------------------------------------------------------------------
@@ -527,17 +661,25 @@ const SPEED_DUPLEX: Record<string, [number, Duplex]> = {
   '5': [1000, 'half'],
   '6': [1000, 'full'],
   '7': [10_000, 'full'],
+  '8': [20_000, 'full'],
+  '9': [40_000, 'full'],
+  '10': [100_000, 'full'],
 }
 
 /**
- * Values some drivers use beyond the standard for 2.5 and 5 Gb/s. Only those
- * seen on a real adapter belong here (none yet): an unknown value is ignored,
- * never guessed, and the adapter's best is then the best of the values known.
+ * A *SpeedDuplex value. 0 to 10 are NDIS's own (10 Mb/s half to 100 Gb/s full);
+ * anything from 1,000 up is the speed itself in Mb/s, full duplex - how a driver
+ * offers 2.5 and 5 Gb/s, which have no number of their own (Microsoft's
+ * "Enumeration Keywords", checked 2026-10-18). Anything else is a vendor's
+ * private value: ignored, never guessed, and the adapter's best is then the best
+ * of the values it knows. Not yet seen on a 2.5 or 5 Gb/s adapter (README).
  */
-const SPEED_DUPLEX_VENDOR: Record<string, [number, Duplex]> = {}
-
-const speedDuplexOf = (value: string): [number, Duplex] | null =>
-  SPEED_DUPLEX[value] ?? SPEED_DUPLEX_VENDOR[value] ?? null
+export function speedDuplexOf(value: string): [number, Duplex] | null {
+  const known = SPEED_DUPLEX[value]
+  if (known !== undefined) return known
+  const n = Number(value)
+  return Number.isInteger(n) && n >= 1000 ? [n, 'full'] : null
+}
 
 /** The power-saving keywords and what each does, on or off by its value. */
 const POWER_KEYWORDS: Record<string, PowerKey> = {
@@ -723,7 +865,9 @@ export function toEtherLink(
     rxSec: rate(row.c?.io ?? null, previous?.c?.io, seconds),
     txSec: rate(row.c?.oo ?? null, previous?.c?.oo, seconds),
     counters: countersOf(row.c),
-    carrierDowns: null,
+    // NDIS's disconnect events: a drop inside a second, between two readings, is counted too.
+    carrierDowns: row.dn,
+    conflicts: row.cf,
   }
 }
 
@@ -741,5 +885,5 @@ export function toNetEthernet(
       current.data.route,
     ),
   )
-  return { links, probe, limits: ['no-log'] }
+  return { links, probe, limits: ['no-log'], problems: current.data.err }
 }

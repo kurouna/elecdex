@@ -53,10 +53,35 @@ const LIMITS: Record<string, EtherLimit[]> = {
   darwin: ['no-log', 'no-capability', 'no-broadcast'],
 }
 
+/** The last reading that worked, kept on screen while a later one fails. */
+let lastGood: NetEthernet | null = null
+
+/**
+ * The reading, never a throw: a failure comes back as the last good reading with
+ * the failure in `problems`, which the pane shows as a toast - a fault on a
+ * machine or adapter nobody here has tried should reach whoever can report it,
+ * not a console nobody reads (the collector logs a thrown error and nothing more).
+ */
 export async function readEthernet(
   sampler: WindowsSampler | null,
   host: string,
 ): Promise<NetEthernet> {
+  try {
+    const net = await readOnce(sampler, host)
+    lastGood = net
+    return net
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      links: lastGood?.links ?? [],
+      probe: lastGood?.probe ?? null,
+      limits: lastGood?.limits ?? [],
+      problems: [`the wired adapters could not be read: ${message}`.slice(0, 300)],
+    }
+  }
+}
+
+async function readOnce(sampler: WindowsSampler | null, host: string): Promise<NetEthernet> {
   if (stub !== null) return stubEthernet(stub, startedAt, Date.now())
   if (sampler !== null) return sampler.ethernet()
   reader ??= process.platform === 'linux' ? new LinuxEtherReader() : new DarwinEtherReader()
@@ -71,5 +96,6 @@ export async function readEthernet(
         ? null
         : { at: Math.floor(now / 1000) * 1000, host, internet, gateways },
     limits: LIMITS[process.platform] ?? ['no-log'],
+    problems: [],
   }
 }

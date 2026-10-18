@@ -406,7 +406,7 @@ export const probeStep = (pingHost: string): string => `
   }
   if ($want.ContainsKey('wlan')) { EmitWlan }
   if (Due 'wlanlog' 5) { EmitWlanLog }
-  if ($want.ContainsKey('ether')) { EmitEther } else { $etherGws = @() }
+  if ($want.ContainsKey('ether')) { EmitEther } elseif ($etherGws.Count -gt 0 -or $etherWatch -eq 'ok') { $etherGws = @(); EtherWatchStop }
 `
 
 // ---------------------------------------------------------------------------

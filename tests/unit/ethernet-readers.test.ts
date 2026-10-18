@@ -19,17 +19,21 @@ import {
   busOf,
   duplexOf,
   ETHER_INFO_SCRIPT,
+  ETHER_SCRIPT,
+  ETHER_SCRIPT_ENV,
   ETHER_SOURCE,
-  etherScript,
+  ETHER_WATCH_ENV,
+  ETHER_WATCH_SOURCE,
   etherStateOf,
   parseEtherLine,
   type RawEtherInfo,
   routeOf,
   settingsOf,
+  speedDuplexOf,
   toNetEthernet,
 } from '../../src/services/metrics/ethernet/windows'
 import { pingArgs } from '../../src/services/metrics/wifi/ping-stream'
-import { samplerScript } from '../../src/services/metrics/windows-sampler'
+import { SAMPLER_ENV, samplerScript } from '../../src/services/metrics/windows-sampler'
 
 /**
  * The Ethernet pane's readers: what each platform's text and tables become, that
@@ -186,7 +190,7 @@ describe('Windows', () => {
   })
 
   it('never lets the interface GUID, the device ids or a profile’s name leave the script', () => {
-    const script = etherScript('192.0.2.53')
+    const script = ETHER_SCRIPT
     expect(script).toContain("$r.Remove('g')")
     expect(script).not.toMatch(/ProfileName|\.Name\b.*profile/i)
     // The bus is the component id's first word: nothing after its backslash.
@@ -195,14 +199,67 @@ describe('Windows', () => {
   })
 
   it('changes nothing: no Set- or Enable- or Disable- cmdlet anywhere', () => {
-    for (const text of [etherScript('192.0.2.53'), ETHER_INFO_SCRIPT, ETHER_SOURCE])
+    for (const text of [ETHER_SCRIPT, ETHER_INFO_SCRIPT, ETHER_SOURCE])
       expect(text).not.toMatch(/\b(Set|Enable|Disable|Restart|Reset)-NetAdapter/)
   })
 
-  it('keeps the sampler under Windows’ command-line limit, the C# going in its environment', () => {
+  it('keeps the sampler under Windows’ command-line limit, the C# and its script going in its environment', () => {
     const script = samplerScript('1.1.1.1')
     expect(script.length).toBeLessThan(32_000)
     expect(script).not.toContain('class ElecdexEther')
+    expect(script).not.toContain('function EmitEther')
+    expect(script).toContain("$etherPingHost = '1.1.1.1'")
+    expect(SAMPLER_ENV[ETHER_SCRIPT_ENV]).toBe(ETHER_SCRIPT)
+    expect(SAMPLER_ENV[ETHER_WATCH_ENV]).toBe(ETHER_WATCH_SOURCE)
+  })
+
+  it('counts NDIS disconnects by adapter and reads nothing of the event but its name', () => {
+    expect(ETHER_WATCH_SOURCE).toContain('MSNdis_StatusMediaDisconnect')
+    expect(ETHER_WATCH_SOURCE).toContain('e.NewEvent["InstanceName"]')
+    expect(ETHER_WATCH_SOURCE).not.toMatch(/NdisStatusMediaSpecificIndication|Data\b/)
+    // The watcher goes when the pane stops being seen.
+    expect(samplerScript('1.1.1.1')).toMatch(
+      /elseif \(.*\$etherWatch -eq 'ok'\) \{ .*EtherWatchStop \}/,
+    )
+  })
+
+  it('takes of an address conflict only its time and which wired address it was', () => {
+    expect(ETHER_SCRIPT).toContain('EventID=4199')
+    expect(ETHER_SCRIPT).toContain('@{ at = ')
+    // The other machine's hardware address and the message stay in the script.
+    expect(ETHER_SCRIPT).not.toMatch(/FormatDescription|\$e\.Message|mac\s*=/)
+  })
+
+  it('reads 2.5 and 5 Gb/s as a *SpeedDuplex value in Mb/s, and still ignores a private one', () => {
+    expect(speedDuplexOf('2500')).toEqual([2500, 'full'])
+    expect(speedDuplexOf('5000')).toEqual([5000, 'full'])
+    expect(speedDuplexOf('10')).toEqual([100_000, 'full'])
+    expect(speedDuplexOf('6')).toEqual([1000, 'full'])
+    expect(speedDuplexOf('99')).toBeNull()
+    expect(speedDuplexOf('0')).toBeNull()
+    const best = settingsOf({
+      ...REALTEK,
+      adv: { ...REALTEK.adv, '*SpeedDuplex': { v: '0', o: ['0', '6', '2500', '99'] } },
+    })
+    expect(best?.capMbps).toBe(2500)
+  })
+
+  it('carries the NDIS count, the conflicts and the script’s problems through, checked', () => {
+    const line = parseEtherLine({
+      rows: [
+        { i: 3, a: 'Ethernet', d: 'x', o: 1, ad: 1, m: 1, dn: 2, cf: [1_790_000_000_000, 'x', -1] },
+      ],
+      err: ['the link-event watcher did not compile: no', 42, 'y'.repeat(400)],
+    })
+    expect(line.rows[0]?.dn).toBe(2)
+    expect(line.rows[0]?.cf).toEqual([1_790_000_000_000])
+    expect(line.err[0]).toBe('the link-event watcher did not compile: no')
+    expect(line.err.every((e) => e.length <= 300)).toBe(true)
+    const net = toNetEthernet(null, { at: 0, data: line }, null)
+    expect(net.problems).toEqual(line.err)
+    expect(net.links[0]?.carrierDowns).toBe(2)
+    expect(net.links[0]?.conflicts).toEqual([1_790_000_000_000])
+    expect(parseEtherLine({ rows: [{ i: 3, o: 1, ad: 1, m: 1 }] }).rows[0]?.dn).toBeNull()
   })
 })
 
@@ -362,6 +419,14 @@ describe('the stub', () => {
       for (const l of net.links)
         for (const a of [l.ip4, l.gateway, ...l.dns]) if (a) expect(a).toMatch(/^192\.0\.2\./)
     }
+  })
+
+  it('a conflict comes five seconds in, and a problem with every reading', () => {
+    expect(stubEthernet('conflict', 0, 4000).links[0]?.conflicts).toEqual([])
+    expect(stubEthernet('conflict', 0, 6000).links[0]?.conflicts).toEqual([5000])
+    expect(stubEthernet('problem', 0, 1000).problems).toHaveLength(1)
+    for (const kind of ETHER_STUBS.filter((k) => k !== 'problem'))
+      expect(stubEthernet(kind, 0, 30_000).problems).toEqual([])
   })
 
   it('a port with no cable keeps its counters still', () => {

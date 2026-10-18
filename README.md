@@ -594,7 +594,9 @@ weather and calendar.
   failing, segment by segment - PC, LINK, GATEWAY, INTERNET. A wired fault rarely stops traffic; it
   slows it, so the link is judged by what slows it: a fall from the speed it had (1 Gb/s to
   100 Mb/s, a damaged pair), half duplex, CRC errors (a count and a share over ten minutes),
-  drops that come back within a minute, and a broadcast flood. A link that was always slower than
+  drops that come back within a minute (on Windows and Linux also those inside a second, from the
+  system's own count), a broadcast flood, and another machine claiming the adapter's address
+  (Windows' Tcpip log, the last day). A link that was always slower than
   the adapter could go is the other end's, and only noted (BELOW MAX). The link panel shows the
   speed on a ladder with the adapter's best, the link's use each way, and the driver's settings -
   EEE, Green Ethernet, Gigabit Lite, jumbo frames, flow control - read and never changed; power
@@ -603,7 +605,13 @@ weather and calendar.
   when the internet leaves by Wi-Fi or a VPN, it is shown and not judged. No system keeps a log of
   a wired link's drops that every driver writes, so the log holds what the pane saw while on
   screen. **MASK**, **COPY**, the cards, the timeline and the two columns brought forward are the
-  Wi-Fi pane's.
+  Wi-Fi pane's. Anything it could not read - a driver that refused, a log that would not open - is
+  said once as a toast, with the words to copy for a report.
+  **Limits, not yet checked:** it has not been used with a cable plugged in, so the speeds,
+  counters and thresholds are untried on real faults; autonegotiation and the flow control
+  actually in force are not read (only the driver's settings); a vendor's own value for 2.5 or
+  5 Gb/s is ignored, so such an adapter's best may show lower; Windows cannot tell a USB 2.0 port;
+  on Linux and macOS it has only been run on test data.
 - **AI Agent** *(experimental)* — one card per running Claude Code session: its name and
   folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
   in its view and written, and its answers. Below them, the subagents it started and the commands

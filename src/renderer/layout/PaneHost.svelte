@@ -8,6 +8,7 @@ import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
 import PaneCorner from './PaneCorner.svelte'
+import PaneFault from './PaneFault.svelte'
 import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
@@ -122,7 +123,10 @@ $effect(() => () => paneMeta.clear(node.id))
     </p>
   {:else}
     {@const Widget = definition.component}
-    <Widget paneId={node.id} title={definition.title} props={node.props} state={node.state} {active} {visible} {transitioning} widget={node.widget} />
+    <!-- A widget that throws is said as a toast and leaves a way back, never a blank pane. -->
+    <PaneFault source={definition.title}>
+      <Widget paneId={node.id} title={definition.title} props={node.props} state={node.state} {active} {visible} {transitioning} widget={node.widget} />
+    </PaneFault>
   {/if}
 {/snippet}
 

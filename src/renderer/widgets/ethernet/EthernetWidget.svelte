@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
   buildEtherReport,
+  conflictEvents,
   diagnoseEthernet,
   ETHER_CAUSE_LABELS,
   ETHER_LIMITS,
@@ -9,12 +10,14 @@ import {
   etherEvents,
   etherFigures,
   etherSections,
+  mergeEtherEvents,
   routeWord,
   speedLabel,
 } from '@shared/ethernet'
 import { mosOf, regularInterval, roundMs } from '@shared/netpath'
 import { untrack } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
+import { reportProblems } from '../../lib/fault-report.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
@@ -89,7 +92,15 @@ const figures = $derived(etherFigures(points, now, bestSeen))
 const diagnosis = $derived(diagnoseEthernet(link, figures))
 const culprit = $derived(etherCulprit(diagnosis))
 const mos = $derived(link?.route === 'default' ? mosOf(figures.internet) : null)
-const events = $derived(etherEvents(points.filter((p) => p.at > now - 3_600_000)))
+const events = $derived(
+  mergeEtherEvents(etherEvents(points.filter((p) => p.at > now - 3_600_000)), conflictEvents(link)),
+)
+
+// What the reader could not read reaches the screen, once each (lib/fault-report.ts).
+$effect(() => {
+  const problems = sample?.data.problems ?? []
+  if (problems.length > 0) untrack(() => reportProblems('ETHERNET', problems))
+})
 const dropEvery = $derived(
   regularInterval(events.filter((e) => e.kind === 'link-lost').map((e) => e.at)),
 )

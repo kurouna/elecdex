@@ -34,6 +34,7 @@ const LABELS: Record<EtherEvent['kind'], string> = {
   crc: 'CRC ERRORS',
   broadcast: 'BROADCAST',
   unseen: 'NOT WATCHED',
+  conflict: 'ADDRESS CONFLICT',
 }
 
 const HOUR = 3_600_000

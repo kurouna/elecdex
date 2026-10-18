@@ -185,6 +185,7 @@ export class DarwinEtherReader {
       ...this.rates(device, stat.rx, stat.tx),
       counters: countersOf(stat),
       carrierDowns: null,
+      conflicts: [],
     }
   }
 

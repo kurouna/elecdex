@@ -103,3 +103,35 @@ test('logs a drop and the link coming back, and names power saving only after it
     await close()
   }
 })
+
+test('another machine on the address is the verdict and a line of the log', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: alone(),
+    env: { ELECDEX_ETHER_STUB: 'conflict' },
+  })
+  try {
+    await expect(page.getByTestId('ether-verdict')).toContainText('ADDRESS CONFLICT', {
+      timeout: 40_000,
+    })
+    await expect(station(page, 'link')).toHaveAttribute('data-culprit', 'true')
+  } finally {
+    await close()
+  }
+})
+
+test('what the reader could not read is said once as a toast, and the pane goes on', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: alone(),
+    env: { ELECDEX_ETHER_STUB: 'problem' },
+  })
+  try {
+    const toast = page.getByTestId('toast').filter({ hasText: 'ETHERNET' })
+    await expect(toast).toContainText('a made-up failure', { timeout: 40_000 })
+    await expect(page.getByTestId('ether-verdict')).toContainText('CLEAR')
+    // A reading a second goes on carrying it: still one toast.
+    await page.waitForTimeout(3000)
+    await expect(toast).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})

@@ -158,8 +158,14 @@ export interface EtherLink {
   rxSec: number | null
   txSec: number | null
   counters: EtherCounters | null
-  /** Times the link went down since boot (Linux): drops while the pane was not looking. */
+  /**
+   * Times the link went down, counted by the system: since boot on Linux, since the
+   * pane began to watch on Windows (NDIS's events). A rise between two readings
+   * that both found the link up is a drop inside a second.
+   */
   carrierDowns: number | null
+  /** When the system logged another machine claiming this adapter's address, the last day, epoch ms. */
+  conflicts: number[]
 }
 
 /** Something the platform will not tell, so the pane says so rather than show a dash. */
@@ -170,6 +176,12 @@ export interface NetEthernet {
   /** The echo round, shared with the Wi-Fi and network status panes. */
   probe: PathProbe | null
   limits: EtherLimit[]
+  /**
+   * What went wrong while reading, in the reader's words, each said once: the pane
+   * shows it as a toast, so a fault on a machine nobody here has tried reaches
+   * whoever can report it.
+   */
+  problems: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +394,7 @@ export type EtherCause =
   | 'disabled'
   | 'link-lost'
   | 'auth'
+  | 'address-conflict'
   | 'no-address'
   | 'sign-in'
   | 'upstream-lost'
@@ -425,23 +438,52 @@ export interface EtherFigures {
   upFor: number | null
   /** Traffic flat where a USB 2.0 port would hold it. */
   usbPlateau: boolean
+  /** The moment the figures were taken at, epoch ms. */
+  now: number
 }
 
 const isUp = (p: EtherPoint): boolean => p.state === 'up'
 
-/** Drops in the stretch: the link down and back within a minute, the adapter not switched off. */
+/**
+ * Drops the second-by-second reading could not see: the system's count of the link
+ * going down rose between two readings that both found it up - down and back
+ * inside a second.
+ */
+export function quickDrops(previous: EtherPoint, p: EtherPoint): number {
+  if (!isUp(previous) || !isUp(p) || previous.carrierDowns === null || p.carrierDowns === null)
+    return 0
+  return Math.max(0, p.carrierDowns - previous.carrierDowns)
+}
+
+/** A drop the readings saw: when it began, and its start kept once it ended in time. */
+function seenDrop(
+  previous: EtherPoint | null,
+  p: EtherPoint,
+  downAt: number | null,
+  starts: number[],
+): number | null {
+  if (previous !== null && isUp(previous) && p.state === 'no-carrier') return p.at
+  if (downAt !== null && isUp(p)) {
+    if (p.at - downAt <= DROP_MAX_MS) starts.push(downAt)
+    return null
+  }
+  return downAt
+}
+
+/**
+ * Drops in the stretch: the link down and back within a minute, the adapter not
+ * switched off - those the readings saw, and those inside a second that only the
+ * system's count saw.
+ */
 export function dropsIn(points: readonly EtherPoint[]): number[] {
   const starts: number[] = []
   let downAt: number | null = null
   let previous: EtherPoint | null = null
   for (const p of points) {
     const gap = previous !== null && p.at - previous.at > 5000
-    if (gap) downAt = null
-    else if (previous !== null && isUp(previous) && p.state === 'no-carrier') downAt = p.at
-    else if (downAt !== null && isUp(p)) {
-      if (p.at - downAt <= DROP_MAX_MS) starts.push(downAt)
-      downAt = null
-    }
+    downAt = gap ? null : seenDrop(previous, p, downAt, starts)
+    if (previous !== null && !gap)
+      for (let i = quickDrops(previous, p); i > 0; i--) starts.push(p.at)
     previous = p
   }
   // Down now and for less than a drop's length: it counts already.
@@ -526,6 +568,7 @@ export function etherFigures(
     bestSeen,
     upFor: upSince(points),
     usbPlateau: usbPlateau(recent),
+    now,
   }
 }
 
@@ -663,8 +706,25 @@ function stopped(link: EtherLink | null, f: EtherFigures): EtherDiagnosis | null
       segments: down,
       evidence: `link up at ${speedLabel(f.speed)}, 802.1X not authenticated yet`,
     }
+  const conflict = recentConflict(link, f.now)
+  if (conflict !== null)
+    return {
+      cause: 'address-conflict',
+      health: 'bad',
+      segments: down,
+      evidence: `another machine claimed ${link.ip4 ?? 'this address'} ${Math.max(1, Math.round((f.now - conflict) / 60_000))} min ago`,
+    }
   if (link.ip4 === null && link.ip6.length === 0) return noAddress(f)
   return null
+}
+
+/** How long an address conflict stays the verdict: as long as a drop counts. */
+export const CONFLICT_WINDOW_MS = LINK_WINDOW_MS
+
+/** The latest address conflict logged for this adapter within the window, or null. */
+export function recentConflict(link: EtherLink, now: number): number | null {
+  const recent = link.conflicts.filter((at) => at <= now && now - at <= CONFLICT_WINDOW_MS)
+  return recent.length === 0 ? null : Math.max(...recent)
 }
 
 function noAddress(f: EtherFigures): EtherDiagnosis {
@@ -773,6 +833,7 @@ const CULPRITS: Partial<Record<EtherCause, EtherStation>> = {
   'no-carrier': 'link',
   'link-lost': 'link',
   auth: 'link',
+  'address-conflict': 'link',
   'no-address': 'link',
   link: 'link',
   local: 'gateway',
@@ -795,6 +856,7 @@ export const ETHER_CAUSE_LABELS: Record<EtherCause, string> = {
   disabled: 'DISABLED',
   'link-lost': 'LINK LOST',
   auth: 'AUTH',
+  'address-conflict': 'ADDRESS CONFLICT',
   'no-address': 'NO ADDRESS',
   'sign-in': 'SIGN-IN NEEDED',
   'upstream-lost': 'UPSTREAM LOST',
@@ -819,6 +881,7 @@ export type EtherEventKind =
   | 'crc'
   | 'broadcast'
   | 'unseen'
+  | 'conflict'
 
 /** A mark on the timeline and a row in the log. */
 export interface EtherEvent {
@@ -894,6 +957,22 @@ function unseen(before: EtherPoint, after: EtherPoint): EtherEvent[] {
     : []
 }
 
+/** What changed while the link stayed up: a drop inside a second, the speed, the duplex. */
+function whileUp(a: EtherPoint, b: EtherPoint): EtherEvent[] {
+  const out: EtherEvent[] = []
+  const quick = quickDrops(a, b)
+  if (quick > 0) {
+    const times = quick > 1 ? ` (${quick} times)` : ''
+    out.push(event(b.at, 'link-lost', `down and back inside a second${times}`, 0))
+  }
+  if (!isUp(a) || !isUp(b)) return out
+  if (a.speed !== null && b.speed !== null && a.speed !== b.speed)
+    out.push(event(b.at, 'speed', `${speedLabel(a.speed)} → ${speedLabel(b.speed)}`))
+  if (a.duplex !== null && b.duplex !== null && a.duplex !== b.duplex)
+    out.push(event(b.at, 'duplex', `${a.duplex} → ${b.duplex}`))
+  return out
+}
+
 function linkChanges(walk: Walk, a: EtherPoint, b: EtherPoint): EtherEvent[] {
   const out: EtherEvent[] = []
   if (isUp(a) && b.state === 'no-carrier') {
@@ -905,10 +984,7 @@ function linkChanges(walk: Walk, a: EtherPoint, b: EtherPoint): EtherEvent[] {
     walk.downAt = null
     out.push(event(b.at, 'connected', `${speedLabel(b.speed)} ${b.duplex ?? ''}`.trim(), downFor))
   }
-  if (isUp(a) && isUp(b) && a.speed !== null && b.speed !== null && a.speed !== b.speed)
-    out.push(event(b.at, 'speed', `${speedLabel(a.speed)} → ${speedLabel(b.speed)}`))
-  if (isUp(a) && isUp(b) && a.duplex !== null && b.duplex !== null && a.duplex !== b.duplex)
-    out.push(event(b.at, 'duplex', `${a.duplex} → ${b.duplex}`))
+  out.push(...whileUp(a, b))
   if (b.internetState === 'constrained' && a.internetState !== 'constrained')
     out.push(event(b.at, 'sign-in', 'captive portal'))
   return out
@@ -951,6 +1027,21 @@ function counted(walk: Walk, p: EtherPoint): EtherEvent[] {
     )
   walk.stormOn = stormNow
   return out
+}
+
+/** The address conflicts the system logged for this adapter, as events (the last day). */
+export function conflictEvents(link: EtherLink | null): EtherEvent[] {
+  return (link?.conflicts ?? []).map((at) =>
+    event(at, 'conflict', 'another machine claims this address'),
+  )
+}
+
+/** The pane's own events and the system's conflicts together, newest first. */
+export function mergeEtherEvents(
+  seen: readonly EtherEvent[],
+  logged: readonly EtherEvent[],
+): EtherEvent[] {
+  return [...seen, ...logged].sort((a, b) => b.at - a.at || a.key.localeCompare(b.key))
 }
 
 // ---------------------------------------------------------------------------

@@ -12,6 +12,8 @@ const { metrics } = await import('../../src/renderer/stores/metrics.svelte.ts')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { paneMeta } = await import('../../src/renderer/stores/pane-meta.svelte.ts')
 const { etherHistory } = await import('../../src/renderer/widgets/ethernet/history.svelte.ts')
+const { toasts } = await import('../../src/renderer/stores/toasts.svelte.ts')
+const { forgetSaid } = await import('../../src/renderer/lib/fault-report.ts')
 
 /**
  * The Ethernet pane: that it says where the trouble is on a cable, colours the
@@ -157,7 +159,7 @@ describe('EthernetWidget', () => {
 
   it('says there is no adapter when there is none', async () => {
     const { push } = await mount()
-    await push({ links: [], probe: null, limits: [] })
+    await push({ links: [], probe: null, limits: [], problems: [] })
     expect(screen.getByTestId('ether-empty').textContent).toContain('NO WIRED ADAPTER')
     expect(screen.getByTestId('ether-state').textContent).toContain('NO ADAPTER')
   })
@@ -293,5 +295,23 @@ describe('EthernetWidget', () => {
     await play(second.push, 'steady', 5, 6)
     expect(etherHistory.points('stub-eth0').length).toBe(kept + 1)
     expect(etherHistory.bestSpeed('stub-eth0')).toBe(1000)
+  })
+})
+
+describe('EthernetWidget, when the reader has a problem', () => {
+  beforeEach(() => {
+    toasts.clear()
+    forgetSaid()
+  })
+
+  it('says it as a toast, once, and goes on', async () => {
+    const { push } = await mount()
+    await play(push, 'problem', 0, 4)
+    const said = toasts.items.filter((t) => t.title.startsWith('ETHERNET'))
+    expect(said).toHaveLength(1)
+    expect(said[0]?.body).toContain('a made-up failure')
+    expect(said[0]?.tone).toBe('warn')
+    expect(said[0]?.timeoutMs).toBe(0)
+    expect(screen.getByTestId('ether-name').textContent).toBe('Gigabit Ethernet Adapter')
   })
 })

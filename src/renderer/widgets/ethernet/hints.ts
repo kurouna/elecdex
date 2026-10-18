@@ -47,7 +47,7 @@ const STATIC: Record<string, Hint> = {
     title: 'CAUSE',
     body: [
       'Where the trouble is, looked for from this machine outwards: the last minute of echoes, the last ten minutes of the link’s counters. Trouble near the machine shows again at every hop after it, so the nearest bad segment is named.',
-      'CLEAR all well · LINK the cable, the ports or the adapter · LOCAL LINK the hop to the router · OWN UPLOAD this machine filling its uplink · UPSTREAM beyond the router · UPSTREAM LOST the router answers, the internet does not · NO CARRIER no cable, or nothing at its end · AUTH waiting for 802.1X · NO ADDRESS no DHCP answer.',
+      'CLEAR all well · LINK the cable, the ports or the adapter · LOCAL LINK the hop to the router · OWN UPLOAD this machine filling its uplink · UPSTREAM beyond the router · UPSTREAM LOST the router answers, the internet does not · NO CARRIER no cable, or nothing at its end · AUTH waiting for 802.1X · ADDRESS CONFLICT another machine claims this address (the last ten minutes) · NO ADDRESS no DHCP answer.',
     ],
   },
   legend: {
@@ -127,6 +127,7 @@ const STATIC: Record<string, Hint> = {
     title: 'DROPS',
     body: [
       'The link going down and back within a minute, while watched. Unplugging, docking and sleep take longer and are not counted. Drops at a steady interval point at power saving, or a dock reconnecting.',
+      'A drop inside a second, between two readings, is counted from the system’s own count of the link going down: NDIS’s events on Windows, the kernel’s on Linux.',
     ],
     limits: `warn ${L.drops.warn}, bad ${L.drops.bad} in 10 minutes`,
   },
@@ -250,6 +251,12 @@ const STATIC: Record<string, Hint> = {
   'event-broadcast': {
     title: 'BROADCAST',
     body: ['Broadcast frames held over the limit for half a minute.'],
+  },
+  'event-conflict': {
+    title: 'ADDRESS CONFLICT',
+    body: [
+      'The system logged another machine on the network claiming this adapter’s address (Tcpip event 4199, Windows). Traffic to and from it goes astray while it lasts: a fixed address set twice, or a router handing one out twice. The other machine is not named here.',
+    ],
   },
   'event-unseen': {
     title: 'WHILE NOT WATCHED',

@@ -4,6 +4,7 @@ import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import { widgetState } from '../stores/widget-state.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
+import PaneFault from './PaneFault.svelte'
 import { popupPaneId } from './popup.ts'
 import { holdWidgetMetrics } from './widget-metrics.svelte.ts'
 
@@ -107,17 +108,19 @@ function onKeydown(event: KeyboardEvent): void {
       </header>
       <div class="shell-frame body">
         {#key widget}
-          <Widget
-            {paneId}
-            title={definition.title}
-            props={undefined}
-            state={widgetState.popup(paneId)}
-            active={true}
-            visible={true}
-            transitioning={false}
-            {widget}
-            ondone={() => ui.closePopup()}
-          />
+          <PaneFault source={definition.title}>
+            <Widget
+              {paneId}
+              title={definition.title}
+              props={undefined}
+              state={widgetState.popup(paneId)}
+              active={true}
+              visible={true}
+              transitioning={false}
+              {widget}
+              ondone={() => ui.closePopup()}
+            />
+          </PaneFault>
         {/key}
       </div>
     </div>

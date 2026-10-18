@@ -3,6 +3,8 @@ import { type EtherStub, stubEthernet } from '../../src/services/metrics/etherne
 import {
   BROADCAST_FRAME_BYTES,
   buildEtherReport,
+  CONFLICT_WINDOW_MS,
+  conflictEvents,
   diagnoseEthernet,
   dropsIn,
   type EtherLink,
@@ -13,7 +15,10 @@ import {
   etherEvents,
   etherFigures,
   etherSections,
+  mergeEtherEvents,
   powerSuspect,
+  quickDrops,
+  recentConflict,
   speedGrade,
   speedHealth,
   speedLabel,
@@ -388,5 +393,72 @@ describe('the copied report', () => {
     })
     expect(text).not.toContain('192.0.2.31')
     expect(text).toContain('192.0.x.x')
+  })
+})
+
+describe('drops inside a second', () => {
+  /** Two up readings a second apart, the system's count rising by `by` between them. */
+  function quick(by: number): EtherPoint[] {
+    const { points } = played('steady', 3)
+    const [a, b, c] = points as [EtherPoint, EtherPoint, EtherPoint]
+    return [
+      { ...a, carrierDowns: 0 },
+      { ...b, carrierDowns: by },
+      { ...c, carrierDowns: by },
+    ]
+  }
+
+  it('are counted from the system’s count when both readings found the link up', () => {
+    const points = quick(2)
+    expect(quickDrops(points[0] as EtherPoint, points[1] as EtherPoint)).toBe(2)
+    expect(dropsIn(points)).toEqual([points[1]?.at, points[1]?.at])
+  })
+
+  it('are not counted across a reading that saw the link down: that one counts already', () => {
+    const points = quick(1)
+    const down = { ...(points[1] as EtherPoint), state: 'no-carrier' as const }
+    expect(quickDrops(points[0] as EtherPoint, down)).toBe(0)
+    expect(quickDrops(points[0] as EtherPoint, { ...down, state: 'up', carrierDowns: null })).toBe(
+      0,
+    )
+  })
+
+  it('are logged as a link lost for no time, said how many', () => {
+    const events = etherEvents(quick(3))
+    const lost = events.find((e) => e.kind === 'link-lost')
+    expect(lost?.detail).toBe('down and back inside a second (3 times)')
+    expect(lost?.downFor).toBe(0)
+    expect(etherEvents(quick(1)).find((e) => e.kind === 'link-lost')?.detail).toBe(
+      'down and back inside a second',
+    )
+  })
+})
+
+describe('an address conflict', () => {
+  it('is the verdict while it is recent, blamed on the link, with the address', () => {
+    const { diagnosis } = judged('conflict', 20)
+    expect(diagnosis.cause).toBe('address-conflict')
+    expect(diagnosis.health).toBe('bad')
+    expect(diagnosis.evidence).toContain('192.0.2.')
+    expect(etherCulprit(diagnosis)).toBe('link')
+    expect(judged('conflict', 4).diagnosis.cause).toBe('ok')
+  })
+
+  it('stops being the verdict once older than the window', () => {
+    const { link } = judged('conflict', 20)
+    const at = link.conflicts[0] as number
+    expect(recentConflict(link, at + CONFLICT_WINDOW_MS)).toBe(at)
+    expect(recentConflict(link, at + CONFLICT_WINDOW_MS + 1)).toBeNull()
+    expect(recentConflict(link, at - 1)).toBeNull()
+  })
+
+  it('is an event, merged newest first with the pane’s own', () => {
+    const { link, points } = judged('conflict', 20)
+    const logged = conflictEvents(link)
+    expect(logged.map((e) => e.kind)).toEqual(['conflict'])
+    expect(conflictEvents(null)).toEqual([])
+    const merged = mergeEtherEvents(etherEvents(points), logged)
+    expect(merged.map((e) => e.at)).toEqual([...merged.map((e) => e.at)].sort((a, b) => b - a))
+    expect(merged.some((e) => e.kind === 'conflict')).toBe(true)
   })
 })

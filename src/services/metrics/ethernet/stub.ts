@@ -14,6 +14,8 @@ import type { PathProbe } from '@shared/netpath'
  *  - `half`: negotiated at 100 Mb/s half duplex.
  *  - `storm`: 2,400 broadcast frames a second and a lossy gateway (a loop).
  *  - `multicast`: IPTV's 1,600 multicast frames a second, which is no fault.
+ *  - `conflict`: another machine claimed the address five seconds in (Tcpip 4199).
+ *  - `problem`: every reading carries a made-up failure, for the toast.
  *  - `router`, `upstream`, `vpn`, `usb`, `auth`, `unplugged`, `none`, `dual`, `demo`.
  *
  * Pure functions of the time since the collector started, so a spec can wait for
@@ -38,6 +40,8 @@ export const ETHER_STUBS = [
   'unplugged',
   'none',
   'dual',
+  'conflict',
+  'problem',
 ] as const
 export type EtherStub = (typeof ETHER_STUBS)[number]
 
@@ -201,6 +205,7 @@ function link(kind: EtherStub, seconds: number): EtherLink {
     // No cable, no frames: the counters stand where they were.
     counters: counters(s, kind === 'unplugged' ? 0 : seconds),
     carrierDowns: null,
+    conflicts: [],
   }
 }
 
@@ -256,5 +261,11 @@ export function stubEthernet(kind: EtherStub, startedAt: number, now: number): N
       : kind === 'dual'
         ? [link('steady', seconds), dock(seconds)]
         : [link(kind, seconds)]
-  return { links, probe: probe(kind, seconds, at, links), limits: ['no-log'] }
+  if (kind === 'conflict' && seconds >= 5) for (const l of links) l.conflicts = [startedAt + 5000]
+  return {
+    links,
+    probe: probe(kind, seconds, at, links),
+    limits: ['no-log'],
+    problems: kind === 'problem' ? ['the adapters could not be read: a made-up failure'] : [],
+  }
 }

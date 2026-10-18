@@ -18,8 +18,12 @@ import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
 import {
   ETHER_INFO_ENV,
   ETHER_INFO_SCRIPT,
+  ETHER_SCRIPT,
+  ETHER_SCRIPT_ENV,
   ETHER_SOURCE,
   ETHER_SOURCE_ENV,
+  ETHER_WATCH_ENV,
+  ETHER_WATCH_SOURCE,
   etherScript,
   parseEtherLine,
   type RawEtherLine,
@@ -818,6 +822,8 @@ export const SAMPLER_ENV = {
   [GPU_SOURCE_ENV]: GPU_SOURCE,
   [ETHER_SOURCE_ENV]: ETHER_SOURCE,
   [ETHER_INFO_ENV]: ETHER_INFO_SCRIPT,
+  [ETHER_WATCH_ENV]: ETHER_WATCH_SOURCE,
+  [ETHER_SCRIPT_ENV]: ETHER_SCRIPT,
 }
 
 /** The script the sampler runs, for the test that holds it under the command line's limit. */

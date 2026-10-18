@@ -444,3 +444,21 @@ test('the weather place picker opens over its popup, and Escape closes one at a 
     await close()
   }
 })
+
+test('an exception nothing in the page caught is said as a toast, once', async () => {
+  const { page, close } = await launch()
+  try {
+    await page.evaluate(() => {
+      for (let i = 0; i < 2; i++)
+        setTimeout(() => {
+          throw new Error('a made-up fault')
+        }, 0)
+    })
+    const toast = page.getByTestId('toast').filter({ hasText: 'a made-up fault' })
+    await expect(toast).toContainText('elecdex: something failed')
+    await page.waitForTimeout(500)
+    await expect(toast).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})

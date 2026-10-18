@@ -137,6 +137,26 @@ describe.runIf(process.platform === 'win32')('the Windows sampler, for real', ()
       sampler.stop()
     }
   }, 60_000)
+
+  it('sends one round of echoes a second for the Wi-Fi and Ethernet panes together', async () => {
+    const sampler = new WindowsSampler('127.0.0.1')
+    try {
+      await Promise.all([sampler.wifi(), sampler.ethernet()])
+      const from = sampler.readings.get('probe') ?? 0
+      for (let i = 0; i < 6; i += 1) {
+        await Promise.all([sampler.wifi(), sampler.ethernet()])
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+      // Six seconds of both panes: six rounds give or take one, never one for each pane.
+      expect((sampler.readings.get('probe') ?? 0) - from).toBeLessThanOrEqual(7)
+      const net = await sampler.ethernet()
+      // The reader started with nothing to say, and the NDIS watcher counts.
+      expect(net.problems).toEqual([])
+      for (const link of net.links) expect(link.carrierDowns).not.toBeNull()
+    } finally {
+      sampler.stop()
+    }
+  }, 60_000)
 })
 
 describe('the Windows sampler, with a made-up PowerShell', () => {

@@ -13,6 +13,10 @@ import './styles/effects.css'
 
 import { mount } from 'svelte'
 import App from './App.svelte'
+import { watchPageFaults } from './lib/fault-report.ts'
+
+// An exception nothing caught is said as a toast, so it reaches whoever can report it.
+watchPageFaults()
 
 const target = document.getElementById('app')
 if (!target) throw new Error('#app mount point is missing from index.html')

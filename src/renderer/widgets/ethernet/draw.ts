@@ -75,6 +75,7 @@ export const ETHER_EVENT_MARKS: Record<
   crc: { glyph: '◆', tone: 'danger' },
   broadcast: { glyph: '◆', tone: 'warn' },
   unseen: { glyph: '▽', tone: 'accent' },
+  conflict: { glyph: '!', tone: 'danger' },
 }
 
 export interface EtherTimelineInput {

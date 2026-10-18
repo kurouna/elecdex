@@ -213,6 +213,7 @@ export class LinuxEtherReader {
       ...this.rates(name, stat.rx_bytes ?? 0, stat.tx_bytes ?? 0),
       counters: countersOf(stat),
       carrierDowns: downsOf(downs, changes),
+      conflicts: [],
     }
   }
 
