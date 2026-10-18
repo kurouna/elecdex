@@ -225,7 +225,19 @@ test('Ctrl+Shift+K clears the scrollback of the shell that has the keys, and it 
       terminalPane(page).first(),
       platform === 'win32' ? '1..300 | % { $_ }' : 'seq 300',
     )
-    await expect.poll(share, { timeout: 20_000 }).toBeLessThan(0.5)
+    // Cleared only once the 300 lines have all arrived: on GitHub's Windows runner the slider passed
+    // 0.5 with lines still coming, and those after the clear made a scrollback again (0.27 at
+    // once, 0.23 after the reload) - the clear did its work, the test pressed too early.
+    await expect
+      .poll(
+        async () => {
+          const before = await share()
+          await page.waitForTimeout(1000)
+          return before < 0.5 && (await share()) === before
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(true)
     await page.keyboard.press('Control+Shift+KeyK')
     await expect.poll(share, { timeout: 5000 }).toBeGreaterThan(0.75)
     await page.reload()
