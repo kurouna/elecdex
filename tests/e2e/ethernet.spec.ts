@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { launch } from './support.js'
+import { atDesignSize, launch } from './support.js'
 
 /**
  * The Ethernet pane, on the collector's stub (support.ts sets ELECDEX_ETHER_STUB=1,
@@ -83,11 +83,14 @@ test('blames the cable for CRC errors, the figure at fault coloured and not the 
 
 test('logs a drop and the link coming back, and names power saving only after it', async () => {
   test.setTimeout(150_000)
-  const { page, close } = await launch(undefined, {
+  const { app, page, close } = await launch(undefined, {
     layout: alone(),
     env: { ELECDEX_ETHER_STUB: 'flapping' },
   })
   try {
+    // The log is read in the pane as designed: on a smaller screen (CI's runners) the
+    // pane is too short to stack it, it goes behind a tab, and no event row is drawn.
+    await atDesignSize(app, page)
     await expect(page.getByTestId('ether-state')).toContainText('ONLINE', { timeout: 20_000 })
     await expect(page.getByTestId('ether-caution')).toHaveCount(0)
     // The stub's first drop is at 60 s.
