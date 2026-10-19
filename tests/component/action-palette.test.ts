@@ -41,6 +41,8 @@ registerBuiltin({ id: 'clock', title: 'Clock', description: 'the time', popup: t
 const ran: Array<{ action: KeybindingAction; dialogOpen: boolean }> = []
 let release: () => void = () => {}
 let moveFocusTo: HTMLElement | null = null
+/** What the workspace answers for an action: false when it did not apply after all. */
+let runAnswer = true
 let before: HTMLButtonElement
 
 beforeEach(() => {
@@ -62,13 +64,17 @@ beforeEach(() => {
   ]
   ran.length = 0
   moveFocusTo = null
-  // Actions go through `commands`, as the real target sends them.
+  runAnswer = true
+  // Actions go through `commands`, as the real target sends them; the others go.
   targets.action.mockImplementation((action: KeybindingAction) => commands.run(action))
+  for (const target of [targets.layout, targets.theme, targets.pane, targets.settings]) {
+    target.mockReturnValue(true)
+  }
   release = commands.provide({
     run: (action) => {
       ran.push({ action, dialogOpen: ui.dialogOpen })
       moveFocusTo?.focus()
-      return true
+      return runAnswer
     },
     applies: (action) => action !== 'tab.next',
   })
@@ -310,8 +316,108 @@ describe('running', () => {
   })
 })
 
+describe('what a review found (2026-10-20)', () => {
+  it('gives the keyboard back to where it went when it opened over a popped-up pane', async () => {
+    render(ActionPalette)
+    // A field in a popped-up pane has the keyboard; opening the palette puts the popup away,
+    // and the popup's own clean-up, later in the same flush, gives the keyboard back to the
+    // element it took it from.
+    const inPopup = document.createElement('input')
+    document.body.append(inPopup)
+    inPopup.focus()
+    ui.openPalette()
+    flushSync()
+    inPopup.remove()
+    before.focus()
+    await settle()
+    press('Escape')
+    await settle()
+    expect(document.activeElement).toBe(before)
+  })
+
+  it('keeps the keyboard in the filter when a click only arms a row', async () => {
+    const input = await open()
+    await type(input, 'quit')
+    // A press focuses the button it is on, as Chromium does; jsdom's click does not.
+    selected()?.focus()
+    selected()?.click()
+    await settle()
+    expect(selected()?.textContent).toContain('enter again to quit')
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('disarms a row when the pointer moves to another', async () => {
+    await open()
+    const row = (key: string) =>
+      document.querySelector(`[data-testid=action-palette-row][data-key="${key}"]`) as HTMLElement
+    row('action:app.quit').dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
+    flushSync()
+    press('Enter')
+    expect(row('action:app.quit').textContent).toContain('enter again')
+    row('action:pane.close').dispatchEvent(new PointerEvent('pointermove', { bubbles: true }))
+    flushSync()
+    expect(document.querySelector('.armed')).toBeNull()
+    expect(footer()).not.toContain('Enter again')
+  })
+
+  it('runs a row clicked, as Enter would', async () => {
+    const input = await open()
+    await type(input, 'split right')
+    selected()?.click()
+    await settle()
+    expect(ran.map((r) => r.action)).toEqual(['pane.splitRight'])
+    expect(ui.paletteOpen).toBe(false)
+  })
+
+  it('leaves a row out of the recent ones when it did not run after all', async () => {
+    runAnswer = false
+    targets.layout.mockResolvedValue(false)
+    const input = await open()
+    await type(input, 'split right')
+    press('Enter')
+    await settle()
+    ui.openPalette()
+    await settle()
+    await type(
+      document.querySelector('[data-testid=action-palette-filter]') as HTMLInputElement,
+      'night',
+    )
+    press('Enter')
+    await settle()
+    ui.openPalette()
+    await settle()
+    expect(document.querySelector('[data-testid=action-palette-heading]')?.textContent).toBe(
+      'action',
+    )
+    expect(input).toBeDefined()
+  })
+
+  it('takes its keys only without Ctrl, Alt or the system key', async () => {
+    await open()
+    const tab = press('Tab', { ctrlKey: true })
+    const enter = press('Enter', { altKey: true })
+    expect(tab.defaultPrevented).toBe(false)
+    expect(enter.defaultPrevented).toBe(false)
+    expect(
+      document
+        .querySelector('[data-testid=action-palette-kind][aria-checked=true]')
+        ?.getAttribute('data-kind'),
+    ).toBe('all')
+    expect(ui.paletteOpen).toBe(true)
+    expect(ran).toEqual([])
+  })
+})
+
 describe('dispatch', () => {
   const item = (key: string, kind: string) => ({ key, kind }) as never
+
+  it('answers whether the row went, as its target says', async () => {
+    targets.layout.mockResolvedValue(false)
+    expect(await dispatch(item('layout:l2', 'layout'), targets)).toBe(false)
+    expect(await dispatch(item('theme:amber', 'theme'), targets)).toBe(true)
+    // An id no action has goes nowhere.
+    expect(await dispatch(item('action:no.such', 'action'), targets)).toBe(false)
+  })
 
   it('sends each kind where it goes', () => {
     dispatch(item('action:pane.close', 'action'), targets)

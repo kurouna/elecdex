@@ -232,6 +232,62 @@ test('it opens over a pane popped up, which goes; other keys stay shut out there
   }
 })
 
+test('opened over a pane popped up from a shell, it gives the keyboard back to the shell', async () => {
+  // Found in review (2026-10-20): the palette took the popup's field as where to give the
+  // keyboard back, and that field was gone by the time it closed.
+  const { page, close } = await start(SHELL_AND_CLOCK)
+  try {
+    const shell = page.locator('[data-testid=pane][data-pane-id=sh] .xterm-helper-textarea')
+    await shell.focus()
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(page.getByTestId('popup-pane')).toBeVisible()
+    await page.keyboard.press('Control+Shift+KeyP')
+    await expect(palette(page)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(palette(page)).toHaveCount(0)
+    await expect(shell).toBeFocused()
+  } finally {
+    await close()
+  }
+})
+
+test('a pane row pops up what can be, and adds what cannot beside the focused pane', async () => {
+  const { page, close } = await start(ONE_CLOCK)
+  try {
+    await page.locator('[data-testid=pane][data-pane-id=c]').click()
+    await find(page, 'calendar', 'pane:calendar')
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('popup-pane')).toBeVisible()
+    await expect(panes(page)).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('popup-pane')).toHaveCount(0)
+    await page.locator('[data-testid=pane][data-pane-id=c]').click()
+    await find(page, 'terminal', 'pane:terminal')
+    await page.keyboard.press('Enter')
+    await expect(page.locator('[data-testid=pane][data-widget=terminal]')).toHaveCount(1)
+    await expect(panes(page)).toHaveCount(2)
+  } finally {
+    await close()
+  }
+})
+
+test('a saved layout row asks first while shells are open, as its number key does', async () => {
+  // A first start, given the presets as saved layouts: the default layout, with its shells.
+  const { page, close } = await start(undefined, { env: { ELECDEX_SEED_LAYOUTS: '1' } })
+  try {
+    const before = await panes(page).count()
+    await page.keyboard.press('Control+Shift+KeyP')
+    await page.getByTestId('action-palette-filter').fill('network')
+    await expect(selectedRow(page)).toHaveAttribute('data-key', /^layout:/)
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('switch-layout-dialog')).toBeVisible()
+    await page.getByTestId('switch-layout-cancel').click()
+    await expect(panes(page)).toHaveCount(before)
+  } finally {
+    await close()
+  }
+})
+
 test('a key the user rebound opens it, and the rows name the keys as bound', async () => {
   const { page, close } = await start(ONE_CLOCK, {
     settings: {

@@ -15,55 +15,64 @@ import { paneChoice } from './sources.ts'
  * (Q5), a settings section as the dialog opens at one. The palette has closed by then.
  */
 
+/** Each says whether the row went: false (or a promise of false) when it did nothing after all. */
+type Went = boolean | Promise<boolean>
+
 export interface PaletteTargets {
-  action(id: KeybindingAction): void
-  layout(id: string): void
-  theme(id: string): void
-  pane(widget: string): void
-  settings(section: string): void
+  action(id: KeybindingAction): Went
+  layout(id: string): Went
+  theme(id: string): Went
+  pane(widget: string): Went
+  settings(section: string): Went
 }
 
 const isAction = (id: string): id is KeybindingAction => KEYBINDING_ACTIONS.some((a) => a.id === id)
 
-/** Sends a row to its target by its kind, with the id its key carries after the kind. */
-export function dispatch(item: PaletteItem, targets: PaletteTargets): void {
+/**
+ * Sends a row to its target by its kind, with the id its key carries after the kind, and says
+ * whether it went: what was offered may have changed between the drawing and the Enter (a
+ * shortcut no longer applying, a layout switch answered no), and a row that did nothing is not
+ * remembered as run.
+ */
+export function dispatch(item: PaletteItem, targets: PaletteTargets): Went {
   const id = item.key.slice(item.kind.length + 1)
   switch (item.kind) {
     case 'action':
-      if (isAction(id)) targets.action(id)
-      return
+      return isAction(id) && targets.action(id)
     case 'preset': {
       const action = `layout.preset.${id}`
-      if (isAction(action)) targets.action(action)
-      return
+      return isAction(action) && targets.action(action)
     }
     case 'layout':
-      targets.layout(id)
-      return
+      return targets.layout(id)
     case 'theme':
-      targets.theme(id)
-      return
+      return targets.theme(id)
     case 'pane':
-      targets.pane(id)
-      return
+      return targets.pane(id)
     case 'settings':
-      targets.settings(id)
-      return
+      return targets.settings(id)
   }
 }
 
 export const storeTargets: PaletteTargets = {
-  action: (id) => void commands.run(id),
+  action: (id) => commands.run(id),
   // The question about the shells is the switch's own (`mayReplace`).
-  layout: (id) => void layout.switchTo(id),
-  theme: (id) => void appearance.patch({ theme: id }).then(() => sfx.play('theme')),
+  layout: (id) => layout.switchTo(id),
+  theme: (id) => {
+    void appearance.patch({ theme: id }).then(() => sfx.play('theme'))
+    return true
+  },
   pane: (widget) => {
     const definition = resolveWidget(widget)
-    if (definition === null) return
+    if (definition === null) return false
     const choice = paneChoice(definition, definition.multiple ? null : layout.paneWith(widget))
     if (choice.kind === 'focus') layout.focus(choice.paneId)
     else if (choice.kind === 'add') layout.addPane(widget, choice.placement)
     else if (choice.kind === 'popup') ui.openPopup(widget)
+    return choice.kind !== 'none'
   },
-  settings: (section) => ui.openSettings(section),
+  settings: (section) => {
+    ui.openSettings(section)
+    return true
+  },
 }

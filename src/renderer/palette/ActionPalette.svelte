@@ -112,12 +112,19 @@ const footer = $derived.by(() => {
 
 $effect(() => {
   if (!ui.paletteOpen) return
-  returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
   filter = ''
   kind = 'all'
   selected = 0
   armed = null
-  queueMicrotask(() => input?.focus())
+  // Where the keyboard is is read after this flush, not in it: opened over a popped-up pane,
+  // the palette's effect runs before the popup's clean-up gives the keyboard back to where it
+  // was (the shell), and would take the popup's field, gone by the time it closes.
+  queueMicrotask(() => {
+    if (!ui.paletteOpen) return
+    const active = document.activeElement
+    returnFocus = active instanceof HTMLElement && active !== input ? active : null
+    input?.focus()
+  })
   return () => {
     returnFocus?.focus()
     returnFocus = null
@@ -145,16 +152,27 @@ function choose(row: PaletteRow | undefined): void {
   if (item.state.kind !== 'ready') return
   if (item.arm && armed !== item.key) {
     armed = item.key
+    // A click arms too, and a pressed button keeps the keyboard: give it back to the filter.
+    input?.focus()
     return
   }
-  recent = remember(recent, item.key)
   armed = null
   ui.closePalette()
   // Given back now, before the row runs, so what the row does with the keyboard (a shell
   // focused, a pane added) is not undone by the close's clean-up after it.
   returnFocus?.focus()
   returnFocus = null
-  dispatch(item, storeTargets)
+  void Promise.resolve(dispatch(item, storeTargets)).then((went) => {
+    // Only what ran is remembered: a switch answered no, or a key no longer applying, is not.
+    if (went) recent = remember(recent, item.key)
+  })
+}
+
+/** Selects a row under the pointer; leaving an armed row disarms it, as the arrows do. */
+function point(i: number): void {
+  if (i === selected) return
+  selected = i
+  armed = null
 }
 
 /** Moves the selection: round the ends one at a time, stopping at them by pages. */
@@ -193,6 +211,8 @@ function onKeydown(event: KeyboardEvent): void {
   if (!ui.paletteOpen) return
   // A word being composed (an IME) has the keys until it is put down.
   if (event.isComposing || event.keyCode === 229) return
+  // With Ctrl, Alt or the system key it is a shortcut, not one of the palette's keys.
+  if (event.ctrlKey || event.altKey || event.metaKey) return
   const handle = KEYS[event.key]
   if (handle === undefined) return
   event.preventDefault()
@@ -273,7 +293,7 @@ function stateWords(item: PaletteItem): string {
                 class:selected={i === selected}
                 class:unavailable={item.state.kind !== 'ready'}
                 class:armed={item.key === armed}
-                onpointermove={() => (selected = i)}
+                onpointermove={() => point(i)}
                 onclick={() => choose(row)}
                 data-testid="action-palette-row"
                 data-key={item.key}
