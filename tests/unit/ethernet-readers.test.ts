@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import {
   parseIfconfig,
@@ -19,6 +20,7 @@ import { ETHER_STUBS, etherStubFrom, stubEthernet } from '../../src/services/met
 import {
   busOf,
   duplexOf,
+  ETHER_INFO_ENV,
   ETHER_INFO_SCRIPT,
   ETHER_SCRIPT,
   ETHER_SCRIPT_ENV,
@@ -284,6 +286,44 @@ describe('Windows', () => {
     expect(net.links[0]?.conflicts).toEqual([1_790_000_000_000])
     expect(parseEtherLine({ rows: [{ i: 3, o: 1, ad: 1, m: 1 }] }).rows[0]?.dn).toBeNull()
   })
+})
+
+describe.runIf(process.platform === 'win32')('the Windows settings read, run', () => {
+  // EtherInfoStep and EtherInfoCollect as the sampler runs them, given a row whose adapter is not
+  // there (as one pulled out between GetIfTable2's row and its read). Each step waits for the read.
+  const SCRIPT = `
+    . ([scriptblock]::Create($env:${ETHER_SCRIPT_ENV}))
+    function Step($rows) {
+      EtherInfoStep $rows
+      $asked = $null -ne $script:etherJob
+      if ($asked) { [void]$script:etherJob.h.AsyncWaitHandle.WaitOne(60000) }
+      $asked
+    }
+    $gone = @(@{ i = 2147480000; m = 1 })
+    $asked = @((Step $gone), (Step $gone), (Step $gone), (Step @()), (Step $gone))
+    @{ asked = $asked; err = @($script:etherErr); info = $script:etherInfo.Count } | ConvertTo-Json -Compress
+  `
+  it('an adapter gone before its read is not a problem, and is asked again only once', () => {
+    const out = JSON.parse(
+      execFileSync(
+        'powershell.exe',
+        ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', SCRIPT],
+        {
+          env: {
+            ...process.env,
+            [ETHER_SCRIPT_ENV]: ETHER_SCRIPT,
+            [ETHER_INFO_ENV]: ETHER_INFO_SCRIPT,
+          },
+          encoding: 'utf8',
+        },
+      ),
+    )
+    // Issue #25: a USB adapter pulled out was a toast, "could not be read", in the user's language.
+    expect(out.err).toEqual([])
+    expect(out.info).toBe(0)
+    // Asked, asked once more, then left; gone from the rows and back, it is asked again.
+    expect(out.asked).toEqual([true, true, false, false, true])
+  }, 120_000)
 })
 
 describe('Linux', () => {

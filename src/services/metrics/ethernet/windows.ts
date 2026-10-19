@@ -287,7 +287,11 @@ foreach ($i in $indexes) {
     $r.adv = $props
     $hw = Get-NetAdapterHardwareInfo -InterfaceDescription $a.InterfaceDescription -ErrorAction SilentlyContinue
     if ($hw) { $r.ps = [string]$hw.PcieLinkSpeed; $r.pw = [string]$hw.PcieLinkWidth }
-  } catch { $r.err = [string]$_.Exception.Message }
+  } catch {
+    # An adapter pulled out (a USB one, a dock) can still be a row when its read starts: gone, not
+    # a fault. Told by the error's category, as its message is in the user's language.
+    if ($_.CategoryInfo.Category -eq 'ObjectNotFound') { $r.gone = $true } else { $r.err = [string]$_.Exception.Message }
+  }
   $r
 }
 `
@@ -317,6 +321,7 @@ $etherRoute = @{}
 $etherGws = @()
 $etherInfo = @{}
 $etherMedia = @{}
+$etherGone = @{}
 $etherAsk = @{}
 $etherJob = $null
 
@@ -404,13 +409,17 @@ function EtherNics($rows) {
 }
 
 # Adapters newly seen, or whose link just came up, are read again in the runspace: one at a time.
+# One found gone is asked once more while it is still a row, then not until it has left the rows
+# and come back (plugged in again).
 function EtherInfoStep($rows) {
   EtherInfoCollect
+  $seen = @($rows | ForEach-Object { [int]$_['i'] })
+  foreach ($k in @($script:etherGone.Keys)) { if ($seen -notcontains $k) { $script:etherGone.Remove($k) } }
   $busy = if ($null -ne $script:etherJob) { $script:etherJob.ix } else { @() }
   foreach ($r in $rows) {
     $i = [int]$r['i']
     $up = $r['m'] -eq 1
-    $unknown = -not $script:etherInfo.ContainsKey($i) -and $busy -notcontains $i
+    $unknown = -not $script:etherInfo.ContainsKey($i) -and $busy -notcontains $i -and $script:etherGone[$i] -lt 2
     if ($unknown -or ($up -and $script:etherMedia[$i] -ne 1)) { $script:etherAsk[$i] = $true }
     $script:etherMedia[$i] = $r['m']
   }
@@ -427,7 +436,10 @@ function EtherInfoCollect {
   if ($null -ne $script:etherJob -and $script:etherJob.h.IsCompleted) {
     try {
       foreach ($x in $script:etherJob.ps.EndInvoke($script:etherJob.h)) {
-        $script:etherInfo[[int]$x['i']] = $x
+        $i = [int]$x['i']
+        if ($x['gone']) { $script:etherInfo.Remove($i); $script:etherGone[$i] = 1 + $script:etherGone[$i]; continue }
+        $script:etherGone.Remove($i)
+        $script:etherInfo[$i] = $x
         if ($x['err']) { EtherProblem ('the settings of an adapter could not be read: ' + $x['err']) }
       }
     } catch { EtherProblem ('the settings of the adapters could not be read: ' + $_.Exception.Message) }
