@@ -23,7 +23,7 @@
   ▶ <a href="https://youtu.be/LgbC3Iubot0">2 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
-> **v0.0.35 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.36 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -242,7 +242,6 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 
 - **操作面板** — 按 Ctrl+Shift+P，输入文字即可查找并执行所有快捷键操作、已保存布局、预设、主题、窗格和
   设置分区，每一行都显示当前的按键。当前无法执行的行会变暗并注明原因；无法撤销的操作需按两次 Enter。
-  *unreleased*
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-palette.jpg" alt="Tron 主题下标准布局上方的操作面板，输入了 layout：各类行（all、action、layout、preset、theme、pane、settings）以带数量的按钮排列，找到的行为 Reset layout 和 Saved layouts（layout 带下划线），接着是 9 个已保存布局和预设，右侧是各自的按键，standard 标为 current">
@@ -335,7 +334,7 @@ Ctrl+Shift+[ / ] 即 Ctrl+Shift+@ / [）。应用内的列表和提示会按你�
 | Ctrl+Shift+← / → | 当前标签组（例如 shell 的标签页）中的上一个 / 下一个标签页 |
 | Ctrl+Alt+Shift+← / → | 在 shell 中：上一个 / 下一个 shell 窗格（或 shell 标签组） |
 | Ctrl+Shift+A | 添加窗格：任意组件，放在当前窗格右侧、下方或作为其旁边的标签页 |
-| Ctrl+Shift+P | 输入文字查找并执行：所有快捷键操作、已保存布局、预设、主题、窗格和设置分区，并显示各自的按键；无法撤销的操作需按两次 Enter *unreleased* |
+| Ctrl+Shift+P | 输入文字查找并执行：所有快捷键操作、已保存布局、预设、主题、窗格和设置分区，并显示各自的按键；无法撤销的操作需按两次 Enter |
 | Ctrl+Shift+Backspace | 重置为默认布局（有 shell 打开时，与切换布局一样先询问） |
 | Ctrl+Shift+G | 已保存布局：给当前排布命名保存，或回到某个布局 |
 | Ctrl+Shift+1 … 9、0 | 应用前十个已保存布局，顺序与对话框中的列表一致（0 为第十个） |
