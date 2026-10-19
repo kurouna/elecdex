@@ -2,7 +2,7 @@
 
 キー 1 つで開き、文字で絞り込んで、ショートカットのアクション・保存レイアウト・プリセット・テーマ・ペイン・
 設定のセクションを呼び出すダイアログ（issue 23 の後半）。見た目はモック docs/palette-mock で合意を取る。
-このモックの数値と項目は作り物で、注記の一部はこの設計で改めた（§9）。
+このモックの数値と項目は作り物で、注記の一部はこの設計で改めた（§9）。実装済み（2026-10-19）。実装で設計から変えた点は §11。要約は architecture.md §5.24。
 
 方針は利用者の指定（2026-10-19）による。
 
@@ -120,6 +120,7 @@ export interface PaletteItem {
   detail: string // 説明の列とフッター
   words: readonly string[] // 名前の外で探す言葉（id、別名）
   chord: string | null // 書式済み。割り当てがなければ null
+  note: string | null // 行の右端の言葉（ペイン: pop up・add・on screen · focus）
   state: PaletteState
   arm: boolean // Enter 2 回
 }
@@ -355,3 +356,12 @@ Enter
 
 - PanePicker のキー処理は `isComposing` を見ていない。変換を確定する Enter でペインが足される恐れがある（未確認。Windows の Chromium では変換中の keydown が `key: 'Process'` になり起きない可能性があり、macOS は分からない）。パレットでは最初から避ける（§2）。ピッカーは、手で確かめたうえで、テストつきの別の変更にする。
 - ピッカーとパレットの CSS は写しになる。揃えておくための共通化（例: `styles/finder.css`）は、両方ができてから別の変更にする。
+
+## 11. 実装で変えたこと
+
+- `PaletteItem` に `note` を足した。ペインの行の右端に、Enter で何が起きるか（`pickerRowState` の言葉）を出すため。
+- 名前の外の一致は、`words` だけでなく種類の名前と `detail` も、書いたとおりの部分文字列で探す（テーマの説明の「light」などで見つかるように）。名前は文字の順。単語の頭で始まる連続した一致がいちばん上。
+- shared/palette.ts に純粋な関数を足した: `remember`（RECENT）、`nextKind`（Tab）、`nameParts`（下線の区切り）、`armVerb`（ENTER AGAIN の言葉）、`ACTION_DETAIL`（アクションの説明）。どれもユニットテストがある。
+- run.ts は、種類ごとの行き先（`PaletteTargets`）と、それを stores につないだ `storeTargets` に分けた。コンポーネントのテストは `storeTargets` だけを差し替える。
+- 一致がないときの文は `nothing matches “…”`、種類を絞っているときは ` in <kind> · tab for every kind` を添える。
+- biome の対象から docs/agents-mock と docs/palette-mock を外した（ほかのモックと同じ。HTML のモックが lint を赤にしていた）。

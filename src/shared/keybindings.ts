@@ -62,6 +62,9 @@ export const KEYBINDING_ACTIONS = [
   { id: 'shell.next', label: 'Next shell pane', chord: 'Ctrl+Alt+Shift+ArrowRight' },
   { id: 'shell.previous', label: 'Previous shell pane', chord: 'Ctrl+Alt+Shift+ArrowLeft' },
   { id: 'settings.open', label: 'Open settings', chord: 'Ctrl+Shift+Period' },
+  // Every action, layout, preset, theme, pane and settings section, found by typing
+  // (docs/palette.md). Not a row of its own list.
+  { id: 'palette.open', label: 'Find an action', chord: 'Ctrl+Shift+KeyP' },
   { id: 'window.fullscreen', label: 'Toggle fullscreen', chord: 'F11' },
   {
     id: 'window.minimize',

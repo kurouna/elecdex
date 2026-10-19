@@ -326,6 +326,7 @@ Ctrl+Shift+[ / ] 即 Ctrl+Shift+@ / [）。应用内的列表和提示会按你�
 | Ctrl+Shift+← / → | 当前标签组（例如 shell 的标签页）中的上一个 / 下一个标签页 |
 | Ctrl+Alt+Shift+← / → | 在 shell 中：上一个 / 下一个 shell 窗格（或 shell 标签组） |
 | Ctrl+Shift+A | 添加窗格：任意组件，放在当前窗格右侧、下方或作为其旁边的标签页 |
+| Ctrl+Shift+P | 输入文字查找并执行：所有快捷键操作、已保存布局、预设、主题、窗格和设置分区，并显示各自的按键；无法撤销的操作需按两次 Enter *unreleased* |
 | Ctrl+Shift+Backspace | 重置为默认布局（有 shell 打开时，与切换布局一样先询问） |
 | Ctrl+Shift+G | 已保存布局：给当前排布命名保存，或回到某个布局 |
 | Ctrl+Shift+1 … 9、0 | 应用前十个已保存布局，顺序与对话框中的列表一致（0 为第十个） |

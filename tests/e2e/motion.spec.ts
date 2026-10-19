@@ -685,7 +685,7 @@ const keysThen = (page: Page, keys: Key[], selector: string) =>
     { keys, selector },
   )
 
-test('a dialog powers off as it closes: the pane picker, the settings, the layouts, the weather location and a pane popped up', async () => {
+test('a dialog powers off as it closes: the pane picker, the action palette, the settings, the layouts, the weather location and a pane popped up', async () => {
   const { page, close } = await launch(undefined, {
     layout: { version: 1, root: paneNode('w', 'weather') },
     settings: { launcher: { showSystem: false, items: [] } },
@@ -693,6 +693,7 @@ test('a dialog powers off as it closes: the pane picker, the settings, the layou
   try {
     const dialogs = [
       { testid: 'pane-picker', open: () => page.keyboard.press('Control+Shift+KeyA') },
+      { testid: 'action-palette', open: () => page.keyboard.press('Control+Shift+KeyP') },
       { testid: 'settings-dialog', open: () => page.keyboard.press('Control+Shift+Period') },
       { testid: 'layouts-dialog', open: () => page.keyboard.press('Control+Shift+KeyG') },
       {

@@ -963,6 +963,33 @@ test.describe('web panes', () => {
     }
   })
 
+  test('give the action palette its key from the page, and step aside for it', async () => {
+    const app = await start()
+    const { page } = app
+    try {
+      await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      await inPage(app, 'document.querySelector("#field").focus(); 1')
+      await app.app.evaluate(({ BrowserWindow }) => {
+        const view = BrowserWindow.getAllWindows()[0]?.contentView.children[0]
+        const contents = (view as Electron.WebContentsView).webContents
+        contents.focus()
+        for (const type of ['keyDown', 'char', 'keyUp'] as const) {
+          contents.sendInputEvent({ type, keyCode: 'P', modifiers: ['control', 'shift'] })
+        }
+      })
+      await expect(page.getByTestId('action-palette')).toBeVisible()
+      await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
+      expect(await inPage<string>(app, 'document.querySelector("#field").value')).toBe('')
+      // The keyboard is the workspace's, as with the picker: the filter takes what is typed.
+      await page.keyboard.type('amber')
+      await expect(page.getByTestId('action-palette-filter')).toHaveValue('amber')
+      await page.keyboard.press('Escape')
+      await expectShownOverBody(app)
+    } finally {
+      await app.close()
+    }
+  })
+
   test('leave the page the keys of shortcuts that would do nothing, and still take the rest', async () => {
     // A web pane beside a clock: no tab group, no shell, so the tab keys and the shells' type
     // size do nothing here (issue 20) - and were taken from the page all the same.

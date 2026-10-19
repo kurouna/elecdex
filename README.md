@@ -363,6 +363,7 @@ own lists and tooltips name them as your keyboard prints them.
 | Ctrl+Shift+← / → | previous / next tab in the focused tab group, such as the shell's tabs |
 | Ctrl+Alt+Shift+← / → | from a shell: previous / next shell pane (or group of shell tabs) |
 | Ctrl+Shift+A | add a pane: any widget, right of, below or as a tab beside the focused pane |
+| Ctrl+Shift+P | find an action by typing: every shortcut, saved layout, preset, theme, pane and settings section, each with its key; what cannot be undone takes Enter twice *unreleased* |
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open, as a switch does) |
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
 | Ctrl+Shift+1 … 9, 0 | apply the first ten saved layouts, in the order the dialog lists them (0 is the tenth) |

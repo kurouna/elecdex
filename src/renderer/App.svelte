@@ -15,6 +15,7 @@ import Workspace from './layout/Workspace.svelte'
 import { chordHint } from './lib/chord-hint.ts'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
 import { keyLabels } from './lib/key-labels.svelte.ts'
+import ActionPalette from './palette/ActionPalette.svelte'
 import { plugins } from './plugins/plugins.svelte.ts'
 import QuakeAlert from './QuakeAlert.svelte'
 import SettingsDialog from './SettingsDialog.svelte'
@@ -245,6 +246,7 @@ function toggleSound(): void {
 
 <BootScreen />
 <PanePicker />
+<ActionPalette />
 <PopupPane />
 <LayoutsDialog />
 <SwitchLayoutDialog />

@@ -1666,6 +1666,15 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 - **Linux と macOS は実機で使っていない**: パーサを単体テストし、GitHub Actions の e2e がスタブで通るだけ。Linux の
   `carrier_down_count` による 1 秒未満の断、macOS の `ifconfig` の media 行の読み方は、実物の出力で確かめていない。
 
+### 5.24 アクションパレット（文字で探して実行する）
+
+Ctrl+Shift+P で開くダイアログ（palette/ActionPalette.svelte）。ショートカットのアクション・保存レイアウト・プリセット・テーマ・ペイン・設定のセクションを、文字で絞り込んで実行する。設計と理由は [palette.md](palette.md)、合意したモックは docs/palette-mock。
+- **形**: ペイン追加のピッカーと同じ枠・入力欄・行・CRT の点灯と消灯。新しいアニメーションはない
+- **疎結合**: パレットは Workspace を import しない。Workspace がマウント中に `lib/commands.ts` へ自分の `run` を渡し、アクションとプリセットの行はそこを通る。キーと同じ `shortcutApplies` を通るので、行はキーと同じことをする。今使えない行は理由つきで薄く残す
+- **項目**: 種類ごとに 1 つの純粋な関数（palette/sources.ts）。順位付けは shared/palette.ts の `rankItems`（名前は文字の順、ほかの言葉は書いたとおり）
+- **Enter 2 回**: 終了・スクロールバックの消去と、確認ダイアログが聞かないときのリセット（`armsFirst`）
+- **RECENT** はページのメモリだけ。テーマの試し当て、個々の設定、プラグインが項目を足す API は入れていない
+
 ## 6. ターミナル設計
 
 ### 6.1 構成

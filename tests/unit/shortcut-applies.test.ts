@@ -131,6 +131,15 @@ describe('shortcutsLeftToPage', () => {
     expect(left.has('window.toggle')).toBe(false)
   })
 
+  it('always opens the action palette, so a web page never keeps its key', () => {
+    const nothing: ShortcutFacts = { ...LONE_WEB_PANE, zoomable: false }
+    for (const facts of [ALL, LONE_WEB_PANE, nothing]) {
+      expect(shortcutApplies('palette.open', facts)).toBe(true)
+      expect(shortcutsLeftToPage(facts)).not.toContain('palette.open')
+    }
+    expect([...LeftToPageSchema.parse(['palette.open'])]).toEqual(['palette.open'])
+  })
+
   it('leaves nothing when everything applies', () => {
     expect(shortcutsLeftToPage(ALL)).toEqual([])
   })

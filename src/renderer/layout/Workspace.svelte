@@ -9,6 +9,7 @@ import { neighbourShell, neighbourTab } from '@shared/layout-ops'
 import { stepFontSize } from '@shared/settings'
 import { type ShortcutFacts, shortcutApplies, shortcutsLeftToPage } from '@shared/shortcut-applies'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
+import { commands } from '../lib/commands.ts'
 import { forgetGonePanes } from '../lib/pane-memory.ts'
 import { editingText } from '../lib/text-field.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
@@ -219,6 +220,8 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'shell.next': () => cycleShell(1),
   'shell.previous': () => cycleShell(-1),
   'settings.open': () => ui.openSettings(),
+  // Every action, layout, theme and pane, by typing (palette/ActionPalette.svelte).
+  'palette.open': () => ui.openPalette(),
   'window.fullscreen': () => window.elecdex.system.toggleFullscreen(),
   'window.minimize': () => window.elecdex.system.minimize(),
   // Fullscreen has no window frame and no close button; this is the way out.
@@ -333,11 +336,23 @@ function run(action: KeybindingAction, editing: boolean): boolean {
 
 /**
  * And over a pane popped up, which is a dialog of its own, the shortcuts that
- * call up a pane (layout/summon.ts), which put theirs in its place. Only while
+ * call up a pane (layout/summon.ts), which put theirs in its place, and the action
+ * palette's, which puts it away as any dialog does (docs/palette.md Q6). Only while
  * nothing is over the popup (ui.svelte.ts), so no other dialog is let through.
  */
 const throughDialog = (action: KeybindingAction): boolean =>
-  THROUGH_DIALOGS.has(action) || (ui.popupOnTop && isSummonAction(action))
+  THROUGH_DIALOGS.has(action) ||
+  (ui.popupOnTop && (isSummonAction(action) || action === 'palette.open'))
+
+// The action palette runs the shortcuts through here (lib/commands.ts), as their keys would.
+// Whether one applies is asked of the facts alone: `run` refuses everything while the palette,
+// a dialog, is open.
+$effect(() =>
+  commands.provide({
+    run: (action) => run(action, false),
+    applies: (action) => shortcutApplies(action, shortcutFacts(layout.focusedPaneId, false)),
+  }),
+)
 
 function onKeydown(event: KeyboardEvent): void {
   // While a shortcut is being recorded in the settings, every key goes there.

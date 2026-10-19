@@ -207,6 +207,18 @@ describe('the preset keys', () => {
   })
 })
 
+describe('the action palette', () => {
+  it('opens with Ctrl+Shift+P, on every platform, in the page', () => {
+    const palette = KEYBINDING_ACTIONS.find((action) => action.id === 'palette.open')
+    expect(palette?.chord).toBe('Ctrl+Shift+KeyP')
+    for (const platform of ['win32', 'darwin', 'linux'] as const) {
+      expect(availableOn('palette.open', platform), platform).toBe(true)
+      expect(keymap({}, platform).get('Ctrl+Shift+KeyP'), platform).toBe('palette.open')
+    }
+    expect(isGlobal('palette.open')).toBe(false)
+  })
+})
+
 describe('the chord a button names', () => {
   it('is the action’s own, as the user has bound it', () => {
     expect(actionChord('pane.close', {}, 'win32')).toBe('Ctrl+Shift+W')

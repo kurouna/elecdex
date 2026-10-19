@@ -102,8 +102,8 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  cluster.md (the CLUSTER pane), logwatch.md and logwatch-mock/ (the LOG WATCH
                  pane), ethernet-mock/ (the Ethernet pane's mock, beside the Wi-Fi pane's
                  shots), agents-codex.md and agents-mock/ (a Codex source for the AI AGENT
-                 pane, designed, not built), palette.md and palette-mock/ (an action
-                 palette, issue 23, designed, not built), demos.md (making, changing and recording the demos),
+                 pane, designed, not built), palette.md and palette-mock/ (the action
+                 palette, issue 23), demos.md (making, changing and recording the demos),
                  screenshots/ (README images)
 ```
 
@@ -621,6 +621,11 @@ user made; do not reverse one without asking.
   main's OS registrations, out of the page keymap, the list and "reset all", and `conflicts`
   reports the app action as the loser while the OS holds the keys. A tooltip names a chord
   through `chordHint` (lib/chord-hint.ts), as it is bound now - never a chord written out.
+- **The action palette** (§5.24, docs/palette.md, palette/, shared/palette.ts) never imports
+  the workspace: an action or preset row goes through `commands` (lib/commands.ts) to
+  Workspace's own `run`, so it does what its key does; a row that cannot run stays, with its
+  reason (`UNAVAILABLE_REASON`, a unit test holds it to `shortcutApplies`). A new kind of row is
+  one pure function in palette/sources.ts. Focus goes back before a row runs, never after.
 - **Open and close with the CRT effect** (styles/crt.css, lib/crt-transitions.ts): everything that
   appears or goes over the workspace powers on and off.
   - Panes: `layout.arrived`; closing via `layout.closingId` and a `crt-extend` clip
