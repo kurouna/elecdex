@@ -271,8 +271,9 @@ test('closing a pane gives its WebGL contexts back at once', async () => {
       globe: { total: before.globe.total, lost: before.globe.total },
       shell: { total: before.shell.total, lost: before.shell.total },
     })
-    // The panes still open keep theirs.
-    expect(await liveContexts()).toBeGreaterThanOrEqual(2)
+    // The panes still open keep theirs. Waited for, not read once: the tab that comes forward in
+    // place of the closed one takes its own a frame or two later (seen once in a full run).
+    await expect.poll(liveContexts, { timeout: 10_000 }).toBeGreaterThanOrEqual(2)
     expect(warnings).toEqual([])
   } finally {
     await close()
