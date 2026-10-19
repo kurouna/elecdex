@@ -19,9 +19,9 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 
 | コマンド | 内容 | 大きさ・長さ |
 |---|---|---|
-| `demo:tour` | 紹介デモ（起動画面、プリセット、network の ETHERNET と LINK のカード、ORBIT、エージェント、Docker、LOG WATCH、メディア、KEYSTREAM、cockpit、retro、ELEC、テーマ） | 1600×900、起動のあと約 161 秒 |
+| `demo:tour` | 紹介デモ（起動画面、プリセット、network の ETHERNET と LINK のカード、ORBIT、エージェント、Docker、LOG WATCH、メディア、KEYSTREAM、アクションパレットで cockpit、retro、ELEC、テーマ） | 1600×900、起動のあと約 167 秒 |
 | `demo:tour-black` | 同じものを Black テーマで（`--theme=black`） | 同上 |
-| `demo:tour-shorts` | 紹介デモの 9:16 版（2 段のレイアウト。network は Wi-Fi の下に ETHERNET） | 540×960 を zoom 0.75（720×1280 として描く）、起動込みで 2 分以内（約 118 秒） |
+| `demo:tour-shorts` | 紹介デモの 9:16 版（2 段のレイアウト。network は Wi-Fi の下に ETHERNET） | 540×960 を zoom 0.75（720×1280 として描く）、起動込みで 2 分以内（約 116 秒） |
 | `demo:cockpit` | cockpit プリセット単独（カード、全コアの負荷、前に出す、境目のドラッグ、テーマ） | 1600×900、Black、約 61 秒 |
 | `demo:devflow` | dev プリセットの紹介と使い方（standard から Ctrl+Shift+G のダイアログでプリセットの dev を選ぶ、エージェント、Git の差分とコミット、テストの負荷、Docker の再起動、クリップボード、AI チャット、シェル）。英語の字幕付き。`demo:devflow-ja`（`--ja`）は字幕だけ日本語 | 1600×900、約 62 秒 |
 | `demo:logwatch` | LOG WATCH ペイン単独（ファイルを選ぶ、流れる行・×n・NEW、ERROR BURST とスタックトレース、/regex/ の絞り込み、PATTERNS と MUTE、MASK、2 行を選んで EXPLAIN）。英語の字幕付き。ログはテイクが固定の種から書き、AI は代役 | 1280×720、約 55 秒 |
@@ -30,6 +30,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
 | `demo:panes` / `demo:snippets` / `demo:wifi` / `demo:dev` / `demo:elec` / `demo:presets` / `demo:shorts` | X 用の短いもの | |
 | `demo:whatsnew` / `demo:whatsnew22` | そのリリースで増えたもの | |
+| `demo:whatsnew36` | v0.0.35〜v0.0.36 で増えたもの。network プリセットの Wi-Fi の下の ETHERNET（CRC エラーのあるケーブルのスタブ `crc`）を前に出し、LINK と CRC の数字のカード、LOG の CRC ERRORS の行。最後にアクションパレット（Ctrl+Shift+P）で Black のテーマを探して当て、元に戻す | 1600×900、約 27 秒 |
 | `demo:whatsnew34` | v0.0.34 で増えたもの。どれもペインを前に出して見せる（dev プリセットで、AI AGENT のサブエージェントが起動したサブエージェントとそのカード、GIT ペインの PUSH を 2 回押しで代役のリモートへ、GIT の隣のタブに置いた GPU ペイン。最後に cockpit の CLUSTER の GPU レーンと VRAM のスロット） | 1600×900、約 48 秒 |
 
 一覧と一言の説明は CLAUDE.md の Commands にもある。各スクリプトの先頭のコメントに、場面の並びと何が代役かが書いてある。

@@ -14,7 +14,8 @@
  *               then FEVER CALL from the next button, the spectrum moving with what is heard
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
- *   cockpit     the cockpit preset by its key: CLUSTER, the machine on one pane, its CPU lane,
+ *   cockpit     the cockpit preset found in the action palette (Ctrl+Shift+P), typed: CLUSTER,
+ *               the machine on one pane, its CPU lane,
  *               cores and spec line read card by card
  *   retro       the retro preset: the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT
  *               CARD and run; a PLAY-320 behind the next tab playing ELECLANCE, another
@@ -259,8 +260,10 @@ await run(async () => {
   await beat.qrCode()
   await caption(CAPTIONS.keystream)
   await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 5_000 })
+  // The cockpit preset found in the action palette, typed, rather than by its key.
+  await caption(CAPTIONS.palette)
+  await beat.palette('cockpit')
   await caption(CAPTIONS.cockpit)
-  await toPreset('cockpit')
   await beat.cluster(2400)
   await caption(CAPTIONS.retro)
   await beat.toLayout(9, 'retro')

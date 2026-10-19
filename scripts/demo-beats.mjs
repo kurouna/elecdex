@@ -48,6 +48,7 @@ export const OPENING = {
 /** A caption for each beat, by name. The vertical cut's own layouts have a few of their own. */
 export const CAPTIONS = {
   presets: 'Nine layout presets to start from',
+  palette: 'Ctrl+Shift+P: find any action by typing',
   network: 'network — Wi-Fi and the cable, segment by segment',
   earth: 'earth — satellites, earthquakes and the weather',
   orbit: 'Bring a pane forward: the ISS on the ORBIT map',
@@ -215,6 +216,25 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await page.keyboard.press('ArrowDown')
     await wait(500)
     await page.keyboard.press('Enter')
+    await wait(300)
+    await settled()
+    await away()
+  }
+
+  /**
+   * The action palette (Ctrl+Shift+P): a word typed as a person would, the rows it finds held to
+   * be read, then Enter on the first - a preset, a theme, an action - or Escape.
+   */
+  async function palette(query, { hold = 1400, enter = true } = {}) {
+    say(`palette: ${query}`)
+    await letGo()
+    await page.keyboard.press('Control+Shift+KeyP')
+    await page.getByTestId('action-palette-filter').waitFor()
+    await wait(500)
+    await page.keyboard.type(query, { delay: 90 })
+    await page.locator('[data-testid=action-palette-row]').first().waitFor()
+    await wait(hold)
+    await page.keyboard.press(enter ? 'Enter' : 'Escape')
     await wait(300)
     await settled()
     await away()
@@ -634,6 +654,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     toLayout,
     toTab,
     throughTheDialog,
+    palette,
     shellTypes,
     forward,
     issCard,
