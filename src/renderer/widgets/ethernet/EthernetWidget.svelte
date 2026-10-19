@@ -14,7 +14,7 @@ import {
   routeWord,
   speedLabel,
 } from '@shared/ethernet'
-import { mosOf, regularInterval, roundMs } from '@shared/netpath'
+import { mosOf, perMinute, regularInterval, roundMs } from '@shared/netpath'
 import { untrack } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { reportProblems } from '../../lib/fault-report.ts'
@@ -35,7 +35,7 @@ import type { WidgetProps } from '../registry.ts'
 import Detail from './Detail.svelte'
 import EventLog from './EventLog.svelte'
 import { lookupEtherHint, shortWired } from './hints.ts'
-import { etherHistory, perMinute } from './history.svelte.ts'
+import { etherHistory } from './history.svelte.ts'
 import LinkPanel from './LinkPanel.svelte'
 import Timeline from './Timeline.svelte'
 
@@ -197,6 +197,8 @@ const hop = (s: typeof figures.gateway): string =>
 const loss = (s: typeof figures.gateway): string =>
   s.sent === 0 ? '' : `loss ${s.loss < 10 ? s.loss.toFixed(1) : Math.round(s.loss)}%`
 const routed = $derived(link !== null && up && link.route !== 'default' && link.route !== null)
+/** No way out known on this machine: the internet is shown when it answers, never judged. */
+const noRoute = $derived(link !== null && up && link.route === null)
 
 const stations = $derived<StationView[]>([
   {
@@ -233,8 +235,14 @@ const stations = $derived<StationView[]>([
     id: 'internet',
     name: 'INTERNET',
     health: diagnosis.segments.internet,
-    main: !up ? '—' : routed ? `via ${routeWord(link?.route ?? null)}` : hop(figures.internet),
-    sub: !up ? '' : routed ? 'not judged' : loss(figures.internet),
+    main: !up
+      ? '—'
+      : routed
+        ? `via ${routeWord(link?.route ?? null)}`
+        : noRoute && figures.internet.received === 0
+          ? 'no route'
+          : hop(figures.internet),
+    sub: !up ? '' : routed || noRoute ? 'not judged' : loss(figures.internet),
   },
 ])
 
@@ -275,11 +283,18 @@ const wires = $derived.by<WireView[]>(() => {
   ]
 })
 
-const example = $derived(
-  figures.gateway.received === 0
+/**
+ * The legend's example, as Wi-Fi's reads the internet's own figure: the internet
+ * while this adapter is the way out and it answers, else the gateway - a cable's
+ * gateway is mostly <1 ms, which explains little.
+ */
+const example = $derived.by(() => {
+  const s =
+    link?.route === 'default' && figures.internet.received > 0 ? figures.internet : figures.gateway
+  return s.received === 0
     ? '— ±—'
-    : `${roundMs(figures.gateway.median)} ±${figures.gateway.jitter === null ? '—' : Math.round(figures.gateway.jitter)}`,
-)
+    : `${roundMs(s.median)} ±${s.jitter === null ? '—' : Math.round(s.jitter)}`
+})
 
 let root = $state<HTMLElement | null>(null)
 const hintContext = $derived({ link, figures, diagnosis, mos, host: probe?.host ?? null, rates })

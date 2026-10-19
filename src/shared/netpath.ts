@@ -72,6 +72,41 @@ export function windowMs(id: string | undefined): number {
   return (PATH_WINDOWS.find((w) => w.id === id) ?? PATH_WINDOWS[1]).ms
 }
 
+/** Counters as they stood at a moment, for rates over the last minute. */
+export interface CounterMark<C> {
+  at: number
+  counters: C
+}
+
+/** Each counter's increase per minute; null for one not kept or reset. */
+export type Rates<C> = { [K in keyof C]?: number | null }
+
+/**
+ * Each counter's increase per minute, from the mark nearest a minute ago to the
+ * latest - for the Wi-Fi and Ethernet panes alike. Null as a whole with under ten
+ * seconds between the marks; a counter not kept, or reset between them (it went
+ * down), is null alone, and the others still say what they counted.
+ */
+export function perMinute<C extends { [K in keyof C]: number | null }>(
+  marks: readonly CounterMark<C>[],
+): Rates<C> | null {
+  const last = marks[marks.length - 1]
+  if (last === undefined) return null
+  const target = last.at - 60_000
+  let first: CounterMark<C> | undefined
+  for (const m of marks)
+    if (first === undefined || Math.abs(m.at - target) < Math.abs(first.at - target)) first = m
+  if (first === undefined || last.at - first.at < 10_000) return null
+  const minutes = (last.at - first.at) / 60_000
+  const out: Rates<C> = {}
+  for (const key of Object.keys(last.counters) as (keyof C)[]) {
+    const a = first.counters[key] as number | null
+    const b = last.counters[key] as number | null
+    out[key] = a === null || b === null || b < a ? null : (b - a) / minutes
+  }
+  return out
+}
+
 /**
  * Adds a point, dropping what fell out of the longest window. A point not newer
  * than the last is ignored: a re-subscription replays the last sample.

@@ -8,8 +8,9 @@ import { ETHER_EVENT_MARKS } from './draw.ts'
  * errors and broadcast floods beginning. No system keeps a log of a wired link's
  * drops that every driver writes (decisions.md), so where the Wi-Fi pane has the
  * day from the system's log, this one has the hour it watched: lit where it
- * watched, red where the link was down. Each row says how long after the one
- * before it came; a steady beat of drops is named above the list.
+ * watched, red where the link was down. Each row says how long after the last
+ * of its kind it came (a drop after the drop before, as the Wi-Fi pane's), which
+ * is how a steady beat of drops shows; the line above the list names one.
  */
 interface Props {
   events: readonly EtherEvent[]
@@ -52,9 +53,16 @@ function every(ms: number): string {
   return s < 120 ? `${s} s` : `${Math.round(s / 60)} min`
 }
 
+/** The row before this one of the same kind, looked for without copying the list. */
+function lastOfKind<E extends { kind: string }>(list: readonly E[], i: number): E | undefined {
+  const kind = list[i]?.kind
+  for (let j = i + 1; j < list.length; j++) if (list[j]?.kind === kind) return list[j]
+  return undefined
+}
+
 const rows = $derived(
   events.slice(0, 120).map((e, i) => {
-    const older = events.slice(i + 1).find((x) => x.kind === e.kind)
+    const older = lastOfKind(events, i)
     return { e, since: older === undefined ? null : gap(e.at - older.at) }
   }),
 )
@@ -111,7 +119,7 @@ const hour = $derived.by(() => {
         <span class="kind">{LABELS[e.kind]}</span>
         <span class="detail">{e.detail}</span>
         <span class="down">{e.downFor === null ? '' : `down ${e.downFor}s`}</span>
-        <span class="since">{since ?? ''}</span>
+        <span class="since" data-hint="since">{since ?? ''}</span>
       </li>
     {:else}
       <li class="empty" data-testid="ether-log-empty">nothing happened in the hour watched</li>

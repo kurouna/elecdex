@@ -1,3 +1,4 @@
+import { roundMs, roundPct } from '@shared/netpath'
 import {
   bandOf,
   CAUSE_LABELS,
@@ -11,6 +12,7 @@ import {
   WIFI_LIMITS,
   type WifiCounters,
   type WifiLink,
+  type WifiRates,
 } from '@shared/wifi'
 import type { Hint } from '../netpath/draw.js'
 import { megabits } from './draw.js'
@@ -35,13 +37,14 @@ export interface HintContext {
   diagnosis: Diagnosis
   mos: number | null
   /** Counters' increase per minute. */
-  rates: WifiCounters | null
+  rates: WifiRates | null
   host: string | null
 }
 
 const L = WIFI_LIMITS
-const ms = (v: number | null): string => (v === null ? '—' : `${Math.round(v)} ms`)
-const pct = (v: number): string => `${v < 10 ? v.toFixed(1) : Math.round(v)} %`
+// As the verdict and the Ethernet pane's cards say them: below a millisecond is <1 ms.
+const ms = roundMs
+const pct = roundPct
 const hop = (s: ProbeStats): string =>
   s.sent === 0
     ? 'not asked'
@@ -103,6 +106,12 @@ const COUNTERS: Record<keyof WifiCounters, Hint> = {
 }
 
 const STATIC: Record<string, Hint> = {
+  since: {
+    title: 'SINCE THE LAST',
+    body: [
+      'How long after the last row of the same kind this one came: a drop after the drop before, a connection after the connection before, whatever came between. A steady figure down the list is a beat - power saving, a dock reconnecting, a router restarting.',
+    ],
+  },
   cause: {
     title: 'CAUSE',
     body: [
@@ -333,7 +342,7 @@ function counterLive(name: keyof WifiCounters, c: HintContext): string | null {
   const total = c.link?.counters?.[name]
   if (total === undefined) return null
   const rate = c.rates?.[name]
-  const perMinute = rate === undefined ? '' : `, ${Math.round(rate).toLocaleString('en')} a minute`
+  const perMinute = rate == null ? '' : `, ${Math.round(rate).toLocaleString('en')} a minute`
   return `${Math.round(total).toLocaleString('en')} since the adapter came up${perMinute}`
 }
 

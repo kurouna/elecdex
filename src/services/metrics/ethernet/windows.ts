@@ -311,6 +311,7 @@ $etherWatching = $false
 $etherErr = @()
 $etherConflicts = @{}
 $etherConflictLast = -1
+$etherConflictTried = $false
 $etherKeywords = @(${ADVANCED_KEYWORDS.map((k) => `'${k}'`).join(', ')})
 $etherMode = 'unset'
 $etherKey = ''
@@ -355,15 +356,17 @@ function EtherWatchStart {
   $why = [ElecdexEtherWatch]::Start()
   if ($why) { $script:etherWatch = 'none'; EtherProblem ('NDIS link events are not available: ' + $why) } else { $script:etherWatching = $true }
 }
-# Stopped once when the pane stops being seen. A settings read under way is left to finish and
-# be collected when the pane is back: stopping a running pipeline would hold the loop up.
+# Stopped once when the pane stops being seen. A settings read under way is never stopped (that
+# would hold the loop up): it is looked at each second and collected once it has ended.
 function EtherWatchStop {
   if ($script:etherWatching) { [ElecdexEtherWatch]::Stop(); $script:etherWatching = $false }
+  EtherInfoCollect
 }
 
 # Tcpip's address conflicts from the last day, then only newer: the time, and which of the wired
 # addresses it was. Neither the other machine's hardware address nor the message leaves.
 function EtherConflictStep($rows) {
+  $script:etherConflictTried = $true
   $when = if ($script:etherConflictLast -lt 0) { 'TimeCreated[timediff(@SystemTime) <= 86400000]' } else { 'EventRecordID > ' + $script:etherConflictLast }
   try {
     $query = New-Object System.Diagnostics.Eventing.Reader.EventLogQuery('System', [System.Diagnostics.Eventing.Reader.PathType]::LogName, ("*[System[Provider[@Name='Tcpip'] and EventID=4199 and " + $when + ']]'))
@@ -374,8 +377,9 @@ function EtherConflictStep($rows) {
       if ($ip) { $script:etherConflicts[[long]$e.RecordId] = @{ at = [long](($e.TimeCreated.ToUniversalTime() - [DateTime]'1970-01-01').TotalMilliseconds); ip = $ip } }
       $e.Dispose()
     }
+    # Read once: from here on only newer records. A failed read stays at the last day.
+    if ($script:etherConflictLast -lt 0) { $script:etherConflictLast = 0 }
   } catch { EtherProblem ('the address-conflict log could not be read: ' + $_.Exception.Message) } finally { if ($reader) { $reader.Dispose(); $reader = $null } }
-  if ($script:etherConflictLast -lt 0) { $script:etherConflictLast = 0 }
   $cut = [long](([DateTime]::UtcNow - [DateTime]'1970-01-01').TotalMilliseconds) - 86400000
   foreach ($k in @($script:etherConflicts.Keys)) { if ($script:etherConflicts[$k].at -lt $cut) { $script:etherConflicts.Remove($k) } }
 }
@@ -460,7 +464,8 @@ function EmitEther {
     $script:etherAt = $script:tick
   }
   EtherInfoStep $rows
-  if ($script:etherConflictLast -lt 0 -or $script:tick % 5 -eq 0) { EtherConflictStep }
+  # At once the first time, then on the five seconds: a read that fails is tried again then, not every second.
+  if (-not $script:etherConflictTried -or $script:tick % 5 -eq 0) { EtherConflictStep }
   $script:etherGws = @()
   foreach ($r in $rows) {
     $g = $r['g']

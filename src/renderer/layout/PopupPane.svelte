@@ -95,7 +95,12 @@ function onKeydown(event: KeyboardEvent): void {
     >
       <header class="hud-label head">
         <span class="title">{title}</span>
-        <span class="sub" title={meta?.subtitle ?? ''}>{meta?.subtitle ?? ''}</span>
+        <span class="sub" title={meta?.subtitle ?? ''}>
+          {#if meta?.badge}
+            <em class={meta.badgeKind ?? 'danger'} data-testid="popup-badge">{meta.badge}</em>
+          {/if}
+          {meta?.subtitle ?? ''}
+        </span>
         <span class="hint">esc close</span>
         <button
           type="button"
@@ -165,6 +170,23 @@ function onKeydown(event: KeyboardEvent): void {
   min-width: 0;
   white-space: nowrap;
   text-transform: none;
+}
+
+/* The badge as a pane's header and a tab carry it (PaneHost.svelte). */
+.sub em {
+  margin-right: 0.5em;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.sub em.danger {
+  color: var(--danger);
+}
+.sub em.warn {
+  color: var(--warn);
+}
+.sub em.ok {
+  color: var(--ok);
 }
 
 .hint {

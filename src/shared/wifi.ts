@@ -26,6 +26,7 @@ import {
   maskName,
   meanOf,
   median,
+  type CounterMark as NetCounterMark,
   over,
   ownUploadDrags,
   PATH_LIMITS,
@@ -33,6 +34,9 @@ import {
   type PathProbe,
   type ProbeStats,
   probeStats,
+  type Rates,
+  roundMs,
+  roundPct,
   type Spread,
   spread,
   stamp,
@@ -57,6 +61,7 @@ export {
   type PathProbe as WifiProbe,
   type PathWindowId as WifiWindowId,
   type ProbeStats,
+  perMinute,
   pointAt,
   probeStats,
   pushPoint,
@@ -436,34 +441,10 @@ export function toPoint(
   }
 }
 
-/** Counters as they stood at a moment, for rates over the last minute. */
-export interface CounterMark {
-  at: number
-  counters: WifiCounters
-}
-
-/**
- * Each counter's increase per minute, from the mark nearest a minute ago to the
- * latest; null with less than ten seconds between them or across a reset.
- */
-export function perMinute(marks: readonly CounterMark[]): WifiCounters | null {
-  const last = marks[marks.length - 1]
-  if (last === undefined) return null
-  const target = last.at - 60_000
-  let first: CounterMark | undefined
-  for (const m of marks) {
-    if (first === undefined || Math.abs(m.at - target) < Math.abs(first.at - target)) first = m
-  }
-  if (first === undefined || last.at - first.at < 10_000) return null
-  const minutes = (last.at - first.at) / 60_000
-  const out = {} as WifiCounters
-  for (const key of Object.keys(last.counters) as (keyof WifiCounters)[]) {
-    const d = last.counters[key] - first.counters[key]
-    if (d < 0) return null
-    out[key] = d / minutes
-  }
-  return out
-}
+/** Counters as they stood at a moment, for rates over the last minute (netpath's `perMinute`). */
+export type CounterMark = NetCounterMark<WifiCounters>
+/** Each counter's increase per minute; null for one reset since the mark a minute ago. */
+export type WifiRates = Rates<WifiCounters>
 
 // ---------------------------------------------------------------------------
 // Diagnosis
@@ -575,9 +556,6 @@ function segmentsOf(f: PathFigures): Diagnosis['segments'] {
   return { pc, radio, gateway, internet }
 }
 
-const ms = (v: number | null): string => (v === null ? '—' : `${Math.round(v)} ms`)
-const pct = (v: number): string => `${v < 10 ? v.toFixed(1) : Math.round(v)} %`
-
 /**
  * Where the trouble is, from the last minute and the link as it stands.
  *
@@ -603,7 +581,7 @@ export function diagnose(link: WifiLink | null, f: PathFigures): Diagnosis {
       ...base,
       cause: 'upstream-lost',
       health: 'bad',
-      evidence: `gateway ${ms(f.gateway.median)}, internet not answering`,
+      evidence: `gateway ${roundMs(f.gateway.median)}, internet not answering`,
     }
   return judgeSegments(segments, f)
 }
@@ -612,12 +590,12 @@ function judgeSegments(segments: Diagnosis['segments'], f: PathFigures): Diagnos
   const radioWords = (): string =>
     [
       f.rssi === null ? null : `signal ${Math.round(f.rssi)} dBm`,
-      f.retry === null ? null : `retries ${pct(f.retry)}`,
+      f.retry === null ? null : `retries ${roundPct(f.retry)}`,
     ]
       .filter(Boolean)
       .join(', ')
   const hop = (name: string, s: ProbeStats): string =>
-    `${name} ${ms(s.median)} ±${ms(s.jitter).replace(' ms', '')}, loss ${pct(s.loss)}`
+    `${name} ${roundMs(s.median)} ±${s.jitter === null ? '—' : Math.round(s.jitter)}, loss ${roundPct(s.loss)}`
 
   const ordered: [keyof Diagnosis['segments'], WifiCause, () => string][] = [
     ['radio', 'radio', radioWords],
@@ -630,7 +608,7 @@ function judgeSegments(segments: Diagnosis['segments'], f: PathFigures): Diagnos
     [
       'internet',
       'upstream',
-      () => `${hop('internet', f.internet)}; gateway ${ms(f.gateway.median)}`,
+      () => `${hop('internet', f.internet)}; gateway ${roundMs(f.gateway.median)}`,
     ],
   ]
   for (const level of ['bad', 'warn'] as const) {
@@ -645,7 +623,7 @@ function judgeSegments(segments: Diagnosis['segments'], f: PathFigures): Diagnos
     health: 'ok',
     evidence: quiet
       ? 'measuring…'
-      : `internet ${ms(f.internet.median)}, loss ${pct(f.internet.loss)}`,
+      : `internet ${roundMs(f.internet.median)}, loss ${roundPct(f.internet.loss)}`,
   }
 }
 

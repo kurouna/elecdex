@@ -209,7 +209,16 @@ describe('retries', () => {
       { at: 0, counters: counters(5000, 100) },
       { at: 60_000, counters: counters(10, 0) },
     ]
-    expect(perMinute(reset)).toBeNull()
+    // A counter reset since a minute ago has no rate of its own; the others still count.
+    const rates = perMinute(reset)
+    expect(rates?.txFrames).toBeNull()
+    expect(rates?.retries).toBeNull()
+    expect(
+      perMinute([
+        reset[0] as (typeof reset)[0],
+        { at: 60_000, counters: { ...counters(6000, 100), retries: 0 } },
+      ])?.txFrames,
+    ).toBe(1000)
   })
 })
 
@@ -549,5 +558,17 @@ describe('the report', () => {
     expect(text).not.toContain('192.0.2.1 ')
     expect(maskAddress('192.0.2.23')).toBe('192.0.x.x')
     expect(maskName('ab')).toBe('••')
+  })
+})
+
+describe('as the Ethernet pane says them', () => {
+  it('a hop under a millisecond is <1 ms, never 0 ms, and its jitter a bare number', () => {
+    const now = 1_790_000_000_000
+    const fast = Array.from({ length: 60 }, (_, i) =>
+      point(now - (59 - i) * 1000, { gateway: 0.4, internet: 0.6 }),
+    )
+    const d = diagnose(link(), pathFigures(fast, now))
+    expect(d.evidence).toContain('<1 ms')
+    expect(d.evidence).not.toMatch(/\b0 ms|±<1/)
   })
 })

@@ -16,6 +16,7 @@ import {
   etherEvents,
   etherFigures,
   etherSections,
+  internetWords,
   mergeEtherEvents,
   powerSuspect,
   quickDropPoints,
@@ -537,5 +538,92 @@ describe('what the review found', () => {
     expect(counterHealth(2, 1000)).toBe('bad')
     expect(counterHealth(1, 5000)).toBe('warn')
     expect(counterHealth(1, 100_000)).toBe('ok')
+  })
+})
+
+describe('the third review', () => {
+  it('with no way out known, says so: route unknown while echoes come back, no default route when none do', () => {
+    const { points, link, best } = played('steady', 20)
+    const now = (points[points.length - 1] as EtherPoint).at
+    const lost = { ...link, route: null }
+    // The internet's echo is recorded with no route known (shown, never judged).
+    const probe = { at: now, host: '192.0.2.53', internet: 19, gateways: [] }
+    expect(toEtherPoint(lost, probe, now, null).internet).toBe(19)
+    expect(toEtherPoint({ ...link, route: 'wifi' }, probe, now, null).internet).toBeUndefined()
+    const answering = etherFigures(points, now, best)
+    const d = diagnoseEthernet(lost, answering)
+    expect(d.evidence).toContain('route unknown')
+    expect(d.evidence).not.toContain('this adapter')
+    expect(d.segments.internet).toBe('idle')
+    const silent = points.map((p) => ({ ...p, internet: undefined }))
+    expect(diagnoseEthernet(lost, etherFigures(silent, now, best)).evidence).toContain(
+      'no default route on this machine',
+    )
+    expect(internetWords('vpn', answering)).toBe('internet by VPN, not judged here')
+  })
+
+  it('a CRC event needs a count and a share, as the verdict: a fast link’s few is none', () => {
+    const { points } = played('steady', 70)
+    // Six damaged frames in a minute among 2,200 a second: a count, but a share of 0.005 %.
+    const few = points.map((p, i) => ({ ...p, errors: i >= 60 && i < 66 ? 1 : 0 }))
+    expect(etherEvents(few).map((e) => e.kind)).not.toContain('crc')
+    expect(etherEvents(played('crc', 70).points).map((e) => e.kind)).toContain('crc')
+  })
+
+  it('a storm before a drop says nothing of after it, and one going on is logged again', () => {
+    const { points } = played('storm', 80)
+    const [first] = points as [EtherPoint]
+    const down = points.map((p, i) =>
+      i >= 35 && i < 40 ? { ...p, state: 'no-carrier' as const, broadcast: null } : p,
+    )
+    const storms = etherEvents(down).filter((e) => e.kind === 'broadcast')
+    // Once before the drop, and again 30 s after the link is back - not straight away.
+    expect(storms).toHaveLength(2)
+    const again = storms[0] as { at: number }
+    expect(again.at - first.at).toBeGreaterThanOrEqual(69_000 - 1000)
+  })
+})
+
+describe('what the reviews of the third found', () => {
+  /** A minute on a machine with no default route: the gateway answers, the internet never. */
+  function noRoute(): { points: EtherPoint[]; link: EtherLink; best: number | null } {
+    const { points, link, best } = played('steady', 60)
+    return {
+      points: points.map((p) => ({ ...p, route: null, internet: null })),
+      link: { ...link, route: null },
+      best,
+    }
+  }
+
+  it('with no route, no UPSTREAM LOST in the log nor in the verdict, and no loss drawn', () => {
+    const { points, link, best } = noRoute()
+    const now = (points[points.length - 1] as EtherPoint).at
+    expect(etherEvents(points).map((e) => e.kind)).not.toContain('upstream-lost')
+    const d = diagnoseEthernet(link, etherFigures(points, now, best))
+    expect(d.cause).not.toBe('upstream-lost')
+    expect(d.evidence).toContain('no default route')
+    const [bucket] = etherBuckets(points, (points[0] as EtherPoint).at - 500, now + 500, 1)
+    expect(bucket?.loss).toBeNull()
+  })
+
+  it('with no route, the internet’s echo never judges this machine’s own upload', () => {
+    const { points, best } = played('steady', 60)
+    // Upload and delay rising together, on echoes recorded with no route known.
+    const dragged = points.map((p, i) => ({ ...p, route: null, up: i * 50_000, internet: 10 + i }))
+    const now = (dragged[dragged.length - 1] as EtherPoint).at
+    expect(etherFigures(dragged, now, best).uploadDrag).toBeNull()
+  })
+
+  it('once the route is back, the internet’s figures are this adapter’s echoes alone', () => {
+    const { points, best } = played('steady', 60)
+    const mixed = points.map((p, i) =>
+      i < 50
+        ? { ...p, route: null, internet: 300 }
+        : { ...p, route: 'default' as const, internet: 20 },
+    )
+    const now = (mixed[mixed.length - 1] as EtherPoint).at
+    const f = etherFigures(mixed, now, best)
+    expect(f.internet.received).toBe(10)
+    expect(f.internet.median).toBe(20)
   })
 })

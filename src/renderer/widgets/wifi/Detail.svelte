@@ -1,5 +1,11 @@
 <script lang="ts">
-import { maskAddress, maskName, type WifiCounters, type WifiLink } from '@shared/wifi'
+import {
+  maskAddress,
+  maskName,
+  type WifiCounters,
+  type WifiLink,
+  type WifiRates,
+} from '@shared/wifi'
 
 /**
  * Everything else the link says, for whoever wants the figures: the second
@@ -10,7 +16,7 @@ import { maskAddress, maskName, type WifiCounters, type WifiLink } from '@shared
 interface Props {
   link: WifiLink
   /** Each counter's increase per minute, when it can be told. */
-  rates: WifiCounters | null
+  rates: WifiRates | null
   mask: boolean
   host: string | null
 }
@@ -53,15 +59,16 @@ const COUNTERS: [keyof WifiCounters, string, boolean][] = [
  */
 function reach(key: keyof WifiCounters, trouble: boolean): number {
   const rate = rates?.[key]
-  if (rates === null || rate === undefined) return 0
-  if (!trouble) return rate / Math.max(1, rates.txFrames, rates.rxFrames)
-  return Math.min(1, rate / Math.max(1, rates.txFrames) / 0.5)
+  // A counter reset since a minute ago has no rate: no bar, rather than a wrong one.
+  if (rates === null || rate == null) return 0
+  if (!trouble) return rate / Math.max(1, rates.txFrames ?? 0, rates.rxFrames ?? 0)
+  return Math.min(1, rate / Math.max(1, rates.txFrames ?? 0) / 0.5)
 }
 
 /** A trouble counter's share of the frames sent this minute, as the bar's colour. */
 function severity(key: keyof WifiCounters, trouble: boolean): 'ok' | 'warn' | 'bad' {
   if (!trouble || rates === null) return 'ok'
-  const share = ((rates[key] ?? 0) / Math.max(1, rates.txFrames)) * 100
+  const share = ((rates[key] ?? 0) / Math.max(1, rates.txFrames ?? 0)) * 100
   return share >= 30 ? 'bad' : share >= 15 ? 'warn' : 'ok'
 }
 

@@ -351,7 +351,12 @@ export function toEtherPoint(
     duplex: link.duplex,
     ...counterPart(link, previous?.link ?? null, seconds),
     gateway: gatewayEcho(probe, link.id),
-    internet: probe !== null && link.route === 'default' ? probe.internet : undefined,
+    // Recorded while this adapter is the way out, and while no way out is known (shown, not
+    // judged): only an echo that leaves by another adapter is not this cable's.
+    internet:
+      probe !== null && (link.route === 'default' || link.route === null)
+        ? probe.internet
+        : undefined,
   }
 }
 
@@ -549,10 +554,13 @@ export function etherFigures(
 ): EtherFigures {
   // Echoes while the link was down blame the link, so they stay out of the hops' figures.
   const recent = points.filter((p) => p.at > now - span && p.at <= now && isUp(p))
+  // The internet's figures from the readings on the route there is now: an echo recorded with no
+  // route known (shown, never judged) does not join this adapter's once the route is back.
+  const route = recent[recent.length - 1]?.route ?? null
+  const routed = recent.filter((p) => p.route === route)
+  const judged = recent.filter((p) => p.route === 'default')
   const tail = points.filter((p) => p.at <= now).slice(-GONE_AFTER)
-  const upstreamGone =
-    tail.length === GONE_AFTER &&
-    tail.every((p) => isUp(p) && p.internet === null && typeof p.gateway === 'number')
+  const upstreamGone = tail.length === GONE_AFTER && tail.every((p) => isUp(p) && wayOutLost(p))
   const ten = points.filter((p) => p.at > now - LINK_WINDOW_MS && p.at <= now)
   // Counted a second at a time from counters a second apart: whole frames over the ten minutes.
   const errors = Math.round(sum(ten.map((p) => p.errors)))
@@ -562,11 +570,11 @@ export function etherFigures(
   const last = points[points.length - 1]
   return {
     gateway: probeStats(recent.map((p) => p.gateway)),
-    internet: probeStats(recent.map((p) => p.internet)),
+    internet: probeStats(routed.map((p) => p.internet)),
     up: meanOf(recent.slice(-5).map((p) => p.up)),
     down: meanOf(recent.slice(-5).map((p) => p.down)),
     uploadDrag: correlation(
-      recent
+      judged
         .filter((p) => p.up !== null && typeof p.internet === 'number')
         .map((p) => [p.up as number, p.internet as number] as const),
     ),
@@ -828,16 +836,28 @@ function judgeSegments(
     }
   }
   const quiet = f.internet.sent === 0 && f.gateway.sent === 0
-  const beyond =
-    link.route === 'default'
-      ? `internet ${roundMs(f.internet.median)}, loss ${roundPct(f.internet.loss)}`
-      : `internet by ${routeWord(link.route)}, not judged here`
+  const beyond = internetWords(link.route, f)
   return {
     segments,
     cause: quiet ? 'waiting' : 'ok',
     health: 'ok',
     evidence: quiet ? 'measuring…' : `${beyond}; gateway ${roundMs(f.gateway.median)}`,
   }
+}
+
+/**
+ * What the verdict says of the internet. By this adapter it is judged; by another
+ * it is that one's; with no way out known it is not judged either - "route
+ * unknown" while echoes still come back (Windows' GetBestInterface can fail for
+ * a moment), "no default route" when nothing does.
+ */
+export function internetWords(route: EtherRoute | null, f: EtherFigures): string {
+  if (route === 'default')
+    return `internet ${roundMs(f.internet.median)}, loss ${roundPct(f.internet.loss)}`
+  if (route !== null) return `internet by ${routeWord(route)}, not judged here`
+  return f.internet.received > 0
+    ? `route unknown, internet ${roundMs(f.internet.median)} not judged`
+    : 'no default route on this machine'
 }
 
 /** "Wi-Fi", "a VPN": what carries the internet's echo when this adapter does not. */
@@ -939,6 +959,8 @@ interface Walk {
   gone: boolean
   downAt: number | null
   errorsMinute: number[]
+  /** Frames received in each of the same seconds, for the errors' share. */
+  framesMinute: number[]
   crcOn: boolean
   broadcast: number[]
   stormOn: boolean
@@ -949,6 +971,7 @@ const fresh = (): Walk => ({
   gone: false,
   downAt: null,
   errorsMinute: [],
+  framesMinute: [],
   crcOn: false,
   broadcast: [],
   stormOn: false,
@@ -1018,8 +1041,13 @@ function linkChanges(walk: Walk, a: EtherPoint, b: EtherPoint): EtherEvent[] {
   return out
 }
 
+/** The gateway answering and the internet not, by this adapter: the way out gone. */
+function wayOutLost(p: EtherPoint): boolean {
+  return p.route === 'default' && p.internet === null && typeof p.gateway === 'number'
+}
+
 function wayOut(walk: Walk, p: EtherPoint): EtherEvent[] {
-  const lost = isUp(p) && p.internet === null && typeof p.gateway === 'number'
+  const lost = isUp(p) && wayOutLost(p)
   walk.lostRun = lost ? walk.lostRun + 1 : 0
   if (!walk.gone && walk.lostRun === GONE_AFTER) {
     walk.gone = true
@@ -1036,11 +1064,23 @@ function wayOut(walk: Walk, p: EtherPoint): EtherEvent[] {
 function counted(walk: Walk, p: EtherPoint): EtherEvent[] {
   const out: EtherEvent[] = []
   walk.errorsMinute.push(p.errors ?? 0)
+  walk.framesMinute.push(p.rxPackets ?? 0)
   if (walk.errorsMinute.length > 60) walk.errorsMinute.shift()
+  if (walk.framesMinute.length > 60) walk.framesMinute.shift()
   const minute = walk.errorsMinute.reduce((a, b) => a + b, 0)
-  const crcNow = minute >= ETHER_LIMITS.crc.warnCount
+  const frames = walk.framesMinute.reduce((a, b) => a + b, 0)
+  // A count and a share together, as the verdict asks: the count is the verdict's ten-minute
+  // count reached in a minute (errors beginning, not a trickle), the share the verdict's own. A
+  // platform that counts no frames has no share, and no event, as it has no verdict on them.
+  const crcNow = frames > 0 && errorHealth(minute, (minute / frames) * 100) !== 'ok'
   if (crcNow && !walk.crcOn) out.push(event(p.at, 'crc', `${minute} damaged frames in a minute`))
   walk.crcOn = crcNow
+  // A link not up counts no frames: what it read before it went says nothing of after.
+  if (!isUp(p)) {
+    walk.broadcast = []
+    walk.stormOn = false
+    return out
+  }
   if (p.broadcast !== null) walk.broadcast.push(p.broadcast)
   if (walk.broadcast.length > BROADCAST_SECONDS) walk.broadcast.shift()
   const level = walk.broadcast.length === BROADCAST_SECONDS ? medianOf(walk.broadcast) : null
@@ -1110,7 +1150,7 @@ export function etherBuckets(
   const width = (to - from) / Math.max(1, count)
   const quick = quickDropPoints(points)
   return columnsOf(points, from, to, count).map((column, i) => {
-    const asked = column.filter((p) => p.internet !== undefined)
+    const asked = column.filter((p) => p.internet !== undefined && p.route === 'default')
     const speeds = column
       .filter(isUp)
       .map((p) => p.speed)

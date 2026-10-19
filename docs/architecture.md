@@ -1608,7 +1608,11 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
     読めないので情報の行だけ。
   - ゲートウェイ：RTT warn 5 / bad 20 ms、ジッタ 5 / 15 ms、損失 3 / 10%（家庭のルーターは ping を後回しにし間引く）。
     インターネットと自分の上りは Wi-Fi と同じ `PATH_LIMITS`。既定の経路が Wi-Fi や VPN のとき、INTERNET の局は `via Wi-Fi` /
-    `via VPN` で判定せず、MOS も出さない。
+    `via VPN` で判定せず、MOS も出さない。機械に既定の経路がない（`route` が null）ときも判定しない。往復が返っていれば
+    `route unknown`（Windows の `GetBestInterface` は一時的に失敗することがある）、返らなければ `no default route` と言い、
+    局は `no route` か往復の値に `not judged` を添える（2026-10-20、レビューの指摘: 以前は「this adapter」と言って矛盾していた）。経路が不明な間の往復は記録して描くが、損失・UPSTREAM LOST・自分の上りの判定には使わず、経路が戻ったらインターネットの数字はこのアダプタの往復だけから出す。
+  - LOG の CRC ERRORS も判定と同じく件数と割合の両方で出し（直近 1 分に 5 件、割合は判定と同じ。フレームを数えない機械では判定と同じく出さない）、リンクが上がっていない読み取りでブロードキャストの窓と嵐の状態を
+    空にする（挿し直した直後に切断前の値を数えず、続いている嵐は 30 秒後にもう一度出る）。
 - **画面**: Wi-Fi ペインと同じ骨組み（見出し行、チップ、経路の帯、判定、凡例、リボン、中段、タブ、タイムライン、ログ、詳細、
   説明カード、MASK、COPY、前面での 2 列）。経路の帯と説明カードは Wi-Fi と共有の部品（widgets/netpath/）。違うのは:
   - 見出しの絵はポートの形（リンク中は端子が点く）、名前はアダプタの短い名前、状態は Wi-Fi の語の組に `AUTHENTICATING`。
@@ -1621,7 +1625,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
     出す。行の場所は空でも取っておく）。ケーブルがないときは出さず、タブにも出さない。
   - タイムラインのレーン: LINK（速度の段の帯。ふだんは斜線、前より下がった所は黄の塗り、断は赤の斜線）、L2（CRC を赤、
     ブロードキャストを黄で積む。床は嵐の warn 線）、RTT、LOSS、TRAFFIC（リンク速度の 7 割を超えたら目盛りをリンク速度に）、EVENTS。
-  - ログ: LINK LOST・CONNECTED（`down 3s`）・SPEED・DUPLEX・UPSTREAM LOST / BACK・SIGN-IN・CRC ERRORS・BROADCAST・
+  - ログ（各行の右の `+2m` は、同じ種類の前の行からの時間。Wi-Fi の LOG も同じ。列には説明カード `since`）: LINK LOST・CONNECTED（`down 3s`）・SPEED・DUPLEX・UPSTREAM LOST / BACK・SIGN-IN・CRC ERRORS・BROADCAST・
     ADDRESS CONFLICT（`!`、システムのログから。ペインの見たものと時刻順に混ぜる、`mergeEtherEvents`）。上の帯は過去 24 時間の
     代わりに、見ていた 1 時間（断は赤）。
   - 詳細: アダプタ、ドライバ、バス、リンク、設定、省電力、フレーム、802.1X、アドレス（リンク中だけ）、経路、エコーの相手。

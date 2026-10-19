@@ -251,7 +251,8 @@ async function netThroughput(): Promise<NetThroughput> {
 
 async function netPing(): Promise<NetPing> {
   if (windowsSampler) return windowsSampler.netPing()
-  // While the Wi-Fi pane pings the same host every second, its echo is this one's too.
+  // While the Wi-Fi or Ethernet pane pings the same host every second (one stream serves both,
+  // wifi/index.ts), its echo is this one's too.
   const shared = sharedInternetPing(PING_HOST)
   if (shared !== undefined) return { host: PING_HOST, ms: shared }
   const ms = await si.inetLatency(PING_HOST)

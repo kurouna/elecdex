@@ -1,4 +1,5 @@
 <script lang="ts">
+import { roundMs } from '@shared/netpath'
 import {
   bucketize,
   pointAt,
@@ -137,7 +138,7 @@ function move(event: PointerEvent): void {
 
 const clock = (at: number): string => new Date(at).toTimeString().slice(0, 8)
 const ms = (v: number | null | undefined): string =>
-  v === undefined ? '—' : v === null ? 'lost' : `${Math.round(v)} ms`
+  v === undefined ? '—' : v === null ? 'lost' : roundMs(v)
 </script>
 
 <section class="timeline" data-testid="wifi-timeline">
@@ -179,7 +180,7 @@ const ms = (v: number | null | undefined): string =>
       >
     {/each}
     {#if labels !== null}
-      {#each labels.scales as scale (scale.text)}
+      {#each labels.scales as scale (scale.y)}
         <span class="scale" style:top="{scale.y}px">{scale.text}</span>
       {/each}
       {#each labels.unwatched as run (run.x0)}

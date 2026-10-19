@@ -5,6 +5,7 @@ import {
   type EtherDiagnosis,
   type EtherFigures,
   type EtherLink,
+  internetWords,
   POWER_LABELS,
   powerOn,
   routeWord,
@@ -240,6 +241,12 @@ const STATIC: Record<string, Hint> = {
       'The pane reads nothing while it is not on screen, so these stretches have no readings.',
     ],
   },
+  since: {
+    title: 'SINCE THE LAST',
+    body: [
+      'How long after the last row of the same kind this one came: a drop after the drop before, a connection after the connection before, whatever came between. A steady figure down the list is a beat - power saving, a dock reconnecting, a router restarting.',
+    ],
+  },
   watched: {
     title: 'WHILE WATCHED',
     body: [
@@ -382,7 +389,9 @@ const FIGURES: Record<string, (c: EtherHintContext) => string | null> = {
   'station-internet': (c) =>
     c.link?.route !== 'default' && c.link?.route != null
       ? `by ${routeWord(c.link.route)}: ${hop(c.figures.internet)}`
-      : `${c.host ?? '—'}: ${hop(c.figures.internet)}`,
+      : c.link?.route === null && c.link.state === 'up'
+        ? internetWords(null, c.figures)
+        : `${c.host ?? '—'}: ${hop(c.figures.internet)}`,
   crc: ({ figures: f }) =>
     `${f.errors} in ${f.packets.toLocaleString('en')} frames (${f.errorShare === null ? '—' : `${f.errorShare.toFixed(3)} %`}) over 10 min`,
   drops: ({ figures: f }) => `${f.drops} in 10 min`,

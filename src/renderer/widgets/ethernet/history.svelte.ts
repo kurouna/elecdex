@@ -1,43 +1,15 @@
 import type { EtherCounters, EtherLink, EtherPoint } from '@shared/ethernet'
 import { toEtherPoint } from '@shared/ethernet'
 import type { MetricSample } from '@shared/metrics'
-import { pushPoint } from '@shared/netpath'
+import { type CounterMark as Mark, pushPoint } from '@shared/netpath'
 
 const NONE: readonly EtherPoint[] = []
 const NO_MARKS: readonly CounterMark[] = []
 /** Counter marks kept: enough for a rate over the last minute. */
 const MARKS_MS = 90_000
 
-/** Counters as they stood at a moment, for rates over the last minute. */
-export interface CounterMark {
-  at: number
-  counters: EtherCounters
-}
-
-/**
- * Each counter's increase per minute, from the mark nearest a minute ago to the
- * latest; null for a counter not kept, with under ten seconds between the marks,
- * or across a reset.
- */
-export function perMinute(
-  marks: readonly CounterMark[],
-): Partial<Record<keyof EtherCounters, number | null>> | null {
-  const last = marks[marks.length - 1]
-  if (last === undefined) return null
-  const target = last.at - 60_000
-  let first: CounterMark | undefined
-  for (const m of marks)
-    if (first === undefined || Math.abs(m.at - target) < Math.abs(first.at - target)) first = m
-  if (first === undefined || last.at - first.at < 10_000) return null
-  const minutes = (last.at - first.at) / 60_000
-  const out: Partial<Record<keyof EtherCounters, number | null>> = {}
-  for (const key of Object.keys(last.counters) as (keyof EtherCounters)[]) {
-    const a = first.counters[key]
-    const b = last.counters[key]
-    out[key] = a === null || b === null || b < a ? null : (b - a) / minutes
-  }
-  return out
-}
+/** Counters as they stood at a moment, for rates over the last minute (netpath's `perMinute`). */
+export type CounterMark = Mark<EtherCounters>
 
 /**
  * The Ethernet pane's last hour, one point a second for every wired adapter,

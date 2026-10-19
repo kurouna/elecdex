@@ -221,7 +221,9 @@ describe('Windows', () => {
     expect(ETHER_WATCH_SOURCE).toContain('e.NewEvent["InstanceName"]')
     expect(ETHER_WATCH_SOURCE).not.toMatch(/NdisStatusMediaSpecificIndication|Data\b/)
     // The watcher goes when the pane stops being seen.
-    expect(samplerScript('1.1.1.1')).toMatch(/elseif \(.*\$etherWatching\) \{ .*EtherWatchStop \}/)
+    expect(samplerScript('1.1.1.1')).toMatch(
+      /elseif \(.*\$etherWatching -or \$null -ne \$etherJob\) \{ .*EtherWatchStop \}/,
+    )
     // Stopped once: the flag goes down with it, so a closed pane does not stop it every second.
     expect(ETHER_SCRIPT).toMatch(
       /function EtherWatchStop \{\s*if \(\$script:etherWatching\) \{ \[ElecdexEtherWatch\]::Stop\(\); \$script:etherWatching = \$false \}/,
@@ -239,6 +241,20 @@ describe('Windows', () => {
     expect(step.indexOf('EtherInfoCollect')).toBeLessThan(step.indexOf('foreach ($r in $rows)'))
     expect(step).toContain('$busy -notcontains $i')
     expect(step).toContain('ix = $ix')
+  })
+
+  it('reads the conflict log’s last day until a read works, on the five seconds after the first', () => {
+    const step = ETHER_SCRIPT.slice(ETHER_SCRIPT.indexOf('function EtherConflictStep'))
+    const body = step.slice(0, step.indexOf('\n}\n'))
+    // Moved on to "only newer records" inside the try, never after a read that failed.
+    expect(body.indexOf('$script:etherConflictLast = 0')).toBeLessThan(body.indexOf('} catch'))
+    expect(ETHER_SCRIPT).toContain(
+      'if (-not $script:etherConflictTried -or $script:tick % 5 -eq 0) { EtherConflictStep }',
+    )
+  })
+
+  it('collects a settings read that ended after the pane went, without waiting on one', () => {
+    expect(ETHER_SCRIPT).toMatch(/function EtherWatchStop \{[^}]*\}[^}]*EtherInfoCollect\s*\}/)
   })
 
   it('gives the event logs’ handles back', () => {

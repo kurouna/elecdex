@@ -202,3 +202,21 @@ describe('drawing', () => {
     ])
   })
 })
+
+describe('the cards, as the verdict says a round trip', () => {
+  it('a hop under a millisecond is <1 ms on its card too', () => {
+    const c = context()
+    const gateway = {
+      ...c.figures.gateway,
+      sent: 60,
+      received: 60,
+      median: 0.4,
+      jitter: 0.1,
+      max: 0.8,
+      loss: 0,
+    }
+    const live = liveFor('station-gateway', { ...c, figures: { ...c.figures, gateway } })
+    expect(live).toContain('<1 ms')
+    expect(live).not.toMatch(/\b0 ms/)
+  })
+})

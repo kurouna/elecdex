@@ -307,3 +307,33 @@ describe('WifiWidget', () => {
     expect(wifiHistory.points('stub-wlan0').length).toBe(kept + 1)
   })
 })
+
+describe('the Wi-Fi log, as the Ethernet pane’s', () => {
+  it('says how long after the last of its kind each row came, whatever came between', async () => {
+    const { default: EventLog } = await import('../../src/renderer/widgets/wifi/EventLog.svelte')
+    const at = 1_790_000_000_000
+    const row = (kind: 'disconnected' | 'connected', t: number) => ({
+      key: `${kind}${t}`,
+      at: t,
+      kind,
+      detail: '',
+      code: null,
+      ssid: null,
+      downFor: null,
+    })
+    // Newest first: a drop, its connection 3 s before... the drop before 10 minutes earlier.
+    const events = [
+      row('connected', at + 603_000),
+      row('disconnected', at + 600_000),
+      row('connected', at + 3000),
+      row('disconnected', at),
+    ]
+    render(EventLog, {
+      props: { events, mask: false, dropEvery: null, spikeEvery: null, noLog: false },
+    })
+    const since = screen
+      .getAllByTestId('wifi-event')
+      .map((r) => r.querySelector('.since')?.textContent)
+    expect(since).toEqual(['+10m', '+10m', '', ''])
+  })
+})

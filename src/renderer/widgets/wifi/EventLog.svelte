@@ -6,8 +6,9 @@ import { EVENT_MARKS } from './draw.ts'
  * What happened to the connection, newest first: the operating system's own
  * log (a day of it, so drops from before the pane was opened are here too)
  * together with what the pane saw itself - a change of access point, the way
- * out going and coming back. Each row says how long after the one before it
- * came, which is how a drop every half hour gives itself away; when the drops
+ * out going and coming back. Each row says how long after the last of its kind
+ * it came (a drop after the drop before, whatever came between, as the Ethernet
+ * pane's), which is how a drop every half hour gives itself away; when the drops
  * keep a steady beat, the line above the list says so.
  */
 interface Props {
@@ -58,9 +59,16 @@ function every(ms: number): string {
   return s < 120 ? `${s} s` : `${Math.round(s / 60)} min`
 }
 
+/** The row before this one of the same kind, looked for without copying the list. */
+function lastOfKind<E extends { kind: string }>(list: readonly E[], i: number): E | undefined {
+  const kind = list[i]?.kind
+  for (let j = i + 1; j < list.length; j++) if (list[j]?.kind === kind) return list[j]
+  return undefined
+}
+
 const rows = $derived(
   events.slice(0, 120).map((e, i) => {
-    const older = events[i + 1]
+    const older = lastOfKind(events, i)
     return { e, since: older === undefined ? null : gap(e.at - older.at) }
   }),
 )
@@ -106,7 +114,7 @@ const rows = $derived(
             >{/if}</span
         >
         <span class="down">{e.downFor === null ? '' : `down ${e.downFor}s`}</span>
-        <span class="since">{since ?? ''}</span>
+        <span class="since" data-hint="since">{since ?? ''}</span>
       </li>
     {:else}
       <li class="empty">
