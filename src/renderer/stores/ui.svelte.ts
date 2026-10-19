@@ -26,10 +26,18 @@ export interface LocationRequest {
 }
 
 /** The overlays over the workspace, of which one at most is showing - but for `OVER`. */
-type Overlay = 'picker' | 'layouts' | 'switch' | 'paste' | 'settings' | 'location' | 'popup'
+type Overlay =
+  | 'picker'
+  | 'palette'
+  | 'layouts'
+  | 'switch'
+  | 'paste'
+  | 'settings'
+  | 'location'
+  | 'popup'
 
 /** Those the user closes; a layout switch is answered instead. */
-const CLOSABLE = ['picker', 'layouts', 'settings', 'location', 'popup'] as const
+const CLOSABLE = ['picker', 'palette', 'layouts', 'settings', 'location', 'popup'] as const
 type Closable = (typeof CLOSABLE)[number]
 
 /**
@@ -77,6 +85,8 @@ class UiStore {
     switch (overlay) {
       case 'picker':
         return this.panePickerOpen
+      case 'palette':
+        return this.paletteOpen
       case 'layouts':
         return this.layoutsOpen
       case 'settings':
@@ -92,6 +102,9 @@ class UiStore {
     switch (overlay) {
       case 'picker':
         this.panePickerOpen = false
+        return
+      case 'palette':
+        this.paletteOpen = false
         return
       case 'layouts':
         this.layoutsOpen = false
@@ -116,6 +129,19 @@ class UiStore {
   closePanePicker(): void {
     this.closing(this.panePickerOpen)
     this.panePickerOpen = false
+  }
+
+  /** The action palette (docs/palette.md): every action, layout, theme and pane, by typing. */
+  paletteOpen = $state(false)
+
+  openPalette(): void {
+    this.clearFor('palette')
+    this.paletteOpen = true
+  }
+
+  closePalette(): void {
+    this.closing(this.paletteOpen)
+    this.paletteOpen = false
   }
 
   /** The saved layouts: keeping the arrangement on screen, and coming back to one. */
@@ -235,6 +261,7 @@ class UiStore {
   get dialogOpen(): boolean {
     return (
       this.panePickerOpen ||
+      this.paletteOpen ||
       this.settingsOpen ||
       this.locationRequest !== null ||
       this.layoutsOpen ||

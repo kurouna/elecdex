@@ -19,6 +19,7 @@ beforeEach(() => {
   vi.spyOn(performance, 'now').mockImplementation(() => now)
   appearance.settings = { ...appearance.settings, motion: 'full' }
   ui.closePanePicker()
+  ui.closePalette()
   ui.closeSettings()
   ui.closeLocationPicker()
   ui.closePopup()
@@ -123,6 +124,51 @@ describe('ui.popup', () => {
     ui.closePopup()
     expect(ui.dialogOpen).toBe(false)
     expect(ui.closedAt).toBe(2000)
+  })
+})
+
+describe('the action palette', () => {
+  it('is a dialog: it covers the workspace, puts the others away and is put away by them', () => {
+    ui.openSettings()
+    now = 2200
+    ui.openPalette()
+    expect(ui.paletteOpen).toBe(true)
+    expect(ui.dialogOpen).toBe(true)
+    expect(ui.settingsOpen).toBe(false)
+    expect(ui.closedAt).toBe(2200)
+    now = 2300
+    ui.openPanePicker()
+    expect(ui.paletteOpen).toBe(false)
+    expect(ui.closedAt).toBe(2300)
+    ui.closePanePicker()
+    expect(ui.dialogOpen).toBe(false)
+  })
+
+  it('puts a popped-up pane away', () => {
+    ui.openPopup('launcher')
+    now = 2400
+    ui.openPalette()
+    expect(ui.popup).toBeNull()
+    expect(ui.closedAt).toBe(2400)
+  })
+
+  it('notes its close, and only when it was open', () => {
+    ui.closePalette()
+    expect(ui.closedAt).toBe(Number.NEGATIVE_INFINITY)
+    ui.openPalette()
+    expect(ui.closedAt).toBe(Number.NEGATIVE_INFINITY)
+    now = 2500
+    ui.closePalette()
+    expect(ui.paletteOpen).toBe(false)
+    expect(ui.dialogOpen).toBe(false)
+    expect(ui.closedAt).toBe(2500)
+  })
+
+  it('answers a layout switch still asking with no, as the other dialogs do', async () => {
+    const answer = ui.askLayoutSwitch({ name: 'desk', shells: 1 })
+    ui.openPalette()
+    await expect(answer).resolves.toBe(false)
+    expect(ui.paletteOpen).toBe(true)
   })
 })
 
