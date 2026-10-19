@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ACTION PALETTE mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of the action palette (issue 23, part 2), standalone: no elecdex code, every layout
+ * and pane made up. Its frame, header, filter and rows copy PanePicker.svelte; its colours
+ * follow tokens.css (primitive -> semantic, status colours copied) so the themes switch; the
+ * power on and off copy styles/crt.css. What is new is marked NEW in the notes under it.
+ */
+:root {
+  --accent-h: 183; --accent-s: 22%; --accent-l: 74%;
+  --surface-1: #05080d; --surface-2: #0b1118; --line: #262828;
+  --text-base: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --text-muted-base: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --hue-danger: 0; --hue-warn: 45; --hue-ok: 130;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --text: var(--text-base); --text-muted: var(--text-muted-base); --text-inverse: var(--surface-1);
+  --app-bg: var(--surface-1);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
+  --danger: hsl(var(--hue-danger) 80% 60%);
+  --warn: hsl(var(--hue-warn) 85% 58%);
+  --ok: hsl(var(--hue-ok) 60% 52%);
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --step--2: 0.625rem; --step--1: 0.75rem; --step-0: 0.875rem; --step-1: 1.125rem;
+  --tracking-wide: 0.12em;
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
+  --frame-notch: 0.75rem; --tick-size: 0.5rem;
+  --grid-cell: 1.35rem;
+  --crt-scale: 1;
+}
+/* The built-in themes, from shared/theme.ts. */
+:root[data-theme="amber"] { --accent-h: 36; --accent-s: 90%; --accent-l: 50%; --surface-1: #0a0603; --surface-2: #160e06; --line: #2b1c0c; --hue-danger: 4; --hue-warn: 52; --hue-ok: 88; }
+:root[data-theme="phosphor"] { --accent-h: 128; --accent-s: 60%; --accent-l: 48%; --surface-1: #020703; --surface-2: #061109; --line: #10281a; --hue-danger: 8; --hue-warn: 58; --hue-ok: 150; }
+:root[data-theme="white"] { --accent-h: 212; --accent-s: 31%; --accent-l: 88%; --surface-1: #0a0b0d; --surface-2: #15181c; --line: #262a30; }
+:root[data-theme="black"] { --accent-h: 264; --accent-s: 24%; --accent-l: 4%; --surface-1: #d7e0ea; --surface-2: #e4eaf1; --line: #c4ceda; }
+:root[data-theme="business-dark"] { --accent-h: 199; --accent-s: 100%; --accent-l: 69%; --surface-1: #202020; --surface-2: #2c2c2c; --line: #202020;
+  --text-base: #ffffff; --text-muted-base: #9e9e9e; --hue-danger: 354; --hue-warn: 40; --hue-ok: 113;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; --font-mono: "Cascadia Mono", Consolas, monospace; }
+:root[data-theme="business-light"] { --accent-h: 209; --accent-s: 100%; --accent-l: 36%; --surface-1: #f3f3f3; --surface-2: #ffffff; --line: #f3f3f3;
+  --text-base: #1a1a1a; --text-muted-base: #5f5f5f; --hue-danger: 354; --hue-warn: 32; --hue-ok: 120;
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; --font-mono: "Cascadia Mono", Consolas, monospace; }
+:root[data-mode="light"] {
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) - 10%));
+  --danger: hsl(var(--hue-danger) 75% 44%); --warn: hsl(var(--hue-warn) 95% 36%); --ok: hsl(var(--hue-ok) 60% 32%);
+  color-scheme: light;
+}
+:root[data-motion="reduced"] { --crt-scale: 0; }
+
+html { font-size: clamp(14px, 1.48vh, 20px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; color: var(--text); font-family: var(--font-ui);
+  background-color: var(--surface-1);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: var(--grid-cell) var(--grid-cell); padding: 1rem;
+}
+button { font: inherit; color: inherit; }
+p { margin: 0; }
+
+/* ---------- mock controls (not part of the app) ---------- */
+.mockbar { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; align-items: center; font-size: var(--step--1);
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.8rem; color: var(--text-muted); }
+.mockbar .grp { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+.mockbar .grp > span { margin-right: 0.3rem; }
+.mockbar button { background: transparent; border: 1px solid var(--panel-rule); padding: 0.1rem 0.5rem; cursor: pointer;
+  font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: 0.12em; text-transform: uppercase; }
+.mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
+
+/* ---------- frames.css, as the app has it ---------- */
+.hud-label { position: relative; display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3);
+  padding: 0 var(--space-2) 1px; font-family: var(--font-ui); font-size: var(--step--2); font-weight: 500; line-height: 1.5;
+  letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text); border-bottom: 1px solid var(--panel-rule); }
+.hud-label > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-label > :last-child { text-align: right; }
+.hud-label::before, .hud-label::after { content: ""; position: absolute; bottom: calc(-1 * var(--tick-size) * 0.6);
+  height: calc(var(--tick-size) * 0.6); border-left: 1px solid var(--panel-rule); }
+.hud-label::before { left: 0; } .hud-label::after { right: 0; }
+.shell-frame { position: relative; --notch: var(--frame-notch);
+  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, var(--notch) 100%, 0 calc(100% - var(--notch))); }
+.shell-frame::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: var(--panel-border);
+  clip-path: inherit; padding: 1px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }
+.shell-frame::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1px), var(--panel-border) calc(50% - 1px) 50%, transparent 50%) top right / var(--notch) var(--notch) no-repeat,
+    linear-gradient(to top right, transparent 50%, var(--panel-border) 50% calc(50% + 1px), transparent calc(50% + 1px)) bottom left / var(--notch) var(--notch) no-repeat; }
+
+/* ---------- crt.css: power on, and the off a Svelte transition draws ---------- */
+.crt-on, .crt-off { position: relative; transform-origin: 50% 50%; }
+.crt-on { animation: crt-power-on calc(var(--crt-duration, 650ms) * var(--crt-scale)) linear backwards; }
+.crt-off { animation: crt-power-off calc(240ms * var(--crt-scale)) linear forwards; }
+.crt-on::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 50; opacity: 0;
+  background: linear-gradient(to bottom, var(--accent-strong) 0 2px, var(--accent-dim) 2px, transparent 0.9rem),
+    linear-gradient(to top, var(--accent-strong) 0 2px, var(--accent-dim) 2px, transparent 0.9rem);
+  animation: crt-beam calc(var(--crt-duration, 650ms) * var(--crt-scale)) linear backwards; }
+@keyframes crt-power-on {
+  0% { opacity: 0; transform: scale(0.3, 0.004); filter: brightness(5) saturate(0.4); }
+  6% { opacity: 1; transform: scale(1, 0.004); filter: brightness(5) saturate(0.4); animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+  58% { transform: scale(1, 1); filter: brightness(1.9) saturate(0.8); animation-timing-function: ease-out; }
+  100% { opacity: 1; transform: none; filter: none; } }
+@keyframes crt-beam { 0%, 6% { opacity: 1; } 52% { opacity: 0.55; } 70%, 100% { opacity: 0; } }
+@keyframes crt-power-off {
+  0% { opacity: 1; transform: none; filter: none; }
+  45% { transform: scale(1, 0.004); filter: brightness(4); }
+  100% { opacity: 0; transform: scale(0, 0.004); filter: brightness(5); } }
+
+/* ---------- a workspace behind it (stands in for the panes) ---------- */
+.stage { position: relative; height: 40rem; max-width: 72rem; overflow: hidden; border: 1px solid var(--panel-rule); }
+.panes { position: absolute; inset: 0; display: grid; grid-template-columns: 1.4fr 1fr; grid-template-rows: 1fr 1fr; gap: var(--space-2); padding: var(--space-2); }
+.pane { display: flex; flex-direction: column; min-height: 0; }
+.pane.tall { grid-row: span 2; }
+.pane .body { flex: 1; min-height: 0; padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); overflow: hidden; white-space: pre; }
+.pane.focused > .hud-label { color: var(--accent-strong); }
+.pane.focused > .hud-label span:first-child::before { content: "▸ "; }
+.tabs { display: flex; gap: 2px; padding: 0 var(--space-2); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.tabs span { padding: 0 var(--space-2); border: 1px solid var(--panel-rule); border-bottom: none; color: var(--text-muted); }
+.tabs span.on { color: var(--text); border-color: var(--panel-border); }
+.web { position: relative; flex: 1; margin: var(--space-2); background: linear-gradient(135deg, #2a3b55, #0f1a2a); }
+.web.snap { filter: saturate(0.4); }
+.web .snapnote { position: absolute; left: var(--space-2); top: var(--space-2); padding: 0 var(--space-2); background: rgb(0 0 0 / 0.6); color: #cfe; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+
+/* ---------- the palette (NEW), shaped as PanePicker.svelte ---------- */
+.backdrop { position: absolute; inset: 0; z-index: 900; display: grid; place-items: start center; padding-top: 9vh; background: rgb(0 0 0 / 0.55); }
+.palette { --crt-duration: 380ms; display: flex; flex-direction: column; gap: var(--space-2); width: min(46rem, 92%); max-height: min(31rem, 86%); background: var(--app-bg); }
+.palette .frame-body { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; padding: var(--space-3); }
+.filter-row { display: flex; align-items: center; gap: var(--space-2); }
+.filter { flex: 1; min-width: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--panel-border); background: transparent; color: var(--text);
+  font-family: var(--font-mono); font-size: var(--step-0); outline: none; }
+.filter:focus { border-color: var(--accent); }
+.kinds { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.kinds button { padding: 0.1rem var(--space-3); border: 1px solid var(--panel-border); background: transparent; color: var(--text-muted);
+  font-family: var(--font-ui); font-size: var(--step--1); text-transform: uppercase; letter-spacing: var(--tracking-wide); cursor: pointer; }
+.kinds button.active { background: var(--accent); border-color: var(--accent); color: var(--text-inverse); }
+.kinds button b { font-weight: 400; font-family: var(--font-mono); margin-left: 0.35em; opacity: 0.75; }
+
+.list { min-height: 0; margin: 0; padding: 0; list-style: none; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
+.list .group { padding: var(--space-2) var(--space-2) var(--space-1); font-size: var(--step--2); letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted);
+  border-bottom: 1px solid var(--panel-rule); margin-bottom: 2px; }
+.row { display: grid; grid-template-columns: 4.6rem minmax(9rem, auto) 1fr auto; align-items: baseline; gap: var(--space-3); width: 100%;
+  padding: var(--space-1) var(--space-2); border: 0; border-left: 2px solid transparent; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.row.selected { border-left-color: var(--accent); background: var(--accent-faint); }
+.row.unavailable { color: var(--text-muted); cursor: default; }
+.row.armed { border-left-color: var(--danger); }
+.row.armed .state { color: var(--danger); }
+.kind { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.title { font-family: var(--font-ui); font-size: var(--step-0); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.title mark { background: none; color: var(--accent-strong); text-decoration: underline; text-underline-offset: 0.18em; }
+.unavailable .title mark { color: inherit; }
+.description { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--text-muted); font-size: var(--step--1); }
+.state { display: flex; align-items: baseline; gap: var(--space-2); justify-content: flex-end; color: var(--text-muted); font-family: var(--font-ui);
+  font-size: var(--step--2); text-transform: uppercase; letter-spacing: var(--tracking-wide); white-space: nowrap; }
+.state .current { color: var(--ok); }
+.chord { padding: 0 0.35em; border: 1px solid var(--panel-rule); font-family: var(--font-mono); font-size: var(--step--2); letter-spacing: 0; text-transform: none; color: var(--text); }
+.unavailable .chord { color: var(--text-muted); }
+.empty { padding: var(--space-3); color: var(--text-muted); }
+.palette-footer { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--panel-rule);
+  font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: 0.04em; color: var(--text-muted); }
+.palette-footer .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.palette-footer .count { flex-shrink: 0; font-family: var(--font-mono); font-size: var(--step--2); }
+@container (max-width: 0) {}
+@media (max-width: 40rem) { .row { grid-template-columns: 3.6rem 1fr auto; } .row .description { display: none; } }
+
+/* A toast, standing in for the app's: what the palette ran. */
+.toast { position: absolute; right: var(--space-4); bottom: var(--space-4); z-index: 950; min-width: 16rem; padding: var(--space-2) var(--space-3);
+  background: var(--surface-2); border-left: 2px solid var(--accent); font-size: var(--step--1); letter-spacing: 0.04em; }
+.toast b { display: block; font-size: var(--step--2); letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-muted); font-weight: 500; }
+
+/* ---------- notes ---------- */
+.notes { max-width: 72rem; margin-top: 1.4rem; font-family: system-ui, sans-serif; font-size: 0.86rem; line-height: 1.7; color: var(--text); }
+.notes h2 { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: 0.06em; margin: 1.4rem 0 0.4rem; border-bottom: 1px solid var(--panel-rule); }
+.notes code, .notes pre { font-family: var(--font-mono); font-size: 0.8rem; }
+.notes pre { padding: 0.6rem 0.8rem; border: 1px solid var(--panel-rule); background: var(--surface-2); overflow-x: auto; line-height: 1.5; }
+.notes .new { padding: 0 0.3rem; border: 1px solid var(--warn); color: var(--warn); font-size: 0.72rem; letter-spacing: 0.1em; margin-right: 0.3rem; }
+.notes table { border-collapse: collapse; width: 100%; }
+.notes td, .notes th { border: 1px solid var(--panel-rule); padding: 0.25rem 0.5rem; vertical-align: top; text-align: left; }
+.notes th { color: var(--text-muted); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="mockbar">
+  <div class="grp" id="themes"><span>theme</span></div>
+  <div class="grp" id="focus"><span>focused pane</span></div>
+  <div class="grp"><span>motion</span><button id="motion" aria-pressed="false">reduced</button></div>
+  <div class="grp"><span>theme preview</span><button id="preview" aria-pressed="true">on rest</button></div>
+  <div class="grp"><button id="open">open · ctrl+shift+p</button></div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="panes">
+    <section class="pane tall shell-frame" data-pane="shell">
+      <div class="hud-label"><span>terminal</span><span>~/work/elecdex</span></div>
+      <div class="tabs"><span class="on">pwsh</span><span>bash</span></div>
+      <div class="body">PS C:\work\elecdex&gt; npm run verify
+&gt; biome check . &amp;&amp; tsgo -p tsconfig.node.json …
+Checked 1,208 files in 2.1s. No fixes applied.
+ ✓ tests/unit (2,941 tests) 38.4s
+
+PS C:\work\elecdex&gt; _</div>
+    </section>
+    <section class="pane shell-frame" data-pane="web">
+      <div class="hud-label"><span>web · docs</span><span>docs.example.test</span></div>
+      <div class="web" id="web"><span class="snapnote" id="snapnote" hidden>view put away · snapshot shown (coverWeb)</span></div>
+    </section>
+    <section class="pane shell-frame" data-pane="clock">
+      <div class="hud-label"><span>clock</span><span>Asia/Tokyo</span></div>
+      <div class="body" style="font-size: var(--step-1); color: var(--text)">  21:48:06
+  MON 19 OCT 2026</div>
+    </section>
+  </div>
+  <div id="palette-root"></div>
+  <div id="toast-root"></div>
+</div>
+
+<div class="notes">
+  <h2>操作</h2>
+  <p>Ctrl+Shift+P（モックでは画面のどこでも）で開く。文字で絞り込み、↑↓ で選び、Enter で実行、Esc で閉じる。Tab / Shift+Tab で種類（ALL・ACTION・LAYOUT・PRESET・THEME・PANE・SETTINGS）を切り替える（ペイン追加の置き場所と同じ使い方）。空の入力では RECENT と種類ごとの見出しを出し、入力があれば種類をまたいで順位付けした一覧になる。上の「focused pane」を変えると、使えない項目（TAB GROUP にいない、シェルでない）が理由つきで薄くなる。Quit と Reset layout は Enter を 2 回（2 回目まで行が赤い）。THEME の行に止まるとそのテーマを試しに当て、Esc や別の行で戻る。</p>
+
+  <h2>疎結合の作り</h2>
+  <pre>
+shared/palette.ts            <span class="new">NEW</span> 純粋: PaletteItem 型、rankItems(query, items, kind)、matchSpans。DOM も store も知らない
+renderer/palette/
+  sources.ts                 <span class="new">NEW</span> PALETTE_SOURCES: 種類ごとに 1 関数 (facts) => PaletteItem[]。足すのは 1 行
+    actions   ← KEYBINDING_ACTIONS + actionChord + shortcutApplies（いまの判定をそのまま読む）
+    layouts   ← layout.savedLayouts（スロットのキーも）     presets ← layout/presets.ts
+    themes    ← BUILTIN_THEMES + 利用者のテーマ             panes   ← listWidgets()（ピッカーと同じ絞り込み）
+    settings  ← SettingsDialog の SECTIONS を外へ出したもの
+  ActionPalette.svelte       <span class="new">NEW</span> 描くだけ。PanePicker と同じ骨組み（crt-on / crtPower / backdropShade / dialogDelay）
+lib/commands.ts              <span class="new">NEW</span> 実行の口 1 つ: commands.provide(run) / commands.run(id)
+stores/ui.svelte.ts          paletteOpen を足し、dialogOpen に数える（開けば他のダイアログ・ポップアップは片付く）
+shared/keybindings.ts        { id: 'palette.open', chord: 'Ctrl+Shift+KeyP' } を 1 行
+layout/Workspace.svelte      ACTIONS に 'palette.open' を 1 行、マウント時に commands.provide(run) を 1 回
+</pre>
+  <p>パレットは Workspace を import しない。ショートカットの項目は、パレットが閉じて（<code>dialogOpen</code> が下りて）フォーカスが元のペインに戻ってから <code>commands.run(id)</code> を呼び、Workspace の既存の <code>run</code> がキーを押したときと同じ <code>shortcutApplies</code> を通して実行する。だから「キーで動くこと」と「パレットで動くこと」は常に同じで、パレット専用の分岐は Workspace に入らない。レイアウト・テーマ・ペイン・設定の項目は、既存の公開メソッド（<code>layout.switchTo</code>、<code>appearance.patch</code>、<code>layout.addPane</code> / <code>ui.openPopup</code>、<code>ui.openSettings(section)</code>）を呼ぶだけ。</p>
+
+  <h2>守る決まり</h2>
+  <table>
+    <tr><th>決まり</th><th>パレットでは</th></tr>
+    <tr><td>ショートカットはデータ、キーの判定は Workspace だけ</td><td>開くキーは keybindings.ts の 1 行。パレット内の ↑↓ Enter Esc Tab は、ピッカーと同じくダイアログ自身の操作（chord ではない）</td></tr>
+    <tr><td>ツールチップのキーは今の割り当て（<code>chordHint</code>）</td><td>行の右端のキーは <code>actionChord</code>（利用者の上書き・キーボードの刻印つき）。割り当てなしなら出さない</td></tr>
+    <tr><td><code>scope: 'global'</code> は main の OS 登録</td><td>Show or hide elecdex は載せない（ページからは押せない）。palette.open 自身も載せない</td></tr>
+    <tr><td>CRT の開閉、motion.spec</td><td><code>crt-on</code> と <code>transition:crtPower</code>、背景は <code>backdropShade</code>。モーション低減で省く。motion.spec.ts に足す</td></tr>
+    <tr><td>Web ペインの上に描くもの</td><td>ダイアログとして <code>coverWeb</code> に登録（ビューはスナップショットに）。モックの右上ペインを参照</td></tr>
+    <tr><td>切り替え・リセットの確認</td><td>レイアウト・プリセットは <code>layout.switchTo</code> 経由なのでシェルがあれば今の確認が出る。Reset layout はキー（<code>confirmReset</code>）と同じ。Quit は Enter 2 回</td></tr>
+    <tr><td>文字の大きさ</td><td>名前は --step-0、説明は --step--1、種類・状態・キーは --step--2（ラベル）</td></tr>
+  </table>
+
+  <h2>決めていただきたいこと</h2>
+  <ul>
+    <li>開くキー: Ctrl+Shift+P（空いている、VS Code と同じ）でよいか。</li>
+    <li>テーマの試し当て（止まって約 0.3 秒で当て、Esc で戻す）を入れるか。入れる場合も設定には書かず、Enter で初めて <code>appearance.patch</code>。</li>
+    <li>RECENT を残すか、残すならページのメモリだけ（再起動で消える）か、main のファイルか。モックはメモリだけ。</li>
+    <li>SETTINGS の行はセクション単位（7 つ）までにするか、個々の設定（例: reduce motion の切り替え）まで載せるか。モックはセクション単位。</li>
+    <li>プラグインのペインは PANE に載る（ピッカーと同じ条件）。プラグインが項目を足す API は作らない（必要になったら plugins.md と合わせて）。</li>
+  </ul>
+</div>
+
+<script>
+const THEMES = [
+  ['tron', 'Tron', 'the default: teal on black'],
+  ['amber', 'Amber', 'orange phosphor, scanlines'],
+  ['phosphor', 'Phosphor', 'green phosphor, scanlines'],
+  ['white', 'White', 'pale on near black'],
+  ['black', 'Black', 'near black on pale (light)'],
+  ['business-dark', 'Business (Dark)', 'Windows 11 dark'],
+  ['business-light', 'Business (Light)', 'Windows 11 light'],
+]
+const LIGHT = new Set(['black', 'business-light'])
+const SAVED = [
+  { id: 'l1', name: 'Work', panes: 6, chord: 'Ctrl+Shift+1' },
+  { id: 'l2', name: 'dev', panes: 7, chord: 'Ctrl+Shift+2', preset: 'dev' },
+  { id: 'l3', name: 'Night watch', panes: 4, chord: 'Ctrl+Shift+3' },
+]
+const PRESETS = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai', 'cockpit', 'retro']
+const WIDGETS = [
+  ['terminal', 'Terminal', 'a shell', 'multiple'],
+  ['clock', 'Clock', 'the time and date', 'in'],
+  ['sysinfo', 'System', 'CPU, memory, uptime', 'popup'],
+  ['network', 'Network', 'interfaces and throughput', 'popup'],
+  ['globe', 'Globe', 'connections on a globe', 'add'],
+  ['weather', 'Weather', 'forecast for a place', 'popup'],
+  ['git', 'Git', 'a repository, its changes and graph', 'popup'],
+  ['docker', 'Docker', 'containers on the local engine', 'popup'],
+  ['clipboard', 'Clipboard', 'what was copied, and snippets', 'popup'],
+  ['logwatch', 'Log watch', 'follow a log file', 'popup'],
+  ['ai-chat', 'AI chat', 'talk to a model', 'popup'],
+  ['chip8', 'CHIP-8', 'the CHIP-8 machine', 'add'],
+  ['web', 'Web docs', 'docs.example.test', 'in'],
+  ['plugin:pomodoro', 'Pomodoro', 'plugin · work and rest timer', 'popup'],
+]
+const SECTIONS = [
+  ['general', 'type, motion, sound, the shell'], ['window', 'tray, closing, sign-in'], ['keyboard', 'every shortcut, rebound here'],
+  ['alerts', 'quakes and tsunamis'], ['ai', 'providers and keys'], ['plugins', 'installed plugins and their grants'], ['updates', 'checking for a new version'],
+]
+// The keybinding actions, less the slots and presets (rows of their own) and the system-wide one.
+const ACTIONS = [
+  ['pane.add', 'Add a pane', 'Ctrl+Shift+A', 'opens the add-pane picker'],
+  ['pane.splitRight', 'Split right', 'Ctrl+Shift+E', 'a new pane right of the focused one'],
+  ['pane.splitDown', 'Split down', 'Ctrl+Shift+O', 'a new pane below the focused one'],
+  ['pane.newTab', 'New tab', 'Ctrl+Shift+T', 'a tab beside the focused pane'],
+  ['pane.close', 'Close pane', 'Ctrl+Shift+W', 'closes the focused pane'],
+  ['pane.zoom', 'Bring the pane forward', 'Ctrl+Shift+Z', 'the focused pane over the others'],
+  ['focus.next', 'Focus next pane', 'Ctrl+Shift+]', ''],
+  ['focus.previous', 'Focus previous pane', 'Ctrl+Shift+[', ''],
+  ['layout.reset', 'Reset layout', 'Ctrl+Shift+Backspace', 'back to the default layout', 'confirm'],
+  ['layout.saved', 'Saved layouts', 'Ctrl+Shift+G', 'opens the layouts dialog'],
+  ['launcher.focus', 'Search the launcher', 'Ctrl+Shift+L', ''],
+  ['utility.focus', 'Open the utility pane', 'Ctrl+Shift+U', 'awake, codec, QR'],
+  ['shell.focus', 'Focus the shell', 'Ctrl+Shift+S', ''],
+  ['shell.find', 'Search the shell', 'Ctrl+Shift+F', ''],
+  ['shell.clear', "Clear the shell's scrollback", 'Ctrl+Shift+K', 'not undone'],
+  ['shell.fontBigger', 'Larger type in the shells', 'Ctrl+Shift+=', ''],
+  ['shell.fontSmaller', 'Smaller type in the shells', 'Ctrl+Shift+-', ''],
+  ['tab.next', 'Next tab', 'Ctrl+Shift+→', ''],
+  ['tab.previous', 'Previous tab', 'Ctrl+Shift+←', ''],
+  ['shell.next', 'Next shell pane', 'Ctrl+Alt+Shift+→', ''],
+  ['shell.previous', 'Previous shell pane', 'Ctrl+Alt+Shift+←', ''],
+  ['settings.open', 'Open settings', 'Ctrl+Shift+.', ''],
+  ['window.fullscreen', 'Toggle fullscreen', 'F11', ''],
+  ['window.minimize', 'Minimize window', 'Ctrl+Shift+M', ''],
+  ['app.quit', 'Quit', 'Ctrl+Shift+Q', 'ends every shell', 'confirm'],
+]
+
+// What `shortcutApplies` reads, for the pane focused before the palette opened.
+const FOCUS = {
+  shell: { label: 'shell', focusedIsShell: true, inTabGroup: true, otherShell: true },
+  web: { label: 'web', focusedIsShell: false, inTabGroup: false, otherShell: false },
+  clock: { label: 'clock', focusedIsShell: false, inTabGroup: false, otherShell: false },
+}
+const S = { theme: 'tron', focus: 'shell', reduced: false, previewOn: true, open: false, filter: '', kind: 'all', selected: 0,
+  armed: null, previewing: null, recent: ['pane.zoom', 'theme:amber', 'layout:l2'] }
+
+function whyNot(id) {
+  const f = FOCUS[S.focus]
+  if ((id === 'shell.clear') && !f.focusedIsShell) return 'only from a shell'
+  if ((id === 'tab.next' || id === 'tab.previous') && !f.inTabGroup) return 'not in a tab group'
+  if ((id === 'shell.next' || id === 'shell.previous') && !(f.focusedIsShell && f.otherShell)) return 'only from a shell'
+  return null
+}
+
+// The sources: each one a list of rows from what the app already has.
+function items() {
+  const out = []
+  for (const [id, label, chord, desc, confirm] of ACTIONS)
+    out.push({ key: id, kind: 'action', label, desc, chord, why: whyNot(id), confirm: !!confirm, words: id.replace(/\./g, ' '),
+      what: `${label}${desc ? ' — ' + desc : ''}, as ${chord} does` })
+  for (const l of SAVED)
+    out.push({ key: 'layout:' + l.id, kind: 'layout', label: l.name, desc: `${l.panes} panes${l.preset ? ' · from the ' + l.preset + ' preset' : ''}`, chord: l.chord,
+      current: l.id === 'l1', words: 'layout switch', what: l.id === 'l1' ? 'the layout on screen now' : `switches to “${l.name}” (asks first while shells are open)` })
+  PRESETS.forEach((p, i) => {
+    const made = SAVED.find((l) => l.preset === p)
+    out.push({ key: 'preset:' + p, kind: 'preset', label: p, desc: made ? `goes to “${made.name}”` : 'adds a layout from it', chord: 'Ctrl+Shift+F' + (i + 1),
+      words: 'preset layout template', what: made ? `goes to “${made.name}”, the layout made from this preset` : `adds a saved layout from the ${p} preset, then switches to it` })
+  })
+  for (const [id, name, desc] of THEMES)
+    out.push({ key: 'theme:' + id, kind: 'theme', label: name, desc, current: id === S.theme, words: 'theme colour color appearance ' + (LIGHT.has(id) ? 'light' : 'dark'),
+      what: id === S.theme ? 'the theme in use' : `uses the ${name} theme (settings.appearance.theme)`, theme: id })
+  for (const [id, name, desc, state] of WIDGETS)
+    out.push({ key: 'pane:' + id, kind: 'pane', label: name, desc, words: 'pane widget add ' + id,
+      paneState: state === 'in' ? 'in layout · focus' : state === 'popup' ? 'pop up' : state === 'multiple' ? 'add → right' : 'add → right',
+      what: state === 'in' ? `focuses the ${name} pane already in the layout` : state === 'popup' ? `pops ${name} up over the workspace, outside the layout` : `adds ${name} right of the focused pane` })
+  for (const [id, desc] of SECTIONS)
+    out.push({ key: 'settings:' + id, kind: 'settings', label: 'Settings: ' + id, desc, words: 'settings preferences options',
+      what: `opens settings at ${id}` })
+  return out
+}
+
+// rankItems: every word of the query a subsequence of the row; a run of letters and a word's
+// start count most, a match in the name more than in the words behind it.
+function matchIn(text, q) {
+  const t = text.toLowerCase(); const spans = []; let i = 0; let score = 0; let prev = -2
+  for (const ch of q) {
+    const j = t.indexOf(ch, i)
+    if (j < 0) return null
+    score += (j === prev + 1 ? 3 : 1) + (j === 0 || /[\s.:(\-]/.test(t[j - 1]) ? 2 : 0)
+    spans.push(j); prev = j; i = j + 1
+  }
+  return { score, spans }
+}
+function rank(all, query, kind) {
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  const scoped = all.filter((it) => kind === 'all' || it.kind === kind)
+  if (words.length === 0) return scoped.map((it) => ({ it, spans: [] }))
+  const out = []
+  for (const it of scoped) {
+    let score = 0; const spans = new Set(); let ok = true
+    for (const w of words) {
+      const inLabel = matchIn(it.label, w)
+      // The words behind a row match only as written (a loose match there finds everything).
+      const inWords = (it.kind + ' ' + it.desc + ' ' + it.words).toLowerCase().includes(w)
+      if (inLabel) { score += inLabel.score * 2; inLabel.spans.forEach((s) => spans.add(s)) }
+      else if (inWords) score += w.length
+      else { ok = false; break }
+    }
+    if (!ok) continue
+    if (it.why) score -= 4
+    out.push({ it, spans: [...spans], score })
+  }
+  return out.sort((a, b) => b.score - a.score)
+}
+
+const KINDS = ['all', 'action', 'layout', 'preset', 'theme', 'pane', 'settings']
+const $ = (s) => document.querySelector(s)
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+function marked(text, spans) {
+  const set = new Set(spans); let html = ''
+  for (let i = 0; i < text.length; i++) html += set.has(i) ? `<mark>${esc(text[i])}</mark>` : esc(text[i])
+  return html
+}
+
+// The rows on screen, in order: with no query, RECENT then a heading per kind.
+function view() {
+  const all = items()
+  const ranked = rank(all, S.filter, S.kind)
+  if (S.filter.trim() !== '') return { rows: ranked, groups: null, total: all.length, counts: counts(all) }
+  const rows = []; const groups = new Map()
+  if (S.kind === 'all') {
+    const recent = S.recent.map((k) => ranked.find((r) => r.it.key === k)).filter(Boolean)
+    if (recent.length) { groups.set(0, 'recent'); rows.push(...recent.map((r) => ({ ...r, recent: true }))) }
+  }
+  for (const k of KINDS.slice(1)) {
+    const of = ranked.filter((r) => r.it.kind === k)
+    if (!of.length) continue
+    if (S.kind === 'all') groups.set(rows.length, k)
+    rows.push(...of)
+  }
+  return { rows, groups, total: all.length, counts: counts(all) }
+}
+function counts(all) { const c = { all: all.length }; for (const it of all) c[it.kind] = (c[it.kind] ?? 0) + 1; return c }
+
+function stateHtml(it, armed, previewing) {
+  if (armed) return `<span>enter again to ${it.key === 'app.quit' ? 'quit' : 'reset'}</span>`
+  const parts = []
+  if (it.why) parts.push(`<span>${esc(it.why)}</span>`)
+  if (it.current) parts.push('<span class="current">current</span>')
+  if (previewing) parts.push('<span>preview</span>')
+  if (it.paneState) parts.push(`<span>${esc(it.paneState)}</span>`)
+  if (it.chord) parts.push(`<kbd class="chord">${esc(it.chord)}</kbd>`)
+  return parts.join('')
+}
+
+let lastRows = []
+function render() {
+  const root = $('#palette-root')
+  $('#snapnote').hidden = !S.open
+  $('#web').classList.toggle('snap', S.open)
+  if (!S.open) { root.innerHTML = ''; return }
+  const v = view(); lastRows = v.rows
+  if (S.selected >= v.rows.length) S.selected = Math.max(0, v.rows.length - 1)
+  let list = ''
+  v.rows.forEach((r, i) => {
+    if (v.groups?.has(i)) list += `<li class="group">${v.groups.get(i)}</li>`
+    const it = r.it; const armed = S.armed === it.key; const previewing = S.previewing === it.theme && !!it.theme && !it.current
+    list += `<li><button type="button" role="option" class="row${i === S.selected ? ' selected' : ''}${it.why ? ' unavailable' : ''}${armed ? ' armed' : ''}" aria-selected="${i === S.selected}" data-i="${i}">
+      <span class="kind">${it.kind}</span><span class="title">${marked(it.label, r.spans)}</span><span class="description">${esc(it.desc || '')}</span>
+      <span class="state">${stateHtml(it, armed, previewing)}</span></button></li>`
+  })
+  if (!v.rows.length) list = `<li class="empty">nothing matches “${esc(S.filter)}”${S.kind !== 'all' ? ' in ' + S.kind + ' · tab for all' : ''}</li>`
+  const sel = v.rows[S.selected]?.it
+  const what = sel ? (sel.why ? `not now: ${sel.why}` : sel.what) : ''
+  const first = !root.firstElementChild
+  if (first) {
+    root.innerHTML = `<div class="backdrop" id="backdrop"><div class="palette shell-frame crt-on" role="dialog" aria-modal="true" aria-label="Actions" id="palette">
+      <header class="hud-label"><span>actions</span><span>↑↓ choose · tab kind · enter run · esc close</span></header>
+      <div class="frame-body">
+        <div class="filter-row"><input class="filter" id="filter" placeholder="type to find an action, layout, theme, pane or setting" spellcheck="false" autocomplete="off"></div>
+        <div class="kinds" role="radiogroup" aria-label="Kind" id="kinds"></div>
+        <ul class="list" role="listbox" aria-label="Actions" id="list"></ul>
+        <footer class="palette-footer"><span class="what" id="what"></span><span class="count" id="count"></span></footer>
+      </div></div></div>`
+    $('#filter').addEventListener('input', (e) => { S.filter = e.target.value; S.selected = 0; S.armed = null; render(); restPreview() })
+    $('#backdrop').addEventListener('pointerdown', (e) => { if (e.target === e.currentTarget) close() })
+    $('#list').addEventListener('pointermove', (e) => { const b = e.target.closest('.row'); if (b && +b.dataset.i !== S.selected) { S.selected = +b.dataset.i; S.armed = null; render(); restPreview() } })
+    $('#list').addEventListener('click', (e) => { const b = e.target.closest('.row'); if (b) runRow(+b.dataset.i) })
+    $('#kinds').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.kind = b.dataset.kind; S.selected = 0; render() } })
+    queueMicrotask(() => $('#filter').focus())
+  }
+  $('#kinds').innerHTML = KINDS.map((k) => `<button type="button" role="radio" data-kind="${k}" aria-checked="${S.kind === k}" class="${S.kind === k ? 'active' : ''}">${k}<b>${v.counts[k] ?? 0}</b></button>`).join('')
+  $('#list').innerHTML = list
+  $('#what').textContent = what
+  $('#count').textContent = `${new Set(v.rows.map((r) => r.it.key)).size} / ${v.total}`
+  $('#list .selected')?.scrollIntoView({ block: 'nearest' })
+}
+
+// Theme preview: applied after a rest on the row, put back by Esc or another row.
+let restTimer = 0
+function restPreview() {
+  clearTimeout(restTimer)
+  const it = lastRows[S.selected]?.it
+  if (!S.previewOn || !it?.theme) { unpreview(); return }
+  restTimer = setTimeout(() => { S.previewing = it.theme; applyTheme(it.theme); render() }, 300)
+}
+function unpreview() { if (S.previewing !== null) { S.previewing = null; applyTheme(S.theme); render() } }
+
+function applyTheme(id) {
+  const r = document.documentElement
+  if (id === 'tron') r.removeAttribute('data-theme'); else r.dataset.theme = id
+  if (LIGHT.has(id)) r.dataset.mode = 'light'; else r.removeAttribute('data-mode')
+}
+
+function openPalette() {
+  if (S.open) return
+  S.open = true; S.filter = ''; S.kind = 'all'; S.selected = 0; S.armed = null
+  render()
+}
+function close(then) {
+  if (!S.open) return
+  clearTimeout(restTimer)
+  const p = $('#palette')
+  const done = () => { S.open = false; S.previewing = null; applyTheme(S.theme); render(); then?.() }
+  if (S.reduced || !p) return done()
+  p.classList.remove('crt-on'); p.classList.add('crt-off')
+  p.addEventListener('animationend', done, { once: true })
+}
+
+function runRow(i) {
+  const it = lastRows[i]?.it
+  if (!it || it.why || it.current) return
+  if (it.confirm && S.armed !== it.key) { S.armed = it.key; render(); return }
+  S.recent = [it.key, ...S.recent.filter((k) => k !== it.key)].slice(0, 5)
+  if (it.theme) { S.theme = it.theme; syncBar() }
+  close(() => toast(it))
+}
+function toast(it) {
+  const root = $('#toast-root')
+  const note = it.kind === 'action' ? 'commands.run → Workspace run → shortcutApplies' : it.kind === 'theme' ? 'appearance.patch' : it.kind === 'layout' || it.kind === 'preset' ? 'layout.switchTo / goToPreset' : it.kind === 'pane' ? 'layout.addPane / ui.openPopup' : 'ui.openSettings(section)'
+  root.innerHTML = `<div class="toast crt-on" style="--crt-duration: 380ms"><b>stand-in · ${note}</b>${esc(it.what)}</div>`
+  clearTimeout(toast.t); toast.t = setTimeout(() => (root.innerHTML = ''), 3200)
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyP') { e.preventDefault(); S.open ? close() : openPalette(); return }
+  if (!S.open) return
+  const n = Math.max(1, lastRows.length)
+  const step = (d) => { S.selected = (S.selected + d + n) % n; S.armed = null; render(); restPreview() }
+  switch (e.key) {
+    case 'Escape': e.preventDefault(); if (S.armed) { S.armed = null; render() } else close(); return
+    case 'ArrowDown': e.preventDefault(); step(1); return
+    case 'ArrowUp': e.preventDefault(); step(-1); return
+    case 'PageDown': e.preventDefault(); step(Math.min(8, n - 1 - S.selected) || 0); return
+    case 'PageUp': e.preventDefault(); step(-Math.min(8, S.selected) || 0); return
+    case 'Tab': {
+      e.preventDefault()
+      const i = KINDS.indexOf(S.kind)
+      S.kind = KINDS[(i + (e.shiftKey ? KINDS.length - 1 : 1)) % KINDS.length]; S.selected = 0; S.armed = null; unpreview(); render(); return
+    }
+    case 'Enter': e.preventDefault(); runRow(S.selected); return
+  }
+}, true)
+
+// The mock's own controls.
+for (const [id, name] of THEMES) {
+  const b = document.createElement('button'); b.textContent = name; b.dataset.theme = id
+  b.onclick = () => { S.theme = id; applyTheme(id); syncBar(); render() }
+  $('#themes').append(b)
+}
+for (const id of Object.keys(FOCUS)) {
+  const b = document.createElement('button'); b.textContent = id; b.dataset.focus = id
+  b.onclick = () => { S.focus = id; syncBar(); render() }
+  $('#focus').append(b)
+}
+$('#motion').onclick = () => { S.reduced = !S.reduced; document.documentElement.dataset.motion = S.reduced ? 'reduced' : 'full'; syncBar() }
+$('#preview').onclick = () => { S.previewOn = !S.previewOn; if (!S.previewOn) unpreview(); syncBar() }
+$('#open').onclick = () => openPalette()
+function syncBar() {
+  document.querySelectorAll('#themes button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === S.theme)))
+  document.querySelectorAll('#focus button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.focus === S.focus)))
+  document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('focused', p.dataset.pane === S.focus))
+  $('#motion').setAttribute('aria-pressed', String(S.reduced))
+  $('#preview').setAttribute('aria-pressed', String(S.previewOn))
+}
+syncBar()
+openPalette()
+</script>
+</body>
+</html>

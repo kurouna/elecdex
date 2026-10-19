@@ -102,7 +102,8 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  cluster.md (the CLUSTER pane), logwatch.md and logwatch-mock/ (the LOG WATCH
                  pane), ethernet-mock/ (the Ethernet pane's mock, beside the Wi-Fi pane's
                  shots), agents-codex.md and agents-mock/ (a Codex source for the AI AGENT
-                 pane, designed, not built), demos.md (making, changing and recording the demos),
+                 pane, designed, not built), palette-mock/ (an action palette, issue 23,
+                 mocked, not built), demos.md (making, changing and recording the demos),
                  screenshots/ (README images)
 ```
 
