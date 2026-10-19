@@ -17,6 +17,7 @@
 |------|------|------|
 | 2026-10-19 | パレットを作る。種類は ACTION・LAYOUT・PRESET・THEME・PANE・SETTINGS | issue 23、モックで確認 |
 | 2026-10-19 | 疎結合にする。パレットは Workspace を import せず、アクションは Workspace の既存の `run` を通す | 利用者の指定 |
+| 2026-10-19 | レビュー（Fable 5.1、コードで確かめた）を反映: フォーカスは実行の前に同期で戻す、リセットの構えは確認が出ないときに、新しいモジュールは形を置いてからテストを書く、テストを足す（開いている間のキー、使える側、beforeEach）、モックをピッカーと同じ大きさと位置にする | 利用者の指示 |
 | 2026-10-19 | Q1〜Q6 は下の表の推奨どおり: Ctrl+Shift+P、試し当てなし、RECENT はページのメモリだけ、SETTINGS はセクション単位、PANE はポップアップ優先、ポップアップの上でも開く | 利用者の選択（1 問ずつ確認） |
 
 問いと答え（すべて推奨どおりに決まった）:
@@ -64,13 +65,14 @@
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- 見出しは `hud-label`、本体は `shell-frame`、幅は `min(46rem, 90vw)`、背景はピッカーと同じく中央に置く。
+- 見出しは `hud-label`、本体は `shell-frame`。大きさはピッカーと同じ `width: min(46rem, 90vw)`、`max-height: min(34rem, 80vh)` で、画面の中央に置く（背景は `place-items: center`）。幅に応じて列を隠す規則は作らない（ピッカーにもない）。
 - 行は 4 列（種類・名前・説明・状態とキー）。選んだ行は左の線と `--accent-faint`、使えない行は `--text-muted`（ピッカーの `.unavailable`）。
 - 名前のうち一致した文字に下線を引く（色は `--accent-strong`）。色だけに頼らない。
 - 空の入力では RECENT（最大 5）のあと種類ごとの見出し。入力があれば種類をまたいで順位付けし、見出しは出さない。
 - フッターは選んだ行が何をするかの 1 行と、件数。
 - Tab / Shift+Tab で種類を回す（ピッカーの置き場所と同じ使い方）。PageUp / PageDown で 8 行ずつ動く。
-- マウス: 行の上で動かせば選び、クリックで実行。背景の pointerdown で閉じる（ピッカーと同じ）。
+- マウス: 行の上で動かせば選び、クリックで実行。背景の pointerdown で閉じる（ピッカーと同じ）。種類のボタンを押しても、フォーカスは入力欄に置いたまま（押したらフォーカスを入力欄に戻す）。
+- パレットが取るキー（↑↓、PageUp/PageDown、Tab、Enter、Esc）は `preventDefault` と `stopPropagation` で止める（ピッカーの `take()`）。文字は入力欄が受けるので、下のシェルには届かない。ショートカットは、開いている間は Workspace の `run` が `dialogOpen` で断る（`THROUGH_DIALOGS` の Quit と全画面を除く）。
 - IME の変換中の Enter と ↑↓ は取らない（`event.isComposing || event.keyCode === 229`。AiChatWidget と同じ判定）。
 
 ## 3. 演出と見た目の統一（既存のものだけを使う）
@@ -142,7 +144,7 @@ export const commands: CommandRunner & { provide(runner: CommandRunner): () => v
 |----------|------|-----------|
 | `src/shared/keybindings.ts` | `{ id: 'palette.open', label: 'Find an action', chord: 'Ctrl+Shift+KeyP' }` を 1 行 | 1 |
 | `src/renderer/stores/ui.svelte.ts` | `'palette'` を `Overlay` と `CLOSABLE` に、`paletteOpen` と `openPalette` / `closePalette`、`showing` / `hide` / `dialogOpen` に 1 行ずつ | 約 15 |
-| `src/renderer/layout/Workspace.svelte` | `ACTIONS` に `'palette.open': () => ui.openPalette()`。`commands.provide` を `$effect` で 1 回。`throughDialog` に `ui.popupOnTop && action === 'palette.open'`（Q6） | 約 8 |
+| `src/renderer/layout/Workspace.svelte` | `ACTIONS` に `'palette.open': () => ui.openPalette()`。`commands.provide({ run: (a) => run(a, false), applies: (a) => shortcutApplies(a, shortcutFacts(layout.focusedPaneId, false)) })` を `$effect` で 1 回（`applies` は `run` を使わない: `run` は開いている間 `dialogOpen` で false になる）。`throughDialog` に `ui.popupOnTop && action === 'palette.open'`（Q6） | 約 12 |
 | `src/renderer/App.svelte` | `<ActionPalette />` を `<PanePicker />` の隣に | 2 |
 | `src/renderer/SettingsDialog.svelte` | `SECTIONS` を `settingsSections(capabilities)` に置き換える（中身は同じ） | 約 10 |
 
@@ -157,11 +159,11 @@ main がキーを取ってページへ送り、Workspace が開く（`web.onShor
 
 | 種類 | 出どころ | 除くもの・注意 |
 |------|----------|----------------|
-| ACTION | `KEYBINDING_ACTIONS`、`effectiveBindings` で書式、`commands.applies` | `scope: 'global'`、`palette.open` 自身、`layout.savedN`（LAYOUT の行になる）、`layout.preset.*`（PRESET の行になる）、この機械にないもの（`availableOn`） |
+| ACTION | `KEYBINDING_ACTIONS`、`effectiveBindings` で書式、`commands.applies` | `scope: 'global'`、`palette.open` 自身、`layout.savedN`（LAYOUT の行になる）、`layout.preset.*`（PRESET の行になる）、この機械にないもの（`availableOn`）。`pane.zoom` は前に出ているペインがあれば戻す（`layout.zoomedPaneId ?? focusedPaneId`）ので、説明は「前に出す、または戻す」 |
 | LAYOUT | `layout.savedLayouts`。最初の 10 件は `layout.savedN` のキー | 使用中（`entry.active`）は `current` |
 | PRESET | `LAYOUT_PRESETS` と `layoutFromPreset`。キーは `layout.preset.<id>` | 説明は「〜へ移る」か「レイアウトを足す」 |
-| THEME | `appearance.catalog.themes`（組み込みと利用者のテーマ） | 使用中は `current` |
-| PANE | `listWidgets()`。ピッカーと同じ絞り込み（`plugins.usable`、`unlisted`） | 状態は `pickerChoice` の答え（Q5） |
+| THEME | `appearance.catalog.themes`（組み込みと利用者のテーマ） | 使用中は `appearance.theme.id`（実際に当たっているもの）で決める。`settings.theme` はもう無いテーマを指していることがある |
+| PANE | `listWidgets()`。ピッカーと同じ絞り込み（`plugins.usable`、`unlisted`） | 置き場所はウィジェットごとに `w.popup ? 'popup' : 'right'` を選び、`pickerChoice(w, placement, existing)` に渡す（Q5）。`pickerChoice` は `popup` の置き場所をポップアップできないウィジェットに `none` で返すので、一律に `popup` を渡さない |
 | SETTINGS | `settingsSections(capabilities)` | 開けるのはセクションだけ（Q4） |
 
 ソースはパレットが開いている間だけ（`{#if ui.paletteOpen}` の中の `$derived`）計算する。閉じていれば何もしない。
@@ -185,11 +187,12 @@ Enter
  └ それ以外
     1. recent の先頭に入れる（最大 5、ページのメモリ）
     2. ui.closePalette()        ← dialogOpen が下り、closedAt が付く
-    3. 開く前のフォーカスを戻す（ピッカーの returnFocus と同じ）
+    3. 開く前のフォーカスをその場で（同期で）戻し、returnFocus を null にする
     4. 種類ごとに実行
          action   → commands.run(id)            Workspace の run(id, false): dialogOpen と shortcutApplies を通る
          preset   → commands.run('layout.preset.<id>')  キーと同じ経路
-         layout   → layout.switchTo(id)          スロットのキーと同じメソッド。シェルがあれば今の確認が出る
+         layout   → layout.switchTo(id)          スロットのキーと同じメソッド。シェルがあり、
+                                                 layout.confirmSwitch がオンなら今の確認が出る（mayReplace）
          theme    → appearance.patch({ theme }) のあと sfx 'theme'（App.svelte の chooseTheme と同じ）
          pane     → pickerChoice の答え: focus / layout.addPane(w, 'right') / ui.openPopup(w)
          settings → ui.openSettings(section)
@@ -199,15 +202,24 @@ Enter
 次のダイアログが `dialogDelay` で消える線から開くためである。`run` に渡す `editing` は false にする。
 パレットから選んだ時点で文字欄のキーと取り合うことはないので、タブのキーを文字欄に残す理由がない。
 
+3 を 4 より先に、同期で行うのは、アクションが動かしたフォーカスを後から奪わないためである。ピッカーは
+フォーカスを `$effect` の後始末で戻すので、その後始末は次の flush、つまりアクションの後に走る。そのため
+ピッカーは、選んだものがフォーカスを動かすときに `returnFocus = null` にしている（PanePicker.svelte の
+`choose`）。パレットはフォーカスを動かすアクションが多い（`shell.focus`、`shell.find`、`focus.next`、
+`shell.next`、呼び出し、PANE のフォーカス、`pane.add`）。どれがそうかを数えるのではなく、先に戻して
+後始末を空にする。Esc や背景で閉じたときだけ、後始末が戻す。
+
 ### 5.4 Enter 2 回（`armsFirst`）
 
 | アクション | 構えるか | 理由 |
 |------------|----------|------|
 | `app.quit` | 常に | 絞り込んで Enter すると、先頭の行が意図せず走りうる。終わらせると戻せない |
 | `shell.clear` | 常に | スクロールバックは戻せない |
-| `layout.reset` | シェルが 1 つもないときだけ | シェルがあれば `confirmReset` のダイアログが聞く。2 回聞かない。ステータスバーのリセットボタンが 2 回目のクリックで聞くのと同じ扱い |
+| `layout.reset` | `confirmReset` が聞かないとき（シェルが 1 つもない、または `layout.confirmSwitch` がオフ） | 聞くときはダイアログに任せ、2 回聞かない。聞かないときは、1 回の Enter でシェルをすべて終わらせないように構える。ステータスバーとピッカーのリセットボタンは、ダイアログを出さずに 2 回目のクリックで確かめる（`ConfirmButton`）ので、「どちらか 1 回は必ず確かめる」点で揃う |
 
-`armsFirst(action, facts)` は純粋な関数にし、表をそのままテストする。
+`armsFirst(action, { anyShell, confirmSwitch })` は純粋な関数にし、表をそのままテストする。
+`confirmSwitch` は `appearance.settings.layout.confirmSwitch` から渡す。LAYOUT と PRESET の行は構えない。
+キー（Ctrl+Shift+1 など）と同じく、`confirmSwitch` がオフなら確認なしで切り替わる。利用者がそう選んだ設定なので、パレットだけ変えることはしない。
 
 ### 5.5 ほかのダイアログとの関係
 
@@ -228,7 +240,16 @@ Enter
 
 ## 7. テスト計画（先に書く）
 
-各段階で次の順に進める。(1) テストを書く。(2) 走らせて、落ちることとその理由（「関数がない」ではなく、期待との食い違い）を確かめ、記録する。(3) 実装する。(4) 緑にする。(5) その段階の既存テストも走らせる。
+各段階で次の順に進める。
+
+1. 新しいモジュールは、まず中身のない形だけを置く（型と、空の配列・false・何もしない関数を返す export）。こうすれば、テストの最初の失敗が「モジュールがない」ではなく期待との食い違いになる。
+2. テストを書く。
+3. 走らせて、落ちることとその理由（期待との食い違い）を確かめ、記録する。
+4. 実装する。
+5. 緑にする。
+6. その段階の既存テストも走らせる。
+
+既存のファイルに足すテスト（keybindings、shortcut-applies、dialog-motion）は、形を置かなくても食い違いで落ちる。
 
 ### 7.1 段階 1: 純粋なロジック（tests/unit）
 
@@ -244,11 +265,11 @@ Enter
   - ACTION に global・`palette.open`・スロット・プリセットのアクションが入らない。macOS では `window.minimize` が入らない。
   - キーは利用者の上書きで出る。割り当てを外したら `chord: null`。刻印の書式（`formatChord` と labels）。
   - `UNAVAILABLE_REASON` が網羅されている（§5.2）。
-  - `armsFirst` の表（§5.4）。
+  - `armsFirst` の表（§5.4）。`layout.reset` は、シェルなし / シェルあり・確認オン / シェルあり・確認オフの 3 通り。
   - LAYOUT: 11 件目以降はキーなし、使用中は `current`。PRESET: 作ったレイアウトがあれば「移る」。
   - THEME: 使用中は `current`、利用者のテーマも並ぶ。PANE: `pickerChoice` と同じ答え、プラグインは同意済みだけ。
   - key がすべて一意。
-- `settings-sections.test.ts`: 今の SettingsDialog と同じ並び。window は `backgroundOffered` のときだけ出る。
+- `settings-sections.test.ts`: 今の SettingsDialog と同じ並び。window は `backgroundOffered` のときだけ出る。期待する並びは、抽出前の SettingsDialog.svelte の `SECTIONS` から写す。
 - `keybindings.test.ts` に追加: `palette.open` は Ctrl+Shift+P で、他と重ならない。
 - `shortcut-applies.test.ts` に追加: `palette.open` はどの事実でも当てはまり、Web ページには残らない。
 - `app-menu.test.ts`: 既存のテストが新しいキーも確かめることを確認する（足すものがなければ足さない）。
@@ -259,12 +280,16 @@ Enter
 - パレットはダイアログである。開けば `dialogOpen`、他のダイアログとポップアップを片付けて `closedAt` を付ける。他のダイアログを開けばパレットが片付く。
 - 待っているレイアウト切り替えの問いを「いいえ」で答える。
 - 開いていない状態で閉じても `closedAt` は付かない。
+- `beforeEach` で閉じるダイアログの一覧に `ui.closePalette()` を足す。足さないと、1 つのテストで開いたままのパレットが次のテストに漏れる。
 
 ### 7.3 段階 3: コンポーネント（tests/component/action-palette.test.ts、jsdom）
 
 `window.elecdex` と `commands` を差し替え、モックの引数は `structuredClone` する（CLAUDE.md の作法）。
 
-- 開くと入力欄にフォーカスがあり、閉じると元の要素に戻る。
+- 開くと入力欄にフォーカスがある。Esc や背景で閉じると、元の要素に戻る。
+- フォーカスを動かすものを実行すると（`commands.run` の差し替えが別の要素にフォーカスを置く。PANE のフォーカスの行も）、flush の後も、開く前の要素にフォーカスが戻らない（§5.3 の 3）。
+- 種類のボタンをクリックしても、フォーカスは入力欄のまま。
+- パレットが取るキーは `stopPropagation` され、パレットの外の keydown の受け手には届かない。
 - 入力で絞り込み、件数とフッターが変わる。一致した文字が `mark` になる。
 - ↑↓ は端で回る。PageUp / PageDown。Tab / Shift+Tab で種類を回し、選択は先頭に戻る。
 - Enter で、パレットが閉じたあとに（`commands.run` が呼ばれた時点で `ui.dialogOpen` が false）、その id で 1 回だけ実行される。
@@ -279,12 +304,14 @@ Enter
 
 `palette.spec.ts`（新規）:
 
-- Ctrl+Shift+P で開き、`split right` を選んで Enter すると、Ctrl+Shift+E を押したときと同じ木になる（同じ初期の木から 2 回作って比べる）。
-- タブグループの外では NEXT TAB が理由つきで薄く、Enter しても木が変わらない。
+- Ctrl+Shift+P で開き、`split right` を選んで Enter すると、Ctrl+Shift+E を押したときと同じ木になる（同じ初期の木から 2 回作って比べる。ペインの id は作るたびに変わるので、木の形とウィジェットだけを比べる）。
+- タブグループの外では NEXT TAB が理由つきで薄く、Enter しても木が変わらない。シェルがタブグループの中でフォーカスを持っているときに開けば、NEXT TAB は使え、Enter でタブが移る。
+- 開いている間に Ctrl+Shift+E や Ctrl+Shift+W を押しても木は変わらない。入力欄に打った文字は、下のシェルに届かない（シェルの出力に現れない）。
+- シェルがあり、`layout.confirmSwitch` がオフのとき、Reset layout は Enter 2 回で初めてリセットする。
 - テーマを選ぶと `settings.json` の theme が変わる。Esc では何も変わらない。
 - `Settings: keyboard` で設定がそのセクションで開き、消える線から開く（`--crt-delay` が付く）。
-- シェルを開いた状態で保存レイアウトを選ぶと、今の確認が出る。
-- Web ペインにフォーカスがあるとき（スタブのページ）にキーで開き、ビューが片付き、閉じれば戻る。
+- シェルを開いた状態で（`layout.confirmSwitch` は既定のオン）保存レイアウトを選ぶと、今の確認が出る。
+- Web ペインにフォーカスがあるとき（スタブのページ）にキーで開き、ビューが片付く。Esc で閉じればビューは再び見える（web.spec.ts の `expectShownOverBody`）。キーボードはワークスペースに残る。ピッカーと同じで、ページにはフォーカスが戻らない（web.spec.ts のピッカーの場合と同じ確かめ方をする）。
 - ポップアップの上でキーを押すとパレットが開き、ポップアップは片付く。同じ状態で Ctrl+Shift+A は効かないまま。
 - 利用者がキーを付け替えると（settings の keybindings）、新しいキーで開き、行の右端にも新しいキーが出る。
 
@@ -318,9 +345,11 @@ Enter
 
 - `coverWeb` は使わない。ダイアログは `ui.dialogOpen` に数えれば WebWidget が自分のビューを片付ける（モックの注記の誤り）。
 - テーマの試し当ては v1 に入れない（Q2）。
-- `layout.reset` の構えは、シェルがないときだけにする（§5.4）。
+- `layout.reset` の構えは、`confirmReset` が聞かないとき（シェルなし、または確認オフ）にする（§5.4）。
+- `shell.clear` も構える（モックでは構えていなかった）。
+- 開いている間の Ctrl+Shift+P は何もしない（モックでは閉じていた）。
+- 大きさと位置はピッカーと同じ（モックは `min(31rem, 86%)` で上寄せ、狭い幅で列を隠していた）。
 - 一致の判定: `words` は部分文字列だけにする（モックで直したとおり）。
-- パレットは画面の中央に置く（ピッカーと同じ）。モックは上寄せだった。
 
 ## 10. 見つかった既存の問題（この変更では直さない）
 

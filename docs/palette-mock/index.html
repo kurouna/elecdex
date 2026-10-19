@@ -133,8 +133,8 @@ p { margin: 0; }
 .web .snapnote { position: absolute; left: var(--space-2); top: var(--space-2); padding: 0 var(--space-2); background: rgb(0 0 0 / 0.6); color: #cfe; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
 
 /* ---------- the palette (NEW), shaped as PanePicker.svelte ---------- */
-.backdrop { position: absolute; inset: 0; z-index: 900; display: grid; place-items: start center; padding-top: 9vh; background: rgb(0 0 0 / 0.55); }
-.palette { --crt-duration: 380ms; display: flex; flex-direction: column; gap: var(--space-2); width: min(46rem, 92%); max-height: min(31rem, 86%); background: var(--app-bg); }
+.backdrop { position: absolute; inset: 0; z-index: 900; display: grid; place-items: center; background: rgb(0 0 0 / 0.55); }
+.palette { --crt-duration: 380ms; display: flex; flex-direction: column; gap: var(--space-2); width: min(46rem, 90%); max-height: min(34rem, 80%); background: var(--app-bg); }
 .palette .frame-body { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; padding: var(--space-3); }
 .filter-row { display: flex; align-items: center; gap: var(--space-2); }
 .filter { flex: 1; min-width: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--panel-border); background: transparent; color: var(--text);
@@ -170,8 +170,6 @@ p { margin: 0; }
   font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: 0.04em; color: var(--text-muted); }
 .palette-footer .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
 .palette-footer .count { flex-shrink: 0; font-family: var(--font-mono); font-size: var(--step--2); }
-@container (max-width: 0) {}
-@media (max-width: 40rem) { .row { grid-template-columns: 3.6rem 1fr auto; } .row .description { display: none; } }
 
 /* A toast, standing in for the app's: what the palette ran. */
 .toast { position: absolute; right: var(--space-4); bottom: var(--space-4); z-index: 950; min-width: 16rem; padding: var(--space-2) var(--space-3);
@@ -195,7 +193,7 @@ p { margin: 0; }
   <div class="grp" id="themes"><span>theme</span></div>
   <div class="grp" id="focus"><span>focused pane</span></div>
   <div class="grp"><span>motion</span><button id="motion" aria-pressed="false">reduced</button></div>
-  <div class="grp"><span>theme preview</span><button id="preview" aria-pressed="true">on rest</button></div>
+  <div class="grp"><span>confirm switch</span><button id="confirmSwitch" aria-pressed="true">on</button></div>
   <div class="grp"><button id="open">open · ctrl+shift+p</button></div>
 </div>
 
@@ -227,7 +225,7 @@ PS C:\work\elecdex&gt; _</div>
 
 <div class="notes">
   <h2>操作</h2>
-  <p>Ctrl+Shift+P（モックでは画面のどこでも）で開く。文字で絞り込み、↑↓ で選び、Enter で実行、Esc で閉じる。Tab / Shift+Tab で種類（ALL・ACTION・LAYOUT・PRESET・THEME・PANE・SETTINGS）を切り替える（ペイン追加の置き場所と同じ使い方）。空の入力では RECENT と種類ごとの見出しを出し、入力があれば種類をまたいで順位付けした一覧になる。上の「focused pane」を変えると、使えない項目（TAB GROUP にいない、シェルでない）が理由つきで薄くなる。Quit と Reset layout は Enter を 2 回（2 回目まで行が赤い）。THEME の行に止まるとそのテーマを試しに当て、Esc や別の行で戻る。</p>
+  <p>Ctrl+Shift+P（モックでは画面のどこでも）で開く。文字で絞り込み、↑↓ で選び、Enter で実行、Esc で閉じる。Tab / Shift+Tab で種類（ALL・ACTION・LAYOUT・PRESET・THEME・PANE・SETTINGS）を切り替える（ペイン追加の置き場所と同じ使い方）。空の入力では RECENT と種類ごとの見出しを出し、入力があれば種類をまたいで順位付けした一覧になる。上の「focused pane」を変えると、使えない項目（TAB GROUP にいない、シェルでない）が理由つきで薄くなる。Quit と Clear the shell's scrollback は Enter を 2 回（2 回目まで行が赤い）。Reset layout は、シェルがあり「confirm switch」がオンなら既存の確認ダイアログが聞くので構えず、オフにすると Enter 2 回になる。開いている間の Ctrl+Shift+P は何もしない（閉じるのは Esc）。テーマの試し当ては入れない（docs/palette.md Q2）。</p>
 
   <h2>疎結合の作り</h2>
   <pre>
@@ -249,23 +247,18 @@ layout/Workspace.svelte      ACTIONS に 'palette.open' を 1 行、マウント
   <h2>守る決まり</h2>
   <table>
     <tr><th>決まり</th><th>パレットでは</th></tr>
+    <tr><td>大きさと位置</td><td>ピッカーと同じ <code>min(46rem, 90vw)</code> × <code>min(34rem, 80vh)</code>、画面の中央</td></tr>
     <tr><td>ショートカットはデータ、キーの判定は Workspace だけ</td><td>開くキーは keybindings.ts の 1 行。パレット内の ↑↓ Enter Esc Tab は、ピッカーと同じくダイアログ自身の操作（chord ではない）</td></tr>
     <tr><td>ツールチップのキーは今の割り当て（<code>chordHint</code>）</td><td>行の右端のキーは <code>actionChord</code>（利用者の上書き・キーボードの刻印つき）。割り当てなしなら出さない</td></tr>
     <tr><td><code>scope: 'global'</code> は main の OS 登録</td><td>Show or hide elecdex は載せない（ページからは押せない）。palette.open 自身も載せない</td></tr>
     <tr><td>CRT の開閉、motion.spec</td><td><code>crt-on</code> と <code>transition:crtPower</code>、背景は <code>backdropShade</code>。モーション低減で省く。motion.spec.ts に足す</td></tr>
     <tr><td>Web ペインの上に描くもの</td><td>ダイアログとして <code>ui.dialogOpen</code> に数えれば、WebWidget が自分のビューを片付ける（<code>coverWeb</code> は要らない。docs/palette.md §9）。モックの右上ペインを参照</td></tr>
-    <tr><td>切り替え・リセットの確認</td><td>レイアウト・プリセットは <code>layout.switchTo</code> 経由なのでシェルがあれば今の確認が出る。Reset layout はキー（<code>confirmReset</code>）と同じ。Quit は Enter 2 回</td></tr>
+    <tr><td>切り替え・リセットの確認</td><td>レイアウト・プリセットは <code>layout.switchTo</code> 経由なので、シェルがあり確認がオンなら今の確認が出る。Reset layout は確認が出ないとき（シェルなし、または確認オフ）だけ Enter 2 回。Quit と Clear は常に Enter 2 回</td></tr>
     <tr><td>文字の大きさ</td><td>名前は --step-0、説明は --step--1、種類・状態・キーは --step--2（ラベル）</td></tr>
   </table>
 
-  <h2>決めていただきたいこと</h2>
-  <ul>
-    <li>開くキー: Ctrl+Shift+P（空いている、VS Code と同じ）でよいか。</li>
-    <li>テーマの試し当て（止まって約 0.3 秒で当て、Esc で戻す）を入れるか。入れる場合も設定には書かず、Enter で初めて <code>appearance.patch</code>。</li>
-    <li>RECENT を残すか、残すならページのメモリだけ（再起動で消える）か、main のファイルか。モックはメモリだけ。</li>
-    <li>SETTINGS の行はセクション単位（7 つ）までにするか、個々の設定（例: reduce motion の切り替え）まで載せるか。モックはセクション単位。</li>
-    <li>プラグインのペインは PANE に載る（ピッカーと同じ条件）。プラグインが項目を足す API は作らない（必要になったら plugins.md と合わせて）。</li>
-  </ul>
+  <h2>決まったこと</h2>
+  <p>開くキーは Ctrl+Shift+P、テーマの試し当てはなし、RECENT はページのメモリだけ、SETTINGS はセクション単位、PANE はポップアップできるものはポップアップ、ポップアップの上でも開く（2026-10-19）。設計とその理由は docs/palette.md。設計がこの注記と食い違うときは、設計に従う。</p>
 </div>
 
 <script>
@@ -312,16 +305,16 @@ const ACTIONS = [
   ['pane.splitDown', 'Split down', 'Ctrl+Shift+O', 'a new pane below the focused one'],
   ['pane.newTab', 'New tab', 'Ctrl+Shift+T', 'a tab beside the focused pane'],
   ['pane.close', 'Close pane', 'Ctrl+Shift+W', 'closes the focused pane'],
-  ['pane.zoom', 'Bring the pane forward', 'Ctrl+Shift+Z', 'the focused pane over the others'],
+  ['pane.zoom', 'Bring the pane forward', 'Ctrl+Shift+Z', 'the focused pane over the others, or put it back'],
   ['focus.next', 'Focus next pane', 'Ctrl+Shift+]', ''],
   ['focus.previous', 'Focus previous pane', 'Ctrl+Shift+[', ''],
-  ['layout.reset', 'Reset layout', 'Ctrl+Shift+Backspace', 'back to the default layout', 'confirm'],
+  ['layout.reset', 'Reset layout', 'Ctrl+Shift+Backspace', 'back to the default layout, ending every shell', 'reset'],
   ['layout.saved', 'Saved layouts', 'Ctrl+Shift+G', 'opens the layouts dialog'],
   ['launcher.focus', 'Search the launcher', 'Ctrl+Shift+L', ''],
   ['utility.focus', 'Open the utility pane', 'Ctrl+Shift+U', 'awake, codec, QR'],
   ['shell.focus', 'Focus the shell', 'Ctrl+Shift+S', ''],
   ['shell.find', 'Search the shell', 'Ctrl+Shift+F', ''],
-  ['shell.clear', "Clear the shell's scrollback", 'Ctrl+Shift+K', 'not undone'],
+  ['shell.clear', "Clear the shell's scrollback", 'Ctrl+Shift+K', 'not undone', 'confirm'],
   ['shell.fontBigger', 'Larger type in the shells', 'Ctrl+Shift+=', ''],
   ['shell.fontSmaller', 'Smaller type in the shells', 'Ctrl+Shift+-', ''],
   ['tab.next', 'Next tab', 'Ctrl+Shift+→', ''],
@@ -340,8 +333,8 @@ const FOCUS = {
   web: { label: 'web', focusedIsShell: false, inTabGroup: false, otherShell: false },
   clock: { label: 'clock', focusedIsShell: false, inTabGroup: false, otherShell: false },
 }
-const S = { theme: 'tron', focus: 'shell', reduced: false, previewOn: true, open: false, filter: '', kind: 'all', selected: 0,
-  armed: null, previewing: null, recent: ['pane.zoom', 'theme:amber', 'layout:l2'] }
+const S = { theme: 'tron', focus: 'shell', reduced: false, confirmSwitch: true, open: false, filter: '', kind: 'all', selected: 0,
+  armed: null, recent: ['pane.zoom', 'theme:amber', 'layout:l2'] }
 
 function whyNot(id) {
   const f = FOCUS[S.focus]
@@ -355,7 +348,7 @@ function whyNot(id) {
 function items() {
   const out = []
   for (const [id, label, chord, desc, confirm] of ACTIONS)
-    out.push({ key: id, kind: 'action', label, desc, chord, why: whyNot(id), confirm: !!confirm, words: id.replace(/\./g, ' '),
+    out.push({ key: id, kind: 'action', label, desc, chord, why: whyNot(id), confirm: confirm === 'reset' ? !S.confirmSwitch : !!confirm, words: id.replace(/\./g, ' '),
       what: `${label}${desc ? ' — ' + desc : ''}, as ${chord} does` })
   for (const l of SAVED)
     out.push({ key: 'layout:' + l.id, kind: 'layout', label: l.name, desc: `${l.panes} panes${l.preset ? ' · from the ' + l.preset + ' preset' : ''}`, chord: l.chord,
@@ -441,12 +434,11 @@ function view() {
 }
 function counts(all) { const c = { all: all.length }; for (const it of all) c[it.kind] = (c[it.kind] ?? 0) + 1; return c }
 
-function stateHtml(it, armed, previewing) {
-  if (armed) return `<span>enter again to ${it.key === 'app.quit' ? 'quit' : 'reset'}</span>`
+function stateHtml(it, armed) {
+  if (armed) return `<span>enter again to ${({ 'app.quit': 'quit', 'shell.clear': 'clear', 'layout.reset': 'reset' })[it.key]}</span>`
   const parts = []
   if (it.why) parts.push(`<span>${esc(it.why)}</span>`)
   if (it.current) parts.push('<span class="current">current</span>')
-  if (previewing) parts.push('<span>preview</span>')
   if (it.paneState) parts.push(`<span>${esc(it.paneState)}</span>`)
   if (it.chord) parts.push(`<kbd class="chord">${esc(it.chord)}</kbd>`)
   return parts.join('')
@@ -463,10 +455,10 @@ function render() {
   let list = ''
   v.rows.forEach((r, i) => {
     if (v.groups?.has(i)) list += `<li class="group">${v.groups.get(i)}</li>`
-    const it = r.it; const armed = S.armed === it.key; const previewing = S.previewing === it.theme && !!it.theme && !it.current
+    const it = r.it; const armed = S.armed === it.key
     list += `<li><button type="button" role="option" class="row${i === S.selected ? ' selected' : ''}${it.why ? ' unavailable' : ''}${armed ? ' armed' : ''}" aria-selected="${i === S.selected}" data-i="${i}">
       <span class="kind">${it.kind}</span><span class="title">${marked(it.label, r.spans)}</span><span class="description">${esc(it.desc || '')}</span>
-      <span class="state">${stateHtml(it, armed, previewing)}</span></button></li>`
+      <span class="state">${stateHtml(it, armed)}</span></button></li>`
   })
   if (!v.rows.length) list = `<li class="empty">nothing matches “${esc(S.filter)}”${S.kind !== 'all' ? ' in ' + S.kind + ' · tab for all' : ''}</li>`
   const sel = v.rows[S.selected]?.it
@@ -481,11 +473,11 @@ function render() {
         <ul class="list" role="listbox" aria-label="Actions" id="list"></ul>
         <footer class="palette-footer"><span class="what" id="what"></span><span class="count" id="count"></span></footer>
       </div></div></div>`
-    $('#filter').addEventListener('input', (e) => { S.filter = e.target.value; S.selected = 0; S.armed = null; render(); restPreview() })
+    $('#filter').addEventListener('input', (e) => { S.filter = e.target.value; S.selected = 0; S.armed = null; render() })
     $('#backdrop').addEventListener('pointerdown', (e) => { if (e.target === e.currentTarget) close() })
-    $('#list').addEventListener('pointermove', (e) => { const b = e.target.closest('.row'); if (b && +b.dataset.i !== S.selected) { S.selected = +b.dataset.i; S.armed = null; render(); restPreview() } })
+    $('#list').addEventListener('pointermove', (e) => { const b = e.target.closest('.row'); if (b && +b.dataset.i !== S.selected) { S.selected = +b.dataset.i; S.armed = null; render() } })
     $('#list').addEventListener('click', (e) => { const b = e.target.closest('.row'); if (b) runRow(+b.dataset.i) })
-    $('#kinds').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.kind = b.dataset.kind; S.selected = 0; render() } })
+    $('#kinds').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { S.kind = b.dataset.kind; S.selected = 0; render(); $('#filter').focus() } })
     queueMicrotask(() => $('#filter').focus())
   }
   $('#kinds').innerHTML = KINDS.map((k) => `<button type="button" role="radio" data-kind="${k}" aria-checked="${S.kind === k}" class="${S.kind === k ? 'active' : ''}">${k}<b>${v.counts[k] ?? 0}</b></button>`).join('')
@@ -494,16 +486,6 @@ function render() {
   $('#count').textContent = `${new Set(v.rows.map((r) => r.it.key)).size} / ${v.total}`
   $('#list .selected')?.scrollIntoView({ block: 'nearest' })
 }
-
-// Theme preview: applied after a rest on the row, put back by Esc or another row.
-let restTimer = 0
-function restPreview() {
-  clearTimeout(restTimer)
-  const it = lastRows[S.selected]?.it
-  if (!S.previewOn || !it?.theme) { unpreview(); return }
-  restTimer = setTimeout(() => { S.previewing = it.theme; applyTheme(it.theme); render() }, 300)
-}
-function unpreview() { if (S.previewing !== null) { S.previewing = null; applyTheme(S.theme); render() } }
 
 function applyTheme(id) {
   const r = document.documentElement
@@ -518,9 +500,8 @@ function openPalette() {
 }
 function close(then) {
   if (!S.open) return
-  clearTimeout(restTimer)
-  const p = $('#palette')
-  const done = () => { S.open = false; S.previewing = null; applyTheme(S.theme); render(); then?.() }
+    const p = $('#palette')
+  const done = () => { S.open = false; render(); then?.() }
   if (S.reduced || !p) return done()
   p.classList.remove('crt-on'); p.classList.add('crt-off')
   p.addEventListener('animationend', done, { once: true })
@@ -542,10 +523,10 @@ function toast(it) {
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.shiftKey && e.code === 'KeyP') { e.preventDefault(); S.open ? close() : openPalette(); return }
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyP') { e.preventDefault(); openPalette(); return }
   if (!S.open) return
   const n = Math.max(1, lastRows.length)
-  const step = (d) => { S.selected = (S.selected + d + n) % n; S.armed = null; render(); restPreview() }
+  const step = (d) => { S.selected = (S.selected + d + n) % n; S.armed = null; render() }
   switch (e.key) {
     case 'Escape': e.preventDefault(); if (S.armed) { S.armed = null; render() } else close(); return
     case 'ArrowDown': e.preventDefault(); step(1); return
@@ -555,7 +536,7 @@ window.addEventListener('keydown', (e) => {
     case 'Tab': {
       e.preventDefault()
       const i = KINDS.indexOf(S.kind)
-      S.kind = KINDS[(i + (e.shiftKey ? KINDS.length - 1 : 1)) % KINDS.length]; S.selected = 0; S.armed = null; unpreview(); render(); return
+      S.kind = KINDS[(i + (e.shiftKey ? KINDS.length - 1 : 1)) % KINDS.length]; S.selected = 0; S.armed = null; render(); return
     }
     case 'Enter': e.preventDefault(); runRow(S.selected); return
   }
@@ -573,14 +554,14 @@ for (const id of Object.keys(FOCUS)) {
   $('#focus').append(b)
 }
 $('#motion').onclick = () => { S.reduced = !S.reduced; document.documentElement.dataset.motion = S.reduced ? 'reduced' : 'full'; syncBar() }
-$('#preview').onclick = () => { S.previewOn = !S.previewOn; if (!S.previewOn) unpreview(); syncBar() }
+$('#confirmSwitch').onclick = () => { S.confirmSwitch = !S.confirmSwitch; S.armed = null; $('#confirmSwitch').textContent = S.confirmSwitch ? 'on' : 'off'; syncBar(); render() }
 $('#open').onclick = () => openPalette()
 function syncBar() {
   document.querySelectorAll('#themes button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.theme === S.theme)))
   document.querySelectorAll('#focus button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.focus === S.focus)))
   document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('focused', p.dataset.pane === S.focus))
   $('#motion').setAttribute('aria-pressed', String(S.reduced))
-  $('#preview').setAttribute('aria-pressed', String(S.previewOn))
+  $('#confirmSwitch').setAttribute('aria-pressed', String(S.confirmSwitch))
 }
 syncBar()
 openPalette()
