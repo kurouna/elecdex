@@ -253,7 +253,7 @@ layout/Workspace.svelte      ACTIONS に 'palette.open' を 1 行、マウント
     <tr><td>ツールチップのキーは今の割り当て（<code>chordHint</code>）</td><td>行の右端のキーは <code>actionChord</code>（利用者の上書き・キーボードの刻印つき）。割り当てなしなら出さない</td></tr>
     <tr><td><code>scope: 'global'</code> は main の OS 登録</td><td>Show or hide elecdex は載せない（ページからは押せない）。palette.open 自身も載せない</td></tr>
     <tr><td>CRT の開閉、motion.spec</td><td><code>crt-on</code> と <code>transition:crtPower</code>、背景は <code>backdropShade</code>。モーション低減で省く。motion.spec.ts に足す</td></tr>
-    <tr><td>Web ペインの上に描くもの</td><td>ダイアログとして <code>coverWeb</code> に登録（ビューはスナップショットに）。モックの右上ペインを参照</td></tr>
+    <tr><td>Web ペインの上に描くもの</td><td>ダイアログとして <code>ui.dialogOpen</code> に数えれば、WebWidget が自分のビューを片付ける（<code>coverWeb</code> は要らない。docs/palette.md §9）。モックの右上ペインを参照</td></tr>
     <tr><td>切り替え・リセットの確認</td><td>レイアウト・プリセットは <code>layout.switchTo</code> 経由なのでシェルがあれば今の確認が出る。Reset layout はキー（<code>confirmReset</code>）と同じ。Quit は Enter 2 回</td></tr>
     <tr><td>文字の大きさ</td><td>名前は --step-0、説明は --step--1、種類・状態・キーは --step--2（ラベル）</td></tr>
   </table>
