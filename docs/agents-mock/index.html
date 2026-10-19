@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI AGENT mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of the AI AGENT pane with Codex beside Claude Code, standalone: no elecdex code,
+ * every session made up (the Codex shapes follow a probe run with codex exec 0.151,
+ * 2026-10-19). Its rows, figures, tree and card copy AgentsWidget.svelte and AgentCard;
+ * what is new is marked NEW in the notes under it.
+ * Colours follow tokens.css (primitive -> semantic, status colours copied) so the themes switch.
+ */
+:root {
+  --accent-h: 183; --accent-s: 22%; --accent-l: 74%;
+  --surface-1: #05080d; --surface-2: #0b1118; --grid: #161b1f;
+  --hue-danger: 0; --hue-warn: 45; --hue-ok: 130; --hue-info: 212;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --text: var(--accent);
+  --text-muted: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --danger: hsl(var(--hue-danger) 80% 60%);
+  --warn: hsl(var(--hue-warn) 85% 58%);
+  --ok: hsl(var(--hue-ok) 60% 52%);
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --step--2: 0.625rem; --step--1: 0.75rem; --step-0: 0.875rem; --step-1: 1.125rem;
+  --space-1: 0.25rem; --space-2: 0.5rem;
+}
+:root[data-theme="green"] { --accent-h: 120; --accent-s: 100%; --accent-l: 45%; --surface-1: #000; --surface-2: #031003; --grid: #0d1f0d; }
+:root[data-theme="amber"] { --accent-h: 36; --accent-s: 100%; --accent-l: 55%; --surface-1: #000; --surface-2: #120b00; --grid: #1d1405; }
+:root[data-theme="business"] {
+  --accent-h: 214; --accent-s: 55%; --accent-l: 34%; --surface-1: #f4f6f9; --surface-2: #ffffff; --grid: #e2e6ec;
+  --danger: hsl(var(--hue-danger) 75% 44%); --warn: hsl(var(--hue-warn) 95% 36%); --ok: hsl(var(--hue-ok) 60% 32%);
+  color-scheme: light;
+}
+html { font-size: clamp(14px, 1.48vh, 20px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; color: var(--text); font-family: var(--font-ui);
+  background-color: var(--surface-1);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 2.2rem 2.2rem; padding: 1rem;
+}
+button { font: inherit; color: inherit; }
+p { margin: 0; }
+
+/* ---------- mock controls (not part of the pane) ---------- */
+.mockbar { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; align-items: center; font-size: var(--step--1);
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.8rem; color: var(--text-muted); }
+.mockbar .grp { display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }
+.mockbar .grp > span { margin-right: 0.3rem; }
+.mockbar button { background: transparent; border: 1px solid var(--panel-rule); padding: 0.1rem 0.5rem; cursor: pointer;
+  font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: 0.12em; }
+.mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--surface-1); border-color: var(--accent); }
+
+/* ---------- the pane's frame (the real pane's chrome stands in) ---------- */
+.frame { position: relative; display: flex; flex-direction: column; background: var(--surface-1);
+  border: 1px solid var(--panel-border); height: 44rem; width: 58rem; max-width: 100%;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px)); }
+.frame.narrow { width: 30rem; }
+.chrome { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--panel-rule); }
+.chrome .name { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: 0.08em; }
+.chrome .badge { margin-left: auto; font-size: var(--step--2); letter-spacing: 0.1em; color: var(--warn); }
+.chrome .sub { font-size: var(--step--2); letter-spacing: 0.08em; color: var(--text-muted); }
+
+/* ---------- the pane, as AgentsWidget.svelte ---------- */
+.agents { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; container-type: inline-size; }
+.work { display: grid; flex: 1 1 auto; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.work.with-diff { grid-template-columns: minmax(12rem, 46%) minmax(0, 1fr); }
+@container (max-width: 40rem) { .work.with-diff { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 0.9fr); }
+  .diff { border-left: none !important; border-top: 1px solid var(--panel-rule); } }
+.list { overflow: auto; min-height: 0; padding: var(--space-1) 0; }
+.diff { min-width: 0; min-height: 0; overflow: auto; border-left: 1px solid var(--panel-rule); font-family: var(--font-mono); font-size: var(--step--1); }
+
+.card { margin: 0 var(--space-1) var(--space-2); border-left: 2px solid var(--panel-rule); }
+.card[data-status='busy'] { border-left-color: var(--ok); }
+.card[data-status='waiting'] { border-left-color: var(--warn); }
+.card.open { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+.head { display: flex; align-items: baseline; gap: 0.5rem; width: 100%; padding: 0.15rem var(--space-2); border: none;
+  background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--text); text-align: left; cursor: pointer; }
+.head:hover { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.lamp { flex-shrink: 0; align-self: center; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--panel-rule); }
+[data-status='busy'] .lamp { background: var(--ok); box-shadow: 0 0 0.4rem var(--ok); }
+[data-status='waiting'] .lamp { background: var(--warn); }
+.status { flex-shrink: 0; width: 4.6em; font-size: var(--step--1); letter-spacing: 0.14em; color: var(--text-muted); }
+[data-status='busy'] .status { color: var(--ok); }
+[data-status='waiting'] .status { color: var(--warn); }
+.title { overflow: hidden; min-width: 0; font-size: var(--step-0); letter-spacing: 0.04em; text-overflow: ellipsis; white-space: nowrap; }
+.project, .when { flex-shrink: 0; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.when { margin-left: auto; }
+.running { flex-shrink: 0; font-size: var(--step--1); letter-spacing: 0.12em; color: var(--ok); }
+
+/* NEW: whose session it is, once more than one agent is read. */
+.src { flex-shrink: 0; padding: 0 0.3rem; border: 1px solid var(--panel-rule); font-size: var(--step--2);
+  letter-spacing: 0.12em; color: var(--text-muted); }
+.src.codex { border-style: dashed; }
+
+.activity { display: flex; gap: 0.5rem; padding: 0 var(--space-2) 0 calc(var(--space-2) + 1rem); font-family: var(--font-mono); font-size: var(--step--1); min-width: 0; }
+.tool { flex-shrink: 0; color: var(--accent-strong); letter-spacing: 0.06em; }
+.detail { overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
+.quiet { flex-shrink: 0; margin-left: auto; color: var(--text-muted); font-size: var(--step--2); }
+.figures { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; padding: 0.05rem var(--space-2) 0.25rem calc(var(--space-2) + 1rem);
+  font-size: var(--step--1); letter-spacing: 0.1em; color: var(--text-muted); }
+.figures b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; }
+.model { font-family: var(--font-mono); letter-spacing: 0; }
+.more { padding: 0 var(--space-2) var(--space-1) calc(var(--space-2) + 1rem); }
+.tools { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.1rem 0 0.3rem; }
+.chip { padding: 0 0.4rem; border: 1px solid var(--panel-rule); font-size: var(--step--2); letter-spacing: 0.08em; color: var(--text-muted); }
+.chip b { font-family: var(--font-mono); font-weight: 400; color: var(--text); }
+.label { margin: 0.2rem 0 0.1rem; font-size: var(--step--2); letter-spacing: 0.16em; color: var(--text-muted); }
+.file { display: flex; gap: 0.5rem; width: 100%; padding: 0 0.3rem; border: none; border-left: 2px solid transparent; background: transparent;
+  font-family: var(--font-mono); font-size: var(--step--1); text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; }
+.file:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.file.on { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.mark { color: var(--warn); font-weight: 600; }
+.mark.created { color: var(--ok); }
+.by { flex-shrink: 0; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: 0.1em; color: var(--text-muted); }
+
+.tree { margin: 0; padding: 0; list-style: none; }
+.tasks { padding: 0 var(--space-2) 0.25rem calc(var(--space-2) + 0.85rem); font-size: var(--step--1); }
+.node { position: relative; padding-left: 1.3rem; }
+.node::before, .node::after { content: ''; position: absolute; left: 0.4rem; border-color: var(--panel-border); border-style: solid; border-width: 0; }
+.node::before { top: 0; bottom: 0; border-left-width: 1px; }
+.node:last-child::before { bottom: auto; height: 0.6lh; }
+.node::after { top: 0.6lh; width: 0.65rem; border-top-width: 1px; }
+.task { display: grid; grid-template-columns: 3.4em 2.8em minmax(0, 1fr) auto; column-gap: 0.5rem; align-items: baseline;
+  font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); }
+.kind { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: 0.1em; }
+.task-state { font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: 0.1em; }
+.task[data-state='running'] { color: var(--text); }
+.task[data-state='running'] .task-state { color: var(--ok); }
+.task-title, .step { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nick { color: var(--accent-strong); }
+.step { grid-column: 3 / -1; color: var(--text); }
+.fold { display: flex; gap: 0.5rem; width: 100%; padding: 0; border: none; background: transparent; color: var(--text-muted);
+  font-size: var(--step--1); letter-spacing: 0.1em; text-align: left; cursor: pointer; }
+.caret { width: 0.8em; color: var(--accent-strong); }
+.credit { flex: none; padding: 0.15rem var(--space-2); border-top: 1px solid var(--panel-rule); font-size: var(--step--2); line-height: 1.3; color: var(--text-muted); }
+
+/* the diff, as DiffView in its unified form */
+.diff .dh { display: flex; gap: 0.6rem; padding: 0.2rem 0.5rem; border-bottom: 1px solid var(--panel-rule); }
+.diff .dh .from { margin-left: auto; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: 0.1em; color: var(--text-muted); }
+.diff .hunk { padding: 0.1rem 0.5rem; color: var(--accent-strong); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.diff .ln { display: grid; grid-template-columns: 2.4em 2.4em 1em 1fr; padding: 0 0.5rem; white-space: pre; }
+.diff .ln span:nth-child(-n+2) { color: var(--text-muted); }
+.diff .add { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.diff .del { background: color-mix(in srgb, var(--danger) 14%, transparent); }
+
+/* the detail card, as HoverCard + CardRows */
+.hcard { position: absolute; z-index: 5; width: 30rem; max-width: calc(100% - 1rem); padding: 0.45rem 0.6rem;
+  background: var(--surface-2); border: 1px solid var(--panel-border); font-size: var(--step--1);
+  box-shadow: 0 0.4rem 1.2rem rgb(0 0 0 / 0.45); }
+.hcard .t { font-weight: 600; font-size: var(--step-0); }
+.hcard .s { color: var(--text-muted); font-family: var(--font-mono); margin-top: 0.1rem; overflow-wrap: anywhere; }
+.hcard dl { display: grid; grid-template-columns: 6.5em 1fr; gap: 0.1rem 0.6rem; margin: 0.35rem 0 0; }
+.hcard dt { letter-spacing: 0.12em; color: var(--text-muted); font-size: var(--step--2); align-self: baseline; }
+.hcard dd { margin: 0; font-family: var(--font-mono); overflow-wrap: anywhere; }
+.hcard dd.m { color: var(--text-muted); }
+.hcard dd .new { color: var(--warn); font-family: var(--font-ui); letter-spacing: 0.1em; font-size: var(--step--2); margin-left: 0.4rem; }
+
+.notes { max-width: 58rem; margin-top: 1rem; font-family: system-ui, sans-serif; font-size: 0.85rem; line-height: 1.7; color: var(--text); }
+.notes h2 { font-family: var(--font-display); font-size: 1rem; letter-spacing: 0.06em; margin: 1rem 0 0.3rem; }
+.notes code { font-family: var(--font-mono); font-size: 0.8rem; }
+.notes li { margin: 0.15rem 0; }
+.notes .new { color: var(--warn); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="mockbar">
+  <div class="grp" data-group="theme"><span>theme</span>
+    <button aria-pressed="true" data-v="default">default</button><button data-v="green">green</button>
+    <button data-v="amber">amber</button><button data-v="business">business</button></div>
+  <div class="grp" data-group="width"><span>width</span>
+    <button aria-pressed="true" data-v="wide">wide</button><button data-v="narrow">narrow</button></div>
+  <div class="grp" data-group="card"><span>detail card</span>
+    <button aria-pressed="true" data-v="none">none</button><button data-v="session">codex session</button>
+    <button data-v="task">codex subagent</button><button data-v="idle">codex idle</button></div>
+  <div class="grp" data-group="diff"><span>diff</span>
+    <button aria-pressed="true" data-v="on">on</button><button data-v="off">off</button></div>
+</div>
+
+<div class="frame" id="frame">
+  <div class="chrome"><span class="name">AI AGENT</span><span class="sub">3 live · Claude Code, Codex</span><span class="badge">experimental</span></div>
+  <div class="agents">
+    <div class="work with-diff" id="work">
+      <div class="list">
+
+        <!-- Codex: busy, a tree of subagents from session_meta's parent_thread_id, one waiting on its own child. -->
+        <section class="card open" data-status="busy">
+          <button class="head" type="button"><span class="lamp"></span><span class="status">BUSY</span>
+            <span class="src codex">CODEX</span><span class="title">Tidy the fruit and colour lists</span>
+            <span class="project">codex-probe</span><span class="running">2 RUNNING</span><span class="when">2m</span></button>
+          <p class="activity"><span class="tool">WAIT</span><span class="detail">for subagent_b</span><span class="quiet">quiet 18s</span></p>
+          <p class="figures"><span class="model">gpt-5.6-terra</span><span>CTX <b>24k</b></span><span>OUT <b>1.9k</b></span><span>TURNS <b>1</b></span><span>exec</span></p>
+          <ul class="tasks tree">
+            <li class="node"><div class="task" data-state="running"><span class="kind">AGENT</span><span class="task-state">RUN</span>
+              <span class="task-title"><span class="nick">Huygens</span> subagent_b</span><span>1m</span>
+              <span class="step"><span class="tool">WAIT</span> for subagent_c</span></div>
+              <ul class="tree"><li class="node"><div class="task" data-state="running"><span class="kind">AGENT</span><span class="task-state">RUN</span>
+                <span class="task-title"><span class="nick">Euler</span> subagent_c</span><span>58s</span>
+                <span class="step"><span class="tool">EXEC</span> sleep 20; Get-Content -Raw colours.txt</span></div></li></ul></li>
+            <li class="node"><button class="fold" type="button"><span class="caret">▸</span><span>1 FINISHED</span><span>1 DONE</span></button></li>
+          </ul>
+          <div class="more">
+            <p class="tools"><span class="chip">exec_command <b>3</b></span><span class="chip">apply_patch <b>2</b></span><span class="chip">spawn_agent <b>3</b></span><span class="chip">wait_agent <b>2</b></span></p>
+            <p class="label">FILES CHANGED</p>
+            <button class="file on" type="button"><span class="mark">M</span>colours.txt</button>
+            <button class="file" type="button"><span class="mark">M</span><span class="by">SUB</span>fruit.txt</button>
+          </div>
+        </section>
+
+        <!-- Claude Code, as today: the one agent that says it is waiting. -->
+        <section class="card" data-status="waiting">
+          <button class="head" type="button"><span class="lamp"></span><span class="status">WAITING</span>
+            <span class="src">CLAUDE</span><span class="title">Tidy the forecast settings</span>
+            <span class="project">weather-kit</span><span class="when">1h35</span></button>
+          <p class="activity"><span class="tool">REPLY</span><span class="detail">Shall I also move the units into their own section?</span></p>
+          <p class="figures"><span class="model">claude-opus-5-5</span><span>CTX <b>47k</b></span><span>OUT <b>1.3k</b></span><span>TURNS <b>1</b></span></p>
+        </section>
+
+        <!-- Codex Desktop, between turns: its thread lock held, the last turn complete. -->
+        <section class="card" data-status="idle">
+          <button class="head" type="button"><span class="lamp"></span><span class="status">IDLE</span>
+            <span class="src codex">CODEX</span><span class="title">Review the last day's commits</span>
+            <span class="project">elecxzy-dev</span><span class="when">25m</span></button>
+          <p class="activity"><span class="tool">REPLY</span><span class="detail">No findings: 21 commits, 51 files reviewed.</span></p>
+          <p class="figures"><span class="model">gpt-5.6-terra</span><span>CTX <b>61k</b></span><span>OUT <b>4.2k</b></span><span>TURNS <b>2</b></span><span>desktop</span></p>
+        </section>
+
+        <!-- Claude Code busy, unchanged. -->
+        <section class="card" data-status="busy">
+          <button class="head" type="button"><span class="lamp"></span><span class="status">BUSY</span>
+            <span class="src">CLAUDE</span><span class="title">Say whether a pass can be seen</span>
+            <span class="project">elecdex</span><span class="running">1 RUNNING</span><span class="when">38m</span></button>
+          <p class="activity"><span class="tool">EDIT</span><span class="detail">passes.ts</span></p>
+          <p class="figures"><span class="model">claude-opus-5-5</span><span>CTX <b>93k</b></span><span>OUT <b>3.5k</b></span><span>TURNS <b>8</b></span></p>
+          <ul class="tasks tree"><li class="node"><div class="task" data-state="running"><span class="kind">SHELL</span><span class="task-state">RUN</span>
+            <span class="task-title">Run the orbit tests</span><span>9m</span></div></li></ul>
+        </section>
+
+        <!-- Codex exec, gone: its lock let go; kept ENDED_KEPT_MS like any other. -->
+        <section class="card" data-status="ended">
+          <button class="head" type="button"><span class="lamp"></span><span class="status">ENDED</span>
+            <span class="src codex">CODEX</span><span class="title">Check the weather for tomorrow</span>
+            <span class="project">scratch</span><span class="when">7m</span></button>
+          <p class="figures"><span class="model">gpt-5.6-terra</span><span>CTX <b>9k</b></span><span>OUT <b>310</b></span><span>TURNS <b>1</b></span><span>exec</span></p>
+        </section>
+      </div>
+
+      <div class="diff" id="diff">
+        <div class="dh"><span>colours.txt</span><span style="color:var(--ok)">+1</span><span class="from">FROM THE RECORD</span></div>
+        <div class="hunk">@@ -1,2 +1,3 @@</div>
+        <div class="ln"><span>1</span><span>1</span><span> </span><span>red</span></div>
+        <div class="ln"><span>2</span><span>2</span><span> </span><span>blue</span></div>
+        <div class="ln add"><span></span><span>3</span><span>+</span><span>green</span></div>
+      </div>
+    </div>
+
+    <div class="hcard" id="card-session" hidden style="left:2.5rem; top:2.2rem">
+      <p class="t">Tidy the fruit and colour lists</p>
+      <p class="s">C:\Users\demo\scratch\codex-probe</p>
+      <dl>
+        <dt>AGENT</dt><dd>Codex · exec 0.151.0<span class="new">NEW</span></dd>
+        <dt>STATE</dt><dd>working - read from the record<span class="new">NEW</span></dd>
+        <dt>PROCESS</dt><dd>running (its thread lock is held)<span class="new">NEW</span></dd>
+        <dt>MODEL</dt><dd>gpt-5.6-terra</dd>
+        <dt>STARTED</dt><dd>07:37:40 · 2m ago</dd>
+        <dt>LAST</dt><dd>18s ago</dd>
+        <dt>SIZE</dt><dd>24k of 258k in context · 1.9k written</dd>
+        <dt>NOW</dt><dd>wait_agent - for subagent_b</dd>
+        <dt>TASKS</dt><dd>2 running · 1 done</dd>
+        <dt>FILES</dt><dd>2 changed, 1 by a subagent</dd>
+        <dt>TOOLS</dt><dd>exec_command 3 · spawn_agent 3 · apply_patch 2 · wait_agent 2</dd>
+        <dt>ID</dt><dd class="m">01a15129-dd44-7d63-b7fb-63e8832455e8</dd>
+      </dl>
+    </div>
+    <div class="hcard" id="card-task" hidden style="left:4rem; top:7.4rem">
+      <p class="t">Huygens · subagent_b</p>
+      <dl>
+        <dt>KIND</dt><dd>subagent, Codex</dd>
+        <dt>PATH</dt><dd>/root/subagent_b<span class="new">NEW</span></dd>
+        <dt>STATE</dt><dd>running</dd>
+        <dt>STARTED</dt><dd>07:37:52</dd>
+        <dt>RUNNING</dt><dd>1m</dd>
+        <dt>STEPS</dt><dd>2 tool calls</dd>
+        <dt>LAST STEP</dt><dd>wait_agent - for subagent_c</dd>
+        <dt>STARTED BY</dt><dd>it, 1 subagent (Euler)<span class="new">NEW</span></dd>
+      </dl>
+    </div>
+    <div class="hcard" id="card-idle" hidden style="left:2.5rem; top:16rem">
+      <p class="t">Review the last day's commits</p>
+      <p class="s">C:\Users\demo\projects\elecxzy-dev</p>
+      <dl>
+        <dt>AGENT</dt><dd>Codex · Desktop 0.151.0</dd>
+        <dt>STATE</dt><dd>between turns - read from the record</dd>
+        <dt>PROCESS</dt><dd>running (its thread lock is held)</dd>
+        <dt>MODEL</dt><dd>gpt-5.6-terra</dd>
+        <dt>LAST</dt><dd>25m ago · turn complete</dd>
+        <dt>NOTE</dt><dd class="m">Codex does not record that it is waiting for approval: a turn held on a prompt shows BUSY.<span class="new">NEW</span></dd>
+      </dl>
+    </div>
+
+    <p class="credit">EXPERIMENTAL · read from the agents' own records on this machine, whose format is not documented and may change with their versions. Nothing is sent anywhere.</p>
+  </div>
+</div>
+
+<div class="notes">
+  <h2>このモックで決めたいこと</h2>
+  <p>設計は docs/agents-codex.md。まだ実装していない（2026-10-19、見送り）。</p>
+  <ul>
+    <li><span class="new">NEW</span> 見出しの行に、どのエージェントのセッションかを示すチップ（<code>CLAUDE</code> / <code>CODEX</code>）を置く。Codex は枠を破線にする。読むエージェントが 1 つだけのときは出さない。</li>
+    <li><span class="new">NEW</span> サブエージェントの行は、Codex が付けた名前（<code>Huygens</code>）と task_name（<code>subagent_b</code>）を並べる。依頼文は暗号化されていて読めない。ツリーは session_meta の <code>parent_thread_id</code> と <code>depth</code> から組む。</li>
+    <li><span class="new">NEW</span> BUSY のセッションは、動きの行の右端に最後の書き込みからの経過時間（<code>quiet 18s</code>）を出す。Codex は許可待ちを記録しないので、許可待ちで止まっていてもこれが伸びていくだけになる。</li>
+    <li><span class="new">NEW</span> 直前のツールは、<code>exec</code> の中の <code>tools.X(...)</code> から取り出す。exec_command は EXEC、apply_patch は PATCH、spawn_agent は SPAWN、wait_agent は WAIT と短く表示する。</li>
+    <li><span class="new">NEW</span> 差分は、記録の <code>item_completed</code> にある FileChange の <code>unified_diff</code> をそのまま使う（ファイル自体は読まない）。見出しに「FROM THE RECORD」と書き、出どころを示す。</li>
+    <li><span class="new">NEW</span> 生きているかどうかは <code>thread-writer-locks/&lt;id&gt;.lock</code> で判定する。Codex が動いている間はファイルがあって OS がロックしており、終了すると消える。これで ENDED を経過時間で推測する必要がなくなった（30 分の決まりは、消え残ったロックの予備としてだけ残す）。BUSY と IDLE は、ターンが開いているかどうかで分ける。</li>
+    <li>ペインの見出しの小さい文字は「3 live · Claude Code, Codex」とし、読んでいるエージェントの名前を並べる（今の仕組みのまま）。</li>
+    <li>ENDED、10 分残す、FINISHED の折りたたみ、FILES CHANGED、SUB の印は、今の Claude Code の表示と同じ。</li>
+  </ul>
+</div>
+
+<script>
+// Mock controls only: themes, width, which card is open, the diff column.
+const pick = (group, value) => {
+  document.querySelectorAll(`[data-group="${group}"] button`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === value)))
+  if (group === 'theme') document.documentElement.dataset.theme = value === 'default' ? '' : value
+  if (group === 'width') document.getElementById('frame').classList.toggle('narrow', value === 'narrow')
+  if (group === 'card') for (const id of ['session', 'task', 'idle']) document.getElementById(`card-${id}`).hidden = id !== value
+  if (group === 'diff') {
+    document.getElementById('diff').hidden = value === 'off'
+    document.getElementById('work').classList.toggle('with-diff', value === 'on')
+  }
+}
+document.querySelectorAll('.mockbar .grp').forEach((g) => g.addEventListener('click', (e) => {
+  const b = e.target.closest('button')
+  if (b) pick(g.dataset.group, b.dataset.v)
+}))
+</script>
+</body>
+</html>
