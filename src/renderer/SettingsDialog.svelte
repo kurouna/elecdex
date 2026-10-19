@@ -1,7 +1,6 @@
 <script lang="ts">
 import type { StartDirectory } from '@shared/api'
 import {
-  backgroundOffered,
   chordToAccelerator,
   loginItemPlace,
   type ShortcutState,
@@ -28,6 +27,7 @@ import { chordHint } from './lib/chord-hint.ts'
 import { backdropShade, crtPower, dialogDelay } from './lib/crt-transitions.ts'
 import { keyLabels } from './lib/key-labels.svelte.ts'
 import PluginSettings from './plugins/PluginSettings.svelte'
+import { type SettingsSection, settingsSections } from './settings-sections.ts'
 import { appearance } from './stores/appearance.svelte.ts'
 import { background } from './stores/background.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
@@ -45,21 +45,11 @@ import AiSettings from './widgets/aichat/AiSettings.svelte'
  *   Esc   close (or cancel recording a shortcut)
  */
 
-type Section = 'general' | 'window' | 'keyboard' | 'alerts' | 'ai' | 'plugins' | 'updates'
+type Section = SettingsSection
 const platform = window.elecdex.system.platform
 /** What this machine can do in the background; main found it out (stores/background). */
 const capabilities = $derived(background.capabilities)
-const SECTIONS = $derived<Array<{ id: Section; label: string }>>([
-  { id: 'general', label: 'general' },
-  // Only where there is something to offer: what that is differs by platform,
-  // and on Linux by the desktop.
-  ...(backgroundOffered(capabilities) ? [{ id: 'window' as const, label: 'window' }] : []),
-  { id: 'keyboard', label: 'keyboard' },
-  { id: 'alerts', label: 'alerts' },
-  { id: 'ai', label: 'ai' },
-  { id: 'plugins', label: 'plugins' },
-  { id: 'updates', label: 'updates' },
-])
+const SECTIONS = $derived(settingsSections(capabilities))
 
 let section = $state<Section>('general')
 let version = $state('')
