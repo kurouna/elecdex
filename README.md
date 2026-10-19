@@ -270,6 +270,16 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   <br><sub>Settings → Keyboard · Tron</sub>
 </p>
 
+- **Action palette** — Ctrl+Shift+P finds anything by typing: every shortcut's action, saved
+  layout, preset, theme, pane and settings section, each with the key it is on now. A row that
+  cannot run here stays, set back with the reason; what cannot be undone takes Enter twice.
+  *unreleased*
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-palette.jpg" alt="The action palette over the standard layout in the Tron theme, with layout typed: the kinds of row as chips with their counts - all, action, layout, preset, theme, pane, settings - and the rows found, Reset layout and Saved layouts with layout underlined, then the nine saved layouts and the presets, each with its key on the right, standard marked current">
+  <br><sub>Action palette (Ctrl+Shift+P) · Tron</sub>
+</p>
+
 - **Plugins** — a pane of your own from one TypeScript file, run in a sandboxed worker with only
   the permissions you grant it ([Plugins](#plugins)).
 - **Running in the background** — an icon in the notification area, the menu bar or the tray; a

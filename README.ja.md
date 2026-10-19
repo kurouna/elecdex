@@ -262,6 +262,15 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
   <br><sub>Settings → Keyboard · Tron</sub>
 </p>
 
+- **アクションパレット** — Ctrl+Shift+P で、ショートカットのアクション・保存レイアウト・プリセット・
+  テーマ・ペイン・設定のセクションを文字で探して実行できます。各行には今のキーが出ます。今使えない行は
+  理由を添えて薄く残り、取り消せないものは Enter 2 回で実行します。*unreleased*
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-palette.jpg" alt="Tron テーマの標準レイアウトに重なるアクションパレット。layout と入力し、種類（all・action・layout・preset・theme・pane・settings）が件数つきで並び、見つかった行は Reset layout と Saved layouts（layout に下線）、続いて 9 つの保存レイアウトとプリセット。右端にそれぞれのキー、standard は current">
+  <br><sub>アクションパレット（Ctrl+Shift+P） · Tron</sub>
+</p>
+
 - **プラグイン** — TypeScript ファイル 1 つで自分だけのペインを作れます。サンドボックス化された
   ワーカーの中で、許可した権限だけで動きます（[プラグイン](#プラグイン)）。
 - **バックグラウンド実行** — 通知領域・メニューバー・トレイのアイコン、システム全体で使える

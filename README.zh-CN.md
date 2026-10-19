@@ -240,6 +240,15 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   <br><sub>Settings → Keyboard · Tron</sub>
 </p>
 
+- **操作面板** — 按 Ctrl+Shift+P，输入文字即可查找并执行所有快捷键操作、已保存布局、预设、主题、窗格和
+  设置分区，每一行都显示当前的按键。当前无法执行的行会变暗并注明原因；无法撤销的操作需按两次 Enter。
+  *unreleased*
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-palette.jpg" alt="Tron 主题下标准布局上方的操作面板，输入了 layout：各类行（all、action、layout、preset、theme、pane、settings）以带数量的按钮排列，找到的行为 Reset layout 和 Saved layouts（layout 带下划线），接着是 9 个已保存布局和预设，右侧是各自的按键，standard 标为 current">
+  <br><sub>操作面板（Ctrl+Shift+P） · Tron</sub>
+</p>
+
 - **插件** — 用一个 TypeScript 文件做出你自己的窗格，运行在沙箱化的 worker 中，只拥有你授予的
   权限（[插件](#插件)）。
 - **在后台运行** — 通知区域、菜单栏或托盘中的图标；全局的显示/隐藏快捷键；以及登录时启动。

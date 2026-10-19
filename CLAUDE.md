@@ -726,7 +726,7 @@ entry (decisions.md). Every option is off until the user turns it on.
 
 - **README screenshots** must not show personal data: `npm run gen:screenshots` (demo home,
   curated launcher entries, made-up author). One shot per preset in a different theme, plus
-  layouts, settings, ELEC, CHIP-8 (T8NKS) and LOG WATCH (its EXPLAIN by a stand-in). Preset trees come from the built app
+  layouts, settings, the action palette, ELEC, CHIP-8 (T8NKS) and LOG WATCH (its EXPLAIN by a stand-in). Preset trees come from the built app
   (scripts/preset-shots.mjs). Everything of someone else's or this machine is a stand-in: web
   panes show stand-in pages (never YouTube's or X's own), stubs run at `=demo`, the chats and the
   council talk to a stand-in (no model, no key). Regenerate after a visible change to a theme, a

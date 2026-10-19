@@ -841,6 +841,17 @@ await shoot('tron', 'elecdex-settings', {
     await page.waitForTimeout(600)
   },
 })
+// The action palette over the standard layout, found by a word that reaches several kinds of
+// row: the saved layouts from a first start, the presets and the actions about layouts.
+await shoot('tron', 'elecdex-palette', {
+  env: { ELECDEX_SEED_LAYOUTS: '1' },
+  extra: async (page) => {
+    await page.keyboard.press('Control+Shift+KeyP')
+    await page.getByTestId('action-palette-filter').fill('layout')
+    await page.locator('[data-testid=action-palette-row]').first().waitFor()
+    await page.waitForTimeout(900)
+  },
+})
 // The ai preset: two chats on two local servers, and the council, all answered by a stand-in.
 if (only.length === 0 || only.includes('elecdex-ai')) {
   const standIn = await aiStandIn()
