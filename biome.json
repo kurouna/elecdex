@@ -17,7 +17,9 @@
       "!src/shared/calc/vendor",
       "!resources/elec16/games/games.json",
       "!docs/logwatch-mock",
-      "!docs/ethernet-mock"
+      "!docs/ethernet-mock",
+      "!docs/agents-mock",
+      "!docs/palette-mock"
     ]
   },
   "formatter": {
