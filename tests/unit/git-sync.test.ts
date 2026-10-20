@@ -5,8 +5,12 @@ import {
   isPushRemote,
   parseLeftRight,
   parsePushPorcelain,
+  SYNC_BUSY,
+  syncArmed,
   syncBlocked,
   syncHeadline,
+  syncTitle,
+  syncTone,
 } from '@shared/git-sync'
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from '../../src/main/git/run.js'
@@ -403,5 +407,45 @@ describe('PUSH', () => {
 
     const slow = harness(readState({ ahead: 1 }), pushing(answer('', false, { timedOut: true })))
     expect(await slow.sync.run(ID, 'push')).toMatchObject({ code: 'timeout' })
+  })
+})
+
+describe('what the buttons say', () => {
+  it('names the upstream each one works on, or why it cannot be pressed', () => {
+    const ready = readState({ ahead: 2 })
+    expect(syncTitle(ready, 'fetch')).toBe(
+      'Fetch from the remote of origin/main, leaving the working tree as it is',
+    )
+    expect(syncTitle(ready, 'pull')).toBe(
+      'Pull origin/main into this branch, fast-forward only (no merge, no rebase, no hooks)',
+    )
+    expect(syncTitle(ready, 'push')).toBe(
+      'Push this branch onto origin/main, never forced. No hooks run: pre-push checks are skipped',
+    )
+    expect(syncTitle(readState({ ahead: 0 }), 'push')).toBe('Cannot push: nothing to push')
+    expect(syncTitle(null, 'fetch')).toBe('Cannot fetch: not read yet')
+  })
+
+  it('says, armed, what a push sends where and that no hook runs', () => {
+    expect(syncArmed(readState({ ahead: 3 }), 'push')).toBe('push ↑3 to origin/main · no hooks')
+    expect(syncArmed(readState(), 'pull')).toBe('pull')
+    expect(syncArmed(null, 'push')).toBe('push ↑0 to  · no hooks')
+  })
+
+  it('colours an ending: done, the terminal’s to sort out, or failed', () => {
+    expect((['fetched', 'pulled', 'pushed', 'current'] as const).map(syncTone)).toEqual([
+      'ok',
+      'ok',
+      'ok',
+      'ok',
+    ])
+    expect((['diverged', 'rejected'] as const).map(syncTone)).toEqual(['warn', 'warn'])
+    expect((['busy', 'refused', 'timeout', 'failed'] as const).map(syncTone)).toEqual([
+      'danger',
+      'danger',
+      'danger',
+      'danger',
+    ])
+    expect(SYNC_BUSY).toEqual({ fetch: 'FETCHING', pull: 'PULLING', push: 'PUSHING' })
   })
 })

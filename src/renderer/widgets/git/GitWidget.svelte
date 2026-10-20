@@ -12,10 +12,12 @@ import {
 import {
   GIT_SYNC_ACTIONS,
   type GitSyncAction,
-  SYNC_DONE,
-  SYNC_WARN,
+  SYNC_BUSY,
+  syncArmed,
   syncBlocked,
   syncHeadline,
+  syncTitle,
+  syncTone,
 } from '@shared/git-sync'
 import { untrack } from 'svelte'
 import ConfirmButton from '../../ConfirmButton.svelte'
@@ -249,34 +251,6 @@ function useRepo(id: string): void {
 let syncing = $state<GitSyncAction | null>(null)
 $effect(() => (visible && syncing !== null ? pulse.use() : undefined))
 
-const SYNC_BUSY: Record<GitSyncAction, string> = {
-  fetch: 'FETCHING',
-  pull: 'PULLING',
-  push: 'PUSHING',
-}
-
-function syncTitle(action: GitSyncAction): string {
-  const blocked = syncBlocked(repoState, action)
-  if (blocked !== null) return `Cannot ${action}: ${blocked}`
-  const upstream = repoState?.branch.upstream ?? ''
-  if (action === 'push') {
-    return `Push this branch onto ${upstream}, never forced. No hooks run: pre-push checks are skipped`
-  }
-  return action === 'pull'
-    ? `Pull ${upstream} into this branch, fast-forward only (no merge, no rebase, no hooks)`
-    : `Fetch from the remote of ${upstream}, leaving the working tree as it is`
-}
-
-/**
- * What the armed button says. A push names what goes where, and that its hooks do not run:
- * a repository that checks in pre-push (husky's tests, a linter) is pushed without them.
- */
-function syncArmed(action: GitSyncAction): string {
-  if (action !== 'push') return action
-  const branch = repoState?.branch
-  return `push ↑${branch?.ahead ?? 0} to ${branch?.upstream ?? ''} · no hooks`
-}
-
 /**
  * Runs a fetch, a fast-forward pull or a push in main and says how it ended: the short
  * code first, git's own words beside it. The new state arrives by the usual way.
@@ -295,7 +269,7 @@ async function syncRepo(action: GitSyncAction): Promise<void> {
     toasts.show({
       title: syncHeadline(result),
       body: [where, result.message].filter(Boolean).join(' — '),
-      tone: SYNC_DONE.has(result.code) ? 'ok' : SYNC_WARN.has(result.code) ? 'warn' : 'danger',
+      tone: syncTone(result.code),
     })
   } finally {
     syncing = null
@@ -449,8 +423,8 @@ $effect(() => {
           {:else}
             <ConfirmButton
               label={action.toUpperCase()}
-              action={syncArmed(action)}
-              title={syncTitle(action)}
+              action={syncArmed(repoState, action)}
+              title={syncTitle(repoState, action)}
               testid="git-{action}"
               disabled={syncing !== null || syncBlocked(repoState, action) !== null}
               onconfirm={() => void syncRepo(action)}

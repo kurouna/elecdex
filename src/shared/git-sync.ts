@@ -150,3 +150,38 @@ export function syncHeadline(result: GitSyncResult): string {
       return `${result.action.toUpperCase()} FAILED`
   }
 }
+
+/** What a button says while its fetch, pull or push runs. */
+export const SYNC_BUSY: Record<GitSyncAction, string> = {
+  fetch: 'FETCHING',
+  pull: 'PULLING',
+  push: 'PUSHING',
+}
+
+/** A button's title: what it does to which upstream, or why it cannot be pressed now. */
+export function syncTitle(state: GitState | null, action: GitSyncAction): string {
+  const blocked = syncBlocked(state, action)
+  if (blocked !== null) return `Cannot ${action}: ${blocked}`
+  const upstream = state?.branch.upstream ?? ''
+  if (action === 'push') {
+    return `Push this branch onto ${upstream}, never forced. No hooks run: pre-push checks are skipped`
+  }
+  return action === 'pull'
+    ? `Pull ${upstream} into this branch, fast-forward only (no merge, no rebase, no hooks)`
+    : `Fetch from the remote of ${upstream}, leaving the working tree as it is`
+}
+
+/**
+ * What the armed button says. A push names what goes where, and that its hooks do not run:
+ * a repository that checks in pre-push (husky's tests, a linter) is pushed without them.
+ */
+export function syncArmed(state: GitState | null, action: GitSyncAction): string {
+  if (action !== 'push') return action
+  const branch = state?.branch
+  return `push ↑${branch?.ahead ?? 0} to ${branch?.upstream ?? ''} · no hooks`
+}
+
+/** The notice's colour for how it ended: done, the terminal's to sort out, or failed. */
+export function syncTone(code: GitSyncCode): 'ok' | 'warn' | 'danger' {
+  return SYNC_DONE.has(code) ? 'ok' : SYNC_WARN.has(code) ? 'warn' : 'danger'
+}
