@@ -161,8 +161,9 @@ user made; do not reverse one without asking.
     `WIFI_LIMITS` (a unit test checks).
 - **The Ethernet pane reads the cable without a process per reading** (§5.23, shared/ethernet/,
   services/metrics/ethernet/; the Wi-Fi pane's sibling, sharing shared/netpath.ts and
-  widgets/netpath/). Windows: the sampler's `ether` kind, `GetIfTable2` rows of type 6, medium 14,
-  HardwareInterface and not FilterInterface; the duplex and the driver's settings in a runspace of
+  widgets/netpath/: the path strip, the cards, the history, the timeline's and the log's frames;
+  what differs by medium stays in each pane). Windows: the sampler's `ether` kind, `GetIfTable2`
+  rows of type 6, medium 14, HardwareInterface and not FilterInterface; the duplex and the driver's settings in a runspace of
   the sampler's (never on its loop), read by keyword, never changed. The interface GUID, the device
   ids and a profile's name never leave the script; the C# and the pane's functions go in the
   sampler's environment (its command line stays under 32,000, a unit test checks).
