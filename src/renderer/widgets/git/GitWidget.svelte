@@ -4,7 +4,6 @@ import {
   type GitFile,
   type GitGraphCommit,
   type GitLogScope,
-  type GitRepoRef,
   type GitState,
   isCommitId,
   isRepoId,
@@ -23,7 +22,6 @@ import { untrack } from 'svelte'
 import ConfirmButton from '../../ConfirmButton.svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize } from '../../lib/hover-card.ts'
-import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
@@ -32,6 +30,7 @@ import { seen } from '../../stores/window-state.svelte.ts'
 import DiffView from '../common/DiffView.svelte'
 import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
+import GitChooser from './GitChooser.svelte'
 import GitCommitCard from './GitCommitCard.svelte'
 import GitFileCard from './GitFileCard.svelte'
 import GitFiles from './GitFiles.svelte'
@@ -87,9 +86,7 @@ let repoState = $state.raw<GitState | null>(null)
 let diff = $state.raw<GitDiff | null>(null)
 let loadingDiff = $state(false)
 let commitFiles = $state.raw<GitFile[] | null>(null)
-let recent = $state.raw<GitRepoRef[]>([])
 let choosing = $state(false)
-let problem = $state<string | null>(null)
 /** Bumped on each state after the first: the receive lamp and the branch change play on it. */
 let received = $state(0)
 /** Until a reading after the first: the rows of what the repository already is land without motion. */
@@ -128,13 +125,6 @@ $effect(() => {
     quiet = false
     received += 1
     if (before.branch.head !== next.branch.head) switching = true
-  })
-})
-
-$effect(() => {
-  if (repoId !== null && !choosing) return
-  void window.elecdex.git.recent().then((list) => {
-    recent = list
   })
 })
 
@@ -228,24 +218,6 @@ $effect(() => {
     cancelled = true
   }
 })
-
-const pick = oneAtATime(async (): Promise<void> => {
-  problem = null
-  const result = await window.elecdex.git.pick()
-  if (result === null) return
-  if ('problem' in result) {
-    problem = result.problem
-    return
-  }
-  choosing = false
-  setState({ repo: result.repo.id, chosen: null, commit: null })
-})
-
-function useRepo(id: string): void {
-  choosing = false
-  problem = null
-  setState({ repo: id, chosen: null, commit: null })
-}
 
 /** The fetch, pull or push under way from this pane; its button steps with the shared pulse meanwhile. */
 let syncing = $state<GitSyncAction | null>(null)
@@ -365,36 +337,23 @@ $effect(() => {
 
 <div class="git" data-testid="git" data-pane-id={paneId} bind:this={rootEl}>
   {#if repoId === null || choosing}
-    <div class="choose" data-testid="git-choose">
-      <button type="button" class="select" data-testid="git-select" onclick={pick}
-        >SELECT REPOSITORY</button
-      >
-      {#if problem !== null}<p class="problem" data-testid="git-problem">{problem}</p>{/if}
-      {#if recent.length > 0}
-        <p class="label">RECENT</p>
-        <ul class="recent">
-          {#each recent as repo (repo.id)}
-            <li>
-              <button type="button" data-testid="git-recent" onclick={() => useRepo(repo.id)}>
-                <span class="name">{repo.name}</span><span class="where">{repo.path}</span>
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-      {#if repoId !== null}
-        <button type="button" class="cancel" onclick={() => (choosing = false)}>BACK</button>
-      {/if}
-    </div>
+    <GitChooser
+      current={repoId}
+      onchoose={(id) => {
+        choosing = false
+        setState({ repo: id, chosen: null, commit: null })
+      }}
+      onback={() => (choosing = false)}
+      onchange={() => (choosing = true)}
+    />
   {:else if repoState?.problem}
-    <div class="choose">
-      <p class="problem" data-testid="git-problem">
-        {repoState.problem === 'unknown'
-          ? 'This repository is not known on this machine.'
-          : repoState.message || repoState.problem}
-      </p>
-      <button type="button" class="select" onclick={() => (choosing = true)}>CHOOSE A REPOSITORY</button>
-    </div>
+    <GitChooser
+      current={repoId}
+      trouble={repoState.problem === 'unknown'
+        ? 'This repository is not known on this machine.'
+        : repoState.message || repoState.problem}
+      onchange={() => (choosing = true)}
+    />
   {:else}
     <header class="head" data-testid="git-head">
       {#key received}<span class="lamp" class:rx={received > 0} aria-hidden="true" data-testid="git-lamp" data-received={received}></span>{/key}
@@ -563,17 +522,6 @@ $effect(() => {
   min-height: 0;
 }
 
-.choose {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
-  padding: var(--space-2);
-  overflow: auto;
-}
-
-.select,
-.cancel,
 .switch,
 .viewing button {
   padding: 0.15rem 0.6rem;
@@ -586,71 +534,9 @@ $effect(() => {
   cursor: pointer;
 }
 
-.cancel {
-  border-color: var(--panel-rule);
-  background: transparent;
-  color: var(--text-muted);
-}
-
-.select:hover,
-.cancel:hover,
 .switch:hover,
 .viewing button:hover {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
-}
-
-.problem {
-  margin: 0;
-  color: var(--warn);
-  font-family: var(--font-ui);
-}
-
-.label {
-  margin: var(--space-1) 0 0;
-  font-family: var(--font-ui);
-  font-size: var(--step--2);
-  letter-spacing: 0.16em;
-  color: var(--text-muted);
-}
-
-.recent {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.recent button {
-  display: flex;
-  gap: 0.6rem;
-  align-items: baseline;
-  width: 100%;
-  padding: 0.1rem 0.3rem;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.recent button:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-}
-
-.recent .name {
-  font-family: var(--font-ui);
-  letter-spacing: 0.06em;
-}
-
-.recent .where {
-  overflow: hidden;
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  color: var(--text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .head {
