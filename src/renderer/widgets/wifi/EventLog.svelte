@@ -90,9 +90,10 @@ const empty = $derived(
   {/if}
 {/snippet}
 
-{#snippet detail(e: TrackEvent)}{e.detail}{#if e.code !== null && e.code !== 0}<span class="code"> [{e.code}]</span>{/if}{#if e.ssid !== null}<span
-      class="ssid"> · {mask ? maskName(e.ssid) : e.ssid}</span
-    >{/if}{/snippet}
+<!-- The spaces are expressions: Svelte drops the whitespace a tag's text starts with. -->
+{#snippet detail(e: TrackEvent)}{e.detail}{#if e.code !== null && e.code !== 0}<span class="code"
+      >{` [${e.code}]`}</span
+    >{/if}{#if e.ssid !== null}<span class="ssid">{` · ${mask ? maskName(e.ssid) : e.ssid}`}</span>{/if}{/snippet}
 
 <EventLog
   {events}

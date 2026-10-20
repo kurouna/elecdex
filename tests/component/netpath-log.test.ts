@@ -72,14 +72,7 @@ describe('the Wi-Fi log', () => {
     const rows = screen.getAllByTestId('wifi-event')
     expect(rows.map(cells)).toEqual([
       [clock(AT + 20_000), '▲', 'CONNECTED', 'connected words', '', ''],
-      [
-        clock(AT + 6000),
-        '▼',
-        'LINK LOST',
-        expect.stringMatching(/^disconnected words ?\[8\] ?· LAB$/),
-        'down 14s',
-        '+6s',
-      ],
+      [clock(AT + 6000), '▼', 'LINK LOST', 'disconnected words [8] · LAB', 'down 14s', '+6s'],
       [clock(AT), '▼', 'LINK LOST', 'disconnected words', '', ''],
     ])
     expect(rows.map((r) => [r.dataset.kind, r.dataset.tone, r.dataset.hint])).toEqual([
@@ -94,12 +87,29 @@ describe('the Wi-Fi log', () => {
     ])
   })
 
+  it('keeps a space before the reason code and the network’s name, each alone too', () => {
+    const events = [
+      track('failed', AT + 2000, { code: 8 }),
+      track('connected', AT + 1000, { ssid: 'LAB' }),
+      track('disconnected', AT, { code: 3, ssid: 'LAB' }),
+    ]
+    render(WifiLog, { props: wifiProps({ events }) })
+    const words = screen
+      .getAllByTestId('wifi-event')
+      .map((r) => r.querySelector('.detail')?.textContent)
+    expect(words).toEqual([
+      'failed words [8]',
+      'connected words · LAB',
+      'disconnected words [3] · LAB',
+    ])
+  })
+
   it('masks the network’s name when MASK is on', () => {
     const events = [track('connected', AT, { ssid: 'HOME-NETWORK' })]
     render(WifiLog, { props: wifiProps({ events, mask: true }) })
     const words = cells(screen.getByTestId('wifi-event'))[3] ?? ''
     expect(words).not.toContain('HOME-NETWORK')
-    expect(words).toContain('·')
+    expect(words).toMatch(/^connected words · H•+K$/)
   })
 
   it('counts the day’s events, titled unless under a tab', () => {
