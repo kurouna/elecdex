@@ -139,8 +139,21 @@ const SAFE_DIFF = ['--no-ext-diff', '--no-textconv', SUBMODULES]
 const DIFF_FLAGS = ['--no-color', ...SAFE_DIFF, '-M', '-U3']
 
 /**
+ * What filterGuard reads: every filter key with its scope, names only. With the
+ * values printed, a value holding `.clean ` was read as part of the name, and the
+ * real driver was left running (found in a review).
+ */
+export const FILTER_QUERY: readonly string[] = [
+  'config',
+  '--get-regexp',
+  '--show-scope',
+  '--name-only',
+  '^filter\\.',
+]
+
+/**
  * The filter drivers a repository's own config defines (`filter.<name>.clean`
- * and the rest), from `git config --get-regexp --show-scope`: git runs a clean
+ * and the rest), from FILTER_QUERY, each line read to its end: git runs a clean
  * filter to compare a touched file with the index, so a cloned repository could
  * otherwise run a program of its choosing whenever the pane reads it. The
  * user's own (global, system) filters, such as Git LFS, are left alone.
@@ -148,7 +161,7 @@ const DIFF_FLAGS = ['--no-color', ...SAFE_DIFF, '-M', '-U3']
 export function filterGuard(output: string): string[] {
   const names = new Set<string>()
   for (const line of output.split('\n')) {
-    const match = /^(\S+)\tfilter\.(.+)\.(clean|smudge|process|required)\s/.exec(`${line} `)
+    const match = /^(\S+)\tfilter\.(.+)\.(clean|smudge|process|required)\r?$/.exec(line)
     if (match === null) continue
     const [, scope, name] = match
     if (scope !== 'global' && scope !== 'system' && name !== undefined) names.add(name)
@@ -307,12 +320,7 @@ export class GitService {
 
   /** The `-c` pairs that empty the filters the repository's own config defines. */
   private async guardOf(root: string): Promise<string[]> {
-    const filters = await this.deps.run(root, [
-      'config',
-      '--get-regexp',
-      '--show-scope',
-      '^filter\\.',
-    ])
+    const filters = await this.deps.run(root, [...FILTER_QUERY])
     return filterGuard(filters.stdout)
   }
 

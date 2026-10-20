@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { launchPlan, resolveOnPath, runsWhenOpened } from '../../src/main/git/open.js'
 import { GIT_FLAGS, type GitResult, killTree, runGit } from '../../src/main/git/run.js'
 import {
+  FILTER_QUERY,
   filterGuard,
   GitService,
   MIN_GAP_MS,
@@ -54,10 +55,10 @@ const commandOf = (args: readonly string[]): string | undefined => {
 }
 
 const LOCAL_FILTER = [
-  'system\tfilter.lfs.clean git-lfs clean -- %f',
-  'system\tfilter.lfs.process git-lfs filter-process',
-  "local\tfilter.x.clean sh -c 'evil'",
-  'local\tfilter.x.required true',
+  'system\tfilter.lfs.clean',
+  'system\tfilter.lfs.process',
+  'local\tfilter.x.clean',
+  'local\tfilter.x.required',
 ].join('\n')
 
 /** Two commits as `git log` prints the graph's format: a tip with the branch on it, and the root. */
@@ -415,7 +416,7 @@ describe('the git service', () => {
     const h = harness()
     h.service.watch(ID)
     await h.advance(0)
-    h.config.output = "local	filter.y.clean sh -c 'evil'"
+    h.config.output = 'local\tfilter.y.clean'
     h.fire(path.join('.git', 'config'))
     await h.advance(2000)
     const status = h.calls.filter((args) => commandOf(args) === 'status').at(-1)
@@ -681,15 +682,43 @@ describe('the filter guard', () => {
       writeFileSync(path.join(repo, '.gitattributes'), '* filter=a=b\n')
       writeFileSync(path.join(repo, 'f.txt'), 'two, and longer\n')
 
-      const config = await runGit(repo, ['config', '--get-regexp', '--show-scope', '^filter\\.'])
-      const guard = filterGuard(config.stdout)
-      const status = await runGit(repo, [...guard, 'status', '--porcelain'])
-      expect(status.ok).toBe(true)
-      const diff = await runGit(repo, [...guard, 'diff', '--no-ext-diff', '--no-textconv'])
-      expect(diff.ok).toBe(true)
-      expect(existsSync(path.join(repo, 'filter-ran'))).toBe(false)
+      expect(await readsWithoutRunning(repo)).toBe(false)
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
+  })
+
+  it('empties a filter whose value holds `.clean `, in a real git', async () => {
+    // Found in a review: read with its value, `filter.x.clean touch ran # .clean z` gave the
+    // name `x.clean touch ran # `, and the real `filter.x.clean` ran on the first diff.
+    const repo = mkdtempSync(path.join(tmpdir(), 'elecdex-filter-'))
+    try {
+      const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' })
+      git('init', '-q')
+      git('config', 'user.name', 'test')
+      git('config', 'user.email', 'test@example.invalid')
+      writeFileSync(path.join(repo, 'f.txt'), 'one\n')
+      git('add', 'f.txt')
+      git('commit', '-qm', 'one')
+      git('config', 'filter.x.clean', 'touch filter-ran && cat # .clean z')
+      writeFileSync(path.join(repo, '.gitattributes'), '* filter=x\n')
+      writeFileSync(path.join(repo, 'f.txt'), 'two, and longer\n')
+
+      expect(await readsWithoutRunning(repo)).toBe(false)
     } finally {
       rmSync(repo, { recursive: true, force: true })
     }
   })
 })
+
+/**
+ * Reads a repository as the pane does - the guard from its config, then status and a diff -
+ * and answers whether its filter left its mark.
+ */
+async function readsWithoutRunning(repo: string): Promise<boolean> {
+  const config = await runGit(repo, [...FILTER_QUERY])
+  const guard = filterGuard(config.stdout)
+  expect((await runGit(repo, [...guard, 'status', '--porcelain'])).ok).toBe(true)
+  expect((await runGit(repo, [...guard, 'diff', '--no-ext-diff', '--no-textconv'])).ok).toBe(true)
+  return existsSync(path.join(repo, 'filter-ran'))
+}

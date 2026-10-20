@@ -47,7 +47,8 @@ export const GIT_FLAGS: readonly string[] = [
 
 /**
  * The variables `--config-env` reads its values from (filterGuard): an empty one and `false`.
- * Every git run carries them, so a guard can be put in front of any call.
+ * Every `runGit` carries them, so a guard can be put in front of any of its calls; `gitBytes`
+ * takes no guard (`git show` runs no filter) and does not.
  */
 export const GIT_EMPTY_VAR = 'ELECDEX_GIT_EMPTY'
 export const GIT_FALSE_VAR = 'ELECDEX_GIT_FALSE'
