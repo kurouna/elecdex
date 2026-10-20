@@ -1,0 +1,8 @@
+# The workflows' actions are pinned to commit ids (found in a security review): a moved tag
+# cannot change what a release job runs. Dependabot proposes the next ids, with their tag.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

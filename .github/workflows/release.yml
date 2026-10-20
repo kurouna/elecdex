@@ -4,6 +4,12 @@ name: Release
 # platform's installers are built and attached to a GitHub pre-release.
 # Review it and, when it is ready, edit it into a full release by hand: the
 # in-app update check ignores pre-releases.
+#
+# Only the last job can write to the repository (found in a security review): the
+# checks and the builds run every dependency's code - its install scripts, the tests,
+# the packager - with a token that only reads, and hand the installers over as
+# artifacts. The publish job runs none of the repository's code: it makes the
+# pre-release and uploads what the builds left.
 
 on:
   push:
@@ -15,7 +21,7 @@ on:
         required: true
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -26,17 +32,18 @@ env:
   TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
-  prepare:
-    name: check version & create pre-release
+  check:
+    name: check version & tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.TAG }}
-      - uses: actions/setup-node@v7
+          persist-credentials: false
+      # No npm cache in a release: a tag run would restore what other branches saved.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
       - name: Tag matches package.json
         run: |
           version="v$(node -p "require('./package.json').version")"
@@ -46,15 +53,72 @@ jobs:
           fi
       - run: npm ci
       - run: npm run verify
-      # One release up front: parallel package jobs would otherwise race to create it.
+
+  package:
+    name: build (${{ matrix.os }} ${{ matrix.arch }})
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+          - os: windows-latest
+            arch: x64
+          # node-pty ships prebuilt win32-arm64 and darwin-x64 binaries and nothing
+          # is rebuilt (npmRebuild: false), so these cross-package on the same runners.
+          - os: windows-latest
+            arch: arm64
+          - os: macos-latest
+            arch: arm64
+          - os: macos-latest
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      - name: Build the installers
+        run: npm run package -- --${{ matrix.arch }} --publish never
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: elecdex-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    name: create pre-release & upload
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: elecdex-*
+          path: dist
+          merge-multiple: true
       # The installers are unsigned, so the notes open with what to do when Windows or
       # macOS warns - the same steps as the README's "If a warning appears", kept short
       # here, in English and Japanese - and GitHub appends the generated changes below them.
-      - name: Create pre-release
+      - name: Create pre-release and upload the installers
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then exit 0; fi
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
           cat > "$RUNNER_TEMP/notes.md" <<'EOF'
           ## Installing: the builds are unsigned
 
@@ -79,42 +143,5 @@ jobs:
           EOF
           gh release create "$TAG" --prerelease --verify-tag --title "$TAG" \
             --notes-file "$RUNNER_TEMP/notes.md" --generate-notes
-
-  package:
-    name: publish (${{ matrix.os }} ${{ matrix.arch }})
-    needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            arch: x64
-          - os: ubuntu-24.04-arm
-            arch: arm64
-          - os: windows-latest
-            arch: x64
-          # node-pty ships prebuilt win32-arm64 and darwin-x64 binaries and nothing
-          # is rebuilt (npmRebuild: false), so these cross-package on the same runners.
-          - os: windows-latest
-            arch: arm64
-          - os: macos-latest
-            arch: arm64
-          - os: macos-latest
-            arch: x64
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ env.TAG }}
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - name: Build and publish to the pre-release
-        run: npm run package -- --${{ matrix.arch }} --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # electron-builder skips a published release older than two hours; a slow
-          # job or a manual rebuild of an older tag must still be able to upload.
-          EP_GH_IGNORE_TIME: 'true'
+          fi
+          gh release upload "$TAG" dist/* --clobber
