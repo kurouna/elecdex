@@ -319,4 +319,22 @@ describe('FETCH, PULL and PUSH', () => {
       ['CANNOT FETCH', 'elecdex · main', 'warn'],
     ])
   })
+  it('still say one is under way after a trip to the chooser and back', async () => {
+    await mount()
+    await push(state())
+    let finish: (result: GitSyncResult | null) => void = () => {}
+    sync.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
+    await fireEvent.click(screen.getByTestId('git-fetch'))
+    await fireEvent.click(screen.getByTestId('git-fetch'))
+    await settle()
+    await fireEvent.click(screen.getByTestId('git-switch'))
+    await settle()
+    await fireEvent.click(screen.getByText('BACK'))
+    await settle()
+    expect(text('git-fetch-busy')).toBe('FETCHING')
+    expect((screen.getByTestId('git-push') as HTMLButtonElement).disabled).toBe(true)
+    finish({ action: 'fetch', code: 'fetched', commits: 0, message: '' })
+    await settle()
+    expect(screen.queryByTestId('git-fetch-busy')).toBeNull()
+  })
 })

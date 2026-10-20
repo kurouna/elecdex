@@ -8,21 +8,10 @@ import {
   isCommitId,
   isRepoId,
 } from '@shared/git'
-import {
-  GIT_SYNC_ACTIONS,
-  type GitSyncAction,
-  SYNC_BUSY,
-  syncArmed,
-  syncBlocked,
-  syncHeadline,
-  syncTitle,
-  syncTone,
-} from '@shared/git-sync'
+import { type GitSyncAction, syncHeadline, syncTone } from '@shared/git-sync'
 import { untrack } from 'svelte'
-import ConfirmButton from '../../ConfirmButton.svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize } from '../../lib/hover-card.ts'
-import { pulse } from '../../lib/pulse.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
@@ -35,6 +24,7 @@ import GitCommitCard from './GitCommitCard.svelte'
 import GitFileCard from './GitFileCard.svelte'
 import GitFiles from './GitFiles.svelte'
 import GitGraph from './GitGraph.svelte'
+import GitHead from './GitHead.svelte'
 import { isNews, keyOf } from './rows.ts'
 
 /**
@@ -137,9 +127,6 @@ $effect(() => {
   })
 })
 
-// The operation chip blinks on the shared pulse while a merge or rebase is left half done.
-$effect(() => (visible && repoState?.operation ? pulse.use() : undefined))
-
 /** The files shown: the working tree's, or the chosen commit's. */
 const files = $derived(commit !== null ? (commitFiles ?? []) : (repoState?.files ?? []))
 /** The chosen file if it is still listed, else the first one: a pane always shows a diff if it can. */
@@ -219,9 +206,11 @@ $effect(() => {
   }
 })
 
-/** The fetch, pull or push under way from this pane; its button steps with the shared pulse meanwhile. */
+/**
+ * The fetch, pull or push under way from this pane. Kept here, not in the header, so
+ * the pane still says so when it comes back from the chooser while one runs.
+ */
 let syncing = $state<GitSyncAction | null>(null)
-$effect(() => (visible && syncing !== null ? pulse.use() : undefined))
 
 /**
  * Runs a fetch, a fast-forward pull or a push in main and says how it ended: the short
@@ -355,50 +344,14 @@ $effect(() => {
       onchange={() => (choosing = true)}
     />
   {:else}
-    <header class="head" data-testid="git-head">
-      {#key received}<span class="lamp" class:rx={received > 0} aria-hidden="true" data-testid="git-lamp" data-received={received}></span>{/key}
-      <span class="chip" data-testid="git-branch" title={repoState?.branch.upstream ?? 'no upstream'}
-        >⎇ {repoState?.branch.head ?? (repoState?.branch.oid ? 'DETACHED' : '…')}</span
-      >
-      {#if repoState?.branch.upstream}
-        <span class="ab">↑{repoState.branch.ahead} ↓{repoState.branch.behind}</span>
-      {/if}
-      {#if repoState?.operation}
-        <span class="chip warn" data-testid="git-operation" data-phase={visible ? pulse.phase : 0}
-          >{repoState.operation.toUpperCase()}</span
-        >
-      {/if}
-      {#key repoState?.branch.oid}
-        <span class="hash" class:roll={received > 0}>{repoState?.head?.short ?? ''}</span>
-      {/key}
-      <span class="subject">{repoState?.head?.subject ?? ''}</span>
-      {#if (repoState?.stash ?? 0) > 0}<span class="ab">stash {repoState?.stash}</span>{/if}
-      <span class="sync">
-        {#each GIT_SYNC_ACTIONS as action (action)}
-          {#if syncing === action}
-            <span class="busy" data-phase={visible ? pulse.phase : 0} data-testid="git-{action}-busy"
-              >{SYNC_BUSY[action]}</span
-            >
-          {:else}
-            <ConfirmButton
-              label={action.toUpperCase()}
-              action={syncArmed(repoState, action)}
-              title={syncTitle(repoState, action)}
-              testid="git-{action}"
-              disabled={syncing !== null || syncBlocked(repoState, action) !== null}
-              onconfirm={() => void syncRepo(action)}
-            />
-          {/if}
-        {/each}
-      </span>
-      <button
-        type="button"
-        class="switch"
-        title={`${repoState?.repo?.path ?? ''} - choose another repository`}
-        data-testid="git-switch"
-        onclick={() => (choosing = true)}>⟲</button
-      >
-    </header>
+    <GitHead
+      state={repoState}
+      {visible}
+      {received}
+      {syncing}
+      onsync={(action) => void syncRepo(action)}
+      onswitch={() => (choosing = true)}
+    />
 
     {#if commit !== null}
       <div class="viewing" data-testid="git-viewing">
@@ -522,7 +475,6 @@ $effect(() => {
   min-height: 0;
 }
 
-.switch,
 .viewing button {
   padding: 0.15rem 0.6rem;
   border: 1px solid var(--accent);
@@ -534,133 +486,14 @@ $effect(() => {
   cursor: pointer;
 }
 
-.switch:hover,
 .viewing button:hover {
   background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
-.head {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem 0.7rem;
-  min-width: 0;
-  padding: 0.25rem var(--space-2);
-  border-bottom: 1px solid var(--panel-rule);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-}
-
-/* The receive lamp: dark, and lit once each time main sends a changed state. */
-.lamp {
-  position: relative;
-  flex-shrink: 0;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: var(--panel-rule);
-}
-
-/* Lit by the opacity of a lit dot over the dark one, never a colour in keyframes. */
-.lamp::after {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: var(--ok);
-  box-shadow: 0 0 0.45rem var(--ok);
-  content: '';
-  opacity: 0;
-}
-
-.lamp.rx::after {
-  animation: git-rx calc(700ms * var(--motion-scale)) ease-out;
-}
-
-@keyframes git-rx {
-  0%,
-  30% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
-}
-
-.chip {
-  flex-shrink: 0;
-  padding: 0 0.45rem;
-  border: 1px solid var(--accent-dim);
-  color: var(--text);
-  font-family: var(--font-ui);
-  font-size: var(--step--2);
-  letter-spacing: 0.12em;
-}
-
-.chip.warn {
-  border-color: var(--warn);
-  color: var(--warn);
-}
-
-.chip.warn[data-phase='2'] {
-  opacity: 0.45;
-}
-
-.ab {
-  flex-shrink: 0;
-  color: var(--text-muted);
-}
-
+/* The commit being viewed, in the bar under the header. */
 .hash {
   flex-shrink: 0;
   color: var(--accent-strong);
-}
-
-.hash.roll {
-  animation: git-roll calc(300ms * var(--motion-scale)) steps(3) backwards;
-}
-
-@keyframes git-roll {
-  from {
-    opacity: 0.2;
-    transform: translateY(-0.2em);
-  }
-}
-
-.subject {
-  overflow: hidden;
-  flex: 1;
-  min-width: 0;
-  color: var(--text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* FETCH, PULL and PUSH: two presses each, like every write the app makes on a click. */
-.sync {
-  display: flex;
-  flex-shrink: 0;
-  gap: 0.3rem;
-  margin-left: auto;
-  font-family: var(--font-ui);
-  font-size: var(--step--2);
-  letter-spacing: 0.12em;
-}
-
-.busy {
-  padding: 0 var(--space-2);
-  border: 1px solid var(--accent);
-  color: var(--accent-strong);
-}
-
-.busy[data-phase='2'] {
-  opacity: 0.45;
-}
-
-.switch {
-  flex-shrink: 0;
-  padding: 0 0.4rem;
-  border-color: var(--panel-rule);
-  background: transparent;
 }
 
 .viewing {
@@ -750,10 +583,6 @@ $effect(() => {
 
   /* Stacked, the list has no width of its own to set. */
   .left > :global(.splitter.x) {
-    display: none;
-  }
-
-  .subject {
     display: none;
   }
 }
