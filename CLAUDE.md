@@ -149,7 +149,7 @@ user made; do not reverse one without asking.
   lookup service. `net.sockets` is the one reading a plugin can never be granted: every metric
   source goes into `PLUGIN_METRIC_SOURCE_IDS` or `PRIVATE_METRIC_SOURCE_IDS` deliberately (a
   unit test checks).
-- **The Wi-Fi pane reads nothing behind the location consent** (§5.12, shared/wifi.ts,
+- **The Wi-Fi pane reads nothing behind the location consent** (§5.12, shared/wifi/,
   services/metrics/wifi/). No BSSID and no scan, on any platform (user decision 2026-09-25): on
   Windows never WlanGetNetworkBssList, WlanGetAvailableNetworkList, WlanScan or
   WlanQueryInterface opcode 7 (a unit test holds the script to it); on macOS never CoreWLAN. Only
@@ -157,9 +157,9 @@ user made; do not reverse one without asking.
   - One echo round serves the network status pane and this one, pinged in the collector, never
     in main.
   - `net.wifi` and `net.wifi.events` are private and not kept while hidden. Judgements are pure
-    in shared/wifi.ts. Every `data-hint` figure has a card in widgets/wifi/hints.ts quoting
+    in shared/wifi/. Every `data-hint` figure has a card in widgets/wifi/hints.ts quoting
     `WIFI_LIMITS` (a unit test checks).
-- **The Ethernet pane reads the cable without a process per reading** (§5.23, shared/ethernet.ts,
+- **The Ethernet pane reads the cable without a process per reading** (§5.23, shared/ethernet/,
   services/metrics/ethernet/; the Wi-Fi pane's sibling, sharing shared/netpath.ts and
   widgets/netpath/). Windows: the sampler's `ether` kind, `GetIfTable2` rows of type 6, medium 14,
   HardwareInterface and not FilterInterface; the duplex and the driver's settings in a runspace of

@@ -1,5 +1,5 @@
-import type { NetEthernet } from './ethernet.js'
-import type { NetWifi, NetWifiEvents } from './wifi.js'
+import type { NetEthernet } from './ethernet/index.js'
+import type { NetWifi, NetWifiEvents } from './wifi/index.js'
 
 /**
  * Metric sources: the contract between the collector, the broker and widgets.

@@ -46,7 +46,7 @@ import {
 } from '../../src/shared/wifi'
 
 /**
- * The Wi-Fi pane's judgements (shared/wifi.ts): the radio's numbers, the
+ * The Wi-Fi pane's judgements (shared/wifi/): the radio's numbers, the
  * statistics over a stretch of echoes, the diagnosis of where a connection
  * fails, the events the history shows, and the report the copy button writes.
  */

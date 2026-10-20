@@ -41,7 +41,7 @@ import Timeline from './Timeline.svelte'
  * The path from this machine to the internet is measured a segment at a time -
  * the radio (signal, retries), the hop to the access point (an echo to the
  * gateway each second), the way beyond (an echo to the internet) and what the
- * machine is sending meanwhile - and `diagnose` (shared/wifi.ts) says which
+ * machine is sending meanwhile - and `diagnose` (shared/wifi/diagnose.ts) says which
  * segment is at fault, with the figures it rests on. Under that, the radio as
  * it stands, a timeline of the last minutes, and the log of what happened.
  *
@@ -52,7 +52,7 @@ import Timeline from './Timeline.svelte'
  * history and its own gateway's echoes.
  *
  * Everything is read only while the pane is seen; nothing is kept on disk.
- * The judgements are pure functions in shared/wifi.ts; this file only wires
+ * The judgements are pure functions in shared/wifi/; this file only wires
  * them to the page.
  */
 const { paneId, state: paneState }: WidgetProps = $props()

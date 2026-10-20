@@ -7,7 +7,7 @@
  * internet's segment and the machine's own upload are judged by, the spans a
  * timeline shows, and the masks a copied report uses. Each pane keeps only what
  * its own link adds - the radio for Wi-Fi, the cable for Ethernet - in
- * shared/wifi.ts and shared/ethernet.ts. Pure, so unit-tested on its own.
+ * shared/wifi/ and shared/ethernet/. Pure, so unit-tested on its own.
  */
 
 // ---------------------------------------------------------------------------

@@ -31,7 +31,7 @@ import {
 } from '../../src/shared/ethernet'
 
 /**
- * The Ethernet pane's judgements (shared/ethernet.ts): what is a fault on a cable
+ * The Ethernet pane's judgements (shared/ethernet/): what is a fault on a cable
  * and what is only the other end, how a drop and a storm are counted, the order
  * the segments are walked in, and what a copied report leaves out. The readings
  * are the collector's own stub, so they are what the e2e tests see too.

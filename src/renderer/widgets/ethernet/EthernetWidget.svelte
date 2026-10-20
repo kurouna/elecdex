@@ -47,7 +47,7 @@ import Timeline from './Timeline.svelte'
  * the link (its speed against what it had, its duplex, CRC errors, drops and
  * broadcast floods), the hop to the router (an echo a second from this adapter's
  * own address), the way beyond, and what the machine is sending - and
- * `diagnoseEthernet` (shared/ethernet.ts) says which segment is at fault, with the
+ * `diagnoseEthernet` (shared/ethernet/diagnose.ts) says which segment is at fault, with the
  * figures it rests on. Under that, the link as it stands, a timeline of the last
  * minutes, and the log of what the pane saw.
  *
