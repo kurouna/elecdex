@@ -1010,7 +1010,9 @@ Stop とペインを閉じたときの停止）。
   `-c core.fsmonitor=false`・`-c log.showSignature=false` と `--no-ext-diff --no-textconv` を付ける。
   clean フィルタは status が触られたファイルを index と比べるときに走るので、リポジトリ自身の設定（global・
   system 以外）にあるフィルタを最初に `git config --get-regexp --show-scope` で調べ、名前ごとに
-  `-c filter.<名前>.clean=` などで空にする（`filterGuard`。空のコマンドはフィルタなしとして扱われることを
+  `--config-env=filter.<名前>.clean=ELECDEX_GIT_EMPTY` などで空にする（`filterGuard`。`-c` は最初の `=` で
+  切られるので、名前に `=` を含むフィルタ（`[filter "a=b"]`）は `-c` では空にならず走った。`--config-env` は
+  最後の `=` で切り、環境変数の名前は `=` を含めない。値は runGit が渡す空の変数と `false`。空のコマンドはフィルタなしとして扱われることを
   実際の git で確かめた。利用者自身の Git LFS などには触れない）。サブモジュールの中の作業ツリーは
   `--ignore-submodules=dirty` で見に行かない（そこでは別の設定で status が走るため。コミットが動いたことは見える）。
   `--no-optional-locks` で status に index を書かせない（利用者の git と index.lock を取り合わない）。

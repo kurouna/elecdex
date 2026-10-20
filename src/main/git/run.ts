@@ -45,6 +45,13 @@ export const GIT_FLAGS: readonly string[] = [
   'i18n.logOutputEncoding=utf-8',
 ]
 
+/**
+ * The variables `--config-env` reads its values from (filterGuard): an empty one and `false`.
+ * Every git run carries them, so a guard can be put in front of any call.
+ */
+export const GIT_EMPTY_VAR = 'ELECDEX_GIT_EMPTY'
+export const GIT_FALSE_VAR = 'ELECDEX_GIT_FALSE'
+
 /** A diff larger than this is not drawn; git's output is cut here. */
 const MAX_OUTPUT = 16 * 1024 * 1024
 /** Nothing the pane asks for should take this long; a hung git is stopped. */
@@ -122,7 +129,14 @@ export const runGit: RunGit = (cwd, args, options) =>
         // its options to spawn, which takes this; its own type leaves it out.
         ...({ detached: process.platform !== 'win32' } as object),
         // Never stop to ask for a password or an editor: there is nobody to answer.
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true', GIT_PAGER: 'cat' },
+        env: {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: '0',
+          GIT_EDITOR: 'true',
+          GIT_PAGER: 'cat',
+          [GIT_EMPTY_VAR]: '',
+          [GIT_FALSE_VAR]: 'false',
+        },
       },
       (error, stdout, stderr) => {
         if (timer !== undefined) clearTimeout(timer)

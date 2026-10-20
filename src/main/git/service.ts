@@ -31,7 +31,14 @@ import {
   sniffImage,
   withCounts,
 } from '@shared/git'
-import { type GitBytes, type GitResult, gitError, type RunGit } from './run.js'
+import {
+  GIT_EMPTY_VAR,
+  GIT_FALSE_VAR,
+  type GitBytes,
+  type GitResult,
+  gitError,
+  type RunGit,
+} from './run.js'
 
 /**
  * Keeps the repositories open in git panes current, and answers their diffs.
@@ -146,15 +153,14 @@ export function filterGuard(output: string): string[] {
     const [, scope, name] = match
     if (scope !== 'global' && scope !== 'system' && name !== undefined) names.add(name)
   }
+  // Through `--config-env`, never `-c`: git splits a `-c` at its first `=`, so a driver named
+  // `a=b` made `-c filter.a=b.clean=` set `filter.a` and left `filter."a=b".clean` running.
+  // `--config-env` splits at its last `=`, and the variable's name cannot hold one.
   return [...names].flatMap((name) => [
-    '-c',
-    `filter.${name}.clean=`,
-    '-c',
-    `filter.${name}.smudge=`,
-    '-c',
-    `filter.${name}.process=`,
-    '-c',
-    `filter.${name}.required=false`,
+    `--config-env=filter.${name}.clean=${GIT_EMPTY_VAR}`,
+    `--config-env=filter.${name}.smudge=${GIT_EMPTY_VAR}`,
+    `--config-env=filter.${name}.process=${GIT_EMPTY_VAR}`,
+    `--config-env=filter.${name}.required=${GIT_FALSE_VAR}`,
   ])
 }
 

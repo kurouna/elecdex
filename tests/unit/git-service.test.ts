@@ -1,3 +1,6 @@
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { GitState } from '@shared/git'
 import { describe, expect, it } from 'vitest'
@@ -43,10 +46,10 @@ interface Harness {
   git: { present: boolean }
 }
 
-/** The git command in a call, past the `-c` pairs in front of it. */
+/** The git command in a call, past the `-c` pairs and `--config-env`s in front of it. */
 const commandOf = (args: readonly string[]): string | undefined => {
   let i = 0
-  while (args[i] === '-c') i += 2
+  while (args[i] === '-c' || args[i]?.startsWith('--config-env=')) i += args[i] === '-c' ? 2 : 1
   return args[i]
 }
 
@@ -307,14 +310,10 @@ describe('the git service', () => {
 
   it("empties the repository's own filters, and leaves the user's alone", async () => {
     expect(filterGuard(LOCAL_FILTER)).toEqual([
-      '-c',
-      'filter.x.clean=',
-      '-c',
-      'filter.x.smudge=',
-      '-c',
-      'filter.x.process=',
-      '-c',
-      'filter.x.required=false',
+      '--config-env=filter.x.clean=ELECDEX_GIT_EMPTY',
+      '--config-env=filter.x.smudge=ELECDEX_GIT_EMPTY',
+      '--config-env=filter.x.process=ELECDEX_GIT_EMPTY',
+      '--config-env=filter.x.required=ELECDEX_GIT_FALSE',
     ])
     const h = harness({ config: LOCAL_FILTER })
     h.status.output += `1 .M N... 100644 100644 100644 a a a.txt\0`
@@ -322,7 +321,7 @@ describe('the git service', () => {
     await h.advance(0)
     await h.service.diff({ repoId: ID, path: 'a.txt', area: 'unstaged' })
     for (const args of h.calls.filter((a) => ['status', 'diff'].includes(commandOf(a) ?? ''))) {
-      expect(args.slice(0, 2)).toEqual(['-c', 'filter.x.clean='])
+      expect(args[0]).toBe('--config-env=filter.x.clean=ELECDEX_GIT_EMPTY')
     }
     expect(h.calls.filter((a) => commandOf(a) === 'status')).toHaveLength(1)
     // A submodule's working tree is never looked into: its own filters are not emptied here.
@@ -420,7 +419,7 @@ describe('the git service', () => {
     h.fire(path.join('.git', 'config'))
     await h.advance(2000)
     const status = h.calls.filter((args) => commandOf(args) === 'status').at(-1)
-    expect(status?.slice(0, 2)).toEqual(['-c', 'filter.y.clean='])
+    expect(status?.[0]).toBe('--config-env=filter.y.clean=ELECDEX_GIT_EMPTY')
   })
 
   it('tries again after a failure, so a pane mends itself once git is there', async () => {
@@ -660,5 +659,37 @@ describe('a git that takes too long', () => {
     const result = await runGit(process.cwd(), ['hash-object', '--stdin'], { timeoutMs: 300 })
     expect(result.timedOut).toBe(true)
     expect(result.ok).toBe(false)
+  })
+})
+
+describe('the filter guard', () => {
+  it("empties a repository's filter whose name holds an `=`, in a real git", async () => {
+    // Found in a security review: git splits `-c` at its first `=`, so the guard's
+    // `-c filter.a=b.clean=` set `filter.a` and the repository's own clean filter still ran on
+    // the first `git status`.
+    const repo = mkdtempSync(path.join(tmpdir(), 'elecdex-filter-'))
+    try {
+      const git = (...args: string[]) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' })
+      git('init', '-q')
+      git('config', 'user.name', 'test')
+      git('config', 'user.email', 'test@example.invalid')
+      writeFileSync(path.join(repo, 'f.txt'), 'one\n')
+      git('add', 'f.txt')
+      git('commit', '-qm', 'one')
+      // The filter and its attribute come after the commit, so only the pane's reading runs it.
+      git('config', 'filter.a=b.clean', 'touch filter-ran && cat')
+      writeFileSync(path.join(repo, '.gitattributes'), '* filter=a=b\n')
+      writeFileSync(path.join(repo, 'f.txt'), 'two, and longer\n')
+
+      const config = await runGit(repo, ['config', '--get-regexp', '--show-scope', '^filter\\.'])
+      const guard = filterGuard(config.stdout)
+      const status = await runGit(repo, [...guard, 'status', '--porcelain'])
+      expect(status.ok).toBe(true)
+      const diff = await runGit(repo, [...guard, 'diff', '--no-ext-diff', '--no-textconv'])
+      expect(diff.ok).toBe(true)
+      expect(existsSync(path.join(repo, 'filter-ran'))).toBe(false)
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+    }
   })
 })
