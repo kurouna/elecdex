@@ -634,8 +634,9 @@ async function findSatellite(map) {
     const x = box.x + box.width * (0.22 + 0.006 * i)
     const y = box.y + box.height * (0.42 + 0.12 * Math.sin(i / 6))
     await page.mouse.move(x, y, { steps: 2 })
-    const tip = page.getByTestId('orbit-tip')
-    if ((await tip.count()) > 0 && /starlink/i.test((await tip.textContent()) ?? '')) return
+    // The satellite's own card: the station's may still be powering off beside it.
+    const tip = page.locator('[data-testid=orbit-tip][data-kind=starlink]')
+    if ((await tip.count()) > 0) return
   }
 }
 
@@ -650,8 +651,9 @@ async function toTheMap() {
   if (box !== null && marks.ISS) {
     say('map: the pointer on the ISS')
     await page.mouse.move(box.x + marks.ISS[0], box.y + marks.ISS[1], { steps: 14 })
+    // The station's own card: a Starlink dot passed on the way may have shown one too.
     await page
-      .getByTestId('orbit-tip')
+      .locator('[data-testid=orbit-tip][data-kind=station]')
       .waitFor({ timeout: 3000 })
       .catch(() => say('  (no card on the ISS)'))
     await wait(2200)

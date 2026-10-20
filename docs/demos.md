@@ -110,6 +110,9 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
   ほかでも、見せたいことが起きたのを待ってから数える。
 - **同じペインが複数あるとき**: retro には ELEC-16 / PLAY-320 のタブが 3 つある。`getByTestId` は
   対象のペインの中で引く（`airDogfight` に `screen` を渡すのはこのため）。
+- **消えかけのカードも数に入る**: 説明カードは電源を切る間も DOM に残る。ORBIT で ISS のカードが消える途中に
+  Starlink のカードが出ると `orbit-tip` が 2 つになり、`getByTestId('orbit-tip').textContent()` が strict mode で
+  落ちて demo:dev が止まっていた。待つカードは種類で引く（`[data-testid=orbit-tip][data-kind=starlink]`）。
 - **Web ペインは `--shots` に写らない**: テレビや X のペインは別の WebContentsView なので、
   ページのスクリーンショットでは空白に見える。録画には映る。切り替えの瞬間に写る代役の絵で確かめる。
 - **切り替えた直後のタイムライン**: network に切り替えた直後の Wi-Fi・ETHERNET は、見ていた秒が数秒しかなく、
