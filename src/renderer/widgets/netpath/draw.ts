@@ -14,7 +14,7 @@
  * hand them a recording context.
  */
 
-import type { Health } from '@shared/netpath'
+import { type Health, roundMs } from '@shared/netpath'
 
 /** A station on the path strip (PathStrip.svelte), as a pane fills it in. */
 export interface StationView {
@@ -380,6 +380,9 @@ export function drawEventLine(s: Surface, x: number, bottom: number, color: stri
   ctx.stroke()
   ctx.globalAlpha = 1
 }
+
+/** A round trip in the crosshair's readout: lost, not asked (a dash), or its time. */
+export const echoMs = (v: number | null | undefined): string => (v === null ? 'lost' : roundMs(v))
 
 /** Bits a second, in kb/s below a megabit so an idle link does not read as nothing. */
 export const megabits = (bytesPerSecond: number): string => {
