@@ -1,4 +1,4 @@
-import { GONE_AFTER, roundMs } from '../netpath.js'
+import { GONE_AFTER, newestFirst, roundMs } from '../netpath.js'
 import { errorHealth } from './diagnose.js'
 import { BROADCAST_SECONDS, ETHER_LIMITS, quickDrops } from './figures.js'
 import { isUp, medianOf, wayOutLost } from './parts.js'
@@ -89,7 +89,7 @@ export function etherEvents(points: readonly EtherPoint[]): EtherEvent[] {
     }
     previous = p
   }
-  return out.sort((a, b) => b.at - a.at || a.key.localeCompare(b.key))
+  return newestFirst(out)
 }
 
 function unseen(before: EtherPoint, after: EtherPoint): EtherEvent[] {
@@ -196,5 +196,5 @@ export function mergeEtherEvents(
   seen: readonly EtherEvent[],
   logged: readonly EtherEvent[],
 ): EtherEvent[] {
-  return [...seen, ...logged].sort((a, b) => b.at - a.at || a.key.localeCompare(b.key))
+  return newestFirst(seen, logged)
 }

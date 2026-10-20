@@ -278,6 +278,54 @@ export function columnsOf<T extends { at: number }>(
   return columns
 }
 
+/** A column of the timeline: the stretch it stands for, and how many points it holds. */
+export interface Column {
+  from: number
+  to: number
+  /** Points in the column; none is time the pane was not watched. */
+  count: number
+}
+
+/**
+ * The timeline's columns (`columnsOf`), each with what `measure` makes of its
+ * points: the stretch and the count are every pane's, the lanes each pane's own.
+ * A column with no points is measured too, so it says null where a pane does.
+ */
+export function bucketsOf<T extends { at: number }, B>(
+  points: readonly T[],
+  from: number,
+  to: number,
+  count: number,
+  measure: (column: readonly T[]) => B,
+): (Column & B)[] {
+  const width = (to - from) / Math.max(1, count)
+  return columnsOf(points, from, to, count).map((column, i) => ({
+    from: from + i * width,
+    to: from + (i + 1) * width,
+    count: column.length,
+    ...measure(column),
+  }))
+}
+
+/**
+ * The share of echoes lost, 0-100, of those asked: a null is a lost echo, an
+ * undefined one not asked. Null when none was asked.
+ */
+export function echoLoss(echoes: readonly (number | null | undefined)[]): number | null {
+  const asked = echoes.filter((v) => v !== undefined)
+  return asked.length === 0 ? null : (asked.filter((v) => v === null).length / asked.length) * 100
+}
+
+/**
+ * Events from any number of lists together, newest first, a tie by key - so the
+ * order never depends on which list an event came from.
+ */
+export function newestFirst<E extends { at: number; key: string }>(
+  ...lists: readonly (readonly E[])[]
+): E[] {
+  return ([] as E[]).concat(...lists).sort((a, b) => b.at - a.at || a.key.localeCompare(b.key))
+}
+
 // ---------------------------------------------------------------------------
 // Judging a segment
 // ---------------------------------------------------------------------------

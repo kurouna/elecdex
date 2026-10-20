@@ -1,4 +1,4 @@
-import { GONE_AFTER, median } from '../netpath.js'
+import { GONE_AFTER, median, newestFirst } from '../netpath.js'
 import type { WifiPoint } from './points.js'
 import type { WifiEvent, WifiEventKind } from './types.js'
 
@@ -159,7 +159,7 @@ export function mergeEvents(
   log: readonly TrackEvent[],
   derived: readonly TrackEvent[],
 ): TrackEvent[] {
-  return [...log, ...derived].sort((a, b) => b.at - a.at || a.key.localeCompare(b.key))
+  return newestFirst(log, derived)
 }
 
 /**
