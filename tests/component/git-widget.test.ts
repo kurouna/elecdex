@@ -207,6 +207,17 @@ describe('choosing a repository', () => {
 })
 
 describe('the header', () => {
+  it('follows the repository only while it is seen', async () => {
+    const view = await mount()
+    expect(subscriptions).toBe(1)
+    await view.rerender({ visible: false })
+    await settle()
+    expect(subscriptions).toBe(0)
+    await view.rerender({ visible: true })
+    await settle()
+    expect(subscriptions).toBe(1)
+  })
+
   it('names the branch, how far it is from its upstream, the commit and the stash', async () => {
     await mount()
     await push(state({ stash: 2 }))
