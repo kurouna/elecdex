@@ -50,6 +50,20 @@ compression: normal
 npmRebuild: false
 forceCodeSigning: false
 
+# Electron's fuses, flipped in the packaged binary (found in a security review): without them
+# any program of the same user could start elecdex as plain Node (ELECTRON_RUN_AS_NODE,
+# NODE_OPTIONS) or with an inspector (--inspect), run code as elecdex and have safeStorage
+# decrypt the AI keys. The app is loaded only from its asar archive, checked against the hash
+# the build embedded. grantFileProtocolExtraPrivileges stays on: the page is loaded from file://
+# and its module scripts need it.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  enableCookieEncryption: true
+
 publish:
   provider: github
   owner: kurouna
