@@ -31,6 +31,7 @@
  */
 
 import { hostname } from 'node:os'
+import { isNetworkPath } from '@shared/fs'
 
 const BEL = 0x07
 const ESC = 0x1b
@@ -281,14 +282,14 @@ function parseFileUri(value: string): string | null {
  * Starship for it) use: a native path, often in double quotes, no percent
  * encoding.
  *
- * Only an absolute path is a directory: a drive (`C:\`), a UNC share
- * (`\\server\share`) or a POSIX root. A PowerShell provider location such as
- * `HKLM:\` is not, and a relative path is relative to nothing we know.
+ * Only an absolute path is a directory: a drive (`C:\`) or a POSIX root. A
+ * PowerShell provider location such as `HKLM:\` is not, and a relative path is
+ * relative to nothing we know. A UNC share is refused by `cleanPath`.
  */
 function parseWindowsTerminalCwd(value: string): string | null {
   const path =
     value.length >= 2 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value
-  if (!/^(?:[a-zA-Z]:[\\/]|\\\\[^\\]|\/)/.test(path)) return null
+  if (!/^(?:[a-zA-Z]:[\\/]|\/)/.test(path)) return null
   return cleanPath(path)
 }
 
@@ -300,6 +301,10 @@ function cleanPath(path: string): string | null {
   // way it is not a directory we should report.
   // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting them is the point
   if (/[\u0000-\u001f\u007f]/.test(path)) return null
+
+  // Any program's output can carry the sequence, and a share named in it would be
+  // listed by the file pane at once, offering the user's NTLM hash to its host.
+  if (isNetworkPath(path)) return null
 
   return path
 }

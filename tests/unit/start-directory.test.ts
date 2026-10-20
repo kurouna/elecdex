@@ -79,6 +79,20 @@ describe('resolveShellDirectory', () => {
     expect(await resolveShellDirectory('dev', settings, answers)).toBe(path.resolve('/work'))
   })
 
+  it('never looks at a network share it was left in', async () => {
+    // Found in a security review: the folder came from what the shell printed, so a share
+    // named in any output was looked at again on every start, offering the user's NTLM hash.
+    const looked: string[] = []
+    const look = async (dir: string) => {
+      looked.push(dir)
+      return true
+    }
+    for (const share of ['\\\\server\\share', '//server/share', '\\\\?\\UNC\\server\\share']) {
+      expect(await resolveShellDirectory(share, settings, look)).toBe(path.resolve('/work'))
+    }
+    expect(looked).toEqual([])
+  })
+
   it('does not wait on a folder that never answers, nor fail on one that throws', async () => {
     // A share whose server has gone: the look neither ends nor fails.
     const never = () => new Promise<boolean>(() => {})

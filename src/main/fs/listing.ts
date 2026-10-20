@@ -6,6 +6,7 @@ import {
   type DirResult,
   type DriveInfo,
   type EntryKind,
+  isNetworkPath,
   MAX_DIR_ENTRIES,
 } from '@shared/fs'
 
@@ -16,11 +17,15 @@ import {
  * PowerShell through systeminformation's fsSize() on every directory change.
  */
 
-/** Rejects anything that is not a plain absolute path. Returns it normalised. */
+/**
+ * Rejects anything that is not a plain absolute path, and a network share
+ * (`isNetworkPath`): the pane reaches one only by following a terminal, whose
+ * folder any printed text can name. Returns it normalised.
+ */
 export function validatePath(raw: unknown): string | null {
   if (typeof raw !== 'string' || raw.length === 0 || raw.length > 4096) return null
   if (raw.includes('\0')) return null
-  if (!path.isAbsolute(raw)) return null
+  if (!path.isAbsolute(raw) || isNetworkPath(raw)) return null
   return path.resolve(raw)
 }
 

@@ -2,6 +2,7 @@ import { statSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { StartDirectory } from '@shared/api'
+import { isNetworkPath } from '@shared/fs'
 
 /**
  * Where a new shell starts, from the `terminal.startDirectory` setting.
@@ -48,7 +49,10 @@ export async function resolveShellDirectory(
   isDirectory: (dir: string) => Promise<boolean> = directoryAnswers,
   waitMs = SHELL_DIRECTORY_WAIT_MS,
 ): Promise<string> {
-  if (requested === undefined || !path.isAbsolute(requested)) return fallback()
+  // A pane's folder came from what its shell printed: a share there is not gone back to.
+  if (requested === undefined || !path.isAbsolute(requested) || isNetworkPath(requested)) {
+    return fallback()
+  }
   let timer: ReturnType<typeof setTimeout> | undefined
   const late = new Promise<boolean>((resolve) => {
     timer = setTimeout(() => resolve(false), waitMs)

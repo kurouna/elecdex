@@ -46,3 +46,15 @@ export interface DriveInfo {
 
 /** Most entries returned for one directory; a listing of node_modules stays cheap. */
 export const MAX_DIR_ENTRIES = 1000
+
+/**
+ * A path that starts with two separators: on Windows a UNC share (`\\host\share`) or a device
+ * path (`\\?\`, `\\.\`), either of which can make Windows connect to another machine and offer
+ * it the user's credentials (an NTLM hash) the moment it is listed, watched or looked at. A
+ * shell's folder is learnt from whatever the terminal prints, a file a user only `cat`s
+ * included, so such a path is never followed there (found in a security review). POSIX has no
+ * use for a leading `//`.
+ */
+export function isNetworkPath(value: string): boolean {
+  return /^[\\/]{2}/.test(value)
+}

