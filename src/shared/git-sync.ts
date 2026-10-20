@@ -92,6 +92,35 @@ export function syncBlocked(state: GitState | null, action: GitSyncAction): stri
   return null
 }
 
+/**
+ * The config keys that name a program the transport runs: ssh (`core.sshCommand`), a
+ * proxy (`core.gitProxy`), a password prompt (`core.askPass`), a credential helper (a
+ * `!` one is a shell command), the program run at the other end of a local or ssh
+ * remote (`uploadpack`, `receivepack`, run through a shell) and a remote helper
+ * (`vcs`). An extended regular expression, for `git config --get-regexp`; git prints
+ * section and key in lower case.
+ */
+export const TRANSPORT_PROGRAM_KEYS =
+  '^(core\\.(sshcommand|gitproxy|askpass)|credential\\.(.+\\.)?helper|remote\\..+\\.(uploadpack|receivepack|vcs))$'
+
+/**
+ * The transport programs a repository's own config names (local or worktree scope),
+ * from `git config --get-regexp --show-scope --name-only TRANSPORT_PROGRAM_KEYS`, sorted.
+ * A repository handed over as a folder or an archive brings its `.git/config` with it,
+ * so a press could otherwise run a program of its choosing; the user's own (global,
+ * system) settings are theirs, as in the terminal.
+ */
+export function repoTransportPrograms(output: string): string[] {
+  const keys = new Set<string>()
+  for (const line of output.split('\n')) {
+    const match = /^(\S+)\t(\S.*?)\r?$/.exec(line)
+    if (match === null) continue
+    const [, scope, key] = match
+    if (scope !== 'global' && scope !== 'system' && key !== undefined) keys.add(key)
+  }
+  return [...keys].sort()
+}
+
 /** The one line of `git push --porcelain` for a ref: its flag, and git's summary of it. */
 export interface PushLine {
   /** ' ' fast-forward, '*' new, '=' up to date, '!' rejected; '+' and '-' never asked for. */

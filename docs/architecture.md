@@ -1043,7 +1043,15 @@ Stop とペインを閉じたときの停止）。
     リポジトリはそれなしで送られる。FETCH・PULL と揃えた利用者の決定（2026-10-18）で、押す前の表示がそう言う。
     e2e（git.spec）で、作業ツリー内のフックが git 単体では走り、ペインからの FETCH・PULL・失敗した PULL・PUSH では
     走らないことを確かめる（ガードを外すと `reference-transaction` が走って失敗することも確認）。
-  - 認証や ssh、プロキシは利用者自身の設定をそのまま使う（それが無ければサインインできない）。端末は無いと
+  - **リポジトリ自身の設定が転送のプログラムを名指すときは押させない**（`TRANSPORT_PROGRAM_KEYS`、
+    `repoTransportPrograms`）: `core.sshCommand`・`core.gitProxy`・`core.askPass`・資格情報ヘルパー（`!` で
+    始まればシェルのコマンド）・`remote.<名前>.uploadpack` / `receivepack`（ローカルや ssh のリモートでシェルを
+    通して走る）・`remote.<名前>.vcs`。フォルダや圧縮ファイルで渡されたリポジトリは `.git/config` ごと届くので、
+    押すたびに `git config --get-regexp --show-scope --name-only` で調べ、local・worktree のスコープにあれば
+    キーの名前を添えて CANNOT とし、ターミナルに任せる。git が読めなかった設定も同じ（セキュリティの見直し、
+    2026-10-21）。代わりに、こうしたキーを自分でリポジトリに置いた利用者（アカウントごとの `core.sshCommand`
+    など）も、そのリポジトリはターミナルで同期する。
+  - 認証や ssh、プロキシは利用者自身の（global・system の）設定をそのまま使う（それが無ければサインインできない）。端末は無いと
     伝え（`GIT_TERMINAL_PROMPT=0`）、それでも待つ転送は 120 秒で止めて TIMED OUT と言う。
   - main は、そのページが購読しているリポジトリだけ、main 自身の最後の読み取りで `syncBlocked` を確かめて
     （読めていない・merge などの途中・detached HEAD・upstream が無い）、1 リポジトリにつき 1 つずつ走らせる。

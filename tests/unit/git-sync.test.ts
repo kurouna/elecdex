@@ -5,12 +5,14 @@ import {
   isPushRemote,
   parseLeftRight,
   parsePushPorcelain,
+  repoTransportPrograms,
   SYNC_BUSY,
   syncArmed,
   syncBlocked,
   syncHeadline,
   syncTitle,
   syncTone,
+  TRANSPORT_PROGRAM_KEYS,
 } from '@shared/git-sync'
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from '../../src/main/git/run.js'
@@ -47,11 +49,24 @@ const answer = (stdout = '', ok = true, extra: Partial<GitResult> = {}): GitResu
   ...extra,
 })
 
-function harness(state: GitState, replies: (args: readonly string[]) => GitResult) {
+/**
+ * A made-up git. The look at the repository's transport programs, asked before every press,
+ * is answered by `transport` (git's "no such key" by default) and kept apart from `calls`.
+ */
+function harness(
+  state: GitState,
+  replies: (args: readonly string[]) => GitResult,
+  transport: GitResult = answer('', false),
+) {
   const calls: { args: readonly string[]; timeoutMs: number | undefined }[] = []
+  const looks: (readonly string[])[] = []
   const moved: string[] = []
   const sync = new GitSync({
     run: async (_cwd, args, options) => {
+      if (args.includes(TRANSPORT_PROGRAM_KEYS)) {
+        looks.push(args)
+        return transport
+      }
       calls.push({ args, timeoutMs: options?.timeoutMs })
       return replies(args)
     },
@@ -59,7 +74,7 @@ function harness(state: GitState, replies: (args: readonly string[]) => GitResul
     moved: (id) => moved.push(id),
     hooksDir: () => '/app/git-no-hooks',
   })
-  return { sync, calls, moved }
+  return { sync, calls, looks, moved }
 }
 
 describe('syncBlocked', () => {
@@ -184,6 +199,80 @@ describe('GitSync', () => {
       code: 'failed',
       message: 'Your local changes would be overwritten',
     })
+  })
+
+  it("refuses a press while the repository's own config names a transport program", async () => {
+    // Found in a security review: a repository handed over as a folder brings its .git/config,
+    // and core.sshCommand, a `!` credential helper or remote.<name>.uploadpack there ran on the
+    // press as the transport.
+    const named = answer(
+      [
+        'global\tcredential.helper',
+        'local\tcore.sshcommand',
+        'local\tremote.origin.uploadpack',
+        'worktree\tcredential.https://example.com.helper',
+      ].join('\n'),
+    )
+    for (const action of ['fetch', 'pull', 'push'] as const) {
+      const { sync, calls, looks } = harness(readState({ ahead: 1 }), () => answer('1\n'), named)
+      const result = await sync.run(ID, action)
+      expect(result.code).toBe('refused')
+      expect(result.message).toContain(
+        'core.sshcommand, credential.https://example.com.helper, remote.origin.uploadpack',
+      )
+      expect(result.message).not.toContain('credential.helper,')
+      expect(looks).toHaveLength(1)
+      expect(looks[0]).toEqual(expect.arrayContaining(['--show-scope', '--name-only']))
+      expect(looks[0]).toContain('core.hooksPath=/app/git-no-hooks')
+      expect(calls).toEqual([])
+    }
+  })
+
+  it("goes ahead on the user's own transport, and refuses on a config git could not read", async () => {
+    const own = harness(
+      readState(),
+      (args) => (args.includes('rev-list') ? answer('0\n') : answer()),
+      answer('global\tcore.sshcommand\nsystem\tcredential.helper\n'),
+    )
+    expect((await own.sync.run(ID, 'fetch')).code).toBe('fetched')
+    const broken = harness(readState(), () => answer(), {
+      ...answer('', false),
+      stderr: 'fatal: bad config line 3 in file .git/config',
+    })
+    expect(await broken.sync.run(ID, 'fetch')).toMatchObject({ code: 'refused' })
+    expect(broken.calls).toEqual([])
+    const slow = harness(readState(), () => answer(), answer('', false, { timedOut: true }))
+    expect((await slow.sync.run(ID, 'fetch')).code).toBe('refused')
+    expect(slow.calls).toEqual([])
+  })
+
+  it('reads the transport keys of the repository alone', () => {
+    expect(
+      repoTransportPrograms(
+        'system\tcore.askpass\nlocal\tcore.gitproxy\r\nlocal\tcore.gitproxy\nworktree\tremote.a b.vcs\n',
+      ),
+    ).toEqual(['core.gitproxy', 'remote.a b.vcs'])
+    const keys = new RegExp(TRANSPORT_PROGRAM_KEYS)
+    for (const key of [
+      'core.sshcommand',
+      'core.gitproxy',
+      'core.askpass',
+      'credential.helper',
+      'credential.https://example.com.helper',
+      'remote.origin.uploadpack',
+      'remote.origin.receivepack',
+      'remote.my.remote.vcs',
+    ]) {
+      expect(keys.test(key)).toBe(true)
+    }
+    for (const key of [
+      'core.editor',
+      'credential.username',
+      'remote.origin.url',
+      'core.sshcommandx',
+    ]) {
+      expect(keys.test(key)).toBe(false)
+    }
   })
 
   it('stops waiting on a transport that never answers', async () => {

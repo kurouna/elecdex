@@ -6,8 +6,10 @@ import {
   isPushRemote,
   parseLeftRight,
   parsePushPorcelain,
+  repoTransportPrograms,
   SYNC_TIMEOUT_MS,
   syncBlocked,
+  TRANSPORT_PROGRAM_KEYS,
 } from '@shared/git-sync'
 import { type GitResult, gitError, type RunGit } from './run.js'
 
@@ -39,8 +41,14 @@ import { type GitResult, gitError, type RunGit } from './run.js'
  *  - A password prompt: git is told there is no terminal, and a transport that
  *    waits anyway is stopped at `SYNC_TIMEOUT_MS`.
  *
- * The transport itself - ssh, the credential helper, proxies - is the user's own
- * configuration, as it would be in the terminal: without it nothing could sign in.
+ *  - A transport program the repository's own config names (`core.sshCommand`, a
+ *    credential helper, `remote.<name>.uploadpack` and the rest, TRANSPORT_PROGRAM_KEYS):
+ *    a repository handed over as a folder brings its `.git/config`, so the press is
+ *    refused and the terminal is left to run it (found in a security review).
+ *
+ * The transport itself - ssh, the credential helper, proxies - as the user's own
+ * (global, system) configuration names it is theirs, as it would be in the terminal:
+ * without it nothing could sign in.
  */
 
 export interface GitSyncDeps {
@@ -130,6 +138,13 @@ export class GitSync {
           ],
           timeoutMs === undefined ? undefined : { timeoutMs },
         )
+      const named = await this.transportPrograms(git)
+      if (named.length > 0) {
+        return result(
+          'refused',
+          `this repository's own config names a program to run (${named.join(', ')}): use the terminal`,
+        )
+      }
       return action === 'push'
         ? // syncBlocked has refused a detached HEAD already.
           await this.push(id, git, target.state.branch.head ?? '', result)
@@ -192,6 +207,25 @@ export class GitSync {
     )
     this.deps.moved(id)
     return pushOutcome(done, merge, commits, result)
+  }
+
+  /**
+   * The transport programs the repository's own config names, read afresh on every press
+   * (a pull may have brought a config include's target with it). An answer git could not
+   * give counts as one: nothing runs on a config it could not read.
+   */
+  private async transportPrograms(git: Git): Promise<string[]> {
+    const read = await git([
+      'config',
+      '--get-regexp',
+      '--show-scope',
+      '--name-only',
+      TRANSPORT_PROGRAM_KEYS,
+    ])
+    // Exit 1 with nothing printed is git's "no such key".
+    const noSuchKey = !read.ok && !read.timedOut && read.stdout === '' && read.stderr.trim() === ''
+    if (!read.ok && !noSuchKey) return ['unreadable config']
+    return repoTransportPrograms(read.stdout)
   }
 
   private async config(git: Git, key: string): Promise<string> {

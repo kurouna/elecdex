@@ -482,7 +482,8 @@ user made; do not reverse one without asking.
     diverged, it refuses. PUSH names its one refspec, the branch onto the upstream its config
     names, never `+` or `--force`; behind or rejected, it refuses; no upstream, it leaves
     `push -u` to the terminal (user decision 2026-10-18). No hook runs, pre-push neither, and
-    the armed PUSH says so (`core.hooksPath` is main's empty folder). `syncBlocked`
+    the armed PUSH says so (`core.hooksPath` is main's empty folder). A transport program the
+    repository's own config names (`TRANSPORT_PROGRAM_KEYS`) refuses the press. `syncBlocked`
     is checked against main's own reading, one at a time per repository, only for a page showing
     it.
   - git always runs with `GIT_FLAGS` (main/git/run.ts) and the diff flags; repository filters are
