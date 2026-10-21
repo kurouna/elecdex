@@ -25,6 +25,7 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { feature } from 'topojson-client'
+import { checkSha256 } from './script-checks.mjs'
 
 const require = createRequire(import.meta.url)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -32,6 +33,9 @@ const CACHE = join(ROOT, 'node_modules', '.cache', 'elecdex-tz')
 const RELEASE = '2026d'
 const ASSET = 'timezones-with-oceans-now.geojson.zip'
 const URL_ = `https://github.com/evansiroky/timezone-boundary-builder/releases/download/${RELEASE}/${ASSET}`
+// The asset's SHA-256, as GitHub lists it for the release: a download is checked before it is
+// unpacked. A new RELEASE needs its own.
+const ASSET_SHA256 = '788ff3492b2e9fc624d89e9ee0d0f2c399b37ac18c0dc28d050cd616ce92cff1'
 
 const write = (rel, value) => {
   const out = join(ROOT, rel)
@@ -113,6 +117,7 @@ function geojson() {
     const got = spawnSync('curl', ['-sSL', '-o', zip, URL_], { stdio: 'inherit' })
     if (got.status !== 0) throw new Error('download failed')
   }
+  checkSha256(zip, ASSET_SHA256)
   const dir = join(CACHE, RELEASE)
   if (!existsSync(dir) || readdirSync(dir).length === 0) {
     mkdirSync(dir, { recursive: true })

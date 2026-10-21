@@ -29,6 +29,7 @@ import {
 import { registerHooks } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { archiveIds } from './script-checks.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dir = path.join(root, 'resources', 'chip8')
@@ -317,7 +318,8 @@ function copyArchive(from) {
     throw new Error(`${from} is not a chip8Archive checkout (no programs.json)`)
   mkdirSync(archiveDir, { recursive: true })
   const programs = JSON.parse(readFileSync(list, 'utf8'))
-  for (const id of Object.keys(programs))
+  // Each id becomes a file name here: a crafted checkout must not write outside the archive.
+  for (const id of archiveIds(programs))
     copyFileSync(path.join(from, 'roms', `${id}.ch8`), path.join(archiveDir, `${id}.ch8`))
   const source = path.join(archiveDir, 'source.json')
   writeFileSync(source, `${JSON.stringify(programs, null, 2)}\n`)
