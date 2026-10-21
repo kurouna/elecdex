@@ -194,11 +194,12 @@ const view = (index = 0) => win.children[index] as FakeView
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 /**
  * The person presses in the page, a while after the last thing it opened: a page sends the
- * browser off its site only then (issue 31). Moves only the clock Date reads.
+ * browser off its site only then (issue 31). Moves the clock the views are given.
  */
+let clock = 0
 const pressIn = (contents: EventEmitter) => {
-  vi.setSystemTime(Date.now() + 2000)
-  contents.emit('input-event', {}, { type: 'mouseDown' })
+  clock += 2000
+  contents.emit('input-event', {}, { type: 'mouseUp' })
 }
 
 beforeEach(() => {
@@ -208,12 +209,13 @@ beforeEach(() => {
   owner = new FakeContents()
   win = new FakeWindow(owner)
   leftToPage = new Set()
-  views = new WebViews({ keymap: () => keymap, leftToPage: () => leftToPage })
+  clock = 1_000_000
+  views = new WebViews({
+    keymap: () => keymap,
+    leftToPage: () => leftToPage,
+    now: () => clock,
+  })
 })
-afterEach(() => {
-  vi.useRealTimers()
-})
-
 describe('WebViews', () => {
   it('creates a hidden view in the page window, at the preset home or the saved page', () => {
     views.open(asOwner(owner), 'p', 'a', preset('youtube'), 'https://www.youtube.com/watch?v=1')
@@ -445,10 +447,72 @@ describe('WebViews', () => {
     await flush()
     expect(hoisted.opened).toEqual(['https://news.example/a'])
     // Long after the press, nothing again.
-    vi.setSystemTime(Date.now() + 10_000)
+    clock += 10_000
     away('https://ads.example/6')
     await flush()
     expect(hoisted.opened).toEqual(['https://news.example/a'])
+  })
+
+  it('opens one tab for one press, however long the page keeps asking (review)', async () => {
+    // Found in review: the press was not used up, so one click let a page open a tab every
+    // second and a half for five seconds.
+    views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+    const contents = view().webContents
+    const away = (url: string) => contents.emit('will-navigate', { url, preventDefault: vi.fn() })
+    pressIn(contents)
+    away('https://news.example/a')
+    for (const late of [1600, 1600, 1600]) {
+      clock += late
+      away(`https://ads.example/${clock}`)
+    }
+    await flush()
+    expect(hoisted.opened).toEqual(['https://news.example/a'])
+    // The next press is the person's again.
+    pressIn(contents)
+    away('https://news.example/b')
+    await flush()
+    expect(hoisted.opened).toEqual(['https://news.example/a', 'https://news.example/b'])
+  })
+
+  it('counts a press once, as it ends, and never a key held down (review)', async () => {
+    // Found in review: mouseDown and mouseUp both counted, so a page that opened a tab as the
+    // button went down had a fresh press as it came up; a held key re-armed it on every repeat.
+    views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+    const contents = view().webContents
+    const away = (url: string) => contents.emit('will-navigate', { url, preventDefault: vi.fn() })
+    const input = (event: Record<string, unknown>) => contents.emit('input-event', {}, event)
+    input({ type: 'mouseDown' })
+    away('https://ads.example/down')
+    await flush()
+    expect(hoisted.opened).toEqual([])
+    input({ type: 'mouseUp' })
+    away('https://news.example/click')
+    clock += 2000
+    input({ type: 'char' })
+    input({ type: 'rawKeyDown', isAutoRepeat: true })
+    input({ type: 'keyDown', isAutoRepeat: true })
+    away('https://ads.example/held')
+    await flush()
+    expect(hoisted.opened).toEqual(['https://news.example/click'])
+    // Enter on a link: a key going down, once.
+    input({ type: 'rawKeyDown', isAutoRepeat: false })
+    away('https://news.example/enter')
+    await flush()
+    expect(hoisted.opened).toEqual(['https://news.example/click', 'https://news.example/enter'])
+  })
+
+  it('stays on a page that passes a link on when the browser was not sent there (review)', async () => {
+    // Found in review: the pane went back from t.co even when nothing was opened, so a slow
+    // redirect lost the link silently.
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    const contents = view().webContents
+    contents.url = 'https://t.co/AbCdEf'
+    contents.history.back = true
+    const goBack = contents.history.goBack
+    contents.emit('will-navigate', { url: 'https://news.example/article', preventDefault: vi.fn() })
+    await flush()
+    expect(hoisted.opened).toEqual([])
+    expect(goBack).not.toHaveBeenCalled()
   })
 
   it('opens typed addresses only when they are web pages', async () => {

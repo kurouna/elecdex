@@ -57,6 +57,11 @@ export interface WebViewsOptions {
    * their keys - outside a tab group, Ctrl+Shift+Arrow selects by word there.
    */
   leftToPage: (owner: WebContents) => ReadonlySet<string>
+  /**
+   * A clock that only goes forward, in milliseconds: when the person last pressed in a page
+   * (`mayOpenOutside`). Left out, `performance.now()`, which a clock set back does not move.
+   */
+  now?: () => number
 }
 
 interface Entry {
@@ -132,9 +137,11 @@ export class WebViews {
     background: '#000000',
   }
   private readonly options: WebViewsOptions
+  private readonly now: () => number
 
   constructor(options: WebViewsOptions) {
     this.options = options
+    this.now = options.now ?? (() => performance.now())
   }
 
   /**
@@ -496,15 +503,15 @@ export class WebViews {
   /** Where a page may go: only http(s), and only the preset's hosts in the pane. */
   private watchPolicy(entry: Entry): void {
     const contents = entry.view.webContents
-    const outside = outsideOpener(contents)
+    const outside = outsideOpener(contents, this.now)
     const guard = (event: { url: string; preventDefault: () => void }): void => {
       const verdict = navigationVerdict(entry.preset, event.url)
       if (verdict === 'allow') return
       event.preventDefault()
       if (verdict !== 'external') return
-      outside(event.url)
-      // A page that only passed the link on is left: back to the page it was opened from.
-      if (passesThrough(contents.getURL())) this.leavePassThrough(entry)
+      // A page that only passed the link on is left, back to the page it was opened from - only
+      // once the link went to the browser, or it would be lost (found in review).
+      if (outside(event.url) && passesThrough(contents.getURL())) this.leavePassThrough(entry)
     }
     contents.on('will-navigate', guard)
     contents.on('will-redirect', (event) => {
@@ -530,7 +537,7 @@ export class WebViews {
       }
     })
     contents.on('did-create-window', (popup) => {
-      watchPopup(popup)
+      watchPopup(popup, this.now)
       entry.popup = popup
       popup.on('closed', () => {
         if (entry.popup === popup) entry.popup = null
@@ -735,19 +742,16 @@ function send(
 }
 
 /**
- * A sign-in popup: a helper window (never "the elecdex window"), which may go to
- * any http(s) page of the sign-in and opens nothing further itself.
+ * What counts as the person's own doing in a page, once each: a press as it ends, a touch as it
+ * ends or taps, a key as it goes down (Enter on a link) but never its repeats. Found in review:
+ * a press's going down and coming up both counted, and a held key re-armed on every repeat.
  */
-/** What counts as the person's own doing in a page: a press, a key, a touch. */
 const PERSON_INPUT: ReadonlySet<string> = new Set([
-  'mouseDown',
   'mouseUp',
-  'rawKeyDown',
-  'keyDown',
-  'char',
-  'touchStart',
   'touchEnd',
   'gestureTap',
+  'rawKeyDown',
+  'keyDown',
 ])
 
 /**
@@ -755,22 +759,31 @@ const PERSON_INPUT: ReadonlySet<string> = new Set([
  * issue 31): a page's script alone, or one press, could send the browser anywhere, again and
  * again. What the pane's own controls open (the address bar, its browser button) is not this.
  */
-function outsideOpener(contents: WebContents): (url: string) => void {
+function outsideOpener(contents: WebContents, now: () => number): (url: string) => boolean {
   const state: OutsideOpens = { inputAt: null, openedAt: null }
   contents.on('input-event', (_event, input) => {
-    if (PERSON_INPUT.has(input.type)) state.inputAt = Date.now()
+    const repeat = (input as { isAutoRepeat?: boolean }).isAutoRepeat === true
+    if (PERSON_INPUT.has(input.type) && !repeat) state.inputAt = now()
   })
   return (url) => {
-    const now = Date.now()
-    if (!mayOpenOutside(state, now)) return
-    state.openedAt = now
+    const at = now()
+    if (!mayOpenOutside(state, at)) return false
+    state.openedAt = at
+    // One press, one tab: the next takes another press (found in review: a page opened a tab
+    // every second and a half for as long as the press lasted).
+    state.inputAt = null
     void openExternalIfSafe(url)
+    return true
   }
 }
 
-function watchPopup(popup: BrowserWindow): void {
+/**
+ * A sign-in popup: a helper window (never "the elecdex window"), which may go to
+ * any http(s) page of the sign-in and opens nothing further itself.
+ */
+function watchPopup(popup: BrowserWindow, now: () => number): void {
   markHelperWindow(popup)
-  const outside = outsideOpener(popup.webContents)
+  const outside = outsideOpener(popup.webContents, now)
   popup.webContents.setWindowOpenHandler(({ url }) => {
     outside(url)
     return { action: 'deny' }
