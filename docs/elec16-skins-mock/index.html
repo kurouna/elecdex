@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELEC-16 skins mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@300;500;700&family=Barlow+Condensed:wght@500;600;700&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Archivo+Narrow:wght@500;600;700&family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600&family=Sofia+Sans+Condensed:wght@500;600;700&family=Geist:wght@500;600&family=Instrument+Sans:wght@500;600&family=M+PLUS+Rounded+1c:wght@500;700;800&family=Nunito:wght@700;800&family=Zen+Maru+Gothic:wght@700&family=Oxanium:wght@500;600;700&family=Share+Tech+Mono&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<!-- カナ only: each skin's Japanese face, subset to the two letters it shows (as a bundled chunk would be). -->
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@700&family=IBM+Plex+Sans+JP:wght@500;600&family=Noto+Sans+JP:wght@500&family=M+PLUS+1:wght@600&text=%E3%82%AB%E3%83%8A&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of three new ELEC-16 skins, standalone: no elecdex code. The case, the plate, the
+ * glass and the keys copy Device.svelte, Keyboard.svelte, Lcd.svelte and layout.ts (CASE,
+ * GLASS, KEY_GAP, FULL_ROWS, the row heights deviceFit gives); the LCD is drawn as
+ * lcd-painter draws it. CLASSIC is drawn beside them from skins.ts as it is. Nothing here
+ * moves a size layout.ts computes: every new effect is a background, a shadow or a pseudo
+ * element. What a skin needs beyond today's Skin is in the table at the end.
+ *
+ * The light comes from above and a little in front: tops and upper edges catch it, lower
+ * edges and what stands on a surface cast downwards.
+ */
+:root {
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --step--2: 0.625rem;
+  --step--1: 0.75rem;
+  --step-1: 1.125rem;
+  --space-2: 0.5rem;
+  --page: #05080d;
+  --page-text: hsl(183 22% 80%);
+  --page-muted: hsl(183 22% 74% / 0.62);
+  --rule: hsl(183 22% 74% / 0.25);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px 16px 64px; background: var(--page); color: var(--page-text); font-family: var(--font-ui); font-size: 15px; line-height: 1.55; }
+main { max-width: 1240px; margin: 0 auto; }
+h1 { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.12em; font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.1em; font-size: 1.25rem; margin: 0; }
+h3 { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.08em; font-size: 1rem; margin: 22px 0 8px; color: var(--page-muted); }
+p, li { max-width: 80ch; }
+.lead { color: var(--page-muted); }
+section.skin { border-top: 1px solid var(--rule); padding: 28px 0 36px; }
+.skin-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.tag { font-family: var(--font-mono); font-size: 12px; padding: 1px 8px; border: 1px solid var(--rule); color: var(--page-muted); }
+.tag.new { color: #e0b35a; border-color: #e0b35a88; }
+.stage { --drop: 0.5; padding: 26px 22px 34px; display: flex; justify-content: center; overflow: hidden; border: 1px solid var(--rule); }
+.stage.dark { background: radial-gradient(120% 90% at 50% 0%, #0b1118 0%, #05080d 70%); }
+.stage.light { --drop: 0.22; background: #f3f3f3; border-color: #d6d6d6; }
+.row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; margin-top: 18px; }
+@media (max-width: 900px) { .row2 { grid-template-columns: minmax(0, 1fr); } }
+.caption { font-size: 13px; color: var(--page-muted); margin: 6px 0 0; }
+.notes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+@media (max-width: 900px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.notes ul { margin: 0; padding-left: 1.2em; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 12px; }
+.sw { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--page-muted); }
+.sw i { width: 14px; height: 14px; border: 1px solid #ffffff33; display: inline-block; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--font-display); font-weight: 500; letter-spacing: 0.06em; color: var(--page-muted); }
+td code, p code, li code { font-family: var(--font-mono); font-size: 0.85em; color: #e0b35a; }
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .compare { grid-template-columns: minmax(0, 1fr); } }
+.compare .stage { padding: 16px 12px 24px; }
+
+/* Close-ups: a full-size device drawn twice as large, a window onto one detail. */
+.zooms { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+@media (max-width: 1100px) { .zooms { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.zoom { position: relative; height: 200px; overflow: hidden; border: 1px solid var(--rule); background: #05080d; }
+.zoom .holder { position: absolute; left: 0; top: 0; transform-origin: 0 0; transform: scale(2); }
+.zoom-cap { font-size: 12px; color: var(--page-muted); margin: 4px 0 0; }
+
+/* The type specimen: one row of keys per typeface, on the skin's own keys. */
+.specimen { display: grid; gap: 10px; margin-top: 8px; }
+.spec-row { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 14px; align-items: center; }
+.spec-name { font-size: 13px; color: var(--page-muted); line-height: 1.3; }
+.spec-name b { color: var(--page-text); font-weight: 600; }
+.spec-name .pick { color: #e0b35a; }
+.spec-keys { padding: 10px 12px; border-radius: 6px; }
+.spec-keys .keys { grid-template-columns: repeat(24, minmax(0, 1fr)); }
+
+/* ---- The device: Device.svelte's rules, then what relief adds. ---- */
+.device {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  max-width: 100%;
+  padding: 10px 14px 14px;
+  gap: 8px;
+  border: 1px solid var(--e16-edge);
+  border-radius: calc(var(--e16-radius) * 3) calc(var(--e16-radius) * 3) calc(var(--e16-radius) * 4) calc(var(--e16-radius) * 4);
+  background: var(--e16-face);
+  font-family: var(--e16-font);
+  box-shadow: inset 0 1px 0 var(--e16-sheen), 0 6px 18px rgb(0 0 0 / 0.35);
+}
+/*
+ * NEW relief: the case modelled in light. A chamfer catches it along the top, the lower lip
+ * goes dark, and the case stands on the ground with a contact shadow under a soft one.
+ * The face's own material (texture) and a slow fall of light down the case are background
+ * layers set from the skin (see device()).
+ */
+.device.relief {
+  box-shadow:
+    inset 0 1px 0 var(--e16-sheen),
+    inset 0 2px 1px -1px color-mix(in srgb, var(--e16-sheen) 40%, transparent),
+    inset 0 -2px 0 rgb(0 0 0 / 0.16),
+    inset 1px 0 0 color-mix(in srgb, var(--e16-sheen) 30%, transparent),
+    inset -1px 0 0 rgb(0 0 0 / 0.08),
+    0 1px 1px rgb(var(--e16-shade, 0 0 0) / calc(var(--drop) * 0.8)),
+    0 6px 12px -4px rgb(var(--e16-shade, 0 0 0) / calc(var(--drop) * 0.7)),
+    0 22px 38px -14px rgb(var(--e16-shade, 0 0 0) / var(--drop)),
+    var(--e16-underglow-shadow, 0 0 0 transparent);
+}
+
+/* relief's parting line: where the front shell meets the case, 3px in from the edge. */
+.device.relief:not(.brackets)::after { content: ''; position: absolute; inset: 3px; pointer-events: none; border: 1px solid rgb(0 0 0 / 0.07); border-bottom-color: color-mix(in srgb, var(--e16-sheen) 30%, transparent); border-radius: calc(var(--e16-radius) * 3 - 3px) calc(var(--e16-radius) * 3 - 3px) calc(var(--e16-radius) * 4 - 3px) calc(var(--e16-radius) * 4 - 3px); }
+.plate { display: flex; align-items: baseline; gap: var(--space-2); height: 26px; overflow: hidden; white-space: nowrap; }
+.plate.striped { background: var(--e16-stripes) bottom / 100% 6px no-repeat; }
+.brand { font-family: var(--e16-plate-font, var(--font-ui)); font-size: var(--step-1); font-weight: var(--e16-plate-weight, 700); letter-spacing: var(--e16-plate-track, 0.14em); line-height: 1; color: var(--e16-plate); }
+.model, .power { font-family: var(--e16-plate-font, var(--font-ui)); font-size: var(--step--2); font-weight: 500; letter-spacing: 0.18em; color: var(--e16-print); }
+/* NEW underglow: a coloured light under the case, spilling onto the ground (NEON). */
+.device.relief.underglow { --e16-underglow-shadow: 0 14px 34px -10px color-mix(in srgb, var(--e16-underglow) 55%, transparent), 0 2px 10px -2px color-mix(in srgb, var(--e16-underglow) 35%, transparent); }
+/* In daylight, on a light ground, it is not seen at all. */
+.stage.light .device.relief.underglow { --e16-underglow-shadow: 0 0 0 transparent; }
+/* NEW plateEtched: the plate's letters pressed into the face - a light edge under each. */
+.device.etched .brand, .device.etched .model, .device.etched .power { text-shadow: 0 1px 0 color-mix(in srgb, var(--e16-sheen) 70%, transparent); }
+.power { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; letter-spacing: 0.16em; }
+.power i { width: 7px; height: 7px; border-radius: 50%; background: var(--e16-led); box-shadow: 0 0 6px var(--e16-led); }
+.device.off .power i { background: var(--e16-print); opacity: 0.35; box-shadow: none; }
+/*
+ * relief's lamp: a lens in a dark ring set into the case. Off, the lens is dark with a speck
+ * of reflected light; on, it glows from its centre out, the speck still on top.
+ */
+.device.relief .power i {
+  width: 8px; height: 8px; opacity: 1;
+  background:
+    radial-gradient(circle at 40% 28%, rgb(255 255 255 / 0.9) 0 0.8px, transparent 1.6px),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--e16-led) 55%, white) 0%, var(--e16-led) 45%, color-mix(in srgb, var(--e16-led) 60%, black) 100%);
+  box-shadow:
+    0 0 0 1.5px rgb(0 0 0 / 0.45),
+    0 1px 0 1.5px color-mix(in srgb, var(--e16-sheen) 60%, transparent),
+    0 0 6px 1px color-mix(in srgb, var(--e16-led) 70%, transparent),
+    0 0 14px 2px color-mix(in srgb, var(--e16-led) 30%, transparent);
+}
+.device.relief.off .power i {
+  background:
+    radial-gradient(circle at 40% 28%, rgb(255 255 255 / 0.45) 0 0.8px, transparent 1.6px),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--e16-led) 22%, #1a1a1a) 0%, #0e0f10 100%);
+  box-shadow: 0 0 0 1.5px rgb(0 0 0 / 0.45), 0 1px 0 1.5px color-mix(in srgb, var(--e16-sheen) 60%, transparent);
+}
+
+/* NEW grille: the buzzer's openings beside POWER, cut into the case (slits, or round holes). */
+.grille { align-self: center; display: grid; gap: 3px; margin-left: auto; margin-right: 6px; }
+.grille + .power { margin-left: 0; }
+.grille.slits { grid-auto-flow: column; }
+.grille.slits i { width: 2px; height: 11px; border-radius: 1px; }
+.grille.holes { grid-template-columns: repeat(7, 3px); gap: 3px 3px; }
+.grille.holes i { width: 3px; height: 3px; border-radius: 50%; }
+.grille.pills { grid-auto-flow: column; gap: 3px; }
+.grille.pills i { width: 3px; height: 9px; border-radius: 1.5px; }
+.grille i { background: color-mix(in srgb, var(--e16-face) 25%, black); box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.7), 0 1px 0 color-mix(in srgb, var(--e16-sheen) 70%, transparent); }
+
+/* The glass, as Lcd.svelte: one frame, the bezel a 6px border round the ground. */
+.window { position: relative; align-self: center; }
+.glass { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 6px solid var(--e16-bezel); border-radius: calc(var(--e16-radius) * 1.5); background: var(--lcd-ground); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12), inset 0 3px 8px rgb(0 0 0 / 0.18); }
+/*
+ * relief's glass: the bezel sunk into the case (a shadow on the case above it, a lit lip
+ * below), the LCD's dark seal just inside the bezel, the polariser a little darker at its
+ * edges, and a soft reflection over the whole glass from above-left. The ground stays flat:
+ * the real pane draws the grid between the dots in the ground's one colour.
+ */
+.device.relief .glass {
+  position: relative;
+  box-shadow:
+    inset 0 0 14px rgb(0 0 0 / 0.07),
+    inset 0 0 0 1px color-mix(in srgb, var(--lcd-dot) 35%, transparent),
+    inset 0 5px 9px -3px rgb(0 0 0 / 0.32),
+    inset 0 -1px 0 rgb(255 255 255 / 0.10),
+    0 -1px 0 rgb(0 0 0 / 0.35),
+    0 1px 0 color-mix(in srgb, var(--e16-sheen) 80%, transparent);
+}
+.marks { display: flex; gap: 0 0.7em; height: 14px; font-family: var(--font-ui); font-size: var(--step--2); line-height: 1.2; letter-spacing: 0.06em; color: var(--lcd-dot); white-space: nowrap; overflow: hidden; }
+.marks span { opacity: 0.16; }
+.marks span.on { opacity: 1; }
+.stack { position: relative; }
+.device.relief .glass::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: var(--e16-backlight, linear-gradient(transparent, transparent)), linear-gradient(165deg, rgb(255 255 255 / var(--e16-glare, 0.10)) 0%, rgb(255 255 255 / 0.02) 45%, transparent 60%); }
+.device.relief .marks { font-family: var(--e16-marks-font, var(--font-ui)); }
+canvas.lcd { display: block; image-rendering: pixelated; max-width: 100%; height: auto !important; }
+
+/*
+ * NEW deck: a panel the keys stand on, outside the keys' grid (::before, inset -6px, inside
+ * CASE.padX 14 and gap 8), so no size in layout.ts moves. With relief it is sunk: dark
+ * along its top, a lit lip where the case comes up again below it.
+ */
+.keys { position: relative; display: grid; grid-template-columns: repeat(31, minmax(0, 1fr)); gap: 4px; isolation: isolate; }
+.keys.compact { grid-template-columns: repeat(18, minmax(0, 1fr)); }
+.device.has-deck .keys::before { content: ''; position: absolute; inset: -6px; z-index: -1; background: var(--e16-deck); border: 1px solid var(--e16-deck-edge); border-radius: calc(var(--e16-radius) * 1.5); box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.4); }
+.device.relief.has-deck .keys::before {
+  background: var(--e16-deck-tex, none) var(--e16-deck);
+  box-shadow:
+    inset 0 3px 5px -1px rgb(0 0 0 / 0.55),
+    inset 0 -1px 0 rgb(255 255 255 / 0.05),
+    0 -1px 0 rgb(0 0 0 / 0.30),
+    0 1px 0 color-mix(in srgb, var(--e16-sheen) 85%, transparent);
+}
+
+/* A key: Keyboard.svelte's rules. Each kind names its colour once, as --k and --kt. */
+.key { --k: var(--e16-key); --kt: var(--e16-key-text); position: relative; display: grid; place-items: center; min-width: 0; padding: 0; border: 1px solid var(--e16-key-edge); border-radius: var(--e16-radius); background: var(--k); color: var(--kt); font-family: var(--e16-key-font, var(--e16-font)); font-size: var(--step--2); font-weight: var(--e16-key-weight, 600); letter-spacing: var(--e16-key-track, 0.04em); line-height: 1; overflow: hidden; cursor: pointer; user-select: none; }
+.keys.big .key { font-size: var(--step--1); }
+.key.fn { --k: var(--e16-fn); --kt: var(--e16-fn-text); letter-spacing: var(--e16-fn-track, 0.1em); font-weight: var(--e16-fn-weight, var(--e16-key-weight, 600)); }
+.key.pad { --k: var(--e16-pad, var(--e16-key)); --kt: var(--e16-pad-text, var(--e16-key-text)); }
+.key.brk { --k: var(--e16-brk); --kt: var(--e16-brk-text); letter-spacing: var(--e16-fn-track, 0.1em); font-weight: var(--e16-fn-weight, var(--e16-key-weight, 600)); }
+.key.enter { --k: var(--e16-enter); --kt: var(--e16-enter-text); }
+.legend { position: absolute; top: 2px; left: 4px; font-family: var(--e16-legend-font, var(--font-mono)); font-size: var(--step--2); font-weight: 600; color: var(--e16-legend); }
+.key.pad .legend { color: var(--e16-pad-legend, var(--e16-legend)); }
+.cap { white-space: nowrap; font-feature-settings: var(--e16-key-features, normal); transform-origin: 50% 50%; }
+/*
+ * NEW fitting: a narrow body's keys (rows under 32px, no shifted faces) set their function
+ * labels without tracking, and a label still wider than its key is narrowed sideways - never
+ * made smaller - by at most 20% (measured, see fitCaps). Today's skins in Saira fit as they are.
+ */
+.relief .keys:not(.big) .key.fn, .relief .keys:not(.big) .key.brk { letter-spacing: 0.01em; }
+/* The arrows, drawn rather than typed: no bundled face has all four, and a system face's differ. */
+.cap svg { display: block; width: 1.15em; height: 0.95em; overflow: visible; }
+.cap svg path { fill: none; stroke: currentColor; stroke-width: var(--e16-arrow-stroke, 1.35); stroke-linecap: round; stroke-linejoin: round; }
+/* relief's homing bumps on F, J and the keypad's 5: a short ridge low on the cap. */
+.relief .key[data-key="f"]::after, .relief .key[data-key="j"]::after, .relief .key[data-key="5"]::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 6px; height: 1px; margin-left: -3px; border-radius: 1px; background: rgb(0 0 0 / 0.2); box-shadow: 0 1px 0 rgb(255 255 255 / 0.16); }
+.key:hover { border-color: var(--kt); }
+
+.keys-raised .key { box-shadow: 0 2px 0 var(--e16-key-edge); }
+.keys-raised .key:active, .keys-raised .key.down { transform: translateY(2px); box-shadow: none; filter: brightness(1.25); }
+
+/*
+ * relief's raised keys: a cap with a lit upper edge and a face that darkens towards its
+ * foot, its side (keyEdge) below it and its shadow on the deck. Held, it goes down by its
+ * side's height, the shadow gone and the face in its own shade - a key does not light up.
+ */
+.relief.keys-raised .key {
+  border-color: color-mix(in srgb, var(--e16-key-edge) 75%, black);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--k) 93%, white) 0%, var(--k) 40%, var(--k) 64%, color-mix(in srgb, var(--k) 89%, black) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.20),
+    inset 0 -1px 0 rgb(0 0 0 / 0.10),
+    0 2px 0 var(--e16-key-edge),
+    0 3px 3px rgb(0 0 0 / 0.38);
+}
+.relief.keys-raised .key:hover { border-color: color-mix(in srgb, var(--e16-key-edge) 75%, black); filter: brightness(1.05); }
+.relief.keys-raised .key:active, .relief.keys-raised .key.down {
+  transform: translateY(2px);
+  filter: none;
+  background: color-mix(in srgb, var(--k) 90%, black);
+  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.35), 0 0 0 var(--e16-key-edge), 0 1px 1px rgb(0 0 0 / 0.30);
+}
+
+/* NEW gloss (MOCHI): a sugar-glaze highlight on each key's upper third. */
+.gloss .key::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(ellipse 60% 40% at 50% 0%, rgb(255 255 255 / 0.38), transparent); }
+.gloss.keys-chiclet .key { box-shadow: 0 -1px 0 1.5px rgb(var(--e16-shade, 0 0 0) / 0.10), 0 0 0 1.5px var(--e16-well), inset 0 1px 0 rgb(255 255 255 / 0.7), inset 0 -1px 0 rgb(var(--e16-shade, 0 0 0) / 0.06), 0 1px 0 var(--e16-key-edge), 0 2px 3px rgb(var(--e16-shade, 0 0 0) / 0.10); }
+
+/*
+ * NEW backlit (NEON): the letters lit from inside the key - a tight glow and a wide one in
+ * their own colour - and the light leaking out under each cap onto the deck. A filled key
+ * (ENTER, BRK) is lit all over and needs no glow on its dark letters.
+ */
+.backlit .key .cap, .backlit .key .legend { text-shadow: 0 0 1px color-mix(in srgb, currentColor 60%, transparent), 0 0 4px color-mix(in srgb, currentColor 28%, transparent); }
+.relief.backlit .key:hover { filter: none; border-color: color-mix(in srgb, var(--e16-leak) 45%, black); }
+.backlit .key .cap svg { filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 70%, transparent)); }
+.backlit .key.enter .cap, .backlit .key.brk .cap { text-shadow: none; }
+.backlit .key.enter .cap svg, .backlit .key.brk .cap svg { filter: none; }
+.relief.keys-raised.backlit .key {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.09),
+    inset 0 -1px 0 rgb(0 0 0 / 0.25),
+    0 2px 0 var(--e16-key-edge),
+    0 3px 3px rgb(0 0 0 / 0.5),
+    0 0 6px 0 color-mix(in srgb, var(--e16-leak) 28%, transparent);
+}
+.relief.keys-raised.backlit .key.enter, .relief.keys-raised.backlit .key.brk {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 2px 0 var(--e16-key-edge), 0 3px 3px rgb(0 0 0 / 0.5), 0 0 12px -1px color-mix(in srgb, var(--k) 55%, transparent);
+}
+.relief.keys-raised.backlit .key.down { box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.45), 0 0 10px -1px color-mix(in srgb, var(--e16-leak) 45%, transparent); }
+.backlit .key.down .cap { text-shadow: 0 0 3px currentColor, 0 0 10px color-mix(in srgb, currentColor 60%, transparent); }
+
+/*
+ * NEW keys 'chiclet': a low cap set in its own cut in the case - a dark hairline of gap
+ * round it - nearly flat on top, a whisper of side. Held, it goes down a pixel and greys.
+ */
+.keys-chiclet .key {
+  border-color: transparent;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--k) 95%, white) 0%, var(--k) 55%, color-mix(in srgb, var(--k) 96%, black) 100%);
+  box-shadow:
+    0 -1px 0 1.5px rgb(var(--e16-shade, 0 0 0) / 0.10),
+    0 0 0 1.5px var(--e16-well, color-mix(in srgb, var(--e16-face) 80%, black)),
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -1px 0 rgb(0 0 0 / 0.05),
+    0 1px 0 var(--e16-key-edge),
+    0 2px 2px rgb(var(--e16-shade, 0 0 0) / 0.08);
+}
+.keys-chiclet .key:hover { border-color: transparent; filter: brightness(1.02); }
+.keys-chiclet .key:active, .keys-chiclet .key.down {
+  transform: translateY(1px);
+  background: color-mix(in srgb, var(--k) 94%, black);
+  box-shadow: 0 -1px 0 1.5px rgb(var(--e16-shade, 0 0 0) / 0.10), 0 0 0 1.5px var(--e16-well, color-mix(in srgb, var(--e16-face) 80%, black)), inset 0 1px 2px rgb(var(--e16-shade, 0 0 0) / 0.18), 0 0 0 var(--e16-key-edge);
+}
+</style>
+</head>
+<body>
+<main>
+<h1>ELEC-16 — 新しいスキン 5 案（第 4 版）</h1>
+<p class="lead">モック（elecdex のコードは使っていない単独の HTML）。本体・名前板・液晶・キーの並びと寸法は今のペインのまま。第 4 版: 「かわいい」の MOCHI と「サイバー」の NEON を足して 5 案。光の当たり方で本体を立体に描く <code>relief</code>（面取りの光とパーティングライン、沈んだ液晶と鍵盤の板、キーの側面と影と押した姿、ホームポジションの突起、LED のレンズ、液晶の反射と周辺減光）、本体の素材（ヘアライン、梨地: SVG のノイズを本体の色に焼いたタイル、画像なし）、ブザーの穴、点いていないドットの薄い網、スキンごとのキートップの書体（カナも）、線で描いた矢印。キーはクリックで押せます。比べるために今の CLASSIC を最初に置きます。どれも実在の機種の写しではない架空の機械です。</p>
+
+<h3>並べて比べる（幅 580px、刻印なし）</h3>
+<div class="compare" id="compare"></div>
+
+<div id="skins"></div>
+
+<section class="skin">
+  <h2>キートップの書体</h2>
+  <p>アプリの CSP は <code>font-src 'self'</code> なので、書体は同梱する。候補はすべて OFL（SIL Open Font License）で、Fontsource の npm パッケージがある（今の Saira Condensed と同じ入れ方）。各スキンの節の見本で候補を同じキーに並べた。</p>
+  <ul>
+    <li><b>ALLOY → Barlow Condensed 500</b>（名前板は 700、字間 0.12em）: 硬く幅の狭い工業的なグロテスク。80 年代の機器の刻印の「事務的な強さ」。濃いキーの白文字は光のにじみで太く見えるので 1 段細い 500。対抗の Sofia Sans Condensed は DIN に近くさらに冷たいが、小さいと字面が細く頼りない</li>
+    <li><b>GRAPHITE → IBM Plex Sans Condensed 600、機能キーと BRK は 500</b>: 技術文書や計測器の文字の端正さ。0 と O、1 と I の区別がはっきりしていて、明るいキーの濃い文字でも潰れない。濃い機能キーの白文字は同じ理由で 1 段細く</li>
+    <li><b>NEO → Inter Tight 500</b>（名前板は 600、字間 0.20em）: 今の UI の標準的なグロテスク Inter の、字幅を詰めた版。Inter そのものは本体の幅 560px で MODE がキーからはみ出す。<code>font-feature-settings: "case"</code> で ( ) [ ] などを大文字の高さに揃える。対抗の Geist は冷たく幾何学的、Instrument Sans は柔らかく雑誌寄り</li>
+    <li>SHIFT 面の刻印、液晶の表示記号、名前板も、そのスキンのキーと同じ書体にする（実機の印刷は 1 つの書体で揃っている）。今の 8 スキンは今のまま（刻印は JetBrains Mono、表示記号は Saira）</li>
+    <li><b>矢印</b>は書体で打たず、SVG の線で描く（軸と開いた矢じり、太さ 1.35、<code>currentColor</code>）。Fontsource の latin の部分集合は ↑ ↓ を持つが ← → を持たず、同梱の JetBrains Mono も同じ。今のスキンでも ← → だけが OS の書体に落ちて形が揃っていない。読み上げは今どおり <code>aria-label</code></li>
+    <li><b>カナ</b>は、各スキンの和文書体を「カ」と「ナ」の 2 字だけ同梱する（Fontsource の JP パッケージは字の塊に分かれているので、その 2 字を含む塊だけを import するか、<code>unicode-range</code> で絞る）: ALLOY は BIZ UDPGothic Bold、GRAPHITE は IBM Plex Sans JP（同じ一族）、NEO は Noto Sans JP 500。どれも OFL。OS の Yu Gothic UI に落ちて形と太さが浮くのを防ぐ</li>
+    <li><b>MOCHI → M PLUS Rounded 1c 700</b>（名前板は 800）: 丸ゴシック。欧文とカナが同じ一族なので「カナ」も揃う。対抗の Nunito は欧文だけ、Zen Maru Gothic は小さいと線が細い</li>
+    <li><b>NEON → Oxanium 600</b>: 角を落とした八角形の骨格で、機械の刻印に近い。カナは M PLUS 1 の 600 から 2 字（ドット書体の DotGothic16 は 16px の格子の書体で、10px では点が崩れてぼける）。字間は 0.03em。Chakra Petch は今の TRON の書体なので、選ぶと 2 つのスキンの区別が薄れる</li>
+    <li><b>狭い本体の刻印</b>: 幅 560〜580px（キーの文字が <code>--step--2</code>）では、Saira 以外のどの書体も MODE がキーの内側を 1〜3px はみ出す。新しいスキンでは、狭いときに機能キーの字間を詰め、それでも収まらない文字だけを横に縮める（文字の大きさは変えない、最大 20%）。実測では縮むのは MODE だけで、0.82〜0.92 倍。丸い字の MOCHI は字間を先に詰め、縮めるのは 12% まで（楕円に崩れるため）。アプリでは DOM を測らない: 各ラベルの幅を、スキンの書体が読み込まれてから（<code>document.fonts.load</code>）canvas の <code>measureText</code> で em 単位に一度だけ測ってとっておき、layout.ts のキー幅から倍率を純粋に計算する</li>
+    <li>足す書体は Barlow Condensed、IBM Plex Sans Condensed、Inter Tight、M PLUS Rounded 1c、Oxanium と、和文 4 書体（BIZ UDPGothic、IBM Plex Sans JP、Noto Sans JP、M PLUS 1）の 2 字分。第三者の告知（ビルドが同梱したものから作られる）と README の表に載る</li>
+  </ul>
+</section>
+
+<section class="skin">
+  <h2>スキンに足すデータ</h2>
+  <p>今の <code>Skin</code>（skins.ts）に足す項目。テーマと同じく、今の 8 つのスキンにも全項目を明示する（<code>relief: false</code>、<code>texture: 'none'</code>、<code>stripes: []</code>、<code>deck: null</code>、<code>padKey = key</code>、<code>keyFont = font</code> など）ので、今のスキンは一画素も変わらない。どれも layout.ts の寸法（<code>CASE</code>、<code>GLASS_EXTRA</code>、<code>deviceFit</code>）を動かさない。</p>
+  <table>
+    <thead><tr><th>項目</th><th>型</th><th>意味と描き方</th><th>使うスキン</th></tr></thead>
+    <tbody>
+      <tr><td><code>body.relief</code></td><td><code>boolean</code></td><td>本体を光で描く（光は上、やや左から）: 面取りの光と下端の影、3px 内側のパーティングライン（<code>::after</code>。brackets のスキンは使わない）、地面への 2 段の影、沈んだ液晶（上に影、下に光る縁、封止の暗い線、偏光板の周辺減光、ガラス全体の淡い反射: <code>.glass::after</code>）、キーの面の明暗と側面と影と押した姿、F・J・テンキー 5 の突起、LED のレンズ。すべて <code>box-shadow</code>、グラデーション、疑似要素。Keyboard.svelte のスコープ付き CSS では <code>:global(.relief)</code> で書き、今の <code>.key:hover</code> を上書きする。後で CLASSIC・IVORY・NIGHT に入れることもできる</td><td>3 つとも</td></tr>
+      <tr><td><code>body.texture</code></td><td><code>'none' | 'brushed' | 'grain' | 'grain-soft' | 'polka' | 'carbon'</code></td><td>本体の素材。<code>feTurbulence</code> のノイズを <code>feFlood</code>（本体の色）に <code>feBlend soft-light</code> で重ね、SVG の中で不透明なタイルに焼く（data: URL、CSP の <code>img-src data:</code> の範囲）。CSS のブレンドは使わないので、キーを押して描き直しても合成は走らない。brushed は 1200×96 の横長のタイル（筋が本体の幅で繰り返さない）と、斜めの広い光の帯。polka は梨地に白い水玉（22px の SVG タイル、半径 2px）、carbon は 6px 幅の束の 2/2 綾織り（24px の SVG タイル、行ごとに 1 束ずれて斜めに走る、束の中央が光る、本体の色を焼き込む）と斜めの光。止まった絵。relief あり・なしで <code>metrics.spec</code> の idle の数値を比べて decisions.md に残す</td><td>ALLOY / GRAPHITE / NEO</td></tr>
+      <tr><td><code>body.grille</code></td><td><code>'none' | 'slits' | 'holes'</code></td><td>POWER の左のブザーの穴。名前板の 26px の中</td><td>ALLOY・GRAPHITE（slits）/ NEO（holes）</td></tr>
+      <tr><td><code>body.stripes</code></td><td><code>string[]</code></td><td>名前板の足もとの細い色の線（2px）。名前板の中に下端のグラデーションで描く</td><td>ALLOY</td></tr>
+      <tr><td><code>body.deck</code></td><td><code>{ fill, edge } | null</code></td><td>キーが立つ板。キーの格子の外へ 6px の <code>::before</code>。relief なら沈んで見え、本体と同じノイズ</td><td>ALLOY / GRAPHITE</td></tr>
+      <tr><td><code>body.padKey</code>, <code>padText</code>, <code>padLegend</code></td><td><code>string</code></td><td>テンキーの色。Keyboard.svelte で <code>row.right</code> を回すところで <code>class:pad={!isFn(slot.id)}</code></td><td>GRAPHITE</td></tr>
+      <tr><td><code>body.keys</code></td><td><code>+ 'chiclet'</code></td><td>本体の切り欠きに収まった低いキー。押すと 1px 沈んで暗くなる</td><td>NEO</td></tr>
+      <tr><td><code>body.keyFont</code>, <code>keyWeight</code>, <code>keyTrack</code></td><td>書体 id, <code>number</code>, <code>string</code></td><td>キー、SHIFT 面、名前板、表示記号の書体（<code>font</code> に <code>'barlow' | 'plex' | 'interTight'</code> を足す）、太さ、字間。矢印は書体ではなく SVG（Keyboard.svelte、全スキン共通）</td><td>3 つとも</td></tr>
+      <tr><td><code>body.plateEtched</code></td><td><code>boolean</code></td><td>名前板の文字を彫ったように: 下に 1px の光</td><td>ALLOY</td></tr>
+      <tr><td><code>lcd.unlit</code></td><td><code>number</code></td><td>点いていないドットの濃さ（0.025–0.032、0 で無し）。実機の液晶で見える消えたドットの薄い網。Lcd.svelte の 3 枚（影、ドット、格子）の下に 4 枚目のキャンバスを足し、格子と同じく大きさが変わったときだけ描く。格子のすき間があるとき（1 ドット 3 デバイスピクセル以上）だけ: すき間がないとただの色むらになる</td><td>3 つとも</td></tr>
+      <tr><td><code>lcd.glare</code></td><td><code>number</code></td><td>液晶の上の反射の強さ（relief のとき）。液晶の地そのものは平らな 1 色のまま（格子のキャンバスが地の色で描くので、地にグラデーションを敷くと格子だけが浮く）</td><td>3 つとも</td></tr>
+      <tr><td><code>body.backlit</code>, <code>leak</code></td><td><code>boolean</code>, 色</td><td>刻印が裏から光るキー: 文字に自分の色の 1px と 4px の弱い光（10px の字の輪郭を甘くしない）（<code>text-shadow</code>、矢印は <code>drop-shadow</code>）、キーの周り全体から板へ漏れる光（<code>leak</code> の色の <code>box-shadow</code>）。hover は明るさのフィルタではなく縁の色。全面が光る ENTER と BRK は文字を光らせず、キー全体が自分の色でにじむ。押すと文字の光が強まる。止まった影なので、押したときに描き直すのはそのキーだけ</td><td>NEON</td></tr>
+      <tr><td><code>body.shade</code>, <code>gloss</code></td><td>RGB, <code>boolean</code></td><td>影の色（既定は黒）。桜色の本体には灰ではなく桜色の影。gloss はキーの上 1/3 の楕円の艶（<code>::before</code>）</td><td>MOCHI</td></tr>
+      <tr><td><code>body.grille</code> に <code>'pills'</code>、<code>body.fitFloor</code>、<code>lcd.backlight</code></td><td></td><td>角の丸いスリット。狭い本体で文字を横に縮める下限。ネガ液晶の縁から照らすバックライトのむら（反射と同じ <code>.glass::after</code> の 1 層）</td><td>MOCHI / NEON</td></tr>
+      <tr><td><code>body.underglow</code></td><td>色</td><td>本体の下から地面にこぼれる光（relief の影の最後の層）。明るい地（昼の光）では描かない。本体の縁や鍵盤を虹色に光らせることはしない</td><td>NEON</td></tr>
+      <tr><td><code>body.keyFont</code> ほか</td><td></td><td><code>fnWeight</code>（機能キーの太さ）、<code>keyFeatures</code>（OpenType の機能）、<code>well</code>（chiclet の切り欠きの色）、<code>kanaFont</code>（カナの 2 字の書体）</td><td>GRAPHITE / NEO / 3 つとも</td></tr>
+    </tbody>
+  </table>
+  <h3>変えないもの</h3>
+  <ul>
+    <li>キーの並び、名前板の文言（ELEC-16 / 16-BIT POCKET COMPUTER / POWER）、本体の比率と <code>deviceFit</code>。モックで合意した形のまま</li>
+    <li>液晶の解像度と描き方（ドットのすき間と影）。動くのはドットだけで、反射と消えたドットは止まった層</li>
+    <li>文字の大きさの規則（刻印と印刷は <code>--step--2</code> 以上）。押したキーの点滅（ELEC、TRON）と、今の立体キーの押し方（明るくなる）は今のスキンのまま。relief のキーは押すと沈んで暗くなる（実物のキーは光らない）</li>
+    <li>地面への影の濃さは地の明るさで変わる（このモックでは暗い地 0.5、明るい地 0.22）。アプリではテーマの <code>mode</code> から読む</li>
+    <li>2 倍の拡大図は、液晶を 2 倍の解像度で描き直している（ドットのすき間と影は実物の比率のまま）。本体の幅と液晶の倍率は実物と同じ</li>
+    <li>実在の製品名、ロゴ、配色の組み合わせ、特徴的な形（傾いた本体、開閉式の蓋など）は使わない</li>
+  </ul>
+</section>
+</main>
+
+<script>
+// A material, baked: grey fractal noise (its contrast set by slope) laid soft-light over the
+// surface's own colour inside the SVG, so the tile comes out opaque and the page composites
+// nothing - the case is painted as one picture. Layers are [sx, sy, octaves, slope, seed]:
+// the frequencies across and down (brushed metal: low across, high down). A data: URL, which
+// the page's CSP takes as an image.
+function material(base, layers, { w = 220, h = 220 } = {}) {
+  const t = (i, [sx, sy, oct, slope, seed]) =>
+    `<feTurbulence type='fractalNoise' baseFrequency='${sx} ${sy}' numOctaves='${oct}' seed='${seed}' stitchTiles='stitch' result='t${i}'/>` +
+    `<feColorMatrix in='t${i}' type='saturate' values='0' result='g${i}'/>` +
+    `<feComponentTransfer in='g${i}' result='n${i}'>${['R', 'G', 'B'].map((c) => `<feFunc${c} type='linear' slope='${slope}' intercept='${(1 - slope) / 2}'/>`).join('')}<feFuncA type='linear' slope='0' intercept='1'/></feComponentTransfer>`
+  const blends = layers.map((_, i) => `<feBlend mode='soft-light' in='n${i}' in2='${i === 0 ? 'base' : `b${i - 1}`}' result='b${i}'/>`).join('')
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'><filter id='m' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'><feFlood flood-color='${base}' result='base'/>${layers.map((l, i) => t(i, l)).join('')}${blends}</filter><rect width='100%' height='100%' filter='url(#m)'/></svg>`
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+}
+
+// The face's layers, top first: light over the baked material.
+const FACES = {
+  // Brushed metal: long fine hairlines (the main grain) over a few faint long streaks, in a
+  // wide tile so no streak repeats in a case's width; a broad band of reflected light across
+  // the brushing, and the fall of light down the case.
+  brushed: (c) => [
+    'linear-gradient(100deg, rgb(255 255 255 / 0) 4%, rgb(255 255 255 / 0.14) 26%, rgb(255 255 255 / 0.03) 44%, rgb(0 0 0 / 0.06) 66%, rgb(255 255 255 / 0.07) 86%, rgb(255 255 255 / 0) 100%)',
+    'linear-gradient(180deg, rgb(255 255 255 / 0.16) 0%, rgb(255 255 255 / 0) 22%, rgb(0 0 0 / 0) 70%, rgb(0 0 0 / 0.13) 100%)',
+    material(c, [[0.0015, 0.9, 3, 0.35, 3], [0.01, 1.6, 2, 0.5, 9]], { w: 1200, h: 96 }),
+  ],
+  // A matte moulding: a fine grain and the fall of light.
+  grain: (c) => [
+    'linear-gradient(180deg, rgb(255 255 255 / 0.07) 0%, rgb(255 255 255 / 0) 25%, rgb(0 0 0 / 0) 72%, rgb(0 0 0 / 0.16) 100%)',
+    material(c, [[0.9, 0.9, 2, 0.42, 3]], { w: 180, h: 180 }),
+  ],
+  // Bead-blasted and light: a softer grain, a gentler fall.
+  'grain-soft': (c) => [
+    'linear-gradient(180deg, rgb(255 255 255 / 0.22) 0%, rgb(255 255 255 / 0) 30%, rgb(0 0 0 / 0) 72%, rgb(0 0 0 / 0.06) 100%)',
+    material(c, [[0.75, 0.75, 2, 0.4, 5]], { w: 180, h: 180 }),
+  ],
+}
+// The deck's own material: the grain of the case it sits in, or a fine one under metal.
+// Polka dots: white, on a diagonal grid, over the soft grain (MOCHI).
+FACES.polka = (c) => {
+  const dots = `<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22'><g fill='white' fill-opacity='0.45'><circle cx='5.5' cy='5.5' r='2'/><circle cx='16.5' cy='16.5' r='2'/></g></svg>`
+  return [
+    'linear-gradient(180deg, rgb(255 255 255 / 0.28) 0%, rgb(255 255 255 / 0) 32%, rgb(0 0 0 / 0) 72%, rgb(120 40 70 / 0.07) 100%)',
+    `url("data:image/svg+xml,${encodeURIComponent(dots)}")`,
+    material(c, [[0.75, 0.75, 2, 0.3, 5]], { w: 180, h: 180 }),
+  ]
+}
+// Carbon twill: 4px cells, each a strand lit along its length, crossing its neighbours; a
+// slanted sheen across the weave and the fall of light (NEON).
+FACES.carbon = (c) => {
+  // A 2x2 twill on 4 x 4 cells of 6px: a cell shows the weft (across) where (column - row)
+  // mod 4 is 0 or 1, the warp (down) elsewhere - each row one cell on, so the weave runs
+  // diagonally. A strand is lit along its middle and shaded at its edges.
+  const g = (id, x2, y2) => `<linearGradient id='${id}' x1='0' y1='0' x2='${x2}' y2='${y2}'><stop offset='0' stop-color='black' stop-opacity='0.22'/><stop offset='0.5' stop-color='white' stop-opacity='0.08'/><stop offset='1' stop-color='black' stop-opacity='0.22'/></linearGradient>`
+  let cells = ''
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      const weft = (((col - row) % 4) + 4) % 4 < 2
+      cells += `<rect x='${col * 6}' y='${row * 6}' width='6' height='6' fill='url(#${weft ? 'v' : 'h'})'/>`
+    }
+  }
+  const weave = `<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><defs>${g('v', 0, 1)}${g('h', 1, 0)}</defs><rect width='24' height='24' fill='${c}'/>${cells}</svg>`
+  return [
+    'linear-gradient(115deg, rgb(255 255 255 / 0) 10%, rgb(255 255 255 / 0.07) 30%, rgb(255 255 255 / 0) 48%)',
+    'linear-gradient(180deg, rgb(255 255 255 / 0.05) 0%, rgb(255 255 255 / 0) 22%, rgb(0 0 0 / 0) 70%, rgb(0 0 0 / 0.25) 100%)',
+    `url("data:image/svg+xml,${encodeURIComponent(weave)}")`,
+  ]
+}
+const DECK = (skin) => material(skin.body.deck.fill, [[0.9, 0.9, 2, skin.body.texture === 'grain' ? 0.42 : 0.3, 7]], { w: 180, h: 180 })
+
+const FONTS = {
+  ui: 'var(--font-ui)', display: 'var(--font-display)', mono: 'var(--font-mono)',
+  // Each Latin face is followed by its skin's Japanese face, bundled as カ and ナ alone, so
+  // the カナ key and mark are not the system's.
+  barlow: '"Barlow Condensed", "BIZ UDPGothic", var(--font-ui)',
+  sofia: '"Sofia Sans Condensed", "BIZ UDPGothic", var(--font-ui)',
+  plex: '"IBM Plex Sans Condensed", "IBM Plex Sans JP", var(--font-ui)',
+  intertight: '"Inter Tight", "Noto Sans JP", var(--font-ui)',
+  inter: 'Inter, "Noto Sans JP", var(--font-ui)',
+  geist: 'Geist, "Noto Sans JP", var(--font-ui)',
+  instrument: '"Instrument Sans", "Noto Sans JP", var(--font-ui)',
+  archivo: '"Archivo Narrow", "BIZ UDPGothic", var(--font-ui)',
+  barlowsemi: '"Barlow Semi Condensed", "IBM Plex Sans JP", var(--font-ui)',
+  // M PLUS Rounded 1c carries its own kana; the other cute faces borrow them from it.
+  mplus: '"M PLUS Rounded 1c", var(--font-ui)',
+  nunito: 'Nunito, "M PLUS Rounded 1c", var(--font-ui)',
+  zenmaru: '"Zen Maru Gothic", var(--font-ui)',
+  // The cyber faces take their kana from M PLUS 1 (a pixel face drawn at 10px blurs).
+  oxanium: 'Oxanium, "M PLUS 1", var(--font-ui)',
+  sharetech: '"Share Tech Mono", "M PLUS 1", var(--font-ui)',
+  rajdhani: 'Rajdhani, "M PLUS 1", var(--font-ui)',
+  chakra: '"Chakra Petch", "M PLUS 1", var(--font-ui)',
+}
+
+// The skins: today's CLASSIC from skins.ts, and the three new ones.
+const SKINS = [
+  {
+    id: 'classic', label: 'CLASSIC', isNew: false, era: '今のスキン（比較用）',
+    body: {
+      face: '#25272a', edge: '#3a3d42', sheen: 'rgb(255 255 255 / 0.06)', plate: '#ded9cc', print: '#8f8b82', led: '#5ccf72',
+      key: '#3a3d43', keyText: '#ece9e1', keyEdge: '#141518', fnKey: '#5b6068', fnText: '#f2f0ea', brk: '#c4552b', brkText: '#fff4ec',
+      enter: '#8b919a', enterText: '#141518', legend: '#e8a54a', bezel: '#15171a', radius: 3, font: 'ui', keys: 'raised',
+    },
+    lcd: { ground: '#a9b49a', dot: '#1c2217', shadow: '#87917b' },
+  },
+  {
+    id: 'alloy', label: 'ALLOY', isNew: true, era: '80 年代の薄型・金属パネル機の空気',
+    summary: 'ヘアラインの金属の本体（光の帯が斜めに流れる）、彫ったような黒い名前板の文字、足もとに琥珀の細い線 1 本、ブザーのスリット。キーは沈んだ黒い板の上の、肩に光を受ける黒いキー。液晶は少し黄みの灰で、消えたドットが薄く見える。',
+    nods: [
+      '金属のヘアラインと黒い鍵盤のツートーン: 80 年代の薄型の電子機器に広く共通する作り',
+      '名前板の足もとの細い線 1 本、ブザーのスリット: 当時の家電に広くあった細部',
+      'Barlow Condensed の硬い刻印。ENTER は琥珀、BRK は朱',
+    ],
+    avoid: [
+      '線を 2 本以上の色の帯にしない、液晶の枠に仕様の文言を印刷しない（並ぶと特定の時代の定番の顔をまとめて写すことになるため）',
+      '傾斜した本体、プリンタ部、蓋は描かない（形は今の ELEC-16 のまま）',
+    ],
+    body: {
+      face: '#b9bcc1', edge: '#878b91', sheen: 'rgb(255 255 255 / 0.75)', plate: '#141518', print: '#464a50', led: '#36c45f',
+      key: '#2c2e33', keyText: '#eeede8', keyEdge: '#0a0a0c', fnKey: '#4f535a', fnText: '#f4f3ef', brk: '#c24a2e', brkText: '#fff3ec',
+      enter: '#d68c2b', enterText: '#1a1208', legend: '#e9a94a', bezel: '#141518', radius: 2, font: 'barlow', keys: 'raised',
+      relief: true, texture: 'brushed', stripes: ['#d68c2b'], deck: { fill: '#17181b', edge: '#08080a' }, grille: 'slits',
+      // Light letters on dark keys look a step bolder than they are: 500, the plate 700.
+      plateEtched: true, keyWeight: 500, keyTrack: '0.06em', plateWeight: 700, plateTrack: '0.12em',
+    },
+    lcd: { ground: '#bcc0a8', dot: '#20241a', shadow: '#9b9f89', unlit: 0.032, glare: 0.12 },
+  },
+  {
+    id: 'graphite', label: 'GRAPHITE', isNew: true, era: '90 年代の大型・多機能機の空気',
+    summary: '少し青みの黒鉛色の梨地の本体、ブザーのスリット。沈んだ鍵盤の板に、明るい灰色の文字キー、白に近いテンキー、濃い灰の機能キー。色は BRK の赤だけ。机の上で毎日使われる計算道具の、飾らない「道具らしさ」。液晶は青みの灰に濃紺のドット。',
+    nods: [
+      '明るいキーと暗い機能キーの明暗の分け方、白いテンキー: 90 年代の電子機器に広く共通する「押す場所を明るさで教える」作り',
+      'IBM Plex Sans Condensed の端正な刻印。色は BRK の 1 色だけ、ENTER は明るい灰に暗い文字',
+      'キー面の SHIFT 刻印は濃い青（明るいキーの上でコントラスト 5 以上）',
+    ],
+    avoid: [
+      '確定キーを黄色に、機能キーを青にする色分けはしない（特定の製品群の文法になるため）。色は明るさの差だけで分けた',
+      '実機にある特定のキーや配列は加えない（キーの並びは今の ELEC-16 のまま）',
+    ],
+    body: {
+      face: '#3a4049', edge: '#535a65', sheen: 'rgb(255 255 255 / 0.10)', plate: '#e4e7eb', print: '#9ba2ac', led: '#52c873',
+      key: '#c8ccd1', keyText: '#1b1e22', keyEdge: '#7a8089', fnKey: '#58626e', fnText: '#f2f4f7', brk: '#cf3b2f', brkText: '#fff4f2',
+      enter: '#cbcfd4', enterText: '#1b1e22', legend: '#1f4a8f', bezel: '#1b1e23', radius: 3, font: 'plex', keys: 'raised',
+      relief: true, texture: 'grain', deck: { fill: '#23272e', edge: '#15181c' }, grille: 'slits',
+      // Dark letters on light keys at 600; light ones on the dark function keys a step lighter.
+      padKey: '#e8e9eb', padText: '#1b1e22', padLegend: '#1f4a8f', keyWeight: 600, fnWeight: 500, keyTrack: '0.02em', fnTrack: '0.06em',
+    },
+    lcd: { ground: '#b6c1c1', dot: '#16203a', shadow: '#97a3a5', unlit: 0.032, glare: 0.10 },
+  },
+  {
+    id: 'neo', label: 'NEO', isNew: true, era: '2026 年にポケコンが新しく出たら',
+    summary: '冷たい明るい灰の、細かく梨地にした本体。角の大きな丸み。キーは本体の切り欠きに収まった低いキーで、Inter Tight の静かな刻印。液晶は反射型のメモリ液晶（紙のような白に黒）を思わせる地に、明るく細い枠と淡い反射。色は ENTER のコバルトと BRK の赤だけ。ブザーは小さな丸い穴の列。',
+    nods: [
+      '反射型メモリ液晶風の画面と細く明るい枠: 今の電子ペーパー端末やスマートウォッチの「バックライトなしで読める」画面の延長',
+      '切り欠きに収まった低いキー、大きな角丸、梨地: 今のノート PC とガジェットの共通語彙',
+      '色を 1 つに絞る（コバルト）。SHIFT 刻印も同じ青。本体は暖色の IVORY と分けて冷たい灰',
+    ],
+    avoid: [
+      '特定のガジェットメーカーの「灰 + オレンジ」の組み合わせや、モジュール風の飾りは使わない',
+      '有機 EL 風の黒い画面にはしない（ポケコンの液晶らしさを残す）。小文字の機能キー（特定社の流儀）にもしない',
+    ],
+    body: {
+      face: '#d8dbdf', edge: '#bcc1c6', sheen: 'rgb(255 255 255 / 0.9)', plate: '#15171a', print: '#6a7077', led: '#24b35c',
+      key: '#f6f7f8', keyText: '#1a1c1f', keyEdge: '#b0b5bb', fnKey: '#e3e6e9', fnText: '#2a2d31', brk: '#e0463a', brkText: '#ffffff',
+      enter: '#2353d8', enterText: '#ffffff', legend: '#2353d8', bezel: '#c9cdd2', radius: 6, font: 'intertight', keys: 'chiclet',
+      relief: true, texture: 'grain-soft', grille: 'holes', well: '#a9aeb4',
+      // 'case': brackets and the like sit at the capitals' height, as on a keytop.
+      keyWeight: 500, keyTrack: '0.03em', fnTrack: '0.02em', plateWeight: 600, plateTrack: '0.20em', keyFeatures: '"case"',
+    },
+    lcd: { ground: '#d7d9d3', dot: '#131513', shadow: '#c4c6c0', unlit: 0.025, glare: 0.16 },
+  },
+  {
+    id: 'mochi', label: 'MOCHI', isNew: true, era: 'かわいい',
+    summary: '桜ミルク色に白い水玉が散った、やわらかい梨地の本体。角は大きく丸く、キーは丸みの強いころんとした低いキーで、上に飴のような艶。クリーム色の文字キー、ミントの機能キー、レモンのテンキー、淡いラベンダーの ENTER、コーラルの BRK。刻印は丸ゴシック（M PLUS Rounded 1c）で、文字はプラムとワイン色。影も灰ではなく桜色に落ちる。ブザーは角の丸いスリット。液晶はクリーム色の地にプラム色のドット。筆箱から出てくる、毎日持ち歩きたくなる計算機。',
+    nods: [
+      'パステルの色分けキーと水玉: 文具や雑貨の「かわいい」の共通語彙',
+      '丸ゴシックの刻印と大きな角丸: 角のない、手に取りたくなる形と文字',
+      '黒を使わない: 文字はプラム、液晶のドットもプラム。いちばん濃い色でも黒にしない',
+    ],
+    avoid: [
+      'キャラクター、マスコット、顔、リボンなど、特定の作品や会社を思わせる飾りは使わない（色と形と文字だけで作る）',
+      '卵形や動物の形の本体にはしない（形は今の ELEC-16 のまま）。特定の玩具の配色（白 + 原色のボタンなど）もとらない',
+    ],
+    body: {
+      // Every small print at 4.5:1 or more on its ground; the darkest colour is plum, never black.
+      face: '#f5d9e2', edge: '#e6b4c4', sheen: 'rgb(255 255 255 / 0.9)', plate: '#b4466e', print: '#8f4664', led: '#34c98a',
+      key: '#fffaf3', keyText: '#6a3a50', keyEdge: '#ecc6d2', fnKey: '#c8ead9', fnText: '#2d5c49', brk: '#ff7584', brkText: '#5a1426',
+      enter: '#cbb8f5', enterText: '#3f2470', legend: '#b8326a', bezel: '#efc0cf', radius: 9, font: 'mplus', keys: 'chiclet',
+      relief: true, texture: 'polka', grille: 'pills', well: '#ebc3d0', shade: '120 40 70', gloss: true, plateEtched: true,
+      padKey: '#fff0b5', padText: '#6a3a50', padLegend: '#b8326a',
+      // Round letters turn oval when narrowed: tracking goes first, and they narrow by 12% at most.
+      keyWeight: 700, fnWeight: 700, keyTrack: '0.02em', fnTrack: '0.04em', plateWeight: 800, plateTrack: '0.08em', fitFloor: 0.88,
+    },
+    lcd: { ground: '#f4e9da', dot: '#5a3150', shadow: '#e3d3c3', unlit: 0.03, glare: 0.16 },
+  },
+  {
+    id: 'neon', label: 'NEON', isNew: true, era: 'サイバー',
+    summary: 'カーボンの綾織りの黒い本体。名前板の下にマゼンタとシアンの細い光の線、本体の下からマゼンタの光が地面にこぼれる。キーはスモークの黒いキーで、刻印が裏から光る（文字はシアン、機能キーはマゼンタ）。ENTER はシアン、BRK はマゼンタに全面が光る。液晶は紫がかった黒地に鮮やかなシアンのドットが光るネガ表示で、上の縁から照らすバックライトのむらと、消えたドットの網が見える。夜の街で使う端末。',
+    nods: [
+      '黒地に光る刻印のキー、下からの光: 今のゲーミング機器や自作 PC の共通語彙',
+      'マゼンタとシアンの 2 色: サイバーパンクの広く共有された色',
+      'ネガ表示の液晶（黒地に光るドット）: 昔の産業機器や車載機器の液晶。TRON（平らな HUD）、NIGHT（青い透過型）と分けた',
+    ],
+    avoid: [
+      '特定の作品やゲームの「黄色 + シアン」の配色、特定のゲーミングブランドの緑は使わない',
+      'ロゴ風のグリッチ文字、漢字の看板、特定の作品の記号などは描かない',
+    ],
+    body: {
+      face: '#15171d', edge: '#2c313c', sheen: 'rgb(255 255 255 / 0.08)', plate: '#eaf6ff', print: '#7d89a2', led: '#2ff0ff',
+      key: '#1c2029', keyText: '#7ff4ff', keyEdge: '#06070a', fnKey: '#222735', fnText: '#ff63dc', brk: '#ff2fd2', brkText: '#16050f',
+      enter: '#1fe4ff', enterText: '#03161a', legend: '#ff63dc', bezel: '#040507', radius: 3, font: 'oxanium', keys: 'raised',
+      relief: true, texture: 'carbon', stripes: ['#ff2fd2', '#1fe4ff'], deck: { fill: '#0b0c10', edge: '#000000' }, grille: 'slits',
+      padKey: '#181b23', padText: '#7ff4ff', padLegend: '#ff63dc',
+      backlit: true, leak: '#1fe4ff', underglow: '#ff2fd2',
+      keyWeight: 600, fnWeight: 600, keyTrack: '0.03em', fnTrack: '0.05em', plateWeight: 700, plateTrack: '0.16em',
+    },
+    // A violet-black ground and saturated cyan, lit unevenly from the top edge - apart from
+    // TRON's pale cyan on near-black.
+    lcd: { ground: '#07061a', dot: '#3ff0ff', shadow: '#141a3a', unlit: 0.09, glare: 0.04, backlight: 'radial-gradient(ellipse 80% 70% at 50% 0%, rgb(95 243 255 / 0.07), transparent 60%)' },
+  },
+]
+
+// layout.ts's FULL_ROWS, with the labels and shifted faces keys.ts gives them.
+const LABEL = { brk: 'BRK', mode: 'MODE', cls: 'CLS', ans: 'ANS', kana: 'カナ', ins: 'INS', del: 'DEL', bs: 'BS', left: '←', up: '↑', down: '↓', right: '→', shift: 'SHIFT', caps: 'CAPS', ' ': 'SPACE', enter: 'ENTER', 'kp/': '/', 'kp.': '.' }
+const SHIFTED = { 7: '&', 8: "'", 9: '[', '(': '{', ')': '}', 4: '$', 5: '%', 6: '^', '*': '"', 'kp/': '?', 1: '!', 2: '@', 3: '#', '+': '~', '-': '_', ';': ':', ',': '<', '.': '>', '/': '\\', 0: ']', 'kp.': '`', '=': '|' }
+const FN = new Set(['brk', 'mode', 'cls', 'ans', 'kana', 'ins', 'del', 'bs', 'left', 'up', 'down', 'right', 'shift', 'caps', 'enter'])
+const k = (s) => s.split(' ').map((id) => ({ id, span: 2 }))
+const ROWS = [
+  { left: [{ id: 'brk', span: 4 }, ...k('mode cls ans kana ins del'), { id: 'bs', span: 4 }], right: [{ id: 'left', span: 3 }, { id: 'up', span: 2 }, { id: 'down', span: 2 }, { id: 'right', span: 3 }] },
+  { left: k('q w e r t y u i o p'), right: k('7 8 9 ( )') },
+  { left: k('a s d f g h j k l ;'), right: k('4 5 6 * kp/') },
+  { left: k('z x c v b n m , . /'), right: k('1 2 3 + -') },
+  { left: [{ id: 'shift', span: 4 }, { id: 'caps', span: 3 }, { id: ' ', span: 8 }, { id: 'enter', span: 5 }], right: [{ id: '0', span: 4 }, { id: 'kp.', span: 3 }, { id: '=', span: 3 }] },
+]
+// The arrows' shapes, on a 12 x 10 box: a shaft and an open head, the same for every skin.
+const ARROWS = {
+  left: 'M10.5 5H1.5M5 1.5L1.5 5L5 8.5', right: 'M1.5 5H10.5M7 1.5L10.5 5L7 8.5',
+  up: 'M6 9V1M2.5 4.5L6 1L9.5 4.5', down: 'M6 1V9M2.5 5.5L6 9L9.5 5.5',
+}
+const COMPACT = ['brk', 'mode', 'cls', 'shift', 'left', 'up', 'down', 'right', 'enter']
+
+// A 5x7 font for the screen's text, rows top to bottom, bit 4 the left column.
+const F = {
+  ' ': [0,0,0,0,0,0,0], A: [14,17,17,31,17,17,17], B: [30,17,17,30,17,17,30], C: [14,17,16,16,16,17,14], D: [30,17,17,17,17,17,30],
+  E: [31,16,16,30,16,16,31], F: [31,16,16,30,16,16,16], G: [14,17,16,23,17,17,15], H: [17,17,17,31,17,17,17], I: [14,4,4,4,4,4,14],
+  K: [17,18,20,24,20,18,17], L: [16,16,16,16,16,16,31], M: [17,27,21,21,17,17,17], N: [17,17,25,21,19,17,17], O: [14,17,17,17,17,17,14],
+  P: [30,17,17,30,16,16,16], R: [30,17,17,30,20,18,17], S: [15,16,16,14,1,1,30], T: [31,4,4,4,4,4,4], U: [17,17,17,17,17,17,14],
+  V: [17,17,17,17,17,10,4], Y: [17,17,10,4,4,4,4], X: [17,17,10,4,10,17,17],
+  0: [14,17,19,21,25,17,14], 1: [4,12,4,4,4,4,14], 2: [14,17,1,2,4,8,31], 3: [31,2,4,2,1,17,14], 4: [2,6,10,18,31,2,2],
+  5: [31,16,30,1,1,17,14], 6: [6,8,16,30,17,17,14], 7: [31,1,2,4,8,8,8], 8: [14,17,17,14,17,17,14], 9: [14,17,17,15,1,2,12],
+  '>': [8,4,2,1,2,4,8], '=': [0,0,31,0,31,0,0], '+': [0,4,4,31,4,4,0], '-': [0,0,0,31,0,0,0], '.': [0,0,0,0,0,12,12],
+  ':': [0,12,12,0,12,12,0], ';': [0,12,12,0,12,4,8], '*': [0,4,21,14,21,4,0], '█': [31,31,31,31,31,31,31],
+}
+const SCREEN = ['ELEC-16 BASIC   RAM 32K', '>10 FOR I=1 TO 6', '>20 PRINT I*I;', '>RUN', ' 1  4  9  16  25  36', '>█']
+const COLS = 240, LINES = 48
+
+function screenBits() {
+  const bits = new Uint8Array(COLS * LINES)
+  SCREEN.forEach((line, row) => {
+    ;[...line].forEach((ch, col) => {
+      const glyph = F[ch] ?? F[' ']
+      glyph.forEach((bitsRow, y) => {
+        for (let x = 0; x < 5; x++) if (bitsRow & (16 >> x)) bits[(row * 8 + y) * COLS + col * 6 + x] = 1
+      })
+    })
+  })
+  return bits
+}
+const BITS = screenBits()
+
+// As Lcd.svelte: the ground is the glass's (the canvas is clear); a dot is a cell less the
+// one-device-pixel grid; its shadow is shadowAt pixels towards the ground from three device
+// pixels a dot. NEW: the unlit dots, faint, under everything (a layer drawn once).
+// `zoom` draws it as a close-up shows it: every device pixel as zoom x zoom, so the grid and
+// the shadow keep their real proportion instead of being smeared by the scaling.
+function drawLcd(canvas, lcd, scale, zoom = 1) {
+  const ratio = window.devicePixelRatio || 1
+  const real = Math.max(1, Math.round(scale * ratio))
+  const cell = real * zoom
+  canvas.width = COLS * cell
+  canvas.height = LINES * cell
+  canvas.style.width = `${(COLS * real) / ratio}px`
+  canvas.style.height = `${(LINES * real) / ratio}px`
+  const g = canvas.getContext('2d')
+  const gap = real >= 3 ? zoom : 0
+  const dot = cell - gap
+  const off = real >= 3 ? Math.max(2, Math.round(real / 4) + 1) * zoom : 0
+  // Only with the grid's gaps: without them the unlit dots are a flat tint, not a matrix.
+  if (lcd.unlit && gap > 0) {
+    g.globalAlpha = lcd.unlit
+    g.fillStyle = lcd.dot
+    for (let y = 0; y < LINES; y++) for (let x = 0; x < COLS; x++) g.fillRect(x * cell, y * cell, dot, dot)
+    g.globalAlpha = 1
+  }
+  if (off > 0) {
+    g.fillStyle = lcd.shadow
+    for (let i = 0; i < BITS.length; i++) if (BITS[i]) g.fillRect((i % COLS) * cell + off, Math.floor(i / COLS) * cell + off, dot, dot)
+  }
+  g.fillStyle = lcd.dot
+  for (let i = 0; i < BITS.length; i++) if (BITS[i]) g.fillRect((i % COLS) * cell, Math.floor(i / COLS) * cell, dot, dot)
+}
+
+const MARKS = [['BUSY', 0], ['SHIFT', 0], ['CAPS', 1], ['カナ', 0], ['RUN', 1], ['PRO', 0], ['MON', 0], ['DEG', 1], ['RAD', 0], ['GRAD', 0], ['♪', 0], ['LINK', 0]]
+
+function keyEl(slot, column, legends, held) {
+  const b = document.createElement('button')
+  b.type = 'button'
+  b.className = 'key'
+  const id = slot.id
+  b.dataset.key = id
+  if (FN.has(id) && id !== 'enter') b.classList.add('fn')
+  if (id === 'brk') b.classList.add('brk')
+  if (id === 'enter') b.classList.add('enter')
+  // The keypad: row.right's keys that are not functions (Keyboard.svelte would mark them so).
+  if (slot.pad && !FN.has(id)) b.classList.add('pad')
+  if (held?.has(id)) b.classList.add('down')
+  b.style.gridColumn = `${column} / span ${slot.span}`
+  if (legends && SHIFTED[id] !== undefined) {
+    const l = document.createElement('span')
+    l.className = 'legend'
+    l.textContent = SHIFTED[id]
+    b.append(l)
+  }
+  const cap = document.createElement('span')
+  cap.className = 'cap'
+  if (ARROWS[id]) cap.innerHTML = `<svg viewBox="0 0 12 10" aria-hidden="true"><path d="${ARROWS[id]}"/></svg>`
+  else cap.textContent = LABEL[id] ?? id.toUpperCase()
+  b.append(cap)
+  return b
+}
+
+function setVars(el, skin, fontOverride) {
+  const s = skin.body
+  const font = FONTS[fontOverride ?? s.font]
+  const vars = {
+    face: s.face, edge: s.edge, sheen: s.sheen, plate: s.plate, print: s.print, led: s.led, key: s.key, 'key-text': s.keyText,
+    'key-edge': s.keyEdge, fn: s.fnKey, 'fn-text': s.fnText, brk: s.brk, 'brk-text': s.brkText, enter: s.enter, 'enter-text': s.enterText,
+    legend: s.legend, bezel: s.bezel, radius: `${s.radius}px`, font,
+    deck: s.deck?.fill, 'deck-edge': s.deck?.edge, pad: s.padKey, 'pad-text': s.padText, 'pad-legend': s.padLegend,
+    'key-weight': s.keyWeight, 'fn-weight': s.fnWeight, 'key-track': s.keyTrack, 'fn-track': s.fnTrack, 'plate-weight': s.plateWeight, 'plate-track': s.plateTrack,
+    'key-features': s.keyFeatures, well: s.well, leak: s.leak, underglow: s.underglow, shade: s.shade, backlight: skin.lcd.backlight,
+    'fit-floor': s.fitFloor,
+    glare: skin.lcd.glare,
+  }
+  // The new skins print every face - keys, shifted faces, the plate - in their one typeface.
+  if (skin.isNew) Object.assign(vars, { 'key-font': font, 'legend-font': font, 'plate-font': font, 'marks-font': font })
+  for (const [name, value] of Object.entries(vars)) if (value !== undefined) el.style.setProperty(`--e16-${name}`, String(value))
+}
+
+function device(skin, { width, scale, body = 'full', legends = true, rowHeight = 30, held, off = false, zoom = 1 }) {
+  const s = skin.body
+  const d = document.createElement('div')
+  d.className = `device keys-${s.keys}`
+  if (s.relief) d.classList.add('relief')
+  if (s.deck) d.classList.add('has-deck')
+  if (s.plateEtched) d.classList.add('etched')
+  if (s.backlit) d.classList.add('backlit')
+  if (s.gloss) d.classList.add('gloss')
+  if (s.underglow) d.classList.add('underglow')
+  if (off) d.classList.add('off')
+  d.style.width = `${width}px`
+  setVars(d, skin)
+  const face = FACES[s.texture]
+  if (face) {
+    d.style.backgroundImage = face(s.face).join(', ')
+    d.style.backgroundColor = s.face
+  }
+  if (s.relief && s.deck) d.style.setProperty('--e16-deck-tex', DECK(skin))
+  d.style.setProperty('--lcd-ground', skin.lcd.ground)
+  d.style.setProperty('--lcd-dot', skin.lcd.dot)
+
+  const plate = document.createElement('div')
+  plate.className = 'plate'
+  plate.innerHTML = '<span class="brand">ELEC-16</span><span class="model">16-BIT POCKET COMPUTER</span>'
+  if (s.grille && s.grille !== 'none') {
+    const gr = document.createElement('span')
+    gr.className = `grille ${s.grille}`
+    gr.setAttribute('aria-hidden', 'true')
+    for (let i = 0; i < ({ slits: 7, pills: 6 }[s.grille] ?? 14); i++) gr.append(document.createElement('i'))
+    plate.append(gr)
+  }
+  plate.insertAdjacentHTML('beforeend', '<span class="power"><i></i>POWER</span>')
+  // Stripes: 2px rules, 2px apart, from the plate's foot upwards.
+  if (s.stripes?.length) {
+    plate.classList.add('striped')
+    plate.style.setProperty('--e16-stripes', `linear-gradient(0deg, ${s.stripes.toReversed().map((c, i) => `${c} ${i * 4}px ${i * 4 + 2}px, transparent ${i * 4 + 2}px ${i * 4 + 4}px`).join(', ')}, transparent ${s.stripes.length * 4}px)`)
+  }
+  d.append(plate)
+
+  const win = document.createElement('div')
+  win.className = 'window'
+  const glass = document.createElement('div')
+  glass.className = 'glass'
+  const marks = document.createElement('div')
+  marks.className = 'marks'
+  for (const [name, on] of MARKS) { const m = document.createElement('span'); m.textContent = name; if (on && !off) m.className = 'on'; marks.append(m) }
+  glass.append(marks)
+  const stack = document.createElement('div')
+  stack.className = 'stack'
+  const canvas = document.createElement('canvas')
+  canvas.className = 'lcd'
+  // As fitScreen: whole device pixels a dot, as many as the case's inside has room for.
+  const ratio = window.devicePixelRatio || 1
+  const room = width - 2 * 15 - 2 * (8 + 6)
+  drawLcd(canvas, skin.lcd, Math.min(scale, Math.floor((room * ratio) / COLS) / ratio), zoom)
+  stack.append(canvas)
+  glass.append(stack)
+  win.append(glass)
+  d.append(win)
+
+  if (body !== 'lcd') {
+    const keys = document.createElement('div')
+    keys.className = `keys ${body}`
+    if (rowHeight >= 32) keys.classList.add('big')
+    keys.style.gridAutoRows = `${rowHeight}px`
+    if (body === 'full') {
+      for (const row of ROWS) {
+        let c = 1
+        for (const slot of row.left) { keys.append(keyEl(slot, c, legends, held)); c += slot.span }
+        c = 22
+        for (const slot of row.right) { keys.append(keyEl({ ...slot, pad: true }, c, legends, held)); c += slot.span }
+      }
+    } else {
+      COMPACT.forEach((id, i) => keys.append(keyEl({ id, span: 2 }, 1 + i * 2, false, held)))
+    }
+    d.append(keys)
+  }
+  return d
+}
+
+function stage(kind, child) {
+  const st = document.createElement('div')
+  st.className = `stage ${kind}`
+  st.append(child)
+  return st
+}
+
+// A close-up: the device at full size, twice as large, centred on what `pick` finds.
+function zoom(skin, pick, caption, opts = {}) {
+  const wrap = document.createElement('div')
+  const z = document.createElement('div')
+  z.className = 'zoom'
+  const holder = document.createElement('div')
+  holder.className = 'holder stage dark'
+  holder.style.border = '0'
+  const dev = device(skin, { width: 900, scale: 3, rowHeight: 35, zoom: 2, ...opts })
+  holder.append(dev)
+  z.append(holder)
+  wrap.append(z)
+  wrap.insertAdjacentHTML('beforeend', `<p class="zoom-cap">${caption}</p>`)
+  const place = () => {
+    const target = dev.querySelector(pick)
+    if (!target) return
+    const zr = z.getBoundingClientRect()
+    const hr = holder.getBoundingClientRect()
+    const tr = target.getBoundingClientRect()
+    const cx = (tr.left + tr.width / 2 - hr.left)
+    const cy = (tr.top + tr.height / 2 - hr.top)
+    holder.style.transform = `translate(${zr.width / 2 - cx}px, ${zr.height / 2 - cy}px) scale(2)`
+  }
+  zooms.push(place)
+  return wrap
+}
+const zooms = []
+
+// A row of keys in one typeface, on the skin's own keys and deck.
+function specimen(skin, font, name, why, picked) {
+  const row = document.createElement('div')
+  row.className = 'spec-row'
+  row.innerHTML = `<div class="spec-name"><b>${name}</b>${picked ? ' <span class="pick">● 採用</span>' : ''}<br>${why}</div>`
+  const box = document.createElement('div')
+  box.className = `spec-keys device keys-${skin.body.keys}${skin.body.relief ? ' relief' : ''}${skin.body.deck ? ' has-deck' : ''}`
+  box.style.boxShadow = 'none'
+  box.style.border = '0'
+  box.style.padding = '12px'
+  setVars(box, { ...skin, isNew: true }, font)
+  box.style.background = skin.body.face
+  const keys = document.createElement('div')
+  keys.className = 'keys big'
+  keys.style.gridAutoRows = '35px'
+  keys.style.gridTemplateColumns = 'repeat(24, minmax(0, 1fr))'
+  const ids = [['brk', 3], ['mode', 2], ['kana', 2], ['a', 2], ['g', 2], ['0', 2], ['1', 2], ['8', 2], ['(', 2], ['left', 2], ['shift', 3]]
+  let c = 1
+  for (const [id, span] of ids) { keys.append(keyEl({ id, span, pad: /^[0-9]$/.test(id) }, c, true)); c += span }
+  box.append(keys)
+  row.append(box)
+  return row
+}
+const SPECIMENS = {
+  alloy: [
+    ['barlow', 'Barlow Condensed 500', '硬く幅の狭い工業的なグロテスク。角にわずかな丸み', true],
+    ['sofia', 'Sofia Sans Condensed 500', 'DIN に近い幾何学的な骨格。より冷たく事務的', false],
+    ['archivo', 'Archivo Narrow 500', '新聞の見出しのような、やや柔らかい細身', false],
+    ['ui', 'Saira Condensed（今の書体）', '今の全スキンの書体。丸みが SF 寄り', false],
+  ],
+  graphite: [
+    ['plex', 'IBM Plex Sans Condensed 600 / 500', '技術文書の端正さ。0/O、1/I がはっきり。機能キーは 500', true],
+    ['barlowsemi', 'Barlow Semi Condensed 600', '少し幅があり、明るいキーで読みやすい', false],
+    ['ui', 'Saira Condensed（今の書体）', '明るいキーの上では細部が潰れやすい', false],
+  ],
+  neo: [
+    ['intertight', 'Inter Tight 500', 'Inter を詰めた版。静かで、幅 560px でも MODE が収まる', true],
+    ['geist', 'Geist 500', '今の開発者向け製品の顔。Inter より幾何学的で冷たい', false],
+    ['instrument', 'Instrument Sans 500', '柔らかく人間的。少し雑誌寄り', false],
+    ['inter', 'Inter 500', '同じ顔だが字幅が広く、幅 560px で MODE がはみ出す', false],
+  ],
+  mochi: [
+    ['mplus', 'M PLUS Rounded 1c 700', '丸ゴシック。欧文もカナも同じ一族で揃い、小さくても丸みが残る', true],
+    ['nunito', 'Nunito 700', '欧文の丸ゴシックの定番。カナは M PLUS から借りる', false],
+    ['zenmaru', 'Zen Maru Gothic 700', '筆の名残のある丸ゴシック。やさしいが、小さいと線が細い', false],
+  ],
+  neon: [
+    ['oxanium', 'Oxanium 600', '角を落とした八角形の骨格。機械の刻印に近いサイバー感', true],
+    ['rajdhani', 'Rajdhani 600', '細く縦長。端末の表示らしいが、小さいと頼りない', false],
+    ['sharetech', 'Share Tech Mono', '等幅の端末書体。機能キーが窮屈', false],
+    ['chakra', 'Chakra Petch 600（今の TRON の書体）', 'TRON と同じ顔になり、2 つのスキンの区別が薄れる', false],
+  ],
+}
+
+const compare = document.getElementById('compare')
+for (const skin of SKINS) {
+  const wrap = document.createElement('div')
+  wrap.append(stage('dark', device(skin, { width: 580, scale: 2, legends: false, rowHeight: 22 })))
+  wrap.insertAdjacentHTML('beforeend', `<p class="caption">${skin.label}${skin.isNew ? '（新）' : '（今）'}</p>`)
+  compare.append(wrap)
+}
+
+const host = document.getElementById('skins')
+for (const skin of SKINS.filter((s) => s.isNew)) {
+  const sec = document.createElement('section')
+  sec.className = 'skin'
+  sec.innerHTML = `
+    <div class="skin-head"><h2>${skin.label}</h2><span class="tag new">NEW</span><span class="tag">${skin.era}</span></div>
+    <p>${skin.summary}</p>`
+  sec.append(stage('dark', device(skin, { width: 900, scale: 3, rowHeight: 35 })))
+  sec.insertAdjacentHTML('beforeend', '<p class="caption">FULL、幅 900px（本体の上限 960px に近い）、ドット 3 倍、刻印あり。elecdex の暗いテーマの地の上</p>')
+
+  const zs = document.createElement('div')
+  zs.className = 'zooms'
+  zs.append(
+    zoom(skin, '.power', '2 倍: 名前板、ブザー、POWER（点灯）'),
+    zoom(skin, '.power', '2 倍: POWER（消灯）', { off: true }),
+    zoom(skin, '[data-key="s"]', '2 倍: キー（S と D を押している）', { held: new Set(['s', 'd']) }),
+    zoom(skin, '.marks span:nth-child(2)', '2 倍: 液晶の枠と表示記号、消えたドット'),
+    zoom(skin, '[data-key="up"]', '2 倍: 矢印とテンキー、SHIFT 面の刻印'),
+  )
+  sec.append(zs)
+
+  const row = document.createElement('div')
+  row.className = 'row2'
+  const left = document.createElement('div')
+  left.append(stage('light', device(skin, { width: 560, scale: 2, legends: false, rowHeight: 22 })))
+  left.insertAdjacentHTML('beforeend', '<p class="caption">FULL、幅 560px（600px 未満なので刻印なし）。Business Light の地の上</p>')
+  const right = document.createElement('div')
+  right.append(stage('dark', device(skin, { width: 560, scale: 2, body: 'compact', rowHeight: 26 })))
+  right.insertAdjacentHTML('beforeend', '<p class="caption">COMPACT（液晶とキー 1 列）</p>')
+  row.append(left, right)
+  sec.append(row)
+
+  sec.insertAdjacentHTML('beforeend', '<h3>キートップの書体（候補を同じキーで）</h3>')
+  const spec = document.createElement('div')
+  spec.className = 'specimen'
+  for (const [font, name, why, picked] of SPECIMENS[skin.id]) spec.append(specimen(skin, font, name, why, picked))
+  sec.append(spec)
+
+  const sw = Object.entries({ face: skin.body.face, deck: skin.body.deck?.fill, key: skin.body.key, pad: skin.body.padKey, fn: skin.body.fnKey, enter: skin.body.enter, brk: skin.body.brk, legend: skin.body.legend, bezel: skin.body.bezel, 'lcd ground': skin.lcd.ground, 'lcd dot': skin.lcd.dot })
+    .filter(([, v]) => v)
+    .map(([n, v]) => `<span class="sw"><i style="background:${v}"></i>${n} ${v}</span>`)
+    .join('')
+  sec.insertAdjacentHTML('beforeend', `
+    <div class="swatches">${sw}</div>
+    <div class="notes">
+      <div><h3>何を借りたか（時代の共通語彙）</h3><ul>${skin.nods.map((n) => `<li>${n}</li>`).join('')}</ul></div>
+      <div><h3>避けたもの（著作権・意匠）</h3><ul>${skin.avoid.map((n) => `<li>${n}</li>`).join('')}</ul></div>
+    </div>`)
+  host.append(sec)
+}
+
+// A label wider than its key's inside is narrowed sideways to fit, by at most 20%. In the pane
+// this is Keyboard.svelte's, run when the row height, the skin or the typefaces change -
+// never on a press.
+function fitCaps() {
+  for (const cap of document.querySelectorAll('.relief .key .cap')) {
+    cap.style.transform = ''
+    const room = cap.parentElement.clientWidth - 6
+    const floor = Number(getComputedStyle(cap).getPropertyValue('--e16-fit-floor')) || 0.8
+    // Layout widths, not drawn ones: a close-up's device is drawn twice as large.
+    const w = cap.offsetWidth
+    if (w > room) cap.style.transform = `scaleX(${Math.max(floor, room / w).toFixed(3)})`
+  }
+}
+
+// Close-ups are placed once the typefaces have come, so the plate and keys have their width.
+document.fonts.ready.then(() => requestAnimationFrame(() => {
+  fitCaps()
+  zooms.forEach((place) => place())
+  // #measure: what was narrowed, and how much, for checking the fitting from a headless run.
+  if (location.hash === '#measure') {
+    const out = []
+    for (const d of document.querySelectorAll('.device:not(.zoom .device)')) {
+      const fits = [...d.querySelectorAll('.cap')].filter((c) => c.style.transform).map((c) => `${c.parentElement.dataset.key}${c.style.transform.replace('scaleX', '')}`)
+      out.push(`${d.style.getPropertyValue('--e16-font').split(',')[0]} ${d.style.width || 'spec'}: ${fits.join(' ') || '-'}`)
+    }
+    document.body.insertAdjacentHTML('afterbegin', `<pre id="measure" style="font-size:13px;color:#fff">${out.join('\n')}</pre>`)
+  }
+}))
+window.addEventListener('resize', () => zooms.forEach((place) => place()))
+</script>
+</body>
+</html>

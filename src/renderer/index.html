@@ -8,7 +8,7 @@
       `style-src 'unsafe-inline'` is the single relaxation, and it is forced:
       xterm.js injects <style> elements whose CSS depends on the measured cell
       and viewport size, so the content changes with every resize and cannot be
-      covered by hashes; a static nonce in a file:// page would be worth no more
+      covered by hashes; a static nonce in a page built ahead of time would be worth no more
       than 'unsafe-inline' anyway. Our theme system likewise applies tokens with
       `style.setProperty`.
 

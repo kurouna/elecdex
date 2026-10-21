@@ -2,6 +2,7 @@ import { backgroundCapabilities, HIDDEN_SWITCH, isWayland } from '@shared/backgr
 import { ELECDEX_APP_ID } from '@shared/now-playing'
 import { app, dialog, Menu } from 'electron'
 import { appMenuTemplate } from './app-menu.js'
+import { registerAppScheme } from './app-protocol.js'
 import { appWindows } from './app-windows.js'
 import { type Background, registerBackground } from './background/index.js'
 import { registerAgentsIpc } from './ipc/agents.js'
@@ -110,6 +111,9 @@ let pluginsIpc: { dispose: () => void } | null = null
 let webIpc: { dispose: () => void } | null = null
 let logWatchIpc: { dispose: () => void } | null = null
 let background: Background | null = null
+
+// Before the app is ready, as Electron asks: the page is served from app:// (app-protocol.ts).
+registerAppScheme()
 
 app.whenReady().then(() => {
   // Never Electron's default menu, whose Ctrl+R and zoom keys took keys a web pane or a dialog

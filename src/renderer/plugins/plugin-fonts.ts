@@ -8,7 +8,7 @@ import type { PluginFontFace } from '@shared/plugins'
  * The app's own faces for plugin canvases (docs/plugins.md section 13).
  *
  * A worker has a font set of its own, and the page's @font-face rules do not reach it. It
- * cannot fetch the files either: the page is a file:// document, and CSP holds fonts to
+ * cannot fetch the files either: fetch is taken from a plugin's worker, and CSP holds fonts to
  * 'self'. So the faces travel as bytes and the worker makes FontFaces of them, which no
  * policy stands between. They are inlined in this module, which the host imports only
  * when a plugin first shows a canvas: a plugin-free app never loads them.

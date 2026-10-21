@@ -88,7 +88,7 @@ export default {
   **省略するとボタンも出ず、ショートカットも効かない**（数値がいくつか並ぶだけのペインはこれが正しい）
 - `view` は必須、`service` は任意
 - 値の import はフォルダ内の相対パスだけ。`require`・パッケージ名・フォルダ外は実行時に throw
-- 動的な `import()` は書かない。変換が require に直すが、変換の後に `import` と `(` の形（間に空白とコメントだけ。文字列やコメントの中でも、`import` という名のメソッドでも）が残っていれば、そのプラグインは読まない（`checkNoImport`、issue 29。ページが file:// なので、Worker からの `import()` はディスクのどのファイルも読めてしまう）
+- 動的な `import()` は書かない。変換が require に直すが、変換の後に `import` と `(` の形（間に空白とコメントだけ。文字列やコメントの中でも、`import` という名のメソッドでも）が残っていれば、そのプラグインは読まない（`checkNoImport`、issue 29。ページが file:// だったころは、Worker からの `import()` がディスクのどのファイルも読めた。いまはページを app:// から配るのでプラットフォームが断り、これは二重の壁）
 - `apiVersion` がこのビルドより新しいものは読まずに「新しい elecdex が必要」と表示。canvas・keys・sound を使うなら 2（§13）
 
 ---
@@ -405,7 +405,7 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 - 大きさは CSS px の実数と、ブラウザーが言うデバイス画素（`devicePixelContentBoxSize`）で伝え、キャンバスはデバイス画素ちょうどの大きさにする。丸めで 1 px ずれると、拡大縮小されてにじむ
 - **キャンバスは 1 つの Worker にしか渡せない**。プラグインの再起動（編集・restart）ではペインの「epoch」が上がり、ホストが canvas 要素ごと作り直して新しい Worker に渡す
 - `ctx.theme`: テーマの色（`ground`・`text`・`accent` など 15 色、ページが計算した `rgb()`）・フォント・明暗・モーション低減。テーマが変わると `theme` イベント
-- アプリのフォント（Chakra Petch・Saira Condensed・JetBrains Mono）は、最初の canvas のときにホストがバイト列で Worker に渡し、Worker が `FontFace` にする。ページの `@font-face` は Worker に届かず、file:// のページからは Worker が取りにも行けない（CSP の `font-src 'self'`）ため。フォントのモジュールは遅延読み込みで、canvas を使うプラグインが無ければ読まない。読み終わると `theme` イベントで描き直させる
+- アプリのフォント（Chakra Petch・Saira Condensed・JetBrains Mono）は、最初の canvas のときにホストがバイト列で Worker に渡し、Worker が `FontFace` にする。ページの `@font-face` は Worker に届かず、プラグインの Worker には fetch も無い（CSP も `font-src 'self'`）ため。フォントのモジュールは遅延読み込みで、canvas を使うプラグインが無ければ読まない。読み終わると `theme` イベントで描き直させる
 
 ### 13.3 `ctx.animate`
 

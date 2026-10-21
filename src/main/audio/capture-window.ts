@@ -2,6 +2,8 @@ import { fileURLToPath } from 'node:url'
 import { type AudioStub, SPECTRUM_BINS, type SpectrumUpdate } from '@shared/audio'
 import { CH } from '@shared/channels'
 import { BrowserWindow, desktopCapturer, type IpcMainEvent, ipcMain, session } from 'electron'
+import { serveApp } from '../app-protocol.js'
+import { appPage } from '../app-scheme.js'
 import { markHelperWindow } from '../app-windows.js'
 import type { StubTracks } from './stub-tracks.js'
 
@@ -28,7 +30,6 @@ import type { StubTracks } from './stub-tracks.js'
  */
 
 const PRELOAD = fileURLToPath(new URL('../preload/audio-capture.cjs', import.meta.url))
-const PAGE = fileURLToPath(new URL('../renderer/audio-capture.html', import.meta.url))
 const PARTITION = 'elecdex-audio-capture'
 
 export interface CaptureWindow {
@@ -140,7 +141,8 @@ export function openCaptureWindow(options: {
   if (devServerUrl) {
     void win.loadURL(`${devServerUrl}/audio-capture.html${query ? `?stub=${query.stub}` : ''}`)
   } else {
-    void win.loadFile(PAGE, query ? { query } : {})
+    serveApp(captureSession())
+    void win.loadURL(appPage('audio-capture.html', query ?? {}))
   }
 
   let closed = false

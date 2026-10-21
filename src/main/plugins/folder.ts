@@ -207,9 +207,10 @@ const DYNAMIC_IMPORT = /(?<![.\w$])import(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\n]*\n)*\(
 
 /**
  * Refuses code that still holds a dynamic import (issue 29). A plugin's worker inherits the
- * page's CSP, and the page is a file:// document, so an import() that got past the transform -
- * which turns every one it sees into require - could load any file on the disk
- * (plugin-containment.spec.ts shows the platform lets it). Its shape is refused wherever it
+ * page's CSP; while the page was a file:// document, an import() that got past the transform -
+ * which turns every one it sees into require - could load any file on the disk. Served from
+ * app:// the platform refuses that (plugin-containment.spec.ts); this stays as a second wall,
+ * and keeps a plugin to the module table it was given. Its shape is refused wherever it
  * stands, a string or a comment too, and a method named import with it: from the text alone
  * neither can be told from a call.
  */

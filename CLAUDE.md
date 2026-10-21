@@ -117,7 +117,9 @@ user made; do not reverse one without asking.
 ### Boundaries
 
 - **Security boundary.** The renderer is sandboxed (`sandbox`, `contextIsolation`, no Node) with
-  CSP `connect-src 'self'`: no network, no filesystem. Everything goes through `window.elecdex`
+  CSP `connect-src 'self'`: no network, no filesystem. Built, the page is served from
+  `app://elecdex` (main/app-protocol.ts), never file://, so its 'self' is not the disk.
+  Everything goes through `window.elecdex`
   (src/shared/api.ts, src/preload/index.ts). Main validates every input (zod or explicit checks).
   Never expose a generic channel, a path-taking "run" or raw `ipcRenderer`. The launcher launches
   by opaque id from main's own catalog, never by path. A main module's channels are one

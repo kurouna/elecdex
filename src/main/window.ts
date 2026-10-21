@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url'
 import type { WindowState } from '@shared/api'
 import { CH } from '@shared/channels'
 import { BrowserWindow, screen, shell } from 'electron'
+import { serveApp } from './app-protocol.js'
+import { appPage } from './app-scheme.js'
 
 const PRELOAD = fileURLToPath(new URL('../preload/index.cjs', import.meta.url))
-const RENDERER_HTML = fileURLToPath(new URL('../renderer/index.html', import.meta.url))
 
 /**
  * An icon from resources/icons, generated from build/icon.svg. Found by walking
@@ -165,7 +166,10 @@ export function createMainWindow(opts: CreateWindowOptions): BrowserWindow {
   if (devServerUrl) {
     void win.loadURL(devServerUrl)
   } else {
-    void win.loadFile(RENDERER_HTML)
+    // From app://, never file://: as a file:// document the page's CSP 'self' was the whole
+    // disk, for the page and for every plugin's worker (issue 29).
+    serveApp(win.webContents.session)
+    void win.loadURL(appPage('index.html'))
   }
 
   return win

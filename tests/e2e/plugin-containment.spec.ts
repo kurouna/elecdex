@@ -7,17 +7,15 @@ import { launch, removeDir } from './support.js'
 
 /**
  * What a plugin's worker could reach if code got past the transform (issue 29). A plugin runs in
- * a blob worker of the page, under the page's CSP; the page is a file:// document, so 'self' is
- * the file scheme. This looks from such a worker, made as the plugin host makes one, at what
- * the platform itself lets through - the transform aside.
+ * a blob worker of the page, under the page's CSP. This looks from such a worker, made as the
+ * plugin host makes one, at what the platform itself lets through - the transform aside.
  *
- * Measured 2026-10-21 (Electron 44): all three read the file. fetch is taken from a plugin's
- * worker (stripGlobals), but import() is syntax and cannot be: what keeps a plugin off the disk
- * is the transform turning every import() into require and `checkNoImport` refusing any left.
- * Serving the page from a scheme of its own (issue 29's last step) would turn these to refused.
+ * Measured 2026-10-21 (Electron 44): while the page was a file:// document, whose 'self' is the
+ * file scheme, all three read the file - import() is syntax, which stripGlobals cannot take.
+ * Served from app://elecdex, 'self' is the renderer's own files, and the disk is refused.
  */
 
-test("a blob worker of the page can load the disk's files, so plugins' code is checked", async () => {
+test("a blob worker of the page cannot load the disk's files", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-probe-'))
   const json = path.join(dir, 'secret.json')
   const js = path.join(dir, 'secret.mjs')
@@ -56,11 +54,11 @@ test("a blob worker of the page can load the disk's files, so plugins' code is c
       },
       { jsonUrl: pathToFileURL(json).href, jsUrl: pathToFileURL(js).href },
     )
-    expect(answers).toEqual({
-      json: 'read: json',
-      module: 'read: module',
-      fetch: 'read: {"secret":"json"}',
-    })
+    expect(answers.json).toMatch(/^refused: /)
+    expect(answers.module).toMatch(/^refused: /)
+    expect(answers.fetch).toMatch(/^refused: /)
+    // The page is its own origin, not a file.
+    expect(page.url()).toBe('app://elecdex/index.html')
   } finally {
     await close()
     removeDir(dir)
