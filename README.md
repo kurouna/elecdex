@@ -24,7 +24,7 @@ for Windows, macOS and Linux.
   ▶ <a href="https://youtu.be/LgbC3Iubot0">Watch the 2-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.37 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.38 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -1026,7 +1026,7 @@ weather and calendar.
   `CIRCLE`), the clock (`TIME$`) and files on its memory card (`SAVE`, `LOAD`, `FILES`, `OPEN`). `MON` opens the
   machine-code monitor (dump, write, run, disassemble, breakpoints). The LCD is 240×48 by
   default (also 240×32, 240×64 and a 160×144 four-shade one), drawn dot by dot with the shadow,
-  the slow fade and the contrast of a real one; thirteen skins dress the case - or, in PLAIN, leave it out for the app's own flat look in its theme. *Unreleased:* five of them are modelled in light, each with keytops in a typeface of its own - brushed metal with a black deck (ALLOY), a matte graphite moulding with a near-white keypad (GRAPHITE), a pocket computer made today with low keys and a paper-like screen (NEO), a cute one in sakura and polka dots with glazed pastel keys (MOCHI), and a case of clear glass with the board seen deep inside, following the theme's mode and accent (GLASS). None copies a real product. The PC's keyboard
+  the slow fade and the contrast of a real one; thirteen skins dress the case - or, in PLAIN, leave it out for the app's own flat look in its theme. Five of them are modelled in light, each with keytops in a typeface of its own - brushed metal with a black deck (ALLOY), a matte graphite moulding with a near-white keypad (GRAPHITE), a pocket computer made today with low keys and a paper-like screen (NEO), a cute one in sakura and polka dots with glazed pastel keys (MOCHI), and a case of clear glass with the board seen deep inside, following the theme's mode and accent (GLASS). None copies a real product. The PC's keyboard
   types into it while the pane has the focus (kana by the JIS layout in KANA mode), and PASTE
   (or a right-click on the machine) types the clipboard. Each machine is a **unit** that main keeps - its RAM is battery-backed
   across restarts, its card holds files - and one pane runs it at a time (MOVE HERE takes it
