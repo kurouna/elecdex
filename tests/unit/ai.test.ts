@@ -94,7 +94,11 @@ describe('where a key may be sent', () => {
       expect(keyMayTravel(far), far).toBe(false)
     }
     // The local network's IPv6 addresses are as near as its IPv4 ones.
-    for (const near of ['http://[fd12:3456::1]:8080/v1', 'http://[fe80::1]/v1', 'http://169.254.1.2/v1']) {
+    for (const near of [
+      'http://[fd12:3456::1]:8080/v1',
+      'http://[fe80::1]/v1',
+      'http://169.254.1.2/v1',
+    ]) {
       expect(keyMayTravel(near), near).toBe(true)
     }
   })
