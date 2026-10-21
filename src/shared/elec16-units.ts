@@ -27,6 +27,11 @@ export const ELEC16_SKINS = [
   'classic',
   'ivory',
   'night',
+  'alloy',
+  'graphite',
+  'neo',
+  'mochi',
+  'glass',
 ] as const
 export type Elec16SkinId = (typeof ELEC16_SKINS)[number]
 

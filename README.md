@@ -1026,7 +1026,7 @@ weather and calendar.
   `CIRCLE`), the clock (`TIME$`) and files on its memory card (`SAVE`, `LOAD`, `FILES`, `OPEN`). `MON` opens the
   machine-code monitor (dump, write, run, disassemble, breakpoints). The LCD is 240×48 by
   default (also 240×32, 240×64 and a 160×144 four-shade one), drawn dot by dot with the shadow,
-  the slow fade and the contrast of a real one; eight skins dress the case - or, in PLAIN, leave it out for the app's own flat look in its theme. The PC's keyboard
+  the slow fade and the contrast of a real one; thirteen skins dress the case - or, in PLAIN, leave it out for the app's own flat look in its theme. *Unreleased:* five of them are modelled in light, each with keytops in a typeface of its own - brushed metal with a black deck (ALLOY), a matte graphite moulding with a near-white keypad (GRAPHITE), a pocket computer made today with low keys and a paper-like screen (NEO), a cute one in sakura and polka dots with glazed pastel keys (MOCHI), and a case of clear glass with the board seen deep inside, following the theme's mode and accent (GLASS). None copies a real product. The PC's keyboard
   types into it while the pane has the focus (kana by the JIS layout in KANA mode), and PASTE
   (or a right-click on the machine) types the clipboard. Each machine is a **unit** that main keeps - its RAM is battery-backed
   across restarts, its card holds files - and one pane runs it at a time (MOVE HERE takes it
@@ -1310,6 +1310,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | Display font | [Chakra Petch](https://fonts.google.com/specimen/Chakra+Petch) | SIL OFL 1.1 |
 | UI font | [Saira Condensed](https://fonts.google.com/specimen/Saira+Condensed) | SIL OFL 1.1 |
 | Monospace font | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | SIL OFL 1.1 |
+| ELEC-16 keytop fonts | [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed), [IBM Plex Sans Condensed](https://fonts.google.com/specimen/IBM+Plex+Sans+Condensed), [Inter Tight](https://fonts.google.com/specimen/Inter+Tight), [M PLUS Rounded 1c](https://fonts.google.com/specimen/M+PLUS+Rounded+1c), [Albert Sans](https://fonts.google.com/specimen/Albert+Sans); for the カナ key, its two letters from [BIZ UDPGothic](https://fonts.google.com/specimen/BIZ+UDPGothic), [IBM Plex Sans JP](https://fonts.google.com/specimen/IBM+Plex+Sans+JP) and [Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP) (via [Fontsource](https://fontsource.org/)) | SIL OFL 1.1 |
 | IP geolocation | [`@ip-location-db/geo-whois-asn-country-mmdb`](https://github.com/sapics/ip-location-db), data by the [NRO](https://www.nro.net/) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (the npm package is labelled CC0-1.0; its bundled NRO_LICENSE requires attribution to nro.net) |
 | Globe land and country shapes | [Natural Earth](https://www.naturalearthdata.com/) via [world-atlas](https://github.com/topojson/world-atlas) | Public domain / ISC (build time only) |
 | Country codes and time zones | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries), [countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT (build time only) |

@@ -294,6 +294,13 @@ user made; do not reverse one without asking.
     new part as a new machine's); a version's layout never changes once pushed.
   - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
     once - never at device pixels - and at most thirty times a second (`drawMs`; measured).
+  - Skins are data (skins.ts; every skin sets every field, today's eight through `TODAY`). The
+    five relief skins (docs/elec16-skins-mock) draw only with backgrounds, shadows and
+    pseudo-elements - never a size layout.ts computes; their materials are data: SVGs baked
+    opaque (skin-art.ts), their faces bundled (faces.ts, the カナ key's two letters by
+    `unicode-range`). The arrows are drawn, never a glyph; a label too wide is narrowed
+    sideways by measurement (cap-fit.ts), never made smaller. No `filter` on a key's hover
+    (measured: it doubled a press's cost). GLASS follows the theme's mode and accent.
   - CODE compiles in a blob worker (`?worker&inline`, CSP unchanged); a person's code runs only
     as E16 code on the core, never as JavaScript. Only the worker and tests import
     shared/e16c/program.ts (it pulls in TypeScript's parser); the page reads code-area.ts.

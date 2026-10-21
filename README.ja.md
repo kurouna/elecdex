@@ -961,7 +961,7 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   `DATA`、音（`BEEP`）、点と線と円（`PSET`、`LINE`、`CIRCLE`）、時計（`TIME$`）、記憶カードのファイル（`SAVE`、
   `LOAD`、`FILES`、`OPEN`）が使えます。`MON` で機械語モニタ（ダンプ、書き込み、実行、逆アセンブル、
   ブレークポイント）。液晶は既定で 240×48（240×32、240×64、4 階調の 160×144 も）で、本物のような
-  ドットの影、ゆっくり消える残像、コントラストまで 1 ドットずつ描き、8 つのスキンで本体を着せ替えます（PLAIN は本体を描かず、今のテーマのアプリの見た目になります）。
+  ドットの影、ゆっくり消える残像、コントラストまで 1 ドットずつ描き、13 のスキンで本体を着せ替えます（PLAIN は本体を描かず、今のテーマのアプリの見た目になります）。*unreleased*: うち 5 つは光で立体に描き、キートップもそれぞれの書体で刻みます。ヘアラインの金属に黒い鍵盤の板（ALLOY）、黒鉛色の梨地に白いテンキー（GRAPHITE）、低いキーと紙のような画面の今のポケコン（NEO）、桜色に水玉、飴のような艶のパステルのキーのかわいいもの（MOCHI）、奥に基板が見える透明なガラスの筐体で、テーマの明暗とアクセントに従うもの（GLASS）。どれも実在の製品の写しではありません。
   ペインにフォーカスがある間は PC のキーボードで打て（KANA モードでは JIS かな配列でカナ）、PASTE（または機械の上で右クリック）で
   クリップボードを打ち込みます。1 台は main が持つ **ユニット**で、RAM は電池バックアップで再起動の
   後も残り、カードにファイルを持ちます。1 台を動かすのは 1 つのペインだけです（MOVE HERE で引き継ぐ）。
@@ -1220,6 +1220,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 表示用フォント | [Chakra Petch](https://fonts.google.com/specimen/Chakra+Petch) | SIL OFL 1.1 |
 | UI フォント | [Saira Condensed](https://fonts.google.com/specimen/Saira+Condensed) | SIL OFL 1.1 |
 | 等幅フォント | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | SIL OFL 1.1 |
+| ELEC-16 のキートップのフォント | [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed)、[IBM Plex Sans Condensed](https://fonts.google.com/specimen/IBM+Plex+Sans+Condensed)、[Inter Tight](https://fonts.google.com/specimen/Inter+Tight)、[M PLUS Rounded 1c](https://fonts.google.com/specimen/M+PLUS+Rounded+1c)、[Albert Sans](https://fonts.google.com/specimen/Albert+Sans)。カナキーの 2 字は [BIZ UDPGothic](https://fonts.google.com/specimen/BIZ+UDPGothic)、[IBM Plex Sans JP](https://fonts.google.com/specimen/IBM+Plex+Sans+JP)、[Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP) から（[Fontsource](https://fontsource.org/) 経由） | SIL OFL 1.1 |
 | IP ジオロケーション | [`@ip-location-db/geo-whois-asn-country-mmdb`](https://github.com/sapics/ip-location-db)、データは [NRO](https://www.nro.net/) による | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)（npm パッケージは CC0-1.0 と表記されていますが、同梱の NRO_LICENSE は nro.net へのクレジット表示を求めています） |
 | 地球儀の陸地と国の形状 | [Natural Earth](https://www.naturalearthdata.com/)（[world-atlas](https://github.com/topojson/world-atlas) 経由） | パブリックドメイン / ISC（ビルド時のみ使用） |
 | 国コードとタイムゾーン | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries)、[countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT（ビルド時のみ使用） |

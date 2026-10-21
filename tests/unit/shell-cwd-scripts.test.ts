@@ -71,7 +71,8 @@ const home = path.join(root, 'home')
 mkdirSync(home)
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
-function reported(shell: Shell, dir: string): string[] {
+/** The folders a shell's script reported; null where it reported a share (no folder). */
+function reported(shell: Shell, dir: string): (string | null)[] {
   const env: Record<string, string | undefined> = {
     ...process.env,
     HOME: home,

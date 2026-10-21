@@ -825,7 +825,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   `AUTO`、`RENUM`），支持字符串、数组、`DATA`、声音（`BEEP`）、点、线和圆（`PSET`、`LINE`、`CIRCLE`）、时钟
   （`TIME$`）以及存储卡上的文件（`SAVE`、`LOAD`、`FILES`、`OPEN`）。`MON` 打开机器码监视器（转储、
   写入、运行、反汇编、断点）。液晶默认为 240×48（另有 240×32、240×64 和四级灰度的 160×144），逐点
-  绘制，带有真实液晶的点阴影、缓慢消退的残影和对比度；八种外观可以替换机身（PLAIN 不画机身，而是当前主题下应用自己的扁平样子）。窗格获得焦点时可以用 PC
+  绘制，带有真实液晶的点阴影、缓慢消退的残影和对比度；十三种外观可以替换机身（PLAIN 不画机身，而是当前主题下应用自己的扁平样子）。*unreleased*：其中五种用光影画出立体感，键帽也各用自己的字体：拉丝金属配黑色键盘底板（ALLOY）、石墨色磨砂外壳配近白色数字键区（GRAPHITE）、低键程按键和纸一样的屏幕的现代袖珍电脑（NEO）、樱花色加波点、糖釉般的粉彩按键的可爱款（MOCHI），以及能看到内部电路板的透明玻璃机身、随主题的明暗和强调色变化（GLASS）。都不是任何真实产品的复制。窗格获得焦点时可以用 PC
   键盘输入（KANA 模式下按 JIS 假名布局输入假名），PASTE（或在机器上右键单击）可把剪贴板的文字敲进去。每台机器是由 main
   保管的 **单元**：RAM 由电池备份，重启后仍在，存储卡保存文件；同一时间只有一个窗格运行它（MOVE HERE
   可以接管）。SOFT CARD 附带十三个程序（游戏、正弦波、时钟、生物节律、与 AI 聊天、机器码的滚动文字和示例）。
@@ -1047,6 +1047,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 显示字体 | [Chakra Petch](https://fonts.google.com/specimen/Chakra+Petch) | SIL OFL 1.1 |
 | 界面字体 | [Saira Condensed](https://fonts.google.com/specimen/Saira+Condensed) | SIL OFL 1.1 |
 | 等宽字体 | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | SIL OFL 1.1 |
+| ELEC-16 键帽字体 | [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed)、[IBM Plex Sans Condensed](https://fonts.google.com/specimen/IBM+Plex+Sans+Condensed)、[Inter Tight](https://fonts.google.com/specimen/Inter+Tight)、[M PLUS Rounded 1c](https://fonts.google.com/specimen/M+PLUS+Rounded+1c)、[Albert Sans](https://fonts.google.com/specimen/Albert+Sans)；カナ 键的两个字取自 [BIZ UDPGothic](https://fonts.google.com/specimen/BIZ+UDPGothic)、[IBM Plex Sans JP](https://fonts.google.com/specimen/IBM+Plex+Sans+JP) 和 [Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP)（经由 [Fontsource](https://fontsource.org/)） | SIL OFL 1.1 |
 | IP 地理定位 | [`@ip-location-db/geo-whois-asn-country-mmdb`](https://github.com/sapics/ip-location-db)，数据来自 [NRO](https://www.nro.net/) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)（npm 包标注为 CC0-1.0；其附带的 NRO_LICENSE 要求注明 nro.net） |
 | 地球的陆地和国家形状 | [Natural Earth](https://www.naturalearthdata.com/)，经由 [world-atlas](https://github.com/topojson/world-atlas) | 公有领域 / ISC（仅构建时使用） |
 | 国家代码和时区 | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries)、[countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT（仅构建时使用） |

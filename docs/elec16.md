@@ -16,7 +16,7 @@ elecdex の組み込みペイン `elec16`。1980 年代のポケコンのよう�
 - **クロックは既定 4 MHz で、可変**（§3）
 - 10 fps ループの例外を `EmuRunner` に広げる。ユニットは main が持ち、1 台は同時に 1 ペインだけ。貼り付けは PASTE ボタンか機械の上の右クリック（Ctrl+V は取らない）
 - カナ入力は v1（段階 5）に入れる
-- **スキンは 8 つ**: ELEC、**PLAIN**（2026-10-04 追加。本体を描かない）、**TRON**、**BUSINESS LIGHT**、**BUSINESS DARK**（elecdex の同じ名前のテーマから。Business は elecdex と同じく明暗を別々に）、CLASSIC、IVORY、NIGHT
+- **スキンは 13**: ELEC、**PLAIN**（2026-10-04 追加。本体を描かない）、**TRON**、**BUSINESS LIGHT**、**BUSINESS DARK**（elecdex の同じ名前のテーマから。Business は elecdex と同じく明暗を別々に）、CLASSIC、IVORY、NIGHT、そして 2026-10-22 に足した **ALLOY**、**GRAPHITE**、**NEO**、**MOCHI**、**GLASS**（光で描く 5 つ。モックは docs/elec16-skins-mock）
 - 同梱ソフトは §6 のとおり
 - **ROM は E16 アセンブリで書き、同梱するのも E16 アセンブリ**。TypeScript の部分集合から E16 アセンブリを作る道具（e16c）も作る（§6）
 - **e16c は最後の段階でペインに出す**: 専用の画面（CODE）で TypeScript を打ってコンパイルし、最適化の段階ごとのアセンブリを見られる。ELEC-16 の売りにする（§6）
@@ -445,9 +445,17 @@ TS の部分集合 (*.e16.ts)
 - **本体の描き方は 3 通り**で、ペインの大きさから自動で選び、TUNE で固定もできます。FULL（本体とキーボード）、COMPACT（液晶とキー 1 列: BRK、MODE、CLS、SHIFT、矢印、ENTER。打つのは PC のキーボード）、LCD（液晶だけ）
 - **液晶はデバイスピクセルの整数倍**（`fitScreen`、単位はモデルの解像度。既定 240×48）。ドットの描き方は機種の差し込みです。反射型の地、ドットの影（地へ少しずらした薄い影）、応答の遅さ（点くのは速く、消えるのはゆっくり）、コントラスト。描き直すのは VRAM の版が動いたときと、残像が消えていく間だけです
 - **スキン**は本体の色と形、キーの色、液晶の地とドットの色を持つデータです（テーマと同じく CSS 変数）。初めは 7 つ、今は 8 つ: **ELEC**（今のテーマに従う HUD 風、角の括弧、液晶はアクセントの濃淡）、**PLAIN**（ポケコンではなく elecdex の見た目。本体・名前板・液晶の枠を描かず、画面はパネルの罫線で囲んだ平らな面で、ドットのすき間と影を描かない。色はすべて今のテーマの変数、キーはアプリの平らなボタンの形。2026-10-04 利用者の求め）、**TRON**（elecdex の TRON テーマの色で固定、縁が光る）、**BUSINESS LIGHT** と **BUSINESS DARK**（elecdex の 2 つの Business テーマ。Windows 11 の色と Segoe UI、角の丸いキー）、**CLASSIC**（黒い本体と黄緑の反射型液晶）、**IVORY**（ベージュの本体と灰色の液晶）、**NIGHT**（紺の本体と青い透過型液晶）。実在の製品の配色は写しません。既定はペインごとで、新しいペインには設定 `elec16.skin` を使います
+- **光で描く 5 つ**（2026-10-22、利用者の求め。モックとレビューの経緯は docs/elec16-skins-mock）: **ALLOY**（80 年代の薄型・金属パネル機の空気。ヘアラインの金属、彫った名前板の文字、琥珀の線 1 本、沈んだ黒い鍵盤の板）、**GRAPHITE**（90 年代の大型・多機能機の空気。黒鉛色の梨地、明るい文字キーと白いテンキー、濃い機能キー、色は BRK だけ）、**NEO**（今ポケコンが出たら。冷たい灰の梨地、切り欠きに収まった低いキー、紙のような反射型の液晶、コバルト 1 色）、**MOCHI**（かわいい。桜色に水玉、飴のような艶の丸いキー、パステルの色分け、黒を使わない、影も桜色）、**GLASS**（透明なガラスの筐体。向きで明るさの変わる縁、縁の内側の素ガラスの帯、奥にぼけた基板、ガラスのキー。テーマの明暗とアクセントに従う）。どれも架空で、実在の製品・OS の名前、ロゴ、専用の書体、配色の組み合わせを使わない（サイバーの案は利用者が取り下げた）
+  - **データ**（skins.ts）: `relief`（光は上、やや左から: 面取りの光と合わせ目の線、沈んだ液晶と鍵盤の板、キーの側面と影と押した姿、F・J・テンキー 5 の突起、LED のレンズ、液晶の反射と封止の線と周辺減光）、`texture`（`brushed`・`grain`・`grain-soft`・`polka`・`glass`）、`stripes`、`deck`、`grille`（`slits`・`holes`・`pills`）、`plateEtched`、`gloss`、`shade`（影の色）、`well`、テンキーの色（`padKey` ほか）、`oneFace`（キー・SHIFT 面・名前板・表示記号を 1 つの書体で）、太さと字間、`keyFeatures`、`fitFloor`、液晶の `unlit`（消えたドットの濃さ）と `glare`。今の 8 つは全項目を今の値で持つ（`TODAY`）ので、矢印のほかは変わらない
+  - **素材**（skin-art.ts）: SVG の data: URL（CSP の `img-src data:`）。ノイズは SVG の中で本体の色に `soft-light` で焼いた不透明なタイルで、ページは何も合成しない。GLASS の基板は繰り返さない 1 枚（本体の内側の割合で描き、縁から 14px 内側）。どれもスキンごとに一度だけ作る。消えたドットは描かない: `.stack` の地をドットの色の薄い色にし、格子のキャンバスが地の色ですき間を上から描くので、ドットの所にだけ見える（格子のあるときだけ）
+  - **書体**（faces.ts）: ALLOY は Barlow Condensed、GRAPHITE は IBM Plex Sans Condensed、NEO は Inter Tight、MOCHI は M PLUS Rounded 1c、GLASS は Albert Sans（どれも OFL、Fontsource から同梱）。「カナ」の 2 字は各スキンに合う和文書体（BIZ UDPGothic、IBM Plex Sans JP、Noto Sans JP、M PLUS Rounded）の、カナの部分集合のファイル 1 本だけを `FontFace` で `unicode-range: U+30AB, U+30CA` として足す（OS の書体に落ちない）
+  - **矢印は描く**（全スキン）: Fontsource の latin の部分集合は ↑ ↓ を持つが ← → を持たず（同梱の JetBrains Mono も）、← → だけが OS の書体に落ちて形が揃わなかった。Keyboard.svelte が SVG の線で描く。読み上げは今どおり `aria-label`
+  - **刻印をキーに収める**（cap-fit.ts）: Saira より幅のある書体では、狭い本体（キーの文字が `--step--2`）で MODE がキーの内側を 1〜3px はみ出す。光で描くスキンは狭いとき機能キーの字間を詰め、それでも収まらないラベルだけを横に縮める（文字の大きさは変えない、下限は `fitFloor`: 0.8、丸い字の MOCHI は 0.88）。幅はスキンの書体が読み込まれてから（`document.fonts.load`）canvas の `measureText` で em 単位に一度だけ測ってとっておき、layout.ts のキー幅から純粋に計算する（DOM は測らない）
+  - **GLASS とテーマ**: 色は `--gl-*`（Device.svelte）。`:root[data-mode='light']` で明るいガラスに変わる。ENTER はアクセントで色を付けたガラスで、文字はガラスの文字色（どのアクセントでも読める）。液晶、BRK の赤、LED は固定
+  - **費用**（実測、decisions.md）: 待機中は CLASSIC 4.2% に対し ALLOY・GRAPHITE・NEO・MOCHI 6〜7%、GLASS 9%（1 コア比）。キーを毎秒 10 回押す間は 27% に対し 32〜37%、GLASS 47%。キーの hover の `filter` は使わない（押すたびに再描画が増えた）
 - 右の **PANEL**（CHIP-8 と同じく畳める）: CORE（16 本のレジスタと ABI 名、pc、CSR、命令数、眠りの表示、逆アセンブル、STEP / HALT / ブレークポイント）、MEM（共通の MemView: PC / SP / VRAM / FREE を追い、ROM / RAM / VRAM / I/O で色分け）、FILES（カードのファイルと SOFT CARD。**LOAD ▸** は機械に `LOAD "名前"` を打ち込む。.BIN は `LOAD "名前":CALL 28672`、データファイルには出さない。行の詳細カード `CardFileCard` は種類、バイト数、保存した時刻か SOFT CARD であること、LOAD が打つ行、SOFT CARD ならその説明）、TUNE（PASTE、LINK（ON/OFF、AI のプロバイダ、送った数、直前の失敗の理由。`LinkTune.svelte`、アプリの設定 `elec16.link`）、クロック、自動電源 OFF、液晶の大きさ、本体の描き方、コントラスト、残像、スキン）
 - 帯: ユニット名、CPU ランプ（`running` / `asleep` / `off`）、SND、KEYS（フォーカス）、一時停止、BRK、POWER、**RESET**（CPU をリセット番地から始め直す。RAM は電池で残るので、BASIC はプログラムを持ったまま起動する）、PANEL、CODE
-- **本体はモックのとおり**（2026-10-03 に見直した）: 上に名前板（大きな `ELEC-16`、`16-BIT POCKET COMPUTER`、POWER の LED。電源が入っていると LED がスキンの色で光る）、ベゼルに入った液晶（表示記号は消えているときも薄く印刷されて見える）、キーボード。**Business の 2 つは名前板を持たない**（テーマに飾りがないため）。キーの並びもモックのとおり: 上の段に BRK MODE CLS ANS カナ INS DEL BS、下の段に SHIFT CAPS SPACE ENTER、テンキーの上に矢印、下に 0 . =。BRK は赤、ENTER は強調の色、SHIFT 面の刻印はスキンの色。キートップは 3 種類: CLASSIC・IVORY・NIGHT は立体（押すと沈む）、ELEC と TRON は平らなタイル（押している間は点滅）、Business は角の丸い平らなキー（押すと暗くなる）
+- **本体はモックのとおり**（2026-10-03 に見直した）: 上に名前板（大きな `ELEC-16`、`16-BIT POCKET COMPUTER`、POWER の LED。電源が入っていると LED がスキンの色で光る）、ベゼルに入った液晶（表示記号は消えているときも薄く印刷されて見える）、キーボード。**Business の 2 つは名前板を持たない**（テーマに飾りがないため）。キーの並びもモックのとおり: 上の段に BRK MODE CLS ANS カナ INS DEL BS、下の段に SHIFT CAPS SPACE ENTER、テンキーの上に矢印、下に 0 . =。BRK は赤、ENTER は強調の色、SHIFT 面の刻印はスキンの色。キートップは 5 種類: CLASSIC・IVORY・NIGHT・ALLOY・GRAPHITE は立体（押すと沈む。光で描く 2 つは明るくならず影に沈む）、ELEC と TRON は平らなタイル（押している間は点滅）、Business は角の丸い平らなキー（押すと暗くなる）、NEO と MOCHI は切り欠きに収まった低いキー（`chiclet`、押すと 1px 沈んで暗くなる）、GLASS はガラスのキー（`glass`）
 - **本体は一体のまま**: 部品の高さは `deviceFit`（layout.ts）が部屋から決め、本体は中身の高さで、伸ばさない。ペインが高ければ上下に、広ければ左右に余白を取って真ん中に置く（本体の幅は 960px まで）
 - CHIP-8 と同じ作法: ボタンはタイルの点滅、画面の出入りは `crt-on` と `crtPower`、ランプは `lib/pulse.svelte.ts`、ファイルの行の詳細は HoverCard（`detail-cards.test.ts` の一覧に足す。開いているカードから隣の行へは待たずに）、文字は読むものが `--step--1` 以上
 - **本体の文字も大きさの規則に従います**。キーの刻印と表示記号は `--step--2` を下回らない。FULL を選ぶのは刻印がその大きさで収まるときだけで、狭ければ COMPACT か LCD にする。キーの左上の小さな SHIFT 面の刻印は、収まるときだけ出す
@@ -605,7 +613,7 @@ TS の部分集合 (*.e16.ts)
 ## 14. 入れないもの（v1）
 
 - 実在の機種との互換（ROM、BASIC の方言、キーの刻印、本体のデザイン）
-- 巻き戻し、ROM の中のアセンブラ（アセンブラはページの .asm の IMPORT で使う）、利用者が作るスキン（JSON。v1 はデータとして 8 つだけ）、GAME モデル、プリンタ、カセットの音、シリアル
+- 巻き戻し、ROM の中のアセンブラ（アセンブラはページの .asm の IMPORT で使う）、利用者が作るスキン（JSON。今はデータとして 13 だけ）、GAME モデル、プリンタ、カセットの音、シリアル
 - ユニット間の通信、ポップアップ表示。ネットワークは LINK（§12）だけで、main が行う
 
 ## 15. 直すときの手順と落とし穴（2026-10-04 までに分かったこと）

@@ -218,6 +218,96 @@ test('TUNE fits another LCD, keeping the RAM, and changes the skin', async () =>
   }
 })
 
+/** The keys whose label is wider than the key, as drawn (narrowed labels at their width). */
+const overflowing = (page: Page): Promise<string[]> =>
+  page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('[data-testid=elec16-key] .cap')]
+      .filter((cap) => {
+        const scale = Number(/scaleX\(([\d.]+)\)/.exec(cap.style.transform)?.[1] ?? 1)
+        return cap.offsetWidth * scale > (cap.parentElement?.clientWidth ?? 0) - 2
+      })
+      .map((cap) => cap.parentElement?.dataset.key ?? '?'),
+  )
+
+const RELIEF_FACES = {
+  alloy: '500 10px "Barlow Condensed"',
+  graphite: '600 10px "IBM Plex Sans Condensed"',
+  neo: '500 10px "Inter Tight"',
+  mochi: '700 10px "M PLUS Rounded 1c"',
+  glass: '500 10px "Albert Sans"',
+} as const
+
+test('the five relief skins: modelled in light, each in its bundled face, every label in its key', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    const device = page.getByTestId('elec16-device')
+    for (const [skin, face] of Object.entries(RELIEF_FACES)) {
+      await page.locator(`[data-testid=elec16-skin][data-skin=${skin}]`).click()
+      await expect(device).toHaveAttribute('data-skin', skin)
+      await expect(device).toHaveClass(/\brelief\b/)
+      // The face is the bundled one, loaded (the page loads fonts only from itself).
+      await expect.poll(() => page.evaluate((f) => document.fonts.check(f), face)).toBe(true)
+      // Its material is a picture of its own, never fetched.
+      const image = await device.evaluate((el) => getComputedStyle(el).backgroundImage)
+      expect(image, skin).toContain('data:image/svg+xml')
+      expect(await overflowing(page), skin).toEqual([])
+    }
+    // The arrows are drawn, the same in every skin.
+    await expect(page.locator('[data-testid=elec16-key][data-key=left] svg')).toBeVisible()
+    // GLASS reads the theme's mode: on a dark theme its letters are white (the build writes it as hex).
+    await expect
+      .poll(() =>
+        device.evaluate((el) => getComputedStyle(el).getPropertyValue('--gl-text').trim()),
+      )
+      .toMatch(/^(#ffffff|rgb\(255 255 255)/i)
+  } finally {
+    await close()
+  }
+})
+
+test('a narrow body in a wide face narrows MODE to fit, never past the floor', async () => {
+  const narrow = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [69, 31],
+      children: [
+        { kind: 'pane', id: 'clock', widget: 'clock' },
+        {
+          kind: 'pane',
+          id: 'e16',
+          widget: 'elec16',
+          state: { panel: false, skin: 'mochi', body: 'full' },
+        },
+      ],
+    },
+  }
+  const { page, close } = await atSize(await launch(undefined, { layout: narrow }))
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const device = page.getByTestId('elec16-device')
+    await expect(device).toHaveAttribute('data-body', 'full')
+    await expect
+      .poll(() => page.evaluate(() => document.fonts.check('700 10px "M PLUS Rounded 1c"')))
+      .toBe(true)
+    await expect.poll(() => overflowing(page)).toEqual([])
+    const mode = await page
+      .locator('[data-testid=elec16-key][data-key=mode] .cap')
+      .evaluate((el) => el.style.transform)
+    const scale = Number(/scaleX\(([\d.]+)\)/.exec(mode)?.[1] ?? 1)
+    expect(scale).toBeLessThanOrEqual(1)
+    expect(scale).toBeGreaterThanOrEqual(0.88)
+  } finally {
+    await close()
+  }
+})
+
 test('asleep at its prompt it costs what a paused pane does; running costs by its clock', async () => {
   // The emulators' loop is the one exception to the 10 fps loop (decisions.md): measured here
   // so a change that makes it expensive shows, and the clocks logged for the 32 MHz limit.

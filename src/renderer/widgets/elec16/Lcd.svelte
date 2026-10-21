@@ -37,9 +37,30 @@ interface Props {
   link: boolean
   /** A plain screen (PLAIN): no gaps between the dots, no shadows, no glass sunk in a case. */
   flat: boolean
+  /** The glass modelled in light (a relief skin): sunk, sealed, lit from above-left. */
+  relief: boolean
+  /** In a case of glass: the module seen through it, a light ring round its bezel. */
+  glassy: boolean
+  /** The unlit dots' strength, as a real LCD shows them; 0 for none. */
+  unlit: number
+  /** A reflection across the glass (relief), 0 to 1. */
+  glare: number
 }
 
-const { runner, colours, ghost, contrast, seen, scale, link, flat }: Props = $props()
+const {
+  runner,
+  colours,
+  ghost,
+  contrast,
+  seen,
+  scale,
+  link,
+  flat,
+  relief,
+  glassy,
+  unlit,
+  glare,
+}: Props = $props()
 
 let host = $state<HTMLDivElement | null>(null)
 let dotsCanvas = $state<HTMLCanvasElement | null>(null)
@@ -58,6 +79,14 @@ const grid = $derived(scale >= 3 && !flat)
 /** How far the shadow falls, in device pixels: past the gap, onto the ground beside. */
 const shadowAt = $derived(scale >= 3 && !flat ? Math.max(2, Math.round(scale / 4) + 1) : 0)
 const rgb = ([r, g, b]: readonly number[]): string => `rgb(${r} ${g} ${b})`
+/**
+ * The unlit dots: the dot's colour, faint, under the dots. The gaps' bitmap is drawn over it
+ * in the ground's colour, so it shows only where a dot is - a matrix that costs no drawing.
+ * Only with the gaps: without them it would be a flat tint.
+ */
+const unlitGround = $derived(
+  grid && unlit > 0 ? `rgb(${colours.dot.join(' ')} / ${unlit})` : undefined,
+)
 
 const painter = new LcdPainter()
 let dots: ImageData | null = null
@@ -220,6 +249,10 @@ const marks = $derived([
     <div
       class="glass"
       class:flat
+      class:relief
+      class:glassy
+      style:--lcd-dot={rgb(colours.dot)}
+      style:--lcd-glare={glare}
       style:padding="{GLASS.pad}px"
       style:gap="{GLASS.gap}px"
       style:border-width="{GLASS.bezel}px"
@@ -233,7 +266,7 @@ const marks = $derived([
           >
         {/each}
       </div>
-      <div class="stack" style:width="{css.w}px" style:height="{css.h}px">
+      <div class="stack" style:width="{css.w}px" style:height="{css.h}px" style:background={unlitGround}>
         <canvas
           class="shadow"
           bind:this={shadowCanvas}
@@ -281,6 +314,46 @@ const marks = $derived([
     inset 0 3px 8px rgb(0 0 0 / 0.18);
 }
 
+/*
+ * A relief glass: the bezel sunk into the case (a shadow on the case above it, a lit lip
+ * below), the LCD's dark seal just inside the bezel, the polariser a little darker at its
+ * edges, and a soft reflection over the whole glass from above-left. The ground itself stays
+ * one colour: the gaps' bitmap is drawn in it.
+ */
+.glass.relief {
+  position: relative;
+  box-shadow:
+    inset 0 0 14px rgb(0 0 0 / 0.07),
+    inset 0 0 0 1px color-mix(in srgb, var(--lcd-dot) 35%, transparent),
+    inset 0 5px 9px -3px rgb(0 0 0 / 0.32),
+    inset 0 -1px 0 rgb(255 255 255 / 0.1),
+    0 -1px 0 rgb(0 0 0 / 0.35),
+    0 1px 0 color-mix(in srgb, var(--e16-sheen) 80%, transparent);
+}
+
+.glass.relief::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    165deg,
+    rgb(255 255 255 / calc(var(--lcd-glare) * 1)) 0%,
+    rgb(255 255 255 / 0.02) 45%,
+    transparent 60%
+  );
+}
+
+.glass.glassy {
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.3),
+    inset 0 0 14px rgb(0 0 0 / 0.07),
+    inset 0 5px 9px -3px rgb(0 0 0 / 0.28),
+    0 0 0 1px rgb(255 255 255 / 0.22),
+    0 2px 8px rgb(0 0 0 / 0.18);
+}
+
 /* A plain screen: framed by the panels' rule, nothing sunk. */
 .glass.flat {
   box-shadow: inset 0 0 0 1px var(--panel-rule);
@@ -290,7 +363,8 @@ const marks = $derived([
   display: flex;
   gap: 0 0.7em;
   overflow: hidden;
-  font-family: var(--font-ui);
+  /* The skin's face where it prints in one face, else the UI's. */
+  font-family: var(--e16-print-font, var(--font-ui));
   font-size: var(--step--2);
   letter-spacing: var(--tracking-wide);
   line-height: 1.2;
