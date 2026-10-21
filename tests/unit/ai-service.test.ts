@@ -550,12 +550,44 @@ describe('a key and the address it was typed for', () => {
     expect(file().origins).toEqual({})
   })
 
-  it('binds a key kept before there were addresses to the first it is sent to', () => {
+  it('binds a key kept before there were addresses to its address at the start (issue 28)', () => {
+    // Bound to the first address it was sent to, a key went wherever a page that had changed
+    // the provider's address first asked for it.
     const { vault, file } = vaultOn()
     vault.set('openai', 'sk-old')
-    expect(vault.get('openai', 'https://api.openai.com')).toBe('sk-old')
+    vault.set('local', 'sk-local')
+    vault.set('gone', 'sk-gone')
+    vault.adopt([
+      { id: 'openai', origin: 'https://api.openai.com' },
+      { id: 'local', origin: null },
+    ])
     expect(file().origins).toEqual({ openai: 'https://api.openai.com' })
-    expect(vault.get('openai', 'https://other.example')).toBeNull()
+    expect(vault.get('openai', 'https://evil.example')).toBeNull()
+    expect(vault.get('openai', 'https://api.openai.com')).toBe('sk-old')
+    // A key with no address to take at the start is sent to none, and binds to none.
+    expect(vault.get('gone', 'https://evil.example')).toBeNull()
+    expect(vault.get('local', 'https://evil.example')).toBeNull()
+    expect(file().origins).toEqual({ openai: 'https://api.openai.com' })
+    expect(vault.storage('gone')).toBe('stored')
+  })
+
+  it('adopts nothing that already has its address, nor a key it does not hold', () => {
+    const { vault, file } = vaultOn()
+    vault.set('openai', 'sk-abc', 'https://api.openai.com')
+    let saves = 0
+    const counted = new KeyVault({
+      codec: stubCodec,
+      load: file,
+      save: () => {
+        saves += 1
+      },
+    })
+    counted.adopt([
+      { id: 'openai', origin: 'https://other.example' },
+      { id: 'missing', origin: 'https://api.example.com' },
+    ])
+    expect(saves).toBe(0)
+    expect(counted.get('openai', 'https://api.openai.com')).toBe('sk-abc')
   })
 
   it('holds a session key to its address too', () => {

@@ -31,7 +31,8 @@ export const KeyFileSchema = z.object({
    * Provider id -> the origin its key was typed for. A key goes only there: a provider whose
    * address was changed since (in the dialog, or settings.json by hand) is sent none until it is
    * typed again (found in review: the key went to whatever https host the address then named).
-   * A key written before there was such a thing takes the address it is first used with.
+   * A key written before there was such a thing takes its provider's address when main starts
+   * (`KeyVault.adopt`).
    */
   origins: z.record(z.string().regex(AI_PROVIDER_ID), z.string().max(2048)).default({}),
 })
@@ -125,11 +126,28 @@ export class KeyVault {
       // Encrypted on another account or machine: as good as no key.
       return null
     }
-    // A key from before addresses were kept is bound to the first it is sent to.
-    if (origin !== null && file.origins[id] === undefined) {
-      this.write({ ...file, origins: { ...file.origins, [id]: origin } })
-    }
+    // A key from before addresses were kept that `adopt` found no address for goes nowhere:
+    // bound to the first it was sent to, it went wherever a page that had changed the address
+    // first asked for it (issue 28).
+    if (origin !== null && file.origins[id] === undefined) return null
     return key
+  }
+
+  /**
+   * Binds each stored key kept before addresses were, with none yet, to its provider's address
+   * as settings.json has it when main starts - before any page could change it. A key with no
+   * address to take is kept, and sent to none until it is typed again.
+   */
+  adopt(providers: readonly { id: string; origin: string | null }[]): void {
+    const file = this.read()
+    const adopted: Record<string, string> = {}
+    for (const { id, origin } of providers) {
+      if (origin !== null && id in file.keys && file.origins[id] === undefined) {
+        adopted[id] = origin
+      }
+    }
+    if (Object.keys(adopted).length === 0) return
+    this.write({ ...file, origins: { ...file.origins, ...adopted } })
   }
 
   private read(): KeyFile {

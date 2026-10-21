@@ -115,6 +115,11 @@ export function registerAiIpc(settings: SettingsHandle): {
     load: keyFile.load,
     save: keyFile.save,
   })
+  // Keys from before addresses were kept take their providers' addresses as settings.json has
+  // them now, before any page has run.
+  vault.adopt(
+    settings.current().ai.providers.map((p) => ({ id: p.id, origin: aiOrigin(p.baseUrl) })),
+  )
 
   /** A provider's key, for a request to its address as the settings have it now. */
   const keyFor: KeyLookup = (id) => {
