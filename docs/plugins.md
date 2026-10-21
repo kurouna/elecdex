@@ -126,7 +126,9 @@ zod で検証し、id 重複・不正な権限・不正な設定定義はその�
 [prologue]  fetch / XMLHttpRequest / WebSocket / WebTransport / EventSource / importScripts /
             Worker / SharedWorker / indexedDB / caches / BroadcastChannel / RTCPeerConnection /
             Notification を
-            自身とプロトタイプの両方から消す。モジュール表と相対 require を用意
+            自身とプロトタイプの両方から消す。navigator.storage と navigator.locks も消し、
+            FontFace はバイト列からだけ作れるようにする（アドレスからは読まない）。
+            モジュール表と相対 require を用意
 [plugin]    sucrase 変換済みのモジュール表
 [runtime]   ctx を組み立て、ホストとのメッセージを処理
 ```

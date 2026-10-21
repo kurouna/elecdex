@@ -370,6 +370,80 @@ describe('stripping the worker global', () => {
       scope.fetch = () => 'again'
     }).toThrow()
   })
+
+  it('removes the storage and locks every worker of the page shares (issue 30)', () => {
+    // navigator.storage (the origin's private file system) and navigator.locks are the page's
+    // origin's, shared by every plugin: writes there met no grant.
+    class WorkerNavigator {
+      get storage() {
+        return { getDirectory: () => 'files' }
+      }
+      get locks() {
+        return { request: () => 'lock' }
+      }
+      get language() {
+        return 'en'
+      }
+    }
+    const navigator = new WorkerNavigator()
+    const scope = { navigator, postMessage: () => {} } as unknown as Record<string, unknown>
+    stripGlobals(scope)
+    const nav = scope.navigator as Record<string, unknown>
+    expect(nav.storage).toBeUndefined()
+    expect(nav.locks).toBeUndefined()
+    expect(nav.language).toBe('en')
+  })
+
+  it('lets a font be made of bytes only, never fetched from an address (issue 30)', () => {
+    const made: unknown[] = []
+    class FontFace {
+      constructor(_family: string, source: unknown) {
+        made.push(source)
+      }
+    }
+    const scope = { FontFace, postMessage: () => {} } as unknown as Record<string, unknown>
+    stripGlobals(scope)
+    const Face = scope.FontFace as new (family: string, source: unknown) => unknown
+    const bytes = new ArrayBuffer(4)
+    expect(new Face('Mono', bytes)).toBeInstanceOf(FontFace)
+    expect(new Face('Mono', new Uint8Array(4))).toBeInstanceOf(FontFace)
+    expect(() => new Face('Mono', 'url(file:///C:/Users/me/settings.json)')).toThrow(TypeError)
+    expect(() => new Face('Mono', { toString: () => 'url(https://x.example/f)' })).toThrow(
+      TypeError,
+    )
+    expect(made).toHaveLength(2)
+    expect(() => {
+      scope.FontFace = FontFace
+    }).toThrow()
+  })
+
+  it("still loads the app's faces, which arrive as bytes", async () => {
+    const added: unknown[] = []
+    class FontFace {
+      readonly source: unknown
+      constructor(_family: string, source: unknown) {
+        this.source = source
+      }
+      load() {
+        return Promise.resolve(this)
+      }
+    }
+    vi.stubGlobal('FontFace', FontFace)
+    try {
+      const p = run(
+        { 'index.ts': `export default { apiVersion: 2, id: 'x', title: 'X', view() {} }` },
+        'index.ts',
+        { FontFace, fonts: { add: (face: unknown) => added.push(face) } },
+      )
+      p.send({
+        t: 'fonts',
+        faces: [{ family: 'Mono', data: new ArrayBuffer(8), weight: '400', style: 'normal' }],
+      } as unknown as HostMessage)
+      expect(added).toHaveLength(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })
 
 describe('canvas, keys and sound (apiVersion 2)', () => {

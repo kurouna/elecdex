@@ -52,21 +52,45 @@ export function stripGlobals(scope: object): void {
     'RTCPeerConnection',
     'Notification',
   ]
-  for (const name of names) {
-    let proto: object | null = Object.getPrototypeOf(scope)
+  const strip = (target: object, name: string, value: unknown = undefined): void => {
+    let proto: object | null = Object.getPrototypeOf(target)
     while (proto !== null && proto !== Object.prototype) {
       try {
         Reflect.deleteProperty(proto, name)
       } catch {
-        // A property that will not go is shadowed on the global below.
+        // A property that will not go is shadowed on the object below.
       }
       proto = Object.getPrototypeOf(proto)
     }
     try {
-      Object.defineProperty(scope, name, { value: undefined, writable: false, configurable: false })
+      Object.defineProperty(target, name, { value, writable: false, configurable: false })
     } catch {
       // Already non-configurable: nothing more can be done from here.
     }
+  }
+  for (const name of names) strip(scope, name)
+
+  // The origin's private file system and its locks are the page's origin's, shared by every
+  // plugin's worker: what went through them met no grant (issue 30).
+  const navigator = (scope as { navigator?: unknown }).navigator
+  if (typeof navigator === 'object' && navigator !== null) {
+    strip(navigator, 'storage')
+    strip(navigator, 'locks')
+  }
+
+  // The runtime makes the app's faces of bytes the host posts; a face made from an address
+  // would be fetched, so only bytes are taken (issue 30).
+  const Face = (scope as { FontFace?: unknown }).FontFace
+  if (typeof Face === 'function') {
+    const Native = Face as new (family: string, source: unknown, descriptors?: unknown) => object
+    const BytesOnly = function FontFace(family: string, source: unknown, descriptors?: unknown) {
+      if (!(source instanceof ArrayBuffer || ArrayBuffer.isView(source))) {
+        throw new TypeError('a plugin font is made of bytes, not loaded from an address')
+      }
+      return new Native(family, source, descriptors)
+    }
+    BytesOnly.prototype = Native.prototype
+    strip(scope, 'FontFace', BytesOnly)
   }
 }
 
