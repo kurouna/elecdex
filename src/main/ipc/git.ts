@@ -15,7 +15,7 @@ import {
 } from '@shared/git'
 import { isSyncAction } from '@shared/git-sync'
 import { app, BrowserWindow, dialog, shell, type WebContents } from 'electron'
-import { launchPlan, resolveOnPath, runsWhenOpened } from '../git/open.js'
+import { launchPlan, openVerdict, resolveOnPath } from '../git/open.js'
 import { RepoCatalog } from '../git/repos.js'
 import { gitBytes, gitError, runGit } from '../git/run.js'
 import { GitService, type Watch } from '../git/service.js'
@@ -220,6 +220,35 @@ async function readText(file: string, max: number): Promise<string | 'too-large'
   }
 }
 
+/** How much of a file `openVerdict` looks at: git's own look for binary is 8000 bytes. */
+const HEAD_BYTES = 8000
+
+/** A file's first bytes, for `openVerdict`. */
+async function headOf(file: string): Promise<Uint8Array> {
+  try {
+    const handle = await openFile(file, 'r')
+    try {
+      const buffer = new Uint8Array(HEAD_BYTES)
+      const { bytesRead } = await handle.read(buffer, 0, HEAD_BYTES, 0)
+      return buffer.subarray(0, bytesRead)
+    } finally {
+      await handle.close()
+    }
+  } catch {
+    // Unreadable is not known to be text: a NUL makes it shown in its folder.
+    return Uint8Array.of(0)
+  }
+}
+
+/** A file's permission bits, or none when it has gone. */
+function modeOf(file: string): number {
+  try {
+    return statSync(file).mode
+  } catch {
+    return 0
+  }
+}
+
 /** Opens a file with the user's command, or with the system's own application. */
 async function openWith(
   template: string,
@@ -229,9 +258,12 @@ async function openWith(
 ): Promise<OpenResult> {
   const command = openCommand(template, { file, line, dir: root })
   if (command === null) {
-    if (runsWhenOpened(file, process.platform)) {
+    if (openVerdict(file, process.platform, await headOf(file), modeOf(file)) === 'reveal') {
       shell.showItemInFolder(file)
-      return { ok: false, message: 'it would run rather than open: shown in its folder instead' }
+      return {
+        ok: false,
+        message: 'not plain text, a picture or a PDF, or it would run: shown in its folder instead',
+      }
     }
     const error = await shell.openPath(file)
     return error === '' ? { ok: true } : { ok: false, message: error }

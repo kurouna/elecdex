@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
+import { sniffImage } from '@shared/git'
 
 /**
  * How the command the user set for opening a file is started.
@@ -112,6 +113,20 @@ const RUNS_ON: Record<string, readonly string[]> = {
     '.rbw',
     '.pl',
     '.ahk',
+    // Text the shell acts on when it is opened (issue 26): saved searches and libraries reach
+    // for a share (and offer the user's NTLM hash), themes and shortcuts name what to load,
+    // scriptlets and package installers run.
+    '.library-ms',
+    '.search-ms',
+    '.searchconnector-ms',
+    '.website',
+    '.theme',
+    '.themepack',
+    '.sct',
+    '.wsc',
+    '.ws',
+    '.appinstaller',
+    '.diagcab',
   ],
   darwin: [
     '.app',
@@ -123,6 +138,10 @@ const RUNS_ON: Record<string, readonly string[]> = {
     '.pkg',
     '.mpkg',
     '.jar',
+    // Finder's links to a file, a page or a server: opened, they go there (issue 26).
+    '.fileloc',
+    '.webloc',
+    '.inetloc',
   ],
   linux: ['.desktop', '.appimage', '.run', '.sh', '.jar', '.deb', '.rpm'],
 }
@@ -130,4 +149,40 @@ const RUNS_ON: Record<string, readonly string[]> = {
 export function runsWhenOpened(file: string, platform: NodeJS.Platform): boolean {
   const extension = path.extname(file).toLowerCase()
   return extension !== '' && (RUNS_ON[platform] ?? RUNS_ON.linux ?? []).includes(extension)
+}
+
+/**
+ * What OPEN does with a file of the working tree when no command is set (issue 26): opens it
+ * only when its first bytes are text, a picture or a PDF, and it is neither a kind the system
+ * would run nor, off Windows, marked executable; anything else is shown in its folder. A
+ * repository is anyone's: a file's name says nothing of what it is (`README.md` may be a
+ * compiled help file, `README` a script Finder runs in Terminal).
+ *
+ * `head`: the file's first bytes (a few kilobytes); `mode`: its permission bits.
+ */
+export function openVerdict(
+  file: string,
+  platform: NodeJS.Platform,
+  head: Uint8Array,
+  mode: number,
+): 'open' | 'reveal' {
+  if (runsWhenOpened(file, platform)) return 'reveal'
+  if (platform !== 'win32' && (mode & 0o111) !== 0) return 'reveal'
+  return looksText(head) || sniffImage(head) !== null || isPdf(head) ? 'open' : 'reveal'
+}
+
+const isPdf = (head: Uint8Array): boolean =>
+  head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46 // %PDF
+
+/** UTF-8 with no NUL (git's own test for binary), or UTF-16 by its byte order mark. */
+function looksText(head: Uint8Array): boolean {
+  if ((head[0] === 0xff && head[1] === 0xfe) || (head[0] === 0xfe && head[1] === 0xff)) return true
+  if (head.includes(0)) return false
+  try {
+    // Streamed, so a character cut by the end of the look is not taken for bad UTF-8.
+    new TextDecoder('utf-8', { fatal: true }).decode(head, { stream: true })
+    return true
+  } catch {
+    return false
+  }
 }

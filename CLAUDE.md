@@ -488,7 +488,9 @@ user made; do not reverse one without asking.
     it.
   - git always runs with `GIT_FLAGS` (main/git/run.ts) and the diff flags; repository filters are
     emptied (`filterGuard`); submodule trees are not read; `--no-optional-locks`.
-  - Without an open command, a file that would run (`runsWhenOpened`) is revealed instead.
+  - Without an open command, a file is opened only when its first bytes are text, a picture or
+    a PDF and it would not run (`openVerdict`: its extension, an execute bit off Windows);
+    anything else is revealed instead.
   - Diffs only for files of the last reading; open/reveal only inside the tree (`locate`).
   - `git.openCommand` is set in settings.json only, never by settings.patch; run as program and
     arguments, never a shell; `.cmd` via `cmd.exe` only with safe arguments (main/git/open.ts).

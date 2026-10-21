@@ -212,6 +212,50 @@ test('opens a double-clicked file with the command in settings, at its line', as
   }
 })
 
+test('opens text with no command set, and shows in its folder what is not text (issue 26)', async () => {
+  const repo = makeRepo()
+  // A compiled help file runs its scripts when opened, whatever it is named.
+  writeFileSync(
+    path.join(repo, 'README.chm'),
+    Buffer.from([0x49, 0x54, 0x53, 0x46, 3, 0, 0, 0, 0x60, 0, 0, 0]),
+  )
+  writeFileSync(path.join(repo, 'notes.md'), '# notes\n')
+  const { app, page, close } = await launch(undefined, {
+    layout: single,
+    settings: { sound: { enabled: false } },
+  })
+  try {
+    // The system's own open and reveal, stood in for: nothing on this machine is started.
+    await app.evaluate(({ shell }) => {
+      const seen: string[] = []
+      ;(globalThis as { __gitShell?: string[] }).__gitShell = seen
+      shell.openPath = async (file: string) => {
+        seen.push(`open ${file}`)
+        return ''
+      }
+      shell.showItemInFolder = (file: string) => {
+        seen.push(`reveal ${file}`)
+      }
+    })
+    const seen = () =>
+      app.evaluate(() => (globalThis as { __gitShell?: string[] }).__gitShell ?? [])
+    await watchRepo(page, app, repo)
+    for (const name of ['README.chm', 'notes.md']) {
+      await expect(page.locator(`[data-testid="git-file"][data-path="${name}"]`)).toBeVisible({
+        timeout: 10_000,
+      })
+    }
+    await page.locator('[data-testid="git-file"][data-path="README.chm"]').dblclick()
+    await expect.poll(seen).toEqual([expect.stringMatching(/^reveal .*README\.chm$/)])
+    await expect(page.getByText('Cannot open README.chm')).toBeVisible()
+    await page.locator('[data-testid="git-file"][data-path="notes.md"]').dblclick()
+    await expect.poll(async () => (await seen()).at(-1)).toMatch(/^open .*notes\.md$/)
+  } finally {
+    await close()
+    removeDir(repo)
+  }
+})
+
 test('stops watching when the pane goes, and says so when the folder is not a repository', async () => {
   const repo = makeRepo()
   const plain = mkdtempSync(path.join(tmpdir(), 'elecdex-notgit-'))

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { GitState } from '@shared/git'
 import { describe, expect, it } from 'vitest'
-import { launchPlan, resolveOnPath, runsWhenOpened } from '../../src/main/git/open.js'
+import { launchPlan, openVerdict, resolveOnPath, runsWhenOpened } from '../../src/main/git/open.js'
 import { GIT_FLAGS, type GitResult, killTree, runGit } from '../../src/main/git/run.js'
 import {
   FILTER_QUERY,
@@ -564,6 +564,74 @@ describe('starting the open command', () => {
     for (const file of ['README.md', 'a.ts', 'logo.png', 'Makefile']) {
       expect(runsWhenOpened(`C:\\w\\${file}`, 'win32')).toBe(false)
     }
+  })
+
+  describe('what OPEN opens, and what it only shows in its folder (issue 26)', () => {
+    const text = (s: string) => new TextEncoder().encode(s)
+    const READ = 0o644
+    const RUNS = 0o755
+
+    it('opens text, pictures and PDFs', () => {
+      expect(openVerdict('C:\\w\\README.md', 'win32', text('# hello\n'), READ)).toBe('open')
+      expect(openVerdict('C:\\w\\main.go', 'win32', text('package main // 日本語\n'), READ)).toBe(
+        'open',
+      )
+      expect(openVerdict('C:\\w\\Makefile', 'win32', text('all:\n\tgo build\n'), READ)).toBe('open')
+      expect(openVerdict('C:\\w\\empty.txt', 'win32', new Uint8Array(), READ)).toBe('open')
+      expect(openVerdict('C:\\w\\logo.png', 'win32', PNG, READ)).toBe('open')
+      expect(openVerdict('C:\\w\\spec.pdf', 'win32', text('%PDF-1.7\n%\xff'), READ)).toBe('open')
+      // A UTF-16 text file, as Windows' Notepad and PowerShell write them.
+      expect(
+        openVerdict('C:\\w\\notes.txt', 'win32', Uint8Array.of(0xff, 0xfe, 0x61, 0), READ),
+      ).toBe('open')
+      // A multi-byte character cut by the end of the look is still text.
+      expect(openVerdict('C:\\w\\a.txt', 'win32', text('日本').slice(0, 4), READ)).toBe('open')
+    })
+
+    it('shows in its folder what is not text, whatever its name says', () => {
+      // A compiled help file runs its scripts; an installer, a disk image or an add-in alike.
+      const chm = Uint8Array.of(0x49, 0x54, 0x53, 0x46, 3, 0, 0, 0, 0x60, 0, 0, 0)
+      for (const name of ['help.chm', 'app.msix', 'disk.iso', 'addin.xll', 'README.md', 'notes']) {
+        expect(openVerdict(`C:\\w\\${name}`, 'win32', chm, READ), name).toBe('reveal')
+      }
+      expect(openVerdict('/w/App.dmg', 'darwin', Uint8Array.of(0x78, 0xda, 0, 0x63), READ)).toBe(
+        'reveal',
+      )
+      expect(openVerdict('C:\\w\\bad.txt', 'win32', Uint8Array.of(0x61, 0xc3, 0x28), READ)).toBe(
+        'reveal',
+      )
+    })
+
+    it('shows in its folder text the system would run', () => {
+      for (const name of [
+        'saved.library-ms',
+        'find.search-ms',
+        'share.searchConnector-ms',
+        'site.website',
+        'dark.theme',
+        'pack.themepack',
+        'x.sct',
+        'x.wsc',
+        'x.ws',
+        'get.appinstaller',
+        'fix.diagcab',
+        'setup.bat',
+      ]) {
+        expect(openVerdict(`C:\\w\\${name}`, 'win32', text('<xml/>'), READ), name).toBe('reveal')
+      }
+      for (const name of ['go.fileloc', 'go.webloc', 'go.inetloc', 'run.command']) {
+        expect(openVerdict(`/w/${name}`, 'darwin', text('<plist/>'), READ), name).toBe('reveal')
+      }
+    })
+
+    it('shows in its folder a file marked executable, off Windows', () => {
+      // Finder's open runs an executable file in Terminal, whatever it is named.
+      expect(openVerdict('/w/README', 'darwin', text('#!/bin/sh\nrm -rf ~\n'), RUNS)).toBe('reveal')
+      expect(openVerdict('/w/notes.txt', 'linux', text('hello\n'), RUNS)).toBe('reveal')
+      expect(openVerdict('/w/README', 'darwin', text('hello\n'), READ)).toBe('open')
+      // Windows keeps no execute bit: git's mode there means nothing.
+      expect(openVerdict('C:\\w\\README', 'win32', text('hello\n'), RUNS)).toBe('open')
+    })
   })
 
   const exists = (known: string[]) => (file: string) => known.includes(file)
