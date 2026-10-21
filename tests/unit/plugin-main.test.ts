@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { PluginFolder, TYPES_FILE } from '@main/plugins/folder'
+import { checkNoImport, PluginFolder, TYPES_FILE, transformFile } from '@main/plugins/folder'
 import { PluginNet, type PluginNetDeps, responseHeaders } from '@main/plugins/net'
 import { PluginStorage } from '@main/plugins/storage'
 import { grantFor, NO_PERMISSIONS, PLUGIN_LIMITS } from '@shared/plugins'
@@ -316,5 +316,50 @@ describe('plugin storage', () => {
     const value = store.load('p')
     expect(Object.getPrototypeOf(value)).toBe(Object.prototype)
     expect(value).toEqual({ 'timer.v1': 1 })
+  })
+})
+
+describe("a plugin's code after the transform (issue 29)", () => {
+  // A plugin's worker inherits the page's CSP, and the page is a file:// document: an import()
+  // that got past the transform could load any file on the disk (plugin-containment.spec.ts
+  // shows the platform allows it). The transform turns every import() it sees into require;
+  // what is left after it is refused.
+  const transformed = (source: string, file = 'index.ts') => transformFile({ path: file, source })
+
+  it('turns what it sees into require, and takes that', () => {
+    expect(transformed(`export const later = () => import('./more.js')`)).not.toMatch(
+      /\bimport\s*\(/,
+    )
+    expect(transformed(`const o = { import: 1 }; o.import(2)`)).toContain('o.import(2)')
+  })
+
+  it('refuses a dynamic import, or its shape, left in the code', () => {
+    for (const left of [
+      'import(',
+      'import (',
+      'import /* a */ (',
+      'import // a\n(',
+      'x = import\n(',
+      ';import(',
+    ]) {
+      expect(() => checkNoImport(`const a = 1\n${left}"file:///C:/secret.json")`), left).toThrow(
+        /import/,
+      )
+    }
+    // A property named import is not one. A method of that name is refused with them: from the
+    // text alone it cannot be told from a call.
+    for (const fine of [
+      'o.import(1)',
+      'o?.import(1)',
+      'importer(1)',
+      'reimport(1)',
+      '$import(1)',
+    ]) {
+      expect(() => checkNoImport(fine), fine).not.toThrow()
+    }
+  })
+
+  it('names the file it refused', () => {
+    expect(() => checkNoImport('import ("x")', 'lib/a.ts')).toThrow(/lib\/a\.ts/)
   })
 })

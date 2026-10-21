@@ -88,6 +88,7 @@ export default {
   **省略するとボタンも出ず、ショートカットも効かない**（数値がいくつか並ぶだけのペインはこれが正しい）
 - `view` は必須、`service` は任意
 - 値の import はフォルダ内の相対パスだけ。`require`・パッケージ名・フォルダ外は実行時に throw
+- 動的な `import()` は書かない。変換が require に直すが、変換の後に `import` と `(` の形（間に空白とコメントだけ。文字列やコメントの中でも、`import` という名のメソッドでも）が残っていれば、そのプラグインは読まない（`checkNoImport`、issue 29。ページが file:// なので、Worker からの `import()` はディスクのどのファイルも読めてしまう）
 - `apiVersion` がこのビルドより新しいものは読まずに「新しい elecdex が必要」と表示。canvas・keys・sound を使うなら 2（§13）
 
 ---
@@ -102,6 +103,7 @@ export default {
    - `lstat` で**通常ファイルとフォルダのみ**（symlink を追わない）
    - 1 プラグイン合計 **1 MiB 超は読まない**
    - 各ファイルを sucrase（`transforms: ['typescript', 'imports']`）で CJS に変換し、`{ "<相対パス>": function (module, exports, require) {…} }` の表にまとめる（ファイル名は `JSON.stringify` で埋める）
+   - 変換後に動的な import の形が残るファイルは断る（`checkNoImport`）
    - 失敗はプラグイン単位で隔離し、他を止めない
 4. フォルダを再帰で監視（300 ms デバウンス）し、変わったら全体を再走査して、中身のハッシュが変わったものだけ renderer が再起動する
 5. **main はコードを実行しない**

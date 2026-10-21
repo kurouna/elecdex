@@ -189,10 +189,33 @@ export function transformFile(file: SourceFile): string {
   const transforms: Array<'typescript' | 'imports'> = file.path.endsWith('.ts')
     ? ['typescript', 'imports']
     : ['imports']
+  let code: string
   try {
-    return transform(file.source, { transforms, filePath: file.path }).code
+    code = transform(file.source, { transforms, filePath: file.path }).code
   } catch (error) {
     throw new Error(`${file.path}: ${message(error)}`)
+  }
+  checkNoImport(code, file.path)
+  return code
+}
+
+/**
+ * `import`, then only spaces and comments, then `(`: a dynamic import's shape, not as a property
+ * (`o.import(`) or part of a longer name.
+ */
+const DYNAMIC_IMPORT = /(?<![.\w$])import(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\n]*\n)*\(/
+
+/**
+ * Refuses code that still holds a dynamic import (issue 29). A plugin's worker inherits the
+ * page's CSP, and the page is a file:// document, so an import() that got past the transform -
+ * which turns every one it sees into require - could load any file on the disk
+ * (plugin-containment.spec.ts shows the platform lets it). Its shape is refused wherever it
+ * stands, a string or a comment too, and a method named import with it: from the text alone
+ * neither can be told from a call.
+ */
+export function checkNoImport(code: string, file = 'index.ts'): void {
+  if (DYNAMIC_IMPORT.test(code)) {
+    throw new Error(`${file}: a dynamic import() is not allowed in a plugin; use a static import`)
   }
 }
 
