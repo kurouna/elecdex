@@ -9,6 +9,7 @@ import {
   pickerAnswers,
   powerNote,
   removeDir,
+  savedLayout,
   settleLayout,
   zoomSettled,
 } from './support.js'
@@ -884,6 +885,9 @@ test('the line between the library list and the details is dragged, kept, and pu
     await page.mouse.up()
     const after = await width(page)
     expect(after).toBeGreaterThan(before + 100)
+    // Relaunched only once main has written the share: on the Linux runner a quit right after
+    // the release once beat the layout's save, and the list came back at half.
+    await expect.poll(() => savedLayout(profile) ?? '').toContain('"listShare"')
 
     launched = await launched.relaunch()
     await designSize(launched.app, launched.page)
