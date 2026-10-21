@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { emptyState, type GitState } from '@shared/git'
 import {
   type GitSyncResult,
@@ -15,7 +19,7 @@ import {
   TRANSPORT_PROGRAM_KEYS,
 } from '@shared/git-sync'
 import { describe, expect, it } from 'vitest'
-import type { GitResult } from '../../src/main/git/run.js'
+import { type GitResult, runGit } from '../../src/main/git/run.js'
 import { GitSync } from '../../src/main/git/sync.js'
 
 /**
@@ -142,7 +146,15 @@ describe('GitSync', () => {
       '-c',
       'core.hooksPath=/app/git-no-hooks',
       '-c',
-      'protocol.ext.allow=never',
+      'protocol.allow=never',
+      '-c',
+      'protocol.https.allow=always',
+      '-c',
+      'protocol.http.allow=always',
+      '-c',
+      'protocol.ssh.allow=always',
+      '-c',
+      'protocol.git.allow=always',
       'pull',
       '--ff-only',
       '--no-rebase',
@@ -177,8 +189,8 @@ describe('GitSync', () => {
       message: '',
     })
     expect(calls[0]?.args).toContain('core.hooksPath=/app/git-no-hooks')
-    expect(calls[0]?.args).toContain('protocol.ext.allow=never')
-    expect(calls[0]?.args.slice(6)).toEqual(['fetch', '--no-recurse-submodules'])
+    expect(calls[0]?.args).toContain('protocol.allow=never')
+    expect(calls[0]?.args.slice(14)).toEqual(['fetch', '--no-recurse-submodules'])
     expect(calls[1]?.args).toContain('HEAD..@{upstream}')
   })
 
@@ -201,17 +213,21 @@ describe('GitSync', () => {
     })
   })
 
+  /** `git config --get-regexp --show-scope -z` as git prints it: scope, NUL, key, newline, value, NUL. */
+  const entries = (...list: [scope: string, key: string, value: string][]) =>
+    list.map(([scope, key, value]) => `${scope}\0${key}\n${value}\0`).join('')
+
   it("refuses a press while the repository's own config names a transport program", async () => {
     // Found in a security review: a repository handed over as a folder brings its .git/config,
     // and core.sshCommand, a `!` credential helper or remote.<name>.uploadpack there ran on the
     // press as the transport.
     const named = answer(
-      [
-        'global\tcredential.helper',
-        'local\tcore.sshcommand',
-        'local\tremote.origin.uploadpack',
-        'worktree\tcredential.https://example.com.helper',
-      ].join('\n'),
+      entries(
+        ['global', 'credential.helper', '!global-helper'],
+        ['local', 'core.sshcommand', 'ssh -o ProxyCommand=evil'],
+        ['local', 'remote.origin.uploadpack', 'evil'],
+        ['worktree', 'credential.https://example.com.helper', '!evil'],
+      ),
     )
     for (const action of ['fetch', 'pull', 'push'] as const) {
       const { sync, calls, looks } = harness(readState({ ahead: 1 }), () => answer('1\n'), named)
@@ -222,7 +238,7 @@ describe('GitSync', () => {
       )
       expect(result.message).not.toContain('credential.helper,')
       expect(looks).toHaveLength(1)
-      expect(looks[0]).toEqual(expect.arrayContaining(['--show-scope', '--name-only']))
+      expect(looks[0]).toEqual(expect.arrayContaining(['--show-scope', '-z']))
       expect(looks[0]).toContain('core.hooksPath=/app/git-no-hooks')
       expect(calls).toEqual([])
     }
@@ -232,7 +248,12 @@ describe('GitSync', () => {
     const own = harness(
       readState(),
       (args) => (args.includes('rev-list') ? answer('0\n') : answer()),
-      answer('global\tcore.sshcommand\nsystem\tcredential.helper\n'),
+      answer(
+        entries(
+          ['global', 'core.sshcommand', 'ssh -i ~/.ssh/work'],
+          ['system', 'credential.helper', 'manager'],
+        ),
+      ),
     )
     expect((await own.sync.run(ID, 'fetch')).code).toBe('fetched')
     const broken = harness(readState(), () => answer(), {
@@ -246,30 +267,82 @@ describe('GitSync', () => {
     expect(slow.calls).toEqual([])
   })
 
+  it("takes a repository's own credential helper that is one of git's, by name (review)", async () => {
+    // Found in review: every local helper was refused, though only a `!` command or a path to a
+    // program runs one of the repository's choosing; a name is git's own git-credential-<name>.
+    for (const value of ['store', 'cache --timeout=60', 'manager', '']) {
+      const { sync } = harness(
+        readState(),
+        (args) => (args.includes('rev-list') ? answer('0\n') : answer()),
+        answer(entries(['local', 'credential.helper', value])),
+      )
+      expect((await sync.run(ID, 'fetch')).code, JSON.stringify(value)).toBe('fetched')
+    }
+    // git runs `git credential-<value>` through a shell, and a name it does not ship falls back
+    // to an alias the repository may define (both found in review, in a real git): only a
+    // helper git ships, with plain options, is taken.
+    for (const value of [
+      '!evil',
+      '  !evil',
+      '/tmp/evil',
+      './evil',
+      'C:\\evil.exe',
+      '..\\evil',
+      'store; echo injected',
+      'store $(evil)',
+      'cache `evil`',
+      'store --file=a|b',
+      'store > out',
+      'nosuchhelper',
+      'store\n!evil',
+    ]) {
+      const { sync } = harness(
+        readState(),
+        () => answer(),
+        answer(entries(['local', 'credential.https://x.example.helper', value])),
+      )
+      expect((await sync.run(ID, 'fetch')).code, value).toBe('refused')
+    }
+  })
+
   it('reads the transport keys of the repository alone', () => {
     expect(
       repoTransportPrograms(
-        'system\tcore.askpass\nlocal\tcore.gitproxy\r\nlocal\tcore.gitproxy\nworktree\tremote.a b.vcs\n',
+        entries(
+          ['system', 'core.askpass', 'x'],
+          ['local', 'core.gitproxy', 'evil'],
+          ['local', 'core.gitproxy', 'evil'],
+          ['worktree', 'remote.a b.vcs', 'evil'],
+          ['local', 'core.alternaterefscommand', 'evil'],
+        ),
       ),
-    ).toEqual(['core.gitproxy', 'remote.a b.vcs'])
+    ).toEqual(['core.alternaterefscommand', 'core.gitproxy', 'remote.a b.vcs'])
+    // A value with a newline of its own is still one value: -z ends each entry with a NUL.
+    expect(repoTransportPrograms(entries(['local', 'core.sshcommand', 'a\nlocal\tb']))).toEqual([
+      'core.sshcommand',
+    ])
     const keys = new RegExp(TRANSPORT_PROGRAM_KEYS)
     for (const key of [
       'core.sshcommand',
       'core.gitproxy',
       'core.askpass',
+      'core.alternaterefscommand',
+      'alias.credential-nosuchhelper',
+      'alias.remote-foo',
       'credential.helper',
       'credential.https://example.com.helper',
       'remote.origin.uploadpack',
       'remote.origin.receivepack',
       'remote.my.remote.vcs',
     ]) {
-      expect(keys.test(key)).toBe(true)
+      expect(keys.test(key), key).toBe(true)
     }
     for (const key of [
       'core.editor',
       'credential.username',
       'remote.origin.url',
       'core.sshcommandx',
+      'alias.st',
     ]) {
       expect(keys.test(key)).toBe(false)
     }
@@ -404,7 +477,15 @@ describe('PUSH', () => {
       '-c',
       'core.hooksPath=/app/git-no-hooks',
       '-c',
-      'protocol.ext.allow=never',
+      'protocol.allow=never',
+      '-c',
+      'protocol.https.allow=always',
+      '-c',
+      'protocol.http.allow=always',
+      '-c',
+      'protocol.ssh.allow=always',
+      '-c',
+      'protocol.git.allow=always',
       'push',
       '--porcelain',
       '--no-verify',
@@ -536,5 +617,110 @@ describe('what the buttons say', () => {
       'danger',
     ])
     expect(SYNC_BUSY).toEqual({ fetch: 'FETCHING', pull: 'PULLING', push: 'PUSHING' })
+  })
+})
+
+describe('FETCH and PUSH in a real git, against what a handed-over repository brings', () => {
+  /** A repository and an empty hooks folder in a fresh temp folder; `ran` is the trap's mark. */
+  function world() {
+    const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-sync-'))
+    const repo = path.join(dir, 'repo')
+    const hooks = path.join(dir, 'no-hooks')
+    mkdirSync(repo)
+    mkdirSync(hooks)
+    const git = (cwd: string, ...args: string[]) =>
+      execFileSync('git', args, { cwd, stdio: 'pipe' }).toString()
+    git(repo, 'init', '-q', '-b', 'main')
+    git(repo, 'config', 'user.name', 'test')
+    git(repo, 'config', 'user.email', 'test@example.invalid')
+    writeFileSync(path.join(repo, 'a.txt'), 'one\n')
+    git(repo, 'add', 'a.txt')
+    git(repo, 'commit', '-qm', 'one')
+    const ran = path.join(dir, 'ran')
+    const trap = `touch "${ran.replace(/\\/g, '/')}"; true`
+    const sync = (state: GitState) =>
+      new GitSync({
+        run: runGit,
+        target: () => ({ path: repo, guard: [], state }),
+        moved: () => {},
+        hooksDir: () => hooks,
+      })
+    return { dir, repo, ran, trap, git, sync }
+  }
+
+  it("runs no core.alternateRefsCommand of the repository's own (review)", async () => {
+    // Found in review: fetch-pack runs it from the local config, through a shell.
+    const w = world()
+    try {
+      const remote = path.join(w.dir, 'remote.git')
+      w.git(w.dir, 'clone', '-q', '--bare', w.repo, remote)
+      w.git(w.repo, 'remote', 'add', 'origin', 'https://127.0.0.1:9/none.git')
+      w.git(w.repo, 'config', 'core.alternateRefsCommand', w.trap)
+      writeFileSync(
+        path.join(w.repo, '.git', 'objects', 'info', 'alternates'),
+        `${remote}/objects\n`,
+      )
+      const result = await w.sync(readState()).run(ID, 'fetch')
+      expect(result.code).toBe('refused')
+      expect(result.message).toContain('core.alternaterefscommand')
+      expect(existsSync(w.ran)).toBe(false)
+    } finally {
+      rmSync(w.dir, { recursive: true, force: true })
+    }
+  })
+
+  it('runs no remote helper the repository names through a URL or an alias (review)', async () => {
+    // Found in review: a remote `foo::bar` ran git-remote-foo, which a local alias.remote-foo
+    // could supply; url.<base>.insteadOf can make such a URL of any remote.
+    const w = world()
+    try {
+      w.git(w.repo, 'remote', 'add', 'origin', 'https://127.0.0.1:9/none.git')
+      w.git(w.repo, 'config', 'url.foo::bar/.insteadOf', 'https://127.0.0.1:9/')
+      w.git(w.repo, 'config', 'alias.remote-foo', `!${w.trap}`)
+      const result = await w.sync(readState()).run(ID, 'fetch')
+      expect(result.code).not.toBe('fetched')
+      expect(existsSync(w.ran)).toBe(false)
+    } finally {
+      rmSync(w.dir, { recursive: true, force: true })
+    }
+  })
+
+  it('runs no credential helper the repository supplies through an alias (review)', async () => {
+    const w = world()
+    try {
+      w.git(w.repo, 'remote', 'add', 'origin', 'https://127.0.0.1:9/none.git')
+      w.git(w.repo, 'config', 'credential.helper', 'nosuchhelper')
+      w.git(w.repo, 'config', 'alias.credential-nosuchhelper', `!${w.trap}`)
+      const result = await w.sync(readState()).run(ID, 'fetch')
+      expect(result.code).toBe('refused')
+      expect(existsSync(w.ran)).toBe(false)
+    } finally {
+      rmSync(w.dir, { recursive: true, force: true })
+    }
+  })
+
+  it('never pushes to a remote on this machine, whose own hooks would run (review)', async () => {
+    // Found in review: a remote that is a folder runs its own pre-receive hook on a push, and
+    // nothing given to this git reaches that one.
+    const w = world()
+    try {
+      const remote = path.join(w.dir, 'remote.git')
+      w.git(w.dir, 'clone', '-q', '--bare', w.repo, remote)
+      writeFileSync(path.join(remote, 'hooks', 'pre-receive'), `#!/bin/sh\n${w.trap}\n`, {
+        mode: 0o755,
+      })
+      w.git(w.repo, 'remote', 'add', 'origin', remote)
+      w.git(w.repo, 'fetch', '-q', 'origin')
+      w.git(w.repo, 'branch', '-q', '--set-upstream-to=origin/main')
+      writeFileSync(path.join(w.repo, 'a.txt'), 'two\n')
+      w.git(w.repo, 'commit', '-qam', 'two')
+      const result = await w.sync(readState({ ahead: 1 })).run(ID, 'push')
+      expect(result.code).not.toBe('pushed')
+      expect(existsSync(w.ran)).toBe(false)
+      // The same for a fetch from it.
+      expect((await w.sync(readState()).run(ID, 'fetch')).code).not.toBe('fetched')
+    } finally {
+      rmSync(w.dir, { recursive: true, force: true })
+    }
   })
 })

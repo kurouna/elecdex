@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
@@ -9,6 +9,8 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
@@ -646,6 +648,82 @@ test('puts two wide images one above the other in a tall, narrow diff, and side 
   }
 })
 
+/**
+ * Serves the bare repositories in `root` over git's smart HTTP protocol, through
+ * `git http-backend` run as a CGI for each request. The pane never syncs with a remote that is a
+ * folder on this machine (its hooks would run on the other side: protocol.file.allow=never), so
+ * the tests give the clone it shows an http remote. `git daemon` would be simpler, but a push
+ * through it hangs on Windows.
+ */
+async function serveOverHttp(
+  root: string,
+): Promise<{ url: (repo: string) => string; stop: () => void }> {
+  const server = createServer((request, response) => {
+    const url = new URL(request.url ?? '/', 'http://127.0.0.1')
+    const cgi = spawn('git', ['http-backend'], {
+      env: {
+        ...process.env,
+        GIT_PROJECT_ROOT: root,
+        GIT_HTTP_EXPORT_ALL: '1',
+        REQUEST_METHOD: request.method ?? 'GET',
+        PATH_INFO: decodeURIComponent(url.pathname),
+        QUERY_STRING: url.search.slice(1),
+        CONTENT_TYPE: request.headers['content-type'] ?? '',
+        // git gzips a large upload-pack request, and says which protocol version it speaks.
+        HTTP_CONTENT_ENCODING: request.headers['content-encoding'] ?? '',
+        GIT_PROTOCOL: String(request.headers['git-protocol'] ?? ''),
+        // A user, so http-backend lets a push through (receive-pack is on for one by default).
+        REMOTE_USER: 'test',
+        REMOTE_ADDR: '127.0.0.1',
+      },
+      stdio: ['pipe', 'pipe', 'ignore'],
+      windowsHide: true,
+    })
+    let head = Buffer.alloc(0)
+    let started = false
+    // A CGI that could not start, or ended before its headers: an answer, never a hang.
+    const fail = (): void => {
+      if (started || response.headersSent) return
+      started = true
+      response.writeHead(502)
+      response.end()
+    }
+    cgi.on('error', fail)
+    cgi.on('close', fail)
+    cgi.stdin.on('error', () => {})
+    request.pipe(cgi.stdin)
+    cgi.stdout.on('data', (chunk: Buffer) => {
+      if (started) {
+        response.write(chunk)
+        return
+      }
+      head = Buffer.concat([head, chunk])
+      // A CGI ends its headers with a blank line, CRLF or LF.
+      const blank = /\r?\n\r?\n/.exec(head.toString('latin1'))
+      if (blank === null) return
+      const end = blank.index
+      started = true
+      let status = 200
+      for (const line of head.subarray(0, end).toString().split(/\r?\n/)) {
+        const colon = line.indexOf(':')
+        const name = line.slice(0, colon).trim()
+        const value = line.slice(colon + 1).trim()
+        if (name.toLowerCase() === 'status') status = Number.parseInt(value, 10)
+        else response.setHeader(name, value)
+      }
+      response.writeHead(status)
+      response.write(head.subarray(end + blank[0].length))
+    })
+    cgi.stdout.on('end', () => response.end())
+  })
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const port = (server.address() as AddressInfo).port
+  return {
+    url: (repo) => `http://127.0.0.1:${port}/${repo}`,
+    stop: () => server.close(),
+  }
+}
+
 test('fetches and pulls fast-forward only on two presses, running none of the repository hooks', async () => {
   // A remote, a clone the pane shows, and another clone that moves the remote on.
   const source = makeRepo()
@@ -684,6 +762,8 @@ test('fetches and pulls fast-forward only on two presses, running none of the re
   git(work, 'update-ref', 'refs/heads/armed', 'HEAD')
   expect(existsSync(marker)).toBe(true)
   rmSync(marker)
+  const http = await serveOverHttp(root)
+  git(work, 'remote', 'set-url', 'origin', http.url('origin.git'))
 
   const { app, page, close } = await launch(undefined, { layout: single })
   try {
@@ -735,6 +815,7 @@ test('fetches and pulls fast-forward only on two presses, running none of the re
     expect(existsSync(marker) ? readFileSync(marker, 'utf8') : '').toBe('')
   } finally {
     await close()
+    http.stop()
     removeDir(root)
     removeDir(source)
   }
@@ -782,6 +863,8 @@ test('pushes the branch onto its upstream alone on two presses, never forced, ru
   git(work, 'config', 'core.hooksPath', '.husky')
   commit(work, 'local commit')
   git(work, '-c', `core.hooksPath=${none}`, 'tag', '-a', '-m', 'v1', 'v1')
+  const http = await serveOverHttp(root)
+  git(work, 'remote', 'set-url', 'origin', http.url('origin.git'))
 
   const { app, page, close } = await launch(undefined, { layout: single })
   try {
@@ -825,6 +908,7 @@ test('pushes the branch onto its upstream alone on two presses, never forced, ru
     expect(existsSync(marker) ? readFileSync(marker, 'utf8') : '').toBe('')
   } finally {
     await close()
+    http.stop()
     removeDir(root)
     removeDir(source)
   }

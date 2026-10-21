@@ -223,29 +223,20 @@ async function readText(file: string, max: number): Promise<string | 'too-large'
 /** How much of a file `openVerdict` looks at: git's own look for binary is 8000 bytes. */
 const HEAD_BYTES = 8000
 
-/** A file's first bytes, for `openVerdict`. */
-async function headOf(file: string): Promise<Uint8Array> {
+/** A file's first bytes and its permission bits, for `openVerdict`, from one opening of it. */
+async function factsOf(file: string): Promise<{ head: Uint8Array; mode: number }> {
   try {
     const handle = await openFile(file, 'r')
     try {
       const buffer = new Uint8Array(HEAD_BYTES)
       const { bytesRead } = await handle.read(buffer, 0, HEAD_BYTES, 0)
-      return buffer.subarray(0, bytesRead)
+      return { head: buffer.subarray(0, bytesRead), mode: (await handle.stat()).mode }
     } finally {
       await handle.close()
     }
   } catch {
     // Unreadable is not known to be text: a NUL makes it shown in its folder.
-    return Uint8Array.of(0)
-  }
-}
-
-/** A file's permission bits, or none when it has gone. */
-function modeOf(file: string): number {
-  try {
-    return statSync(file).mode
-  } catch {
-    return 0
+    return { head: Uint8Array.of(0), mode: 0 }
   }
 }
 
@@ -258,7 +249,8 @@ async function openWith(
 ): Promise<OpenResult> {
   const command = openCommand(template, { file, line, dir: root })
   if (command === null) {
-    if (openVerdict(file, process.platform, await headOf(file), modeOf(file)) === 'reveal') {
+    const { head, mode } = await factsOf(file)
+    if (openVerdict(file, process.platform, head, mode) === 'reveal') {
       shell.showItemInFolder(file)
       return {
         ok: false,

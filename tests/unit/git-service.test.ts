@@ -40,7 +40,7 @@ interface Harness {
   /** Each status call takes the next of these, if any, and answers only once it settles. */
   holds: Promise<void>[]
   /** The repository's config as `git config --get-regexp` prints it. */
-  config: { output: string }
+  config: { output: string; answer?: GitResult }
   /** Every watch fails, as a watcher's error event closes it. */
   lose(): void
   /** Whether git can be found; false makes every call fail as a missing git does. */
@@ -74,7 +74,7 @@ function harness(
   const listeners: ((relative: string) => void)[] = []
   const losers: (() => void)[] = []
   const holds: Promise<void>[] = []
-  const config = { output: options.config ?? '' }
+  const config: { output: string; answer?: GitResult } = { output: options.config ?? '' }
   const published: GitState[] = []
   const calls: string[][] = []
   const status = { output: '# branch.oid aaaaaaa\0# branch.head main\0' }
@@ -100,7 +100,7 @@ function harness(
       if (!git.present) return { ok: false, stdout: '', stderr: '', missing: true, tooLarge: false }
       const command = commandOf(args)
       if (command === 'rev-parse') return ok(`${path.join(ROOT, '.git')}\n`)
-      if (command === 'config') return ok(config.output)
+      if (command === 'config') return config.answer ?? ok(config.output)
       if (command === 'status') {
         // What git saw is what was there when it started, however late it answers.
         const seen = status.output
@@ -410,6 +410,45 @@ describe('the git service', () => {
     expect(statusCalls(h.calls)).toBe(before + 1)
   })
 
+  it('reads nothing while the config cannot be read, and goes on once it can (review)', async () => {
+    // Found in review: a config git could not read left the guard empty, and the repository's
+    // own filters ran on the reading after it.
+    const h = harness({ config: LOCAL_FILTER })
+    h.config.answer = {
+      ok: false,
+      stdout: '',
+      stderr: 'fatal: bad config line 7 in file .git/config',
+      missing: false,
+      tooLarge: false,
+    }
+    h.service.watch(ID)
+    await h.advance(0)
+    expect(statusCalls(h.calls)).toBe(0)
+    expect(h.published.at(-1)).toMatchObject({ problem: 'failed', message: /bad config line 7/ })
+    // Nothing set is not a failure: git answers exit 1 with nothing said.
+    h.config.answer = { ok: false, stdout: '', stderr: '', missing: false, tooLarge: false }
+    await h.advance(RETRY_MS)
+    expect(statusCalls(h.calls)).toBe(1)
+  })
+
+  it('stops reading when the config goes bad while the pane is open', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    const before = statusCalls(h.calls)
+    h.config.answer = {
+      ok: false,
+      stdout: '',
+      stderr: 'fatal: bad config',
+      missing: false,
+      tooLarge: false,
+    }
+    h.fire(path.join('.git', 'config'))
+    await h.advance(2000)
+    expect(statusCalls(h.calls)).toBe(before)
+    expect(h.published.at(-1)).toMatchObject({ problem: 'failed' })
+  })
+
   it('asks for the filters again when the config changes, and empties a new one', async () => {
     // Found in review: the guard was made once at the start, so a filter added while the pane
     // was open (git lfs install --local) ran on the next reading.
@@ -597,9 +636,6 @@ describe('starting the open command', () => {
       expect(openVerdict('/w/App.dmg', 'darwin', Uint8Array.of(0x78, 0xda, 0, 0x63), READ)).toBe(
         'reveal',
       )
-      expect(openVerdict('C:\\w\\bad.txt', 'win32', Uint8Array.of(0x61, 0xc3, 0x28), READ)).toBe(
-        'reveal',
-      )
     })
 
     it('shows in its folder text the system would run', () => {
@@ -622,6 +658,66 @@ describe('starting the open command', () => {
       for (const name of ['go.fileloc', 'go.webloc', 'go.inetloc', 'run.command']) {
         expect(openVerdict(`/w/${name}`, 'darwin', text('<plist/>'), READ), name).toBe('reveal')
       }
+    })
+
+    it('opens text in any encoding, not only UTF-8 (review)', () => {
+      // Found in review: Shift_JIS, EUC-JP and Windows-1252 text was only shown in its folder.
+      const sjis = Uint8Array.of(0x93, 0xfa, 0x96, 0x7b, 0x8c, 0xea, 0x0d, 0x0a) // 日本語
+      const eucjp = Uint8Array.of(0xc6, 0xfc, 0xcb, 0xdc, 0xb8, 0xec, 0x0a)
+      for (const head of [sjis, eucjp, Uint8Array.of(0x63, 0x61, 0x66, 0xe9)]) {
+        expect(openVerdict('C:\\w\\notes.txt', 'win32', head, READ)).toBe('open')
+        expect(openVerdict('/w/notes.txt', 'linux', head, READ)).toBe('open')
+      }
+    })
+
+    it('on Windows opens only kinds it knows to be text, pictures or PDFs (review)', () => {
+      // Found in review: Windows picks the program by the name, so text named .doc, .xls or
+      // .iqy opened in Office, with its macros and links.
+      const looksLikeText = new TextEncoder().encode('{\\rtf1 <html> ID;P\n')
+      for (const name of [
+        'report.doc',
+        'sheet.xls',
+        'note.rtf',
+        'data.slk',
+        'query.iqy',
+        'page.mht',
+        'list.csv',
+        'office.xml',
+        'thing.xyz',
+        // A disk image mounts, past the mark of the web; scripts some installers run (review).
+        'disk.vhd',
+        'run.lua',
+        'run.hs',
+        'run.groovy',
+      ]) {
+        expect(openVerdict(`C:\\w\\${name}`, 'win32', looksLikeText, READ), name).toBe('reveal')
+      }
+      for (const name of [
+        'README.md',
+        'main.go',
+        'app.svelte',
+        'style.scss',
+        'config.yaml',
+        '.gitignore',
+        'Dockerfile',
+        'LICENSE',
+        'diagram.svg',
+        // Everyday files that were only shown in their folder (review).
+        'go.mod',
+        'go.sum',
+        'types.pyi',
+        'api.http',
+        'page.hbs',
+        'shader.wgsl',
+        'BUILD.bzl',
+        'app.js.map',
+        'hook.sample',
+        '.env',
+      ]) {
+        expect(openVerdict(`C:\\w\\${name}`, 'win32', looksLikeText, READ), name).toBe('open')
+      }
+      // Off Windows the program is picked by what the file is, and these open as text.
+      expect(openVerdict('/w/thing.xyz', 'linux', looksLikeText, READ)).toBe('open')
     })
 
     it('shows in its folder a file marked executable, off Windows', () => {

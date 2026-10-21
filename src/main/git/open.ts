@@ -158,6 +158,10 @@ export function runsWhenOpened(file: string, platform: NodeJS.Platform): boolean
  * repository is anyone's: a file's name says nothing of what it is (`README.md` may be a
  * compiled help file, `README` a script Finder runs in Terminal).
  *
+ * On Windows the program is picked by the name alone, so text named `.doc`, `.xls` or `.iqy`
+ * opens in Office with its macros and links (found in review): there a file opens only when its
+ * kind is one of `OPENS_ON_WINDOWS`, or it has none.
+ *
  * `head`: the file's first bytes (a few kilobytes); `mode`: its permission bits.
  */
 export function openVerdict(
@@ -167,22 +171,51 @@ export function openVerdict(
   mode: number,
 ): 'open' | 'reveal' {
   if (runsWhenOpened(file, platform)) return 'reveal'
-  if (platform !== 'win32' && (mode & 0o111) !== 0) return 'reveal'
+  if (platform === 'win32') {
+    const extension = path.extname(file).toLowerCase()
+    if (extension !== '' && !OPENS_ON_WINDOWS.has(extension)) return 'reveal'
+  } else if ((mode & 0o111) !== 0) {
+    return 'reveal'
+  }
   return looksText(head) || sniffImage(head) !== null || isPdf(head) ? 'open' : 'reveal'
 }
+
+/**
+ * The kinds Windows opens in an editor, a picture viewer or a PDF reader: source, text and
+ * configuration, pictures, PDFs. Not what Office takes (csv, xml, rtf and the rest), nor a
+ * page archive, a disk image (`vhd` mounts, past the mark of the web), nor what an installer
+ * may hand to its interpreter (lua, hs, groovy; py, rb and the rest run, `RUNS_ON`). A name
+ * with no extension of its own - `.env`, `.editorconfig`, `Makefile` - opens as text.
+ */
+const OPENS_ON_WINDOWS: ReadonlySet<string> = new Set(
+  [
+    // Text and documentation.
+    'txt text md markdown mdx rst adoc asciidoc org tex bib log diff patch',
+    // Configuration and data.
+    'json jsonc json5 jsonl ndjson yaml yml toml ini cfg conf properties lock mod sum sample',
+    // Source.
+    'ts tsx mts cts jsx mjs cjs c h cc cpp cxx hh hpp hxx cs java kt kts scala go rs swift m mm',
+    'php dart r jl ex exs erl hrl ml mli fs fsi clj cljs elm zig nim v sv vhdl pyi',
+    'sql graphql gql proto thrift tf hcl nix cmake mk gradle bzl sbt cabal s asm http',
+    'glsl hlsl wgsl map snap',
+    'vue svelte astro css scss sass less styl html htm svg hbs ejs pug j2',
+    'ipynb',
+    // Pictures and PDFs.
+    'png jpg jpeg gif webp bmp ico avif pdf',
+  ]
+    .join(' ')
+    .split(' ')
+    .map((kind) => `.${kind}`),
+)
 
 const isPdf = (head: Uint8Array): boolean =>
   head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46 // %PDF
 
-/** UTF-8 with no NUL (git's own test for binary), or UTF-16 by its byte order mark. */
+/**
+ * Text: no NUL in the first bytes (git's own test for binary), in whatever encoding - Shift_JIS
+ * and EUC-JP too (found in review: only UTF-8 was taken) - or UTF-16 by its byte order mark.
+ */
 function looksText(head: Uint8Array): boolean {
   if ((head[0] === 0xff && head[1] === 0xfe) || (head[0] === 0xfe && head[1] === 0xff)) return true
-  if (head.includes(0)) return false
-  try {
-    // Streamed, so a character cut by the end of the look is not taken for bad UTF-8.
-    new TextDecoder('utf-8', { fatal: true }).decode(head, { stream: true })
-    return true
-  } catch {
-    return false
-  }
+  return !head.includes(0)
 }

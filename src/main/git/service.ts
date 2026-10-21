@@ -312,15 +312,30 @@ export class GitService {
     }
     const guard = await this.guardOf(root)
     if (!this.isCurrent(entry)) return
+    if (!Array.isArray(guard)) {
+      this.settle(entry, this.failure(entry, guard))
+      return
+    }
     entry.guard = guard
     entry.gitDir = path.resolve(found.stdout.trim())
     this.follow(entry)
     await this.read(entry)
   }
 
-  /** The `-c` pairs that empty the filters the repository's own config defines. */
-  private async guardOf(root: string): Promise<string[]> {
+  /**
+   * The `--config-env`s that empty the filters the repository's own config defines, or git's
+   * answer when it could not read the config: then the filters are not known, and nothing is
+   * read until they are (found in review: the guard was left empty, and they ran).
+   */
+  private async guardOf(root: string): Promise<string[] | GitResult> {
     const filters = await this.deps.run(root, [...FILTER_QUERY])
+    // Exit 1 with nothing said is git's "no such key": no filters at all.
+    const none =
+      !filters.ok &&
+      filters.timedOut !== true &&
+      filters.stdout === '' &&
+      filters.stderr.trim() === ''
+    if (!filters.ok && !none) return filters
     return filterGuard(filters.stdout)
   }
 
@@ -410,6 +425,17 @@ export class GitService {
     return this.watched.get(entry.ref.id) === entry
   }
 
+  /** Reads the filters again; false, with the failure published, when the config cannot be read. */
+  private async renewGuard(entry: Watched, mine: () => boolean): Promise<boolean> {
+    const guard = await this.guardOf(entry.ref.path)
+    if (!Array.isArray(guard)) {
+      if (mine()) this.settle(entry, this.failure(entry, guard))
+      return false
+    }
+    if (mine()) entry.guard = guard
+    return true
+  }
+
   /** Reads the repository and publishes it if anything the pane shows is different. */
   private async read(entry: Watched): Promise<void> {
     if (!this.isCurrent(entry)) return
@@ -427,10 +453,7 @@ export class GitService {
     const mine = (): boolean => this.isCurrent(entry) && entry.generation === generation
     try {
       // A filter added while the pane is open (`git lfs install --local`) is emptied too.
-      if (configMoved) {
-        const guard = await this.guardOf(entry.ref.path)
-        if (mine()) entry.guard = guard
-      }
+      if (configMoved && !(await this.renewGuard(entry, mine))) return
       const next = await this.reading(entry, refsMoved)
       // A listed file written again with the same counts is a new diff all the same.
       const rewritten =

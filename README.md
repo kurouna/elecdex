@@ -659,9 +659,13 @@ weather and calendar.
   twice too) sends the branch onto its upstream and nothing else, never forced: when the remote has
   moved on it says REJECTED, and a branch with no upstream is left to `git push -u` in the terminal.
   None of them runs the repository's hooks - a push skips its pre-push checks, and says so before
-  the second press. Nothing else is written: stage and commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
+  the second press - nor a program the repository's own config names for the transport (its own
+  `core.sshCommand`, say), nor speaks to a remote but over https, http, ssh or git - not a folder
+  on this machine, nor a remote helper: those are left to the terminal. Nothing else is written: stage and commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
   in `settings.json` (`{file}` and `{line}` are filled in, e.g. `code -g "{file}:{line}"`),
-  or with the system's own application when it is empty. git must be on PATH.
+  or with the system's own application when it is empty - then only text, pictures and PDFs that
+  would not run are opened, and anything else is shown in its folder. git 2.31 or later must be on
+  PATH.
 - **Docker** — in the dev preset, or add it from the picker ("docker
   containers"). The containers of the local Docker engine - Docker Desktop, the Linux daemon,
   rootless Docker, colima or OrbStack, found as the `docker` command finds it (`DOCKER_HOST`, then

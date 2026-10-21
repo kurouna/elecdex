@@ -32,7 +32,8 @@ import { type GitResult, gitError, type RunGit } from './run.js'
  *  - Signature checks (`merge.verifySignatures` runs `gpg.program`), submodules
  *    (fetched and checked out under their own config) and a merge, a rebase or an
  *    autostash chosen in config: all turned off on the command line.
- *  - The `ext::` transport, which runs a command named in a URL: never allowed.
+ *  - Any transport but https, http, ssh and git (`PROTOCOLS`): `ext::`, a folder on this
+ *    machine, a remote helper. The terminal is left for them.
  *  - A push that sends more than asked for: `push.default=matching` sends every
  *    branch, `remote.<name>.push` other refs, `push.followTags` tags, and a `+`
  *    forces. A push always names its one refspec, the branch onto its upstream,
@@ -81,6 +82,25 @@ const ARGS: Record<GitSyncAction, readonly string[]> = {
     '--recurse-submodules=no',
   ],
 }
+
+/**
+ * Only https, http, ssh and git are spoken: not `ext::`, which runs a command named in a URL;
+ * not a folder on this machine (`file`), whose own hooks and config run on the other side of a
+ * push or a fetch, which nothing given here reaches; not a remote helper (`foo::url`), which a
+ * repository's alias or `url.<base>.insteadOf` could supply (the last two found in review).
+ */
+const PROTOCOLS: readonly string[] = [
+  '-c',
+  'protocol.allow=never',
+  '-c',
+  'protocol.https.allow=always',
+  '-c',
+  'protocol.http.allow=always',
+  '-c',
+  'protocol.ssh.allow=always',
+  '-c',
+  'protocol.git.allow=always',
+]
 
 type Git = (args: readonly string[], timeoutMs?: number) => Promise<GitResult>
 type Result = (code: GitSyncResult['code'], message?: string, commits?: number) => GitSyncResult
@@ -132,8 +152,8 @@ export class GitSync {
             ...target.guard,
             '-c',
             `core.hooksPath=${this.deps.hooksDir()}`,
-            '-c',
-            'protocol.ext.allow=never',
+            // The transports a person uses with a hosted remote, and no other (`PROTOCOLS`).
+            ...PROTOCOLS,
             ...args,
           ],
           timeoutMs === undefined ? undefined : { timeoutMs },
@@ -215,13 +235,7 @@ export class GitSync {
    * give counts as one: nothing runs on a config it could not read.
    */
   private async transportPrograms(git: Git): Promise<string[]> {
-    const read = await git([
-      'config',
-      '--get-regexp',
-      '--show-scope',
-      '--name-only',
-      TRANSPORT_PROGRAM_KEYS,
-    ])
+    const read = await git(['config', '--get-regexp', '--show-scope', '-z', TRANSPORT_PROGRAM_KEYS])
     // Exit 1 with nothing printed is git's "no such key".
     const noSuchKey = !read.ok && !read.timedOut && read.stdout === '' && read.stderr.trim() === ''
     if (!read.ok && !noSuchKey) return ['unreadable config']

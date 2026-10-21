@@ -557,10 +557,13 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   完整信息：提交说明、作者、日期和改动内容。**FETCH** 和 **PULL**（都要按两次）把分支更新到最新：
   pull 仅做快进——两边都有新提交时显示 DIVERGED，合并或变基交给终端。**PUSH**（同样按两次）只把
   分支推送到它的上游，从不强制：远程已有新提交时显示 REJECTED，没有上游的分支交给终端里的
-  `git push -u`。它们都不运行仓库的任何钩子（push 会跳过 pre-push 检查，并在第二次按下前说明这一点）。
+  `git push -u`。它们都不运行仓库的任何钩子（push 会跳过 pre-push 检查，并在第二次按下前说明这一点），
+  也不运行仓库自身配置为传输指定的程序（例如该仓库的 `core.sshCommand`），也只通过 https、http、ssh 或 git
+  与远程同步（不用本机上的文件夹或远程助手）：这些交给终端。
   除此之外不写入任何东西：暂存和提交请在终端中进行。双击会打开文件——
   使用 `settings.json` 中 `git.openCommand` 的命令（会填入 `{file}` 和 `{line}`，例如
-  `code -g "{file}:{line}"`），为空时使用系统默认的应用。git 必须在 PATH 中。
+  `code -g "{file}:{line}"`），为空时使用系统默认的应用（此时只打开不会被执行的文本、图片和 PDF，
+  其他的在其文件夹中显示）。PATH 中必须有 git 2.31 或更高版本。
 - **Docker** — 在 dev 预设中，或从选择器添加（"docker containers"）。显示本机
   Docker 引擎（Docker Desktop、Linux 守护进程、rootless Docker、colima 或 OrbStack）的容器。引擎的
   查找顺序与 `docker` 命令相同（`DOCKER_HOST`、当前上下文、常用的套接字），但不会运行该命令。

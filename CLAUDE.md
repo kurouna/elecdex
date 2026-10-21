@@ -485,13 +485,16 @@ user made; do not reverse one without asking.
     names, never `+` or `--force`; behind or rejected, it refuses; no upstream, it leaves
     `push -u` to the terminal (user decision 2026-10-18). No hook runs, pre-push neither, and
     the armed PUSH says so (`core.hooksPath` is main's empty folder). A transport program the
-    repository's own config names (`TRANSPORT_PROGRAM_KEYS`) refuses the press. `syncBlocked`
+    repository's own config names (`TRANSPORT_PROGRAM_KEYS`) refuses the press, and only https,
+    http, ssh and git are spoken (`PROTOCOLS`: no folder, `ext::` or remote helper; e2e serve the
+    remote over http). `syncBlocked`
     is checked against main's own reading, one at a time per repository, only for a page showing
     it.
   - git always runs with `GIT_FLAGS` (main/git/run.ts) and the diff flags; repository filters are
     emptied (`filterGuard`); submodule trees are not read; `--no-optional-locks`.
   - Without an open command, a file is opened only when its first bytes are text, a picture or
-    a PDF and it would not run (`openVerdict`: its extension, an execute bit off Windows);
+    a PDF and it would not run (`openVerdict`: its extension, an execute bit off Windows; on
+    Windows only the kinds in `OPENS_ON_WINDOWS`, as the program is picked by the name);
     anything else is revealed instead.
   - Diffs only for files of the last reading; open/reveal only inside the tree (`locate`).
   - `git.openCommand` is set in settings.json only, never by settings.patch; run as program and

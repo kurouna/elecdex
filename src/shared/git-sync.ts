@@ -95,28 +95,51 @@ export function syncBlocked(state: GitState | null, action: GitSyncAction): stri
 /**
  * The config keys that name a program the transport runs: ssh (`core.sshCommand`), a
  * proxy (`core.gitProxy`), a password prompt (`core.askPass`), a credential helper (a
- * `!` one is a shell command), the program run at the other end of a local or ssh
- * remote (`uploadpack`, `receivepack`, run through a shell) and a remote helper
- * (`vcs`). An extended regular expression, for `git config --get-regexp`; git prints
- * section and key in lower case.
+ * `!` one is a shell command), the program that lists an alternate's refs
+ * (`core.alternateRefsCommand`, run by fetch through a shell; found in review), the program
+ * run at the other end of a local or ssh remote (`uploadpack`, `receivepack`, run through a
+ * shell), a remote helper (`vcs`) and an alias standing in for a credential or remote helper
+ * git does not ship (`alias.credential-<name>`, `alias.remote-<name>`; found in review). An
+ * extended regular expression, for `git config --get-regexp`; git prints section and key in
+ * lower case.
  */
 export const TRANSPORT_PROGRAM_KEYS =
-  '^(core\\.(sshcommand|gitproxy|askpass)|credential\\.(.+\\.)?helper|remote\\..+\\.(uploadpack|receivepack|vcs))$'
+  '^(core\\.(sshcommand|gitproxy|askpass|alternaterefscommand)|credential\\.(.+\\.)?helper|remote\\..+\\.(uploadpack|receivepack|vcs)|alias\\.(credential|remote)-.+)$'
 
 /**
- * The transport programs a repository's own config names (local or worktree scope),
- * from `git config --get-regexp --show-scope --name-only TRANSPORT_PROGRAM_KEYS`, sorted.
- * A repository handed over as a folder or an archive brings its `.git/config` with it,
- * so a press could otherwise run a program of its choosing; the user's own (global,
+ * A credential helper git ships, named alone or with plain options (`store`,
+ * `cache --timeout=60`, `manager`), or empty to reset the list. git runs any other value through
+ * a shell as `git credential-<value>`, so `store; anything` ran `anything`, and a name it does
+ * not ship falls back to an alias the repository may define (both found in review, in a real
+ * git): those, a `!` command and a path to a program are the repository's choosing.
+ */
+const GIT_HELPER =
+  /^(store|cache|manager|manager-core|wincred|osxkeychain|libsecret)( +--?[A-Za-z0-9-]+(=[A-Za-z0-9._~/:@%+,-]*)?)*$/
+const helperIsGits = (value: string): boolean => {
+  const helper = value.trim()
+  return helper === '' || GIT_HELPER.test(helper)
+}
+
+/**
+ * The transport programs a repository's own config names (local or worktree scope), from
+ * `git config --get-regexp --show-scope -z TRANSPORT_PROGRAM_KEYS`, sorted. Each entry is the
+ * scope and a NUL, then the key, a newline and the value and a NUL, so a value cannot pass for
+ * another entry (checked against git itself in git-sync.test.ts). A repository handed over as a folder or an archive brings its `.git/config`
+ * with it, so a press could otherwise run a program of its choosing; the user's own (global,
  * system) settings are theirs, as in the terminal.
  */
 export function repoTransportPrograms(output: string): string[] {
   const keys = new Set<string>()
-  for (const line of output.split('\n')) {
-    const match = /^(\S+)\t(\S.*?)\r?$/.exec(line)
-    if (match === null) continue
-    const [, scope, key] = match
-    if (scope !== 'global' && scope !== 'system' && key !== undefined) keys.add(key)
+  const fields = output.split('\0')
+  for (let i = 0; i + 1 < fields.length; i += 2) {
+    const scope = fields[i] ?? ''
+    const entry = fields[i + 1] ?? ''
+    const cut = entry.indexOf('\n')
+    const key = cut === -1 ? entry : entry.slice(0, cut)
+    const value = cut === -1 ? '' : entry.slice(cut + 1)
+    if (key === '' || scope === 'global' || scope === 'system') continue
+    if (/^credential\..*helper$/.test(key) && helperIsGits(value)) continue
+    keys.add(key)
   }
   return [...keys].sort()
 }

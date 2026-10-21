@@ -1045,13 +1045,20 @@ Stop とペインを閉じたときの停止）。
     e2e（git.spec）で、作業ツリー内のフックが git 単体では走り、ペインからの FETCH・PULL・失敗した PULL・PUSH では
     走らないことを確かめる（ガードを外すと `reference-transaction` が走って失敗することも確認）。
   - **リポジトリ自身の設定が転送のプログラムを名指すときは押させない**（`TRANSPORT_PROGRAM_KEYS`、
-    `repoTransportPrograms`）: `core.sshCommand`・`core.gitProxy`・`core.askPass`・資格情報ヘルパー（`!` で
-    始まればシェルのコマンド）・`remote.<名前>.uploadpack` / `receivepack`（ローカルや ssh のリモートでシェルを
+    `repoTransportPrograms`）: `core.sshCommand`・`core.gitProxy`・`core.askPass`・`core.alternateRefsCommand`
+    （fetch がシェルで走らせる）・資格情報ヘルパー（git が同梱する名前 `store`・`cache`・`manager` などに素の
+    オプションだけなら通す。git はほかの値を `git credential-<値>` としてシェルで走らせ、同梱しない名前はリポジトリの
+    エイリアスに落ちる）・`alias.credential-*` / `alias.remote-*`・`remote.<名前>.uploadpack` / `receivepack`（ローカルや ssh のリモートでシェルを
     通して走る）・`remote.<名前>.vcs`。フォルダや圧縮ファイルで渡されたリポジトリは `.git/config` ごと届くので、
-    押すたびに `git config --get-regexp --show-scope --name-only` で調べ、local・worktree のスコープにあれば
+    押すたびに `git config --get-regexp --show-scope -z` で調べ（値も読むので、項目は NUL で区切る）、local・worktree のスコープにあれば
     キーの名前を添えて CANNOT とし、ターミナルに任せる。git が読めなかった設定も同じ（セキュリティの見直し、
     2026-10-21）。代わりに、こうしたキーを自分でリポジトリに置いた利用者（アカウントごとの `core.sshCommand`
     など）も、そのリポジトリはターミナルで同期する。
+  - **話すのは https・http・ssh・git だけ**（`PROTOCOLS`: `-c protocol.allow=never` と 4 つの always）。この機械の上の
+    フォルダ（file）、`ext::`、リモートヘルパー（`foo::url`。エイリアスや `url.<base>.insteadOf` で作れる）は使わない。フォルダは、push や fetch
+    の相手側で、そのリポジトリ自身のフックと設定（`pre-receive`、`core.alternateRefsCommand`）が走り、こちらの
+    `-c` はそこへ届かない。渡されたアーカイブが「リモート」のフォルダを同梱すれば押しただけで走った（見直しで
+    再現）。git の拒否の言葉がそのまま出る。e2e（git.spec）は、リモートを `git http-backend` の http で配る。
   - 認証や ssh、プロキシは利用者自身の（global・system の）設定をそのまま使う（それが無ければサインインできない）。端末は無いと
     伝え（`GIT_TERMINAL_PROMPT=0`）、それでも待つ転送は 120 秒で止めて TIMED OUT と言う。
   - main は、そのページが購読しているリポジトリだけ、main 自身の最後の読み取りで `syncBlocked` を確かめて
@@ -1108,8 +1115,9 @@ Stop とペインを閉じたときの停止）。
   `{file}` `{line}` `{dir}` を埋めて**プログラムと引数として**起動する（シェルを通さない）。空なら OS の既定の
   アプリ。ただし既定の動作が「実行」になるもの（.exe・.bat・.ps1・.lnk・.app・.desktop、Windows ではインストーラが関連付ける .sh・.py なども。`runsWhenOpened`）は
   開かずにフォルダで示す（読むだけのペインが、クローンしたての `setup.bat` を走らせないため）。名前は中身を
-  言わないので、ほかのファイルも先頭の 8000 バイトがテキスト（NUL が無く UTF-8、または UTF-16 の BOM）・画像・PDF
-  のときだけ開き、Windows 以外では実行ビットの立つファイルも示すだけにする（`openVerdict`、issue 26: `.chm` や
+  言わないので、ほかのファイルも先頭の 8000 バイトがテキスト（NUL が無い。Shift_JIS や EUC-JP も。または UTF-16 の
+  BOM）・画像・PDF のときだけ開き、Windows では開くプログラムが名前で決まるので、エディタや画像・PDF のビューアで
+  開く種類（`OPENS_ON_WINDOWS`。Office が取る csv・xml・rtf などは除く）か拡張子なしのときだけ開き、Windows 以外では実行ビットの立つファイルも示すだけにする（`openVerdict`、issue 26: `.chm` や
   `.iso`、Finder が Terminal で走らせる拡張子なしのスクリプト）。開くと動くテキスト（`.library-ms`・`.search-ms`・
   `.website`・`.theme`・`.fileloc` など）は拡張子の一覧に入れる。このコマンドはページからの settings.patch では変えられない（launcher の項目と同じく、ページが変え
   られるコマンドはページが起動できるプログラムになる）。Windows では `code` のような .cmd は Node がシェル
@@ -1736,7 +1744,7 @@ Ctrl+Shift+P で開くダイアログ（palette/ActionPalette.svelte）。ショ
 | OSC 9;9 | 引用符は外す。絶対パスだけ（`C:\`、`/`） | 素通し |
 | ほかの OSC 9（9;4 の進捗、通知） | 受け取らない | 素通し |
 
-どちらの形でも、制御文字を含むパスと、区切りが 2 つで始まるパス（UNC の共有 `\\server\share`、`\\?\`、`//host`。`isNetworkPath`）は捨てる。どのプログラムの出力でもこの列を運べ（`cat` しただけのファイルでも）、ファイルのペインはそのフォルダをすぐ一覧するので、共有を受け取ると Windows が利用者の NTLM ハッシュをその相手に差し出す。ファイルのペインの `fs.readDir`・`fs.watch`（`validatePath`）と復元（`resolveShellDirectory`）も同じパスを断る（セキュリティの見直し、2026-10-21）。OSC 9;9 にはホストがないので、ssh 先の Windows が出す 9;9 は手元のパスとして受け取る（Windows Terminal と同じ）。復元はフォルダの存在を確かめるので、手元にないフォルダはそこで設定のフォルダに戻る。
+どちらの形でも、制御文字を含むパスと、区切りが 2 つで始まるパス（UNC の共有 `\\server\share`、`\\?\`、`//host`。`isNetworkPath`）は捨てる。どのプログラムの出力でもこの列を運べ（`cat` しただけのファイルでも）、ファイルのペインはそのフォルダをすぐ一覧するので、共有を受け取ると Windows が利用者の NTLM ハッシュをその相手に差し出す。ファイルのペインの `fs.readDir`・`fs.watch`（`validatePath`）と復元（`resolveShellDirectory`）も同じパスを断る（セキュリティの見直し、2026-10-21）。OSC 9;9 にはホストがないので、ssh 先の Windows が出す 9;9 は手元のパスとして受け取る（Windows Terminal と同じ）。復元はフォルダの存在を確かめるので、手元にないフォルダはそこで設定のフォルダに戻る。 共有は「フォルダ無し」（`cwd: null`）として伝え、ペインは見出しと保存したフォルダを消す（見出しは `network share`。ファイルのペインは家に戻る）。開始フォルダの設定も共有なら見ない。
 
 **復元**
 
