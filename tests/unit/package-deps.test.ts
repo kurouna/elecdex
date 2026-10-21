@@ -118,3 +118,20 @@ describe('what the app ships', () => {
     ).toEqual([])
   })
 })
+
+describe('the lockfile', () => {
+  /**
+   * Packages known to be vulnerable with no fixed release (issue 34): sprintf-js's unbounded
+   * precision (GHSA-hp3w-g68c-fv3c), reached through roarr from global-agent 3, which
+   * electron-builder's own @electron/get pulled in. An override takes global-agent 4.
+   */
+  const NEVER = ['sprintf-js', 'roarr']
+
+  it('holds none of the packages known to be vulnerable without a fix', () => {
+    const lock = JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8')) as {
+      packages: Record<string, unknown>
+    }
+    const named = Object.keys(lock.packages).map((at) => at.split('node_modules/').at(-1) ?? '')
+    for (const name of NEVER) expect(named, name).not.toContain(name)
+  })
+})

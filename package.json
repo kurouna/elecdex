@@ -137,5 +137,8 @@
     "sucrase": "3.35.1",
     "systeminformation": "^5.33.15",
     "zod": "^4.6.7"
+  },
+  "overrides": {
+    "global-agent": "4.1.3"
   }
 }
