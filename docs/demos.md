@@ -19,7 +19,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 
 | コマンド | 内容 | 大きさ・長さ |
 |---|---|---|
-| `demo:tour` | 紹介デモ（起動画面、プリセット、network の ETHERNET と LINK のカード、ORBIT、エージェント、Docker、LOG WATCH、メディア、KEYSTREAM、アクションパレットで cockpit、retro（ELEC-16 は波を描いたまま TUNE でスキンを ALLOY・GLASS・MOCHI と替える）、ELEC、テーマ） | 1600×900、起動のあと約 167 秒 |
+| `demo:tour` | 紹介デモ（起動画面、プリセット、network の ETHERNET と LINK のカード、ORBIT、エージェント、Docker、LOG WATCH、メディア、KEYSTREAM、アクションパレットで cockpit、retro（ELEC-16 は波を描いたまま TUNE でスキンを ALLOY・GLASS・MOCHI と替える）、ELEC、テーマ） | 1600×900、起動のあと約 168 秒 |
 | `demo:tour-black` | 同じものを Black テーマで（`--theme=black`） | 同上 |
 | `demo:tour-shorts` | 紹介デモの 9:16 版（2 段のレイアウト。network は Wi-Fi の下に ETHERNET） | 540×960 を zoom 0.75（720×1280 として描く）、起動込みで 2 分以内（約 116 秒） |
 | `demo:cockpit` | cockpit プリセット単独（カード、全コアの負荷、前に出す、境目のドラッグ、テーマ） | 1600×900、Black、約 61 秒 |
