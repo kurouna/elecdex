@@ -231,13 +231,22 @@ export function aiBaseUrl(raw: unknown): string | null {
 }
 
 const PRIVATE_V4 = /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/
+/** An IPv4 address as the URL parser writes one: four numbers, nothing else. */
+const V4_ADDRESS = /^\d{1,3}(\.\d{1,3}){3}$/
+/** Unique local (fc00::/7) and link-local (fe80::/10) IPv6 addresses. */
+const PRIVATE_V6 = /^(f[cd][0-9a-f]{0,2}|fe[89ab][0-9a-f]?):/
 
-/** This machine, or an address that only exists on the local network. */
+/**
+ * This machine, or an address that only exists on the local network. The private ranges are
+ * read only from an address: a name that begins like one (`10.example.com`) is a name on the
+ * internet, and the key went to it in the clear (issue 27).
+ */
 function isNearby(hostname: string): boolean {
   const host = hostname.replace(/^\[|\]$/g, '').toLowerCase()
   if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return true
   if (host.endsWith('.local')) return true
-  return PRIVATE_V4.test(host)
+  if (host.includes(':')) return PRIVATE_V6.test(host)
+  return V4_ADDRESS.test(host) && PRIVATE_V4.test(host)
 }
 
 /**

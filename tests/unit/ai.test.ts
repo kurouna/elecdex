@@ -79,6 +79,25 @@ describe('where a key may be sent', () => {
       expect(keyMayTravel(far), far).toBe(false)
     }
   })
+
+  it('reads the private ranges only from an address, never from a name (issue 27)', () => {
+    // A name that starts like a private address is a name on the internet: the key went to
+    // http://10.example.com in the clear.
+    for (const far of [
+      'http://10.example.com/v1',
+      'http://192.168.0.1.nip.io/v1',
+      'http://127.attacker.net/v1',
+      'http://172.16.example.org/v1',
+      'http://169.254.169.254.example.com/v1',
+      'http://[2001:db8::1]/v1',
+    ]) {
+      expect(keyMayTravel(far), far).toBe(false)
+    }
+    // The local network's IPv6 addresses are as near as its IPv4 ones.
+    for (const near of ['http://[fd12:3456::1]:8080/v1', 'http://[fe80::1]/v1', 'http://169.254.1.2/v1']) {
+      expect(keyMayTravel(near), near).toBe(true)
+    }
+  })
 })
 
 describe('provider ids', () => {
