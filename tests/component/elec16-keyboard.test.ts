@@ -78,6 +78,18 @@ describe("the ELEC-16's keys", () => {
     expect(container.querySelector<HTMLElement>('[data-key=q] .cap')?.style.transform).toBe('')
   })
 
+  it("leaves today's skins' labels as they always were, however narrow", async () => {
+    for (const skin of [SKINS.classic, SKINS.elec, SKINS.tron]) {
+      const { container } = render(Keyboard, props(300, skin))
+      await tick()
+      const narrowed = [...container.querySelectorAll<HTMLElement>('.cap')].filter(
+        (c) => c.style.transform !== '',
+      )
+      expect(narrowed, skin.id).toEqual([])
+      cleanup()
+    }
+  })
+
   it('narrows round letters less: MOCHI stops at its own floor', async () => {
     const { container } = render(Keyboard, props(300, SKINS.mochi))
     await tick()

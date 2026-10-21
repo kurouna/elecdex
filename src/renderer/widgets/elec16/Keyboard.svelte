@@ -122,6 +122,8 @@ const squeeze = $derived.by((): ReadonlyMap<string, number> => {
   void faceRevision
   const b = skin.body
   const out = new Map<string, number>()
+  // Only a skin printed in a face of its own: today's skins are drawn as they always were.
+  if (!b.oneFace) return out
   const slots: { id: string; span: number; columns: number }[] =
     mode === 'full'
       ? FULL_ROWS.flatMap((row) =>
@@ -495,7 +497,8 @@ const squeeze = $derived.by((): ReadonlyMap<string, number> => {
   border-color: rgb(255 255 255 / 0.55);
 }
 
-:global(:root[data-mode='light'] .keys-glass) .key {
+/* Light glass; a held key and ENTER keep their own shadows (below). */
+:global(:root[data-mode='light'] .keys-glass) .key:not(.down):not(.enter) {
   border-color: rgb(255 255 255 / 0.9);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.95),
@@ -511,6 +514,7 @@ const squeeze = $derived.by((): ReadonlyMap<string, number> => {
     0 6px 12px -6px rgb(0 0 0 / 0.16);
 }
 
+/* Held, the core stays: the board is not seen through a pressed key's letters either. */
 :global(.keys-glass) .key.down {
   transform: translateY(1px);
   background: linear-gradient(180deg, rgb(0 0 0 / 0.1), rgb(0 0 0 / 0)), var(--gl-key-core), var(--k);

@@ -7,12 +7,14 @@
  */
 
 import '@fontsource/barlow-condensed/latin-500.css'
+import '@fontsource/barlow-condensed/latin-600.css'
 import '@fontsource/barlow-condensed/latin-700.css'
 import '@fontsource/ibm-plex-sans-condensed/latin-500.css'
 import '@fontsource/ibm-plex-sans-condensed/latin-600.css'
 import '@fontsource/ibm-plex-sans-condensed/latin-700.css'
 import '@fontsource/inter-tight/latin-500.css'
 import '@fontsource/inter-tight/latin-600.css'
+import '@fontsource/m-plus-rounded-1c/latin-500.css'
 import '@fontsource/m-plus-rounded-1c/latin-700.css'
 import '@fontsource/m-plus-rounded-1c/latin-800.css'
 import '@fontsource/albert-sans/latin-500.css'

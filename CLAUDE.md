@@ -50,6 +50,7 @@ npm run demo:whatsnew  # what v0.0.19-v0.0.20 added, most striking first: CHIP-8
 npm run demo:whatsnew22 # what v0.0.22 added: the pocket's new BASIC, the PLAY-320's three games, MULQ in CODE, 16:9 (Windows; build first)
 npm run demo:whatsnew34 # what v0.0.34 added: the GPU pane, CLUSTER's GPU lane, nested subagents, the git pane's PUSH, 16:9 (Windows; build first)
 npm run demo:whatsnew36 # what v0.0.35-v0.0.36 added: the ETHERNET pane on a cable with CRC errors, brought forward, and the action palette, 16:9 (Windows; build first)
+npm run demo:whatsnew38 # what v0.0.38 added: the ELEC-16's five skins modelled in light, GLASS following the theme, captioned, 16:9 (Windows; build first)
 npm run demo:elec16    # the ELEC-16 alone, 1280x600: BASIC, the SOFT CARD, CODE, the skins (Windows; build first)
 npm run demo:logwatch  # LOG WATCH alone: a made-up log followed, a burst, filter, PATTERNS, MASK, two lines EXPLAINed by the stand-in, captioned, 16:9, ~55 s (Windows; build first)
 npm run demo:games     # the PLAY-320's three games played, bodies and themes changing, CORE beside (Windows; build first)

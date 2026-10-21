@@ -248,8 +248,11 @@ test('the five relief skins: modelled in light, each in its bundled face, every 
       await page.locator(`[data-testid=elec16-skin][data-skin=${skin}]`).click()
       await expect(device).toHaveAttribute('data-skin', skin)
       await expect(device).toHaveClass(/\brelief\b/)
-      // The face is the bundled one, loaded (the page loads fonts only from itself).
-      await expect.poll(() => page.evaluate((f) => document.fonts.check(f), face)).toBe(true)
+      // The face is the bundled one, loaded (the page loads fonts only from itself): a face
+      // the page does not have loads nothing, where `check` would say true.
+      await expect
+        .poll(() => page.evaluate(async (f) => (await document.fonts.load(f)).length, face))
+        .toBeGreaterThan(0)
       // Its material is a picture of its own, never fetched.
       const image = await device.evaluate((el) => getComputedStyle(el).backgroundImage)
       expect(image, skin).toContain('data:image/svg+xml')
@@ -263,6 +266,29 @@ test('the five relief skins: modelled in light, each in its bundled face, every 
         device.evaluate((el) => getComputedStyle(el).getPropertyValue('--gl-text').trim()),
       )
       .toMatch(/^(#ffffff|rgb\(255 255 255)/i)
+    // The カナ key's two letters come from the face that suits GLASS, bundled.
+    await expect
+      .poll(() =>
+        page.evaluate(
+          async () => (await document.fonts.load('500 10px "E16 Kana Noto"', 'カナ')).length,
+        ),
+      )
+      .toBeGreaterThan(0)
+    // On a light theme, a light glass: dark letters, and ENTER's rim lit in the accent.
+    await page.keyboard.press('Control+Shift+KeyP')
+    await page.getByTestId('action-palette-filter').fill('business light')
+    await page.keyboard.press('Enter')
+    await expect(page.locator('html')).toHaveAttribute('data-mode', 'light')
+    await expect
+      .poll(() =>
+        device.evaluate((el) => getComputedStyle(el).getPropertyValue('--gl-text').trim()),
+      )
+      .not.toMatch(/^(#ffffff|rgb\(255 255 255)/i)
+    const shadow = (id: string) =>
+      page
+        .locator(`[data-testid=elec16-key][data-key=${id}]`)
+        .evaluate((el) => getComputedStyle(el).boxShadow)
+    expect(await shadow('enter')).not.toBe(await shadow('q'))
   } finally {
     await close()
   }
@@ -294,8 +320,12 @@ test('a narrow body in a wide face narrows MODE to fit, never past the floor', a
     const device = page.getByTestId('elec16-device')
     await expect(device).toHaveAttribute('data-body', 'full')
     await expect
-      .poll(() => page.evaluate(() => document.fonts.check('700 10px "M PLUS Rounded 1c"')))
-      .toBe(true)
+      .poll(() =>
+        page.evaluate(
+          async () => (await document.fonts.load('700 10px "M PLUS Rounded 1c"')).length,
+        ),
+      )
+      .toBeGreaterThan(0)
     await expect.poll(() => overflowing(page)).toEqual([])
     const mode = await page
       .locator('[data-testid=elec16-key][data-key=mode] .cap')
@@ -411,7 +441,13 @@ test("keeps the program through a restart: the unit's battery backup", async () 
     await booted(first.page)
     await first.page.getByTestId('elec16').focus()
     await typeLine(first.page, '10 PRINT "KEPT"')
-    await expect.poll(() => lcdLines(first.page)).toContain('>10 PRINT "KEPT"')
+    // The line taken in, not only echoed: the next prompt drawn under it and the machine asleep
+    // again. Under load the echo came first, the restart caught the line before its Enter was
+    // read, and RUN typed after the restart ran on at the end of that line.
+    await expect
+      .poll(async () => (await lcdLines(first.page)).join('\n'))
+      .toContain('>10 PRINT "KEPT"\n>')
+    await expect(first.page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
     second = await first.relaunch()
     await settleLayout(second.page)
     await booted(second.page)

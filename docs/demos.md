@@ -19,7 +19,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 
 | コマンド | 内容 | 大きさ・長さ |
 |---|---|---|
-| `demo:tour` | 紹介デモ（起動画面、プリセット、network の ETHERNET と LINK のカード、ORBIT、エージェント、Docker、LOG WATCH、メディア、KEYSTREAM、アクションパレットで cockpit、retro、ELEC、テーマ） | 1600×900、起動のあと約 167 秒 |
+| `demo:tour` | 紹介デモ（起動画面、プリセット、network の ETHERNET と LINK のカード、ORBIT、エージェント、Docker、LOG WATCH、メディア、KEYSTREAM、アクションパレットで cockpit、retro（ELEC-16 は波を描いたまま TUNE でスキンを ALLOY・GLASS・MOCHI と替える）、ELEC、テーマ） | 1600×900、起動のあと約 167 秒 |
 | `demo:tour-black` | 同じものを Black テーマで（`--theme=black`） | 同上 |
 | `demo:tour-shorts` | 紹介デモの 9:16 版（2 段のレイアウト。network は Wi-Fi の下に ETHERNET） | 540×960 を zoom 0.75（720×1280 として描く）、起動込みで 2 分以内（約 116 秒） |
 | `demo:cockpit` | cockpit プリセット単独（カード、全コアの負荷、前に出す、境目のドラッグ、テーマ） | 1600×900、Black、約 61 秒 |
@@ -30,6 +30,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
 | `demo:panes` / `demo:snippets` / `demo:wifi` / `demo:dev` / `demo:elec` / `demo:presets` / `demo:shorts` | X 用の短いもの | |
 | `demo:whatsnew` / `demo:whatsnew22` | そのリリースで増えたもの | |
+| `demo:whatsnew38` | v0.0.38 で増えたもの。ELEC-16 ひとつのペインで SINEWAVE を走らせ、TUNE を開いて光で描く 5 つのスキン（ALLOY、GRAPHITE、NEO、MOCHI、GLASS）を順に。TUNE を畳んで GLASS のキーで `PRINT 4*9`、アクションパレットで Business Light にして明るいガラス、元のテーマに戻して MOCHI と ALLOY で終わる。英語の字幕付き | 1600×900、約 40 秒 |
 | `demo:whatsnew36` | v0.0.35〜v0.0.36 で増えたもの。network プリセットの Wi-Fi の下の ETHERNET（CRC エラーのあるケーブルのスタブ `crc`）を前に出し、LINK と CRC の数字のカード、LOG の CRC ERRORS の行。最後にアクションパレット（Ctrl+Shift+P）で Black のテーマを探して当て、元に戻す | 1600×900、約 27 秒 |
 | `demo:whatsnew34` | v0.0.34 で増えたもの。どれもペインを前に出して見せる（dev プリセットで、AI AGENT のサブエージェントが起動したサブエージェントとそのカード、GIT ペインの PUSH を 2 回押しで代役のリモートへ、GIT の隣のタブに置いた GPU ペイン。最後に cockpit の CLUSTER の GPU レーンと VRAM のスロット） | 1600×900、約 48 秒 |
 

@@ -53,8 +53,9 @@ export function material(
   )
 }
 
-const fall = (top: number, bottom: string): string =>
-  `linear-gradient(180deg, rgb(255 255 255 / ${top}) 0%, rgb(255 255 255 / 0) 25%, rgb(0 0 0 / 0) 72%, ${bottom} 100%)`
+/** The fall of light down the case: lit at the top to `lit`, shaded from `shade` to the foot. */
+const fall = (top: number, bottom: string, lit = 25, shade = 72): string =>
+  `linear-gradient(180deg, rgb(255 255 255 / ${top}) 0%, rgb(255 255 255 / 0) ${lit}%, rgb(0 0 0 / 0) ${shade}%, ${bottom} 100%)`
 
 /**
  * GLASS's board, deep behind the glass and out of focus: one board with rounded corners and a
@@ -120,7 +121,7 @@ function faceLayers(skin: Skin): Layer[] {
           image:
             'linear-gradient(100deg, rgb(255 255 255 / 0) 4%, rgb(255 255 255 / 0.14) 26%, rgb(255 255 255 / 0.03) 44%, rgb(0 0 0 / 0.06) 66%, rgb(255 255 255 / 0.07) 86%, rgb(255 255 255 / 0) 100%)',
         },
-        { image: fall(0.16, 'rgb(0 0 0 / 0.13)') },
+        { image: fall(0.16, 'rgb(0 0 0 / 0.13)', 22, 70) },
         {
           image: material(
             c,
@@ -140,12 +141,12 @@ function faceLayers(skin: Skin): Layer[] {
       ]
     case 'grain-soft':
       return [
-        { image: fall(0.22, 'rgb(0 0 0 / 0.06)') },
+        { image: fall(0.22, 'rgb(0 0 0 / 0.06)', 30) },
         { image: material(c, [[0.75, 0.75, 2, 0.4, 5]], 180, 180) },
       ]
     case 'polka':
       return [
-        { image: fall(0.28, `rgb(${skin.body.shade} / 0.07)`) },
+        { image: fall(0.28, `rgb(${skin.body.shade} / 0.07)`, 32) },
         { image: POLKA },
         { image: material(c, [[0.75, 0.75, 2, 0.3, 5]], 180, 180) },
       ]

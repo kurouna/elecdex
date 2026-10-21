@@ -18,7 +18,8 @@
  *               the machine on one pane, its CPU lane,
  *               cores and spec line read card by card
  *   retro       the retro preset: the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT
- *               CARD and run; a PLAY-320 behind the next tab playing ELECLANCE, another
+ *               CARD and run, its skin changed in TUNE while the waves run (ALLOY, GLASS, MOCHI,
+ *               back to CLASSIC); a PLAY-320 behind the next tab playing ELECLANCE, another
  *               behind the one after starting ELECAIRCOMBAT and flying its first sortie, brought forward; then the
  *               CHIP-8 behind its tab, its library playing T8NKS by
  *               itself, loaded, then paused on MEM
@@ -264,16 +265,22 @@ await run(async () => {
   await caption(CAPTIONS.palette)
   await beat.palette('cockpit')
   await caption(CAPTIONS.cockpit)
-  await beat.cluster(2400)
+  await beat.cluster(2000)
   await caption(CAPTIONS.retro)
   await beat.toLayout(9, 'retro')
-  await beat.elec16()
+  // While the waves run, the skins change: brushed metal, clear glass, the cute one, and back.
+  await beat.elec16(4500, {
+    during: async (pane) => {
+      await caption(CAPTIONS.skins)
+      await beat.elec16Skins(pane, ['alloy', 'glass', 'mochi', 'classic'], 1300)
+    },
+  })
   await caption(CAPTIONS.play)
   await beat.play(3000)
   await beat.aircombat(5000)
   await caption(CAPTIONS.chip8)
   await beat.toTab('CHIP-8')
-  await beat.chip8(2200)
+  await beat.chip8(1800)
   await caption(CAPTIONS.council)
   await beat.toLayout(7, 'council')
   await wait(800)

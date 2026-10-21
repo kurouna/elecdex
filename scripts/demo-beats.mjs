@@ -62,6 +62,7 @@ export const CAPTIONS = {
   keystream: 'Plugins: KEYSTREAM, a rhythm game',
   cockpit: 'cockpit — the whole machine on one pane',
   retro: 'retro — ELEC-16, a pocket computer of its own',
+  skins: 'Thirteen skins, from brushed metal to clear glass',
   play: 'PLAY-320: the same machine as a game console',
   chip8: 'CHIP-8, with a library of programs',
   council: 'ELEC — three AI units vote on a motion',
@@ -441,7 +442,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
    * ELEC-16: asleep at BASIC's prompt, SINEWAVE from its SOFT CARD typed in as a person would
    * (LOAD, then RUN), the waves drawn and held on screen; BRK puts it back at the prompt.
    */
-  async function elec16(hold = 4500) {
+  async function elec16(hold = 4500, { during = null } = {}) {
     // The first: a tour may put a PLAY-320 behind the next tab (play).
     const pane = paneOf('elec16').first()
     const machine = pane.getByTestId('elec16')
@@ -454,8 +455,40 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await page.keyboard.type('run', { delay: 45 })
     await page.keyboard.press('Enter')
     await away()
-    await wait(hold)
+    const until = Date.now() + hold
+    // Something shown while the waves run (the skins changing), then the rest of the hold.
+    if (during !== null) await during(pane)
+    await wait(Math.max(0, until - Date.now()))
+    await machine.focus()
     await page.keyboard.press('Pause')
+    await wait(600)
+  }
+
+  /**
+   * The ELEC-16's skins in turn, through TUNE: the panel opened, each skin's chip pressed and
+   * held, the panel folded again. A pane without room for its panel shows nothing new.
+   */
+  async function elec16Skins(pane, skins, each = 1400) {
+    const toggle = pane.getByTestId('elec16-panel-toggle')
+    await press(toggle)
+    const tune = pane.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]'))
+    const shown = await tune.waitFor({ timeout: 2500 }).then(
+      () => true,
+      () => false,
+    )
+    if (!shown) {
+      await press(toggle)
+      return
+    }
+    await press(tune)
+    await wait(500)
+    for (const skin of skins) {
+      say(`elec16: the ${skin} skin`)
+      await press(pane.locator(`[data-testid=elec16-skin][data-skin="${skin}"]`))
+      await wait(each)
+    }
+    await press(toggle)
+    await away()
     await wait(600)
   }
 
@@ -670,6 +703,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     keystream,
     chip8,
     elec16,
+    elec16Skins,
     play,
     fight,
     aircombat,
