@@ -363,3 +363,45 @@ describe("a plugin's code after the transform (issue 29)", () => {
     expect(() => checkNoImport('import ("x")', 'lib/a.ts')).toThrow(/lib\/a\.ts/)
   })
 })
+
+describe('the look for a dynamic import, over any text (review of issue 29)', () => {
+  it('takes time in proportion to the code, whatever the code holds', () => {
+    // Found in review: the regular expression scanned to the end of the file at every
+    // `import/*` left open, so a 1 MB plugin held main for about half a minute.
+    const hostile = ' import/*'.repeat(110_000)
+    const started = performance.now()
+    expect(() => checkNoImport(hostile)).not.toThrow()
+    expect(performance.now() - started).toBeLessThan(500)
+    const lines = 'import // a comment that goes on\n'.repeat(30_000)
+    const again = performance.now()
+    expect(() => checkNoImport(lines)).not.toThrow()
+    expect(performance.now() - again).toBeLessThan(500)
+  })
+
+  it('ends a line comment wherever JavaScript does', () => {
+    for (const end of ['\n', '\r', '\r\n', '\u2028', '\u2029']) {
+      expect(() => checkNoImport(`x = import // c${end}("y")`), JSON.stringify(end)).toThrow(
+        /import/,
+      )
+    }
+    expect(() => checkNoImport('x = import /* a */ /* b */\t\u00a0(1)')).toThrow(/import/)
+    // An open comment at the end hides nothing after it.
+    expect(() => checkNoImport('x = import /* never closed (')).not.toThrow()
+  })
+})
+
+describe('a dynamic import wherever it stands (review)', () => {
+  it('is found at the very start, after any punctuation, and past empty and odd comments', () => {
+    for (const code of [
+      'import("x")',
+      '(import("x"))',
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the text is the plugin's code
+      '`${import("x")}`',
+      'a=import/**/("x")',
+      'a=import/*/ x */("x")',
+      'f(1,import("x"))',
+    ]) {
+      expect(() => checkNoImport(code), code).toThrow(/import/)
+    }
+  })
+})

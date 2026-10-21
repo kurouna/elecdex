@@ -51,6 +51,7 @@ export function stripGlobals(scope: object): void {
     'BroadcastChannel',
     'RTCPeerConnection',
     'Notification',
+    'WebSocketStream',
   ]
   const strip = (target: object, name: string, value: unknown = undefined): void => {
     let proto: object | null = Object.getPrototypeOf(target)
@@ -70,26 +71,64 @@ export function stripGlobals(scope: object): void {
   }
   for (const name of names) strip(scope, name)
 
-  // The origin's private file system and its locks are the page's origin's, shared by every
-  // plugin's worker: what went through them met no grant (issue 30).
+  // The origin's private file system, its storage buckets (each with an IndexedDB and a file
+  // system of its own) and its locks are the page's origin's, shared by every plugin's worker:
+  // what went through them met no grant (issue 30; storageBuckets found in review). Devices -
+  // WebGPU, USB, HID, serial, Bluetooth - are no plugin's either.
   const navigator = (scope as { navigator?: unknown }).navigator
   if (typeof navigator === 'object' && navigator !== null) {
-    strip(navigator, 'storage')
-    strip(navigator, 'locks')
+    for (const name of [
+      'storage',
+      'storageBuckets',
+      'locks',
+      'serviceWorker',
+      'gpu',
+      'usb',
+      'hid',
+      'serial',
+      'bluetooth',
+    ]) {
+      strip(navigator, name)
+    }
   }
 
   // The runtime makes the app's faces of bytes the host posts; a face made from an address
   // would be fetched, so only bytes are taken (issue 30).
+  // What the check uses is taken now, before any plugin code runs, so a plugin cannot replace
+  // ArrayBuffer.isView, and the native constructor is not left on the prototype (both found in
+  // review). ArrayBuffer's own byteLength getter throws for anything that is not one.
   const Face = (scope as { FontFace?: unknown }).FontFace
   if (typeof Face === 'function') {
     const Native = Face as new (family: string, source: unknown, descriptors?: unknown) => object
+    const isView = ArrayBuffer.isView
+    // Reflect.apply, never `.call`: Function.prototype.call is the plugin's to replace.
+    const apply = Reflect.apply
+    const byteLength = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength')?.get
+    const isBuffer = (value: unknown): boolean => {
+      if (byteLength === undefined) return false
+      try {
+        apply(byteLength, value, [])
+        return true
+      } catch {
+        return false
+      }
+    }
     const BytesOnly = function FontFace(family: string, source: unknown, descriptors?: unknown) {
-      if (!(source instanceof ArrayBuffer || ArrayBuffer.isView(source))) {
+      if (!(isBuffer(source) || isView(source))) {
         throw new TypeError('a plugin font is made of bytes, not loaded from an address')
       }
       return new Native(family, source, descriptors)
     }
     BytesOnly.prototype = Native.prototype
+    try {
+      Object.defineProperty(Native.prototype, 'constructor', {
+        value: BytesOnly,
+        writable: false,
+        configurable: false,
+      })
+    } catch {
+      // Not configurable: the face is still made only through the global below.
+    }
     strip(scope, 'FontFace', BytesOnly)
   }
 }

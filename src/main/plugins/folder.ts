@@ -200,23 +200,87 @@ export function transformFile(file: SourceFile): string {
 }
 
 /**
- * `import`, then only spaces and comments, then `(`: a dynamic import's shape, not as a property
- * (`o.import(`) or part of a longer name.
- */
-const DYNAMIC_IMPORT = /(?<![.\w$])import(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\n]*\n)*\(/
-
-/**
  * Refuses code that still holds a dynamic import (issue 29). A plugin's worker inherits the
  * page's CSP; while the page was a file:// document, an import() that got past the transform -
  * which turns every one it sees into require - could load any file on the disk. Served from
  * app:// the platform refuses that (plugin-containment.spec.ts); this stays as a second wall,
- * and keeps a plugin to the module table it was given. Its shape is refused wherever it
- * stands, a string or a comment too, and a method named import with it: from the text alone
- * neither can be told from a call.
+ * and keeps a plugin to the module table it was given.
+ *
+ * Its shape is `import`, not as a property (`o.import(`) or part of a longer name, then only
+ * white space and comments, then `(`. It is refused wherever it stands, a string or a comment
+ * too, and a method named import with it: from the text alone neither can be told from a call.
+ *
+ * Read by hand in one pass, never a regular expression: one that skipped comments scanned to
+ * the end of the file at every `import/*` left open, and a 1 MB plugin held main for about half
+ * a minute (found in review).
  */
 export function checkNoImport(code: string, file = 'index.ts'): void {
-  if (DYNAMIC_IMPORT.test(code)) {
-    throw new Error(`${file}: a dynamic import() is not allowed in a plugin; use a static import`)
+  const ends = new CommentEnds(code)
+  for (let at = code.indexOf('import'); at !== -1; at = code.indexOf('import', at + 6)) {
+    if (/[.\w$]/.test(code[at - 1] ?? '')) continue
+    if (callFollows(code, at + 6, ends)) {
+      throw new Error(`${file}: a dynamic import() is not allowed in a plugin; use a static import`)
+    }
+  }
+}
+
+/** Whether only white space and comments stand between `from` and a `(`. */
+function callFollows(code: string, from: number, ends: CommentEnds): boolean {
+  for (let i: number | null = from; i !== null && i < code.length; i = pastGap(code, i, ends)) {
+    if (code[i] === '(') return true
+  }
+  return false
+}
+
+/**
+ * Past the white space or comment at `i`: where the next thing starts, or null when something
+ * else stands there, or a comment never closed hides everything after it.
+ */
+function pastGap(code: string, i: number, ends: CommentEnds): number | null {
+  if (/\s/.test(code[i] ?? '')) return i + 1
+  if (code.startsWith('/*', i)) {
+    const close = ends.next('*/', i + 2)
+    return close === -1 ? null : close + 2
+  }
+  if (code.startsWith('//', i)) {
+    const end = ends.next('line', i + 2)
+    return end === -1 ? null : end + 1
+  }
+  return null
+}
+
+/**
+ * Where block comments close and lines end, found once each in a single pass and then looked up
+ * by halving: the next one after any place, in logarithmic time.
+ */
+class CommentEnds {
+  private readonly code: string
+  private readonly found = new Map<'*/' | 'line', number[]>()
+
+  constructor(code: string) {
+    this.code = code
+  }
+
+  next(kind: '*/' | 'line', from: number): number {
+    const list = this.positions(kind)
+    let low = 0
+    let high = list.length
+    while (low < high) {
+      const middle = (low + high) >> 1
+      if ((list[middle] ?? 0) < from) low = middle + 1
+      else high = middle
+    }
+    return list[low] ?? -1
+  }
+
+  private positions(kind: '*/' | 'line'): number[] {
+    let list = this.found.get(kind)
+    if (list !== undefined) return list
+    list = []
+    const pattern = kind === '*/' ? /\*\//g : /[\n\r\u2028\u2029]/g
+    for (const match of this.code.matchAll(pattern)) list.push(match.index)
+    this.found.set(kind, list)
+    return list
   }
 }
 

@@ -611,3 +611,109 @@ describe('canvas, keys and sound (apiVersion 2)', () => {
     expect(texts(p).at(-1)).toBe('rgb(1, 2, 3)')
   })
 })
+
+describe('what a plugin worker keeps of navigator and FontFace (review of issue 30)', () => {
+  it("removes every way to the origin's storage and to devices, not only storage and locks", () => {
+    // Found in review: navigator.storageBuckets opened the same origin's file system and
+    // IndexedDB that removing navigator.storage was meant to close.
+    class WorkerNavigator {
+      get storageBuckets() {
+        return { open: () => 'bucket' }
+      }
+      get gpu() {
+        return {}
+      }
+      get usb() {
+        return {}
+      }
+      get hid() {
+        return {}
+      }
+      get serial() {
+        return {}
+      }
+      get bluetooth() {
+        return {}
+      }
+      get hardwareConcurrency() {
+        return 8
+      }
+    }
+    const scope = { navigator: new WorkerNavigator(), postMessage: () => {} } as unknown as Record<
+      string,
+      unknown
+    >
+    stripGlobals(scope)
+    const nav = scope.navigator as Record<string, unknown>
+    for (const name of ['storageBuckets', 'gpu', 'usb', 'hid', 'serial', 'bluetooth']) {
+      expect(nav[name], name).toBeUndefined()
+    }
+    expect(nav.hardwareConcurrency).toBe(8)
+  })
+
+  it('cannot be got round through the prototype or a replaced ArrayBuffer', () => {
+    // Found in review: FontFace.prototype.constructor was still the native constructor, and the
+    // check read ArrayBuffer.isView when called, which a plugin can replace.
+    const made: unknown[] = []
+    class FontFace {
+      constructor(_family: string, source: unknown) {
+        made.push(source)
+      }
+    }
+    const isView = ArrayBuffer.isView
+    const scope = { FontFace, postMessage: () => {} } as unknown as Record<string, unknown>
+    stripGlobals(scope)
+    const Face = scope.FontFace as {
+      new (family: string, source: unknown): unknown
+      prototype: { constructor: new (family: string, source: unknown) => unknown }
+    }
+    expect(Face.prototype.constructor).toBe(Face)
+    expect(() => new Face.prototype.constructor('x', 'url(https://x.example/f)')).toThrow(TypeError)
+    expect(() => {
+      Face.prototype.constructor = FontFace
+    }).toThrow()
+    try {
+      ArrayBuffer.isView = ((_: unknown) => true) as typeof ArrayBuffer.isView
+      expect(() => new Face('x', 'url(https://x.example/f)')).toThrow(TypeError)
+      // Something dressed as a buffer is not one either.
+      const fake = Object.create(ArrayBuffer.prototype) as ArrayBuffer
+      expect(() => new Face('x', fake)).toThrow(TypeError)
+    } finally {
+      ArrayBuffer.isView = isView
+    }
+    expect(new Face('x', new ArrayBuffer(4))).toBeInstanceOf(FontFace)
+    expect(made).toHaveLength(1)
+  })
+})
+
+describe('the FontFace check, against a plugin that replaces what it calls (review)', () => {
+  it('holds when Function.prototype.call is replaced', () => {
+    class FontFace {}
+    const scope = { FontFace, postMessage: () => {} } as unknown as Record<string, unknown>
+    stripGlobals(scope)
+    const Face = scope.FontFace as new (family: string, source: unknown) => unknown
+    const call = Function.prototype.call
+    try {
+      Function.prototype.call = (() => {}) as typeof call
+      expect(() => new Face('x', 'url(https://x.example/f)')).toThrow(TypeError)
+    } finally {
+      Function.prototype.call = call
+    }
+  })
+
+  it('also takes the service worker and WebSocketStream', () => {
+    class WorkerNavigator {
+      get serviceWorker() {
+        return {}
+      }
+    }
+    const scope = {
+      navigator: new WorkerNavigator(),
+      WebSocketStream: class {},
+      postMessage: () => {},
+    } as unknown as Record<string, unknown>
+    stripGlobals(scope)
+    expect((scope.navigator as Record<string, unknown>).serviceWorker).toBeUndefined()
+    expect(scope.WebSocketStream).toBeUndefined()
+  })
+})
