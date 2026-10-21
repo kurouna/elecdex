@@ -4,6 +4,7 @@ import {
   readJsonLimited,
   readLimited,
   readTextLimited,
+  readUpTo,
 } from '../../src/main/read-limited.js'
 
 /**
@@ -63,10 +64,40 @@ describe('a response read as text or JSON', () => {
   })
 
   it('has a limit for every service it reads, each far above what that service sends', () => {
-    // USGS's week of quakes is about 2 MB, a JMA office's forecast tens of kilobytes.
+    // USGS's day of magnitude 4.5 and up is tens of kilobytes, a JMA office's forecast alike.
     expect(READ_LIMITS.quakes).toBeGreaterThanOrEqual(8 * 1024 * 1024)
     expect(READ_LIMITS.weather).toBeGreaterThanOrEqual(4 * 1024 * 1024)
     expect(READ_LIMITS.updates).toBeGreaterThanOrEqual(1024 * 1024)
     expect(READ_LIMITS.markets).toBeGreaterThanOrEqual(1024 * 1024)
+  })
+})
+
+describe('the first bytes of a body (review of issue 32)', () => {
+  it('reads up to the size and lets the rest go, never failing for it', async () => {
+    // An AI provider's error body is shown cut to a few kilobytes; it was read whole first.
+    const { body, pulled, cancelled } = chunked([6, 6, 6, 6])
+    const head = await readUpTo(body, 8)
+    expect(head.byteLength).toBe(8)
+    expect(pulled()).toBe(2)
+    expect(cancelled()).toBe(true)
+    expect((await readUpTo(chunked([3]).body, 8)).byteLength).toBe(3)
+    expect((await readUpTo(null, 8)).byteLength).toBe(0)
+  })
+
+  it('keeps its own message when letting the body go fails too', async () => {
+    // Found in review: a cancel that threw replaced "too large" with its own error.
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(20))
+      },
+      cancel() {
+        throw new Error('already gone')
+      },
+    })
+    await expect(readLimited(body, 10, 'models too large')).rejects.toThrow('models too large')
+  })
+
+  it('has a limit for what an AI provider lists', () => {
+    expect(READ_LIMITS.ai).toBeGreaterThanOrEqual(1024 * 1024)
   })
 })

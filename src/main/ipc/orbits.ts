@@ -5,6 +5,7 @@ import { app, net, type WebContents } from 'electron'
 import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { type OrbitCache, OrbitCacheSchema, OrbitService } from '../orbits/service.js'
+import { readLimited } from '../read-limited.js'
 import { cacheFile } from '../store/cache-file.js'
 import { whenPageGoes } from './page-gone.js'
 import { registerTable } from './table.js'
@@ -105,21 +106,14 @@ export function registerOrbitsIpc(): { dispose: () => void } {
   }
 }
 
-/** The body as text, or null when it runs past `limit` bytes. */
+const TOO_LARGE = 'orbital elements too large'
+
+/** The body as text, or null when it runs past `limit` bytes (read-limited.ts reads it). */
 async function readText(response: Response, limit: number): Promise<string | null> {
-  const reader = response.body?.getReader()
-  if (reader === undefined) return ''
-  const chunks: Uint8Array[] = []
-  let size = 0
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    size += value.byteLength
-    if (size > limit) {
-      await reader.cancel().catch(() => {})
-      return null
-    }
-    chunks.push(value)
+  try {
+    return new TextDecoder().decode(await readLimited(response.body, limit, TOO_LARGE))
+  } catch (error) {
+    if (error instanceof Error && error.message === TOO_LARGE) return null
+    throw error
   }
-  return Buffer.concat(chunks).toString('utf8')
 }

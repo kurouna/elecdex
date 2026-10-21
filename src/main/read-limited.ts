@@ -5,7 +5,10 @@
  * above what its service sends.
  */
 export const READ_LIMITS = {
-  /** USGS's week of earthquakes is about 2 MB; JMA's and NOAA's lists far less. */
+  /**
+   * USGS's day of magnitude 4.5 and up (the feed the pane reads) is tens of kilobytes, JMA's list
+   * and a tsunami report hundreds at most: far below, so a busy day never meets it.
+   */
   quakes: 16 * 1024 * 1024,
   /** A JMA office's forecast is tens of kilobytes, its area list a few hundred, NWS's alike. */
   weather: 8 * 1024 * 1024,
@@ -13,6 +16,8 @@ export const READ_LIMITS = {
   updates: 2 * 1024 * 1024,
   /** The tests' stand-in for the markets. */
   markets: 4 * 1024 * 1024,
+  /** An AI provider's list of models: a few hundred entries at the most. */
+  ai: 4 * 1024 * 1024,
 } as const
 
 /** The body's bytes, cut off with `message` past `maxBytes`: the rest is never read. */
@@ -30,7 +35,8 @@ export async function readLimited(
     if (done) break
     size += value.byteLength
     if (size > maxBytes) {
-      await reader.cancel()
+      // A cancel that fails too must not take the place of the reason (found in review).
+      await reader.cancel().catch(() => {})
       throw new Error(message)
     }
     chunks.push(value)
@@ -41,6 +47,26 @@ export async function readLimited(
     bytes.set(chunk, offset)
     offset += chunk.byteLength
   }
+  return bytes
+}
+
+/** The body's first `maxBytes` bytes, the rest let go unread: for what is shown cut anyway. */
+export async function readUpTo(
+  body: ReadableStream<Uint8Array> | null,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  if (body === null) return new Uint8Array()
+  const reader = body.getReader()
+  const bytes = new Uint8Array(maxBytes)
+  let size = 0
+  while (size < maxBytes) {
+    const { done, value } = await reader.read()
+    if (done) return bytes.subarray(0, size)
+    const take = Math.min(value.byteLength, maxBytes - size)
+    bytes.set(value.subarray(0, take), size)
+    size += take
+  }
+  await reader.cancel().catch(() => {})
   return bytes
 }
 

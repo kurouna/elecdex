@@ -16,6 +16,7 @@ import {
   type KeyFile,
   KeyFileSchema,
   KeyVault,
+  openKeyVault,
   stubCodec,
 } from '../../src/main/ai/keys.js'
 import { AiChatService } from '../../src/main/ai/service.js'
@@ -523,8 +524,9 @@ describe('keys', () => {
 })
 
 describe('a key and the address it was typed for', () => {
-  const vaultOn = () => {
-    let file: KeyFile = emptyKeyFile()
+  /** `legacy`: a key file from before addresses were kept, which carries no `adopted`. */
+  const vaultOn = (legacy = false) => {
+    let file: KeyFile = legacy ? KeyFileSchema.parse({ version: 1 }) : emptyKeyFile()
     const vault = new KeyVault({
       codec: stubCodec,
       load: () => file,
@@ -553,7 +555,7 @@ describe('a key and the address it was typed for', () => {
   it('binds a key kept before there were addresses to its address at the start (issue 28)', () => {
     // Bound to the first address it was sent to, a key went wherever a page that had changed
     // the provider's address first asked for it.
-    const { vault, file } = vaultOn()
+    const { vault, file } = vaultOn(true)
     vault.set('openai', 'sk-old')
     vault.set('local', 'sk-local')
     vault.set('gone', 'sk-gone')
@@ -569,6 +571,44 @@ describe('a key and the address it was typed for', () => {
     expect(vault.get('local', 'https://evil.example')).toBeNull()
     expect(file().origins).toEqual({ openai: 'https://api.openai.com' })
     expect(vault.storage('gone')).toBe('stored')
+    // And it says so, so the request is refused in words rather than sent without it (review).
+    expect(vault.moved('gone', 'https://evil.example')).toBe(true)
+    expect(vault.moved('local', 'http://localhost:11434')).toBe(true)
+    expect(vault.moved('openai', 'https://api.openai.com')).toBe(false)
+  })
+
+  it('adopts once: a key left without an address then is not bound by a later start (review)', () => {
+    // Found in review: a key whose provider had no address at one start took whatever address a
+    // page had set by the next.
+    const { vault, file } = vaultOn(true)
+    vault.set('later', 'sk-later')
+    vault.adopt([{ id: 'later', origin: null }])
+    expect(file().adopted).toBe(true)
+    vault.adopt([{ id: 'later', origin: 'https://evil.example' }])
+    expect(file().origins).toEqual({})
+    expect(vault.get('later', 'https://evil.example')).toBeNull()
+    // A key file made by this version has nothing to adopt, ever.
+    expect(emptyKeyFile().adopted).toBe(true)
+  })
+
+  it('is opened adopted, as main opens it at the start (review)', () => {
+    // Found in review: nothing held main to calling adopt; without it every old key went unused.
+    let file: KeyFile = {
+      ...KeyFileSchema.parse({ version: 1 }),
+      keys: { openai: 'c3R1Yjpzay1vbGQ=' },
+    }
+    const vault = openKeyVault(
+      {
+        codec: stubCodec,
+        load: () => file,
+        save: (next) => {
+          file = next
+        },
+      },
+      [{ id: 'openai', origin: 'https://api.openai.com' }],
+    )
+    expect(file.origins).toEqual({ openai: 'https://api.openai.com' })
+    expect(vault.get('openai', 'https://api.openai.com')).toBe('sk-old')
   })
 
   it('adopts nothing that already has its address, nor a key it does not hold', () => {
@@ -599,6 +639,12 @@ describe('a key and the address it was typed for', () => {
     vault.set('openai', 'sk-mem', 'https://api.openai.com')
     expect(vault.get('openai', 'https://other.example')).toBeNull()
     expect(vault.get('openai', 'https://api.openai.com')).toBe('sk-mem')
+    // One typed while the address was no address is bound to none, as a stored one is (review):
+    // it is not given to the first address it is asked for.
+    vault.set('later', 'sk-later', null)
+    expect(vault.moved('later', 'https://evil.example')).toBe(true)
+    expect(vault.get('later', 'https://evil.example')).toBeNull()
+    expect(vault.get('later')).toBe('sk-later')
   })
 
   it('reads a key file from before the addresses were kept', () => {

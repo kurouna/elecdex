@@ -1,4 +1,5 @@
 import { AI_LIMITS, type AiModel, isLocalAddress, ThinkSplitter } from '@shared/ai'
+import { READ_LIMITS, readJsonLimited, readUpTo } from '../read-limited.js'
 import {
   type AdapterTarget,
   type FetchLike,
@@ -114,7 +115,8 @@ export class SseLines {
 
 async function errorDetail(response: Response): Promise<string | null> {
   try {
-    const text = (await response.text()).slice(0, ERROR_BODY_BYTES)
+    // Only what is shown is read: a provider's error page can be of any size.
+    const text = new TextDecoder().decode(await readUpTo(response.body, ERROR_BODY_BYTES))
     try {
       const body = JSON.parse(text) as { error?: { message?: unknown } | string; message?: unknown }
       const said =
@@ -325,7 +327,7 @@ export function openaiAdapter(
       retries.waits(target.baseUrl),
     )
     if (!response.ok) throw statusFailure(response.status, await errorDetail(response))
-    const body = (await response.json()) as { data?: unknown }
+    const body = (await readJsonLimited(response, READ_LIMITS.ai)) as { data?: unknown }
     const list = Array.isArray(body.data) ? body.data : []
     return list
       .map((entry) => (entry as { id?: unknown }).id)

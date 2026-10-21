@@ -29,7 +29,7 @@ import { exportFileName } from '@shared/validate'
 import { app, net, type WebContents } from 'electron'
 import type { FetchLike, ProviderAdapter } from '../ai/adapter.js'
 import { ChatFiles, notAFile } from '../ai/files.js'
-import { emptyKeyFile, KeyFileSchema, KeyVault } from '../ai/keys.js'
+import { emptyKeyFile, KeyFileSchema, openKeyVault } from '../ai/keys.js'
 import { AiChatService } from '../ai/service.js'
 import { ChatStore } from '../ai/store.js'
 import { KEY_MOVED, type KeyLookup } from '../ai/target.js'
@@ -110,14 +110,8 @@ export function registerAiIpc(settings: SettingsHandle): {
     KeyFileSchema,
     emptyKeyFile(),
   )
-  const vault = new KeyVault({
-    codec: secretCodec(),
-    load: keyFile.load,
-    save: keyFile.save,
-  })
-  // Keys from before addresses were kept take their providers' addresses as settings.json has
-  // them now, before any page has run.
-  vault.adopt(
+  const vault = openKeyVault(
+    { codec: secretCodec(), load: keyFile.load, save: keyFile.save },
     settings.current().ai.providers.map((p) => ({ id: p.id, origin: aiOrigin(p.baseUrl) })),
   )
 

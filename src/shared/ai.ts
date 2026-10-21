@@ -234,7 +234,7 @@ const PRIVATE_V4 = /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.
 /** An IPv4 address as the URL parser writes one: four numbers, nothing else. */
 const V4_ADDRESS = /^\d{1,3}(\.\d{1,3}){3}$/
 /** Unique local (fc00::/7) and link-local (fe80::/10) IPv6 addresses. */
-const PRIVATE_V6 = /^(f[cd][0-9a-f]{0,2}|fe[89ab][0-9a-f]?):/
+const PRIVATE_V6 = /^(f[cd][0-9a-f]{2}|fe[89ab][0-9a-f]):/
 
 /**
  * This machine, or an address that only exists on the local network. The private ranges are

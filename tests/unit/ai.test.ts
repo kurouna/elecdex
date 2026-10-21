@@ -80,6 +80,26 @@ describe('where a key may be sent', () => {
     }
   })
 
+  it('takes only the private IPv6 ranges, to the bit (review)', () => {
+    // Found in review: fc::1 and fe8::1 (0x00fc and 0x0fe8) were taken for fc00::/7 and fe80::/10.
+    for (const far of [
+      'http://[fc::1]/v1',
+      'http://[fe8::1]/v1',
+      'http://[fd::1]/v1',
+      'http://[fec0::1]/v1',
+    ]) {
+      expect(keyMayTravel(far), far).toBe(false)
+    }
+    for (const near of [
+      'http://[fc00::1]/v1',
+      'http://[fdff::1]/v1',
+      'http://[fe80::1]/v1',
+      'http://[febf::1]/v1',
+    ]) {
+      expect(keyMayTravel(near), near).toBe(true)
+    }
+  })
+
   it('reads the private ranges only from an address, never from a name (issue 27)', () => {
     // A name that starts like a private address is a name on the internet: the key went to
     // http://10.example.com in the clear.
