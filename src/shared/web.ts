@@ -274,6 +274,24 @@ export const WEB_URL_MAX = 8192
  */
 export type WindowVerdict = 'popup' | 'same-pane' | 'external' | 'block'
 
+/**
+ * When a page may send the default browser to a link off its site (issue 31): only just after
+ * the person pressed or typed in the pane - a click through a link that redirects away is still
+ * theirs - and once in a while, so neither a page's own script nor one press opens a run of tabs.
+ */
+export const EXTERNAL_LIMITS = { afterInputMs: 5000, gapMs: 1500 } as const
+
+/** When the person last pressed or typed in a page, and when it last opened the browser. */
+export interface OutsideOpens {
+  inputAt: number | null
+  openedAt: number | null
+}
+
+export function mayOpenOutside(state: OutsideOpens, now: number): boolean {
+  if (state.inputAt === null || now - state.inputAt > EXTERNAL_LIMITS.afterInputMs) return false
+  return state.openedAt === null || now - state.openedAt > EXTERNAL_LIMITS.gapMs
+}
+
 export function windowVerdict(preset: WebPreset, raw: string, disposition: string): WindowVerdict {
   const verdict = navigationVerdict(preset, raw)
   if (verdict !== 'allow') return verdict

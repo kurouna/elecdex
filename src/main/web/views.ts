@@ -5,7 +5,9 @@ import {
   externalPage,
   httpUrl,
   loadFailure,
+  mayOpenOutside,
   navigationVerdict,
+  type OutsideOpens,
   pageToReopen,
   paneTint,
   parseAddress,
@@ -494,12 +496,13 @@ export class WebViews {
   /** Where a page may go: only http(s), and only the preset's hosts in the pane. */
   private watchPolicy(entry: Entry): void {
     const contents = entry.view.webContents
+    const outside = outsideOpener(contents)
     const guard = (event: { url: string; preventDefault: () => void }): void => {
       const verdict = navigationVerdict(entry.preset, event.url)
       if (verdict === 'allow') return
       event.preventDefault()
       if (verdict !== 'external') return
-      void openExternalIfSafe(event.url)
+      outside(event.url)
       // A page that only passed the link on is left: back to the page it was opened from.
       if (passesThrough(contents.getURL())) this.leavePassThrough(entry)
     }
@@ -520,7 +523,7 @@ export class WebViews {
           this.load(entry, url)
           return { action: 'deny' }
         case 'external':
-          void openExternalIfSafe(url)
+          outside(url)
           return { action: 'deny' }
         case 'block':
           return { action: 'deny' }
@@ -735,10 +738,41 @@ function send(
  * A sign-in popup: a helper window (never "the elecdex window"), which may go to
  * any http(s) page of the sign-in and opens nothing further itself.
  */
+/** What counts as the person's own doing in a page: a press, a key, a touch. */
+const PERSON_INPUT: ReadonlySet<string> = new Set([
+  'mouseDown',
+  'mouseUp',
+  'rawKeyDown',
+  'keyDown',
+  'char',
+  'touchStart',
+  'touchEnd',
+  'gestureTap',
+])
+
+/**
+ * Opens a page's link in the default browser only as the person's own doing (`mayOpenOutside`,
+ * issue 31): a page's script alone, or one press, could send the browser anywhere, again and
+ * again. What the pane's own controls open (the address bar, its browser button) is not this.
+ */
+function outsideOpener(contents: WebContents): (url: string) => void {
+  const state: OutsideOpens = { inputAt: null, openedAt: null }
+  contents.on('input-event', (_event, input) => {
+    if (PERSON_INPUT.has(input.type)) state.inputAt = Date.now()
+  })
+  return (url) => {
+    const now = Date.now()
+    if (!mayOpenOutside(state, now)) return
+    state.openedAt = now
+    void openExternalIfSafe(url)
+  }
+}
+
 function watchPopup(popup: BrowserWindow): void {
   markHelperWindow(popup)
+  const outside = outsideOpener(popup.webContents)
   popup.webContents.setWindowOpenHandler(({ url }) => {
-    void openExternalIfSafe(url)
+    outside(url)
     return { action: 'deny' }
   })
   const guard = (event: { url: string; preventDefault: () => void }): void => {

@@ -192,6 +192,14 @@ const schemeCssOf = (contents: FakeContents) =>
   [...contents.css.values()].filter((css) => css.includes('color-scheme'))
 const view = (index = 0) => win.children[index] as FakeView
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+/**
+ * The person presses in the page, a while after the last thing it opened: a page sends the
+ * browser off its site only then (issue 31). Moves only the clock Date reads.
+ */
+const pressIn = (contents: EventEmitter) => {
+  vi.setSystemTime(Date.now() + 2000)
+  contents.emit('input-event', {}, { type: 'mouseDown' })
+}
 
 beforeEach(() => {
   hoisted.opened.length = 0
@@ -201,6 +209,9 @@ beforeEach(() => {
   win = new FakeWindow(owner)
   leftToPage = new Set()
   views = new WebViews({ keymap: () => keymap, leftToPage: () => leftToPage })
+})
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('WebViews', () => {
@@ -358,8 +369,10 @@ describe('WebViews', () => {
       return details.preventDefault
     }
     expect(navigate('will-navigate', 'https://m.youtube.com/')).not.toHaveBeenCalled()
+    pressIn(contents)
     expect(navigate('will-navigate', 'https://example.com/')).toHaveBeenCalled()
     expect(navigate('will-navigate', 'file:///C:/')).toHaveBeenCalled()
+    pressIn(contents)
     expect(navigate('will-redirect', 'https://evil.test/')).toHaveBeenCalled()
     // A frame inside the page may go where it likes; only the page itself is kept.
     expect(navigate('will-redirect', 'https://ads.test/', false)).not.toHaveBeenCalled()
@@ -389,6 +402,7 @@ describe('WebViews', () => {
       devTools: true,
     })
 
+    pressIn(contents)
     expect(open('https://www.youtube.com/watch?v=9', 'foreground-tab')).toEqual({ action: 'deny' })
     expect(contents.url).toBe('https://www.youtube.com/watch?v=9')
     expect(open('https://example.com/', 'new-window')).toEqual({ action: 'deny' })
@@ -406,6 +420,35 @@ describe('WebViews', () => {
     const blocked = { url: 'file:///C:/', preventDefault: vi.fn() }
     child.emit('will-navigate', blocked)
     expect(blocked.preventDefault).toHaveBeenCalled()
+  })
+
+  it("sends the browser off the site only just after the person's press, and not often (issue 31)", async () => {
+    // A page's own script sent the default browser anywhere, as often as it liked.
+    views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+    const contents = view().webContents
+    const away = (url: string) => contents.emit('will-navigate', { url, preventDefault: vi.fn() })
+    away('https://ads.example/1')
+    expect(
+      contents.openHandler?.({ url: 'https://ads.example/2', disposition: 'new-window' }),
+    ).toEqual({ action: 'deny' })
+    // A pointer only passing over the page is no press.
+    contents.emit('input-event', {}, { type: 'mouseMove' })
+    away('https://ads.example/3')
+    await flush()
+    expect(hoisted.opened).toEqual([])
+
+    pressIn(contents)
+    away('https://news.example/a')
+    // The same press does not open a second tab, nor a run of them.
+    away('https://ads.example/4')
+    contents.openHandler?.({ url: 'https://ads.example/5', disposition: 'new-window' })
+    await flush()
+    expect(hoisted.opened).toEqual(['https://news.example/a'])
+    // Long after the press, nothing again.
+    vi.setSystemTime(Date.now() + 10_000)
+    away('https://ads.example/6')
+    await flush()
+    expect(hoisted.opened).toEqual(['https://news.example/a'])
   })
 
   it('opens typed addresses only when they are web pages', async () => {
@@ -730,6 +773,7 @@ describe('WebViews', () => {
     contents.history.back = true
     const goBack = contents.history.goBack
     const away = { url: 'https://news.example/article', preventDefault: vi.fn() }
+    pressIn(contents)
     contents.emit('will-navigate', away)
     expect(away.preventDefault).toHaveBeenCalled()
     expect(goBack).toHaveBeenCalled()

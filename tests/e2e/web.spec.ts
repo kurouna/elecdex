@@ -139,6 +139,20 @@ function inPage<T>(app: Launched, script: string): Promise<T> {
   }, script) as Promise<T>
 }
 
+/**
+ * A press in the page as the person makes one, through the input the view receives: a page
+ * sends the browser off its site only just after one (issue 31).
+ */
+function pressInPage(app: Launched): Promise<void> {
+  return app.app.evaluate(({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0]?.contentView.children[0]
+    if (view === undefined || !('webContents' in view)) throw new Error('no web view')
+    const contents = (view as Electron.WebContentsView).webContents
+    contents.sendInputEvent({ type: 'mouseDown', x: 2, y: 2, button: 'left', clickCount: 1 })
+    contents.sendInputEvent({ type: 'mouseUp', x: 2, y: 2, button: 'left', clickCount: 1 })
+  })
+}
+
 const webPane = (page: Page) => page.locator('[data-testid=pane][data-pane-id=web]')
 
 async function box(locator: Locator) {
@@ -711,10 +725,18 @@ test.describe('web panes', () => {
       await expect(webPane(app.page).getByTestId('pane-subtitle')).toHaveText('YT home')
       await stubExternal(app)
 
+      // The page's own script, with no press: kept on the site, and the browser left alone.
+      await inPage(app, 'document.querySelector("#away").click()')
+      await app.page.waitForTimeout(500)
+      expect(await opened(app)).toEqual([])
+
+      await pressInPage(app)
       await inPage(app, 'document.querySelector("#away").click()')
       await expect.poll(() => opened(app)).toEqual([`http://localhost:${port}/away`])
 
-      // A redirect off the site is caught too.
+      // A redirect off the site is caught too, a while after.
+      await app.page.waitForTimeout(1600)
+      await pressInPage(app)
       await inPage(app, `location.href = "http://127.0.0.1:${port}/yt/bounce"`)
       await expect.poll(() => opened(app)).toHaveLength(2)
 

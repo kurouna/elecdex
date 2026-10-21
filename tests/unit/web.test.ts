@@ -2,10 +2,12 @@ import { applySettingsPatch, defaultSettings } from '@shared/settings'
 import { BUILTIN_THEMES, type Theme } from '@shared/theme'
 import {
   colorSchemeCss,
+  EXTERNAL_LIMITS,
   externalPage,
   hostMatches,
   hslToHex,
   loadFailure,
+  mayOpenOutside,
   navigationVerdict,
   pageToKeep,
   pageToReopen,
@@ -413,5 +415,29 @@ describe('settings', () => {
       tint: true,
     })
     expect(applySettingsPatch(defaultSettings(), { web: { tint: 'no' } })).toBeNull()
+  })
+})
+
+describe('a page sending the browser somewhere (issue 31)', () => {
+  const { afterInputMs, gapMs } = EXTERNAL_LIMITS
+  const NOW = 1_000_000
+
+  it('may only just after the person touched the pane', () => {
+    // A page's script sent the default browser wherever it liked, as often as it liked.
+    expect(mayOpenOutside({ inputAt: null, openedAt: null }, NOW)).toBe(false)
+    expect(mayOpenOutside({ inputAt: NOW - 100, openedAt: null }, NOW)).toBe(true)
+    // A click through a link that redirects off the site: still the person's.
+    expect(mayOpenOutside({ inputAt: NOW - afterInputMs + 1, openedAt: null }, NOW)).toBe(true)
+    expect(mayOpenOutside({ inputAt: NOW - afterInputMs - 1, openedAt: null }, NOW)).toBe(false)
+  })
+
+  it('once in a while, however much the person does', () => {
+    expect(mayOpenOutside({ inputAt: NOW, openedAt: NOW - gapMs + 1 }, NOW)).toBe(false)
+    expect(mayOpenOutside({ inputAt: NOW, openedAt: NOW - gapMs - 1 }, NOW)).toBe(true)
+  })
+
+  it('keeps its limits a person would not notice', () => {
+    expect(afterInputMs).toBeGreaterThanOrEqual(3000)
+    expect(gapMs).toBeLessThanOrEqual(2000)
   })
 })
