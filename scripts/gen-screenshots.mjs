@@ -677,7 +677,11 @@ async function withWebViews(app, page) {
   return Buffer.from(jpeg, 'base64')
 }
 
-async function shoot(theme, name, { extra, layout, env, settings, social, prepare } = {}) {
+async function shoot(
+  theme,
+  name,
+  { extra, layout, env, settings, social, prepare, save = true } = {},
+) {
   if (only.length > 0 && !only.includes(name)) return
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-readme-'))
   if (layout) writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layout))
@@ -745,7 +749,9 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
   // where a real pointer over the window may have left it.
   await page.waitForTimeout(1000)
   if (extra) await extra(page)
-  if (social) {
+  if (!save) {
+    // The shot's own pictures were written by `extra` (the skins' crops).
+  } else if (social) {
     mkdirSync(SOCIAL, { recursive: true })
     await page.screenshot({ path: path.join(SOCIAL, `${name}.png`), type: 'png' })
   } else {
@@ -906,6 +912,53 @@ if (only.length === 0 || only.includes('elecdex-logwatch')) {
   council.close()
 }
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
+/*
+ * The ELEC-16's five skins modelled in light, each a crop of the body alone with a margin of
+ * the pane round it (nothing of the system column or this machine), SINEWAVE running: the five
+ * on a dark theme, then GLASS again on a light one, as it follows the theme's mode.
+ */
+const skinLayout = {
+  version: 1,
+  root: { ...pane('elec16'), state: { skin: 'classic', panel: false, tab: 'tune' } },
+}
+async function skinCrops(page, skins, suffix = '') {
+  const toggle = page.getByTestId('elec16-panel-toggle')
+  for (const skin of skins) {
+    await toggle.click()
+    await page.locator(`[data-testid=elec16-skin][data-skin="${skin}"]`).click()
+    await toggle.click()
+    await page.mouse.move(W / 2, 4)
+    await page.waitForTimeout(1500)
+    const box = await page.getByTestId('elec16-device').boundingBox()
+    const m = 28
+    const clip = {
+      x: box.x - m,
+      y: box.y - m,
+      width: box.width + 2 * m,
+      height: box.height + 2 * m,
+    }
+    const picture = await page.screenshot({ type: 'jpeg', quality: 90, clip })
+    writeFileSync(path.join(OUT, `elecdex-skin-${skin}${suffix}.jpg`), picture)
+  }
+}
+if (only.length === 0 || only.includes('elecdex-skins')) {
+  await shoot('tron', 'elecdex-skins', {
+    layout: skinLayout,
+    save: false,
+    extra: async (page) => {
+      await sinewave(page)
+      await skinCrops(page, ['alloy', 'graphite', 'neo', 'mochi', 'glass'])
+    },
+  })
+  await shoot('business-light', 'elecdex-skins', {
+    layout: skinLayout,
+    save: false,
+    extra: async (page) => {
+      await sinewave(page)
+      await skinCrops(page, ['glass'], '-light')
+    },
+  })
+}
 // ELEC-16 PLAY: one shot a game, each in a body, a colour and a theme of its own.
 await shoot('business-dark', 'elecdex-play', {
   layout: playLayout({ tab: 'games', playBody: 'tall', playSkin: 'coral' }),

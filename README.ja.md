@@ -206,6 +206,19 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
   <br><sub>ELEC-16 · CLASSIC スキン</sub>
 </p>
 
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-alloy.jpg" alt="ALLOY：ヘアラインの金属に彫った名前板の文字、琥珀の線 1 本、沈んだ黒い鍵盤の板に黒いキー"><br><sub>ALLOY</sub></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-graphite.jpg" alt="GRAPHITE：黒鉛色の梨地の本体、明るい文字キー、白に近いテンキー、濃い機能キーと赤い BRK"><br><sub>GRAPHITE</sub></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-neo.jpg" alt="NEO：冷たい明るい灰の本体、切り欠きに収まった低いキー、紙のような画面、コバルトの ENTER"><br><sub>NEO</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-mochi.jpg" alt="MOCHI：桜色に白い水玉、ミント・クリーム・レモン・ラベンダーの艶のあるキー、プラム色の画面"><br><sub>MOCHI</sub></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-glass.jpg" alt="暗いテーマの GLASS：縁が光る暗いガラスの本体、奥に見える基板、ガラスのキー"><br><sub>GLASS</sub></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-glass-light.jpg" alt="明るいテーマの GLASS：同じガラスが明るくなり、ENTER はアクセントの青"><br><sub>GLASS · 明るいテーマ</sub></td>
+  </tr>
+</table>
+
 <p align="center">
   <img src="./docs/screenshots/elecdex-play-air.jpg" alt="Phosphor テーマで、グラファイトの横長の本体の PLAY-320 にした ELEC-16 ペイン：画面に ELECAIRCOMBAT のコックピット、シーカー円の中に赤いロックの枠と ENGAGE の付いたエース GANNET、そこで炸裂するミサイル、下にレーダー、スコア、損傷の計器と点いた LCK 灯；横の CORE には動いている E16 のレジスタとプログラムカウンタのコード">
   <br><sub>ELEC-16 PLAY（PLAY-320）· ELECAIRCOMBAT · Phosphor · 横に CORE</sub>
@@ -490,7 +503,7 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   ときだけ親フォルダーが添えられます。タブにポインターを重ねると、シェルとフルパスが表示されます。
   終了したシェルは、終了コードとともにタブにそう表示されます。新しいシェルはホームフォルダー、または
   *Settings → General → Terminal* で設定したフォルダーで開きます（"~" はホーム。もう存在しない
-  フォルダーならホームに戻ります）。**Ctrl+Shift+F** でペインの上に検索バーが開きます。一致箇所は
+  フォルダーやネットワークの共有ならホームに戻ります。共有にいるシェルのフォルダーは追わず、タブには *network share* と出ます）。**Ctrl+Shift+F** でペインの上に検索バーが開きます。一致箇所は
   テーマの色で示されて件数が数えられ、Enter と Shift+Enter で順にたどれます。**Aa**、**ab**、**.*** で
   大文字と小文字の区別、単語単位、正規表現を切り替えます。シェルが出力した URL は
   リンクになり、Ctrl+クリック（⌘+クリック）でブラウザーで開きます。
@@ -886,7 +899,7 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   ミュートを解除するボタンを出します。
 - **Browser, YouTube and X** — 既定のレイアウトにはありません。ピッカーから追加します。*Browser* には
   アドレスバーがあり、任意の http(s) のページを開けます。*YouTube (TV)* と *X* はそれぞれのサイトを開いて
-  そこにとどまり、他のサイトへのリンクは既定のブラウザーに送ります。*YouTube (TV)* は YouTube の
+  そこにとどまり、他のサイトへのリンクは、自分でたどったとき（ペインでのクリックやキー。1 回の押下で 1 タブ）だけ既定のブラウザーに送ります。ページが勝手にサイトの外へ移ろうとしたときは、その場にとどめます。*YouTube (TV)* は YouTube の
   リビングルーム向けインターフェースで、矢印キーで操作します。これを YouTube のペインとして提供しているのは、
   サインインできるのがこちらだからです（表示されるコードをスマートフォンで yt.be/activate に入力します）。
   Google は埋め込みブラウザーからのサインインを拒否します（「このブラウザまたはアプリは安全でない可能性が
@@ -1205,7 +1218,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 地震（世界） | [USGS](https://earthquake.usgs.gov/) のリアルタイムフィード `summary/4.5_day.geojson` | パブリックドメインです。地震ペインまたはアラートが世界のソースを使っているときだけ、1 分に 1 回（`max-age=60` に従い）、条件付きで取得します。 |
 | 津波（世界） | [NOAA Tsunami Warning Centers](https://www.tsunami.gov/): 太平洋（`PHEBAtom.xml`）と国内（`PAAQAtom.xml`）の Atom フィード | パブリックドメインです。それぞれのフィードにはセンターの最新の報が入っています。warning、watch、advisory、threat message が対象で、information statement は含みません。USGS のフィードと一緒に、条件付きで確認します。アラートでは現地当局の指示に従うよう伝えます。 |
 | RSS フィード | RSS ペインに登録したフィードの URL | ページではなくアプリが取得し、ペインがそのフィードを表示している間だけ動きます: 15 分ごと（フィードの指定があればそれに従い、最長 1 時間）、条件付き（If-None-Match / If-Modified-Since）、同時に 2 件まで、1 件あたり最大 2 MB、Cookie なし、User-Agent は `elecdex/<version>`。見出しはプレーンテキストとして表示し、フィードごとの最新の見出しをアプリのデータフォルダーの `feeds-cache.json` に保存します。他のサイトには何も送信しません。 |
-| AI チャット | *Settings -> AI* に登録したプロバイダー: 自分のコンピューターやネットワーク上のサーバー、またはホスティングされた API（Anthropic は[公式 SDK](https://github.com/anthropics/anthropic-sdk-typescript) を使い、それ以外は OpenAI 互換の `chat/completions` として扱います） | ページではなくアプリが問い合わせ、それもメッセージを送信したとき、**test** を押したとき、ペインのモデル一覧を開いたときだけです。レイアウトに置かれているだけのチャットペインは、どこにも問い合わせません。送信するのはそれまでの会話（添付したファイルを含む）、システムプロンプト、モデル名で、送り先は選んだアドレスだけです。各プロバイダーの利用規約とデータ保持方針が適用されます。Cookie は使わず、リダイレクトにも従いません。API キーはオペレーティングシステム（DPAPI、キーチェーン、デスクトップのキーリング）によって暗号化され、`settings.json` とは別の `ai-keys.json` に保存され、二度と表示されません。システムが暗号化できない環境では、elecdex が終了するまでメモリ上にのみ保持します。自分のコンピューターとローカルネットワーク以外にある平文の http アドレスには、キーを送りません。独自のキーがない場合、Anthropic SDK はいつもの場所（`ANTHROPIC_API_KEY`、`ant auth login` のプロファイル）を参照します。Anthropic 自身のエンドポイントでは、`claude-opus-5` と `claude-fable-5-1` にサーバー側のフォールバック（`fallbacks: "default"`）を付けて問い合わせるので、安全性の分類器が断ったリクエストは同じ呼び出しの中で別の Claude モデルで実行し直されます。回答には、それを書いたモデルの名前が示されます。会話はアプリのデータフォルダーの `chats/` にファイルとして保存されます。 |
+| AI チャット | *Settings -> AI* に登録したプロバイダー: 自分のコンピューターやネットワーク上のサーバー、またはホスティングされた API（Anthropic は[公式 SDK](https://github.com/anthropics/anthropic-sdk-typescript) を使い、それ以外は OpenAI 互換の `chat/completions` として扱います） | ページではなくアプリが問い合わせ、それもメッセージを送信したとき、**test** を押したとき、ペインのモデル一覧を開いたときだけです。レイアウトに置かれているだけのチャットペインは、どこにも問い合わせません。送信するのはそれまでの会話（添付したファイルを含む）、システムプロンプト、モデル名で、送り先は選んだアドレスだけです。各プロバイダーの利用規約とデータ保持方針が適用されます。Cookie は使わず、リダイレクトにも従いません。API キーはオペレーティングシステム（DPAPI、キーチェーン、デスクトップのキーリング）によって暗号化され、`settings.json` とは別の `ai-keys.json` に保存され、二度と表示されません。キーは入力したときのアドレスにだけ送ります。プロバイダーのアドレスを変えたら、キーを入れ直すまでどこにも送りません。システムが暗号化できない環境では、elecdex が終了するまでメモリ上にのみ保持します。自分のコンピューターとローカルネットワーク以外にある平文の http アドレスには、キーを送りません。独自のキーがない場合、Anthropic SDK はいつもの場所（`ANTHROPIC_API_KEY`、`ant auth login` のプロファイル）を参照します。Anthropic 自身のエンドポイントでは、`claude-opus-5` と `claude-fable-5-1` にサーバー側のフォールバック（`fallbacks: "default"`）を付けて問い合わせるので、安全性の分類器が断ったリクエストは同じ呼び出しの中で別の Claude モデルで実行し直されます。回答には、それを書いたモデルの名前が示されます。会話はアプリのデータフォルダーの `chats/` にファイルとして保存されます。 |
 | ELEC システム | 同じプロバイダー（各席が指定するもの） | AI チャットと同様で、議案を提出したとき（またはモデル一覧を開いたとき）だけ問い合わせます。各ユニットにはその立場、投票の指示、議案を送り、第 2 ラウンドでは他のユニットの最初の発言も送ります。1 ラウンドに 3 件のリクエストで、1 ラウンドまたは 2 ラウンドです。審議はアプリのデータフォルダーの `elec/` にファイルとして保存されます。 |
 | Web ペイン | ブラウザー、YouTube、X のペインで開いたサイト | アプリのサンドボックス化されたブラウザービューが、ブラウザーと同じように読み込みます。そうしたペインがある間だけで、elecdex 自身がそれらのサイトに何かを送ることはありません。Cookie とサイトデータは *sign out of all sites* を実行するまで、アプリのデータフォルダー（`Partitions/web`）に保存されます。YouTube と X は、それぞれの利用規約のもとで利用します。 |
 | 軌道要素 | [CelesTrak](https://celestrak.org/) の GP データ（第 18・第 19 宇宙防衛飛行隊のデータを [Space-Track.org](https://www.space-track.org/) 経由で提供）: `GROUP=stations` を OMM JSON で、`GROUP=starlink` を TLE で | 位置はお使いのコンピューター上で計算し、ダウンロードするのは軌道要素だけです。CelesTrak の[利用ポリシー](https://celestrak.org/usage-policy.php)に従い、ORBIT ペインがそのセットを表示している間だけ、ステーションは最大 1 日 2 回、Starlink は最大 1 日 1 回取得し（CelesTrak の更新は 2 時間ごと）、再起動をまたいでディスクに保持し、識別できる User-Agent を使い、200 以外の応答があった後は 1 日何も取得しません。ペインにクレジットを表示します。 |
@@ -1220,7 +1233,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 表示用フォント | [Chakra Petch](https://fonts.google.com/specimen/Chakra+Petch) | SIL OFL 1.1 |
 | UI フォント | [Saira Condensed](https://fonts.google.com/specimen/Saira+Condensed) | SIL OFL 1.1 |
 | 等幅フォント | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | SIL OFL 1.1 |
-| ELEC-16 のキートップのフォント | [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed)、[IBM Plex Sans Condensed](https://fonts.google.com/specimen/IBM+Plex+Sans+Condensed)、[Inter Tight](https://fonts.google.com/specimen/Inter+Tight)、[M PLUS Rounded 1c](https://fonts.google.com/specimen/M+PLUS+Rounded+1c)、[Albert Sans](https://fonts.google.com/specimen/Albert+Sans)。カナキーの 2 字は [BIZ UDPGothic](https://fonts.google.com/specimen/BIZ+UDPGothic)、[IBM Plex Sans JP](https://fonts.google.com/specimen/IBM+Plex+Sans+JP)、[Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP) から（[Fontsource](https://fontsource.org/) 経由） | SIL OFL 1.1 |
+| ELEC-16 のキートップのフォント | [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed)、[IBM Plex Sans Condensed](https://fonts.google.com/specimen/IBM+Plex+Sans+Condensed)、[Inter Tight](https://fonts.google.com/specimen/Inter+Tight)、[M PLUS Rounded 1c](https://fonts.google.com/specimen/M+PLUS+Rounded+1c)、[Albert Sans](https://fonts.google.com/specimen/Albert+Sans)。カナキーの 2 字は [BIZ UDPGothic](https://fonts.google.com/specimen/BIZ+UDPGothic)、[IBM Plex Sans JP](https://fonts.google.com/specimen/IBM+Plex+Sans+JP)、[Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP)、M PLUS Rounded 1c から（[Fontsource](https://fontsource.org/) 経由） | SIL OFL 1.1 |
 | IP ジオロケーション | [`@ip-location-db/geo-whois-asn-country-mmdb`](https://github.com/sapics/ip-location-db)、データは [NRO](https://www.nro.net/) による | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)（npm パッケージは CC0-1.0 と表記されていますが、同梱の NRO_LICENSE は nro.net へのクレジット表示を求めています） |
 | 地球儀の陸地と国の形状 | [Natural Earth](https://www.naturalearthdata.com/)（[world-atlas](https://github.com/topojson/world-atlas) 経由） | パブリックドメイン / ISC（ビルド時のみ使用） |
 | 国コードとタイムゾーン | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries)、[countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT（ビルド時のみ使用） |

@@ -87,8 +87,37 @@ async function booted(page: Page): Promise<void> {
 }
 
 /** Types a line into the focused pane, a key at a time. */
+/** Text as compared with the LCD's: upper case (CAPS), without spaces or line breaks. */
+const squeezed = (text: string): string => text.toUpperCase().replace(/\s+/g, '')
+
+/** At most this many keys typed before the machine must show it took them (its FIFO holds 16). */
+const TYPE_AHEAD = 8
+
+/**
+ * Types a line into the focused pane a key at a time, a few keys ahead of the machine at most:
+ * each run of keys is echoed on the LCD before the next is typed. The machine's key FIFO
+ * holds 16 and drops the rest, as the hardware's does; a slow runner's machine (a card write
+ * waiting on main, a late frame) once fell 16 keys behind a line typed at 15 ms a key, and the
+ * keys after them were lost (macOS CI: "PRINT" read as "PRI").
+ */
 async function typeLine(page: Page, line: string): Promise<void> {
-  await page.keyboard.type(line, { delay: 15 })
+  for (let at = 0; at < line.length; at += TYPE_AHEAD) {
+    const run = line.slice(at, at + TYPE_AHEAD)
+    await page.keyboard.type(run, { delay: 15 })
+    const typed = squeezed(line.slice(0, at + run.length))
+    // The focused pane's screen read whole, without spaces: a long line wraps onto the next row,
+    // and a row's trailing space is trimmed when it is read.
+    await expect
+      .poll(async () =>
+        squeezed(
+          (await page
+            .locator('[data-testid=pane]:has(:focus)')
+            .getByTestId('elec16-text')
+            .textContent()) ?? '',
+        ).includes(typed),
+      )
+      .toBe(true)
+  }
   await page.keyboard.press('Enter')
 }
 

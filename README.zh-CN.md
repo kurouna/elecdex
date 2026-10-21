@@ -189,6 +189,19 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   <br><sub>ELEC-16 · CLASSIC 外观</sub>
 </p>
 
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-alloy.jpg" alt="ALLOY：拉丝金属、压印的铭牌文字、一条琥珀色细线、下沉的黑色键盘底板上的黑色按键"><br><sub>ALLOY</sub></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-graphite.jpg" alt="GRAPHITE：石墨色磨砂机身、浅色字母键、近白色数字键区、深色功能键和红色 BRK"><br><sub>GRAPHITE</sub></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-neo.jpg" alt="NEO：冷调浅灰机身、嵌在各自开孔中的低键程按键、纸一样的屏幕、钴蓝色 ENTER"><br><sub>NEO</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-mochi.jpg" alt="MOCHI：樱花粉加白色波点，薄荷、奶油、柠檬、薰衣草色的糖釉按键，梅子色屏幕"><br><sub>MOCHI</sub></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-glass.jpg" alt="深色主题下的 GLASS：边缘发光的深色玻璃机身、内部可见的电路板、玻璃按键"><br><sub>GLASS</sub></td>
+    <td align="center" width="33%"><img src="./docs/screenshots/elecdex-skin-glass-light.jpg" alt="浅色主题下的 GLASS：同样的玻璃变得明亮，ENTER 为强调色的蓝"><br><sub>GLASS · 浅色主题</sub></td>
+  </tr>
+</table>
+
 <p align="center">
   <img src="./docs/screenshots/elecdex-play-air.jpg" alt="Phosphor 主题，变成石墨色横向机身 PLAY-320 的 ELEC-16 窗格：屏幕上是 ELECAIRCOMBAT 的驾驶舱，导引头圆圈中带红色锁定框和 ENGAGE 的王牌 GANNET，导弹在它身上爆炸，下方是雷达、分数和损伤仪表，LCK 灯亮着；旁边的 CORE 显示正在运行的 E16 的寄存器和程序计数器处的代码">
   <br><sub>ELEC-16 PLAY（PLAY-320）· ELECAIRCOMBAT · Phosphor · 旁边是 CORE</sub>
@@ -443,8 +456,8 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
 - **终端** — 窗格标题为 TERMINAL，并显示所选 shell 的完整路径；每个标签页以其所在文件夹命名
   （主目录也用它自己的名字），只有当两个标签页名字相同时才会加上上级文件夹，悬停时显示 shell 和
   完整路径。已退出的 shell 会在其标签页上注明，并附上退出码。新 shell 从主目录启动，或从
-  *Settings → General → Terminal* 中设置的文件夹启动（"~" 表示主目录；已不存在的文件夹会回退到
-  主目录）。**Ctrl+Shift+F** 在窗格上方打开搜索栏：匹配项用主题色标出并计数，Enter 和
+  *Settings → General → Terminal* 中设置的文件夹启动（"~" 表示主目录；已不存在的文件夹或网络共享会回退到
+  主目录；位于网络共享中的 shell 不跟随其文件夹，标签页显示 *network share*）。**Ctrl+Shift+F** 在窗格上方打开搜索栏：匹配项用主题色标出并计数，Enter 和
   Shift+Enter 在其间跳转；**Aa**、**ab** 和 **.*** 分别切换区分大小写、全字匹配和正则表达式。
   shell 输出的 URL 是链接，按 Ctrl+单击（⌘+单击）会在浏览器中打开。粘贴多行文本前会先确认（每个换行
   都会执行一条命令），也可以选择不再询问。已退出的 shell 按任意键即在原文件夹重新启动。响铃时窗格边缘
@@ -766,8 +779,8 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   PulseAudio 或 PipeWire）录制默认输出的监视源。如果系统设置中监视源的音量被调低，会自动补偿，
   使柱状显示的就是实际播放的声音；监视源被静音时会报告，并提供一个取消静音的按钮。
 - **Browser、YouTube 和 X** — 不在默认布局中：从选择器添加。*Browser* 带有地址栏，可以打开任何
-  http(s) 页面；*YouTube (TV)* 和 *X* 打开各自的网站并停留在该站内，指向其他网站的链接会交给你的
-  默认浏览器。*YouTube (TV)* 是 YouTube 的客厅界面，用方向键操作；之所以提供这个 YouTube 窗格，
+  http(s) 页面；*YouTube (TV)* 和 *X* 打开各自的网站并停留在该站内，指向其他网站的链接只在你亲自点开时（在窗格中点击或按键，一次按下一个标签页）才交给你的
+  默认浏览器；页面自己想跳出网站时会被留在原处。*YouTube (TV)* 是 YouTube 的客厅界面，用方向键操作；之所以提供这个 YouTube 窗格，
   是因为它可以登录——在手机上访问 yt.be/activate 并输入它显示的代码——而 Google 拒绝从嵌入式
   浏览器登录（"this browser or app may not be secure"）。每个窗格都有后退、前进、重新加载（网站类
   窗格还有主页）和"在浏览器中打开"按钮，并在重启后记住所在页面。页面由一个独立的、沙箱化的浏览器
@@ -1032,7 +1045,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 地震（全球） | [USGS](https://earthquake.usgs.gov/) 实时数据源 `summary/4.5_day.geojson` | 公有领域。只在地震窗格或警报使用全球数据源时获取：每分钟一次（按其 `max-age=60`），使用条件请求。 |
 | 海啸（全球） | [NOAA 海啸预警中心](https://www.tsunami.gov/)：太平洋（`PHEBAtom.xml`）和国家（`PAAQAtom.xml`）的 Atom 源 | 公有领域。每个源包含该中心的最新公报；计入警报、观察、注意报和威胁信息，信息声明不计入。与 USGS 数据源一起检查，使用条件请求。警报中会提示遵循当地政府的指示。 |
 | RSS 订阅源 | 你在 RSS 窗格中列出的订阅源 URL | 由应用获取，从不由页面获取，且只在有窗格列出它们时获取：每 15 分钟一次（或按订阅源的要求，至少每小时一次），使用条件请求（If-None-Match / If-Modified-Since），同时最多两个，每个最大 2 MB，不带 cookie，User-Agent 为 `elecdex/<version>`。标题以纯文本显示；每个订阅源最后的标题保存在应用数据文件夹的 `feeds-cache.json` 中。不会向任何其他网站发送任何东西。 |
-| AI 聊天 | 你在 *Settings -> AI* 中列出的提供方：你电脑或局域网中的服务器，或托管 API（Anthropic 通过其[官方 SDK](https://github.com/anthropics/anthropic-sdk-typescript)；其余通过 OpenAI 兼容的 `chat/completions`） | 由应用请求，从不由页面请求，且只在你发送消息、按 **test** 或打开窗格的模型列表时请求——放在布局中的聊天窗格不会调用任何服务。发送的内容是到目前为止的对话（包括你附上的文件）、你的系统提示词和模型名称，只发往你选择的地址，不发往别处；各提供方自己的条款和数据保留政策适用。不带 cookie，不跟随重定向。API 密钥由操作系统（DPAPI、Keychain、桌面环境的密钥环）加密后存入 `ai-keys.json`，与 `settings.json` 分开，且不会再显示出来；系统无法加密时，密钥只保存在内存中，直到 elecdex 退出。对于你的电脑和局域网之外的明文 http 地址，会拒绝使用密钥。没有自己的密钥时，Anthropic SDK 会在它惯常的位置查找（`ANTHROPIC_API_KEY`、`ant auth login` 配置）。在 Anthropic 自己的端点上，请求 `claude-opus-5` 和 `claude-fable-5-1` 时会启用服务端回退（`fallbacks: "default"`），这样被其安全分类器拒绝的请求会在同一次调用中改由另一个 Claude 模型重新运行；回答会注明写出它的模型。对话以文件形式保存在应用数据文件夹的 `chats/` 中。 |
+| AI 聊天 | 你在 *Settings -> AI* 中列出的提供方：你电脑或局域网中的服务器，或托管 API（Anthropic 通过其[官方 SDK](https://github.com/anthropics/anthropic-sdk-typescript)；其余通过 OpenAI 兼容的 `chat/completions`） | 由应用请求，从不由页面请求，且只在你发送消息、按 **test** 或打开窗格的模型列表时请求——放在布局中的聊天窗格不会调用任何服务。发送的内容是到目前为止的对话（包括你附上的文件）、你的系统提示词和模型名称，只发往你选择的地址，不发往别处；各提供方自己的条款和数据保留政策适用。不带 cookie，不跟随重定向。API 密钥由操作系统（DPAPI、Keychain、桌面环境的密钥环）加密后存入 `ai-keys.json`，与 `settings.json` 分开，且不会再显示出来；系统无法加密时，密钥只保存在内存中，直到 elecdex 退出。密钥只发往输入它时的地址：更改提供方的地址后，在重新输入密钥之前不会发往任何地方。对于你的电脑和局域网之外的明文 http 地址，会拒绝使用密钥。没有自己的密钥时，Anthropic SDK 会在它惯常的位置查找（`ANTHROPIC_API_KEY`、`ant auth login` 配置）。在 Anthropic 自己的端点上，请求 `claude-opus-5` 和 `claude-fable-5-1` 时会启用服务端回退（`fallbacks: "default"`），这样被其安全分类器拒绝的请求会在同一次调用中改由另一个 Claude 模型重新运行；回答会注明写出它的模型。对话以文件形式保存在应用数据文件夹的 `chats/` 中。 |
 | ELEC system | 同样的提供方，按每个席位的指定 | 与 AI 聊天相同，且只在你提交议案（或打开模型列表）时请求：向每个单元发送它的立场、投票说明和议案——第二轮还会发送其他单元的第一轮陈述。每轮三个请求，共一轮或两轮。评议以文件形式保存在应用数据文件夹的 `elec/` 中。 |
 | 网页窗格 | 你在 Browser、YouTube 或 X 窗格中打开的网站 | 由应用的沙箱化浏览器视图像普通浏览器一样加载，且只在这类窗格存在时加载；elecdex 本身不向它们发送任何东西。Cookie 和网站数据保存在应用数据文件夹中（`Partitions/web`），直到执行 *sign out of all sites*。YouTube 和 X 依据其各自的条款使用。 |
 | 轨道根数 | [CelesTrak](https://celestrak.org/) GP 数据（来自第 18 和第 19 太空防御中队，经由 [Space-Track.org](https://www.space-track.org/)）：`GROUP=stations` 为 OMM JSON，`GROUP=starlink` 为 TLE | 位置在你的电脑上计算；只下载轨道根数。遵循 CelesTrak 的[使用政策](https://celestrak.org/usage-policy.php)：只在 ORBIT 窗格显示该组时获取，空间站最多每天两次，Starlink 最多每天一次（CelesTrak 每两小时更新一次），保存在磁盘上并跨重启保留，使用可识别的 User-Agent，收到非 200 的任何响应后一天内不再请求。在窗格中署名。 |
@@ -1047,7 +1060,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 显示字体 | [Chakra Petch](https://fonts.google.com/specimen/Chakra+Petch) | SIL OFL 1.1 |
 | 界面字体 | [Saira Condensed](https://fonts.google.com/specimen/Saira+Condensed) | SIL OFL 1.1 |
 | 等宽字体 | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | SIL OFL 1.1 |
-| ELEC-16 键帽字体 | [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed)、[IBM Plex Sans Condensed](https://fonts.google.com/specimen/IBM+Plex+Sans+Condensed)、[Inter Tight](https://fonts.google.com/specimen/Inter+Tight)、[M PLUS Rounded 1c](https://fonts.google.com/specimen/M+PLUS+Rounded+1c)、[Albert Sans](https://fonts.google.com/specimen/Albert+Sans)；カナ 键的两个字取自 [BIZ UDPGothic](https://fonts.google.com/specimen/BIZ+UDPGothic)、[IBM Plex Sans JP](https://fonts.google.com/specimen/IBM+Plex+Sans+JP) 和 [Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP)（经由 [Fontsource](https://fontsource.org/)） | SIL OFL 1.1 |
+| ELEC-16 键帽字体 | [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed)、[IBM Plex Sans Condensed](https://fonts.google.com/specimen/IBM+Plex+Sans+Condensed)、[Inter Tight](https://fonts.google.com/specimen/Inter+Tight)、[M PLUS Rounded 1c](https://fonts.google.com/specimen/M+PLUS+Rounded+1c)、[Albert Sans](https://fonts.google.com/specimen/Albert+Sans)；カナ 键的两个字取自 [BIZ UDPGothic](https://fonts.google.com/specimen/BIZ+UDPGothic)、[IBM Plex Sans JP](https://fonts.google.com/specimen/IBM+Plex+Sans+JP)、[Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP) 和 M PLUS Rounded 1c（经由 [Fontsource](https://fontsource.org/)） | SIL OFL 1.1 |
 | IP 地理定位 | [`@ip-location-db/geo-whois-asn-country-mmdb`](https://github.com/sapics/ip-location-db)，数据来自 [NRO](https://www.nro.net/) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)（npm 包标注为 CC0-1.0；其附带的 NRO_LICENSE 要求注明 nro.net） |
 | 地球的陆地和国家形状 | [Natural Earth](https://www.naturalearthdata.com/)，经由 [world-atlas](https://github.com/topojson/world-atlas) | 公有领域 / ISC（仅构建时使用） |
 | 国家代码和时区 | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries)、[countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT（仅构建时使用） |

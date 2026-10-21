@@ -365,35 +365,46 @@ test('back on standby the units power off in their own colours, never through an
   try {
     await submit(page, 'Ship on Friday?')
     await expect(pane(page).getByTestId('elec-outcome')).toHaveText('approved')
+    // The power-off animated the plates' colours as well as their opacity, and what Chromium
+    // drew on the way from the accent to a colour mixed with transparent was a black plate
+    // with a yellow rim. Watched a frame at a time, for longer than the power-off lasts - from
+    // before the press: on a slow runner (macOS CI) the power-off was over before a watch
+    // begun after it, and no frame of it was seen.
+    await page.evaluate(() => {
+      const stage = document.querySelector('[data-testid=elec-stage]')
+      const plate = document.querySelector('[data-testid=elec-stage] .plate')
+      const strokes = new Set<string>()
+      const fills = new Set<string>()
+      let flickered = false
+      let began = -1
+      const watch = new Promise((resolve) => {
+        /** One frame of the plate, once the council is on standby (the press), not before. */
+        const record = (style: CSSStyleDeclaration): void => {
+          if (began < 0) began = performance.now()
+          strokes.add(style.stroke)
+          fills.add(style.fill)
+          if (Number(style.opacity) < 1) flickered = true
+        }
+        const look = (): void => {
+          if (stage === null || plate === null) {
+            resolve({ strokes: [], fills: [], flickered })
+            return
+          }
+          if (!stage.classList.contains('powered')) record(getComputedStyle(plate))
+          const watching = began < 0 || performance.now() - began < 1200
+          if (watching) requestAnimationFrame(look)
+          else resolve({ strokes: [...strokes], fills: [...fills], flickered })
+        }
+        look()
+      })
+      ;(window as unknown as { __plateWatch: Promise<unknown> }).__plateWatch = watch
+    })
     await pane(page).getByTestId('elec-new').click()
     await expect(pane(page).getByTestId('elec-stage')).toHaveClass(/was-on/)
     await expect(pane(page).getByTestId('elec-stage')).not.toHaveClass(/powered/)
-    // The power-off animated the plates' colours as well as their opacity, and what Chromium
-    // drew on the way from the accent to a colour mixed with transparent was a black plate
-    // with a yellow rim. Watched a frame at a time, for longer than the power-off lasts.
-    const seen = await page.evaluate(
-      () =>
-        new Promise<{ strokes: string[]; fills: string[]; flickered: boolean }>((resolve) => {
-          const plate = document.querySelector('[data-testid=elec-stage] .plate')
-          const strokes = new Set<string>()
-          const fills = new Set<string>()
-          let flickered = false
-          const began = performance.now()
-          const look = (): void => {
-            if (plate === null) {
-              resolve({ strokes: [], fills: [], flickered })
-              return
-            }
-            const style = getComputedStyle(plate)
-            strokes.add(style.stroke)
-            fills.add(style.fill)
-            if (Number(style.opacity) < 1) flickered = true
-            if (performance.now() - began < 1200) requestAnimationFrame(look)
-            else resolve({ strokes: [...strokes], fills: [...fills], flickered })
-          }
-          look()
-        }),
-    )
+    const seen = (await page.evaluate(
+      () => (window as unknown as { __plateWatch: Promise<unknown> }).__plateWatch,
+    )) as { strokes: string[]; fills: string[]; flickered: boolean }
     expect(seen.flickered).toBe(true)
     expect(seen.strokes).toHaveLength(1)
     expect(seen.fills).toHaveLength(1)
