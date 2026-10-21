@@ -146,8 +146,16 @@ const RUNS_ON: Record<string, readonly string[]> = {
   linux: ['.desktop', '.appimage', '.run', '.sh', '.jar', '.deb', '.rpm'],
 }
 
+/**
+ * A file's extension as the platform it opens on reads its name - Windows' separators on
+ * Windows whatever runs this (on Linux, `C:\w\.gitignore` read as one name gave it the
+ * extension `.gitignore`, and CI saw what Windows never does).
+ */
+const extensionOn = (file: string, platform: NodeJS.Platform): string =>
+  (platform === 'win32' ? path.win32 : path.posix).extname(file).toLowerCase()
+
 export function runsWhenOpened(file: string, platform: NodeJS.Platform): boolean {
-  const extension = path.extname(file).toLowerCase()
+  const extension = extensionOn(file, platform)
   return extension !== '' && (RUNS_ON[platform] ?? RUNS_ON.linux ?? []).includes(extension)
 }
 
@@ -172,7 +180,7 @@ export function openVerdict(
 ): 'open' | 'reveal' {
   if (runsWhenOpened(file, platform)) return 'reveal'
   if (platform === 'win32') {
-    const extension = path.extname(file).toLowerCase()
+    const extension = extensionOn(file, platform)
     if (extension !== '' && !OPENS_ON_WINDOWS.has(extension)) return 'reveal'
   } else if ((mode & 0o111) !== 0) {
     return 'reveal'

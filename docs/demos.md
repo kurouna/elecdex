@@ -30,7 +30,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
 | `demo:panes` / `demo:snippets` / `demo:wifi` / `demo:dev` / `demo:elec` / `demo:presets` / `demo:shorts` | X 用の短いもの | |
 | `demo:whatsnew` / `demo:whatsnew22` | そのリリースで増えたもの | |
-| `demo:whatsnew38` | v0.0.38 で増えたもの。ELEC-16 ひとつのペインで SINEWAVE を走らせ、TUNE を開いて光で描く 5 つのスキン（ALLOY、GRAPHITE、NEO、MOCHI、GLASS）を順に。TUNE を畳んで GLASS のキーで `PRINT 4*9`、アクションパレットで Business Light にして明るいガラス、元のテーマに戻して MOCHI と ALLOY で終わる。英語の字幕付き | 1600×900、約 40 秒 |
+| `demo:whatsnew38` | v0.0.38 で増えたもの。ELEC-16 ひとつのペインで SINEWAVE を走らせ、TUNE を開いて光で描く 5 つのスキン（ALLOY、GRAPHITE、NEO、MOCHI、GLASS）を順に。TUNE を畳んで GLASS のキーで `PRINT 4*9`、アクションパレットで Business Light にして明るいガラス、元のテーマに戻して MOCHI と ALLOY で終わる。英語の字幕付き | 1600×900、約 46 秒 |
 | `demo:whatsnew36` | v0.0.35〜v0.0.36 で増えたもの。network プリセットの Wi-Fi の下の ETHERNET（CRC エラーのあるケーブルのスタブ `crc`）を前に出し、LINK と CRC の数字のカード、LOG の CRC ERRORS の行。最後にアクションパレット（Ctrl+Shift+P）で Black のテーマを探して当て、元に戻す | 1600×900、約 27 秒 |
 | `demo:whatsnew34` | v0.0.34 で増えたもの。どれもペインを前に出して見せる（dev プリセットで、AI AGENT のサブエージェントが起動したサブエージェントとそのカード、GIT ペインの PUSH を 2 回押しで代役のリモートへ、GIT の隣のタブに置いた GPU ペイン。最後に cockpit の CLUSTER の GPU レーンと VRAM のスロット） | 1600×900、約 48 秒 |
 
