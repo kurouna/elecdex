@@ -118,9 +118,11 @@ describe('OscParser: OSC 9;9 cwd', () => {
     '7;file://localhost//server/share',
     '7;file:///%5C%5Cserver%5Cshare',
   ])('reports no network share: %s', (payload) => {
+    // It says the shell is somewhere not followed, so the pane forgets the folder it showed
+    // rather than keep one the shell has left (found in review).
     const { text, events } = feed(osc(payload))
-    expect(events).toEqual([])
-    expect(text).toBe(osc(payload))
+    expect(events).toEqual([{ cwd: null }])
+    expect(text).toBe('')
   })
 
   it('survives being split at every byte', () => {

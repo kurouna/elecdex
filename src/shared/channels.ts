@@ -532,7 +532,7 @@ export const CH = {
 export type PtyPortMessage =
   | { t: 'data'; chunk: Uint8Array }
   | { t: 'exit'; code: number; signal: number | undefined }
-  | { t: 'cwd'; cwd: string }
+  | { t: 'cwd'; cwd: string | null }
   | { t: 'commandEnd'; exitCode: number | null; durationMs: number }
   | { t: 'integrationUnavailable' }
 

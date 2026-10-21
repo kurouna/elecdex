@@ -461,7 +461,9 @@ function describeUpdate(status: UpdateStatus): string {
                 </button>
               </label>
               <p class="note" class:problem={startDirectory?.fellBack} data-testid="settings-start-directory-note">
-                {#if startDirectory?.fellBack}
+                {#if startDirectory?.share}
+                  A network share is never used: new shells start at home ({startDirectory.path}) instead.
+                {:else if startDirectory?.fellBack}
                   Not a folder: new shells start at home ({startDirectory.path}) instead.
                 {:else}
                   New shells start here; open shells stay where they are. "~" stands for your home folder.

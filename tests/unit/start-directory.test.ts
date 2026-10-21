@@ -14,6 +14,25 @@ describe('resolveStartDirectory', () => {
     expect(resolveStartDirectory('   ', home, isDirectory)).toEqual({ path: home, fellBack: false })
   })
 
+  it('never starts on a network share, and says it fell back (review)', () => {
+    // Found in review: the setting, which a page can write, was looked at with a synchronous
+    // stat on main - an offer of the user's NTLM hash, and a hold if the share does not answer.
+    const looked: string[] = []
+    const look = (dir: string) => {
+      looked.push(dir)
+      return true
+    }
+    for (const share of ['\\\\server\\share', '//server/share']) {
+      // Said as a share, so the settings do not call an existing share "not a folder".
+      expect(resolveStartDirectory(share, home, look)).toEqual({
+        path: home,
+        fellBack: true,
+        share: true,
+      })
+    }
+    expect(looked).toEqual([])
+  })
+
   it('starts in the folder set, trimmed', () => {
     expect(resolveStartDirectory(` ${path.resolve('/work')} `, home, isDirectory)).toEqual({
       path: path.resolve('/work'),

@@ -176,7 +176,8 @@ async function catchUp(manager: PtyManager, id: string, attached: Attached): Pro
   const snapshot = await (manager.snapshotFor(id) ?? Promise.resolve(''))
 
   if (state !== null) {
-    if (state.cwd !== null) {
+    // A shell on a share is tracked, at no folder shown: not one without integration.
+    if (state.cwd !== null || state.onShare) {
       post(port, { t: 'cwd', cwd: state.cwd })
     } else if (state.integrationResolved) {
       post(port, { t: 'integrationUnavailable' })

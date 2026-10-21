@@ -21,6 +21,9 @@ export function resolveStartDirectory(
   const raw = setting.trim()
   if (raw === '') return { path: home, fellBack: false }
   const expanded = /^~(?=$|[\\/])/.test(raw) ? path.join(home, raw.slice(1)) : raw
+  // Never looked at, as a shell's own folder is not: the page can write this setting, and a
+  // synchronous look at a share offers the user's NTLM hash and holds main (found in review).
+  if (isNetworkPath(expanded)) return { path: home, fellBack: true, share: true }
   if (path.isAbsolute(expanded) && isDirectory(expanded)) {
     return { path: path.normalize(expanded), fellBack: false }
   }

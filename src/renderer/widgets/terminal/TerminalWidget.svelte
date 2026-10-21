@@ -207,7 +207,10 @@ $effect(() => {
           tabPath: info.cwd,
           tooltip: `${info.shell} — ${displayPath(info.cwd)}`,
         }
-      : { subtitle: info.integrationPending ? '…' : 'no tracking', tooltip: info.shell }),
+      : {
+          subtitle: info.onShare ? 'network share' : info.integrationPending ? '…' : 'no tracking',
+          tooltip: info.onShare ? `${info.shell} — on a network share, not followed` : info.shell,
+        }),
     // A command's exit code is not shown on the tab (user decision): only the shell's own end.
     ...(info.exited !== null
       ? { badge: `exited ${info.exited.code}`, badgeKind: 'warn' as const }
@@ -352,7 +355,11 @@ $effect(() => {
           if (watching && !untrack(() => visible) && !untrack(() => activity)) activity = true
         },
         onCwd: (cwd) => {
-          sessions.patch(paneId, { cwd, integrationPending: false })
+          sessions.patch(paneId, { cwd, onShare: cwd === null, integrationPending: false })
+          // No folder: the shell went onto a share, never followed. The saved one is forgotten,
+          // so the pane does not come back somewhere the shell had left (found in review).
+          if (cwd === null && lastFolder() !== undefined)
+            widgetState.patch(paneId, { cwd: undefined })
           recordFolder(cwd)
         },
         onCommandEnd: (exitCode, durationMs) =>

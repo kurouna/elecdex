@@ -54,7 +54,7 @@ export interface PtySpawnOptions extends PtyCreateOptions {
 export interface PtySessionEvents {
   onData(id: string, chunk: Uint8Array): void
   onExit(id: string, code: number, signal: number | undefined): void
-  onCwd(id: string, cwd: string): void
+  onCwd(id: string, cwd: string | null): void
   onCommandEnd(id: string, exitCode: number | null, durationMs: number): void
   /** Shell integration never reported anything; the UI should stop waiting on it. */
   onIntegrationUnavailable(id: string): void
@@ -66,6 +66,8 @@ interface Session {
   parser: OscParser
   shell: string
   cwd: string | null
+  /** The shell said it is on a network share, which is not followed: `cwd` is null for that. */
+  onShare: boolean
   /** True when we injected an integration script for this shell. */
   integrated: boolean
   integrationSeen: boolean
@@ -118,6 +120,7 @@ export class PtyManager {
       parser: new OscParser(),
       shell,
       cwd: opts.cwd ?? null,
+      onShare: false,
       integrated: injection.supported,
       integrationSeen: false,
       integrationTimer: undefined,
@@ -215,11 +218,14 @@ export class PtyManager {
    * until the user happened to run another command, and a reattaching pane
    * would lose it entirely.
    */
-  stateFor(id: string): { cwd: string | null; integrationResolved: boolean } | null {
+  stateFor(
+    id: string,
+  ): { cwd: string | null; onShare: boolean; integrationResolved: boolean } | null {
     const session = this.sessions.get(id)
     if (!session) return null
     return {
       cwd: session.cwd,
+      onShare: session.onShare,
       // Either integration has reported, or we know it never will.
       integrationResolved:
         session.integrationSeen || !session.integrated || session.integrationGaveUp,
@@ -245,6 +251,14 @@ export class PtyManager {
     }
   }
 
+  /** A folder the shell reported; null for a network share, which is not followed. */
+  private takeCwd(session: Session, cwd: string | null): void {
+    session.onShare = cwd === null
+    if (cwd === session.cwd) return
+    session.cwd = cwd
+    this.events.onCwd(session.id, cwd)
+  }
+
   private handleData(session: Session, data: string): void {
     // node-pty hands us a string; the OSC parser works on bytes so that a
     // sequence split across chunks is handled the same way as split utf-8.
@@ -253,10 +267,7 @@ export class PtyManager {
     for (const event of events) {
       session.integrationSeen = true
 
-      if (event.cwd !== undefined && event.cwd !== session.cwd) {
-        session.cwd = event.cwd
-        this.events.onCwd(session.id, event.cwd)
-      }
+      if (event.cwd !== undefined) this.takeCwd(session, event.cwd)
       if (event.commandStart) {
         session.commandStartedAt = Date.now()
       }

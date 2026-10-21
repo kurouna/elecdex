@@ -11,6 +11,8 @@ export interface SessionInfo {
   sessionId: string | null
   shell: string
   cwd: string | null
+  /** The shell is on a network share, never followed: no folder is shown for it. */
+  onShare: boolean
   lastCommand: { exitCode: number | null; durationMs: number } | null
   /** True until shell integration either reports or is known not to. */
   integrationPending: boolean
@@ -22,6 +24,7 @@ const blank = (): SessionInfo => ({
   sessionId: null,
   shell: 'shell',
   cwd: null,
+  onShare: false,
   lastCommand: null,
   integrationPending: true,
   exited: null,

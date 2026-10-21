@@ -227,7 +227,7 @@ export interface PtySessionSummary {
 export interface PtyHandlers {
   onData(chunk: Uint8Array): void
   onExit(code: number, signal: number | undefined): void
-  onCwd(cwd: string): void
+  onCwd(cwd: string | null): void
   onCommandEnd(exitCode: number | null, durationMs: number): void
   /**
    * Shell integration produced nothing - either the shell is not instrumented
@@ -314,6 +314,8 @@ export interface SettingsApi {
 export interface StartDirectory {
   path: string
   fellBack: boolean
+  /** The folder set is a network share, never used (the settings say so, not "not a folder"). */
+  share?: true
 }
 
 export interface UpdatesApi {

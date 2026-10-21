@@ -48,8 +48,11 @@ const SUB = 0x1a
 const MAX_SEQUENCE_BYTES = 4096
 
 export interface OscEvent {
-  /** The working directory reported by OSC 7 or OSC 9;9. */
-  cwd?: string
+  /**
+   * The working directory reported by OSC 7 or OSC 9;9; null when it is a network share, never
+   * followed (`isNetworkPath`): the shell is somewhere the pane does not show.
+   */
+  cwd?: string | null
   /** A command started executing (OSC 133;C). */
   commandStart?: true
   /** A command finished (OSC 133;D), with its exit code when one was given. */
@@ -213,7 +216,11 @@ function parsePayload(payload: string): OscEvent | null {
 
   if (code === '133') return parseCommandMark(body)
   const cwd = parseCwd(code, body)
-  return cwd === null ? null : { cwd }
+  if (cwd === null) return null
+  // Any program's output can carry the sequence, and a share named in it would be listed by the
+  // file pane at once, offering the user's NTLM hash to its host. It is said as no folder, so
+  // the pane forgets the one it showed rather than keep one the shell has left (review).
+  return { cwd: isNetworkPath(cwd) ? null : cwd }
 }
 
 /** The working directory a payload reports, or null when it reports none. */
@@ -282,14 +289,15 @@ function parseFileUri(value: string): string | null {
  * Starship for it) use: a native path, often in double quotes, no percent
  * encoding.
  *
- * Only an absolute path is a directory: a drive (`C:\`) or a POSIX root. A
- * PowerShell provider location such as `HKLM:\` is not, and a relative path is
- * relative to nothing we know. A UNC share is refused by `cleanPath`.
+ * Only an absolute path is a directory: a drive (`C:\`), a UNC share
+ * (`\\server\share`) or a POSIX root. A PowerShell provider location such as
+ * `HKLM:\` is not, and a relative path is relative to nothing we know. A share
+ * is then said as no folder (`parsePayload`).
  */
 function parseWindowsTerminalCwd(value: string): string | null {
   const path =
     value.length >= 2 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value
-  if (!/^(?:[a-zA-Z]:[\\/]|\/)/.test(path)) return null
+  if (!/^(?:[a-zA-Z]:[\\/]|[\\/]{2}|\/)/.test(path)) return null
   return cleanPath(path)
 }
 
@@ -301,10 +309,6 @@ function cleanPath(path: string): string | null {
   // way it is not a directory we should report.
   // biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting them is the point
   if (/[\u0000-\u001f\u007f]/.test(path)) return null
-
-  // Any program's output can carry the sequence, and a share named in it would be
-  // listed by the file pane at once, offering the user's NTLM hash to its host.
-  if (isNetworkPath(path)) return null
 
   return path
 }
