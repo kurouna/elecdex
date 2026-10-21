@@ -2,6 +2,7 @@ import { CH } from '@shared/channels'
 import { RELEASES_API, type UpdateStatus } from '@shared/updates'
 import { appWindows } from '../app-windows.js'
 import { APP_VERSION } from '../build-info.js'
+import { READ_LIMITS, readJsonLimited } from '../read-limited.js'
 import { UpdateChecker } from '../updates/checker.js'
 import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
@@ -28,7 +29,11 @@ export function registerUpdatesIpc(settings: SettingsHandle): { dispose: () => v
         },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
-      return { status: response.status, json: response.ok ? await response.json() : null }
+      if (!response.ok) void response.body?.cancel().catch(() => {})
+      return {
+        status: response.status,
+        json: response.ok ? await readJsonLimited(response, READ_LIMITS.updates) : null,
+      }
     },
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),

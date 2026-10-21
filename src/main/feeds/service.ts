@@ -1,5 +1,6 @@
 import { FEED_INTERVAL_MS, FEED_ITEMS_PER_FEED, type FeedUpdate } from '@shared/feeds'
 import { z } from 'zod'
+import { readLimited as readBody } from '../read-limited.js'
 import type { ParsedFeed } from './parse.js'
 
 /**
@@ -145,31 +146,11 @@ export function decodeFeed(bytes: Uint8Array, contentType: string | null): strin
 }
 
 /** Reads a body up to `maxBytes`, and throws (cancelling the download) past it. */
-export async function readLimited(
+export function readLimited(
   body: ReadableStream<Uint8Array> | null,
   maxBytes = MAX_FEED_BYTES,
 ): Promise<Uint8Array> {
-  if (body === null) return new Uint8Array()
-  const reader = body.getReader()
-  const chunks: Uint8Array[] = []
-  let size = 0
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    size += value.byteLength
-    if (size > maxBytes) {
-      await reader.cancel()
-      throw new Error('feed too large')
-    }
-    chunks.push(value)
-  }
-  const bytes = new Uint8Array(size)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return bytes
+  return readBody(body, maxBytes, 'feed too large')
 }
 
 export class FeedService {

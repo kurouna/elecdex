@@ -7,6 +7,7 @@ import {
   toMarketState,
 } from '@shared/markets'
 import type YahooFinance from 'yahoo-finance2'
+import { READ_LIMITS, readJsonLimited } from '../read-limited.js'
 import type { MarketProvider } from './service.js'
 
 /** A yahoo-finance2 client: the package's default export is the class. */
@@ -140,7 +141,7 @@ export function stubProvider(baseUrl: string): MarketProvider {
   const get = async (path: string): Promise<unknown> => {
     const response = await fetch(`${baseUrl}${path}`)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    return response.json()
+    return readJsonLimited(response, READ_LIMITS.markets)
   }
   return {
     quotes: async (symbols) =>

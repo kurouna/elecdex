@@ -8,6 +8,7 @@ import { appWindows } from '../app-windows.js'
 import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { QuakeService } from '../quakes/service.js'
+import { READ_LIMITS, readTextLimited } from '../read-limited.js'
 import { cacheFile } from '../store/cache-file.js'
 import { showMainWindow, windowInFront } from '../window-control.js'
 import { whenPageGoes } from './page-gone.js'
@@ -59,7 +60,11 @@ export function registerQuakesIpc(settings: SettingsHandle): { dispose: () => vo
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       })
       if (response.status !== 200) void response.body?.cancel().catch(() => {})
-      return { status: response.status, headers: response.headers, text: () => response.text() }
+      return {
+        status: response.status,
+        headers: response.headers,
+        text: () => readTextLimited(response, READ_LIMITS.quakes),
+      }
     },
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),

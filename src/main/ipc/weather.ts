@@ -6,6 +6,7 @@ import { jmaReport } from '@shared/weather-sources'
 import { app, net, type WebContents } from 'electron'
 import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { READ_LIMITS, readJsonLimited } from '../read-limited.js'
 import { cacheFile } from '../store/cache-file.js'
 import { PointCacheSchema, PointForecasts } from '../weather/point-forecasts.js'
 import { CachedForecastsSchema, type FetchResponse, WeatherService } from '../weather/service.js'
@@ -37,8 +38,17 @@ export function registerWeatherIpc(): { dispose: () => void } {
   const fetch = async (
     url: string,
     init: { headers: Record<string, string> },
-  ): Promise<FetchResponse> =>
-    net.fetch(url, { headers: init.headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+  ): Promise<FetchResponse> => {
+    const response = await net.fetch(url, {
+      headers: init.headers,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    })
+    return {
+      status: response.status,
+      headers: response.headers,
+      json: () => readJsonLimited(response, READ_LIMITS.weather),
+    }
+  }
   const timers = {
     now: () => Date.now(),
     setTimer: (fn: () => void, ms: number) => setTimeout(fn, ms),
