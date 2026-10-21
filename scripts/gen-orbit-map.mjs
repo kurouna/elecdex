@@ -25,7 +25,7 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { feature } from 'topojson-client'
-import { checkSha256 } from './script-checks.mjs'
+import { fetchChecked } from './script-checks.mjs'
 
 const require = createRequire(import.meta.url)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -112,12 +112,12 @@ function crossings(polygon, lat) {
 function geojson() {
   mkdirSync(CACHE, { recursive: true })
   const zip = join(CACHE, `${RELEASE}-${ASSET}`)
-  if (!existsSync(zip)) {
+  fetchChecked(zip, ASSET_SHA256, (to) => {
     console.log(`downloading ${URL_}`)
-    const got = spawnSync('curl', ['-sSL', '-o', zip, URL_], { stdio: 'inherit' })
+    // --fail: an error page is a failure, not a file saved as the release.
+    const got = spawnSync('curl', ['-sSL', '--fail', '-o', to, URL_], { stdio: 'inherit' })
     if (got.status !== 0) throw new Error('download failed')
-  }
-  checkSha256(zip, ASSET_SHA256)
+  })
   const dir = join(CACHE, RELEASE)
   if (!existsSync(dir) || readdirSync(dir).length === 0) {
     mkdirSync(dir, { recursive: true })

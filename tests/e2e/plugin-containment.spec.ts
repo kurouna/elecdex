@@ -64,3 +64,47 @@ test("a blob worker of the page cannot load the disk's files", async () => {
     removeDir(dir)
   }
 })
+
+test('app:// answers the page with its own files, and no other session (review)', async () => {
+  // Found in review: the probe only showed the disk refused, which a scheme answering nothing
+  // would show too.
+  const { page, app, close } = await launch()
+  try {
+    const own = await page.evaluate(async () => {
+      const script = document.querySelector('script[src]')?.getAttribute('src') ?? ''
+      const url = new URL(script, location.href).href
+      const source = `fetch(${JSON.stringify(url)}).then((r) => postMessage(r.status), (e) => postMessage(String(e)))`
+      const blob = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }))
+      const worker = new Worker(blob)
+      try {
+        return {
+          url,
+          status: await new Promise((resolve) => {
+            worker.onmessage = (event) => resolve(event.data)
+          }),
+        }
+      } finally {
+        worker.terminate()
+        URL.revokeObjectURL(blob)
+      }
+    })
+    expect(own.url).toMatch(/^app:\/\/elecdex\/assets\/.+\.js$/)
+    expect(own.status).toBe(200)
+    // Web panes and plugin sign-in windows have sessions of their own: app:// is not theirs.
+    const elsewhere = await app.evaluate(async ({ session }) => {
+      const answers: string[] = []
+      for (const partition of ['persist:web', 'persist:plugin-probe']) {
+        try {
+          const response = await session.fromPartition(partition).fetch('app://elecdex/index.html')
+          answers.push(`${partition}: ${response.status}`)
+        } catch {
+          answers.push(`${partition}: refused`)
+        }
+      }
+      return answers
+    })
+    expect(elsewhere).toEqual(['persist:web: refused', 'persist:plugin-probe: refused'])
+  } finally {
+    await close()
+  }
+})

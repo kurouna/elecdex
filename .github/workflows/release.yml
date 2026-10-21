@@ -96,8 +96,11 @@ jobs:
             release/*.AppImage
             release/*.deb
           if-no-files-found: error
-          retention-days: 3
+          # Long enough to run the publish job again by hand after a fix (Actions > Re-run).
+          retention-days: 7
 
+  # All or nothing: a build that fails leaves no pre-release, rather than one missing a
+  # platform that people might take for complete. Re-run the failed build, then this job.
   publish:
     name: create pre-release & upload
     needs: package
