@@ -3,7 +3,7 @@
 Guidance for AI agents (and humans) working in this repository.
 
 elecdex is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a sci-fi
-terminal emulator and system monitor — on Electron 44, Svelte 5, TypeScript 7 and xterm.js 6.
+terminal emulator and system monitor — on Electron 45, Svelte 5, TypeScript 7 and xterm.js 6.
 GPL-3.0, like the original; the version is in package.json, and releases are pre-releases.
 It is developed and used on Windows; macOS and Linux have only been run by the e2e tests on GitHub
 Actions and are **not sufficiently verified** - the README says so, and must go on saying so until
@@ -70,7 +70,7 @@ Single tests: `npx vitest run tests/unit/<file>.test.ts`,
 App flags: `--windowed` (not fullscreen), `--no-intro` (skip the boot sequence). Electron flags go
 after a second `--`: `npm run dev -- -- --windowed --no-intro`.
 
-**Install scripts:** Electron 44 has no install script of its own and downloads its binary on
+**Install scripts:** Electron 45 has no install script of its own and downloads its binary on
 first `require('electron')`, which electron-vite bypasses — so `postinstall` runs
 `install-electron`. If `npm run dev` fails with "Electron uninstall" (e.g. after
 `--ignore-scripts`), run `npx install-electron`. npm 11 blocks dependency install scripts until

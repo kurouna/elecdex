@@ -24,7 +24,7 @@ for Windows, macOS and Linux.
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.38 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.39 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -1446,7 +1446,7 @@ refactoring". elecdex keeps the idea and drops the implementation:
 
 ## Develop
 
-Stack: Electron 44 · TypeScript 7 (native) · electron-vite 6 / Vite 8 · Svelte 5 (runes) ·
+Stack: Electron 45 · TypeScript 7 (native) · electron-vite 6 / Vite 8 · Svelte 5 (runes) ·
 `@xterm/xterm` 6 · node-pty 1.1 · systeminformation · three · zod 4 · Biome 2 · Vitest 5 ·
 Playwright · electron-builder 26
 
@@ -1467,7 +1467,7 @@ Electron loads as-is. On **Linux** node-pty compiles once during install (`pytho
 compiler); npm 11 asks for approval first: `npm install-scripts approve node-pty && npm rebuild
 node-pty`.
 
-The Electron binary is downloaded by this project's `postinstall` script (Electron 44 has no
+The Electron binary is downloaded by this project's `postinstall` script (Electron 45 has no
 install script of its own, and electron-vite does not trigger its download-on-first-use), which
 also makes node-pty's macOS `spawn-helper` executable. After `--ignore-scripts`, run
 `npx install-electron` once.

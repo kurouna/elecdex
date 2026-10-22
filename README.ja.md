@@ -24,7 +24,7 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
 </p>
 
-> **v0.0.38 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
+> **v0.0.39 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
 > *unreleased* と記したものは `main` にあり、次のリリースで入ります。
 >
 > **Windows で開発し、使っています。** macOS と Linux もリリースごとにビルドしていますが、
@@ -1355,7 +1355,7 @@ refactoring"（新たなリファクタリングがどうしても必要）な�
 
 ## 開発
 
-スタック: Electron 44 · TypeScript 7 (native) · electron-vite 6 / Vite 8 · Svelte 5 (runes) ·
+スタック: Electron 45 · TypeScript 7 (native) · electron-vite 6 / Vite 8 · Svelte 5 (runes) ·
 `@xterm/xterm` 6 · node-pty 1.1 · systeminformation · three · zod 4 · Biome 2 · Vitest 5 ·
 Playwright · electron-builder 26
 
@@ -1377,7 +1377,7 @@ npm run package      # installers into release/
 ので、`npm install-scripts approve node-pty && npm rebuild
 node-pty` を実行してください。
 
-Electron のバイナリは、このプロジェクトの `postinstall` スクリプトがダウンロードします（Electron 44
+Electron のバイナリは、このプロジェクトの `postinstall` スクリプトがダウンロードします（Electron 45
 には独自のインストールスクリプトがなく、初回使用時のダウンロードも electron-vite からは起動されない
 ためです）。このスクリプトは node-pty の macOS 用 `spawn-helper` に実行権限も付けます。
 `--ignore-scripts` を使った後は、一度 `npx install-electron` を実行してください。

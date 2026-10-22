@@ -23,7 +23,7 @@
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
-> **v0.0.38 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.39 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -1187,7 +1187,7 @@ eDEX-UI 被归档时，用其作者的话说，代码库"极需一次彻底的�
 
 ## 开发
 
-技术栈：Electron 44 · TypeScript 7 (native) · electron-vite 6 / Vite 8 · Svelte 5 (runes) ·
+技术栈：Electron 45 · TypeScript 7 (native) · electron-vite 6 / Vite 8 · Svelte 5 (runes) ·
 `@xterm/xterm` 6 · node-pty 1.1 · systeminformation · three · zod 4 · Biome 2 · Vitest 5 ·
 Playwright · electron-builder 26
 
@@ -1207,7 +1207,7 @@ npm run package      # installers into release/
 可以直接加载。在 **Linux** 上，node-pty 会在安装时编译一次（需要 `python3`、`make` 和 C++ 编译器）；
 npm 11 会先要求批准：`npm install-scripts approve node-pty && npm rebuild node-pty`。
 
-Electron 二进制文件由本项目的 `postinstall` 脚本下载（Electron 44 自身没有安装脚本，而
+Electron 二进制文件由本项目的 `postinstall` 脚本下载（Electron 45 自身没有安装脚本，而
 electron-vite 不会触发其首次使用时的下载），该脚本还会让 node-pty 在 macOS 上的 `spawn-helper`
 具有可执行权限。如果用了 `--ignore-scripts`，请运行一次 `npx install-electron`。
 
