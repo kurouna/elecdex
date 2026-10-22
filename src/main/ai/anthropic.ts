@@ -159,7 +159,12 @@ export function anthropicAdapter(fetchLike: FetchLike): ProviderAdapter {
       baseURL: target.baseUrl,
       // With no key of ours the SDK looks where it always does (ANTHROPIC_API_KEY,
       // an `ant auth login` profile), so a machine already set up needs nothing typed.
-      ...(target.key === null ? {} : { apiKey: target.key }),
+      // A key goes out as X-Api-Key, as it always has: SDK 1.x (API version 2026-10-21) would
+      // send it as `Authorization: Bearer`, and a gateway in front of the address may read only
+      // X-Api-Key (the migration guide's own recipe; the Claude API takes either).
+      ...(target.key === null
+        ? {}
+        : { apiKey: target.key, defaultHeaders: { 'X-Api-Key': target.key, Authorization: null } }),
       fetch: (url, init) => fetchLike(String(url), { ...init, redirect: 'error' }),
     })
 

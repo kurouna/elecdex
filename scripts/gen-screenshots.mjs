@@ -259,32 +259,6 @@ const chip8Layout = {
   ),
 }
 
-/*
- * The LOG WATCH pane in the middle column on the made-up shop API's log (demo-logfeed.mjs),
- * written while the shot is taken: errors come fast and light ERROR BURST, and two lines
- * chosen are EXPLAINed by a stand-in (no model, no key).
- */
-const logwatchLayout = {
-  version: 1,
-  root: split(
-    'row',
-    [
-      split(
-        'column',
-        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
-        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
-      ),
-      { ...pane('logwatch'), state: { file: LOG_ID } },
-      split(
-        'column',
-        ['globe', 'markets', 'weather', 'calendar'].map(pane),
-        [0.3, 0.25, 0.22, 0.23],
-      ),
-    ],
-    [0.18, 0.64, 0.18],
-  ),
-}
-
 const LOGWATCH_ANSWER = [
   '**Two separate problems, one likely cause.**',
   '',
@@ -635,7 +609,7 @@ async function conversing(page) {
  * page (architecture.md §5.4), so the page's screenshot has a hole where it is: main
  * takes each view's picture, and the page lays them over its own on a canvas.
  */
-async function withWebViews(app, page) {
+async function withWebViews(app, page, clip = undefined) {
   const views = await app.evaluate(async ({ BrowserWindow }) => {
     const out = []
     for (const win of BrowserWindow.getAllWindows()) {
@@ -647,10 +621,10 @@ async function withWebViews(app, page) {
     }
     return out
   })
-  if (views.length === 0) return page.screenshot({ type: 'jpeg', quality: 88 })
-  const shot = (await page.screenshot({ type: 'png' })).toString('base64')
+  if (views.length === 0) return page.screenshot({ type: 'jpeg', quality: 88, clip })
+  const shot = (await page.screenshot({ type: 'png', clip })).toString('base64')
   const jpeg = await page.evaluate(
-    async ({ shot, views }) => {
+    async ({ shot, views, at }) => {
       const load = (png) =>
         new Promise((resolve, reject) => {
           const image = new Image()
@@ -662,17 +636,19 @@ async function withWebViews(app, page) {
       const canvas = document.createElement('canvas')
       canvas.width = base.naturalWidth
       canvas.height = base.naturalHeight
-      const scale = base.naturalWidth / window.innerWidth
+      const scale = base.naturalWidth / (at?.width ?? window.innerWidth)
       const context = canvas.getContext('2d')
       context.drawImage(base, 0, 0)
       for (const { bounds, png } of views) {
         const image = await load(png)
         const { x, y, width, height } = bounds
-        context.drawImage(image, x * scale, y * scale, width * scale, height * scale)
+        const dx = x - (at?.x ?? 0)
+        const dy = y - (at?.y ?? 0)
+        context.drawImage(image, dx * scale, dy * scale, width * scale, height * scale)
       }
       return canvas.toDataURL('image/jpeg', 0.88).split(',')[1]
     },
-    { shot, views },
+    { shot, views, at: clip ?? null },
   )
   return Buffer.from(jpeg, 'base64')
 }
@@ -680,9 +656,10 @@ async function withWebViews(app, page) {
 async function shoot(
   theme,
   name,
-  { extra, layout, env, settings, social, prepare, save = true } = {},
+  { extra, layout, env, settings, social, prepare, save = true, paneOnly = null } = {},
 ) {
-  if (only.length > 0 && !only.includes(name)) return
+  const named = only.includes(name) || (name.startsWith('pane-') && only.includes('panes'))
+  if (only.length > 0 && !named) return
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-readme-'))
   if (layout) writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layout))
   prepare?.(dir)
@@ -751,6 +728,13 @@ async function shoot(
   if (extra) await extra(page)
   if (!save) {
     // The shot's own pictures were written by `extra` (the skins' crops).
+  } else if (paneOnly !== null) {
+    const box = await page
+      .locator(`[data-testid=pane][data-pane-id=${paneOnly}]`)
+      .first()
+      .boundingBox()
+    const clip = { x: box.x, y: box.y, width: box.width, height: box.height }
+    writeFileSync(path.join(OUT, `${name}.jpg`), await withWebViews(app, page, clip))
   } else if (social) {
     mkdirSync(SOCIAL, { recursive: true })
     await page.screenshot({ path: path.join(SOCIAL, `${name}.png`), type: 'png' })
@@ -897,20 +881,6 @@ await shoot('phosphor', 'elecdex-retro', {
   extra: sinewave,
 })
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
-// LOG WATCH on a made-up log written while the shot is taken, its EXPLAIN answered by a stand-in.
-if (only.length === 0 || only.includes('elecdex-logwatch')) {
-  const council = await startCouncil({ chat: LOGWATCH_ANSWER })
-  history()
-  live.start()
-  await shoot('business-dark', 'elecdex-logwatch', {
-    layout: logwatchLayout,
-    settings: council.settings,
-    prepare: logFiles,
-    extra: explaining,
-  })
-  live.stop()
-  council.close()
-}
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
 /*
  * The ELEC-16's five skins modelled in light, each a crop of the body alone with a margin of
@@ -980,6 +950,207 @@ await shoot('tron', 'elecdex-play-fighter', {
   prepare: playUnit('ELECFIGHTER'),
   extra: elecfighter,
 })
+/*
+ * Each pane alone, for the README's Panes section (`npm run gen:screenshots -- panes`, or one
+ * by its name, `pane-git`): the pane given a fixed share of the 1600x900 window - wide, medium
+ * or small, as it is used - in the Tron theme, and only its own box saved. The rest of the
+ * window is the calendar, never in the picture. The pane's data is the other shots' stand-ins:
+ * the demo home, the made-up repository, sockets, links, Docker, clipboard, media and GPU, the
+ * stand-in models; markets, weather, quakes and the stations' orbits are live.
+ */
+const PANE_SIZES = {
+  wide: [0.62, 0.72],
+  short: [0.62, 0.42],
+  medium: [0.46, 0.58],
+  low: [0.46, 0.36],
+  band: [0.46, 0.24],
+  small: [0.3, 0.5],
+  little: [0.3, 0.28],
+}
+function aloneLayout(widget, size, state = {}) {
+  const [w, h] = PANE_SIZES[size]
+  const target = { ...pane(widget), state }
+  return {
+    target: target.id,
+    layout: {
+      version: 1,
+      root: split(
+        'column',
+        [split('row', [target, pane('calendar')], [w, 1 - w]), pane('calendar')],
+        [h, 1 - h],
+      ),
+    },
+  }
+}
+/** A pane's state as a preset gives it (the desk's notes and tasks, the dev's agents). */
+function stateIn(presetId, widget) {
+  let found = {}
+  const visit = (node) => {
+    if (node.kind === 'pane') {
+      if (node.widget === widget && Object.keys(found).length === 0) found = node.state ?? {}
+      return
+    }
+    for (const child of node.children) visit(child)
+  }
+  visit(preset(presetId).root)
+  return found
+}
+async function shootPane(widget, size, { state, name, theme = 'tron', ...options } = {}) {
+  const file = `pane-${name ?? widget}`
+  if (only.length > 0 && !only.includes(file) && !only.includes('panes')) return
+  const { target, layout } = aloneLayout(widget, size, state)
+  await shoot(theme, file, { ...options, layout, paneOnly: target })
+}
+async function calculating(page) {
+  const input = page.getByTestId('calc-input')
+  for (const line of ['1280 * 1.1', '365 * 24 * 60', 'sqrt(2) * 100', '0xff + 0b1010', '2 ^ 16']) {
+    await input.fill(line)
+    await input.press('Enter')
+    await page.waitForTimeout(250)
+  }
+  await page.mouse.move(W / 2, 4)
+}
+/** A link's timeline watched for its whole minute (the shot comes 30 s after the start). */
+const aMinute = async (page) => {
+  await page.mouse.move(W / 2, 4)
+  await page.waitForTimeout(34_000)
+}
+const offCards = async (page) => {
+  await page.mouse.move(W / 2, 4)
+  await page.waitForTimeout(800)
+}
+if (only.length === 0 || only.includes('panes') || only.some((n) => n.startsWith('pane-'))) {
+  await shootPane('terminal', 'wide')
+  await shootPane('sysinfo', 'band')
+  await shootPane('cpu', 'medium')
+  await shootPane('memory', 'small')
+  await shootPane('gpu', 'small')
+  await shootPane('disk', 'little')
+  await shootPane('cluster', 'wide', {
+    extra: async (page) => {
+      await page.mouse.move(W / 2, 4)
+      await page.waitForTimeout(35_000)
+    },
+  })
+  await shootPane('launcher', 'band', { extra: offCards })
+  await shootPane('filesystem', 'band', { extra: offCards })
+  await shootPane('globe', 'medium', { env: { ELECDEX_SOCKETS_STUB: 'demo' }, extra: offCards })
+  await shootPane('connections', 'wide', { env: { ELECDEX_SOCKETS_STUB: 'demo' }, extra: offCards })
+  await shootPane('wifi', 'wide', { state: { window: '1m' }, extra: aMinute })
+  await shootPane('ethernet', 'wide', { state: { window: '1m' }, extra: aMinute })
+  if (only.length === 0 || only.includes('panes') || only.includes('pane-agents')) {
+    await shootPane('agents', 'short', {
+      state: { open: SESSION },
+      env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
+      extra: offCards,
+    })
+  }
+  await shootPane('orbit', 'wide', { state: { starlink: true }, extra: offCards })
+  if (only.length === 0 || only.includes('panes') || only.includes('pane-git')) {
+    demoRepository()
+    await shootPane('git', 'wide', {
+      state: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
+      prepare: gitRepos,
+      extra: offCards,
+    })
+  }
+  await shootPane('docker', 'medium', { extra: offCards })
+  if (only.length === 0 || only.includes('panes') || only.includes('pane-logwatch')) {
+    const council = await startCouncil({ chat: LOGWATCH_ANSWER })
+    history()
+    live.start()
+    await shootPane('logwatch', 'wide', {
+      state: { file: LOG_ID },
+      settings: council.settings,
+      prepare: logFiles,
+      extra: explaining,
+    })
+    live.stop()
+    council.close()
+  }
+  await shootPane('markets', 'medium', { extra: offCards })
+  await shootPane('weather', 'small', { extra: offCards })
+  if (only.length === 0 || only.includes('panes') || only.includes('pane-aichat')) {
+    const standIn = await aiStandIn()
+    const provider = {
+      id: 'ollama',
+      name: 'Ollama',
+      kind: 'openai',
+      baseUrl: `http://127.0.0.1:${standIn.address().port}/v1`,
+      model: 'qwen3:14b',
+    }
+    await shootPane('aichat', 'wide', {
+      state: { provider: 'ollama' },
+      settings: { ai: { providers: [provider] } },
+      extra: async (page) => {
+        await ask(page.locator('[data-testid=pane][data-widget=aichat]').first(), CHAT[0].ask)
+        await page.mouse.move(W / 2, 4)
+      },
+    })
+    standIn.close()
+  }
+  if (only.length === 0 || only.includes('panes') || only.includes('pane-elec')) {
+    const standIn = await elecStandIn()
+    const provider = {
+      id: 'ollama',
+      name: 'Ollama',
+      kind: 'openai',
+      baseUrl: `http://127.0.0.1:${standIn.address().port}/v1`,
+      model: 'qwen3:14b',
+    }
+    await shootPane('elec', 'wide', {
+      settings: { ai: { providers: [provider] } },
+      extra: deliberating,
+    })
+    standIn.close()
+  }
+  if (
+    only.length === 0 ||
+    only.includes('panes') ||
+    only.includes('pane-rss') ||
+    only.includes('pane-web')
+  ) {
+    const standIn = await mediaStandIn()
+    await shootPane('rss', 'low', { state: { feeds: [standIn.feedUrl] }, extra: offCards })
+    await shootPane('web.x', 'wide', {
+      name: 'web',
+      env: { ELECDEX_WEB_HOMES: standIn.homes },
+      extra: offCards,
+    })
+    standIn.server.close()
+  }
+  await shootPane('quakes', 'medium', { extra: offCards })
+  await shootPane('calc', 'small', { extra: calculating })
+  await shootPane('notes', 'medium', {
+    state: stateIn('desk', 'notes'),
+    prepare: deskFiles,
+    extra: offCards,
+  })
+  await shootPane('todo', 'medium', {
+    state: stateIn('desk', 'todo'),
+    prepare: deskFiles,
+    extra: offCards,
+  })
+  await shootPane('timer', 'small', { extra: offCards })
+  await shootPane('clipboard', 'medium', { extra: offCards })
+  await shootPane('calendar', 'small', { extra: offCards })
+  await shootPane('spectrum', 'medium', {
+    state: { bands: 16 },
+    env: { ELECDEX_AUDIO_STUB: 'demo' },
+    extra: offCards,
+  })
+  await shootPane('mixer', 'small', { env: { ELECDEX_AUDIO_STUB: 'demo' }, extra: offCards })
+  await shootPane('nowplaying', 'low', { extra: offCards })
+  await shootPane('utility', 'medium', {
+    state: { module: 'qr', qrKind: 'url', qrUrl: 'https://github.com/kurouna/elecdex' },
+    extra: offCards,
+  })
+  await shootPane('chip8', 'wide', {
+    state: { view: 'run', program: 'archive/t8nks' },
+    extra: playing,
+  })
+  await shootPane('elec16', 'wide', { state: { skin: 'alloy', panel: false }, extra: sinewave })
+}
 // For posting: the pane alone, the council sitting and the council decided. Only when named.
 for (const [name, extra, pace] of [
   ['social-elec-sitting', sitting, 110],

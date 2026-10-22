@@ -19,7 +19,8 @@
       "!docs/logwatch-mock",
       "!docs/ethernet-mock",
       "!docs/agents-mock",
-      "!docs/palette-mock"
+      "!docs/palette-mock",
+      "!docs/elec16-skins-mock"
     ]
   },
   "formatter": {
@@ -51,7 +52,8 @@
       },
       "correctness": {
         "noUnusedImports": "error",
-        "noUnusedVariables": "error"
+        "noUnusedVariables": "error",
+        "usePlaywrightValidDescribeCallback": "off"
       },
       "security": {
         "noGlobalEval": "error"
@@ -106,5 +108,15 @@
         }
       }
     }
-  ]
+  ],
+  "markdown": {
+    "formatter": {
+      "enabled": false
+    }
+  },
+  "yaml": {
+    "formatter": {
+      "enabled": false
+    }
+  }
 }

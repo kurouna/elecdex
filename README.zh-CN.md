@@ -16,11 +16,11 @@
 [eDEX-UI](https://github.com/GitSquared/edex-ui)（已于 2021 年归档），支持 Windows、macOS 和 Linux。
 
 <p align="center">
-  <a href="https://youtu.be/LgbC3Iubot0">
+  <a href="https://youtu.be/JlCZzLhp_PM">
     <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron 主题下的 elecdex：左侧是系统监视器，中间是三个 shell 标签页以及启动器和文件浏览器，右侧是世界视图、行情、天气和日历">
   </a>
   <br>
-  ▶ <a href="https://youtu.be/LgbC3Iubot0">2 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
+  ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
 > **v0.0.38 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
@@ -465,20 +465,56 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   其标签页会显示一个点，切换过去后消失。**Ctrl+Shift+K** 清除回滚缓冲区；**Ctrl+Shift+=** 和
   **Ctrl+Shift+-** 放大或缩小所有 shell 的字号（字号也在设置中）。在 Windows 上，如果已安装 PowerShell 7
   （通过安装程序或 Microsoft Store）就使用它，否则使用 Windows PowerShell；没有相关设置。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-terminal.jpg" alt="单独显示的 终端 窗格">
+  <br><sub>终端</sub>
+</p>
+
 - **系统** — 日期和星期、运行时间、操作系统类型，以及带电池计量的电源（绿色，低于 20% 时变红）；
   完整的操作系统版本和架构（就像 `uname` 或 `winver` 显示的那样）；机器的制造商、型号和机箱类型。
   应用运行期间不会变化的信息只读取一次，不做轮询。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-sysinfo.jpg" alt="单独显示的 系统 窗格">
+  <br><sub>系统</sub>
+</p>
+
 - **CPU** — 两张各核心平均负载的曲线图，或每个逻辑核心一根柱（在窗格中切换）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-cpu.jpg" alt="单独显示的 CPU 窗格">
+  <br><sub>CPU</sub>
+</p>
+
 - **内存** — 过去一分钟内存和交换区的使用比例，与 CPU 曲线同步滚动，并以柱状显示当前用量。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-memory.jpg" alt="单独显示的 内存 窗格">
+  <br><sub>内存</sub>
+</p>
+
 - **GPU** — 在 ai 预设中，也可以从选择器添加。显示过去一分钟 GPU 的负载和它自身显存（VRAM）
   的使用比例、各类引擎（3D、计算、复制、视频）的负载，并以柱状显示当前显存和共享内存的用量。显示的是
   自身显存最大的适配器（处理器集成显卡之外另有独立显卡时即为独立显卡），负载与任务管理器的算法相同，取最忙的
   引擎。在 Windows 上由与其他数值相同的常驻采样器从系统性能计数器读取，从不为每次读取启动进程（约占单核的
   0.3%）；在 Linux 上只读取 amdgpu 驱动提供的数值；在 macOS 以及使用 NVIDIA 或 Intel 显卡的 Linux 上，窗格会
   说明没有可读取的内容。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-gpu.jpg" alt="单独显示的 GPU 窗格">
+  <br><sub>GPU</sub>
+</p>
+
 - **磁盘** — 每个卷一根柱，显示已用空间与总容量（90% 起为琥珀色，97% 起为红色），附剩余空间、
   文件系统以及是否为可移动或网络卷；上方是读写速率和磁盘繁忙程度（macOS 上不显示，因为那里
   没有低开销的读取方式）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-disk.jpg" alt="单独显示的 磁盘 窗格">
+  <br><sub>磁盘</sub>
+</p>
+
 - **仪表盘（cluster）** — 在 cockpit 预设中，也可以从选择器（"cluster dashboard"）添加。最上方是 LINK、PING、
   CPU、MEM、VRAM（仅限能读取 GPU 的机器）、DISK、BATT（仅限有电池的机器）、AWAKE 和 QUAKE
   （仅在开启地震提醒时）警示灯，持续 10 秒才会亮起；旁边的消息行用文字说出最严重的一项，并说明还有几项。
@@ -492,6 +528,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   网卡（有线或 Wi-Fi 中通往互联网的那一个），不是两者相加；其累计流量从该网卡连接时算起。每个数值都能打开详情卡片，显示
   行里放不下的内容。它会按大小以五种方式排布。全屏时空闲约占单核的 10–15%，比并排放置 CPU、内存、流量和磁盘
   面板更省。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-cluster.jpg" alt="单独显示的 仪表盘（cluster） 窗格">
+  <br><sub>仪表盘（cluster）</sub>
+</p>
+
 - **启动器** — 平台的应用加上你自己的条目，最常用的在前。输入即可筛选，Enter 启动。图标采用
   主题的强调色，悬停时显示原本的颜色（Business 主题下始终如此）；在 Windows 上，图标由 Windows
   shell 绘制，应用名称与开始菜单中显示的一致——包括没有快捷方式的打包应用（Teams、Outlook、
@@ -508,10 +550,27 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   }
   ```
 
+<p align="center">
+  <img src="./docs/screenshots/pane-launcher.jpg" alt="单独显示的 启动器 窗格">
+  <br><sub>启动器</sub>
+</p>
+
 - **文件系统** — 以网格显示所跟随 shell 的目录；点击文件夹即 `cd` 进去，点击文件则在提示符处
   输入它加了引号的路径。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-filesystem.jpg" alt="单独显示的 文件系统 窗格">
+  <br><sub>文件系统</sub>
+</p>
+
 - **世界视图** — 在旋转的地球上按国家显示连接。"你在这里"是系统时区所在的国家（时区无法对应
   国家时则用区域设置的国家）；从不询问操作系统的定位服务。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-globe.jpg" alt="单独显示的 世界视图 窗格">
+  <br><sub>世界视图</sub>
+</p>
+
 - **连接** — 本机持有的每个 TCP 套接字，按持有它的程序分组：本地端口、对端、该端口通常用于
   什么服务，以及对端所在的国家。一个开关可以改为显示监听中的套接字——也就是这台机器敞开的门。
   在两次读取之间打开又关闭的连接仍会以删除线画出一次，因此短暂的连接也不会隐形。表格来自内核
@@ -520,6 +579,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   从不做任何在线查询。**MASK** 会隐藏每个地址的后半部分，便于截图或共享屏幕。监听中的程序会
   说明它在提供什么服务，这是从它的命令行判断的——`node` 会显示为 `vite · my-app`——而不会去
   访问那个端口。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-connections.jpg" alt="单独显示的 连接 窗格">
+  <br><sub>连接</sub>
+</p>
+
 - **Wi-Fi** — 无线连接在哪里出了问题：通话卡顿，或列车上的 Wi-Fi 反复掉线时用来找原因。从本机
   到互联网的路径被逐段测量（无线电的信号与重传、每秒对网关和互联网各一次 ping、本机自己发送的
   流量），窗格指出出问题的那一段并给出依据的数值：RADIO、LOCAL LINK、UPSTREAM、UPSTREAM LOST
@@ -531,6 +596,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   在宽屏上放大时窗格分为两栏，站点之间的连线上画出该段最近一分钟的曲线，日志上方以横条显示过去
   24 小时的连接。有多个无线网卡时，页眉下方的小标签用来选择跟随哪一个，网关 ping 与历史各自独立。凡是需要位置信息的都不读取，
   因此没有 BSSID，也不扫描周围的网络。ping 只在窗格显示在屏幕上时进行。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-wifi.jpg" alt="单独显示的 Wi-Fi 窗格">
+  <br><sub>Wi-Fi</sub>
+</p>
+
 - **Ethernet** — 有线版的 Wi-Fi 窗格：逐段（PC、LINK、GATEWAY、INTERNET）指出有线
   连接在哪里出了问题。有线故障很少让流量中断，而是让它变慢，所以按变慢的原因判断链路：从曾有的速度下降
   （1 Gb/s 降到 100 Mb/s，线缆一对断开）、半双工、CRC 错误（十分钟内的数量和比例）、一分钟内恢复的断开
@@ -545,6 +616,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   **限制（尚未确认）：** 还没有在插着网线的状态下使用过，因此速度、计数器和阈值未在真实故障上验证；不读取
   自动协商和实际生效的流控（只读驱动的设置）；以厂商自有值表示 2.5 / 5 Gb/s 的驱动，其值会被忽略，网卡上限
   可能显示偏低；Windows 无法识别 USB 2.0 端口；在 Linux 和 macOS 上只用测试数据运行过。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-ethernet.jpg" alt="单独显示的 Ethernet 窗格">
+  <br><sub>Ethernet</sub>
+</p>
+
 - **AI Agent** *（实验性）* — 每个运行中的 Claude Code 会话一张卡片：名称和文件夹、是否忙碌、
   最后做的事（用的工具及对象）、模型、上下文中和已写出的 token，以及它的回答。下面是它启动的
   子代理和留在后台运行的命令：运行中、已完成、失败或已停止，运行中的子代理还会显示它自己的最后
@@ -555,6 +632,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   发送任何东西。这些记录属于 Claude Code 且没有公开文档，所以它的新版本可能会改变可显示的内容——
   这正是标为*实验性*的原因。`settings.json` 中的 `agents.sources` 决定读取哪些代理的记录（目前是
   `claude-code`）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-agents.jpg" alt="单独显示的 AI Agent 窗格">
+  <br><sub>AI Agent・虚构的会话</sub>
+</p>
+
 - **Orbit** — 位置在你的电脑上计算（SGP4），所用的轨道根数由应用从 CelesTrak 下载：空间站一天
   两次，约 10,000 颗 Starlink 卫星一天一次，且只在有窗格显示它们时下载（**STARLINK**）。
   当前聚焦的空间站轨迹向后画一圈、向前画两圈，在阳光下明亮、在地球阴影中暗淡，每十分钟一个
@@ -562,6 +645,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   地球阴影，以及它下一次飞过观测者的时间——无论肉眼是否可见。观测者属于窗格本身，从内置城市
   列表中选择（默认是你所在时区中最大的城市）；不会询问你的位置。横穿地图的细线是今天各地时钟
   出现差异的分界，顶部的标尺给出每个十五度时区的钟点，午夜和正午会被点亮。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-orbit.jpg" alt="单独显示的 Orbit 窗格">
+  <br><sub>Orbit</sub>
+</p>
+
 - **Git** — **SELECT REPOSITORY** 选择一个文件夹；此后窗格监视该仓库，每次改动后重新读取
   （最多每秒一次，没有改动时从不读取）。显示已暂存、未暂存、未跟踪和有冲突的文件，每个文件附
   增删行数；所选文件的 diff，可选统一视图或并排视图，改动的词会高亮；提交图——分支的连线、
@@ -577,6 +666,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   使用 `settings.json` 中 `git.openCommand` 的命令（会填入 `{file}` 和 `{line}`，例如
   `code -g "{file}:{line}"`），为空时使用系统默认的应用（此时只打开不会被执行的文本、图片和 PDF，
   其他的在其文件夹中显示）。PATH 中必须有 git 2.31 或更高版本。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-git.jpg" alt="单独显示的 Git 窗格">
+  <br><sub>Git</sub>
+</p>
+
 - **Docker** — 在 dev 预设中，或从选择器添加（"docker containers"）。显示本机
   Docker 引擎（Docker Desktop、Linux 守护进程、rootless Docker、colima 或 OrbStack）的容器。引擎的
   查找顺序与 `docker` 命令相同（`DOCKER_HOST`、当前上下文、常用的套接字），但不会运行该命令。
@@ -591,8 +686,8 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   （Linux 上请加入 docker 组）。
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-logwatch.jpg" alt="Business (Dark) 主题，LOG WATCH 窗格占满中间一栏，查看一个虚构商店 API 的日志：指示灯显示 ERROR BURST，顶部是按级别统计的 5 分钟行数、右端红色升高；级别以彩色标签显示，重复的行合并为 ×2、×3，选中了标有 NEW 的 deadlock 行和一条扣款失败的行，下方是替身模型给出的 EXPLAIN 回答（两行的含义和要检查的地方）">
-  <br><sub>Log Watch · Business (Dark) · 选中两行并 EXPLAIN</sub>
+  <img src="./docs/screenshots/pane-docker.jpg" alt="单独显示的 Docker 窗格">
+  <br><sub>Docker</sub>
 </p>
 
 - **Log Watch** — 在 dev 预设中，或从选择器添加（"log watch"）。**SELECT LOG FILE**
@@ -606,6 +701,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   PATTERNS 标签页。文件轮转或截断后从头重新读取。自动识别编码（UTF-8、UTF-16、Shift_JIS、EUC-JP 等），
   出现乱码时可手动选择。AI 设置中有提供方时，**EXPLAIN** 会按发送时的原样显示所选的行（Ctrl+单击添加，
   Shift+单击选择一段；Mac 上为 ⌘），只有按下 **SEND** 才发送。只发送所选的行，不发送前后的行或文件名。从不写入文件。`node scripts/log-feed.mjs` 可写出用于试用的虚构日志。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-logwatch.jpg" alt="单独显示的 Log Watch 窗格">
+  <br><sub>Log Watch・虚构日志，EXPLAIN 由替身回答</sub>
+</p>
+
 - **行情** — 指数、汇率以及 Yahoo Finance 提供报价的任何品种，大约每分钟更新一次，可显示为
   迷你走势线、K 线或涨跌柱（按列表顺序，或按涨跌排序）。各行共享窗格空间：窗格宽时分两栏，
   矮时每行一条，K 线横跨名称下方的整行。点击某个代码，它的图表会占满整个窗格——带价格轴、
@@ -615,11 +716,23 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`。1D 相对前一收盘价计算，更长的区间相对区间开始
   前的收盘价计算。内置名称跟随应用语言（`--lang=en-US` 强制使用英文）。Yahoo 没有实时的 TOPIX
   指数，所以默认看板显示的是 CME 日元计价 TOPIX 期货（`TPY=F`）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-markets.jpg" alt="单独显示的 行情 窗格">
+  <br><sub>行情</sub>
+</p>
+
 - **天气** — 设置按钮 → PLACE 会打开一个选择器，列出内置的大城市、各国首都以及 JMA 的预报区域，
   也可以输入 `lat, lon`。日本使用 JMA，美国使用 National Weather Service（也可选择 MET Norway），
   其他地区使用 MET Norway。每个窗格可以单独选择 °C 或 °F，以及是否显示一周预报；默认地点是
   纽约市。点击预报会在浏览器中打开数据源自己对应该地点的页面——JMA 的预报页、NWS 的定点预报
   或 yr.no。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-weather.jpg" alt="单独显示的 天气 窗格">
+  <br><sub>天气</sub>
+</p>
+
 - **AI 聊天** — ai 预设中有两个，dev 预设的 GIT 后面有一个，也可以从选择器（Ctrl+Shift+A）添加，想加多少都行。先在
   *Settings -> AI* 中添加一个提供方：选一个预设（Ollama、LM Studio、llama.cpp、Anthropic、
   OpenAI、Gemini、OpenRouter，或自定义地址），调整地址，如果是托管服务，再粘贴它的 API 密钥
@@ -661,6 +774,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   中断回答，关闭窗格则会停止请求。在你发送消息（或按 **test**、打开模型列表）之前不会向任何地方
   发送任何东西；设置中可选的系统提示词会放在每段对话的最前面。没有工具调用：模型无法读取你的
   文件、运行命令或上网浏览。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-aichat.jpg" alt="单独显示的 AI 聊天 窗格">
+  <br><sub>AI 聊天・替身模型</sub>
+</p>
+
 - **ELEC system** — 在 ai 预设中，也可以从选择器添加。它使用 *Settings -> AI* 中的提供方，所以请先在
   那里添加一个。**seats** 为每个单元——LOGOS、ETHOS、PATHOS——选择提供方和模型，**all** 把一个
   席位的选择应用到全部三个；三个席位用同一个模型也没问题，因为每个单元都会被告知它自己的立场
@@ -680,6 +799,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   内容；**again** 把同一议案交给当前就座的评议会；**log** 列出过去的评议及其决议，可重新打开、
   导出为 markdown 或删除。席位、规则和轮数都是设置项，每次评议会保留它当时所用的席位。在你提交
   议案（或打开模型列表）之前不会发送任何东西。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-elec.jpg" alt="单独显示的 ELEC system 窗格">
+  <br><sub>ELEC system・替身模型</sub>
+</p>
+
 - **RSS** — 不在默认布局中：从选择器（Ctrl+Shift+A）添加。它一开始是空的，在设置按钮中列出
   订阅源 URL（每行一个；RSS 2.0、RSS 1.0 或 Atom，每个窗格最多 10 个）之前不会获取任何内容。
   显示所有订阅源中最新的 20 条标题，每条附来源和时间（今天的）或日期（更早的），窗格较矮时列表
@@ -689,6 +814,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   STALE。多个窗格列出同一订阅源时共用一次请求，最后一个关闭时即停止。窗格打开期间到达的新标题会
   滑入到它的位置并高亮三秒；如果列表已向下滚动，正在阅读的内容保持不动，并出现一个 "↑ n new"
   提示，点击可回到顶部。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-rss.jpg" alt="单独显示的 RSS 窗格">
+  <br><sub>RSS</sub>
+</p>
+
 - **Quakes** — 不在默认布局中：从选择器添加。显示近期地震，最新的在前，数据来源在
   *Settings → Alerts* 中选择：**Japan**（日本气象厅：最大震度 shindo，3 起为琥珀色，5- 起为红色，
   也包括 JMA 报告的远地地震）或 **the world**（USGS：4.5 级及以上，5 级起为琥珀色，6 级起为
@@ -699,6 +830,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   不获取任何内容。此时世界视图会在震中位置标出当天的地震，大小按震级、颜色与列表一致，一小时内
   的地震会闪烁。**这不是地震预警：** 报告在震动发生一分钟或更久之后才到达，窗格和警报都会
   说明这一点。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-quakes.jpg" alt="单独显示的 Quakes 窗格">
+  <br><sub>Quakes</sub>
+</p>
+
 - **地震与海啸警报** — *Settings → Alerts*，默认关闭。数据来源可以自动选择（系统时区为东京或
   区域设置为 ja-JP 时用日本，否则用全球），也可以手动选择。开启后，达到所选最大震度（日本，
   默认 5-，即 5弱）或震级（全球，默认 6.0）的地震会在屏幕顶部显示横幅，包含地点、震度或震级以及
@@ -718,6 +855,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   **tally** 模式会对粘贴进来的一列数字做统计——计数、总和、平均值、中位数、标准差、四分位数——
   附带直方图和箱线图，并且不会把日期的各部分误当作独立的数字。不会把任何东西当作代码执行：
   表达式解析器来自 elecxzy，连同其测试一起内置。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-calc.jpg" alt="单独显示的 计算器 窗格">
+  <br><sub>计算器</sub>
+</p>
+
 - **记事** — 不在默认布局中：从选择器添加。纯文本，没有标记语法也不做渲染，停止输入半秒后保存——
   待写入时页脚的进度条会填满，写入完成时闪一下，所以静默的自动保存从不让人疑惑。记事保存在应用
   userData 下的 `notes.json` 中，而不在布局里，因此它们比窗格活得更久，两个窗格也可以显示同一条
@@ -725,6 +868,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   标题栏列出所有记事，每条都有一个 × 可以删除（可撤销）。
   **Ctrl+=** 会计算光标所在的表达式，并把答案写在它后面，不会动普通文字。*Save as .md…* 和
   *delete*（可撤销）在设置按钮下。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-notes.jpg" alt="单独显示的 记事 窗格">
+  <br><sub>记事</sub>
+</p>
+
 - **任务** — 不在默认布局中：从选择器添加。一个列表，每个截止时间都画成一个仪表，显示任务的
   时限已经过去了多少，快到期时变为琥珀色，过期后变红，最近的截止时间在标题栏中倒计时。输入
   `歯医者 明日 9:00`、`review fri 18:30` 或 `毎週 掃除` 会从这行中读出日期和重复规则——并在添加
@@ -735,6 +884,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   在角落显示一张带 *done*、*snooze* 和 *open* 的卡片，elecdex 不在前台时还会弹出系统通知。
   只有一个定时器在等待所有任务中最近的截止时间——没有任何轮询。提醒在窗格自己的设置按钮下设置：
   默认开启，可设置稍后提醒的时长和提前多久提醒。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-todo.jpg" alt="单独显示的 任务 窗格">
+  <br><sub>任务</sub>
+</p>
+
 - **计时器** — 不在默认布局中：从选择器添加。一个窗格里有三种工具。
   秒表的每个分段都是一根柱：计时中逐渐长高，记下时闪一下并锁定，标出最快和最慢，最高处有保持的
   峰值线；**倒计时**——最多六个，各有自己的时长——沿着一排分段逐格熄灭，最后十秒闪烁，结束时
@@ -748,6 +903,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   设置——起床、午饭开始。闹钟保存在 `alarms.json` 中并由应用调度，所以即使窗格已关闭或从未打开，
   它也会响起：以一张等待你处理的卡片呈现，elecdex 不在前台时还会弹出系统通知。一次性闹钟响过后
   会自动关闭；`07:30`、`1730`、`7`、`19.5` 和 `１９：３０` 都会被识别为时间。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-timer.jpg" alt="单独显示的 计时器 窗格">
+  <br><sub>计时器</sub>
+</p>
+
 - **剪贴板** — 在 desk 和 dev 预设中，也可以从选择器（"clipboard history"）添加。按从新到旧
   列出窗格显示在屏幕上时你复制的内容，并注明大小和多久以前。每一项都带有类型标签（TXT、URL、PATH、NUM，
   以及带色块的 CLR）；带格式复制的内容（HTML，或 Word 和写字板复制的 RTF）在其下方再标 RICH。把指针停在
@@ -765,10 +926,22 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   （或 Alt+↑ ↓）调整顺序，**EDIT** 或 F2 修改——改了正文就会去掉复制时的格式——按两次 × 删除。最多 100 条
   保存在设置所在文件夹的 `snippets.json` 中：与历史不同，它们会写入磁盘，但只写你决定保留的内容。
   MASK 同样作用于片段。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-clipboard.jpg" alt="单独显示的 剪贴板 窗格">
+  <br><sub>剪贴板</sub>
+</p>
+
 - **日历** — 显示当月并标出今天；‹ › 或鼠标滚轮切换月份，日期会朝切换方向扫入。空间足够时——
   宽窗格，或用 Ctrl+Shift+Z 放大窗格——上个月和下个月会以暗淡的样式出现在两侧，箭头会同时移动
   三个月。设置按钮可以勾选节假日日历（目前仅日本，在本地计算），下一个节假日的名称显示在月历
   下方。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-calendar.jpg" alt="单独显示的 日历 窗格">
+  <br><sub>日历</sub>
+</p>
+
 - **频谱** — 不在默认布局中：从选择器添加。以 7、10、16 或 31 个频段显示系统的声音输出，每个频段
   是一列分段并带峰值保持；设置按钮可选择样式（VFD 青色（默认）、VFD 琥珀色、LED 或主题色）、
   频段数、柱状、镜像图案或仅显示峰值，以及峰值保持。它只在窗格显示在屏幕上时监听——在后台
@@ -778,6 +951,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   测试。在 Linux 上，由于 Electron 没有回环采集，改用 `parec`（pulseaudio-utils，适用于
   PulseAudio 或 PipeWire）录制默认输出的监视源。如果系统设置中监视源的音量被调低，会自动补偿，
   使柱状显示的就是实际播放的声音；监视源被静音时会报告，并提供一个取消静音的按钮。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-spectrum.jpg" alt="单独显示的 频谱 窗格">
+  <br><sub>频谱</sub>
+</p>
+
 - **Browser、YouTube 和 X** — 不在默认布局中：从选择器添加。*Browser* 带有地址栏，可以打开任何
   http(s) 页面；*YouTube (TV)* 和 *X* 打开各自的网站并停留在该站内，指向其他网站的链接只在你亲自点开时（在窗格中点击或按键，一次按下一个标签页）才交给你的
   默认浏览器；页面自己想跳出网站时会被留在原处。*YouTube (TV)* 是 YouTube 的客厅界面，用方向键操作；之所以提供这个 YouTube 窗格，
@@ -792,11 +971,23 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   正在拖动的窗格位于其上方时，会用一张静止画面代替页面。页面获得键盘焦点时应用快捷键仍然有效，
   其他按键都交给页面。指针位于页面上方时，状态栏和全屏窗口控制按钮不会出现（请使用快捷键，或把
   指针移到另一个窗格）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-web.jpg" alt="单独显示的 Browser、YouTube 和 X 窗格">
+  <br><sub>Browser、YouTube 和 X・替身页面</sub>
+</p>
+
 - **混音器** — 不在默认布局中：从选择器添加。输出设备的音量和静音，在 Windows 和 Linux 上还有
   每个正在发声的应用，带推子、静音按钮，Windows 上还有峰值表。macOS 只有主音量。只在窗格显示在
   屏幕上时读取：Windows 上通过一个常驻的 PowerShell，macOS 上用 AppleScript，Linux 上用 pactl
   （PulseAudio 或 PipeWire；需要 PulseAudio 16 或更高版本的 pactl），缺少 pactl 时用 WirePlumber
   的 wpctl 控制主音量。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-mixer.jpg" alt="单独显示的 混音器 窗格">
+  <br><sub>混音器</sub>
+</p>
+
 - **正在播放** — 在 media 预设中，也可从选择器添加（"now playing"）。显示 Windows
   视为当前的媒体会话——Spotify、正在播放 YouTube 的浏览器、媒体播放器，以及任何把播放内容告诉系统的
   播放器——包括封面、标题、艺术家、专辑和应用名、曲目播放到哪里（在播放器自己的两次报告之间每秒往前数），
@@ -805,6 +996,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   一张卡片，放大显示封面，以及完整的标题、艺术家和专辑。通过一个常驻的 PowerShell 每秒读取两次，
   且只在窗格显示在屏幕上时读取：在其他标签页后面、窗口最小化或收起时什么都不读。不写入磁盘或日志，
   插件也无法访问。**仅支持 Windows，暂不支持 macOS 和 Linux**（窗格会显示 UNSUPPORTED）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-nowplaying.jpg" alt="单独显示的 正在播放 窗格">
+  <br><sub>正在播放</sub>
+</p>
+
 - **实用工具** — 在 desk 预设中，也可从选择器（"utility"）添加。用切换按钮一次显示一个小工具，也可以弹出显示。
   - **AWAKE** 阻止休眠：SYSTEM（屏幕可以关闭）或 DISPLAY（屏幕也保持开启），一直保持或 30 分钟到 4 小时
     （+30M 延长）。通过 Electron 的节能阻止器向系统请求，不启动任何程序；合上盖子或选择睡眠仍会休眠。
@@ -817,6 +1014,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
     计算 SHA-1、SHA-256、SHA-512 哈希，Unix 时间与日期互相转换，全角英数与半角互转（以及 NFKC），
     生成 UUID。输入的内容不会写入磁盘。
   全部在本机运行，不使用网络，插件也无法访问。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-utility.jpg" alt="单独显示的 实用工具 窗格">
+  <br><sub>实用工具</sub>
+</p>
+
 - **CHIP-8** — 从选择器（"chip-8"）添加。这是为 elecdex 编写的 CHIP-8、SUPER-CHIP
   和 XO-CHIP 虚拟机，在三种机型上都通过了 Timendus 的 chip8-test-suite。程序库收录 chip8Archive（CC0）
   的 104 个程序（游戏、视觉小说、节奏游戏、小玩具以及 Octojam 的标题画面，均注明作者）和该测试集的
@@ -832,6 +1035,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   中移动后从原处继续。离开时的状态会保存为 AUTO，即使重启后 LOAD 也会变成 CONTINUE（NEW 则从头开始）；
   SAVE 可为每个程序再保存三个状态，各带屏幕预览。**+ IMPORT** 可导入你自己的程序文件：根据所用指令推断
   机型，同样生成预览，名称和机型之后都可以修改。加了 ★ 的程序会集中到 ★ 标签页。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-chip8.jpg" alt="单独显示的 CHIP-8 窗格">
+  <br><sub>CHIP-8</sub>
+</p>
+
 - **ELEC-16** — 从选择器（"elec-16"）添加。这是为 elecdex 设计的 16 位袖珍
   电脑，并非仿制任何真实机型：CPU（E16，混用 32 位和 16 位指令的 RISC）、ROM、字体和 BASIC 全部
   自行编写。开机进入 **BASIC**：输入 `3*4+SIN 30` 即得答案，加上行号就成为程序（`LIST`、`RUN`、
@@ -853,6 +1062,11 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   [BASIC](docs/elec16-basic.md)、[E16 机器码与监视器](docs/elec16-e16.md)、
   [e16c（CODE 的 TypeScript）](docs/elec16-e16c.md)、
   [SOFT CARD 的程序](docs/elec16-soft.md)、[PLAY-320](docs/elec16-play-manual.md)、[PLAY-320 的游戏开发](docs/elec16-kit.md)。在 FILES 中选中程序，也会显示其用法。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-elec16.jpg" alt="单独显示的 ELEC-16 窗格">
+  <br><sub>ELEC-16</sub>
+</p>
 
 ## 插件
 

@@ -485,6 +485,10 @@ describe('the Anthropic dialect', () => {
     const post = seen.find((entry) => entry.method === 'POST')
     expect(post?.path).toBe('/v1/messages')
     expect(post?.headers['x-api-key']).toBe('sk-ant-test')
+    // SDK 1.x would send the key as a bearer token; a gateway may read X-Api-Key alone, and the
+    // key goes out once, in that header only (the model list's request too).
+    expect(post?.headers.authorization).toBeUndefined()
+    expect(seen.every((entry) => entry.headers.authorization === undefined)).toBe(true)
     expect(post?.body).toMatchObject({
       model: 'claude-test',
       stream: true,

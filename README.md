@@ -17,11 +17,11 @@ A science-fiction desktop terminal emulator and system monitor — a ground-up r
 for Windows, macOS and Linux.
 
 <p align="center">
-  <a href="https://youtu.be/LgbC3Iubot0">
+  <a href="https://youtu.be/JlCZzLhp_PM">
     <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
   </a>
   <br>
-  ▶ <a href="https://youtu.be/LgbC3Iubot0">Watch the 2-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
+  ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
 > **v0.0.38 — pre-release.** Everything below works today; builds are unsigned. What is marked
@@ -528,12 +528,36 @@ weather and calendar.
   scrollback; **Ctrl+Shift+=** and **Ctrl+Shift+-** make every shell's type larger or smaller (the
   size is also in the settings). On Windows the shell is PowerShell 7 where it is installed (by its
   installer or from the Microsoft Store), else Windows PowerShell; there is no setting for it.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-terminal.jpg" alt="The Terminal pane on its own">
+  <br><sub>Terminal</sub>
+</p>
+
 - **System** — date and weekday, uptime, OS type, and power with a battery gauge (green, red below
   20%); the full OS version and architecture (as `uname` or `winver` would put it); the machine's
   maker, model and chassis. What cannot change while the app runs is read once, not polled.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-sysinfo.jpg" alt="The System pane on its own">
+  <br><sub>System</sub>
+</p>
+
 - **CPU** — two graphs of the cores' average load, or a bar per logical core (toggle in the pane).
+
+<p align="center">
+  <img src="./docs/screenshots/pane-cpu.jpg" alt="The CPU pane on its own">
+  <br><sub>CPU</sub>
+</p>
+
 - **Memory** — the share in use and swap over the last minute, scrolling in step with the CPU
   graphs, with bars for the amounts now.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-memory.jpg" alt="The Memory pane on its own">
+  <br><sub>Memory</sub>
+</p>
+
 - **GPU** — in the ai preset, or add it from the picker. The GPU's load and the share of
   its own memory (VRAM) in use over the last minute, the load of each kind of engine (3D, compute,
   copy, video), and bars for the VRAM and the shared memory in use now. It shows the adapter with
@@ -542,9 +566,21 @@ weather and calendar.
   system's performance counters by the same long-lived sampler as the rest, never a process per
   reading (about 0.3% of one core); on Linux only from what the amdgpu driver reports; on macOS,
   and on Linux with NVIDIA or Intel graphics, the pane says it has nothing to read.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-gpu.jpg" alt="The GPU pane on its own">
+  <br><sub>GPU</sub>
+</p>
+
 - **Disk** — each volume as a bar of used space against its size (amber from 90%, red from 97%),
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
+
+<p align="center">
+  <img src="./docs/screenshots/pane-disk.jpg" alt="The Disk pane on its own">
+  <br><sub>Disk</sub>
+</p>
+
 - **Cluster** — in the cockpit preset, or add it from the picker ("cluster dashboard"). On top,
   lamps for LINK, PING, CPU, MEM, VRAM (where the GPU can be read), DISK, BATT (with a
   battery), AWAKE and QUAKE (with quake alerts on) — dark until something holds for ten seconds —
@@ -563,6 +599,12 @@ weather and calendar.
   its total counts from when that adapter came up. Each figure opens a card with what it has no room for. It lays itself out in five ways by
   its size. A full screen of it idles at 10-15% of one core, less than CPU, memory, traffic and
   disk panes side by side.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-cluster.jpg" alt="The Cluster pane on its own">
+  <br><sub>Cluster</sub>
+</p>
+
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to
   filter, Enter to launch. Icons take the theme's accent and show their own colours on hover (always, in the Business themes); on
   Windows they are drawn by the Windows shell, and apps are named, as the Start Menu shows them -
@@ -580,11 +622,28 @@ weather and calendar.
   }
   ```
 
+<p align="center">
+  <img src="./docs/screenshots/pane-launcher.jpg" alt="The Launcher pane on its own">
+  <br><sub>Launcher</sub>
+</p>
+
 - **Filesystem** — the followed shell's directory as a grid; click a folder to `cd` into it, a
   file to type its quoted path at the prompt.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-filesystem.jpg" alt="The Filesystem pane on its own">
+  <br><sub>Filesystem</sub>
+</p>
+
 - **World view** — connections by country on a turning globe. "You are here" is the country of
   the system time zone (or of the locale, when the zone names none); the OS location service is
   never asked.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-globe.jpg" alt="The World view pane on its own">
+  <br><sub>World view</sub>
+</p>
+
 - **Connections** — every TCP socket this machine holds, grouped by the program holding it: the
   local port, the peer, what the port is known for, and the country the peer is in. A switch
   shows the listening sockets instead - the doors this machine leaves open. A connection that
@@ -595,6 +654,12 @@ weather and calendar.
   Nothing is ever looked up online. **MASK** hides the second half of every address, for a
   screenshot or a shared screen. A listening program says what it serves, told from
   its command line - `node` becomes `vite · my-app` - without the port being asked anything.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-connections.jpg" alt="The Connections pane on its own">
+  <br><sub>Connections</sub>
+</p>
+
 - **Wi-Fi** — where a wireless connection is failing, for a call that stutters or a train's Wi-Fi
   that keeps dropping. The path from this machine to the internet is measured a segment at a time
   (the radio's signal and retries, an echo to the gateway and one to the internet every second,
@@ -613,6 +678,12 @@ weather and calendar.
   gateway echo and its own history.
   Nothing that needs your location is read, so there is no BSSID and no scan of the networks
   around. The echoes run only while the pane is on screen.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-wifi.jpg" alt="The Wi-Fi pane on its own">
+  <br><sub>Wi-Fi</sub>
+</p>
+
 - **Ethernet** — the Wi-Fi pane's sibling for a cable: where a wired connection is
   failing, segment by segment - PC, LINK, GATEWAY, INTERNET. A wired fault rarely stops traffic; it
   slows it, so the link is judged by what slows it: a fall from the speed it had (1 Gb/s to
@@ -635,6 +706,12 @@ weather and calendar.
   actually in force are not read (only the driver's settings); a vendor's own value for 2.5 or
   5 Gb/s is ignored, so such an adapter's best may show lower; Windows cannot tell a USB 2.0 port;
   on Linux and macOS it has only been run on test data.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-ethernet.jpg" alt="The Ethernet pane on its own">
+  <br><sub>Ethernet</sub>
+</p>
+
 - **AI Agent** *(experimental)* — one card per running Claude Code session: its name and
   folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
   in its view and written, and its answers. Below them, the subagents it started and the commands
@@ -649,6 +726,12 @@ weather and calendar.
   Claude Code's and not documented, so a new version of it may change what can be shown - hence
   *experimental*. `agents.sources` in `settings.json` says whose records are read (so far
   `claude-code`).
+
+<p align="center">
+  <img src="./docs/screenshots/pane-agents.jpg" alt="The AI Agent pane on its own">
+  <br><sub>AI Agent · made-up sessions</sub>
+</p>
+
 - **Orbit** — positions are worked out on your computer (SGP4) from orbital
   elements the app downloads from CelesTrak: the stations twice a day, and the roughly 10,000
   Starlink satellites once a day and only while a pane shows them (**STARLINK**). The focused
@@ -659,6 +742,12 @@ weather and calendar.
   chosen from the bundled city list (by default the largest city in your time zone); no location
   is asked for. The thin lines across the map are where clocks differ today, and the ruler along
   its top gives each fifteen-degree zone its hour, midnight and noon lit.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-orbit.jpg" alt="The Orbit pane on its own">
+  <br><sub>Orbit</sub>
+</p>
+
 - **Git** — **SELECT REPOSITORY** picks a folder; the pane watches that repository
   from then on and reads it again after each change (at most once a second, and never while
   nothing changes). The staged, unstaged, untracked and conflicted files, each with its lines
@@ -679,6 +768,12 @@ weather and calendar.
   or with the system's own application when it is empty - then only text, pictures and PDFs that
   would not run are opened, and anything else is shown in its folder. git 2.31 or later must be on
   PATH.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-git.jpg" alt="The Git pane on its own">
+  <br><sub>Git</sub>
+</p>
+
 - **Docker** — in the dev preset, or add it from the picker ("docker
   containers"). The containers of the local Docker engine - Docker Desktop, the Linux daemon,
   rootless Docker, colima or OrbStack, found as the `docker` command finds it (`DOCKER_HOST`, then
@@ -697,8 +792,8 @@ weather and calendar.
   service), **DENIED** that this user may not open the socket (on Linux, the docker group).
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-logwatch.jpg" alt="The Business (Dark) theme with a LOG WATCH pane filling the middle column on a made-up shop API's log: the lamp reading ERROR BURST, five minutes of lines by level along the top with a red rise at the right, levels in coloured tags, repeated lines folded into ×2 and ×3, a deadlock line marked NEW and chosen with a failed charge, and below them EXPLAIN's answer from a stand-in model saying what the two lines mean and what to check">
-  <br><sub>Log Watch · Business (Dark) · two lines chosen and explained</sub>
+  <img src="./docs/screenshots/pane-docker.jpg" alt="The Docker pane on its own">
+  <br><sub>Docker</sub>
 </p>
 
 - **Log Watch** — in the dev preset, or add it from the picker ("log watch").
@@ -719,6 +814,12 @@ weather and calendar.
   Shift+click a run; ⌘ on a Mac) as they will be sent, and sends them only on **SEND** - those lines
   and nothing else, not the lines around them nor the file's name. Nothing is ever written to the file.
   `node scripts/log-feed.mjs` writes a made-up log to try it with.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-logwatch.jpg" alt="The Log Watch pane on its own">
+  <br><sub>Log Watch · a made-up log, EXPLAIN by a stand-in</sub>
+</p>
+
 - **Markets** — indices, currencies and anything Yahoo Finance quotes, about once a minute, as
   sparklines, candlesticks or bars of the change (in the list's order, or sorted by it). The rows
   share the pane: two columns when it is wide, one line each when it is short, and candles across
@@ -731,12 +832,24 @@ weather and calendar.
   measures from the previous close, longer ranges from the close before the range began. Built-in
   names follow the app language (`--lang=en-US` forces English). Yahoo has no live TOPIX index, so
   the default board shows the CME yen TOPIX future (`TPY=F`).
+
+<p align="center">
+  <img src="./docs/screenshots/pane-markets.jpg" alt="The Markets pane on its own">
+  <br><sub>Markets</sub>
+</p>
+
 - **Weather** — the settings button → PLACE opens a picker over a bundled list of large cities and
   capitals and JMA's forecast offices, or takes `lat, lon`. Japan uses JMA, the United States the
   National Weather Service (or MET Norway, by choice), everywhere else MET Norway. °C or °F, and
   the week forecast on or off, per pane; the default is New York City. A click on the forecast
   opens the source's own page for the place in the browser - JMA's forecast page, the NWS point
   forecast or yr.no.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-weather.jpg" alt="The Weather pane on its own">
+  <br><sub>Weather</sub>
+</p>
+
 - **AI chat** — two in the ai preset and one behind GIT in dev, or add it from the picker
   (Ctrl+Shift+A), as many as you like. First list a provider in *Settings -> AI*: pick a preset (Ollama, LM Studio, llama.cpp,
   Anthropic, OpenAI, Gemini, OpenRouter, or a custom address), adjust the address, and - for a
@@ -791,6 +904,12 @@ weather and calendar.
   Nothing is sent anywhere until you send a message (or press **test**, or open the model list);
   an optional system prompt in the settings goes ahead of every conversation. There are no tools:
   the model cannot read your files, run commands or browse.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-aichat.jpg" alt="The AI chat pane on its own">
+  <br><sub>AI chat · a stand-in model</sub>
+</p>
+
 - **ELEC system** — in the ai preset, or add it from the picker. It asks the
   providers of *Settings -> AI*, so list one there first. **seats** chooses the provider and model
   of each unit - LOGOS, ETHOS, PATHOS - and **all** puts one seat's choice in all three; the same
@@ -817,6 +936,12 @@ weather and calendar.
   deliberations with their resolutions, to reopen, export as markdown or delete. The seats, rule
   and rounds are settings, and a deliberation keeps the seats it was put to. Nothing is sent until
   you submit a motion (or open a model list).
+
+<p align="center">
+  <img src="./docs/screenshots/pane-elec.jpg" alt="The ELEC system pane on its own">
+  <br><sub>ELEC system · a stand-in model</sub>
+</p>
+
 - **RSS** — not in the default layout: add it from the picker (Ctrl+Shift+A). It starts empty and
   fetches nothing until its settings button lists feed URLs, one per line (RSS 2.0, RSS 1.0 or Atom, up to 10
   per pane). The newest 20 headlines across its feeds are shown, each with its feed and the time
@@ -828,6 +953,12 @@ weather and calendar.
   share one request, and closing the last one stops it. A headline that arrives while the pane is
   open slides in at its place and is highlighted for three seconds; if the list is scrolled down,
   what is being read stays put and a "↑ n new" pill leads back up.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-rss.jpg" alt="The RSS pane on its own">
+  <br><sub>RSS</sub>
+</p>
+
 - **Quakes** — not in the default layout: add it from the picker. Recent earthquakes, newest
   first, from the source chosen in *Settings → Alerts*: **Japan** (the Japan Meteorological Agency:
   the maximum seismic intensity, shindo, amber from 3 and red from 5-, and distant earthquakes JMA
@@ -840,6 +971,12 @@ weather and calendar.
   fetched. The world view then marks the day's earthquakes at their epicentres, sized by magnitude
   and coloured like the list, and an earthquake from the last hour pulses. **Not an earthquake early
   warning:** reports come a minute or more after the shaking, and the pane and alerts say so.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-quakes.jpg" alt="The Quakes pane on its own">
+  <br><sub>Quakes</sub>
+</p>
+
 - **Earthquake and tsunami alerts** — *Settings → Alerts*, off by default. The source is automatic
   (Japan when the system time zone is Tokyo or the locale is ja-JP, the world otherwise) or chosen.
   When on, an earthquake at or above the chosen maximum intensity (Japan, default 5-, 5弱) or
@@ -867,6 +1004,12 @@ weather and calendar.
   summarises a pasted column of numbers - count, sum, mean, median, standard deviation, quartiles -
   with a histogram and a box plot, and does not mistake the parts of a date for numbers of their
   own. Nothing is evaluated as code: the expression parser is elecxzy's, vendored with its tests.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-calc.jpg" alt="The Calculator pane on its own">
+  <br><sub>Calculator</sub>
+</p>
+
 - **Notes** — not in the default layout: add it from the picker. Plain text with no markup and no
   rendering, saved half a second after you stop typing - the bar in the footer fills while the
   write is due and flashes when it lands, so a silent autosave is never something to wonder about.
@@ -876,6 +1019,12 @@ weather and calendar.
   each with a × to delete it (with an undo).
   **Ctrl+=** works out the expression the caret is in and writes the answer after it, leaving prose
   alone. *Save as .md…* and *delete* (with an undo) are under the settings button.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-notes.jpg" alt="The Notes pane on its own">
+  <br><sub>Notes</sub>
+</p>
+
 - **Tasks** — not in the default layout: add it from the picker. A list where each deadline is
   drawn as a meter of how much of the task's life has gone, amber as it runs out and red once it is
   past, with the nearest deadline counting down in the header. Typing `歯医者 明日 9:00`,
@@ -890,6 +1039,12 @@ weather and calendar.
   elecdex is not in front. One timer waits for the next deadline of all - nothing is polled.
   Reminders are set under the pane's own settings button: on by default, with the snooze and how
   far ahead to warn.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-todo.jpg" alt="The Tasks pane on its own">
+  <br><sub>Tasks</sub>
+</p>
+
 - **Timer** — not in the default layout: add it from the picker. Three instruments in one pane.
   A stopwatch whose laps stand as
   bars that grow while they are being timed and lock with a flash when taken, fastest and slowest
@@ -911,6 +1066,12 @@ weather and calendar.
   a card that waits to be answered and (when elecdex is not in front) a system notification. A
   one-off switches itself off once it has rung; `07:30`, `1730`, `7`, `19.5` and `１９：３０` are all read
   as times.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-timer.jpg" alt="The Timer pane on its own">
+  <br><sub>Timer</sub>
+</p>
+
 - **Clipboard** — in the desk and dev presets, or add it from the picker ("clipboard
   history"). What you copy while the pane is on screen, newest first, with its size and how long
   ago, each tagged with what it is - TXT, URL, PATH, NUM, or CLR with a swatch - and RICH under
@@ -936,12 +1097,24 @@ weather and calendar.
   drops the formatting it was copied with - and × pressed twice deletes it. Up to 100 snippets
   are kept in `snippets.json` beside the settings: unlike the history, they are written to disk,
   but only what you kept. MASK hides them too.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-clipboard.jpg" alt="The Clipboard pane on its own">
+  <br><sub>Clipboard</sub>
+</p>
+
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month, and the dates
   sweep in the way it moved. Given room - a wide pane, or the pane brought forward with
   Ctrl+Shift+Z - the month before and the month after join it either side, dimmed, and the arrows
   move all three. The settings
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named
   below the month.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-calendar.jpg" alt="The Calendar pane on its own">
+  <br><sub>Calendar</sub>
+</p>
+
 - **Spectrum** — not in the default layout: add it from the picker. The system's sound output in
   7, 10, 16 or 31 bands, in columns of segments with held peaks; the settings button picks the style
   (VFD cyan, the default, VFD amber, LED or the theme), the band count, bars, a mirrored pattern
@@ -954,6 +1127,12 @@ weather and calendar.
   records the monitor of the default output instead. A monitor turned down in the system
   settings is compensated, so the bars show the sound as it plays; a muted one is reported with
   a button that unmutes it.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-spectrum.jpg" alt="The Spectrum pane on its own">
+  <br><sub>Spectrum</sub>
+</p>
+
 - **Browser, YouTube and X** — not in the default layout: add them from the picker. *Browser*
   has an address bar and opens any http(s) page; *YouTube (TV)* and *X* open their site, keep
   to it, and send a link to another site to your default browser only when you followed it (a click or a key in the pane, one tab a press); a page trying to leave by itself is kept where it is. *YouTube (TV)* is YouTube's
@@ -974,12 +1153,24 @@ weather and calendar.
   keyboard; every other key goes to the page. The status bar and the fullscreen window controls
   do not appear while the pointer is over a page (use the shortcuts, or move the pointer to
   another pane).
+
+<p align="center">
+  <img src="./docs/screenshots/pane-web.jpg" alt="The Browser, YouTube and X pane on its own">
+  <br><sub>Browser, YouTube and X · a stand-in page</sub>
+</p>
+
 - **Mixer** — not in the default layout: add it from the picker. The output device's volume and
   mute, and on Windows and Linux each app playing sound, with faders, mute buttons and, on
   Windows, peak meters. macOS has the master volume only. Read while the pane is on screen: on
   Windows through one long-lived PowerShell, on macOS with AppleScript and on Linux with
   pactl (PulseAudio or PipeWire; pactl from PulseAudio 16 or later), or WirePlumber's wpctl for
   the master volume where pactl is missing.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-mixer.jpg" alt="The Mixer pane on its own">
+  <br><sub>Mixer</sub>
+</p>
+
 - **Now playing** — in the media preset, or add it from the picker ("now
   playing"). The media session Windows calls current - Spotify, a browser playing YouTube, Media
   Player, any player that tells the system what it plays - with its art, title, artist, album and
@@ -992,6 +1183,12 @@ weather and calendar.
   the window minimised or put away, nothing is read. Nothing is written to disk or logged, and no
   plugin can reach it. **Windows only: macOS and Linux are not supported yet** - there the pane
   shows UNSUPPORTED.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-nowplaying.jpg" alt="The Now playing pane on its own">
+  <br><sub>Now playing</sub>
+</p>
+
 - **Utility** — in the desk preset, or add it from the picker ("utility"). Small tools behind a switch,
   one at a time, and the pane can be popped up:
   - **AWAKE** keeps the machine from sleeping: SYSTEM (the screen may go dark) or DISPLAY (it
@@ -1010,6 +1207,12 @@ weather and calendar.
     date both ways, turns full-width ASCII half-width and back (and NFKC), and makes UUIDs. What
     you type into it is never written to disk.
   Everything runs on this machine with no network, and no plugin can reach any of it.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-utility.jpg" alt="The Utility pane on its own">
+  <br><sub>Utility</sub>
+</p>
+
 - **CHIP-8** — add it from the picker ("chip-8"). A CHIP-8, SUPER-CHIP and
   XO-CHIP machine written for elecdex, which passes Timendus's chip8-test-suite on all three.
   The library holds the 104 programs of chip8Archive (CC0) - games, visual novels, rhythm games,
@@ -1031,6 +1234,12 @@ weather and calendar.
   more machines per program, each with its screen. **+ IMPORT** takes in a program file of your
   own: the machine is guessed from the instructions it uses, its preview made the same way, and
   its name and machine can be changed. A star puts a program in the starred tab.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-chip8.jpg" alt="The CHIP-8 pane on its own">
+  <br><sub>CHIP-8</sub>
+</p>
+
 - **ELEC-16** — add it from the picker ("elec-16"). A 16-bit pocket
   computer designed for elecdex, not a copy of any real one: its CPU (E16, a RISC with 32- and
   16-bit instructions), ROM, font and BASIC are all its own. It starts in **BASIC** - type
@@ -1086,6 +1295,11 @@ weather and calendar.
   [e16c, TypeScript for CODE](docs/elec16-e16c.md), [the SOFT CARD's programs](docs/elec16-soft.md),
   [the PLAY-320](docs/elec16-play-manual.md) and [making PLAY-320 games](docs/elec16-kit.md);
   FILES also shows how to use the program picked.
+
+<p align="center">
+  <img src="./docs/screenshots/pane-elec16.jpg" alt="The ELEC-16 pane on its own">
+  <br><sub>ELEC-16</sub>
+</p>
 
 ## Plugins
 

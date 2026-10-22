@@ -172,7 +172,7 @@ describe('SpectrumWidget', () => {
   })
 
   // A muted monitor records silence: "no sound" gave the user nothing to act on.
-  it('says the monitor is muted, empties the bars and unmutes it only on a click', () => {
+  it('says the monitor is muted, empties the bars and unmutes it only on a click', async () => {
     const { getByTestId, queryByTestId } = render(SpectrumWidget, { props: props() })
     flushSync()
     setVisible(true)
@@ -184,7 +184,7 @@ describe('SpectrumWidget', () => {
     expect(getByTestId('spectrum-note').textContent).toContain('muted the output monitor')
     expect(spectrumPaints.at(-1)?.level.every((v) => v === 0)).toBe(true)
     expect(restoreMonitor).not.toHaveBeenCalled()
-    fireEvent.click(getByTestId('spectrum-restore-monitor'))
+    await fireEvent.click(getByTestId('spectrum-restore-monitor'))
     expect(restoreMonitor).toHaveBeenCalledOnce()
     spectrumHandler?.({ t: 'status', status: 'running', message: null })
     flushSync()
@@ -192,7 +192,7 @@ describe('SpectrumWidget', () => {
     expect(getByTestId('spectrum').dataset.status).toBe('running')
   })
 
-  it('shows "no sound" on the settings button row, not over the bars', () => {
+  it('shows "no sound" on the settings button row, not over the bars', async () => {
     const { getByTestId, queryByTestId } = render(SpectrumWidget, { props: props() })
     flushSync()
     setVisible(true)
@@ -204,10 +204,10 @@ describe('SpectrumWidget', () => {
     expect(note.closest('.display')).toBeNull()
     expect(note.parentElement).toBe(getByTestId('spectrum'))
     // The open settings take that row.
-    fireEvent.click(getByTestId('spectrum-settings-toggle'))
+    await fireEvent.click(getByTestId('spectrum-settings-toggle'))
     flushSync()
     expect(queryByTestId('spectrum-note')).toBeNull()
-    fireEvent.click(getByTestId('spectrum-settings-toggle'))
+    await fireEvent.click(getByTestId('spectrum-settings-toggle'))
     flushSync()
     // A problem is a longer message and stays over the (empty) display.
     spectrumHandler?.({ t: 'status', status: 'failed', message: 'denied' })
@@ -225,11 +225,11 @@ describe('SpectrumWidget', () => {
     expect(last?.bands).toBe(31)
     expect(last?.level).toHaveLength(31)
     expect(last?.level.findIndex((v) => v > 0)).toBe(17)
-    fireEvent.click(getByTestId('spectrum-settings-toggle'))
+    await fireEvent.click(getByTestId('spectrum-settings-toggle'))
     flushSync()
     const options = [...container.querySelectorAll('[data-testid=spectrum-bands]')]
     expect(options.map((b) => b.getAttribute('data-value'))).toEqual(['7', '10', '16', '31'])
-    fireEvent.click(options[0] as Element)
+    await fireEvent.click(options[0] as Element)
     expect(layout.patchPaneState).toHaveBeenLastCalledWith(expect.anything(), { bands: 7 })
   })
 
@@ -254,7 +254,7 @@ const mixerState = (volume: number, muted = false): MixerState => ({
 })
 
 describe('MixerWidget', () => {
-  it('keeps a held fader where the pointer put it while readings come in, and sends its last value', () => {
+  it('keeps a held fader where the pointer put it while readings come in, and sends its last value', async () => {
     vi.useFakeTimers()
     const { getByTestId } = render(MixerWidget, { props: props() })
     flushSync()
@@ -263,9 +263,9 @@ describe('MixerWidget', () => {
     flushSync()
     const fader = getByTestId('mixer-fader') as HTMLInputElement
     fader.value = '20'
-    fireEvent.input(fader)
+    await fireEvent.input(fader)
     fader.value = '25'
-    fireEvent.input(fader)
+    await fireEvent.input(fader)
     flushSync()
     // A reading from before the change arrives while the fader is held.
     mixerHandler?.({ t: 'state', state: mixerState(0.5) })
@@ -276,7 +276,7 @@ describe('MixerWidget', () => {
     expect(commands).toEqual([{ t: 'volume', id: 'master', volume: 0.25 }])
     // Letting go sends the final value at once.
     fader.value = '30'
-    fireEvent.change(fader)
+    await fireEvent.change(fader)
     expect(commands.at(-1)).toEqual({ t: 'volume', id: 'master', volume: 0.3 })
   })
 
@@ -307,7 +307,7 @@ describe('MixerWidget', () => {
     expect(queryAllByTestId('mixer-strip')).toHaveLength(0)
   })
 
-  it('does not send a change still waiting when the pane goes', () => {
+  it('does not send a change still waiting when the pane goes', async () => {
     vi.useFakeTimers()
     const { getByTestId, unmount } = render(MixerWidget, { props: props() })
     flushSync()
@@ -316,7 +316,7 @@ describe('MixerWidget', () => {
     flushSync()
     const fader = getByTestId('mixer-fader') as HTMLInputElement
     fader.value = '10'
-    fireEvent.input(fader)
+    await fireEvent.input(fader)
     unmount()
     vi.advanceTimersByTime(100)
     expect(commands).toEqual([])

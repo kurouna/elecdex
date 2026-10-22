@@ -744,8 +744,11 @@ entry (decisions.md). Every option is off until the user turns it on.
 
 - **README screenshots** must not show personal data: `npm run gen:screenshots` (demo home,
   curated launcher entries, made-up author). One shot per preset in a different theme, plus
-  layouts, settings, the action palette, ELEC, CHIP-8 (T8NKS), LOG WATCH (its EXPLAIN by a stand-in)
-  and the ELEC-16's five relief skins as crops of the body (`elecdex-skins`; GLASS on a light theme too). Preset trees come from the built app
+  layouts, settings, the action palette, ELEC, CHIP-8 (T8NKS),
+  the ELEC-16's five relief skins as crops of the body (`elecdex-skins`; GLASS on a light theme too),
+  and every pane of the Panes section alone (`panes`: `pane-<widget>.jpg`, its own box cut from a
+  layout that gives it a fixed share of the window; LOG WATCH's EXPLAIN by a stand-in). A new pane
+  gets its `shootPane` line and its picture in all three READMEs. Preset trees come from the built app
   (scripts/preset-shots.mjs). Everything of someone else's or this machine is a stand-in: web
   panes show stand-in pages (never YouTube's or X's own), stubs run at `=demo`, the chats and the
   council talk to a stand-in (no model, no key). Regenerate after a visible change to a theme, a

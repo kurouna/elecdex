@@ -17,11 +17,11 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
 一から書き直したもので、Windows・macOS・Linux に対応しています。
 
 <p align="center">
-  <a href="https://youtu.be/LgbC3Iubot0">
+  <a href="https://youtu.be/JlCZzLhp_PM">
     <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron テーマの elecdex：左にシステムモニター、中央にランチャーとファイルブラウザーを備えた 3 つのシェルタブ、右にワールドビュー、マーケット、天気、カレンダー">
   </a>
   <br>
-  ▶ <a href="https://youtu.be/LgbC3Iubot0">2 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
+  ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
 </p>
 
 > **v0.0.38 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
@@ -513,12 +513,36 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   シェルが出力すると、そのタブに点が付き、表に出すと消えます。**Ctrl+Shift+K** でスクロールバックを消し、
   **Ctrl+Shift+=** と **Ctrl+Shift+-** ですべてのシェルの文字を大きく・小さくします（大きさは設定にもあります）。
   Windows では、PowerShell 7 が入っていれば（インストーラーでも Microsoft Store からでも）それを、なければ Windows PowerShell を使います（設定はありません）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-terminal.jpg" alt="Terminal ペインを単独で表示したところ">
+  <br><sub>Terminal</sub>
+</p>
+
 - **System** — 日付と曜日、稼働時間、OS の種類、バッテリーゲージ付きの電源状態（緑、20% 未満で赤）。
   OS の完全なバージョンとアーキテクチャ（`uname` や `winver` が表示する形で）、マシンのメーカー、
   モデル、筐体。アプリの実行中に変わりえない情報は一度だけ読み、ポーリングしません。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-sysinfo.jpg" alt="System ペインを単独で表示したところ">
+  <br><sub>System</sub>
+</p>
+
 - **CPU** — コアの平均負荷を示す 2 つのグラフ、または論理コアごとのバー（ペイン内で切り替えます）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-cpu.jpg" alt="CPU ペインを単独で表示したところ">
+  <br><sub>CPU</sub>
+</p>
+
 - **Memory** — 直近 1 分間の使用率とスワップを CPU のグラフと歩調を合わせてスクロール表示し、
   現在の量はバーで示します。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-memory.jpg" alt="Memory ペインを単独で表示したところ">
+  <br><sub>Memory</sub>
+</p>
+
 - **GPU** — ai プリセットにあるほか、ピッカーから追加できます。直近 1 分間の GPU の負荷と、
   GPU 自身のメモリ（VRAM）の使用率の推移、エンジンの種類ごと（3D・COMPUTE・COPY・VIDEO）の負荷、
   今の VRAM と共有メモリの使用量のバーを示します。表示するのは専用メモリがいちばん大きいアダプタ
@@ -526,9 +550,21 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   いちばん忙しいエンジンで数えます。Windows ではほかの値と同じ常駐のサンプラーが OS のパフォーマンス
   カウンタから読み、読み取りのたびにプロセスを起こしません（1 コアの約 0.3%）。Linux は amdgpu ドライバーが
   出す値だけを読み、macOS と、NVIDIA や Intel のグラフィックスの Linux では、読めるものがないとペインが伝えます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-gpu.jpg" alt="GPU ペインを単独で表示したところ">
+  <br><sub>GPU</sub>
+</p>
+
 - **Disk** — 各ボリュームを、容量に対する使用量のバーで表示します（90% から琥珀色、97% から赤）。
   空き容量、ファイルシステム、リムーバブルかネットワーク上かも示します。その上には読み書きの速度と
   ディスクの稼働率が並びます（macOS では手軽に読み取る手段がないため表示しません）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-disk.jpg" alt="Disk ペインを単独で表示したところ">
+  <br><sub>Disk</sub>
+</p>
+
 - **Cluster** — cockpit プリセットにあるほか、ピッカー（"cluster dashboard"）から追加できます。
   最上段に LINK・PING・CPU・MEM・VRAM（GPU が読める機械だけ）・DISK・BATT（電池のある機械だけ）・
   AWAKE・QUAKE（地震の通知がオンのときだけ）の警告灯が並び、10 秒続いたときだけ点きます。その横のメッセージ行が、
@@ -546,6 +582,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   その通信量は、そのアダプタが繋がってからの累計です。値ごとに、行に入りきらない
   ことを詳細カードで示します。大きさに合わせて 5 通りに組み替わります。全画面に広げてもアイドル時の
   負荷は 1 コアの 10〜15% で、CPU・メモリ・通信量・ディスクのペインを並べるより軽く済みます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-cluster.jpg" alt="Cluster ペインを単独で表示したところ">
+  <br><sub>Cluster</sub>
+</p>
+
 - **Launcher** — プラットフォームのアプリケーションと自分で追加した項目を、よく使うものから順に
   並べます。入力して絞り込み、Enter で起動します。アイコンはテーマのアクセント色で描かれ、ポインターを
   重ねると本来の色になります（Business テーマでは常に本来の色です）。Windows ではアイコンを Windows
@@ -564,10 +606,27 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   }
   ```
 
+<p align="center">
+  <img src="./docs/screenshots/pane-launcher.jpg" alt="Launcher ペインを単独で表示したところ">
+  <br><sub>Launcher</sub>
+</p>
+
 - **Filesystem** — 追従しているシェルのディレクトリをグリッドで表示します。フォルダーをクリックすると
   そこへ `cd` し、ファイルをクリックすると引用符付きのパスがプロンプトに入力されます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-filesystem.jpg" alt="Filesystem ペインを単独で表示したところ">
+  <br><sub>Filesystem</sub>
+</p>
+
 - **World view** — 回転する地球儀の上に、国ごとの接続を表示します。「現在地」はシステムのタイム
   ゾーンの国（ゾーンが国を示さないときはロケールの国）で、OS の位置情報サービスには一切問い合わせません。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-globe.jpg" alt="World view ペインを単独で表示したところ">
+  <br><sub>World view</sub>
+</p>
+
 - **Connections** — このマシンが持っているすべての TCP ソケットを、それを持っているプログラムごとに
   まとめて表示します。ローカルポート、接続先、そのポートの一般的な用途、接続先の国が並びます。
   スイッチで待ち受け中のソケット、つまりこのマシンが開けている扉に切り替えられます。2 回の読み取りの
@@ -578,6 +637,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   アドレスの後半を隠すので、スクリーンショットや画面共有に使えます。待ち受けているプログラムは、
   コマンドラインから何を提供しているかを示します（`node` は `vite · my-app` になります）。
   ポートに何かを問い合わせることはありません。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-connections.jpg" alt="Connections ペインを単独で表示したところ">
+  <br><sub>Connections</sub>
+</p>
+
 - **Wi-Fi** — 無線接続のどこで問題が起きているかを示します。途切れる通話や、何度も切れる新幹線の
   Wi-Fi の原因を探すためのものです。このマシンからインターネットまでの経路を区間ごとに測り（電波の
   信号と再送、ゲートウェイとインターネットへの毎秒の ping、このマシン自身の送信量）、原因の区間を根拠の
@@ -592,6 +657,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   ログの上に過去 24 時間の接続を帯で出します。無線アダプタが複数あるときは、ヘッダーの下のチップで
   表示するアダプタを選べます。ゲートウェイへの ping と履歴はアダプタごとです。位置情報が必要なものは読まないので、BSSID や
   周囲のネットワークのスキャンはありません。ping はペインが画面に出ている間だけ行います。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-wifi.jpg" alt="Wi-Fi ペインを単独で表示したところ">
+  <br><sub>Wi-Fi</sub>
+</p>
+
 - **Ethernet** — 有線版の Wi-Fi ペインです。有線接続のどこで問題が起きているかを、
   PC・LINK・GATEWAY・INTERNET の区間ごとに示します。有線の故障は通信を止めるより遅くするので、遅くする
   ものでリンクを判定します：前に出ていた速度からの低下（1 Gb/s → 100 Mb/s、ケーブルの 1 対の断）、
@@ -610,6 +681,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   試していません。オートネゴシエーションと実際に効いているフロー制御は読みません（ドライバの設定だけです）。
   2.5 / 5 Gb/s をメーカー独自の値で示すドライバではその値を無視するので、アダプタの最大が低く出ることがあります。
   Windows では USB 2.0 のポートを判別できません。Linux と macOS ではテスト用のデータでしか動かしていません。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-ethernet.jpg" alt="Ethernet ペインを単独で表示したところ">
+  <br><sub>Ethernet</sub>
+</p>
+
 - **AI Agent** *(実験的)* — 実行中の Claude Code セッションごとに 1 枚のカードを表示します。名前と
   フォルダー、処理中かどうか、最後に行ったこと（ツールと、その対象）、モデル、コンテキスト内のトークン数と
   出力したトークン数、そして回答です。その下には、セッションが起動したサブエージェントとバックグラウンドで
@@ -625,6 +702,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   もので文書化されていないため、Claude Code の新しいバージョンで表示できる内容が変わるかもしれません。
   これが *実験的* である理由です。どの記録を読むかは `settings.json` の `agents.sources` で指定します
   （今のところ `claude-code`）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-agents.jpg" alt="AI Agent ペインを単独で表示したところ">
+  <br><sub>AI Agent・架空のセッション</sub>
+</p>
+
 - **Orbit** — 位置は、アプリが CelesTrak からダウンロードした軌道要素をもとに、お使いのコンピューター上で
   計算します（SGP4）。軌道要素は、宇宙ステーションは 1 日 2 回、約 10,000 基の Starlink 衛星は 1 日 1 回、
   それもペインが表示している間（**STARLINK**）だけダウンロードします。注目しているステーションの軌跡は
@@ -634,6 +717,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   ペインごとに、同梱の都市リストから選びます（既定はお使いのタイムゾーンで最大の都市）。位置情報は
   求めません。地図を横切る細い線は今日の時刻の境目で、上端の目盛りは 15 度ごとのゾーンにその時刻を示し、
   真夜中と正午を明るく表示します。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-orbit.jpg" alt="Orbit ペインを単独で表示したところ">
+  <br><sub>Orbit</sub>
+</p>
+
 - **Git** — **SELECT REPOSITORY** でフォルダーを選ぶと、ペインはそれ以降そのリポジトリを監視し、
   変更のたびに読み直します（多くても 1 秒に 1 回で、何も変わらない間は読みません）。ステージ済み、
   未ステージ、未追跡、競合中のファイルを、それぞれ追加・削除された行数とともに表示します。選んだ
@@ -654,6 +743,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   （`{file}` と `{line}` が埋められます。例: `code -g "{file}:{line}"`）、空ならシステムの既定の
   アプリケーションで開きます（そのときは実行されないテキスト・画像・PDF だけを開き、ほかはフォルダで
   示します）。git 2.31 以降が PATH にある必要があります。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-git.jpg" alt="Git ペインを単独で表示したところ">
+  <br><sub>Git</sub>
+</p>
+
 - **Docker** — dev プリセットに入っているほか、ピッカーから追加できます（"docker
   containers"）。ローカルの Docker エンジン（Docker Desktop、Linux のデーモン、rootless Docker、
   colima、OrbStack）のコンテナを表示します。エンジンは `docker` コマンドと同じ順（`DOCKER_HOST`、
@@ -672,8 +767,8 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   示します。
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-logwatch.jpg" alt="Business (Dark) テーマで、中央の列いっぱいに架空のショップ API のログを見る LOG WATCH ペイン：ランプは ERROR BURST、上にレベル別の 5 分間の行数があり右端で赤く伸びている。レベルを色の札で示し、繰り返しの行を ×2、×3 にまとめ、NEW の付いた deadlock の行と失敗した決済の行を選び、その下に代役のモデルによる EXPLAIN の答え（2 行の意味と確かめること）">
-  <br><sub>Log Watch · Business (Dark) · 2 行を選んで EXPLAIN</sub>
+  <img src="./docs/screenshots/pane-docker.jpg" alt="Docker ペインを単独で表示したところ">
+  <br><sub>Docker</sub>
 </p>
 
 - **Log Watch** — dev プリセットに入っているほか、ピッカーから追加できます（"log watch"）。
@@ -691,6 +786,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   あれば、**EXPLAIN** が選んだ行（Ctrl+クリックで足し、Shift+クリックで連なりを選ぶ。Mac は ⌘）を送る
   とおりに見せ、**SEND** を押したときだけ送ります。送るのは選んだ行だけで、前後の行やファイル名は送りません。ファイルには
   何も書きません。`node scripts/log-feed.mjs` で試すための架空のログを書けます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-logwatch.jpg" alt="Log Watch ペインを単独で表示したところ">
+  <br><sub>Log Watch・架空のログ、EXPLAIN は代役</sub>
+</p>
+
 - **Markets** — 指数、通貨、そのほか Yahoo Finance が提示するあらゆる銘柄を、約 1 分ごとに、スパーク
   ライン、ローソク足、または変化率のバーで表示します（リストの順、または変化率順）。行はペインを分け合い、
   幅が広いときは 2 列、高さが低いときは 1 行ずつになり、ローソク足は名前の下に行の幅いっぱいに並びます。
@@ -702,11 +803,23 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   終値からの変化を測ります。組み込みの名前はアプリの言語に従います（`--lang=en-US` で英語に固定されます）。
   Yahoo にはリアルタイムの TOPIX 指数がないため、既定のボードには CME の円建て TOPIX 先物（`TPY=F`）を
   表示します。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-markets.jpg" alt="Markets ペインを単独で表示したところ">
+  <br><sub>Markets</sub>
+</p>
+
 - **Weather** — 設定ボタン → PLACE で、同梱の大都市・首都と気象庁の予報区の一覧から選ぶピッカーが
   開きます。`lat, lon` を入力することもできます。日本は気象庁、米国は National Weather Service（選べば
   MET Norway）、それ以外の地域は MET Norway を使います。°C か °F か、週間予報を表示するかどうかは
   ペインごとに選べます。既定はニューヨーク市です。予報をクリックすると、その地点についての提供元自身の
   ページ（気象庁の予報ページ、NWS の地点予報、または yr.no）がブラウザーで開きます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-weather.jpg" alt="Weather ペインを単独で表示したところ">
+  <br><sub>Weather</sub>
+</p>
+
 - **AI chat** — ai プリセットに 2 つ、dev プリセットの GIT の後ろに 1 つあるほか、ピッカー
   （Ctrl+Shift+A）から追加でき、いくつでも置けます。まず *Settings -> AI* でプロバイダーを登録します。プリセット（Ollama、LM Studio、llama.cpp、
   Anthropic、OpenAI、Gemini、OpenRouter、またはカスタムのアドレス）を選び、アドレスを調整し、ホスト型の
@@ -757,6 +870,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   メッセージを送るまで（または **test** を押すか、モデル一覧を開くまで）どこにも何も送りません。
   設定で任意のシステムプロンプトを指定すると、すべての会話の先頭に付きます。ツールはありません。
   モデルがファイルを読んだり、コマンドを実行したり、ウェブを閲覧したりすることはできません。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-aichat.jpg" alt="AI chat ペインを単独で表示したところ">
+  <br><sub>AI chat・代役のモデル</sub>
+</p>
+
 - **ELEC system** — ai プリセットに入っているほか、ピッカーから追加します。*Settings -> AI* の
   プロバイダーに問い合わせるので、先にそこで登録してください。**seats** で各ユニット（LOGOS、ETHOS、
   PATHOS）のプロバイダーとモデルを選び、**all** で 1 つの席の選択を 3 つすべてに適用します。各ユニットには
@@ -780,6 +899,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   議題を今の席の構成の評議会にかけ直し、**log** で過去の審議を議決とともに一覧して、開き直したり、Markdown
   で書き出したり、削除したりできます。席、規則、ラウンド数は設定で、審議はかけられたときの席の構成を
   保持します。議題を提出するまで（またはモデル一覧を開くまで）何も送りません。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-elec.jpg" alt="ELEC system ペインを単独で表示したところ">
+  <br><sub>ELEC system・代役のモデル</sub>
+</p>
+
 - **RSS** — 既定のレイアウトにはありません。ピッカー（Ctrl+Shift+A）から追加します。最初は空で、設定
   ボタンでフィードの URL を 1 行に 1 つずつ登録するまで何も取得しません（RSS 2.0、RSS 1.0、Atom。
   ペインあたり 10 件まで）。すべてのフィードを通じて最新の見出し 20 件を、フィード名と時刻（今日）または
@@ -791,6 +916,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   リクエストを共有し、最後のペインを閉じると取得は止まります。ペインが開いている間に届いた見出しは、
   その位置に滑り込んで 3 秒間強調されます。リストを下へスクロールしているときは、読んでいる箇所は動かず、
   「↑ n new」のピルで上へ戻れます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-rss.jpg" alt="RSS ペインを単独で表示したところ">
+  <br><sub>RSS</sub>
+</p>
+
 - **Quakes** — 既定のレイアウトにはありません。ピッカーから追加します。最近の地震を新しい順に、
   *Settings → Alerts* で選んだ情報源から表示します。**Japan**（気象庁: 最大震度を示し、3 から琥珀色、
   5- から赤。気象庁が発表する遠地地震も含みます）または **the world**（USGS: マグニチュード 4.5 以上、
@@ -802,6 +933,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   ダウンロードは発生しません）。どちらでもなければ何も取得しません。このときワールドビューには、その日の
   地震が震央の位置に、マグニチュードに応じた大きさとリストと同じ色で示され、直近 1 時間の地震は脈打ちます。
   **緊急地震速報ではありません。** 情報は揺れの 1 分以上後に届きます。ペインとアラートにもそう表示します。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-quakes.jpg" alt="Quakes ペインを単独で表示したところ">
+  <br><sub>Quakes</sub>
+</p>
+
 - **Earthquake and tsunami alerts** — *Settings → Alerts* で設定します。既定はオフです。情報源は自動
   （システムのタイムゾーンが東京か、ロケールが ja-JP なら日本、それ以外は世界）または手動で選びます。
   オンにすると、選んだ最大震度（日本、既定は 5-、5弱）またはマグニチュード（世界、既定は 6.0）以上の
@@ -824,6 +961,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   モードでは、貼り付けた数値の列を集計し（件数、合計、平均、中央値、標準偏差、四分位数）、ヒストグラムと
   箱ひげ図を描きます。日付の各部分を別々の数値と取り違えることはありません。コードとして評価されるものは
   一切ありません。式のパーサーは elecxzy のもので、そのテストとともに同梱しています。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-calc.jpg" alt="Calculator ペインを単独で表示したところ">
+  <br><sub>Calculator</sub>
+</p>
+
 - **Notes** — 既定のレイアウトにはありません。ピッカーから追加します。マークアップもレンダリングもない
   プレーンテキストで、入力をやめて 0.5 秒後に保存されます。保存待ちの間はフッターのバーが満ちていき、
   保存されると光るので、黙って自動保存されたかどうか気をもむ必要はありません。メモはレイアウトではなく、
@@ -832,6 +975,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   メモの名前になり、タイトルバーにすべてのメモが並び、それぞれの × で削除できます（元に戻せます）。
   **Ctrl+=** はキャレットのある式を計算して答えをその後ろに書き込み、地の文には手を付けません。
   *Save as .md…* と *delete*（元に戻せます）は設定ボタンの中にあります。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-notes.jpg" alt="Notes ペインを単独で表示したところ">
+  <br><sub>Notes</sub>
+</p>
+
 - **Tasks** — 既定のレイアウトにはありません。ピッカーから追加します。各締め切りを、タスクの期間の
   どれだけが過ぎたかを示すメーターで描くリストです。残りが少なくなると琥珀色、過ぎると赤になり、見出しでは
   最も近い締め切りがカウントダウンされます。`歯医者 明日 9:00`、`review fri 18:30`、`毎週 掃除` と入力すると、
@@ -844,6 +993,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   *snooze*、*open* の付いたカードが出て、elecdex が前面にないときはシステム通知も出ます。すべての
   締め切りのうち次の 1 つを 1 つのタイマーが待つだけで、ポーリングはしません。リマインダーはペイン自身の
   設定ボタンで設定します。既定はオンで、スヌーズの長さと何分前に知らせるかを選べます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-todo.jpg" alt="Tasks ペインを単独で表示したところ">
+  <br><sub>Tasks</sub>
+</p>
+
 - **Timer** — 既定のレイアウトにはありません。ピッカーから追加します。1 つのペインに 3 つの計器が
   あります。ストップウォッチのラップはバーとして並び、計測中は伸びていき、記録すると光って固定されます。
   最速と最遅には印が付き、最も高いバーには保持されたピークの線が引かれます。そして **countdowns** は
@@ -861,6 +1016,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   アプリが予約するので、ペインが閉じていても一度も開いていなくても鳴り、応答するまで待つカードと、
   （elecdex が前面にないときは）システム通知が出ます。1 回限りのアラームは鳴った後に自動でオフになります。
   `07:30`、`1730`、`7`、`19.5`、`１９：３０` はどれも時刻として読みます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-timer.jpg" alt="Timer ペインを単独で表示したところ">
+  <br><sub>Timer</sub>
+</p>
+
 - **Clipboard** — desk と dev のプリセットにあるほか、ピッカー（"clipboard history"）から追加します。
   ペインが画面に出ている間にコピーしたものを、大きさと何分前かを添えて新しい順に並べます。各エントリーには
   種類のタグ（TXT・URL・PATH・NUM、色見本付きの CLR）が付き、書式付きでコピーしたもの（HTML、または
@@ -882,10 +1043,22 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   **EDIT** か F2 で書き換え（本文を変えるとコピー時の書式は外れます）、× を 2 回押して削除します。最大 100 件を
   設定と同じフォルダーの `snippets.json` に保存します。履歴と違ってディスクに書きますが、書くのは残すと
   決めたものだけです。MASK はスニペットにも効きます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-clipboard.jpg" alt="Clipboard ペインを単独で表示したところ">
+  <br><sub>Clipboard</sub>
+</p>
+
 - **Calendar** — 今日の印が付いた月を表示します。‹ › かマウスホイールで月を変えると、日付が動いた方向に
   流れます。余裕があれば（幅の広いペイン、または Ctrl+Shift+Z で前面に出したペイン）、前月と翌月が両側に
   薄く加わり、矢印で 3 か月とも動きます。設定ボタンで祝日カレンダーを選べ（今のところ日本のみ、ローカルで
   計算します）、月の下に次の祝日の名前が表示されます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-calendar.jpg" alt="Calendar ペインを単独で表示したところ">
+  <br><sub>Calendar</sub>
+</p>
+
 - **Spectrum** — 既定のレイアウトにはありません。ピッカーから追加します。システムの音声出力を 7、10、16、
   31 のいずれかの帯域に分け、ピークを保持するセグメントの列で表示します。設定ボタンで、スタイル（既定の
   VFD シアン、VFD 琥珀、LED、テーマ）、帯域の数、バー・鏡像のパターン・ピークのみ、ピークホールドを
@@ -897,6 +1070,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   PulseAudio と PipeWire のどちらでも）が既定の出力のモニターを録ります。システム設定でモニターの音量を
   下げていても補正するので、バーは鳴っているとおりの音を示します。ミュートされているときはそう知らせ、
   ミュートを解除するボタンを出します。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-spectrum.jpg" alt="Spectrum ペインを単独で表示したところ">
+  <br><sub>Spectrum</sub>
+</p>
+
 - **Browser, YouTube and X** — 既定のレイアウトにはありません。ピッカーから追加します。*Browser* には
   アドレスバーがあり、任意の http(s) のページを開けます。*YouTube (TV)* と *X* はそれぞれのサイトを開いて
   そこにとどまり、他のサイトへのリンクは、自分でたどったとき（ペインでのクリックやキー。1 回の押下で 1 タブ）だけ既定のブラウザーに送ります。ページが勝手にサイトの外へ移ろうとしたときは、その場にとどめます。*YouTube (TV)* は YouTube の
@@ -915,12 +1094,24 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   代わりに静止画を表示します。ページがキーボードを受け取っている間もアプリのショートカットは効き、それ以外の
   キーはすべてページに届きます。ポインターがページの上にある間は、ステータスバーと全画面時のウィンドウ
   コントロールは現れません（ショートカットを使うか、ポインターを別のペインに移してください）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-web.jpg" alt="Browser, YouTube and X ペインを単独で表示したところ">
+  <br><sub>Browser, YouTube and X・代役のページ</sub>
+</p>
+
 - **Mixer** — 既定のレイアウトにはありません。ピッカーから追加します。出力デバイスの音量とミュート、
   そして Windows と Linux では音を出している各アプリを、フェーダー、ミュートボタン、（Windows では）
   ピークメーターで表示します。macOS はマスター音量のみです。読み取るのはペインが画面に出ている間だけで、
   Windows では常駐する 1 つの PowerShell、macOS では AppleScript、Linux では pactl（PulseAudio または
   PipeWire。PulseAudio 16 以降の pactl）を使い、pactl がない環境ではマスター音量に WirePlumber の wpctl を
   使います。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-mixer.jpg" alt="Mixer ペインを単独で表示したところ">
+  <br><sub>Mixer</sub>
+</p>
+
 - **Now playing** — media プリセットに入っているほか、ピッカーからも追加できます
   （"now playing"）。Windows が「いまのもの」とするメディアセッション（Spotify、YouTube を再生中の
   ブラウザー、メディア プレーヤーなど、再生中の内容をシステムに伝えるプレーヤーすべて）を、アート、曲名、
@@ -932,6 +1123,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   読み取りは常駐する 1 つの PowerShell で 1 秒に 2 回、ペインが画面に出ている間だけです。裏のタブ、
   最小化、格納中は何も読みません。ディスクにもログにも何も書かず、プラグインからは届きません。
   **Windows のみ対応で、macOS と Linux はまだサポートしていません**（ペインに UNSUPPORTED と表示します）。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-nowplaying.jpg" alt="Now playing ペインを単独で表示したところ">
+  <br><sub>Now playing</sub>
+</p>
+
 - **Utility** — desk プリセットに入っているほか、ピッカー（"utility"）から追加します。小さな道具を切り替えボタンで 1 つずつ
   出すペインで、ポップアップにもできます。
   - **AWAKE** はスリープを止めます。SYSTEM（画面は消えてよい）か DISPLAY（画面も点けたまま）を、ずっと、
@@ -948,6 +1145,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
     （署名は検証しません）、SHA-1・SHA-256・SHA-512 のハッシュ、Unix 時刻と日時の相互変換、全角英数と
     半角の変換（と NFKC）、UUID の生成をします。入力はディスクに書きません。
   どれもこの PC の中で動き、ネットワークは使わず、プラグインからは届きません。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-utility.jpg" alt="Utility ペインを単独で表示したところ">
+  <br><sub>Utility</sub>
+</p>
+
 - **CHIP-8** — ピッカー（"chip-8"）から追加します。elecdex のために書いた CHIP-8・
   SUPER-CHIP・XO-CHIP の機械で、Timendus の chip8-test-suite を 3 機種すべてで通ります。ライブラリには
   chip8Archive（CC0）の 104 本（ゲーム、ビジュアルノベル、リズムゲーム、おもちゃ、Octojam のタイトル
@@ -967,6 +1170,12 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   （最初からは NEW）になります。SAVE ではプログラムごとにさらに 3 つ、画面の見本つきで残せます。
   **+ IMPORT** で手元のプログラムのファイルを取り込めます。使っている命令から機種を推定し、見本も同じ
   ように作り、名前と機種はあとから直せます。★ を付けたプログラムは ★ のタブに集まります。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-chip8.jpg" alt="CHIP-8 ペインを単独で表示したところ">
+  <br><sub>CHIP-8</sub>
+</p>
+
 - **ELEC-16** — ピッカー（"elec-16"）から追加します。elecdex のために設計した
   16 ビットのポケコンで、実在の機種の写しではありません。CPU（E16。32 ビットと 16 ビットの命令を混ぜる
   RISC）、ROM、フォント、BASIC はすべて自前です。起動すると **BASIC** になり、`3*4+SIN 30` と打てば
@@ -996,6 +1205,11 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   負荷は一時停止したものとほぼ同じです。説明書: [BASIC](docs/elec16-basic.md)、
   [E16 の機械語とモニタ](docs/elec16-e16.md)、[e16c（CODE の TypeScript）](docs/elec16-e16c.md)、
   [SOFT CARD のプログラム](docs/elec16-soft.md)、[PLAY-320](docs/elec16-play-manual.md)、[PLAY-320 のゲーム開発](docs/elec16-kit.md)。FILES でプログラムを選ぶと、その使い方も出ます。
+
+<p align="center">
+  <img src="./docs/screenshots/pane-elec16.jpg" alt="ELEC-16 ペインを単独で表示したところ">
+  <br><sub>ELEC-16</sub>
+</p>
 
 ## プラグイン
 
