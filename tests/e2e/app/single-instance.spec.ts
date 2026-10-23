@@ -12,15 +12,16 @@ import { exited, launch, MAIN, SINGLE_CLOCK, STUB_ENV } from '../support.js'
 test('a second start on the same profile ends, and the first goes on in front', async () => {
   const { app, page, userData, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
-    const code = await new Promise<number | null>((resolve) => {
+    // Ended, by a code or (Linux) by a signal: a second start that stayed would never get here.
+    const ended = await new Promise<{ code: number | null; signal: string | null }>((resolve) => {
       const second = spawn(
         electronPath as unknown as string,
         [MAIN, '--windowed', '--no-intro', `--user-data-dir=${userData}`],
         { env: { ...process.env, ...STUB_ENV }, stdio: 'ignore' },
       )
-      second.once('exit', (exitCode) => resolve(exitCode))
+      second.once('exit', (code, signal) => resolve({ code, signal }))
     })
-    expect(code).toBe(0)
+    expect(ended.code === 0 || ended.signal !== null, JSON.stringify(ended)).toBe(true)
     expect(app.process().exitCode).toBeNull()
     await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
     await expect

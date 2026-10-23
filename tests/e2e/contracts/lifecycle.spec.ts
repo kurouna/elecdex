@@ -109,9 +109,15 @@ test('behind another tab, every pane stops what main does for it, and takes it u
       { timeout: 60_000 },
     )
     .toEqual([])
-  // wait: the rest of the start (a shell's first prompt, the launcher's catalog) has no signal.
-  await page.waitForTimeout(6000)
-  expect(await mutationsIn(page, quietSelectors(), 4000), 'never shown').toEqual({})
+  // The rest of the start (a shell's first prompt, the launcher's catalog, the CHIP-8 library)
+  // has no signal and lands late on a busy runner: the panes must come to rest and stay there -
+  // a pane that keeps changing unseen never gives a quiet window.
+  await expect
+    .poll(() => mutationsIn(page, quietSelectors(), 4000), {
+      timeout: 40_000,
+      message: 'never shown',
+    })
+    .toEqual({})
 
   await eachRow(FOOTPRINTED, async (row) => {
     await atWork(row, true, START_MS)

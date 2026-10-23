@@ -210,6 +210,9 @@ async function start(): Promise<void> {
   await expect(terminalPane(page).locator('.xterm-screen canvas').first()).toBeVisible()
   // The first prompt before typing: the shell has reported its folder.
   await shellReady(page)
+  // wait: the prompt's own drawing settles after the folder is reported; on the macOS runner
+  // typing at once lost the blocks (2026-10-24), as the 2.5 s this replaced had not.
+  await page.waitForTimeout(2500)
   // Before anything is lost: the measure itself holds.
   await screenFollows('before')
 }

@@ -238,6 +238,8 @@ test('brought forward the dots grow, and put back they are as they were', async 
     await designSize(app, page)
     await loadProgram(page, 'diag/2-ibm-logo')
     await settleLayout(page)
+    // Measured once the screen is drawn: before that its scale reads 0 (seen on the macOS runner).
+    await expect.poll(() => scale(page)).toBeGreaterThan(0)
     const before = await scale(page)
     await page.locator('[data-testid=pane][data-pane-id=c8]').hover()
     await page.keyboard.press('Control+Shift+KeyZ')
