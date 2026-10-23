@@ -91,7 +91,7 @@
     "@fontsource/m-plus-rounded-1c": "5.3.0",
     "@fontsource/noto-sans-jp": "5.3.1",
     "@fontsource/saira-condensed": "5.3.0",
-    "@fontsource/source-sans-3": "^5.3.0",
+    "@fontsource/source-sans-3": "^5.3.1",
     "@playwright/test": "1.64.1",
     "@resvg/resvg-js": "^2.6.2",
     "@sveltejs/vite-plugin-svelte": "7.3.1",
