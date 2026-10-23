@@ -133,14 +133,3 @@ test('a reload does not replay the intro', async () => {
     await close()
   }
 })
-
-test('--no-intro opens straight into the workspace', async () => {
-  const { page, close } = await launch()
-  try {
-    await expect(page.getByTestId('app')).toHaveAttribute('data-boot', 'done')
-    await expect(page.getByTestId('boot-screen')).toHaveCount(0)
-    await expect(terminalPane(page)).toBeVisible()
-  } finally {
-    await close()
-  }
-})

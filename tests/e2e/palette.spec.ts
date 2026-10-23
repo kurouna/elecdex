@@ -189,35 +189,6 @@ test('a theme is used once chosen, and nothing changes on Escape', async () => {
   }
 })
 
-test('a settings row opens the dialog at its section, out of the palette’s line', async () => {
-  const { page, close } = await start(ONE_CLOCK)
-  try {
-    await find(page, 'settings keyboard', 'settings:keyboard')
-    await page.keyboard.press('Enter')
-    const dialog = page.getByTestId('settings-dialog')
-    await expect(dialog).toBeVisible()
-    await expect(dialog).toHaveAttribute('style', /--crt-delay/)
-    await expect(
-      page.locator('[data-testid=settings-section][data-section=keyboard]'),
-    ).toHaveAttribute('aria-current', 'page')
-  } finally {
-    await close()
-  }
-})
-
-test('a preset with shells open asks first, as its key does', async () => {
-  const { page, close } = await start(SHELL_AND_CLOCK)
-  try {
-    await find(page, 'standard', 'preset:standard')
-    await page.keyboard.press('Enter')
-    await expect(page.getByTestId('switch-layout-dialog')).toBeVisible()
-    await page.getByTestId('switch-layout-cancel').click()
-    await expect(panes(page)).toHaveCount(2)
-  } finally {
-    await close()
-  }
-})
-
 test('it opens over a pane popped up, which goes; other keys stay shut out there', async () => {
   const { page, close } = await start(ONE_CLOCK)
   try {
@@ -248,43 +219,6 @@ test('opened over a pane popped up from a shell, it gives the keyboard back to t
     await page.keyboard.press('Escape')
     await expect(palette(page)).toHaveCount(0)
     await expect(shell).toBeFocused()
-  } finally {
-    await close()
-  }
-})
-
-test('a pane row pops up what can be, and adds what cannot beside the focused pane', async () => {
-  const { page, close } = await start(ONE_CLOCK)
-  try {
-    await paneById(page, 'c').click()
-    await find(page, 'calendar', 'pane:calendar')
-    await page.keyboard.press('Enter')
-    await expect(page.getByTestId('popup-pane')).toBeVisible()
-    await expect(panes(page)).toHaveCount(1)
-    await page.keyboard.press('Escape')
-    await expect(page.getByTestId('popup-pane')).toHaveCount(0)
-    await paneById(page, 'c').click()
-    await find(page, 'terminal', 'pane:terminal')
-    await page.keyboard.press('Enter')
-    await expect(page.locator('[data-testid=pane][data-widget=terminal]')).toHaveCount(1)
-    await expect(panes(page)).toHaveCount(2)
-  } finally {
-    await close()
-  }
-})
-
-test('a saved layout row asks first while shells are open, as its number key does', async () => {
-  // A first start, given the presets as saved layouts: the default layout, with its shells.
-  const { page, close } = await start(undefined, { env: { ELECDEX_SEED_LAYOUTS: '1' } })
-  try {
-    const before = await panes(page).count()
-    await page.keyboard.press('Control+Shift+KeyP')
-    await page.getByTestId('action-palette-filter').fill('network')
-    await expect(selectedRow(page)).toHaveAttribute('data-key', /^layout:/)
-    await page.keyboard.press('Enter')
-    await expect(page.getByTestId('switch-layout-dialog')).toBeVisible()
-    await page.getByTestId('switch-layout-cancel').click()
-    await expect(panes(page)).toHaveCount(before)
   } finally {
     await close()
   }

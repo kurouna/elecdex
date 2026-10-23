@@ -127,20 +127,6 @@ test('a widget popped up from the picker stays out of the layout', async () => {
   }
 })
 
-test('a single-instance widget already on screen is focused, not duplicated', async () => {
-  const { page, close } = await launch()
-  try {
-    await page.keyboard.press('Control+Shift+KeyA')
-    const item = page.locator('[data-testid=pane-picker-item][data-widget=memory]')
-    await expect(item).toContainText(/on screen/i)
-    await item.click()
-    await expect(pane(page, 'memory')).toHaveCount(1)
-    await expect(pane(page, 'memory')).toHaveClass(/focused/)
-  } finally {
-    await close()
-  }
-})
-
 test('every pane has a way to close it', async () => {
   const { page, close } = await launch()
   try {

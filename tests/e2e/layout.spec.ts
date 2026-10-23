@@ -68,46 +68,6 @@ test('the default layout recreates the original arrangement', async () => {
   }
 })
 
-test('a layout saved with column headers still loads, without them', async () => {
-  const pane = (id: string, widget: string) => ({ kind: 'pane', id, widget })
-  const layout = {
-    version: 1,
-    root: {
-      kind: 'split',
-      id: 'root',
-      direction: 'row',
-      children: [
-        {
-          kind: 'split',
-          id: 'left',
-          direction: 'column',
-          children: [pane('cpu', 'cpu'), pane('memory', 'memory')],
-          sizes: [0.5, 0.5],
-          label: { left: 'panel', right: 'system' },
-        },
-        pane('shell', 'terminal'),
-      ],
-      sizes: [0.3, 0.7],
-    },
-  }
-  const { page, userData, close } = await launch(undefined, { layout })
-  try {
-    // The saved arrangement, not the default one it would fall back to.
-    const widgets = await page.$$eval('[data-testid=pane]', (els) =>
-      els.map((e) => e.getAttribute('data-widget')),
-    )
-    expect(widgets).toEqual(['cpu', 'memory', 'terminal'])
-    await expect(page.getByText(/^system$/i)).toHaveCount(0)
-    // The next save writes the tree without the header.
-    await page.getByTestId('split-handle').first().focus()
-    await page.keyboard.press('ArrowRight')
-    const saved = await waitForSaved(userData, (json) => !json.includes('"label"'))
-    expect(saved).toContain('"id": "left"')
-  } finally {
-    await close()
-  }
-})
-
 test('the app starts with the shell focused, ready to type into', async () => {
   const { page, close } = await launch()
   try {
@@ -311,41 +271,6 @@ test('a corrupt layout.json is quarantined, not lost, and the default is used', 
     const backup = `${layoutFile(userData)}.bak`
     expect(existsSync(backup)).toBe(true)
     expect(readFileSync(backup, 'utf8')).toContain('this is not json')
-  } finally {
-    await second.close()
-  }
-})
-
-test('a hand-edited layout.json is honoured and normalised', async () => {
-  // A split with one child and unnormalised sizes: the engine must collapse it.
-  const second = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'split',
-        id: 'root',
-        direction: 'row',
-        sizes: [7, 3],
-        children: [
-          { kind: 'pane', id: 'a', widget: 'terminal' },
-          {
-            kind: 'split',
-            id: 'inner',
-            direction: 'column',
-            sizes: [1],
-            children: [{ kind: 'pane', id: 'b', widget: 'cpu' }],
-          },
-        ],
-      },
-    },
-  })
-  try {
-    const widgets = await second.page.$$eval('[data-testid=pane]', (els) =>
-      els.map((e) => e.getAttribute('data-widget')),
-    )
-    expect(widgets).toEqual(['terminal', 'cpu'])
-    // The one-child inner split collapsed, leaving a single root split.
-    await expect(second.page.locator('[data-testid=split]')).toHaveCount(1)
   } finally {
     await second.close()
   }

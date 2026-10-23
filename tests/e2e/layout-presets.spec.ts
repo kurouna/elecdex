@@ -200,27 +200,6 @@ test('a layout made from a preset keeps the work done in it, and can be put back
   }
 })
 
-test('a preset asks about the shells first, and no leaves the list as it was', async () => {
-  const { page, userData, close } = await launch(undefined, { env: SEED, layout: SINGLE_TERMINAL })
-  try {
-    await openLayouts(page)
-    await card(page, 'earth').click()
-    const ask = page.getByTestId('switch-layout-dialog')
-    await expect(ask).toBeVisible()
-    await expect(ask.getByTestId('switch-layout-name')).toHaveText('earth')
-    await ask.getByTestId('switch-layout-cancel').click()
-    await expect(ask).toHaveCount(0)
-    await expect(terminalPane(page)).toHaveCount(1)
-    await expect(widget(page, 'orbit')).toHaveCount(0)
-    // Nothing was added.
-    await openLayouts(page)
-    await expect(page.getByTestId('layouts-item')).toHaveCount(0)
-    expect(() => savedFile(userData)).toThrow()
-  } finally {
-    await close()
-  }
-})
-
 test('with motion reduced, a choice in the layouts dialog does not blink', async () => {
   const { page, close } = await launch(undefined, {
     env: SEED,

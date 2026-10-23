@@ -13,6 +13,7 @@ const { default: PaneHost } = await import('../../src/renderer/layout/PaneHost.s
 const { default: TabsHost } = await import('../../src/renderer/layout/TabsHost.svelte')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
+const { zoomModeOf } = await import('../../src/renderer/widgets/registry.ts')
 await import('../../src/renderer/widgets/builtins.ts')
 
 /**
@@ -51,8 +52,9 @@ describe('a pane of its own', () => {
     expect(byTestId(container, 'group-close')).toBeNull()
   })
 
-  it('offers no ⤢ for a readout', () => {
-    const node = pane('netstat')
+  // A readout has nothing more to show at any size (registry `zoom` left out).
+  it.each(['netstat', 'sysinfo'])('offers no ⤢ for the %s readout', (widget) => {
+    const node = pane(widget)
     const { container } = render(PaneHost, { props: { node, visible: true, tabbed: false } })
     flushSync()
     expect(byTestId(container, 'pane-close')).not.toBeNull()
@@ -77,6 +79,15 @@ describe('a pane of its own', () => {
     expect(zoom).toHaveBeenCalledWith(node.id)
     byTestId(container, 'pane-close')?.click()
     expect(close).toHaveBeenCalledWith(node.id)
+  })
+})
+
+describe('how far a built-in comes forward', () => {
+  it('is the whole workspace for most, a panel for one with little to show, and not at all for a readout', () => {
+    expect(zoomModeOf('clock')).toBe('full')
+    expect(zoomModeOf('calc')).toBe('panel')
+    expect(zoomModeOf('netstat')).toBeNull()
+    expect(zoomModeOf('sysinfo')).toBeNull()
   })
 })
 

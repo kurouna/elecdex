@@ -354,6 +354,17 @@ describe('what lets go of a zoomed pane', () => {
     expect(layout.pinnedPaneId).toBeNull()
   })
 
+  it('closing the focused pane, which is the one forward even when the focus says otherwise', () => {
+    // Ctrl+Shift+W (closeFocused) closes what is in front, never a pane hidden behind the shade.
+    zoom(split('row', [a, b]), a.id)
+    layout.focusedPaneId = b.id
+    layout.closeFocused()
+    expect(layout.closingId).toBe(a.id)
+    vi.advanceTimersByTime(2000)
+    expect(ids()).toEqual([b.id])
+    expect(layout.zoomedPaneId).toBeNull()
+  })
+
   it('closing the group of the zoomed tab, which powers off in front as a whole', () => {
     const group = tabs([b, c], 0)
     zoom(split('row', [a, group]), b.id)

@@ -199,10 +199,16 @@ describe('pane drag gesture', () => {
     expect(shape(layout.tree.root)).toBe(before)
   })
 
-  it('shows no target outside every pane', () => {
+  it('shows no target outside every pane, and dropping there changes nothing', () => {
+    const before = shape(layout.tree.root)
     press(10, 10)
+    // Over a pane first, so the target there has to be let go of on the way out.
+    moveTo(290, 50)
+    expect(paneDrag.target).not.toBeNull()
     moveTo(500, 500)
     expect(paneDrag.target).toBeNull()
+    release(500, 500)
+    expect(shape(layout.tree.root)).toBe(before)
   })
 
   it('Escape cancels without moving, and takes the key from the terminal', () => {

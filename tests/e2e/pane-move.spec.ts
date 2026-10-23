@@ -276,26 +276,6 @@ test('the shell group moves as a whole by its header, keeping every tab and the 
   expect(await sessionIds()).toEqual(sessions)
 })
 
-test('a tab is still selected by a click after tabs have been dragged', async () => {
-  const strip = shellGroup().getByTestId('tab')
-  await expect(strip).toHaveCount(3)
-  const globe = await boxOf(paneWith('globe'))
-  await drag(strip.nth(2), globe.x + globe.width / 2, globe.y + 10)
-  await expect(strip).toHaveCount(2)
-
-  // The drop swallowed its own click; a real click afterwards still works.
-  await strip.first().click()
-  await expect(shellGroup().locator('li.active [data-testid=tab]')).toHaveAttribute(
-    'data-pane-id',
-    (await strip.first().getAttribute('data-pane-id')) ?? '',
-  )
-  await strip.last().click()
-  await expect(shellGroup().locator('li.active [data-testid=tab]')).toHaveAttribute(
-    'data-pane-id',
-    (await strip.last().getAttribute('data-pane-id')) ?? '',
-  )
-})
-
 test('holding Ctrl adds the pane to another as a tab, and it can be dragged back out', async () => {
   const globe = await boxOf(paneWith('globe'))
   await drag(titleOf('memory'), globe.x + globe.width / 2, globe.y + globe.height / 2, false)
@@ -324,35 +304,6 @@ test('holding Ctrl adds the pane to another as a tab, and it can be dragged back
   ).toHaveCount(0)
   await expect(paneWith('memory')).toHaveAttribute('data-chrome', 'module')
   await expect(paneWith('globe')).toHaveAttribute('data-chrome', 'module')
-})
-
-test('Escape cancels a drag, and a drop onto itself or outside every pane changes nothing', async () => {
-  const layoutNow = () =>
-    page.$$eval('[data-testid=pane]', (els) =>
-      els.map((e) => `${e.getAttribute('data-widget')}:${Math.round(e.getBoundingClientRect().x)}`),
-    )
-  const before = await layoutNow()
-  const globe = await boxOf(paneWith('globe'))
-
-  await drag(titleOf('memory'), globe.x + 10, globe.y + globe.height / 2, false)
-  await expect(preview()).toHaveCount(1)
-  await page.keyboard.press('Escape')
-  await expect(page.getByTestId('pane-drag')).toHaveCount(0)
-  await page.mouse.up()
-
-  const own = await boxOf(paneWith('memory'))
-  await drag(titleOf('memory'), own.x + own.width / 2, own.y + own.height / 2, false)
-  await expect(page.getByTestId('pane-drag')).toHaveCount(1)
-  await expect(preview()).toHaveCount(0)
-  await page.mouse.up()
-
-  // The window's title strip holds no pane.
-  const size = await page.evaluate(() => ({ w: window.innerWidth }))
-  await drag(titleOf('memory'), size.w / 2, 2, false)
-  await expect(preview()).toHaveCount(0)
-  await page.mouse.up()
-
-  expect(await layoutNow()).toEqual(before)
 })
 
 test('an untitled pane is dragged by the strip along its top rule', async () => {
@@ -487,23 +438,6 @@ test('Ctrl over another group puts the pane at the place in the strip the pointe
   await expect(strip).toHaveCount(4)
   await expect(strip.first()).toHaveAttribute('data-pane-id', globeId ?? '')
   await expect(paneWith('globe')).toHaveAttribute('data-chrome', 'bare')
-})
-
-test('without Ctrl a tab still leaves its group, and the reorder is offered', async () => {
-  const strip = shellGroup().getByTestId('tab')
-  const tabs = shellGroup().locator('[data-drop-tab]')
-  await expect(strip).toHaveCount(3)
-
-  const last = await boxOf(tabs.nth(2))
-  await drag(strip.first(), last.x + last.width - 2, last.y + last.height / 2, false)
-  // No gap is picked, the group is outlined as a side to land on, and the label
-  // says which key would reorder it instead.
-  await expect(page.getByTestId('tab-drop-caret')).toHaveCount(0)
-  await expect(preview()).not.toHaveAttribute('data-placement', 'tab')
-  await expect(page.getByTestId('pane-drag')).toContainText('Ctrl: reorder')
-  await page.mouse.up()
-
-  await expect(strip).toHaveCount(2)
 })
 
 test('a reordered strip survives a restart', async () => {

@@ -305,6 +305,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
   page.on('pageerror', (error) => console.warn(`[e2e] page error: ${error.message}`))
   await page.waitForLoadState('domcontentloaded')
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+  // `--no-intro` is checked here, by every launch that passes it: the boot sequence never
+  // starts, so nothing of it covers the workspace a test is about to use.
+  if (!options.intro) await expect(page.getByTestId('app')).toHaveAttribute('data-boot', 'done')
   const platform = await app.evaluate(() => process.platform)
   clearTimeout(watchdog)
   const took = Date.now() - startedAt

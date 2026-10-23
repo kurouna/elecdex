@@ -6,6 +6,7 @@ vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn
 
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { ui } = await import('../../src/renderer/stores/ui.svelte.ts')
+const { goToPreset } = await import('../../src/renderer/layout/presets.ts')
 
 /**
  * The question asked before a saved layout replaces a workspace with shells in
@@ -24,6 +25,10 @@ const WITH_SHELL: LayoutTree = {
 
 let applied: string[]
 let resets: number
+const addPreset = vi.fn(async (id: string) => ({
+  list: [{ id: 'made', name: id, active: false, preset: id }],
+  id: 'made',
+}))
 
 const stub = (): void => {
   vi.stubGlobal('elecdex', {
@@ -47,6 +52,7 @@ const stub = (): void => {
         remove: vi.fn(async () => []),
         rename: vi.fn(async () => []),
         move: vi.fn(async () => []),
+        addPreset,
       },
     },
   })
@@ -177,5 +183,29 @@ describe('resetting from the keyboard', () => {
     expect(await layout.confirmReset()).toBe(true)
     expect(ui.layoutSwitch).toBeNull()
     expect(resets).toBe(1)
+  })
+})
+
+describe('a preset', () => {
+  // The question comes before the preset is added, so that no leaves the list of
+  // saved layouts as it was rather than with a layout nobody went to.
+  it('asks about the shells first, and no leaves the list as it was', async () => {
+    await layout.load()
+    layout.tree = WITH_SHELL
+    await layout.loadSaved()
+    const before = JSON.parse(JSON.stringify(layout.savedLayouts))
+
+    const went = goToPreset('earth')
+    await vi.waitFor(() => expect(ui.layoutSwitch).not.toBeNull())
+    expect(ui.layoutSwitch?.name).toBe('earth')
+    expect(ui.layoutSwitch?.shells).toBe(1)
+    expect(addPreset).not.toHaveBeenCalled()
+
+    ui.answerLayoutSwitch(false)
+    expect(await went).toBe(false)
+    expect(addPreset).not.toHaveBeenCalled()
+    expect(applied).toEqual([])
+    expect(layout.savedLayouts).toEqual(before)
+    expect(layout.tree).toEqual(WITH_SHELL)
   })
 })
