@@ -58,12 +58,3 @@ export async function choose(
   await page.getByTestId(newest ? 'logwatch-select-newest' : 'logwatch-select').click()
   await expect(lamp(page)).toContainText('LIVE', { timeout: 10_000 })
 }
-
-/** What main's stand-in clipboard holds now (`ELECDEX_CLIPBOARD_STUB`), as text. */
-export const clipboardText = (app: ElectronApplication): Promise<string | undefined> =>
-  app.evaluate(
-    () =>
-      (
-        globalThis as unknown as { __elecdexClipboard: { current(): { text: string } | null } }
-      ).__elecdexClipboard.current()?.text,
-  )

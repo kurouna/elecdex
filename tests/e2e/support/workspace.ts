@@ -203,9 +203,11 @@ export const paneById = (page: Page, id: string): Locator =>
  * hover; the press is held a moment, as for anything drawn over other elements.
  */
 export async function closePane(pane: Locator): Promise<void> {
+  // Gone by its id: a locator of shown panes alone would also pass for one only put behind a tab.
+  const id = await pane.getAttribute('data-pane-id')
   await pane.hover()
   await pane.getByTestId('pane-close').click({ delay: 20 })
-  await expect(pane).toHaveCount(0)
+  await expect(pane.page().locator(`[data-testid=pane][data-pane-id="${id}"]`)).toHaveCount(0)
 }
 
 /** Reloads the page and waits for the workspace to be drawn again. */

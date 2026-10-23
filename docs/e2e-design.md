@@ -201,6 +201,21 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
   - CHIP-8 のアトラクト画面の実行回数: chip8.spec 1 か所
   - ELEC-16 の LCD の描画回数: elec16.spec 1 か所
 
+### 6.2 段階 2 の結果（2026-10-23）
+
+- tests/e2e/contracts/ に 11 の契約と 4 つの表を置いた。表は unit テストが本体と突き合わせる: 全ウィジェット（panes.ts ↔ builtins.ts、e2e-contracts.test.ts）、全キー操作（keys.ts ↔ keybindings.ts）、全ダイアログ（dialogs.ts ↔ ui store と `transition:crtPower` の部品）、`window.elecdex` の全 252 メソッド（ipc-table.ts ↔ api.ts）。表から漏れたものは unit で落ちる。
+- 契約: lifecycle（タブ裏・最小化・閉じる・リロードで止まり、戻すとすぐ再開。続くべきもの）、mount（全ペインが描ける、ピッカーとポップアップ）、persistence、same-id（4 つの仕組み）、attribution、themes、keybindings、motion、ipc（不正な引数を拒み main が落ちない）、faults（外部 9 源の壊れた応答と不通、プラグイン、壊れたストア、collector の停止）、no-external（外部ホストへの通信 0、Chromium の net log と main の通信を見る）。全 47 件で 5.3 分。旧テストはまだ消していない。
+- **契約が見つけた本番の不具合（すべて修正済み）**:
+  - quakes ペインがタブの裏・最小化中も地震一覧を購読し続けた。spectrum と mixer が最小化中もキャプチャと読み取りを続けた（d7a3b7b2）。
+  - `net.ping` が 1.1.1.1 に固定で、e2e 中も外へ ping していた。`ELECDEX_PING_HOST`（ループバックのみ受け付ける）を足し、STUB_ENV が 127.0.0.1 にする。
+  - NOAA が Atom フィードでない応答（200 のエラーページ、途中で切れた本文）を返すと、発表中の津波警報が消えた。完全なフィードでない応答は失敗として扱い、知っていた警報を保つ。
+- **挙動の変化（利用者の判断 2026-10-23）**: 通知 off のとき、globe の震源マークは quakes ペインが見えている間だけ出る（以前は裏の quakes ペインが取得を続けていたため出ていた）。globe 自身に取得させると、既定レイアウトの全員が毎分 JMA に問い合わせることになるため、させない。
+- **契約にできなかった・まだ薄いもの**:
+  - シェルが起動できない場合（シェルに設定が無く、ComSpec を渡しても Windows の値が勝つ）。
+  - main の起動直後の Node 側の通信（テスト側から包めるのは起動後。Chromium 側は net log で起動から見ている）。外部通信の検査は全テスト共通の fixture ではなく 1 spec。
+  - lifecycle の「続くべきもの」はシェルだけを確かめている（書き途中の回答、評議会、タイマー、AWAKE、地震の通知、プラグイン、web の再生は理由を書いただけ）。mixer は main の状態を外から読めないので footprint が無く、component テストだけが守る。
+  - persistence はペイン状態の代表 4 つ。
+
 ## 7. 追加する検証（優先度順）
 
 1. 古いプロファイルからの更新（app/upgrade）。リリースで最も壊れやすい。

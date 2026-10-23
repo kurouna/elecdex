@@ -46,8 +46,9 @@ test.afterEach(async () => {
 
 type Side = 'left' | 'right' | 'up' | 'down'
 
-const paneOf = (widget: string) => page.locator(`[data-testid=pane][data-widget=${widget}]`)
-const titleOf = (widget: string) => paneOf(widget).locator('.module-title')
+/** A pane of `widget`, shown or not (support's `paneOf` takes only the shown ones). */
+const paneWith = (widget: string) => page.locator(`[data-testid=pane][data-widget=${widget}]`)
+const titleOf = (widget: string) => paneWith(widget).locator('.module-title')
 const shellGroup = () => page.getByTestId('tabs-host')
 const preview = () => page.getByTestId('pane-drop-preview')
 
@@ -135,7 +136,7 @@ async function waitForShells(count: number) {
 
 for (const side of ['left', 'right', 'up', 'down'] as const) {
   test(`a pane dropped near the ${side} edge of another previews that half and lands there`, async () => {
-    const globe = await boxOf(paneOf('globe'))
+    const globe = await boxOf(paneWith('globe'))
     const point = nearSide(globe, side)
     await drag(titleOf('memory'), point.x, point.y, false)
 
@@ -158,8 +159,8 @@ for (const side of ['left', 'right', 'up', 'down'] as const) {
     await expect(page.getByTestId('pane-drag')).toHaveCount(0)
 
     // The moved pane now sits on that side of the globe, sharing its row or column.
-    const memoryAfter = await boxOf(paneOf('memory'))
-    const globeAfter = await boxOf(paneOf('globe'))
+    const memoryAfter = await boxOf(paneWith('memory'))
+    const globeAfter = await boxOf(paneWith('globe'))
     const slack = 24
     if (side === 'left')
       expect(memoryAfter.x + memoryAfter.width).toBeLessThanOrEqual(globeAfter.x + slack)
@@ -169,12 +170,12 @@ for (const side of ['left', 'right', 'up', 'down'] as const) {
       expect(memoryAfter.y + memoryAfter.height).toBeLessThanOrEqual(globeAfter.y + slack)
     if (side === 'down')
       expect(memoryAfter.y).toBeGreaterThanOrEqual(globeAfter.y + globeAfter.height - slack)
-    await expect(paneOf('memory')).toHaveCount(1)
+    await expect(paneWith('memory')).toHaveCount(1)
   })
 }
 
 test('a moved layout is saved and restored on the next launch', async () => {
-  const globe = await boxOf(paneOf('globe'))
+  const globe = await boxOf(paneWith('globe'))
   const point = nearSide(globe, 'down')
   await drag(titleOf('cpu'), point.x, point.y)
   const order = () =>
@@ -184,7 +185,7 @@ test('a moved layout is saved and restored on the next launch', async () => {
         return `${e.getAttribute('data-widget')}@${Math.round(r.x / 10)},${Math.round(r.y / 10)}`
       }),
     )
-  await expect.poll(async () => (await boxOf(paneOf('cpu'))).y).toBeGreaterThan(globe.y)
+  await expect.poll(async () => (await boxOf(paneWith('cpu'))).y).toBeGreaterThan(globe.y)
   const before = await order()
   // The save, past its debounce: the CPU pane right under the globe.
   await waitForSaved(launched.userData, (json) =>
@@ -193,7 +194,7 @@ test('a moved layout is saved and restored on the next launch', async () => {
 
   launched = await launched.relaunch()
   ;({ page } = launched)
-  await expect(paneOf('cpu')).toBeVisible()
+  await expect(paneWith('cpu')).toBeVisible()
   await expect.poll(order).toEqual(before)
 })
 
@@ -211,7 +212,7 @@ test('a shell tab dragged out keeps its session, its screen and its input', asyn
   await page.keyboard.type(`echo ${marker}`)
   await page.keyboard.press('Enter')
 
-  const globe = await boxOf(paneOf('globe'))
+  const globe = await boxOf(paneWith('globe'))
   await drag(strip.last(), globe.x + globe.width / 2, globe.y + 10)
 
   await expect(strip).toHaveCount(2)
@@ -251,7 +252,7 @@ test('the shell group moves as a whole by its header, keeping every tab and the 
   const shown = await strip.nth(1).getAttribute('data-pane-id')
   const tabIds = await strip.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))
 
-  const launcher = await boxOf(paneOf('launcher'))
+  const launcher = await boxOf(paneWith('launcher'))
   const point = nearSide(launcher, 'down')
   await drag(shellGroup().locator('> header'), point.x, point.y)
 
@@ -259,7 +260,7 @@ test('the shell group moves as a whole by its header, keeping every tab and the 
   await expect
     .poll(async () => {
       const group = await boxOf(shellGroup())
-      const now = await boxOf(paneOf('launcher'))
+      const now = await boxOf(paneWith('launcher'))
       return group.y >= now.y + now.height - 24
     })
     .toBe(true)
@@ -278,7 +279,7 @@ test('the shell group moves as a whole by its header, keeping every tab and the 
 test('a tab is still selected by a click after tabs have been dragged', async () => {
   const strip = shellGroup().getByTestId('tab')
   await expect(strip).toHaveCount(3)
-  const globe = await boxOf(paneOf('globe'))
+  const globe = await boxOf(paneWith('globe'))
   await drag(strip.nth(2), globe.x + globe.width / 2, globe.y + 10)
   await expect(strip).toHaveCount(2)
 
@@ -296,7 +297,7 @@ test('a tab is still selected by a click after tabs have been dragged', async ()
 })
 
 test('holding Ctrl adds the pane to another as a tab, and it can be dragged back out', async () => {
-  const globe = await boxOf(paneOf('globe'))
+  const globe = await boxOf(paneWith('globe'))
   await drag(titleOf('memory'), globe.x + globe.width / 2, globe.y + globe.height / 2, false)
   await expect(preview()).not.toHaveAttribute('data-placement', 'tab')
   // Ctrl pressed and released without moving switches the preview both ways.
@@ -321,8 +322,8 @@ test('holding Ctrl adds the pane to another as a tab, and it can be dragged back
   await expect(
     page.getByTestId('tabs-host').filter({ has: page.locator('[data-widget=globe]') }),
   ).toHaveCount(0)
-  await expect(paneOf('memory')).toHaveAttribute('data-chrome', 'module')
-  await expect(paneOf('globe')).toHaveAttribute('data-chrome', 'module')
+  await expect(paneWith('memory')).toHaveAttribute('data-chrome', 'module')
+  await expect(paneWith('globe')).toHaveAttribute('data-chrome', 'module')
 })
 
 test('Escape cancels a drag, and a drop onto itself or outside every pane changes nothing', async () => {
@@ -331,7 +332,7 @@ test('Escape cancels a drag, and a drop onto itself or outside every pane change
       els.map((e) => `${e.getAttribute('data-widget')}:${Math.round(e.getBoundingClientRect().x)}`),
     )
   const before = await layoutNow()
-  const globe = await boxOf(paneOf('globe'))
+  const globe = await boxOf(paneWith('globe'))
 
   await drag(titleOf('memory'), globe.x + 10, globe.y + globe.height / 2, false)
   await expect(preview()).toHaveCount(1)
@@ -339,7 +340,7 @@ test('Escape cancels a drag, and a drop onto itself or outside every pane change
   await expect(page.getByTestId('pane-drag')).toHaveCount(0)
   await page.mouse.up()
 
-  const own = await boxOf(paneOf('memory'))
+  const own = await boxOf(paneWith('memory'))
   await drag(titleOf('memory'), own.x + own.width / 2, own.y + own.height / 2, false)
   await expect(page.getByTestId('pane-drag')).toHaveCount(1)
   await expect(preview()).toHaveCount(0)
@@ -355,25 +356,25 @@ test('Escape cancels a drag, and a drop onto itself or outside every pane change
 })
 
 test('an untitled pane is dragged by the strip along its top rule', async () => {
-  const weather = await boxOf(paneOf('weather'))
+  const weather = await boxOf(paneWith('weather'))
   const point = nearSide(weather, 'left')
-  await drag(paneOf('clock').getByTestId('pane-drag-strip'), point.x, point.y)
+  await drag(paneWith('clock').getByTestId('pane-drag-strip'), point.x, point.y)
   await expect
     .poll(async () => {
-      const clock = await boxOf(paneOf('clock'))
+      const clock = await boxOf(paneWith('clock'))
       return clock.x > weather.x - 20 && clock.y > weather.y - 20
     })
     .toBe(true)
 })
 
 test('a moved pane closes from its own close button', async () => {
-  const globe = await boxOf(paneOf('globe'))
+  const globe = await boxOf(paneWith('globe'))
   const point = nearSide(globe, 'down')
   await drag(titleOf('disk'), point.x, point.y)
-  await expect.poll(async () => (await boxOf(paneOf('disk'))).y).toBeGreaterThan(globe.y)
-  await paneOf('disk').hover()
-  await paneOf('disk').getByTestId('pane-close').click()
-  await expect(paneOf('disk')).toHaveCount(0)
+  await expect.poll(async () => (await boxOf(paneWith('disk'))).y).toBeGreaterThan(globe.y)
+  await paneWith('disk').hover()
+  await paneWith('disk').getByTestId('pane-close').click()
+  await expect(paneWith('disk')).toHaveCount(0)
 })
 
 test('panes with WebGL canvases survive being moved again and again', async () => {
@@ -398,15 +399,15 @@ test('panes with WebGL canvases survive being moved again and again', async () =
     }
     // The globe, alternately below the weather and the markets panes.
     const anchor = i % 2 === 0 ? 'weather' : 'markets'
-    const below = await boxOf(paneOf(anchor))
+    const below = await boxOf(paneWith(anchor))
     const point = nearSide(below, 'down')
     await drag(titleOf('globe'), point.x, point.y)
     // The panes above close up, so compare with where the anchor is now.
     await expect
-      .poll(async () => (await boxOf(paneOf('globe'))).y > (await boxOf(paneOf(anchor))).y)
+      .poll(async () => (await boxOf(paneWith('globe'))).y > (await boxOf(paneWith(anchor))).y)
       .toBe(true)
     // A shell tab out beside another pane, and back in with Ctrl.
-    const target = await boxOf(paneOf(widget))
+    const target = await boxOf(paneWith(widget))
     const beside = nearSide(target, 'down')
     await drag(strip.last(), beside.x, beside.y)
     await expect(strip).toHaveCount(2)
@@ -431,7 +432,7 @@ test('panes with WebGL canvases survive being moved again and again', async () =
         .filter((gl) => gl.isContextLost()).length,
   )
   expect(lost).toBe(0)
-  await expect(paneOf('globe').getByText(/context was lost/)).toHaveCount(0)
+  await expect(paneWith('globe').getByText(/context was lost/)).toHaveCount(0)
   expect(warnings).toEqual([])
 })
 
@@ -471,7 +472,7 @@ test('Ctrl over its own group reorders a tab along the strip, without remounting
 test('Ctrl over another group puts the pane at the place in the strip the pointer picks', async () => {
   const strip = shellGroup().getByTestId('tab')
   await expect(strip).toHaveCount(3)
-  const globeId = await paneOf('globe').getAttribute('data-pane-id')
+  const globeId = await paneWith('globe').getAttribute('data-pane-id')
 
   // The left end of the strip: before every tab there is.
   const bar = await boxOf(shellGroup().getByTestId('tab-strip'))
@@ -485,7 +486,7 @@ test('Ctrl over another group puts the pane at the place in the strip the pointe
 
   await expect(strip).toHaveCount(4)
   await expect(strip.first()).toHaveAttribute('data-pane-id', globeId ?? '')
-  await expect(paneOf('globe')).toHaveAttribute('data-chrome', 'bare')
+  await expect(paneWith('globe')).toHaveAttribute('data-chrome', 'bare')
 })
 
 test('without Ctrl a tab still leaves its group, and the reorder is offered', async () => {

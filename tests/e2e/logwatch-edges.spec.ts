@@ -2,16 +2,8 @@ import { appendFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } f
 import { createServer } from 'node:net'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import {
-  choose,
-  clipboardText,
-  lamp,
-  lines,
-  logFolder,
-  rows,
-  singleLog,
-  stamp,
-} from './support/logwatch.js'
+import { choose, lamp, lines, logFolder, rows, singleLog, stamp } from './support/logwatch.js'
+import { clipboardText } from './support/stub-hooks.js'
 import { aiSettings, openaiProvider } from './support/stubs/ai.js'
 import {
   beside,
