@@ -165,7 +165,14 @@ function briefly<T>(work: Promise<T>): Promise<T | undefined> {
 }
 
 async function closeApp(app: ElectronApplication): Promise<void> {
-  const child = app.process()
+  // An app a test already quit has nothing left to close: Playwright may have let go of it.
+  let child: ReturnType<ElectronApplication['process']>
+  try {
+    child = app.process()
+  } catch {
+    return
+  }
+  if (child.exitCode !== null) return
   const before = clipboardAtLaunch.get(app)
   if (before !== undefined) {
     await briefly(app.evaluate(({ clipboard }, text) => clipboard.writeText(text), before))
