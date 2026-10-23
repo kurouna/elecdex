@@ -1,6 +1,7 @@
 import { render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubCanvas, stubResizeObserver } from './support/dom.ts'
 
 const { default: Sparkline } = await import('../../src/renderer/widgets/markets/Sparkline.svelte')
 
@@ -46,22 +47,10 @@ beforeEach(() => {
   paths.length = 0
   for (const fn of Object.values(ctx)) if (vi.isMockFunction(fn)) fn.mockClear()
   vi.stubGlobal('Path2D', FakePath)
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      readonly #callback: () => void
-      constructor(callback: () => void) {
-        this.#callback = callback
-      }
-      observe() {
-        this.#callback()
-      }
-      disconnect() {}
-    },
-  )
+  stubResizeObserver('once')
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(120)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(40)
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never)
+  stubCanvas(ctx)
 })
 
 afterEach(() => {

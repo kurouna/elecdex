@@ -1,7 +1,8 @@
 import type { Note, NotesFile } from '@shared/notes'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: NotesWidget } = await import('../../src/renderer/widgets/notes/NotesWidget.svelte')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
@@ -31,7 +32,8 @@ let save: ReturnType<typeof vi.fn>
 beforeEach(() => {
   file = { version: 1, notes: [note()] }
   save = vi.fn(async (id: string, body: string) => ({ ...note({ id, body }), rev: 2 }))
-  vi.stubGlobal('elecdex', {
+  // The pane records which note it shows through the layout store, which saves.
+  stubElecdex({
     notes: {
       list: vi.fn(async () => structuredClone(file)),
       create: vi.fn(async () => note({ id: 'n2', body: '', rev: 1 })),
@@ -43,8 +45,6 @@ beforeEach(() => {
         return () => {}
       },
     },
-    // The pane records which note it shows through the layout store.
-    layout: { load: vi.fn(), save: vi.fn(async () => undefined) },
   })
 })
 
@@ -56,11 +56,6 @@ afterEach(async () => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 const body = (): HTMLTextAreaElement => screen.getByTestId('notes-body') as HTMLTextAreaElement
 

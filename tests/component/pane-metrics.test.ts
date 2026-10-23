@@ -2,6 +2,7 @@ import { pane } from '@shared/layout-ops'
 import { render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubElecdex } from './support/elecdex.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -27,7 +28,7 @@ const changes: Array<[string, 'on' | 'off']> = []
 beforeEach(() => {
   subscribed.clear()
   changes.length = 0
-  vi.stubGlobal('elecdex', {
+  stubElecdex({
     metrics: {
       subscribe: (id: string) => {
         subscribed.set(id, (subscribed.get(id) ?? 0) + 1)
@@ -40,7 +41,6 @@ beforeEach(() => {
         }
       },
     },
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 

@@ -2,6 +2,8 @@ import { pane } from '@shared/layout-ops'
 import { render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubMatchMedia } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -23,8 +25,8 @@ await import('../../src/renderer/widgets/builtins.ts')
  * in front of everything as the flight landed.
  */
 beforeEach(() => {
-  vi.stubGlobal('elecdex', { layout: { save: vi.fn(async () => {}) } })
-  vi.stubGlobal('matchMedia', () => ({ matches: false }))
+  stubElecdex()
+  stubMatchMedia()
 })
 
 afterEach(() => {

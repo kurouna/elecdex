@@ -5,8 +5,10 @@ import {
   type NowPlayingSession,
 } from '@shared/now-playing'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { finishAnimations, inertDom } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: NowPlayingWidget } = await import(
   '../../src/renderer/widgets/nowplaying/NowPlayingWidget.svelte'
@@ -55,30 +57,11 @@ beforeEach(() => {
   control.mockClear()
   seek.mockClear()
   art.mockClear()
-  // The card powers on like a tube, which asks whether motion is reduced.
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  // The card measures itself to keep inside the pane; jsdom has no observer.
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
-  Element.prototype.getAnimations ??= () => []
-  Element.prototype.animate = function animate(_frames, options) {
-    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
-    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
-    setTimeout(() => animation.onfinish?.(), length)
-    return animation as unknown as Animation
-  }
-  vi.stubGlobal('elecdex', {
+  // The card powers on like a tube, which asks whether motion is reduced, and measures
+  // itself to keep inside the pane.
+  inertDom()
+  finishAnimations()
+  stubElecdex({
     nowPlaying: {
       subscribe: (handler: (state: NowPlaying) => void) => {
         subscriptions += 1
@@ -92,7 +75,6 @@ beforeEach(() => {
       seek,
       art,
     },
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 
@@ -103,11 +85,6 @@ afterEach(async () => {
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 async function mount(visible = true) {
   const view = render(NowPlayingWidget, {
@@ -259,8 +236,10 @@ describe('NowPlayingWidget', () => {
     await push(
       state({ session: session({ art: small, artSize: { width: 640, height: 640 }, others: 1 }) }),
     )
+    // The card's rest on a fake clock (lib/hover-card.ts), the rest real.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     await fireEvent.pointerEnter(screen.getByTestId('np-art'))
-    await new Promise((resolve) => setTimeout(resolve, 400))
+    await vi.advanceTimersByTimeAsync(400)
     await settle()
     expect(art).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('np-card-title').textContent).toBe('Night Transit')
@@ -269,7 +248,7 @@ describe('NowPlayingWidget', () => {
     )
     expect(screen.getByTestId('np-card').textContent).toContain('640 × 640 px')
     await fireEvent.pointerLeave(screen.getByTestId('np-art'))
-    await new Promise((resolve) => setTimeout(resolve, 400))
+    await vi.advanceTimersByTimeAsync(400)
     await settle()
     expect(screen.queryByTestId('np-card')).toBeNull()
   })

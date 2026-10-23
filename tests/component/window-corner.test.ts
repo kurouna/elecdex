@@ -5,6 +5,7 @@ import { background } from '../../src/renderer/stores/background.svelte.ts'
 import WindowCorner from '../../src/renderer/WindowCorner.svelte'
 import { backgroundCapabilities } from '../../src/shared/background.ts'
 import { defaultSettings } from '../../src/shared/settings.ts'
+import { stubResizeObserver } from './support/dom.ts'
 
 /**
  * The controls that slide down in fullscreen, where the window has no frame of
@@ -21,11 +22,6 @@ import { defaultSettings } from '../../src/shared/settings.ts'
 const quit = vi.fn()
 const closeWindow = vi.fn()
 let component: Record<string, unknown> | null = null
-
-class FakeResizeObserver {
-  observe(): void {}
-  disconnect(): void {}
-}
 
 function show(platform: NodeJS.Platform, closeToTray: boolean): HTMLElement {
   vi.stubGlobal('elecdex', {
@@ -60,7 +56,7 @@ const closeButton = (): HTMLElement => {
 }
 
 beforeEach(() => {
-  vi.stubGlobal('ResizeObserver', FakeResizeObserver)
+  stubResizeObserver()
   quit.mockClear()
   closeWindow.mockClear()
 })

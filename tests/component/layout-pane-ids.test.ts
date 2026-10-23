@@ -1,6 +1,7 @@
 import { pane, split } from '@shared/layout-ops'
 import { LAYOUT_VERSION } from '@shared/schemas/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubElecdex } from './support/elecdex.ts'
 import { tracked } from './tracked.svelte.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
@@ -20,7 +21,7 @@ const a = pane('clock')
 const b = pane('terminal')
 
 beforeEach(() => {
-  vi.stubGlobal('elecdex', { layout: { save: vi.fn(async () => {}) } })
+  stubElecdex()
   layout.tree = { version: LAYOUT_VERSION, root: split('row', [a, b]) }
   layout.focusedPaneId = a.id
 })

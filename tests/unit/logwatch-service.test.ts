@@ -10,24 +10,16 @@ import {
 import os from 'node:os'
 import path from 'node:path'
 import { charsOf, trimHeld } from '@shared/logwatch/held'
-import type { LogItem, LogLine, LogWatchEvent } from '@shared/logwatch/types'
+import type { LogItem, LogLine } from '@shared/logwatch/types'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { LogEntryRecord } from '../../src/main/logwatch/catalog.js'
 import { nodeFs } from '../../src/main/logwatch/node-fs.js'
-import {
-  DELIVER_MS,
-  LOOK_MS,
-  type LogFs,
-  LogWatchService,
-  SETTLE_MS,
-} from '../../src/main/logwatch/service.js'
+import { DELIVER_MS, LOOK_MS, SETTLE_MS } from '../../src/main/logwatch/service.js'
+import { LOG_ID as ID, lines, logWatchRig as rig } from './support/logwatch-rig'
 
 /**
- * LogWatchService on real files in a temporary folder, with a fake clock: the watch is ours to
- * fire, so what is read is what the test says, when it says.
+ * LogWatchService on real files in a temporary folder, with a fake clock (support/logwatch-rig.ts).
  */
 
-const ID = '0123456789abcdef'
 const ID2 = 'fedcba9876543210'
 
 let dir: string
@@ -37,104 +29,6 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
-
-const lines = (from: number, to: number, word = 'line'): string =>
-  Array.from({ length: to - from + 1 }, (_, i) => `INFO ${word} ${from + i}\n`).join('')
-
-function rig(
-  entries: Record<string, Omit<LogEntryRecord, 'id' | 'lastUsed'>>,
-  keep = 5000,
-  initial = 5,
-  fsOverride: Partial<LogFs> = {},
-) {
-  const limits = { keep }
-  let now = Date.UTC(2026, 9, 12, 3, 0, 0, 100)
-  const timers = new Map<number, { at: number; fn: () => void }>()
-  let nextTimer = 1
-  const sent: { page: string; event: LogWatchEvent }[] = []
-  const watches = new Map<string, (name: string | null) => void>()
-  const service = new LogWatchService<string>({
-    fs: {
-      ...nodeFs,
-      ...fsOverride,
-      watch: (folder, onChange) => {
-        watches.set(folder, onChange)
-        return { close: () => watches.delete(folder) }
-      },
-    },
-    entry: (id) => {
-      const entry = entries[id]
-      return entry === undefined ? null : { id, lastUsed: 0, ...entry }
-    },
-    keepLines: () => limits.keep,
-    initialLines: () => initial,
-    now: () => now,
-    setTimer: (fn, ms) => {
-      const id = nextTimer++
-      timers.set(id, { at: now + ms, fn })
-      return id
-    },
-    clearTimer: (id) => {
-      timers.delete(id as number)
-    },
-    send: (page, event) => sent.push({ page, event: structuredClone(event) }),
-  })
-  const settle = async () => {
-    for (let i = 0; i < 5; i++) {
-      await service.settled()
-      await new Promise((resolve) => setImmediate(resolve))
-    }
-  }
-  return {
-    service,
-    limits,
-    sent,
-    watches,
-    timers,
-    settle,
-    now: () => now,
-    /** Everything a page was sent, as it would hold it. */
-    held(page: string, key = `${ID}/auto`): LogItem[] {
-      let items: LogItem[] = []
-      for (const { page: to, event } of sent) {
-        if (to !== page || event.key !== key) continue
-        items = event.reset ? [...event.items] : [...items, ...event.items]
-      }
-      return items
-    },
-    texts(page: string, key?: string): string[] {
-      return this.held(page, key)
-        .filter((item): item is LogLine => item.kind === 'line')
-        .map((line) => line.text)
-    },
-    /** Runs the timers due within `ms` without waiting for reads: a beat in the middle of one. */
-    fire(ms: number) {
-      const end = now + ms
-      for (;;) {
-        const due = [...timers.entries()].sort((a, b) => a[1].at - b[1].at)[0]
-        if (due === undefined || due[1].at > end) break
-        timers.delete(due[0])
-        now = due[1].at
-        due[1].fn()
-      }
-      now = end
-    },
-    async advance(ms: number) {
-      await settle()
-      const end = now + ms
-      for (;;) {
-        const due = [...timers.entries()].sort((a, b) => a[1].at - b[1].at)[0]
-        if (due === undefined || due[1].at > end) break
-        timers.delete(due[0])
-        now = due[1].at
-        due[1].fn()
-        await settle()
-      }
-      now = end
-      await settle()
-    },
-  }
-}
 
 describe('LogWatchService', () => {
   it('opens on the last lines, then sends only what is appended', async () => {
@@ -330,7 +224,7 @@ describe('LogWatchService', () => {
   it('keeps at most the lines it is told to', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 1))
-    const r = rig({ [ID]: { path: file, pattern: null, format: null } }, 10, 5)
+    const r = rig({ [ID]: { path: file, pattern: null, format: null } }, { keep: 10 })
     r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
     await r.settle()
     appendFileSync(file, lines(2, 40))
@@ -346,7 +240,7 @@ describe('LogWatchService', () => {
   it('gives EXPLAIN the chosen lines and only those, or nothing if one is gone', async () => {
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 30))
-    const r = rig({ [ID]: { path: file, pattern: null, format: null } }, 5000, 2000)
+    const r = rig({ [ID]: { path: file, pattern: null, format: null } }, { initial: 2000 })
     r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
     await r.settle()
     const seqOf = (text: string) =>
@@ -398,18 +292,29 @@ describe('LogWatchService', () => {
     let gate: (() => void) | null = null
     let gated = false
     const reads: number[] = []
-    const r = rig({ [ID]: { path: file, pattern: null, format: null } }, 200_000, 5, {
-      read: async (target, start, length) => {
-        reads.push(start)
-        if (!gated && start > 0 && start < 2_000_000 && reads.filter((s) => s > 0).length === 2) {
-          gated = true
-          await new Promise<void>((resolve) => {
-            gate = resolve
-          })
-        }
-        return nodeFs.read(target, start, length)
+    const r = rig(
+      { [ID]: { path: file, pattern: null, format: null } },
+      {
+        keep: 200_000,
+        fs: {
+          read: async (target, start, length) => {
+            reads.push(start)
+            if (
+              !gated &&
+              start > 0 &&
+              start < 2_000_000 &&
+              reads.filter((s) => s > 0).length === 2
+            ) {
+              gated = true
+              await new Promise<void>((resolve) => {
+                gate = resolve
+              })
+            }
+            return nodeFs.read(target, start, length)
+          },
+        },
       },
-    })
+    )
     r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
     await r.settle()
     const since = r.held('page').at(-1)?.seq ?? -1
@@ -509,12 +414,17 @@ describe('LogWatchService', () => {
     writeFileSync(path.join(dir, 'app-1.log'), lines(1, 1))
     writeFileSync(path.join(dir, 'other.txt'), 'x')
     let listed = 0
-    const r = rig({ [ID]: { path: dir, pattern: 'app-*.log', format: null } }, 5000, 5, {
-      list: async (folder) => {
-        listed++
-        return nodeFs.list(folder)
+    const r = rig(
+      { [ID]: { path: dir, pattern: 'app-*.log', format: null } },
+      {
+        fs: {
+          list: async (folder) => {
+            listed++
+            return nodeFs.list(folder)
+          },
+        },
       },
-    })
+    )
     r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
     await r.settle()
     const before = listed
@@ -534,12 +444,17 @@ describe('LogWatchService', () => {
     // Found in review: counted in calls, the folder was listed every ~2 s on a busy file.
     writeFileSync(path.join(dir, 'app-1.log'), lines(1, 1))
     let listed = 0
-    const r = rig({ [ID]: { path: dir, pattern: 'app-*.log', format: null } }, 5000, 5, {
-      list: async (folder) => {
-        listed++
-        return nodeFs.list(folder)
+    const r = rig(
+      { [ID]: { path: dir, pattern: 'app-*.log', format: null } },
+      {
+        fs: {
+          list: async (folder) => {
+            listed++
+            return nodeFs.list(folder)
+          },
+        },
       },
-    })
+    )
     r.service.subscribe('page', { id: ID, encoding: 'auto', since: -1 })
     await r.settle()
     const before = listed
@@ -570,7 +485,7 @@ describe('LogWatchService', () => {
     // Found checking the review's fixes: main and the page held by different rules.
     const file = path.join(dir, 'app.log')
     writeFileSync(file, lines(1, 1))
-    const r = rig({ [ID]: { path: file, pattern: null, format: null } }, 10, 5)
+    const r = rig({ [ID]: { path: file, pattern: null, format: null } }, { keep: 10 })
     const page = (): LogItem[] => {
       let items: LogItem[] = []
       for (const { event } of r.sent) {

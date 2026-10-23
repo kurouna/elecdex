@@ -1,8 +1,9 @@
 import type { EtherEvent, EtherPoint } from '@shared/ethernet'
 import type { TrackEvent, WifiPoint } from '@shared/wifi'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { canvasContext, stubCanvas, stubResizeObserver } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 const { default: WifiTimeline } = await import('../../src/renderer/widgets/wifi/Timeline.svelte')
 const { default: EtherTimeline } = await import(
@@ -23,41 +24,13 @@ const SIZE = { width: 600, height: 300 }
 /** Where the plot starts: the lanes' names take the room to its left. */
 const LABEL = 46
 const drawn: string[] = []
-const ctx = new Proxy(
-  {},
-  {
-    get: (_target, name) =>
-      name === 'measureText'
-        ? () => ({ width: 10 })
-        : typeof name === 'string'
-          ? (..._args: unknown[]) => drawn.push(name)
-          : undefined,
-    set: () => true,
-  },
-)
 
 beforeEach(() => {
   drawn.length = 0
   vi.useFakeTimers()
   vi.setSystemTime(NOW)
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      private readonly report: ResizeObserverCallback
-      constructor(report: ResizeObserverCallback) {
-        this.report = report
-      }
-      observe(target: Element): void {
-        this.report(
-          [{ target, contentRect: { ...SIZE } } as unknown as ResizeObserverEntry],
-          this as never,
-        )
-      }
-      unobserve(): void {}
-      disconnect(): void {}
-    },
-  )
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never)
+  stubResizeObserver(SIZE)
+  stubCanvas(canvasContext(drawn, { measureText: () => ({ width: 10 }) }))
 })
 
 afterEach(() => {
@@ -66,11 +39,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 /** The pointer over the plot at `secondsAgo` in the one-minute window. */
 function xAt(secondsAgo: number): number {

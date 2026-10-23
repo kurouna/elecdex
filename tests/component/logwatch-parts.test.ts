@@ -1,8 +1,9 @@
 import type { AiProvider } from '@shared/ai'
 import type { LogLine } from '@shared/logwatch/types'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { inertDom } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 const { default: LogStream } = await import('../../src/renderer/widgets/logwatch/LogStream.svelte')
 const { default: LogPatterns } = await import(
@@ -47,20 +48,7 @@ const ALL = { hidden: new Set<never>(), muted: new Set<string>(), match: null, f
 const rows = (lines: LogLine[]) => view.buildRows(lines, ALL)
 
 beforeEach(() => {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
+  inertDom()
   Element.prototype.getAnimations ??= () => []
 })
 
@@ -68,10 +56,6 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-}
 
 const streamProps = (overrides: Record<string, unknown> = {}) => ({
   rows: rows([

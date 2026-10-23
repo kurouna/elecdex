@@ -11,11 +11,11 @@ import {
   WAVE_TABLES_AT,
   waveAt,
 } from '@shared/elec16/apu'
-import { assemble, romImage } from '@shared/elec16/asm'
-import { Elec16 } from '@shared/elec16/machine'
+import type { Elec16 } from '@shared/elec16/machine'
 import { MODEL_IDS, MODELS, type ModelId } from '@shared/elec16/map'
 import { decodeSnapshot } from '@shared/elec16/snapshot'
 import { describe, expect, it } from 'vitest'
+import { bootAsm } from './support/elec16-asm'
 
 /**
  * PLAY-320's sixteen channels (docs/elec16-play.md section 5, G6): the registers a program
@@ -25,9 +25,7 @@ import { describe, expect, it } from 'vitest'
 
 const RATE = 48_000
 
-function boot(model: ModelId = 'play-320'): Elec16 {
-  return Elec16.boot(romImage(assemble('.org 0x8000\nebreak')), model)
-}
+const boot = (model: ModelId = 'play-320') => bootAsm('ebreak', model)
 
 const sel = (m: Elec16, ch: number) => m.bus.write16(APU_REG.sel, ch)
 

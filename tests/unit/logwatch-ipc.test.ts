@@ -13,7 +13,9 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
  */
 
 const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-ipc-'))
-const handles = new Map<string, (...args: unknown[]) => unknown>()
+const { handles, ipcMain } = await vi.hoisted(async () =>
+  (await import('./support/electron-ipc')).fakeIpcMain(),
+)
 let picked: string[] = []
 
 vi.mock('electron', () => ({
@@ -22,14 +24,7 @@ vi.mock('electron', () => ({
   dialog: {
     showOpenDialog: async () => ({ canceled: picked.length === 0, filePaths: picked }),
   },
-  ipcMain: {
-    handle: (channel: string, handler: (...args: unknown[]) => unknown) => {
-      handles.set(channel, handler)
-    },
-    removeHandler: (channel: string) => handles.delete(channel),
-    on: () => {},
-    off: () => {},
-  },
+  ipcMain,
 }))
 
 const reloaded: string[] = []

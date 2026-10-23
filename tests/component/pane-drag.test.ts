@@ -7,6 +7,7 @@ import {
 } from '@shared/schemas/layout'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubElecdex } from './support/elecdex.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -106,7 +107,7 @@ const shape = (node: LayoutNode): string => {
 
 beforeEach(() => {
   vi.useFakeTimers()
-  vi.stubGlobal('elecdex', { layout: { save: vi.fn(async () => {}) } })
+  stubElecdex()
   layout.tree = {
     version: LAYOUT_VERSION,
     root: split(

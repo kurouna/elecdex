@@ -33,6 +33,7 @@ import {
 import { describe, expect, it } from 'vitest'
 import { paintPlay } from '../../src/renderer/widgets/elec16/play-painter'
 import { paintTiles } from '../../src/renderer/widgets/elec16/tile-painter'
+import { bootAsm, finishAsm } from './support/elec16-asm'
 
 /**
  * PLAY-320's mode 1 (docs/elec16-play.md section 4, G5): the tile engine's registers, the
@@ -43,17 +44,9 @@ import { paintTiles } from '../../src/renderer/widgets/elec16/tile-painter'
 const FRAME_MS = 1000 / FRAME_HZ
 const CYCLES_A_LINE = 4_000_000 / FRAME_HZ / FRAME_LINES
 
-function boot(src: string, model: ModelId = 'play-320', xram = 0): Elec16 {
-  const out = assemble(`.org 0x8000\n${src}`)
-  expect(out.errors).toEqual([])
-  return Elec16.boot(romImage(out), model, undefined, xram)
-}
+const boot = (src: string, model: ModelId = 'play-320', xram = 0) => bootAsm(src, model, xram)
 
-function finish(m: Elec16): Record<string, number> {
-  const result = m.run(5_000_000)
-  expect(result.halted?.cause, `stopped at ${result.halted?.pc.toString(16)}`).toBe('breakpoint')
-  return Object.fromEntries(REG_NAMES.map((name, k) => [name, m.state.regs[k] ?? 0]))
-}
+const finish = (m: Elec16) => finishAsm(m, 5_000_000)
 
 const tiles = (m: Elec16) => {
   const v = m.state.video

@@ -1,6 +1,7 @@
 import { pane, split } from '@shared/layout-ops'
 import { LAYOUT_VERSION, type SplitNode } from '@shared/schemas/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubElecdex } from './support/elecdex.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -56,7 +57,7 @@ function press(x: number, total = TOTAL): void {
 }
 
 beforeEach(() => {
-  vi.stubGlobal('elecdex', { layout: { save: vi.fn(async () => {}) } })
+  stubElecdex()
   layout.tree = { version: LAYOUT_VERSION, root: split('row', [a, b]) }
   handle = document.createElement('div')
   document.body.append(handle)

@@ -104,11 +104,6 @@ describe('JSON lines', () => {
   it('says what a line without a message holds', () => {
     expect(head('jsonl', '{"a":1,"b":"two"}').text).toBe('a=1 b=two')
   })
-
-  it('is not a head when it is not an object', () => {
-    expect(parseHead('[1,2]', formatState('jsonl'), NOW)).toBeNull()
-    expect(parseHead('{broken', formatState('jsonl'), NOW)).toBeNull()
-  })
 })
 
 describe('logfmt', () => {

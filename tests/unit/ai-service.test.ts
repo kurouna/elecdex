@@ -1,16 +1,9 @@
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { AI_LIMITS, type AiProvider, type ChatEvent, type ChatSummary } from '@shared/ai'
+import { AI_LIMITS, type AiProvider } from '@shared/ai'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import {
-  type ProviderAdapter,
-  ProviderError,
-  type StreamRequest,
-  type StreamResult,
-  type StreamSink,
-} from '../../src/main/ai/adapter.js'
-import { ChatFiles } from '../../src/main/ai/files.js'
+import { ProviderError } from '../../src/main/ai/adapter.js'
 import {
   emptyKeyFile,
   type KeyFile,
@@ -19,9 +12,9 @@ import {
   openKeyVault,
   stubCodec,
 } from '../../src/main/ai/keys.js'
-import { AiChatService } from '../../src/main/ai/service.js'
 import { ChatStore } from '../../src/main/ai/store.js'
 import { KEY_MOVED, targetFor } from '../../src/main/ai/target.js'
+import { aiHarness, type Pending } from './support/ai-harness'
 
 const LOCAL: AiProvider = {
   id: 'local',
@@ -38,74 +31,13 @@ const REMOTE_HTTP: AiProvider = {
 }
 const BROKEN: AiProvider = { ...LOCAL, id: 'broken', name: 'Broken', baseUrl: 'not a url' }
 
-/** One answer under the test's control: pieces are pushed, then it is ended or failed. */
-interface Pending {
-  request: StreamRequest
-  sink: StreamSink
-  end(result?: StreamResult): void
-  fail(error: unknown): void
-}
-
 function harness(dir: string, keys: Record<string, string> = {}) {
-  const events: ChatEvent[] = []
-  const lists: ChatSummary[][] = []
-  const pending: Pending[] = []
-  const timers: Array<() => void> = []
-  let clock = 1_000
-  let ids = 0
-
-  const adapter: ProviderAdapter = {
-    stream: (request, sink) =>
-      new Promise<StreamResult>((resolve, reject) => {
-        pending.push({ request, sink, end: (result = {}) => resolve(result), fail: reject })
-        request.signal.addEventListener('abort', () => reject(new Error('aborted')))
-      }),
-    models: async () => [{ id: 'llama3' }],
-  }
-
-  const service = new AiChatService({
-    store: new ChatStore(dir),
-    files: new ChatFiles(dir, () => {
-      ids += 1
-      return `file-${ids}`
-    }),
-    providers: () => [LOCAL, REMOTE_HTTP, BROKEN],
-    systemPrompt: () => 'be brief',
-    compact: () => false,
-    keyFor: (id) => keys[id] ?? null,
-    adapter: async () => adapter,
-    now: () => {
-      clock += 1
-      return clock
-    },
-    newId: () => {
-      ids += 1
-      return `00000000-0000-4000-8000-${String(ids).padStart(12, '0')}`
-    },
-    setTimer: (fn) => {
-      timers.push(fn)
-      return fn
-    },
-    clearTimer: (handle) => {
-      const at = timers.indexOf(handle as () => void)
-      if (at !== -1) timers.splice(at, 1)
-    },
-    publish: (event) => events.push(event),
-    listChanged: (list) => lists.push(list),
+  return aiHarness(dir, {
+    providers: [LOCAL, REMOTE_HTTP, BROKEN],
+    keys,
+    systemPrompt: 'be brief',
+    models: [{ id: 'llama3' }],
   })
-
-  return {
-    service,
-    events,
-    lists,
-    pending,
-    /** Runs the flush timer, if one is waiting. */
-    tick: () => timers.shift()?.(),
-    /** Lets the service's own promises (the adapter being fetched, an answer ending) run. */
-    settle: async () => {
-      for (let i = 0; i < 5; i += 1) await Promise.resolve()
-    },
-  }
 }
 
 let dir: string

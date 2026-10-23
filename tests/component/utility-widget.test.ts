@@ -1,7 +1,9 @@
 import { type AwakeRequest, type AwakeState, RELEASED } from '@shared/utility'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubResizeObserver } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: UtilityWidget } = await import(
   '../../src/renderer/widgets/utility/UtilityWidget.svelte'
@@ -39,22 +41,14 @@ beforeEach(() => {
   copy.mockClear()
   awake.state = released
   // The code's frame is measured to size the code; jsdom has no observer.
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal('elecdex', {
+  stubResizeObserver()
+  stubElecdex({
     utility: {
       awake: { set, extend: vi.fn(), state: vi.fn(async () => released), onChange: () => () => {} },
       seal,
       unseal,
       copy,
     },
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 
@@ -64,11 +58,6 @@ afterEach(async () => {
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 async function mount(state: Record<string, unknown> = {}, visible = true) {
   const view = render(UtilityWidget, {

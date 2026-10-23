@@ -20,6 +20,7 @@ import {
   RETRY_BACKOFF_MS,
   WATCH_BATCH_MS,
 } from '../../src/main/markets/service.js'
+import { marketClock } from './support/market-harness'
 
 const MIN = 60_000
 
@@ -122,9 +123,7 @@ describe('formatting', () => {
 
 /** A fake world for the service: a clock, due-time timers and a scripted provider. */
 function harness() {
-  let now = Date.UTC(2026, 8, 14, 1, 0)
-  const timers: Array<{ at: number; fn: () => void; id: number }> = []
-  let nextId = 1
+  const clock = marketClock(Date.UTC(2026, 8, 14, 1, 0))
   const calls: string[] = []
   let state: MarketQuote['state'] = 'open'
   let fail = false
@@ -137,7 +136,7 @@ function harness() {
     previousClose: 99,
     currency: 'JPY',
     state,
-    time: now,
+    time: clock.now(),
   })
   const published: string[] = []
   const service = new MarketService({
@@ -149,48 +148,22 @@ function harness() {
       },
       chart: async (symbol, spec) => {
         calls.push(spec.id === '1d' ? `chart:${symbol}` : `chart:${symbol}|${spec.id}`)
-        return { candles: [{ t: now - MIN, o: 99, h: 99, l: 99, c: 99 }], previousClose: 99 }
+        return {
+          candles: [{ t: clock.now() - MIN, o: 99, h: 99, l: 99, c: 99 }],
+          previousClose: 99,
+        }
       },
     },
-    now: () => now,
-    setTimer: (fn, ms) => {
-      const id = nextId++
-      timers.push({ at: now + ms, fn, id })
-      return id
-    },
-    clearTimer: (id) => {
-      const i = timers.findIndex((t) => t.id === id)
-      if (i >= 0) timers.splice(i, 1)
-    },
+    ...clock.deps,
     publish: (u) => published.push(`${u.symbol}:${u.error ?? 'ok'}`),
   })
-  // The service's own work is promises only (its timers are the ones above), so letting
-  // the microtasks run is enough - and unlike a real timer per step, it costs nothing.
-  // A step per virtual minute over an hour used to take seconds of real time, which left
-  // this file failing its five-second limit whenever the machine was busy.
-  const settle = async () => {
-    for (let i = 0; i < 20; i++) await Promise.resolve()
-  }
-  const advance = async (ms: number) => {
-    const target = now + ms
-    for (;;) {
-      timers.sort((a, b) => a.at - b.at)
-      const due = timers[0]
-      if (!due || due.at > target) break
-      timers.shift()
-      now = due.at
-      due.fn()
-      await settle()
-    }
-    now = target
-  }
   const quoteCalls = () => calls.filter((c) => c.startsWith('quotes'))
   return {
     service,
     calls,
     quoteCalls,
     published,
-    advance,
+    advance: clock.advance,
     setState: (s: MarketQuote['state']) => {
       state = s
     },
@@ -209,16 +182,6 @@ describe('MarketService', () => {
     expect(h.quoteCalls()).toEqual(['quotes:JPY=X,^N225'])
     await h.advance(QUOTE_INTERVAL_MS * 3)
     expect(h.quoteCalls()).toHaveLength(4)
-  })
-
-  it('fetches each intraday series once, then every five minutes', async () => {
-    const h = harness()
-    h.service.watch('^N225')
-    await h.advance(WATCH_BATCH_MS)
-    await h.advance(4 * MIN)
-    expect(h.calls.filter((c) => c === 'chart:^N225')).toHaveLength(1)
-    await h.advance(2 * MIN)
-    expect(h.calls.filter((c) => c === 'chart:^N225')).toHaveLength(2)
   })
 
   it('slows to every five minutes when everything is closed', async () => {

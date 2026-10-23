@@ -1,11 +1,9 @@
-import { assemble, romImage } from '@shared/elec16/asm'
-import { REG_NAMES } from '@shared/elec16/isa'
-import { Elec16 } from '@shared/elec16/machine'
 import { MODEL_IDS, MODELS, type ModelId } from '@shared/elec16/map'
 import { PAD_ALL, PAD_BUTTONS, PAD_REG, padBit } from '@shared/elec16/pad'
 import { decodeSnapshot } from '@shared/elec16/snapshot'
 import { IRQ } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
+import { bootAsm, finishAsm as finish } from './support/elec16-asm'
 
 /**
  * PLAY-320's pad as a program sees it (docs/elec16-play.md section 6, G3): PAD holds what is
@@ -15,17 +13,7 @@ import { describe, expect, it } from 'vitest'
 
 const POCKETS = MODEL_IDS.filter((id) => !MODELS[id].pad)
 
-function boot(src: string, model: ModelId = 'play-320'): Elec16 {
-  const out = assemble(`.org 0x8000\n${src}`)
-  expect(out.errors).toEqual([])
-  return Elec16.boot(romImage(out), model)
-}
-
-function finish(m: Elec16): Record<string, number> {
-  const result = m.run(1_000_000)
-  expect(result.halted?.cause, `stopped at ${result.halted?.pc.toString(16)}`).toBe('breakpoint')
-  return Object.fromEntries(REG_NAMES.map((name, k) => [name, m.state.regs[k] ?? 0]))
-}
+const boot = (src: string, model: ModelId = 'play-320') => bootAsm(src, model)
 
 const A = padBit('a')
 const START = padBit('start')

@@ -1,9 +1,10 @@
 import { LAYOUT_VERSION } from '@shared/schemas/layout'
 import type { WebAppearance, WebRect, WebState } from '@shared/web'
 import { render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { SvelteMap } from 'svelte/reactivity'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -92,7 +93,7 @@ beforeEach(() => {
   bodyRect = BODY
   overlays = new Map()
   resized = []
-  vi.stubGlobal('elecdex', { web: api, layout: { save: vi.fn(async () => {}) } })
+  stubElecdex({ web: api })
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -137,11 +138,6 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 type Props = { visible?: boolean; transitioning?: boolean; active?: boolean; widget?: string }
 

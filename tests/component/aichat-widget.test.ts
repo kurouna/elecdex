@@ -2,8 +2,9 @@ import type { Chat, ChatEvent, ChatRun } from '@shared/ai'
 import type { AttachmentView } from '@shared/ai-attach'
 import { defaultSettings } from '@shared/settings'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubMatchMedia, stubResizeObserver } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 const { default: AiChatWidget } = await import(
   '../../src/renderer/widgets/aichat/AiChatWidget.svelte'
@@ -105,11 +106,6 @@ afterEach(() => {
   patchPaneState.mockRestore()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 const mount = (state?: Record<string, unknown>) =>
   render(AiChatWidget, { props: { paneId: 'p', state } as never })
@@ -786,20 +782,8 @@ describe('AiChatWidget files', () => {
   beforeEach(() => {
     // Chips and the card power on and off like a tube, which asks whether motion is reduced;
     // the card measures itself, and jsdom has no observer.
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: true,
-      media: query,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    }))
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    )
+    stubMatchMedia(true)
+    stubResizeObserver()
     ai.pending = vi.fn(async () => [])
     ai.attach = vi.fn(async () => ({ ok: true, file: notes }))
     ai.detach = vi.fn(async () => [])

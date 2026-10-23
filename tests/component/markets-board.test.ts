@@ -2,6 +2,7 @@ import type { CandlePoint, MarketUpdate } from '@shared/markets'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubCanvas } from './support/dom.ts'
 
 vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({
   layout: { setPaneState: vi.fn(), patchPaneState: vi.fn() },
@@ -60,7 +61,7 @@ beforeEach(() => {
       },
     },
   })
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null)
+  stubCanvas(null)
 })
 
 afterEach(() => {

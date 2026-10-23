@@ -1,7 +1,9 @@
 import type { QuakeState } from '@shared/quakes'
 import { cleanup, render } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { inertDom } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: QuakesWidget } = await import(
   '../../src/renderer/widgets/quakes/QuakesWidget.svelte'
@@ -29,21 +31,8 @@ const EMPTY: QuakeState = {
 beforeEach(() => {
   subscriptions = 0
   windowState.onScreen = true
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal('elecdex', {
+  inertDom()
+  stubElecdex({
     quakes: {
       subscribe: (handler: (state: QuakeState) => void) => {
         subscriptions += 1
@@ -54,7 +43,6 @@ beforeEach(() => {
         }
       },
     },
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 
@@ -64,11 +52,6 @@ afterEach(async () => {
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 async function mount(visible: boolean) {
   const view = render(QuakesWidget, {

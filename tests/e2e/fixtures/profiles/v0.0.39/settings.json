@@ -55,9 +55,7 @@
     "compact": false
   },
   "agents": {
-    "sources": [
-      "claude-code"
-    ]
+    "sources": ["claude-code"]
   },
   "git": {
     "openCommand": ""
@@ -99,11 +97,7 @@
         "model": ""
       }
     ],
-    "personas": [
-      "",
-      "",
-      ""
-    ],
+    "personas": ["", "", ""],
     "rule": "majority",
     "rounds": 1
   },

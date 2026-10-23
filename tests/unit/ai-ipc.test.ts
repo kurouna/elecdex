@@ -13,19 +13,14 @@ import { afterAll, describe, expect, it, vi } from 'vitest'
  */
 
 const userData = mkdtempSync(path.join(tmpdir(), 'elecdex-ai-ipc-'))
-const handles = new Map<string, (...args: unknown[]) => unknown>()
+const { handles, ipcMain } = await vi.hoisted(async () =>
+  (await import('./support/electron-ipc')).fakeIpcMain(),
+)
 
 vi.mock('electron', () => ({
   app: { getPath: () => userData },
   net: { fetch: () => Promise.reject(new Error('no network in a unit test')) },
-  ipcMain: {
-    handle: (channel: string, handler: (...args: unknown[]) => unknown) => {
-      handles.set(channel, handler)
-    },
-    removeHandler: (channel: string) => handles.delete(channel),
-    on: () => {},
-    off: () => {},
-  },
+  ipcMain,
   BrowserWindow: { getAllWindows: () => [], fromWebContents: () => null },
   dialog: {},
   safeStorage: { isEncryptionAvailable: () => false },

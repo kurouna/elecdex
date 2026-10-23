@@ -4,18 +4,11 @@ import path from 'node:path'
 import { type AiProvider, type Chat, ChatSchema } from '@shared/ai'
 import type { AttachmentView } from '@shared/ai-attach'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type {
-  ProviderAdapter,
-  StreamRequest,
-  StreamResult,
-  StreamSink,
-} from '../../src/main/ai/adapter.js'
 import { contentOf as anthropicContent } from '../../src/main/ai/anthropic.js'
-import { ChatFiles } from '../../src/main/ai/files.js'
 import { contentOf as openaiContent } from '../../src/main/ai/openai.js'
-import { AiChatService } from '../../src/main/ai/service.js'
 import { ChatStore } from '../../src/main/ai/store.js'
 import { jpeg, png } from './attach-bytes'
+import { aiHarness, type Pending } from './support/ai-harness'
 
 /**
  * Files with a question, through main (main/ai/files.ts, main/ai/service.ts): waiting in a
@@ -40,46 +33,18 @@ const CLAUDE: AiProvider = {
 const DRAFT = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
 const OTHER_DRAFT = 'aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff'
 
-interface Call {
-  request: StreamRequest
-  sink: StreamSink
-  end(result?: StreamResult): void
-}
-
 function harness(dir: string) {
-  const calls: Call[] = []
-  let ids = 0
-  const newId = () => {
-    ids += 1
-    return `00000000-0000-4000-8000-${String(ids).padStart(12, '0')}`
-  }
-  const adapter: ProviderAdapter = {
-    stream: (request, sink) =>
-      new Promise<StreamResult>((resolve, reject) => {
-        calls.push({ request, sink, end: (result = {}) => resolve(result) })
-        request.signal.addEventListener('abort', () => reject(new Error('aborted')))
-      }),
-    models: async () => [],
-  }
-  const files = new ChatFiles(dir, newId)
-  const store = new ChatStore(dir)
-  const service = new AiChatService({
+  const {
+    service,
     store,
     files,
-    providers: () => [LOCAL, CLAUDE],
-    systemPrompt: () => '',
-    compact: () => false,
-    keyFor: () => null,
-    adapter: async () => adapter,
-    now: () => 1000 + ids,
-    newId,
-    setTimer: (fn) => fn,
-    clearTimer: () => {},
-    publish: () => {},
-    listChanged: () => {},
+    pending: calls,
+  } = aiHarness(dir, {
+    providers: [LOCAL, CLAUDE],
+    fileIds: 'uuid',
   })
   /** Waits for reading the files from disk and the adapter's promise, which go through real I/O. */
-  const called = async (n: number): Promise<Call> => {
+  const called = async (n: number): Promise<Pending> => {
     for (let i = 0; i < 200 && calls.length < n; i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 5))
     }

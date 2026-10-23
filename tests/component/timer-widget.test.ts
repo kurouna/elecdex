@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubResizeObserver } from './support/dom.ts'
+import { mergePatch, stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: TimerWidget } = await import('../../src/renderer/widgets/timer/TimerWidget.svelte')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
@@ -21,41 +23,14 @@ const T0 = 1_700_000_000_000
 
 let state: Record<string, unknown>
 
-/**
- * Merges a patch into the state held, as the layout store does: the widget
- * sends only what changed, and a key set to undefined is removed.
- */
-function merged(
-  held: Record<string, unknown>,
-  patch: Record<string, unknown>,
-): Record<string, unknown> {
-  const next = { ...held, ...patch }
-  for (const [key, value] of Object.entries(patch)) if (value === undefined) delete next[key]
-  return next
-}
-
 beforeEach(() => {
   state = {}
   vi.useFakeTimers()
   vi.setSystemTime(T0)
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      readonly #callback: () => void
-      constructor(callback: () => void) {
-        this.#callback = callback
-      }
-      observe() {
-        this.#callback()
-      }
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal('elecdex', {
-    layout: { load: vi.fn(), save: vi.fn(async () => undefined) },
-  })
+  stubResizeObserver('once')
+  stubElecdex()
   vi.spyOn(layout, 'patchPaneState').mockImplementation((_id, patch) => {
-    state = merged(state, structuredClone(patch))
+    state = mergePatch(state, patch)
   })
 })
 
@@ -67,11 +42,6 @@ afterEach(async () => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 const readout = (): string => screen.getAllByTestId('timer-readout')[0]?.textContent?.trim() ?? ''
 

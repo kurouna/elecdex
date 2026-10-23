@@ -1,6 +1,7 @@
 import { render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubCanvas, stubResizeObserver } from './support/dom.ts'
 
 const { default: TimerCard } = await import('../../src/renderer/widgets/timer/TimerCard.svelte')
 
@@ -23,22 +24,10 @@ const ctx = {
 
 beforeEach(() => {
   ctx.clearRect.mockClear()
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      readonly #callback: () => void
-      constructor(callback: () => void) {
-        this.#callback = callback
-      }
-      observe() {
-        this.#callback()
-      }
-      disconnect() {}
-    },
-  )
+  stubResizeObserver('once')
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(20)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200)
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never)
+  stubCanvas(ctx)
 })
 
 afterEach(() => {

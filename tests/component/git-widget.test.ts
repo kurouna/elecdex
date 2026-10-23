@@ -1,8 +1,10 @@
 import { emptyState, type GitRepoRef, type GitState } from '@shared/git'
 import type { GitSyncAction, GitSyncResult } from '@shared/git-sync'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { inertDom } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: GitWidget } = await import('../../src/renderer/widgets/git/GitWidget.svelte')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
@@ -67,22 +69,9 @@ beforeEach(() => {
   sync.mockResolvedValue(null)
   toasts.clear()
   vi.spyOn(widgetState, 'patch')
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
+  inertDom()
   Element.prototype.getAnimations ??= () => []
-  vi.stubGlobal('elecdex', {
+  stubElecdex({
     git: {
       subscribe: (_id: string, handler: (next: GitState) => void) => {
         subscriptions += 1
@@ -101,7 +90,6 @@ beforeEach(() => {
       open: async () => ({ ok: true, message: '' }),
       reveal: async () => {},
     },
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 
@@ -113,22 +101,17 @@ afterEach(async () => {
   vi.unstubAllGlobals()
 })
 
-async function settle(): Promise<void> {
-  for (let i = 0; i < 6; i++) await tick()
-  flushSync()
-}
-
 async function mount(paneState: Record<string, unknown> = { repo: ID }) {
   const view = render(GitWidget, {
     props: { paneId: 'g1', title: 'git', props: {}, state: paneState, active: true, visible: true },
   })
-  await settle()
+  await settle(6)
   return view
 }
 
 async function push(next: GitState): Promise<void> {
   deliver?.(structuredClone(next))
-  await settle()
+  await settle(6)
 }
 
 const text = (testid: string): string =>
@@ -162,16 +145,16 @@ describe('choosing a repository', () => {
     await mount({})
     pick.mockResolvedValueOnce({ problem: 'not a git repository' })
     await fireEvent.click(screen.getByTestId('git-select'))
-    await settle()
+    await settle(6)
     expect(text('git-problem')).toBe('not a git repository')
     expect(patched()).toEqual([])
     pick.mockResolvedValueOnce(null)
     await fireEvent.click(screen.getByTestId('git-select'))
-    await settle()
+    await settle(6)
     expect(patched()).toEqual([])
     pick.mockResolvedValueOnce({ repo: { id: OTHER, name: 'notes', path: '/home/dev/notes' } })
     await fireEvent.click(screen.getByTestId('git-select'))
-    await settle()
+    await settle(6)
     expect(patched().at(-1)).toEqual(['g1', { repo: OTHER, chosen: null, commit: null }])
     expect(screen.queryByTestId('git-problem')).toBeNull()
   })
@@ -183,11 +166,11 @@ describe('choosing a repository', () => {
     const switcher = screen.getByTestId('git-switch')
     expect(switcher.getAttribute('title')).toBe('/home/dev/elecdex - choose another repository')
     await fireEvent.click(switcher)
-    await settle()
+    await settle(6)
     expect(screen.getByTestId('git-choose')).toBeTruthy()
     expect(screen.getAllByTestId('git-recent')).toHaveLength(1)
     await fireEvent.click(screen.getByText('BACK'))
-    await settle()
+    await settle(6)
     expect(screen.queryByTestId('git-choose')).toBeNull()
     expect(screen.getByTestId('git-head')).toBeTruthy()
   })
@@ -201,7 +184,7 @@ describe('choosing a repository', () => {
     await push({ ...emptyState(ID, 'missing'), readAt: 3 })
     expect(text('git-problem')).toBe('missing')
     await fireEvent.click(screen.getByText('CHOOSE A REPOSITORY'))
-    await settle()
+    await settle(6)
     expect(screen.getByTestId('git-select')).toBeTruthy()
   })
 })
@@ -211,10 +194,10 @@ describe('the header', () => {
     const view = await mount()
     expect(subscriptions).toBe(1)
     await view.rerender({ visible: false })
-    await settle()
+    await settle(6)
     expect(subscriptions).toBe(0)
     await view.rerender({ visible: true })
-    await settle()
+    await settle(6)
     expect(subscriptions).toBe(1)
   })
 
@@ -299,13 +282,13 @@ describe('FETCH, PULL and PUSH', () => {
     sync.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
     await fireEvent.click(screen.getByTestId('git-push'))
     await fireEvent.click(screen.getByTestId('git-push'))
-    await settle()
+    await settle(6)
     expect(sync).toHaveBeenCalledWith(ID, 'push')
     expect(text('git-push-busy')).toBe('PUSHING')
     expect((screen.getByTestId('git-fetch') as HTMLButtonElement).disabled).toBe(true)
     expect((screen.getByTestId('git-pull') as HTMLButtonElement).disabled).toBe(true)
     finish({ action: 'push', code: 'pushed', commits: 2, message: 'abc1234..def5678' })
-    await settle()
+    await settle(6)
     expect(screen.queryByTestId('git-push-busy')).toBeNull()
     expect(toasts.items.map((t) => [t.title, t.body, t.tone])).toEqual([
       ['PUSHED 2 COMMITS', 'elecdex · main — abc1234..def5678', 'ok'],
@@ -319,7 +302,7 @@ describe('FETCH, PULL and PUSH', () => {
       sync.mockResolvedValueOnce(result)
       await fireEvent.click(screen.getByTestId(`git-${action}`))
       await fireEvent.click(screen.getByTestId(`git-${action}`))
-      await settle()
+      await settle(6)
     }
     await run('pull', { action: 'pull', code: 'diverged', commits: 0, message: '' })
     await run('fetch', { action: 'fetch', code: 'failed', commits: 0, message: 'fatal: no remote' })
@@ -337,15 +320,15 @@ describe('FETCH, PULL and PUSH', () => {
     sync.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
     await fireEvent.click(screen.getByTestId('git-fetch'))
     await fireEvent.click(screen.getByTestId('git-fetch'))
-    await settle()
+    await settle(6)
     await fireEvent.click(screen.getByTestId('git-switch'))
-    await settle()
+    await settle(6)
     await fireEvent.click(screen.getByText('BACK'))
-    await settle()
+    await settle(6)
     expect(text('git-fetch-busy')).toBe('FETCHING')
     expect((screen.getByTestId('git-push') as HTMLButtonElement).disabled).toBe(true)
     finish({ action: 'fetch', code: 'fetched', commits: 0, message: '' })
-    await settle()
+    await settle(6)
     expect(screen.queryByTestId('git-fetch-busy')).toBeNull()
   })
 })

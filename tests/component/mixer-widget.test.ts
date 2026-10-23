@@ -2,6 +2,7 @@ import type { MixerState, MixerUpdate } from '@shared/audio'
 import { render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubIntersectionObserver } from './support/dom.ts'
 
 /** Every meter paint, as [level, peak, force]. */
 const drawMeter = vi.fn()
@@ -35,19 +36,7 @@ let send: (update: MixerUpdate) => void = () => {}
 
 beforeEach(() => {
   drawMeter.mockClear()
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      readonly #callback: IntersectionObserverCallback
-      constructor(callback: IntersectionObserverCallback) {
-        this.#callback = callback
-      }
-      observe() {
-        this.#callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never)
-      }
-      disconnect() {}
-    },
-  )
+  stubIntersectionObserver()
   vi.stubGlobal('elecdex', {
     audio: {
       mixer: (handler: (update: MixerUpdate) => void) => {

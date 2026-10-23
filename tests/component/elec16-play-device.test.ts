@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import PlayDevice from '../../src/renderer/widgets/elec16/PlayDevice.svelte'
 import { Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
 import { browserLoop } from '../../src/renderer/widgets/emu/runner.svelte.ts'
+import { stubResizeObserver } from './support/dom.ts'
 
 /**
  * PLAY-320's body (widgets/elec16/PlayDevice.svelte) at whole device pixels a dot: moved to a
@@ -18,20 +19,7 @@ afterEach(() => {
 describe("PLAY-320's body", () => {
   it('scales again when the device pixel ratio changes without a resize', async () => {
     vi.stubGlobal('devicePixelRatio', 1)
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        readonly #callback: ResizeObserverCallback
-        constructor(callback: ResizeObserverCallback) {
-          this.#callback = callback
-        }
-        observe() {
-          const entry = { contentRect: { width: 1100, height: 1100 } } as ResizeObserverEntry
-          this.#callback([entry], this as unknown as ResizeObserver)
-        }
-        disconnect() {}
-      },
-    )
+    stubResizeObserver({ width: 1100, height: 1100 })
     const listeners = new Set<() => void>()
     vi.stubGlobal('matchMedia', (_query: string) => ({
       addEventListener: (_: string, fn: () => void) => listeners.add(fn),

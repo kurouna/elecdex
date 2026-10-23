@@ -2,6 +2,7 @@ import type { CandlePoint, MarketUpdate } from '@shared/markets'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubCanvas, stubResizeObserver } from './support/dom.ts'
 
 vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({
   layout: { setPaneState: vi.fn(), patchPaneState: vi.fn() },
@@ -58,19 +59,7 @@ beforeEach(() => {
   handlers.clear()
   vi.mocked(layout.patchPaneState).mockClear()
   vi.stubGlobal('Path2D', FakePath)
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      readonly #callback: () => void
-      constructor(callback: () => void) {
-        this.#callback = callback
-      }
-      observe() {
-        this.#callback()
-      }
-      disconnect() {}
-    },
-  )
+  stubResizeObserver('once')
   vi.stubGlobal('elecdex', {
     markets: {
       subscribe: (symbol: string, range: string, handler: (update: MarketUpdate) => void) => {
@@ -85,7 +74,7 @@ beforeEach(() => {
   })
   vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400)
   vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(216)
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never)
+  stubCanvas(ctx)
 })
 
 afterEach(() => {

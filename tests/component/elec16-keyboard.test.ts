@@ -5,6 +5,7 @@ import Keyboard from '../../src/renderer/widgets/elec16/Keyboard.svelte'
 import { Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
 import { SKINS } from '../../src/renderer/widgets/elec16/skins.ts'
 import { browserLoop } from '../../src/renderer/widgets/emu/runner.svelte.ts'
+import { stubCanvas } from './support/dom.ts'
 
 /**
  * The ELEC-16's keys (widgets/elec16/Keyboard.svelte): the arrows drawn, never typed (no
@@ -20,10 +21,7 @@ const newRunner = () =>
 
 beforeEach(() => {
   // A canvas that measures every letter at 0.6 em (jsdom has none).
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-    font: '',
-    measureText: (text: string) => ({ width: [...text].length * 60 }),
-  } as unknown as CanvasRenderingContext2D)
+  stubCanvas({ font: '', measureText: (text: string) => ({ width: [...text].length * 60 }) })
 })
 
 afterEach(() => {

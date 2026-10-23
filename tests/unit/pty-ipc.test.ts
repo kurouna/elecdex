@@ -8,18 +8,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  * 'pty:list'".
  */
 
-type Handler = (event: unknown, ...args: unknown[]) => unknown
-const handlers = new Map<string, Handler>()
+const { handles: handlers, ipcMain } = await vi.hoisted(async () =>
+  (await import('./support/electron-ipc')).fakeIpcMain(),
+)
 
 vi.mock('electron', () => ({
-  ipcMain: {
-    handle: (channel: string, handler: Handler) => {
-      if (handlers.has(channel)) throw new Error(`second handler for ${channel}`)
-      handlers.set(channel, handler)
-    },
-    removeHandler: (channel: string) => handlers.delete(channel),
-    on: () => {},
-  },
+  ipcMain,
   BrowserWindow: { fromWebContents: () => null },
   dialog: {},
   MessageChannelMain: class {},

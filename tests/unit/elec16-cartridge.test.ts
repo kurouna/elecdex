@@ -1,4 +1,3 @@
-import { assemble, romImage } from '@shared/elec16/asm'
 import { buildGame } from '@shared/elec16/cart-build'
 import {
   CART_BANK,
@@ -12,12 +11,12 @@ import {
   SAVE_BANK,
   slotOf,
 } from '@shared/elec16/cartridge'
-import { REG_NAMES } from '@shared/elec16/isa'
 import { LINK_SERVICE, LINK_SERVICES, LINK_STATUS } from '@shared/elec16/link-services'
 import { Elec16 } from '@shared/elec16/machine'
 import { BANK_SIZE, MODEL_IDS, MODELS, type ModelId } from '@shared/elec16/map'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
 import { describe, expect, it } from 'vitest'
+import { bootAsm, finishAsm as finish } from './support/elec16-asm'
 
 /**
  * PLAY-320's cartridges (docs/elec16-play.md section 7, G4): the .E16G image and its header,
@@ -44,17 +43,7 @@ function cart(h: CartHeader = HEADER): Uint8Array {
   return makeCart(h, rom)
 }
 
-function boot(src = 'ebreak', model: ModelId = 'play-320'): Elec16 {
-  const out = assemble(`.org 0x8000\n${src}`)
-  expect(out.errors).toEqual([])
-  return Elec16.boot(romImage(out), model)
-}
-
-function finish(m: Elec16): Record<string, number> {
-  const result = m.run(1_000_000)
-  expect(result.halted?.cause, `stopped at ${result.halted?.pc.toString(16)}`).toBe('breakpoint')
-  return Object.fromEntries(REG_NAMES.map((name, k) => [name, m.state.regs[k] ?? 0]))
-}
+const boot = (src = 'ebreak', model: ModelId = 'play-320') => bootAsm(src, model)
 
 const bankIs = (m: Elec16, bank: number): number => {
   m.bus.write16(0xff04, bank)

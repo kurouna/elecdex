@@ -2,6 +2,7 @@ import type { MarketUpdate } from '@shared/markets'
 import { render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubResizeObserver } from './support/dom.ts'
 
 const { default: MarketsWidget } = await import(
   '../../src/renderer/widgets/markets/MarketsWidget.svelte'
@@ -63,13 +64,7 @@ const props = (...symbols: string[]) => ({
 beforeEach(() => {
   vi.useFakeTimers()
   handlers.clear()
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      disconnect() {}
-    },
-  )
+  stubResizeObserver()
   vi.stubGlobal('elecdex', {
     markets: {
       subscribe: (symbol: string, _range: string, handler: (update: MarketUpdate) => void) => {

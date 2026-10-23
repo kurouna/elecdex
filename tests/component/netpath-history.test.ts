@@ -44,14 +44,31 @@ describe.each([
     history: etherHistory,
     sample: (s: number) => ether('steady', s),
     id: (s: number) => stubEthernet('steady', BASE, BASE + s * 1000).links[0]?.id ?? '',
+    dual: (s: number) => ether('dual', s),
+    dualIds: () => stubEthernet('dual', BASE, BASE).links.map((l) => l.id),
+    /** The steady link at `s`, its counters no longer kept. */
+    uncounted: (s: number) => {
+      const now = stubEthernet('steady', BASE, BASE + s * 1000)
+      const link = now.links[0]
+      if (link === undefined) throw new Error('no link')
+      return ether('steady', s, { ...now, links: [{ ...link, counters: null }] })
+    },
   },
   {
     name: 'Wi-Fi',
     history: wifiHistory,
     sample: (s: number) => wifi('steady', s),
     id: (s: number) => stubWifi('steady', BASE, BASE + s * 1000).links[0]?.id ?? '',
+    dual: (s: number) => wifi('dual', s),
+    dualIds: () => stubWifi('dual', BASE, BASE).links.map((l) => l.id),
+    uncounted: (s: number) => {
+      const now = stubWifi('steady', BASE, BASE + s * 1000)
+      const link = now.links[0]
+      if (link === undefined) throw new Error('no link')
+      return wifi('steady', s, { ...now, links: [{ ...link, counters: null }] })
+    },
   },
-] as const)('$name history', ({ history, sample, id }) => {
+] as const)('$name history', ({ history, sample, id, dual, dualIds, uncounted }) => {
   it('keeps one point a second, at the second the probe round stands for', () => {
     for (let s = 0; s < 5; s++) history.push(sample(s) as never)
     const points = history.points(id(0))
@@ -93,6 +110,20 @@ describe.each([
     expect(points[id(0)]).toHaveLength(1)
   })
 
+  it('keeps each adapter apart', () => {
+    for (let s = 0; s < 4; s++) history.push(dual(s) as never)
+    const ids = dualIds()
+    expect(ids).toHaveLength(2)
+    for (const one of ids) expect(history.points(one)).toHaveLength(4)
+  })
+
+  it('empties the counters of an adapter that stops keeping them', () => {
+    history.push(sample(0) as never)
+    expect(history.marks(id(1))).toHaveLength(1)
+    history.push(uncounted(1) as never)
+    expect(history.marks(id(1))).toEqual([])
+  })
+
   it('starts over on reset, the second before too', () => {
     history.push(sample(5) as never)
     history.reset()
@@ -108,13 +139,6 @@ describe('Ethernet history', () => {
     const [first, next] = etherHistory.points(id)
     expect(first?.errors).toBeNull()
     expect(next?.errors).not.toBeNull()
-  })
-
-  it('keeps each adapter apart', () => {
-    for (let s = 0; s < 4; s++) etherHistory.push(ether('dual', s))
-    const ids = stubEthernet('dual', BASE, BASE).links.map((l) => l.id)
-    expect(ids).toHaveLength(2)
-    for (const id of ids) expect(etherHistory.points(id)).toHaveLength(4)
   })
 
   it('keeps the best speed seen while up, through a fall and a drop', () => {
@@ -135,16 +159,6 @@ describe('Ethernet history', () => {
     expect(etherHistory.points(link.id)).toHaveLength(1)
   })
 
-  it('empties the counters of an adapter that stops keeping them', () => {
-    etherHistory.push(ether('steady', 0))
-    const now = stubEthernet('steady', BASE, BASE + 1000)
-    const link = now.links[0]
-    if (link === undefined) throw new Error('no link')
-    expect(etherHistory.marks(link.id)).toHaveLength(1)
-    etherHistory.push(ether('steady', 1, { ...now, links: [{ ...link, counters: null }] }))
-    expect(etherHistory.marks(link.id)).toEqual([])
-  })
-
   it('forgets the best speed on reset', () => {
     etherHistory.push(ether('steady', 0))
     etherHistory.reset()
@@ -159,21 +173,5 @@ describe('Wi-Fi history', () => {
     const [first, next] = wifiHistory.points(id)
     expect(first?.frames).toBeNull()
     expect(next?.frames).not.toBeNull()
-  })
-
-  it('keeps each adapter apart', () => {
-    for (let s = 0; s < 4; s++) wifiHistory.push(wifi('dual', s))
-    const ids = stubWifi('dual', BASE, BASE).links.map((l) => l.id)
-    expect(ids).toHaveLength(2)
-    for (const id of ids) expect(wifiHistory.points(id)).toHaveLength(4)
-  })
-
-  it('empties the counters of an adapter that stops keeping them', () => {
-    wifiHistory.push(wifi('steady', 0))
-    const now = stubWifi('steady', BASE, BASE + 1000)
-    const link = now.links[0]
-    if (link === undefined) throw new Error('no link')
-    wifiHistory.push(wifi('steady', 1, { ...now, links: [{ ...link, counters: null }] }))
-    expect(wifiHistory.marks(link.id)).toEqual([])
   })
 })

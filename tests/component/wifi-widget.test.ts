@@ -1,9 +1,17 @@
 import type { MetricSample } from '@shared/metrics'
 import type { NetWifi, NetWifiEvents } from '@shared/wifi'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubWifi, stubWifiEvents } from '../../src/services/metrics/wifi/stub'
+import {
+  canvasContext,
+  finishAnimations,
+  stubCanvas,
+  stubMatchMedia,
+  stubResizeObserver,
+} from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: WifiWidget } = await import('../../src/renderer/widgets/wifi/WifiWidget.svelte')
 const { metrics } = await import('../../src/renderer/stores/metrics.svelte.ts')
@@ -23,34 +31,15 @@ const deliver = new Map<string, (sample: MetricSample) => void>()
 let size = { width: 620, height: 455 }
 /** Every canvas call, by name, so a test can tell something was drawn. */
 const drawn: string[] = []
-const ctx = new Proxy(
-  {},
-  {
-    get: (_target, name) =>
-      typeof name === 'string' ? (..._args: unknown[]) => drawn.push(name) : undefined,
-    set: () => true,
-  },
-)
 const releases: (() => void)[] = []
 /** When the stub scenarios start: every sample is stamped from it, never from the fake clock. */
 let base = 0
 const clipboard = { writeText: vi.fn(async (_text: string) => {}) }
 
 beforeEach(() => {
-  // The hint card powers on and off like a tube: enough of Web Animations and
-  // matchMedia for that to run its length in jsdom.
-  Element.prototype.animate = function animate(_frames, options) {
-    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
-    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
-    setTimeout(() => animation.onfinish?.(), length)
-    return animation as unknown as Animation
-  }
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
+  // The hint card powers on and off like a tube, through Web Animations and matchMedia.
+  finishAnimations()
+  stubMatchMedia()
   deliver.clear()
   wifiHistory.reset()
   clipboard.writeText.mockClear()
@@ -58,32 +47,16 @@ beforeEach(() => {
   drawn.length = 0
   base = 1_790_000_000_000
   vi.useFakeTimers()
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      private readonly report: ResizeObserverCallback
-      constructor(report: ResizeObserverCallback) {
-        this.report = report
-      }
-      observe(target: Element): void {
-        this.report(
-          [{ target, contentRect: { ...size } } as unknown as ResizeObserverEntry],
-          this as never,
-        )
-      }
-      unobserve(): void {}
-      disconnect(): void {}
-    },
-  )
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never)
-  vi.stubGlobal('elecdex', {
+  // Read when observing starts: a test sets `size` before it mounts.
+  stubResizeObserver((target) => ({ target, contentRect: { ...size } }))
+  stubCanvas(canvasContext(drawn))
+  stubElecdex({
     metrics: {
       subscribe: (id: string, onSample: (sample: MetricSample) => void) => {
         deliver.set(id, onSample)
         return () => deliver.delete(id)
       },
     },
-    layout: { save: vi.fn(async () => {}) },
   })
   vi.stubGlobal('navigator', { ...navigator, clipboard })
 })
@@ -96,11 +69,6 @@ afterEach(async () => {
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 /** Past the frame loop's stall timer, which applies a waiting sample. */
 async function frame(): Promise<void> {
@@ -317,35 +285,5 @@ describe('WifiWidget', () => {
     const second = await mount()
     await play(second.push, 'steady', 5, 6)
     expect(wifiHistory.points('stub-wlan0').length).toBe(kept + 1)
-  })
-})
-
-describe('the Wi-Fi log, as the Ethernet pane’s', () => {
-  it('says how long after the last of its kind each row came, whatever came between', async () => {
-    const { default: EventLog } = await import('../../src/renderer/widgets/wifi/EventLog.svelte')
-    const at = 1_790_000_000_000
-    const row = (kind: 'disconnected' | 'connected', t: number) => ({
-      key: `${kind}${t}`,
-      at: t,
-      kind,
-      detail: '',
-      code: null,
-      ssid: null,
-      downFor: null,
-    })
-    // Newest first: a drop, its connection 3 s before... the drop before 10 minutes earlier.
-    const events = [
-      row('connected', at + 603_000),
-      row('disconnected', at + 600_000),
-      row('connected', at + 3000),
-      row('disconnected', at),
-    ]
-    render(EventLog, {
-      props: { events, mask: false, dropEvery: null, spikeEvery: null, noLog: false },
-    })
-    const since = screen
-      .getAllByTestId('wifi-event')
-      .map((r) => r.querySelector('.since')?.textContent)
-    expect(since).toEqual(['+10m', '+10m', '', ''])
   })
 })

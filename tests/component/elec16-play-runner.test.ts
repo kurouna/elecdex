@@ -8,7 +8,8 @@ import { describe, expect, it } from 'vitest'
 import { playText } from '../../src/renderer/widgets/elec16/play-painter'
 import playJson from '../../src/renderer/widgets/elec16/play-rom.json'
 import pocketJson from '../../src/renderer/widgets/elec16/rom.json'
-import { type Elec16Host, Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
+import { Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
+import { fakeLoopHost } from './support/loop-host.ts'
 
 /**
  * The runner with PLAY-320 on the real PLAY ROM (docs/elec16-play.md, G2 and G3), its clock
@@ -20,44 +21,8 @@ import { type Elec16Host, Elec16Runner } from '../../src/renderer/widgets/elec16
 const ROM = romFromFile(playJson) ?? new Uint8Array()
 const CODE_RETURN = playJson.symbols.code_return ?? 0
 
-function fakeHost() {
-  let now = 0
-  let next = 1
-  const timers = new Map<number, { at: number; fn: () => void }>()
-  const frames = new Map<number, () => void>()
-  const host: Elec16Host = {
-    requestFrame: (fn) => {
-      frames.set(next, () => fn(now))
-      return next++
-    },
-    cancelFrame: (h) => void frames.delete(h),
-    setTimer: (fn, ms) => {
-      timers.set(next, { at: now + ms, fn })
-      return next++
-    },
-    clearTimer: (h) => void timers.delete(h),
-    now: () => now,
-    clock: () => ({ second: 0, minute: 0, hour: 12, day: 3, month: 10, year: 2026, weekday: 6 }),
-  }
-  const advance = (ms: number) => {
-    const end = now + ms
-    for (;;) {
-      const due = [...timers].filter(([, t]) => t.at <= end).sort((a, b) => a[1].at - b[1].at)[0]
-      if (due === undefined) break
-      timers.delete(due[0])
-      now = due[1].at
-      due[1].fn()
-    }
-    now = end
-    const waiting = [...frames.values()]
-    frames.clear()
-    for (const fn of waiting) fn()
-  }
-  return { host, advance, timers }
-}
-
 function setUp(sound: { frames: ApuFrame[]; hushed: number } = { frames: [], hushed: 0 }) {
-  const clock = fakeHost()
+  const clock = fakeLoopHost()
   const runner = new Elec16Runner({
     ...clock.host,
     apu: (frame) => void sound.frames.push(frame),
@@ -284,7 +249,7 @@ describe('the runner with PLAY-320 switched to another machine', () => {
 describe('the runner with a pocket model', () => {
   it('sends no sound, the handheld neither: they have none', () => {
     const frames: ApuFrame[] = []
-    const clock = fakeHost()
+    const clock = fakeLoopHost()
     const runner = new Elec16Runner({ ...clock.host, apu: (f) => void frames.push(f) })
     runner.boot(romFromFile(pocketJson) ?? new Uint8Array(), 'handheld-160', 4_000_000)
     clock.advance(500)

@@ -65,29 +65,41 @@ describe('ELECFIGHTER the CPU against one button (design 7.7, 7.10)', { timeout:
   // each of the heavy punch and the masher, in one seed (the heavy kick is the heavy punch's
   // kind, and every seed won). Since the second balance pass the CPU guards longer and the
   // rounds last longer (66 s for both players in one test, past the limit when the whole suite
-  // runs side by side): a test for each player, the totals held by the last.
-  let won = 0
-  let all = 0
-  let taken = 0
-  let walking = 0
+  // runs side by side): a test for each player, the totals held by the last. Each player's
+  // rounds are played once and kept, so the last plays whatever has not been played yet and
+  // holds the same totals when it runs alone.
+  const played = new Map<string, { name: string; r: ReturnType<typeof oneButton> }[]>()
+  const roundsOf = (player: string, p1: (k: number) => number) => {
+    let rounds = played.get(player)
+    if (rounds === undefined) {
+      rounds = Object.entries(MET).map(([name, [slot, at]]) => ({
+        name,
+        r: oneButton(slot ?? 0, at ?? 0, 10, p1),
+      }))
+      played.set(player, rounds)
+    }
+    return rounds
+  }
   for (const [player, p1] of Object.entries(ONE_BUTTON)) {
     it(`beats ${player} pressed whenever able: it keeps out of reach and punishes`, () => {
-      for (const [name, [slot, at]] of Object.entries(MET)) {
-        const r = oneButton(slot ?? 0, at ?? 0, 10, p1)
+      for (const { name, r } of roundsOf(player, p1)) {
         const why = `${name} against ${player}: ${JSON.stringify(r)}`
         // Never a round without a punish - unless it was never struck at all: a TURTLE wary of a
         // masher keeps out of its heavies' reach by its swinging (2026-10-10), and MAINFRAME took
         // these rounds untouched, every heavy whiffed short of anything to punish.
         expect(r.punished > 0 || (r.won === 1 && r.taken === 0), why).toBe(true)
-        if (r.won === 1) won++
-        all++
-        taken += r.taken
-        walking += r.walking
       }
     })
   }
 
   it('wins eight rounds in ten of them, and is rarely hit walking in', () => {
+    const rounds = Object.entries(ONE_BUTTON).flatMap(([player, p1]) =>
+      roundsOf(player, p1).map(({ r }) => r),
+    )
+    const all = rounds.length
+    const won = rounds.filter((r) => r.won === 1).length
+    const taken = rounds.reduce((sum, r) => sum + r.taken, 0)
+    const walking = rounds.reduce((sum, r) => sum + r.walking, 0)
     expect(all).toBe(Object.keys(MET).length * Object.keys(ONE_BUTTON).length)
     // PACKET, met first and slowed for it (cpu/ladder.txt), is the one these beat: over clocks
     // 10-17 it took 11 of the 16 rounds before the third balance pass and 10 after (2026-10-09),

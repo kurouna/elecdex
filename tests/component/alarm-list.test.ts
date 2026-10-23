@@ -1,7 +1,7 @@
 import type { Alarm, AlarmPatch, AlarmsFile, NewAlarm } from '@shared/alarms'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { settle } from './support/settle.ts'
 
 const { default: AlarmList } = await import('../../src/renderer/widgets/timer/AlarmList.svelte')
 const { toasts } = await import('../../src/renderer/stores/toasts.svelte.ts')
@@ -68,11 +68,6 @@ afterEach(() => {
   toasts.clear()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 /** Renders on the alarms this test set up; the store outlives one component. */
 async function mount(): Promise<void> {

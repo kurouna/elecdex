@@ -3,6 +3,7 @@ import { defaultSettings } from '@shared/settings'
 import { cleanup, render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { finishAnimations, stubResizeObserver } from './support/dom.ts'
 
 const { default: ElecWidget } = await import('../../src/renderer/widgets/elec/ElecWidget.svelte')
 const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
@@ -107,27 +108,9 @@ beforeEach(() => {
   handlers = []
   received = 0
   // The light is drawn in the board's pixels: a board with a size, as a laid-out pane has.
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      private readonly report: ResizeObserverCallback
-      constructor(report: ResizeObserverCallback) {
-        this.report = report
-      }
-      observe(): void {
-        const entry = { contentRect: { width: 900, height: 400 } } as ResizeObserverEntry
-        this.report([entry], this as unknown as ResizeObserver)
-      }
-      disconnect(): void {}
-    },
-  )
-  // jsdom has no Web Animations: enough of one for a transition to run its length and end.
-  Element.prototype.animate = function animate(_frames, options) {
-    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
-    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
-    setTimeout(() => animation.onfinish?.(), length)
-    return animation as unknown as Animation
-  }
+  stubResizeObserver({ width: 900, height: 400 })
+  // A transition runs its length on the fake clock, which times the hold it waits on.
+  finishAnimations({ runs: 'its length' })
   vi.stubGlobal('elecdex', {
     elec: {
       sessions: vi.fn(async () => []),

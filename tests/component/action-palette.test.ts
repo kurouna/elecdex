@@ -2,8 +2,10 @@ import type { KeybindingAction } from '@shared/keybindings'
 import { pane, split } from '@shared/layout-ops'
 import { LAYOUT_VERSION } from '@shared/schemas/layout'
 import { render } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
+import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubMatchMedia } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -48,12 +50,7 @@ let before: HTMLButtonElement
 beforeEach(() => {
   vi.stubGlobal('elecdex', { system: { platform: 'win32' } })
   // Motion reduced, so the palette goes as soon as it closes: its power-off is motion.spec's.
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: true,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
+  stubMatchMedia(true)
   layout.tree = {
     version: LAYOUT_VERSION,
     root: split('row', [pane('terminal'), pane('clock')]),
@@ -92,11 +89,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
   document.body.replaceChildren()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 async function open(): Promise<HTMLInputElement> {
   render(ActionPalette)

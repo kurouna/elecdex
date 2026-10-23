@@ -5,7 +5,6 @@ import {
   AI_CONTEXT,
   type AiProvider,
   AiProviderSchema,
-  type ChatEvent,
   ChatSchema,
   COMPACT_PROMPT,
   chatWindow,
@@ -19,15 +18,8 @@ import {
 } from '@shared/ai'
 import { applySettingsPatch, defaultSettings } from '@shared/settings'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type {
-  ProviderAdapter,
-  StreamRequest,
-  StreamResult,
-  StreamSink,
-} from '../../src/main/ai/adapter.js'
-import { ChatFiles } from '../../src/main/ai/files.js'
-import { AiChatService } from '../../src/main/ai/service.js'
-import { ChatStore } from '../../src/main/ai/store.js'
+import type { StreamRequest, StreamResult } from '../../src/main/ai/adapter.js'
+import { aiHarness, type Pending } from './support/ai-harness'
 
 /** A hundred tokens by the estimate, 104 as a message. */
 const HUNDRED = 'x'.repeat(400)
@@ -173,55 +165,12 @@ const HOSTED: AiProvider = {
   model: 'large',
 }
 
-interface Pending {
-  request: StreamRequest
-  sink: StreamSink
-  end(result?: StreamResult): void
-  fail(error: unknown): void
-}
-
 function harness(dir: string, compacts = false) {
   const flags = { compacts }
-  const events: ChatEvent[] = []
-  const pending: Pending[] = []
-  let clock = 1_000
-  let ids = 0
-  const adapter: ProviderAdapter = {
-    stream: (request, sink) =>
-      new Promise<StreamResult>((resolve, reject) => {
-        pending.push({ request, sink, end: (result = {}) => resolve(result), fail: reject })
-        request.signal.addEventListener('abort', () => reject(new Error('aborted')))
-      }),
-    models: async () => [],
-  }
-  const store = new ChatStore(dir)
-  const service = new AiChatService({
-    store,
-    files: new ChatFiles(dir, () => {
-      ids += 1
-      return `file-${ids}`
-    }),
-    providers: () => [SMALL, ROOMY, HOSTED],
-    systemPrompt: () => '',
-    compact: () => flags.compacts,
-    keyFor: () => null,
-    adapter: async () => adapter,
-    now: () => {
-      clock += 1
-      return clock
-    },
-    newId: () => {
-      ids += 1
-      return `00000000-0000-4000-8000-${String(ids).padStart(12, '0')}`
-    },
-    setTimer: (fn) => fn,
-    clearTimer: () => {},
-    publish: (event) => events.push(event),
-    listChanged: () => {},
+  const { service, store, events, pending, settle } = aiHarness(dir, {
+    providers: [SMALL, ROOMY, HOSTED],
+    compacts: () => flags.compacts,
   })
-  const settle = async () => {
-    for (let i = 0; i < 5; i += 1) await Promise.resolve()
-  }
   /** Asks, and returns what the provider was sent; the answer is a hundred tokens unless told. */
   async function ask(
     chatId: string,

@@ -1,8 +1,9 @@
 import type { Ballot, ElecEvent, Session } from '@shared/elec'
 import { defaultSettings } from '@shared/settings'
 import { cleanup, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { inertDom } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 const { default: ElecWidget } = await import('../../src/renderer/widgets/elec/ElecWidget.svelte')
 const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
@@ -42,20 +43,7 @@ let handlers: Array<(event: ElecEvent) => void>
 
 beforeEach(() => {
   handlers = []
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
+  inertDom()
   vi.stubGlobal('elecdex', {
     elec: {
       sessions: vi.fn(async () => []),
@@ -95,11 +83,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
   appearance.settings = defaultSettings()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 describe('ElecWidget', () => {
   it('shows an answer with no verdict as a vote that does not count, and too few as no quorum', async () => {

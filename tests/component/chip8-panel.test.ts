@@ -7,6 +7,7 @@ import { themePalette } from '../../src/renderer/widgets/chip8/palette.ts'
 import { readChip8Pane } from '../../src/renderer/widgets/chip8/pane-state.ts'
 import RunView from '../../src/renderer/widgets/chip8/RunView.svelte'
 import { Chip8Runner } from '../../src/renderer/widgets/chip8/runner.svelte.ts'
+import { stubMatchMedia, stubResizeObserver } from './support/dom.ts'
 
 /**
  * The CHIP-8 run view's PANEL button in a pane too narrow to keep the panel beside the screen
@@ -46,19 +47,9 @@ function stillRunner(): Chip8Runner {
 
 beforeEach(() => {
   // jsdom has no ResizeObserver: one that never reports leaves the view with no room.
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      disconnect() {}
-    },
-  )
+  stubResizeObserver()
   // Motion reduced, so the panel comes and goes without a transition.
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: query.includes('reduce'),
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-  }))
+  stubMatchMedia((query) => query.includes('reduce'))
 })
 
 afterEach(() => {

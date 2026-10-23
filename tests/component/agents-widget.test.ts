@@ -1,7 +1,7 @@
 import type { AgentBoard, AgentSession, AgentTask } from '@shared/agents'
 import { cleanup, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { settle } from './support/settle.ts'
 
 const { default: AgentsWidget } = await import(
   '../../src/renderer/widgets/agents/AgentsWidget.svelte'
@@ -85,11 +85,6 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 const rows = () => screen.queryAllByTestId('agent-task')
 const row = (title: string) => rows().find((r) => r.textContent?.includes(title)) as HTMLElement

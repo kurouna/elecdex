@@ -1,8 +1,9 @@
 import { sourceToMachine } from '@shared/elec16/charset'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LevelResult } from '../../src/renderer/widgets/elec16/code/protocol.ts'
+import { stubMatchMedia } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 /**
  * CODE's view (widgets/elec16/CodeView.svelte) against a compiler the test answers by hand:
@@ -39,11 +40,7 @@ const built = (asm: string): LevelResult[] =>
 beforeEach(() => {
   answer = null
   // Motion reduced: a press acts at once, without its blink.
-  vi.stubGlobal('matchMedia', () => ({
-    matches: true,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
+  stubMatchMedia(true)
   vi.stubGlobal('elecdex', {
     elec16: {
       files: vi.fn(async () =>
@@ -73,21 +70,17 @@ const props = (file: string) => ({
   ongive: vi.fn(),
 })
 
-async function settle(): Promise<void> {
-  for (let k = 0; k < 6; k++) await tick()
-}
-
 describe("CODE's view", () => {
   it('drops a build that comes back after another file was opened', async () => {
     const view = render(CodeView, props('MAIN.TS'))
-    await settle()
+    await settle(6)
     await fireEvent.click(screen.getByTestId('elec16-compile'))
     // The press blinks before it acts.
     await vi.waitFor(() => expect(answer).not.toBeNull())
     await view.rerender(props('OTHER.TS'))
-    await settle()
+    await settle(6)
     answer?.(built('; MAIN.TS built'))
-    await settle()
+    await settle(6)
     expect(screen.getByTestId('elec16-asm').textContent).not.toContain('MAIN.TS built')
     expect(screen.queryByTestId('elec16-levels')).toBeNull()
     expect((screen.getByTestId('elec16-run') as HTMLButtonElement).disabled).toBe(true)
@@ -95,11 +88,11 @@ describe("CODE's view", () => {
 
   it('shows a build that comes back for the file still open', async () => {
     render(CodeView, props('MAIN.TS'))
-    await settle()
+    await settle(6)
     await fireEvent.click(screen.getByTestId('elec16-compile'))
     await vi.waitFor(() => expect(answer).not.toBeNull())
     answer?.(built('; MAIN.TS built'))
-    await settle()
+    await settle(6)
     expect(screen.getByTestId('elec16-asm').textContent).toContain('MAIN.TS built')
     expect((screen.getByTestId('elec16-run') as HTMLButtonElement).disabled).toBe(false)
   })

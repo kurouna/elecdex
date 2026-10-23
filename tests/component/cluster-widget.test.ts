@@ -1,8 +1,9 @@
 import type { MetricSample } from '@shared/metrics'
 import { cleanup, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type GpuStub, stubGpuUsage } from '../../src/services/metrics/gpu/stub'
+import { inertDom, stubCanvas } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 const { default: ClusterWidget } = await import(
   '../../src/renderer/widgets/cluster/ClusterWidget.svelte'
@@ -22,23 +23,9 @@ const releases: (() => void)[] = []
 beforeEach(() => {
   deliver.clear()
   vi.useFakeTimers()
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
-    },
-  )
+  inertDom()
   // The lanes draw on a canvas jsdom does not have: any call is taken and ignored.
-  const ctx = new Proxy({}, { get: () => () => {}, set: () => true })
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as never)
+  stubCanvas()
   vi.stubGlobal('elecdex', {
     metrics: {
       subscribe: (id: string, onSample: (sample: MetricSample) => void) => {
@@ -62,11 +49,6 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 /** Mounts the pane and hands it one `gpu.usage` reading from the collector's stub. */
 async function withGpu(stub: GpuStub): Promise<void> {

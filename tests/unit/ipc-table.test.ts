@@ -7,28 +7,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  * one board, which go with their reload or their end.
  */
 
-const handles = new Map<string, (...args: unknown[]) => unknown>()
-// Listeners as ipcMain keeps them: several on one channel, each removed by itself.
-const bus = new EventEmitter()
+const { handles, bus, ipcMain, reset } = await vi.hoisted(async () =>
+  (await import('./support/electron-ipc')).fakeIpcMain(),
+)
 
 vi.mock('electron', () => ({
-  ipcMain: {
-    handle: (channel: string, handler: (...args: unknown[]) => unknown) => {
-      if (handles.has(channel)) throw new Error(`second handler for ${channel}`)
-      handles.set(channel, handler)
-    },
-    removeHandler: (channel: string) => handles.delete(channel),
-    on: (channel: string, listener: (...args: unknown[]) => void) => bus.on(channel, listener),
-    off: (channel: string, listener: (...args: unknown[]) => void) => bus.off(channel, listener),
-  },
+  ipcMain,
 }))
 
 const { PageSubscribers, registerTable } = await import('../../src/main/ipc/table.js')
 
-beforeEach(() => {
-  handles.clear()
-  bus.removeAllListeners()
-})
+beforeEach(reset)
 
 /** A page as the subscribers use it: its two events, `send` and `isDestroyed`. */
 function page() {

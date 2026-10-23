@@ -6,6 +6,7 @@ import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PluginWorker } from '../../src/renderer/plugins/worker.ts'
 import { deepState } from './deep-state.svelte.ts'
+import { inertDom, stubIntersectionObserver } from './support/dom.ts'
 
 /**
  * Plugin panes and the plugin settings, with the host's worker replaced: by the real
@@ -123,31 +124,8 @@ beforeEach(async () => {
   terminated.clear()
   latest.clear()
   patches.length = 0
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      readonly callback: IntersectionObserverCallback
-      constructor(callback: IntersectionObserverCallback) {
-        this.callback = callback
-      }
-      observe() {
-        this.callback([{ isIntersecting: true } as IntersectionObserverEntry], {} as never)
-      }
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal('matchMedia', () => ({
-    matches: false,
-    addEventListener() {},
-    removeEventListener() {},
-  }))
+  stubIntersectionObserver()
+  inertDom()
   vi.stubGlobal('elecdex', {
     plugins: {
       catalog: async () => catalog,

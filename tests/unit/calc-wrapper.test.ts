@@ -82,6 +82,8 @@ describe('evaluate', () => {
     expect(evaluate('１＋２')).toMatchObject({ ok: true, value: 3 })
     expect(evaluate('3百万 / 12')).toMatchObject({ ok: true, value: 250_000 })
     expect(evaluate('６×７')).toMatchObject({ ok: true, value: 42 })
+    // The pane hands its line to the evaluator as typed: full-width digits and ÷ included.
+    expect(evaluateLine('３百万÷12')).toMatchObject({ ok: true, value: 250_000 })
   })
 
   it('answers with an error rather than throwing', () => {

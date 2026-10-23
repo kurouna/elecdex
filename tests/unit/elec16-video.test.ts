@@ -1,6 +1,4 @@
-import { assemble, romImage } from '@shared/elec16/asm'
-import { REG_NAMES } from '@shared/elec16/isa'
-import { Elec16 } from '@shared/elec16/machine'
+import type { Elec16 } from '@shared/elec16/machine'
 import { MODEL_IDS, MODELS, type ModelId, VRAM } from '@shared/elec16/map'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
 import { IRQ } from '@shared/elec16/state'
@@ -13,6 +11,7 @@ import {
   VSTAT_VBLANK,
 } from '@shared/elec16/video'
 import { describe, expect, it } from 'vitest'
+import { bootAsm, finishAsm as finish } from './support/elec16-asm'
 
 /**
  * PLAY-320's video as a program sees it (docs/elec16-play.md section 4, G2): 64 KB of video
@@ -22,17 +21,7 @@ import { describe, expect, it } from 'vitest'
 
 const FRAME_MS = 1000 / FRAME_HZ
 
-function boot(src: string, model: ModelId = 'play-320'): Elec16 {
-  const out = assemble(`.org 0x8000\n${src}`)
-  expect(out.errors).toEqual([])
-  return Elec16.boot(romImage(out), model)
-}
-
-function finish(m: Elec16): Record<string, number> {
-  const result = m.run(1_000_000)
-  expect(result.halted?.cause, `stopped at ${result.halted?.pc.toString(16)}`).toBe('breakpoint')
-  return Object.fromEntries(REG_NAMES.map((name, k) => [name, m.state.regs[k] ?? 0]))
-}
+const boot = (src: string, model: ModelId = 'play-320') => bootAsm(src, model)
 
 const video = (m: Elec16) => {
   const v = m.state.video

@@ -6,13 +6,7 @@
       "label": "stand up",
       "hour": 15,
       "minute": 0,
-      "days": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
+      "days": [1, 2, 3, 4, 5],
       "enabled": true
     }
   ]

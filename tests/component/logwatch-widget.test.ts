@@ -6,8 +6,10 @@ import type {
   LogWatchEvent,
 } from '@shared/logwatch/types'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { finishAnimations, inertDom } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: LogWatchWidget } = await import(
   '../../src/renderer/widgets/logwatch/LogWatchWidget.svelte'
@@ -81,29 +83,10 @@ beforeEach(() => {
   describeAs = FILE
   picks = []
   pickAnswer = null
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
+  inertDom()
   // Cards power on and off through animate(): finished at once here, as in the Docker pane's tests.
-  Element.prototype.getAnimations ??= () => []
-  Element.prototype.animate = function animate(_frames, options) {
-    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
-    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
-    setTimeout(() => animation.onfinish?.(), length)
-    return animation as unknown as Animation
-  }
-  vi.stubGlobal('elecdex', {
+  finishAnimations()
+  stubElecdex({
     logwatch: {
       subscribe: (request: LogSubscribeRequest, handler: (event: LogWatchEvent) => void) => {
         subscriptions += 1
@@ -126,7 +109,6 @@ beforeEach(() => {
         return { text: 'the text', fits: true }
       },
     },
-    layout: { save: vi.fn(async () => {}) },
     system: { platform: 'win32' },
     utility: {
       copy: async (request: { text: string }) => {
@@ -140,14 +122,11 @@ beforeEach(() => {
 afterEach(async () => {
   cleanup()
   Reflect.deleteProperty(Element.prototype, 'animate')
+  vi.useRealTimers()
   vi.restoreAllMocks()
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-}
 
 const texts = () =>
   screen.queryAllByTestId('logwatch-row').map((row) => row.querySelector('.msg')?.textContent)
@@ -168,6 +147,8 @@ describe('LogWatchWidget', () => {
     await settle()
     const name = screen.getByTestId('logwatch-file')
     expect(name.textContent).toBe('app.log')
+    // The card's timers on a fake clock (lib/hover-card.ts), the rest real.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     name.focus()
     await settle()
     expect(screen.getByTestId('logwatch-file-card').textContent).toContain('/home/dev/logs/app.log')
@@ -177,7 +158,7 @@ describe('LogWatchWidget', () => {
     expect(picks).toEqual([false])
     expect(screen.getByTestId('logwatch-problem').textContent).toBe('that is not a text file')
     // A card closes a moment after it is left (lib/hover-card.ts), then powers off.
-    await new Promise((resolve) => setTimeout(resolve, 400))
+    await vi.advanceTimersByTimeAsync(400)
     await settle()
     expect(screen.queryByTestId('logwatch-file-card')).toBeNull()
   })

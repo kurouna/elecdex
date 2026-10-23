@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { finishAnimations, stubMatchMedia } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -19,27 +21,16 @@ const { default: TerminalSearch } = await import(
  */
 
 beforeEach(() => {
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
+  stubMatchMedia()
   // Dialogs power on and off through animate(): finished at once here, as in the other tests.
-  Element.prototype.getAnimations ??= () => []
-  Element.prototype.animate = function animate(_frames, options) {
-    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
-    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
-    setTimeout(() => animation.onfinish?.(), length)
-    return animation as unknown as Animation
-  }
+  finishAnimations()
 })
 
 afterEach(async () => {
   ui.answerPaste(false)
   cleanup()
   // Past any power-off still running, before animate() is taken away.
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  await settle()
   vi.unstubAllGlobals()
   Reflect.deleteProperty(Element.prototype, 'animate')
   vi.restoreAllMocks()
@@ -59,7 +50,7 @@ describe('PasteDialog', () => {
     await fireEvent.keyDown(window, { key: 'Escape' })
     expect(await second).toBe(false)
     // Gone once it has powered off.
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await settle()
     expect(screen.queryByTestId('paste-dialog')).toBeNull()
   })
 

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import PlayScreen from '../../src/renderer/widgets/elec16/PlayScreen.svelte'
 import { Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
 import { browserLoop } from '../../src/renderer/widgets/emu/runner.svelte.ts'
+import { stubResizeObserver } from './support/dom.ts'
 
 /**
  * PLAY-320's screen alone (widgets/elec16/PlayScreen.svelte), the "screen" body: sized from the
@@ -14,24 +15,11 @@ import { browserLoop } from '../../src/renderer/widgets/emu/runner.svelte.ts'
 /** A ResizeObserver that reports `room` CSS pixels at `ratio`, as Chromium does. */
 function observeRoom(w: number, h: number, ratio: number) {
   vi.stubGlobal('devicePixelRatio', ratio)
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      readonly #callback: ResizeObserverCallback
-      constructor(callback: ResizeObserverCallback) {
-        this.#callback = callback
-      }
-      observe() {
-        const entry = {
-          contentRect: { width: w, height: h },
-          contentBoxSize: [{ inlineSize: w, blockSize: h }],
-          devicePixelContentBoxSize: [{ inlineSize: w * ratio, blockSize: h * ratio }],
-        } as unknown as ResizeObserverEntry
-        this.#callback([entry], this as unknown as ResizeObserver)
-      }
-      disconnect() {}
-    },
-  )
+  stubResizeObserver(() => ({
+    contentRect: { width: w, height: h },
+    contentBoxSize: [{ inlineSize: w, blockSize: h }],
+    devicePixelContentBoxSize: [{ inlineSize: w * ratio, blockSize: h * ratio }],
+  }))
 }
 
 const runner = () =>

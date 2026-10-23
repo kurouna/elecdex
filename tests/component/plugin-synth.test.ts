@@ -4,96 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { HeldNotes } from '../../src/renderer/plugins/held.ts'
 import { Synth } from '../../src/renderer/plugins/synth.ts'
 import { VOICES } from '../../src/renderer/plugins/voices.ts'
+import { fakeAudioContext, Node } from './support/fake-audio.ts'
 
 /**
  * The plugins' synthesiser (renderer/plugins/synth.ts, voices.ts), on a stand-in
  * AudioContext that records what is built and when it starts and stops: nothing is heard,
  * and the tests read the graph instead.
  */
-
-class Param {
-  value = 0
-  setValueAtTime() {}
-  linearRampToValueAtTime() {}
-  exponentialRampToValueAtTime() {}
-  setTargetAtTime() {}
-  cancelScheduledValues() {}
-  cancelAndHoldAtTime() {}
-}
-
-class Node {
-  connect<T>(next: T): T {
-    return next
-  }
-  disconnect() {}
-}
-
-class Source extends Node {
-  frequency = new Param()
-  detune = new Param()
-  type = ''
-  buffer: unknown = null
-  loop = false
-  started = Number.NaN
-  stopped = Number.NaN
-  onended: (() => void) | null = null
-  start(at: number) {
-    this.started = at
-  }
-  stop(at: number) {
-    this.stopped = at
-  }
-  setPeriodicWave() {}
-}
-
-function fakeContext() {
-  const sources: Source[] = []
-  const ac = {
-    currentTime: 10,
-    state: 'running' as AudioContextState,
-    sampleRate: 8000,
-    baseLatency: 0.01,
-    outputLatency: 0.02,
-    destination: new Node(),
-    stamp: { contextTime: 10, performanceTime: performance.now() },
-    resume: vi.fn(async () => {}),
-    suspend: vi.fn(async () => {}),
-    getOutputTimestamp() {
-      return this.stamp
-    },
-    createGain: () => Object.assign(new Node(), { gain: new Param() }),
-    createOscillator: () => {
-      const source = new Source()
-      sources.push(source)
-      return source
-    },
-    createBufferSource: () => {
-      const source = new Source()
-      sources.push(source)
-      return source
-    },
-    createBiquadFilter: () =>
-      Object.assign(new Node(), { type: '', frequency: new Param(), Q: new Param() }),
-    createStereoPanner: () => Object.assign(new Node(), { pan: new Param() }),
-    createWaveShaper: () => Object.assign(new Node(), { curve: null, oversample: 'none' }),
-    createDelay: () => Object.assign(new Node(), { delayTime: new Param() }),
-    createDynamicsCompressor: () =>
-      Object.assign(new Node(), {
-        threshold: new Param(),
-        knee: new Param(),
-        ratio: new Param(),
-        attack: new Param(),
-        release: new Param(),
-      }),
-    createPeriodicWave: () => ({}),
-    createConvolver: () => Object.assign(new Node(), { normalize: true, buffer: null }),
-    createBuffer: (_channels: number, length: number) => ({
-      getChannelData: () => new Float32Array(length),
-      copyToChannel: () => {},
-    }),
-  }
-  return { ac, sources }
-}
 
 const note = (voice: Voice, change: Partial<SoundNote> = {}): SoundNote => ({
   voice,
@@ -118,7 +35,7 @@ afterEach(() => {
 describe('the voices', () => {
   it('let a note go only when the source that stops last has ended, never an earlier one', () => {
     for (const voice of PLUGIN_VOICES) {
-      const { ac, sources } = fakeContext()
+      const { ac, sources } = fakeAudioContext()
       const kit = {
         ac: ac as unknown as BaseAudioContext,
         out: new Node() as unknown as AudioNode,
@@ -139,7 +56,7 @@ describe('the voices', () => {
 
 describe('the synthesiser', () => {
   it('starts no more voices at once than there are, and holds a pane to its budget', () => {
-    const { ac } = fakeContext()
+    const { ac } = fakeAudioContext()
     const synth = new Synth(() => ac as unknown as AudioContext)
     expect(
       synth.play(
@@ -169,7 +86,7 @@ describe('the synthesiser', () => {
   })
 
   it('schedules by the output clock, but not by a reading taken before it slept', () => {
-    const { ac, sources } = fakeContext()
+    const { ac, sources } = fakeAudioContext()
     const synth = new Synth(() => ac as unknown as AudioContext)
     vi.advanceTimersByTime(100_000)
     const now = performance.now()
@@ -185,7 +102,7 @@ describe('the synthesiser', () => {
   })
 
   it('sleeps once nothing sounds, and wakes for the next note even before the sleep lands', () => {
-    const { ac } = fakeContext()
+    const { ac } = fakeAudioContext()
     const synth = new Synth(() => ac as unknown as AudioContext)
     synth.play('p1', [note('hat')])
     expect(ac.resume).toHaveBeenCalledTimes(1)
@@ -235,7 +152,7 @@ describe('notes held by keys', () => {
   })
 
   it('are started for as long as a note may be, and let go over the voice release', () => {
-    const { ac, sources } = fakeContext()
+    const { ac, sources } = fakeAudioContext()
     const synth = new Synth(() => ac as unknown as AudioContext)
     const played = synth.start('p1', note('lead'))
     expect(played).not.toBeNull()

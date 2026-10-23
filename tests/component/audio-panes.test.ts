@@ -3,6 +3,7 @@ import { binEdge, SPECTRUM_BINS } from '@shared/audio'
 import { fireEvent, render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { inertDom } from './support/dom.ts'
 
 /** Every spectrum paint: the meters' levels and whether it was forced. */
 const spectrumPaints: Array<{ level: number[]; force: boolean; bands: number }> = []
@@ -72,18 +73,7 @@ beforeEach(() => {
       }
     },
   )
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal('matchMedia', () => ({
-    matches: false,
-    addEventListener() {},
-    removeEventListener() {},
-  }))
+  inertDom()
   vi.stubGlobal('elecdex', {
     audio: {
       spectrum: (handler: (u: SpectrumUpdate) => void) => {

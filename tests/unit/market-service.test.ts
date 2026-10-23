@@ -29,6 +29,7 @@ import {
   WATCH_BATCH_MS,
 } from '../../src/main/markets/service.js'
 import { readCandles, stubProvider } from '../../src/main/markets/yahoo.js'
+import { marketClock } from './support/market-harness'
 
 /**
  * Chart ranges on the market board: the range table, the candle helpers, the
@@ -324,9 +325,7 @@ describe('dividerIndices', () => {
 
 /** The service with a clock, due-time timers and a provider that serves bars per range. */
 function harness(opts: { bars?: (spec: ChartRangeSpec, now: number) => CandlePoint[] } = {}) {
-  let now = Date.UTC(2026, 8, 14, 1, 0)
-  const timers: Array<{ at: number; fn: () => void; id: number }> = []
-  let nextId = 1
+  const clock = marketClock(Date.UTC(2026, 8, 14, 1, 0))
   const quoteCalls: string[] = []
   const chartCalls: string[] = []
   let price = 100
@@ -336,46 +335,18 @@ function harness(opts: { bars?: (spec: ChartRangeSpec, now: number) => CandlePoi
     provider: {
       quotes: async (symbols) => {
         quoteCalls.push(symbols.join(','))
-        return symbols.map((symbol) => quote({ symbol, price, time: quoteTime ?? now }))
+        return symbols.map((symbol) => quote({ symbol, price, time: quoteTime ?? clock.now() }))
       },
       chart: async (symbol, spec) => {
         chartCalls.push(chartKey(symbol, spec.id))
+        const now = clock.now()
         const bars = opts.bars?.(spec, now) ?? [flat(now - spec.barMs, 99), flat(now, 100)]
         return { candles: bars, previousClose: 98 }
       },
     },
-    now: () => now,
-    setTimer: (fn, ms) => {
-      const id = nextId++
-      timers.push({ at: now + ms, fn, id })
-      return id
-    },
-    clearTimer: (id) => {
-      const i = timers.findIndex((t) => t.id === id)
-      if (i >= 0) timers.splice(i, 1)
-    },
+    ...clock.deps,
     publish: (u) => published.push(u),
   })
-  // The service's own work is promises only (its timers are the ones above), so letting
-  // the microtasks run is enough - and unlike a real timer per step, it costs nothing.
-  // A step per virtual minute over an hour used to take seconds of real time, which left
-  // this file failing its five-second limit whenever the machine was busy.
-  const settle = async () => {
-    for (let i = 0; i < 20; i++) await Promise.resolve()
-  }
-  const advance = async (ms: number) => {
-    const target = now + ms
-    for (;;) {
-      timers.sort((a, b) => a.at - b.at)
-      const due = timers[0]
-      if (!due || due.at > target) break
-      timers.shift()
-      now = due.at
-      due.fn()
-      await settle()
-    }
-    now = target
-  }
   const chartsOf = (key: string) => chartCalls.filter((c) => c === key).length
   const last = (key: string) => published.filter((u) => u.key === key).at(-1)
   return {
@@ -384,8 +355,8 @@ function harness(opts: { bars?: (spec: ChartRangeSpec, now: number) => CandlePoi
     chartCalls,
     chartsOf,
     last,
-    advance,
-    now: () => now,
+    advance: clock.advance,
+    now: clock.now,
     setPrice: (p: number) => {
       price = p
     },
@@ -536,36 +507,21 @@ describe('MarketService with ranges', () => {
   it('keeps the old bars when a chart fetch fails, and tries again at the next refresh', async () => {
     let fail = false
     const calls: string[] = []
-    let now = 0
-    const timers: Array<{ at: number; fn: () => void }> = []
+    const clock = marketClock(0)
     const published: MarketUpdate[] = []
     const service = new MarketService({
       provider: {
-        quotes: async (symbols) => symbols.map((symbol) => quote({ symbol, time: now })),
+        quotes: async (symbols) => symbols.map((symbol) => quote({ symbol, time: clock.now() })),
         chart: async (symbol, spec) => {
           calls.push(chartKey(symbol, spec.id))
           if (fail) throw new Error('down')
-          return { candles: [flat(now - 5 * MIN, 1)], previousClose: null }
+          return { candles: [flat(clock.now() - 5 * MIN, 1)], previousClose: null }
         },
       },
-      now: () => now,
-      setTimer: (fn, ms) => timers.push({ at: now + ms, fn }),
-      clearTimer: () => {},
+      ...clock.deps,
       publish: (u) => published.push(u),
     })
-    const run = async (to: number) => {
-      for (;;) {
-        timers.sort((a, b) => a.at - b.at)
-        const due = timers[0]
-        if (!due || due.at > to) break
-        timers.shift()
-        now = due.at
-        due.fn()
-        // Promises only, as in the harness above.
-        for (let i = 0; i < 20; i++) await Promise.resolve()
-      }
-      now = to
-    }
+    const run = (to: number) => clock.advance(to - clock.now())
     service.watch('X', '1d')
     await run(WATCH_BATCH_MS)
     fail = true

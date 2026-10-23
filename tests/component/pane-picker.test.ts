@@ -3,6 +3,8 @@ import { LAYOUT_VERSION } from '@shared/schemas/layout'
 import { render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubMatchMedia } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -28,9 +30,9 @@ const shell = pane('terminal')
 const memory = pane('memory')
 
 beforeEach(() => {
-  vi.stubGlobal('elecdex', { layout: { save: vi.fn(async () => {}) } })
+  stubElecdex()
   // Motion reduced: the picker opens and closes without the power transitions jsdom cannot run.
-  vi.stubGlobal('matchMedia', () => ({ matches: true }))
+  stubMatchMedia(true)
   layout.tree = { version: LAYOUT_VERSION, root: split('row', [shell, memory]) }
   layout.focusedPaneId = shell.id
 })

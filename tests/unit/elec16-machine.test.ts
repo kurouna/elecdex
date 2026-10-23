@@ -2,27 +2,14 @@ import { assemble, ramImage, romImage } from '@shared/elec16/asm'
 import { REG } from '@shared/elec16/bus'
 import { encode32, REG_NAMES } from '@shared/elec16/isa'
 import { Elec16 } from '@shared/elec16/machine'
-import type { ModelId } from '@shared/elec16/map'
 import { describe, expect, it } from 'vitest'
+import { bootAsm as boot, finishAsm as finish } from './support/elec16-asm'
 
 /**
  * The ELEC-16 runs its instructions as docs/elec16.md section 4 says. Each program is
  * assembled into the ROM at the reset vector and ends with EBREAK, which with no trap handler
  * stops the machine ("breakpoint") - so a test reads its registers where it stopped.
  */
-
-function boot(src: string, model?: ModelId): Elec16 {
-  const out = assemble(`.org 0x8000\n${src}`)
-  expect(out.errors).toEqual([])
-  return Elec16.boot(romImage(out), model)
-}
-
-/** Runs to the end; the registers by ABI name. */
-function finish(m: Elec16, cycles = 1_000_000): Record<string, number> {
-  const result = m.run(cycles)
-  expect(result.halted?.cause, `stopped at ${result.halted?.pc.toString(16)}`).toBe('breakpoint')
-  return Object.fromEntries(REG_NAMES.map((name, k) => [name, m.state.regs[k] ?? 0]))
-}
 
 const run = (src: string) => finish(boot(src))
 

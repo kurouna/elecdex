@@ -1,7 +1,8 @@
 import type { LauncherEntry } from '@shared/launcher'
 import { render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubIntersectionObserver } from './support/dom.ts'
+import { settle } from './support/settle.ts'
 
 const { default: LauncherWidget } = await import(
   '../../src/renderer/widgets/launcher/LauncherWidget.svelte'
@@ -25,14 +26,7 @@ let list: ReturnType<typeof vi.fn<() => Promise<LauncherEntry[]>>>
 const unsubscribe = vi.fn()
 
 beforeEach(() => {
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
+  stubIntersectionObserver('none')
   list = vi.fn<() => Promise<LauncherEntry[]>>()
   unsubscribe.mockClear()
   vi.stubGlobal('elecdex', {
@@ -53,11 +47,6 @@ afterEach(() => {
 })
 
 const names = () => screen.queryAllByTestId('launcher-entry').map((el) => el.textContent?.trim())
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 describe('LauncherWidget', () => {
   it('asks again when main reports a changed list, keeping the tiles until the answer', async () => {

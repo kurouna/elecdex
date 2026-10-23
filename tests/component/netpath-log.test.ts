@@ -199,6 +199,21 @@ describe('the Wi-Fi log', () => {
       '130 events',
     )
   })
+
+  it('says how long after the last of its kind each row came, whatever came between', () => {
+    // Newest first: a drop, its connection 3 s before... the drop before 10 minutes earlier.
+    const events = [
+      track('connected', AT + 603_000),
+      track('disconnected', AT + 600_000),
+      track('connected', AT + 3000),
+      track('disconnected', AT),
+    ]
+    render(WifiLog, { props: wifiProps({ events }) })
+    const since = screen
+      .getAllByTestId('wifi-event')
+      .map((r) => r.querySelector('.since')?.textContent)
+    expect(since).toEqual(['+10m', '+10m', '', ''])
+  })
 })
 
 /** A second of the wired history, up unless said otherwise. */

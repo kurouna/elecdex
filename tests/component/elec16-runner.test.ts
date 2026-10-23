@@ -8,7 +8,8 @@ import { romFromFile } from '@shared/elec16/rom'
 import { ANNUNCIATORS } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
 import romJson from '../../src/renderer/widgets/elec16/rom.json'
-import { type Elec16Host, Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
+import { Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
+import { fakeLoopHost } from './support/loop-host.ts'
 
 /**
  * The ELEC-16 runner (docs/elec16.md section 9) on the real ROM, with a clock the test
@@ -17,43 +18,6 @@ import { type Elec16Host, Elec16Runner } from '../../src/renderer/widgets/elec16
  */
 
 const ROM = romFromFile(romJson) ?? new Uint8Array()
-
-/** A host whose clock and timers the test moves by hand. */
-function fakeHost() {
-  let now = 0
-  let next = 1
-  const timers = new Map<number, { at: number; fn: () => void }>()
-  const frames = new Map<number, () => void>()
-  const host: Elec16Host = {
-    requestFrame: (fn) => {
-      frames.set(next, () => fn(now))
-      return next++
-    },
-    cancelFrame: (h) => void frames.delete(h),
-    setTimer: (fn, ms) => {
-      timers.set(next, { at: now + ms, fn })
-      return next++
-    },
-    clearTimer: (h) => void timers.delete(h),
-    now: () => now,
-    clock: () => ({ second: 0, minute: 0, hour: 12, day: 3, month: 10, year: 2026, weekday: 6 }),
-  }
-  const advance = (ms: number) => {
-    const end = now + ms
-    for (;;) {
-      const due = [...timers].filter(([, t]) => t.at <= end).sort((a, b) => a[1].at - b[1].at)[0]
-      if (due === undefined) break
-      timers.delete(due[0])
-      now = due[1].at
-      due[1].fn()
-    }
-    now = end
-    const waiting = [...frames.values()]
-    frames.clear()
-    for (const fn of waiting) fn()
-  }
-  return { host, advance, timers }
-}
 
 /** Types a line, a key at a time, then lets the machine take it. */
 function typeLine(runner: Elec16Runner, line: string): void {
@@ -78,7 +42,7 @@ function runForever(runner: Elec16Runner, advance: (ms: number) => void): void {
 
 /** Switched on and, unless `basic`, taken to the monitor on a cleared screen. */
 function setUp(basic = false) {
-  const clock = fakeHost()
+  const clock = fakeLoopHost()
   const runner = new Elec16Runner(clock.host)
   runner.boot(ROM, 'pocket-48', 4_000_000)
   clock.advance(500)
@@ -328,7 +292,7 @@ describe('the ELEC-16 runner', () => {
     clock.advance(50)
     expect(answer).not.toBeNull()
     runner.detach()
-    const there = fakeHost()
+    const there = fakeLoopHost()
     const next = new Elec16Runner(there.host)
     next.adopt(machine, 4_000_000, false)
     there.advance(500)

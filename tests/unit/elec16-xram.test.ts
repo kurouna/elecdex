@@ -1,6 +1,5 @@
 import { assemble, ramImage, romImage } from '@shared/elec16/asm'
 import { REG } from '@shared/elec16/bus'
-import { REG_NAMES } from '@shared/elec16/isa'
 import { Elec16 } from '@shared/elec16/machine'
 import {
   BANK_COUNT,
@@ -18,6 +17,7 @@ import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
 import { createState } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
 import { olderSnapshot } from './elec16-helpers'
+import { bootAsm, finishAsm as finish } from './support/elec16-asm'
 
 /**
  * PLAY-320's extended RAM (docs/elec16-play.md section 3, G1): 8 KB banks in the bank window
@@ -27,17 +27,8 @@ import { olderSnapshot } from './elec16-helpers'
 
 const KB = 1024
 
-function boot(src: string, model: ModelId = 'play-320', xram = XRAM_MAX): Elec16 {
-  const out = assemble(`.org 0x8000\n${src}`)
-  expect(out.errors).toEqual([])
-  return Elec16.boot(romImage(out), model, undefined, xram)
-}
-
-function finish(m: Elec16): Record<string, number> {
-  const result = m.run(1_000_000)
-  expect(result.halted?.cause, `stopped at ${result.halted?.pc.toString(16)}`).toBe('breakpoint')
-  return Object.fromEntries(REG_NAMES.map((name, k) => [name, m.state.regs[k] ?? 0]))
-}
+const boot = (src: string, model: ModelId = 'play-320', xram = XRAM_MAX) =>
+  bootAsm(src, model, xram)
 
 /** Lines that select `bank` in the window (t0 keeps the register's address). */
 const select = (bank: number) => `li t0, ${REG.bank}\nli t1, ${bank}\nsw t1, 0(t0)\n`

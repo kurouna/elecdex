@@ -9,25 +9,17 @@ import {
 } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { LOG_LIMITS, type LogItem, type LogLine, type LogWatchEvent } from '@shared/logwatch/types'
+import { LOG_LIMITS, type LogLine } from '@shared/logwatch/types'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { LogEntryRecord } from '../../src/main/logwatch/catalog.js'
 import { nodeFs } from '../../src/main/logwatch/node-fs.js'
-import {
-  DELIVER_MS,
-  LOOK_MS,
-  type LogFs,
-  LogWatchService,
-  SETTLE_MS,
-} from '../../src/main/logwatch/service.js'
+import { DELIVER_MS, LOOK_MS, SETTLE_MS } from '../../src/main/logwatch/service.js'
+import { type Entries, LOG_ID as ID, lines, logWatchRig as rig } from './support/logwatch-rig'
 
 /**
  * LogWatchService at the edges: files replaced, deleted or unreadable, several encodings and
  * sources at once, what a page holds against what main holds, and the shapes bytes come in.
- * Real files in a temporary folder, a fake clock (as logwatch-service.test.ts).
+ * Real files in a temporary folder, a fake clock (support/logwatch-rig.ts).
  */
-
-const ID = '0123456789abcdef'
 
 let dir: string
 beforeEach(() => {
@@ -36,93 +28,6 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
 })
-
-const lines = (from: number, to: number, word = 'line'): string =>
-  Array.from({ length: to - from + 1 }, (_, i) => `INFO ${word} ${from + i}\n`).join('')
-
-type Entries = Record<string, Omit<LogEntryRecord, 'id' | 'lastUsed'>>
-
-function rig(
-  entries: Entries,
-  options: { keep?: number; initial?: number; fs?: Partial<LogFs> } = {},
-) {
-  let now = Date.UTC(2026, 9, 12, 3, 0, 0, 100)
-  const timers = new Map<number, { at: number; fn: () => void }>()
-  let nextTimer = 1
-  const sent: { page: string; event: LogWatchEvent }[] = []
-  const watches = new Map<string, (name: string | null) => void>()
-  const limits = { keep: options.keep ?? 5000, initial: options.initial ?? 5 }
-  const service = new LogWatchService<string>({
-    fs: {
-      ...nodeFs,
-      ...options.fs,
-      watch: (folder, onChange) => {
-        watches.set(folder, onChange)
-        return { close: () => watches.delete(folder) }
-      },
-    },
-    entry: (id) => {
-      const entry = entries[id]
-      return entry === undefined ? null : { id, lastUsed: 0, ...entry }
-    },
-    keepLines: () => limits.keep,
-    initialLines: () => limits.initial,
-    now: () => now,
-    setTimer: (fn, ms) => {
-      const id = nextTimer++
-      timers.set(id, { at: now + ms, fn })
-      return id
-    },
-    clearTimer: (id) => {
-      timers.delete(id as number)
-    },
-    send: (page, event) => sent.push({ page, event: structuredClone(event) }),
-  })
-  const settle = async () => {
-    for (let i = 0; i < 5; i++) {
-      await service.settled()
-      await new Promise((resolve) => setImmediate(resolve))
-    }
-  }
-  const held = (page: string, key = `${ID}/auto`): LogItem[] => {
-    let items: LogItem[] = []
-    for (const { page: to, event } of sent) {
-      if (to !== page || event.key !== key) continue
-      items = event.reset ? [...event.items] : [...items, ...event.items]
-    }
-    return items
-  }
-  return {
-    service,
-    sent,
-    watches,
-    timers,
-    limits,
-    settle,
-    held,
-    texts: (page: string, key?: string) =>
-      held(page, key)
-        .filter((item): item is LogLine => item.kind === 'line')
-        .map((line) => line.text),
-    marks: (page: string, key?: string) =>
-      held(page, key).flatMap((item) => (item.kind === 'mark' ? [item.mark] : [])),
-    last: (page: string) => sent.filter((s) => s.page === page).at(-1)?.event,
-    async advance(ms: number) {
-      await settle()
-      const end = now + ms
-      for (;;) {
-        const due = [...timers.entries()].sort((a, b) => a[1].at - b[1].at)[0]
-        if (due === undefined || due[1].at > end) break
-        timers.delete(due[0])
-        now = due[1].at
-        due[1].fn()
-        await settle()
-      }
-      now = end
-      await settle()
-    },
-  }
-}
 
 const one = (file: string): Entries => ({ [ID]: { path: file, pattern: null, format: null } })
 

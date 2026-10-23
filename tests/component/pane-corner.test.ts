@@ -2,6 +2,8 @@ import { pane, tabs } from '@shared/layout-ops'
 import { render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubMatchMedia } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -24,12 +26,11 @@ await import('../../src/renderer/widgets/builtins.ts')
  */
 beforeEach(() => {
   // A readout pane (netstat) subscribes to its source as it mounts.
-  vi.stubGlobal('elecdex', {
-    layout: { save: vi.fn(async () => {}) },
+  stubElecdex({
     metrics: { subscribe: vi.fn(() => () => {}) },
     system: { platform: 'win32' },
   })
-  vi.stubGlobal('matchMedia', () => ({ matches: false }))
+  stubMatchMedia()
 })
 
 afterEach(() => {

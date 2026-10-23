@@ -1,6 +1,8 @@
 import { cleanup, render } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { inertDom, stubIntersectionObserver } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 vi.mock('../../src/renderer/widgets/audio/spectrum-draw.ts', () => ({
   MeterPainter: class {
@@ -34,47 +36,21 @@ beforeEach(() => {
   live.spectrum = 0
   live.mixer = 0
   windowState.onScreen = true
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      readonly #callback: IntersectionObserverCallback
-      constructor(callback: IntersectionObserverCallback) {
-        this.#callback = callback
-      }
-      observe() {
-        this.#callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never)
-      }
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
+  stubIntersectionObserver()
+  inertDom()
   const counted = (key: keyof typeof live) => () => {
     live[key] += 1
     return () => {
       live[key] -= 1
     }
   }
-  vi.stubGlobal('elecdex', {
+  stubElecdex({
     audio: {
       spectrum: counted('spectrum'),
       mixer: counted('mixer'),
       mixerCommand: vi.fn(),
       restoreMonitor: vi.fn(),
     },
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 
@@ -84,11 +60,6 @@ afterEach(async () => {
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 describe.each([
   { name: 'spectrum', component: SpectrumWidget, key: 'spectrum' as const },

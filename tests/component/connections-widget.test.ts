@@ -1,8 +1,9 @@
 import type { MetricSample, NetSocket, NetSockets } from '@shared/metrics'
 import { socketKey } from '@shared/sockets'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: ConnectionsWidget } = await import(
   '../../src/renderer/widgets/connections/ConnectionsWidget.svelte'
@@ -52,7 +53,7 @@ beforeEach(() => {
   // The store applies a sample in the next shared frame; nothing drives a frame
   // loop here, so the stall timer is what delivers it (frame-loop.ts).
   vi.useFakeTimers()
-  vi.stubGlobal('elecdex', {
+  stubElecdex({
     metrics: {
       subscribe: (_id: string, onSample: (sample: MetricSample) => void) => {
         deliver = onSample
@@ -61,7 +62,6 @@ beforeEach(() => {
         }
       },
     },
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 
@@ -73,11 +73,6 @@ afterEach(async () => {
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 /** Past the frame loop's stall timer, which is what applies a waiting sample. */
 async function frame(): Promise<void> {

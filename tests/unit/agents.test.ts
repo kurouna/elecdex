@@ -740,7 +740,10 @@ describe('the Claude Code source', () => {
       record,
       `${assistant([{ type: 'tool_use', name: 'Bash', input: { description: 'Run the tests' } }])}\n`,
     )
-    await new Promise((resolve) => setTimeout(resolve, 900))
+    // As soon as the watcher has read the line, not after a fixed wait.
+    await vi.waitFor(() =>
+      expect(source.sessions(Date.now())[0]?.activity).toMatchObject({ tool: 'Bash' }),
+    )
     const [session] = source.sessions(Date.now())
     source.stop()
     expect(session?.activity).toMatchObject({ tool: 'Bash', detail: 'Run the tests' })

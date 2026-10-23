@@ -13,8 +13,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  * and everything behind it is real: a real folder, a real copy, a real scan.
  */
 
-type Handler = (event: unknown, ...args: unknown[]) => unknown
-const handlers = new Map<string, Handler>()
+const { handles: handlers, ipcMain } = await vi.hoisted(async () =>
+  (await import('./support/electron-ipc')).fakeIpcMain(),
+)
 const sent: Array<{ channel: string; payload: unknown }> = []
 
 let userData = ''
@@ -25,12 +26,7 @@ let replaceAnswer = 1
 
 vi.mock('electron', () => ({
   app: { getPath: () => userData, getVersion: () => '0.0.0' },
-  ipcMain: {
-    handle: (channel: string, handler: Handler) => handlers.set(channel, handler),
-    removeHandler: (channel: string) => handlers.delete(channel),
-    on: () => {},
-    off: () => {},
-  },
+  ipcMain,
   BrowserWindow: { fromWebContents: () => null },
   dialog: {
     showOpenDialog: async () => ({ canceled: picked.length === 0, filePaths: picked }),

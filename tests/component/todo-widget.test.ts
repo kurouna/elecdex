@@ -1,8 +1,11 @@
 import { defaultSettings } from '@shared/settings'
 import type { NewTask, Task, TaskPatch, TasksFile } from '@shared/tasks'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
+import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubMatchMedia, stubResizeObserver } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: TodoWidget } = await import('../../src/renderer/widgets/todo/TodoWidget.svelte')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
@@ -67,26 +70,10 @@ beforeEach(() => {
     return next
   })
   remove = vi.fn(async () => true)
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      readonly #callback: () => void
-      constructor(callback: () => void) {
-        this.#callback = callback
-      }
-      observe() {
-        this.#callback()
-      }
-      disconnect() {}
-    },
-  )
+  stubResizeObserver('once')
   // The completion delay asks whether motion is reduced; jsdom has no matchMedia.
-  vi.stubGlobal('matchMedia', () => ({
-    matches: false,
-    addEventListener() {},
-    removeEventListener() {},
-  }))
-  vi.stubGlobal('elecdex', {
+  stubMatchMedia()
+  stubElecdex({
     tasks: {
       list: vi.fn(async () => structuredClone(file)),
       add,
@@ -102,7 +89,6 @@ beforeEach(() => {
       },
       onRemind: () => () => {},
     },
-    layout: { load: vi.fn(), save: vi.fn(async () => undefined) },
     settings: { patch: vi.fn(async () => defaultSettings()) },
   })
   vi.spyOn(layout, 'setPaneState').mockImplementation(() => {})
@@ -117,11 +103,6 @@ afterEach(async () => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 const input = (): HTMLInputElement => screen.getByTestId('todo-input') as HTMLInputElement
 

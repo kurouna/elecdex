@@ -1,6 +1,7 @@
 import { pane, split } from '@shared/layout-ops'
 import { LAYOUT_VERSION } from '@shared/schemas/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubElecdex } from './support/elecdex.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -14,7 +15,7 @@ const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 describe('layout.arrived', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    vi.stubGlobal('elecdex', { layout: { save: vi.fn(async () => {}) } })
+    stubElecdex()
     const a = pane('clock')
     const b = pane('calendar')
     layout.tree = { version: LAYOUT_VERSION, root: split('row', [a, b]) }

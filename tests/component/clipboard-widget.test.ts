@@ -1,8 +1,10 @@
 import type { ClipBoard, ClipEntryView } from '@shared/clipboard'
 import type { SnippetAdded, SnippetDraft, SnippetView } from '@shared/snippets'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { finishAnimations, inertDom } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: ClipboardWidget } = await import(
   '../../src/renderer/widgets/clipboard/ClipboardWidget.svelte'
@@ -104,32 +106,11 @@ beforeEach(() => {
   kept = []
   drafts.clear()
   for (const mock of Object.values(snippets)) if ('mockClear' in mock) mock.mockClear()
-  // New rows come in with a flip; jsdom runs no animations.
-  Element.prototype.getAnimations ??= () => []
-  // jsdom has no Web Animations: enough of one for a transition to run its length and end.
-  Element.prototype.animate = function animate(_frames, options) {
-    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
-    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
-    setTimeout(() => animation.onfinish?.(), length)
-    return animation as unknown as Animation
-  }
-  // The card powers on like a tube, which asks whether motion is reduced.
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  // The pane measures its height (fewer lines per row when short); jsdom has no observer.
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal('elecdex', {
+  // New rows come in with a flip, and the card powers on like a tube, which asks whether
+  // motion is reduced; the pane measures its height (fewer lines per row when short).
+  finishAnimations()
+  inertDom()
+  stubElecdex({
     clipboard: {
       subscribe: (handler: (board: ClipBoard) => void) => {
         subscriptions += 1
@@ -145,21 +126,16 @@ beforeEach(() => {
       pause,
     },
     snippets,
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 
 afterEach(async () => {
   cleanup()
   Reflect.deleteProperty(Element.prototype, 'animate')
+  vi.useRealTimers()
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 async function mount(state: Record<string, unknown> = {}, visible = true) {
   const view = render(ClipboardWidget, {
@@ -307,8 +283,10 @@ ${'x'.repeat(700)}`
 
     await view.rerender({ state: { mask: true } })
     await settle()
+    // Past the rest that opened it above, on a fake clock (lib/hover-card.ts).
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     await fireEvent.pointerEnter(screen.getByTestId('clip-row'), { clientX: 40 })
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await vi.advanceTimersByTimeAsync(500)
     await settle()
     expect(screen.queryByTestId('clip-card')).toBeNull()
   })

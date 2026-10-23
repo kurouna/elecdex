@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubResizeObserver } from './support/dom.ts'
+import { mergePatch, stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: CalcWidget } = await import('../../src/renderer/widgets/calc/CalcWidget.svelte')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
@@ -19,29 +21,12 @@ let state: Record<string, unknown>
 beforeEach(() => {
   state = {}
   // The tally draws its histogram on a canvas; jsdom has neither of these.
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      readonly #callback: () => void
-      constructor(callback: () => void) {
-        this.#callback = callback
-      }
-      observe() {
-        this.#callback()
-      }
-      disconnect() {}
-    },
-  )
-  vi.stubGlobal('elecdex', {
-    layout: { load: vi.fn(), save: vi.fn(async () => undefined) },
-  })
+  stubResizeObserver('once')
+  stubElecdex()
   // The pane writes only what changed through the layout store; merge it into
   // what is held, as the store does, removing a key set to undefined.
   vi.spyOn(layout, 'patchPaneState').mockImplementation((_id, patch) => {
-    // IPC cannot clone a $state proxy, so a mock must copy as IPC would.
-    const next = { ...state, ...structuredClone(patch) }
-    for (const [key, value] of Object.entries(patch)) if (value === undefined) delete next[key]
-    state = next
+    state = mergePatch(state, patch)
   })
 })
 
@@ -51,11 +36,6 @@ afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 const input = (): HTMLInputElement => screen.getByTestId('calc-input') as HTMLInputElement
 
@@ -75,12 +55,6 @@ describe('CalcWidget', () => {
     await type('1920*1080')
     expect(screen.getByTestId('calc-preview').textContent?.replace(/\s/g, '')).toBe('2,073,600')
     expect(state.tape).toBeUndefined()
-  })
-
-  it('reads a line typed with a Japanese keyboard', async () => {
-    render(CalcWidget, { props: { paneId: 'p', state: {} } as never })
-    await type('３百万÷12')
-    expect(screen.getByTestId('calc-preview').textContent?.replace(/\s/g, '')).toBe('250,000')
   })
 
   it('puts a committed line on the tape and keeps the answer as ans', async () => {

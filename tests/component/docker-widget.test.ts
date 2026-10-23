@@ -5,8 +5,10 @@ import {
   EMPTY_DOCKER_BOARD,
 } from '@shared/docker'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
-import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { finishAnimations, inertDom } from './support/dom.ts'
+import { stubElecdex } from './support/elecdex.ts'
+import { settle } from './support/settle.ts'
 
 const { default: DockerWidget } = await import(
   '../../src/renderer/widgets/docker/DockerWidget.svelte'
@@ -88,28 +90,9 @@ beforeEach(() => {
   control.mockResolvedValue('ok')
   copy.mockClear()
   openExternal.mockClear()
-  vi.stubGlobal('matchMedia', (query: string) => ({
-    matches: false,
-    media: query,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }))
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    },
-  )
-  Element.prototype.getAnimations ??= () => []
-  Element.prototype.animate = function animate(_frames, options) {
-    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
-    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
-    setTimeout(() => animation.onfinish?.(), length)
-    return animation as unknown as Animation
-  }
-  vi.stubGlobal('elecdex', {
+  inertDom()
+  finishAnimations()
+  stubElecdex({
     docker: {
       subscribe: (handler: (board: DockerBoard) => void) => {
         subscriptions += 1
@@ -123,7 +106,6 @@ beforeEach(() => {
     },
     utility: { copy: (what: unknown) => copy(structuredClone(what)) },
     system: { platform: 'linux', openExternal },
-    layout: { save: vi.fn(async () => {}) },
   })
 })
 
@@ -135,11 +117,6 @@ afterEach(async () => {
   await layout.flush()
   vi.unstubAllGlobals()
 })
-
-async function settle(): Promise<void> {
-  for (let i = 0; i < 5; i++) await tick()
-  flushSync()
-}
 
 async function mount(state: Record<string, unknown> = {}, visible = true) {
   const view = render(DockerWidget, {
