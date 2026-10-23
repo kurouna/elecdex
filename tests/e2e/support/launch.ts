@@ -257,8 +257,34 @@ export const STUB_ENV: Record<string, string> = {
   ELECDEX_SEED_LAYOUTS: '0',
 }
 
+/**
+ * Every profile a launch made, removed as the worker ends: a test that quits and starts a second
+ * app on the same profile by hand cannot have it removed for it by the first app's close.
+ */
+const madeProfiles = new Set<string>()
+process.once('exit', () => {
+  for (const dir of madeProfiles) removeDir(dir)
+})
+
+function madeProfile(dir: string): string {
+  madeProfiles.add(dir)
+  return dir
+}
+
+/** `launched`, whose close also removes `dir`, through every relaunch after it. */
+function ownedBy(dir: string, launched: Launched): Launched {
+  return {
+    ...launched,
+    relaunch: async () => ownedBy(dir, await launched.relaunch()),
+    close: async () => {
+      await launched.close()
+      removeDir(dir)
+    },
+  }
+}
+
 export async function launch(userData?: string, options: LaunchOptions = {}): Promise<Launched> {
-  const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
+  const dir = userData ?? madeProfile(mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-')))
   // Only on a fresh directory: a relaunch keeps whatever the app saved.
   if (userData === undefined) {
     writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(quietly(options.settings)))
@@ -322,7 +348,10 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       await closeApp(app)
       // The seeded layout was only for the first start; keep what the app saved.
       const { layout: _seeded, ...rest } = options
-      return launch(dir, rest)
+      const next = await launch(dir, rest)
+      // A profile this launch made is still its own after the restart: the last close removes it
+      // (relaunched apps once left a thousand profiles behind in the temp folder).
+      return userData === undefined ? ownedBy(dir, next) : next
     },
     quit: () => closeApp(app),
     warnings: () => [...warnings],

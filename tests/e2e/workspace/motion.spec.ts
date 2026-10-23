@@ -1,0 +1,914 @@
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
+import type { Page } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from '../support/shared.js'
+import {
+  bringWindowBack,
+  keepLayout,
+  launch,
+  NO_SWITCH_PROMPT,
+  paneById,
+  putWindowAway,
+  quietFor,
+  removeDir,
+  SINGLE_TERMINAL,
+  single,
+  waitForSaved,
+} from '../support.js'
+
+/**
+ * Entrance and exit effects: the calendar's wave, a new pane's power-on, a closed
+ * pane's power-off with its neighbours extending into its room, and all of them
+ * staying still with motion reduced. The effects are CSS animations of elements created
+ * for them, so what is checked is which elements are created and what animation
+ * their computed style gives them - not frames, which would make the tests slow
+ * and flaky. The new-row effects of the RSS and quakes panes are in their specs.
+ */
+
+const calendarOnly = single('calendar', { id: 'c' })
+/**
+ * The month on screen. A pane this size shows the months either side of it as
+ * well (tools.spec covers that); the wave is the same in each, so it is read
+ * from the one in the middle.
+ */
+const CURRENT = '[data-testid=calendar-grid][data-current]'
+const cells = (page: Page) => page.locator(`${CURRENT} [data-testid=calendar-day]`)
+
+/** The computed animation of the first and last cells, and of today's ring. */
+const waveStyle = (page: Page) =>
+  page.evaluate((current) => {
+    const days = [
+      ...document.querySelectorAll<HTMLElement>(`${current} [data-testid=calendar-day]`),
+    ]
+    const style = (el: Element | undefined, pseudo?: string) => {
+      if (el === undefined) return null
+      const s = getComputedStyle(el, pseudo)
+      return { name: s.animationName, duration: s.animationDuration, delay: s.animationDelay }
+    }
+    return {
+      first: style(days[0]),
+      last: style(days[41]),
+      today: style(document.querySelector('[data-today]') ?? undefined, '::after'),
+    }
+  }, CURRENT)
+
+test('a month comes in as a wave the way the calendar moved, and "today" pings once it arrives', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: calendarOnly })
+  try {
+    const calendar = page.getByTestId('calendar')
+    await expect(cells(page)).toHaveCount(42)
+    await expect(calendar).toHaveAttribute('data-wave', 'next')
+    let style = await waveStyle(page)
+    expect(style.first).toMatchObject({ duration: '0.42s', delay: '0s' })
+    expect(style.first?.name).toMatch(/day-in/)
+    // The last cell is 11 diagonals on, at 22 ms each.
+    expect(style.last?.delay).toBe('0.242s')
+    expect(style.today?.name).toMatch(/today-ping/)
+
+    // Each change of month makes new cells, which replay the wave from its side.
+    const marked = () =>
+      page.evaluate((current) => {
+        const first = document.querySelector(`${current} [data-testid=calendar-day]`) as HTMLElement
+        first.dataset.probe = 'old'
+      }, CURRENT)
+    const stillThere = () => page.locator('[data-probe=old]').count()
+    await marked()
+    await page.getByTestId('calendar-prev').click()
+    await expect(calendar).toHaveAttribute('data-wave', 'prev')
+    expect(await stillThere()).toBe(0)
+    style = await waveStyle(page)
+    expect([style.first?.delay, style.last?.delay]).toEqual(['0.242s', '0s'])
+
+    await marked()
+    await page.getByTestId('calendar-today').click()
+    await expect(calendar).toHaveAttribute('data-wave', 'next')
+    expect(await stillThere()).toBe(0)
+
+    // "today" on the month already shown changes nothing, so replays nothing.
+    await marked()
+    await page.getByTestId('calendar-today').click()
+    expect(await stillThere()).toBe(1)
+  } finally {
+    await close()
+  }
+})
+
+test('a pane added from the picker powers on once', async ({ shared }) => {
+  const { page, close } = await shared({ layout: calendarOnly })
+  try {
+    const existing = page.locator('[data-testid=pane][data-widget=calendar]')
+    await expect(existing).toHaveCount(1)
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    const added = page.locator('[data-testid=pane][data-widget=clock]')
+    await expect(added).toHaveClass(/crt-on/)
+    await expect(added).toHaveCSS('--crt-duration', '520ms')
+    // The pane already there does not power on again.
+    await expect(existing).not.toHaveClass(/crt-on/)
+    // Once played, the class goes, and with it the layer it asks the GPU for.
+    await expect(added).not.toHaveClass(/crt-on/, { timeout: 3000 })
+    await expect(added).toHaveCSS('will-change', 'auto')
+  } finally {
+    await close()
+  }
+})
+
+const paneNode = (id: string, widget: string) => ({ kind: 'pane', id, widget })
+const byId = paneById
+
+/** Starts counting the power-ons panes play, by widget, from here on. */
+const recordPowerOns = (page: Page) =>
+  page.evaluate(() => {
+    const played: string[] = []
+    ;(window as unknown as { powerOns: string[] }).powerOns = played
+    document.addEventListener(
+      'animationstart',
+      (event) => {
+        const el = event.target as HTMLElement
+        if (event.animationName === 'crt-power-on' && el.dataset.testid === 'pane')
+          played.push(el.dataset.widget ?? '')
+      },
+      true,
+    )
+  })
+
+const powerOns = (page: Page) =>
+  page.evaluate(() => (window as unknown as { powerOns: string[] }).powerOns)
+
+test('a new tab put behind another before it has powered on does not power on again when shown', async ({
+  shared,
+}) => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'tabs',
+      id: 'g',
+      activeIndex: 0,
+      children: [paneNode('a', 'calendar'), paneNode('b', 'sysinfo')],
+    },
+  }
+  const { page, close } = await shared({ layout })
+  try {
+    await expect(page.getByTestId('tab')).toHaveCount(2)
+    await recordPowerOns(page)
+    // Two new tabs within the first one's power-on: it is display:none before it
+    // has played, which cancels the animation without an event to say so.
+    await page.evaluate(async () => {
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      document.querySelector<HTMLElement>('[data-testid=tab-new]')?.click()
+      await frame()
+      await frame()
+      document.querySelector<HTMLElement>('[data-testid=tab-new]')?.click()
+    })
+    await expect(page.getByTestId('tab')).toHaveCount(4)
+    await expect(page.locator('[data-testid=pane].crt-on')).toHaveCount(0, { timeout: 3000 })
+    // One or two by now: the first tab may be hidden before its animation has started.
+    const played = await powerOns(page)
+    expect(played.length).toBeGreaterThanOrEqual(1)
+
+    await page.getByTestId('tab').nth(2).click()
+    await quietFor(700, () => powerOns(page), 'the power-ons played')
+    expect(await powerOns(page)).toEqual(played)
+  } finally {
+    await close()
+  }
+})
+
+test('a new pane brought forward before it has powered on does not power on again in front', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: calendarOnly })
+  try {
+    await recordPowerOns(page)
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=notes]').click()
+    // Within the power-on: the flight replaces its animation, so it never ends.
+    await page.evaluate(async () => {
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      for (let i = 0; i < 6; i++) await frame()
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          bubbles: true,
+          key: 'Z',
+          code: 'KeyZ',
+          ctrlKey: true,
+          shiftKey: true,
+        }),
+      )
+    })
+    await expect(page.locator('[data-testid=pane].zoomed')).toHaveCount(1)
+    await quietFor(1200, () => powerOns(page), 'the power-ons played')
+    expect(await powerOns(page)).toEqual(['notes'])
+    await expect(page.locator('[data-testid=pane].zoomed')).not.toHaveClass(/crt-on/)
+  } finally {
+    await close()
+  }
+})
+
+/** What an element goes on asking of the compositor: its `will-change`, and animations still in effect. */
+const heldBy = (page: Page, selector: string) =>
+  page.locator(selector).evaluate((el) => ({
+    willChange: getComputedStyle(el).willChange,
+    animations: el.getAnimations({ subtree: true }).map((animation) => {
+      const effect = animation.effect as KeyframeEffect | null
+      return `${(animation as CSSAnimation).animationName}${effect?.pseudoElement ?? ''}`
+    }),
+  }))
+
+test('what keeps its power-on class holds nothing once it has played: a note, a toast', async ({
+  shared,
+}) => {
+  // A pane loses the class when it has powered on; a note's sheet, a toast, a
+  // dialog keep it for as long as they show. The class asked for a layer
+  // (will-change) and its beam and scanlines filled forwards, so each kept three
+  // layers for good - a note's for as long as the pane was open.
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [0.5, 0.5],
+      children: [
+        paneNode('n', 'notes'),
+        { ...paneNode('t', 'timer'), state: { mode: 'timer', durationMs: 1000 } },
+      ],
+    },
+  }
+  const { page, close } = await shared({
+    layout,
+    settings: { sound: { enabled: false }, motion: 'full' },
+  })
+  try {
+    const sheet = '[data-widget=notes] .body.crt-on'
+    await expect(page.locator(sheet)).toHaveCount(1)
+    await expect
+      .poll(() => heldBy(page, sheet), { timeout: 5000 })
+      .toEqual({
+        willChange: 'auto',
+        animations: [],
+      })
+
+    await page.getByTestId('timer-start').click()
+    await expect(page.getByTestId('toast')).toHaveCount(1, { timeout: 15_000 })
+    // The fuse burning down the card's edge is the toast's own, and still running.
+    await expect
+      .poll(async () => {
+        const held = await heldBy(page, '[data-testid=toast]')
+        return { ...held, animations: held.animations.filter((name) => !/burn/.test(name)) }
+      })
+      .toEqual({ willChange: 'auto', animations: [] })
+  } finally {
+    await close()
+  }
+})
+
+test('a clock stands still while the window is minimised, and is right the moment it is back', async () => {
+  const { app, page, close } = await launch(undefined, { layout: single('clock', { id: 'k' }) })
+  try {
+    const shown = () => page.locator('[data-testid=clock] time').getAttribute('datetime')
+    await expect(page.getByTestId('clock')).toBeVisible()
+    await putWindowAway(app, page)
+    // Nothing of the page is rewritten for a window nobody can see.
+    const put = await shown()
+    await quietFor(2500, shown, 'the time shown')
+    expect(await shown()).toBe(put)
+
+    await bringWindowBack(app, page)
+    // At once, not at the next second: read in the same task as the page learns of it.
+    const back = Date.parse((await shown()) ?? '')
+    expect(back - Date.parse(put ?? '')).toBeGreaterThanOrEqual(2000)
+    expect(Math.abs(Date.now() - back)).toBeLessThan(1500)
+  } finally {
+    await close()
+  }
+})
+
+test('an animation that never ends stops while the window is put away', async () => {
+  // A plugin's busy icons: they turn and pulse for as long as the plugin says so.
+  const dir = busyProfile({})
+  const { app, page, close } = await launch(dir, { layout: BUSY_LAYOUT })
+  try {
+    await expect(page.locator('[data-testid=plugin-button] svg[data-icon=refresh]')).toBeVisible()
+    const endless = () =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              animation.effect?.getComputedTiming().iterations === Number.POSITIVE_INFINITY,
+          )
+          .map((animation) => animation.playState),
+      )
+    await expect.poll(endless).toEqual(['running', 'running'])
+    await putWindowAway(app, page)
+    expect(await endless()).toEqual(['paused', 'paused'])
+    await bringWindowBack(app, page)
+    expect(await endless()).toEqual(['running', 'running'])
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+})
+
+test('a toast burning down its fuse stops while the window is put away', async () => {
+  // A reminder is raised precisely when nobody is looking, and its fuse then
+  // burned for ten or twenty seconds in a window that is not on screen.
+  const layout = single('timer', { id: 't', state: { mode: 'timer', durationMs: 2000 } })
+  const { app, page, close } = await launch(undefined, { layout })
+  try {
+    await page.getByTestId('timer-start').click()
+    await expect(page.getByTestId('toast')).toHaveCount(1, { timeout: 15_000 })
+    const fuse = () =>
+      page.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .find((animation) => ((animation as CSSAnimation).animationName ?? '').includes('burn'))
+            ?.playState ?? 'gone',
+      )
+    expect(await fuse()).toBe('running')
+    await putWindowAway(app, page)
+    expect(await fuse()).toBe('paused')
+    await bringWindowBack(app, page)
+    expect(await fuse()).toBe('running')
+  } finally {
+    await close()
+  }
+})
+
+test("a countdown's last seconds pulse its ladder without an animation that never ends", async ({
+  shared,
+}) => {
+  const layout = single('timer', { id: 't', state: { mode: 'timer', durationMs: 9000 } })
+  const { page, close } = await shared({ layout })
+  try {
+    await page.getByTestId('timer-start').click()
+    // Under ten seconds the ladder pulses: the steps it always had, on the shared beat.
+    const seen = await page.evaluate(async () => {
+      const ladder = document.querySelector('.ladder') as HTMLElement
+      const levels = new Set<string>()
+      for (let i = 0; i < 14; i++) {
+        levels.add(getComputedStyle(ladder).opacity)
+        // wait: the ladder's opacity sampled every tenth of a second, the measurement itself.
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      const endless = document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations === Number.POSITIVE_INFINITY)
+      return { levels: [...levels].sort(), endless: endless.length }
+    })
+    expect(seen.endless).toBe(0)
+    expect(seen.levels).toEqual(['0.55', '0.775', '1'])
+  } finally {
+    await close()
+  }
+})
+
+interface Effects {
+  /** Each effect class a pane was given, as "id:class". */
+  seen: Set<string>
+  /** For each pane that extended: its animation and where its clip started on the left. */
+  extended: Record<string, { animation: string; fromLeft: string }>
+}
+
+/**
+ * Starts recording the effects panes are given: an extension lasts 220 ms, shorter
+ * than a poll between two assertions may take, so it is caught as it is applied.
+ */
+const recordEffects = (page: Page) =>
+  page.evaluate(() => {
+    const effects: Effects = { seen: new Set(), extended: {} }
+    ;(window as unknown as { effects: Effects }).effects = effects
+    const note = (el: HTMLElement) => {
+      const id = el.dataset.paneId as string
+      const names = [...el.classList].filter((name) => name.startsWith('crt-'))
+      for (const name of names) effects.seen.add(`${id}:${name}`)
+      if (!names.includes('crt-extend')) return
+      effects.extended[id] = {
+        animation: getComputedStyle(el).animationName,
+        fromLeft: el.style.getPropertyValue('--from-left'),
+      }
+    }
+    // A class change on a pane, or a pane mounted (a remount comes with its classes).
+    const panesIn = (node: Node): HTMLElement[] =>
+      node instanceof HTMLElement
+        ? [node, ...node.querySelectorAll<HTMLElement>('*')].filter(
+            (el) => el.dataset.testid === 'pane',
+          )
+        : []
+    new MutationObserver((records) => {
+      const touched = records.flatMap((r) => [r.target, ...r.addedNodes].flatMap(panesIn))
+      for (const el of touched) note(el)
+    }).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+  })
+
+const effectsSeen = (page: Page) =>
+  page.evaluate(() => [...(window as unknown as { effects: Effects }).effects.seen].sort())
+
+/** Clicks each pane's close button in one task, so the closes overlap for certain. */
+const closeAtOnce = (page: Page, ids: string[]) =>
+  page.evaluate((list) => {
+    for (const id of list) {
+      document
+        .querySelector<HTMLElement>(`[data-pane-id="${id}"] [data-testid=pane-close]`)
+        ?.click()
+    }
+  }, ids)
+
+/** Whether `pane` is still in the page a frame after clicking `button`, once Svelte has applied it. */
+const stillThereAfter = (page: Page, button: string, pane: string) =>
+  page.evaluate(
+    async ({ button, pane }) => {
+      document.querySelector<HTMLElement>(button)?.click()
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      return document.querySelector(pane) !== null
+    },
+    { button, pane },
+  )
+
+test('a closed pane powers off before it goes, and the shell beside it extends with one resize', async ({
+  shared,
+}) => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [0.5, 0.5],
+      children: [paneNode('c', 'clock'), paneNode('term', 'terminal')],
+    },
+  }
+  const { page, close } = await shared({ layout })
+  try {
+    const clock = byId(page, 'c')
+    const shell = byId(page, 'term')
+    await expect(shell.getByTestId('terminal-host')).toBeVisible()
+    // Every width the shell's host takes: a fit per frame would garble the shell's history.
+    await page.evaluate(() => {
+      const host = document.querySelector('[data-pane-id=term] [data-testid=terminal-host]')
+      const widths: number[] = []
+      ;(window as unknown as { widths: number[] }).widths = widths
+      new ResizeObserver(([entry]) => {
+        if (entry) widths.push(Math.round(entry.contentRect.width))
+      }).observe(host as Element)
+    })
+
+    await recordEffects(page)
+    await clock.getByTestId('pane-close').click()
+    await expect(clock).toHaveClass(/crt-off/)
+    await expect(clock).toHaveClass(/crt-beam/)
+    await expect(clock).toHaveAttribute('inert', '')
+    await expect(clock).toHaveCSS('animation-name', 'crt-power-off')
+    await expect(clock).toHaveCSS('--crt-duration', '300ms')
+    // Focus has already moved on.
+    await expect(shell).toHaveClass(/focused/)
+
+    await expect(clock).toHaveCount(0)
+    await expect(shell).not.toHaveClass(/crt-extend/)
+    await expect(shell).toHaveCSS('will-change', 'auto')
+    expect(await effectsSeen(page)).toEqual(['c:crt-beam', 'c:crt-off', 'term:crt-extend'])
+    // The shell took the clock's half: its clip started at its old left edge.
+    const extended = await page.evaluate(
+      () => (window as unknown as { effects: Effects }).effects.extended.term,
+    )
+    expect(extended?.animation).toBe('crt-extend')
+    expect(Number.parseInt(extended?.fromLeft ?? '', 10)).toBeGreaterThan(100)
+
+    const widths = await page.evaluate(() => (window as unknown as { widths: number[] }).widths)
+    expect(new Set(widths).size).toBe(2)
+  } finally {
+    await close()
+  }
+})
+
+test('closing panes in quick succession leaves the tree and the page in step', async () => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 'row',
+      direction: 'row',
+      sizes: [0.5, 0.5],
+      children: [
+        paneNode('a', 'clock'),
+        {
+          kind: 'split',
+          id: 'col',
+          direction: 'column',
+          sizes: [0.5, 0.5],
+          children: [paneNode('b', 'calendar'), paneNode('c', 'sysinfo')],
+        },
+      ],
+    },
+  }
+  const { page, userData, close } = await launch(undefined, { layout })
+  try {
+    await expect(byId(page, 'c')).toHaveCount(1)
+    // Closing b collapses the column: c moves up a level and remounts while b would still be going.
+    await recordEffects(page)
+    await closeAtOnce(page, ['b', 'c'])
+    await expect(byId(page, 'b')).toHaveCount(0)
+    await expect(byId(page, 'c')).toHaveCount(0)
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+    await expect(page.locator('.crt-off, .crt-extend')).toHaveCount(0)
+    // b went at once when c began to close; only c powered off, and a took the room.
+    expect(await effectsSeen(page)).toEqual(['a:crt-extend', 'c:crt-beam', 'c:crt-off'])
+    await waitForSaved(userData, (json) =>
+      isDeepStrictEqual(JSON.parse(json).root, paneNode('a', 'clock')),
+    )
+  } finally {
+    await close()
+  }
+})
+
+/** Unscaled: `none` once a power-on has ended, the identity matrix after a cancelled power-off. */
+const WHOLE = /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/
+
+const ESCAPE = { key: 'Escape', code: 'Escape' }
+const ADD_PANE = { key: 'A', code: 'KeyA', ctrlKey: true, shiftKey: true }
+const SETTINGS = { key: '>', code: 'Period', ctrlKey: true, shiftKey: true }
+
+interface DialogState {
+  present: boolean
+  inert: boolean
+  beam: boolean
+  /** Whether the dialog's closing beam is playing now, not merely left from an earlier close. */
+  beamRunning: boolean
+  backdropInert: boolean
+  backdropZ: string
+  backdropBackground: string
+  delay: string
+  /** From the first key press to the last frame: how long the run took to press them. */
+  elapsedMs: number
+}
+
+/**
+ * Presses `keys` one after another within a single task, each given a frame to
+ * take effect, and then describes the dialog `selector` finds: a close lasts
+ * 300 ms, too short to catch reliably between separate Playwright calls.
+ */
+/** A key press as the workspace reads it: the key, its code and the modifiers held. */
+interface Key {
+  key: string
+  code: string
+  ctrlKey?: boolean
+  shiftKey?: boolean
+}
+
+const keysThen = (page: Page, keys: Key[], selector: string) =>
+  page.evaluate(
+    async ({ keys, selector }): Promise<DialogState> => {
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      const startedAt = performance.now()
+      for (const init of keys) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...init }))
+        await frame()
+      }
+      const dialog = document.querySelector<HTMLElement>(selector)
+      const backdrop = dialog?.parentElement
+      return {
+        present: dialog !== null,
+        inert: dialog?.inert ?? false,
+        beam: dialog?.classList.contains('crt-beam') ?? false,
+        beamRunning: document.getAnimations().some((a) => {
+          const effect = a.effect as KeyframeEffect | null
+          return (
+            effect?.target === dialog &&
+            effect?.pseudoElement === '::after' &&
+            (a as CSSAnimation).animationName === 'crt-beam-off' &&
+            a.playState === 'running'
+          )
+        }),
+        backdropInert: backdrop?.inert ?? false,
+        backdropZ: backdrop?.style.zIndex ?? '',
+        backdropBackground: backdrop?.style.background ?? '',
+        delay: dialog?.style.getPropertyValue('--crt-delay') ?? '',
+        elapsedMs: performance.now() - startedAt,
+      }
+    },
+    { keys, selector },
+  )
+
+test('a dialog opened again while closing comes back whole, and another opens out of its line', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: calendarOnly })
+  try {
+    const picker = page.getByTestId('pane-picker')
+    await page.keyboard.press('Control+Shift+KeyA')
+    await expect(picker).toBeVisible()
+    const reopened = await keysThen(page, [ESCAPE, ADD_PANE], '[data-testid=pane-picker]')
+    expect(reopened).toMatchObject({ present: true, inert: false, backdropInert: false })
+    // Past the close it was spared: it is still there when that would have ended.
+    await quietFor(600, () => picker.count(), 'the pickers on screen')
+    await expect(picker).toHaveCount(1)
+    await expect(picker).toHaveCSS('opacity', '1')
+    await expect(picker).toHaveCSS('transform', WHOLE)
+    await expect(page.locator('[data-testid=pane-picker] input').first()).toBeFocused()
+    // Its spent beam is gone with the close, and with it the layer it held.
+    await expect(picker).not.toHaveClass(/crt-beam/)
+
+    // Closing that same picker and asking for the settings: it powers off again,
+    // beam and all, above a clear backdrop, and the settings open out of its line.
+    const handing = await keysThen(page, [ESCAPE, SETTINGS], '[data-testid=pane-picker]')
+    expect(handing).toMatchObject({
+      present: true,
+      inert: true,
+      beamRunning: true,
+      backdropZ: '901',
+    })
+    expect(handing.backdropBackground).toContain('transparent')
+    const settings = page.getByTestId('settings-dialog')
+    await expect(settings).toBeVisible()
+    const delay = await settings.evaluate((el) => el.style.getPropertyValue('--crt-delay'))
+    // The handover is only offered while the picture the other dialog is leaving
+    // behind is still becoming a line - about 112 ms in (crt-motion.ts: 0.45 of the
+    // 300 ms power-off, less 0.06 of the 380 ms power-on). A machine too loaded to
+    // get the second key pressed inside that has nothing left to hand over, and no
+    // delay is then the right answer rather than a failure.
+    const handedOver = handing.elapsedMs < 100
+    if (!handedOver) {
+      console.warn(`[e2e] ${handing.elapsedMs.toFixed(0)}ms to press two keys: no handover to test`)
+    }
+    test.skip(!handedOver, 'too slow here to hand one dialog to the next')
+    expect(
+      Number.parseInt(delay, 10),
+      `--crt-delay "${delay}" after ${handing.elapsedMs.toFixed(0)}ms`,
+    ).toBeGreaterThan(0)
+    await expect(picker).toHaveCount(0)
+    await expect(settings).toHaveCSS('transform', WHOLE)
+    // Only one shade is left once the picker has gone.
+    await expect(page.locator('.backdrop')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+/**
+ * Watches the panes across a layout switch, from one frame to the next.
+ *
+ * The two halves last a few hundred milliseconds each, which is too short to
+ * catch between separate Playwright calls - so the key is dispatched and the
+ * panes sampled every frame inside the page, and what comes back is what was
+ * ever seen.
+ */
+const watchSwitch = (page: Page, code: string) =>
+  page.evaluate(
+    async (key): Promise<{ off: boolean; on: boolean; delays: string[]; groupOff: boolean }> => {
+      const seen = { off: false, on: false, delays: [] as string[], groupOff: false }
+      const any = (selector: string): boolean => document.querySelector(selector) !== null
+      const sample = (): void => {
+        seen.off ||= any('[data-testid=pane].crt-off')
+        // A tab group powers off as a whole, its header and strip with it.
+        seen.groupOff ||= any('[data-testid=tabs-host].crt-off')
+        const on = [...document.querySelectorAll<HTMLElement>('[data-testid=pane].crt-on')]
+        seen.on ||= on.length > 0
+        for (const pane of on) {
+          const delay = pane.style.getPropertyValue('--crt-delay')
+          if (delay !== '') seen.delays.push(delay)
+        }
+      }
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          bubbles: true,
+          key: '1',
+          code: key,
+          ctrlKey: true,
+          shiftKey: true,
+        }),
+      )
+      const start = performance.now()
+      while (performance.now() - start < 2000) {
+        sample()
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+      }
+      return seen
+    },
+    code,
+  )
+
+test('a layout switch powers the old arrangement off and brings the new one on', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({
+    layout: single('terminal', { id: 'term' }),
+    settings: { sound: { enabled: false }, ...NO_SWITCH_PROMPT },
+  })
+  try {
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
+    // Something to come back to that is not what is on screen.
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(2)
+
+    const seen = await watchSwitch(page, 'Digit1')
+    expect(seen.off, 'the arrangement being left powers off').toBe(true)
+    expect(seen.on, 'the one arriving powers on').toBe(true)
+    // One after another rather than all at once, as at boot.
+    expect(seen.delays.length).toBeGreaterThan(0)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('a tab group powers off as one picture when the layout is switched', async ({ shared }) => {
+  // Its header and tab strip are part of the picture: powering off only the tab
+  // on top would leave the frame of an empty room lit.
+  const group = {
+    version: 1,
+    root: {
+      kind: 'tabs',
+      id: 'g',
+      activeIndex: 0,
+      children: [paneNode('t1', 'terminal'), paneNode('t2', 'terminal')],
+    },
+  }
+  const { page, close } = await shared({
+    layout: group,
+    settings: { sound: { enabled: false }, ...NO_SWITCH_PROMPT },
+  })
+  try {
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(3)
+
+    const seen = await watchSwitch(page, 'Digit1')
+    expect(seen.groupOff, 'the group powers off with its tabs').toBe(true)
+    expect(seen.on).toBe(true)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(2)
+  } finally {
+    await close()
+  }
+})
+
+test('with motion reduced, a layout switch just happens', async ({ shared }) => {
+  const { page, close } = await shared({
+    layout: single('terminal', { id: 'term' }),
+    settings: { sound: { enabled: false }, motion: 'reduced', ...NO_SWITCH_PROMPT },
+  })
+  try {
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(2)
+
+    const seen = await watchSwitch(page, 'Digit1')
+    expect(seen.off, 'nothing powers off').toBe(false)
+    expect(seen.on, 'nothing powers on').toBe(false)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('with motion reduced, nothing moves: the wave ends before it begins, a new pane just appears and a closed one just goes', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({
+    layout: calendarOnly,
+    settings: { sound: { enabled: false }, motion: 'reduced' },
+  })
+  try {
+    await expect(cells(page)).toHaveCount(42)
+    const style = await waveStyle(page)
+    expect(style.first?.duration).toBe('0s')
+    expect(style.last?.delay).toBe('0s')
+    expect(style.today?.duration).toBe('0s')
+
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    const added = page.locator('[data-testid=pane][data-widget=clock]')
+    await expect(added).toHaveCount(1)
+    await expect(added).not.toHaveClass(/crt-on/)
+
+    // And a closed pane just goes.
+    const clock = '[data-testid=pane][data-widget=clock]'
+    expect(await stillThereAfter(page, `${clock} [data-testid=pane-close]`, clock)).toBe(false)
+    await expect(page.locator('.crt-off, .crt-extend')).toHaveCount(0)
+
+    // And so does a dialog - which keeps `crt-on` for as long as it shows, so with
+    // its animations off its beam and scanlines were simply painted over it: bright
+    // rules across the top and bottom of every dialog, toast and notice. They are
+    // unseen but for their animation, which fills backwards (styles/crt.css).
+    await page.keyboard.press('Control+Shift+KeyA')
+    const picker = page.getByTestId('pane-picker')
+    await expect(picker).toBeVisible()
+    const overlays = await picker.evaluate((el) => [
+      getComputedStyle(el, '::after').opacity,
+      getComputedStyle(el, '::before').opacity,
+    ])
+    expect(overlays).toEqual(['0', '0'])
+    const after = await keysThen(page, [ESCAPE], '[data-testid=pane-picker]')
+    expect(after.present).toBe(false)
+
+    // A pane brought forward is simply there, at its full size, and simply back.
+    await page.keyboard.press('Control+Shift+KeyZ')
+    const forward = page.locator('[data-testid=pane].zoomed')
+    await expect(forward).toHaveCount(1)
+    await expect(forward).not.toHaveClass(/crt-zoom/)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('[data-testid=pane].zoomed')).toHaveCount(0)
+    await expect(page.locator('.crt-zoom, .crt-zoom-out')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+/** A plugin pane whose buttons are busy: one icon that turns, one that pulses. */
+const BUSY_PLUGIN = `export default {
+  apiVersion: 1, id: 'busy', title: 'busy',
+  view(ctx) {
+    ctx.render([{ t: 'buttons', items: [
+      { action: 'refresh', text: 'refresh', icon: 'refresh', busy: true },
+      { action: 'play', text: 'play', icon: 'play', busy: true },
+    ] }])
+  },
+}`
+
+/** A profile with the busy plugin installed and enabled, and `settings` beside it. */
+function busyProfile(settings: Record<string, unknown>): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
+  mkdirSync(path.join(dir, 'plugins'))
+  writeFileSync(path.join(dir, 'plugins', 'busy.js'), BUSY_PLUGIN)
+  writeFileSync(
+    path.join(dir, 'settings.json'),
+    JSON.stringify({
+      sound: { enabled: false },
+      ...settings,
+      plugins: { busy: { enabled: true, key: 'busy.js' } },
+    }),
+  )
+  return dir
+}
+
+/** The busy plugin's pane alone. */
+const BUSY_LAYOUT = single('plugin:busy', { id: 'p1' })
+
+/** The animation of each busy icon, with motion set in the app as `motion`. */
+async function busyIcons(motion: 'system' | 'full' | 'reduced', osReduced: boolean) {
+  const dir = busyProfile({ motion })
+  const { page, close } = await launch(dir, { layout: BUSY_LAYOUT })
+  try {
+    await page.emulateMedia({ reducedMotion: osReduced ? 'reduce' : 'no-preference' })
+    const icon = (name: string) =>
+      page.locator(`[data-testid=plugin-button] svg[data-icon=${name}]`)
+    await expect(icon('refresh')).toBeVisible()
+    const animation = (name: string) =>
+      icon(name).evaluate((el) => getComputedStyle(el).animationName)
+    return { refresh: await animation('refresh'), play: await animation('play') }
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+}
+
+test('a busy button icon follows the motion setting: it turns, or pulses with motion reduced', async () => {
+  // As the OS says, unless the setting says otherwise.
+  const system = await busyIcons('system', false)
+  expect(system.refresh).toMatch(/turn/)
+  expect(system.play).toMatch(/pulse/)
+  expect((await busyIcons('system', true)).refresh).toMatch(/pulse/)
+
+  // The in-app setting wins either way.
+  const reduced = await busyIcons('reduced', false)
+  expect(reduced.refresh).toMatch(/pulse/)
+  expect(reduced.play).toMatch(/pulse/)
+  expect((await busyIcons('full', true)).refresh).toMatch(/turn/)
+})
+
+test('the question before a paste of several lines powers on and off as a dialog does', async () => {
+  const { page, app, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  try {
+    const host = page
+      .locator('[data-testid=pane][data-widget=terminal]')
+      .getByTestId('terminal-host')
+    await expect(host).toBeVisible()
+    await app.evaluate(({ clipboard }) => clipboard.writeText('echo one\necho two'))
+    await host.click({ button: 'right', position: { x: 60, y: 60 } })
+    const dialog = page.getByTestId('paste-dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toHaveCSS('animation-name', 'crt-power-on')
+    const closing = await keysThen(page, [ESCAPE], '[data-testid=paste-dialog]')
+    expect(closing).toMatchObject({ present: true, inert: true, beam: true, backdropInert: true })
+    await expect(dialog).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

@@ -1,0 +1,1376 @@
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { type ElectronApplication, expect, type Page } from '@playwright/test'
+import { buildGame } from '../../../src/shared/elec16/cart-build.js'
+import {
+  atSize,
+  booted,
+  elec16Tab,
+  launchElec16Beside as launchBeside,
+  lcdLines,
+  playLines,
+  toMonitor,
+  typeLine,
+} from '../support/elec16.js'
+import { test } from '../support/shared.js'
+import {
+  atDesignSize,
+  bringWindowBack,
+  cpuSeconds,
+  launch,
+  pickerAnswers,
+  powerNote,
+  putWindowAway,
+  quietFor,
+  saveDialogAnswers,
+  settleLayout,
+  single,
+} from '../support.js'
+
+/**
+ * The ELEC-16 pane (docs/elec16.md): the monitor in ROM booting on the LCD, keys from the
+ * PC only while the pane has the focus and from the screen's keyboard, BRK getting a
+ * runaway program back, sleeping at the prompt, pausing out of sight and coming back by
+ * itself from the prompt, and TUNE's LCD and skin.
+ */
+
+/** A wide, short pane under the clock: the room the tour once gave it. */
+const UNDER_CLOCK = {
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 's',
+    direction: 'column',
+    sizes: [63, 37],
+    children: [
+      { kind: 'pane', id: 'clock', widget: 'clock' },
+      { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: false } },
+    ],
+  },
+}
+
+const BEHIND_A_TAB = {
+  version: 1,
+  root: {
+    kind: 'tabs',
+    id: 't',
+    activeIndex: 0,
+    children: [
+      { kind: 'pane', id: 'e16', widget: 'elec16' },
+      { kind: 'pane', id: 'clock', widget: 'clock' },
+    ],
+  },
+}
+
+test('boots to BASIC, sleeps at its prompt, takes keys only while it has the focus, and MON reaches the monitor', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'sleep')
+    // Not focused: the keys go elsewhere.
+    await page.keyboard.type('d')
+    await expect.poll(() => lcdLines(page)).toContain('>')
+    await page.getByTestId('elec16').focus()
+    await expect(page.getByTestId('elec16-lamp-keys')).toHaveText('keys')
+    await typeLine(page, 'print 6*7')
+    await expect.poll(() => lcdLines(page)).toContain('42')
+    await toMonitor(page)
+    await typeLine(page, 'd 0')
+    await expect
+      .poll(() => lcdLines(page))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/^0000:/)]))
+    // A symbol on a shifted face, and a letter with the PC Shift: CAPS is on, so it is small.
+    await page.keyboard.type('!')
+    await page.keyboard.press('Shift+KeyA')
+    await expect.poll(async () => (await lcdLines(page)).includes('*!a')).toBe(true)
+  } finally {
+    await close()
+  }
+})
+
+test("the screen's keys type, and BRK gets a program that never ends back", async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await toMonitor(page)
+    const keys = page.getByTestId('elec16-keys')
+    // Wide enough for the whole keyboard, or else at least the row a compact body keeps.
+    await expect(keys).toBeVisible()
+    await page.getByTestId('elec16').focus()
+    // c.j 0 at 0x7000: a jump to itself.
+    await typeLine(page, 'e 7000 01 a0')
+    await typeLine(page, 'g 7000')
+    await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'run')
+    await page.getByTestId('elec16-brk').click()
+    await expect.poll(() => lcdLines(page)).toContain('BREAK AT 7000')
+    await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'sleep')
+    await keys.locator('[data-key=cls]').click()
+    await expect.poll(() => lcdLines(page)).toEqual(['*', '', '', '', '', ''])
+  } finally {
+    await close()
+  }
+})
+
+test('pauses behind a tab, and comes back by itself when it was asleep at its prompt', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: BEHIND_A_TAB })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const root = page.getByTestId('elec16')
+    await page.getByTestId('tab').nth(1).click()
+    await expect(root).toHaveAttribute('data-status', 'paused')
+    await page.getByTestId('tab').nth(0).click()
+    await expect(root).toHaveAttribute('data-status', 'running')
+  } finally {
+    await close()
+  }
+})
+
+test('a pane split beside it keeps its machine, RAM, screen and all', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await toMonitor(page)
+    await typeLine(page, 'e 7000 5a')
+    await page.keyboard.type('d 7', { delay: 15 })
+    // Splitting the pane remounts its widget (the new one beside it is a second ELEC-16): the
+    // machine is taken up where it was, the half-typed line with it.
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(page.getByTestId('pane')).toHaveCount(3)
+    const original = page.locator('[data-testid=pane][data-pane-id=e16]')
+    const lines = async () =>
+      ((await original.getByTestId('elec16-text').textContent()) ?? '')
+        .split('\n')
+        .map((l) => l.trimEnd())
+    await expect.poll(lines).toContain('*D 7')
+    await original.getByTestId('elec16').focus()
+    await page.keyboard.type('000', { delay: 15 })
+    await page.keyboard.press('Enter')
+    await expect.poll(lines).toEqual(expect.arrayContaining([expect.stringMatching(/^7000: 5A/)]))
+  } finally {
+    await close()
+  }
+})
+
+test('TUNE fits another LCD, keeping the RAM, and changes the skin', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await toMonitor(page)
+    // Above BASIC's room for a program, where switching on writes nothing.
+    await typeLine(page, 'e 7000 5a')
+    await elec16Tab(page, 'tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=pocket-64]').click()
+    await expect.poll(async () => (await lcdLines(page)).length).toBe(8)
+    await booted(page)
+    await toMonitor(page)
+    await typeLine(page, 'd 7000')
+    await expect
+      .poll(() => lcdLines(page))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/^7000: 5A/)]))
+    await page.locator('[data-testid=elec16-skin][data-skin=night]').click()
+    await expect(page.getByTestId('elec16-device')).toHaveAttribute('data-skin', 'night')
+  } finally {
+    await close()
+  }
+})
+
+/** The keys whose label is wider than the key, as drawn (narrowed labels at their width). */
+const overflowing = (page: Page): Promise<string[]> =>
+  page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('[data-testid=elec16-key] .cap')]
+      .filter((cap) => {
+        const scale = Number(/scaleX\(([\d.]+)\)/.exec(cap.style.transform)?.[1] ?? 1)
+        return cap.offsetWidth * scale > (cap.parentElement?.clientWidth ?? 0) - 2
+      })
+      .map((cap) => cap.parentElement?.dataset.key ?? '?'),
+  )
+
+const RELIEF_FACES = {
+  alloy: '500 10px "Barlow Condensed"',
+  graphite: '600 10px "IBM Plex Sans Condensed"',
+  neo: '500 10px "Inter Tight"',
+  mochi: '700 10px "M PLUS Rounded 1c"',
+  glass: '500 10px "Albert Sans"',
+} as const
+
+test('the five relief skins: modelled in light, each in its bundled face, every label in its key', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await elec16Tab(page, 'tune').click()
+    const device = page.getByTestId('elec16-device')
+    for (const [skin, face] of Object.entries(RELIEF_FACES)) {
+      await page.locator(`[data-testid=elec16-skin][data-skin=${skin}]`).click()
+      await expect(device).toHaveAttribute('data-skin', skin)
+      await expect(device).toHaveClass(/\brelief\b/)
+      // The face is the bundled one, loaded (the page loads fonts only from itself): a face
+      // the page does not have loads nothing, where `check` would say true.
+      await expect
+        .poll(() => page.evaluate(async (f) => (await document.fonts.load(f)).length, face))
+        .toBeGreaterThan(0)
+      // Its material is a picture of its own, never fetched.
+      const image = await device.evaluate((el) => getComputedStyle(el).backgroundImage)
+      expect(image, skin).toContain('data:image/svg+xml')
+      expect(await overflowing(page), skin).toEqual([])
+    }
+    // The arrows are drawn, the same in every skin.
+    await expect(page.locator('[data-testid=elec16-key][data-key=left] svg')).toBeVisible()
+    // GLASS reads the theme's mode: on a dark theme its letters are white (the build writes it as hex).
+    await expect
+      .poll(() =>
+        device.evaluate((el) => getComputedStyle(el).getPropertyValue('--gl-text').trim()),
+      )
+      .toMatch(/^(#ffffff|rgb\(255 255 255)/i)
+    // The カナ key's two letters come from the face that suits GLASS, bundled.
+    await expect
+      .poll(() =>
+        page.evaluate(
+          async () => (await document.fonts.load('500 10px "E16 Kana Noto"', 'カナ')).length,
+        ),
+      )
+      .toBeGreaterThan(0)
+    // On a light theme, a light glass: dark letters, and ENTER's rim lit in the accent.
+    await page.keyboard.press('Control+Shift+KeyP')
+    await page.getByTestId('action-palette-filter').fill('business light')
+    await page.keyboard.press('Enter')
+    await expect(page.locator('html')).toHaveAttribute('data-mode', 'light')
+    await expect
+      .poll(() =>
+        device.evaluate((el) => getComputedStyle(el).getPropertyValue('--gl-text').trim()),
+      )
+      .not.toMatch(/^(#ffffff|rgb\(255 255 255)/i)
+    const shadow = (id: string) =>
+      page
+        .locator(`[data-testid=elec16-key][data-key=${id}]`)
+        .evaluate((el) => getComputedStyle(el).boxShadow)
+    expect(await shadow('enter')).not.toBe(await shadow('q'))
+  } finally {
+    await close()
+  }
+})
+
+test('a narrow body in a wide face narrows MODE to fit, never past the floor', async ({
+  shared,
+}) => {
+  const narrow = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [69, 31],
+      children: [
+        { kind: 'pane', id: 'clock', widget: 'clock' },
+        {
+          kind: 'pane',
+          id: 'e16',
+          widget: 'elec16',
+          state: { panel: false, skin: 'mochi', body: 'full' },
+        },
+      ],
+    },
+  }
+  const { page, close } = await atSize(await shared({ layout: narrow }))
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const device = page.getByTestId('elec16-device')
+    await expect(device).toHaveAttribute('data-body', 'full')
+    await expect
+      .poll(() =>
+        page.evaluate(
+          async () => (await document.fonts.load('700 10px "M PLUS Rounded 1c"')).length,
+        ),
+      )
+      .toBeGreaterThan(0)
+    await expect.poll(() => overflowing(page)).toEqual([])
+    const mode = await page
+      .locator('[data-testid=elec16-key][data-key=mode] .cap')
+      .evaluate((el) => el.style.transform)
+    const scale = Number(/scaleX\(([\d.]+)\)/.exec(mode)?.[1] ?? 1)
+    expect(scale).toBeLessThanOrEqual(1)
+    expect(scale).toBeGreaterThanOrEqual(0.88)
+  } finally {
+    await close()
+  }
+})
+
+test('asleep at its prompt it costs what a paused pane does; running costs by its clock', {
+  tag: '@perf',
+}, async () => {
+  // The emulators' loop is the one exception to the 10 fps loop (decisions.md): measured here
+  // so a change that makes it expensive shows, and the clocks logged for the 32 MHz limit.
+  test.setTimeout(240_000)
+  const { app, page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await toMonitor(page)
+    const WINDOW_MS = 8_000
+    const measure = async () => {
+      const start = await cpuSeconds(app)
+      // wait: the window CPU time is measured over.
+      await page.waitForTimeout(WINDOW_MS)
+      return ((await cpuSeconds(app)) - start) / (WINDOW_MS / 1000)
+    }
+    const root = page.getByTestId('elec16')
+    // wait: the boot's own work dies down before the first window is measured.
+    await page.waitForTimeout(2000)
+    const asleep = await measure()
+    await page.getByTestId('elec16-pause').click()
+    await expect(root).toHaveAttribute('data-status', 'paused')
+    const paused = await measure()
+    await page.getByTestId('elec16-pause').click()
+    await root.focus()
+    // A loop that writes the screen every turn - its last byte, away from the banner, so the
+    // window watched while the test runs does not seem to flicker where text is - and one that
+    // only spins.
+    await typeLine(page, 'e 7000 1f fc 2c 07 09 12 07 00 26 00 f5 bf')
+    await typeLine(page, 'e 7100 01 a0')
+    const run = async (clock: string, at: string) => {
+      await elec16Tab(page, 'tune').click()
+      await page.locator(`[data-testid=elec16-clock][data-clock="${clock}"]`).click()
+      await root.focus()
+      await typeLine(page, `g ${at}`)
+      await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'run')
+      // wait: the program settles into its loop before its cost is measured.
+      await page.waitForTimeout(1000)
+      const used = await measure()
+      await page.getByTestId('elec16-brk').click()
+      await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'sleep')
+      return used
+    }
+    const spin4 = await run('4', '7100')
+    const draw4 = await run('4', '7000')
+    const spin32 = await run('32', '7100')
+    const draw32 = await run('32', '7000')
+    const spinMax = await run('max', '7100')
+    const pct = (n: number) => `${(n * 100).toFixed(1)}%`
+    const power = await powerNote(app, page)
+    console.log(
+      `elec16: asleep ${pct(asleep)}, paused ${pct(paused)}; 4 MHz spinning ${pct(spin4)}, drawing ${pct(draw4)}; 32 MHz spinning ${pct(spin32)}, drawing ${pct(draw32)}; MAX ${pct(spinMax)} of one core, ${power}`,
+    )
+    // Asleep it costs what it does stopped; running at the default clock, a program that
+    // only computes stays within the spec's 8% (docs/elec16.md section 9), and one that
+    // writes the screen every frame pays for thirty frames a second as well. The limits are
+    // half as much again as those figures: what else the machine is doing moves the reading
+    // (user decision 2026-10-04).
+    const room = 1.5
+    expect(asleep - paused, `asleep over paused, ${power}`).toBeLessThan(
+      process.env.CI ? 1 : 0.02 * room,
+    )
+    expect(spin4 - asleep, `4 MHz spinning over asleep, ${power}`).toBeLessThan(
+      process.env.CI ? 1.5 : 0.08 * room,
+    )
+    expect(draw4 - asleep, `4 MHz drawing over asleep, ${power}`).toBeLessThan(
+      process.env.CI ? 1.5 : 0.25 * room,
+    )
+  } finally {
+    await close()
+  }
+})
+
+const TWO_PANES = {
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 's',
+    direction: 'row',
+    sizes: [50, 50],
+    children: [
+      { kind: 'pane', id: 'a', widget: 'elec16' },
+      { kind: 'pane', id: 'b', widget: 'elec16' },
+    ],
+  },
+}
+
+/** A pane's LCD text, by the pane's id. */
+const linesOf = (page: Page, id: string) => async (): Promise<string[]> =>
+  (
+    (await page
+      .locator(`[data-testid=pane][data-pane-id=${id}]`)
+      .getByTestId('elec16-text')
+      .textContent()) ?? ''
+  )
+    .split('\n')
+    .map((l) => l.trimEnd())
+
+test("keeps the program through a restart: the unit's battery backup", async () => {
+  const first = await launchBeside()
+  let second: Awaited<ReturnType<typeof first.relaunch>> | null = null
+  try {
+    await settleLayout(first.page)
+    await booted(first.page)
+    await first.page.getByTestId('elec16').focus()
+    await typeLine(first.page, '10 PRINT "KEPT"')
+    // The line taken in, not only echoed: the next prompt drawn under it and the machine asleep
+    // again. Under load the echo came first, the restart caught the line before its Enter was
+    // read, and RUN typed after the restart ran on at the end of that line.
+    await expect
+      .poll(async () => (await lcdLines(first.page)).join('\n'))
+      .toContain('>10 PRINT "KEPT"\n>')
+    await expect(first.page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
+    second = await first.relaunch()
+    await settleLayout(second.page)
+    await booted(second.page)
+    await second.page.getByTestId('elec16').focus()
+    await typeLine(second.page, 'run')
+    await expect.poll(() => lcdLines(second?.page as Page)).toContain('KEPT')
+  } finally {
+    await (second ?? first).close()
+  }
+})
+
+test('a second pane on the same unit is told so, and MOVE HERE takes the machine with its RAM', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: TWO_PANES })
+  try {
+    await settleLayout(page)
+    const a = page.locator('[data-testid=pane][data-pane-id=a]')
+    const b = page.locator('[data-testid=pane][data-pane-id=b]')
+    // Whichever pane started first runs UNIT 1; the other is told.
+    const sheet = page.getByTestId('elec16-sheet')
+    await expect(sheet).toHaveCount(1)
+    await expect(sheet).toHaveAttribute('data-phase', 'held')
+    const [runs, waits, waitsId] =
+      (await a.getByTestId('elec16-sheet').count()) === 0 ? [a, b, 'b'] : [b, a, 'a']
+    await runs.getByTestId('elec16').focus()
+    await typeLine(page, 'z=42')
+    await waits.getByTestId('elec16-move-here').click()
+    await expect(runs.getByTestId('elec16-sheet')).toHaveAttribute('data-phase', 'gone')
+    await expect(waits.getByTestId('elec16-sheet')).toHaveCount(0)
+    await waits.getByTestId('elec16').focus()
+    await typeLine(page, 'print z')
+    await expect.poll(linesOf(page, waitsId)).toContain('42')
+    // NEW UNIT in the pane that lost it: a unit of its own, afresh.
+    await runs.getByTestId('elec16-new-unit').click()
+    await expect(runs.getByTestId('elec16-sheet')).toHaveCount(0)
+    await runs.getByTestId('elec16').focus()
+    await typeLine(page, 'print z')
+    await expect.poll(linesOf(page, waitsId === 'a' ? 'b' : 'a')).toContain('0')
+  } finally {
+    await close()
+  }
+})
+
+test('IMPORT puts a picked listing on the card and EXPORT gives it back as text', async () => {
+  const { app, page, close } = await launchBeside()
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-pick-'))
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const listing = path.join(outside, 'hello.bas')
+    writeFileSync(listing, '10 PRINT "HI"\r\n20 END\r\n')
+    await pickerAnswers(app, listing)
+    await elec16Tab(page, 'files').click()
+    await page.getByTestId('elec16-import').click()
+    await expect(page.getByTestId('elec16-files-said')).toHaveText('Imported as HELLO.BAS.')
+    await expect(page.getByTestId('elec16-file')).toHaveAttribute('data-name', 'HELLO.BAS')
+    // An unreadable character is refused, with its line.
+    writeFileSync(listing, '10 PRINT "\u3042"\n')
+    await page.getByTestId('elec16-import').click()
+    await expect(page.getByTestId('elec16-files-said')).toContainText('Line 1 has')
+    const target = path.join(outside, 'out.bas')
+    await saveDialogAnswers(app, target)
+    await page.getByTestId('elec16-file').click()
+    await page.getByTestId('elec16-export').click()
+    await expect(page.getByTestId('elec16-files-said')).toHaveText('Exported HELLO.BAS.')
+    expect(readFileSync(target, 'utf8')).toBe('10 PRINT "HI"\r\n20 END\r\n')
+  } finally {
+    await close()
+    rmSync(outside, { recursive: true, force: true })
+  }
+})
+
+test("SAVE and LOAD go through main to the unit's card, and FILES lists what is there", async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, '10 print 5*7')
+    await typeLine(page, 'save "calc"')
+    await typeLine(page, 'new')
+    await typeLine(page, 'load "calc"')
+    await typeLine(page, 'run')
+    await expect.poll(() => lcdLines(page)).toContain('35')
+    await elec16Tab(page, 'files').click()
+    await expect(page.getByTestId('elec16-file')).toHaveAttribute('data-name', 'CALC.BAS')
+  } finally {
+    await close()
+  }
+})
+
+test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, and PASTE types the clipboard", async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await elec16Tab(page, 'files').click()
+    const primes = page
+      .getByTestId('elec16-soft-file')
+      .and(page.locator('[data-name="PRIMES.BAS"]'))
+    await primes.hover()
+    await expect(page.getByTestId('elec16-file-card')).toContainText('THE PRIMES UP TO A NUMBER')
+    await expect(page.getByTestId('elec16-file-card')).toContainText('LOAD "PRIMES.BAS"')
+    // Nothing picked: how to see a program's help. Picked: how to use it, under the list.
+    await expect(page.getByTestId('elec16-soft-help')).toHaveCount(0)
+    await expect(page.getByTestId('elec16-files')).toContainText(
+      'Pick a program to see how to use it',
+    )
+    await primes.click()
+    await expect(page.getByTestId('elec16-soft-help')).toContainText('PRIMES.BAS')
+    await expect(page.getByTestId('elec16-soft-help')).toContainText('every prime up to it')
+    await page.getByTestId('elec16-load').click()
+    await expect.poll(() => lcdLines(page)).toContain('>LOAD "PRIMES.BAS"')
+    // The clipboard is the page's stand-in, never this machine's.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => 'RUN\n30\n',
+        configurable: true,
+      })
+    })
+    await elec16Tab(page, 'tune').click()
+    await page.getByTestId('elec16-paste').click()
+    await expect.poll(() => lcdLines(page)).toContain('2 3 5 7 11 13 17 19 23 29')
+    await expect(page.getByTestId('elec16-paste')).toHaveText('paste')
+  } finally {
+    await close()
+  }
+})
+
+test('a right-click on the machine types the clipboard as PASTE does, and another stops it', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    // The clipboard is the page's stand-in, never this machine's.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => 'PRINT 6*7\n',
+        configurable: true,
+      })
+    })
+    await page.getByTestId('elec16-device').click({ button: 'right' })
+    await expect.poll(() => lcdLines(page)).toContain('42')
+    // A long text being typed: a second right-click stops it, as PASTE pressed again does.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => `${'1'.repeat(200)}\n`,
+        configurable: true,
+      })
+    })
+    // The tab first, then the press: opened after it, a fast runner had typed the whole text by
+    // the time the button was looked at, and saw PASTE again (ubuntu, 2026-10-15).
+    await elec16Tab(page, 'tune').click()
+    await page.getByTestId('elec16-device').click({ button: 'right' })
+    await expect(page.getByTestId('elec16-paste')).toContainText('stop paste')
+    await page.getByTestId('elec16-device').click({ button: 'right' })
+    await expect(page.getByTestId('elec16-paste')).toHaveText('paste')
+  } finally {
+    await close()
+  }
+})
+
+test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboard not read', async () => {
+  // PLAY-320 has no keys to type on, so PASTE's right-click has nothing to do there; and a
+  // button pressed by the right button once held the pad as the left one does.
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await elec16Tab(page, 'tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    // The clipboard is the page's stand-in, never this machine's; it counts its reads.
+    await page.evaluate(() => {
+      const counted = globalThis as unknown as { __reads: number }
+      counted.__reads = 0
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => {
+          counted.__reads += 1
+          return 'PRINT 1\n'
+        },
+        configurable: true,
+      })
+    })
+    const reads = () => page.evaluate(() => (globalThis as unknown as { __reads: number }).__reads)
+    const start = page.locator('[data-testid=elec16-pad-button][data-button=start]')
+
+    await start.hover()
+    await page.mouse.down({ button: 'right' })
+    await quietFor(300, () => start.getAttribute('aria-pressed'), 'START pressed')
+    expect(await start.getAttribute('aria-pressed')).toBe('false')
+    await page.mouse.up({ button: 'right' })
+    await page.getByTestId('elec16-play-body').click({ button: 'right', position: { x: 4, y: 4 } })
+    await quietFor(300, reads, 'the clipboard reads')
+    expect(await reads()).toBe(0)
+    await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY')
+
+    // The left button still presses it: the check above is not passing for want of a press.
+    await page.mouse.move(0, 0)
+    await start.hover()
+    await page.mouse.down()
+    await expect(start).toHaveAttribute('aria-pressed', 'true')
+    await page.mouse.up()
+    await expect(start).toHaveAttribute('aria-pressed', 'false')
+  } finally {
+    await close()
+  }
+})
+
+test('PANEL opens a panel shut by hand with one press, in a pane too narrow to keep it open', async ({
+  shared,
+}) => {
+  // A narrow pane folds the panel away; one shut by hand once took two presses to come back
+  // (the first only marked it wanted, still without room to show). CHIP-8's run view holds this
+  // in tests/component/chip8-panel.test.ts; the ELEC-16 pane, which wires panelPress on its own,
+  // cannot be mounted without its ROM and unit, so its wiring is checked here.
+  const { app, page, close } = await shared({
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: [70, 30],
+        children: [
+          { kind: 'pane', id: 'clock', widget: 'clock' },
+          { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: false } },
+        ],
+      },
+    },
+  })
+  try {
+    await atDesignSize(app, page)
+    await settleLayout(page)
+    await booted(page)
+    const toggle = page.getByTestId('elec16-panel-toggle')
+    await expect(page.getByTestId('elec16-panel')).toHaveCount(0)
+    await toggle.click()
+    await expect(page.getByTestId('elec16-panel')).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await toggle.click()
+    await expect(page.getByTestId('elec16-panel')).toHaveCount(0)
+    await toggle.click()
+    await expect(page.getByTestId('elec16-panel')).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
+test('CORE stops the machine at a breakpoint typed in, goes on from it, and steps', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await toMonitor(page)
+    await elec16Tab(page, 'core').click()
+    await page.getByTestId('elec16-break-input').fill('7000')
+    await page.getByTestId('elec16-break-input').press('Enter')
+    await expect(page.getByTestId('elec16-breakpoint')).toHaveAttribute('data-address', '7000')
+    await page.getByTestId('elec16').focus()
+    // c.j 0 at 0x7000: a jump to itself, stopped before it every time round.
+    await typeLine(page, 'e 7000 01 a0')
+    await typeLine(page, 'g 7000')
+    await expect(page.getByTestId('elec16-instret')).toContainText('stopped at 7000')
+    await expect(page.getByTestId('elec16-pc')).toHaveText('7000')
+    await page.getByTestId('elec16-step').click()
+    await expect(page.getByTestId('elec16-pc')).toHaveText('7000')
+    await page.getByTestId('elec16-go').click()
+    await expect(page.getByTestId('elec16-instret')).toContainText('stopped at 7000')
+    // Without it, the machine runs on until BRK.
+    await page.getByTestId('elec16-breakpoint').click()
+    await expect(page.getByTestId('elec16-breakpoint')).toHaveCount(0)
+    await page.getByTestId('elec16-go').click()
+    await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'run')
+    await page.getByTestId('elec16-brk').click()
+    await expect.poll(() => lcdLines(page)).toContain('BREAK AT 7000')
+  } finally {
+    await close()
+  }
+})
+
+test('TUNE throws another unit away on a second press, and never the one the pane runs', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await elec16Tab(page, 'tune').click()
+    await page.getByTestId('elec16-unit-new').click()
+    await expect(page.getByTestId('elec16-unit')).toHaveCount(2)
+    const gone = page.getByTestId('elec16-unit-delete')
+    await expect(gone).toHaveCount(1)
+    await gone.click()
+    await expect(gone).toContainText('?')
+    await expect(page.getByTestId('elec16-unit')).toHaveCount(2)
+    await gone.click()
+    await expect(page.getByTestId('elec16-unit')).toHaveCount(1)
+    await expect(page.getByTestId('elec16-unit-delete')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('CODE compiles TypeScript at every level, keeps it on the card, and RUN runs it on the machine', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-view-toggle').click()
+    const source = page.getByTestId('elec16-source')
+    await expect(source).toHaveValue(/export function main\(\): void/)
+    await source.fill(
+      [
+        "const WORDS = str('MADE IN TS')",
+        'export function main(): void {',
+        '  cls()',
+        '  puts(WORDS)',
+        '  newline()',
+        '  putnum(6 * 7)',
+        '  newline()',
+        '}',
+      ].join('\n'),
+    )
+    await page.getByTestId('elec16-compile').click()
+    const rows = page.getByTestId('elec16-levels').locator('tbody tr')
+    await expect(rows).toHaveCount(3, { timeout: 60_000 })
+    for (const level of [0, 1, 2]) {
+      await expect(rows.nth(level).getByTestId('elec16-level-bytes')).toHaveText(/^\d[\d,]*$/)
+      await expect(rows.nth(level).getByTestId('elec16-level-cycles')).toHaveText(/^\d[\d,]*$/)
+    }
+    await expect(page.getByTestId('elec16-asm')).toContainText('main:')
+    // An error says where.
+    await source.fill('export function main(): void { return 1 / 2 }')
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-code-errors')).toContainText('MAIN.TS:1:')
+    await source.fill(
+      [
+        "const WORDS = str('MADE IN TS')",
+        'export function main(): void {',
+        '  puts(WORDS)',
+        '}',
+      ].join('\n'),
+    )
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-run')).toBeEnabled({ timeout: 60_000 })
+    await page.getByTestId('elec16-run').click()
+    await expect(page.getByTestId('elec16-code-view')).toHaveCount(0)
+    await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('>CALL 28672')
+    await expect.poll(async () => (await lcdLines(page)).join('\n')).toMatch(/MADE IN TS/)
+    // The source is a file on the unit's card.
+    await elec16Tab(page, 'files').click()
+    await expect(
+      page.getByTestId('elec16-file').and(page.locator('[data-name="MAIN.TS"]')),
+    ).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('RESET starts the machine again with its program kept, and the plate lamp follows POWER', async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await expect(page.getByTestId('elec16-plate')).toContainText('16-BIT POCKET COMPUTER')
+    const lamp = page.getByTestId('elec16-power-lamp')
+    await expect(lamp).toHaveClass(/\bon\b/)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, '10 print 6*7')
+    await page.getByTestId('elec16-reset').click()
+    // Started again, the program's ten bytes still used, and asleep at the prompt.
+    await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('26612 BYTES FREE')
+    await expect(page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'run')
+    await expect.poll(() => lcdLines(page)).toContain('42')
+    await page.getByTestId('elec16-power').click()
+    await expect(lamp).not.toHaveClass(/\bon\b/)
+    // The Business skins have no plate, as their themes have no ornament.
+    await elec16Tab(page, 'tune').click()
+    await page.locator('[data-testid=elec16-skin][data-skin="business-dark"]').click()
+    await expect(page.getByTestId('elec16-plate')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('a short, wide pane gets a body that fits it, plate and keys whole, never clipped', async ({
+  shared,
+}) => {
+  const { app, page, close } = await shared({ layout: UNDER_CLOCK })
+  try {
+    await atDesignSize(app, page)
+    await settleLayout(page)
+    await booted(page)
+    const device = page.getByTestId('elec16-device')
+    const room = page.locator('[data-testid=pane][data-pane-id=e16] .fit')
+    const inside = async () => {
+      const [d, r] = await Promise.all([device.boundingBox(), room.boundingBox()])
+      // An arriving pane powers on scaled from a line: measure it once it stands whole.
+      if (d === null || r === null || r.height < 100) return 'unmeasured'
+      return d.y >= r.y - 0.5 && d.y + d.height <= r.y + r.height + 0.5 ? 'inside' : 'clipped'
+    }
+    await expect.poll(inside).not.toBe('unmeasured')
+    await expect.poll(inside).toBe('inside')
+    await expect(page.getByTestId('elec16-plate')).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
+test('CODE keeps what is typed after a RUN when the level is changed', async () => {
+  // The pane's state changing (a level chosen) read the card again over the text typed.
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-view-toggle').click()
+    const source = page.getByTestId('elec16-source')
+    await expect(source).toHaveValue(/HELLO FROM TYPESCRIPT/)
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-run')).toBeEnabled({ timeout: 30_000 })
+    await page.getByTestId('elec16-run').click()
+    await expect(page.getByTestId('elec16-code-view')).toHaveCount(0)
+    await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('HELLO FROM TYPESCRIPT')
+    await page.getByTestId('elec16-view-toggle').click()
+    await expect(source).toHaveValue(/HELLO FROM TYPESCRIPT/)
+    const edited = (await source.inputValue()).replace('HELLO FROM TYPESCRIPT', 'EDITED AFTER RUN')
+    await source.fill(edited)
+    await page.getByTestId('elec16-level').and(page.locator('[data-level="1"]')).click()
+    await quietFor(500, () => source.inputValue(), 'the source')
+
+    await expect(source).toHaveValue(/EDITED AFTER RUN/)
+    await page.getByTestId('elec16-level').and(page.locator('[data-level="2"]')).click()
+    await quietFor(500, () => source.inputValue(), 'the source')
+    await expect(source).toHaveValue(/EDITED AFTER RUN/)
+  } finally {
+    await close()
+  }
+})
+
+test("FILES' LOAD stops a program waiting for a key first, rather than typing into it", async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await elec16Tab(page, 'files').click()
+    const soft = (name: string) =>
+      page.getByTestId('elec16-soft-file').and(page.locator(`[data-name="${name}"]`))
+    await soft('SINEWAVE.BAS').click()
+    await page.getByTestId('elec16-load').click()
+    await expect.poll(() => lcdLines(page)).toContain('>LOAD "SINEWAVE.BAS"')
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'run')
+    await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'sleep', {
+      timeout: 15_000,
+    })
+    // SINEWAVE waits for any key: the L of LOAD once ended it, and the rest was a SYNTAX error.
+    await soft('CLOCK.BAS').click()
+    await page.getByTestId('elec16-load').click()
+    await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('>LOAD "CLOCK.BAS"')
+    expect((await lcdLines(page)).join('\n')).not.toMatch(/ERR/)
+  } finally {
+    await close()
+  }
+})
+
+test("the dots' shadows follow the dots after the window was too small to draw them", async ({
+  shared,
+}) => {
+  // Dots three device pixels and more have shadows; smaller, none is drawn - and when the
+  // window grew again, the shadows of what the screen showed before were still there.
+  const { app, page, close } = await shared({
+    layout: single('elec16', { id: 'e16', state: { panel: false } }),
+  })
+  const size = (w: number, h: number) =>
+    app.evaluate(
+      ({ BrowserWindow }, [cw, ch]) => BrowserWindow.getAllWindows()[0]?.setContentSize(cw, ch),
+      [w, h] as const,
+    )
+  const scale = () => page.getByTestId('elec16-screen').getAttribute('data-scale')
+  try {
+    await size(1600, 900)
+    await settleLayout(page)
+    await booted(page)
+    await expect.poll(async () => Number(await scale())).toBeGreaterThanOrEqual(3)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'FOR I=1 TO 5:PRINT "GUESS?";I*111:NEXT')
+    await expect.poll(() => lcdLines(page)).toContain('GUESS?555')
+    await size(700, 500)
+    await expect.poll(async () => Number(await scale())).toBeLessThan(3)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'CLS:PRINT "HELLO"')
+    await expect.poll(() => lcdLines(page)).toContain('HELLO')
+    await size(1600, 900)
+    await expect.poll(async () => Number(await scale())).toBeGreaterThanOrEqual(3)
+    // wait: no signal in the app (needs a hook): the LCD redraws at most thirty times a second
+    // and nothing counts its frames; polling could pass on one before stale shadows came back.
+    await page.waitForTimeout(1000)
+    // Every shadow is a lit dot's: none is left of what the screen showed before.
+    const stray = await page.locator('[data-testid=elec16-lcd] canvas').evaluateAll((els) => {
+      const [shadow, dots] = els.map((c) => {
+        const cv = c as HTMLCanvasElement
+        return cv.getContext('2d')?.getImageData(0, 0, cv.width, cv.height).data
+      })
+      if (shadow === undefined || dots === undefined) return -1
+      let n = 0
+      for (let k = 3; k < dots.length; k += 4) if ((shadow[k] ?? 0) > 0 && (dots[k] ?? 0) === 0) n++
+      return n
+    })
+    expect(stray).toBe(0)
+  } finally {
+    await close()
+  }
+})
+
+/**
+ * A test cartridge (tests/fixtures/elec16/games: DEMO, SCROLL - not on the shelf since
+ * 2026-10-06) built as gen:elec16 builds an assembly game and written to an .e16g in `dir`.
+ */
+function testCartridge(name: string, dir: string): string {
+  const at = path.join(process.cwd(), 'tests', 'fixtures', 'elec16', 'games', name)
+  const made = buildGame(
+    readFileSync(path.join(at, 'game.s'), 'utf8'),
+    JSON.parse(readFileSync(path.join(at, 'game.json'), 'utf8')),
+    (file) => (existsSync(path.join(at, file)) ? readFileSync(path.join(at, file), 'utf8') : null),
+  )
+  if ('errors' in made) throw new Error(JSON.stringify(made.errors))
+  const file = path.join(dir, `${name}.e16g`)
+  writeFileSync(file, made.image)
+  return file
+}
+
+/** A test cartridge put on the shelf through GAMES' import, main's picker answered with it. */
+async function importCartridge(app: ElectronApplication, page: Page, name: string, dir: string) {
+  const file = testCartridge(name, dir)
+  await pickerAnswers(app, file)
+  await page.getByTestId('elec16-game-import').click()
+}
+
+test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, and back with RAM cleared', async () => {
+  // docs/elec16-play.md, G2: the PLAY ROM's start screen, no FILES and no auto power-off,
+  // extended RAM in TUNE and MEM. CODE's RUN calling the program itself is the body's test
+  // below in the app, and tests/unit/elec16-give-code.test.ts and elec16-play-rom.test.ts
+  // below it (BRK bringing the start screen back too).
+  test.setTimeout(180_000)
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await toMonitor(page)
+    await typeLine(page, 'e 7000 5a')
+    const tab = (name: string) => elec16Tab(page, name)
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect(page.getByTestId('elec16-play-screen')).toBeVisible()
+    await expect(page.getByTestId('elec16-device')).toHaveCount(0)
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await expect.poll(() => playLines(page)).toContain('RAM 32K  XRAM 512K')
+    await expect(page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
+    await expect(tab('files')).toHaveCount(0)
+    await expect(page.getByTestId('elec16-auto-off')).toHaveCount(0)
+    await expect(page.getByTestId('elec16-xram')).toHaveCount(4)
+    await page.locator('[data-testid=elec16-xram][data-kb="128"]').click()
+    await expect.poll(() => playLines(page)).toContain('RAM 32K  XRAM 128K')
+
+    await tab('mem').click()
+    await expect(page.getByTestId('elec16-mem-space')).toHaveCount(3)
+    await page.locator('[data-testid=elec16-mem-space][data-space=xram]').click()
+    await expect(page.getByTestId('elec16-mem-rows')).toContainText('20:C000')
+
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=pocket-48]').click()
+    await booted(page)
+    await toMonitor(page)
+    await typeLine(page, 'd 7000')
+    await expect
+      .poll(() => lcdLines(page))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/^7000: 00/)]))
+  } finally {
+    await close()
+  }
+})
+
+test("PLAY-320's body: its buttons pressed from the keys, the pointer and a program's view of them", async () => {
+  // docs/elec16-play.md, G3: the tall or wide body, the twelve buttons drawn pressed from any
+  // source, and PAD read by a program; the screen alone as the fourth choice.
+  test.setTimeout(180_000)
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) => elec16Tab(page, name)
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    const body = page.getByTestId('elec16-play-body')
+    await expect(body).toBeVisible()
+    await expect(body).toHaveAttribute('data-skin', 'graphite')
+    await expect(page.getByTestId('elec16-pad-button')).toHaveCount(12)
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+
+    // A program that waits until a button is held, then writes PAD in hex.
+    await page.getByTestId('elec16-view-toggle').click()
+    await page
+      .getByTestId('elec16-source')
+      .fill(
+        'export function main(): void {\n  cls()\n  let p: u16 = 0\n  while (p === 0) p = peek16(0xf810)\n  puthex(p)\n}\n',
+      )
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-run')).toBeEnabled({ timeout: 60_000 })
+    await page.getByTestId('elec16-run').click()
+    await expect(page.getByTestId('elec16-code-view')).toHaveCount(0)
+    await page.getByTestId('elec16').focus()
+    const button = (name: string) =>
+      page.locator(`[data-testid=elec16-pad-button][data-button=${name}]`)
+    await page.keyboard.down('z')
+    await expect(button('a')).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(() => playLines(page)).toContain('0010')
+    await page.keyboard.up('z')
+    await expect(button('a')).toHaveAttribute('aria-pressed', 'false')
+    // A held arm is drawn held, never as the down arm (the class once shared that name).
+    await page.keyboard.down('ArrowRight')
+    await expect(button('right')).toHaveClass(/(^| )held( |$)/)
+    await expect(button('right')).not.toHaveClass(/(^| )down( |$)/)
+    await page.keyboard.up('ArrowRight')
+    await expect(button('right')).not.toHaveClass(/(^| )held( |$)/)
+
+    // The pointer holds a button while it is down, and the pane keeps the keys.
+    const start = button('start')
+    await start.hover()
+    await page.mouse.down()
+    await expect(start).toHaveAttribute('aria-pressed', 'true')
+    await page.mouse.up()
+    await expect(start).toHaveAttribute('aria-pressed', 'false')
+
+    // The wide body, another colour, and the screen alone.
+    await page.locator('[data-testid=elec16-play-body-mode][data-body=wide]').click()
+    await expect(body).toHaveAttribute('data-body', 'wide')
+    await page.locator('[data-testid=elec16-play-skin][data-skin=coral]').click()
+    await expect(body).toHaveAttribute('data-skin', 'coral')
+    await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
+    await expect(body).toHaveCount(0)
+    await expect(page.getByTestId('elec16-play-screen')).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
+test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on after a restart, and one gone from the shelf leaves the slot empty", async () => {
+  // docs/elec16-play.md section 7, G4: the shelf, the slot, CART through LINK (on by default),
+  // the ROM put back after a restore, and the slot emptied by GAMES. The game is the test
+  // cartridge DEMO, imported: a game in a unit's slot that later leaves the shelf (as DEMO
+  // itself did on 2026-10-06) leaves the slot empty, the machine at its start screen.
+  test.setTimeout(300_000)
+  const first = await launchBeside()
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-cart-'))
+  let running: Awaited<ReturnType<typeof launch>> | null = first
+  try {
+    const { app, page } = first
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) => elec16Tab(page, name)
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await expect(tab('files')).toHaveCount(0)
+    await tab('games').click()
+    await expect(page.getByTestId('elec16-game-slot')).toHaveText('empty')
+    // Only the real games come with the app; the test cartridge is imported.
+    await expect(page.locator('[data-testid=elec16-game][data-game=ELECLANCE]')).toHaveCount(1)
+    await expect(page.locator('[data-testid=elec16-game][data-game=DEMO]')).toHaveCount(0)
+    await expect(page.locator('[data-testid=elec16-game][data-game=SCROLL]')).toHaveCount(0)
+    await importCartridge(app, page, 'demo', outside)
+    await page.locator('[data-testid=elec16-game][data-game=DEMO]').click()
+    await expect(page.getByTestId('elec16-game-slot')).toHaveText('ELEC-16 PLAY DEMO')
+    // Put in, the start screen names it (a person's press: CART is asked).
+    await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY DEMO')
+    await expect.poll(() => playLines(page)).toContain('PRESS START')
+
+    await page.getByTestId('elec16').focus()
+    await page.keyboard.press('Enter')
+    await expect.poll(() => playLines(page)).toContain('D-PAD MOVES  A COLOUR  START ENDS')
+
+    // A restart while it plays: the backup has no ROM, which the pane puts back from the shelf.
+    running = null
+    await first.quit()
+    const again = await atSize(await launch(first.userData))
+    running = again
+    await settleLayout(again.page)
+    await expect
+      .poll(() => playLines(again.page), { timeout: 15_000 })
+      .toContain('D-PAD MOVES  A COLOUR  START ENDS')
+    await again.page.getByTestId('elec16').focus()
+    await again.page.keyboard.press('Enter')
+    await expect.poll(() => playLines(again.page)).toContain('PRESS START')
+
+    // Taken out: the start screen says so, and START finds nothing.
+    const tab2 = (name: string) => elec16Tab(again.page, name)
+    await tab2('games').click()
+    await again.page.getByTestId('elec16-game-eject').click()
+    await expect(again.page.getByTestId('elec16-game-slot')).toHaveText('empty')
+    await expect.poll(() => playLines(again.page)).toContain('NO CARTRIDGE')
+
+    // CART off in the LINK panel: the start screen says that instead.
+    await tab2('games').click()
+    await again.page.locator('[data-testid=elec16-game][data-game=DEMO]').click()
+    await tab2('link').click()
+    await again.page
+      .locator('[data-testid=elec16-link-service][data-service=cart][data-on=false]')
+      .click()
+    await again.page.getByTestId('elec16-reset').click()
+    await expect.poll(() => playLines(again.page)).toContain('LINK CART IS OFF')
+
+    // CART on again and the game playing; then, with the app closed, the game leaves the
+    // shelf. The unit still names it in its slot: the pane puts no ROM back, the machine
+    // goes to its start screen, START finds no cartridge and GAMES shows the slot empty.
+    await again.page
+      .locator('[data-testid=elec16-link-service][data-service=cart][data-on=true]')
+      .click()
+    await again.page.getByTestId('elec16-reset').click()
+    await again.page.getByTestId('elec16').focus()
+    await expect
+      .poll(async () => {
+        if ((await playLines(again.page)).includes('D-PAD MOVES  A COLOUR  START ENDS')) return true
+        await again.page.keyboard.press('Enter')
+        return false
+      })
+      .toBe(true)
+    running = null
+    await again.quit()
+    writeFileSync(
+      path.join(first.userData, 'elec16', 'games', 'library.json'),
+      JSON.stringify({ version: 1, games: [] }),
+    )
+    const gone = await atSize(await launch(first.userData))
+    running = gone
+    await settleLayout(gone.page)
+    await expect.poll(() => playLines(gone.page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    expect(await playLines(gone.page)).not.toContain('D-PAD MOVES  A COLOUR  START ENDS')
+    await gone.page.getByTestId('elec16').focus()
+    await gone.page.keyboard.press('Enter')
+    await expect.poll(() => playLines(gone.page)).toContain('NO CARTRIDGE')
+    await elec16Tab(gone.page, 'games').click()
+    await expect(gone.page.getByTestId('elec16-game-slot')).toHaveText('empty')
+    await expect(gone.page.locator('[data-testid=elec16-game][data-game=DEMO]')).toHaveCount(0)
+  } finally {
+    await running?.close()
+    rmSync(outside, { recursive: true, force: true })
+  }
+})
+
+test("PLAY-320's game kit: ELECLANCE starts from GAMES, its title, then the stage between its panels", async () => {
+  // docs/elec16-eleclance.md: the kit's game copies its code into RAM and runs there; in the
+  // pane it reaches its title (its own interrupts, sound and save RAM), then the stage.
+  test.setTimeout(180_000)
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) => elec16Tab(page, name)
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await tab('games').click()
+    await page.locator('[data-testid=elec16-game][data-game=ELECLANCE]').click()
+    await expect.poll(() => playLines(page)).toContain('ELECLANCE')
+    await page.getByTestId('elec16').focus()
+    await page.keyboard.press('Enter')
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toEqual([''])
+    const dot = (x: number, y: number) =>
+      page
+        .getByTestId('elec16-play-screen')
+        .evaluate(
+          (canvas, [px, py]) =>
+            Array.from(
+              (canvas as HTMLCanvasElement).getContext('2d')?.getImageData(px ?? 0, py ?? 0, 1, 1)
+                .data ?? [],
+            ).slice(0, 3),
+          [x, y],
+        )
+    // The title takes START only once its word has landed (40 frames): START until the stage
+    // shows its panels - their outer edges one colour on both sides, not the ground.
+    const panels = async () => {
+      const [left, right] = [await dot(0, 150), await dot(319, 150)]
+      return JSON.stringify(left) === JSON.stringify(right) && (left[0] ?? 0) + (left[1] ?? 0) > 60
+    }
+    await expect
+      .poll(
+        async () => {
+          if (await panels()) return true
+          await page.keyboard.press('Enter')
+          return false
+        },
+        { timeout: 20_000, intervals: [500] },
+      )
+      .toBe(true)
+  } finally {
+    await close()
+  }
+})
+
+test("PLAY-320's DEVELOP: a new game from the template, built, broken on save, mended", async () => {
+  // docs/elec16-play.md section 11: main writes the template into a picked folder, the page
+  // builds it in CODE's worker (its PNGs decoded there, to the bit), main writes back its two
+  // files and shelves it, the slot takes it; a save builds again, saying where it went wrong.
+  test.setTimeout(180_000)
+  const { app, page, close } = await launchBeside()
+  const folder = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-dev-'))
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) => elec16Tab(page, name)
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await pickerAnswers(app, folder)
+    await tab('games').click()
+    await page.getByTestId('elec16-dev-new').click()
+    const dev = page.getByTestId('elec16-dev')
+    await expect(dev).toHaveAttribute('data-status', 'built', { timeout: 60_000 })
+    await expect(page.getByTestId('elec16-dev-folder')).toHaveText(path.basename(folder))
+    await expect(page.getByTestId('elec16-game-slot')).toHaveText('MY GAME')
+    for (const name of [
+      'game.json',
+      'main.e16.ts',
+      'lib/kit.e16.ts',
+      'assets.e16.ts',
+      'compiled.s',
+    ]) {
+      expect(existsSync(path.join(folder, name)), name).toBe(true)
+    }
+    // Watched while the pane is seen, not while the window is minimised.
+    const watching = () => page.evaluate(() => window.elecdex.elec16.devWatching())
+    await expect.poll(watching).toHaveLength(1)
+    await putWindowAway(app, page)
+    await expect.poll(watching, { timeout: 10_000 }).toEqual([])
+    await bringWindowBack(app, page)
+    await expect.poll(watching, { timeout: 10_000 }).toHaveLength(1)
+    // Back in sight with nothing changed: read again, not built again.
+    await expect(dev).toHaveAttribute('data-status', 'built')
+    await expect(dev).toHaveAttribute('data-builds', '1')
+    // A save that breaks it: built again, and the line said.
+    const main = path.join(folder, 'main.e16.ts')
+    const source = readFileSync(main, 'utf8')
+    writeFileSync(main, source.replace('x = x - 2', 'x = x - 2 + nothing'))
+    await expect(dev).toHaveAttribute('data-status', 'failed', { timeout: 30_000 })
+    await expect(page.getByTestId('elec16-dev-problem').first()).toContainText('main.e16.ts:')
+    // Mended: built again.
+    writeFileSync(main, source)
+    await expect(dev).toHaveAttribute('data-status', 'built', { timeout: 30_000 })
+    await expect(dev).toHaveAttribute('data-builds', '2')
+    await page.getByTestId('elec16-dev-close').click()
+    await expect(page.getByTestId('elec16-dev-open')).toBeVisible()
+    await expect.poll(watching).toEqual([])
+    // Opened again, then the page goes (a reload): main forgets the folder and its watch.
+    await page.getByTestId('elec16-dev-open').click()
+    await expect(dev).toHaveAttribute('data-status', 'built', { timeout: 60_000 })
+    await expect.poll(watching).toHaveLength(1)
+    await page.reload()
+    await expect.poll(watching, { timeout: 10_000 }).toEqual([])
+  } finally {
+    await close()
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+test("PLAY-320's DEVELOP builds ELECLANCE's own folder exactly as npm run gen:elec16 does", async () => {
+  // The page's build (the worker, the browser's PNG decoding) and the build script's (Node)
+  // must agree to the byte: compared through compiled.s and assets.e16.ts. A copy with its own
+  // id, as a bundled game's id is never taken.
+  test.setTimeout(240_000)
+  const { app, page, close } = await launchBeside()
+  const folder = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-dev-'))
+  const from = path.join(process.cwd(), 'resources', 'elec16', 'games', 'eleclance')
+  try {
+    cpSync(from, folder, { recursive: true })
+    const meta = JSON.parse(readFileSync(path.join(folder, 'game.json'), 'utf8'))
+    writeFileSync(path.join(folder, 'game.json'), JSON.stringify({ ...meta, id: 'ELECLANCE-DEV' }))
+    rmSync(path.join(folder, 'compiled.s'))
+    rmSync(path.join(folder, 'assets.e16.ts'))
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) => elec16Tab(page, name)
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await pickerAnswers(app, folder)
+    await tab('games').click()
+    await page.getByTestId('elec16-dev-open').click()
+    await expect(page.getByTestId('elec16-dev')).toHaveAttribute('data-status', 'built', {
+      timeout: 120_000,
+    })
+    // The same constants but for the id in the header comment, and the same assembly.
+    const same = (name: string) =>
+      readFileSync(path.join(folder, name), 'utf8').replaceAll('ELECLANCE-DEV', 'ELECLANCE')
+    expect(same('assets.e16.ts')).toBe(readFileSync(path.join(from, 'assets.e16.ts'), 'utf8'))
+    expect(same('compiled.s')).toBe(readFileSync(path.join(from, 'compiled.s'), 'utf8'))
+    await expect(page.getByTestId('elec16-game-slot')).toHaveText('ELECLANCE')
+  } finally {
+    await close()
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with the d-pad", async () => {
+  // docs/elec16-play.md section 4, G5: the tile engine drawn by the page, at the machine's
+  // own resolution - a dot of the canvas read back to see the ship move. SCROLL is a test
+  // cartridge (tests/fixtures/elec16/games), imported through GAMES.
+  test.setTimeout(180_000)
+  const { app, page, close } = await launchBeside()
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-cart-'))
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) => elec16Tab(page, name)
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await tab('games').click()
+    await importCartridge(app, page, 'scroll', outside)
+    await page.locator('[data-testid=elec16-game][data-game=SCROLL]').click()
+    await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY SCROLL')
+    await page.getByTestId('elec16').focus()
+    await page.keyboard.press('Enter')
+    // Mode 1 has no text to read back: the start screen's words are gone.
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toEqual([''])
+    /** The colour of a dot of the screen's canvas (the machine's own 320 x 288). */
+    const dot = (x: number, y: number) =>
+      page
+        .getByTestId('elec16-play-screen')
+        .evaluate(
+          (canvas, [px, py]) =>
+            Array.from(
+              (canvas as HTMLCanvasElement).getContext('2d')?.getImageData(px ?? 0, py ?? 0, 1, 1)
+                .data ?? [],
+            ).slice(0, 3),
+          [x, y],
+        )
+    const hull = [222, 231, 239]
+    // The ship's middle, 16 x 16 from (152, 200): its hull.
+    await expect.poll(() => dot(160, 209), { timeout: 10_000 }).toEqual(hull)
+    await page.keyboard.down('ArrowLeft')
+    // wait: the d-pad is held over the machine's frames, as a person holds it.
+    await page.waitForTimeout(500)
+    await page.keyboard.up('ArrowLeft')
+    await expect.poll(() => dot(160, 209)).not.toEqual(hull)
+    await page.keyboard.press('Enter')
+    await expect.poll(() => playLines(page)).toContain('PRESS START')
+  } finally {
+    await close()
+    rmSync(outside, { recursive: true, force: true })
+  }
+})

@@ -1,0 +1,135 @@
+import os from 'node:os'
+import { expect, test } from '@playwright/test'
+import { launch, terminalPane } from '../support.js'
+
+/**
+ * The boot sequence: boot log, title card, then the panes powering on.
+ *
+ * What matters beyond "it plays": it never costs the user their workspace (the
+ * shell is already running underneath), any key gets them out of it, and a
+ * reload does not make them sit through it again.
+ */
+
+test('the intro plays through to a revealed workspace', async () => {
+  const { page, close } = await launch(undefined, { intro: true })
+  try {
+    const app = page.getByTestId('app')
+    await expect(page.getByTestId('boot-log')).toBeVisible()
+    await expect(app).toHaveAttribute('data-boot', 'concealed')
+    const log = page.getByTestId('boot-log')
+    // A Linux boot in form, with this machine's facts: the kernel ring buffer, then systemd.
+    // Recorded in the page as each line arrives: the last line is on screen for only half a
+    // second before the title replaces the log, which polling from here missed on a slow
+    // runner (Linux CI) - the log was read up to the line before, then was gone.
+    await log.evaluate((element) => {
+      const recorded = window as unknown as { __bootLog?: string }
+      const record = () => {
+        const text = [...element.children].map((line) => line.textContent ?? '').join('\n')
+        if (text.length > (recorded.__bootLog ?? '').length) recorded.__bootLog = text
+      }
+      record()
+      new MutationObserver(record).observe(element, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      })
+    })
+    const recorded = () =>
+      page.evaluate(() => (window as unknown as { __bootLog?: string }).__bootLog ?? '')
+    await expect.poll(recorded, { timeout: 20_000 }).toContain(`${os.hostname()} login:`)
+    const text = await recorded()
+    const lines = text.split('\n')
+    expect(lines[0]).toMatch(/^\[\s*\d+\.\d{6}\] Linux version /)
+    expect(lines[0]).toContain(`Linux version ${os.release()}-elecdex-`)
+    expect(text).toContain(`smpboot: CPU0: ${os.cpus()[0]?.model.trim()}`)
+    expect(text).toContain(`systemd[1]: Hostname set to <${os.hostname()}>.`)
+    expect(text).toContain('Welcome to elecdex')
+    expect(text).toMatch(/\[ {2}OK {2}\] Started pty\.service - Terminal Backend/)
+    expect(text).toMatch(/systemd\[1\]: Startup finished in \d+\.\d{3}s\./)
+    // The timestamps are real seconds since start, so they never go backwards.
+    const stamps = lines
+      .map((line) => /^\[\s*(\d+\.\d{6})\]/.exec(line)?.[1])
+      .filter((stamp) => stamp !== undefined)
+      .map(Number)
+    expect(stamps.length).toBeGreaterThan(20)
+    expect(stamps).toEqual([...stamps].sort((a, b) => a - b))
+
+    // The shell starts while the intro is still on screen.
+    await expect
+      .poll(async () => (await page.evaluate(() => window.elecdex.pty.list())).length, {
+        timeout: 20_000,
+      })
+      .toBeGreaterThan(0)
+
+    await expect(page.getByTestId('boot-screen')).toHaveAttribute('data-phase', 'title', {
+      timeout: 20_000,
+    })
+    await expect(page.getByTestId('boot-greeting')).toContainText(/welcome back/i)
+
+    // Every pane is powering on with its own delay, the shell first. Recorded in the page
+    // as the delays are set: they last only while the reveal plays, which reading from here
+    // missed on a busy machine - the reveal was over and the style gone.
+    await app.evaluate((element) => {
+      const seen = window as unknown as { __crtDelays?: string[] }
+      seen.__crtDelays = []
+      const record = () => {
+        for (const pane of document.querySelectorAll<HTMLElement>(
+          '[data-testid=pane][data-widget=terminal]',
+        )) {
+          const delay = getComputedStyle(pane).getPropertyValue('--crt-delay').trim()
+          if (delay !== '' && !seen.__crtDelays?.includes(delay)) seen.__crtDelays?.push(delay)
+        }
+      }
+      record()
+      new MutationObserver(record).observe(element, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+      })
+    })
+    await expect(app).toHaveAttribute('data-boot', 'reveal', { timeout: 20_000 })
+    await expect
+      .poll(
+        () => page.evaluate(() => (window as unknown as { __crtDelays?: string[] }).__crtDelays),
+        { timeout: 20_000 },
+      )
+      .toContain('0ms')
+    await expect(page.locator('[data-testid=pane].crt-on').first()).toBeAttached()
+
+    await expect(app).toHaveAttribute('data-boot', 'done', { timeout: 20_000 })
+    await expect(page.getByTestId('boot-screen')).toHaveCount(0)
+    // Nothing is left animating, or holding a transform, once it is over.
+    await expect(page.locator('.crt-on')).toHaveCount(0)
+    await expect(terminalPane(page)).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
+test('a key skips the intro', async () => {
+  const { page, close } = await launch(undefined, { intro: true })
+  try {
+    await expect(page.getByTestId('boot-log')).toBeVisible()
+    await page.keyboard.press('KeyQ')
+    await expect(page.getByTestId('app')).toHaveAttribute('data-boot', 'done')
+    await expect(page.getByTestId('boot-screen')).toHaveCount(0)
+    await expect(terminalPane(page)).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
+test('a reload does not replay the intro', async () => {
+  const { page, close } = await launch(undefined, { intro: true })
+  try {
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('app')).toHaveAttribute('data-boot', 'done')
+
+    await page.reload()
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+    await expect(page.getByTestId('app')).toHaveAttribute('data-boot', 'done')
+    await expect(page.getByTestId('boot-screen')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

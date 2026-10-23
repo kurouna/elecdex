@@ -65,7 +65,9 @@ node scripts/log-feed.mjs [file] [--format=jsonl|logfmt|generic|syslog|clf|plain
 ```
 
 Single tests: `npx vitest run tests/unit/<file>.test.ts`,
-`npx playwright test tests/e2e/<file>.spec.ts -g "<name>"`.
+`npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"` (folders: app, workspace,
+panes, extensions, contracts; docs/e2e-design.md). `--project=e2e` leaves out the `@perf` tests,
+which `npx playwright test` runs last.
 
 App flags: `--windowed` (not fullscreen), `--no-intro` (skip the boot sequence). Electron flags go
 after a second `--`: `npm run dev -- -- --windowed --no-intro`.
@@ -92,7 +94,9 @@ src/renderer/    Svelte UI: layout/ (panes, tabs, splits, picker), widgets/ (bui
                  registry), plugins/ (host, plugin pane, blocks), stores/, styles/, lib/
 examples/        plugins/pomodoro: the sample plugin written into a new plugins folder;
                  plugins/keystream: the API 2 sample (canvas, keys, sound), a rhythm game
-tests/           unit/ (vitest, node), component/ (jsdom), e2e/ (Playwright _electron; support/, docs/e2e-design.md)
+tests/           unit/ (vitest, node), component/ (jsdom), e2e/ (Playwright _electron: app/, workspace/,
+                 panes/, extensions/, contracts/ tables over every pane, key, dialog and IPC method;
+                 support/, incl. shared.ts, one app shared by tests; docs/e2e-design.md)
 scripts/         asset generators, sync-calc, fix-node-pty
 docs/            architecture.md, decisions.md, plugins.md (the plugin API), weather-providers.md,
                  emu.md (the emulators' shared base), elec16.md (the ELEC-16 pane),
@@ -558,7 +562,7 @@ user made; do not reverse one without asking.
 
 ### Performance
 
-- **Measured, not assumed.** The idle budget is enforced in tests/e2e/metrics.spec.ts. Record
+- **Measured, not assumed.** The idle budget is enforced in tests/e2e/panes/metrics.spec.ts (`@perf`). Record
   measured numbers in docs/decisions.md when a decision depends on them.
 - On Windows never spawn a process per reading: frequent readings go through `WindowsSampler`.
 - **`spawn` is synchronous on main**, and Windows scans a PowerShell script in its command line:
@@ -635,7 +639,7 @@ user made; do not reverse one without asking.
     first start is given them; an existing list is never added to (user decision 2026-09-24).
     Decisions are pure (there and layout-shape.ts); only layout/presets.ts knows presets in the
     page. A new preset also needs its key (keybindings.ts, Workspace.svelte), the LAYOUTS
-    dialog wide enough for every card in one row, tests/e2e/layout-presets.spec.ts's `PRESETS`,
+    dialog wide enough for every card in one row, tests/e2e/workspace/layout-presets.spec.ts's `PRESETS`,
     and a README shot (scripts/gen-screenshots.mjs) with the counts in all three READMEs.
 - **Shortcuts** are data (src/shared/keybindings.ts), handled in Workspace.svelte; never a key
   check elsewhere. A chord includes Ctrl/Alt or is a function key. `scope: 'global'` actions are
@@ -665,7 +669,7 @@ user made; do not reverse one without asking.
   - Notices and toasts: `crt-on` and `transition:crtPower` (`|global` where needed).
   - Skipped with motion reduced. A new dialog, popup, toast or notice gets a row in
     tests/e2e/contracts/dialogs.ts (a unit test finds every `transition:crtPower` without one);
-    other motion goes in tests/e2e/motion.spec.ts (or its own spec, with `clickThen`).
+    other motion goes in tests/e2e/workspace/motion.spec.ts (or its own spec, with `clickThen`).
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on
   `appearance.revision`. Components read semantic tokens. Text is the accent unless a theme sets
   `text`. Never assume a dark ground: `mode: 'light'` sets `data-mode="light"` (darker status

@@ -1,0 +1,120 @@
+import { expect } from '@playwright/test'
+import { test } from '../support/shared.js'
+import { beside, catchPageCopies, settleLayout } from '../support.js'
+
+/**
+ * The Wi-Fi pane, on the collector's stub (support.ts sets ELECDEX_WIFI_STUB=1,
+ * a steady link; the other cases, `train` and `dual`, are played into the pane
+ * by tests/component/wifi-widget.test.ts). No echo leaves the machine.
+ */
+
+/** The Wi-Fi pane beside a clock, given the larger share. */
+const alone = () => beside('wifi', { id: 'w', sizes: [60, 40] })
+
+test('shows the link, its verdict and its call score, masks it, and copies a report', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: alone() })
+  try {
+    await expect(page.getByTestId('wifi-ssid')).toHaveText('ELECDEX-LAB', { timeout: 20_000 })
+    await expect(page.getByTestId('wifi-state')).toContainText('ONLINE')
+    await expect(page.getByTestId('wifi-verdict')).toContainText('CLEAR', { timeout: 15_000 })
+    await expect(page.getByTestId('wifi-mos')).toContainText(/4\.\d/)
+    await expect(page.locator('[data-testid=wifi-station][data-station=internet]')).toContainText(
+      '18 ms',
+    )
+
+    await page.getByTestId('wifi-mask').click()
+    await expect(page.getByTestId('wifi-ssid')).not.toContainText('ELECDEX-LAB')
+    const copies = await catchPageCopies(page)
+    await page.getByTestId('wifi-copy').click()
+    await expect(page.getByTestId('wifi-copy')).toHaveText('COPIED')
+    const report = (await copies()).at(-1) ?? ''
+    expect(report).toContain('elecdex Wi-Fi report')
+    expect(report).toContain('CLEAR')
+    expect(report).not.toContain('ELECDEX-LAB')
+    expect(report).not.toContain('192.0.2.23')
+  } finally {
+    await close()
+  }
+})
+
+test('the network preset puts the Wi-Fi pane over the Ethernet pane, beside the globe over the sockets', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({
+    env: { ELECDEX_SEED_LAYOUTS: '1' },
+    settings: { layout: { confirmSwitch: false } },
+  })
+  try {
+    await page.keyboard.press('Control+Shift+Digit2')
+    // Measured once the layout stands still: while it arrives, each pane powers on
+    // scaled from a line (the Wi-Fi pane was once measured at 186x2), which a box
+    // taken as soon as the pane is visible caught more often than not.
+    await expect(page.locator('[data-testid=pane][data-widget=ethernet]')).toBeVisible({
+      timeout: 20_000,
+    })
+    await settleLayout(page)
+    const box = async (widget: string) => {
+      const pane = page.locator(`[data-testid=pane][data-widget=${widget}]`).first()
+      const b = await pane.boundingBox()
+      if (b === null) throw new Error(`${widget} has no box`)
+      return b
+    }
+    const [globe, connections, wifi, ethernet] = [
+      await box('globe'),
+      await box('connections'),
+      await box('wifi'),
+      await box('ethernet'),
+    ]
+    // Left: the globe over the sockets, two to one. Right: Wi-Fi over Ethernet, half and half.
+    expect(connections.y).toBeGreaterThan(globe.y + globe.height - 40)
+    expect(globe.height / connections.height).toBeGreaterThan(1.6)
+    expect(ethernet.y).toBeGreaterThan(wifi.y + wifi.height - 40)
+    expect(Math.abs(wifi.height - ethernet.height)).toBeLessThan(wifi.height * 0.15)
+    expect(wifi.x).toBeGreaterThan(globe.x + globe.width - 20)
+    await expect(page.locator('[data-testid=pane][data-widget=terminal]')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('what is read is at the body size, and labels a step below, however narrow the pane', async ({
+  shared,
+}) => {
+  // A pane under 26rem wide: the width at which the stations once dropped a size.
+  const withLog = (share: number) =>
+    beside('wifi', { id: 'w', state: { view: 'log' }, sizes: [share, 100 - share] })
+  for (const layout of [withLog(60), withLog(22)]) {
+    const { page, close } = await shared({ layout })
+    try {
+      await expect(page.getByTestId('wifi-ssid')).toHaveText('ELECDEX-LAB', { timeout: 20_000 })
+      await expect(page.getByTestId('wifi-event').first()).toBeVisible()
+      const rems = await page.evaluate(() => {
+        const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+        const rem = (selector: string) => {
+          const el = document.querySelector(selector)
+          return el === null ? null : Number.parseFloat(getComputedStyle(el).fontSize) / root
+        }
+        return {
+          name: rem('[data-testid=wifi-station] .name'),
+          main: rem('[data-testid=wifi-station] .main'),
+          sub: rem('[data-testid=wifi-station] .sub'),
+          evidence: rem('[data-testid=wifi-verdict] .evidence'),
+          state: rem('[data-testid=wifi-state]'),
+          event: rem('[data-testid=wifi-event]'),
+          legend: rem('[data-testid=wifi-legend]'),
+          mosLabel: rem('[data-testid=wifi-mos] .k'),
+        }
+      })
+      // --step--1 is 0.75rem (12 px on a 1080p screen); --step--2, 0.625rem, is for labels.
+      for (const read of ['name', 'main', 'sub', 'evidence', 'state', 'event'] as const) {
+        expect(rems[read], read).toBeCloseTo(0.75, 2)
+      }
+      expect(rems.legend).toBeCloseTo(0.625, 2)
+      expect(rems.mosLabel).toBeCloseTo(0.625, 2)
+    } finally {
+      await close()
+    }
+  }
+})

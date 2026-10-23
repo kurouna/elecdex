@@ -1,0 +1,970 @@
+import { execFileSync } from 'node:child_process'
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { expect } from '@playwright/test'
+import { test } from '../support/shared.js'
+import {
+  atDesignSize,
+  beside,
+  launch,
+  quietFor,
+  savedLayout,
+  single,
+  waitForSaved,
+  watching,
+} from '../support.js'
+
+/**
+ * The CPU bar view, the application launcher and the market board.
+ * Markets are served by a local stub; nothing here contacts Yahoo.
+ */
+
+const layout = (widget: string, state?: Record<string, unknown>) =>
+  single(widget, state === undefined ? { id: 'p' } : { id: 'p', state })
+
+/**
+ * Waits until layout.json holds the one pane's state with every key of `want`: what a restart
+ * must find, written by a debounced save the test cannot see.
+ */
+const paneStateSaved = (userData: string, want: Record<string, unknown>) =>
+  waitForSaved(userData, (text) => {
+    const state = (JSON.parse(text) as { root?: { state?: Record<string, unknown> } }).root?.state
+    return Object.entries(want).every(
+      ([key, value]) => JSON.stringify(state?.[key]) === JSON.stringify(value),
+    )
+  })
+
+test('the CPU pane switches to a bar per core, and remembers it', async () => {
+  let launched = await launch(undefined, { layout: layout('cpu') })
+  try {
+    const { page } = launched
+    const cpu = page.getByTestId('cpu')
+    await expect(cpu).toHaveAttribute('data-view', 'line')
+    await page.getByTestId('cpu-view').locator('[data-view=bars]').click()
+    await expect(cpu).toHaveAttribute('data-view', 'bars')
+    const cores = page.getByTestId('cpu-core')
+    // This wait has timed out now and then on CI (Linux and Windows) and never locally;
+    // on a timeout, report what the collector was doing so the cause can be found.
+    await expect
+      .poll(() => cores.count(), { timeout: 20_000 })
+      .toBeGreaterThan(0)
+      .catch(async (error: Error) => {
+        const stats = await page.evaluate(() => window.elecdex.metrics.stats()).catch(() => null)
+        throw new Error(`${error.message}\nmetrics collector: ${JSON.stringify(stats)}`)
+      })
+    const load = Number(await cores.first().getAttribute('data-load'))
+    expect(load).toBeGreaterThanOrEqual(0)
+    expect(load).toBeLessThanOrEqual(100)
+
+    await paneStateSaved(launched.userData, { view: 'bars' })
+    launched = await launched.relaunch()
+    await expect(launched.page.getByTestId('cpu')).toHaveAttribute('data-view', 'bars')
+  } finally {
+    await launched.close()
+  }
+})
+
+test("the launcher names its tiles at the filesystem's size, two lines of it", async ({
+  shared,
+}) => {
+  const { page, close } = await shared({
+    layout: beside('launcher', { id: 'l', other: 'filesystem' }),
+    settings: {
+      launcher: {
+        showSystem: false,
+        items: [
+          { name: 'Short', target: '/not/here/a' },
+          { name: 'A rather long application name that wraps', target: '/not/here/b' },
+        ],
+      },
+    },
+  })
+  try {
+    await expect(page.getByTestId('launcher-entry')).toHaveCount(2)
+    await expect(page.locator('[data-widget=filesystem] .tile .name').first()).toBeVisible({
+      timeout: 20_000,
+    })
+    const sizes = await page.evaluate(() => {
+      const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+      const rem = (selector: string) => {
+        const el = document.querySelector(selector)
+        return el === null ? null : Number.parseFloat(getComputedStyle(el).fontSize) / root
+      }
+      const tile = document.querySelectorAll('[data-testid=launcher-entry]')[1] as HTMLElement
+      return {
+        launcher: rem('[data-testid=launcher-entry] .name'),
+        filesystem: rem('[data-widget=filesystem] .tile .name'),
+        // A long name wraps inside its tile rather than spilling out of it.
+        spills: tile.scrollHeight > tile.clientHeight + 1,
+      }
+    })
+    // --step--1: a tile's name is what the pane is read by, in both panes alike.
+    expect(sizes.launcher).toBeCloseTo(0.75, 2)
+    expect(sizes.filesystem).toBeCloseTo(0.75, 2)
+    expect(sizes.spills).toBe(false)
+  } finally {
+    await close()
+  }
+})
+
+test('the launcher lists user entries first and reports a launch that fails', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({
+    layout: layout('launcher'),
+    settings: {
+      sound: { enabled: false },
+      launcher: {
+        showSystem: false,
+        items: [
+          { name: 'Missing Tool', target: '/definitely/not/here/elecdex-e2e-missing' },
+          { name: 'Another', target: '/also/not/here' },
+        ],
+      },
+    },
+  })
+  try {
+    const entries = page.getByTestId('launcher-entry')
+    await expect(entries).toHaveCount(2)
+    await expect(entries.first()).toHaveAttribute('data-source', 'user')
+    await expect(entries.first()).toContainText('Missing Tool')
+
+    await page.getByTestId('launcher-filter').fill('anoth')
+    await expect(entries).toHaveCount(1)
+    await page.getByTestId('launcher-filter').fill('missing')
+    await page.getByTestId('launcher-filter').press('Enter')
+    await expect(page.getByTestId('launcher-status')).toContainText(/missing tool/i)
+
+    // The renderer can only launch what the list holds.
+    const refused = await page.evaluate(() => window.elecdex.launcher.launch('not-an-id'))
+    expect(refused).toEqual({ ok: false, error: 'not in the launcher' })
+  } finally {
+    await close()
+  }
+})
+
+// Node itself, exiting at once: a program that really starts, on every platform.
+// The comment in the script keeps entries' ids apart.
+const quick = (name: string) => ({
+  name,
+  target: process.execPath,
+  args: ['-e', `// ${name}`],
+})
+
+test('the launcher counts launches and lists the most used first', async () => {
+  let launched = await launch(undefined, {
+    layout: layout('launcher'),
+    settings: {
+      sound: { enabled: false },
+      launcher: { showSystem: false, items: [quick('Alpha'), quick('Bravo')] },
+    },
+  })
+  try {
+    const entries = launched.page.getByTestId('launcher-entry')
+    await expect(entries).toHaveCount(2)
+    await expect(entries.first()).toContainText('Alpha')
+
+    const bravo = entries.filter({ hasText: 'Bravo' })
+    await bravo.click()
+    // It blinks where it was clicked, and only then moves up.
+    await expect(bravo).toHaveClass(/blinking/)
+    await expect(entries.first()).toContainText('Alpha')
+    await expect(launched.page.getByTestId('launcher-status')).toContainText(/started bravo/i)
+    // Reordered at once, and counted.
+    await expect(entries.first()).toContainText('Bravo')
+    await expect(entries.first()).toHaveAttribute('data-launches', '1')
+    await expect(entries.nth(1)).toHaveAttribute('data-launches', '0')
+
+    // The count survives a restart.
+    launched = await launched.relaunch()
+    const again = launched.page.getByTestId('launcher-entry')
+    await expect(again.first()).toContainText('Bravo')
+    await expect(again.first()).toHaveAttribute('data-launches', '1')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('a shortcut puts the cursor in the launcher pane search, over and over', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({
+    layout: beside('terminal', { id: 't', other: 'launcher', sizes: [0.5, 0.5] }),
+    settings: { launcher: { showSystem: false, items: [] } },
+  })
+  try {
+    const filter = page.getByTestId('launcher-filter')
+    await page.locator('[data-testid=pane][data-widget=terminal]').dispatchEvent('pointerdown')
+    await page.locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(filter).toBeFocused()
+    // The pane in the layout, not one popped up over it.
+    await expect(page.getByTestId('popup-pane')).toHaveCount(0)
+    await expect(page.locator('[data-testid=pane][data-widget=launcher]')).toHaveClass(/focused/)
+
+    await page.keyboard.type('abc')
+    await page.locator('[data-testid=pane][data-widget=terminal]').dispatchEvent('pointerdown')
+    await page.locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(filter).toBeFocused()
+    // The old query is selected, so typing replaces it.
+    await page.keyboard.type('x')
+    await expect(filter).toHaveValue('x')
+  } finally {
+    await close()
+  }
+})
+
+test('with no launcher in the layout, the shortcut pops one up and leaves the layout as it is', async () => {
+  const layout = { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } }
+  const { page, userData, close } = await launch(undefined, {
+    layout,
+    settings: { launcher: { showSystem: false, items: [quick('Alpha')] } },
+  })
+  try {
+    // What is on disk once the start has settled (a save of the tree as loaded may land first).
+    // wait: that save may or may not come, so there is nothing to wait for but its debounce.
+    await page.waitForTimeout(1000)
+    const before = savedLayout(userData)
+    const shell = page.locator('.xterm-helper-textarea').first()
+    await shell.focus()
+
+    await page.keyboard.press('Control+Shift+KeyL')
+    const popup = page.getByTestId('popup-pane')
+    await expect(popup).toBeVisible()
+    await expect(popup).toHaveAttribute('data-widget', 'launcher')
+    const filter = popup.getByTestId('launcher-filter')
+    await expect(filter).toBeFocused()
+    // Nothing was added to the layout: one pane, and no save on its way.
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+
+    // Pressed again over it, the search takes the keyboard back, the query selected.
+    await page.keyboard.type('abc')
+    await popup.getByTestId('popup-close').focus()
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(filter).toBeFocused()
+    await page.keyboard.type('x')
+    await expect(filter).toHaveValue('x')
+    await expect(popup).toHaveCount(1)
+
+    // The layout's own shortcuts stand down behind it: closing a pane closes nothing.
+    await page.keyboard.press('Control+Shift+KeyW')
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+
+    // Escape puts it away, and the keyboard goes back to the shell.
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+    await expect(shell).toBeFocused()
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+
+    // Twice the save's debounce: had anything changed the tree, it would be on disk by now.
+    await quietFor(1000, async () => savedLayout(userData), 'layout.json')
+    expect(savedLayout(userData)).toBe(before)
+
+    // The × puts it away as well.
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(popup).toBeVisible()
+    await popup.getByTestId('popup-close').click()
+    await expect(popup).toHaveCount(0)
+
+    // Popped up from the picker, it takes the keyboard in its search as well.
+    await page.keyboard.press('Control+Shift+KeyA')
+    const picker = page.getByTestId('pane-picker')
+    await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
+    await picker.locator('[data-testid=pane-picker-item][data-widget=launcher]').click()
+    await expect(filter).toBeFocused()
+    await page.keyboard.type('al')
+    await expect(filter).toHaveValue('al')
+  } finally {
+    await close()
+  }
+})
+
+test('a launcher popped up goes once it has started something; a launcher pane stays', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } },
+    settings: { launcher: { showSystem: false, items: [quick('Alpha')] } },
+  })
+  try {
+    await page.keyboard.press('Control+Shift+KeyL')
+    const popup = page.getByTestId('popup-pane')
+    await expect(popup.getByTestId('launcher-entry')).toHaveCount(1)
+    await page.keyboard.type('alpha')
+    await page.keyboard.press('Enter')
+    // The start is seen - the tile blinks - and then the popup goes.
+    await expect(popup.getByTestId('launcher-entry')).toHaveClass(/blinking/)
+    await expect(popup).toHaveCount(0)
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+
+  const { page: other, close: closeOther } = await launch(undefined, {
+    layout: layout('launcher'),
+    settings: { launcher: { showSystem: false, items: [quick('Alpha')] } },
+  })
+  try {
+    const entry = other.getByTestId('launcher-entry')
+    await entry.click()
+    await expect(other.getByTestId('launcher-status')).toContainText(/started alpha/i)
+    await expect(entry).toHaveAttribute('data-launches', '1')
+    await expect(other.locator('[data-testid=pane][data-widget=launcher]')).toHaveCount(1)
+  } finally {
+    await closeOther()
+  }
+})
+
+test('the launcher lists the platform applications, with icons in the theme colour', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: layout('launcher') })
+  try {
+    await expect
+      .poll(() => page.getByTestId('launcher-entry').count(), { timeout: 20_000 })
+      .toBeGreaterThan(0)
+    // An icon is tinted: masked by its own shape over the accent colour.
+    const icon = page.getByTestId('launcher-icon').first()
+    await expect(icon).toBeVisible({ timeout: 20_000 })
+    const style = await icon.evaluate((el) => {
+      const s = getComputedStyle(el)
+      return { mask: s.maskImage || s.webkitMaskImage, background: s.backgroundColor }
+    })
+    expect(style.mask).toMatch(/^url\(/)
+    expect(style.background).not.toBe('rgba(0, 0, 0, 0)')
+  } finally {
+    await close()
+  }
+})
+
+/** The name of a packaged app (Store or MSIX) on this machine, as the Start Menu shows it. */
+function packagedAppName(): string | null {
+  const script = [
+    '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
+    "$apps = @((New-Object -ComObject Shell.Application).NameSpace('shell:AppsFolder').Items())",
+    // A packaged id as the launcher accepts it, and a name its noise filter keeps ("Get Help" is dropped).
+    "$apps | Where-Object { $_.Path -cmatch '^[A-Za-z0-9.-]{1,100}_[a-z0-9]{13}![A-Za-z][A-Za-z0-9.]{0,99}$' -and $_.Name -notmatch '(?i)uninstall|remove|readme|release notes|license|help|website|manual|アンインストール' } |",
+    '  Select-Object -First 1 -ExpandProperty Name',
+  ].join('\n')
+  const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script])
+  return out.toString('utf8').trim() || null
+}
+
+test('the launcher lists packaged apps that have no Start Menu shortcut, with their icons', async ({
+  shared,
+}) => {
+  test.skip(process.platform !== 'win32', 'packaged apps are a Windows thing')
+  // Teams, Outlook and the like have no .lnk; a server image may have none of them.
+  const name = packagedAppName()
+  test.skip(name === null, 'no packaged apps on this machine')
+  const { page, close } = await shared({ layout: layout('launcher') })
+  try {
+    await page.getByTestId('launcher-filter').fill(name ?? '')
+    const entry = page.getByTestId('launcher-entry').filter({
+      has: page.locator('.name', { hasText: new RegExp(`^${escapeRegExp(name ?? '')}$`) }),
+    })
+    await expect(entry.first()).toBeVisible({ timeout: 20_000 })
+    await expect(entry.first().getByTestId('launcher-icon')).toBeVisible({ timeout: 20_000 })
+  } finally {
+    await close()
+  }
+})
+
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+for (const theme of ['business-dark', 'business-light']) {
+  test(`the launcher shows icons in their own colours in ${theme}`, async () => {
+    const { page, close } = await launch(undefined, {
+      layout: layout('launcher'),
+      settings: { theme, sound: { enabled: false } },
+    })
+    try {
+      const icon = page.getByTestId('launcher-icon').first()
+      await expect(icon).toBeVisible({ timeout: 20_000 })
+      const style = () =>
+        icon.evaluate((el) => {
+          const s = getComputedStyle(el)
+          const img = getComputedStyle(el.querySelector('img') as Element)
+          return {
+            mask: s.maskImage || s.webkitMaskImage,
+            background: s.backgroundColor,
+            filter: img.filter,
+            blend: img.mixBlendMode,
+          }
+        })
+      await expect
+        .poll(style)
+        .toEqual({ mask: 'none', background: 'rgba(0, 0, 0, 0)', filter: 'none', blend: 'normal' })
+    } finally {
+      await close()
+    }
+  })
+}
+
+test('a calendar with room for them shows the months either side', async ({ shared }) => {
+  // A pane the size of the window: the month on screen keeps the middle, with
+  // the month before and the month after beside it, and only the middle one
+  // carries today. The pane in the default layout has room for one.
+  const { page, close } = await shared({ layout: layout('calendar') })
+  try {
+    const grids = page.getByTestId('calendar-grid')
+    await expect(grids).toHaveCount(3)
+    const months = await grids.evaluateAll((list) =>
+      list.map((el) => `${el.dataset.month}${el.hasAttribute('data-current') ? '*' : ''}`),
+    )
+    const now = new Date()
+    const month = (offset: number) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    }
+    expect(months).toEqual([month(-1), `${month(0)}*`, month(1)])
+    await expect(page.getByTestId('calendar-day')).toHaveCount(126)
+    // Today is marked once: in its own month, not as a spare day of the next.
+    await expect(page.locator('[data-testid=calendar-day][data-today]')).toHaveCount(1)
+
+    // The arrows move all three, the middle one still leading.
+    await page.getByTestId('calendar-next').click()
+    await expect(page.getByTestId('calendar-grid').first()).toHaveAttribute('data-month', month(0))
+    await expect(page.getByTestId('calendar-title')).toHaveText(
+      new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(
+        new Date(now.getFullYear(), now.getMonth() + 1, 1),
+      ),
+    )
+  } finally {
+    await close()
+  }
+})
+
+test('a calendar with room for one month shows one', async ({ shared }) => {
+  const { page, close } = await shared({
+    layout: beside('calendar', { id: 'c', other: 'terminal', sizes: [0.22, 0.78] }),
+  })
+  try {
+    await expect(page.getByTestId('calendar-grid')).toHaveCount(1)
+    await expect(page.getByTestId('calendar-day')).toHaveCount(42)
+  } finally {
+    await close()
+  }
+})
+
+test('the calendar is in English, and holidays are ticked per country in its settings', async () => {
+  // Japanese app language: the calendar's text stays English regardless.
+  let launched = await launch(undefined, { layout: layout('calendar'), args: ['--lang=ja'] })
+  try {
+    const { page } = launched
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    // The pane fills the window, so the months either side are there too.
+    await expect(page.getByTestId('calendar-grid')).toHaveCount(3)
+    await expect(
+      page.locator('[data-testid=calendar-grid][data-current] [data-testid=calendar-day]'),
+    ).toHaveCount(42)
+    await expect(page.locator('[data-testid=calendar-day][data-today]')).toHaveAttribute(
+      'data-date',
+      iso(now),
+    )
+    await expect(page.getByTestId('pane-subtitle')).toContainText(/week \d+/)
+    const title = page.getByTestId('calendar-title')
+    await expect(title).toHaveText(
+      new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(now),
+    )
+    await expect(page.getByTestId('calendar')).not.toContainText(/[぀-ヿ一-鿿]/)
+
+    const shown = await title.textContent()
+    await page.getByTestId('calendar-next').click()
+    await expect(title).not.toHaveText(shown ?? '')
+    await page.getByTestId('calendar-today').click()
+    await expect(title).toHaveText(shown ?? '')
+
+    // Off by default: no holiday is marked, even on 1 January.
+    await expect(page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'none')
+    await expect(page.locator('[data-testid=calendar-day][data-holiday]')).toHaveCount(0)
+
+    // Ticked in the settings panel, where other countries will join Japan.
+    await expect(page.getByTestId('calendar-settings')).toHaveCount(0)
+    await page.getByTestId('calendar-settings-toggle').click()
+    const japan = page.getByTestId('calendar-holidays-jp')
+    await expect(japan).not.toBeChecked()
+    await japan.check()
+    await expect(page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'jp')
+    for (let i = 0; i < 12 && (await page.locator('[data-date$="-01-01"]').count()) === 0; i++) {
+      await page.getByTestId('calendar-next').click()
+    }
+    await expect(page.locator('[data-date$="-01-01"]').first()).toHaveAttribute(
+      'data-holiday',
+      "New Year's Day",
+    )
+    await expect(page.getByTestId('calendar-next-holiday')).toContainText('next holiday')
+
+    await paneStateSaved(launched.userData, { holidays: ['jp'] })
+    launched = await launched.relaunch()
+    await expect(launched.page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'jp')
+    await launched.page.getByTestId('calendar-settings-toggle').click()
+    await expect(launched.page.getByTestId('calendar-holidays-jp')).toBeChecked()
+  } finally {
+    await launched.close()
+  }
+})
+
+test.describe('markets', () => {
+  let server: Server
+  let stubUrl = ''
+  let quoteRequests = 0
+  const chartRequests: string[] = []
+
+  test.beforeAll(async () => {
+    server = createServer((req, res) => {
+      const url = new URL(req.url ?? '/', 'http://stub')
+      if (url.pathname === '/quotes') {
+        quoteRequests += 1
+        const symbols = (url.searchParams.get('symbols') ?? '').split(',')
+        // By symbol, not position: main sends the symbols sorted.
+        const quotes = symbols.map((symbol) => ({
+          symbol,
+          name: `${symbol} name`,
+          price: symbol === 'JPY=X' ? 150.25 : 1000,
+          change: symbol === 'JPY=X' ? -1.2 : 12.5,
+          changePercent: symbol === 'JPY=X' ? -0.8 : 1.25,
+          previousClose: 990,
+          currency: 'JPY',
+          state: 'open',
+          time: Date.now(),
+        }))
+        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(quotes))
+      } else if (url.pathname.startsWith('/chart/')) {
+        const range = url.searchParams.get('range') ?? ''
+        chartRequests.push(`${decodeURIComponent(url.pathname.slice(7))}|${range}`)
+        const now = Date.now()
+        if (range === '1d') {
+          // The plain series the stub has always served, read as flat bars.
+          const points = Array.from({ length: 30 }, (_, i) => ({
+            t: now - (30 - i) * 60_000,
+            v: 990 + i,
+          }))
+          res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(points))
+          return
+        }
+        // Daily bars reaching back past the six-month window, all closing at 800.
+        const day = 24 * 60 * 60_000
+        const candles = Array.from({ length: 190 }, (_, i) => ({
+          t: now - (189 - i) * day,
+          o: 790,
+          h: 830 + (i % 7),
+          l: 770 - (i % 5),
+          c: 800,
+        }))
+        res
+          .writeHead(200, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ candles, previousClose: 700 }))
+      } else {
+        res.writeHead(404).end()
+      }
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    stubUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  })
+
+  test.afterAll(async () => {
+    await new Promise((resolve) => server.close(resolve))
+  })
+
+  test('the board shows prices and sparklines, then bars, from one request for all symbols', async () => {
+    const { page, close } = await launch(undefined, {
+      layout: layout('markets', {
+        symbols: [
+          { symbol: '^N225', label: '日経平均' },
+          { symbol: 'JPY=X', label: 'ドル円' },
+        ],
+      }),
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
+    try {
+      const rows = page.getByTestId('market-row')
+      await expect(rows).toHaveCount(2)
+      await expect(rows.first()).toContainText('日経平均')
+      await expect(rows.first().getByTestId('market-price')).toHaveText('1,000', {
+        timeout: 20_000,
+      })
+      await expect(rows.first()).toContainText('+1.25%')
+      await expect(rows.first()).toHaveClass(/\bup\b/)
+      await expect(rows.nth(1)).toHaveClass(/\bdown\b/)
+      await expect(rows.first().getByTestId('market-spark')).toHaveAttribute('data-points', /\d\d/)
+      await expect(page.getByTestId('markets')).toContainText('not investment advice')
+
+      await page.getByTestId('markets-view').locator('[data-view=bars]').click()
+      await expect(page.getByTestId('market-bar').first()).toHaveAttribute('data-pct', '1.25')
+      await expect(page.getByTestId('market-bar').nth(1)).toHaveAttribute('data-pct', '-0.80')
+
+      // Two symbols, one batched request - not one per symbol. Nor one per click: another view
+      // is a new pane state, and must not drop and take the subscriptions again.
+      await quietFor(1500, async () => quoteRequests, 'the quote requests')
+      expect(quoteRequests).toBe(1)
+      expect(await watching(page, 'markets')).toEqual(['JPY=X', '^N225'])
+
+      // Editing the list changes what main polls.
+      await page.getByTestId('markets-settings-toggle').click()
+      await page.getByTestId('markets-symbols').fill('^GSPC S&P 500')
+      await page.getByTestId('markets-save').click()
+      await expect.poll(() => watching(page, 'markets'), { timeout: 10_000 }).toEqual(['^GSPC'])
+      await expect(page.getByTestId('market-bar')).toHaveCount(1)
+      await expect(page.getByTestId('market-bar').first()).toContainText('S&P 500')
+    } finally {
+      await close()
+    }
+  })
+
+  test('candles and a longer range: main keeps only the chosen chart, and both survive a restart', async () => {
+    let launched = await launch(undefined, {
+      // Saved before ranges existed: no range in the pane state.
+      layout: layout('markets', { symbols: [{ symbol: '^N225', label: '日経平均' }] }),
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
+    try {
+      const { page } = launched
+      const markets = page.getByTestId('markets')
+      const charts = () => page.evaluate(() => window.elecdex.markets.charts())
+      await expect(markets).toHaveAttribute('data-range', '1d')
+      await expect(page.getByTestId('market-price')).toHaveText('1,000', { timeout: 20_000 })
+      expect(await charts()).toEqual(['^N225|1d'])
+      await expect(page.getByTestId('pane-subtitle')).toContainText('1D ·')
+
+      await page.getByTestId('markets-view').locator('[data-view=candles]').click()
+      await expect(markets).toHaveAttribute('data-view', 'candles')
+      const candles = page.getByTestId('market-candles')
+      await expect(candles).toHaveCount(1)
+      await expect(candles).toHaveAttribute('data-bars', /^[1-9]\d*$/)
+      await expect(page.getByTestId('market-spark')).toHaveCount(0)
+
+      // The ranges stand above the board: one click, no settings panel.
+      await page.getByTestId('markets-ranges').locator('[data-range="6mo"]').click()
+      await expect(markets).toHaveAttribute('data-range', '6mo')
+      await expect(page.getByTestId('markets-range')).toHaveText('1d')
+      // The 1D chart is dropped as the 6M one is taken; the symbol is quoted once throughout.
+      await expect.poll(charts, { timeout: 10_000 }).toEqual(['^N225|6mo'])
+      expect(await watching(page, 'markets')).toEqual(['^N225'])
+      await expect.poll(() => chartRequests.includes('^N225|6mo'), { timeout: 10_000 }).toBe(true)
+      // Measured from the close before the six months (800), not the day's change.
+      await expect(page.getByTestId('market-row')).toContainText('+25.00%', { timeout: 10_000 })
+      await expect(page.getByTestId('pane-subtitle')).toContainText('6M ·')
+      await expect(candles).toHaveAttribute('data-bars', /^[1-9]\d*$/)
+
+      await page.getByTestId('markets-view').locator('[data-view=bars]').click()
+      const bar = page.getByTestId('market-bar')
+      await expect(bar).toHaveAttribute('data-pct', '25.00')
+      await expect(bar).toHaveAttribute('title', /base 800.00 \(.+ close\) → 1,000/)
+
+      await paneStateSaved(launched.userData, { range: '6mo', view: 'bars' })
+      launched = await launched.relaunch()
+      const again = launched.page
+      await expect(again.getByTestId('markets')).toHaveAttribute('data-range', '6mo')
+      await expect(again.getByTestId('markets')).toHaveAttribute('data-view', 'bars')
+      await expect(again.getByTestId('market-bar')).toHaveAttribute('data-pct', '25.00', {
+        timeout: 20_000,
+      })
+      expect(await again.evaluate(() => window.elecdex.markets.charts())).toEqual(['^N225|6mo'])
+    } finally {
+      await launched.close()
+    }
+  })
+
+  test('the rows fill the pane: charts from the names to the figures, candles across the row', async () => {
+    const { page, close } = await launch(undefined, {
+      layout: layout('markets', { symbols: [{ symbol: '^N225' }, { symbol: 'JPY=X' }] }),
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
+    try {
+      const markets = page.getByTestId('markets')
+      const measure = () =>
+        page.locator('.board').evaluate((board) => {
+          const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+          const box = (el: Element | null) => (el as Element).getBoundingClientRect()
+          const rows = [...board.querySelectorAll('[data-testid=market-row]')]
+          const first = rows[0] as Element
+          return {
+            rowWidth: box(first).width / rem,
+            nameToChart: (box(first.querySelector('.chart')).left - box(first).left) / rem,
+            chartWidth: box(first.querySelector('.chart')).width / rem,
+            chartLefts: rows.map((r) => Math.round(box(r.querySelector('.chart')).left)),
+            rowsHeight: rows.reduce((sum, r) => sum + box(r).height, 0),
+            boardHeight: box(board).height,
+          }
+        })
+      await expect(page.getByTestId('market-price').first()).toHaveText('1,000', {
+        timeout: 20_000,
+      })
+      const line = await measure()
+      // A wide pane: 28% of it would be far more than the names need.
+      expect(line.rowWidth * 0.28).toBeGreaterThan(12)
+      // The name column (at most 9rem), the padding and the gap.
+      expect(line.nameToChart).toBeLessThan(10.5)
+      // The names and the figures take what they need, and the chart has the rest.
+      expect(line.chartWidth).toBeGreaterThan(line.rowWidth * 0.75)
+      // One grid for the board: every chart starts on the same line.
+      expect(new Set(line.chartLefts).size).toBe(1)
+      // The rows share the whole height: no strip of empty pane under the last of them.
+      expect(line.rowsHeight).toBeGreaterThan(line.boardHeight - 2)
+
+      await page.getByTestId('markets-view').locator('[data-view=candles]').click()
+      await expect(markets).toHaveAttribute('data-view', 'candles')
+      const candles = await measure()
+      // Under the name and the figures, not between them: the row's whole width.
+      expect(candles.nameToChart).toBeLessThan(1)
+      expect(candles.chartWidth).toBeGreaterThan(candles.rowWidth * 0.95)
+      expect(candles.rowsHeight).toBeGreaterThan(candles.boardHeight - 2)
+
+      // Back to lines, the rows are as they were.
+      await page.getByTestId('markets-view').locator('[data-view=line]').click()
+      expect((await measure()).nameToChart).toBeCloseTo(line.nameToChart, 1)
+    } finally {
+      await close()
+    }
+  })
+
+  test('a wide pane stands the rows in two columns; the side pane packs them', async () => {
+    // Wide: the markets pane alone, with the default eight symbols.
+    const wide = await launch(undefined, { layout: layout('markets') })
+    try {
+      const board = wide.page.locator('.board')
+      await expect(board).toHaveAttribute('data-columns', '2')
+      const tops = await board.evaluate((el) =>
+        [...el.querySelectorAll('[data-testid=market-row]')].map((r) =>
+          Math.round(r.getBoundingClientRect().top),
+        ),
+      )
+      // Eight rows on four lines, side by side in pairs.
+      expect(tops).toHaveLength(8)
+      expect(new Set(tops).size).toBe(4)
+      expect(tops[0]).toBe(tops[1])
+    } finally {
+      await wide.close()
+    }
+
+    // The default layout's pane is short for eight rows: they are packed to one line each.
+    const side = await launch()
+    try {
+      const pane = side.page.locator('[data-testid=pane][data-widget=markets]')
+      const board = pane.locator('.board')
+      await expect(board).toHaveAttribute('data-dense', 'true')
+      await expect(board).toHaveAttribute('data-columns', '1')
+      const first = pane.getByTestId('market-row').first()
+      await expect(first.locator('.ticker')).toBeHidden()
+      await expect(first.locator('.short')).toBeHidden() // nothing to show until a quote arrives
+      const rem = await side.page.evaluate(() =>
+        Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+      )
+      expect(((await first.boundingBox())?.height ?? 0) / rem).toBeLessThan(2.2)
+    } finally {
+      await side.close()
+    }
+  })
+
+  test("the bar view's zero stands on the rows' axis, and the rows sort by the change", async () => {
+    // The default pane's list scrolls: a scale as wide as the pane once stood beside the axis.
+    const { app, page, close } = await launch(undefined, {
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
+    try {
+      // In the window the default layout is designed for: narrower than that, the
+      // scale's own labels are wider than the column they share with the bars, and
+      // what they overflow into is the widget's problem, not the axis's.
+      await atDesignSize(app, page)
+      const pane = page.locator('[data-testid=pane][data-widget=markets]')
+      await pane.getByTestId('markets-view').locator('[data-view=bars]').click()
+      await expect(pane.getByTestId('market-bar').first()).toHaveAttribute('data-pct', '1.25', {
+        timeout: 20_000,
+      })
+      const centre = (el: Element) => {
+        const box = el.getBoundingClientRect()
+        return box.left + box.width / 2
+      }
+      const zero = await pane.locator('.ticks span').nth(1).evaluate(centre)
+      const axis = await pane.locator('.axis').first().evaluate(centre)
+      // The scale and the rows are two grids on the same columns, so they line up
+      // only while they are the same width. What that is made of - each one's own
+      // content box, and the gutter each reserves for a scrollbar - is measured
+      // here, since a machine where they differ says nothing by the offset alone.
+      const widths = await pane.evaluate((el) => {
+        const of = (selector: string) => {
+          const found = el.querySelector(selector)
+          return found === null
+            ? null
+            : { client: found.clientWidth, box: Math.round(found.getBoundingClientRect().width) }
+        }
+        return { scale: of('.scale'), bars: of('.bars'), row: of('.bar-row .hit') }
+      })
+      expect(
+        Math.abs(zero - axis),
+        `zero ${zero} vs axis ${axis}; ${JSON.stringify(widths)}`,
+      ).toBeLessThan(1.5)
+
+      const order = () =>
+        pane
+          .getByTestId('market-bar')
+          .evaluateAll((bars) => bars.map((b) => Number(b.getAttribute('data-pct'))))
+      const listed = await order()
+      await pane.getByTestId('markets-sort').click()
+      await expect(pane.getByTestId('markets-sort')).toHaveAttribute('aria-pressed', 'true')
+      const sorted = await order()
+      expect(sorted).toEqual([...listed].sort((a, b) => b - a))
+      expect(sorted).not.toEqual(listed)
+
+      // Packed rows show the change as its percentage alone.
+      await pane.getByTestId('markets-view').locator('[data-view=line]').click()
+      const first = pane.getByTestId('market-row').first()
+      await expect(first.locator('.short')).toBeVisible()
+      await expect(first.locator('.full')).toBeHidden()
+    } finally {
+      await close()
+    }
+  })
+
+  test('a row opens its chart over the whole pane, and the arrow goes back to the list', async () => {
+    let launched = await launch(undefined, {
+      layout: layout('markets', { symbols: [{ symbol: '^N225' }, { symbol: 'JPY=X' }] }),
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
+    try {
+      const { page } = launched
+      const markets = page.getByTestId('markets')
+      await expect(page.getByTestId('market-price').first()).toHaveText('1,000', {
+        timeout: 20_000,
+      })
+      // The row is a button now; the market's state light must still be a dot, not
+      // whatever the button's styles would make of it (they once shared a class).
+      const dot = await page
+        .locator('[data-testid=market-row] .state')
+        .first()
+        .evaluate((el) => el.getBoundingClientRect())
+      expect(dot.width).toBeCloseTo(dot.height, 0)
+      expect(dot.width).toBeLessThan(10)
+
+      await page.getByTestId('market-row').nth(1).getByTestId('market-open').click()
+      const detail = page.getByTestId('markets-detail')
+      await expect(detail).toHaveAttribute('data-symbol', 'JPY=X')
+      await expect(page.getByTestId('market-detail-price')).toHaveText('150.25')
+      await expect(detail).toContainText('−0.80%')
+      await expect(page.getByTestId('market-row')).toHaveCount(0)
+      const chart = page.getByTestId('market-detail-chart')
+      await expect(chart).toHaveAttribute('data-bars', /^[1-9]\d*$/)
+      // The chart has the pane: everything under the head, down to the credit. Polled,
+      // because it powers on like a tube and is drawn scaled until it has.
+      const paneBox = await markets.boundingBox()
+      const share = async () => {
+        const box = await chart.boundingBox()
+        return Math.min(
+          (box?.width ?? 0) / (paneBox?.width ?? 1) / 0.95,
+          (box?.height ?? 0) / (paneBox?.height ?? 1) / 0.8,
+        )
+      }
+      // At least 95% of the pane's width and 80% of its height.
+      await expect.poll(share).toBeGreaterThan(1)
+      // Both symbols stay quoted, so the list is current when it comes back.
+      expect(await watching(page, 'markets')).toEqual(['JPY=X', '^N225'])
+
+      await page.getByTestId('markets-view').locator('[data-view=candles]').click()
+      await expect(chart).toHaveAttribute('data-view', 'candles')
+      await chart.hover({ position: { x: 40, y: 40 } })
+      await expect(page.getByTestId('market-detail-readout')).toContainText(/O .+H .+L .+C /)
+
+      // The range beside the chart is the pane's.
+      await page.getByTestId('markets-ranges').locator('[data-range="6mo"]').click()
+      await expect(markets).toHaveAttribute('data-range', '6mo')
+      await expect(detail).toContainText('%', { timeout: 10_000 })
+
+      // The open chart is pane state: it is there after a restart.
+      await paneStateSaved(launched.userData, {
+        focus: 'JPY=X',
+        detailView: 'candles',
+        range: '6mo',
+      })
+      launched = await launched.relaunch()
+      const again = launched.page
+      await expect(again.getByTestId('markets-detail')).toHaveAttribute('data-symbol', 'JPY=X')
+      await expect(again.getByTestId('market-detail-chart')).toHaveAttribute('data-view', 'candles')
+
+      await again.getByTestId('markets-back').click()
+      await expect(again.getByTestId('markets-detail')).toHaveCount(0)
+      await expect(again.getByTestId('market-row')).toHaveCount(2)
+      // The board kept its own view: choosing candles for the chart did not change it.
+      await expect(again.getByTestId('markets')).toHaveAttribute('data-view', 'line')
+      await expect(again.getByTestId('market-spark')).toHaveCount(2)
+    } finally {
+      await launched.close()
+    }
+  })
+
+  test('a watchlist longer than the pane scrolls in both views instead of covering the credit', async () => {
+    // The default layout's markets pane is short and its watchlist has eight symbols.
+    const { page, close } = await launch()
+    try {
+      const pane = page.locator('[data-testid=pane][data-widget=markets]')
+      const credit = pane.locator('.credit')
+      for (const [view, list] of [
+        ['line', '.board'],
+        ['candles', '.board'],
+        ['bars', '[data-testid=markets-bars]'],
+      ] as const) {
+        await pane.getByTestId('markets-view').locator(`[data-view=${view}]`).click()
+        const geometry = await pane.locator(list).evaluate(
+          (el, creditEl) => {
+            const box = el.getBoundingClientRect()
+            return {
+              overflows: el.scrollHeight > el.clientHeight,
+              scrolls: getComputedStyle(el).overflowY === 'auto',
+              bottom: box.bottom,
+              creditTop: (creditEl as Element).getBoundingClientRect().top,
+            }
+          },
+          await credit.elementHandle(),
+        )
+        expect(geometry.overflows, view).toBe(true)
+        expect(geometry.scrolls, view).toBe(true)
+        // The list ends above the credit, so nothing is drawn over it.
+        expect(geometry.bottom, view).toBeLessThanOrEqual(geometry.creditTop + 1)
+      }
+      // Scrolled to the end, the last symbol is reachable in the bar view.
+      const bars = pane.getByTestId('markets-bars')
+      await bars.evaluate((el) => {
+        el.scrollTop = el.scrollHeight
+      })
+      const last = pane.getByTestId('market-bar').last()
+      const lastBox = await last.boundingBox()
+      const barsBox = await bars.boundingBox()
+      expect((lastBox?.y ?? 0) + (lastBox?.height ?? 0)).toBeLessThanOrEqual(
+        (barsBox?.y ?? 0) + (barsBox?.height ?? 0) + 1,
+      )
+    } finally {
+      await close()
+    }
+  })
+
+  test('built-in names follow the app language; labels the user typed do not', async () => {
+    const symbols = [{ symbol: '^N225' }, { symbol: 'JPY=X', label: 'my yen' }]
+    for (const [lang, nikkei] of [
+      ['en-US', 'Nikkei 225'],
+      ['ja', '日経平均'],
+    ] as const) {
+      const { page, close } = await launch(undefined, {
+        layout: layout('markets', { symbols }),
+        args: [`--lang=${lang}`],
+      })
+      try {
+        const rows = page.getByTestId('market-row')
+        await expect(rows.first()).toContainText(nikkei)
+        await expect(rows.nth(1)).toContainText('my yen')
+      } finally {
+        await close()
+      }
+    }
+  })
+
+  test('an unreachable source shows the problem instead of numbers', async () => {
+    const { page, close } = await launch(undefined, { layout: layout('markets') })
+    try {
+      await expect(page.getByTestId('pane-badge')).toHaveText('stale', { timeout: 20_000 })
+      await expect(page.getByTestId('market-row').first()).toContainText(/fetch failed|HTTP|ECONN/i)
+    } finally {
+      await close()
+    }
+  })
+})

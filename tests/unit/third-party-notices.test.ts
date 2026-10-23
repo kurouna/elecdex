@@ -11,7 +11,7 @@ import {
 /**
  * The third-party notices shipped with the app (THIRD_PARTY_NOTICES.txt): which
  * package a bundled module belongs to, what is read from a package, and what
- * the file says. The built file itself is checked in tests/e2e/bundle.spec.ts.
+ * the file says. The built file itself is checked in tests/e2e/app/bundle.spec.ts.
  */
 
 const root = path.resolve(__dirname, '..', '..')

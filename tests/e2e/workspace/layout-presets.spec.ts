@@ -1,0 +1,304 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import type { Page } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from '../support/shared.js'
+import {
+  launch,
+  NO_SWITCH_PROMPT,
+  SINGLE_TERMINAL,
+  settleLayout,
+  showStatusBar,
+  terminalPane,
+} from '../support.js'
+
+/**
+ * Layout presets (shared/layout-presets.ts, architecture.md §5.6): the shelf in
+ * the LAYOUTS dialog, what a first start is given, putting a layout back to its
+ * preset, and the blink a choice makes before the switch.
+ *
+ * support.ts turns the first start's presets off for every other spec; these
+ * turn them back on.
+ */
+
+const SEED = { ELECDEX_SEED_LAYOUTS: '1' }
+const PRESETS = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai', 'cockpit', 'retro']
+
+const widget = (page: Page, id: string) => page.locator(`[data-testid=pane][data-widget="${id}"]`)
+const card = (page: Page, id: string) =>
+  page.locator(`[data-testid=layouts-preset][data-preset="${id}"]`)
+
+const savedFile = (userData: string) =>
+  JSON.parse(readFileSync(path.join(userData, 'layouts.json'), 'utf8')) as {
+    items: { id: string; name: string; preset?: string }[]
+    active: string | null
+  }
+
+async function openLayouts(page: Page): Promise<void> {
+  await page.keyboard.press('Control+Shift+KeyG')
+  await expect(page.getByTestId('layouts-dialog')).toBeVisible()
+}
+
+/** Remembers, in the page, whether anything in the dialog was ever marked as chosen. */
+async function watchChoice(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const seen = window as unknown as { __chosen?: boolean }
+    seen.__chosen = false
+    new MutationObserver(() => {
+      if (document.querySelector('[data-chosen=true]') !== null) seen.__chosen = true
+    }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-chosen'] })
+  })
+}
+
+const choiceWasSeen = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __chosen?: boolean }).__chosen === true)
+
+test('a first start has every preset on the number keys, and only a first start', async () => {
+  let launched = await launch(undefined, { env: SEED })
+  const first = launched
+  const { userData } = first
+  try {
+    const saved = savedFile(userData)
+    expect(saved.items.map((l) => l.preset)).toEqual(PRESETS)
+    expect(saved.items.map((l) => l.name)).toEqual(PRESETS)
+    // The workspace is the default arrangement, which is the first of them.
+    expect(saved.active).toBe(saved.items[0]?.id)
+
+    await showStatusBar(first.page)
+    const slots = first.page.getByTestId('layout-slot')
+    await expect(slots).toHaveCount(PRESETS.length)
+    await expect(slots.nth(2)).toHaveAttribute('data-name', 'earth')
+    await expect(slots.nth(0)).toHaveAttribute('aria-pressed', 'true')
+
+    await openLayouts(first.page)
+    await expect(first.page.getByTestId('layouts-item')).toHaveCount(PRESETS.length)
+    // A thumbnail per row and per card.
+    await expect(first.page.getByTestId('layouts-dialog').getByTestId('layout-thumb')).toHaveCount(
+      PRESETS.length * 2,
+    )
+    await expect(card(first.page, 'standard').getByTestId('layouts-preset-badge')).toHaveText(
+      'in this one',
+    )
+    await expect(card(first.page, 'desk').getByTestId('layouts-preset-badge')).toHaveText('on 6')
+
+    // One forgotten, and the app started again: nothing comes back.
+    await expect(card(first.page, 'ai').getByTestId('layouts-preset-badge')).toHaveText('on 7')
+    await expect(card(first.page, 'cockpit').getByTestId('layouts-preset-badge')).toHaveText('on 8')
+    await expect(card(first.page, 'retro').getByTestId('layouts-preset-badge')).toHaveText('on 9')
+    const remove = first.page.getByTestId('layouts-remove').nth(PRESETS.length - 1)
+    await remove.click()
+    await remove.click()
+    await expect(first.page.getByTestId('layouts-item')).toHaveCount(PRESETS.length - 1)
+    await expect(card(first.page, 'retro').getByTestId('layouts-preset-badge')).toHaveText('+ add')
+    await first.page.keyboard.press('Escape')
+
+    launched = await first.relaunch()
+    expect(savedFile(userData).items.map((l) => l.preset)).toEqual(PRESETS.slice(0, -1))
+    await openLayouts(launched.page)
+    await expect(launched.page.getByTestId('layouts-item')).toHaveCount(PRESETS.length - 1)
+  } finally {
+    await launched.close()
+  }
+})
+
+test('an existing profile is given no presets, and a card adds one and goes there', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    env: SEED,
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    await openLayouts(page)
+    // layout.json was there before: this is not a first start.
+    await expect(page.getByTestId('layouts-item')).toHaveCount(0)
+    await expect(page.getByTestId('layouts-preset')).toHaveCount(PRESETS.length)
+    for (const badge of await page.getByTestId('layouts-preset-badge').all()) {
+      await expect(badge).toHaveText('+ add')
+    }
+
+    await watchChoice(page)
+    await card(page, 'desk').click()
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    await settleLayout(page)
+    expect(await choiceWasSeen(page), 'the card blinked before the switch').toBe(true)
+    for (const id of ['notes', 'todo', 'calendar', 'timer', 'calc', 'cpu']) {
+      await expect(widget(page, id), id).toHaveCount(1)
+    }
+    await expect(terminalPane(page)).toHaveCount(0)
+
+    let saved = savedFile(userData)
+    expect(saved.items.map((l) => [l.name, l.preset])).toEqual([['desk', 'desk']])
+    expect(saved.active).toBe(saved.items[0]?.id)
+
+    // From the keyboard: Tab onto the shelf, along it to dev, Enter.
+    await openLayouts(page)
+    await expect(card(page, 'desk').getByTestId('layouts-preset-badge')).toHaveText('in this one')
+    await card(page, 'earth').focus()
+    // On the shelf the list shows no choice of its own, so only the card says what Enter takes.
+    await expect(page.locator('[data-testid=layouts-item][aria-selected=true]')).toHaveCount(0)
+    await page.keyboard.press('ArrowRight')
+    await expect(card(page, 'dev')).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    await settleLayout(page)
+    await expect(widget(page, 'git')).toHaveCount(1)
+    await expect(widget(page, 'agents')).toHaveCount(1)
+
+    // The desk card again goes back to the layout made from it; nothing is added.
+    await openLayouts(page)
+    await card(page, 'desk').click()
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    await settleLayout(page)
+    await expect(widget(page, 'notes')).toHaveCount(1)
+    saved = savedFile(userData)
+    expect(saved.items.map((l) => l.preset)).toEqual(['desk', 'dev'])
+  } finally {
+    await close()
+  }
+})
+
+test('a layout made from a preset keeps the work done in it, and can be put back', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    env: SEED,
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    await openLayouts(page)
+    await card(page, 'desk').click()
+    await settleLayout(page)
+
+    // The timer closed: the layout follows the work, so desk no longer has one.
+    await widget(page, 'timer').click()
+    await page.keyboard.press('Control+Shift+KeyW')
+    await expect(widget(page, 'timer')).toHaveCount(0)
+    await expect.poll(() => JSON.stringify(savedFile(userData).items[0])).not.toContain('"timer"')
+
+    // A layout the user saved has no restore; one made from a preset has.
+    await openLayouts(page)
+    await page.getByTestId('layouts-name').fill('mine')
+    await page.getByTestId('layouts-save').click()
+    await expect(page.getByTestId('layouts-item')).toHaveCount(2)
+    await expect(page.getByTestId('layouts-restore')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+
+    // Back to desk, which is where the timer was closed, and put it back.
+    await page.keyboard.press('Control+Shift+Digit1')
+    await settleLayout(page)
+    await openLayouts(page)
+    const restore = page.getByTestId('layouts-restore')
+    await restore.click()
+    await expect(restore).toHaveText('click again to restore')
+    await restore.click()
+    await settleLayout(page)
+    // The layout being worked in was put back, so the workspace went back with it.
+    await expect(widget(page, 'timer')).toHaveCount(1)
+    await expect.poll(() => JSON.stringify(savedFile(userData).items[0])).toContain('"timer"')
+    // Its name and place are kept, and "mine" is untouched.
+    expect(savedFile(userData).items.map((l) => l.name)).toEqual(['desk', 'mine'])
+  } finally {
+    await close()
+  }
+})
+
+test('with motion reduced, a choice in the layouts dialog does not blink', async ({ shared }) => {
+  const { page, close } = await shared({
+    env: SEED,
+    layout: SINGLE_TERMINAL,
+    settings: { motion: 'reduced', ...NO_SWITCH_PROMPT },
+  })
+  try {
+    await openLayouts(page)
+    await watchChoice(page)
+    await card(page, 'desk').click()
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    await expect(widget(page, 'notes')).toHaveCount(1)
+    expect(await choiceWasSeen(page)).toBe(false)
+  } finally {
+    await close()
+  }
+})
+
+test('Ctrl+Shift and a function key go to each preset, and each card names its key', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    env: SEED,
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    await openLayouts(page)
+    await expect(card(page, 'standard').getByTestId('layouts-preset-chord')).toHaveText(
+      'Ctrl+Shift+F1',
+    )
+    await expect(card(page, 'desk').getByTestId('layouts-preset-chord')).toHaveText('Ctrl+Shift+F6')
+    await expect(card(page, 'ai').getByTestId('layouts-preset-chord')).toHaveText('Ctrl+Shift+F7')
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+
+    // Not yet among the layouts: the key adds one and goes there, as the card does.
+    await page.keyboard.press('Control+Shift+F6')
+    await settleLayout(page)
+    await expect(widget(page, 'notes')).toHaveCount(1)
+    // On screen, not a tab: the clipboard pane reads only while it is seen.
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+    // In dev the panes that read only while seen are the tabs in front: the containers, what
+    // was copied, and the repository before the chat behind it.
+    await page.keyboard.press('Control+Shift+F4')
+    await settleLayout(page)
+    await expect(widget(page, 'git')).toBeVisible()
+    await expect(widget(page, 'aichat')).toBeHidden()
+    await expect(widget(page, 'docker')).toBeVisible()
+    await expect(widget(page, 'timer')).toBeHidden()
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+    await expect(widget(page, 'terminal')).toHaveCount(2)
+    // Two chats one over the other, the council beside them.
+    await page.keyboard.press('Control+Shift+F7')
+    await settleLayout(page)
+    await expect(widget(page, 'aichat')).toHaveCount(2)
+    await expect(widget(page, 'elec')).toBeVisible()
+    // Already among them: the key goes back to it rather than adding another.
+    await page.keyboard.press('Control+Shift+F6')
+    await settleLayout(page)
+    await expect(widget(page, 'notes')).toHaveCount(1)
+    expect(savedFile(userData).items.map((l) => l.preset)).toEqual(['desk', 'dev', 'ai'])
+  } finally {
+    await close()
+  }
+})
+
+test('the preset shelf scrolls sideways when it does not fit, by wheel and by keys', async ({
+  shared,
+}) => {
+  const { app, page, close } = await shared({ env: SEED, layout: SINGLE_TERMINAL })
+  try {
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(460, 700)
+    })
+    await expect.poll(() => page.evaluate(() => window.innerWidth)).toBeLessThan(500)
+    await openLayouts(page)
+    const shelf = page.getByTestId('layouts-shelf')
+    const scroll = () => shelf.evaluate((el) => el.scrollLeft)
+    // One row, wider than the dialog: the dialog does not grow for it. (The type
+    // scales with the window, so a wider one fits them all.)
+    await expect.poll(() => shelf.evaluate((el) => el.scrollWidth > el.clientWidth + 20)).toBe(true)
+    expect(await scroll()).toBe(0)
+
+    const box = await shelf.boundingBox()
+    if (box === null) throw new Error('no shelf')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.wheel(0, 240)
+    await expect.poll(scroll).toBeGreaterThan(0)
+    await page.mouse.wheel(0, -2000)
+    await expect.poll(scroll).toBe(0)
+
+    // Along the shelf by keys: the card with the keyboard is brought into view.
+    await card(page, 'standard').focus()
+    for (let i = 1; i < PRESETS.length; i += 1) await page.keyboard.press('ArrowRight')
+    // The last card: along the whole shelf.
+    await expect(card(page, 'retro')).toBeFocused()
+    await expect(card(page, 'retro')).toBeInViewport({ ratio: 0.9 })
+    expect(await scroll()).toBeGreaterThan(0)
+  } finally {
+    await close()
+  }
+})

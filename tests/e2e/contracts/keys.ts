@@ -79,14 +79,14 @@ export const KEY_ROWS = {
   'window.fullscreen': { world: 'workspace' },
   'window.minimize': {
     elsewhere: {
-      spec: 'chrome.spec.ts',
+      spec: 'app/chrome.spec.ts',
       test: 'Ctrl+Shift+M minimizes the window, even with a shell focused',
       why: 'a minimised window needs a window manager to come back from (a bare Xvfb has none)',
     },
   },
   'app.quit': {
     elsewhere: {
-      spec: 'exit.spec.ts',
+      spec: 'app/exit.spec.ts',
       test: 'Ctrl+Shift+Q quits, even with a terminal focused',
       why: 'it ends the one app every other row runs in',
     },
