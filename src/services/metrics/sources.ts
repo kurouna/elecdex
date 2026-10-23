@@ -31,6 +31,7 @@ import { summarizeConnections } from './geoip.js'
 import { readGpuInfo, readGpuUsage } from './gpu/index.js'
 import { parseBsdNetstat, parseProcNetTcp, publicRemotes } from './net-connections.js'
 import { parseWindowsVersion } from './os-version.js'
+import { pingHostFrom } from './ping-host.js'
 import type { SourceDefinition } from './scheduler.js'
 import { readSockets } from './sockets/index.js'
 import { readWifi, readWifiEvents, sharedInternetPing } from './wifi/index.js'
@@ -69,8 +70,8 @@ import { WindowsSampler } from './windows-sampler.js'
 const isWindows = process.platform === 'win32'
 const byPlatform = (windows: number, other: number): number => (isWindows ? windows : other)
 
-/** Host pinged for latency. The same default eDEX-UI used. */
-export const PING_HOST = '1.1.1.1'
+/** Host pinged for latency: 1.1.1.1, or a loopback address in the tests (ping-host.ts). */
+export const PING_HOST = pingHostFrom(process.env.ELECDEX_PING_HOST)
 
 /** One long-lived sampler shared by every frequent Windows source. */
 const windowsSampler = isWindows ? new WindowsSampler(PING_HOST) : null

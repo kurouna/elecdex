@@ -713,6 +713,8 @@ entry (decisions.md). Every option is off until the user turns it on.
   - `ELECDEX_AI_KEYS_STUB=1`: a reversible stand-in for `safeStorage`; AI providers are a spec's
     local stub;
   - `ELECDEX_GPU_STUB=1`: a made-up GPU, so every machine draws the same panes (`=demo`, `=none`);
+  - `ELECDEX_PING_HOST=127.0.0.1`: the network panes' internet echo stays on this machine (only a
+    loopback address is taken);
   - `ELECDEX_SEED_LAYOUTS=0`: no presets in a new profile (layout-presets.spec.ts turns it on).
   A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`. Keep it that way.
 - **Every bug found gets a test** that fails on the old code and passes on the fix, covering the

@@ -31,8 +31,9 @@ import { type GlobeColors, GlobeScene } from './globe-scene.ts'
  *    a core, at 10 fps ~7%; sharing the chart loop avoids waking the compositor
  *    separately for it.
  *  - Earthquakes from JMA are marked when the list is being kept current anyway
- *    (alerts on, or a quakes pane open); the globe only listens, and never makes
- *    the app fetch it.
+ *    (alerts on, or a quakes pane seen); the globe only listens, and never makes
+ *    the app fetch it - it is in the default layout, and would have every user ask
+ *    JMA each minute (user decision 2026-10-23).
  */
 const { paneId }: WidgetProps = $props()
 

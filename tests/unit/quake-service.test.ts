@@ -437,6 +437,47 @@ describe('QuakeService', () => {
     expect(world.published.at(-1)?.tsunami?.level).toBe('warning')
   })
 
+  it('keeps a NOAA warning when the centre answers something that is no feed, and asks in full again', async () => {
+    // Found by the e2e faults contract (2026-10-23): an answer with no <entry> read as "no
+    // tsunami", so an error page served as 200 lifted a warning in effect.
+    const h = harness()
+    h.reply(
+      NTWC,
+      { status: 200, body: noaaWarning, etag: '"w"' },
+      { status: 200, body: 'not xml <', etag: '"x"' },
+      { status: 200, body: '<html><body>Service Unavailable</body></html>' },
+      // Cut off inside its bulletin: a feed's start, no end.
+      { status: 200, body: noaaWarning.slice(0, noaaWarning.indexOf('</entry>')) },
+    )
+    h.configure({ source: 'usgs' })
+    await h.settle()
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+    await h.advanceBy(QUAKE_INTERVAL_MS)
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+    await h.advanceBy(QUAKE_INTERVAL_MS)
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+    // The broken answer's validator was dropped: the ask after it was unconditional.
+    const asks = h.requests.filter((r) => r.url === NTWC)
+    expect(asks.map((r) => r.headers['If-None-Match'] ?? null)).toEqual([null, '"w"', null])
+    await h.advanceBy(QUAKE_INTERVAL_MS)
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+  })
+
+  it("lifts a NOAA warning when the centre's feed has no bulletin in it", async () => {
+    const h = harness()
+    const empty = noaaWarning.replace(/<entry>[\s\S]*<\/entry>/i, '')
+    h.reply(
+      NTWC,
+      { status: 200, body: noaaWarning, etag: '"w"' },
+      { status: 200, body: empty, etag: '"e"' },
+    )
+    h.configure({ source: 'usgs' })
+    await h.settle()
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+    await h.advanceBy(QUAKE_INTERVAL_MS)
+    expect(h.published.at(-1)?.tsunami).toBeNull()
+  })
+
   it('takes a NOAA warning as over six hours after its bulletin, though the feed has not changed', async () => {
     const h = harness()
     h.reply(NTWC, { status: 200, body: noaaWarning, etag: '"w"' })

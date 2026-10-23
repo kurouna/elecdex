@@ -249,6 +249,9 @@ export const STUB_ENV: Record<string, string> = {
   // A made-up GPU: every machine draws the same panes - CI's runners have none - and the
   // GPU lane, lamp and slot are always in CLUSTER (src/services/metrics/gpu/stub.ts).
   ELECDEX_GPU_STUB: '1',
+  // The internet echo of the network panes goes to this machine, not to 1.1.1.1
+  // (src/services/metrics/ping-host.ts).
+  ELECDEX_PING_HOST: '127.0.0.1',
   // A new profile starts with no saved layouts, as every spec but the presets' own
   // expects; a real first start is given the presets (shared/layout-presets.ts).
   ELECDEX_SEED_LAYOUTS: '0',

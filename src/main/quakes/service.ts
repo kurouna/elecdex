@@ -306,9 +306,15 @@ export class QuakeService {
 
   private async pollNoaaTsunami(url: string, now: number): Promise<void> {
     const xml = await this.get(url, this.tsunamiFeeds.has(url))
-    if (xml !== null) {
-      this.tsunamiFeeds.set(url, { report: null, tsunami: parseNoaaTsunamiFeed(xml, now) })
+    if (xml === null) return
+    // A whole feed with no bulletin in it says there is none; an answer that is no whole Atom
+    // feed (an error page served as 200, a body cut off before </feed>) says nothing, and must not
+    // lift a warning in effect: it fails, keeping what was known, and is asked for in full again.
+    if (!/<feed[\s>]/i.test(xml) || !/<\/feed>\s*$/i.test(xml)) {
+      this.validators.delete(url)
+      throw new Error('tsunami feed: not an Atom feed')
     }
+    this.tsunamiFeeds.set(url, { report: null, tsunami: parseNoaaTsunamiFeed(xml, now) })
   }
 
   /** A GET, conditional when asked: the body when it changed, null for a 304; throws otherwise. */
