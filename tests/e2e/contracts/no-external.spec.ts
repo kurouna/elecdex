@@ -8,7 +8,7 @@ import {
   netLogHosts,
   recordExternalRequests,
 } from '../support/net-watch.js'
-import { launch, quietFor, removeDir } from '../support.js'
+import { launch, quietFor, removeDir, SINGLE_CLOCK } from '../support.js'
 import { PANES } from './panes.js'
 import { contractPane, footprint, launchContracts, missing, tabOf } from './world.js'
 
@@ -100,5 +100,29 @@ test('the internet echo of the network panes goes to no host outside the machine
     expect(host).toMatch(/^(127\.\d+\.\d+\.\d+|::1)$/)
   } finally {
     await launched.close()
+  }
+})
+
+test('the page itself reaches no host: its CSP refuses a fetch before it is made', async () => {
+  // A closed port on this machine, not another host: were the CSP ever loosened, the fetch still
+  // would not leave the machine (CLAUDE.md, tests never contact external services).
+  const { page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
+  try {
+    const refused = await page.evaluate(
+      () =>
+        new Promise<string>((resolve) => {
+          document.addEventListener(
+            'securitypolicyviolation',
+            (e) => resolve(e.effectiveDirective),
+            {
+              once: true,
+            },
+          )
+          fetch('http://127.0.0.1:9/').catch(() => {})
+        }),
+    )
+    expect(refused).toBe('connect-src')
+  } finally {
+    await close()
   }
 })

@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "theme": "phosphor",
+  "sound": {
+    "enabled": false,
+    "volume": 0.3
+  },
+  "motion": "system",
+  "terminal": {
+    "startDirectory": "",
+    "fontSize": 13,
+    "confirmPaste": true,
+    "bell": "both"
+  },
+  "launcher": {
+    "showSystem": true,
+    "items": []
+  },
+  "keybindings": {},
+  "window": {
+    "trayIcon": false,
+    "minimizeToTray": false,
+    "closeToTray": false,
+    "globalShortcut": false,
+    "startInBackground": false
+  },
+  "layout": {
+    "confirmSwitch": true
+  },
+  "web": {
+    "tint": false
+  },
+  "updates": {
+    "check": true
+  },
+  "quakes": {
+    "source": "auto",
+    "notify": false,
+    "minIntensity": "5-",
+    "minMagnitude": 6,
+    "tsunami": true,
+    "system": true,
+    "sound": true
+  },
+  "reminders": {
+    "notify": true,
+    "system": true,
+    "sound": true,
+    "snoozeMinutes": 10,
+    "leadMinutes": 0
+  },
+  "ai": {
+    "providers": [],
+    "systemPrompt": "",
+    "compact": false
+  },
+  "agents": {
+    "sources": [
+      "claude-code"
+    ]
+  },
+  "git": {
+    "openCommand": ""
+  },
+  "logWatch": {
+    "keepLines": 5000,
+    "initialLines": 500
+  },
+  "chip8": {
+    "core": true,
+    "volume": 0.5
+  },
+  "elec16": {
+    "volume": 0.5,
+    "skin": "elec",
+    "link": {
+      "on": true,
+      "ai": {
+        "on": false,
+        "provider": ""
+      },
+      "cart": {
+        "on": true
+      }
+    }
+  },
+  "elec": {
+    "seats": [
+      {
+        "provider": "",
+        "model": ""
+      },
+      {
+        "provider": "",
+        "model": ""
+      },
+      {
+        "provider": "",
+        "model": ""
+      }
+    ],
+    "personas": [
+      "",
+      "",
+      ""
+    ],
+    "rule": "majority",
+    "rounds": 1
+  },
+  "plugins": {}
+}

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "lists": [
+    {
+      "id": "tasks",
+      "name": "tasks"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "66a2af1b-43e1-47f7-bf86-de1cf6740c95",
+      "listId": "tasks",
+      "title": "renew the domain",
+      "due": 1796083200000,
+      "allDay": false,
+      "repeat": "none",
+      "done": false,
+      "order": 0,
+      "createdAt": 1792784702207,
+      "updatedAt": 1792784702207
+    },
+    {
+      "id": "469b3f3d-7f60-4abf-93fb-278c56f306f2",
+      "listId": "tasks",
+      "title": "water the plants",
+      "allDay": false,
+      "repeat": "none",
+      "done": true,
+      "completedAt": 1792784702224,
+      "order": 1,
+      "createdAt": 1792784702215,
+      "updatedAt": 1792784702224
+    }
+  ]
+}

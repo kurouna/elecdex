@@ -109,3 +109,18 @@ test('copies through main, into the stand-in clipboard', async ({ shared }) => {
     await close()
   }
 })
+
+test('an engine that refuses this user is said, in the pane and its badge, and lists nothing', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: inTabs('docker'),
+    env: { ELECDEX_DOCKER_STUB: 'denied' },
+  })
+  try {
+    await expect(page.getByTestId('docker-down')).toBeVisible()
+    await expect(page.getByTestId('docker-row')).toHaveCount(0)
+    // In a tab group the badge rides on the pane's tab.
+    await expect(page.locator('[data-testid=tab][data-pane-id=docker] .badge')).toHaveText('denied')
+  } finally {
+    await close()
+  }
+})

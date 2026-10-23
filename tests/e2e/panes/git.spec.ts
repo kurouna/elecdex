@@ -25,6 +25,7 @@ import {
   removeDir,
   single,
   tabbed,
+  waitForSaved,
   watching,
 } from '../support.js'
 
@@ -938,6 +939,23 @@ test('lands the kept reading quietly on a return from behind a tab, and lights f
     writeFileSync(path.join(repo, 'more.ts'), 'export {}\n')
     await expect(page.locator('[data-testid="git-file"][data-path="more.ts"]')).toBeVisible()
     expect(Number(await received())).toBeGreaterThan(Number(before))
+  } finally {
+    await close()
+    removeDir(repo)
+  }
+})
+
+test('a repository is kept by id: the layout carries no path of it', async () => {
+  // CLAUDE.md: repositories are chosen through main's picker and known by id (git-repos.json),
+  // so a layout that travels to another machine carries nothing of this one.
+  const repo = makeRepo()
+  const { app, page, userData, close } = await launch(undefined, { layout })
+  try {
+    await watchRepo(page, app, repo)
+    const saved = await waitForSaved(userData, (text) => /"repo": "[^"]+"/.test(text))
+    // Neither the folder's name nor its path, in either slash.
+    expect(saved).not.toContain(path.basename(repo))
+    expect(saved.replaceAll('\\\\', '/')).not.toContain(repo.replaceAll('\\', '/'))
   } finally {
     await close()
     removeDir(repo)

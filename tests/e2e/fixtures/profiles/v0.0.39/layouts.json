@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "524xd1ak",
+      "name": "desk and code",
+      "tree": {
+        "version": 1,
+        "root": {
+          "kind": "split",
+          "id": "root",
+          "direction": "row",
+          "children": [
+            {
+              "kind": "tabs",
+              "id": "left",
+              "children": [
+                {
+                  "kind": "pane",
+                  "id": "notes",
+                  "widget": "notes",
+                  "state": {
+                    "noteId": "06b68f46-015a-4b6b-9cca-0585e3ff6b79"
+                  }
+                },
+                {
+                  "kind": "pane",
+                  "id": "todo",
+                  "widget": "todo"
+                },
+                {
+                  "kind": "pane",
+                  "id": "timer",
+                  "widget": "timer",
+                  "state": {
+                    "mode": "stopwatch",
+                    "stopwatch": {
+                      "running": false,
+                      "startedAt": 0,
+                      "accumulatedMs": 0,
+                      "laps": []
+                    },
+                    "timers": [
+                      {
+                        "id": "timer-1",
+                        "durationMs": 300000,
+                        "running": false,
+                        "startedAt": 0,
+                        "accumulatedMs": 0,
+                        "rang": false
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "pane",
+                  "id": "calc",
+                  "widget": "calc"
+                }
+              ],
+              "activeIndex": 0
+            },
+            {
+              "kind": "tabs",
+              "id": "right",
+              "children": [
+                {
+                  "kind": "pane",
+                  "id": "git",
+                  "widget": "git",
+                  "state": {
+                    "repo": "c7094a5532aa2298",
+                    "chosen": null,
+                    "commit": null
+                  }
+                },
+                {
+                  "kind": "pane",
+                  "id": "log",
+                  "widget": "logwatch",
+                  "state": {
+                    "file": "4077b4511bd0e1c2"
+                  }
+                },
+                {
+                  "kind": "pane",
+                  "id": "chip8",
+                  "widget": "chip8"
+                },
+                {
+                  "kind": "pane",
+                  "id": "weather",
+                  "widget": "weather",
+                  "state": {
+                    "location": {
+                      "source": "jma",
+                      "office": "130000",
+                      "name": "東京都"
+                    },
+                    "units": "c"
+                  }
+                }
+              ],
+              "activeIndex": 1
+            }
+          ],
+          "sizes": [
+            0.5,
+            0.5
+          ]
+        }
+      }
+    }
+  ],
+  "active": "524xd1ak"
+}
