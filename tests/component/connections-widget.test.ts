@@ -206,6 +206,9 @@ describe('ConnectionsWidget', () => {
     const shown = screen.getByTestId('connection-remote').textContent ?? ''
     expect(shown).toContain('93.184')
     expect(shown).not.toContain('216.34')
+    // Nowhere else in the pane either: a header, a country bus or a hover target
+    // that repeated the address would put it in a screenshot all the same.
+    expect(screen.getByTestId('connections').textContent).not.toContain('216.34')
   })
 
   it('survives a reading that adds a socket, which is every reading on a busy machine', async () => {

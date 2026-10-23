@@ -87,16 +87,3 @@ test('keeps drawing as sockets come and go, reading after reading', async () => 
     await close()
   }
 })
-
-test('masking hides the half of an address that names a machine', async () => {
-  const { page, close } = await launch(undefined, { layout: single('connections', { id: 'p' }) })
-  try {
-    const first = page.getByTestId('connection-row').first()
-    await expect(first).toContainText('93.184.216.34', { timeout: 20_000 })
-    await page.getByTestId('connections-mask').click()
-    await expect(first).toContainText('93.184.')
-    await expect(page.getByTestId('connections')).not.toContainText('216.34')
-  } finally {
-    await close()
-  }
-})

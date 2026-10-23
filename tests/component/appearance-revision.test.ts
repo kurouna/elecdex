@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defaultSettings, type Settings } from '../../src/shared/settings.ts'
-import { BUILTIN_THEMES } from '../../src/shared/theme.ts'
+import { BUILTIN_THEMES, DEFAULT_THEME_ID, themeVariables } from '../../src/shared/theme.ts'
 
 /**
  * The theme's revision, which every terminal (its glyph atlas) and every
@@ -14,11 +14,11 @@ afterEach(() => {
   vi.resetModules()
 })
 
-async function started() {
+async function started(initial: Settings = defaultSettings()) {
   let push: (settings: Settings) => void = () => {}
   vi.stubGlobal('elecdex', {
     settings: {
-      get: () => Promise.resolve(defaultSettings()),
+      get: () => Promise.resolve(initial),
       onChange: (handler: (settings: Settings) => void) => {
         push = handler
         return () => {}
@@ -48,5 +48,25 @@ describe('the theme revision', () => {
     expect(document.documentElement.dataset.theme).toBe(other?.id)
     push({ ...defaultSettings(), theme: other?.id ?? 'amber', motion: 'reduced' })
     expect(appearance.revision).toBe(first + 2)
+  })
+})
+
+describe('a theme id no catalog holds', () => {
+  it('falls back to the default theme, on the page and in the theme picker', async () => {
+    // settings.json travels between machines, and a user theme can be deleted while
+    // it is the one chosen: the page must still draw, in the default's colours.
+    const { appearance, push } = await started({ ...defaultSettings(), theme: 'no-such-theme' })
+    const fallback = BUILTIN_THEMES.find((theme) => theme.id === DEFAULT_THEME_ID)
+    expect(fallback).toBeDefined()
+    // What the status bar's theme select shows as its value.
+    expect(appearance.theme.id).toBe(DEFAULT_THEME_ID)
+    const root = document.documentElement
+    expect(root.dataset.theme).toBe(DEFAULT_THEME_ID)
+    const accent = themeVariables(fallback as (typeof BUILTIN_THEMES)[number])['--accent-h']
+    expect(root.style.getPropertyValue('--accent-h')).toBe(accent)
+    // A known theme chosen afterwards is taken as usual.
+    const other = BUILTIN_THEMES.find((theme) => theme.id !== DEFAULT_THEME_ID)
+    push({ ...defaultSettings(), theme: other?.id ?? 'amber' })
+    expect(appearance.theme.id).toBe(other?.id)
   })
 })

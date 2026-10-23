@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 import { idleCpu, sizeWindow as sizeTo } from './support/measure.js'
-import { type Launched, launch, quietFor, reloadWorkspace, single } from './support.js'
+import { type Launched, launch, reloadWorkspace, single } from './support.js'
 
 /**
  * The CLUSTER pane (docs/cluster.md): the machine on one pane, read from the
@@ -8,7 +8,8 @@ import { type Launched, launch, quietFor, reloadWorkspace, single } from './supp
  * (cluster.test.ts); here, that it lays itself out by its size without parts
  * running into each other, that its figures and cards come up, and that the
  * QUAKE lamp is there only with quake alerts on. The tests' made-up GPU
- * (STUB_ENV) gives it seven lanes; a machine without one, six.
+ * (STUB_ENV) gives it seven lanes; a machine without one, six - drawn by
+ * tests/component/cluster-widget.test.ts.
  */
 
 const beside = (share: number, direction: 'row' | 'column' = 'row') => ({
@@ -159,47 +160,6 @@ test('shows the readings, rolls the clock, and opens a figure’s card', async (
     await expect(card).toContainText('CPU LOAD')
   } finally {
     await close()
-  }
-})
-
-test('shows the GPU lane, the VRAM lamp and slot and the GPU in the spec, and leaves them out without one', async () => {
-  const { page, close } = await launch(undefined, { layout: beside(0.98) })
-  try {
-    await expect(page.getByTestId('cluster-figure-gpu')).toContainText(/\d+\s*%/)
-    await expect(page.locator('[data-lamp="vram"]')).toHaveCount(1)
-    await expect(page.getByTestId('cluster-slot-vram')).toContainText('3.2 / 8.0 GiB')
-    await expect(page.getByTestId('cluster-slot-ram')).toContainText(/\d+\.\d \/ \d+\.\d GiB/)
-    // The lamps in their order, VRAM after MEM.
-    const order = await page
-      .getByTestId('cluster-lamps')
-      .locator('[data-lamp]')
-      .evaluateAll((els) => els.map((el) => el.getAttribute('data-lamp')))
-    expect(order.indexOf('vram')).toBe(order.indexOf('mem') + 1)
-  } finally {
-    await close()
-  }
-  const none = await launch(undefined, {
-    layout: beside(0.98),
-    env: { ELECDEX_GPU_STUB: 'none' },
-  })
-  try {
-    await expect(none.page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
-    // Given time for a GPU reading to come: it says none, and nothing of it is drawn.
-    await quietFor(
-      3000,
-      async () => ({
-        lanes: await none.page.locator('[data-lane]').count(),
-        gpu: await none.page.getByTestId('cluster-figure-gpu').count(),
-      }),
-      'the lanes',
-    )
-    await expect(none.page.locator('[data-lane]')).toHaveCount(6)
-    await expect(none.page.getByTestId('cluster-figure-gpu')).toHaveCount(0)
-    await expect(none.page.locator('[data-lamp="vram"]')).toHaveCount(0)
-    await expect(none.page.getByTestId('cluster-slot-vram')).toHaveCount(0)
-    await expect(none.page.getByTestId('cluster-slot-ram')).toHaveCount(1)
-  } finally {
-    await none.close()
   }
 })
 

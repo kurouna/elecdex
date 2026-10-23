@@ -218,6 +218,18 @@ describe('WifiWidget', () => {
     expect(rows.some((row) => row.textContent?.includes('down 14s'))).toBe(true)
   })
 
+  it('on a train, logs what it saw: the way out going, and the change of car at the half minute', async () => {
+    const { push } = await mount({ view: 'log' })
+    await play(push, 'train', 0, 29)
+    const kinds = () => screen.getAllByTestId('wifi-event').map((row) => row.textContent ?? '')
+    // The tunnel at 20 s: the gateway answers, the internet does not.
+    expect(kinds().some((row) => row.includes('UPSTREAM LOST'))).toBe(true)
+    expect(kinds().some((row) => row.includes('HANDOVER'))).toBe(false)
+    // A new access point (told from the channel) at 30 s.
+    await play(push, 'train', 29, 32)
+    expect(kinds().some((row) => row.includes('HANDOVER'))).toBe(true)
+  })
+
   it('in a small pane, offers the radio as a tab; brought forward, stacks everything', async () => {
     const small = await mount({ view: 'radio' })
     await play(small.push, 'steady', 0, 2)

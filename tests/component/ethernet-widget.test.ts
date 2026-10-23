@@ -186,6 +186,22 @@ describe('EthernetWidget', () => {
     expect(screen.getByTestId('ether-link').dataset.tone).toBe('ok')
     expect(screen.getByTestId('ether-crc').querySelector('b')?.className).toContain('bad')
     expect(screen.getByTestId('ether-grade').textContent).toContain('BEST')
+    // On the path, the cable's station is the one blamed.
+    expect(station('link').dataset.culprit).toBe('true')
+  })
+
+  it('another machine on the address is the verdict, blamed on the link, and a line of the log', async () => {
+    // Forward, so the log is drawn beside the verdict.
+    size = { width: 1700, height: 1000 }
+    const { push } = await mount()
+    await play(push, 'conflict', 0, 4)
+    expect(screen.getByTestId('ether-verdict').textContent).toContain('CLEAR')
+    // The stub's conflict, five seconds in.
+    await play(push, 'conflict', 4, 12)
+    expect(screen.getByTestId('ether-verdict').textContent).toContain('ADDRESS CONFLICT')
+    expect(station('link').dataset.culprit).toBe('true')
+    const rows = screen.getAllByTestId('ether-event').map((r) => r.textContent ?? '')
+    expect(rows.some((r) => r.includes('ADDRESS CONFLICT'))).toBe(true)
   })
 
   it('a fall in speed is DOWNSHIFTED, and power saving is named only once something happened', async () => {
@@ -253,9 +269,17 @@ describe('EthernetWidget', () => {
     ])
   })
 
-  it('logs the link going and coming back, with how long it was down', async () => {
-    const { push } = await mount({ view: 'log' })
-    await play(push, 'flapping', 55, 70)
+  it('logs the link going and coming back, with how long it was down, and names power saving only after it', async () => {
+    // Forward, so the link panel (where the caution is) and the log are both drawn.
+    size = { width: 1700, height: 1000 }
+    const { push } = await mount()
+    // Power saving is on from the start, but nothing has happened yet: not named.
+    await play(push, 'flapping', 50, 59)
+    expect(screen.getByTestId('ether-state').textContent).toContain('ONLINE')
+    expect(screen.queryByTestId('ether-caution')).toBeNull()
+    // The stub's drop at 60 s.
+    await play(push, 'flapping', 59, 70)
+    expect(screen.getByTestId('ether-caution').textContent).toContain('power saving on')
     const rows = screen.getAllByTestId('ether-event').map((r) => r.textContent ?? '')
     expect(rows.some((r) => r.includes('LINK LOST'))).toBe(true)
     expect(rows.some((r) => r.includes('CONNECTED') && r.includes('down 3s'))).toBe(true)

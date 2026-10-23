@@ -208,15 +208,3 @@ test('the theme and sound setting survive a restart', async () => {
     await launched.close()
   }
 })
-
-test('an unknown theme id falls back to the default', async () => {
-  const { page, close } = await launch(undefined, {
-    settings: { theme: 'no-such-theme', sound: { enabled: false } },
-  })
-  try {
-    await expect.poll(() => rootVar(page, '--accent-h')).toBe('183')
-    await expect(page.getByTestId('theme-select')).toHaveValue('tron')
-  } finally {
-    await close()
-  }
-})
