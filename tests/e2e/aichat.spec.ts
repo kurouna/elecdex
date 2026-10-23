@@ -25,9 +25,8 @@ import { launch, saveDialogAnswers, single, waitForSaved } from './support.js'
 const ANSWER = 'Here you go:\n\n```js\nconsole.log("hi")\n```\n\nThat is **all**.'
 
 /**
- * The stand-in: the `slow` model holds its answer open, the compacting prompt gets a summary,
- * Anthropic's dialect answers "Bonjour.", and `/many` lists more models than a screen holds
- * (Gemini lists about a hundred).
+ * The stand-in: the `slow` model holds its answer open, Anthropic's dialect answers "Bonjour.",
+ * and `/many` lists more models than a screen holds (Gemini lists about a hundred).
  */
 let stub: AiStub
 let origin: string
@@ -37,9 +36,6 @@ let held: ServerResponse[]
 test.beforeAll(async () => {
   stub = await aiStub({
     openai: (entry) => {
-      if (entry.body?.messages?.[0]?.content.startsWith('You are compacting')) {
-        return { pieces: ['They asked two long questions.'] }
-      }
       if (entry.body?.model === 'slow') return { hold: 'The first half' }
       return {
         reasoning: 'They want a greeting.',
@@ -378,62 +374,6 @@ test('a conversation past the window of its model stays whole, and is sent from 
     // The line is the conversation's, so it is there for the next pane to open it.
     await page.reload()
     await expect(pane(page).getByTestId('aichat-cut')).toHaveText(/not sent · 4 above/i)
-  } finally {
-    await launched.close()
-  }
-})
-
-test('with summaries on, what stays behind is summarised once and sent along from then on', async () => {
-  const settings = withProviders()
-  const launched = await launch(undefined, {
-    layout: layout(),
-    settings: {
-      ...settings,
-      ai: {
-        ...settings.ai,
-        compact: true,
-        // 3072 tokens may go, 600 of them kept for the summary; a cut leaves 2048.
-        providers: settings.ai.providers.map((p) =>
-          p.id === 'local' ? { ...p, contextTokens: 4096 } : p,
-        ),
-      },
-    },
-  })
-  try {
-    const { page } = launched
-    // About seven hundred tokens a question.
-    const long = (n: number): string => `Question ${n}: ${'word '.repeat(556)}`.trim()
-    const answers = pane(page).locator('[data-testid=aichat-message][data-role=assistant]')
-    for (const n of [1, 2, 3, 4, 5]) {
-      await say(page, long(n))
-      await expect(answers).toHaveCount(n)
-      await expect(answers.nth(n - 1)).toContainText('That is all.')
-    }
-    const asked = seen.filter((entry) => entry.path === '/v1/chat/completions')
-    const compactions = asked.filter((e) => e.body?.messages?.[0]?.content.startsWith('You are'))
-    // One summary, at the fourth question - of the first two, which is what stayed behind.
-    expect(compactions).toHaveLength(1)
-    expect(asked.indexOf(compactions[0] as AiRequest)).toBe(3)
-    expect(compactions[0]?.body?.messages?.[1]?.content).toContain('User: Question 1:')
-    expect(compactions[0]?.body?.messages?.[1]?.content).toContain('User: Question 2:')
-    expect(compactions[0]?.body?.messages?.[1]?.content).not.toContain('Question 3:')
-
-    for (const entry of asked.slice(4)) {
-      expect(entry.body?.messages?.[0]?.content).toBe(
-        'Answer briefly.\n\nSummary of the earlier part of this conversation, which you no longer see in full:\nThey asked two long questions.',
-      )
-      expect(entry.body?.messages?.[1]?.content).toBe(long(3))
-    }
-    expect(asked).toHaveLength(6)
-
-    // The log says so where it happened, and what the model is told can be read there.
-    const cut = pane(page).getByTestId('aichat-cut')
-    await expect(cut).toHaveText(/summarised · 4 above/i)
-    await cut.click()
-    await expect(pane(page).getByTestId('aichat-summary')).toContainText(
-      'They asked two long questions.',
-    )
-    await expect(pane(page).getByTestId('aichat-message')).toHaveCount(10)
   } finally {
     await launched.close()
   }

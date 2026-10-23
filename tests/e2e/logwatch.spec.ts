@@ -28,7 +28,7 @@ import {
  * What only the running app shows: that main follows the file the picker returns (the picker is
  * replaced in main) and sends what is appended without being asked; that a pane behind another
  * tab reads nothing and, shown again, gets what was written meanwhile as the latest lines; that
- * the encoding and the pane's switches take; and that EXPLAIN sends what it showed - the lines
+ * the pane's switches take; and that EXPLAIN sends what it showed - the lines
  * chosen and nothing else - to the provider of the AI settings, a stand-in served here, and draws
  * the answer.
  */
@@ -128,32 +128,6 @@ test('behind another tab nothing is read; shown again, what came meanwhile arriv
     await expect(rows(page).last()).toContainText('two')
     // No banner of what came (user decision 2026-10-12): the lines, as any others.
     await expect(page.getByTestId('logwatch-mark')).toHaveCount(1)
-  } finally {
-    await close()
-    removeDir(dir)
-  }
-})
-
-test('reads Shift_JIS once told, and says when the text looks garbled', async () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-'))
-  const file = path.join(dir, 'tool.log')
-  // 「接続に失敗しました」 in Shift_JIS, after a level; mixed with enough to look garbled as UTF-8.
-  const sjis = Buffer.from([
-    0x45, 0x52, 0x52, 0x4f, 0x52, 0x20, 0x90, 0xda, 0x91, 0xb1, 0x82, 0xc9, 0x8e, 0xb8, 0x94, 0x73,
-    0x82, 0xb5, 0x82, 0xdc, 0x82, 0xb5, 0x82, 0xbd, 0x0a,
-  ])
-  writeFileSync(file, Buffer.concat(Array.from({ length: 30 }, () => sjis)))
-  const { app, page, close } = await launch(undefined, {
-    layout: singleLog({ encoding: 'utf-8' }),
-  })
-  try {
-    await choose(page, app, file)
-    await expect(page.getByTestId('logwatch-garbled')).toBeVisible()
-    await page.getByTestId('logwatch-garbled').click()
-    await page.getByTestId('logwatch-encoding').selectOption('auto')
-    await expect(rows(page).first()).toContainText('接続に失敗しました', { timeout: 5000 })
-    await expect(page.getByTestId('logwatch-where')).toContainText('auto · Shift_JIS')
-    await expect(page.getByTestId('logwatch-garbled')).toHaveCount(0)
   } finally {
     await close()
     removeDir(dir)

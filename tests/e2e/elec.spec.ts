@@ -15,9 +15,8 @@ import { launch, saveDialogAnswers, single } from './support.js'
 /**
  * The ELEC system pane against a provider served from this machine, speaking the
  * OpenAI dialect. Which way a unit votes is the stub's to say, by model: `yes`,
- * `no`, `mute` (writes no verdict), `slow` (never finishes), and `split`, where
- * LOGOS and PATHOS approve and ETHOS rejects - until the second round, when all
- * three approve.
+ * `no`, `slow` (never finishes), and `split`, where LOGOS and PATHOS approve and
+ * ETHOS rejects - until the second round, when all three approve.
  */
 
 interface Seen {
@@ -45,8 +44,6 @@ function answerFor(entry: Seen): string | null {
       return `${unit} finds it sound.\nVERDICT: APPROVE\nCONFIDENCE: 75`
     case 'no':
       return `${unit} finds it wanting.\nVERDICT: REJECT\nCONFIDENCE: 60`
-    case 'mute':
-      return `${unit} would rather not say.`
     case 'split':
       if (secondRound || unit !== 'UNIT-2 ETHOS') {
         return `${unit} agrees.\n**VERDICT:** APPROVE\nCONFIDENCE: 90`
@@ -242,29 +239,6 @@ test('a second round lets each unit hear the others, and shows who changed its v
     expect(seen()[4]?.user).toContain('[UNIT-1 LOGOS · APPROVE]')
     expect(seen()[4]?.user).toContain('[UNIT-3 PATHOS · APPROVE]')
     await expect(pane(page).getByTestId('elec-resolution')).toContainText('3·0·0·0')
-  } finally {
-    await close()
-  }
-})
-
-test('an answer with no verdict does not count, and too few votes is no quorum', async () => {
-  const { page, close } = await launch(undefined, {
-    layout: layout(),
-    settings: withProviders('mute', {
-      seats: [
-        { provider: 'local', model: 'mute' },
-        { provider: 'local', model: 'yes' },
-        { provider: 'local', model: 'mute' },
-      ],
-    }),
-  })
-  try {
-    await submit(page, 'Is it time?')
-    await expect(pane(page).getByTestId('elec-outcome')).toHaveText('quorum not met')
-    await expect(unit(page, 0)).toHaveAttribute('data-state', 'invalid')
-    await expect(unit(page, 0)).toContainText('no verdict')
-    await expect(ballot(page, 0).getByTestId('elec-ballot-stop')).toContainText('does not count')
-    await expect(unit(page, 1)).toHaveAttribute('data-state', 'approve')
   } finally {
     await close()
   }

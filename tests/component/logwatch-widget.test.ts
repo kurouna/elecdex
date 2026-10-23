@@ -495,6 +495,176 @@ describe('LogWatchWidget, from the review', () => {
   })
 })
 
+describe('LogWatchWidget, what the running app once showed', () => {
+  /** The state the pane is given, and every change it asks the layout for. */
+  const mount = (id: string, state: Record<string, unknown> = { file: ID }) => {
+    const patches: Record<string, unknown>[] = []
+    vi.spyOn(layout, 'patchPaneState').mockImplementation((_pane, change) => {
+      patches.push(change as Record<string, unknown>)
+    })
+    const view = render(LogWatchWidget, {
+      props: { paneId: id, title: 'log watch', props: {}, state, active: true },
+    })
+    return { view, patches }
+  }
+
+  it('asks for the file again for an id this machine does not know, and follows nothing', async () => {
+    describeAs = null as unknown as LogFileRef
+    mount(`u${seq}`, { file: 'abcdefabcdefabcd' })
+    await settle()
+    expect(screen.getByTestId('logwatch-choose').textContent).toContain('not known on this machine')
+    expect(subscriptions).toBe(0)
+  })
+
+  it('a click on the name of the file follows the one chosen, and nothing changes without one', async () => {
+    const { patches } = mount(`n${seq}`)
+    await settle()
+    deliver?.({ key: `${ID}/auto`, reset: true, items: [line('x')], status })
+    await settle()
+    // Closed without a choice.
+    pickAnswer = null
+    screen.getByTestId('logwatch-file').click()
+    await settle()
+    expect(picks).toEqual([false])
+    expect(patches).toEqual([])
+    expect(screen.queryByTestId('logwatch-problem')).toBeNull()
+    pickAnswer = { file: { ...FILE, id: 'fedcba9876543210', name: 'other.log' } }
+    screen.getByTestId('logwatch-file').click()
+    await settle()
+    expect(patches.at(-1)).toStrictEqual({ file: 'fedcba9876543210', muted: undefined })
+  })
+
+  it('follows the file in the encoding chosen after the garbled notice', async () => {
+    const { view, patches } = mount(`k${seq}`, { file: ID, encoding: 'utf-8' })
+    await settle()
+    expect(requests.at(-1)?.encoding).toBe('utf-8')
+    deliver?.({
+      key: `${ID}/utf-8`,
+      reset: true,
+      items: [line('Ú')],
+      status: { ...status, garbled: true },
+    })
+    await settle()
+    screen.getByTestId('logwatch-garbled').click()
+    await settle()
+    const encoding = screen.getByTestId('logwatch-encoding') as HTMLSelectElement
+    await fireEvent.change(encoding, { target: { value: 'auto' } })
+    expect(patches.at(-1)).toStrictEqual({ encoding: undefined })
+    // The layout gives the pane its new state: it follows the file afresh, in that encoding.
+    await view.rerender({ state: { file: ID } })
+    await settle()
+    expect(requests.at(-1)?.encoding).toBe('auto')
+    deliver?.({
+      key: `${ID}/auto`,
+      reset: true,
+      items: [line('接続に失敗しました')],
+      status: { ...status, encoding: 'shift_jis' },
+    })
+    await settle()
+    expect(texts()).toEqual(['接続に失敗しました'])
+    expect(screen.getByTestId('logwatch-where').textContent).toContain('auto · Shift_JIS')
+    expect(screen.queryByTestId('logwatch-garbled')).toBeNull()
+  })
+
+  it('reads in a dialect set by hand, and shows times as asked', async () => {
+    const setFormat = vi.fn(async () => true)
+    window.elecdex.logwatch.setFormat = setFormat
+    const { view, patches } = mount(`d${seq}`)
+    await settle()
+    deliver?.({ key: `${ID}/auto`, reset: true, items: [line('one')], status })
+    await settle()
+    screen.getByTestId('logwatch-settings-toggle').click()
+    await settle()
+    await fireEvent.change(screen.getByTestId('logwatch-format'), { target: { value: 'plain' } })
+    expect(setFormat).toHaveBeenCalledWith(ID, 'plain')
+    ;(document.querySelector('[data-testid=logwatch-time][data-value=rel]') as HTMLElement).click()
+    expect(patches.at(-1)).toEqual({ time: 'rel' })
+    await view.rerender({ state: { file: ID, time: 'rel' } })
+    await settle()
+    expect(screen.getByTestId('logwatch-row').querySelector('.t')?.textContent).toContain('ago')
+  })
+
+  it('chooses a run with Shift, and copies and explains only the chosen lines still shown', async () => {
+    appearance.settings = {
+      ...defaultSettings(),
+      sound: { enabled: false, volume: 0 },
+      ai: {
+        ...defaultSettings().ai,
+        providers: [
+          { id: 'p', name: 'P', kind: 'openai', baseUrl: 'http://localhost:1/v1', model: 'm' },
+        ],
+      },
+    }
+    try {
+      const { view, patches } = mount(`v${seq}`)
+      await settle()
+      const items = [line('one'), line('two', 'ERR'), line('three'), line('four')]
+      deliver?.({ key: `${ID}/auto`, reset: true, items, status })
+      await settle()
+      const row = (text: string) =>
+        screen
+          .getAllByTestId('logwatch-row')
+          .find((r) => r.querySelector('.msg')?.textContent === text) as HTMLElement
+      await fireEvent.click(row('one'))
+      await fireEvent.click(row('three'), { shiftKey: true })
+      expect(screen.getByTestId('logwatch-chosen').textContent).toContain('3 lines chosen')
+      // ERR switched off: the chosen line it hides is neither copied nor sent.
+      ;(
+        screen
+          .getAllByTestId('logwatch-level')
+          .find((b) => b.textContent?.includes('ERR')) as HTMLElement
+      ).click()
+      const hidden = patches.at(-1)?.hidden
+      expect(hidden).toContain('ERR')
+      await view.rerender({ state: { file: ID, hidden } })
+      await settle()
+      expect(screen.getByTestId('logwatch-chosen').textContent).toContain('2 lines chosen')
+      screen.getByTestId('logwatch-copy').click()
+      await settle()
+      expect(copies.at(-1)).toBe('one\nthree')
+      screen.getByTestId('logwatch-explain-open').click()
+      await settle()
+      expect(previews.at(-1)?.seqs).toEqual([items[0]?.seq, items[2]?.seq])
+    } finally {
+      appearance.settings = defaultSettings()
+    }
+  })
+
+  it('EXPLAIN on another line while the panel is open asks about that one alone', async () => {
+    appearance.settings = {
+      ...defaultSettings(),
+      sound: { enabled: false, volume: 0 },
+      ai: {
+        ...defaultSettings().ai,
+        providers: [
+          { id: 'p', name: 'P', kind: 'openai', baseUrl: 'http://localhost:1/v1', model: 'm' },
+        ],
+      },
+    }
+    try {
+      mount(`x${seq}`)
+      await settle()
+      const first = line('first trouble', 'ERR')
+      const second = line('second trouble', 'WRN')
+      deliver?.({ key: `${ID}/auto`, reset: true, items: [first, second], status })
+      await settle()
+      const row = (n: number) => screen.getAllByTestId('logwatch-row')[n] as HTMLElement
+      await fireEvent.click(row(0))
+      screen.getByTestId('logwatch-explain-open').click()
+      await settle()
+      expect(previews.at(-1)?.seqs).toEqual([first.seq])
+      await fireEvent.click(row(1))
+      screen.getByTestId('logwatch-explain-open').click()
+      await settle()
+      // A plain click chose that line alone: the first is no longer sent.
+      expect(previews.at(-1)?.seqs).toEqual([second.seq])
+      expect(screen.getAllByTestId('logwatch-explain')).toHaveLength(1)
+    } finally {
+      appearance.settings = defaultSettings()
+    }
+  })
+})
+
 describe('LogExplain', () => {
   it('says a choice is too long before SEND, and offers no SEND', async () => {
     // Found in review: the refusal came only from main, after SEND was pressed.

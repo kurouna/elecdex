@@ -1,4 +1,13 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -152,10 +161,15 @@ describe('registerChosen', () => {
     const real = path.join(dir, 'real')
     mkdirSync(real)
     writeFileSync(path.join(real, 'a.log'), 'x\n')
+    // A junction needs no privilege on Windows; elsewhere it is a link to the folder. As the
+    // system names it: on GitHub's Windows runners the temp folder itself comes as a short 8.3 name.
+    const link = path.join(dir, 'link')
+    symlinkSync(real, link, 'junction')
     const c = catalog()
-    const result = await registerChosen(c, path.join(real, '.', 'a.log'), false, 1)
+    const result = await registerChosen(c, path.join(link, 'a.log'), false, 1)
     if (!result || !('file' in result)) throw new Error('not taken')
-    expect(c.get(result.file.id)?.path).toBe(path.join(real, 'a.log'))
+    expect(c.get(result.file.id)?.path).toBe(realpathSync.native(path.join(real, 'a.log')))
+    expect(result.file.path).toBe(realpathSync.native(path.join(real, 'a.log')))
   })
 })
 

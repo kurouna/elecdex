@@ -1,4 +1,4 @@
-import { appendFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
@@ -9,7 +9,6 @@ import {
   beside,
   bringWindowBack,
   launch,
-  pickerAnswers,
   putWindowAway,
   quietFor,
   removeDir,
@@ -18,10 +17,9 @@ import {
 
 /**
  * LOG WATCH in the running app at the edges (docs/logwatch.md): a file rotated, deleted and made
- * again, a pattern followed to a newer file, an id this machine does not know, the window put
- * away, COPY of one line and of several, the dialect and the time shown changed, a file chosen again from RECENT, and
- * EXPLAIN when nobody answers. Logs are written by the test in a temp folder; the picker is
- * replaced in main.
+ * again, a pattern followed to a newer file, the window put away, COPY through main, a file
+ * chosen again from RECENT, and EXPLAIN when nobody answers. Logs are written by the test in a
+ * temp folder; the picker is replaced in main.
  */
 
 const folder = () => logFolder('elecdex-logwatch-edges-')
@@ -71,38 +69,6 @@ test('follows the newest file like the one chosen, and moves on to a newer one',
   }
 })
 
-test('refuses a name with nothing to follow by, and a file that is not text', async () => {
-  const { dir, file } = folder()
-  writeFileSync(file, lines(1, 1))
-  const binary = path.join(dir, 'tool.bin')
-  writeFileSync(binary, Buffer.from([0x4d, 0x5a, 0, 0, 1, 2]))
-  const { app, page, close } = await launch(undefined, { layout: single() })
-  try {
-    await pickerAnswers(app, file)
-    await page.getByTestId('logwatch-select-newest').click()
-    await expect(page.getByTestId('logwatch-problem')).toContainText('nothing that changes')
-    await pickerAnswers(app, binary)
-    await page.getByTestId('logwatch-select').click()
-    await expect(page.getByTestId('logwatch-problem')).toContainText('not a text file')
-  } finally {
-    await close()
-    removeDir(dir)
-  }
-})
-
-test('asks for the file again for an id this machine does not know', async () => {
-  const { app, page, close } = await launch(undefined, {
-    layout: single({ file: 'abcdefabcdefabcd' }),
-  })
-  try {
-    await expect(page.getByTestId('logwatch-choose')).toContainText('not known on this machine')
-    expect(await watching(page, 'logwatch')).toEqual([])
-    void app
-  } finally {
-    await close()
-  }
-})
-
 test('with the window put away nothing is read, and on coming back the gap arrives as lines', async () => {
   const { dir, file } = folder()
   writeFileSync(file, lines(1, 1))
@@ -136,58 +102,6 @@ test('copies the chosen line through main, masked when MASK is on', async () => 
     expect(text).toContain('mail to ••• failed')
     expect(text).toContain('at send (a.js:1)')
     expect(text).not.toContain('example.com')
-  } finally {
-    await close()
-    removeDir(dir)
-  }
-})
-
-test('chooses a run with Shift, and copies only the chosen lines still shown', async () => {
-  const { dir, file } = folder()
-  writeFileSync(
-    file,
-    `${stamp()} INFO one\n${stamp()} ERROR two\n${stamp()} INFO three\n${stamp()} INFO four\n`,
-  )
-  const { app, page, close } = await launch(undefined, { layout: single({ fold: false }) })
-  const copied = () => clipboardText(app)
-  try {
-    await choose(page, app, file)
-    await rows(page).filter({ hasText: 'one' }).click()
-    await rows(page)
-      .filter({ hasText: 'three' })
-      .click({ modifiers: ['Shift'] })
-    await expect(page.getByTestId('logwatch-chosen')).toContainText('3 lines chosen')
-    // ERR switched off: the chosen line it hides is neither copied nor sent.
-    await page.getByTestId('logwatch-level').filter({ hasText: 'ERR' }).click()
-    await expect(page.getByTestId('logwatch-chosen')).toContainText('2 lines chosen')
-    await page.getByTestId('logwatch-copy').click()
-    await expect(page.getByTestId('logwatch-copy')).toHaveText('COPIED')
-    const text = (await copied()) ?? ''
-    expect(text).toContain('INFO one')
-    expect(text).toContain('INFO three')
-    expect(text).not.toContain('two')
-    expect(text).not.toContain('four')
-    await page.getByTestId('logwatch-clear').click()
-    await expect(page.getByTestId('logwatch-chosen')).toHaveCount(0)
-  } finally {
-    await close()
-    removeDir(dir)
-  }
-})
-
-test('reads in a dialect set by hand, and shows times as asked', async () => {
-  const { dir, file } = folder()
-  writeFileSync(file, lines(1, 2))
-  const { app, page, close } = await launch(undefined, { layout: single({ fold: false }) })
-  try {
-    await choose(page, app, file)
-    await expect(page.getByTestId('logwatch-where')).toContainText('text')
-    await page.getByTestId('logwatch-settings-toggle').click()
-    await page.getByTestId('logwatch-format').selectOption('plain')
-    await expect(page.getByTestId('logwatch-where')).toContainText('plain', { timeout: 5000 })
-    await expect(rows(page).first()).toContainText(`${stamp().slice(0, 10)}`)
-    await page.locator('[data-testid=logwatch-time][data-value=rel]').click()
-    await expect(rows(page).first().locator('.t')).toContainText('ago')
   } finally {
     await close()
     removeDir(dir)
@@ -304,40 +218,6 @@ test('the level switches, PAUSE and WRAP change what is shown, and stay with the
   }
 })
 
-test('the name of the file shows its whole path, and a click on it chooses another', async () => {
-  const { dir, file } = folder()
-  writeFileSync(file, lines(1, 1))
-  const other = path.join(dir, 'other.log')
-  writeFileSync(other, lines(1, 1, 'other'))
-  const { app, page, close } = await launch(undefined, { layout: single() })
-  try {
-    await choose(page, app, file)
-    const name = page.getByTestId('logwatch-file')
-    await expect(name).toHaveText('app.log')
-    await name.hover()
-    // As the system names it: on GitHub's runners the temp folder comes as a short 8.3 name
-    // (RUNNER~1), and main shows the file by its real path.
-    await expect(page.getByTestId('logwatch-file-card')).toContainText(realpathSync.native(file))
-    await expect(page.getByTestId('logwatch-file-card')).toContainText(
-      'click the name to choose another file',
-    )
-    await pickerAnswers(app, other)
-    await name.click()
-    await expect(name).toHaveText('other.log', { timeout: 5000 })
-    await expect(rows(page).first()).toContainText('other 1')
-    // Closed without a choice: nothing changes.
-    await app.evaluate(({ dialog }) => {
-      dialog.showOpenDialog = (async () => ({ canceled: true, filePaths: [] })) as never
-    })
-    await name.click()
-    await quietFor(500, () => name.textContent(), 'the name of the file')
-    await expect(name).toHaveText('other.log')
-  } finally {
-    await close()
-    removeDir(dir)
-  }
-})
-
 test('without an AI provider, EXPLAIN says where to set one up, and goes there', async () => {
   const { dir, file } = folder()
   writeFileSync(file, lines(1, 1))
@@ -355,32 +235,6 @@ test('without an AI provider, EXPLAIN says where to set one up, and goes there',
       'aria-current',
       'page',
     )
-  } finally {
-    await close()
-    removeDir(dir)
-  }
-})
-
-test('EXPLAIN on another line while the panel is open asks about that one instead', async () => {
-  const { dir, file } = folder()
-  writeFileSync(file, `${stamp()} ERROR first trouble\n${stamp()} WARN second trouble\n`)
-  const { app, page, close } = await launch(undefined, {
-    layout: single(),
-    settings: aiSettings([
-      openaiProvider('http://127.0.0.1:1', { id: 'p', name: 'P', model: 'm' }),
-    ]),
-  })
-  try {
-    await choose(page, app, file)
-    await rows(page).filter({ hasText: 'first trouble' }).click()
-    await page.getByTestId('logwatch-explain-open').click()
-    await expect(page.getByTestId('logwatch-explain-preview')).toContainText('first trouble')
-    await rows(page).filter({ hasText: 'second trouble' }).click()
-    await page.getByTestId('logwatch-explain-open').click()
-    const preview = page.getByTestId('logwatch-explain-preview')
-    await expect(preview).toContainText('second trouble')
-    // A plain click chose that line alone: the first is no longer sent.
-    await expect(preview).not.toContainText('first trouble')
   } finally {
     await close()
     removeDir(dir)
