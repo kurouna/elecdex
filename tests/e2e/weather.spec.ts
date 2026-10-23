@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, selectedRow } from './support.js'
+import { launch, removeDir, savedLayout, selectedRow } from './support.js'
 
 /**
  * The weather pane, against local stand-ins for JMA, MET Norway and the NWS.
@@ -111,7 +111,8 @@ const watching = (page: Page) => page.evaluate(() => window.elecdex.weather.watc
 const pane = (page: Page) => page.locator('[data-testid=pane][data-widget=weather]')
 
 test('the default is New York from the National Weather Service, in °F', async () => {
-  const { page, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
+  let launched = await launch(undefined, { layout: weatherOnly(), ...services() })
+  const { page, userData } = launched
   try {
     const p = pane(page)
     await expect(p.getByTestId('weather-now')).toHaveText(/^\d+°$/, { timeout: 20_000 })
@@ -145,8 +146,16 @@ test('the default is New York from the National Weather Service, in °F', async 
     await p.getByTestId('weather-settings-toggle').click()
     await p.locator('[data-testid=weather-unit][data-unit=c]').click()
     await expect(p.getByTestId('weather-today')).toContainText('26°')
+    await expect
+      .poll(() => (savedLayout(userData) ?? '').replace(/\s/g, ''))
+      .toContain('"units":"c"')
+    launched = await launched.relaunch()
+    await expect(pane(launched.page).getByTestId('weather-today')).toContainText('26°', {
+      timeout: 20_000,
+    })
   } finally {
-    await close()
+    await launched.close()
+    removeDir(userData)
   }
 })
 

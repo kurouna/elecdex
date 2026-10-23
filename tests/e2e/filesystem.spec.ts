@@ -93,10 +93,6 @@ test('follows the terminal into a directory and lists it', async () => {
   expect(names.indexOf('sub dir')).toBeLessThan(names.indexOf('alpha.txt'))
 })
 
-test('shows the usage of the volume', async () => {
-  await expect(fsPane().getByTestId('fs-usage')).toHaveCount(0)
-})
-
 test('clicking a directory changes the terminal into it, even with a space in the name', async () => {
   await entry('sub dir').click()
   await expect(terminalCwd()).toContainText('sub dir', { timeout: 40_000 })

@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import type { ElectronApplication, Page } from '@playwright/test'
-import { _electron as electron, expect, test } from '@playwright/test'
-import { MAIN, STUB_ENV } from './support.js'
+import { expect, test } from '@playwright/test'
+import { type Launched, launch } from './support.js'
 
 /** The version being built, so this test does not need editing on every release. */
 const PACKAGE_VERSION = (
@@ -10,29 +11,22 @@ const PACKAGE_VERSION = (
   }
 ).version
 
+let launched: Launched
 let app: ElectronApplication
 let page: Page
 
+// A throwaway profile, as every other launch: this spec once ran on the machine's own elecdex
+// profile so that Electron would name the userData folder itself, and read and wrote the
+// layout and settings of whoever ran the suite. The name is checked without it below.
 test.beforeAll(async () => {
-  app = await electron.launch({
-    args: [MAIN, '--windowed', '--no-intro'],
-    // Closed ports and stand-ins, as every other launch: this spec must not reach any real
-    // service (the default layout has a weather pane and a market board, and the update check
-    // runs too), nor this machine's sockets, clipboard, media, tray or Claude Code folder.
-    env: { ...process.env, NODE_ENV: 'test', ...STUB_ENV },
-  })
-  page = await app.firstWindow()
-  await page.waitForLoadState('domcontentloaded')
+  launched = await launch()
+  app = launched.app
+  page = launched.page
 })
 
 test.afterAll(async () => {
-  await app?.close()
+  await launched?.close()
 })
-
-// This spec deliberately runs against the default userData directory rather
-// than an isolated one: the userData-name check below is only meaningful when
-// Electron is left to resolve the path itself. Everything that depends on
-// persisted layout lives in layout.spec.ts, which isolates.
 
 test('the window opens and the workspace renders', async () => {
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
@@ -80,8 +74,14 @@ test('the window is configured for an isolated, sandboxed renderer', async () =>
 })
 
 test("config lives in an elecdex-named userData dir, not Electron's", async () => {
-  const userData = await app.evaluate(({ app: electronApp }) => electronApp.getPath('userData'))
-  expect(userData.toLowerCase()).toContain('elecdex')
+  // The folder Electron would choose without --user-data-dir is appData joined with the app's
+  // name, which out/ (no package.json) would leave as "Electron" unless main names it first.
+  const { name, appData } = await app.evaluate(({ app: electronApp }) => ({
+    name: electronApp.getName(),
+    appData: electronApp.getPath('appData'),
+  }))
+  expect(name).toBe('elecdex')
+  expect(path.join(appData, name).toLowerCase()).toContain(`${path.sep}elecdex`)
 })
 
 test('reports the package version, not the Electron version', async () => {

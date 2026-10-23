@@ -186,7 +186,9 @@ test('a theme dropped into the themes folder appears and can be chosen', async (
 })
 
 test('the theme and sound setting survive a restart', async () => {
-  let launched = await launch()
+  // Sound is turned on and kept on through the restart, so that what is checked is a change
+  // that was saved - at volume 0, so the suite stays silent.
+  let launched = await launch(undefined, { settings: { sound: { enabled: false, volume: 0 } } })
   try {
     await showStatusBar(launched.page)
     await launched.page.getByTestId('theme-select').selectOption('phosphor')
@@ -194,12 +196,11 @@ test('the theme and sound setting survive a restart', async () => {
     await expect(sound).toHaveAttribute('aria-pressed', 'false')
     await sound.click()
     await expect(sound).toHaveAttribute('aria-pressed', 'true')
-    await sound.click()
-    await expect(sound).toHaveAttribute('aria-pressed', 'false')
 
     launched = await launched.relaunch()
     await expect.poll(() => rootVar(launched.page, '--accent-h')).toBe('128')
-    await expect(launched.page.getByTestId('sound-toggle')).toHaveAttribute('aria-pressed', 'false')
+    await showStatusBar(launched.page)
+    await expect(launched.page.getByTestId('sound-toggle')).toHaveAttribute('aria-pressed', 'true')
   } finally {
     await launched.close()
   }

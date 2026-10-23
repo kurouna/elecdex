@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, pickerAnswers, removeDir } from './support.js'
+import { launch, pickerAnswers, removeDir, savedLayout } from './support.js'
 
 /**
  * The LOG WATCH pane against log files written by the test in a temp folder (docs/logwatch.md).
@@ -80,7 +80,20 @@ test('follows a file, shows what is appended, and stops when the pane goes', asy
   const file = path.join(dir, 'app.log')
   writeFileSync(file, lines(1, 3))
   const { app, page, close } = await launch(undefined, {
-    layout: { version: 1, root: { kind: 'pane', id: 'l', widget: 'logwatch' } },
+    // A clock beside it, so the log's pane can close and leave a workspace.
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: [70, 30],
+        children: [
+          { kind: 'pane', id: 'l', widget: 'logwatch' },
+          { kind: 'pane', id: 'c', widget: 'clock' },
+        ],
+      },
+    },
   })
   try {
     await choose(page, app, file)
@@ -120,6 +133,11 @@ test('follows a file, shows what is appended, and stops when the pane goes', asy
     await page.getByTestId('logwatch-tab-stream').click()
     await expect(rows(page)).toHaveCount(1)
     await expect(page.getByTestId('logwatch-muted')).toHaveText('1 MUTED')
+
+    // The pane goes, and main stops watching the file.
+    await page.locator('[data-testid="pane"][data-pane-id="l"]').getByTestId('pane-close').click()
+    await expect(page.getByTestId('logwatch-row')).toHaveCount(0)
+    await expect.poll(() => watching(page)).toEqual([])
   } finally {
     await close()
     removeDir(dir)
@@ -197,10 +215,12 @@ test('the chart and the error bar can be turned off, and stay off', async () => 
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-'))
   const file = path.join(dir, 'app.log')
   writeFileSync(file, lines(1, 2))
-  const { app, page, close } = await launch(undefined, {
+  let launched = await launch(undefined, {
     layout: { version: 1, root: { kind: 'pane', id: 'l', widget: 'logwatch' } },
   })
+  const { userData } = launched
   try {
+    const { app, page } = launched
     await choose(page, app, file)
     await expect(page.getByTestId('logwatch-lanes')).toBeVisible()
     await expect(page.getByTestId('logwatch-errorbar')).toBeVisible()
@@ -215,8 +235,18 @@ test('the chart and the error bar can be turned off, and stay off', async () => 
         page.evaluate(async () => (await window.elecdex.settings.get()).logWatch.keepLines),
       )
       .toBe(1000)
+
+    // They stay off through a restart: the pane comes back on its file, without them.
+    await expect
+      .poll(() => (savedLayout(userData) ?? '').replace(/\s/g, ''))
+      .toContain('"chart":false')
+    launched = await launched.relaunch()
+    await expect(launched.page.getByTestId('logwatch-where')).toContainText('app.log')
+    await expect(launched.page.getByTestId('logwatch-lanes')).toHaveCount(0)
+    await expect(launched.page.getByTestId('logwatch-errorbar')).toHaveCount(0)
   } finally {
-    await close()
+    await launched.close()
+    removeDir(userData)
     removeDir(dir)
   }
 })

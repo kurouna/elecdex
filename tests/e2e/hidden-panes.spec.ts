@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launch, removeDir } from './support.js'
+import { bringWindowBack, launch, putWindowAway, removeDir } from './support.js'
 
 /**
  * The GIT, ORBIT and AI AGENT panes do nothing while nobody sees them: not added,
@@ -389,12 +389,6 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       now.docker.length === 1
     )
   }
-  const windowTo = (how: 'minimize' | 'restore') =>
-    app.evaluate(({ BrowserWindow }, action) => {
-      const win = BrowserWindow.getAllWindows().find((w) => w.isVisible() || w.isMinimized())
-      if (action === 'minimize') win?.minimize()
-      else win?.restore()
-    }, how)
   try {
     await app.evaluate(({ dialog }, answer) => {
       dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
@@ -402,7 +396,8 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
     await page.getByTestId('git-select').click()
     await expect.poll(atWork, { timeout: 20_000 }).toBe(true)
 
-    await windowTo('minimize')
+    // Skipped, not failed, where nothing can minimise the window (a bare Xvfb).
+    await putWindowAway(app, page)
     // Only the charts' samples go on, so the graphs have no gap when the window is back.
     await expect.poll(main, { timeout: 10_000 }).toEqual({
       metrics: ['cpu.info', 'cpu.load', 'mem.swap', 'mem.usage'],
@@ -438,7 +433,7 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
     expect(writes).toBe(0)
 
     // Restored, every one of them is at work again, and what it showed is still there.
-    await windowTo('restore')
+    await bringWindowBack(app, page)
     await expect.poll(atWork, { timeout: 20_000 }).toBe(true)
     await expect(page.locator('[data-testid="git-file"][data-path="a.txt"]')).toBeVisible()
     await expect(page.getByTestId('agent-card')).toHaveCount(1)

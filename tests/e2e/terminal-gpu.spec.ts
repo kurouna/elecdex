@@ -1,6 +1,14 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { type Launched, launch, SINGLE_TERMINAL, terminalPane, typeInto } from './support.js'
+import {
+  bringWindowBack,
+  type Launched,
+  launch,
+  putWindowAway,
+  SINGLE_TERMINAL,
+  terminalPane,
+  typeInto,
+} from './support.js'
 
 /**
  * The terminal after its GPU context is lost.
@@ -301,19 +309,16 @@ test('a terminal behind a tab while the GPU process crashes draws true once show
 
 test('a terminal in a minimised window while the GPU process crashes draws true once shown', async () => {
   await start()
+  // Skipped, not failed, where nothing can minimise the window (a bare Xvfb).
+  await putWindowAway(launched.app, page)
+  await crashGpu()
+  await page.waitForTimeout(RECOVERY_MS)
+  await bringWindowBack(launched.app, page)
   await launched.app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()
       .find((w) => w.isVisible())
-      ?.minimize(),
+      ?.focus(),
   )
-  await page.waitForTimeout(1000)
-  await crashGpu()
-  await page.waitForTimeout(RECOVERY_MS)
-  await launched.app.evaluate(({ BrowserWindow }) => {
-    const window = BrowserWindow.getAllWindows().find((w) => w.isMinimized())
-    window?.restore()
-    window?.focus()
-  })
   await page.waitForTimeout(1000)
   expect(await drawnByWebgl()).toBe(true)
   await screenFollows('minimised')

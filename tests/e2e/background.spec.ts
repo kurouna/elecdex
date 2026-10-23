@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import electronPath from 'electron'
-import { exited, launch, MAIN } from './support.js'
+import { exited, launch, MAIN, STUB_ENV } from './support.js'
 
 /**
  * Running in the background (Windows): closing and minimising to the
@@ -698,7 +698,9 @@ test('a start in the background stays hidden until opened, and skips the intro',
         const child = spawn(
           electronPath as unknown as string,
           [MAIN, '--windowed', `--user-data-dir=${userData}`, ...extra],
-          { env: { ...process.env, ELECDEX_BACKGROUND_STUB: '1' }, stdio: 'ignore' },
+          // STUB_ENV as every launch: the second start hands over and quits, but until then it
+          // is a whole elecdex and must reach nothing of this machine's either.
+          { env: { ...process.env, ...STUB_ENV }, stdio: 'ignore' },
         )
         child.once('exit', () => resolve())
       })

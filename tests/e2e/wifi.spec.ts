@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { launch, settleLayout } from './support.js'
+import { catchPageCopies, launch, settleLayout } from './support.js'
 
 /**
  * The Wi-Fi pane, on the collector's stub (support.ts sets ELECDEX_WIFI_STUB=1,
@@ -25,7 +25,7 @@ const active = async (page: Page): Promise<string[]> =>
   (await page.evaluate(() => window.elecdex.metrics.stats())).active ?? []
 
 test('shows the link, its verdict and its call score, masks it, and copies a report', async () => {
-  const { app, page, close } = await launch(undefined, { layout: alone() })
+  const { page, close } = await launch(undefined, { layout: alone() })
   try {
     await expect(page.getByTestId('wifi-ssid')).toHaveText('ELECDEX-LAB', { timeout: 20_000 })
     await expect(page.getByTestId('wifi-state')).toContainText('ONLINE')
@@ -37,9 +37,10 @@ test('shows the link, its verdict and its call score, masks it, and copies a rep
 
     await page.getByTestId('wifi-mask').click()
     await expect(page.getByTestId('wifi-ssid')).not.toContainText('ELECDEX-LAB')
+    const copies = await catchPageCopies(page)
     await page.getByTestId('wifi-copy').click()
     await expect(page.getByTestId('wifi-copy')).toHaveText('COPIED')
-    const report = await app.evaluate(({ clipboard }) => clipboard.readText())
+    const report = (await copies()).at(-1) ?? ''
     expect(report).toContain('elecdex Wi-Fi report')
     expect(report).toContain('CLEAR')
     expect(report).not.toContain('ELECDEX-LAB')

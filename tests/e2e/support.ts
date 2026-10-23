@@ -143,8 +143,30 @@ const SLOW_MS = 8_000
  * after every test had passed. A test that needs a clean quit asserts it itself
  * (exit.spec.ts); everywhere else a hung quit must not cost the suite.
  */
+/**
+ * The text on the machine's clipboard when each app came up, put back as it quits: shell tests
+ * copy and paste through the real clipboard, and the suite must not leave what whoever runs it
+ * had copied overwritten. Only text: Electron cannot read every format back.
+ */
+const clipboardAtLaunch = new WeakMap<ElectronApplication, string>()
+
+/** `app.evaluate`, given up after a moment: an app that hangs must not hold a launch or a quit. */
+function briefly<T>(work: Promise<T>): Promise<T | undefined> {
+  let timer: NodeJS.Timeout | undefined
+  return Promise.race([
+    work.catch(() => undefined),
+    new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), 2000)
+    }),
+  ]).finally(() => clearTimeout(timer))
+}
+
 async function closeApp(app: ElectronApplication): Promise<void> {
   const child = app.process()
+  const before = clipboardAtLaunch.get(app)
+  if (before !== undefined) {
+    await briefly(app.evaluate(({ clipboard }, text) => clipboard.writeText(text), before))
+  }
   let timer: NodeJS.Timeout | undefined
   const started = Date.now()
   const watchdog = setTimeout(
@@ -263,6 +285,8 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       ...options.env,
     },
   })
+  const clipboardText = await briefly(app.evaluate(({ clipboard }) => clipboard.readText()))
+  if (clipboardText !== undefined) clipboardAtLaunch.set(app, clipboardText)
   const warnings: string[] = []
   app.process().stderr?.on('data', (chunk: Buffer) => {
     for (const line of chunk.toString().split(/\r?\n/)) {
@@ -625,6 +649,25 @@ export async function saveDialogAnswers(
   }, answer)
   return () =>
     app.evaluate(() => (globalThis as { __saveDialogs?: { owned: boolean }[] }).__saveDialogs ?? [])
+}
+
+/**
+ * Makes the page's copies (`navigator.clipboard.writeText`, the COPY buttons) land in a list
+ * instead of the machine's clipboard, and answers that list: a test about what a report says
+ * must not overwrite what whoever runs the suite has copied.
+ */
+export async function catchPageCopies(page: Page): Promise<() => Promise<string[]>> {
+  await page.evaluate(() => {
+    const copies: string[] = []
+    ;(globalThis as { __e2eCopies?: string[] }).__e2eCopies = copies
+    Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true,
+      value: async (text: string) => {
+        copies.push(text)
+      },
+    })
+  })
+  return () => page.evaluate(() => (globalThis as { __e2eCopies?: string[] }).__e2eCopies ?? [])
 }
 
 /** Resolves once the app's process has ended (at once if it already has). */
