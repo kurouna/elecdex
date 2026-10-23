@@ -227,6 +227,15 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
 - **消した旧テスト 23 本**: hidden-panes.spec の 4 本（と hidden-panes-list.test）、metrics の 4 本（閉じると止まる・全部閉じると止まる・リロード・裏のタブ）、connections・globe・wifi・ethernet・weather の「閉じたら止まる」、clipboard・now-playing・docker の「裏のタブでは読まない」、同じ id の保存レイアウト（chip8・elec16・plugins・web）、motion の「ダイアログの電源断」と「トースト」、desk の「ピッカーに全部ある」。panes の「ポップアップできる全部」は、選択が残る検証だけに縮めた。
 - 残したもの: clipboard の「レイアウト切替で読まない」（切替による外し方は契約に無い）、web の「別の場所の同じ id」、chip8・elec16 の「裏で止まり戻ると再開する」（ページだけの機械の再開は契約が見ていない）、quakes の「通知 off でペインが無ければ何も取得しない」。
 
+### 6.4 段階 4 の結果（2026-10-24）
+
+- 単体・コンポーネントテストが持つ e2e を **46 本消した**（layout・presets・pane-move・panes・zoom・motion・palette・boot 18、connections・wifi・ethernet・appearance・CLUSTER 9、chip8・elec16・keystream・desk・utility 9、aichat・elec・agents・logwatch 10）。1 本ずつ、§2.1 の規則で配線・実 OS・再起動・境界・回帰でないことを確かめ、本番コードを一時的に壊して下位テストが落ちることを見てから消した（壊したコードはコミットしていない）。
+- 下位テストが無かった・弱かったものは先に書いた: component の pane-picker、cluster-widget、chip8-panel、elec-widget、agents-widget（新規）、layout-question・pane-drag・pane-zoom・pane-corner・ethernet-widget・wifi-widget・appearance-revision・connections-widget・timer-widget・todo-widget・logwatch-widget（追加・強化）、unit の ai-ipc、logwatch-ipc（新規）、logwatch-main（junction を通す実パス）。壊しても落ちなかった下位テストが 2 つ見つかり（logwatch-main の実パス、logwatch-widget の設定の toEqual）、直した。
+- 候補から外して残したもの: elec16 の PANEL（Elec16Widget 自身の配線を下位テストが見ていない）、notes の削除と task の改名・期限（main に正しい引数を送る e2e はそれだけ）、weather の地点選択とポップアップの Escape（App.svelte の取り付け順に依存）、LOG WATCH の EXPLAIN の失敗（Electron 自身の `net.fetch` の失敗を読むのはそれだけ）。
+- `launch()` は `--no-intro` のとき起動演出が飛んだこと（`data-boot="done"`）も確かめるので、boot.spec の同じ検査を消した。
+- SLIM: ELEC-16 の PLAY-320 への TUNE から、別の e2e と単体が持つ CODE の実行部分を削った。ほかは、残る再起動や長い待ちが配線・再起動・境界・回帰のためだったので削っていない。
+- **全件 515 件、43.3 分**（基準 537 件・44.7 分。途中で契約 48 件を足している）。
+
 ## 7. 追加する検証（優先度順）
 
 1. 古いプロファイルからの更新（app/upgrade）。リリースで最も壊れやすい。
