@@ -18,6 +18,7 @@ import { untrack } from 'svelte'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import { type Palette, SpectrumPainter } from './spectrum-draw.ts'
@@ -97,7 +98,9 @@ function onUpdate(update: SpectrumUpdate): void {
 }
 
 $effect(() => {
-  if (!host) return
+  // On screen in the page, and the window on screen: a minimised or put-away window is not
+  // seen, and an IntersectionObserver does not notice it (the e2e lifecycle contract did).
+  if (!host || !seen(true)) return
   return whileVisible(host, () => {
     const off = window.elecdex.audio.spectrum(onUpdate)
     return () => {

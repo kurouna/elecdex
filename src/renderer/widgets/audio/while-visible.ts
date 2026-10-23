@@ -1,7 +1,8 @@
 /**
  * Runs `start` while `element` is on screen and its cleanup when it is not: a
  * pane in a background tab (display: none), scrolled out, or unmounted. The audio
- * panes subscribe this way, so capture and mixer polling run only for what is seen.
+ * panes subscribe this way, so capture and mixer polling run only for what is seen -
+ * inside an effect that also asks `seen`, as a minimised window still intersects.
  */
 export function whileVisible(element: Element, start: () => () => void): () => void {
   let stop: (() => void) | null = null

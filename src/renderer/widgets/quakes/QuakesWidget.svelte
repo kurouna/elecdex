@@ -20,6 +20,7 @@ import { tsunamiTone } from '../../lib/tsunami-card.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import NewPill from '../common/NewPill.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -29,12 +30,14 @@ import type { WidgetProps } from '../registry.ts'
  * Japan (graded by maximum intensity) or the USGS for the world (by magnitude).
  * A tsunami warning, watch or advisory in effect shows as a strip above the list.
  *
- * While this pane is open main checks the source every minute (see
- * main/quakes/service.ts); closed, and with alerts off, nothing is fetched. The
- * alerts themselves are a setting, not this pane: the pane lists, and says what
- * it is set to announce. Not in the default layout.
+ * While this pane is seen main checks the source every minute (see
+ * main/quakes/service.ts); behind another tab, in a minimised window or closed,
+ * and with alerts off, nothing is fetched, and what the pane showed stays. The
+ * alerts themselves are a setting, not this pane: they go on unseen, the pane
+ * lists, and says what it is set to announce. Not in the default layout.
  */
-const { paneId }: WidgetProps = $props()
+const { paneId, visible: inTab = true }: WidgetProps = $props()
+const visible = $derived(seen(inTab))
 
 const language = quakeLanguage(navigator.language)
 let current = $state.raw<QuakeState | null>(null)
@@ -61,7 +64,7 @@ function receive(next: QuakeState): void {
   current = next
 }
 
-$effect(() => window.elecdex.quakes.subscribe(receive))
+$effect(() => (visible ? window.elecdex.quakes.subscribe(receive) : undefined))
 
 function settled(id: string, event: AnimationEvent): void {
   if (event.animationName !== 'fx-fresh' || !fresh.has(id)) return

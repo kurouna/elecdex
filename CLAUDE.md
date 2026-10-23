@@ -128,7 +128,7 @@ user made; do not reverse one without asking.
   board's pages are a `PageSubscribers`.
 - **Network lives in main**, never the renderer: weather (docs/weather-providers.md; follow each
   service's terms), markets, RSS, earthquakes and tsunamis (only while alerts are on or a quakes
-  pane is open, only for the chosen source), CelesTrak orbital elements (§5.10: only while an
+  pane is seen, only for the chosen source), CelesTrak orbital elements (§5.10: only while an
   ORBIT pane shows the set, at most the stations twice a day and Starlink once, kept on disk,
   nothing for a day after any answer but a 200). Positions are computed in the page (SGP4); no
   service is asked where something is. Fetch only while a pane needs the data, batch, back off on

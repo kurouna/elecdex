@@ -10,6 +10,7 @@ import {
   stepMeters,
 } from '@shared/audio'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import { MeterPainter } from './spectrum-draw.ts'
 import { whileVisible } from './while-visible.ts'
@@ -62,7 +63,9 @@ function onUpdate(update: MixerUpdate): void {
 }
 
 $effect(() => {
-  if (!host) return
+  // On screen in the page, and the window on screen: a minimised or put-away window is not
+  // seen, and an IntersectionObserver does not notice it (the e2e lifecycle contract did).
+  if (!host || !seen(true)) return
   return whileVisible(host, () => {
     const off = window.elecdex.audio.mixer(onUpdate)
     return () => {
