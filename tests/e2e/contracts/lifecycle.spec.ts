@@ -1,7 +1,13 @@
 import { expect, type Page, test } from '@playwright/test'
 import { mutationsIn } from '../support/measure.js'
-import { bringWindowBack, putWindowAway, reloadWorkspace, sessionIds } from '../support.js'
-import { PANES, type PaneRow } from './panes.js'
+import {
+  bringWindowBack,
+  putWindowAway,
+  reloadWorkspace,
+  sessionIds,
+  WATCHING_MODULES,
+} from '../support.js'
+import { PANES, type PaneRow, row } from './panes.js'
 import {
   type ContractApp,
   contractPane,
@@ -24,6 +30,18 @@ import {
 
 /** The rows whose footprint the contract can see. */
 const FOOTPRINTED = PANES.filter((r) => r.seen !== undefined)
+
+/**
+ * The readings collected once per collector (scheduler.ts), which a pane behind a tab keeps so
+ * its row never blanks: their first arrival is the start, not a change.
+ */
+const ONCE = ['cpu.info', 'hardware.system', 'os.info']
+
+/** Every pane but the clock in front and those meant to go on unseen, for {@link mutationsIn}. */
+const quietSelectors = () =>
+  PANES.filter((r) => r.widget !== 'clock' && r.goesOn === undefined).map(
+    (r) => `[data-testid=pane][data-pane-id="${paneId(r.widget)}"]`,
+  )
 
 /** How long a pane brought back may take to be at work again: "at once", with room for a busy machine. */
 const RESUME_MS = 8_000
@@ -80,6 +98,21 @@ async function eachRow(rows: PaneRow[], check: (row: PaneRow) => Promise<void>):
 test('behind another tab, every pane stops what main does for it, and takes it up at once when shown again', async () => {
   test.setTimeout(300_000)
   await backToIdle()
+  // Never shown, no pane that is the page's alone changes anything once the start is over: the
+  // one-off readings are waited for, as on a busy machine they once landed in the window watched.
+  await expect
+    .poll(
+      async () => {
+        const { collections } = await page.evaluate(() => window.elecdex.metrics.stats())
+        return ONCE.filter((id) => !((collections as Record<string, number>)[id] ?? 0))
+      },
+      { timeout: 60_000 },
+    )
+    .toEqual([])
+  // wait: the rest of the start (a shell's first prompt, the launcher's catalog) has no signal.
+  await page.waitForTimeout(6000)
+  expect(await mutationsIn(page, quietSelectors(), 4000), 'never shown').toEqual({})
+
   await eachRow(FOOTPRINTED, async (row) => {
     await atWork(row, true, START_MS)
     await tabOf(page, 'clock').click()
@@ -90,9 +123,7 @@ test('behind another tab, every pane stops what main does for it, and takes it u
   })
 
   // Every pane has been seen; behind the clock, none that is the page's alone changes anything.
-  const quietRows = PANES.filter((r) => r.widget !== 'clock' && r.goesOn === undefined)
-  const selectors = quietRows.map((r) => `[data-testid=pane][data-pane-id="${paneId(r.widget)}"]`)
-  expect(await mutationsIn(page, selectors, 4000)).toEqual({})
+  expect(await mutationsIn(page, quietSelectors(), 4000), 'after being seen').toEqual({})
 
   // A reload leaves nothing behind: what main does is again only what the panes keep.
   await reloadWorkspace(page)
@@ -147,4 +178,58 @@ test('what is meant to go on unseen goes on: a shell behind a tab keeps its sess
   await bringWindowBack(ctx.app, page)
   await tabOf(page, 'terminal').click()
   expect(await sessionIds(page)).toEqual([session])
+})
+
+test('a page that crashes leaves nothing behind: main drops what it was doing for it', async () => {
+  // A page lets go of its subscriptions as it unloads, so a reload alone never tests main's own
+  // drop (whenPageGoes): a crash gives the page no chance to. Seen at work first, then the page
+  // crashes and comes back on a layout of one clock.
+  for (const widget of ['cpu', 'weather', 'clipboard', 'docker'])
+    await atWork(row(widget), true, START_MS)
+  await tabOf(page, 'clock').click()
+  // Back as one clock: a page that subscribes again would have main tidy the old subscriptions on
+  // that path, and only a page that asks for nothing leaves main's own drop as the one at work.
+  await page.evaluate(() =>
+    window.elecdex.layout.save({
+      version: 1,
+      root: { kind: 'pane', id: 'p-clock', widget: 'clock' },
+    } as never),
+  )
+  const inPage = (code: string) =>
+    ctx.app.evaluate(
+      ({ BrowserWindow }, js) =>
+        BrowserWindow.getAllWindows()
+          .find((w) => w.isVisible())
+          ?.webContents.executeJavaScript(js),
+      code,
+    )
+  const onWindow = (what: 'crash' | 'crashed' | 'reload') =>
+    ctx.app.evaluate(({ BrowserWindow }, act) => {
+      const contents = BrowserWindow.getAllWindows().find((w) => w.isVisible())?.webContents
+      if (act === 'crash') contents?.forcefullyCrashRenderer()
+      if (act === 'reload') contents?.reload()
+      return contents?.isCrashed() ?? false
+    }, what)
+
+  await onWindow('crash')
+  await expect.poll(() => onWindow('crashed')).toBe(true)
+  await onWindow('reload')
+  // Playwright's page went with the crash: the new page is asked through main.
+  await expect
+    .poll(
+      () =>
+        inPage("document.querySelector('[data-testid=workspace]')?.dataset.loaded ?? ''").catch(
+          () => '',
+        ),
+      { timeout: 20_000 },
+    )
+    .toBe('true')
+  const watched = `Promise.all([window.elecdex.metrics.stats().then((s) => s.active),
+    ...${JSON.stringify(WATCHING_MODULES)}.map((m) => window.elecdex[m].watching())])`
+  await expect
+    .poll(async () => {
+      const [metrics, ...modules] = (await inPage(watched)) as string[][]
+      return { metrics: [...(metrics ?? [])].sort(), modules: modules.flat() }
+    })
+    .toEqual({ metrics: [], modules: [] })
 })

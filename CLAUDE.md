@@ -145,8 +145,11 @@ user made; do not reverse one without asking.
     `seen` (stores/window-state.svelte.ts), keeping what it showed. Only a shell, an answer being
     written, a timer or alarm, quake alerts, plugins (`ctx.views`) and web pages go on unseen: a
     web pane's page (a video) keeps playing behind a tab and in a minimised window (§5.4).
-  - tests/e2e/hidden-panes.spec.ts checks every built-in pane behind a tab and in a minimised
-    window (web panes, the exception above, apart); a unit test holds its list to builtins.ts.
+  - The e2e lifecycle contract (tests/e2e/contracts/lifecycle.spec.ts) checks every built-in pane
+    behind a tab, in a minimised window, closed, reloaded and after a crash, from the table in
+    contracts/panes.ts (a new pane needs its row: what main does for it while seen, what it keeps,
+    what goes on unseen); tests/unit/e2e-contracts.test.ts holds the table to builtins.ts. Web
+    panes, the exception above, are apart.
 - **The connections pane reads the kernel, not the network** (src/services/metrics/sockets/, one
   file per platform behind `RawSocket`). Peers are placed with the bundled GeoIP database, never a
   lookup service. `net.sockets` is the one reading a plugin can never be granted: every metric
@@ -660,8 +663,9 @@ user made; do not reverse one without asking.
   - Dialogs: `crt-on`, `transition:crtPower`, `--crt-delay={dialogDelay()}`, backdrop
     `transition:backdropShade`, opened and closed through `ui` (so `ui.closedAt` is kept).
   - Notices and toasts: `crt-on` and `transition:crtPower` (`|global` where needed).
-  - Skipped with motion reduced. Cover new ones in tests/e2e/motion.spec.ts (or their own spec,
-    with `clickThen`).
+  - Skipped with motion reduced. A new dialog, popup, toast or notice gets a row in
+    tests/e2e/contracts/dialogs.ts (a unit test finds every `transition:crtPower` without one);
+    other motion goes in tests/e2e/motion.spec.ts (or its own spec, with `clickThen`).
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on
   `appearance.revision`. Components read semantic tokens. Text is the accent unless a theme sets
   `text`. Never assume a dark ground: `mode: 'light'` sets `data-mode="light"` (darker status

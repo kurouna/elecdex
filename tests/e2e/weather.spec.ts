@@ -322,25 +322,6 @@ test('an old pane that saved a JMA office still shows it', async () => {
   }
 })
 
-test('stops fetching when the weather pane is removed', async () => {
-  const { page, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
-  try {
-    await expect.poll(() => watching(page), { timeout: 20_000 }).toHaveLength(1)
-    // wait: the pane's first fetch and the page's debounced layout save run their course before
-    // the tree is replaced under it; neither says when it is done.
-    await page.waitForTimeout(1500)
-    await page.evaluate((tree) => window.elecdex.layout.save(tree), {
-      version: 1,
-      root: { kind: 'pane', id: 't', widget: 'terminal' },
-    } as const)
-    await page.reload()
-    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
-    await expect.poll(() => watching(page), { timeout: 10_000 }).toEqual([])
-  } finally {
-    await close()
-  }
-})
-
 test('an unreachable service shows the error, not a blank pane', async () => {
   const { page, close } = await launch(undefined, { layout: weatherOnly() })
   try {

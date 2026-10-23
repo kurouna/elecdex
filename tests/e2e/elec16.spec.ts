@@ -18,7 +18,6 @@ import {
   bringWindowBack,
   cpuSeconds,
   launch,
-  launchOnTwoLayouts,
   pickerAnswers,
   powerNote,
   putWindowAway,
@@ -421,53 +420,6 @@ test("keeps the program through a restart: the unit's battery backup", async () 
     await expect.poll(() => lcdLines(second?.page as Page)).toContain('KEPT')
   } finally {
     await (second ?? first).close()
-  }
-})
-
-test("a saved layout's pane opens on its own unit, though the last layout's pane had its id", async () => {
-  // Two saved layouts, each one ELEC-16 pane of the same id, on different units: the machine
-  // the first pane leaves for a moved pane must not be taken up by the second.
-  const onUnit = (unit: string) => single('elec16', { id: 'e16', state: { unit, panel: false } })
-  const unit = (id: string, name: string) => ({
-    id,
-    name,
-    clock: 4,
-    model: 'pocket-48',
-    autoOff: 10,
-    created: 0,
-  })
-  const { page, close } = await launchOnTwoLayouts(onUnit('u1'), onUnit('u2'), {
-    files: {
-      'elec16/units.json': JSON.stringify({
-        version: 1,
-        units: [unit('u1', 'UNIT 1'), unit('u2', 'UNIT 2')],
-      }),
-    },
-  })
-  try {
-    const subtitle = page.getByTestId('pane-subtitle')
-    await settleLayout(page)
-    await booted(page)
-    await expect(subtitle).toContainText('UNIT 1')
-    await page.getByTestId('elec16').focus()
-    await typeLine(page, 'z=7')
-    await page.keyboard.press('Control+Shift+Digit2')
-    await expect(subtitle).toContainText('UNIT 2')
-    await settleLayout(page)
-    await booted(page)
-    await page.getByTestId('elec16').focus()
-    await typeLine(page, 'print z')
-    // UNIT 2's own RAM: z was set on UNIT 1 only.
-    await expect.poll(() => lcdLines(page)).toContain('0')
-    await page.keyboard.press('Control+Shift+Digit1')
-    await expect(subtitle).toContainText('UNIT 1')
-    await settleLayout(page)
-    await booted(page)
-    await page.getByTestId('elec16').focus()
-    await typeLine(page, 'print z')
-    await expect.poll(() => lcdLines(page)).toContain('7')
-  } finally {
-    await close()
   }
 })
 

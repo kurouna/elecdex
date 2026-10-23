@@ -635,17 +635,3 @@ test('a wide pane keeps a measure instead of stretching its contents', async () 
     await close()
   }
 })
-
-test('every desk pane is in the picker and opens from it', async () => {
-  const { page, close } = await launch(undefined, { layout: single('clock') })
-  try {
-    for (const widget of ['calc', 'notes', 'todo', 'timer']) {
-      await page.keyboard.press('Control+Shift+A')
-      await page.getByTestId('pane-picker').waitFor()
-      await page.locator(`[data-testid=pane-picker-item][data-widget=${widget}]`).click()
-      await expect(page.locator(`[data-testid=pane][data-widget=${widget}]`)).toHaveCount(1)
-    }
-  } finally {
-    await close()
-  }
-})

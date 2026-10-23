@@ -204,7 +204,7 @@
   - `keepWhileHidden` は §3 の 7 つ（1 秒のソース 4 つと、1 回だけ集める 3 つ）
   - `zoom: 'full'`、`popup: true`
   - `minSize` は narrow の最小、たとえば `{ w: 260, h: 200 }`
-- `tests/e2e/hidden-panes.spec.ts` の `WIDGETS` に `'cluster'`。hidden-panes-list.test.ts が registry と突き合わせる
+- `tests/e2e/contracts/panes.ts` の表に `cluster` の行（見えている間に読むソースと、裏でも保つソース）。e2e-contracts.test.ts が registry と突き合わせる
 - `tests/unit/detail-cards.test.ts`（またはカード一覧のテスト）にカードを足す
 - `docs/architecture.md` §5.20、README 3 か国語のペイン一覧（実装時）
 
@@ -277,7 +277,7 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。
   - スタブの metrics で警告灯とメッセージが変わる
   - 後ろのタブでは `keepWhileHidden` の 7 ソースだけが残る
 - **既存の spec**:
-  - hidden-panes.spec.ts（一覧に足す）
+  - contracts/panes.ts（表に行を足す。lifecycle 契約が回す）
   - motion.spec.ts（動きを減らす設定）
   - metrics.spec.ts（アイドル予算）
 

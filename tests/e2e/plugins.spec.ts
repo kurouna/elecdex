@@ -4,16 +4,7 @@ import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import { pluginFiles, turnOnPlugin } from './support/plugins.js'
-import {
-  launch,
-  launchOnTwoLayouts,
-  openSettings,
-  quietFor,
-  removeDir,
-  settleLayout,
-  single,
-  waitForSaved,
-} from './support.js'
+import { launch, openSettings, quietFor, removeDir, single, waitForSaved } from './support.js'
 
 /**
  * Plugins in the running app (docs/plugins.md): the sample in a new plugins folder,
@@ -274,28 +265,6 @@ test('a plugin pane gets the state it saved back after a restart', async () => {
   } finally {
     await app.close()
     removeDir(dir)
-  }
-})
-
-test("a saved layout's plugin pane gets its own state, though the last layout's pane had its id", async () => {
-  // Two layouts with a plugin pane of the same id ("save as" keeps ids): the pane stays
-  // mounted over the switch and only its state changes, which the plugin must be given.
-  const tally = (n: number) => single('plugin:tally', { id: 'p1', state: { plugin: { n } } })
-  const app = await launchOnTwoLayouts(tally(2), tally(7), { files: TALLY })
-  try {
-    await turnOnPlugin(app.page, 'tally')
-    await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
-    await app.page.keyboard.press('Control+Shift+Digit2')
-    await settleLayout(app.page)
-    await expect(pluginPane(app.page).getByText('tally 7')).toBeVisible()
-    // Its own set is its own: counted on from there, not mounted again.
-    await pluginPane(app.page).getByTestId('plugin-button').click()
-    await expect(pluginPane(app.page).getByText('tally 8')).toBeVisible()
-    await app.page.keyboard.press('Control+Shift+Digit1')
-    await settleLayout(app.page)
-    await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
-  } finally {
-    await app.close()
   }
 })
 

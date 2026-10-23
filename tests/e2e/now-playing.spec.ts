@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { stubOf } from './support/stub-hooks.js'
-import { launch, quietFor, tabbed } from './support.js'
+import { launch, tabbed } from './support.js'
 
 /**
  * The NOW PLAYING pane, on main's stand-in media session (support.ts sets
@@ -69,31 +69,6 @@ test('shows the track, counts on, and presses the player', async () => {
     await expect(page.getByTestId('np-state')).toContainText('NO SESSION')
     await expect(page.getByTestId('np-empty')).toBeVisible()
     await expect(page.getByTestId('np-play')).toBeDisabled()
-  } finally {
-    await close()
-  }
-})
-
-test('behind another tab nothing is read or pressed, and shown again it reads at once', async () => {
-  const { app, page, close } = await launch(undefined, { layout: inTabs('clock') })
-  const player = stubOf(app, 'nowPlaying')
-  try {
-    await expect(page.getByTestId('pane')).toHaveCount(2)
-    const reads = () => player.reads()
-    expect(await quietFor(2000, reads, 'the session reads')).toBe(0)
-    expect(await page.evaluate(() => window.elecdex.nowPlaying.watching())).toEqual([])
-    // A page that does not show the session cannot press its player.
-    expect(await page.evaluate(() => window.elecdex.nowPlaying.control('next'))).toBe('unsupported')
-    expect(await player.presses()).toEqual([])
-
-    await page.locator('[data-testid=tab][data-pane-id=nowplaying]').click({ delay: 20 })
-    await expect(page.getByTestId('np-title')).toHaveText('Test Track')
-    expect(await page.evaluate(() => window.elecdex.nowPlaying.watching())).toEqual(['session'])
-
-    // Put behind again, the reading stops (the reader is let go a little later).
-    await page.locator('[data-testid=tab][data-pane-id=clock]').click({ delay: 20 })
-    await expect.poll(() => page.evaluate(() => window.elecdex.nowPlaying.watching())).toEqual([])
-    await quietFor(1500, reads, 'the session reads')
   } finally {
     await close()
   }

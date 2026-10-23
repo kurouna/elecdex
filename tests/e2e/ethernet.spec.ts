@@ -1,14 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import {
-  metricsActive as active,
-  atDesignSize,
-  beside,
-  catchPageCopies,
-  closePane,
-  launch,
-  paneOf,
-  quietFor,
-} from './support.js'
+import { atDesignSize, beside, catchPageCopies, launch, quietFor } from './support.js'
 
 /**
  * The Ethernet pane, on the collector's stub (support.ts sets ELECDEX_ETHER_STUB=1,
@@ -41,23 +32,6 @@ test('shows the link, its verdict and its call score, masks it, and copies a rep
     expect(report).toContain('CLEAR')
     expect(report).not.toContain('192.0.2.31')
     expect(report).not.toContain('02:00:5e')
-  } finally {
-    await close()
-  }
-})
-
-test('nothing reads the link or echoes once the pane has gone', async () => {
-  const { page, close } = await launch(undefined, { layout: alone() })
-  try {
-    await expect(page.getByTestId('ether-state')).toContainText('ONLINE', { timeout: 20_000 })
-    expect(await active(page)).toContain('net.ethernet')
-    await closePane(paneOf(page, 'ethernet'))
-    await expect(page.getByTestId('ether')).toHaveCount(0)
-    await expect
-      .poll(async () => (await active(page)).filter((id) => id === 'net.ethernet'), {
-        timeout: 15_000,
-      })
-      .toEqual([])
   } finally {
     await close()
   }

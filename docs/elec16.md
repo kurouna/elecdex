@@ -521,7 +521,7 @@ TS の部分集合 (*.e16.ts)
 - ROM: vitest の中で機械を動かし、キーを打ち、VRAM をフォントで文字に戻して比べます。BASIC の文ごとのゴールデンテスト、同梱ソフトが最後まで動くこと
 - 境界: `shared/elec16` は自分と `shared/emu` だけを import し、DOM、Node、タイマー、時計、`Math.random` に触れない（`emu-boundary.test.ts`）
 - コンポーネント: CORE、MEM、FILES、TUNE、キーの割り当て（`keyFate` と同じ考え方の純粋な関数）
-- e2e: 起動して `PRINT 1+1`、同梱ソフトの RUN、BRK、隠れたペインは止まる（`hidden-panes.spec.ts` に入れる。`hidden-panes-list.test.ts` が求める）、再起動で RAM が戻る、IMPORT / EXPORT（picker はスタブ）、2 つ目のペインでの同じユニット（MOVE HERE で RAM が失われない）、ペインの出入りとシートの電源の入り切り（`motion.spec.ts`）、スキンとテーマのスクリーンショット、費用
+- e2e: 起動して `PRINT 1+1`、同梱ソフトの RUN、BRK、隠れたペインは止まる（`contracts/panes.ts` の表に行を足す。`e2e-contracts.test.ts` が求める）、再起動で RAM が戻る、IMPORT / EXPORT（picker はスタブ）、2 つ目のペインでの同じユニット（MOVE HERE で RAM が失われない）、ペインの出入りとシートの電源の入り切り（`motion.spec.ts`）、スキンとテーマのスクリーンショット、費用
 - main: elec16 のチャネルは `registerTable` の 1 つの表にし、入力はすべて zod で検査する。カードの名前の検査（予約名、長さ、文字）、ユニットのロックと書き込みの順番、壊れた `units.json` と `card.json` は項目ごとに捨てる
 
 ## 11. 段階 0: shared/emu の切り出し

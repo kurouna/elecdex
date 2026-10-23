@@ -670,52 +670,6 @@ const keysThen = (page: Page, keys: Key[], selector: string) =>
     { keys, selector },
   )
 
-test('a dialog powers off as it closes: the pane picker, the action palette, the settings, the layouts, the weather location and a pane popped up', async () => {
-  const { page, close } = await launch(undefined, {
-    layout: single('weather', { id: 'w' }),
-    settings: { launcher: { showSystem: false, items: [] } },
-  })
-  try {
-    const dialogs = [
-      { testid: 'pane-picker', open: () => page.keyboard.press('Control+Shift+KeyA') },
-      { testid: 'action-palette', open: () => page.keyboard.press('Control+Shift+KeyP') },
-      { testid: 'settings-dialog', open: () => page.keyboard.press('Control+Shift+Period') },
-      { testid: 'layouts-dialog', open: () => page.keyboard.press('Control+Shift+KeyG') },
-      {
-        testid: 'location-picker',
-        open: async () => {
-          const weather = byId(page, 'w')
-          if (!(await weather.getByTestId('weather-location').isVisible())) {
-            await weather.getByTestId('weather-settings-toggle').click()
-          }
-          await weather.getByTestId('weather-location').click()
-        },
-      },
-      // With no launcher in the layout, its shortcut pops one up.
-      { testid: 'popup-pane', open: () => page.keyboard.press('Control+Shift+KeyL') },
-    ]
-    for (const { testid, open } of dialogs) {
-      await open()
-      const dialog = page.getByTestId(testid)
-      await expect(dialog).toBeVisible()
-      await expect(dialog).toHaveCSS('animation-name', 'crt-power-on')
-      const closing = await keysThen(page, [ESCAPE], `[data-testid=${testid}]`)
-      // Still there, powering off, and out of the way of the page below.
-      expect(closing, testid).toMatchObject({
-        present: true,
-        inert: true,
-        beam: true,
-        beamRunning: true,
-        backdropInert: true,
-      })
-      expect(closing.backdropZ, testid).toBe('')
-      await expect(dialog).toHaveCount(0)
-    }
-  } finally {
-    await close()
-  }
-})
-
 test('a dialog opened again while closing comes back whole, and another opens out of its line', async () => {
   const { page, close } = await launch(undefined, { layout: calendarOnly })
   try {
@@ -1000,50 +954,6 @@ test('a busy button icon follows the motion setting: it turns, or pulses with mo
   expect(reduced.refresh).toMatch(/pulse/)
   expect(reduced.play).toMatch(/pulse/)
   expect((await busyIcons('full', true)).refresh).toMatch(/turn/)
-})
-
-/**
- * A toast is raised from a running timer, which is the shortest way to one that
- * does not involve waiting for a deadline or a release.
- */
-const shortTimer = single('timer', { id: 't', state: { mode: 'timer', durationMs: 1000 } })
-
-test('a toast powers on like the rest of the HUD, and just appears with motion reduced', async () => {
-  for (const motion of ['full', 'reduced'] as const) {
-    const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-motion-'))
-    writeFileSync(
-      path.join(dir, 'settings.json'),
-      JSON.stringify({ sound: { enabled: false }, motion }),
-    )
-    const { page, close } = await launch(dir, { layout: shortTimer })
-    try {
-      await page.getByTestId('timer-start').click()
-      const toast = page.getByTestId('toast')
-      await expect(toast).toHaveCount(1, { timeout: 15_000 })
-      const style = await toast.evaluate((el) => {
-        const s = getComputedStyle(el)
-        return { name: s.animationName, duration: s.animationDuration }
-      })
-      if (motion === 'reduced') {
-        // Not a shortened power-on: no animation at all, and the card is simply there.
-        expect(style.name).toBe('none')
-      } else {
-        expect(style.name).toMatch(/crt-power-on/)
-        expect(style.duration).toBe('0.32s')
-      }
-      // The fuse burns down in steps, ten a second like everything else drawn here:
-      // burning smoothly it kept the compositor at the display's rate for as long as
-      // the toast showed (measured beside a clock: 19.7% of one core, 11.6% stepped).
-      const fuse = await toast.locator('.fuse').evaluate((el) => {
-        const s = getComputedStyle(el)
-        return { timing: s.animationTimingFunction, duration: s.animationDuration }
-      })
-      expect(fuse).toEqual({ timing: 'steps(100)', duration: '10s' })
-    } finally {
-      await close()
-      removeDir(dir)
-    }
-  }
 })
 
 test('the question before a paste of several lines powers on and off as a dialog does', async () => {

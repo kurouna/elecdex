@@ -237,7 +237,7 @@ Enter
 | Workspace の `throughDialog` | ポップアップの上で余計なキーが効く | Workspace の判定を、パレットのキーと呼び出しのキーに限るテスト（e2e、ポップアップの上で Ctrl+Shift+A は効かないまま） |
 | SettingsDialog の `SECTIONS` の抽出 | セクションの並びや window の出し分けが変わる | settings-sections のユニットテストを先に書き、抽出前の並びを固定する。settings.spec |
 | App.svelte への追加 | アイドル時の負荷 | 閉じていれば `{#if}` で何も描かない。metrics.spec のアイドル予算 |
-| 背面タブ・最小化 | 何も購読しないので影響なし | hidden-panes.spec（念のため全体の実行に含む） |
+| 背面タブ・最小化 | 何も購読しないので影響なし | contracts/lifecycle.spec（念のため全体の実行に含む） |
 
 ## 7. テスト計画（先に書く）
 
@@ -316,7 +316,7 @@ Enter
 - ポップアップの上でキーを押すとパレットが開き、ポップアップは片付く。同じ状態で Ctrl+Shift+A は効かないまま。
 - 利用者がキーを付け替えると（settings の keybindings）、新しいキーで開き、行の右端にも新しいキーが出る。
 
-`motion.spec.ts`: 「a dialog powers off as it closes」の表に `action-palette` を足す。開閉の演出とモーション低減は、既存の表がそのまま確かめる。
+`contracts/dialogs.ts` の表に `action-palette` の行（当時は motion.spec.ts の「a dialog powers off as it closes」）。開閉の演出とモーション低減は、motion 契約がそのまま確かめる。
 
 ### 7.5 段階 5: ドキュメント
 

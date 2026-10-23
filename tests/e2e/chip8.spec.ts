@@ -317,30 +317,6 @@ test('a pane split beside it keeps its machine going, and a restart brings the p
   }
 })
 
-test("a saved layout's pane runs its own program, though the last layout's pane had its id", async () => {
-  // Two saved layouts with a CHIP-8 pane of the same id (a layout kept under a new name),
-  // each running another program: the switch must not leave the first one's machine on.
-  const running = (program: string) =>
-    single('chip8', { id: 'c8', state: { view: 'run', program } })
-  const { page, close } = await launchOnTwoLayouts(
-    running('diag/3-corax+'),
-    running('diag/6-keypad'),
-  )
-  try {
-    const subtitle = page.getByTestId('pane-subtitle')
-    await expect(subtitle).toHaveText('Corax+')
-    await page.keyboard.press('Control+Shift+Digit2')
-    await settleLayout(page)
-    await expect(subtitle).toHaveText('Keypad')
-    await expect(page.getByTestId('chip8-run')).toContainText('Keypad')
-    await page.keyboard.press('Control+Shift+Digit1')
-    await settleLayout(page)
-    await expect(subtitle).toHaveText('Corax+')
-  } finally {
-    await close()
-  }
-})
-
 test("a saved layout's pane on the library stops the machine the last layout's pane left running", async () => {
   const state = (view: string) => ({ view, program: 'diag/3-corax+' })
   const { page, close } = await launchOnTwoLayouts(

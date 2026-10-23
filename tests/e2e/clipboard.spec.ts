@@ -7,7 +7,6 @@ import {
   quietFor,
   SINGLE_CLOCK,
   settleLayout,
-  tabbed,
   waitForSaved,
 } from './support.js'
 
@@ -219,39 +218,6 @@ test('paused, it reads nothing; resumed, it lists what the clipboard holds then'
     await page.getByTestId('clip-pause').click()
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     await expect.poll(() => texts(page)).toEqual(['while paused'])
-  } finally {
-    await close()
-  }
-})
-
-test('behind another tab or closed, nothing is read; shown again, it takes up', async () => {
-  const { app, page, close } = await launch(undefined, {
-    layout: tabbed(['clipboard', 'clock']),
-  })
-  const watching = () => page.evaluate(() => window.elecdex.clipboard.watching())
-  try {
-    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
-    await copy(app, 'seen')
-    await expect.poll(() => texts(page)).toEqual(['seen'])
-
-    await page.locator('[data-testid=tab][data-pane-id=clock]').click()
-    await expect.poll(watching).toEqual([])
-    const before = await reads(app)
-    await copy(app, 'copied unseen')
-    await copy(app, 'copied unseen, twice')
-    expect(await quietFor(1200, () => reads(app), 'the clipboard reads')).toBe(before)
-
-    // Shown again: what was copied meanwhile is not there, only what the clipboard holds now.
-    await page.locator('[data-testid=tab][data-pane-id=clipboard]').click()
-    await expect.poll(watching).toEqual(['clipboard'])
-    await expect.poll(() => texts(page)).toEqual(['copied unseen, twice', 'seen'])
-
-    // Closed, nothing reads; the history waits in main's memory.
-    await page.locator('[data-testid=tab-close][data-pane-id=clipboard]').click()
-    await expect(page.getByTestId('clipboard')).toHaveCount(0)
-    await expect.poll(watching).toEqual([])
-    const after = await reads(app)
-    expect(await quietFor(1000, () => reads(app), 'the clipboard reads')).toBe(after)
   } finally {
     await close()
   }

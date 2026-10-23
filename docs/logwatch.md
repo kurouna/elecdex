@@ -364,7 +364,7 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。行にな�
 
 - `builtins.ts` に `registerBuiltin`（`id: 'logwatch'`、`title: 'log watch'`、`zoom: 'full'`、`keepWhileHidden` なし）
 - `api.ts` と preload に `logwatch`、settings のスキーマに `logWatch`
-- `hidden-panes.spec.ts` の `WIDGETS`、詳細カードの一覧のテスト
+- `contracts/panes.ts` の表（lifecycle 契約）、詳細カードの一覧のテスト
 - 既定のレイアウトには入れない。**dev プリセット**には、GIT と AI チャットのタブに加える（2026-10-12、利用者の決定）
   - CLAUDE.md のプリセットの決まりに従う: 各ペインの `minSize`、layout-presets.spec.ts、README 3 か国語の
     dev のスクリーンショット（`npm run gen:screenshots`。ログは作り物のファイルを流す）
@@ -419,7 +419,7 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。行にな�
   Shift_JIS と文字化けの知らせ、グラフと ERROR BAR を消す、保持行数の設定、EXPLAIN（ローカルのスタンドインの
   プロバイダ。Ctrl で選んだ 2 行だけで間の行は入らない、見せた本文と送った本文が同じ、伏せ字）、AI の設定がないと EXPLAIN が出ない
   - ファイル選択は main の `dialog.showOpenDialog` を置き換えて答える（GIT ペインのテストと同じやり方）
-  - `hidden-panes.spec.ts` の全ペインの一覧にも入れた
+  - `contracts/panes.ts` の全ペインの表にも入れた（当時は hidden-panes.spec.ts）
 - **手で試すとき**（Windows）:
   - `node scripts/log-feed.mjs [file] --format=jsonl|logfmt|generic|syslog|clf|plain --rate=20
     --encoding=utf-8|utf-16le|shift_jis --rotate=60 --burst=45`: スタックトレース付きのエラー、エラーの急増、

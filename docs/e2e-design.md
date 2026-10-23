@@ -216,6 +216,17 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
   - lifecycle の「続くべきもの」はシェルだけを確かめている（書き途中の回答、評議会、タイマー、AWAKE、地震の通知、プラグイン、web の再生は理由を書いただけ）。mixer は main の状態を外から読めないので footprint が無く、component テストだけが守る。
   - persistence はペイン状態の代表 4 つ。
 
+### 6.3 段階 3 の結果（2026-10-23）
+
+- **契約が旧テストの代わりになることを、本番を一時的に壊して確かめた**（確認ごとに戻し、コミットには含まない）:
+  - `seen` を無視させた（metrics の購読、weather・clipboard・nowplaying・docker・git・orbit・agents）→ lifecycle のタブ裏と最小化が、壊した全部を名指しして落ちた。
+  - 閉じても購読を放さないようにした（metrics、weather）→ 閉じる契約が落ちた。
+  - 設定ダイアログから `transition:crtPower` を外した → motion 契約が settings-dialog で落ちた。
+  - main がページの去った購読を落とさないようにした → **lifecycle のリロードも旧 metrics.spec:199 も落ちなかった**（ページはアンロード時に自分で放し、同じソースを購読し直すページには main が別の経路で古い購読を整理する）。契約に「クラッシュしたページの購読を main が落とす」を足し、時計 1 つで戻すことで main の後始末だけが働く形にした。元のコードで通り、壊したコードで落ちることを確かめた。
+  - あわせて、旧 hidden-panes.spec にあった「一度も表示していないペインが DOM を変えない」を lifecycle に足した。
+- **消した旧テスト 23 本**: hidden-panes.spec の 4 本（と hidden-panes-list.test）、metrics の 4 本（閉じると止まる・全部閉じると止まる・リロード・裏のタブ）、connections・globe・wifi・ethernet・weather の「閉じたら止まる」、clipboard・now-playing・docker の「裏のタブでは読まない」、同じ id の保存レイアウト（chip8・elec16・plugins・web）、motion の「ダイアログの電源断」と「トースト」、desk の「ピッカーに全部ある」。panes の「ポップアップできる全部」は、選択が残る検証だけに縮めた。
+- 残したもの: clipboard の「レイアウト切替で読まない」（切替による外し方は契約に無い）、web の「別の場所の同じ id」、chip8・elec16 の「裏で止まり戻ると再開する」（ページだけの機械の再開は契約が見ていない）、quakes の「通知 off でペインが無ければ何も取得しない」。
+
 ## 7. 追加する検証（優先度順）
 
 1. 古いプロファイルからの更新（app/upgrade）。リリースで最も壊れやすい。

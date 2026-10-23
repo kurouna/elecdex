@@ -1,13 +1,5 @@
 import { expect, test } from '@playwright/test'
-import {
-  metricsActive as active,
-  beside,
-  catchPageCopies,
-  closePane,
-  launch,
-  paneOf,
-  settleLayout,
-} from './support.js'
+import { beside, catchPageCopies, launch, settleLayout } from './support.js'
 
 /**
  * The Wi-Fi pane, on the collector's stub (support.ts sets ELECDEX_WIFI_STUB=1,
@@ -39,23 +31,6 @@ test('shows the link, its verdict and its call score, masks it, and copies a rep
     expect(report).toContain('CLEAR')
     expect(report).not.toContain('ELECDEX-LAB')
     expect(report).not.toContain('192.0.2.23')
-  } finally {
-    await close()
-  }
-})
-
-test('nothing reads the link or pings once the pane has gone', async () => {
-  const { page, close } = await launch(undefined, { layout: alone() })
-  try {
-    await expect(page.getByTestId('wifi-ssid')).toHaveText('ELECDEX-LAB', { timeout: 20_000 })
-    expect(await active(page)).toEqual(expect.arrayContaining(['net.wifi', 'net.wifi.events']))
-    await closePane(paneOf(page, 'wifi'))
-    await expect(page.getByTestId('wifi')).toHaveCount(0)
-    await expect
-      .poll(async () => (await active(page)).filter((id) => id.startsWith('net.wifi')), {
-        timeout: 15_000,
-      })
-      .toEqual([])
   } finally {
     await close()
   }

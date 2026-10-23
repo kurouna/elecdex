@@ -108,32 +108,3 @@ test('copies through main, into the stand-in clipboard', async () => {
     await close()
   }
 })
-
-test('behind another tab nothing is asked of the engine, and shown again it links at once', async () => {
-  const { app, page, close } = await launch(undefined, { layout: inTabs('clock') })
-  const engine = stubOf(app, 'docker')
-  try {
-    await expect(page.getByTestId('pane')).toHaveCount(2)
-    const asked = async () => [await engine.lists(), await engine.streams()]
-    expect(await quietFor(2000, asked, 'the lists and streams')).toEqual([0, 0])
-    expect(await page.evaluate(() => window.elecdex.docker.watching())).toEqual([])
-    // A page that does not show the list cannot press a container.
-    expect(await page.evaluate(() => window.elecdex.docker.control('0123456789ab', 'stop'))).toBe(
-      'unsupported',
-    )
-
-    await page.locator('[data-testid=tab][data-pane-id=docker]').click({ delay: 20 })
-    await expect(page.getByTestId('docker-row')).toHaveCount(4)
-    expect(await engine.streams()).toBe(1)
-
-    await page.locator('[data-testid=tab][data-pane-id=clock]').click({ delay: 20 })
-    await expect.poll(() => page.evaluate(() => window.elecdex.docker.watching())).toEqual([])
-    expect(await engine.streams()).toBe(0)
-    const reads = async () => [await engine.lists(), await engine.statsReads()]
-    const before = await reads()
-    await engine.change('redis', { state: 'exited' })
-    expect(await quietFor(6000, reads, 'the lists and stats readings')).toEqual(before)
-  } finally {
-    await close()
-  }
-})

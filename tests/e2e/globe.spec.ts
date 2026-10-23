@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { closePane, launch, metricsActive, paneOf, single } from './support.js'
+import { launch, metricsActive, single } from './support.js'
 
 /**
  * The world view: it renders, it reads connections from the collector, and it
@@ -27,19 +27,6 @@ test('the globe renders and reports connections by country', async () => {
     // The GeoIP data's licence asks for credit.
     await expect(pane).toContainText('GeoIP: NRO, CC BY 4.0')
     await expect(pane.getByTestId('pane-subtitle')).toContainText(/endpoint/i)
-  } finally {
-    await close()
-  }
-})
-
-test('closing the globe stops collecting connections', async () => {
-  const { page, close } = await launch()
-  try {
-    await expect.poll(() => metricsActive(page), { timeout: 20_000 }).toContain('net.connections')
-    await closePane(paneOf(page, 'globe'))
-    await expect
-      .poll(() => metricsActive(page), { timeout: 10_000 })
-      .not.toContain('net.connections')
   } finally {
     await close()
   }

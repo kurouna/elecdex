@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { beside, closePane, launch, metricsActive, paneById, quietFor, single } from './support.js'
+import { launch, quietFor, single } from './support.js'
 
 /**
  * The connections pane, against the made-up socket table
@@ -96,24 +96,6 @@ test('masking hides the half of an address that names a machine', async () => {
     await page.getByTestId('connections-mask').click()
     await expect(first).toContainText('93.184.')
     await expect(page.getByTestId('connections')).not.toContainText('216.34')
-  } finally {
-    await close()
-  }
-})
-
-test('nothing reads the socket table once the pane has gone', async () => {
-  const { page, close } = await launch(undefined, { layout: beside('connections', { id: 'p' }) })
-  try {
-    await expect
-      .poll(() => page.getByTestId('connection-row').count(), { timeout: 20_000 })
-      .toBeGreaterThan(0)
-    const active = () => metricsActive(page)
-    expect(await active()).toContain('net.sockets')
-
-    await closePane(paneById(page, 'p'))
-    await expect(page.getByTestId('connections')).toHaveCount(0)
-    // The collector must stop reading it: this is the rule every source keeps.
-    await expect.poll(active, { timeout: 15_000 }).not.toContain('net.sockets')
   } finally {
     await close()
   }

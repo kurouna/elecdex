@@ -12,7 +12,6 @@ import {
   quietFor,
   reloadWorkspace,
   SINGLE_TERMINAL,
-  tabbed,
   waitForSaved,
 } from './support.js'
 
@@ -136,24 +135,6 @@ test('the GPU pane charts the made-up GPU, and says so on a machine with none', 
   }
 })
 
-test('closing the GPU pane stops reading the GPU', async () => {
-  const { page, close } = await launch(undefined, { layout: GPU_ONLY })
-  try {
-    await expect.poll(() => metricsActive(page), { timeout: 20_000 }).toContain('gpu.usage')
-    await closePane(paneOf(page, 'gpu'))
-    await expect.poll(() => metricsActive(page), { timeout: 10_000 }).not.toContain('gpu.usage')
-    // wait: no signal in the app (needs a hook): a collection already in flight may still land.
-    await page.waitForTimeout(2000)
-    await quietFor(
-      4000,
-      async () => (await stats(page)).collections['gpu.usage'] ?? 0,
-      'the GPU collections',
-    )
-  } finally {
-    await close()
-  }
-})
-
 test('on Windows the GPU is read for real from the sampler, or said to be unreadable', async () => {
   test.skip(process.platform !== 'win32', 'the sampler is Windows only')
   // No stub: this machine's own counters, through the long-lived PowerShell (gpu/windows.ts).
@@ -178,112 +159,6 @@ test('the collector is never started for a layout without monitoring widgets', a
     expect(seen).toEqual({ active: [], collections: {}, running: false })
   } finally {
     await second.close()
-  }
-})
-
-test('removing every monitoring widget stops every source', async () => {
-  const { page, userData, close } = await launch()
-  try {
-    await expect
-      .poll(async () => (await metricsActive(page)).length, { timeout: 20_000 })
-      .toBeGreaterThan(5)
-
-    // Let the page's own debounced saves (the terminal recording its session and its folder)
-    // land first, or they would overwrite the layout this test writes.
-    await waitForSaved(userData, shellRecorded)
-    await page.evaluate((tree) => window.elecdex.layout.save(tree), SINGLE_TERMINAL)
-    await reloadWorkspace(page)
-
-    await expect.poll(() => metricsActive(page), { timeout: 10_000 }).toEqual([])
-    // Collections already in flight still land: on a slow machine a process list
-    // through PowerShell takes seconds. Wait until the counts hold still, then
-    // check that they stay that way.
-    let settled = (await stats(page)).collections
-    await expect
-      .poll(
-        async () => {
-          // wait: no signal in the app (needs a hook): collections in flight (a process list
-          // through PowerShell takes seconds) are seen only as counts that have stopped moving.
-          await page.waitForTimeout(3000)
-          const now = (await stats(page)).collections
-          const same = JSON.stringify(now) === JSON.stringify(settled)
-          settled = now
-          return same
-        },
-        { timeout: 30_000, intervals: [0] },
-      )
-      .toBe(true)
-    const after = await quietFor(5000, async () => (await stats(page)).collections, 'collections')
-    expect(after).toEqual(settled)
-  } finally {
-    await close()
-  }
-})
-
-test('polling stops when the last widget reading a source goes away, a reloaded page leaving no subscriptions behind', async () => {
-  const { page, close } = await launch()
-  try {
-    await expect.poll(() => metricsActive(page), { timeout: 20_000 }).toContain('cpu.load')
-
-    // If the old page's subscriptions survived the reload, closing the CPU widget
-    // on the new page would not bring cpu.load's subscriber count to zero.
-    await reloadWorkspace(page)
-    await expect.poll(() => metricsActive(page), { timeout: 20_000 }).toContain('cpu.load')
-
-    // cpu.load is read only by the CPU widget; proc.list also by top processes.
-    await closePane(paneOf(page, 'cpu'))
-    await expect.poll(() => metricsActive(page), { timeout: 10_000 }).not.toContain('cpu.load')
-    expect(await metricsActive(page)).toContain('proc.list')
-
-    // And the count really stops moving - not just the reported set.
-    // wait: no signal in the app (needs a hook): a collection already in flight may still land.
-    await page.waitForTimeout(2000)
-    await quietFor(
-      4000,
-      async () => (await stats(page)).collections['cpu.load'] ?? 0,
-      'the cpu.load collections',
-    )
-  } finally {
-    await close()
-  }
-})
-
-test('a tab behind another stops what it does not chart, and resumes when shown', async () => {
-  const { page, close } = await launch(undefined, {
-    layout: tabbed(['clock', 'toplist', 'cpu']),
-  })
-  const active = () => metricsActive(page)
-  try {
-    // Hidden from the start: the CPU chart keeps its history, the rest waits.
-    await expect.poll(active, { timeout: 20_000 }).toEqual(['cpu.info', 'cpu.load'])
-    const held = await quietFor(
-      3000,
-      async () => ({
-        active: await active(),
-        procList: (await stats(page)).collections['proc.list'] ?? 0,
-      }),
-      'what is read behind the tab',
-    )
-    expect(held).toEqual({ active: ['cpu.info', 'cpu.load'], procList: 0 })
-
-    await page.locator('[data-testid=tab][data-pane-id=toplist]').click()
-    await expect(page.getByTestId('toplist-row').first()).toBeVisible({ timeout: 30_000 })
-    expect(await active()).toEqual(['cpu.info', 'cpu.load', 'proc.list'])
-
-    await page.locator('[data-testid=tab][data-pane-id=cpu]').click()
-    await expect(page.getByTestId('cpu-tasks')).toHaveText(/^\d+$/, { timeout: 30_000 })
-    expect(await active()).toEqual([
-      'cpu.info',
-      'cpu.load',
-      'cpu.speed',
-      'cpu.temperature',
-      'proc.list',
-    ])
-
-    await page.locator('[data-testid=tab][data-pane-id=clock]').click()
-    await expect.poll(active, { timeout: 10_000 }).toEqual(['cpu.info', 'cpu.load'])
-  } finally {
-    await close()
   }
 })
 
