@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { createServer, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { expect, test } from '@playwright/test'
 import { propagate, twoline2satrec } from '../../src/renderer/lib/sgp4.js'
-import { launch } from './support.js'
+import { serviceStub } from './support/stubs/services.js'
+import { beside, launch, quietFor, single, watching } from './support.js'
 
 /**
  * The ORBIT pane against a stand-in for CelesTrak serving the elements it
@@ -36,40 +35,50 @@ function placeable(at: Date): number {
 
 interface Stand {
   url: string
-  asked: string[]
+  /** The paths asked for, in order. */
+  readonly asked: string[]
   status: number
   close(): Promise<void>
 }
 
+/** CelesTrak's stand-in: the stations' set as JSON, Starlink's as TLE, or `status` refused. */
 async function celestrak(): Promise<Stand> {
-  const stand = { asked: [] as string[], status: 200 }
-  const server: Server = createServer((req, res) => {
-    const url = req.url ?? ''
-    stand.asked.push(url)
-    if (stand.status !== 200) {
-      res.writeHead(stand.status).end('GP data has not updated since your last successful download')
-      return
+  let status = 200
+  const stub = await serviceStub(({ url }) => {
+    if (status !== 200) {
+      return {
+        status,
+        body: 'GP data has not updated since your last successful download',
+      }
     }
     const starlink = url.includes('GROUP=starlink')
-    res.writeHead(200, { 'content-type': starlink ? 'text/plain' : 'application/json' })
-    res.end(starlink ? STARLINK : STATIONS)
+    return {
+      status: 200,
+      headers: { 'content-type': starlink ? 'text/plain' : 'application/json' },
+      body: starlink ? STARLINK : STATIONS,
+    }
   })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const { port } = server.address() as AddressInfo
-  return Object.assign(stand, {
-    url: `http://127.0.0.1:${port}`,
-    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
-  })
+  return {
+    url: stub.origin,
+    get asked() {
+      return stub.requests.map((request) => request.url)
+    },
+    get status() {
+      return status
+    },
+    set status(value: number) {
+      status = value
+    },
+    close: () => stub.close(),
+  }
 }
 
-const single = (state?: Record<string, unknown>) => ({
-  version: 1,
-  root: { kind: 'pane', id: 'o', widget: 'orbit', ...(state ? { state } : {}) },
-})
+const layout = (state?: Record<string, unknown>) =>
+  single('orbit', state === undefined ? { id: 'o' } : { id: 'o', state })
 
 test('draws the stations from one download, and asks for Starlink only when shown', async () => {
   const stand = await celestrak()
-  let launched = await launch(undefined, { layout: single(), celestrakBaseUrl: stand.url })
+  let launched = await launch(undefined, { layout: layout(), celestrakBaseUrl: stand.url })
   try {
     const { page } = launched
     await expect(page.getByTestId('orbit-gmt')).toHaveText(/^\d{3}\/\d{2}:\d{2}:\d{2}$/)
@@ -121,7 +130,7 @@ test('draws the stations from one download, and asks for Starlink only when show
     // A restart finds both copies fresh on disk and asks for nothing.
     launched = await launched.relaunch()
     await expect(launched.page.getByTestId('orbit-pos')).toHaveText(/°[NS]/, { timeout: 15_000 })
-    await launched.page.waitForTimeout(1500)
+    await quietFor(1500, async () => stand.asked.length, 'the requests to CelesTrak')
     expect(stand.asked).toHaveLength(2)
   } finally {
     await launched.close()
@@ -133,19 +142,7 @@ test('asks no more after a refusal, and keeps nothing once the pane is gone', as
   const stand = await celestrak()
   stand.status = 403
   const { page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'split',
-        id: 's',
-        direction: 'row',
-        sizes: [60, 40],
-        children: [
-          { kind: 'pane', id: 'o', widget: 'orbit' },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
+    layout: beside('orbit', { id: 'o', sizes: [60, 40] }),
     celestrakBaseUrl: stand.url,
   })
   try {
@@ -159,10 +156,10 @@ test('asks no more after a refusal, and keeps nothing once the pane is gone', as
     })
     expect(stand.asked).toHaveLength(1)
 
-    expect(await page.evaluate(() => window.elecdex.orbits.watching())).toEqual(['stations'])
+    expect(await watching(page, 'orbits')).toEqual(['stations'])
     await page.getByTestId('pane-close').first().click()
     await expect(page.getByTestId('orbit')).toHaveCount(0)
-    await expect.poll(() => page.evaluate(() => window.elecdex.orbits.watching())).toEqual([])
+    await expect.poll(() => watching(page, 'orbits')).toEqual([])
   } finally {
     await close()
     await stand.close()
@@ -171,7 +168,7 @@ test('asks no more after a refusal, and keeps nothing once the pane is gone', as
 
 test("chooses the observer from the city list, as the pane's own", async () => {
   const stand = await celestrak()
-  const { page, close } = await launch(undefined, { layout: single(), celestrakBaseUrl: stand.url })
+  const { page, close } = await launch(undefined, { layout: layout(), celestrakBaseUrl: stand.url })
   try {
     await page.getByTestId('orbit-observer').click()
     await page.getByTestId('orbit-picker-input').fill('Reykja')

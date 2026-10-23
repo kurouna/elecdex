@@ -1,7 +1,15 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { exited, launch, SINGLE_TERMINAL, showStatusBar, terminalPane } from './support.js'
+import {
+  exited,
+  keepLayout,
+  launch,
+  NO_SWITCH_PROMPT,
+  SINGLE_TERMINAL,
+  showStatusBar,
+  terminalPane,
+} from './support.js'
 
 /**
  * Leaving the app. In fullscreen the window has no frame and no close button,
@@ -74,15 +82,10 @@ test('a rearrangement made a moment before quitting is still saved, live and in 
   // being worked in, it would be lost from two files rather than one.
   const { app, page, userData, close } = await launch(undefined, {
     layout: SINGLE_TERMINAL,
-    settings: { layout: { confirmSwitch: false } },
+    settings: NO_SWITCH_PROMPT,
   })
   try {
-    await page.keyboard.press('Control+Shift+KeyG')
-    await page.getByTestId('layouts-name').fill('one')
-    await page.getByTestId('layouts-save').click()
-    await expect(page.getByTestId('layouts-item')).toHaveCount(1)
-    await page.keyboard.press('Escape')
-    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    await keepLayout(page, 'one')
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
 
     const gone = exited(app)

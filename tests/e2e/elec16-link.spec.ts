@@ -3,7 +3,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launch } from './support.js'
+import { booted, lcdLines, typeLine as typeLineAt } from './support/elec16.js'
+import { launch, single } from './support.js'
 
 /**
  * The ELEC-16's LINK (docs/elec16.md section 12) in the running app: off until TUNE turns it
@@ -90,10 +91,7 @@ test.beforeEach(() => {
   seen.length = 0
 })
 
-const LAYOUT = {
-  version: 1,
-  root: { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: true, tab: 'link' } },
-}
+const LAYOUT = single('elec16', { id: 'e16', state: { panel: true, tab: 'link' } })
 
 const settingsWith = (model: string, link: object) => ({
   sound: { enabled: false },
@@ -106,19 +104,8 @@ const settingsWith = (model: string, link: object) => ({
   elec16: { volume: 0.5, skin: 'elec', link },
 })
 
-const lcdLines = async (page: Page): Promise<string[]> =>
-  ((await page.getByTestId('elec16-text').textContent()) ?? '').split('\n').map((l) => l.trimEnd())
-
-async function booted(page: Page): Promise<void> {
-  await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('ELEC-16 BASIC 1.0')
-  await expect(page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
-}
-
-async function typeLine(page: Page, line: string): Promise<void> {
-  await page.getByTestId('elec16').focus()
-  await page.keyboard.type(line, { delay: 15 })
-  await page.keyboard.press('Enter')
-}
+/** A line typed into the pane, focused first: no faster than the machine takes it. */
+const typeLine = (page: Page, line: string) => typeLineAt(page, line, { focus: true })
 
 const linkMark = (page: Page) => page.locator('[data-mark=LINK]')
 

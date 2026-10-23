@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, SINGLE_TERMINAL, settleLayout, showStatusBar, terminalPane } from './support.js'
+import {
+  launch,
+  NO_SWITCH_PROMPT,
+  SINGLE_TERMINAL,
+  settleLayout,
+  showStatusBar,
+  terminalPane,
+} from './support.js'
 
 /**
  * Layout presets (shared/layout-presets.ts, architecture.md §5.6): the shelf in
@@ -14,7 +21,6 @@ import { launch, SINGLE_TERMINAL, settleLayout, showStatusBar, terminalPane } fr
  */
 
 const SEED = { ELECDEX_SEED_LAYOUTS: '1' }
-const NO_SWITCH_PROMPT = { layout: { confirmSwitch: false } } as const
 const PRESETS = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai', 'cockpit', 'retro']
 
 const widget = (page: Page, id: string) => page.locator(`[data-testid=pane][data-widget="${id}"]`)

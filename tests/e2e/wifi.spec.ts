@@ -1,5 +1,13 @@
-import { expect, type Page, test } from '@playwright/test'
-import { catchPageCopies, launch, settleLayout } from './support.js'
+import { expect, test } from '@playwright/test'
+import {
+  metricsActive as active,
+  beside,
+  catchPageCopies,
+  closePane,
+  launch,
+  paneOf,
+  settleLayout,
+} from './support.js'
 
 /**
  * The Wi-Fi pane, on the collector's stub (support.ts sets ELECDEX_WIFI_STUB=1,
@@ -7,22 +15,8 @@ import { catchPageCopies, launch, settleLayout } from './support.js'
  * changes access point every thirty). No echo leaves the machine.
  */
 
-const alone = (widget = 'wifi') => ({
-  version: 1,
-  root: {
-    kind: 'split',
-    id: 's',
-    direction: 'row',
-    sizes: [60, 40],
-    children: [
-      { kind: 'pane', id: 'w', widget },
-      { kind: 'pane', id: 'c', widget: 'clock' },
-    ],
-  },
-})
-
-const active = async (page: Page): Promise<string[]> =>
-  (await page.evaluate(() => window.elecdex.metrics.stats())).active ?? []
+/** The Wi-Fi pane beside a clock, given the larger share. */
+const alone = () => beside('wifi', { id: 'w', sizes: [60, 40] })
 
 test('shows the link, its verdict and its call score, masks it, and copies a report', async () => {
   const { page, close } = await launch(undefined, { layout: alone() })
@@ -55,7 +49,7 @@ test('nothing reads the link or pings once the pane has gone', async () => {
   try {
     await expect(page.getByTestId('wifi-ssid')).toHaveText('ELECDEX-LAB', { timeout: 20_000 })
     expect(await active(page)).toEqual(expect.arrayContaining(['net.wifi', 'net.wifi.events']))
-    await page.locator('[data-testid=pane][data-widget=wifi] [data-testid=pane-close]').click()
+    await closePane(paneOf(page, 'wifi'))
     await expect(page.getByTestId('wifi')).toHaveCount(0)
     await expect
       .poll(async () => (await active(page)).filter((id) => id.startsWith('net.wifi')), {
@@ -175,19 +169,8 @@ test('a figure the pointer rests on explains itself, with what it reads now', as
 
 test('what is read is at the body size, and labels a step below, however narrow the pane', async () => {
   // A pane under 26rem wide: the width at which the stations once dropped a size.
-  const withLog = (share: number) => ({
-    version: 1,
-    root: {
-      kind: 'split',
-      id: 's',
-      direction: 'row',
-      sizes: [share, 100 - share],
-      children: [
-        { kind: 'pane', id: 'w', widget: 'wifi', state: { view: 'log' } },
-        { kind: 'pane', id: 'c', widget: 'clock' },
-      ],
-    },
-  })
+  const withLog = (share: number) =>
+    beside('wifi', { id: 'w', state: { view: 'log' }, sizes: [share, 100 - share] })
   for (const layout of [withLog(60), withLog(22)]) {
     const { page, close } = await launch(undefined, { layout })
     try {

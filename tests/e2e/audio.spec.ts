@@ -3,7 +3,16 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch } from './support.js'
+import {
+  beside,
+  closePane,
+  exited,
+  launch,
+  paneOf,
+  quietFor,
+  tabbed,
+  waitForSaved,
+} from './support.js'
 
 /**
  * The spectrum and mixer panes, against the stand-ins support.ts turns on
@@ -15,19 +24,20 @@ import { launch } from './support.js'
  * pane closes - and the app still quits with it open.
  */
 
-const split = (left: Record<string, unknown>, right: Record<string, unknown>) => ({
-  version: 1,
-  root: {
-    kind: 'split',
-    id: 's',
-    direction: 'row',
-    sizes: [0.6, 0.4],
-    children: [
-      { kind: 'pane', id: 'left', ...left },
-      { kind: 'pane', id: 'right', ...right },
-    ],
-  },
-})
+/** `widget` beside a clock, given the larger share. */
+const split = (widget: string) => beside(widget, { sizes: [0.6, 0.4] })
+
+/** Whether the saved layout's spectrum pane keeps these choices. */
+const spectrumKept = (want: { style: string; bands: number; pattern: string }) => (text: string) =>
+  text.includes('"widget": "spectrum"') &&
+  [...text.matchAll(/"state": (\{[^{}]*\})/g)].some((match) => {
+    const state = JSON.parse(match[1] ?? '{}') as Record<string, unknown>
+    return (
+      state.style === want.style &&
+      Number(state.bands) === want.bands &&
+      state.pattern === want.pattern
+    )
+  })
 
 /** The windows Electron has open: the workspace, and the capture window while it runs. */
 const windowCount = (app: ElectronApplication) =>
@@ -39,9 +49,7 @@ const litBands = async (page: Page) =>
     .map(Number)
 
 test('a spectrum pane captures while shown, lights the tone band, and keeps its settings', async () => {
-  let launched = await launch(undefined, {
-    layout: split({ widget: 'spectrum' }, { widget: 'clock' }),
-  })
+  let launched = await launch(undefined, { layout: split('spectrum') })
   try {
     const { app, page } = launched
     const spectrum = page.getByTestId('spectrum')
@@ -83,7 +91,11 @@ test('a spectrum pane captures while shown, lights the tone band, and keeps its 
       .toEqual([17])
     await page.locator('[data-testid=spectrum-bands][data-value="16"]').click()
 
-    await page.waitForTimeout(1500) // let the layout save
+    // Let the layout save.
+    await waitForSaved(
+      launched.userData,
+      spectrumKept({ style: 'led', bands: 16, pattern: 'mirror' }),
+    )
     launched = await launched.relaunch()
     const again = launched.page.getByTestId('spectrum')
     await expect(again).toHaveAttribute('data-style', 'led')
@@ -92,9 +104,7 @@ test('a spectrum pane captures while shown, lights the tone band, and keeps its 
 
     // Closing the pane destroys the capture window.
     await expect.poll(() => windowCount(launched.app), { timeout: 20_000 }).toBe(2)
-    const pane = launched.page.locator('[data-testid=pane][data-widget=spectrum]')
-    await pane.hover()
-    await pane.getByTestId('pane-close').click()
+    await closePane(paneOf(launched.page, 'spectrum'))
     await expect.poll(() => windowCount(launched.app)).toBe(1)
   } finally {
     await launched.close()
@@ -134,25 +144,14 @@ const playTrack = (app: ElectronApplication, index: number | null) =>
 test('the tracks stand-in plays only the track main says, into the analyser a capture uses', async () => {
   const { app, page, close } = await launch(undefined, {
     env: { ELECDEX_AUDIO_STUB: 'tracks', ELECDEX_AUDIO_TRACKS: toneWav(1000, 30) },
-    layout: {
-      version: 1,
-      root: {
-        kind: 'tabs',
-        id: 'g',
-        activeIndex: 0,
-        children: [
-          { kind: 'pane', id: 'clock', widget: 'clock' },
-          { kind: 'pane', id: 'spec', widget: 'spectrum' },
-        ],
-      },
-    },
+    layout: tabbed(['clock', 'spectrum']),
   })
   const lit = async () => (await litBands(page)).flatMap((v, i) => (v > 0 ? [i] : []))
   try {
     // Chosen before any spectrum shows: the capture window is handed it as its page comes up.
     await expect(page.getByTestId('clock')).toBeVisible()
     await playTrack(app, 0)
-    await page.locator('[data-testid=tab][data-pane-id=spec]').click()
+    await page.locator('[data-testid=tab][data-pane-id=spectrum]').click()
     const spectrum = page.getByTestId('spectrum')
     await expect(spectrum).toHaveAttribute('data-status', 'running', { timeout: 20_000 })
     // 1 kHz is the sixth of ten bands, as with the tests' own tone - read off the samples.
@@ -169,26 +168,12 @@ test('the tracks stand-in plays only the track main says, into the analyser a ca
 })
 
 test('a spectrum pane in a background tab does not capture, and the app quits with capture running', async () => {
-  const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'tabs',
-        id: 'g',
-        activeIndex: 0,
-        children: [
-          { kind: 'pane', id: 'clock', widget: 'clock' },
-          { kind: 'pane', id: 'spec', widget: 'spectrum' },
-        ],
-      },
-    },
-  })
+  const { app, page, close } = await launch(undefined, { layout: tabbed(['clock', 'spectrum']) })
   try {
     await expect(page.getByTestId('clock')).toBeVisible()
-    await page.waitForTimeout(1500)
-    expect(await windowCount(app)).toBe(1)
+    expect(await quietFor(1500, () => windowCount(app), 'the windows')).toBe(1)
 
-    await page.locator('[data-testid=tab][data-pane-id=spec]').click()
+    await page.locator('[data-testid=tab][data-pane-id=spectrum]').click()
     await expect(page.getByTestId('spectrum')).toHaveAttribute('data-status', 'running', {
       timeout: 20_000,
     })
@@ -197,12 +182,12 @@ test('a spectrum pane in a background tab does not capture, and the app quits wi
     await page.locator('[data-testid=tab][data-pane-id=clock]').click()
     await expect.poll(() => windowCount(app)).toBe(1)
 
-    await page.locator('[data-testid=tab][data-pane-id=spec]').click()
+    await page.locator('[data-testid=tab][data-pane-id=spectrum]').click()
     await expect.poll(() => windowCount(app)).toBe(2)
     // Closing the workspace window with capture running still ends the app: the
     // hidden capture window is not a window of the app's own (main/app-windows.ts)
     // and must not keep it alive.
-    const exited = new Promise<void>((resolve) => app.process().once('exit', () => resolve()))
+    const gone = exited(app)
     await app.evaluate(({ BrowserWindow }) => {
       const workspace = BrowserWindow.getAllWindows().find((w) => w.isVisible())
       workspace?.close()
@@ -211,7 +196,7 @@ test('a spectrum pane in a background tab does not capture, and the app quits wi
     // last window closing is not what ends it there: asking it to quit is.
     if (process.platform === 'darwin') await app.evaluate(({ app }) => app.quit())
     const ended = await Promise.race([
-      exited.then(() => true),
+      gone.then(() => true),
       new Promise<false>((resolve) => setTimeout(() => resolve(false), 20_000)),
     ])
     // Otherwise this waits out the whole test with nothing in the log to say which
@@ -235,7 +220,7 @@ test('a spectrum pane in a background tab does not capture, and the app quits wi
 
 test('the mixer lists the master and apps, sets a volume and mutes, and refuses unknown channels', async () => {
   const { page, close } = await launch(undefined, {
-    layout: split({ widget: 'mixer' }, { widget: 'clock' }),
+    layout: split('mixer'),
   })
   try {
     const strips = page.getByTestId('mixer-strip')
@@ -251,7 +236,7 @@ test('the mixer lists the master and apps, sets a volume and mutes, and refuses 
     await fader.fill('35')
     await expect(strips.nth(1).getByTestId('mixer-value')).toHaveText('35%')
     // Still so once the grace period for unconfirmed changes is over: the stub took it.
-    await page.waitForTimeout(2000)
+    await quietFor(2000, () => strips.nth(1).getByTestId('mixer-value').textContent(), 'the volume')
     await expect(strips.nth(1).getByTestId('mixer-value')).toHaveText('35%')
 
     const mute = strips.nth(2).getByTestId('mixer-mute')
@@ -265,7 +250,7 @@ test('the mixer lists the master and apps, sets a volume and mutes, and refuses 
     await page.evaluate(() =>
       window.elecdex.audio.mixerCommand({ t: 'volume', id: 'app:ghost', volume: 0 }),
     )
-    await page.waitForTimeout(500)
+    await quietFor(500, () => strips.count(), 'the strips')
     await expect(strips).toHaveCount(3)
   } finally {
     await close()

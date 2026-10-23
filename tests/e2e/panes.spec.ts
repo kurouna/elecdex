@@ -1,21 +1,27 @@
 import { expect, test } from '@playwright/test'
-import { launch, savedLayout, selectedRow, showStatusBar, terminalPane } from './support.js'
+import {
+  closePane,
+  launch,
+  paneOf,
+  quietFor,
+  savedLayout,
+  selectedRow,
+  showStatusBar,
+  terminalPane,
+} from './support.js'
 
 /**
  * Closing any pane and bringing it back. eDEX-UI's modules were fixed; here a
  * closed widget must never be gone for good.
  */
 
-const pane = (page: import('@playwright/test').Page, widget: string) =>
-  page.locator(`[data-testid=pane][data-widget=${widget}]`)
+const pane = paneOf
 
 test('a closed pane can be brought back from the picker', async () => {
   const { page, close } = await launch()
   try {
     // Close the clock with its own button.
-    await pane(page, 'clock').hover()
-    await pane(page, 'clock').getByTestId('pane-close').click()
-    await expect(pane(page, 'clock')).toHaveCount(0)
+    await closePane(pane(page, 'clock'))
 
     // Bring it back from the keyboard, with a terminal focused - the shortcut and
     // the typing in the picker must not reach the shell.
@@ -70,6 +76,7 @@ test('a widget popped up from the picker stays out of the layout', async () => {
   const { page, userData, close } = await launch()
   try {
     // What is on disk once the start has settled (a save of the tree as loaded may land first).
+    // wait: whether such a save comes, and when, the page does not say.
     await page.waitForTimeout(1000)
     const before = savedLayout(userData)
     const panes = await page.getByTestId('pane').count()
@@ -113,7 +120,7 @@ test('a widget popped up from the picker stays out of the layout', async () => {
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
 
-    await page.waitForTimeout(1000)
+    await quietFor(1000, async () => savedLayout(userData), 'layout.json')
     expect(savedLayout(userData)).toBe(before)
   } finally {
     await close()
@@ -186,9 +193,7 @@ test('the layout can be reset from the status bar and from the picker, with conf
     await expect(pane(page, 'clock')).toHaveCount(1)
 
     // The picker offers the same.
-    await pane(page, 'memory').hover()
-    await pane(page, 'memory').getByTestId('pane-close').click()
-    await expect(pane(page, 'memory')).toHaveCount(0)
+    await closePane(pane(page, 'memory'))
     await showStatusBar(page)
     await page.getByTestId('add-pane').click()
     const pickerReset = page.getByTestId('pane-picker-reset')
@@ -372,6 +377,7 @@ test('every widget that can pop up comes up, and keeps its choices for the next 
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
+    // wait: a save of the tree as loaded may land first; whether it comes the page does not say.
     await page.waitForTimeout(1000)
     const before = savedLayout(userData)
     const picker = page.getByTestId('pane-picker')
@@ -408,7 +414,7 @@ test('every widget that can pop up comes up, and keeps its choices for the next 
 
     // None of it reached the layout.
     await expect(page.getByTestId('pane')).toHaveCount(1)
-    await page.waitForTimeout(1000)
+    await quietFor(1000, async () => savedLayout(userData), 'layout.json')
     expect(savedLayout(userData)).toBe(before)
     expect(errors).toEqual([])
   } finally {
@@ -457,7 +463,7 @@ test('an exception nothing in the page caught is said as a toast, once', async (
     })
     const toast = page.getByTestId('toast').filter({ hasText: 'a made-up fault' })
     await expect(toast).toContainText('elecdex: something failed')
-    await page.waitForTimeout(500)
+    await quietFor(500, () => toast.count(), 'the toasts')
     await expect(toast).toHaveCount(1)
   } finally {
     await close()

@@ -1,10 +1,9 @@
-import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
 import { SONGS } from '../../examples/plugins/keystream/songs/index'
-import { launch, removeDir } from './support.js'
+import { keystreamProfile } from './support/plugins.js'
+import { launch, quietFor, removeDir, single, waitForSaved } from './support.js'
 
 /**
  * KEYSTREAM, the sample plugin for canvas blocks, keys and sound
@@ -13,34 +12,10 @@ import { launch, removeDir } from './support.js'
  * notes the host's synthesiser took (data-notes).
  */
 
-const SOURCE = fileURLToPath(new URL('../../examples/plugins/keystream', import.meta.url))
-
-function withKeystream(settings: Record<string, unknown> = {}): string {
-  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
-  cpSync(SOURCE, path.join(dir, 'plugins', 'keystream'), { recursive: true })
-  writeFileSync(
-    path.join(dir, 'settings.json'),
-    JSON.stringify({
-      sound: { enabled: false },
-      ...settings,
-      plugins: {
-        keystream: {
-          enabled: true,
-          key: 'keystream',
-          granted: { keys: true, sound: true },
-          values: { volume: 0 },
-        },
-      },
-    }),
-  )
-  return dir
-}
-
-const LAYOUT = { version: 1, root: { kind: 'pane', id: 'p1', widget: 'plugin:keystream' } }
+const LAYOUT = single('plugin:keystream', { id: 'p1' })
 
 test('the sample draws on its canvas, takes the keys only while focused, and plays a track', async () => {
-  const dir = withKeystream()
-  const app = await launch(dir, { layout: LAYOUT })
+  const app = await launch(undefined, { layout: LAYOUT, ...keystreamProfile() })
   const { page } = app
   const pane = page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
   const notes = async () => Number(await pane.getAttribute('data-notes'))
@@ -82,9 +57,12 @@ test('the sample draws on its canvas, takes the keys only while focused, and pla
     await page.keyboard.press('Enter')
     await page.keyboard.press('Enter')
     // Past the chosen level's blink, so the track is loading when the keyboard goes.
+    // wait: the blink is drawn on the plugin's canvas; nothing outside the worker marks its end.
     await page.waitForTimeout(700)
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
     await expect(pane.getByTestId('plugin-keys')).toHaveCount(0)
+    // wait: the boot log's ticks may still sound while it waits, so the count is not quiet;
+    // what is checked is that no more than those few were played over this window.
     await page.waitForTimeout(2500)
     expect(await notes()).toBeLessThanOrEqual(loading + 4)
     await canvas.click()
@@ -99,19 +77,20 @@ test('the sample draws on its canvas, takes the keys only while focused, and pla
     await expect(pane.getByTestId('plugin-keys')).toHaveCount(0)
     const away = await notes()
     await page.keyboard.press('a')
-    await page.waitForTimeout(300)
+    await quietFor(300, notes, 'the notes played')
     expect(await notes()).toBe(away)
   } finally {
-    await app.quit()
-    removeDir(dir)
+    await app.close()
   }
 })
 
 test('FREE mode holds the keys, and plays a track’s band underneath until told to stop', async () => {
   // Motion reduced, so FREE PLAY opens at once rather than after its row's blink: the keys
   // below must reach FREE mode, not the menu (the blink takes no keys).
-  const dir = withKeystream({ motion: 'reduced' })
-  const app = await launch(dir, { layout: LAYOUT })
+  const app = await launch(undefined, {
+    layout: LAYOUT,
+    ...keystreamProfile({ motion: 'reduced' }),
+  })
   const { page } = app
   const pane = page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
   const notes = async () => Number(await pane.getAttribute('data-notes'))
@@ -129,7 +108,7 @@ test('FREE mode holds the keys, and plays a track’s band underneath until told
     await page.keyboard.down('d')
     await page.keyboard.down('g')
     await expect.poll(notes).toBe(before + 3)
-    await page.waitForTimeout(400)
+    await quietFor(400, notes, 'the notes played')
     expect(await notes()).toBe(before + 3)
     for (const key of ['a', 'd', 'g']) await page.keyboard.up(key)
 
@@ -137,22 +116,22 @@ test('FREE mode holds the keys, and plays a track’s band underneath until told
     const quiet = await notes()
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowDown')
-    await page.waitForTimeout(300)
+    await quietFor(300, notes, 'the notes played')
     expect(await notes()).toBe(quiet)
     await page.keyboard.press('Enter')
     await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(quiet + 10)
     await page.keyboard.press('Enter')
+    // wait: no signal in the app (needs a hook): notes the band had already handed to the host
+    // may still be counted; nothing says when the stop has reached the synthesiser.
     await page.waitForTimeout(500)
-    const stopped = await notes()
-    await page.waitForTimeout(4000)
-    expect(await notes()).toBe(stopped)
+    const stopped = await quietFor(4000, notes, 'the notes played')
 
     // Comma steps back round the list; a digit is an instrument and starts no band.
     await page.keyboard.press('3')
     await page.keyboard.press(',')
     await page.keyboard.press(',')
     await page.keyboard.press(',')
-    await page.waitForTimeout(500)
+    await quietFor(500, notes, 'the notes played')
     expect(await notes()).toBe(stopped)
     await page.keyboard.press('Enter')
     await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(stopped + 10)
@@ -161,15 +140,14 @@ test('FREE mode holds the keys, and plays a track’s band underneath until told
     await page.keyboard.press('Escape')
     await expect(pane.getByTestId('plugin-error')).toHaveCount(0)
   } finally {
-    await app.quit()
-    removeDir(dir)
+    await app.close()
   }
 })
 
 test('a pane that saved where it was comes back after a restart, and plays', async () => {
   // Found as a pane left black after a restart: its saved state could not reach the worker.
-  const dir = withKeystream()
-  let app = await launch(dir, { layout: LAYOUT })
+  let app = await launch(undefined, { layout: LAYOUT, ...keystreamProfile() })
+  const dir = app.userData
   const pane = () => app.page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
   const notes = async () => Number(await pane().getAttribute('data-notes'))
   try {
@@ -177,10 +155,13 @@ test('a pane that saved where it was comes back after a restart, and plays', asy
     await pane().getByTestId('plugin-canvas').click()
     await expect(pane().getByTestId('plugin-keys')).toBeVisible()
     // Choosing a track saves it in the pane's state.
+    const song = (text: string) =>
+      (JSON.parse(text) as { root: { state?: { plugin?: { song?: string } } } }).root.state?.plugin
+        ?.song
+    const before = song(readFileSync(path.join(dir, 'layout.json'), 'utf8'))
     await app.page.keyboard.press('ArrowDown')
     await app.page.keyboard.press('ArrowDown')
-    // Past the layout's save debounce.
-    await app.page.waitForTimeout(1500)
+    await waitForSaved(dir, (text) => song(text) !== undefined && song(text) !== before)
 
     app = await app.relaunch()
     const errors: string[] = []
@@ -189,9 +170,9 @@ test('a pane that saved where it was comes back after a restart, and plays', asy
     await pane().getByTestId('plugin-canvas').click()
     await expect(pane().getByTestId('plugin-keys')).toBeVisible()
     // The view is running in the worker: it bound the keys' notes again.
-    const before = await notes()
+    const played = await notes()
     await app.page.keyboard.press('a')
-    await expect.poll(notes).toBeGreaterThan(before)
+    await expect.poll(notes).toBeGreaterThan(played)
     expect(errors).toEqual([])
   } finally {
     await app.quit()
@@ -200,8 +181,8 @@ test('a pane that saved where it was comes back after a restart, and plays', asy
 })
 
 test('a genre tab and an instrument chosen are where the pane comes back to', async () => {
-  const dir = withKeystream()
-  let app = await launch(dir, { layout: LAYOUT })
+  let app = await launch(undefined, { layout: LAYOUT, ...keystreamProfile() })
+  const dir = app.userData
   const pane = () => app.page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
   // What the pane saved, as the layout holds it.
   const saved = () => {

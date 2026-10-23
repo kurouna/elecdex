@@ -1,6 +1,16 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { type Launched, launch, SINGLE_TERMINAL, terminalPane, typeInto } from './support.js'
+import { shellReady as ready } from './support/terminal.js'
+import {
+  type Launched,
+  launch,
+  sessionIds as listedSessions,
+  listenToSessions,
+  quietFor,
+  SINGLE_TERMINAL,
+  terminalPane,
+  typeInto,
+} from './support.js'
 
 /**
  * What the shell pane does around the shell (docs/architecture.md §6): a shell ended and
@@ -23,23 +33,8 @@ const TWO_TABS = {
   },
 } as const
 
-/** Waits until the shell has reported its folder: its prompt is up and takes typing. */
-async function ready(page: Page, index = 0): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        page
-          .locator('[data-testid=pane-subtitle], [data-testid=group-subtitle]')
-          .nth(index)
-          .innerText()
-          .catch(() => ''),
-      { timeout: 40_000, intervals: [300] },
-    )
-    .toMatch(/[\\/~]/)
-}
-
-const sessionIds = (page: Page) =>
-  page.evaluate(async () => (await window.elecdex.pty.list()).map((s) => s.id).sort())
+/** The sessions main runs, sorted: compared whole, before and after. */
+const sessionIds = async (page: Page) => (await listedSessions(page)).sort()
 
 test('a shell that ended starts again on a key, where it was', async () => {
   const launched: Launched = await launch(undefined, { layout: SINGLE_TERMINAL })
@@ -76,7 +71,7 @@ test('several lines pasted ask first; a line alone goes straight in', async () =
     await page.getByTestId('paste-cancel').click()
     await expect(page.getByTestId('paste-dialog')).toHaveCount(0)
     await paste('echo alone')
-    await page.waitForTimeout(600)
+    await quietFor(600, () => page.getByTestId('paste-dialog').count(), 'the paste dialogs')
     await expect(page.getByTestId('paste-dialog')).toHaveCount(0)
   } finally {
     await launched.close()
@@ -159,30 +154,6 @@ test('a bell flashes the pane', async () => {
   }
 })
 
-/** Everything the shells write for `ms`, from every session, to see what reached them. */
-const listen = (page: Page, ms: number) =>
-  page.evaluate(async (wait) => {
-    const decoder = new TextDecoder()
-    let text = ''
-    const ids = (await window.elecdex.pty.list()).map((session) => session.id)
-    const detachers = await Promise.all(
-      ids.map((id) =>
-        window.elecdex.pty.attach(id, {
-          onData: (chunk) => {
-            text += decoder.decode(chunk, { stream: true })
-          },
-          onExit: () => {},
-          onCwd: () => {},
-          onCommandEnd: () => {},
-          onIntegrationUnavailable: () => {},
-        }),
-      ),
-    )
-    await new Promise((resolve) => setTimeout(resolve, wait))
-    for (const detach of detachers) detach()
-    return text
-  }, ms)
-
 test('a cd keeps the terminal it is typed into, rather than making it again', async () => {
   // Found in review: the pane's folder, kept in its state at every cd, made the whole terminal
   // again - its screen, scroll and what was being typed.
@@ -196,7 +167,11 @@ test('a cd keeps the terminal it is typed into, rather than making it again', as
     const was = await subtitle.innerText()
     await typeInto(page, pane, platform === 'win32' ? 'cd $env:TEMP' : 'cd /tmp')
     await expect.poll(() => subtitle.innerText(), { timeout: 30_000 }).not.toBe(was)
-    await page.waitForTimeout(500)
+    await quietFor(
+      500,
+      async () => (await before?.evaluate((el) => el.isConnected)) ?? false,
+      'whether the terminal is the one typed into',
+    )
     expect(await before?.evaluate((el) => el.isConnected)).toBe(true)
   } finally {
     await launched.close()
@@ -232,6 +207,7 @@ test('Ctrl+Shift+K clears the scrollback of the shell that has the keys, and it 
       .poll(
         async () => {
           const before = await share()
+          // wait: the share must hold for a second: the 300 lines have stopped arriving.
           await page.waitForTimeout(1000)
           return before < 0.5 && (await share()) === before
         },
@@ -242,6 +218,7 @@ test('Ctrl+Shift+K clears the scrollback of the shell that has the keys, and it 
     await expect.poll(share, { timeout: 5000 }).toBeGreaterThan(0.75)
     await page.reload()
     await ready(page)
+    // wait: the screen main sends a reattaching pane has no end mark; it lands within this.
     await page.waitForTimeout(1500)
     // Not the whole screen alone: attached at another size, ConPTY paints its screen again,
     // which goes into the scrollback (0.4 to 0.64 on GitHub's runner). Brought back, the 300
@@ -268,12 +245,16 @@ test('a pane brought back after its shell ended starts clean, and a key starts n
     await expect(tabs).toHaveCount(2)
     await tabs.nth(0).click()
     await ready(page)
-    await page.waitForTimeout(1500)
+    await quietFor(
+      1500,
+      async () => ((await tabs.nth(0).textContent()) ?? '').includes('exited'),
+      'whether the tab says exited',
+    )
     await expect(tabs.nth(0)).not.toContainText('exited')
     const before = await sessionIds(page)
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.type('x')
-    await page.waitForTimeout(1500)
+    await quietFor(1500, () => sessionIds(page), 'the sessions')
     expect(await sessionIds(page)).toEqual(before)
   } finally {
     await launched.close()
@@ -290,10 +271,11 @@ test('tabs behind another are not marked for the screen they get on coming back'
     await page.getByTestId('tab').nth(1).click()
     await ready(page)
     await page.getByTestId('tab').nth(0).click()
+    // wait: the shells' late output (a prompt drawn again) is over before the page comes back.
     await page.waitForTimeout(2000)
     await page.reload()
     await ready(page)
-    await page.waitForTimeout(2000)
+    await quietFor(2000, () => page.getByTestId('tab-activity').count(), 'the marked tabs')
     await expect(page.getByTestId('tab-activity')).toHaveCount(0)
   } finally {
     await launched.close()
@@ -317,14 +299,14 @@ test('a paste by the keyboard asks too, and only what is agreed reaches the shel
       }, text)
     await paste('echo KEPT-OUT-1\necho KEPT-OUT-2')
     await expect(page.getByTestId('paste-dialog')).toBeVisible()
-    const refused = listen(page, 2500)
+    const refused = await listenToSessions(page, { ms: 2500 })
     await page.getByTestId('paste-cancel').click()
-    expect(await refused).not.toContain('KEPT-OUT')
+    expect(await refused()).not.toContain('KEPT-OUT')
     await paste('echo LET-IN-1\necho LET-IN-2')
     await expect(page.getByTestId('paste-dialog')).toBeVisible()
-    const agreed = listen(page, 4000)
+    const agreed = await listenToSessions(page, { until: 'LET-IN-2', ms: 4000 })
     await page.getByTestId('paste-go').click()
-    expect(await agreed).toContain('LET-IN-2')
+    expect(await agreed()).toContain('LET-IN-2')
   } finally {
     await launched.close()
   }
@@ -341,10 +323,11 @@ test('an ended shell starts again on a key, not on the focus coming back to it',
     await expect(tabs.nth(0)).toContainText('exited', { timeout: 20_000 })
     const before = await sessionIds(page)
     await tabs.nth(1).click()
+    // wait: the ended shell stays behind the other tab a moment, so coming back is a focus change.
     await page.waitForTimeout(500)
     await tabs.nth(0).click()
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
-    await page.waitForTimeout(1500)
+    await quietFor(1500, () => sessionIds(page), 'the sessions')
     await expect(tabs.nth(0)).toContainText('exited')
     expect(await sessionIds(page)).toEqual(before)
   } finally {

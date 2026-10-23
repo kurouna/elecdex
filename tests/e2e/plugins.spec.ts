@@ -1,10 +1,19 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launch, removeDir, settleLayout } from './support.js'
+import { pluginFiles, turnOnPlugin } from './support/plugins.js'
+import {
+  launch,
+  launchOnTwoLayouts,
+  openSettings,
+  quietFor,
+  removeDir,
+  settleLayout,
+  single,
+  waitForSaved,
+} from './support.js'
 
 /**
  * Plugins in the running app (docs/plugins.md): the sample in a new plugins folder,
@@ -55,32 +64,14 @@ test.afterAll(() => {
   server.close()
 })
 
-/** A userData folder with these plugins already in place (so no sample is written). */
-function withPlugins(files: Record<string, string>): string {
-  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
-  for (const [name, text] of Object.entries(files)) {
-    const file = path.join(dir, 'plugins', name)
-    mkdirSync(path.dirname(file), { recursive: true })
-    writeFileSync(file, text)
-  }
-  writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ sound: { enabled: false } }))
-  return dir
-}
-
-const single = (widget: string) => ({ version: 1, root: { kind: 'pane', id: 'p1', widget } })
+/** A layout of one plugin pane, of id p1. */
+const onePane = (widget: string) => single(widget, { id: 'p1' })
 const pluginPane = (page: Page, id = 'p1') =>
   page.locator(`[data-testid=pane][data-pane-id="${id}"] [data-testid=plugin-pane]`)
 
-async function turnOn(page: Page, id: string): Promise<void> {
-  await page.keyboard.press('Control+Shift+Period')
-  await page.locator('[data-testid=settings-section][data-section=plugins]').click()
-  const entry = page.locator(`[data-testid=settings-plugin][data-plugin="${id}"]`)
-  await entry.getByTestId('plugin-enabled').click()
-  const agree = entry.getByTestId('plugin-agree')
-  if (await agree.isVisible()) await agree.click()
-  await expect(entry).toHaveAttribute('data-status', 'ready')
-  await page.getByTestId('settings-close').click()
-}
+/** The tally plugin's count as the layout saved it. */
+const savedTally = (text: string) =>
+  (JSON.parse(text) as { root: { state?: { plugin?: { n?: number } } } }).root.state?.plugin?.n
 
 const NET_PROBE = `export default {
   apiVersion: 1, id: 'net-probe', title: 'net probe',
@@ -111,7 +102,7 @@ const NET_PROBE = `export default {
 }`
 
 test('a new plugins folder has the pomodoro sample, which runs only once agreed to', async () => {
-  const app = await launch(undefined, { layout: single('plugin:pomodoro') })
+  const app = await launch(undefined, { layout: onePane('plugin:pomodoro') })
   const { page } = app
   try {
     await expect(pluginPane(page)).toHaveAttribute('data-status', 'disabled')
@@ -122,7 +113,7 @@ test('a new plugins folder has the pomodoro sample, which runs only once agreed 
     await expect(offered).toHaveCount(0)
     await page.keyboard.press('Escape')
 
-    await turnOn(page, 'pomodoro')
+    await turnOnPlugin(page, 'pomodoro')
     await expect(pluginPane(page)).toHaveAttribute('data-status', 'ready')
     await expect(pluginPane(page).getByText('25:00')).toBeVisible()
     await pluginPane(page).locator('[data-testid=plugin-button][data-action=start]').click()
@@ -136,7 +127,12 @@ test('a new plugins folder has the pomodoro sample, which runs only once agreed 
     await expect(panes.nth(1).getByTestId('plugin-time')).toContainText(/24:\d\d/)
 
     // The timer lives in the plugin's storage: it is still running after a restart.
-    await page.waitForTimeout(1500)
+    const stored = () => {
+      const file = path.join(app.userData, 'plugin-data', 'pomodoro.json')
+      return (JSON.parse(readFileSync(file, 'utf8')) as { timer?: { endsAt?: unknown } }).timer
+        ?.endsAt
+    }
+    await expect.poll(() => typeof stored()).toBe('number')
     const again = await app.relaunch()
     await expect(pluginPane(again.page).getByTestId('plugin-time')).toContainText(/24:\d\d/)
     await expect(
@@ -150,15 +146,15 @@ test('a new plugins folder has the pomodoro sample, which runs only once agreed 
 })
 
 test('a plugin reaches only its granted host, and every redirect is checked', async () => {
-  const dir = withPlugins({ 'net-probe.js': NET_PROBE })
   hits.length = 0
-  const app = await launch(dir, {
-    layout: single('plugin:net-probe'),
+  const app = await launch(undefined, {
+    layout: onePane('plugin:net-probe'),
+    files: pluginFiles({ 'net-probe.js': NET_PROBE }),
     env: { ELECDEX_PLUGIN_HOST_MAP: hostMap },
   })
   const { page } = app
   try {
-    await turnOn(page, 'net-probe')
+    await turnOnPlugin(page, 'net-probe')
     const pane = pluginPane(page)
     await expect(pane.getByText('granted: 200 {"value":"from the stub"}')).toBeVisible()
     await expect(pane.getByText('redirect in: 200 {"value":"from the stub"}')).toBeVisible()
@@ -179,18 +175,17 @@ test('a plugin reaches only its granted host, and every redirect is checked', as
     // Closing the last pane ends the plugin, and with it the polling.
     await expect.poll(() => hits.filter((h) => h === '/tick').length).toBeGreaterThan(1)
     await page.locator('[data-testid=pane][data-pane-id=p1]').getByTestId('pane-close').click()
+    // wait: no signal in the app (needs a hook): a tick in flight as the worker ends may still
+    // land; nothing says when the plugin's worker has gone.
     await page.waitForTimeout(1500)
-    const after = hits.length
-    await page.waitForTimeout(3000)
-    expect(hits.length).toBe(after)
+    await quietFor(3000, async () => hits.length, 'the requests to the stub')
   } finally {
     await app.close()
-    removeDir(dir)
   }
 })
 
 test('a plugin that stops answering is stopped, and can be started again', async () => {
-  const dir = withPlugins({
+  const files = pluginFiles({
     'spinner.js': `export default {
       apiVersion: 1, id: 'spinner', title: 'spinner',
       view(ctx) {
@@ -199,10 +194,10 @@ test('a plugin that stops answering is stopped, and can be started again', async
       },
     }`,
   })
-  const app = await launch(dir, { layout: single('plugin:spinner') })
+  const app = await launch(undefined, { layout: onePane('plugin:spinner'), files })
   const { page } = app
   try {
-    await turnOn(page, 'spinner')
+    await turnOnPlugin(page, 'spinner')
     await pluginPane(page).locator('[data-testid=plugin-button][data-action=spin]').click()
     await expect(pluginPane(page).getByTestId('plugin-stopped')).toBeVisible({ timeout: 15_000 })
     // The rest of the app never froze.
@@ -213,18 +208,19 @@ test('a plugin that stops answering is stopped, and can be started again', async
     ).toBeVisible()
   } finally {
     await app.close()
-    removeDir(dir)
   }
 })
 
 test('editing a plugin reloads its panes, and a broken edit says why', async () => {
   const text = (label: string) =>
     `export default { apiVersion: 1, id: 'note', title: 'note', view(ctx) { ctx.render([{ t: 'text', text: '${label}' }]) } }`
-  const dir = withPlugins({ 'note.ts': text('first version') })
-  const app = await launch(dir, { layout: single('plugin:note') })
-  const { page } = app
+  const app = await launch(undefined, {
+    layout: onePane('plugin:note'),
+    files: pluginFiles({ 'note.ts': text('first version') }),
+  })
+  const { page, userData: dir } = app
   try {
-    await turnOn(page, 'note')
+    await turnOnPlugin(page, 'note')
     await expect(pluginPane(page).getByText('first version')).toBeVisible()
     writeFileSync(path.join(dir, 'plugins', 'note.ts'), text('second version'))
     await expect(pluginPane(page).getByText('second version')).toBeVisible()
@@ -234,15 +230,12 @@ test('editing a plugin reloads its panes, and a broken edit says why', async () 
     await expect(pluginPane(page).getByText('fixed')).toBeVisible()
   } finally {
     await app.close()
-    removeDir(dir)
   }
 })
 
-test('a plugin pane gets the state it saved back after a restart', async () => {
-  // Found as a pane that stayed empty after a restart: the saved state came back from the
-  // layout as live state, which the message mounting the view could not carry.
-  const dir = withPlugins({
-    'tally.js': `export default {
+/** A plugin that counts presses in its pane's state. */
+const TALLY = pluginFiles({
+  'tally.js': `export default {
       apiVersion: 1, id: 'tally', title: 'tally',
       view(ctx) {
         let n = ctx.state.get()?.n ?? 0
@@ -259,15 +252,19 @@ test('a plugin pane gets the state it saved back after a restart', async () => {
         draw()
       },
     }`,
-  })
-  let app = await launch(dir, { layout: single('plugin:tally') })
+})
+
+test('a plugin pane gets the state it saved back after a restart', async () => {
+  // Found as a pane that stayed empty after a restart: the saved state came back from the
+  // layout as live state, which the message mounting the view could not carry.
+  let app = await launch(undefined, { layout: onePane('plugin:tally'), files: TALLY })
+  const dir = app.userData
   try {
-    await turnOn(app.page, 'tally')
+    await turnOnPlugin(app.page, 'tally')
     await pluginPane(app.page).getByTestId('plugin-button').click()
     await pluginPane(app.page).getByTestId('plugin-button').click()
     await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
-    // Past the layout's save debounce.
-    await app.page.waitForTimeout(1500)
+    await waitForSaved(dir, (text) => savedTally(text) === 2)
     app = await app.relaunch()
     const errors: string[] = []
     app.page.on('pageerror', (error) => errors.push(error.message))
@@ -283,43 +280,10 @@ test('a plugin pane gets the state it saved back after a restart', async () => {
 test("a saved layout's plugin pane gets its own state, though the last layout's pane had its id", async () => {
   // Two layouts with a plugin pane of the same id ("save as" keeps ids): the pane stays
   // mounted over the switch and only its state changes, which the plugin must be given.
-  const dir = withPlugins({
-    'tally.js': `export default {
-      apiVersion: 1, id: 'tally', title: 'tally',
-      view(ctx) {
-        let n = ctx.state.get()?.n ?? 0
-        const draw = () => ctx.render([
-          { t: 'text', text: 'tally ' + n },
-          { t: 'buttons', items: [{ action: 'add', text: 'add' }] },
-        ])
-        ctx.on('action', (a) => {
-          if (a.action !== 'add') return
-          n += 1
-          ctx.state.set({ n })
-          draw()
-        })
-        draw()
-      },
-    }`,
-  })
-  const tally = (n: number) => ({
-    version: 1,
-    root: { kind: 'pane', id: 'p1', widget: 'plugin:tally', state: { plugin: { n } } },
-  })
-  writeFileSync(
-    path.join(dir, 'layouts.json'),
-    JSON.stringify({
-      version: 1,
-      items: [
-        { id: 'layouta', name: 'one', tree: tally(2) },
-        { id: 'layoutb', name: 'two', tree: tally(7) },
-      ],
-      active: 'layouta',
-    }),
-  )
-  const app = await launch(dir, { layout: tally(2) })
+  const tally = (n: number) => single('plugin:tally', { id: 'p1', state: { plugin: { n } } })
+  const app = await launchOnTwoLayouts(tally(2), tally(7), { files: TALLY })
   try {
-    await turnOn(app.page, 'tally')
+    await turnOnPlugin(app.page, 'tally')
     await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
     await app.page.keyboard.press('Control+Shift+Digit2')
     await settleLayout(app.page)
@@ -332,12 +296,11 @@ test("a saved layout's plugin pane gets its own state, though the last layout's 
     await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
   } finally {
     await app.close()
-    removeDir(dir)
   }
 })
 
 test('a sign-in session is the plugin’s own, closes its window once it works, and lasts', async () => {
-  const dir = withPlugins({
+  const files = pluginFiles({
     'account.js': `export default {
       apiVersion: 1, id: 'account', title: 'account',
       permissions: { hosts: ['api.example.test'], session: ['api.example.test'] },
@@ -357,13 +320,15 @@ test('a sign-in session is the plugin’s own, closes its window once it works, 
       },
     }`,
   })
-  const app = await launch(dir, {
-    layout: single('plugin:account'),
+  const app = await launch(undefined, {
+    layout: onePane('plugin:account'),
+    files,
     env: { ELECDEX_PLUGIN_HOST_MAP: hostMap },
   })
+  const dir = app.userData
   const { page } = app
   try {
-    await turnOn(page, 'account')
+    await turnOnPlugin(page, 'account')
     await expect(pluginPane(page).getByText('signed out')).toBeVisible()
     // The button is as wide as its words, not stretched across the pane.
     const button = await pluginPane(page).getByTestId('plugin-signin').boundingBox()
@@ -426,15 +391,16 @@ const deviceProbe = (version: string) => `export default {
 }`
 
 test('a plugin draws on its canvas, and has the keys of its pane only while it is focused', async () => {
-  const dir = withPlugins({ 'device-probe.js': deviceProbe('v1') })
-  const app = await launch(dir, { layout: single('plugin:device-probe') })
-  const { page } = app
+  const app = await launch(undefined, {
+    layout: onePane('plugin:device-probe'),
+    files: pluginFiles({ 'device-probe.js': deviceProbe('v1') }),
+  })
+  const { page, userData: dir } = app
   const pane = pluginPane(page)
   const lines = pane.locator('p')
   try {
     // Turning it on says plainly what it asks for.
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=plugins]').click()
+    await openSettings(page, 'plugins')
     const entry = page.locator('[data-testid=settings-plugin][data-plugin="device-probe"]')
     await entry.getByTestId('plugin-enabled').click()
     await expect(entry.getByTestId('plugin-consent')).toContainText('receive the keys you press')
@@ -479,6 +445,5 @@ test('a plugin draws on its canvas, and has the keys of its pane only while it i
     await expect(pane.getByText('v2 surface true')).toBeVisible()
   } finally {
     await app.close()
-    removeDir(dir)
   }
 })

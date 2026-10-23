@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { type Launched, launch, terminalPane, typeInto } from './support.js'
+import { type Launched, launch, listenToSessions, terminalPane, typeInto } from './support.js'
 
 /**
  * The filesystem widget: follows the terminal's directory (on Windows too, via
@@ -21,25 +21,8 @@ const terminalCwd = () => terminalPane(page).getByTestId('pane-subtitle')
 
 /** The followed terminal's screen, as a reattaching pane would receive it. */
 async function terminalScreen(): Promise<string> {
-  return page.evaluate(async () => {
-    const sessions = await window.elecdex.pty.list()
-    const decoder = new TextDecoder()
-    let text = ''
-    for (const session of sessions) {
-      const detach = await window.elecdex.pty.attach(session.id, {
-        onData: (chunk) => {
-          text += decoder.decode(chunk, { stream: true })
-        },
-        onExit: () => {},
-        onCwd: () => {},
-        onCommandEnd: () => {},
-        onIntegrationUnavailable: () => {},
-      })
-      await new Promise((r) => setTimeout(r, 500))
-      detach()
-    }
-    return text
-  })
+  const heard = await listenToSessions(page, { ms: 500 })
+  return heard()
 }
 
 test.beforeAll(async () => {

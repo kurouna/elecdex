@@ -1,14 +1,16 @@
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
 import {
   type Launched,
   type LaunchOptions,
   launch,
+  NO_SWITCH_PROMPT,
+  paneById,
   savedLayout,
+  savedSettings,
   settleLayout,
+  single,
   typeInto,
-} from './support'
+} from './support.js'
 
 /**
  * The action palette in the running app (docs/palette.md section 7.4): opened by its key,
@@ -16,7 +18,7 @@ import {
  */
 
 const pane = (id: string, widget: string) => ({ kind: 'pane', id, widget })
-const ONE_CLOCK = { version: 1, root: pane('c', 'clock') }
+const ONE_CLOCK = single('clock', { id: 'c' })
 const TWO_CLOCK_TABS = {
   version: 1,
   root: {
@@ -63,14 +65,14 @@ function shape(userData: string): unknown {
   return JSON.parse(text, (key, value) => (key === 'id' || key === 'state' ? undefined : value))
 }
 
-const settings = (userData: string) =>
-  JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8'))
+/** settings.json's theme as main last wrote it. */
+const theme = (userData: string) => savedSettings(userData)?.theme
 
 test('a row does what its key does: split right as Ctrl+Shift+E would', async () => {
   const byKey = await start(ONE_CLOCK)
   let expected: unknown
   try {
-    await byKey.page.locator('[data-testid=pane][data-pane-id=c]').click()
+    await paneById(byKey.page, 'c').click()
     await byKey.page.keyboard.press('Control+Shift+KeyE')
     await expect(panes(byKey.page)).toHaveCount(2)
     await expect.poll(() => JSON.stringify(shape(byKey.userData))).toContain('"split"')
@@ -81,7 +83,7 @@ test('a row does what its key does: split right as Ctrl+Shift+E would', async ()
 
   const { page, userData, close } = await start(ONE_CLOCK)
   try {
-    await page.locator('[data-testid=pane][data-pane-id=c]').click()
+    await paneById(page, 'c').click()
     await find(page, 'split right', 'action:pane.splitRight')
     await page.keyboard.press('Enter')
     await expect(palette(page)).toHaveCount(0)
@@ -95,7 +97,7 @@ test('a row does what its key does: split right as Ctrl+Shift+E would', async ()
 test('a row that does nothing now says why and stays; from a tab group it runs', async () => {
   const lone = await start(ONE_CLOCK)
   try {
-    await lone.page.locator('[data-testid=pane][data-pane-id=c]').click()
+    await paneById(lone.page, 'c').click()
     await find(lone.page, 'next tab', 'action:tab.next')
     await expect(selectedRow(lone.page)).toHaveClass(/unavailable/)
     await expect(selectedRow(lone.page)).toContainText('not in a tab group')
@@ -121,7 +123,7 @@ test('a row that does nothing now says why and stays; from a tab group it runs',
 test('while it is open, the shortcuts and the shell get nothing', async () => {
   const { page, close } = await start(SHELL_AND_CLOCK)
   try {
-    const shell = page.locator('[data-testid=pane][data-pane-id=sh]')
+    const shell = paneById(page, 'sh')
     await shell.locator('.xterm-helper-textarea').focus()
     await page.keyboard.press('Control+Shift+KeyP')
     await expect(palette(page)).toBeVisible()
@@ -153,7 +155,7 @@ test('while it is open, the shortcuts and the shell get nothing', async () => {
 
 test('the reset asks by a second Enter when its own question is turned off', async () => {
   const { page, close } = await start(SHELL_AND_CLOCK, {
-    settings: { layout: { confirmSwitch: false } },
+    settings: NO_SWITCH_PROMPT,
   })
   try {
     await find(page, 'reset layout', 'action:layout.reset')
@@ -163,7 +165,7 @@ test('the reset asks by a second Enter when its own question is turned off', asy
     await page.keyboard.press('Enter')
     await expect(palette(page)).toHaveCount(0)
     await settleLayout(page)
-    await expect(page.locator('[data-testid=pane][data-pane-id=c]')).toHaveCount(0)
+    await expect(paneById(page, 'c')).toHaveCount(0)
   } finally {
     await close()
   }
@@ -175,10 +177,10 @@ test('a theme is used once chosen, and nothing changes on Escape', async () => {
     await find(page, 'amber', 'theme:amber')
     await page.keyboard.press('Escape')
     await expect(palette(page)).toHaveCount(0)
-    expect(settings(userData).theme ?? 'tron').toBe('tron')
+    expect(theme(userData) ?? 'tron').toBe('tron')
     await find(page, 'amber', 'theme:amber')
     await page.keyboard.press('Enter')
-    await expect.poll(() => settings(userData).theme).toBe('amber')
+    await expect.poll(() => theme(userData)).toBe('amber')
     await page.keyboard.press('Control+Shift+KeyP')
     await page.getByTestId('action-palette-filter').fill('amber')
     await expect(selectedRow(page)).toContainText('current')
@@ -254,14 +256,14 @@ test('opened over a pane popped up from a shell, it gives the keyboard back to t
 test('a pane row pops up what can be, and adds what cannot beside the focused pane', async () => {
   const { page, close } = await start(ONE_CLOCK)
   try {
-    await page.locator('[data-testid=pane][data-pane-id=c]').click()
+    await paneById(page, 'c').click()
     await find(page, 'calendar', 'pane:calendar')
     await page.keyboard.press('Enter')
     await expect(page.getByTestId('popup-pane')).toBeVisible()
     await expect(panes(page)).toHaveCount(1)
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('popup-pane')).toHaveCount(0)
-    await page.locator('[data-testid=pane][data-pane-id=c]').click()
+    await paneById(page, 'c').click()
     await find(page, 'terminal', 'pane:terminal')
     await page.keyboard.press('Enter')
     await expect(page.locator('[data-testid=pane][data-widget=terminal]')).toHaveCount(1)

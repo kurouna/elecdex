@@ -1,5 +1,13 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import { type Launched, launch, settleLayout } from './support.js'
+import { readScreen } from './support/terminal.js'
+import {
+  type Launched,
+  launch,
+  sessionIds as listedSessions,
+  quietFor,
+  settleLayout,
+  waitForSaved,
+} from './support.js'
 
 /**
  * Moving panes by dragging their titles, end to end, on the default layout.
@@ -16,6 +24,20 @@ let page: Page
 test.beforeEach(async () => {
   launched = await launch()
   ;({ page } = launched)
+  // The panes power on scaled from a line: a title pressed before that ends moves under the
+  // pointer, and the drag never starts (seen once in a whole run, on the first drag).
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .some(
+            (a) =>
+              (a as CSSAnimation).animationName === 'crt-power-on' && a.playState === 'running',
+          ),
+      ),
+    )
+    .toBe(false)
 })
 
 test.afterEach(async () => {
@@ -75,27 +97,36 @@ function halfOn(box: { x: number; y: number; width: number; height: number }, si
   return { x, y: y + height / 2, width, height: height / 2 }
 }
 
-const sessionIds = async () =>
-  (await page.evaluate(() => window.elecdex.pty.list())).map((s) => s.id).sort()
+const sessionIds = async () => (await listedSessions(page)).sort()
 
 /** Everything a session's screen shows, as a reattaching pane receives it. */
-function screenOf(sessionId: string): Promise<string> {
-  return page.evaluate(async (id) => {
-    const decoder = new TextDecoder()
-    let text = ''
-    const detach = await window.elecdex.pty.attach(id, {
-      onData: (chunk) => {
-        text += decoder.decode(chunk, { stream: true })
-      },
-      onExit: () => {},
-      onCwd: () => {},
-      onCommandEnd: () => {},
-      onIntegrationUnavailable: () => {},
-    })
-    await new Promise((resolve) => setTimeout(resolve, 800))
-    detach()
-    return text
-  }, sessionId)
+const screenOf = (sessionId: string): Promise<string> => readScreen(page, sessionId, 800)
+
+/** A node of a saved layout tree, as much of it as these tests read. */
+interface SavedNode {
+  kind: string
+  id?: string
+  widget?: string
+  direction?: string
+  children?: SavedNode[]
+}
+
+/** Whether, somewhere in `node`, a column holds a pane of `upper` with one of `lower` right under it. */
+function stacked(node: SavedNode, upper: string, lower: string): boolean {
+  const children = node.children ?? []
+  if (node.kind === 'split' && node.direction === 'column') {
+    for (let i = 0; i + 1 < children.length; i++) {
+      if (children[i]?.widget === upper && children[i + 1]?.widget === lower) return true
+    }
+  }
+  return children.some((child) => stacked(child, upper, lower))
+}
+
+/** Whether a saved layout holds a tab group whose tabs are `ids`, in that order. */
+function tabsInOrder(node: SavedNode, ids: (string | null | undefined)[]): boolean {
+  const children = node.children ?? []
+  if (node.kind === 'tabs' && children.map((child) => child.id).join() === ids.join()) return true
+  return children.some((child) => tabsInOrder(child, ids))
 }
 
 async function waitForShells(count: number) {
@@ -155,8 +186,10 @@ test('a moved layout is saved and restored on the next launch', async () => {
     )
   await expect.poll(async () => (await boxOf(paneOf('cpu'))).y).toBeGreaterThan(globe.y)
   const before = await order()
-  // Past the save debounce.
-  await page.waitForTimeout(1500)
+  // The save, past its debounce: the CPU pane right under the globe.
+  await waitForSaved(launched.userData, (json) =>
+    stacked((JSON.parse(json) as { root: SavedNode }).root, 'globe', 'cpu'),
+  )
 
   launched = await launched.relaunch()
   ;({ page } = launched)
@@ -190,7 +223,7 @@ test('a shell tab dragged out keeps its session, its screen and its input', asyn
   await expect(pane.locator('.xterm-helper-textarea')).toBeFocused()
 
   // Same sessions: nothing started, nothing ended.
-  await page.waitForTimeout(3000)
+  await quietFor(3000, sessionIds, 'the sessions')
   expect(await sessionIds()).toEqual(sessions)
 
   // Its screen came along, and it still takes input.
@@ -238,7 +271,7 @@ test('the shell group moves as a whole by its header, keeping every tab and the 
     'data-pane-id',
     shown ?? '',
   )
-  await page.waitForTimeout(2000)
+  await quietFor(2000, sessionIds, 'the sessions')
   expect(await sessionIds()).toEqual(sessions)
 })
 
@@ -387,6 +420,8 @@ test('panes with WebGL canvases survive being moved again and again', async () =
     await expect(strip).toHaveCount(3)
   }
 
+  // wait: a context the moves cost is reported lost a moment later; read once, as reading
+  // makes a context on any bare canvas.
   await page.waitForTimeout(1500)
   const lost = await page.evaluate(
     () =>
@@ -429,7 +464,7 @@ test('Ctrl over its own group reorders a tab along the strip, without remounting
     'data-pane-id',
     ids[0] ?? '',
   )
-  await page.waitForTimeout(2000)
+  await quietFor(2000, sessionIds, 'the sessions')
   expect(await sessionIds()).toEqual(sessions)
 })
 
@@ -484,8 +519,10 @@ test('a reordered strip survives a restart', async () => {
   expect(await strip.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))).toEqual(
     after,
   )
-  // Past the save debounce.
-  await page.waitForTimeout(1500)
+  // The save, past its debounce: the strip in its new order.
+  await waitForSaved(launched.userData, (json) =>
+    tabsInOrder((JSON.parse(json) as { root: SavedNode }).root, after),
+  )
 
   launched = await launched.relaunch()
   ;({ page } = launched)

@@ -1,11 +1,18 @@
 import { existsSync } from 'node:fs'
-import { createServer, type IncomingHttpHeaders, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import type { FeedItem, FeedUpdate } from '@shared/feeds'
-import { launch } from './support.js'
+import { openedExternally, stubOpenExternal } from './support/stubs/external.js'
+import { type ServiceStub, type StubRequest, serviceStub } from './support/stubs/services.js'
+import {
+  beside,
+  launch,
+  quietFor,
+  single,
+  waitForSaved,
+  watching as watchingOf,
+} from './support.js'
 
 /**
  * The RSS pane, against a local server standing in for the sites.
@@ -16,9 +23,9 @@ import { launch } from './support.js'
  * reaches a real site.
  */
 
-let server: Server
+let stub: ServiceStub
 let origin: string
-const requests: Array<{ path: string; headers: IncomingHttpHeaders }> = []
+let requests: StubRequest[]
 
 /** `count` items an hour apart, the newest `offsetHours` before a fixed time. */
 function rss(title: string, count: number, offsetHours: number): string {
@@ -38,29 +45,30 @@ function atom(title: string, count: number, offsetHours: number): string {
 }
 
 test.beforeAll(async () => {
-  server = createServer((req, res) => {
-    const url = req.url ?? ''
-    requests.push({ path: url, headers: req.headers })
+  stub = await serviceStub(({ url, headers }) => {
     if (url === '/alpha.xml') {
-      if (req.headers['if-none-match'] === '"alpha"') {
-        res.writeHead(304).end()
-        return
+      if (headers['if-none-match'] === '"alpha"') return { status: 304 }
+      return {
+        status: 200,
+        headers: { 'content-type': 'application/rss+xml', etag: '"alpha"' },
+        body: rss('alpha', 15, 0),
       }
-      res.writeHead(200, { 'content-type': 'application/rss+xml', etag: '"alpha"' })
-      res.end(rss('alpha', 15, 0))
-    } else if (url === '/beta.atom') {
-      // Half an hour after each alpha story, so the two feeds interleave.
-      res.writeHead(200, { 'content-type': 'application/atom+xml' }).end(atom('beta', 15, 0.5))
-    } else {
-      res.writeHead(404).end()
     }
+    if (url === '/beta.atom') {
+      // Half an hour after each alpha story, so the two feeds interleave.
+      return {
+        status: 200,
+        headers: { 'content-type': 'application/atom+xml' },
+        body: atom('beta', 15, 0.5),
+      }
+    }
+    return { status: 404 }
   })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  ;({ origin, requests } = stub)
 })
 
 test.afterAll(async () => {
-  await new Promise((resolve) => server.close(resolve))
+  await stub.close()
 })
 
 test.beforeEach(() => {
@@ -68,11 +76,9 @@ test.beforeEach(() => {
 })
 
 const rssPane = (page: Page) => page.locator('[data-testid=pane][data-widget=rss]')
-const watching = (page: Page) => page.evaluate(() => window.elecdex.feeds.watching())
-const single = (widget: string, state?: Record<string, unknown>) => ({
-  version: 1,
-  root: { kind: 'pane', id: 'p', widget, ...(state ? { state } : {}) },
-})
+const watching = (page: Page) => watchingOf(page, 'feeds')
+const layout = (widget: string, state?: Record<string, unknown>) =>
+  single(widget, state === undefined ? { id: 'p' } : { id: 'p', state })
 
 test('the RSS pane is not in the default layout, and nothing is fetched without one', async () => {
   const { page, userData, close } = await launch()
@@ -96,7 +102,7 @@ test('the RSS pane is not in the default layout, and nothing is fetched without 
 })
 
 test('added from the picker it starts empty; its feeds merge newest first, open in the browser and survive a restart', async () => {
-  let launched = await launch(undefined, { layout: single('clock') })
+  let launched = await launch(undefined, { layout: layout('clock') })
   try {
     const { app, page } = launched
     await page.keyboard.press('Control+Shift+KeyA')
@@ -134,7 +140,7 @@ test('added from the picker it starts empty; its feeds merge newest first, open 
     const items = pane.getByTestId('rss-item')
     await expect(items).toHaveCount(20, { timeout: 20_000 })
     expect(await watching(page)).toEqual([`${origin}/alpha.xml`, `${origin}/beta.atom`])
-    expect(requests.map((r) => r.path).sort()).toEqual(['/alpha.xml', '/beta.atom'])
+    expect(requests.map((r) => r.url).sort()).toEqual(['/alpha.xml', '/beta.atom'])
     expect(requests[0]?.headers['user-agent']).toMatch(/^elecdex\//)
 
     await expect(items.nth(0)).toContainText('alpha story 1')
@@ -154,24 +160,19 @@ test('added from the picker it starts empty; its feeds merge newest first, open 
     await expect(items.nth(19)).toBeInViewport()
 
     // A headline opens its article in the browser, through main.
-    await app.evaluate(({ shell }) => {
-      const opened: string[] = []
-      ;(globalThis as { __opened?: string[] }).__opened = opened
-      shell.openExternal = async (url: string) => {
-        opened.push(url)
-      }
-    })
+    await stubOpenExternal(app)
     await items.nth(1).click()
-    await expect
-      .poll(() => app.evaluate(() => (globalThis as { __opened?: string[] }).__opened))
-      .toEqual([`${origin}/beta/1`])
+    await expect.poll(() => openedExternally(app)).toEqual([`${origin}/beta/1`])
 
     // A restart shows the saved headlines at once and does not ask again so soon.
-    await page.waitForTimeout(1500) // let the layout save
+    await waitForSaved(launched.userData, (text) => {
+      const flat = text.replace(/\s/g, '')
+      return flat.includes('"widget":"rss"') && flat.includes('/beta.atom')
+    })
     requests.length = 0
     launched = await launched.relaunch()
     await expect(rssPane(launched.page).getByTestId('rss-item')).toHaveCount(20)
-    await launched.page.waitForTimeout(1500)
+    await quietFor(1500, async () => requests.length, 'the requests')
     expect(requests).toEqual([])
   } finally {
     await launched.close()
@@ -180,24 +181,11 @@ test('added from the picker it starts empty; its feeds merge newest first, open 
 
 test('a failing feed is marked and the rest still show; closing the pane stops the fetching', async () => {
   const { page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'split',
-        id: 's',
-        direction: 'row',
-        sizes: [0.5, 0.5],
-        children: [
-          {
-            kind: 'pane',
-            id: 'r',
-            widget: 'rss',
-            state: { feeds: [`${origin}/alpha.xml`, `${origin}/gone.xml`] },
-          },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
+    layout: beside('rss', {
+      id: 'r',
+      state: { feeds: [`${origin}/alpha.xml`, `${origin}/gone.xml`] },
+      sizes: [0.5, 0.5],
+    }),
   })
   try {
     const pane = rssPane(page)
@@ -213,8 +201,8 @@ test('a failing feed is marked and the rest still show; closing the pane stops t
       .fill([`${origin}/alpha.xml`, `${origin}/gone.xml`, `${origin}/beta.atom`].join('\n'))
     await pane.getByTestId('rss-save').click()
     await expect(pane.getByTestId('rss-item')).toHaveCount(20, { timeout: 20_000 })
-    await page.waitForTimeout(1000)
-    expect(requests.map((r) => r.path)).toEqual(['/beta.atom'])
+    await quietFor(1000, async () => requests.length, 'the requests')
+    expect(requests.map((r) => r.url)).toEqual(['/beta.atom'])
 
     await pane.getByTestId('rss-settings-toggle').click()
     await pane.getByTestId('rss-feeds').fill(`${origin}/gone.xml`)
@@ -233,7 +221,7 @@ test('a failing feed is marked and the rest still show; closing the pane stops t
 
 test('a new headline slides in with a highlight; a feed added later, or an item too old for the list, is not new', async () => {
   const { app, page, close } = await launch(undefined, {
-    layout: single('rss', { feeds: [`${origin}/alpha.xml`] }),
+    layout: layout('rss', { feeds: [`${origin}/alpha.xml`] }),
   })
   try {
     const pane = rssPane(page)

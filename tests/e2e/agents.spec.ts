@@ -1,8 +1,8 @@
-import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, removeDir } from './support.js'
+import { agentLine, claudeFolder, SESSION_ID } from './support/fixtures.js'
+import { beside, launch, removeDir, single, watching } from './support.js'
 
 /**
  * The AI AGENT pane against a made-up Claude Code folder (ELECDEX_CLAUDE_DIR) -
@@ -13,62 +13,14 @@ import { launch, removeDir } from './support.js'
  * stops reading when the pane goes.
  */
 
-const ID = '11111111-2222-3333-4444-555555555555'
-
-const line = (content: unknown[]) =>
-  JSON.stringify({
-    type: 'assistant',
-    timestamp: new Date().toISOString(),
-    message: {
-      model: 'claude-opus-5-5',
-      role: 'assistant',
-      stop_reason: 'tool_use',
-      usage: { input_tokens: 5, cache_read_input_tokens: 42_000, output_tokens: 120 },
-      content,
-    },
-  })
-
-function claudeFolder() {
-  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-claude-'))
-  const work = path.join(dir, 'work')
-  mkdirSync(path.join(dir, 'sessions'))
-  mkdirSync(path.join(dir, 'projects', 'work'), { recursive: true })
-  mkdirSync(path.join(dir, 'file-history', ID), { recursive: true })
-  mkdirSync(work)
-  writeFileSync(
-    path.join(dir, 'sessions', `${process.pid}.json`),
-    JSON.stringify({
-      pid: process.pid,
-      sessionId: ID,
-      cwd: work,
-      name: 'Write the orbit pane',
-      status: 'busy',
-      startedAt: Date.now() - 5 * 60_000,
-      updatedAt: Date.now(),
-    }),
-  )
-  writeFileSync(path.join(work, 'orbit.ts'), 'export const ISS = 25544\nexport const CSS = 48274\n')
-  writeFileSync(path.join(dir, 'file-history', ID, 'abcd@v1'), 'export const ISS = 25544\n')
-  const record = path.join(dir, 'projects', 'work', `${ID}.jsonl`)
-  writeFileSync(
-    record,
-    `${[
-      JSON.stringify({
-        type: 'file-history-snapshot',
-        snapshot: { trackedFileBackups: { 'orbit.ts': { backupFileName: 'abcd@v1' } } },
-      }),
-      line([{ type: 'tool_use', name: 'Edit', input: { file_path: path.join(work, 'orbit.ts') } }]),
-    ].join('\n')}\n`,
-  )
-  return { dir, record }
-}
-
-const single = { version: 1, root: { kind: 'pane', id: 'a', widget: 'agents' } }
+const ID = SESSION_ID
+const line = agentLine
+const layout = single('agents', { id: 'a' })
 
 test('follows a session as it works, and shows what it changed in a file', async () => {
   const { dir, record } = claudeFolder()
   const { page, close } = await launch(undefined, {
-    layout: single,
+    layout,
     env: { ELECDEX_CLAUDE_DIR: dir },
   })
   try {
@@ -116,19 +68,7 @@ test('follows a session as it works, and shows what it changed in a file', async
 test('reads only the agents settings name, and nothing once the pane is gone', async () => {
   const { dir } = claudeFolder()
   const { page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'split',
-        id: 's',
-        direction: 'row',
-        sizes: [50, 50],
-        children: [
-          { kind: 'pane', id: 'a', widget: 'agents' },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
+    layout: beside('agents', { id: 'a' }),
     settings: { sound: { enabled: false }, agents: { sources: [] } },
     env: { ELECDEX_CLAUDE_DIR: dir },
   })
@@ -139,10 +79,10 @@ test('reads only the agents settings name, and nothing once the pane is gone', a
     )
     await expect(page.getByTestId('agent-card')).toBeVisible({ timeout: 15_000 })
 
-    expect(await page.evaluate(() => window.elecdex.agents.watching())).toEqual(['records'])
+    expect(await watching(page, 'agents')).toEqual(['records'])
     await page.getByTestId('pane-close').first().click()
     await expect(page.getByTestId('agents')).toHaveCount(0)
-    await expect.poll(() => page.evaluate(() => window.elecdex.agents.watching())).toEqual([])
+    await expect.poll(() => watching(page, 'agents')).toEqual([])
   } finally {
     await close()
     removeDir(dir)
@@ -151,7 +91,7 @@ test('reads only the agents settings name, and nothing once the pane is gone', a
 
 test('keeps the width of the session list beside the diff, across a restart', async () => {
   const { dir } = claudeFolder()
-  let launched = await launch(undefined, { layout: single, env: { ELECDEX_CLAUDE_DIR: dir } })
+  let launched = await launch(undefined, { layout, env: { ELECDEX_CLAUDE_DIR: dir } })
   try {
     const page = launched.page
     await page.getByTestId('agent-card').locator('.head').click()
@@ -229,7 +169,7 @@ test('shows the subagents and background commands a session runs, until they end
     })
 
   const { page, close } = await launch(undefined, {
-    layout: single,
+    layout,
     env: { ELECDEX_CLAUDE_DIR: dir },
   })
   try {
@@ -335,7 +275,7 @@ test("hangs a subagent's own subagent under it, and folds them together once bot
   )
 
   const { page, close } = await launch(undefined, {
-    layout: single,
+    layout,
     env: { ELECDEX_CLAUDE_DIR: dir },
   })
   try {

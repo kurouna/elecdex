@@ -15,7 +15,17 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, pickerAnswers, removeDir } from './support.js'
+import { git, makeRepo } from './support/fixtures.js'
+import {
+  beside,
+  launch,
+  pickerAnswers,
+  quietFor,
+  removeDir,
+  single,
+  tabbed,
+  watching,
+} from './support.js'
 
 /**
  * The git pane against a real repository made for the test in a temp folder.
@@ -28,23 +38,7 @@ import { launch, pickerAnswers, removeDir } from './support.js'
  * that main stops watching when the pane goes.
  */
 
-function makeRepo(): string {
-  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-git-'))
-  const git = (...args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' })
-  git('init', '-q', '-b', 'main')
-  git('config', 'user.email', 'test@example.test')
-  git('config', 'user.name', 'Test')
-  git('config', 'core.autocrlf', 'false')
-  writeFileSync(path.join(dir, 'app.ts'), 'const greeting = "hello"\nexport default greeting\n')
-  git('add', '.')
-  git('commit', '-q', '-m', 'first commit')
-  return dir
-}
-
-const git = (dir: string, ...args: string[]) =>
-  execFileSync('git', args, { cwd: dir, stdio: 'pipe' })
-
-const single = { version: 1, root: { kind: 'pane', id: 'g', widget: 'git' } }
+const layout = single('git', { id: 'g' })
 
 async function watchRepo(page: Page, app: ElectronApplication, repo: string): Promise<void> {
   await pickerAnswers(app, path.join(repo))
@@ -54,7 +48,7 @@ async function watchRepo(page: Page, app: ElectronApplication, repo: string): Pr
 
 test('follows a repository through an edit, staging and a commit', async () => {
   const repo = makeRepo()
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await watchRepo(page, app, repo)
     await expect(page.getByTestId('git-clean')).toBeVisible()
@@ -103,7 +97,7 @@ test('follows a repository through an edit, staging and a commit', async () => {
 
 test('scrolls a long line into view sideways, unified and side by side', async () => {
   const repo = makeRepo()
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await page.setViewportSize({ width: 1920, height: 1080 })
     await watchRepo(page, app, repo)
@@ -154,7 +148,7 @@ test('scrolls a long line into view sideways, unified and side by side', async (
 
 test('draws a file as text, whatever it holds, and lists new files', async () => {
   const repo = makeRepo()
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await watchRepo(page, app, repo)
     // A page that drew highlight.js's answer as HTML would run this.
@@ -189,7 +183,7 @@ test('opens a double-clicked file with the command in settings, at its line', as
   )
   const command = `"${process.execPath}" "${opener}" --goto "{file}:{line}"`
   const { app, page, close } = await launch(undefined, {
-    layout: single,
+    layout,
     settings: { sound: { enabled: false }, git: { openCommand: command } },
   })
   try {
@@ -223,7 +217,7 @@ test('opens text with no command set, and shows in its folder what is not text (
   )
   writeFileSync(path.join(repo, 'notes.md'), '# notes\n')
   const { app, page, close } = await launch(undefined, {
-    layout: single,
+    layout,
     settings: { sound: { enabled: false } },
   })
   try {
@@ -262,19 +256,7 @@ test('stops watching when the pane goes, and says so when the folder is not a re
   const repo = makeRepo()
   const plain = mkdtempSync(path.join(tmpdir(), 'elecdex-notgit-'))
   const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'split',
-        id: 's',
-        direction: 'row',
-        sizes: [50, 50],
-        children: [
-          { kind: 'pane', id: 'g', widget: 'git' },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
+    layout: beside('git', { id: 'g' }),
   })
   try {
     await pickerAnswers(app, plain)
@@ -282,11 +264,11 @@ test('stops watching when the pane goes, and says so when the folder is not a re
     await expect(page.getByTestId('git-problem')).toBeVisible()
 
     await watchRepo(page, app, repo)
-    expect(await page.evaluate(() => window.elecdex.git.watching())).toHaveLength(1)
+    expect(await watching(page, 'git')).toHaveLength(1)
     await page.getByTestId('pane-close').first().click()
     await expect(page.getByTestId('git')).toHaveCount(0)
     // Main must stop watching the folder: the rule every subscription keeps.
-    await expect.poll(() => page.evaluate(() => window.elecdex.git.watching())).toEqual([])
+    await expect.poll(() => watching(page, 'git')).toEqual([])
   } finally {
     await close()
     removeDir(repo)
@@ -296,7 +278,7 @@ test('stops watching when the pane goes, and says so when the folder is not a re
 
 test('keeps the list width and the log height the user drags, per pane, across a restart', async () => {
   const repo = makeRepo()
-  let launched = await launch(undefined, { layout: single })
+  let launched = await launch(undefined, { layout })
   try {
     await watchRepo(launched.page, launched.app, repo)
     const page = launched.page
@@ -359,7 +341,7 @@ test('shows a changed image as before and after, and a file only named as one as
   writeFileSync(path.join(repo, 'logo.png'), red)
   git(repo, 'add', 'logo.png')
   git(repo, 'commit', '-q', '-m', 'a red logo')
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await watchRepo(page, app, repo)
     writeFileSync(path.join(repo, 'logo.png'), blue)
@@ -476,7 +458,7 @@ test("runs none of the programs a repository's own config names, reading it or i
   expect(readFileSync(marker, 'utf8').trim().split('\n').length).toBeGreaterThanOrEqual(2)
   rmSync(marker)
 
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await watchRepo(page, app, repo)
     await expect(page.getByTestId('git-commit').first()).toContainText('attributes')
@@ -489,8 +471,7 @@ test("runs none of the programs a repository's own config names, reading it or i
     await page.getByTestId('git-commit').first().click()
     await expect(page.getByTestId('git-viewing')).toBeVisible()
     await expect(page.getByTestId('diff-view')).toContainText('.gitattributes')
-    await page.waitForTimeout(1500)
-    expect(existsSync(marker)).toBe(false)
+    expect(await quietFor(1500, async () => existsSync(marker), 'the trap')).toBe(false)
   } finally {
     await close()
     removeDir(repo)
@@ -511,7 +492,7 @@ test('draws the commit graph with its branches and names, and shows a commit on 
   git(repo, 'checkout', '-q', '-b', 'side')
   git(repo, 'commit', '-q', '--allow-empty', '-m', 'on the side')
   git(repo, 'checkout', '-q', 'main')
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await watchRepo(page, app, repo)
     const commits = page.getByTestId('git-commit')
@@ -562,7 +543,7 @@ test('reads a hundred commits at first, and more when asked', async () => {
   }
   execFileSync('git', ['fast-import', '--quiet'], { cwd: repo, input: `${lines.join('\n')}\n` })
   git(repo, 'reset', '-q', '--hard', 'main')
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await watchRepo(page, app, repo)
     const commits = page.getByTestId('git-commit')
@@ -765,7 +746,7 @@ test('fetches and pulls fast-forward only on two presses, running none of the re
   const http = await serveOverHttp(root)
   git(work, 'remote', 'set-url', 'origin', http.url('origin.git'))
 
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await watchRepo(page, app, work)
     await expect(page.getByTestId('git-commit').first()).toContainText('first commit')
@@ -866,7 +847,7 @@ test('pushes the branch onto its upstream alone on two presses, never forced, ru
   const http = await serveOverHttp(root)
   git(work, 'remote', 'set-url', 'origin', http.url('origin.git'))
 
-  const { app, page, close } = await launch(undefined, { layout: single })
+  const { app, page, close } = await launch(undefined, { layout })
   try {
     await watchRepo(page, app, work)
     await expect(page.getByTestId('git-head')).toContainText('↑1')
@@ -919,18 +900,7 @@ test('lands the kept reading quietly on a return from behind a tab, and lights f
   const repo = makeRepo()
   writeFileSync(path.join(repo, 'app.ts'), 'const greeting = "hi"\nexport default greeting\n')
   const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'tabs',
-        id: 't',
-        activeIndex: 0,
-        children: [
-          { kind: 'pane', id: 'g', widget: 'git' },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
+    layout: tabbed(['git', 'clock']),
   })
   const show = (id: string) => page.locator(`[data-testid=tab][data-pane-id=${id}]`).click()
   const received = () => page.getByTestId('git-lamp').getAttribute('data-received')
@@ -938,13 +908,12 @@ test('lands the kept reading quietly on a return from behind a tab, and lights f
     await watchRepo(page, app, repo)
     await expect(page.locator('[data-testid="git-file"][data-path="app.ts"]')).toBeVisible()
     const before = await received()
-    await show('c')
-    await expect.poll(() => page.evaluate(() => window.elecdex.git.watching())).toEqual([])
-    await show('g')
-    await expect.poll(() => page.evaluate(() => window.elecdex.git.watching())).toHaveLength(1)
+    await show('clock')
+    await expect.poll(() => watching(page, 'git')).toEqual([])
+    await show('git')
+    await expect.poll(() => watching(page, 'git')).toHaveLength(1)
     // Main's kept reading, then the one it makes on the return: neither is news.
-    await page.waitForTimeout(2500)
-    expect(await received()).toBe(before)
+    expect(await quietFor(2500, received, 'the receive lamp')).toBe(before)
     writeFileSync(path.join(repo, 'more.ts'), 'export {}\n')
     await expect(page.locator('[data-testid="git-file"][data-path="more.ts"]')).toBeVisible()
     expect(Number(await received())).toBeGreaterThan(Number(before))

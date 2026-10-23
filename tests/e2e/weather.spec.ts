@@ -1,9 +1,23 @@
 import { readFileSync } from 'node:fs'
-import { createServer, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, removeDir, savedLayout, selectedRow } from './support.js'
+import { openedExternally, stubOpenExternal } from './support/stubs/external.js'
+import {
+  type ServiceStub,
+  type StubReply,
+  type StubRequest,
+  serviceStub,
+} from './support/stubs/services.js'
+import {
+  launch,
+  quietFor,
+  removeDir,
+  savedLayout,
+  selectedRow,
+  single,
+  waitForSaved,
+  watching as watchingOf,
+} from './support.js'
 
 /**
  * The weather pane, against local stand-ins for JMA, MET Norway and the NWS.
@@ -37,11 +51,11 @@ const areaList = JSON.stringify({
   },
 })
 
-let server: Server
+let stub: ServiceStub
 let origin: string
-const requests: Array<{ url: string; headers: Record<string, string | string[] | undefined> }> = []
+let requests: StubRequest[]
 
-type Reply = { status: number; body?: string; headers?: Record<string, string> }
+type Reply = StubReply
 
 const ok = (body: string, headers: Record<string, string> = {}): Reply => ({
   status: 200,
@@ -75,31 +89,24 @@ function route(url: string, ifNoneMatch: string | undefined): Reply {
 }
 
 test.beforeAll(async () => {
-  server = createServer((req, res) => {
-    const url = req.url ?? ''
-    requests.push({ url, headers: req.headers })
-    const header = req.headers['if-none-match']
-    const reply = route(url, typeof header === 'string' ? header : undefined)
-    res
-      .writeHead(reply.status, { 'content-type': 'application/json', ...reply.headers })
-      .end(reply.body)
+  stub = await serviceStub((request) => {
+    const header = request.headers['if-none-match']
+    const reply = route(request.url, typeof header === 'string' ? header : undefined)
+    return { ...reply, headers: { 'content-type': 'application/json', ...reply.headers } }
   })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  ;({ origin, requests } = stub)
 })
 
 test.afterAll(async () => {
-  await new Promise((resolve) => server.close(resolve))
+  await stub.close()
 })
 
 test.beforeEach(() => {
   requests.length = 0
 })
 
-const weatherOnly = (state?: Record<string, unknown>) => ({
-  version: 1,
-  root: { kind: 'pane', id: 'w', widget: 'weather', ...(state ? { state } : {}) },
-})
+const weatherOnly = (state?: Record<string, unknown>) =>
+  single('weather', state === undefined ? { id: 'w' } : { id: 'w', state })
 const TOKYO = { location: { source: 'jma', office: '130000', name: '東京都' } }
 
 const services = () => ({
@@ -107,7 +114,7 @@ const services = () => ({
   env: { ELECDEX_MET_BASE_URL: `${origin}/weatherapi`, ELECDEX_NWS_BASE_URL: `${origin}/nws` },
 })
 
-const watching = (page: Page) => page.evaluate(() => window.elecdex.weather.watching())
+const watching = (page: Page) => watchingOf(page, 'weather')
 const pane = (page: Page) => page.locator('[data-testid=pane][data-widget=weather]')
 
 test('the default is New York from the National Weather Service, in °F', async () => {
@@ -164,20 +171,12 @@ test("the forecast opens the source's page for the place", async () => {
   try {
     const p = pane(page)
     await expect(p.getByTestId('weather-now')).toHaveText(/^\d+°$/, { timeout: 20_000 })
-    await app.evaluate(({ shell }) => {
-      const opened: string[] = []
-      ;(globalThis as { __opened?: string[] }).__opened = opened
-      shell.openExternal = async (url: string) => {
-        opened.push(url)
-      }
-    })
+    await stubOpenExternal(app)
     const url = 'https://forecast.weather.gov/MapClick.php?lat=40.7143&lon=-74.006'
     // Today and any day of the week lead to the same page, through main.
     await p.getByTestId('weather-open').click()
     await p.getByTestId('weather-day').nth(2).click()
-    await expect
-      .poll(() => app.evaluate(() => (globalThis as { __opened?: string[] }).__opened))
-      .toEqual([url, url])
+    await expect.poll(() => openedExternally(app)).toEqual([url, url])
   } finally {
     await close()
   }
@@ -259,17 +258,20 @@ test('JMA: one request, and a restart reuses the saved forecast', async () => {
   await expect(pane(first.page).getByTestId('pane-subtitle')).toHaveText(
     '東京都 東京地方 · 11:00 発表',
   )
-  await first.page.waitForTimeout(1500)
-  expect(requests.filter((r) => r.url.includes('/forecast/data/'))).toHaveLength(1)
+  const forecasts = () => requests.filter((r) => r.url.includes('/forecast/data/'))
+  await quietFor(1500, async () => forecasts().length, 'the forecast requests')
+  expect(forecasts()).toHaveLength(1)
   await first.quit()
 
   requests.length = 0
   const second = await launch(first.userData, services())
   try {
     await expect(pane(second.page).getByTestId('weather-telop')).toBeVisible({ timeout: 10_000 })
-    await second.page.waitForTimeout(1500)
     // Either no request, or a conditional one answered 304 - never a fresh download.
-    for (const r of requests.filter((r) => r.url.includes('/forecast/data/'))) {
+    const unconditional = () =>
+      forecasts().filter((r) => r.headers['if-none-match'] !== '"fixture"').length
+    await quietFor(1500, async () => unconditional(), 'the unconditional forecast requests')
+    for (const r of forecasts()) {
       expect(r.headers['if-none-match']).toBe('"fixture"')
     }
   } finally {
@@ -324,6 +326,8 @@ test('stops fetching when the weather pane is removed', async () => {
   const { page, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
   try {
     await expect.poll(() => watching(page), { timeout: 20_000 }).toHaveLength(1)
+    // wait: the pane's first fetch and the page's debounced layout save run their course before
+    // the tree is replaced under it; neither says when it is done.
     await page.waitForTimeout(1500)
     await page.evaluate((tree) => window.elecdex.layout.save(tree), {
       version: 1,
@@ -374,7 +378,9 @@ test('the week forecast can be turned off in the pane settings, keeping the cred
     expect(gap).toBeLessThan(4)
 
     // Kept in the pane's state: still off after a restart.
-    await launched.page.waitForTimeout(1500) // let the layout save
+    await waitForSaved(launched.userData, (text) =>
+      text.replace(/\s/g, '').includes('"week":false'),
+    )
     launched = await launched.relaunch()
     p = pane(launched.page)
     await expect(p.getByTestId('weather-today')).toBeVisible({ timeout: 20_000 })

@@ -1,10 +1,26 @@
 import { appendFileSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { createServer, type Server } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, pickerAnswers, removeDir, savedLayout } from './support.js'
+import { expect, test } from '@playwright/test'
+import { choose, requestLines as lines, rows, singleLog, stamp } from './support/logwatch.js'
+import {
+  type AiStub,
+  aiSettings,
+  aiStub,
+  firstOf,
+  isChat,
+  openaiProvider,
+} from './support/stubs/ai.js'
+import {
+  beside,
+  launch,
+  paneById,
+  quietFor,
+  removeDir,
+  savedLayout,
+  tabbed,
+  watching,
+} from './support.js'
 
 /**
  * The LOG WATCH pane against log files written by the test in a temp folder (docs/logwatch.md).
@@ -17,63 +33,23 @@ import { launch, pickerAnswers, removeDir, savedLayout } from './support.js'
  * the answer.
  */
 
-let server: Server
-let origin: string
-const asked: { system: string; text: string }[] = []
+let stub: AiStub
+
+/** What EXPLAIN asked the stand-in: the system prompt and the text, in order. */
+const asked = () =>
+  stub.seen
+    .filter(isChat)
+    .map((entry) => ({ system: firstOf(entry, 'system'), text: firstOf(entry, 'user') }))
 
 test.beforeAll(async () => {
-  server = createServer((req, res) => {
-    let body = ''
-    req.on('data', (chunk) => {
-      body += chunk
-    })
-    req.on('end', () => {
-      if (req.url !== '/v1/chat/completions') {
-        res.writeHead(404).end('{}')
-        return
-      }
-      const parsed = JSON.parse(body) as { messages: { role: string; content: string }[] }
-      asked.push({
-        system: parsed.messages.find((m) => m.role === 'system')?.content ?? '',
-        text: parsed.messages.find((m) => m.role === 'user')?.content ?? '',
-      })
-      res.writeHead(200, { 'content-type': 'text/event-stream' })
-      for (const piece of ['The mail server ', 'refused the **connection**.']) {
-        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: piece } }] })}\n\n`)
-      }
-      res.end('data: [DONE]\n\n')
-    })
+  stub = await aiStub({
+    openai: () => ({ pieces: ['The mail server ', 'refused the **connection**.'] }),
   })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 })
 
 test.afterAll(async () => {
-  server.closeAllConnections()
-  await new Promise((resolve) => server.close(resolve))
+  await stub.close()
 })
-
-const lines = (from: number, to: number): string =>
-  Array.from(
-    { length: to - from + 1 },
-    (_, i) => `2026-10-12 12:00:00 INFO request ${from + i} done\n`,
-  ).join('')
-
-/** Now, as a log writes it: the five minutes' figures count by the log's own time. */
-function stamp(): string {
-  const t = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`
-}
-
-const watching = (page: Page) => page.evaluate(() => window.elecdex.logwatch.watching())
-const rows = (page: Page) => page.getByTestId('logwatch-row')
-
-async function choose(page: Page, app: ElectronApplication, file: string): Promise<void> {
-  await pickerAnswers(app, file)
-  await page.getByTestId('logwatch-select').click()
-  await expect(page.getByTestId('logwatch-lamp')).toContainText('LIVE', { timeout: 10_000 })
-}
 
 test('follows a file, shows what is appended, and stops when the pane goes', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-'))
@@ -81,19 +57,7 @@ test('follows a file, shows what is appended, and stops when the pane goes', asy
   writeFileSync(file, lines(1, 3))
   const { app, page, close } = await launch(undefined, {
     // A clock beside it, so the log's pane can close and leave a workspace.
-    layout: {
-      version: 1,
-      root: {
-        kind: 'split',
-        id: 's',
-        direction: 'row',
-        sizes: [70, 30],
-        children: [
-          { kind: 'pane', id: 'l', widget: 'logwatch' },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
+    layout: beside('logwatch', { id: 'l', sizes: [70, 30] }),
   })
   try {
     await choose(page, app, file)
@@ -126,7 +90,7 @@ test('follows a file, shows what is appended, and stops when the pane goes', asy
     await page.getByTestId('logwatch-filter').fill('')
     await expect(rows(page)).toHaveCount(2)
 
-    expect(await watching(page)).toHaveLength(1)
+    expect(await watching(page, 'logwatch')).toHaveLength(1)
     await page.getByTestId('logwatch-tab-patterns').click()
     await expect(page.getByTestId('logwatch-pattern')).toHaveCount(2)
     await page.getByTestId('logwatch-pattern').first().getByTestId('logwatch-mute').click()
@@ -135,9 +99,9 @@ test('follows a file, shows what is appended, and stops when the pane goes', asy
     await expect(page.getByTestId('logwatch-muted')).toHaveText('1 MUTED')
 
     // The pane goes, and main stops watching the file.
-    await page.locator('[data-testid="pane"][data-pane-id="l"]').getByTestId('pane-close').click()
+    await paneById(page, 'l').getByTestId('pane-close').click()
     await expect(page.getByTestId('logwatch-row')).toHaveCount(0)
-    await expect.poll(() => watching(page)).toEqual([])
+    await expect.poll(() => watching(page, 'logwatch')).toEqual([])
   } finally {
     await close()
     removeDir(dir)
@@ -149,29 +113,17 @@ test('behind another tab nothing is read; shown again, what came meanwhile arriv
   const file = path.join(dir, 'app.log')
   writeFileSync(file, lines(1, 1))
   const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'tabs',
-        id: 't',
-        activeIndex: 0,
-        children: [
-          { kind: 'pane', id: 'l', widget: 'logwatch' },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
+    layout: tabbed(['logwatch', 'clock']),
   })
   const show = (id: string) => page.locator(`[data-testid=tab][data-pane-id=${id}]`).click()
   try {
     await choose(page, app, file)
-    expect(await watching(page)).toHaveLength(1)
-    await show('c')
-    await expect.poll(() => watching(page)).toEqual([])
+    expect(await watching(page, 'logwatch')).toHaveLength(1)
+    await show('clock')
+    await expect.poll(() => watching(page, 'logwatch')).toEqual([])
     appendFileSync(file, '2026-10-12 12:00:02 ERROR one\n2026-10-12 12:00:03 WARN two\n')
-    await page.waitForTimeout(1500)
-    expect(await watching(page)).toEqual([])
-    await show('l')
+    expect(await quietFor(1500, () => watching(page, 'logwatch'), 'what main watches')).toEqual([])
+    await show('logwatch')
     await expect(rows(page)).toHaveCount(3, { timeout: 5000 })
     await expect(rows(page).last()).toContainText('two')
     // No banner of what came (user decision 2026-10-12): the lines, as any others.
@@ -192,10 +144,7 @@ test('reads Shift_JIS once told, and says when the text looks garbled', async ()
   ])
   writeFileSync(file, Buffer.concat(Array.from({ length: 30 }, () => sjis)))
   const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: { kind: 'pane', id: 'l', widget: 'logwatch', state: { encoding: 'utf-8' } },
-    },
+    layout: singleLog({ encoding: 'utf-8' }),
   })
   try {
     await choose(page, app, file)
@@ -216,7 +165,7 @@ test('the chart and the error bar can be turned off, and stay off', async () => 
   const file = path.join(dir, 'app.log')
   writeFileSync(file, lines(1, 2))
   let launched = await launch(undefined, {
-    layout: { version: 1, root: { kind: 'pane', id: 'l', widget: 'logwatch' } },
+    layout: singleLog(),
   })
   const { userData } = launched
   try {
@@ -255,21 +204,10 @@ test('EXPLAIN shows what it will send - the lines chosen, only those - sends it 
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-'))
   const file = path.join(dir, 'app.log')
   writeFileSync(file, `${lines(1, 2)}2026-10-12 12:00:09 ERROR mail to rin@example.com failed\n`)
-  asked.length = 0
+  stub.seen.length = 0
   const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: { kind: 'pane', id: 'l', widget: 'logwatch', state: { mask: true } },
-    },
-    settings: {
-      sound: { enabled: false },
-      ai: {
-        systemPrompt: 'Answer briefly.',
-        providers: [
-          { id: 'local', name: 'Local', kind: 'openai', baseUrl: `${origin}/v1`, model: 'tiny' },
-        ],
-      },
-    },
+    layout: singleLog({ mask: true }),
+    settings: aiSettings([openaiProvider(stub.origin)], { systemPrompt: 'Answer briefly.' }),
   })
   try {
     await choose(page, app, file)
@@ -285,17 +223,17 @@ test('EXPLAIN shows what it will send - the lines chosen, only those - sends it 
     await expect(preview).toContainText('request 1 done')
     // The line between them was not chosen, and is not sent.
     await expect(preview).not.toContainText('request 2 done')
-    expect(asked).toHaveLength(0)
+    expect(asked()).toHaveLength(0)
     const shown = await preview.textContent()
     await page.getByTestId('logwatch-explain-send').click()
     await expect(page.getByTestId('logwatch-explain-answer')).toContainText(
       'The mail server refused the connection.',
     )
-    expect(asked).toHaveLength(1)
+    expect(asked()).toHaveLength(1)
     // What was sent is what was shown.
-    expect(asked[0]?.text).toBe(shown)
-    expect(asked[0]?.text).not.toContain('example.com')
-    expect(asked[0]?.system).toContain('Answer briefly.')
+    expect(asked()[0]?.text).toBe(shown)
+    expect(asked()[0]?.text).not.toContain('example.com')
+    expect(asked()[0]?.system).toContain('Answer briefly.')
   } finally {
     await close()
     removeDir(dir)

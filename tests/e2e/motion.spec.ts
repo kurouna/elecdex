@@ -1,15 +1,21 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import {
   bringWindowBack,
   keepLayout,
   launch,
+  NO_SWITCH_PROMPT,
+  paneById,
   putWindowAway,
+  quietFor,
   removeDir,
   SINGLE_TERMINAL,
+  single,
+  waitForSaved,
 } from './support.js'
 
 /**
@@ -21,7 +27,7 @@ import {
  * and flaky. The new-row effects of the RSS and quakes panes are in their specs.
  */
 
-const calendarOnly = { version: 1, root: { kind: 'pane', id: 'c', widget: 'calendar' } }
+const calendarOnly = single('calendar', { id: 'c' })
 /**
  * The month on screen. A pane this size shows the months either side of it as
  * well (tools.spec covers that); the wave is the same in each, so it is read
@@ -110,7 +116,7 @@ test('a pane added from the picker powers on once', async () => {
 })
 
 const paneNode = (id: string, widget: string) => ({ kind: 'pane', id, widget })
-const byId = (page: Page, id: string) => page.locator(`[data-testid=pane][data-pane-id="${id}"]`)
+const byId = paneById
 
 /** Starts counting the power-ons panes play, by widget, from here on. */
 const recordPowerOns = (page: Page) =>
@@ -161,7 +167,7 @@ test('a new tab put behind another before it has powered on does not power on ag
     expect(played.length).toBeGreaterThanOrEqual(1)
 
     await page.getByTestId('tab').nth(2).click()
-    await page.waitForTimeout(700)
+    await quietFor(700, () => powerOns(page), 'the power-ons played')
     expect(await powerOns(page)).toEqual(played)
   } finally {
     await close()
@@ -189,7 +195,7 @@ test('a new pane brought forward before it has powered on does not power on agai
       )
     })
     await expect(page.locator('[data-testid=pane].zoomed')).toHaveCount(1)
-    await page.waitForTimeout(1200)
+    await quietFor(1200, () => powerOns(page), 'the power-ons played')
     expect(await powerOns(page)).toEqual(['notes'])
     await expect(page.locator('[data-testid=pane].zoomed')).not.toHaveClass(/crt-on/)
   } finally {
@@ -254,16 +260,14 @@ test('what keeps its power-on class holds nothing once it has played: a note, a 
 })
 
 test('a clock stands still while the window is minimised, and is right the moment it is back', async () => {
-  const { app, page, close } = await launch(undefined, {
-    layout: { version: 1, root: paneNode('k', 'clock') },
-  })
+  const { app, page, close } = await launch(undefined, { layout: single('clock', { id: 'k' }) })
   try {
     const shown = () => page.locator('[data-testid=clock] time').getAttribute('datetime')
     await expect(page.getByTestId('clock')).toBeVisible()
     await putWindowAway(app, page)
     // Nothing of the page is rewritten for a window nobody can see.
     const put = await shown()
-    await page.waitForTimeout(2500)
+    await quietFor(2500, shown, 'the time shown')
     expect(await shown()).toBe(put)
 
     await bringWindowBack(app, page)
@@ -278,19 +282,8 @@ test('a clock stands still while the window is minimised, and is right the momen
 
 test('an animation that never ends stops while the window is put away', async () => {
   // A plugin's busy icons: they turn and pulse for as long as the plugin says so.
-  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
-  mkdirSync(path.join(dir, 'plugins'))
-  writeFileSync(path.join(dir, 'plugins', 'busy.js'), BUSY_PLUGIN)
-  writeFileSync(
-    path.join(dir, 'settings.json'),
-    JSON.stringify({
-      sound: { enabled: false },
-      plugins: { busy: { enabled: true, key: 'busy.js' } },
-    }),
-  )
-  const { app, page, close } = await launch(dir, {
-    layout: { version: 1, root: paneNode('p1', 'plugin:busy') },
-  })
+  const dir = busyProfile({})
+  const { app, page, close } = await launch(dir, { layout: BUSY_LAYOUT })
   try {
     await expect(page.locator('[data-testid=plugin-button] svg[data-icon=refresh]')).toBeVisible()
     const endless = () =>
@@ -317,10 +310,7 @@ test('an animation that never ends stops while the window is put away', async ()
 test('a toast burning down its fuse stops while the window is put away', async () => {
   // A reminder is raised precisely when nobody is looking, and its fuse then
   // burned for ten or twenty seconds in a window that is not on screen.
-  const layout = {
-    version: 1,
-    root: { ...paneNode('t', 'timer'), state: { mode: 'timer', durationMs: 2000 } },
-  }
+  const layout = single('timer', { id: 't', state: { mode: 'timer', durationMs: 2000 } })
   const { app, page, close } = await launch(undefined, { layout })
   try {
     await page.getByTestId('timer-start').click()
@@ -344,10 +334,7 @@ test('a toast burning down its fuse stops while the window is put away', async (
 })
 
 test("a countdown's last seconds pulse its ladder without an animation that never ends", async () => {
-  const layout = {
-    version: 1,
-    root: { ...paneNode('t', 'timer'), state: { mode: 'timer', durationMs: 9000 } },
-  }
+  const layout = single('timer', { id: 't', state: { mode: 'timer', durationMs: 9000 } })
   const { page, close } = await launch(undefined, { layout })
   try {
     await page.getByTestId('timer-start').click()
@@ -357,6 +344,7 @@ test("a countdown's last seconds pulse its ladder without an animation that neve
       const levels = new Set<string>()
       for (let i = 0; i < 14; i++) {
         levels.add(getComputedStyle(ladder).opacity)
+        // wait: the ladder's opacity sampled every tenth of a second, the measurement itself.
         await new Promise((resolve) => setTimeout(resolve, 100))
       }
       const endless = document
@@ -524,12 +512,9 @@ test('closing panes in quick succession leaves the tree and the page in step', a
     await expect(page.locator('.crt-off, .crt-extend')).toHaveCount(0)
     // b went at once when c began to close; only c powered off, and a took the room.
     expect(await effectsSeen(page)).toEqual(['a:crt-extend', 'c:crt-beam', 'c:crt-off'])
-    await expect
-      .poll(() => {
-        const saved = path.join(userData, 'layout.json')
-        return existsSync(saved) ? JSON.parse(readFileSync(saved, 'utf8')).root : null
-      })
-      .toEqual(paneNode('a', 'clock'))
+    await waitForSaved(userData, (json) =>
+      isDeepStrictEqual(JSON.parse(json).root, paneNode('a', 'clock')),
+    )
   } finally {
     await close()
   }
@@ -687,7 +672,7 @@ const keysThen = (page: Page, keys: Key[], selector: string) =>
 
 test('a dialog powers off as it closes: the pane picker, the action palette, the settings, the layouts, the weather location and a pane popped up', async () => {
   const { page, close } = await launch(undefined, {
-    layout: { version: 1, root: paneNode('w', 'weather') },
+    layout: single('weather', { id: 'w' }),
     settings: { launcher: { showSystem: false, items: [] } },
   })
   try {
@@ -739,7 +724,8 @@ test('a dialog opened again while closing comes back whole, and another opens ou
     await expect(picker).toBeVisible()
     const reopened = await keysThen(page, [ESCAPE, ADD_PANE], '[data-testid=pane-picker]')
     expect(reopened).toMatchObject({ present: true, inert: false, backdropInert: false })
-    await page.waitForTimeout(600)
+    // Past the close it was spared: it is still there when that would have ended.
+    await quietFor(600, () => picker.count(), 'the pickers on screen')
     await expect(picker).toHaveCount(1)
     await expect(picker).toHaveCSS('opacity', '1')
     await expect(picker).toHaveCSS('transform', WHOLE)
@@ -828,8 +814,8 @@ const watchSwitch = (page: Page, code: string) =>
 
 test('a layout switch powers the old arrangement off and brings the new one on', async () => {
   const { page, close } = await launch(undefined, {
-    layout: { version: 1, root: paneNode('term', 'terminal') },
-    settings: { sound: { enabled: false }, layout: { confirmSwitch: false } },
+    layout: single('terminal', { id: 'term' }),
+    settings: { sound: { enabled: false }, ...NO_SWITCH_PROMPT },
   })
   try {
     await keepLayout(page, 'one')
@@ -864,7 +850,7 @@ test('a tab group powers off as one picture when the layout is switched', async 
   }
   const { page, close } = await launch(undefined, {
     layout: group,
-    settings: { sound: { enabled: false }, layout: { confirmSwitch: false } },
+    settings: { sound: { enabled: false }, ...NO_SWITCH_PROMPT },
   })
   try {
     await keepLayout(page, 'one')
@@ -884,8 +870,8 @@ test('a tab group powers off as one picture when the layout is switched', async 
 
 test('with motion reduced, a layout switch just happens', async () => {
   const { page, close } = await launch(undefined, {
-    layout: { version: 1, root: paneNode('term', 'terminal') },
-    settings: { sound: { enabled: false }, motion: 'reduced', layout: { confirmSwitch: false } },
+    layout: single('terminal', { id: 'term' }),
+    settings: { sound: { enabled: false }, motion: 'reduced', ...NO_SWITCH_PROMPT },
   })
   try {
     await keepLayout(page, 'one')
@@ -965,8 +951,8 @@ const BUSY_PLUGIN = `export default {
   },
 }`
 
-/** The animation of each busy icon, with motion set in the app as `motion`. */
-async function busyIcons(motion: 'system' | 'full' | 'reduced', osReduced: boolean) {
+/** A profile with the busy plugin installed and enabled, and `settings` beside it. */
+function busyProfile(settings: Record<string, unknown>): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
   mkdirSync(path.join(dir, 'plugins'))
   writeFileSync(path.join(dir, 'plugins', 'busy.js'), BUSY_PLUGIN)
@@ -974,13 +960,20 @@ async function busyIcons(motion: 'system' | 'full' | 'reduced', osReduced: boole
     path.join(dir, 'settings.json'),
     JSON.stringify({
       sound: { enabled: false },
-      motion,
+      ...settings,
       plugins: { busy: { enabled: true, key: 'busy.js' } },
     }),
   )
-  const { page, close } = await launch(dir, {
-    layout: { version: 1, root: { kind: 'pane', id: 'p1', widget: 'plugin:busy' } },
-  })
+  return dir
+}
+
+/** The busy plugin's pane alone. */
+const BUSY_LAYOUT = single('plugin:busy', { id: 'p1' })
+
+/** The animation of each busy icon, with motion set in the app as `motion`. */
+async function busyIcons(motion: 'system' | 'full' | 'reduced', osReduced: boolean) {
+  const dir = busyProfile({ motion })
+  const { page, close } = await launch(dir, { layout: BUSY_LAYOUT })
   try {
     await page.emulateMedia({ reducedMotion: osReduced ? 'reduce' : 'no-preference' })
     const icon = (name: string) =>
@@ -1013,10 +1006,7 @@ test('a busy button icon follows the motion setting: it turns, or pulses with mo
  * A toast is raised from a running timer, which is the shortest way to one that
  * does not involve waiting for a deadline or a release.
  */
-const shortTimer = {
-  version: 1,
-  root: { kind: 'pane', id: 't', widget: 'timer', state: { mode: 'timer', durationMs: 1000 } },
-}
+const shortTimer = single('timer', { id: 't', state: { mode: 'timer', durationMs: 1000 } })
 
 test('a toast powers on like the rest of the HUD, and just appears with motion reduced', async () => {
   for (const motion of ['full', 'reduced'] as const) {

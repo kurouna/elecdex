@@ -3,7 +3,17 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { bringWindowBack, launch, putWindowAway, removeDir } from './support.js'
+import { mutationsIn } from './support/measure.js'
+import {
+  bringWindowBack,
+  launch,
+  pickerAnswers,
+  putWindowAway,
+  quietFor,
+  removeDir,
+  watchingAll,
+  watching as watchingOf,
+} from './support.js'
 
 /**
  * The GIT, ORBIT and AI AGENT panes do nothing while nobody sees them: not added,
@@ -51,36 +61,16 @@ function claudeFolder(): string {
 }
 
 /** What main is doing for the three panes. */
-const watching = (page: Page) =>
-  page.evaluate(async () => ({
-    git: await window.elecdex.git.watching(),
-    orbits: await window.elecdex.orbits.watching(),
-    agents: await window.elecdex.agents.watching(),
-  }))
+const watching = async (page: Page) => ({
+  git: await watchingOf(page, 'git'),
+  orbits: await watchingOf(page, 'orbits'),
+  agents: await watchingOf(page, 'agents'),
+})
 
 const IDLE = { git: [], orbits: [], agents: [] }
 
-/** Every change the page makes inside the three panes for `ms`, counted. */
-const mutationsIn = (page: Page, ms: number) =>
-  page.evaluate(async (wait) => {
-    let count = 0
-    const observer = new MutationObserver((records) => {
-      count += records.length
-    })
-    for (const id of ['g', 'o', 'a']) {
-      const pane = document.querySelector(`[data-testid=pane][data-pane-id=${id}]`)
-      if (pane !== null)
-        observer.observe(pane, {
-          subtree: true,
-          childList: true,
-          attributes: true,
-          characterData: true,
-        })
-    }
-    await new Promise((resolve) => setTimeout(resolve, wait))
-    observer.disconnect()
-    return count
-  }, ms)
+/** The panes of `ids`, as selectors for {@link mutationsIn}. */
+const panesById = (ids: string[]) => ids.map((id) => `[data-testid=pane][data-pane-id=${id}]`)
 
 test('not added, the three panes cost nothing', async () => {
   const claude = claudeFolder()
@@ -90,8 +80,7 @@ test('not added, the three panes cost nothing', async () => {
   })
   try {
     await expect(page.getByTestId('pane')).toHaveCount(1)
-    await page.waitForTimeout(1500)
-    expect(await watching(page)).toEqual(IDLE)
+    expect(await quietFor(1500, () => watching(page), 'what main watches')).toEqual(IDLE)
   } finally {
     await close()
     removeDir(claude)
@@ -121,9 +110,7 @@ test('behind another tab, the three panes do nothing, and take up again when sho
   const show = (id: string) => page.locator(`[data-testid=tab][data-pane-id=${id}]`).click()
   try {
     // Each, while shown, is at work.
-    await app.evaluate(({ dialog }, answer) => {
-      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-    }, dir)
+    await pickerAnswers(app, dir)
     await page.getByTestId('git-select').click()
     await expect(page.locator('[data-testid="git-file"][data-path="a.txt"]')).toBeVisible({
       timeout: 10_000,
@@ -140,7 +127,7 @@ test('behind another tab, the three panes do nothing, and take up again when sho
     // Behind the clock, all three stop: in main, and in the page.
     await show('c')
     await expect.poll(() => watching(page), { timeout: 10_000 }).toEqual(IDLE)
-    expect(await mutationsIn(page, 3000)).toBe(0)
+    expect(await mutationsIn(page, panesById(['g', 'o', 'a']), 3000)).toEqual({})
 
     // Shown again, each is as it was and at work again.
     await show('g')
@@ -239,20 +226,7 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       },
     },
   })
-  const main = () =>
-    page.evaluate(async () => ({
-      metrics: (await window.elecdex.metrics.stats()).active,
-      weather: await window.elecdex.weather.watching(),
-      markets: await window.elecdex.markets.watching(),
-      feeds: await window.elecdex.feeds.watching(),
-      orbits: await window.elecdex.orbits.watching(),
-      git: await window.elecdex.git.watching(),
-      agents: await window.elecdex.agents.watching(),
-      clipboard: await window.elecdex.clipboard.watching(),
-      nowPlaying: await window.elecdex.nowPlaying.watching(),
-      docker: await window.elecdex.docker.watching(),
-      logwatch: await window.elecdex.logwatch.watching(),
-    }))
+  const main = () => watchingAll(page)
   try {
     await expect(page.getByTestId('pane')).toHaveCount(WIDGETS.length + 1)
     // Only what a chart needs goes on: no forecast, quote, feed or orbit is asked for.
@@ -282,28 +256,9 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
         { timeout: 60_000 },
       )
       .toEqual([])
+    // wait: the rest of the start (a shell's first prompt, the launcher's catalog) has no signal.
     await page.waitForTimeout(6000)
-    const changed = await page.evaluate(async (widgets) => {
-      const counts: Record<string, number> = {}
-      const observers = widgets.map((widget) => {
-        counts[widget] = 0
-        const observer = new MutationObserver((records) => {
-          counts[widget] = (counts[widget] ?? 0) + records.length
-        })
-        const pane = document.querySelector(`[data-testid=pane][data-pane-id=p-${widget}]`)
-        if (pane !== null)
-          observer.observe(pane, {
-            subtree: true,
-            childList: true,
-            attributes: true,
-            characterData: true,
-          })
-        return observer
-      })
-      await new Promise((resolve) => setTimeout(resolve, 4000))
-      for (const observer of observers) observer.disconnect()
-      return Object.fromEntries(Object.entries(counts).filter(([, n]) => n > 0))
-    }, WIDGETS)
+    const changed = await mutationsIn(page, panesById(WIDGETS.map((widget) => `p-${widget}`)), 4000)
     expect(changed).toEqual({})
 
     // Shown, each asks again for what it shows.
@@ -360,19 +315,21 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
     },
     env: { ELECDEX_CLAUDE_DIR: claude },
   })
-  const main = () =>
-    page.evaluate(async () => ({
-      metrics: (await window.elecdex.metrics.stats()).active,
-      weather: (await window.elecdex.weather.watching()).length,
-      markets: (await window.elecdex.markets.watching()).length,
-      feeds: await window.elecdex.feeds.watching(),
-      orbits: await window.elecdex.orbits.watching(),
-      git: (await window.elecdex.git.watching()).length,
-      agents: await window.elecdex.agents.watching(),
-      clipboard: await window.elecdex.clipboard.watching(),
-      nowPlaying: await window.elecdex.nowPlaying.watching(),
-      docker: await window.elecdex.docker.watching(),
-    }))
+  const main = async () => {
+    const all = await watchingAll(page)
+    return {
+      metrics: all.metrics,
+      weather: all.weather.length,
+      markets: all.markets.length,
+      feeds: all.feeds,
+      orbits: all.orbits,
+      git: all.git.length,
+      agents: all.agents,
+      clipboard: all.clipboard,
+      nowPlaying: all.nowPlaying,
+      docker: all.docker,
+    }
+  }
   const atWork = async () => {
     const now = await main()
     return (
@@ -390,9 +347,7 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
     )
   }
   try {
-    await app.evaluate(({ dialog }, answer) => {
-      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-    }, dir)
+    await pickerAnswers(app, dir)
     await page.getByTestId('git-select').click()
     await expect.poll(atWork, { timeout: 20_000 }).toBe(true)
 
@@ -411,26 +366,12 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       nowPlaying: [],
       docker: [],
     })
-    const writes = await page.evaluate(async (widgets) => {
-      let count = 0
-      const observer = new MutationObserver((records) => {
-        count += records.length
-      })
-      for (const widget of widgets) {
-        const pane = document.querySelector(`[data-testid=pane][data-pane-id=p-${widget}]`)
-        if (pane !== null)
-          observer.observe(pane, {
-            subtree: true,
-            childList: true,
-            attributes: true,
-            characterData: true,
-          })
-      }
-      await new Promise((resolve) => setTimeout(resolve, 4000))
-      observer.disconnect()
-      return count
-    }, FOR_THE_EYE)
-    expect(writes).toBe(0)
+    const writes = await mutationsIn(
+      page,
+      panesById(FOR_THE_EYE.map((widget) => `p-${widget}`)),
+      4000,
+    )
+    expect(writes).toEqual({})
 
     // Restored, every one of them is at work again, and what it showed is still there.
     await bringWindowBack(app, page)

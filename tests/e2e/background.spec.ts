@@ -2,7 +2,17 @@ import { spawn } from 'node:child_process'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import electronPath from 'electron'
-import { exited, launch, MAIN, STUB_ENV } from './support.js'
+import { isFullScreen } from './support/measure.js'
+import {
+  exited,
+  launch,
+  MAIN,
+  openSettings,
+  quietFor,
+  reloadWorkspace,
+  SINGLE_CLOCK,
+  STUB_ENV,
+} from './support.js'
 
 /**
  * Running in the background (Windows): closing and minimising to the
@@ -12,9 +22,6 @@ import { exited, launch, MAIN, STUB_ENV } from './support.js'
  */
 
 test.skip(process.platform !== 'win32', 'running in the background is Windows only for now')
-
-/** One pane and no audio, so the only window is the elecdex window. */
-const SINGLE_CLOCK = { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock' } } as const
 
 interface Hooks {
   pressShortcut(): void
@@ -259,8 +266,7 @@ test('a fullscreen window comes back from the tray still fullscreen', async () =
     args: [],
   })
   try {
-    const fullscreen = () =>
-      app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen() ?? false)
+    const fullscreen = () => isFullScreen(app)
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setFullScreen(true))
     const entered = await expect
       .poll(fullscreen, { timeout: 10_000 })
@@ -308,13 +314,7 @@ test('turning a tray option off removes the icon, unless the window is hidden', 
 async function fullscreenCorner(app: ElectronApplication, page: Page): Promise<boolean> {
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setFullScreen(true))
   const entered = await expect
-    .poll(
-      () =>
-        app.evaluate(
-          ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen() ?? false,
-        ),
-      { timeout: 10_000 },
-    )
+    .poll(() => isFullScreen(app), { timeout: 10_000 })
     .toBe(true)
     .then(() => true)
     .catch(() => false)
@@ -347,11 +347,7 @@ test('the fullscreen corner closes to the tray when that is what closing does', 
     // Back from the tray, still fullscreen.
     await hooks(app, (h) => h.tray.click())
     await expect.poll(() => facts(app)).toEqual({ visible: true, minimized: false })
-    expect(
-      await app.evaluate(
-        ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen() ?? false,
-      ),
-    ).toBe(true)
+    expect(await isFullScreen(app)).toBe(true)
 
     // Quitting is still the corner's other way out.
     const gone = exited(app)
@@ -373,8 +369,10 @@ test('the fullscreen corner still asks before quitting when closing quits', asyn
     await expect(button).toHaveAttribute('title', /quit/i)
     await button.click()
     await expect(button).toHaveText(/click again to exit/)
-    await page.waitForTimeout(500)
-    expect(await facts(app)).toEqual({ visible: true, minimized: false })
+    expect(await quietFor(500, () => facts(app), 'the window')).toEqual({
+      visible: true,
+      minimized: false,
+    })
 
     const gone = exited(app)
     await button.click()
@@ -390,8 +388,7 @@ test('the system-wide shortcut is off until turned on, and then shows and hides'
     settings: withWindow({ closeToTray: true }),
   })
   try {
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await openSettings(page, 'window')
     const box = page.getByTestId('settings-global-shortcut')
     await expect(box).not.toBeChecked()
     // The keys are in plain sight before the user turns them on.
@@ -447,8 +444,7 @@ test('keys another app holds turn the shortcut back off, and say so', async () =
   const { app, page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
     await hooks(app, (h) => h.take('CommandOrControl+Alt+Shift+E'))
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await openSettings(page, 'window')
     const box = page.getByTestId('settings-global-shortcut')
     // Not check(): the box is turned back off at once.
     await box.click()
@@ -491,8 +487,7 @@ test('new keys another app holds turn the shortcut off too, recorded or reset', 
       .toEqual(['CommandOrControl+Alt+Shift+D'])
     await hooks(app, (h) => h.take('CommandOrControl+Alt+Shift+F'))
     await hooks(app, (h) => h.take('CommandOrControl+Alt+Shift+E'))
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await openSettings(page, 'window')
     const box = page.getByTestId('settings-global-shortcut')
     const problem = page.getByTestId('settings-global-shortcut-problem')
     await expect(box).toBeChecked()
@@ -536,8 +531,7 @@ test('resetting every app shortcut leaves the system-wide keys alone', async () 
   try {
     // The default keys are taken here, so a reset to them would leave the shortcut dead.
     await hooks(app, (h) => h.take('CommandOrControl+Alt+Shift+E'))
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
+    await openSettings(page, 'keyboard')
     await page.getByTestId('keybindings-reset-all').click()
     await page.getByTestId('keybindings-reset-all').click()
 
@@ -563,8 +557,7 @@ test('an app shortcut with the system-wide keys is flagged where it is set', asy
     },
   })
   try {
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
+    await openSettings(page, 'keyboard')
     // The OS takes the keys first, so it is the pane shortcut that no longer works.
     await expect(
       page
@@ -590,8 +583,7 @@ test('recording keys does not fire the system-wide shortcut', async () => {
     settings: { sound: { enabled: false }, window: { closeToTray: true, globalShortcut: true } },
   })
   try {
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await openSettings(page, 'window')
     await page.getByTestId('settings-global-shortcut-chord').click()
     // The keys are the app's own again while they are being recorded, so pressing
     // them here records them instead of putting the window away.
@@ -617,12 +609,10 @@ test('recording keys does not fire the system-wide shortcut', async () => {
     expect(await hooks(app, (h) => h.suspended())).toBe(false)
 
     // A reload, which no page code survives, gives them back as well.
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await openSettings(page, 'window')
     await page.getByTestId('settings-global-shortcut-chord').click()
     expect(await hooks(app, (h) => h.suspended())).toBe(true)
-    await page.reload()
-    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+    await reloadWorkspace(page)
     expect(await hooks(app, (h) => h.suspended())).toBe(false)
   } finally {
     await close()
@@ -632,8 +622,7 @@ test('recording keys does not fire the system-wide shortcut', async () => {
 test('the sign-in entry follows the switch, the start option and Task Manager', async () => {
   const { app, page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await openSettings(page, 'window')
     const login = page.getByTestId('settings-launch-at-login')
     const background = page.getByTestId('settings-start-in-background')
     await expect(login).not.toBeChecked()
@@ -664,7 +653,7 @@ test('the sign-in entry follows the switch, the start option and Task Manager', 
     // Turned off in Task Manager: shown as off, with the reason, on the next opening.
     await hooks(app, (h) => h.runKey.setEnabled(false))
     await page.keyboard.press('Escape')
-    await page.keyboard.press('Control+Shift+Period')
+    await openSettings(page)
     await expect(login).not.toBeChecked()
     await expect(page.getByTestId('settings-launch-note')).toHaveText(/Task Manager/)
     await login.check()
@@ -705,8 +694,7 @@ test('a start in the background stays hidden until opened, and skips the intro',
         child.once('exit', () => resolve())
       })
     await again(['--hidden'])
-    await page.waitForTimeout(500)
-    expect((await facts(app)).visible).toBe(false)
+    expect((await quietFor(500, () => facts(app), 'the window')).visible).toBe(false)
     await again([])
     await expect.poll(() => facts(app)).toEqual({ visible: true, minimized: false })
     await expect.poll(() => visibility(page)).toBe('visible')

@@ -4,12 +4,28 @@ import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { buildGame } from '../../src/shared/elec16/cart-build.js'
 import {
+  atSize,
+  booted,
+  elec16Tab,
+  launchElec16Beside as launchBeside,
+  lcdLines,
+  playLines,
+  toMonitor,
+  typeLine,
+} from './support/elec16.js'
+import {
   atDesignSize,
+  bringWindowBack,
   cpuSeconds,
-  type Launched,
   launch,
+  launchOnTwoLayouts,
+  pickerAnswers,
   powerNote,
+  putWindowAway,
+  quietFor,
+  saveDialogAnswers,
   settleLayout,
+  single,
 } from './support.js'
 
 /**
@@ -18,35 +34,6 @@ import {
  * runaway program back, sleeping at the prompt, pausing out of sight and coming back by
  * itself from the prompt, and TUNE's LCD and skin.
  */
-
-const BESIDE_CLOCK = {
-  version: 1,
-  root: {
-    kind: 'split',
-    id: 's',
-    direction: 'row',
-    sizes: [20, 80],
-    children: [
-      { kind: 'pane', id: 'clock', widget: 'clock' },
-      { kind: 'pane', id: 'e16', widget: 'elec16' },
-    ],
-  },
-}
-
-/**
- * At the 1920x1080 design size (support.ts): beside the clock the pane keeps its panel open
- * only with room for it beside the screen (`panelShown`), which a CI runner's screen does not
- * give - 1024 wide, the pane was 806 pixels, short of the 812 the panel needs, and every test
- * waiting on a panel tab timed out there.
- */
-async function atSize(launched: Launched): Promise<Launched> {
-  await atDesignSize(launched.app, launched.page)
-  return launched
-}
-
-/** Launched on a fresh profile with the pane beside the clock, at the design size. */
-const launchBeside = async (): Promise<Launched> =>
-  atSize(await launch(undefined, { layout: BESIDE_CLOCK }))
 
 /** A wide, short pane under the clock: the room the tour once gave it. */
 const UNDER_CLOCK = {
@@ -74,60 +61,6 @@ const BEHIND_A_TAB = {
       { kind: 'pane', id: 'clock', widget: 'clock' },
     ],
   },
-}
-
-/** The LCD's text, read back through the font (the screen reader's copy), row by row. */
-const lcdLines = async (page: Page): Promise<string[]> =>
-  ((await page.getByTestId('elec16-text').textContent()) ?? '').split('\n').map((l) => l.trimEnd())
-
-/** Switched on: BASIC's banner, asleep at its prompt. */
-async function booted(page: Page): Promise<void> {
-  await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('ELEC-16 BASIC 1.0')
-  await expect(page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
-}
-
-/** Types a line into the focused pane, a key at a time. */
-/** Text as compared with the LCD's: upper case (CAPS), without spaces or line breaks. */
-const squeezed = (text: string): string => text.toUpperCase().replace(/\s+/g, '')
-
-/** At most this many keys typed before the machine must show it took them (its FIFO holds 16). */
-const TYPE_AHEAD = 8
-
-/**
- * Types a line into the focused pane a key at a time, a few keys ahead of the machine at most:
- * each run of keys is echoed on the LCD before the next is typed. The machine's key FIFO
- * holds 16 and drops the rest, as the hardware's does; a slow runner's machine (a card write
- * waiting on main, a late frame) once fell 16 keys behind a line typed at 15 ms a key, and the
- * keys after them were lost (macOS CI: "PRINT" read as "PRI").
- */
-async function typeLine(page: Page, line: string): Promise<void> {
-  for (let at = 0; at < line.length; at += TYPE_AHEAD) {
-    const run = line.slice(at, at + TYPE_AHEAD)
-    await page.keyboard.type(run, { delay: 15 })
-    const typed = squeezed(line.slice(0, at + run.length))
-    // The focused pane's screen read whole, without spaces: a long line wraps onto the next row,
-    // and a row's trailing space is trimmed when it is read.
-    await expect
-      .poll(async () =>
-        squeezed(
-          (await page
-            .locator('[data-testid=pane]:has(:focus)')
-            .getByTestId('elec16-text')
-            .textContent()) ?? '',
-        ).includes(typed),
-      )
-      .toBe(true)
-  }
-  await page.keyboard.press('Enter')
-}
-
-/** From BASIC's prompt to the monitor's (MON), on a cleared screen (CLS is Home). */
-async function toMonitor(page: Page): Promise<void> {
-  await page.getByTestId('elec16').focus()
-  await typeLine(page, 'mon')
-  await expect.poll(() => lcdLines(page)).toContain('ELEC-16 MONITOR 0.1')
-  await page.keyboard.press('Home')
-  await expect.poll(async () => (await lcdLines(page))[0]).toBe('*')
 }
 
 test('boots to BASIC, sleeps at its prompt, takes keys only while it has the focus, and MON reaches the monitor', async () => {
@@ -231,7 +164,7 @@ test('TUNE fits another LCD, keeping the RAM, and changes the skin', async () =>
     await toMonitor(page)
     // Above BASIC's room for a program, where switching on writes nothing.
     await typeLine(page, 'e 7000 5a')
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await elec16Tab(page, 'tune').click()
     await page.locator('[data-testid=elec16-model][data-model=pocket-64]').click()
     await expect.poll(async () => (await lcdLines(page)).length).toBe(8)
     await booted(page)
@@ -271,7 +204,7 @@ test('the five relief skins: modelled in light, each in its bundled face, every 
   try {
     await settleLayout(page)
     await booted(page)
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await elec16Tab(page, 'tune').click()
     const device = page.getByTestId('elec16-device')
     for (const [skin, face] of Object.entries(RELIEF_FACES)) {
       await page.locator(`[data-testid=elec16-skin][data-skin=${skin}]`).click()
@@ -379,10 +312,12 @@ test('asleep at its prompt it costs what a paused pane does; running costs by it
     const WINDOW_MS = 8_000
     const measure = async () => {
       const start = await cpuSeconds(app)
+      // wait: the window CPU time is measured over.
       await page.waitForTimeout(WINDOW_MS)
       return ((await cpuSeconds(app)) - start) / (WINDOW_MS / 1000)
     }
     const root = page.getByTestId('elec16')
+    // wait: the boot's own work dies down before the first window is measured.
     await page.waitForTimeout(2000)
     const asleep = await measure()
     await page.getByTestId('elec16-pause').click()
@@ -396,11 +331,12 @@ test('asleep at its prompt it costs what a paused pane does; running costs by it
     await typeLine(page, 'e 7000 1f fc 2c 07 09 12 07 00 26 00 f5 bf')
     await typeLine(page, 'e 7100 01 a0')
     const run = async (clock: string, at: string) => {
-      await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+      await elec16Tab(page, 'tune').click()
       await page.locator(`[data-testid=elec16-clock][data-clock="${clock}"]`).click()
       await root.focus()
       await typeLine(page, `g ${at}`)
       await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'run')
+      // wait: the program settles into its loop before its cost is measured.
       await page.waitForTimeout(1000)
       const used = await measure()
       await page.getByTestId('elec16-brk').click()
@@ -491,13 +427,7 @@ test("keeps the program through a restart: the unit's battery backup", async () 
 test("a saved layout's pane opens on its own unit, though the last layout's pane had its id", async () => {
   // Two saved layouts, each one ELEC-16 pane of the same id, on different units: the machine
   // the first pane leaves for a moved pane must not be taken up by the second.
-  const onUnit = (unit: string) => ({
-    version: 1,
-    root: { kind: 'pane', id: 'e16', widget: 'elec16', state: { unit, panel: false } },
-  })
-  const first = await launch(undefined, { layout: onUnit('u1') })
-  await first.quit()
-  const dir = first.userData
+  const onUnit = (unit: string) => single('elec16', { id: 'e16', state: { unit, panel: false } })
   const unit = (id: string, name: string) => ({
     id,
     name,
@@ -506,20 +436,14 @@ test("a saved layout's pane opens on its own unit, though the last layout's pane
     autoOff: 10,
     created: 0,
   })
-  writeFileSync(
-    path.join(dir, 'elec16', 'units.json'),
-    JSON.stringify({ version: 1, units: [unit('u1', 'UNIT 1'), unit('u2', 'UNIT 2')] }),
-  )
-  const items = [
-    { id: 'layouta', name: 'one', tree: onUnit('u1') },
-    { id: 'layoutb', name: 'two', tree: onUnit('u2') },
-  ]
-  writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(onUnit('u1')))
-  writeFileSync(
-    path.join(dir, 'layouts.json'),
-    JSON.stringify({ version: 1, items, active: 'layouta' }),
-  )
-  const { page, close } = await launch(dir)
+  const { page, close } = await launchOnTwoLayouts(onUnit('u1'), onUnit('u2'), {
+    files: {
+      'elec16/units.json': JSON.stringify({
+        version: 1,
+        units: [unit('u1', 'UNIT 1'), unit('u2', 'UNIT 2')],
+      }),
+    },
+  })
   try {
     const subtitle = page.getByTestId('pane-subtitle')
     await settleLayout(page)
@@ -586,10 +510,8 @@ test('IMPORT puts a picked listing on the card and EXPORT gives it back as text'
     await booted(page)
     const listing = path.join(outside, 'hello.bas')
     writeFileSync(listing, '10 PRINT "HI"\r\n20 END\r\n')
-    await app.evaluate(({ dialog }, answer) => {
-      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-    }, listing)
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    await pickerAnswers(app, listing)
+    await elec16Tab(page, 'files').click()
     await page.getByTestId('elec16-import').click()
     await expect(page.getByTestId('elec16-files-said')).toHaveText('Imported as HELLO.BAS.')
     await expect(page.getByTestId('elec16-file')).toHaveAttribute('data-name', 'HELLO.BAS')
@@ -598,9 +520,7 @@ test('IMPORT puts a picked listing on the card and EXPORT gives it back as text'
     await page.getByTestId('elec16-import').click()
     await expect(page.getByTestId('elec16-files-said')).toContainText('Line 1 has')
     const target = path.join(outside, 'out.bas')
-    await app.evaluate(({ dialog }, answer) => {
-      dialog.showSaveDialog = (async () => ({ canceled: false, filePath: answer })) as never
-    }, target)
+    await saveDialogAnswers(app, target)
     await page.getByTestId('elec16-file').click()
     await page.getByTestId('elec16-export').click()
     await expect(page.getByTestId('elec16-files-said')).toHaveText('Exported HELLO.BAS.')
@@ -623,7 +543,7 @@ test("SAVE and LOAD go through main to the unit's card, and FILES lists what is 
     await typeLine(page, 'load "calc"')
     await typeLine(page, 'run')
     await expect.poll(() => lcdLines(page)).toContain('35')
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    await elec16Tab(page, 'files').click()
     await expect(page.getByTestId('elec16-file')).toHaveAttribute('data-name', 'CALC.BAS')
   } finally {
     await close()
@@ -635,7 +555,7 @@ test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, a
   try {
     await settleLayout(page)
     await booted(page)
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    await elec16Tab(page, 'files').click()
     const primes = page
       .getByTestId('elec16-soft-file')
       .and(page.locator('[data-name="PRIMES.BAS"]'))
@@ -659,7 +579,7 @@ test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, a
         configurable: true,
       })
     })
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await elec16Tab(page, 'tune').click()
     await page.getByTestId('elec16-paste').click()
     await expect.poll(() => lcdLines(page)).toContain('2 3 5 7 11 13 17 19 23 29')
     await expect(page.getByTestId('elec16-paste')).toHaveText('paste')
@@ -691,7 +611,7 @@ test('a right-click on the machine types the clipboard as PASTE does, and anothe
     })
     // The tab first, then the press: opened after it, a fast runner had typed the whole text by
     // the time the button was looked at, and saw PASTE again (ubuntu, 2026-10-15).
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await elec16Tab(page, 'tune').click()
     await page.getByTestId('elec16-device').click({ button: 'right' })
     await expect(page.getByTestId('elec16-paste')).toContainText('stop paste')
     await page.getByTestId('elec16-device').click({ button: 'right' })
@@ -708,7 +628,7 @@ test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboa
   try {
     await settleLayout(page)
     await booted(page)
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await elec16Tab(page, 'tune').click()
     await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     // The clipboard is the page's stand-in, never this machine's; it counts its reads.
@@ -728,11 +648,11 @@ test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboa
 
     await start.hover()
     await page.mouse.down({ button: 'right' })
-    await page.waitForTimeout(300)
+    await quietFor(300, () => start.getAttribute('aria-pressed'), 'START pressed')
     expect(await start.getAttribute('aria-pressed')).toBe('false')
     await page.mouse.up({ button: 'right' })
     await page.getByTestId('elec16-play-body').click({ button: 'right', position: { x: 4, y: 4 } })
-    await page.waitForTimeout(300)
+    await quietFor(300, reads, 'the clipboard reads')
     expect(await reads()).toBe(0)
     await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY')
 
@@ -790,7 +710,7 @@ test('CORE stops the machine at a breakpoint typed in, goes on from it, and step
     await settleLayout(page)
     await booted(page)
     await toMonitor(page)
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=core]')).click()
+    await elec16Tab(page, 'core').click()
     await page.getByTestId('elec16-break-input').fill('7000')
     await page.getByTestId('elec16-break-input').press('Enter')
     await expect(page.getByTestId('elec16-breakpoint')).toHaveAttribute('data-address', '7000')
@@ -821,7 +741,7 @@ test('TUNE throws another unit away on a second press, and never the one the pan
   try {
     await settleLayout(page)
     await booted(page)
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await elec16Tab(page, 'tune').click()
     await page.getByTestId('elec16-unit-new').click()
     await expect(page.getByTestId('elec16-unit')).toHaveCount(2)
     const gone = page.getByTestId('elec16-unit-delete')
@@ -884,7 +804,7 @@ test('CODE compiles TypeScript at every level, keeps it on the card, and RUN run
     await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('>CALL 28672')
     await expect.poll(async () => (await lcdLines(page)).join('\n')).toMatch(/MADE IN TS/)
     // The source is a file on the unit's card.
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    await elec16Tab(page, 'files').click()
     await expect(
       page.getByTestId('elec16-file').and(page.locator('[data-name="MAIN.TS"]')),
     ).toHaveCount(1)
@@ -913,7 +833,7 @@ test('RESET starts the machine again with its program kept, and the plate lamp f
     await page.getByTestId('elec16-power').click()
     await expect(lamp).not.toHaveClass(/\bon\b/)
     // The Business skins have no plate, as their themes have no ornament.
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await elec16Tab(page, 'tune').click()
     await page.locator('[data-testid=elec16-skin][data-skin="business-dark"]').click()
     await expect(page.getByTestId('elec16-plate')).toHaveCount(0)
   } finally {
@@ -979,11 +899,11 @@ test('CODE keeps what is typed after a RUN when the level is changed', async () 
     const edited = (await source.inputValue()).replace('HELLO FROM TYPESCRIPT', 'EDITED AFTER RUN')
     await source.fill(edited)
     await page.getByTestId('elec16-level').and(page.locator('[data-level="1"]')).click()
-    await page.waitForTimeout(500)
+    await quietFor(500, () => source.inputValue(), 'the source')
 
     await expect(source).toHaveValue(/EDITED AFTER RUN/)
     await page.getByTestId('elec16-level').and(page.locator('[data-level="2"]')).click()
-    await page.waitForTimeout(500)
+    await quietFor(500, () => source.inputValue(), 'the source')
     await expect(source).toHaveValue(/EDITED AFTER RUN/)
   } finally {
     await close()
@@ -995,7 +915,7 @@ test("FILES' LOAD stops a program waiting for a key first, rather than typing in
   try {
     await settleLayout(page)
     await booted(page)
-    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    await elec16Tab(page, 'files').click()
     const soft = (name: string) =>
       page.getByTestId('elec16-soft-file').and(page.locator(`[data-name="${name}"]`))
     await soft('SINEWAVE.BAS').click()
@@ -1020,10 +940,7 @@ test("the dots' shadows follow the dots after the window was too small to draw t
   // Dots three device pixels and more have shadows; smaller, none is drawn - and when the
   // window grew again, the shadows of what the screen showed before were still there.
   const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: false } },
-    },
+    layout: single('elec16', { id: 'e16', state: { panel: false } }),
   })
   const size = (w: number, h: number) =>
     app.evaluate(
@@ -1046,6 +963,8 @@ test("the dots' shadows follow the dots after the window was too small to draw t
     await expect.poll(() => lcdLines(page)).toContain('HELLO')
     await size(1600, 900)
     await expect.poll(async () => Number(await scale())).toBeGreaterThanOrEqual(3)
+    // wait: no signal in the app (needs a hook): the LCD redraws at most thirty times a second
+    // and nothing counts its frames; polling could pass on one before stale shadows came back.
     await page.waitForTimeout(1000)
     // Every shadow is a lit dot's: none is left of what the screen showed before.
     const stray = await page.locator('[data-testid=elec16-lcd] canvas').evaluateAll((els) => {
@@ -1063,10 +982,6 @@ test("the dots' shadows follow the dots after the window was too small to draw t
     await close()
   }
 })
-
-/** PLAY-320's screen text, each row trimmed (it centres its words). */
-const playLines = async (page: Page): Promise<string[]> =>
-  (await lcdLines(page)).map((l) => l.trim())
 
 /**
  * A test cartridge (tests/fixtures/elec16/games: DEMO, SCROLL - not on the shelf since
@@ -1088,9 +1003,7 @@ function testCartridge(name: string, dir: string): string {
 /** A test cartridge put on the shelf through GAMES' import, main's picker answered with it. */
 async function importCartridge(app: ElectronApplication, page: Page, name: string, dir: string) {
   const file = testCartridge(name, dir)
-  await app.evaluate(({ dialog }, answer) => {
-    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-  }, file)
+  await pickerAnswers(app, file)
   await page.getByTestId('elec16-game-import').click()
 }
 
@@ -1104,8 +1017,7 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, CO
     await booted(page)
     await toMonitor(page)
     await typeLine(page, 'e 7000 5a')
-    const tab = (name: string) =>
-      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
     await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
     await expect(page.getByTestId('elec16-play-screen')).toBeVisible()
@@ -1154,8 +1066,7 @@ test("PLAY-320's body: its buttons pressed from the keys, the pointer and a prog
   try {
     await settleLayout(page)
     await booted(page)
-    const tab = (name: string) =>
-      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
     await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
     const body = page.getByTestId('elec16-play-body')
@@ -1224,8 +1135,7 @@ test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on aft
     const { app, page } = first
     await settleLayout(page)
     await booted(page)
-    const tab = (name: string) =>
-      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
     await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
@@ -1261,8 +1171,7 @@ test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on aft
     await expect.poll(() => playLines(again.page)).toContain('PRESS START')
 
     // Taken out: the start screen says so, and START finds nothing.
-    const tab2 = (name: string) =>
-      again.page.getByTestId('elec16-tab').and(again.page.locator(`[data-tab=${name}]`))
+    const tab2 = (name: string) => elec16Tab(again.page, name)
     await tab2('games').click()
     await again.page.getByTestId('elec16-game-eject').click()
     await expect(again.page.getByTestId('elec16-game-slot')).toHaveText('empty')
@@ -1307,7 +1216,7 @@ test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on aft
     await gone.page.getByTestId('elec16').focus()
     await gone.page.keyboard.press('Enter')
     await expect.poll(() => playLines(gone.page)).toContain('NO CARTRIDGE')
-    await gone.page.getByTestId('elec16-tab').and(gone.page.locator('[data-tab=games]')).click()
+    await elec16Tab(gone.page, 'games').click()
     await expect(gone.page.getByTestId('elec16-game-slot')).toHaveText('empty')
     await expect(gone.page.locator('[data-testid=elec16-game][data-game=DEMO]')).toHaveCount(0)
   } finally {
@@ -1324,8 +1233,7 @@ test("PLAY-320's game kit: ELECLANCE starts from GAMES, its title, then the stag
   try {
     await settleLayout(page)
     await booted(page)
-    const tab = (name: string) =>
-      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
     await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
     await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
@@ -1378,14 +1286,11 @@ test("PLAY-320's DEVELOP: a new game from the template, built, broken on save, m
   try {
     await settleLayout(page)
     await booted(page)
-    const tab = (name: string) =>
-      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
     await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
-    await app.evaluate(({ dialog }, answer) => {
-      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-    }, folder)
+    await pickerAnswers(app, folder)
     await tab('games').click()
     await page.getByTestId('elec16-dev-new').click()
     const dev = page.getByTestId('elec16-dev')
@@ -1403,16 +1308,10 @@ test("PLAY-320's DEVELOP: a new game from the template, built, broken on save, m
     }
     // Watched while the pane is seen, not while the window is minimised.
     const watching = () => page.evaluate(() => window.elecdex.elec16.devWatching())
-    const windowTo = (how: 'minimize' | 'restore') =>
-      app.evaluate(({ BrowserWindow }, action) => {
-        const win = BrowserWindow.getAllWindows().find((w) => w.isVisible() || w.isMinimized())
-        if (action === 'minimize') win?.minimize()
-        else win?.restore()
-      }, how)
     await expect.poll(watching).toHaveLength(1)
-    await windowTo('minimize')
+    await putWindowAway(app, page)
     await expect.poll(watching, { timeout: 10_000 }).toEqual([])
-    await windowTo('restore')
+    await bringWindowBack(app, page)
     await expect.poll(watching, { timeout: 10_000 }).toHaveLength(1)
     // Back in sight with nothing changed: read again, not built again.
     await expect(dev).toHaveAttribute('data-status', 'built')
@@ -1458,14 +1357,11 @@ test("PLAY-320's DEVELOP builds ELECLANCE's own folder exactly as npm run gen:el
     rmSync(path.join(folder, 'assets.e16.ts'))
     await settleLayout(page)
     await booted(page)
-    const tab = (name: string) =>
-      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
     await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
-    await app.evaluate(({ dialog }, answer) => {
-      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
-    }, folder)
+    await pickerAnswers(app, folder)
     await tab('games').click()
     await page.getByTestId('elec16-dev-open').click()
     await expect(page.getByTestId('elec16-dev')).toHaveAttribute('data-status', 'built', {
@@ -1493,8 +1389,7 @@ test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with
   try {
     await settleLayout(page)
     await booted(page)
-    const tab = (name: string) =>
-      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
     await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
     await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
@@ -1523,6 +1418,7 @@ test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with
     // The ship's middle, 16 x 16 from (152, 200): its hull.
     await expect.poll(() => dot(160, 209), { timeout: 10_000 }).toEqual(hull)
     await page.keyboard.down('ArrowLeft')
+    // wait: the d-pad is held over the machine's frames, as a person holds it.
     await page.waitForTimeout(500)
     await page.keyboard.up('ArrowLeft')
     await expect.poll(() => dot(160, 209)).not.toEqual(hull)

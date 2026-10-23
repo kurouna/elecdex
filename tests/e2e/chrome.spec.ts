@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { type Launched, launch, showStatusBar } from './support.js'
+import { type Launched, launch, quietFor, SINGLE_CLOCK, showStatusBar } from './support.js'
 
 /** The window's own title bar and the status bar that slides in from the bottom. */
-
-const SINGLE_CLOCK = { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock' } } as const
 
 test('a windowed app draws its title bar in the theme, and not in fullscreen', async () => {
   const { app, page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
@@ -161,7 +159,7 @@ test('in fullscreen, window controls slide down from the top-right corner only',
     // The rest of the top edge, over pane titles and tabs, does not call it up.
     for (const x of [20, width / 2, width - 400]) {
       await page.mouse.move(x, 2)
-      await page.waitForTimeout(150)
+      await quietFor(150, () => corner.getAttribute('data-shown'), 'the corner')
       await expect(corner).toHaveAttribute('data-shown', 'false')
     }
     await page.mouse.move(width - 10, 2)
@@ -169,7 +167,7 @@ test('in fullscreen, window controls slide down from the top-right corner only',
     // Onto the controls it stays; away from them it slides back up.
     const minimize = page.getByTestId('window-minimize')
     await minimize.hover()
-    await page.waitForTimeout(700)
+    await quietFor(700, () => corner.getAttribute('data-shown'), 'the corner')
     await expect(corner).toHaveAttribute('data-shown', 'true')
     await page.mouse.move(width / 2, 300)
     await expect(corner).toHaveAttribute('data-shown', 'false')
@@ -178,8 +176,9 @@ test('in fullscreen, window controls slide down from the top-right corner only',
     await page.mouse.move(width - 10, 2)
     await page.getByTestId('window-quit').click()
     await expect(page.getByTestId('window-quit')).toHaveText(/click again to exit/)
-    await page.waitForTimeout(500)
-    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1)
+    const windows = () => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+    await quietFor(500, windows, 'the windows')
+    expect(await windows()).toBe(1)
 
     await expectMinimized(launched, () => minimize.click())
     // Restored, it is still fullscreen.

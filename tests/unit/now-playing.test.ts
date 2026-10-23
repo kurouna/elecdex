@@ -565,7 +565,7 @@ describe('the card', () => {
 
 describe('the stand-in', () => {
   it('is what the end-to-end tests run on, so no run reads this machine', () => {
-    const support = readFileSync('tests/e2e/support.ts', 'utf8')
+    const support = readFileSync('tests/e2e/support/launch.ts', 'utf8')
     expect(support).toMatch(/ELECDEX_NOWPLAYING_STUB: '1'/)
   })
 

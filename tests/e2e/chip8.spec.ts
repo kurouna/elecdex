@@ -2,15 +2,18 @@ import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { cpuSecondsWithPage as cpuSeconds } from './support/cpu.js'
 import {
   atDesignSize,
   launch,
   launchOnTwoLayouts,
   pickerAnswers,
   powerNote,
+  quietFor,
   removeDir,
   savedLayout,
   settleLayout,
+  single,
   zoomSettled,
 } from './support.js'
 
@@ -212,7 +215,7 @@ test('P pauses and resumes, Enter steps one frame while paused', async () => {
     await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
     await expect(page.getByTestId('chip8-paused')).toBeVisible()
     const still = await cycles(page)
-    await page.waitForTimeout(400)
+    await quietFor(400, () => cycles(page), 'the cycle count')
     expect(await cycles(page)).toBe(still)
     await page.keyboard.press('Enter')
     await expect.poll(() => cycles(page)).toBe(still + 1000)
@@ -234,10 +237,10 @@ test('out of sight it pauses, and stays paused when seen again', async () => {
     await page.locator('[data-testid=tab][data-pane-id=clock]').click()
     await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
     const still = await cycles(page)
-    await page.waitForTimeout(500)
+    await quietFor(500, () => cycles(page), 'the cycle count')
     expect(await cycles(page)).toBe(still)
     await page.locator('[data-testid=tab][data-pane-id=c8]').click()
-    await page.waitForTimeout(300)
+    await quietFor(300, () => cycles(page), 'the cycle count')
     await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
     expect(await cycles(page)).toBe(still)
   } finally {
@@ -317,10 +320,8 @@ test('a pane split beside it keeps its machine going, and a restart brings the p
 test("a saved layout's pane runs its own program, though the last layout's pane had its id", async () => {
   // Two saved layouts with a CHIP-8 pane of the same id (a layout kept under a new name),
   // each running another program: the switch must not leave the first one's machine on.
-  const running = (program: string) => ({
-    version: 1,
-    root: { kind: 'pane', id: 'c8', widget: 'chip8', state: { view: 'run', program } },
-  })
+  const running = (program: string) =>
+    single('chip8', { id: 'c8', state: { view: 'run', program } })
   const { page, close } = await launchOnTwoLayouts(
     running('diag/3-corax+'),
     running('diag/6-keypad'),
@@ -343,8 +344,8 @@ test("a saved layout's pane runs its own program, though the last layout's pane 
 test("a saved layout's pane on the library stops the machine the last layout's pane left running", async () => {
   const state = (view: string) => ({ view, program: 'diag/3-corax+' })
   const { page, close } = await launchOnTwoLayouts(
-    { version: 1, root: { kind: 'pane', id: 'c8', widget: 'chip8', state: state('run') } },
-    { version: 1, root: { kind: 'pane', id: 'c8', widget: 'chip8', state: state('library') } },
+    single('chip8', { id: 'c8', state: state('run') }),
+    single('chip8', { id: 'c8', state: state('library') }),
   )
   try {
     const run = page.getByTestId('chip8-run')
@@ -366,23 +367,6 @@ test("a saved layout's pane on the library stops the machine the last layout's p
   }
 })
 
-/** CPU seconds used so far: by every Electron process, and by the page's own renderer. */
-const cpuSeconds = async (app: ElectronApplication, page: Page) => {
-  const pagePid = await (await app.browserWindow(page)).evaluate((win) =>
-    win.webContents.getOSProcessId(),
-  )
-  return app.evaluate(({ app: electronApp }, pid) => {
-    let all = 0
-    let own = 0
-    for (const m of electronApp.getAppMetrics()) {
-      const used = m.cpu.cumulativeCPUUsage ?? 0
-      all += used
-      if (m.pid === pid) own += used
-    }
-    return { all, page: own }
-  }, pagePid)
-}
-
 test('a program running costs little more than the pane standing still, the attract mode resting after half a minute', async () => {
   // The game's own 60 fps loop is the one exception to the 10 fps loop (decisions.md):
   // measured here so a change that makes it expensive shows. The library's attract mode
@@ -396,6 +380,7 @@ test('a program running costs little more than the pane standing still, the attr
     /** CPU used over `ms`, as a share of one core: the whole app's, and the page's alone. */
     const measure = async (ms: number) => {
       const start = await cpuSeconds(app, page)
+      // wait: the window CPU time is measured over.
       await page.waitForTimeout(ms)
       const end = await cpuSeconds(app, page)
       return {
@@ -404,6 +389,7 @@ test('a program running costs little more than the pane standing still, the attr
       }
     }
     await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'true')
+    // wait: the start's own work dies down before the attract mode is measured.
     await page.waitForTimeout(3000)
     const attract = (await measure(10_000)).all
     await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'false', {
@@ -418,6 +404,7 @@ test('a program running costs little more than the pane standing still, the attr
     await expect(page.getByTestId('chip8-library')).toHaveAttribute('data-awake', 'true')
     await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
     await loadProgram(page, 'diag/3-corax+')
+    // wait: Corax+ draws its checks and comes to stand still before running is measured.
     await page.waitForTimeout(2000)
     // Running and paused in turn, three times each, so that the whole app drifting over
     // the minute (it did on the Linux runner, by about as much as the loop costs) falls on
@@ -430,10 +417,12 @@ test('a program running costs little more than the pane standing still, the attr
       runs.push(await measure(4000))
       await page.keyboard.press('KeyP')
       await expect(run).toHaveAttribute('data-status', 'paused')
+      // wait: the last frames before the pause leave the window that measures it.
       await page.waitForTimeout(1000)
       pauses.push(await measure(4000))
       await page.keyboard.press('KeyP')
       await expect(run).toHaveAttribute('data-status', 'running')
+      // wait: the loop is back at its pace before the next window measures it.
       await page.waitForTimeout(1000)
     }
     const mean = (xs: number[]) => xs.reduce((sum, x) => sum + x, 0) / xs.length
@@ -775,7 +764,11 @@ test('a star puts a program in the starred tab, and taking it off leaves the tab
     })
     await page.getByTestId('chip8-star').click()
     await expect(page.getByTestId('chip8-star')).toHaveAttribute('aria-pressed', 'true')
-    await page.waitForTimeout(500)
+    await quietFor(
+      500,
+      () => page.evaluate(() => (window as unknown as { loadFlickered: boolean }).loadFlickered),
+      'LOAD flickering',
+    )
     expect(
       await page.evaluate(() => (window as unknown as { loadFlickered: boolean }).loadFlickered),
     ).toBe(false)
@@ -980,6 +973,8 @@ test('with motion reduced the library shows a still frame, and runs nothing behi
     await designSize(app, page)
     const attract = page.getByTestId('chip8-attract')
     await expect(attract).toBeVisible()
+    // wait: no signal in the app (needs a hook): the attract screen may still go from empty to
+    // paused as its program arrives, so its status is not quiet; nothing counts its runs.
     await page.waitForTimeout(800)
     await expect(attract).toHaveAttribute('data-status', /^(paused|empty)$/)
     await expect(attract.getByTestId('chip8-screen')).toHaveCount(0)

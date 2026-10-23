@@ -1,5 +1,15 @@
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, settleLayout } from './support.js'
+import { stubOf } from './support/stub-hooks.js'
+import {
+  beside,
+  launch,
+  NO_SWITCH_PROMPT,
+  quietFor,
+  SINGLE_CLOCK,
+  settleLayout,
+  tabbed,
+  waitForSaved,
+} from './support.js'
 
 /**
  * The clipboard pane, on main's stand-in clipboard (support.ts sets
@@ -12,31 +22,12 @@ interface Formats {
   rtf?: string
 }
 
-interface Hooks {
-  copy(text: string, options?: Formats & { private?: boolean }): void
-  copyOther(): void
-  current(): { text: string; html: string | null; rtf: string | null } | null
-  reads(): number
-}
-
 const copy = (app: ElectronApplication, text: string, options?: Formats & { private?: boolean }) =>
-  app.evaluate(
-    (_electron, [value, extra]) => {
-      const bound = (globalThis as unknown as { __elecdexClipboard: Hooks }).__elecdexClipboard
-      bound.copy(value, extra)
-    },
-    [text, options] as const,
-  )
+  stubOf(app, 'clipboard').copy(text, options)
 
-const held = (app: ElectronApplication) =>
-  app.evaluate(() =>
-    (globalThis as unknown as { __elecdexClipboard: Hooks }).__elecdexClipboard.current(),
-  )
+const held = (app: ElectronApplication) => stubOf(app, 'clipboard').current()
 
-const reads = (app: ElectronApplication) =>
-  app.evaluate(() =>
-    (globalThis as unknown as { __elecdexClipboard: Hooks }).__elecdexClipboard.reads(),
-  )
+const reads = (app: ElectronApplication) => stubOf(app, 'clipboard').reads()
 
 const texts = (page: Page) => page.getByTestId('clip-text').allInnerTexts()
 
@@ -49,19 +40,8 @@ async function copied(app: ElectronApplication, page: Page, text: string, format
   await expect.poll(async () => (await texts(page))[0]).toBe(text)
 }
 
-const beside = (widget: string) => ({
-  version: 1,
-  root: {
-    kind: 'split',
-    id: 's',
-    direction: 'row',
-    sizes: [50, 50],
-    children: [
-      { kind: 'pane', id: 'k', widget: 'clipboard' },
-      { kind: 'pane', id: 'c', widget },
-    ],
-  },
-})
+/** The clipboard pane beside a clock. */
+const BESIDE_CLOCK = beside('clipboard')
 
 // Found 2026-10-10: in a short pane a row's card had room neither below nor above it and went
 // over the row itself, hiding its × (and SNIP); the card now stops short of the row's buttons.
@@ -107,7 +87,7 @@ test('a card in a short pane leaves the row’s own buttons in sight', async () 
 })
 
 test('lists copies newest first, puts one back with its HTML, removes and clears', async () => {
-  const { app, page, close } = await launch(undefined, { layout: beside('clock') })
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     await expect(page.getByTestId('clip-empty')).toBeVisible()
@@ -134,7 +114,7 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
     await expect(page.getByTestId('clip-age').nth(2)).toHaveText('COPIED')
     expect(await held(app)).toEqual({ text: 'first copy', html: '<b>first</b> copy', rtf: null })
     await expect(page.getByTestId('clip-row').nth(2).getByTestId('clip-current')).toBeVisible()
-    await page.waitForTimeout(800)
+    await quietFor(800, () => texts(page), 'the history')
     expect(await texts(page)).toEqual(['#3fd2ff', 'https://example.test/second', 'first copy'])
 
     // The same text copied again moves up, counted, rather than listed twice.
@@ -163,7 +143,7 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
     await expect(page.getByTestId('clip-empty')).toBeVisible()
     // The clipboard is emptied with it, so nothing comes back at the next looks...
     expect(await held(app)).toBeNull()
-    await page.waitForTimeout(800)
+    await quietFor(800, () => page.getByTestId('clip-row').count(), 'the rows')
     await expect(page.getByTestId('clip-row')).toHaveCount(0)
     // ...and the text that was on it, copied again, is a copy (it was not listed before).
     await copied(app, page, 'https://example.test/second')
@@ -174,7 +154,7 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
 })
 
 test('keeps what WordPad copies - RTF alone - and puts it back, and shows it in a card', async () => {
-  const { app, page, close } = await launch(undefined, { layout: beside('clock') })
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     const rtf = '{\\rtf1\\ansi {\\b bold} words}'
@@ -196,7 +176,7 @@ test('keeps what WordPad copies - RTF alone - and puts it back, and shows it in 
 })
 
 test('leaves out a copy its application marked private, and masks what is listed', async () => {
-  const { app, page, close } = await launch(undefined, { layout: beside('clock') })
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     await copy(app, 'an ordinary line')
@@ -225,7 +205,7 @@ test('leaves out a copy its application marked private, and masks what is listed
 })
 
 test('paused, it reads nothing; resumed, it lists what the clipboard holds then', async () => {
-  const { app, page, close } = await launch(undefined, { layout: beside('clock') })
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     await page.getByTestId('clip-pause').click()
@@ -234,8 +214,7 @@ test('paused, it reads nothing; resumed, it lists what the clipboard holds then'
     expect(await page.evaluate(() => window.elecdex.clipboard.watching())).toEqual([])
     const before = await reads(app)
     await copy(app, 'while paused')
-    await page.waitForTimeout(1200)
-    expect(await reads(app)).toBe(before)
+    expect(await quietFor(1200, () => reads(app), 'the clipboard reads')).toBe(before)
     await expect(page.getByTestId('clip-row')).toHaveCount(0)
     await page.getByTestId('clip-pause').click()
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
@@ -247,18 +226,7 @@ test('paused, it reads nothing; resumed, it lists what the clipboard holds then'
 
 test('behind another tab or closed, nothing is read; shown again, it takes up', async () => {
   const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'tabs',
-        id: 't',
-        activeIndex: 0,
-        children: [
-          { kind: 'pane', id: 'k', widget: 'clipboard' },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
+    layout: tabbed(['clipboard', 'clock']),
   })
   const watching = () => page.evaluate(() => window.elecdex.clipboard.watching())
   try {
@@ -266,26 +234,24 @@ test('behind another tab or closed, nothing is read; shown again, it takes up', 
     await copy(app, 'seen')
     await expect.poll(() => texts(page)).toEqual(['seen'])
 
-    await page.locator('[data-testid=tab][data-pane-id=c]').click()
+    await page.locator('[data-testid=tab][data-pane-id=clock]').click()
     await expect.poll(watching).toEqual([])
     const before = await reads(app)
     await copy(app, 'copied unseen')
     await copy(app, 'copied unseen, twice')
-    await page.waitForTimeout(1200)
-    expect(await reads(app)).toBe(before)
+    expect(await quietFor(1200, () => reads(app), 'the clipboard reads')).toBe(before)
 
     // Shown again: what was copied meanwhile is not there, only what the clipboard holds now.
-    await page.locator('[data-testid=tab][data-pane-id=k]').click()
+    await page.locator('[data-testid=tab][data-pane-id=clipboard]').click()
     await expect.poll(watching).toEqual(['clipboard'])
     await expect.poll(() => texts(page)).toEqual(['copied unseen, twice', 'seen'])
 
     // Closed, nothing reads; the history waits in main's memory.
-    await page.locator('[data-testid=tab-close][data-pane-id=k]').click()
+    await page.locator('[data-testid=tab-close][data-pane-id=clipboard]').click()
     await expect(page.getByTestId('clipboard')).toHaveCount(0)
     await expect.poll(watching).toEqual([])
     const after = await reads(app)
-    await page.waitForTimeout(1000)
-    expect(await reads(app)).toBe(after)
+    expect(await quietFor(1000, () => reads(app), 'the clipboard reads')).toBe(after)
   } finally {
     await close()
   }
@@ -293,9 +259,9 @@ test('behind another tab or closed, nothing is read; shown again, it takes up', 
 
 test('switched away from the desk layout, nothing is read; switched back, it takes up', async () => {
   const { app, page, close } = await launch(undefined, {
-    layout: { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock' } },
+    layout: SINGLE_CLOCK,
     // A layout with shells asks before it is left: no question on the way back to the desk.
-    settings: { layout: { confirmSwitch: false } },
+    settings: NO_SWITCH_PROMPT,
   })
   const watching = () => page.evaluate(() => window.elecdex.clipboard.watching())
   const pane = page.locator('[data-testid=pane][data-widget=clipboard]')
@@ -315,8 +281,7 @@ test('switched away from the desk layout, nothing is read; switched back, it tak
     const before = await reads(app)
     await copy(app, 'copied away')
     await copy(app, 'copied away, later')
-    await page.waitForTimeout(1200)
-    expect(await reads(app)).toBe(before)
+    expect(await quietFor(1200, () => reads(app), 'the clipboard reads')).toBe(before)
 
     // Back at the desk: the history kept in main is there, with only what the
     // clipboard holds now added - nothing copied while away.
@@ -333,7 +298,7 @@ test('switched away from the desk layout, nothing is read; switched back, it tak
 const snipTexts = (page: Page) => page.getByTestId('snip-text').allInnerTexts()
 
 test('keeps a copy as a snippet with its formatting, puts it back without listing it, and keeps it', async () => {
-  let launched = await launch(undefined, { layout: beside('clock') })
+  let launched = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
     const { app, page } = launched
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
@@ -362,7 +327,8 @@ test('keeps a copy as a snippet with its formatting, puts it back without listin
     expect(await held(app)).toEqual({ text: 'first copy', html: '<b>first</b> copy', rtf: null })
     await expect(page.getByTestId('snip-row').first().getByTestId('snip-current')).toBeVisible()
     await page.getByTestId('clip-view-history').click()
-    await page.waitForTimeout(800)
+    await expect(page.getByTestId('clip-row').first()).toBeVisible()
+    await quietFor(800, () => texts(page), 'the history')
     expect(await texts(page)).toEqual(['ssh deploy@example.test', 'first copy'])
     await expect(page.getByTestId('clip-row').nth(1).getByTestId('clip-current')).toBeVisible()
 
@@ -372,7 +338,8 @@ test('keeps a copy as a snippet with its formatting, puts it back without listin
     await page.getByTestId('clip-view-snippets').click()
     await page.getByTestId('snip-copy').first().click()
     await page.getByTestId('clip-view-history').click()
-    await page.waitForTimeout(800)
+    await expect(page.getByTestId('clip-row').first()).toBeVisible()
+    await quietFor(800, () => texts(page), 'the history')
     expect(await texts(page)).toEqual(['ssh deploy@example.test'])
     await expect(page.getByTestId('clip-current')).toHaveCount(0)
 
@@ -381,7 +348,7 @@ test('keeps a copy as a snippet with its formatting, puts it back without listin
     await expect(page.getByTestId('snip-list')).toBeVisible()
 
     // The snippets are main's file, and the view the pane's: both survive a restart.
-    await page.waitForTimeout(1500) // let the layout save
+    await waitForSaved(launched.userData, (text) => /"view":\s*"snippets"/.test(text))
     launched = await launched.relaunch()
     await expect
       .poll(() => snipTexts(launched.page))
@@ -395,9 +362,7 @@ test('keeps a copy as a snippet with its formatting, puts it back without listin
 })
 
 test('writes, moves, edits and deletes snippets', async () => {
-  const layout = beside('clock')
-  const pane = layout.root.children[0] as Record<string, unknown>
-  pane.state = { view: 'snippets' }
+  const layout = beside('clipboard', { state: { view: 'snippets' } })
   const { page, close } = await launch(undefined, { layout })
   try {
     await expect(page.getByTestId('snip-empty')).toBeVisible()
@@ -481,12 +446,12 @@ test('writes, moves, edits and deletes snippets', async () => {
 test('empties the clipboard only for a page that shows the pane', async () => {
   // Found in the sweep: any page could empty the system clipboard, with no clipboard pane open.
   const { app, page, close } = await launch(undefined, {
-    layout: { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock' } },
+    layout: SINGLE_CLOCK,
   })
   try {
     await copy(app, 'keep me')
     await page.evaluate(() => window.elecdex.clipboard.clear())
-    await page.waitForTimeout(300)
+    await quietFor(300, async () => (await held(app))?.text, 'the clipboard')
     expect((await held(app))?.text).toBe('keep me')
   } finally {
     await close()

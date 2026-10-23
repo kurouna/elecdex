@@ -1,11 +1,13 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { expect, type Locator, type Page, test } from '@playwright/test'
+import { openedExternally, stubOpenExternal } from './support/stubs/external.js'
 import {
   type Launched,
   type LaunchOptions,
   launch,
   launchOnTwoLayouts,
+  quietFor,
   settleLayout,
   zoomSettled,
 } from './support.js'
@@ -221,18 +223,8 @@ function pageContrast(app: Launched): Promise<number> {
   })
 }
 
-async function stubExternal(app: Launched): Promise<void> {
-  await app.app.evaluate(({ shell }) => {
-    const opened: string[] = []
-    ;(globalThis as { __opened?: string[] }).__opened = opened
-    shell.openExternal = async (url: string) => {
-      opened.push(url)
-    }
-  })
-}
-
-const opened = (app: Launched) =>
-  app.app.evaluate(() => (globalThis as { __opened?: string[] }).__opened ?? [])
+const stubExternal = (app: Launched) => stubOpenExternal(app.app)
+const opened = (app: Launched) => openedExternally(app.app)
 
 test.describe('web panes', () => {
   test('are offered in the picker, one per preset, and open where the preset starts', async () => {
@@ -727,14 +719,17 @@ test.describe('web panes', () => {
 
       // The page's own script, with no press: kept on the site, and the browser left alone.
       await inPage(app, 'document.querySelector("#away").click()')
-      await app.page.waitForTimeout(500)
-      expect(await opened(app)).toEqual([])
+      expect(await quietFor(500, () => opened(app), 'what the browser was asked to open')).toEqual(
+        [],
+      )
 
       await pressInPage(app)
       await inPage(app, 'document.querySelector("#away").click()')
       await expect.poll(() => opened(app)).toEqual([`http://localhost:${port}/away`])
 
       // A redirect off the site is caught too, a while after.
+      // wait: main lets a page open the browser once per EXTERNAL_LIMITS.gapMs (1.5 s) and the
+      // page cannot see that gap end.
       await app.page.waitForTimeout(1600)
       await pressInPage(app)
       await inPage(app, `location.href = "http://127.0.0.1:${port}/yt/bounce"`)
@@ -1221,9 +1216,14 @@ test('a page behind another tab that takes focus does not bring its tab forward'
         if (view instanceof WebContentsView) view.webContents.focus()
       }
     })
-    await page.waitForTimeout(800)
+    const behind = page.locator('[data-testid=pane][data-widget="web.x"]')
+    await quietFor(
+      800,
+      async () => [await shown.isVisible(), await behind.isHidden()],
+      'which pane is shown',
+    )
     await expect(shown).toBeVisible()
-    await expect(page.locator('[data-testid=pane][data-widget="web.x"]')).toBeHidden()
+    await expect(behind).toBeHidden()
   } finally {
     await close()
   }

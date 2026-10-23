@@ -1,5 +1,15 @@
 import { expect, type Page, test } from '@playwright/test'
-import { launch, SINGLE_TERMINAL, terminalPane, typeInto, zoomSettled } from './support.js'
+import { readScreen, screenLines } from './support/terminal.js'
+import {
+  launch,
+  paneOf,
+  SINGLE_TERMINAL,
+  sessionIds,
+  tabbed,
+  terminalPane,
+  typeInto,
+  zoomSettled,
+} from './support.js'
 
 /**
  * Bringing one pane to the front of the workspace and putting it back.
@@ -10,8 +20,7 @@ import { launch, SINGLE_TERMINAL, terminalPane, typeInto, zoomSettled } from './
  * back still has its history - the size it was given changed once, not per frame.
  */
 
-const pane = (page: Page, widget: string) =>
-  page.locator(`[data-testid=pane][data-widget=${widget}]:not(.hidden)`)
+const pane = paneOf
 
 interface Box {
   x: number
@@ -182,6 +191,7 @@ test('a shell brought forward and put back keeps its history', async () => {
   try {
     const shell = terminalPane(page).first()
     await typeInto(page, shell, `echo ${marker}`)
+    // wait: the echo and the prompt after it land; nothing tells the output from the line typed.
     await page.waitForTimeout(1500)
 
     // A shell on its own has the same corner as a module pane, shown on hover.
@@ -189,39 +199,21 @@ test('a shell brought forward and put back keeps its history', async () => {
     await shell.getByTestId('pane-zoom').click()
     await expect(page.getByTestId('zoom-backdrop')).toBeVisible()
     await zoomSettled(page)
-    await page.waitForTimeout(800) // the shell is told its new size once, and repaints
+    // wait: the shell is told its new size once (after the settle time) and repaints.
+    await page.waitForTimeout(800)
 
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
     await zoomSettled(page)
+    // wait: the same for the size it goes back to.
     await page.waitForTimeout(800)
 
     // The session's screen as a reattaching pane would receive it: ConPTY
     // rewraps its buffer to every size it is given, so a size sent per frame
     // leaves the lines broken up here.
-    const screen = await page.evaluate(async () => {
-      const decoder = new TextDecoder()
-      const id = (await window.elecdex.pty.list())[0]?.id
-      if (id === undefined) return ''
-      let text = ''
-      const detach = await window.elecdex.pty.attach(id, {
-        onData: (chunk) => {
-          text += decoder.decode(chunk, { stream: true })
-        },
-        onExit: () => {},
-        onCwd: () => {},
-        onCommandEnd: () => {},
-        onIntegrationUnavailable: () => {},
-      })
-      await new Promise((r) => setTimeout(r, 800))
-      detach()
-      return text
-    })
-    const ESC = String.fromCharCode(27)
-    const lines = screen
-      .replaceAll(new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'g'), '')
-      .split(/\r?\n/)
-      .map((line) => line.trimEnd())
+    const id = (await sessionIds(page))[0]
+    const screen = id === undefined ? '' : await readScreen(page, id, 800)
+    const lines = screenLines(screen)
     expect(lines.some((line) => line.endsWith(`echo ${marker}`))).toBe(true)
     expect(lines).toContain(marker)
   } finally {
@@ -425,18 +417,7 @@ test('a widget with little to show comes forward as a panel, not as the whole wo
 })
 
 test('a tab group offers the zoom only while the tab it shows can take it', async () => {
-  const layout = {
-    version: 1,
-    root: {
-      kind: 'tabs',
-      id: 'g',
-      activeIndex: 0,
-      children: [
-        { kind: 'pane', id: 't', widget: 'terminal' },
-        { kind: 'pane', id: 'n', widget: 'netstat' },
-      ],
-    },
-  }
+  const layout = tabbed(['terminal', 'netstat'])
   const { page, close } = await launch(undefined, { layout })
   try {
     const group = page.getByTestId('tabs-host')

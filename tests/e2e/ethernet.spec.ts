@@ -1,5 +1,14 @@
 import { expect, type Page, test } from '@playwright/test'
-import { atDesignSize, catchPageCopies, launch } from './support.js'
+import {
+  metricsActive as active,
+  atDesignSize,
+  beside,
+  catchPageCopies,
+  closePane,
+  launch,
+  paneOf,
+  quietFor,
+} from './support.js'
 
 /**
  * The Ethernet pane, on the collector's stub (support.ts sets ELECDEX_ETHER_STUB=1,
@@ -8,22 +17,8 @@ import { atDesignSize, catchPageCopies, launch } from './support.js'
  * no echo leaves it.
  */
 
-const alone = (widget = 'ethernet') => ({
-  version: 1,
-  root: {
-    kind: 'split',
-    id: 's',
-    direction: 'row',
-    sizes: [60, 40],
-    children: [
-      { kind: 'pane', id: 'e', widget },
-      { kind: 'pane', id: 'c', widget: 'clock' },
-    ],
-  },
-})
-
-const active = async (page: Page): Promise<string[]> =>
-  (await page.evaluate(() => window.elecdex.metrics.stats())).active ?? []
+/** The Ethernet pane beside a clock, given the larger share. */
+const alone = () => beside('ethernet', { id: 'e', sizes: [60, 40] })
 
 const station = (page: Page, id: string) =>
   page.locator(`[data-testid=ether-station][data-station=${id}]`)
@@ -56,7 +51,7 @@ test('nothing reads the link or echoes once the pane has gone', async () => {
   try {
     await expect(page.getByTestId('ether-state')).toContainText('ONLINE', { timeout: 20_000 })
     expect(await active(page)).toContain('net.ethernet')
-    await page.locator('[data-testid=pane][data-widget=ethernet] [data-testid=pane-close]').click()
+    await closePane(paneOf(page, 'ethernet'))
     await expect(page.getByTestId('ether')).toHaveCount(0)
     await expect
       .poll(async () => (await active(page)).filter((id) => id === 'net.ethernet'), {
@@ -133,7 +128,7 @@ test('what the reader could not read is said once as a toast, and the pane goes 
     await expect(toast).toContainText('a made-up failure', { timeout: 40_000 })
     await expect(page.getByTestId('ether-verdict')).toContainText('CLEAR')
     // A reading a second goes on carrying it: still one toast.
-    await page.waitForTimeout(3000)
+    await quietFor(3000, () => toast.count(), 'the ETHERNET toasts')
     await expect(toast).toHaveCount(1)
   } finally {
     await close()

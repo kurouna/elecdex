@@ -1,24 +1,29 @@
-import { readFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { clickThen, LEAVING, launch, SINGLE_TERMINAL, terminalPane } from './support.js'
+import type { Settings } from '../../src/shared/settings.js'
+import {
+  clickThen,
+  LEAVING,
+  launch,
+  openSettings,
+  SINGLE_CLOCK,
+  SINGLE_TERMINAL,
+  savedSettings as savedFile,
+  terminalPane,
+} from './support.js'
 
 /** The settings dialog: appearance, shortcuts and the update check. */
 
-const SINGLE_CLOCK = { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock' } } as const
-
-const savedSettings = (userData: string) =>
-  JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8'))
+/** settings.json as main last wrote it (empty before its first write), to read a setting from. */
+const savedSettings = (userData: string) => (savedFile(userData) ?? {}) as Partial<Settings>
 
 test('settings open from the shortcut, apply at once and are saved', async () => {
   const { page, userData, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
-    await page.keyboard.press('Control+Shift+Period')
-    const dialog = page.getByTestId('settings-dialog')
-    await expect(dialog).toBeVisible()
+    const dialog = await openSettings(page)
 
     await page.getByTestId('settings-theme').selectOption('amber')
     await expect
@@ -38,8 +43,7 @@ test('settings open from the shortcut, apply at once and are saved', async () =>
 test('a shortcut can be rebound, cleared and reset, and conflicts are shown', async () => {
   const { page, userData, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
+    await openSettings(page, 'keyboard')
     const addPane = page.locator('[data-testid=keybinding][data-action="pane.add"]')
     await expect(addPane.getByTestId('keybinding-chord')).toHaveText('Ctrl+Shift+A')
 
@@ -70,8 +74,7 @@ test('a shortcut can be rebound, cleared and reset, and conflicts are shown', as
     await page.keyboard.press('Escape')
 
     // Cleared, then back to the default.
-    await page.keyboard.press('Control+Shift+Period')
-    await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
+    await openSettings(page, 'keyboard')
     await addPane.getByTestId('keybinding-clear').click()
     await expect(addPane.getByTestId('keybinding-chord')).toHaveText('none')
     await addPane.getByTestId('keybinding-reset').click()
@@ -120,8 +123,7 @@ test.describe('update check', () => {
           opened.push(url)
         }
       })
-      await page.keyboard.press('Control+Shift+Period')
-      await page.locator('[data-testid=settings-section][data-section=updates]').click()
+      await openSettings(page, 'updates')
       await page.getByTestId('settings-updates-now').click()
       await expect(page.getByTestId('settings-updates-status')).toHaveAttribute(
         'data-state',
@@ -165,7 +167,7 @@ test('a shell starts in the home folder by default, and in the folder chosen in 
     // Not the folder the app was started from: home.
     await cwdOf(terminalPane(page).first()).toBe(same(os.homedir()))
 
-    await page.keyboard.press('Control+Shift+Period')
+    await openSettings(page)
     const input = page.getByTestId('settings-start-directory')
     const note = page.getByTestId('settings-start-directory-note')
     await expect(input).toHaveValue('')
@@ -195,7 +197,7 @@ test('a shell starts in the home folder by default, and in the folder chosen in 
     await cwdOf(panes.nth(0)).toBe(same(os.homedir()))
 
     // "home" clears the setting.
-    await page.keyboard.press('Control+Shift+Period')
+    await openSettings(page)
     await page.getByTestId('settings-start-directory-home').click()
     await expect.poll(() => savedSettings(userData).terminal?.startDirectory).toBe('')
     await expect(input).toHaveValue('')
@@ -208,10 +210,7 @@ test('the window section offers what this machine can actually do', async () => 
   test.skip(process.platform === 'win32', 'all of it is offered here: background.spec.ts covers it')
   const { page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
-    await page.keyboard.press('Control+Shift+Period')
-    await expect(page.getByTestId('settings-dialog')).toBeVisible()
-    const section = page.locator('[data-testid=settings-section][data-section=window]')
-    await section.click()
+    await openSettings(page, 'window')
 
     if (process.platform === 'darwin') {
       // macOS keeps the app running with no window, so closing and minimising

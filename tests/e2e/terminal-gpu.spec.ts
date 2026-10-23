@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import { shellReady } from './support/terminal.js'
 import {
   bringWindowBack,
   type Launched,
@@ -207,8 +208,8 @@ async function start(): Promise<void> {
   launched = await launch(undefined, { layout: SINGLE_TERMINAL })
   page = launched.page
   await expect(terminalPane(page).locator('.xterm-screen canvas').first()).toBeVisible()
-  // The first prompt before typing.
-  await page.waitForTimeout(2500)
+  // The first prompt before typing: the shell has reported its folder.
+  await shellReady(page)
   // Before anything is lost: the measure itself holds.
   await screenFollows('before')
 }
@@ -265,6 +266,7 @@ test('the screen follows the shell after the WebGL context is lost and given bac
   await start()
   await loseContext(500)
   // Never waited for: the pane takes a fresh addon instead of the one given back.
+  // wait: RECOVERY_MS covers the retry and the renderer changing again; no signal marks its end.
   await page.waitForTimeout(RECOVERY_MS)
   expect(await drawnByWebgl()).toBe(true)
   await screenFollows('restored')
@@ -274,6 +276,7 @@ test('the screen follows the shell after the WebGL context is lost for good', as
   await start()
   await loseContext(null)
   // The lost context is the old canvas's alone: a fresh addon has a new one.
+  // wait: RECOVERY_MS covers the retry and the renderer changing again; no signal marks its end.
   await page.waitForTimeout(RECOVERY_MS)
   expect(await drawnByWebgl()).toBe(true)
   await screenFollows('never restored')
@@ -282,6 +285,7 @@ test('the screen follows the shell after the WebGL context is lost for good', as
 test('the screen follows the shell after the GPU process crashes', async () => {
   await start()
   await crashGpu()
+  // wait: the GPU process comes back and the pane retries; no signal marks the end of that.
   await page.waitForTimeout(RECOVERY_MS)
   expect(await drawnByWebgl()).toBe(true)
   await screenFollows('GPU process crashed')
@@ -293,17 +297,17 @@ test('a terminal behind a tab while the GPU process crashes draws true once show
   await page.keyboard.press('Control+Shift+KeyT')
   const strip = page.getByTestId('tabs-host').getByTestId('tab')
   await expect.poll(() => strip.count(), { timeout: 20_000 }).toBe(2)
+  // wait: the new tab's shell starts and draws before the crash; nothing marks it drawn.
   await page.waitForTimeout(2500)
   await crashGpu()
+  // wait: the GPU process comes back while the pane is hidden; no signal marks the end of that.
   await page.waitForTimeout(RECOVERY_MS)
   await strip.first().click()
   // Shown, it takes WebGL back.
-  await page.waitForTimeout(1000)
-  expect(await drawnByWebgl()).toBe(true)
+  await expect.poll(drawnByWebgl).toBe(true)
   await screenFollows('behind a tab, shown again')
   await strip.nth(1).click()
-  await page.waitForTimeout(1000)
-  expect(await drawnByWebgl()).toBe(true)
+  await expect.poll(drawnByWebgl).toBe(true)
   await screenFollows('the tab that was in front')
 })
 
@@ -312,6 +316,7 @@ test('a terminal in a minimised window while the GPU process crashes draws true 
   // Skipped, not failed, where nothing can minimise the window (a bare Xvfb).
   await putWindowAway(launched.app, page)
   await crashGpu()
+  // wait: the GPU process comes back while the window is away; no signal marks the end of that.
   await page.waitForTimeout(RECOVERY_MS)
   await bringWindowBack(launched.app, page)
   await launched.app.evaluate(({ BrowserWindow }) =>
@@ -319,8 +324,7 @@ test('a terminal in a minimised window while the GPU process crashes draws true 
       .find((w) => w.isVisible())
       ?.focus(),
   )
-  await page.waitForTimeout(1000)
-  expect(await drawnByWebgl()).toBe(true)
+  await expect.poll(drawnByWebgl).toBe(true)
   await screenFollows('minimised')
 })
 
@@ -330,8 +334,10 @@ test('the screen follows the shell once repeated GPU crashes have turned the GPU
   // with WebGL off: the terminal is left on xterm's DOM renderer.
   for (let i = 0; i < 4; i++) {
     await crashGpu()
+    // wait: each crash's GPU process comes back before the next is ended; no signal for it.
     await page.waitForTimeout(3000)
   }
+  // wait: Chromium settles on software compositing and the pane on the DOM renderer.
   await page.waitForTimeout(RECOVERY_MS)
   expect(await drawnByWebgl()).toBe(false)
   await screenFollows('GPU turned off')

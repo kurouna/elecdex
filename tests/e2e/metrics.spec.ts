@@ -1,8 +1,20 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
-import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { atDesignSize, type Launched, launch, powerNote } from './support.js'
+import { appMemory, idleCpu, sizeWindow, metricsStats as stats } from './support/measure.js'
+import {
+  atDesignSize,
+  closePane,
+  type Launched,
+  launch,
+  metricsActive,
+  paneOf,
+  quietFor,
+  reloadWorkspace,
+  SINGLE_TERMINAL,
+  tabbed,
+  waitForSaved,
+} from './support.js'
 
 /**
  * Metrics and monitoring widgets, end to end.
@@ -12,17 +24,29 @@ import { atDesignSize, type Launched, launch, powerNote } from './support.js'
  * running, and the whole monitoring layout stays cheap.
  */
 
-const TERMINAL_ONLY = { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } } as const
-
-const stats = (page: Page) => page.evaluate(() => window.elecdex.metrics.stats())
-
-/** Closes the pane showing `widget` by focusing it and using the close shortcut. */
-async function closeWidget(page: Page, widget: string) {
-  const pane = page.locator(`[data-testid=pane][data-widget=${widget}]`)
-  await pane.dispatchEvent('pointerdown')
-  await page.keyboard.press('Control+Shift+KeyW')
-  await expect(pane).toHaveCount(0)
+/**
+ * Whether every shell in the saved layout has recorded its session and the folder it reported:
+ * the page's own saves at the start, which would overwrite a layout a test writes over them.
+ */
+function shellRecorded(text: string): boolean {
+  const panes: { widget?: string; state?: { sessionId?: unknown; cwd?: unknown } }[] = []
+  const walk = (node: unknown): void => {
+    if (typeof node !== 'object' || node === null) return
+    const n = node as { kind?: string; children?: unknown[] }
+    if (n.kind === 'pane') panes.push(node as (typeof panes)[number])
+    for (const child of n.children ?? []) walk(child)
+  }
+  walk((JSON.parse(text) as { root?: unknown }).root)
+  const shells = panes.filter((p) => p.widget === 'terminal')
+  return (
+    shells.length > 0 &&
+    shells.every((p) => p.state?.sessionId !== undefined && p.state.cwd !== undefined)
+  )
 }
+
+/** Whether the saved layout has no pane of `widgets` left. */
+const without = (widgets: string[]) => (text: string) =>
+  widgets.every((widget) => !text.includes(`"widget": "${widget}"`))
 
 test('every monitoring widget shows live data', async () => {
   const { page, close } = await launch()
@@ -115,17 +139,16 @@ test('the GPU pane charts the made-up GPU, and says so on a machine with none', 
 test('closing the GPU pane stops reading the GPU', async () => {
   const { page, close } = await launch(undefined, { layout: GPU_ONLY })
   try {
-    await expect
-      .poll(async () => (await stats(page)).active, { timeout: 20_000 })
-      .toContain('gpu.usage')
-    await closeWidget(page, 'gpu')
-    await expect
-      .poll(async () => (await stats(page)).active, { timeout: 10_000 })
-      .not.toContain('gpu.usage')
-    await page.waitForTimeout(2000) // let an in-flight collection land
-    const before = (await stats(page)).collections['gpu.usage'] ?? 0
-    await page.waitForTimeout(4000)
-    expect((await stats(page)).collections['gpu.usage'] ?? 0).toBe(before)
+    await expect.poll(() => metricsActive(page), { timeout: 20_000 }).toContain('gpu.usage')
+    await closePane(paneOf(page, 'gpu'))
+    await expect.poll(() => metricsActive(page), { timeout: 10_000 }).not.toContain('gpu.usage')
+    // wait: no signal in the app (needs a hook): a collection already in flight may still land.
+    await page.waitForTimeout(2000)
+    await quietFor(
+      4000,
+      async () => (await stats(page)).collections['gpu.usage'] ?? 0,
+      'the GPU collections',
+    )
   } finally {
     await close()
   }
@@ -149,30 +172,29 @@ test('on Windows the GPU is read for real from the sampler, or said to be unread
 })
 
 test('the collector is never started for a layout without monitoring widgets', async () => {
-  const second = await launch(undefined, { layout: TERMINAL_ONLY })
+  const second = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
-    await second.page.waitForTimeout(3000)
-    expect(await stats(second.page)).toEqual({ active: [], collections: {}, running: false })
+    const seen = await quietFor(3000, () => stats(second.page), 'the collector')
+    expect(seen).toEqual({ active: [], collections: {}, running: false })
   } finally {
     await second.close()
   }
 })
 
 test('removing every monitoring widget stops every source', async () => {
-  const { page, close } = await launch()
+  const { page, userData, close } = await launch()
   try {
     await expect
-      .poll(async () => (await stats(page)).active.length, { timeout: 20_000 })
+      .poll(async () => (await metricsActive(page)).length, { timeout: 20_000 })
       .toBeGreaterThan(5)
 
-    // Let the page's own debounced save (the terminal recording its session)
-    // land first, or it would overwrite the layout this test writes.
-    await page.waitForTimeout(2000)
-    await page.evaluate((tree) => window.elecdex.layout.save(tree), TERMINAL_ONLY)
-    await page.reload()
-    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+    // Let the page's own debounced saves (the terminal recording its session and its folder)
+    // land first, or they would overwrite the layout this test writes.
+    await waitForSaved(userData, shellRecorded)
+    await page.evaluate((tree) => window.elecdex.layout.save(tree), SINGLE_TERMINAL)
+    await reloadWorkspace(page)
 
-    await expect.poll(async () => (await stats(page)).active, { timeout: 10_000 }).toEqual([])
+    await expect.poll(() => metricsActive(page), { timeout: 10_000 }).toEqual([])
     // Collections already in flight still land: on a slow machine a process list
     // through PowerShell takes seconds. Wait until the counts hold still, then
     // check that they stay that way.
@@ -180,6 +202,8 @@ test('removing every monitoring widget stops every source', async () => {
     await expect
       .poll(
         async () => {
+          // wait: no signal in the app (needs a hook): collections in flight (a process list
+          // through PowerShell takes seconds) are seen only as counts that have stopped moving.
           await page.waitForTimeout(3000)
           const now = (await stats(page)).collections
           const same = JSON.stringify(now) === JSON.stringify(settled)
@@ -189,8 +213,8 @@ test('removing every monitoring widget stops every source', async () => {
         { timeout: 30_000, intervals: [0] },
       )
       .toBe(true)
-    await page.waitForTimeout(5000)
-    expect((await stats(page)).collections).toEqual(settled)
+    const after = await quietFor(5000, async () => (await stats(page)).collections, 'collections')
+    expect(after).toEqual(settled)
   } finally {
     await close()
   }
@@ -199,30 +223,26 @@ test('removing every monitoring widget stops every source', async () => {
 test('polling stops when the last widget reading a source goes away, a reloaded page leaving no subscriptions behind', async () => {
   const { page, close } = await launch()
   try {
-    await expect
-      .poll(async () => (await stats(page)).active, { timeout: 20_000 })
-      .toContain('cpu.load')
+    await expect.poll(() => metricsActive(page), { timeout: 20_000 }).toContain('cpu.load')
 
     // If the old page's subscriptions survived the reload, closing the CPU widget
     // on the new page would not bring cpu.load's subscriber count to zero.
-    await page.reload()
-    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
-    await expect
-      .poll(async () => (await stats(page)).active, { timeout: 20_000 })
-      .toContain('cpu.load')
+    await reloadWorkspace(page)
+    await expect.poll(() => metricsActive(page), { timeout: 20_000 }).toContain('cpu.load')
 
     // cpu.load is read only by the CPU widget; proc.list also by top processes.
-    await closeWidget(page, 'cpu')
-    await expect
-      .poll(async () => (await stats(page)).active, { timeout: 10_000 })
-      .not.toContain('cpu.load')
-    expect((await stats(page)).active).toContain('proc.list')
+    await closePane(paneOf(page, 'cpu'))
+    await expect.poll(() => metricsActive(page), { timeout: 10_000 }).not.toContain('cpu.load')
+    expect(await metricsActive(page)).toContain('proc.list')
 
     // And the count really stops moving - not just the reported set.
-    await page.waitForTimeout(2000) // let an in-flight collection land
-    const before = (await stats(page)).collections['cpu.load'] ?? 0
-    await page.waitForTimeout(4000)
-    expect((await stats(page)).collections['cpu.load'] ?? 0).toBe(before)
+    // wait: no signal in the app (needs a hook): a collection already in flight may still land.
+    await page.waitForTimeout(2000)
+    await quietFor(
+      4000,
+      async () => (await stats(page)).collections['cpu.load'] ?? 0,
+      'the cpu.load collections',
+    )
   } finally {
     await close()
   }
@@ -230,29 +250,23 @@ test('polling stops when the last widget reading a source goes away, a reloaded 
 
 test('a tab behind another stops what it does not chart, and resumes when shown', async () => {
   const { page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'tabs',
-        id: 'g',
-        activeIndex: 0,
-        children: [
-          { kind: 'pane', id: 'clock', widget: 'clock' },
-          { kind: 'pane', id: 'top', widget: 'toplist' },
-          { kind: 'pane', id: 'cpu', widget: 'cpu' },
-        ],
-      },
-    },
+    layout: tabbed(['clock', 'toplist', 'cpu']),
   })
-  const active = async () => (await stats(page)).active
+  const active = () => metricsActive(page)
   try {
     // Hidden from the start: the CPU chart keeps its history, the rest waits.
     await expect.poll(active, { timeout: 20_000 }).toEqual(['cpu.info', 'cpu.load'])
-    await page.waitForTimeout(3000)
-    expect(await active()).toEqual(['cpu.info', 'cpu.load'])
-    expect((await stats(page)).collections['proc.list'] ?? 0).toBe(0)
+    const held = await quietFor(
+      3000,
+      async () => ({
+        active: await active(),
+        procList: (await stats(page)).collections['proc.list'] ?? 0,
+      }),
+      'what is read behind the tab',
+    )
+    expect(held).toEqual({ active: ['cpu.info', 'cpu.load'], procList: 0 })
 
-    await page.locator('[data-testid=tab][data-pane-id=top]').click()
+    await page.locator('[data-testid=tab][data-pane-id=toplist]').click()
     await expect(page.getByTestId('toplist-row').first()).toBeVisible({ timeout: 30_000 })
     expect(await active()).toEqual(['cpu.info', 'cpu.load', 'proc.list'])
 
@@ -275,15 +289,12 @@ test('a tab behind another stops what it does not chart, and resumes when shown'
 
 test('what cannot change is collected once, however often it is subscribed again', async () => {
   const STATIC = ['cpu.info', 'os.info', 'hardware.system'] as const
-  const { page, close } = await launch()
+  const { page, userData, close } = await launch()
   const counts = async () => {
     const { collections } = await stats(page)
     return STATIC.map((id) => collections[id] ?? 0)
   }
-  const reload = async () => {
-    await page.reload()
-    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
-  }
+  const reload = () => reloadWorkspace(page)
   try {
     await expect.poll(counts, { timeout: 30_000 }).toEqual([1, 1, 1])
     await expect(page.getByTestId('sysinfo-os')).not.toHaveText('--')
@@ -294,23 +305,22 @@ test('what cannot change is collected once, however often it is subscribed again
     await expect(page.getByTestId('sysinfo-os')).not.toHaveText('--')
 
     // Closing the only readers and bringing them back, as a pane move does.
-    await page.waitForTimeout(2000) // let the page's own debounced save land first
+    // Let the page's own debounced save land first.
+    await waitForSaved(userData, shellRecorded)
     const tree = await page.evaluate(() => window.elecdex.layout.load())
-    await closeWidget(page, 'sysinfo')
-    await closeWidget(page, 'cpu')
-    await expect
-      .poll(async () => (await stats(page)).active, { timeout: 10_000 })
-      .not.toContain('os.info')
-    await page.waitForTimeout(2000) // the closes' own save, which would overwrite ours
+    await closePane(paneOf(page, 'sysinfo'))
+    await closePane(paneOf(page, 'cpu'))
+    await expect.poll(() => metricsActive(page), { timeout: 10_000 }).not.toContain('os.info')
+    // The closes' own save, which would overwrite ours.
+    await waitForSaved(userData, without(['sysinfo', 'cpu']))
     await page.evaluate((t) => window.elecdex.layout.save(t), tree)
     await reload()
     // Served from the broker's cache, not collected again.
     await expect(page.getByTestId('sysinfo-os')).not.toHaveText('--')
     await expect
-      .poll(async () => (await stats(page)).active, { timeout: 10_000 })
+      .poll(() => metricsActive(page), { timeout: 10_000 })
       .toEqual(expect.arrayContaining([...STATIC]))
-    await page.waitForTimeout(3000)
-    expect(await counts()).toEqual([1, 1, 1])
+    expect(await quietFor(3000, counts, 'the once-only collections')).toEqual([1, 1, 1])
   } finally {
     await close()
   }
@@ -360,7 +370,8 @@ test('the system pane fits its rows in a layout saved before the OS row', async 
     ).toBeGreaterThanOrEqual(1919)
     expect(viewport[1], 'and the height, minus the title bar').toBeGreaterThanOrEqual(1040)
     await osRowShown(second)
-    await page.waitForTimeout(500) // the resize settling
+    // wait: the resize reaches the layout over a few frames; nothing says it has finished.
+    await page.waitForTimeout(500)
     const pane = await page.locator('[data-testid=pane][data-widget=sysinfo]').boundingBox()
     const lastRow = await page.getByTestId('sysinfo').locator('.hud-cells').last().boundingBox()
     if (!pane || !lastRow) throw new Error('no boxes')
@@ -380,24 +391,16 @@ test('unknown metric ids are rejected rather than polled', async () => {
       // @ts-expect-error - deliberately not a MetricSourceId.
       window.elecdex.metrics.subscribe('rm -rf /', () => {})
     })
-    await page.waitForTimeout(1000)
-    expect((await stats(page)).active).not.toContain('rm -rf /')
+    const polled = await quietFor(
+      1000,
+      async () => (await metricsActive(page)).includes('rm -rf /'),
+      'the unknown id',
+    )
+    expect(polled).toBe(false)
   } finally {
     await close()
   }
 })
-
-/** CPU seconds used by every Electron process, and their combined memory. */
-async function appUsage(app: ElectronApplication) {
-  return app.evaluate(({ app: electronApp }) => {
-    const metrics = electronApp.getAppMetrics()
-    return {
-      cpuSeconds: metrics.reduce((sum, m) => sum + (m.cpu.cumulativeCPUUsage ?? 0), 0),
-      workingSetMb: metrics.reduce((sum, m) => sum + m.memory.workingSetSize, 0) / 1024,
-      gpuMb: (metrics.find((m) => m.type === 'GPU')?.memory.workingSetSize ?? 0) / 1024,
-    }
-  })
-}
 
 test('the full monitoring layout stays cheap when idle', async () => {
   // eDEX-UI's biggest problem was cost at idle. The budget here is generous for
@@ -407,21 +410,14 @@ test('the full monitoring layout stays cheap when idle', async () => {
   test.setTimeout(120_000)
   const { app, page, close } = await launch()
   try {
-    await app.evaluate(({ BrowserWindow }) => {
-      const [win] = BrowserWindow.getAllWindows()
-      win?.setContentSize(1920, 1080)
-    })
+    await sizeWindow(app, 1920, 1080)
     // Startup collections, fonts, first paints - and the GPU process, whose caches fill over the
     // first 30-50 s: measured at 35 s, a growth there showed in some runs only (2026-10-18).
-    await page.waitForTimeout(45_000)
-
-    const WINDOW_MS = 20_000
-    const start = await appUsage(app)
-    await page.waitForTimeout(WINDOW_MS)
-    const end = await appUsage(app)
-
-    const percentOfOneCore = ((end.cpuSeconds - start.cpuSeconds) / (WINDOW_MS / 1000)) * 100
-    const power = await powerNote(app, page)
+    const { percentOfOneCore, power } = await idleCpu(app, page, {
+      warmupMs: 45_000,
+      windowMs: 20_000,
+    })
+    const end = await appMemory(app)
     console.log(
       `idle: ${percentOfOneCore.toFixed(1)}% of one core, ${end.workingSetMb.toFixed(0)} MB working set (GPU process ${end.gpuMb.toFixed(0)} MB), ${power}`,
     )
@@ -465,18 +461,14 @@ test('put away in the notification area, the full layout stops drawing', async (
         else win?.close()
       }, action)
     await workspace('size')
-    await page.waitForTimeout(15_000)
     const WINDOW_MS = 15_000
-    const measure = async () => {
-      const start = await appUsage(app)
-      await page.waitForTimeout(WINDOW_MS)
-      return ((await appUsage(app)).cpuSeconds - start.cpuSeconds) / (WINDOW_MS / 1000)
-    }
-    const shown = await measure()
+    const onScreen = await idleCpu(app, page, { warmupMs: 15_000, windowMs: WINDOW_MS })
+    const shown = onScreen.percentOfOneCore / 100
     await workspace('close')
-    await page.waitForTimeout(3000)
-    const hidden = await measure()
-    const power = await powerNote(app, page)
+    // A moment for the window put away to settle, then the same measurement.
+    const away = await idleCpu(app, page, { warmupMs: 3000, windowMs: WINDOW_MS })
+    const hidden = away.percentOfOneCore / 100
+    const power = away.power
     console.log(
       `on screen ${(shown * 100).toFixed(1)}%, put away ${(hidden * 100).toFixed(1)}% of one core, ${power}`,
     )

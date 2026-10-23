@@ -4,14 +4,20 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import { readScreen, screenLines } from './support/terminal.js'
 import {
   type Launched,
   launch,
+  listenToSessions,
+  paneById,
+  quietFor,
   removeDir,
+  runCapture,
   SINGLE_TERMINAL,
-  savedLayout,
+  sessionIds,
   terminalPane,
   typeInto,
+  waitForSaved,
 } from './support.js'
 
 let launched: Launched
@@ -40,83 +46,21 @@ test.afterAll(async () => {
   await launched?.close()
 })
 
-/**
- * Runs a command on a throwaway session and returns everything the shell wrote.
- *
- * Deliberately uses its own session rather than the visible pane so the test is
- * not racing the UI, and so a failure points at the data path rather than at
- * rendering.
- *
- * No pane claims such a session, so the workspace's reaper - which runs once, a
- * few seconds after the panes last changed - ends it if it is alive just then.
- * That was always the third capture after a launch, which then waited out its
- * whole timeout on a shell that was gone. A session that ends before it has
- * answered is the reaper's doing, and the capture starts over on a new one.
- */
-async function runCapture(command: string, expected: RegExp): Promise<string> {
-  return page.evaluate(
-    async ({ cmd, pattern }) => {
-      const re = new RegExp(pattern)
-
-      /** One session's output once it matches, or null when the session was ended first. */
-      const attempt = async (): Promise<string | null> => {
-        const session = await window.elecdex.pty.create({ cols: 120, rows: 40 })
-        const decoder = new TextDecoder()
-        let output = ''
-
-        const result = await new Promise<string | null>((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error(`timeout; saw: ${output}`)), 25_000)
-          const settle = (value: string | null): void => {
-            clearTimeout(timer)
-            resolve(value)
-          }
-
-          void window.elecdex.pty
-            .attach(session.id, {
-              onData: (chunk) => {
-                output += decoder.decode(chunk, { stream: true })
-                if (re.test(output)) settle(output)
-              },
-              onExit: () => settle(null),
-              onCwd: () => {},
-              onCommandEnd: () => {},
-              onIntegrationUnavailable: () => {},
-            })
-            .then(() => {
-              // Give the shell a moment to print its first prompt before typing.
-              setTimeout(() => window.elecdex.pty.write(session.id, `${cmd}\r`), 1200)
-            })
-            // Reaped between create and attach: there is no session to attach to.
-            .catch(() => settle(null))
-        })
-
-        await window.elecdex.pty.dispose(session.id)
-        return result
-      }
-
-      for (let tries = 0; tries < 3; tries++) {
-        const result = await attempt()
-        if (result !== null) return result
-      }
-      throw new Error('the session was ended before it answered, three times over')
-    },
-    { cmd: command, pattern: expected.source },
-  )
-}
-
 test('captures in a row all answer, the one the reaper ends too', async () => {
   // First in the file on purpose: four captures take about five seconds, so one of
   // them is alive when the reaper runs, four seconds after the launch. Before the
   // capture started over, that one waited 25 s for a shell that had been ended.
   for (let i = 0; i < 4; i++) {
     const marker = `capture-${i}-${Date.now()}`
-    expect(await runCapture(`echo ${marker}`, new RegExp(`${marker}\\r?\\n`))).toContain(marker)
+    expect(await runCapture(page, `echo ${marker}`, new RegExp(`${marker}\\r?\\n`))).toContain(
+      marker,
+    )
   }
 })
 
 test('a shell starts and its output reaches the renderer', async () => {
   const marker = `elecdex-ok-${Date.now()}`
-  const output = await runCapture(`echo ${marker}`, new RegExp(marker))
+  const output = await runCapture(page, `echo ${marker}`, new RegExp(marker))
   expect(output).toContain(marker)
 })
 
@@ -126,7 +70,7 @@ test('the shell runs on a real pty, not a pipe', async () => {
   const command =
     platform === 'win32' ? 'Write-Output "COLS=$($Host.UI.RawUI.WindowSize.Width)"' : 'tty'
   const expected = platform === 'win32' ? /COLS=\d+/ : /(pts|tty|dev)/
-  const output = await runCapture(command, expected)
+  const output = await runCapture(page, command, expected)
   expect(output).toMatch(expected)
 })
 
@@ -274,44 +218,23 @@ test('history survives the terminal being remounted into a tab group', async () 
   const pane = terminalPane(page).first()
   await typeInto(page, pane, `echo ${marker}`)
 
-  const sessionsBefore = (await page.evaluate(() => window.elecdex.pty.list())).map((s) => s.id)
+  const sessionsBefore = await sessionIds(page)
   await pane.locator('.xterm-helper-textarea').first().focus()
   await page.keyboard.press('Control+Shift+KeyT')
   const strip = page.getByTestId('tabs-host').getByTestId('tab')
   await expect.poll(() => strip.count(), { timeout: 20_000 }).toBe(2)
-  await page.waitForTimeout(1500) // the new tab's shell starts; any repaint lands
+  // wait: the new tab's shell starts and any repaint lands - the garbling this guards against
+  // came with that repaint, and nothing marks it done.
+  await page.waitForTimeout(1500)
   await strip.first().click()
+  // wait: the same for the remount back to the first tab.
   await page.waitForTimeout(1500)
 
   // Read the original session's screen as a reattaching pane would receive it.
-  const screens = await page.evaluate(async (ids) => {
-    const decoder = new TextDecoder()
-    const out: string[] = []
-    for (const id of ids) {
-      let text = ''
-      const detach = await window.elecdex.pty.attach(id, {
-        onData: (chunk) => {
-          text += decoder.decode(chunk, { stream: true })
-        },
-        onExit: () => {},
-        onCwd: () => {},
-        onCommandEnd: () => {},
-        onIntegrationUnavailable: () => {},
-      })
-      await new Promise((r) => setTimeout(r, 800))
-      detach()
-      out.push(text)
-    }
-    return out
-  }, sessionsBefore)
+  const screens: string[] = []
+  for (const id of sessionsBefore) screens.push(await readScreen(page, id, 800))
 
-  const ESC = String.fromCharCode(27)
-  const lines = screens
-    .join('\n')
-    // Drop escape sequences, keeping the text each line was drawn with.
-    .replaceAll(new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'g'), '')
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
+  const lines = screenLines(screens.join('\n'))
   expect(lines.some((line) => line.endsWith(`echo ${marker}`))).toBe(true)
   expect(lines).toContain(marker)
 })
@@ -485,10 +408,12 @@ test('typing still reaches a shell after a later attach of its session lets go',
     })
     const second = await window.elecdex.pty.attach(session.id, noop)
     second()
+    // wait: no prompt event to wait on; the shell gets a moment to print its first one.
     await new Promise((r) => setTimeout(r, 1200))
     window.elecdex.pty.write(session.id, `echo ${text}\r`)
     const deadline = Date.now() + 15_000
     while (!new RegExp(`${text}\\r?\\n`).test(seen) && Date.now() < deadline) {
+      // wait: the poll's interval, bounded by the deadline above.
       await new Promise((r) => setTimeout(r, 100))
     }
     first()
@@ -545,10 +470,12 @@ test('a reattaching pane receives the screen, then live output', async () => {
           first += decoder.decode(chunk, { stream: true })
         },
       })
+      // wait: no prompt event to wait on; the shell gets a moment to print its first one.
       await new Promise((r) => setTimeout(r, 1200))
       window.elecdex.pty.write(session.id, `echo ${token}\r`)
       const deadline = Date.now() + 20_000
       while (!first.includes(token) && Date.now() < deadline) {
+        // wait: the poll's interval, bounded by the deadline above.
         await new Promise((r) => setTimeout(r, 200))
       }
       detach1()
@@ -562,6 +489,7 @@ test('a reattaching pane receives the screen, then live output', async () => {
           second += decoder.decode(chunk, { stream: true })
         },
       })
+      // wait: the replayed screen has no end mark; what came in this window is the snapshot.
       await new Promise((r) => setTimeout(r, 1500))
       const snapshot = second
       window.elecdex.pty.write(
@@ -571,6 +499,7 @@ test('a reattaching pane receives the screen, then live output', async () => {
       )
       const liveDeadline = Date.now() + 20_000
       while (!second.slice(snapshot.length).includes(next) && Date.now() < liveDeadline) {
+        // wait: the poll's interval, bounded by the deadline above.
         await new Promise((r) => setTimeout(r, 200))
       }
       detach2()
@@ -633,30 +562,9 @@ test('selecting text copies it, and a right-click pastes', async () => {
   const marker = `PASTED-${Date.now()}`
   await launched.app.evaluate(({ clipboard }, text) => clipboard.writeText(text), marker)
   // Earlier tests leave several sessions; listen to all of them for the echo.
-  const echoed = page.evaluate(async () => {
-    const decoder = new TextDecoder()
-    let text = ''
-    const ids = (await window.elecdex.pty.list()).map((session) => session.id)
-    const detachers = await Promise.all(
-      ids.map((id) =>
-        window.elecdex.pty.attach(id, {
-          onData: (chunk) => {
-            text += decoder.decode(chunk, { stream: true })
-          },
-          onExit: () => {},
-          onCwd: () => {},
-          onCommandEnd: () => {},
-          onIntegrationUnavailable: () => {},
-        }),
-      ),
-    )
-    await new Promise((resolve) => setTimeout(resolve, 4000))
-    for (const detach of detachers) detach()
-    return text
-  })
-  await page.waitForTimeout(800)
+  const echoed = await listenToSessions(page, { until: marker, ms: 4000 })
   await host.click({ button: 'right', position: { x: box.width / 2, y: box.height / 2 } })
-  expect(await echoed).toContain(marker)
+  expect(await echoed()).toContain(marker)
 })
 
 test('Ctrl+Shift+Arrow switches the shell tabs, and Ctrl+Shift+S takes focus back', async () => {
@@ -710,8 +618,8 @@ test('every shell pane can grow its own tabs, and Ctrl+Alt+Shift+Arrow moves bet
   const own = await launch(undefined, { layout: twoShells })
   const p = own.page
   try {
-    const left = p.locator('[data-testid=pane][data-pane-id=left]')
-    const right = p.locator('[data-testid=pane][data-pane-id=right]')
+    const left = paneById(p, 'left')
+    const right = paneById(p, 'right')
     // A shell on its own has a tab strip with its one tab and a +, closes from the
     // tab as well as from the corner every pane has, and comes forward from there.
     for (const shell of [left, right]) {
@@ -761,7 +669,7 @@ test('every shell pane can grow its own tabs, and Ctrl+Alt+Shift+Arrow moves bet
     await p.locator('[data-testid=pane][data-pane-id=clock]').click()
     await expect.poll(focusedPane).not.toBe(rightSelected)
     await p.keyboard.press('Control+Alt+Shift+ArrowRight')
-    await p.waitForTimeout(300)
+    await quietFor(300, focusedPane, 'the focused pane')
     expect(await focusedPane()).not.toBe(leftSelected)
     expect(await focusedPane()).not.toBe(rightSelected)
   } finally {
@@ -784,16 +692,12 @@ test('a shell pane comes back in its last folder; a new pane, or one whose folde
   })
   const subtitle = (p: Page, n = 0) =>
     p.locator('[data-testid=pane][data-widget=terminal]').nth(n).getByTestId('pane-subtitle')
-  const keptInLayout = () => {
-    const saved = savedLayout(own.userData)
-    return saved === null ? null : (JSON.parse(saved).root?.state?.cwd ?? null)
-  }
   try {
     await expect(subtitle(own.page)).toContainText('start-here', { timeout: 40_000 })
     await typeInto(own.page, terminalPane(own.page).first(), `cd '${kept}'`)
     await expect(subtitle(own.page)).toContainText('kept-フォルダ é', { timeout: 40_000 })
     // The pane keeps the folder in its state, so it is saved with the layout.
-    await expect.poll(keptInLayout, { timeout: 10_000 }).toBe(kept)
+    await waitForSaved(own.userData, (text) => JSON.parse(text).root?.state?.cwd === kept, 10_000)
 
     own = await own.relaunch()
     await expect(subtitle(own.page)).toContainText('kept-フォルダ é', { timeout: 40_000 })

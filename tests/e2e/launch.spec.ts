@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { type Launched, launch } from './support.js'
+import { type Launched, launch, quietFor } from './support.js'
 
 /** The version being built, so this test does not need editing on every release. */
 const PACKAGE_VERSION = (
@@ -124,7 +124,16 @@ test("has no menu of Electron's, so its own keys reach nothing", async () => {
   })
   await page.keyboard.press('Control+r')
   await page.keyboard.press('Control+Equal')
-  await page.waitForTimeout(800)
+  await quietFor(
+    800,
+    async () => [
+      await page.evaluate(() => (window as unknown as { __kept?: number }).__kept),
+      await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.webContents.getZoomLevel(),
+      ),
+    ],
+    'the page and its zoom',
+  )
   expect(await page.evaluate(() => (window as unknown as { __kept?: number }).__kept)).toBe(1)
   expect(
     await app.evaluate(({ BrowserWindow }) =>

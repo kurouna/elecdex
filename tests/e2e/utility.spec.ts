@@ -1,10 +1,14 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { clipboardImageHead, clipboardText, stubOf } from './support/stub-hooks.js'
 import {
+  beside,
   launch,
   poweredOn,
+  quietFor,
   removeDir,
+  SINGLE_TERMINAL,
   savedLayout,
   settleLayout,
   showStatusBar,
@@ -17,63 +21,19 @@ import {
  * ELECDEX_AI_KEYS_STUB=1, so sealing opens no Keychain or keyring.
  */
 
-interface AwakeHooks {
-  held(): string[]
-  asked(): string[]
-  battery(on: boolean): void
-}
+const held = (app: ElectronApplication) => stubOf(app, 'awake').held()
 
-interface ClipboardHooks {
-  current(): { text: string } | null
-  image(): Uint8Array | null
-}
-
-const held = (app: ElectronApplication) =>
-  app.evaluate(() =>
-    (globalThis as unknown as { __elecdexAwake: AwakeHooks }).__elecdexAwake.held(),
-  )
-
-const asked = (app: ElectronApplication) =>
-  app.evaluate(() =>
-    (globalThis as unknown as { __elecdexAwake: AwakeHooks }).__elecdexAwake.asked(),
-  )
-
-const clipboardImage = (app: ElectronApplication) =>
-  app.evaluate(() => {
-    const png = (
-      globalThis as unknown as { __elecdexClipboard: ClipboardHooks }
-    ).__elecdexClipboard.image()
-    return png === null ? null : [...png.subarray(0, 8)]
-  })
-
-const clipboardText = (app: ElectronApplication) =>
-  app.evaluate(
-    () =>
-      (globalThis as unknown as { __elecdexClipboard: ClipboardHooks }).__elecdexClipboard.current()
-        ?.text ?? null,
-  )
+const asked = (app: ElectronApplication) => stubOf(app, 'awake').asked()
 
 /** The utility pane beside a clock, so it can be closed and leave the layout standing. */
-const beside = {
-  version: 1,
-  root: {
-    kind: 'split',
-    id: 's',
-    direction: 'row',
-    sizes: [60, 40],
-    children: [
-      { kind: 'pane', id: 'u', widget: 'utility' },
-      { kind: 'pane', id: 'c', widget: 'clock' },
-    ],
-  },
-}
+const besideClock = beside('utility', { sizes: [60, 40] })
 
 const pane = (page: Page) => page.locator('[data-testid=pane][data-widget=utility]')
 
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 
 test('AWAKE holds, goes on with the pane closed, and is taken up again after a restart', async () => {
-  const first = await launch(undefined, { layout: beside })
+  const first = await launch(undefined, { layout: besideClock })
   const dir = first.userData
   let running = first
   try {
@@ -143,7 +103,7 @@ test('AWAKE holds, goes on with the pane closed, and is taken up again after a r
 test('a hold that ended while elecdex was not running is off at the start', async () => {
   const now = Date.now()
   const running = await launch(undefined, {
-    layout: beside,
+    layout: besideClock,
     files: {
       'awake.json': JSON.stringify({
         version: 1,
@@ -167,7 +127,7 @@ test('a hold that ended while elecdex was not running is off at the start', asyn
 })
 
 test('QR draws a code, copies it as a PNG, and keeps a Wi-Fi password only sealed', async () => {
-  const first = await launch(undefined, { layout: beside })
+  const first = await launch(undefined, { layout: besideClock })
   const dir = first.userData
   let running = first
   try {
@@ -178,7 +138,7 @@ test('QR draws a code, copies it as a PNG, and keeps a Wi-Fi password only seale
     await expect(page.getByTestId('qr-figures')).toContainText('v1 · M · 21×21 · 14/2331 B')
     await page.getByTestId('qr-copy').click({ delay: 20 })
     await expect(page.getByTestId('qr-copy')).toHaveText('COPIED')
-    expect(await clipboardImage(app)).toEqual(PNG)
+    expect(await clipboardImageHead(app)).toEqual(PNG)
 
     await page.locator('[data-testid=qr-kind][data-kind=wifi]').click({ delay: 20 })
     await page.getByTestId('qr-ssid').fill('lab')
@@ -206,7 +166,7 @@ test('QR draws a code, copies it as a PNG, and keeps a Wi-Fi password only seale
 })
 
 test('CODEC works as the input changes, copies through main, and writes no input to disk', async () => {
-  const { app, page, userData, close } = await launch(undefined, { layout: beside })
+  const { app, page, userData, close } = await launch(undefined, { layout: besideClock })
   try {
     await page.locator('[data-testid=utility-mode][data-module=codec]').click({ delay: 20 })
     await page.locator('[data-testid=codec-op][data-op=sha256]').click({ delay: 20 })
@@ -237,10 +197,10 @@ test('CODEC works as the input changes, copies through main, and writes no input
 })
 
 test('Ctrl+Shift+U pops the pane up and puts it away, or walks through the panes in the layout', async () => {
-  const { page, userData, close } = await launch(undefined, {
-    layout: { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } },
-  })
+  const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
+    // wait: no signal in the app (needs a hook): a save of the start, debounced, lands before
+    // the file is taken as what must not change; nothing says one is due.
     await page.waitForTimeout(1000)
     const before = savedLayout(userData)
     const shell = page.locator('.xterm-helper-textarea').first()
@@ -269,7 +229,7 @@ test('Ctrl+Shift+U pops the pane up and puts it away, or walks through the panes
     await page.keyboard.press('Escape')
     await expect(popup).toHaveCount(0)
     await expect(page.getByTestId('pane')).toHaveCount(1)
-    await page.waitForTimeout(1000)
+    await quietFor(1000, async () => savedLayout(userData), 'the saved layout')
     expect(savedLayout(userData)).toBe(before)
   } finally {
     await close()

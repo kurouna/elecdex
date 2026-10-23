@@ -1,9 +1,16 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { createServer, type Server, type ServerResponse } from 'node:http'
-import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launch, saveDialogAnswers } from './support'
+import {
+  type AiStub,
+  aiSettings,
+  aiStub,
+  firstOf,
+  isChat,
+  openaiProvider,
+  piecesOf,
+} from './support/stubs/ai.js'
+import { launch, saveDialogAnswers, single } from './support.js'
 
 /**
  * The ELEC system pane against a provider served from this machine, speaking the
@@ -19,13 +26,16 @@ interface Seen {
   user: string
 }
 
-let server: Server
+let stub: AiStub
 let origin: string
-const seen: Seen[] = []
-const held: ServerResponse[] = []
 
-const chunk = (content: string): string =>
-  `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
+/** The chat requests the stand-in received, as the units asked them (model lists apart). */
+const seen = (): Seen[] =>
+  stub.seen.filter(isChat).map((entry) => ({
+    model: entry.body?.model ?? '',
+    system: firstOf(entry, 'system'),
+    user: firstOf(entry, 'user'),
+  }))
 
 function answerFor(entry: Seen): string | null {
   const unit = /You are (UNIT-\d \w+)/.exec(entry.system)?.[1] ?? ''
@@ -48,69 +58,36 @@ function answerFor(entry: Seen): string | null {
 }
 
 test.beforeAll(async () => {
-  server = createServer((req, res) => {
-    let raw = ''
-    req.on('data', (piece) => {
-      raw += piece
-    })
-    req.on('end', () => {
-      if (req.url === '/v1/models') {
-        const data = Array.from({ length: 40 }, (_, i) => ({ id: `models/number-${i}` }))
-        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ data }))
-        return
-      }
-      if (req.url !== '/v1/chat/completions') {
-        res.writeHead(404, { 'content-type': 'application/json' }).end('{}')
-        return
-      }
-      const body = JSON.parse(raw) as {
-        model: string
-        messages: Array<{ role: string; content: string }>
-      }
-      const entry: Seen = {
-        model: body.model,
-        system: body.messages.find((m) => m.role === 'system')?.content ?? '',
-        user: body.messages.find((m) => m.role === 'user')?.content ?? '',
-      }
-      seen.push(entry)
-      res.writeHead(200, { 'content-type': 'text/event-stream' })
-      const text = answerFor(entry)
-      if (text === null) {
-        res.write(chunk('Thinking it over'))
-        held.push(res)
-        return
-      }
-      for (const piece of text.match(/[\s\S]{1,9}/g) ?? []) res.write(chunk(piece))
-      res.write(
-        `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 40, completion_tokens: 12 } })}\n\n`,
-      )
-      res.end('data: [DONE]\n\n')
-    })
+  stub = await aiStub({
+    openai: (entry) => {
+      const text = answerFor({
+        model: entry.body?.model ?? '',
+        system: firstOf(entry, 'system'),
+        user: firstOf(entry, 'user'),
+      })
+      if (text === null) return { hold: 'Thinking it over' }
+      return { pieces: piecesOf(text, 9), usage: { prompt_tokens: 40, completion_tokens: 12 } }
+    },
+    models: { '/v1/models': Array.from({ length: 40 }, (_, i) => `models/number-${i}`) },
   })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  origin = stub.origin
 })
 
 test.afterAll(async () => {
-  for (const res of held) res.destroy()
-  server.closeAllConnections()
-  await new Promise((resolve) => server.close(resolve))
+  await stub.close()
 })
 
 test.beforeEach(() => {
-  seen.length = 0
+  stub.seen.length = 0
 })
 
 const pane = (page: Page) => page.locator('[data-testid=pane][data-widget=elec]')
-const single = () => ({ version: 1, root: { kind: 'pane', id: 'e', widget: 'elec' } })
+const layout = () => single('elec', { id: 'e' })
 const withProviders = (model: string, elec: object = {}) => ({
-  sound: { enabled: false },
-  ai: {
-    providers: [
-      { id: 'local', name: 'Local', kind: 'openai', baseUrl: `${origin}/v1`, model },
-      { id: 'other', name: 'Other', kind: 'openai', baseUrl: `${origin}/v1`, model: 'no' },
-    ],
-  },
+  ...aiSettings([
+    openaiProvider(origin, { model }),
+    openaiProvider(origin, { id: 'other', name: 'Other', model: 'no' }),
+  ]),
   elec,
 })
 
@@ -125,14 +102,14 @@ const ballot = (page: Page, n: number) =>
   pane(page).locator(`[data-testid=elec-ballot][data-unit="${n}"]`)
 
 test('with no provider the pane asks for one, and nothing is touched', async () => {
-  const { page, userData, close } = await launch(undefined, { layout: single() })
+  const { page, userData, close } = await launch(undefined, { layout: layout() })
   try {
     await expect(pane(page).getByTestId('elec-setup')).toBeVisible()
     await pane(page).getByTestId('elec-open-settings').click()
     await expect(page.getByTestId('settings-ai')).toBeVisible()
     // The standpoints are set beside the providers they are put to.
     await expect(page.getByTestId('elec-persona')).toHaveCount(3)
-    expect(seen).toEqual([])
+    expect(seen()).toEqual([])
     expect(existsSync(path.join(userData, 'elec'))).toBe(false)
   } finally {
     await close()
@@ -140,13 +117,13 @@ test('with no provider the pane asks for one, and nothing is touched', async () 
 })
 
 test('a motion is voted by three units, resolved, and is there after a restart', async () => {
-  const launched = await launch(undefined, { layout: single(), settings: withProviders('split') })
+  const launched = await launch(undefined, { layout: layout(), settings: withProviders('split') })
   const { page, userData } = launched
   try {
     // A pane in a layout asks no one.
     await expect(pane(page).getByTestId('elec-resolution')).toContainText('awaiting motion')
     await expect(unit(page, 0)).toHaveAttribute('data-state', 'standby')
-    expect(seen).toEqual([])
+    expect(seen()).toEqual([])
 
     await expect(pane(page).getByTestId('elec-motion')).toContainText('awaiting motion')
     // Before a motion the units sit powered off, and the console says so.
@@ -179,13 +156,13 @@ test('a motion is voted by three units, resolved, and is there after a restart',
     await expect(ballot(page, 1)).not.toContainText('VERDICT')
 
     // Each unit was told who it is and how to answer; one local server, one unit at a time.
-    expect(seen.map((s) => /You are (UNIT-\d \w+)/.exec(s.system)?.[1])).toEqual([
+    expect(seen().map((s) => /You are (UNIT-\d \w+)/.exec(s.system)?.[1])).toEqual([
       'UNIT-1 LOGOS',
       'UNIT-2 ETHOS',
       'UNIT-3 PATHOS',
     ])
-    expect(seen[0]?.system).toContain('VERDICT: APPROVE or REJECT or ABSTAIN')
-    expect(seen[0]?.user).toBe('MOTION:\nAdopt the four-day week?')
+    expect(seen()[0]?.system).toContain('VERDICT: APPROVE or REJECT or ABSTAIN')
+    expect(seen()[0]?.user).toBe('MOTION:\nAdopt the four-day week?')
     await expect.poll(() => page.evaluate(() => window.elecdex.elec.active())).toEqual([])
 
     const files = readdirSync(path.join(userData, 'elec'))
@@ -206,7 +183,7 @@ test('a motion is voted by three units, resolved, and is there after a restart',
   }
 
   // Read from disk: reopening a deliberation asks the provider nothing.
-  seen.length = 0
+  stub.seen.length = 0
   const relaunched = await launch(userData)
   try {
     const again = relaunched.page
@@ -215,7 +192,7 @@ test('a motion is voted by three units, resolved, and is there after a restart',
     await pane(again).getByTestId('elec-log-toggle').click()
     await expect(pane(again).getByTestId('elec-log-item')).toHaveCount(1)
     await expect(pane(again).getByTestId('elec-log-item')).toContainText('approved')
-    expect(seen).toEqual([])
+    expect(seen()).toEqual([])
   } finally {
     await relaunched.close()
   }
@@ -223,7 +200,7 @@ test('a motion is voted by three units, resolved, and is there after a restart',
 
 test('the seats are chosen in the pane and kept in the settings', async () => {
   const { page, userData, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: withProviders('yes'),
   })
   try {
@@ -244,7 +221,7 @@ test('the seats are chosen in the pane and kept in the settings', async () => {
 
     await submit(page, 'Ship on Friday?')
     await expect(pane(page).getByTestId('elec-outcome')).toHaveText('rejected')
-    expect(seen.map((s) => s.model)).toEqual(['no', 'no', 'no'])
+    expect(seen().map((s) => s.model)).toEqual(['no', 'no', 'no'])
   } finally {
     await close()
   }
@@ -252,7 +229,7 @@ test('the seats are chosen in the pane and kept in the settings', async () => {
 
 test('a second round lets each unit hear the others, and shows who changed its vote', async () => {
   const { page, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: withProviders('split'),
   })
   try {
@@ -261,9 +238,9 @@ test('a second round lets each unit hear the others, and shows who changed its v
     await expect(pane(page).getByTestId('elec-outcome')).toHaveText('approved')
     await expect(unit(page, 1)).toHaveAttribute('data-state', 'approve')
     await expect(unit(page, 1).getByTestId('elec-unit-state')).toHaveText(/reject ›\s*approve/)
-    expect(seen).toHaveLength(6)
-    expect(seen[4]?.user).toContain('[UNIT-1 LOGOS · APPROVE]')
-    expect(seen[4]?.user).toContain('[UNIT-3 PATHOS · APPROVE]')
+    expect(seen()).toHaveLength(6)
+    expect(seen()[4]?.user).toContain('[UNIT-1 LOGOS · APPROVE]')
+    expect(seen()[4]?.user).toContain('[UNIT-3 PATHOS · APPROVE]')
     await expect(pane(page).getByTestId('elec-resolution')).toContainText('3·0·0·0')
   } finally {
     await close()
@@ -272,7 +249,7 @@ test('a second round lets each unit hear the others, and shows who changed its v
 
 test('an answer with no verdict does not count, and too few votes is no quorum', async () => {
   const { page, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: withProviders('mute', {
       seats: [
         { provider: 'local', model: 'mute' },
@@ -295,7 +272,7 @@ test('an answer with no verdict does not count, and too few votes is no quorum',
 
 test('stop ends the deliberation, and closing the pane stops one nobody reads', async () => {
   const { page, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: withProviders('slow'),
   })
   try {
@@ -359,7 +336,7 @@ test('stop ends the deliberation, and closing the pane stops one nobody reads', 
 
 test('back on standby the units power off in their own colours, never through another', async () => {
   const { page, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: withProviders('yes'),
   })
   try {
@@ -415,7 +392,7 @@ test('back on standby the units power off in their own colours, never through an
 
 test('with motion reduced the council draws no light, and still decides', async () => {
   const { page, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: { ...withProviders('split'), motion: 'reduced' },
   })
   try {
@@ -433,7 +410,7 @@ test('with motion reduced the council draws no light, and still decides', async 
 
 test("a seat's model list drops out of the seats panel, over the stage, and can be read whole", async () => {
   const { page, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: withProviders('yes'),
   })
   try {

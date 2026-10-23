@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { launch } from './support.js'
+import { beside, closePane, launch, metricsActive, paneById, quietFor, single } from './support.js'
 
 /**
  * The connections pane, against the made-up socket table
@@ -13,13 +13,8 @@ import { launch } from './support.js'
  * keeps survive a restart.
  */
 
-const single = (widget: string, state?: Record<string, unknown>) => ({
-  version: 1,
-  root: { kind: 'pane', id: 'p', widget, ...(state ? { state } : {}) },
-})
-
 test('the socket table reaches the pane, grouped by the program holding it', async () => {
-  const { page, close } = await launch(undefined, { layout: single('connections') })
+  const { page, close } = await launch(undefined, { layout: single('connections', { id: 'p' }) })
   try {
     const rows = page.getByTestId('connection-row')
     await expect.poll(() => rows.count(), { timeout: 20_000 }).toBeGreaterThan(0)
@@ -42,7 +37,7 @@ test('the socket table reaches the pane, grouped by the program holding it', asy
 })
 
 test('the listening view shows the doors, and the choice survives a restart', async () => {
-  let launched = await launch(undefined, { layout: single('connections') })
+  let launched = await launch(undefined, { layout: single('connections', { id: 'p' }) })
   try {
     const { page } = launched
     await expect
@@ -74,14 +69,14 @@ test('keeps drawing as sockets come and go, reading after reading', async () => 
   // read and wrote the set of new rows ran itself for ever, and everything on the
   // page stopped. Nothing but a running app shows that, so the stub's table gains
   // and loses a socket every other reading and the page is watched for the throw.
-  const { page, close } = await launch(undefined, { layout: single('connections') })
+  const { page, close } = await launch(undefined, { layout: single('connections', { id: 'p' }) })
   const thrown: string[] = []
   page.on('pageerror', (error) => thrown.push(error.message))
   try {
     const rows = page.getByTestId('connection-row')
     await expect.poll(() => rows.count(), { timeout: 20_000 }).toBeGreaterThan(0)
     // Long enough for several readings, with a socket arriving and going in them.
-    await page.waitForTimeout(12_000)
+    await quietFor(12_000, async () => thrown.length, 'the page errors')
     expect(thrown).toEqual([])
 
     // Still answering: the switch works and the list redraws.
@@ -94,7 +89,7 @@ test('keeps drawing as sockets come and go, reading after reading', async () => 
 })
 
 test('masking hides the half of an address that names a machine', async () => {
-  const { page, close } = await launch(undefined, { layout: single('connections') })
+  const { page, close } = await launch(undefined, { layout: single('connections', { id: 'p' }) })
   try {
     const first = page.getByTestId('connection-row').first()
     await expect(first).toContainText('93.184.216.34', { timeout: 20_000 })
@@ -107,30 +102,15 @@ test('masking hides the half of an address that names a machine', async () => {
 })
 
 test('nothing reads the socket table once the pane has gone', async () => {
-  const { page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'split',
-        id: 's',
-        direction: 'row',
-        sizes: [50, 50],
-        children: [
-          { kind: 'pane', id: 'p', widget: 'connections' },
-          { kind: 'pane', id: 'q', widget: 'clock' },
-        ],
-      },
-    },
-  })
+  const { page, close } = await launch(undefined, { layout: beside('connections', { id: 'p' }) })
   try {
     await expect
       .poll(() => page.getByTestId('connection-row').count(), { timeout: 20_000 })
       .toBeGreaterThan(0)
-    const active = async () =>
-      (await page.evaluate(() => window.elecdex.metrics.stats())).active ?? []
+    const active = () => metricsActive(page)
     expect(await active()).toContain('net.sockets')
 
-    await page.getByTestId('pane-close').first().click()
+    await closePane(paneById(page, 'p'))
     await expect(page.getByTestId('connections')).toHaveCount(0)
     // The collector must stop reading it: this is the rule every source keeps.
     await expect.poll(active, { timeout: 15_000 }).not.toContain('net.sockets')

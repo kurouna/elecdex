@@ -2,7 +2,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, removeDir, SINGLE_TERMINAL, showStatusBar } from './support.js'
+import {
+  launch,
+  openSettings,
+  quietFor,
+  removeDir,
+  SINGLE_TERMINAL,
+  savedSettings,
+  showStatusBar,
+} from './support.js'
 
 /**
  * Themes and settings: switching without a reload, following hand edits to the
@@ -40,9 +48,7 @@ test('switching theme restyles everything without reloading, and is saved', asyn
       .not.toBe(before)
     expect(await pageMark(page)).toBe(42)
 
-    await expect
-      .poll(() => readFileSync(path.join(userData, 'settings.json'), 'utf8'))
-      .toMatch(/"theme":\s*"amber"/)
+    await expect.poll(() => savedSettings(userData)?.theme).toBe('amber')
   } finally {
     await close()
   }
@@ -103,8 +109,7 @@ test('a hand edit to settings.json applies while the app runs', async () => {
 
     // A half-written file is ignored, not quarantined.
     writeFileSync(path.join(userData, 'settings.json'), '{ "theme": ')
-    await page.waitForTimeout(1000)
-    expect(await rootVar(page, '--accent-h')).toBe('128')
+    expect(await quietFor(1000, () => rootVar(page, '--accent-h'), 'the accent')).toBe('128')
     expect(readFileSync(path.join(userData, 'settings.json'), 'utf8')).toBe('{ "theme": ')
 
     // A change from the UI replaces it, but keeps the broken edit in .bak.
@@ -112,9 +117,7 @@ test('a hand edit to settings.json applies while the app runs', async () => {
     await page.getByTestId('theme-select').selectOption('amber')
     await expect.poll(() => rootVar(page, '--accent-h')).toBe('36')
     expect(readFileSync(path.join(userData, 'settings.json.bak'), 'utf8')).toBe('{ "theme": ')
-    expect(JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).theme).toBe(
-      'amber',
-    )
+    expect(savedSettings(userData)?.theme).toBe('amber')
   } finally {
     await close()
   }
@@ -170,7 +173,7 @@ test('a theme dropped into the themes folder appears and can be chosen', async (
 
     // And the settings say why, rather than leaving the file silently missing
     // from the list of themes.
-    await page.keyboard.press('Control+Shift+Period')
+    await openSettings(page)
     const problems = page.getByTestId('theme-problems')
     await expect(problems).toContainText('broken.json')
     await expect(problems).toContainText('accent')

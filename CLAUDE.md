@@ -92,7 +92,7 @@ src/renderer/    Svelte UI: layout/ (panes, tabs, splits, picker), widgets/ (bui
                  registry), plugins/ (host, plugin pane, blocks), stores/, styles/, lib/
 examples/        plugins/pomodoro: the sample plugin written into a new plugins folder;
                  plugins/keystream: the API 2 sample (canvas, keys, sound), a rhythm game
-tests/           unit/ (vitest, node), component/ (jsdom), e2e/ (Playwright _electron; support.ts)
+tests/           unit/ (vitest, node), component/ (jsdom), e2e/ (Playwright _electron; support/, docs/e2e-design.md)
 scripts/         asset generators, sync-calc, fix-node-pty
 docs/            architecture.md, decisions.md, plugins.md (the plugin API), weather-providers.md,
                  emu.md (the emulators' shared base), elec16.md (the ELEC-16 pane),
@@ -732,7 +732,7 @@ entry (decisions.md). Every option is off until the user turns it on.
   - Component tests flush (`layout.flush()`) before unstubbing `window.elecdex`, and IPC mocks
     `structuredClone` their arguments (IPC cannot clone a `$state` proxy).
   - A test's own pty session belongs to no pane, and the workspace's reaper ends it about four
-    seconds after the panes last changed: go through `runCapture` (terminal.spec.ts).
+    seconds after the panes last changed: go through `runCapture` (support/pty.ts).
 - **A failure says whether an elecdex runs outside the tests** (tests/e2e/reporter.ts): an installed app or
   `npm run dev` left open makes launches and drags fail; the reporter logs it to
   test-results/elecdex-running.log. Close it and re-run only the failed tests.

@@ -1,5 +1,6 @@
-import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { cpuSeconds, type Launched, launch } from './support.js'
+import { expect, type Page, test } from '@playwright/test'
+import { idleCpu, sizeWindow as sizeTo } from './support/measure.js'
+import { type Launched, launch, quietFor, reloadWorkspace, single } from './support.js'
 
 /**
  * The CLUSTER pane (docs/cluster.md): the machine on one pane, read from the
@@ -23,14 +24,6 @@ const beside = (share: number, direction: 'row' | 'column' = 'row') => ({
     ],
   },
 })
-
-const sizeTo = (app: ElectronApplication, width: number, height: number) =>
-  app.evaluate(
-    ({ BrowserWindow }, [w, h]) => {
-      BrowserWindow.getAllWindows()[0]?.setContentSize(w as number, h as number)
-    },
-    [width, height],
-  )
 
 /** No two of the pane's parts overlap, and none runs past its bottom (narrow scrolls instead). */
 async function partsApart(page: Page): Promise<void> {
@@ -112,8 +105,7 @@ test.describe('in every room', () => {
       const { app, page } = launched
       const layout = beside(share, column === true ? 'column' : 'row')
       await page.evaluate((tree) => window.elecdex.layout.save(tree as never), layout)
-      await page.reload()
-      await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+      await reloadWorkspace(page)
       await sizeTo(app, width, height)
       await app.evaluate(
         ({ BrowserWindow }, z) => BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(z),
@@ -193,7 +185,14 @@ test('shows the GPU lane, the VRAM lamp and slot and the GPU in the spec, and le
   try {
     await expect(none.page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
     // Given time for a GPU reading to come: it says none, and nothing of it is drawn.
-    await none.page.waitForTimeout(3000)
+    await quietFor(
+      3000,
+      async () => ({
+        lanes: await none.page.locator('[data-lane]').count(),
+        gpu: await none.page.getByTestId('cluster-figure-gpu').count(),
+      }),
+      'the lanes',
+    )
     await expect(none.page.locator('[data-lane]')).toHaveCount(6)
     await expect(none.page.getByTestId('cluster-figure-gpu')).toHaveCount(0)
     await expect(none.page.locator('[data-lamp="vram"]')).toHaveCount(0)
@@ -221,17 +220,15 @@ test('a full screen of it stays cheap when idle', async () => {
   // memory, traffic and disk panes side by side (docs/cluster.md §5). The lanes step once per
   // reading and hold still between, so the loop is let go between readings.
   const { app, page, close } = await launch(undefined, {
-    layout: { version: 1, root: { kind: 'pane', id: 'p', widget: 'cluster' } },
+    layout: single('cluster', { id: 'p' }),
   })
   try {
     await sizeTo(app, 1920, 1080)
-    await page.waitForTimeout(15_000)
-    const WINDOW_MS = 20_000
-    const start = await cpuSeconds(app)
-    await page.waitForTimeout(WINDOW_MS)
-    const end = await cpuSeconds(app)
-    const percent = ((end - start) / (WINDOW_MS / 1000)) * 100
-    console.log(`cluster idle: ${percent.toFixed(1)}% of one core`)
+    const { percentOfOneCore: percent, power } = await idleCpu(app, page, {
+      warmupMs: 15_000,
+      windowMs: 20_000,
+    })
+    console.log(`cluster idle: ${percent.toFixed(1)}% of one core, ${power}`)
     // As metrics.spec.ts: on CI the number says more about the runner than about elecdex.
     expect(percent).toBeLessThan(process.env.CI ? 300 : 30)
   } finally {
@@ -310,6 +307,7 @@ test('draws each lane once a reading, not once for every source', async () => {
   try {
     await expect(page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
     // Once the layout has come in: its panes power on growing, which is a resize each frame.
+    // wait: nothing marks the end of a launch's power-on (settleLayout is for a switch).
     await page.waitForTimeout(3000)
     const draws = await page.evaluate(async () => {
       const proto = CanvasRenderingContext2D.prototype
@@ -319,6 +317,7 @@ test('draws each lane once a reading, not once for every source', async () => {
         if (this.canvas.closest('[data-testid=cluster]') !== null) count += 1
         return clear.apply(this, args)
       }
+      // wait: the counting window: three cpu.load samples' worth of draws.
       await new Promise((resolve) => setTimeout(resolve, 3000))
       proto.clearRect = clear
       return count

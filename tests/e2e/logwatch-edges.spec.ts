@@ -1,16 +1,28 @@
-import {
-  appendFileSync,
-  mkdtempSync,
-  realpathSync,
-  renameSync,
-  unlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { appendFileSync, realpathSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch, pickerAnswers, removeDir } from './support.js'
+import { expect, test } from '@playwright/test'
+import {
+  choose,
+  clipboardText,
+  lamp,
+  lines,
+  logFolder,
+  rows,
+  singleLog,
+  stamp,
+} from './support/logwatch.js'
+import { aiSettings, openaiProvider } from './support/stubs/ai.js'
+import {
+  beside,
+  bringWindowBack,
+  launch,
+  pickerAnswers,
+  putWindowAway,
+  quietFor,
+  removeDir,
+  watching,
+} from './support.js'
 
 /**
  * LOG WATCH in the running app at the edges (docs/logwatch.md): a file rotated, deleted and made
@@ -20,32 +32,8 @@ import { launch, pickerAnswers, removeDir } from './support.js'
  * replaced in main.
  */
 
-const stamp = (): string => {
-  const t = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`
-}
-const lines = (from: number, to: number, word = 'line'): string =>
-  Array.from({ length: to - from + 1 }, (_, i) => `${stamp()} INFO ${word} ${from + i}\n`).join('')
-
-const single = (state?: Record<string, unknown>) => ({
-  version: 1,
-  root: { kind: 'pane', id: 'l', widget: 'logwatch', ...(state ? { state } : {}) },
-})
-const rows = (page: Page) => page.getByTestId('logwatch-row')
-const lamp = (page: Page) => page.getByTestId('logwatch-lamp')
-const watching = (page: Page) => page.evaluate(() => window.elecdex.logwatch.watching())
-
-async function choose(page: Page, app: ElectronApplication, file: string, newest = false) {
-  await pickerAnswers(app, file)
-  await page.getByTestId(newest ? 'logwatch-select-newest' : 'logwatch-select').click()
-  await expect(lamp(page)).toContainText('LIVE', { timeout: 10_000 })
-}
-
-function folder(): { dir: string; file: string } {
-  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-logwatch-edges-'))
-  return { dir, file: path.join(dir, 'app.log') }
-}
+const folder = () => logFolder('elecdex-logwatch-edges-')
+const single = singleLog
 
 test('follows a file through a rotation, a deletion and its making again', async () => {
   const { dir, file } = folder()
@@ -116,7 +104,7 @@ test('asks for the file again for an id this machine does not know', async () =>
   })
   try {
     await expect(page.getByTestId('logwatch-choose')).toContainText('not known on this machine')
-    expect(await watching(page)).toEqual([])
+    expect(await watching(page, 'logwatch')).toEqual([])
     void app
   } finally {
     await close()
@@ -127,20 +115,13 @@ test('with the window put away nothing is read, and on coming back the gap arriv
   const { dir, file } = folder()
   writeFileSync(file, lines(1, 1))
   const { app, page, close } = await launch(undefined, { layout: single({ fold: false }) })
-  const windowTo = (how: 'minimize' | 'restore') =>
-    app.evaluate(({ BrowserWindow }, action) => {
-      const win = BrowserWindow.getAllWindows().find((w) => w.isVisible() || w.isMinimized())
-      if (action === 'minimize') win?.minimize()
-      else win?.restore()
-    }, how)
   try {
     await choose(page, app, file)
-    await windowTo('minimize')
-    await expect.poll(() => watching(page), { timeout: 10_000 }).toEqual([])
+    await putWindowAway(app, page)
+    await expect.poll(() => watching(page, 'logwatch'), { timeout: 10_000 }).toEqual([])
     appendFileSync(file, lines(2, 3))
-    await page.waitForTimeout(1500)
-    expect(await watching(page)).toEqual([])
-    await windowTo('restore')
+    expect(await quietFor(1500, () => watching(page, 'logwatch'), 'what main watches')).toEqual([])
+    await bringWindowBack(app, page)
     await expect(rows(page).last()).toContainText('line 3', { timeout: 10_000 })
     await expect(rows(page)).toHaveCount(3)
   } finally {
@@ -153,13 +134,7 @@ test('copies the chosen line through main, masked when MASK is on', async () => 
   const { dir, file } = folder()
   writeFileSync(file, `${stamp()} ERROR mail to rin@example.com failed\n    at send (a.js:1)\n`)
   const { app, page, close } = await launch(undefined, { layout: single({ mask: true }) })
-  const copied = () =>
-    app.evaluate(
-      () =>
-        (
-          globalThis as unknown as { __elecdexClipboard: { current(): { text: string } | null } }
-        ).__elecdexClipboard.current()?.text,
-    )
+  const copied = () => clipboardText(app)
   try {
     await choose(page, app, file)
     await rows(page).first().click()
@@ -182,13 +157,7 @@ test('chooses a run with Shift, and copies only the chosen lines still shown', a
     `${stamp()} INFO one\n${stamp()} ERROR two\n${stamp()} INFO three\n${stamp()} INFO four\n`,
   )
   const { app, page, close } = await launch(undefined, { layout: single({ fold: false }) })
-  const copied = () =>
-    app.evaluate(
-      () =>
-        (
-          globalThis as unknown as { __elecdexClipboard: { current(): { text: string } | null } }
-        ).__elecdexClipboard.current()?.text,
-    )
+  const copied = () => clipboardText(app)
   try {
     await choose(page, app, file)
     await rows(page).filter({ hasText: 'one' }).click()
@@ -267,20 +236,9 @@ test('says EXPLAIN failed, in the link words with the reason, when nobody answer
   })
   const { app, page, close } = await launch(undefined, {
     layout: single(),
-    settings: {
-      sound: { enabled: false },
-      ai: {
-        providers: [
-          {
-            id: 'down',
-            name: 'Down',
-            kind: 'openai',
-            baseUrl: `http://127.0.0.1:${port}/v1`,
-            model: 'm',
-          },
-        ],
-      },
-    },
+    settings: aiSettings([
+      openaiProvider(`http://127.0.0.1:${port}`, { id: 'down', name: 'Down', model: 'm' }),
+    ]),
   })
   try {
     await choose(page, app, file)
@@ -380,7 +338,7 @@ test('the name of the file shows its whole path, and a click on it chooses anoth
       dialog.showOpenDialog = (async () => ({ canceled: true, filePaths: [] })) as never
     })
     await name.click()
-    await page.waitForTimeout(500)
+    await quietFor(500, () => name.textContent(), 'the name of the file')
     await expect(name).toHaveText('other.log')
   } finally {
     await close()
@@ -416,14 +374,9 @@ test('EXPLAIN on another line while the panel is open asks about that one instea
   writeFileSync(file, `${stamp()} ERROR first trouble\n${stamp()} WARN second trouble\n`)
   const { app, page, close } = await launch(undefined, {
     layout: single(),
-    settings: {
-      sound: { enabled: false },
-      ai: {
-        providers: [
-          { id: 'p', name: 'P', kind: 'openai', baseUrl: 'http://127.0.0.1:1/v1', model: 'm' },
-        ],
-      },
-    },
+    settings: aiSettings([
+      openaiProvider('http://127.0.0.1:1', { id: 'p', name: 'P', model: 'm' }),
+    ]),
   })
   try {
     await choose(page, app, file)
@@ -447,27 +400,10 @@ test('keeps COPY, CLEAR and EXPLAIN inside a narrow pane with lines chosen', asy
   const { dir, file } = folder()
   writeFileSync(file, `${stamp()} ERROR first trouble\n${stamp()} WARN second trouble\n`)
   const { app, page, close } = await launch(undefined, {
-    layout: {
-      version: 1,
-      root: {
-        kind: 'split',
-        id: 's',
-        direction: 'row',
-        sizes: [0.15, 0.85],
-        children: [
-          { kind: 'pane', id: 'l', widget: 'logwatch', state: { fold: false } },
-          { kind: 'pane', id: 'c', widget: 'clock' },
-        ],
-      },
-    },
-    settings: {
-      sound: { enabled: false },
-      ai: {
-        providers: [
-          { id: 'p', name: 'P', kind: 'openai', baseUrl: 'http://127.0.0.1:1/v1', model: 'm' },
-        ],
-      },
-    },
+    layout: beside('logwatch', { id: 'l', state: { fold: false }, sizes: [0.15, 0.85] }),
+    settings: aiSettings([
+      openaiProvider('http://127.0.0.1:1', { id: 'p', name: 'P', model: 'm' }),
+    ]),
   })
   try {
     await choose(page, app, file)

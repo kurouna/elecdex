@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import { launch } from './support.js'
+import { beside, launch } from './support.js'
 
 /**
  * A pane's header and its corner buttons (layout/PaneCorner.svelte), which appear
@@ -44,19 +44,7 @@ test('a tab group centres its folder, clear of the corner buttons', async () => 
 })
 
 test('a shell in a narrow column cuts its folder before the corner, and a module its readout', async () => {
-  const narrow = {
-    version: 1,
-    root: {
-      kind: 'split',
-      id: 's',
-      direction: 'row',
-      sizes: [0.86, 0.14],
-      children: [
-        { kind: 'pane', id: 'm', widget: 'markets' },
-        { kind: 'pane', id: 't', widget: 'terminal' },
-      ],
-    },
-  }
+  const narrow = beside('markets', { id: 'm', other: 'terminal', sizes: [0.86, 0.14] })
   const { page, close } = await launch(undefined, { layout: narrow })
   try {
     await page.setViewportSize({ width: 1920, height: 1080 })

@@ -176,7 +176,7 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
 | 段階 | 内容 | 完了条件 |
 |---|---|---|
 | 0 | 基準を測る（JSON レポーターで spec ごとの時間・起動数）。1.2 の規則違反と 1.3 の名前違いを直す。packaged スモークの接続方式を試す | 基準値を decisions.md に記録 |
-| 1 | support/ への分割とヘルパー集約。固定待ちの置き換えと許可リストの unit。足りない計数器をアプリに足す | 固定待ちが許可リストだけ |
+| 1 | support/ への分割とヘルパー集約。固定待ちの置き換えと許可リストの unit。足りない計数器をアプリに足す（本番コードの変更は相談してから。§6.1） | 固定待ちが許可リストだけ（済: 理由の無い待ちは tests/unit/e2e-waits.test.ts が拒む） |
 | 2 | contracts/ を作り、表と unit の網羅検査を入れる。**旧テストはまだ消さない** | 全ウィジェットが表にある |
 | 3 | 契約が旧テストを置き換えられることを確かめる: ウィジェットごとに、その振る舞いをわざと壊すと契約が落ちること。確かめたものから旧テストを消す。ORBIT（200 以外の応答の後は 1 日聞かない）や quakes（速報が on の間だけ取得）のように、旧テストが汎用版より多くを主張しているものはペイン spec に残す | 消した各テストに、落ちることを確かめた契約名を PR に書く |
 | 4 | DEL を §2.1 の規則で 1 件ずつ確定して削除、SLIM を縮める。下位テストが無いもの（約 30）は先に書く | 同上 |
@@ -187,6 +187,19 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
 **基準（段階 0 で計測、decisions.md）**: 537 件、44.7 分（Windows 開発機）。起動と終了だけで約 15〜19 分（35〜40%）、CPU 計測 5 本で約 5 分、スタブの時計待ち 2 本で約 1.7 分。
 
 **目標**: テスト 537 → 約 350、起動 560 → 約 220（再起動約 30、background 19、スタブのシナリオ約 15、起動条件の検査は独立のまま）、既定の段で 25 分以下。最大の効果は起動の共有（約 10 分）、次が DEL/SLIM と固定待ちの解消。CPU 計測は時間を減らさず `@perf` に分ける。
+
+### 6.1 段階 1 の結果（2026-10-23）
+
+- support.ts は support/ の各モジュールを束ねるだけになった: launch、layouts（`single`・`beside`・`tabbed`・`SINGLE_CLOCK`・`NO_SWITCH_PROMPT`）、workspace（`paneOf`・`paneById`・`closePane`・`reloadWorkspace`・`openSettings`・`waitForSaved`・`savedSettings`）、pty（`runCapture`・`sessionIds`・`listenToSessions`）、main（`watching`・`watchingAll`・`metricsActive`）、quiet（`quietFor`）、measure（`idleCpu`・`mutationsIn`）、terminal、elec16、plugins、stub-hooks（`stubOf`）、fixtures、stubs/（AI プロバイダ、HTTP サービス、`openExternal`）。logwatch の 2 spec だけが使う support/logwatch.ts は束ねない。
+- 固定待ち `waitForTimeout` は 178 → 57。ほかに保存待ちなど信号を待つ形に約 30、「何も起きない」の検査は `quietFor` に 87 か所。残る待ちはすべて `// wait:` で理由を書き、unit テストがそれを求める。spec は合計で約 1,600 行減った。
+- 全件 536 件で、移行による失敗は 2 件（`listenToSessions` が聞き取りを操作の前に終えていた。修正済み）。pane-move の最初のドラッグが一度だけ失敗したのは既存の不安定さで、ペインの点灯を待つようにした。
+- **アプリに読み口があれば消せる待ち（本番コードの変更なので未着手、要相談）**:
+  - レイアウト保存の「保存待ち・最後に保存した時刻」: layout.spec 2 か所、panes.spec 2 か所、utility.spec、tools.spec、weather.spec
+  - metrics の収集中の件数（`metrics.stats()` に in-flight）: metrics.spec 3 か所
+  - プラグインの worker 数: plugins.spec 1 か所
+  - KEYSTREAM の synth に渡った音の数: keystream.spec 1 か所
+  - CHIP-8 のアトラクト画面の実行回数: chip8.spec 1 か所
+  - ELEC-16 の LCD の描画回数: elec16.spec 1 か所
 
 ## 7. 追加する検証（優先度順）
 

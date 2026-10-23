@@ -1,7 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, putWindowAway, saveDialogAnswers } from './support.js'
+import {
+  launch,
+  putWindowAway,
+  quietFor,
+  saveDialogAnswers,
+  single,
+  waitForSaved,
+} from './support.js'
 
 /**
  * The desk panes: the calculator, the notes, the tasks and the chrono.
@@ -13,10 +20,25 @@ import { launch, putWindowAway, saveDialogAnswers } from './support.js'
  * pane does not throw them away.
  */
 
-const single = (widget: string, state?: Record<string, unknown>) => ({
-  version: 1,
-  root: { kind: 'pane', id: 'p', widget, ...(state ? { state } : {}) },
-})
+interface Node {
+  kind: string
+  widget?: string
+  state?: Record<string, unknown>
+  children?: Node[]
+}
+
+/** The state of the first pane of `widget` in a saved layout's text, or undefined. */
+function savedState(text: string, widget: string): Record<string, unknown> | undefined {
+  const find = (node: Node): Node | undefined =>
+    node.kind === 'pane' && node.widget === widget
+      ? node
+      : node.children?.map(find).find((found) => found !== undefined)
+  return find((JSON.parse(text) as { root: Node }).root)?.state
+}
+
+/** The stopwatch of a saved chrono pane. */
+const savedStopwatch = (text: string) =>
+  savedState(text, 'timer')?.stopwatch as { running?: boolean; laps?: unknown[] } | undefined
 
 const readJson = (dir: string, name: string): Record<string, unknown> =>
   JSON.parse(readFileSync(path.join(dir, name), 'utf8')) as Record<string, unknown>
@@ -48,7 +70,10 @@ test('the calculator answers as you type, keeps a tape, and has it again after a
     await expect(page.getByTestId('calc-preview')).toHaveText(/384/)
     await input.press('Enter')
 
-    await page.waitForTimeout(1500) // let the layout save
+    await waitForSaved(launched.userData, (text) => {
+      const tape = savedState(text, 'calc')?.tape
+      return Array.isArray(tape) && tape.length === 4
+    })
     launched = await launched.relaunch()
     await expect(launched.page.getByTestId('calc-tape-row')).toHaveCount(4)
     await expect(launched.page.getByTestId('calc-register')).toHaveAttribute('data-name', 'rate')
@@ -73,7 +98,7 @@ test('a note is written to notes.json, not into the layout, and survives its pan
       .poll(() => JSON.stringify(readJson(userData, 'notes.json')))
       .toContain('release steps')
     // The layout holds which note is shown, and nothing of what it says.
-    await page.waitForTimeout(1500)
+    await waitForSaved(userData, (text) => savedState(text, 'notes')?.noteId !== undefined)
     expect(JSON.stringify(readJson(userData, 'layout.json'))).not.toContain('release steps')
 
     launched = await launched.relaunch()
@@ -268,7 +293,7 @@ test('the stopwatch and the countdowns run as separate machines', async () => {
 })
 
 test('several countdowns can be kept, each with its own duration', async () => {
-  let launched = await launch(undefined, { layout: single('timer', { mode: 'timer' }) })
+  let launched = await launch(undefined, { layout: single('timer', { state: { mode: 'timer' } }) })
   try {
     const { page } = launched
     await page.locator('[data-testid=timer-add-preset][data-minutes="3"]').click()
@@ -278,7 +303,10 @@ test('several countdowns can be kept, each with its own duration', async () => {
     await page.getByTestId('timer-remove').first().click()
     await expect(page.getByTestId('timer-card')).toHaveCount(2)
 
-    await page.waitForTimeout(1500) // let the layout save
+    await waitForSaved(launched.userData, (text) => {
+      const timers = savedState(text, 'timer')?.timers
+      return Array.isArray(timers) && timers.length === 2
+    })
     launched = await launched.relaunch()
     await expect(launched.page.getByTestId('timer-card')).toHaveCount(2)
   } finally {
@@ -292,11 +320,17 @@ test('the chrono keeps counting across a restart, and its laps with it', async (
     const { page } = launched
     await page.getByTestId('timer-start').click()
     await expect(page.getByTestId('timer')).toHaveAttribute('data-running', 'true')
-    await page.waitForTimeout(1200)
+    // A second on the readout before the lap, as the restart is checked against it.
+    await expect
+      .poll(async () => page.getByTestId('timer-readout').first().textContent())
+      .not.toMatch(/^00:00/)
     await page.getByTestId('timer-lap').click()
     await expect(page.getByTestId('timer-lap-row')).toHaveCount(1)
 
-    await page.waitForTimeout(1500) // let the layout save
+    await waitForSaved(launched.userData, (text) => {
+      const stopwatch = savedStopwatch(text)
+      return stopwatch?.running === true && stopwatch.laps?.length === 1
+    })
     launched = await launched.relaunch()
 
     // Still running, still counting from the moment it began - not from zero.
@@ -316,7 +350,7 @@ test('a countdown reaching zero stops itself and says so once', async () => {
   const { page, close } = await launch(undefined, {
     // The shape a pane saved by the build where the two shared one clock has;
     // it opens with that duration as its countdown.
-    layout: single('timer', { mode: 'timer', durationMs: 2000 }),
+    layout: single('timer', { state: { mode: 'timer', durationMs: 2000 } }),
   })
   try {
     await expect(page.getByTestId('timer-card')).toHaveCount(1)
@@ -325,7 +359,7 @@ test('a countdown reaching zero stops itself and says so once', async () => {
     await expect(page.getByTestId('timer-readout')).toHaveText(/00:00/)
     await expect(page.getByTestId('timer')).not.toHaveAttribute('data-running', 'true')
     // Not once per frame afterwards.
-    await page.waitForTimeout(1000)
+    await quietFor(1000, () => page.getByTestId('toast').count(), 'the toasts')
     await expect(page.getByTestId('toast')).toHaveCount(1)
   } finally {
     await close()
@@ -367,6 +401,7 @@ test('a late task pulses without an animation that never ends', async () => {
       const levels = new Set<string>()
       for (let i = 0; i < 14; i++) {
         levels.add(getComputedStyle(el).opacity)
+        // wait: the opacity is sampled over 1.4 s of the pulse's beat, which is what is measured.
         await new Promise((resolve) => setTimeout(resolve, 100))
       }
       const endless = document
@@ -383,7 +418,7 @@ test('a late task pulses without an animation that never ends', async () => {
 
 test('a countdown lands while the window is minimised, not when it comes back', async () => {
   const { app, page, close } = await launch(undefined, {
-    layout: single('timer', { mode: 'timer', durationMs: 3000 }),
+    layout: single('timer', { state: { mode: 'timer', durationMs: 3000 } }),
   })
   try {
     await page.getByTestId('timer-start').click()
@@ -427,7 +462,9 @@ test('a task is renamed and given a deadline where it is read', async () => {
 })
 
 test('a countdown is built up by adding minutes, and set exactly by typing', async () => {
-  const { page, close } = await launch(undefined, { layout: single('timer', { mode: 'timer' }) })
+  const { page, close } = await launch(undefined, {
+    layout: single('timer', { state: { mode: 'timer' } }),
+  })
   try {
     const card = page.getByTestId('timer-card').first()
     await expect(card.getByTestId('timer-readout')).toHaveText('05:00')
@@ -512,7 +549,9 @@ test('an alarm is set, switched off and removed from the pane', async () => {
     await expect(page.getByTestId('alarm-next')).toContainText('nothing set')
 
     // It outlives the pane: alarms are main's, not the layout's.
-    await page.waitForTimeout(1500)
+    await expect
+      .poll(() => JSON.stringify(readJson(launched.userData, 'alarms.json')))
+      .toContain('"enabled":false')
     launched = await launched.relaunch()
     await launched.page.getByTestId('timer-mode-alarm').click()
     await expect(launched.page.getByTestId('alarm')).toHaveCount(1)
@@ -527,7 +566,9 @@ test('a rolling readout never takes a click meant for the controls under it', as
   // A digit rolls in from half a line below, and the browser hit-tests where a
   // transform puts a box: the number used to lie over the buttons for a few
   // frames every second and swallow whatever was pressed there.
-  const { page, close } = await launch(undefined, { layout: single('timer', { mode: 'timer' }) })
+  const { page, close } = await launch(undefined, {
+    layout: single('timer', { state: { mode: 'timer' } }),
+  })
   try {
     await page.getByTestId('timer-start').first().click()
     await expect(page.locator('[data-testid=timer-card][data-running=true]')).toHaveCount(1)
@@ -540,6 +581,7 @@ test('a rolling readout never takes a click meant for the controls under it', as
         const box = button.getBoundingClientRect()
         const at = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
         seen.add((at as HTMLElement | null)?.getAttribute('data-testid') ?? at?.className ?? 'none')
+        // wait: the point is sampled over 2 s, longer than a roll, which is what is measured.
         await new Promise((resolve) => setTimeout(resolve, 50))
       }
       return [...seen]

@@ -1,10 +1,19 @@
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer, type IncomingHttpHeaders, type Server, type ServerResponse } from 'node:http'
-import type { AddressInfo } from 'node:net'
+import type { ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import { launch, saveDialogAnswers } from './support'
+import {
+  type AiRequest,
+  type AiStub,
+  aiSettings,
+  aiStub,
+  anthropicProvider,
+  openaiChunk,
+  openaiProvider,
+  piecesOf,
+} from './support/stubs/ai.js'
+import { launch, saveDialogAnswers, single, waitForSaved } from './support.js'
 
 /**
  * The AI chat pane against providers served from this machine: one that speaks
@@ -13,116 +22,42 @@ import { launch, saveDialogAnswers } from './support'
  * addresses, so listing a local server is all it takes.
  */
 
-interface Seen {
-  path: string
-  headers: IncomingHttpHeaders
-  body: { model?: string; messages?: Array<{ role: string; content: string }> } | null
-}
-
-let server: Server
-let origin: string
-const seen: Seen[] = []
-/** Answers held open by the 'slow' model, for the tests to finish or abandon. */
-const held: ServerResponse[] = []
-
-const chunk = (delta: object, extra: object = {}): string =>
-  `data: ${JSON.stringify({ choices: [{ delta, ...extra }] })}\n\n`
-
 const ANSWER = 'Here you go:\n\n```js\nconsole.log("hi")\n```\n\nThat is **all**.'
 
-function openaiAnswer(entry: Seen, res: ServerResponse): void {
-  res.writeHead(200, { 'content-type': 'text/event-stream' })
-  if (entry.body?.messages?.[0]?.content.startsWith('You are compacting')) {
-    res.write(chunk({ content: 'They asked two long questions.' }))
-    res.end('data: [DONE]\n\n')
-    return
-  }
-  if (entry.body?.model === 'slow') {
-    res.write(chunk({ content: 'The first half' }))
-    held.push(res)
-    return
-  }
-  res.write(chunk({ reasoning_content: 'They want a greeting.' }))
-  for (const piece of ANSWER.match(/[\s\S]{1,7}/g) ?? []) res.write(chunk({ content: piece }))
-  res.write(
-    `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 11, completion_tokens: 22 } })}\n\n`,
-  )
-  res.end('data: [DONE]\n\n')
-}
-
-const event = (type: string, data: object): string =>
-  `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`
-
-function anthropicAnswer(res: ServerResponse): void {
-  res.writeHead(200, { 'content-type': 'text/event-stream' })
-  res.write(
-    event('message_start', {
-      message: {
-        id: 'msg_1',
-        type: 'message',
-        role: 'assistant',
-        model: 'claude-test',
-        content: [],
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 5, output_tokens: 1 },
-      },
-    }),
-  )
-  res.write(event('content_block_start', { index: 0, content_block: { type: 'text', text: '' } }))
-  res.write(
-    event('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Bonjour.' } }),
-  )
-  res.write(event('content_block_stop', { index: 0 }))
-  res.write(
-    event('message_delta', {
-      delta: { stop_reason: 'end_turn', stop_sequence: null },
-      usage: { output_tokens: 3 },
-    }),
-  )
-  res.end(event('message_stop', {}))
-}
-
-/** What each provider's model list answers; `/many` has more than a screen holds (Gemini lists about a hundred). */
-const MODEL_LISTS: Record<string, string[]> = {
-  '/v1/models': ['tiny', 'slow'],
-  '/many/v1/models': Array.from({ length: 150 }, (_, i) => `models/number-${i}`),
-}
+/**
+ * The stand-in: the `slow` model holds its answer open, the compacting prompt gets a summary,
+ * Anthropic's dialect answers "Bonjour.", and `/many` lists more models than a screen holds
+ * (Gemini lists about a hundred).
+ */
+let stub: AiStub
+let origin: string
+let seen: AiRequest[]
+let held: ServerResponse[]
 
 test.beforeAll(async () => {
-  server = createServer((req, res) => {
-    let raw = ''
-    req.on('data', (piece) => {
-      raw += piece
-    })
-    req.on('end', () => {
-      const entry: Seen = {
-        path: req.url ?? '',
-        headers: req.headers,
-        body: raw === '' ? null : JSON.parse(raw),
+  stub = await aiStub({
+    openai: (entry) => {
+      if (entry.body?.messages?.[0]?.content.startsWith('You are compacting')) {
+        return { pieces: ['They asked two long questions.'] }
       }
-      seen.push(entry)
-      const listed = MODEL_LISTS[entry.path]
-      if (listed !== undefined) {
-        res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify({ data: listed.map((id) => ({ id })) }))
-      } else if (entry.path === '/v1/chat/completions') {
-        openaiAnswer(entry, res)
-      } else if (entry.path === '/claude/v1/messages') {
-        anthropicAnswer(res)
-      } else {
-        res.writeHead(404, { 'content-type': 'application/json' }).end('{}')
+      if (entry.body?.model === 'slow') return { hold: 'The first half' }
+      return {
+        reasoning: 'They want a greeting.',
+        pieces: piecesOf(ANSWER, 7),
+        usage: { prompt_tokens: 11, completion_tokens: 22 },
       }
-    })
+    },
+    anthropic: () => 'Bonjour.',
+    models: {
+      '/v1/models': ['tiny', 'slow'],
+      '/many/v1/models': Array.from({ length: 150 }, (_, i) => `models/number-${i}`),
+    },
   })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  ;({ origin, seen, held } = stub)
 })
 
 test.afterAll(async () => {
-  for (const res of held) res.destroy()
-  server.closeAllConnections()
-  await new Promise((resolve) => server.close(resolve))
+  await stub.close()
 })
 
 test.beforeEach(() => {
@@ -131,26 +66,12 @@ test.beforeEach(() => {
 
 const pane = (page: Page) => page.locator('[data-testid=pane][data-widget=aichat]')
 const active = (page: Page) => page.evaluate(() => window.elecdex.ai.active())
-const single = (state?: Record<string, unknown>) => ({
-  version: 1,
-  root: { kind: 'pane', id: 'p', widget: 'aichat', ...(state ? { state } : {}) },
-})
-const withProviders = () => ({
-  sound: { enabled: false },
-  ai: {
+const layout = (state?: Record<string, unknown>) =>
+  single('aichat', state === undefined ? { id: 'p' } : { id: 'p', state })
+const withProviders = () =>
+  aiSettings([openaiProvider(origin), anthropicProvider(origin)], {
     systemPrompt: 'Answer briefly.',
-    providers: [
-      { id: 'local', name: 'Local', kind: 'openai', baseUrl: `${origin}/v1`, model: 'tiny' },
-      {
-        id: 'claude',
-        name: 'Claude',
-        kind: 'anthropic',
-        baseUrl: `${origin}/claude`,
-        model: 'claude-test',
-      },
-    ],
-  },
-})
+  })
 
 /**
  * A press as a hand makes it: down, a moment, up. Playwright's own click is over before the page
@@ -162,6 +83,7 @@ async function pressSlowly(page: Page, target: Locator): Promise<void> {
   if (box === null) throw new Error('nothing to press')
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
   await page.mouse.down()
+  // wait: the hold itself is what is imitated - a hand keeps the button down a moment.
   await page.waitForTimeout(250)
   await page.mouse.up()
 }
@@ -172,7 +94,7 @@ async function say(page: Page, text: string): Promise<void> {
 }
 
 test('with no provider the pane asks for one, and nothing is touched', async () => {
-  const { page, userData, close } = await launch(undefined, { layout: single() })
+  const { page, userData, close } = await launch(undefined, { layout: layout() })
   try {
     await expect(pane(page).getByTestId('aichat-setup')).toBeVisible()
     await pane(page).getByTestId('aichat-open-settings').click()
@@ -187,7 +109,7 @@ test('with no provider the pane asks for one, and nothing is touched', async () 
 })
 
 test('a provider is added in the settings; its key goes to main and never comes back', async () => {
-  const { page, userData, close } = await launch(undefined, { layout: single() })
+  const { page, userData, close } = await launch(undefined, { layout: layout() })
   try {
     await pane(page).getByTestId('aichat-open-settings').click()
     // Not "ai chat": the providers are there for whatever asks a model, not for one pane.
@@ -273,7 +195,7 @@ test('a provider is added in the settings; its key goes to main and never comes 
 test('a key typed and not saved is the key "test" uses, and a hosted service asked without one says so', async () => {
   const settings = withProviders()
   const { page, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: {
       ...settings,
       ai: {
@@ -352,7 +274,7 @@ test('a key typed and not saved is the key "test" uses, and a hosted service ask
 })
 
 test('an answer streams in, is drawn as markdown, and is there after a restart', async () => {
-  const launched = await launch(undefined, { layout: single(), settings: withProviders() })
+  const launched = await launch(undefined, { layout: layout(), settings: withProviders() })
   const { userData } = launched
   try {
     const { page } = launched
@@ -414,7 +336,7 @@ test('an answer streams in, is drawn as markdown, and is there after a restart',
 test('a conversation past the window of its model stays whole, and is sent from where it fits', async () => {
   const settings = withProviders()
   const launched = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: {
       ...settings,
       ai: {
@@ -464,7 +386,7 @@ test('a conversation past the window of its model stays whole, and is sent from 
 test('with summaries on, what stays behind is summarised once and sent along from then on', async () => {
   const settings = withProviders()
   const launched = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: {
       ...settings,
       ai: {
@@ -491,7 +413,7 @@ test('with summaries on, what stays behind is summarised once and sent along fro
     const compactions = asked.filter((e) => e.body?.messages?.[0]?.content.startsWith('You are'))
     // One summary, at the fourth question - of the first two, which is what stayed behind.
     expect(compactions).toHaveLength(1)
-    expect(asked.indexOf(compactions[0] as Seen)).toBe(3)
+    expect(asked.indexOf(compactions[0] as AiRequest)).toBe(3)
     expect(compactions[0]?.body?.messages?.[1]?.content).toContain('User: Question 1:')
     expect(compactions[0]?.body?.messages?.[1]?.content).toContain('User: Question 2:')
     expect(compactions[0]?.body?.messages?.[1]?.content).not.toContain('Question 3:')
@@ -518,7 +440,7 @@ test('with summaries on, what stays behind is summarised once and sent along fro
 })
 
 test("a provider's window goes by its address until a figure is typed", async () => {
-  const { page, userData, close } = await launch(undefined, { layout: single() })
+  const { page, userData, close } = await launch(undefined, { layout: layout() })
   const saved = () =>
     JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).ai.providers[0]
   try {
@@ -564,7 +486,7 @@ test("a provider's window goes by its address until a figure is typed", async ()
 })
 
 test('a provider with more models than fit is scrolled through, in the settings and in the pane', async () => {
-  const { page, userData, close } = await launch(undefined, { layout: single() })
+  const { page, userData, close } = await launch(undefined, { layout: layout() })
   const saved = () =>
     JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).ai.providers[0]
   try {
@@ -612,7 +534,7 @@ test('a provider with more models than fit is scrolled through, in the settings 
 
 test('"send" is seen to come alive when there is something to send, in every theme', async () => {
   const { page, close } = await launch(undefined, {
-    layout: single(),
+    layout: layout(),
     settings: { ...withProviders(), motion: 'reduced' },
   })
   try {
@@ -644,7 +566,7 @@ test('"send" is seen to come alive when there is something to send, in every the
 
 test('an answer can be stopped, and what was written is kept', async () => {
   const { page, close } = await launch(undefined, {
-    layout: single({ provider: 'local', model: 'slow' }),
+    layout: layout({ provider: 'local', model: 'slow' }),
     settings: withProviders(),
   })
   try {
@@ -672,7 +594,7 @@ test('an answer can be stopped, and what was written is kept', async () => {
 })
 
 test('an answer survives a reload of the page, and ends when its pane is closed', async () => {
-  const { page, close } = await launch(undefined, {
+  const { page, userData, close } = await launch(undefined, {
     layout: {
       version: 1,
       root: {
@@ -692,7 +614,7 @@ test('an answer survives a reload of the page, and ends when its pane is closed'
     await say(page, 'Keep going')
     await expect(pane(page).getByTestId('aichat-run')).toContainText('The first half')
     // The pane state with the conversation's id has to be on disk before the reload.
-    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 700)))
+    await waitForSaved(userData, (text) => text.replace(/\s/g, '').includes('"chat":"'))
 
     await page.reload()
     await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
@@ -700,7 +622,7 @@ test('an answer survives a reload of the page, and ends when its pane is closed'
     expect(await active(page)).toHaveLength(1)
 
     // The model goes on, and the reloaded page follows it from where it was.
-    held.at(-1)?.write(chunk({ content: ' and the second.' }))
+    held.at(-1)?.write(openaiChunk({ content: ' and the second.' }))
     await expect(pane(page).getByTestId('aichat-run')).toContainText(
       'The first half and the second.',
     )
@@ -717,7 +639,7 @@ test('an answer survives a reload of the page, and ends when its pane is closed'
 
 test('the Anthropic dialect sends its key as x-api-key', async () => {
   const { page, close } = await launch(undefined, {
-    layout: single({ provider: 'claude' }),
+    layout: layout({ provider: 'claude' }),
     settings: withProviders(),
   })
   try {
@@ -744,7 +666,7 @@ test('a key is refused for an address it would cross the internet to in the clea
   const settings = withProviders()
   const first = settings.ai.providers[0]
   if (first) first.baseUrl = 'http://llm.example.test/v1'
-  const { page, close } = await launch(undefined, { layout: single(), settings })
+  const { page, close } = await launch(undefined, { layout: layout(), settings })
   try {
     await page.evaluate(() => window.elecdex.ai.setKey('local', 'sk-plain'))
     await say(page, 'hello')
@@ -764,7 +686,7 @@ type Part = Record<string, unknown> & { type: string }
 const imageUrl = (part: Part | undefined): string =>
   (part?.image_url as { url?: string } | undefined)?.url ?? ''
 
-const lastContent = (entry: Seen | undefined): Part[] => {
+const lastContent = (entry: AiRequest | undefined): Part[] => {
   const messages = entry?.body?.messages ?? []
   return messages.at(-1)?.content as unknown as Part[]
 }
@@ -788,7 +710,7 @@ test('files go with a question: picked, dropped and pasted, as bytes, made small
   const photo = path.join(folder, 'photo.jpg')
   writeFileSync(notes, '# Plan\n- ship it')
   writeFileSync(photo, photoWithPlace())
-  const launched = await launch(undefined, { layout: single(), settings: withProviders() })
+  const launched = await launch(undefined, { layout: layout(), settings: withProviders() })
   const { page, userData } = launched
   try {
     const chips = pane(page).getByTestId('aichat-payload').getByTestId('aichat-chip')
@@ -869,7 +791,7 @@ test('a PDF goes only to a provider that reads one, as a document', async () => 
   const folder = mkdtempSync(path.join(tmpdir(), 'elecdex-pdf-'))
   const paper = path.join(folder, 'paper.pdf')
   writeFileSync(paper, '%PDF-1.4\n<< /Type /Pages /Count 1 >>\n<< /Type /Page >>\n')
-  const { page, close } = await launch(undefined, { layout: single(), settings: withProviders() })
+  const { page, close } = await launch(undefined, { layout: layout(), settings: withProviders() })
   try {
     await pane(page).getByTestId('aichat-attach-input').setInputFiles(paper)
     const chip = pane(page).getByTestId('aichat-payload').getByTestId('aichat-chip')

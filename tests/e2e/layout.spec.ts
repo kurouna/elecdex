@@ -6,11 +6,16 @@ import {
   keepLayout,
   launch,
   launchOnTwoLayouts,
+  NO_SWITCH_PROMPT,
   SINGLE_TERMINAL,
+  savedSettings,
+  sessionIds,
   settleLayout,
   showStatusBar,
+  single,
   terminalPane,
   typeInto,
+  waitForSaved,
 } from './support.js'
 
 /**
@@ -19,25 +24,6 @@ import {
  */
 
 const layoutFile = (userData: string) => path.join(userData, 'layout.json')
-
-/** Waits until the debounced save has written a layout matching `predicate`. */
-async function waitForSaved(
-  userData: string,
-  predicate: (json: string) => boolean,
-): Promise<string> {
-  let last = ''
-  await expect
-    .poll(
-      () => {
-        if (!existsSync(layoutFile(userData))) return false
-        last = readFileSync(layoutFile(userData), 'utf8')
-        return predicate(last)
-      },
-      { timeout: 15_000, intervals: [200] },
-    )
-    .toBe(true)
-  return last
-}
 
 test('the default layout recreates the original arrangement', async () => {
   const { page, close } = await launch()
@@ -228,7 +214,7 @@ test('a double click on a divider shares its two panes evenly, and the sizes per
 })
 
 test('the layout and its shells survive a window reload', async () => {
-  const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
     await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
@@ -239,13 +225,17 @@ test('the layout and its shells survive a window reload', async () => {
         timeout: 20_000,
       })
       .toBe(2)
-    const sessionsBefore = (await page.evaluate(() => window.elecdex.pty.list()))
-      .map((s) => s.id)
-      .sort()
+    const sessionsBefore = (await sessionIds(page)).sort()
 
     // Leave a marker in a shell, so we can prove it is the same shell afterwards.
     await typeInto(page, terminalPane(page).first(), 'cd ..')
-    await page.waitForTimeout(1500) // let the debounced layout save land
+    // The debounced layout save lands: both panes, each naming its shell.
+    await waitForSaved(
+      userData,
+      (json) =>
+        (json.match(/"widget": "terminal"/g) ?? []).length === 2 &&
+        (json.match(/"sessionId"/g) ?? []).length === 2,
+    )
 
     await page.reload()
     await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
@@ -253,10 +243,7 @@ test('the layout and its shells survive a window reload', async () => {
 
     // Same session ids: the panes re-adopted their shells rather than spawning new ones.
     await expect
-      .poll(
-        async () => (await page.evaluate(() => window.elecdex.pty.list())).map((s) => s.id).sort(),
-        { timeout: 20_000 },
-      )
+      .poll(async () => (await sessionIds(page)).sort(), { timeout: 20_000 })
       .toEqual(sessionsBefore)
   } finally {
     await close()
@@ -459,12 +446,6 @@ test('reset restores the default layout, asking first while shells are open', as
   }
 })
 
-/**
- * Switching between saved layouts without the question about the shells, which
- * has its own test: these are about the layouts, not about being asked.
- */
-const NO_SWITCH_PROMPT = { layout: { confirmSwitch: false } } as const
-
 test('a layout can be saved by name, applied again and forgotten', async () => {
   const { page, userData, close } = await launch(undefined, {
     layout: SINGLE_TERMINAL,
@@ -589,8 +570,7 @@ test("a shell in a layout switched to is that layout's pane's, recorded and kept
     settings: NO_SWITCH_PROMPT,
   })
   try {
-    const alive = async () =>
-      (await page.evaluate(() => window.elecdex.pty.list())).map((s) => s.id)
+    const alive = () => sessionIds(page)
     const recorded = () => {
       const tree = JSON.parse(readFileSync(layoutFile(userData), 'utf8'))
       const id = tree.root?.state?.sessionId
@@ -630,11 +610,7 @@ test('a saved layout survives a restart, and an empty slot leaves its keys alone
     await launched.page.keyboard.press('Control+Shift+Digit1')
     await expect(terminalPane(launched.page)).toHaveCount(1)
 
-    await launched.page.keyboard.press('Control+Shift+KeyG')
-    await launched.page.getByTestId('layouts-name').fill('kept')
-    await launched.page.getByTestId('layouts-save').click()
-    await expect(launched.page.getByTestId('layouts-item')).toHaveCount(1)
-    await launched.page.keyboard.press('Escape')
+    await keepLayout(launched.page, 'kept')
 
     launched = await launched.relaunch()
     await launched.page.keyboard.press('Control+Shift+KeyG')
@@ -681,7 +657,7 @@ test('a switch is asked about while shells are open, and can be told to stop ask
     await expect
       .poll(
         () =>
-          JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).layout
+          (savedSettings(userData)?.layout as { confirmSwitch?: boolean } | undefined)
             ?.confirmSwitch,
       )
       .toBe(false)
@@ -830,11 +806,7 @@ test('a save that only carries the state of this run leaves the saved layouts un
     settings: NO_SWITCH_PROMPT,
   })
   try {
-    await page.keyboard.press('Control+Shift+KeyG')
-    await page.getByTestId('layouts-name').fill('one')
-    await page.getByTestId('layouts-save').click()
-    await expect(page.getByTestId('layouts-item')).toHaveCount(1)
-    await page.keyboard.press('Escape')
+    await keepLayout(page, 'one')
 
     const saved = path.join(userData, 'layouts.json')
     await expect.poll(() => existsSync(saved)).toBe(true)
@@ -851,9 +823,7 @@ test('a save that only carries the state of this run leaves the saved layouts un
       return root.state.sessionId as string
     })
 
-    await expect
-      .poll(() => readFileSync(layoutFile(userData), 'utf8').includes(written), { timeout: 10_000 })
-      .toBe(true)
+    await waitForSaved(userData, (json) => json.includes(written), 10_000)
     expect(statSync(saved).mtimeMs, 'layouts.json was not rewritten').toBe(before)
     expect(readFileSync(saved, 'utf8')).not.toContain(written)
   } finally {
@@ -919,6 +889,8 @@ test('a broken entry in layouts.json costs only that entry, and broken JSON is k
 test('a malformed save from the renderer is rejected and the good layout kept', async () => {
   const { page, userData, close } = await launch()
   try {
+    // wait: startup's own saves (each shell's session id) land first, so `good` is the tree
+    // main keeps; how many there are is the layout's to say, not the test's.
     await page.waitForTimeout(1500)
     const good = await page.evaluate(() => window.elecdex.layout.load())
 
@@ -939,6 +911,8 @@ test('a hand edit made while the app is running survives a reload', async () => 
   const { page, userData, close } = await launch()
   try {
     // Let startup settle, including the terminal recording its session id.
+    // wait: every save of startup must be over, or a late one would overwrite the edit for a
+    // reason other than the bug; the page does not say when the last has gone.
     await page.waitForTimeout(3000)
 
     writeFileSync(
@@ -964,14 +938,10 @@ test('Ctrl+Shift+0 applies the tenth saved layout, shown as 0', async () => {
   try {
     // Nine calendars, then a notes pane tenth and a clock eleventh: only the
     // tenth answers the key, and the eleventh has none.
-    const single = (widget: string) => ({
-      version: 1,
-      root: { kind: 'pane', id: 'p', widget },
-    })
     const items = Array.from({ length: 11 }, (_, i) => ({
       id: `slot${String(i + 1).padStart(2, '0')}`,
       name: `layout ${i + 1}`,
-      tree: single(i === 9 ? 'notes' : i === 10 ? 'clock' : 'calendar'),
+      tree: single(i === 9 ? 'notes' : i === 10 ? 'clock' : 'calendar', { id: 'p' }),
     }))
     writeFileSync(
       path.join(launched.userData, 'layouts.json'),
