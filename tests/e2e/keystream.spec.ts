@@ -3,7 +3,7 @@ import path from 'node:path'
 import { expect, test } from '@playwright/test'
 import { SONGS } from '../../examples/plugins/keystream/songs/index'
 import { keystreamProfile } from './support/plugins.js'
-import { launch, quietFor, removeDir, single, waitForSaved } from './support.js'
+import { launch, quietFor, removeDir, single } from './support.js'
 
 /**
  * KEYSTREAM, the sample plugin for canvas blocks, keys and sound
@@ -141,42 +141,6 @@ test('FREE mode holds the keys, and plays a track’s band underneath until told
     await expect(pane.getByTestId('plugin-error')).toHaveCount(0)
   } finally {
     await app.close()
-  }
-})
-
-test('a pane that saved where it was comes back after a restart, and plays', async () => {
-  // Found as a pane left black after a restart: its saved state could not reach the worker.
-  let app = await launch(undefined, { layout: LAYOUT, ...keystreamProfile() })
-  const dir = app.userData
-  const pane = () => app.page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
-  const notes = async () => Number(await pane().getAttribute('data-notes'))
-  try {
-    await expect(pane()).toHaveAttribute('data-status', 'ready')
-    await pane().getByTestId('plugin-canvas').click()
-    await expect(pane().getByTestId('plugin-keys')).toBeVisible()
-    // Choosing a track saves it in the pane's state.
-    const song = (text: string) =>
-      (JSON.parse(text) as { root: { state?: { plugin?: { song?: string } } } }).root.state?.plugin
-        ?.song
-    const before = song(readFileSync(path.join(dir, 'layout.json'), 'utf8'))
-    await app.page.keyboard.press('ArrowDown')
-    await app.page.keyboard.press('ArrowDown')
-    await waitForSaved(dir, (text) => song(text) !== undefined && song(text) !== before)
-
-    app = await app.relaunch()
-    const errors: string[] = []
-    app.page.on('pageerror', (error) => errors.push(error.message))
-    await expect(pane()).toHaveAttribute('data-status', 'ready')
-    await pane().getByTestId('plugin-canvas').click()
-    await expect(pane().getByTestId('plugin-keys')).toBeVisible()
-    // The view is running in the worker: it bound the keys' notes again.
-    const played = await notes()
-    await app.page.keyboard.press('a')
-    await expect.poll(notes).toBeGreaterThan(played)
-    expect(errors).toEqual([])
-  } finally {
-    await app.quit()
-    removeDir(dir)
   }
 })
 

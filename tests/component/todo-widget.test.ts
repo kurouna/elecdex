@@ -234,6 +234,29 @@ describe('TodoWidget', () => {
     expect(screen.getByTestId('todo-toggle-done').getAttribute('aria-expanded')).toBe('true')
   })
 
+  it('shows a task just ticked off among the done, whose heading hides and shows them', async () => {
+    const patched = vi.spyOn(layout, 'patchPaneState').mockImplementation(() => {})
+    file = { ...file, tasks: [task({ title: 'buy milk' })] }
+    await mount()
+    await fireEvent.click(screen.getByTestId('todo-complete'))
+    // Main's file once it has ticked the task off, which the store reads again.
+    const ticked = task({ title: 'buy milk', done: true, completedAt: NOW })
+    file = { ...file, tasks: [ticked] }
+    vi.advanceTimersByTime(300)
+    await settle()
+    expect(update).toHaveBeenCalledWith('t1', { done: true })
+    expect(screen.getByTestId('todo-row-done').textContent).toContain('buy milk')
+
+    // The heading is a button, and what it chooses is the pane's.
+    await fireEvent.click(screen.getByTestId('todo-toggle-done'))
+    expect(patched).toHaveBeenLastCalledWith('p', { showCompleted: false })
+    cleanup()
+    await mount({ showCompleted: false })
+    expect(screen.queryByTestId('todo-row-done')).toBeNull()
+    await fireEvent.click(screen.getByTestId('todo-toggle-done'))
+    expect(patched).toHaveBeenLastCalledWith('p', { showCompleted: true })
+  })
+
   it('renames a task where it is read', async () => {
     file = { ...file, tasks: [task({ title: 'buy milk' })] }
     await mount()

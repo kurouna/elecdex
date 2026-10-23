@@ -323,6 +323,35 @@ describe('TimerWidget', () => {
     }
   })
 
+  it('builds a countdown up by adding minutes, and sets it exactly by typing', async () => {
+    const view = render(TimerWidget, { props: { paneId: 'p', state: { mode: 'timer' } } as never })
+    await settle()
+    const step = (minutes: number) =>
+      screen
+        .getAllByTestId('timer-step')
+        .find((button) => button.dataset.minutes === String(minutes)) as HTMLElement
+    expect(readout()).toBe('05:00')
+
+    // The steps add to what is set, so the list is not a ceiling.
+    await fireEvent.click(step(25))
+    await apply(view)
+    expect(readout()).toBe('30:00')
+    await fireEvent.click(step(10))
+    await apply(view)
+    await fireEvent.click(step(1))
+    await apply(view)
+    expect(readout()).toBe('41:00')
+    expect(timersOf(state)[0]?.durationMs).toBe(41 * 60_000)
+
+    // And the field beside them sets an exact number of minutes.
+    const field = screen.getByTestId('timer-card-custom')
+    await fireEvent.input(field, { target: { value: '90' } })
+    await fireEvent.keyDown(field, { key: 'Enter' })
+    await apply(view)
+    expect(readout()).toBe('1:30:00')
+    expect(timersOf(state)).toHaveLength(1)
+  })
+
   it('takes a duration through the calculator', async () => {
     render(TimerWidget, { props: { paneId: 'p', state: { mode: 'timer' } } as never })
     await settle()

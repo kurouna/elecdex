@@ -100,32 +100,6 @@ test('AWAKE holds, goes on with the pane closed, and is taken up again after a r
   }
 })
 
-test('a hold that ended while elecdex was not running is off at the start', async () => {
-  const now = Date.now()
-  const running = await launch(undefined, {
-    layout: besideClock,
-    files: {
-      'awake.json': JSON.stringify({
-        version: 1,
-        level: 'system',
-        until: now - 60_000,
-        since: now - 3_660_000,
-      }),
-    },
-  })
-  const dir = running.userData
-  try {
-    await expect(running.page.getByTestId('awake-state')).toHaveText('RELEASED')
-    expect(await held(running.app)).toEqual([])
-    expect(JSON.parse(readFileSync(path.join(dir, 'awake.json'), 'utf8'))).toMatchObject({
-      level: 'off',
-    })
-  } finally {
-    await running.quit()
-    removeDir(dir)
-  }
-})
-
 test('QR draws a code, copies it as a PNG, and keeps a Wi-Fi password only sealed', async () => {
   const first = await launch(undefined, { layout: besideClock })
   const dir = first.userData

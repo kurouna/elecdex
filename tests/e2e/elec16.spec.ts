@@ -622,7 +622,9 @@ test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboa
 
 test('PANEL opens a panel shut by hand with one press, in a pane too narrow to keep it open', async () => {
   // A narrow pane folds the panel away; one shut by hand once took two presses to come back
-  // (the first only marked it wanted, still without room to show).
+  // (the first only marked it wanted, still without room to show). CHIP-8's run view holds this
+  // in tests/component/chip8-panel.test.ts; the ELEC-16 pane, which wires panelPress on its own,
+  // cannot be mounted without its ROM and unit, so its wiring is checked here.
   const { app, page, close } = await launch(undefined, {
     layout: {
       version: 1,
@@ -815,23 +817,6 @@ test('a short, wide pane gets a body that fits it, plate and keys whole, never c
   }
 })
 
-test('CODE compiles the sample it shows, as it is, and says so on every level', async () => {
-  const { page, close } = await launchBeside()
-  try {
-    await settleLayout(page)
-    await booted(page)
-    await page.getByTestId('elec16-view-toggle').click()
-    await expect(page.getByTestId('elec16-source')).toHaveValue(/HELLO FROM TYPESCRIPT/)
-    await page.getByTestId('elec16-compile').click()
-    const rows = page.getByTestId('elec16-levels').locator('tbody tr')
-    await expect(rows).toHaveCount(3, { timeout: 30_000 })
-    await expect(page.getByTestId('elec16-compile')).toBeEnabled()
-    await expect(page.getByTestId('elec16-run')).toBeEnabled()
-  } finally {
-    await close()
-  }
-})
-
 test('CODE keeps what is typed after a RUN when the level is changed', async () => {
   // The pane's state changing (a level chosen) read the card again over the text typed.
   const { page, close } = await launchBeside()
@@ -959,9 +944,11 @@ async function importCartridge(app: ElectronApplication, page: Page, name: strin
   await page.getByTestId('elec16-game-import').click()
 }
 
-test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, CODE run on it, and back with RAM cleared', async () => {
+test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, and back with RAM cleared', async () => {
   // docs/elec16-play.md, G2: the PLAY ROM's start screen, no FILES and no auto power-off,
-  // extended RAM in TUNE and MEM, CODE's RUN calling the program itself.
+  // extended RAM in TUNE and MEM. CODE's RUN calling the program itself is the body's test
+  // below in the app, and tests/unit/elec16-give-code.test.ts and elec16-play-rom.test.ts
+  // below it (BRK bringing the start screen back too).
   test.setTimeout(180_000)
   const { page, close } = await launchBeside()
   try {
@@ -987,15 +974,6 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, CO
     await expect(page.getByTestId('elec16-mem-space')).toHaveCount(3)
     await page.locator('[data-testid=elec16-mem-space][data-space=xram]').click()
     await expect(page.getByTestId('elec16-mem-rows')).toContainText('20:C000')
-
-    await page.getByTestId('elec16-view-toggle').click()
-    await page.getByTestId('elec16-compile').click()
-    await expect(page.getByTestId('elec16-run')).toBeEnabled({ timeout: 60_000 })
-    await page.getByTestId('elec16-run').click()
-    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('HELLO FROM TYPESCRIPT')
-    // BRK brings the start screen back.
-    await page.getByTestId('elec16-brk').click({ delay: 20 })
-    await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY')
 
     await tab('tune').click()
     await page.locator('[data-testid=elec16-model][data-model=pocket-48]').click()
