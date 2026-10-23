@@ -1,6 +1,6 @@
 import { backgroundCapabilities, HIDDEN_SWITCH, isWayland } from '@shared/background'
 import { ELECDEX_APP_ID } from '@shared/now-playing'
-import { app, dialog, Menu } from 'electron'
+import { app, dialog, Menu, session } from 'electron'
 import { appMenuTemplate } from './app-menu.js'
 import { registerAppScheme } from './app-protocol.js'
 import { appWindows } from './app-windows.js'
@@ -115,7 +115,13 @@ let background: Background | null = null
 // Before the app is ready, as Electron asks: the page is served from app:// (app-protocol.ts).
 registerAppScheme()
 
+// No session checks spelling: every window already turns it off, but on Linux a session's spell
+// checker fetched its Hunspell dictionaries from Google's CDN as the app started (found by the
+// e2e no-external contract on CI, 2026-10-24). The web panes' session did this already.
+app.on('session-created', (created) => created.setSpellCheckerEnabled(false))
+
 app.whenReady().then(() => {
+  session.defaultSession.setSpellCheckerEnabled(false)
   // Never Electron's default menu, whose Ctrl+R and zoom keys took keys a web pane or a dialog
   // did not use; on macOS only the app and Edit menus the system expects (app-menu.ts).
   const menu = appMenuTemplate(process.platform)

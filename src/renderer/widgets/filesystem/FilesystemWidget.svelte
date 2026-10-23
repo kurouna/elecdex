@@ -1,11 +1,13 @@
 <script lang="ts">
 import type { DirEntry, DirListing, DriveInfo } from '@shared/fs'
+import { untrack } from 'svelte'
 import { formatBytes } from '../../lib/format.ts'
 import { cdCommand, quotePath, shellKindOf } from '../../lib/shell-quote.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sessions } from '../../stores/sessions.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import FsIcon from './FsIcon.svelte'
 
@@ -20,7 +22,9 @@ import FsIcon from './FsIcon.svelte'
  *  - With no terminal to follow, or one whose shell reports no directory, it
  *    browses on its own ("detached"), as the original did when tracking failed.
  */
-const { paneId }: WidgetProps = $props()
+const { paneId, visible: inTab = true }: WidgetProps = $props()
+/** The folder is watched only while the pane is seen (CLAUDE.md, Subscriptions). */
+const visible = $derived(seen(inTab))
 
 const followedId = $derived(layout.followedTerminalId)
 const terminal = $derived(followedId === null ? null : sessions.get(followedId))
@@ -85,10 +89,26 @@ $effect(() => {
  */
 const watchedPath = $derived(listing?.path)
 
-// Watch the directory being shown, so files created by a command appear.
+/** Whether the pane went unseen since it last watched: what changed then was not heard. */
+let missed = false
+
+// Watch the directory being shown, so files created by a command appear - while the pane is seen:
+// behind another tab or in a minimised window a folder that changes (a build, a log) re-read it
+// for nobody (found by the e2e lifecycle contract on CI, 2026-10-24). Seen again, it is read
+// afresh before the watch resumes.
 $effect(() => {
   const dir = watchedPath
   if (dir === undefined) return
+  if (!visible) {
+    missed = true
+    return
+  }
+  if (missed) {
+    missed = false
+    untrack(() => {
+      revision += 1
+    })
+  }
   return window.elecdex.fs.watch(dir, () => {
     revision += 1
   })

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const { default: FilesystemWidget } = await import(
   '../../src/renderer/widgets/filesystem/FilesystemWidget.svelte'
 )
+const { windowState } = await import('../../src/renderer/stores/window-state.svelte.ts')
 
 /**
  * The filesystem pane's directory watch. A change in the directory re-reads it,
@@ -43,6 +44,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  windowState.onScreen = true
   vi.unstubAllGlobals()
 })
 
@@ -70,5 +72,26 @@ describe('FilesystemWidget directory watch', () => {
     await vi.waitFor(() => expect(watch).toHaveBeenCalledTimes(1))
     unmount()
     expect(unwatch).toHaveBeenCalledTimes(1)
+  })
+
+  it('watches only while seen, and reads the folder afresh when it is seen again', async () => {
+    // Found by the e2e lifecycle contract (2026-10-24): behind a tab or in a minimised window the
+    // pane went on watching, and re-read a folder that changed for nobody.
+    const { rerender } = render(FilesystemWidget, { props: { ...props, visible: true } })
+    await vi.waitFor(() => expect(watch).toHaveBeenCalledTimes(1))
+    const reads = readDir.mock.calls.length
+
+    await rerender({ visible: false })
+    flushSync()
+    expect(unwatch).toHaveBeenCalledTimes(1)
+    windowState.onScreen = false
+    await rerender({ visible: true })
+    flushSync()
+    expect(watch).toHaveBeenCalledTimes(1)
+
+    windowState.onScreen = true
+    flushSync()
+    await vi.waitFor(() => expect(watch).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(readDir.mock.calls.length).toBe(reads + 1))
   })
 })

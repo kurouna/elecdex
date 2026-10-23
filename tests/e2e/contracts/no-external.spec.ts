@@ -126,3 +126,20 @@ test('the page itself reaches no host: its CSP refuses a fetch before it is made
     await close()
   }
 })
+
+test('no session checks spelling, so none fetches a dictionary', async () => {
+  // On Linux a session's spell checker fetched its Hunspell dictionaries from Google's CDN as the
+  // app started (redirector.gvt1.com in the net log on CI, 2026-10-24); Windows and macOS use the
+  // system's checker, so this is checked by the switch on every platform.
+  const { app, close } = await launch(undefined, { layout: SINGLE_CLOCK })
+  try {
+    const enabled = await app.evaluate(({ session }) => ({
+      default: session.defaultSession.isSpellCheckerEnabled(),
+      web: session.fromPartition('persist:web').isSpellCheckerEnabled(),
+      another: session.fromPartition('e2e-any').isSpellCheckerEnabled(),
+    }))
+    expect(enabled).toEqual({ default: false, web: false, another: false })
+  } finally {
+    await close()
+  }
+})
