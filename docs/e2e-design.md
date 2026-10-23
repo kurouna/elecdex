@@ -245,6 +245,12 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
 - **一時フォルダの後始末**: 再起動したテストのプロファイルが消えず、開発機の一時フォルダに 1,300 余り残っていた。`launch()` が作ったプロファイルは、再起動をまたいで最後の close と worker の終了時に消す。
 - **全件 515 件、39.9 分**（`perf` を含む）。
 
+### 6.6 段階 6 の結果（2026-10-24）
+
+- 段: `npm run test:e2e:smoke`（launch と mount・lifecycle の契約、約 2 分）をコミット前に**追加で**回す。素の `npx playwright test` は全部（最後に `perf`）。CI は再試行で通ったテストも失敗にする（`failOnFlakyTests`）。CI でも計測は今の粗い閾値のまま判定する。
+- パッケージ版: `scripts/packaged-smoke.mjs`（`npm run test:packaged`）。release/ の実行ファイルを使い捨てプロファイルで起動し、CDP で繋いで、初回起動のプリセット、unpacked の node-pty でのシェル、プリセットの描画、`runAsNode` の fuse を確かめる。CI と release の package ジョブで、ランナーが実行できるもの（Windows x64、Linux x64・arm64、macOS arm64）に走らせる。Windows の開発機で通った。
+- CLAUDE.md: コマンド、コミット前の手順（smoke を追加）、リリース手順 2（`perf` を最後に、`package:dir` と `test:packaged`）。
+
 ## 7. 追加する検証（優先度順）
 
 1. 古いプロファイルからの更新（app/upgrade）。リリースで最も壊れやすい。

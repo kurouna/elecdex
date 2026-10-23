@@ -23,6 +23,8 @@ npm run dev            # electron-vite dev server + app; npm start is the same
 npm run verify         # biome lint + typecheck (node, e2e, web) + vitest
 npm run build          # production bundle into out/ (the e2e tests run against this)
 npx playwright test    # end-to-end tests against out/ — run `npm run build` first
+npm run test:e2e:smoke # launch, the mount and lifecycle contracts: a quick look before a commit (build first)
+npm run test:packaged  # the packaged app from release/ started once over CDP (after package or package:dir)
 npm run package:dir    # unpacked app in release/win-unpacked (or mac/linux equivalent)
 npm run gen:icon       # build/icon.svg -> build/icon.png + resources/icons/icon.png
 npm run gen:card       # README banner: public/elecdex_repo_card.svg
@@ -787,7 +789,8 @@ entry (decisions.md). Every option is off until the user turns it on.
   1. Bump `package.json` (and package-lock.json, `npm version --no-git-tag-version`); in all
      three READMEs, name the new version in the status line and drop the *unreleased* marks of
      what it carries.
-  2. Run every test: `npm run verify`, `npm run build`, then the whole `npx playwright test`.
+  2. Run every test: `npm run verify`, `npm run build`, then the whole `npx playwright test` (the
+     `perf` project last), then `npm run package:dir` and `npm run test:packaged`.
      Only when all are green (a failure here is fixed, or shown to be this machine's, first).
   3. Commit `chore(release): v<version> / v<version> をリリース`, tag `v<version>`, push the
      branch and the tag (.github/workflows/release.yml makes a pre-release a person promotes).
@@ -830,8 +833,8 @@ when behaviour or data sources change.
 
 **What to run before committing:**
 
-- **A feature or a fix**: `npm run verify`, `npm run build`, then the e2e specs added or changed,
-  plus the ones the change could plausibly reach - the spec of the subsystem touched, and any spec
+- **A feature or a fix**: `npm run verify`, `npm run build`, `npm run test:e2e:smoke`, then the e2e
+  specs added or changed, plus the ones the change could plausibly reach - the spec of the subsystem touched, and any spec
   that drives what changed (a new shortcut: the specs that press shortcuts; the status bar or a
   dialog: the specs that open them). Say which specs were run.
 - **Before a release**, or for a change across the whole app (the layout tree, the settings

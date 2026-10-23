@@ -42,6 +42,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --project=e2e tests/e2e/app/launch.spec.ts tests/e2e/contracts/mount.spec.ts tests/e2e/contracts/lifecycle.spec.ts",
+    "test:packaged": "node scripts/packaged-smoke.mjs",
     "verify": "npm run lint && npm run typecheck && npm run test",
     "package": "npm run build && electron-builder",
     "package:dir": "npm run build && electron-builder --dir",
