@@ -316,6 +316,7 @@ const STATIC: Record<string, Hint> = {
     title: 'ROUTE',
     body: [
       'Which way the internet’s echo leaves this machine: this adapter, or another (Wi-Fi, a VPN).',
+      'Unknown when the machine names no way out: no default route, or none read yet.',
     ],
   },
   'f-auth': {

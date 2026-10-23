@@ -307,17 +307,23 @@ export function internetWords(route: EtherRoute | null, f: EtherFigures): string
     : 'no default route on this machine'
 }
 
-/** "Wi-Fi", "a VPN": what carries the internet's echo when this adapter does not. */
+/**
+ * "Wi-Fi", "a VPN": what carries the internet's echo when this adapter does not.
+ * With no way out known it is "unknown", never this adapter: the route's row and
+ * the copied report would otherwise claim a way out the machine does not have.
+ */
 export function routeWord(route: EtherRoute | null): string {
   switch (route) {
+    case 'default':
+      return 'this adapter'
     case 'wifi':
       return 'Wi-Fi'
     case 'vpn':
       return 'VPN'
     case 'other':
       return 'another adapter'
-    default:
-      return 'this adapter'
+    case null:
+      return 'unknown'
   }
 }
 

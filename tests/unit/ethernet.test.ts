@@ -409,6 +409,24 @@ describe('the copied report', () => {
     expect(text).not.toContain('192.0.2.31')
     expect(text).toContain('192.0.x.x')
   })
+
+  it('with no way out known, the route is unknown, never this adapter', () => {
+    const { diagnosis, figures, link } = judged('steady', 30)
+    const report = (route: EtherLink['route']): string =>
+      buildEtherReport({
+        now: BASE,
+        link: { ...link, route },
+        diagnosis,
+        lastMinute: figures,
+        lastFive: figures,
+        mos: null,
+        events: [],
+        mask: false,
+      })
+    expect(report('default')).toContain('route this adapter')
+    expect(report(null)).toContain('route unknown')
+    expect(report(null)).not.toContain('this adapter')
+  })
 })
 
 describe('drops inside a second', () => {

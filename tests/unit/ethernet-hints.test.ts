@@ -102,6 +102,15 @@ describe('the Ethernet pane’s cards', () => {
     expect(lookupEtherHint('made-up', c)).toBeNull()
   })
 
+  it('the route’s card says unknown with no way out known, never this adapter', () => {
+    const c = context()
+    const link = c.link as EtherLink
+    expect(etherLiveFor('f-route', { ...c, link: { ...link, route: 'default' } })).toBe(
+      'this adapter',
+    )
+    expect(etherLiveFor('f-route', { ...c, link: { ...link, route: null } })).toBe('unknown')
+  })
+
   it('a counter’s card says its total and its rate, as Wi-Fi’s do', () => {
     const c = { ...context(), rates: { rxErrors: 3, rxNonUnicast: 4920 } }
     const total = c.link?.counters?.rxErrors ?? 0
