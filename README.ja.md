@@ -24,7 +24,7 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
 </p>
 
-> **v0.0.39 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
+> **v0.0.40 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
 > *unreleased* と記したものは `main` にあり、次のリリースで入ります。
 >
 > **Windows で開発し、使っています。** macOS と Linux もリリースごとにビルドしていますが、
@@ -1368,6 +1368,8 @@ npm run dev -- -- --windowed --no-intro   # the second -- hands flags to Electro
 npm run verify       # lint + typecheck + unit/component tests
 npm run build        # bundle main / preload / renderer into out/
 npm run test:e2e     # Playwright against the built app (run build first)
+npm run test:e2e:smoke # a few minutes of the e2e: launch and the mount and lifecycle contracts
+npm run test:packaged  # the packaged app from release/ started once (after package)
 npm run package      # installers into release/
 ```
 
@@ -1397,7 +1399,7 @@ src/preload/    the one and only contextBridge surface
 src/renderer/   Svelte 5 UI: layout tree, widgets, the plugin host, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
 examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
-tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
+tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron; docs/e2e-design.md)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),

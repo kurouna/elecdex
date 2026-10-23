@@ -23,7 +23,7 @@
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
-> **v0.0.39 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.40 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -1200,6 +1200,8 @@ npm run dev -- -- --windowed --no-intro   # the second -- hands flags to Electro
 npm run verify       # lint + typecheck + unit/component tests
 npm run build        # bundle main / preload / renderer into out/
 npm run test:e2e     # Playwright against the built app (run build first)
+npm run test:e2e:smoke # a few minutes of the e2e: launch and the mount and lifecycle contracts
+npm run test:packaged  # the packaged app from release/ started once (after package)
 npm run package      # installers into release/
 ```
 
@@ -1225,7 +1227,7 @@ src/preload/    the one and only contextBridge surface
 src/renderer/   Svelte 5 UI: layout tree, widgets, the plugin host, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
 examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
-tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
+tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron; docs/e2e-design.md)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
