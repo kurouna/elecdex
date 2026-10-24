@@ -324,7 +324,8 @@ const elec16Layout = {
 
 /** Switched on and asleep at BASIC's prompt, SINEWAVE loaded and run, a still frame of it. */
 async function sinewave(page) {
-  const device = page.getByTestId('elec16')
+  // The first: the retro preset has its calculator behind the next tab.
+  const device = page.getByTestId('elec16').first()
   await device.waitFor()
   await page.waitForFunction(
     () => document.querySelector('[data-testid=elec16]')?.getAttribute('data-asleep') === 'true',

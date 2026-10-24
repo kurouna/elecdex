@@ -145,9 +145,9 @@ const items = ORDER.map((id, i) => {
 })
 items.push({ id: 'tourcouncil', name: 'council', tree: councilTree })
 items.push({ id: 'tourkeystream', name: 'keystream', tree: keystreamTree })
-// The retro preset as it ships: the ELEC-16 in front in the CLASSIC skin, its panel folded, the
-// CHIP-8 behind its tab open on T8NKS (chip8Archive, CC0), the spectrum under them; a PLAY-320
-// with ELECLANCE and one with ELECAIRCOMBAT go between the two machines' tabs.
+// The retro preset as it ships: the ELEC-16 in front in the CLASSIC skin, its panel folded, its
+// calculator and the CHIP-8 behind their tabs, the CHIP-8 open on T8NKS (chip8Archive, CC0), the
+// spectrum under them; a PLAY-320 with ELECLANCE and one with ELECAIRCOMBAT go after the ELEC-16.
 const retro = trees.get('retro')
 if (retro === undefined) throw new Error('no preset retro in the built app')
 items.push({
@@ -161,10 +161,16 @@ items.push({
 })
 withPlay(items.at(-1).tree.root)
 
-/** The PLAY-320s' panes, and the SCI-128's, put after the pocket computer in the retro layout's tab strip. */
+/**
+ * The PLAY-320s' panes put after the pocket computer in the retro layout's tab strip, before the
+ * preset's own calculator, which is given the take's SCI-128 unit (withState gave every ELEC-16
+ * pane the pocket's state; the preset's asks for a new unit, `fresh`).
+ */
 function withPlay(node) {
   if (node.kind === 'split') return node.children.forEach(withPlay)
   if (node.kind !== 'tabs') return
+  const sci = node.children.find((c) => c.widget === 'elec16' && c.state?.fresh === 'sci-128')
+  if (sci !== undefined) sci.state = SCI_PANE
   const at = node.children.findIndex((c) => c.widget === 'elec16')
   if (at >= 0)
     node.children.splice(
@@ -172,7 +178,6 @@ function withPlay(node) {
       0,
       { kind: 'pane', id: 'tplay', widget: 'elec16', state: PLAY_PANE },
       { kind: 'pane', id: 'tfight', widget: 'elec16', state: FIGHT_PANE },
-      { kind: 'pane', id: 'tsci', widget: 'elec16', state: SCI_PANE },
     )
 }
 

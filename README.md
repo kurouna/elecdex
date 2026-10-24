@@ -138,7 +138,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### desk — writing, counting and keeping time
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk preset in the Business (Light) theme: a notes pane with a release checklist, a timer and a calculator under it; a tasks pane with deadlines drawn as meters over a clipboard history of made-up copies; a month's calendar over the utility pane showing a QR code for the project's address">
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk preset in the Business (Light) theme: a notes pane with a release checklist, a timer and a calculator under it; a tasks pane with deadlines drawn as meters over a clipboard history of made-up copies; a month's calendar over the utility pane showing a QR code for the project's address, the calculator ELEC-16 SCI behind its tab">
   <br><sub>desk · Business (Light)</sub>
 </p>
 
@@ -148,7 +148,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   a stopwatch whose laps stack up like a spectrum, countdowns that run beside it, and alarms for
   the times the day is built around. A clipboard history, under the tasks, of
   what you copy while it is on screen, to put back with a click, and under the calendar the
-  utility pane (keep the machine awake, QR codes, encoding and hashes).
+  utility pane (keep the machine awake, QR codes, encoding and hashes) with the scientific
+  calculator ELEC-16 SCI behind its tab (*unreleased*).
 
 ### ai — two conversations, a council, and the GPU they run on
 
@@ -193,7 +194,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### retro — two machines of elecdex's own, and the sound
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro preset in the Phosphor theme: the system column on the left; on the right one pane with ELEC-16 and CHIP-8 as tabs, the ELEC-16 in front in its PLAIN skin - no case, a flat screen drawing three sine waves in green, the keys as the app's own flat buttons - with the registers and the code beside it; under it the spectrum at sixteen bands">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro preset in the Phosphor theme: the system column on the left; on the right one pane with ELEC-16, its calculator ELEC-16 SCI and CHIP-8 as tabs, the ELEC-16 in front in its PLAIN skin - no case, a flat screen drawing three sine waves in green, the keys as the app's own flat buttons - with the registers and the code beside it; under it the spectrum at sixteen bands">
   <br><sub>retro · Phosphor · the ELEC-16 in its PLAIN skin</sub>
 </p>
 
@@ -254,8 +255,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
   Made a **PLAY-320**, it is a game console with cartridges, sprites and sixteen sound
   channels, with games of its own - ELECLANCE, ELECAIRCOMBAT, ELECDRILL and the one-on-one
-  fighter ELECFIGHTER - and a kit to make games for it. Picked as **ELEC-16 SCI** (*unreleased*),
-  it is a scientific calculator: lines set as a textbook sets them, answers kept as fractions
+  fighter ELECFIGHTER - and a kit to make games for it. Picked as **ELEC-16 SCI** (*unreleased*,
+  a tab of retro and desk), it is a scientific calculator: lines set as a textbook sets them, answers kept as fractions
   and roots, and STATS, BASE, TABLE and EQUATION modes.
 
 ### Layouts, looks and the rest

@@ -50,6 +50,13 @@ export interface LayoutPreset {
   build: () => LayoutNode
 }
 
+/**
+ * The calculator ELEC-16 SCI as a preset's tab (user's request 2026-10-24): a pane that starts on
+ * a new SCI-128 unit, as the picker's own row does (docs/elec16-sci.md section 8.1), its panel
+ * folded so the body has the room - with the panel out, a tab's room shows the LCD alone.
+ */
+const sciPane = () => pane('elec16', { state: { fresh: 'sci-128', panel: false } })
+
 /** The rest of the width after the system column, shared out by `stage`. */
 const STAGE = 1 - SYSTEM_COLUMN_WIDTH
 
@@ -164,11 +171,12 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
     // utility pane, whose QR code wants a square and whose AWAKE hold should be
     // in sight. No shell - the one preset for writing, counting and keeping
     // time. The clipboard pane is on screen here, not a tab: it reads the
-    // clipboard only while it is seen.
+    // clipboard only while it is seen. The calculator ELEC-16 SCI is a tab beside the
+    // utility pane (user's request 2026-10-24).
     id: 'desk',
     name: 'desk',
     description:
-      'notes, tasks, a calendar, a timer, a calculator, what you copied and the utilities',
+      'notes, tasks, a calendar, a timer, two calculators, what you copied and the utilities',
     build: () =>
       withSystemColumn(
         [
@@ -178,7 +186,7 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
             [0.62, 0.38],
           ),
           split('column', [pane('todo'), pane('clipboard')], [0.55, 0.45]),
-          split('column', [pane('calendar'), pane('utility')], [0.42, 0.58]),
+          split('column', [pane('calendar'), tabs([pane('utility'), sciPane()])], [0.42, 0.58]),
         ],
         [0.38, 0.31, 0.31],
       ),
@@ -224,16 +232,21 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
     // The two machines elecdex runs in one pane, the ELEC-16 in front, and under them the
     // spectrum at sixteen bands: the column the standard layout gives its stage, one pane
     // for whichever machine is played and its sound beside nothing else (user's request
-    // 2026-10-04). Out of sight, the machine behind its tab is paused.
+    // 2026-10-04). The calculator ELEC-16 SCI is a tab between them (user's request
+    // 2026-10-24). Out of sight, the machine behind its tab is paused.
     id: 'retro',
     name: 'retro',
-    description: 'the ELEC-16 and the CHIP-8 behind one tab strip, and the sound as sixteen bands',
+    description:
+      'the ELEC-16, its calculator and the CHIP-8 behind one tab strip, and the sound as sixteen bands',
     build: () =>
       withSystemColumn(
         [
           split(
             'column',
-            [tabs([pane('elec16'), pane('chip8')]), pane('spectrum', { state: { bands: 16 } })],
+            [
+              tabs([pane('elec16'), sciPane(), pane('chip8')]),
+              pane('spectrum', { state: { bands: 16 } }),
+            ],
             [0.74, 0.26],
           ),
         ],

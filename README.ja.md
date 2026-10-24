@@ -135,7 +135,7 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### desk — 書く、数える、時間を計る
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、1 か月のカレンダーとその下にプロジェクトのアドレスの QR コードを出す Utility ペイン">
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、1 か月のカレンダーとその下にプロジェクトのアドレスの QR コードを出す Utility ペイン、そのタブの後ろに関数電卓 ELEC-16 SCI">
   <br><sub>desk · Business (Light)</sub>
 </p>
 
@@ -188,7 +188,7 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### retro — elecdex の 2 台の機械と、その音
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor テーマの retro プリセット：左にシステムの列、右に ELEC-16 と CHIP-8 をタブにした 1 つのペイン。手前の ELEC-16 は PLAIN スキンで、本体の枠がなく、平らな画面に緑の正弦波を 3 本描き、キーはアプリの平らなボタンの形。横にレジスタとコード。その下に 16 バンドのスペクトラム">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor テーマの retro プリセット：左にシステムの列、右に ELEC-16、その関数電卓 ELEC-16 SCI、CHIP-8 をタブにした 1 つのペイン。手前の ELEC-16 は PLAIN スキンで、本体の枠がなく、平らな画面に緑の正弦波を 3 本描き、キーはアプリの平らなボタンの形。横にレジスタとコード。その下に 16 バンドのスペクトラム">
   <br><sub>retro · Phosphor · ELEC-16 は PLAIN スキン</sub>
 </p>
 
@@ -247,7 +247,7 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 - **ELEC-16** — elecdex が独自に設計した 16 ビットのポケコン。自前の RISC の
   CPU、ROM の BASIC と機械語モニタ、液晶とキーボード、記憶カード、TypeScript をその機械語に
   コンパイルする CODE 画面、そして AI と話す LINK。**PLAY-320** にすると、カートリッジ、
-  スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL と 1 対 1 の対戦格闘 ELECFIGHTERの 4 本のゲームと、ゲームを作るキットが付きます。**ELEC-16 SCI**（*unreleased*）
+  スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL と 1 対 1 の対戦格闘 ELECFIGHTERの 4 本のゲームと、ゲームを作るキットが付きます。**ELEC-16 SCI**（*unreleased*。retro と desk のタブにもある）
   として選ぶと関数電卓になります。式は教科書の形で組まれ、答えは分数や根号のまま残り、STATS、BASE、TABLE、EQUATION のモードがあります。
 
 ### レイアウト、見た目、そのほか

@@ -123,7 +123,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### desk — 写字、计算和掌握时间
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) 主题下的 desk 预设：记事窗格里是一份发布检查清单，下面是计时器和计算器；任务窗格把截止时间画成仪表，下面是虚构复制内容的剪贴板历史；一个月的日历，下面的实用工具窗格显示项目地址的二维码">
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) 主题下的 desk 预设：记事窗格里是一份发布检查清单，下面是计时器和计算器；任务窗格把截止时间画成仪表，下面是虚构复制内容的剪贴板历史；一个月的日历，下面的实用工具窗格显示项目地址的二维码，其标签页后面是函数计算器 ELEC-16 SCI">
   <br><sub>desk · Business (Light)</sub>
 </p>
 
@@ -171,7 +171,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### retro — elecdex 自己的两台机器，以及声音
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor 主题的 retro 预设：左侧是系统栏；右侧是一个把 ELEC-16 和 CHIP-8 作为标签页的窗格，前面的 ELEC-16 使用 PLAIN 外观——没有机身，平整的屏幕上用绿色画着三条正弦波，按键是应用自己的扁平按钮——旁边是寄存器和代码；下方是 16 段的频谱">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor 主题的 retro 预设：左侧是系统栏；右侧是一个把 ELEC-16、它的函数计算器 ELEC-16 SCI 和 CHIP-8 作为标签页的窗格，前面的 ELEC-16 使用 PLAIN 外观——没有机身，平整的屏幕上用绿色画着三条正弦波，按键是应用自己的扁平按钮——旁边是寄存器和代码；下方是 16 段的频谱">
   <br><sub>retro · Phosphor · ELEC-16 使用 PLAIN 外观</sub>
 </p>
 
@@ -230,7 +230,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 - **ELEC-16** — elecdex 自行设计的 16 位袖珍电脑：自己的 RISC CPU、ROM 中的
   BASIC 和机器码监视器、液晶和键盘、存储卡、把 TypeScript 编译成它的机器码的 CODE 画面，以及与 AI
   对话的 LINK。变成 **PLAY-320** 后，它是一台带卡带、精灵和 16 个声道的游戏机，附带纵版射击游戏
-  ELECLANCE、空战游戏 ELECAIRCOMBAT、方块解谜 ELECDRILL、一对一格斗游戏 ELECFIGHTER四款游戏和制作游戏的工具包。选作 **ELEC-16 SCI**（*unreleased*）时，它是一台函数计算器：
+  ELECLANCE、空战游戏 ELECAIRCOMBAT、方块解谜 ELECDRILL、一对一格斗游戏 ELECFIGHTER四款游戏和制作游戏的工具包。选作 **ELEC-16 SCI**（*unreleased*，也是 retro 和 desk 中的标签页）时，它是一台函数计算器：
   算式像教科书一样排版，答案保留分数和根号，并有 STATS、BASE、TABLE、EQUATION 模式。
 
 ### 布局、外观及其他

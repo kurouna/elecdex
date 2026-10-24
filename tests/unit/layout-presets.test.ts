@@ -230,20 +230,38 @@ describe('LAYOUT_PRESETS', () => {
     }
   })
 
-  it('puts both machines behind one tab strip in retro, the spectrum under them at 16 bands', () => {
-    expect(places('retro')).toEqual([['elec16', 'chip8'], ['spectrum']])
-    const tree = (presetById('retro') as LayoutPreset).build()
+  /** A preset's panes, in the tree's order. */
+  function panesOf(id: string): PaneNode[] {
     const panes: PaneNode[] = []
     const walk = (node: LayoutNode): void => {
       if (node.kind === 'pane') panes.push(node)
       else for (const child of node.children) walk(child as LayoutNode)
     }
-    walk(tree)
+    walk((presetById(id) as LayoutPreset).build())
+    return panes
+  }
+
+  it('puts the machines behind one tab strip in retro - ELEC-16, its calculator, CHIP-8 - the spectrum under them at 16 bands', () => {
+    expect(places('retro')).toEqual([['elec16', 'elec16', 'chip8'], ['spectrum']])
+    const panes = panesOf('retro')
     expect(panes.find((p) => p.widget === 'spectrum')?.state).toEqual({ bands: 16 })
+    // The second ELEC-16 is the calculator: a new SCI-128 unit, its panel folded (user's request 2026-10-24).
+    expect(panes.filter((p) => p.widget === 'elec16').map((p) => p.state)).toEqual([
+      undefined,
+      { fresh: 'sci-128', panel: false },
+    ])
     const shape = layoutShape(presetTree(presetById('retro') as LayoutPreset))
     const at = (widget: string) => shape.find((r) => r.widget === widget)
     expect(at('elec16')?.h ?? 0).toBeGreaterThan(at('spectrum')?.h ?? 0)
     expect(at('elec16')?.w).toBe(at('spectrum')?.w)
+  })
+
+  it('gives desk the calculator ELEC-16 SCI as a tab beside the utility pane, its panel folded', () => {
+    expect(places('desk')).toContainEqual(['utility', 'elec16'])
+    expect(panesOf('desk').find((p) => p.widget === 'elec16')?.state).toEqual({
+      fresh: 'sci-128',
+      panel: false,
+    })
   })
 
   /** Each pane behind a tab, with the room its tab group is given. */
