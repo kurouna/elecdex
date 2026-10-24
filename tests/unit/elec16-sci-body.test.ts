@@ -167,8 +167,8 @@ describe("the calculator's keys from the PC", () => {
     expect(key('s', 'KeyS')).toEqual({ kind: 'key', code: sciKeyCode('sin'), shift: false })
   })
 
-  it('gives √ and x! after SHIFT, and ON on Pause', () => {
-    expect(key('r', 'KeyR')).toEqual({ kind: 'key', code: sciKeyCode('sq'), shift: true })
+  it('gives √ on its own key, x! after SHIFT, and ON on Pause', () => {
+    expect(key('r', 'KeyR')).toEqual({ kind: 'key', code: sciKeyCode('root'), shift: false })
     expect(key('!', 'Digit1', { shiftKey: true })).toEqual({
       kind: 'key',
       code: sciKeyCode('inv'),

@@ -26,8 +26,7 @@ const BY_PLACE: Readonly<Record<string, string>> = {
 
 /**
  * By the character typed (`event.key`), so a keyboard of any layout types its own digits and
- * signs; the letters are the functions' first letters. `!` and `r` are SHIFT faces: x! on x⁻¹,
- * √ on x².
+ * signs; the letters are the functions' first letters. `!` is a SHIFT face: x! on x⁻¹.
  */
 const BY_CHARACTER: Readonly<Record<string, readonly [string, boolean]>> = {
   '0': ['0', false],
@@ -56,7 +55,7 @@ const BY_CHARACTER: Readonly<Record<string, readonly [string, boolean]>> = {
   g: ['log', false],
   f: ['frac', false],
   e: ['exp', false],
-  r: ['sq', true],
+  r: ['root', false],
   '!': ['inv', true],
 }
 

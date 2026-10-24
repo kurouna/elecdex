@@ -1314,7 +1314,7 @@ const BS = '<span class="box s"></span>'
 const FN = [
   ['shift', 'SHIFT', '', '', 'top shift'], ['alpha', 'ALPHA', '', '', 'top alpha'], null, null, ['menu', 'MENU', '', '', 'top'], ['on', 'ON', 'OFF', '', 'top'],
   ['setup', 'SETUP', '', '', 'top'], ['func', 'FUNC', '', '', 'top'], null, null, ['sto', 'STO', 'RCL', ''], ['fd', 'F⇄D', 'ENG', ''],
-  ['frac', '<i>a</i>/<i>b</i>', '<i>a b</i>/<i>c</i>', ''], ['sq', 'x<sup>2</sup>', `√${BS}`, ''], ['cube', 'x<sup>3</sup>', '∛', ''], ['pow', 'x<sup>y</sup>', '<sup>y</sup>√x', ''], ['log', 'LOG', '10<sup>x</sup>', ''], ['ln', 'LN', 'e<sup>x</sup>', ''],
+  ['frac', '<i>a</i>/<i>b</i>', '<i>a b</i>/<i>c</i>', ''], ['sq', 'x<sup>2</sup>', 'x<sup>3</sup>', ''], ['cube', '√', '∛', ''], ['pow', 'x<sup>y</sup>', '<sup>y</sup>√x', ''], ['log', 'LOG', '10<sup>x</sup>', ''], ['ln', 'LN', 'e<sup>x</sup>', ''],
   ['neg', '(−)', 'ABS', 'A'], ['dms', '<span class="mono">°′″</span>', '→DMS', 'B'], ['hyp', 'HYP', '', 'C'], ['sin', 'SIN', 'SIN<sup>-1</sup>', 'D'], ['cos', 'COS', 'COS<sup>-1</sup>', 'E'], ['tan', 'TAN', 'TAN<sup>-1</sup>', 'F'],
   ['fx', 'f(x)', 'FIND X', ''], ['inv', 'x<sup>-1</sup>', 'x!', ''], ['ncr', 'nCr', 'nPr', ''], ['lp', '(', ',', 'X'], ['rp', ')', '', 'Y'], ['mplus', 'M+', 'M−', 'M'],
 ]
@@ -1372,7 +1372,7 @@ function startFresh(continueWithAns) {
   if (continueWithAns) insert(tok('Ans', 'ans'))
 }
 /** Keys that go on from Ans after a result: the operators, the powers and the fraction. */
-const FROM_ANS = new Set(['add', 'sub', 'mul', 'div', 'sq', 'cube', 'pow', 'inv', 'ncr', 'frac'])
+const FROM_ANS = new Set(['add', 'sub', 'mul', 'div', 'sq', 'pow', 'inv', 'ncr', 'frac'])
 const NOT_IN_MOCK = new Set(['dms', 'fx'])
 
 function press(k) {
@@ -1418,7 +1418,7 @@ function press(k) {
   if (NOT_IN_MOCK.has(k) || (shift && k === 'pow')) { say('not in this mock'); return drawLive() }
 
   // SHIFT turns most keys into a function, which starts a line; x! (SHIFT x⁻¹) is a power's kind.
-  if (st.result) startFresh(FROM_ANS.has(k) && (!shift || k === 'inv'))
+  if (st.result) startFresh(FROM_ANS.has(k) && (!shift || k === 'inv' || k === 'sq'))
   typeKey(k, shift)
   drawLive()
 }
@@ -1436,11 +1436,12 @@ function typeKey(k, shift) {
     case 'exp': if (shift) insert(tok('π', 'pi')); else insert(tok('ᴇ', 'exp')); break
     case 'ans': insert(tok('Ans', 'ans')); break
     case 'frac': math ? insertFrac() : insert(tok('⁄')); break
-    case 'sq':
-      if (!shift) insert(tok('²'))
+    // x² and √ both on their caps (2026-10-24): x³ and ∛ on their SHIFT faces.
+    case 'sq': insert(tok(shift ? '³' : '²')); break
+    case 'cube':
+      if (shift) fn('cbrt', '³√')
       else math ? insert(sqrt()) : insert(tok('√(', 'fn:sqrt'))
       break
-    case 'cube': if (shift) fn('cbrt', '³√'); else insert(tok('³')); break
     case 'pow': math ? insert(pow()) : insert(tok('^(')); break
     case 'log':
       // 10ˣ puts 10 as one value, so 2 10ˣ 3 is 2×10³, not 210³.
@@ -1628,7 +1629,7 @@ addEventListener('keydown', (e) => {
   e.preventDefault()
   // ! and r are SHIFT faces: x! on x⁻¹, √ on x².
   if (e.key === '!') { st.shift = true }
-  if (e.key === 'r') { st.shift = true; press('sq'); e.preventDefault(); return }
+  if (e.key === 'r') { press('cube'); e.preventDefault(); return }
   press(k)
 })
 

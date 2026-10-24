@@ -180,7 +180,7 @@ export const K_DEL = 14
 export const K_ANS = 15
 export const K_FRAC = 16
 export const K_SQ = 17
-export const K_CUBE = 18
+export const K_ROOT = 18
 export const K_POW = 19
 export const K_LOG = 20
 export const K_LN = 21
@@ -667,7 +667,7 @@ function plainTemplate(k: u16, shift: bool): bool {
     return fractionKey
   }
   if (!fractionKey && !makesTemplate(k, shift)) return false
-  const root = k === K_SQ && shift
+  const root = k === K_ROOT && !shift
   if (answered) afresh(fractionKey || k === K_POW)
   if (fractionKey) {
     wrap(addr(line), length, cursor, T_FRAC)
@@ -724,10 +724,14 @@ function dmsMark(): void {
   type(marks === 0 ? T_DEG : marks === 1 ? T_MIN : T_SEC)
 }
 
-/** x^, SHIFT x² (√), SHIFT log (10ˣ) and SHIFT ln (eˣ): the keys that put in √ or a power. */
+/**
+ * x^, √, SHIFT log (10ˣ) and SHIFT ln (eˣ): the keys that put in √ or a power. √ is a key of
+ * its own, as often used as x² (its SHIFT face x³ and √'s ∛ are the same family's, not the
+ * inverse: section 5.1's one exception).
+ */
 function makesTemplate(k: u16, shift: bool): bool {
-  if (shift) return k === K_SQ || k === K_LOG || k === K_LN
-  return k === K_POW
+  if (shift) return k === K_LOG || k === K_LN
+  return k === K_POW || k === K_ROOT
 }
 
 /** The line and cursor as edit.e16.ts left them. */
@@ -868,8 +872,8 @@ function capToken(k: u16): u16 {
       return T_EXP
     case K_SQ:
       return T_SQUARE
-    case K_CUBE:
-      return T_CUBE
+    case K_ROOT:
+      return T_SQRT
     case K_POW:
       return T_POW
     case K_LOG:
@@ -900,8 +904,8 @@ function shiftFace(k: u16): u16 {
     case K_EXP:
       return T_PI
     case K_SQ:
-      return T_SQRT
-    case K_CUBE:
+      return T_CUBE
+    case K_ROOT:
       return T_CBRT
     case K_LOG:
       return T_TEN

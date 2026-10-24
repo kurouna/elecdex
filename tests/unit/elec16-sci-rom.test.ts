@@ -227,9 +227,9 @@ describe('a line answered', () => {
     ['5 shift ncr 2', '20'],
     ['5 shift inv', '120'],
     ['4 inv', '0.25'],
-    ['shift sq 1 6', '4'],
-    ['shift cube neg 8', '-2'],
-    ['3 cube', '27'],
+    ['root 1 6', '4'],
+    ['shift root neg 8', '-2'],
+    ['3 shift sq', '27'],
     ['log 1 0 0 0', '3'],
     ['shift log 2', '100'],
     ['2 shift log 3', '2000'],
@@ -399,15 +399,15 @@ describe('the 2D display and exact answers (S4)', () => {
   it.each([
     ['1 frac 3 right add 1 frac 6', '0.5', '1/2'],
     ['1 div 3', '0.3333333333', '1/3'],
-    ['shift sq 8', '2.828427125', '2√2'],
-    ['shift sq 1 2 right div 2', '1.732050808', '√3'],
+    ['root 8', '2.828427125', '2√2'],
+    ['root 1 2 right div 2', '1.732050808', '√3'],
     ['sin 4 5', '0.7071067812', '√2/2'],
     ['cos 1 5 0', '-0.8660254038', '-√3/2'],
     ['tan 1 5', '0.2679491924', '2-√3'],
     ['tan 7 5', '3.732050808', '2+√3'],
-    ['lp 1 add shift sq 2 right rp sq', '5.828427125', '3+2√2'],
+    ['lp 1 add root 2 right rp sq', '5.828427125', '3+2√2'],
     ['1 frac 2 right pow 3', '0.125', '1/8'],
-    ['1 frac shift sq 2', '0.7071067812', '√2/2'],
+    ['1 frac root 2', '0.7071067812', '√2/2'],
   ])('%s is %s, answered as %s', (line, value, shape) => {
     const r = exact(line)
     expect(r.ans).toBe(value)
@@ -417,7 +417,7 @@ describe('the 2D display and exact answers (S4)', () => {
 
   it.each([
     ['2 pow 1 0', '1024'],
-    ['shift sq 2 right add shift sq 3', '3.14626437'],
+    ['root 2 right add root 3', '3.14626437'],
     ['sin 1 0', '0.1736481777', '0.173648178'],
     ['shift exp', '3.141592654'],
   ] as [string, string, string?][])(

@@ -61,8 +61,8 @@ const ROWS: readonly (readonly (Omit<SciKey, 'code'> | null)[])[] = [
   ],
   [
     key('frac', 'a/b', 'fn', 'A/B', 'a b/c'),
-    key('sq', 'x²', 'fn', 'X^2', '√■'),
-    key('cube', 'x³', 'fn', 'X^3', '∛'),
+    key('sq', 'x²', 'fn', 'X^2', 'x³'),
+    key('root', '√', 'fn', 'SQRT', '∛'),
     key('pow', 'xʸ', 'fn', 'X^Y', 'ʸ√x'),
     key('log', 'LOG', 'fn', 'LOG', '10ˣ'),
     key('ln', 'LN', 'fn', 'LN', 'eˣ'),

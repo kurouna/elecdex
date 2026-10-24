@@ -52,7 +52,7 @@ const TOP_ROWS: readonly (readonly (string | null)[])[] = [
   ['setup', 'func', null, null, 'sto', 'fd'],
 ]
 const FN_ROWS: readonly (readonly string[])[] = [
-  ['frac', 'sq', 'cube', 'pow', 'log', 'ln'],
+  ['frac', 'sq', 'root', 'pow', 'log', 'ln'],
   ['neg', 'dms', 'hyp', 'sin', 'cos', 'tan'],
   ['fx', 'inv', 'ncr', 'lp', 'rp', 'mplus'],
 ]
