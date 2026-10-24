@@ -17,7 +17,15 @@ test('a second start on the same profile ends, and the first goes on in front', 
       (resolve) => {
         const second = spawn(
           electronPath as unknown as string,
-          [MAIN, '--windowed', '--no-intro', `--user-data-dir=${userData}`],
+          [
+            MAIN,
+            '--windowed',
+            '--no-intro',
+            `--user-data-dir=${userData}`,
+            // As Playwright starts the first: an npm-installed chrome-sandbox is not root's on a
+            // Linux runner, and Chromium aborts (SIGTRAP) rather than run without it.
+            ...(process.platform === 'linux' ? ['--no-sandbox'] : []),
+          ],
           { env: { ...process.env, ...STUB_ENV }, stdio: ['ignore', 'pipe', 'pipe'] },
         )
         // What it said on its way out, for a failure to show.
