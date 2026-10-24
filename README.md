@@ -24,7 +24,7 @@ for Windows, macOS and Linux.
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.41 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.42 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -149,7 +149,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   the times the day is built around. A clipboard history, under the tasks, of
   what you copy while it is on screen, to put back with a click, and under the calendar the
   utility pane (keep the machine awake, QR codes, encoding and hashes) with the scientific
-  calculator ELEC-16 SCI behind its tab (*unreleased*).
+  calculator ELEC-16 SCI behind its tab.
 
 ### ai — two conversations, a council, and the GPU they run on
 
@@ -247,7 +247,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-sci.jpg" alt="An ELEC-16 pane made an SCI-128 calculator in its tall chalk-white body, in the Business (Light) theme: sin(45)+1/2 typed in 2D with the fraction set as a textbook sets it, the answer (1+√2)/2 in its exact form below; the keys with SHIFT faces in orange and ALPHA letters, a dark cursor pad, red DEL and AC and a blue =; CORE beside it with the E16's registers and code">
-  <br><sub>ELEC-16 SCI (SCI-128) · CHALK · Business (Light) · <i>unreleased</i></sub>
+  <br><sub>ELEC-16 SCI (SCI-128) · CHALK · Business (Light)</sub>
 </p>
 
 - **ELEC-16** — a 16-bit pocket computer of elecdex's own design: its own
@@ -255,8 +255,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
   Made a **PLAY-320**, it is a game console with cartridges, sprites and sixteen sound
   channels, with games of its own - ELECLANCE, ELECAIRCOMBAT, ELECDRILL and the one-on-one
-  fighter ELECFIGHTER - and a kit to make games for it. Picked as **ELEC-16 SCI** (*unreleased*,
-  a tab of retro and desk), it is a scientific calculator: lines set as a textbook sets them, answers kept as fractions
+  fighter ELECFIGHTER - and a kit to make games for it. Picked as **ELEC-16 SCI** (a tab of
+  retro and desk), it is a scientific calculator: lines set as a textbook sets them, answers kept as fractions
   and roots, modes for statistics, bases, tables, equations, complex numbers, matrices and
   programs, and physical constants, unit conversions, Σ, derivatives and integrals.
 
@@ -1295,7 +1295,7 @@ weather and calendar.
   chains, counters and dashes, against four opponent programs each with a mind of its own
   ([docs/elec16-elecfighter.md](docs/elec16-elecfighter.md)); how to play is
   [the PLAY-320 manual](docs/elec16-play-manual.md), in Japanese. LINK is the panel's own tab, with a switch for each service.
-  *Unreleased:* the picker's own row ("elec-16 sci") opens a new unit as **ELEC-16 SCI
+  The picker's own row ("elec-16 sci") opens a new unit as **ELEC-16 SCI
   (SCI-128)**, a scientific calculator of its own design on a 128×64 LCD with a tall body
   (SLATE, CHALK or PLAIN): lines typed in 2D - fractions, roots and powers set as a textbook
   sets them, a bar cursor that goes into them - or on one line; answers kept exact as
@@ -1322,7 +1322,7 @@ weather and calendar.
   Japanese): [BASIC](docs/elec16-basic.md), [E16 machine code and the monitor](docs/elec16-e16.md),
   [e16c, TypeScript for CODE](docs/elec16-e16c.md), [the SOFT CARD's programs](docs/elec16-soft.md),
   [the PLAY-320](docs/elec16-play-manual.md), [making PLAY-320 games](docs/elec16-kit.md) and
-  [the SCI-128](docs/elec16-sci-manual.md) (*unreleased*);
+  [the SCI-128](docs/elec16-sci-manual.md);
   FILES also shows how to use the program picked.
 
 <p align="center">

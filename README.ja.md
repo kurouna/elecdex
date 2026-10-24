@@ -24,7 +24,7 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
 </p>
 
-> **v0.0.41 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
+> **v0.0.42 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
 > *unreleased* と記したものは `main` にあり、次のリリースで入ります。
 >
 > **Windows で開発し、使っています。** macOS と Linux もリリースごとにビルドしていますが、
@@ -241,13 +241,13 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-sci.jpg" alt="Business (Light) テーマで、チョークのような白い縦長の本体の SCI-128 にした ELEC-16 ペイン：2D 表示で sin(45)+1/2 を打ち、分数は教科書の形で組まれ、下に答えが正確な形 (1+√2)/2 で出ている。橙の SHIFT 面と ALPHA の字のあるキー、黒い十字キー、赤い DEL と AC、青い =。横の CORE に E16 のレジスタとコード">
-  <br><sub>ELEC-16 SCI（SCI-128）· CHALK · Business (Light) · <i>unreleased</i></sub>
+  <br><sub>ELEC-16 SCI（SCI-128）· CHALK · Business (Light)</sub>
 </p>
 
 - **ELEC-16** — elecdex が独自に設計した 16 ビットのポケコン。自前の RISC の
   CPU、ROM の BASIC と機械語モニタ、液晶とキーボード、記憶カード、TypeScript をその機械語に
   コンパイルする CODE 画面、そして AI と話す LINK。**PLAY-320** にすると、カートリッジ、
-  スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL と 1 対 1 の対戦格闘 ELECFIGHTERの 4 本のゲームと、ゲームを作るキットが付きます。**ELEC-16 SCI**（*unreleased*。retro と desk のタブにもある）
+  スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL と 1 対 1 の対戦格闘 ELECFIGHTERの 4 本のゲームと、ゲームを作るキットが付きます。**ELEC-16 SCI**（retro と desk のタブにもある）
   として選ぶと関数電卓になります。式は教科書の形で組まれ、答えは分数や根号のまま残り、統計、進数、関数の表、方程式、複素数、行列、プログラムのモードと、物理定数、単位の換算、Σ・微分・積分があります。
 
 ### レイアウト、見た目、そのほか
@@ -1205,7 +1205,7 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   カートリッジ（GAMES で棚から差し、START で遊ぶ）、描画回路（スクロールする背景 2 枚、スプライト 128 個、
   パレット 16 本、行の割り込み、DMA）、ステレオの音 16 チャンネル（エンベロープ、スライド、波形表）。CODE のプログラムを動かせます）。ゲームは、PNG の絵とテキストで書いた曲を取り込むゲームキットで e16c から作ります。GAMES の DEVELOP でゲームのフォルダを開く（または雛形から新しく作る）と、アプリの中でビルドしてユニットに差し、ファイルを保存するたびに作り直します。Node もリポジトリも要りません（[ゲーム開発の手引き](docs/elec16-kit.md)）。棚には、LANCE、ボム、OVERDRIVE、2 体のボスの縦スクロールシューティング **ELECLANCE**（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)）、コックピットから見る 1 対 1 の空中戦 **ELECAIRCOMBAT**（空と海を毎フレーム描き直して水平線が傾き、独自の敵機を 17 方向 × 8 回転 × 7 大きさで描いてカートリッジから写す。機銃、ロックオンのミサイル、フレアで 5 人のエースと戦う。[docs/elec16-elecaircombat.md](docs/elec16-elecaircombat.md)）、掘り進むブロックパズル **ELECDRILL**（同じ色のかたまりがまとめて消え、支えを失ったブロックは揺れて落ち、4 個そろうと連鎖。空気に気をつけて 5 つの地層を 500 m の核まで。[docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)）、ラウンド制の 1 対 1 の対戦格闘 **ELECFIGHTER**（戦うのは名前のない人型の枠、産業用の格闘シミュレータの訓練用の体。低ポリゴンのモデルから前もって描いたワイヤーとベタ塗りの人が、弱と強、高さで変わるガード、投げと投げ抜け、チェーン、カウンター、ダッシュで、それぞれ別の頭を持つ 4 つの対戦プログラムと戦う。[docs/elec16-elecfighter.md](docs/elec16-elecfighter.md)）が入っています。遊び方は [PLAY-320 の取扱説明書](docs/elec16-play-manual.md)。LINK はパネルの専用の
   タブで、サービスごとに ON/OFF できます。
-  *Unreleased:* ピッカーの専用の行（「elec-16 sci」）は、新しいユニットを **ELEC-16 SCI（SCI-128）** として開きます。
+  ピッカーの専用の行（「elec-16 sci」）は、新しいユニットを **ELEC-16 SCI（SCI-128）** として開きます。
   独自に設計した関数電卓で、128×64 の液晶と縦長の本体（SLATE、CHALK、PLAIN）。式は 2D（分数、根号、累乗を教科書の形で組み、縦線のカーソルがその中に入る）か 1 行で打ちます。
   答えはできるかぎり分数と `(p + r√s)/q` の正確な形のまま（sin 45° は √2/2、1/3+1/6 は 1/2）で、F⇄D で大きな数字の小数に。
   変数、Ans、M、履歴、FUNC（gcd、lcm、%（500+25% は 625）、int、round、rand、dice、coin、pol、rec と、STATS の結果や推定値を式の中で）、定数計算、角度の換算、上書き、度分秒、双曲線関数、f(x) と FIND X。モードは
@@ -1219,7 +1219,7 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   負荷は一時停止したものとほぼ同じです。説明書: [BASIC](docs/elec16-basic.md)、
   [E16 の機械語とモニタ](docs/elec16-e16.md)、[e16c（CODE の TypeScript）](docs/elec16-e16c.md)、
   [SOFT CARD のプログラム](docs/elec16-soft.md)、[PLAY-320](docs/elec16-play-manual.md)、[PLAY-320 のゲーム開発](docs/elec16-kit.md)、
-  [SCI-128](docs/elec16-sci-manual.md)（*unreleased*）。FILES でプログラムを選ぶと、その使い方も出ます。
+  [SCI-128](docs/elec16-sci-manual.md)。FILES でプログラムを選ぶと、その使い方も出ます。
 
 <p align="center">
   <img src="./docs/screenshots/pane-elec16.jpg" alt="ELEC-16 ペインを単独で表示したところ">
