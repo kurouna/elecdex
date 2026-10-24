@@ -14,7 +14,7 @@ import sciJson from '../../src/renderer/widgets/elec16/sci-rom.json'
 import { settle } from './elec16-helpers.js'
 
 /**
- * The ELEC-16 SCI ROM as S4 has it (resources/elec16/sci, docs/elec16-sci.md section 6): the
+ * The ELEC-16 SCI ROM as S5 has it (resources/elec16/sci, docs/elec16-sci.md section 6): the
  * line typed with the calculator's keys and shown as one row of characters (LINE), evaluated
  * in the order of section 6.3 on the maths unit's decimal numbers, the answer in big digits,
  * the variables, Ans, the history, the errors and where they were, ON and OFF, MENU and SETUP;
@@ -216,7 +216,8 @@ describe('a line answered', () => {
 
   it.each([
     ['2 add 3 mul 4', '14'],
-    ['1 div 2 shift exp', '0.1591549431'],
+    // AUTO shows ten digits on the display, the 0 before the point one of them (section 6.6).
+    ['1 div 2 shift exp', '0.1591549431', '0.159154943'],
     ['6 div 2 lp 1 add 2 rp', '1'],
     ['2 pow 3 rp pow 2', '512'],
     ['neg 2 sq', '-4'],
@@ -238,10 +239,10 @@ describe('a line answered', () => {
     ['1 exp neg 3', '0.001'],
     ['0 dot 1 add 0 dot 2', '0.3'],
     ['2 lp 3 add 4', '14'],
-  ])('%s is %s', (line, value) => {
+  ] as [string, string, string?][])('%s is %s', (line, value, shown = value) => {
     const r = answer(line)
     expect(r.ans).toBe(value)
-    expect(r.shown).toBe(value)
+    expect(r.shown).toBe(shown)
   })
 
   it('writes an exponent beside the digits when ten places do not hold the answer', () => {
@@ -415,13 +416,16 @@ describe('the 2D display and exact answers (S4)', () => {
   it.each([
     ['2 pow 1 0', '1024'],
     ['shift sq 2 right add shift sq 3', '3.14626437'],
-    ['sin 1 0', '0.1736481777'],
+    ['sin 1 0', '0.1736481777', '0.173648178'],
     ['shift exp', '3.141592654'],
-  ])('%s has no form to show and is answered in big digits', (line, value) => {
-    const r = exact(line)
-    expect(r.ans).toBe(value)
-    expect(r.shown).toBe(value)
-  })
+  ] as [string, string, string?][])(
+    '%s has no form to show and is answered in big digits',
+    (line, value, shown = value) => {
+      const r = exact(line)
+      expect(r.ans).toBe(value)
+      expect(r.shown).toBe(shown)
+    },
+  )
 
   it('leaves the form when a part would pass ten digits, the decimal going on', () => {
     expect(exact('2 pow 4 0').form).toBe('-')
@@ -466,7 +470,7 @@ describe('the 2D display and exact answers (S4)', () => {
   it('answers in decimals after SHIFT = (≈), and F⇄D does nothing for a whole number', () => {
     const m = switchOn('2d')
     keys(m, '1 frac 3 shift eq')
-    expect(bigText(m)).toBe('0.3333333333')
+    expect(bigText(m)).toBe('0.333333333')
     keys(m, 'fd')
     expect(bigText(m)).toBe('')
     keys(m, 'ac 4 eq fd')
@@ -562,5 +566,135 @@ describe('the 2D display and exact answers (S4)', () => {
     expect(dot(m, 50, 28)).toBe(false)
     keys(m, '7')
     expect(dot(m, 50, 28)).toBe(true)
+  })
+})
+
+describe('the rest of CALC (S5)', () => {
+  /** The small text right-aligned on the row whose top is `y` (textRight's cells start at x = 3). */
+  const right = (m: Elec16, y: number) => lineAt(m, y, false, 3)
+
+  it.each([
+    ['hyp sin 1', '1.175201194'],
+    ['hyp cos 0', '1'],
+    ['hyp shift tan 0 dot 5', '0.5493061443'],
+    ['shift neg neg 3', '3'],
+    ['2 shift pow 8', '2.828427125'],
+    ['3 shift pow 8', '2'],
+    ['3 shift pow neg 2 7', '-3'],
+    ['1 2 dms 3 0 dms', '12.5'],
+    ['1 dms 3 0 dms 3 6 dms', '1.51'],
+    ['5 0 func 6', '0.5'],
+    ['func 1 1 2 shift lp 1 8', '6'],
+    ['func 2 4 shift lp 6', '12'],
+    ['func 3 neg 2 dot 7', '-2'],
+    ['2 shift frac 1 down 4', '2.25'],
+    ['neg 1 shift frac 1 down 2', '-1.5'],
+  ])('%s is %s', (line, value) => {
+    const m = switchOn('2d')
+    keys(m, `${line} eq`)
+    expect(ans(m)).toBe(value)
+  })
+
+  it('lights HYP while it waits for SIN, COS or TAN, and shows the function by its name', () => {
+    const m = switchOn()
+    keys(m, 'hyp')
+    expect(lit(m)).toContain('HYP')
+    keys(m, 'sin')
+    expect(lit(m)).not.toContain('HYP')
+    expect(rows(m)[0]).toBe('sinh(')
+  })
+
+  it('keeps a mixed number exact and shows it as one when SETUP asks', () => {
+    const m = switchOn('2d')
+    keys(m, '7 frac 2 eq')
+    expect(form(m)).toBe('7/2')
+    keys(m, 'fd')
+    // F⇄D: the form, then its mixed number, then the decimal.
+    expect(bigText(m)).toBe('')
+    keys(m, 'fd')
+    expect(bigText(m)).toBe('3.5')
+    keys(m, 'setup down 2 ac 7 frac 2 eq')
+    expect(bigText(m)).toBe('')
+    // 3 1/2: the whole part on the fraction's line, left of it.
+    expect(lineAt(m, 49, false, 109).startsWith('3')).toBe(true)
+  })
+
+  it('shows Pol and Rec as X and Y, and keeps them there', () => {
+    const m = switchOn()
+    keys(m, 'func 7 3 shift lp 4 eq')
+    expect(lineAt(m, 46, false, 1).startsWith('X=')).toBe(true)
+    expect(right(m, 46).split(' ').pop()).toBe('5')
+    expect(right(m, 55).split(' ').pop()).toBe('53.13010235')
+    expect(variable(m, 6)).toBe('5')
+    keys(m, 'ac func 8 2 shift lp 9 0 eq')
+    expect(variable(m, 6)).toBe('0')
+    expect(variable(m, 7)).toBe('2')
+  })
+
+  it('shows an answer in degrees, minutes and seconds with °′″, and back', () => {
+    const m = switchOn()
+    keys(m, '1 dot 5 1 eq dms')
+    expect(right(m, 55)).toBe('1°30′36″')
+    keys(m, 'dms')
+    expect(bigText(m)).toBe('1.51')
+  })
+
+  it('shows ENG with an exponent a multiple of 3', () => {
+    const m = switchOn()
+    keys(m, '1 2 3 4 5 eq shift fd')
+    // The digits end where x10 begins; the exponent is raised at the right edge.
+    expect(bigText(m, 103)).toBe('12.345')
+    expect(lineAt(m, 48, false, 122)).toBe('3')
+  })
+
+  it('shows FIX and EXP as SETUP sets them, the marks lit, and AUTO again', () => {
+    const m = switchOn()
+    keys(m, 'setup 8 3 ac 2 div 3 eq')
+    expect(lit(m)).toContain('FIX')
+    expect(bigText(m)).toBe('0.667')
+    keys(m, 'setup 8 0 ac 2 dot 5 eq')
+    expect(bigText(m)).toBe('3')
+    keys(m, 'setup 9 4 ac 1 2 3 4 5 eq')
+    expect(lit(m)).toContain('EXP')
+    expect(bigText(m, 103)).toBe('1.235')
+    expect(lineAt(m, 48, false, 122)).toBe('4')
+    keys(m, 'setup 0 ac 1 div 8 eq')
+    expect(lit(m)).not.toContain('FIX')
+    expect(bigText(m)).toBe('0.125')
+  })
+
+  it('rounds with Rnd( as the display does', () => {
+    const m = switchOn()
+    keys(m, 'setup 8 2 ac func 4 1 div 3 rp mul 3 eq')
+    expect(ans(m)).toBe('0.99')
+  })
+
+  it('evaluates the line with the X given to f(x), and keeps X', () => {
+    const m = switchOn()
+    keys(m, 'alpha lp sq add 1 fx')
+    expect(lineAt(m, 1, true, 1)).toBe('f(X)')
+    keys(m, '3 eq')
+    expect(ans(m)).toBe('10')
+    expect(variable(m, 6)).toBe('3')
+    keys(m, 'fx eq')
+    expect(ans(m)).toBe('10')
+  })
+
+  it('finds an X where the line comes to 0 from the X it starts at, DIFF shown', () => {
+    const m = switchOn()
+    keys(m, 'alpha lp sq sub 2 shift fx')
+    expect(lineAt(m, 1, true, 1)).toBe('FIND X')
+    keys(m, '1 eq')
+    expect(ans(m)).toBe('1.414213562')
+    expect(variable(m, 6)).toBe('1.414213562')
+    expect(lineAt(m, 37, false, 1).startsWith('DIFF=')).toBe(true)
+    keys(m, 'ac alpha lp sq sub 2 shift fx neg 1 eq')
+    expect(ans(m)).toBe('-1.414213562')
+  })
+
+  it('says FIND when there is no X to find', () => {
+    const m = switchOn()
+    keys(m, 'alpha lp sq add 1 shift fx eq')
+    expect(lineAt(m, 1, true, 1)).toBe('ERR:FIND')
   })
 })

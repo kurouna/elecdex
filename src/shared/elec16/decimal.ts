@@ -274,6 +274,47 @@ export function log(a: Dec): Dec {
 
 export const exp = (a: Dec): Dec => fromNumber(Math.exp(toNumber(a)))
 
+/*
+ * The hyperbolic functions and their inverses (ELEC-16 SCI, docs/elec16-sci.md section 7):
+ * through the double's own, which keep their digits near 0 where e^x - e^-x would lose them.
+ */
+export const sinh = (a: Dec): Dec => fromNumber(Math.sinh(toNumber(a)))
+export const cosh = (a: Dec): Dec => fromNumber(Math.cosh(toNumber(a)))
+export const tanh = (a: Dec): Dec => fromNumber(Math.tanh(toNumber(a)))
+export const asinh = (a: Dec): Dec => fromNumber(Math.asinh(toNumber(a)))
+
+export function acosh(a: Dec): Dec {
+  const x = toNumber(a)
+  if (x < 1) throw domain()
+  return fromNumber(Math.acosh(x))
+}
+
+export function atanh(a: Dec): Dec {
+  const x = toNumber(a)
+  if (x <= -1 || x >= 1) throw domain()
+  return fromNumber(Math.atanh(x))
+}
+
+/** The angle of the point (b, a) from the x axis, in the angle's unit: -half a turn to half. */
+export const atan2 = (a: Dec, b: Dec, angle: Angle): Dec =>
+  inverse(Math.atan2(toNumber(a), toNumber(b)), angle)
+
+/**
+ * a rounded half away from zero, exactly: to `places` digits after the point when `places`
+ * is 0 or less than 0 read as places (-3: three places), to that many significant digits when
+ * above 0 (1-12). FIX rounds by places, EXP and ROUND by significant digits.
+ */
+export function roundTo(a: Dec, digits: number): Dec {
+  if (a.coeff === 0n) return a
+  const places = digits > 0 ? Math.min(digits, DIGITS) - 1 - a.exp : -digits
+  const { n, e } = parts(a)
+  if (e >= -places) return a
+  const cut = 10n ** BigInt(-places - e)
+  const size = n < 0n ? -n : n
+  const kept = size / cut + (size % cut >= (cut + 1n) / 2n ? 1n : 0n)
+  return make(n < 0n, kept, -places)
+}
+
 /** a ^ b: by repeated multiplication for a whole power (exact), else through logarithms. */
 export function pow(a: Dec, b: Dec): Dec {
   if (compare(floor(b), b) === 0) {

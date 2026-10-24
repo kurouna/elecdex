@@ -7,6 +7,7 @@ import { type bool, memcpy, peek, poke, type u16 } from '../../../src/shared/e16
 import {
   isDigit,
   isFunction,
+  isSeparator,
   isVariable,
   opensTemplate,
   T_ANS,
@@ -17,6 +18,9 @@ import {
   T_END,
   T_FRAC,
   T_INVERSE,
+  T_MDIV,
+  T_MIXED,
+  T_MSEP,
   T_OPEN,
   T_PI,
   T_POINT,
@@ -24,6 +28,8 @@ import {
   T_SEP,
   T_SQUARE,
   T_TEN,
+  T_XROOT,
+  T_XSEP,
 } from './tokens.e16'
 
 export let editLength: u16 = 0
@@ -93,26 +99,43 @@ function pastPostfixes(buf: u16, cur: u16): u16 {
 }
 
 /**
- * a/b at `cur`: the value before it made the numerator, the cursor in the denominator; with no
- * value before it, an empty fraction, the cursor in its numerator.
+ * a/b, a b/c or ʸ√x at `cur` (`opener` FRAC, MIXED or XROOT): the value before it made the
+ * first part - the numerator, the whole part, the index - the cursor in the next; with no value
+ * before it, the template empty, the cursor in its first part.
  */
-export function fraction(buf: u16, length: u16, cur: u16): void {
+export function wrap(buf: u16, length: u16, cur: u16, opener: u16): void {
   const start = operandStart(buf, cur)
-  // FRAC before the numerator, SEP END after it.
-  memcpy(buf + cur + 3, buf + cur, length - cur)
+  const size = marksOf(opener)
+  memcpy(buf + cur + size, buf + cur, length - cur)
   memcpy(buf + start + 1, buf + start, cur - start)
-  poke(buf + start, T_FRAC)
-  poke(buf + cur + 1, T_SEP)
-  poke(buf + cur + 2, T_END)
-  editLength = length + 3
+  poke(buf + start, opener)
+  const after = buf + cur + 1
+  if (opener === T_MIXED) {
+    poke(after, T_MSEP)
+    poke(after + 1, T_MDIV)
+    poke(after + 2, T_END)
+  } else {
+    poke(after, opener === T_XROOT ? T_XSEP : T_SEP)
+    poke(after + 1, T_END)
+  }
+  editLength = length + size
   editCursor = start === cur ? start + 1 : cur + 2
 }
 
-/** Whether the template opened at `open` has nothing in it. */
+/** How many marks a template has: its opener, its separators and its END. */
+function marksOf(opener: u16): u16 {
+  if (opener === T_MIXED) return 4
+  if (opener === T_FRAC || opener === T_XROOT) return 3
+  return 2
+}
+
+/** Whether the template opened at `open` has nothing in it: its marks side by side. */
 function empty(buf: u16, open: u16): bool {
-  const next = peek(buf + open + 1)
-  if (peek(buf + open) === T_FRAC) return next === T_SEP && peek(buf + open + 2) === T_END
-  return next === T_END
+  const last = open + marksOf(peek(buf + open)) - 1
+  for (let j = open + 1; j < last; j++) {
+    if (!isSeparator(peek(buf + j))) return false
+  }
+  return peek(buf + last) === T_END
 }
 
 /**
@@ -126,7 +149,7 @@ export function deleteAt(buf: u16, length: u16, cur: u16): void {
   const t = peek(buf + cur - 1)
   let open: u16 = 0xffff
   if (opensTemplate(t)) open = cur - 1
-  else if (t === T_SEP) open = fractionOf(buf, cur - 1)
+  else if (isSeparator(t)) open = fractionOf(buf, cur - 1)
   else if (t === T_END) {
     editCursor = cur - 1
     return
@@ -141,13 +164,13 @@ export function deleteAt(buf: u16, length: u16, cur: u16): void {
     editCursor = cur - 1
     return
   }
-  const size: u16 = peek(buf + open) === T_FRAC ? 3 : 2
+  const size = marksOf(peek(buf + open))
   memcpy(buf + open, buf + open + size, length - open - size)
   editLength = length - size
   editCursor = open
 }
 
-/** The FRAC whose SEP is at `sep`. */
+/** The template whose separator is at `sep`. */
 function fractionOf(buf: u16, sep: u16): u16 {
   let depth: u16 = 0
   let j = sep
@@ -199,14 +222,17 @@ export function vertical(buf: u16, length: u16, cur: u16, up: bool): void {
   editCursor = 0xffff
   const j = partOf(buf, cur)
   if (j === 0xffff) return
-  // In the numerator (j its FRAC), down goes to the denominator's end; in the denominator (j
-  // its SEP), up goes to the numerator's end, before the SEP.
-  if (peek(buf + j) === T_FRAC) {
+  // In a numerator (j a FRAC, or a mixed number's MSEP), down goes to the denominator's end; in
+  // a denominator (j its SEP or MDIV), up goes to the numerator's end, before the mark.
+  const t = peek(buf + j)
+  if (t === T_FRAC) {
     if (!up) editCursor = endAfter(buf, length, sepAfter(buf, length, j))
-  } else if (up) editCursor = j
+  } else if (t === T_MSEP) {
+    if (!up) editCursor = endAfter(buf, length, j)
+  } else if (up && (t === T_SEP || t === T_MDIV)) editCursor = j
 }
 
-/** The FRAC or SEP that begins the part of the nearest fraction `cur` is in; 0xffff: none. */
+/** The FRAC or separator that begins the part of the nearest template `cur` is in; 0xffff: none. */
 function partOf(buf: u16, cur: u16): u16 {
   let depth: u16 = 0
   let j = cur
@@ -217,7 +243,7 @@ function partOf(buf: u16, cur: u16): u16 {
     else if (opensTemplate(t)) {
       if (depth > 0) depth--
       else if (t === T_FRAC) return j
-    } else if (t === T_SEP && depth === 0) return j
+    } else if (isSeparator(t) && depth === 0) return j
   }
   return 0xffff
 }

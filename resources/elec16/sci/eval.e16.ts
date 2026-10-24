@@ -3,12 +3,15 @@
 // strongest: brackets, functions and values; the powers and the other postfixes (a run of
 // powers read from the right); the sign; nCr and nPr; a multiplication with no sign (stronger
 // than x and /, as a textbook is read); x and /; + and -. A function or a bracket left open is
-// closed by the line's end.
+// closed by the line's end. S5 adds the hyperbolic functions, Abs, the FUNC menu's functions
+// (two of them take two arguments, a comma between), %, degrees-minutes-seconds, a mixed
+// number and a root of any index.
 import {
   addr,
   type bool,
   bytes,
   peek,
+  peek16,
   poke,
   poke16,
   type u16,
@@ -35,29 +38,44 @@ import {
   KEEP_ANGLE,
   KEEP_ANS,
   M_ACS,
+  M_ACSH,
   M_ADD,
   M_ASN,
+  M_ASNH,
   M_ATN,
+  M_ATN2,
+  M_ATNH,
+  M_CMP,
   M_COS,
+  M_COSH,
   M_DIV,
   M_EXP,
+  M_FRAC,
+  M_IDIV,
   M_LN,
   M_LOG,
+  M_MOD,
   M_MUL,
   M_NEG,
   M_PARSE,
   M_PI,
   M_POW,
+  M_RND,
+  M_RNDTO,
   M_SIN,
+  M_SINH,
   M_SQR,
   M_SUB,
   M_TAN,
+  M_TANH,
   MATH_ANGLE,
   MATH_ARG,
+  MATH_RESULT,
   math,
   pop,
   push,
   pushInt,
+  shownDigits,
   smallWhole,
   top,
   VALUE_SIZE,
@@ -67,42 +85,66 @@ import {
   isDigit,
   isFunction,
   isVariable,
+  T_ABS,
   T_ACOS,
+  T_ACOSH,
   T_ANS,
   T_ASIN,
+  T_ASINH,
   T_ATAN,
+  T_ATANH,
   T_BANG,
   T_CBRT,
   T_CLOSE,
+  T_COMMA,
   T_COS,
+  T_COSH,
   T_CUBE,
+  T_DEG,
   T_DIVIDE,
   T_E,
   T_END,
   T_EXP,
   T_FRAC,
+  T_GCD,
+  T_INT,
   T_INVERSE,
   T_LN,
   T_LOG,
+  T_MDIV,
+  T_MIN,
   T_MINUS,
+  T_MIXED,
+  T_MSEP,
   T_NCR,
   T_NEG,
   T_NPR,
   T_OPEN,
+  T_PERCENT,
   T_PI,
   T_PLUS,
   T_POINT,
+  T_POL,
   T_POW,
   T_POWT,
+  T_RAN,
+  T_REC,
+  T_RND,
   T_ROOT,
+  T_SEC,
   T_SEP,
   T_SIN,
+  T_SINH,
   T_SLASH,
   T_SQRT,
   T_SQUARE,
   T_TAN,
+  T_TANH,
   T_TEN,
   T_TIMES,
+  T_XROOT,
+  T_XSEP,
+  takesTwo,
 } from './tokens.e16'
 
 /** The line being read, its length, and where the reading is. */
@@ -169,6 +211,9 @@ function startsValue(t: u16): bool {
     t === T_TEN ||
     t === T_FRAC ||
     t === T_ROOT ||
+    t === T_MIXED ||
+    t === T_XROOT ||
+    t === T_RAN ||
     isFunction(t) ||
     isVariable(t)
   )
@@ -243,6 +288,10 @@ function post(): void {
     } else if (t === T_BANG) {
       pos++
       factorial(at)
+    } else if (t === T_PERCENT) {
+      pos++
+      pushInt(100, at)
+      binary(M_DIV, at)
     } else return
   }
 }
@@ -342,12 +391,44 @@ function constant(t: u16, at: u16): bool {
     copyValue(KEEP_ANS, push(at))
   } else if (isVariable(t)) {
     copyValue(varAt(t), push(at))
+  } else if (t === T_RAN) {
+    math(M_RND, push(at), 0, at)
   } else return false
   return true
 }
 
 /** A template, a bracket or a function and what is in it. */
 function bracketed(t: u16, at: u16): void {
+  if (template(t, at)) return
+  if (t === T_OPEN) {
+    sum()
+    if (tok() === T_CLOSE) pos++
+  } else if (isFunction(t)) {
+    sum()
+    if (takesTwo(t)) {
+      expect(T_COMMA)
+      sum()
+    }
+    if (tok() === T_CLOSE) pos++
+    if (takesTwo(t)) applyTwo(t, at)
+    else apply(t, at)
+  } else fail(E_SYNTAX, at)
+}
+
+/** A template's parts and its value: false for a token that opens none. */
+function template(t: u16, at: u16): bool {
+  if (t === T_MIXED) {
+    mixed(at)
+    return true
+  }
+  if (t === T_XROOT) {
+    sum()
+    expect(T_XSEP)
+    sum()
+    expect(T_END)
+    anyRoot(at)
+    return true
+  }
   if (t === T_FRAC) {
     sum()
     expect(T_SEP)
@@ -359,14 +440,54 @@ function bracketed(t: u16, at: u16): void {
     expect(T_END)
     math(M_SQR, top(), 0, at)
     exactSqrt(top())
-  } else if (t === T_OPEN) {
-    sum()
-    if (tok() === T_CLOSE) pos++
-  } else if (isFunction(t)) {
-    sum()
-    if (tok() === T_CLOSE) pos++
-    apply(t, at)
-  } else fail(E_SYNTAX, at)
+  } else return false
+  return true
+}
+
+/** a b/c: the whole part, then the fraction, added away from 0 (-1 2/3 is -(1 + 2/3)). */
+function mixed(at: u16): void {
+  sum()
+  expect(T_MSEP)
+  sum()
+  expect(T_MDIV)
+  sum()
+  expect(T_END)
+  binary(M_DIV, at)
+  binary(isNegative(top() - VALUE_SIZE) ? M_SUB : M_ADD, at)
+}
+
+/**
+ * The index'th root of the value on top (the index under it): of a negative value only for an
+ * odd whole index, the root of its size made negative. Index 2 keeps √'s exact form.
+ */
+function anyRoot(at: u16): void {
+  const x = top()
+  const n = x - VALUE_SIZE
+  const negative = isNegative(x)
+  if (negative) {
+    if ((smallWhole(n, at) & 1) === 0) fail(E_MATH, at)
+    math(M_NEG, x, 0, at)
+  }
+  const two = pushInt(2, at)
+  math(M_CMP, n, two, at)
+  pop()
+  if (peek16(MATH_RESULT) === 0) {
+    math(M_SQR, x, 0, at)
+    exactSqrt(x)
+  } else {
+    const power = pushInt(1, at)
+    copyValue(n, push(at))
+    binary(M_DIV, at)
+    math(M_POW, x, power, at)
+    pop()
+    exactWhole(x)
+  }
+  if (negative) {
+    math(M_NEG, x, 0, at)
+    exactNeg(x)
+  }
+  copyValue(x, n)
+  pop()
 }
 
 /**
@@ -394,6 +515,27 @@ function number(): void {
   poke16(MATH_ARG, n)
   math(M_PARSE, v, addr(numberText), at)
   exactLiteral(v)
+  if (tok() === T_DEG) minutes(at)
+}
+
+/** After 12°: minutes (30′) and seconds (15″) added, each its own number, in sixtieths. */
+function minutes(at: u16): void {
+  pos++
+  if (startsNumber(tok())) sixtieth(T_MIN, 60, at)
+  if (startsNumber(tok())) sixtieth(T_SEC, 3600, at)
+}
+
+/** A number ended by `mark`, divided by `parts` and added to the value under it. */
+function sixtieth(mark: u16, parts: u16, at: u16): void {
+  number()
+  expect(mark)
+  pushInt(parts, at)
+  binary(M_DIV, at)
+  binary(M_ADD, at)
+}
+
+function startsNumber(t: u16): bool {
+  return isDigit(t) || t === T_POINT
 }
 
 /**
@@ -446,12 +588,138 @@ function apply(f: u16, at: u16): void {
 
 /** A function whose answer has no form but a whole number. */
 function other(f: u16, x: u16, at: u16): void {
+  if (f >= T_SINH) {
+    named(f, x, at)
+    return
+  }
   if (f === T_ASIN) math(M_ASN, x, 0, at)
   else if (f === T_ACOS) math(M_ACS, x, 0, at)
   else if (f === T_ATAN) math(M_ATN, x, 0, at)
   else if (f === T_LOG) math(M_LOG, x, 0, at)
   else if (f === T_LN) math(M_LN, x, 0, at)
   else if (f === T_CBRT) cubeRoot(x, at)
+}
+
+/** The functions from 0xE0 that take one argument (S5). */
+function named(f: u16, x: u16, at: u16): void {
+  if (f === T_SINH) math(M_SINH, x, 0, at)
+  else if (f === T_COSH) math(M_COSH, x, 0, at)
+  else if (f === T_TANH) math(M_TANH, x, 0, at)
+  else if (f === T_ASINH) math(M_ASNH, x, 0, at)
+  else if (f === T_ACOSH) math(M_ACSH, x, 0, at)
+  else if (f === T_ATANH) math(M_ATNH, x, 0, at)
+  else wholeOrRounded(f, x, at)
+}
+
+/** Int( (towards 0), Rnd( (as the display rounds) and Abs( - which keeps an exact form. */
+function wholeOrRounded(f: u16, x: u16, at: u16): void {
+  if (f === T_INT) {
+    const one = pushInt(1, at)
+    math(M_IDIV, x, one, at)
+    pop()
+  } else if (f === T_RND) {
+    poke16(MATH_ARG, shownDigits())
+    math(M_RNDTO, x, 0, at)
+    exactLiteral(x)
+  } else if (f === T_ABS && isNegative(x)) {
+    math(M_NEG, x, 0, at)
+    exactNeg(x)
+  }
+}
+
+/* ---------------- the functions of two arguments ---------------- */
+
+/** gcd, lcm, Pol and Rec of the two values on top (the first under the second). */
+function applyTwo(f: u16, at: u16): void {
+  const b = top()
+  const a = b - VALUE_SIZE
+  if (f === T_POL) polar(a, b, at)
+  else if (f === T_REC) rectangular(a, b, at)
+  else {
+    whole(a, at)
+    whole(b, at)
+    if (f === T_GCD) gcdInto(a, b, at)
+    else lcm(a, b, at)
+    exactWhole(a)
+  }
+  pop()
+}
+
+/** MATH unless the value is a whole number. */
+function whole(v: u16, at: u16): void {
+  const t = push(at)
+  copyValue(v, t)
+  math(M_FRAC, t, 0, at)
+  if (!isZero(t)) fail(E_MATH, at)
+  pop()
+  if (isNegative(v)) math(M_NEG, v, 0, at)
+}
+
+/** The greatest common divisor of whole a and b into a (Euclid, on the unit's exact MOD). */
+function gcdInto(a: u16, b: u16, at: u16): void {
+  const t = push(at)
+  while (!isZero(b)) {
+    copyValue(a, t)
+    math(M_MOD, t, b, at)
+    copyValue(b, a)
+    copyValue(t, b)
+  }
+  pop()
+}
+
+/** The least common multiple: a x b / gcd; 0 when either is 0. */
+function lcm(a: u16, b: u16, at: u16): void {
+  const product = push(at)
+  copyValue(a, product)
+  math(M_MUL, product, b, at)
+  if (isZero(product)) {
+    copyValue(product, a)
+    pop()
+    return
+  }
+  gcdInto(a, b, at)
+  math(M_DIV, product, a, at)
+  copyValue(product, a)
+  pop()
+}
+
+/** Pol(x, y): r into a and X, θ (in the angle's unit) into Y. */
+function polar(a: u16, b: u16, at: u16): void {
+  const r = push(at)
+  copyValue(a, r)
+  math(M_MUL, r, a, at)
+  const y2 = push(at)
+  copyValue(b, y2)
+  math(M_MUL, y2, b, at)
+  math(M_ADD, r, y2, at)
+  pop()
+  math(M_SQR, r, 0, at)
+  // θ = the angle of (x, y): ATN2 takes y in A and x in B.
+  math(M_ATN2, b, a, at)
+  copyValue(r, a)
+  pop()
+  pair(a, b)
+}
+
+/** Rec(r, θ): x into a and X, y into Y. */
+function rectangular(a: u16, b: u16, at: u16): void {
+  const x = push(at)
+  copyValue(b, x)
+  math(M_COS, x, 0, at)
+  math(M_MUL, x, a, at)
+  math(M_SIN, b, 0, at)
+  math(M_MUL, b, a, at)
+  copyValue(x, a)
+  pop()
+  pair(a, b)
+}
+
+/** Pol's and Rec's two answers into X and Y, decimals alone. */
+function pair(first: u16, second: u16): void {
+  inexact(first)
+  inexact(second)
+  copyValue(first, varAt(0x58))
+  copyValue(second, varAt(0x59))
 }
 
 function trig(op: u16, which: u16, x: u16, at: u16): void {

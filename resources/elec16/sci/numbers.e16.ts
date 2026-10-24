@@ -15,7 +15,7 @@ import {
   peek,
   peek16,
   poke16,
-  type u16,
+  u16,
 } from '../../../src/shared/e16c/builtins'
 import { exactBinary, exactWhole } from './exact.e16'
 
@@ -57,7 +57,16 @@ export const M_ATN = 0x1b
 export const M_LN = 0x1c
 export const M_LOG = 0x1d
 export const M_EXP = 0x1e
+export const M_RND = 0x1f
 export const M_PI = 0x20
+export const M_SINH = 0x21
+export const M_COSH = 0x22
+export const M_TANH = 0x23
+export const M_ASNH = 0x24
+export const M_ACSH = 0x25
+export const M_ATNH = 0x26
+export const M_ATN2 = 0x27
+export const M_RNDTO = 0x28
 export const M_FROMINT = 0x30
 export const M_TOINT = 0x31
 export const M_PARSE = 0x38
@@ -68,6 +77,8 @@ export const M_FORMAT = 0x39
 export const E_MATH = 1
 export const E_SYNTAX = 2
 export const E_STACK = 3
+/** FIND X found no X from where it started. */
+export const E_FIND = 4
 
 /** The last error, and where in the line it was found (a token's index). */
 export let errCode: u16 = 0
@@ -118,6 +129,14 @@ export const KEEP_ANGLE = 0x0c02
 /** SETUP: 2D (0) or LINE (1); an answer's exact form first (0) or its decimal (1). */
 export const KEEP_DISPLAY = 0x0c03
 export const KEEP_ANSWER = 0x0c04
+/** SETUP: how a decimal is shown - AUTO (0), FIX (1) or EXP (2) - and FIX's or EXP's digits. */
+export const KEEP_FORMAT = 0x0c05
+export const KEEP_DIGITS = 0x0c06
+/** SETUP: a fraction greater than 1 shown as a mixed number (1) or not (0). */
+export const KEEP_MIXED = 0x0c07
+export const FORMAT_AUTO = 0
+export const FORMAT_FIX = 1
+export const FORMAT_EXP = 2
 /** Ans: a value. */
 export const KEEP_ANS = 0x0c08
 /** A, B, C, D, E, F, X, Y, M: a value each. */
@@ -188,6 +207,21 @@ export function math(op: u16, a: u16, b: u16, at: u16): void {
   poke16(MATH_OP, op)
   if (peek16(MATH_STATUS) !== 0) fail(E_MATH, at)
 }
+
+/**
+ * RNDTO's ARG for a number as the display shows it: FIX n is n places (-n), EXP n is n
+ * significant digits (EXP 0 is ten), AUTO ten significant digits.
+ */
+export function shownDigits(): u16 {
+  const n = peek(KEEP_DIGITS)
+  const format = peek(KEEP_FORMAT)
+  if (format === FORMAT_FIX) return u16(-i16(n))
+  if (format === FORMAT_EXP && n > 0) return n
+  return 10
+}
+
+/** What the line came to at FIND X's answer (solve.e16.ts), for the screen to show. */
+export const diffValue = bytes(36)
 
 /** A whole number (0-32767) onto the stack, exact. */
 export function pushInt(v: u16, at: u16): u16 {

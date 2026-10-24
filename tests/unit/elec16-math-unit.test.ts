@@ -1,5 +1,5 @@
 import { assemble, romImage } from '@shared/elec16/asm'
-import { decode, encode, format, parse } from '@shared/elec16/decimal'
+import { decode, encode, format, neg, parse } from '@shared/elec16/decimal'
 import { Elec16 } from '@shared/elec16/machine'
 import { MATH_ERR, MATH_OP, MATH_REG, mathRead } from '@shared/elec16/math-unit'
 import { describe, expect, it } from 'vitest'
@@ -41,10 +41,11 @@ function run(ops: number[], setUp: (m: Elec16) => void = () => {}, angle = 0): E
   return m
 }
 
+/** A number written at `address`; a minus before it as NEG would make it (PARSE takes none). */
 const put = (m: Elec16, address: number, text: string) => {
-  const p = parse(text)
+  const p = parse(text.replace(/^-/, ''))
   if (p === null) throw new Error(text)
-  m.state.ram.set(encode(p.value), address)
+  m.state.ram.set(encode(text.startsWith('-') ? neg(p.value) : p.value), address)
 }
 const at = (m: Elec16, address: number) => {
   const d = decode(m.state.ram.subarray(address, address + 8))
@@ -181,5 +182,72 @@ describe('the maths unit', () => {
     expect(m.state.math.result).toBe(0xffff)
     const p = run([MATH_OP.pi])
     expect(at(p, A)).toBe('3.141592654')
+  })
+
+  it('works the hyperbolic functions and their inverses, and refuses outside their domains', () => {
+    const one = (op: number, x: string) =>
+      at(
+        run([op], (mm) => put(mm, A, x)),
+        A,
+      )
+    expect(one(MATH_OP.sinh, '1')).toBe('1.175201194')
+    expect(one(MATH_OP.cosh, '1')).toBe('1.543080635')
+    expect(one(MATH_OP.tanh, '1')).toBe('0.761594156')
+    expect(one(MATH_OP.sinh, '1E-9')).toBe('0.000000001')
+    expect(one(MATH_OP.asnh, '1.175201194')).toBe('1')
+    expect(one(MATH_OP.acsh, '1')).toBe('0')
+    expect(one(MATH_OP.atnh, '0.5')).toBe('0.5493061443')
+    expect(run([MATH_OP.acsh], (mm) => put(mm, A, '0.5')).state.math.status).toBe(MATH_ERR.domain)
+    expect(run([MATH_OP.atnh], (mm) => put(mm, A, '1')).state.math.status).toBe(MATH_ERR.domain)
+  })
+
+  it('gives the angle of a point in every quadrant, in the unit ANGLE names (ATN2)', () => {
+    const angle = (y: string, x: string, unit = 0) =>
+      at(
+        run(
+          [MATH_OP.atn2],
+          (mm) => {
+            put(mm, A, y)
+            put(mm, B, x)
+          },
+          unit,
+        ),
+        A,
+      )
+    expect(angle('1', '1')).toBe('45')
+    expect(angle('1', '-1')).toBe('135')
+    expect(angle('-1', '-1')).toBe('-135')
+    expect(angle('-1', '0')).toBe('-90')
+    expect(angle('0', '-1')).toBe('180')
+    expect(angle('1', '0', 2)).toBe('100')
+    expect(angle('0', '0')).toBe('0')
+  })
+
+  it('rounds to places at or below 0 and to significant digits above, half away from zero (RNDTO)', () => {
+    const round = (x: string, digits: number) =>
+      at(
+        run([MATH_OP.rndto], (mm) => {
+          put(mm, A, x)
+          mm.state.math.arg = digits & 0xffff
+        }),
+        A,
+      )
+    expect(round('3.14159', -2)).toBe('3.14')
+    expect(round('2.5', 0)).toBe('3')
+    expect(round('-2.5', 0)).toBe('-3')
+    expect(round('0.0125', -3)).toBe('0.013')
+    expect(round('123456', 2)).toBe('120000')
+    expect(round('0.000123456789', 3)).toBe('0.000123')
+    expect(round('9.99', 2)).toBe('10')
+    expect(round('7', -5)).toBe('7')
+  })
+
+  it('takes a signed 32-bit number from four bytes and gives one back (FROMI32, TOI32)', () => {
+    const from = run([MATH_OP.fromI32], (mm) => mm.state.ram.set([0xfe, 0xff, 0xff, 0xff], B))
+    expect(at(from, A)).toBe('-2')
+    const to = run([MATH_OP.toI32], (mm) => put(mm, A, '305419896.9'))
+    expect([...to.state.ram.subarray(B, B + 4)]).toEqual([0x78, 0x56, 0x34, 0x12])
+    const big = run([MATH_OP.toI32], (mm) => put(mm, A, '2147483648'))
+    expect(big.state.math.status).toBe(MATH_ERR.overflow)
   })
 })

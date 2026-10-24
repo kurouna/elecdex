@@ -55,6 +55,21 @@ export const MATH_OP = {
   exp: 0x1e,
   rnd: 0x1f,
   pi: 0x20,
+  /* ELEC-16 SCI's (docs/elec16-sci.md section 7), there for every model. */
+  sinh: 0x21,
+  cosh: 0x22,
+  tanh: 0x23,
+  asnh: 0x24,
+  acsh: 0x25,
+  atnh: 0x26,
+  /** A = the angle of the point (B, A), in ANGLE's unit. */
+  atn2: 0x27,
+  /** A rounded: ARG signed, above 0 its significant digits, 0 or below its places (-n). */
+  rndto: 0x28,
+  /** A = the four bytes at B, a signed 32-bit number, low byte first. */
+  fromI32: 0x29,
+  /** The four bytes at B = A's whole part (towards 0); OVERFLOW outside 32 bits signed. */
+  toI32: 0x2a,
   fromInt: 0x30,
   toInt: 0x31,
   /** A whole number from -32768 to 65535 as its 16 bits: an address, signed or not. */
@@ -123,6 +138,16 @@ const CYCLES: Record<Op, number> = {
   [MATH_OP.exp]: 1800,
   [MATH_OP.rnd]: 100,
   [MATH_OP.pi]: 16,
+  [MATH_OP.sinh]: 2000,
+  [MATH_OP.cosh]: 2000,
+  [MATH_OP.tanh]: 2000,
+  [MATH_OP.asnh]: 2200,
+  [MATH_OP.acsh]: 2200,
+  [MATH_OP.atnh]: 2200,
+  [MATH_OP.atn2]: 2400,
+  [MATH_OP.rndto]: 60,
+  [MATH_OP.fromI32]: 30,
+  [MATH_OP.toI32]: 30,
   [MATH_OP.fromInt]: 30,
   [MATH_OP.toInt]: 30,
   [MATH_OP.toWord]: 30,
@@ -146,6 +171,12 @@ const UNARY: Partial<Record<Op, (a: D.Dec, angle: D.Angle) => D.Dec>> = {
   [MATH_OP.ln]: D.ln,
   [MATH_OP.log]: D.log,
   [MATH_OP.exp]: D.exp,
+  [MATH_OP.sinh]: D.sinh,
+  [MATH_OP.cosh]: D.cosh,
+  [MATH_OP.tanh]: D.tanh,
+  [MATH_OP.asnh]: D.asinh,
+  [MATH_OP.acsh]: D.acosh,
+  [MATH_OP.atnh]: D.atanh,
 }
 
 const BINARY: Partial<Record<Op, (a: D.Dec, b: D.Dec) => D.Dec>> = {
@@ -222,6 +253,19 @@ function performOther(s: Elec16State, op: Op): void {
     case MATH_OP.toWord:
       toInt(s, 65535)
       break
+    case MATH_OP.atn2:
+      store(s, m.a, D.atan2(load(s, m.a), load(s, m.b), m.angle))
+      break
+    case MATH_OP.rndto:
+      store(s, m.a, D.roundTo(load(s, m.a), (m.arg << 16) >> 16))
+      break
+    case MATH_OP.fromI32:
+      inRam(m.b, 4)
+      store(s, m.a, D.fromInt(new DataView(s.ram.buffer, s.ram.byteOffset).getInt32(m.b, true)))
+      break
+    case MATH_OP.toI32:
+      toI32(s)
+      break
     case MATH_OP.parse:
       parseText(s)
       break
@@ -253,6 +297,14 @@ function toInt(s: Elec16State, most: number): void {
   const whole = D.toBigInt(load(s, s.math.a))
   if (whole < -32768n || whole > BigInt(most)) throw new Refused(MATH_ERR.overflow)
   s.math.arg = Number(whole) & 0xffff
+}
+
+/** A's whole part (towards 0) into the four bytes at B; OVERFLOW outside 32 bits signed. */
+function toI32(s: Elec16State): void {
+  const whole = D.toBigInt(load(s, s.math.a))
+  if (whole < -(2n ** 31n) || whole >= 2n ** 31n) throw new Refused(MATH_ERR.overflow)
+  inRam(s.math.b, 4)
+  new DataView(s.ram.buffer, s.ram.byteOffset).setInt32(s.math.b, Number(whole), true)
 }
 
 /** The number at B (at most ARG characters) into A; ARG says how many it took, 0 for none. */

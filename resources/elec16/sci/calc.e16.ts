@@ -1,7 +1,8 @@
 // The ELEC-16 SCI ROM's calculator (docs/elec16-sci.md section 6), in e16c's TypeScript: the
 // keys made into tokens, the line edited, evaluated (eval.e16.ts, ROM bank 0) and answered,
-// the variables, Ans and the history. S3 shows the line as one row of characters (LINE); the
-// line set out as a textbook would (2D) comes in S4.
+// the variables, Ans and the history. The line is set as a textbook would (2D, layout.e16.ts)
+// or as one row of characters (LINE); the answer is drawn by display.e16.ts, FUNC's menu by
+// screens.e16.ts, f(x) and FIND X by solve.e16.ts.
 import {
   addr,
   type bool,
@@ -17,64 +18,75 @@ import {
   type u16,
   wfi,
 } from '../../../src/shared/e16c/builtins'
-import { deleteAt, editCursor, editLength, fraction, vertical } from './edit.e16'
+import {
+  drawAnswerAs,
+  firstShown,
+  hasForm,
+  nextShown,
+  SHOW_DECIMAL,
+  SHOW_DMS,
+  SHOW_ENG,
+  SHOW_FOUND,
+  SHOW_PAIR,
+} from './display.e16'
+import { deleteAt, editCursor, editLength, vertical, wrap } from './edit.e16'
 import { evaluate } from './eval.e16'
 import { exactBinary } from './exact.e16'
-import { cursorTop, cursorX, heightOf, setAnswer, setLine } from './layout.e16'
-import {
-  barAt,
-  barDots,
-  bigNumber,
-  COLS,
-  centre,
-  clearBand,
-  cls,
-  drawChar,
-  marks,
-  noCursor,
-  textAt,
-} from './lcd.e16'
+import { cursorTop, cursorX, heightOf, setLine } from './layout.e16'
+import { barAt, barDots, COLS, centre, cls, drawChar, marks, noCursor } from './lcd.e16'
 import {
   clearStack,
   copyValue,
   errAt,
   errCode,
+  FORMAT_EXP,
+  FORMAT_FIX,
   HISTORY_ENTRIES,
   HISTORY_SIZE,
-  isExact,
-  isNegative,
-  isZero,
   KEEP_ANGLE,
   KEEP_ANS,
   KEEP_ANSWER,
   KEEP_DISPLAY,
+  KEEP_FORMAT,
   KEEP_HISTORY,
   KEEP_HISTORY_COUNT,
   keepReady,
   LINE_MAX,
   M_ADD,
-  M_FORMAT,
   M_SUB,
-  MATH_ARG,
   math,
   top,
-  V_P,
-  V_Q,
-  V_R,
-  V_S,
   varAt,
 } from './numbers.e16'
-import { errorScreen, faultScreen, menuKey, menuScreen, setupKey, setupScreen } from './screens.e16'
 import {
+  errorScreen,
+  faultScreen,
+  funcKey,
+  funcScreen,
+  menuKey,
+  menuScreen,
+  setupKey,
+  setupScreen,
+} from './screens.e16'
+import { ASK_BACK, ASK_DONE, askKey, askStart } from './solve.e16'
+import {
+  isDigit,
+  T_ABS,
   T_ACOS,
+  T_ACOSH,
   T_ANS,
   T_ASIN,
+  T_ASINH,
   T_ATAN,
+  T_ATANH,
   T_BANG,
   T_CBRT,
   T_CLOSE,
+  T_COMMA,
   T_COS,
+  T_COSH,
   T_CUBE,
+  T_DEG,
   T_DIVIDE,
   T_E,
   T_END,
@@ -83,7 +95,9 @@ import {
   T_INVERSE,
   T_LN,
   T_LOG,
+  T_MIN,
   T_MINUS,
+  T_MIXED,
   T_NCR,
   T_NEG,
   T_NPR,
@@ -91,17 +105,22 @@ import {
   T_PI,
   T_PLUS,
   T_POINT,
+  T_POL,
   T_POW,
   T_POWT,
+  T_REC,
   T_ROOT,
-  T_SEP,
+  T_SEC,
   T_SIN,
+  T_SINH,
   T_SLASH,
   T_SQRT,
   T_SQUARE,
   T_TAN,
+  T_TANH,
   T_TEN,
   T_TIMES,
+  T_XROOT,
   tokenText,
   tokenWidth,
 } from './tokens.e16'
@@ -169,9 +188,12 @@ export const ANN_S = 0x2
 export const ANN_A = 0x4
 export const ANN_M = 0x8
 export const ANN_STO = 0x10
+export const ANN_HYP = 0x20
 export const ANN_D = 0x80
 export const ANN_R = 0x100
 export const ANN_G = 0x200
+export const ANN_FIX = 0x400
+export const ANN_EXP = 0x800
 export const ANN_2D = 0x1000
 export const ANN_UP = 0x2000
 export const ANN_DOWN = 0x4000
@@ -192,6 +214,9 @@ export const S_CALC = 0
 export const S_ERROR = 1
 export const S_MENU = 2
 export const S_SETUP = 3
+export const S_FUNC = 4
+/** f(x) or FIND X asking for X. */
+export const S_ASK = 5
 let screen: u16 = S_CALC
 
 /** The line: its tokens, how many, and where the cursor is (before token `cursor`). */
@@ -205,17 +230,16 @@ let shifted: bool = false
 let alphaOn: bool = false
 let storing: bool = false
 let recalling: bool = false
+/** HYP waits for SIN, COS or TAN. */
+let hyp: bool = false
+/** The answer came from FIND X (shown with its DIFF). */
+let found: bool = false
 /** Which line of the history is on screen (0 the newest), or none. */
 let historyAt: u16 = 0xffff
 /** The first character of the line on screen, when it is longer than the rows hold. */
 let scrollFrom: u16 = 0
-/** The answer's text, as the maths unit's FORMAT writes it. */
-const answerText = bytes(24)
-/** The answer shown in its exact form (2D), or as a decimal. */
-let exactShown: bool = false
-/** An exact answer's tokens, set by the 2D layout: (p + r√s)/q, 40 tokens at most. */
-const answerTokens = bytes(48)
-let answerLength: u16 = 0
+/** How the answer is shown (display.e16.ts SHOW_*). */
+let shown: u16 = 0
 
 /** The 2D display (0 in SETUP's KEEP_DISPLAY) or LINE. */
 function twoD(): bool {
@@ -339,7 +363,9 @@ function key(k: u16): void {
     if (menuKey(k) !== 0) clearLine()
   } else if (screen === S_SETUP) {
     if (setupKey(k) !== 0) clearLine()
-  } else calcKey(k, shift, alpha)
+  } else if (screen === S_FUNC) funcChosen(funcKey(k))
+  else if (screen === S_ASK) asked(k, shift)
+  else calcKey(k, shift, alpha)
   drawMarks()
 }
 
@@ -357,14 +383,44 @@ function errorKey(k: u16): void {
   }
 }
 
+/** FUNC's choice: a token typed, 1 back to the line, 0 still choosing. */
+function funcChosen(t: u16): void {
+  if (t === 0) return
+  screen = S_CALC
+  if (t === 1) drawCalc()
+  else type(t)
+}
+
+/** A key while f(x) or FIND X asks for X. */
+function asked(k: u16, shift: bool): void {
+  const t = k === K_DEL || k === K_EQ || k === K_AC ? 0 : tokenOf(k, shift)
+  const r = askKey(k === K_EQ, k === K_DEL, k === K_AC, t)
+  if (r === ASK_BACK) {
+    screen = S_CALC
+    drawCalc()
+  } else if (r === ASK_DONE) {
+    screen = S_CALC
+    answered = true
+    historyAt = 0xffff
+    shown = found ? SHOW_FOUND : firstShown(formFirst(false))
+    drawCalc()
+  }
+}
+
 function calcKey(k: u16, shift: bool, alpha: bool): void {
   if (storing || recalling) {
     variableKey(k)
     return
   }
+  const wasHyp = hyp
+  hyp = false
   if (commandKey(k, shift, alpha)) return
   if (!alpha && templateKey(k, shift)) return
-  const t = alpha ? letterOf(k) : tokenOf(k, shift)
+  if (!alpha && !shift && k === K_DMS) {
+    dmsMark()
+    return
+  }
+  const t = alpha ? letterOf(k) : wasHyp ? hypToken(k, shift) : tokenOf(k, shift)
   if (t === 0) {
     refuse()
     return
@@ -382,6 +438,15 @@ function calcKey(k: u16, shift: bool, alpha: bool): void {
  * fraction and the power go on from Ans. Done, true; else false.
  */
 function templateKey(k: u16, shift: bool): bool {
+  if (shift && (k === K_FRAC || k === K_POW)) {
+    wrapped(k === K_FRAC ? T_MIXED : T_XROOT)
+    return true
+  }
+  return plainTemplate(k, shift)
+}
+
+/** a/b, x^, √, 10ˣ and eˣ: in 2D a template, in LINE a / (the others type tokens). */
+function plainTemplate(k: u16, shift: bool): bool {
   const fractionKey = k === K_FRAC && !shift
   if (!twoD()) {
     if (fractionKey) type(T_SLASH)
@@ -391,17 +456,58 @@ function templateKey(k: u16, shift: bool): bool {
   const root = k === K_SQ && shift
   if (answered) afresh(fractionKey || k === K_POW)
   if (fractionKey) {
-    fraction(addr(line), length, cursor)
+    wrap(addr(line), length, cursor, T_FRAC)
     edited()
   } else insertTemplate(k, root)
-  if (heightOf(addr(line), length) > LINE_HEIGHT_MAX) {
-    refuse()
-    // Too tall to show: taken back out (the last template put in).
-    deleteAt(addr(line), length, cursor)
-    edited()
-  }
+  tallEnough()
   drawCalc()
   return true
+}
+
+/** A mixed number or a root of any index, the value before the cursor its first part. */
+function wrapped(opener: u16): void {
+  if (answered) afresh(false)
+  if (length + 4 > LINE_MAX) {
+    refuse()
+    return
+  }
+  wrap(addr(line), length, cursor, opener)
+  edited()
+  tallEnough()
+  drawCalc()
+}
+
+/** A template too tall to show is taken back out (the last one put in), with a beep. */
+function tallEnough(): void {
+  if (!twoD() || heightOf(addr(line), length) <= LINE_HEIGHT_MAX) return
+  refuse()
+  deleteAt(addr(line), length, cursor)
+  edited()
+}
+
+/**
+ * °′″ after a number: its degrees, then its minutes, then its seconds; after an answer it
+ * shows the answer in degrees-minutes-seconds and back.
+ */
+function dmsMark(): void {
+  if (answered) {
+    shown = shown === SHOW_DMS ? firstShown(formFirst(false)) : SHOW_DMS
+    drawCalc()
+    return
+  }
+  let marks: u16 = 0
+  let j = cursor
+  while (j > 0) {
+    const t = line[j - 1]
+    if (t === T_DEG || t === T_MIN || t === T_SEC) marks++
+    else if (!isDigit(t) && t !== T_POINT) break
+    j--
+  }
+  if (marks > 2 || j === cursor) {
+    refuse()
+    return
+  }
+  type(marks === 0 ? T_DEG : marks === 1 ? T_MIN : T_SEC)
 }
 
 /** x^, SHIFT x² (√), SHIFT log (10ˣ) and SHIFT ln (eˣ): the keys that put in √ or a power. */
@@ -456,6 +562,18 @@ function commandKey(k: u16, shift: bool, alpha: bool): bool {
     case K_FD:
       exactOrDecimal(shift)
       return true
+    case K_FUNC:
+      screen = S_FUNC
+      noCursor()
+      funcScreen()
+      return true
+    case K_FX:
+      solveKey(shift)
+      return true
+    case K_HYP:
+      hyp = !shift
+      if (shift) refuse()
+      return true
     case K_STO:
       recalling = shift
       storing = !shift
@@ -470,6 +588,11 @@ function commandKey(k: u16, shift: bool, alpha: bool): bool {
       return true
     case K_DEL:
       deleteBefore()
+      return true
+    case K_DMS:
+      if (!shift) return false
+      if (answered) dmsMark()
+      else refuse()
       return true
   }
   if (k !== K_MPLUS || alpha) return false
@@ -516,8 +639,6 @@ function plainToken(k: u16): u16 {
       return T_TIMES
     case K_DIV:
       return T_DIVIDE
-    case K_LP:
-      return T_OPEN
     case K_RP:
       return T_CLOSE
     case K_ANS:
@@ -534,6 +655,8 @@ function faceToken(k: u16, shift: bool): u16 {
 /** The token of a key's cap. */
 function capToken(k: u16): u16 {
   switch (k) {
+    case K_LP:
+      return T_OPEN
     case K_NEG:
       return T_NEG
     case K_EXP:
@@ -565,6 +688,10 @@ function capToken(k: u16): u16 {
 /** The token of a key's SHIFT face; 0 where it has none, or one that comes later. */
 function shiftFace(k: u16): u16 {
   switch (k) {
+    case K_NEG:
+      return T_ABS
+    case K_LP:
+      return T_COMMA
     case K_EXP:
       return T_PI
     case K_SQ:
@@ -586,6 +713,14 @@ function shiftFace(k: u16): u16 {
     case K_NCR:
       return T_NPR
   }
+  return 0
+}
+
+/** After HYP: sinh(, cosh(, tanh( and their inverses after SHIFT; 0 for another key. */
+function hypToken(k: u16, shift: bool): u16 {
+  if (k === K_SIN) return shift ? T_ASINH : T_SINH
+  if (k === K_COS) return shift ? T_ACOSH : T_COSH
+  if (k === K_TAN) return shift ? T_ATANH : T_TANH
   return 0
 }
 
@@ -696,8 +831,31 @@ function equals(approx: bool): void {
   remember()
   answered = true
   historyAt = 0xffff
-  exactShown = twoD() && !approx && peek(KEEP_ANSWER) === 0 && !decimalTyped()
+  found = false
+  const first = line[0]
+  if (first === T_POL || first === T_REC) shown = SHOW_PAIR
+  else shown = firstShown(formFirst(approx))
   drawCalc()
+}
+
+/** Whether an answer shows its exact form first: in 2D, as SETUP says, unless ≈ or a decimal. */
+function formFirst(approx: bool): bool {
+  return twoD() && !approx && peek(KEEP_ANSWER) === 0 && !decimalTyped()
+}
+
+/** f(x) (FIND X after SHIFT): X asked for, then the line evaluated or solved for it. */
+function solveKey(find: bool): void {
+  if (answered) {
+    answered = false
+    cursor = length
+  }
+  if (length === 0) {
+    refuse()
+    return
+  }
+  found = find
+  screen = S_ASK
+  askStart(addr(line), length, find)
 }
 
 /** Whether the line has a decimal point in it: such a line is answered in decimals first. */
@@ -708,30 +866,23 @@ function decimalTyped(): bool {
   return false
 }
 
-/** F⇄D: the answer between its exact form and its decimal (ENG, after SHIFT, comes in S5). */
+/**
+ * F⇄D: the answer's exact form, its mixed number, its decimal, and round again. SHIFT F⇄D (ENG):
+ * its decimal with an exponent a multiple of 3.
+ */
 function exactOrDecimal(shift: bool): void {
-  if (shift || !answered || !twoD() || !hasForm()) {
+  if (!answered || shown === SHOW_PAIR) {
     refuse()
     return
   }
-  exactShown = !exactShown
+  if (shift) shown = SHOW_ENG
+  else if (twoD() && hasForm()) shown = nextShown(shown)
+  else if (shown !== SHOW_DECIMAL && shown !== SHOW_FOUND) shown = SHOW_DECIMAL
+  else {
+    refuse()
+    return
+  }
   drawCalc()
-}
-
-/** Whether Ans has an exact form other than a whole number (which its decimal shows as well). */
-function hasForm(): bool {
-  if (!isExact(KEEP_ANS)) return false
-  return !isZero(KEEP_ANS + V_R) || !isOne(KEEP_ANS + V_Q)
-}
-
-function isOne(n: u16): bool {
-  return (
-    peek(n) === 0 &&
-    peek(n + 1) === 0 &&
-    peek(n + 2) === 0x10 &&
-    peek16(n + 4) === 0 &&
-    peek16(n + 6) === 0
-  )
 }
 
 /** STO's or RCL's variable: STO keeps the answer (or the line's value) in it, RCL shows it. */
@@ -755,7 +906,8 @@ function variableKey(k: u16): void {
   } else {
     copyValue(varAt(letter), KEEP_ANS)
   }
-  exactShown = twoD() && peek(KEEP_ANSWER) === 0
+  shown = firstShown(formFirst(false))
+  found = false
   length = 0
   cursor = 0
   insert(T_ANS)
@@ -780,7 +932,8 @@ function memoryPlus(minus: bool): void {
   math(op, m, KEEP_ANS, 0)
   exactBinary(op, m, KEEP_ANS)
   answered = true
-  exactShown = twoD() && peek(KEEP_ANSWER) === 0
+  shown = firstShown(formFirst(false))
+  found = false
   drawCalc()
 }
 
@@ -838,6 +991,10 @@ function drawMarks(): void {
   const angle = peek(KEEP_ANGLE)
   bits |= angle === 1 ? ANN_R : angle === 2 ? ANN_G : ANN_D
   if (twoD()) bits |= ANN_2D
+  if (hyp) bits |= ANN_HYP
+  const format = peek(KEEP_FORMAT)
+  if (format === FORMAT_FIX) bits |= ANN_FIX
+  else if (format === FORMAT_EXP) bits |= ANN_EXP
   if (screen === S_CALC) bits |= historyMarks()
   marks(bits)
 }
@@ -857,10 +1014,7 @@ function drawCalc(): void {
   cls()
   if (twoD()) drawLine2D()
   else drawLine()
-  if (answered) {
-    if (exactShown && hasForm()) drawExact()
-    else drawAnswer()
-  }
+  if (answered) drawAnswerAs(shown)
   drawMarks()
 }
 
@@ -869,74 +1023,6 @@ function drawLine2D(): void {
   setLine(addr(line), length, answered ? 0xffff : cursor)
   if (answered) noCursor()
   else barDots(cursorX, cursorTop)
-}
-
-/** Ans's exact form (p + r√s)/q as tokens, set on the answer rows by the 2D layout. */
-function drawExact(): void {
-  answerLength = 0
-  const p = KEEP_ANS + V_P
-  const r = KEEP_ANS + V_R
-  const q = KEEP_ANS + V_Q
-  const fractionOf = !isOne(q)
-  const oneTerm = isZero(p) || isZero(r)
-  // A single negative term's sign goes before its fraction: -√2/2, not (-√2)/2.
-  const signOut = oneTerm && fractionOf && (isZero(r) ? isNegative(p) : isNegative(r))
-  if (signOut) answerToken(T_MINUS)
-  if (fractionOf) answerToken(T_FRAC)
-  if (!isZero(p) || isZero(r)) answerNumber(p, signOut)
-  if (!isZero(r)) answerRoot(p, r, signOut)
-  if (fractionOf) {
-    answerToken(T_SEP)
-    answerNumber(q, false)
-    answerToken(T_END)
-  }
-  setAnswer(addr(answerTokens), answerLength)
-}
-
-/** The r√s term after p: its sign (unless it went before the fraction), r unless ±1, √s. */
-function answerRoot(p: u16, r: u16, signOut: bool): void {
-  if (!isZero(p)) answerToken(isNegative(r) ? T_MINUS : T_PLUS)
-  else if (isNegative(r) && !signOut) answerToken(T_MINUS)
-  if (!isOne(r) && !isMinusOne(r)) answerNumber(r, true)
-  answerToken(T_ROOT)
-  answerDigits(peek16(KEEP_ANS + V_S))
-  answerToken(T_END)
-}
-
-function answerToken(t: u16): void {
-  if (answerLength < 48) {
-    answerTokens[answerLength] = t
-    answerLength++
-  }
-}
-
-/** A whole number's digits as tokens; its sign too, unless `bare`. */
-function answerNumber(n: u16, bare: bool): void {
-  poke16(MATH_ARG, 12)
-  math(M_FORMAT, n, addr(answerText), 0)
-  const count = peek16(MATH_ARG)
-  for (let i: u16 = 0; i < count; i++) {
-    const c = answerText[i]
-    if (c === 0x2d) {
-      if (!bare) answerToken(T_MINUS)
-    } else answerToken(c)
-  }
-}
-
-/** A small whole number (s) as digit tokens. */
-function answerDigits(v: u16): void {
-  if (v >= 10) answerToken(0x30 + div(v, 10))
-  answerToken(0x30 + (v % 10))
-}
-
-function isMinusOne(n: u16): bool {
-  return (
-    peek(n) !== 0 &&
-    peek(n + 1) === 0 &&
-    peek(n + 2) === 0x10 &&
-    peek16(n + 4) === 0 &&
-    peek16(n + 6) === 0
-  )
 }
 
 /** Where token `n` starts, in characters from the line's start. */
@@ -983,34 +1069,4 @@ function showChar(ch: u16, c: u16): void {
   if (c < scrollFrom || c >= scrollFrom + LINE_CHARS) return
   const shown = c - scrollFrom
   drawChar(ch, shown % COLS, div(shown, COLS))
-}
-
-/**
- * Ans as ten digits, right on bands 6 and 7 in the big digits; an exponent (FORMAT's E) as
- * x10 in the font with the exponent raised beside it.
- */
-function drawAnswer(): void {
-  clearBand(5)
-  clearBand(6)
-  clearBand(7)
-  poke16(MATH_ARG, 10)
-  math(M_FORMAT, KEEP_ANS, addr(answerText), 0)
-  const n = peek16(MATH_ARG)
-  poke(addr(answerText) + n, 0)
-  let mantissa = n
-  for (let i: u16 = 0; i < n; i++) {
-    if (answerText[i] === 0x45) mantissa = i
-  }
-  let right: u16 = 127
-  if (mantissa < n) {
-    // The exponent ends at the right edge, raised; x10 before it on the digits' foot.
-    const exponent = addr(answerText) + mantissa + 1
-    let digits: u16 = 0
-    while (peek(exponent + digits) !== 0) digits++
-    const x = 128 - digits * 6
-    textAt(exponent, x, 48)
-    textAt(str('\x8110'), x - 18, 55)
-    right = x - 19
-  }
-  bigNumber(addr(answerText), mantissa, right)
 }

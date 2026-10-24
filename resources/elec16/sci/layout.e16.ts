@@ -6,7 +6,17 @@
 // typed (its cursor found on the way) and an exact answer (p + r√s)/q.
 import { type bool, peek, type u16 } from '../../../src/shared/e16c/builtins'
 import { dot, glyphAt } from './lcd.e16'
-import { opensTemplate, T_END, T_FRAC, T_POWT, T_ROOT, T_SEP, tokenText } from './tokens.e16'
+import {
+  isSeparator,
+  opensTemplate,
+  T_END,
+  T_FRAC,
+  T_MIXED,
+  T_POWT,
+  T_ROOT,
+  T_XROOT,
+  tokenText,
+} from './tokens.e16'
 
 /** The bar's height above a line's foot: the + and - strokes' row. */
 const MID = 4
@@ -46,14 +56,14 @@ function closeOf(i: u16): u16 {
   return bufLength
 }
 
-/** The SEP of the fraction opened at `i`. */
-function sepFrom(i: u16): u16 {
+/** Where the part of a template starting at `from` ends: its separator or END. */
+function partEnd(from: u16): u16 {
   let depth: u16 = 0
-  for (let j = i; j < bufLength; j++) {
+  for (let j = from; j < bufLength; j++) {
     const t = tokenAt(j)
     if (opensTemplate(t)) depth++
+    else if (depth === 0 && (t === T_END || isSeparator(t))) return j
     else if (t === T_END) depth--
-    else if (t === T_SEP && depth === 1) return j
   }
   return bufLength
 }
@@ -89,16 +99,11 @@ function measureSeq(from: u16, to: u16): u16 {
 function measureItem(i: u16): u16 {
   const t = tokenAt(i)
   if (t === T_FRAC) {
-    const sep = sepFrom(i)
-    const wa = measureSeq(i + 1, sep)
-    const ua = boxUp
-    const da = boxDown
-    const wb = measureSeq(sep + 1, closeOf(i))
-    const reach = boxUp + boxDown
-    boxUp = MID + 2 + da + ua
-    boxDown = reach > 0 ? reach - 1 : 0
-    return wider(wa, wb) + 6
+    const sep = partEnd(i + 1)
+    return measureFraction(i + 1, sep, partEnd(sep + 1))
   }
+  if (t === T_MIXED) return measureMixed(i)
+  if (t === T_XROOT) return measureAnyRoot(i)
   if (t === T_ROOT) {
     const wa = measureSeq(i + 1, closeOf(i))
     boxUp += 2
@@ -115,6 +120,43 @@ function measureItem(i: u16): u16 {
   return charsOf(t) * 6
 }
 
+/** A fraction of tokens `from` to `sep` over `sep` + 1 to `end`. */
+function measureFraction(from: u16, sep: u16, end: u16): u16 {
+  const wa = measureSeq(from, sep)
+  const ua = boxUp
+  const da = boxDown
+  const wb = measureSeq(sep + 1, end)
+  const reach = boxUp + boxDown
+  boxUp = MID + 2 + da + ua
+  boxDown = reach > 0 ? reach - 1 : 0
+  return wider(wa, wb) + 6
+}
+
+/** A mixed number: its whole part on the line, then its fraction, a dot between. */
+function measureMixed(i: u16): u16 {
+  const msep = partEnd(i + 1)
+  const mdiv = partEnd(msep + 1)
+  const ww = measureSeq(i + 1, msep)
+  const wu = boxUp
+  const wd = boxDown
+  const wf = measureFraction(msep + 1, mdiv, partEnd(mdiv + 1))
+  boxUp = wider(wu, boxUp)
+  boxDown = wider(wd, boxDown)
+  return ww + 1 + wf
+}
+
+/** The index raised five dots, the root's tick under its last column, then the root. */
+const INDEX_LIFT = 5
+
+function measureAnyRoot(i: u16): u16 {
+  const xsep = partEnd(i + 1)
+  const wi = measureSeq(i + 1, xsep)
+  const iu = boxUp + INDEX_LIFT
+  const wb = measureSeq(xsep + 1, partEnd(xsep + 1))
+  boxUp = wider(boxUp + 2, iu)
+  return wi + wb + 4
+}
+
 /** The wider of two widths (e16c has no Math). */
 function wider(a: u16, b: u16): u16 {
   if (a > b) return a
@@ -123,7 +165,7 @@ function wider(a: u16, b: u16): u16 {
 
 /** How many characters a token shows as. */
 function charsOf(t: u16): u16 {
-  const text = t < 0x20 ? tokenText(t) : 0
+  const text = tokenText(t)
   if (text === 0) return 1
   let n: u16 = 0
   while (peek(text + n) !== 0) n++
@@ -187,10 +229,14 @@ function drawSeq(from: u16, to: u16, x: u16, foot: u16): u16 {
 
 function drawItem(i: u16, x: u16, foot: u16): u16 {
   const t = tokenAt(i)
-  if (t === T_FRAC) return drawFraction(i, x, foot)
-  if (t === T_ROOT) return drawRoot(i, x, foot)
+  if (t === T_FRAC) {
+    return drawFraction(i + 1, partEnd(i + 1), x, foot)
+  }
+  if (t === T_MIXED) return drawMixed(i, x, foot)
+  if (t === T_XROOT) return drawAnyRoot(i, x, foot)
+  if (t === T_ROOT) return drawRoot(i + 1, closeOf(i), x, foot)
   if (t === T_POWT) return drawSeq(i + 1, closeOf(i), x, foot - 4) + 1
-  const text = t < 0x20 ? tokenText(t) : 0
+  const text = tokenText(t)
   if (text === 0) {
     char(t, x, foot - 7)
     return x + 6
@@ -205,26 +251,40 @@ function drawItem(i: u16, x: u16, foot: u16): u16 {
   return at
 }
 
-/** A fraction: the bar a dot in from each side, the parts centred over and under it. */
-function drawFraction(i: u16, x: u16, foot: u16): u16 {
-  const sep = sepFrom(i)
-  const end = closeOf(i)
-  const wa = measureSeq(i + 1, sep)
+/**
+ * A fraction of tokens `from` to `sep` over what follows to its part's end: the bar a dot in
+ * from each side, the parts centred over and under it.
+ */
+function drawFraction(from: u16, sep: u16, x: u16, foot: u16): u16 {
+  const end = partEnd(sep + 1)
+  const wa = measureSeq(from, sep)
   const da = boxDown
   const wb = measureSeq(sep + 1, end)
   const ub = boxUp
   const w = wider(wa, wb) + 6
   const bar = foot - MID
   hline(x + 1, x + w - 3, bar)
-  drawSeq(i + 1, sep, x + ((w - wa) >> 1), bar - 2 - da)
+  drawSeq(from, sep, x + ((w - wa) >> 1), bar - 2 - da)
   drawSeq(sep + 1, end, x + ((w - wb) >> 1), bar + 2 + ub)
   return x + w
 }
 
-/** A root: a tick, a stroke down and up, and a bar over the body two dots above it. */
-function drawRoot(i: u16, x: u16, foot: u16): u16 {
-  const end = closeOf(i)
-  const wa = measureSeq(i + 1, end)
+function drawMixed(i: u16, x: u16, foot: u16): u16 {
+  const msep = partEnd(i + 1)
+  const mdiv = partEnd(msep + 1)
+  const after = drawSeq(i + 1, msep, x, foot)
+  return drawFraction(msep + 1, mdiv, after + 1, foot)
+}
+
+function drawAnyRoot(i: u16, x: u16, foot: u16): u16 {
+  const xsep = partEnd(i + 1)
+  const after = drawSeq(i + 1, xsep, x, foot - INDEX_LIFT)
+  return drawRoot(xsep + 1, partEnd(xsep + 1), after - 2, foot)
+}
+
+/** A root of tokens `from` to `end`: a tick, a stroke down and up, a bar two dots above them. */
+function drawRoot(from: u16, end: u16, x: u16, foot: u16): u16 {
+  const wa = measureSeq(from, end)
   const top = foot - boxUp - 2
   plot(x, foot - 4)
   plot(x + 1, foot - 3)
@@ -233,7 +293,7 @@ function drawRoot(i: u16, x: u16, foot: u16): u16 {
   const half = (foot - top) >> 1
   for (let y = top; y < foot; y++) plot(foot - y > half ? x + 3 : x + 4, y)
   hline(x + 4, x + 4 + wa, top)
-  drawSeq(i + 1, end, x + 5, foot)
+  drawSeq(from, end, x + 5, foot)
   return x + wa + 6
 }
 
