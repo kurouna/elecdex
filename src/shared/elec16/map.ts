@@ -56,9 +56,9 @@ export const MODEL_IDS = [
 export type ModelId = (typeof MODEL_IDS)[number]
 
 /**
- * The models a unit may be, as TUNE offers them and main takes them. SCI-128 (the scientific
- * calculator, docs/elec16-sci.md) is a model of the core from S1, and joins here when it has a
- * ROM to run (S3): until then no unit can be one, so no page ever looks for its ROM.
+ * The models a unit may be, as TUNE offers them and main takes them: every model with a ROM
+ * to run. SCI-128 (the scientific calculator, docs/elec16-sci.md) joined in S2 with its first
+ * ROM, the start screen and its keys.
  */
 export const UNIT_MODEL_IDS = [
   'pocket-32',
@@ -66,6 +66,7 @@ export const UNIT_MODEL_IDS = [
   'pocket-64',
   'handheld-160',
   'play-320',
+  'sci-128',
 ] as const satisfies readonly ModelId[]
 export type UnitModelId = (typeof UNIT_MODEL_IDS)[number]
 
@@ -116,6 +117,17 @@ export interface Model {
    * bar of its own size anywhere on the dots (docs/elec16-sci.md section 6.5).
    */
   cursor: 'cell' | 'bar'
+  /**
+   * How a person types to it: the pocket keyboard, PLAY-320's pad, or the calculator's keys
+   * (docs/elec16-sci.md section 5). The page picks its body, its PC keys and PASTE by this.
+   */
+  input: 'keyboard' | 'pad' | 'calc'
+  /**
+   * What its ROM waits at: BASIC's prompt (CODE types CALL there), PLAY's start screen (no
+   * auto power-off; CODE calls the program itself), or the calculator's keys (auto power-off
+   * as at a prompt; CODE calls the program itself). Read in place of the ROM's name.
+   */
+  prompt: 'basic' | 'start' | 'key'
 }
 
 export const MODELS: Readonly<Record<ModelId, Model>> = {
@@ -133,6 +145,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     apu: false,
     annunciators: 'pocket',
     cursor: 'cell',
+    input: 'keyboard',
+    prompt: 'basic',
   },
   'pocket-48': {
     id: 'pocket-48',
@@ -148,6 +162,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     apu: false,
     annunciators: 'pocket',
     cursor: 'cell',
+    input: 'keyboard',
+    prompt: 'basic',
   },
   'pocket-64': {
     id: 'pocket-64',
@@ -163,6 +179,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     apu: false,
     annunciators: 'pocket',
     cursor: 'cell',
+    input: 'keyboard',
+    prompt: 'basic',
   },
   'handheld-160': {
     id: 'handheld-160',
@@ -178,6 +196,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     apu: false,
     annunciators: 'pocket',
     cursor: 'cell',
+    input: 'keyboard',
+    prompt: 'basic',
   },
   'play-320': {
     id: 'play-320',
@@ -193,6 +213,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     apu: true,
     annunciators: 'pocket',
     cursor: 'cell',
+    input: 'pad',
+    prompt: 'start',
   },
   'sci-128': {
     id: 'sci-128',
@@ -208,6 +230,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     apu: false,
     annunciators: 'sci',
     cursor: 'bar',
+    input: 'calc',
+    prompt: 'key',
   },
 }
 

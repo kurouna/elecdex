@@ -6,10 +6,11 @@
  */
 
 import { isCardName } from '@shared/elec16/card'
-import { UNIT_MODEL_IDS } from '@shared/elec16/map'
+import { UNIT_MODEL_IDS, type UnitModelId } from '@shared/elec16/map'
 import { ELEC16_CLOCKS, type Elec16UnitSeed, isUnitId } from '@shared/elec16-units'
 import { oneOf } from '../emu/format.js'
 import { PLAY_BODY_MODES, PLAY_SKINS, type PlayBodyMode, type PlaySkin } from './play-body.js'
+import { SCI_SKINS, type SciSkin } from './sci-body.js'
 import { isSkinId, type SkinId } from './skins.js'
 
 export const ELEC16_TABS = ['core', 'mem', 'files', 'games', 'link', 'tune'] as const
@@ -32,6 +33,12 @@ export interface Elec16Pane {
   unit: string | undefined
   /** A pane from before units had its own clock and LCD: they seed its first unit. */
   seed: Elec16UnitSeed
+  /**
+   * A pane opened from a picker row of its own (ELEC-16 SCI, docs/elec16-sci.md section 8.1):
+   * it starts on a new unit of this model rather than on one there is, and forgets this once
+   * it holds that unit (its id is then `unit`).
+   */
+  fresh: UnitModelId | undefined
   body: BodyMode
   /** Whether the side panel is wanted; it still folds away when the pane is too narrow. */
   panel: boolean
@@ -49,6 +56,8 @@ export interface Elec16Pane {
   playBody: PlayBodyMode
   /** And its colours. */
   playSkin: PlaySkin
+  /** The calculator's colours (sci-body.ts); its body takes `body`'s modes. */
+  sciSkin: SciSkin
 }
 
 /** `skin` is a new pane's: the setting's, until the pane is given its own. */
@@ -64,6 +73,7 @@ export function readElec16Pane(
     skin: isSkinId(s.skin) ? s.skin : skin,
     unit: isUnitId(s.unit) ? s.unit : undefined,
     seed: { ...(clock !== undefined ? { clock } : {}), ...(model !== undefined ? { model } : {}) },
+    fresh: UNIT_MODEL_IDS.find((m) => m === s.fresh),
     body: oneOf(s.body, BODY_MODES, 'auto'),
     panel: typeof s.panel === 'boolean' ? s.panel : true,
     tab: oneOf(s.tab, ELEC16_TABS, 'core'),
@@ -77,6 +87,7 @@ export function readElec16Pane(
     codeLevel: s.codeLevel === 0 || s.codeLevel === 1 ? s.codeLevel : 2,
     playBody: oneOf(s.playBody, PLAY_BODY_MODES, 'auto'),
     playSkin: oneOf(s.playSkin, PLAY_SKINS, 'graphite'),
+    sciSkin: oneOf(s.sciSkin, SCI_SKINS, 'slate'),
   }
 }
 

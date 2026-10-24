@@ -411,3 +411,14 @@ describe('MOVE HERE, told to the pages', () => {
     expect(told).toBe(1)
   })
 })
+
+describe('a calculator unit (docs/elec16-sci.md section 8.1)', () => {
+  it('is made of the model asked for, named SCI n by the calculators there are', () => {
+    const u = units()
+    expect(u.list().map((x) => [x.name, x.model])).toEqual([['UNIT 1', 'pocket-48']])
+    const first = u.create({ model: 'sci-128' })
+    expect([first.id, first.name, first.model]).toEqual(['u2', 'SCI 1', 'sci-128'])
+    expect(u.create().name).toBe('UNIT 3')
+    expect(u.create({ model: 'sci-128' }).name).toBe('SCI 2')
+  })
+})

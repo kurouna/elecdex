@@ -8,7 +8,13 @@ import { layout } from '../stores/layout.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import { listWidgets, type WidgetDefinition } from '../widgets/registry.ts'
-import { type PickerPlacement, pickerChoice, pickerRowState } from './popup.ts'
+import {
+  type PickerPlacement,
+  type PickerRow,
+  pickerChoice,
+  pickerRowState,
+  pickerRows,
+} from './popup.ts'
 
 /**
  * The add-pane picker: every widget, filterable, placed beside the focused pane -
@@ -39,19 +45,25 @@ let input = $state<HTMLInputElement | null>(null)
 let list = $state<HTMLUListElement | null>(null)
 let returnFocus: HTMLElement | null = null
 
+/** Every row: a widget's own, then its variants' (registry.ts `variants`), filtered. */
 const widgets = $derived.by(() => {
   const q = filter.trim().toLowerCase()
-  return listWidgets().filter(
-    (w) =>
-      // A plugin is offered once it is on and agreed to; the settings list the rest.
-      (!w.plugin || plugins.usable(w.id.slice('plugin:'.length))) &&
-      // Superseded, but still resolved for a layout that names it.
-      !w.unlisted &&
-      (q === '' ||
-        w.id.includes(q) ||
-        (w.pickerTitle ?? w.title).toLowerCase().includes(q) ||
-        (w.description ?? '').toLowerCase().includes(q)),
-  )
+  return listWidgets()
+    .filter(
+      (w) =>
+        // A plugin is offered once it is on and agreed to; the settings list the rest.
+        (!w.plugin || plugins.usable(w.id.slice('plugin:'.length))) &&
+        // Superseded, but still resolved for a layout that names it.
+        !w.unlisted,
+    )
+    .flatMap((w) => pickerRows(w))
+    .filter(
+      (row) =>
+        q === '' ||
+        row.widget.id.includes(q) ||
+        row.title.toLowerCase().includes(q) ||
+        row.description.toLowerCase().includes(q),
+    )
 })
 
 /** A widget that allows one instance and already has it: picking it focuses that pane. */
@@ -80,8 +92,9 @@ $effect(() => {
   revealSelected(list)
 })
 
-function choose(w: WidgetDefinition | undefined): void {
-  if (!w) return
+function choose(row: PickerRow<WidgetDefinition> | undefined): void {
+  if (!row) return
+  const w = row.widget
   const choice = pickerChoice(w, placement, existing(w))
   // A widget that cannot pop up stays in the list, marked so; choosing it does nothing.
   if (choice.kind === 'none') return
@@ -89,7 +102,8 @@ function choose(w: WidgetDefinition | undefined): void {
   returnFocus = null
   ui.closePanePicker()
   if (choice.kind === 'focus') layout.focus(choice.paneId)
-  else if (choice.kind === 'add') layout.addPane(w.id, choice.placement)
+  else if (choice.kind === 'add')
+    layout.addPane(w.id, choice.placement, row.state && { ...row.state })
   else ui.openPopup(w.id)
 }
 
@@ -170,7 +184,8 @@ function onKeydown(event: KeyboardEvent): void {
              scroll rows under a resting pointer, which would otherwise take the
              selection straight back. -->
         <ul class="list" role="listbox" aria-label="Widgets" bind:this={list}>
-          {#each widgets as w, i (w.id)}
+          {#each widgets as row, i (`${row.widget.id}/${row.variant ?? ''}`)}
+            {@const w = row.widget}
             {@const choice = pickerChoice(w, placement, existing(w))}
             <li>
               <button
@@ -180,12 +195,13 @@ function onKeydown(event: KeyboardEvent): void {
                 class:selected={i === selected}
                 class:unavailable={choice.kind === 'none'}
                 onpointermove={() => (selected = i)}
-                onclick={() => choose(w)}
+                onclick={() => choose(row)}
                 data-testid="pane-picker-item"
                 data-widget={w.id}
+                data-variant={row.variant ?? undefined}
               >
-                <span class="title">{w.pickerTitle ?? w.title}{#if w.plugin}<em class="plugin-tag">plugin</em>{/if}</span>
-                <span class="description">{w.description ?? ''}</span>
+                <span class="title">{row.title}{#if w.plugin}<em class="plugin-tag">plugin</em>{/if}</span>
+                <span class="description">{row.description}</span>
                 <span class="state">{pickerRowState(choice, w.multiple)}</span>
               </button>
             </li>

@@ -178,7 +178,8 @@ ELEC-16 の 3 つ目のモデルとして作る関数電卓の仕様です。**�
 ### 5.2 キー表
 
 - 行列は今の 10 行 × 8 列（80 まで）のまま。KEYDATA、KEYCOUNT、KEYMAT もそのまま。SHIFT と ALPHA は ROM が持つ状態（キーとしては普通に FIFO に入る）
-- 今は `MACHINE_KEYS`、`KEY_BY_ID`、`keyForChar`、`keyTable`（keys.ts）が 1 つの行列で、Keyboard.svelte、pc-keys.ts、paste.ts、rom.ts の keys.inc がそれを読む。**SCI のキー表は `keys/sci.ts` に別に置き**、keys.inc は ROM ごとに作る（pocket と sci）。ページの鍵盤と PC のキーはモデルの `keys` で表を選ぶ
+- 今は `MACHINE_KEYS`、`KEY_BY_ID`、`keyForChar`、`keyTable`（keys.ts）が 1 つの行列で、Keyboard.svelte、pc-keys.ts、paste.ts、rom.ts の keys.inc がそれを読む。**SCI のキー表は `shared/elec16/sci-keys.ts` に別に置いた**（S2）。キーごとに行列の番号、刻印、SHIFT 面と ALPHA 面、起動画面が出す 6 字の名前を持つ。ROM には名前の表を `scikeys.inc` として作る（rom.ts。pocket の keys.inc はそのまま）。ページはモデルの `input`（`keyboard` / `pad` / `calc`）で鍵盤と PC のキーの経路を選ぶ
+- SHIFT はポケコンの SHIFT と同じ番号（6）に置き、ポケコンの CAPS の番号（10）は空ける。ページの runner は「SHIFT は次のキーまで待ち、CAPS はそれを使い切らない」を番号で覚えているので、どちらのモデルでも同じに働く
 
 ### 5.3 PC のキー
 
@@ -306,9 +307,9 @@ ROM で組めるものは ROM で組む。ユニットに足すのは、ROM で�
 ### 8.1 モデルの選び方とパネル
 
 - **入口はピッカーの「ELEC-16 SCI」**（§1 の 10）。ピッカーの別の行で、選ぶと main が SCI-128 の新しいユニットを作り（名前は `SCI 1`、`SCI 2` …）、そのユニットで ELEC-16 ペインを開く。ウィジェットは今の `elec16` のまま（ペインの種類は増やさない）で、入口は「どのモデルの新しいユニットで開くか」だけを持つ。今のユニットの BASIC のプログラムには触れない
-- **TUNE のモデルの一覧にも SCI-128** を足す。POCKET・PLAY との行き来は、PLAY と同じく再起動して RAM を消す（意味の違う RAM）。消える前に、二度押しで確かめる（今の RESET と同じ形）
+- **TUNE のモデルの一覧にも SCI-128** を足す。POCKET・PLAY との行き来は、PLAY と同じく再起動して RAM を消す（意味の違う RAM）。消える前に、二度押しで確かめる（S2 で済み: 1 度目でチップが「clear RAM?」になり、3 秒以内のもう 1 度で替わる。DELETE と同じ形）
 - パネル: **CORE**、**MEM**（電卓の状態の領域に名前）、**TUNE**（クロック、自動電源 OFF、本体、色）。FILES・GAMES・LINK は出さない（使わない）
-- **ROM の名前で分けている所をモデルの能力にする**: runner の `#forKey` と `#atPrompt`、TuneView の分け方は今 `rom === 'play'` で書かれている。SCI はキーを待つのがプロンプトで（自動電源 OFF は POCKET と同じに効く）、CODE の RUN は `CALL 28672` を打てないので PLAY と同じく直接呼ぶ。モデルのデータに `prompt: 'basic' | 'key' | 'start'` のような能力を置き、ROM 名での分岐を置き換える（S2）
+- **ROM の名前で分けている所をモデルの能力にする**: runner の `#forKey` と `#atPrompt`、TuneView の分け方は今 `rom === 'play'` で書かれている。SCI はキーを待つのがプロンプトで（自動電源 OFF は POCKET と同じに効く）、CODE の RUN は `CALL 28672` を打てないので PLAY と同じく直接呼ぶ。モデルのデータに `prompt: 'basic' | 'start' | 'key'` と `input: 'keyboard' | 'pad' | 'calc'` を置き、ROM 名での分岐を置き換えた（S2）。`prompt` は自動電源 OFF と CODE の RUN（`basic` は CALL を打つ、ほかは `code_return` に戻る直接呼び出し）、`input` は本体・PC のキー・PASTE・パネルのタブ
 - **CODE**: 上の直接呼び出しにすれば、e16c で書いたプログラムが電卓の液晶と鍵盤で動く。仕組みは既にあるので費用は小さい。入れる（§1）。RAM の 7000–7BFF は空けてある
 
 ### 8.2 本体
@@ -346,7 +347,7 @@ ROM で組めるものは ROM で組む。ユニットに足すのは、ROM で�
 | 段階 | 中身 | 規模 | 終わるとできること |
 |---|---|---|---|
 | S1（**済み**） | **モデルと液晶**: `MODELS` に sci-128（TUNE にはまだ出さない）、128×64、表示記号の組（`annunciators`）、記号 80–96（全モデルの読み戻しと IMPORT / EXPORT も）と大きな数字の表、縦線のカーソル（CURMODE 3、`cursor: 'bar'`）。ほかのモデルが変わらないことをテストで固定 | 小〜中 | 機械語で電卓の液晶に描ける |
-| S2 | **鍵盤と本体**: `keys/sci.ts` と ROM ごとの keys.inc、`sciKeyFate`、`sci-body.ts`、SLATE・CHALK・PLAIN、モデルの能力 `prompt`（ROM 名の分岐を置き換え）、TUNE に SCI-128。刻印の書体に要る字（′ ″ ⇄ ∛ ≈ − → ⁻¹ ʸ）があるかを確かめ、なければその刻印だけ別の書体 | 中 | 本体で押したキーが機械に届く |
+| S2（**済み**） | **鍵盤と本体**: `sci-keys.ts` と ROM の名前の表、最初の SCI ROM（起動画面が押したキーの名前を出す。ユニットのモデルになれるようにするため S3 から前倒し）、ピッカーの行（`variants`）と新しいユニット、`sciKeyFate`、`sci-body.ts`、SLATE・CHALK・PLAIN、モデルの能力 `prompt`（ROM 名の分岐を置き換え）、TUNE に SCI-128。刻印の書体に要る字（′ ″ ⇄ ∛ ≈ − → ⁻¹ ʸ）があるかを確かめ、なければその刻印だけ別の書体 | 中 | 本体で押したキーが機械に届く |
 | S3 | **ROM の骨組みと CALC（LINE 表示）**: main.s、far_call で組める構造、e16c の式の評価（§6.3 の順位）、10 進数の表示、変数、Ans、履歴、誤りと位置、SETUP。終わりに固定 ROM の残りを測る | 中 | 1 行表示の関数電卓として使える |
 | S4 | **2D 表示**: 印付きの列、組版、カーソル、`(p + r√s)/q` の正確な計算とあふれの検出、F⇄D、特別な値の表 | 大 | 数式どおりに打って分数や √ で答える |
 | S5 | **演算ユニットの追加**（§7）と CALC の残り（HYP、FUNC、度分秒、ENG、f(x)、FIND X） | 中 | CALC がひととおり |

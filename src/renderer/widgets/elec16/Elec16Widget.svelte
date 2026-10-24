@@ -1,5 +1,5 @@
 <script lang="ts">
-import { DEFAULT_MODEL, MODELS } from '@shared/elec16/map'
+import { DEFAULT_MODEL, MODELS, type RomId } from '@shared/elec16/map'
 import { pasteKeys } from '@shared/elec16/paste'
 import { onDestroy, tick, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
@@ -42,6 +42,8 @@ import { takeParked, unitToFollow } from './parked-unit.ts'
 import { pasteModes } from './pc-keys.ts'
 import { loadRoms } from './roms.ts'
 import { browserElec16Host, Elec16Runner } from './runner.svelte.ts'
+import SciDevice from './SciDevice.svelte'
+import { SCI_SKIN_COLOURS } from './sci-body.ts'
 import { SKINS } from './skins.ts'
 import TuneView from './TuneView.svelte'
 import { type Elec16Roms, UnitSession } from './unit-session.svelte.ts'
@@ -85,8 +87,9 @@ const session = new UnitSession(
   untrack(() => paneId),
   runner,
   {
+    // The unit is the pane's from now on; a pane opened to start afresh forgets that it was.
     keep: (unit) => {
-      if (unit !== pane.unit) change({ unit })
+      if (unit !== pane.unit || pane.fresh !== undefined) change({ unit, fresh: undefined })
     },
   },
 )
@@ -110,20 +113,29 @@ let windowFocused = $state(document.hasFocus())
 let roms = $state.raw<Elec16Roms | null>(null)
 /** The pocket ROM: CODE measures on it (the same CPU on every model). */
 const rom = $derived(roms?.pocket ?? null)
-let symbols = $state.raw<Readonly<Record<'pocket' | 'play', Readonly<Record<string, number>>>>>({
+let symbols = $state.raw<Readonly<Record<RomId, Readonly<Record<string, number>>>>>({
   pocket: {},
   play: {},
+  sci: {},
 })
 let failed = $state(false)
+/** How the machine is typed to (map.ts): the pocket keyboard, PLAY-320's pad, SCI-128's keys. */
+const input = $derived(MODELS[model].input)
 /** PLAY-320 (docs/elec16-play.md): the PLAY ROM, its pad and body, no keyboard, no FILES. */
-const play = $derived(MODELS[model].rom === 'play')
+const play = $derived(input === 'pad')
+/** SCI-128 (docs/elec16-sci.md): its keys and body; no card, no cartridge, no LINK. */
+const sci = $derived(input === 'calc')
 /** CORE names code by the labels of the ROM the machine runs. */
-const labels = $derived.by(() => {
-  const rom = MODELS[model].rom
-  return labelsOf(rom === 'sci' ? {} : symbols[rom])
-})
-/** FILES (the card and BASIC) on the pocket models, GAMES (the cartridge shelf) on PLAY-320. */
-const tabs = $derived(ELEC16_TABS.filter((t) => t !== (play ? 'files' : 'games')))
+const labels = $derived(labelsOf(symbols[MODELS[model].rom]))
+/**
+ * FILES (the card and BASIC) on the pocket models, GAMES (the cartridge shelf) on PLAY-320;
+ * the calculator has neither, nor LINK (docs/elec16-sci.md section 8.1).
+ */
+const tabs = $derived(
+  ELEC16_TABS.filter((t) =>
+    sci ? t !== 'files' && t !== 'games' && t !== 'link' : t !== (play ? 'files' : 'games'),
+  ),
+)
 const tab = $derived(tabs.includes(pane.tab) ? pane.tab : 'tune')
 
 const listening = $derived(
@@ -164,6 +176,7 @@ $effect(() => {
       pane.seed,
       parked?.machine ?? null,
       parked?.paused ?? false,
+      pane.fresh,
     )
   })
 })
@@ -206,8 +219,11 @@ $effect(() => {
   if (!machineSeen) untrack(() => session.save())
 })
 
-/** Whether there is a machine on for PASTE and LOAD ▸ to type into: PLAY-320 has no keys. */
-const canType = $derived(runner.status !== 'empty' && !runner.off && !play)
+/**
+ * Whether there is a machine on for PASTE and LOAD ▸ to type into: only a keyboard (PLAY-320
+ * has a pad, and the calculator's keys type no text).
+ */
+const canType = $derived(runner.status !== 'empty' && !runner.off && input === 'keyboard')
 
 /** The runner as code/give.ts types on it: PASTE's keys, in the machine's modes of the moment. */
 const taker: CodeTaker = {
@@ -228,9 +244,13 @@ const taker: CodeTaker = {
   loadCode: (at, bytes) => runner.loadCode(at, bytes),
   typeText: (text) => runner.paste(pasteKeys(text, pasteModes(runner.annunciators)).keys),
   get callCode() {
-    // The PLAY ROM's start screen takes the program back at code_return.
-    const back = symbols.play.code_return
-    return play && back !== undefined ? (at: number) => runner.callCode(at, back) : undefined
+    // A ROM with no BASIC to type CALL at (PLAY's start screen, the calculator's) takes the
+    // program back at its own code_return.
+    const m = MODELS[model]
+    const back = symbols[m.rom].code_return
+    return m.prompt !== 'basic' && back !== undefined
+      ? (at: number) => runner.callCode(at, back)
+      : undefined
   },
 }
 
@@ -307,7 +327,7 @@ function power(): void {
 /** The PC's keys and gamepads, given to the machine while the pane listens (machine-keys). */
 const keys = new MachineKeys(runner, {
   listening: () => listening,
-  play: () => play,
+  input: () => input,
   seen: () => machineSeen,
 })
 
@@ -356,7 +376,7 @@ let lcdColours = $state.raw<LcdColours>({
 $effect(() => {
   void appearance.revision
   const el = root
-  const wanted = skin.lcd
+  const wanted = sci ? SCI_SKIN_COLOURS[pane.sciSkin].lcd : skin.lcd
   if (el === null) return
   const read = colourReader(el)
   lcdColours = {
@@ -526,7 +546,17 @@ onDestroy(() => {
         <!-- One view whatever the model: switching to or from PLAY-320 swaps the screen in place,
              as another LCD does, rather than powering one off over the other. -->
         <div class="view crt-on" style:--crt-delay="{POWER_OFF_MS}ms" transition:crtPower>
-          {#if play && pane.playBody !== 'screen'}
+          {#if sci}
+            <SciDevice
+              {runner}
+              mode={pane.body}
+              skin={pane.sciSkin}
+              {lcdColours}
+              ghost={pane.ghost}
+              contrast={pane.contrast}
+              seen={visible}
+            />
+          {:else if play && pane.playBody !== 'screen'}
             <PlayDevice {runner} shape={pane.playBody} skin={pane.playSkin} seen={visible} />
           {:else if play}
             <PlayScreen {runner} seen={visible} />

@@ -3,7 +3,7 @@ import { CARD_STATUS, type CardAnswer, type CardRequest } from '@shared/elec16/c
 import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
 import { LINK_STATUS } from '@shared/elec16/link-services'
 import { Elec16 } from '@shared/elec16/machine'
-import { MODELS, type ModelId, xramBytes } from '@shared/elec16/map'
+import { MODELS, type ModelId, type RomId, type UnitModelId, xramBytes } from '@shared/elec16/map'
 import { snapshotModel } from '@shared/elec16/snapshot'
 import {
   type Elec16Board,
@@ -35,18 +35,11 @@ export interface UnitHost {
   keep(unit: string): void
 }
 
-/** The two ROMs, by the models that run them: the pocket ROM and the PLAY ROM. */
-export type Elec16Roms = Readonly<Record<'pocket' | 'play', Uint8Array>>
+/** The ROMs, by the models that run them: the pocket ROM, the PLAY ROM, the calculator's. */
+export type Elec16Roms = Readonly<Record<RomId, Uint8Array>>
 
-/**
- * The ROM a model runs, of those the page has; null for the calculator's, which comes with S3
- * (docs/elec16-sci.md section 10). No unit can be SCI-128 before then (UNIT_MODEL_IDS), so a
- * null here means a backup that cannot be from this app: it is not started.
- */
-export function romOf(roms: Elec16Roms, model: ModelId): Uint8Array | null {
-  const rom = MODELS[model].rom
-  return rom === 'sci' ? null : roms[rom]
-}
+/** The ROM a model runs. */
+export const romOf = (roms: Elec16Roms, model: ModelId): Uint8Array => roms[MODELS[model].rom]
 
 /** The extended RAM a unit's machine has, in bytes: its choice, on a model that has any. */
 const xramOf = (unit: Elec16Unit): number => xramBytes(MODELS[unit.model], unit.xram)
@@ -111,6 +104,7 @@ export class UnitSession {
     seed: Elec16UnitSeed,
     parked: Elec16 | null,
     paused: boolean,
+    fresh?: UnitModelId,
   ): Promise<void> {
     this.#roms = roms
     let board: Elec16Board
@@ -122,6 +116,12 @@ export class UnitSession {
     }
     if (this.#disposed) return
     this.board = board
+    // Opened to start afresh (the picker's ELEC-16 SCI): a new unit of that model, never one
+    // there is - a pocket unit's BASIC is not cleared to make a calculator of it.
+    if (wanted === undefined && fresh !== undefined) {
+      await this.#fresh(fresh)
+      return
+    }
     const free = board.units.find((u) => !board.held.some((h) => h.unit === u.id))
     const unit = board.units.find((u) => u.id === wanted) ?? free ?? board.units[0]
     if (unit === undefined) return
@@ -134,6 +134,19 @@ export class UnitSession {
     if (unit === null) return
     this.phase = 'loading'
     await this.#claim(unit, (id) => this.#api.moveHere(id, this.#pane), null, false)
+  }
+
+  /** A new unit of `model` for this pane, made in main and claimed. */
+  async #fresh(model: UnitModelId): Promise<void> {
+    let unit: Elec16Unit
+    try {
+      unit = await this.#api.create({ model })
+    } catch {
+      if (!this.#disposed) this.phase = 'failed'
+      return
+    }
+    if (this.#disposed) return
+    await this.#claim(unit, (id) => this.#api.claim(id, this.#pane), null, false)
   }
 
   /** A new unit for this pane, its clock and LCD as the one it showed. */
@@ -187,9 +200,14 @@ export class UnitSession {
 
   /** The unit's machine switched on afresh with its ROM, and the RAM given if any. */
   #boot(unit: Elec16Unit, ram: Uint8Array | undefined): void {
-    const rom = this.#roms === null ? null : romOf(this.#roms, unit.model)
-    if (rom === null) return
-    this.#runner.boot(rom, unit.model, hzOfClock(unit.clock), ram, xramOf(unit))
+    if (this.#roms === null) return
+    this.#runner.boot(
+      romOf(this.#roms, unit.model),
+      unit.model,
+      hzOfClock(unit.clock),
+      ram,
+      xramOf(unit),
+    )
   }
 
   /**
@@ -293,9 +311,8 @@ export class UnitSession {
   #restored(snapshot: Uint8Array | null): Elec16 | null {
     const roms = this.#roms
     const model = snapshot === null ? null : snapshotModel(snapshot)
-    const rom = roms === null || model === null ? null : romOf(roms, model)
-    if (snapshot === null || rom === null) return null
-    return Elec16.restore(rom, snapshot)
+    if (snapshot === null || roms === null || model === null) return null
+    return Elec16.restore(romOf(roms, model), snapshot)
   }
 
   /**

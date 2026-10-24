@@ -130,14 +130,22 @@ export class Elec16Units {
     return [this.create(seed)]
   }
 
-  /** A new unit, UNIT n after the highest, its clock and LCD from `seed`. */
+  /**
+   * A new unit, its clock and LCD from `seed`: u<n> after the highest id, named UNIT n - or a
+   * calculator SCI n, counting the calculators (docs/elec16-sci.md section 8.1).
+   */
   create(seed?: Elec16UnitSeed): Elec16Unit {
     const file = this.#units.read()
     const n = Math.max(0, ...file.units.map((u) => Number(u.id.slice(1)))) + 1
+    const defaults = unitDefaults(seed)
+    const sci = defaults.model === 'sci-128'
+    const name = sci
+      ? `SCI ${file.units.filter((u) => u.model === 'sci-128').length + 1}`
+      : `UNIT ${n}`
     const unit: Elec16Unit = {
       id: `u${n}`,
-      name: `UNIT ${n}`,
-      ...unitDefaults(seed),
+      name,
+      ...defaults,
       created: this.#now(),
     }
     this.#units.write({ ...file, units: [...file.units, unit] })

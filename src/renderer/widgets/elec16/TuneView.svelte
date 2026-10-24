@@ -1,5 +1,11 @@
 <script lang="ts">
-import { MODELS, type ModelId, UNIT_MODEL_IDS, XRAM_SIZES_KB } from '@shared/elec16/map'
+import {
+  MODELS,
+  type ModelId,
+  UNIT_MODEL_IDS,
+  type UnitModelId,
+  XRAM_SIZES_KB,
+} from '@shared/elec16/map'
 import {
   ELEC16_AUTO_OFF,
   ELEC16_CLOCKS,
@@ -11,6 +17,7 @@ import {
 import { sfx } from '../../stores/sound.svelte.ts'
 import { BODY_MODES, type BodyMode, type Elec16Pane } from './pane-state.ts'
 import { PLAY_BODY_MODES, PLAY_SKINS } from './play-body.ts'
+import { SCI_SKINS } from './sci-body.ts'
 import { SKIN_IDS, SKINS, type SkinId } from './skins.ts'
 
 /**
@@ -61,12 +68,36 @@ const {
 const clockWords = (c: Elec16Clock): string => (c === 'max' ? 'MAX' : `${c} MHz`)
 const modelWords = (id: ModelId): string => {
   const m = MODELS[id]
-  // The game model by its name: its screen is a colour one, not another LCD.
-  if (m.rom === 'play') return id.toUpperCase()
+  // The game model and the calculator by their names: neither is another pocket LCD.
+  if (m.input !== 'keyboard') return id.toUpperCase()
   return `${m.width}×${m.height}${m.depth === 2 ? ' ·4' : ''}`
 }
+/** How the unit's machine is typed to: the pocket keyboard, PLAY-320's pad, SCI-128's keys. */
+const input = $derived(unit === null ? 'keyboard' : MODELS[unit.model].input)
 /** PLAY-320 (docs/elec16-play.md): extended RAM to choose, and no auto power-off. */
-const play = $derived(unit !== null && MODELS[unit.model].rom === 'play')
+const play = $derived(input === 'pad')
+
+/**
+ * A model whose ROM is another clears the RAM (its BASIC, its game, its calculator's memory):
+ * the first press arms it, a second within a few seconds makes it - as DELETE (docs/elec16-
+ * sci.md section 8.1). Another LCD on the same ROM keeps the RAM and goes at once.
+ */
+let armedModel = $state<ModelId | null>(null)
+let disarmModel: ReturnType<typeof setTimeout> | undefined
+function pickModel(id: UnitModelId): void {
+  if (unit === null || unit.model === id) return
+  clearTimeout(disarmModel)
+  if (MODELS[unit.model].rom !== MODELS[id].rom && armedModel !== id) {
+    armedModel = id
+    disarmModel = setTimeout(() => {
+      armedModel = null
+    }, 3000)
+    return
+  }
+  armedModel = null
+  pick(unit.model, id, () => onunit({ model: id }))
+}
+$effect(() => () => clearTimeout(disarmModel))
 const offWords = (m: Elec16AutoOff): string => (m === 0 ? 'never' : `${m} min`)
 const BODY_WORDS: Record<BodyMode, string> = {
   auto: 'auto',
@@ -104,8 +135,40 @@ function pick<T>(now: T, next: T, apply: () => void): void {
 }
 </script>
 
+{#snippet lcdGlass()}
+  <section>
+    <h3>lcd glass</h3>
+    <div class="chips">
+      <button
+        type="button"
+        class="e16-chip"
+        aria-pressed={pane.ghost}
+        onclick={() => onchange({ ghost: !pane.ghost })}
+        data-testid="elec16-ghost">slow fade</button
+      >
+      <button
+        type="button"
+        class="e16-chip"
+        aria-label="less contrast"
+        disabled={pane.contrast <= -7}
+        onclick={() => onchange({ contrast: pane.contrast - 1 })}
+        data-testid="elec16-contrast-down">−</button
+      >
+      <span class="e16-chip plain" data-testid="elec16-contrast">contrast {pane.contrast > 0 ? '+' : ''}{pane.contrast}</span>
+      <button
+        type="button"
+        class="e16-chip"
+        aria-label="more contrast"
+        disabled={pane.contrast >= 7}
+        onclick={() => onchange({ contrast: pane.contrast + 1 })}
+        data-testid="elec16-contrast-up">+</button
+      >
+    </div>
+  </section>
+{/snippet}
+
 <div class="tune" data-testid="elec16-tune">
-  {#if !play}
+  {#if input === 'keyboard'}
   <section>
     <h3>keys</h3>
     <div class="chips">
@@ -223,19 +286,21 @@ function pick<T>(now: T, next: T, apply: () => void): void {
           role="radio"
           disabled={unit === null}
           aria-checked={unit?.model === id}
-          onclick={() => pick(unit?.model, id, () => onunit({ model: id }))}
+          class:armed={armedModel === id}
+          onclick={() => pickModel(id)}
           data-testid="elec16-model"
-          data-model={id}>{modelWords(id)}</button
+          data-model={id}>{armedModel === id ? 'clear RAM?' : modelWords(id)}</button
         >
       {/each}
     </div>
     <p class="note">
       Another LCD restarts the machine: its RAM stays, its screen is cleared. To or from PLAY-320,
-      a game machine with no BASIC, its RAM is cleared too.
+      a game machine with no BASIC, or SCI-128, the calculator, its RAM is cleared too: press
+      twice.
     </p>
   </section>
-  <!-- The body, its skin and the LCD glass: PLAY-320 shows its screen alone until G3. -->
-  {#if !play}
+  <!-- The body, its colours and the LCD glass, each model its own. -->
+  {#if input === 'keyboard'}
   <section>
     <h3>body</h3>
     <div class="chips" role="radiogroup" aria-label="body">
@@ -268,34 +333,48 @@ function pick<T>(now: T, next: T, apply: () => void): void {
       {/each}
     </div>
   </section>
+  {@render lcdGlass()}
+  {:else if input === 'calc'}
   <section>
-    <h3>lcd glass</h3>
-    <div class="chips">
-      <button
-        type="button"
-        class="e16-chip"
-        aria-pressed={pane.ghost}
-        onclick={() => onchange({ ghost: !pane.ghost })}
-        data-testid="elec16-ghost">slow fade</button
-      >
-      <button
-        type="button"
-        class="e16-chip"
-        aria-label="less contrast"
-        disabled={pane.contrast <= -7}
-        onclick={() => onchange({ contrast: pane.contrast - 1 })}
-        data-testid="elec16-contrast-down">−</button
-      >
-      <span class="e16-chip plain" data-testid="elec16-contrast">contrast {pane.contrast > 0 ? '+' : ''}{pane.contrast}</span>
-      <button
-        type="button"
-        class="e16-chip"
-        aria-label="more contrast"
-        disabled={pane.contrast >= 7}
-        onclick={() => onchange({ contrast: pane.contrast + 1 })}
-        data-testid="elec16-contrast-up">+</button
-      >
+    <h3>body</h3>
+    <div class="chips" role="radiogroup" aria-label="body">
+      {#each BODY_MODES as b (b)}
+        <button
+          type="button"
+          class="e16-chip"
+          role="radio"
+          aria-checked={pane.body === b}
+          onclick={() => pick(pane.body, b, () => onchange({ body: b }))}
+          data-testid="elec16-body"
+          data-body={b}>{BODY_WORDS[b]}</button
+        >
+      {/each}
     </div>
+  </section>
+  <section>
+    <h3>colour</h3>
+    <div class="chips" role="radiogroup" aria-label="colour">
+      {#each SCI_SKINS as c (c)}
+        <button
+          type="button"
+          class="e16-chip"
+          role="radio"
+          disabled={pane.body === 'lcd'}
+          aria-checked={pane.sciSkin === c}
+          onclick={() => pick(pane.sciSkin, c, () => onchange({ sciSkin: c }))}
+          data-testid="elec16-sci-skin"
+          data-skin={c}>{c}</button
+        >
+      {/each}
+    </div>
+  </section>
+  {@render lcdGlass()}
+  <section>
+    <h3>keys</h3>
+    <p class="note" data-testid="elec16-sci-keys">
+      Digits and + - * / ^ ( ) . as typed, Enter =, Backspace DEL, Delete AC, the arrows; s c t
+      sin cos tan, l LN, g LOG, f a/b, e EXP, r √, ! x!; Pause ON - while the pane has the focus.
+    </p>
   </section>
   {:else}
   <section>

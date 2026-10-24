@@ -44,6 +44,49 @@ export interface PickedWidget {
   popup?: boolean
 }
 
+/** What the picker lists of a widget: its own row, then a row for each of its variants. */
+export interface PickerRow<W> {
+  widget: W
+  /** The variant's key, or null for the widget's own row. */
+  variant: string | null
+  title: string
+  description: string
+  /** The pane state a variant's pane starts from. */
+  state: Readonly<Record<string, unknown>> | undefined
+}
+
+/** A widget's rows in the picker, its variants after it; a variant never pops up. */
+export function pickerRows<
+  W extends PickedWidget & {
+    title: string
+    pickerTitle?: string
+    description?: string
+    variants?: readonly {
+      key: string
+      pickerTitle: string
+      description: string
+      state: Readonly<Record<string, unknown>>
+    }[]
+  },
+>(widget: W): PickerRow<W>[] {
+  return [
+    {
+      widget,
+      variant: null,
+      title: widget.pickerTitle ?? widget.title,
+      description: widget.description ?? '',
+      state: undefined,
+    },
+    ...(widget.variants ?? []).map((v) => ({
+      widget: { ...widget, popup: false },
+      variant: v.key,
+      title: v.pickerTitle,
+      description: v.description,
+      state: v.state,
+    })),
+  ]
+}
+
 /**
  * Chooses what the picker does for a widget. A single-instance widget already
  * in the layout (`onScreen`, its pane) is focused, wherever it was asked to

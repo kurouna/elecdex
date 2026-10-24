@@ -117,6 +117,31 @@ writeFileSync(
 const playUsed = playBuilt.symbols.e16c_fixed_end ?? playBuilt.symbols.rom_end ?? 0
 console.log(`play-rom.json: ${playBuilt.image.length} bytes, fixed ROM to ${playUsed.toString(16)}`)
 
+// The SCI ROM for SCI-128 (resources/elec16/sci, docs/elec16-sci.md): as the PLAY ROM, its
+// screen from e16c into sci.s, then assembled into sci-rom.json.
+const { compileSci, sciRomFile } = await shared('e16c/sci-rom.ts')
+const sciSources = path.join(root, 'resources', 'elec16', 'sci')
+const sci = compileSci((name) => readFileSync(path.join(sciSources, name), 'utf8'))
+if (sci.errors.length > 0) {
+  for (const e of sci.errors) console.error(`${e.file}:${e.line}:${e.column}: ${e.message}`)
+  process.exit(1)
+}
+writeFileSync(path.join(sciSources, 'sci.s'), sci.asm)
+const sciBuilt = buildRom((name) => {
+  const file = path.join(root, 'resources', 'elec16', sciRomFile(name))
+  return existsSync(file) ? readFileSync(file, 'utf8') : null
+})
+if (sciBuilt.errors.length > 0) {
+  for (const e of sciBuilt.errors) console.error(`sci/${e.file}:${e.line}: ${e.message}`)
+  process.exit(1)
+}
+writeFileSync(
+  path.join(root, 'src', 'renderer', 'widgets', 'elec16', 'sci-rom.json'),
+  `${JSON.stringify(romFile(sciBuilt), null, 2)}\n`,
+)
+const sciUsed = sciBuilt.symbols.e16c_fixed_end ?? sciBuilt.symbols.rom_end ?? 0
+console.log(`sci-rom.json: ${sciBuilt.image.length} bytes, fixed ROM to ${sciUsed.toString(16)}`)
+
 // ELEC-16 PLAY's bundled games (resources/elec16/games/<name>/game.s and game.json), each built
 // into a .E16G for the shelf (main/elec16/games.ts) in games.json.
 // A game with `sources` in its game.json is written with the game kit (e16c, pictures, music:

@@ -75,6 +75,20 @@ export interface WidgetDefinition {
    * another one supersedes, or one that is only opened by something else.
    */
   unlisted?: boolean
+  /**
+   * More rows of its own in the add-pane picker: the same widget opened from a pane state to
+   * start from (ELEC-16 SCI opens the ELEC-16 pane on a new calculator unit). Not a second
+   * kind of pane: the pane is the widget's, its state then its own. A row pops nothing up.
+   */
+  variants?: readonly WidgetVariant[]
+}
+
+export interface WidgetVariant {
+  /** Unique among the widget's rows; the picker's test id names the row by it. */
+  key: string
+  pickerTitle: string
+  description: string
+  state: Readonly<Record<string, unknown>>
 }
 
 /** Every widget receives its pane's identity and configuration. */

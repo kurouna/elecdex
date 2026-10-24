@@ -21,7 +21,7 @@ const unitOf = (id: string, model: Elec16Unit['model']): Elec16Unit => ({
   created: 0,
 })
 
-const ROMS = { pocket: new Uint8Array(4), play: new Uint8Array(4) }
+const ROMS = { pocket: new Uint8Array(4), play: new Uint8Array(4), sci: new Uint8Array(4) }
 
 function fakeRunner() {
   const done: string[] = []
@@ -61,6 +61,12 @@ function fakeApi(units: Elec16Unit[]) {
     insertGame: (unit: string, _pane: string, id: string | null) => {
       calls.push(`insert ${unit} ${id}`)
       return wait<Elec16Unit | null>(`insert ${unit}`)
+    },
+    create: async (seed: { model?: string }) => {
+      calls.push(`create ${seed.model}`)
+      const made = unitOf('u9', (seed.model ?? 'pocket-48') as Elec16Unit['model'])
+      board.units.push(made)
+      return made
     },
     onChange: () => () => {},
     onGiveBack: () => () => {},
@@ -149,5 +155,33 @@ describe("a pane's hold on its unit", () => {
     await session.start(ROMS, 'u1', {}, null, false)
     expect(session.phase).toBe('failed')
     session.dispose()
+  })
+})
+
+describe("a pane opened to start afresh (the picker's ELEC-16 SCI)", () => {
+  it('makes a new unit of its model and claims it, though a free one is there', async () => {
+    const main = fakeApi([unitOf('u1', 'pocket-48')])
+    const { runner } = fakeRunner()
+    const kept: string[] = []
+    const session = new UnitSession(main.api, 'p1', runner, {
+      keep: (unit) => void kept.push(unit),
+    })
+    const started = session.start(ROMS, undefined, {}, null, false, 'sci-128')
+    await settle()
+    main.answer('claim u9', { ok: true, snapshot: null })
+    await started
+    expect(main.calls).toEqual(['create sci-128', 'claim u9'])
+    expect(session.unit?.model).toBe('sci-128')
+  })
+
+  it('goes back to its own unit when it already has one: the fresh start was once', async () => {
+    const main = fakeApi([unitOf('u1', 'pocket-48'), unitOf('u2', 'sci-128')])
+    const { runner } = fakeRunner()
+    const session = new UnitSession(main.api, 'p1', runner, { keep: () => {} })
+    const started = session.start(ROMS, 'u2', {}, null, false, 'sci-128')
+    await settle()
+    main.answer('claim u2', { ok: true, snapshot: null })
+    await started
+    expect(main.calls).toEqual(['claim u2'])
   })
 })

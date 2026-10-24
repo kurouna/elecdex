@@ -13,6 +13,7 @@ import { fontTable } from './font.js'
 import { CONTROL, kanaTable, keyTable } from './keys.js'
 import { LINK_CMD, LINK_REG, LINK_STATUS } from './link-services.js'
 import { CODE_AREA, CODE_AREA_END, ROM_FIXED_SIZE, VRAM } from './map.js'
+import { sciNameTable } from './sci-keys.js'
 import { ANNUNCIATORS, IRQ, KEY_ROWS, SCI_ANNUNCIATORS } from './state.js'
 
 /** The file the ROM starts from. */
@@ -72,6 +73,8 @@ export function generatedIncludes(): Record<string, string> {
     'font.inc': `; Made by src/shared/elec16/rom.ts from font.ts: do not edit.\n${byteLines(fontTable())}`,
     'keys.inc': `; Made by src/shared/elec16/rom.ts from keys.ts: do not edit.\n${byteLines(keyTable(KEY_ROWS * 8))}`,
     'kana.inc': `; Made by src/shared/elec16/rom.ts from keys.ts: do not edit.\n${byteLines(kanaTable(KEY_ROWS * 8))}`,
+    // The calculator's key names, for the SCI ROM's start screen (sci-keys.ts).
+    'scikeys.inc': `; Made by src/shared/elec16/rom.ts from sci-keys.ts: do not edit.\n${byteLines(sciNameTable(KEY_ROWS * 8))}`,
   }
 }
 

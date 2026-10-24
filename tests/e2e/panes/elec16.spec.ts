@@ -6,6 +6,7 @@ import { buildGame } from '../../../src/shared/elec16/cart-build.js'
 import {
   atSize,
   booted,
+  chooseModel,
   elec16Tab,
   launchElec16Beside as launchBeside,
   lcdLines,
@@ -590,7 +591,7 @@ test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboa
     await settleLayout(page)
     await booted(page)
     await elec16Tab(page, 'tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await chooseModel(page, 'play-320')
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     // The clipboard is the page's stand-in, never this machine's; it counts its reads.
     await page.evaluate(() => {
@@ -973,7 +974,7 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, an
     await typeLine(page, 'e 7000 5a')
     const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await chooseModel(page, 'play-320')
     await expect(page.getByTestId('elec16-play-screen')).toBeVisible()
     await expect(page.getByTestId('elec16-device')).toHaveCount(0)
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
@@ -991,7 +992,7 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, an
     await expect(page.getByTestId('elec16-mem-rows')).toContainText('20:C000')
 
     await tab('tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=pocket-48]').click()
+    await chooseModel(page, 'pocket-48')
     await booted(page)
     await toMonitor(page)
     await typeLine(page, 'd 7000')
@@ -1013,7 +1014,7 @@ test("PLAY-320's body: its buttons pressed from the keys, the pointer and a prog
     await booted(page)
     const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await chooseModel(page, 'play-320')
     const body = page.getByTestId('elec16-play-body')
     await expect(body).toBeVisible()
     await expect(body).toHaveAttribute('data-skin', 'graphite')
@@ -1082,7 +1083,7 @@ test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on aft
     await booted(page)
     const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await chooseModel(page, 'play-320')
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     await expect(tab('files')).toHaveCount(0)
     await tab('games').click()
@@ -1180,7 +1181,7 @@ test("PLAY-320's game kit: ELECLANCE starts from GAMES, its title, then the stag
     await booted(page)
     const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await chooseModel(page, 'play-320')
     await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     await tab('games').click()
@@ -1233,7 +1234,7 @@ test("PLAY-320's DEVELOP: a new game from the template, built, broken on save, m
     await booted(page)
     const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await chooseModel(page, 'play-320')
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     await pickerAnswers(app, folder)
     await tab('games').click()
@@ -1304,7 +1305,7 @@ test("PLAY-320's DEVELOP builds ELECLANCE's own folder exactly as npm run gen:el
     await booted(page)
     const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await chooseModel(page, 'play-320')
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     await pickerAnswers(app, folder)
     await tab('games').click()
@@ -1336,7 +1337,7 @@ test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with
     await booted(page)
     const tab = (name: string) => elec16Tab(page, name)
     await tab('tune').click()
-    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await chooseModel(page, 'play-320')
     await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     await tab('games').click()

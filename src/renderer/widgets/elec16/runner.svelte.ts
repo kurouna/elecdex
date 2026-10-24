@@ -575,22 +575,24 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   }
 
   /**
-   * This sleep waits for a key and nothing else - auto power-off's count. Never on PLAY-320,
-   * which switches itself off no more than a handheld game does (docs/elec16-play.md).
+   * This sleep waits for a key and nothing else - auto power-off's count. Never at PLAY-320's
+   * start screen, which switches itself off no more than a handheld game does
+   * (docs/elec16-play.md); at BASIC's prompt and the calculator's keys, as a pocket machine.
    */
   #forKey(wake: Wake | null): boolean {
-    if (MODELS[this.model].rom === 'play') return false
+    if (MODELS[this.model].prompt === 'start') return false
     return wake?.key === true && wake.timerMs === null && !this.#waitsForMain()
   }
 
   /**
-   * Asleep at its prompt, where CODE can give it a program: the pocket ROM sleeps there for a
-   * key; the PLAY ROM's start screen, and after a program came back, for START (the pad) or
-   * BRK. A program of its own asleep for the pad is not there: it sleeps outside the ROM.
+   * Asleep at its prompt, where CODE can give it a program: the pocket ROM and the calculator's
+   * sleep there for a key; the PLAY ROM's start screen, and after a program came back, for
+   * START (the pad) or BRK. A program of its own asleep for the pad is not there: it sleeps
+   * outside the ROM.
    */
   #atPrompt(wake: Wake | null): boolean {
     if (wake === null || this.#waitsForMain()) return false
-    if (MODELS[this.model].rom !== 'play') return wake.key
+    if (MODELS[this.model].prompt !== 'start') return wake.key
     if (wake.key || wake.timerMs !== null) return false
     const pc = this.machine?.state.pc ?? 0
     return wake.pad !== true || (pc >= ROM_FIXED && pc < BANK_WINDOW)

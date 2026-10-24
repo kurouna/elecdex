@@ -492,9 +492,14 @@ class LayoutStore {
     this.unpin()
   }
 
-  split(paneId: string, direction: SplitDirection, widget: string): void {
+  split(
+    paneId: string,
+    direction: SplitDirection,
+    widget: string,
+    state?: Record<string, unknown>,
+  ): void {
     this.settle()
-    const incoming = pane(widget)
+    const incoming = pane(widget, state === undefined ? {} : { state })
     const next = splitPane(this.tree, paneId, direction, incoming)
     // A target that has gone - it may have gone with the close just finished -
     // adds nothing, so nothing is focused, powered on or heard either: focus on a
@@ -515,9 +520,9 @@ class LayoutStore {
     this.split(target, direction, widget ?? sameWidget)
   }
 
-  addTab(siblingPaneId: string, widget: string): void {
+  addTab(siblingPaneId: string, widget: string, state?: Record<string, unknown>): void {
     this.settle()
-    const incoming = pane(widget)
+    const incoming = pane(widget, state === undefined ? {} : { state })
     const next = addTab(this.tree, siblingPaneId, incoming)
     // As for a split: a sibling that has gone adds nothing.
     if (next === this.tree) return
@@ -537,13 +542,15 @@ class LayoutStore {
 
   /**
    * Adds a pane of `widget` beside the focused pane (or the first visible one),
-   * to its right, below it, or as a tab in its group.
+   * to its right, below it, or as a tab in its group - with `state` to start
+   * from, for a picker row that opens a widget a way of its own (registry.ts
+   * `variants`).
    */
-  addPane(widget: string, placement: PanePlacement): void {
+  addPane(widget: string, placement: PanePlacement, state?: Record<string, unknown>): void {
     const target = this.focusedPaneId ?? this.visible[0]?.id ?? null
     if (target === null) return
-    if (placement === 'tab') this.addTab(target, widget)
-    else this.split(target, placement === 'right' ? 'right' : 'down', widget)
+    if (placement === 'tab') this.addTab(target, widget, state)
+    else this.split(target, placement === 'right' ? 'right' : 'down', widget, state)
   }
 
   /** The first pane showing `widget`, if any. */

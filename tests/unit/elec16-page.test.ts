@@ -322,6 +322,7 @@ describe('the body and the pane', () => {
       skin: 'elec',
       unit: undefined,
       seed: {},
+      fresh: undefined,
       body: 'auto',
       panel: true,
       tab: 'core',
@@ -332,7 +333,14 @@ describe('the body and the pane', () => {
       codeLevel: 2,
       playBody: 'auto',
       playSkin: 'graphite',
+      sciSkin: 'slate',
     })
+    // A pane opened to start afresh names a unit model; anything else starts as any pane.
+    expect(readElec16Pane({ fresh: 'sci-128' }).fresh).toBe('sci-128')
+    expect(readElec16Pane({ fresh: 'sci-999' }).fresh).toBeUndefined()
+    // SCI-128's colours, one of its list.
+    expect(readElec16Pane({ sciSkin: 'chalk' }).sciSkin).toBe('chalk')
+    expect(readElec16Pane({ sciSkin: 'coral' }).sciSkin).toBe('slate')
     // PLAY-320's body and colours, each one of its own list.
     expect(readElec16Pane({ playBody: 'wide', playSkin: 'coral' })).toMatchObject({
       playBody: 'wide',

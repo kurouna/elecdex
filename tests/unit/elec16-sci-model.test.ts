@@ -53,9 +53,16 @@ describe('the SCI-128 model', () => {
     expect([m.rom, m.annunciators, m.cursor]).toEqual(['sci', 'sci', 'bar'])
   })
 
-  it('is no unit model until its ROM comes (S3): TUNE and main offer the others, as before', () => {
-    expect(UNIT_MODEL_IDS).toEqual(POCKETS)
-    expect((UNIT_MODEL_IDS as readonly string[]).includes('sci-128')).toBe(false)
+  it('is a unit model since its first ROM (S2): TUNE and main offer every model', () => {
+    expect(UNIT_MODEL_IDS).toEqual(MODEL_IDS)
+  })
+
+  it('is typed to through its own keys and waits at them as at a prompt', () => {
+    expect([MODELS['sci-128'].input, MODELS['sci-128'].prompt]).toEqual(['calc', 'key'])
+    expect([MODELS['play-320'].input, MODELS['play-320'].prompt]).toEqual(['pad', 'start'])
+    for (const id of POCKETS.filter((x) => x !== 'play-320')) {
+      expect([MODELS[id].input, MODELS[id].prompt], id).toEqual(['keyboard', 'basic'])
+    }
   })
 
   it('leaves every other model printing the pocket marks with the cell cursor', () => {

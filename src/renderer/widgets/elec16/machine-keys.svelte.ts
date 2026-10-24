@@ -3,11 +3,13 @@ import { onFrame } from '../../lib/frame-loop.ts'
 import { kanaLit, pcKeyFate } from './pc-keys.ts'
 import { gamepadBits, playKeyFate } from './play-input.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
+import { sciKeyFate } from './sci-input.ts'
 
 /**
  * The PC's keys and gamepads as the ELEC-16 pane gives them to its machine (docs/elec16.md
- * section 9, docs/elec16-play.md section 6): on the pocket models a key of the machine's
- * keyboard (pc-keys.ts), on PLAY-320 a button of the pad (play-input.ts) - and BRK on either.
+ * section 9, docs/elec16-play.md section 6, docs/elec16-sci.md section 5.3): on the pocket
+ * models a key of the machine's keyboard (pc-keys.ts), on PLAY-320 a button of the pad
+ * (play-input.ts), on SCI-128 a calculator key (sci-input.ts) - and BRK on each.
  * A key is held until its own key-up, and every key goes up when the pane no longer listens,
  * as no key-up will come. The gamepads are read only while PLAY-320's pane is seen and has
  * the focus: each tick the machine runs (the runner reads them), and on the shared 10 fps
@@ -18,8 +20,8 @@ import type { Elec16Runner } from './runner.svelte.ts'
 export interface MachineKeysOptions {
   /** The pane has the focus in a focused window, and shows the machine. */
   listening: () => boolean
-  /** The machine is a PLAY-320: the pad's buttons, not a keyboard. */
-  play: () => boolean
+  /** How the machine is typed to (map.ts `input`): a keyboard, PLAY-320's pad, the calculator's keys. */
+  input: () => 'keyboard' | 'pad' | 'calc'
   /** The machine is in sight (the gamepads are read only then). */
   seen: () => boolean
 }
@@ -45,7 +47,7 @@ export class MachineKeys {
       })
     })
     $effect(() => {
-      if (!options.play() || !options.listening() || !options.seen()) return
+      if (options.input() !== 'pad' || !options.listening() || !options.seen()) return
       const read = () => gamepadBits(navigator.getGamepads?.() ?? [])
       runner.gamepads = read
       const stop = onFrame(() => {
@@ -62,8 +64,13 @@ export class MachineKeys {
   /** A key went down on the pane itself (the caller has checked it is the pane's). */
   down(event: KeyboardEvent): void {
     if (!this.#options.listening()) return
-    if (this.#options.play()) {
+    const input = this.#options.input()
+    if (input === 'pad') {
       this.#padDown(event)
+      return
+    }
+    if (input === 'calc') {
+      this.#calcDown(event)
       return
     }
     const runner = this.#runner
@@ -91,6 +98,26 @@ export class MachineKeys {
     this.#held.delete(event.code)
     event.preventDefault()
     runner.release(code)
+  }
+
+  /**
+   * A key on SCI-128: a calculator key (sci-input.ts), BRK, or the app's. A SHIFT face (√, x!)
+   * takes SHIFT first unless it is already waiting; any other key leaves SHIFT as the body
+   * left it, so SHIFT pressed there and then `s` typed here is SIN⁻¹.
+   */
+  #calcDown(event: KeyboardEvent): void {
+    const fate = sciKeyFate(event)
+    if (fate.kind === 'pass') return
+    event.preventDefault()
+    if (fate.kind === 'brk') {
+      this.#runner.brk()
+      return
+    }
+    // A key the PC repeats while held is pressed once: the calculator does not repeat keys.
+    if (this.#held.has(event.code)) return
+    this.#held.set(event.code, fate.code)
+    if (fate.shift) this.#runner.down(fate.code, true)
+    else this.#runner.press(fate.code)
   }
 
   /** A key on PLAY-320: a pad button (play-input.ts), BRK, or the app's. */

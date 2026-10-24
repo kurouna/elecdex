@@ -105,3 +105,13 @@ export async function toMonitor(page: Page): Promise<void> {
 /** The panel's tab `name` (tune, files, mem, core, code, games, link, ...). */
 export const elec16Tab = (page: Page, name: string): Locator =>
   page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+
+/**
+ * TUNE's model chosen: a model on another ROM (PLAY-320, SCI-128) clears the RAM, so its chip
+ * asks first (clear RAM?) and a second press makes it (docs/elec16-sci.md section 8.1).
+ */
+export async function chooseModel(scope: Page | Locator, model: string): Promise<void> {
+  const chip = scope.locator(`[data-testid=elec16-model][data-model=${model}]`)
+  await chip.click()
+  if ((await chip.textContent())?.trim() === 'clear RAM?') await chip.click()
+}

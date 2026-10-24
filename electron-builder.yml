@@ -15,6 +15,7 @@ files:
   - '!resources/elec16/rom/**'
   - '!resources/elec16/soft/**'
   - '!resources/elec16/play/**'
+  - '!resources/elec16/sci/**'
   # ELEC-16 PLAY's bundled games: only games.json is read.
   - '!resources/elec16/games/*/**'
   - package.json

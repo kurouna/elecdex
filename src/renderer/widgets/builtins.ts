@@ -504,6 +504,17 @@ registerBuiltin({
   minSize: { w: 300, h: 200 },
   multiple: true,
   zoom: 'full',
+  // The scientific calculator model (docs/elec16-sci.md section 8.1): the same pane, on a new
+  // unit of its own, so no one's BASIC is cleared to make a calculator of it.
+  variants: [
+    {
+      key: 'sci',
+      pickerTitle: 'elec-16 sci',
+      description:
+        'The ELEC-16 as a scientific calculator of its own: a 128 x 64 dot LCD and calculator keys, on a new unit. The calculator itself is still being built.',
+      state: { fresh: 'sci-128' },
+    },
+  ],
 })
 
 registerBuiltin({
