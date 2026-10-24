@@ -57,237 +57,230 @@ const startHidden =
   backgroundCapabilities({ platform: process.platform, wayland: isWayland(process.env) })
     .launchHidden && process.argv.includes(HIDDEN_SWITCH)
 
-/**
- * Everything else the app does: run only by the instance that holds the lock. A second start on
- * the same profile hands over to the first (second-instance) and ends at once, having started
- * nothing - on Linux it went on into the start below after app.exit() and ended by SIGTRAP, a
- * crash (found by the e2e single-instance test on CI, 2026-10-24).
- */
-function start(): void {
-  // Trade a little stability for a lot of GPU performance, mostly on Linux.
-  app.commandLine.appendSwitch('ignore-gpu-blocklist')
-  app.commandLine.appendSwitch('enable-gpu-rasterization')
-
-  process.on('uncaughtException', (error) => {
-    console.error('[elecdex] uncaught exception', error)
-    if (app.isReady()) {
-      dialog.showErrorBox('elecdex crashed', error.stack ?? error.message)
-    }
-    app.exit(1)
-  })
-
-  // Starting elecdex again brings the running one forward, from the notification
-  // area too - except for the sign-in entry, which only meant "be running".
-  app.on('second-instance', (_event, argv) => {
-    if (argv.includes(HIDDEN_SWITCH)) return
-    showMainWindow()
-  })
-
-  let ptyIpc: PtyIpc | null = null
-  let layoutIpc: { dispose: () => void } | null = null
-  let metricsIpc: { dispose: () => void } | null = null
-  let fsIpc: { dispose: () => void } | null = null
-  let weatherIpc: { dispose: () => void } | null = null
-  let settingsIpc: { dispose: () => void } | null = null
-  let launcherIpc: { dispose: () => void } | null = null
-  let marketsIpc: { dispose: () => void } | null = null
-  let feedsIpc: { dispose: () => void } | null = null
-  let clipboardIpc: ReturnType<typeof registerClipboardIpc> | null = null
-  let nowPlayingIpc: { dispose: () => void } | null = null
-  let dockerIpc: { dispose: () => void } | null = null
-  let chip8Ipc: { dispose: () => void } | null = null
-  let elec16Ipc: { dispose: () => void } | null = null
-  let utilityIpc: UtilityIpc | null = null
-  let gitIpc: { dispose: () => void } | null = null
-  let orbitsIpc: { dispose: () => void } | null = null
-  let agentsIpc: { dispose: () => void } | null = null
-  let aiIpc: { dispose: () => void } | null = null
-  /** The AI's keys and adapters, which the ELEC-16's LINK asks through once the AI is up. */
-  let aiLinks: Elec16AiLinks | null = null
-  let quakesIpc: { dispose: () => void } | null = null
-  let notesIpc: { dispose: () => void } | null = null
-  let tasksIpc: { dispose: () => void } | null = null
-  let alarmsIpc: { dispose: () => void } | null = null
-  let updatesIpc: { dispose: () => void } | null = null
-  let audioIpc: { dispose: () => void } | null = null
-  let pluginsIpc: { dispose: () => void } | null = null
-  let webIpc: { dispose: () => void } | null = null
-  let logWatchIpc: { dispose: () => void } | null = null
-  let background: Background | null = null
-
-  // Before the app is ready, as Electron asks: the page is served from app:// (app-protocol.ts).
-  registerAppScheme()
-
-  /**
-   * Where a spell checker would fetch its dictionaries: a closed port on this machine. No session
-   * checks spelling - every window already turns it off - but on Linux a session's spell checker
-   * fetched its Hunspell dictionaries from Google's CDN as the app started (found by the e2e
-   * no-external contract on CI, 2026-10-24), and turning it off alone did not stop that fetch.
-   */
-  const NO_DICTIONARIES = 'http://127.0.0.1:9/'
-
-  function noSpellChecking(ses: Electron.Session): void {
-    ses.setSpellCheckerDictionaryDownloadURL(NO_DICTIONARIES)
-    // No language, no dictionary to fetch; Windows and macOS use the system's checker and take none.
-    if (process.platform === 'linux') {
-      try {
-        ses.setSpellCheckerLanguages([])
-      } catch {
-        // An Electron that wants a language is still held back by the closed download URL above.
-      }
-    }
-    ses.setSpellCheckerEnabled(false)
-  }
-
-  app.on('session-created', noSpellChecking)
-
-  app.whenReady().then(() => {
-    noSpellChecking(session.defaultSession)
-    // Never Electron's default menu, whose Ctrl+R and zoom keys took keys a web pane or a dialog
-    // did not use; on macOS only the app and Edit menus the system expects (app-menu.ts).
-    const menu = appMenuTemplate(process.platform)
-    Menu.setApplicationMenu(menu === null ? null : Menu.buildFromTemplate(menu))
-    registerSystemIpc()
-    const settings = registerSettingsIpc()
-    settingsIpc = settings
-    ptyIpc = registerPtyIpc(settings)
-    layoutIpc = registerLayoutIpc()
-    metricsIpc = registerMetricsIpc()
-    fsIpc = registerFsIpc()
-    weatherIpc = registerWeatherIpc()
-    launcherIpc = registerLauncherIpc(settings)
-    marketsIpc = registerMarketsIpc()
-    feedsIpc = registerFeedsIpc()
-    clipboardIpc = registerClipboardIpc()
-    nowPlayingIpc = registerNowPlayingIpc()
-    dockerIpc = registerDockerIpc()
-    chip8Ipc = registerChip8Ipc()
-    elec16Ipc = registerElec16Ipc(settings, () => aiLinks)
-    // Before the window: AWAKE's hold from last time is taken up at once.
-    utilityIpc = registerUtilityIpc(clipboardIpc.writer)
-    gitIpc = registerGitIpc(settings)
-    orbitsIpc = registerOrbitsIpc()
-    agentsIpc = registerAgentsIpc(settings)
-    const ai = registerAiIpc(settings)
-    aiIpc = ai
-    aiLinks = ai.links
-    logWatchIpc = registerLogWatchIpc(settings, ai.links)
-    updatesIpc = registerUpdatesIpc(settings)
-    quakesIpc = registerQuakesIpc(settings)
-    notesIpc = registerNotesIpc()
-    tasksIpc = registerTasksIpc(settings)
-    alarmsIpc = registerAlarmsIpc(settings)
-    audioIpc = registerAudioIpc()
-    pluginsIpc = registerPluginsIpc(settings)
-    webIpc = registerWebIpc(settings)
-    background = registerBackground(settings)
-    // The hold goes on with the window put away: the tray's tooltip says so.
-    utilityIpc.onLine((line) => background?.setNote(line))
-    const win = createMainWindow({
-      fullscreen: !wantsWindowed,
-      devtools: !app.isPackaged,
-      show: !startHidden,
-    })
-    background.attach(win, startHidden)
-
-    // macOS, where the app goes on running with no window: the Dock icon, and the
-    // app menu, ask for it back. A window that is only hidden or minimised is
-    // brought forward rather than left where it is - the Dock is the one way back
-    // there, and it has to work.
-    app.on('activate', () => {
-      if (appWindows().length > 0) {
-        showMainWindow()
-        return
-      }
-      const next = createMainWindow({
-        fullscreen: !wantsWindowed,
-        devtools: !app.isPackaged,
-        show: true,
-      })
-      background?.attach(next, false)
-    })
-  })
-
-  app.on('before-quit', () => {
-    // Kill every shell before the app tears down, so no orphaned pty survives.
-    // The handlers stay until will-quit: the window can still ask for sessions.
-    ptyIpc?.closeSessions()
-  })
-
-  // Handlers must outlive the windows: a closing renderer flushes its pending
-  // layout save from beforeunload, and the terminal reaper may still list
-  // sessions. Removing them in before-quit made those calls fail with "no
-  // handler registered".
-  app.on('will-quit', () => {
-    ptyIpc?.dispose()
-    ptyIpc = null
-    layoutIpc?.dispose()
-    layoutIpc = null
-    metricsIpc?.dispose()
-    metricsIpc = null
-    fsIpc?.dispose()
-    fsIpc = null
-    weatherIpc?.dispose()
-    weatherIpc = null
-    settingsIpc?.dispose()
-    settingsIpc = null
-    launcherIpc?.dispose()
-    launcherIpc = null
-    marketsIpc?.dispose()
-    marketsIpc = null
-    feedsIpc?.dispose()
-    feedsIpc = null
-    clipboardIpc?.dispose()
-    clipboardIpc = null
-    nowPlayingIpc?.dispose()
-    nowPlayingIpc = null
-    dockerIpc?.dispose()
-    dockerIpc = null
-    chip8Ipc?.dispose()
-    chip8Ipc = null
-    elec16Ipc?.dispose()
-    elec16Ipc = null
-    utilityIpc?.dispose()
-    utilityIpc = null
-    gitIpc?.dispose()
-    gitIpc = null
-    orbitsIpc?.dispose()
-    orbitsIpc = null
-    agentsIpc?.dispose()
-    agentsIpc = null
-    aiIpc?.dispose()
-    aiIpc = null
-    aiLinks = null
-    quakesIpc?.dispose()
-    quakesIpc = null
-    notesIpc?.dispose()
-    notesIpc = null
-    tasksIpc?.dispose()
-    tasksIpc = null
-    alarmsIpc?.dispose()
-    alarmsIpc = null
-    updatesIpc?.dispose()
-    updatesIpc = null
-    audioIpc?.dispose()
-    audioIpc = null
-    pluginsIpc?.dispose()
-    pluginsIpc = null
-    webIpc?.dispose()
-    webIpc = null
-    logWatchIpc?.dispose()
-    logWatchIpc = null
-    background?.dispose()
-    background = null
-  })
-
-  app.on('window-all-closed', () => {
-    // macOS keeps an app running with no window open - it is in the Dock and the
-    // menu bar, and `activate` above makes a window when it is asked for. Quitting
-    // here would make closing the window mean quitting, which is a Windows habit,
-    // and would leave that `activate` unreachable.
-    if (process.platform !== 'darwin') app.quit()
-  })
+if (!app.requestSingleInstanceLock()) {
+  app.exit(0)
 }
 
-if (app.requestSingleInstanceLock()) start()
-else app.quit()
+// Trade a little stability for a lot of GPU performance, mostly on Linux.
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+
+process.on('uncaughtException', (error) => {
+  console.error('[elecdex] uncaught exception', error)
+  if (app.isReady()) {
+    dialog.showErrorBox('elecdex crashed', error.stack ?? error.message)
+  }
+  app.exit(1)
+})
+
+// Starting elecdex again brings the running one forward, from the notification
+// area too - except for the sign-in entry, which only meant "be running".
+app.on('second-instance', (_event, argv) => {
+  if (argv.includes(HIDDEN_SWITCH)) return
+  showMainWindow()
+})
+
+let ptyIpc: PtyIpc | null = null
+let layoutIpc: { dispose: () => void } | null = null
+let metricsIpc: { dispose: () => void } | null = null
+let fsIpc: { dispose: () => void } | null = null
+let weatherIpc: { dispose: () => void } | null = null
+let settingsIpc: { dispose: () => void } | null = null
+let launcherIpc: { dispose: () => void } | null = null
+let marketsIpc: { dispose: () => void } | null = null
+let feedsIpc: { dispose: () => void } | null = null
+let clipboardIpc: ReturnType<typeof registerClipboardIpc> | null = null
+let nowPlayingIpc: { dispose: () => void } | null = null
+let dockerIpc: { dispose: () => void } | null = null
+let chip8Ipc: { dispose: () => void } | null = null
+let elec16Ipc: { dispose: () => void } | null = null
+let utilityIpc: UtilityIpc | null = null
+let gitIpc: { dispose: () => void } | null = null
+let orbitsIpc: { dispose: () => void } | null = null
+let agentsIpc: { dispose: () => void } | null = null
+let aiIpc: { dispose: () => void } | null = null
+/** The AI's keys and adapters, which the ELEC-16's LINK asks through once the AI is up. */
+let aiLinks: Elec16AiLinks | null = null
+let quakesIpc: { dispose: () => void } | null = null
+let notesIpc: { dispose: () => void } | null = null
+let tasksIpc: { dispose: () => void } | null = null
+let alarmsIpc: { dispose: () => void } | null = null
+let updatesIpc: { dispose: () => void } | null = null
+let audioIpc: { dispose: () => void } | null = null
+let pluginsIpc: { dispose: () => void } | null = null
+let webIpc: { dispose: () => void } | null = null
+let logWatchIpc: { dispose: () => void } | null = null
+let background: Background | null = null
+
+// Before the app is ready, as Electron asks: the page is served from app:// (app-protocol.ts).
+registerAppScheme()
+
+/**
+ * Where a spell checker would fetch its dictionaries: a closed port on this machine. No session
+ * checks spelling - every window already turns it off - but on Linux a session's spell checker
+ * fetched its Hunspell dictionaries from Google's CDN as the app started (found by the e2e
+ * no-external contract on CI, 2026-10-24), and turning it off alone did not stop that fetch.
+ */
+const NO_DICTIONARIES = 'http://127.0.0.1:9/'
+
+function noSpellChecking(ses: Electron.Session): void {
+  ses.setSpellCheckerDictionaryDownloadURL(NO_DICTIONARIES)
+  // No language, no dictionary to fetch; Windows and macOS use the system's checker and take none.
+  if (process.platform === 'linux') {
+    try {
+      ses.setSpellCheckerLanguages([])
+    } catch {
+      // An Electron that wants a language is still held back by the closed download URL above.
+    }
+  }
+  ses.setSpellCheckerEnabled(false)
+}
+
+app.on('session-created', noSpellChecking)
+
+app.whenReady().then(() => {
+  noSpellChecking(session.defaultSession)
+  // Never Electron's default menu, whose Ctrl+R and zoom keys took keys a web pane or a dialog
+  // did not use; on macOS only the app and Edit menus the system expects (app-menu.ts).
+  const menu = appMenuTemplate(process.platform)
+  Menu.setApplicationMenu(menu === null ? null : Menu.buildFromTemplate(menu))
+  registerSystemIpc()
+  const settings = registerSettingsIpc()
+  settingsIpc = settings
+  ptyIpc = registerPtyIpc(settings)
+  layoutIpc = registerLayoutIpc()
+  metricsIpc = registerMetricsIpc()
+  fsIpc = registerFsIpc()
+  weatherIpc = registerWeatherIpc()
+  launcherIpc = registerLauncherIpc(settings)
+  marketsIpc = registerMarketsIpc()
+  feedsIpc = registerFeedsIpc()
+  clipboardIpc = registerClipboardIpc()
+  nowPlayingIpc = registerNowPlayingIpc()
+  dockerIpc = registerDockerIpc()
+  chip8Ipc = registerChip8Ipc()
+  elec16Ipc = registerElec16Ipc(settings, () => aiLinks)
+  // Before the window: AWAKE's hold from last time is taken up at once.
+  utilityIpc = registerUtilityIpc(clipboardIpc.writer)
+  gitIpc = registerGitIpc(settings)
+  orbitsIpc = registerOrbitsIpc()
+  agentsIpc = registerAgentsIpc(settings)
+  const ai = registerAiIpc(settings)
+  aiIpc = ai
+  aiLinks = ai.links
+  logWatchIpc = registerLogWatchIpc(settings, ai.links)
+  updatesIpc = registerUpdatesIpc(settings)
+  quakesIpc = registerQuakesIpc(settings)
+  notesIpc = registerNotesIpc()
+  tasksIpc = registerTasksIpc(settings)
+  alarmsIpc = registerAlarmsIpc(settings)
+  audioIpc = registerAudioIpc()
+  pluginsIpc = registerPluginsIpc(settings)
+  webIpc = registerWebIpc(settings)
+  background = registerBackground(settings)
+  // The hold goes on with the window put away: the tray's tooltip says so.
+  utilityIpc.onLine((line) => background?.setNote(line))
+  const win = createMainWindow({
+    fullscreen: !wantsWindowed,
+    devtools: !app.isPackaged,
+    show: !startHidden,
+  })
+  background.attach(win, startHidden)
+
+  // macOS, where the app goes on running with no window: the Dock icon, and the
+  // app menu, ask for it back. A window that is only hidden or minimised is
+  // brought forward rather than left where it is - the Dock is the one way back
+  // there, and it has to work.
+  app.on('activate', () => {
+    if (appWindows().length > 0) {
+      showMainWindow()
+      return
+    }
+    const next = createMainWindow({
+      fullscreen: !wantsWindowed,
+      devtools: !app.isPackaged,
+      show: true,
+    })
+    background?.attach(next, false)
+  })
+})
+
+app.on('before-quit', () => {
+  // Kill every shell before the app tears down, so no orphaned pty survives.
+  // The handlers stay until will-quit: the window can still ask for sessions.
+  ptyIpc?.closeSessions()
+})
+
+// Handlers must outlive the windows: a closing renderer flushes its pending
+// layout save from beforeunload, and the terminal reaper may still list
+// sessions. Removing them in before-quit made those calls fail with "no
+// handler registered".
+app.on('will-quit', () => {
+  ptyIpc?.dispose()
+  ptyIpc = null
+  layoutIpc?.dispose()
+  layoutIpc = null
+  metricsIpc?.dispose()
+  metricsIpc = null
+  fsIpc?.dispose()
+  fsIpc = null
+  weatherIpc?.dispose()
+  weatherIpc = null
+  settingsIpc?.dispose()
+  settingsIpc = null
+  launcherIpc?.dispose()
+  launcherIpc = null
+  marketsIpc?.dispose()
+  marketsIpc = null
+  feedsIpc?.dispose()
+  feedsIpc = null
+  clipboardIpc?.dispose()
+  clipboardIpc = null
+  nowPlayingIpc?.dispose()
+  nowPlayingIpc = null
+  dockerIpc?.dispose()
+  dockerIpc = null
+  chip8Ipc?.dispose()
+  chip8Ipc = null
+  elec16Ipc?.dispose()
+  elec16Ipc = null
+  utilityIpc?.dispose()
+  utilityIpc = null
+  gitIpc?.dispose()
+  gitIpc = null
+  orbitsIpc?.dispose()
+  orbitsIpc = null
+  agentsIpc?.dispose()
+  agentsIpc = null
+  aiIpc?.dispose()
+  aiIpc = null
+  aiLinks = null
+  quakesIpc?.dispose()
+  quakesIpc = null
+  notesIpc?.dispose()
+  notesIpc = null
+  tasksIpc?.dispose()
+  tasksIpc = null
+  alarmsIpc?.dispose()
+  alarmsIpc = null
+  updatesIpc?.dispose()
+  updatesIpc = null
+  audioIpc?.dispose()
+  audioIpc = null
+  pluginsIpc?.dispose()
+  pluginsIpc = null
+  webIpc?.dispose()
+  webIpc = null
+  logWatchIpc?.dispose()
+  logWatchIpc = null
+  background?.dispose()
+  background = null
+})
+
+app.on('window-all-closed', () => {
+  // macOS keeps an app running with no window open - it is in the Dock and the
+  // menu bar, and `activate` above makes a window when it is asked for. Quitting
+  // here would make closing the window mean quitting, which is a Windows habit,
+  // and would leave that `activate` unreachable.
+  if (process.platform !== 'darwin') app.quit()
+})
