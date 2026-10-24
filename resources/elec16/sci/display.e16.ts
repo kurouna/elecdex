@@ -21,6 +21,7 @@ import { setAnswer, setTokensAt } from './layout.e16'
 import { bigNumber, textAt, textRight } from './lcd.e16'
 import {
   diffValue,
+  FORMAT_AUTO2,
   FORMAT_EXP,
   FORMAT_FIX,
   isExact,
@@ -345,7 +346,7 @@ export function decimalText(v: u16): void {
   const n = peek(KEEP_DIGITS)
   if (shape === FORMAT_FIX) fixText(v, n)
   else if (shape === FORMAT_EXP) expText(v, n === 0 ? 10 : n, false)
-  else autoText(v)
+  else autoText(v, shape === FORMAT_AUTO2)
 }
 
 /** `v` as SETUP shows a decimal: the text's address (it holds until the next text). */
@@ -354,8 +355,15 @@ export function textOf(v: u16): u16 {
   return addr(text)
 }
 
-function autoText(v: u16): void {
+/** AUTO; AUTO2 (`small`) writes a number below 0.01 with an exponent too: 0.003 is 3E-3. */
+function autoText(v: u16, small: bool): void {
   const e = exponentOf(v)
+  if (small && !isZero(v) && e < -2) {
+    trimmed = true
+    expText(v, 10, false)
+    trimmed = false
+    return
+  }
   if (isZero(v) || e < -9 || e > 9) {
     format(v, 10)
     return
@@ -396,10 +404,13 @@ function expText(v: u16, digits: u16, eng: bool): void {
     addChar(0x30 + ((k & 1) === 0 ? pair >> 4 : pair & 15))
     if (i16(k) === shift && k + 1 < digits) addChar(0x2e)
   }
-  if (eng) trimZeros()
+  if (eng || trimmed) trimZeros()
   addChar(0x45)
   numberChars(e - shift)
 }
+
+/** expText leaves no zeros after the point (AUTO2's exponent form). */
+let trimmed: bool = false
 
 /** ENG: ten significant digits, the exponent a multiple of 3. */
 export function engText(v: u16): void {

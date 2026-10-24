@@ -112,14 +112,22 @@ export const T_STAT_N = 0x97
 export const T_STAT_LAST = 0xf9
 export const T_XEST = 0xfa
 export const T_YEST = 0xfb
+/** The quadratic's c, and its other x estimate x₂′(. */
+export const T_STAT_C = 0xfc
+export const T_X2EST = 0xfd
+/* The random page's values (after EL-509E's list): dice 1-6, coin 0 or 1, rint 0-99. */
+export const T_DICE = 0x0c
+export const T_COIN = 0x0d
+export const T_RINT = 0x0e
 
 /** Whether a token is one of STATS' results (n ... b). */
 export function isStatValue(t: u16): bool {
-  return (t >= T_STAT_N && t <= 0x9f) || (t >= 0xf4 && t <= T_STAT_LAST)
+  return (t >= T_STAT_N && t <= 0x9f) || (t >= 0xf4 && t <= T_STAT_LAST) || t === T_STAT_C
 }
 
 /** A result's place in STATS' list: n x̄ σx sx ȳ σy sy Σx Σx² Σy Σy² Σxy r a b (0-14). */
 export function statIndex(t: u16): u16 {
+  if (t === T_STAT_C) return 15
   return t <= 0x9f ? t - T_STAT_N : t - 0xf4 + 9
 }
 
@@ -135,7 +143,13 @@ export function isSeparator(t: u16): bool {
 
 /** Whether a token opens a function: its argument follows, closed by ) or the line's end. */
 export function isFunction(t: u16): bool {
-  return (t >= T_SIN && t <= T_CBRT) || (t >= T_SINH && t <= T_REC) || t === T_XEST || t === T_YEST
+  return (
+    (t >= T_SIN && t <= T_CBRT) ||
+    (t >= T_SINH && t <= T_REC) ||
+    t === T_XEST ||
+    t === T_YEST ||
+    t === T_X2EST
+  )
 }
 
 /** Whether a function takes two arguments, a comma between them. */
@@ -202,6 +216,12 @@ export function tokenText(t: u16): u16 {
       return str('^(')
     case T_SLASH:
       return str('/')
+    case T_DICE:
+      return str('dice')
+    case T_COIN:
+      return str('coin')
+    case T_RINT:
+      return str('rint')
     case T_MIXED:
       return str('(')
     case T_MSEP:
@@ -271,6 +291,8 @@ function logicText(t: u16): u16 {
       return str('x\x89(')
     case T_YEST:
       return str('y\x89(')
+    case T_X2EST:
+      return str('x\x93\x89(')
   }
   return isStatValue(t) ? statText(t) : 0
 }
@@ -306,6 +328,8 @@ function statText(t: u16): u16 {
       return str('r')
     case 13:
       return str('a')
+    case 15:
+      return str('c')
   }
   return str('b')
 }

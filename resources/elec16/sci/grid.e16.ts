@@ -74,7 +74,7 @@ export function gridOpen(which: u16, rows: u16, cols: u16): void {
 /** STATS' columns: X, Y for 2-VAR, FREQ when it is on. */
 function statsCols(): u16 {
   let n: u16 = 1
-  if (peek(STATS_TYPE) === 1) n++
+  if (peek(STATS_TYPE) !== 0) n++
   if (peek(STATS_FREQ) !== 0) n++
   return n
 }
@@ -94,7 +94,7 @@ function rowsNow(): u16 {
 /** STATS' data column under the grid's column `c`: X 0, Y 1, FREQ 2. */
 function dataColumn(c: u16): u16 {
   if (c === 0) return 0
-  if (c === 1 && peek(STATS_TYPE) === 1) return 1
+  if (c === 1 && peek(STATS_TYPE) !== 0) return 1
   return 2
 }
 

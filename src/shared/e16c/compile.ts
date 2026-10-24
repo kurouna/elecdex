@@ -42,7 +42,10 @@ export function compile(files: SourceFile[], options: E16cOptions): E16cResult {
   } catch (e) {
     const message = e instanceof Error ? e.message.replace(/^e16c: /, '') : String(e)
     const file = files[0]?.name ?? ''
-    const deep = e instanceof RangeError ? 'the source nests too deeply' : message
+    // Only the stack running out is the source's depth; a RangeError of its own (a bank out of
+    // range) says what it is.
+    const overflow = e instanceof RangeError && /call stack/i.test(message)
+    const deep = overflow ? 'the source nests too deeply' : message
     return {
       asm: '',
       errors: [{ file: placeOf(files, message) ?? file, line: 0, column: 0, message: deep }],

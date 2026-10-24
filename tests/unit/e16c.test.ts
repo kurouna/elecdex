@@ -499,6 +499,13 @@ describe('e16c', () => {
     ])
   })
 
+  it('says a bank past the last is out of range, not that the source nests too deeply', () => {
+    // A RangeError of its own was once reported as a stack overflow's words.
+    const text = 'export function f(): u16 { return 1 }'
+    const out = compile([{ name: 'far.ts', text, bank: 12 }], OPTIONS)
+    expect(out.errors[0]?.message).toBe('far.ts: a bank is 0 to 11')
+  })
+
   it('answers with an error, never an exception, for what it cannot do', () => {
     const deep = [
       'function down(n: u16): u16 { if (n === 0) return 0; return down(n - 1) + 1 }',

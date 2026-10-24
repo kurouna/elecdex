@@ -44,18 +44,7 @@ import {
   refuse,
 } from './calc.e16'
 import { exactWhole } from './exact.e16'
-import {
-  band,
-  bandWith,
-  barDots,
-  cls,
-  dot,
-  glyphAt,
-  lineY,
-  noCursor,
-  textAt,
-  textRight,
-} from './lcd.e16'
+import { bandWith, barDots, cls, dot, glyphAt, lineY, noCursor, textAt, textRight } from './lcd.e16'
 import {
   BASE_RADIX,
   copy8,
@@ -77,6 +66,7 @@ import {
   pushInt,
   top,
   VALUE_SIZE,
+  WORK,
 } from './numbers.e16'
 import {
   T_AND,
@@ -99,6 +89,9 @@ const M_FROMI32 = 0x29
 const M_TOI32 = 0x2a
 const HEX = 0
 const BIN = 3
+const PEN = 4
+/** HEX, DEC, OCT, BIN and PEN (base 5, after EL-509E's list). */
+const RADIXES = 5
 
 /** BIN's sixteen bits shown: the high ones (▲) or the low. */
 let high: bool = false
@@ -110,6 +103,7 @@ function radix(): u16 {
 function radixValue(r: u16): u16 {
   if (r === HEX) return 16
   if (r === BIN) return 2
+  if (r === PEN) return 5
   return r === 1 ? 10 : 8
 }
 
@@ -157,7 +151,7 @@ function baseDigit(k: u16): u16 {
 /** BASE's own keys: F⇄D the next base, ▲ ▼ BIN's halves of an answer. Done, true. */
 export function baseCommand(k: u16): bool {
   if (k === K_FD) {
-    poke(BASE_RADIX, (radix() + 1) & 3)
+    poke(BASE_RADIX, radix() + 1 < RADIXES ? radix() + 1 : 0)
     return true
   }
   if (answered && (k === K_UP || k === K_DOWN)) {
@@ -167,32 +161,51 @@ export function baseCommand(k: u16): bool {
   return false
 }
 
-/** FUNC in BASE: 1-4 the base, 5-0 the logic (its token); 1 back, 0 still choosing. */
+/** FUNC in BASE: page 1 the bases (1-5), page 2 the logic (1-6, its token); 1 back, 0 stay. */
+let baseFuncPage: u16 = 0
+
 export function baseFuncKey(k: u16): u16 {
   if (k === K_AC) return 1
+  if (k === K_DOWN || k === K_UP) {
+    baseFuncPage = k === K_DOWN ? 1 : 0
+    drawBaseFunc()
+    return 0
+  }
   const d = baseDigit(k)
-  if (d >= 1 && d <= 4) {
+  if (baseFuncPage === 0 && d >= 1 && d <= RADIXES) {
     poke(BASE_RADIX, d - 1)
     return 1
   }
-  if (d === 5) return T_AND
-  if (d === 6) return T_OR
-  if (d === 7) return T_XOR
-  if (d === 8) return T_XNOR
-  if (d === 9) return T_NOT
-  if (d === 0) return T_BNEG
-  refuse()
-  return 0
+  const t = baseFuncPage === 1 ? logicOf(d) : 0
+  if (t === 0) refuse()
+  return t
+}
+
+function logicOf(d: u16): u16 {
+  if (d === 1) return T_AND
+  if (d === 2) return T_OR
+  if (d === 3) return T_XOR
+  if (d === 4) return T_XNOR
+  if (d === 5) return T_NOT
+  return d === 6 ? T_BNEG : 0
 }
 
 export function baseFuncScreen(): void {
+  baseFuncPage = 0
+  drawBaseFunc()
+}
+
+function drawBaseFunc(): void {
   cls()
-  band(str('FUNC'))
-  textAt(str('1:HEX 2:DEC 3:OCT'), 1, lineY(0))
-  textAt(str('4:BIN 5:AND 6:OR'), 1, lineY(1))
-  textAt(str('7:XOR 8:XNOR'), 1, lineY(2))
-  textAt(str('9:not( 0:neg('), 1, lineY(3))
-  textAt(str('AC:BACK'), 1, lineY(5))
+  bandWith(str('FUNC'), baseFuncPage === 0 ? str('1/2') : str('2/2'))
+  if (baseFuncPage === 0) {
+    textAt(str('1:HEX 2:DEC 3:OCT'), 1, lineY(0))
+    textAt(str('4:BIN 5:PEN'), 1, lineY(1))
+  } else {
+    textAt(str('1:AND 2:OR 3:XOR'), 1, lineY(0))
+    textAt(str('4:XNOR 5:not( 6:neg('), 1, lineY(1))
+  }
+  textAt(str('\x8d\x8e:PAGE AC:BACK'), 1, lineY(5))
 }
 
 /* ---------------- the evaluation ---------------- */
@@ -425,6 +438,7 @@ export function baseDraw(): void {
   math(M_TOI32, KEEP_ANS, addr(bits), 0)
   radixText(radix())
   textRight(addr(baseText), lineY(1))
+  // The other bases under it: in PEN the four, down to line 5, and no dots; else three and BIN's dots.
   let n: u16 = 2
   for (let r: u16 = 0; r < 4; r++) {
     if (r === radix()) continue
@@ -433,14 +447,14 @@ export function baseDraw(): void {
     textRight(addr(baseText), lineY(n))
     n++
   }
-  dots()
+  if (radix() !== PEN) dots()
 }
 
 function radixName(r: u16): u16 {
   if (r === HEX) return str('HEX')
   if (r === 1) return str('DEC')
   if (r === 2) return str('OCT')
-  return str('BIN')
+  return r === PEN ? str('PEN') : str('BIN')
 }
 
 /** BIN with the arrow that shows the other half. */
@@ -482,6 +496,10 @@ function into(t: u16, n: u16): u16 {
 
 /** Ans in base `r` into the text: HEX 8 digits, OCT 11, BIN 16 (a half), DEC signed. */
 function radixText(r: u16): void {
+  if (r === PEN) {
+    penText()
+    return
+  }
   if (r === 1) {
     poke16(MATH_ARG, 10)
     math(M_FORMAT, KEEP_ANS, addr(baseText), 0)
@@ -496,6 +514,26 @@ function radixText(r: u16): void {
     baseText[k] = d < 10 ? 0x30 + d : 0x37 + d
   }
   baseText[digits] = 0
+}
+
+/**
+ * Ans in base 5, its 32 bits as an unsigned number (as HEX shows them): 14 digits, each the
+ * remainder by 5 of what is left, the last first.
+ */
+function penText(): void {
+  const left = WORK + 64
+  const five = WORK + 72
+  const digit = WORK + 80
+  copy8(KEEP_ANS, left)
+  if (isNegative(left)) math(M_ADD, left, addr(TWO32), 0)
+  setDigit(five, 5)
+  for (let k: u16 = 14; k > 0; k--) {
+    copy8(left, digit)
+    math(M_MOD, digit, five, 0)
+    baseText[k - 1] = 0x30 + (peek(digit + 2) >> 4)
+    math(M_IDIV, left, five, 0)
+  }
+  baseText[14] = 0
 }
 
 /** `width` bits of Ans from bit `from` (the high bits past 31 are 0). */

@@ -41,6 +41,7 @@ import { deleteAt, editCursor, editLength, vertical, wrap } from './edit.e16'
 import { eqnDraw, eqnKey, eqnReset, eqnStart } from './equation.e16'
 import { evaluate } from './eval.e16'
 import { exactBinary } from './exact.e16'
+import { constantKept, dropConstant, nextAngle, noteConstant, withConstant } from './extras.e16'
 import { cursorTop, cursorX, heightOf, setLine } from './layout.e16'
 import { barAt, barDots, COLS, centre, cls, drawChar, marks, noCursor, textAt } from './lcd.e16'
 import {
@@ -100,6 +101,8 @@ import {
 } from './table.e16'
 import {
   isDigit,
+  isSeparator,
+  opensTemplate,
   T_ABS,
   T_ACOS,
   T_ACOSH,
@@ -270,6 +273,8 @@ let shifted: bool = false
 let alphaOn: bool = false
 let storing: bool = false
 let recalling: bool = false
+/** Keys type over the token at the cursor (SHIFT DEL) rather than put one in before it. */
+let overwrite: bool = false
 /** HYP waits for SIN, COS or TAN. */
 let hyp: bool = false
 /** The answer came from FIND X (shown with its DIFF). */
@@ -442,6 +447,8 @@ export function clearLine(): void {
     return
   }
   if (mode === MODE_TABLE) tableReset()
+  // AC forgets the constant too, as it forgets the line.
+  dropConstant()
   screen = S_CALC
   length = 0
   cursor = 0
@@ -485,6 +492,7 @@ function dispatch(k: u16, shift: bool, alpha: bool): void {
     if (setupKey(k) !== 0) clearLine()
   } else if (screen === S_FUNC) funcChosen(mode === MODE_BASE ? baseFuncKey(k) : funcKey(k))
   else if (screen === S_ASK) asked(k, shift)
+  else if (k === K_SETUP && shift) angleKey()
   else if (k === K_MENU || k === K_SETUP) openScreen(k)
   else modeKey(k, shift, alpha)
 }
@@ -498,6 +506,22 @@ function modeKey(k: u16, shift: bool, alpha: bool): void {
     calcKey(k, shift, alpha)
     return
   }
+  drawCalc()
+}
+
+/**
+ * SHIFT SETUP (ANGLE): the answer - the line's, answered first, or Ans - in the next angle
+ * unit, SETUP's unit with it (after EL-509E's list). CALC only.
+ */
+function angleKey(): void {
+  if (mode !== MODE_CALC) {
+    refuse()
+    return
+  }
+  if (!answered && length > 0) equals(false)
+  nextAngle()
+  answered = true
+  shown = SHOW_DECIMAL
   drawCalc()
 }
 
@@ -796,7 +820,11 @@ function commandKey(k: u16, shift: bool, alpha: bool): bool {
       history(k === K_UP)
       return true
     case K_DEL:
-      deleteBefore()
+      // SHIFT DEL: typing over the token at the cursor, or put in before it again.
+      if (shift) {
+        overwrite = !overwrite
+        drawCalc()
+      } else deleteBefore()
       return true
     case K_DMS:
       if (!shift) return false
@@ -992,6 +1020,12 @@ function type(t: u16): void {
 }
 
 function insert(t: u16): void {
+  // Typed over: only a token for a token - a template's marks are always put in.
+  if (overwrite && cursor < length && overwritable(t) && overwritable(line[cursor])) {
+    line[cursor] = t
+    cursor++
+    return
+  }
   if (length >= lineMax()) {
     refuse()
     return
@@ -1000,6 +1034,11 @@ function insert(t: u16): void {
   line[cursor] = t
   length++
   cursor++
+}
+
+/** Whether a token is no template's mark (and so may be typed over). */
+function overwritable(t: u16): bool {
+  return !opensTemplate(t) && !isSeparator(t) && t !== T_END
 }
 
 function deleteBefore(): void {
@@ -1035,9 +1074,18 @@ function arrow(left: bool): void {
  */
 function equals(approx: bool): void {
   if (length === 0) return
+  // A number alone after 34+57 is 45+57: the constant made part of the line, which shows it.
+  if (mode === MODE_CALC) {
+    const made = withConstant(addr(line), length)
+    if (made !== 0xffff) {
+      length = made
+      cursor = made
+    }
+  }
   clearStack()
   if (mode === MODE_BASE) baseEvaluate(addr(line), length)
   else evaluate(addr(line), length)
+  if (mode === MODE_CALC) noteConstant(addr(line), length)
   copyValue(top(), KEEP_ANS)
   remember()
   answered = true
@@ -1255,6 +1303,12 @@ function historyMarks(): u16 {
   return bits
 }
 
+/** K: a constant kept for a number alone; OVR: typing over. */
+function footMarks(): void {
+  if (answered && mode === MODE_CALC && constantKept()) textAt(str('K'), 1, 56)
+  if (!answered && overwrite) textAt(str('OVR'), 1, 56)
+}
+
 /** The line on its rows, and the answer below it when there is one. */
 function drawCalc(): void {
   if (mode === MODE_BASE) {
@@ -1274,6 +1328,7 @@ function drawCalc(): void {
   if (twoD()) drawLine2D()
   else drawLine()
   if (answered) drawAnswerAs(shown)
+  footMarks()
   if (mode === MODE_TABLE) {
     textAt(str('TABLE f(X)'), 1, 47)
     textAt(str('=:START,END,STEP'), 1, 56)

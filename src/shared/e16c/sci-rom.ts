@@ -31,6 +31,7 @@ export const SCI_SOURCES: readonly { name: string; bank?: number }[] = [
   { name: 'grid.e16.ts', bank: 9 },
   { name: 'table.e16.ts', bank: 10 },
   { name: 'equation.e16.ts', bank: 11 },
+  { name: 'extras.e16.ts', bank: 10 },
 ]
 
 /**

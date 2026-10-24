@@ -81,7 +81,7 @@ import {
   VALUE_SIZE,
   varAt,
 } from './numbers.e16'
-import { statValue } from './stats.e16'
+import { EST_X, EST_X2, EST_Y, statEstimate, statValue } from './stats.e16'
 import {
   isDigit,
   isFunction,
@@ -99,11 +99,13 @@ import {
   T_BANG,
   T_CBRT,
   T_CLOSE,
+  T_COIN,
   T_COMMA,
   T_COS,
   T_COSH,
   T_CUBE,
   T_DEG,
+  T_DICE,
   T_DIVIDE,
   T_E,
   T_END,
@@ -132,6 +134,7 @@ import {
   T_POWT,
   T_RAN,
   T_REC,
+  T_RINT,
   T_RND,
   T_ROOT,
   T_SEC,
@@ -145,6 +148,7 @@ import {
   T_TANH,
   T_TEN,
   T_TIMES,
+  T_X2EST,
   T_XEST,
   T_XROOT,
   T_XSEP,
@@ -234,6 +238,9 @@ function startsValue(t: u16): bool {
     t === T_XROOT ||
     t === T_RAN ||
     isStatValue(t) ||
+    t === T_DICE ||
+    t === T_COIN ||
+    t === T_RINT ||
     isFunction(t) ||
     isVariable(t)
   )
@@ -416,6 +423,8 @@ function constant(t: u16, at: u16): bool {
     math(M_RND, push(at), 0, at)
   } else if (isStatValue(t)) {
     statValue(statIndex(t), push(at))
+  } else if (t === T_DICE || t === T_COIN || t === T_RINT) {
+    randomWhole(t, at)
   } else return false
   return true
 }
@@ -436,6 +445,20 @@ function bracketed(t: u16, at: u16): void {
     if (takesTwo(t)) applyTwo(t, at)
     else apply(t, at)
   } else fail(E_SYNTAX, at)
+}
+
+/** A whole random number: dice 1-6, coin 0 or 1, rint 0-99 (rand x 6 + 1, x 2, x 100, cut). */
+function randomWhole(t: u16, at: u16): void {
+  const v = push(at)
+  math(M_RND, v, 0, at)
+  const k = pushInt(t === T_DICE ? 6 : t === T_COIN ? 2 : 100, at)
+  math(M_MUL, v, k, at)
+  pop()
+  const one = pushInt(1, at)
+  math(M_IDIV, v, one, at)
+  if (t === T_DICE) math(M_ADD, v, one, at)
+  pop()
+  exactWhole(v)
 }
 
 /** A template's parts and its value: false for a token that opens none. */
@@ -625,8 +648,9 @@ function other(f: u16, x: u16, at: u16): void {
 
 /** The functions from 0xE0 that take one argument (S5). */
 function named(f: u16, x: u16, at: u16): void {
-  if (f === T_XEST || f === T_YEST) {
-    estimate(f === T_XEST, x, at)
+  if (f === T_XEST || f === T_YEST || f === T_X2EST) {
+    // On the curve STATS fits (stats.e16.ts): y'(x), x'(y), the quadratic's x2'(y).
+    statEstimate(f === T_YEST ? EST_Y : f === T_XEST ? EST_X : EST_X2, x)
     return
   }
   if (f === T_SINH) math(M_SINH, x, 0, at)
@@ -652,23 +676,6 @@ function wholeOrRounded(f: u16, x: u16, at: u16): void {
     math(M_NEG, x, 0, at)
     exactNeg(x)
   }
-}
-
-/** On STATS' line y = a + bx: x'(y) = (y - a) / b, or y'(x) = a + bx. */
-function estimate(ofX: bool, v: u16, at: u16): void {
-  const a = push(at)
-  statValue(13, a)
-  const b = push(at)
-  statValue(14, b)
-  if (ofX) {
-    math(M_SUB, v, a, at)
-    math(M_DIV, v, b, at)
-  } else {
-    math(M_MUL, v, b, at)
-    math(M_ADD, v, a, at)
-  }
-  pop()
-  pop()
 }
 
 /* ---------------- the functions of two arguments ---------------- */

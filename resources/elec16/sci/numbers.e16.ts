@@ -140,6 +140,8 @@ export const KEEP_MIXED = 0x0c07
 export const FORMAT_AUTO = 0
 export const FORMAT_FIX = 1
 export const FORMAT_EXP = 2
+/** AUTO with an exponent below 0.01 as well (after EL-509E's list). */
+export const FORMAT_AUTO2 = 3
 /** Ans: a value. */
 export const KEEP_ANS = 0x0c08
 /** The mode the calculator is in (calc.e16.ts MODE_*), kept when the power goes. */
@@ -192,6 +194,10 @@ export const BASE_LINE = 0x2000
 const MODES_END = 0x2100
 /** EQUATION's working values (24 values), not kept: e16c's own RAM is full. */
 export const EQN_WORK = 0x2100
+/** STATS' working numbers (44 of 8 bytes, then a byte each: has it a value), not kept. */
+export const STATS_WORK = 0x2500
+/** A little working room for the banks with no RAM of their own (extras.e16.ts, base.e16.ts), not kept. */
+export const WORK = 0x2700
 
 /** Whether the modes' region is set out; when not, it is: empty, 1-VAR, DEC, f(X) empty. */
 export function modesReady(): void {

@@ -645,12 +645,12 @@ describe('the rest of CALC (S5)', () => {
 
   it('shows Pol and Rec as X and Y, and keeps them there', () => {
     const m = switchOn()
-    keys(m, 'func 7 3 shift lp 4 eq')
+    keys(m, 'func 6 3 shift lp 4 eq')
     expect(lineAt(m, 46, false, 1).startsWith('X=')).toBe(true)
     expect(right(m, 46).split(' ').pop()).toBe('5')
     expect(right(m, 55).split(' ').pop()).toBe('53.13010235')
     expect(variable(m, 6)).toBe('5')
-    keys(m, 'ac func 8 2 shift lp 9 0 eq')
+    keys(m, 'ac func 7 2 shift lp 9 0 eq')
     expect(variable(m, 6)).toBe('0')
     expect(variable(m, 7)).toBe('2')
   })
@@ -763,7 +763,7 @@ describe('the modes (S6)', () => {
     const m = switchOn()
     keys(m, 'menu 2')
     expect(lit(m)).toContain('STAT')
-    keys(m, '3 1 2 eq 4 eq 6 eq right up up up 1 eq 2 eq 1 eq eq')
+    keys(m, '8 1 2 eq 4 eq 6 eq right up up up 1 eq 2 eq 1 eq eq')
     expect(bandLeft(m)).toBe('1-VAR RESULT')
     expect(rightWord(m, lineY(0))).toBe('4')
     expect(rightWord(m, lineY(1))).toBe('4')
@@ -776,12 +776,12 @@ describe('the modes (S6)', () => {
   it('STATS fits a line to two variables and keeps the data through OFF and ON', () => {
     const m = switchOn()
     keys(m, 'menu 2 2 1 eq 2 eq 3 eq right up up up 2 eq 4 eq 7 eq eq')
-    expect(bandLeft(m)).toBe('2-VAR RESULT')
+    expect(bandLeft(m)).toBe('LINE RESULT')
     expect(rightWord(m, lineY(3))).toBe('0.993399268')
     expect(rightWord(m, lineY(4))).toBe('-0.666666667')
     expect(rightWord(m, lineY(5))).toBe('2.5')
     keys(m, 'down')
-    expect(rightWord(m, lineY(1))).toBe('1')
+    expect(rightWord(m, lineY(2))).toBe('1')
     keys(m, 'ac shift on')
     m.brk()
     settle(m)
@@ -801,7 +801,7 @@ describe('the modes (S6)', () => {
 
   it('BASE shows an answer in the base and the other three, and its bits', () => {
     const m = switchOn()
-    keys(m, 'menu 3 func 1 sin 0 1 6 func 5 0 neg tan tan 0 eq')
+    keys(m, 'menu 3 func 1 sin 0 1 6 func down 1 0 neg tan tan 0 eq')
     expect(lineAt(m, 11, false, 1)).toBe('D016 AND 0AFF0')
     expect(rightWord(m, lineY(1))).toBe('00008010')
     expect(rightWord(m, lineY(2))).toBe('32784')
@@ -821,9 +821,9 @@ describe('the modes (S6)', () => {
     expect(rightWord(m, lineY(1))).toBe('-2147483648')
     keys(m, 'ac 7 div 2 eq')
     expect(rightWord(m, lineY(1))).toBe('3')
-    keys(m, 'ac func 9 0 eq')
+    keys(m, 'ac func down 5 0 eq')
     expect(rightWord(m, lineY(1))).toBe('-1')
-    keys(m, 'ac fd fd 1 0 1 func 7 1 1 eq')
+    keys(m, 'ac fd fd 1 0 1 func down 3 1 1 eq')
     expect(rightWord(m, lineY(1))).toBe('0000000000000110')
   })
 
@@ -901,8 +901,8 @@ describe('the screen read back for a screen reader (S7)', () => {
     expect(read(m).slice(1, 5)).toEqual([
       '1:gcd(   2:lcm(',
       '3:%      4:int(',
-      '5:round( 6:rand',
-      '7:pol(   8:rec(',
+      '5:round( 6:pol(',
+      '7:rec(',
     ])
     keys(m, '5')
     expect(rows(m)[0]).toBe('round(')
@@ -968,22 +968,22 @@ describe("after EL-509E's list: % of what it is added to, STATS' results in a li
   }
 
   it.each([
-    ['func down 1', '3'],
-    ['func down 2', '2'],
-    ['func down 3', '0.8164965809'],
-    ['func down 4', '1'],
-    ['func down 5', '4.333333333'],
-    ['func down 8', '0.9933992678'],
-    ['func down 9', '-0.6666666667'],
-    ['func down 0', '2.5'],
-    ['func down down 1', '6'],
-    ['func down down 2', '14'],
-    ['func down down 5', '31'],
+    ['func down down 1', '3'],
+    ['func down down 2', '2'],
+    ['func down down 3', '0.8164965809'],
+    ['func down down 4', '1'],
+    ['func down down 5', '4.333333333'],
+    ['func down down 8', '0.9933992678'],
+    ['func down down 9', '-0.6666666667'],
+    ['func down down 0', '2.5'],
+    ['func down down down 1', '6'],
+    ['func down down down 2', '14'],
+    ['func down down down 5', '31'],
     // The estimates on y = a + bx: y'(4) = a + 4b, x'(9.333...) = 4.
-    ['func down down 7 4', '9.333333333'],
-    ['func down down 6 9 dot 3 3 3 3 3 3 3 3 3 3', '4'],
+    ['func down down down 7 4', '9.333333333'],
+    ['func down down down 6 9 dot 3 3 3 3 3 3 3 3 3 3', '4'],
     // In a line like any value: 10 x̄ + 1.
-    ['1 0 func down 2 add 1', '21'],
+    ['1 0 func down down 2 add 1', '21'],
   ])("STATS' %s is %s in CALC", (line, value) => {
     const m = withData()
     keys(m, `${line} eq`)
@@ -992,17 +992,194 @@ describe("after EL-509E's list: % of what it is added to, STATS' results in a li
 
   it("shows STATS' results by their names in the line", () => {
     const m = withData()
-    keys(m, 'setup 2 ac func down 2 add func down down 7')
+    keys(m, 'setup 2 ac func down down 2 add func down down down 7')
     expect(rows(m)[0]).toBe('\u0078\u0304+y\u2032(')
   })
 
   it('says MATH with no data, and for y from one variable', () => {
     const m = switchOn()
-    keys(m, 'menu 2 func 3 menu 1 func down 1 eq')
+    keys(m, 'menu 2 1 func 3 menu 1 func down down 1 eq')
     expect(lineAt(m, 1, true)).toBe('ERR:MATH')
-    keys(m, 'ac menu 2 1 5 eq menu 1 func down 5 eq')
+    keys(m, 'ac menu 2 1 5 eq menu 1 func down down 5 eq')
     expect(lineAt(m, 1, true)).toBe('ERR:MATH')
-    keys(m, 'ac func down 2 eq')
+    keys(m, 'ac func down down 2 eq')
     expect(ans(m)).toBe('5')
+  })
+})
+
+describe("the rest of EL-509E's list", () => {
+  const lineY = (n: number) => 11 + 9 * n
+  const rightWord = (m: Elec16, y: number) => lineAt(m, y, false, 3).split(' ').pop() ?? ''
+  const bandLeft = (m: Elec16) => lineAt(m, 1, true, 1).split('  ')[0]
+  const read = (m: Elec16) => dotText(m.state.vram, 128, 64)
+  /** Ans within ten digits' rounding of `value`. */
+  const near = (m: Elec16, value: number) =>
+    expect(Math.abs(Number(ans(m)) - value)).toBeLessThan(Math.abs(value) * 2e-9 + 1e-12)
+
+  /** STATS of kind `kind` (its key) with X `xs` and Y `ys`, then CALC. */
+  function data(kind: string, xs: string[], ys: string[]): Elec16 {
+    const m = switchOn()
+    const up = xs.map(() => 'up').join(' ')
+    keys(
+      m,
+      `menu 2 ${kind} ${xs.map((x) => `${x} eq`).join(' ')} right ${up} ${ys.map((y) => `${y} eq`).join(' ')} menu 1`,
+    )
+    return m
+  }
+  const XS = ['1', '2', '3', '4']
+  const YS = ['2', '4', '7', '1 1']
+
+  it.each([
+    // kind, a, b, r, y'(5), x'(20) - by least squares on the line each kind is made into.
+    ['4', 'EXP', 1.206045378, 0.5673860065, 0.9955036034, 20.57911563, 4.949691245],
+    ['5', 'LOG', 1.131392851, 6.127784372, 0.940764154, 10.99368134, 21.74076674],
+    ['6', 'PWR', 1.894293102, 1.217054281, 0.9943639351, 13.43171951, 6.93478504],
+    ['7', 'INV', 11.25641026, -10.09230769, -0.8658000985, 9.237948718, -1.154252199],
+  ] as const)('fits %s (%s): a, b, r and the estimates', (kind, _name, a, b, r, y5, x20) => {
+    const m = data(kind, XS, YS)
+    keys(m, 'func down down 9 eq')
+    near(m, a)
+    keys(m, 'ac func down down 0 eq')
+    near(m, b)
+    keys(m, 'ac func down down 8 eq')
+    near(m, r)
+    keys(m, 'ac func down down down 7 5 eq')
+    near(m, y5)
+    keys(m, 'ac func down down down 6 2 0 eq')
+    near(m, x20)
+  })
+
+  it('fits a quadratic: a, b, c, no r, y′ and both x′', () => {
+    // y = 1 + 2x + 3x² at x = 0..3.
+    const m = data('3', ['0', '1', '2', '3'], ['1', '6', '1 7', '3 4'])
+    keys(m, 'func down down 9 eq')
+    expect(ans(m)).toBe('1')
+    keys(m, 'ac func down down 0 eq')
+    expect(ans(m)).toBe('2')
+    keys(m, 'ac func down down down 8 eq')
+    expect(ans(m)).toBe('3')
+    keys(m, 'ac func down down down 7 4 eq')
+    expect(ans(m)).toBe('57')
+    keys(m, 'ac func down down down 6 1 7 eq')
+    expect(ans(m)).toBe('2')
+    keys(m, 'ac func down down down 9 1 7 eq')
+    expect(ans(m)).toBe('-2.666666667')
+    keys(m, 'ac func down down 8 eq')
+    expect(bandLeft(m)).toBe('ERR:MATH')
+  })
+
+  it('names the kind in the band and lists c on the results', () => {
+    const m = switchOn()
+    keys(m, 'menu 2 3')
+    expect(bandLeft(m)).toBe('STATS QUAD')
+    keys(m, '0 eq 1 eq 2 eq 3 eq right up up up up 1 eq 6 eq 1 7 eq 3 4 eq eq')
+    expect(bandLeft(m)).toBe('QUAD RESULT')
+    expect(rightWord(m, lineY(3))).toBe('-')
+    keys(m, 'down')
+    expect(lineAt(m, lineY(0), false, 1).startsWith('c=')).toBe(true)
+    expect(rightWord(m, lineY(0))).toBe('3')
+  })
+
+  it("FUNC's random page: rand, dice 1-6, coin 0 or 1, rint 0-99", () => {
+    const m = switchOn()
+    const seen = (item: string, ok: (v: number) => boolean) => {
+      keys(m, `ac func down ${item} eq`)
+      for (let k = 0; k < 20; k++) {
+        const v = Number(ans(m))
+        expect(ok(v), `${item}: ${v}`).toBe(true)
+        keys(m, 'eq')
+      }
+    }
+    seen('1', (v) => v >= 0 && v < 1)
+    seen('2', (v) => Number.isInteger(v) && v >= 1 && v <= 6)
+    seen('3', (v) => v === 0 || v === 1)
+    seen('4', (v) => Number.isInteger(v) && v >= 0 && v <= 99)
+    keys(m, 'ac func down 2')
+    expect(rows(m)[0]).toBe('dice')
+  })
+
+  it('converts the answer to the next angle unit with SHIFT SETUP, and the unit with it', () => {
+    const m = switchOn()
+    keys(m, '9 0 eq shift setup')
+    expect(ans(m)).toBe('1.570796327')
+    expect(lit(m)).toContain('R')
+    keys(m, 'shift setup')
+    expect(ans(m)).toBe('100')
+    expect(lit(m)).toContain('G')
+    keys(m, 'shift setup')
+    expect(ans(m)).toBe('90')
+    expect(lit(m)).toContain('D')
+    keys(m, 'ac shift sin 0 dot 8 eq shift setup')
+    expect(ans(m)).toBe('0.927295218')
+  })
+
+  it('keeps a constant: + − ÷ the number after, × the one before, K shown', () => {
+    const m = switchOn()
+    for (const [line, value] of [
+      ['3 4 add 5 7 eq', '91'],
+      ['4 5 eq', '102'],
+      ['6 8 mul 2 5 eq', '1700'],
+      ['4 0 eq', '2720'],
+      ['7 9 sub 5 9 eq', '20'],
+      ['5 6 eq', '-3'],
+      ['5 6 div 8 eq', '7'],
+      ['9 2 eq', '11.5'],
+    ] as const) {
+      keys(m, line)
+      expect(ans(m), line).toBe(value)
+    }
+    expect(read(m)).toContain('K')
+    keys(m, 'ac 2 add 3 mul 4 eq 5 eq')
+    expect(ans(m)).toBe('5')
+    // AC forgets the constant (it once outlived leaving SETUP, which ends with AC).
+    keys(m, 'ac 3 4 add 5 7 eq ac 4 5 eq')
+    expect(ans(m)).toBe('45')
+  })
+
+  it('shows numbers below 0.01 with an exponent in AUTO2', () => {
+    const m = switchOn()
+    keys(m, '3 div 1 0 0 0 eq')
+    expect(bigText(m)).toBe('0.003')
+    // 0 on SETUP when it is AUTO already: AUTO2.
+    keys(m, 'setup 0')
+    expect(read(m)).toContain('AUTO2')
+    keys(m, 'ac 3 div 1 0 0 0 eq')
+    expect(bigText(m, 97)).toBe('3')
+    keys(m, 'ac 1 div 8 eq')
+    expect(bigText(m)).toBe('0.125')
+  })
+
+  it('works in base 5 (PEN) beside the others', () => {
+    const m = switchOn()
+    keys(m, 'menu 3 func 5 1 2 3 4 eq')
+    expect(lineAt(m, 1, true, 3).split(' ').pop()).toBe('PEN')
+    expect(rightWord(m, lineY(1))).toBe('00000000001234')
+    expect(rightWord(m, lineY(2))).toBe('000000C2')
+    expect(rightWord(m, lineY(3))).toBe('194')
+    keys(m, 'ac 5 7 2')
+    expect(lineAt(m, 11, false, 1)).toBe('2')
+  })
+
+  it('clears every variable, Ans, M and STATS’ table from SETUP, after =', () => {
+    const m = switchOn()
+    keys(m, '7 eq sto neg 5 mplus menu 2 1 3 eq menu 1')
+    keys(m, 'setup down 3 1 ac')
+    expect(variable(m, 0)).toBe('7')
+    keys(m, 'setup down 3 eq ac')
+    expect(variable(m, 0)).toBe('0')
+    expect(variable(m, 8)).toBe('0')
+    expect(ans(m)).toBe('0')
+    keys(m, 'func down down 1 eq')
+    expect(bandLeft(m)).toBe('ERR:MATH')
+  })
+
+  it('types over the token at the cursor after SHIFT DEL, OVR shown, and back', () => {
+    const m = switchOn()
+    keys(m, '1 2 3 left left shift del')
+    expect(read(m)).toContain('OVR')
+    keys(m, '9 eq')
+    expect(ans(m)).toBe('193')
+    keys(m, 'ac 1 2 left shift del 5 eq')
+    expect(ans(m)).toBe('152')
   })
 })

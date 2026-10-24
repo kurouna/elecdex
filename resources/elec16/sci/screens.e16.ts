@@ -26,6 +26,7 @@ import {
   K_9,
   K_AC,
   K_DOWN,
+  K_EQ,
   K_LEFT,
   K_RIGHT,
   K_UP,
@@ -38,18 +39,25 @@ import {
   E_RANGE,
   E_STACK,
   FORMAT_AUTO,
+  FORMAT_AUTO2,
   FORMAT_EXP,
   FORMAT_FIX,
   IO_CONTRAST,
   KEEP_ANGLE,
+  KEEP_ANS,
   KEEP_ANSWER,
   KEEP_CONTRAST,
   KEEP_DIGITS,
   KEEP_DISPLAY,
   KEEP_FORMAT,
   KEEP_MIXED,
+  KEEP_VARS,
+  STATS_COUNT,
+  VALUE_SIZE,
 } from './numbers.e16'
 import {
+  T_COIN,
+  T_DICE,
   T_GCD,
   T_INT,
   T_LCM,
@@ -57,8 +65,11 @@ import {
   T_POL,
   T_RAN,
   T_REC,
+  T_RINT,
   T_RND,
+  T_STAT_C,
   T_STAT_N,
+  T_X2EST,
   T_XEST,
   T_YEST,
 } from './tokens.e16'
@@ -147,6 +158,7 @@ function drawSetup(): void {
     else mark(0, 5, 0)
     textAt(str('CONTRAST'), 1, lineY(2))
     contrastBar()
+    textAt(clearing ? str('=:CLEAR ALL?') : str('3:CLEAR MEMORY'), 1, lineY(3))
     textAt(str('\x8c\x8b:CONTRAST'), 1, lineY(4))
     return
   }
@@ -202,6 +214,10 @@ function contrastStep(up: bool): void {
 function drawDigits(): void {
   const shape = asking !== 0 ? asking : peek(KEEP_FORMAT)
   if (shape === FORMAT_AUTO) return
+  if (shape === FORMAT_AUTO2) {
+    textAt(str('AUTO2'), 1, lineY(4))
+    return
+  }
   textAt(shape === FORMAT_FIX ? str('FIX') : str('EXP'), 1, lineY(4))
   if (asking !== 0) textAt(str('0-9?'), 25, lineY(4))
   else {
@@ -215,6 +231,13 @@ const digitText = bytes(2)
 
 /** A key on SETUP: a choice is set and shown; AC leaves (non-zero). */
 export function setupKey(k: u16): u16 {
+  if (clearing) {
+    // CLEAR MEMORY asked: = clears, any other key keeps it all.
+    clearing = false
+    if (k === K_EQ) clearMemory()
+    drawSetup()
+    return 0
+  }
   if (k === K_AC) return 1
   if (asking !== 0) {
     const d = digitOf(k)
@@ -257,7 +280,7 @@ function setupChoice(k: u16): bool {
       asking = k === K_8 ? FORMAT_FIX : FORMAT_EXP
       return true
     case K_0:
-      poke(KEEP_FORMAT, FORMAT_AUTO)
+      poke(KEEP_FORMAT, peek(KEEP_FORMAT) === FORMAT_AUTO ? FORMAT_AUTO2 : FORMAT_AUTO)
       return true
   }
   return false
@@ -265,36 +288,59 @@ function setupChoice(k: u16): bool {
 
 /** Page 2's choice: a fraction over 1 as it is (1) or as a mixed number (2). */
 function mixedChoice(k: u16): bool {
+  if (k === K_3) {
+    clearing = true
+    return true
+  }
   if (k !== K_1 && k !== K_2) return false
   poke(KEEP_MIXED, k === K_1 ? 0 : 1)
   return true
 }
 
+/** CLEAR MEMORY waits for = (after EL-509E's list). */
+let clearing: bool = false
+
+/** Every variable (A-F, X, Y, M) and Ans 0, STATS' table empty. */
+function clearMemory(): void {
+  for (let i: u16 = 0; i < VALUE_SIZE; i++) poke(KEEP_ANS + i, 0)
+  for (let i: u16 = 0; i < 9 * VALUE_SIZE; i++) poke(KEEP_VARS + i, 0)
+  poke16(STATS_COUNT, 0)
+}
+
 /* ---------------- FUNC ---------------- */
 
-/** FUNC's page (0-2, ▼ and ▲): the functions, STATS' results, its sums and estimates. */
+/** FUNC's page (0-3, ▼ and ▲): the functions, random numbers, STATS' results, its sums and estimates. */
 let funcPage: u16 = 0
+const FUNC_PAGES = 4
 
 /**
  * The functions no key carries (section 5.1), by number, as they go into the line (section
- * 4.4); on the pages after, STATS' results and its estimates, worked out from its table when
- * the line is (after EL-509E's list, S7).
+ * 4.4); then random numbers; then STATS' results, its sums and the estimates on its curve,
+ * worked out from its table when the line is (after EL-509E's list).
  */
 export function funcScreen(): void {
   funcPage = 0
   drawFuncPage()
 }
 
+const funcPageText = bytes(4)
+
 function drawFuncPage(): void {
   cls()
-  const pageText = funcPage === 0 ? str('1/3') : funcPage === 1 ? str('2/3') : str('3/3')
-  bandWith(funcPage === 0 ? str('FUNC') : str('FUNC STATS'), pageText)
+  funcPageText[0] = 0x31 + funcPage
+  funcPageText[1] = 0x2f
+  funcPageText[2] = 0x30 + FUNC_PAGES
+  funcPageText[3] = 0
+  bandWith(funcTitle(), addr(funcPageText))
   if (funcPage === 0) {
     textAt(str('1:gcd(   2:lcm('), 1, lineY(0))
     textAt(str('3:%      4:int('), 1, lineY(1))
-    textAt(str('5:round( 6:rand'), 1, lineY(2))
-    textAt(str('7:pol(   8:rec('), 1, lineY(3))
+    textAt(str('5:round( 6:pol('), 1, lineY(2))
+    textAt(str('7:rec('), 1, lineY(3))
   } else if (funcPage === 1) {
+    textAt(str('1:rand   2:dice'), 1, lineY(0))
+    textAt(str('3:coin   4:rint'), 1, lineY(1))
+  } else if (funcPage === 2) {
     textAt(str('1:n    2:\x95    3:\x91x'), 1, lineY(0))
     textAt(str('4:sx   5:\x96    6:\x91y'), 1, lineY(1))
     textAt(str('7:sy   8:r    9:a'), 1, lineY(2))
@@ -302,29 +348,39 @@ function drawFuncPage(): void {
   } else {
     textAt(str('1:\x90x   2:\x90x\x84'), 1, lineY(0))
     textAt(str('3:\x90y   4:\x90y\x84'), 1, lineY(1))
-    textAt(str('5:\x90xy'), 1, lineY(2))
-    textAt(str('6:x\x89(  7:y\x89('), 1, lineY(3))
+    textAt(str('5:\x90xy  6:x\x89(  7:y\x89('), 1, lineY(2))
+    textAt(str('8:c    9:x\x93\x89('), 1, lineY(3))
   }
   textAt(str('\x8d\x8e:PAGE AC:BACK'), 1, lineY(5))
+}
+
+function funcTitle(): u16 {
+  if (funcPage === 0) return str('FUNC')
+  return funcPage === 1 ? str('FUNC RANDOM') : str('FUNC STATS')
 }
 
 /** A key on FUNC: the token it types (the calculator types it), 1 to go back, 0 to stay. */
 export function funcKey(k: u16): u16 {
   if (k === K_AC) return 1
   if (k === K_DOWN || k === K_UP) {
-    if (k === K_DOWN && funcPage < 2) funcPage++
+    if (k === K_DOWN && funcPage + 1 < FUNC_PAGES) funcPage++
     else if (k === K_UP && funcPage > 0) funcPage--
     else refuse()
     drawFuncPage()
     return 0
   }
-  const d = digitOf(k)
-  const t = funcPage === 0 ? funcToken(d) : funcPage === 1 ? statToken(d) : sumToken(d)
+  const t = pageToken(digitOf(k))
   if (t === 0) refuse()
   return t
 }
 
-/** The token of FUNC's item `d` (1-8); 0 for none. */
+function pageToken(d: u16): u16 {
+  if (funcPage === 0) return funcToken(d)
+  if (funcPage === 1) return randomToken(d)
+  return funcPage === 2 ? statToken(d) : sumToken(d)
+}
+
+/** The token of FUNC's item `d` (1-7); 0 for none. */
 function funcToken(d: u16): u16 {
   switch (d) {
     case 1:
@@ -338,27 +394,42 @@ function funcToken(d: u16): u16 {
     case 5:
       return T_RND
     case 6:
-      return T_RAN
-    case 7:
       return T_POL
-    case 8:
+    case 7:
       return T_REC
   }
   return 0
 }
 
-/** Page 2: n x̄ σx sx ȳ σy sy r a b by 1-9 and 0 (STATS' results 0-6, then 12-14). */
+/** The random page: rand, dice, coin, rint. */
+function randomToken(d: u16): u16 {
+  switch (d) {
+    case 1:
+      return T_RAN
+    case 2:
+      return T_DICE
+    case 3:
+      return T_COIN
+    case 4:
+      return T_RINT
+  }
+  return 0
+}
+
+/** Page 3: n x̄ σx sx ȳ σy sy r a b by 1-9 and 0 (STATS' results 0-6, then 12-14). */
 function statToken(d: u16): u16 {
   if (d >= 1 && d <= 7) return statTokenOf(d - 1)
   if (d === 8 || d === 9) return statTokenOf(d + 4)
   return d === 0 ? statTokenOf(14) : 0
 }
 
-/** Page 3: Σx Σx² Σy Σy² Σxy by 1-5 (results 7-11), x'( and y'( by 6 and 7. */
+/** Page 4: Σx Σx² Σy Σy² Σxy by 1-5 (results 7-11), x'( y'( by 6 7, c by 8, x₂'( by 9. */
 function sumToken(d: u16): u16 {
   if (d >= 1 && d <= 5) return statTokenOf(d + 6)
   if (d === 6) return T_XEST
-  return d === 7 ? T_YEST : 0
+  if (d === 7) return T_YEST
+  if (d === 8) return T_STAT_C
+  return d === 9 ? T_X2EST : 0
 }
 
 /** The token of STATS' result `k` (tokens.e16.ts: 97-9F, then F4-F9). */

@@ -1208,8 +1208,8 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   *Unreleased:* ピッカーの専用の行（「elec-16 sci」）は、新しいユニットを **ELEC-16 SCI（SCI-128）** として開きます。
   独自に設計した関数電卓で、128×64 の液晶と縦長の本体（SLATE、CHALK、PLAIN）。式は 2D（分数、根号、累乗を教科書の形で組み、縦線のカーソルがその中に入る）か 1 行で打ちます。
   答えはできるかぎり分数と `(p + r√s)/q` の正確な形のまま（sin 45° は √2/2、1/3+1/6 は 1/2）で、F⇄D で大きな数字の小数に。
-  変数、Ans、M、履歴、FUNC（gcd、lcm、%（500+25% は 625）、int、round、rand、pol、rec と、STATS の結果や推定値を式の中で）、度分秒、双曲線関数、f(x) と FIND X。モードは
-  STATS（1 変数・2 変数、40 行まで）、BASE（32 ビットの HEX・DEC・OCT・BIN と AND・OR・XOR・XNOR）、TABLE（30 行までの f(X) の表）、
+  変数、Ans、M、履歴、FUNC（gcd、lcm、%（500+25% は 625）、int、round、rand、dice、coin、pol、rec と、STATS の結果や推定値を式の中で）、定数計算、角度の換算、上書き、度分秒、双曲線関数、f(x) と FIND X。モードは
+  STATS（1 変数と 6 つの回帰: 直線、2 次、指数、対数、べき乗、逆数。40 行まで）、BASE（32 ビットの HEX・DEC・OCT・BIN・5 進と AND・OR・XOR・XNOR）、TABLE（30 行までの f(X) の表）、
   EQUATION（2 元・3 元の連立、正確な解や虚数解の 2 次、3 次）の 4 つ。画面はほかのモデルと同じく読み上げられます
   （[SCI-128 の取扱説明書](docs/elec16-sci-manual.md)）。
   **CODE** は TypeScript の部分集合で書いたプログラムを、3 段階の最適化で機械語にコンパイルし、
