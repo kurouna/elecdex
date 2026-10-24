@@ -844,8 +844,10 @@ test('the line between the library list and the details is dragged, kept, and pu
     launched = await launched.relaunch()
     await designSize(launched.app, launched.page)
     await expect.poll(async () => Math.abs((await width(launched.page)) - after)).toBeLessThan(4)
-    // A double-click puts it back at half.
-    await launched.page.getByTestId('chip8-split').dblclick()
+    // A double-click puts it back at half - once the relaunched layout has settled, and with the
+    // presses held a moment: on the Linux runner a double-click right after the relaunch was lost.
+    await settleLayout(launched.page)
+    await launched.page.getByTestId('chip8-split').dblclick({ delay: 20 })
     await expect.poll(async () => Math.abs((await width(launched.page)) - before)).toBeLessThan(4)
   } finally {
     await launched.close()
