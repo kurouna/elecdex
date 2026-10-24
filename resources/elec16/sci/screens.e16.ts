@@ -2,16 +2,19 @@
 // sections 4.5 and 6.6) - MENU, SETUP, FUNC and the error screen - each in the one rhythm: a title
 // band over rows 0-8, then a line every nine rows from row 11. Its code runs with bank 1 in the
 // window; calc.e16.ts calls it through far_call.
+
 import {
   addr,
   type bool,
   bytes,
+  csrw,
   peek,
   peek16,
   poke,
   poke16,
   str,
   type u16,
+  wfi,
 } from '../../../src/shared/e16c/builtins'
 import {
   K_0,
@@ -30,10 +33,21 @@ import {
   K_LEFT,
   K_RIGHT,
   K_UP,
+  MODE_CPLX,
+  MODE_MATRIX,
+  MODE_PROG,
+  mode,
   refuse,
 } from './calc.e16'
-import { band, bandWith, cls, dot, lineY, mark, textAt } from './lcd.e16'
+import { cplxFuncKey, cplxFuncScreen } from './cplx.e16'
+import { exactWhole } from './exact.e16'
+import { digitOf } from './keymap.e16'
+import { band, bandWith, centre, cls, dot, lineY, mark, marks, noCursor, textAt } from './lcd.e16'
+import { matFuncKey, matFuncScreen } from './matview.e16'
 import {
+  BASE_RADIX,
+  CPLX_ANS,
+  E_DIM,
   E_FIND,
   E_MATH,
   E_RANGE,
@@ -43,6 +57,7 @@ import {
   FORMAT_EXP,
   FORMAT_FIX,
   IO_CONTRAST,
+  KEEP,
   KEEP_ANGLE,
   KEEP_ANS,
   KEEP_ANSWER,
@@ -50,16 +65,28 @@ import {
   KEEP_DIGITS,
   KEEP_DISPLAY,
   KEEP_FORMAT,
+  KEEP_MARK,
   KEEP_MIXED,
   KEEP_VARS,
+  MATRICES,
+  MATRIX_SIZE,
+  MODES,
+  MODES_END,
+  MODES_MARK,
   STATS_COUNT,
+  V2,
+  V2_END,
+  V2_MARK,
   VALUE_SIZE,
 } from './numbers.e16'
+import { PROG_PAGES, progFuncPage, progFuncToken } from './prog.e16'
 import {
   T_COIN,
+  T_DERIV,
   T_DICE,
   T_GCD,
   T_INT,
+  T_INTEG,
   T_LCM,
   T_PERCENT,
   T_POL,
@@ -67,12 +94,89 @@ import {
   T_REC,
   T_RINT,
   T_RND,
+  T_SIGMA,
   T_STAT_C,
   T_STAT_N,
   T_X2EST,
   T_XEST,
   T_YEST,
 } from './tokens.e16'
+
+/* ---------------- switched on ---------------- */
+
+const IO_TCOUNT = 0xff30
+const IO_TCMP = 0xff32
+const IO_TCTRL = 0xff34
+const CSR_MIE = 0x304
+
+/**
+ * Switched on (calc.e16.ts calcCold): the kept regions checked - each set out afresh when its
+ * mark is not there - the LCD's contrast put back, the name shown for a moment or until a key.
+ * Run once a power on, so it lives here rather than in the fixed ROM.
+ */
+export function powerOn(): void {
+  keepReady()
+  modesReady()
+  v2Ready()
+  contrastBack()
+  cls()
+  noCursor()
+  centre(2, str('ELEC-16 SCI'), 11)
+  centre(4, str('SCI-128'), 7)
+  marks(0)
+  pause(700)
+}
+
+/** The contrast SETUP keeps, put back on the LCD (at power on). */
+function contrastBack(): void {
+  const kept = peek(KEEP_CONTRAST)
+  if (kept !== 0) poke16(IO_CONTRAST, kept - 1)
+}
+
+/** Whether v2's region is set out; when not, it is: empty lines, no matrices, no programs. */
+function v2Ready(): void {
+  if (peek16(V2) === V2_MARK) return
+  for (let i: u16 = 0; i < V2_END - V2; i += 2) poke16(V2 + i, 0)
+  poke16(V2, V2_MARK)
+}
+
+/** Whether the modes' region is set out; when not, it is: empty, 1-VAR, DEC, f(X) empty. */
+function modesReady(): void {
+  if (peek16(MODES) === MODES_MARK) return
+  for (let i: u16 = 0; i < MODES_END - MODES; i += 2) poke16(MODES + i, 0)
+  poke16(MODES, MODES_MARK)
+  poke(BASE_RADIX, 1)
+}
+
+/**
+ * Whether the kept region is a calculator's; when not, it is set out afresh: DEG, 2D, Ans and
+ * the variables an exact 0 (a 0 with no form would take the form from what it is added to).
+ */
+function keepReady(): void {
+  if (peek16(KEEP) === KEEP_MARK) return
+  for (let i: u16 = 0; i < 0x182; i += 2) poke16(KEEP + i, 0)
+  poke16(KEEP, KEEP_MARK)
+  zeroValues()
+}
+
+/** Ans and the variables an exact 0 (SETUP's CLEAR MEMORY too). */
+function zeroValues(): void {
+  // Ans and the variables are apart: the mode and the contrast sit between them (0C2C).
+  for (let i: u16 = 0; i < VALUE_SIZE; i++) poke(KEEP_ANS + i, 0)
+  for (let i: u16 = 0; i < 9 * VALUE_SIZE; i++) poke(KEEP_VARS + i, 0)
+  exactWhole(KEEP_ANS)
+  for (let k: u16 = 0; k < 9; k++) exactWhole(KEEP_VARS + k * VALUE_SIZE)
+}
+
+/** About `ms` milliseconds asleep on the timer (1,024 counts a second), or until a key. */
+function pause(ms: u16): void {
+  poke16(IO_TCMP, peek16(IO_TCOUNT) + ms)
+  poke16(IO_TCTRL, 1)
+  csrw(CSR_MIE, 3)
+  wfi()
+  poke16(IO_TCTRL, 0)
+  csrw(CSR_MIE, 0)
+}
 
 /* ---------------- the error screen ---------------- */
 
@@ -90,6 +194,10 @@ export function errorScreen(code: u16): void {
     band(str('ERR:RANGE'))
     textAt(str('1-30 ROWS FROM START'), 1, lineY(0))
     textAt(str('TO END BY STEP'), 1, lineY(1))
+  } else if (code === E_DIM) {
+    band(str('ERR:DIM'))
+    textAt(str('THE SIZES OF THE'), 1, lineY(0))
+    textAt(str('MATRICES DO NOT FIT'), 1, lineY(1))
   } else if (code === E_STACK) {
     band(str('ERR:STACK'))
     textAt(str('TOO MANY BRACKETS OR'), 1, lineY(0))
@@ -111,20 +219,23 @@ export function menuScreen(mode: u16): void {
   band(str('MENU'))
   textAt(str('1:CALC    2:STATS'), 1, lineY(0))
   textAt(str('3:BASE    4:TABLE'), 1, lineY(1))
-  textAt(str('5:EQUATION'), 1, lineY(2))
+  textAt(str('5:EQUATION 6:CPLX'), 1, lineY(2))
+  textAt(str('7:MATRIX  8:PROG'), 1, lineY(3))
   textAt(str('AC:BACK'), 1, lineY(5))
-  if (mode === 0) mark(0, 6, 0)
-  else if (mode === 1) mark(10, 7, 0)
-  else if (mode === 2) mark(0, 6, 1)
-  else if (mode === 3) mark(10, 7, 1)
-  else mark(0, 10, 2)
+  // The mode marked: two a line, the left column's at 0, the right's at 10 (CPLX's at 11).
+  const n = mode >> 1
+  if (mode === 4) mark(0, 10, n)
+  else if (mode === 6) mark(0, 8, n)
+  else if (mode === 5) mark(11, 6, n)
+  else if ((mode & 1) === 0) mark(0, 6, n)
+  else mark(10, mode === 7 ? 6 : 7, n)
 }
 
-/** A key on MENU: 1-5 the mode chosen, AC (0xff) back to the one it was; 0 still choosing. */
+/** A key on MENU: 1-8 the mode chosen, AC (0xff) back to the one it was; 0 still choosing. */
 export function menuKey(k: u16): u16 {
   if (k === K_AC) return 0xff
   const d = digitOf(k)
-  if (d >= 1 && d <= 5) return d
+  if (d >= 1 && d <= 8) return d
   refuse()
   return 0
 }
@@ -300,18 +411,28 @@ function mixedChoice(k: u16): bool {
 /** CLEAR MEMORY waits for = (after EL-509E's list). */
 let clearing: bool = false
 
-/** Every variable (A-F, X, Y, M) and Ans 0, STATS' table empty. */
+/** Every variable (A-F, X, Y, M) and Ans 0, STATS' table empty, CPLX's Ans and the matrices too. */
 function clearMemory(): void {
-  for (let i: u16 = 0; i < VALUE_SIZE; i++) poke(KEEP_ANS + i, 0)
-  for (let i: u16 = 0; i < 9 * VALUE_SIZE; i++) poke(KEEP_VARS + i, 0)
+  zeroValues()
   poke16(STATS_COUNT, 0)
+  for (let i: u16 = 0; i < 16; i++) poke(CPLX_ANS + i, 0)
+  for (let i: u16 = 0; i < 5 * MATRIX_SIZE; i++) poke(MATRICES + i, 0)
 }
 
 /* ---------------- FUNC ---------------- */
 
-/** FUNC's page (0-3, ▼ and ▲): the functions, random numbers, STATS' results, its sums and estimates. */
+/**
+ * FUNC's page (▼ and ▲): the functions, random numbers, STATS' results, its sums and estimates;
+ * in PROG its own pages come first (prog.e16.ts), and CPLX and MATRIX have FUNC screens of their
+ * own (cplx.e16.ts, matrix.e16.ts).
+ */
 let funcPage: u16 = 0
 const FUNC_PAGES = 4
+
+/** PROG's pages before the calculator's. */
+function extraPages(): u16 {
+  return mode === MODE_PROG ? PROG_PAGES : 0
+}
 
 /**
  * The functions no key carries (section 5.1), by number, as they go into the line (section
@@ -320,7 +441,9 @@ const FUNC_PAGES = 4
  */
 export function funcScreen(): void {
   funcPage = 0
-  drawFuncPage()
+  if (mode === MODE_CPLX) cplxFuncScreen()
+  else if (mode === MODE_MATRIX) matFuncScreen()
+  else drawFuncPage()
 }
 
 const funcPageText = bytes(4)
@@ -329,18 +452,26 @@ function drawFuncPage(): void {
   cls()
   funcPageText[0] = 0x31 + funcPage
   funcPageText[1] = 0x2f
-  funcPageText[2] = 0x30 + FUNC_PAGES
+  funcPageText[2] = 0x30 + FUNC_PAGES + extraPages()
   funcPageText[3] = 0
-  bandWith(funcTitle(), addr(funcPageText))
-  if (funcPage === 0) {
+  if (funcPage < extraPages()) {
+    bandWith(str('FUNC PROG'), addr(funcPageText))
+    progFuncPage(funcPage)
+    textAt(str('\x8d\x8e:PAGE AC:BACK'), 1, lineY(5))
+    return
+  }
+  const page = funcPage - extraPages()
+  bandWith(funcTitle(page), addr(funcPageText))
+  if (page === 0) {
     textAt(str('1:gcd(   2:lcm('), 1, lineY(0))
     textAt(str('3:%      4:int('), 1, lineY(1))
     textAt(str('5:round( 6:pol('), 1, lineY(2))
-    textAt(str('7:rec('), 1, lineY(3))
-  } else if (funcPage === 1) {
+    textAt(str('7:rec(   8:d/dx('), 1, lineY(3))
+    textAt(str('9:\x97(     0:\x90('), 1, lineY(4))
+  } else if (page === 1) {
     textAt(str('1:rand   2:dice'), 1, lineY(0))
     textAt(str('3:coin   4:rint'), 1, lineY(1))
-  } else if (funcPage === 2) {
+  } else if (page === 2) {
     textAt(str('1:n    2:\x95    3:\x91x'), 1, lineY(0))
     textAt(str('4:sx   5:\x96    6:\x91y'), 1, lineY(1))
     textAt(str('7:sy   8:r    9:a'), 1, lineY(2))
@@ -354,16 +485,18 @@ function drawFuncPage(): void {
   textAt(str('\x8d\x8e:PAGE AC:BACK'), 1, lineY(5))
 }
 
-function funcTitle(): u16 {
-  if (funcPage === 0) return str('FUNC')
-  return funcPage === 1 ? str('FUNC RANDOM') : str('FUNC STATS')
+function funcTitle(page: u16): u16 {
+  if (page === 0) return str('FUNC')
+  return page === 1 ? str('FUNC RANDOM') : str('FUNC STATS')
 }
 
 /** A key on FUNC: the token it types (the calculator types it), 1 to go back, 0 to stay. */
 export function funcKey(k: u16): u16 {
+  if (mode === MODE_CPLX) return cplxFuncKey(k)
+  if (mode === MODE_MATRIX) return matFuncKey(k)
   if (k === K_AC) return 1
   if (k === K_DOWN || k === K_UP) {
-    if (k === K_DOWN && funcPage + 1 < FUNC_PAGES) funcPage++
+    if (k === K_DOWN && funcPage + 1 < FUNC_PAGES + extraPages()) funcPage++
     else if (k === K_UP && funcPage > 0) funcPage--
     else refuse()
     drawFuncPage()
@@ -375,14 +508,22 @@ export function funcKey(k: u16): u16 {
 }
 
 function pageToken(d: u16): u16 {
-  if (funcPage === 0) return funcToken(d)
-  if (funcPage === 1) return randomToken(d)
-  return funcPage === 2 ? statToken(d) : sumToken(d)
+  if (funcPage < extraPages()) return progFuncToken(funcPage, d)
+  const page = funcPage - extraPages()
+  if (page === 0) return funcToken(d)
+  if (page === 1) return randomToken(d)
+  return page === 2 ? statToken(d) : sumToken(d)
 }
 
-/** The token of FUNC's item `d` (1-7); 0 for none. */
+/** The token of FUNC's item `d` (1-9, 0); 0 for none. */
 function funcToken(d: u16): u16 {
   switch (d) {
+    case 8:
+      return T_DERIV
+    case 9:
+      return T_INTEG
+    case 0:
+      return T_SIGMA
     case 1:
       return T_GCD
     case 2:
@@ -435,17 +576,6 @@ function sumToken(d: u16): u16 {
 /** The token of STATS' result `k` (tokens.e16.ts: 97-9F, then F4-F9). */
 function statTokenOf(k: u16): u16 {
   return k <= 8 ? T_STAT_N + k : 0xf4 + k - 9
-}
-
-/** A digit key's digit; 0xffff for another key. */
-function digitOf(k: u16): u16 {
-  if (k === K_0) return 0
-  if (k === K_1) return 1
-  if (k === K_2) return 2
-  if (k === K_3) return 3
-  if (k >= K_4 && k <= K_6) return 4 + k - K_4
-  if (k >= K_7 && k <= K_9) return 7 + k - K_7
-  return 0xffff
 }
 
 /* ---------------- a fault ---------------- */

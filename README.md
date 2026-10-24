@@ -257,7 +257,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   channels, with games of its own - ELECLANCE, ELECAIRCOMBAT, ELECDRILL and the one-on-one
   fighter ELECFIGHTER - and a kit to make games for it. Picked as **ELEC-16 SCI** (*unreleased*,
   a tab of retro and desk), it is a scientific calculator: lines set as a textbook sets them, answers kept as fractions
-  and roots, and STATS, BASE, TABLE and EQUATION modes.
+  and roots, modes for statistics, bases, tables, equations, complex numbers, matrices and
+  programs, and physical constants, unit conversions, Σ, derivatives and integrals.
 
 ### Layouts, looks and the rest
 
@@ -1302,10 +1303,15 @@ weather and calendar.
   for the decimal, which shows in big digits; variables, Ans, M and a history; FUNC (gcd,
   lcm, % - 500+25% is 625 - int, round, rand, dice, coin, pol, rec, and STATS' results and
   estimates in a line), constant calculation, angle conversion, typing over, degrees-minutes-seconds,
-  the hyperbolic functions, f(x) and FIND X; and four modes - STATS (one variable or six
+  the hyperbolic functions, f(x) and FIND X; and the modes - STATS (one variable or six
   regressions: line, quadratic, exponential, logarithmic, power, inverse; up to 40 rows), BASE
   (32-bit HEX, DEC, OCT, BIN and base 5 with AND, OR, XOR, XNOR), TABLE (f(X) for up to 30 rows)
-  and EQUATION (two or three unknowns, quadratics with exact or complex roots, cubics).
+  and EQUATION (two or three unknowns, quadratics with exact or complex roots, cubics); CPLX
+  (complex numbers as a + bi or r∠θ), MATRIX (matrices and vectors up to 3×3: determinants,
+  inverses, transposes, dot and cross products) and PROG (four programs with input, output,
+  conditions and jumps). CONST puts in twenty physical constants (CODATA 2022), CONV converts
+  between twenty pairs of units, and Σ, d/dx and ∫ sum, differentiate and integrate a line in X
+  (the sum kept exact: Σ(1/X,1,4) is 25/12).
   Its screen reads back for a screen reader as the other models' do
   ([the SCI-128 manual](docs/elec16-sci-manual.md), in Japanese).
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at

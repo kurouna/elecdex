@@ -145,8 +145,11 @@ describe("the calculator's symbols", () => {
   ]
   const key = (code: number) => glyphColumns(code).join(',')
 
-  it('fill 80-96 in order, each drawn unlike any other character', () => {
-    expect(SYMBOLS.map((s) => s.code)).toEqual(Array.from({ length: 0x17 }, (_, k) => 0x80 + k))
+  it('fill 80-9F and then E0-E4 in order (v2 added 97 on), each unlike any other character', () => {
+    expect(SYMBOLS.map((s) => s.code)).toEqual([
+      ...Array.from({ length: 0x20 }, (_, k) => 0x80 + k),
+      ...Array.from({ length: 5 }, (_, k) => 0xe0 + k),
+    ])
     for (const s of SYMBOLS) {
       const same = drawn.filter((c) => c !== s.code && key(c) === key(s.code))
       expect(same, s.text).toEqual([])
@@ -173,7 +176,33 @@ describe("the calculator's symbols", () => {
           .join(''),
       ),
     ).toBe(true)
-    expect(key(0x97)).toBe(key(0x9f))
+    expect(key(0xe5)).toBe(key(0xff))
+  })
+
+  it("are v2's where the font kept room: the integral, ∠, the constants' letters, a program's signs", () => {
+    const text = new Map(SYMBOLS.map((s) => [s.code, s.text]))
+    expect([0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f].map((c) => text.get(c))).toEqual([
+      '∫',
+      '∠',
+      '₀',
+      'ₑ',
+      'ₚ',
+      'ₙ',
+      'ħ',
+      'ε',
+      'μ',
+    ])
+    expect([0xe0, 0xe1, 0xe2, 0xe3, 0xe4].map((c) => text.get(c))).toEqual([
+      'α',
+      '⇒',
+      '≠',
+      '≤',
+      '≥',
+    ])
+  })
+
+  it('come in through IMPORT from the look-alikes a PC writes: the micro sign, a lunate epsilon', () => {
+    expect(toMachineText('µϵ\r\n')).toEqual({ bytes: Uint8Array.from([0x9f, 0x9e, 0x0d]) })
   })
 
   it('go out and come back through EXPORT and IMPORT, the two-code-point ones too', () => {

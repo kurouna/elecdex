@@ -227,3 +227,14 @@ export function letterOf(k: u16): u16 {
   }
   return 0
 }
+
+/** A digit key's digit; 0xffff for another key. */
+export function digitOf(k: u16): u16 {
+  if (k === K_0) return 0
+  if (k === K_1) return 1
+  if (k === K_2) return 2
+  if (k === K_3) return 3
+  if (k >= K_4 && k <= K_6) return 4 + k - K_4
+  if (k >= K_7 && k <= K_9) return 7 + k - K_7
+  return 0xffff
+}

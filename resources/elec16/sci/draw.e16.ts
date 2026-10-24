@@ -2,7 +2,15 @@
 // rows of characters, the answer under it, a mode's own screen. Kept apart from the keys
 // (calc.e16.ts) in a bank of its own beside the layout it calls, so the fixed ROM keeps its room;
 // it reads calc's state and writes only its own scroll.
-import { addr, div, peek, peek16, str, type u16 } from '../../../src/shared/e16c/builtins'
+import {
+  addr,
+  type bool,
+  div,
+  peek,
+  peek16,
+  str,
+  type u16,
+} from '../../../src/shared/e16c/builtins'
 import { baseDraw } from './base.e16'
 import {
   ANN_2D,
@@ -30,7 +38,10 @@ import {
   line,
   MODE_BASE,
   MODE_CALC,
+  MODE_CPLX,
   MODE_EQN,
+  MODE_MATRIX,
+  MODE_PROG,
   MODE_STATS,
   MODE_TABLE,
   mode,
@@ -44,15 +55,29 @@ import {
   storing,
   twoD,
 } from './calc.e16'
+import { cplxAnswer } from './cplx.e16'
 import { drawAnswerAs } from './display.e16'
 import { eqnDraw } from './equation.e16'
 import { constantKept } from './extras.e16'
-import { cursorTop, cursorX, setLine } from './layout.e16'
-import { barAt, barDots, COLS, cls, drawChar, marks, noCursor, textAt } from './lcd.e16'
+import { charsOf, cursorTop, cursorX, setLine } from './layout.e16'
+import {
+  barAt,
+  barDots,
+  COLS,
+  cls,
+  drawChar,
+  lineY,
+  marks,
+  noCursor,
+  textAt,
+  textRight,
+} from './lcd.e16'
+import { MAT_LINE, matAnswered, matDraw, matPhase } from './matview.e16'
 import { FORMAT_EXP, FORMAT_FIX, KEEP_ANGLE, KEEP_FORMAT, varAt } from './numbers.e16'
+import { PROG_LIST, progDrawFoot, progDrawList, progPhase } from './prog.e16'
 import { statsDraw } from './stats.e16'
 import { TABLE_VIEW, tableDraw, tablePhase } from './table.e16'
-import { tokenText, tokenWidth } from './tokens.e16'
+import { tokenText } from './tokens.e16'
 
 /** The line's rows on screen: four of 21 characters. */
 const LINE_ROWS = 4
@@ -80,8 +105,12 @@ export function drawAnnunciators(): void {
   marks(bits)
 }
 
-/** ▲ while ▲ brings an earlier line, ▼ while ▼ brings a later one. */
+/**
+ * ▲ while ▲ brings an earlier line, ▼ while ▼ brings a later one. Not on a BASE answer, whose
+ * ▲ ▼ show BIN's halves.
+ */
 function historyMarks(): u16 {
+  if (mode === MODE_BASE && answered) return 0
   const count = historyEntries() === 0 ? 0 : peek16(historyCount())
   const browsing = historyAt !== 0xffff
   let bits: u16 = 0
@@ -96,31 +125,47 @@ function footMarks(): void {
   if (!answered && overwrite) textAt(str('OVR'), 1, 56)
 }
 
-/** The line on its rows, and the answer below it when there is one. */
+/** The line on its rows, and the answer below it when there is one; or a mode's own screen. */
 export function drawScreen(): void {
-  if (mode === MODE_BASE) {
-    baseDraw()
-    drawAnnunciators()
-    return
+  if (!ownDrawn()) {
+    cls()
+    if (twoD()) drawLine2D()
+    else drawLine()
+    if (answered) drawAnswer()
+    else if (mode === MODE_PROG) progDrawFoot()
+    footMarks()
+    if (mode === MODE_TABLE) {
+      textAt(str('TABLE f(X)'), 1, 47)
+      textAt(str('=:START,END,STEP'), 1, 56)
+    }
   }
-  if (ownScreen() || (mode === MODE_TABLE && tablePhase() === TABLE_VIEW)) {
+  drawAnnunciators()
+}
+
+/**
+ * A mode's screen other than the line, drawn: BASE's, STATS', EQUATION's, TABLE's table,
+ * MATRIX's EDIT and grid, PROG's list. False when the line is on screen.
+ */
+function ownDrawn(): bool {
+  if (mode === MODE_BASE) baseDraw()
+  else if (mode === MODE_MATRIX && matPhase() !== MAT_LINE) {
+    noCursor()
+    matDraw()
+  } else if (mode === MODE_PROG && progPhase() === PROG_LIST) progDrawList()
+  else if (ownScreen() || (mode === MODE_TABLE && tablePhase() === TABLE_VIEW)) {
     noCursor()
     if (mode === MODE_STATS) statsDraw()
     else if (mode === MODE_EQN) eqnDraw()
     else tableDraw()
-    drawAnnunciators()
-    return
-  }
-  cls()
-  if (twoD()) drawLine2D()
-  else drawLine()
-  if (answered) drawAnswerAs(shown)
-  footMarks()
-  if (mode === MODE_TABLE) {
-    textAt(str('TABLE f(X)'), 1, 47)
-    textAt(str('=:START,END,STEP'), 1, 56)
-  }
-  drawAnnunciators()
+  } else return false
+  return true
+}
+
+/** The answer under the line: CPLX's own, MatAns named, or Ans as `shown` says. */
+function drawAnswer(): void {
+  if (mode === MODE_CPLX) cplxAnswer()
+  else if (mode === MODE_MATRIX && matAnswered()) textRight(str('MatAns'), lineY(4))
+  else drawAnswerAs(shown)
 }
 
 /** The line set in 2D (layout.e16.ts), the bar cursor where the layout found it. */
@@ -133,7 +178,7 @@ function drawLine2D(): void {
 /** Where token `n` starts, in characters from the line's start. */
 function charsTo(n: u16): u16 {
   let c: u16 = 0
-  for (let i: u16 = 0; i < n; i++) c += tokenWidth(line[i])
+  for (let i: u16 = 0; i < n; i++) c += charsOf(line[i])
   return c
 }
 

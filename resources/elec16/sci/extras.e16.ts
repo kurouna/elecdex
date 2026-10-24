@@ -1,18 +1,17 @@
-// ELEC-16 SCI, ROM bank 12: what EL-509E's list asked for that fits nowhere else (docs/
+// ELEC-16 SCI, ROM bank 10 beside TABLE: what EL-509E's list asked for that fits nowhere else (docs/
 // elec16-sci.md): the answer turned into the next angle unit, and the constant a line like
 // 34+57 leaves for the next one that is only a number (34+57= then 45= is 45+57).
-import { type bool, peek, poke, poke16, type u16 } from '../../../src/shared/e16c/builtins'
+import { type bool, peek, poke, type u16 } from '../../../src/shared/e16c/builtins'
 import {
   inexact,
   KEEP_ANGLE,
   KEEP_ANS,
   M_DIV,
-  M_FROMINT,
   M_MUL,
   M_PI,
-  MATH_ARG,
   math,
   WORK,
+  wholeInto,
 } from './numbers.e16'
 import { T_DIVIDE, T_MINUS, T_PLUS, T_POINT, T_TIMES } from './tokens.e16'
 
@@ -28,26 +27,21 @@ export function nextAngle(): void {
   if (unit === 0) {
     math(M_PI, k, 0, 0)
     math(M_MUL, KEEP_ANS, k, 0)
-    wholeAt(k, 180)
+    wholeInto(k, 180)
     math(M_DIV, KEEP_ANS, k, 0)
   } else if (unit === 1) {
-    wholeAt(k, 200)
+    wholeInto(k, 200)
     math(M_MUL, KEEP_ANS, k, 0)
     math(M_PI, k, 0, 0)
     math(M_DIV, KEEP_ANS, k, 0)
   } else {
-    wholeAt(k, 9)
+    wholeInto(k, 9)
     math(M_MUL, KEEP_ANS, k, 0)
-    wholeAt(k, 10)
+    wholeInto(k, 10)
     math(M_DIV, KEEP_ANS, k, 0)
   }
   inexact(KEEP_ANS)
   poke(KEEP_ANGLE, unit >= 2 ? 0 : unit + 1)
-}
-
-function wholeAt(at: u16, v: u16): void {
-  poke16(MATH_ARG, v)
-  math(M_FROMINT, at, 0, 0)
 }
 
 /* ---------------- the constant ---------------- */

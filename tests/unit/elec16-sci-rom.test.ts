@@ -1,17 +1,35 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { compileSci, sciRomFile } from '@shared/e16c/sci-rom'
+import { compileSci, SCI_SOURCES } from '@shared/e16c/sci-rom'
 import { REG } from '@shared/elec16/bus'
 import { decode, format } from '@shared/elec16/decimal'
-import { BIG_PITCH, BIG_WIDTH, bigGlyphColumns, dotText, screenText } from '@shared/elec16/font'
-import { Elec16 } from '@shared/elec16/machine'
+import { BIG_PITCH, BIG_WIDTH, dotText } from '@shared/elec16/font'
+import type { Elec16 } from '@shared/elec16/machine'
 import { MODELS } from '@shared/elec16/map'
 import { MATH_OP, MATH_REG } from '@shared/elec16/math-unit'
-import { buildRom, romFile, romFromFile } from '@shared/elec16/rom'
-import { SCI_KEYS, sciKeyCode } from '@shared/elec16/sci-keys'
+import { romFile, romFromFile } from '@shared/elec16/rom'
+import { SCI_KEYS } from '@shared/elec16/sci-keys'
 import { SCI_ANNUNCIATORS } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
 import sciJson from '../../src/renderer/widgets/elec16/sci-rom.json'
 import { settle } from './elec16-helpers.js'
+import {
+  ans,
+  answer,
+  band,
+  bigText,
+  built,
+  dot,
+  form,
+  keys,
+  lineAt,
+  lineY,
+  lit,
+  read,
+  rightAt,
+  rightWord,
+  rows,
+  switchOn,
+  variable,
+} from './elec16-sci-helpers.js'
 
 /**
  * The ELEC-16 SCI ROM as S5 has it (resources/elec16/sci, docs/elec16-sci.md section 6): the
@@ -21,135 +39,6 @@ import { settle } from './elec16-helpers.js'
  * then the 2D display - templates set as a textbook sets them - and answers in their exact
  * form (p + r√s)/q, read from RAM and from dots at the places the layout puts them.
  */
-
-const DIR = 'resources/elec16/sci/'
-const read = (name: string) => (existsSync(DIR + name) ? readFileSync(DIR + name, 'utf8') : null)
-const built = buildRom((name) => {
-  const file = `resources/elec16/${sciRomFile(name)}`
-  return existsSync(file) ? readFileSync(file, 'utf8') : null
-})
-
-/**
- * Switched on: past the name, at the calculator's empty line - in LINE unless asked for 2D (a new
- * unit's display), as S3's tests read the line as one row of characters.
- */
-const switchOn = (display: '2d' | 'line' = 'line'): Elec16 => {
-  const m = Elec16.boot(built.image, 'sci-128')
-  settle(m)
-  if (display === 'line') keys(m, 'setup 2 ac')
-  return m
-}
-
-/** Keys pressed by their ids (sci-keys.ts), separated by spaces. */
-function keys(m: Elec16, ids: string): void {
-  for (const id of ids.split(' ').filter((x) => x !== '')) {
-    if (id === 'on') m.brk()
-    else {
-      const code = sciKeyCode(id)
-      m.press(code)
-      m.release(code)
-    }
-    settle(m)
-  }
-}
-
-/** The screen's text rows, as the font reads them back (the line is on rows 0-3). */
-const rows = (m: Elec16): string[] => screenText(m.state.vram, 128, 64).map((row) => row.trimEnd())
-
-/** Ans as the unit keeps it (numbers.e16.ts KEEP_ANS), in ten digits. */
-const ans = (m: Elec16): string => {
-  const d = decode(m.state.ram.subarray(0xc08, 0xc10))
-  return d === null ? '?' : format(d, 10)
-}
-
-/** A variable's value (KEEP_VARS: A-F, X, Y, M, a 36-byte value each, its decimal first). */
-const variable = (m: Elec16, k: number): string => {
-  const d = decode(m.state.ram.subarray(0xc30 + k * 36, 0xc38 + k * 36))
-  return d === null ? '?' : format(d, 10)
-}
-
-/**
- * Ans's exact form as (p + r√s)/q in words: "1/2", "2√2", "-√3/2", "2-√3", or "-" when it has
- * none (numbers.e16.ts: the flag at 8, s at 10, p, r and q at 12, 20 and 28).
- */
-function form(m: Elec16): string {
-  const ram = m.state.ram
-  if (ram[0xc08 + 8] !== 1) return '-'
-  const part = (at: number) => {
-    const d = decode(ram.subarray(0xc08 + at, 0xc08 + at + 8))
-    return d === null ? '?' : format(d, 10)
-  }
-  const s = (ram[0xc08 + 10] ?? 0) | ((ram[0xc08 + 11] ?? 0) << 8)
-  const [p, r, q] = [part(12), part(20), part(28)]
-  const top = r === '0' ? p : withRoot(p, r, s)
-  return q === '1' ? top : `${top}/${q}`
-}
-
-/** p + r√s in words: r of 1 or -1 is only its sign, and p of 0 is left out. */
-function withRoot(p: string, r: string, s: number): string {
-  const coefficient = ({ '1': '', '-1': '-' } as Record<string, string>)[r] ?? r
-  const root = `${coefficient}√${s}`
-  if (p === '0') return root
-  return `${p}${root.startsWith('-') ? '' : '+'}${root}`
-}
-
-/** Whether the dot at (x, y) is on. */
-const dot = (m: Elec16, x: number, y: number): boolean =>
-  (((m.state.vram[(y >> 3) * 128 + x] ?? 0) >> (y & 7)) & 1) === 1
-
-/** The big digits on bands 6 and 7, read back from the right edge: the answer as drawn. */
-function bigText(m: Elec16, right = 127): string {
-  const col = (x: number) =>
-    (m.state.vram[6 * 128 + x] ?? 0) | ((m.state.vram[7 * 128 + x] ?? 0) << 8)
-  const glyphs = [...'0123456789-'].map((ch) => [ch, bigGlyphColumns(ch).join(',')] as const)
-  let out = ''
-  let r = right
-  for (;;) {
-    const cols = Array.from({ length: BIG_WIDTH }, (_, k) => col(r - BIG_PITCH + 1 + k))
-    const found = glyphs.find(([, key]) => key === cols.join(','))
-    if (found !== undefined) {
-      out = found[0] + out
-      r -= BIG_PITCH
-      continue
-    }
-    if (col(r - 2) === 0x3000 && col(r - 1) === 0x3000) {
-      out = `.${out}`
-      r -= 3
-      continue
-    }
-    return out
-  }
-}
-
-/**
- * The text of the row of characters whose top is at dot row `y`: the screens other than the
- * calculator's set their text off the eight-row bands (a title a dot down, lines every nine
- * rows), and a dot in from the left: `x0` is where its cells start (1 for those screens).
- * `inverted` reads it off an inverted band.
- */
-function lineAt(m: Elec16, y: number, inverted = false, x0 = 1): string {
-  const band = y >> 3
-  const shift = y & 7
-  const one = Uint8Array.from({ length: 128 }, (_, x) => {
-    // Past the right edge reads as the ground: lit on an inverted band, so it inverts to none.
-    const past = inverted ? 0xff : 0
-    const top = x + x0 < 128 ? (m.state.vram[band * 128 + x + x0] ?? 0) : past
-    const below = x + x0 < 128 ? (m.state.vram[(band + 1) * 128 + x + x0] ?? 0) : past
-    const col = ((top >> shift) | (below << (8 - shift))) & 0xff
-    return (inverted ? ~col : col) & 0x7f
-  })
-  return (screenText(one, 128, 8)[0] ?? '').trim()
-}
-
-const lit = (m: Elec16): string[] =>
-  SCI_ANNUNCIATORS.filter((_, bit) => (m.state.lcd.annunciators & (1 << bit)) !== 0)
-
-/** A line typed and answered: Ans, and the big digits shown. */
-function answer(line: string): { ans: string; shown: string; m: Elec16 } {
-  const m = switchOn()
-  keys(m, `${line} eq`)
-  return { ans: ans(m), shown: bigText(m), m }
-}
 
 describe('the SCI ROM file', () => {
   it('is what the sources build now (run npm run gen:elec16 after changing them)', () => {
@@ -162,9 +51,8 @@ describe('the SCI ROM file', () => {
   })
 
   it('says what the e16c sources say of the machine as the machine has it', () => {
-    const all = ['lcd', 'tokens', 'numbers', 'calc', 'eval', 'screens', 'exact', 'layout', 'edit']
-      .map((f) => read(`${f}.e16.ts`) ?? '')
-      .join('\n')
+    // Every source of the ROM: a constant one of them copies is held to the machine's.
+    const all = SCI_SOURCES.map((s) => read(s.name) ?? '').join('\n')
     const constant = (name: string) => Number(all.match(new RegExp(`const ${name} = (\\w+)`))?.[1])
     for (const k of SCI_KEYS) {
       expect(constant(`K_${k.id.toUpperCase()}`), k.id).toBe(k.code)
@@ -192,10 +80,19 @@ describe('the SCI ROM file', () => {
     expect([constant('BIG_WIDTH'), constant('BIG_PITCH')]).toEqual([BIG_WIDTH, BIG_PITCH])
     expect(constant('MATH_OP')).toBe(MATH_REG.op)
     expect(constant('MATH_ANGLE')).toBe(MATH_REG.angle)
+    let held = 0
     for (const [name, op] of Object.entries(MATH_OP)) {
-      const ours = `M_${name.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`
-      if (all.includes(`const ${ours} =`)) expect(constant(ours), ours).toBe(op)
+      // fromI32 is M_FROMI32 in base.e16.ts, rndTo M_RNDTO: both spellings are looked for.
+      for (const ours of [
+        `M_${name.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`,
+        `M_${name.toUpperCase()}`,
+      ]) {
+        if (!all.includes(`const ${ours} =`)) continue
+        expect(constant(ours), ours).toBe(op)
+        held++
+      }
     }
+    expect(held).toBeGreaterThan(40)
   })
 })
 
@@ -366,12 +263,12 @@ describe('ON, MENU and SETUP', () => {
     expect(rows(m).filter((r) => r !== '')).toEqual([])
   })
 
-  it('MENU lists the modes; AC goes back to the one it was in, a digit past 5 beeps', () => {
+  it('MENU lists the modes; AC goes back to the one it was in, a digit past 8 beeps', () => {
     const m = switchOn()
     keys(m, 'menu')
     expect(lineAt(m, 1, true)).toBe('MENU')
     expect(lineAt(m, 20)).toBe('3:BASE    4:TABLE')
-    keys(m, '7')
+    keys(m, '9')
     expect(lineAt(m, 1, true)).toBe('MENU')
     keys(m, 'ac 1 eq')
     expect(ans(m)).toBe('1')
@@ -725,25 +622,18 @@ describe('the rest of CALC (S5)', () => {
 
 describe('the modes (S6)', () => {
   /** The top of line `n` of the screens' rhythm (section 4.5). */
-  const lineY = (n: number) => 11 + 9 * n
-  /** The band's right-hand text (textRight's cells start at x = 3). */
-  const bandRight = (m: Elec16) => lineAt(m, 1, true, 3).split(' ').pop() ?? ''
-  /** The band's title, the text at its left. */
-  const bandLeft = (m: Elec16) => lineAt(m, 1, true, 1).split('  ')[0]
-  /** The small text right-aligned on the row whose top is `y`, its last word. */
-  const rightWord = (m: Elec16, y: number) => lineAt(m, y, false, 3).split(' ').pop() ?? ''
 
   it('MENU marks the mode it is in; a mode is kept through OFF and ON', () => {
     const m = switchOn()
     keys(m, 'menu 3')
-    expect(bandLeft(m)).toBe('BASE 32')
+    expect(band(m)[0]).toBe('BASE 32')
     keys(m, 'menu')
     // 3:BASE marked: its item inverted from a row above.
     expect(dot(m, 2, 19)).toBe(true)
     keys(m, 'ac shift on')
     m.brk()
     settle(m)
-    expect(bandLeft(m)).toBe('BASE 32')
+    expect(band(m)[0]).toBe('BASE 32')
     keys(m, 'menu 1')
     expect(lit(m)).not.toContain('STAT')
   })
@@ -764,7 +654,7 @@ describe('the modes (S6)', () => {
     keys(m, 'menu 2')
     expect(lit(m)).toContain('STAT')
     keys(m, '8 1 2 eq 4 eq 6 eq right up up up 1 eq 2 eq 1 eq eq')
-    expect(bandLeft(m)).toBe('1-VAR RESULT')
+    expect(band(m)[0]).toBe('1-VAR RESULT')
     expect(rightWord(m, lineY(0))).toBe('4')
     expect(rightWord(m, lineY(1))).toBe('4')
     expect(rightWord(m, lineY(2))).toBe('1.414213562')
@@ -776,7 +666,7 @@ describe('the modes (S6)', () => {
   it('STATS fits a line to two variables and keeps the data through OFF and ON', () => {
     const m = switchOn()
     keys(m, 'menu 2 2 1 eq 2 eq 3 eq right up up up 2 eq 4 eq 7 eq eq')
-    expect(bandLeft(m)).toBe('LINE RESULT')
+    expect(band(m)[0]).toBe('LINE RESULT')
     expect(rightWord(m, lineY(3))).toBe('0.993399268')
     expect(rightWord(m, lineY(4))).toBe('-0.666666667')
     expect(rightWord(m, lineY(5))).toBe('2.5')
@@ -792,11 +682,11 @@ describe('the modes (S6)', () => {
   it('STATS puts a row in and takes one out by FUNC', () => {
     const m = switchOn()
     keys(m, 'menu 2 1 1 eq 2 eq 3 eq up up up func 2')
-    expect(bandRight(m)).toBe('n=2')
+    expect(band(m)[1]).toBe('n=2')
     keys(m, 'func 1')
-    expect(bandRight(m)).toBe('n=3')
+    expect(band(m)[1]).toBe('n=3')
     keys(m, 'func 3')
-    expect(bandRight(m)).toBe('n=0')
+    expect(band(m)[1]).toBe('n=0')
   })
 
   it('BASE shows an answer in the base and the other three, and its bits', () => {
@@ -838,12 +728,12 @@ describe('the modes (S6)', () => {
     keys(m, 'menu 4 alpha lp sq sub 2 alpha lp eq')
     expect(lineAt(m, 11, false, 1)).toBe('START?')
     keys(m, '1 eq 5 eq 1 eq')
-    expect(bandLeft(m)).toBe('TABLE')
+    expect(band(m)[0]).toBe('TABLE')
     // The first row is chosen (inverted); the others read as they are, right in the column.
     expect(lineAt(m, 30, false, 1).split(' ').pop()).toBe('0')
     expect(lineAt(m, 48, false, 1).split(' ').pop()).toBe('8')
     keys(m, 'ac eq 1 eq 1 0 0 eq 1 eq')
-    expect(bandLeft(m)).toBe('ERR:RANGE')
+    expect(band(m)[0]).toBe('ERR:RANGE')
   })
 
   it('EQUATION solves two and three unknowns, exactly where it can', () => {
@@ -898,11 +788,12 @@ describe('the screen read back for a screen reader (S7)', () => {
     // S5 had them in other makers' spellings (Ran#, Rnd), which section 9 rules out.
     const m = switchOn()
     keys(m, 'func')
-    expect(read(m).slice(1, 5)).toEqual([
+    expect(read(m).slice(1, 6)).toEqual([
       '1:gcd(   2:lcm(',
       '3:%      4:int(',
       '5:round( 6:pol(',
-      '7:rec(',
+      '7:rec(   8:d/dx(',
+      '9:∫(     0:Σ(',
     ])
     keys(m, '5')
     expect(rows(m)[0]).toBe('round(')
@@ -1008,9 +899,6 @@ describe("after EL-509E's list: % of what it is added to, STATS' results in a li
 })
 
 describe("the rest of EL-509E's list", () => {
-  const lineY = (n: number) => 11 + 9 * n
-  const rightWord = (m: Elec16, y: number) => lineAt(m, y, false, 3).split(' ').pop() ?? ''
-  const bandLeft = (m: Elec16) => lineAt(m, 1, true, 1).split('  ')[0]
   const read = (m: Elec16) => dotText(m.state.vram, 128, 64)
   /** Ans within ten digits' rounding of `value`. */
   const near = (m: Elec16, value: number) =>
@@ -1065,15 +953,15 @@ describe("the rest of EL-509E's list", () => {
     keys(m, 'ac func down down down 9 1 7 eq')
     expect(ans(m)).toBe('-2.666666667')
     keys(m, 'ac func down down 8 eq')
-    expect(bandLeft(m)).toBe('ERR:MATH')
+    expect(band(m)[0]).toBe('ERR:MATH')
   })
 
   it('names the kind in the band and lists c on the results', () => {
     const m = switchOn()
     keys(m, 'menu 2 3')
-    expect(bandLeft(m)).toBe('STATS QUAD')
+    expect(band(m)[0]).toBe('STATS QUAD')
     keys(m, '0 eq 1 eq 2 eq 3 eq right up up up up 1 eq 6 eq 1 7 eq 3 4 eq eq')
-    expect(bandLeft(m)).toBe('QUAD RESULT')
+    expect(band(m)[0]).toBe('QUAD RESULT')
     expect(rightWord(m, lineY(3))).toBe('-')
     keys(m, 'down')
     expect(lineAt(m, lineY(0), false, 1).startsWith('c=')).toBe(true)
@@ -1170,7 +1058,7 @@ describe("the rest of EL-509E's list", () => {
     expect(variable(m, 8)).toBe('0')
     expect(ans(m)).toBe('0')
     keys(m, 'func down down 1 eq')
-    expect(bandLeft(m)).toBe('ERR:MATH')
+    expect(band(m)[0]).toBe('ERR:MATH')
   })
 
   it('types over the token at the cursor after SHIFT DEL, OVR shown, and back', () => {
@@ -1217,6 +1105,24 @@ describe('AC on a screen that offers it', () => {
       after: (m) => expect(read(m)).toContain('aX+bY=c'),
     },
     { name: "EQUATION's answers", to: 'menu 5 1 1 eq 1 eq 2 eq 1 eq neg 1 eq 0 eq eq', hint: 'X=' },
+    // v2's screens (docs/elec16-sci.md section 14).
+    { name: 'CONST', to: 'shift func', hint: 'AC:BACK' },
+    { name: 'CONV', to: 'shift menu', hint: 'AC:BACK' },
+    { name: "CPLX's FUNC", to: 'menu 6 func', hint: 'AC:BACK' },
+    { name: "MATRIX's FUNC", to: 'menu 7 func', hint: 'AC:BACK' },
+    { name: "MATRIX's FUNC, its functions", to: 'menu 7 func down', hint: 'AC:BACK' },
+    { name: "MATRIX's FUNC, EDIT", to: 'menu 7 func down down', hint: 'AC:BACK' },
+    { name: "MATRIX's EDIT, its size", to: 'menu 7 func down down 1', hint: 'AC:BACK' },
+    { name: "PROG's FUNC", to: 'menu 8 1 func', hint: 'AC:BACK' },
+    {
+      name: "PROG's list",
+      to: 'menu 8',
+      hint: 'AC:BACK',
+      after: (m) => {
+        keys(m, '1 add 2 eq')
+        expect(ans(m)).toBe('3')
+      },
+    },
   ]
   const read = (m: Elec16) => dotText(m.state.vram, 128, 64).join('\n')
   for (const c of cases) {
@@ -1258,6 +1164,13 @@ describe("the ROM's and the RAM's room (docs/elec16-sci.md section 6.7)", () => 
       ['EQN_WORK', 0x2100, 0x2100 + 24 * 36],
       ['STATS_WORK', 0x2500, 0x2500 + 44 * 8 + 44],
       ['WORK', 0x2700, 0x2800],
+      // v2 (section 14.1): its kept region, then its working room.
+      ['V2', 0x2800, 0x3000],
+      ['CPLX_STACK', 0x3000, 0x3000 + 24 * 16 + 32],
+      ['MATRIX_STACK', 0x3200, 0x3200 + 8 * 80 + 72],
+      ['INTEGRAL_WORK', 0x3500, 0x3500 + 544 + 19 * 8],
+      // CODE's area stays free (section 8.1).
+      ['CODE', 0x7000, 0x7c00],
     ]
     for (const [i, [a, from, to]] of areas.entries()) {
       for (const [b, from2, to2] of areas.slice(i + 1)) {
@@ -1272,6 +1185,10 @@ describe("the ROM's and the RAM's room (docs/elec16-sci.md section 6.7)", () => 
       ['EQN_WORK', 0x2100],
       ['STATS_WORK', 0x2500],
       ['WORK', 0x2700],
+      ['V2', 0x2800],
+      ['CPLX_STACK', 0x3000],
+      ['MATRIX_STACK', 0x3200],
+      ['INTEGRAL_WORK', 0x3500],
     ] as const) {
       expect(numbers, name).toContain(
         `export const ${name} = 0x${at.toString(16).padStart(4, '0')}`,
@@ -1285,5 +1202,133 @@ describe("the ROM's and the RAM's room (docs/elec16-sci.md section 6.7)", () => 
     let used = 0x4000
     while (used > 0 && built.image[used - 1] === 0xff) used--
     expect(0x4000 - used).toBeGreaterThanOrEqual(4096)
+  })
+})
+
+describe('found in the review of 2026-10-25', () => {
+  const at = (m: Elec16, a: number) => {
+    const d = decode(m.state.ram.subarray(a, a + 8))
+    return d === null ? '?' : format(d, 10)
+  }
+
+  it('keeps a/b and √ out of a line with no room for their marks', () => {
+    // a/b wrapped 0 into a fraction past the 200 tokens the line holds; √ left its END out.
+    for (const k of ['frac', 'root']) {
+      const m = switchOn('2d')
+      // 199 tokens: 0+0+...+0.
+      keys(m, `${'0 add '.repeat(99)}0 ${k} eq`)
+      expect(lineAt(m, 1, true), k).not.toMatch(/^ERR/)
+      expect(ans(m), k).toBe('0')
+    }
+  })
+
+  it('leaves f(x), STO, RCL and M+ out of TABLE, whose = asks for the range', () => {
+    const m = switchOn()
+    keys(m, '5 sto lp menu 4 alpha lp add 1 fx sto shift sto mplus 2')
+    expect(rows(m)[0]).toBe('X+12')
+    expect(lineAt(m, 47)).toBe('TABLE f(X)')
+  })
+
+  it('forgets STO, HYP and the constant on a new mode, and HYP on ON', () => {
+    const m = switchOn()
+    keys(m, 'sto menu 3 1 eq')
+    expect(ans(m)).toBe('1')
+    keys(m, 'menu 1 3 4 add 5 7 eq menu 3 menu 1 del del del del del 4 5 eq')
+    expect(ans(m)).toBe('45')
+    keys(m, 'hyp on sin 9 0 eq')
+    expect(ans(m)).toBe('1')
+  })
+
+  it('puts X back when a TABLE row or a Σ stops at an error', () => {
+    const m = switchOn()
+    keys(m, '5 sto lp menu 4 1 div alpha lp eq neg 1 eq 1 eq 1 eq')
+    expect(lineAt(m, 1, true)).toBe('ERR:MATH')
+    expect(variable(m, 6)).toBe('5')
+    keys(m, 'ac menu 1 func 0 1 div alpha lp shift lp 0 shift lp 2 eq')
+    expect(lineAt(m, 1, true)).toBe('ERR:MATH')
+    expect(variable(m, 6)).toBe('5')
+  })
+
+  it('says SYNTAX for a number of more than 30 characters, rather than cut it', () => {
+    const m = switchOn()
+    keys(m, `${'1 '.repeat(35)}eq`)
+    expect(lineAt(m, 1, true)).toBe('ERR:SYNTAX')
+  })
+
+  it('carries 60 seconds into a minute in degrees-minutes-seconds', () => {
+    const m = switchOn()
+    keys(m, '1 dot 9 9 9 9 9 9 9 eq dms')
+    expect(rightAt(m, 55)).toBe('2°0′0″')
+  })
+
+  it('keeps abs( exact, and takes a variable never stored and M as an exact 0', () => {
+    const m = switchOn('2d')
+    keys(m, 'shift neg neg 1 frac 3 eq')
+    expect(form(m)).toBe('1/3')
+    keys(m, 'ac 1 frac 3 mplus ac 1 frac 3 mplus shift sto mplus')
+    expect(form(m)).toBe('2/3')
+    keys(m, 'ac alpha neg add 1 frac 3 eq')
+    expect(form(m)).toBe('1/3')
+  })
+
+  it('finds no special angle in a tiny one in RAD', () => {
+    const m = switchOn()
+    keys(m, 'setup 4 ac sin 1 exp neg 1 0 eq')
+    expect(ans(m)).toBe('0.0000000001')
+    expect(form(m)).toBe('-')
+  })
+
+  it('shows a long BASE line by its end, with nothing from past it', () => {
+    const m = switchOn()
+    keys(m, `menu 3 ${'1 '.repeat(45)}`)
+    // The cursor after the last: its 20 before it, the cursor in the 21st place.
+    expect(lineAt(m, 11, false, 1)).toBe('1'.repeat(20))
+  })
+
+  it('shows pol( as two answers only when the line is pol( alone', () => {
+    const m = switchOn()
+    keys(m, 'func 6 3 shift lp 4 rp mul 2 eq')
+    expect(bigText(m)).toBe('10')
+  })
+
+  it('lights ▲ in BASE only where ▲ brings an earlier line', () => {
+    const m = switchOn()
+    keys(m, 'menu 3 1 eq')
+    expect(lit(m)).not.toContain('UP')
+  })
+
+  it('leaves the history it was going through after M+', () => {
+    const m = switchOn()
+    keys(m, '1 eq 2 eq 3 eq up up up mplus down')
+    expect(rows(m)[0]).toBe('1')
+  })
+
+  it('goes back to the end of the line after an error in what X? was given', () => {
+    const m = switchOn()
+    keys(m, 'alpha lp add 1 fx 1 div 0 eq')
+    expect(lineAt(m, 1, true)).toBe('ERR:MATH')
+    keys(m, 'left')
+    expect((m.state.lcd.cursor & 0xff) + 1).toBe(3 * 6)
+  })
+
+  it('takes a variable after ALPHA into X? and into a cell of STATS, EQUATION and MATRIX', () => {
+    const m = switchOn()
+    keys(m, '5 sto neg alpha lp add 1 fx alpha neg eq')
+    expect(ans(m)).toBe('6')
+    keys(m, 'ac menu 2 1 alpha neg eq eq')
+    expect(rightWord(m, lineY(1))).toBe('5')
+  })
+
+  it('works out σ about the mean, not from Σx² - n x̄² (which loses the digits)', () => {
+    const m = switchOn()
+    keys(m, 'menu 2 1 1 0 0 0 0 1 eq 1 0 0 0 0 2 eq 1 0 0 0 0 3 eq eq')
+    // AUTO shows ten places, the 0 before the point one of them.
+    expect(rightWord(m, lineY(2))).toBe('0.816496581')
+  })
+
+  it('finds both roots of x² + 10⁸x + 1, the small one too', () => {
+    const m = switchOn()
+    keys(m, 'menu 5 3 1 eq 1 exp 8 eq 1 eq eq')
+    expect([at(m, 0x2100), at(m, 0x2124)].sort()).toEqual(['-0.00000001', '-100000000'])
   })
 })

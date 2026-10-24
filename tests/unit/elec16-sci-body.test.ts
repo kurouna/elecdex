@@ -5,8 +5,11 @@ import { describe, expect, it } from 'vitest'
 import { pickerChoice, pickerRows } from '../../src/renderer/layout/popup.js'
 import {
   COMPACT_PLACES,
+  FACE_GAP_EM,
   FULL_PLACES,
   faceRuns,
+  faceScale,
+  facesEm,
   type Rect,
   SCI_SKIN_COLOURS,
   SCI_SKINS,
@@ -221,5 +224,24 @@ describe("the picker's rows", () => {
     expect(own && pickerChoice(own.widget, 'popup', null).kind).toBe('popup')
     expect(sci && pickerChoice(sci.widget, 'popup', null).kind).toBe('none')
     expect(sci && pickerChoice(sci.widget, 'tab', null)).toEqual({ kind: 'add', placement: 'tab' })
+  })
+})
+
+describe('the faces printed over the keys (a review of 2026-10-25)', () => {
+  // An em a letter, half of it for a mono one: what a canvas would measure, made simple.
+  const measure = (text: string, mono: boolean) => [...text].length * (mono ? 0.5 : 1)
+
+  it('count both faces, the gap between them, a raised run at its size', () => {
+    expect(facesEm('CONST', '', measure, 0.72)).toBe(5)
+    expect(facesEm('SIN⁻¹', 'D', measure, 0.72)).toBeCloseTo(3 + 2 * 0.72 + FACE_GAP_EM + 1)
+    expect(facesEm('→DMS', 'B', measure, 1)).toBe(4 + FACE_GAP_EM + 1)
+    expect(facesEm('°′″', '', measure, 1)).toBe(1.5)
+  })
+
+  it('narrow sideways what is wider than its band, and leave the rest', () => {
+    // A 2x screen at the smallest scale: a dot a device pixel, a unit 1 CSS pixel, 20 a band.
+    expect(faceScale(2.5, 10, 20)).toBeCloseTo(0.8)
+    expect(faceScale(1.5, 10, 20)).toBe(1)
+    expect(faceScale(0, 10, 20)).toBe(1)
   })
 })

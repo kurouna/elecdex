@@ -14,9 +14,9 @@ import {
   poke16,
   type u16,
 } from '../../../src/shared/e16c/builtins'
-import { K_AC, K_DEL, K_DOWN, K_EQ, K_LEFT, K_RIGHT, K_UP, refuse } from './calc.e16'
+import { alphaKey, K_AC, K_DEL, K_DOWN, K_EQ, K_LEFT, K_RIGHT, K_UP, refuse } from './calc.e16'
 import { evaluate } from './eval.e16'
-import { tokenOf } from './keymap.e16'
+import { letterOf, tokenOf } from './keymap.e16'
 import { dot, glyphAt, invertBox, lineY, textAt } from './lcd.e16'
 import {
   clearStack,
@@ -38,6 +38,8 @@ import { tokenText } from './tokens.e16'
 
 export const GRID_STATS = 0
 export const GRID_EQN = 1
+/** A matrix of MATRIX (matrix.e16.ts): numbers of 8 bytes, three to a row. */
+export const GRID_MAT = 2
 /** What a key on the grid did, for the mode. */
 export const GRID_STAY = 0
 export const GRID_DONE = 1
@@ -60,6 +62,15 @@ const cellText = bytes(24)
 const SHOWN_ROWS = 5
 /** The column of row numbers: 13 dots, its rule at x = 13. */
 const INDEX_WIDTH = 13
+
+/** Where a matrix's numbers are, on the grid. */
+let gridBase: u16 = 0
+
+/** A matrix of `rows` x `cols` at `base` (its size, then its numbers), for MATRIX's EDIT. */
+export function gridOpenMatrix(base: u16, rows: u16, cols: u16): void {
+  gridOpen(GRID_MAT, rows, cols)
+  gridBase = base + 2
+}
 
 /** EQUATION's table of `rows` x `cols` coefficients, or STATS' (its columns by its type). */
 export function gridOpen(which: u16, rows: u16, cols: u16): void {
@@ -102,6 +113,7 @@ function dataColumn(c: u16): u16 {
 /** Where cell (r, c) is kept: STATS an 8-byte number, EQUATION a value. */
 function cellAt(r: u16, c: u16): u16 {
   if (gridKind === GRID_STATS) return STATS_DATA + (r * 3 + dataColumn(c)) * 8
+  if (gridKind === GRID_MAT) return gridBase + (r * 3 + c) * 8
   return EQN_COEFFS + (r * gridCols + c) * VALUE_SIZE
 }
 
@@ -126,7 +138,7 @@ export function gridKey(k: u16, shift: bool): u16 {
     move(k)
     return GRID_STAY
   }
-  const t = tokenOf(k, shift)
+  const t = alphaKey ? letterOf(k) : tokenOf(k, shift)
   if (t === 0 || cellLength >= 32) refuse()
   else {
     cellEntry[cellLength] = t
@@ -169,6 +181,10 @@ function commit(): void {
   clearStack()
   evaluate(addr(cellEntry), cellLength)
   cellLength = 0
+  if (gridKind === GRID_MAT) {
+    copy8(top(), cellAt(row, col))
+    return
+  }
   if (gridKind !== GRID_STATS) {
     copyValue(top(), cellAt(row, col))
     return
@@ -253,8 +269,9 @@ function freqName(): u16 {
   return addr(freqText)
 }
 
-/** A column's name: X, Y, F (FREQ) in STATS; a, b, c, d in EQUATION. */
+/** A column's name: X, Y, F (FREQ) in STATS; a, b, c, d in EQUATION; 1, 2, 3 in a matrix. */
 function headOf(c: u16): u16 {
+  if (gridKind === GRID_MAT) return 0x31 + c
   if (gridKind !== GRID_STATS) return 0x61 + c
   const d = dataColumn(c)
   return d === 0 ? 0x58 : d === 1 ? 0x59 : 0x46
@@ -262,19 +279,19 @@ function headOf(c: u16): u16 {
 
 /** Row `r` at dot row `y`: its number, its cells, the chosen one inverted. */
 function drawRow(r: u16, y: u16): void {
-  rowNumber(r + 1)
-  textAt(addr(cellText), 1, y)
+  rowNumberAt(r + 1, y)
   const filled = gridKind !== GRID_STATS || r < peek16(STATS_COUNT)
   for (let c: u16 = 0; c < gridCols; c++) {
     const right = c + 1 < gridCols ? edge(c + 1) : 128
     const chosen = r === row && c === col
     if (chosen && cellLength > 0) entryText(right, y)
-    else if (filled) cellValue(cellAt(r, c), right, y)
+    else if (filled) fitNumber(cellAt(r, c), edgeLeft(right), right, y)
     if (chosen) invertBox(edge(c) + 1, y - 1, right - 1, y + 7)
   }
 }
 
-function rowNumber(n: u16): void {
+/** A row's number (1-99) at the left of the row whose top is `y` (TABLE's rows too). */
+export function rowNumberAt(n: u16, y: u16): void {
   let i: u16 = 0
   if (n >= 10) {
     cellText[0] = 0x30 + div(n, 10)
@@ -282,15 +299,18 @@ function rowNumber(n: u16): void {
   }
   cellText[i] = 0x30 + (n % 10)
   cellText[i + 1] = 0
+  textAt(addr(cellText), 1, y)
 }
 
-/** A cell's number, right in its column, in as many digits as the column holds. */
-function cellValue(v: u16, right: u16, y: u16): void {
-  const room = div(right - 3 - edgeLeft(right), 6)
+/**
+ * A number right in the column from `left` to `right`, in as many digits as it holds (TABLE's
+ * columns too): fewer digits until the text fits, a sign, a point or an exponent taking room.
+ */
+export function fitNumber(v: u16, left: u16, right: u16, y: u16): void {
+  const room = div(right - 3 - left, 6)
   let digits = room
   if (digits > 10) digits = 10
   let length: u16 = 99
-  // Fewer digits until the text fits: a sign, a point or an exponent take room too.
   while (length > room && digits > 0) {
     poke16(MATH_ARG, digits)
     math(M_FORMAT, v, addr(cellText), 0)

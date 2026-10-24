@@ -384,14 +384,18 @@ user made; do not reverse one without asking.
     `npm run gen:elec16`. e16c names are one namespace across every file: a new global gets a
     name no other file has. e16c's globals stay in 0100-0BFF (a load reaches 8191 from zero);
     a large new area goes at a fixed address in the RAM map (elec16-sci.md section 6.7), the kept regions checked by their marks
-    (0C00, 5C24; the modes' 1600, 5C36) - a change of a kept layout takes a new mark.
+    (0C00, 5C24; the modes' 1600, 5C36; v2's 2800, 5C48) - a change of a kept layout takes a new mark.
+    A bank's strings and tables are read in that bank: a name another bank draws is copied to
+    RAM first (consts.e16.ts `extName`), and the maths unit's PARSE reads RAM only.
   - Every value is a decimal and an exact form `(p + r√s)/q`: the decimal is always worked
     out, the form followed beside it (exact.e16.ts) and dropped - never an error - when it
     cannot be kept. Answers show the form first only as SETUP and section 6.4 say.
   - Its words are its own (section 9): functions in small letters as they go into the line
-    (`round(`, `rand`), SHIFT faces the key's inverse, the rest in FUNC; no maker's names,
+    (`round(`, `rand`), SHIFT faces the key's inverse, the rest in FUNC (ANGLE, CONST and
+    CONV are screens on the SHIFT faces of keys with no inverse); no maker's names,
     spellings or key layouts. A change a user can see updates the manual in the same commit,
-    and the manual's examples run (elec16-sci-rom.test.ts).
+    and the manual's examples run (elec16-sci-rom.test.ts; v2's chapters in
+    elec16-sci-v2.test.ts).
   - The page reads its screen for a screen reader by its dots (`dotText`, shared/elec16/font.ts:
     text on any row, big digits): keep it cheap (measured 0.3 ms a screen).
 - **The CLUSTER pane** (§5.20, docs/cluster.md, shared/cluster.ts, widgets/cluster/) reads only

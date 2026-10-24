@@ -4,7 +4,15 @@
 // cubic, one real root found by halving [-R, R] (R from the coefficients), the other two from
 // the quadratic left. Complex roots are shown as re ± im i. The coefficients are typed into
 // the grid (grid.e16.ts) and kept when the power goes.
-import { type bool, peek, poke, str, type u16 } from '../../../src/shared/e16c/builtins'
+import {
+  type bool,
+  peek,
+  peek16,
+  poke,
+  poke16,
+  str,
+  type u16,
+} from '../../../src/shared/e16c/builtins'
 import { K_1, K_2, K_3, K_4, K_AC, K_DOWN, K_UP, refuse } from './calc.e16'
 import { drawComplexAt, drawValueAt } from './display.e16'
 import { exactBinary, exactNeg, exactSqrt, exactWhole } from './exact.e16'
@@ -18,6 +26,7 @@ import {
   EQN_WORK,
   fail,
   inexact,
+  isExact,
   isNegative,
   isZero,
   KEEP_DISPLAY,
@@ -282,13 +291,9 @@ function pivotRow(k: u16, n: u16): u16 {
     copyValue(cell(best, k, n), E2)
     math(M_ABS, E2, 0, 0)
     math(M_CMP, E1, E2, 0)
-    if (peekResult() === 1) best = i
+    if (peek16(MATH_RESULT) === 1) best = i
   }
   return best
-}
-
-function peekResult(): u16 {
-  return peek(MATH_RESULT) | (peek(MATH_RESULT + 1) << 8)
 }
 
 function swapRows(a: u16, b: u16, n: u16): void {
@@ -355,6 +360,18 @@ function quadratic(a: u16, b: u16, c: u16, first: u16): void {
   copyValue(E3, rootAt(first + 1))
   vop(M_SUB, rootAt(first + 1), E1)
   vop(M_DIV, rootAt(first + 1), E2)
+  // -b and ±√D nearly cancel in one root when 4ac is small beside b²: as a decimal it is
+  // worked out again from the other, x1 x2 = c/a (x² + 10⁸x + 1 once had 0 for -10⁻⁸).
+  const small = isNegative(b) ? first + 1 : first
+  fromProduct(rootAt(small), rootAt(small === first ? first + 1 : first), a, c)
+}
+
+/** `r` as c / a / `other`, when it has no exact form and `other` is not 0. */
+function fromProduct(r: u16, other: u16, a: u16, c: u16): void {
+  if (isExact(r) || isZero(other)) return
+  copyValue(c, r)
+  vop(M_DIV, r, a)
+  vop(M_DIV, r, other)
 }
 
 /** -b/2a ± (√-D / 2|a|) i, from t3 = -b, t1 = √-D, t2 = 2a. */
@@ -405,7 +422,7 @@ function cubic(): void {
   halve()
   // A whole root, checked exactly: the quadratic then keeps its exact forms.
   copyValue(rootAt(0), E4)
-  poke16Arg(0)
+  poke16(MATH_ARG, 0)
   math(M_RNDTO, E4, 0, 0)
   exactWhole(E4)
   cubicAt(E4, E1)
@@ -423,11 +440,6 @@ function cubic(): void {
   vop(M_MUL, qc, rootAt(0))
   vop(M_ADD, qc, coeff(0, 2))
   quadratic(qa, qb, qc, 1)
-}
-
-function poke16Arg(v: u16): void {
-  poke(MATH_ARG, v & 0xff)
-  poke(MATH_ARG + 1, v >> 8)
 }
 
 /** f(x) of the cubic into `out`, by Horner's rule on the coefficients as typed. */
@@ -456,7 +468,7 @@ function halve(): void {
     eqSmall(E2, 1)
     math(M_ADD, E1, E2, 0)
     math(M_CMP, E1, hi, 0)
-    if (peekResult() === 1) copyValue(E1, hi)
+    if (peek16(MATH_RESULT) === 1) copyValue(E1, hi)
   }
   copyValue(hi, lo)
   math(M_NEG, lo, 0, 0)

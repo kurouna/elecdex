@@ -17,6 +17,7 @@ import {
   str,
   u16,
 } from '../../../src/shared/e16c/builtins'
+import { convLabel } from './consts.e16'
 import { setAnswer, setTokensAt } from './layout.e16'
 import { bigNumber, textAt, textRight } from './lcd.e16'
 import {
@@ -32,6 +33,8 @@ import {
   KEEP_FORMAT,
   KEEP_MIXED,
   M_ABS,
+  M_ADD,
+  M_CMP,
   M_FORMAT,
   M_IDIV,
   M_MOD,
@@ -39,6 +42,7 @@ import {
   M_RNDTO,
   M_SUB,
   MATH_ARG,
+  MATH_RESULT,
   math,
   V_P,
   V_Q,
@@ -47,6 +51,8 @@ import {
   varAt,
 } from './numbers.e16'
 import {
+  isFunction,
+  T_CLOSE,
   T_DEG,
   T_END,
   T_FRAC,
@@ -55,7 +61,11 @@ import {
   T_MINUS,
   T_MIXED,
   T_MSEP,
+  T_OPEN,
   T_PLUS,
+  T_POL,
+  T_POW,
+  T_REC,
   T_ROOT,
   T_SEC,
   T_SEP,
@@ -69,6 +79,8 @@ export const SHOW_ENG = 3
 export const SHOW_DMS = 4
 export const SHOW_PAIR = 5
 export const SHOW_FOUND = 6
+/** A decimal CONV made, the conversion named over it (section 14.4). */
+export const SHOW_CONV = 7
 
 /** The text being written, and how long it is. */
 const text = bytes(32)
@@ -100,6 +112,23 @@ function mixable(): bool {
   return !isNegative(addr(scratch)) && !isZero(addr(scratch))
 }
 
+/**
+ * Whether the line at `at` is pol( or rec( alone (its ) may be left off): its two answers are
+ * shown; with anything after it (pol(3,4)x2) the line's own value is.
+ */
+export function pairLine(at: u16, length: u16): bool {
+  const first = peek(at)
+  if (length === 0 || (first !== T_POL && first !== T_REC)) return false
+  let depth: u16 = 1
+  for (let i: u16 = 1; i < length; i++) {
+    const t = peek(at + i)
+    if (t === T_CLOSE) depth--
+    else if (t === T_OPEN || t === T_POW || isFunction(t)) depth++
+    if (depth === 0) return i === length - 1
+  }
+  return true
+}
+
 /** How an answer is shown first: in 2D its form unless asked for a decimal, as SETUP says. */
 export function firstShown(form: bool): u16 {
   if (!form || !hasForm()) return SHOW_DECIMAL
@@ -127,7 +156,14 @@ export function drawAnswerAs(shown: u16): void {
     else decimalText(KEEP_ANS)
     drawDecimal()
     if (shown === SHOW_FOUND) drawFound()
+    if (shown === SHOW_CONV) textAt(convLabel(), 1, 40)
   }
+}
+
+/** A decimal other than Ans in big digits, as SETUP shows one (CPLX's real answer). */
+export function drawBig(v: u16): void {
+  decimalText(v)
+  drawDecimal()
 }
 
 /** The text in big digits, its exponent raised at the right edge after x10. */
@@ -474,11 +510,26 @@ function dmsText(v: u16): void {
   sixty(addr(spare))
   poke16(MATH_ARG, u16(-2))
   math(M_RNDTO, addr(spare), 0, 0)
+  // Seconds rounded up to 60 are a minute (1.9999999 is 2°0′0″, never 1°59′60″).
+  setDigits(1)
+  copy(addr(unit), addr(scratch))
+  setDigits(60)
+  carry(addr(spare), addr(minutePart))
+  carry(addr(minutePart), addr(degreePart))
+  setDigits(1)
   textLength = 0
   if (isNegative(v)) addChar(0x2d)
   part(addr(degreePart), T_DEG)
   part(addr(minutePart), T_MIN)
   part(addr(spare), T_SEC)
+}
+
+/** 60 of `low` (unit holds 60, scratch 1) taken into one of `high`. */
+function carry(low: u16, high: u16): void {
+  math(M_CMP, low, addr(unit), 0)
+  if (i16(peek16(MATH_RESULT)) < 0) return
+  math(M_SUB, low, addr(unit), 0)
+  math(M_ADD, high, addr(scratch), 0)
 }
 
 /** x 60, in place (`unit` holds 1 again after). */

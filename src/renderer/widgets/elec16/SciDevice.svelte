@@ -5,7 +5,15 @@ import Lcd from './Lcd.svelte'
 import type { LcdColours } from './lcd-painter.ts'
 import type { BodyMode } from './pane-state.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
-import { faceRuns, type Rect, SCI_SKIN_COLOURS, type SciSkin, sciFit } from './sci-body.ts'
+import {
+  faceRuns,
+  faceScale,
+  facesEm,
+  type Rect,
+  SCI_SKIN_COLOURS,
+  type SciSkin,
+  sciFit,
+} from './sci-body.ts'
 
 /**
  * SCI-128's body (docs/elec16-sci.md section 8.2), as the agreed mock draws it: the plate with
@@ -93,6 +101,64 @@ const shiftFace = (id: string): string =>
 const alphaFace = (id: string): string => SCI_KEY_BY_ID.get(id)?.alpha ?? ''
 const spoken = (id: string): string =>
   id === 'on' ? 'ON, break' : `${cap(id)}${shiftFace(id) === '' ? '' : `, shift ${shiftFace(id)}`}`
+
+// ---- Fitting the faces over the keys. ----
+
+/** Bumped when the page's faces are ready, so the printing is measured in them. */
+let faceRevision = $state(0)
+$effect(() => {
+  let live = true
+  void document.fonts?.ready.then(() => {
+    if (live) faceRevision++
+  })
+  return () => {
+    live = false
+  }
+})
+
+let measurer: CanvasRenderingContext2D | null = null
+const widths = new Map<string, number>()
+/** A run's width in em, in the UI face at 600 (the mono face at 500), measured once and kept. */
+function runEm(text: string, mono: boolean): number {
+  const key = `${mono ? 'm' : 'u'}|${text}`
+  const kept = widths.get(key)
+  if (kept !== undefined) return kept
+  measurer ??= document.createElement('canvas').getContext('2d')
+  if (measurer === null) return 0
+  const css = getComputedStyle(document.documentElement)
+  const family = css.getPropertyValue(mono ? '--font-mono' : '--font-ui')
+  measurer.font = `${mono ? 500 : 600} 100px ${family}`
+  const em = measurer.measureText(text).width / 100
+  widths.set(key, em)
+  return em
+}
+
+/**
+ * Each key's faces narrowed sideways, by id, where they would run past their band: on a dense
+ * screen at the smallest body the type's floor (--step--2) no longer shrinks with the band.
+ */
+const squeeze = $derived.by((): ReadonlyMap<string, number> => {
+  void faceRevision
+  const out = new Map<string, number>()
+  if (layout === null) return out
+  const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+  const floor = root * 0.625
+  const fontPx = Math.max(floor, 3.4 * layout.unit)
+  const raised = Math.max(floor, 0.72 * fontPx) / fontPx
+  for (const k of layout.keys) {
+    const em = facesEm(shiftFace(k.id), alphaFace(k.id), runEm, raised)
+    const scale = faceScale(em, fontPx, k.over.w)
+    if (scale < 1) out.set(k.id, scale)
+  }
+  return out
+})
+
+/** The faces' box: the band, or wider and narrowed back into it. */
+const facesPlace = (id: string, r: Rect): string => {
+  const s = squeeze.get(id)
+  if (s === undefined) return place(r)
+  return `${place(r)};width:${r.w / s}px;transform:scaleX(${s.toFixed(3)});transform-origin:left`
+}
 
 /** The arrows on the pad: which way each points, on a 10 x 10 box. */
 const ARROWS: readonly { id: string; turn: number }[] = [
@@ -206,7 +272,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
       {/if}
       {#each layout.keys as k (k.id)}
         {#if k.over.h > 0 && (shiftFace(k.id) !== '' || alphaFace(k.id) !== '')}
-          <span class="faces" style={place(k.over)} aria-hidden="true"
+          <span class="faces" style={facesPlace(k.id, k.over)} aria-hidden="true"
             ><span class="sh">{@render print(shiftFace(k.id))}</span><span class="al"
               >{@render print(alphaFace(k.id))}</span
             ></span

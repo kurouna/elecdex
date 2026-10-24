@@ -68,6 +68,27 @@ test('the picker opens a calculator on a unit of its own, whose keys reach it fr
     await key('2')
     await key('ac')
     await expect(mark('2D')).not.toHaveClass(/\bon\b/)
+    // v2's banks in the built app: SHIFT FUNC is CONST, its first constant c₀ (bank 10).
+    await key('shift')
+    await key('func')
+    await key('1')
+    await expect.poll(firstRow).toBe('c₀')
+
+    // The printing above the keys - SHIFT faces left, ALPHA letters right - never runs into
+    // its neighbour's, the long ones side by side too (ANGLE, CONST on SETUP and FUNC).
+    const printed = await sci.locator('.faces > span').evaluateAll((spans) =>
+      spans
+        .map((s) => s.getBoundingClientRect())
+        .filter((r) => r.width > 0)
+        .map((r) => ({ left: r.left, right: r.right, top: r.top, bottom: r.bottom })),
+    )
+    expect(printed.length).toBeGreaterThan(30)
+    for (const [i, a] of printed.entries()) {
+      for (const b of printed.slice(i + 1)) {
+        const sameRow = a.top < b.bottom && b.top < a.bottom
+        expect(sameRow && a.left < b.right && b.left < a.right, JSON.stringify([a, b])).toBe(false)
+      }
+    }
 
     // The panel offers CORE, MEM and TUNE only; TUNE names the unit SCI 1 and its model.
     await expect(sci.getByRole('tab')).toHaveText(['core', 'mem', 'tune'])

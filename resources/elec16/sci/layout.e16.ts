@@ -1,7 +1,8 @@
 // ELEC-16 SCI, ROM bank 3: the 2D display (docs/elec16-sci.md section 4.4). The tokens laid out
 // as a textbook sets them: a fraction's parts over and under a bar four dots above the line's
-// foot, a root's body under a bar with a tick, a power's exponent raised four dots (a run of
-// powers stepping up, read from the right). Every part is a box - its width, how far it reaches
+// foot, a root's body under a bar with a tick, a power's exponent raised - eight dots for one
+// alone (its own four and the run's four), four more for each after it in a run, which reads
+// from the right). Every part is a box - its width, how far it reaches
 // above its foot and below - measured first, then drawn. The same code sets the line being
 // typed (its cursor found on the way) and an exact answer (p + r√s)/q.
 import { type bool, peek, type u16 } from '../../../src/shared/e16c/builtins'
@@ -163,8 +164,8 @@ function wider(a: u16, b: u16): u16 {
   return b
 }
 
-/** How many characters a token shows as. */
-function charsOf(t: u16): u16 {
+/** How many characters a token shows as (draw.e16.ts and base.e16.ts count with it too). */
+export function charsOf(t: u16): u16 {
   const text = tokenText(t)
   if (text === 0) return 1
   let n: u16 = 0

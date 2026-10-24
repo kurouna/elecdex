@@ -3,7 +3,8 @@
 // a variable's letter, π, ×, ÷, ², ³, ⁻¹, ᴇ, ° ′ ″, %, the comma. One below 0x20 or from 0xE0
 // (where the font has no characters) stands for more than a character - sin( and the other
 // functions, Ans, the minus sign, the power, a template's marks - and is shown by its text.
-import { type bool, peek, str, type u16 } from '../../../src/shared/e16c/builtins'
+import { type bool, str, type u16 } from '../../../src/shared/e16c/builtins'
+import { extName } from './consts.e16'
 
 /* ---------------- tokens that are characters ---------------- */
 
@@ -120,6 +121,53 @@ export const T_DICE = 0x0c
 export const T_COIN = 0x0d
 export const T_RINT = 0x0e
 
+/*
+ * v2's tokens (docs/elec16-sci.md section 14.2) take A0-DF, the font's kana, which the
+ * calculator never types: the functions first, then the angle and the matrices, a program's
+ * words, and the physical constants. Their names live in a bank (consts.e16.ts extName).
+ */
+export const T_DERIV = 0xa0
+export const T_INTEG = 0xa1
+export const T_SIGMA = 0xa2
+export const T_ARG = 0xa3
+export const T_CONJ = 0xa4
+export const T_RE = 0xa5
+export const T_IM = 0xa6
+export const T_DET = 0xa7
+export const T_TRN = 0xa8
+export const T_DOT = 0xa9
+export const T_CROSS = 0xaa
+export const T_ANGLE = 0xab
+/** r∠θ: a complex number by its size and its angle. */
+export const T_POLAR = 0xb0
+/** MatA-MatD, then MatAns. */
+export const T_MAT = 0xb1
+export const T_MAT_ANS = 0xb5
+/** A program's condition, its comparisons, and lbl and goto. */
+export const T_THEN = 0xb8
+export const T_NE = 0xb9
+export const T_LE = 0xba
+export const T_GE = 0xbb
+export const T_LBL = 0xbc
+export const T_GOTO = 0xbd
+/** The physical constants, C0-D3 (consts.e16.ts). */
+export const T_CONST = 0xc0
+export const T_CONST_LAST = 0xd3
+/* v2's tokens that are characters: i, a program's ? : → ▶ and its = < >. */
+export const T_I = 0x69
+export const T_ASK = 0x3f
+export const T_COLON = 0x3a
+export const T_STORE = 0x94
+export const T_SHOW = 0x8b
+export const T_EQUAL = 0x3d
+export const T_LESS = 0x3c
+export const T_MORE = 0x3e
+
+/** Whether a token is a physical constant. */
+export function isConstant(t: u16): bool {
+  return t >= T_CONST && t <= T_CONST_LAST
+}
+
 /** Whether a token is one of STATS' results (n ... b). */
 export function isStatValue(t: u16): bool {
   return (t >= T_STAT_N && t <= 0x9f) || (t >= 0xf4 && t <= T_STAT_LAST) || t === T_STAT_C
@@ -146,6 +194,7 @@ export function isFunction(t: u16): bool {
   return (
     (t >= T_SIN && t <= T_CBRT) ||
     (t >= T_SINH && t <= T_REC) ||
+    (t >= T_DERIV && t <= T_ANGLE) ||
     t === T_XEST ||
     t === T_YEST ||
     t === T_X2EST
@@ -168,8 +217,8 @@ export function isDigit(t: u16): bool {
 
 /** What a token shows when it is not its own character (0 when it is). */
 export function tokenText(t: u16): u16 {
-  if (t >= T_SINH) return namedText(t)
-  if (isStatValue(t)) return statText(t)
+  // From A0, and STATS' results: names kept in a bank (consts.e16.ts), copied out to RAM.
+  if (t >= T_DERIV || isStatValue(t)) return extName(t)
   switch (t) {
     case T_SIN:
       return str('sin(')
@@ -234,111 +283,4 @@ export function tokenText(t: u16): u16 {
       return str(')\x83(')
   }
   return 0
-}
-
-/** The text of a token from 0xE0: the functions S5 added, and rand. Function names are small letters, as
- * sin( is (docs/elec16-sci.md section 4.4); Ans alone has a capital. */
-function namedText(t: u16): u16 {
-  switch (t) {
-    case T_SINH:
-      return str('sinh(')
-    case T_COSH:
-      return str('cosh(')
-    case T_TANH:
-      return str('tanh(')
-    case T_ASINH:
-      return str('sinh\x86(')
-    case T_ACOSH:
-      return str('cosh\x86(')
-    case T_ATANH:
-      return str('tanh\x86(')
-    case T_ABS:
-      return str('abs(')
-    case T_GCD:
-      return str('gcd(')
-    case T_LCM:
-      return str('lcm(')
-    case T_INT:
-      return str('int(')
-    case T_RND:
-      return str('round(')
-    case T_POL:
-      return str('pol(')
-    case T_REC:
-      return str('rec(')
-    case T_RAN:
-      return str('rand')
-  }
-  return logicText(t)
-}
-
-/** The text of BASE's logic. */
-function logicText(t: u16): u16 {
-  switch (t) {
-    case T_AND:
-      return str(' AND ')
-    case T_OR:
-      return str(' OR ')
-    case T_XOR:
-      return str(' XOR ')
-    case T_XNOR:
-      return str(' XNOR ')
-    case T_NOT:
-      return str('not(')
-    case T_BNEG:
-      return str('neg(')
-    case T_XEST:
-      return str('x\x89(')
-    case T_YEST:
-      return str('y\x89(')
-    case T_X2EST:
-      return str('x\x93\x89(')
-  }
-  return isStatValue(t) ? statText(t) : 0
-}
-
-/** A STATS result's name: x̄ is 95, ȳ 96, σ 91, Σ 90, ² 84. */
-function statText(t: u16): u16 {
-  switch (statIndex(t)) {
-    case 0:
-      return str('n')
-    case 1:
-      return str('\x95')
-    case 2:
-      return str('\x91x')
-    case 3:
-      return str('sx')
-    case 4:
-      return str('\x96')
-    case 5:
-      return str('\x91y')
-    case 6:
-      return str('sy')
-    case 7:
-      return str('\x90x')
-    case 8:
-      return str('\x90x\x84')
-    case 9:
-      return str('\x90y')
-    case 10:
-      return str('\x90y\x84')
-    case 11:
-      return str('\x90xy')
-    case 12:
-      return str('r')
-    case 13:
-      return str('a')
-    case 15:
-      return str('c')
-  }
-  return str('b')
-}
-
-/** How many characters a token shows as. */
-export function tokenWidth(t: u16): u16 {
-  const text = tokenText(t)
-  if (text === 0) return 1
-  let n: u16 = 0
-  while (peek(text + n) !== 0) n++
-  return n
 }

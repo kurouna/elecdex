@@ -49,11 +49,11 @@ const ROWS: readonly (readonly (Omit<SciKey, 'code'> | null)[])[] = [
     key('alpha', 'ALPHA', 'top', 'ALPHA'),
   ],
   [
-    key('menu', 'MENU', 'top', 'MENU'),
+    key('menu', 'MENU', 'top', 'MENU', 'CONV'),
     key('setup', 'SETUP', 'top', 'SETUP', 'ANGLE'),
     // Code 10 is the pocket's CAPS: left free (see above).
     null,
-    key('func', 'FUNC', 'top', 'FUNC'),
+    key('func', 'FUNC', 'top', 'FUNC', 'CONST'),
     key('sto', 'STO', 'top', 'STO', 'RCL'),
     key('fd', 'F⇄D', 'top', 'F/D', 'ENG'),
     key('del', 'DEL', 'num', 'DEL', 'INS'),

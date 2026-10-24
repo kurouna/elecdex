@@ -265,6 +265,37 @@ export function faceRuns(text: string): FaceRun[] {
   return runs
 }
 
+/** The room between a key's SHIFT face and its ALPHA face, in em. */
+export const FACE_GAP_EM = 0.3
+
+/**
+ * Both faces over a key (SHIFT left, ALPHA right) and the gap between them, in em: each run's
+ * width as `measure` gives it in em of its face, a raised run times `raised` (its size beside
+ * the plain text's: at the type's floor the two are one size).
+ */
+export function facesEm(
+  shift: string,
+  alpha: string,
+  measure: (text: string, mono: boolean) => number,
+  raised: number,
+): number {
+  const em = (text: string) =>
+    faceRuns(text).reduce((sum, r) => sum + measure(r.text, r.mono) * (r.sup ? raised : 1), 0)
+  const a = em(shift)
+  const b = em(alpha)
+  return a + b + (a > 0 && b > 0 ? FACE_GAP_EM : 0)
+}
+
+/**
+ * How much the faces over a key are narrowed sideways to keep inside its band: 1 when they fit.
+ * Never smaller: the type's floor (--step--2) holds where the body is small, and its band does
+ * not (docs/elec16.md section 7, as cap-fit.ts narrows a key's label).
+ */
+export function faceScale(textEm: number, fontPx: number, bandPx: number): number {
+  const width = textEm * fontPx
+  return width <= bandPx || width <= 0 ? 1 : bandPx / width
+}
+
 /* ---------------- colours ---------------- */
 
 /** The calculator's colours (docs/elec16-sci.md section 8.2): two cases and elecdex's own. */

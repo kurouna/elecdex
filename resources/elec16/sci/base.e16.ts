@@ -18,14 +18,6 @@ import {
 import {
   answered,
   cursor,
-  K_0,
-  K_1,
-  K_2,
-  K_3,
-  K_4,
-  K_6,
-  K_7,
-  K_9,
   K_AC,
   K_ADD,
   K_ANS,
@@ -43,7 +35,8 @@ import {
   refuse,
 } from './calc.e16'
 import { exactWhole } from './exact.e16'
-import { letterOf } from './keymap.e16'
+import { digitOf, letterOf } from './keymap.e16'
+import { charsOf } from './layout.e16'
 import { bandWith, barDots, cls, dot, glyphAt, lineY, noCursor, textAt, textRight } from './lcd.e16'
 import {
   BASE_RADIX,
@@ -111,7 +104,7 @@ function radixValue(r: u16): u16 {
 
 /** The token a key types in BASE: a digit of the base, A-F in HEX, + - x / ( ) Ans; 0 for none. */
 export function baseToken(k: u16): u16 {
-  const d = baseDigit(k)
+  const d = digitOf(k)
   if (d !== 0xffff) return d < radixValue(radix()) ? 0x30 + d : 0
   if (radix() === HEX) {
     const l = letterOf(k)
@@ -138,16 +131,6 @@ export function baseToken(k: u16): u16 {
   return 0
 }
 
-function baseDigit(k: u16): u16 {
-  if (k === K_0) return 0
-  if (k === K_1) return 1
-  if (k === K_2) return 2
-  if (k === K_3) return 3
-  if (k >= K_4 && k <= K_6) return 4 + k - K_4
-  if (k >= K_7 && k <= K_9) return 7 + k - K_7
-  return 0xffff
-}
-
 /** BASE's own keys: F⇄D the next base, ▲ ▼ BIN's halves of an answer. Done, true. */
 export function baseCommand(k: u16): bool {
   if (k === K_FD) {
@@ -171,7 +154,7 @@ export function baseFuncKey(k: u16): u16 {
     drawBaseFunc()
     return 0
   }
-  const d = baseDigit(k)
+  const d = digitOf(k)
   if (baseFuncPage === 0 && d >= 1 && d <= RADIXES) {
     poke(BASE_RADIX, d - 1)
     return 1
@@ -462,36 +445,43 @@ function binName(): u16 {
   return high ? str('BIN\x8e') : str('BIN\x8d')
 }
 
-/** The line on one row at line 0, scrolled so the cursor is on it. */
+/**
+ * The line on one row at line 0, scrolled so the cursor is on it: its characters counted first,
+ * then only those on the row drawn (a line of 99 tokens is far more than a row's 21).
+ */
 function drawLine32(): void {
   let chars: u16 = 0
   let cursorAt: u16 = 0
   for (let i: u16 = 0; i < length; i++) {
     if (i === cursor) cursorAt = chars
-    chars = into(line[i], chars)
+    chars += charsOf(line[i])
   }
   if (cursor >= length) cursorAt = chars
   const from = cursorAt > 20 ? cursorAt - 20 : 0
-  const end = chars - from > 21 ? from + 21 : chars
-  for (let c = from; c < end; c++) glyphAt(baseText[c], (c - from) * 6 + 1, lineY(0))
+  let c: u16 = 0
+  for (let i: u16 = 0; i < length; i++) c = drawToken(line[i], c, from)
   if (!answered) barDots((cursorAt - from) * 6, lineY(0) - 1)
 }
 
-/** A token's characters into the text from `n` (40 at most): where they end. */
-function into(t: u16, n: u16): u16 {
+/** A token's characters from the line's place `c`, those on the row (from `from`) drawn: where they end. */
+function drawToken(t: u16, c: u16, from: u16): u16 {
   const s = tokenText(t)
   if (s === 0) {
-    if (n < 40) baseText[n] = t
-    return n + 1
+    charOnRow(t, c, from)
+    return c + 1
   }
-  let k = n
+  let k = c
   let p = s
   while (peek(p) !== 0) {
-    if (k < 40) baseText[k] = peek(p)
+    charOnRow(peek(p), k, from)
     k++
     p++
   }
   return k
+}
+
+function charOnRow(ch: u16, c: u16, from: u16): void {
+  if (c >= from && c < from + 21) glyphAt(ch, (c - from) * 6 + 1, lineY(0))
 }
 
 /** Ans in base `r` into the text: HEX 8 digits, OCT 11, BIN 16 (a half), DEC signed. */

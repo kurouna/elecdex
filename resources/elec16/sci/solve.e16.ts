@@ -20,9 +20,10 @@ import {
   copyValue,
   diffValue,
   E_FIND,
+  ERR_PINNED,
+  errFrom,
   fail,
   inexact,
-  isNegative,
   isZero,
   KEEP_ANS,
   M_ABS,
@@ -153,7 +154,10 @@ function finish(): void {
   noCursor()
   if (entryLength > 0) {
     clearStack()
+    // An error in what was typed here goes back to the end of the line, not to its place.
+    errFrom(ERR_PINNED | 0x7fff)
     evaluate(addr(entry), entryLength)
+    errFrom(0)
     copyValue(top(), target)
   }
   if (askedFor === FOR_TABLE) return
@@ -231,7 +235,7 @@ function smallStep(): bool {
   copyValue(addr(x), addr(step))
   math(M_ABS, addr(step), 0, 0)
   setTiny()
-  if (isNegative(addr(step)) || exponentBelowZero(addr(step))) {
+  if (exponentBelowZero(addr(step))) {
     math(M_CMP, addr(fx), addr(small), 0)
   } else {
     math(M_MUL, addr(step), addr(small), 0)

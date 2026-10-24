@@ -421,43 +421,51 @@ function angleIndex(arg: u16): u16 {
     if (!isZero(w(W3))) return 0xffff
     copy8(arg + V_P, w(W3))
     run(M_IDIV, w(W3), w(W1))
-  } else {
-    // t = arg x 12 / π (RAD) or arg x 3 / 50 (GRAD), near a whole number.
-    copy8(arg, w(W3))
-    if (angle === 1) {
-      setInt(w(W2), 12)
-      run(M_MUL, w(W3), w(W2))
-      run(M_PI, w(W2), 0)
-      run(M_DIV, w(W3), w(W2))
-    } else {
-      setInt(w(W2), 3)
-      run(M_MUL, w(W3), w(W2))
-      setInt(w(W2), 50)
-      run(M_DIV, w(W3), w(W2))
-    }
-    // Rounded: INT(t + 1/2), then how far t was from it.
-    setInt(w(W2), 1)
-    setInt(w(W4), 2)
-    run(M_DIV, w(W2), w(W4))
-    copy8(w(W3), w(W1))
-    run(M_ADD, w(W1), w(W2))
-    run(M_INT, w(W1), 0)
-    copy8(w(W3), w(W4))
-    run(M_SUB, w(W4), w(W1))
-    absInto(w(W4), w(W4))
-    setInt(w(W2), 1)
-    setInt(w(W0), 1000)
-    run(M_DIV, w(W2), w(W0))
-    run(M_DIV, w(W2), w(W0))
-    run(M_DIV, w(W2), w(W0))
-    if (compare(w(W4), w(W2)) > 0) return 0xffff
-    copy8(w(W1), w(W3))
-  }
+  } else if (!nearWhole(arg, angle)) return 0xffff
   setInt(w(W2), 24)
   run(M_MOD, w(W3), w(W2))
   run(M_TOINT, w(W3), 0)
   const k = i16(peek16(MATH_ARG))
   return u16(k < 0 ? k + 24 : k)
+}
+
+/**
+ * RAD and GRAD: t = arg x 12 / π (RAD) or arg x 3 / 50 (GRAD) into W3, made the whole number it
+ * is within 10⁻⁹ of; false when it is near none.
+ */
+function nearWhole(arg: u16, angle: u16): bool {
+  copy8(arg, w(W3))
+  if (angle === 1) {
+    setInt(w(W2), 12)
+    run(M_MUL, w(W3), w(W2))
+    run(M_PI, w(W2), 0)
+    run(M_DIV, w(W3), w(W2))
+  } else {
+    setInt(w(W2), 3)
+    run(M_MUL, w(W3), w(W2))
+    setInt(w(W2), 50)
+    run(M_DIV, w(W3), w(W2))
+  }
+  // Rounded: INT(t + 1/2), then how far t was from it.
+  setInt(w(W2), 1)
+  setInt(w(W4), 2)
+  run(M_DIV, w(W2), w(W4))
+  copy8(w(W3), w(W1))
+  run(M_ADD, w(W1), w(W2))
+  run(M_INT, w(W1), 0)
+  copy8(w(W3), w(W4))
+  run(M_SUB, w(W4), w(W1))
+  absInto(w(W4), w(W4))
+  // 0 itself only: a tiny angle is near 0 by far less than 10⁻⁹ and is no special one.
+  if (isZero(w(W1)) && !isZero(w(W4))) return false
+  setInt(w(W2), 1)
+  setInt(w(W0), 1000)
+  run(M_DIV, w(W2), w(W0))
+  run(M_DIV, w(W2), w(W0))
+  run(M_DIV, w(W2), w(W0))
+  if (compare(w(W4), w(W2)) > 0) return false
+  copy8(w(W1), w(W3))
+  return true
 }
 
 /** Where setSmall puts its form: the trig function's answer. */

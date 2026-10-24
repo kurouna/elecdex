@@ -10,15 +10,13 @@ import {
   addr,
   type bool,
   bytes,
-  i16,
   memcpy,
   peek,
   peek16,
-  poke,
   poke16,
-  u16,
+  type u16,
 } from '../../../src/shared/e16c/builtins'
-import { exactBinary, exactWhole } from './exact.e16'
+import { exactWhole } from './exact.e16'
 
 /* ---------------- the hand-written ROM (main.s) ---------------- */
 
@@ -82,16 +80,55 @@ export const E_STACK = 3
 export const E_FIND = 4
 /** TABLE's START, END and STEP make no table of 1-30 rows. */
 export const E_RANGE = 5
+/** MATRIX: the sizes of two matrices do not fit the operation (section 14.7). */
+export const E_DIM = 6
 
 /** The last error, and where in the line it was found (a token's index). */
 export let errCode: u16 = 0
 export let errAt: u16 = 0
+/**
+ * Where the tokens being evaluated start in the line: a program's statement is evaluated where
+ * it is (prog.e16.ts), so an error's place is counted from the line's start. With ERR_PINNED,
+ * the place itself: an error in what X? or ? was given is put at its statement (or the line's
+ * end), not at a place in other tokens. Used once.
+ */
+let errBase: u16 = 0
+export const ERR_PINNED = 0x8000
+
+export function errFrom(base: u16): void {
+  errBase = base
+}
 
 /** Stops the evaluation: back to the key loop, which shows the error. */
 export function fail(code: u16, at: u16): void {
   errCode = code
-  errAt = at
+  errAt = (errBase & ERR_PINNED) !== 0 ? errBase & 0x7fff : at + errBase
+  errBase = 0
   calc_abort()
+}
+
+/*
+ * X lent to a TABLE row or a Σ, d/dx or ∫: kept by the first to take it, given back by the
+ * last - or by the error or ON that stopped them.
+ */
+const xKept = bytes(36)
+let xTaken: u16 = 0
+
+export function holdX(): void {
+  if (xTaken === 0) copyValue(varAt(0x58), addr(xKept))
+  xTaken++
+}
+
+export function releaseX(): void {
+  xTaken--
+  if (xTaken === 0) copyValue(addr(xKept), varAt(0x58))
+}
+
+/** After an error or ON: X back, if anything had it. */
+export function xBack(): void {
+  if (xTaken === 0) return
+  xTaken = 0
+  copyValue(addr(xKept), varAt(0x58))
 }
 
 /* ---------------- a value ---------------- */
@@ -151,11 +188,6 @@ export const KEEP_CONTRAST = 0x0c2d
 /** The LCD's contrast register (shared/elec16/bus.ts REG.contrast), 0-15. */
 export const IO_CONTRAST = 0xff28
 
-/** The contrast SETUP keeps, put back on the LCD (at power on). */
-export function contrastBack(): void {
-  const kept = peek(KEEP_CONTRAST)
-  if (kept !== 0) poke16(IO_CONTRAST, kept - 1)
-}
 /** A, B, C, D, E, F, X, Y, M: a value each. */
 export const KEEP_VARS = 0x0c30
 export const KEEP_HISTORY_COUNT = 0x0d80
@@ -191,7 +223,7 @@ export const TABLE_RANGE = 0x1cc8
 /** CALC's and BASE's lines while another mode is on screen: length, cursor, tokens. */
 export const CALC_LINE = 0x1f00
 export const BASE_LINE = 0x2000
-const MODES_END = 0x2100
+export const MODES_END = 0x2100
 /** EQUATION's working values (24 values), not kept: e16c's own RAM is full. */
 export const EQN_WORK = 0x2100
 /** STATS' working numbers (44 of 8 bytes, then a byte each: has it a value), not kept. */
@@ -199,20 +231,27 @@ export const STATS_WORK = 0x2500
 /** A little working room for the banks with no RAM of their own (extras.e16.ts, base.e16.ts), not kept. */
 export const WORK = 0x2700
 
-/** Whether the modes' region is set out; when not, it is: empty, 1-VAR, DEC, f(X) empty. */
-export function modesReady(): void {
-  if (peek16(MODES) === MODES_MARK) return
-  for (let i: u16 = 0; i < MODES_END - MODES; i += 2) poke16(MODES + i, 0)
-  poke16(MODES, MODES_MARK)
-  poke(BASE_RADIX, 1)
-}
-
-/** Whether the kept region is a calculator's; when not, it is set out afresh: zero, DEG, 2D. */
-export function keepReady(): void {
-  if (peek16(KEEP) === KEEP_MARK) return
-  for (let i: u16 = 0; i < 0x182; i += 2) poke16(KEEP + i, 0)
-  poke16(KEEP, KEEP_MARK)
-}
+/*
+ * v2's region (docs/elec16-sci.md section 14.1), kept and checked by a mark of its own so the
+ * RAM of a machine from before v2 stays as it was: CPLX's line and Ans, MATRIX's line and
+ * matrices, PROG's programs. Then its working room, not kept.
+ */
+export const V2 = 0x2800
+export const V2_MARK = 0x5c48
+export const V2_END = 0x3000
+export const CPLX_LINE = 0x2802
+export const CPLX_ANS = 0x2870
+export const MATRIX_LINE = 0x2880
+/** MatA-MatD and MatAns: rows, columns, then 3 x 3 numbers of 8 bytes, row by row. */
+export const MATRICES = 0x2900
+export const MATRIX_SIZE = 80
+/** The program PROG is on (0-3), then the four: length, cursor, 200 tokens each. */
+export const PROG_CHOSEN = 0x2c00
+export const PROGRAMS = 0x2c02
+export const PROGRAM_SIZE = 202
+export const CPLX_STACK = 0x3000
+export const MATRIX_STACK = 0x3200
+export const INTEGRAL_WORK = 0x3500
 
 /** A variable's value, by its letter: A-F, X, Y, M. */
 export function varAt(letter: u16): u16 {
@@ -267,20 +306,14 @@ export function math(op: u16, a: u16, b: u16, at: u16): void {
   if (peek16(MATH_STATUS) !== 0) fail(E_MATH, at)
 }
 
-/**
- * RNDTO's ARG for a number as the display shows it: FIX n is n places (-n), EXP n is n
- * significant digits (EXP 0 is ten), AUTO ten significant digits.
- */
-export function shownDigits(): u16 {
-  const n = peek(KEEP_DIGITS)
-  const format = peek(KEEP_FORMAT)
-  if (format === FORMAT_FIX) return u16(-i16(n))
-  if (format === FORMAT_EXP && n > 0) return n
-  return 10
-}
-
 /** What the line came to at FIND X's answer (solve.e16.ts), for the screen to show. */
 export const diffValue = bytes(36)
+
+/** A whole number (0-32767) into the 8-byte number at `dst`. */
+export function wholeInto(dst: u16, v: u16): void {
+  poke16(MATH_ARG, v)
+  math(M_FROMINT, dst, 0, 0)
+}
 
 /** A whole number (0-32767) onto the stack, exact. */
 export function pushInt(v: u16, at: u16): u16 {
@@ -289,35 +322,4 @@ export function pushInt(v: u16, at: u16): u16 {
   math(M_FROMINT, n, 0, at)
   exactWhole(n)
   return n
-}
-
-/** The two top values made one by `op`: the decimal by the unit, the exact form alongside. */
-export function binary(op: u16, at: u16): void {
-  const b = top()
-  pop()
-  const a = top()
-  math(op, a, b, at)
-  exactBinary(op, a, b)
-}
-
-/** Whether the number at `n` is whole. */
-export function isWhole(n: u16, at: u16): bool {
-  const t = push(at)
-  copy8(n, t)
-  math(M_FRAC, t, 0, at)
-  const whole = isZero(t)
-  pop()
-  return whole
-}
-
-/** The number at `n` as a small whole number (0-999 is all a factorial or nCr takes); MATH past that. */
-export function smallWhole(n: u16, at: u16): u16 {
-  if (!isWhole(n, at) || isNegative(n)) fail(E_MATH, at)
-  const t = push(at)
-  copy8(n, t)
-  math(M_TOINT, t, 0, at)
-  pop()
-  const v = peek16(MATH_ARG)
-  if (i16(v) < 0 || v > 999) fail(E_MATH, at)
-  return v
 }

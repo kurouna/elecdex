@@ -22,6 +22,7 @@ export const SCI_SOURCES: readonly { name: string; bank?: number }[] = [
   { name: 'numbers.e16.ts' },
   { name: 'calc.e16.ts' },
   { name: 'eval.e16.ts', bank: 0 },
+  { name: 'calculus.e16.ts', bank: 8 },
   { name: 'screens.e16.ts', bank: 1 },
   { name: 'exact.e16.ts', bank: 2 },
   { name: 'layout.e16.ts', bank: 3 },
@@ -36,6 +37,11 @@ export const SCI_SOURCES: readonly { name: string; bank?: number }[] = [
   { name: 'extras.e16.ts', bank: 10 },
   { name: 'draw.e16.ts', bank: 3 },
   { name: 'keymap.e16.ts', bank: 4 },
+  { name: 'consts.e16.ts', bank: 10 },
+  { name: 'cplx.e16.ts', bank: 6 },
+  { name: 'matrix.e16.ts', bank: 9 },
+  { name: 'matview.e16.ts', bank: 4 },
+  { name: 'prog.e16.ts', bank: 5 },
 ]
 
 /**

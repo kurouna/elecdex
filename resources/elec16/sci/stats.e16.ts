@@ -15,7 +15,6 @@ import {
   peek,
   peek16,
   poke,
-  poke16,
   str,
   type u16,
 } from '../../../src/shared/e16c/builtins'
@@ -57,20 +56,19 @@ import {
   M_ADD,
   M_DIV,
   M_EXP,
-  M_FROMINT,
   M_LN,
   M_MUL,
   M_NEG,
   M_POW,
   M_SQR,
   M_SUB,
-  MATH_ARG,
   math,
   STATS_COUNT,
   STATS_DATA,
   STATS_FREQ,
   STATS_TYPE,
   STATS_WORK,
+  wholeInto,
 } from './numbers.e16'
 
 /** What STATS shows: its kind chosen, the grid, FUNC's row menu, the results. */
@@ -312,10 +310,7 @@ const R_A = 13
 const R_B = 14
 const R_C = 15
 const F_U = 16
-const F_UU = 17
 const F_V = 18
-const F_VV = 19
-const F_UV = 20
 const F_MU = 21
 const F_MV = 22
 const Q_X3 = 23
@@ -329,7 +324,13 @@ const U = 30
 const V = 31
 /** The quadratic's normal equations, 3 rows of 4. */
 const QM = 32
-const SLOTS = 44
+/** Squares and products about the means (aboutMeans): x, y, and the fit's u and v. */
+const C_XX = 44
+const C_YY = 45
+const C_UU = 46
+const C_VV = 47
+const C_UV = 48
+const SLOTS = 49
 
 function at(k: u16): u16 {
   return STATS_WORK + k * 8
@@ -354,8 +355,7 @@ function zero(k: u16): void {
 }
 
 function setWhole(k: u16, v: u16): void {
-  poke16(MATH_ARG, v)
-  math(M_FROMINT, at(k), 0, 0)
+  wholeInto(at(k), v)
 }
 
 /** The sums over the rows, then everything from them. */
@@ -366,18 +366,65 @@ function workOut(): void {
   }
   const n = peek16(STATS_COUNT)
   for (let r: u16 = 0; r < n; r++) addRow(STATS_DATA + r * 24)
-  means(S_X, S_XX, R_MX)
   setValid(R_C, false)
+  if (isZero(at(S_N)) || isNegative(at(S_N))) {
+    means(R_MX)
+    if (twoVar()) {
+      means(R_MY)
+      fitLine()
+    }
+    return
+  }
+  sop(M_DIV, R_MX, S_X, S_N)
+  sop(M_DIV, R_MY, S_Y, S_N)
+  sop(M_DIV, F_MU, F_U, S_N)
+  sop(M_DIV, F_MV, F_V, S_N)
+  for (let r: u16 = 0; r < n; r++) aboutMeans(STATS_DATA + r * 24)
+  means(R_MX)
   if (!twoVar()) return
-  means(S_Y, S_YY, R_MY)
+  means(R_MY)
   if (statKind() === KIND_QUAD) fitQuadratic()
   else fitLine()
 }
 
-/** One row into the sums, weighted by its FREQ (1 without the column). */
-function addRow(row: u16): void {
+/** The row's weight into FREQ: its FREQ, 1 without the column. */
+function weightOf(row: u16): void {
   if (peek(STATS_FREQ) !== 0) copy8(row + 16, at(FREQ))
   else setWhole(FREQ, 1)
+}
+
+/**
+ * A second pass over a row: f(x - x̄)², f(y - ȳ)² and the fit's f(u - ū)², f(v - v̄)², f(u - ū)(v - v̄).
+ * Σx² - n x̄² from the first pass loses the digits two close values share (100001, 100002,
+ * 100003 came to σ = 0.837 for 0.8165); about the means nothing is lost.
+ */
+function aboutMeans(row: u16): void {
+  weightOf(row)
+  copy8(row, at(T1))
+  math(M_SUB, at(T1), at(R_MX), 0)
+  squared(T1, T1, C_XX)
+  if (!twoVar()) return
+  copy8(row + 8, at(T1))
+  math(M_SUB, at(T1), at(R_MY), 0)
+  squared(T1, T1, C_YY)
+  uvOf(row)
+  math(M_SUB, at(U), at(F_MU), 0)
+  math(M_SUB, at(V), at(F_MV), 0)
+  squared(U, U, C_UU)
+  squared(V, V, C_VV)
+  squared(U, V, C_UV)
+}
+
+/** f x a x b added to the slot `sum`. */
+function squared(a: u16, b: u16, sum: u16): void {
+  sop(M_MUL, T2, a, b)
+  math(M_MUL, at(T2), at(FREQ), 0)
+  math(M_ADD, at(sum), at(T2), 0)
+}
+
+/** One row into the sums, weighted by its FREQ (1 without the column). */
+function addRow(row: u16): void {
+  weightOf(row)
   math(M_ADD, at(S_N), at(FREQ), 0)
   addWeighted(row, S_X)
   copy8(row, at(T1))
@@ -401,10 +448,19 @@ function addWeighted(v: u16, sum: u16): void {
 }
 
 /**
- * The row made straight for the fit - u = x, ln x or 1/x; v = y or ln y - into the fit's sums;
- * for the quadratic, Σx³, Σx⁴ and Σx²y as well.
+ * The row made straight for the fit - u = x, ln x or 1/x; v = y or ln y - into Σu and Σv; for
+ * the quadratic, Σx³, Σx⁴ and Σx²y as well.
  */
 function fitRow(row: u16): void {
+  const t = statKind()
+  uvOf(row)
+  addWeighted(at(U), F_U)
+  addWeighted(at(V), F_V)
+  if (t === KIND_QUAD) quadRow(row)
+}
+
+/** The row made straight for the fit, into U and V: u = x, ln x or 1/x; v = y or ln y. */
+function uvOf(row: u16): void {
   const t = statKind()
   copy8(row, at(U))
   copy8(row + 8, at(V))
@@ -415,15 +471,6 @@ function fitRow(row: u16): void {
     copy8(at(T3), at(U))
   }
   if (t === KIND_EXP || t === KIND_PWR) math(M_LN, at(V), 0, 0)
-  addWeighted(at(U), F_U)
-  addWeighted(at(V), F_V)
-  sop(M_MUL, T1, U, U)
-  addWeighted(at(T1), F_UU)
-  sop(M_MUL, T1, V, V)
-  addWeighted(at(T1), F_VV)
-  sop(M_MUL, T1, U, V)
-  addWeighted(at(T1), F_UV)
-  if (t === KIND_QUAD) quadRow(row)
 }
 
 function quadRow(row: u16): void {
@@ -440,10 +487,10 @@ function quadRow(row: u16): void {
 }
 
 /**
- * A variable's mean, σ and s from its sum and sum of squares: σ² = Σx²/n - x̄², s² = σ² n/(n-1).
- * A σ² rounding has put below 0 is 0.
+ * A variable's σ and s (its mean worked out already) from its squares about the mean:
+ * σ² = Σf(x - x̄)²/n, s² = σ² n/(n-1).
  */
-function means(sum: u16, squares: u16, mean: u16): void {
+function means(mean: u16): void {
   // σ and s follow the mean (R_SDX, R_SX after R_MX; R_SDY, R_SY after R_MY).
   const sd = mean + 1
   const sample = mean + 2
@@ -453,11 +500,7 @@ function means(sum: u16, squares: u16, mean: u16): void {
     setValid(sample, false)
     return
   }
-  sop(M_DIV, mean, sum, S_N)
-  sop(M_DIV, T1, squares, S_N)
-  sop(M_MUL, T2, mean, mean)
-  math(M_SUB, at(T1), at(T2), 0)
-  if (isNegative(at(T1))) zero(T1)
+  sop(M_DIV, T1, mean === R_MX ? C_XX : C_YY, S_N)
   sop(M_SQR, sd, T1, T1)
   // s: σ² x n / (n - 1), only for more than one value.
   copy8(at(S_N), at(T2))
@@ -473,7 +516,8 @@ function means(sum: u16, squares: u16, mean: u16): void {
 }
 
 /**
- * The line v = a + bu by least squares on the fit's sums: Suv = Σuv - n ū v̄, Suu = Σu² - n ū²,
+ * The line v = a + bu by least squares on the squares about the means: Suv = Σ(u - ū)(v - v̄),
+ * Suu = Σ(u - ū)²,
  * b = Suv / Suu, a = v̄ - b ū, r = Suv / √(Suu Svv); a is e^a where v was ln y.
  */
 function fitLine(): void {
@@ -483,11 +527,9 @@ function fitLine(): void {
     setValid(R_B, false)
     return
   }
-  sop(M_DIV, F_MU, F_U, S_N)
-  sop(M_DIV, F_MV, F_V, S_N)
-  spread(F_UV, F_MU, F_MV, T1)
-  spread(F_UU, F_MU, F_MU, T2)
-  spread(F_VV, F_MV, F_MV, T3)
+  copy8(at(C_UV), at(T1))
+  copy8(at(C_UU), at(T2))
+  copy8(at(C_VV), at(T3))
   if (isZero(at(T2))) {
     setValid(R_B, false)
     setValid(R_A, false)
@@ -505,15 +547,6 @@ function fitLine(): void {
   }
   math(M_SQR, at(T2), 0, 0)
   sop(M_DIV, R_R, T1, T2)
-}
-
-/** Into `dst`: the sum `sums` less n x mean1 x mean2. */
-function spread(sums: u16, mean1: u16, mean2: u16, dst: u16): void {
-  sop(M_MUL, dst, mean1, mean2)
-  math(M_MUL, at(dst), at(S_N), 0)
-  copy8(at(sums), at(FREQ))
-  math(M_SUB, at(FREQ), at(dst), 0)
-  copy8(at(FREQ), at(dst))
 }
 
 /** The quadratic's cell (row r, column c) of its normal equations. */

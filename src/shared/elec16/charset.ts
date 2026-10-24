@@ -1,6 +1,6 @@
 /**
  * Text between the PC and the machine's character set (docs/elec16.md section 5): 20-7E are
- * ASCII, 80-96 the calculator's symbols (font.ts SYMBOLS), A1-DF the half-width kana
+ * ASCII, 80-9F and E0-E4 the calculator's symbols (font.ts SYMBOLS), A1-DF the half-width kana
  * (U+FF61-FF9F). IMPORT turns a .bas listing into the machine's bytes, a line a CR; EXPORT
  * turns them back, a line a CRLF. Pure.
  */
@@ -25,6 +25,9 @@ function byteOf(code: number): number | null {
 const SYMBOL_BYTES: ReadonlyMap<string, number> = new Map([
   ...SYMBOLS.map((s): [string, number] => [s.text, s.code]),
   ['y\u0304', 0x96],
+  // The micro sign and the lunate epsilon, which a PC writes for \u03bc and \u03b5 as often.
+  ['\u00b5', 0x9f],
+  ['\u03f5', 0x9e],
 ])
 const SYMBOL_TEXT: ReadonlyMap<number, string> = new Map(SYMBOLS.map((s) => [s.code, s.text]))
 

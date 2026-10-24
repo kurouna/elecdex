@@ -4,7 +4,6 @@
 // cells of the machine's font, 21 columns and 8 rows; an answer's digits are the big ones,
 // 7 x 14 on a pitch of 8, set in bands 6 and 7.
 import {
-  div,
   memcpy,
   memset,
   peek,
@@ -115,37 +114,10 @@ export function puthex(v: u16): void {
   }
 }
 
-/** A whole number 0-65535 in decimal, where the cursor is. */
-export function putDecimal(v: u16): void {
-  if (v >= 10) putDecimal(div(v, 10))
-  putc(0x30 + (v % 10))
-}
-
-/** Band `band` cleared. */
-export function clearBand(band: u16): void {
-  memset(VRAM + band * WIDTH, 0, WIDTH)
-}
-
-/** The dots from column `x0` to `x1` of band `band` turned over: a title band, a chosen item. */
-export function invert(band: u16, x0: u16, x1: u16): void {
-  for (let x = x0; x <= x1 && x < WIDTH; x++) {
-    const at = VRAM + band * WIDTH + x
-    poke(at, peek(at) ^ 0xff)
-  }
-}
-
 /** `length` characters of text at `at`, centred on `row`. */
 export function centre(row: u16, at: u16, length: u16): void {
   locate((COLS - length) >> 1, row)
   puts(at)
-}
-
-/** A title band: text at `at` on band 0, the band inverted. */
-export function title(at: u16): void {
-  clearBand(0)
-  locate(0, 0)
-  puts(at)
-  invert(0, 0, WIDTH - 1)
 }
 
 /* ---------------- the cursor and the marks ---------------- */

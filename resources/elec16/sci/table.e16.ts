@@ -2,29 +2,22 @@
 // line is (calc.e16.ts, kept when the power goes); = asks for START, END and STEP
 // (solve.e16.ts's X?), then the table shows X and f(X) for at most 30 rows, five at a time,
 // worked out as they come on screen. ▲ ▼ move through it, AC goes back to f(X).
-import {
-  addr,
-  type bool,
-  bytes,
-  div,
-  peek16,
-  poke16,
-  str,
-  type u16,
-} from '../../../src/shared/e16c/builtins'
+
+import { addr, type bool, peek16, str, type u16 } from '../../../src/shared/e16c/builtins'
 import { K_AC, K_DOWN, K_UP, length, line, refuse } from './calc.e16'
 import { evaluate } from './eval.e16'
+import { fitNumber, rowNumberAt } from './grid.e16'
 import { band, cls, dot, invertBox, lineY, textAt } from './lcd.e16'
 import {
   clearStack,
   copyValue,
   E_RANGE,
   fail,
+  holdX,
   isNegative,
   isZero,
   M_ADD,
   M_DIV,
-  M_FORMAT,
   M_IDIV,
   M_MUL,
   M_SUB,
@@ -34,6 +27,7 @@ import {
   pop,
   push,
   pushInt,
+  releaseX,
   TABLE_RANGE,
   top,
   VALUE_SIZE,
@@ -53,10 +47,6 @@ let chosen: u16 = 0
 let first: u16 = 0
 
 const VAR_X = 0x58
-/** X as it was before the table, put back after each row. */
-const savedX = bytes(36)
-const tableCell = bytes(24)
-
 export function tablePhase(): u16 {
   return tableNow
 }
@@ -136,50 +126,23 @@ export function tableDraw(): void {
     dot(13, y)
     dot(SPLIT, y)
   }
-  copyValue(varAt(VAR_X), addr(savedX))
+  holdX()
   for (let k: u16 = 0; k < 5 && first + k < rows; k++) drawTableRow(first + k, 21 + 9 * k)
-  copyValue(addr(savedX), varAt(VAR_X))
+  releaseX()
 }
 
 /** Row `r`: its number, X, f(X) worked out now, the chosen row's f(X) inverted. */
 function drawTableRow(r: u16, y: u16): void {
-  numberAt(r + 1, y)
+  rowNumberAt(r + 1, y)
   // X = START + r x STEP.
   clearStack()
   const x = pushInt(r, 0)
   math(M_MUL, x, rangeAt(2), 0)
   math(M_ADD, x, rangeAt(0), 0)
   copyValue(x, varAt(VAR_X))
-  fitted(x, SPLIT, y)
+  fitNumber(x, 13, SPLIT, y)
   clearStack()
   evaluate(addr(line), length)
-  fitted(top(), 128, y)
+  fitNumber(top(), SPLIT, 128, y)
   if (r === chosen) invertBox(SPLIT + 1, y - 1, 127, y + 7)
-}
-
-function numberAt(n: u16, y: u16): void {
-  let i: u16 = 0
-  if (n >= 10) {
-    tableCell[0] = 0x30 + div(n, 10)
-    i = 1
-  }
-  tableCell[i] = 0x30 + (n % 10)
-  tableCell[i + 1] = 0
-  textAt(addr(tableCell), 1, y)
-}
-
-/** A number right in the column ending at `right`, in as many digits as it holds. */
-function fitted(v: u16, right: u16, y: u16): void {
-  const room = div(right - 3 - (right === 128 ? SPLIT : 13), 6)
-  let digits = room
-  if (digits > 10) digits = 10
-  let size: u16 = 99
-  while (size > room && digits > 0) {
-    poke16(MATH_ARG, digits)
-    math(M_FORMAT, v, addr(tableCell), 0)
-    size = peek16(MATH_ARG)
-    digits--
-  }
-  tableCell[size] = 0
-  textAt(addr(tableCell), right - 1 - size * 6, y)
 }

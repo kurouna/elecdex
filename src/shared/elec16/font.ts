@@ -209,6 +209,23 @@ export const SYMBOLS: readonly {
   // x and a combining macron; y with a macron is one character (U+0233).
   { code: 0x95, text: 'x\u0304', rows: '##### ..... #...# .#.#. ..#.. .#.#. #...#' },
   { code: 0x96, text: '\u0233', rows: '##### ..... #...# .#.#. ..#.. ..#.. ..#..' },
+  // The calculator's v2 (docs/elec16-sci.md section 14.2): the integral, the angle of a
+  // complex number, the subscripts and letters of the physical constants, and a program's
+  // conditions.
+  { code: 0x97, text: '\u222b', rows: '...## ..#.. ..#.. ..#.. ..#.. ..#.. ##...' },
+  { code: 0x98, text: '\u2220', rows: '..... ....# ...#. ..#.. .#... ##### .....' },
+  { code: 0x99, text: '\u2080', rows: '..... ..... ..... .#... #.#.. #.#.. .#...' },
+  { code: 0x9a, text: '\u2091', rows: '..... ..... ..... .#... ###.. #.... .##..' },
+  { code: 0x9b, text: '\u209a', rows: '..... ..... ..... ##... #.#.. ##... #....' },
+  { code: 0x9c, text: '\u2099', rows: '..... ..... ..... ..... ##... #.#.. #.#..' },
+  { code: 0x9d, text: '\u0127', rows: '.#... ####. .#... .###. .#..# .#..# .#..#' },
+  { code: 0x9e, text: '\u03b5', rows: '..... ..... .###. #.... .##.. #.... .###.' },
+  { code: 0x9f, text: '\u03bc', rows: '..... ..... #..#. #..#. #..#. ###.# #....' },
+  { code: 0xe0, text: '\u03b1', rows: '..... ..... .##.# #..#. #..#. #..#. .##.#' },
+  { code: 0xe1, text: '\u21d2', rows: '..... ..#.. ####. ....# ####. ..#.. .....' },
+  { code: 0xe2, text: '\u2260', rows: '..... ...#. ##### ..#.. ##### .#... .....' },
+  { code: 0xe3, text: '\u2264', rows: '...#. ..#.. .#... ..#.. ...#. ..... #####' },
+  { code: 0xe4, text: '\u2265', rows: '.#... ..#.. ...#. ..#.. .#... ..... #####' },
 ]
 
 const SYMBOL_ROWS: ReadonlyMap<number, string> = new Map(SYMBOLS.map((s) => [s.code, s.rows]))
@@ -216,7 +233,7 @@ const SYMBOL_ROWS: ReadonlyMap<number, string> = new Map(SYMBOLS.map((s) => [s.c
 /** 0x7F: a solid block, for the cursor and for bars. */
 const BLOCK = '##### ##### ##### ##### ##### ##### #####'
 
-/** Every code the table does not draw (97-9F and E0-FF, kept for symbols): an empty box. */
+/** Every code the table does not draw (E5-FF, kept for symbols): an empty box. */
 const UNKNOWN = '##### #...# #...# #...# #...# #...# #####'
 
 export const FIRST_CODE = 0x20

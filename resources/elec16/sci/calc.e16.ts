@@ -7,21 +7,22 @@ import {
   addr,
   type bool,
   bytes,
-  csrw,
   memcpy,
   peek,
   peek16,
   poke,
   poke16,
-  str,
   type u16,
-  wfi,
 } from '../../../src/shared/e16c/builtins'
 import { baseCommand, baseEvaluate, baseFuncKey, baseFuncScreen, baseToken } from './base.e16'
+import { constKey, constScreen, convKey, convScreen } from './consts.e16'
+import { cplxEvaluate, cplxTurn } from './cplx.e16'
 import {
   firstShown,
   hasForm,
   nextShown,
+  pairLine,
+  SHOW_CONV,
   SHOW_DECIMAL,
   SHOW_DMS,
   SHOW_ENG,
@@ -36,17 +37,20 @@ import { exactBinary } from './exact.e16'
 import { dropConstant, nextAngle, noteConstant, withConstant } from './extras.e16'
 import { hypToken, letterOf, tokenOf } from './keymap.e16'
 import { heightOf } from './layout.e16'
-import { centre, cls, marks, noCursor } from './lcd.e16'
+import { noCursor } from './lcd.e16'
+import { matEvaluate } from './matrix.e16'
+import { MAT_LINE, matKey, matPhase, matStart } from './matview.e16'
 import {
   BASE_HISTORY,
   BASE_HISTORY_COUNT,
   BASE_LINE,
   CALC_LINE,
+  CPLX_LINE,
   clearStack,
-  contrastBack,
   copyValue,
   errAt,
   errCode,
+  errFrom,
   HISTORY_ENTRIES,
   HISTORY_SIZE,
   KEEP_ANS,
@@ -55,16 +59,20 @@ import {
   KEEP_HISTORY,
   KEEP_HISTORY_COUNT,
   KEEP_MODE,
-  keepReady,
   LINE_MAX,
   M_ADD,
   M_SUB,
+  MATRIX_LINE,
   math,
-  modesReady,
+  PROG_CHOSEN,
+  PROGRAM_SIZE,
+  PROGRAMS,
   TABLE_LINE,
   top,
   varAt,
+  xBack,
 } from './numbers.e16'
+import { PROG_LIST, progEdit, progList, progListKey, progPhase, progRun } from './prog.e16'
 import {
   errorScreen,
   faultScreen,
@@ -72,6 +80,7 @@ import {
   funcScreen,
   menuKey,
   menuScreen,
+  powerOn,
   setupKey,
   setupScreen,
 } from './screens.e16'
@@ -100,6 +109,7 @@ import {
   T_E,
   T_END,
   T_FRAC,
+  T_I,
   T_INVERSE,
   T_MIN,
   T_MINUS,
@@ -108,14 +118,14 @@ import {
   T_NPR,
   T_PLUS,
   T_POINT,
-  T_POL,
+  T_POLAR,
   T_POW,
   T_POWT,
-  T_REC,
   T_ROOT,
   T_SEC,
   T_SLASH,
   T_SQUARE,
+  T_STORE,
   T_TEN,
   T_TIMES,
   T_XNOR,
@@ -196,14 +206,10 @@ export const ANN_2D = 0x1000
 export const ANN_UP = 0x2000
 export const ANN_DOWN = 0x4000
 
-/* ---------------- the timer and the buzzer ---------------- */
+/* ---------------- the buzzer ---------------- */
 
-const IO_TCOUNT = 0xff30
-const IO_TCMP = 0xff32
-const IO_TCTRL = 0xff34
 const IO_FREQ = 0xff40
 const IO_DUR = 0xff42
-const CSR_MIE = 0x304
 
 /* ---------------- state ---------------- */
 
@@ -215,6 +221,9 @@ export const S_SETUP = 3
 export const S_FUNC = 4
 /** f(x) or FIND X asking for X. */
 export const S_ASK = 5
+/** CONST (SHIFT FUNC) and CONV (SHIFT MENU), v2. */
+export const S_CONST = 6
+export const S_CONV = 7
 export let screen: u16 = S_CALC
 
 /** The mode (MENU): CALC, then the four others in MENU's order; kept in KEEP_MODE. */
@@ -223,6 +232,10 @@ export const MODE_STATS = 1
 export const MODE_BASE = 2
 export const MODE_TABLE = 3
 export const MODE_EQN = 4
+/** v2 (docs/elec16-sci.md section 14): complex numbers, matrices, programs. */
+export const MODE_CPLX = 5
+export const MODE_MATRIX = 6
+export const MODE_PROG = 7
 export let mode: u16 = MODE_CALC
 
 /** The line: its tokens, how many, and where the cursor is (before token `cursor`). */
@@ -236,6 +249,8 @@ export let shifted: bool = false
 export let alphaOn: bool = false
 export let storing: bool = false
 export let recalling: bool = false
+/** ALPHA came before the key being taken: what X? and a grid's cell read it by (a variable). */
+export let alphaKey: bool = false
 /** Keys type over the token at the cursor (SHIFT DEL) rather than put one in before it. */
 export let overwrite: bool = false
 /** HYP waits for SIN, COS or TAN. */
@@ -249,7 +264,7 @@ export let shown: u16 = 0
 
 /** The 2D display (0 in SETUP's KEEP_DISPLAY) or LINE. */
 export function twoD(): bool {
-  return peek(KEEP_DISPLAY) === 0 && mode !== MODE_BASE
+  return peek(KEEP_DISPLAY) === 0 && mode !== MODE_BASE && mode < MODE_CPLX
 }
 
 /** The line's height in 2D: above this many rows a template is not put in. */
@@ -257,23 +272,15 @@ const LINE_HEIGHT_MAX = 36
 
 /* ---------------- start ---------------- */
 
-/** Switched on: the kept RAM checked, the name shown for a moment (or until a key), then CALC. */
+/** Switched on: the kept RAM checked, the name shown for a moment (screens.e16.ts), then the mode. */
 export function calcCold(): void {
-  keepReady()
-  modesReady()
-  contrastBack()
-  cls()
-  noCursor()
-  centre(2, str('ELEC-16 SCI'), 11)
-  centre(4, str('SCI-128'), 7)
-  marks(0)
-  pause(700)
+  powerOn()
   screen = S_CALC
   length = 0
   cursor = 0
   answered = false
   mode = peek(KEEP_MODE)
-  if (mode > MODE_EQN) mode = MODE_CALC
+  if (mode > MODE_PROG) mode = MODE_CALC
   loadLine()
   startMode()
   drawCalc()
@@ -290,20 +297,39 @@ function enterMode(m: u16): void {
   answered = false
   historyAt = 0xffff
   screen = S_CALC
+  forget()
   startMode()
   drawCalc()
+}
+
+/**
+ * What waits for the next key or the next line let go of: SHIFT, ALPHA, STO and RCL, HYP, the
+ * constant, an error's place counted from a program's statement, X a TABLE or Σ had taken.
+ */
+function forget(): void {
+  shifted = false
+  alphaOn = false
+  storing = false
+  recalling = false
+  hyp = false
+  dropConstant()
+  errFrom(0)
+  xBack()
 }
 
 /** Where a mode keeps its line while another is on screen: length, cursor, tokens. */
 function lineSlot(): u16 {
   if (mode === MODE_BASE) return BASE_LINE
   if (mode === MODE_TABLE) return TABLE_LINE
+  if (mode === MODE_CPLX) return CPLX_LINE
+  if (mode === MODE_MATRIX) return MATRIX_LINE
+  if (mode === MODE_PROG) return PROGRAMS + peek(PROG_CHOSEN) * PROGRAM_SIZE
   return CALC_LINE
 }
 
-/** The longest line a mode takes: BASE's history keeps lines of 99. */
+/** The longest line a mode takes: BASE's history keeps lines of 99, CPLX and MATRIX keep as much. */
 function lineMax(): u16 {
-  if (mode === MODE_BASE) return 99
+  if (mode === MODE_BASE || mode === MODE_CPLX || mode === MODE_MATRIX) return 99
   if (mode === MODE_TABLE) return 197
   return LINE_MAX
 }
@@ -331,21 +357,13 @@ function startMode(): void {
   if (mode === MODE_EQN) eqnStart()
   else if (mode === MODE_STATS) statsStart()
   else if (mode === MODE_TABLE) tableReset()
+  else if (mode === MODE_MATRIX) matStart()
+  else if (mode === MODE_PROG) progList()
 }
 
 /** Whether the mode's screen is its own (not the line CALC, BASE and TABLE edit). */
 export function ownScreen(): bool {
   return mode === MODE_STATS || mode === MODE_EQN
-}
-
-/** About `ms` milliseconds asleep on the timer (1,024 counts a second), or until a key. */
-function pause(ms: u16): void {
-  poke16(IO_TCMP, peek16(IO_TCOUNT) + ms)
-  poke16(IO_TCTRL, 1)
-  csrw(CSR_MIE, 3)
-  wfi()
-  poke16(IO_TCTRL, 0)
-  csrw(CSR_MIE, 0)
 }
 
 /** The key loop: never comes back (main.s comes back into it after an error or ON). */
@@ -364,6 +382,8 @@ export function refuse(): void {
 /** After calc_abort: the error screen, the line kept for ◀ ▶ to go back to. */
 export function calcError(): void {
   screen = S_ERROR
+  // X back as it was before a TABLE or a Σ the error stopped.
+  xBack()
   noCursor()
   errorScreen(errCode)
   drawMarks()
@@ -394,27 +414,24 @@ export function calcOn(): void {
 }
 
 export function clearLine(): void {
+  forget()
+  screen = S_CALC
   if (ownScreen()) {
-    screen = S_CALC
-    shifted = false
-    alphaOn = false
     if (mode === MODE_STATS) statsReset()
     else eqnReset()
     drawCalc()
     return
   }
   if (mode === MODE_TABLE) tableReset()
-  // AC forgets the constant too, as it forgets the line.
-  dropConstant()
-  screen = S_CALC
-  length = 0
-  cursor = 0
+  if (mode === MODE_MATRIX) matStart()
+  // A program is never cleared by AC or ON: they go back to its list, the program kept.
+  if (mode === MODE_PROG) progList()
+  else {
+    length = 0
+    cursor = 0
+  }
   answered = false
   historyAt = 0xffff
-  shifted = false
-  alphaOn = false
-  storing = false
-  recalling = false
   drawCalc()
 }
 
@@ -437,21 +454,32 @@ function key(k: u16): void {
   const alpha = alphaOn
   shifted = false
   alphaOn = false
+  alphaKey = alpha
   dispatch(k, shift, alpha)
+  // A program is written into its slot at every key: the power may go at any time.
+  if (mode === MODE_PROG) saveLine()
   drawMarks()
 }
 
 /** A key after SHIFT and ALPHA are taken: to the screen or the mode it is for. */
 function dispatch(k: u16, shift: bool, alpha: bool): void {
+  if (screen !== S_CALC) screenKey(k, shift)
+  else if (k === K_SETUP && shift) angleKey()
+  else if (k === K_MENU && shift) convOpen()
+  else if (k === K_MENU || k === K_SETUP) openScreen(k)
+  else modeKey(k, shift, alpha)
+}
+
+/** A key on a screen over the mode's: an error, MENU, SETUP, FUNC, X?, CONST, CONV. */
+function screenKey(k: u16, shift: bool): void {
   if (screen === S_ERROR) errorKey(k)
   else if (screen === S_MENU) chosenMode(menuKey(k))
   else if (screen === S_SETUP) {
     if (setupKey(k) !== 0) clearLine()
   } else if (screen === S_FUNC) funcChosen(mode === MODE_BASE ? baseFuncKey(k) : funcKey(k))
   else if (screen === S_ASK) asked(k, shift)
-  else if (k === K_SETUP && shift) angleKey()
-  else if (k === K_MENU || k === K_SETUP) openScreen(k)
-  else modeKey(k, shift, alpha)
+  else if (screen === S_CONST) funcChosen(constKey(k))
+  else convChosen(convKey(k))
 }
 
 /** A key on the mode's own screen: STATS, EQUATION, TABLE's table, or a line. */
@@ -463,7 +491,11 @@ function modeKey(k: u16, shift: bool, alpha: bool): void {
       return
     }
   } else if (mode === MODE_TABLE && tablePhase() === TABLE_VIEW) tableKey(k)
-  else {
+  else if (mode === MODE_MATRIX && matPhase() !== MAT_LINE) matKey(k, shift)
+  else if (mode === MODE_PROG && progPhase() === PROG_LIST) {
+    progChosen(progListKey(k))
+    return
+  } else {
     calcKey(k, shift, alpha)
     return
   }
@@ -483,6 +515,44 @@ function angleKey(): void {
   nextAngle()
   answered = true
   shown = SHOW_DECIMAL
+  drawCalc()
+}
+
+/** PROG's list: a program (1-4) opened as the line, AC (0xff) to CALC, 0 still choosing. */
+function progChosen(p: u16): void {
+  if (p === 0) return
+  if (p === 0xff) {
+    enterMode(MODE_CALC)
+    return
+  }
+  poke(PROG_CHOSEN, p - 1)
+  loadLine()
+  answered = false
+  progEdit()
+  drawCalc()
+}
+
+/** SHIFT MENU (CONV): the line answered first, then the conversions for its answer. CALC only. */
+function convOpen(): void {
+  if (mode !== MODE_CALC) {
+    refuse()
+    return
+  }
+  if (!answered && length > 0) equals(false)
+  screen = S_CONV
+  noCursor()
+  convScreen()
+}
+
+/** CONV's answer: 2 Ans converted (shown with the conversion's name), 1 back, 0 still choosing. */
+function convChosen(r: u16): void {
+  if (r === 0) return
+  screen = S_CALC
+  if (r === 2) {
+    answered = true
+    found = false
+    shown = SHOW_CONV
+  }
   drawCalc()
 }
 
@@ -509,11 +579,13 @@ function chosenMode(m: u16): void {
 
 /** On the error screen: AC drops the line, an arrow goes back into it at the error. */
 function errorKey(k: u16): void {
-  if (k === K_AC) {
+  // An error in a matrix's cell: back to its grid, on AC as well.
+  const grid = mode === MODE_MATRIX && matPhase() !== MAT_LINE
+  if (k === K_AC && !grid) {
     clearLine()
     return
   }
-  if ((k === K_LEFT || k === K_RIGHT) && ownScreen()) {
+  if ((k === K_LEFT || k === K_RIGHT || k === K_AC) && (ownScreen() || grid)) {
     screen = S_CALC
     drawCalc()
     return
@@ -537,15 +609,52 @@ function baseKey(k: u16, shift: bool, alpha: bool): void {
     return
   }
   if (k === K_FUNC) {
-    screen = S_FUNC
-    noCursor()
-    baseFuncScreen()
+    // SHIFT FUNC is CONST: BASE has no use for one.
+    if (shift) refuse()
+    else {
+      screen = S_FUNC
+      noCursor()
+      baseFuncScreen()
+    }
     return
   }
   if (editKey(k) && commandKey(k, shift, alpha)) return
   const t = baseToken(k)
   if (t === 0) refuse()
   else type(t)
+}
+
+/**
+ * The keys TABLE, CPLX, MATRIX and PROG take their own way (section 14): PROG's STO types →,
+ * the others beep for STO, RCL, f(x) and M+ (TABLE's f(X) is no line to answer); CPLX and
+ * MATRIX beep for what their lines cannot read; CPLX's HYP types i and SHIFT HYP ∠, and its
+ * F⇄D turns an answer between a + bi and r∠θ. Done, true.
+ */
+function v2Key(k: u16, shift: bool, alpha: bool): bool {
+  if (k === K_STO && mode === MODE_PROG && !shift && !alpha) type(T_STORE)
+  else if (k === K_STO || k === K_FX || (k === K_MPLUS && !alpha)) refuse()
+  else if (alpha || mode === MODE_TABLE || mode === MODE_PROG) return false
+  else if (unread(k, shift)) refuse()
+  else return mode === MODE_CPLX && cplxKey(k, shift)
+  return true
+}
+
+/** CPLX's HYP (i, SHIFT ∠) and F⇄D (a + bi and r∠θ of an answer). Done, true. */
+function cplxKey(k: u16, shift: bool): bool {
+  if (k === K_HYP) type(shift ? T_POLAR : T_I)
+  else if (k !== K_FD) return false
+  else if (answered && !shift) {
+    cplxTurn()
+    drawCalc()
+  } else refuse()
+  return true
+}
+
+/** What CPLX's and MATRIX's lines cannot read: a b/c, ʸ√x, x!, nCr, nPr, °′″, ∛; HYP in MATRIX. */
+function unread(k: u16, shift: bool): bool {
+  if (k === K_NCR || k === K_DMS) return true
+  if (shift && (k === K_FRAC || k === K_POW || k === K_INV || k === K_ROOT)) return true
+  return k === K_HYP && mode === MODE_MATRIX
 }
 
 /** The keys that edit or answer a line, the same in every mode that has one. */
@@ -574,17 +683,25 @@ function tableAsked(r: u16): void {
   }
 }
 
-/** FUNC's choice: a token typed, 1 back to the line, 0 still choosing. */
+/**
+ * FUNC's or CONST's choice: a token typed, 1 back to the line, 0 still choosing; 0xff the mode
+ * took it (MATRIX's EDIT), 0xfe the line cleared (PROG's CLEAR).
+ */
 function funcChosen(t: u16): void {
   if (t === 0) return
   screen = S_CALC
-  if (t === 1) drawCalc()
+  if (t === 0xfe) {
+    length = 0
+    cursor = 0
+    answered = false
+  }
+  if (t === 1 || t >= 0xfe) drawCalc()
   else type(t)
 }
 
 /** A key while f(x) or FIND X asks for X. */
 function asked(k: u16, shift: bool): void {
-  const t = k === K_DEL || k === K_EQ || k === K_AC ? 0 : tokenOf(k, shift)
+  const t = k === K_DEL || k === K_EQ || k === K_AC ? 0 : alphaKey ? letterOf(k) : tokenOf(k, shift)
   const r = askKey(k === K_EQ, k === K_DEL, k === K_AC, t)
   if (mode === MODE_TABLE) {
     tableAsked(r)
@@ -603,14 +720,14 @@ function asked(k: u16, shift: bool): void {
 }
 
 function calcKey(k: u16, shift: bool, alpha: bool): void {
-  if (storing || recalling) {
-    variableKey(k)
-    return
-  }
-  if (mode === MODE_BASE) {
-    baseKey(k, shift, alpha)
-    return
-  }
+  if (storing || recalling) variableKey(k)
+  else if (mode === MODE_BASE) baseKey(k, shift, alpha)
+  else if ((mode < MODE_CPLX && mode !== MODE_TABLE) || !v2Key(k, shift, alpha))
+    lineKey(k, shift, alpha)
+}
+
+/** A key on a line of real numbers (CALC, TABLE's f(X), and v2's modes after their own keys). */
+function lineKey(k: u16, shift: bool, alpha: bool): void {
   const wasHyp = hyp
   hyp = false
   if (commandKey(k, shift, alpha)) return
@@ -652,6 +769,11 @@ function plainTemplate(k: u16, shift: bool): bool {
     return fractionKey
   }
   if (!fractionKey && !makesTemplate(k, shift)) return false
+  // A template's marks go in together or not at all: three at most (10, ^, END; FRAC SEP END).
+  if (length + 3 > lineMax()) {
+    refuse()
+    return true
+  }
   const root = k === K_ROOT && !shift
   if (answered) afresh(fractionKey || k === K_POW)
   if (fractionKey) {
@@ -725,10 +847,17 @@ function edited(): void {
   cursor = editCursor
 }
 
-/** A new line after an answer: from Ans for a/b and x^ (`fromAns`), empty for the others. */
+/**
+ * A new line after an answer: from Ans for a/b and x^ (`fromAns`), empty for the others. A
+ * program goes on where it ends instead: it is never cleared by what is typed after it ran.
+ */
 function afresh(fromAns: bool): void {
   answered = false
   historyAt = 0xffff
+  if (mode === MODE_PROG) {
+    cursor = length
+    return
+  }
   length = 0
   cursor = 0
   if (fromAns) insert(T_ANS)
@@ -757,9 +886,11 @@ function commandKey(k: u16, shift: bool, alpha: bool): bool {
       exactOrDecimal(shift)
       return true
     case K_FUNC:
-      screen = S_FUNC
+      // SHIFT FUNC: CONST, in every mode with a line of real numbers.
+      screen = shift ? S_CONST : S_FUNC
       noCursor()
-      funcScreen()
+      if (shift) constScreen()
+      else funcScreen()
       return true
     case K_FX:
       solveKey(shift)
@@ -818,13 +949,7 @@ function fromAns(t: u16): bool {
 
 /** A token typed at the cursor; after an answer, a new line (from Ans for an operator). */
 function type(t: u16): void {
-  if (answered) {
-    answered = false
-    historyAt = 0xffff
-    length = 0
-    cursor = 0
-    if (fromAns(t)) insert(T_ANS)
-  }
+  if (answered) afresh(fromAns(t))
   insert(t)
   drawCalc()
 }
@@ -857,8 +982,7 @@ function deleteBefore(): void {
     cursor = length
   }
   deleteAt(addr(line), length, cursor)
-  length = editLength
-  cursor = editCursor
+  edited()
   drawCalc()
 }
 
@@ -894,6 +1018,9 @@ function equals(approx: bool): void {
   }
   clearStack()
   if (mode === MODE_BASE) baseEvaluate(addr(line), length)
+  else if (mode === MODE_CPLX) cplxEvaluate(addr(line), length)
+  else if (mode === MODE_MATRIX) matEvaluate(addr(line), length)
+  else if (mode === MODE_PROG) progRun(addr(line), length)
   else evaluate(addr(line), length)
   if (mode === MODE_CALC) noteConstant(addr(line), length)
   copyValue(top(), KEEP_ANS)
@@ -901,8 +1028,8 @@ function equals(approx: bool): void {
   answered = true
   historyAt = 0xffff
   found = false
-  const first = line[0]
-  if (first === T_POL || first === T_REC) shown = SHOW_PAIR
+
+  if (pairLine(addr(line), length)) shown = SHOW_PAIR
   else shown = firstShown(formFirst(approx))
   drawCalc()
 }
@@ -998,10 +1125,7 @@ function variableKey(k: u16): void {
 /** M+ and M−: the answer (or the line's value) added to M or taken from it. */
 function memoryPlus(minus: bool): void {
   if (!answered) {
-    if (length === 0) {
-      length = 0
-      insert(T_ANS)
-    }
+    if (length === 0) insert(T_ANS)
     clearStack()
     evaluate(addr(line), length)
     copyValue(top(), KEEP_ANS)
@@ -1031,6 +1155,8 @@ function remember(): void {
   poke(at, length)
   memcpy(at + 1, addr(line), length)
   poke16(historyCount(), kept + 1)
+  // What was being gone through has moved down one: ▲ ▼ start again from the newest.
+  historyAt = 0xffff
 }
 
 /* Each mode's history: CALC's ten lines, BASE's five; TABLE and the others keep none. */

@@ -5,18 +5,22 @@
 // than x and /, as a textbook is read); x and /; + and -. A function or a bracket left open is
 // closed by the line's end. S5 adds the hyperbolic functions, Abs, the FUNC menu's functions
 // (two of them take two arguments, a comma between), %, degrees-minutes-seconds, a mixed
-// number and a root of any index.
+// number and a root of any index. v2 adds the physical constants, Σ, d/dx and ∫ (calculus.e16.ts)
+// and a comparison at the line's outermost level, for programs (docs/elec16-sci.md section 14).
 import {
   addr,
   type bool,
   bytes,
+  i16,
   peek,
   peek16,
-  poke,
   poke16,
-  type u16,
+  u16,
 } from '../../../src/shared/e16c/builtins'
+import { calculus, integralReset } from './calculus.e16'
+import { constValue } from './consts.e16'
 import {
+  exactBinary,
   exactLiteral,
   exactNeg,
   exactSqrt,
@@ -27,16 +31,20 @@ import {
   TRIG_TAN,
 } from './exact.e16'
 import {
-  binary,
+  copy8,
   copyValue,
   E_MATH,
   E_SYNTAX,
+  FORMAT_EXP,
+  FORMAT_FIX,
   fail,
   inexact,
   isNegative,
   isZero,
   KEEP_ANGLE,
   KEEP_ANS,
+  KEEP_DIGITS,
+  KEEP_FORMAT,
   M_ACS,
   M_ACSH,
   M_ADD,
@@ -68,6 +76,7 @@ import {
   M_SUB,
   M_TAN,
   M_TANH,
+  M_TOINT,
   MATH_ANGLE,
   MATH_ARG,
   MATH_RESULT,
@@ -75,14 +84,13 @@ import {
   pop,
   push,
   pushInt,
-  shownDigits,
-  smallWhole,
   top,
   VALUE_SIZE,
   varAt,
 } from './numbers.e16'
 import { EST_X, EST_X2, EST_Y, statEstimate, statValue } from './stats.e16'
 import {
+  isConstant,
   isDigit,
   isFunction,
   isStatValue,
@@ -105,23 +113,31 @@ import {
   T_COSH,
   T_CUBE,
   T_DEG,
+  T_DERIV,
   T_DICE,
   T_DIVIDE,
   T_E,
   T_END,
+  T_EQUAL,
   T_EXP,
   T_FRAC,
   T_GCD,
+  T_GE,
   T_INT,
+  T_INTEG,
   T_INVERSE,
+  T_LE,
+  T_LESS,
   T_LN,
   T_LOG,
   T_MDIV,
   T_MIN,
   T_MINUS,
   T_MIXED,
+  T_MORE,
   T_MSEP,
   T_NCR,
+  T_NE,
   T_NEG,
   T_NPR,
   T_OPEN,
@@ -139,6 +155,7 @@ import {
   T_ROOT,
   T_SEC,
   T_SEP,
+  T_SIGMA,
   T_SIN,
   T_SINH,
   T_SLASH,
@@ -171,6 +188,18 @@ function tok(): u16 {
   return pos < lineLength ? peek(lineAt + pos) : 0
 }
 
+/** The line's token `i`, for calculus.e16.ts; 0 past the line's end. */
+export function evalToken(i: u16): u16 {
+  return i < lineLength ? peek(lineAt + i) : 0
+}
+
+/** A sum read from `from` onto the stack, for calculus.e16.ts: where the reading stopped. */
+export function evalSum(from: u16): u16 {
+  pos = from
+  sum()
+  return pos
+}
+
 /**
  * The line at `at`, `length` tokens, evaluated: its value on top of the stack. SYNTAX where it
  * cannot be read, MATH where a value is out of a function's range.
@@ -181,9 +210,38 @@ export function evaluate(at: u16, length: u16): void {
   pos = 0
   percentEnd = 0xffff
   poke16(MATH_ANGLE, peek(KEEP_ANGLE))
+  integralReset()
   if (length === 0) fail(E_SYNTAX, 0)
-  sum()
+  compared()
   if (pos < lineLength) fail(E_SYNTAX, pos)
+}
+
+/** Whether a token compares two values (a program's =, ≠, <, >, ≤ and ≥). */
+function isComparison(t: u16): bool {
+  return t === T_EQUAL || t === T_LESS || t === T_MORE || (t >= T_NE && t <= T_GE)
+}
+
+/** A sum, or two compared: 1 when the comparison holds, else 0. */
+function compared(): void {
+  sum()
+  const t = tok()
+  if (!isComparison(t)) return
+  const at = pos
+  pos++
+  sum()
+  const b = top()
+  math(M_CMP, b - VALUE_SIZE, b, at)
+  const c = i16(peek16(MATH_RESULT))
+  let holds = false
+  if (t === T_EQUAL) holds = c === 0
+  else if (t === T_NE) holds = c !== 0
+  else if (t === T_LESS) holds = c < 0
+  else if (t === T_MORE) holds = c > 0
+  else if (t === T_LE) holds = c <= 0
+  else holds = c >= 0
+  pop()
+  pop()
+  pushInt(holds ? 1 : 0, at)
 }
 
 function sum(): void {
@@ -241,6 +299,7 @@ function startsValue(t: u16): bool {
     t === T_DICE ||
     t === T_COIN ||
     t === T_RINT ||
+    isConstant(t) ||
     isFunction(t) ||
     isVariable(t)
   )
@@ -425,6 +484,8 @@ function constant(t: u16, at: u16): bool {
     statValue(statIndex(t), push(at))
   } else if (t === T_DICE || t === T_COIN || t === T_RINT) {
     randomWhole(t, at)
+  } else if (isConstant(t)) {
+    constValue(t, push(at))
   } else return false
   return true
 }
@@ -435,6 +496,8 @@ function bracketed(t: u16, at: u16): void {
   if (t === T_OPEN) {
     sum()
     if (tok() === T_CLOSE) pos++
+  } else if (t === T_DERIV || t === T_INTEG || t === T_SIGMA) {
+    pos = calculus(t, pos, at)
   } else if (isFunction(t)) {
     sum()
     if (takesTwo(t)) {
@@ -536,33 +599,55 @@ function anyRoot(at: u16): void {
   pop()
 }
 
-/**
- * A number as typed: digits with one point, and ᴇ with a signed exponent after it. ᴇ with
- * nothing before it means 1ᴇ. Read by the maths unit's PARSE.
- */
+/** A number as typed (readNumber), its exact form beside it, then any minutes and seconds. */
 function number(): void {
   const at = pos
-  let n: u16 = 0
-  let points: u16 = 0
-  let digits: u16 = 0
-  while (isDigit(tok()) || tok() === T_POINT) {
-    if (tok() === T_POINT) points++
-    else digits++
-    if (n < 30) {
-      poke(addr(numberText) + n, tok())
-      n++
-    }
-    pos++
-  }
-  if (points > 1 || (points === 1 && digits === 0)) fail(E_SYNTAX, at)
-  if (tok() === T_EXP) n = exponentPart(digits === 0 ? 0 : n)
-  poke(addr(numberText) + n, 0)
   const v = push(at)
-  poke16(MATH_ARG, n)
-  math(M_PARSE, v, addr(numberText), at)
+  pos = readNumber(lineAt, lineLength, pos, v)
   exactLiteral(v)
   if (tok() === T_DEG) minutes(at)
 }
+
+/** The token `i` of the number being read; 0 past its line's end. */
+let readFrom: u16 = 0
+let readLength: u16 = 0
+
+function readToken(i: u16): u16 {
+  return i < readLength ? peek(readFrom + i) : 0
+}
+
+/**
+ * The number typed from token `from` of the `length` tokens at `line` - digits with one point,
+ * then ᴇ and a signed exponent, ᴇ alone meaning 1ᴇ - read by the maths unit's PARSE into the
+ * 8 bytes at `dst`: where the reading goes on. SYNTAX where it is no number. CPLX and MATRIX
+ * read their numbers here too.
+ */
+export function readNumber(line: u16, length: u16, from: u16, dst: u16): u16 {
+  readFrom = line
+  readLength = length
+  let i = from
+  let n: u16 = 0
+  let points: u16 = 0
+  while (isDigit(readToken(i)) || readToken(i) === T_POINT) {
+    if (readToken(i) === T_POINT) points++
+    // Longer than PARSE's room: SYNTAX, never a number cut short.
+    if (n >= 30) fail(E_SYNTAX, from)
+    numberText[n] = readToken(i)
+    n++
+    i++
+  }
+  if (points > 1 || (points === 1 && i - from === 1)) fail(E_SYNTAX, from)
+  if (readToken(i) === T_EXP) {
+    i = exponentPart(i + 1, n)
+    n = exponentEnd
+  }
+  poke16(MATH_ARG, n)
+  math(M_PARSE, dst, addr(numberText), from)
+  return i
+}
+
+/** How many characters exponentPart left in numberText. */
+let exponentEnd: u16 = 0
 
 /** After 12°: minutes (30′) and seconds (15″) added, each its own number, in sixtieths. */
 function minutes(at: u16): void {
@@ -585,32 +670,32 @@ function startsNumber(t: u16): bool {
 }
 
 /**
- * ᴇ and its exponent, written after the `n` characters of the number so far as PARSE reads it
- * (E, a sign, digits); with no digits before it (n 0) the number is 1. The characters there now.
+ * After ᴇ (token `i` on): E, a sign and the digits written after the `n` characters of the
+ * number so far; with none before it the number is 1. Where the reading goes on.
  */
-function exponentPart(n: u16): u16 {
+function exponentPart(i: u16, n: u16): u16 {
   let k = n
+  let j = i
   if (k === 0) {
-    poke(addr(numberText), 0x31)
+    numberText[0] = 0x31
     k = 1
   }
-  pos++
-  poke(addr(numberText) + k, 0x45)
+  numberText[k] = 0x45
   k++
-  if (tok() === T_NEG || tok() === T_MINUS) {
-    poke(addr(numberText) + k, 0x2d)
+  if (readToken(j) === T_NEG || readToken(j) === T_MINUS) {
+    numberText[k] = 0x2d
     k++
-    pos++
+    j++
   }
-  if (!isDigit(tok())) fail(E_SYNTAX, pos)
-  while (isDigit(tok())) {
-    if (k < 31) {
-      poke(addr(numberText) + k, tok())
-      k++
-    }
-    pos++
+  if (!isDigit(readToken(j))) fail(E_SYNTAX, j)
+  while (isDigit(readToken(j))) {
+    if (k >= 31) fail(E_SYNTAX, i)
+    numberText[k] = readToken(j)
+    k++
+    j++
   }
-  return k
+  exponentEnd = k
+  return j
 }
 
 /** The argument of a trig function, kept for its special angles. */
@@ -628,7 +713,8 @@ function apply(f: u16, at: u16): void {
     exactSqrt(x)
   } else {
     other(f, x, at)
-    exactWhole(x)
+    // abs( and round( have set their own form (abs( keeps the one it had).
+    if (f !== T_ABS && f !== T_RND) exactWhole(x)
   }
 }
 
@@ -789,4 +875,49 @@ function cubeRoot(x: u16, at: u16): void {
   math(M_POW, x, third, at)
   pop()
   if (negative) math(M_NEG, x, 0, at)
+}
+
+/* ---------------- helpers the evaluation alone uses (once in the fixed ROM) ---------------- */
+
+/**
+ * RNDTO's ARG for a number as the display shows it: FIX n is n places (-n), EXP n is n
+ * significant digits (EXP 0 is ten), AUTO ten significant digits.
+ */
+function shownDigits(): u16 {
+  const n = peek(KEEP_DIGITS)
+  const format = peek(KEEP_FORMAT)
+  if (format === FORMAT_FIX) return u16(-i16(n))
+  if (format === FORMAT_EXP && n > 0) return n
+  return 10
+}
+
+/** The two top values made one by `op`: the decimal by the unit, the exact form alongside. */
+export function binary(op: u16, at: u16): void {
+  const b = top()
+  pop()
+  const a = top()
+  math(op, a, b, at)
+  exactBinary(op, a, b)
+}
+
+/** Whether the number at `n` is whole. */
+function isWhole(n: u16, at: u16): bool {
+  const t = push(at)
+  copy8(n, t)
+  math(M_FRAC, t, 0, at)
+  const whole = isZero(t)
+  pop()
+  return whole
+}
+
+/** The number at `n` as a small whole number (0-999 is all a factorial or nCr takes); MATH past that. */
+function smallWhole(n: u16, at: u16): u16 {
+  if (!isWhole(n, at) || isNegative(n)) fail(E_MATH, at)
+  const t = push(at)
+  copy8(n, t)
+  math(M_TOINT, t, 0, at)
+  pop()
+  const v = peek16(MATH_ARG)
+  if (i16(v) < 0 || v > 999) fail(E_MATH, at)
+  return v
 }
