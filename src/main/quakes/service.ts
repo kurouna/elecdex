@@ -308,9 +308,10 @@ export class QuakeService {
     const xml = await this.get(url, this.tsunamiFeeds.has(url))
     if (xml === null) return
     // A whole feed with no bulletin in it says there is none; an answer that is no whole Atom
-    // feed (an error page served as 200, a body cut off before </feed>) says nothing, and must not
+    // feed (an error page served as 200, a body cut off before </feed>) says nothing - a comment a
+    // proxy adds after the end tag does not make it one - and must not
     // lift a warning in effect: it fails, keeping what was known, and is asked for in full again.
-    if (!/<feed[\s>]/i.test(xml) || !/<\/feed>\s*$/i.test(xml)) {
+    if (!/<feed[\s>]/i.test(xml) || !/<\/feed>/i.test(xml)) {
       this.validators.delete(url)
       throw new Error('tsunami feed: not an Atom feed')
     }

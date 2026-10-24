@@ -115,13 +115,31 @@ let background: Background | null = null
 // Before the app is ready, as Electron asks: the page is served from app:// (app-protocol.ts).
 registerAppScheme()
 
-// No session checks spelling: every window already turns it off, but on Linux a session's spell
-// checker fetched its Hunspell dictionaries from Google's CDN as the app started (found by the
-// e2e no-external contract on CI, 2026-10-24). The web panes' session did this already.
-app.on('session-created', (created) => created.setSpellCheckerEnabled(false))
+/**
+ * Where a spell checker would fetch its dictionaries: a closed port on this machine. No session
+ * checks spelling - every window already turns it off - but on Linux a session's spell checker
+ * fetched its Hunspell dictionaries from Google's CDN as the app started (found by the e2e
+ * no-external contract on CI, 2026-10-24), and turning it off alone did not stop that fetch.
+ */
+const NO_DICTIONARIES = 'http://127.0.0.1:9/'
+
+function noSpellChecking(ses: Electron.Session): void {
+  ses.setSpellCheckerDictionaryDownloadURL(NO_DICTIONARIES)
+  // No language, no dictionary to fetch; Windows and macOS use the system's checker and take none.
+  if (process.platform === 'linux') {
+    try {
+      ses.setSpellCheckerLanguages([])
+    } catch {
+      // An Electron that wants a language is still held back by the closed download URL above.
+    }
+  }
+  ses.setSpellCheckerEnabled(false)
+}
+
+app.on('session-created', noSpellChecking)
 
 app.whenReady().then(() => {
-  session.defaultSession.setSpellCheckerEnabled(false)
+  noSpellChecking(session.defaultSession)
   // Never Electron's default menu, whose Ctrl+R and zoom keys took keys a web pane or a dialog
   // did not use; on macOS only the app and Edit menus the system expects (app-menu.ts).
   const menu = appMenuTemplate(process.platform)

@@ -463,6 +463,17 @@ describe('QuakeService', () => {
     expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
   })
 
+  it('takes a whole NOAA feed with something after its end tag, as a proxy may add', async () => {
+    const h = harness()
+    const commented = `${noaaWarning.trimEnd()}
+<!-- served from cache -->
+`
+    h.reply(NTWC, { status: 200, body: commented, etag: '"c"' })
+    h.configure({ source: 'usgs' })
+    await h.settle()
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+  })
+
   it("lifts a NOAA warning when the centre's feed has no bulletin in it", async () => {
     const h = harness()
     const empty = noaaWarning.replace(/<entry>[\s\S]*<\/entry>/i, '')
