@@ -101,9 +101,10 @@ export function eqnReset(): void {
   gridOpen(GRID_EQN, rowsOf(kind()), colsOf(kind()))
 }
 
-export function eqnKey(k: u16, shift: bool): void {
-  if (eqPhase === EQ_TYPE) eqTypeKey(k)
-  else if (eqPhase === EQ_RESULT) eqResultKey(k)
+/** A key in EQUATION; true when it leaves the mode (AC on the kinds, none chosen yet). */
+export function eqnKey(k: u16, shift: bool): bool {
+  if (eqPhase === EQ_TYPE) return eqTypeKey(k)
+  if (eqPhase === EQ_RESULT) eqResultKey(k)
   else {
     const r = gridKey(k, shift)
     if (r === GRID_DONE) {
@@ -112,10 +113,14 @@ export function eqnKey(k: u16, shift: bool): void {
       eqPhase = EQ_RESULT
     } else if (r === GRID_AC) eqPhase = EQ_TYPE
   }
+  return false
 }
 
-/** 1-4 the kind (its coefficients 0 when it changes); AC back to the coefficients. */
-function eqTypeKey(k: u16): void {
+/**
+ * 1-4 the kind (its coefficients 0 when it changes); AC back to the coefficients, or out of
+ * the mode (true) when no kind was ever chosen, as AC:BACK says.
+ */
+function eqTypeKey(k: u16): bool {
   const chosen = typeOf(k)
   if (chosen !== 0) {
     if (chosen !== kind()) {
@@ -123,8 +128,11 @@ function eqTypeKey(k: u16): void {
       for (let i: u16 = 0; i < 12; i++) zeroValue(EQN_COEFFS + i * VALUE_SIZE)
     }
     eqnReset()
-  } else if (k === K_AC && kind() !== 0) eqnReset()
-  else refuse()
+  } else if (k === K_AC) {
+    if (kind() === 0) return true
+    eqnReset()
+  } else refuse()
+  return false
 }
 
 /** The kind a key chooses, 1-4; 0 for another key. */

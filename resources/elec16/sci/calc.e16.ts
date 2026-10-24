@@ -500,8 +500,12 @@ function dispatch(k: u16, shift: bool, alpha: bool): void {
 /** A key on the mode's own screen: STATS, EQUATION, TABLE's table, or a line. */
 function modeKey(k: u16, shift: bool, alpha: bool): void {
   if (mode === MODE_STATS) statsKey(k, shift)
-  else if (mode === MODE_EQN) eqnKey(k, shift)
-  else if (mode === MODE_TABLE && tablePhase() === TABLE_VIEW) tableKey(k)
+  else if (mode === MODE_EQN) {
+    if (eqnKey(k, shift)) {
+      enterMode(MODE_CALC)
+      return
+    }
+  } else if (mode === MODE_TABLE && tablePhase() === TABLE_VIEW) tableKey(k)
   else {
     calcKey(k, shift, alpha)
     return

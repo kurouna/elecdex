@@ -1183,3 +1183,50 @@ describe("the rest of EL-509E's list", () => {
     expect(ans(m)).toBe('152')
   })
 })
+
+describe('AC on a screen that offers it', () => {
+  // Every screen that says AC:BACK (or AC:EDIT) leaves on AC. EQUATION's kinds, the first time
+  // before any was chosen, once beeped and stayed (the user's report).
+  const cases: { name: string; to: string; hint: string; after?: (m: Elec16) => void }[] = [
+    { name: 'MENU', to: 'menu', hint: 'AC:BACK' },
+    { name: 'SETUP', to: 'setup', hint: 'AC:BACK' },
+    { name: 'FUNC', to: 'func', hint: 'AC:BACK' },
+    { name: "FUNC's last page", to: 'func down down down', hint: 'AC:BACK' },
+    { name: "BASE's FUNC", to: 'menu 3 func', hint: 'AC:BACK' },
+    { name: "BASE's FUNC, its second page", to: 'menu 3 func down', hint: 'AC:BACK' },
+    { name: "STATS' kinds, on coming in", to: 'menu 2', hint: 'AC:BACK' },
+    { name: "STATS' kinds from FUNC", to: 'menu 2 1 func 4', hint: 'AC:BACK' },
+    { name: "STATS' FUNC", to: 'menu 2 func', hint: 'AC:BACK' },
+    // A page of results has no room for the words: what goes is the page.
+    { name: "STATS' results", to: 'menu 2 2 1 eq 2 eq right up 2 eq 4 eq eq', hint: 'RESULT' },
+    { name: 'f(x) asking for X', to: 'alpha lp add 1 fx', hint: 'AC:BACK' },
+    {
+      name: "EQUATION's kinds, the first time",
+      to: 'menu 5',
+      hint: 'AC:BACK',
+      // Back to CALC, where a line works out.
+      after: (m) => {
+        keys(m, '1 add 2 eq')
+        expect(ans(m)).toBe('3')
+      },
+    },
+    {
+      name: "EQUATION's kinds, chosen before",
+      to: 'menu 5 1 ac',
+      hint: 'AC:BACK',
+      after: (m) => expect(read(m)).toContain('aX+bY=c'),
+    },
+    { name: "EQUATION's answers", to: 'menu 5 1 1 eq 1 eq 2 eq 1 eq neg 1 eq 0 eq eq', hint: 'X=' },
+  ]
+  const read = (m: Elec16) => dotText(m.state.vram, 128, 64).join('\n')
+  for (const c of cases) {
+    it(`${c.name}: AC goes back`, () => {
+      const m = switchOn()
+      keys(m, c.to)
+      expect(read(m)).toContain(c.hint)
+      keys(m, 'ac')
+      expect(read(m)).not.toContain(c.hint)
+      c.after?.(m)
+    })
+  }
+})
