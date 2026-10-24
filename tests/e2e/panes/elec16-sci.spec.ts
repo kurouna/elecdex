@@ -4,7 +4,7 @@ import { test } from '../support/shared.js'
 import { launch, settleLayout } from '../support.js'
 
 /**
- * ELEC-16 SCI in the running app (docs/elec16-sci.md section 10, S2 and S3): the picker's own
+ * ELEC-16 SCI in the running app (docs/elec16-sci.md section 10, S2 to S4): the picker's own
  * row opens the ELEC-16 pane on a new calculator unit beside a pocket one it leaves alone, the
  * body's keys and the PC's type a line that is answered and kept in the history, and the panel
  * offers only what the calculator has.
@@ -38,15 +38,25 @@ test('the picker opens a calculator on a unit of its own, whose keys reach it fr
       'full',
     )
 
+    // A new unit starts in 2D; SETUP 2 puts it in LINE, whose row of characters the pane's
+    // text reads back (2D's line is set off the eight-row bands, docs/elec16-sci.md S3).
+    const mark = (name: string) => sci.locator(`[data-mark="${name}"]`)
+    const key = (id: string) =>
+      sci.locator(`[data-testid=elec16-sci-key][data-key="${id}"]`).click({ delay: 20 })
+    await expect(mark('2D')).toHaveClass(/\bon\b/)
+    await key('setup')
+    await key('2')
+    await key('ac')
+    await expect(mark('2D')).not.toHaveClass(/\bon\b/)
+
     // A key of the body, then keys typed on the PC while the pane has the focus: the line.
-    await sci.locator('[data-testid=elec16-sci-key][data-key=sin]').click({ delay: 20 })
+    await key('sin')
     await expect.poll(firstRow).toBe('sin(')
     await sci.focus()
     await page.keyboard.type('30')
     await expect.poll(firstRow).toBe('sin(30')
     // SHIFT lights its mark until the next key; Enter answers the line, which the history keeps.
-    await sci.locator('[data-testid=elec16-sci-key][data-key=shift]').click({ delay: 20 })
-    const mark = (name: string) => sci.locator(`[data-mark="${name}"]`)
+    await key('shift')
     await expect(mark('S')).toHaveClass(/\bon\b/)
     await sci.focus()
     await page.keyboard.press('Enter')

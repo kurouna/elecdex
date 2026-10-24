@@ -2,10 +2,18 @@
 // sections 4.5 and 6.6) - MENU, SETUP and the error screen - each in the one rhythm: a title
 // band over rows 0-8, then a line every nine rows from row 11. Its code runs with bank 1 in the
 // window; calc.e16.ts calls it through far_call.
-import { addr, bytes, peek, poke, str, type u16 } from '../../../src/shared/e16c/builtins'
-import { K_1, K_2, K_3, K_4, K_5, K_AC, refuse } from './calc.e16'
+import {
+  addr,
+  type bool,
+  bytes,
+  peek,
+  poke,
+  str,
+  type u16,
+} from '../../../src/shared/e16c/builtins'
+import { K_1, K_2, K_3, K_4, K_5, K_6, K_7, K_AC, refuse } from './calc.e16'
 import { band, lineY, mark, textAt, textRight } from './lcd.e16'
-import { E_MATH, E_STACK, KEEP_ANGLE } from './numbers.e16'
+import { E_MATH, E_STACK, KEEP_ANGLE, KEEP_ANSWER, KEEP_DISPLAY } from './numbers.e16'
 
 /* ---------------- the error screen ---------------- */
 
@@ -49,28 +57,43 @@ export function menuKey(k: u16): u16 {
 
 /* ---------------- SETUP ---------------- */
 
-/** The angle, chosen by 3, 4 or 5; the current one marked. */
+/**
+ * The display (1 2D, 2 LINE), the angle (3 DEG, 4 RAD, 5 GRAD) and which form an answer shows
+ * first (6 its exact form, 7 its decimal); each choice marked.
+ */
 export function setupScreen(): void {
   band(str('SETUP'))
   textRight(str('1/2'), 1)
-  textAt(str('3:DEG 4:RAD 5:GRAD'), 1, lineY(0))
+  textAt(str('1:2D  2:LINE'), 1, lineY(0))
+  textAt(str('3:DEG 4:RAD 5:GRAD'), 1, lineY(1))
+  textAt(str('6:EXACT 7:DECIMAL'), 1, lineY(2))
   textAt(str('AC:BACK'), 1, lineY(5))
+  if (peek(KEEP_DISPLAY) === 1) mark(6, 6, 0)
+  else mark(0, 4, 0)
   const angle = peek(KEEP_ANGLE)
-  if (angle === 1) mark(6, 5, 0)
-  else if (angle === 2) mark(12, 6, 0)
-  else mark(0, 5, 0)
+  if (angle === 1) mark(6, 5, 1)
+  else if (angle === 2) mark(12, 6, 1)
+  else mark(0, 5, 1)
+  if (peek(KEEP_ANSWER) === 1) mark(8, 9, 2)
+  else mark(0, 7, 2)
 }
 
-/** A key on SETUP: an angle is set and shown; AC leaves (non-zero). */
+/** A key on SETUP: a choice is set and shown; AC leaves (non-zero). */
 export function setupKey(k: u16): u16 {
   if (k === K_AC) return 1
-  if (k === K_3 || k === K_4 || k === K_5) {
-    poke(KEEP_ANGLE, k === K_3 ? 0 : k === K_4 ? 1 : 2)
-    setupScreen()
-    return 0
-  }
-  refuse()
+  if (setupChoice(k)) setupScreen()
+  else refuse()
   return 0
+}
+
+/** The choice a key makes on SETUP, kept: false for a key that makes none. */
+function setupChoice(k: u16): bool {
+  if (k === K_1 || k === K_2) poke(KEEP_DISPLAY, k === K_1 ? 0 : 1)
+  else if (k === K_3 || k === K_4) poke(KEEP_ANGLE, k === K_3 ? 0 : 1)
+  else if (k === K_5) poke(KEEP_ANGLE, 2)
+  else if (k === K_6 || k === K_7) poke(KEEP_ANSWER, k === K_6 ? 0 : 1)
+  else return false
+  return true
 }
 
 /* ---------------- a fault ---------------- */

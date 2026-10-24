@@ -14,11 +14,22 @@ import {
   type u16,
 } from '../../../src/shared/e16c/builtins'
 import {
+  exactLiteral,
+  exactNeg,
+  exactSqrt,
+  exactTrig,
+  exactWhole,
+  TRIG_COS,
+  TRIG_SIN,
+  TRIG_TAN,
+} from './exact.e16'
+import {
   binary,
-  copy8,
+  copyValue,
   E_MATH,
   E_SYNTAX,
   fail,
+  inexact,
   isNegative,
   isZero,
   KEEP_ANGLE,
@@ -49,6 +60,7 @@ import {
   pushInt,
   smallWhole,
   top,
+  VALUE_SIZE,
   varAt,
 } from './numbers.e16'
 import {
@@ -66,7 +78,9 @@ import {
   T_CUBE,
   T_DIVIDE,
   T_E,
+  T_END,
   T_EXP,
+  T_FRAC,
   T_INVERSE,
   T_LN,
   T_LOG,
@@ -79,7 +93,11 @@ import {
   T_PLUS,
   T_POINT,
   T_POW,
+  T_POWT,
+  T_ROOT,
+  T_SEP,
   T_SIN,
+  T_SLASH,
   T_SQRT,
   T_SQUARE,
   T_TAN,
@@ -149,6 +167,8 @@ function startsValue(t: u16): bool {
     t === T_E ||
     t === T_ANS ||
     t === T_TEN ||
+    t === T_FRAC ||
+    t === T_ROOT ||
     isFunction(t) ||
     isVariable(t)
   )
@@ -164,14 +184,25 @@ function implied(): void {
 }
 
 function comb(): void {
-  unary()
+  slash()
   for (;;) {
     const t = tok()
     if (t !== T_NCR && t !== T_NPR) return
     const at = pos
     pos++
-    unary()
+    slash()
     choose(t === T_NCR, at)
+  }
+}
+
+/** LINE's fraction: a / b, stronger than nCr, weaker than the sign. */
+function slash(): void {
+  unary()
+  while (tok() === T_SLASH) {
+    const at = pos
+    pos++
+    unary()
+    binary(M_DIV, at)
   }
 }
 
@@ -182,6 +213,7 @@ function unary(): void {
     pos++
     unary()
     math(M_NEG, top(), 0, at)
+    exactNeg(top())
     return
   }
   if (t === T_PLUS) {
@@ -197,7 +229,7 @@ function post(): void {
   for (;;) {
     const t = tok()
     const at = pos
-    if (t === T_POW) {
+    if (t === T_POW || t === T_POWT) {
       powers()
     } else if (t === T_SQUARE) {
       pos++
@@ -218,12 +250,20 @@ function post(): void {
 /** A run of powers on the value on top, read from the right: 2^3^2 is 2^9. */
 function powers(): void {
   const at = pos
+  const template = tok() === T_POWT
   pos++
   sum()
-  if (tok() === T_CLOSE) pos++
+  if (template) expect(T_END)
+  else if (tok() === T_CLOSE) pos++
   // The powers after this one belong to its exponent.
-  if (tok() === T_POW) powers()
+  if (tok() === T_POW || tok() === T_POWT) powers()
   binary(M_POW, at)
+}
+
+/** The token a template's part must end with; SYNTAX where it does not. */
+function expect(t: u16): void {
+  if (tok() !== t) fail(E_SYNTAX, pos)
+  pos++
 }
 
 function raise(n: u16, at: u16): void {
@@ -235,8 +275,9 @@ function raise(n: u16, at: u16): void {
 function inverse(at: u16): void {
   const x = top()
   const one = pushInt(1, at)
-  math(M_DIV, one, x, at)
-  copy8(one, x)
+  copyValue(x, push(at))
+  binary(M_DIV, at)
+  copyValue(one, x)
   pop()
 }
 
@@ -250,14 +291,14 @@ function factorial(at: u16): void {
     pushInt(k, at)
     binary(M_MUL, at)
   }
-  copy8(f, x)
+  copyValue(f, x)
   pop()
 }
 
 /** nCr (`c`) or nPr of the two values on top: whole, 0 <= r <= n. */
 function choose(c: bool, at: u16): void {
   const r = top()
-  const n = r - 8
+  const n = r - VALUE_SIZE
   const nv = smallWhole(n, at)
   const rv = smallWhole(r, at)
   if (rv > nv) fail(E_MATH, at)
@@ -270,7 +311,7 @@ function choose(c: bool, at: u16): void {
       binary(M_DIV, at)
     }
   }
-  copy8(out, n)
+  copyValue(out, n)
   pop()
   pop()
 }
@@ -284,17 +325,40 @@ function primary(): void {
   }
   if (t === 0) fail(E_SYNTAX, at)
   pos++
+  if (!constant(t, at)) bracketed(t, at)
+}
+
+/** π, e, the 10 of 10ˣ, Ans or a variable, pushed: false for none of them. */
+function constant(t: u16, at: u16): bool {
   if (t === T_PI) {
     math(M_PI, push(at), 0, at)
   } else if (t === T_E) {
     const n = pushInt(1, at)
     math(M_EXP, n, 0, at)
+    inexact(n)
   } else if (t === T_TEN) {
     pushInt(10, at)
   } else if (t === T_ANS) {
-    copy8(KEEP_ANS, push(at))
+    copyValue(KEEP_ANS, push(at))
   } else if (isVariable(t)) {
-    copy8(varAt(t), push(at))
+    copyValue(varAt(t), push(at))
+  } else return false
+  return true
+}
+
+/** A template, a bracket or a function and what is in it. */
+function bracketed(t: u16, at: u16): void {
+  if (t === T_FRAC) {
+    sum()
+    expect(T_SEP)
+    sum()
+    expect(T_END)
+    binary(M_DIV, at)
+  } else if (t === T_ROOT) {
+    sum()
+    expect(T_END)
+    math(M_SQR, top(), 0, at)
+    exactSqrt(top())
   } else if (t === T_OPEN) {
     sum()
     if (tok() === T_CLOSE) pos++
@@ -329,6 +393,7 @@ function number(): void {
   const v = push(at)
   poke16(MATH_ARG, n)
   math(M_PARSE, v, addr(numberText), at)
+  exactLiteral(v)
 }
 
 /**
@@ -360,19 +425,38 @@ function exponentPart(n: u16): u16 {
   return k
 }
 
-/** A function of the value on top. */
+/** The argument of a trig function, kept for its special angles. */
+const argument = bytes(36)
+
+/** A function of the value on top; its exact form where it has one. */
 function apply(f: u16, at: u16): void {
   const x = top()
-  if (f === T_SIN) math(M_SIN, x, 0, at)
-  else if (f === T_COS) math(M_COS, x, 0, at)
-  else if (f === T_TAN) math(M_TAN, x, 0, at)
-  else if (f === T_ASIN) math(M_ASN, x, 0, at)
+  copyValue(x, addr(argument))
+  if (f === T_SIN) trig(M_SIN, TRIG_SIN, x, at)
+  else if (f === T_COS) trig(M_COS, TRIG_COS, x, at)
+  else if (f === T_TAN) trig(M_TAN, TRIG_TAN, x, at)
+  else if (f === T_SQRT) {
+    math(M_SQR, x, 0, at)
+    exactSqrt(x)
+  } else {
+    other(f, x, at)
+    exactWhole(x)
+  }
+}
+
+/** A function whose answer has no form but a whole number. */
+function other(f: u16, x: u16, at: u16): void {
+  if (f === T_ASIN) math(M_ASN, x, 0, at)
   else if (f === T_ACOS) math(M_ACS, x, 0, at)
   else if (f === T_ATAN) math(M_ATN, x, 0, at)
   else if (f === T_LOG) math(M_LOG, x, 0, at)
   else if (f === T_LN) math(M_LN, x, 0, at)
-  else if (f === T_SQRT) math(M_SQR, x, 0, at)
   else if (f === T_CBRT) cubeRoot(x, at)
+}
+
+function trig(op: u16, which: u16, x: u16, at: u16): void {
+  math(op, x, 0, at)
+  exactTrig(which, x, addr(argument))
 }
 
 /** The cube root, of a negative number too: -(|x|^(1/3)); 0 is 0. */

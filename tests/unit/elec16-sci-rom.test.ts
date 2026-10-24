@@ -14,10 +14,12 @@ import sciJson from '../../src/renderer/widgets/elec16/sci-rom.json'
 import { settle } from './elec16-helpers.js'
 
 /**
- * The ELEC-16 SCI ROM as S3 has it (resources/elec16/sci, docs/elec16-sci.md section 6): the
+ * The ELEC-16 SCI ROM as S4 has it (resources/elec16/sci, docs/elec16-sci.md section 6): the
  * line typed with the calculator's keys and shown as one row of characters (LINE), evaluated
  * in the order of section 6.3 on the maths unit's decimal numbers, the answer in big digits,
- * the variables, Ans, the history, the errors and where they were, ON and OFF, MENU and SETUP.
+ * the variables, Ans, the history, the errors and where they were, ON and OFF, MENU and SETUP;
+ * then the 2D display - templates set as a textbook sets them - and answers in their exact
+ * form (p + r√s)/q, read from RAM and from dots at the places the layout puts them.
  */
 
 const DIR = 'resources/elec16/sci/'
@@ -27,10 +29,14 @@ const built = buildRom((name) => {
   return existsSync(file) ? readFileSync(file, 'utf8') : null
 })
 
-/** Switched on: past the name, at the calculator's empty line. */
-const switchOn = (): Elec16 => {
+/**
+ * Switched on: past the name, at the calculator's empty line - in LINE unless asked for 2D (a new
+ * unit's display), as S3's tests read the line as one row of characters.
+ */
+const switchOn = (display: '2d' | 'line' = 'line'): Elec16 => {
   const m = Elec16.boot(built.image, 'sci-128')
   settle(m)
+  if (display === 'line') keys(m, 'setup 2 ac')
   return m
 }
 
@@ -52,15 +58,44 @@ const rows = (m: Elec16): string[] => screenText(m.state.vram, 128, 64).map((row
 
 /** Ans as the unit keeps it (numbers.e16.ts KEEP_ANS), in ten digits. */
 const ans = (m: Elec16): string => {
-  const d = decode(m.state.ram.subarray(0x408, 0x410))
+  const d = decode(m.state.ram.subarray(0xc08, 0xc10))
   return d === null ? '?' : format(d, 10)
 }
 
-/** A variable's value (KEEP_VARS: A-F, X, Y, M, eight bytes each). */
+/** A variable's value (KEEP_VARS: A-F, X, Y, M, a 36-byte value each, its decimal first). */
 const variable = (m: Elec16, k: number): string => {
-  const d = decode(m.state.ram.subarray(0x410 + k * 8, 0x418 + k * 8))
+  const d = decode(m.state.ram.subarray(0xc30 + k * 36, 0xc38 + k * 36))
   return d === null ? '?' : format(d, 10)
 }
+
+/**
+ * Ans's exact form as (p + r√s)/q in words: "1/2", "2√2", "-√3/2", "2-√3", or "-" when it has
+ * none (numbers.e16.ts: the flag at 8, s at 10, p, r and q at 12, 20 and 28).
+ */
+function form(m: Elec16): string {
+  const ram = m.state.ram
+  if (ram[0xc08 + 8] !== 1) return '-'
+  const part = (at: number) => {
+    const d = decode(ram.subarray(0xc08 + at, 0xc08 + at + 8))
+    return d === null ? '?' : format(d, 10)
+  }
+  const s = (ram[0xc08 + 10] ?? 0) | ((ram[0xc08 + 11] ?? 0) << 8)
+  const [p, r, q] = [part(12), part(20), part(28)]
+  const top = r === '0' ? p : withRoot(p, r, s)
+  return q === '1' ? top : `${top}/${q}`
+}
+
+/** p + r√s in words: r of 1 or -1 is only its sign, and p of 0 is left out. */
+function withRoot(p: string, r: string, s: number): string {
+  const coefficient = ({ '1': '', '-1': '-' } as Record<string, string>)[r] ?? r
+  const root = `${coefficient}√${s}`
+  if (p === '0') return root
+  return `${p}${root.startsWith('-') ? '' : '+'}${root}`
+}
+
+/** Whether the dot at (x, y) is on. */
+const dot = (m: Elec16, x: number, y: number): boolean =>
+  (((m.state.vram[(y >> 3) * 128 + x] ?? 0) >> (y & 7)) & 1) === 1
 
 /** The big digits on bands 6 and 7, read back from the right edge: the answer as drawn. */
 function bigText(m: Elec16, right = 127): string {
@@ -125,7 +160,7 @@ describe('the SCI ROM file', () => {
   })
 
   it('says what the e16c sources say of the machine as the machine has it', () => {
-    const all = ['lcd', 'tokens', 'numbers', 'calc', 'eval', 'screens']
+    const all = ['lcd', 'tokens', 'numbers', 'calc', 'eval', 'screens', 'exact', 'layout', 'edit']
       .map((f) => read(`${f}.e16.ts`) ?? '')
       .join('\n')
     const constant = (name: string) => Number(all.match(new RegExp(`const ${name} = (\\w+)`))?.[1])
@@ -142,6 +177,7 @@ describe('the SCI ROM file', () => {
       ['D', 'D'],
       ['R', 'R'],
       ['G', 'G'],
+      ['2D', '2D'],
       ['UP', 'UP'],
       ['DOWN', 'DOWN'],
     ]) {
@@ -162,11 +198,11 @@ describe('the SCI ROM file', () => {
 })
 
 describe('switched on', () => {
-  it('shows its name for a moment, then an empty line, the cursor at its start, DEG lit', () => {
-    const m = switchOn()
+  it('shows its name for a moment, then an empty line, the cursor at its start, DEG and 2D lit', () => {
+    const m = switchOn('2d')
     expect(rows(m).filter((r) => r !== '')).toEqual([])
     expect(m.state.lcd.cursorMode & 3).toBe(3)
-    expect(lit(m)).toEqual(['D'])
+    expect(lit(m)).toEqual(['D', '2D'])
     expect(m.state.sleeping).toBe(true)
   })
 })
@@ -346,5 +382,185 @@ describe('ON, MENU and SETUP', () => {
     expect(ans(m)).toBe('1')
     keys(m, 'setup 5 ac sin 1 0 0 eq')
     expect(ans(m)).toBe('1')
+  })
+})
+
+describe('the 2D display and exact answers (S4)', () => {
+  /** A line typed in 2D and answered: Ans, its form, and the big digits (empty for a form). */
+  function exact(line: string): { ans: string; form: string; shown: string; m: Elec16 } {
+    const m = switchOn('2d')
+    keys(m, `${line} eq`)
+    return { ans: ans(m), form: form(m), shown: bigText(m), m }
+  }
+
+  it.each([
+    ['1 frac 3 right add 1 frac 6', '0.5', '1/2'],
+    ['1 div 3', '0.3333333333', '1/3'],
+    ['shift sq 8', '2.828427125', '2√2'],
+    ['shift sq 1 2 right div 2', '1.732050808', '√3'],
+    ['sin 4 5', '0.7071067812', '√2/2'],
+    ['cos 1 5 0', '-0.8660254038', '-√3/2'],
+    ['tan 1 5', '0.2679491924', '2-√3'],
+    ['tan 7 5', '3.732050808', '2+√3'],
+    ['lp 1 add shift sq 2 right rp sq', '5.828427125', '3+2√2'],
+    ['1 frac 2 right pow 3', '0.125', '1/8'],
+    ['1 frac shift sq 2', '0.7071067812', '√2/2'],
+  ])('%s is %s, answered as %s', (line, value, shape) => {
+    const r = exact(line)
+    expect(r.ans).toBe(value)
+    expect(r.form).toBe(shape)
+    expect(r.shown).toBe('')
+  })
+
+  it.each([
+    ['2 pow 1 0', '1024'],
+    ['shift sq 2 right add shift sq 3', '3.14626437'],
+    ['sin 1 0', '0.1736481777'],
+    ['shift exp', '3.141592654'],
+  ])('%s has no form to show and is answered in big digits', (line, value) => {
+    const r = exact(line)
+    expect(r.ans).toBe(value)
+    expect(r.shown).toBe(value)
+  })
+
+  it('leaves the form when a part would pass ten digits, the decimal going on', () => {
+    expect(exact('2 pow 4 0').form).toBe('-')
+    const small = exact('1 frac 3 right pow 2 5')
+    expect(small.form).toBe('-')
+    expect(small.ans.startsWith('1.18')).toBe(true)
+  })
+
+  it('sets a fraction as a textbook does, the answer right on its rows', () => {
+    const m = switchOn('2d')
+    keys(m, '1 frac 2')
+    // The line: its tallest reach 13 rows over a foot at row 15, the bar 4 above it, the parts
+    // two dots off the bar and centred in a box 12 wide from x = 1.
+    expect(lineAt(m, 2, false, 4)).toBe('1')
+    expect(lineAt(m, 13, false, 4)).toBe('2')
+    for (let x = 2; x <= 10; x++) expect(dot(m, x, 11)).toBe(true)
+    keys(m, 'eq')
+    // The answer: its lowest dot on row 62, its right edge on the screen's.
+    expect(lineAt(m, 43, false, 119)).toBe('1')
+    expect(lineAt(m, 54, false, 119)).toBe('2')
+    for (let x = 117; x <= 125; x++) expect(dot(m, x, 52)).toBe(true)
+  })
+
+  it('puts the cursor in the part being typed: a bar at its dots, eight rows high', () => {
+    const m = switchOn('2d')
+    keys(m, '1 frac')
+    // In the empty denominator under the 1: its left edge at x = 4, its foot at row 20.
+    expect(m.state.lcd.cursor).toBe(12 * 256 + 3)
+    expect(m.state.lcd.cursorMode & 3).toBe(3)
+  })
+
+  it('answers a line with a decimal typed in it in decimals, F⇄D going to its form and back', () => {
+    const r = exact('0 dot 1 add 0 dot 2')
+    expect(r.shown).toBe('0.3')
+    expect(r.form).toBe('3/10')
+    keys(r.m, 'fd')
+    expect(bigText(r.m)).toBe('')
+    keys(r.m, 'fd')
+    expect(bigText(r.m)).toBe('0.3')
+  })
+
+  it('answers in decimals after SHIFT = (≈), and F⇄D does nothing for a whole number', () => {
+    const m = switchOn('2d')
+    keys(m, '1 frac 3 shift eq')
+    expect(bigText(m)).toBe('0.3333333333')
+    keys(m, 'fd')
+    expect(bigText(m)).toBe('')
+    keys(m, 'ac 4 eq fd')
+    expect(bigText(m)).toBe('4')
+  })
+
+  it('makes the value just typed the numerator, or an empty fraction where there is none', () => {
+    const m = switchOn('2d')
+    keys(m, '1 2 frac 5 eq')
+    expect(form(m)).toBe('12/5')
+    keys(m, 'ac frac 7 down 2 eq')
+    expect(form(m)).toBe('7/2')
+    keys(m, 'ac 2 frac 3 up 1 eq')
+    expect(form(m)).toBe('7')
+  })
+
+  it('goes on from Ans with a/b and a power', () => {
+    const m = switchOn('2d')
+    keys(m, '3 eq frac 4 eq')
+    expect(form(m)).toBe('3/4')
+    keys(m, 'pow 2 eq')
+    expect(form(m)).toBe('9/16')
+  })
+
+  it('DEL goes into a template at its mark and takes it away when it is empty', () => {
+    const m = switchOn('2d')
+    keys(m, '1 frac 2 left left del 3 eq')
+    expect(form(m)).toBe('3/2')
+    keys(m, 'ac 2 pow 3 del del 5 eq')
+    expect(ans(m)).toBe('25')
+    keys(m, 'ac frac del del 6 eq')
+    expect(ans(m)).toBe('6')
+  })
+
+  it("moves between a fraction's parts with up and down, to the end of the other part", () => {
+    const m = switchOn('2d')
+    keys(m, '1 frac 2 up 3 eq')
+    expect(form(m)).toBe('13/2')
+    keys(m, 'ac 1 frac 2 up down 3 eq')
+    expect(form(m)).toBe('1/23')
+  })
+
+  it('does not put in a template that would make the line too tall to show', () => {
+    const m = switchOn('2d')
+    keys(m, 'frac frac frac')
+    const before = Uint8Array.from(m.state.vram)
+    keys(m, 'frac')
+    expect(Uint8Array.from(m.state.vram)).toEqual(before)
+  })
+
+  it('keeps a form in a variable, through OFF and ON', () => {
+    const m = switchOn('2d')
+    keys(m, '1 frac 3 eq sto neg ac alpha neg add 1 eq')
+    expect(form(m)).toBe('4/3')
+    keys(m, 'shift on')
+    m.brk()
+    settle(m)
+    keys(m, 'ac shift sto neg')
+    expect(form(m)).toBe('1/3')
+    expect(bigText(m)).toBe('')
+  })
+
+  it('SETUP 2 (LINE) types a/b as / and answers in decimals; 1 goes back to 2D', () => {
+    const m = switchOn('2d')
+    keys(m, 'setup 2 ac 1 frac 4')
+    expect(rows(m)[0]).toBe('1/4')
+    expect(lit(m)).not.toContain('2D')
+    keys(m, 'eq')
+    expect(bigText(m)).toBe('0.25')
+    keys(m, 'setup 1 ac')
+    expect(lit(m)).toContain('2D')
+  })
+
+  it('SETUP 7 answers in decimals first, F⇄D still showing the form', () => {
+    const m = switchOn('2d')
+    keys(m, 'setup 7 ac 1 frac 4 eq')
+    expect(bigText(m)).toBe('0.25')
+    keys(m, 'fd')
+    expect(bigText(m)).toBe('')
+    keys(m, 'setup 6 ac 1 frac 4 eq')
+    expect(bigText(m)).toBe('')
+  })
+
+  it('SETUP marks the display, the angle and the answer chosen', () => {
+    const m = switchOn('2d')
+    keys(m, 'setup')
+    // A mark inverts its item from a row above to a row below: 1:2D is x 0-24 on line 0 (row 11).
+    expect(dot(m, 2, 10)).toBe(true)
+    expect(dot(m, 38, 10)).toBe(false)
+    keys(m, '2')
+    expect(dot(m, 2, 10)).toBe(false)
+    expect(dot(m, 38, 10)).toBe(true)
+    expect(dot(m, 50, 28)).toBe(false)
+    keys(m, '7')
+    expect(dot(m, 50, 28)).toBe(true)
   })
 })

@@ -1,17 +1,23 @@
-// The calculator's numbers (docs/elec16-sci.md sections 6.3 and 7): the maths unit's 8-byte
-// decimal numbers on a stack in RAM, the unit run on them, and what stays when the power goes -
-// Ans, the variables and SETUP - kept apart from e16c's own globals, which start afresh at
-// every reset. An error stops the evaluation where it was (fail), as BASIC's does.
+// The calculator's numbers (docs/elec16-sci.md sections 6.3, 6.4 and 7): values on a stack in
+// RAM, the maths unit run on them, and what stays when the power goes - Ans, the variables and
+// SETUP - kept apart from e16c's own globals, which start afresh at every reset. An error stops
+// the evaluation where it was (fail), as BASIC's does.
+//
+// A value is a record of VALUE_SIZE bytes: the maths unit's 8-byte decimal number first (so
+// the unit runs on a value's address as it is), then its exact form (p + r√s)/q while it has
+// one (exact.e16.ts keeps it through the arithmetic).
 import {
   addr,
   type bool,
   bytes,
   i16,
+  memcpy,
   peek,
   peek16,
   poke16,
   type u16,
 } from '../../../src/shared/e16c/builtins'
+import { exactBinary, exactWhole } from './exact.e16'
 
 /* ---------------- the hand-written ROM (main.s) ---------------- */
 
@@ -35,8 +41,11 @@ export const M_DIV = 0x04
 export const M_POW = 0x05
 export const M_CMP = 0x06
 export const M_MOVE = 0x07
+export const M_IDIV = 0x08
+export const M_MOD = 0x09
 export const M_NEG = 0x10
 export const M_ABS = 0x11
+export const M_INT = 0x12
 export const M_FRAC = 0x13
 export const M_SQR = 0x15
 export const M_SIN = 0x16
@@ -71,72 +80,97 @@ export function fail(code: u16, at: u16): void {
   calc_abort()
 }
 
+/* ---------------- a value ---------------- */
+
+/** A value's bytes: the decimal, then whether it is exact, s, p, r and q (exact.e16.ts). */
+export const VALUE_SIZE = 36
+export const V_EXACT = 8
+export const V_S = 10
+export const V_P = 12
+export const V_R = 20
+export const V_Q = 28
+
+export function copyValue(from: u16, to: u16): void {
+  memcpy(to, from, VALUE_SIZE)
+}
+
+/** The decimal alone (an 8-byte number of the maths unit). */
+export function copy8(from: u16, to: u16): void {
+  memcpy(to, from, 8)
+}
+
+/** The value has no exact form (a function's answer, π, a number too long for one). */
+export function inexact(v: u16): void {
+  poke16(v + V_EXACT, 0)
+}
+
+export function isExact(v: u16): bool {
+  return peek16(v + V_EXACT) !== 0
+}
+
 /* ---------------- what the power does not clear ---------------- */
 
-/** A RAM region the calculator keeps, outside e16c's globals (0100-03FF). */
-export const KEEP = 0x0400
-/** Its mark: a calculator's RAM, not another ROM's or a new machine's. */
-export const KEEP_MARK = 0x5c16
-export const KEEP_ANGLE = 0x0402
-export const KEEP_ANS = 0x0408
-/** A, B, C, D, E, F, X, Y, M: eight bytes each. */
-export const KEEP_VARS = 0x0410
-export const KEEP_HISTORY_COUNT = 0x045e
-export const KEEP_HISTORY = 0x0460
+/** A RAM region the calculator keeps, outside e16c's globals (0100-0BFF). */
+export const KEEP = 0x0c00
+/** Its mark: a calculator's RAM of this layout, not another ROM's or a new machine's. */
+export const KEEP_MARK = 0x5c24
+export const KEEP_ANGLE = 0x0c02
+/** SETUP: 2D (0) or LINE (1); an answer's exact form first (0) or its decimal (1). */
+export const KEEP_DISPLAY = 0x0c03
+export const KEEP_ANSWER = 0x0c04
+/** Ans: a value. */
+export const KEEP_ANS = 0x0c08
+/** A, B, C, D, E, F, X, Y, M: a value each. */
+export const KEEP_VARS = 0x0c30
+export const KEEP_HISTORY_COUNT = 0x0d80
+export const KEEP_HISTORY = 0x0d82
 export const HISTORY_ENTRIES = 10
 /** An entry: its length, then the line. */
 export const HISTORY_SIZE = 200
 export const LINE_MAX = 199
 
-/** Whether the kept region is a calculator's; when not, it is set out afresh: zero and DEG. */
+/** Whether the kept region is a calculator's; when not, it is set out afresh: zero, DEG, 2D. */
 export function keepReady(): void {
   if (peek16(KEEP) === KEEP_MARK) return
-  for (let i: u16 = 0; i < 0x60; i += 2) poke16(KEEP + i, 0)
-  poke16(KEEP_ANGLE, 0)
-  poke16(KEEP_HISTORY_COUNT, 0)
+  for (let i: u16 = 0; i < 0x182; i += 2) poke16(KEEP + i, 0)
   poke16(KEEP, KEEP_MARK)
 }
 
-/** A variable's address, by its letter: A-F, X, Y, M. */
+/** A variable's value, by its letter: A-F, X, Y, M. */
 export function varAt(letter: u16): u16 {
   let k: u16 = 0
   if (letter >= 0x41 && letter <= 0x46) k = letter - 0x41
   else if (letter === 0x58) k = 6
   else if (letter === 0x59) k = 7
   else k = 8
-  return KEEP_VARS + k * 8
+  return KEEP_VARS + k * VALUE_SIZE
 }
 
-/* ---------------- the number stack ---------------- */
+/* ---------------- the value stack ---------------- */
 
-const nums = bytes(192)
+/** 24 values: deep enough for brackets and functions nested as far as a line goes. */
+const nums = bytes(864)
 let nsp: u16 = 0
 
 export function clearStack(): void {
   nsp = addr(nums)
 }
 
-/** A new number on top: its address; STACK when the line is too deep. */
+/** A new value on top: its address; STACK when the line is too deep. */
 export function push(at: u16): u16 {
-  if (nsp >= addr(nums) + 192) fail(E_STACK, at)
+  if (nsp >= addr(nums) + 864) fail(E_STACK, at)
   const n = nsp
-  nsp += 8
+  nsp += VALUE_SIZE
+  inexact(n)
   return n
 }
 
 export function top(): u16 {
-  return nsp - 8
+  return nsp - VALUE_SIZE
 }
 
 export function pop(): void {
-  nsp -= 8
-}
-
-export function copy8(from: u16, to: u16): void {
-  poke16(to, peek16(from))
-  poke16(to + 2, peek16(from + 2))
-  poke16(to + 4, peek16(from + 4))
-  poke16(to + 6, peek16(from + 6))
+  nsp -= VALUE_SIZE
 }
 
 export function isZero(n: u16): bool {
@@ -155,19 +189,22 @@ export function math(op: u16, a: u16, b: u16, at: u16): void {
   if (peek16(MATH_STATUS) !== 0) fail(E_MATH, at)
 }
 
-/** A whole number (0-32767) onto the stack. */
+/** A whole number (0-32767) onto the stack, exact. */
 export function pushInt(v: u16, at: u16): u16 {
   const n = push(at)
   poke16(MATH_ARG, v)
   math(M_FROMINT, n, 0, at)
+  exactWhole(n)
   return n
 }
 
-/** The two top numbers made one by `op`. */
+/** The two top values made one by `op`: the decimal by the unit, the exact form alongside. */
 export function binary(op: u16, at: u16): void {
   const b = top()
   pop()
-  math(op, top(), b, at)
+  const a = top()
+  math(op, a, b, at)
+  exactBinary(op, a, b)
 }
 
 /** Whether the number at `n` is whole. */
@@ -180,7 +217,7 @@ export function isWhole(n: u16, at: u16): bool {
   return whole
 }
 
-/** The number at `n` as a small whole number (0-69 is all a factorial takes); MATH past that. */
+/** The number at `n` as a small whole number (0-999 is all a factorial or nCr takes); MATH past that. */
 export function smallWhole(n: u16, at: u16): u16 {
   if (!isWhole(n, at) || isNegative(n)) fail(E_MATH, at)
   const t = push(at)

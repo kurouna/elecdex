@@ -43,6 +43,30 @@ export const T_ANS = 0x14
 /** 10 as one value, for 10ˣ: 2 10ˣ 3 is 2 x 10^3, not 210^3. */
 export const T_TEN = 0x15
 
+/*
+ * The 2D display's templates (docs/elec16-sci.md section 6.2): a fraction is FRAC numerator SEP
+ * denominator END, a root ROOT body END, a power POWT exponent END. The cursor is a place in the
+ * tokens, so every place among the marks means something: before FRAC is before the fraction,
+ * after it the numerator's start, before SEP its end, and so on.
+ */
+export const T_FRAC = 0x16
+export const T_SEP = 0x17
+export const T_END = 0x18
+export const T_ROOT = 0x19
+export const T_POWT = 0x1a
+/** LINE's fraction: a / between two values, between the sign and nCr in strength (section 6.3). */
+export const T_SLASH = 0x1b
+
+/** Whether a token is a template's mark. */
+export function isMark(t: u16): bool {
+  return t >= T_FRAC && t <= T_POWT
+}
+
+/** Whether a token opens a template. */
+export function opensTemplate(t: u16): bool {
+  return t === T_FRAC || t === T_ROOT || t === T_POWT
+}
+
 /** Whether a token opens a function: its argument follows, closed by ) or the line's end. */
 export function isFunction(t: u16): bool {
   return t >= T_SIN && t <= T_CBRT
@@ -92,6 +116,19 @@ export function tokenText(t: u16): u16 {
       return str('Ans')
     case T_TEN:
       return str('10')
+    // A template in LINE: brackets round its parts.
+    case T_FRAC:
+      return str('(')
+    case T_SEP:
+      return str(')/(')
+    case T_END:
+      return str(')')
+    case T_ROOT:
+      return str('\x83(')
+    case T_POWT:
+      return str('^(')
+    case T_SLASH:
+      return str('/')
   }
   return 0
 }

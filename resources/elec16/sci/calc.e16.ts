@@ -17,9 +17,13 @@ import {
   type u16,
   wfi,
 } from '../../../src/shared/e16c/builtins'
+import { deleteAt, editCursor, editLength, fraction, vertical } from './edit.e16'
 import { evaluate } from './eval.e16'
+import { exactBinary } from './exact.e16'
+import { cursorTop, cursorX, heightOf, setAnswer, setLine } from './layout.e16'
 import {
   barAt,
+  barDots,
   bigNumber,
   COLS,
   centre,
@@ -32,13 +36,18 @@ import {
 } from './lcd.e16'
 import {
   clearStack,
-  copy8,
+  copyValue,
   errAt,
   errCode,
   HISTORY_ENTRIES,
   HISTORY_SIZE,
+  isExact,
+  isNegative,
+  isZero,
   KEEP_ANGLE,
   KEEP_ANS,
+  KEEP_ANSWER,
+  KEEP_DISPLAY,
   KEEP_HISTORY,
   KEEP_HISTORY_COUNT,
   keepReady,
@@ -49,6 +58,10 @@ import {
   MATH_ARG,
   math,
   top,
+  V_P,
+  V_Q,
+  V_R,
+  V_S,
   varAt,
 } from './numbers.e16'
 import { errorScreen, faultScreen, menuKey, menuScreen, setupKey, setupScreen } from './screens.e16'
@@ -64,7 +77,9 @@ import {
   T_CUBE,
   T_DIVIDE,
   T_E,
+  T_END,
   T_EXP,
+  T_FRAC,
   T_INVERSE,
   T_LN,
   T_LOG,
@@ -77,7 +92,11 @@ import {
   T_PLUS,
   T_POINT,
   T_POW,
+  T_POWT,
+  T_ROOT,
+  T_SEP,
   T_SIN,
+  T_SLASH,
   T_SQRT,
   T_SQUARE,
   T_TAN,
@@ -153,6 +172,7 @@ export const ANN_STO = 0x10
 export const ANN_D = 0x80
 export const ANN_R = 0x100
 export const ANN_G = 0x200
+export const ANN_2D = 0x1000
 export const ANN_UP = 0x2000
 export const ANN_DOWN = 0x4000
 
@@ -191,6 +211,19 @@ let historyAt: u16 = 0xffff
 let scrollFrom: u16 = 0
 /** The answer's text, as the maths unit's FORMAT writes it. */
 const answerText = bytes(24)
+/** The answer shown in its exact form (2D), or as a decimal. */
+let exactShown: bool = false
+/** An exact answer's tokens, set by the 2D layout: (p + r√s)/q, 40 tokens at most. */
+const answerTokens = bytes(48)
+let answerLength: u16 = 0
+
+/** The 2D display (0 in SETUP's KEEP_DISPLAY) or LINE. */
+function twoD(): bool {
+  return peek(KEEP_DISPLAY) === 0
+}
+
+/** The line's height in 2D: above this many rows a template is not put in. */
+const LINE_HEIGHT_MAX = 36
 
 /** The line's rows on screen: four of 21 characters. */
 const LINE_ROWS = 4
@@ -330,17 +363,75 @@ function calcKey(k: u16, shift: bool, alpha: bool): void {
     return
   }
   if (commandKey(k, shift, alpha)) return
+  if (!alpha && templateKey(k, shift)) return
   const t = alpha ? letterOf(k) : tokenOf(k, shift)
   if (t === 0) {
     refuse()
     return
   }
   type(t)
-  // 10ˣ and eˣ are the value and its power, the exponent typed next.
+  // In LINE, 10ˣ and eˣ are the value and ^( with the exponent typed next.
   if (shift && (k === K_LOG || k === K_LN)) {
     insert(T_POW)
     drawCalc()
   }
+}
+
+/**
+ * a/b, x^, √ and 10ˣ, eˣ in 2D: a template (LINE types / ^( √( as S3 did). After an answer, the
+ * fraction and the power go on from Ans. Done, true; else false.
+ */
+function templateKey(k: u16, shift: bool): bool {
+  const fractionKey = k === K_FRAC && !shift
+  if (!twoD()) {
+    if (fractionKey) type(T_SLASH)
+    return fractionKey
+  }
+  if (!fractionKey && !makesTemplate(k, shift)) return false
+  const root = k === K_SQ && shift
+  if (answered) afresh(fractionKey || k === K_POW)
+  if (fractionKey) {
+    fraction(addr(line), length, cursor)
+    edited()
+  } else insertTemplate(k, root)
+  if (heightOf(addr(line), length) > LINE_HEIGHT_MAX) {
+    refuse()
+    // Too tall to show: taken back out (the last template put in).
+    deleteAt(addr(line), length, cursor)
+    edited()
+  }
+  drawCalc()
+  return true
+}
+
+/** x^, SHIFT x² (√), SHIFT log (10ˣ) and SHIFT ln (eˣ): the keys that put in √ or a power. */
+function makesTemplate(k: u16, shift: bool): bool {
+  if (shift) return k === K_SQ || k === K_LOG || k === K_LN
+  return k === K_POW
+}
+
+/** The line and cursor as edit.e16.ts left them. */
+function edited(): void {
+  length = editLength
+  cursor = editCursor
+}
+
+/** A new line after an answer: from Ans for a/b and x^ (`fromAns`), empty for the others. */
+function afresh(fromAns: bool): void {
+  answered = false
+  historyAt = 0xffff
+  length = 0
+  cursor = 0
+  if (fromAns) insert(T_ANS)
+}
+
+/** √ or a power at the cursor, the cursor in it; 10ˣ and eˣ with their 10 or e before it. */
+function insertTemplate(k: u16, root: bool): void {
+  if (k === K_LOG) insert(T_TEN)
+  if (k === K_LN) insert(T_E)
+  insert(root ? T_ROOT : T_POWT)
+  insert(T_END)
+  cursor--
 }
 
 /** A key that does something other than type a token: done, true; else false. */
@@ -360,7 +451,10 @@ function commandKey(k: u16, shift: bool, alpha: bool): bool {
       clearLine()
       return true
     case K_EQ:
-      equals()
+      equals(shift)
+      return true
+    case K_FD:
+      exactOrDecimal(shift)
       return true
     case K_STO:
       recalling = shift
@@ -568,11 +662,9 @@ function deleteBefore(): void {
     answered = false
     cursor = length
   }
-  if (cursor > 0) {
-    memcpy(addr(line) + cursor - 1, addr(line) + cursor, length - cursor)
-    length--
-    cursor--
-  }
+  deleteAt(addr(line), length, cursor)
+  length = editLength
+  cursor = editCursor
   drawCalc()
 }
 
@@ -591,16 +683,55 @@ function arrow(left: bool): void {
 
 /* ---------------- answers ---------------- */
 
-/** =: the line evaluated, its value Ans, the line kept in the history, the answer shown. */
-function equals(): void {
+/**
+ * =: the line evaluated, its value Ans, the line kept in the history, the answer shown - in its
+ * exact form in 2D, unless SETUP asks for decimals first, the line has a decimal typed in it, or
+ * it was ≈ (SHIFT =).
+ */
+function equals(approx: bool): void {
   if (length === 0) return
   clearStack()
   evaluate(addr(line), length)
-  copy8(top(), KEEP_ANS)
+  copyValue(top(), KEEP_ANS)
   remember()
   answered = true
   historyAt = 0xffff
+  exactShown = twoD() && !approx && peek(KEEP_ANSWER) === 0 && !decimalTyped()
   drawCalc()
+}
+
+/** Whether the line has a decimal point in it: such a line is answered in decimals first. */
+function decimalTyped(): bool {
+  for (let i: u16 = 0; i < length; i++) {
+    if (line[i] === T_POINT) return true
+  }
+  return false
+}
+
+/** F⇄D: the answer between its exact form and its decimal (ENG, after SHIFT, comes in S5). */
+function exactOrDecimal(shift: bool): void {
+  if (shift || !answered || !twoD() || !hasForm()) {
+    refuse()
+    return
+  }
+  exactShown = !exactShown
+  drawCalc()
+}
+
+/** Whether Ans has an exact form other than a whole number (which its decimal shows as well). */
+function hasForm(): bool {
+  if (!isExact(KEEP_ANS)) return false
+  return !isZero(KEEP_ANS + V_R) || !isOne(KEEP_ANS + V_Q)
+}
+
+function isOne(n: u16): bool {
+  return (
+    peek(n) === 0 &&
+    peek(n + 1) === 0 &&
+    peek(n + 2) === 0x10 &&
+    peek16(n + 4) === 0 &&
+    peek16(n + 6) === 0
+  )
 }
 
 /** STO's or RCL's variable: STO keeps the answer (or the line's value) in it, RCL shows it. */
@@ -617,13 +748,14 @@ function variableKey(k: u16): void {
     if (!answered && length > 0) {
       clearStack()
       evaluate(addr(line), length)
-      copy8(top(), KEEP_ANS)
+      copyValue(top(), KEEP_ANS)
       remember()
     }
-    copy8(KEEP_ANS, varAt(letter))
+    copyValue(KEEP_ANS, varAt(letter))
   } else {
-    copy8(varAt(letter), KEEP_ANS)
+    copyValue(varAt(letter), KEEP_ANS)
   }
+  exactShown = twoD() && peek(KEEP_ANSWER) === 0
   length = 0
   cursor = 0
   insert(T_ANS)
@@ -640,12 +772,15 @@ function memoryPlus(minus: bool): void {
     }
     clearStack()
     evaluate(addr(line), length)
-    copy8(top(), KEEP_ANS)
+    copyValue(top(), KEEP_ANS)
     remember()
   }
   const m = varAt(0x4d)
-  math(minus ? M_SUB : M_ADD, m, KEEP_ANS, 0)
+  const op = minus ? M_SUB : M_ADD
+  math(op, m, KEEP_ANS, 0)
+  exactBinary(op, m, KEEP_ANS)
   answered = true
+  exactShown = twoD() && peek(KEEP_ANSWER) === 0
   drawCalc()
 }
 
@@ -666,6 +801,14 @@ function remember(): void {
  * history already on screen - never over a line being typed.
  */
 function history(older: bool): void {
+  if (!answered && twoD()) {
+    vertical(addr(line), length, cursor, older)
+    if (editCursor !== 0xffff) {
+      cursor = editCursor
+      drawCalc()
+      return
+    }
+  }
   const count = peek16(KEEP_HISTORY_COUNT)
   const browsing = historyAt !== 0xffff
   if (!answered && length > 0 && !browsing) return
@@ -694,6 +837,7 @@ function drawMarks(): void {
   if (peek(varAt(0x4d) + 2) !== 0) bits |= ANN_M
   const angle = peek(KEEP_ANGLE)
   bits |= angle === 1 ? ANN_R : angle === 2 ? ANN_G : ANN_D
+  if (twoD()) bits |= ANN_2D
   if (screen === S_CALC) bits |= historyMarks()
   marks(bits)
 }
@@ -711,9 +855,88 @@ function historyMarks(): u16 {
 /** The line on its rows, and the answer below it when there is one. */
 function drawCalc(): void {
   cls()
-  drawLine()
-  if (answered) drawAnswer()
+  if (twoD()) drawLine2D()
+  else drawLine()
+  if (answered) {
+    if (exactShown && hasForm()) drawExact()
+    else drawAnswer()
+  }
   drawMarks()
+}
+
+/** The line set in 2D (layout.e16.ts), the bar cursor where the layout found it. */
+function drawLine2D(): void {
+  setLine(addr(line), length, answered ? 0xffff : cursor)
+  if (answered) noCursor()
+  else barDots(cursorX, cursorTop)
+}
+
+/** Ans's exact form (p + r√s)/q as tokens, set on the answer rows by the 2D layout. */
+function drawExact(): void {
+  answerLength = 0
+  const p = KEEP_ANS + V_P
+  const r = KEEP_ANS + V_R
+  const q = KEEP_ANS + V_Q
+  const fractionOf = !isOne(q)
+  const oneTerm = isZero(p) || isZero(r)
+  // A single negative term's sign goes before its fraction: -√2/2, not (-√2)/2.
+  const signOut = oneTerm && fractionOf && (isZero(r) ? isNegative(p) : isNegative(r))
+  if (signOut) answerToken(T_MINUS)
+  if (fractionOf) answerToken(T_FRAC)
+  if (!isZero(p) || isZero(r)) answerNumber(p, signOut)
+  if (!isZero(r)) answerRoot(p, r, signOut)
+  if (fractionOf) {
+    answerToken(T_SEP)
+    answerNumber(q, false)
+    answerToken(T_END)
+  }
+  setAnswer(addr(answerTokens), answerLength)
+}
+
+/** The r√s term after p: its sign (unless it went before the fraction), r unless ±1, √s. */
+function answerRoot(p: u16, r: u16, signOut: bool): void {
+  if (!isZero(p)) answerToken(isNegative(r) ? T_MINUS : T_PLUS)
+  else if (isNegative(r) && !signOut) answerToken(T_MINUS)
+  if (!isOne(r) && !isMinusOne(r)) answerNumber(r, true)
+  answerToken(T_ROOT)
+  answerDigits(peek16(KEEP_ANS + V_S))
+  answerToken(T_END)
+}
+
+function answerToken(t: u16): void {
+  if (answerLength < 48) {
+    answerTokens[answerLength] = t
+    answerLength++
+  }
+}
+
+/** A whole number's digits as tokens; its sign too, unless `bare`. */
+function answerNumber(n: u16, bare: bool): void {
+  poke16(MATH_ARG, 12)
+  math(M_FORMAT, n, addr(answerText), 0)
+  const count = peek16(MATH_ARG)
+  for (let i: u16 = 0; i < count; i++) {
+    const c = answerText[i]
+    if (c === 0x2d) {
+      if (!bare) answerToken(T_MINUS)
+    } else answerToken(c)
+  }
+}
+
+/** A small whole number (s) as digit tokens. */
+function answerDigits(v: u16): void {
+  if (v >= 10) answerToken(0x30 + div(v, 10))
+  answerToken(0x30 + (v % 10))
+}
+
+function isMinusOne(n: u16): bool {
+  return (
+    peek(n) !== 0 &&
+    peek(n + 1) === 0 &&
+    peek(n + 2) === 0x10 &&
+    peek16(n + 4) === 0 &&
+    peek16(n + 6) === 0
+  )
 }
 
 /** Where token `n` starts, in characters from the line's start. */

@@ -157,6 +157,12 @@ export function barAt(column: u16, row: u16): void {
   poke16(IO_CURMODE, BAR_8)
 }
 
+/** The bar cursor with its top-left dot at (x, top) (the 2D display's), blinking. */
+export function barDots(x: u16, top: u16): void {
+  poke16(IO_CURSOR, top * 256 + x)
+  poke16(IO_CURMODE, BAR_8)
+}
+
 export function noCursor(): void {
   poke16(IO_CURMODE, 0)
 }
@@ -203,6 +209,15 @@ export function bigNumber(at: u16, length: u16, right: u16): u16 {
     }
   }
   return x
+}
+
+/* ---------------- dots ---------------- */
+
+/** The dot at (x, y) lit. */
+export function dot(x: u16, y: u16): void {
+  if (x >= WIDTH || y >= BANDS * 8) return
+  const at = VRAM + (y >> 3) * WIDTH + x
+  poke(at, peek(at) | (1 << (y & 7)))
 }
 
 /* ---------------- text anywhere ---------------- */
