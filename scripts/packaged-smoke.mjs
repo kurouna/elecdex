@@ -105,34 +105,57 @@ async function smoke(exe) {
     if (saved.length < 9)
       throw new Error(`a first start has ${saved.length} saved layouts, not the presets`)
 
-    // A real shell through the unpacked node-pty: what it echoes comes back.
+    // A real shell through the unpacked node-pty answers a sum: the answer, not the typed line
+    // echoed back, is what is looked for. Typed once the shell shows a prompt,
+    // and again every few seconds until it answers, as a slow runner may start it late.
     const marker = `PACKAGED${Date.now()}`
-    const echoed = await page.evaluate(async (m) => {
-      const session = await window.elecdex.pty.create({ cols: 100, rows: 30 })
-      const decoder = new TextDecoder()
-      let text = ''
-      const seen = new Promise((resolve) => {
-        const timer = setTimeout(() => resolve(false), 20_000)
-        void window.elecdex.pty.attach(session.id, {
-          onData: (chunk) => {
-            text += decoder.decode(chunk, { stream: true })
-            if (text.includes(`${m}-OK`)) {
-              clearTimeout(timer)
-              resolve(true)
-            }
-          },
-          onExit: () => {},
-          onCwd: () => {},
-          onCommandEnd: () => {},
-          onIntegrationUnavailable: () => {},
+    // No quotes: a quote taken alone by a shell still starting would leave it waiting for the rest.
+    const command =
+      process.platform === 'win32' ? `Write-Output ${marker}-$(6*7)` : `echo ${marker}-$((6*7))`
+    const echoed = await page.evaluate(
+      async ({ answer, line }) => {
+        const session = await window.elecdex.pty.create({ cols: 100, rows: 30 })
+        const decoder = new TextDecoder()
+        let text = ''
+        let typed = null
+        // Ctrl+C first: whatever half a line an earlier try left is dropped before the next.
+        const type = () => window.elecdex.pty.write(session.id, `\x03${line}\r`)
+        const seen = new Promise((resolve) => {
+          const timer = setTimeout(() => resolve(false), 30_000)
+          void window.elecdex.pty.attach(session.id, {
+            onData: (chunk) => {
+              text += decoder.decode(chunk, { stream: true })
+              // ConPTY redraws with escape sequences between the characters: read the text alone.
+              // biome-ignore lint/suspicious/noControlCharactersInRegex: escape sequences are what it removes.
+              const plain = text.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|[\r\n]/g, '')
+              // Typed once a prompt ends what the shell has said, then again every few seconds.
+              if (typed === null && /[>$#%]\s*$/.test(plain)) {
+                type()
+                typed = setInterval(type, 3000)
+              }
+              if (plain.includes(answer)) {
+                clearTimeout(timer)
+                resolve(true)
+              }
+            },
+            onExit: () => {},
+            onCwd: () => {},
+            onCommandEnd: () => {},
+            onIntegrationUnavailable: () => {},
+          })
         })
-        setTimeout(() => window.elecdex.pty.write(session.id, `echo ${m}-OK\r`), 1500)
-      })
-      const ok = await seen
-      await window.elecdex.pty.dispose(session.id)
-      return ok
-    }, marker)
-    if (!echoed) throw new Error('the shell did not echo: node-pty in the package')
+        const ok = await seen
+        if (typed !== null) clearInterval(typed)
+        await window.elecdex.pty.dispose(session.id)
+        return ok ? true : text.slice(-600)
+      },
+      { answer: `${marker}-42`, line: command },
+    )
+    if (echoed !== true) {
+      throw new Error(
+        `the shell did not answer (node-pty in the package): ${JSON.stringify(echoed)}`,
+      )
+    }
     log('a shell answered')
 
     // A preset is applied and drawn.

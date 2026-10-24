@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
@@ -6,6 +6,7 @@ import {
   externalRequests,
   netLogArgs,
   netLogHosts,
+  netLogUrls,
   recordExternalRequests,
 } from '../support/net-watch.js'
 import { launch, quietFor, removeDir, SINGLE_CLOCK } from '../support.js'
@@ -46,7 +47,14 @@ test('on the default layout, nothing goes to another host, from the first reques
   }
   try {
     expect(seen, 'main, once watched').toEqual([])
-    expect(netLogHosts(netLog), "Chromium's net log, from the start").toEqual([])
+    const hosts = netLogHosts(netLog)
+    if (hosts.length > 0) {
+      // What was asked for, in the failure and in the report: the hosts alone do not say why.
+      await test
+        .info()
+        .attach('net-log.json', { body: readFileSync(netLog), contentType: 'application/json' })
+    }
+    expect(hosts, `Chromium's net log, from the start: ${netLogUrls(netLog).join(' ')}`).toEqual([])
   } finally {
     removeDir(logDir)
   }

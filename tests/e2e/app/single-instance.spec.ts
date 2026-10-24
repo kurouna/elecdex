@@ -21,7 +21,12 @@ test('a second start on the same profile ends, and the first goes on in front', 
       )
       second.once('exit', (code, signal) => resolve({ code, signal }))
     })
-    expect(ended.code === 0 || ended.signal !== null, JSON.stringify(ended)).toBe(true)
+    // A crash is not an end: a signal is taken only when it is one a process is told to end by.
+    const told = ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGKILL']
+    expect(
+      ended.code === 0 || told.includes(ended.signal ?? ''),
+      `the second start ended with ${JSON.stringify(ended)}`,
+    ).toBe(true)
     expect(app.process().exitCode).toBeNull()
     await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
     await expect

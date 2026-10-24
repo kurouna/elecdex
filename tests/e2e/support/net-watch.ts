@@ -219,6 +219,21 @@ function isLocal(host: string): boolean {
   )
 }
 
+/**
+ * The whole URLs Chromium's net log names on other hosts, for a failure to say what was asked for
+ * and not only where (the host alone does not tell a dictionary from an update).
+ */
+export function netLogUrls(file: string): string[] {
+  if (!existsSync(file)) return []
+  const urls = new Set<string>()
+  for (const m of readFileSync(file, 'utf8').matchAll(/"(?:url|original_url)":"([^"]+)"/g)) {
+    const url = m[1] ?? ''
+    const host = hostIn(url)?.toLowerCase()
+    if (host !== undefined && host !== null && host !== '' && !isLocal(host)) urls.add(url)
+  }
+  return [...urls].sort()
+}
+
 /** The other hosts Chromium's net log names: in URLs, host resolutions and socket addresses. */
 export function netLogHosts(file: string): string[] {
   if (!existsSync(file)) return [`no net log was written at ${file}`]
