@@ -118,8 +118,17 @@ async function smoke(exe) {
         const decoder = new TextDecoder()
         let text = ''
         let typed = null
-        // Ctrl+C first: whatever half a line an earlier try left is dropped before the next.
-        const type = () => window.elecdex.pty.write(session.id, `\x03${line}\r`)
+        let tries = 0
+        // A retry first drops whatever half a line the last try left with Ctrl+C, sent alone and
+        // given a moment: written with the line, bash on Linux took the line's first character
+        // along with it (CI, 2026-10-24: "cho: command not found").
+        const type = async () => {
+          if (tries++ > 0) {
+            window.elecdex.pty.write(session.id, '\x03')
+            await new Promise((resolve) => setTimeout(resolve, 500))
+          }
+          window.elecdex.pty.write(session.id, `${line}\r`)
+        }
         const seen = new Promise((resolve) => {
           const timer = setTimeout(() => resolve(false), 30_000)
           void window.elecdex.pty.attach(session.id, {
@@ -130,8 +139,8 @@ async function smoke(exe) {
               const plain = text.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|[\r\n]/g, '')
               // Typed once a prompt ends what the shell has said, then again every few seconds.
               if (typed === null && /[>$#%]\s*$/.test(plain)) {
-                type()
-                typed = setInterval(type, 3000)
+                void type()
+                typed = setInterval(() => void type(), 3000)
               }
               if (plain.includes(answer)) {
                 clearTimeout(timer)

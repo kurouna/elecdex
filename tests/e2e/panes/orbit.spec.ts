@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { expect } from '@playwright/test'
+import { expect, type Locator } from '@playwright/test'
 import { propagate, twoline2satrec } from '../../../src/renderer/lib/sgp4.js'
 import { test } from '../support/shared.js'
 import { serviceStub } from '../support/stubs/services.js'
@@ -74,6 +74,34 @@ async function celestrak(): Promise<Stand> {
   }
 }
 
+/** OrbitWidget's reaches, in CSS pixels: a station's, and the Sun's. */
+const REACH_STATION = 14
+const REACH_SUN = 10
+
+/**
+ * A point on the Sun's mark that no station's reach covers, with a pixel to spare for the
+ * stations moving between this reading and the hover, or null while one is too near.
+ */
+async function sunPointClearOfStations(map: Locator): Promise<{ x: number; y: number } | null> {
+  const [sx, sy] = JSON.parse((await map.getAttribute('data-sun')) ?? '[0,0]') as [number, number]
+  const stations = Object.values(
+    JSON.parse((await map.getAttribute('data-stations')) ?? '{}') as Record<
+      string,
+      [number, number]
+    >,
+  )
+  const offsets = [[0, 0]]
+  for (let a = 0; a < 16; a += 1) {
+    const r = REACH_SUN - 2
+    offsets.push([Math.cos((a * Math.PI) / 8) * r, Math.sin((a * Math.PI) / 8) * r])
+  }
+  for (const [dx = 0, dy = 0] of offsets) {
+    const at = { x: sx + dx, y: sy + dy }
+    if (stations.every(([x, y]) => Math.hypot(x - at.x, y - at.y) > REACH_STATION + 2)) return at
+  }
+  return null
+}
+
 const layout = (state?: Record<string, unknown>) =>
   single('orbit', state === undefined ? { id: 'o' } : { id: 'o', state })
 
@@ -115,8 +143,19 @@ test('draws the stations from one download, and asks for Starlink only when show
     await expect(page.getByTestId('orbit-tip')).toHaveCount(0)
 
     // The Sun's mark tells what it is: where it stands overhead, and how it stands for the observer.
-    const [sx, sy] = JSON.parse((await map.getAttribute('data-sun')) ?? '[0,0]') as [number, number]
-    await map.hover({ position: { x: sx, y: sy } })
+    // A station near the Sun's mark takes the pointer first (CI, 2026-10-24: the ISS was there),
+    // so the point is one on the mark clear of every station's reach, waited for if none is yet.
+    let clear: { x: number; y: number } | null = null
+    await expect
+      .poll(
+        async () => {
+          clear = await sunPointClearOfStations(map)
+          return clear !== null
+        },
+        { timeout: 180_000, intervals: [2000] },
+      )
+      .toBe(true)
+    await map.hover({ position: clear ?? { x: 0, y: 0 } })
     await expect(page.getByTestId('orbit-tip')).toHaveAttribute('data-kind', 'sun')
     await expect(page.getByTestId('orbit-tip')).toContainText('SUN · overhead here')
     await expect(page.getByTestId('orbit-tip')).toContainText('DECLINATION')
