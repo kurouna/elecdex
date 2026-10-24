@@ -4,7 +4,18 @@ on:
   push:
     branches: [main]
   pull_request:
+  # By hand, a run can be narrowed to what is being looked into: some e2e specs on some systems,
+  # nothing else (the lint, unit and package jobs then skip). Left empty, it is the whole run.
   workflow_dispatch:
+    inputs:
+      e2e_specs:
+        description: 'e2e only: Playwright arguments, e.g. tests/e2e/contracts/no-external.spec.ts --project=e2e'
+        required: false
+        default: ''
+      e2e_os:
+        description: 'e2e only: the systems, as JSON'
+        required: false
+        default: '["ubuntu-latest", "windows-latest", "macos-latest"]'
 
 # Nothing here writes to the repository (found in a security review): the token only reads.
 permissions:
@@ -20,6 +31,7 @@ env:
 jobs:
   static:
     name: lint & typecheck
+    if: ${{ !inputs.e2e_specs }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,6 +47,7 @@ jobs:
 
   test:
     name: unit & component
+    if: ${{ !inputs.e2e_specs }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ${{ fromJSON(inputs.e2e_os || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -77,10 +90,16 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y openbox
       - name: Run Electron e2e (headless)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum bash -c "openbox --sm-disable & sleep 2 && npm run test:e2e"
+        # The narrowing comes in through the environment, never pasted into the command line.
+        env:
+          E2E_SPECS: ${{ inputs.e2e_specs }}
+        run: xvfb-run --auto-servernum bash -c 'openbox --sm-disable & sleep 2 && npm run test:e2e -- $E2E_SPECS'
       - name: Run Electron e2e
         if: runner.os != 'Linux'
-        run: npm run test:e2e
+        env:
+          E2E_SPECS: ${{ inputs.e2e_specs }}
+        shell: bash
+        run: npm run test:e2e -- $E2E_SPECS
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
@@ -91,6 +110,7 @@ jobs:
   package:
     name: package (${{ matrix.os }} ${{ matrix.arch }})
     needs: [static, test]
+    if: ${{ !inputs.e2e_specs }}
     strategy:
       fail-fast: false
       matrix:
