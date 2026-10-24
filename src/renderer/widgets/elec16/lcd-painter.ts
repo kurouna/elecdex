@@ -28,12 +28,14 @@ export interface LcdColours {
 /** The levels a dot passes through: 0 out, FULL fully on. A fade drops one a frame. */
 export const FULL = 6
 
-export interface Cursor {
-  column: number
-  row: number
-  /** 1 an underline, 2 a block (CURMODE's low bits). */
-  shape: number
-}
+/**
+ * The cursor the page draws: in a character cell, an underline (1) or a block (2), CURMODE's
+ * low bits; or the calculator's bar (3, docs/elec16-sci.md section 6.5), one dot wide at a dot
+ * of its own, `height` rows down from `y`.
+ */
+export type Cursor =
+  | { shape: 1 | 2; column: number; row: number }
+  | { shape: 3; x: number; y: number; height: number }
 
 export interface Rect {
   x: number
@@ -143,8 +145,9 @@ export class LcdPainter {
 const words = (image: ImageData): Uint32Array<ArrayBufferLike> =>
   new Uint32Array(image.data.buffer, image.data.byteOffset, image.data.length / 4)
 
-/** Whether a dot is in the cursor's cell (its five columns and eight rows). */
+/** Whether a dot is under the cursor: in its cell (five columns, eight rows), or on its bar. */
 function inCell(x: number, y: number, cursor: Cursor): boolean {
+  if (cursor.shape === 3) return x === cursor.x && y >= cursor.y && y < cursor.y + cursor.height
   const cx = x - cursor.column * 6
   const cy = y - cursor.row * 8
   return cx >= 0 && cx <= 4 && cy >= 0 && cy <= 7
@@ -158,6 +161,7 @@ function inEither(x: number, y: number, a: Cursor | null, b: Cursor | null): boo
 /** The level a dot shows with the cursor over its cell: a block turns it over, a line lights it. */
 function cursorLevel(level: number, x: number, y: number, cursor: Cursor): number {
   if (!inCell(x, y, cursor)) return level
+  if (cursor.shape === 3) return FULL
   const cy = y - cursor.row * 8
   if (cursor.shape === 2) return cy < 7 ? FULL - level : level
   return cursor.shape === 1 && cy === 7 ? FULL : level

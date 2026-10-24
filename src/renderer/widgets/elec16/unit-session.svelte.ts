@@ -38,6 +38,16 @@ export interface UnitHost {
 /** The two ROMs, by the models that run them: the pocket ROM and the PLAY ROM. */
 export type Elec16Roms = Readonly<Record<'pocket' | 'play', Uint8Array>>
 
+/**
+ * The ROM a model runs, of those the page has; null for the calculator's, which comes with S3
+ * (docs/elec16-sci.md section 10). No unit can be SCI-128 before then (UNIT_MODEL_IDS), so a
+ * null here means a backup that cannot be from this app: it is not started.
+ */
+export function romOf(roms: Elec16Roms, model: ModelId): Uint8Array | null {
+  const rom = MODELS[model].rom
+  return rom === 'sci' ? null : roms[rom]
+}
+
 /** The extended RAM a unit's machine has, in bytes: its choice, on a model that has any. */
 const xramOf = (unit: Elec16Unit): number => xramBytes(MODELS[unit.model], unit.xram)
 
@@ -177,15 +187,9 @@ export class UnitSession {
 
   /** The unit's machine switched on afresh with its ROM, and the RAM given if any. */
   #boot(unit: Elec16Unit, ram: Uint8Array | undefined): void {
-    const roms = this.#roms
-    if (roms === null) return
-    this.#runner.boot(
-      roms[MODELS[unit.model].rom],
-      unit.model,
-      hzOfClock(unit.clock),
-      ram,
-      xramOf(unit),
-    )
+    const rom = this.#roms === null ? null : romOf(this.#roms, unit.model)
+    if (rom === null) return
+    this.#runner.boot(rom, unit.model, hzOfClock(unit.clock), ram, xramOf(unit))
   }
 
   /**
@@ -289,8 +293,9 @@ export class UnitSession {
   #restored(snapshot: Uint8Array | null): Elec16 | null {
     const roms = this.#roms
     const model = snapshot === null ? null : snapshotModel(snapshot)
-    if (snapshot === null || roms === null || model === null) return null
-    return Elec16.restore(roms[MODELS[model].rom], snapshot)
+    const rom = roms === null || model === null ? null : romOf(roms, model)
+    if (snapshot === null || rom === null) return null
+    return Elec16.restore(rom, snapshot)
   }
 
   /**

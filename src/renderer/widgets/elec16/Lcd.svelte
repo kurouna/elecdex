@@ -1,7 +1,7 @@
 <script lang="ts">
 import { screenText } from '@shared/elec16/font'
 import { MODELS } from '@shared/elec16/map'
-import { ANNUNCIATORS } from '@shared/elec16/state'
+import { annunciatorsOf } from '@shared/elec16/state'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
@@ -128,7 +128,15 @@ function cursorNow(): Cursor | null {
   const lcd = runner.machine?.state.lcd
   if (lcd === undefined || (lcd.cursorMode & 3) === 0) return null
   if ((lcd.cursorMode & 4) !== 0 && !blinkOn) return null
-  return { column: lcd.cursor & 0xff, row: lcd.cursor >> 8, shape: lcd.cursorMode & 3 }
+  const shape = lcd.cursorMode & 3
+  // The bar is the calculator's (docs/elec16-sci.md section 6.5): CURSOR is then a dot, x low
+  // and y high, and the height is CURMODE's top four bits in pairs of rows. A pocket model
+  // that writes 3 shows nothing, as before.
+  if (shape === 3) {
+    if (model.cursor !== 'bar') return null
+    return { shape, x: lcd.cursor & 0xff, y: lcd.cursor >> 8, height: (lcd.cursorMode >> 4) * 2 }
+  }
+  return { column: lcd.cursor & 0xff, row: lcd.cursor >> 8, shape: shape === 1 ? 1 : 2 }
 }
 
 /** Whether the last paint left dots on their way: the beat below finishes them, if no frame does. */
@@ -237,10 +245,19 @@ $effect(() => {
 const waiting = $derived(link && runner.linkBusy && seen)
 $effect(() => (waiting ? pulse.use() : undefined))
 const linkLit = $derived(link && (!runner.linkBusy || !seen || pulse.phase < 2))
+/**
+ * The model's own marks (map.ts, `annunciators`). The calculator prints no BUSY and has no
+ * LINK (docs/elec16-sci.md sections 4.2 and 8.1); the pocket set prints both, as before.
+ */
+const sci = $derived(model.annunciators === 'sci')
 const marks = $derived([
-  ...ANNUNCIATORS.map((name, bit) => ({ name, on: (runner.annunciators & (1 << bit)) !== 0 })),
-  { name: 'LINK', on: linkLit },
+  ...annunciatorsOf(model.annunciators)
+    .map((name, bit) => ({ name, on: (runner.annunciators & (1 << bit)) !== 0 }))
+    .filter((mark) => !(sci && mark.name === 'BUSY')),
+  ...(sci ? [] : [{ name: 'LINK', on: linkLit }]),
 ])
+/** What a mark prints: its name, but for the few drawn as a sign. */
+const PRINTED: Readonly<Record<string, string>> = { KANA: 'カナ', SOUND: '♪', UP: '▲', DOWN: '▼' }
 </script>
 
 <div class="lcd" data-testid="elec16-lcd">
@@ -262,7 +279,7 @@ const marks = $derived([
       <div class="marks" style:height="{GLASS.marks}px" aria-hidden="true">
         {#each marks as mark (mark.name)}
           <span class="mark" class:on={mark.on && !runner.off} data-mark={mark.name}
-            >{mark.name === 'KANA' ? 'カナ' : mark.name === 'SOUND' ? '♪' : mark.name}</span
+            >{PRINTED[mark.name] ?? mark.name}</span
           >
         {/each}
       </div>

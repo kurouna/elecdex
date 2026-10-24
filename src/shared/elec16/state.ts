@@ -156,6 +156,33 @@ export const ANNUNCIATORS = [
   'SOUND',
 ] as const
 
+/**
+ * The calculator's annunciators (SCI-128, docs/elec16-sci.md section 4.2). Bit 0 is BUSY, as in
+ * the pocket set, and not printed: CODE's hand-over reads it on every model to know whether
+ * the machine is at work (code/give.ts), so a lit SHIFT must never be taken for it.
+ */
+export const SCI_ANNUNCIATORS = [
+  'BUSY',
+  'S',
+  'A',
+  'M',
+  'STO',
+  'HYP',
+  'STAT',
+  'D',
+  'R',
+  'G',
+  'FIX',
+  'EXP',
+  '2D',
+  'UP',
+  'DOWN',
+] as const
+
+/** A model's annunciators, by the set it prints (map.ts, `Model.annunciators`). */
+export const annunciatorsOf = (set: 'pocket' | 'sci'): readonly string[] =>
+  set === 'sci' ? SCI_ANNUNCIATORS : ANNUNCIATORS
+
 /** mcause for exceptions (interrupts set the top bit and give their line). */
 export const CAUSE = {
   illegal: 2,

@@ -46,6 +46,7 @@ import { LINK_STATUS } from './link-services.js'
 import {
   BANK_SIZE,
   bankTaken,
+  cursorModeMask,
   MODEL_IDS,
   MODELS,
   type ModelId,
@@ -549,7 +550,7 @@ function readDevices(r: ByteReader, s: Elec16State): boolean {
   }
   return (
     lcd.contrast <= 15 &&
-    lcd.cursorMode <= 7 &&
+    lcd.cursorMode === (lcd.cursorMode & cursorModeMask(MODELS[s.model])) &&
     angle <= 2 &&
     math.seed !== 0 &&
     finite(timer.fraction) &&
