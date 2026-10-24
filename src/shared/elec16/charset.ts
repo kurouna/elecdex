@@ -1,8 +1,11 @@
 /**
  * Text between the PC and the machine's character set (docs/elec16.md section 5): 20-7E are
- * ASCII, A1-DF the half-width kana (U+FF61-FF9F). IMPORT turns a .bas listing into the
- * machine's bytes, a line a CR; EXPORT turns them back, a line a CRLF. Pure.
+ * ASCII, 80-96 the calculator's symbols (font.ts SYMBOLS), A1-DF the half-width kana
+ * (U+FF61-FF9F). IMPORT turns a .bas listing into the machine's bytes, a line a CR; EXPORT
+ * turns them back, a line a CRLF. Pure.
  */
+
+import { SYMBOLS } from './font.js'
 
 const CR = 0x0d
 const LF = 0x0a
@@ -16,6 +19,40 @@ function byteOf(code: number): number | null {
 }
 
 /**
+ * Each symbol's text to its byte. The inverse (⁻¹) and x with a bar are two code points each;
+ * y with a combining macron is taken as y with a bar too, as a PC may write it either way.
+ */
+const SYMBOL_BYTES: ReadonlyMap<string, number> = new Map([
+  ...SYMBOLS.map((s): [string, number] => [s.text, s.code]),
+  ['y\u0304', 0x96],
+])
+const SYMBOL_TEXT: ReadonlyMap<number, string> = new Map(SYMBOLS.map((s) => [s.code, s.text]))
+
+/** A line of PC text as the machine's bytes; or the first character it has none for. */
+function lineBytes(line: string): { bytes: number[] } | { bad: string } {
+  const out: number[] = []
+  const chars = [...line]
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i] ?? ''
+    // A symbol of two code points is taken whole before its first is read alone.
+    const two = SYMBOL_BYTES.get(ch + (chars[i + 1] ?? ''))
+    if (two !== undefined && i + 1 < chars.length) {
+      out.push(two)
+      i++
+      continue
+    }
+    const b = byteOf(ch.codePointAt(0) ?? 0) ?? SYMBOL_BYTES.get(ch) ?? null
+    if (b === null) return { bad: ch }
+    out.push(b)
+  }
+  return { bytes: out }
+}
+
+/** The words for a character the machine has no byte for. */
+const unshown = (ch: string): string =>
+  `"${ch}" (U+${ch.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')})`
+
+/**
  * A text file's lines as the machine's bytes, each ended by a CR (CRLF, LF or CR in the file
  * alike; blank lines dropped); or the first character it cannot show, with its line.
  */
@@ -25,15 +62,11 @@ export function toMachineText(text: string): { bytes: Uint8Array } | { problem: 
   for (let n = 0; n < lines.length; n++) {
     const line = lines[n] ?? ''
     if (line.trim() === '') continue
-    for (const ch of line) {
-      const b = byteOf(ch.codePointAt(0) ?? 0)
-      if (b === null) {
-        const shown = ch.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')
-        return { problem: `Line ${n + 1} has "${ch}" (U+${shown}), which the ELEC-16 cannot show.` }
-      }
-      out.push(b)
+    const got = lineBytes(line)
+    if ('bad' in got) {
+      return { problem: `Line ${n + 1} has ${unshown(got.bad)}, which the ELEC-16 cannot show.` }
     }
-    out.push(CR)
+    out.push(...got.bytes, CR)
   }
   return { bytes: new Uint8Array(out) }
 }
@@ -46,15 +79,11 @@ export function sourceToMachine(text: string): { bytes: Uint8Array } | { problem
   const out: number[] = []
   const lines = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n')
   for (let n = 0; n < lines.length; n++) {
-    for (const ch of lines[n] ?? '') {
-      const b = byteOf(ch.codePointAt(0) ?? 0)
-      if (b === null) {
-        const shown = ch.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')
-        return { problem: `Line ${n + 1} has "${ch}" (U+${shown}), which the ELEC-16 cannot keep.` }
-      }
-      out.push(b)
+    const got = lineBytes(lines[n] ?? '')
+    if ('bad' in got) {
+      return { problem: `Line ${n + 1} has ${unshown(got.bad)}, which the ELEC-16 cannot keep.` }
     }
-    out.push(CR)
+    out.push(...got.bytes, CR)
   }
   return { bytes: new Uint8Array(out) }
 }
@@ -63,7 +92,10 @@ export function sourceToMachine(text: string): { bytes: Uint8Array } | { problem
 export const sourceFromMachine = (bytes: Uint8Array): string =>
   fromMachineText(bytes).replace(/\r\n/g, '\n')
 
-/** The machine's text as a PC's: a line a CRLF, kana as half-width kana, other bytes dropped. */
+/**
+ * The machine's text as a PC's: a line a CRLF, kana as half-width kana, symbols as their
+ * Unicode text, other bytes dropped.
+ */
 export function fromMachineText(bytes: Uint8Array): string {
   let out = ''
   for (const b of bytes) {
@@ -71,6 +103,7 @@ export function fromMachineText(bytes: Uint8Array): string {
     else if (b === LF) continue
     else if (b >= 0x20 && b <= 0x7e) out += String.fromCharCode(b)
     else if (b >= 0xa1 && b <= 0xdf) out += String.fromCharCode(b - 0xa1 + 0xff61)
+    else out += SYMBOL_TEXT.get(b) ?? ''
   }
   return out
 }

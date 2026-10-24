@@ -44,18 +44,33 @@ export const RESET_VECTOR = ROM_FIXED
 /** What the machine says it is, at FF00. */
 export const MACHINE_ID = 0xe016
 
-/**
- * Every model, in the order of the MODEL register's number - and the models a unit may be, as
- * TUNE offers them (all of them since PLAY-320 came, docs/elec16-play.md).
- */
+/** Every model, in the order of the MODEL register's number (and of a snapshot's model byte). */
 export const MODEL_IDS = [
   'pocket-32',
   'pocket-48',
   'pocket-64',
   'handheld-160',
   'play-320',
+  'sci-128',
 ] as const
 export type ModelId = (typeof MODEL_IDS)[number]
+
+/**
+ * The models a unit may be, as TUNE offers them and main takes them. SCI-128 (the scientific
+ * calculator, docs/elec16-sci.md) is a model of the core from S1, and joins here when it has a
+ * ROM to run (S3): until then no unit can be one, so no page ever looks for its ROM.
+ */
+export const UNIT_MODEL_IDS = [
+  'pocket-32',
+  'pocket-48',
+  'pocket-64',
+  'handheld-160',
+  'play-320',
+] as const satisfies readonly ModelId[]
+export type UnitModelId = (typeof UNIT_MODEL_IDS)[number]
+
+/** The ROMs a model runs: the pocket ROM, the PLAY ROM, and the calculator's (S3). */
+export type RomId = 'pocket' | 'play' | 'sci'
 
 export interface Model {
   id: ModelId
@@ -74,11 +89,11 @@ export interface Model {
    */
   video: boolean
   /**
-   * The ROM it runs: the pocket ROM (BASIC and the monitor) or the PLAY ROM (the start
-   * screen). A unit moved between the two starts with its RAM cleared: what one kept means
-   * nothing to the other (docs/elec16-play.md section 1).
+   * The ROM it runs: the pocket ROM (BASIC and the monitor), the PLAY ROM (the start screen)
+   * or the calculator's. A unit moved between two starts with its RAM cleared: what one kept
+   * means nothing to the other (docs/elec16-play.md section 1).
    */
-  rom: 'pocket' | 'play'
+  rom: RomId
   /**
    * How often its screen is drawn at most: an LCD answers in tens of milliseconds, thirty
    * times a second (measured, docs/elec16.md section 9); PLAY-320's colour screen, for
@@ -91,6 +106,16 @@ export interface Model {
   cart: boolean
   /** It has the sixteen-channel sound (PLAY-320, docs/elec16-play.md section 5). */
   apu: boolean
+  /**
+   * The marks printed above its dots, as bits of ANNUN (state.ts): the pocket ROM's set, or
+   * the calculator's (docs/elec16-sci.md section 4.2). Bit 0 is BUSY in both.
+   */
+  annunciators: 'pocket' | 'sci'
+  /**
+   * The cursor shapes CURMODE takes: the cell's underline and block, and on the calculator a
+   * bar of its own size anywhere on the dots (docs/elec16-sci.md section 6.5).
+   */
+  cursor: 'cell' | 'bar'
 }
 
 export const MODELS: Readonly<Record<ModelId, Model>> = {
@@ -106,6 +131,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     pad: false,
     cart: false,
     apu: false,
+    annunciators: 'pocket',
+    cursor: 'cell',
   },
   'pocket-48': {
     id: 'pocket-48',
@@ -119,6 +146,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     pad: false,
     cart: false,
     apu: false,
+    annunciators: 'pocket',
+    cursor: 'cell',
   },
   'pocket-64': {
     id: 'pocket-64',
@@ -132,6 +161,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     pad: false,
     cart: false,
     apu: false,
+    annunciators: 'pocket',
+    cursor: 'cell',
   },
   'handheld-160': {
     id: 'handheld-160',
@@ -145,6 +176,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     pad: false,
     cart: false,
     apu: false,
+    annunciators: 'pocket',
+    cursor: 'cell',
   },
   'play-320': {
     id: 'play-320',
@@ -158,10 +191,34 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     pad: true,
     cart: true,
     apu: true,
+    annunciators: 'pocket',
+    cursor: 'cell',
+  },
+  'sci-128': {
+    id: 'sci-128',
+    width: 128,
+    height: 64,
+    depth: 1,
+    xramMax: 0,
+    video: false,
+    rom: 'sci',
+    drawHz: 30,
+    pad: false,
+    cart: false,
+    apu: false,
+    annunciators: 'sci',
+    cursor: 'bar',
   },
 }
 
-export const DEFAULT_MODEL: ModelId = 'pocket-48'
+export const DEFAULT_MODEL: UnitModelId = 'pocket-48'
+
+/**
+ * The bits of CURMODE a model keeps (docs/elec16-sci.md section 6.5): the shape (low two) and
+ * the blink (bit 2) on every model; on one with the bar cursor also its height in pairs of
+ * rows (bits 4-7). Bit 3 is no one's. A pocket model keeps 0-7, as it always has.
+ */
+export const cursorModeMask = (m: Model): number => (m.cursor === 'bar' ? 0xf7 : 7)
 
 /** The bytes of VRAM a model's screen uses: one plane per bit, a byte per 8 rows of a column. */
 export const vramSize = (m: Model): number => (m.video ? 0 : (m.width * m.height * m.depth) / 8)

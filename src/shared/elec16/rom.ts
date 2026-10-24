@@ -13,7 +13,7 @@ import { fontTable } from './font.js'
 import { CONTROL, kanaTable, keyTable } from './keys.js'
 import { LINK_CMD, LINK_REG, LINK_STATUS } from './link-services.js'
 import { CODE_AREA, CODE_AREA_END, ROM_FIXED_SIZE, VRAM } from './map.js'
-import { ANNUNCIATORS, IRQ, KEY_ROWS } from './state.js'
+import { ANNUNCIATORS, IRQ, KEY_ROWS, SCI_ANNUNCIATORS } from './state.js'
 
 /** The file the ROM starts from. */
 export const ROM_ENTRY = 'main.s'
@@ -52,6 +52,10 @@ function ioInclude(): string {
     lines.push(`K_${upper(name)} = 0x${char.toString(16)}`)
   ANNUNCIATORS.forEach((name, bit) => {
     lines.push(`ANN_${name} = 0x${(1 << bit).toString(16)}`)
+  })
+  // The calculator's set beside it, by a prefix of its own: the same bits mean other marks.
+  SCI_ANNUNCIATORS.forEach((name, bit) => {
+    lines.push(`SCI_ANN_${name} = 0x${(1 << bit).toString(16)}`)
   })
   for (const [name, line] of Object.entries(IRQ)) lines.push(`IRQ_${upper(name)} = ${line}`)
   lines.push(`KEY_CODES = ${KEY_ROWS * 8}`)

@@ -174,10 +174,49 @@ const KANA: readonly string[] = [
   '.#... #.#.. .#... ..... ..... ..... .....', // DF ゜
 ]
 
+/**
+ * 0x80 on: the symbols a calculator writes (docs/elec16-sci.md section 4.3), drawn for the
+ * ELEC-16 and there on every model (BASIC's CHR$ shows them too). Each has the text it is on a
+ * PC: EXPORT writes it, IMPORT reads it back, the screen reader hears it. Two are two code
+ * points: ⁻¹ is one cell here, and x0304 has no precomposed character in Unicode.
+ */
+export const SYMBOLS: readonly {
+  readonly code: number
+  readonly text: string
+  readonly rows: string
+}[] = [
+  { code: 0x80, text: 'π', rows: '..... ##### .#.#. .#.#. .#.#. .#..# .....' },
+  { code: 0x81, text: '×', rows: '..... #...# .#.#. ..#.. .#.#. #...# .....' },
+  { code: 0x82, text: '÷', rows: '..... ..#.. ..... ##### ..... ..#.. .....' },
+  { code: 0x83, text: '√', rows: '..... ....# ...#. #.#.. .##.. ..#.. .....' },
+  { code: 0x84, text: '²', rows: '.##.. #..#. ..#.. .#... ####. ..... .....' },
+  { code: 0x85, text: '³', rows: '###.. ...#. .##.. ...#. ###.. ..... .....' },
+  { code: 0x86, text: '⁻¹', rows: '...#. ..##. ##.#. ...#. ..### ..... .....' },
+  { code: 0x87, text: 'ᴇ', rows: '..... ..... .###. .#... .##.. .#... .###.' },
+  { code: 0x88, text: '°', rows: '.##.. #..#. .##.. ..... ..... ..... .....' },
+  { code: 0x89, text: '′', rows: '...#. ..#.. .#... ..... ..... ..... .....' },
+  { code: 0x8a, text: '″', rows: '..#.# .#.#. #.#.. ..... ..... ..... .....' },
+  { code: 0x8b, text: '▶', rows: '#.... ##... ###.. ####. ###.. ##... #....' },
+  { code: 0x8c, text: '◀', rows: '...#. ..##. .###. ####. .###. ..##. ...#.' },
+  { code: 0x8d, text: '▲', rows: '..... ..#.. .###. ##### ..... ..... .....' },
+  { code: 0x8e, text: '▼', rows: '..... ..... ##### .###. ..#.. ..... .....' },
+  { code: 0x8f, text: '⇄', rows: '...#. ##### ...#. ..... .#... ##### .#...' },
+  { code: 0x90, text: 'Σ', rows: '##### #.... .#... ..#.. .#... #.... #####' },
+  { code: 0x91, text: 'σ', rows: '..... ..... .#### #..#. #..#. #..#. .##..' },
+  { code: 0x92, text: '₁', rows: '..... ..... ..... .#... ##... .#... ###..' },
+  { code: 0x93, text: '₂', rows: '..... ..... ..... ##... ..#.. .#... ###..' },
+  { code: 0x94, text: '→', rows: '..... ..#.. ...#. ##### ...#. ..#.. .....' },
+  // x and a combining macron; y with a macron is one character (U+0233).
+  { code: 0x95, text: 'x\u0304', rows: '##### ..... #...# .#.#. ..#.. .#.#. #...#' },
+  { code: 0x96, text: '\u0233', rows: '##### ..... #...# .#.#. ..#.. ..#.. ..#..' },
+]
+
+const SYMBOL_ROWS: ReadonlyMap<number, string> = new Map(SYMBOLS.map((s) => [s.code, s.rows]))
+
 /** 0x7F: a solid block, for the cursor and for bars. */
 const BLOCK = '##### ##### ##### ##### ##### ##### #####'
 
-/** Every code the table does not draw (80-9F and E0-FF, kept for symbols): an empty box. */
+/** Every code the table does not draw (97-9F and E0-FF, kept for symbols): an empty box. */
 const UNKNOWN = '##### #...# #...# #...# #...# #...# #####'
 
 export const FIRST_CODE = 0x20
@@ -191,7 +230,9 @@ function rowsOf(code: number): string[] {
       ? BLOCK
       : code >= 0xa1 && code <= 0xdf
         ? (KANA[code - 0xa1] ?? UNKNOWN)
-        : (ASCII[code - FIRST_CODE] ?? UNKNOWN)
+        : code >= 0x80
+          ? (SYMBOL_ROWS.get(code) ?? UNKNOWN)
+          : (ASCII[code - FIRST_CODE] ?? UNKNOWN)
   return rows.split(' ')
 }
 
@@ -223,8 +264,9 @@ const keyOf = (columns: ArrayLike<number>, at: number): string =>
 
 /** Each drawn glyph by its five columns, to read a cell back into its character. */
 const BY_COLUMNS: ReadonlyMap<string, string> = new Map([
-  // A kana reads back as its half-width character (U+FF61 on), as EXPORT writes it; first,
-  // so that ASCII's own wins where a kana is drawn as it is (the long vowel mark as -).
+  // A symbol reads back as the text EXPORT writes for it, and so does a kana (U+FF61 on);
+  // both first, so that ASCII's own wins where one is drawn as it is (the long vowel mark as -).
+  ...SYMBOLS.map((s): [string, string] => [keyOf(glyphColumns(s.code), 0), s.text]),
   ...Array.from({ length: 0xdf - 0xa1 + 1 }, (_, k): [string, string] => [
     keyOf(glyphColumns(0xa1 + k), 0),
     String.fromCharCode(0xff61 + k),
@@ -254,4 +296,69 @@ export function screenText(vram: ArrayLike<number>, width: number, height: numbe
     lines.push(line)
   }
   return lines
+}
+
+/*
+ * The calculator's big digits (docs/elec16-sci.md section 4.3): seven segments two dots thick
+ * on a 7 x 14 cell, the corners filled so each stroke reads as one line; the point is 2 x 2.
+ * Columns of 14 bits, bit 0 the top row. A minus is the middle bar one dot longer each way.
+ */
+export const BIG_WIDTH = 7
+export const BIG_HEIGHT = 14
+export const BIG_PITCH = 8
+const SEGMENTS: Readonly<Record<string, readonly [number, number, number, number]>> = {
+  a: [2, 0, 4, 1],
+  b: [5, 2, 6, 5],
+  c: [5, 8, 6, 11],
+  d: [2, 12, 4, 13],
+  e: [0, 8, 1, 11],
+  f: [0, 2, 1, 5],
+  g: [1, 6, 5, 7],
+}
+const DIGIT_SEGMENTS: Readonly<Record<string, string>> = {
+  '0': 'abcdef',
+  '1': 'bc',
+  '2': 'abged',
+  '3': 'abgcd',
+  '4': 'fgbc',
+  '5': 'afgcd',
+  '6': 'afgedc',
+  '7': 'abc',
+  '8': 'abcdefg',
+  '9': 'abcdfg',
+  '-': 'g',
+}
+/** Where two segments meet: a 2 x 2 corner, filled when either is drawn. */
+const CORNERS: readonly (readonly [number, number, string])[] = [
+  [0, 0, 'af'],
+  [5, 0, 'ab'],
+  [0, 6, 'feg'],
+  [5, 6, 'bcg'],
+  [0, 12, 'ed'],
+  [5, 12, 'cd'],
+]
+
+/** The characters there are big glyphs for: the digits, the minus and the point. */
+export const BIG_CHARS = '0123456789-.'
+
+/** A big glyph's columns: seven for a digit or the minus, two for the point. */
+export function bigGlyphColumns(ch: string): number[] {
+  if (ch === '.') return [0x3000, 0x3000]
+  const segments = DIGIT_SEGMENTS[ch]
+  if (segments === undefined) throw new RangeError(`no big glyph for ${ch}`)
+  const columns = new Array<number>(BIG_WIDTH).fill(0)
+  const fill = (x0: number, y0: number, x1: number, y1: number): void => {
+    for (let x = x0; x <= x1; x++)
+      for (let y = y0; y <= y1; y++) columns[x] = (columns[x] ?? 0) | (1 << y)
+  }
+  for (const s of segments) {
+    const box = SEGMENTS[s]
+    if (box !== undefined) fill(...box)
+  }
+  if (ch !== '-') {
+    for (const [x, y, meets] of CORNERS) {
+      if ([...meets].some((s) => segments.includes(s))) fill(x, y, x + 1, y + 1)
+    }
+  }
+  return columns
 }

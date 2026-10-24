@@ -118,7 +118,10 @@ let failed = $state(false)
 /** PLAY-320 (docs/elec16-play.md): the PLAY ROM, its pad and body, no keyboard, no FILES. */
 const play = $derived(MODELS[model].rom === 'play')
 /** CORE names code by the labels of the ROM the machine runs. */
-const labels = $derived(labelsOf(symbols[MODELS[model].rom]))
+const labels = $derived.by(() => {
+  const rom = MODELS[model].rom
+  return labelsOf(rom === 'sci' ? {} : symbols[rom])
+})
 /** FILES (the card and BASIC) on the pocket models, GAMES (the cartridge shelf) on PLAY-320. */
 const tabs = $derived(ELEC16_TABS.filter((t) => t !== (play ? 'files' : 'games')))
 const tab = $derived(tabs.includes(pane.tab) ? pane.tab : 'tune')

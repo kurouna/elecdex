@@ -24,6 +24,7 @@ import {
   BANK_SIZE,
   BANK_WINDOW,
   bankTaken,
+  cursorModeMask,
   IO,
   MACHINE_ID,
   MODEL_IDS,
@@ -464,10 +465,12 @@ export class Bus {
         shown = lcd.cursor !== value
         lcd.cursor = value
         break
-      case REG.cursorMode:
-        shown = lcd.cursorMode !== (value & 7)
-        lcd.cursorMode = value & 7
+      case REG.cursorMode: {
+        const mode = value & cursorModeMask(this.#model)
+        shown = lcd.cursorMode !== mode
+        lcd.cursorMode = mode
         break
+      }
       case REG.annunciators:
         shown = lcd.annunciators !== value
         lcd.annunciators = value
