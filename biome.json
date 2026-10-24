@@ -20,7 +20,8 @@
       "!docs/ethernet-mock",
       "!docs/agents-mock",
       "!docs/palette-mock",
-      "!docs/elec16-skins-mock"
+      "!docs/elec16-skins-mock",
+      "!docs/elec16-sci-mock"
     ]
   },
   "formatter": {

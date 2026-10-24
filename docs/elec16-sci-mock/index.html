@@ -1,0 +1,1673 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELEC-16 SCI mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of ELEC-16 SCI, the scientific calculator model (docs/elec16-sci.md), standalone: no
+ * elecdex code. The LCD is 128 x 64 dots drawn as lcd-painter draws the pocket's (reflective
+ * ground, a shadow a little below each dot, unlit dots faintly there); its text uses the
+ * ELEC-16's own 5 x 7 font (src/shared/elec16/font.ts, copied below) and the symbols this
+ * model would add. The calculator in CALC works for real (JavaScript doubles here; the machine
+ * would use its 12-digit decimal unit), the other modes are fixed screens.
+ *
+ * Nothing here is any maker's: the key arrangement, the names on the keys, the menus and the
+ * body are drawn for this mock.
+ */
+:root {
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --step--2: 0.625rem;
+  --step--1: 0.75rem;
+  --step-0: 0.875rem;
+  --step-1: 1.125rem;
+  --page: #05080d;
+  --page-text: hsl(183 22% 80%);
+  --page-muted: hsl(183 22% 74% / 0.62);
+  --rule: hsl(183 22% 74% / 0.25);
+  --accent: hsl(183 22% 74%);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--page-text);
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+}
+header { padding: 18px 24px 6px; }
+h1 { font-family: var(--font-display); font-weight: 500; font-size: var(--step-1); letter-spacing: 0.08em; margin: 0; }
+header p { margin: 4px 0 0; color: var(--page-muted); max-width: 72ch; }
+main {
+  display: grid;
+  grid-template-columns: auto minmax(280px, 520px);
+  gap: 28px;
+  padding: 16px 24px 32px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  main { grid-template-columns: 1fr; padding: 12px 16px; }
+}
+
+/* ---------- the body ---------- */
+.stage { display: grid; place-items: center; padding: 18px; border: 1px solid var(--rule); }
+.calc {
+  /* Every size is a multiple of --u, so the body scales as one piece. */
+  --u: 1px;
+  width: calc(372 * var(--u));
+  padding: calc(16 * var(--u)) calc(18 * var(--u)) calc(22 * var(--u));
+  border-radius: calc(22 * var(--u)) calc(22 * var(--u)) calc(34 * var(--u)) calc(34 * var(--u));
+  background: var(--case);
+  box-shadow:
+    inset 0 1px 0 var(--case-hi),
+    inset 0 -2px 0 var(--case-lo),
+    0 18px 40px -18px rgb(0 0 0 / 0.8);
+  color: var(--print);
+  user-select: none;
+  position: relative;
+}
+.calc::before {
+  /* The grain of the moulding: a fine noise, baked once as an SVG. */
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: var(--grain, none);
+  opacity: 0.5;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+}
+.plate {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: calc(10 * var(--u));
+  position: relative;
+}
+.plate .name { font-family: var(--font-display); font-weight: 600; font-size: calc(19 * var(--u)); letter-spacing: 0.06em; color: var(--plate); line-height: 1; }
+.plate .name small { display: block; font-family: var(--font-ui); font-weight: 500; font-size: max(var(--step--2), calc(9.5 * var(--u))); letter-spacing: 0.22em; color: var(--print); margin-top: calc(3 * var(--u)); }
+.solar {
+  width: calc(96 * var(--u)); height: calc(22 * var(--u));
+  border-radius: calc(3 * var(--u));
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(23 * var(--u)), var(--solar-line) calc(23 * var(--u)) calc(24 * var(--u))),
+    linear-gradient(180deg, var(--solar-hi), var(--solar));
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.6), 0 1px 0 var(--case-hi);
+}
+.bezel {
+  position: relative;
+  background: var(--bezel);
+  border-radius: calc(10 * var(--u));
+  padding: calc(8 * var(--u)) calc(8 * var(--u)) calc(10 * var(--u));
+  box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.55), 0 1px 0 var(--case-hi);
+}
+.glass {
+  background: var(--lcd-ground);
+  border-radius: calc(3 * var(--u));
+  padding: calc(3 * var(--u)) calc(4 * var(--u)) calc(5 * var(--u));
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.35), inset 0 0 0 1px rgb(0 0 0 / 0.25);
+  position: relative;
+  overflow: hidden;
+}
+.glass {
+  /* As Lcd.svelte's relief glass: sunk into the bezel, the seal just inside it. */
+  box-shadow:
+    inset 0 0 14px rgb(0 0 0 / 0.07),
+    inset 0 0 0 1px color-mix(in srgb, var(--lcd-dot) 35%, transparent),
+    inset 0 5px 9px -3px rgb(0 0 0 / 0.32),
+    inset 0 -1px 0 rgb(255 255 255 / 0.1);
+}
+.glass::after {
+  /* One soft reflection from above-left, gone before the middle: the ground stays one colour. */
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(165deg, rgb(255 255 255 / var(--lcd-glare)) 0%, rgb(255 255 255 / 0.02) 45%, transparent 60%);
+}
+.annun {
+  display: flex; gap: calc(6 * var(--u));
+  font-family: var(--font-ui); font-weight: 600;
+  font-size: max(var(--step--2), calc(8.5 * var(--u))); line-height: 1;
+  height: max(calc(var(--step--2) * 1.25), calc(11 * var(--u)));
+  color: var(--lcd-dot);
+  letter-spacing: 0.04em;
+}
+.annun span { opacity: 0.16; }
+.annun span.on { opacity: 1; }
+.annun .gap { flex: 1; opacity: 0; }
+/*
+ * The screen as the pane draws it (Lcd.svelte): the machine's 128 x 64 dots on a canvas of
+ * that size, scaled up crisp to a whole number of device pixels a dot; the dots' shadow, the
+ * same size, a little down and right; the gaps a grid of the device pixels in the ground's
+ * colour; the unlit dots a faint tint of the dot's colour under it all, seen only through
+ * the grid. --dot is a dot's size in CSS pixels, set by fit().
+ */
+.stack {
+  position: relative;
+  margin-inline: auto;
+  width: calc(128 * var(--dot));
+  height: calc(64 * var(--dot));
+  background: color-mix(in srgb, var(--lcd-dot) calc(var(--lcd-unlit) * 100%), var(--lcd-ground));
+}
+.stack canvas {
+  position: absolute; inset: 0;
+  display: block; width: 100%; height: 100%;
+  image-rendering: pixelated;
+}
+
+/* ---------- keys ---------- */
+.keys { margin-top: calc(14 * var(--u)); position: relative; }
+.fn {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  column-gap: calc(9 * var(--u));
+  row-gap: calc(14 * var(--u));
+}
+.num {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  column-gap: calc(10 * var(--u));
+  row-gap: calc(13 * var(--u));
+  margin-top: calc(18 * var(--u));
+  padding-top: calc(14 * var(--u));
+  border-top: 1px solid var(--seam);
+}
+.k {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  padding-top: calc(11 * var(--u));
+  background: none; border: 0; color: inherit; font: inherit; cursor: pointer;
+}
+.k .legend {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; justify-content: space-between;
+  font-family: var(--font-ui); font-weight: 600;
+  /* Labels: never smaller than --step--2 (CLAUDE.md, type sizes by role), however small the body. */
+  font-size: max(var(--step--2), calc(8.5 * var(--u))); line-height: 1; letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.k .legend .sh { color: var(--shift); }
+.k .legend .al { color: var(--alpha); margin-left: auto; }
+.k .cap {
+  width: 100%;
+  height: calc(22 * var(--u));
+  display: flex; align-items: center; justify-content: center;
+  white-space: nowrap;
+  border-radius: calc(5 * var(--u)) calc(5 * var(--u)) calc(9 * var(--u)) calc(9 * var(--u));
+  background: var(--fn-key);
+  color: var(--fn-text);
+  font-family: var(--font-ui); font-weight: 600;
+  font-size: calc(11.5 * var(--u));
+  box-shadow:
+    inset 0 1px 0 var(--fn-hi),
+    0 calc(3 * var(--u)) 0 var(--fn-side),
+    0 calc(5 * var(--u)) calc(5 * var(--u)) rgb(0 0 0 / 0.45);
+  transform: translateY(0);
+  transition: transform 40ms, box-shadow 40ms;
+}
+.num .k .cap {
+  height: calc(30 * var(--u));
+  border-radius: calc(6 * var(--u)) calc(6 * var(--u)) calc(10 * var(--u)) calc(10 * var(--u));
+  background: var(--num-key); color: var(--num-text);
+  font-size: calc(15 * var(--u));
+  box-shadow:
+    inset 0 1px 0 var(--num-hi),
+    0 calc(3 * var(--u)) 0 var(--num-side),
+    0 calc(5 * var(--u)) calc(5 * var(--u)) rgb(0 0 0 / 0.4);
+}
+.k.top .cap { height: calc(17 * var(--u)); border-radius: calc(9 * var(--u)); font-size: calc(10 * var(--u)); }
+.k.shift .cap { background: var(--shift); color: var(--on-shift); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 calc(3 * var(--u)) 0 color-mix(in srgb, var(--shift) 55%, black), 0 calc(5 * var(--u)) calc(5 * var(--u)) rgb(0 0 0 / 0.45); }
+.k.alpha .cap { background: var(--alpha); color: var(--on-alpha); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 calc(3 * var(--u)) 0 color-mix(in srgb, var(--alpha) 55%, black), 0 calc(5 * var(--u)) calc(5 * var(--u)) rgb(0 0 0 / 0.45); }
+.num .k.warm .cap { background: var(--warm); color: #fff; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 calc(3 * var(--u)) 0 color-mix(in srgb, var(--warm) 55%, black), 0 calc(5 * var(--u)) calc(5 * var(--u)) rgb(0 0 0 / 0.4); }
+.num .k.eq .cap { background: var(--eq); color: var(--on-eq); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 calc(3 * var(--u)) 0 color-mix(in srgb, var(--eq) 55%, black), 0 calc(5 * var(--u)) calc(5 * var(--u)) rgb(0 0 0 / 0.4); }
+.k.down .cap, .k:active .cap {
+  transform: translateY(calc(2 * var(--u)));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 calc(1 * var(--u)) 0 var(--fn-side), 0 calc(2 * var(--u)) calc(2 * var(--u)) rgb(0 0 0 / 0.4);
+}
+/* Saira has no prime marks: the degree key's cap is set in the mono face, which has them. */
+.k .mono { font-family: var(--font-mono); font-weight: 500; letter-spacing: -0.05em; }
+.k sup, .k sub { font-size: max(var(--step--2), 0.7em); line-height: 0; }
+.k .box { display: inline-block; width: 0.62em; height: 0.74em; border: 1px solid currentColor; vertical-align: -0.05em; }
+.k .box.s { width: 0.48em; height: 0.56em; }
+
+/* The cursor pad: a rounded rectangle over two columns and two rows, four rocker ends. */
+.pad {
+  grid-column: 3 / span 2; grid-row: 1 / span 2;
+  position: relative;
+  margin: calc(-2 * var(--u)) calc(4 * var(--u)) 0;
+  border-radius: calc(26 * var(--u));
+  background: var(--fn-key);
+  box-shadow:
+    inset 0 1px 0 var(--fn-hi),
+    0 calc(3 * var(--u)) 0 var(--fn-side),
+    0 calc(6 * var(--u)) calc(7 * var(--u)) rgb(0 0 0 / 0.5);
+}
+.pad::before {
+  /* The dimple in the middle. */
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: calc(16 * var(--u)); height: calc(16 * var(--u));
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.6), 0 1px 0 var(--fn-hi);
+}
+.pad button {
+  position: absolute; background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--fn-text); display: grid; place-items: center;
+}
+.pad button svg { width: calc(9 * var(--u)); height: calc(9 * var(--u)); fill: currentColor; opacity: 0.9; }
+.pad .up { left: 30%; right: 30%; top: 0; height: 34%; }
+.pad .dn { left: 30%; right: 30%; bottom: 0; height: 34%; }
+.pad .lt { top: 26%; bottom: 26%; left: 0; width: 30%; }
+.pad .rt { top: 26%; bottom: 26%; right: 0; width: 30%; }
+.pad button.down svg, .pad button:active svg { transform: scale(0.85); opacity: 0.6; }
+
+/* ---------- bodies ---------- */
+.calc.slate {
+  --case: linear-gradient(180deg, #34383f, #272a30 55%, #212429);
+  --case-hi: rgb(255 255 255 / 0.12);
+  --case-lo: rgb(0 0 0 / 0.5);
+  --plate: #e9eaec;
+  --print: #a9adb4;
+  --seam: rgb(0 0 0 / 0.45);
+  --bezel: #16181c;
+  --lcd-ground: #c4cbb9;
+  --lcd-dot: #161b14;
+  --lcd-shadow: #a3ab98;
+  --lcd-unlit: 0.03;
+  --lcd-glare: 0.1;
+  --solar: #3a2a24; --solar-hi: #4b362e; --solar-line: rgb(0 0 0 / 0.55);
+  --fn-key: #1c1e22; --fn-hi: rgb(255 255 255 / 0.10); --fn-side: #0c0d0f; --fn-text: #eceef1;
+  --num-key: #d8dbdf; --num-hi: rgb(255 255 255 / 0.85); --num-side: #8e9399; --num-text: #1d1f23;
+  --shift: #f0a240; --on-shift: #20160a;
+  --alpha: #5cc6d0; --on-alpha: #0b2226;
+  --warm: #d9573a;
+  --eq: #3d434b; --on-eq: #fff;
+}
+.calc.chalk {
+  --case: linear-gradient(180deg, #f1ede5, #e6e0d4 60%, #ddd6c8);
+  --case-hi: rgb(255 255 255 / 0.9);
+  --case-lo: rgb(120 100 70 / 0.35);
+  --plate: #2d3138;
+  --print: #565a61;
+  --seam: rgb(120 100 70 / 0.3);
+  --bezel: #3a3e45;
+  --lcd-ground: #cfd3c5;
+  --lcd-dot: #191c17;
+  --lcd-shadow: #aeb2a3;
+  --lcd-unlit: 0.03;
+  --lcd-glare: 0.14;
+  --solar: #2f2522; --solar-hi: #43332d; --solar-line: rgb(0 0 0 / 0.55);
+  --fn-key: #444a53; --fn-hi: rgb(255 255 255 / 0.18); --fn-side: #23272c; --fn-text: #f4f5f7;
+  --num-key: #fbfaf6; --num-hi: #fff; --num-side: #b9b3a6; --num-text: #24272c;
+  --shift: #a9520c; --on-shift: #fff;
+  --alpha: #136579; --on-alpha: #fff;
+  --warm: #cf4a33;
+  --eq: #2b5f8a; --on-eq: #fff;
+}
+/* Small print on CHALK's case: 4.5:1 or more on #e6e0d4 (SHIFT 5.3, ALPHA 5.6, plate 5.3). */
+.calc.chalk .k .legend .sh { color: #8f4408; }
+.calc.chalk .k .legend .al { color: #126377; }
+.calc.plain {
+  /* elecdex's own look: no moulding, the panel rule, flat keys, every colour the theme's. */
+  --case: transparent;
+  --case-hi: transparent; --case-lo: transparent;
+  --plate: var(--accent);
+  --print: var(--page-muted);
+  --seam: var(--rule);
+  --bezel: transparent;
+  --lcd-ground: #070b10;
+  --lcd-dot: hsl(183 40% 78%);
+  --lcd-shadow: transparent;
+  --lcd-unlit: 0;
+  --lcd-glare: 0;
+  --solar: transparent; --solar-hi: transparent; --solar-line: transparent;
+  --fn-key: transparent; --fn-hi: transparent; --fn-side: transparent; --fn-text: var(--accent);
+  --num-key: hsl(183 22% 74% / 0.08); --num-hi: transparent; --num-side: transparent; --num-text: var(--page-text);
+  --shift: hsl(36 80% 66%); --on-shift: #0a0d12;
+  --alpha: hsl(183 60% 66%); --on-alpha: #0a0d12;
+  --warm: hsl(12 70% 58%);
+  --eq: hsl(183 22% 74% / 0.22); --on-eq: var(--page-text);
+  outline: 1px solid var(--rule);
+  box-shadow: none;
+}
+.calc.plain .solar { display: none; }
+.calc.plain .bezel, .calc.plain .glass { box-shadow: none; padding-left: 0; padding-right: 0; }
+.calc.plain .glass { outline: 1px solid var(--rule); padding: 4px 6px 6px; }
+.calc.plain .glass::after { display: none; }
+.calc.plain .k .cap, .calc.plain .pad { box-shadow: none !important; outline: 1px solid var(--rule); border-radius: 2px; }
+.calc.plain .k.shift .cap, .calc.plain .k.alpha .cap, .calc.plain .num .k.warm .cap { outline: 0; }
+.calc.plain .pad { border-radius: 4px; }
+.calc.plain .pad::before { box-shadow: none; outline: 1px solid var(--rule); }
+.calc.plain .k.down .cap, .calc.plain .k:active .cap { transform: none; background: hsl(183 22% 74% / 0.28); }
+
+/* ---------- side panel ---------- */
+aside { display: grid; gap: 18px; }
+aside section { border: 1px solid var(--rule); padding: 12px 14px; }
+aside h2 { font-family: var(--font-display); font-weight: 500; font-size: var(--step--1); letter-spacing: 0.14em; margin: 0 0 8px; color: var(--accent); }
+.choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.choices button {
+  font: inherit; font-size: var(--step--1); letter-spacing: 0.06em;
+  background: none; color: var(--page-text);
+  border: 1px solid var(--rule); padding: 4px 10px; cursor: pointer;
+}
+.choices button[aria-pressed="true"] { background: hsl(183 22% 74% / 0.18); border-color: var(--accent); }
+aside p, aside li { color: var(--page-muted); margin: 0; line-height: 1.5; }
+aside ul { margin: 0; padding-left: 1.1em; }
+aside kbd { font-family: var(--font-mono); font-size: var(--step--1); color: var(--page-text); }
+.say { font-family: var(--font-mono); font-size: var(--step--1); color: var(--page-text); min-height: 1.5em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ELEC-16 SCI — 関数電卓モデル モック</h1>
+  <p>ELEC-16 の 3 つ目のモデル。CPU・数値演算ユニット・電池バックアップはそのままに、128×64 のドット液晶と関数電卓の鍵盤、電卓の ROM を持つ。CALC は実際に計算できる（キーをクリック、または PC のキー）。ほかのモードは画面だけ。</p>
+</header>
+<main>
+  <div class="stage">
+    <div class="calc slate" id="calc">
+      <div class="plate">
+        <div class="name">ELEC-16 SCI<small>16-BIT SCIENTIFIC · SCI-128</small></div>
+        <div class="solar" aria-hidden="true"></div>
+      </div>
+      <div class="bezel">
+        <div class="glass">
+          <div class="annun" id="annun">
+            <span data-a="S">S</span><span data-a="A">A</span><span data-a="M">M</span><span data-a="STO">STO</span><span data-a="HYP">HYP</span><span data-a="STAT">STAT</span><span class="gap"></span><span data-a="D">D</span><span data-a="R">R</span><span data-a="G">G</span><span data-a="FIX">FIX</span><span data-a="EXP">EXP</span><span data-a="2D">2D</span><span data-a="UP">▲</span><span data-a="DN">▼</span>
+          </div>
+          <div class="stack" id="stack">
+            <canvas id="lcdShadow" width="128" height="64"></canvas>
+            <canvas id="lcd" width="128" height="64"></canvas>
+            <canvas id="lcdGrid" aria-hidden="true"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="keys" id="keys"></div>
+    </div>
+  </div>
+  <aside>
+    <section>
+      <h2>BODY</h2>
+      <div class="choices" id="bodies">
+        <button data-body="slate" aria-pressed="true">SLATE</button>
+        <button data-body="chalk" aria-pressed="false">CHALK</button>
+        <button data-body="plain" aria-pressed="false">PLAIN</button>
+      </div>
+    </section>
+    <section>
+      <h2>SCREEN</h2>
+      <div class="choices" id="screens">
+        <button data-screen="live" aria-pressed="true">CALC (LIVE)</button>
+        <button data-screen="mode" aria-pressed="false">MENU</button>
+        <button data-screen="func" aria-pressed="false">FUNC</button>
+        <button data-screen="setup" aria-pressed="false">SETUP</button>
+        <button data-screen="stat" aria-pressed="false">STATS</button>
+        <button data-screen="statres" aria-pressed="false">STAT RESULT</button>
+        <button data-screen="base" aria-pressed="false">BASE</button>
+        <button data-screen="table" aria-pressed="false">TABLE</button>
+        <button data-screen="eqn" aria-pressed="false">EQUATION</button>
+        <button data-screen="findx" aria-pressed="false">FIND X</button>
+        <button data-screen="error" aria-pressed="false">ERROR</button>
+      </div>
+    </section>
+    <section>
+      <h2>TRY</h2>
+      <ul>
+        <li><kbd>1 a/b 3 ▶ + 1 a/b 6 =</kbd> は <kbd>1/2</kbd>、<kbd>F⇄D</kbd> で 0.5（a/b は直前の値を分子に取る）</li>
+        <li><kbd>SHIFT x² 8 =</kbd> は 2√2、<kbd>SIN 4 5 =</kbd> は √2/2（DEG）、<kbd>TAN 1 5 =</kbd> は 2−√3</li>
+        <li><kbd>0 . 1 + 0 . 2 =</kbd> は 0.3（小数を打った式は小数で答え、F⇄D で 3/10）</li>
+        <li><kbd>2 xʸ 3 ▶ xʸ 2 =</kbd> は 512（累乗は右から）。<kbd>1 ÷ 2 SHIFT EXP =</kbd>（1÷2π）は 1/(2π)（記号のない掛け算が先）</li>
+        <li><kbd>STO</kbd>・<kbd>SHIFT STO</kbd>（RCL）の後に A〜F・X・Y・M のキー。<kbd>ALPHA</kbd> で式に入れる</li>
+        <li><kbd>FUNC</kbd> で GCD・LCM・%・INT・ROUND・RAND。<kbd>SETUP</kbd>: 1 2D、2 LINE、3〜5 で角度</li>
+        <li>誤りのあと <kbd>◀</kbd> <kbd>▶</kbd> で誤りの場所に戻る</li>
+      </ul>
+      <p style="margin-top:8px">PC のキー: 数字 <kbd>+ - * /</kbd> <kbd>^</kbd> 累乗、<kbd>f</kbd> 分数、<kbd>r</kbd> √、<kbd>( )</kbd>、<kbd>Enter</kbd> =、<kbd>Backspace</kbd> DEL、<kbd>Delete</kbd> AC、矢印（Esc はペインから出る道なので取らない）。</p>
+    </section>
+    <section>
+      <h2>NOW</h2>
+      <p class="say" id="say"></p>
+    </section>
+  </aside>
+</main>
+<script>
+'use strict'
+// ---------------------------------------------------------------------------------------
+// The font: 0x20-0x7E copied from src/shared/elec16/font.ts, and the symbols this model adds
+// (a proposal for the empty 80-9F codes).
+const ASCII = `..... ..... ..... ..... ..... ..... .....|..#.. ..#.. ..#.. ..#.. ..#.. ..... ..#..|.#.#. .#.#. .#.#. ..... ..... ..... .....|.#.#. .#.#. ##### .#.#. ##### .#.#. .#.#.|..#.. .#### #.#.. .###. ..#.# ####. ..#..|##... ##..# ...#. ..#.. .#... #..## ...##|.##.. #..#. #.#.. .#... #.#.# #..#. .##.#|..#.. ..#.. .#... ..... ..... ..... .....|...#. ..#.. .#... .#... .#... ..#.. ...#.|.#... ..#.. ...#. ...#. ...#. ..#.. .#...|..... ..#.. #.#.# .###. #.#.# ..#.. .....|..... ..#.. ..#.. ##### ..#.. ..#.. .....|..... ..... ..... ..... .##.. ..#.. .#...|..... ..... ..... ##### ..... ..... .....|..... ..... ..... ..... ..... .##.. .##..|..... ....# ...#. ..#.. .#... #.... .....|.###. #...# #..## #.#.# ##..# #...# .###.|..#.. .##.. ..#.. ..#.. ..#.. ..#.. .###.|.###. #...# ....# ...#. ..#.. .#... #####|##### ...#. ..#.. ...#. ....# #...# .###.|...#. ..##. .#.#. #..#. ##### ...#. ...#.|##### #.... ####. ....# ....# #...# .###.|..##. .#... #.... ####. #...# #...# .###.|##### ....# ...#. ..#.. .#... .#... .#...|.###. #...# #...# .###. #...# #...# .###.|.###. #...# #...# .#### ....# ...#. .##..|..... .##.. .##.. ..... .##.. .##.. .....|..... .##.. .##.. ..... .##.. ..#.. .#...|...#. ..#.. .#... #.... .#... ..#.. ...#.|..... ..... ##### ..... ##### ..... .....|.#... ..#.. ...#. ....# ...#. ..#.. .#...|.###. #...# ....# ...#. ..#.. ..... ..#..|.###. #...# ....# .##.# #.#.# #.#.# .###.|.###. #...# #...# #...# ##### #...# #...#|####. #...# #...# ####. #...# #...# ####.|.###. #...# #.... #.... #.... #...# .###.|###.. #..#. #...# #...# #...# #..#. ###..|##### #.... #.... ####. #.... #.... #####|##### #.... #.... ####. #.... #.... #....|.###. #...# #.... #.### #...# #...# .####|#...# #...# #...# ##### #...# #...# #...#|.###. ..#.. ..#.. ..#.. ..#.. ..#.. .###.|..### ...#. ...#. ...#. ...#. #..#. .##..|#...# #..#. #.#.. ##... #.#.. #..#. #...#|#.... #.... #.... #.... #.... #.... #####|#...# ##.## #.#.# #.#.# #...# #...# #...#|#...# #...# ##..# #.#.# #..## #...# #...#|.###. #...# #...# #...# #...# #...# .###.|####. #...# #...# ####. #.... #.... #....|.###. #...# #...# #...# #.#.# #..#. .##.#|####. #...# #...# ####. #.#.. #..#. #...#|.#### #.... #.... .###. ....# ....# ####.|##### ..#.. ..#.. ..#.. ..#.. ..#.. ..#..|#...# #...# #...# #...# #...# #...# .###.|#...# #...# #...# #...# #...# .#.#. ..#..|#...# #...# #...# #.#.# #.#.# #.#.# .#.#.|#...# #...# .#.#. ..#.. .#.#. #...# #...#|#...# #...# .#.#. ..#.. ..#.. ..#.. ..#..|##### ....# ...#. ..#.. .#... #.... #####|.###. .#... .#... .#... .#... .#... .###.|..... #.... .#... ..#.. ...#. ....# .....|.###. ...#. ...#. ...#. ...#. ...#. .###.|..#.. .#.#. #...# ..... ..... ..... .....|..... ..... ..... ..... ..... ..... #####|.#... ..#.. ...#. ..... ..... ..... .....|..... ..... .###. ....# .#### #...# .####|#.... #.... #.##. ##..# #...# #...# ####.|..... ..... .###. #.... #.... #...# .###.|....# ....# .##.# #..## #...# #...# .####|..... ..... .###. #...# ##### #.... .###.|..##. .#..# .#... ###.. .#... .#... .#...|..... .#### #...# #...# .#### ....# .###.|#.... #.... #.##. ##..# #...# #...# #...#|..#.. ..... .##.. ..#.. ..#.. ..#.. .###.|...#. ..... ..##. ...#. ...#. #..#. .##..|#.... #.... #..#. #.#.. ##... #.#.. #..#.|.##.. ..#.. ..#.. ..#.. ..#.. ..#.. .###.|..... ..... ##.#. #.#.# #.#.# #...# #...#|..... ..... #.##. ##..# #...# #...# #...#|..... ..... .###. #...# #...# #...# .###.|..... ..... ####. #...# ####. #.... #....|..... ..... .##.# #..## .#### ....# ....#|..... ..... #.##. ##..# #.... #.... #....|..... ..... .###. #.... .###. ....# ####.|.#... .#... ###.. .#... .#... .#..# ..##.|..... ..... #...# #...# #...# #..## .##.#|..... ..... #...# #...# #...# .#.#. ..#..|..... ..... #...# #...# #.#.# #.#.# .#.#.|..... ..... #...# .#.#. ..#.. .#.#. #...#|..... ..... #...# #...# .#### ....# .###.|..... ..... ##### ...#. ..#.. .#... #####|...#. ..#.. ..#.. .#... ..#.. ..#.. ...#.|..#.. ..#.. ..#.. ..#.. ..#.. ..#.. ..#..|.#... ..#.. ..#.. ...#. ..#.. ..#.. .#...|..... ..... .#... #.#.# ...#. ..... .....`.split('|')
+const SYMBOLS = {
+  'π': '..... ##### .#.#. .#.#. .#.#. .#..# .....',
+  '×': '..... #...# .#.#. ..#.. .#.#. #...# .....',
+  '÷': '..... ..#.. ..... ##### ..... ..#.. .....',
+  '√': '..... ....# ...#. #.#.. .##.. ..#.. .....',
+  '²': '.##.. #..#. ..#.. .#... ####. ..... .....',
+  '³': '###.. ...#. .##.. ...#. ###.. ..... .....',
+  '⁻': '...#. ..##. ##.#. ...#. ..### ..... .....',
+  'ᴇ': '..... ..... .###. .#... .##.. .#... .###.',
+  '°': '.##.. #..#. .##.. ..... ..... ..... .....',
+  '▶': '#.... ##... ###.. ####. ###.. ##... #....',
+  '◀': '...#. ..##. .###. ####. .###. ..##. ...#.',
+  '▲': '..... ..#.. .###. ##### ..... ..... .....',
+  '▼': '..... ..... ##### .###. ..#.. ..... .....',
+  '⇄': '...#. ##### ...#. ..... .#... ##### .#...',
+  'Σ': '##### #.... .#... ..#.. .#... #.... #####',
+  'σ': '..... ..... .#### #..#. #..#. #..#. .##..',
+  '₁': '..... ..... ..... .#... ##... .#... ###..',
+  '₂': '..... ..... ..... ##... ..#.. .#... ###..',
+  '→': '..... ..#.. ...#. ##### ...#. ..#.. .....',
+  '⁄': '..... ....# ...#. ..#.. .#... #.... .....',
+  'ˣ': '..... #.#.. .#... #.#.. ..... ..... .....',
+  '': '##### ..... #...# .#.#. ..#.. .#.#. #...#', // x with a bar: one character, one cell
+  '': '##### ..... #...# .#.#. ..#.. ..#.. ..#..', // y with a bar
+  '■': '##### ##### ##### ##### ##### ##### #####',
+}
+function glyphRows(ch) {
+  if (SYMBOLS[ch]) return SYMBOLS[ch].split(' ')
+  const c = ch.charCodeAt(0)
+  const g = ASCII[c - 0x20]
+  return (g ?? '##### #...# #...# #...# #...# #...# #####').split(' ')
+}
+
+// ---------------------------------------------------------------------------------------
+// The LCD: 128 x 64 dots, as lcd-painter draws them.
+const W = 128, H = 64
+const dots = new Uint8Array(W * H)
+const canvas = document.getElementById('lcd')
+const g2 = canvas.getContext('2d')
+function clear() { dots.fill(0) }
+function px(x, y, on = 1) { if (x >= 0 && y >= 0 && x < W && y < H) dots[y * W + x] = on }
+function hline(x0, x1, y) { for (let x = x0; x <= x1; x++) px(x, y) }
+function vline(x, y0, y1) { for (let y = y0; y <= y1; y++) px(x, y) }
+function invert(x0, y0, x1, y1) { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (x >= 0 && y >= 0 && x < W && y < H) dots[y * W + x] ^= 1 }
+/** One character with its top-left at (x, y); 6 dots wide with its gap. */
+function glyph(x, y, ch) {
+  const rows = glyphRows(ch)
+  for (let r = 0; r < 7; r++) for (let c = 0; c < 5; c++) if (rows[r]?.[c] === '#') px(x + c, y + r)
+}
+function text(x, y, s) { let i = 0; for (const ch of s) glyph(x + 6 * i++, y, ch) }
+function textRight(xr, y, s) { text(xr - [...s].length * 6 + 1, y, s) }
+
+/*
+ * Big digits for a result: dot-matrix segments, 7 x 14 on a pitch of 8, two dots thick - the
+ * model's own face, between a seven-segment display and the dot matrix it is drawn on. A
+ * sign, ten digits, the point, x10 and a three-character exponent take 127 dots.
+ */
+// g reaches a dot further each way, so the minus alone is five wide; in a digit the corners cover it.
+const SEG = { a: [2, 0, 4, 1], b: [5, 2, 6, 5], c: [5, 8, 6, 11], d: [2, 12, 4, 13], e: [0, 8, 1, 11], f: [0, 2, 1, 5], g: [1, 6, 5, 7] }
+const DIGIT_SEGS = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g' }
+function bigDigit(x, y, ch) {
+  const segs = DIGIT_SEGS[ch] ?? ''
+  for (const s of segs) {
+    const [x0, y0, x1, y1] = SEG[s]
+    for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) px(x + xx, y + yy)
+  }
+  // The corners where segments meet, so the strokes read as one line.
+  const block = (cx, cy) => { px(x + cx, y + cy); px(x + cx + 1, y + cy); px(x + cx, y + cy + 1); px(x + cx + 1, y + cy + 1) }
+  const any = (...s) => s.some((x) => segs.includes(x))
+  if (ch === '-') return
+  if (any('a', 'f')) block(0, 0)
+  if (any('a', 'b')) block(5, 0)
+  if (any('f', 'e', 'g')) block(0, 6)
+  if (any('b', 'c', 'g')) block(5, 6)
+  if (any('e', 'd')) block(0, 12)
+  if (any('c', 'd')) block(5, 12)
+}
+/** A decimal string in big digits, ending at xr; returns where it began. */
+function bigNumber(xr, y, s) {
+  let x = xr + 1
+  for (let i = s.length - 1; i >= 0; i--) {
+    const ch = s[i]
+    if (ch === '.') { x -= 3; for (let yy = 12; yy <= 13; yy++) { px(x, y + yy); px(x + 1, y + yy) } }
+    else { x -= 8; bigDigit(x, y, ch) }
+  }
+  return x
+}
+
+const body = () => getComputedStyle(document.getElementById('calc'))
+/** A CSS colour as [r, g, b], resolved by the canvas (theme variables and hsl() included). */
+const probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true })
+function rgbOf(css) {
+  probe.clearRect(0, 0, 1, 1)
+  probe.fillStyle = '#000'
+  probe.fillStyle = css
+  probe.fillRect(0, 0, 1, 1)
+  const [r, g, b, a] = probe.getImageData(0, 0, 1, 1).data
+  return a === 0 ? null : [r, g, b]
+}
+/** A dot's size in device pixels (fit() sets it) and whether the body is PLAIN's flat screen. */
+let dotPx = 3
+const flat = () => document.getElementById('calc').classList.contains('plain')
+/*
+ * The gaps show where a dot is three device pixels or more, as in the pane; the shadow falls
+ * past the gap onto the ground beside: max(2, round(dot / 4) + 1) device pixels.
+ */
+function layoutLcd() {
+  const dpr = devicePixelRatio || 1
+  const grid = document.getElementById('lcdGrid')
+  const showGrid = dotPx >= 3 && !flat()
+  grid.width = W * dotPx
+  grid.height = H * dotPx
+  const g = grid.getContext('2d')
+  g.clearRect(0, 0, grid.width, grid.height)
+  if (showGrid) {
+    g.fillStyle = body().getPropertyValue('--lcd-ground').trim()
+    for (let x = 0; x < grid.width; x += dotPx) g.fillRect(x, 0, 1, grid.height)
+    for (let y = 0; y < grid.height; y += dotPx) g.fillRect(0, y, grid.width, 1)
+  }
+  const at = showGrid ? Math.max(2, Math.round(dotPx / 4) + 1) : 0
+  const sh = document.getElementById('lcdShadow')
+  sh.style.transform = `translate(${at / dpr}px, ${at / dpr}px)`
+  sh.style.visibility = at ? 'visible' : 'hidden'
+}
+const dotImage = g2.createImageData(W, H)
+const shadowCtx = document.getElementById('lcdShadow').getContext('2d')
+const shadowImage = shadowCtx.createImageData(W, H)
+function paint() {
+  // One pixel a dot: the dot's colour where it is on, nothing where it is out.
+  const dot = rgbOf(body().getPropertyValue('--lcd-dot').trim()) ?? [0, 0, 0]
+  const shadow = rgbOf(body().getPropertyValue('--lcd-shadow').trim())
+  for (let k = 0; k < W * H; k++) {
+    const on = dots[k] ? 255 : 0
+    dotImage.data.set([dot[0], dot[1], dot[2], on], k * 4)
+    shadowImage.data.set(shadow ? [shadow[0], shadow[1], shadow[2], on] : [0, 0, 0, 0], k * 4)
+  }
+  g2.putImageData(dotImage, 0, 0)
+  shadowCtx.putImageData(shadowImage, 0, 0)
+}
+
+// ---------------------------------------------------------------------------------------
+// The expression: a list of items, each a token or a template with lists of its own. The
+// cursor is a list and a place in it. Lists know their parent, so the cursor can leave one.
+function list(parent = null) { const l = []; l.parent = parent; return l }
+function tok(s, id = s) { return { t: 'c', s, id } }
+function frac() { const n = { t: 'frac' }; n.a = list({ node: n, key: 'a' }); n.b = list({ node: n, key: 'b' }); return n }
+function sqrt() { const n = { t: 'sqrt' }; n.a = list({ node: n, key: 'a' }); return n }
+function pow() { const n = { t: 'pow' }; n.a = list({ node: n, key: 'a' }); return n }
+
+const st = {
+  expr: list(),
+  cur: null,
+  twoD: true,
+  angle: 'D',
+  shift: false, alpha: false, hyp: false, sto: false, rcl: false,
+  result: null, // { value, form: 'exact' | 'dec' } after =
+  error: null,
+  ans: 0,
+  vars: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0, X: 0, Y: 0, M: 0 },
+  history: [],
+  recall: -1,
+  screen: 'live',
+  eng: 0,
+}
+st.cur = { l: st.expr, i: 0 }
+
+function parentOf(l) {
+  if (!l.parent) return null
+  const node = l.parent.node
+  const owner = findOwner(st.expr, node)
+  return owner ? { node, key: l.parent.key, owner, index: owner.indexOf(node) } : null
+}
+function findOwner(l, node) {
+  for (const it of l) {
+    if (it === node) return l
+    for (const k of ['a', 'b']) if (it[k]) { const f = findOwner(it[k], node); if (f) return f }
+  }
+  return null
+}
+/*
+ * The input has rows 0-38: its first line's baseline is 2 + its height above, so a line may
+ * reach 36 rows in all. A template that would make it taller than that is refused
+ * (two fractions deep fit), rather than scrolling the line up and down.
+ */
+const INPUT_ROWS = 36
+function insert(item) {
+  const { l, i } = st.cur
+  l.splice(i, 0, item)
+  if (item.t !== 'c' && st.twoD) {
+    const m = measure(st.expr)
+    if (m.up + m.down > INPUT_ROWS) { l.splice(i, 1); say('too deep: the line would not fit'); return }
+  }
+  if (item.t === 'c') st.cur = { l, i: i + 1 }
+  else st.cur = { l: item.a, i: 0 }
+}
+function moveRight() {
+  const { l, i } = st.cur
+  if (i < l.length) {
+    const it = l[i]
+    if (it.t !== 'c') { st.cur = { l: it.a, i: 0 }; return }
+    st.cur = { l, i: i + 1 }; return
+  }
+  const p = parentOf(l)
+  if (!p) { st.cur = { l, i: 0 }; return } // Wraps to the start, as the line does.
+  if (p.key === 'a' && p.node.t === 'frac') { st.cur = { l: p.node.b, i: 0 }; return }
+  st.cur = { l: p.owner, i: p.index + 1 }
+}
+function moveLeft() {
+  const { l, i } = st.cur
+  if (i > 0) {
+    const it = l[i - 1]
+    if (it.t !== 'c') { const last = it.b ?? it.a; st.cur = { l: last, i: last.length }; return }
+    st.cur = { l, i: i - 1 }; return
+  }
+  const p = parentOf(l)
+  if (!p) { st.cur = { l, i: l.length }; return }
+  if (p.key === 'b') { st.cur = { l: p.node.a, i: p.node.a.length }; return }
+  st.cur = { l: p.owner, i: p.index }
+}
+function moveVertical(dir) {
+  const p = parentOf(st.cur.l)
+  if (p && p.node.t === 'frac') {
+    const to = dir < 0 ? p.node.a : p.node.b
+    if (to !== st.cur.l) { st.cur = { l: to, i: Math.min(st.cur.i, to.length) }; return true }
+  }
+  return false
+}
+function del() {
+  const { l, i } = st.cur
+  if (i > 0) {
+    const it = l[i - 1]
+    if (it.t === 'c' || isEmpty(it)) { l.splice(i - 1, 1); st.cur = { l, i: i - 1 } }
+    else moveLeft()
+    return
+  }
+  const p = parentOf(l)
+  if (!p) return
+  if (isEmpty(p.node)) { p.owner.splice(p.index, 1); st.cur = { l: p.owner, i: p.index } }
+  else st.cur = { l: p.owner, i: p.index }
+}
+function isEmpty(n) { return (n.a?.length ?? 0) === 0 && (n.b?.length ?? 0) === 0 }
+
+// ---------------------------------------------------------------------------------------
+// Layout: a box has a width, how far it reaches above its baseline (up) and below (down).
+// A character is 5 x 7 with a gap: up 7, down 0, width 6.
+const MID = 4 // a fraction's bar sits this far above the baseline
+/*
+ * Powers in a row are read from the right (2^3^2 is 2^9), so each is drawn on the shoulder of
+ * the one before it: its baseline 4 dots above that exponent's.
+ */
+function liftOf(l, k) {
+  let lift = 0
+  for (let j = k - 1; j >= 0 && l[j].t === 'pow'; j--) lift += 4
+  return lift
+}
+function measure(l, linear) {
+  let w = 0, up = 7, down = 0
+  if (l.length === 0) return { w: 6, up: 7, down: 0 }
+  for (let k = 0; k < l.length; k++) {
+    const b = measureItem(l[k], linear)
+    const lift = !linear && l[k].t === 'pow' ? liftOf(l, k) : 0
+    w += b.w; up = Math.max(up, b.up + lift); down = Math.max(down, b.down)
+  }
+  return { w, up, down }
+}
+function measureItem(it, linear) {
+  if (it.t === 'c') return { w: 6 * [...it.s].length, up: 7, down: 0 }
+  if (linear) {
+    const flat = linearOf(it)
+    return { w: 6 * flat.length, up: 7, down: 0 }
+  }
+  if (it.t === 'frac') {
+    const a = measure(it.a), b = measure(it.b)
+    return { w: Math.max(a.w, b.w) + 6, up: MID + 2 + a.down + a.up, down: Math.max(0, 2 + b.up + b.down - MID + 1) }
+  }
+  if (it.t === 'sqrt') { const a = measure(it.a); return { w: a.w + 6, up: a.up + 2, down: a.down } }
+  if (it.t === 'pow') { const a = measure(it.a); return { w: a.w + 1, up: 4 + a.up, down: 0 } }
+}
+/** LINE mode shows a template as the characters it would be typed as. */
+function linearOf(it) {
+  const inner = (l) => l.map((x) => x.t === 'c' ? x.s : linearOf(x)).join('')
+  if (it.t === 'frac') return inner(it.a) + '⁄' + inner(it.b)
+  if (it.t === 'sqrt') return '√(' + inner(it.a) + ')'
+  if (it.t === 'pow') return '^(' + inner(it.a) + ')'
+  return ''
+}
+let cursorAt = null
+function drawList(l, x, base, linear) {
+  if (l.length === 0 && !linear) {
+    // An empty slot: a dotted box the cursor goes into.
+    const showCursorHere = st.cur.l === l
+    if (!showCursorHere) for (let yy = base - 7; yy < base; yy++) for (let xx = x; xx < x + 5; xx++) if ((xx + yy) % 2 === 0 && (yy === base - 7 || yy === base - 1 || xx === x || xx === x + 4)) px(xx, yy)
+  }
+  if (st.cur.l === l && st.cur.i === 0) cursorAt = { x: x - 1, top: base - 8, bottom: base }
+  for (let k = 0; k < l.length; k++) {
+    const lift = !linear && l[k].t === 'pow' ? liftOf(l, k) : 0
+    x = drawItem(l[k], x, base - lift, linear)
+    if (st.cur.l === l && st.cur.i === k + 1) cursorAt = { x: x - 1, top: base - 8, bottom: base }
+  }
+  return x + (l.length === 0 ? 6 : 0)
+}
+function drawItem(it, x, base, linear) {
+  if (it.t === 'c') { text(x, base - 7, it.s); return x + 6 * [...it.s].length }
+  if (linear) {
+    // A template in LINE mode: drawn flat; the cursor inside it is shown at its end.
+    const flat = linearOf(it)
+    text(x, base - 7, flat)
+    if (containsList(it, st.cur.l)) cursorAt = { x: x + 6 * flat.length - 1, top: base - 8, bottom: base }
+    return x + 6 * [...flat].length
+  }
+  if (it.t === 'frac') {
+    const a = measure(it.a), b = measure(it.b)
+    // A dot of room each side keeps the bar off an operator's stroke beside it.
+    const w = Math.max(a.w, b.w) + 6
+    const bar = base - MID
+    hline(x + 1, x + w - 3, bar)
+    drawList(it.a, x + Math.floor((w - a.w) / 2), bar - 2 - a.down, false)
+    drawList(it.b, x + Math.floor((w - b.w) / 2), bar + 2 + b.up, false)
+    return x + w
+  }
+  if (it.t === 'sqrt') {
+    const a = measure(it.a)
+    const top = base - a.up - 2
+    // The radical: a short tick, a long stroke down and up, then the bar over the body.
+    px(x, base - 4); px(x + 1, base - 3); px(x + 1, base - 2); px(x + 2, base - 1)
+    for (let yy = base - 1, k = 0; yy >= top; yy--, k++) px(x + 3 + (k > (base - top) / 2 ? 1 : 0), yy)
+    hline(x + 4, x + 4 + a.w, top)
+    drawList(it.a, x + 5, base, false)
+    return x + a.w + 6
+  }
+  if (it.t === 'pow') {
+    drawList(it.a, x, base - 4, false)
+    const a = measure(it.a)
+    return x + a.w + 1
+  }
+}
+function containsList(it, l) {
+  if (it.a === l || it.b === l) return true
+  for (const k of ['a', 'b']) if (it[k]) for (const x of it[k]) if (x.t !== 'c' && containsList(x, l)) return true
+  return false
+}
+
+// ---------------------------------------------------------------------------------------
+// Evaluation: a recursive descent over the items. Tokens with an id carry their meaning.
+class Syntax extends Error {}
+class MathErr extends Error {}
+/*
+ * An error carries where it was met, so ◀ ▶ can put the cursor there: the list and the place
+ * in it. The innermost list wins (it is set first and never overwritten on the way out).
+ */
+function evaluate(l) {
+  const p = { items: l, i: 0 }
+  try {
+    const v = sum(p)
+    if (p.i < p.items.length) throw new Syntax('syntax')
+    return v
+  } catch (e) {
+    if (!e.at) e.at = { l, i: Math.min(p.i, l.length) }
+    throw e
+  }
+}
+const peek = (p) => p.items[p.i]
+const isTok = (it, ...ids) => it && it.t === 'c' && ids.includes(it.id)
+function sum(p) {
+  let v = prod(p)
+  for (;;) {
+    const it = peek(p)
+    if (isTok(it, '+')) { p.i++; v = v + prod(p) }
+    else if (isTok(it, '-')) { p.i++; v = v - prod(p) }
+    else return v
+  }
+}
+function startsValue(it) {
+  if (!it) return false
+  if (it.t !== 'c') return it.t !== 'pow'
+  return /^[0-9.]$/.test(it.id) || ['(', 'pi', 'e', 'ten', 'ans', 'rand', 'exp'].includes(it.id) || it.id.startsWith('fn:') || it.id.startsWith('var:')
+}
+function prod(p) {
+  let v = implied(p)
+  for (;;) {
+    const it = peek(p)
+    if (isTok(it, '×')) { p.i++; v = v * implied(p) }
+    else if (isTok(it, '÷')) { p.i++; const d = implied(p); if (d === 0) throw new MathErr('div'); v = v / d }
+    else return v
+  }
+}
+/*
+ * A multiplication with no sign binds tighter than × and ÷, as a textbook is read:
+ * 1÷2π is 1/(2π), 6÷2(1+2) is 1. A sign after a value is not a value: 2(−)3 is a syntax error.
+ */
+function implied(p) {
+  let v = comb(p)
+  while (startsValue(peek(p))) v = v * comb(p)
+  return v
+}
+function comb(p) {
+  let v = lineFrac(p)
+  for (;;) {
+    const it = peek(p)
+    if (isTok(it, 'ncr', 'npr')) {
+      p.i++
+      const r = lineFrac(p)
+      if (!Number.isInteger(v) || !Number.isInteger(r) || r < 0 || v < 0 || r > v) throw new MathErr('arg')
+      let out = 1
+      for (let k = 0; k < r; k++) out *= (v - k)
+      if (it.id === 'ncr') for (let k = 2; k <= r; k++) out /= k
+      v = Math.round(out)
+    } else return v
+  }
+}
+function lineFrac(p) {
+  let v = unary(p)
+  while (isTok(peek(p), '⁄')) { p.i++; const d = unary(p); if (d === 0) throw new MathErr('div'); v = v / d }
+  return v
+}
+function unary(p) {
+  const it = peek(p)
+  if (isTok(it, 'neg', '-')) { p.i++; return -unary(p) }
+  if (isTok(it, '+')) { p.i++; return unary(p) }
+  return post(p)
+}
+function post(p) {
+  let v = primary(p)
+  for (;;) {
+    const it = peek(p)
+    if (!it) return v
+    if (it.t === 'pow' || isTok(it, '^(')) {
+      // A run of powers is read from the right: 2^3^2 is 2^9, in either display.
+      const exps = []
+      while (peek(p) && (peek(p).t === 'pow' || isTok(peek(p), '^('))) {
+        const e = peek(p)
+        p.i++
+        if (e.t === 'pow') exps.push(evaluate(e.a))
+        else { exps.push(sum(p)); if (isTok(peek(p), ')')) p.i++ }
+      }
+      let e = exps.pop()
+      while (exps.length) e = power(exps.pop(), e)
+      v = power(v, e)
+    }
+    else if (isTok(it, '²')) { p.i++; v = v * v }
+    else if (isTok(it, '³')) { p.i++; v = v * v * v }
+    else if (isTok(it, 'inv')) { p.i++; if (v === 0) throw new MathErr('div'); v = 1 / v }
+    else if (isTok(it, '!')) { p.i++; v = factorial(v) }
+    else if (isTok(it, '%')) { p.i++; v = v / 100 }
+    else return v
+  }
+}
+function power(b, e) {
+  const v = Math.pow(b, e)
+  if (!Number.isFinite(v)) throw new MathErr('pow')
+  return v
+}
+function factorial(n) {
+  if (!Number.isInteger(n) || n < 0 || n > 69) throw new MathErr('arg')
+  let v = 1
+  for (let k = 2; k <= n; k++) v *= k
+  return v
+}
+function primary(p) {
+  const it = peek(p)
+  if (!it) throw new Syntax('end')
+  if (it.t === 'frac') { p.i++; const d = evaluate(it.b); if (d === 0) throw new MathErr('div'); return evaluate(it.a) / d }
+  if (it.t === 'sqrt') { p.i++; const v = evaluate(it.a); if (v < 0) throw new MathErr('arg'); return Math.sqrt(v) }
+  if (it.t === 'pow') throw new Syntax('pow')
+  if (/^[0-9.]$/.test(it.id) || it.id === 'exp') return number(p)
+  p.i++
+  if (it.id === 'pi') return Math.PI
+  if (it.id === 'ten') return 10
+  if (it.id === 'rand') return Math.floor(Math.random() * 1000) / 1000
+  if (it.id === 'e') return Math.E
+  if (it.id === 'ans') return st.ans
+  if (it.id.startsWith('var:')) return st.vars[it.id.slice(4)]
+  if (it.id === '(') { const v = sum(p); if (isTok(peek(p), ')')) p.i++; return v }
+  if (it.id.startsWith('fn:')) {
+    const v = sum(p)
+    let w = null
+    if (isTok(peek(p), ',')) { p.i++; w = sum(p) }
+    if (isTok(peek(p), ')')) p.i++
+    const name = it.id.slice(3)
+    if (name === 'gcd' || name === 'lcm') return gcdLcm(name, v, w)
+    if (w !== null) throw new Syntax('comma')
+    return apply(name, v)
+  }
+  throw new Syntax('token')
+}
+function number(p) {
+  let s = ''
+  while (peek(p) && /^[0-9.]$/.test(peek(p).id)) { s += peek(p).id; p.i++ }
+  if (isTok(peek(p), 'exp')) {
+    p.i++
+    let e = ''
+    if (isTok(peek(p), 'neg', '-')) { e = '-'; p.i++ }
+    while (peek(p) && /^[0-9]$/.test(peek(p).id)) { e += peek(p).id; p.i++ }
+    if (e === '' || e === '-') throw new Syntax('exp')
+    s += 'e' + e
+  }
+  // A point alone, or two points, is not a number; ×10ˣ with nothing before it means 1×10ˣ.
+  if ((s.match(/\./g) ?? []).length > 1 || /^\.(e|$)/.test(s)) throw new Syntax('dots')
+  if (s.startsWith('e')) s = '1' + s
+  return Number(s)
+}
+const RAD = { D: Math.PI / 180, R: 1, G: Math.PI / 200 }
+function apply(fn, v) {
+  const toRad = (x) => {
+    // Whole turns are taken off exactly first, so sin 180 is 0, not 1.2E-16.
+    const turn = st.angle === 'D' ? 360 : st.angle === 'G' ? 400 : 2 * Math.PI
+    const r = x - Math.floor(x / turn) * turn
+    return r * RAD[st.angle]
+  }
+  const fromRad = (x) => x / RAD[st.angle]
+  const snap = (x) => (Math.abs(x) < 1e-13 ? 0 : x)
+  switch (fn) {
+    case 'sin': return snap(Math.sin(toRad(v)))
+    case 'cos': return snap(Math.cos(toRad(v)))
+    case 'tan': { const c = snap(Math.cos(toRad(v))); if (c === 0) throw new MathErr('tan'); return snap(Math.sin(toRad(v)) / c) }
+    case 'asin': if (Math.abs(v) > 1) throw new MathErr('arg'); return fromRad(Math.asin(v))
+    case 'acos': if (Math.abs(v) > 1) throw new MathErr('arg'); return fromRad(Math.acos(v))
+    case 'atan': return fromRad(Math.atan(v))
+    case 'sinh': return Math.sinh(v)
+    case 'cosh': return Math.cosh(v)
+    case 'tanh': return Math.tanh(v)
+    case 'log': if (v <= 0) throw new MathErr('arg'); return Math.log10(v)
+    case 'ln': if (v <= 0) throw new MathErr('arg'); return Math.log(v)
+    case 'sqrt': if (v < 0) throw new MathErr('arg'); return Math.sqrt(v)
+    case 'cbrt': return Math.cbrt(v)
+    case 'abs': return Math.abs(v)
+    case 'int': return Math.trunc(v)
+    case 'round': return Number(v.toPrecision(10)) // to the digits shown
+  }
+  throw new Syntax('fn')
+}
+function gcdLcm(name, a, b) {
+  if (b === null) throw new Syntax('args')
+  if (!Number.isInteger(a) || !Number.isInteger(b) || a === 0 || b === 0) throw new MathErr('arg')
+  const g = gcd(Math.abs(a), Math.abs(b))
+  return name === 'gcd' ? g : Math.abs(a / g * b)
+}
+
+// ---------------------------------------------------------------------------------------
+// Showing a value: exact where a small fraction or a root says it, else ten digits.
+function ratio(x, maxDen = 9999) {
+  if (!Number.isFinite(x)) return null
+  let h0 = 0, h1 = 1, k0 = 1, k1 = 0, y = x
+  for (let n = 0; n < 32; n++) {
+    const a = Math.floor(y)
+    const h2 = a * h1 + h0, k2 = a * k1 + k0
+    if (k2 > maxDen) break
+    h0 = h1; h1 = h2; k0 = k1; k1 = k2
+    if (Math.abs(x - h1 / k1) <= 1e-11 * Math.max(1, Math.abs(x))) return { p: h1, q: k1 }
+    const f = y - a
+    if (f < 1e-14) break
+    y = 1 / f
+  }
+  return null
+}
+/** 2 to 99 without a square factor: the s of r√s. */
+const SQUAREFREE = Array.from({ length: 98 }, (_, k) => k + 2).filter((n) => {
+  for (let d = 2; d * d <= n; d++) if (n % (d * d) === 0) return false
+  return true
+})
+/*
+ * The one exact form, (p + r√s)/q: a fraction (r = 0), a root (p = 0) and the two together, as
+ * a quadratic's roots and tan 15° are. The machine keeps this form through the arithmetic
+ * (docs/elec16-sci.md section 6.4); the mock finds it from the double.
+ */
+function exactForm(x) {
+  if (Number.isInteger(x) || Math.abs(x) >= 1e10) return null
+  const r = ratio(x)
+  if (r && r.q > 1 && Math.abs(r.p) < 1e10) return { p: r.p, r: 0, s: 1, q: r.q }
+  for (const s of SQUAREFREE) {
+    const root = Math.sqrt(s)
+    for (let q = 1; q <= 24; q++) {
+      for (let rr = -24; rr <= 24; rr++) {
+        if (rr === 0) continue
+        const p = x * q - rr * root
+        const pi = Math.round(p)
+        if (Math.abs(p - pi) > 1e-9 || Math.abs(pi) > 999) continue
+        // The smallest denominator: p, r and q share no factor.
+        if (gcd(gcd(Math.abs(pi), Math.abs(rr)), q) !== 1) continue
+        return { p: pi, r: rr, s, q }
+      }
+    }
+  }
+  return null
+}
+function gcd(a, b) { while (b) [a, b] = [b, a % b]; return a }
+/** The numerator p + r√s as items; `lead` marks one negative term, whose sign can go outside. */
+function exactTop(f) {
+  const out = list()
+  const digits = (n) => { for (const ch of String(n)) out.push(tok(ch)) }
+  const rootTerm = (r) => {
+    if (Math.abs(r) !== 1) digits(Math.abs(r))
+    const s = sqrt(); for (const ch of String(f.s)) s.a.push(tok(ch)); out.push(s)
+  }
+  if (f.r === 0) { if (f.p < 0) out.push(tok('-')); digits(Math.abs(f.p)); out.lead = f.p < 0; return out }
+  if (f.p === 0) { if (f.r < 0) out.push(tok('-')); rootTerm(f.r); out.lead = f.r < 0; return out }
+  if (f.p < 0) out.push(tok('-'))
+  digits(Math.abs(f.p))
+  out.push(tok(f.r < 0 ? '-' : '+'))
+  rootTerm(f.r)
+  out.lead = false
+  return out
+}
+/** Ten significant digits, the exponent apart when it is needed. */
+function decimal(x) {
+  if (x === 0) return { m: '0', e: null }
+  const ax = Math.abs(x)
+  if (st.eng) {
+    let e = Math.floor(Math.log10(ax))
+    e = e - ((e % 3) + 3) % 3
+    const m = x / Math.pow(10, e)
+    return { m: trim(m.toPrecision(10)), e: e === 0 ? null : String(e) }
+  }
+  // AUTO: a plain decimal while ten digit places hold it (0.001 stays 0.001), else an exponent.
+  if (ax >= 1e10 || ax < 1e-9) {
+    const [m, e] = x.toExponential(9).split('e')
+    return { m: trim(m), e: String(Number(e)) }
+  }
+  let s = trim(x.toPrecision(10))
+  if (s.replace(/[-.]/g, '').length > 10) {
+    const whole = Math.max(1, Math.floor(Math.log10(ax)) + 1)
+    s = trim(x.toFixed(Math.max(0, 10 - whole)))
+  }
+  return { m: s, e: null }
+}
+function trim(s) { return s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s }
+
+function drawResult() {
+  const r = st.result
+  if (!r) return
+  const base = 62
+  if (r.form === 'exact') {
+    const f = exactForm(r.value)
+    if (f) {
+      const items = list()
+      const top = exactTop(f)
+      if (f.q === 1) items.push(...top)
+      else if (top.lead) {
+        // A single term's sign goes before the fraction: -√2/2, not (-√2)/2.
+        items.push(tok('-'))
+        const fr = frac(); fr.a.push(...top.slice(1)); for (const ch of String(f.q)) fr.b.push(tok(ch)); items.push(fr)
+      } else { const fr = frac(); fr.a.push(...top); for (const ch of String(f.q)) fr.b.push(tok(ch)); items.push(fr) }
+      const save = st.cur; st.cur = { l: null, i: -1 }
+      const m = measure(items)
+      // Its lowest row on the big digits' lowest row, 62.
+      drawList(items, 127 - m.w + 1, base - m.down, false)
+      st.cur = save
+      return
+    }
+  }
+  const { m, e } = decimal(r.value)
+  let xr = 127
+  if (e) {
+    // ×10 in the small face, its exponent raised beside it.
+    // Each piece's last column is a gap, so they are set edge to edge: 127 dots at most.
+    const ew = 6 * e.length
+    text(127 - ew + 1, base - 17, e)
+    xr = 127 - ew
+    text(xr - 17, base - 11, '×10')
+    xr = xr - 18
+  }
+  bigNumber(xr, base - 13, m)
+}
+
+// ---------------------------------------------------------------------------------------
+// The live screen: the input at the top, scrolled so the cursor shows; the result below.
+let blinkOn = true
+function drawLive() {
+  clear()
+  cursorAt = null
+  const linear = !st.twoD
+  const m = measure(st.expr, linear)
+  const base = Math.max(9, 2 + m.up)
+  // Scroll the line sideways so the cursor stays on screen.
+  drawList(st.expr, 1, base, linear)
+  let shift = 0
+  if (cursorAt && cursorAt.x > 124) shift = cursorAt.x - 124
+  if (shift) { clear(); cursorAt = null; drawList(st.expr, 1 - shift, base, linear) }
+  if (cursorAt && blinkOn && !st.result) vline(cursorAt.x, Math.max(0, cursorAt.top), Math.min(H - 1, cursorAt.bottom - 1))
+  drawResult()
+  if (st.result) {
+    // A finished line keeps no cursor; the arrows go back into it.
+  }
+  annunciate()
+  paint()
+}
+
+// ---------------------------------------------------------------------------------------
+// Fixed screens for the other modes. The words are this model's own: CALC, STATS, BASE,
+// TABLE, EQUATION; FIND X; ERR: as the pocket's BASIC says it.
+/*
+ * A title band: nine rows, the text in the middle seven with a dot of band above and below,
+ * and a dot in from either end - so the letters sit in it, not hang from its top.
+ */
+function header(title, right = '') {
+  text(1, 1, title)
+  if (right) textRight(127, 1, right)
+  invert(0, 0, 127, 8)
+}
+/*
+ * One vertical rhythm for every screen: the band in rows 0-8, then a line every nine rows
+ * from 11 (11, 20, 29, 38, 47, 56): two blank rows between lines, one below the last. A chosen
+ * item is inverted over its line with a row above and below, so two never touch.
+ */
+const LINE = (n) => 11 + 9 * n
+/** Inverts one item: from its first column to the end of its label, a row above and below. */
+function mark(col, line, label) {
+  if (!label) return
+  const y = LINE(line)
+  invert(col * 6, y - 1, col * 6 + label.length * 6, Math.min(63, y + 7))
+}
+/** A table's frame: column heads centred in their columns, a rule under them, lines between. */
+function tableFrame(heads, rules) {
+  const edges = [0, ...rules, 128]
+  heads.forEach((h, k) => {
+    const mid = (edges[k] + edges[k + 1]) / 2
+    text(Math.round(mid - (h.length * 6 - 1) / 2), LINE(0), h)
+  })
+  hline(0, 127, 19)
+  for (const x of rules) vline(x, 10, 63)
+}
+/** A table's rows: every nine rows from 21, the chosen one inverted in its column. */
+const ROW = (k) => 21 + 9 * k
+const SCREENS = {
+  mode() {
+    clear()
+    header('MENU')
+    text(1, LINE(0), '1:CALC    2:STATS')
+    text(1, LINE(1), '3:BASE    4:TABLE')
+    text(1, LINE(2), '5:EQUATION')
+    text(1, LINE(5), 'AC:BACK')
+    // The mode it is in, as SETUP marks its choices.
+    mark(0, 0, '1:CALC')
+  },
+  setup() {
+    clear()
+    header('SETUP', '1/2')
+    text(1, LINE(0), '1:2D     2:LINE')
+    text(1, LINE(1), '3:DEG 4:RAD 5:GRAD')
+    text(1, LINE(2), '6:FIX 7:EXP 8:AUTO')
+    text(1, LINE(3), '9:ANSWER EXACT/DEC')
+    text(1, LINE(4), '0:a b/c  ON/OFF')
+    text(1, LINE(5), '▼:CONTRAST,AUTO OFF')
+    mark(0, 0, st.twoD ? '1:2D' : '')
+    mark(9, 0, st.twoD ? '' : '2:LINE')
+    mark({ D: 0, R: 6, G: 12 }[st.angle], 1, { D: '3:DEG', R: '4:RAD', G: '5:GRAD' }[st.angle])
+    mark(12, 2, '8:AUTO')
+    mark(9, 3, 'EXACT')
+  },
+  func() {
+    clear()
+    header('FUNC')
+    // As they go into the line: functions in small letters, as sin( and log( are.
+    text(1, LINE(0), '1:gcd(   2:lcm(')
+    text(1, LINE(1), '3:%      4:int(')
+    text(1, LINE(2), '5:round( 6:rand')
+    text(1, LINE(3), '7:pol(   8:rec(')
+    text(1, LINE(5), 'AC:BACK')
+  },
+  stat() {
+    clear()
+    header('STATS 2-VAR', 'n=5')
+    tableFrame(['', 'X', 'Y'], [13, 70])
+    const rows = [['1', '1.2', '2.31'], ['2', '2.5', '4.92'], ['3', '3.1', '6.20'], ['4', '4.8', '9.55'], ['5', '6.0', '12.1']]
+    rows.forEach((r, k) => {
+      text(4, ROW(k), r[0])
+      textRight(67, ROW(k), r[1])
+      textRight(126, ROW(k), r[2])
+    })
+    invert(71, ROW(1) - 1, 127, ROW(1) + 7)
+  },
+  statres() {
+    clear()
+    header('2-VAR RESULT', '▼')
+    text(1, LINE(0), 'n  =5')
+    text(1, LINE(1), '  =3.52')
+    text(1, LINE(2), '  =7.016')
+    text(1, LINE(3), 'r  =0.999929')
+    text(1, LINE(4), 'a  =-0.140061')
+    text(1, LINE(5), 'b  =2.03297')
+  },
+  base() {
+    clear()
+    header('BASE 32', 'HEX')
+    text(1, LINE(0), 'E016 AND 0FF0')
+    // Every value ends at the right edge, its base's name on the left.
+    textRight(127, LINE(1), '00000010')
+    text(1, LINE(2), 'DEC'); textRight(127, LINE(2), '16')
+    text(1, LINE(3), 'OCT'); textRight(127, LINE(3), '20')
+    // Sixteen bits a line: ▲ shows the upper half.
+    text(1, LINE(4), 'BIN▲'); textRight(127, LINE(4), '0000000000010000')
+    for (let b = 0; b < 16; b++) {
+      const x = 122 - b * 8 + (b >= 8 ? -2 : 0)
+      const on = (0x0010 >> b) & 1
+      if (on) for (let yy = 57; yy <= 62; yy++) hline(x, x + 4, yy)
+      else hline(x, x + 4, 62)
+    }
+  },
+  table() {
+    clear()
+    header('TABLE', 'f(x)=x²-2x')
+    tableFrame(['', 'x', 'f(x)'], [13, 58])
+    const rows = [[1, -1], [2, 0], [3, 3], [4, 8], [5, 15]]
+    rows.forEach(([x, y], k) => {
+      text(4, ROW(k), String(k + 1))
+      textRight(55, ROW(k), String(x))
+      textRight(126, ROW(k), String(y))
+    })
+    invert(59, ROW(2) - 1, 127, ROW(2) + 7)
+  },
+  eqn() {
+    clear()
+    header('EQUATION aX²+bX+c=0')
+    // X1 = 1 + √2: the exact form (p + r√s)/q, drawn by the same layout as the input. A root
+    // reaches two rows above the letters, so each answer takes a line and a half.
+    const save = st.cur; st.cur = { l: null, i: -1 }
+    for (const [base, sub, sign] of [[20, '₁', '+'], [33, '₂', '-']]) {
+      const items = list()
+      items.push(tok('X'), tok(sub), tok('='), tok('1'), tok(sign))
+      const s = sqrt(); s.a.push(tok('2')); items.push(s)
+      drawList(items, 1, base, false)
+    }
+    st.cur = save
+    text(1, LINE(4), 'a=1  b=-2  c=-1')
+    text(1, LINE(5), '▼:VERTEX  AC:EDIT')
+  },
+  findx() {
+    clear()
+    header('FIND X')
+    const items = list()
+    items.push(tok('X'), tok('²'), tok('-'), tok('2'), tok('='), tok('0'))
+    const save = st.cur; st.cur = { l: null, i: -1 }
+    drawList(items, 1, LINE(0) + 7, false)
+    st.cur = save
+    // The answer in big digits, X= on its baseline.
+    bigNumber(127, 23, '1.414213562')
+    text(1, 30, 'X=')
+    text(1, LINE(4), 'DIFF=0')
+    text(1, LINE(5), '=:AGAIN  AC:EDIT')
+  },
+  error() {
+    errorScreen(new MathErr('demo'))
+  },
+}
+
+function showScreen(name) {
+  st.screen = name
+  for (const b of document.querySelectorAll('#screens button')) b.setAttribute('aria-pressed', String(b.dataset.screen === name))
+  if (name === 'live') { drawLive(); return }
+  SCREENS[name]()
+  annunciate()
+  paint()
+}
+
+// ---------------------------------------------------------------------------------------
+// The annunciators: printed faintly, lit by what the machine is in.
+function annunciate() {
+  const on = new Set()
+  if (st.shift) on.add('S')
+  if (st.alpha || st.sto || st.rcl) on.add('A')
+  if (st.sto) on.add('STO')
+  if (st.hyp) on.add('HYP')
+  if (st.vars.M !== 0) on.add('M')
+  on.add(st.angle)
+  if (st.twoD) on.add('2D')
+  if (st.screen === 'stat' || st.screen === 'statres') on.add('STAT')
+  if (st.history.length > 0 && st.screen === 'live') on.add('UP')
+  if (st.screen === 'base') on.add('UP')
+  for (const s of document.querySelectorAll('#annun span[data-a]')) s.classList.toggle('on', on.has(s.dataset.a))
+}
+
+// ---------------------------------------------------------------------------------------
+// The keys: [id, cap, shift legend, alpha legend, class]; the cap may hold markup. SHIFT is
+// the inverse of the key where it has one (x² and √, LOG and 10ˣ, SIN and SIN⁻¹), and what
+// has no key of its own is in FUNC - the model's own rule, not any maker's pairing.
+const BS = '<span class="box s"></span>'
+const FN = [
+  ['shift', 'SHIFT', '', '', 'top shift'], ['alpha', 'ALPHA', '', '', 'top alpha'], null, null, ['menu', 'MENU', '', '', 'top'], ['on', 'ON', 'OFF', '', 'top'],
+  ['setup', 'SETUP', '', '', 'top'], ['func', 'FUNC', '', '', 'top'], null, null, ['sto', 'STO', 'RCL', ''], ['fd', 'F⇄D', 'ENG', ''],
+  ['frac', '<i>a</i>/<i>b</i>', '<i>a b</i>/<i>c</i>', ''], ['sq', 'x<sup>2</sup>', `√${BS}`, ''], ['cube', 'x<sup>3</sup>', '∛', ''], ['pow', 'x<sup>y</sup>', '<sup>y</sup>√x', ''], ['log', 'LOG', '10<sup>x</sup>', ''], ['ln', 'LN', 'e<sup>x</sup>', ''],
+  ['neg', '(−)', 'ABS', 'A'], ['dms', '<span class="mono">°′″</span>', '→DMS', 'B'], ['hyp', 'HYP', '', 'C'], ['sin', 'SIN', 'SIN<sup>-1</sup>', 'D'], ['cos', 'COS', 'COS<sup>-1</sup>', 'E'], ['tan', 'TAN', 'TAN<sup>-1</sup>', 'F'],
+  ['fx', 'f(x)', 'FIND X', ''], ['inv', 'x<sup>-1</sup>', 'x!', ''], ['ncr', 'nCr', 'nPr', ''], ['lp', '(', ',', 'X'], ['rp', ')', '', 'Y'], ['mplus', 'M+', 'M−', 'M'],
+]
+const NUM = [
+  ['7', '7', '', ''], ['8', '8', '', ''], ['9', '9', '', ''], ['del', 'DEL', '', '', 'warm'], ['ac', 'AC', '', '', 'warm'],
+  ['4', '4', '', ''], ['5', '5', '', ''], ['6', '6', '', ''], ['mul', '×', '', ''], ['div', '÷', '', ''],
+  ['1', '1', '', ''], ['2', '2', '', ''], ['3', '3', '', ''], ['add', '+', '', ''], ['sub', '−', '', ''],
+  ['0', '0', '', ''], ['dot', '.', '', ''], ['exp', 'EXP', 'π', 'e'], ['ans', 'ANS', '', ''], ['eq', '=', '≈', '', 'eq'],
+]
+const ARROW = (r) => `<svg viewBox="0 0 10 10"><path d="M2 7 L5 3 L8 7 Z" transform="rotate(${r} 5 5)"/></svg>`
+function keyHtml(k) {
+  const [id, cap, sh, al, cls = ''] = k
+  return `<button class="k ${cls}" data-k="${id}" aria-label="${id}"><span class="legend"><span class="sh">${sh}</span><span class="al">${al}</span></span><span class="cap">${cap}</span></button>`
+}
+function buildKeys() {
+  const fn = document.createElement('div'); fn.className = 'fn'
+  let html = ''
+  FN.forEach((k, n) => {
+    if (n === 2) html += `<div class="pad"><button class="up" data-k="up" aria-label="up">${ARROW(0)}</button><button class="dn" data-k="down" aria-label="down">${ARROW(180)}</button><button class="lt" data-k="left" aria-label="left">${ARROW(270)}</button><button class="rt" data-k="right" aria-label="right">${ARROW(90)}</button></div>`
+    if (k) html += keyHtml(k)
+  })
+  fn.innerHTML = html
+  const num = document.createElement('div'); num.className = 'num'
+  num.innerHTML = NUM.map(keyHtml).join('')
+  const box = document.getElementById('keys')
+  box.append(fn, num)
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-k]')
+    if (b) press(b.dataset.k)
+  })
+}
+
+// ---------------------------------------------------------------------------------------
+// What a key does in CALC.
+const ALPHA_OF = { neg: 'A', dms: 'B', hyp: 'C', sin: 'D', cos: 'E', tan: 'F', lp: 'X', rp: 'Y', mplus: 'M' }
+const DIGIT_KEYS = { 0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', dot: '.' }
+const say = (s) => { document.getElementById('say').textContent = s }
+
+/** A copy of a line, its lists knowing their new parents: the history keeps what was typed. */
+function cloneList(l, parent = null) {
+  const out = list(parent)
+  for (const it of l) {
+    if (it.t === 'c') { out.push({ ...it }); continue }
+    const n = { t: it.t }
+    for (const k of ['a', 'b']) if (it[k]) n[k] = cloneList(it[k], { node: n, key: k })
+    out.push(n)
+  }
+  return out
+}
+function startFresh(continueWithAns) {
+  // After a result, a value starts a new line; an operator goes on from Ans.
+  st.expr = list(); st.cur = { l: st.expr, i: 0 }
+  st.result = null
+  st.recall = -1
+  if (continueWithAns) insert(tok('Ans', 'ans'))
+}
+/** Keys that go on from Ans after a result: the operators, the powers and the fraction. */
+const FROM_ANS = new Set(['add', 'sub', 'mul', 'div', 'sq', 'cube', 'pow', 'inv', 'ncr', 'frac'])
+const NOT_IN_MOCK = new Set(['dms', 'fx'])
+
+function press(k) {
+  flash(k)
+  if (st.screen !== 'live') return pressOnScreen(k)
+  if (st.error) return pressOnError(k)
+  const shift = st.shift, alpha = st.alpha
+  st.shift = false; st.alpha = false
+  if (k === 'shift') { st.shift = !shift; return drawLive() }
+  if (k === 'alpha') { st.alpha = !alpha; return drawLive() }
+  if (k === 'menu') return showScreen('mode')
+  if (k === 'setup') return showScreen('setup')
+  if (k === 'func') return showScreen('func')
+  if (st.sto || st.rcl) return storeOrRecall(k)
+  if (alpha && k === 'exp') { if (st.result) startFresh(false); insert(tok('e', 'e')); return drawLive() }
+  if (alpha && ALPHA_OF[k]) { if (st.result) startFresh(false); insert(tok(ALPHA_OF[k], 'var:' + ALPHA_OF[k])); return drawLive() }
+  if (k === 'sto') { if (shift) st.rcl = true; else st.sto = true; return drawLive() }
+  if (k === 'ac') { clearLine(); st.hyp = false; return drawLive() }
+  if (k === 'on') { if (shift) { clear(); paint(); say('OFF: the RAM keeps A-F, X, Y, M and the history'); return } clearLine(); return drawLive() }
+  if (k === 'eq') return equals(shift)
+  if (k === 'fd') {
+    if (!st.result) return drawLive()
+    // F⇄D flips the answer's form; SHIFT F⇄D shows it with an exponent of three.
+    if (shift) { st.eng = 1; st.result.form = 'dec' } else { st.eng = 0; st.result.form = st.result.form === 'exact' ? 'dec' : 'exact' }
+    return drawLive()
+  }
+  if (k === 'mplus') {
+    const v = st.result ? st.result.value : st.expr.length ? safeEval() : st.ans
+    if (v === null) return
+    st.vars.M += shift ? -v : v
+    st.ans = v
+    if (!st.result) st.result = { value: v, form: 'exact' }
+    say(`M = ${decimal(st.vars.M).m}`)
+    return drawLive()
+  }
+  if (k === 'up' || k === 'down') return upDown(k)
+  if (k === 'left' || k === 'right') {
+    if (st.result) { st.result = null; st.cur = { l: st.expr, i: k === 'left' ? st.expr.length : 0 }; return drawLive() }
+    k === 'left' ? moveLeft() : moveRight()
+    return drawLive()
+  }
+  if (k === 'del') { if (st.result) { st.result = null; st.cur = { l: st.expr, i: st.expr.length } } del(); return drawLive() }
+  if (NOT_IN_MOCK.has(k) || (shift && k === 'pow')) { say('not in this mock'); return drawLive() }
+
+  // SHIFT turns most keys into a function, which starts a line; x! (SHIFT x⁻¹) is a power's kind.
+  if (st.result) startFresh(FROM_ANS.has(k) && (!shift || k === 'inv'))
+  typeKey(k, shift)
+  drawLive()
+}
+function typeKey(k, shift) {
+  const math = st.twoD
+  const fn = (name, shown) => insert(tok(shown + '(', 'fn:' + name))
+  switch (k) {
+    case 'add': insert(tok('+')); break
+    case 'sub': insert(tok('-')); break
+    case 'mul': insert(tok('×')); break
+    case 'div': insert(tok('÷')); break
+    case 'neg': if (shift) fn('abs', 'abs'); else insert(tok('-', 'neg')); break
+    case 'lp': insert(shift ? tok(',') : tok('(')); break
+    case 'rp': insert(tok(')')); break
+    case 'exp': if (shift) insert(tok('π', 'pi')); else insert(tok('ᴇ', 'exp')); break
+    case 'ans': insert(tok('Ans', 'ans')); break
+    case 'frac': math ? insertFrac() : insert(tok('⁄')); break
+    case 'sq':
+      if (!shift) insert(tok('²'))
+      else math ? insert(sqrt()) : insert(tok('√(', 'fn:sqrt'))
+      break
+    case 'cube': if (shift) fn('cbrt', '³√'); else insert(tok('³')); break
+    case 'pow': math ? insert(pow()) : insert(tok('^(')); break
+    case 'log':
+      // 10ˣ puts 10 as one value, so 2 10ˣ 3 is 2×10³, not 210³.
+      if (shift) { insert(tok('10', 'ten')); math ? insert(pow()) : insert(tok('^(')) }
+      else fn('log', 'log')
+      break
+    case 'ln':
+      if (shift) { insert(tok('e', 'e')); math ? insert(pow()) : insert(tok('^(')) }
+      else fn('ln', 'ln')
+      break
+    case 'sin': case 'cos': case 'tan': {
+      const h = st.hyp ? 'h' : ''
+      st.hyp = false
+      if (shift && !h) fn('a' + k, k + '⁻')
+      else fn(k + h, k + h)
+      break
+    }
+    case 'hyp': st.hyp = !st.hyp; break
+    case 'inv': if (shift) insert(tok('!')); else insert(tok('⁻', 'inv')); break
+    case 'ncr': insert(shift ? tok('P', 'npr') : tok('C', 'ncr')); break
+    default:
+      if (DIGIT_KEYS[k] !== undefined) insert(tok(DIGIT_KEYS[k]))
+  }
+}
+function clearLine() { st.expr = list(); st.cur = { l: st.expr, i: 0 }; st.result = null }
+function storeOrRecall(k) {
+  const recall = st.rcl
+  st.sto = false; st.rcl = false
+  const L = ALPHA_OF[k]
+  if (!L) return drawLive()
+  if (recall) {
+    // RCL shows the value as an answer, ready to go on from.
+    st.result = { value: st.vars[L], form: 'exact' }
+    st.ans = st.vars[L]
+    say(`${L} = ${st.vars[L]}`)
+    return drawLive()
+  }
+  const v = st.result ? st.result.value : (st.expr.length ? safeEval() : st.ans)
+  if (v === null) return
+  st.vars[L] = v; st.ans = v
+  say(`${L} ← ${v}`)
+  st.result = { value: v, form: 'exact' }
+  return drawLive()
+}
+function upDown(k) {
+  if (!st.result && moveVertical(k === 'up' ? -1 : 1)) return drawLive()
+  // ▲ brings back an earlier line only from an empty line or an answer, never over one being typed.
+  const atTop = !st.cur.l.parent
+  if (k === 'up' && st.history.length && atTop && (st.result || st.expr.length === 0 || st.recall >= 0)) {
+    st.recall = Math.min(st.recall + 1, st.history.length - 1)
+    st.expr = cloneList(st.history[st.recall]); st.cur = { l: st.expr, i: st.expr.length }; st.result = null
+    return drawLive()
+  }
+  if (k === 'down' && st.recall > 0 && atTop) {
+    st.recall--
+    st.expr = cloneList(st.history[st.recall]); st.cur = { l: st.expr, i: st.expr.length }; st.result = null
+    return drawLive()
+  }
+}
+/*
+ * ■/□ takes the value just typed as its numerator - a number, π, Ans, a variable, a root, a
+ * fraction or a bracket, with its powers - and waits in the denominator. With none before it,
+ * it waits in an empty numerator.
+ */
+function operandStart(l, i) {
+  let j = i
+  while (j > 0 && (l[j - 1].t === 'pow' || isTok(l[j - 1], '²', '³', 'inv', '!', '%'))) j--
+  if (j === 0) return i
+  const it = l[j - 1]
+  if (it.t === 'c' && /^[0-9.]$/.test(it.id)) {
+    while (j > 0 && l[j - 1].t === 'c' && /^[0-9.]$/.test(l[j - 1].id)) j--
+    return j
+  }
+  if (it.t === 'sqrt' || it.t === 'frac' || isTok(it, 'pi', 'e', 'ten', 'ans', 'rand') || (it.t === 'c' && it.id.startsWith('var:'))) return j - 1
+  if (isTok(it, ')')) {
+    let depth = 0
+    for (let k = j - 1; k >= 0; k--) {
+      const t = l[k]
+      if (isTok(t, ')')) depth++
+      else if (t.t === 'c' && (t.id === '(' || t.id.startsWith('fn:')) && --depth === 0) return k
+    }
+  }
+  return i
+}
+function insertFrac() {
+  const { l, i } = st.cur
+  const j = operandStart(l, i)
+  const n = frac()
+  if (j === i) { insert(n); return }
+  const taken = l.splice(j, i - j, n)
+  n.a.push(...taken)
+  st.cur = { l: n.b, i: 0 }
+}
+function safeEval() {
+  try { return evaluate(st.expr) } catch (e) { fail(e); return null }
+}
+function errorScreen(e) {
+  clear()
+  header(e instanceof MathErr ? 'ERR:MATH' : 'ERR:SYNTAX')
+  if (e instanceof MathErr) { text(1, LINE(0), "OUT OF A FUNCTION'S"); text(1, LINE(1), 'RANGE, OR /0') }
+  else { text(1, LINE(0), 'CANNOT READ THE LINE'); text(1, LINE(1), 'AT THE CURSOR') }
+  text(1, LINE(4), '◀▶:BACK TO THE LINE')
+  text(1, LINE(5), 'AC:CLEAR')
+}
+function fail(e) {
+  st.error = e
+  errorScreen(e)
+  annunciate(); paint()
+}
+function pressOnError(k) {
+  // AC and ON drop the line; an arrow goes back into it with the cursor where it went wrong.
+  if (k === 'ac' || k === 'on') { st.error = null; clearLine(); return showScreen('live') }
+  if (k === 'left' || k === 'right') {
+    const at = st.error.at
+    st.error = null
+    st.result = null
+    st.cur = at && at.l ? { l: at.l, i: at.i } : { l: st.expr, i: st.expr.length }
+    return showScreen('live')
+  }
+}
+function hasDecimal(l) {
+  return l.some((it) => (it.t === 'c' ? it.id === '.' : ['a', 'b'].some((k) => it[k] && hasDecimal(it[k]))))
+}
+function equals(approx) {
+  if (st.result) { st.result = null }
+  if (st.expr.length === 0) return drawLive()
+  const raw = safeEval()
+  if (raw === null) return
+  if (!Number.isFinite(raw) || Math.abs(raw) >= 1e100) return fail(new MathErr('range'))
+  // Twelve digits, as the machine's decimal unit keeps: asin(-1/2) is -30, not -30.000000000000004.
+  const v = Number(raw.toPrecision(12))
+  st.ans = v
+  // The history keeps a copy of every line that gave an answer, newest first.
+  st.history.unshift(cloneList(st.expr))
+  st.history.length = Math.min(st.history.length, 8)
+  st.recall = -1
+  // A line with a decimal typed in answers in decimals first (0.1+0.2 is 0.3); F⇄D gives 3/10.
+  st.result = { value: v, form: approx || !st.twoD || hasDecimal(st.expr) ? 'dec' : 'exact' }
+  st.eng = 0
+  say(`Ans = ${v}`)
+  drawLive()
+}
+function pressOnScreen(k) {
+  if (st.screen === 'mode') {
+    const to = { 1: 'live', 2: 'stat', 3: 'base', 4: 'table', 5: 'eqn' }[k]
+    if (to) return showScreen(to)
+  }
+  if (st.screen === 'setup') {
+    if (k === '1' || k === '2') { st.twoD = k === '1'; clearLine(); return showScreen('live') }
+    if (k === '3' || k === '4' || k === '5') { st.angle = { 3: 'D', 4: 'R', 5: 'G' }[k]; return showScreen('live') }
+  }
+  if (st.screen === 'func') {
+    const what = { 1: 'gcd', 2: 'lcm', 4: 'int', 5: 'round' }[k]
+    showScreen('live')
+    if (st.result) startFresh(false)
+    if (what) insert(tok(what + '(', 'fn:' + what))
+    else if (k === '3') insert(tok('%'))
+    else if (k === '6') insert(tok('rand', 'rand'))
+    else { say('not in this mock'); return }
+    return drawLive()
+  }
+  if (st.screen === 'stat' && k === 'eq') return showScreen('statres')
+  if (k === 'ac' || k === 'on') return showScreen('live')
+  if (k === 'menu') return showScreen('mode')
+  if (k === 'setup') return showScreen('setup')
+}
+
+// A press shows on the key for a moment, also when it came from the PC's keyboard.
+function flash(k) {
+  const el = document.querySelector(`[data-k="${k}"]`)
+  if (!el) return
+  el.classList.add('down')
+  setTimeout(() => el.classList.remove('down'), 110)
+}
+const PC_KEYS = {
+  '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '^': 'pow', f: 'frac', '(': 'lp', ')': 'rp',
+  Enter: 'eq', '=': 'eq', Backspace: 'del', Delete: 'ac', '.': 'dot',
+  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+  s: 'sin', c: 'cos', t: 'tan', l: 'ln', g: 'log', '!': 'inv', e: 'exp',
+}
+addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.altKey || e.metaKey) return
+  const k = /^[0-9]$/.test(e.key) ? e.key : PC_KEYS[e.key]
+  if (!k) return
+  e.preventDefault()
+  // ! and r are SHIFT faces: x! on x⁻¹, √ on x².
+  if (e.key === '!') { st.shift = true }
+  if (e.key === 'r') { st.shift = true; press('sq'); e.preventDefault(); return }
+  press(k)
+})
+
+for (const b of document.querySelectorAll('#bodies button')) b.addEventListener('click', () => {
+  const calc = document.getElementById('calc')
+  calc.className = 'calc ' + b.dataset.body
+  for (const o of document.querySelectorAll('#bodies button')) o.setAttribute('aria-pressed', String(o === b))
+  layoutLcd()
+  st.screen === 'live' ? drawLive() : paint()
+})
+for (const b of document.querySelectorAll('#screens button')) b.addEventListener('click', () => {
+  if (b.dataset.screen === 'error') { st.screen = 'live'; fail(new MathErr('demo')); for (const o of document.querySelectorAll('#screens button')) o.setAttribute('aria-pressed', String(o === b)); return }
+  st.error = null
+  showScreen(b.dataset.screen)
+})
+
+/*
+ * The body's size follows the room, from the screen out: a dot is a whole number of device
+ * pixels (as deviceFit gives the pane's LCD), the largest that lets the body fit, and the
+ * body's other sizes (--u) follow from it. The screen is 307.2 units wide in the body's plan.
+ */
+function fit() {
+  const calc = document.getElementById('calc')
+  const dpr = devicePixelRatio || 1
+  const room = Math.min(calc.parentElement.clientWidth - 36, 520)
+  const most = Math.floor((room * 307.2 * dpr) / (372 * 128))
+  dotPx = Math.max(2, Math.min(5, most))
+  const dotCss = dotPx / dpr
+  calc.style.setProperty('--dot', `${dotCss}px`)
+  calc.style.setProperty('--u', `${(128 * dotCss) / 307.2}px`)
+  layoutLcd()
+}
+addEventListener('resize', fit)
+buildKeys()
+fit()
+setInterval(() => { blinkOn = !blinkOn; if (st.screen === 'live' && !st.error && !st.result) drawLive() }, 500)
+document.fonts?.ready.then(() => drawLive())
+drawLive()
+say('CALC · 2D · DEG')
+</script>
+</body>
+</html>
