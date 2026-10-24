@@ -1300,7 +1300,8 @@ weather and calendar.
   sets them, a bar cursor that goes into them - or on one line; answers kept exact as
   fractions and `(p + r√s)/q` where they can be (sin 45° is √2/2, 1/3+1/6 is 1/2), F⇄D
   for the decimal, which shows in big digits; variables, Ans, M and a history; FUNC (gcd,
-  lcm, %, int, round, rand, pol, rec), degrees-minutes-seconds, the hyperbolic functions,
+  lcm, % - 500+25% is 625 - int, round, rand, pol, rec, and STATS' results and estimates in a
+  line), degrees-minutes-seconds, the hyperbolic functions,
   f(x) and FIND X; and four modes - STATS (one or two variables, up to 40 rows), BASE
   (32-bit HEX, DEC, OCT and BIN with AND, OR, XOR, XNOR), TABLE (f(X) for up to 30 rows)
   and EQUATION (two or three unknowns, quadratics with exact or complex roots, cubics).

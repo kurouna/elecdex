@@ -1065,7 +1065,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   **PLAY-320**（320×288 的彩色屏幕、扩展 RAM、启动画面、带 12 个按钮的竖式和横式机身、PC 键盘和游戏手柄，卡带（在 GAMES 中从架子上插入，按 START 开始玩），图块引擎（两层可滚动背景、128 个精灵、16 组调色板、行中断和 DMA），以及 16 个立体声声道（包络、滑音和波形表）；CODE 可以在上面运行程序。游戏用 e16c 编写，并通过可导入 PNG 图像和文本乐谱的游戏工具包制作：在 GAMES 的 DEVELOP 中打开游戏文件夹（或从模板新建），应用会在内部构建并插入卡槽，每次保存文件都会重新构建，不需要 Node 或代码仓库（[游戏开发指南](docs/elec16-kit.md)，日文）；架子上附带纵版射击游戏 **ELECLANCE**，有 LANCE 激光、炸弹、OVERDRIVE 和两个头目（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)，日文）；驾驶舱视角的一对一空战 **ELECAIRCOMBAT**，每帧重绘天空和海面使地平线倾斜，原创敌机以 17 个方向 × 8 种旋转 × 7 种大小预先绘制并从卡带读取，用机炮、锁定导弹和干扰弹对战五名王牌（[docs/elec16-elecaircombat.md](docs/elec16-elecaircombat.md)，日文）；以及向下挖掘的方块解谜 **ELECDRILL**，同色相连的方块一起消失，失去支撑的方块摇晃后落下，四个同色落在一起便连锁消除，注意空气，穿过五个地层直达 500 米深的核心（[docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)，日文）；以及回合制的一对一格斗 **ELECFIGHTER**，交战的是没有名字的人形槽位，即工业格斗模拟器的训练用躯体；由低多边形模型预先绘制的线框加平涂的人，以轻击与重击、按高度区分的防御、投技与拆投、连段、反击和冲刺，对战四个各有头脑的对战程序（[docs/elec16-elecfighter.md](docs/elec16-elecfighter.md)，日文）；玩法见 [PLAY-320 使用说明书](docs/elec16-play-manual.md)（日文）。LINK 成为面板中单独的标签页，每项服务都可以单独开关）。*Unreleased:* 选择器中专门的一行（“elec-16 sci”）会新建一个单元，作为 **ELEC-16 SCI（SCI-128）** 打开：
   一台自行设计的函数计算器，128×64 液晶，竖长机身（SLATE、CHALK、PLAIN）。算式以 2D（分数、根号、乘方像教科书一样排版，竖线光标可进入其中）或单行输入；
   答案尽可能以分数和 `(p + r√s)/q` 的精确形式保留（sin 45° 是 √2/2，1/3+1/6 是 1/2），按 F⇄D 以大号数字显示小数；
-  变量、Ans、M、历史，FUNC（gcd、lcm、%、int、round、rand、pol、rec），度分秒，双曲函数，f(x) 和 FIND X；
+  变量、Ans、M、历史，FUNC（gcd、lcm、%（500+25% 是 625）、int、round、rand、pol、rec，以及在算式中使用 STATS 的结果和估计值），度分秒，双曲函数，f(x) 和 FIND X；
   以及四种模式：STATS（单变量和双变量，最多 40 行）、BASE（32 位 HEX、DEC、OCT、BIN 和 AND、OR、XOR、XNOR）、TABLE（最多 30 行的 f(X) 表）、
   EQUATION（二元和三元联立、带精确解或复数解的二次方程、三次方程）。屏幕和其他机型一样可供屏幕阅读器读出
   （[SCI-128 使用说明书](docs/elec16-sci-manual.md)，日文）。**CODE** 把用 TypeScript 子集写的

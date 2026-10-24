@@ -49,7 +49,19 @@ import {
   KEEP_FORMAT,
   KEEP_MIXED,
 } from './numbers.e16'
-import { T_GCD, T_INT, T_LCM, T_PERCENT, T_POL, T_RAN, T_REC, T_RND } from './tokens.e16'
+import {
+  T_GCD,
+  T_INT,
+  T_LCM,
+  T_PERCENT,
+  T_POL,
+  T_RAN,
+  T_REC,
+  T_RND,
+  T_STAT_N,
+  T_XEST,
+  T_YEST,
+} from './tokens.e16'
 
 /* ---------------- the error screen ---------------- */
 
@@ -260,21 +272,54 @@ function mixedChoice(k: u16): bool {
 
 /* ---------------- FUNC ---------------- */
 
-/** The functions no key carries (section 5.1), by number, as they go into the line (section 4.4). */
+/** FUNC's page (0-2, ▼ and ▲): the functions, STATS' results, its sums and estimates. */
+let funcPage: u16 = 0
+
+/**
+ * The functions no key carries (section 5.1), by number, as they go into the line (section
+ * 4.4); on the pages after, STATS' results and its estimates, worked out from its table when
+ * the line is (after EL-509E's list, S7).
+ */
 export function funcScreen(): void {
+  funcPage = 0
+  drawFuncPage()
+}
+
+function drawFuncPage(): void {
   cls()
-  band(str('FUNC'))
-  textAt(str('1:gcd(   2:lcm('), 1, lineY(0))
-  textAt(str('3:%      4:int('), 1, lineY(1))
-  textAt(str('5:round( 6:rand'), 1, lineY(2))
-  textAt(str('7:pol(   8:rec('), 1, lineY(3))
-  textAt(str('AC:BACK'), 1, lineY(5))
+  const pageText = funcPage === 0 ? str('1/3') : funcPage === 1 ? str('2/3') : str('3/3')
+  bandWith(funcPage === 0 ? str('FUNC') : str('FUNC STATS'), pageText)
+  if (funcPage === 0) {
+    textAt(str('1:gcd(   2:lcm('), 1, lineY(0))
+    textAt(str('3:%      4:int('), 1, lineY(1))
+    textAt(str('5:round( 6:rand'), 1, lineY(2))
+    textAt(str('7:pol(   8:rec('), 1, lineY(3))
+  } else if (funcPage === 1) {
+    textAt(str('1:n    2:\x95    3:\x91x'), 1, lineY(0))
+    textAt(str('4:sx   5:\x96    6:\x91y'), 1, lineY(1))
+    textAt(str('7:sy   8:r    9:a'), 1, lineY(2))
+    textAt(str('0:b'), 1, lineY(3))
+  } else {
+    textAt(str('1:\x90x   2:\x90x\x84'), 1, lineY(0))
+    textAt(str('3:\x90y   4:\x90y\x84'), 1, lineY(1))
+    textAt(str('5:\x90xy'), 1, lineY(2))
+    textAt(str('6:x\x89(  7:y\x89('), 1, lineY(3))
+  }
+  textAt(str('\x8d\x8e:PAGE AC:BACK'), 1, lineY(5))
 }
 
 /** A key on FUNC: the token it types (the calculator types it), 1 to go back, 0 to stay. */
 export function funcKey(k: u16): u16 {
   if (k === K_AC) return 1
-  const t = funcToken(digitOf(k))
+  if (k === K_DOWN || k === K_UP) {
+    if (k === K_DOWN && funcPage < 2) funcPage++
+    else if (k === K_UP && funcPage > 0) funcPage--
+    else refuse()
+    drawFuncPage()
+    return 0
+  }
+  const d = digitOf(k)
+  const t = funcPage === 0 ? funcToken(d) : funcPage === 1 ? statToken(d) : sumToken(d)
   if (t === 0) refuse()
   return t
 }
@@ -300,6 +345,25 @@ function funcToken(d: u16): u16 {
       return T_REC
   }
   return 0
+}
+
+/** Page 2: n x̄ σx sx ȳ σy sy r a b by 1-9 and 0 (STATS' results 0-6, then 12-14). */
+function statToken(d: u16): u16 {
+  if (d >= 1 && d <= 7) return statTokenOf(d - 1)
+  if (d === 8 || d === 9) return statTokenOf(d + 4)
+  return d === 0 ? statTokenOf(14) : 0
+}
+
+/** Page 3: Σx Σx² Σy Σy² Σxy by 1-5 (results 7-11), x'( and y'( by 6 and 7. */
+function sumToken(d: u16): u16 {
+  if (d >= 1 && d <= 5) return statTokenOf(d + 6)
+  if (d === 6) return T_XEST
+  return d === 7 ? T_YEST : 0
+}
+
+/** The token of STATS' result `k` (tokens.e16.ts: 97-9F, then F4-F9). */
+function statTokenOf(k: u16): u16 {
+  return k <= 8 ? T_STAT_N + k : 0xf4 + k - 9
 }
 
 /** A digit key's digit; 0xffff for another key. */

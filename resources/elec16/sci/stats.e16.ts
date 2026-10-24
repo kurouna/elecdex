@@ -31,6 +31,8 @@ import {
 import { band, bandWith, cls, lineY, mark, textAt, textRight } from './lcd.e16'
 import {
   copy8,
+  E_MATH,
+  fail,
   isNegative,
   isZero,
   M_ADD,
@@ -434,4 +436,55 @@ function nameOf(item: u16): u16 {
       return str('a=')
   }
   return str('b=')
+}
+
+/* ---------------- the results in a line ---------------- */
+
+/**
+ * STATS' result `k` (tokens.e16.ts statIndex: n x̄ σx sx ȳ σy sy Σx Σx² Σy Σy² Σxy r a b) into
+ * the number at `dst`, worked out from the table now. MATH with no rows, for one with no value,
+ * or for one of y's from one variable.
+ */
+export function statValue(k: u16, dst: u16): void {
+  const item = statItem(k)
+  const ofY =
+    item === R_MY || item === R_SDY || item === R_SY || (item >= S_Y && item <= S_XY) || item >= R_R
+  if (peek16(STATS_COUNT) === 0 || (ofY && !twoVar())) fail(E_MATH, 0)
+  workOut()
+  if (valid[item] === 0) fail(E_MATH, 0)
+  copy8(at(item), dst)
+}
+
+function statItem(k: u16): u16 {
+  switch (k) {
+    case 0:
+      return S_N
+    case 1:
+      return R_MX
+    case 2:
+      return R_SDX
+    case 3:
+      return R_SX
+    case 4:
+      return R_MY
+    case 5:
+      return R_SDY
+    case 6:
+      return R_SY
+    case 7:
+      return S_X
+    case 8:
+      return S_XX
+    case 9:
+      return S_Y
+    case 10:
+      return S_YY
+    case 11:
+      return S_XY
+    case 12:
+      return R_R
+    case 13:
+      return R_A
+  }
+  return R_B
 }

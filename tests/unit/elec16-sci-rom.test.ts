@@ -946,3 +946,63 @@ describe("the manual's examples (docs/elec16-sci-manual.md)", () => {
     expect(lineAt(m, 1, true)).toBe('ERR:SYNTAX')
   })
 })
+
+describe("after EL-509E's list: % of what it is added to, STATS' results in a line", () => {
+  it.each([
+    ['5 0 0 add 2 5 func 3', '625'],
+    ['5 0 0 sub 2 5 func 3', '375'],
+    ['2 0 0 mul 5 func 3', '10'],
+    ['5 0 div 2 5 func 3', '200'],
+    ['2 5 func 3', '0.25'],
+    // A % inside brackets is a share of nothing: 500+(25%) is 500.25.
+    ['5 0 0 add lp 2 5 func 3 rp', '500.25'],
+  ])('%s is %s', (line, value) => {
+    expect(answer(line).ans).toBe(value)
+  })
+
+  /** STATS' 2-VAR table X 1, 2, 3 and Y 2, 4, 7, then back to CALC. */
+  function withData(): Elec16 {
+    const m = switchOn()
+    keys(m, 'menu 2 2 1 eq 2 eq 3 eq right up up up 2 eq 4 eq 7 eq menu 1')
+    return m
+  }
+
+  it.each([
+    ['func down 1', '3'],
+    ['func down 2', '2'],
+    ['func down 3', '0.8164965809'],
+    ['func down 4', '1'],
+    ['func down 5', '4.333333333'],
+    ['func down 8', '0.9933992678'],
+    ['func down 9', '-0.6666666667'],
+    ['func down 0', '2.5'],
+    ['func down down 1', '6'],
+    ['func down down 2', '14'],
+    ['func down down 5', '31'],
+    // The estimates on y = a + bx: y'(4) = a + 4b, x'(9.333...) = 4.
+    ['func down down 7 4', '9.333333333'],
+    ['func down down 6 9 dot 3 3 3 3 3 3 3 3 3 3', '4'],
+    // In a line like any value: 10 x̄ + 1.
+    ['1 0 func down 2 add 1', '21'],
+  ])("STATS' %s is %s in CALC", (line, value) => {
+    const m = withData()
+    keys(m, `${line} eq`)
+    expect(ans(m)).toBe(value)
+  })
+
+  it("shows STATS' results by their names in the line", () => {
+    const m = withData()
+    keys(m, 'setup 2 ac func down 2 add func down down 7')
+    expect(rows(m)[0]).toBe('\u0078\u0304+y\u2032(')
+  })
+
+  it('says MATH with no data, and for y from one variable', () => {
+    const m = switchOn()
+    keys(m, 'menu 2 func 3 menu 1 func down 1 eq')
+    expect(lineAt(m, 1, true)).toBe('ERR:MATH')
+    keys(m, 'ac menu 2 1 5 eq menu 1 func down 5 eq')
+    expect(lineAt(m, 1, true)).toBe('ERR:MATH')
+    keys(m, 'ac func down 2 eq')
+    expect(ans(m)).toBe('5')
+  })
+})

@@ -102,6 +102,27 @@ export const T_XNOR = 0xf1
 export const T_NOT = 0xf2
 export const T_BNEG = 0xf3
 
+/*
+ * STATS' results as values in any line (S7, after EL-509E's list): n, the means, both standard
+ * deviations, the sums, r, a and b, worked out from STATS' table when the line is; and the
+ * estimates x'( and y'( from the line y = a + bx. They take the font's free codes 97-9F and
+ * the rest of E0-FF.
+ */
+export const T_STAT_N = 0x97
+export const T_STAT_LAST = 0xf9
+export const T_XEST = 0xfa
+export const T_YEST = 0xfb
+
+/** Whether a token is one of STATS' results (n ... b). */
+export function isStatValue(t: u16): bool {
+  return (t >= T_STAT_N && t <= 0x9f) || (t >= 0xf4 && t <= T_STAT_LAST)
+}
+
+/** A result's place in STATS' list: n x̄ σx sx ȳ σy sy Σx Σx² Σy Σy² Σxy r a b (0-14). */
+export function statIndex(t: u16): u16 {
+  return t <= 0x9f ? t - T_STAT_N : t - 0xf4 + 9
+}
+
 /** Whether a token opens a template. */
 export function opensTemplate(t: u16): bool {
   return t === T_FRAC || t === T_ROOT || t === T_POWT || t === T_MIXED || t === T_XROOT
@@ -114,7 +135,7 @@ export function isSeparator(t: u16): bool {
 
 /** Whether a token opens a function: its argument follows, closed by ) or the line's end. */
 export function isFunction(t: u16): bool {
-  return (t >= T_SIN && t <= T_CBRT) || (t >= T_SINH && t <= T_REC)
+  return (t >= T_SIN && t <= T_CBRT) || (t >= T_SINH && t <= T_REC) || t === T_XEST || t === T_YEST
 }
 
 /** Whether a function takes two arguments, a comma between them. */
@@ -134,6 +155,7 @@ export function isDigit(t: u16): bool {
 /** What a token shows when it is not its own character (0 when it is). */
 export function tokenText(t: u16): u16 {
   if (t >= T_SINH) return namedText(t)
+  if (isStatValue(t)) return statText(t)
   switch (t) {
     case T_SIN:
       return str('sin(')
@@ -245,8 +267,47 @@ function logicText(t: u16): u16 {
       return str('not(')
     case T_BNEG:
       return str('neg(')
+    case T_XEST:
+      return str('x\x89(')
+    case T_YEST:
+      return str('y\x89(')
   }
-  return 0
+  return isStatValue(t) ? statText(t) : 0
+}
+
+/** A STATS result's name: x̄ is 95, ȳ 96, σ 91, Σ 90, ² 84. */
+function statText(t: u16): u16 {
+  switch (statIndex(t)) {
+    case 0:
+      return str('n')
+    case 1:
+      return str('\x95')
+    case 2:
+      return str('\x91x')
+    case 3:
+      return str('sx')
+    case 4:
+      return str('\x96')
+    case 5:
+      return str('\x91y')
+    case 6:
+      return str('sy')
+    case 7:
+      return str('\x90x')
+    case 8:
+      return str('\x90x\x84')
+    case 9:
+      return str('\x90y')
+    case 10:
+      return str('\x90y\x84')
+    case 11:
+      return str('\x90xy')
+    case 12:
+      return str('r')
+    case 13:
+      return str('a')
+  }
+  return str('b')
 }
 
 /** How many characters a token shows as. */

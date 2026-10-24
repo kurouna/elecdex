@@ -81,10 +81,13 @@ import {
   VALUE_SIZE,
   varAt,
 } from './numbers.e16'
+import { statValue } from './stats.e16'
 import {
   isDigit,
   isFunction,
+  isStatValue,
   isVariable,
+  statIndex,
   T_ABS,
   T_ACOS,
   T_ACOSH,
@@ -142,8 +145,10 @@ import {
   T_TANH,
   T_TEN,
   T_TIMES,
+  T_XEST,
   T_XROOT,
   T_XSEP,
+  T_YEST,
   takesTwo,
 } from './tokens.e16'
 
@@ -151,6 +156,8 @@ import {
 let lineAt: u16 = 0
 let lineLength: u16 = 0
 let pos: u16 = 0
+/** Where the reading was just after the last % (0xffff: none yet), for a + b% and a - b%. */
+let percentEnd: u16 = 0xffff
 
 /** A number's characters, as the maths unit's PARSE reads them. */
 const numberText = bytes(32)
@@ -168,6 +175,7 @@ export function evaluate(at: u16, length: u16): void {
   lineAt = at
   lineLength = length
   pos = 0
+  percentEnd = 0xffff
   poke16(MATH_ANGLE, peek(KEEP_ANGLE))
   if (length === 0) fail(E_SYNTAX, 0)
   sum()
@@ -182,8 +190,19 @@ function sum(): void {
     const at = pos
     pos++
     prod()
+    if (percentEnd === pos) ofLeft(at)
     binary(t === T_PLUS ? M_ADD : M_SUB, at)
   }
+}
+
+/**
+ * a + b% and a - b%: a term that ends in % is that share of what it is added to or taken from,
+ * so 500+25% is 625 and 500-25% is 375 (x and / need nothing: 200x5% is 10, 50/25% is 200).
+ * The share (b / 100, on top) is multiplied by a, under it.
+ */
+function ofLeft(at: u16): void {
+  copyValue(top() - VALUE_SIZE, push(at))
+  binary(M_MUL, at)
 }
 
 function prod(): void {
@@ -214,6 +233,7 @@ function startsValue(t: u16): bool {
     t === T_MIXED ||
     t === T_XROOT ||
     t === T_RAN ||
+    isStatValue(t) ||
     isFunction(t) ||
     isVariable(t)
   )
@@ -292,6 +312,7 @@ function post(): void {
       pos++
       pushInt(100, at)
       binary(M_DIV, at)
+      percentEnd = pos
     } else return
   }
 }
@@ -393,6 +414,8 @@ function constant(t: u16, at: u16): bool {
     copyValue(varAt(t), push(at))
   } else if (t === T_RAN) {
     math(M_RND, push(at), 0, at)
+  } else if (isStatValue(t)) {
+    statValue(statIndex(t), push(at))
   } else return false
   return true
 }
@@ -602,6 +625,10 @@ function other(f: u16, x: u16, at: u16): void {
 
 /** The functions from 0xE0 that take one argument (S5). */
 function named(f: u16, x: u16, at: u16): void {
+  if (f === T_XEST || f === T_YEST) {
+    estimate(f === T_XEST, x, at)
+    return
+  }
   if (f === T_SINH) math(M_SINH, x, 0, at)
   else if (f === T_COSH) math(M_COSH, x, 0, at)
   else if (f === T_TANH) math(M_TANH, x, 0, at)
@@ -625,6 +652,23 @@ function wholeOrRounded(f: u16, x: u16, at: u16): void {
     math(M_NEG, x, 0, at)
     exactNeg(x)
   }
+}
+
+/** On STATS' line y = a + bx: x'(y) = (y - a) / b, or y'(x) = a + bx. */
+function estimate(ofX: bool, v: u16, at: u16): void {
+  const a = push(at)
+  statValue(13, a)
+  const b = push(at)
+  statValue(14, b)
+  if (ofX) {
+    math(M_SUB, v, a, at)
+    math(M_DIV, v, b, at)
+  } else {
+    math(M_MUL, v, b, at)
+    math(M_ADD, v, a, at)
+  }
+  pop()
+  pop()
 }
 
 /* ---------------- the functions of two arguments ---------------- */
