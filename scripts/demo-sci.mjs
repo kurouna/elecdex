@@ -8,6 +8,11 @@
  *   equation   x²−2x−1=0: X1 = 1+√2, X2 = 1−√2, ▼ for the vertex
  *   stats      a line through four points: n, x̄, ȳ, r, a, b
  *   base       HEX D016 AND 0AFF0, BIN's dots under it
+ *   constant   CONST: h x 5ᴇ14 Hz, a photon's energy; CONV: 100 °F in °C
+ *   calculus   Σ(1/X, 1, 4) = 25/12 kept exact; ∫(X², 0, 3) = 9
+ *   complex    CPLX: (1+2i)(3-i) = 5+5i, F⇄D for 7.071067812 ∠45
+ *   matrix     MATRIX: MatA = [[1,2],[3,4]] put in, MatA⁻¹ on the grid
+ *   program    PROG: ?→A:?→B:√(A²+B²), asked 3 and 4, answered 5
  *   bodies     TUNE: SLATE, CHALK, PLAIN (the theme's own colours), back to SLATE
  *
  * Everything shown is the pane's own: the unit is a new SCI-128 on a demo profile
@@ -142,6 +147,59 @@ await run(async () => {
     170,
   )
   await keys('menu 1 ac')
+
+  // v2: physical constants and units, a sum and an integral, complex numbers, matrices, programs.
+  await scene(
+    'const',
+    'CONST: twenty physical constants - h × 5×10¹⁴ Hz',
+    'shift func 2 mul 5 exp 1 4 eq',
+    2400,
+  )
+  await scene(
+    'conv',
+    'CONV: twenty pairs of units - 100 °F in °C',
+    'ac 1 0 0 shift menu down down 1',
+    2400,
+  )
+  await scene(
+    'sigma',
+    'Σ kept exact: Σ(1/X, 1, 4) = 25/12',
+    'ac func 0 1 frac alpha lp right shift lp 1 shift lp 4 rp eq',
+    2600,
+    170,
+  )
+  await scene(
+    'integral',
+    '∫ worked out numerically: ∫(X², 0, 3) = 9',
+    'ac func 9 alpha lp sq shift lp 0 shift lp 3 rp eq',
+    2400,
+    170,
+  )
+  await scene(
+    'complex',
+    'CPLX: (1+2i)(3−i) = 5+5i',
+    'menu 6 lp 1 add 2 hyp rp lp 3 sub hyp rp eq',
+    2200,
+    170,
+  )
+  await scene('polar', 'F⇄D for r∠θ', 'fd', 2000)
+  await scene(
+    'matrix',
+    'MATRIX: a 2×2 put in on the grid',
+    'menu 7 func down down 1 2 2 1 eq 2 eq 3 eq 4 eq',
+    2000,
+    170,
+  )
+  await scene('inverse', 'MatA⁻¹, shown on the grid', 'eq func 1 inv eq', 2600)
+  await scene(
+    'program',
+    'PROG: ?→A:?→B:√(A²+B²) - the hypotenuse',
+    'eq menu 8 1 func 1 sto alpha neg func 4 func 1 sto alpha dms func 4 root alpha neg sq add alpha dms sq',
+    1400,
+    150,
+  )
+  await scene('run', 'Run it: A = 3, B = 4', 'eq 3 eq 4 eq', 2600, 400)
+  await keys('ac menu 1 ac')
 
   // The bodies, in TUNE beside it.
   await caption('Three bodies: SLATE, CHALK and PLAIN in the theme’s own colours')
