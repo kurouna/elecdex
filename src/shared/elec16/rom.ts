@@ -9,11 +9,10 @@
 import { fromBase64, toBase64 } from '../emu/base64.js'
 import { type AsmError, assemble, romImage } from './asm.js'
 import { REG } from './bus.js'
-import { fontTable } from './font.js'
+import { bigGlyphColumns, fontTable } from './font.js'
 import { CONTROL, kanaTable, keyTable } from './keys.js'
 import { LINK_CMD, LINK_REG, LINK_STATUS } from './link-services.js'
 import { CODE_AREA, CODE_AREA_END, ROM_FIXED_SIZE, VRAM } from './map.js'
-import { sciNameTable } from './sci-keys.js'
 import { ANNUNCIATORS, IRQ, KEY_ROWS, SCI_ANNUNCIATORS } from './state.js'
 
 /** The file the ROM starts from. */
@@ -66,6 +65,18 @@ function ioInclude(): string {
   return lines.join('\n')
 }
 
+/** The big digits as `.word` lines: 0-9, then the minus. */
+function bigDigitsInclude(): string {
+  return [...'0123456789-']
+    .map(
+      (ch) =>
+        `  .word ${bigGlyphColumns(ch)
+          .map((w) => `0x${w.toString(16)}`)
+          .join(', ')}`,
+    )
+    .join('\n')
+}
+
 /** The include files made from TypeScript, by name. */
 export function generatedIncludes(): Record<string, string> {
   return {
@@ -73,8 +84,9 @@ export function generatedIncludes(): Record<string, string> {
     'font.inc': `; Made by src/shared/elec16/rom.ts from font.ts: do not edit.\n${byteLines(fontTable())}`,
     'keys.inc': `; Made by src/shared/elec16/rom.ts from keys.ts: do not edit.\n${byteLines(keyTable(KEY_ROWS * 8))}`,
     'kana.inc': `; Made by src/shared/elec16/rom.ts from keys.ts: do not edit.\n${byteLines(kanaTable(KEY_ROWS * 8))}`,
-    // The calculator's key names, for the SCI ROM's start screen (sci-keys.ts).
-    'scikeys.inc': `; Made by src/shared/elec16/rom.ts from sci-keys.ts: do not edit.\n${byteLines(sciNameTable(KEY_ROWS * 8))}`,
+    // The calculator's big digits, for its answers (font.ts): 0-9 and -, seven columns of a
+    // word each (bit 0 the top row).
+    'bigdigits.inc': `; Made by src/shared/elec16/rom.ts from font.ts: do not edit.\n${bigDigitsInclude()}`,
   }
 }
 

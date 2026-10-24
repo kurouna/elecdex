@@ -4,10 +4,10 @@ import { test } from '../support/shared.js'
 import { launch, settleLayout } from '../support.js'
 
 /**
- * ELEC-16 SCI's second stage (docs/elec16-sci.md section 10, S2), in the running app: the
- * picker's own row opens the ELEC-16 pane on a new calculator unit beside a pocket one it
- * leaves alone, the body's keys and the PC's reach the machine (its start screen names them),
- * and the panel offers only what the calculator has.
+ * ELEC-16 SCI in the running app (docs/elec16-sci.md section 10, S2 and S3): the picker's own
+ * row opens the ELEC-16 pane on a new calculator unit beside a pocket one it leaves alone, the
+ * body's keys and the PC's type a line that is answered and kept in the history, and the panel
+ * offers only what the calculator has.
  */
 
 test('the picker opens a calculator on a unit of its own, whose keys reach it from the body and the PC', async () => {
@@ -29,28 +29,34 @@ test('the picker opens a calculator on a unit of its own, whose keys reach it fr
       .click()
     const sci = page.locator('[data-testid=elec16]', { has: page.getByTestId('elec16-sci-device') })
     await expect(sci).toHaveCount(1)
-    const screen = async () =>
-      ((await sci.getByTestId('elec16-text').textContent()) ?? '').split('\n').map((l) => l.trim())
-    await expect.poll(screen, { timeout: 15_000 }).toContain('ELEC-16 SCI')
+    const firstRow = async () =>
+      ((await sci.getByTestId('elec16-text').textContent()) ?? '').split('\n')[0]?.trim() ?? ''
+    await expect(sci).toHaveAttribute('data-asleep', 'true', { timeout: 15_000 })
     await settleLayout(page)
     await expect(sci.locator('[data-testid=elec16-sci-device] .body')).toHaveAttribute(
       'data-mode',
       'full',
     )
 
-    // A key of the body, then one typed on the PC while the pane has the focus.
+    // A key of the body, then keys typed on the PC while the pane has the focus: the line.
     await sci.locator('[data-testid=elec16-sci-key][data-key=sin]').click({ delay: 20 })
-    await expect.poll(screen).toContain('KEY SIN 001B')
+    await expect.poll(firstRow).toBe('sin(')
     await sci.focus()
-    await page.keyboard.press('7')
-    await expect.poll(screen).toContain('KEY 7 0028')
-    // SHIFT lights its mark until the next key.
+    await page.keyboard.type('30')
+    await expect.poll(firstRow).toBe('sin(30')
+    // SHIFT lights its mark until the next key; Enter answers the line, which the history keeps.
     await sci.locator('[data-testid=elec16-sci-key][data-key=shift]').click({ delay: 20 })
-    await expect(sci.locator('[data-mark=S]')).toHaveClass(/\bon\b/)
+    const mark = (name: string) => sci.locator(`[data-mark="${name}"]`)
+    await expect(mark('S')).toHaveClass(/\bon\b/)
     await sci.focus()
     await page.keyboard.press('Enter')
-    await expect.poll(screen).toContain('KEY S = 0004')
-    await expect(sci.locator('[data-mark=S]')).not.toHaveClass(/\bon\b/)
+    await expect(mark('S')).not.toHaveClass(/\bon\b/)
+    await expect(mark('UP')).toHaveClass(/\bon\b/)
+    // AC (Delete) clears the line; up brings it back from the history.
+    await page.keyboard.press('Delete')
+    await expect.poll(firstRow).toBe('')
+    await page.keyboard.press('ArrowUp')
+    await expect.poll(firstRow).toBe('sin(30')
 
     // The panel offers CORE, MEM and TUNE only; TUNE names the unit SCI 1 and its model.
     await expect(sci.getByRole('tab')).toHaveText(['core', 'mem', 'tune'])

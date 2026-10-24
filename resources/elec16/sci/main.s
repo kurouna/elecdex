@@ -1,19 +1,22 @@
 ; The ELEC-16 SCI ROM, for SCI-128 (docs/elec16-sci.md): reset, the trap handler, the ROM
-; services and, for now (S2), a start screen that names the keys pressed - the calculator
-; itself comes in S3. The screen is the 128 x 64 LCD in the E000 window, drawn by sci.e16.ts
-; (e16c, compiled into sci.s by npm run gen:elec16).
+; services and the calculator's key loop. The calculator is e16c (calc.e16.ts and the files
+; beside it, compiled into sci.s by npm run gen:elec16); its evaluation and its other screens
+; live in ROM banks 0 and 1, reached through far_call.
 ;
 ; Labels are lower case and constants upper case, as in the pocket ROM; calls follow the usual
 ; E16 convention (a0-a3 and t0-t3 may change, s0-s3, sp and gp are kept).
 
   .include "io.inc"
 
-; The ROM's work area at the bottom of RAM (0000-00FF); e16c's globals follow it (0100-01FF).
+; The ROM's work area at the bottom of RAM (0000-00FF); e16c's globals follow it (0100-03FF),
+; and what the calculator keeps when the power goes after them (0400 on, numbers.e16.ts).
 RETPC    = 0x12     ; where an ECALL service returns to
 ERA      = 0x14     ; the caller's ra while an ECALL service runs
 CAUSE    = 0x16     ; mcause of the last break or fault
+CALC_SP  = 0x18     ; the stack at the key loop: an error or ON comes back to it
 REGS     = 0x20     ; 16 words at the last break or fault: pc, then x1 to x15
 MPIE     = 0x80     ; mstatus: interrupts on before the trap
+BRK_CAUSE = 0x800f  ; mcause of BRK (ON)
 
 STACK_TOP = 0x8000  ; the stack grows down from the top of RAM, above the code area
 
@@ -44,37 +47,42 @@ start:
   csrw mtvec, t0
   csrwi mie, 0
   call e16c_init
-  li a0, 0
-  li a1, 0
-  j boot
+  call calcCold
 
-; The start screen, with what stopped the last program (a0: mcause, a1: its pc; 0 for none),
-; then asleep until a key is pressed (the key line wakes it) or BRK (ON).
-boot:
+; The key loop, its stack kept so an error (calc_abort) or ON (calc_on) comes back to it.
+calc_main:
   li sp, STACK_TOP
-  ; The ROM's handler and no interrupts, whatever a program had: one stopped by BRK or a
-  ; fault left its own handler in mtvec, in RAM the next program may overwrite.
+  sw sp, CALC_SP(zero)
+  ; The ROM's handler and no interrupts, whatever a program CODE ran had.
   la t0, trap
   csrw mtvec, t0
   csrci mstatus, 8
-  call bootScreen
-idle:
-  li t0, 1 << IRQ_KEY
-  csrw mie, t0
-idle_sleep:
-  wfi
-  lw t0, IO_KEY_COUNT(zero)
-  beqz t0, idle_sleep
-  lw a0, IO_KEY_DATA(zero)
-  call keyPressed
-  j idle_sleep
-idle_end:
+  call calcLoop
+  j calc_main
 
-; Where a program the pane called (CODE's RUN) comes back: what it drew stays on the screen,
-; and ON brings the start screen back.
+; An error in the line (numbers.e16.ts fail): the stack back to the key loop's, the fixed ROM's
+; bank back in the window, the error shown.
+calc_abort:
+  lw sp, CALC_SP(zero)
+  sw zero, IO_BANK(zero)
+  call calcError
+  j calc_main
+
+; ON, out of the trap: AC from anywhere, or OFF after SHIFT.
+calc_on:
+  lw sp, CALC_SP(zero)
+  call calcOn
+  j calc_main
+
+; A break or a fault in a program CODE ran: a0 the cause, a1 where.
+calc_fault:
+  lw sp, CALC_SP(zero)
+  call calcFault
+  j calc_main
+
+; Where a program the pane called (CODE's RUN) comes back: to the key loop, what it drew left.
 code_return:
-  li sp, STACK_TOP
-  j idle
+  j calc_main
 
 none:
   li a0, -1
@@ -96,20 +104,35 @@ getkey:
   csrw mie, t1
   ret
 
-; The font's address and the keys' names, for sci.e16.ts.
+; A function in a ROM bank called from the fixed ROM: t0 its address, t1 its bank; the caller's
+; bank back after it (the pocket ROM's far_call).
+far_call:
+  addi sp, sp, -4
+  sw ra, 2(sp)
+  lw t2, IO_BANK(zero)
+  sw t2, 0(sp)
+  sw t1, IO_BANK(zero)
+  jalr ra, 0(t0)
+  lw t2, 0(sp)
+  sw t2, IO_BANK(zero)
+  lw ra, 2(sp)
+  addi sp, sp, 4
+  ret
+
+; The font's and the big digits' addresses, for lcd.e16.ts.
 font_base:
   la a0, font
   ret
 
-names_base:
-  la a0, key_names
+big_base:
+  la a0, big_digits
   ret
 
 ; ---------------- traps ----------------
 
 ; A break, a fault or an ECALL. An ECALL runs its service outside the handler, as in the
-; pocket ROM; anything else keeps every register for CORE and goes to the start screen,
-; saying what stopped and where - except ON at the start screen, which only draws it again.
+; pocket ROM. ON (BRK) goes to calc_on; anything else keeps every register for CORE and goes
+; to calc_fault, saying what stopped and where.
 trap:
   csrw mscratch, t0
   csrr t0, mcause
@@ -135,27 +158,21 @@ trap:
   sw t0, REGS(zero)
   csrr t0, mcause
   sw t0, CAUSE(zero)
-  ; To the start screen with the cause and the pc - or with neither when it only slept there
-  ; (ON at the start screen, or after a program came back). Where it was tells, not a flag:
-  ; the pane calls a program without the ROM.
+  ; The fixed ROM's own bank back: an evaluation stopped in bank 0 leaves that in the window.
+  sw zero, IO_BANK(zero)
+  la t1, calc_fault
+  li t2, BRK_CAUSE
+  bne t0, t2, .out
+  la t1, calc_on
+.out:
   lw a0, CAUSE(zero)
   lw a1, REGS(zero)
-  la t0, idle_sleep
-  bltu a1, t0, .say
-  la t0, idle_end
-  bgeu a1, t0, .say
-  li a0, 0
-  li a1, 0
-.say:
-  ; Out to the start screen with interrupts staying off and the ROM's own handler in mtvec:
-  ; MRET would let them back on as the program had them, into its handler in RAM, before
-  ; boot could put the ROM's back.
+  ; Out of the handler with interrupts staying off and the ROM's own handler in mtvec.
   li t0, MPIE
   csrc mstatus, t0
   la t0, trap
   csrw mtvec, t0
-  la t0, boot
-  csrw mepc, t0
+  csrw mepc, t1
   mret
 
 ecall_entry:
@@ -175,21 +192,15 @@ ecall_entry:
   mret
 .unknown:
   ; An ECALL with no such service stops the program, as a fault does.
-  lw ra, ERA(zero)
-  csrr t0, mscratch
-  sw t0, REGS + 16(zero)
   csrr t0, mepc
   sw t0, REGS(zero)
   li t0, 11
   sw t0, CAUSE(zero)
   lw a0, CAUSE(zero)
   lw a1, REGS(zero)
-  ; As .say does.
   li t0, MPIE
   csrc mstatus, t0
-  la t0, trap
-  csrw mtvec, t0
-  la t0, boot
+  la t0, calc_fault
   csrw mepc, t0
   mret
 
@@ -203,11 +214,11 @@ ecall_return:
 font:
   .include "font.inc"
 
-key_names:
-  .include "scikeys.inc"
+big_digits:
+  .include "bigdigits.inc"
 
 ; Where the hand-written ROM ends.
 rom_end:
 
-; The screen and the start screen, from e16c.
+; The calculator, from e16c.
   .include "sci.s"
