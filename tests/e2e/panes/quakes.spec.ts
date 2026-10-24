@@ -104,9 +104,19 @@ test.beforeEach(() => {
   served = stub.routes
 })
 
-const services = () => ({
+/**
+ * The stand-ins' addresses. `quick` puts main's checks a second apart at most
+ * (`ELECDEX_QUAKE_WAIT_MS`), for a test that changes what is served and waits for it to be read:
+ * the list comes back on, after alerts off and on, when its check is due, which in the app is up
+ * to a minute.
+ */
+const services = (quick = false) => ({
   jmaBaseUrl: `${origin}/bosai`,
-  env: { ELECDEX_USGS_BASE_URL: `${origin}/usgs`, ELECDEX_NOAA_BASE_URL: `${origin}/noaa` },
+  env: {
+    ELECDEX_USGS_BASE_URL: `${origin}/usgs`,
+    ELECDEX_NOAA_BASE_URL: `${origin}/noaa`,
+    ...(quick ? { ELECDEX_QUAKE_WAIT_MS: '1000' } : {}),
+  },
 })
 /** Settings with JMA chosen, so the tests do not depend on the machine's time zone. */
 const japan = (quakes: Record<string, unknown> = {}) => ({
@@ -339,7 +349,7 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
   const { page, close } = await shared({
     layout: layout('clock'),
     settings: japan({ notify: true, minIntensity: '7' }),
-    ...services(),
+    ...services(true),
     args: ['--lang=ja'],
   })
   try {
@@ -373,7 +383,7 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
     await expect(card).toBeVisible()
     await expect(page.getByTestId('tsunami-tab')).toHaveCount(0)
 
-    // Lifted: the card says so. (Alerts off and on make main check again at once.)
+    // Lifted: the card says so. (Alerts off and on, main checks when it is due: within the second `quick` allows.)
     served[JMA_TSUNAMI] = tsunamiListing('lifted_VTSE41_1.json')
     served['/bosai/tsunami/data/lifted_VTSE41_1.json'] = tsunamiReport([['霞野県', '50']])
     await page.evaluate(async () => {

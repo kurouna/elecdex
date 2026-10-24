@@ -825,7 +825,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   也包括 JMA 报告的远地地震）或 **the world**（USGS：4.5 级及以上，5 级起为琥珀色，6 级起为
   红色）。每行包含地点、时间、震级和深度，点击会打开数据源的页面。生效中的海啸警报、注意报或
   预报会以条带形式显示在列表上方。窗格会显示当前的警报设置，其设置按钮会打开警报设置。新地震
-  会以其颜色高亮滑入，列表向下滚动时也会出现与 RSS 窗格相同的 "↑ n new" 提示。只要窗格打开或
+  会以其颜色高亮滑入，列表向下滚动时也会出现与 RSS 窗格相同的 "↑ n new" 提示。只要窗格可见（不在其他标签页之后、窗口未最小化）或
   警报开启，就会**每分钟**检查一次数据源（使用条件请求，列表未变时不产生下载）；两者都没有时
   不获取任何内容。此时世界视图会在震中位置标出当天的地震，大小按震级、颜色与列表一致，一小时内
   的地震会闪烁。**这不是地震预警：** 报告在震动发生一分钟或更久之后才到达，窗格和警报都会
@@ -1256,7 +1256,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 天气（其他地区） | [MET Norway](https://api.met.no/) Locationforecast 2.0 | [CC BY 4.0](https://api.met.no/doc/License)，在窗格中署名。请求遵循其[服务条款](https://api.met.no/doc/TermsOfService)：可识别的 User-Agent，坐标保留四位小数，在上次响应的 `Expires` 之前不再请求（且至少间隔 30 分钟），使用 If-Modified-Since。 |
 | 天气选择器的城市列表 | [GeoNames](https://www.geonames.org/)（人口 50 万及以上的城市，以及各国首都） | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)；内置。在选择器中输入的内容不会发送到任何地方。 |
 | 行情报价 | [Yahoo Finance](https://finance.yahoo.com/)，通过 yahoo-finance2 | 非官方 API，未获 Yahoo 认可；报价可能延迟，不构成投资建议（窗格中有注明）。只在行情窗格打开时获取：每分钟一次批量请求（所列市场全部休市时每五分钟一次），每张图表每五分钟（1D）到每小时（6M 及更长）一次。 |
-| 地震 | [日本气象厅](https://www.jma.go.jp/) 地震列表 JSON：`https://www.jma.go.jp/bosai/quake/data/list.json` | JMA 自己的[地震页面](https://www.jma.go.jp/bosai/map.html#contents=earthquake_map)加载的数据（约一个月的报告），以 JSON 读取。只在地震窗格打开或地震警报开启时获取：按其 `max-age=60` 的要求每分钟一次，并带 If-None-Match，因此列表未变时返回 304。依据 JMA 的[使用条款](https://www.jma.go.jp/jma/kishou/info/coment.html)使用；窗格中注明「出典：気象庁ホームページ（URL）を加工して作成」，警报中注明 JMA。并非紧急地震速报。 |
+| 地震 | [日本气象厅](https://www.jma.go.jp/) 地震列表 JSON：`https://www.jma.go.jp/bosai/quake/data/list.json` | JMA 自己的[地震页面](https://www.jma.go.jp/bosai/map.html#contents=earthquake_map)加载的数据（约一个月的报告），以 JSON 读取。只在地震窗格可见或地震警报开启时获取：按其 `max-age=60` 的要求每分钟一次，并带 If-None-Match，因此列表未变时返回 304。依据 JMA 的[使用条款](https://www.jma.go.jp/jma/kishou/info/coment.html)使用；窗格中注明「出典：気象庁ホームページ（URL）を加工して作成」，警报中注明 JMA。并非紧急地震速报。 |
 | 海啸（日本） | JMA 海啸列表 JSON：`https://www.jma.go.jp/bosai/tsunami/data/list.json` 及其列出的各份报告 | 与地震列表一起检查（通常是空列表，首次请求之后为 304）；新报告的详情只获取一次。计入警报、大海啸警报和注意报；预报和解除不计入。署名方式与地震相同。 |
 | 地震（全球） | [USGS](https://earthquake.usgs.gov/) 实时数据源 `summary/4.5_day.geojson` | 公有领域。只在地震窗格或警报使用全球数据源时获取：每分钟一次（按其 `max-age=60`），使用条件请求。 |
 | 海啸（全球） | [NOAA 海啸预警中心](https://www.tsunami.gov/)：太平洋（`PHEBAtom.xml`）和国家（`PAAQAtom.xml`）的 Atom 源 | 公有领域。每个源包含该中心的最新公报；计入警报、观察、注意报和威胁信息，信息声明不计入。与 USGS 数据源一起检查，使用条件请求。警报中会提示遵循当地政府的指示。 |

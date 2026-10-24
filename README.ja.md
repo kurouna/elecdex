@@ -928,7 +928,7 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   5 から琥珀色、6 から赤）です。各行には場所、時刻、マグニチュード、深さがあり、クリックすると情報源の
   ページが開きます。発表中の津波警報・注意報などは、リストの上に帯で表示します。ペインにはアラートの
   設定状態が表示され、設定ボタンでその設定が開きます。新しい地震はその色で強調されて滑り込み、リストを
-  下へスクロールしているときは RSS ペインと同じ「↑ n new」のピルが出ます。ペインが開いているか、
+  下へスクロールしているときは RSS ペインと同じ「↑ n new」のピルが出ます。ペインが見えている（タブの裏や最小化した窓の中ではない）か、
   アラートがオンの間は、情報源を **1 分ごと** に確認します（条件付きなので、一覧が変わっていなければ
   ダウンロードは発生しません）。どちらでもなければ何も取得しません。このときワールドビューには、その日の
   地震が震央の位置に、マグニチュードに応じた大きさとリストと同じ色で示され、直近 1 時間の地震は脈打ちます。
@@ -1429,7 +1429,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 | 天気（その他の地域） | [MET Norway](https://api.met.no/) Locationforecast 2.0 | [CC BY 4.0](https://api.met.no/doc/License)。ペインにクレジットを表示します。リクエストは[利用条件](https://api.met.no/doc/TermsOfService)に従います: 識別できる User-Agent、小数点以下 4 桁の座標、直前の応答の `Expires` より前には送らない（かつ最低 30 分の間隔）、If-Modified-Since。 |
 | 天気の地点選択に使う都市一覧 | [GeoNames](https://www.geonames.org/)（人口 50 万人以上の都市と首都） | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)。アプリに同梱しています。地点選択に入力した内容はどこにも送信されません。 |
 | 株価・市況 | [Yahoo Finance](https://finance.yahoo.com/)（yahoo-finance2 経由） | 非公式の API で、Yahoo が承認したものではありません。相場は遅れている可能性があり、投資助言ではありません（ペインにもそう表示します）。マーケットペインが開いている間だけ取得します: まとめたリクエストを 1 分に 1 回（一覧のすべての市場が閉まっているときは 5 分に 1 回）、各チャートは 5 分ごと（1D）から 1 時間ごと（6M 以上）。 |
-| 地震 | [Japan Meteorological Agency](https://www.jma.go.jp/) の地震一覧 JSON: `https://www.jma.go.jp/bosai/quake/data/list.json` | 気象庁自身の[地震情報ページ](https://www.jma.go.jp/bosai/map.html#contents=earthquake_map)が読み込むデータ（約 1 か月分の情報）を JSON として読みます。地震ペインが開いているか地震アラートが有効なときだけ、`max-age=60` の指定どおり 1 分に 1 回、If-None-Match 付きで取得するので、一覧に変化がなければ 304 が返ります。気象庁の[利用規約](https://www.jma.go.jp/jma/kishou/info/coment.html)に従って利用しており、ペインには「出典：気象庁ホームページ（URL）を加工して作成」を表示し、アラートには気象庁の名前を示します。緊急地震速報ではありません。 |
+| 地震 | [Japan Meteorological Agency](https://www.jma.go.jp/) の地震一覧 JSON: `https://www.jma.go.jp/bosai/quake/data/list.json` | 気象庁自身の[地震情報ページ](https://www.jma.go.jp/bosai/map.html#contents=earthquake_map)が読み込むデータ（約 1 か月分の情報）を JSON として読みます。地震ペインが見えているか地震アラートが有効なときだけ、`max-age=60` の指定どおり 1 分に 1 回、If-None-Match 付きで取得するので、一覧に変化がなければ 304 が返ります。気象庁の[利用規約](https://www.jma.go.jp/jma/kishou/info/coment.html)に従って利用しており、ペインには「出典：気象庁ホームページ（URL）を加工して作成」を表示し、アラートには気象庁の名前を示します。緊急地震速報ではありません。 |
 | 津波（日本） | 気象庁の津波一覧 JSON: `https://www.jma.go.jp/bosai/tsunami/data/list.json` と、そこに挙げられた各情報 | 地震一覧と一緒に確認します（通常は空の一覧で、初回以降は 304 が返ります）。新しい情報の詳細は一度だけ取得します。対象は津波警報・大津波警報・津波注意報で、津波予報と解除は含みません。クレジットは地震と同様に表示します。 |
 | 地震（世界） | [USGS](https://earthquake.usgs.gov/) のリアルタイムフィード `summary/4.5_day.geojson` | パブリックドメインです。地震ペインまたはアラートが世界のソースを使っているときだけ、1 分に 1 回（`max-age=60` に従い）、条件付きで取得します。 |
 | 津波（世界） | [NOAA Tsunami Warning Centers](https://www.tsunami.gov/): 太平洋（`PHEBAtom.xml`）と国内（`PAAQAtom.xml`）の Atom フィード | パブリックドメインです。それぞれのフィードにはセンターの最新の報が入っています。warning、watch、advisory、threat message が対象で、information statement は含みません。USGS のフィードと一緒に、条件付きで確認します。アラートでは現地当局の指示に従うよう伝えます。 |

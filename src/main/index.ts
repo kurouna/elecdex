@@ -125,7 +125,8 @@ const NO_DICTIONARIES = 'http://127.0.0.1:9/'
 
 function noSpellChecking(ses: Electron.Session): void {
   ses.setSpellCheckerDictionaryDownloadURL(NO_DICTIONARIES)
-  // No language, no dictionary to fetch; Windows and macOS use the system's checker and take none.
+  // No language, no dictionary to fetch. Windows and macOS check with the system's own, and a
+  // language it lacks would still be fetched only from the closed URL above.
   if (process.platform === 'linux') {
     try {
       ses.setSpellCheckerLanguages([])

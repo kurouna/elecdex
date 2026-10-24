@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { appWindows } from '../app-windows.js'
 import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
-import { QuakeService } from '../quakes/service.js'
+import { QuakeService, quakeWaitCapFrom } from '../quakes/service.js'
 import { READ_LIMITS, readTextLimited } from '../read-limited.js'
 import { cacheFile } from '../store/cache-file.js'
 import { showMainWindow, windowInFront } from '../window-control.js'
@@ -26,7 +26,8 @@ import { registerTable } from './table.js'
  *
  * `ELECDEX_JMA_BASE_URL` (shared with the forecasts), `ELECDEX_USGS_BASE_URL` and
  * `ELECDEX_NOAA_BASE_URL` point the services elsewhere; the end-to-end tests use
- * closed ports or local stubs, so they never reach the real sites.
+ * closed ports or local stubs, so they never reach the real sites, and `ELECDEX_QUAKE_WAIT_MS`
+ * shortens the waits between checks for the specs that change a stub's answer.
  */
 const JMA_BASE_URL = 'https://www.jma.go.jp/bosai'
 const USGS_BASE_URL = 'https://earthquake.usgs.gov'
@@ -34,6 +35,9 @@ const NOAA_BASE_URL = 'https://www.tsunami.gov'
 const FETCH_TIMEOUT_MS = 15_000
 /** The only source key: a pane subscribes to "the list", not to anything in it. */
 const SOURCE = 'quakes'
+
+// exactOptionalPropertyTypes: an unset cap is no key at all, not `undefined`.
+const withCap = (waitCapMs: number | undefined) => (waitCapMs === undefined ? {} : { waitCapMs })
 
 const base = (env: string | undefined, fallback: string) => (env ?? fallback).replace(/\/$/, '')
 
@@ -75,6 +79,7 @@ export function registerQuakesIpc(settings: SettingsHandle): { dispose: () => vo
       noaa: base(process.env.ELECDEX_NOAA_BASE_URL, NOAA_BASE_URL),
     },
     userAgent: USER_AGENT,
+    ...withCap(quakeWaitCapFrom(process.env.ELECDEX_QUAKE_WAIT_MS)),
     loadAlerted: alerted.load,
     saveAlerted: alerted.save,
     publish: (state: QuakeState) => broadcast(CH.quakes.update, state),

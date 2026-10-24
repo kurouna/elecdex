@@ -55,6 +55,8 @@ export interface QuakeDeps {
   /** Bases of the services, overridable so tests never touch the real sites. */
   urls: { jma: string; usgs: string; noaa: string }
   userAgent: string
+  /** A ceiling on every wait, interval and backoff alike: tests only (`quakeWaitCapFrom`). */
+  waitCapMs?: number
   loadAlerted(): string[]
   saveAlerted(ids: string[]): void
   /** The state changed: list, tsunami, source, activity or error. */
@@ -74,6 +76,21 @@ export interface QuakeConfig {
 
 /** Delays after consecutive failures, capped at the last. */
 export const RETRY_BACKOFF_MS = [60_000, 2 * 60_000, 5 * 60_000, 10 * 60_000]
+/** The shortest ceiling `ELECDEX_QUAKE_WAIT_MS` may set. */
+export const QUAKE_WAIT_CAP_MIN_MS = 500
+
+/**
+ * The ceiling on waits that `ELECDEX_QUAKE_WAIT_MS` names, or undefined. It exists so an end-to-end
+ * test that changes its stub's answer sees the next check within seconds rather than a minute; it
+ * only ever shortens (a value of a minute or more, or below the floor, is ignored), and anything
+ * that is not a whole number is ignored rather than refused.
+ */
+export function quakeWaitCapFrom(value: string | undefined): number | undefined {
+  if (value === undefined || !/^\d{1,6}$/.test(value)) return undefined
+  const ms = Number(value)
+  return ms >= QUAKE_WAIT_CAP_MIN_MS && ms < QUAKE_INTERVAL_MS ? ms : undefined
+}
+
 /** Announced keys remembered: far more than an alert window can hold. */
 export const ALERTED_KEPT = 200
 /** Announcements of this run kept for pages that open later. */
@@ -90,6 +107,12 @@ export class QuakeService {
   private error: string | null = null
   private failures = 0
   private timer: unknown = null
+  /**
+   * When the next check is due, kept while nothing watches: a quakes pane brought back from behind
+   * a tab or a minimised window waits for it rather than asking at once, so flipping tabs neither
+   * adds requests nor cuts a backoff short.
+   */
+  private dueAt: number | null = null
   private inFlight = false
   /**
    * Bumped whenever the source starts over. A check that began before cannot
@@ -138,8 +161,14 @@ export class QuakeService {
     const switched = next.source !== previous.source
     if (switched) this.reset()
     if (next.active && (!previous.active || switched)) {
-      this.failures = 0
-      this.check()
+      const now = this.deps.now()
+      if (!switched && this.dueAt !== null && this.dueAt > now) {
+        this.schedule(this.dueAt - now)
+      } else {
+        // A first start, a new source or a check overdue: at once, a backoff kept past its due.
+        if (switched || this.dueAt === null) this.failures = 0
+        this.check()
+      }
     } else if (!next.active && previous.active) {
       this.cancel()
     }
@@ -162,6 +191,7 @@ export class QuakeService {
     this.quakes = []
     this.tsunami = null
     this.fetchedAt = null
+    this.dueAt = null
     this.error = null
     this.tsunamiFeeds.clear()
   }
@@ -171,8 +201,10 @@ export class QuakeService {
     this.timer = null
   }
 
-  private schedule(delayMs: number): void {
+  private schedule(wanted: number): void {
     this.cancel()
+    const delayMs = Math.min(wanted, this.deps.waitCapMs ?? wanted)
+    this.dueAt = this.deps.now() + delayMs
     if (!this.config.active) return
     this.timer = this.deps.setTimer(() => {
       this.timer = null

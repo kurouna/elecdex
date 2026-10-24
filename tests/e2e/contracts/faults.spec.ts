@@ -150,6 +150,13 @@ function metForecastNow(): string {
 
 const TEST = '[TEST] '
 
+/**
+ * Main's checks of the earthquake list a second apart at most (`ELECDEX_QUAKE_WAIT_MS`): a pane
+ * brought back waits for the check that is due rather than asking at once, which in the app is up
+ * to a minute.
+ */
+const QUICK_QUAKES = '1000'
+
 /** A JMA list.json entry `minutesAgo` minutes before now (as quakes.spec writes them). */
 function jmaQuake(eid: string, minutesAgo: number) {
   const at = new Date(Date.now() - minutesAgo * 60_000).toISOString()
@@ -214,9 +221,14 @@ const quakes = (name: string, source: 'jma' | 'usgs'): SourceRow => ({
     layout: single('quakes', { id: 'q' }),
     settings: { quakes: { source, notify: false } },
     jmaBaseUrl: `${origin}/bosai`,
-    env: { ELECDEX_USGS_BASE_URL: `${origin}/usgs`, ELECDEX_NOAA_BASE_URL: `${origin}/noaa` },
+    env: {
+      ELECDEX_USGS_BASE_URL: `${origin}/usgs`,
+      ELECDEX_NOAA_BASE_URL: `${origin}/noaa`,
+      ELECDEX_QUAKE_WAIT_MS: QUICK_QUAKES,
+    },
   }),
-  // Leaving the page lets the list go inactive; coming back asks at once.
+  // Leaving the page lets the list go inactive; coming back asks when the next check is due,
+  // within the second the test's ceiling allows.
   again: { reload: true },
   drawn: (page) => expect(pane(page, 'quakes').getByTestId('quake-row').first()).toBeVisible(),
   old: (page) => expect(badge(page, 'quakes')).toHaveText('stale'),
@@ -627,6 +639,7 @@ async function noaaWorld(): Promise<{
     env: {
       ELECDEX_USGS_BASE_URL: `${stub.origin}/usgs`,
       ELECDEX_NOAA_BASE_URL: `${stub.origin}/noaa`,
+      ELECDEX_QUAKE_WAIT_MS: QUICK_QUAKES,
     },
     args: ['--lang=en-US'],
   })
@@ -672,9 +685,9 @@ test('tsunami, NOAA: answering garbage, the warning in effect stays', async () =
       'data-loaded',
       'true',
     )
-    // The garbage was served (on the reload's ask, or the next minute's at most), and the
-    // warning is still in effect after it.
-    await expect.poll(world.asked, { timeout: 75_000 }).toBeGreaterThan(before)
+    // The garbage was served (within the test's second between checks), and the warning is
+    // still in effect after it.
+    await expect.poll(world.asked, { timeout: 20_000 }).toBeGreaterThan(before)
     await expect(world.tsunami).toHaveAttribute('data-level', 'warning')
     await quietFor(2000, () => world.tsunami.getAttribute('data-level'), 'the tsunami level')
   } finally {

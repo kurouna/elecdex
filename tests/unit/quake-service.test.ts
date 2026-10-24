@@ -4,8 +4,10 @@ import { QUAKE_INTERVAL_MS, type QuakeAlert, type QuakeState } from '@shared/qua
 import { describe, expect, it } from 'vitest'
 import {
   ALERTED_KEPT,
+  QUAKE_WAIT_CAP_MIN_MS,
   type QuakeConfig,
   QuakeService,
+  quakeWaitCapFrom,
   RETRY_BACKOFF_MS,
 } from '../../src/main/quakes/service.js'
 
@@ -78,7 +80,7 @@ interface Reply {
 }
 
 /** A fake world: a clock, timers that run when it passes them, and a scripted server per URL. */
-function harness(opts: { alerted?: string[] } = {}) {
+function harness(opts: { alerted?: string[]; waitCapMs?: number } = {}) {
   let now = NOW
   const timers: Array<{ at: number; fn: () => void; id: number }> = []
   let nextId = 1
@@ -122,6 +124,7 @@ function harness(opts: { alerted?: string[] } = {}) {
     },
     urls: { jma: JMA, usgs: USGS, noaa: NOAA },
     userAgent: 'elecdex-test',
+    ...(opts.waitCapMs === undefined ? {} : { waitCapMs: opts.waitCapMs }),
     loadAlerted: () => {
       loads += 1
       return opts.alerted ?? []
@@ -461,6 +464,61 @@ describe('QuakeService', () => {
     expect(asks.map((r) => r.headers['If-None-Match'] ?? null)).toEqual([null, '"w"', null])
     await h.advanceBy(QUAKE_INTERVAL_MS)
     expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+  })
+
+  it('seen again before its next check, waits for it, and keeps a backoff', async () => {
+    // Found in review (2026-10-24): since a quakes pane lets go behind a tab or in a minimised
+    // window, every flip back asked JMA at once and reset a failing source's backoff.
+    const h = harness()
+    h.reply(JMA_QUAKES, h.json([entry('a', 1, '1')]))
+    h.configure({})
+    await h.settle()
+    const asked = () => h.requests.filter((r) => r.url === JMA_QUAKES).length
+    expect(asked()).toBe(1)
+    for (let i = 0; i < 3; i++) {
+      h.configure({ active: false })
+      h.configure({})
+      await h.settle()
+    }
+    expect(asked()).toBe(1)
+    await h.advanceBy(QUAKE_INTERVAL_MS)
+    expect(asked()).toBe(2)
+
+    // A failing source: flipped back during its backoff, it still waits it out.
+    const f = harness()
+    f.reply(JMA_QUAKES, { status: 500 }, { status: 500 })
+    f.configure({})
+    await f.settle()
+    await f.advanceBy(60_000)
+    const failing = () => f.requests.filter((r) => r.url === JMA_QUAKES).length
+    expect(failing()).toBe(2)
+    f.configure({ active: false })
+    f.configure({})
+    await f.settle()
+    expect(failing()).toBe(2)
+    await f.advanceBy(2 * 60_000)
+    expect(failing()).toBe(3)
+  })
+
+  it('with a test ceiling, waits no longer than it between checks and after failures', async () => {
+    const h = harness({ waitCapMs: 1000 })
+    h.reply(JMA_QUAKES, { status: 500 }, { status: 500 }, { status: 500 })
+    h.configure({})
+    await h.settle()
+    const asked = () => h.requests.filter((r) => r.url === JMA_QUAKES).length
+    for (let i = 2; i <= 5; i++) {
+      await h.advanceBy(1000)
+      expect(asked()).toBe(i)
+    }
+  })
+
+  it('takes a ceiling only as a whole number that shortens the minute', () => {
+    expect(quakeWaitCapFrom(undefined)).toBeUndefined()
+    expect(quakeWaitCapFrom('2000')).toBe(2000)
+    expect(quakeWaitCapFrom(String(QUAKE_WAIT_CAP_MIN_MS))).toBe(QUAKE_WAIT_CAP_MIN_MS)
+    for (const ignored of ['', '499', '60000', '600000', '1e3', '-1000', '1000.5', ' 1000', 'x']) {
+      expect(quakeWaitCapFrom(ignored)).toBeUndefined()
+    }
   })
 
   it('takes a whole NOAA feed with something after its end tag, as a proxy may add', async () => {
