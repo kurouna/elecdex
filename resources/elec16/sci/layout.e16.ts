@@ -326,6 +326,17 @@ export function setLine(at: u16, length: u16, cursor: u16): void {
   if (cursorX >= slide) cursorX -= slide
 }
 
+/** Tokens set right, on the line whose foot is at row `foot` (EQUATION's answers). */
+export function setTokensAt(at: u16, length: u16, foot: u16): void {
+  buf = at
+  bufLength = length
+  const w = measureSeq(0, length)
+  cursorIndex = 0xffff
+  slide = 0
+  ink = true
+  drawSeq(0, length, 128 - w, foot)
+}
+
 /** An answer's tokens set right on the answer rows, their lowest dot on row 62. */
 export function setAnswer(at: u16, length: u16): void {
   buf = at

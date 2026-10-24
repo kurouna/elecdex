@@ -26,6 +26,11 @@ export const SCI_SOURCES: readonly { name: string; bank?: number }[] = [
   { name: 'edit.e16.ts', bank: 4 },
   { name: 'display.e16.ts', bank: 5 },
   { name: 'solve.e16.ts', bank: 6 },
+  { name: 'stats.e16.ts', bank: 7 },
+  { name: 'base.e16.ts', bank: 8 },
+  { name: 'grid.e16.ts', bank: 9 },
+  { name: 'table.e16.ts', bank: 10 },
+  { name: 'equation.e16.ts', bank: 11 },
 ]
 
 /**

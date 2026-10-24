@@ -131,8 +131,10 @@ function lineAt(m: Elec16, y: number, inverted = false, x0 = 1): string {
   const band = y >> 3
   const shift = y & 7
   const one = Uint8Array.from({ length: 128 }, (_, x) => {
-    const top = x + x0 < 128 ? (m.state.vram[band * 128 + x + x0] ?? 0) : 0
-    const below = x + x0 < 128 ? (m.state.vram[(band + 1) * 128 + x + x0] ?? 0) : 0
+    // Past the right edge reads as the ground: lit on an inverted band, so it inverts to none.
+    const past = inverted ? 0xff : 0
+    const top = x + x0 < 128 ? (m.state.vram[band * 128 + x + x0] ?? 0) : past
+    const below = x + x0 < 128 ? (m.state.vram[(band + 1) * 128 + x + x0] ?? 0) : past
     const col = ((top >> shift) | (below << (8 - shift))) & 0xff
     return (inverted ? ~col : col) & 0x7f
   })
@@ -364,12 +366,12 @@ describe('ON, MENU and SETUP', () => {
     expect(rows(m).filter((r) => r !== '')).toEqual([])
   })
 
-  it('MENU lists the modes, CALC the one there is; AC goes back', () => {
+  it('MENU lists the modes; AC goes back to the one it was in, a digit past 5 beeps', () => {
     const m = switchOn()
     keys(m, 'menu')
     expect(lineAt(m, 1, true)).toBe('MENU')
     expect(lineAt(m, 20)).toBe('3:BASE    4:TABLE')
-    keys(m, '2')
+    keys(m, '7')
     expect(lineAt(m, 1, true)).toBe('MENU')
     keys(m, 'ac 1 eq')
     expect(ans(m)).toBe('1')
@@ -554,6 +556,14 @@ describe('the 2D display and exact answers (S4)', () => {
     expect(bigText(m)).toBe('')
   })
 
+  it("SETUP's band shows its page at the right (once drawn over the lit band, unseen)", () => {
+    const m = switchOn('2d')
+    keys(m, 'setup')
+    expect(lineAt(m, 1, true, 3).split(' ').pop()).toBe('1/2')
+    keys(m, 'down')
+    expect(lineAt(m, 1, true, 3).split(' ').pop()).toBe('2/2')
+  })
+
   it('SETUP marks the display, the angle and the answer chosen', () => {
     const m = switchOn('2d')
     keys(m, 'setup')
@@ -696,5 +706,157 @@ describe('the rest of CALC (S5)', () => {
     const m = switchOn()
     keys(m, 'alpha lp sq add 1 shift fx eq')
     expect(lineAt(m, 1, true, 1)).toBe('ERR:FIND')
+  })
+})
+
+describe('the modes (S6)', () => {
+  /** The top of line `n` of the screens' rhythm (section 4.5). */
+  const lineY = (n: number) => 11 + 9 * n
+  /** The band's right-hand text (textRight's cells start at x = 3). */
+  const bandRight = (m: Elec16) => lineAt(m, 1, true, 3).split(' ').pop() ?? ''
+  /** The band's title, the text at its left. */
+  const bandLeft = (m: Elec16) => lineAt(m, 1, true, 1).split('  ')[0]
+  /** The small text right-aligned on the row whose top is `y`, its last word. */
+  const rightWord = (m: Elec16, y: number) => lineAt(m, y, false, 3).split(' ').pop() ?? ''
+
+  it('MENU marks the mode it is in; a mode is kept through OFF and ON', () => {
+    const m = switchOn()
+    keys(m, 'menu 3')
+    expect(bandLeft(m)).toBe('BASE 32')
+    keys(m, 'menu')
+    // 3:BASE marked: its item inverted from a row above.
+    expect(dot(m, 2, 19)).toBe(true)
+    keys(m, 'ac shift on')
+    m.brk()
+    settle(m)
+    expect(bandLeft(m)).toBe('BASE 32')
+    keys(m, 'menu 1')
+    expect(lit(m)).not.toContain('STAT')
+  })
+
+  it("keeps each mode's line and history apart", () => {
+    const m = switchOn()
+    keys(m, '1 add 2 eq 7')
+    keys(m, 'menu 3 5 eq menu 1')
+    expect(rows(m)[0]).toBe('7')
+    keys(m, 'ac up')
+    expect(rows(m)[0]).toBe('1+2')
+    keys(m, 'menu 3 ac up')
+    expect(lineAt(m, 11, false, 1)).toBe('5')
+  })
+
+  it('STATS works out one variable from the grid, FREQ counted', () => {
+    const m = switchOn()
+    keys(m, 'menu 2')
+    expect(lit(m)).toContain('STAT')
+    keys(m, '3 1 2 eq 4 eq 6 eq right up up up 1 eq 2 eq 1 eq eq')
+    expect(bandLeft(m)).toBe('1-VAR RESULT')
+    expect(rightWord(m, lineY(0))).toBe('4')
+    expect(rightWord(m, lineY(1))).toBe('4')
+    expect(rightWord(m, lineY(2))).toBe('1.414213562')
+    expect(rightWord(m, lineY(3))).toBe('1.632993162')
+    expect(rightWord(m, lineY(4))).toBe('16')
+    expect(rightWord(m, lineY(5))).toBe('72')
+  })
+
+  it('STATS fits a line to two variables and keeps the data through OFF and ON', () => {
+    const m = switchOn()
+    keys(m, 'menu 2 2 1 eq 2 eq 3 eq right up up up 2 eq 4 eq 7 eq eq')
+    expect(bandLeft(m)).toBe('2-VAR RESULT')
+    expect(rightWord(m, lineY(3))).toBe('0.993399268')
+    expect(rightWord(m, lineY(4))).toBe('-0.666666667')
+    expect(rightWord(m, lineY(5))).toBe('2.5')
+    keys(m, 'down')
+    expect(rightWord(m, lineY(1))).toBe('1')
+    keys(m, 'ac shift on')
+    m.brk()
+    settle(m)
+    keys(m, '1 eq')
+    expect(rightWord(m, lineY(0))).toBe('3')
+  })
+
+  it('STATS puts a row in and takes one out by FUNC', () => {
+    const m = switchOn()
+    keys(m, 'menu 2 1 1 eq 2 eq 3 eq up up up func 2')
+    expect(bandRight(m)).toBe('n=2')
+    keys(m, 'func 1')
+    expect(bandRight(m)).toBe('n=3')
+    keys(m, 'func 3')
+    expect(bandRight(m)).toBe('n=0')
+  })
+
+  it('BASE shows an answer in the base and the other three, and its bits', () => {
+    const m = switchOn()
+    keys(m, 'menu 3 func 1 sin 0 1 6 func 5 0 neg tan tan 0 eq')
+    expect(lineAt(m, 11, false, 1)).toBe('D016 AND 0AFF0')
+    expect(rightWord(m, lineY(1))).toBe('00008010')
+    expect(rightWord(m, lineY(2))).toBe('32784')
+    expect(rightWord(m, lineY(3))).toBe('00000100020')
+    expect(rightWord(m, lineY(4))).toBe('1000000000010000')
+    // Bit 4 a block at the foot, bit 0 a line.
+    expect(dot(m, 122 - 4 * 7, 58)).toBe(true)
+    expect(dot(m, 122, 58)).toBe(false)
+  })
+
+  it('BASE works in 32 bits: a negative number, its bits, a carry out, a division', () => {
+    const m = switchOn()
+    keys(m, 'menu 3 func 2 neg 1 eq')
+    expect(rightWord(m, lineY(1))).toBe('-1')
+    expect(rightWord(m, lineY(2))).toBe('FFFFFFFF')
+    keys(m, 'ac 2 1 4 7 4 8 3 6 4 7 add 1 eq')
+    expect(rightWord(m, lineY(1))).toBe('-2147483648')
+    keys(m, 'ac 7 div 2 eq')
+    expect(rightWord(m, lineY(1))).toBe('3')
+    keys(m, 'ac func 9 0 eq')
+    expect(rightWord(m, lineY(1))).toBe('-1')
+    keys(m, 'ac fd fd 1 0 1 func 7 1 1 eq')
+    expect(rightWord(m, lineY(1))).toBe('0000000000000110')
+  })
+
+  it('BASE refuses a digit the base has not', () => {
+    const m = switchOn()
+    keys(m, 'menu 3 func 3 8 9 sin 7')
+    expect(lineAt(m, 11, false, 1)).toBe('7')
+  })
+
+  it('TABLE shows f(X) from START to END by STEP, and says RANGE past 30 rows', () => {
+    const m = switchOn()
+    keys(m, 'menu 4 alpha lp sq sub 2 alpha lp eq')
+    expect(lineAt(m, 11, false, 1)).toBe('START?')
+    keys(m, '1 eq 5 eq 1 eq')
+    expect(bandLeft(m)).toBe('TABLE')
+    // The first row is chosen (inverted); the others read as they are, right in the column.
+    expect(lineAt(m, 30, false, 1).split(' ').pop()).toBe('0')
+    expect(lineAt(m, 48, false, 1).split(' ').pop()).toBe('8')
+    keys(m, 'ac eq 1 eq 1 0 0 eq 1 eq')
+    expect(bandLeft(m)).toBe('ERR:RANGE')
+  })
+
+  it('EQUATION solves two and three unknowns, exactly where it can', () => {
+    const m = switchOn('2d')
+    keys(m, 'menu 5 1 1 eq 1 eq 3 eq 1 eq neg 1 eq 1 eq eq')
+    expect(rightWord(m, 7)).toBe('2')
+    expect(rightWord(m, 28)).toBe('1')
+    keys(m, 'ac ac 2 1 eq 1 eq 1 eq 6 eq 0 eq 2 eq 5 eq neg 4 eq 2 eq 5 eq neg 1 eq 2 7 eq eq')
+    expect([rightWord(m, 7), rightWord(m, 28), rightWord(m, 49)]).toEqual(['5', '3', '-2'])
+    keys(m, 'ac ac 1 1 eq 2 eq 3 eq 2 eq 4 eq 6 eq eq')
+    expect(lineAt(m, 11, false, 1)).toBe('NO ONE SOLUTION:')
+  })
+
+  it("EQUATION's quadratic: roots in their exact form, the vertex on ▼", () => {
+    const m = switchOn('2d')
+    keys(m, 'menu 5 3 1 eq neg 2 eq neg 1 eq eq')
+    // 1+√2: the 1, then the root's bar over the 2 at the right edge.
+    expect(lineAt(m, 7, false, 1)).toContain('X1=')
+    for (let x = 119; x <= 126; x++) expect(dot(m, x, 5)).toBe(true)
+    keys(m, 'down')
+    expect(rightWord(m, 21)).toBe('1')
+    expect(rightWord(m, 42)).toBe('-2')
+  })
+
+  it("EQUATION's cubic: its three roots", () => {
+    const m = switchOn()
+    keys(m, 'menu 5 4 1 eq neg 6 eq 1 1 eq neg 6 eq eq')
+    expect([rightWord(m, 7), rightWord(m, 28), rightWord(m, 49)]).toEqual(['3', '2', '1'])
   })
 })

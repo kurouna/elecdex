@@ -17,7 +17,7 @@ import {
   str,
   u16,
 } from '../../../src/shared/e16c/builtins'
-import { setAnswer } from './layout.e16'
+import { setAnswer, setTokensAt } from './layout.e16'
 import { bigNumber, textAt, textRight } from './lcd.e16'
 import {
   diffValue,
@@ -176,9 +176,15 @@ function drawDms(): void {
 /** Ans's exact form (p + r√s)/q as tokens, set on the answer rows by the 2D layout. */
 function drawForm(): void {
   answerLength = 0
-  const p = KEEP_ANS + V_P
-  const r = KEEP_ANS + V_R
-  const q = KEEP_ANS + V_Q
+  formTokens(KEEP_ANS)
+  setAnswer(addr(answerTokens), answerLength)
+}
+
+/** A value's exact form as tokens after those there are. */
+function formTokens(v: u16): void {
+  const p = v + V_P
+  const r = v + V_R
+  const q = v + V_Q
   const fractionOf = !isOne(q)
   const oneTerm = isZero(p) || isZero(r)
   // A single negative term's sign goes before its fraction: -√2/2, not (-√2)/2.
@@ -192,7 +198,53 @@ function drawForm(): void {
     answerNumber(q, false)
     answerToken(T_END)
   }
-  setAnswer(addr(answerTokens), answerLength)
+}
+
+/** Whether a value has an exact form other than a whole number. */
+function formOf(v: u16): bool {
+  return isExact(v) && (!isZero(v + V_R) || !isOne(v + V_Q))
+}
+
+/**
+ * A value right on the line whose foot is at `foot`: its exact form in 2D (`twoD`), else its
+ * decimal as SETUP shows one, in the small font.
+ */
+export function drawValueAt(v: u16, foot: u16, twoD: bool): void {
+  if (twoD && formOf(v)) {
+    answerLength = 0
+    formTokens(v)
+    setTokensAt(addr(answerTokens), answerLength, foot)
+    return
+  }
+  decimalText(v)
+  textRight(addr(text), foot - 7)
+}
+
+/**
+ * re ± im i (`minus` the sign, im not negative) on the line whose foot is at `foot`: the exact
+ * forms in 2D when both have one or are whole, else six digits each.
+ */
+export function drawComplexAt(re: u16, im: u16, minus: bool, foot: u16): void {
+  answerLength = 0
+  const exact = isExact(re) && isExact(im)
+  if (!isZero(re)) {
+    if (exact) formTokens(re)
+    else shortNumber(re)
+  }
+  if (minus) answerToken(T_MINUS)
+  else if (!isZero(re)) answerToken(T_PLUS)
+  if (!exact || !isOne(im)) {
+    if (exact) formTokens(im)
+    else shortNumber(im)
+  }
+  answerToken(0x69)
+  setTokensAt(addr(answerTokens), answerLength, foot)
+}
+
+/** A decimal in six significant digits as tokens (its characters are its tokens). */
+function shortNumber(v: u16): void {
+  format(v, 6)
+  for (let i: u16 = 0; i < textLength; i++) answerToken(text[i] === 0x2d ? T_MINUS : text[i])
 }
 
 /** p/q as a mixed number: its sign before, the whole part, then what is left over q. */
@@ -218,11 +270,12 @@ function showMixed(): void {
 
 /** The r√s term after p: its sign (unless it went before the fraction), r unless ±1, √s. */
 function answerRoot(p: u16, r: u16, signOut: bool): void {
+  // s is a word after the decimal of the same value, V_S - V_R before r.
+  const s = peek16(r - V_R + V_S)
   if (!isZero(p)) answerToken(isNegative(r) ? T_MINUS : T_PLUS)
   else if (isNegative(r) && !signOut) answerToken(T_MINUS)
   if (!isOne(r) && !isMinusOne(r)) answerNumber(r, true)
   answerToken(T_ROOT)
-  const s = peek16(KEEP_ANS + V_S)
   if (s >= 10) answerToken(0x30 + div(s, 10))
   answerToken(0x30 + (s % 10))
   answerToken(T_END)
@@ -293,6 +346,12 @@ export function decimalText(v: u16): void {
   if (shape === FORMAT_FIX) fixText(v, n)
   else if (shape === FORMAT_EXP) expText(v, n === 0 ? 10 : n, false)
   else autoText(v)
+}
+
+/** `v` as SETUP shows a decimal: the text's address (it holds until the next text). */
+export function textOf(v: u16): u16 {
+  decimalText(v)
+  return addr(text)
 }
 
 function autoText(v: u16): void {

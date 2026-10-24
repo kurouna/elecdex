@@ -14,6 +14,7 @@ import {
   memcpy,
   peek,
   peek16,
+  poke,
   poke16,
   u16,
 } from '../../../src/shared/e16c/builtins'
@@ -79,6 +80,8 @@ export const E_SYNTAX = 2
 export const E_STACK = 3
 /** FIND X found no X from where it started. */
 export const E_FIND = 4
+/** TABLE's START, END and STEP make no table of 1-30 rows. */
+export const E_RANGE = 5
 
 /** The last error, and where in the line it was found (a token's index). */
 export let errCode: u16 = 0
@@ -139,6 +142,8 @@ export const FORMAT_FIX = 1
 export const FORMAT_EXP = 2
 /** Ans: a value. */
 export const KEEP_ANS = 0x0c08
+/** The mode the calculator is in (calc.e16.ts MODE_*), kept when the power goes. */
+export const KEEP_MODE = 0x0c2c
 /** A, B, C, D, E, F, X, Y, M: a value each. */
 export const KEEP_VARS = 0x0c30
 export const KEEP_HISTORY_COUNT = 0x0d80
@@ -147,6 +152,44 @@ export const HISTORY_ENTRIES = 10
 /** An entry: its length, then the line. */
 export const HISTORY_SIZE = 200
 export const LINE_MAX = 199
+
+/*
+ * The modes' region (S6), checked by a mark of its own so S5's RAM stays as it was:
+ * STATS' table, BASE's history, TABLE's f(X) and range, EQUATION's coefficients, and the
+ * lines CALC and BASE had when the mode changed.
+ */
+export const MODES = 0x1600
+export const MODES_MARK = 0x5c36
+/** STATS: rows, 1-VAR (0) or 2-VAR (1), a FREQ column (1) or not; then X, Y, FREQ a row. */
+export const STATS_COUNT = 0x1602
+export const STATS_TYPE = 0x1604
+export const STATS_FREQ = 0x1605
+export const STATS_DATA = 0x1610
+export const STATS_ROWS = 40
+/** EQUATION's kind (1-4, 0 none chosen yet) and its coefficients, a value each. */
+export const EQN_TYPE = 0x1606
+export const EQN_COEFFS = 0x1d40
+/** BASE: its base (0 HEX, 1 DEC, 2 OCT, 3 BIN), its history: a count, then 5 lines of 100. */
+export const BASE_RADIX = 0x1607
+export const BASE_HISTORY_COUNT = 0x1a00
+export const BASE_HISTORY = 0x1a02
+/** TABLE's f(X) as a line (length, cursor, tokens), then START, END and STEP, a value each. */
+export const TABLE_LINE = 0x1c00
+export const TABLE_RANGE = 0x1cc8
+/** CALC's and BASE's lines while another mode is on screen: length, cursor, tokens. */
+export const CALC_LINE = 0x1f00
+export const BASE_LINE = 0x2000
+const MODES_END = 0x2100
+/** EQUATION's working values (24 values), not kept: e16c's own RAM is full. */
+export const EQN_WORK = 0x2100
+
+/** Whether the modes' region is set out; when not, it is: empty, 1-VAR, DEC, f(X) empty. */
+export function modesReady(): void {
+  if (peek16(MODES) === MODES_MARK) return
+  for (let i: u16 = 0; i < MODES_END - MODES; i += 2) poke16(MODES + i, 0)
+  poke16(MODES, MODES_MARK)
+  poke(BASE_RADIX, 1)
+}
 
 /** Whether the kept region is a calculator's; when not, it is set out afresh: zero, DEG, 2D. */
 export function keepReady(): void {

@@ -94,6 +94,13 @@ export const T_POL = 0xeb
 export const T_REC = 0xec
 /** Ran#: a random number from 0 up to 1 - a value, not a function. */
 export const T_RAN = 0xed
+/* BASE's logic (S6): AND is stronger than OR, XOR and XNOR; Not( and Neg( are functions. */
+export const T_AND = 0xee
+export const T_OR = 0xef
+export const T_XOR = 0xf0
+export const T_XNOR = 0xf1
+export const T_NOT = 0xf2
+export const T_BNEG = 0xf3
 
 /** Whether a token opens a template. */
 export function opensTemplate(t: u16): bool {
@@ -218,6 +225,25 @@ function namedText(t: u16): u16 {
       return str('Rec(')
     case T_RAN:
       return str('Ran#')
+  }
+  return logicText(t)
+}
+
+/** The text of BASE's logic. */
+function logicText(t: u16): u16 {
+  switch (t) {
+    case T_AND:
+      return str(' AND ')
+    case T_OR:
+      return str(' OR ')
+    case T_XOR:
+      return str(' XOR ')
+    case T_XNOR:
+      return str(' XNOR ')
+    case T_NOT:
+      return str('Not(')
+    case T_BNEG:
+      return str('Neg(')
   }
   return 0
 }

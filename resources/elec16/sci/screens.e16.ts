@@ -27,10 +27,11 @@ import {
   K_UP,
   refuse,
 } from './calc.e16'
-import { band, cls, lineY, mark, textAt, textRight } from './lcd.e16'
+import { band, bandWith, cls, lineY, mark, textAt } from './lcd.e16'
 import {
   E_FIND,
   E_MATH,
+  E_RANGE,
   E_STACK,
   FORMAT_AUTO,
   FORMAT_EXP,
@@ -56,6 +57,10 @@ export function errorScreen(code: u16): void {
     band(str('ERR:FIND'))
     textAt(str('NO X WAS FOUND FROM'), 1, lineY(0))
     textAt(str('THE X IT STARTED AT'), 1, lineY(1))
+  } else if (code === E_RANGE) {
+    band(str('ERR:RANGE'))
+    textAt(str('1-30 ROWS FROM START'), 1, lineY(0))
+    textAt(str('TO END BY STEP'), 1, lineY(1))
   } else if (code === E_STACK) {
     band(str('ERR:STACK'))
     textAt(str('TOO MANY BRACKETS OR'), 1, lineY(0))
@@ -71,20 +76,27 @@ export function errorScreen(code: u16): void {
 
 /* ---------------- MENU ---------------- */
 
-/** The modes; CALC the one there is now, and marked so. */
-export function menuScreen(): void {
+/** The modes, the one it is in marked. */
+export function menuScreen(mode: u16): void {
+  cls()
   band(str('MENU'))
   textAt(str('1:CALC    2:STATS'), 1, lineY(0))
   textAt(str('3:BASE    4:TABLE'), 1, lineY(1))
   textAt(str('5:EQUATION'), 1, lineY(2))
   textAt(str('AC:BACK'), 1, lineY(5))
-  mark(0, 6, 0)
+  if (mode === 0) mark(0, 6, 0)
+  else if (mode === 1) mark(10, 7, 0)
+  else if (mode === 2) mark(0, 6, 1)
+  else if (mode === 3) mark(10, 7, 1)
+  else mark(0, 10, 2)
 }
 
-/** A key on MENU: 1 (or AC) goes back to CALC; the modes to come refuse with a beep. Non-zero: leave. */
+/** A key on MENU: 1-5 the mode chosen, AC (0xff) back to the one it was; 0 still choosing. */
 export function menuKey(k: u16): u16 {
-  if (k === K_1 || k === K_AC) return 1
-  if (k === K_2 || k === K_3 || k === K_4 || k === K_5) refuse()
+  if (k === K_AC) return 0xff
+  const d = digitOf(k)
+  if (d >= 1 && d <= 5) return d
+  refuse()
   return 0
 }
 
@@ -109,8 +121,7 @@ export function setupScreen(): void {
  */
 function drawSetup(): void {
   cls()
-  band(str('SETUP'))
-  textRight(page === 0 ? str('1/2') : str('2/2'), 1)
+  bandWith(str('SETUP'), page === 0 ? str('1/2') : str('2/2'))
   textAt(str('AC:BACK'), 1, lineY(5))
   if (page === 1) {
     textAt(str('1:a/b  2:a b/c'), 1, lineY(0))

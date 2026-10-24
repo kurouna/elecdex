@@ -274,8 +274,17 @@ export function invertBox(x0: u16, y0: u16, x1: u16, y1: u16): void {
  * text a dot in from the top and the left; then a line every nine rows from row 11.
  */
 export function band(at: u16): void {
+  bandWith(at, 0)
+}
+
+/**
+ * A title band with text at its right end too (`right`, 0 for none). Both are written before
+ * the band is inverted: a character drawn over the lit band afterwards would not show.
+ */
+export function bandWith(at: u16, right: u16): void {
   cls()
   textAt(at, 1, 1)
+  if (right !== 0) textRight(right, 1)
   invertBox(0, 0, WIDTH - 1, 8)
 }
 

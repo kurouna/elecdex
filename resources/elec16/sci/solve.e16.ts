@@ -46,10 +46,17 @@ export const ASK_STAY = 0
 export const ASK_BACK = 1
 export const ASK_DONE = 2
 
-/** The calculator's line, and whether X is asked for FIND X or f(x). */
+/** What is asked for: X for f(x) or FIND X, or TABLE's START, END or STEP. */
+export const FOR_FX = 0
+export const FOR_FIND = 1
+export const FOR_TABLE = 2
+/** The calculator's line, what it is asked for, and where the answer goes. */
 let askingAt: u16 = 0
 let askingLength: u16 = 0
 let finding: bool = false
+let askedFor: u16 = 0
+let target: u16 = 0
+let label: u16 = 0
 /** What is typed after X?. */
 const entry = bytes(40)
 let entryLength: u16 = 0
@@ -70,6 +77,18 @@ export function askStart(at: u16, length: u16, find: bool): void {
   askingAt = at
   askingLength = length
   finding = find
+  askedFor = find ? FOR_FIND : FOR_FX
+  target = varAt(X)
+  label = str('X?')
+  entryLength = 0
+  drawAsk()
+}
+
+/** TABLE's START?, END? or STEP? (`k` 0-2), into the value at `into`. */
+export function askRange(k: u16, into: u16): void {
+  askedFor = FOR_TABLE
+  target = into
+  label = k === 0 ? str('START?') : k === 1 ? str('END?') : str('STEP?')
   entryLength = 0
   drawAsk()
 }
@@ -94,9 +113,9 @@ export function askKey(isEquals: bool, isDelete: bool, isClear: bool, t: u16): u
 /** The title, X now, and what is typed, the cursor after it. */
 function drawAsk(): void {
   cls()
-  band(finding ? str('FIND X') : str('f(X)'))
-  textAt(str('X?'), 1, lineY(0))
-  formatInto(varAt(X))
+  band(askedFor === FOR_TABLE ? str('TABLE') : finding ? str('FIND X') : str('f(X)'))
+  textAt(label, 1, lineY(0))
+  formatInto(target)
   textRight(addr(xText), lineY(1))
   let col: u16 = 0
   for (let i: u16 = 0; i < entryLength; i++) col = shownAt(entry[i], col)
@@ -135,8 +154,9 @@ function finish(): void {
   if (entryLength > 0) {
     clearStack()
     evaluate(addr(entry), entryLength)
-    copyValue(top(), varAt(X))
+    copyValue(top(), target)
   }
+  if (askedFor === FOR_TABLE) return
   if (finding) newton()
   else {
     evalWith(varAt(X))

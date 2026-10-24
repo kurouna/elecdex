@@ -19,6 +19,14 @@ import {
   wfi,
 } from '../../../src/shared/e16c/builtins'
 import {
+  baseCommand,
+  baseDraw,
+  baseEvaluate,
+  baseFuncKey,
+  baseFuncScreen,
+  baseToken,
+} from './base.e16'
+import {
   drawAnswerAs,
   firstShown,
   hasForm,
@@ -30,11 +38,16 @@ import {
   SHOW_PAIR,
 } from './display.e16'
 import { deleteAt, editCursor, editLength, vertical, wrap } from './edit.e16'
+import { eqnDraw, eqnKey, eqnReset, eqnStart } from './equation.e16'
 import { evaluate } from './eval.e16'
 import { exactBinary } from './exact.e16'
 import { cursorTop, cursorX, heightOf, setLine } from './layout.e16'
-import { barAt, barDots, COLS, centre, cls, drawChar, marks, noCursor } from './lcd.e16'
+import { barAt, barDots, COLS, centre, cls, drawChar, marks, noCursor, textAt } from './lcd.e16'
 import {
+  BASE_HISTORY,
+  BASE_HISTORY_COUNT,
+  BASE_LINE,
+  CALC_LINE,
   clearStack,
   copyValue,
   errAt,
@@ -50,11 +63,14 @@ import {
   KEEP_FORMAT,
   KEEP_HISTORY,
   KEEP_HISTORY_COUNT,
+  KEEP_MODE,
   keepReady,
   LINE_MAX,
   M_ADD,
   M_SUB,
   math,
+  modesReady,
+  TABLE_LINE,
   top,
   varAt,
 } from './numbers.e16'
@@ -68,12 +84,25 @@ import {
   setupKey,
   setupScreen,
 } from './screens.e16'
-import { ASK_BACK, ASK_DONE, askKey, askStart } from './solve.e16'
+import { ASK_BACK, ASK_DONE, ASK_STAY, askKey, askRange, askStart } from './solve.e16'
+import { statsDraw, statsKey, statsReset, statsStart } from './stats.e16'
+import {
+  rangeAt,
+  TABLE_VIEW,
+  tableAskFrom,
+  tableAsking,
+  tableDraw,
+  tableKey,
+  tableNext,
+  tablePhase,
+  tableReset,
+} from './table.e16'
 import {
   isDigit,
   T_ABS,
   T_ACOS,
   T_ACOSH,
+  T_AND,
   T_ANS,
   T_ASIN,
   T_ASINH,
@@ -120,6 +149,7 @@ import {
   T_TANH,
   T_TEN,
   T_TIMES,
+  T_XNOR,
   T_XROOT,
   tokenText,
   tokenWidth,
@@ -189,6 +219,7 @@ export const ANN_A = 0x4
 export const ANN_M = 0x8
 export const ANN_STO = 0x10
 export const ANN_HYP = 0x20
+export const ANN_STAT = 0x40
 export const ANN_D = 0x80
 export const ANN_R = 0x100
 export const ANN_G = 0x200
@@ -219,12 +250,20 @@ export const S_FUNC = 4
 export const S_ASK = 5
 let screen: u16 = S_CALC
 
+/** The mode (MENU): CALC, then the four others in MENU's order; kept in KEEP_MODE. */
+export const MODE_CALC = 0
+export const MODE_STATS = 1
+export const MODE_BASE = 2
+export const MODE_TABLE = 3
+export const MODE_EQN = 4
+let mode: u16 = MODE_CALC
+
 /** The line: its tokens, how many, and where the cursor is (before token `cursor`). */
-const line = bytes(200)
-let length: u16 = 0
-let cursor: u16 = 0
+export const line = bytes(200)
+export let length: u16 = 0
+export let cursor: u16 = 0
 /** The line has been answered: its answer is on screen, and a key decides what comes next. */
-let answered: bool = false
+export let answered: bool = false
 /** SHIFT and ALPHA wait for the next key; STO and RCL for a variable's key. */
 let shifted: bool = false
 let alphaOn: bool = false
@@ -243,7 +282,7 @@ let shown: u16 = 0
 
 /** The 2D display (0 in SETUP's KEEP_DISPLAY) or LINE. */
 function twoD(): bool {
-  return peek(KEEP_DISPLAY) === 0
+  return peek(KEEP_DISPLAY) === 0 && mode !== MODE_BASE
 }
 
 /** The line's height in 2D: above this many rows a template is not put in. */
@@ -258,6 +297,7 @@ const LINE_CHARS = 84
 /** Switched on: the kept RAM checked, the name shown for a moment (or until a key), then CALC. */
 export function calcCold(): void {
   keepReady()
+  modesReady()
   cls()
   noCursor()
   centre(2, str('ELEC-16 SCI'), 11)
@@ -268,7 +308,70 @@ export function calcCold(): void {
   length = 0
   cursor = 0
   answered = false
+  mode = peek(KEEP_MODE)
+  if (mode > MODE_EQN) mode = MODE_CALC
+  loadLine()
+  startMode()
   drawCalc()
+}
+
+/* ---------------- modes ---------------- */
+
+/** MENU's choice: the line of the mode left kept, the new mode's brought back. */
+function enterMode(m: u16): void {
+  saveLine()
+  mode = m
+  poke(KEEP_MODE, m)
+  loadLine()
+  answered = false
+  historyAt = 0xffff
+  screen = S_CALC
+  startMode()
+  drawCalc()
+}
+
+/** Where a mode keeps its line while another is on screen: length, cursor, tokens. */
+function lineSlot(): u16 {
+  if (mode === MODE_BASE) return BASE_LINE
+  if (mode === MODE_TABLE) return TABLE_LINE
+  return CALC_LINE
+}
+
+/** The longest line a mode takes: BASE's history keeps lines of 99. */
+function lineMax(): u16 {
+  if (mode === MODE_BASE) return 99
+  if (mode === MODE_TABLE) return 197
+  return LINE_MAX
+}
+
+function saveLine(): void {
+  const slot = lineSlot()
+  poke(slot, length)
+  poke(slot + 1, cursor)
+  memcpy(slot + 2, addr(line), length)
+}
+
+function loadLine(): void {
+  const slot = lineSlot()
+  length = peek(slot)
+  cursor = peek(slot + 1)
+  if (length > lineMax() || cursor > length) {
+    length = 0
+    cursor = 0
+  }
+  memcpy(addr(line), slot + 2, length)
+}
+
+/** A mode's own first screen. */
+function startMode(): void {
+  if (mode === MODE_EQN) eqnStart()
+  else if (mode === MODE_STATS) statsStart()
+  else if (mode === MODE_TABLE) tableReset()
+}
+
+/** Whether the mode's screen is its own (not the line CALC, BASE and TABLE edit). */
+function ownScreen(): bool {
+  return mode === MODE_STATS || mode === MODE_EQN
 }
 
 /** About `ms` milliseconds asleep on the timer (1,024 counts a second), or until a key. */
@@ -326,7 +429,17 @@ export function calcOn(): void {
   clearLine()
 }
 
-function clearLine(): void {
+export function clearLine(): void {
+  if (ownScreen()) {
+    screen = S_CALC
+    shifted = false
+    alphaOn = false
+    if (mode === MODE_STATS) statsReset()
+    else eqnReset()
+    drawCalc()
+    return
+  }
+  if (mode === MODE_TABLE) tableReset()
   screen = S_CALC
   length = 0
   cursor = 0
@@ -358,15 +471,53 @@ function key(k: u16): void {
   const alpha = alphaOn
   shifted = false
   alphaOn = false
-  if (screen === S_ERROR) errorKey(k)
-  else if (screen === S_MENU) {
-    if (menuKey(k) !== 0) clearLine()
-  } else if (screen === S_SETUP) {
-    if (setupKey(k) !== 0) clearLine()
-  } else if (screen === S_FUNC) funcChosen(funcKey(k))
-  else if (screen === S_ASK) asked(k, shift)
-  else calcKey(k, shift, alpha)
+  dispatch(k, shift, alpha)
   drawMarks()
+}
+
+/** A key after SHIFT and ALPHA are taken: to the screen or the mode it is for. */
+function dispatch(k: u16, shift: bool, alpha: bool): void {
+  if (screen === S_ERROR) errorKey(k)
+  else if (screen === S_MENU) chosenMode(menuKey(k))
+  else if (screen === S_SETUP) {
+    if (setupKey(k) !== 0) clearLine()
+  } else if (screen === S_FUNC) funcChosen(mode === MODE_BASE ? baseFuncKey(k) : funcKey(k))
+  else if (screen === S_ASK) asked(k, shift)
+  else if (k === K_MENU || k === K_SETUP) openScreen(k)
+  else modeKey(k, shift, alpha)
+}
+
+/** A key on the mode's own screen: STATS, EQUATION, TABLE's table, or a line. */
+function modeKey(k: u16, shift: bool, alpha: bool): void {
+  if (mode === MODE_STATS) statsKey(k, shift)
+  else if (mode === MODE_EQN) eqnKey(k, shift)
+  else if (mode === MODE_TABLE && tablePhase() === TABLE_VIEW) tableKey(k)
+  else {
+    calcKey(k, shift, alpha)
+    return
+  }
+  drawCalc()
+}
+
+/** MENU or SETUP over any mode. */
+function openScreen(k: u16): void {
+  noCursor()
+  if (k === K_MENU) {
+    screen = S_MENU
+    menuScreen(mode)
+  } else {
+    screen = S_SETUP
+    setupScreen()
+  }
+}
+
+/** MENU's answer: 0 still choosing, AC (0xff) back as it was, 1-5 a mode. */
+function chosenMode(m: u16): void {
+  if (m === 0) return
+  if (m === 0xff) {
+    screen = S_CALC
+    drawCalc()
+  } else enterMode(m - 1)
 }
 
 /** On the error screen: AC drops the line, an arrow goes back into it at the error. */
@@ -375,10 +526,63 @@ function errorKey(k: u16): void {
     clearLine()
     return
   }
+  if ((k === K_LEFT || k === K_RIGHT) && ownScreen()) {
+    screen = S_CALC
+    drawCalc()
+    return
+  }
   if (k === K_LEFT || k === K_RIGHT) {
+    if (mode === MODE_TABLE) tableReset()
     screen = S_CALC
     answered = false
     cursor = errAt < length ? errAt : length
+    drawCalc()
+  }
+}
+
+/**
+ * A key in BASE: its own (F⇄D, ▲ ▼ on an answer, FUNC), the line's editing, or a token of the
+ * base; the rest beep.
+ */
+function baseKey(k: u16, shift: bool, alpha: bool): void {
+  if (baseCommand(k)) {
+    drawCalc()
+    return
+  }
+  if (k === K_FUNC) {
+    screen = S_FUNC
+    noCursor()
+    baseFuncScreen()
+    return
+  }
+  if (editKey(k) && commandKey(k, shift, alpha)) return
+  const t = baseToken(k)
+  if (t === 0) refuse()
+  else type(t)
+}
+
+/** The keys that edit or answer a line, the same in every mode that has one. */
+function editKey(k: u16): bool {
+  return (
+    k === K_EQ ||
+    k === K_AC ||
+    k === K_DEL ||
+    k === K_LEFT ||
+    k === K_RIGHT ||
+    k === K_UP ||
+    k === K_DOWN
+  )
+}
+
+/** TABLE's START, END or STEP given (the next asked for, or the table) or AC (f(X) again). */
+function tableAsked(r: u16): void {
+  if (r === ASK_DONE && tableNext()) {
+    askRange(tableAsking(), rangeAt(tableAsking()))
+    return
+  }
+  if (r === ASK_BACK) tableReset()
+  if (r !== ASK_STAY) {
+    screen = S_CALC
     drawCalc()
   }
 }
@@ -395,6 +599,10 @@ function funcChosen(t: u16): void {
 function asked(k: u16, shift: bool): void {
   const t = k === K_DEL || k === K_EQ || k === K_AC ? 0 : tokenOf(k, shift)
   const r = askKey(k === K_EQ, k === K_DEL, k === K_AC, t)
+  if (mode === MODE_TABLE) {
+    tableAsked(r)
+    return
+  }
   if (r === ASK_BACK) {
     screen = S_CALC
     drawCalc()
@@ -410,6 +618,10 @@ function asked(k: u16, shift: bool): void {
 function calcKey(k: u16, shift: bool, alpha: bool): void {
   if (storing || recalling) {
     variableKey(k)
+    return
+  }
+  if (mode === MODE_BASE) {
+    baseKey(k, shift, alpha)
     return
   }
   const wasHyp = hyp
@@ -467,7 +679,7 @@ function plainTemplate(k: u16, shift: bool): bool {
 /** A mixed number or a root of any index, the value before the cursor its first part. */
 function wrapped(opener: u16): void {
   if (answered) afresh(false)
-  if (length + 4 > LINE_MAX) {
+  if (length + 4 > lineMax()) {
     refuse()
     return
   }
@@ -543,21 +755,12 @@ function insertTemplate(k: u16, root: bool): void {
 /** A key that does something other than type a token: done, true; else false. */
 function commandKey(k: u16, shift: bool, alpha: bool): bool {
   switch (k) {
-    case K_MENU:
-      screen = S_MENU
-      noCursor()
-      menuScreen()
-      return true
-    case K_SETUP:
-      screen = S_SETUP
-      noCursor()
-      setupScreen()
-      return true
     case K_AC:
       clearLine()
       return true
     case K_EQ:
-      equals(shift)
+      if (mode === MODE_TABLE) tableRange()
+      else equals(shift)
       return true
     case K_FD:
       exactOrDecimal(shift)
@@ -601,7 +804,7 @@ function commandKey(k: u16, shift: bool, alpha: bool): bool {
 }
 
 /** The token a key types, after SHIFT or not; 0 for a key that types none (yet). */
-function tokenOf(k: u16, shift: bool): u16 {
+export function tokenOf(k: u16, shift: bool): u16 {
   const plain = plainToken(k)
   return plain !== 0 ? plain : faceToken(k, shift)
 }
@@ -725,7 +928,7 @@ function hypToken(k: u16, shift: bool): u16 {
 }
 
 /** The letter a key gives after ALPHA (A-F, X, Y, M), or e on EXP; 0 for none. */
-function letterOf(k: u16): u16 {
+export function letterOf(k: u16): u16 {
   switch (k) {
     case K_NEG:
       return 0x41
@@ -764,7 +967,8 @@ function fromAns(t: u16): bool {
     t === T_INVERSE ||
     t === T_BANG ||
     t === T_NCR ||
-    t === T_NPR
+    t === T_NPR ||
+    (t >= T_AND && t <= T_XNOR)
   )
 }
 
@@ -782,7 +986,7 @@ function type(t: u16): void {
 }
 
 function insert(t: u16): void {
-  if (length >= LINE_MAX) {
+  if (length >= lineMax()) {
     refuse()
     return
   }
@@ -826,7 +1030,8 @@ function arrow(left: bool): void {
 function equals(approx: bool): void {
   if (length === 0) return
   clearStack()
-  evaluate(addr(line), length)
+  if (mode === MODE_BASE) baseEvaluate(addr(line), length)
+  else evaluate(addr(line), length)
   copyValue(top(), KEEP_ANS)
   remember()
   answered = true
@@ -841,6 +1046,17 @@ function equals(approx: bool): void {
 /** Whether an answer shows its exact form first: in 2D, as SETUP says, unless ≈ or a decimal. */
 function formFirst(approx: bool): bool {
   return twoD() && !approx && peek(KEEP_ANSWER) === 0 && !decimalTyped()
+}
+
+/** = on TABLE's f(X): START, END and STEP asked for, then the table. */
+function tableRange(): void {
+  if (length === 0) {
+    refuse()
+    return
+  }
+  tableAskFrom()
+  screen = S_ASK
+  askRange(0, rangeAt(0))
 }
 
 /** f(x) (FIND X after SHIFT): X asked for, then the line evaluated or solved for it. */
@@ -941,12 +1157,35 @@ function memoryPlus(minus: bool): void {
 
 /** The line kept, newest first; the oldest goes when all ten are taken. */
 function remember(): void {
-  const count = peek16(KEEP_HISTORY_COUNT)
-  const kept = count < HISTORY_ENTRIES ? count : HISTORY_ENTRIES - 1
-  memcpy(KEEP_HISTORY + HISTORY_SIZE, KEEP_HISTORY, kept * HISTORY_SIZE)
-  poke(KEEP_HISTORY, length)
-  memcpy(KEEP_HISTORY + 1, addr(line), length)
-  poke16(KEEP_HISTORY_COUNT, kept + 1)
+  const entries = historyEntries()
+  if (entries === 0) return
+  const at = historyAt_()
+  const size = historySize()
+  const count = peek16(historyCount())
+  const kept = count < entries ? count : entries - 1
+  memcpy(at + size, at, kept * size)
+  poke(at, length)
+  memcpy(at + 1, addr(line), length)
+  poke16(historyCount(), kept + 1)
+}
+
+/* Each mode's history: CALC's ten lines, BASE's five; TABLE and the others keep none. */
+
+function historyEntries(): u16 {
+  if (mode === MODE_CALC) return HISTORY_ENTRIES
+  return mode === MODE_BASE ? 5 : 0
+}
+
+function historyAt_(): u16 {
+  return mode === MODE_BASE ? BASE_HISTORY : KEEP_HISTORY
+}
+
+function historySize(): u16 {
+  return mode === MODE_BASE ? 100 : HISTORY_SIZE
+}
+
+function historyCount(): u16 {
+  return mode === MODE_BASE ? BASE_HISTORY_COUNT : KEEP_HISTORY_COUNT
 }
 
 /**
@@ -962,7 +1201,7 @@ function history(older: bool): void {
       return
     }
   }
-  const count = peek16(KEEP_HISTORY_COUNT)
+  const count = historyEntries() === 0 ? 0 : peek16(historyCount())
   const browsing = historyAt !== 0xffff
   if (!answered && length > 0 && !browsing) return
   let next = historyAt
@@ -971,7 +1210,7 @@ function history(older: bool): void {
   else return
   if (next >= count) return
   historyAt = next
-  const entry = KEEP_HISTORY + next * HISTORY_SIZE
+  const entry = historyAt_() + next * historySize()
   length = peek(entry)
   memcpy(addr(line), entry + 1, length)
   cursor = length
@@ -991,6 +1230,7 @@ function drawMarks(): void {
   const angle = peek(KEEP_ANGLE)
   bits |= angle === 1 ? ANN_R : angle === 2 ? ANN_G : ANN_D
   if (twoD()) bits |= ANN_2D
+  if (mode === MODE_STATS) bits |= ANN_STAT
   if (hyp) bits |= ANN_HYP
   const format = peek(KEEP_FORMAT)
   if (format === FORMAT_FIX) bits |= ANN_FIX
@@ -1001,7 +1241,7 @@ function drawMarks(): void {
 
 /** ▲ while ▲ brings an earlier line, ▼ while ▼ brings a later one. */
 function historyMarks(): u16 {
-  const count = peek16(KEEP_HISTORY_COUNT)
+  const count = historyEntries() === 0 ? 0 : peek16(historyCount())
   const browsing = historyAt !== 0xffff
   let bits: u16 = 0
   if (browsing ? historyAt + 1 < count : count > 0 && (answered || length === 0)) bits |= ANN_UP
@@ -1011,10 +1251,27 @@ function historyMarks(): u16 {
 
 /** The line on its rows, and the answer below it when there is one. */
 function drawCalc(): void {
+  if (mode === MODE_BASE) {
+    baseDraw()
+    drawMarks()
+    return
+  }
+  if (ownScreen() || (mode === MODE_TABLE && tablePhase() === TABLE_VIEW)) {
+    noCursor()
+    if (mode === MODE_STATS) statsDraw()
+    else if (mode === MODE_EQN) eqnDraw()
+    else tableDraw()
+    drawMarks()
+    return
+  }
   cls()
   if (twoD()) drawLine2D()
   else drawLine()
   if (answered) drawAnswerAs(shown)
+  if (mode === MODE_TABLE) {
+    textAt(str('TABLE f(X)'), 1, 47)
+    textAt(str('=:START,END,STEP'), 1, 56)
+  }
   drawMarks()
 }
 

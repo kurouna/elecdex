@@ -1,15 +1,15 @@
 ; The ELEC-16 SCI ROM, for SCI-128 (docs/elec16-sci.md): reset, the trap handler, the ROM
 ; services and the calculator's key loop. The calculator is e16c (calc.e16.ts and the files
-; beside it, compiled into sci.s by npm run gen:elec16); its evaluation and its other screens
-; live in ROM banks 0 and 1, reached through far_call.
+; beside it, compiled into sci.s by npm run gen:elec16); its evaluation, its other screens and
+; its modes live in ROM banks 0-11, reached through far_call (sci-rom.ts names each).
 ;
 ; Labels are lower case and constants upper case, as in the pocket ROM; calls follow the usual
 ; E16 convention (a0-a3 and t0-t3 may change, s0-s3, sp and gp are kept).
 
   .include "io.inc"
 
-; The ROM's work area at the bottom of RAM (0000-00FF); e16c's globals follow it (0100-03FF),
-; and what the calculator keeps when the power goes after them (0400 on, numbers.e16.ts).
+; The ROM's work area at the bottom of RAM (0000-00FF); e16c's globals follow it (0100-0BFF),
+; and what the calculator keeps when the power goes after them (0C00 on, numbers.e16.ts).
 RETPC    = 0x12     ; where an ECALL service returns to
 ERA      = 0x14     ; the caller's ra while an ECALL service runs
 CAUSE    = 0x16     ; mcause of the last break or fault
