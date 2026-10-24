@@ -8,7 +8,6 @@ import {
   type bool,
   bytes,
   csrw,
-  div,
   memcpy,
   peek,
   peek16,
@@ -18,16 +17,8 @@ import {
   type u16,
   wfi,
 } from '../../../src/shared/e16c/builtins'
+import { baseCommand, baseEvaluate, baseFuncKey, baseFuncScreen, baseToken } from './base.e16'
 import {
-  baseCommand,
-  baseDraw,
-  baseEvaluate,
-  baseFuncKey,
-  baseFuncScreen,
-  baseToken,
-} from './base.e16'
-import {
-  drawAnswerAs,
   firstShown,
   hasForm,
   nextShown,
@@ -37,13 +28,15 @@ import {
   SHOW_FOUND,
   SHOW_PAIR,
 } from './display.e16'
+import { drawAnnunciators, drawScreen } from './draw.e16'
 import { deleteAt, editCursor, editLength, vertical, wrap } from './edit.e16'
-import { eqnDraw, eqnKey, eqnReset, eqnStart } from './equation.e16'
+import { eqnKey, eqnReset, eqnStart } from './equation.e16'
 import { evaluate } from './eval.e16'
 import { exactBinary } from './exact.e16'
-import { constantKept, dropConstant, nextAngle, noteConstant, withConstant } from './extras.e16'
-import { cursorTop, cursorX, heightOf, setLine } from './layout.e16'
-import { barAt, barDots, COLS, centre, cls, drawChar, marks, noCursor, textAt } from './lcd.e16'
+import { dropConstant, nextAngle, noteConstant, withConstant } from './extras.e16'
+import { hypToken, letterOf, tokenOf } from './keymap.e16'
+import { heightOf } from './layout.e16'
+import { centre, cls, marks, noCursor } from './lcd.e16'
 import {
   BASE_HISTORY,
   BASE_HISTORY_COUNT,
@@ -54,15 +47,11 @@ import {
   copyValue,
   errAt,
   errCode,
-  FORMAT_EXP,
-  FORMAT_FIX,
   HISTORY_ENTRIES,
   HISTORY_SIZE,
-  KEEP_ANGLE,
   KEEP_ANS,
   KEEP_ANSWER,
   KEEP_DISPLAY,
-  KEEP_FORMAT,
   KEEP_HISTORY,
   KEEP_HISTORY_COUNT,
   KEEP_MODE,
@@ -87,13 +76,12 @@ import {
   setupScreen,
 } from './screens.e16'
 import { ASK_BACK, ASK_DONE, ASK_STAY, askKey, askRange, askStart } from './solve.e16'
-import { statsDraw, statsKey, statsReset, statsStart } from './stats.e16'
+import { statsKey, statsReset, statsStart } from './stats.e16'
 import {
   rangeAt,
   TABLE_VIEW,
   tableAskFrom,
   tableAsking,
-  tableDraw,
   tableKey,
   tableNext,
   tablePhase,
@@ -103,39 +91,21 @@ import {
   isDigit,
   isSeparator,
   opensTemplate,
-  T_ABS,
-  T_ACOS,
-  T_ACOSH,
   T_AND,
   T_ANS,
-  T_ASIN,
-  T_ASINH,
-  T_ATAN,
-  T_ATANH,
   T_BANG,
-  T_CBRT,
-  T_CLOSE,
-  T_COMMA,
-  T_COS,
-  T_COSH,
   T_CUBE,
   T_DEG,
   T_DIVIDE,
   T_E,
   T_END,
-  T_EXP,
   T_FRAC,
   T_INVERSE,
-  T_LN,
-  T_LOG,
   T_MIN,
   T_MINUS,
   T_MIXED,
   T_NCR,
-  T_NEG,
   T_NPR,
-  T_OPEN,
-  T_PI,
   T_PLUS,
   T_POINT,
   T_POL,
@@ -144,19 +114,12 @@ import {
   T_REC,
   T_ROOT,
   T_SEC,
-  T_SIN,
-  T_SINH,
   T_SLASH,
-  T_SQRT,
   T_SQUARE,
-  T_TAN,
-  T_TANH,
   T_TEN,
   T_TIMES,
   T_XNOR,
   T_XROOT,
-  tokenText,
-  tokenWidth,
 } from './tokens.e16'
 
 /* ---------------- the hand-written ROM (main.s) ---------------- */
@@ -252,7 +215,7 @@ export const S_SETUP = 3
 export const S_FUNC = 4
 /** f(x) or FIND X asking for X. */
 export const S_ASK = 5
-let screen: u16 = S_CALC
+export let screen: u16 = S_CALC
 
 /** The mode (MENU): CALC, then the four others in MENU's order; kept in KEEP_MODE. */
 export const MODE_CALC = 0
@@ -260,7 +223,7 @@ export const MODE_STATS = 1
 export const MODE_BASE = 2
 export const MODE_TABLE = 3
 export const MODE_EQN = 4
-let mode: u16 = MODE_CALC
+export let mode: u16 = MODE_CALC
 
 /** The line: its tokens, how many, and where the cursor is (before token `cursor`). */
 export const line = bytes(200)
@@ -269,34 +232,28 @@ export let cursor: u16 = 0
 /** The line has been answered: its answer is on screen, and a key decides what comes next. */
 export let answered: bool = false
 /** SHIFT and ALPHA wait for the next key; STO and RCL for a variable's key. */
-let shifted: bool = false
-let alphaOn: bool = false
-let storing: bool = false
-let recalling: bool = false
+export let shifted: bool = false
+export let alphaOn: bool = false
+export let storing: bool = false
+export let recalling: bool = false
 /** Keys type over the token at the cursor (SHIFT DEL) rather than put one in before it. */
-let overwrite: bool = false
+export let overwrite: bool = false
 /** HYP waits for SIN, COS or TAN. */
-let hyp: bool = false
+export let hyp: bool = false
 /** The answer came from FIND X (shown with its DIFF). */
 let found: bool = false
 /** Which line of the history is on screen (0 the newest), or none. */
-let historyAt: u16 = 0xffff
-/** The first character of the line on screen, when it is longer than the rows hold. */
-let scrollFrom: u16 = 0
+export let historyAt: u16 = 0xffff
 /** How the answer is shown (display.e16.ts SHOW_*). */
-let shown: u16 = 0
+export let shown: u16 = 0
 
 /** The 2D display (0 in SETUP's KEEP_DISPLAY) or LINE. */
-function twoD(): bool {
+export function twoD(): bool {
   return peek(KEEP_DISPLAY) === 0 && mode !== MODE_BASE
 }
 
 /** The line's height in 2D: above this many rows a template is not put in. */
 const LINE_HEIGHT_MAX = 36
-
-/** The line's rows on screen: four of 21 characters. */
-const LINE_ROWS = 4
-const LINE_CHARS = 84
 
 /* ---------------- start ---------------- */
 
@@ -377,7 +334,7 @@ function startMode(): void {
 }
 
 /** Whether the mode's screen is its own (not the line CALC, BASE and TABLE edit). */
-function ownScreen(): bool {
+export function ownScreen(): bool {
   return mode === MODE_STATS || mode === MODE_EQN
 }
 
@@ -841,157 +798,6 @@ function commandKey(k: u16, shift: bool, alpha: bool): bool {
   return true
 }
 
-/** The token a key types, after SHIFT or not; 0 for a key that types none (yet). */
-export function tokenOf(k: u16, shift: bool): u16 {
-  const plain = plainToken(k)
-  return plain !== 0 ? plain : faceToken(k, shift)
-}
-
-/** A key that types the same token whether SHIFT waits or not: a digit, a sign, a bracket. */
-function plainToken(k: u16): u16 {
-  switch (k) {
-    case K_0:
-      return 0x30
-    case K_1:
-      return 0x31
-    case K_2:
-      return 0x32
-    case K_3:
-      return 0x33
-    case K_4:
-      return 0x34
-    case K_5:
-      return 0x35
-    case K_6:
-      return 0x36
-    case K_7:
-      return 0x37
-    case K_8:
-      return 0x38
-    case K_9:
-      return 0x39
-    case K_DOT:
-      return T_POINT
-    case K_ADD:
-      return T_PLUS
-    case K_SUB:
-      return T_MINUS
-    case K_MUL:
-      return T_TIMES
-    case K_DIV:
-      return T_DIVIDE
-    case K_RP:
-      return T_CLOSE
-    case K_ANS:
-      return T_ANS
-  }
-  return 0
-}
-
-/** A key with a SHIFT face: the token of its face or of its cap. */
-function faceToken(k: u16, shift: bool): u16 {
-  return shift ? shiftFace(k) : capToken(k)
-}
-
-/** The token of a key's cap. */
-function capToken(k: u16): u16 {
-  switch (k) {
-    case K_LP:
-      return T_OPEN
-    case K_NEG:
-      return T_NEG
-    case K_EXP:
-      return T_EXP
-    case K_SQ:
-      return T_SQUARE
-    case K_ROOT:
-      return T_SQRT
-    case K_POW:
-      return T_POW
-    case K_LOG:
-      return T_LOG
-    case K_LN:
-      return T_LN
-    case K_SIN:
-      return T_SIN
-    case K_COS:
-      return T_COS
-    case K_TAN:
-      return T_TAN
-    case K_INV:
-      return T_INVERSE
-    case K_NCR:
-      return T_NCR
-  }
-  return 0
-}
-
-/** The token of a key's SHIFT face; 0 where it has none, or one that comes later. */
-function shiftFace(k: u16): u16 {
-  switch (k) {
-    case K_NEG:
-      return T_ABS
-    case K_LP:
-      return T_COMMA
-    case K_EXP:
-      return T_PI
-    case K_SQ:
-      return T_CUBE
-    case K_ROOT:
-      return T_CBRT
-    case K_LOG:
-      return T_TEN
-    case K_LN:
-      return T_E
-    case K_SIN:
-      return T_ASIN
-    case K_COS:
-      return T_ACOS
-    case K_TAN:
-      return T_ATAN
-    case K_INV:
-      return T_BANG
-    case K_NCR:
-      return T_NPR
-  }
-  return 0
-}
-
-/** After HYP: sinh(, cosh(, tanh( and their inverses after SHIFT; 0 for another key. */
-function hypToken(k: u16, shift: bool): u16 {
-  if (k === K_SIN) return shift ? T_ASINH : T_SINH
-  if (k === K_COS) return shift ? T_ACOSH : T_COSH
-  if (k === K_TAN) return shift ? T_ATANH : T_TANH
-  return 0
-}
-
-/** The letter a key gives after ALPHA (A-F, X, Y, M), or e on EXP; 0 for none. */
-export function letterOf(k: u16): u16 {
-  switch (k) {
-    case K_NEG:
-      return 0x41
-    case K_DMS:
-      return 0x42
-    case K_HYP:
-      return 0x43
-    case K_SIN:
-      return 0x44
-    case K_COS:
-      return 0x45
-    case K_TAN:
-      return 0x46
-    case K_LP:
-      return 0x58
-    case K_RP:
-      return 0x59
-    case K_MPLUS:
-      return 0x4d
-    case K_EXP:
-      return T_E
-  }
-  return 0
-}
-
 /** Whether a token goes on from Ans after an answer: an operator, a power or a postfix. */
 function fromAns(t: u16): bool {
   return (
@@ -1229,7 +1035,7 @@ function remember(): void {
 
 /* Each mode's history: CALC's ten lines, BASE's five; TABLE and the others keep none. */
 
-function historyEntries(): u16 {
+export function historyEntries(): u16 {
   if (mode === MODE_CALC) return HISTORY_ENTRIES
   return mode === MODE_BASE ? 5 : 0
 }
@@ -1242,7 +1048,7 @@ function historySize(): u16 {
   return mode === MODE_BASE ? 100 : HISTORY_SIZE
 }
 
-function historyCount(): u16 {
+export function historyCount(): u16 {
   return mode === MODE_BASE ? BASE_HISTORY_COUNT : KEEP_HISTORY_COUNT
 }
 
@@ -1276,119 +1082,14 @@ function history(older: bool): void {
   drawCalc()
 }
 
-/* ---------------- drawing ---------------- */
+/* ---------------- drawing (draw.e16.ts, in its bank) ---------------- */
 
-/** The marks: S, A, STO, M while it is not 0, the angle, ▲ ▼ where the history goes. */
-function drawMarks(): void {
-  let bits: u16 = 0
-  if (shifted) bits |= ANN_S
-  if (alphaOn || storing || recalling) bits |= ANN_A
-  if (storing) bits |= ANN_STO
-  if (peek(varAt(0x4d) + 2) !== 0) bits |= ANN_M
-  const angle = peek(KEEP_ANGLE)
-  bits |= angle === 1 ? ANN_R : angle === 2 ? ANN_G : ANN_D
-  if (twoD()) bits |= ANN_2D
-  if (mode === MODE_STATS) bits |= ANN_STAT
-  if (hyp) bits |= ANN_HYP
-  const format = peek(KEEP_FORMAT)
-  if (format === FORMAT_FIX) bits |= ANN_FIX
-  else if (format === FORMAT_EXP) bits |= ANN_EXP
-  if (screen === S_CALC) bits |= historyMarks()
-  marks(bits)
-}
-
-/** ▲ while ▲ brings an earlier line, ▼ while ▼ brings a later one. */
-function historyMarks(): u16 {
-  const count = historyEntries() === 0 ? 0 : peek16(historyCount())
-  const browsing = historyAt !== 0xffff
-  let bits: u16 = 0
-  if (browsing ? historyAt + 1 < count : count > 0 && (answered || length === 0)) bits |= ANN_UP
-  if (browsing && historyAt > 0) bits |= ANN_DOWN
-  return bits
-}
-
-/** K: a constant kept for a number alone; OVR: typing over. */
-function footMarks(): void {
-  if (answered && mode === MODE_CALC && constantKept()) textAt(str('K'), 1, 56)
-  if (!answered && overwrite) textAt(str('OVR'), 1, 56)
-}
-
-/** The line on its rows, and the answer below it when there is one. */
+/** The screen as the state says: one call into the drawing's bank, from everywhere here. */
 function drawCalc(): void {
-  if (mode === MODE_BASE) {
-    baseDraw()
-    drawMarks()
-    return
-  }
-  if (ownScreen() || (mode === MODE_TABLE && tablePhase() === TABLE_VIEW)) {
-    noCursor()
-    if (mode === MODE_STATS) statsDraw()
-    else if (mode === MODE_EQN) eqnDraw()
-    else tableDraw()
-    drawMarks()
-    return
-  }
-  cls()
-  if (twoD()) drawLine2D()
-  else drawLine()
-  if (answered) drawAnswerAs(shown)
-  footMarks()
-  if (mode === MODE_TABLE) {
-    textAt(str('TABLE f(X)'), 1, 47)
-    textAt(str('=:START,END,STEP'), 1, 56)
-  }
-  drawMarks()
+  drawScreen()
 }
 
-/** The line set in 2D (layout.e16.ts), the bar cursor where the layout found it. */
-function drawLine2D(): void {
-  setLine(addr(line), length, answered ? 0xffff : cursor)
-  if (answered) noCursor()
-  else barDots(cursorX, cursorTop)
-}
-
-/** Where token `n` starts, in characters from the line's start. */
-function charsTo(n: u16): u16 {
-  let c: u16 = 0
-  for (let i: u16 = 0; i < n; i++) c += tokenWidth(line[i])
-  return c
-}
-
-/**
- * The line in characters on rows 0-3, scrolled by whole rows so the cursor is on them; the
- * bar cursor before the token it is at, unless the line is answered.
- */
-function drawLine(): void {
-  const at = charsTo(cursor)
-  if (at < scrollFrom) scrollFrom = at - (at % COLS)
-  if (at >= scrollFrom + LINE_CHARS) scrollFrom = at - (at % COLS) - (LINE_ROWS - 1) * COLS
-  let c: u16 = 0
-  for (let i: u16 = 0; i < length; i++) {
-    const t = line[i]
-    const text = tokenText(t)
-    if (text === 0) {
-      showChar(t, c)
-      c++
-    } else {
-      let p = text
-      while (peek(p) !== 0) {
-        showChar(peek(p), c)
-        c++
-        p++
-      }
-    }
-  }
-  if (answered) {
-    noCursor()
-    return
-  }
-  const shown = at - scrollFrom
-  barAt(shown % COLS, div(shown, COLS))
-}
-
-/** Character `ch` at the line's place `c`, if that is on the rows shown. */
-function showChar(ch: u16, c: u16): void {
-  if (c < scrollFrom || c >= scrollFrom + LINE_CHARS) return
-  const shown = c - scrollFrom
-  drawChar(ch, shown % COLS, div(shown, COLS))
+/** The marks over the screen. */
+function drawMarks(): void {
+  drawAnnunciators()
 }

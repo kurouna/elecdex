@@ -14,8 +14,9 @@ import {
   poke16,
   type u16,
 } from '../../../src/shared/e16c/builtins'
-import { K_AC, K_DEL, K_DOWN, K_EQ, K_LEFT, K_RIGHT, K_UP, refuse, tokenOf } from './calc.e16'
+import { K_AC, K_DEL, K_DOWN, K_EQ, K_LEFT, K_RIGHT, K_UP, refuse } from './calc.e16'
 import { evaluate } from './eval.e16'
+import { tokenOf } from './keymap.e16'
 import { dot, glyphAt, invertBox, lineY, textAt } from './lcd.e16'
 import {
   clearStack,

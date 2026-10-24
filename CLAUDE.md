@@ -378,10 +378,11 @@ user made; do not reverse one without asking.
   - ELEC-16 SCI (docs/elec16-sci.md; elec16-sci-manual.md its manual, in Japanese) is the
     calculator model SCI-128, opened by the picker's own row (`variants`, `fresh`), never a
     widget of its own. Its ROM is resources/elec16/sci: main.s and e16c files, a bank each as
-    `SCI_SOURCES` (shared/e16c/sci-rom.ts) says; sci.s and sci-rom.json are written only by
+    `SCI_SOURCES` (shared/e16c/sci-rom.ts) says - the fixed ROM keeps what every key goes
+    through, the rest in banks (a test holds 4 KB of it free); sci.s and sci-rom.json are written only by
     `npm run gen:elec16`. e16c names are one namespace across every file: a new global gets a
-    name no other file has. e16c's globals (0100-0BFF) are full; new RAM goes at a fixed
-    address in the RAM map (elec16-sci.md section 6.7), the kept regions checked by their marks
+    name no other file has. e16c's globals stay in 0100-0BFF (a load reaches 8191 from zero);
+    a large new area goes at a fixed address in the RAM map (elec16-sci.md section 6.7), the kept regions checked by their marks
     (0C00, 5C24; the modes' 1600, 5C36) - a change of a kept layout takes a new mark.
   - Every value is a decimal and an exact form `(p + r√s)/q`: the decimal is always worked
     out, the form followed beside it (exact.e16.ts) and dropped - never an error - when it

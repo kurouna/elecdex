@@ -1230,3 +1230,60 @@ describe('AC on a screen that offers it', () => {
     })
   }
 })
+
+describe("the ROM's and the RAM's room (docs/elec16-sci.md section 6.7)", () => {
+  /** e16c's globals as sci.s lists them: name = address ; size bytes. */
+  const globals = () =>
+    [...(read('sci.s') ?? '').matchAll(/^(\w+) = 0x([0-9a-f]{4}) ; (\d+) bytes?$/gm)].map((g) => ({
+      name: g[1] ?? '',
+      at: Number.parseInt(g[2] ?? '', 16),
+      size: Number(g[3]),
+    }))
+
+  it("keeps e16c's globals inside their area, below what a load reaches from zero", () => {
+    const all = globals()
+    expect(all.length).toBeGreaterThan(20)
+    for (const g of all) {
+      expect(g.at, g.name).toBeGreaterThanOrEqual(0x0100)
+      // KEEP starts at 0C00; a load or store reaches 8191 from zero in one instruction.
+      expect(g.at + g.size, g.name).toBeLessThanOrEqual(0x0c00)
+    }
+  })
+
+  it('lays the fixed RAM areas apart from one another and from the globals', () => {
+    const areas: [string, number, number][] = [
+      ['globals', 0x0100, Math.max(...globals().map((g) => g.at + g.size))],
+      ['KEEP', 0x0c00, 0x0d82 + 10 * 200],
+      ['MODES', 0x1600, 0x2100],
+      ['EQN_WORK', 0x2100, 0x2100 + 24 * 36],
+      ['STATS_WORK', 0x2500, 0x2500 + 44 * 8 + 44],
+      ['WORK', 0x2700, 0x2800],
+    ]
+    for (const [i, [a, from, to]] of areas.entries()) {
+      for (const [b, from2, to2] of areas.slice(i + 1)) {
+        expect(to <= from2 || to2 <= from, `${a} and ${b}`).toBe(true)
+      }
+    }
+    // numbers.e16.ts says the same addresses.
+    const numbers = read('numbers.e16.ts') ?? ''
+    for (const [name, at] of [
+      ['KEEP', 0x0c00],
+      ['MODES', 0x1600],
+      ['EQN_WORK', 0x2100],
+      ['STATS_WORK', 0x2500],
+      ['WORK', 0x2700],
+    ] as const) {
+      expect(numbers, name).toContain(
+        `export const ${name} = 0x${at.toString(16).padStart(4, '0')}`,
+      )
+    }
+  })
+
+  it('leaves room in the fixed ROM, where every bank calls', () => {
+    // Every byte of the fixed ROM a key goes through is dear: the drawing and the key table
+    // live in banks, so a later part has room here (it once had 2,610 bytes left).
+    let used = 0x4000
+    while (used > 0 && built.image[used - 1] === 0xff) used--
+    expect(0x4000 - used).toBeGreaterThanOrEqual(4096)
+  })
+})

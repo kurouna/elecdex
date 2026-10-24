@@ -39,11 +39,11 @@ import {
   K_SUB,
   K_UP,
   length,
-  letterOf,
   line,
   refuse,
 } from './calc.e16'
 import { exactWhole } from './exact.e16'
+import { letterOf } from './keymap.e16'
 import { bandWith, barDots, cls, dot, glyphAt, lineY, noCursor, textAt, textRight } from './lcd.e16'
 import {
   BASE_RADIX,
