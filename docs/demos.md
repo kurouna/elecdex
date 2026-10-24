@@ -28,6 +28,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:keystream` | KEYSTREAM の曲を通しで | |
 | `demo:games` | PLAY-320 の 3 本のゲーム | |
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
+| `demo:sci` | ELEC-16 SCI（SCI-128）単独。本体のキーを手で押すように: sin45°+½ を 2D で打って (1+√2)/2、F⇄D で小数、500+25% = 625、定数計算（K）、EQUATION の 2 次方程式の正確な解と頂点、STATS の直線の回帰、BASE の HEX の AND と BIN のドット、TUNE で SLATE・CHALK・PLAIN。横に CORE。英語の字幕は電卓と CORE のあいだ（`captionPlace`） | 1600×900、約 66 秒 |
 | `demo:panes` / `demo:snippets` / `demo:wifi` / `demo:dev` / `demo:elec` / `demo:presets` / `demo:shorts` | X 用の短いもの | |
 | `demo:whatsnew` / `demo:whatsnew22` | そのリリースで増えたもの | |
 | `demo:whatsnew38` | v0.0.38 で増えたもの。ELEC-16 ひとつのペインで SINEWAVE を走らせ、TUNE を開いて光で描く 5 つのスキン（ALLOY、GRAPHITE、NEO、MOCHI、GLASS）を順に。TUNE を畳んで GLASS のキーで `PRINT 4*9`、アクションパレットで Business Light にして明るいガラス、元のテーマに戻して MOCHI と ALLOY で終わる。英語の字幕付き | 1600×900、約 46 秒 |
@@ -52,7 +53,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `--no-intro` | 起動画面を飛ばす（tour、tour-shorts） |
 | `--no-captions` | 下の英語の字幕を出さない（字幕を付けたデモ: tour、tour-black、tour-shorts、devflow） |
 
-字幕は `openTake` が返す `caption(text)` で出す（`null` で消す）。紹介デモの字幕の文面は demo-beats.mjs の `CAPTIONS` と `OPENING` に 1 回だけ書き、横型と縦型の両方が使う。デモがページに足す要素で、クリックもポインターも
+字幕は `openTake` が返す `caption(text)` で出す（`null` で消す）。下中央をペインが埋めるテイクは、`openTake` の `captionPlace`（`left` `right` `bottom`）で置き場所を変える（demo:sci）。紹介デモの字幕の文面は demo-beats.mjs の `CAPTIONS` と `OPENING` に 1 回だけ書き、横型と縦型の両方が使う。デモがページに足す要素で、クリックもポインターも
 下へ通し、何も待たないので、操作も長さも字幕のないときと同じ。画面の下中央に出す（Web ペインはページの上に
 別に描かれるので、その位置を避けている。media プリセットの Web ペインは左上と右の列）。テーマの色で `crt-on` で現れる。
 起動画面のあいだの字幕は `openTake` の `opening` で渡す（`log` は起動ログ、`title` はタイトル、`shell` は最初のシェルに打つあいだ）。起動画面の場面が変わるのを待って出すだけなので、起動の長さは変わらない。

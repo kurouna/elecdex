@@ -81,10 +81,10 @@ const CAPTION_ID = 'elecdex-demo-caption'
  * preset's are top left and down the right). It powers on with the app's `crt-on`, in the
  * theme's colours, so it changes with the themes.
  */
-async function showCaption(page, text) {
+async function showCaption(page, text, place = {}) {
   await page
     .evaluate(
-      ([id, words]) => {
+      ([id, words, where]) => {
         document.getElementById(id)?.remove()
         if (words === null) return
         const holder = document.createElement('div')
@@ -101,6 +101,8 @@ async function showCaption(page, text) {
           justifyContent: 'center',
           zIndex: '2147483000',
           pointerEvents: 'none',
+          // A take whose pane fills the bottom centre puts its captions elsewhere (`captionPlace`).
+          ...where,
         })
         // crt-on makes its element position: relative, so it goes on a box inside the holder.
         const box = document.createElement('div')
@@ -119,7 +121,7 @@ async function showCaption(page, text) {
         holder.append(box)
         document.body.append(holder)
       },
-      [CAPTION_ID, text],
+      [CAPTION_ID, text, place],
     )
     .catch(() => {})
 }
@@ -150,7 +152,8 @@ export function withDemoState(tree, standIn) {
  * take of its own stub (the Wi-Fi demo's train) says so there. `prepare` is given the profile
  * folder before the app starts, for what a take needs in it (a plugin's folder). `opening` are
  * the captions before the take: `log` over the boot log, `title` over its title card, `shell`
- * while the first shell is typed into (any of them may be left out).
+ * while the first shell is typed into (any of them may be left out). `captionPlace` is laid
+ * over the caption's holder (`left`, `right`, `bottom`) where a pane fills the bottom centre.
  */
 export async function openTake({
   items,
@@ -161,6 +164,7 @@ export async function openTake({
   intro = false,
   opening = {},
   prepare = () => {},
+  captionPlace = {},
 }) {
   const profile = mkdtempSync(path.join(tmpdir(), 'elecdex-demo-'))
   writeFileSync(path.join(profile, 'layout.json'), JSON.stringify(items[0].tree))
@@ -322,7 +326,7 @@ export async function openTake({
   const caption = async (text) => {
     if (!options.captions) return
     if (text !== null) say(`caption: ${text}`)
-    await showCaption(page, text)
+    await showCaption(page, text, captionPlace)
   }
 
   /**
