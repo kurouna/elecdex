@@ -362,3 +362,169 @@ export function bigGlyphColumns(ch: string): number[] {
   }
   return columns
 }
+
+/*
+ * The calculator's screen read back for a screen reader (docs/elec16-sci.md S7): its text is
+ * set on any dot row (a title a dot down, lines every nine rows, a fraction's parts over and
+ * under its bar) and its answers in big digits, so the eight-row cells of screenText miss most
+ * of it. This finds every glyph wherever it is: five columns that are a character, the column
+ * after it and the rows above and below clear (or all lit, on an inverted band), and the big
+ * digits on the answer rows. Glyphs on one dot row make a line, a space for each empty cell.
+ */
+
+/** Seven rows of a column from dot row `y` (bit 0 the top), as a glyph's column is kept. */
+function columnAt(vram: ArrayLike<number>, width: number, x: number, y: number): number {
+  const band = y >> 3
+  const shift = y & 7
+  const top = vram[band * width + x] ?? 0
+  const below = vram[(band + 1) * width + x] ?? 0
+  return ((top >> shift) | (below << (8 - shift))) & 0x7f
+}
+
+/** Five 7-bit columns as one number (35 bits, inside a double's 53). */
+const numberOf = (c: ArrayLike<number>, at: number): number =>
+  ((((c[at] ?? 0) * 128 + (c[at + 1] ?? 0)) * 128 + (c[at + 2] ?? 0)) * 128 + (c[at + 3] ?? 0)) *
+    128 +
+  (c[at + 4] ?? 0)
+
+/** Each glyph by its columns as a number, for the dot reader (measured: strings took 8 ms a screen). */
+const BY_NUMBER: ReadonlyMap<number, string> = new Map(
+  [...BY_COLUMNS].map(([key, text]): [number, string] => [
+    numberOf(key.split(',').map(Number), 0),
+    text,
+  ]),
+)
+
+interface Found {
+  x: number
+  y: number
+  text: string
+  /** How far it takes the line: 6 for a character, 8 for a big digit, 3 for its point. */
+  w: number
+}
+
+/** The big digits on rows 48-61: each run of them, its leftmost column. */
+function bigDigits(vram: ArrayLike<number>, width: number, taken: Set<number>): Found[] {
+  const col = (x: number) => (vram[6 * width + x] ?? 0) | ((vram[7 * width + x] ?? 0) << 8)
+  const glyphs = [...'0123456789-'].map((ch) => [ch, bigGlyphColumns(ch).join(',')] as const)
+  const found: Found[] = []
+  for (let x = 0; x + BIG_WIDTH <= width; x++) {
+    const key = Array.from({ length: BIG_WIDTH }, (_, k) => col(x + k)).join(',')
+    const glyph = glyphs.find(([, g]) => g === key)
+    if (glyph !== undefined && (x === 0 || col(x - 1) === 0) && col(x + BIG_WIDTH) === 0) {
+      found.push({ x, y: 48, text: glyph[0], w: BIG_PITCH })
+      for (let k = 0; k < BIG_WIDTH; k++) taken.add(x + k)
+    } else if (
+      col(x) === 0x3000 &&
+      col(x + 1) === 0x3000 &&
+      col(x + 2) === 0 &&
+      // A point follows a digit, a dot after it.
+      found.at(-1)?.x === x - BIG_PITCH
+    ) {
+      found.push({ x, y: 48, text: '.', w: 3 })
+      taken.add(x)
+      taken.add(x + 1)
+    }
+  }
+  return found
+}
+
+/** One dot row's columns, plain and inverted, with the rows above and below. */
+interface Row {
+  cols: Uint8Array
+  above: Uint8Array
+  below: Uint8Array
+}
+
+function rowAt(vram: ArrayLike<number>, width: number, height: number, y: number): Row {
+  const cols = new Uint8Array(width + 1)
+  const above = new Uint8Array(width + 1)
+  const below = new Uint8Array(width + 1)
+  for (let x = 0; x < width; x++) {
+    cols[x] = columnAt(vram, width, x, y)
+    above[x] = y > 0 ? ((vram[((y - 1) >> 3) * width + x] ?? 0) >> ((y - 1) & 7)) & 1 : 2
+    below[x] = y + 7 < height ? ((vram[((y + 7) >> 3) * width + x] ?? 0) >> ((y + 7) & 7)) & 1 : 2
+  }
+  // Past the right edge: the ground either way.
+  cols[width] = 0x80
+  above[width] = 2
+  below[width] = 2
+  return { cols, above, below }
+}
+
+/** A glyph at x of the row, plain or inverted, the ground clear round it: its text. */
+function glyphOf(row: Row, x: number): string | undefined {
+  const gap = row.cols[x + 5] ?? 0
+  // The column after a glyph is the ground: clear, all lit (inverted), or past the edge.
+  const inverted = gap === 0x7f
+  if (gap !== 0 && !inverted && gap !== 0x80) return undefined
+  for (const inv of gap === 0x80 ? [false, true] : [inverted]) {
+    // Most places are the ground alone: a number of the five columns, nothing allocated.
+    let key = 0
+    for (let k = 0; k < 5; k++) {
+      const c = row.cols[x + k] ?? 0
+      key = key * 128 + (inv ? ~c & 0x7f : c)
+    }
+    if (key === 0) continue
+    const text = BY_NUMBER.get(key)
+    // An underscore is the foot of a fraction's bar or BASE's bits: the calculator writes none.
+    if (text === undefined || text === '_') continue
+    const ground = inv ? 1 : 0
+    let clear = true
+    for (let k = 0; k < 5 && clear; k++) {
+      const a = row.above[x + k] ?? 2
+      const b = row.below[x + k] ?? 2
+      clear = (a === 2 || a === ground) && (b === 2 || b === ground)
+    }
+    if (clear) return text
+  }
+  return undefined
+}
+
+/**
+ * Glyphs that overlap (one shape read at two rows: × a row down is x) leave the one on the
+ * row with more glyphs, as text is set in lines.
+ */
+function settle(found: Found[]): Found[] {
+  const onRow = new Map<number, number>()
+  for (const f of found) onRow.set(f.y, (onRow.get(f.y) ?? 0) + 1)
+  const order = [...found].sort((a, b) => (onRow.get(b.y) ?? 0) - (onRow.get(a.y) ?? 0))
+  const kept: Found[] = []
+  for (const f of order) {
+    const height = f.w === CELL_WIDTH ? 7 : BIG_HEIGHT
+    const clash = kept.some((k) => {
+      const kh = k.w === CELL_WIDTH ? 7 : BIG_HEIGHT
+      return f.x < k.x + k.w - 1 && k.x < f.x + f.w - 1 && f.y < k.y + kh && k.y < f.y + height
+    })
+    if (!clash) kept.push(f)
+  }
+  return kept
+}
+
+/** The screen's text wherever it is set: a line a dot row, top to bottom. */
+export function dotText(vram: ArrayLike<number>, width: number, height: number): string[] {
+  const taken = new Set<number>()
+  const found = bigDigits(vram, width, taken)
+  for (let y = 0; y + 7 <= height; y++) {
+    const row = rowAt(vram, width, height, y)
+    for (let x = 0; x + 5 <= width; x++) {
+      if (y + 6 >= 48 && taken.has(x)) continue
+      const text = glyphOf(row, x)
+      if (text === undefined) continue
+      found.push({ x, y, text, w: CELL_WIDTH })
+      x += 5
+    }
+  }
+  const kept = settle(found)
+  const rows = [...new Set(kept.map((f) => f.y))].sort((a, b) => a - b)
+  return rows.map((y) => {
+    const line = kept.filter((f) => f.y === y).sort((a, b) => a.x - b.x)
+    let out = ''
+    let end = line[0]?.x ?? 0
+    for (const f of line) {
+      out += ' '.repeat(Math.max(0, Math.round((f.x - end) / CELL_WIDTH))) + f.text
+      end = f.x + f.w
+    }
+    return out
+  })
+}

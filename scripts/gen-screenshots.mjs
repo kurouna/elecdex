@@ -10,6 +10,7 @@
  * `npm run build` first, then `npm run gen:screenshots`; name shots to take only those
  * (`npm run gen:screenshots -- elecdex-media`).
  *
+ * The calculator (elecdex-sci) is an SCI-128 unit answering a line typed on the PC's keys.
  * The PLAY-320's games (elecdex-play, -play-air, -play-drill, -play-fighter) are played by
  * a scripted pad (demo-play-kit.mjs's, and elecfighter below), with no gamepad of this machine
  * reaching the page.
@@ -374,6 +375,30 @@ const playUnit = (cart) => (dir) => {
     path.join(dir, 'elec16', 'units.json'),
     JSON.stringify({ version: 1, units: [{ ...unit, cart, created: 0 }] }),
   )
+}
+
+/** The profile's unit: an SCI-128 calculator, its RAM new. */
+const sciUnit = (dir) => {
+  mkdirSync(path.join(dir, 'elec16'), { recursive: true })
+  const unit = { id: 'u1', name: 'SCI 1', clock: 4, model: 'sci-128', autoOff: 10, xram: 0 }
+  writeFileSync(
+    path.join(dir, 'elec16', 'units.json'),
+    JSON.stringify({ version: 1, units: [{ ...unit, created: 0 }] }),
+  )
+}
+
+/**
+ * The calculator answering sin(45)+1/2 in 2D with its exact form, (1+√2)/2: typed on the PC's
+ * keys (s for SIN, f for a/b) as a person would, a key a moment.
+ */
+async function sciAnswer(page) {
+  const wait = await atStartScreen(page)
+  for (const key of ['s', '4', '5', ')', '+', '1', 'f', '2', 'Enter']) {
+    await page.keyboard.press(key)
+    await wait(150)
+  }
+  await wait(600)
+  await page.mouse.move(W / 2, H / 6)
 }
 
 /** The machine focused, a moment after it has come up at its start screen. */
@@ -944,6 +969,11 @@ await shoot('business-light', 'elecdex-play-drill', {
   layout: playLayout({ tab: 'mem', playBody: 'screen', playSkin: 'ivory' }),
   prepare: playUnit('ELECDRILL'),
   extra: elecdrill,
+})
+await shoot('business-light', 'elecdex-sci', {
+  layout: playLayout({ tab: 'core', sciSkin: 'chalk' }),
+  prepare: sciUnit,
+  extra: sciAnswer,
 })
 await shoot('tron', 'elecdex-play-fighter', {
   layout: playLayout({ tab: 'games', playBody: 'screen', playSkin: 'graphite' }),

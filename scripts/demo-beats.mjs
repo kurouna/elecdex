@@ -24,6 +24,9 @@ export const PLAY_PANE = { unit: 'u2', playBody: 'tall', playSkin: 'coral', pane
 /** The third unit's pane, ELECFIGHTER or ELECAIRCOMBAT in its slot: the screen alone, filling it. */
 export const FIGHT_PANE = { unit: 'u3', playBody: 'screen', playSkin: 'graphite', panel: false }
 
+/** The fourth unit's pane: an SCI-128 calculator in its slate body, no panel. */
+export const SCI_PANE = { unit: 'u4', sciSkin: 'slate', panel: false }
+
 /** Written into the take's profile (`prepare`): the units the retro layout's two machines run. */
 export function playUnits(profile, { third = 'ELECFIGHTER' } = {}) {
   mkdirSync(path.join(profile, 'elec16'), { recursive: true })
@@ -32,6 +35,7 @@ export function playUnits(profile, { third = 'ELECFIGHTER' } = {}) {
     { ...unit, id: 'u1', name: 'UNIT 1', model: 'pocket-48' },
     { ...unit, id: 'u2', name: 'UNIT 2', model: 'play-320', xram: 512, cart: 'ELECLANCE' },
     { ...unit, id: 'u3', name: 'UNIT 3', model: 'play-320', xram: 512, cart: third },
+    { ...unit, id: 'u4', name: 'SCI 1', model: 'sci-128', xram: 0 },
   ]
   writeFileSync(path.join(profile, 'elec16', 'units.json'), JSON.stringify({ version: 1, units }))
 }
@@ -64,6 +68,7 @@ export const CAPTIONS = {
   retro: 'retro — ELEC-16, a pocket computer of its own',
   skins: 'Thirteen skins, from brushed metal to clear glass',
   play: 'PLAY-320: the same machine as a game console',
+  sci: 'SCI-128: a scientific calculator, its answers exact',
   chip8: 'CHIP-8, with a library of programs',
   council: 'ELEC — three AI units vote on a motion',
   themes: 'Themes, light and dark',
@@ -622,6 +627,24 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await away()
   }
 
+  /**
+   * The SCI-128 behind the retro layout's `nth` ELEC-16 tab: sin(45)+1/2 typed on the PC's keys
+   * (s for SIN, f for a/b) a key at a time, the fraction set in 2D as it is typed, and = giving
+   * (1+√2)/2, held for `hold` ms.
+   */
+  async function sci(hold = 2500, { nth = 3 } = {}) {
+    say('sci-128: sin(45)+1/2')
+    await toMachine(nth, 600)
+    for (const key of ['s', '4', '5', ')', '+', '1', 'f', '2']) {
+      await page.keyboard.press(key)
+      await wait(220)
+    }
+    await wait(400)
+    await page.keyboard.press('Enter')
+    await away()
+    await wait(hold)
+  }
+
   /** Rests the pointer on a CLUSTER figure long enough for its card to open and be read. */
   async function clusterCard(testid, label, hold) {
     const target = page.getByTestId(testid).first()
@@ -707,6 +730,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     play,
     fight,
     aircombat,
+    sci,
     cluster,
     clusterCard,
     councilSits,

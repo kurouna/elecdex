@@ -20,7 +20,8 @@
  *   retro       the retro preset: the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT
  *               CARD and run, its skin changed in TUNE while the waves run (ALLOY, GLASS, MOCHI,
  *               back to CLASSIC); a PLAY-320 behind the next tab playing ELECLANCE, another
- *               behind the one after starting ELECAIRCOMBAT and flying its first sortie, brought forward; then the
+ *               behind the one after starting ELECAIRCOMBAT and flying its first sortie, brought forward; an
+ *               SCI-128 behind the next answering sin(45)+1/2 as (1+√2)/2; then the
  *               CHIP-8 behind its tab, its library playing T8NKS by
  *               itself, loaded, then paused on MEM
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
@@ -50,6 +51,7 @@ import {
   PLAY_PANE,
   playUnits,
   prepareMusic,
+  SCI_PANE,
   startCouncil,
 } from './demo-beats.mjs'
 import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
@@ -159,7 +161,7 @@ items.push({
 })
 withPlay(items.at(-1).tree.root)
 
-/** The PLAY-320s' panes put after the pocket computer in the retro layout's tab strip. */
+/** The PLAY-320s' panes, and the SCI-128's, put after the pocket computer in the retro layout's tab strip. */
 function withPlay(node) {
   if (node.kind === 'split') return node.children.forEach(withPlay)
   if (node.kind !== 'tabs') return
@@ -170,6 +172,7 @@ function withPlay(node) {
       0,
       { kind: 'pane', id: 'tplay', widget: 'elec16', state: PLAY_PANE },
       { kind: 'pane', id: 'tfight', widget: 'elec16', state: FIGHT_PANE },
+      { kind: 'pane', id: 'tsci', widget: 'elec16', state: SCI_PANE },
     )
 }
 
@@ -278,6 +281,8 @@ await run(async () => {
   await caption(CAPTIONS.play)
   await beat.play(3000)
   await beat.aircombat(5000)
+  await caption(CAPTIONS.sci)
+  await beat.sci(2500)
   await caption(CAPTIONS.chip8)
   await beat.toTab('CHIP-8')
   await beat.chip8(1800)

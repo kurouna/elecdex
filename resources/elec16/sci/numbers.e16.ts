@@ -144,6 +144,16 @@ export const FORMAT_EXP = 2
 export const KEEP_ANS = 0x0c08
 /** The mode the calculator is in (calc.e16.ts MODE_*), kept when the power goes. */
 export const KEEP_MODE = 0x0c2c
+/** SETUP's LCD contrast plus 1 (0: never set, the machine's 8), kept when the power goes. */
+export const KEEP_CONTRAST = 0x0c2d
+/** The LCD's contrast register (shared/elec16/bus.ts REG.contrast), 0-15. */
+export const IO_CONTRAST = 0xff28
+
+/** The contrast SETUP keeps, put back on the LCD (at power on). */
+export function contrastBack(): void {
+  const kept = peek(KEEP_CONTRAST)
+  if (kept !== 0) poke16(IO_CONTRAST, kept - 1)
+}
 /** A, B, C, D, E, F, X, Y, M: a value each. */
 export const KEEP_VARS = 0x0c30
 export const KEEP_HISTORY_COUNT = 0x0d80

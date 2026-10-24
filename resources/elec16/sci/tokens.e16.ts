@@ -27,7 +27,7 @@ export const T_MIN = 0x89
 export const T_SEC = 0x8a
 /** A percentage: x% is x / 100. */
 export const T_PERCENT = 0x25
-/** Between a function's two arguments: gcd(12,18), Pol(3,4). */
+/** Between a function's two arguments: gcd(12,18), pol(3,4). */
 export const T_COMMA = 0x2c
 
 /* ---------------- tokens that stand for more ---------------- */
@@ -88,13 +88,13 @@ export const T_ABS = 0xe6
 export const T_GCD = 0xe7
 export const T_LCM = 0xe8
 export const T_INT = 0xe9
-/** Rnd(: rounded as the display shows a number (FIX, EXP or ten digits). */
+/** round(: rounded as the display shows a number (FIX, EXP or ten digits). */
 export const T_RND = 0xea
 export const T_POL = 0xeb
 export const T_REC = 0xec
-/** Ran#: a random number from 0 up to 1 - a value, not a function. */
+/** rand: a random number from 0 up to 1 - a value, not a function. */
 export const T_RAN = 0xed
-/* BASE's logic (S6): AND is stronger than OR, XOR and XNOR; Not( and Neg( are functions. */
+/* BASE's logic (S6): AND is stronger than OR, XOR and XNOR; not( and neg( are functions. */
 export const T_AND = 0xee
 export const T_OR = 0xef
 export const T_XOR = 0xf0
@@ -194,7 +194,8 @@ export function tokenText(t: u16): u16 {
   return 0
 }
 
-/** The text of a token from 0xE0: the functions S5 added, and Ran#. */
+/** The text of a token from 0xE0: the functions S5 added, and rand. Function names are small letters, as
+ * sin( is (docs/elec16-sci.md section 4.4); Ans alone has a capital. */
 function namedText(t: u16): u16 {
   switch (t) {
     case T_SINH:
@@ -210,21 +211,21 @@ function namedText(t: u16): u16 {
     case T_ATANH:
       return str('tanh\x86(')
     case T_ABS:
-      return str('Abs(')
+      return str('abs(')
     case T_GCD:
       return str('gcd(')
     case T_LCM:
       return str('lcm(')
     case T_INT:
-      return str('Int(')
+      return str('int(')
     case T_RND:
-      return str('Rnd(')
+      return str('round(')
     case T_POL:
-      return str('Pol(')
+      return str('pol(')
     case T_REC:
-      return str('Rec(')
+      return str('rec(')
     case T_RAN:
-      return str('Ran#')
+      return str('rand')
   }
   return logicText(t)
 }
@@ -241,9 +242,9 @@ function logicText(t: u16): u16 {
     case T_XNOR:
       return str(' XNOR ')
     case T_NOT:
-      return str('Not(')
+      return str('not(')
     case T_BNEG:
-      return str('Neg(')
+      return str('neg(')
   }
   return 0
 }

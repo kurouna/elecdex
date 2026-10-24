@@ -239,10 +239,16 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
   <br><sub>ELEC-16 PLAY（PLAY-320）· ELECFIGHTER· Tron · 画面だけ、横に GAMES</sub>
 </p>
 
+<p align="center">
+  <img src="./docs/screenshots/elecdex-sci.jpg" alt="Business (Light) テーマで、チョークのような白い縦長の本体の SCI-128 にした ELEC-16 ペイン：2D 表示で sin(45)+1/2 を打ち、分数は教科書の形で組まれ、下に答えが正確な形 (1+√2)/2 で出ている。橙の SHIFT 面と ALPHA の字のあるキー、黒い十字キー、赤い DEL と AC、青い =。横の CORE に E16 のレジスタとコード">
+  <br><sub>ELEC-16 SCI（SCI-128）· CHALK · Business (Light) · <i>unreleased</i></sub>
+</p>
+
 - **ELEC-16** — elecdex が独自に設計した 16 ビットのポケコン。自前の RISC の
   CPU、ROM の BASIC と機械語モニタ、液晶とキーボード、記憶カード、TypeScript をその機械語に
   コンパイルする CODE 画面、そして AI と話す LINK。**PLAY-320** にすると、カートリッジ、
-  スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL と 1 対 1 の対戦格闘 ELECFIGHTERの 4 本のゲームと、ゲームを作るキットが付きます。
+  スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL と 1 対 1 の対戦格闘 ELECFIGHTERの 4 本のゲームと、ゲームを作るキットが付きます。**ELEC-16 SCI**（*unreleased*）
+  として選ぶと関数電卓になります。式は教科書の形で組まれ、答えは分数や根号のまま残り、STATS、BASE、TABLE、EQUATION のモードがあります。
 
 ### レイアウト、見た目、そのほか
 
@@ -1199,12 +1205,20 @@ Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に�
   カートリッジ（GAMES で棚から差し、START で遊ぶ）、描画回路（スクロールする背景 2 枚、スプライト 128 個、
   パレット 16 本、行の割り込み、DMA）、ステレオの音 16 チャンネル（エンベロープ、スライド、波形表）。CODE のプログラムを動かせます）。ゲームは、PNG の絵とテキストで書いた曲を取り込むゲームキットで e16c から作ります。GAMES の DEVELOP でゲームのフォルダを開く（または雛形から新しく作る）と、アプリの中でビルドしてユニットに差し、ファイルを保存するたびに作り直します。Node もリポジトリも要りません（[ゲーム開発の手引き](docs/elec16-kit.md)）。棚には、LANCE、ボム、OVERDRIVE、2 体のボスの縦スクロールシューティング **ELECLANCE**（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)）、コックピットから見る 1 対 1 の空中戦 **ELECAIRCOMBAT**（空と海を毎フレーム描き直して水平線が傾き、独自の敵機を 17 方向 × 8 回転 × 7 大きさで描いてカートリッジから写す。機銃、ロックオンのミサイル、フレアで 5 人のエースと戦う。[docs/elec16-elecaircombat.md](docs/elec16-elecaircombat.md)）、掘り進むブロックパズル **ELECDRILL**（同じ色のかたまりがまとめて消え、支えを失ったブロックは揺れて落ち、4 個そろうと連鎖。空気に気をつけて 5 つの地層を 500 m の核まで。[docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)）、ラウンド制の 1 対 1 の対戦格闘 **ELECFIGHTER**（戦うのは名前のない人型の枠、産業用の格闘シミュレータの訓練用の体。低ポリゴンのモデルから前もって描いたワイヤーとベタ塗りの人が、弱と強、高さで変わるガード、投げと投げ抜け、チェーン、カウンター、ダッシュで、それぞれ別の頭を持つ 4 つの対戦プログラムと戦う。[docs/elec16-elecfighter.md](docs/elec16-elecfighter.md)）が入っています。遊び方は [PLAY-320 の取扱説明書](docs/elec16-play-manual.md)。LINK はパネルの専用の
   タブで、サービスごとに ON/OFF できます。
+  *Unreleased:* ピッカーの専用の行（「elec-16 sci」）は、新しいユニットを **ELEC-16 SCI（SCI-128）** として開きます。
+  独自に設計した関数電卓で、128×64 の液晶と縦長の本体（SLATE、CHALK、PLAIN）。式は 2D（分数、根号、累乗を教科書の形で組み、縦線のカーソルがその中に入る）か 1 行で打ちます。
+  答えはできるかぎり分数と `(p + r√s)/q` の正確な形のまま（sin 45° は √2/2、1/3+1/6 は 1/2）で、F⇄D で大きな数字の小数に。
+  変数、Ans、M、履歴、FUNC（gcd、lcm、%、int、round、rand、pol、rec）、度分秒、双曲線関数、f(x) と FIND X。モードは
+  STATS（1 変数・2 変数、40 行まで）、BASE（32 ビットの HEX・DEC・OCT・BIN と AND・OR・XOR・XNOR）、TABLE（30 行までの f(X) の表）、
+  EQUATION（2 元・3 元の連立、正確な解や虚数解の 2 次、3 次）の 4 つ。画面はほかのモデルと同じく読み上げられます
+  （[SCI-128 の取扱説明書](docs/elec16-sci-manual.md)）。
   **CODE** は TypeScript の部分集合で書いたプログラムを、3 段階の最適化で機械語にコンパイルし、
   大きさとサイクル数を並べて見せます。RUN でそのまま機械に入れて動かします。利用者のコードは機械語
   としてだけ動き、JavaScript として動くことはありません。プロンプトで待つ間は CPU が眠り、ペインの
   負荷は一時停止したものとほぼ同じです。説明書: [BASIC](docs/elec16-basic.md)、
   [E16 の機械語とモニタ](docs/elec16-e16.md)、[e16c（CODE の TypeScript）](docs/elec16-e16c.md)、
-  [SOFT CARD のプログラム](docs/elec16-soft.md)、[PLAY-320](docs/elec16-play-manual.md)、[PLAY-320 のゲーム開発](docs/elec16-kit.md)。FILES でプログラムを選ぶと、その使い方も出ます。
+  [SOFT CARD のプログラム](docs/elec16-soft.md)、[PLAY-320](docs/elec16-play-manual.md)、[PLAY-320 のゲーム開発](docs/elec16-kit.md)、
+  [SCI-128](docs/elec16-sci-manual.md)（*unreleased*）。FILES でプログラムを選ぶと、その使い方も出ます。
 
 <p align="center">
   <img src="./docs/screenshots/pane-elec16.jpg" alt="ELEC-16 ペインを単独で表示したところ">
@@ -1403,7 +1417,8 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-play-manual.md, elec16-kit.md (the ELEC-16 manuals,
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-play-manual.md, elec16-kit.md,
+                elec16-sci-manual.md (the ELEC-16 manuals, elec16-sci.md the calculator's design,
                 in Japanese)
 ```
 

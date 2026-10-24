@@ -107,6 +107,8 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  manual), elec16-kit.md (making its games), elec16-eleclance.md,
                  elec16-elecaircombat.md, elec16-elecdrill.md, elec16-elecfighter.md (the four
                  games), elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER's design),
+                 elec16-sci.md and elec16-sci-mock/ (the calculator ELEC-16 SCI),
+                 elec16-sci-manual.md (its user's manual),
                  cluster.md (the CLUSTER pane), logwatch.md and logwatch-mock/ (the LOG WATCH
                  pane), ethernet-mock/ (the Ethernet pane's mock, beside the Wi-Fi pane's
                  shots), agents-codex.md and agents-mock/ (a Codex source for the AI AGENT
@@ -373,6 +375,23 @@ user made; do not reverse one without asking.
     (resources/elec16/kit-template, a test builds it) only into an empty folder. A build
     replaces only an earlier build of its id on the shelf (`built`), never a bundled or
     imported game; no automatic START (CART needs a person's action).
+  - ELEC-16 SCI (docs/elec16-sci.md; elec16-sci-manual.md its manual, in Japanese) is the
+    calculator model SCI-128, opened by the picker's own row (`variants`, `fresh`), never a
+    widget of its own. Its ROM is resources/elec16/sci: main.s and e16c files, a bank each as
+    `SCI_SOURCES` (shared/e16c/sci-rom.ts) says; sci.s and sci-rom.json are written only by
+    `npm run gen:elec16`. e16c names are one namespace across every file: a new global gets a
+    name no other file has. e16c's globals (0100-0BFF) are full; new RAM goes at a fixed
+    address in the RAM map (elec16-sci.md section 6.7), the kept regions checked by their marks
+    (0C00, 5C24; the modes' 1600, 5C36) - a change of a kept layout takes a new mark.
+  - Every value is a decimal and an exact form `(p + r√s)/q`: the decimal is always worked
+    out, the form followed beside it (exact.e16.ts) and dropped - never an error - when it
+    cannot be kept. Answers show the form first only as SETUP and section 6.4 say.
+  - Its words are its own (section 9): functions in small letters as they go into the line
+    (`round(`, `rand`), SHIFT faces the key's inverse, the rest in FUNC; no maker's names,
+    spellings or key layouts. A change a user can see updates the manual in the same commit,
+    and the manual's examples run (elec16-sci-rom.test.ts).
+  - The page reads its screen for a screen reader by its dots (`dotText`, shared/elec16/font.ts:
+    text on any row, big digits): keep it cheap (measured 0.3 ms a screen).
 - **The CLUSTER pane** (§5.20, docs/cluster.md, shared/cluster.ts, widgets/cluster/) reads only
   what main already provides - its metric sources, the AWAKE store, `quakes.observe` - and no
   other pane, main module or channel knows it is there (user decision 2026-10-10).

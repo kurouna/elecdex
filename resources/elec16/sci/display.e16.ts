@@ -1,7 +1,7 @@
 // ELEC-16 SCI, ROM bank 5: an answer on the screen (docs/elec16-sci.md sections 6.4 and 6.6).
 // The same value shows in several ways - its exact form, as a mixed number, as a decimal the
 // way SETUP says (AUTO, FIX or EXP), in ENG, in degrees-minutes-seconds - and F⇄D, SHIFT F⇄D
-// and °′″ move between them. Pol( and Rec( show their two answers, FIND X its X and the
+// and °′″ move between them. pol( and rec( show their two answers, FIND X its X and the
 // difference left. The decimal is written in big digits, the rest set by the 2D layout or in
 // the small font.
 import {

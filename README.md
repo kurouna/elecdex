@@ -244,12 +244,19 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   <br><sub>ELEC-16 PLAY (PLAY-320) · ELECFIGHTER · Tron · the screen alone, GAMES beside it</sub>
 </p>
 
+<p align="center">
+  <img src="./docs/screenshots/elecdex-sci.jpg" alt="An ELEC-16 pane made an SCI-128 calculator in its tall chalk-white body, in the Business (Light) theme: sin(45)+1/2 typed in 2D with the fraction set as a textbook sets it, the answer (1+√2)/2 in its exact form below; the keys with SHIFT faces in orange and ALPHA letters, a dark cursor pad, red DEL and AC and a blue =; CORE beside it with the E16's registers and code">
+  <br><sub>ELEC-16 SCI (SCI-128) · CHALK · Business (Light) · <i>unreleased</i></sub>
+</p>
+
 - **ELEC-16** — a 16-bit pocket computer of elecdex's own design: its own
   RISC CPU, BASIC and machine-code monitor in ROM, an LCD and a keyboard, a memory card, and
   a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
   Made a **PLAY-320**, it is a game console with cartridges, sprites and sixteen sound
   channels, with games of its own - ELECLANCE, ELECAIRCOMBAT, ELECDRILL and the one-on-one
-  fighter ELECFIGHTER - and a kit to make games for it.
+  fighter ELECFIGHTER - and a kit to make games for it. Picked as **ELEC-16 SCI** (*unreleased*),
+  it is a scientific calculator: lines set as a textbook sets them, answers kept as fractions
+  and roots, and STATS, BASE, TABLE and EQUATION modes.
 
 ### Layouts, looks and the rest
 
@@ -1286,6 +1293,18 @@ weather and calendar.
   chains, counters and dashes, against four opponent programs each with a mind of its own
   ([docs/elec16-elecfighter.md](docs/elec16-elecfighter.md)); how to play is
   [the PLAY-320 manual](docs/elec16-play-manual.md), in Japanese. LINK is the panel's own tab, with a switch for each service.
+  *Unreleased:* the picker's own row ("elec-16 sci") opens a new unit as **ELEC-16 SCI
+  (SCI-128)**, a scientific calculator of its own design on a 128×64 LCD with a tall body
+  (SLATE, CHALK or PLAIN): lines typed in 2D - fractions, roots and powers set as a textbook
+  sets them, a bar cursor that goes into them - or on one line; answers kept exact as
+  fractions and `(p + r√s)/q` where they can be (sin 45° is √2/2, 1/3+1/6 is 1/2), F⇄D
+  for the decimal, which shows in big digits; variables, Ans, M and a history; FUNC (gcd,
+  lcm, %, int, round, rand, pol, rec), degrees-minutes-seconds, the hyperbolic functions,
+  f(x) and FIND X; and four modes - STATS (one or two variables, up to 40 rows), BASE
+  (32-bit HEX, DEC, OCT and BIN with AND, OR, XOR, XNOR), TABLE (f(X) for up to 30 rows)
+  and EQUATION (two or three unknowns, quadratics with exact or complex roots, cubics).
+  Its screen reads back for a screen reader as the other models' do
+  ([the SCI-128 manual](docs/elec16-sci-manual.md), in Japanese).
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
   three levels of
   optimisation side by side, with their bytes and cycles; RUN puts it in the machine and runs
@@ -1293,7 +1312,8 @@ weather and calendar.
   its prompt the CPU sleeps and the pane costs about what a paused one does. The manuals (in
   Japanese): [BASIC](docs/elec16-basic.md), [E16 machine code and the monitor](docs/elec16-e16.md),
   [e16c, TypeScript for CODE](docs/elec16-e16c.md), [the SOFT CARD's programs](docs/elec16-soft.md),
-  [the PLAY-320](docs/elec16-play-manual.md) and [making PLAY-320 games](docs/elec16-kit.md);
+  [the PLAY-320](docs/elec16-play-manual.md), [making PLAY-320 games](docs/elec16-kit.md) and
+  [the SCI-128](docs/elec16-sci-manual.md) (*unreleased*);
   FILES also shows how to use the program picked.
 
 <p align="center">
@@ -1493,7 +1513,8 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-play-manual.md, elec16-kit.md (the ELEC-16 manuals,
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-play-manual.md, elec16-kit.md,
+                elec16-sci-manual.md (the ELEC-16 manuals, elec16-sci.md the calculator's design,
                 in Japanese)
 ```
 

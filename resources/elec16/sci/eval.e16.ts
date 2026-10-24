@@ -611,7 +611,7 @@ function named(f: u16, x: u16, at: u16): void {
   else wholeOrRounded(f, x, at)
 }
 
-/** Int( (towards 0), Rnd( (as the display rounds) and Abs( - which keeps an exact form. */
+/** int( (towards 0), round( (as the display rounds) and abs( - which keeps an exact form. */
 function wholeOrRounded(f: u16, x: u16, at: u16): void {
   if (f === T_INT) {
     const one = pushInt(1, at)
@@ -683,7 +683,7 @@ function lcm(a: u16, b: u16, at: u16): void {
   pop()
 }
 
-/** Pol(x, y): r into a and X, θ (in the angle's unit) into Y. */
+/** pol(x, y): r into a and X, θ (in the angle's unit) into Y. */
 function polar(a: u16, b: u16, at: u16): void {
   const r = push(at)
   copyValue(a, r)
@@ -701,7 +701,7 @@ function polar(a: u16, b: u16, at: u16): void {
   pair(a, b)
 }
 
-/** Rec(r, θ): x into a and X, y into Y. */
+/** rec(r, θ): x into a and X, y into Y. */
 function rectangular(a: u16, b: u16, at: u16): void {
   const x = push(at)
   copyValue(b, x)

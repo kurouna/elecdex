@@ -49,6 +49,7 @@ import {
   BASE_LINE,
   CALC_LINE,
   clearStack,
+  contrastBack,
   copyValue,
   errAt,
   errCode,
@@ -298,6 +299,7 @@ const LINE_CHARS = 84
 export function calcCold(): void {
   keepReady()
   modesReady()
+  contrastBack()
   cls()
   noCursor()
   centre(2, str('ELEC-16 SCI'), 11)

@@ -1,7 +1,7 @@
 // ELEC-16 SCI, ROM bank 8: BASE (docs/elec16-sci.md sections 4.5 and 6.6). Whole numbers of
 // 32 bits, two's complement, typed in HEX, DEC, OCT or BIN (A-F on the keys that carry them
-// after ALPHA, with no ALPHA) and worked with + - x / (towards 0), AND, OR, XOR, XNOR, Not(
-// and Neg(; every result is brought back into 32 bits. The answer is shown in the base chosen
+// after ALPHA, with no ALPHA) and worked with + - x / (towards 0), AND, OR, XOR, XNOR, not(
+// and neg(; every result is brought back into 32 bits. The answer is shown in the base chosen
 // and in the other three, BIN sixteen bits at a time (▲ ▼), and its low or high sixteen bits
 // again as a row of dots. The line is the calculator's own (calc.e16.ts), with its history.
 import {
@@ -191,7 +191,7 @@ export function baseFuncScreen(): void {
   textAt(str('1:HEX 2:DEC 3:OCT'), 1, lineY(0))
   textAt(str('4:BIN 5:AND 6:OR'), 1, lineY(1))
   textAt(str('7:XOR 8:XNOR'), 1, lineY(2))
-  textAt(str('9:Not( 0:Neg('), 1, lineY(3))
+  textAt(str('9:not( 0:neg('), 1, lineY(3))
   textAt(str('AC:BACK'), 1, lineY(5))
 }
 

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { compileSci, sciRomFile } from '@shared/e16c/sci-rom'
 import { REG } from '@shared/elec16/bus'
 import { decode, format } from '@shared/elec16/decimal'
-import { BIG_PITCH, BIG_WIDTH, bigGlyphColumns, screenText } from '@shared/elec16/font'
+import { BIG_PITCH, BIG_WIDTH, bigGlyphColumns, dotText, screenText } from '@shared/elec16/font'
 import { Elec16 } from '@shared/elec16/machine'
 import { MODELS } from '@shared/elec16/map'
 import { MATH_OP, MATH_REG } from '@shared/elec16/math-unit'
@@ -564,6 +564,20 @@ describe('the 2D display and exact answers (S4)', () => {
     expect(lineAt(m, 1, true, 3).split(' ').pop()).toBe('2/2')
   })
 
+  it("SETUP's page 2 steps the LCD's contrast with the arrows, kept through OFF and ON", () => {
+    const m = switchOn('2d')
+    expect(m.state.lcd.contrast).toBe(8)
+    keys(m, 'setup down right right')
+    expect(m.state.lcd.contrast).toBe(10)
+    keys(m, 'left')
+    expect(m.state.lcd.contrast).toBe(9)
+    keys(m, 'ac shift on')
+    m.state.lcd.contrast = 8
+    m.brk()
+    settle(m)
+    expect(m.state.lcd.contrast).toBe(9)
+  })
+
   it('SETUP marks the display, the angle and the answer chosen', () => {
     const m = switchOn('2d')
     keys(m, 'setup')
@@ -593,10 +607,10 @@ describe('the rest of CALC (S5)', () => {
     ['3 shift pow neg 2 7', '-3'],
     ['1 2 dms 3 0 dms', '12.5'],
     ['1 dms 3 0 dms 3 6 dms', '1.51'],
-    ['5 0 func 6', '0.5'],
+    ['5 0 func 3', '0.5'],
     ['func 1 1 2 shift lp 1 8', '6'],
     ['func 2 4 shift lp 6', '12'],
-    ['func 3 neg 2 dot 7', '-2'],
+    ['func 4 neg 2 dot 7', '-2'],
     ['2 shift frac 1 down 4', '2.25'],
     ['neg 1 shift frac 1 down 2', '-1.5'],
   ])('%s is %s', (line, value) => {
@@ -673,9 +687,9 @@ describe('the rest of CALC (S5)', () => {
     expect(bigText(m)).toBe('0.125')
   })
 
-  it('rounds with Rnd( as the display does', () => {
+  it('rounds with round( as the display does', () => {
     const m = switchOn()
-    keys(m, 'setup 8 2 ac func 4 1 div 3 rp mul 3 eq')
+    keys(m, 'setup 8 2 ac func 5 1 div 3 rp mul 3 eq')
     expect(ans(m)).toBe('0.99')
   })
 
@@ -858,5 +872,77 @@ describe('the modes (S6)', () => {
     const m = switchOn()
     keys(m, 'menu 5 4 1 eq neg 6 eq 1 1 eq neg 6 eq eq')
     expect([rightWord(m, 7), rightWord(m, 28), rightWord(m, 49)]).toEqual(['3', '2', '1'])
+  })
+})
+
+describe('the screen read back for a screen reader (S7)', () => {
+  const read = (m: Elec16) => dotText(m.state.vram, 128, 64)
+
+  it('reads a line set in 2D and its answer in big digits', () => {
+    const m = switchOn('2d')
+    keys(m, 'sin 3 0 rp add 1 dot 2 eq')
+    expect(read(m)).toEqual(['sin(30)+1.2', '1.7'])
+  })
+
+  it("reads a fraction's parts a line each, and an exponent beside x10", () => {
+    const m = switchOn('2d')
+    keys(m, '1 frac 3 eq')
+    expect(read(m)).toEqual(['1', '3', '1', '3'])
+    keys(m, 'ac 2 pow 4 0 eq')
+    const text = read(m)
+    expect(text.at(-2)).toMatch(/^1\.099511628 +12$/)
+    expect(text.at(-1)).toBe('\u00d710')
+  })
+
+  it("FUNC lists its functions in small letters as they go into the line, in the mock's order", () => {
+    // S5 had them in other makers' spellings (Ran#, Rnd), which section 9 rules out.
+    const m = switchOn()
+    keys(m, 'func')
+    expect(read(m).slice(1, 5)).toEqual([
+      '1:gcd(   2:lcm(',
+      '3:%      4:int(',
+      '5:round( 6:rand',
+      '7:pol(   8:rec(',
+    ])
+    keys(m, '5')
+    expect(rows(m)[0]).toBe('round(')
+    keys(m, 'ac shift neg')
+    expect(rows(m)[0]).toBe('abs(')
+  })
+
+  it('reads the screens set off the bands: a title band, its lines, a table', () => {
+    const m = switchOn()
+    keys(m, 'setup')
+    const setup = read(m)
+    expect(setup[0]).toMatch(/^SETUP +1\/2$/)
+    expect(setup).toContain('3:DEG 4:RAD 5:GRAD')
+    keys(m, 'ac menu 2 1 1 eq 2 eq')
+    const table = read(m)
+    expect(table[0]).toMatch(/^STATS 1-VAR +n=2$/)
+    expect(table.some((l) => /^1 +1$/.test(l))).toBe(true)
+  })
+})
+
+describe("the manual's examples (docs/elec16-sci-manual.md)", () => {
+  it.each([
+    ['2 pow 3 pow 2', '512'],
+    ['neg 2 sq', '-4'],
+    ['6 div 2 lp 1 add 2', '1'],
+    ['1 div 2 shift exp', '0.1591549431'],
+    ['1 2 dms 3 0 dms', '12.5'],
+    ['func 1 1 2 shift lp 1 8', '6'],
+    ['func 2 4 shift lp 6', '12'],
+    ['func 4 neg 2 dot 7', '-2'],
+    ['5 0 func 3', '0.5'],
+    ['hyp sin 1', '1.175201194'],
+    ['3 shift pow 8', '2'],
+  ])('%s is %s', (line, value) => {
+    expect(answer(line).ans).toBe(value)
+  })
+
+  it('says SYNTAX for a sign after a value: 2(-)3', () => {
+    const m = switchOn()
+    keys(m, '2 neg 3 eq')
+    expect(lineAt(m, 1, true)).toBe('ERR:SYNTAX')
   })
 })

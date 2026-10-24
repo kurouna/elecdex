@@ -7,7 +7,9 @@ import {
   type bool,
   bytes,
   peek,
+  peek16,
   poke,
+  poke16,
   str,
   type u16,
 } from '../../../src/shared/e16c/builtins'
@@ -24,10 +26,12 @@ import {
   K_9,
   K_AC,
   K_DOWN,
+  K_LEFT,
+  K_RIGHT,
   K_UP,
   refuse,
 } from './calc.e16'
-import { band, bandWith, cls, lineY, mark, textAt } from './lcd.e16'
+import { band, bandWith, cls, dot, lineY, mark, textAt } from './lcd.e16'
 import {
   E_FIND,
   E_MATH,
@@ -36,8 +40,10 @@ import {
   FORMAT_AUTO,
   FORMAT_EXP,
   FORMAT_FIX,
+  IO_CONTRAST,
   KEEP_ANGLE,
   KEEP_ANSWER,
+  KEEP_CONTRAST,
   KEEP_DIGITS,
   KEEP_DISPLAY,
   KEEP_FORMAT,
@@ -127,6 +133,9 @@ function drawSetup(): void {
     textAt(str('1:a/b  2:a b/c'), 1, lineY(0))
     if (peek(KEEP_MIXED) === 1) mark(7, 7, 0)
     else mark(0, 5, 0)
+    textAt(str('CONTRAST'), 1, lineY(2))
+    contrastBar()
+    textAt(str('\x8c\x8b:CONTRAST'), 1, lineY(4))
     return
   }
   textAt(str('1:2D  2:LINE'), 1, lineY(0))
@@ -150,6 +159,31 @@ function marksOfPage1(): void {
   if (shape === FORMAT_FIX) mark(0, 5, 3)
   else if (shape === FORMAT_EXP) mark(6, 5, 3)
   else mark(12, 6, 3)
+}
+
+/** The contrast as a bar of 16 steps after its name, the steps up to it filled. */
+function contrastBar(): void {
+  const now = peek16(IO_CONTRAST)
+  const y = lineY(2)
+  for (let k: u16 = 0; k < 16; k++) {
+    const x = 56 + k * 4
+    for (let row: u16 = k <= now ? 0 : 6; row < 7; row++) {
+      dot(x, y + row)
+      dot(x + 1, y + row)
+    }
+  }
+}
+
+/** ◀ ▶ on SETUP's page 2: the contrast one step down or up, on the LCD and kept. */
+function contrastStep(up: bool): void {
+  const now = peek16(IO_CONTRAST)
+  if (up ? now >= 15 : now === 0) {
+    refuse()
+    return
+  }
+  const next = up ? now + 1 : now - 1
+  poke16(IO_CONTRAST, next)
+  poke(KEEP_CONTRAST, next + 1)
 }
 
 /** Line 5: the digits asked for, or FIX's or EXP's now. */
@@ -180,6 +214,7 @@ export function setupKey(k: u16): u16 {
     poke(KEEP_DIGITS, d)
     asking = 0
   } else if (k === K_DOWN || k === K_UP) page = k === K_DOWN ? 1 : 0
+  else if (page === 1 && (k === K_LEFT || k === K_RIGHT)) contrastStep(k === K_RIGHT)
   else if (!setupChoice(k)) {
     refuse()
     return 0
@@ -225,14 +260,14 @@ function mixedChoice(k: u16): bool {
 
 /* ---------------- FUNC ---------------- */
 
-/** The functions no key carries (section 5.1), by number. */
+/** The functions no key carries (section 5.1), by number, as they go into the line (section 4.4). */
 export function funcScreen(): void {
   cls()
   band(str('FUNC'))
-  textAt(str('1:gcd   2:lcm'), 1, lineY(0))
-  textAt(str('3:Int   4:Rnd'), 1, lineY(1))
-  textAt(str('5:Ran#  6:%'), 1, lineY(2))
-  textAt(str('7:Pol   8:Rec'), 1, lineY(3))
+  textAt(str('1:gcd(   2:lcm('), 1, lineY(0))
+  textAt(str('3:%      4:int('), 1, lineY(1))
+  textAt(str('5:round( 6:rand'), 1, lineY(2))
+  textAt(str('7:pol(   8:rec('), 1, lineY(3))
   textAt(str('AC:BACK'), 1, lineY(5))
 }
 
@@ -252,13 +287,13 @@ function funcToken(d: u16): u16 {
     case 2:
       return T_LCM
     case 3:
-      return T_INT
-    case 4:
-      return T_RND
-    case 5:
-      return T_RAN
-    case 6:
       return T_PERCENT
+    case 4:
+      return T_INT
+    case 5:
+      return T_RND
+    case 6:
+      return T_RAN
     case 7:
       return T_POL
     case 8:

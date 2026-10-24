@@ -1,5 +1,5 @@
 <script lang="ts">
-import { screenText } from '@shared/elec16/font'
+import { dotText, screenText } from '@shared/elec16/font'
 import { MODELS } from '@shared/elec16/map'
 import { annunciatorsOf } from '@shared/elec16/state'
 import { untrack } from 'svelte'
@@ -169,7 +169,9 @@ function readText(): void {
   const s = runner.machine?.state
   if (s === undefined || s.screenRevision === readAt) return
   readAt = s.screenRevision
-  const now = s.lcd.on && !s.off ? screenText(s.vram, model.width, model.height).join('\n') : ''
+  // The calculator sets its text on any dot row and its answers in big digits: read by dots.
+  const read = model.rom === 'sci' ? dotText : screenText
+  const now = s.lcd.on && !s.off ? read(s.vram, model.width, model.height).join('\n') : ''
   if (now !== text) text = now
 }
 
