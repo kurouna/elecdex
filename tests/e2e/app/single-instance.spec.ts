@@ -13,14 +13,23 @@ test('a second start on the same profile ends, and the first goes on in front', 
   const { app, page, userData, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
     // Ended, by a code or (Linux) by a signal: a second start that stayed would never get here.
-    const ended = await new Promise<{ code: number | null; signal: string | null }>((resolve) => {
-      const second = spawn(
-        electronPath as unknown as string,
-        [MAIN, '--windowed', '--no-intro', `--user-data-dir=${userData}`],
-        { env: { ...process.env, ...STUB_ENV }, stdio: 'ignore' },
-      )
-      second.once('exit', (code, signal) => resolve({ code, signal }))
-    })
+    const ended = await new Promise<{ code: number | null; signal: string | null; said: string }>(
+      (resolve) => {
+        const second = spawn(
+          electronPath as unknown as string,
+          [MAIN, '--windowed', '--no-intro', `--user-data-dir=${userData}`],
+          { env: { ...process.env, ...STUB_ENV }, stdio: ['ignore', 'pipe', 'pipe'] },
+        )
+        // What it said on its way out, for a failure to show.
+        let said = ''
+        const keep = (chunk: Buffer) => {
+          said = (said + chunk.toString()).slice(-3000)
+        }
+        second.stdout?.on('data', keep)
+        second.stderr?.on('data', keep)
+        second.once('exit', (code, signal) => resolve({ code, signal, said }))
+      },
+    )
     // A crash is not an end: a signal is taken only when it is one a process is told to end by.
     const told = ['SIGTERM', 'SIGINT', 'SIGHUP', 'SIGKILL']
     expect(
