@@ -161,19 +161,24 @@ export class QuakeService {
     const switched = next.source !== previous.source
     if (switched) this.reset()
     if (next.active && (!previous.active || switched)) {
-      const now = this.deps.now()
-      if (!switched && this.dueAt !== null && this.dueAt > now) {
-        this.schedule(this.dueAt - now)
-      } else {
-        // A first start, a new source or a check overdue: at once, a backoff kept past its due.
-        if (switched || this.dueAt === null) this.failures = 0
-        this.check()
-      }
+      this.resume(switched)
     } else if (!next.active && previous.active) {
       this.cancel()
     }
     if (switched || next.active !== previous.active) this.deps.publish(this.state())
     if (next.active && this.fetchedAt !== null) this.announce(this.deps.now())
+  }
+
+  /** Checks again on becoming active: when the next check is due, or at once. */
+  private resume(switched: boolean): void {
+    const now = this.deps.now()
+    if (!switched && this.dueAt !== null && this.dueAt > now) {
+      this.schedule(this.dueAt - now)
+      return
+    }
+    // A first start, a new source or a check overdue: at once, a backoff kept past its due.
+    if (switched || this.dueAt === null) this.failures = 0
+    this.check()
   }
 
   dispose(): void {
@@ -220,10 +225,14 @@ export class QuakeService {
     void this.poll(source, generation)
       .then(
         () => {
+          // A source started over since owns its own schedule and count: the finally below asks
+          // for it if it is active, and its first check is due at once if not.
+          if (this.generation !== generation) return
           this.failures = 0
           this.schedule(QUAKE_INTERVAL_MS)
         },
         (cause: unknown) => {
+          if (this.generation !== generation) return
           const delay =
             RETRY_BACKOFF_MS[Math.min(this.failures, RETRY_BACKOFF_MS.length - 1)] ?? 60_000
           this.failures += 1

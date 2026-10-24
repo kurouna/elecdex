@@ -500,6 +500,19 @@ describe('QuakeService', () => {
     expect(failing()).toBe(3)
   })
 
+  it('a check of the old source that ends after a switch made while unseen sets no wait for the new', async () => {
+    // Found in review (2026-10-24): the JMA check in flight when the pane went unseen and the
+    // source was switched scheduled the next check on settling, and USGS then waited a minute.
+    const h = harness()
+    h.configure({})
+    h.configure({ active: false })
+    h.configure({ active: false, source: 'usgs' })
+    await h.settle()
+    h.configure({ source: 'usgs' })
+    await h.settle()
+    expect(h.requests.filter((r) => r.url === USGS_FEED)).toHaveLength(1)
+  })
+
   it('with a test ceiling, waits no longer than it between checks and after failures', async () => {
     const h = harness({ waitCapMs: 1000 })
     h.reply(JMA_QUAKES, { status: 500 }, { status: 500 }, { status: 500 })
