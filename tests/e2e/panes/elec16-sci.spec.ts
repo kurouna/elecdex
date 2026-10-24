@@ -173,8 +173,10 @@ test('asleep at its keys it costs what a paused pane does; typing costs little',
     expect(asleep - paused, `asleep over paused, ${power}`).toBeLessThan(
       process.env.CI ? 1 : 0.02 * room,
     )
+    // On CI only a bound against a runaway: Linux's runner draws in software, where a key's
+    // redraw of the 2D line and the whole LCD came to 1.55-1.69 of a core (cluster.spec's 3 too).
     expect(typing - asleep, `typing over asleep, ${power}`).toBeLessThan(
-      process.env.CI ? 1.5 : 0.1 * room,
+      process.env.CI ? 3 : 0.1 * room,
     )
   } finally {
     await close()
