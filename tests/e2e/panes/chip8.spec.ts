@@ -846,9 +846,15 @@ test('the line between the library list and the details is dragged, kept, and pu
     await expect.poll(async () => Math.abs((await width(launched.page)) - after)).toBeLessThan(4)
     // A double-click puts it back at half - once the relaunched layout has settled, and with the
     // presses held a moment: on the Linux runner a double-click right after the relaunch was lost.
+    // Even then one was lost on the Linux runner now and then (2026-10-25), so it is pressed
+    // until it takes: putting back at half is the same however often it is done.
     await settleLayout(launched.page)
-    await launched.page.getByTestId('chip8-split').dblclick({ delay: 20 })
-    await expect.poll(async () => Math.abs((await width(launched.page)) - before)).toBeLessThan(4)
+    await expect(async () => {
+      await launched.page.getByTestId('chip8-split').dblclick({ delay: 20 })
+      await expect
+        .poll(async () => Math.abs((await width(launched.page)) - before), { timeout: 2000 })
+        .toBeLessThan(4)
+    }).toPass({ timeout: 15000 })
   } finally {
     await launched.close()
     removeDir(profile)
