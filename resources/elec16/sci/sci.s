@@ -2266,9 +2266,9 @@ pushInt:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:274 twoD() at -O1
+; sci/calc.e16.ts:275 twoD() at -O1
 twoD:
-  ; sci/calc.e16.ts:275  return peek(KEEP_DISPLAY) === 0 && mode !== MODE_BASE && mode < MODE_CPLX
+  ; sci/calc.e16.ts:276  return peek(KEEP_DISPLAY) === 0 && mode !== MODE_BASE && mode < MODE_CPLX
   lbu t0, 3075(zero)
   sub t0, t0, zero
   seqz t0, t0
@@ -2288,69 +2288,69 @@ twoD:
 .return:
   ret
 
-; sci/calc.e16.ts:284 calcCold() at -O1
+; sci/calc.e16.ts:285 calcCold() at -O1
 calcCold:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:285  powerOn()
+  ; sci/calc.e16.ts:286  powerOn()
   la t0, powerOn
   li t1, 1
   call far_call
-  ; sci/calc.e16.ts:286  screen = S_CALC
+  ; sci/calc.e16.ts:287  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:287  length = 0
+  ; sci/calc.e16.ts:288  length = 0
   sw zero, 0x0582(zero)
-  ; sci/calc.e16.ts:288  cursor = 0
+  ; sci/calc.e16.ts:289  cursor = 0
   sw zero, 0x0584(zero)
-  ; sci/calc.e16.ts:289  answered = false
+  ; sci/calc.e16.ts:290  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:290  mode = peek(KEEP_MODE)
+  ; sci/calc.e16.ts:291  mode = peek(KEEP_MODE)
   lbu t0, 3116(zero)
   sw t0, 0x04b8(zero)
-  ; sci/calc.e16.ts:291  if (mode > MODE_PROG) mode = MODE_CALC
+  ; sci/calc.e16.ts:292  if (mode > MODE_PROG) mode = MODE_CALC
   li t1, 7
   bgeu t1, t0, .L1
-  ; sci/calc.e16.ts:291  mode = MODE_CALC
+  ; sci/calc.e16.ts:292  mode = MODE_CALC
   sw zero, 0x04b8(zero)
 .L1:
-  ; sci/calc.e16.ts:292  loadLine()
+  ; sci/calc.e16.ts:293  loadLine()
   call loadLine
-  ; sci/calc.e16.ts:293  startMode()
+  ; sci/calc.e16.ts:294  startMode()
   call startMode
-  ; sci/calc.e16.ts:294  drawCalc()
+  ; sci/calc.e16.ts:295  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:300 enterMode(m) at -O1
+; sci/calc.e16.ts:301 enterMode(m) at -O1
 ;   m in s1
 enterMode:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; m
-  ; sci/calc.e16.ts:301  saveLine()
+  ; sci/calc.e16.ts:302  saveLine()
   call saveLine
-  ; sci/calc.e16.ts:302  mode = m
+  ; sci/calc.e16.ts:303  mode = m
   sw s1, 0x04b8(zero)
-  ; sci/calc.e16.ts:303  poke(KEEP_MODE, m)
+  ; sci/calc.e16.ts:304  poke(KEEP_MODE, m)
   sb s1, 3116(zero)
-  ; sci/calc.e16.ts:304  loadLine()
+  ; sci/calc.e16.ts:305  loadLine()
   call loadLine
-  ; sci/calc.e16.ts:305  answered = false
+  ; sci/calc.e16.ts:306  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:306  historyAt = 0xffff
+  ; sci/calc.e16.ts:307  historyAt = 0xffff
   li t0, 65535
   sw t0, 0x0598(zero)
-  ; sci/calc.e16.ts:307  screen = S_CALC
+  ; sci/calc.e16.ts:308  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:308  forget()
+  ; sci/calc.e16.ts:309  forget()
   call forget
-  ; sci/calc.e16.ts:309  startMode()
+  ; sci/calc.e16.ts:310  startMode()
   call startMode
-  ; sci/calc.e16.ts:310  drawCalc()
+  ; sci/calc.e16.ts:311  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -2358,73 +2358,73 @@ enterMode:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:317 forget() at -O1
+; sci/calc.e16.ts:318 forget() at -O1
 forget:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:318  shifted = false
+  ; sci/calc.e16.ts:319  shifted = false
   sw zero, 0x0588(zero)
-  ; sci/calc.e16.ts:319  alphaOn = false
+  ; sci/calc.e16.ts:320  alphaOn = false
   sw zero, 0x058a(zero)
-  ; sci/calc.e16.ts:320  storing = false
+  ; sci/calc.e16.ts:321  storing = false
   sw zero, 0x058c(zero)
-  ; sci/calc.e16.ts:321  recalling = false
+  ; sci/calc.e16.ts:322  recalling = false
   sw zero, 0x058e(zero)
-  ; sci/calc.e16.ts:322  hyp = false
+  ; sci/calc.e16.ts:323  hyp = false
   sw zero, 0x0594(zero)
-  ; sci/calc.e16.ts:323  dropConstant()
+  ; sci/calc.e16.ts:324  dropConstant()
   la t0, dropConstant
   li t1, 10
   call far_call
-  ; sci/calc.e16.ts:324  errFrom(0)
+  ; sci/calc.e16.ts:325  errFrom(0)
   ; sci/numbers.e16.ts:99  errBase = base
   sw zero, 0x0108(zero)
-  ; sci/calc.e16.ts:325  xBack()
+  ; sci/calc.e16.ts:326  xBack()
   call xBack
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:329 lineSlot() at -O1
+; sci/calc.e16.ts:330 lineSlot() at -O1
 lineSlot:
-  ; sci/calc.e16.ts:330  if (mode === MODE_BASE) return BASE_LINE
+  ; sci/calc.e16.ts:331  if (mode === MODE_BASE) return BASE_LINE
   lw t0, 0x04b8(zero)
   li t1, 2
   bne t0, t1, .L1
-  ; sci/calc.e16.ts:330  return BASE_LINE
+  ; sci/calc.e16.ts:331  return BASE_LINE
   li a0, 8192
   ret
 .L1:
-  ; sci/calc.e16.ts:331  if (mode === MODE_TABLE) return TABLE_LINE
+  ; sci/calc.e16.ts:332  if (mode === MODE_TABLE) return TABLE_LINE
   lw t0, 0x04b8(zero)
   li t1, 3
   bne t0, t1, .L2
-  ; sci/calc.e16.ts:331  return TABLE_LINE
+  ; sci/calc.e16.ts:332  return TABLE_LINE
   li a0, 7168
   ret
 .L2:
-  ; sci/calc.e16.ts:332  if (mode === MODE_CPLX) return CPLX_LINE
+  ; sci/calc.e16.ts:333  if (mode === MODE_CPLX) return CPLX_LINE
   lw t0, 0x04b8(zero)
   li t1, 5
   bne t0, t1, .L3
-  ; sci/calc.e16.ts:332  return CPLX_LINE
+  ; sci/calc.e16.ts:333  return CPLX_LINE
   li a0, 10242
   ret
 .L3:
-  ; sci/calc.e16.ts:333  if (mode === MODE_MATRIX) return MATRIX_LINE
+  ; sci/calc.e16.ts:334  if (mode === MODE_MATRIX) return MATRIX_LINE
   lw t0, 0x04b8(zero)
   li t1, 6
   bne t0, t1, .L4
-  ; sci/calc.e16.ts:333  return MATRIX_LINE
+  ; sci/calc.e16.ts:334  return MATRIX_LINE
   li a0, 10368
   ret
 .L4:
-  ; sci/calc.e16.ts:334  if (mode === MODE_PROG) return PROGRAMS + peek(PROG_CHOSEN) * PROGRAM_SIZE
+  ; sci/calc.e16.ts:335  if (mode === MODE_PROG) return PROGRAMS + peek(PROG_CHOSEN) * PROGRAM_SIZE
   lw t0, 0x04b8(zero)
   li t1, 7
   bne t0, t1, .L5
-  ; sci/calc.e16.ts:334  return PROGRAMS + peek(PROG_CHOSEN) * PROGRAM_SIZE
+  ; sci/calc.e16.ts:335  return PROGRAMS + peek(PROG_CHOSEN) * PROGRAM_SIZE
   li t0, 11264
   lbu t0, 0(t0)
   li t1, 202
@@ -2433,14 +2433,14 @@ lineSlot:
   add a0, t1, t0
   ret
 .L5:
-  ; sci/calc.e16.ts:335  return CALC_LINE
+  ; sci/calc.e16.ts:336  return CALC_LINE
   li a0, 7936
 .return:
   ret
 
-; sci/calc.e16.ts:339 lineMax() at -O1
+; sci/calc.e16.ts:340 lineMax() at -O1
 lineMax:
-  ; sci/calc.e16.ts:340  if (mode === MODE_BASE || mode === MODE_CPLX || mode === MODE_MATRIX) return 99
+  ; sci/calc.e16.ts:341  if (mode === MODE_BASE || mode === MODE_CPLX || mode === MODE_MATRIX) return 99
   lw t0, 0x04b8(zero)
   li t1, 2
   beq t0, t1, .L2
@@ -2451,39 +2451,39 @@ lineMax:
   li t1, 6
   bne t0, t1, .L1
 .L2:
-  ; sci/calc.e16.ts:340  return 99
+  ; sci/calc.e16.ts:341  return 99
   li a0, 99
   ret
 .L1:
-  ; sci/calc.e16.ts:341  if (mode === MODE_TABLE) return 197
+  ; sci/calc.e16.ts:342  if (mode === MODE_TABLE) return 197
   lw t0, 0x04b8(zero)
   li t1, 3
   bne t0, t1, .L3
-  ; sci/calc.e16.ts:341  return 197
+  ; sci/calc.e16.ts:342  return 197
   li a0, 197
   ret
 .L3:
-  ; sci/calc.e16.ts:342  return LINE_MAX
+  ; sci/calc.e16.ts:343  return LINE_MAX
   li a0, 199
 .return:
   ret
 
-; sci/calc.e16.ts:345 saveLine() at -O1
+; sci/calc.e16.ts:346 saveLine() at -O1
 ;   slot in s1
 saveLine:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; sci/calc.e16.ts:346  const slot = lineSlot()
+  ; sci/calc.e16.ts:347  const slot = lineSlot()
   call lineSlot
   mv s1, a0 ; slot
-  ; sci/calc.e16.ts:347  poke(slot, length)
+  ; sci/calc.e16.ts:348  poke(slot, length)
   lw t0, 0x0582(zero)
   sb t0, 0(s1)
-  ; sci/calc.e16.ts:348  poke(slot + 1, cursor)
+  ; sci/calc.e16.ts:349  poke(slot + 1, cursor)
   lw t0, 0x0584(zero)
   sb t0, 1(s1)
-  ; sci/calc.e16.ts:349  memcpy(slot + 2, addr(line), length)
+  ; sci/calc.e16.ts:350  memcpy(slot + 2, addr(line), length)
   lw a2, 0x0582(zero)
   addi a0, s1, 2
   la a1, line
@@ -2494,22 +2494,22 @@ saveLine:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:352 loadLine() at -O1
+; sci/calc.e16.ts:353 loadLine() at -O1
 ;   slot in s1
 loadLine:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; sci/calc.e16.ts:353  const slot = lineSlot()
+  ; sci/calc.e16.ts:354  const slot = lineSlot()
   call lineSlot
   mv s1, a0 ; slot
-  ; sci/calc.e16.ts:354  length = peek(slot)
+  ; sci/calc.e16.ts:355  length = peek(slot)
   lbu t0, 0(s1)
   sw t0, 0x0582(zero)
-  ; sci/calc.e16.ts:355  cursor = peek(slot + 1)
+  ; sci/calc.e16.ts:356  cursor = peek(slot + 1)
   lbu t0, 1(s1)
   sw t0, 0x0584(zero)
-  ; sci/calc.e16.ts:356  if (length > lineMax() || cursor > length) {
+  ; sci/calc.e16.ts:357  if (length > lineMax() || cursor > length) {
   lw t0, 0x0582(zero)
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -2521,12 +2521,12 @@ loadLine:
   lw t1, 0x0582(zero)
   bgeu t1, t0, .L1
 .L2:
-  ; sci/calc.e16.ts:357  length = 0
+  ; sci/calc.e16.ts:358  length = 0
   sw zero, 0x0582(zero)
-  ; sci/calc.e16.ts:358  cursor = 0
+  ; sci/calc.e16.ts:359  cursor = 0
   sw zero, 0x0584(zero)
 .L1:
-  ; sci/calc.e16.ts:360  memcpy(addr(line), slot + 2, length)
+  ; sci/calc.e16.ts:361  memcpy(addr(line), slot + 2, length)
   lw a2, 0x0582(zero)
   la a0, line
   addi a1, s1, 2
@@ -2537,55 +2537,55 @@ loadLine:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:364 startMode() at -O1
+; sci/calc.e16.ts:365 startMode() at -O1
 startMode:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:365  if (mode === MODE_EQN) eqnStart()
+  ; sci/calc.e16.ts:366  if (mode === MODE_EQN) eqnStart()
   lw t0, 0x04b8(zero)
   li t1, 4
   bne t0, t1, .L1
-  ; sci/calc.e16.ts:365  eqnStart()
+  ; sci/calc.e16.ts:366  eqnStart()
   la t0, eqnStart
   li t1, 11
   call far_call
   j .L2
 .L1:
-  ; sci/calc.e16.ts:366  if (mode === MODE_STATS) statsStart()
+  ; sci/calc.e16.ts:367  if (mode === MODE_STATS) statsStart()
   lw t0, 0x04b8(zero)
   li t1, 1
   bne t0, t1, .L3
-  ; sci/calc.e16.ts:366  statsStart()
+  ; sci/calc.e16.ts:367  statsStart()
   la t0, statsStart
   li t1, 7
   call far_call
   j .L4
 .L3:
-  ; sci/calc.e16.ts:367  if (mode === MODE_TABLE) tableReset()
+  ; sci/calc.e16.ts:368  if (mode === MODE_TABLE) tableReset()
   lw t0, 0x04b8(zero)
   li t1, 3
   bne t0, t1, .L5
-  ; sci/calc.e16.ts:367  tableReset()
+  ; sci/calc.e16.ts:368  tableReset()
   la t0, tableReset
   li t1, 10
   call far_call
   j .L6
 .L5:
-  ; sci/calc.e16.ts:368  if (mode === MODE_MATRIX) matStart()
+  ; sci/calc.e16.ts:369  if (mode === MODE_MATRIX) matStart()
   lw t0, 0x04b8(zero)
   li t1, 6
   bne t0, t1, .L7
-  ; sci/calc.e16.ts:368  matStart()
+  ; sci/calc.e16.ts:369  matStart()
   la t0, matStart
   li t1, 4
   call far_call
   j .L8
 .L7:
-  ; sci/calc.e16.ts:369  if (mode === MODE_PROG) progList()
+  ; sci/calc.e16.ts:370  if (mode === MODE_PROG) progList()
   lw t0, 0x04b8(zero)
   li t1, 7
   bne t0, t1, .L9
-  ; sci/calc.e16.ts:369  progList()
+  ; sci/calc.e16.ts:370  progList()
   la t0, progList
   li t1, 5
   call far_call
@@ -2599,9 +2599,9 @@ startMode:
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:373 ownScreen() at -O1
+; sci/calc.e16.ts:374 ownScreen() at -O1
 ownScreen:
-  ; sci/calc.e16.ts:374  return mode === MODE_STATS || mode === MODE_EQN
+  ; sci/calc.e16.ts:375  return mode === MODE_STATS || mode === MODE_EQN
   lw t0, 0x04b8(zero)
   li t1, 1
   sub t0, t0, t1
@@ -2617,13 +2617,13 @@ ownScreen:
 .return:
   ret
 
-; sci/calc.e16.ts:378 calcLoop() at -O1
+; sci/calc.e16.ts:379 calcLoop() at -O1
 calcLoop:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:379  for (;;) key(getkey())
+  ; sci/calc.e16.ts:380  for (;;) key(getkey())
 .L1:
-  ; sci/calc.e16.ts:379  key(getkey())
+  ; sci/calc.e16.ts:380  key(getkey())
   call getkey
   call key
   j .L1
@@ -2632,45 +2632,45 @@ calcLoop:
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:383 refuse() at -O1
+; sci/calc.e16.ts:384 refuse() at -O1
 refuse:
-  ; sci/calc.e16.ts:384  poke16(IO_FREQ, 1800)
+  ; sci/calc.e16.ts:385  poke16(IO_FREQ, 1800)
   li t0, 1800
   li t1, 65344
   sw t0, 0(t1)
-  ; sci/calc.e16.ts:385  poke16(IO_DUR, 40)
+  ; sci/calc.e16.ts:386  poke16(IO_DUR, 40)
   li t0, 40
   li t1, 65346
   sw t0, 0(t1)
 .return:
   ret
 
-; sci/calc.e16.ts:391 calcError() at -O1
+; sci/calc.e16.ts:392 calcError() at -O1
 calcError:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:392  screen = S_ERROR
+  ; sci/calc.e16.ts:393  screen = S_ERROR
   li t0, 1
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:394  xBack()
+  ; sci/calc.e16.ts:395  xBack()
   call xBack
-  ; sci/calc.e16.ts:395  noCursor()
+  ; sci/calc.e16.ts:396  noCursor()
   ; sci/lcd.e16.ts:139  poke16(IO_CURMODE, 0)
   li t0, 65324
   sw zero, 0(t0)
-  ; sci/calc.e16.ts:396  errorScreen(errCode)
+  ; sci/calc.e16.ts:397  errorScreen(errCode)
   lw a0, 0x0104(zero)
   la t0, errorScreen
   li t1, 1
   call far_call
-  ; sci/calc.e16.ts:397  drawMarks()
+  ; sci/calc.e16.ts:398  drawMarks()
   call drawMarks
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:401 calcFault(cause, pc) at -O1
+; sci/calc.e16.ts:402 calcFault(cause, pc) at -O1
 ;   cause in s1
 ;   pc in s2
 calcFault:
@@ -2680,24 +2680,24 @@ calcFault:
   sw s2, 4(sp)
   mv s1, a0 ; cause
   mv s2, a1 ; pc
-  ; sci/calc.e16.ts:402  screen = S_ERROR
+  ; sci/calc.e16.ts:403  screen = S_ERROR
   li t0, 1
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:403  length = 0
+  ; sci/calc.e16.ts:404  length = 0
   sw zero, 0x0582(zero)
-  ; sci/calc.e16.ts:404  cursor = 0
+  ; sci/calc.e16.ts:405  cursor = 0
   sw zero, 0x0584(zero)
-  ; sci/calc.e16.ts:405  noCursor()
+  ; sci/calc.e16.ts:406  noCursor()
   ; sci/lcd.e16.ts:139  poke16(IO_CURMODE, 0)
   li t0, 65324
   sw zero, 0(t0)
-  ; sci/calc.e16.ts:406  faultScreen(cause, pc)
+  ; sci/calc.e16.ts:407  faultScreen(cause, pc)
   mv a0, s1
   mv a1, s2
   la t0, faultScreen
   li t1, 1
   call far_call
-  ; sci/calc.e16.ts:407  drawMarks()
+  ; sci/calc.e16.ts:408  drawMarks()
   call drawMarks
 .return:
   lw ra, 0(sp)
@@ -2706,109 +2706,109 @@ calcFault:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:414 calcOn() at -O1
+; sci/calc.e16.ts:415 calcOn() at -O1
 calcOn:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:415  if (shifted) {
+  ; sci/calc.e16.ts:416  if (shifted) {
   lw t0, 0x0588(zero)
   beqz t0, .L1
-  ; sci/calc.e16.ts:416  shifted = false
+  ; sci/calc.e16.ts:417  shifted = false
   sw zero, 0x0588(zero)
-  ; sci/calc.e16.ts:417  noCursor()
+  ; sci/calc.e16.ts:418  noCursor()
   ; sci/lcd.e16.ts:139  poke16(IO_CURMODE, 0)
   li t0, 65324
   sw zero, 0(t0)
-  ; sci/calc.e16.ts:418  poke16(0xff06, 0)
+  ; sci/calc.e16.ts:419  poke16(0xff06, 0)
   li t0, 65286
   sw zero, 0(t0)
-  ; sci/calc.e16.ts:419  return
+  ; sci/calc.e16.ts:420  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:421  clearLine()
+  ; sci/calc.e16.ts:422  clearLine()
   call clearLine
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:424 clearLine() at -O1
+; sci/calc.e16.ts:425 clearLine() at -O1
 clearLine:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:425  forget()
+  ; sci/calc.e16.ts:426  forget()
   call forget
-  ; sci/calc.e16.ts:426  screen = S_CALC
+  ; sci/calc.e16.ts:427  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:427  if (ownScreen()) {
+  ; sci/calc.e16.ts:428  if (ownScreen()) {
   call ownScreen
   beqz a0, .L1
-  ; sci/calc.e16.ts:428  if (mode === MODE_STATS) statsReset()
+  ; sci/calc.e16.ts:429  if (mode === MODE_STATS) statsReset()
   lw t0, 0x04b8(zero)
   li t1, 1
   bne t0, t1, .L2
-  ; sci/calc.e16.ts:428  statsReset()
+  ; sci/calc.e16.ts:429  statsReset()
   la t0, statsReset
   li t1, 7
   call far_call
   j .L3
 .L2:
-  ; sci/calc.e16.ts:429  eqnReset()
+  ; sci/calc.e16.ts:430  eqnReset()
   la t0, eqnReset
   li t1, 11
   call far_call
 .L3:
-  ; sci/calc.e16.ts:430  drawCalc()
+  ; sci/calc.e16.ts:431  drawCalc()
   call drawCalc
-  ; sci/calc.e16.ts:431  return
+  ; sci/calc.e16.ts:432  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:433  if (mode === MODE_TABLE) tableReset()
+  ; sci/calc.e16.ts:434  if (mode === MODE_TABLE) tableReset()
   lw t0, 0x04b8(zero)
   li t1, 3
   bne t0, t1, .L4
-  ; sci/calc.e16.ts:433  tableReset()
+  ; sci/calc.e16.ts:434  tableReset()
   la t0, tableReset
   li t1, 10
   call far_call
 .L4:
-  ; sci/calc.e16.ts:434  if (mode === MODE_MATRIX) matStart()
+  ; sci/calc.e16.ts:435  if (mode === MODE_MATRIX) matStart()
   lw t0, 0x04b8(zero)
   li t1, 6
   bne t0, t1, .L5
-  ; sci/calc.e16.ts:434  matStart()
+  ; sci/calc.e16.ts:435  matStart()
   la t0, matStart
   li t1, 4
   call far_call
 .L5:
-  ; sci/calc.e16.ts:436  if (mode === MODE_PROG) progList()
+  ; sci/calc.e16.ts:437  if (mode === MODE_PROG) progList()
   lw t0, 0x04b8(zero)
   li t1, 7
   bne t0, t1, .L6
-  ; sci/calc.e16.ts:436  progList()
+  ; sci/calc.e16.ts:437  progList()
   la t0, progList
   li t1, 5
   call far_call
   j .L7
 .L6:
-  ; sci/calc.e16.ts:438  length = 0
+  ; sci/calc.e16.ts:439  length = 0
   sw zero, 0x0582(zero)
-  ; sci/calc.e16.ts:439  cursor = 0
+  ; sci/calc.e16.ts:440  cursor = 0
   sw zero, 0x0584(zero)
 .L7:
-  ; sci/calc.e16.ts:441  answered = false
+  ; sci/calc.e16.ts:442  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:442  historyAt = 0xffff
+  ; sci/calc.e16.ts:443  historyAt = 0xffff
   li t0, 65535
   sw t0, 0x0598(zero)
-  ; sci/calc.e16.ts:443  drawCalc()
+  ; sci/calc.e16.ts:444  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:448 key(k) at -O1
+; sci/calc.e16.ts:449 key(k) at -O1
 ;   k in s1
 ;   shift in s3
 ;   alpha in s2
@@ -2819,57 +2819,57 @@ key:
   sw s3, 4(sp)
   sw s2, 6(sp)
   mv s1, a0 ; k
-  ; sci/calc.e16.ts:449  if (k === K_SHIFT) {
+  ; sci/calc.e16.ts:450  if (k === K_SHIFT) {
   li t0, 6
   bne s1, t0, .L1
-  ; sci/calc.e16.ts:450  shifted = !shifted
+  ; sci/calc.e16.ts:451  shifted = !shifted
   lw t0, 0x0588(zero)
   seqz t0, t0
   sw t0, 0x0588(zero)
-  ; sci/calc.e16.ts:451  alphaOn = false
+  ; sci/calc.e16.ts:452  alphaOn = false
   sw zero, 0x058a(zero)
-  ; sci/calc.e16.ts:452  drawMarks()
+  ; sci/calc.e16.ts:453  drawMarks()
   call drawMarks
-  ; sci/calc.e16.ts:453  return
+  ; sci/calc.e16.ts:454  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:455  if (k === K_ALPHA) {
+  ; sci/calc.e16.ts:456  if (k === K_ALPHA) {
   li t0, 7
   bne s1, t0, .L2
-  ; sci/calc.e16.ts:456  alphaOn = !alphaOn
+  ; sci/calc.e16.ts:457  alphaOn = !alphaOn
   lw t0, 0x058a(zero)
   seqz t0, t0
   sw t0, 0x058a(zero)
-  ; sci/calc.e16.ts:457  shifted = false
+  ; sci/calc.e16.ts:458  shifted = false
   sw zero, 0x0588(zero)
-  ; sci/calc.e16.ts:458  drawMarks()
+  ; sci/calc.e16.ts:459  drawMarks()
   call drawMarks
-  ; sci/calc.e16.ts:459  return
+  ; sci/calc.e16.ts:460  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:461  const shift = shifted
+  ; sci/calc.e16.ts:462  const shift = shifted
   lw s3, 0x0588(zero)
-  ; sci/calc.e16.ts:462  const alpha = alphaOn
+  ; sci/calc.e16.ts:463  const alpha = alphaOn
   lw s2, 0x058a(zero)
-  ; sci/calc.e16.ts:463  shifted = false
+  ; sci/calc.e16.ts:464  shifted = false
   sw zero, 0x0588(zero)
-  ; sci/calc.e16.ts:464  alphaOn = false
+  ; sci/calc.e16.ts:465  alphaOn = false
   sw zero, 0x058a(zero)
-  ; sci/calc.e16.ts:465  alphaKey = alpha
+  ; sci/calc.e16.ts:466  alphaKey = alpha
   sw s2, 0x0590(zero)
-  ; sci/calc.e16.ts:466  dispatch(k, shift, alpha)
+  ; sci/calc.e16.ts:467  dispatch(k, shift, alpha)
   mv a0, s1
   mv a1, s3
   mv a2, s2
   call dispatch
-  ; sci/calc.e16.ts:468  if (mode === MODE_PROG) saveLine()
+  ; sci/calc.e16.ts:469  if (mode === MODE_PROG) saveLine()
   lw t0, 0x04b8(zero)
   li t1, 7
   bne t0, t1, .L3
-  ; sci/calc.e16.ts:468  saveLine()
+  ; sci/calc.e16.ts:469  saveLine()
   call saveLine
 .L3:
-  ; sci/calc.e16.ts:469  drawMarks()
+  ; sci/calc.e16.ts:470  drawMarks()
   call drawMarks
 .return:
   lw ra, 0(sp)
@@ -2879,7 +2879,7 @@ key:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:473 dispatch(k, shift, alpha) at -O1
+; sci/calc.e16.ts:474 dispatch(k, shift, alpha) at -O1
 ;   k in s1
 ;   shift in s2
 ;   alpha in s3
@@ -2892,43 +2892,43 @@ dispatch:
   mv s1, a0 ; k
   mv s2, a1 ; shift
   mv s3, a2 ; alpha
-  ; sci/calc.e16.ts:474  if (screen !== S_CALC) screenKey(k, shift)
+  ; sci/calc.e16.ts:475  if (screen !== S_CALC) screenKey(k, shift)
   lw t0, 0x04b6(zero)
   beq t0, zero, .L1
-  ; sci/calc.e16.ts:474  screenKey(k, shift)
+  ; sci/calc.e16.ts:475  screenKey(k, shift)
   mv a0, s1
   mv a1, s2
   call screenKey
   j .L2
 .L1:
-  ; sci/calc.e16.ts:475  if (k === K_SETUP && shift) angleKey()
+  ; sci/calc.e16.ts:476  if (k === K_SETUP && shift) angleKey()
   li t0, 9
   bne s1, t0, .L3
   beqz s2, .L3
-  ; sci/calc.e16.ts:475  angleKey()
+  ; sci/calc.e16.ts:476  angleKey()
   call angleKey
   j .L4
 .L3:
-  ; sci/calc.e16.ts:476  if (k === K_MENU && shift) convOpen()
+  ; sci/calc.e16.ts:477  if (k === K_MENU && shift) convOpen()
   li t0, 8
   bne s1, t0, .L5
   beqz s2, .L5
-  ; sci/calc.e16.ts:476  convOpen()
+  ; sci/calc.e16.ts:477  convOpen()
   call convOpen
   j .L6
 .L5:
-  ; sci/calc.e16.ts:477  if (k === K_MENU || k === K_SETUP) openScreen(k)
+  ; sci/calc.e16.ts:478  if (k === K_MENU || k === K_SETUP) openScreen(k)
   li t0, 8
   beq s1, t0, .L8
   li t0, 9
   bne s1, t0, .L7
 .L8:
-  ; sci/calc.e16.ts:477  openScreen(k)
+  ; sci/calc.e16.ts:478  openScreen(k)
   mv a0, s1
   call openScreen
   j .L9
 .L7:
-  ; sci/calc.e16.ts:478  modeKey(k, shift, alpha)
+  ; sci/calc.e16.ts:479  modeKey(k, shift, alpha)
   mv a0, s1
   mv a1, s2
   mv a2, s3
@@ -2945,7 +2945,7 @@ dispatch:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:482 screenKey(k, shift) at -O1
+; sci/calc.e16.ts:483 screenKey(k, shift) at -O1
 ;   k in s1
 ;   shift in s2
 screenKey:
@@ -2955,20 +2955,20 @@ screenKey:
   sw s2, 4(sp)
   mv s1, a0 ; k
   mv s2, a1 ; shift
-  ; sci/calc.e16.ts:483  if (screen === S_ERROR) errorKey(k)
+  ; sci/calc.e16.ts:484  if (screen === S_ERROR) errorKey(k)
   lw t0, 0x04b6(zero)
   li t1, 1
   bne t0, t1, .L1
-  ; sci/calc.e16.ts:483  errorKey(k)
+  ; sci/calc.e16.ts:484  errorKey(k)
   mv a0, s1
   call errorKey
   j .L2
 .L1:
-  ; sci/calc.e16.ts:484  if (screen === S_MENU) chosenMode(menuKey(k))
+  ; sci/calc.e16.ts:485  if (screen === S_MENU) chosenMode(menuKey(k))
   lw t0, 0x04b6(zero)
   li t1, 2
   bne t0, t1, .L3
-  ; sci/calc.e16.ts:484  chosenMode(menuKey(k))
+  ; sci/calc.e16.ts:485  chosenMode(menuKey(k))
   mv a0, s1
   la t0, menuKey
   li t1, 1
@@ -2976,25 +2976,25 @@ screenKey:
   call chosenMode
   j .L4
 .L3:
-  ; sci/calc.e16.ts:485  if (screen === S_SETUP) {
+  ; sci/calc.e16.ts:486  if (screen === S_SETUP) {
   lw t0, 0x04b6(zero)
   li t1, 3
   bne t0, t1, .L5
-  ; sci/calc.e16.ts:486  if (setupKey(k) !== 0) clearLine()
+  ; sci/calc.e16.ts:487  if (setupKey(k) !== 0) clearLine()
   mv a0, s1
   la t0, setupKey
   li t1, 1
   call far_call
   beq a0, zero, .L7
-  ; sci/calc.e16.ts:486  clearLine()
+  ; sci/calc.e16.ts:487  clearLine()
   call clearLine
   j .L7
 .L5:
-  ; sci/calc.e16.ts:487  if (screen === S_FUNC) funcChosen(mode === MODE_BASE ? baseFuncKey(k) : funcKey(k))
+  ; sci/calc.e16.ts:488  if (screen === S_FUNC) funcChosen(mode === MODE_BASE ? baseFuncKey(k) : funcKey(k))
   lw t0, 0x04b6(zero)
   li t1, 4
   bne t0, t1, .L8
-  ; sci/calc.e16.ts:487  funcChosen(mode === MODE_BASE ? baseFuncKey(k) : funcKey(k))
+  ; sci/calc.e16.ts:488  funcChosen(mode === MODE_BASE ? baseFuncKey(k) : funcKey(k))
   lw t0, 0x04b8(zero)
   li t1, 2
   bne t0, t1, .L9
@@ -3015,21 +3015,21 @@ screenKey:
   call funcChosen
   j .L11
 .L8:
-  ; sci/calc.e16.ts:488  if (screen === S_ASK) asked(k, shift)
+  ; sci/calc.e16.ts:489  if (screen === S_ASK) asked(k, shift)
   lw t0, 0x04b6(zero)
   li t1, 5
   bne t0, t1, .L12
-  ; sci/calc.e16.ts:488  asked(k, shift)
+  ; sci/calc.e16.ts:489  asked(k, shift)
   mv a0, s1
   mv a1, s2
   call asked
   j .L13
 .L12:
-  ; sci/calc.e16.ts:489  if (screen === S_CONST) funcChosen(constKey(k))
+  ; sci/calc.e16.ts:490  if (screen === S_CONST) funcChosen(constKey(k))
   lw t0, 0x04b6(zero)
   li t1, 6
   bne t0, t1, .L14
-  ; sci/calc.e16.ts:489  funcChosen(constKey(k))
+  ; sci/calc.e16.ts:490  funcChosen(constKey(k))
   mv a0, s1
   la t0, constKey
   li t1, 10
@@ -3037,7 +3037,7 @@ screenKey:
   call funcChosen
   j .L15
 .L14:
-  ; sci/calc.e16.ts:490  convChosen(convKey(k))
+  ; sci/calc.e16.ts:491  convChosen(convKey(k))
   mv a0, s1
   la t0, convKey
   li t1, 10
@@ -3056,7 +3056,7 @@ screenKey:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:494 modeKey(k, shift, alpha) at -O1
+; sci/calc.e16.ts:495 modeKey(k, shift, alpha) at -O1
 ;   k in s1
 ;   shift in s2
 ;   alpha in s3
@@ -3069,11 +3069,11 @@ modeKey:
   mv s1, a0 ; k
   mv s2, a1 ; shift
   mv s3, a2 ; alpha
-  ; sci/calc.e16.ts:495  if (mode === MODE_STATS) statsKey(k, shift)
+  ; sci/calc.e16.ts:496  if (mode === MODE_STATS) statsKey(k, shift)
   lw t0, 0x04b8(zero)
   li t1, 1
   bne t0, t1, .L1
-  ; sci/calc.e16.ts:495  statsKey(k, shift)
+  ; sci/calc.e16.ts:496  statsKey(k, shift)
   mv a0, s1
   mv a1, s2
   la t0, statsKey
@@ -3081,24 +3081,24 @@ modeKey:
   call far_call
   j .L2
 .L1:
-  ; sci/calc.e16.ts:496  if (mode === MODE_EQN) {
+  ; sci/calc.e16.ts:497  if (mode === MODE_EQN) {
   lw t0, 0x04b8(zero)
   li t1, 4
   bne t0, t1, .L3
-  ; sci/calc.e16.ts:497  if (eqnKey(k, shift)) {
+  ; sci/calc.e16.ts:498  if (eqnKey(k, shift)) {
   mv a0, s1
   mv a1, s2
   la t0, eqnKey
   li t1, 11
   call far_call
   beqz a0, .L5
-  ; sci/calc.e16.ts:498  enterMode(MODE_CALC)
+  ; sci/calc.e16.ts:499  enterMode(MODE_CALC)
   li a0, 0
   call enterMode
-  ; sci/calc.e16.ts:499  return
+  ; sci/calc.e16.ts:500  return
   j .return
 .L3:
-  ; sci/calc.e16.ts:501  if (mode === MODE_TABLE && tablePhase() === TABLE_VIEW) tableKey(k)
+  ; sci/calc.e16.ts:502  if (mode === MODE_TABLE && tablePhase() === TABLE_VIEW) tableKey(k)
   lw t0, 0x04b8(zero)
   li t1, 3
   bne t0, t1, .L6
@@ -3107,14 +3107,14 @@ modeKey:
   call far_call
   li t0, 2
   bne a0, t0, .L6
-  ; sci/calc.e16.ts:501  tableKey(k)
+  ; sci/calc.e16.ts:502  tableKey(k)
   mv a0, s1
   la t0, tableKey
   li t1, 10
   call far_call
   j .L7
 .L6:
-  ; sci/calc.e16.ts:502  if (mode === MODE_MATRIX && matPhase() !== MAT_LINE) matKey(k, shift)
+  ; sci/calc.e16.ts:503  if (mode === MODE_MATRIX && matPhase() !== MAT_LINE) matKey(k, shift)
   lw t0, 0x04b8(zero)
   li t1, 6
   bne t0, t1, .L8
@@ -3122,7 +3122,7 @@ modeKey:
   li t1, 4
   call far_call
   beq a0, zero, .L8
-  ; sci/calc.e16.ts:502  matKey(k, shift)
+  ; sci/calc.e16.ts:503  matKey(k, shift)
   mv a0, s1
   mv a1, s2
   la t0, matKey
@@ -3130,7 +3130,7 @@ modeKey:
   call far_call
   j .L9
 .L8:
-  ; sci/calc.e16.ts:503  if (mode === MODE_PROG && progPhase() === PROG_LIST) {
+  ; sci/calc.e16.ts:504  if (mode === MODE_PROG && progPhase() === PROG_LIST) {
   lw t0, 0x04b8(zero)
   li t1, 7
   bne t0, t1, .L10
@@ -3138,27 +3138,27 @@ modeKey:
   li t1, 5
   call far_call
   bne a0, zero, .L10
-  ; sci/calc.e16.ts:504  progChosen(progListKey(k))
+  ; sci/calc.e16.ts:505  progChosen(progListKey(k))
   mv a0, s1
   la t0, progListKey
   li t1, 5
   call far_call
   call progChosen
-  ; sci/calc.e16.ts:505  return
+  ; sci/calc.e16.ts:506  return
   j .return
 .L10:
-  ; sci/calc.e16.ts:507  calcKey(k, shift, alpha)
+  ; sci/calc.e16.ts:508  calcKey(k, shift, alpha)
   mv a0, s1
   mv a1, s2
   mv a2, s3
   call calcKey
-  ; sci/calc.e16.ts:508  return
+  ; sci/calc.e16.ts:509  return
   j .return
 .L9:
 .L7:
 .L5:
 .L2:
-  ; sci/calc.e16.ts:510  drawCalc()
+  ; sci/calc.e16.ts:511  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -3168,77 +3168,77 @@ modeKey:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:517 angleKey() at -O1
+; sci/calc.e16.ts:518 angleKey() at -O1
 angleKey:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:518  if (mode !== MODE_CALC) {
+  ; sci/calc.e16.ts:519  if (mode !== MODE_CALC) {
   lw t0, 0x04b8(zero)
   beq t0, zero, .L1
-  ; sci/calc.e16.ts:519  refuse()
+  ; sci/calc.e16.ts:520  refuse()
   call refuse
-  ; sci/calc.e16.ts:520  return
+  ; sci/calc.e16.ts:521  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:522  if (!answered && length > 0) equals(false)
+  ; sci/calc.e16.ts:523  if (!answered && length > 0) equals(false)
   lw t0, 0x0586(zero)
   bnez t0, .L2
   lw t0, 0x0582(zero)
   bgeu zero, t0, .L2
-  ; sci/calc.e16.ts:522  equals(false)
+  ; sci/calc.e16.ts:523  equals(false)
   li a0, 0
   call equals
 .L2:
-  ; sci/calc.e16.ts:523  nextAngle()
+  ; sci/calc.e16.ts:524  nextAngle()
   la t0, nextAngle
   li t1, 10
   call far_call
-  ; sci/calc.e16.ts:524  answered = true
+  ; sci/calc.e16.ts:525  answered = true
   li t0, 1
   sw t0, 0x0586(zero)
-  ; sci/calc.e16.ts:525  shown = SHOW_DECIMAL
+  ; sci/calc.e16.ts:526  shown = SHOW_DECIMAL
   sw zero, 0x059a(zero)
-  ; sci/calc.e16.ts:526  drawCalc()
+  ; sci/calc.e16.ts:527  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:530 progChosen(p) at -O1
+; sci/calc.e16.ts:531 progChosen(p) at -O1
 ;   p in s1
 progChosen:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; p
-  ; sci/calc.e16.ts:531  if (p === 0) return
+  ; sci/calc.e16.ts:532  if (p === 0) return
   bne s1, zero, .L1
-  ; sci/calc.e16.ts:531  return
+  ; sci/calc.e16.ts:532  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:532  if (p === 0xff) {
+  ; sci/calc.e16.ts:533  if (p === 0xff) {
   li t0, 255
   bne s1, t0, .L2
-  ; sci/calc.e16.ts:533  enterMode(MODE_CALC)
+  ; sci/calc.e16.ts:534  enterMode(MODE_CALC)
   li a0, 0
   call enterMode
-  ; sci/calc.e16.ts:534  return
+  ; sci/calc.e16.ts:535  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:536  poke(PROG_CHOSEN, p - 1)
+  ; sci/calc.e16.ts:537  poke(PROG_CHOSEN, p - 1)
   addi t0, s1, -1
   li t1, 11264
   sb t0, 0(t1)
-  ; sci/calc.e16.ts:537  loadLine()
+  ; sci/calc.e16.ts:538  loadLine()
   call loadLine
-  ; sci/calc.e16.ts:538  answered = false
+  ; sci/calc.e16.ts:539  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:539  progEdit()
+  ; sci/calc.e16.ts:540  progEdit()
   la t0, progEdit
   li t1, 5
   call far_call
-  ; sci/calc.e16.ts:540  drawCalc()
+  ; sci/calc.e16.ts:541  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -3246,22 +3246,22 @@ progChosen:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:544 primeOpen() at -O1
+; sci/calc.e16.ts:545 primeOpen() at -O1
 primeOpen:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:545  if (mode === MODE_CALC && !answered && length > 0) equals(false)
+  ; sci/calc.e16.ts:546  if (mode === MODE_CALC && !answered && length > 0) equals(false)
   lw t0, 0x04b8(zero)
   bne t0, zero, .L1
   lw t0, 0x0586(zero)
   bnez t0, .L1
   lw t0, 0x0582(zero)
   bgeu zero, t0, .L1
-  ; sci/calc.e16.ts:545  equals(false)
+  ; sci/calc.e16.ts:546  equals(false)
   li a0, 0
   call equals
 .L1:
-  ; sci/calc.e16.ts:546  if (mode !== MODE_CALC || !primeAns()) refuse()
+  ; sci/calc.e16.ts:547  if (mode !== MODE_CALC || !primeAns()) refuse()
   lw t0, 0x04b8(zero)
   bne t0, zero, .L3
   la t0, primeAns
@@ -3269,55 +3269,55 @@ primeOpen:
   call far_call
   bnez a0, .L2
 .L3:
-  ; sci/calc.e16.ts:546  refuse()
+  ; sci/calc.e16.ts:547  refuse()
   call refuse
   j .L4
 .L2:
-  ; sci/calc.e16.ts:548  answered = true
+  ; sci/calc.e16.ts:549  answered = true
   li t0, 1
   sw t0, 0x0586(zero)
-  ; sci/calc.e16.ts:549  found = false
+  ; sci/calc.e16.ts:550  found = false
   sw zero, 0x0596(zero)
-  ; sci/calc.e16.ts:550  shown = SHOW_PRIME
+  ; sci/calc.e16.ts:551  shown = SHOW_PRIME
   li t0, 8
   sw t0, 0x059a(zero)
 .L4:
-  ; sci/calc.e16.ts:552  drawCalc()
+  ; sci/calc.e16.ts:553  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:556 convOpen() at -O1
+; sci/calc.e16.ts:557 convOpen() at -O1
 convOpen:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:557  if (mode !== MODE_CALC) {
+  ; sci/calc.e16.ts:558  if (mode !== MODE_CALC) {
   lw t0, 0x04b8(zero)
   beq t0, zero, .L1
-  ; sci/calc.e16.ts:558  refuse()
+  ; sci/calc.e16.ts:559  refuse()
   call refuse
-  ; sci/calc.e16.ts:559  return
+  ; sci/calc.e16.ts:560  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:561  if (!answered && length > 0) equals(false)
+  ; sci/calc.e16.ts:562  if (!answered && length > 0) equals(false)
   lw t0, 0x0586(zero)
   bnez t0, .L2
   lw t0, 0x0582(zero)
   bgeu zero, t0, .L2
-  ; sci/calc.e16.ts:561  equals(false)
+  ; sci/calc.e16.ts:562  equals(false)
   li a0, 0
   call equals
 .L2:
-  ; sci/calc.e16.ts:562  screen = S_CONV
+  ; sci/calc.e16.ts:563  screen = S_CONV
   li t0, 7
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:563  noCursor()
+  ; sci/calc.e16.ts:564  noCursor()
   ; sci/lcd.e16.ts:139  poke16(IO_CURMODE, 0)
   li t0, 65324
   sw zero, 0(t0)
-  ; sci/calc.e16.ts:564  convScreen()
+  ; sci/calc.e16.ts:565  convScreen()
   la t0, convScreen
   li t1, 10
   call far_call
@@ -3326,33 +3326,33 @@ convOpen:
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:568 convChosen(r) at -O1
+; sci/calc.e16.ts:569 convChosen(r) at -O1
 ;   r in s1
 convChosen:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; r
-  ; sci/calc.e16.ts:569  if (r === 0) return
+  ; sci/calc.e16.ts:570  if (r === 0) return
   bne s1, zero, .L1
-  ; sci/calc.e16.ts:569  return
+  ; sci/calc.e16.ts:570  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:570  screen = S_CALC
+  ; sci/calc.e16.ts:571  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:571  if (r === 2) {
+  ; sci/calc.e16.ts:572  if (r === 2) {
   li t0, 2
   bne s1, t0, .L2
-  ; sci/calc.e16.ts:572  answered = true
+  ; sci/calc.e16.ts:573  answered = true
   li t0, 1
   sw t0, 0x0586(zero)
-  ; sci/calc.e16.ts:573  found = false
+  ; sci/calc.e16.ts:574  found = false
   sw zero, 0x0596(zero)
-  ; sci/calc.e16.ts:574  shown = SHOW_CONV
+  ; sci/calc.e16.ts:575  shown = SHOW_CONV
   li t0, 7
   sw t0, 0x059a(zero)
 .L2:
-  ; sci/calc.e16.ts:576  drawCalc()
+  ; sci/calc.e16.ts:577  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -3360,34 +3360,34 @@ convChosen:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:580 openScreen(k) at -O1
+; sci/calc.e16.ts:581 openScreen(k) at -O1
 ;   k in s1
 openScreen:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; k
-  ; sci/calc.e16.ts:581  noCursor()
+  ; sci/calc.e16.ts:582  noCursor()
   ; sci/lcd.e16.ts:139  poke16(IO_CURMODE, 0)
   li t0, 65324
   sw zero, 0(t0)
-  ; sci/calc.e16.ts:582  if (k === K_MENU) {
+  ; sci/calc.e16.ts:583  if (k === K_MENU) {
   li t0, 8
   bne s1, t0, .L1
-  ; sci/calc.e16.ts:583  screen = S_MENU
+  ; sci/calc.e16.ts:584  screen = S_MENU
   li t0, 2
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:584  menuScreen(mode)
+  ; sci/calc.e16.ts:585  menuScreen(mode)
   lw a0, 0x04b8(zero)
   la t0, menuScreen
   li t1, 1
   call far_call
   j .L2
 .L1:
-  ; sci/calc.e16.ts:586  screen = S_SETUP
+  ; sci/calc.e16.ts:587  screen = S_SETUP
   li t0, 3
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:587  setupScreen()
+  ; sci/calc.e16.ts:588  setupScreen()
   la t0, setupScreen
   li t1, 1
   call far_call
@@ -3398,28 +3398,28 @@ openScreen:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:592 chosenMode(m) at -O1
+; sci/calc.e16.ts:593 chosenMode(m) at -O1
 ;   m in s1
 chosenMode:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; m
-  ; sci/calc.e16.ts:593  if (m === 0) return
+  ; sci/calc.e16.ts:594  if (m === 0) return
   bne s1, zero, .L1
-  ; sci/calc.e16.ts:593  return
+  ; sci/calc.e16.ts:594  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:594  if (m === 0xff) {
+  ; sci/calc.e16.ts:595  if (m === 0xff) {
   li t0, 255
   bne s1, t0, .L2
-  ; sci/calc.e16.ts:595  screen = S_CALC
+  ; sci/calc.e16.ts:596  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:596  drawCalc()
+  ; sci/calc.e16.ts:597  drawCalc()
   call drawCalc
   j .L3
 .L2:
-  ; sci/calc.e16.ts:597  enterMode(m - 1)
+  ; sci/calc.e16.ts:598  enterMode(m - 1)
   addi a0, s1, -1
   call enterMode
 .L3:
@@ -3429,7 +3429,7 @@ chosenMode:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:601 errorKey(k) at -O1
+; sci/calc.e16.ts:602 errorKey(k) at -O1
 ;   k in s1
 ;   grid in s2
 errorKey:
@@ -3438,7 +3438,7 @@ errorKey:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; k
-  ; sci/calc.e16.ts:603  const grid = mode === MODE_MATRIX && matPhase() !== MAT_LINE
+  ; sci/calc.e16.ts:604  const grid = mode === MODE_MATRIX && matPhase() !== MAT_LINE
   lw t0, 0x04b8(zero)
   li t1, 6
   sub t0, t0, t1
@@ -3452,16 +3452,16 @@ errorKey:
   snez t0, t0
 .L1:
   mv s2, t0 ; grid
-  ; sci/calc.e16.ts:604  if (k === K_AC && !grid) {
+  ; sci/calc.e16.ts:605  if (k === K_AC && !grid) {
   li t0, 5
   bne s1, t0, .L2
   bnez s2, .L2
-  ; sci/calc.e16.ts:605  clearLine()
+  ; sci/calc.e16.ts:606  clearLine()
   call clearLine
-  ; sci/calc.e16.ts:606  return
+  ; sci/calc.e16.ts:607  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:608  if ((k === K_LEFT || k === K_RIGHT || k === K_AC) && (ownScreen() || grid)) {
+  ; sci/calc.e16.ts:609  if ((k === K_LEFT || k === K_RIGHT || k === K_AC) && (ownScreen() || grid)) {
   li t0, 2
   beq s1, t0, .L4
   li t0, 3
@@ -3473,33 +3473,33 @@ errorKey:
   bnez a0, .L5
   beqz s2, .L3
 .L5:
-  ; sci/calc.e16.ts:609  screen = S_CALC
+  ; sci/calc.e16.ts:610  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:610  drawCalc()
+  ; sci/calc.e16.ts:611  drawCalc()
   call drawCalc
-  ; sci/calc.e16.ts:611  return
+  ; sci/calc.e16.ts:612  return
   j .return
 .L3:
-  ; sci/calc.e16.ts:613  if (k === K_LEFT || k === K_RIGHT) {
+  ; sci/calc.e16.ts:614  if (k === K_LEFT || k === K_RIGHT) {
   li t0, 2
   beq s1, t0, .L7
   li t0, 3
   bne s1, t0, .L6
 .L7:
-  ; sci/calc.e16.ts:614  if (mode === MODE_TABLE) tableReset()
+  ; sci/calc.e16.ts:615  if (mode === MODE_TABLE) tableReset()
   lw t0, 0x04b8(zero)
   li t1, 3
   bne t0, t1, .L8
-  ; sci/calc.e16.ts:614  tableReset()
+  ; sci/calc.e16.ts:615  tableReset()
   la t0, tableReset
   li t1, 10
   call far_call
 .L8:
-  ; sci/calc.e16.ts:615  screen = S_CALC
+  ; sci/calc.e16.ts:616  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:616  answered = false
+  ; sci/calc.e16.ts:617  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:617  cursor = errAt < length ? errAt : length
+  ; sci/calc.e16.ts:618  cursor = errAt < length ? errAt : length
   lw t0, 0x0106(zero)
   lw t1, 0x0582(zero)
   bgeu t0, t1, .L9
@@ -3509,7 +3509,7 @@ errorKey:
   lw t0, 0x0582(zero)
 .L10:
   sw t0, 0x0584(zero)
-  ; sci/calc.e16.ts:618  drawCalc()
+  ; sci/calc.e16.ts:619  drawCalc()
   call drawCalc
 .L6:
 .return:
@@ -3519,7 +3519,7 @@ errorKey:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:626 baseKey(k/t, shift, alpha) at -O1
+; sci/calc.e16.ts:627 baseKey(k/t, shift, alpha) at -O1
 ;   k/t in s1
 ;   shift in s2
 ;   alpha in s3
@@ -3532,42 +3532,42 @@ baseKey:
   mv s1, a0 ; k/t
   mv s2, a1 ; shift
   mv s3, a2 ; alpha
-  ; sci/calc.e16.ts:627  if (baseCommand(k)) {
+  ; sci/calc.e16.ts:628  if (baseCommand(k)) {
   mv a0, s1
   la t0, baseCommand
   li t1, 8
   call far_call
   beqz a0, .L1
-  ; sci/calc.e16.ts:628  drawCalc()
+  ; sci/calc.e16.ts:629  drawCalc()
   call drawCalc
-  ; sci/calc.e16.ts:629  return
+  ; sci/calc.e16.ts:630  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:631  if (k === K_FUNC) {
+  ; sci/calc.e16.ts:632  if (k === K_FUNC) {
   li t0, 11
   bne s1, t0, .L2
-  ; sci/calc.e16.ts:633  if (shift) refuse()
+  ; sci/calc.e16.ts:634  if (shift) refuse()
   beqz s2, .L3
-  ; sci/calc.e16.ts:633  refuse()
+  ; sci/calc.e16.ts:634  refuse()
   call refuse
   j .L4
 .L3:
-  ; sci/calc.e16.ts:635  screen = S_FUNC
+  ; sci/calc.e16.ts:636  screen = S_FUNC
   li t0, 4
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:636  noCursor()
+  ; sci/calc.e16.ts:637  noCursor()
   ; sci/lcd.e16.ts:139  poke16(IO_CURMODE, 0)
   li t0, 65324
   sw zero, 0(t0)
-  ; sci/calc.e16.ts:637  baseFuncScreen()
+  ; sci/calc.e16.ts:638  baseFuncScreen()
   la t0, baseFuncScreen
   li t1, 8
   call far_call
 .L4:
-  ; sci/calc.e16.ts:639  return
+  ; sci/calc.e16.ts:640  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:641  if (editKey(k) && commandKey(k, shift, alpha)) return
+  ; sci/calc.e16.ts:642  if (editKey(k) && commandKey(k, shift, alpha)) return
   mv a0, s1
   call editKey
   beqz a0, .L5
@@ -3576,22 +3576,22 @@ baseKey:
   mv a2, s3
   call commandKey
   beqz a0, .L5
-  ; sci/calc.e16.ts:641  return
+  ; sci/calc.e16.ts:642  return
   j .return
 .L5:
-  ; sci/calc.e16.ts:642  const t = baseToken(k)
+  ; sci/calc.e16.ts:643  const t = baseToken(k)
   mv a0, s1
   la t0, baseToken
   li t1, 8
   call far_call
   mv s1, a0 ; k/t
-  ; sci/calc.e16.ts:643  if (t === 0) refuse()
+  ; sci/calc.e16.ts:644  if (t === 0) refuse()
   bne s1, zero, .L6
-  ; sci/calc.e16.ts:643  refuse()
+  ; sci/calc.e16.ts:644  refuse()
   call refuse
   j .L7
 .L6:
-  ; sci/calc.e16.ts:644  type(t)
+  ; sci/calc.e16.ts:645  type(t)
   mv a0, s1
   call type
 .L7:
@@ -3603,7 +3603,7 @@ baseKey:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:653 v2Key(k, shift, alpha) at -O1
+; sci/calc.e16.ts:654 v2Key(k, shift, alpha) at -O1
 ;   k in s1
 ;   shift in s2
 ;   alpha in s3
@@ -3616,7 +3616,7 @@ v2Key:
   mv s1, a0 ; k
   mv s2, a1 ; shift
   mv s3, a2 ; alpha
-  ; sci/calc.e16.ts:654  if (k === K_STO && mode === MODE_PROG && !shift && !alpha) type(T_STORE)
+  ; sci/calc.e16.ts:655  if (k === K_STO && mode === MODE_PROG && !shift && !alpha) type(T_STORE)
   li t0, 12
   bne s1, t0, .L1
   lw t0, 0x04b8(zero)
@@ -3624,12 +3624,12 @@ v2Key:
   bne t0, t1, .L1
   bnez s2, .L1
   bnez s3, .L1
-  ; sci/calc.e16.ts:654  type(T_STORE)
+  ; sci/calc.e16.ts:655  type(T_STORE)
   li a0, 148
   call type
   j .L2
 .L1:
-  ; sci/calc.e16.ts:655  if (k === K_STO || k === K_FX || (k === K_MPLUS && !alpha)) refuse()
+  ; sci/calc.e16.ts:656  if (k === K_STO || k === K_FX || (k === K_MPLUS && !alpha)) refuse()
   li t0, 12
   beq s1, t0, .L4
   li t0, 32
@@ -3638,11 +3638,11 @@ v2Key:
   bne s1, t0, .L3
   bnez s3, .L3
 .L4:
-  ; sci/calc.e16.ts:655  refuse()
+  ; sci/calc.e16.ts:656  refuse()
   call refuse
   j .L5
 .L3:
-  ; sci/calc.e16.ts:656  if (alpha || mode === MODE_TABLE || mode === MODE_PROG) return false
+  ; sci/calc.e16.ts:657  if (alpha || mode === MODE_TABLE || mode === MODE_PROG) return false
   bnez s3, .L7
   lw t0, 0x04b8(zero)
   li t1, 3
@@ -3651,20 +3651,20 @@ v2Key:
   li t1, 7
   bne t0, t1, .L6
 .L7:
-  ; sci/calc.e16.ts:656  return false
+  ; sci/calc.e16.ts:657  return false
   li a0, 0
   j .return
 .L6:
-  ; sci/calc.e16.ts:657  if (unread(k, shift)) refuse()
+  ; sci/calc.e16.ts:658  if (unread(k, shift)) refuse()
   mv a0, s1
   mv a1, s2
   call unread
   beqz a0, .L9
-  ; sci/calc.e16.ts:657  refuse()
+  ; sci/calc.e16.ts:658  refuse()
   call refuse
   j .L10
 .L9:
-  ; sci/calc.e16.ts:658  return mode === MODE_CPLX && cplxKey(k, shift)
+  ; sci/calc.e16.ts:659  return mode === MODE_CPLX && cplxKey(k, shift)
   lw t0, 0x04b8(zero)
   li t1, 5
   sub t0, t0, t1
@@ -3681,7 +3681,7 @@ v2Key:
 .L10:
 .L5:
 .L2:
-  ; sci/calc.e16.ts:659  return true
+  ; sci/calc.e16.ts:660  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -3691,7 +3691,7 @@ v2Key:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:663 cplxKey(k, shift) at -O1
+; sci/calc.e16.ts:664 cplxKey(k, shift) at -O1
 ;   k in s1
 ;   shift in s2
 cplxKey:
@@ -3701,10 +3701,10 @@ cplxKey:
   sw s2, 4(sp)
   mv s1, a0 ; k
   mv s2, a1 ; shift
-  ; sci/calc.e16.ts:664  if (k === K_HYP) type(shift ? T_POLAR : T_I)
+  ; sci/calc.e16.ts:665  if (k === K_HYP) type(shift ? T_POLAR : T_I)
   li t0, 26
   bne s1, t0, .L1
-  ; sci/calc.e16.ts:664  type(shift ? T_POLAR : T_I)
+  ; sci/calc.e16.ts:665  type(shift ? T_POLAR : T_I)
   beqz s2, .L2
   li t0, 176
   j .L3
@@ -3715,30 +3715,30 @@ cplxKey:
   call type
   j .L4
 .L1:
-  ; sci/calc.e16.ts:665  if (k !== K_FD) return false
+  ; sci/calc.e16.ts:666  if (k !== K_FD) return false
   li t0, 13
   beq s1, t0, .L5
-  ; sci/calc.e16.ts:665  return false
+  ; sci/calc.e16.ts:666  return false
   li a0, 0
   j .return
 .L5:
-  ; sci/calc.e16.ts:666  if (answered && !shift) {
+  ; sci/calc.e16.ts:667  if (answered && !shift) {
   lw t0, 0x0586(zero)
   beqz t0, .L7
   bnez s2, .L7
-  ; sci/calc.e16.ts:667  cplxTurn()
+  ; sci/calc.e16.ts:668  cplxTurn()
   la t0, cplxTurn
   li t1, 6
   call far_call
-  ; sci/calc.e16.ts:668  drawCalc()
+  ; sci/calc.e16.ts:669  drawCalc()
   call drawCalc
   j .L8
 .L7:
-  ; sci/calc.e16.ts:669  refuse()
+  ; sci/calc.e16.ts:670  refuse()
   call refuse
 .L8:
 .L4:
-  ; sci/calc.e16.ts:670  return true
+  ; sci/calc.e16.ts:671  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -3747,21 +3747,21 @@ cplxKey:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:674 unread(k, shift) at -O1
+; sci/calc.e16.ts:675 unread(k, shift) at -O1
 ;   k in a0
 ;   shift in a1
 unread:
-  ; sci/calc.e16.ts:675  if (k === K_NCR || k === K_DMS) return true
+  ; sci/calc.e16.ts:676  if (k === K_NCR || k === K_DMS) return true
   li t0, 34
   beq a0, t0, .L2
   li t0, 25
   bne a0, t0, .L1
 .L2:
-  ; sci/calc.e16.ts:675  return true
+  ; sci/calc.e16.ts:676  return true
   li a0, 1
   ret
 .L1:
-  ; sci/calc.e16.ts:676  if (shift && (k === K_FRAC || k === K_POW || k === K_INV || k === K_ROOT)) return true
+  ; sci/calc.e16.ts:677  if (shift && (k === K_FRAC || k === K_POW || k === K_INV || k === K_ROOT)) return true
   beqz a1, .L3
   li t0, 16
   beq a0, t0, .L4
@@ -3772,11 +3772,11 @@ unread:
   li t0, 18
   bne a0, t0, .L3
 .L4:
-  ; sci/calc.e16.ts:676  return true
+  ; sci/calc.e16.ts:677  return true
   li a0, 1
   ret
 .L3:
-  ; sci/calc.e16.ts:677  return k === K_HYP && mode === MODE_MATRIX
+  ; sci/calc.e16.ts:678  return k === K_HYP && mode === MODE_MATRIX
   li t0, 26
   sub t0, a0, t0
   seqz t0, t0
@@ -3791,10 +3791,10 @@ unread:
 .return:
   ret
 
-; sci/calc.e16.ts:681 editKey(k) at -O1
+; sci/calc.e16.ts:682 editKey(k) at -O1
 ;   k in a0
 editKey:
-  ; sci/calc.e16.ts:682  return (
+  ; sci/calc.e16.ts:683  return (
   li t0, 4
   sub t0, a0, t0
   seqz t0, t0
@@ -3837,21 +3837,21 @@ editKey:
 .return:
   ret
 
-; sci/calc.e16.ts:694 tableAsked(r) at -O1
+; sci/calc.e16.ts:695 tableAsked(r) at -O1
 ;   r in s1
 tableAsked:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; r
-  ; sci/calc.e16.ts:695  if (r === ASK_DONE && tableNext()) {
+  ; sci/calc.e16.ts:696  if (r === ASK_DONE && tableNext()) {
   li t0, 2
   bne s1, t0, .L1
   la t0, tableNext
   li t1, 10
   call far_call
   beqz a0, .L1
-  ; sci/calc.e16.ts:696  askRange(tableAsking(), rangeAt(tableAsking()))
+  ; sci/calc.e16.ts:697  askRange(tableAsking(), rangeAt(tableAsking()))
   la t0, tableAsking
   li t1, 10
   call far_call
@@ -3870,22 +3870,22 @@ tableAsked:
   la t0, askRange
   li t1, 6
   call far_call
-  ; sci/calc.e16.ts:697  return
+  ; sci/calc.e16.ts:698  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:699  if (r === ASK_BACK) tableReset()
+  ; sci/calc.e16.ts:700  if (r === ASK_BACK) tableReset()
   li t0, 1
   bne s1, t0, .L2
-  ; sci/calc.e16.ts:699  tableReset()
+  ; sci/calc.e16.ts:700  tableReset()
   la t0, tableReset
   li t1, 10
   call far_call
 .L2:
-  ; sci/calc.e16.ts:700  if (r !== ASK_STAY) {
+  ; sci/calc.e16.ts:701  if (r !== ASK_STAY) {
   beq s1, zero, .L3
-  ; sci/calc.e16.ts:701  screen = S_CALC
+  ; sci/calc.e16.ts:702  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:702  drawCalc()
+  ; sci/calc.e16.ts:703  drawCalc()
   call drawCalc
 .L3:
 .return:
@@ -3894,49 +3894,49 @@ tableAsked:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:710 funcChosen(t) at -O1
+; sci/calc.e16.ts:711 funcChosen(t) at -O1
 ;   t in s1
 funcChosen:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; t
-  ; sci/calc.e16.ts:711  if (t === 0) return
+  ; sci/calc.e16.ts:712  if (t === 0) return
   bne s1, zero, .L1
-  ; sci/calc.e16.ts:711  return
+  ; sci/calc.e16.ts:712  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:712  screen = S_CALC
+  ; sci/calc.e16.ts:713  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:713  if (t === FUNC_PRIME) {
+  ; sci/calc.e16.ts:714  if (t === FUNC_PRIME) {
   li t0, 15
   bne s1, t0, .L2
-  ; sci/calc.e16.ts:714  primeOpen()
+  ; sci/calc.e16.ts:715  primeOpen()
   call primeOpen
-  ; sci/calc.e16.ts:715  return
+  ; sci/calc.e16.ts:716  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:717  if (t === 0xfe) {
+  ; sci/calc.e16.ts:718  if (t === 0xfe) {
   li t0, 254
   bne s1, t0, .L3
-  ; sci/calc.e16.ts:718  length = 0
+  ; sci/calc.e16.ts:719  length = 0
   sw zero, 0x0582(zero)
-  ; sci/calc.e16.ts:719  cursor = 0
+  ; sci/calc.e16.ts:720  cursor = 0
   sw zero, 0x0584(zero)
-  ; sci/calc.e16.ts:720  answered = false
+  ; sci/calc.e16.ts:721  answered = false
   sw zero, 0x0586(zero)
 .L3:
-  ; sci/calc.e16.ts:722  if (t === 1 || t >= 0xfe) drawCalc()
+  ; sci/calc.e16.ts:723  if (t === 1 || t >= 0xfe) drawCalc()
   li t0, 1
   beq s1, t0, .L5
   li t0, 254
   bltu s1, t0, .L4
 .L5:
-  ; sci/calc.e16.ts:722  drawCalc()
+  ; sci/calc.e16.ts:723  drawCalc()
   call drawCalc
   j .L6
 .L4:
-  ; sci/calc.e16.ts:723  type(t)
+  ; sci/calc.e16.ts:724  type(t)
   mv a0, s1
   call type
 .L6:
@@ -3946,7 +3946,7 @@ funcChosen:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:727 asked(k/r, shift/t) at -O1
+; sci/calc.e16.ts:728 asked(k/r, shift/t) at -O1
 ;   k/r in s1
 ;   shift/t in s2
 asked:
@@ -3956,7 +3956,7 @@ asked:
   sw s2, 4(sp)
   mv s1, a0 ; k/r
   mv s2, a1 ; shift/t
-  ; sci/calc.e16.ts:728  const t = k === K_DEL || k === K_EQ || k === K_AC ? 0 : alphaKey ? letterOf(k) : tokenOf(k, shift)
+  ; sci/calc.e16.ts:729  const t = k === K_DEL || k === K_EQ || k === K_AC ? 0 : alphaKey ? letterOf(k) : tokenOf(k, shift)
   li t0, 14
   beq s1, t0, .L3
   li t0, 4
@@ -3985,7 +3985,7 @@ asked:
 .L5:
 .L2:
   mv s2, t0 ; shift/t
-  ; sci/calc.e16.ts:729  const r = askKey(k === K_EQ, k === K_DEL, k === K_AC, t)
+  ; sci/calc.e16.ts:730  const r = askKey(k === K_EQ, k === K_DEL, k === K_AC, t)
   li t0, 4
   sub t0, s1, t0
   seqz a0, t0
@@ -4000,37 +4000,37 @@ asked:
   li t1, 6
   call far_call
   mv s1, a0 ; k/r
-  ; sci/calc.e16.ts:730  if (mode === MODE_TABLE) {
+  ; sci/calc.e16.ts:731  if (mode === MODE_TABLE) {
   lw t0, 0x04b8(zero)
   li t1, 3
   bne t0, t1, .L6
-  ; sci/calc.e16.ts:731  tableAsked(r)
+  ; sci/calc.e16.ts:732  tableAsked(r)
   mv a0, s1
   call tableAsked
-  ; sci/calc.e16.ts:732  return
+  ; sci/calc.e16.ts:733  return
   j .return
 .L6:
-  ; sci/calc.e16.ts:734  if (r === ASK_BACK) {
+  ; sci/calc.e16.ts:735  if (r === ASK_BACK) {
   li t0, 1
   bne s1, t0, .L7
-  ; sci/calc.e16.ts:735  screen = S_CALC
+  ; sci/calc.e16.ts:736  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:736  drawCalc()
+  ; sci/calc.e16.ts:737  drawCalc()
   call drawCalc
   j .L8
 .L7:
-  ; sci/calc.e16.ts:737  if (r === ASK_DONE) {
+  ; sci/calc.e16.ts:738  if (r === ASK_DONE) {
   li t0, 2
   bne s1, t0, .L9
-  ; sci/calc.e16.ts:738  screen = S_CALC
+  ; sci/calc.e16.ts:739  screen = S_CALC
   sw zero, 0x04b6(zero)
-  ; sci/calc.e16.ts:739  answered = true
+  ; sci/calc.e16.ts:740  answered = true
   li t0, 1
   sw t0, 0x0586(zero)
-  ; sci/calc.e16.ts:740  historyAt = 0xffff
+  ; sci/calc.e16.ts:741  historyAt = 0xffff
   li t0, 65535
   sw t0, 0x0598(zero)
-  ; sci/calc.e16.ts:741  shown = found ? SHOW_FOUND : firstShown(formFirst(false))
+  ; sci/calc.e16.ts:742  shown = found ? SHOW_FOUND : firstShown(formFirst(false))
   lw t0, 0x0596(zero)
   beqz t0, .L10
   li t0, 6
@@ -4044,7 +4044,7 @@ asked:
   mv t0, a0
 .L11:
   sw t0, 0x059a(zero)
-  ; sci/calc.e16.ts:742  drawCalc()
+  ; sci/calc.e16.ts:743  drawCalc()
   call drawCalc
 .L9:
 .L8:
@@ -4055,7 +4055,7 @@ asked:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:746 calcKey(k, shift, alpha) at -O1
+; sci/calc.e16.ts:747 calcKey(k, shift, alpha) at -O1
 ;   k in s1
 ;   shift in s2
 ;   alpha in s3
@@ -4068,29 +4068,29 @@ calcKey:
   mv s1, a0 ; k
   mv s2, a1 ; shift
   mv s3, a2 ; alpha
-  ; sci/calc.e16.ts:747  if (storing || recalling) variableKey(k)
+  ; sci/calc.e16.ts:748  if (storing || recalling) variableKey(k)
   lw t0, 0x058c(zero)
   bnez t0, .L2
   lw t0, 0x058e(zero)
   beqz t0, .L1
 .L2:
-  ; sci/calc.e16.ts:747  variableKey(k)
+  ; sci/calc.e16.ts:748  variableKey(k)
   mv a0, s1
   call variableKey
   j .L3
 .L1:
-  ; sci/calc.e16.ts:748  if (mode === MODE_BASE) baseKey(k, shift, alpha)
+  ; sci/calc.e16.ts:749  if (mode === MODE_BASE) baseKey(k, shift, alpha)
   lw t0, 0x04b8(zero)
   li t1, 2
   bne t0, t1, .L4
-  ; sci/calc.e16.ts:748  baseKey(k, shift, alpha)
+  ; sci/calc.e16.ts:749  baseKey(k, shift, alpha)
   mv a0, s1
   mv a1, s2
   mv a2, s3
   call baseKey
   j .L5
 .L4:
-  ; sci/calc.e16.ts:749  if ((mode < MODE_CPLX && mode !== MODE_TABLE) || !v2Key(k, shift, alpha))
+  ; sci/calc.e16.ts:750  if ((mode < MODE_CPLX && mode !== MODE_TABLE) || !v2Key(k, shift, alpha))
   lw t0, 0x04b8(zero)
   li t1, 5
   bgeu t0, t1, .L8
@@ -4104,7 +4104,7 @@ calcKey:
   call v2Key
   bnez a0, .L6
 .L7:
-  ; sci/calc.e16.ts:750  lineKey(k, shift, alpha)
+  ; sci/calc.e16.ts:751  lineKey(k, shift, alpha)
   mv a0, s1
   mv a1, s2
   mv a2, s3
@@ -4120,7 +4120,7 @@ calcKey:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:754 lineKey(k, shift, alpha/t) at -O1
+; sci/calc.e16.ts:755 lineKey(k, shift, alpha/t) at -O1
 ;   k in s1
 ;   shift in s3
 ;   alpha/t in s2
@@ -4135,39 +4135,39 @@ lineKey:
   mv s1, a0 ; k
   mv s3, a1 ; shift
   mv s2, a2 ; alpha/t
-  ; sci/calc.e16.ts:755  const wasHyp = hyp
+  ; sci/calc.e16.ts:756  const wasHyp = hyp
   lw s0, 0x0594(zero)
-  ; sci/calc.e16.ts:756  hyp = false
+  ; sci/calc.e16.ts:757  hyp = false
   sw zero, 0x0594(zero)
-  ; sci/calc.e16.ts:757  if (commandKey(k, shift, alpha)) return
+  ; sci/calc.e16.ts:758  if (commandKey(k, shift, alpha)) return
   mv a0, s1
   mv a1, s3
   mv a2, s2
   call commandKey
   beqz a0, .L1
-  ; sci/calc.e16.ts:757  return
+  ; sci/calc.e16.ts:758  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:758  if (!alpha && templateKey(k, shift)) return
+  ; sci/calc.e16.ts:759  if (!alpha && templateKey(k, shift)) return
   bnez s2, .L2
   mv a0, s1
   mv a1, s3
   call templateKey
   beqz a0, .L2
-  ; sci/calc.e16.ts:758  return
+  ; sci/calc.e16.ts:759  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:759  if (!alpha && !shift && k === K_DMS) {
+  ; sci/calc.e16.ts:760  if (!alpha && !shift && k === K_DMS) {
   bnez s2, .L3
   bnez s3, .L3
   li t0, 25
   bne s1, t0, .L3
-  ; sci/calc.e16.ts:760  dmsMark()
+  ; sci/calc.e16.ts:761  dmsMark()
   call dmsMark
-  ; sci/calc.e16.ts:761  return
+  ; sci/calc.e16.ts:762  return
   j .return
 .L3:
-  ; sci/calc.e16.ts:763  const t = alpha ? letterOf(k) : wasHyp ? hypToken(k, shift) : tokenOf(k, shift)
+  ; sci/calc.e16.ts:764  const t = alpha ? letterOf(k) : wasHyp ? hypToken(k, shift) : tokenOf(k, shift)
   beqz s2, .L4
   mv a0, s1
   la t0, letterOf
@@ -4194,27 +4194,27 @@ lineKey:
 .L7:
 .L5:
   mv s2, t0 ; alpha/t
-  ; sci/calc.e16.ts:764  if (t === 0) {
+  ; sci/calc.e16.ts:765  if (t === 0) {
   bne s2, zero, .L8
-  ; sci/calc.e16.ts:765  refuse()
+  ; sci/calc.e16.ts:766  refuse()
   call refuse
-  ; sci/calc.e16.ts:766  return
+  ; sci/calc.e16.ts:767  return
   j .return
 .L8:
-  ; sci/calc.e16.ts:768  type(t)
+  ; sci/calc.e16.ts:769  type(t)
   mv a0, s2
   call type
-  ; sci/calc.e16.ts:770  if (shift && (k === K_LOG || k === K_LN)) {
+  ; sci/calc.e16.ts:771  if (shift && (k === K_LOG || k === K_LN)) {
   beqz s3, .L9
   li t0, 20
   beq s1, t0, .L10
   li t0, 21
   bne s1, t0, .L9
 .L10:
-  ; sci/calc.e16.ts:771  insert(T_POW)
+  ; sci/calc.e16.ts:772  insert(T_POW)
   li a0, 17
   call insert
-  ; sci/calc.e16.ts:772  drawCalc()
+  ; sci/calc.e16.ts:773  drawCalc()
   call drawCalc
 .L9:
 .return:
@@ -4226,7 +4226,7 @@ lineKey:
   addi sp, sp, 10
   ret
 
-; sci/calc.e16.ts:780 templateKey(k, shift) at -O1
+; sci/calc.e16.ts:781 templateKey(k, shift) at -O1
 ;   k in s1
 ;   shift in s2
 templateKey:
@@ -4236,14 +4236,14 @@ templateKey:
   sw s2, 4(sp)
   mv s1, a0 ; k
   mv s2, a1 ; shift
-  ; sci/calc.e16.ts:781  if (shift && (k === K_FRAC || k === K_POW)) {
+  ; sci/calc.e16.ts:782  if (shift && (k === K_FRAC || k === K_POW)) {
   beqz s2, .L1
   li t0, 16
   beq s1, t0, .L2
   li t0, 19
   bne s1, t0, .L1
 .L2:
-  ; sci/calc.e16.ts:782  wrapped(k === K_FRAC ? T_MIXED : T_XROOT)
+  ; sci/calc.e16.ts:783  wrapped(k === K_FRAC ? T_MIXED : T_XROOT)
   li t0, 16
   bne s1, t0, .L3
   li t0, 28
@@ -4253,11 +4253,11 @@ templateKey:
 .L4:
   mv a0, t0
   call wrapped
-  ; sci/calc.e16.ts:783  return true
+  ; sci/calc.e16.ts:784  return true
   li a0, 1
   j .return
 .L1:
-  ; sci/calc.e16.ts:785  return plainTemplate(k, shift)
+  ; sci/calc.e16.ts:786  return plainTemplate(k, shift)
   mv a0, s1
   mv a1, s2
   call plainTemplate
@@ -4268,7 +4268,7 @@ templateKey:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:789 plainTemplate(k, shift/root) at -O1
+; sci/calc.e16.ts:790 plainTemplate(k, shift/root) at -O1
 ;   k in s2
 ;   shift/root in s3
 ;   fractionKey in s1
@@ -4283,7 +4283,7 @@ plainTemplate:
   sw s0, 10(sp)
   mv s2, a0 ; k
   mv s3, a1 ; shift/root
-  ; sci/calc.e16.ts:790  const fractionKey = k === K_FRAC && !shift
+  ; sci/calc.e16.ts:791  const fractionKey = k === K_FRAC && !shift
   li t0, 16
   sub t0, s2, t0
   seqz t0, t0
@@ -4292,30 +4292,30 @@ plainTemplate:
   seqz t0, s3
 .L1:
   mv s1, t0 ; fractionKey
-  ; sci/calc.e16.ts:791  if (!twoD()) {
+  ; sci/calc.e16.ts:792  if (!twoD()) {
   call twoD
   bnez a0, .L2
-  ; sci/calc.e16.ts:792  if (fractionKey) type(T_SLASH)
+  ; sci/calc.e16.ts:793  if (fractionKey) type(T_SLASH)
   beqz s1, .L3
-  ; sci/calc.e16.ts:792  type(T_SLASH)
+  ; sci/calc.e16.ts:793  type(T_SLASH)
   li a0, 27
   call type
 .L3:
-  ; sci/calc.e16.ts:793  return fractionKey
+  ; sci/calc.e16.ts:794  return fractionKey
   mv a0, s1
   j .return
 .L2:
-  ; sci/calc.e16.ts:795  if (!fractionKey && !makesTemplate(k, shift)) return false
+  ; sci/calc.e16.ts:796  if (!fractionKey && !makesTemplate(k, shift)) return false
   bnez s1, .L4
   mv a0, s2
   mv a1, s3
   call makesTemplate
   bnez a0, .L4
-  ; sci/calc.e16.ts:795  return false
+  ; sci/calc.e16.ts:796  return false
   li a0, 0
   j .return
 .L4:
-  ; sci/calc.e16.ts:797  if (length + 3 > lineMax()) {
+  ; sci/calc.e16.ts:798  if (length + 3 > lineMax()) {
   lw t0, 0x0582(zero)
   addi t0, t0, 3
   addi sp, sp, -2
@@ -4324,13 +4324,13 @@ plainTemplate:
   lw t0, 0(sp)
   addi sp, sp, 2
   bgeu a0, t0, .L5
-  ; sci/calc.e16.ts:798  refuse()
+  ; sci/calc.e16.ts:799  refuse()
   call refuse
-  ; sci/calc.e16.ts:799  return true
+  ; sci/calc.e16.ts:800  return true
   li a0, 1
   j .return
 .L5:
-  ; sci/calc.e16.ts:801  const root = k === K_ROOT && !shift
+  ; sci/calc.e16.ts:802  const root = k === K_ROOT && !shift
   li t0, 18
   sub t0, s2, t0
   seqz t0, t0
@@ -4339,10 +4339,10 @@ plainTemplate:
   seqz t0, s3
 .L6:
   mv s3, t0 ; shift/root
-  ; sci/calc.e16.ts:802  if (answered) afresh(fractionKey || k === K_POW)
+  ; sci/calc.e16.ts:803  if (answered) afresh(fractionKey || k === K_POW)
   lw t0, 0x0586(zero)
   beqz t0, .L7
-  ; sci/calc.e16.ts:802  afresh(fractionKey || k === K_POW)
+  ; sci/calc.e16.ts:803  afresh(fractionKey || k === K_POW)
   mv t0, s1
   mv t1, s1
   bnez t1, .L8
@@ -4353,14 +4353,14 @@ plainTemplate:
   mv a0, t0
   call afresh
 .L7:
-  ; sci/calc.e16.ts:803  const before = length
+  ; sci/calc.e16.ts:804  const before = length
   lw t0, 0x0582(zero)
   sw t0, 0(sp) ; before
-  ; sci/calc.e16.ts:804  const at = cursor
+  ; sci/calc.e16.ts:805  const at = cursor
   lw s0, 0x0584(zero)
-  ; sci/calc.e16.ts:805  if (fractionKey) {
+  ; sci/calc.e16.ts:806  if (fractionKey) {
   beqz s1, .L9
-  ; sci/calc.e16.ts:806  wrap(addr(line), length, cursor, T_FRAC)
+  ; sci/calc.e16.ts:807  wrap(addr(line), length, cursor, T_FRAC)
   lw a1, 0x0582(zero)
   lw a2, 0x0584(zero)
   la a0, line
@@ -4368,16 +4368,16 @@ plainTemplate:
   la t0, wrap
   li t1, 4
   call far_call
-  ; sci/calc.e16.ts:807  edited()
+  ; sci/calc.e16.ts:808  edited()
   call edited
   j .L10
 .L9:
-  ; sci/calc.e16.ts:808  insertTemplate(k, root)
+  ; sci/calc.e16.ts:809  insertTemplate(k, root)
   mv a0, s2
   mv a1, s3
   call insertTemplate
 .L10:
-  ; sci/calc.e16.ts:809  tallEnough(before, at, fractionKey ? wrapStart : at)
+  ; sci/calc.e16.ts:810  tallEnough(before, at, fractionKey ? wrapStart : at)
   lw t0, 0(sp)
   mv t1, s0
   mv t2, s1
@@ -4391,9 +4391,9 @@ plainTemplate:
   mv a1, t1
   mv a2, t2
   call tallEnough
-  ; sci/calc.e16.ts:810  drawCalc()
+  ; sci/calc.e16.ts:811  drawCalc()
   call drawCalc
-  ; sci/calc.e16.ts:811  return true
+  ; sci/calc.e16.ts:812  return true
   li a0, 1
 .return:
   lw ra, 2(sp)
@@ -4404,7 +4404,7 @@ plainTemplate:
   addi sp, sp, 12
   ret
 
-; sci/calc.e16.ts:815 wrapped(opener) at -O1
+; sci/calc.e16.ts:816 wrapped(opener) at -O1
 ;   opener in s1
 ;   before in s2
 ;   at in s3
@@ -4415,14 +4415,14 @@ wrapped:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; opener
-  ; sci/calc.e16.ts:816  if (answered) afresh(false)
+  ; sci/calc.e16.ts:817  if (answered) afresh(false)
   lw t0, 0x0586(zero)
   beqz t0, .L1
-  ; sci/calc.e16.ts:816  afresh(false)
+  ; sci/calc.e16.ts:817  afresh(false)
   li a0, 0
   call afresh
 .L1:
-  ; sci/calc.e16.ts:817  if (length + 4 > lineMax()) {
+  ; sci/calc.e16.ts:818  if (length + 4 > lineMax()) {
   lw t0, 0x0582(zero)
   addi t0, t0, 4
   addi sp, sp, -2
@@ -4431,16 +4431,16 @@ wrapped:
   lw t0, 0(sp)
   addi sp, sp, 2
   bgeu a0, t0, .L2
-  ; sci/calc.e16.ts:818  refuse()
+  ; sci/calc.e16.ts:819  refuse()
   call refuse
-  ; sci/calc.e16.ts:819  return
+  ; sci/calc.e16.ts:820  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:821  const before = length
+  ; sci/calc.e16.ts:822  const before = length
   lw s2, 0x0582(zero)
-  ; sci/calc.e16.ts:822  const at = cursor
+  ; sci/calc.e16.ts:823  const at = cursor
   lw s3, 0x0584(zero)
-  ; sci/calc.e16.ts:823  wrap(addr(line), length, cursor, opener)
+  ; sci/calc.e16.ts:824  wrap(addr(line), length, cursor, opener)
   lw a1, 0x0582(zero)
   lw a2, 0x0584(zero)
   la a0, line
@@ -4448,14 +4448,14 @@ wrapped:
   la t0, wrap
   li t1, 4
   call far_call
-  ; sci/calc.e16.ts:824  edited()
+  ; sci/calc.e16.ts:825  edited()
   call edited
-  ; sci/calc.e16.ts:825  tallEnough(before, at, wrapStart)
+  ; sci/calc.e16.ts:826  tallEnough(before, at, wrapStart)
   lw a2, 0x06d8(zero)
   mv a0, s2
   mv a1, s3
   call tallEnough
-  ; sci/calc.e16.ts:826  drawCalc()
+  ; sci/calc.e16.ts:827  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -4465,7 +4465,7 @@ wrapped:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:834 tallEnough(before, at, start) at -O1
+; sci/calc.e16.ts:835 tallEnough(before, at, start) at -O1
 ;   before in s2
 ;   at in s1
 ;   start in s3
@@ -4478,7 +4478,7 @@ tallEnough:
   mv s2, a0 ; before
   mv s1, a1 ; at
   mv s3, a2 ; start
-  ; sci/calc.e16.ts:835  if (!twoD() || heightOf(addr(line), length) <= LINE_HEIGHT_MAX) return
+  ; sci/calc.e16.ts:836  if (!twoD() || heightOf(addr(line), length) <= LINE_HEIGHT_MAX) return
   call twoD
   beqz a0, .L2
   lw a1, 0x0582(zero)
@@ -4489,17 +4489,17 @@ tallEnough:
   li t0, 36
   bltu t0, a0, .L1
 .L2:
-  ; sci/calc.e16.ts:835  return
+  ; sci/calc.e16.ts:836  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:836  refuse()
+  ; sci/calc.e16.ts:837  refuse()
   call refuse
-  ; sci/calc.e16.ts:837  memcpy(addr(line) + start, addr(line) + start + 1, at - start)
+  ; sci/calc.e16.ts:838  memcpy(addr(line) + start, addr(line) + start + 1, at - start)
   sub a2, s1, s3
   addi a0, s3, line
   addi a1, s3, line+1
   mcpy a0, a1, a2
-  ; sci/calc.e16.ts:838  memcpy(addr(line) + at, addr(line) + at + length - before, before - at)
+  ; sci/calc.e16.ts:839  memcpy(addr(line) + at, addr(line) + at + length - before, before - at)
   lw t0, 0x0582(zero)
   addi t1, s1, line
   add t1, t1, t0
@@ -4507,9 +4507,9 @@ tallEnough:
   sub a2, s2, s1
   addi a0, s1, line
   mcpy a0, a1, a2
-  ; sci/calc.e16.ts:839  length = before
+  ; sci/calc.e16.ts:840  length = before
   sw s2, 0x0582(zero)
-  ; sci/calc.e16.ts:840  cursor = at
+  ; sci/calc.e16.ts:841  cursor = at
   sw s1, 0x0584(zero)
 .return:
   lw ra, 0(sp)
@@ -4519,7 +4519,7 @@ tallEnough:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:847 dmsMark() at -O1
+; sci/calc.e16.ts:848 dmsMark() at -O1
 ;   marks in s1
 ;   j in s2
 ;   t in s3
@@ -4529,10 +4529,10 @@ dmsMark:
   sw s1, 2(sp)
   sw s2, 4(sp)
   sw s3, 6(sp)
-  ; sci/calc.e16.ts:848  if (answered) {
+  ; sci/calc.e16.ts:849  if (answered) {
   lw t0, 0x0586(zero)
   beqz t0, .L1
-  ; sci/calc.e16.ts:849  shown = shown === SHOW_DMS ? firstShown(formFirst(false)) : SHOW_DMS
+  ; sci/calc.e16.ts:850  shown = shown === SHOW_DMS ? firstShown(formFirst(false)) : SHOW_DMS
   lw t0, 0x059a(zero)
   li t1, 4
   bne t0, t1, .L2
@@ -4547,21 +4547,21 @@ dmsMark:
   li t0, 4
 .L3:
   sw t0, 0x059a(zero)
-  ; sci/calc.e16.ts:850  drawCalc()
+  ; sci/calc.e16.ts:851  drawCalc()
   call drawCalc
-  ; sci/calc.e16.ts:851  return
+  ; sci/calc.e16.ts:852  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:853  let marks: u16 = 0
+  ; sci/calc.e16.ts:854  let marks: u16 = 0
   li s1, 0 ; marks
-  ; sci/calc.e16.ts:854  let j = cursor
+  ; sci/calc.e16.ts:855  let j = cursor
   lw s2, 0x0584(zero)
-  ; sci/calc.e16.ts:855  while (j > 0) {
+  ; sci/calc.e16.ts:856  while (j > 0) {
   j .L6
 .L4:
-  ; sci/calc.e16.ts:856  const t = line[j - 1]
+  ; sci/calc.e16.ts:857  const t = line[j - 1]
   lbu s3, line-1(s2)
-  ; sci/calc.e16.ts:857  if (t === T_DEG || t === T_MIN || t === T_SEC) marks++
+  ; sci/calc.e16.ts:858  if (t === T_DEG || t === T_MIN || t === T_SEC) marks++
   li t0, 136
   beq s3, t0, .L9
   li t0, 137
@@ -4569,37 +4569,37 @@ dmsMark:
   li t0, 138
   bne s3, t0, .L8
 .L9:
-  ; sci/calc.e16.ts:857  marks++
+  ; sci/calc.e16.ts:858  marks++
   addi s1, s1, 1
   j .L10
 .L8:
-  ; sci/calc.e16.ts:858  if (!isDigit(t) && t !== T_POINT) break
+  ; sci/calc.e16.ts:859  if (!isDigit(t) && t !== T_POINT) break
   mv a0, s3
   call isDigit
   bnez a0, .L11
   li t0, 46
   beq s3, t0, .L11
-  ; sci/calc.e16.ts:858  break
+  ; sci/calc.e16.ts:859  break
   j .L7
 .L11:
 .L10:
-  ; sci/calc.e16.ts:859  j--
+  ; sci/calc.e16.ts:860  j--
   addi s2, s2, -1
 .L6:
   bltu zero, s2, .L4
 .L7:
-  ; sci/calc.e16.ts:861  if (marks > 2 || j === cursor) {
+  ; sci/calc.e16.ts:862  if (marks > 2 || j === cursor) {
   li t0, 2
   bltu t0, s1, .L13
   lw t0, 0x0584(zero)
   bne s2, t0, .L12
 .L13:
-  ; sci/calc.e16.ts:862  refuse()
+  ; sci/calc.e16.ts:863  refuse()
   call refuse
-  ; sci/calc.e16.ts:863  return
+  ; sci/calc.e16.ts:864  return
   j .return
 .L12:
-  ; sci/calc.e16.ts:865  type(marks === 0 ? T_DEG : marks === 1 ? T_MIN : T_SEC)
+  ; sci/calc.e16.ts:866  type(marks === 0 ? T_DEG : marks === 1 ? T_MIN : T_SEC)
   bne s1, zero, .L14
   li t0, 136
   j .L15
@@ -4622,13 +4622,13 @@ dmsMark:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:873 makesTemplate(k, shift) at -O1
+; sci/calc.e16.ts:874 makesTemplate(k, shift) at -O1
 ;   k in a0
 ;   shift in a1
 makesTemplate:
-  ; sci/calc.e16.ts:874  if (shift) return k === K_LOG || k === K_LN
+  ; sci/calc.e16.ts:875  if (shift) return k === K_LOG || k === K_LN
   beqz a1, .L1
-  ; sci/calc.e16.ts:874  return k === K_LOG || k === K_LN
+  ; sci/calc.e16.ts:875  return k === K_LOG || k === K_LN
   li t0, 20
   sub t0, a0, t0
   seqz t0, t0
@@ -4641,7 +4641,7 @@ makesTemplate:
   mv a0, t0
   ret
 .L1:
-  ; sci/calc.e16.ts:875  return k === K_POW || k === K_ROOT
+  ; sci/calc.e16.ts:876  return k === K_POW || k === K_ROOT
   li t0, 19
   sub t0, a0, t0
   seqz t0, t0
@@ -4655,46 +4655,46 @@ makesTemplate:
 .return:
   ret
 
-; sci/calc.e16.ts:879 edited() at -O1
+; sci/calc.e16.ts:880 edited() at -O1
 edited:
-  ; sci/calc.e16.ts:880  length = editLength
+  ; sci/calc.e16.ts:881  length = editLength
   lw t0, 0x06d4(zero)
   sw t0, 0x0582(zero)
-  ; sci/calc.e16.ts:881  cursor = editCursor
+  ; sci/calc.e16.ts:882  cursor = editCursor
   lw t0, 0x06d6(zero)
   sw t0, 0x0584(zero)
 .return:
   ret
 
-; sci/calc.e16.ts:888 afresh(fromAns) at -O1
+; sci/calc.e16.ts:889 afresh(fromAns) at -O1
 ;   fromAns in s1
 afresh:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; fromAns
-  ; sci/calc.e16.ts:889  answered = false
+  ; sci/calc.e16.ts:890  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:890  historyAt = 0xffff
+  ; sci/calc.e16.ts:891  historyAt = 0xffff
   li t0, 65535
   sw t0, 0x0598(zero)
-  ; sci/calc.e16.ts:891  if (mode === MODE_PROG) {
+  ; sci/calc.e16.ts:892  if (mode === MODE_PROG) {
   lw t0, 0x04b8(zero)
   li t1, 7
   bne t0, t1, .L1
-  ; sci/calc.e16.ts:892  cursor = length
+  ; sci/calc.e16.ts:893  cursor = length
   lw t0, 0x0582(zero)
   sw t0, 0x0584(zero)
-  ; sci/calc.e16.ts:893  return
+  ; sci/calc.e16.ts:894  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:895  length = 0
+  ; sci/calc.e16.ts:896  length = 0
   sw zero, 0x0582(zero)
-  ; sci/calc.e16.ts:896  cursor = 0
+  ; sci/calc.e16.ts:897  cursor = 0
   sw zero, 0x0584(zero)
-  ; sci/calc.e16.ts:897  if (fromAns) insert(T_ANS)
+  ; sci/calc.e16.ts:898  if (fromAns) insert(T_ANS)
   beqz s1, .L2
-  ; sci/calc.e16.ts:897  insert(T_ANS)
+  ; sci/calc.e16.ts:898  insert(T_ANS)
   li a0, 20
   call insert
 .L2:
@@ -4704,7 +4704,7 @@ afresh:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:901 insertTemplate(k, root) at -O1
+; sci/calc.e16.ts:902 insertTemplate(k, root) at -O1
 ;   k in s1
 ;   root in s2
 insertTemplate:
@@ -4714,21 +4714,21 @@ insertTemplate:
   sw s2, 4(sp)
   mv s1, a0 ; k
   mv s2, a1 ; root
-  ; sci/calc.e16.ts:902  if (k === K_LOG) insert(T_TEN)
+  ; sci/calc.e16.ts:903  if (k === K_LOG) insert(T_TEN)
   li t0, 20
   bne s1, t0, .L1
-  ; sci/calc.e16.ts:902  insert(T_TEN)
+  ; sci/calc.e16.ts:903  insert(T_TEN)
   li a0, 21
   call insert
 .L1:
-  ; sci/calc.e16.ts:903  if (k === K_LN) insert(T_E)
+  ; sci/calc.e16.ts:904  if (k === K_LN) insert(T_E)
   li t0, 21
   bne s1, t0, .L2
-  ; sci/calc.e16.ts:903  insert(T_E)
+  ; sci/calc.e16.ts:904  insert(T_E)
   li a0, 101
   call insert
 .L2:
-  ; sci/calc.e16.ts:904  insert(root ? T_ROOT : T_POWT)
+  ; sci/calc.e16.ts:905  insert(root ? T_ROOT : T_POWT)
   beqz s2, .L3
   li t0, 25
   j .L4
@@ -4737,10 +4737,10 @@ insertTemplate:
 .L4:
   mv a0, t0
   call insert
-  ; sci/calc.e16.ts:905  insert(T_END)
+  ; sci/calc.e16.ts:906  insert(T_END)
   li a0, 24
   call insert
-  ; sci/calc.e16.ts:906  cursor--
+  ; sci/calc.e16.ts:907  cursor--
   lw t0, 0x0584(zero)
   addi t0, t0, -1
   sw t0, 0x0584(zero)
@@ -4751,7 +4751,7 @@ insertTemplate:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:910 commandKey(k, shift, alpha) at -O1
+; sci/calc.e16.ts:911 commandKey(k, shift, alpha) at -O1
 ;   k in s1
 ;   shift in s2
 ;   alpha in s3
@@ -4764,7 +4764,7 @@ commandKey:
   mv s1, a0 ; k
   mv s2, a1 ; shift
   mv s3, a2 ; alpha
-  ; sci/calc.e16.ts:911  switch (k) {
+  ; sci/calc.e16.ts:912  switch (k) {
   li t0, 5
   beq s1, t0, .L2
   li t0, 4
@@ -4792,36 +4792,36 @@ commandKey:
   beq s1, t0, .L14
   j .L1
 .L2:
-  ; sci/calc.e16.ts:913  clearLine()
+  ; sci/calc.e16.ts:914  clearLine()
   call clearLine
-  ; sci/calc.e16.ts:914  return true
+  ; sci/calc.e16.ts:915  return true
   li a0, 1
   j .return
 .L3:
-  ; sci/calc.e16.ts:916  if (mode === MODE_TABLE) tableRange()
+  ; sci/calc.e16.ts:917  if (mode === MODE_TABLE) tableRange()
   lw t0, 0x04b8(zero)
   li t1, 3
   bne t0, t1, .L15
-  ; sci/calc.e16.ts:916  tableRange()
+  ; sci/calc.e16.ts:917  tableRange()
   call tableRange
   j .L16
 .L15:
-  ; sci/calc.e16.ts:917  equals(shift)
+  ; sci/calc.e16.ts:918  equals(shift)
   mv a0, s2
   call equals
 .L16:
-  ; sci/calc.e16.ts:918  return true
+  ; sci/calc.e16.ts:919  return true
   li a0, 1
   j .return
 .L4:
-  ; sci/calc.e16.ts:920  exactOrDecimal(shift)
+  ; sci/calc.e16.ts:921  exactOrDecimal(shift)
   mv a0, s2
   call exactOrDecimal
-  ; sci/calc.e16.ts:921  return true
+  ; sci/calc.e16.ts:922  return true
   li a0, 1
   j .return
 .L5:
-  ; sci/calc.e16.ts:924  screen = shift ? S_CONST : S_FUNC
+  ; sci/calc.e16.ts:925  screen = shift ? S_CONST : S_FUNC
   beqz s2, .L17
   li t0, 6
   j .L18
@@ -4829,124 +4829,124 @@ commandKey:
   li t0, 4
 .L18:
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:925  noCursor()
+  ; sci/calc.e16.ts:926  noCursor()
   ; sci/lcd.e16.ts:139  poke16(IO_CURMODE, 0)
   li t0, 65324
   sw zero, 0(t0)
-  ; sci/calc.e16.ts:926  if (shift) constScreen()
+  ; sci/calc.e16.ts:927  if (shift) constScreen()
   beqz s2, .L19
-  ; sci/calc.e16.ts:926  constScreen()
+  ; sci/calc.e16.ts:927  constScreen()
   la t0, constScreen
   li t1, 10
   call far_call
   j .L20
 .L19:
-  ; sci/calc.e16.ts:927  funcScreen()
+  ; sci/calc.e16.ts:928  funcScreen()
   la t0, funcScreen
   li t1, 1
   call far_call
 .L20:
-  ; sci/calc.e16.ts:928  return true
+  ; sci/calc.e16.ts:929  return true
   li a0, 1
   j .return
 .L6:
-  ; sci/calc.e16.ts:930  solveKey(shift)
+  ; sci/calc.e16.ts:931  solveKey(shift)
   mv a0, s2
   call solveKey
-  ; sci/calc.e16.ts:931  return true
+  ; sci/calc.e16.ts:932  return true
   li a0, 1
   j .return
 .L7:
-  ; sci/calc.e16.ts:933  hyp = !shift
+  ; sci/calc.e16.ts:934  hyp = !shift
   seqz t0, s2
   sw t0, 0x0594(zero)
-  ; sci/calc.e16.ts:934  if (shift) refuse()
+  ; sci/calc.e16.ts:935  if (shift) refuse()
   beqz s2, .L21
-  ; sci/calc.e16.ts:934  refuse()
+  ; sci/calc.e16.ts:935  refuse()
   call refuse
 .L21:
-  ; sci/calc.e16.ts:935  return true
+  ; sci/calc.e16.ts:936  return true
   li a0, 1
   j .return
 .L8:
-  ; sci/calc.e16.ts:937  recalling = shift
+  ; sci/calc.e16.ts:938  recalling = shift
   sw s2, 0x058e(zero)
-  ; sci/calc.e16.ts:938  storing = !shift
+  ; sci/calc.e16.ts:939  storing = !shift
   seqz t0, s2
   sw t0, 0x058c(zero)
-  ; sci/calc.e16.ts:939  return true
+  ; sci/calc.e16.ts:940  return true
   li a0, 1
   j .return
 .L9:
 .L10:
-  ; sci/calc.e16.ts:942  arrow(k === K_LEFT)
+  ; sci/calc.e16.ts:943  arrow(k === K_LEFT)
   li t0, 2
   sub t0, s1, t0
   seqz a0, t0
   call arrow
-  ; sci/calc.e16.ts:943  return true
+  ; sci/calc.e16.ts:944  return true
   li a0, 1
   j .return
 .L11:
 .L12:
-  ; sci/calc.e16.ts:946  history(k === K_UP)
+  ; sci/calc.e16.ts:947  history(k === K_UP)
   sub t0, s1, zero
   seqz a0, t0
   call history
-  ; sci/calc.e16.ts:947  return true
+  ; sci/calc.e16.ts:948  return true
   li a0, 1
   j .return
 .L13:
-  ; sci/calc.e16.ts:950  if (shift) {
+  ; sci/calc.e16.ts:951  if (shift) {
   beqz s2, .L22
-  ; sci/calc.e16.ts:951  overwrite = !overwrite
+  ; sci/calc.e16.ts:952  overwrite = !overwrite
   lw t0, 0x0592(zero)
   seqz t0, t0
   sw t0, 0x0592(zero)
-  ; sci/calc.e16.ts:952  drawCalc()
+  ; sci/calc.e16.ts:953  drawCalc()
   call drawCalc
   j .L23
 .L22:
-  ; sci/calc.e16.ts:953  deleteBefore()
+  ; sci/calc.e16.ts:954  deleteBefore()
   call deleteBefore
 .L23:
-  ; sci/calc.e16.ts:954  return true
+  ; sci/calc.e16.ts:955  return true
   li a0, 1
   j .return
 .L14:
-  ; sci/calc.e16.ts:956  if (!shift) return false
+  ; sci/calc.e16.ts:957  if (!shift) return false
   bnez s2, .L24
-  ; sci/calc.e16.ts:956  return false
+  ; sci/calc.e16.ts:957  return false
   li a0, 0
   j .return
 .L24:
-  ; sci/calc.e16.ts:957  if (answered) dmsMark()
+  ; sci/calc.e16.ts:958  if (answered) dmsMark()
   lw t0, 0x0586(zero)
   beqz t0, .L25
-  ; sci/calc.e16.ts:957  dmsMark()
+  ; sci/calc.e16.ts:958  dmsMark()
   call dmsMark
   j .L26
 .L25:
-  ; sci/calc.e16.ts:958  refuse()
+  ; sci/calc.e16.ts:959  refuse()
   call refuse
 .L26:
-  ; sci/calc.e16.ts:959  return true
+  ; sci/calc.e16.ts:960  return true
   li a0, 1
   j .return
 .L1:
-  ; sci/calc.e16.ts:961  if (k !== K_MPLUS || alpha) return false
+  ; sci/calc.e16.ts:962  if (k !== K_MPLUS || alpha) return false
   li t0, 37
   bne s1, t0, .L28
   beqz s3, .L27
 .L28:
-  ; sci/calc.e16.ts:961  return false
+  ; sci/calc.e16.ts:962  return false
   li a0, 0
   j .return
 .L27:
-  ; sci/calc.e16.ts:962  memoryPlus(shift)
+  ; sci/calc.e16.ts:963  memoryPlus(shift)
   mv a0, s2
   call memoryPlus
-  ; sci/calc.e16.ts:963  return true
+  ; sci/calc.e16.ts:964  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -4956,100 +4956,106 @@ commandKey:
   addi sp, sp, 8
   ret
 
-; sci/calc.e16.ts:967 fromAns(t) at -O1
+; sci/calc.e16.ts:968 fromAns(t) at -O1
 ;   t in a0
 fromAns:
-  ; sci/calc.e16.ts:968  return (
+  ; sci/calc.e16.ts:969  return (
   li t0, 43
   sub t0, a0, t0
   seqz t0, t0
   mv t1, t0
-  bnez t1, .L13
+  bnez t1, .L14
   li t0, 45
+  sub t0, a0, t0
+  seqz t0, t0
+.L14:
+  mv t1, t0
+  bnez t1, .L13
+  li t0, 129
   sub t0, a0, t0
   seqz t0, t0
 .L13:
   mv t1, t0
   bnez t1, .L12
-  li t0, 129
+  li t0, 130
   sub t0, a0, t0
   seqz t0, t0
 .L12:
   mv t1, t0
   bnez t1, .L11
-  li t0, 130
+  li t0, 17
   sub t0, a0, t0
   seqz t0, t0
 .L11:
   mv t1, t0
   bnez t1, .L10
-  li t0, 17
+  li t0, 132
   sub t0, a0, t0
   seqz t0, t0
 .L10:
   mv t1, t0
   bnez t1, .L9
-  li t0, 132
+  li t0, 133
   sub t0, a0, t0
   seqz t0, t0
 .L9:
   mv t1, t0
   bnez t1, .L8
-  li t0, 133
+  li t0, 134
   sub t0, a0, t0
   seqz t0, t0
 .L8:
   mv t1, t0
   bnez t1, .L7
-  li t0, 134
+  li t0, 33
   sub t0, a0, t0
   seqz t0, t0
 .L7:
   mv t1, t0
   bnez t1, .L6
-  li t0, 33
+  li t0, 18
   sub t0, a0, t0
   seqz t0, t0
 .L6:
   mv t1, t0
   bnez t1, .L5
-  li t0, 18
+  li t0, 19
   sub t0, a0, t0
   seqz t0, t0
 .L5:
   mv t1, t0
   bnez t1, .L4
-  li t0, 19
-  sub t0, a0, t0
-  seqz t0, t0
-.L4:
-  mv t1, t0
-  bnez t1, .L3
   li t0, 238
   sltu t0, a0, t0
   xori t0, t0, 1
   mv t1, t0
-  beqz t1, .L14
+  beqz t1, .L15
   li t0, 241
   sltu t0, t0, a0
   xori t0, t0, 1
-.L14:
-.L3:
+.L15:
+.L4:
   mv t1, t0
-  bnez t1, .L2
+  bnez t1, .L3
   li t0, 212
   sltu t0, a0, t0
   xori t0, t0, 1
   mv t1, t0
-  beqz t1, .L15
+  beqz t1, .L16
   li t0, 220
   sltu t0, t0, a0
   xori t0, t0, 1
-.L15:
+.L16:
+.L3:
+  mv t1, t0
+  bnez t1, .L2
+  li t0, 183
+  sub t0, a0, t0
+  seqz t0, t0
 .L2:
   mv t1, t0
   bnez t1, .L1
-  li t0, 183
+  li t0, 182
   sub t0, a0, t0
   seqz t0, t0
 .L1:
@@ -5057,25 +5063,25 @@ fromAns:
 .return:
   ret
 
-; sci/calc.e16.ts:987 type(t) at -O1
+; sci/calc.e16.ts:989 type(t) at -O1
 ;   t in s1
 type:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; t
-  ; sci/calc.e16.ts:988  if (answered) afresh(fromAns(t))
+  ; sci/calc.e16.ts:990  if (answered) afresh(fromAns(t))
   lw t0, 0x0586(zero)
   beqz t0, .L1
-  ; sci/calc.e16.ts:988  afresh(fromAns(t))
+  ; sci/calc.e16.ts:990  afresh(fromAns(t))
   mv a0, s1
   call fromAns
   call afresh
 .L1:
-  ; sci/calc.e16.ts:989  insert(t)
+  ; sci/calc.e16.ts:991  insert(t)
   mv a0, s1
   call insert
-  ; sci/calc.e16.ts:990  drawCalc()
+  ; sci/calc.e16.ts:992  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -5083,14 +5089,14 @@ type:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:993 insert(t) at -O1
+; sci/calc.e16.ts:995 insert(t) at -O1
 ;   t in s1
 insert:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; t
-  ; sci/calc.e16.ts:995  if (overwrite && cursor < length && overwritable(t) && overwritable(line[cursor])) {
+  ; sci/calc.e16.ts:997  if (overwrite && cursor < length && overwritable(t) && overwritable(line[cursor])) {
   lw t0, 0x0592(zero)
   beqz t0, .L1
   lw t0, 0x0584(zero)
@@ -5103,17 +5109,17 @@ insert:
   lbu a0, line(t0)
   call overwritable
   beqz a0, .L1
-  ; sci/calc.e16.ts:996  line[cursor] = t
+  ; sci/calc.e16.ts:998  line[cursor] = t
   lw t0, 0x0584(zero)
   sb s1, line(t0)
-  ; sci/calc.e16.ts:997  cursor++
+  ; sci/calc.e16.ts:999  cursor++
   lw t0, 0x0584(zero)
   addi t0, t0, 1
   sw t0, 0x0584(zero)
-  ; sci/calc.e16.ts:998  return
+  ; sci/calc.e16.ts:1000  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:1000  if (length >= lineMax()) {
+  ; sci/calc.e16.ts:1002  if (length >= lineMax()) {
   lw t0, 0x0582(zero)
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -5121,12 +5127,12 @@ insert:
   lw t0, 0(sp)
   addi sp, sp, 2
   bltu t0, a0, .L2
-  ; sci/calc.e16.ts:1001  refuse()
+  ; sci/calc.e16.ts:1003  refuse()
   call refuse
-  ; sci/calc.e16.ts:1002  return
+  ; sci/calc.e16.ts:1004  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:1004  memcpy(addr(line) + cursor + 1, addr(line) + cursor, length - cursor)
+  ; sci/calc.e16.ts:1006  memcpy(addr(line) + cursor + 1, addr(line) + cursor, length - cursor)
   lw t0, 0x0584(zero)
   lw t1, 0x0584(zero)
   lw t2, 0x0582(zero)
@@ -5135,14 +5141,14 @@ insert:
   addi a0, t0, line+1
   addi a1, t1, line
   mcpy a0, a1, a2
-  ; sci/calc.e16.ts:1005  line[cursor] = t
+  ; sci/calc.e16.ts:1007  line[cursor] = t
   lw t0, 0x0584(zero)
   sb s1, line(t0)
-  ; sci/calc.e16.ts:1006  length++
+  ; sci/calc.e16.ts:1008  length++
   lw t0, 0x0582(zero)
   addi t0, t0, 1
   sw t0, 0x0582(zero)
-  ; sci/calc.e16.ts:1007  cursor++
+  ; sci/calc.e16.ts:1009  cursor++
   lw t0, 0x0584(zero)
   addi t0, t0, 1
   sw t0, 0x0584(zero)
@@ -5152,14 +5158,14 @@ insert:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:1011 overwritable(t) at -O1
+; sci/calc.e16.ts:1013 overwritable(t) at -O1
 ;   t in s1
 overwritable:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; t
-  ; sci/calc.e16.ts:1012  return !opensTemplate(t) && !isSeparator(t) && t !== T_END
+  ; sci/calc.e16.ts:1014  return !opensTemplate(t) && !isSeparator(t) && t !== T_END
   mv a0, s1
   call opensTemplate
   seqz t0, a0
@@ -5182,48 +5188,48 @@ overwritable:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:1015 deleteBefore() at -O1
+; sci/calc.e16.ts:1017 deleteBefore() at -O1
 deleteBefore:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:1016  if (answered) {
+  ; sci/calc.e16.ts:1018  if (answered) {
   lw t0, 0x0586(zero)
   beqz t0, .L1
-  ; sci/calc.e16.ts:1017  answered = false
+  ; sci/calc.e16.ts:1019  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:1018  cursor = length
+  ; sci/calc.e16.ts:1020  cursor = length
   lw t0, 0x0582(zero)
   sw t0, 0x0584(zero)
 .L1:
-  ; sci/calc.e16.ts:1020  deleteAt(addr(line), length, cursor)
+  ; sci/calc.e16.ts:1022  deleteAt(addr(line), length, cursor)
   lw a1, 0x0582(zero)
   lw a2, 0x0584(zero)
   la a0, line
   la t0, deleteAt
   li t1, 4
   call far_call
-  ; sci/calc.e16.ts:1021  edited()
+  ; sci/calc.e16.ts:1023  edited()
   call edited
-  ; sci/calc.e16.ts:1022  drawCalc()
+  ; sci/calc.e16.ts:1024  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:1026 arrow(left) at -O1
+; sci/calc.e16.ts:1028 arrow(left) at -O1
 ;   left in s1
 arrow:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; left
-  ; sci/calc.e16.ts:1027  if (answered) {
+  ; sci/calc.e16.ts:1029  if (answered) {
   lw t0, 0x0586(zero)
   beqz t0, .L1
-  ; sci/calc.e16.ts:1028  answered = false
+  ; sci/calc.e16.ts:1030  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:1029  cursor = left ? length : 0
+  ; sci/calc.e16.ts:1031  cursor = left ? length : 0
   beqz s1, .L2
   lw t0, 0x0582(zero)
   j .L3
@@ -5233,9 +5239,9 @@ arrow:
   sw t0, 0x0584(zero)
   j .L4
 .L1:
-  ; sci/calc.e16.ts:1030  if (left) {
+  ; sci/calc.e16.ts:1032  if (left) {
   beqz s1, .L5
-  ; sci/calc.e16.ts:1031  cursor = cursor > 0 ? cursor - 1 : length
+  ; sci/calc.e16.ts:1033  cursor = cursor > 0 ? cursor - 1 : length
   lw t0, 0x0584(zero)
   bgeu zero, t0, .L6
   lw t0, 0x0584(zero)
@@ -5247,7 +5253,7 @@ arrow:
   sw t0, 0x0584(zero)
   j .L8
 .L5:
-  ; sci/calc.e16.ts:1033  cursor = cursor < length ? cursor + 1 : 0
+  ; sci/calc.e16.ts:1035  cursor = cursor < length ? cursor + 1 : 0
   lw t0, 0x0584(zero)
   lw t1, 0x0582(zero)
   bgeu t0, t1, .L9
@@ -5260,7 +5266,7 @@ arrow:
   sw t0, 0x0584(zero)
 .L8:
 .L4:
-  ; sci/calc.e16.ts:1035  drawCalc()
+  ; sci/calc.e16.ts:1037  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -5268,7 +5274,7 @@ arrow:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:1045 equals(approx) at -O1
+; sci/calc.e16.ts:1047 equals(approx) at -O1
 ;   approx in s2
 ;   made in s1
 equals:
@@ -5277,40 +5283,40 @@ equals:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; approx
-  ; sci/calc.e16.ts:1046  if (length === 0) return
+  ; sci/calc.e16.ts:1048  if (length === 0) return
   lw t0, 0x0582(zero)
   bne t0, zero, .L1
-  ; sci/calc.e16.ts:1046  return
+  ; sci/calc.e16.ts:1048  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:1048  if (mode === MODE_CALC) {
+  ; sci/calc.e16.ts:1050  if (mode === MODE_CALC) {
   lw t0, 0x04b8(zero)
   bne t0, zero, .L2
-  ; sci/calc.e16.ts:1049  const made = withConstant(addr(line), length)
+  ; sci/calc.e16.ts:1051  const made = withConstant(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, withConstant
   li t1, 10
   call far_call
   mv s1, a0 ; made
-  ; sci/calc.e16.ts:1050  if (made !== 0xffff) {
+  ; sci/calc.e16.ts:1052  if (made !== 0xffff) {
   li t0, 65535
   beq s1, t0, .L3
-  ; sci/calc.e16.ts:1051  length = made
+  ; sci/calc.e16.ts:1053  length = made
   sw s1, 0x0582(zero)
-  ; sci/calc.e16.ts:1052  cursor = made
+  ; sci/calc.e16.ts:1054  cursor = made
   sw s1, 0x0584(zero)
 .L3:
 .L2:
-  ; sci/calc.e16.ts:1055  clearStack()
+  ; sci/calc.e16.ts:1057  clearStack()
   ; sci/numbers.e16.ts:273  nsp = addr(nums)
   la t0, nums
   sw t0, 0x0490(zero)
-  ; sci/calc.e16.ts:1056  if (mode === MODE_BASE) baseEvaluate(addr(line), length)
+  ; sci/calc.e16.ts:1058  if (mode === MODE_BASE) baseEvaluate(addr(line), length)
   lw t0, 0x04b8(zero)
   li t1, 2
   bne t0, t1, .L4
-  ; sci/calc.e16.ts:1056  baseEvaluate(addr(line), length)
+  ; sci/calc.e16.ts:1058  baseEvaluate(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, baseEvaluate
@@ -5318,11 +5324,11 @@ equals:
   call far_call
   j .L5
 .L4:
-  ; sci/calc.e16.ts:1057  if (mode === MODE_CPLX) cplxEvaluate(addr(line), length)
+  ; sci/calc.e16.ts:1059  if (mode === MODE_CPLX) cplxEvaluate(addr(line), length)
   lw t0, 0x04b8(zero)
   li t1, 5
   bne t0, t1, .L6
-  ; sci/calc.e16.ts:1057  cplxEvaluate(addr(line), length)
+  ; sci/calc.e16.ts:1059  cplxEvaluate(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, cplxEvaluate
@@ -5330,11 +5336,11 @@ equals:
   call far_call
   j .L7
 .L6:
-  ; sci/calc.e16.ts:1058  if (mode === MODE_MATRIX) matEvaluate(addr(line), length)
+  ; sci/calc.e16.ts:1060  if (mode === MODE_MATRIX) matEvaluate(addr(line), length)
   lw t0, 0x04b8(zero)
   li t1, 6
   bne t0, t1, .L8
-  ; sci/calc.e16.ts:1058  matEvaluate(addr(line), length)
+  ; sci/calc.e16.ts:1060  matEvaluate(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, matEvaluate
@@ -5342,11 +5348,11 @@ equals:
   call far_call
   j .L9
 .L8:
-  ; sci/calc.e16.ts:1059  if (mode === MODE_PROG) progRun(addr(line), length)
+  ; sci/calc.e16.ts:1061  if (mode === MODE_PROG) progRun(addr(line), length)
   lw t0, 0x04b8(zero)
   li t1, 7
   bne t0, t1, .L10
-  ; sci/calc.e16.ts:1059  progRun(addr(line), length)
+  ; sci/calc.e16.ts:1061  progRun(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, progRun
@@ -5354,7 +5360,7 @@ equals:
   call far_call
   j .L11
 .L10:
-  ; sci/calc.e16.ts:1060  evaluate(addr(line), length)
+  ; sci/calc.e16.ts:1062  evaluate(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, evaluate
@@ -5364,43 +5370,43 @@ equals:
 .L9:
 .L7:
 .L5:
-  ; sci/calc.e16.ts:1061  if (mode === MODE_CALC) noteConstant(addr(line), length)
+  ; sci/calc.e16.ts:1063  if (mode === MODE_CALC) noteConstant(addr(line), length)
   lw t0, 0x04b8(zero)
   bne t0, zero, .L12
-  ; sci/calc.e16.ts:1061  noteConstant(addr(line), length)
+  ; sci/calc.e16.ts:1063  noteConstant(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, noteConstant
   li t1, 10
   call far_call
 .L12:
-  ; sci/calc.e16.ts:1062  copyValue(top(), KEEP_ANS)
+  ; sci/calc.e16.ts:1064  copyValue(top(), KEEP_ANS)
   call top
   li a1, 3080
   call copyValue
-  ; sci/calc.e16.ts:1063  remember()
+  ; sci/calc.e16.ts:1065  remember()
   call remember
-  ; sci/calc.e16.ts:1064  answered = true
+  ; sci/calc.e16.ts:1066  answered = true
   li t0, 1
   sw t0, 0x0586(zero)
-  ; sci/calc.e16.ts:1065  historyAt = 0xffff
+  ; sci/calc.e16.ts:1067  historyAt = 0xffff
   li t0, 65535
   sw t0, 0x0598(zero)
-  ; sci/calc.e16.ts:1066  found = false
+  ; sci/calc.e16.ts:1068  found = false
   sw zero, 0x0596(zero)
-  ; sci/calc.e16.ts:1068  if (pairLine(addr(line), length)) shown = SHOW_PAIR
+  ; sci/calc.e16.ts:1070  if (pairLine(addr(line), length)) shown = SHOW_PAIR
   lw a1, 0x0582(zero)
   la a0, line
   la t0, pairLine
   li t1, 5
   call far_call
   beqz a0, .L13
-  ; sci/calc.e16.ts:1068  shown = SHOW_PAIR
+  ; sci/calc.e16.ts:1070  shown = SHOW_PAIR
   li t0, 5
   sw t0, 0x059a(zero)
   j .L14
 .L13:
-  ; sci/calc.e16.ts:1069  shown = firstShown(formFirst(approx))
+  ; sci/calc.e16.ts:1071  shown = firstShown(formFirst(approx))
   mv a0, s2
   call formFirst
   la t0, firstShown
@@ -5408,7 +5414,7 @@ equals:
   call far_call
   sw a0, 0x059a(zero)
 .L14:
-  ; sci/calc.e16.ts:1070  drawCalc()
+  ; sci/calc.e16.ts:1072  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -5417,14 +5423,14 @@ equals:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:1074 formFirst(approx) at -O1
+; sci/calc.e16.ts:1076 formFirst(approx) at -O1
 ;   approx in s1
 formFirst:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; approx
-  ; sci/calc.e16.ts:1075  return twoD() && !approx && peek(KEEP_ANSWER) === 0 && !decimalTyped()
+  ; sci/calc.e16.ts:1077  return twoD() && !approx && peek(KEEP_ANSWER) === 0 && !decimalTyped()
   call twoD
   mv t1, a0
   mv t0, a0
@@ -5449,26 +5455,26 @@ formFirst:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:1079 tableRange() at -O1
+; sci/calc.e16.ts:1081 tableRange() at -O1
 tableRange:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:1080  if (length === 0) {
+  ; sci/calc.e16.ts:1082  if (length === 0) {
   lw t0, 0x0582(zero)
   bne t0, zero, .L1
-  ; sci/calc.e16.ts:1081  refuse()
+  ; sci/calc.e16.ts:1083  refuse()
   call refuse
-  ; sci/calc.e16.ts:1082  return
+  ; sci/calc.e16.ts:1084  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:1084  tableAskFrom()
+  ; sci/calc.e16.ts:1086  tableAskFrom()
   la t0, tableAskFrom
   li t1, 10
   call far_call
-  ; sci/calc.e16.ts:1085  screen = S_ASK
+  ; sci/calc.e16.ts:1087  screen = S_ASK
   li t0, 5
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:1086  askRange(0, rangeAt(0))
+  ; sci/calc.e16.ts:1088  askRange(0, rangeAt(0))
   li a0, 0
   li a1, 7368
   la t0, askRange
@@ -5479,36 +5485,36 @@ tableRange:
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:1090 solveKey(find) at -O1
+; sci/calc.e16.ts:1092 solveKey(find) at -O1
 ;   find in s1
 solveKey:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; find
-  ; sci/calc.e16.ts:1091  if (answered) {
+  ; sci/calc.e16.ts:1093  if (answered) {
   lw t0, 0x0586(zero)
   beqz t0, .L1
-  ; sci/calc.e16.ts:1092  answered = false
+  ; sci/calc.e16.ts:1094  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:1093  cursor = length
+  ; sci/calc.e16.ts:1095  cursor = length
   lw t0, 0x0582(zero)
   sw t0, 0x0584(zero)
 .L1:
-  ; sci/calc.e16.ts:1095  if (length === 0) {
+  ; sci/calc.e16.ts:1097  if (length === 0) {
   lw t0, 0x0582(zero)
   bne t0, zero, .L2
-  ; sci/calc.e16.ts:1096  refuse()
+  ; sci/calc.e16.ts:1098  refuse()
   call refuse
-  ; sci/calc.e16.ts:1097  return
+  ; sci/calc.e16.ts:1099  return
   j .return
 .L2:
-  ; sci/calc.e16.ts:1099  found = find
+  ; sci/calc.e16.ts:1101  found = find
   sw s1, 0x0596(zero)
-  ; sci/calc.e16.ts:1100  screen = S_ASK
+  ; sci/calc.e16.ts:1102  screen = S_ASK
   li t0, 5
   sw t0, 0x04b6(zero)
-  ; sci/calc.e16.ts:1101  askStart(addr(line), length, find)
+  ; sci/calc.e16.ts:1103  askStart(addr(line), length, find)
   lw a1, 0x0582(zero)
   la a0, line
   mv a2, s1
@@ -5521,17 +5527,17 @@ solveKey:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:1108 decimalTyped() at -O1
+; sci/calc.e16.ts:1110 decimalTyped() at -O1
 ;   i in a0
 ;   t in a1
 decimalTyped:
-  ; sci/calc.e16.ts:1109  for (let i: u16 = 0; i < length; i++) {
+  ; sci/calc.e16.ts:1111  for (let i: u16 = 0; i < length; i++) {
   li a0, 0 ; i
   j .L3
 .L1:
-  ; sci/calc.e16.ts:1110  const t = line[i]
+  ; sci/calc.e16.ts:1112  const t = line[i]
   lbu a1, line(a0)
-  ; sci/calc.e16.ts:1111  if (t === T_POINT || (t >= T_FEMTO && t <= T_TERA)) return true
+  ; sci/calc.e16.ts:1113  if (t === T_POINT || (t >= T_FEMTO && t <= T_TERA)) return true
   li t0, 46
   beq a1, t0, .L6
   li t0, 212
@@ -5539,7 +5545,7 @@ decimalTyped:
   li t0, 220
   bltu t0, a1, .L5
 .L6:
-  ; sci/calc.e16.ts:1111  return true
+  ; sci/calc.e16.ts:1113  return true
   li a0, 1
   ret
 .L5:
@@ -5547,33 +5553,33 @@ decimalTyped:
 .L3:
   lw t0, 0x0582(zero)
   bltu a0, t0, .L1
-  ; sci/calc.e16.ts:1113  return false
+  ; sci/calc.e16.ts:1115  return false
   li a0, 0
 .return:
   ret
 
-; sci/calc.e16.ts:1120 exactOrDecimal(shift) at -O1
+; sci/calc.e16.ts:1122 exactOrDecimal(shift) at -O1
 ;   shift in s1
 exactOrDecimal:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; shift
-  ; sci/calc.e16.ts:1121  if (!answered || shown === SHOW_PAIR) {
+  ; sci/calc.e16.ts:1123  if (!answered || shown === SHOW_PAIR) {
   lw t0, 0x0586(zero)
   beqz t0, .L2
   lw t0, 0x059a(zero)
   li t1, 5
   bne t0, t1, .L1
 .L2:
-  ; sci/calc.e16.ts:1122  refuse()
+  ; sci/calc.e16.ts:1124  refuse()
   call refuse
-  ; sci/calc.e16.ts:1123  return
+  ; sci/calc.e16.ts:1125  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:1125  if (shift) {
+  ; sci/calc.e16.ts:1127  if (shift) {
   beqz s1, .L3
-  ; sci/calc.e16.ts:1127  if (shown === SHOW_ENG && !engPrefixed()) {
+  ; sci/calc.e16.ts:1129  if (shown === SHOW_ENG && !engPrefixed()) {
   lw t0, 0x059a(zero)
   li t1, 3
   bne t0, t1, .L4
@@ -5581,12 +5587,12 @@ exactOrDecimal:
   li t1, 5
   call far_call
   bnez a0, .L4
-  ; sci/calc.e16.ts:1128  refuse()
+  ; sci/calc.e16.ts:1130  refuse()
   call refuse
-  ; sci/calc.e16.ts:1129  return
+  ; sci/calc.e16.ts:1131  return
   j .return
 .L4:
-  ; sci/calc.e16.ts:1131  shown = shown === SHOW_ENG ? SHOW_PREFIX : SHOW_ENG
+  ; sci/calc.e16.ts:1133  shown = shown === SHOW_ENG ? SHOW_PREFIX : SHOW_ENG
   lw t0, 0x059a(zero)
   li t1, 3
   bne t0, t1, .L5
@@ -5598,14 +5604,14 @@ exactOrDecimal:
   sw t0, 0x059a(zero)
   j .L7
 .L3:
-  ; sci/calc.e16.ts:1132  if (twoD() && hasForm()) shown = nextShown(shown)
+  ; sci/calc.e16.ts:1134  if (twoD() && hasForm()) shown = nextShown(shown)
   call twoD
   beqz a0, .L8
   la t0, hasForm
   li t1, 5
   call far_call
   beqz a0, .L8
-  ; sci/calc.e16.ts:1132  shown = nextShown(shown)
+  ; sci/calc.e16.ts:1134  shown = nextShown(shown)
   lw a0, 0x059a(zero)
   la t0, nextShown
   li t1, 5
@@ -5613,24 +5619,24 @@ exactOrDecimal:
   sw a0, 0x059a(zero)
   j .L9
 .L8:
-  ; sci/calc.e16.ts:1133  if (shown !== SHOW_DECIMAL && shown !== SHOW_FOUND) shown = SHOW_DECIMAL
+  ; sci/calc.e16.ts:1135  if (shown !== SHOW_DECIMAL && shown !== SHOW_FOUND) shown = SHOW_DECIMAL
   lw t0, 0x059a(zero)
   beq t0, zero, .L10
   lw t0, 0x059a(zero)
   li t1, 6
   beq t0, t1, .L10
-  ; sci/calc.e16.ts:1133  shown = SHOW_DECIMAL
+  ; sci/calc.e16.ts:1135  shown = SHOW_DECIMAL
   sw zero, 0x059a(zero)
   j .L11
 .L10:
-  ; sci/calc.e16.ts:1135  refuse()
+  ; sci/calc.e16.ts:1137  refuse()
   call refuse
-  ; sci/calc.e16.ts:1136  return
+  ; sci/calc.e16.ts:1138  return
   j .return
 .L11:
 .L9:
 .L7:
-  ; sci/calc.e16.ts:1138  drawCalc()
+  ; sci/calc.e16.ts:1140  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -5638,7 +5644,7 @@ exactOrDecimal:
   addi sp, sp, 4
   ret
 
-; sci/calc.e16.ts:1142 variableKey(k/letter) at -O1
+; sci/calc.e16.ts:1144 variableKey(k/letter) at -O1
 ;   k/letter in s1
 ;   store in s2
 variableKey:
@@ -5647,53 +5653,53 @@ variableKey:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; k/letter
-  ; sci/calc.e16.ts:1143  const store = storing
+  ; sci/calc.e16.ts:1145  const store = storing
   lw s2, 0x058c(zero)
-  ; sci/calc.e16.ts:1144  storing = false
+  ; sci/calc.e16.ts:1146  storing = false
   sw zero, 0x058c(zero)
-  ; sci/calc.e16.ts:1145  recalling = false
+  ; sci/calc.e16.ts:1147  recalling = false
   sw zero, 0x058e(zero)
-  ; sci/calc.e16.ts:1146  const letter = letterOf(k)
+  ; sci/calc.e16.ts:1148  const letter = letterOf(k)
   mv a0, s1
   la t0, letterOf
   li t1, 4
   call far_call
   mv s1, a0 ; k/letter
-  ; sci/calc.e16.ts:1147  if (letter === 0 || letter === T_E) {
+  ; sci/calc.e16.ts:1149  if (letter === 0 || letter === T_E) {
   beq s1, zero, .L2
   li t0, 101
   bne s1, t0, .L1
 .L2:
-  ; sci/calc.e16.ts:1148  refuse()
+  ; sci/calc.e16.ts:1150  refuse()
   call refuse
-  ; sci/calc.e16.ts:1149  return
+  ; sci/calc.e16.ts:1151  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:1151  if (store) {
+  ; sci/calc.e16.ts:1153  if (store) {
   beqz s2, .L3
-  ; sci/calc.e16.ts:1152  if (!answered && length > 0) {
+  ; sci/calc.e16.ts:1154  if (!answered && length > 0) {
   lw t0, 0x0586(zero)
   bnez t0, .L4
   lw t0, 0x0582(zero)
   bgeu zero, t0, .L4
-  ; sci/calc.e16.ts:1153  clearStack()
+  ; sci/calc.e16.ts:1155  clearStack()
   ; sci/numbers.e16.ts:273  nsp = addr(nums)
   la t0, nums
   sw t0, 0x0490(zero)
-  ; sci/calc.e16.ts:1154  evaluate(addr(line), length)
+  ; sci/calc.e16.ts:1156  evaluate(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, evaluate
   li t1, 0
   call far_call
-  ; sci/calc.e16.ts:1155  copyValue(top(), KEEP_ANS)
+  ; sci/calc.e16.ts:1157  copyValue(top(), KEEP_ANS)
   call top
   li a1, 3080
   call copyValue
-  ; sci/calc.e16.ts:1156  remember()
+  ; sci/calc.e16.ts:1158  remember()
   call remember
 .L4:
-  ; sci/calc.e16.ts:1158  copyValue(KEEP_ANS, varAt(letter))
+  ; sci/calc.e16.ts:1160  copyValue(KEEP_ANS, varAt(letter))
   mv a0, s1
   call varAt
   mv a1, a0
@@ -5701,32 +5707,32 @@ variableKey:
   call copyValue
   j .L5
 .L3:
-  ; sci/calc.e16.ts:1160  copyValue(varAt(letter), KEEP_ANS)
+  ; sci/calc.e16.ts:1162  copyValue(varAt(letter), KEEP_ANS)
   mv a0, s1
   call varAt
   li a1, 3080
   call copyValue
 .L5:
-  ; sci/calc.e16.ts:1162  shown = firstShown(formFirst(false))
+  ; sci/calc.e16.ts:1164  shown = firstShown(formFirst(false))
   li a0, 0
   call formFirst
   la t0, firstShown
   li t1, 5
   call far_call
   sw a0, 0x059a(zero)
-  ; sci/calc.e16.ts:1163  found = false
+  ; sci/calc.e16.ts:1165  found = false
   sw zero, 0x0596(zero)
-  ; sci/calc.e16.ts:1164  length = 0
+  ; sci/calc.e16.ts:1166  length = 0
   sw zero, 0x0582(zero)
-  ; sci/calc.e16.ts:1165  cursor = 0
+  ; sci/calc.e16.ts:1167  cursor = 0
   sw zero, 0x0584(zero)
-  ; sci/calc.e16.ts:1166  insert(T_ANS)
+  ; sci/calc.e16.ts:1168  insert(T_ANS)
   li a0, 20
   call insert
-  ; sci/calc.e16.ts:1167  answered = true
+  ; sci/calc.e16.ts:1169  answered = true
   li t0, 1
   sw t0, 0x0586(zero)
-  ; sci/calc.e16.ts:1168  drawCalc()
+  ; sci/calc.e16.ts:1170  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -5735,7 +5741,7 @@ variableKey:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:1172 memoryPlus(minus/op) at -O1
+; sci/calc.e16.ts:1174 memoryPlus(minus/op) at -O1
 ;   minus/op in s1
 ;   m in s2
 memoryPlus:
@@ -5744,36 +5750,36 @@ memoryPlus:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; minus/op
-  ; sci/calc.e16.ts:1173  if (!answered) {
+  ; sci/calc.e16.ts:1175  if (!answered) {
   lw t0, 0x0586(zero)
   bnez t0, .L1
-  ; sci/calc.e16.ts:1174  if (length === 0) insert(T_ANS)
+  ; sci/calc.e16.ts:1176  if (length === 0) insert(T_ANS)
   lw t0, 0x0582(zero)
   bne t0, zero, .L2
-  ; sci/calc.e16.ts:1174  insert(T_ANS)
+  ; sci/calc.e16.ts:1176  insert(T_ANS)
   li a0, 20
   call insert
 .L2:
-  ; sci/calc.e16.ts:1175  clearStack()
+  ; sci/calc.e16.ts:1177  clearStack()
   ; sci/numbers.e16.ts:273  nsp = addr(nums)
   la t0, nums
   sw t0, 0x0490(zero)
-  ; sci/calc.e16.ts:1176  evaluate(addr(line), length)
+  ; sci/calc.e16.ts:1178  evaluate(addr(line), length)
   lw a1, 0x0582(zero)
   la a0, line
   la t0, evaluate
   li t1, 0
   call far_call
-  ; sci/calc.e16.ts:1177  copyValue(top(), KEEP_ANS)
+  ; sci/calc.e16.ts:1179  copyValue(top(), KEEP_ANS)
   call top
   li a1, 3080
   call copyValue
-  ; sci/calc.e16.ts:1178  remember()
+  ; sci/calc.e16.ts:1180  remember()
   call remember
 .L1:
-  ; sci/calc.e16.ts:1180  const m = varAt(0x4d)
+  ; sci/calc.e16.ts:1182  const m = varAt(0x4d)
   li s2, 3408 ; m
-  ; sci/calc.e16.ts:1181  const op = minus ? M_SUB : M_ADD
+  ; sci/calc.e16.ts:1183  const op = minus ? M_SUB : M_ADD
   beqz s1, .L3
   li t0, 2
   j .L4
@@ -5781,32 +5787,32 @@ memoryPlus:
   li t0, 1
 .L4:
   mv s1, t0 ; minus/op
-  ; sci/calc.e16.ts:1182  math(op, m, KEEP_ANS, 0)
+  ; sci/calc.e16.ts:1184  math(op, m, KEEP_ANS, 0)
   mv a0, s1
   mv a1, s2
   li a2, 3080
   li a3, 0
   call math
-  ; sci/calc.e16.ts:1183  exactBinary(op, m, KEEP_ANS)
+  ; sci/calc.e16.ts:1185  exactBinary(op, m, KEEP_ANS)
   mv a0, s1
   mv a1, s2
   li a2, 3080
   la t0, exactBinary
   li t1, 2
   call far_call
-  ; sci/calc.e16.ts:1184  answered = true
+  ; sci/calc.e16.ts:1186  answered = true
   li t0, 1
   sw t0, 0x0586(zero)
-  ; sci/calc.e16.ts:1185  shown = firstShown(formFirst(false))
+  ; sci/calc.e16.ts:1187  shown = firstShown(formFirst(false))
   li a0, 0
   call formFirst
   la t0, firstShown
   li t1, 5
   call far_call
   sw a0, 0x059a(zero)
-  ; sci/calc.e16.ts:1186  found = false
+  ; sci/calc.e16.ts:1188  found = false
   sw zero, 0x0596(zero)
-  ; sci/calc.e16.ts:1187  drawCalc()
+  ; sci/calc.e16.ts:1189  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -5815,7 +5821,7 @@ memoryPlus:
   addi sp, sp, 6
   ret
 
-; sci/calc.e16.ts:1193 remember() at -O1
+; sci/calc.e16.ts:1195 remember() at -O1
 ;   entries/kept in s1
 ;   at in s2
 ;   size in s3
@@ -5827,24 +5833,24 @@ remember:
   sw s2, 4(sp)
   sw s3, 6(sp)
   sw s0, 8(sp)
-  ; sci/calc.e16.ts:1194  const entries = historyEntries()
+  ; sci/calc.e16.ts:1196  const entries = historyEntries()
   call historyEntries
   mv s1, a0 ; entries/kept
-  ; sci/calc.e16.ts:1195  if (entries === 0) return
+  ; sci/calc.e16.ts:1197  if (entries === 0) return
   bne s1, zero, .L1
-  ; sci/calc.e16.ts:1195  return
+  ; sci/calc.e16.ts:1197  return
   j .return
 .L1:
-  ; sci/calc.e16.ts:1196  const at = historyAt_()
+  ; sci/calc.e16.ts:1198  const at = historyAt_()
   call historyAt_
   mv s2, a0 ; at
-  ; sci/calc.e16.ts:1197  const size = historySize()
+  ; sci/calc.e16.ts:1199  const size = historySize()
   call historySize
   mv s3, a0 ; size
-  ; sci/calc.e16.ts:1198  const count = peek16(historyCount())
+  ; sci/calc.e16.ts:1200  const count = peek16(historyCount())
   call historyCount
   lw s0, 0(a0)
-  ; sci/calc.e16.ts:1199  const kept = count < entries ? count : entries - 1
+  ; sci/calc.e16.ts:1201  const kept = count < entries ? count : entries - 1
   bgeu s0, s1, .L2
   mv t0, s0
   j .L3
@@ -5852,24 +5858,24 @@ remember:
   addi t0, s1, -1
 .L3:
   mv s1, t0 ; entries/kept
-  ; sci/calc.e16.ts:1200  memcpy(at + size, at, kept * size)
+  ; sci/calc.e16.ts:1202  memcpy(at + size, at, kept * size)
   add a0, s2, s3
   mul a2, s1, s3
   mv a1, s2
   mcpy a0, a1, a2
-  ; sci/calc.e16.ts:1201  poke(at, length)
+  ; sci/calc.e16.ts:1203  poke(at, length)
   lw t0, 0x0582(zero)
   sb t0, 0(s2)
-  ; sci/calc.e16.ts:1202  memcpy(at + 1, addr(line), length)
+  ; sci/calc.e16.ts:1204  memcpy(at + 1, addr(line), length)
   lw a2, 0x0582(zero)
   addi a0, s2, 1
   la a1, line
   mcpy a0, a1, a2
-  ; sci/calc.e16.ts:1203  poke16(historyCount(), kept + 1)
+  ; sci/calc.e16.ts:1205  poke16(historyCount(), kept + 1)
   call historyCount
   addi t0, s1, 1
   sw t0, 0(a0)
-  ; sci/calc.e16.ts:1205  historyAt = 0xffff
+  ; sci/calc.e16.ts:1207  historyAt = 0xffff
   li t0, 65535
   sw t0, 0x0598(zero)
 .return:
@@ -5881,16 +5887,16 @@ remember:
   addi sp, sp, 10
   ret
 
-; sci/calc.e16.ts:1210 historyEntries() at -O1
+; sci/calc.e16.ts:1212 historyEntries() at -O1
 historyEntries:
-  ; sci/calc.e16.ts:1211  if (mode === MODE_CALC) return HISTORY_ENTRIES
+  ; sci/calc.e16.ts:1213  if (mode === MODE_CALC) return HISTORY_ENTRIES
   lw t0, 0x04b8(zero)
   bne t0, zero, .L1
-  ; sci/calc.e16.ts:1211  return HISTORY_ENTRIES
+  ; sci/calc.e16.ts:1213  return HISTORY_ENTRIES
   li a0, 10
   ret
 .L1:
-  ; sci/calc.e16.ts:1212  return mode === MODE_BASE ? 5 : 0
+  ; sci/calc.e16.ts:1214  return mode === MODE_BASE ? 5 : 0
   lw t0, 0x04b8(zero)
   li t1, 2
   bne t0, t1, .L2
@@ -5903,9 +5909,9 @@ historyEntries:
 .return:
   ret
 
-; sci/calc.e16.ts:1215 historyAt_() at -O1
+; sci/calc.e16.ts:1217 historyAt_() at -O1
 historyAt_:
-  ; sci/calc.e16.ts:1216  return mode === MODE_BASE ? BASE_HISTORY : KEEP_HISTORY
+  ; sci/calc.e16.ts:1218  return mode === MODE_BASE ? BASE_HISTORY : KEEP_HISTORY
   lw t0, 0x04b8(zero)
   li t1, 2
   bne t0, t1, .L1
@@ -5918,9 +5924,9 @@ historyAt_:
 .return:
   ret
 
-; sci/calc.e16.ts:1219 historySize() at -O1
+; sci/calc.e16.ts:1221 historySize() at -O1
 historySize:
-  ; sci/calc.e16.ts:1220  return mode === MODE_BASE ? 100 : HISTORY_SIZE
+  ; sci/calc.e16.ts:1222  return mode === MODE_BASE ? 100 : HISTORY_SIZE
   lw t0, 0x04b8(zero)
   li t1, 2
   bne t0, t1, .L1
@@ -5933,9 +5939,9 @@ historySize:
 .return:
   ret
 
-; sci/calc.e16.ts:1223 historyCount() at -O1
+; sci/calc.e16.ts:1225 historyCount() at -O1
 historyCount:
-  ; sci/calc.e16.ts:1224  return mode === MODE_BASE ? BASE_HISTORY_COUNT : KEEP_HISTORY_COUNT
+  ; sci/calc.e16.ts:1226  return mode === MODE_BASE ? BASE_HISTORY_COUNT : KEEP_HISTORY_COUNT
   lw t0, 0x04b8(zero)
   li t1, 2
   bne t0, t1, .L1
@@ -5948,7 +5954,7 @@ historyCount:
 .return:
   ret
 
-; sci/calc.e16.ts:1231 history(older/entry) at -O1
+; sci/calc.e16.ts:1233 history(older/entry) at -O1
 ;   older/entry in s1
 ;   count in s0
 ;   browsing in s3
@@ -5961,12 +5967,12 @@ history:
   sw s3, 6(sp)
   sw s2, 8(sp)
   mv s1, a0 ; older/entry
-  ; sci/calc.e16.ts:1232  if (!answered && twoD()) {
+  ; sci/calc.e16.ts:1234  if (!answered && twoD()) {
   lw t0, 0x0586(zero)
   bnez t0, .L1
   call twoD
   beqz a0, .L1
-  ; sci/calc.e16.ts:1233  vertical(addr(line), length, cursor, older)
+  ; sci/calc.e16.ts:1235  vertical(addr(line), length, cursor, older)
   lw a1, 0x0582(zero)
   lw a2, 0x0584(zero)
   la a0, line
@@ -5974,20 +5980,20 @@ history:
   la t0, vertical
   li t1, 4
   call far_call
-  ; sci/calc.e16.ts:1234  if (editCursor !== 0xffff) {
+  ; sci/calc.e16.ts:1236  if (editCursor !== 0xffff) {
   lw t0, 0x06d6(zero)
   li t1, 65535
   beq t0, t1, .L2
-  ; sci/calc.e16.ts:1235  cursor = editCursor
+  ; sci/calc.e16.ts:1237  cursor = editCursor
   lw t0, 0x06d6(zero)
   sw t0, 0x0584(zero)
-  ; sci/calc.e16.ts:1236  drawCalc()
+  ; sci/calc.e16.ts:1238  drawCalc()
   call drawCalc
-  ; sci/calc.e16.ts:1237  return
+  ; sci/calc.e16.ts:1239  return
   j .return
 .L2:
 .L1:
-  ; sci/calc.e16.ts:1240  const count = historyEntries() === 0 ? 0 : peek16(historyCount())
+  ; sci/calc.e16.ts:1242  const count = historyEntries() === 0 ? 0 : peek16(historyCount())
   call historyEntries
   bne a0, zero, .L3
   li t0, 0
@@ -5997,25 +6003,25 @@ history:
   lw t0, 0(a0)
 .L4:
   mv s0, t0 ; count
-  ; sci/calc.e16.ts:1241  const browsing = historyAt !== 0xffff
+  ; sci/calc.e16.ts:1243  const browsing = historyAt !== 0xffff
   lw t0, 0x0598(zero)
   li t1, 65535
   sub t0, t0, t1
   snez s3, t0
-  ; sci/calc.e16.ts:1242  if (!answered && length > 0 && !browsing) return
+  ; sci/calc.e16.ts:1244  if (!answered && length > 0 && !browsing) return
   lw t0, 0x0586(zero)
   bnez t0, .L5
   lw t0, 0x0582(zero)
   bgeu zero, t0, .L5
   bnez s3, .L5
-  ; sci/calc.e16.ts:1242  return
+  ; sci/calc.e16.ts:1244  return
   j .return
 .L5:
-  ; sci/calc.e16.ts:1243  let next = historyAt
+  ; sci/calc.e16.ts:1245  let next = historyAt
   lw s2, 0x0598(zero)
-  ; sci/calc.e16.ts:1244  if (older) next = browsing ? historyAt + 1 : 0
+  ; sci/calc.e16.ts:1246  if (older) next = browsing ? historyAt + 1 : 0
   beqz s1, .L6
-  ; sci/calc.e16.ts:1244  next = browsing ? historyAt + 1 : 0
+  ; sci/calc.e16.ts:1246  next = browsing ? historyAt + 1 : 0
   beqz s3, .L7
   lw t0, 0x0598(zero)
   addi t0, t0, 1
@@ -6026,27 +6032,27 @@ history:
   mv s2, t0 ; next
   j .L9
 .L6:
-  ; sci/calc.e16.ts:1245  if (browsing && historyAt > 0) next = historyAt - 1
+  ; sci/calc.e16.ts:1247  if (browsing && historyAt > 0) next = historyAt - 1
   beqz s3, .L10
   lw t0, 0x0598(zero)
   bgeu zero, t0, .L10
-  ; sci/calc.e16.ts:1245  next = historyAt - 1
+  ; sci/calc.e16.ts:1247  next = historyAt - 1
   lw t0, 0x0598(zero)
   addi s2, t0, -1
   j .L11
 .L10:
-  ; sci/calc.e16.ts:1246  return
+  ; sci/calc.e16.ts:1248  return
   j .return
 .L11:
 .L9:
-  ; sci/calc.e16.ts:1247  if (next >= count) return
+  ; sci/calc.e16.ts:1249  if (next >= count) return
   bltu s2, s0, .L12
-  ; sci/calc.e16.ts:1247  return
+  ; sci/calc.e16.ts:1249  return
   j .return
 .L12:
-  ; sci/calc.e16.ts:1248  historyAt = next
+  ; sci/calc.e16.ts:1250  historyAt = next
   sw s2, 0x0598(zero)
-  ; sci/calc.e16.ts:1249  const entry = historyAt_() + next * historySize()
+  ; sci/calc.e16.ts:1251  const entry = historyAt_() + next * historySize()
   call historyAt_
   addi sp, sp, -2
   sw a0, 0(sp)
@@ -6055,20 +6061,20 @@ history:
   lw t1, 0(sp)
   addi sp, sp, 2
   add s1, t1, t0
-  ; sci/calc.e16.ts:1250  length = peek(entry)
+  ; sci/calc.e16.ts:1252  length = peek(entry)
   lbu t0, 0(s1)
   sw t0, 0x0582(zero)
-  ; sci/calc.e16.ts:1251  memcpy(addr(line), entry + 1, length)
+  ; sci/calc.e16.ts:1253  memcpy(addr(line), entry + 1, length)
   lw a2, 0x0582(zero)
   la a0, line
   addi a1, s1, 1
   mcpy a0, a1, a2
-  ; sci/calc.e16.ts:1252  cursor = length
+  ; sci/calc.e16.ts:1254  cursor = length
   lw t0, 0x0582(zero)
   sw t0, 0x0584(zero)
-  ; sci/calc.e16.ts:1253  answered = false
+  ; sci/calc.e16.ts:1255  answered = false
   sw zero, 0x0586(zero)
-  ; sci/calc.e16.ts:1254  drawCalc()
+  ; sci/calc.e16.ts:1256  drawCalc()
   call drawCalc
 .return:
   lw ra, 0(sp)
@@ -6079,11 +6085,11 @@ history:
   addi sp, sp, 10
   ret
 
-; sci/calc.e16.ts:1260 drawCalc() at -O1
+; sci/calc.e16.ts:1262 drawCalc() at -O1
 drawCalc:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:1261  drawScreen()
+  ; sci/calc.e16.ts:1263  drawScreen()
   la t0, drawScreen
   li t1, 3
   call far_call
@@ -6092,11 +6098,11 @@ drawCalc:
   addi sp, sp, 2
   ret
 
-; sci/calc.e16.ts:1265 drawMarks() at -O1
+; sci/calc.e16.ts:1267 drawMarks() at -O1
 drawMarks:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/calc.e16.ts:1266  drawAnnunciators()
+  ; sci/calc.e16.ts:1268  drawAnnunciators()
   la t0, drawAnnunciators
   li t1, 3
   call far_call
@@ -28979,13 +28985,14 @@ quadEstimate:
 ;   x in s1
 ;   at in s2
 ;   negative in s3
+;   series in 0(sp)
 normal:
-  addi sp, sp, -10
-  sw ra, 0(sp)
-  sw s0, 2(sp)
-  sw s1, 4(sp)
-  sw s2, 6(sp)
-  sw s3, 8(sp)
+  addi sp, sp, -12
+  sw ra, 2(sp)
+  sw s0, 4(sp)
+  sw s1, 6(sp)
+  sw s2, 8(sp)
+  sw s3, 10(sp)
   mv s0, a0 ; f
   mv s1, a1 ; x
   mv s2, a2 ; at
@@ -29006,49 +29013,50 @@ normal:
   mv a3, s2
   call math
 .L1:
-  ; sci/stats.e16.ts:902  wholeInto(addr(distWork), 21)
+  ; sci/stats.e16.ts:902  wholeInto(addr(distWork), 2)
+  la a0, distWork
+  li a1, 2
+  call wholeInto
+  ; sci/stats.e16.ts:903  const series = smaller(addr(distAt), addr(distWork))
+  la a0, distAt
+  la a1, distWork
+  call smaller
+  sw a0, 0(sp) ; series
+  ; sci/stats.e16.ts:904  wholeInto(addr(distWork), 21)
   la a0, distWork
   li a1, 21
   call wholeInto
-  ; sci/stats.e16.ts:903  if (!smaller(addr(distAt), addr(distWork))) {
+  ; sci/stats.e16.ts:906  if (!smaller(addr(distAt), addr(distWork))) wholeInto(addr(distTail), 0)
   la a0, distAt
   la a1, distWork
   call smaller
   bnez a0, .L2
-  ; sci/stats.e16.ts:905  wholeInto(addr(distTail), 0)
+  ; sci/stats.e16.ts:906  wholeInto(addr(distTail), 0)
   la a0, distTail
   li a1, 0
   call wholeInto
   j .L3
 .L2:
-  ; sci/stats.e16.ts:907  wholeInto(addr(distWork), 2)
-  la a0, distWork
-  li a1, 2
-  call wholeInto
-  ; sci/stats.e16.ts:908  if (smaller(addr(distAt), addr(distWork))) distSeries(at)
-  la a0, distAt
-  la a1, distWork
-  call smaller
-  beqz a0, .L4
-  ; sci/stats.e16.ts:908  distSeries(at)
+  ; sci/stats.e16.ts:907  if (series) distSeries(at)
+  lw t0, 0(sp) ; series
+  beqz t0, .L4
+  ; sci/stats.e16.ts:907  distSeries(at)
   mv a0, s2
   call distSeries
   j .L5
 .L4:
-  ; sci/stats.e16.ts:909  distFraction(at)
+  ; sci/stats.e16.ts:908  distFraction(at)
   mv a0, s2
   call distFraction
 .L5:
 .L3:
-  ; sci/stats.e16.ts:911  if (smaller(addr(distAt), addr(distWork))) {
-  la a0, distAt
-  la a1, distWork
-  call smaller
-  beqz a0, .L6
-  ; sci/stats.e16.ts:912  halfInto(addr(distTail))
+  ; sci/stats.e16.ts:909  if (series) {
+  lw t0, 0(sp) ; series
+  beqz t0, .L6
+  ; sci/stats.e16.ts:910  halfInto(addr(distTail))
   la a0, distTail
   call halfInto
-  ; sci/stats.e16.ts:913  math(M_SUB, addr(distTail), addr(distArea), at)
+  ; sci/stats.e16.ts:911  math(M_SUB, addr(distTail), addr(distArea), at)
   li a0, 2
   la a1, distTail
   la a2, distArea
@@ -29056,26 +29064,26 @@ normal:
   call math
   j .L7
 .L6:
-  ; sci/stats.e16.ts:915  halfInto(addr(distArea))
+  ; sci/stats.e16.ts:913  halfInto(addr(distArea))
   la a0, distArea
   call halfInto
-  ; sci/stats.e16.ts:916  math(M_SUB, addr(distArea), addr(distTail), at)
+  ; sci/stats.e16.ts:914  math(M_SUB, addr(distArea), addr(distTail), at)
   li a0, 2
   la a1, distArea
   la a2, distTail
   mv a3, s2
   call math
 .L7:
-  ; sci/stats.e16.ts:918  if (f === T_NMID) {
+  ; sci/stats.e16.ts:916  if (f === T_NMID) {
   li t0, 174
   bne s0, t0, .L8
-  ; sci/stats.e16.ts:919  copy8(addr(distArea), x)
+  ; sci/stats.e16.ts:917  copy8(addr(distArea), x)
   la a0, distArea
   mv a1, s1
   call copy8
-  ; sci/stats.e16.ts:920  if (negative) math(M_NEG, x, 0, at)
+  ; sci/stats.e16.ts:918  if (negative) math(M_NEG, x, 0, at)
   beqz s3, .L10
-  ; sci/stats.e16.ts:920  math(M_NEG, x, 0, at)
+  ; sci/stats.e16.ts:918  math(M_NEG, x, 0, at)
   li a0, 16
   mv a1, s1
   li a2, 0
@@ -29083,21 +29091,21 @@ normal:
   call math
   j .L10
 .L8:
-  ; sci/stats.e16.ts:921  if ((f === T_NUP) !== negative) copy8(addr(distTail), x)
+  ; sci/stats.e16.ts:919  if ((f === T_NUP) !== negative) copy8(addr(distTail), x)
   li t0, 175
   sub t0, s0, t0
   seqz t0, t0
   beq t0, s3, .L11
-  ; sci/stats.e16.ts:921  copy8(addr(distTail), x)
+  ; sci/stats.e16.ts:919  copy8(addr(distTail), x)
   la a0, distTail
   mv a1, s1
   call copy8
   j .L12
 .L11:
-  ; sci/stats.e16.ts:923  halfInto(x)
+  ; sci/stats.e16.ts:921  halfInto(x)
   mv a0, s1
   call halfInto
-  ; sci/stats.e16.ts:924  math(M_ADD, x, addr(distArea), at)
+  ; sci/stats.e16.ts:922  math(M_ADD, x, addr(distArea), at)
   li a0, 1
   mv a1, s1
   la a2, distArea
@@ -29106,15 +29114,15 @@ normal:
 .L12:
 .L10:
 .return:
-  lw ra, 0(sp)
-  lw s0, 2(sp)
-  lw s1, 4(sp)
-  lw s2, 6(sp)
-  lw s3, 8(sp)
-  addi sp, sp, 10
+  lw ra, 2(sp)
+  lw s0, 4(sp)
+  lw s1, 6(sp)
+  lw s2, 8(sp)
+  lw s3, 10(sp)
+  addi sp, sp, 12
   ret
 
-; sci/stats.e16.ts:929 smaller(a, b) at -O1
+; sci/stats.e16.ts:927 smaller(a, b) at -O1
 ;   a in s1
 ;   b in s2
 smaller:
@@ -29124,13 +29132,13 @@ smaller:
   sw s2, 4(sp)
   mv s1, a0 ; a
   mv s2, a1 ; b
-  ; sci/stats.e16.ts:930  math(M_CMP, a, b, 0)
+  ; sci/stats.e16.ts:928  math(M_CMP, a, b, 0)
   li a0, 6
   mv a1, s1
   mv a2, s2
   li a3, 0
   call math
-  ; sci/stats.e16.ts:931  return i16(peek16(MATH_RESULT)) < 0
+  ; sci/stats.e16.ts:929  return i16(peek16(MATH_RESULT)) < 0
   li t0, 65370
   lw t0, 0(t0)
   slti a0, t0, 0
@@ -29141,22 +29149,22 @@ smaller:
   addi sp, sp, 6
   ret
 
-; sci/stats.e16.ts:934 halfInto(v) at -O1
+; sci/stats.e16.ts:932 halfInto(v) at -O1
 ;   v in s1
 halfInto:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; v
-  ; sci/stats.e16.ts:935  wholeInto(v, 1)
+  ; sci/stats.e16.ts:933  wholeInto(v, 1)
   mv a0, s1
   li a1, 1
   call wholeInto
-  ; sci/stats.e16.ts:936  wholeInto(addr(distTerm), 2)
+  ; sci/stats.e16.ts:934  wholeInto(addr(distTerm), 2)
   la a0, distTerm
   li a1, 2
   call wholeInto
-  ; sci/stats.e16.ts:937  math(M_DIV, v, addr(distTerm), 0)
+  ; sci/stats.e16.ts:935  math(M_DIV, v, addr(distTerm), 0)
   li a0, 4
   mv a1, s1
   la a2, distTerm
@@ -29168,64 +29176,64 @@ halfInto:
   addi sp, sp, 4
   ret
 
-; sci/stats.e16.ts:941 density(at) at -O1
+; sci/stats.e16.ts:939 density(at) at -O1
 ;   at in s1
 density:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; at
-  ; sci/stats.e16.ts:942  copy8(addr(distAt), addr(distWork))
+  ; sci/stats.e16.ts:940  copy8(addr(distAt), addr(distWork))
   la a0, distAt
   la a1, distWork
   call copy8
-  ; sci/stats.e16.ts:943  math(M_MUL, addr(distWork), addr(distAt), at)
+  ; sci/stats.e16.ts:941  math(M_MUL, addr(distWork), addr(distAt), at)
   li a0, 3
   la a1, distWork
   la a2, distAt
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:944  wholeInto(addr(distTerm), 2)
+  ; sci/stats.e16.ts:942  wholeInto(addr(distTerm), 2)
   la a0, distTerm
   li a1, 2
   call wholeInto
-  ; sci/stats.e16.ts:945  math(M_DIV, addr(distWork), addr(distTerm), at)
+  ; sci/stats.e16.ts:943  math(M_DIV, addr(distWork), addr(distTerm), at)
   li a0, 4
   la a1, distWork
   la a2, distTerm
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:946  math(M_NEG, addr(distWork), 0, at)
+  ; sci/stats.e16.ts:944  math(M_NEG, addr(distWork), 0, at)
   li a0, 16
   la a1, distWork
   li a2, 0
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:947  math(M_EXP, addr(distWork), 0, at)
+  ; sci/stats.e16.ts:945  math(M_EXP, addr(distWork), 0, at)
   li a0, 30
   la a1, distWork
   li a2, 0
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:948  math(M_PI, addr(distPi), 0, at)
+  ; sci/stats.e16.ts:946  math(M_PI, addr(distPi), 0, at)
   li a0, 32
   la a1, distPi
   li a2, 0
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:949  math(M_MUL, addr(distPi), addr(distTerm), at)
+  ; sci/stats.e16.ts:947  math(M_MUL, addr(distPi), addr(distTerm), at)
   li a0, 3
   la a1, distPi
   la a2, distTerm
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:950  math(M_SQR, addr(distPi), 0, at)
+  ; sci/stats.e16.ts:948  math(M_SQR, addr(distPi), 0, at)
   li a0, 21
   la a1, distPi
   li a2, 0
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:951  math(M_DIV, addr(distWork), addr(distPi), at)
+  ; sci/stats.e16.ts:949  math(M_DIV, addr(distWork), addr(distPi), at)
   li a0, 4
   la a1, distWork
   la a2, distPi
@@ -29237,7 +29245,7 @@ density:
   addi sp, sp, 4
   ret
 
-; sci/stats.e16.ts:955 distSeries(at) at -O1
+; sci/stats.e16.ts:953 distSeries(at) at -O1
 ;   at in s1
 ;   n in s2
 distSeries:
@@ -29246,63 +29254,63 @@ distSeries:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; at
-  ; sci/stats.e16.ts:956  copy8(addr(distAt), addr(distArea))
+  ; sci/stats.e16.ts:954  copy8(addr(distAt), addr(distArea))
   la a0, distAt
   la a1, distArea
   call copy8
-  ; sci/stats.e16.ts:957  copy8(addr(distAt), addr(distTail))
+  ; sci/stats.e16.ts:955  copy8(addr(distAt), addr(distTail))
   la a0, distAt
   la a1, distTail
   call copy8
-  ; sci/stats.e16.ts:958  for (let n: u16 = 1; n < 80; n++) {
+  ; sci/stats.e16.ts:956  for (let n: u16 = 1; n < 80; n++) {
   li s2, 1 ; n
   j .L3
 .L1:
-  ; sci/stats.e16.ts:959  math(M_MUL, addr(distTail), addr(distAt), at)
+  ; sci/stats.e16.ts:957  math(M_MUL, addr(distTail), addr(distAt), at)
   li a0, 3
   la a1, distTail
   la a2, distAt
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:960  math(M_MUL, addr(distTail), addr(distAt), at)
+  ; sci/stats.e16.ts:958  math(M_MUL, addr(distTail), addr(distAt), at)
   li a0, 3
   la a1, distTail
   la a2, distAt
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:961  wholeInto(addr(distTerm), 2 * n + 1)
+  ; sci/stats.e16.ts:959  wholeInto(addr(distTerm), 2 * n + 1)
   li t0, 2
   mul t0, t0, s2
   la a0, distTerm
   addi a1, t0, 1
   call wholeInto
-  ; sci/stats.e16.ts:962  math(M_DIV, addr(distTail), addr(distTerm), at)
+  ; sci/stats.e16.ts:960  math(M_DIV, addr(distTail), addr(distTerm), at)
   li a0, 4
   la a1, distTail
   la a2, distTerm
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:963  copy8(addr(distArea), addr(distTerm))
+  ; sci/stats.e16.ts:961  copy8(addr(distArea), addr(distTerm))
   la a0, distArea
   la a1, distTerm
   call copy8
-  ; sci/stats.e16.ts:964  math(M_ADD, addr(distArea), addr(distTail), at)
+  ; sci/stats.e16.ts:962  math(M_ADD, addr(distArea), addr(distTail), at)
   li a0, 1
   la a1, distArea
   la a2, distTail
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:965  math(M_CMP, addr(distArea), addr(distTerm), 0)
+  ; sci/stats.e16.ts:963  math(M_CMP, addr(distArea), addr(distTerm), 0)
   li a0, 6
   la a1, distArea
   la a2, distTerm
   li a3, 0
   call math
-  ; sci/stats.e16.ts:966  if (peek16(MATH_RESULT) === 0) break
+  ; sci/stats.e16.ts:964  if (peek16(MATH_RESULT) === 0) break
   li t0, 65370
   lw t0, 0(t0)
   bne t0, zero, .L5
-  ; sci/stats.e16.ts:966  break
+  ; sci/stats.e16.ts:964  break
   j .L4
 .L5:
   addi s2, s2, 1
@@ -29310,19 +29318,15 @@ distSeries:
   li t0, 80
   bltu s2, t0, .L1
 .L4:
-  ; sci/stats.e16.ts:968  density(at)
+  ; sci/stats.e16.ts:966  density(at)
   mv a0, s1
   call density
-  ; sci/stats.e16.ts:969  math(M_MUL, addr(distArea), addr(distWork), at)
+  ; sci/stats.e16.ts:967  math(M_MUL, addr(distArea), addr(distWork), at)
   li a0, 3
   la a1, distArea
   la a2, distWork
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:970  wholeInto(addr(distWork), 2)
-  la a0, distWork
-  li a1, 2
-  call wholeInto
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
@@ -29330,7 +29334,7 @@ distSeries:
   addi sp, sp, 6
   ret
 
-; sci/stats.e16.ts:974 distFraction(at) at -O1
+; sci/stats.e16.ts:971 distFraction(at) at -O1
 ;   at in s1
 ;   k in s2
 distFraction:
@@ -29339,29 +29343,29 @@ distFraction:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; at
-  ; sci/stats.e16.ts:975  copy8(addr(distAt), addr(distTail))
+  ; sci/stats.e16.ts:972  copy8(addr(distAt), addr(distTail))
   la a0, distAt
   la a1, distTail
   call copy8
-  ; sci/stats.e16.ts:976  for (let k: u16 = 80; k > 0; k--) {
+  ; sci/stats.e16.ts:973  for (let k: u16 = 80; k > 0; k--) {
   li s2, 80 ; k
   j .L3
 .L1:
-  ; sci/stats.e16.ts:977  wholeInto(addr(distTerm), k)
+  ; sci/stats.e16.ts:974  wholeInto(addr(distTerm), k)
   la a0, distTerm
   mv a1, s2
   call wholeInto
-  ; sci/stats.e16.ts:978  math(M_DIV, addr(distTerm), addr(distTail), at)
+  ; sci/stats.e16.ts:975  math(M_DIV, addr(distTerm), addr(distTail), at)
   li a0, 4
   la a1, distTerm
   la a2, distTail
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:979  copy8(addr(distAt), addr(distTail))
+  ; sci/stats.e16.ts:976  copy8(addr(distAt), addr(distTail))
   la a0, distAt
   la a1, distTail
   call copy8
-  ; sci/stats.e16.ts:980  math(M_ADD, addr(distTail), addr(distTerm), at)
+  ; sci/stats.e16.ts:977  math(M_ADD, addr(distTail), addr(distTerm), at)
   li a0, 1
   la a1, distTail
   la a2, distTerm
@@ -29370,23 +29374,19 @@ distFraction:
   addi s2, s2, -1
 .L3:
   bltu zero, s2, .L1
-  ; sci/stats.e16.ts:982  density(at)
+  ; sci/stats.e16.ts:979  density(at)
   mv a0, s1
   call density
-  ; sci/stats.e16.ts:983  math(M_DIV, addr(distWork), addr(distTail), at)
+  ; sci/stats.e16.ts:980  math(M_DIV, addr(distWork), addr(distTail), at)
   li a0, 4
   la a1, distWork
   la a2, distTail
   mv a3, s1
   call math
-  ; sci/stats.e16.ts:984  copy8(addr(distWork), addr(distTail))
+  ; sci/stats.e16.ts:981  copy8(addr(distWork), addr(distTail))
   la a0, distWork
   la a1, distTail
   call copy8
-  ; sci/stats.e16.ts:985  wholeInto(addr(distWork), 2)
-  la a0, distWork
-  li a1, 2
-  call wholeInto
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
@@ -29394,7 +29394,7 @@ distFraction:
   addi sp, sp, 6
   ret
 
-; sci/stats.e16.ts:989 standardized(v, at) at -O1
+; sci/stats.e16.ts:985 standardized(v, at) at -O1
 ;   v in s1
 ;   at in s2
 standardized:
@@ -29404,36 +29404,36 @@ standardized:
   sw s2, 4(sp)
   mv s1, a0 ; v
   mv s2, a1 ; at
-  ; sci/stats.e16.ts:990  statValue(1, addr(distWork))
+  ; sci/stats.e16.ts:986  statValue(1, addr(distWork))
   li a0, 1
   la a1, distWork
   call statValue
-  ; sci/stats.e16.ts:991  math(M_SUB, v, addr(distWork), at)
+  ; sci/stats.e16.ts:987  math(M_SUB, v, addr(distWork), at)
   li a0, 2
   mv a1, s1
   la a2, distWork
   mv a3, s2
   call math
-  ; sci/stats.e16.ts:992  statValue(2, addr(distWork))
+  ; sci/stats.e16.ts:988  statValue(2, addr(distWork))
   li a0, 2
   la a1, distWork
   call statValue
-  ; sci/stats.e16.ts:993  if (isZero(addr(distWork))) fail(E_MATH, at)
+  ; sci/stats.e16.ts:989  if (isZero(addr(distWork))) fail(E_MATH, at)
   la a0, distWork
   call isZero
   beqz a0, .L1
-  ; sci/stats.e16.ts:993  fail(E_MATH, at)
+  ; sci/stats.e16.ts:989  fail(E_MATH, at)
   li a0, 1
   mv a1, s2
   call fail
 .L1:
-  ; sci/stats.e16.ts:994  math(M_DIV, v, addr(distWork), at)
+  ; sci/stats.e16.ts:990  math(M_DIV, v, addr(distWork), at)
   li a0, 4
   mv a1, s1
   la a2, distWork
   mv a3, s2
   call math
-  ; sci/stats.e16.ts:995  inexact(v)
+  ; sci/stats.e16.ts:991  inexact(v)
   mv a0, s1
   call inexact
 .return:
@@ -29525,7 +29525,7 @@ str_155:
 
   .bank 8
   .org 0xc000
-; sci/calculus.e16.ts:74 calculus(t, p/body, at) at -O1
+; sci/calculus.e16.ts:77 calculus(t, p/body, at) at -O1
 ;   t in s3
 ;   p/body in s1
 ;   at in 0(sp)
@@ -29542,57 +29542,57 @@ calculus:
   mv s3, a0 ; t
   mv s1, a1 ; p/body
   sw a2, 0(sp) ; at
-  ; sci/calculus.e16.ts:75  const body = p
-  ; sci/calculus.e16.ts:76  let q = nextArgument(bodyEnd(body))
+  ; sci/calculus.e16.ts:78  const body = p
+  ; sci/calculus.e16.ts:79  let q = nextArgument(bodyEnd(body))
   mv a0, s1
   call bodyEnd
   call nextArgument
   mv s2, a0 ; q
-  ; sci/calculus.e16.ts:77  const a = top()
+  ; sci/calculus.e16.ts:80  const a = top()
   call top
   mv s0, a0 ; a
-  ; sci/calculus.e16.ts:78  if (t !== T_DERIV) q = nextArgument(q)
+  ; sci/calculus.e16.ts:81  if (t !== T_DERIV) q = nextArgument(q)
   li t0, 160
   beq s3, t0, .L1
-  ; sci/calculus.e16.ts:78  q = nextArgument(q)
+  ; sci/calculus.e16.ts:81  q = nextArgument(q)
   mv a0, s2
   call nextArgument
   mv s2, a0 ; q
 .L1:
-  ; sci/calculus.e16.ts:79  if (evalToken(q) === T_CLOSE) q++
+  ; sci/calculus.e16.ts:82  if (evalToken(q) === T_CLOSE) q++
   mv a0, s2
   la t0, evalToken
   li t1, 0
   call far_call
   li t0, 41
   bne a0, t0, .L2
-  ; sci/calculus.e16.ts:79  q++
+  ; sci/calculus.e16.ts:82  q++
   addi s2, s2, 1
 .L2:
-  ; sci/calculus.e16.ts:80  const saved = push(at)
+  ; sci/calculus.e16.ts:83  const saved = push(at)
   lw a0, 0(sp)
   call push
   sw a0, 2(sp) ; saved
-  ; sci/calculus.e16.ts:81  copyValue(varAt(X_LETTER), saved)
+  ; sci/calculus.e16.ts:84  copyValue(varAt(X_LETTER), saved)
   li a0, 3336
   lw a1, 2(sp)
   call copyValue
-  ; sci/calculus.e16.ts:82  holdX()
+  ; sci/calculus.e16.ts:85  holdX()
   call holdX
-  ; sci/calculus.e16.ts:83  if (t === T_DERIV) derivative(body, a, at)
+  ; sci/calculus.e16.ts:86  if (t === T_DERIV) derivative(body, a, at)
   li t0, 160
   bne s3, t0, .L3
-  ; sci/calculus.e16.ts:83  derivative(body, a, at)
+  ; sci/calculus.e16.ts:86  derivative(body, a, at)
   mv a0, s1
   mv a1, s0
   lw a2, 0(sp)
   call derivative
   j .L4
 .L3:
-  ; sci/calculus.e16.ts:84  if (t === T_INTEG) integral(body, a, a + VALUE_SIZE, at)
+  ; sci/calculus.e16.ts:87  if (t === T_INTEG) integral(body, a, a + VALUE_SIZE, at)
   li t0, 161
   bne s3, t0, .L5
-  ; sci/calculus.e16.ts:84  integral(body, a, a + VALUE_SIZE, at)
+  ; sci/calculus.e16.ts:87  integral(body, a, a + VALUE_SIZE, at)
   mv a0, s1
   mv a1, s0
   addi a2, s0, 36
@@ -29600,12 +29600,12 @@ calculus:
   call integral
   j .L6
 .L5:
-  ; sci/calculus.e16.ts:86  multiplying = t === T_PROD
+  ; sci/calculus.e16.ts:89  multiplying = t === T_PROD
   li t0, 172
   sub t0, s3, t0
   seqz t0, t0
   sw t0, 0x05ee(zero)
-  ; sci/calculus.e16.ts:87  sigma(body, a, a + VALUE_SIZE, at)
+  ; sci/calculus.e16.ts:90  sigma(body, a, a + VALUE_SIZE, at)
   mv a0, s1
   mv a1, s0
   addi a2, s0, 36
@@ -29613,21 +29613,21 @@ calculus:
   call sigma
 .L6:
 .L4:
-  ; sci/calculus.e16.ts:89  copyValue(saved, varAt(X_LETTER))
+  ; sci/calculus.e16.ts:92  copyValue(saved, varAt(X_LETTER))
   lw a0, 2(sp)
   li a1, 3336
   call copyValue
-  ; sci/calculus.e16.ts:90  releaseX()
+  ; sci/calculus.e16.ts:93  releaseX()
   call releaseX
-  ; sci/calculus.e16.ts:91  pop()
+  ; sci/calculus.e16.ts:94  pop()
   call pop
-  ; sci/calculus.e16.ts:92  if (t !== T_DERIV) pop()
+  ; sci/calculus.e16.ts:95  if (t !== T_DERIV) pop()
   li t0, 160
   beq s3, t0, .L7
-  ; sci/calculus.e16.ts:92  pop()
+  ; sci/calculus.e16.ts:95  pop()
   call pop
 .L7:
-  ; sci/calculus.e16.ts:93  return q
+  ; sci/calculus.e16.ts:96  return q
   mv a0, s2
 .return:
   lw ra, 4(sp)
@@ -29638,26 +29638,26 @@ calculus:
   addi sp, sp, 14
   ret
 
-; sci/calculus.e16.ts:97 nextArgument(q) at -O1
+; sci/calculus.e16.ts:100 nextArgument(q) at -O1
 ;   q in s1
 nextArgument:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; q
-  ; sci/calculus.e16.ts:98  if (evalToken(q) !== T_COMMA) fail(E_SYNTAX, q)
+  ; sci/calculus.e16.ts:101  if (evalToken(q) !== T_COMMA) fail(E_SYNTAX, q)
   mv a0, s1
   la t0, evalToken
   li t1, 0
   call far_call
   li t0, 44
   beq a0, t0, .L1
-  ; sci/calculus.e16.ts:98  fail(E_SYNTAX, q)
+  ; sci/calculus.e16.ts:101  fail(E_SYNTAX, q)
   li a0, 2
   mv a1, s1
   call fail
 .L1:
-  ; sci/calculus.e16.ts:99  return evalSum(q + 1)
+  ; sci/calculus.e16.ts:102  return evalSum(q + 1)
   addi a0, s1, 1
   la t0, evalSum
   li t1, 0
@@ -29668,7 +29668,7 @@ nextArgument:
   addi sp, sp, 4
   ret
 
-; sci/calculus.e16.ts:112 bodyEnd(from/p) at -O1
+; sci/calculus.e16.ts:115 bodyEnd(from/p) at -O1
 ;   from/p in s1
 ;   depth in s3
 ;   t in s2
@@ -29679,18 +29679,18 @@ bodyEnd:
   sw s3, 4(sp)
   sw s2, 6(sp)
   mv s1, a0 ; from/p
-  ; sci/calculus.e16.ts:113  let depth: u16 = 0
+  ; sci/calculus.e16.ts:116  let depth: u16 = 0
   li s3, 0 ; depth
-  ; sci/calculus.e16.ts:114  let p = from
-  ; sci/calculus.e16.ts:115  for (;;) {
+  ; sci/calculus.e16.ts:117  let p = from
+  ; sci/calculus.e16.ts:118  for (;;) {
 .L1:
-  ; sci/calculus.e16.ts:116  const t = evalToken(p)
+  ; sci/calculus.e16.ts:119  const t = evalToken(p)
   mv a0, s1
   la t0, evalToken
   li t1, 0
   call far_call
   mv s2, a0 ; t
-  ; sci/calculus.e16.ts:117  if (t === 0 || (depth === 0 && (t === T_COMMA || t === T_CLOSE))) return p
+  ; sci/calculus.e16.ts:120  if (t === 0 || (depth === 0 && (t === T_COMMA || t === T_CLOSE))) return p
   beq s2, zero, .L6
   bne s3, zero, .L5
   li t0, 44
@@ -29699,17 +29699,17 @@ bodyEnd:
   bne s2, t0, .L5
 .L7:
 .L6:
-  ; sci/calculus.e16.ts:117  return p
+  ; sci/calculus.e16.ts:120  return p
   mv a0, s1
   j .return
 .L5:
-  ; sci/calculus.e16.ts:118  depth = depthAfter(t, depth, p)
+  ; sci/calculus.e16.ts:121  depth = depthAfter(t, depth, p)
   mv a0, s2
   mv a1, s3
   mv a2, s1
   call depthAfter
   mv s3, a0 ; depth
-  ; sci/calculus.e16.ts:119  p++
+  ; sci/calculus.e16.ts:122  p++
   addi s1, s1, 1
   j .L1
 .return:
@@ -29720,7 +29720,7 @@ bodyEnd:
   addi sp, sp, 8
   ret
 
-; sci/calculus.e16.ts:124 depthAfter(t, depth/d, p) at -O1
+; sci/calculus.e16.ts:127 depthAfter(t, depth/d, p) at -O1
 ;   t in s2
 ;   depth/d in s1
 ;   p in s3
@@ -29733,7 +29733,7 @@ depthAfter:
   mv s2, a0 ; t
   mv s1, a1 ; depth/d
   mv s3, a2 ; p
-  ; sci/calculus.e16.ts:125  if (t === T_OPEN || t === T_POW || isFunction(t)) return opening(depth, 1, p)
+  ; sci/calculus.e16.ts:128  if (t === T_OPEN || t === T_POW || isFunction(t)) return opening(depth, 1, p)
   li t0, 40
   beq s2, t0, .L2
   li t0, 17
@@ -29742,46 +29742,46 @@ depthAfter:
   call isFunction
   beqz a0, .L1
 .L2:
-  ; sci/calculus.e16.ts:125  return opening(depth, 1, p)
+  ; sci/calculus.e16.ts:128  return opening(depth, 1, p)
   mv a0, s1
   li a1, 1
   mv a2, s3
   call opening
   j .return
 .L1:
-  ; sci/calculus.e16.ts:126  if (opensTemplate(t)) return opening(depth, 2, p)
+  ; sci/calculus.e16.ts:129  if (opensTemplate(t)) return opening(depth, 2, p)
   mv a0, s2
   call opensTemplate
   beqz a0, .L3
-  ; sci/calculus.e16.ts:126  return opening(depth, 2, p)
+  ; sci/calculus.e16.ts:129  return opening(depth, 2, p)
   mv a0, s1
   li a1, 2
   mv a2, s3
   call opening
   j .return
 .L3:
-  ; sci/calculus.e16.ts:127  if (t === T_CLOSE) return depth - 1
+  ; sci/calculus.e16.ts:130  if (t === T_CLOSE) return depth - 1
   li t0, 41
   bne s2, t0, .L4
-  ; sci/calculus.e16.ts:127  return depth - 1
+  ; sci/calculus.e16.ts:130  return depth - 1
   addi a0, s1, -1
   j .return
 .L4:
-  ; sci/calculus.e16.ts:128  if (!isSeparator(t) && t !== T_END) return depth
+  ; sci/calculus.e16.ts:131  if (!isSeparator(t) && t !== T_END) return depth
   mv a0, s2
   call isSeparator
   bnez a0, .L5
   li t0, 24
   beq s2, t0, .L5
-  ; sci/calculus.e16.ts:128  return depth
+  ; sci/calculus.e16.ts:131  return depth
   mv a0, s1
   j .return
 .L5:
-  ; sci/calculus.e16.ts:130  let d = depth
-  ; sci/calculus.e16.ts:131  while (d > 0 && opened[d - 1] === 1) d--
+  ; sci/calculus.e16.ts:133  let d = depth
+  ; sci/calculus.e16.ts:134  while (d > 0 && opened[d - 1] === 1) d--
   j .L8
 .L6:
-  ; sci/calculus.e16.ts:131  d--
+  ; sci/calculus.e16.ts:134  d--
   addi s1, s1, -1
 .L8:
   bgeu zero, s1, .L10
@@ -29789,14 +29789,14 @@ depthAfter:
   li t1, 1
   beq t0, t1, .L6
 .L10:
-  ; sci/calculus.e16.ts:132  if (t === T_END && d > 0) d--
+  ; sci/calculus.e16.ts:135  if (t === T_END && d > 0) d--
   li t0, 24
   bne s2, t0, .L11
   bgeu zero, s1, .L11
-  ; sci/calculus.e16.ts:132  d--
+  ; sci/calculus.e16.ts:135  d--
   addi s1, s1, -1
 .L11:
-  ; sci/calculus.e16.ts:133  return d
+  ; sci/calculus.e16.ts:136  return d
   mv a0, s1
 .return:
   lw ra, 0(sp)
@@ -29806,7 +29806,7 @@ depthAfter:
   addi sp, sp, 8
   ret
 
-; sci/calculus.e16.ts:136 opening(depth, kind, p) at -O1
+; sci/calculus.e16.ts:139 opening(depth, kind, p) at -O1
 ;   depth in s1
 ;   kind in s2
 ;   p in s3
@@ -29819,17 +29819,17 @@ opening:
   mv s1, a0 ; depth
   mv s2, a1 ; kind
   mv s3, a2 ; p
-  ; sci/calculus.e16.ts:137  if (depth >= 24) fail(E_SYNTAX, p)
+  ; sci/calculus.e16.ts:140  if (depth >= 24) fail(E_SYNTAX, p)
   li t0, 24
   bltu s1, t0, .L1
-  ; sci/calculus.e16.ts:137  fail(E_SYNTAX, p)
+  ; sci/calculus.e16.ts:140  fail(E_SYNTAX, p)
   li a0, 2
   mv a1, s3
   call fail
 .L1:
-  ; sci/calculus.e16.ts:138  opened[depth] = kind
+  ; sci/calculus.e16.ts:141  opened[depth] = kind
   sb s2, opened(s1)
-  ; sci/calculus.e16.ts:139  return depth + 1
+  ; sci/calculus.e16.ts:142  return depth + 1
   addi a0, s1, 1
 .return:
   lw ra, 0(sp)
@@ -29839,7 +29839,7 @@ opening:
   addi sp, sp, 8
   ret
 
-; sci/calculus.e16.ts:143 bodyAt(body, x) at -O1
+; sci/calculus.e16.ts:146 bodyAt(body, x) at -O1
 ;   body in s1
 ;   x in s2
 bodyAt:
@@ -29849,11 +29849,11 @@ bodyAt:
   sw s2, 4(sp)
   mv s1, a0 ; body
   mv s2, a1 ; x
-  ; sci/calculus.e16.ts:144  copyValue(x, varAt(X_LETTER))
+  ; sci/calculus.e16.ts:147  copyValue(x, varAt(X_LETTER))
   mv a0, s2
   li a1, 3336
   call copyValue
-  ; sci/calculus.e16.ts:145  evalSum(body)
+  ; sci/calculus.e16.ts:148  evalSum(body)
   mv a0, s1
   la t0, evalSum
   li t1, 0
@@ -29865,33 +29865,37 @@ bodyAt:
   addi sp, sp, 6
   ret
 
-; sci/calculus.e16.ts:151 sigma(body, a, b/terms, at) at -O1
-;   body in 4(sp)
+; sci/calculus.e16.ts:154 sigma(body, a, b/terms, at) at -O1
+;   body in 6(sp)
 ;   a in s3
 ;   b/terms in s0
 ;   at in s1
+;   times in 4(sp)
 ;   sum in s2
 ;   x in 0(sp)
 ;   i in 2(sp)
 sigma:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s3, 8(sp)
-  sw s0, 10(sp)
-  sw s1, 12(sp)
-  sw s2, 14(sp)
-  sw a0, 4(sp) ; body
+  addi sp, sp, -18
+  sw ra, 8(sp)
+  sw s3, 10(sp)
+  sw s0, 12(sp)
+  sw s1, 14(sp)
+  sw s2, 16(sp)
+  sw a0, 6(sp) ; body
   mv s3, a1 ; a
   mv s0, a2 ; b/terms
   mv s1, a3 ; at
-  ; sci/calculus.e16.ts:152  const terms = termCount(a, b, at)
+  ; sci/calculus.e16.ts:155  const terms = termCount(a, b, at)
   mv a0, s3
   mv a1, s0
   mv a2, s1
   call termCount
   mv s0, a0 ; b/terms
-  ; sci/calculus.e16.ts:153  const sum = pushInt(multiplying ? 1 : 0, at)
+  ; sci/calculus.e16.ts:156  const times = multiplying
   lw t0, 0x05ee(zero)
+  sw t0, 4(sp) ; times
+  ; sci/calculus.e16.ts:157  const sum = pushInt(times ? 1 : 0, at)
+  lw t0, 4(sp) ; times
   beqz t0, .L1
   li t0, 1
   j .L2
@@ -29902,33 +29906,33 @@ sigma:
   mv a1, s1
   call pushInt
   mv s2, a0 ; sum
-  ; sci/calculus.e16.ts:154  const x = push(at)
+  ; sci/calculus.e16.ts:158  const x = push(at)
   mv a0, s1
   call push
   sw a0, 0(sp) ; x
-  ; sci/calculus.e16.ts:155  copyValue(a, x)
+  ; sci/calculus.e16.ts:159  copyValue(a, x)
   mv a0, s3
   lw a1, 0(sp)
   call copyValue
-  ; sci/calculus.e16.ts:156  for (let i: u16 = 0; i < terms; i++) {
+  ; sci/calculus.e16.ts:160  for (let i: u16 = 0; i < terms; i++) {
   sw zero, 2(sp) ; i
   j .L5
 .L3:
-  ; sci/calculus.e16.ts:157  bodyAt(body, x)
-  lw a0, 4(sp)
+  ; sci/calculus.e16.ts:161  bodyAt(body, x)
+  lw a0, 6(sp)
   lw a1, 0(sp)
   call bodyAt
-  ; sci/calculus.e16.ts:158  if (multiplying) {
-  lw t0, 0x05ee(zero)
+  ; sci/calculus.e16.ts:162  if (times) {
+  lw t0, 4(sp) ; times
   beqz t0, .L7
-  ; sci/calculus.e16.ts:159  math(M_MUL, sum, top(), at)
+  ; sci/calculus.e16.ts:163  math(M_MUL, sum, top(), at)
   call top
   mv a1, s2
   mv a2, a0
   li a0, 3
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:160  exactBinary(M_MUL, sum, top())
+  ; sci/calculus.e16.ts:164  exactBinary(M_MUL, sum, top())
   call top
   mv a1, s2
   mv a2, a0
@@ -29936,20 +29940,20 @@ sigma:
   la t0, exactBinary
   li t1, 2
   call far_call
-  ; sci/calculus.e16.ts:161  pop()
+  ; sci/calculus.e16.ts:165  pop()
   call pop
   j .L8
 .L7:
-  ; sci/calculus.e16.ts:162  addTop(sum, at)
+  ; sci/calculus.e16.ts:166  addTop(sum, at)
   mv a0, s2
   mv a1, s1
   call addTop
 .L8:
-  ; sci/calculus.e16.ts:163  pushInt(1, at)
+  ; sci/calculus.e16.ts:167  pushInt(1, at)
   li a0, 1
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:164  addTop(x, at)
+  ; sci/calculus.e16.ts:168  addTop(x, at)
   lw a0, 0(sp)
   mv a1, s1
   call addTop
@@ -29959,24 +29963,24 @@ sigma:
 .L5:
   lw t0, 2(sp) ; i
   bltu t0, s0, .L3
-  ; sci/calculus.e16.ts:166  copyValue(sum, a)
+  ; sci/calculus.e16.ts:170  copyValue(sum, a)
   mv a0, s2
   mv a1, s3
   call copyValue
-  ; sci/calculus.e16.ts:167  pop()
+  ; sci/calculus.e16.ts:171  pop()
   call pop
-  ; sci/calculus.e16.ts:168  pop()
+  ; sci/calculus.e16.ts:172  pop()
   call pop
 .return:
-  lw ra, 6(sp)
-  lw s3, 8(sp)
-  lw s0, 10(sp)
-  lw s1, 12(sp)
-  lw s2, 14(sp)
-  addi sp, sp, 16
+  lw ra, 8(sp)
+  lw s3, 10(sp)
+  lw s0, 12(sp)
+  lw s1, 14(sp)
+  lw s2, 16(sp)
+  addi sp, sp, 18
   ret
 
-; sci/calculus.e16.ts:172 addTop(into, at) at -O1
+; sci/calculus.e16.ts:176 addTop(into, at) at -O1
 ;   into in s1
 ;   at in s2
 addTop:
@@ -29986,14 +29990,14 @@ addTop:
   sw s2, 4(sp)
   mv s1, a0 ; into
   mv s2, a1 ; at
-  ; sci/calculus.e16.ts:173  math(M_ADD, into, top(), at)
+  ; sci/calculus.e16.ts:177  math(M_ADD, into, top(), at)
   call top
   mv a1, s1
   mv a2, a0
   li a0, 1
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:174  exactBinary(M_ADD, into, top())
+  ; sci/calculus.e16.ts:178  exactBinary(M_ADD, into, top())
   call top
   mv a1, s1
   mv a2, a0
@@ -30001,7 +30005,7 @@ addTop:
   la t0, exactBinary
   li t1, 2
   call far_call
-  ; sci/calculus.e16.ts:175  pop()
+  ; sci/calculus.e16.ts:179  pop()
   call pop
 .return:
   lw ra, 0(sp)
@@ -30010,7 +30014,7 @@ addTop:
   addi sp, sp, 6
   ret
 
-; sci/calculus.e16.ts:179 termCount(a, b, at) at -O1
+; sci/calculus.e16.ts:183 termCount(a, b, at) at -O1
 ;   a in s3
 ;   b in s0
 ;   at in s1
@@ -30025,21 +30029,21 @@ termCount:
   mv s3, a0 ; a
   mv s0, a1 ; b
   mv s1, a2 ; at
-  ; sci/calculus.e16.ts:180  const d = push(at)
+  ; sci/calculus.e16.ts:184  const d = push(at)
   mv a0, s1
   call push
   mv s2, a0 ; d
-  ; sci/calculus.e16.ts:181  copy8(b, d)
+  ; sci/calculus.e16.ts:185  copy8(b, d)
   mv a0, s0
   mv a1, s2
   call copy8
-  ; sci/calculus.e16.ts:182  math(M_SUB, d, a, at)
+  ; sci/calculus.e16.ts:186  math(M_SUB, d, a, at)
   li a0, 2
   mv a1, s2
   mv a2, s3
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:183  if (!isWholeAt(a, at) || !isWholeAt(b, at) || isNegative(d)) fail(E_MATH, at)
+  ; sci/calculus.e16.ts:187  if (!isWholeAt(a, at) || !isWholeAt(b, at) || isNegative(d)) fail(E_MATH, at)
   mv a0, s3
   mv a1, s1
   call isWholeAt
@@ -30052,42 +30056,42 @@ termCount:
   call isNegative
   beqz a0, .L1
 .L2:
-  ; sci/calculus.e16.ts:183  fail(E_MATH, at)
+  ; sci/calculus.e16.ts:187  fail(E_MATH, at)
   li a0, 1
   mv a1, s1
   call fail
 .L1:
-  ; sci/calculus.e16.ts:184  pushInt(999, at)
+  ; sci/calculus.e16.ts:188  pushInt(999, at)
   li a0, 999
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:185  math(M_CMP, d, top(), at)
+  ; sci/calculus.e16.ts:189  math(M_CMP, d, top(), at)
   call top
   mv a1, s2
   mv a2, a0
   li a0, 6
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:186  pop()
+  ; sci/calculus.e16.ts:190  pop()
   call pop
-  ; sci/calculus.e16.ts:187  if (i16(peek16(MATH_RESULT)) > 0) fail(E_MATH, at)
+  ; sci/calculus.e16.ts:191  if (i16(peek16(MATH_RESULT)) > 0) fail(E_MATH, at)
   li t0, 65370
   lw t0, 0(t0)
   bge zero, t0, .L3
-  ; sci/calculus.e16.ts:187  fail(E_MATH, at)
+  ; sci/calculus.e16.ts:191  fail(E_MATH, at)
   li a0, 1
   mv a1, s1
   call fail
 .L3:
-  ; sci/calculus.e16.ts:188  math(M_TOINT, d, 0, at)
+  ; sci/calculus.e16.ts:192  math(M_TOINT, d, 0, at)
   li a0, 49
   mv a1, s2
   li a2, 0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:189  pop()
+  ; sci/calculus.e16.ts:193  pop()
   call pop
-  ; sci/calculus.e16.ts:190  return peek16(MATH_ARG) + 1
+  ; sci/calculus.e16.ts:194  return peek16(MATH_ARG) + 1
   li t0, 65366
   lw t0, 0(t0)
   addi a0, t0, 1
@@ -30100,7 +30104,7 @@ termCount:
   addi sp, sp, 10
   ret
 
-; sci/calculus.e16.ts:193 isWholeAt(v/whole, at) at -O1
+; sci/calculus.e16.ts:197 isWholeAt(v/whole, at) at -O1
 ;   v/whole in s1
 ;   at in s3
 ;   f in s2
@@ -30112,27 +30116,27 @@ isWholeAt:
   sw s2, 6(sp)
   mv s1, a0 ; v/whole
   mv s3, a1 ; at
-  ; sci/calculus.e16.ts:194  const f = push(at)
+  ; sci/calculus.e16.ts:198  const f = push(at)
   mv a0, s3
   call push
   mv s2, a0 ; f
-  ; sci/calculus.e16.ts:195  copy8(v, f)
+  ; sci/calculus.e16.ts:199  copy8(v, f)
   mv a0, s1
   mv a1, s2
   call copy8
-  ; sci/calculus.e16.ts:196  math(M_FRAC, f, 0, at)
+  ; sci/calculus.e16.ts:200  math(M_FRAC, f, 0, at)
   li a0, 19
   mv a1, s2
   li a2, 0
   mv a3, s3
   call math
-  ; sci/calculus.e16.ts:197  const whole = isZero(f)
+  ; sci/calculus.e16.ts:201  const whole = isZero(f)
   mv a0, s2
   call isZero
   mv s1, a0 ; v/whole
-  ; sci/calculus.e16.ts:198  pop()
+  ; sci/calculus.e16.ts:202  pop()
   call pop
-  ; sci/calculus.e16.ts:199  return whole
+  ; sci/calculus.e16.ts:203  return whole
   mv a0, s1
 .return:
   lw ra, 0(sp)
@@ -30142,7 +30146,7 @@ isWholeAt:
   addi sp, sp, 8
   ret
 
-; sci/calculus.e16.ts:210 derivative(body/d3, a, at) at -O1
+; sci/calculus.e16.ts:214 derivative(body/d3, a, at) at -O1
 ;   body/d3 in s3
 ;   a in s0
 ;   at in s1
@@ -30159,125 +30163,125 @@ derivative:
   mv s3, a0 ; body/d3
   mv s0, a1 ; a
   mv s1, a2 ; at
-  ; sci/calculus.e16.ts:211  const h = push(at)
+  ; sci/calculus.e16.ts:215  const h = push(at)
   mv a0, s1
   call push
   mv s2, a0 ; h/d2
-  ; sci/calculus.e16.ts:212  copy8(a, h)
+  ; sci/calculus.e16.ts:216  copy8(a, h)
   mv a0, s0
   mv a1, s2
   call copy8
-  ; sci/calculus.e16.ts:213  math(M_ABS, h, 0, at)
+  ; sci/calculus.e16.ts:217  math(M_ABS, h, 0, at)
   li a0, 17
   mv a1, s2
   li a2, 0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:214  if (isZero(h)) {
+  ; sci/calculus.e16.ts:218  if (isZero(h)) {
   mv a0, s2
   call isZero
   beqz a0, .L1
-  ; sci/calculus.e16.ts:215  pushInt(1, at)
+  ; sci/calculus.e16.ts:219  pushInt(1, at)
   li a0, 1
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:216  copy8(top(), h)
+  ; sci/calculus.e16.ts:220  copy8(top(), h)
   call top
   mv a1, s2
   call copy8
-  ; sci/calculus.e16.ts:217  pop()
+  ; sci/calculus.e16.ts:221  pop()
   call pop
 .L1:
-  ; sci/calculus.e16.ts:219  pushInt(100, at)
+  ; sci/calculus.e16.ts:223  pushInt(100, at)
   li a0, 100
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:220  math(M_DIV, h, top(), at)
+  ; sci/calculus.e16.ts:224  math(M_DIV, h, top(), at)
   call top
   mv a1, s2
   mv a2, a0
   li a0, 4
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:221  pop()
+  ; sci/calculus.e16.ts:225  pop()
   call pop
-  ; sci/calculus.e16.ts:222  central(body, a, h, at)
-  mv a0, s3
-  mv a1, s0
-  mv a2, s2
-  mv a3, s1
-  call central
-  ; sci/calculus.e16.ts:223  halveStep(h, at)
-  mv a0, s2
-  mv a1, s1
-  call halveStep
-  ; sci/calculus.e16.ts:224  central(body, a, h, at)
-  mv a0, s3
-  mv a1, s0
-  mv a2, s2
-  mv a3, s1
-  call central
-  ; sci/calculus.e16.ts:225  halveStep(h, at)
-  mv a0, s2
-  mv a1, s1
-  call halveStep
   ; sci/calculus.e16.ts:226  central(body, a, h, at)
   mv a0, s3
   mv a1, s0
   mv a2, s2
   mv a3, s1
   call central
-  ; sci/calculus.e16.ts:227  const d3 = top()
+  ; sci/calculus.e16.ts:227  halveStep(h, at)
+  mv a0, s2
+  mv a1, s1
+  call halveStep
+  ; sci/calculus.e16.ts:228  central(body, a, h, at)
+  mv a0, s3
+  mv a1, s0
+  mv a2, s2
+  mv a3, s1
+  call central
+  ; sci/calculus.e16.ts:229  halveStep(h, at)
+  mv a0, s2
+  mv a1, s1
+  call halveStep
+  ; sci/calculus.e16.ts:230  central(body, a, h, at)
+  mv a0, s3
+  mv a1, s0
+  mv a2, s2
+  mv a3, s1
+  call central
+  ; sci/calculus.e16.ts:231  const d3 = top()
   call top
   mv s3, a0 ; body/d3
-  ; sci/calculus.e16.ts:228  const d2 = d3 - VALUE_SIZE
+  ; sci/calculus.e16.ts:232  const d2 = d3 - VALUE_SIZE
   addi s2, s3, -36
-  ; sci/calculus.e16.ts:229  const d1 = d2 - VALUE_SIZE
+  ; sci/calculus.e16.ts:233  const d1 = d2 - VALUE_SIZE
   addi t0, s2, -36
   sw t0, 0(sp) ; d1
-  ; sci/calculus.e16.ts:231  richardson(d1, d2, 4, at)
+  ; sci/calculus.e16.ts:235  richardson(d1, d2, 4, at)
   lw a0, 0(sp)
   mv a1, s2
   li a2, 4
   mv a3, s1
   call richardson
-  ; sci/calculus.e16.ts:232  richardson(d2, d3, 4, at)
+  ; sci/calculus.e16.ts:236  richardson(d2, d3, 4, at)
   mv a0, s2
   mv a1, s3
   li a2, 4
   mv a3, s1
   call richardson
-  ; sci/calculus.e16.ts:233  copy8(d2, d3)
+  ; sci/calculus.e16.ts:237  copy8(d2, d3)
   mv a0, s2
   mv a1, s3
   call copy8
-  ; sci/calculus.e16.ts:234  math(M_SUB, d3, d1, at)
+  ; sci/calculus.e16.ts:238  math(M_SUB, d3, d1, at)
   li a0, 2
   mv a1, s3
   lw a2, 0(sp)
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:235  math(M_ABS, d3, 0, at)
+  ; sci/calculus.e16.ts:239  math(M_ABS, d3, 0, at)
   li a0, 17
   mv a1, s3
   li a2, 0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:237  richardson(d1, d2, 16, at)
+  ; sci/calculus.e16.ts:241  richardson(d1, d2, 16, at)
   lw a0, 0(sp)
   mv a1, s2
   li a2, 16
   mv a3, s1
   call richardson
-  ; sci/calculus.e16.ts:239  pushInt(100, at)
+  ; sci/calculus.e16.ts:243  pushInt(100, at)
   li a0, 100
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:240  for (let k: u16 = 0; k < 5; k++) math(M_MUL, d3, top(), at)
+  ; sci/calculus.e16.ts:244  for (let k: u16 = 0; k < 5; k++) math(M_MUL, d3, top(), at)
   sw zero, 2(sp) ; k
   j .L4
 .L2:
-  ; sci/calculus.e16.ts:240  math(M_MUL, d3, top(), at)
+  ; sci/calculus.e16.ts:244  math(M_MUL, d3, top(), at)
   call top
   mv a1, s3
   mv a2, a0
@@ -30291,25 +30295,25 @@ derivative:
   li t0, 5
   lw t1, 2(sp) ; k
   bltu t1, t0, .L2
-  ; sci/calculus.e16.ts:241  pop()
+  ; sci/calculus.e16.ts:245  pop()
   call pop
-  ; sci/calculus.e16.ts:242  copy8(d1, d2)
+  ; sci/calculus.e16.ts:246  copy8(d1, d2)
   lw a0, 0(sp)
   mv a1, s2
   call copy8
-  ; sci/calculus.e16.ts:243  math(M_ABS, d2, 0, at)
+  ; sci/calculus.e16.ts:247  math(M_ABS, d2, 0, at)
   li a0, 17
   mv a1, s2
   li a2, 0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:244  math(M_CMP, d3, d2, at)
+  ; sci/calculus.e16.ts:248  math(M_CMP, d3, d2, at)
   li a0, 6
   mv a1, s3
   mv a2, s2
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:245  poke16(MATH_ARG, i16(peek16(MATH_RESULT)) > 0 ? 9 : 10)
+  ; sci/calculus.e16.ts:249  poke16(MATH_ARG, i16(peek16(MATH_RESULT)) > 0 ? 9 : 10)
   li t0, 65370
   lw t1, 0(t0)
   li t0, 65366
@@ -30321,26 +30325,26 @@ derivative:
   li t1, 10
 .L7:
   sw t1, 0(t0)
-  ; sci/calculus.e16.ts:246  math(M_RNDTO, d1, 0, at)
+  ; sci/calculus.e16.ts:250  math(M_RNDTO, d1, 0, at)
   li a0, 40
   lw a1, 0(sp)
   li a2, 0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:247  copy8(d1, a)
+  ; sci/calculus.e16.ts:251  copy8(d1, a)
   lw a0, 0(sp)
   mv a1, s0
   call copy8
-  ; sci/calculus.e16.ts:248  inexact(a)
+  ; sci/calculus.e16.ts:252  inexact(a)
   mv a0, s0
   call inexact
-  ; sci/calculus.e16.ts:249  pop()
+  ; sci/calculus.e16.ts:253  pop()
   call pop
-  ; sci/calculus.e16.ts:250  pop()
+  ; sci/calculus.e16.ts:254  pop()
   call pop
-  ; sci/calculus.e16.ts:251  pop()
+  ; sci/calculus.e16.ts:255  pop()
   call pop
-  ; sci/calculus.e16.ts:252  pop()
+  ; sci/calculus.e16.ts:256  pop()
   call pop
 .return:
   lw ra, 4(sp)
@@ -30351,7 +30355,7 @@ derivative:
   addi sp, sp, 14
   ret
 
-; sci/calculus.e16.ts:256 halveStep(h, at) at -O1
+; sci/calculus.e16.ts:260 halveStep(h, at) at -O1
 ;   h in s2
 ;   at in s1
 halveStep:
@@ -30361,18 +30365,18 @@ halveStep:
   sw s1, 4(sp)
   mv s2, a0 ; h
   mv s1, a1 ; at
-  ; sci/calculus.e16.ts:257  pushInt(2, at)
+  ; sci/calculus.e16.ts:261  pushInt(2, at)
   li a0, 2
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:258  math(M_DIV, h, top(), at)
+  ; sci/calculus.e16.ts:262  math(M_DIV, h, top(), at)
   call top
   mv a1, s2
   mv a2, a0
   li a0, 4
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:259  pop()
+  ; sci/calculus.e16.ts:263  pop()
   call pop
 .return:
   lw ra, 0(sp)
@@ -30381,7 +30385,7 @@ halveStep:
   addi sp, sp, 6
   ret
 
-; sci/calculus.e16.ts:263 richardson(coarse, fine, k, at) at -O1
+; sci/calculus.e16.ts:267 richardson(coarse, fine, k, at) at -O1
 ;   coarse in s3
 ;   fine in 0(sp)
 ;   k in s0
@@ -30398,51 +30402,51 @@ richardson:
   sw a1, 0(sp) ; fine
   mv s0, a2 ; k
   mv s1, a3 ; at
-  ; sci/calculus.e16.ts:264  const t = push(at)
+  ; sci/calculus.e16.ts:268  const t = push(at)
   mv a0, s1
   call push
   mv s2, a0 ; t
-  ; sci/calculus.e16.ts:265  copy8(fine, t)
+  ; sci/calculus.e16.ts:269  copy8(fine, t)
   lw a0, 0(sp)
   mv a1, s2
   call copy8
-  ; sci/calculus.e16.ts:266  pushInt(k, at)
+  ; sci/calculus.e16.ts:270  pushInt(k, at)
   mv a0, s0
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:267  math(M_MUL, t, top(), at)
+  ; sci/calculus.e16.ts:271  math(M_MUL, t, top(), at)
   call top
   mv a1, s2
   mv a2, a0
   li a0, 3
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:268  pop()
+  ; sci/calculus.e16.ts:272  pop()
   call pop
-  ; sci/calculus.e16.ts:269  math(M_SUB, t, coarse, at)
+  ; sci/calculus.e16.ts:273  math(M_SUB, t, coarse, at)
   li a0, 2
   mv a1, s2
   mv a2, s3
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:270  pushInt(k - 1, at)
+  ; sci/calculus.e16.ts:274  pushInt(k - 1, at)
   addi a0, s0, -1
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:271  math(M_DIV, t, top(), at)
+  ; sci/calculus.e16.ts:275  math(M_DIV, t, top(), at)
   call top
   mv a1, s2
   mv a2, a0
   li a0, 4
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:272  pop()
+  ; sci/calculus.e16.ts:276  pop()
   call pop
-  ; sci/calculus.e16.ts:273  copy8(t, coarse)
+  ; sci/calculus.e16.ts:277  copy8(t, coarse)
   mv a0, s2
   mv a1, s3
   call copy8
-  ; sci/calculus.e16.ts:274  pop()
+  ; sci/calculus.e16.ts:278  pop()
   call pop
 .return:
   lw ra, 2(sp)
@@ -30453,7 +30457,7 @@ richardson:
   addi sp, sp, 12
   ret
 
-; sci/calculus.e16.ts:278 central(body/fm, a/fp, h, at) at -O1
+; sci/calculus.e16.ts:282 central(body/fm, a/fp, h, at) at -O1
 ;   body/fm in s1
 ;   a/fp in s3
 ;   h in 0(sp)
@@ -30471,78 +30475,78 @@ central:
   mv s3, a1 ; a/fp
   sw a2, 0(sp) ; h
   mv s2, a3 ; at
-  ; sci/calculus.e16.ts:279  const out = push(at)
+  ; sci/calculus.e16.ts:283  const out = push(at)
   mv a0, s2
   call push
   sw a0, 2(sp) ; out
-  ; sci/calculus.e16.ts:280  const x = push(at)
+  ; sci/calculus.e16.ts:284  const x = push(at)
   mv a0, s2
   call push
   mv s0, a0 ; x
-  ; sci/calculus.e16.ts:281  copy8(a, x)
+  ; sci/calculus.e16.ts:285  copy8(a, x)
   mv a0, s3
   mv a1, s0
   call copy8
-  ; sci/calculus.e16.ts:282  math(M_ADD, x, h, at)
+  ; sci/calculus.e16.ts:286  math(M_ADD, x, h, at)
   li a0, 1
   mv a1, s0
   lw a2, 0(sp)
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:283  bodyAt(body, x)
+  ; sci/calculus.e16.ts:287  bodyAt(body, x)
   mv a0, s1
   mv a1, s0
   call bodyAt
-  ; sci/calculus.e16.ts:284  copy8(a, x)
+  ; sci/calculus.e16.ts:288  copy8(a, x)
   mv a0, s3
   mv a1, s0
   call copy8
-  ; sci/calculus.e16.ts:285  math(M_SUB, x, h, at)
+  ; sci/calculus.e16.ts:289  math(M_SUB, x, h, at)
   li a0, 2
   mv a1, s0
   lw a2, 0(sp)
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:286  bodyAt(body, x)
+  ; sci/calculus.e16.ts:290  bodyAt(body, x)
   mv a0, s1
   mv a1, s0
   call bodyAt
-  ; sci/calculus.e16.ts:287  const fm = top()
+  ; sci/calculus.e16.ts:291  const fm = top()
   call top
   mv s1, a0 ; body/fm
-  ; sci/calculus.e16.ts:288  const fp = fm - VALUE_SIZE
+  ; sci/calculus.e16.ts:292  const fp = fm - VALUE_SIZE
   addi s3, s1, -36
-  ; sci/calculus.e16.ts:289  math(M_SUB, fp, fm, at)
+  ; sci/calculus.e16.ts:293  math(M_SUB, fp, fm, at)
   li a0, 2
   mv a1, s3
   mv a2, s1
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:290  copy8(h, fm)
+  ; sci/calculus.e16.ts:294  copy8(h, fm)
   lw a0, 0(sp)
   mv a1, s1
   call copy8
-  ; sci/calculus.e16.ts:291  math(M_ADD, fm, h, at)
+  ; sci/calculus.e16.ts:295  math(M_ADD, fm, h, at)
   li a0, 1
   mv a1, s1
   lw a2, 0(sp)
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:292  math(M_DIV, fp, fm, at)
+  ; sci/calculus.e16.ts:296  math(M_DIV, fp, fm, at)
   li a0, 4
   mv a1, s3
   mv a2, s1
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:293  copy8(fp, out)
+  ; sci/calculus.e16.ts:297  copy8(fp, out)
   mv a0, s3
   lw a1, 2(sp)
   call copy8
-  ; sci/calculus.e16.ts:294  pop()
+  ; sci/calculus.e16.ts:298  pop()
   call pop
-  ; sci/calculus.e16.ts:295  pop()
+  ; sci/calculus.e16.ts:299  pop()
   call pop
-  ; sci/calculus.e16.ts:296  pop()
+  ; sci/calculus.e16.ts:300  pop()
   call pop
 .return:
   lw ra, 4(sp)
@@ -30553,7 +30557,7 @@ central:
   addi sp, sp, 14
   ret
 
-; sci/calculus.e16.ts:300 tenDigits(v, at) at -O1
+; sci/calculus.e16.ts:304 tenDigits(v, at) at -O1
 ;   v in s1
 ;   at in s2
 tenDigits:
@@ -30563,11 +30567,11 @@ tenDigits:
   sw s2, 4(sp)
   mv s1, a0 ; v
   mv s2, a1 ; at
-  ; sci/calculus.e16.ts:301  poke16(MATH_ARG, 10)
+  ; sci/calculus.e16.ts:305  poke16(MATH_ARG, 10)
   li t0, 10
   li t1, 65366
   sw t0, 0(t1)
-  ; sci/calculus.e16.ts:302  math(M_RNDTO, v, 0, at)
+  ; sci/calculus.e16.ts:306  math(M_RNDTO, v, 0, at)
   li a0, 40
   mv a1, s1
   li a2, 0
@@ -30580,24 +30584,24 @@ tenDigits:
   addi sp, sp, 6
   ret
 
-; sci/calculus.e16.ts:318 integralReset() at -O1
+; sci/calculus.e16.ts:322 integralReset() at -O1
 integralReset:
-  ; sci/calculus.e16.ts:319  integrating = false
+  ; sci/calculus.e16.ts:323  integrating = false
   sw zero, 0x0608(zero)
 .return:
   ret
 
-; sci/calculus.e16.ts:322 slot(k) at -O1
+; sci/calculus.e16.ts:326 slot(k) at -O1
 ;   k in a0
 slot:
-  ; sci/calculus.e16.ts:323  return I_SLOTS + k * 8
+  ; sci/calculus.e16.ts:327  return I_SLOTS + k * 8
   slli t0, a0, 3
   li t1, 14112
   add a0, t1, t0
 .return:
   ret
 
-; sci/calculus.e16.ts:361 readNodes(at) at -O1
+; sci/calculus.e16.ts:365 readNodes(at) at -O1
 ;   at in s0
 ;   p in s3
 ;   k in s2
@@ -30610,23 +30614,23 @@ readNodes:
   sw s2, 6(sp)
   sw s1, 8(sp)
   mv s0, a0 ; at
-  ; sci/calculus.e16.ts:362  let p = nodeText()
-  ; sci/calculus.e16.ts:352  return str(
+  ; sci/calculus.e16.ts:366  let p = nodeText()
+  ; sci/calculus.e16.ts:356  return str(
   la s3, str_25
-  ; sci/calculus.e16.ts:363  for (let k: u16 = 0; k < 22; k++) {
+  ; sci/calculus.e16.ts:367  for (let k: u16 = 0; k < 22; k++) {
   li s2, 0 ; k
   j .L3
 .L1:
-  ; sci/calculus.e16.ts:364  let n: u16 = 0
+  ; sci/calculus.e16.ts:368  let n: u16 = 0
   li s1, 0 ; n
-  ; sci/calculus.e16.ts:365  while (peek(p + n) !== 0x7c && peek(p + n) !== 0) {
+  ; sci/calculus.e16.ts:369  while (peek(p + n) !== 0x7c && peek(p + n) !== 0) {
   j .L7
 .L5:
-  ; sci/calculus.e16.ts:366  nodeChars[n] = peek(p + n)
+  ; sci/calculus.e16.ts:370  nodeChars[n] = peek(p + n)
   add t0, s3, s1
   lbu t0, 0(t0)
   sb t0, nodeChars(s1)
-  ; sci/calculus.e16.ts:367  n++
+  ; sci/calculus.e16.ts:371  n++
   addi s1, s1, 1
 .L7:
   add t0, s3, s1
@@ -30637,10 +30641,10 @@ readNodes:
   lbu t0, 0(t0)
   bne t0, zero, .L5
 .L9:
-  ; sci/calculus.e16.ts:369  poke16(MATH_ARG, n)
+  ; sci/calculus.e16.ts:373  poke16(MATH_ARG, n)
   li t0, 65366
   sw s1, 0(t0)
-  ; sci/calculus.e16.ts:370  math(M_PARSE, k < 20 ? NODES + k * 8 : slot(I_EPS + k - 20), addr(nodeChars), at)
+  ; sci/calculus.e16.ts:374  math(M_PARSE, k < 20 ? NODES + k * 8 : slot(I_EPS + k - 20), addr(nodeChars), at)
   li t0, 56
   mv t1, s2
   li t2, 20
@@ -30663,7 +30667,7 @@ readNodes:
   la a2, nodeChars
   mv a3, s0
   call math
-  ; sci/calculus.e16.ts:371  p += n + 1
+  ; sci/calculus.e16.ts:375  p += n + 1
   addi t0, s1, 1
   add s3, s3, t0
   addi s2, s2, 1
@@ -30679,7 +30683,7 @@ readNodes:
   addi sp, sp, 10
   ret
 
-; sci/calculus.e16.ts:394 integral(body, a, b/count, at) at -O1
+; sci/calculus.e16.ts:398 integral(body, a, b/count, at) at -O1
 ;   body in 0(sp)
 ;   a in s3
 ;   b/count in s1
@@ -30697,97 +30701,97 @@ integral:
   mv s3, a1 ; a
   mv s1, a2 ; b/count
   mv s2, a3 ; at
-  ; sci/calculus.e16.ts:395  if (integrating) fail(E_MATH, at)
+  ; sci/calculus.e16.ts:399  if (integrating) fail(E_MATH, at)
   lw t0, 0x0608(zero)
   beqz t0, .L1
-  ; sci/calculus.e16.ts:395  fail(E_MATH, at)
+  ; sci/calculus.e16.ts:399  fail(E_MATH, at)
   li a0, 1
   mv a1, s2
   call fail
 .L1:
-  ; sci/calculus.e16.ts:396  integrating = true
+  ; sci/calculus.e16.ts:400  integrating = true
   li t0, 1
   sw t0, 0x0608(zero)
-  ; sci/calculus.e16.ts:397  readNodes(at)
+  ; sci/calculus.e16.ts:401  readNodes(at)
   mv a0, s2
   call readNodes
-  ; sci/calculus.e16.ts:398  const x = push(at)
+  ; sci/calculus.e16.ts:402  const x = push(at)
   mv a0, s2
   call push
   sw a0, 2(sp) ; x
-  ; sci/calculus.e16.ts:399  zeroAt(slot(I_TOTAL))
+  ; sci/calculus.e16.ts:403  zeroAt(slot(I_TOTAL))
   li a0, 14184
   call zeroAt
-  ; sci/calculus.e16.ts:400  copy8(a, slot(I_A))
+  ; sci/calculus.e16.ts:404  copy8(a, slot(I_A))
   mv a0, s3
   li a1, 14232
   call copy8
-  ; sci/calculus.e16.ts:401  copy8(b, slot(I_SPAN))
+  ; sci/calculus.e16.ts:405  copy8(b, slot(I_SPAN))
   mv a0, s1
   li a1, 14240
   call copy8
-  ; sci/calculus.e16.ts:402  math(M_SUB, slot(I_SPAN), a, at)
+  ; sci/calculus.e16.ts:406  math(M_SUB, slot(I_SPAN), a, at)
   li a0, 2
   li a1, 14240
   mv a2, s3
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:403  wholeInto(slot(I_WIDTH), 1)
+  ; sci/calculus.e16.ts:407  wholeInto(slot(I_WIDTH), 1)
   li a0, 14200
   li a1, 1
   call wholeInto
-  ; sci/calculus.e16.ts:404  let count: u16 = 0
+  ; sci/calculus.e16.ts:408  let count: u16 = 0
   li s1, 0 ; b/count
-  ; sci/calculus.e16.ts:405  if (!isZero(slot(I_SPAN))) {
+  ; sci/calculus.e16.ts:409  if (!isZero(slot(I_SPAN))) {
   li a0, 14240
   call isZero
   bnez a0, .L2
-  ; sci/calculus.e16.ts:406  wholeInto(INTERVALS, 0)
+  ; sci/calculus.e16.ts:410  wholeInto(INTERVALS, 0)
   li a0, 13568
   li a1, 0
   call wholeInto
-  ; sci/calculus.e16.ts:407  wholeInto(INTERVALS + 8, 1)
+  ; sci/calculus.e16.ts:411  wholeInto(INTERVALS + 8, 1)
   li a0, 13576
   li a1, 1
   call wholeInto
-  ; sci/calculus.e16.ts:408  count = 1
+  ; sci/calculus.e16.ts:412  count = 1
   li s1, 1 ; b/count
 .L2:
-  ; sci/calculus.e16.ts:410  let first = true
+  ; sci/calculus.e16.ts:414  let first = true
   li s0, 1 ; first
-  ; sci/calculus.e16.ts:411  while (count > 0) {
+  ; sci/calculus.e16.ts:415  while (count > 0) {
   j .L5
 .L3:
-  ; sci/calculus.e16.ts:412  count--
+  ; sci/calculus.e16.ts:416  count--
   addi s1, s1, -1
-  ; sci/calculus.e16.ts:413  copy8(INTERVALS + count * 16, slot(I_LO))
+  ; sci/calculus.e16.ts:417  copy8(INTERVALS + count * 16, slot(I_LO))
   slli t0, s1, 4
   li t1, 13568
   add a0, t1, t0
   li a1, 14112
   call copy8
-  ; sci/calculus.e16.ts:414  copy8(INTERVALS + count * 16 + 8, slot(I_HI))
+  ; sci/calculus.e16.ts:418  copy8(INTERVALS + count * 16 + 8, slot(I_HI))
   slli t0, s1, 4
   li t1, 13568
   add t1, t1, t0
   addi a0, t1, 8
   li a1, 14120
   call copy8
-  ; sci/calculus.e16.ts:415  kronrod(body, x, at)
+  ; sci/calculus.e16.ts:419  kronrod(body, x, at)
   lw a0, 0(sp)
   lw a1, 2(sp)
   mv a2, s2
   call kronrod
-  ; sci/calculus.e16.ts:416  if (first) copy8(slot(I_ABS), slot(I_SCALE))
+  ; sci/calculus.e16.ts:420  if (first) copy8(slot(I_ABS), slot(I_SCALE))
   beqz s0, .L7
-  ; sci/calculus.e16.ts:416  copy8(slot(I_ABS), slot(I_SCALE))
+  ; sci/calculus.e16.ts:420  copy8(slot(I_ABS), slot(I_SCALE))
   li a0, 14160
   li a1, 14192
   call copy8
 .L7:
-  ; sci/calculus.e16.ts:417  first = false
+  ; sci/calculus.e16.ts:421  first = false
   li s0, 0 ; first
-  ; sci/calculus.e16.ts:418  if (good(at) || count + 2 > MAX_INTERVALS) math(M_ADD, slot(I_TOTAL), slot(I_KRONROD), at)
+  ; sci/calculus.e16.ts:422  if (good(at) || count + 2 > MAX_INTERVALS) math(M_ADD, slot(I_TOTAL), slot(I_KRONROD), at)
   mv a0, s2
   call good
   bnez a0, .L9
@@ -30795,7 +30799,7 @@ integral:
   addi t1, s1, 2
   bgeu t0, t1, .L8
 .L9:
-  ; sci/calculus.e16.ts:418  math(M_ADD, slot(I_TOTAL), slot(I_KRONROD), at)
+  ; sci/calculus.e16.ts:422  math(M_ADD, slot(I_TOTAL), slot(I_KRONROD), at)
   li a0, 1
   li a1, 14184
   li a2, 14144
@@ -30803,52 +30807,52 @@ integral:
   call math
   j .L10
 .L8:
-  ; sci/calculus.e16.ts:421  copy8(slot(I_CENTRE), INTERVALS + count * 16)
+  ; sci/calculus.e16.ts:425  copy8(slot(I_CENTRE), INTERVALS + count * 16)
   slli t0, s1, 4
   li t1, 13568
   add a1, t1, t0
   li a0, 14128
   call copy8
-  ; sci/calculus.e16.ts:422  copy8(slot(I_HI), INTERVALS + count * 16 + 8)
+  ; sci/calculus.e16.ts:426  copy8(slot(I_HI), INTERVALS + count * 16 + 8)
   slli t0, s1, 4
   li t1, 13568
   add t1, t1, t0
   li a0, 14120
   addi a1, t1, 8
   call copy8
-  ; sci/calculus.e16.ts:423  copy8(slot(I_LO), INTERVALS + count * 16 + 16)
+  ; sci/calculus.e16.ts:427  copy8(slot(I_LO), INTERVALS + count * 16 + 16)
   slli t0, s1, 4
   li t1, 13568
   add t1, t1, t0
   li a0, 14112
   addi a1, t1, 16
   call copy8
-  ; sci/calculus.e16.ts:424  copy8(slot(I_CENTRE), INTERVALS + count * 16 + 24)
+  ; sci/calculus.e16.ts:428  copy8(slot(I_CENTRE), INTERVALS + count * 16 + 24)
   slli t0, s1, 4
   li t1, 13568
   add t1, t1, t0
   li a0, 14128
   addi a1, t1, 24
   call copy8
-  ; sci/calculus.e16.ts:425  count += 2
+  ; sci/calculus.e16.ts:429  count += 2
   addi s1, s1, 2
 .L10:
 .L5:
   bltu zero, s1, .L3
-  ; sci/calculus.e16.ts:428  pop()
+  ; sci/calculus.e16.ts:432  pop()
   call pop
-  ; sci/calculus.e16.ts:429  copy8(slot(I_TOTAL), a)
+  ; sci/calculus.e16.ts:433  copy8(slot(I_TOTAL), a)
   li a0, 14184
   mv a1, s3
   call copy8
-  ; sci/calculus.e16.ts:430  tenDigits(a, at)
+  ; sci/calculus.e16.ts:434  tenDigits(a, at)
   mv a0, s3
   mv a1, s2
   call tenDigits
-  ; sci/calculus.e16.ts:431  inexact(a)
+  ; sci/calculus.e16.ts:435  inexact(a)
   mv a0, s3
   call inexact
-  ; sci/calculus.e16.ts:432  integrating = false
+  ; sci/calculus.e16.ts:436  integrating = false
   sw zero, 0x0608(zero)
 .return:
   lw ra, 4(sp)
@@ -30859,15 +30863,15 @@ integral:
   addi sp, sp, 14
   ret
 
-; sci/calculus.e16.ts:435 zeroAt(v) at -O1
+; sci/calculus.e16.ts:439 zeroAt(v) at -O1
 ;   v in a0
 ;   i in a1
 zeroAt:
-  ; sci/calculus.e16.ts:436  for (let i: u16 = 0; i < 8; i += 2) poke16(v + i, 0)
+  ; sci/calculus.e16.ts:440  for (let i: u16 = 0; i < 8; i += 2) poke16(v + i, 0)
   li a1, 0 ; i
   j .L3
 .L1:
-  ; sci/calculus.e16.ts:436  poke16(v + i, 0)
+  ; sci/calculus.e16.ts:440  poke16(v + i, 0)
   add t0, a0, a1
   sw zero, 0(t0)
   addi a1, a1, 2
@@ -30877,7 +30881,7 @@ zeroAt:
 .return:
   ret
 
-; sci/calculus.e16.ts:443 good(at) at -O1
+; sci/calculus.e16.ts:447 good(at) at -O1
 ;   at in s1
 ;   width in s2
 ;   diff in s3
@@ -30888,81 +30892,81 @@ good:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; at
-  ; sci/calculus.e16.ts:444  const width = slot(I_LIMIT)
+  ; sci/calculus.e16.ts:448  const width = slot(I_LIMIT)
   li s2, 14208 ; width
-  ; sci/calculus.e16.ts:445  copy8(slot(I_HI), width)
+  ; sci/calculus.e16.ts:449  copy8(slot(I_HI), width)
   li a0, 14120
   mv a1, s2
   call copy8
-  ; sci/calculus.e16.ts:446  math(M_SUB, width, slot(I_LO), at)
+  ; sci/calculus.e16.ts:450  math(M_SUB, width, slot(I_LO), at)
   li a0, 2
   mv a1, s2
   li a2, 14112
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:447  math(M_ABS, width, 0, at)
+  ; sci/calculus.e16.ts:451  math(M_ABS, width, 0, at)
   li a0, 17
   mv a1, s2
   li a2, 0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:448  math(M_DIV, width, slot(I_WIDTH), at)
+  ; sci/calculus.e16.ts:452  math(M_DIV, width, slot(I_WIDTH), at)
   li a0, 4
   mv a1, s2
   li a2, 14200
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:449  math(M_CMP, width, slot(I_TINY), at)
+  ; sci/calculus.e16.ts:453  math(M_CMP, width, slot(I_TINY), at)
   li a0, 6
   mv a1, s2
   li a2, 14224
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:450  if (i16(peek16(MATH_RESULT)) <= 0) return true
+  ; sci/calculus.e16.ts:454  if (i16(peek16(MATH_RESULT)) <= 0) return true
   li t0, 65370
   lw t0, 0(t0)
   blt zero, t0, .L1
-  ; sci/calculus.e16.ts:450  return true
+  ; sci/calculus.e16.ts:454  return true
   li a0, 1
   j .return
 .L1:
-  ; sci/calculus.e16.ts:451  math(M_MUL, width, slot(I_SCALE), at)
+  ; sci/calculus.e16.ts:455  math(M_MUL, width, slot(I_SCALE), at)
   li a0, 3
   mv a1, s2
   li a2, 14192
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:452  math(M_MUL, width, slot(I_EPS), at)
+  ; sci/calculus.e16.ts:456  math(M_MUL, width, slot(I_EPS), at)
   li a0, 3
   mv a1, s2
   li a2, 14216
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:453  const diff = slot(I_SPARE)
+  ; sci/calculus.e16.ts:457  const diff = slot(I_SPARE)
   li s3, 14176 ; diff
-  ; sci/calculus.e16.ts:454  copy8(slot(I_KRONROD), diff)
+  ; sci/calculus.e16.ts:458  copy8(slot(I_KRONROD), diff)
   li a0, 14144
   mv a1, s3
   call copy8
-  ; sci/calculus.e16.ts:455  math(M_SUB, diff, slot(I_GAUSS), at)
+  ; sci/calculus.e16.ts:459  math(M_SUB, diff, slot(I_GAUSS), at)
   li a0, 2
   mv a1, s3
   li a2, 14152
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:456  math(M_ABS, diff, 0, at)
+  ; sci/calculus.e16.ts:460  math(M_ABS, diff, 0, at)
   li a0, 17
   mv a1, s3
   li a2, 0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:457  math(M_CMP, diff, width, at)
+  ; sci/calculus.e16.ts:461  math(M_CMP, diff, width, at)
   li a0, 6
   mv a1, s3
   mv a2, s2
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:458  return i16(peek16(MATH_RESULT)) <= 0
+  ; sci/calculus.e16.ts:462  return i16(peek16(MATH_RESULT)) <= 0
   li t0, 65370
   lw t0, 0(t0)
   slt t0, zero, t0
@@ -30975,7 +30979,7 @@ good:
   addi sp, sp, 8
   ret
 
-; sci/calculus.e16.ts:462 kronrod(body, x, at) at -O1
+; sci/calculus.e16.ts:466 kronrod(body, x, at) at -O1
 ;   body in 0(sp)
 ;   x in s3
 ;   at in s1
@@ -30992,76 +30996,76 @@ kronrod:
   sw a0, 0(sp) ; body
   mv s3, a1 ; x
   mv s1, a2 ; at
-  ; sci/calculus.e16.ts:463  copy8(slot(I_LO), slot(I_CENTRE))
+  ; sci/calculus.e16.ts:467  copy8(slot(I_LO), slot(I_CENTRE))
   li a0, 14112
   li a1, 14128
   call copy8
-  ; sci/calculus.e16.ts:464  math(M_ADD, slot(I_CENTRE), slot(I_HI), at)
+  ; sci/calculus.e16.ts:468  math(M_ADD, slot(I_CENTRE), slot(I_HI), at)
   li a0, 1
   li a1, 14128
   li a2, 14120
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:465  pushInt(2, at)
+  ; sci/calculus.e16.ts:469  pushInt(2, at)
   li a0, 2
   mv a1, s1
   call pushInt
-  ; sci/calculus.e16.ts:466  math(M_DIV, slot(I_CENTRE), top(), at)
+  ; sci/calculus.e16.ts:470  math(M_DIV, slot(I_CENTRE), top(), at)
   call top
   li a1, 14128
   mv a2, a0
   li a0, 4
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:467  copy8(slot(I_HI), slot(I_HALF))
+  ; sci/calculus.e16.ts:471  copy8(slot(I_HI), slot(I_HALF))
   li a0, 14120
   li a1, 14136
   call copy8
-  ; sci/calculus.e16.ts:468  math(M_SUB, slot(I_HALF), slot(I_CENTRE), at)
+  ; sci/calculus.e16.ts:472  math(M_SUB, slot(I_HALF), slot(I_CENTRE), at)
   li a0, 2
   li a1, 14136
   li a2, 14128
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:469  pop()
+  ; sci/calculus.e16.ts:473  pop()
   call pop
-  ; sci/calculus.e16.ts:470  zeroAt(slot(I_KRONROD))
+  ; sci/calculus.e16.ts:474  zeroAt(slot(I_KRONROD))
   li a0, 14144
   call zeroAt
-  ; sci/calculus.e16.ts:471  zeroAt(slot(I_GAUSS))
+  ; sci/calculus.e16.ts:475  zeroAt(slot(I_GAUSS))
   li a0, 14152
   call zeroAt
-  ; sci/calculus.e16.ts:472  zeroAt(slot(I_ABS))
+  ; sci/calculus.e16.ts:476  zeroAt(slot(I_ABS))
   li a0, 14160
   call zeroAt
-  ; sci/calculus.e16.ts:473  copy8(slot(I_CENTRE), x)
+  ; sci/calculus.e16.ts:477  copy8(slot(I_CENTRE), x)
   li a0, 14128
   mv a1, s3
   call copy8
-  ; sci/calculus.e16.ts:474  fOf(body, x, at)
+  ; sci/calculus.e16.ts:478  fOf(body, x, at)
   lw a0, 0(sp)
   mv a1, s3
   mv a2, s1
   call fOf
-  ; sci/calculus.e16.ts:475  weigh(wk(7), wg(3), at)
+  ; sci/calculus.e16.ts:479  weigh(wk(7), wg(3), at)
   li a0, 14072
   li a1, 14104
   mv a2, s1
   call weigh
-  ; sci/calculus.e16.ts:476  for (let j: u16 = 0; j < 7; j++) {
+  ; sci/calculus.e16.ts:480  for (let j: u16 = 0; j < 7; j++) {
   li s2, 0 ; j/k
   j .L3
 .L1:
-  ; sci/calculus.e16.ts:477  for (let side: u16 = 0; side < 2; side++) {
+  ; sci/calculus.e16.ts:481  for (let side: u16 = 0; side < 2; side++) {
   li s0, 0 ; side
   j .L7
 .L5:
-  ; sci/calculus.e16.ts:478  copy8(slot(I_HALF), x)
+  ; sci/calculus.e16.ts:482  copy8(slot(I_HALF), x)
   li a0, 14136
   mv a1, s3
   call copy8
-  ; sci/calculus.e16.ts:479  math(M_MUL, x, xk(j), at)
-  ; sci/calculus.e16.ts:376  return NODES + j * 8
+  ; sci/calculus.e16.ts:483  math(M_MUL, x, xk(j), at)
+  ; sci/calculus.e16.ts:380  return NODES + j * 8
   slli t0, s2, 3
   li t1, 13952
   add a2, t1, t0
@@ -31069,9 +31073,9 @@ kronrod:
   mv a1, s3
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:480  if (side === 0) math(M_ADD, x, slot(I_CENTRE), at)
+  ; sci/calculus.e16.ts:484  if (side === 0) math(M_ADD, x, slot(I_CENTRE), at)
   bne s0, zero, .L9
-  ; sci/calculus.e16.ts:480  math(M_ADD, x, slot(I_CENTRE), at)
+  ; sci/calculus.e16.ts:484  math(M_ADD, x, slot(I_CENTRE), at)
   li a0, 1
   mv a1, s3
   li a2, 14128
@@ -31079,28 +31083,28 @@ kronrod:
   call math
   j .L10
 .L9:
-  ; sci/calculus.e16.ts:482  copy8(x, slot(I_SPARE))
+  ; sci/calculus.e16.ts:486  copy8(x, slot(I_SPARE))
   mv a0, s3
   li a1, 14176
   call copy8
-  ; sci/calculus.e16.ts:483  copy8(slot(I_CENTRE), x)
+  ; sci/calculus.e16.ts:487  copy8(slot(I_CENTRE), x)
   li a0, 14128
   mv a1, s3
   call copy8
-  ; sci/calculus.e16.ts:484  math(M_SUB, x, slot(I_SPARE), at)
+  ; sci/calculus.e16.ts:488  math(M_SUB, x, slot(I_SPARE), at)
   li a0, 2
   mv a1, s3
   li a2, 14176
   mv a3, s1
   call math
 .L10:
-  ; sci/calculus.e16.ts:486  fOf(body, x, at)
+  ; sci/calculus.e16.ts:490  fOf(body, x, at)
   lw a0, 0(sp)
   mv a1, s3
   mv a2, s1
   call fOf
-  ; sci/calculus.e16.ts:487  weigh(wk(j), (j & 1) !== 0 ? wg(j >> 1) : 0, at)
-  ; sci/calculus.e16.ts:380  return NODES + 64 + j * 8
+  ; sci/calculus.e16.ts:491  weigh(wk(j), (j & 1) !== 0 ? wg(j >> 1) : 0, at)
+  ; sci/calculus.e16.ts:384  return NODES + 64 + j * 8
   slli t0, s2, 3
   li t1, 14016
   add t1, t1, t0
@@ -31112,7 +31116,7 @@ kronrod:
   beq t1, t2, .L11
   srli t1, s2, 1
   sw t1, 2(sp) ; wg.j
-  ; sci/calculus.e16.ts:384  return NODES + 128 + j * 8
+  ; sci/calculus.e16.ts:388  return NODES + 128 + j * 8
   lw t1, 2(sp) ; wg.j
   slli t1, t1, 3
   li t2, 14080
@@ -31133,11 +31137,11 @@ kronrod:
 .L3:
   li t0, 7
   bltu s2, t0, .L1
-  ; sci/calculus.e16.ts:490  for (let k: u16 = I_KRONROD; k <= I_ABS; k++) math(M_MUL, slot(k), slot(I_HALF), at)
+  ; sci/calculus.e16.ts:494  for (let k: u16 = I_KRONROD; k <= I_ABS; k++) math(M_MUL, slot(k), slot(I_HALF), at)
   li s2, 4 ; j/k
   j .L15
 .L13:
-  ; sci/calculus.e16.ts:490  math(M_MUL, slot(k), slot(I_HALF), at)
+  ; sci/calculus.e16.ts:494  math(M_MUL, slot(k), slot(I_HALF), at)
   mv a0, s2
   call slot
   mv a1, a0
@@ -31149,7 +31153,7 @@ kronrod:
 .L15:
   li t0, 6
   bgeu t0, s2, .L13
-  ; sci/calculus.e16.ts:491  math(M_ABS, slot(I_ABS), 0, at)
+  ; sci/calculus.e16.ts:495  math(M_ABS, slot(I_ABS), 0, at)
   li a0, 17
   li a1, 14160
   li a2, 0
@@ -31164,7 +31168,7 @@ kronrod:
   addi sp, sp, 14
   ret
 
-; sci/calculus.e16.ts:495 fOf(body, x, at) at -O1
+; sci/calculus.e16.ts:499 fOf(body, x, at) at -O1
 ;   body in 0(sp)
 ;   x in s2
 ;   at in s1
@@ -31180,104 +31184,104 @@ fOf:
   sw a0, 0(sp) ; body
   mv s2, a1 ; x
   mv s1, a2 ; at
-  ; sci/calculus.e16.ts:496  const t = slot(I_T)
+  ; sci/calculus.e16.ts:500  const t = slot(I_T)
   li s0, 14248 ; t
-  ; sci/calculus.e16.ts:497  const w = slot(I_WEIGHT)
+  ; sci/calculus.e16.ts:501  const w = slot(I_WEIGHT)
   li s3, 14256 ; w
-  ; sci/calculus.e16.ts:498  copy8(x, t)
+  ; sci/calculus.e16.ts:502  copy8(x, t)
   mv a0, s2
   mv a1, s0
   call copy8
-  ; sci/calculus.e16.ts:499  wholeInto(w, 2)
+  ; sci/calculus.e16.ts:503  wholeInto(w, 2)
   mv a0, s3
   li a1, 2
   call wholeInto
-  ; sci/calculus.e16.ts:500  math(M_MUL, w, t, at)
+  ; sci/calculus.e16.ts:504  math(M_MUL, w, t, at)
   li a0, 3
   mv a1, s3
   mv a2, s0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:501  wholeInto(x, 3)
+  ; sci/calculus.e16.ts:505  wholeInto(x, 3)
   mv a0, s2
   li a1, 3
   call wholeInto
-  ; sci/calculus.e16.ts:502  math(M_SUB, x, w, at)
+  ; sci/calculus.e16.ts:506  math(M_SUB, x, w, at)
   li a0, 2
   mv a1, s2
   mv a2, s3
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:503  math(M_MUL, x, t, at)
+  ; sci/calculus.e16.ts:507  math(M_MUL, x, t, at)
   li a0, 3
   mv a1, s2
   mv a2, s0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:504  math(M_MUL, x, t, at)
+  ; sci/calculus.e16.ts:508  math(M_MUL, x, t, at)
   li a0, 3
   mv a1, s2
   mv a2, s0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:505  math(M_MUL, x, slot(I_SPAN), at)
+  ; sci/calculus.e16.ts:509  math(M_MUL, x, slot(I_SPAN), at)
   li a0, 3
   mv a1, s2
   li a2, 14240
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:506  math(M_ADD, x, slot(I_A), at)
+  ; sci/calculus.e16.ts:510  math(M_ADD, x, slot(I_A), at)
   li a0, 1
   mv a1, s2
   li a2, 14232
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:507  wholeInto(w, 1)
+  ; sci/calculus.e16.ts:511  wholeInto(w, 1)
   mv a0, s3
   li a1, 1
   call wholeInto
-  ; sci/calculus.e16.ts:508  math(M_SUB, w, t, at)
+  ; sci/calculus.e16.ts:512  math(M_SUB, w, t, at)
   li a0, 2
   mv a1, s3
   mv a2, s0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:509  math(M_MUL, w, t, at)
+  ; sci/calculus.e16.ts:513  math(M_MUL, w, t, at)
   li a0, 3
   mv a1, s3
   mv a2, s0
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:510  math(M_MUL, w, slot(I_SPAN), at)
+  ; sci/calculus.e16.ts:514  math(M_MUL, w, slot(I_SPAN), at)
   li a0, 3
   mv a1, s3
   li a2, 14240
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:511  wholeInto(slot(I_F), 6)
+  ; sci/calculus.e16.ts:515  wholeInto(slot(I_F), 6)
   li a0, 14168
   li a1, 6
   call wholeInto
-  ; sci/calculus.e16.ts:512  math(M_MUL, w, slot(I_F), at)
+  ; sci/calculus.e16.ts:516  math(M_MUL, w, slot(I_F), at)
   li a0, 3
   mv a1, s3
   li a2, 14168
   mv a3, s1
   call math
-  ; sci/calculus.e16.ts:513  inexact(x)
+  ; sci/calculus.e16.ts:517  inexact(x)
   mv a0, s2
   call inexact
-  ; sci/calculus.e16.ts:514  bodyAt(body, x)
+  ; sci/calculus.e16.ts:518  bodyAt(body, x)
   lw a0, 0(sp)
   mv a1, s2
   call bodyAt
-  ; sci/calculus.e16.ts:515  copy8(top(), slot(I_F))
+  ; sci/calculus.e16.ts:519  copy8(top(), slot(I_F))
   call top
   li a1, 14168
   call copy8
-  ; sci/calculus.e16.ts:516  pop()
+  ; sci/calculus.e16.ts:520  pop()
   call pop
-  ; sci/calculus.e16.ts:517  math(M_MUL, slot(I_F), w, at)
+  ; sci/calculus.e16.ts:521  math(M_MUL, slot(I_F), w, at)
   li a0, 3
   li a1, 14168
   mv a2, s3
@@ -31292,7 +31296,7 @@ fOf:
   addi sp, sp, 12
   ret
 
-; sci/calculus.e16.ts:521 weigh(kronrodWeight, gauss, at) at -O1
+; sci/calculus.e16.ts:525 weigh(kronrodWeight, gauss, at) at -O1
 ;   kronrodWeight in s3
 ;   gauss in s0
 ;   at in s2
@@ -31307,60 +31311,60 @@ weigh:
   mv s3, a0 ; kronrodWeight
   mv s0, a1 ; gauss
   mv s2, a2 ; at
-  ; sci/calculus.e16.ts:522  const s = slot(I_SPARE)
+  ; sci/calculus.e16.ts:526  const s = slot(I_SPARE)
   li s1, 14176 ; s
-  ; sci/calculus.e16.ts:523  copy8(slot(I_F), s)
+  ; sci/calculus.e16.ts:527  copy8(slot(I_F), s)
   li a0, 14168
   mv a1, s1
   call copy8
-  ; sci/calculus.e16.ts:524  math(M_MUL, s, kronrodWeight, at)
+  ; sci/calculus.e16.ts:528  math(M_MUL, s, kronrodWeight, at)
   li a0, 3
   mv a1, s1
   mv a2, s3
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:525  math(M_ADD, slot(I_KRONROD), s, at)
+  ; sci/calculus.e16.ts:529  math(M_ADD, slot(I_KRONROD), s, at)
   li a0, 1
   li a1, 14144
   mv a2, s1
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:526  if (gauss !== 0) {
+  ; sci/calculus.e16.ts:530  if (gauss !== 0) {
   beq s0, zero, .L1
-  ; sci/calculus.e16.ts:527  copy8(slot(I_F), s)
+  ; sci/calculus.e16.ts:531  copy8(slot(I_F), s)
   li a0, 14168
   mv a1, s1
   call copy8
-  ; sci/calculus.e16.ts:528  math(M_MUL, s, gauss, at)
+  ; sci/calculus.e16.ts:532  math(M_MUL, s, gauss, at)
   li a0, 3
   mv a1, s1
   mv a2, s0
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:529  math(M_ADD, slot(I_GAUSS), s, at)
+  ; sci/calculus.e16.ts:533  math(M_ADD, slot(I_GAUSS), s, at)
   li a0, 1
   li a1, 14152
   mv a2, s1
   mv a3, s2
   call math
 .L1:
-  ; sci/calculus.e16.ts:531  copy8(slot(I_F), s)
+  ; sci/calculus.e16.ts:535  copy8(slot(I_F), s)
   li a0, 14168
   mv a1, s1
   call copy8
-  ; sci/calculus.e16.ts:532  math(M_ABS, s, 0, at)
+  ; sci/calculus.e16.ts:536  math(M_ABS, s, 0, at)
   li a0, 17
   mv a1, s1
   li a2, 0
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:533  math(M_MUL, s, kronrodWeight, at)
+  ; sci/calculus.e16.ts:537  math(M_MUL, s, kronrodWeight, at)
   li a0, 3
   mv a1, s1
   mv a2, s3
   mv a3, s2
   call math
-  ; sci/calculus.e16.ts:534  math(M_ADD, slot(I_ABS), s, at)
+  ; sci/calculus.e16.ts:538  math(M_ADD, slot(I_ABS), s, at)
   li a0, 1
   li a1, 14160
   mv a2, s1

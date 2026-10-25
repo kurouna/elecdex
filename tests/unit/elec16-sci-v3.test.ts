@@ -437,3 +437,38 @@ describe('inequalities (section 15.6)', () => {
     expect(lineAt(m, 1, true)).toBe('ERR:MATH')
   })
 })
+
+describe('found in the review of v3', () => {
+  // Π( and Σ( shared one flag: one inside the other left it as the inner one set it, and the
+  // outer then multiplied where it should add (0 for any Σ) or added where it should multiply.
+  it.each([
+    [
+      'Σ(Π(2,1,1),1,3)',
+      'func 0 func fp:MORE 2 2 shift lp 1 shift lp 1 rp shift lp 1 shift lp 3',
+      '6',
+    ],
+    [
+      'Π(Σ(1,1,2),1,3)',
+      'func fp:MORE 2 func 0 1 shift lp 1 shift lp 2 rp shift lp 1 shift lp 3',
+      '8',
+    ],
+    [
+      'Σ(Π(X,1,2)×X,1,2)',
+      'func 0 func fp:MORE 2 alpha lp shift lp 1 shift lp 2 rp mul alpha lp shift lp 1 shift lp 2',
+      '6',
+    ],
+  ])('%s is %s: Σ and Π one inside the other', (_, line, value) => {
+    const m = switchOn()
+    keys(m, `${line} eq`)
+    expect(ans(m)).toBe(value)
+  })
+
+  // mod after an answer began a new line without Ans, and = said SYNTAX.
+  it('goes on from Ans after an answer, as ÷ does', () => {
+    const m = switchOn()
+    keys(m, '1 7 eq func fp:MORE 1 5')
+    expect(rows(m)[0]).toBe('Ans mod 5')
+    keys(m, 'eq')
+    expect(ans(m)).toBe('2')
+  })
+})

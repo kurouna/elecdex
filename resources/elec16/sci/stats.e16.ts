@@ -899,16 +899,14 @@ export function normal(f: u16, x: u16, at: u16): void {
   const negative = isNegative(x)
   copy8(x, addr(distAt))
   if (negative) math(M_NEG, addr(distAt), 0, at)
+  wholeInto(addr(distWork), 2)
+  const series = smaller(addr(distAt), addr(distWork))
   wholeInto(addr(distWork), 21)
-  if (!smaller(addr(distAt), addr(distWork))) {
-    // Past 21 the tail is under 10⁻⁹⁹, the unit's least.
-    wholeInto(addr(distTail), 0)
-  } else {
-    wholeInto(addr(distWork), 2)
-    if (smaller(addr(distAt), addr(distWork))) distSeries(at)
-    else distFraction(at)
-  }
-  if (smaller(addr(distAt), addr(distWork))) {
+  // Past 21 the tail is under 10⁻⁹⁹, the unit's least.
+  if (!smaller(addr(distAt), addr(distWork))) wholeInto(addr(distTail), 0)
+  else if (series) distSeries(at)
+  else distFraction(at)
+  if (series) {
     halfInto(addr(distTail))
     math(M_SUB, addr(distTail), addr(distArea), at)
   } else {
@@ -967,7 +965,6 @@ function distSeries(at: u16): void {
   }
   density(at)
   math(M_MUL, addr(distArea), addr(distWork), at)
-  wholeInto(addr(distWork), 2)
 }
 
 /** The tail past |t| from 2: φ(t) / (t + 1/(t + 2/(t + 3/(t + ...)))), 80 deep from the end. */
@@ -982,7 +979,6 @@ function distFraction(at: u16): void {
   density(at)
   math(M_DIV, addr(distWork), addr(distTail), at)
   copy8(addr(distWork), addr(distTail))
-  wholeInto(addr(distWork), 2)
 }
 
 /** x→z: (x - x̄) / σx by STATS' table, at `v`; MATH without data or with σx 0. */

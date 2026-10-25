@@ -64,7 +64,10 @@ import {
 
 const X_LETTER = 0x58
 
-/** Whether the Σ being worked out is Π's: its terms multiplied. */
+/**
+ * Whether the Σ starting is Π's, its terms multiplied: read once as it starts, since a Σ or Π
+ * in its body sets it again (found in a review: Σ(Π(2,1,1),1,3) was 0).
+ */
 let multiplying: bool = false
 
 /**
@@ -150,12 +153,13 @@ function bodyAt(body: u16, x: u16): void {
 /** Σ: X from a to b (whole, at most 1000 terms), the terms added exactly into a; Π multiplies. */
 function sigma(body: u16, a: u16, b: u16, at: u16): void {
   const terms = termCount(a, b, at)
-  const sum = pushInt(multiplying ? 1 : 0, at)
+  const times = multiplying
+  const sum = pushInt(times ? 1 : 0, at)
   const x = push(at)
   copyValue(a, x)
   for (let i: u16 = 0; i < terms; i++) {
     bodyAt(body, x)
-    if (multiplying) {
+    if (times) {
       math(M_MUL, sum, top(), at)
       exactBinary(M_MUL, sum, top())
       pop()

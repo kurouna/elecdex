@@ -120,6 +120,7 @@ import {
   T_MIN,
   T_MINUS,
   T_MIXED,
+  T_MOD,
   T_NCR,
   T_NPR,
   T_PLUS,
@@ -979,7 +980,8 @@ function fromAns(t: u16): bool {
     t === T_NPR ||
     (t >= T_AND && t <= T_XNOR) ||
     (t >= T_FEMTO && t <= T_TERA) ||
-    t === T_TOZ
+    t === T_TOZ ||
+    t === T_MOD
   )
 }
 
