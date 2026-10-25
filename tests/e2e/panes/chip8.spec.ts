@@ -823,8 +823,12 @@ test('the line between the library list and the details is dragged, kept, and pu
       (await page.locator('[role=listbox]:not([inert])').boundingBox())?.width ?? 0
     const page = launched.page
     await expect(page.getByTestId('chip8-split')).toBeVisible()
-    // Measured once the list has powered on (it opens from a line).
+    // Measured once the list has powered on (it opens from a line) and the layout has settled:
+    // measured as soon as it passed 300, the double-click's half after the relaunch missed it by
+    // 108-117 on the CI runners (2026-10-25) - the same each time, never seen here, so the half
+    // itself is said when it misses.
     await expect.poll(() => width(page)).toBeGreaterThan(300)
+    await settleLayout(page)
     const before = await width(page)
     const box = await page.getByTestId('chip8-split').boundingBox()
     if (box === null) throw new Error('no splitter')
@@ -846,15 +850,13 @@ test('the line between the library list and the details is dragged, kept, and pu
     await expect.poll(async () => Math.abs((await width(launched.page)) - after)).toBeLessThan(4)
     // A double-click puts it back at half - once the relaunched layout has settled, and with the
     // presses held a moment: on the Linux runner a double-click right after the relaunch was lost.
-    // Even then one was lost on the Linux runner now and then (2026-10-25), so it is pressed
-    // until it takes: putting back at half is the same however often it is done.
     await settleLayout(launched.page)
-    await expect(async () => {
-      await launched.page.getByTestId('chip8-split').dblclick({ delay: 20 })
-      await expect
-        .poll(async () => Math.abs((await width(launched.page)) - before), { timeout: 2000 })
-        .toBeLessThan(4)
-    }).toPass({ timeout: 15000 })
+    await launched.page.getByTestId('chip8-split').dblclick({ delay: 20 })
+    await expect
+      .poll(async () => Math.abs((await width(launched.page)) - before), {
+        message: `back at half: ${before} wide before the drag, ${after} after it`,
+      })
+      .toBeLessThan(4)
   } finally {
     await launched.close()
     removeDir(profile)

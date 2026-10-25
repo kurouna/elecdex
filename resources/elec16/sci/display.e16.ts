@@ -13,7 +13,6 @@ import {
   memcpy,
   peek,
   peek16,
-  poke,
   poke16,
   str,
   u16,
