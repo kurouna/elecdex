@@ -59,5 +59,5 @@ the files above is read or edited.
   - No words on a canvas, in this pane or Wi-Fi's: lane names, scales and marks are HTML over it.
   - What a reader could not read travels as `problems` and is a toast, once each.
   - Tests: `ELECDEX_ETHER_STUB=1` (every case of docs/ethernet-mock, plus `conflict`, `problem`).
-  - Its limits, unverified with a cable or on Linux and macOS, are listed in §5.23.1 and the
-    README: keep both until someone has tried them.
+  - Its limits, unverified with a cable or on Linux and macOS, are listed in §5.23.1 and in
+    docs/guide/panes-network.md (all three languages): keep both until someone has tried them.

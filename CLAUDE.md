@@ -209,12 +209,45 @@ user made; do not reverse one without asking.
   Squadrons, and the time zone lines ODbL (© OpenStreetMap contributors) in the ORBIT pane, with
   `tz-lines.json` carrying its licence; Yahoo marked unofficial, possibly delayed, not investment
   advice.
-- **README.ja.md** and **README.zh-CN.md** follow the README section for section, in the same
-  commit.
+- **The README is the landing page; the user guide is docs/guide** (user decision 2026-10-25).
+  - The README keeps:
+    - the status;
+    - what it is;
+    - the presets' gallery;
+    - the panes' table;
+    - Install, with *If a warning appears*;
+    - first steps;
+    - the documentation table;
+    - third-party assets;
+    - the licence.
+  - Everything else is a guide page: presets, workspace, keyboard, themes and settings, a page
+    per group of panes, plugins, data sources, develop.
+  - A page is `<page>.md`, `.ja.md` and `.zh-CN.md`, with the same sections and facts in each.
+    README.ja.md and README.zh-CN.md follow the README section for section. All of it changes in
+    the same commit.
+  - Guide pages are for engineers, search and AI. Each has an H1 with the topic, a summary
+    paragraph, and an at-a-glance table per pane (where, reads, updates, platforms, privacy). The
+    facts are plain and checked against the code; no decorative words.
+  - Every relative link and anchor leads somewhere (tests/unit/doc-links.test.ts).
+  - **Where an addition is written** (every place, in all three languages, in the same commit):
+
+    | Added | Written in |
+    | --- | --- |
+    | A pane | its group's `docs/guide/panes-<group>.md`: an H2, the at-a-glance table, the text, its `pane-<widget>.jpg`. A row in the README's panes table, and in docs/guide/index.md's if the group is new. A new group is a new `panes-<group>.md` page |
+    | A pane in a preset, or a new preset | `presets.md`: the preset's section and its table. A new preset also gets the README's gallery cell and its counts ("ten presets") |
+    | A shortcut | `keyboard.md`. Also the README's first steps, if it is one of them |
+    | A setting or a theme | `themes-settings.md` (the `settings.json` key and its default). A theme also gets a shot |
+    | Something the workspace does (layout, dialogs, palette, motion, background) | `workspace.md` |
+    | A request to the network, or a new data source | `data-sources.md` (what, how often, terms). New bundled data also gets the README's third-party table and `DATA_SOURCES` |
+    | A plugin API change | ../plugins.md (the API), and `plugins-use.md` if users see it |
+    | Build, test or release tooling | `develop.md` |
+    | An ELEC-16 or CHIP-8 change a user sees | its manual (docs/elec16-*.md), `panes-retro.md`, and the HTML quick guides when they show it |
+    | Not yet released | marked *unreleased* where it is written. The release drops the marks |
 - **The README's status line** names the last released version, marks main-only work
   *unreleased*, and says macOS and Linux are not sufficiently verified.
-- **A visible addition goes out with the release**: a new pane, preset or theme gets its README
-  shot and its lines in all three READMEs, new bundled data its third-party notice, and a new
+- **A visible addition goes out with the release**: a new pane, preset or theme gets its shot and
+  its lines in the guide (and in the README's gallery or panes table) in all three languages; new
+  bundled data gets its third-party notice; and a new
   central or showy feature a beat in the introduction demo; a visible change to a theme, a preset
   or the default layout regenerates the shots. How each is made, and the release procedure, are
   in [.claude/rules/publishing.md](.claude/rules/publishing.md).
@@ -246,8 +279,8 @@ feat(scope): english subject / 日本語の件名
 English paragraph. / 日本語の段落。
 ```
 
-No `[` `]`, no absolute paths, no attribution trailers. Update docs/decisions.md and the README
-when behaviour or data sources change.
+No `[` `]`, no absolute paths, no attribution trailers. Update docs/decisions.md and the user guide
+(docs/guide; data sources in data-sources.md) when behaviour or data sources change.
 
 **What to run before committing:**
 

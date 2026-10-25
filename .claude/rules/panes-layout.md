@@ -86,7 +86,8 @@ the files above is read or edited.
     Decisions are pure (there and layout-shape.ts); only layout/presets.ts knows presets in the
     page. A new preset also needs its key (keybindings.ts, Workspace.svelte), the LAYOUTS
     dialog wide enough for every card in one row, tests/e2e/workspace/layout-presets.spec.ts's `PRESETS`,
-    and a README shot (scripts/gen-screenshots.mjs) with the counts in all three READMEs.
+    and a shot (scripts/gen-screenshots.mjs) in the README's gallery and docs/guide/presets.md, with
+    the counts in both, in all three languages.
 - **Shortcuts** are data (src/shared/keybindings.ts), handled in Workspace.svelte; never a key
   check elsewhere. A chord includes Ctrl/Alt or is a function key. `scope: 'global'` actions are
   main's OS registrations, out of the page keymap, the list and "reset all", and `conflicts`

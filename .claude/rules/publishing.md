@@ -1,6 +1,7 @@
 ---
 paths:
   - "README*.md"
+  - "docs/guide/**"
   - "docs/screenshots/**"
   - "docs/demos.md"
   - "scripts/gen-screenshots.mjs"
@@ -30,11 +31,13 @@ the files above is read or edited.
   the ELEC-16's five relief skins as crops of the body (`elecdex-skins`; GLASS on a light theme too),
   and every pane of the Panes section alone (`panes`: `pane-<widget>.jpg`, its own box cut from a
   layout that gives it a fixed share of the window; LOG WATCH's EXPLAIN by a stand-in). A new pane
-  gets its `shootPane` line and its picture in all three READMEs. Preset trees come from the built app
+  gets its `shootPane` line, its picture on its guide page (docs/guide/panes-*.md) in all three
+  languages, and a line in the README's panes table. Preset trees come from the built app
   (scripts/preset-shots.mjs). Everything of someone else's or this machine is a stand-in: web
   panes show stand-in pages (never YouTube's or X's own), stubs run at `=demo`, the chats and the
   council talk to a stand-in (no model, no key). Regenerate after a visible change to a theme, a
-  preset or the default layout; a new theme or preset gets a shot in all three READMEs.
+  preset or the default layout. A new theme or preset gets a shot in the README's gallery and on
+  docs/guide/presets.md, in all three languages.
 - **The introduction demo** (`npm run demo:tour`, its 9:16 cut `demo-tour-shorts.mjs` under two
   minutes; docs/demos.md says how every demo is recorded, built and changed, and the traps met) is updated with every release (user decision 2026-09-27): a new central or showy
   feature gets a beat, a beat no longer true goes. About two minutes, boot first and themes last,
@@ -48,7 +51,7 @@ the files above is read or edited.
 - **Releases** (the procedure, user decision 2026-10-18), in this order:
   1. Bump `package.json` (and package-lock.json, `npm version --no-git-tag-version`); in all
      three READMEs, name the new version in the status line and drop the *unreleased* marks of
-     what it carries.
+     what it carries - in the READMEs and in docs/guide, all three languages.
   2. Run every test: `npm run verify`, `npm run build`, then the whole `npx playwright test` (the
      `perf` project last), then `npm run package:dir` and `npm run test:packaged`.
      Only when all are green (a failure here is fixed, or shown to be this machine's, first).

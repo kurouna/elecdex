@@ -45,7 +45,8 @@ the files above is read or edited.
   the traps met so far) before changing it.
   - Its user manuals, in Japanese, are docs/elec16-basic.md (BASIC), docs/elec16-e16.md (the
     ISA, the assembler, the monitor, ROM services), docs/elec16-e16c.md (e16c and CODE) and
-    docs/elec16-soft.md (the SOFT CARD's programs), linked from all three READMEs. A SOFT CARD
+    docs/elec16-soft.md (the SOFT CARD's programs), linked from docs/guide/panes-retro.md
+    in all three languages. A SOFT CARD
     program has a .help beside it (English, what FILES shows when it is picked; gen:elec16
     refuses one without). A change a user can see in BASIC, the instruction set, the
     assembler, the monitor or e16c updates its manual in the same commit, as elec16.md; every
