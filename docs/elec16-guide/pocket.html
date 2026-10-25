@@ -38,6 +38,7 @@
   <h1>ELEC-16 ポケコン かんたんガイド</h1>
   <p>ELEC-16 は、elecdex のペインの中で動く 16 ビットのポケットコンピュータです。CPU、ROM、フォント、BASIC はすべて elecdex のオリジナルです。電源を入れると BASIC が起動し、電卓として計算したり、プログラムを書いて動かしたりできます。</p>
   <p>このガイドは、まず 5 分で動かしてみて、あとから必要なところを引けるように作ってあります。細かい決まりは、最後に挙げた説明書（Markdown）にあります。</p>
+  <p class="tip">関数電卓 ELEC-16 SCI の使い方は <a href="sci.html">ELEC-16 SCI ガイド</a> にあります。</p>
 </header>
 
 <figure>
@@ -50,7 +51,7 @@
 
 <ol class="steps">
   <li>
-    <p><strong>ペインを開く。</strong> ペインのピッカー（<code>Ctrl+Shift+A</code>）で <strong>elec-16</strong> の行を選びます。ポケコンの本体が出ます。</p>
+    <p><strong>ペインを開く。</strong> ペインのピッカー（<kbd class="pc">Ctrl+Shift+A</kbd>）で <strong>elec-16</strong> の行を選びます。ポケコンの本体が出ます。</p>
   </li>
   <li>
     <p><strong>電源を入れる。</strong> 電源が切れていれば、帯の <strong>POWER</strong> か <kbd>BRK</kbd> キーを押します。液晶にこう出ればプロンプトです。</p>
@@ -93,7 +94,7 @@ HELLO3</code></pre>
 </div>
 
 <div class="tip">
-  <p>プログラムが止まらないときは、いつでも <kbd>BRK</kbd>（PC では <code>Pause</code> キー、または帯の BRK）で止まります。</p>
+  <p>プログラムが止まらないときは、いつでも <kbd>BRK</kbd>（PC では <kbd class="pc">Pause</kbd> キー、または帯の BRK）で止まります。</p>
 </div>
 
 <!-- ============================================================ -->
@@ -104,7 +105,7 @@ HELLO3</code></pre>
 <ul>
   <li>RAM は電池で保たれる扱いです。電源を切っても、ペインを閉じても、elecdex を終えても、プログラムは残ります。電源を入れ直すと、変数だけが消えます</li>
   <li>1 台のユニットは、同時に 1 つのペインでだけ動きます。ほかのペインで動いているユニットを開くと、<strong>MOVE HERE</strong>（こちらに移す）か <strong>NEW UNIT</strong>（新しいユニットを作る）を選べます</li>
-  <li>ペインが隠れている間（別のタブの裏など）、機械は一時停止します</li>
+  <li>ペインが隠れている間（別のタブの裏など）、本体は一時停止します</li>
 </ul>
 
 <h3>電源と再起動</h3>
@@ -144,14 +145,14 @@ HELLO3</code></pre>
 <p>記号の多くはテンキーや句読点のキーの SHIFT 面にあります。よく使うのは、引用符 <code>"</code> が <kbd>SHIFT</kbd> と <kbd>*</kbd>、コロン <code>:</code> が <kbd>SHIFT</kbd> と <kbd>;</kbd>、<code>$</code> が <kbd>SHIFT</kbd> と <kbd>4</kbd> です。</p>
 
 <h3>PC のキーボードから打つ</h3>
-<p>ペインにフォーカスがある間は、PC のキーボードで打てます。SHIFT 面の記号は、自動で SHIFT を付けて送ります。</p>
+<p>ペインにフォーカスがある間は、PC のキーボードで打てます。SHIFT 面の記号は、自動で SHIFT を付けて送ります。このガイドでは、本体のキーを <kbd>ENTER</kbd>、PC のキーボードのキーを <kbd class="pc">Enter</kbd> のように枠だけで書きます。</p>
 <table>
   <tr><th>PC のキー</th><th>ELEC-16 のキー</th></tr>
   <tr><td>英字、数字、記号</td><td>そのキー</td></tr>
-  <tr><td>Enter / Backspace / Delete / Insert / 矢印</td><td>ENTER / BS / DEL / INS / 矢印</td></tr>
-  <tr><td>Home</td><td>CLS</td></tr>
-  <tr><td>Pause</td><td>BRK/ON</td></tr>
-  <tr><td>CapsLock / かな</td><td>CAPS / カナ</td></tr>
+  <tr><td><kbd class="pc">Enter</kbd> / <kbd class="pc">Backspace</kbd> / <kbd class="pc">Delete</kbd> / <kbd class="pc">Insert</kbd> / 矢印</td><td><kbd>ENTER</kbd> / <kbd>BS</kbd> / <kbd>DEL</kbd> / <kbd>INS</kbd> / 矢印</td></tr>
+  <tr><td><kbd class="pc">Home</kbd></td><td><kbd>CLS</kbd></td></tr>
+  <tr><td><kbd class="pc">Pause</kbd></td><td><kbd>BRK/ON</kbd></td></tr>
+  <tr><td><kbd class="pc">CapsLock</kbd> / <kbd class="pc">かな</kbd></td><td><kbd>CAPS</kbd> / <kbd>カナ</kbd></td></tr>
 </table>
 <ul>
   <li>英字の大小は、ELEC-16 の CAPS と PC の Shift で決まります。PC の CapsLock の状態は見ません</li>
@@ -160,7 +161,7 @@ HELLO3</code></pre>
 </ul>
 
 <div class="tip">
-  <p><strong>長いプログラムを貼り付ける:</strong> PANEL の TUNE にある <strong>PASTE</strong> か、機械の上で右クリックすると、クリップボードの文をキーとして打ち込みます。改行は ENTER に、ひらがなと全角カタカナは半角カナに、全角英数は半角になります。打てない文字（漢字など）は飛ばし、その数を TUNE に出します。打ち込み中にもう一度押すと止まります。</p>
+  <p><strong>長いプログラムを貼り付ける:</strong> PANEL の TUNE にある <strong>PASTE</strong> か、本体の上で右クリックすると、クリップボードの文をキーとして打ち込みます。改行は ENTER に、ひらがなと全角カタカナは半角カナに、全角英数は半角になります。打てない文字（漢字など）は飛ばし、その数を TUNE に出します。打ち込み中にもう一度押すと止まります。</p>
 </div>
 
 <h3>表示記号</h3>
@@ -199,7 +200,7 @@ HELLO3</code></pre>
 
 <ul>
   <li>数の答えは <code>ANS</code> に残ります。<code>ANS*2</code> のように次の式で使えます（<kbd>ANS</kbd> キーで <code>ANS</code> と入ります）</li>
-  <li>RUN モードで <kbd>↑</kbd> を押すと、直前に打った行がもう一度出ます。直して <kbd>ENTER</kbd> で計算し直せます</li>
+  <li>RUN モードで <kbd>↑</kbd> を押すと、直前に打った行を呼び出せます（コマンドラインの履歴と同じです）。直して <kbd>ENTER</kbd> で計算し直せます</li>
   <li>変数も使えます: <code>A=12</code> と打ってから <code>A*3</code> で 36。文字列の式も答えが出ます（<code>"ELEC"+"-16"</code> で <code>ELEC-16</code>）</li>
   <li>角度の単位は <code>DEG</code>、<code>RAD</code>、<code>GRAD</code> の文で変えます</li>
   <li>計算は 12 桁、表示は 10 桁です。大きすぎると <code>ERR:OVERFLOW</code>、0 で割ると <code>ERR:DIV BY 0</code> です</li>
@@ -225,7 +226,10 @@ HELLO3</code></pre>
   <li>英小文字で打っても、命令と変数の名前は大文字として読みます</li>
   <li>行を打ち込む・直すと、変数はすべて消えます</li>
 </ul>
-<p>PRO モードでは、<kbd>↑</kbd> で直前に打ち込んだ行（続けて押すとその前の行）、<kbd>↓</kbd> で次の行を呼び出せます。直して <kbd>ENTER</kbd> を押すとその行が置き換わり、行番号を書き換えて <kbd>ENTER</kbd> を押すと新しい番号の写しができます。行の中は <kbd>←</kbd> <kbd>→</kbd> で動き、<kbd>INS</kbd> <kbd>DEL</kbd> <kbd>BS</kbd> で直します。</p>
+<p>PRO モードでは、<kbd>↑</kbd> で直前に打ち込んだ行（続けて押すとその前の行）、<kbd>↓</kbd> で次の行を呼び出せます。直して <kbd>ENTER</kbd> を押すとその行が置き換わります。行の中は <kbd>←</kbd> <kbd>→</kbd> で動き、<kbd>INS</kbd> <kbd>DEL</kbd> <kbd>BS</kbd> で直します。</p>
+<div class="tip">
+  <p><strong>行を写す:</strong> 呼び出した行の<strong>行番号だけを書き換えて</strong> <kbd>ENTER</kbd> を押すと、元の行は残ったまま、新しい番号に同じ行の写しができます。似た行をいくつも書くときに便利です。</p>
+</div>
 
 <h3>LIST、RUN、NEW</h3>
 <table>
@@ -284,11 +288,14 @@ B</code></pre>
 
 <h3>覚えておきたい決まり</h3>
 <ul>
-  <li>変数の名前は英字 1 文字か、英字と英字・数字の 2 文字（<code>A</code>、<code>X1</code>、<code>A$</code>）。3 文字以上は書けません</li>
+  <li>変数の名前は英字 1 文字か、英字と英字・数字の 2 文字（<code>A</code>、<code>X1</code>、<code>A$</code>）。3 文字以上は書けません（下の注意）</li>
   <li>文字列の変数は既定で 16 文字まで。長い文字列は先に <code>DIM A$*200</code> のように大きさを決めます</li>
   <li>配列は <code>DIM A(10)</code> で <code>A(0)</code>〜<code>A(10)</code>。2 次元まで</li>
   <li>引数が 1 つの関数は括弧なしで書けます（<code>SIN 30</code>）。迷ったら括弧で囲みます（<code>SIN(X+1)</code>）</li>
 </ul>
+<div class="note">
+  <p><strong>長い変数の名前は使えません。</strong> <code>TOTAL</code> や <code>COUNT</code> のような名前は書けず、<code>ERR:SYNTAX</code> になります。命令の語は空白がなくても読むので、<code>TOTAL=5</code> は <code>TO</code> で始まると読まれます。<code>TO</code> <code>IF</code> <code>ON</code> <code>OR</code> <code>AS</code> <code>PI</code> <code>LN</code> も名前に使えません。<code>T</code> や <code>TL</code> のような 2 文字までの名前にします。</p>
+</div>
 
 <p>もう少し長い例（数当て）です。</p>
 <pre><code>10 REM GUESS: A NUMBER FROM 1 TO 100
@@ -348,7 +355,7 @@ B</code></pre>
 <!-- ============================================================ -->
 <h2 id="card">記憶カードと SOFT CARD</h2>
 
-<p>ユニットごとに 1 枚の記憶カード（256 KB、1 ファイル 32 KB まで）があり、プログラムやデータを名前付きのファイルで残せます。名前は英大文字と数字の 1〜8 文字で、拡張子を省くとプログラムは <code>.BAS</code>、データファイルは <code>.DAT</code> です。</p>
+<p>ユニットごとに 1 枚の記憶カード（256 KB、1 ファイル 32 KB まで）があり、プログラムやデータを名前付きのファイルで残せます。カードは elecdex の中（ユニットごと）に保たれるもので、PC のフォルダには出てきません。PC のファイルにするには FILES タブの <strong>EXPORT</strong>、PC のファイルを入れるには <strong>IMPORT</strong> を使います（<a href="#files-tab">下</a>）。名前は英大文字と数字の 1〜8 文字で、拡張子を省くとプログラムは <code>.BAS</code>、データファイルは <code>.DAT</code> です。</p>
 
 <table>
   <tr><th>命令</th><th>働き</th></tr>
@@ -390,14 +397,14 @@ B</code></pre>
 </table>
 <p>1 本ずつの遊び方は <a href="../elec16-soft.md">SOFT CARD 取扱説明書</a> にあります。BASIC から読むときは <code>LOAD "LANDER"</code> のあと <code>RUN</code>。どのプログラムも <kbd>BRK</kbd> で止まります。</p>
 
-<h3>PANEL の FILES タブ</h3>
+<h3 id="files-tab">PANEL の FILES タブ</h3>
 <figure>
   <img src="shots/pocket-files.png" alt="PANEL の FILES タブ: 上に IMPORT、EXPORT、LOAD ▸ のボタンとカードの使用量、その下にカードのファイル、SOFT CARD の一覧、選んだプログラムの使い方">
   <figcaption>FILES タブ。SOFT CARD のプログラムを選ぶと、その使い方が下に出る</figcaption>
 </figure>
 <table>
   <tr><th>ボタン</th><th>働き</th></tr>
-  <tr><td><strong>LOAD ▸</strong></td><td>選んだファイルの <code>LOAD</code> を機械に打ち込む（<code>.BIN</code> は <code>LOAD "名前":CALL 28672</code> で、そのまま動く）。動いているプログラムは先に止める</td></tr>
+  <tr><td><strong>LOAD ▸</strong></td><td>選んだファイルの <code>LOAD</code> を本体に打ち込む（<code>.BIN</code> は <code>LOAD "名前":CALL 28672</code> で、そのまま動く）。動いているプログラムは先に止める</td></tr>
   <tr><td><strong>IMPORT</strong></td><td>PC のファイルをカードに入れる（<code>.bas</code>、<code>.bin</code>、<code>.dat</code>、<code>.asm</code>）</td></tr>
   <tr><td><strong>EXPORT</strong></td><td>カードのファイルを PC に書き出す</td></tr>
 </table>
@@ -406,7 +413,7 @@ B</code></pre>
 <!-- ============================================================ -->
 <h2 id="kana">カナ</h2>
 
-<p><kbd>カナ</kbd> キー（PC では「かな」キー）で KANA モードに入り、表示記号のカナが点きます。もう一度押すと出ます。</p>
+<p><kbd>カナ</kbd> キー（PC では <kbd class="pc">かな</kbd> キー）で KANA モードに入り、表示記号のカナが点きます。もう一度押すと出ます。</p>
 <ul>
   <li>カナのあるキーが半角カナを打ちます。並びは JIS かな配列です（数字の段はテンキーの数字）</li>
   <li><kbd>SHIFT</kbd> を押してから打つと、小さいカナ（ｧｨｩｪｫｬｭｮｯ）と記号（ｦ ､ ｡ ･ ｢ ｣）になります</li>
@@ -433,7 +440,7 @@ B</code></pre>
 &gt;CALL 28672:PRINT "BACK"
 BACK</code></pre>
 <div class="note">
-  <p>ROM などに書こうとしたり、機械語が例外を起こしたりすると、機械はモニタに落ちます（<code>FAULT</code>）。戻らない機械語は <kbd>BRK</kbd> で止まり、モニタに <code>BREAK AT 番地</code> と出ます。どちらも <code>Q</code> で BASIC に戻れ、プログラムは残っています。</p>
+  <p>ROM などに書こうとしたり、機械語が例外を起こしたりすると、ポケコンはモニタに落ちます（<code>FAULT</code>）。戻らない機械語は <kbd>BRK</kbd> で止まり、モニタに <code>BREAK AT 番地</code> と出ます。どちらも <code>Q</code> で BASIC に戻れ、プログラムは残っています。</p>
 </div>
 
 <h3>モニタ（MON）</h3>
@@ -458,7 +465,7 @@ BACK</code></pre>
 <!-- ============================================================ -->
 <h2 id="code">CODE 画面</h2>
 
-<p>帯の <strong>CODE</strong> を押すと、ペイン全体が CODE 画面に変わります。<strong>TypeScript の一部（e16c）で書いたプログラムを、ELEC-16 の機械語にコンパイルして動かせます。</strong> 同じ場所の <strong>MACHINE</strong> でポケコンに戻ります。CODE 画面が出ている間、機械は一時停止します。</p>
+<p>帯の <strong>CODE</strong> を押すと、ペイン全体が CODE 画面に変わります。<strong>TypeScript の一部（e16c）で書いたプログラムを、ELEC-16 の機械語にコンパイルして動かせます。</strong> 同じ場所の <strong>MACHINE</strong> でポケコンに戻ります。CODE 画面が出ている間、本体は一時停止します。</p>
 
 <figure>
   <img src="shots/pocket-code.png" alt="CODE 画面: 左に TypeScript のソース、右に E16 アセンブリ、上にファイルの選択と COMPILE、-O0、-O1、-O2、RUN ▸、LOAD ▸、SAVE .BIN のボタン、段階ごとの bytes と cycles の表">
@@ -499,7 +506,22 @@ export function main(): void {
 <div class="note">
   <p>ソースはカードの <code>.TS</code> ファイルに残るので、書けるのは ASCII と半角カナだけです。漢字やひらがなは、コメントの中でも書けません。あなたのコードが JavaScript として動くことはなく、動くのは E16 の機械語としてだけです。</p>
 </div>
-<p>書ける TypeScript の範囲、型（<code>u16</code> <code>i16</code> <code>u8</code> <code>bool</code>）、ライブラリは <a href="../elec16-e16c.md">e16c 取扱説明書</a> にあります。</p>
+<h3>いつも使える関数（ライブラリ）</h3>
+<p>次の関数は import なしで使えます。同じ名前の関数は作れません。</p>
+<table>
+  <tr><th>関数</th><th>働き</th></tr>
+  <tr><td><code>putc(c)</code></td><td>文字を 1 つ出す（<code>0x0D</code> は改行、<code>0x0C</code> は画面を消す）</td></tr>
+  <tr><td><code>puts(text)</code></td><td>文字列（<code>str('…')</code>）を出す</td></tr>
+  <tr><td><code>putnum(v)</code> / <code>puthex(v)</code></td><td>数を 10 進（0〜65535）/ 4 桁の 16 進で出す</td></tr>
+  <tr><td><code>cls()</code> / <code>newline()</code></td><td>画面を消す / 次の行の頭へ</td></tr>
+  <tr><td><code>locate(column, row)</code></td><td>カーソルを桁と行へ</td></tr>
+  <tr><td><code>getkey()</code> / <code>keyWaiting()</code></td><td>キーを待ってその文字を返す / キーが来ているか（待たない）</td></tr>
+  <tr><td><code>readline(buf, max)</code></td><td>1 行を打ってもらう</td></tr>
+  <tr><td><code>beep(freq, ms)</code></td><td>freq Hz の音を ms ミリ秒鳴らす（鳴り終わりは待たない）</td></tr>
+  <tr><td><code>pset(x, y)</code></td><td>液晶の点を点ける</td></tr>
+  <tr><td><code>ask(question, reply, max)</code></td><td>AI に聞く（<a href="#link">LINK と AI の節</a>）</td></tr>
+</table>
+<p>書ける TypeScript の範囲、型（<code>u16</code> <code>i16</code> <code>u8</code> <code>bool</code>）、ライブラリの細かい決まりは <a href="../elec16-e16c.md">e16c 取扱説明書</a> にあります。</p>
 
 <!-- ============================================================ -->
 <h2 id="link">LINK と AI</h2>
@@ -540,7 +562,7 @@ A pulsar is a spinning neutron star that sends out beams of radio waves.</code><
 <p>帯の <strong>▸ PANEL</strong> で、本体の右に PANEL を開き、もう一度押すと畳みます。ポケコンのモデルでは、CORE、MEM、FILES、LINK、TUNE の 5 つのタブがあります。FILES は <a href="#card">記憶カード</a>、LINK は <a href="#link">LINK と AI</a> を見てください。</p>
 
 <h3>CORE</h3>
-<p>CPU の 16 本のレジスタ（ABI 名つき）、pc、CSR、命令数、眠っているかどうか、今動いているところの逆アセンブルを出します。STEP（1 命令）、HALT（止める）、GO（続ける）と、ブレークポイントが使えます。コード欄の行の印を押すか番地を打つとブレークポイントを置け、機械はその命令の前で止まります（モニタの <code>B</code> と違い、機械のコードを書き換えず、どこから動かしても止まります）。</p>
+<p>CPU の 16 本のレジスタ（ABI 名つき）、pc、CSR、命令数、眠っているかどうか、今動いているところの逆アセンブルを出します。STEP（1 命令）、HALT（止める）、GO（続ける）と、ブレークポイントが使えます。コード欄の行の印を押すか番地を打つとブレークポイントを置け、CPU はその命令の前で止まります（モニタの <code>B</code> と違い、RAM のコードを書き換えず、どこから動かしても止まります）。</p>
 
 <h3>MEM</h3>
 <figure>
@@ -552,7 +574,7 @@ A pulsar is a spinning neutron star that sends out beams of radio waves.</code><
 <h3>TUNE</h3>
 <figure>
   <img src="shots/pocket-tune.png" alt="PANEL の TUNE タブ: paste、unit、clock、auto off、model、body、skin、lcd glass の欄">
-  <figcaption>TUNE タブ。機械とペインの設定</figcaption>
+  <figcaption>TUNE タブ。本体とペインの設定</figcaption>
 </figure>
 <table>
   <tr><th>欄</th><th>働き</th></tr>
@@ -580,7 +602,7 @@ A pulsar is a spinning neutron star that sends out beams of radio waves.</code><
   <li><strong>ELEC-16 SCI（SCI-128）</strong> は関数電卓のモデルです。使い方は <a href="sci.html">ELEC-16 SCI ガイド</a> にあります</li>
 </ul>
 <div class="note">
-  <p>PLAY-320 や SCI-128 との行き来は RAM を消します。そのため、ボタンを 2 回押して確かめます（1 回目は <code>clear RAM?</code> と出ます）。</p>
+  <p>PLAY-320 や SCI-128 との行き来は RAM（プログラムと変数）を消します。そのため、ボタンを 2 回押して確かめます（1 回目は <code>clear RAM?</code> と出ます）。記憶カードのファイルは消えないので、残したいプログラムは先に <code>SAVE</code> しておきます。</p>
 </div>
 
 <h3>スキン</h3>
@@ -645,7 +667,7 @@ A pulsar is a spinning neutron star that sends out beams of radio waves.</code><
 <p>ペインをクリックしてフォーカスを置いてください（帯の KEYS が点きます）。電源が切れていれば <kbd>BRK</kbd> か POWER で入れます。CODE 画面が出ているときは MACHINE で戻ります。</p>
 
 <h3>プログラムが止まらない、キーが効かない</h3>
-<p><kbd>BRK</kbd>（PC の Pause、帯の BRK）を押します。BRK はどんな状態からでも機械を取り戻せます。機械語の中ならモニタに落ちるので、<code>Q</code> で BASIC に戻ります。</p>
+<p><kbd>BRK</kbd>（PC の <kbd class="pc">Pause</kbd>、帯の BRK）を押します。BRK はどんな状態からでもポケコンの制御を取り戻せます。機械語の中ならモニタに落ちるので、<code>Q</code> で BASIC に戻ります。</p>
 
 <h3>プロンプトが <code>*</code> になった、FAULT と出た</h3>
 <p>モニタにいます。<code>Q</code> で BASIC に戻れます。プログラムは残っています。</p>
@@ -666,7 +688,7 @@ A pulsar is a spinning neutron star that sends out beams of radio waves.</code><
 <p>ペインが狭いと、本体は液晶とキー 1 列（compact）か液晶だけ（lcd）になります。ペインを広げるか、TUNE の body で選びます。前面表示にすると広く使えます。</p>
 
 <h3>貼り付けた文の一部が抜けた</h3>
-<p>機械にない文字（漢字など）は飛ばされます。飛ばした数は TUNE に出ます。</p>
+<p>ELEC-16 にない文字（漢字など）は飛ばされます。飛ばした数は TUNE に出ます。</p>
 
 <h3><code>ERR:LINK OFF</code> と出る</h3>
 <p>PANEL の LINK で、LINK と 0 · ai を on にし、プロバイダを選びます。プロバイダが一つもなければ、elecdex の設定の AI で足します。</p>
@@ -680,7 +702,7 @@ A pulsar is a spinning neutron star that sends out beams of radio waves.</code><
   <li><a href="../elec16-e16c.md">e16c（CODE）取扱説明書</a>: TypeScript から機械語を作る</li>
   <li><a href="../elec16-play-manual.md">PLAY-320 取扱説明書</a>: ゲーム機のモデル</li>
   <li><a href="sci.html">ELEC-16 SCI ガイド</a>: 関数電卓のモデル</li>
-  <li><a href="../elec16.md">elec16.md</a>: ペインと機械の設計</li>
+  <li><a href="../elec16.md">elec16.md</a>: ペインと ELEC-16 の設計</li>
 </ul>
 
 <footer>

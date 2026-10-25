@@ -133,7 +133,8 @@ async function pocket() {
         await page.locator('[data-testid=elec16-soft-file]', { hasText: 'SINEWAVE' }).click()
         await page.getByTestId('elec16-soft-help').waitFor()
       }
-      await shot(page, page.getByTestId('elec16-panel'), `pocket-${tab}`)
+      // The tab's own view, not the whole panel's height below it.
+      await shot(page, page.getByTestId(`elec16-${tab}`), `pocket-${tab}`)
     }
     // CODE with its sample compiled: the bytes and cycles filled in.
     await page.getByTestId('elec16-view-toggle').click()
