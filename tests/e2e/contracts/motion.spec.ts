@@ -9,7 +9,7 @@ import { DIALOGS, type DialogRow, MOTION_LAYOUT } from './dialogs.js'
  * reduced it simply appears and simply goes. One app per motion setting brings up every row of
  * contracts/dialogs.ts in turn; a failure names every row that broke the contract at once. The
  * finer points of one dialog (a handover between two, a reopen while closing) stay in
- * tests/e2e/motion.spec.ts.
+ * tests/e2e/workspace/motion.spec.ts.
  */
 
 /** What a row's element is doing a frame after it was sent away. */
@@ -17,6 +17,8 @@ interface Going {
   present: boolean
   leaving: boolean
   beamRunning: boolean
+  /** Whether the backdrop it sits on, if it has one, lets clicks through while it goes. */
+  backdropLeaving: boolean
 }
 
 /**
@@ -46,7 +48,13 @@ const sendAway = (page: Page, row: DialogRow): Promise<Going> =>
           a.playState === 'running'
         )
       })
-      return { present: el !== null, leaving: el?.inert ?? false, beamRunning }
+      const backdrop = el?.closest<HTMLElement>('.backdrop') ?? null
+      return {
+        present: el !== null,
+        leaving: el?.inert ?? false,
+        beamRunning,
+        backdropLeaving: backdrop === null || backdrop.inert,
+      }
     },
     { testid: row.testid, close: row.close },
   )
@@ -108,7 +116,10 @@ test('every dialog, popup, toast and notice powers on as it comes and off as it 
   try {
     const failed = await everyDialog(ctx, async (row) => {
       expect(await animationName(ctx.page, row.testid), 'powers on').toMatch(/crt-power-on/)
-      expect(await sendAway(ctx.page, row), 'powers off').toEqual(LEAVING)
+      expect(await sendAway(ctx.page, row), 'powers off').toEqual({
+        ...LEAVING,
+        backdropLeaving: true,
+      })
     })
     expect(failed).toEqual({})
     expect(errors).toEqual([])

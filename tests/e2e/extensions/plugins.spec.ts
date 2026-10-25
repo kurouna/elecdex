@@ -1,11 +1,20 @@
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Page } from '@playwright/test'
 import { pluginFiles, turnOnPlugin } from '../support/plugins.js'
 import { test } from '../support/shared.js'
-import { launch, openSettings, quietFor, removeDir, single, waitForSaved } from '../support.js'
+import {
+  launch,
+  openSettings,
+  pickerAnswers,
+  quietFor,
+  removeDir,
+  single,
+  waitForSaved,
+} from '../support.js'
 
 /**
  * Plugins in the running app (docs/plugins.md): the sample in a new plugins folder,
@@ -134,6 +143,44 @@ test('a new plugins folder has the pomodoro sample, which runs only once agreed 
   } catch (error) {
     await app.close()
     throw error
+  }
+})
+
+test('a plugin installed from a folder is copied without what it does not import, and arrives off', async () => {
+  // The folder a person picks: the plugin's module graph, beside a README and node_modules that
+  // the copy leaves behind (main/plugins/install.ts).
+  const source = mkdtempSync(path.join(tmpdir(), 'elecdex-plugin-source-'))
+  mkdirSync(path.join(source, 'node_modules', 'left-out'), { recursive: true })
+  writeFileSync(
+    path.join(source, 'index.js'),
+    `import { words } from './words.js'
+export default {
+  apiVersion: 1, id: 'from-folder', title: 'from folder',
+  view(ctx) { ctx.render([{ t: 'text', text: words }]) },
+}`,
+  )
+  writeFileSync(path.join(source, 'words.js'), "export const words = 'installed from a folder'")
+  writeFileSync(path.join(source, 'README.md'), '# not copied')
+  writeFileSync(path.join(source, 'node_modules', 'left-out', 'index.js'), 'export {}')
+  const app = await launch(undefined, { layout: onePane('plugin:from-folder') })
+  const { page } = app
+  try {
+    await pickerAnswers(app.app, source)
+    await openSettings(page, 'plugins')
+    await page.getByTestId('plugins-install').click()
+    await expect(page.getByTestId('plugins-install-note')).toContainText('2 files')
+    const copied = path.join(app.userData, 'plugins', path.basename(source))
+    expect(readdirSync(copied).sort()).toEqual(['index.js', 'words.js'])
+    // Off until agreed to, as one put in the folder by hand.
+    const entry = page.locator('[data-testid=settings-plugin][data-plugin="from-folder"]')
+    await expect(entry.getByTestId('plugin-enabled')).not.toBeChecked()
+    await expect(pluginPane(page)).toHaveAttribute('data-status', 'disabled')
+    await page.getByTestId('settings-close').click()
+    await turnOnPlugin(page, 'from-folder')
+    await expect(pluginPane(page)).toContainText('installed from a folder')
+  } finally {
+    await app.close()
+    removeDir(source)
   }
 })
 

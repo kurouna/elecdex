@@ -127,8 +127,10 @@ test('closing a pane collapses the split and focus moves to a survivor', async (
   }
 })
 
-test('a divider resizes its neighbours from the keyboard and the size persists', async () => {
-  const { page, userData, close } = await launch()
+test('a divider resizes its neighbours from the keyboard and the size persists', async ({
+  shared,
+}) => {
+  const { page, userData, close } = await shared()
   try {
     const rootSplit = page.locator('[data-testid=split]').first()
     const handle = rootSplit.locator(':scope > [data-testid=split-handle]').first()
@@ -152,8 +154,10 @@ test('a divider resizes its neighbours from the keyboard and the size persists',
   }
 })
 
-test('a double click on a divider shares its two panes evenly, and the sizes persist', async () => {
-  const { page, userData, close } = await launch()
+test('a double click on a divider shares its two panes evenly, and the sizes persist', async ({
+  shared,
+}) => {
+  const { page, userData, close } = await shared()
   try {
     const rootSplit = page.locator('[data-testid=split]').first()
     const handle = rootSplit.locator(':scope > [data-testid=split-handle]').first()
@@ -816,8 +820,10 @@ test('a broken entry in layouts.json costs only that entry, and broken JSON is k
   }
 })
 
-test('a malformed save from the renderer is rejected and the good layout kept', async () => {
-  const { page, userData, close } = await launch()
+test('a malformed save from the renderer is rejected and the good layout kept', async ({
+  shared,
+}) => {
+  const { page, userData, close } = await shared()
   try {
     // wait: startup's own saves (each shell's session id) land first, so `good` is the tree
     // main keeps; how many there are is the layout's to say, not the test's.
@@ -837,8 +843,8 @@ test('a malformed save from the renderer is rejected and the good layout kept', 
   }
 })
 
-test('a hand edit made while the app is running survives a reload', async () => {
-  const { page, userData, close } = await launch()
+test('a hand edit made while the app is running survives a reload', async ({ shared }) => {
+  const { page, userData, close } = await shared()
   try {
     // Let startup settle, including the terminal recording its session id.
     // wait: every save of startup must be over, or a late one would overwrite the edit for a

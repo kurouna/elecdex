@@ -3,10 +3,12 @@ import type { AddressInfo } from 'node:net'
 import { expect, type Locator, type Page, test } from '@playwright/test'
 import { openedExternally, stubOpenExternal } from '../support/stubs/external.js'
 import {
+  bringWindowBack,
   type Launched,
   type LaunchOptions,
   launch,
   launchOnTwoLayouts,
+  putWindowAway,
   quietFor,
   settleLayout,
   zoomSettled,
@@ -301,6 +303,30 @@ test.describe('web panes', () => {
       // sound stops with it - hence the check.
       expect(await inPage<string>(app, 'document.visibilityState')).toBe('visible')
       await page.getByTestId('tabs-host').getByTestId('tab').first().click()
+      await expectShownOverBody(app)
+      expect((await views(app))[0]?.id).toBe(before)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('go on running in a minimised window, and are over their pane again when it is back', async () => {
+    // CLAUDE.md, "Web panes": a page (a video) keeps playing in a minimised window, unlike every
+    // other pane; the lifecycle contract leaves web panes out, so this is where that is held.
+    const app = await start()
+    const { page } = app
+    try {
+      await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      await expectShownOverBody(app)
+      const before = (await views(app))[0]?.id
+      await inPage(app, 'window.__ticks = 0; setInterval(() => { window.__ticks += 1 }, 100); 0')
+      await putWindowAway(app.app, page)
+      const ticks = () => inPage<number>(app, 'window.__ticks')
+      const atMinimise = await ticks()
+      // Chromium may slow a minimised page's timers to one a second, never stop them.
+      await expect.poll(ticks, { timeout: 5_000 }).toBeGreaterThan(atMinimise + 1)
+      expect((await views(app))[0]?.id).toBe(before)
+      await bringWindowBack(app.app, page)
       await expectShownOverBody(app)
       expect((await views(app))[0]?.id).toBe(before)
     } finally {
@@ -691,6 +717,16 @@ test.describe('web panes', () => {
     try {
       await expect(webPane(app.page).getByTestId('pane-subtitle')).toHaveText('YT home')
       await stubExternal(app)
+      // Main refuses every download of persist:web (main/web/partition.ts); this listener comes
+      // after its, records whether it did, and refuses too, so nothing reaches this machine.
+      await app.app.evaluate(({ session }) => {
+        const seen = globalThis as { __e2eDownloads?: boolean[] }
+        seen.__e2eDownloads = []
+        session.fromPartition('persist:web').on('will-download', (event) => {
+          seen.__e2eDownloads?.push(event.defaultPrevented)
+          event.preventDefault()
+        })
+      })
 
       // The page's own script, with no press: kept on the site, and the browser left alone.
       await inPage(app, 'document.querySelector("#away").click()')
@@ -713,6 +749,11 @@ test.describe('web panes', () => {
       // A file: link, a download: nothing happens.
       await inPage(app, 'document.querySelector("#file").click()')
       await inPage(app, 'document.querySelector("#saved").click()')
+      await expect
+        .poll(() =>
+          app.app.evaluate(() => (globalThis as { __e2eDownloads?: boolean[] }).__e2eDownloads),
+        )
+        .toEqual([true])
       // target=_blank on the site opens in the pane itself; no window is made.
       await inPage(app, 'document.querySelector("#blank").click()')
       await expect(webPane(app.page).getByTestId('pane-subtitle')).toHaveText('YT blank')

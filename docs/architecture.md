@@ -1372,7 +1372,7 @@ Web ペイン（ビューが `reapOrphanSessions` に閉じられ、ポップア
 
 **しないこと**（Phase 1）: 位置・大きさの保存、複数のポップアップ、ポップアップをレイアウトに定着させるボタン。`shell.focus`（Ctrl+Shift+S）はシェルが無ければ従来どおり追加する。ターミナルは常設で使う方が多く、ポップアップではセッションが刈られるため。
 
-**テスト**: 単体（`popup.test.ts`: 選択・行の表示・出せるウィジェットの条件、`layout-ops.test.ts`）、コンポーネント（`dialog-motion.test.ts`: 排他、`closedAt`、レイアウト切り替えの問いへの no、地点選択が上に開くこと、`widget-state.test.ts`: 振り分けとマージ）、e2e（`tools.spec.ts`: ショートカットでポップアップ・layout.json 不変・押し直し・Ctrl+Shift+W が効かない・Escape でシェルへ戻る・起動で閉じペインは残る、`panes.spec.ts`: ピッカーの配置と pane only と設定ダイアログによる排他・出せる全ウィジェットが開いて閉じ、ページのエラーが無く layout.json も変わらないこと・選択が次に開いたときに残ること・天気の地点選択、`motion.spec.ts`: 電源オフ）。
+**テスト**: 単体（`popup.test.ts`: 選択・行の表示・出せるウィジェットの条件、`layout-ops.test.ts`）、コンポーネント（`dialog-motion.test.ts`: 排他、`closedAt`、レイアウト切り替えの問いへの no、地点選択が上に開くこと、`widget-state.test.ts`: 振り分けとマージ）、e2e（`launcher.spec.ts`: ショートカットでポップアップ・layout.json 不変・押し直し・Ctrl+Shift+W が効かない・Escape でシェルへ戻る・起動で閉じペインは残る、`panes.spec.ts`: ピッカーの配置と pane only と設定ダイアログによる排他・出せる全ウィジェットが開いて閉じ、ページのエラーが無く layout.json も変わらないこと・選択が次に開いたときに残ること・天気の地点選択、`motion.spec.ts`: 電源オフ）。
 
 ### 5.14 クリップボードペイン（履歴）
 

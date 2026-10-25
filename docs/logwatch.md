@@ -404,7 +404,7 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。行にな�
 | `logwatch-explain.test.ts` | EXPLAIN（プロバイダの選び方、平文 http の鍵、検索後の答え、途中で止まった答え、送る間隔、時間切れ、破棄） |
 | `logwatch-view.test.ts` | 画面の判断（絞り込み、畳み込み、高さ、時刻、パターン、エラーの目印、カード） |
 | `tests/component/logwatch-widget.test.ts`、`logwatch-parts.test.ts` | ウィジェット（届いた行、見えている間だけの購読、PAUSE、急増のランプ、EXPLAIN の早い完了、複数行の選択と COPY と CLEAR）と部品（一覧、選び方、トレース、追従と NEW の数、ERROR BAR、PATTERNS、設定、カード） |
-| `tests/e2e/logwatch.spec.ts`、`logwatch-edges.spec.ts` | アプリで: 追記、トレース、MASK、絞り込み、PATTERNS、タブの後ろ、Shift_JIS、グラフと ERROR BAR、EXPLAIN、ローテーション、削除と再作成、最新を追う、断る理由、知らない id、最小化、COPY、Shift での連なりと見えない行を送らないこと、形式と時刻、RECENT、応答のない EXPLAIN、レベル・PAUSE・WRAP（折り返した行と次の行が重ならないこと） |
+| `tests/e2e/panes/logwatch.spec.ts` | アプリで: 追記、トレース、MASK、絞り込み、PATTERNS、タブの後ろ、Shift_JIS、グラフと ERROR BAR、EXPLAIN、ローテーション、削除と再作成、最新を追う、断る理由、知らない id、最小化、COPY、Shift での連なりと見えない行を送らないこと、形式と時刻、RECENT、応答のない EXPLAIN、レベル・PAUSE・WRAP（折り返した行と次の行が重ならないこと） |
 
 - **単体**: 形式ごとの判定と正規化（作り物の各形式のサンプル）、続きの行、署名、NEW の学習期間、畳み込み、
   急増、伏せ字、トークン、ローテーションの判定、UTF-16 と Shift_JIS、途中で切れた行、長すぎる行、バイナリ

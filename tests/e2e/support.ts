@@ -4,7 +4,7 @@
  * what main is reading or fetching (main), waiting out a window in which nothing may change (quiet),
  * and the window and main's dialogs and clipboard (os); local stand-ins for AI providers and
  * services (stubs/), fixtures, and helpers shared by a few specs (cpu, elec16, measure, plugins,
- * stub-hooks, terminal). support/logwatch.ts is imported by its two specs directly: its names
+ * stub-hooks, terminal). support/logwatch.ts is imported by its spec directly: its names
  * are too general for everyone's namespace.
  */
 export * from './support/cpu.js'

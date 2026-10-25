@@ -133,7 +133,7 @@ layout（分割・閉じる・リサイズ・リロード・再起動・壊れ�
 
 ### 3.5 panes/
 
-ペインごとに 1 spec。logwatch と logwatch-edges は統合、tools は cpu・launcher・calendar・markets に分ける。中身は **そのペイン固有の W/O/P/B/R だけ**（目安 3〜8 本）。contracts の観点は書かない。
+ペインごとに 1 spec。（logwatch と logwatch-edges の統合、tools の cpu・launcher・calendar・markets への分割は §6.8 で済）。中身は **そのペイン固有の W/O/P/B/R だけ**（目安 3〜8 本）。contracts の観点は書かない。
 
 ### 3.6 パッケージ済みアプリ（packaged/）
 
@@ -263,6 +263,27 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
 - **Docker**: エンジンに拒まれたとき、ペインとタブのバッジが denied と言い、何も並べない。
 
 残る §7 の項目（keybindings・themes・内部の障害は段階 2 で済）: web ペインの最小化、ダウンロード拒否の確認、プラグインのフォルダからのインストール、ELEC-16 の旧版スナップショットの読み込み。
+
+### 6.8 リファクタ後の見直し（issue 38、2026-10-25）
+
+直したもの:
+- tools.spec を panes/cpu・launcher・calendar・markets の 4 spec に分け、logwatch-edges.spec を logwatch.spec に入れた（§3.5）。
+- 起動の共有に 7 本（起動 8 回分）を寄せた（layout の仕切り 2 本・壊れた保存・手での書き換え、markets の幅・長いリスト・不通）。残る直接の `launch()` は、再起動をまたぐ、main がファイルに書く（共有しても次のテストで起動し直しになる）、起動時の env や引数が違う、窓を最小化・リサイズする、main のメモリに状態が残る（markets のスタブの応答、launcher の起動回数）もので、共有しても縮まない。web.spec が共有しないのは、`persist:web` のページとセッションを共有アプリの後始末が見られないため（support/shared.ts）。
+- 貼り付けの問いの電源断は motion 契約と二重だった。契約に「背景も消えながらクリックを通す」（`backdropLeaving`）を足して全ダイアログで見るようにし、workspace/motion.spec の 1 本を消した。
+- §6.7 の残りのうち 3 つを足した: web ペインが最小化中も動き続け、戻ると自分のペインの上に戻る（extensions/web.spec）、ダウンロードを main が断ったこと（`will-download` の `defaultPrevented`）、プラグインをフォルダから入れると import されるファイルだけが写り、off で届く（extensions/plugins.spec）。
+
+確かめて、直さなかったもの:
+- リセットの 3 本（workspace/layout・panes・palette）は、キーボードの問い、ステータスバーとピッカーの 2 回押し、パレットの 2 回目の Enter と、それぞれ別の配線を通るので重複ではない。
+- 切替の問いを確かめるのは workspace/layout.spec（リセットと切替）だけ。keybindings 契約と pane-move は問いを通り抜けるだけで、問いの中身は見ていない。
+- elec16-link.spec の `typeLine` は、LINK の操作のたびにペインへフォーカスを戻すための包みで、10 か所が使う。残す。
+- 複数行の貼り付けの残る 2 本（terminal-extras）は、右クリックで main のクリップボードから貼る経路と、キーボードで貼って断った行がシェルに届かない境界で、別の主張。
+- 設計書にあって存在しない spec は、別の名前で置いた: first-run は workspace/layout-presets.spec（初回だけプリセットが入る）、window は app/chrome.spec、security は app/launch.spec と app/plugin-containment.spec、saved-layouts は workspace/layout.spec、background-work はペインごとの spec（AWAKE は utility、タイマーとリマインダーは desk、地震の通知は quakes）。hover-cards は各ペインの spec がカードを開いて見ている。
+- lifecycle の「続くべきもの」は、契約ではシェルだけを確かめ、残りは panes.ts の `goesOn` が名指しするペインの spec が持つ: 書き途中の回答（aichat: リロードを越え、閉じると終わる）、評議会（elec: 閉じると止まる）、AWAKE（utility: ペインを閉じても続く）、タイマー（desk: 最小化中に鳴る、閉じても鳴る）、地震の通知（quakes: 窓が前に無くても通知）、web の再生（web: 裏のタブ、最小化）。プラグインの `ctx.views` は plugins.md の通り worker が数えるもので、裏で動き続けることを見る e2e はまだ無い。
+- `@smoke` はタグではなく `npm run test:e2e:smoke` の spec の一覧で、`@regression` は使っていない。回帰テストは「Found in review」「Before the fix」のようにコメントで由来を書いている（§4-6、§5 の書き方はこれに読み替える）。
+- 外部への通信 0 の検査は contracts/no-external.spec の 1 本のまま。全テスト共通の fixture にすると、起動ごとに Chromium の net log を取り直すことになり（段階 2）、共有アプリの意味が薄れる。
+- upgrade の fixture は v0.0.39 だけ。§6.7 の通り、スキーマを変えるリリースが次の版のプロファイルを足す。
+- ELEC-16 の旧版スナップショットは unit（elec16-snapshot.test.ts、elec16-helpers.ts の旧版の書き方）が全版を読む。main からページまでの経路は現行版と同じで、e2e を足しても新しく通るものが無い。
+- elec16.spec（1,377 行）と web.spec は、1 ペイン 1 spec の決まりの中で大きいだけなので分けない。
 
 ## 7. 追加する検証（優先度順）
 

@@ -14,7 +14,6 @@ import {
   putWindowAway,
   quietFor,
   removeDir,
-  SINGLE_TERMINAL,
   single,
   waitForSaved,
 } from '../support.js'
@@ -31,7 +30,7 @@ import {
 const calendarOnly = single('calendar', { id: 'c' })
 /**
  * The month on screen. A pane this size shows the months either side of it as
- * well (tools.spec covers that); the wave is the same in each, so it is read
+ * well (calendar.spec covers that); the wave is the same in each, so it is read
  * from the one in the middle.
  */
 const CURRENT = '[data-testid=calendar-grid][data-current]'
@@ -891,24 +890,4 @@ test('a busy button icon follows the motion setting: it turns, or pulses with mo
   expect(reduced.refresh).toMatch(/pulse/)
   expect(reduced.play).toMatch(/pulse/)
   expect((await busyIcons('full', true)).refresh).toMatch(/turn/)
-})
-
-test('the question before a paste of several lines powers on and off as a dialog does', async () => {
-  const { page, app, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
-  try {
-    const host = page
-      .locator('[data-testid=pane][data-widget=terminal]')
-      .getByTestId('terminal-host')
-    await expect(host).toBeVisible()
-    await app.evaluate(({ clipboard }) => clipboard.writeText('echo one\necho two'))
-    await host.click({ button: 'right', position: { x: 60, y: 60 } })
-    const dialog = page.getByTestId('paste-dialog')
-    await expect(dialog).toBeVisible()
-    await expect(dialog).toHaveCSS('animation-name', 'crt-power-on')
-    const closing = await keysThen(page, [ESCAPE], '[data-testid=paste-dialog]')
-    expect(closing).toMatchObject({ present: true, inert: true, beam: true, backdropInert: true })
-    await expect(dialog).toHaveCount(0)
-  } finally {
-    await close()
-  }
 })
