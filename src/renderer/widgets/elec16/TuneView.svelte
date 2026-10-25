@@ -2,6 +2,7 @@
 import {
   MODELS,
   type ModelId,
+  modelName,
   UNIT_MODEL_IDS,
   type UnitModelId,
   XRAM_SIZES_KB,
@@ -66,12 +67,6 @@ const {
 }: Props = $props()
 
 const clockWords = (c: Elec16Clock): string => (c === 'max' ? 'MAX' : `${c} MHz`)
-const modelWords = (id: ModelId): string => {
-  const m = MODELS[id]
-  // The game model and the calculator by their names: neither is another pocket LCD.
-  if (m.input !== 'keyboard') return id.toUpperCase()
-  return `${m.width}×${m.height}${m.depth === 2 ? ' ·4' : ''}`
-}
 /** How the unit's machine is typed to: the pocket keyboard, PLAY-320's pad, SCI-128's keys. */
 const input = $derived(unit === null ? 'keyboard' : MODELS[unit.model].input)
 /** PLAY-320 (docs/elec16-play.md): extended RAM to choose, and no auto power-off. */
@@ -289,7 +284,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
           class:armed={armedModel === id}
           onclick={() => pickModel(id)}
           data-testid="elec16-model"
-          data-model={id}>{armedModel === id ? 'clear RAM?' : modelWords(id)}</button
+          data-model={id}>{armedModel === id ? 'clear RAM?' : modelName(id)}</button
         >
       {/each}
     </div>

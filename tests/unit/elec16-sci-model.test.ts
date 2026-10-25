@@ -17,6 +17,8 @@ import {
   MODEL_IDS,
   MODELS,
   type ModelId,
+  modelName,
+  paneTitle,
   UNIT_MODEL_IDS,
   vramSize,
 } from '@shared/elec16/map'
@@ -70,6 +72,32 @@ describe('the SCI-128 model', () => {
       expect([MODELS[id].annunciators, MODELS[id].cursor], id).toEqual(['pocket', 'cell'])
       expect(cursorModeMask(MODELS[id]), id).toBe(7)
     }
+  })
+})
+
+describe("a pane's title", () => {
+  // Every ELEC-16 tab read ELEC-16: the retro preset's three tabs, two of them the same.
+  it('names the kind of machine, not its size: three pockets alike', () => {
+    expect(MODEL_IDS.map(paneTitle)).toEqual([
+      'elec-16 pocket',
+      'elec-16 pocket',
+      'elec-16 pocket',
+      'elec-16 handheld',
+      'elec-16 play',
+      'elec-16 sci',
+    ])
+  })
+
+  // TUNE named the pockets by their dots (240×32) and the others by name (PLAY-320).
+  it('and every model by its name, in TUNE and under the title alike', () => {
+    expect(MODEL_IDS.map(modelName)).toEqual([
+      'POCKET-32',
+      'POCKET-48',
+      'POCKET-64',
+      'HANDHELD-160',
+      'PLAY-320',
+      'SCI-128',
+    ])
   })
 })
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { DEFAULT_MODEL, MODELS, type RomId } from '@shared/elec16/map'
+import { DEFAULT_MODEL, MODELS, modelName, paneTitle, type RomId } from '@shared/elec16/map'
 import { pasteKeys } from '@shared/elec16/paste'
 import { onDestroy, tick, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
@@ -398,7 +398,10 @@ $effect(() => {
   const status = runner.status
   const off = runner.off
   paneMeta.set(paneId, {
-    subtitle: session.unit === null ? model : `${session.unit.name} · ${model}`,
+    // The kind of machine on its tab, the model by name under the title.
+    title: paneTitle(model),
+    subtitle:
+      session.unit === null ? modelName(model) : `${session.unit.name} · ${modelName(model)}`,
     ...(status === 'running' && !off ? { badge: 'on', badgeKind: 'ok' as const } : {}),
     ...(status === 'paused' ? { badge: 'paused', badgeKind: 'warn' as const } : {}),
     ...(status === 'halted' && !off ? { badge: 'halted', badgeKind: 'danger' as const } : {}),

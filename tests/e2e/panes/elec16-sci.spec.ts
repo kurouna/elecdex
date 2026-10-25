@@ -29,6 +29,11 @@ test('the picker opens a calculator on a unit of its own, whose keys reach it fr
       .click()
     const sci = page.locator('[data-testid=elec16]', { has: page.getByTestId('elec16-sci-device') })
     await expect(sci).toHaveCount(1)
+    // The two tabs by their kind of machine, no longer both ELEC-16.
+    expect(await page.getByTestId('tab-label').allTextContents()).toEqual([
+      'elec-16 pocket',
+      'elec-16 sci',
+    ])
     const firstRow = async () =>
       ((await sci.getByTestId('elec16-text').textContent()) ?? '').split('\n')[0]?.trim() ?? ''
     await expect(sci).toHaveAttribute('data-asleep', 'true', { timeout: 15_000 })
@@ -98,6 +103,15 @@ test('the picker opens a calculator on a unit of its own, whose keys reach it fr
       'true',
     )
     await expect(sci.getByTestId('elec16-tune')).toContainText('SCI 1')
+    await expect(sci.getByTestId('elec16-model')).toHaveText([
+      'POCKET-32',
+      'POCKET-48',
+      'POCKET-64',
+      'HANDHELD-160',
+      'PLAY-320',
+      'SCI-128',
+    ])
+    await expect(page.getByTestId('group-subtitle')).toHaveText('SCI 1 · SCI-128')
 
     // The pocket pane's unit is as it was: BASIC at its prompt.
     expect(await pocketText()).toContain('ELEC-16 BASIC')

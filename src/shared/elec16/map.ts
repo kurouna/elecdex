@@ -55,6 +55,15 @@ export const MODEL_IDS = [
 ] as const
 export type ModelId = (typeof MODEL_IDS)[number]
 
+/** A model by its name, as TUNE and the pane's header show it: POCKET-32, SCI-128. */
+export const modelName = (id: ModelId): string => id.toUpperCase()
+
+/**
+ * The pane's title and tab: the kind of machine, never its size (the three pockets are one
+ * kind), so ELEC-16 tabs side by side tell a calculator from a pocket and a game machine.
+ */
+export const paneTitle = (id: ModelId): string => `elec-16 ${id.slice(0, id.indexOf('-'))}`
+
 /**
  * The models a unit may be, as TUNE offers them and main takes them: every model with a ROM
  * to run. SCI-128 (the scientific calculator, docs/elec16-sci.md) joined in S2 with its first
