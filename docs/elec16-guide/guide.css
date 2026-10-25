@@ -1,0 +1,327 @@
+/*
+ * The ELEC-16 guides (pocket.html, sci.html): one look for both, light and dark by the reader's
+ * system. Plain CSS, no web fonts, so the pages open from the repository or a checkout as they are.
+ */
+:root {
+  --ground: #f6f5f1;
+  --paper: #ffffff;
+  --ink: #1f2328;
+  --muted: #5b6168;
+  --line: #d9d6cf;
+  --accent: #0b6f7f;
+  --accent-ground: #e3f1f2;
+  --warn: #8a4a00;
+  --warn-ground: #fbefdc;
+  --key: #2b2f36;
+  --key-ink: #f4f4f4;
+  --code-ground: #f0eee8;
+  --radius: 10px;
+  --measure: 46rem;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #15181c;
+    --paper: #1c2026;
+    --ink: #e6e8eb;
+    --muted: #a3a9b1;
+    --line: #313740;
+    --accent: #5cc4d1;
+    --accent-ground: #183238;
+    --warn: #f0b25c;
+    --warn-ground: #3a2c17;
+    --key: #e6e8eb;
+    --key-ink: #15181c;
+    --code-ground: #252a31;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font:
+    16px/1.75 system-ui,
+    -apple-system,
+    'Segoe UI',
+    'Hiragino Sans',
+    'Yu Gothic UI',
+    Meiryo,
+    sans-serif;
+}
+
+a {
+  color: var(--accent);
+}
+
+.page {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 2.5rem;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 5rem;
+}
+
+/* The table of contents: beside the text on a wide screen, above it on a narrow one. */
+nav.toc {
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+  font-size: 0.9rem;
+}
+
+nav.toc p {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+nav.toc ol {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+nav.toc li {
+  margin: 0.15rem 0;
+}
+
+nav.toc a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+nav.toc a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+main {
+  min-width: 0;
+  max-width: var(--measure);
+}
+
+header.cover {
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+header.cover .kicker {
+  margin: 0;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+}
+
+h1 {
+  margin: 0.2rem 0 0.6rem;
+  font-size: 2.1rem;
+  line-height: 1.3;
+}
+
+h2 {
+  margin: 3rem 0 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 3px solid var(--accent);
+  font-size: 1.5rem;
+  line-height: 1.4;
+}
+
+h3 {
+  margin: 2rem 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+p,
+ul,
+ol {
+  margin: 0.6rem 0;
+}
+
+figure {
+  margin: 1.5rem 0;
+  padding: 0.75rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+figure img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+/* An LCD alone is small: drawn crisp, never smoothed. */
+figure img.lcd {
+  image-rendering: pixelated;
+  width: min(100%, 32rem);
+}
+
+figure figcaption {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.pair figure {
+  margin: 0;
+}
+
+table {
+  width: 100%;
+  margin: 1rem 0;
+  border-collapse: collapse;
+  background: var(--paper);
+  font-size: 0.95rem;
+}
+
+th,
+td {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--accent-ground);
+}
+
+code,
+pre {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, 'BIZ UDGothic', monospace;
+  font-size: 0.92em;
+}
+
+code {
+  padding: 0.05rem 0.3rem;
+  background: var(--code-ground);
+  border-radius: 4px;
+}
+
+pre {
+  margin: 1rem 0;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  background: var(--code-ground);
+  border-radius: var(--radius);
+  line-height: 1.5;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+/* A key on the machine's body. */
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 0.4em;
+  border-radius: 5px;
+  background: var(--key);
+  color: var(--key-ink);
+  font: 600 0.82em/1.6 ui-monospace, Consolas, monospace;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Steps to follow, numbered. */
+ol.steps {
+  counter-reset: step;
+  list-style: none;
+  padding-left: 0;
+}
+
+ol.steps > li {
+  position: relative;
+  margin: 0.8rem 0;
+  padding-left: 2.6rem;
+}
+
+ol.steps > li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.1rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--paper);
+  font-weight: 700;
+  line-height: 1.8rem;
+  text-align: center;
+}
+
+.note,
+.tip {
+  margin: 1.2rem 0;
+  padding: 0.8rem 1rem;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-ground);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.note {
+  border-left-color: var(--warn);
+  background: var(--warn-ground);
+}
+
+.note > :first-child,
+.tip > :first-child {
+  margin-top: 0;
+}
+
+.note > :last-child,
+.tip > :last-child {
+  margin-bottom: 0;
+}
+
+footer {
+  margin-top: 4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 52rem) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 1.25rem 1rem 4rem;
+    gap: 1rem;
+  }
+
+  nav.toc {
+    position: static;
+    max-height: none;
+    padding: 0.8rem 1rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+
+  h1 {
+    font-size: 1.7rem;
+  }
+}

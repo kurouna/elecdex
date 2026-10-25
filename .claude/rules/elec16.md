@@ -174,5 +174,8 @@ the files above is read or edited.
     and the manual's examples run (elec16-sci-rom.test.ts; v2's chapters in
     elec16-sci-v2.test.ts, v3's in elec16-sci-v3.test.ts). Tests reach CALC's FUNC pages by
     their titles (`fp:NAME` in elec16-sci-helpers.ts), never by counting ▼: pages get added.
+  - The HTML quick guides, docs/elec16-guide/pocket.html and sci.html (Japanese, one guide.css,
+    no script), are made from the manuals: a change a user can see updates them with the manual,
+    and their pictures are retaken by `node scripts/elec16-guide-shots.mjs`, never by hand.
   - The page reads its screen for a screen reader by its dots (`dotText`, shared/elec16/font.ts:
     text on any row, big digits): keep it cheap (measured 0.3 ms a screen).

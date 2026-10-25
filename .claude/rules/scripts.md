@@ -51,4 +51,5 @@ node scripts/elecfighter/serve.mjs       # ELECFIGHTER's design viewer (viewer.h
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
 node scripts/log-feed.mjs [file] [--format=jsonl|logfmt|generic|syslog|clf|plain] [--rate=20] [--encoding=utf-8|utf-16le|shift_jis] [--rotate=60]  # a made-up log for LOG WATCH
+node scripts/elec16-guide-shots.mjs [pocket] [sci]  # the ELEC-16 guides' pictures (docs/elec16-guide/shots), new units on a demo profile (Windows; build first)
 ```

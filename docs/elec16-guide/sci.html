@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELEC-16 SCI ガイド</title>
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<div class="page">
+
+<nav class="toc">
+<p>目次</p>
+<ol>
+<li><a href="#quick">はじめの 6 歩</a></li>
+<li><a href="#open">出し方と本体</a></li>
+<li><a href="#keys">キー</a></li>
+<li><a href="#typing">式を打つ: 2D と LINE</a></li>
+<li><a href="#answers">答えの形と F⇄D</a></li>
+<li><a href="#memory">変数、Ans、M、履歴</a></li>
+<li><a href="#func">FUNC のメニュー</a></li>
+<li><a href="#si">SI 接頭辞と ENG</a></li>
+<li><a href="#more">mod、Π、→PRIME</a></li>
+<li><a href="#dist">正規分布</a></li>
+<li><a href="#const">CONST と CONV</a></li>
+<li><a href="#calculus">Σ、d/dx、∫</a></li>
+<li><a href="#fx">f(x) と FIND X</a></li>
+<li><a href="#setup">SETUP</a></li>
+<li><a href="#modes">モード（MENU）</a></li>
+<li><a href="#errors">誤りの画面</a></li>
+<li><a href="#limits">数と範囲</a></li>
+<li><a href="#faq">困ったとき</a></li>
+<li><a href="#manual">もっと詳しく</a></li>
+</ol>
+</nav>
+
+<main>
+
+<header class="cover">
+<p class="kicker">ELEC-16 SCI</p>
+<h1>関数電卓 SCI-128 ガイド</h1>
+<p>ELEC-16 ペインの関数電卓モデル <strong>ELEC-16 SCI（SCI-128）</strong>の使い方を、ひととおり短くまとめました。式を教科書どおりの形（2D）で打ち、分数や √ のままの答えを出します。統計、2・8・10・16 進、関数の表、方程式と不等式、複素数、行列とベクトル、プログラムのモードと、物理定数、単位の換算、Σ・微分・積分もあります。</p>
+</header>
+
+<figure>
+<img src="shots/sci-pane.png" alt="ELEC-16 ペインに CHALK の本体の電卓が出ていて、右に PANEL の CORE が開いている。液晶には sin(45)+1/2 の答え (1+√2)/2 が出ている。">
+<figcaption>ELEC-16 SCI（本体は CHALK、PANEL は CORE）。sin 45 + 1/2 を (1+√2)/2 と答えたところ</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="quick">はじめの 6 歩</h2>
+
+<p>まずはこの 6 歩で、電卓のおおよその使い方がつかめます。キーは本体の刻印の名前で書いています。</p>
+
+<ol class="steps">
+<li>
+<p><strong>電卓を出す。</strong>ペインのピッカー（<code>Ctrl+Shift+A</code>）で <strong>elec-16 sci</strong> の行を選びます。新しいユニット「SCI 1」で電卓が開きます。プリセットの desk と retro なら、もうタブに入っています（<a href="#open">出し方と本体</a>）。</p>
+</li>
+<li>
+<p><strong>最初の計算。</strong><kbd>3</kbd><kbd>4</kbd><kbd>+</kbd><kbd>5</kbd><kbd>7</kbd><kbd>=</kbd> で 91。続けて数だけを打って <kbd>=</kbd> を押すと、同じ「+57」をします（<kbd>4</kbd><kbd>5</kbd><kbd>=</kbd> で 102）。これが定数計算で、<kbd>AC</kbd> で消えます。</p>
+</li>
+<li>
+<p><strong>分数を 2D で。</strong><kbd>1</kbd><kbd>a/b</kbd><kbd>3</kbd><kbd>▶</kbd><kbd>+</kbd><kbd>1</kbd><kbd>a/b</kbd><kbd>6</kbd><kbd>=</kbd>。分数が上下に組まれ、分母を打ち終えたら <kbd>▶</kbd> で分数の外へ出ます。答えは 1/2 です。</p>
+<div class="pair">
+<figure>
+<img class="lcd" src="shots/sci-2d.png" alt="液晶に 1/3 + 1/6 が上下に組まれた分数で出ていて、カーソルは 2 つ目の分数の中にある。">
+<figcaption>打っている途中（2 つ目の分数の中）</figcaption>
+</figure>
+<figure>
+<img class="lcd" src="shots/sci-fraction.png" alt="液晶の答えの欄に 1/2 が分数で出ている。">
+<figcaption>答えは 1/2</figcaption>
+</figure>
+</div>
+</li>
+<li>
+<p><strong>答えの形を変える。</strong><kbd>SIN</kbd><kbd>4</kbd><kbd>5</kbd><kbd>)</kbd><kbd>+</kbd><kbd>1</kbd><kbd>a/b</kbd><kbd>2</kbd><kbd>=</kbd> は (1+√2)/2 と、√ のままの形で答えます（sin 45 は √2/2）。<kbd>F⇄D</kbd> を押すと小数になり、続けて押すと形に戻ります。</p>
+<div class="pair">
+<figure>
+<img class="lcd" src="shots/sci-exact.png" alt="液晶に sin(45)+1/2 と、その答え (1+√2)/2 が出ている。">
+<figcaption>形の答え (1+√2)/2</figcaption>
+</figure>
+<figure>
+<img class="lcd" src="shots/sci-decimal.png" alt="同じ式の答えが、F⇄D で小数になって大きな数字で出ている。">
+<figcaption>F⇄D で小数に</figcaption>
+</figure>
+</div>
+</li>
+<li>
+<p><strong>モードを選ぶ。</strong><kbd>MENU</kbd> で 8 つのモードが出ます。数字で選び、<kbd>AC</kbd> で戻ります（<a href="#modes">モード</a>）。</p>
+<figure>
+<img class="lcd" src="shots/sci-menu.png" alt="MENU の画面。1:CALC 2:STATS 3:BASE 4:TABLE 5:EQUATION 6:CPLX 7:MATRIX 8:PROG が並んでいる。">
+<figcaption>MENU の 8 つのモード</figcaption>
+</figure>
+</li>
+<li>
+<p><strong>設定を見る。</strong><kbd>SETUP</kbd> で、2D / LINE、角度（DEG / RAD / GRAD）、小数の出し方などを選びます。数字で選び、<kbd>AC</kbd> で戻ります（<a href="#setup">SETUP</a>）。</p>
+<figure>
+<img class="lcd" src="shots/sci-setup.png" alt="SETUP の 1 ページ目。2D と LINE、DEG RAD GRAD、答えの出し方、FIX EXP AUTO の項目が並び、今の設定が反転している。">
+<figcaption>SETUP の 1 ページ目（今の設定が反転）</figcaption>
+</figure>
+</li>
+</ol>
+
+<div class="tip">
+<p>PC のキーボードでも打てます。数字と <code>+ - * /</code>、<code>Enter</code> が <kbd>=</kbd>、<code>Backspace</code> が <kbd>DEL</kbd>、<code>Delete</code> が <kbd>AC</kbd> です（<a href="#keys">キー</a>）。</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="open">出し方と本体</h2>
+
+<h3>電卓を出す</h3>
+<ul>
+<li><strong>ピッカーから</strong>: ペインのピッカー（<code>Ctrl+Shift+A</code>）で <strong>elec-16 sci</strong> の行を選ぶと、新しいユニット「SCI 1」（2 台目からは SCI 2、SCI 3 …）を作って電卓を開きます。ポケコンのユニットはそのまま残ります。</li>
+<li><strong>プリセットから</strong>: レイアウトのプリセット <strong>desk</strong> と <strong>retro</strong> では、電卓がタブの 2 つ目に入っています（desk はユーティリティの隣、retro は ELEC-16 と CHIP-8 の間）。本体に場所を譲るため、PANEL は畳んであります。</li>
+</ul>
+
+<figure>
+<img src="../screenshots/elecdex-retro.jpg" alt="elecdex の retro プリセットの画面。ELEC-16、電卓、CHIP-8 が 1 つのタブの帯に並び、下に音のスペクトルがある。">
+<figcaption>retro プリセット。電卓は ELEC-16 と CHIP-8 の間のタブ</figcaption>
+</figure>
+
+<p>電卓はユニットごとに RAM（変数、Ans、履歴、STATS の表など）を持ち、電源を切っても残ります。</p>
+
+<h3>電源</h3>
+<ul>
+<li><kbd>ON</kbd> で電源が入ります。名前が少し出てから、前のモードの画面に戻ります。</li>
+<li>電源が入っている間の <kbd>ON</kbd> は、いつでも <kbd>AC</kbd> と同じに働きます。計算の途中でも止まります。</li>
+<li><kbd>SHIFT</kbd> <kbd>ON</kbd> で電源を切ります。PANEL の TUNE で、自動電源 OFF（10 分 / 30 分 / しない）も選べます。</li>
+</ul>
+
+<h3>PANEL</h3>
+<p>帯の PANEL で、右のパネルを出し入れします。電卓のパネルは <strong>CORE</strong>、<strong>MEM</strong>、<strong>TUNE</strong> の 3 つです。TUNE では、モデルの切り替え、クロック、自動電源 OFF、本体の色と描き方を選びます。</p>
+<div class="note">
+<p>TUNE でモデルを切り替えると、そのユニットの RAM が消えます。そのため 2 度押しで確かめます。</p>
+</div>
+
+<h3>本体の色と描き方</h3>
+<table>
+<tr><th>色</th><th>見た目</th></tr>
+<tr><td>SLATE</td><td>濃い灰の本体に明るい灰の数のキー。SHIFT は琥珀、ALPHA は青緑</td></tr>
+<tr><td>CHALK</td><td>白っぽい本体に濃い関数キーと白い数のキー</td></tr>
+<tr><td>PLAIN</td><td>elecdex の見た目。本体を描かず、色はすべて今のテーマのもの</td></tr>
+</table>
+<table>
+<tr><th>描き方</th><th>出るもの</th></tr>
+<tr><td>FULL</td><td>本体とキーのすべて</td></tr>
+<tr><td>COMPACT</td><td>液晶、十字キー、AC と = の 1 列。ほかは PC のキーで打つ</td></tr>
+<tr><td>LCD</td><td>液晶だけ。PC のキーで打つ</td></tr>
+</table>
+<p>描き方はペインの大きさから自動で選ばれ、TUNE で固定もできます。</p>
+
+<h3>画面</h3>
+<p>液晶は 128×64 ドットです。上が式の欄、下が答えの欄で、小数の答えは大きな数字で出ます。液晶の上には表示記号が並びます。</p>
+<table>
+<tr><th>記号</th><th>意味</th></tr>
+<tr><td><code>S</code> / <code>A</code></td><td>SHIFT / ALPHA を押した</td></tr>
+<tr><td><code>M</code></td><td>M が 0 でない</td></tr>
+<tr><td><code>STO</code> / <code>HYP</code></td><td>STO / HYP を押した</td></tr>
+<tr><td><code>STAT</code></td><td>統計</td></tr>
+<tr><td><code>D</code> <code>R</code> <code>G</code></td><td>角度の単位（DEG / RAD / GRAD）</td></tr>
+<tr><td><code>FIX</code> / <code>EXP</code></td><td>小数の出し方</td></tr>
+<tr><td><code>2D</code></td><td>2D 表示</td></tr>
+<tr><td><code>▲</code> <code>▼</code></td><td>履歴や続きがある</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="keys">キー</h2>
+
+<figure>
+<img src="shots/sci-body.png" alt="CHALK の色の電卓の本体。上に銘板と液晶、その下に SHIFT、ALPHA、十字キー、MENU、ON などの上の 2 段、関数のキーが 6 列 3 段、数のキーが 5 列 4 段並んでいる。">
+<figcaption>本体（CHALK）。キーの上の左の字が SHIFT 面、右の色の字が ALPHA 面</figcaption>
+</figure>
+
+<h3>キーの面の見方</h3>
+<ul>
+<li><strong>刻印</strong>が主の面です。そのまま押します。</li>
+<li><strong>キーの上の左の小さな字</strong>が SHIFT の面です。<kbd>SHIFT</kbd> を押してからそのキーを押します。SLATE と CHALK では琥珀（橙）の字で、<kbd>SHIFT</kbd> のキーも同じ色です。</li>
+<li><strong>キーの上の右の色の字</strong>が ALPHA の面（変数の字）です。<kbd>ALPHA</kbd> を押してからそのキーを押します。SLATE と CHALK では青緑の字です。</li>
+</ul>
+<p>SHIFT の面は、そのキーの<strong>逆の関数</strong>です（<kbd>LOG</kbd> と 10ˣ、<kbd>SIN</kbd> と SIN⁻¹）。よく使う x² と √ はどちらも主の面にあり、その SHIFT 面は 3 乗（x³）と 3 乗根（∛）です。逆のないもの（gcd、lcm、% など）は <kbd>FUNC</kbd> のメニューにあります。</p>
+
+<h3>キーの並び</h3>
+<p>上の 2 段（十字キーは真ん中）:</p>
+<table>
+<tr><td><kbd>SHIFT</kbd></td><td><kbd>ALPHA</kbd></td><td colspan="2">十字キー <kbd>▲</kbd> <kbd>▼</kbd> <kbd>◀</kbd> <kbd>▶</kbd></td><td><kbd>MENU</kbd> / CONV</td><td><kbd>ON</kbd> / OFF</td></tr>
+<tr><td><kbd>SETUP</kbd> / ANGLE</td><td><kbd>FUNC</kbd> / CONST</td><td colspan="2"></td><td><kbd>STO</kbd> / RCL</td><td><kbd>F⇄D</kbd> / ENG</td></tr>
+</table>
+<p>関数のキー（主 / SHIFT / ALPHA）:</p>
+<table>
+<tr><td><kbd>a/b</kbd> / a b/c</td><td><kbd>x²</kbd> / x³</td><td><kbd>√</kbd> / ∛</td><td><kbd>xʸ</kbd> / ʸ√x</td><td><kbd>LOG</kbd> / 10ˣ</td><td><kbd>LN</kbd> / eˣ</td></tr>
+<tr><td><kbd>(−)</kbd> / abs / A</td><td><kbd>°′″</kbd> / →DMS / B</td><td><kbd>HYP</kbd> / ― / C</td><td><kbd>SIN</kbd> / SIN⁻¹ / D</td><td><kbd>COS</kbd> / COS⁻¹ / E</td><td><kbd>TAN</kbd> / TAN⁻¹ / F</td></tr>
+<tr><td><kbd>f(x)</kbd> / FIND X</td><td><kbd>x⁻¹</kbd> / x!</td><td><kbd>nCr</kbd> / nPr</td><td><kbd>(</kbd> / , / X</td><td><kbd>)</kbd> / ― / Y</td><td><kbd>M+</kbd> / M− / M</td></tr>
+</table>
+<p>数のキー:</p>
+<table>
+<tr><td><kbd>7</kbd></td><td><kbd>8</kbd></td><td><kbd>9</kbd></td><td><kbd>DEL</kbd> / INS</td><td><kbd>AC</kbd></td></tr>
+<tr><td><kbd>4</kbd></td><td><kbd>5</kbd></td><td><kbd>6</kbd></td><td><kbd>×</kbd></td><td><kbd>÷</kbd></td></tr>
+<tr><td><kbd>1</kbd></td><td><kbd>2</kbd></td><td><kbd>3</kbd></td><td><kbd>+</kbd></td><td><kbd>−</kbd></td></tr>
+<tr><td><kbd>0</kbd></td><td><kbd>.</kbd></td><td><kbd>EXP</kbd> / π / e</td><td><kbd>ANS</kbd></td><td><kbd>=</kbd> / ≈</td></tr>
+</table>
+
+<h3>よく使うキー</h3>
+<ul>
+<li><kbd>DEL</kbd> はカーソルの前を消します。<kbd>SHIFT</kbd> <kbd>DEL</kbd>（INS）で上書きになり <code>OVR</code> が出ます（もう一度で挿入に戻る）。<kbd>AC</kbd> は式を消します。</li>
+<li><kbd>◀</kbd> <kbd>▶</kbd> でカーソルを動かし、<kbd>▲</kbd> <kbd>▼</kbd> で履歴を見ます（2D の分数では分子と分母の行き来）。</li>
+<li><kbd>=</kbd> で答え、<kbd>SHIFT</kbd> <kbd>=</kbd>（≈）で初めから小数で答えます。</li>
+<li><kbd>(−)</kbd> は符号です。引き算は <kbd>−</kbd> のキーです。</li>
+</ul>
+
+<h3>PC のキーボード</h3>
+<table>
+<tr><th>PC のキー</th><th>電卓のキー</th></tr>
+<tr><td>数字、<code>+ - * /</code>、<code>( )</code>、<code>.</code></td><td>同じキー</td></tr>
+<tr><td><code>^</code></td><td><kbd>xʸ</kbd></td></tr>
+<tr><td><code>Enter</code></td><td><kbd>=</kbd></td></tr>
+<tr><td><code>Backspace</code></td><td><kbd>DEL</kbd></td></tr>
+<tr><td><code>Delete</code></td><td><kbd>AC</kbd></td></tr>
+<tr><td>矢印</td><td>十字キー</td></tr>
+<tr><td><code>Pause</code></td><td><kbd>ON</kbd></td></tr>
+<tr><td><code>s</code> <code>c</code> <code>t</code></td><td><kbd>SIN</kbd> <kbd>COS</kbd> <kbd>TAN</kbd></td></tr>
+<tr><td><code>l</code> <code>g</code></td><td><kbd>LN</kbd> <kbd>LOG</kbd></td></tr>
+<tr><td><code>f</code> <code>e</code> <code>r</code> <code>!</code></td><td><kbd>a/b</kbd> <kbd>EXP</kbd> <kbd>√</kbd> x!</td></tr>
+</table>
+<p>大文字でも同じキーで、Shift を押しながら打つとそのキーの SHIFT 面です。Ctrl・Alt 付きのキー、Tab、Esc、ファンクションキーはアプリのものなので、電卓は取りません。</p>
+
+<!-- ============================================================ -->
+<h2 id="typing">式を打つ: 2D と LINE</h2>
+
+<p>式を打って <kbd>=</kbd> を押すと、下に答えが出ます。答えの後に + − × ÷ などを押すと Ans（前の答え）から続き、数を押すと新しい式になります。</p>
+
+<h3>2D 表示</h3>
+<p>電源を入れた最初の形です。分数、√、累乗が教科書の形で組まれます。</p>
+<ul>
+<li><kbd>a/b</kbd> は直前の値（数、π、変数、括弧の組、√ や分数）を分子にします。前に値がなければ空の分数で、分子から打ちます。分母を打ち終えたら <kbd>▶</kbd> で外へ出ます。</li>
+<li><kbd>▲</kbd> <kbd>▼</kbd> で分子と分母を行き来します。</li>
+<li>空の枠は点線の箱で、カーソルはその中に入ります。<kbd>DEL</kbd> は枠のところで中へ入り、空の枠は消します。</li>
+<li>画面に入らないほど高い分数（分数の中の分数の中の分数…）は入らず、短いブザーが鳴ります。</li>
+<li>帯分数は <kbd>SHIFT</kbd> <kbd>a/b</kbd>（a b/c）で打ちます。</li>
+</ul>
+
+<h3>LINE 表示</h3>
+<p><a href="#setup">SETUP</a> の 1 ページ目の 2 で切り替えます。式を 1 行の文字で打ち、分数は <code>/</code>、√ は <code>√(</code> です。CPLX、MATRIX、PROG のモードは LINE で打ちます。</p>
+
+<h3>計算の順位</h3>
+<p>強い順に:</p>
+<ol>
+<li>括弧、関数、分数や √ の枠（関数の閉じ括弧は省けます。式の終わりで閉じます）</li>
+<li>累乗、x²、x³、x⁻¹、x!、%（累乗は右から: <code>2^3^2</code> は 512）</li>
+<li>符号（−）: <code>-2²</code> は −4</li>
+<li>LINE 表示の分数 <code>/</code></li>
+<li>nCr、nPr</li>
+<li>記号のない掛け算（<code>2π</code>、<code>3(4+1)</code>、<code>2√3</code>）: <code>1÷2π</code> は 1/(2π) = 0.159154943、<code>6÷2(1+2)</code> は 1</li>
+<li>× ÷（と mod）</li>
+<li>+ −</li>
+</ol>
+<div class="tip">
+<p>関数の括弧は式の終わりで閉じます。<kbd>SIN</kbd> の後に続けて足すときは、<kbd>)</kbd> で閉じてから <kbd>+</kbd> を押しましょう。</p>
+</div>
+
+<h3>定数計算</h3>
+<p><code>34+57=</code> のように「数 演算子 数」を答えると、その演算が定数として残り、答えの左下に <code>K</code> が出ます。続けて数だけを打って <kbd>=</kbd> を押すと、定数の演算をします。+ − ÷ は右の数が、× は左の数が定数です。<kbd>AC</kbd> で消えます。</p>
+<table>
+<tr><th>打つもの</th><th>答え</th></tr>
+<tr><td><code>34+57=</code> のあと <code>45=</code></td><td>102（45+57）</td></tr>
+<tr><td><code>68×25=</code> のあと <code>40=</code></td><td>2720（68×40）</td></tr>
+<tr><td><code>79−59=</code> のあと <code>56=</code></td><td>−3（56−59）</td></tr>
+<tr><td><code>56÷8=</code> のあと <code>92=</code></td><td>11.5（92÷8）</td></tr>
+</table>
+
+<h3>角度の換算（ANGLE）</h3>
+<p><kbd>SHIFT</kbd> <kbd>SETUP</kbd>（ANGLE）で、答え（打ちかけの式があればその答え）を次の角度の単位に換算し、SETUP の単位も切り替えます。DEG → RAD → GRAD → DEG の順です（<code>90</code> は 1.570796327 → 100 → 90）。</p>
+
+<!-- ============================================================ -->
+<h2 id="answers">答えの形と F⇄D</h2>
+
+<p>答えは、できるかぎり<strong>正確な形</strong>で出ます: 分数、√、整数と √ の和（<code>(p + r√s)/q</code> の形）。</p>
+<table>
+<tr><th>打つもの</th><th>答え</th></tr>
+<tr><td><kbd>1</kbd><kbd>a/b</kbd><kbd>3</kbd><kbd>▶</kbd><kbd>+</kbd><kbd>1</kbd><kbd>a/b</kbd><kbd>6</kbd><kbd>=</kbd></td><td>1/2</td></tr>
+<tr><td><kbd>√</kbd><kbd>8</kbd><kbd>=</kbd></td><td>2√2</td></tr>
+<tr><td><kbd>SIN</kbd><kbd>4</kbd><kbd>5</kbd><kbd>=</kbd></td><td>√2/2</td></tr>
+<tr><td><kbd>TAN</kbd><kbd>1</kbd><kbd>5</kbd><kbd>=</kbd></td><td>2−√3</td></tr>
+<tr><td><kbd>1</kbd><kbd>a/b</kbd><kbd>2</kbd><kbd>▶</kbd><kbd>xʸ</kbd><kbd>3</kbd><kbd>=</kbd></td><td>1/8</td></tr>
+</table>
+<ul>
+<li><kbd>F⇄D</kbd> で、形 → 帯分数（1 より大きい分数のとき）→ 小数 → 形と回ります。</li>
+<li><kbd>SHIFT</kbd> <kbd>=</kbd>（≈）は初めから小数で答えます。</li>
+<li><kbd>SHIFT</kbd> <kbd>F⇄D</kbd>（ENG）は指数が 3 の倍数の小数です。もう一度で SI 接頭辞の字になります（<a href="#si">SI 接頭辞と ENG</a>）。</li>
+<li>式に小数点を打ったときは、小数で答えます（<code>0.1+0.2</code> は 0.3。<kbd>F⇄D</kbd> で 3/10）。</li>
+<li>途中で形の数が 10 桁を越えたり、違う √ どうしを足したりすると、その計算は小数だけで続きます。誤りにはなりません。</li>
+<li>特別な角度（15° の倍数）の sin・cos・tan は形で答えます。sin 15° のように √ が 2 重になるものは小数です。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="memory">変数、Ans、M、履歴</h2>
+
+<h3>変数</h3>
+<p>変数は A〜F、X、Y、M です。変数のキーは ALPHA 面の字のキーで、A〜F は <kbd>(−)</kbd>〜<kbd>TAN</kbd>、X は <kbd>(</kbd>、Y は <kbd>)</kbd>、M は <kbd>M+</kbd> です。</p>
+<ul>
+<li><strong>しまう</strong>: <kbd>STO</kbd> のあと変数のキー。答え（打ちかけの式があればその値）が入ります。</li>
+<li><strong>呼ぶ</strong>: <kbd>SHIFT</kbd> <kbd>STO</kbd>（RCL）のあと変数のキー。</li>
+<li><strong>式の中で使う</strong>: <kbd>ALPHA</kbd> のあと変数のキー。</li>
+</ul>
+<p>変数も Ans も、分数や √ の形のまま残ります。</p>
+
+<h3>M（独立メモリ）</h3>
+<p><kbd>M+</kbd> で M に足し、<kbd>SHIFT</kbd> <kbd>M+</kbd>（M−）で引きます。M が 0 でない間、<code>M</code> が点きます。</p>
+
+<h3>履歴</h3>
+<p><kbd>=</kbd> を押した式を 10 本まで残します。式が空か、答えの後で <kbd>▲</kbd> を押すと前の式、<kbd>▼</kbd> で後の式が出ます。電源を切っても残ります。</p>
+
+<div class="tip">
+<p>変数、Ans、M、SETUP、STATS の表は、どのモードでも同じものです。式と履歴はモードごとに持ちます。</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="func">FUNC のメニュー</h2>
+
+<p><kbd>FUNC</kbd> で関数のメニューが開きます。数字で選び、<kbd>▼</kbd> <kbd>▲</kbd> でページを移ります。CALC では 7 ページです。関数は <code>gcd(</code> のように小文字で、行に入る形のまま出ます。</p>
+
+<figure>
+<img class="lcd" src="shots/sci-func.png" alt="FUNC の 1 ページ目。1:gcd 2:lcm 3:% 4:int 5:round 6:pol 7:rec 8:d/dx 9:∫ 0:Σ が並んでいる。">
+<figcaption>FUNC の 1 ページ目</figcaption>
+</figure>
+
+<table>
+<tr><th>ページ</th><th>中身</th></tr>
+<tr><td>1 FUNC</td><td>1 gcd、2 lcm、3 %、4 int、5 round、6 pol、7 rec、8 d/dx、9 ∫、0 Σ</td></tr>
+<tr><td>2 ENG</td><td>SI 接頭辞: 1 k、2 M、3 G、4 T、5 m、6 μ、7 n、8 p、9 f</td></tr>
+<tr><td>3 MORE</td><td>1 mod、2 Π(、3 →PRIME</td></tr>
+<tr><td>4 RANDOM</td><td>1 rand（0〜1 の乱数）、2 dice（1〜6）、3 coin（0 か 1）、4 rint（0〜99）。= を押すたびに新しい数</td></tr>
+<tr><td>5 STATS</td><td>1〜7 n、x̄、σx、sx、ȳ、σy、sy。8 r、9 a、0 b</td></tr>
+<tr><td>6 STATS</td><td>1〜5 Σx、Σx²、Σy、Σy²、Σxy。6 x′(、7 y′(、8 c、9 x₂′(</td></tr>
+<tr><td>7 DIST</td><td>1 nlow(、2 nmid(、3 nup(、4 →z</td></tr>
+</table>
+<p>ほかのモード（STATS、BASE、CPLX、MATRIX、PROG）では、FUNC にそのモードのメニューが出ます。</p>
+
+<h3>1 ページ目の関数</h3>
+<table>
+<tr><th>関数</th><th>例</th></tr>
+<tr><td>gcd(a,b) 最大公約数</td><td><code>gcd(12,18)</code> = 6</td></tr>
+<tr><td>lcm(a,b) 最小公倍数</td><td><code>lcm(4,6)</code> = 12</td></tr>
+<tr><td>%</td><td><code>50%</code> = 0.5、<code>500+25%</code> = 625、<code>500−25%</code> = 375</td></tr>
+<tr><td>int(x) 0 の方へ切り捨て</td><td><code>int(-2.7)</code> = −2</td></tr>
+<tr><td>round(x) 今の表示の桁で丸める</td><td>FIX 2 で <code>round(1÷3)×3</code> = 0.99</td></tr>
+<tr><td>pol(x,y) 直交 → 極座標</td><td><code>pol(3,4)</code>: X = 5、Y = 53.13010235</td></tr>
+<tr><td>rec(r,θ) 極 → 直交座標</td><td><code>rec(2,90)</code>: X = 0、Y = 2</td></tr>
+</table>
+<p>pol と rec は 2 つの答えを変数 X と Y に入れ、2 行で見せます。コンマは <kbd>SHIFT</kbd> <kbd>(</kbd> です。</p>
+
+<h3>% の決まり</h3>
+<p><code>b%</code> は b ÷ 100 です。+ や − の後の項が % で終わるときは、相手の b% になります: <code>500+25%</code> は 625（割増）、<code>500−25%</code> は 375（割引）。× と ÷ はそのままで、<code>200×5%</code> は 10、<code>50÷25%</code> は 200。括弧の中の % は相手を持たないので、<code>500+(25%)</code> は 500.25 です。</p>
+
+<h3>STATS の結果を式の中で（5・6 ページ目）</h3>
+<p>STATS の表から、式を計算するときに求めます。表が LINE で X が 1、2、3、Y が 2、4、7 なら、<code>10x̄+1</code> は 21、<code>y′(4)</code> は 9.333333333、<code>x′(9.3333333333)</code> は 4。表が空のときや、1-VAR の表で y の値や r・a・b を使ったときは ERR:MATH です。</p>
+
+<h3>度分秒、双曲線関数、そのほか</h3>
+<ul>
+<li><strong>度分秒</strong>: <kbd>°′″</kbd> を数の後で押すたびに °、′、″ が付きます（<code>12°30′</code> は 12.5）。答えの後で押すと度分秒の表示と行き来します（<code>1.51</code> は 1°30′36″）。</li>
+<li><strong>双曲線関数</strong>: <kbd>HYP</kbd> のあと <kbd>SIN</kbd>・<kbd>COS</kbd>・<kbd>TAN</kbd> で sinh・cosh・tanh、<kbd>SHIFT</kbd> を挟むとその逆です（<code>HYP sin 1</code> = 1.175201194）。</li>
+<li><strong>ʸ√x</strong>: <kbd>3</kbd> <kbd>SHIFT</kbd> <kbd>xʸ</kbd> <kbd>8</kbd> は ∛8 = 2。奇数乗根は負の数にも使えます。</li>
+<li><strong>abs</strong>: <kbd>SHIFT</kbd> <kbd>(−)</kbd> で絶対値。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="si">SI 接頭辞と ENG</h2>
+
+<p>FUNC の 2 ページ目（ENG）の接頭辞を数の後ろに付けると、その数に 10 の累乗を掛けます。</p>
+<table>
+<tr><th>k</th><th>M</th><th>G</th><th>T</th><th>m</th><th>μ</th><th>n</th><th>p</th><th>f</th></tr>
+<tr><td>10³</td><td>10⁶</td><td>10⁹</td><td>10¹²</td><td>10⁻³</td><td>10⁻⁶</td><td>10⁻⁹</td><td>10⁻¹²</td><td>10⁻¹⁵</td></tr>
+</table>
+<ul>
+<li>x² と同じく直前の値に付き、答えの後なら Ans に付きます。</li>
+<li><code>47k×220p</code> は 0.00001034、<code>1÷(2π×1k×100n)</code>（1 kΩ と 100 nF の遮断周波数）は 1591.549431。</li>
+<li>接頭辞を打った式は、小数点を打った式と同じく小数で答えます（<kbd>F⇄D</kbd> で形）。</li>
+<li>変数の M と接頭辞の M は同じ字です。</li>
+</ul>
+
+<h3>ENG で接頭辞の字に</h3>
+<p><kbd>SHIFT</kbd> <kbd>F⇄D</kbd>（ENG）で、指数が 3 の倍数の小数になります。もう一度 <kbd>SHIFT</kbd> <kbd>F⇄D</kbd> を押すと、×10ⁿ の代わりに接頭辞の字で出します。もう一度で ×10ⁿ に戻ります。指数が 0 か、10⁻¹⁵〜10¹² の外ならブザーです。</p>
+<figure>
+<img class="lcd" src="shots/sci-eng.png" alt="47k×220p の答えが、ENG を 2 度押して 10.34μ と接頭辞の字で出ている。">
+<figcaption><code>47k×220p</code> を ENG で 2 度: 10.34μ</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="more">mod、Π、→PRIME</h2>
+
+<p>FUNC の 3 ページ目（MORE）にあります。</p>
+
+<h3>mod（余り）</h3>
+<p><code>a mod b</code> は a を b で割った余りです（<code>127 mod 16</code> は 15、<code>1024 mod 7</code> は 2）。</p>
+<ul>
+<li>× ÷ と同じ強さで左から計算します（<code>10+7 mod 3</code> は 11、<code>6 mod 4×2</code> は 4）。</li>
+<li>記号のない掛け算はそれより強く結びます（A が 7 なら <code>100 mod 3A</code> は 16）。</li>
+<li>0 以上の整数を 1 以上の整数で割るときだけ使えます。負の数、小数、0 で割るときは ERR:MATH です。</li>
+</ul>
+
+<h3>Π（積）</h3>
+<p><code>Π(f(X),a,b)</code> は X = a, a+1, …, b の積です。決まりは Σ と同じです（<a href="#calculus">Σ、d/dx、∫</a>）。</p>
+
+<h3>→PRIME（素因数分解）</h3>
+<p>答えを素因数の積で見せます。式があれば先に答えを出し、式が空なら Ans を分解します。</p>
+<ul>
+<li><code>360</code> は 2³×3²×5、<code>2026</code> は 2×1013、<code>-12</code> は −2²×3。</li>
+<li>Ans は変わらず、<kbd>F⇄D</kbd> で元の答えに戻ります。</li>
+<li>2 以上 10¹⁰ 未満の整数（符号は付いてよい）だけです。0、±1、整数でない数、10¹⁰ 以上は短いブザーです。</li>
+<li>画面に収まらない積は 2 行に分けます。</li>
+<li>10 桁の大きな素数では数秒かかります（BUSY が点き、<kbd>ON</kbd> で止まります）。</li>
+</ul>
+<figure>
+<img class="lcd" src="shots/sci-prime.png" alt="360 が →PRIME で 2³×3²×5 と素因数の積で出ている。">
+<figcaption>360 を →PRIME で: 2³×3²×5</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="dist">正規分布</h2>
+
+<p>FUNC の 7 ページ目（DIST）です。標準正規分布の確率を求めます。</p>
+<table>
+<tr><th>関数</th><th>意味</th><th>例</th></tr>
+<tr><td>nlow(t)</td><td>−∞ から t までの確率</td><td><code>nlow(1.96)</code> = 0.975002105</td></tr>
+<tr><td>nmid(t)</td><td>0 から t まで</td><td><code>nmid(1)</code> = 0.341344746</td></tr>
+<tr><td>nup(t)</td><td>t から +∞ まで（片側の p 値）</td><td><code>nup(3)</code> = 0.001349898</td></tr>
+<tr><td>→z</td><td>値の後ろに付けて、STATS の表の x̄ と σx で標準化した (x − x̄)/σx</td><td>表が 1、2、3、4、5 なら <code>5→z</code> = 1.414213562（√2）</td></tr>
+</table>
+<p>中では 12 桁で計算し、<code>nup(10)</code> のような小さな値も 7.619853024×10⁻²⁴ と桁を保ちます。表が空のときの →z は ERR:MATH です。</p>
+<figure>
+<img class="lcd" src="shots/sci-dist.png" alt="nlow(1.96) の答えが出ている。">
+<figcaption><code>nlow(1.96)</code> の答え</figcaption>
+</figure>
+
+<!-- ============================================================ -->
+<h2 id="const">CONST と CONV</h2>
+
+<h3>CONST（物理定数）</h3>
+<p><kbd>SHIFT</kbd> <kbd>FUNC</kbd> で、物理定数を式に入れます。<kbd>▼</kbd> <kbd>▲</kbd> で 4 ページ、<kbd>1</kbd>〜<kbd>5</kbd> で選びます。値は CODATA 2022（NIST）を 12 桁にしたもので、単位は SI です。定数は名前で式に入り（<code>2h</code>）、小数で計算します。CALC、TABLE、CPLX、MATRIX、PROG で使えます。</p>
+<figure>
+<img class="lcd" src="shots/sci-const.png" alt="CONST の 1 ページ目。c₀、h、ħ、G、ε₀ が並んでいる。">
+<figcaption>CONST の 1 ページ目</figcaption>
+</figure>
+<table>
+<tr><th>ページ</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+<tr><td>1</td><td>c₀ 光速</td><td>h プランク定数</td><td>ħ h/2π</td><td>G 万有引力定数</td><td>ε₀ 真空の誘電率</td></tr>
+<tr><td>2</td><td>μ₀ 真空の透磁率</td><td>qₑ 電気素量</td><td>mₑ 電子の質量</td><td>mₚ 陽子の質量</td><td>mₙ 中性子の質量</td></tr>
+<tr><td>3</td><td>u 原子質量定数</td><td>NA アボガドロ定数</td><td>k ボルツマン定数</td><td>R 気体定数</td><td>σ シュテファン＝ボルツマン定数</td></tr>
+<tr><td>4</td><td>g 標準重力加速度</td><td>atm 標準気圧</td><td>a₀ ボーア半径</td><td>α 微細構造定数</td><td>Vm 理想気体のモル体積</td></tr>
+</table>
+<p>電気素量が qₑ なのは、e がネイピア数だからです。</p>
+
+<h3>CONV（単位の換算）</h3>
+<p><kbd>SHIFT</kbd> <kbd>MENU</kbd> で、答え（式があれば先に答えます。なければ Ans）を別の単位に換算し、Ans にします。<kbd>▼</kbd> <kbd>▲</kbd> で 4 ページ、各行の左が順、右が逆で、<kbd>1</kbd>〜<kbd>9</kbd>、<kbd>0</kbd> で選びます。答えの上に換算の名前が出ます。CALC だけで使えます。</p>
+<figure>
+<img class="lcd" src="shots/sci-conv.png" alt="CONV の 1 ページ目。in と cm、ft と m、yd と m、mile と km、nmi と m の換算が並んでいる。">
+<figcaption>CONV の 1 ページ目</figcaption>
+</figure>
+<table>
+<tr><th>ページ</th><th>換算</th></tr>
+<tr><td>1</td><td>in↔cm、ft↔m、yd↔m、mile↔km、nmi↔m（海里）</td></tr>
+<tr><td>2</td><td>acre↔m²、gal↔L（米）、floz↔mL（米）、oz↔g、lb↔kg</td></tr>
+<tr><td>3</td><td>°F↔°C、km/h↔m/s、kgf↔N、atm↔Pa、mmHg↔Pa</td></tr>
+<tr><td>4</td><td>kgfm↔J、cal↔J（熱化学カロリー）、hp↔W（英馬力）、kWh↔MJ、eV↔J</td></tr>
+</table>
+<ul>
+<li><kbd>2</kbd> <kbd>SHIFT</kbd> <kbd>MENU</kbd> <kbd>1</kbd>（in→cm）は 5.08。換算の数は形のまま掛けるので、2D なら <kbd>F⇄D</kbd> で 127/25。</li>
+<li><code>100</code> を °F→°C で 37.77777778、<code>36</code> を km/h→m/s で 10。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="calculus">Σ、d/dx、∫</h2>
+
+<p>FUNC の 1 ページ目の 8・9・0 と、3 ページ目（MORE）の Π( です。どれも最初の引数が X の式で、引数をコンマ（<kbd>SHIFT</kbd> <kbd>(</kbd>）で区切ります。計算の間だけ X を変え、終わると元に戻します。</p>
+
+<table>
+<tr><th>関数</th><th>意味</th><th>例</th></tr>
+<tr><td>Σ(f(X),a,b)</td><td>X = a, a+1, …, b の和。a ≤ b の整数、項は 1000 まで。形のまま計算</td><td><code>Σ(1/X,1,4)</code> = 25/12、<code>Σ(X²,1,10)</code> = 385</td></tr>
+<tr><td>Π(f(X),a,b)</td><td>同じ範囲の積。決まりは Σ と同じ</td><td><code>Π(X,1,5)</code> = 120、<code>Π(1+1/X,1,9)</code> = 10、<code>Π(X/2,1,3)</code> = 3/4</td></tr>
+<tr><td>d/dx(f(X),a)</td><td>X = a での傾き（数値微分）。答えは小数</td><td><code>d/dx(X³,2)</code> = 12、<code>d/dx(ln(X),2)</code> = 0.5</td></tr>
+<tr><td>∫(f(X),a,b)</td><td>a から b までの積分（数値積分）</td><td><code>∫(X²,0,3)</code> = 9、<code>∫(X,3,1)</code> = −4</td></tr>
+</table>
+<figure>
+<img class="lcd" src="shots/sci-sigma.png" alt="Σ(1/X,1,4) が 2D で組まれ、答え 25/12 が出ている。">
+<figcaption><code>Σ(1/X,1,4)</code> は 25/12</figcaption>
+</figure>
+<ul>
+<li>DEG で <code>d/dx(sin(X),0)</code> は π/180（0.0174532925）。計算の精度が足りないときは 9 桁に丸めます。</li>
+<li>RAD で <code>∫(sin(X),0,π)</code> は 2。端の値は使わないので、<code>∫(1/√(X),0,1)</code>（= 2）のように端で無限大になる式も計算できます。</li>
+<li>∫ の中に ∫ は入れられません（ERR:MATH）。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="fx">f(x) と FIND X</h2>
+
+<p>式の中の X を変えながら計算します。X は <kbd>ALPHA</kbd> <kbd>(</kbd> で打ちます。</p>
+<h3>f(x)</h3>
+<ol class="steps">
+<li>X を使った式を打ちます（例: <code>X²+1</code>）。</li>
+<li><kbd>f(x)</kbd> を押すと <code>X?</code> と聞かれます。今の X の値が出ているので、そのままなら <kbd>=</kbd>、別の値なら打って <kbd>=</kbd>。</li>
+<li>その X で式を計算します（X = 3 なら 10）。もう一度 <kbd>f(x)</kbd> で別の X を試せます。</li>
+</ol>
+<h3>FIND X</h3>
+<p><kbd>SHIFT</kbd> <kbd>f(x)</kbd>（FIND X）は、式が 0 になる X を、<code>X?</code> の値から探します（ニュートン法）。見つかった X は Ans と X に入り、<code>DIFF=</code> にその X での式の値が出ます。<code>X²−2</code> を 1 から探すと 1.414213562、−1 から探すと −1.414213562。見つからなければ <code>ERR:FIND</code> です。</p>
+<div class="tip">
+<p><code>X?</code> の値には、<kbd>ALPHA</kbd> で変数も打てます（STATS・EQUATION・MATRIX の升も同じ）。</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="setup">SETUP</h2>
+
+<p><kbd>SETUP</kbd> で設定のページが開きます。<kbd>▼</kbd> <kbd>▲</kbd> でページを移り、<kbd>AC</kbd> で戻ります。項目の組ごとに今の設定が反転していて、数字を押すとその組の反転が押した項目に移ります。設定は電源を切っても残ります。</p>
+<table>
+<tr><th>ページ</th><th>キー</th><th>設定</th></tr>
+<tr><td>1</td><td>1 / 2</td><td>2D / LINE</td></tr>
+<tr><td>1</td><td>3 / 4 / 5</td><td>角度: DEG / RAD / GRAD</td></tr>
+<tr><td>1</td><td>6 / 7</td><td>答えを形で先に / 小数で先に</td></tr>
+<tr><td>1</td><td>8 / 9 / 0</td><td>小数の出し方: FIX（続けて小数点以下の桁）/ EXP（続けて有効桁。0 は 10 桁）/ AUTO（AUTO のときにもう一度 0 で AUTO2）</td></tr>
+<tr><td>2</td><td>1 / 2</td><td>1 より大きい分数: そのまま / 帯分数で</td></tr>
+<tr><td>2</td><td>3、=</td><td>メモリーをすべて消す（A〜F、X、Y、M、Ans、STATS の表、CPLX の Ans、行列。プログラムは消さない）。3 を押して <kbd>=</kbd> で消し、ほかのキーでやめる</td></tr>
+<tr><td>2</td><td>◀ ▶</td><td>液晶のコントラスト</td></tr>
+</table>
+<ul>
+<li><strong>AUTO</strong> は、液晶の 10 桁に入る間は小数、10¹⁰ 以上と 10⁻⁹ 未満は指数で出します。<strong>AUTO2</strong> は 0.01 未満も指数で出します（<code>3÷1000</code> は 3×10⁻³）。</li>
+<li>FIX と EXP は小数の答えにだけ効き、分数と √ の形には効きません。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="modes">モード（MENU）</h2>
+
+<p><kbd>MENU</kbd> の <kbd>1</kbd>〜<kbd>8</kbd> でモードを選びます。今のモードが反転していて、<kbd>AC</kbd> で戻ります。式と履歴はモードごとに持ち、戻れば続きからです。</p>
+<table>
+<tr><th>番号</th><th>モード</th><th>すること</th></tr>
+<tr><td>1</td><td>CALC</td><td>ふつうの計算（ここまでの章）</td></tr>
+<tr><td>2</td><td>STATS</td><td>統計と回帰</td></tr>
+<tr><td>3</td><td>BASE</td><td>2・5・8・10・16 進の 32 ビット整数</td></tr>
+<tr><td>4</td><td>TABLE</td><td>関数の表</td></tr>
+<tr><td>5</td><td>EQUATION</td><td>連立方程式、2 次・3 次方程式、不等式</td></tr>
+<tr><td>6</td><td>CPLX</td><td>複素数</td></tr>
+<tr><td>7</td><td>MATRIX</td><td>行列とベクトル</td></tr>
+<tr><td>8</td><td>PROG</td><td>プログラム</td></tr>
+</table>
+
+<h3>CALC</h3>
+<p>電源を入れた最初のモードで、ここまでの章はすべて CALC の話です。CONV は CALC だけで使えます。</p>
+
+<h3>STATS（統計）</h3>
+<ol class="steps">
+<li>種類を選びます: 1:1-VAR（1 変数）、2 変数の 2:LINE（y = a + bx）、3:QUAD（y = a + bx + cx²）、4:EXP（y = a·e^(bx)）、5:LOG（y = a + b·ln x）、6:PWR（y = a·x^b）、7:INV（y = a + b/x）。8 で FREQ（度数）の列を出し入れします。</li>
+<li>表に数を打ち、<kbd>=</kbd> で入れます（下の升へ進みます）。升には式も打てます。十字キーで升を動きます。40 行まで。</li>
+<li>何も打たずに <kbd>=</kbd> で結果が出ます。<kbd>▲</kbd> <kbd>▼</kbd> でページ、<kbd>AC</kbd> で表へ戻ります。</li>
+</ol>
+<div class="pair">
+<figure>
+<img class="lcd" src="shots/sci-stats-table.png" alt="STATS の LINE の表。X の列に 1、2、3、Y の列に 2、4、7 が入っている。">
+<figcaption>LINE の表（X 1、2、3 と Y 2、4、7）</figcaption>
+</figure>
+<figure>
+<img class="lcd" src="shots/sci-stats-result.png" alt="同じ表の結果の 1 ページ目。">
+<figcaption>その結果の 1 ページ目</figcaption>
+</figure>
+</div>
+<ul>
+<li>結果: n、x̄、σx（母集団の標準偏差）、sx（標本の標準偏差）、Σx、Σx²。2 変数ではさらに ȳ、r、a、b、c（QUAD だけ）、σy、sy、Σy、Σy²、Σxy。値のないものは <code>-</code> です。</li>
+<li>EXP・LOG・PWR・INV は、データをまっすぐにして直線をあてはめます。r、a、b はその直線のもので、平均や標準偏差は入力したデータそのものです。</li>
+<li>表の FUNC: 1 行を挿入、2 行を削除、3 全部消す、4 種類を選び直す。</li>
+<li>推定値や結果は CALC の FUNC の 5・6 ページ目から式に使えます（<a href="#func">FUNC のメニュー</a>）。</li>
+</ul>
+<p>例: X が 2、4、6 で FREQ が 1、2、1 なら、n = 4、x̄ = 4、σx = 1.414213562、sx = 1.632993162、Σx = 16、Σx² = 72。</p>
+
+<h3>BASE（2・5・8・10・16 進）</h3>
+<p>32 ビットの整数（2 の補数）で計算します。</p>
+<ul>
+<li>基数は FUNC の 1 ページ目の 1:HEX、2:DEC、3:OCT、4:BIN、5:PEN（5 進）か、<kbd>F⇄D</kbd> で回します。今の基数が帯の右に出ます。</li>
+<li>HEX の A〜F は <kbd>(−)</kbd>、<kbd>°′″</kbd>、<kbd>HYP</kbd>、<kbd>SIN</kbd>、<kbd>COS</kbd>、<kbd>TAN</kbd> を ALPHA なしで押します。基数にない数字は入りません。</li>
+<li>+ − × ÷（÷ は 0 の方へ切り捨て）と、FUNC の 2 ページ目の 1:AND、2:OR、3:XOR、4:XNOR、5:not(、6:neg(、7:mod（HEX で <code>FF mod 10</code> は F）。AND は OR・XOR・XNOR より強く結びます。</li>
+<li>どの計算の後も 32 ビットに戻します（DEC で <code>2147483647+1</code> は −2147483648）。</li>
+<li>答えは今の基数の値と、残りの 3 つの基数で同時に出ます。BIN は 16 ビットずつで、<kbd>▲</kbd> <kbd>▼</kbd> で上と下の半分を見ます。足もとに 16 ビットがドットの列でも出ます。</li>
+<li>PEN では 14 桁の 5 進で出し、下に HEX・DEC・OCT・BIN を並べます（<code>1234</code> は DEC 194）。</li>
+</ul>
+<figure>
+<img class="lcd" src="shots/sci-base.png" alt="BASE の HEX で D016 AND 0AFF0 の答え 00008010 が出ていて、ほかの基数の値と 16 ビットのドットの列も見える。">
+<figcaption>HEX で <code>D016 AND 0AFF0</code> は 00008010（DEC 32784）</figcaption>
+</figure>
+
+<h3>TABLE（関数の表）</h3>
+<ol class="steps">
+<li>f(X) を打ちます（X は <kbd>ALPHA</kbd> <kbd>(</kbd>）。</li>
+<li><kbd>=</kbd> を押すと START?、END?、STEP? を順に聞かれます。</li>
+<li>X と f(X) の表が出ます（30 行まで）。<kbd>▲</kbd> <kbd>▼</kbd> で動き、<kbd>AC</kbd> で f(X) に戻ります。</li>
+</ol>
+<p>例: <code>X²−2X</code>、START 1、END 5、STEP 1 で、f(X) は −1、0、3、8、15。行が 30 を越えるか STEP が 0 なら <code>ERR:RANGE</code> です。</p>
+<figure>
+<img class="lcd" src="shots/sci-table.png" alt="TABLE で f(X)=X²−2X を X が 1 から 5 まで 1 刻みで並べた表。f(X) は −1、0、3、8、15。">
+<figcaption>f(X) = X²−2X、1 から 5 まで 1 刻み</figcaption>
+</figure>
+
+<h3>EQUATION（方程式と不等式）</h3>
+<ol class="steps">
+<li>種類を選びます: 1:aX+bY=c、2:aX+bY+cZ=d、3:aX²+bX+c=0、4:aX³+bX²+cX+d=0。</li>
+<li>係数を表に打ち、<kbd>=</kbd> で入れます（右へ、行の終わりで次の行へ）。</li>
+<li>何も打たずに <kbd>=</kbd> で解きます。<kbd>AC</kbd> で係数に戻ります。</li>
+</ol>
+<ul>
+<li>連立方程式と 2 次方程式は、係数が整数や分数なら答えも分数や √ の形です。</li>
+<li>2 次方程式の解が虚数なら <code>re ± im i</code> で出ます（<code>3X²+2X+1=0</code> は −1/3 ± √2/3 i）。<kbd>▼</kbd> で頂点（X²−2X−1 なら X = 1、Y = −2）。</li>
+<li>3 次方程式は 3 つの解（<code>X³−6X²+11X−6=0</code> は 3、2、1）。</li>
+<li>解が 1 つに決まらない連立方程式は <code>NO ONE SOLUTION</code> です。</li>
+</ul>
+<figure>
+<img class="lcd" src="shots/sci-equation.png" alt="EQUATION の aX²+bX+c=0 を a=1、b=−2、c=−1 で解いた答え。X1 = 1+√2、X2 = 1−√2。">
+<figcaption>X² − 2X − 1 = 0: X1 = 1+√2、X2 = 1−√2</figcaption>
+</figure>
+
+<h3>EQUATION の不等式</h3>
+<p>種類の画面で <kbd>▼</kbd> を押すと、2 ページ目に 2 次の不等式（1:aX²+bX+c&gt;0、2:&lt;0、3:≥0、4:≤0）、3 ページ目に 3 次の不等式（aX³+bX²+cX+d の同じ 4 つ）があります。係数の打ち方は方程式と同じです。</p>
+<ul>
+<li>答えは X の範囲を 1 行に 1 つ: <code>X²−X−6&gt;0</code> は X&lt;−2 と 3&lt;X、<code>X²−X−6≤0</code> は −2≤X≤3、<code>X³−6X²+11X−6&gt;0</code> は 1&lt;X&lt;2 と 3&lt;X。</li>
+<li>根は分数や √ の形のまま出ます（<code>X²+X−1&lt;0</code> は (−1−√5)/2&lt;X&lt;(−1+√5)/2）。1 行に収まらなければ 6 桁の小数です。<kbd>F⇄D</kbd> で小数と形を行き来します。</li>
+<li>重なった根や解のないときも書き分けます: <code>X²−2X+1&gt;0</code> は X≠1、<code>≤0</code> は X=1、<code>≥0</code> は ALL REAL NUMBERS、<code>&lt;0</code> は NO SOLUTION。</li>
+<li>a が負なら、不等号の向きも合わせて解きます（<code>−X²+X+6≥0</code> は −2≤X≤3）。a が 0 なら ERR:MATH です。</li>
+</ul>
+<figure>
+<img class="lcd" src="shots/sci-inequality.png" alt="不等式 X²−X−6&gt;0 の答え。X&lt;−2 と 3&lt;X の 2 行。">
+<figcaption>X² − X − 6 &gt; 0: X&lt;−2 と 3&lt;X</figcaption>
+</figure>
+
+<h3>CPLX（複素数）</h3>
+<p>式は LINE 表示で打ちます。<code>i</code> は <kbd>HYP</kbd>、<code>∠</code> は <kbd>SHIFT</kbd> <kbd>HYP</kbd> です（FUNC からも打てます）。</p>
+<ul>
+<li>四則、(−)、x²、x³、x⁻¹、xʸ、√ が使えます: <code>(1+2i)(3−i)</code> は 5+5i、<code>1÷i</code> は −i、<code>√(−4)</code> は 2i、<code>(1+i)^4</code> は −4、<code>e^(iπ)</code> は −1。</li>
+<li>極形式は <code>r∠θ</code>（θ は SETUP の角度）。<code>2∠90</code> は 2i。</li>
+<li>FUNC: 1 i、2 ∠、3 abs(（大きさ）、4 arg(（偏角）、5 conj(（共役）、6 Re(、7 Im(。</li>
+<li>答えは 2 行（上が実部、下が虚部）。<kbd>F⇄D</kbd> で r と ∠θ の 2 行と行き来します（5+5i は 7.071067812 と ∠45）。</li>
+<li>sin や log などの関数は、虚部が 0 の数にだけ使えます。変数と定数は実数として使えます。</li>
+<li>CPLX の Ans は CPLX だけのもので、CALC の Ans は変わりません。STO、RCL、M+、f(x) は使いません。</li>
+</ul>
+<figure>
+<img class="lcd" src="shots/sci-cplx.png" alt="CPLX で (1+2i)(3−i) の答え 5+5i が実部と虚部の 2 行で出ている。">
+<figcaption><code>(1+2i)(3−i)</code> = 5+5i</figcaption>
+</figure>
+
+<h3>MATRIX（行列とベクトル）</h3>
+<p>行列は MatA〜MatD と答えの MatAns で、3×3 までです。ベクトルは 1 行か 1 列の行列（成分 2 つか 3 つ）です。</p>
+<ol class="steps">
+<li>FUNC の 3 ページ目（EDIT）で 1〜4 の行列を選び、行の数と列の数を 1〜3 で打ちます（<kbd>=</kbd> で今の大きさのまま）。</li>
+<li>升の表に成分を打ち、<kbd>=</kbd> で入れます。何も打たずに <kbd>=</kbd> か <kbd>AC</kbd> で式に戻ります。</li>
+<li>式を打って <kbd>=</kbd> で計算します。FUNC の 1 ページ目で MatA〜MatAns、2 ページ目で det( trn( dot( cross( angle( を打ちます。</li>
+</ol>
+<figure>
+<img class="lcd" src="shots/sci-matrix.png" alt="MATRIX の EDIT で、MatA に [[1,2],[3,4]] が升の表で入っている。">
+<figcaption>MatA = [[1,2],[3,4]] を升で打ったところ（EDIT）</figcaption>
+</figure>
+<ul>
+<li>演算: + −（同じ大きさどうし）、×（行列どうし・数と）、÷ 数、(−)、x²、x³、x⁻¹（逆行列）、xʸ（−9〜9 の整数乗）、det(（行列式）、trn(（転置）。</li>
+<li>ベクトル: dot(u,v)（内積）、cross(u,v)（外積）、abs(v)（長さ）、angle(u,v)（なす角）。</li>
+<li>例: MatA = [[1,2],[3,4]] なら <code>det(MatA)</code> は −2、<code>MatA⁻¹</code> は [[−2,1],[1.5,−0.5]]。MatB = [1,2,3]、MatC = [4,5,6] なら <code>dot(MatB,MatC)</code> は 32、<code>cross(MatB,MatC)</code> は [−3,6,−3]。</li>
+<li>答えが行列なら MatAns に入り、升の表で見せます。数なら大きな数字で、Ans に入ります。</li>
+<li>大きさが合わないと ERR:DIM、逆行列のない行列の x⁻¹ は ERR:MATH です。成分は小数で持ちます。</li>
+</ul>
+
+<h3>PROG（プログラム）</h3>
+<p>プログラムは 4 本（P1〜P4）、1 本 199 ステップまでで、電源を切っても残ります。</p>
+<ol class="steps">
+<li>一覧で <kbd>1</kbd>〜<kbd>4</kbd> を押すと、そのプログラムを打てます（LINE 表示）。<kbd>AC</kbd> で一覧に戻り、一覧の <kbd>AC</kbd> で CALC へ。</li>
+<li><kbd>=</kbd> で走らせます。最後に計算した値が Ans になり、プログラムの下に出ます。</li>
+<li><kbd>ON</kbd> でいつでも止まります。<code>?</code> と <code>▶</code> で待っている間は <kbd>AC</kbd> でも止まります。</li>
+</ol>
+<figure>
+<img class="lcd" src="shots/sci-prog.png" alt="PROG の一覧。P1 から P4 までのプログラムが並んでいる。">
+<figcaption>PROG の一覧</figcaption>
+</figure>
+<p>文は <code>:</code> で区切ります。FUNC の初めの 3 ページがプログラムの記号で、その後に CALC の FUNC が続きます。</p>
+<table>
+<tr><th>書き方</th><th>意味</th></tr>
+<tr><td><code>式</code></td><td>計算して Ans に</td></tr>
+<tr><td><code>式→V</code></td><td>計算して変数 V に（→ は <kbd>STO</kbd> で打てます）</td></tr>
+<tr><td><code>式▶</code></td><td>値を出して、= を待つ</td></tr>
+<tr><td><code>?→V</code></td><td><code>V?</code> と聞き、打った式の値を V に</td></tr>
+<tr><td><code>条件⇒文</code></td><td>条件が 0 でないときだけ文を行う</td></tr>
+<tr><td><code>=</code> <code>≠</code> <code>&lt;</code> <code>&gt;</code> <code>≤</code> <code>≥</code></td><td>比べる（正しければ 1、違えば 0）</td></tr>
+<tr><td><code>lbl n</code> / <code>goto n</code></td><td>n（0〜9）の位置へ</td></tr>
+</table>
+<pre><code>?→A:?→B:√(A²+B²)</code></pre>
+<p>直角三角形の斜辺です（A = 3、B = 4 で 5）。</p>
+<pre><code>1→X:lbl 1:X▶:X+1→X:X≤3⇒goto 1</code></pre>
+<p>1、2、3 を順に出します。</p>
+<p>ないラベルへの goto は ERR:SYNTAX です。FUNC の 3 ページ目の 0（CLEAR）でプログラムを消します。</p>
+
+<!-- ============================================================ -->
+<h2 id="errors">誤りの画面</h2>
+
+<figure>
+<img class="lcd" src="shots/sci-error.png" alt="1÷0 を答えようとして ERR:MATH の画面が出ている。">
+<figcaption>1÷0 の ERR:MATH</figcaption>
+</figure>
+<table>
+<tr><th>誤り</th><th>意味</th></tr>
+<tr><td>ERR:MATH</td><td>関数の範囲の外、0 で割った、大きすぎる</td></tr>
+<tr><td>ERR:SYNTAX</td><td>式が読めない</td></tr>
+<tr><td>ERR:STACK</td><td>括弧や関数の入れ子が深すぎる</td></tr>
+<tr><td>ERR:FIND</td><td>FIND X が X を見つけられなかった</td></tr>
+<tr><td>ERR:RANGE</td><td>TABLE の START・END・STEP が 1〜30 行にならない</td></tr>
+<tr><td>ERR:DIM</td><td>MATRIX で、行列の大きさが計算に合わない</td></tr>
+</table>
+<p><kbd>◀</kbd> <kbd>▶</kbd> で式に戻ります。誤りを見つけた位置にカーソルがあるので、そこを直して <kbd>=</kbd> を押し直します。<kbd>AC</kbd> で式を消します。</p>
+
+<!-- ============================================================ -->
+<h2 id="limits">数と範囲</h2>
+<ul>
+<li>数は 10 進の 12 桁（表示は 10 桁）、指数は ±99。</li>
+<li>分数や √ の形の数は 10 桁まで、√ の中は 2〜99。</li>
+<li>式は 199 トークン（BASE は 99）まで。履歴は CALC が 10 本、BASE が 5 本。</li>
+<li>n! は 69 まで、STATS は 40 行、TABLE は 30 行。</li>
+<li>Σ は 1000 項まで、行列は 3×3 まで、プログラムは 4 本で 1 本 199 ステップまで。</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="faq">困ったとき</h2>
+
+<h3>答えが小数で出て、分数にならない</h3>
+<p>式に小数点や SI 接頭辞を打ったとき、SETUP で「小数で先に」（1 ページ目の 7）を選んでいるとき、LINE 表示のときは小数で答えます。<kbd>F⇄D</kbd> で形に変えられます。形の数が 10 桁を越えた計算や、違う √ どうしの足し算は、小数だけになります。</p>
+
+<h3>sin の後に足したつもりが、答えが違う</h3>
+<p>関数の括弧は式の終わりで閉じるので、<code>sin 45 + 1/2</code> と打つと sin(45+1/2) になります。<kbd>)</kbd> で閉じてから続けます。</p>
+
+<h3>分数の分母から出られない</h3>
+<p><kbd>▶</kbd> で分数の外へ出ます。</p>
+
+<h3>マイナスを打ったら ERR:SYNTAX になった</h3>
+<p><kbd>(−)</kbd> は符号で、値の後ろでは引き算になりません（<code>2(−)3</code> は SYNTAX）。引き算は <kbd>−</kbd> のキーです。</p>
+
+<h3>1÷2π が 0.159… になる</h3>
+<p>記号のない掛け算は × ÷ より強く結ぶので、<code>1÷2π</code> は 1/(2π) です。(1÷2)×π が欲しいときは括弧を使います。</p>
+
+<h3>角度の答えがおかしい</h3>
+<p>液晶の上の <code>D</code> <code>R</code> <code>G</code> で、今の角度の単位を確かめます。SETUP の 3 / 4 / 5 で切り替えます。</p>
+
+<h3>計算が終わらない、BUSY が点いたまま</h3>
+<p><kbd>ON</kbd>（PC では <code>Pause</code>）で止まります。→PRIME で 10 桁の大きな素数を分解すると数秒かかります。</p>
+
+<h3>PC のキーが効かない</h3>
+<p>ペインをクリックして、キーがペインに届くようにします。Ctrl・Alt 付きのキー、Tab、Esc、ファンクションキーはアプリのものなので、電卓には届きません。</p>
+
+<h3>キーが小さくて押しにくい、本体が出ない</h3>
+<p>ペインが狭いと、本体の描き方が COMPACT や LCD に変わります。ペインを広げるか、PANEL を畳むか、TUNE で描き方を選びます。</p>
+
+<h3>変数やメモリーを全部消したい</h3>
+<p>SETUP の 2 ページ目で <kbd>3</kbd> を押し、<kbd>=</kbd> で消します。プログラムは消えません。</p>
+
+<h3>電源を切ったら、計算はどうなる?</h3>
+<p>変数、Ans、M、履歴、SETUP、STATS の表、行列、プログラムは、電源を切っても残ります。TUNE でモデルを切り替えたときだけ、RAM が消えます。</p>
+
+<!-- ============================================================ -->
+<h2 id="manual">もっと詳しく</h2>
+<p>このガイドは要点だけです。キーごとの働き、モードの細かい決まり、例のすべては取扱説明書にあります。</p>
+<ul>
+<li><a href="../elec16-sci-manual.md">ELEC-16 SCI（SCI-128）取扱説明書</a></li>
+<li><a href="../elec16-sci.md">ELEC-16 SCI の設計</a>（画面、キー表、ROM、RAM の地図）</li>
+<li><a href="pocket.html">ELEC-16 ポケコンのガイド</a></li>
+</ul>
+
+<footer>
+<p>elecdex の ELEC-16 SCI（SCI-128）ガイド。細かい決まりは取扱説明書（elec16-sci-manual.md）が正です。</p>
+</footer>
+
+</main>
+</div>
+</body>
+</html>
