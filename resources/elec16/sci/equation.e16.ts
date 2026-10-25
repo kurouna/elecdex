@@ -5,7 +5,10 @@
 // the quadratic left. Complex roots are shown as re ± im i. The coefficients are typed into
 // the grid (grid.e16.ts) and kept when the power goes.
 import {
+  addr,
   type bool,
+  bytes,
+  div,
   peek,
   peek16,
   poke,
@@ -13,11 +16,11 @@ import {
   str,
   type u16,
 } from '../../../src/shared/e16c/builtins'
-import { K_1, K_2, K_3, K_4, K_AC, K_DOWN, K_UP, refuse } from './calc.e16'
-import { drawComplexAt, drawValueAt } from './display.e16'
+import { K_1, K_2, K_3, K_4, K_AC, K_DOWN, K_FD, K_UP, refuse } from './calc.e16'
+import { drawComplexAt, drawPieceAt, drawValueAt, setPieceDecimals } from './display.e16'
 import { exactBinary, exactNeg, exactSqrt, exactWhole } from './exact.e16'
 import { GRID_AC, GRID_DONE, GRID_EQN, gridDraw, gridKey, gridOpen } from './grid.e16'
-import { band, cls, lineY, mark, textAt } from './lcd.e16'
+import { band, bandWith, cls, lineY, mark, textAt } from './lcd.e16'
 import {
   copyValue,
   E_MATH,
@@ -44,6 +47,7 @@ import {
   math,
   VALUE_SIZE,
 } from './numbers.e16'
+import { T_EQUAL, T_LE, T_LESS, T_NE } from './tokens.e16'
 
 const EQ_TYPE = 0
 const EQ_GRID = 1
@@ -71,14 +75,30 @@ function kind(): u16 {
   return peek(EQN_TYPE)
 }
 
-/** Rows and columns of the coefficients: 2 x 3, 3 x 4, 1 x 3, 1 x 4. */
+/** v3's inequalities (section 15.6): kinds 5-8 the quadratic's > < ≥ ≤ 0, 9-12 the cubic's. */
+function isInequality(k: u16): bool {
+  return k >= 5
+}
+
+/** 2 for the quadratics, 3 for the cubics (kinds from 3). */
+function degreeOf(k: u16): u16 {
+  return k === 3 || (k >= 5 && k <= 8) ? 2 : 3
+}
+
+/** An inequality's sign: 0 >, 1 <, 2 ≥, 3 ≤. */
+function signOf(k: u16): u16 {
+  return (k - 5) % 4
+}
+
+/** Rows and columns of the coefficients: 2 x 3, 3 x 4, then one row of a, b, c (and d). */
 function rowsOf(k: u16): u16 {
   if (k === 1) return 2
   return k === 2 ? 3 : 1
 }
 
 function colsOf(k: u16): u16 {
-  return k === 1 || k === 3 ? 3 : 4
+  if (k === 1) return 3
+  return k === 2 ? 4 : degreeOf(k) + 1
 }
 
 function coeff(r: u16, c: u16): u16 {
@@ -98,7 +118,11 @@ function imAt(k: u16): u16 {
 /** EQUATION chosen: its kind first. */
 export function eqnStart(): void {
   eqPhase = EQ_TYPE
+  typePage = kind() <= 4 ? 0 : kind() <= 8 ? 1 : 2
 }
+
+/** The page of kinds shown: the equations, the quadratic's inequalities, the cubic's. */
+let typePage: u16 = 0
 
 /** AC or ON from an error: the coefficients again. */
 export function eqnReset(): void {
@@ -130,6 +154,10 @@ export function eqnKey(k: u16, shift: bool): bool {
  * the mode (true) when no kind was ever chosen, as AC:BACK says.
  */
 function eqTypeKey(k: u16): bool {
+  if (k === K_DOWN || k === K_UP) {
+    typePageKey(k === K_DOWN)
+    return false
+  }
   const chosen = typeOf(k)
   if (chosen !== 0) {
     if (chosen !== kind()) {
@@ -144,19 +172,34 @@ function eqTypeKey(k: u16): bool {
   return false
 }
 
-/** The kind a key chooses, 1-4; 0 for another key. */
+/** ▼ or ▲ on the kinds: the next page or the one before, a beep past either end. */
+function typePageKey(down: bool): void {
+  if (down && typePage < 2) typePage++
+  else if (!down && typePage > 0) typePage--
+  else refuse()
+}
+
+/** The kind a key chooses on the page shown, 1-12; 0 for another key. */
 function typeOf(k: u16): u16 {
-  if (k === K_1) return 1
-  if (k === K_2) return 2
-  if (k === K_3) return 3
-  return k === K_4 ? 4 : 0
+  let d: u16 = 0
+  if (k === K_1) d = 1
+  else if (k === K_2) d = 2
+  else if (k === K_3) d = 3
+  else if (k === K_4) d = 4
+  return d === 0 ? 0 : typePage * 4 + d
 }
 
 function eqResultKey(k: u16): void {
   if (k === K_AC) eqPhase = EQ_GRID
   else if (kind() === 3 && (k === K_DOWN || k === K_UP)) vertex = k === K_DOWN
-  else refuse()
+  else if (isInequality(kind()) && k === K_FD) {
+    // F⇄D: the bounds as decimals, and back to their forms.
+    boundsInDecimals = !boundsInDecimals
+    setPieceDecimals(boundsInDecimals)
+  } else refuse()
 }
+
+let boundsInDecimals: bool = false
 
 /** An exact 0. */
 function zeroValue(v: u16): void {
@@ -179,23 +222,46 @@ function titleOf(k: u16): u16 {
   if (k === 1) return str('aX+bY=c')
   if (k === 2) return str('aX+bY+cZ=d')
   if (k === 3) return str('aX\x84+bX+c=0')
-  return str('aX\x85+bX\x84+cX+d=0')
+  if (k === 4) return str('aX\x85+bX\x84+cX+d=0')
+  // An inequality: its polynomial, its sign (> < ≥ ≤), 0.
+  const from = degreeOf(k) === 2 ? str('aX\x84+bX+c') : str('aX\x85+bX\x84+cX+d')
+  let n: u16 = 0
+  while (peek(from + n) !== 0) {
+    kindText[n] = peek(from + n)
+    n++
+  }
+  kindText[n] = peek(str('><\xe4\xe3') + signOf(k))
+  kindText[n + 1] = 0x30
+  kindText[n + 2] = 0
+  return addr(kindText)
 }
 
+const kindText = bytes(20)
+
 function eqDrawType(): void {
-  band(str('EQUATION'))
-  textAt(str('1:aX+bY=c'), 1, lineY(0))
-  textAt(str('2:aX+bY+cZ=d'), 1, lineY(1))
-  textAt(str('3:aX\x84+bX+c=0'), 1, lineY(2))
-  textAt(str('4:aX\x85+bX\x84+cX+d=0'), 1, lineY(3))
-  textAt(str('AC:BACK'), 1, lineY(5))
+  bandWith(str('EQUATION'), typePage === 0 ? str('1/3') : typePage === 1 ? str('2/3') : str('3/3'))
+  for (let n: u16 = 0; n < 4; n++) {
+    itemText[0] = 0x31 + n
+    itemText[1] = 0x3a
+    itemText[2] = 0
+    textAt(addr(itemText), 1, lineY(n))
+    textAt(titleOf(typePage * 4 + n + 1), 13, lineY(n))
+  }
+  textAt(str('\x8d\x8e:PAGE AC:BACK'), 1, lineY(5))
   const k = kind()
-  if (k !== 0) mark(0, 2, k - 1)
+  if (k !== 0 && div(k - 1, 4) === typePage) mark(0, 2, (k - 1) % 4)
 }
+
+/** A kind's number and colon, on its line. */
+const itemText = bytes(3)
 
 /** The answers a line each, their feet 21 rows apart (room for a fraction with a root). */
 function eqDrawResults(): void {
   const twoD = peek(KEEP_DISPLAY) === 0
+  if (isInequality(kind())) {
+    inequalityDraw()
+    return
+  }
   if (!unique) {
     band(titleOf(kind()))
     textAt(str('NO ONE SOLUTION:'), 1, lineY(0))
@@ -251,7 +317,8 @@ function solve(): void {
   unique = true
   for (let k: u16 = 0; k < 3; k++) zeroValue(imAt(k))
   const k = kind()
-  if (k <= 2) linear(k + 1)
+  if (isInequality(k)) inequality()
+  else if (k <= 2) linear(k + 1)
   else if (k === 3) {
     quadratic(coeff(0, 0), coeff(0, 1), coeff(0, 2), 0)
     answers = 2
@@ -487,4 +554,166 @@ function halve(): void {
     else copyValue(mid, hi)
   }
   copyValue(mid, rootAt(0))
+}
+
+/* ---------------- inequalities (section 15.6) ---------------- */
+
+/** The real roots, distinct, from the smallest (in roots[0..]), and how often each is a root. */
+let rootCount: u16 = 0
+const rootTimes = bytes(3)
+/** Whether each interval between the roots (rootCount + 1 of them) holds the inequality. */
+const intervalIn = bytes(4)
+/** The answer's pieces: each bound a root's place (NO_BOUND past either end), and whether it is in. */
+const NO_BOUND = 0xff
+const pieceLo = bytes(3)
+const pieceHi = bytes(3)
+const pieceLoIn = bytes(3)
+const pieceHiIn = bytes(3)
+let pieceCount: u16 = 0
+
+/**
+ * The polynomial's roots as the equation finds them, then the sign on each interval between
+ * the real ones: + past the largest (a made positive), flipped across a root met an odd number
+ * of times. The intervals that hold, with the roots themselves for ≥ and ≤, run into pieces.
+ */
+function inequality(): void {
+  boundsInDecimals = false
+  setPieceDecimals(false)
+  const n = degreeOf(kind())
+  if (n === 2) quadratic(coeff(0, 0), coeff(0, 1), coeff(0, 2), 0)
+  else cubic()
+  realRoots(n)
+  const s = signOf(kind())
+  let greater = s === 0 || s === 2
+  if (isNegative(coeff(0, 0))) greater = !greater
+  let positive = true
+  intervalIn[rootCount] = positive === greater ? 1 : 0
+  for (let j = rootCount; j > 0; j--) {
+    if ((rootTimes[j - 1] & 1) === 1) positive = !positive
+    intervalIn[j - 1] = positive === greater ? 1 : 0
+  }
+  piecesOf(s >= 2)
+}
+
+/**
+ * The real roots kept from the smallest, one of each with how often: an imaginary part next
+ * to nothing beside the real one is a double root a decimal D left just below 0.
+ */
+function realRoots(n: u16): void {
+  rootCount = 0
+  for (let k: u16 = 0; k < n; k++) {
+    if (!isZero(imAt(k)) && !near(imAt(k), 0, rootAt(k))) continue
+    if (k !== rootCount) copyValue(rootAt(k), rootAt(rootCount))
+    rootCount++
+  }
+  sortRoots()
+  mergeRoots()
+}
+
+/** The real roots in order, three at most. */
+function sortRoots(): void {
+  for (let i: u16 = 1; i < rootCount; i++) {
+    for (let j = i; j > 0 && rootBelow(rootAt(j), rootAt(j - 1)); j--) {
+      copyValue(rootAt(j), E1)
+      copyValue(rootAt(j - 1), rootAt(j))
+      copyValue(E1, rootAt(j - 1))
+    }
+  }
+}
+
+/** The same root met again counted once more, its exact form kept. */
+function mergeRoots(): void {
+  let m: u16 = 0
+  for (let i: u16 = 0; i < rootCount; i++) {
+    if (m > 0 && near(rootAt(i), rootAt(m - 1), rootAt(i))) {
+      rootTimes[m - 1]++
+      if (!isExact(rootAt(m - 1)) && isExact(rootAt(i))) copyValue(rootAt(i), rootAt(m - 1))
+    } else {
+      if (i !== m) copyValue(rootAt(i), rootAt(m))
+      rootTimes[m] = 1
+      m++
+    }
+  }
+  rootCount = m
+}
+
+function rootBelow(a: u16, b: u16): bool {
+  math(M_CMP, a, b, 0)
+  return peek16(MATH_RESULT) === 0xffff
+}
+
+/** |a - b| at most 10⁻⁹ of |size| (1 at least): b 0 for none. */
+function near(a: u16, b: u16, size: u16): bool {
+  copyValue(a, E1)
+  if (b !== 0) math(M_SUB, E1, b, 0)
+  math(M_ABS, E1, 0, 0)
+  copyValue(size, E2)
+  math(M_ABS, E2, 0, 0)
+  eqSmall(E3, 1)
+  if (rootBelow(E2, E3)) copyValue(E3, E2)
+  // 10⁻⁹: 1 with its exponent, the byte after the sign, made -9.
+  poke(E3 + 1, 0xf7)
+  math(M_MUL, E2, E3, 0)
+  return !rootBelow(E2, E1)
+}
+
+/**
+ * The pieces: along the line, interval 0, root 0, interval 1 ... interval rootCount, each in or
+ * not (a root is in for ≥ and ≤, `closed`); a run of those in is a piece.
+ */
+function piecesOf(closed: bool): void {
+  pieceCount = 0
+  const last = 2 * rootCount
+  let start: u16 = 0xffff
+  for (let e: u16 = 0; e <= last; e++) {
+    const holds = (e & 1) === 0 ? intervalIn[e >> 1] === 1 : closed
+    if (holds && start === 0xffff) start = e
+    if (start !== 0xffff && (!holds || e === last)) {
+      addPiece(start, holds ? e : e - 1, last)
+      start = 0xffff
+    }
+  }
+}
+
+/** A piece from element `from` to element `to` (an interval even, a root odd). */
+function addPiece(from: u16, to: u16, last: u16): void {
+  const k = pieceCount
+  if (k >= 3) return
+  pieceLo[k] = from === 0 ? NO_BOUND : (from - 1) >> 1
+  pieceLoIn[k] = (from & 1) === 1 ? 1 : 0
+  pieceHi[k] = to === last ? NO_BOUND : to >> 1
+  pieceHiIn[k] = (to & 1) === 1 ? 1 : 0
+  pieceCount++
+}
+
+/** The answer a piece a line: X<r, r<X<s, X=r; X≠r, ALL REAL NUMBERS and NO SOLUTION whole. */
+function inequalityDraw(): void {
+  textAt(str('AC:EDIT'), 1, 56)
+  if (wholeAnswer()) return
+  for (let k: u16 = 0; k < pieceCount; k++) pieceDraw(k, 14 + 21 * k)
+}
+
+/** NO SOLUTION, ALL REAL NUMBERS or X≠r, an answer said whole: whether it was. */
+function wholeAnswer(): bool {
+  if (pieceCount === 0) textAt(str('NO SOLUTION'), 1, lineY(0))
+  else if (pieceCount === 1 && pieceLo[0] === NO_BOUND && pieceHi[0] === NO_BOUND)
+    textAt(str('ALL REAL NUMBERS'), 1, lineY(0))
+  else if (pieceCount === 2 && pieceLo[0] === NO_BOUND && pieceHi[1] === NO_BOUND) {
+    // Everywhere but one root: the two pieces either side of it.
+    if (pieceHi[0] !== pieceLo[1]) return false
+    drawPieceAt(0, rootAt(pieceHi[0]), T_NE << 8, 14)
+  } else return false
+  return true
+}
+
+/** Piece `k` on the line whose foot is at `foot`: a root alone is X=r. */
+function pieceDraw(k: u16, foot: u16): void {
+  const lo = pieceLo[k]
+  const hi = pieceHi[k]
+  if (lo === hi) {
+    drawPieceAt(0, rootAt(hi), T_EQUAL << 8, foot)
+    return
+  }
+  const signs = (pieceLoIn[k] === 1 ? T_LE : T_LESS) | ((pieceHiIn[k] === 1 ? T_LE : T_LESS) << 8)
+  drawPieceAt(lo === NO_BOUND ? 0 : rootAt(lo), hi === NO_BOUND ? 0 : rootAt(hi), signs, foot)
 }

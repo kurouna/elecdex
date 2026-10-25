@@ -397,19 +397,25 @@ function post(): void {
     } else if (t === T_BANG) {
       pos++
       factorial(at)
-    } else if (t === T_PERCENT) {
-      pos++
-      pushInt(100, at)
-      binary(M_DIV, at)
-      percentEnd = pos
-    } else if (t === T_TOZ) {
-      pos++
-      standardized(top(), at)
-    } else if (t >= T_FEMTO && t <= T_TERA) {
-      pos++
-      siPrefix(t, at)
-    } else return
+    } else if (!unitAfter(t, at)) return
   }
+}
+
+/** % (x / 100), and v3's x→z and SI prefixes (section 15): whether `t` was one. */
+function unitAfter(t: u16, at: u16): bool {
+  if (t === T_PERCENT) {
+    pos++
+    pushInt(100, at)
+    binary(M_DIV, at)
+    percentEnd = pos
+  } else if (t === T_TOZ) {
+    pos++
+    standardized(top(), at)
+  } else if (t >= T_FEMTO && t <= T_TERA) {
+    pos++
+    siPrefix(t, at)
+  } else return false
+  return true
 }
 
 /** An SI prefix on the value on top: x 10ⁿ, or ÷ 10⁻ⁿ for m and below, its form followed (section 15.3). */

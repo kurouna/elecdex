@@ -31,6 +31,7 @@ import {
   isZero,
   KEEP_ANS,
   KEEP_DIGITS,
+  KEEP_DISPLAY,
   KEEP_FORMAT,
   KEEP_MIXED,
   M_ABS,
@@ -62,6 +63,7 @@ import {
   T_CLOSE,
   T_DEG,
   T_END,
+  T_EXP,
   T_FRAC,
   T_MDIV,
   T_MIN,
@@ -424,6 +426,50 @@ export function drawComplexAt(re: u16, im: u16, minus: bool, foot: u16): void {
   }
   answerToken(0x69)
   setTokensAt(addr(answerTokens), answerLength, foot)
+}
+
+/** Whether an inequality's pieces show their bounds as decimals (F⇄D on its answer). */
+let pieceDecimals: bool = false
+
+export function setPieceDecimals(on: bool): void {
+  pieceDecimals = on
+}
+
+/**
+ * One piece of an inequality's answer right on the line whose foot is at `foot` (section 15.6):
+ * `lo` sign X sign `hi`, either bound 0 for none; `signs` the low sign's token and the high one's
+ * above it. Bounds in their forms in 2D, else in ten digits; six where the line is too wide.
+ */
+export function drawPieceAt(lo: u16, hi: u16, signs: u16, foot: u16): void {
+  pieceTokens(lo, hi, signs, 10)
+  if (tokensWidth(addr(answerTokens), answerLength) > 128) pieceTokens(lo, hi, signs, 6)
+  setTokensAt(addr(answerTokens), answerLength, foot)
+}
+
+function pieceTokens(lo: u16, hi: u16, signs: u16, digits: u16): void {
+  answerLength = 0
+  if (lo !== 0) {
+    boundTokens(lo, digits)
+    answerToken(signs & 0xff)
+  }
+  answerToken(0x58)
+  if (hi !== 0) {
+    answerToken(signs >> 8)
+    boundTokens(hi, digits)
+  }
+}
+
+/** A bound: its form in 2D (a whole number too), else its decimal in `digits` digits. */
+function boundTokens(v: u16, digits: u16): void {
+  if (peek(KEEP_DISPLAY) === 0 && !pieceDecimals && isExact(v)) {
+    formTokens(v)
+    return
+  }
+  format(v, digits)
+  for (let i: u16 = 0; i < textLength; i++) {
+    const c = text[i]
+    answerToken(c === 0x2d ? T_MINUS : c === 0x45 ? T_EXP : c)
+  }
 }
 
 /** A decimal in six significant digits as tokens (its characters are its tokens). */

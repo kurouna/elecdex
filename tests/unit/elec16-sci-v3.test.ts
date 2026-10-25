@@ -366,3 +366,74 @@ describe("FUNC's pages (section 15.7)", () => {
     ])
   })
 })
+
+describe('inequalities (section 15.6)', () => {
+  /** The pieces of the answer as the screen reader reads them, the foot's hint left out. */
+  const pieces = (m: Elec16) =>
+    dotText(m.state.vram, 128, 64)
+      .map((line) => line.replaceAll(' ', ''))
+      .filter((line) => line !== 'AC:EDIT')
+
+  /** An inequality of EQUATION's page 2 (the quadratic's) or 3 (the cubic's), solved. */
+  const solved = (page: number, item: number, coefficients: string[]) => {
+    const m = switchOn()
+    keys(m, `menu 5 ${'down '.repeat(page - 1)}${item}`)
+    for (const c of coefficients) keys(m, `${c} eq`)
+    keys(m, 'eq')
+    return m
+  }
+
+  it("are on EQUATION's second and third pages, by their signs", () => {
+    const m = switchOn()
+    keys(m, 'menu 5')
+    expect(band(m)).toEqual(['EQUATION', '1/3'])
+    keys(m, 'down')
+    expect(band(m)).toEqual(['EQUATION', '2/3'])
+    expect([0, 1, 2, 3].map((n) => lineAt(m, lineY(n)))).toEqual([
+      '1:aX²+bX+c>0',
+      '2:aX²+bX+c<0',
+      '3:aX²+bX+c≥0',
+      '4:aX²+bX+c≤0',
+    ])
+    keys(m, 'down')
+    expect(lineAt(m, lineY(0))).toBe('1:aX³+bX²+cX+d>0')
+    keys(m, '4')
+    expect(band(m)[0]).toBe('aX³+bX²+cX+d≤0')
+  })
+
+  it.each([
+    ['X²-X-6>0', 2, 1, ['1', 'neg 1', 'neg 6'], ['X<-2', '3<X']],
+    ['X²-X-6<0', 2, 2, ['1', 'neg 1', 'neg 6'], ['-2<X<3']],
+    ['X²-X-6≥0', 2, 3, ['1', 'neg 1', 'neg 6'], ['X≤-2', '3≤X']],
+    ['X²-X-6≤0', 2, 4, ['1', 'neg 1', 'neg 6'], ['-2≤X≤3']],
+    ['-X²+X+6≥0', 2, 3, ['neg 1', '1', '6'], ['-2≤X≤3']],
+    ['X²-2X+1>0', 2, 1, ['1', 'neg 2', '1'], ['X≠1']],
+    ['X²-2X+1≥0', 2, 3, ['1', 'neg 2', '1'], ['ALLREALNUMBERS']],
+    ['X²-2X+1<0', 2, 2, ['1', 'neg 2', '1'], ['NOSOLUTION']],
+    ['X²-2X+1≤0', 2, 4, ['1', 'neg 2', '1'], ['X=1']],
+    ['X²+1>0', 2, 1, ['1', '0', '1'], ['ALLREALNUMBERS']],
+    ['X²+1≤0', 2, 4, ['1', '0', '1'], ['NOSOLUTION']],
+    ['X³-6X²+11X-6>0', 3, 1, ['1', 'neg 6', '1 1', 'neg 6'], ['1<X<2', '3<X']],
+    ['X³-6X²+11X-6≤0', 3, 4, ['1', 'neg 6', '1 1', 'neg 6'], ['X≤1', '2≤X≤3']],
+    ['X³-X²≥0', 3, 3, ['1', 'neg 1', '0', '0'], ['X=0', '1≤X']],
+    ['X³-X²>0', 3, 1, ['1', 'neg 1', '0', '0'], ['1<X']],
+    ['X³-X²<0', 3, 2, ['1', 'neg 1', '0', '0'], ['X<0', '0<X<1']],
+    ['X³+X+1>0', 3, 1, ['1', '0', '1', '1'], ['-0.6823278038<X']],
+  ])('%s is %s', (_, page, item, coefficients, want) => {
+    expect(pieces(solved(page, item, coefficients))).toEqual(want)
+  })
+
+  it('keeps an irrational root in its form, and F⇄D shows decimals', () => {
+    // X²+X-1<0: (-1-√5)/2 < X < (-1+√5)/2; the reader cannot read √, the rest it can.
+    const m = solved(2, 2, ['1', '1', 'neg 1'])
+    expect(pieces(m).join(' ')).toContain('<X<')
+    keys(m, 'fd')
+    // Ten digits each are too wide for the line: six.
+    expect(pieces(m)).toEqual(['-1.61803<X<0.618034'])
+  })
+
+  it('is MATH when a is 0, as the equations are', () => {
+    const m = solved(2, 1, ['0', '1', '1'])
+    expect(lineAt(m, 1, true)).toBe('ERR:MATH')
+  })
+})
