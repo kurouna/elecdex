@@ -287,3 +287,82 @@ describe('the SI prefixes (section 15.3)', () => {
     expect(answerRows(m)).toEqual(before)
   })
 })
+
+describe('the normal distribution (section 15.5)', () => {
+  it("is FUNC's last page, DIST, after STATS' pages", () => {
+    const m = switchOn()
+    keys(m, 'func fp:DIST')
+    expect(lineAt(m, lineY(0)).replaceAll(' ', '')).toBe('1:nlow(2:nmid(')
+    expect(lineAt(m, lineY(1)).replaceAll(' ', '')).toBe('3:nup(4:→z')
+    keys(m, 'down')
+    expect(band(m)[0]).toBe('FUNC DIST')
+    keys(m, '1')
+    expect(rows(m)[0]).toBe('nlow(')
+  })
+
+  it.each([
+    ['nlow(1.96)', '1 1 dot 9 6', '0.9750021049'],
+    ['nlow(-1.96)', '1 neg 1 dot 9 6', '2.499789515E-2'],
+    ['nlow(0)', '1 0', '0.5'],
+    ['nmid(1)', '2 1', '0.3413447461'],
+    ['nmid(2)', '2 2', '0.4772498681'],
+    ['nmid(-1)', '2 neg 1', '-0.3413447461'],
+    ['nup(0.5)', '3 0 dot 5', '0.3085375387'],
+    ['nup(3)', '3 3', '1.349898032E-3'],
+    ['nup(-3)', '3 neg 3', '0.998650102'],
+    ['nup(10)', '3 1 0', '7.619853024E-24'],
+    ['nup(30)', '3 3 0', '0'],
+  ])('%s is %s', (_, line, value) => {
+    const m = switchOn()
+    keys(m, `func fp:DIST ${line} eq`)
+    expect(ans(m)).toBe(value)
+  })
+
+  it("standardizes a value by STATS' x̄ and σx: 5→z is √2 for 1-5", () => {
+    const m = switchOn()
+    keys(m, 'menu 2 1 1 eq 2 eq 3 eq 4 eq 5 eq menu 1')
+    keys(m, '5 func fp:DIST 4')
+    expect(rows(m)[0]).toBe('5→z')
+    keys(m, 'eq')
+    expect(ans(m)).toBe('1.414213562')
+    keys(m, 'ac 1 func fp:DIST 4 eq')
+    expect(ans(m)).toBe('-1.414213562')
+  })
+
+  it('is MATH for →z without data', () => {
+    const m = switchOn()
+    keys(m, '5 func fp:DIST 4 eq')
+    expect(lineAt(m, 1, true)).toBe('ERR:MATH')
+  })
+})
+
+describe("FUNC's pages (section 15.7)", () => {
+  // Found in making v3: PROG's three pages and the calculator's seven are ten, and the page
+  // count was one digit ('1/:').
+  it("counts PROG's ten pages in two digits", () => {
+    const m = switchOn()
+    keys(m, 'menu 8 1 func')
+    expect(band(m)).toEqual(['FUNC PROG', '1/10'])
+    keys(m, 'down down down down down down down down down')
+    expect(band(m)).toEqual(['FUNC DIST', '10/10'])
+  })
+
+  it('runs FUNC, ENG, MORE, RANDOM, STATS twice and DIST in CALC', () => {
+    const m = switchOn()
+    keys(m, 'func')
+    const titles: string[] = []
+    for (let k = 0; k < 7; k++) {
+      titles.push(band(m).join(' '))
+      keys(m, 'down')
+    }
+    expect(titles).toEqual([
+      'FUNC 1/7',
+      'FUNC ENG 2/7',
+      'FUNC MORE 3/7',
+      'FUNC RANDOM 4/7',
+      'FUNC STATS 5/7',
+      'FUNC STATS 6/7',
+      'FUNC DIST 7/7',
+    ])
+  })
+})

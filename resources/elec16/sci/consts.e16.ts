@@ -72,7 +72,7 @@ function fieldInto(table: u16, n: u16, from: u16): u16 {
  */
 function wordTable(): u16 {
   return str(
-    'd/dx(|\x97(|\x90(|arg(|conj(|Re(|Im(|det(|trn(|dot(|cross(|angle(|\xe5(||||\x98|MatA|MatB|MatC|MatD|MatAns| mod ||\xe1|\xe2|\xe3|\xe4|lbl |goto ',
+    'd/dx(|\x97(|\x90(|arg(|conj(|Re(|Im(|det(|trn(|dot(|cross(|angle(|\xe5(|nlow(|nmid(|nup(|\x98|MatA|MatB|MatC|MatD|MatAns| mod |\x94z|\xe1|\xe2|\xe3|\xe4|lbl |goto ',
   )
 }
 

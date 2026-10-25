@@ -12,6 +12,7 @@ import {
   addr,
   type bool,
   bytes,
+  i16,
   peek,
   peek16,
   poke,
@@ -51,17 +52,21 @@ import {
   copy8,
   E_MATH,
   fail,
+  inexact,
   isNegative,
   isZero,
   M_ADD,
+  M_CMP,
   M_DIV,
   M_EXP,
   M_LN,
   M_MUL,
   M_NEG,
+  M_PI,
   M_POW,
   M_SQR,
   M_SUB,
+  MATH_RESULT,
   math,
   STATS_COUNT,
   STATS_DATA,
@@ -70,6 +75,7 @@ import {
   STATS_WORK,
   wholeInto,
 } from './numbers.e16'
+import { T_NMID, T_NUP } from './tokens.e16'
 
 /** What STATS shows: its kind chosen, the grid, FUNC's row menu, the results. */
 const PH_TYPE = 0
@@ -871,4 +877,120 @@ function quadEstimate(which: u16): void {
   else math(M_SUB, at(U), at(T2), 0)
   sop(M_ADD, T1, R_C, R_C)
   math(M_DIV, at(U), at(T1), 0)
+}
+
+/* ---------------- the normal distribution (section 15.5) ---------------- */
+
+/** |t|, the area from 0 to it, the tail past it, and numbers worked with. */
+const distAt = bytes(8)
+const distArea = bytes(8)
+const distTail = bytes(8)
+const distTerm = bytes(8)
+const distWork = bytes(8)
+const distPi = bytes(8)
+
+/**
+ * nlow( nmid( nup( (`f`) of the value at `x`, into it: the standard normal distribution's
+ * probabilities below t, from 0 to t and above t. The smaller of the area from 0 to |t| and the
+ * tail past it is worked out directly (a series below 2, a continued fraction from 2) and the
+ * other from 1/2, so a small tail keeps its digits.
+ */
+export function normal(f: u16, x: u16, at: u16): void {
+  const negative = isNegative(x)
+  copy8(x, addr(distAt))
+  if (negative) math(M_NEG, addr(distAt), 0, at)
+  wholeInto(addr(distWork), 21)
+  if (!smaller(addr(distAt), addr(distWork))) {
+    // Past 21 the tail is under 10⁻⁹⁹, the unit's least.
+    wholeInto(addr(distTail), 0)
+  } else {
+    wholeInto(addr(distWork), 2)
+    if (smaller(addr(distAt), addr(distWork))) distSeries(at)
+    else distFraction(at)
+  }
+  if (smaller(addr(distAt), addr(distWork))) {
+    halfInto(addr(distTail))
+    math(M_SUB, addr(distTail), addr(distArea), at)
+  } else {
+    halfInto(addr(distArea))
+    math(M_SUB, addr(distArea), addr(distTail), at)
+  }
+  if (f === T_NMID) {
+    copy8(addr(distArea), x)
+    if (negative) math(M_NEG, x, 0, at)
+  } else if ((f === T_NUP) !== negative) copy8(addr(distTail), x)
+  else {
+    halfInto(x)
+    math(M_ADD, x, addr(distArea), at)
+  }
+}
+
+/** a < b, two numbers. */
+function smaller(a: u16, b: u16): bool {
+  math(M_CMP, a, b, 0)
+  return i16(peek16(MATH_RESULT)) < 0
+}
+
+function halfInto(v: u16): void {
+  wholeInto(v, 1)
+  wholeInto(addr(distTerm), 2)
+  math(M_DIV, v, addr(distTerm), 0)
+}
+
+/** φ(|t|) = e^(-t²/2) / √(2π) into distWork. */
+function density(at: u16): void {
+  copy8(addr(distAt), addr(distWork))
+  math(M_MUL, addr(distWork), addr(distAt), at)
+  wholeInto(addr(distTerm), 2)
+  math(M_DIV, addr(distWork), addr(distTerm), at)
+  math(M_NEG, addr(distWork), 0, at)
+  math(M_EXP, addr(distWork), 0, at)
+  math(M_PI, addr(distPi), 0, at)
+  math(M_MUL, addr(distPi), addr(distTerm), at)
+  math(M_SQR, addr(distPi), 0, at)
+  math(M_DIV, addr(distWork), addr(distPi), at)
+}
+
+/** 0 to |t| below 2: φ(t)(t + t³/3 + t⁵/(3·5) + ...), every term positive, until it adds nothing. */
+function distSeries(at: u16): void {
+  copy8(addr(distAt), addr(distArea))
+  copy8(addr(distAt), addr(distTail))
+  for (let n: u16 = 1; n < 80; n++) {
+    math(M_MUL, addr(distTail), addr(distAt), at)
+    math(M_MUL, addr(distTail), addr(distAt), at)
+    wholeInto(addr(distTerm), 2 * n + 1)
+    math(M_DIV, addr(distTail), addr(distTerm), at)
+    copy8(addr(distArea), addr(distTerm))
+    math(M_ADD, addr(distArea), addr(distTail), at)
+    math(M_CMP, addr(distArea), addr(distTerm), 0)
+    if (peek16(MATH_RESULT) === 0) break
+  }
+  density(at)
+  math(M_MUL, addr(distArea), addr(distWork), at)
+  wholeInto(addr(distWork), 2)
+}
+
+/** The tail past |t| from 2: φ(t) / (t + 1/(t + 2/(t + 3/(t + ...)))), 80 deep from the end. */
+function distFraction(at: u16): void {
+  copy8(addr(distAt), addr(distTail))
+  for (let k: u16 = 80; k > 0; k--) {
+    wholeInto(addr(distTerm), k)
+    math(M_DIV, addr(distTerm), addr(distTail), at)
+    copy8(addr(distAt), addr(distTail))
+    math(M_ADD, addr(distTail), addr(distTerm), at)
+  }
+  density(at)
+  math(M_DIV, addr(distWork), addr(distTail), at)
+  copy8(addr(distWork), addr(distTail))
+  wholeInto(addr(distWork), 2)
+}
+
+/** x→z: (x - x̄) / σx by STATS' table, at `v`; MATH without data or with σx 0. */
+export function standardized(v: u16, at: u16): void {
+  statValue(1, addr(distWork))
+  math(M_SUB, v, addr(distWork), at)
+  statValue(2, addr(distWork))
+  if (isZero(addr(distWork))) fail(E_MATH, at)
+  math(M_DIV, v, addr(distWork), at)
+  inexact(v)
 }

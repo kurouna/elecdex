@@ -88,7 +88,7 @@ import {
   VALUE_SIZE,
   varAt,
 } from './numbers.e16'
-import { EST_X, EST_X2, EST_Y, statEstimate, statValue } from './stats.e16'
+import { EST_X, EST_X2, EST_Y, normal, standardized, statEstimate, statValue } from './stats.e16'
 import {
   isConstant,
   isDigit,
@@ -142,7 +142,9 @@ import {
   T_NCR,
   T_NE,
   T_NEG,
+  T_NLOW,
   T_NPR,
+  T_NUP,
   T_OPEN,
   T_PERCENT,
   T_PI,
@@ -170,6 +172,7 @@ import {
   T_TEN,
   T_TERA,
   T_TIMES,
+  T_TOZ,
   T_X2EST,
   T_XEST,
   T_XROOT,
@@ -399,6 +402,9 @@ function post(): void {
       pushInt(100, at)
       binary(M_DIV, at)
       percentEnd = pos
+    } else if (t === T_TOZ) {
+      pos++
+      standardized(top(), at)
     } else if (t >= T_FEMTO && t <= T_TERA) {
       pos++
       siPrefix(t, at)
@@ -757,7 +763,8 @@ function other(f: u16, x: u16, at: u16): void {
     named(f, x, at)
     return
   }
-  if (f === T_ASIN) math(M_ASN, x, 0, at)
+  if (f >= T_NLOW && f <= T_NUP) normal(f, x, at)
+  else if (f === T_ASIN) math(M_ASN, x, 0, at)
   else if (f === T_ACOS) math(M_ACS, x, 0, at)
   else if (f === T_ATAN) math(M_ATN, x, 0, at)
   else if (f === T_LOG) math(M_LOG, x, 0, at)

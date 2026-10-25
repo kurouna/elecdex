@@ -135,6 +135,7 @@ import {
   T_TEN,
   T_TERA,
   T_TIMES,
+  T_TOZ,
   T_XNOR,
   T_XROOT,
 } from './tokens.e16'
@@ -977,7 +978,8 @@ function fromAns(t: u16): bool {
     t === T_NCR ||
     t === T_NPR ||
     (t >= T_AND && t <= T_XNOR) ||
-    (t >= T_FEMTO && t <= T_TERA)
+    (t >= T_FEMTO && t <= T_TERA) ||
+    t === T_TOZ
   )
 }
 

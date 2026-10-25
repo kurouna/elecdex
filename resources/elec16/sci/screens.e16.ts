@@ -91,6 +91,7 @@ import {
   T_LCM,
   T_MILLI,
   T_MOD,
+  T_NLOW,
   T_PERCENT,
   T_POL,
   T_PROD,
@@ -101,6 +102,7 @@ import {
   T_SIGMA,
   T_STAT_C,
   T_STAT_N,
+  T_TOZ,
   T_X2EST,
   T_XEST,
   T_YEST,
@@ -431,11 +433,12 @@ function clearMemory(): void {
  * have FUNC screens of their own (cplx.e16.ts, matrix.e16.ts).
  */
 let funcPage: u16 = 0
-const FUNC_PAGES = 6
+const FUNC_PAGES = 7
 const PAGE_ENG = 1
 const PAGE_MORE = 2
 const PAGE_RANDOM = 3
 const PAGE_STATS = 4
+const PAGE_DIST = 6
 
 /** PROG's pages before the calculator's. */
 function extraPages(): u16 {
@@ -454,14 +457,31 @@ export function funcScreen(): void {
   else drawFuncPage()
 }
 
-const funcPageText = bytes(4)
+const funcPageText = bytes(6)
+
+/** The page and how many: PROG's ten (its three and the calculator's seven) take two digits. */
+function funcPageOf(): void {
+  let i: u16 = 0
+  const page = funcPage + 1
+  const pages = FUNC_PAGES + extraPages()
+  if (page >= 10) {
+    funcPageText[i] = 0x31
+    i++
+  }
+  funcPageText[i] = 0x30 + (page % 10)
+  funcPageText[i + 1] = 0x2f
+  i += 2
+  if (pages >= 10) {
+    funcPageText[i] = 0x31
+    i++
+  }
+  funcPageText[i] = 0x30 + (pages % 10)
+  funcPageText[i + 1] = 0
+}
 
 function drawFuncPage(): void {
   cls()
-  funcPageText[0] = 0x31 + funcPage
-  funcPageText[1] = 0x2f
-  funcPageText[2] = 0x30 + FUNC_PAGES + extraPages()
-  funcPageText[3] = 0
+  funcPageOf()
   if (funcPage < extraPages()) {
     bandWith(str('FUNC PROG'), addr(funcPageText))
     progFuncPage(funcPage)
@@ -486,6 +506,9 @@ function drawFuncPage(): void {
   } else if (page === PAGE_RANDOM) {
     textAt(str('1:rand   2:dice'), 1, lineY(0))
     textAt(str('3:coin   4:rint'), 1, lineY(1))
+  } else if (page === PAGE_DIST) {
+    textAt(str('1:nlow(  2:nmid('), 1, lineY(0))
+    textAt(str('3:nup(   4:\x94z'), 1, lineY(1))
   } else if (page === PAGE_STATS) {
     textAt(str('1:n    2:\x95    3:\x91x'), 1, lineY(0))
     textAt(str('4:sx   5:\x96    6:\x91y'), 1, lineY(1))
@@ -504,6 +527,7 @@ function funcTitle(page: u16): u16 {
   if (page === 0) return str('FUNC')
   if (page === PAGE_ENG) return str('FUNC ENG')
   if (page === PAGE_MORE) return str('FUNC MORE')
+  if (page === PAGE_DIST) return str('FUNC DIST')
   return page === PAGE_RANDOM ? str('FUNC RANDOM') : str('FUNC STATS')
 }
 
@@ -531,6 +555,7 @@ function pageToken(d: u16): u16 {
   if (page === PAGE_ENG) return prefixToken(d)
   if (page === PAGE_MORE) return moreToken(d)
   if (page === PAGE_RANDOM) return randomToken(d)
+  if (page === PAGE_DIST) return d >= 1 && d <= 3 ? T_NLOW + d - 1 : d === 4 ? T_TOZ : 0
   return page === PAGE_STATS ? statToken(d) : sumToken(d)
 }
 

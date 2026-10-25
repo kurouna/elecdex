@@ -16,6 +16,7 @@ import {
   T_CUBE,
   T_E,
   T_END,
+  T_FEMTO,
   T_FRAC,
   T_INVERSE,
   T_MDIV,
@@ -28,6 +29,8 @@ import {
   T_SEP,
   T_SQUARE,
   T_TEN,
+  T_TERA,
+  T_TOZ,
   T_XROOT,
   T_XSEP,
 } from './tokens.e16'
@@ -91,7 +94,8 @@ function pastPostfixes(buf: u16, cur: u16): u16 {
   let j = cur
   while (j > 0) {
     const t = peek(buf + j - 1)
-    if (t === T_SQUARE || t === T_CUBE || t === T_INVERSE || t === T_BANG) j--
+    if (t === T_SQUARE || t === T_CUBE || t === T_INVERSE || t === T_BANG || t === T_TOZ) j--
+    else if (t >= T_FEMTO && t <= T_TERA) j--
     else if (t === T_END && peek(buf + openerOf(buf, j - 1)) === T_POWT) j = openerOf(buf, j - 1)
     else return j
   }
