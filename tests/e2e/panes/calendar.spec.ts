@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test'
 import { test } from '../support/shared.js'
+import { atDesignSize } from '../support/workspace.js'
 import { beside, launch, single, waitForSaved } from '../support.js'
 
 /**
@@ -57,17 +58,18 @@ test('a calendar with room for them shows the months either side', async ({ shar
 
 // Business's face is wider than the others': the weekdays' names took more than their columns.
 for (const theme of ['tron', 'business-light']) {
-  test(`three months in a pane only just wide enough each keep to their own third in ${theme}`, async ({
-    shared,
-  }) => {
+  test(`three months in a pane only just wide enough each keep to their own third in ${theme}`, async () => {
     // Found in the desk preset's full-screen shot: the dates were sized by the whole pane's width,
     // three times too large for a month's third of it, and the three grids ran into each other;
     // the weekdays' names over them did too.
-    const { page, close } = await shared({
-      layout: beside('calendar', { id: 'w', other: 'terminal', sizes: [0.255, 0.745] }),
+    // At the design size, whatever the screen: a third of 1920 is about 640, just over the
+    // three months' 620 (lib/calendar.ts).
+    const { app, page, close } = await launch(undefined, {
+      layout: beside('calendar', { id: 'w', other: 'terminal', sizes: [0.34, 0.66] }),
       settings: { theme },
     })
     try {
+      await atDesignSize(app, page)
       await expect(page.getByTestId('calendar-grid')).toHaveCount(3)
       const spans = await page.getByTestId('calendar-grid').evaluateAll((grids) =>
         grids.map((grid) => {

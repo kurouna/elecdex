@@ -1160,8 +1160,14 @@ test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on aft
     await expect.poll(() => playLines(gone.page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     expect(await playLines(gone.page)).not.toContain('D-PAD MOVES  A COLOUR  START ENDS')
     await gone.page.getByTestId('elec16').focus()
-    await gone.page.keyboard.press('Enter')
-    await expect.poll(() => playLines(gone.page)).toContain('NO CARTRIDGE')
+    // START again until it is taken: a press before the start screen waits for keys is lost.
+    await expect
+      .poll(async () => {
+        if ((await playLines(gone.page)).includes('NO CARTRIDGE')) return true
+        await gone.page.keyboard.press('Enter')
+        return false
+      })
+      .toBe(true)
     await elec16Tab(gone.page, 'games').click()
     await expect(gone.page.getByTestId('elec16-game-slot')).toHaveText('empty')
     await expect(gone.page.locator('[data-testid=elec16-game][data-game=DEMO]')).toHaveCount(0)
