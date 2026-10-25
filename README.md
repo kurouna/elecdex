@@ -1542,7 +1542,8 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 ```
 
 The rules a change must keep - the security boundary, where the network lives, what tests may
-touch - are in [CLAUDE.md](CLAUDE.md).
+touch - are in [CLAUDE.md](CLAUDE.md), and those of one pane or subsystem in
+[.claude/rules/](.claude/rules).
 
 ### Releasing
 

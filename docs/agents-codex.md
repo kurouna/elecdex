@@ -105,7 +105,7 @@ apply_patch は変えたファイル名、spawn_agent と wait_agent は相手�
 
 ## 4. 実装するときの決まり
 
-CLAUDE.md の AI AGENT ペインの規則に従う。要点:
+.claude/rules/agents.md（AI AGENT ペインの規則）に従う。要点:
 
 - `AgentSource`（main/agents/source.ts）を 1 つ（main/agents/codex/）と `AGENT_SOURCE_IDS` の 1 行。ペインに
   Codex のためのコードは書かない。表示に要るもの（チップ、`quiet`、カードの行、差分の出どころ）は

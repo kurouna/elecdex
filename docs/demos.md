@@ -2,7 +2,7 @@
 
 紹介動画や X・YouTube 用の動画は、アプリを Playwright で動かすスクリプト（`scripts/demo-*.mjs`）で撮る。
 手で操作して録るのではなく、毎回同じ動きを再現できるようにするためで、リリースごとに撮り直す
-（紹介デモはリリースごとに更新する。CLAUDE.md の Publishing、利用者の決定 2026-09-27）。
+（紹介デモはリリースごとに更新する。.claude/rules/publishing.md、利用者の決定 2026-09-27）。
 
 ## 1. 撮り方（再生と録画）
 
@@ -35,7 +35,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:whatsnew36` | v0.0.35〜v0.0.36 で増えたもの。network プリセットの Wi-Fi の下の ETHERNET（CRC エラーのあるケーブルのスタブ `crc`）を前に出し、LINK と CRC の数字のカード、LOG の CRC ERRORS の行。最後にアクションパレット（Ctrl+Shift+P）で Black のテーマを探して当て、元に戻す | 1600×900、約 27 秒 |
 | `demo:whatsnew34` | v0.0.34 で増えたもの。どれもペインを前に出して見せる（dev プリセットで、AI AGENT のサブエージェントが起動したサブエージェントとそのカード、GIT ペインの PUSH を 2 回押しで代役のリモートへ、GIT の隣のタブに置いた GPU ペイン。最後に cockpit の CLUSTER の GPU レーンと VRAM のスロット） | 1600×900、約 48 秒 |
 
-一覧と一言の説明は CLAUDE.md の Commands にもある。各スクリプトの先頭のコメントに、場面の並びと何が代役かが書いてある。
+一覧と一言の説明は .claude/rules/scripts.md にもある。各スクリプトの先頭のコメントに、場面の並びと何が代役かが書いてある。
 
 ### 共通のオプション（`takeOptions`、scripts/demo-take.mjs）
 
@@ -98,7 +98,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
    両方の版に出る動きは demo-beats.mjs で直し、版ごとの違いは引数で渡す
    （例: `aircombat(hold, { nth, title, controls, briefing })`、`cluster(hold, { cards, which })`）。
 2. 新しい機能を見せるときは場面を 1 つ足し、もう正しくない場面は外す。目立つ新機能には場面を
-   与える（CLAUDE.md の Publishing）。
+   与える（.claude/rules/publishing.md）。
 3. `npm run build` してから `--shots=<dir> --lead=2 --exit` で通しで撮り、画像を開いて確かめる。
    最後に `tour: N s after the boot` が出る。縦型は窓が出た時刻（`window up`）から最後までで測る。
 4. 長さを守る。横型は約 2 分、縦型は起動画面込みで 2 分以内（YouTube ショートのため）。

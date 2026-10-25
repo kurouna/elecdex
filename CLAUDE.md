@@ -9,11 +9,46 @@ It is developed and used on Windows; macOS and Linux have only been run by the e
 Actions and are **not sufficiently verified** - the README says so, and must go on saying so until
 someone has used them by hand.
 
-This file is the index of the rules that must not be broken, and where each one lives. The design
-is in [docs/architecture.md](docs/architecture.md), every decision with its reason and measured
-numbers in [docs/decisions.md](docs/decisions.md) (both Japanese), plugins in
-[docs/plugins.md](docs/plugins.md). **Read the section named by a rule before changing that
-subsystem.**
+## How the rules are organised
+
+This file holds what applies in every session: the boundaries, performance, tests, publishing,
+conventions and commits. The rules of one subsystem live in [.claude/rules/](.claude/rules), one
+file each, with `paths` naming the files they are about: Claude Code loads such a file when one of
+those files is read or edited, not when it is only mentioned. **Before planning a change to a
+subsystem, read its rules file, then the design section it names** - a plan made from the code
+alone tends to break a promise the code quietly depends on. The design is in
+[docs/architecture.md](docs/architecture.md), every decision with its reason and measured numbers in
+[docs/decisions.md](docs/decisions.md) (both Japanese), the plugin API in
+[docs/plugins.md](docs/plugins.md).
+
+| Subsystem | Rules | Design |
+|---|---|---|
+| Panes, layout, dialogs, shortcuts, palette, CRT transitions, themes, cards, type sizes | [panes-layout.md](.claude/rules/panes-layout.md) | architecture.md §5.5, §5.6, §5.13, §5.24, §7; docs/palette.md |
+| Shell panes: sizing, the folder | [terminal.md](.claude/rules/terminal.md) | §6.2 |
+| Running in the background (tray, shortcut, sign-in entry) | [background.md](.claude/rules/background.md) | decisions.md |
+| The metrics collector: sockets, GPU | [metrics.md](.claude/rules/metrics.md) | §5.22 |
+| Wi-Fi and Ethernet panes | [wifi-ethernet.md](.claude/rules/wifi-ethernet.md) | §5.12, §5.23; docs/ethernet-mock |
+| CLIPBOARD | [clipboard.md](.claude/rules/clipboard.md) | §5.14 |
+| NOW PLAYING | [now-playing.md](.claude/rules/now-playing.md) | §5.15 |
+| UTILITY (AWAKE, CODEC, QR) | [utility.md](.claude/rules/utility.md) | §5.16 |
+| DOCKER | [docker.md](.claude/rules/docker.md) | §5.17 |
+| CHIP-8 and the emulators' shared base | [chip8.md](.claude/rules/chip8.md) | §5.18; docs/emu.md |
+| ELEC-16: the pocket, PLAY-320, its games and kit, SCI | [elec16.md](.claude/rules/elec16.md) | §5.19; docs/elec16.md and the elec16-*.md documents |
+| CLUSTER | [cluster.md](.claude/rules/cluster.md) | §5.20; docs/cluster.md |
+| LOG WATCH | [logwatch.md](.claude/rules/logwatch.md) | §5.21; docs/logwatch.md |
+| Web panes | [web-panes.md](.claude/rules/web-panes.md) | §5.4 |
+| Plugins | [plugins.md](.claude/rules/plugins.md) | docs/plugins.md |
+| AI chat | [ai-chat.md](.claude/rules/ai-chat.md) | §5.7 |
+| ELEC (the council) | [elec.md](.claude/rules/elec.md) | §5.8 |
+| git pane | [git.md](.claude/rules/git.md) | §5.9 |
+| AI AGENT | [agents.md](.claude/rules/agents.md) | §5.11; docs/agents-codex.md |
+| Tests: the stubs, test craft, the reporter | [tests.md](.claude/rules/tests.md) | docs/e2e-design.md |
+| Publishing: screenshots, demos, notices, the release procedure | [publishing.md](.claude/rules/publishing.md) | docs/demos.md |
+| Generators and demo scripts (their commands) | [scripts.md](.claude/rules/scripts.md) | docs/demos.md |
+
+A rule stated for one pane, channel, shortcut, dialog or theme holds for every one of its kind,
+including the ones added later. A test named beside a rule is what holds it: change the test with
+the rule, never around it.
 
 ## Commands
 
@@ -26,46 +61,10 @@ npx playwright test    # end-to-end tests against out/ — run `npm run build` f
 npm run test:e2e:smoke # launch, the mount and lifecycle contracts: a quick look before a commit (build first)
 npm run test:packaged  # the packaged app from release/ started once over CDP (after package or package:dir)
 npm run package:dir    # unpacked app in release/win-unpacked (or mac/linux equivalent)
-npm run gen:icon       # build/icon.svg -> build/icon.png + resources/icons/icon.png
-npm run gen:card       # README banner: public/elecdex_repo_card.svg
-npm run gen:geo        # globe land points, country centroids, time zone table
-npm run gen:cities     # weather picker city list (GeoNames)
-npm run gen:orbit-map  # ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL)
-npm run gen:chip8      # CHIP-8 library + previews: resources/chip8/programs.json (--archive <dir> to update chip8Archive)
-npm run gen:elec16     # ELEC-16 ROM: BASIC (e16c) -> basic.s, rom/*.s -> rom.json; soft/ -> soft.json
-npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
-npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)
-npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)
-npm run demo:dev       # AI AGENT + GIT at work, then ORBIT, for a recording (Windows; build first; --probe)
-npm run demo:devflow   # the dev preset in use: the way there, agent, git, load, Docker, clipboard, chat, shell, captioned (--ja or demo:devflow-ja: in Japanese; Windows; build first)
-npm run demo:presets   # the layouts dialog stepping through every preset, for a recording (Windows; build first; --probe)
-npm run demo:shorts    # the same in a tall 9:16 window, layouts in 2 or 3 tiers (--tiers=2|3; Windows; build first)
-npm run demo:wifi      # the Wi-Fi pane on the train stub, 9:16, cards opening on the way (Windows; build first)
-npm run demo:panes     # DOCKER, CLIPBOARD, NOW PLAYING and UTILITY at work, 16:9, under 30 s (Windows; build first)
-npm run demo:cockpit   # the cockpit preset: CLUSTER's cards, a load on every core, forward, resized, Black (Windows; build first)
-npm run demo:tour      # the introduction video: boot, presets, ETHERNET, ORBIT, agents, Docker, media, the palette, ELEC, themes (Windows; build first)
-npm run demo:tour-black # the same tour in the Black theme (--theme=black), its themes ending on Black (Windows; build first)
-npm run demo:tour-shorts # the same tour, 9:16 in two tiers, under 2 min, for Shorts (Windows; build first)
-npm run demo:keystream # KEYSTREAM: menu previews, a track typed on time through instrument changes, its result (Windows; build first)
-npm run demo:snippets  # the clipboard pane's snippets: kept, written, moved, pasted into the shell, 16:9, under 30 s (Windows; build first)
-npm run demo:whatsnew  # what v0.0.19-v0.0.20 added, most striking first: CHIP-8, files in the ai preset's chat, dev's agent tree and FETCH/PULL, 16:9 (Windows; build first)
-npm run demo:whatsnew22 # what v0.0.22 added: the pocket's new BASIC, the PLAY-320's three games, MULQ in CODE, 16:9 (Windows; build first)
-npm run demo:whatsnew34 # what v0.0.34 added: the GPU pane, CLUSTER's GPU lane, nested subagents, the git pane's PUSH, 16:9 (Windows; build first)
-npm run demo:whatsnew36 # what v0.0.35-v0.0.36 added: the ETHERNET pane on a cable with CRC errors, brought forward, and the action palette, 16:9 (Windows; build first)
-npm run demo:whatsnew38 # what v0.0.38 added: the ELEC-16's five skins modelled in light, GLASS following the theme, captioned, 16:9 (Windows; build first)
-npm run demo:elec16    # the ELEC-16 alone, 1280x600: BASIC, the SOFT CARD, CODE, the skins (Windows; build first)
-npm run demo:sci       # ELEC-16 SCI alone in Black, 16:9, ~130 s: v2's CONST, CONV, Σ, ∫, CPLX, MATRIX, PROG first, then exact answers, %, a constant, EQUATION, STATS, BASE, its bodies, captioned (Windows; build first)
-npm run demo:logwatch  # LOG WATCH alone: a made-up log followed, a burst, filter, PATTERNS, MASK, two lines EXPLAINed by the stand-in, captioned, 16:9, ~55 s (Windows; build first)
-npm run demo:games     # the PLAY-320's three games played, bodies and themes changing, CORE beside (Windows; build first)
-node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)
-node scripts/elecaircombat-art.mjs       # the same for ELECAIRCOMBAT
-node scripts/elecdrill-art.mjs           # the same for ELECDRILL
-node scripts/elecfighter-art.mjs [stage|title|screens]  # ELECFIGHTER's pictures: three.js renders the fighters in a hidden Electron window
-node scripts/elecfighter/serve.mjs       # ELECFIGHTER's design viewer (viewer.html): the same three.js scene the bitmaps come from
-node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
-node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
-node scripts/log-feed.mjs [file] [--format=jsonl|logfmt|generic|syslog|clf|plain] [--rate=20] [--encoding=utf-8|utf-16le|shift_jis] [--rotate=60]  # a made-up log for LOG WATCH
 ```
+
+The asset generators (`gen:*`) and the demo recordings (`demo:*`) are listed, with what each makes,
+in [.claude/rules/scripts.md](.claude/rules/scripts.md).
 
 Single tests: `npx vitest run tests/unit/<file>.test.ts`,
 `npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"` (folders: app, workspace,
@@ -85,36 +84,26 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 
 ```
 src/main/        main process: window, ipc/ (handlers, table.ts), store/ (json files), pty/, fs/,
-                 weather/, markets/, feeds/, quakes/, orbits/, clipboard/, media/, ai/, agents/, git/,
-                 chip8/, launcher/, audio/, plugins/, web/, background/, reminders/, updates/, awake/,
-                 docker/, secrets/, metrics/ (the broker between the collector and pages),
+                 one folder per service (weather/, markets/, feeds/, quakes/, orbits/, clipboard/,
+                 media/, ai/, agents/, git/, chip8/, elec16/, launcher/, audio/, plugins/, web/,
+                 background/, reminders/, updates/, awake/, docker/, logwatch/, secrets/),
+                 metrics/ (the broker between the collector and pages),
                  boundary-timer.ts (readings on the wall clock's grid)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/, ethernet/, gpu/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas (schemas/), channel names and pure logic used by both sides;
                  calc/ (vendor/ is elecxzy's evaluator, the wrapper beside it is ours)
 src/renderer/    Svelte UI: layout/ (panes, tabs, splits, picker), widgets/ (builtins.ts is the
-                 registry), plugins/ (host, plugin pane, blocks), stores/, styles/, lib/
+                 registry), plugins/ (host, plugin pane, blocks), palette/, stores/, styles/, lib/
 examples/        plugins/pomodoro: the sample plugin written into a new plugins folder;
                  plugins/keystream: the API 2 sample (canvas, keys, sound), a rhythm game
 tests/           unit/ (vitest, node), component/ (jsdom), e2e/ (Playwright _electron: app/, workspace/,
                  panes/, extensions/, contracts/ tables over every pane, key, dialog and IPC method;
                  support/, incl. shared.ts, one app shared by tests; docs/e2e-design.md)
-scripts/         asset generators, sync-calc, fix-node-pty
-docs/            architecture.md, decisions.md, plugins.md (the plugin API), weather-providers.md,
-                 emu.md (the emulators' shared base), elec16.md (the ELEC-16 pane),
-                 elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (its manuals),
-                 elec16-play.md (the game model ELEC-16 PLAY), elec16-play-manual.md (its user's
-                 manual), elec16-kit.md (making its games), elec16-eleclance.md,
-                 elec16-elecaircombat.md, elec16-elecdrill.md, elec16-elecfighter.md (the four
-                 games), elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER's design),
-                 elec16-sci.md and elec16-sci-mock/ (the calculator ELEC-16 SCI),
-                 elec16-sci-manual.md (its user's manual),
-                 cluster.md (the CLUSTER pane), logwatch.md and logwatch-mock/ (the LOG WATCH
-                 pane), ethernet-mock/ (the Ethernet pane's mock, beside the Wi-Fi pane's
-                 shots), agents-codex.md and agents-mock/ (a Codex source for the AI AGENT
-                 pane, designed, not built), palette.md and palette-mock/ (the action
-                 palette, issue 23), demos.md (making, changing and recording the demos),
+scripts/         asset generators, demo recordings, sync-calc, fix-node-pty
+docs/            architecture.md, decisions.md, plugins.md, e2e-design.md, demos.md,
+                 weather-providers.md; a design document (and often a *-mock/ folder) per pane,
+                 named in the table above; the ELEC-16's manuals (elec16-*.md, Japanese);
                  screenshots/ (README images)
 ```
 
@@ -159,283 +148,6 @@ user made; do not reverse one without asking.
     contracts/panes.ts (a new pane needs its row: what main does for it while seen, what it keeps,
     what goes on unseen); tests/unit/e2e-contracts.test.ts holds the table to builtins.ts. Web
     panes, the exception above, are apart.
-- **The connections pane reads the kernel, not the network** (src/services/metrics/sockets/, one
-  file per platform behind `RawSocket`). Peers are placed with the bundled GeoIP database, never a
-  lookup service. `net.sockets` is the one reading a plugin can never be granted: every metric
-  source goes into `PLUGIN_METRIC_SOURCE_IDS` or `PRIVATE_METRIC_SOURCE_IDS` deliberately (a
-  unit test checks).
-- **The Wi-Fi pane reads nothing behind the location consent** (§5.12, shared/wifi/,
-  services/metrics/wifi/). No BSSID and no scan, on any platform (user decision 2026-09-25): on
-  Windows never WlanGetNetworkBssList, WlanGetAvailableNetworkList, WlanScan or
-  WlanQueryInterface opcode 7 (a unit test holds the script to it); on macOS never CoreWLAN. Only
-  the named event-log fields leave the script.
-  - One echo round serves the network status pane and this one, pinged in the collector, never
-    in main.
-  - `net.wifi` and `net.wifi.events` are private and not kept while hidden. Judgements are pure
-    in shared/wifi/. Every `data-hint` figure has a card in widgets/wifi/hints.ts quoting
-    `WIFI_LIMITS` (a unit test checks).
-- **The Ethernet pane reads the cable without a process per reading** (§5.23, shared/ethernet/,
-  services/metrics/ethernet/; the Wi-Fi pane's sibling, sharing shared/netpath.ts and
-  widgets/netpath/: the path strip, the cards, the history, the timeline's and the log's frames;
-  what differs by medium stays in each pane). Windows: the sampler's `ether` kind, `GetIfTable2`
-  rows of type 6, medium 14, HardwareInterface and not FilterInterface; the duplex and the driver's settings in a runspace of
-  the sampler's (never on its loop), read by keyword, never changed. The interface GUID, the device
-  ids and a profile's name never leave the script; the C# and the pane's functions go in the
-  sampler's environment (its command line stays under 32,000, a unit test checks).
-  - One source, `net.ethernet`, private, not kept while hidden. No OS log of drops is read: the log
-    is what the pane saw. Two system sources only while seen: NDIS's disconnect events, counted by
-    adapter and never parsed (sub-second drops), and Tcpip 4199 (an address conflict: its time and
-    which wired address, never the other machine's MAC). Gateways are echoed from each adapter's own address (`IcmpSendEcho2Ex`, `ping -I` /
-    `-S`), Wi-Fi's too; one internet echo serves three panes.
-  - Judgements are pure (`diagnoseEthernet`, `ETHER_LIMITS`): a fall from the speed seen is a fault,
-    a steady low speed only BELOW MAX; CRC errors need a count and a share; discards are the host's;
-    drops come back within a minute; multicast is never judged. The speed is coloured by the speed's
-    judgement only. Power saving is named only after a drop or a fall was seen with it on.
-  - No words on a canvas, in this pane or Wi-Fi's: lane names, scales and marks are HTML over it.
-  - What a reader could not read travels as `problems` and is a toast, once each.
-  - Tests: `ELECDEX_ETHER_STUB=1` (every case of docs/ethernet-mock, plus `conflict`, `problem`).
-  - Its limits, unverified with a cable or on Linux and macOS, are listed in §5.23.1 and the
-    README: keep both until someone has tried them.
-- **The clipboard pane reads only while it is seen** (§5.14, shared/clipboard.ts,
-  main/clipboard/). Main reads (Electron's async API, never the page) on the quarter seconds,
-  only while a pane is subscribed and not paused; what is copied unseen is never kept. The
-  history is main's memory only; the page gets previews and puts back by id; no plugin API.
-  - A copy marked private (`privateMark`) is recognised from its formats alone; its text is never
-    read. Keep that list of formats in one place.
-  - Decisions are pure (`recordRead`); a selection is absorbed only between looks in a row.
-  - Snippets (shared/snippets.ts) are the one thing it writes, to `snippets.json`, only what the
-    user kept. A history entry becomes one by id, so its text and formatting never pass through
-    the page; the editor asks for one text by id. COPY goes through the watcher (`put`), not into the history (user
-    decision 2026-09-27); main says which rows are kept and which snippet is on the clipboard.
-  - Tests: `ELECDEX_CLIPBOARD_STUB=1`, copy through `globalThis.__elecdexClipboard`.
-- **The NOW PLAYING pane reads only while it is seen** (§5.15, shared/now-playing.ts,
-  main/media/). Main reads the media session (Windows: SMTC through one long-lived PowerShell) on
-  the half seconds while subscribed; not a metric source, no plugin API, nothing logged or
-  written. The page may press only previous, play/pause and next, and seek where the player takes
-  a position (never the volume), only while subscribed; a bar the player cannot seek does not look
-  draggable. Art is made small in the reader and passed as a checked JPEG data URL; the card's
-  larger copy stays in main until a card opens.
-  Decisions are pure (`readSession`, `positionNow`, `appLabel`). Tests:
-  `ELECDEX_NOWPLAYING_STUB=1`, `globalThis.__elecdexNowPlaying`.
-- **The UTILITY pane** (§5.16, shared/utility.ts, shared/codec.ts, main/awake/): small tools in
-  `UTILITY_MODULES`, never panes of their own; each starts with the user's action, runs in main
-  through what is already there (no process per action), uses no network, reads nothing behind a
-  consent, and is out of the plugin API.
-  - AWAKE: `powerSaveBlocker` only, OFF / SYSTEM / DISPLAY. The hold is main's (`AwakeService`,
-    `awake.json`), never pane state, and goes on with no pane open (the status bar and tray say
-    so); its end waits on one `setTimeout`, rechecked on `resume`, never a tick.
-  - Copies go through main (`utility.copy`). A Wi-Fi password is kept only sealed (`utility.seal`,
-    safeStorage, purpose-checked by `unseal`), unsealed only while its code is shown, never in
-    plain. CODEC's input is never written.
-  - A QR code is dark on light, in theme colours only when contrast holds (`qrColours`); a test
-    reads every theme's code back.
-  - Tests: `ELECDEX_AWAKE_STUB=1`, `globalThis.__elecdexAwake`.
-- **The DOCKER pane talks to the engine only while it is seen** (§5.17, shared/docker.ts,
-  main/docker/). Engine API over node `http` on the socket, pipe or loopback TCP - never the CLI
-  or a client library - found by reading files as the CLI does; never a remote, TLS or ssh
-  engine, and the page cannot name one.
-  - While subscribed: one event stream, the list at the next quarter second after an event and
-    on the ten seconds (user decision 2026-09-27), usage on the five; one timer each. Nothing
-    written or logged.
-  - The page gets short ids and only what row and card show (labels: Compose project, service,
-    folder; never command, mounts or env).
-  - Presses: start, stop, restart, pause, unpause only - never remove, kill or prune - on a
-    container of the last listing, in a state that takes it, from a page that shows it. Not a metric source; no plugin API. Rows never move by state.
-  - Tests: `ELECDEX_DOCKER_STUB=1`, `globalThis.__elecdexDocker`.
-- **The CHIP-8 pane** (§5.18) runs our own TypeScript machine on 2D canvas - never WASM or eval.
-  - `shared/chip8` imports only itself and `shared/emu`; `shared/emu` nothing; neither touches the
-    DOM, Node, timers, the clock or `Math.random` (emu-boundary.test.ts holds them). A pane wraps
-    them and never reaches in. A later emulator takes the same shape (docs/emu.md) and shares
-    `shared/emu` and the page's `widgets/emu`, never another machine's folder; `widgets/emu`
-    knows no machine. Extract a shared part when a second machine needs it, not before.
-  - Octo is the reference: every platform runs every instruction, the platform decides only
-    memory and quirks, and the keys are Octo's (arrows and Space are pads 5 7 8 9 and 6). Timendus's chip8-test-suite must pass on
-    all three platforms (chip8-suite.test.ts): a change that moves a fixture is checked against
-    the suite's README, not re-recorded.
-  - Presses blink (lib/blink.ts), appearing and going use `crt-on` / `crtPower`, lamps `pulse`.
-  - Its game loop runs on the emulators' runner (`EmuRunner`, widgets/emu/runner.svelte.ts), the
-    one exception to the 10 fps loop (widened from CHIP-8 to every emulator, user decision
-    2026-10-03): only while running and `seen`, paused out of sight. When to tick is the machine's
-    policy; CHIP-8's is rAF while the screen moves, a 60 Hz timer once still.
-  - Keys reach the machine only while the pane itself has focus (a press on its buttons hands it
-    back). ROMs come from main by id (`chip8.list`, `chip8.rom`);
-    programs.json is written only by `npm run gen:chip8`.
-  - What the user keeps is main's (`chip8/library.json`, save files), never pane state, only for
-    library programs, snapshots checked by the core's decoder and taken up only for the machine
-    they were made on, with today's tuning. Imports go through main's picker, size
-    checked first. AUTO is written when play stops (never on a timer, only if it moved). Changes
-    broadcast `chip8:changed`; the page's library is replaced whole.
-- **The ELEC-16 pane** (§5.19, docs/elec16.md) is designed and built phase by phase: read
-  elec16.md before working on it, and its section 15 (how a change is made, the test helpers,
-  the traps met so far) before changing it.
-  - Its user manuals, in Japanese, are docs/elec16-basic.md (BASIC), docs/elec16-e16.md (the
-    ISA, the assembler, the monitor, ROM services), docs/elec16-e16c.md (e16c and CODE) and
-    docs/elec16-soft.md (the SOFT CARD's programs), linked from all three READMEs. A SOFT CARD
-    program has a .help beside it (English, what FILES shows when it is picked; gen:elec16
-    refuses one without). A change a user can see in BASIC, the instruction set, the
-    assembler, the monitor or e16c updates its manual in the same commit, as elec16.md; every
-    example in a manual runs (check it on the core). An original machine only: no third-party ROM, font, BASIC
-  dialect, trade dress or real model name in what is published (user decision 2026-10-03).
-  - The encoding lives once, in shared/elec16/isa.ts; the assembler, disassembler and CPU read
-    it, and a test round-trips every instruction (every 16-bit encoding). One encoding, one
-    meaning: a do-nothing form is illegal, not a second spelling.
-  - MCPY and MSET (block copy and fill) move at most `BLOCK_STEP` bytes and run again from the
-    same address with their registers moved on, so an interrupt or BRK is never held up by a
-    long block; e16c's `memcpy` and `memset` are one instruction each.
-  - The ROM is hand-written E16 assembly (resources/elec16/rom); its font, key table and I/O
-    addresses come from shared/elec16 (font.ts, keys.ts, bus.ts) through rom.ts, never copied
-    into the assembly. `npm run gen:elec16` writes rom.json; a test holds it to the sources.
-  - BASIC is e16c TypeScript (rom/basic/*.e16.ts); basic.s is e16c's -O2 output
-    (`compileBasic`), written only by `npm run gen:elec16`, never by hand. Its function names
-    share the ROM's labels. A function only assembly calls is exported (-O2 drops the rest).
-  - e16c code runs alike as TypeScript and on the machine: `as` only widens; a change of
-    reading is `u8()`, `u16()` or `i16()`. A miscompile gets a function in
-    tests/fixtures/e16c/sample.e16.ts that shows it. tests/unit/e16c-fuzz.test.ts runs seeded programs five ways (TypeScript,
-    the interpreter, -O0, -O1, -O2); before changing e16c, run it with E16C_FUZZ_SEEDS=2000.
-  - BRK is a line of its own (IRQ 15), not a key in the FIFO: it always gets the machine back.
-  - A unit (its RAM and card) is main's (main/elec16/units.ts); one pane runs it at a time, by
-    claim. Its battery backup is the core's snapshot, written only when the pane is hidden or
-    closed, the machine is switched off or the page goes - never on a timer. The core never
-    touches the card: it makes a request, the page passes it on, main does it (`cardOp`).
-  - BASIC's second half lives in ROM banks 0-3, the monitor's U and B in 4, ASK in 5 (`BASIC_SOURCES`);
-    a bank's strings are read only in that bank. String variables have a fixed room: no
-    garbage collector. B writes C.EBREAK into RAM code only while G runs it. The fixed ROM is
-    nearly full: a new statement goes in a bank. A keyword is only ever added at the end of
-    `KEYWORDS` (a program keeps tokens) and becomes a reserved word (the BASIC manual's appendix).
-  - What a snapshot keeps is the unit's battery backup: a change to it bumps
-    `SNAPSHOT_VERSION` and still reads every older version (a unit comes back with its RAM, the
-    new part as a new machine's); a version's layout never changes once pushed.
-  - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
-    once - never at device pixels - and at most thirty times a second (`drawMs`; measured).
-  - Skins are data (skins.ts; every skin sets every field, today's eight through `TODAY`). The
-    five relief skins (docs/elec16-skins-mock) draw only with backgrounds, shadows and
-    pseudo-elements - never a size layout.ts computes; their materials are data: SVGs baked
-    opaque (skin-art.ts), their faces bundled (faces.ts, the カナ key's two letters by
-    `unicode-range`). The arrows are drawn, never a glyph; a label too wide is narrowed
-    sideways by measurement (cap-fit.ts), never made smaller. No `filter` on a key's hover
-    (measured: it doubled a press's cost). GLASS follows the theme's mode and accent.
-  - CODE compiles in a blob worker (`?worker&inline`, CSP unchanged); a person's code runs only
-    as E16 code on the core, never as JavaScript. Only the worker and tests import
-    shared/e16c/program.ts (it pulls in TypeScript's parser); the page reads code-area.ts.
-  - The body follows the agreed mock (name plate but on Business and PLAIN, key layout, key
-    tops) and is never stretched: `deviceFit` sizes it, the pane's room goes round it. PLAIN
-    draws no case (`bare`) and a flat screen (`lcd.flat`), every colour the theme's.
-  - LINK (FF70-FF7E, elec16.md section 12) is the machine's only way out: it names a service
-    of main's by number (the AI is 0; another is a `LinkService` in main/elec16/link and a line
-    in link-services.ts, never code in the core, the page or the ROM). The core makes a request,
-    the page passes it on, main answers - only for the page that holds the unit, nothing while
-    LINK or that service is off in the panel's LINK (LINK on, the AI off, CART on by default;
-    an old single switch is the AI's, `linkSettings`). A SEND goes only after a person's action since the last (HELD
-    otherwise: PASTE's keys do not count), one at a time a unit, no token cap (as the AI chat pane), 180 s. The
-    AI uses the AI settings' providers and keys (a key never reaches the page or the machine;
-    a provider with none may be chosen); its answer reaches the machine only as the LCD's
-    characters (`lcdReply`), and everything else - dictionary, translation, search, weather -
-    is the model's (search on the provider's side, user decision 2026-10-04). A machine waiting
-    for main (LINK, the card) is not at its prompt: the runner neither counts auto power-off
-    nor tells CODE's RUN it is there. A device line enabled by the ROM is put back
-    (`MIE_LINES`, mie at the monitor's way in).
-  - The SOFT CARD (resources/elec16/soft) is written into soft.json only by `npm run gen:elec16`
-    (a test holds it and runs every program); main lays it read-only over every unit's card
-    and never writes it. PASTE and LOAD ▸ type through the key FIFO (`pasteKeys`), never
-    into RAM.
-  - PLAY-320 (docs/elec16-play.md) has what is new alone - extended RAM, video, the pad, the
-    cartridge slot - by model data (`xramMax`, `video`, `pad`, `cart`, `drawHz`, `rom`), and
-    tests hold every other model as it was. Its ROM is resources/elec16/play (no BASIC, no
-    monitor), sharing link.s with the pocket ROM. A cartridge's ROM never goes in a snapshot:
-    the page puts it back from main's shelf by hash. The game shelf is main's
-    (main/elec16/games.ts), apart from CHIP-8's in every file, channel and list; games.json is
-    written only by `npm run gen:elec16`. A press is a button PADHIT marks that was up at the
-    last look (a tapped key is often down and up between two).
-  - Its game kit (elec16-play.md section 10, shared/elec16/kit, games/lib) builds a game with
-    `sources` in its game.json: code copied into RAM 2000-6FFF, data in banks, constants in a
-    generated `assets.e16.ts` and e16c's output kept as `compiled.s` (neither edited). Code given a bank runs in the window and never
-    moves it. A sprite's palette field is 0-7 for slots 8-15. Pictures are PNG in exact palette
-    colours; music is the kit's MML, effects on channels 12-15. ELECLANCE
-    (docs/elec16-eleclance.md) is its sample: its PNGs and stage.txt are the source once
-    scripts/eleclance-art.mjs drew them; a test holds every song's channels in step.
-    ELECAIRCOMBAT and ELECDRILL (docs/elec16-elecaircombat.md, elec16-elecdrill.md) are the
-    same kind of sample, each with its art script and test.
-  - ELECFIGHTER (docs/elec16-elecfighter-design.md is its design, kept in step with the code;
-    elec16-elecfighter.md its manual) is the fourth. Its fighters are nameless humans, P1 and the
-    CPU told apart by the fill colour alone, in eight slots (scripts/elecfighter/slots.json, a
-    glTF with the README's bone names) - never characters (user decision 2026-10-08). three.js
-    is a design tool only: scripts/elecfighter-art.mjs renders the bitmaps ahead of time and the
-    cartridge streams them; the 3D data and SVGs live in scripts/elecfighter, the PNGs are the
-    source once drawn, a slot's hand box lines (boxes.txt) are never overwritten. Slots, stages
-    and opponents are table rows: no code names one. The CPU sees the player only at now - R and
-    reads no frame's input; its habits are tendencies (at most 70%) with whims, and are never
-    written in the manual or the game (user decision). The seed is the clock and the cycle count
-    at START (tests fix the clock). The round robin is measured on balance changes and recorded
-    in the design's 3.1, not unit-tested (a match takes seconds and results are chaotic).
-  - GAMES ▸ DEVELOP (elec16-play.md section 11, docs/elec16-kit.md, main/elec16/devgame.ts):
-    main picks a game's folder, keeps it per page and pane (`devKey`, the pane id checked) and
-    reads only the files game.json names, inside it once links are followed (`realpath`);
-    every read, write and install carries the opening's `gen`, and a stale one is refused.
-    The build runs in CODE's worker, never in main; main writes back only assets.e16.ts and
-    compiled.s (the temporary file made afresh, `wx`), and a new game's template
-    (resources/elec16/kit-template, a test builds it) only into an empty folder. A build
-    replaces only an earlier build of its id on the shelf (`built`), never a bundled or
-    imported game; no automatic START (CART needs a person's action).
-  - ELEC-16 SCI (docs/elec16-sci.md; elec16-sci-manual.md its manual, in Japanese) is the
-    calculator model SCI-128, opened by the picker's own row (`variants`, `fresh`), never a
-    widget of its own. Its ROM is resources/elec16/sci: main.s and e16c files, a bank each as
-    `SCI_SOURCES` (shared/e16c/sci-rom.ts) says - the fixed ROM keeps what every key goes
-    through, the rest in banks (a test holds 3.5 KB of it free, lowered from 4 KB for v3: ask
-    the user before going below it, user decision 2026-10-25); sci.s and sci-rom.json are written only by
-    `npm run gen:elec16`. e16c names are one namespace across every file: a new global or
-    function gets a name no other file has. e16c's globals stay in 0100-0BFF (a load reaches 8191 from zero);
-    a large new area goes at a fixed address in the RAM map (elec16-sci.md section 6.7), the kept regions checked by their marks
-    (0C00, 5C24; the modes' 1600, 5C36; v2's 2800, 5C48) - a change of a kept layout takes a new mark.
-    A bank's strings and tables are read in that bank: a name another bank draws is copied to
-    RAM first (consts.e16.ts `extName`), and the maths unit's PARSE reads RAM only.
-  - Every value is a decimal and an exact form `(p + r√s)/q`: the decimal is always worked
-    out, the form followed beside it (exact.e16.ts) and dropped - never an error - when it
-    cannot be kept. Answers show the form first only as SETUP and section 6.4 say.
-  - Its words are its own (section 9): functions in small letters as they go into the line
-    (`round(`, `rand`), SHIFT faces the key's inverse, the rest in FUNC (ANGLE, CONST and
-    CONV are screens on the SHIFT faces of keys with no inverse); no maker's names,
-    spellings or key layouts. Where calculators agree, it behaves as they do (`mod`: whole
-    numbers from 0 alone, user decision 2026-10-25). A change a user can see updates the manual in the same commit,
-    and the manual's examples run (elec16-sci-rom.test.ts; v2's chapters in
-    elec16-sci-v2.test.ts, v3's in elec16-sci-v3.test.ts). Tests reach CALC's FUNC pages by
-    their titles (`fp:NAME` in elec16-sci-helpers.ts), never by counting ▼: pages get added.
-  - The page reads its screen for a screen reader by its dots (`dotText`, shared/elec16/font.ts:
-    text on any row, big digits): keep it cheap (measured 0.3 ms a screen).
-- **The CLUSTER pane** (§5.20, docs/cluster.md, shared/cluster.ts, widgets/cluster/) reads only
-  what main already provides - its metric sources, the AWAKE store, `quakes.observe` - and no
-  other pane, main module or channel knows it is there (user decision 2026-10-10).
-  - Every level (a number, its bars, a core, a lamp, the message line) comes from one pure
-    judgement in shared/cluster.ts; a lamp lights only when its level has held.
-  - A reading is drawn as it arrives; the lanes are lines redrawn once per cpu.load sample,
-    without animation (user decision 2026-10-10), and never scroll on their own. A lamp that does not apply (BATT without a battery, QUAKE with quake
-    alerts off) is left out, never shown dark. No settings.
-- **The LOG WATCH pane reads a log only while it is seen** (§5.21, docs/logwatch.md,
-  shared/logwatch/, main/logwatch/). Files only (Windows event logs wait for the user, decision
-  2026-10-12); one file a pane, chosen through main's picker and known by id (`log-files.json`),
-  never a path from the page. Nothing is ever written to the file.
-  - Main watches the file's folder and looks once a second only while a page shows it, reads only
-    where the file grew, never holds it open, and on coming back reads the gap (its end past 4 MB)
-    as any other lines - no banner (user decision 2026-10-12). Nothing while hidden, no
-    notification.
-  - Parsing is pure (shared/logwatch) and runs in main (measured: about 1 ms a quarter second at
-    1000 lines/s). One channel per file and encoding in main, one feed per key in the page
-    (feed.svelte.ts), shared by panes; the feed's array is replaced, never grown in place.
-  - EXPLAIN only on a press, only with an AI provider set, and only the lines the user chose
-    (user decision 2026-10-12: nothing reaches a model unintended) - never the lines around them,
-    the file's name or path. The page sends their numbers; main takes them from what it holds
-    (`lines`), puts the text together (`explainText`, the same for preview and send), masked
-    when MASK is on, and refuses rather than cut a choice too long. A chosen line the filter hides
-    is neither sent nor copied (`chosenLines`). The key stays in main, the answer is drawn from
-    the markdown tree.
-  - Tests write logs in a temp folder and replace `dialog.showOpenDialog`; `scripts/log-feed.mjs`
-    is for trying it by hand.
-- **The GPU is read without a process per reading** (§5.22, services/metrics/gpu/). Windows: the
-  sampler's `gpu` kind, WDDM's performance counters summed in C# compiled once and opened on a
-  pool thread (never on the sampler's loop), handed over in `ELECDEX_GPU_SOURCE` (in the script it
-  passed the command line's limit). Linux: amdgpu's sysfs only; macOS and other drivers read
-  nothing. Where it cannot be read, `gpu.usage`'s `name` is null: the pane says so and CLUSTER
-  leaves out its lane, VRAM lamp, slot and spec item - never drawn dark. No lamp on GPU load (user
-  decision 2026-10-17).
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).
@@ -445,145 +157,6 @@ user made; do not reverse one without asking.
   input; pulse protocol first, wpctl only as fallback. Code meaning "the elecdex window" asks
   `appWindows()` (main/app-windows.ts), never `BrowserWindow.getAllWindows()`, so the capture
   window is never taken for it.
-- **Web panes** (§5.4) are WebContentsViews main owns, one per pane id - never an iframe or
-  `<webview>`.
-  - A site is a preset in `WEB_PRESETS` (shared/web.ts), optionally with a `userAgent` or
-    `unlisted`; never a widget.
-  - All share `persist:web` and nothing else does; no preload, no permission but clipboard write
-    and fullscreen, no downloads, http(s) only.
-  - Only the television pane signs in, through Google's device flow; never disguise the pane as
-    Chrome.
-  - Each mount claims its view with a token and opens it once per mount.
-  - Anything drawn over panes registers with `coverWeb`; dialogs, drags and CRT transitions hide
-    views behind a snapshot. A view leaves HTML fullscreen before it is put away.
-  - Main tells the page its `color-scheme`; the theme tint is off by default (`web.tint`).
-- **Plugins** (docs/plugins.md) run in a blob Web Worker each; main only transforms their text.
-  - Everything a worker posts is checked (shared/plugins.ts); every request, redirect, storage
-    write and notification is checked in main against the grant in settings.json, never against
-    what the renderer says a plugin asked for. Consent binds
-    the plugin id and its file or folder name. The host re-checks sizes even where the runtime
-    does.
-  - `stripGlobals` and `pluginRuntime` (shared/plugin-runtime.ts) are source text and refer to
-    nothing outside themselves. The page CSP (`connect-src 'self'`, no `unsafe-eval`,
-    `worker-src blob:`) is the real containment: relaxing it means
-    re-auditing plugins. A background service learns whether its panes are open from
-    `ctx.views`, counted in the worker.
-  - Plugins draw only through blocks: add one to plugin-api.ts, the schema and Blocks.svelte
-    together. plugin-api.ts is types only and is the public API (update docs/plugins.md).
-  - Install from a folder (main/plugins/install.ts): main opens the picker; only the module graph
-    from the entry is copied; resolution mirrors shared/plugin-runtime.ts - change both.
-  - API 2 (plugins.md §13): canvas is 2D OffscreenCanvas, new per mount (`epoch`); `ctx.animate` only
-    while the pane is visible and the window on screen. Keys only while the pane has focus, never with Ctrl/Alt/system key, Tab or function
-    keys (`keyFate`), with the KEYS lamp. Sound is the page's synth from a fixed voice list; bound
-    notes, `hold` and sustain are the host's. Keys and sound are grant-checked and need
-    `apiVersion: 2`. Times cross as epoch milliseconds.
-  - The `piano` voice (plugins.md §13.8) is physics and textbook curves, never a recording or
-    sample. The physics is pure (worklet, tests and the script run the same code); listen through `node scripts/instruments-wav.mjs` after changing it.
-  - Personal or unofficial-API plugins live in the separate private repository, never here. The
-    committed samples are pomodoro and KEYSTREAM. The private repository deploys with its own
-    `npm run deploy`.
-- **The AI chat pane** (§5.7, shared/ai.ts, main/ai/). A provider is an address and a dialect
-  (OpenAI-compatible or Anthropic's SDK, lazily imported); add a service to `AI_PRESETS`, not code.
-  - **A key never reaches the page**: sent once (`ai.setKey`), safeStorage-encrypted into
-    `ai-keys.json` (never settings.json). The page learns only whether one is held; held dots are
-    a placeholder, never a value, and "show" only shows what is being typed. Asking decrypts
-    nothing. No key over plain http beyond the local
-    network (`keyMayTravel`); no redirects followed.
-  - The conversation and the answer being written are main's (`AiChatService`): snapshot then
-    deltas; a delta that does not fit is a resync. An unfollowed answer stops after a few seconds.
-  - A provider is asked only on send, test, or the model list - never on mount.
-  - **The conversation is never cut; what is sent is** (`chatWindow`, pure, main only). The window
-    is the provider's (`contextTokens`; by its address when unset), in estimated tokens (never
-    characters), cut rarely and by a lot, place kept in `Chat.context` -
-    never a per-turn sliding window. Provider token counts correct only upwards. The pane shows
-    `NOT SENT`.
-  - Summaries (`ai.compact`, off by default): asked for at a cut as part of the send (once more
-    next send if empty), never after an answer or on a timer; placed after the system prompt,
-    never as a message; held to `summaryRoom`; their failure costs only the summary. `SUMMARISED`
-    shows the text.
-  - A model's text is untrusted: drawn from lib/markdown.ts's tree, never as HTML.
-  - The Anthropic adapter follows the claude-api skill (capabilities from the Models API,
-    `stop_reason` first, thinking summarized and never replayed, fallbacks only on Anthropic's
-    endpoint).
-  - The link vocabulary never hides what the user must read: an end code always has the
-    provider's words beside it, not in a tooltip. Failures are one set (`FAILED`, read by colour
-    and sound); add a `ChatStop` deliberately. Caret and lamp step with lib/pulse.svelte.ts, not a
-    CSS animation. The badge stays in words.
-  - **Attached files** (§5.7, shared/ai-attach.ts, main/ai/files.ts) reach main as bytes, never a
-    path, and no channel takes one. Main judges by first bytes; images are decoded and re-encoded
-    in the page, never in main, which reads only their headers. Main's judging stays linear in
-    the file's size (a crafted PDF or PNG once held it for seconds).
-    Waiting files are main's memory under `filesDraft`; sent, they are written beside the chat
-    (`<chat>.files/<sha256>`) first. Too-long text is refused, never cut. PDFs only to Anthropic
-    and `pdf` presets (`takesPdf`), else refused or named in the history - never dropped unsaid.
-    Files count in `chatWindow` and are cut with their message.
-  - No tools, MCP, branching or prompt profiles (user decisions 2026-09-20/21). Do not add them
-    without asking: a model that can start processes or read files needs a consent design like
-    the plugins' first. The model never reads a file of its own accord.
-- **The git pane** (§5.9, shared/git.ts, main/git/) reads, and writes only FETCH, PULL and PUSH
-  (two presses each); never stages, commits, checks out, merges or rebases. Repositories are chosen
-  through main's picker and known by id (`git-repos.json`), so a layout carries no path; a pane
-  is tied to no other pane.
-  - FETCH/PULL/PUSH live in main/git/sync.ts, apart from the reading GitService; a later write
-    goes there too. PULL is `--ff-only` only (user decision 2026-09-30);
-    diverged, it refuses. PUSH names its one refspec, the branch onto the upstream its config
-    names, never `+` or `--force`; behind or rejected, it refuses; no upstream, it leaves
-    `push -u` to the terminal (user decision 2026-10-18). No hook runs, pre-push neither, and
-    the armed PUSH says so (`core.hooksPath` is main's empty folder). A transport program the
-    repository's own config names (`TRANSPORT_PROGRAM_KEYS`) refuses the press, and only https,
-    http, ssh and git are spoken (`PROTOCOLS`: no folder, `ext::` or remote helper; e2e serve the
-    remote over http). `syncBlocked`
-    is checked against main's own reading, one at a time per repository, only for a page showing
-    it.
-  - git always runs with `GIT_FLAGS` (main/git/run.ts) and the diff flags; repository filters are
-    emptied (`filterGuard`); submodule trees are not read; `--no-optional-locks`.
-  - Without an open command, a file is opened only when its first bytes are text, a picture or
-    a PDF and it would not run (`openVerdict`: its extension, an execute bit off Windows; on
-    Windows only the kinds in `OPENS_ON_WINDOWS`, as the program is picked by the name);
-    anything else is revealed instead.
-  - Diffs only for files of the last reading; open/reveal only inside the tree (`locate`).
-  - `git.openCommand` is set in settings.json only, never by settings.patch; run as program and
-    arguments, never a shell; `.cmd` via `cmd.exe` only with safe arguments (main/git/open.ts).
-  - The graph is asked for by the page (`git.log`: scope and count only), re-read when
-    `historyAt` moves, laid out by `graphRows` (shared/git-graph.ts); its hover card stays in the
-    pane.
-  - Watched only while shown, read at most once a second; git's own bookkeeping is not a change.
-  - File text is untrusted: highlight tokens drawn as text (lib/highlight.ts), never HTML.
-- **The AI AGENT pane** (§5.11, shared/agents.ts, main/agents/) is experimental and only reads
-  agents' local records - never sends, never runs them.
-  - The page talks to `AgentHub`; an agent is an `AgentSource` (main/agents/source.ts) plus
-    `AGENT_SOURCE_IDS`, never code in the pane.
-  - Claude Code records are read only while a pane is open, incrementally; over 32 MB from the
-    last 512 kB, marked partial. Never parse a whole record on a change, nor a line that is not the
-    model's own except a task's ending notice or a waiting call's result (matched by id in the
-    record's own quotes).
-  - Subagents and background commands are a session's tasks, ended by `<task-notification>` (an
-    interim one ends nothing), TaskStop, their own result or a hand-back marked by Claude Code
-    (`origin.handback`); a subagent is read from its own record under `<session>/subagents/`;
-    still running when the session went is `unknown`, never done. What a subagent starts hangs
-    under it (`children`), found by its meta file's `parentAgentId`; a subagent whose record
-    moves on past its end runs again.
-  - Tests never read this machine's `~/.claude` (`ELECDEX_CLAUDE_DIR`).
-- **The ELEC system pane** (§5.8, shared/elec.ts, main/ai/elec.ts) runs a motion past LOGOS, ETHOS
-  and PATHOS on the AI chat's providers, under the same rules; settings in `elec`, of which a
-  deliberation keeps its own copy; the page sends only the motion.
-  - A vote is the answer's last `VERDICT` line (`readVote`), never structured output. Invalid is
-    not abstention; CONFIDENCE is shown, never counted; the resolution is computed (`resolve`), never stored.
-  - Seats on one local server are asked in turn, hosted ones at once; round two cuts the others'
-    statements to `statementRoom`.
-  - Never name MAGI or its source (user decision 2026-09-21).
-  - **One geometry** (widgets/elec/geometry.ts): change a plate there, never a coordinate in Stage
-    or Effects (a unit test holds plate height and area).
-  - **Its light** (pure, widgets/elec/light.ts) moves only while the council sits or once for an
-    event; packets are traffic (`nextPackets`), never a loop. The resolution waits for the dark
-    (`HOLD_MS`; `held` is marked while the council sits), unless it was unwatched or motion is
-    reduced. The floor stops by holding its phase, not by pausing its animation.
-  - Animate opacity and transform, **never a colour in keyframes**; never dim a plate by opacity -
-    thin its colour towards the ground.
-  - Removed and not to return without asking: convergence with a shock wave, orbits round the
-    core, a radar (user decisions 2026-09-21).
-  - **It runs at the display's rate** (user decision 2026-09-21, ~70% of a core while sitting):
-    never move it to the 10 fps loop. The pane is not in the default layout.
 - **The vendored calculator is never edited.** `src/shared/calc/vendor` is elecxzy's (MIT), out of
   tsconfig and biome; what elecdex needs goes in the wrapper; `scripts/sync-calc.mjs` overwrites
   the folder.
@@ -615,221 +188,36 @@ user made; do not reverse one without asking.
   globe take one, and give it back on unmount (`forceContextLoss`, `releaseWebglContexts`).
   Everything else is plain 2D canvas. **No WebGPU** (user decision 2026-09-19).
 
-### Panes and layout
-
-- **Layout state** is a persisted tree; every change goes through a pure op in
-  src/shared/layout-ops.ts, and every tree from disk through `normalizeTree` (ids made unique:
-  a repeated key stops the workspace drawing). Widgets change their pane state only with
-  `widgetState.patch(paneId, change)` (stores/widget-state.svelte.ts; undefined removes a key) -
-  never `layout.patchPaneState` or spreading `state` into `setPaneState`. A tabbed pane is split,
-  moved beside or dropped on through its group, and a group holds only panes, of any widget.
-  Nested groups are postponed (user decision 2026-09-17). A tree with no pane is the empty
-  layout (`emptyNode`, the only childless node, as the root): blank is one, and closing the last
-  pane of any layout leaves one, never a shell put in (user decision 2026-10-25). Splits carry no header; the shell's
-  TERMINAL header stays, as the group's drag handle and the path. Pane moves are tested at unit,
-  component and e2e level: extend those.
-- **A popped-up pane is never in the layout** (§5.13, layout/popup.ts): held in `ui.popup` as one
-  of the dialogs (opening any dialog puts it away; it counts in `dialogOpen`), drawn by
-  PopupPane.svelte, never saved, nor its choices. Offered only for `popup: true` widgets (not the
-  shell, timer, file browser, CHIP-8, web pages or plugins), which must reach nothing of the
-  layout store (a unit test reads them). Only the weather place picker opens over a popup
-  (`OVER`). The launcher's shortcut pops one up when the layout has none. A widget ends its popup
-  through `ondone`, never by knowing it is in one. A summoning shortcut is a line in `SUMMONS`
-  (layout/summon.ts) with its chord in keybindings.ts; `summonChoice` decides where it goes and
-  the widget answers via `onSummoned` - never a branch for one widget in the shared part, nor a
-  flag of its own in `ui`.
-- **Faults are said, not swallowed** (lib/fault-report.ts, layout/PaneFault.svelte): every
-  built-in widget, in the layout or popped up, sits in `PaneFault`, so a throw stops that pane
-  alone (RETRY) and is a red toast; an exception nothing in the page caught is one too. Once per
-  message, a few a minute; COPY DETAILS copies only the message, the version and the platform.
-- **Remounts happen.** Moving a pane remounts its widget: keep what must survive in pane state or
-  main (a shell reattaches to its session).
-- **Terminal sizing.** Never fit a hidden pane or send transient sizes to the PTY (ConPTY rewraps
-  history; see the remount regression test).
-- **A shell pane's folder** (§6.2, main/pty/osc-parser.ts, main/pty/start-directory.ts) is what
-  its shell reports: PowerShell by OSC 9;9 with the quoted `ProviderPath`, as Windows Terminal
-  reads it (user decision 2026-10-07); bash, zsh and fish by OSC 7, percent-encoded UTF-8 bytes
-  (`LC_ALL=C`; zsh's `path` is PATH's array - never a local of that name). The parser takes
-  9;9 only as an absolute path and lets other OSC 9 through. The pane keeps it as `cwd` in its
-  state, saved with layouts; a pane brought back starts there, a new one (no `cwd`) where
-  `terminal.startDirectory` says. Main checks the folder without blocking
-  (`resolveShellDirectory`, given up after `SHELL_DIRECTORY_WAIT_MS`) and falls back.
-  tests/unit/shell-cwd-scripts.test.ts runs each shell's real script (CI installs zsh and fish).
-- **Saved layouts** (§5.6, src/shared/layouts.ts). `layout.json` is live, with volatile state;
-  `layouts.json` holds copies stripped by `portableTree`. Main writes the live tree into the
-  active entry on every save, only when it differs. A layout follows the work - never a snapshot
-  (user decision 2026-09-20). Switching flushes the pending save and waits for one in flight. A
-  broken entry is dropped alone; the file is never discarded whole. `KEYED_LAYOUTS`
-  (Ctrl+Shift+1..9 by place): change shared/layouts.ts, keybindings.ts and Workspace.svelte
-  together (a unit test). Switching asks first while shells are open (`layout.confirmSwitch`), a
-  promise the switch awaits: whatever takes the screen from it must answer it. The keyboard
-  reset asks the same question (`confirmReset`); a reset button asks by its second click.
-  - **Presets** (shared/layout-presets.ts) are templates, never a second kind of layout: choosing
-    one adds a saved layout carrying `preset` that then follows the work. Each keeps the default
-    system column at its width and heights (all but cockpit, whose CLUSTER pane does its job:
-    `WITH_SYSTEM_COLUMN`, user decision 2026-10-10, and blank), every pane at its `minSize` (a unit test). Only a
-    first start is given them; an existing list is never added to (user decision 2026-09-24).
-    Decisions are pure (there and layout-shape.ts); only layout/presets.ts knows presets in the
-    page. A new preset also needs its key (keybindings.ts, Workspace.svelte), the LAYOUTS
-    dialog wide enough for every card in one row, tests/e2e/workspace/layout-presets.spec.ts's `PRESETS`,
-    and a README shot (scripts/gen-screenshots.mjs) with the counts in all three READMEs.
-- **Shortcuts** are data (src/shared/keybindings.ts), handled in Workspace.svelte; never a key
-  check elsewhere. A chord includes Ctrl/Alt or is a function key. `scope: 'global'` actions are
-  main's OS registrations, out of the page keymap, the list and "reset all", and `conflicts`
-  reports the app action as the loser while the OS holds the keys. A tooltip names a chord
-  through `chordHint` (lib/chord-hint.ts), as it is bound now - never a chord written out.
-- **The action palette** (§5.24, docs/palette.md, palette/, shared/palette.ts) never imports
-  the workspace: an action or preset row goes through `commands` (lib/commands.ts) to
-  Workspace's own `run`, so it does what its key does; a row that cannot run stays, with its
-  reason (`UNAVAILABLE_REASON`, a unit test holds it to `shortcutApplies`). A new kind of row is
-  one pure function in palette/sources.ts. Focus goes back before a row runs, never after.
-- **Open and close with the CRT effect** (styles/crt.css, lib/crt-transitions.ts): everything that
-  appears or goes over the workspace powers on and off.
-  - Panes: `layout.arrived`; closing via `layout.closingId` and a `crt-extend` clip
-    (layout/pane-close.ts), never animated sizes. One close at a time; tree changes call
-    `layout.settle()` first.
-  - Layouts: `layout.leaving`, then pane by pane (layout/layout-switch.ts); last switch wins.
-  - Zoom (`layout.zoom`, §5.5): `position: fixed` and a transform (`crt-zoom`), never growing;
-    the tree is untouched, nothing remounts, and every tree change lets go of it. Forward, its
-    corner holds ⤡ alone, never a × beside it (user decision 2026-10-03); Ctrl+Shift+W closes
-    the pane that is forward. Registry `zoom:
-    'full'` (fills its room), `'panel'` (a fixed size) or nothing (no button, no shortcut - the
-    default); plugins declare it in their descriptor. A widget laying itself out by its size
-    reads it from the `ResizeObserver` entry, never by measuring inside the callback.
-  - Dialogs: `crt-on`, `transition:crtPower`, `--crt-delay={dialogDelay()}`, backdrop
-    `transition:backdropShade`, opened and closed through `ui` (so `ui.closedAt` is kept).
-  - Notices and toasts: `crt-on` and `transition:crtPower` (`|global` where needed).
-  - Skipped with motion reduced. A new dialog, popup, toast or notice gets a row in
-    tests/e2e/contracts/dialogs.ts (a unit test finds every `transition:crtPower` without one);
-    other motion goes in tests/e2e/workspace/motion.spec.ts (or its own spec, with `clickThen`).
-- **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on
-  `appearance.revision`. Components read semantic tokens. Text is the accent unless a theme sets
-  `text`. Never assume a dark ground: `mode: 'light'` sets `data-mode="light"` (darker status
-  colours, xterm's minimum contrast); check both Business themes and Black. Every theme sets every variable
-  (`themeVariables`).
-- **Detail cards** (§7.4) are `widgets/common/HoverCard.svelte`, placed and timed by
-  lib/hover-card.ts (`cardPlacement`, `anchorOf`, `HoverRest`) - never a widget's own card or a
-  `title`. A card keeps inside its pane, opens after a rest (at once for the keyboard or from an
-  open card), powers on and off like a dialog, and says what the row has no room for, never the
-  row again. A unit test lists the cards: add new ones there.
-- **Type sizes by role** (§7): what people read is `--step--1` or larger; `--step--2` is for
-  legends, labels and chrome; nothing smaller. Only steps tokens.css defines; `em` only where the
-  parent's size varies (a unit test checks).
-
-### Running in the background
-
-The tray icon, minimising or closing to it, the system-wide show/hide shortcut and the sign-in
-entry (decisions.md). Every option is off until the user turns it on.
-
-- **Never gate on the platform name**: ask `backgroundCapabilities` (shared/background.ts), computed
-  by main from what this machine has (it probes for a tray, reads the session type); it travels in
-  `BackgroundState`. Main ignores options the machine cannot do (settings.json travels).
-- Decisions are pure (`decideClose`, `decideMinimize`, `decideToggle`, `trayWanted`,
-  `closesToTray`); main/background/ carries them out. The page never hides the window itself
-  (`system.closeWindow`). macOS keeps closing and minimising the platform's
-  (`staysWithoutWindow`), and `window-all-closed` does not quit there.
-- Putting away is told from quitting by `quitting`; an explicit quit always quits.
-- The sign-in entry is one `LoginBackend` per platform (main/background/login/); the platform holds
-  whether it is on.
-
 ### Tests
 
 - **Tests never contact external services, and never touch the machine.** tests/e2e/support.ts
-  sets, by default, in `STUB_ENV` (a spec that starts the app itself spreads it in too):
-  - closed ports for `ELECDEX_JMA_BASE_URL` (also quakes and tsunamis), `ELECDEX_MET_BASE_URL`,
-    `ELECDEX_NWS_BASE_URL`, `ELECDEX_USGS_BASE_URL`, `ELECDEX_NOAA_BASE_URL`,
-    `ELECDEX_CELESTRAK_BASE_URL`, `ELECDEX_MARKETS_STUB_URL`, `ELECDEX_UPDATES_URL` and
-    `ELECDEX_WEB_HOMES`; specs that need data run a local stub server;
-  - `ELECDEX_AUDIO_STUB=1`: a steady tone and a made-up mixer, never the machine's sound or
-    volume, with sound off (`=tracks` plays the WAV files `ELECDEX_AUDIO_TRACKS` names, only when
-    `globalThis.__elecdexAudio` says which, and aloud only when it says so: the tours);
-  - `ELECDEX_BACKGROUND_STUB=1`: no tray icon, system-wide shortcut or sign-in entry;
-  - `ELECDEX_SOCKETS_STUB=1`: a made-up socket table (`=demo` for screenshots);
-  - `ELECDEX_CLIPBOARD_STUB=1`, `ELECDEX_NOWPLAYING_STUB=1`: stand-ins in main (`=demo`);
-  - `ELECDEX_WIFI_STUB=1`: a made-up link, echoes and log (`=train`, `=dual`, `=demo`);
-  - `ELECDEX_ETHER_STUB=1`: a made-up wired link and echoes (`=flapping`, `=crc`, `=dual`, `=demo`, ...);
-  - `ELECDEX_DOCKER_STUB=1`: a stand-in engine (`=demo`, `=down`, `=denied`);
-  - `ELECDEX_AWAKE_STUB=1`: no real power-save blocker or power source;
-  - `ELECDEX_AI_KEYS_STUB=1`: a reversible stand-in for `safeStorage`; AI providers are a spec's
-    local stub;
-  - `ELECDEX_GPU_STUB=1`: a made-up GPU, so every machine draws the same panes (`=demo`, `=none`);
-  - `ELECDEX_PING_HOST=127.0.0.1`: the network panes' internet echo stays on this machine (only a
-    loopback address is taken);
-  - `ELECDEX_SEED_LAYOUTS=0`: no presets in a new profile (layout-presets.spec.ts turns it on).
-  A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`. Keep it that way.
+  sets stubs for every service and device by default (`STUB_ENV`, listed in
+  [.claude/rules/tests.md](.claude/rules/tests.md)); a spec that needs data runs a local stub
+  server. Keep it that way: a test that reaches a real service or this machine's sound, clipboard
+  or network passes on one machine and fails on the next, and may touch what the user has.
 - **Every bug found gets a test** that fails on the old code and passes on the fix, covering the
   related paths too, at the lowest level that can see it, plus e2e when it was only visible in the
   running app. Check that it really fails without the fix.
-- **Test craft.** A test that fails only under load is usually its own fault.
-  - Zoom out to the 1920x1080 design size where the screen is smaller (the macOS runner's is about
-    1024x640).
-  - A fake-clock harness waits on promises (`await Promise.resolve()`), never real timers per step.
-  - Measure a pane after `settleLayout`, never as soon as it is visible: an arriving layout powers
-    its panes on scaled from a line.
-  - Click on what lies over other elements (the status bar over the panes) with
-    `click({ delay: 20 })`: a release in the same few milliseconds once landed on the shell
-    underneath, and press and release on different elements make no click.
-  - Catch one by running the spec under CPU load (a dozen busy `node -e` loops) with the page's
-    events logged.
-  - Component tests flush (`layout.flush()`) before unstubbing `window.elecdex`, and IPC mocks
-    `structuredClone` their arguments (IPC cannot clone a `$state` proxy).
-  - A test's own pty session belongs to no pane, and the workspace's reaper ends it about four
-    seconds after the panes last changed: go through `runCapture` (support/pty.ts).
-- **A failure says whether an elecdex runs outside the tests** (tests/e2e/reporter.ts): an installed app or
-  `npm run dev` left open makes launches and drags fail; the reporter logs it to
-  test-results/elecdex-running.log. Close it and re-run only the failed tests.
-- **A test that hangs must say where**: `launch` and the guarded `quit`/`close` in support.ts warn
-  while still going (SLOW_MS) as well as after. A second app on the same profile uses
-  `launched.quit()`, never `launched.app.close()`.
+- Test craft (what makes an e2e test flaky and how to write one that is not), the reporter and the
+  hang warnings are in [.claude/rules/tests.md](.claude/rules/tests.md), loaded with any test file.
 
 ### Publishing
 
-- **README screenshots** must not show personal data: `npm run gen:screenshots` (demo home,
-  curated launcher entries, made-up author). One shot per preset in a different theme, plus
-  layouts, settings, the action palette, ELEC, CHIP-8 (T8NKS),
-  the ELEC-16's five relief skins as crops of the body (`elecdex-skins`; GLASS on a light theme too),
-  and every pane of the Panes section alone (`panes`: `pane-<widget>.jpg`, its own box cut from a
-  layout that gives it a fixed share of the window; LOG WATCH's EXPLAIN by a stand-in). A new pane
-  gets its `shootPane` line and its picture in all three READMEs. Preset trees come from the built app
-  (scripts/preset-shots.mjs). Everything of someone else's or this machine is a stand-in: web
-  panes show stand-in pages (never YouTube's or X's own), stubs run at `=demo`, the chats and the
-  council talk to a stand-in (no model, no key). Regenerate after a visible change to a theme, a
-  preset or the default layout; a new theme or preset gets a shot in all three READMEs.
-- **The introduction demo** (`npm run demo:tour`, its 9:16 cut `demo-tour-shorts.mjs` under two
-  minutes; docs/demos.md says how every demo is recorded, built and changed, and the traps met) is updated with every release (user decision 2026-09-27): a new central or showy
-  feature gets a beat, a beat no longer true goes. About two minutes, boot first and themes last,
-  stand-ins only (demo-take.mjs: nothing of this machine read, pressed or kept awake, no one's
-  pages or artwork, no model or key; the music is KEYSTREAM's own tracks). The beats live once in
-  scripts/demo-beats.mjs and both cuts use them. Check each take with `--shots`.
 - **Attribution** stays visible: JMA (「出典：気象庁ホームページ（URL）を加工して作成」); quake and
   tsunami alerts name their source and say they are not an early warning (tsunami cards: follow
   local authorities); GeoIP CC BY 4.0 (NRO) in the globe pane; CelesTrak and the Space Defense
   Squadrons, and the time zone lines ODbL (© OpenStreetMap contributors) in the ORBIT pane, with
   `tz-lines.json` carrying its licence; Yahoo marked unofficial, possibly delayed, not investment
   advice.
-- **Third-party notices**: `npm run build` writes `out/THIRD_PARTY_NOTICES.txt`
-  (scripts/gen-notices.mjs) from what each build bundled; the package puts it, and LICENSE,
-  beside the executable. New bundled data goes into `DATA_SOURCES`
-  (scripts/third-party-notices.mjs) and the README table.
 - **README.ja.md** and **README.zh-CN.md** follow the README section for section, in the same
   commit.
 - **The README's status line** names the last released version, marks main-only work
   *unreleased*, and says macOS and Linux are not sufficiently verified.
-- **Releases** (the procedure, user decision 2026-10-18), in this order:
-  1. Bump `package.json` (and package-lock.json, `npm version --no-git-tag-version`); in all
-     three READMEs, name the new version in the status line and drop the *unreleased* marks of
-     what it carries.
-  2. Run every test: `npm run verify`, `npm run build`, then the whole `npx playwright test` (the
-     `perf` project last), then `npm run package:dir` and `npm run test:packaged`.
-     Only when all are green (a failure here is fixed, or shown to be this machine's, first).
-  3. Commit `chore(release): v<version> / v<version> をリリース`, tag `v<version>`, push the
-     branch and the tag (.github/workflows/release.yml makes a pre-release a person promotes).
-  4. Once the release workflow is done, read the release and its notes (`gh release view`):
-     the assets for every platform, and the notes in English and Japanese.
-  5. Read the CI run of the pushed commit. A failing test is fixed, committed and pushed; a
-     fault in the shipped code that is not severe does not need a new release.
-- **The builds are unsigned**: the README's *If a warning appears* (per OS) and release.yml's
-  notes (English and Japanese) say the same; change both.
+- **A visible addition goes out with the release**: a new pane, preset or theme gets its README
+  shot and its lines in all three READMEs, new bundled data its third-party notice, and a new
+  central or showy feature a beat in the introduction demo; a visible change to a theme, a preset
+  or the default layout regenerates the shots. How each is made, and the release procedure, are
+  in [.claude/rules/publishing.md](.claude/rules/publishing.md).
 
 ## Conventions
 

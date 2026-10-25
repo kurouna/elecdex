@@ -1435,7 +1435,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 ```
 
 変更が守るべきルール（セキュリティ境界、ネットワークをどこで扱うか、テストが触れてよいもの）は
-[CLAUDE.md](CLAUDE.md) にあります。
+[CLAUDE.md](CLAUDE.md) に、ペインやサブシステムごとのルールは [.claude/rules/](.claude/rules) にあります。
 
 ### リリース手順
 

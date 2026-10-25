@@ -226,7 +226,7 @@
 - **システム列の例外**: このプリセットだけシステム列を持たない（2026-10-10、利用者の選択）
   - layout-presets.ts の決まりの文と単体テストに、例外を 1 つだけ明記する
   - ほかのプリセットの決まりは変えない
-- **CLAUDE.md の手順どおりに足すもの**:
+- **.claude/rules/panes-layout.md（プリセットの決まり）の手順どおりに足すもの**:
   - `LAYOUT_PRESET_IDS` の ai の後、retro の前（8 番目。プリセットのキーは Ctrl+Shift+F8、初回起動の番号のキーは Ctrl+Shift+8。retro は最後で F9 と 9。2026-10-10、利用者の指定）
   - keybindings.ts と Workspace.svelte
   - LAYOUTS ダイアログの幅

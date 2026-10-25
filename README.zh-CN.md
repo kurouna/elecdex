@@ -1261,7 +1261,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
                 in Japanese)
 ```
 
-改动必须遵守的规则——安全边界、网络在哪里运行、测试可以触碰什么——见 [CLAUDE.md](CLAUDE.md)。
+改动必须遵守的规则——安全边界、网络在哪里运行、测试可以触碰什么——见 [CLAUDE.md](CLAUDE.md)；单个面板或子系统的规则见 [.claude/rules/](.claude/rules)。
 
 ### 发布流程
 

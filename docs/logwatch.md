@@ -366,7 +366,7 @@ HoverCard（`cardPlacement`、`anchorOf`、`HoverRest`）で開く。行にな�
 - `api.ts` と preload に `logwatch`、settings のスキーマに `logWatch`
 - `contracts/panes.ts` の表（lifecycle 契約）、詳細カードの一覧のテスト
 - 既定のレイアウトには入れない。**dev プリセット**には、GIT と AI チャットのタブに加える（2026-10-12、利用者の決定）
-  - CLAUDE.md のプリセットの決まりに従う: 各ペインの `minSize`、layout-presets.spec.ts、README 3 か国語の
+  - .claude/rules/panes-layout.md のプリセットの決まりに従う: 各ペインの `minSize`、layout-presets.spec.ts、README 3 か国語の
     dev のスクリーンショット（`npm run gen:screenshots`。ログは作り物のファイルを流す）
   - 既存の利用者の保存レイアウトには足されない（プリセットは初回起動だけに与える）
 
