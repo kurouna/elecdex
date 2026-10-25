@@ -1322,7 +1322,10 @@ weather and calendar.
   inverses, transposes, dot and cross products) and PROG (four programs with input, output,
   conditions and jumps). CONST puts in twenty physical constants (CODATA 2022), CONV converts
   between twenty pairs of units, and Σ, d/dx and ∫ sum, differentiate and integrate a line in X
-  (the sum kept exact: Σ(1/X,1,4) is 25/12).
+  (the sum kept exact: Σ(1/X,1,4) is 25/12). And (*unreleased*) `mod` and Π, →PRIME (an answer
+  as its prime factors: 360 is 2³×3²×5), SI prefixes (47k×220p; ENG pressed again shows 10.34μ),
+  the normal distribution (nlow, nmid, nup and →z) and EQUATION's quadratic and cubic
+  inequalities (X²−X−6>0 is X<−2 and 3<X).
   Its screen reads back for a screen reader as the other models' do
   ([the SCI-128 manual](docs/elec16-sci-manual.md), in Japanese).
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
