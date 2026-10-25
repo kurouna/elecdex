@@ -54,7 +54,7 @@ npm run demo:whatsnew34 # what v0.0.34 added: the GPU pane, CLUSTER's GPU lane, 
 npm run demo:whatsnew36 # what v0.0.35-v0.0.36 added: the ETHERNET pane on a cable with CRC errors, brought forward, and the action palette, 16:9 (Windows; build first)
 npm run demo:whatsnew38 # what v0.0.38 added: the ELEC-16's five skins modelled in light, GLASS following the theme, captioned, 16:9 (Windows; build first)
 npm run demo:elec16    # the ELEC-16 alone, 1280x600: BASIC, the SOFT CARD, CODE, the skins (Windows; build first)
-npm run demo:sci       # ELEC-16 SCI alone, 16:9, ~130 s: exact answers, %, a constant, EQUATION, STATS, BASE, v2's CONST, CONV, Σ, ∫, CPLX, MATRIX, PROG, its bodies, captioned (Windows; build first)
+npm run demo:sci       # ELEC-16 SCI alone in Black, 16:9, ~130 s: v2's CONST, CONV, Σ, ∫, CPLX, MATRIX, PROG first, then exact answers, %, a constant, EQUATION, STATS, BASE, its bodies, captioned (Windows; build first)
 npm run demo:logwatch  # LOG WATCH alone: a made-up log followed, a burst, filter, PATTERNS, MASK, two lines EXPLAINed by the stand-in, captioned, 16:9, ~55 s (Windows; build first)
 npm run demo:games     # the PLAY-320's three games played, bodies and themes changing, CORE beside (Windows; build first)
 node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)

@@ -1,19 +1,20 @@
 /**
  * ELEC-16 SCI, the calculator model SCI-128, for a landscape video (X, YouTube): one pane, its
  * body's keys pressed as a hand does, CORE beside it showing the E16 running the ROM.
+ * v2's parts first, then the rest:
  *
+ *   constant   CONST: h x 5ᴇ14 Hz, a photon's energy; CONV: 100 °F in °C
+ *   calculus   Σ(1/X, 1, 4) = 25/12 kept exact; ∫(X², 0, 3) = 9
+ *   complex    CPLX: (1+2i)(3-i) = 5+5i, F⇄D for 7.071067812 ∠45
+ *   matrix     MATRIX: MatA = [[1,2],[3,4]] put in, MatA⁻¹ on the grid
+ *   program    PROG: ?→A:?→B:√(A²+B²), asked 3 and 4, answered 5
  *   exact      sin(45)+1/2 set in 2D as it is typed, answered (1+√2)/2; F⇄D for the decimal
  *   percent    500+25% is 625
  *   constant   34+57=, then 45= adds the 57 again (K)
  *   equation   x²−2x−1=0: X1 = 1+√2, X2 = 1−√2, ▼ for the vertex
  *   stats      a line through four points: n, x̄, ȳ, r, a, b
  *   base       HEX D016 AND 0AFF0, BIN's dots under it
- *   constant   CONST: h x 5ᴇ14 Hz, a photon's energy; CONV: 100 °F in °C
- *   calculus   Σ(1/X, 1, 4) = 25/12 kept exact; ∫(X², 0, 3) = 9
- *   complex    CPLX: (1+2i)(3-i) = 5+5i, F⇄D for 7.071067812 ∠45
- *   matrix     MATRIX: MatA = [[1,2],[3,4]] put in, MatA⁻¹ on the grid
- *   program    PROG: ?→A:?→B:√(A²+B²), asked 3 and 4, answered 5
- *   bodies     TUNE: SLATE, CHALK, PLAIN (the theme's own colours), back to SLATE
+ *   bodies     TUNE: SLATE, PLAIN (the theme's own colours), back to CHALK
  *
  * Everything shown is the pane's own: the unit is a new SCI-128 on a demo profile
  * (demo-take.mjs), and nothing of this machine is read, pressed or kept awake but the clock.
@@ -29,7 +30,8 @@ import path from 'node:path'
 import { beats } from './demo-beats.mjs'
 import { openTake, prepareData, say, takeOptions } from './demo-take.mjs'
 
-const options = takeOptions({ width: 1600, height: 900, lead: 8 })
+// The Black theme, the CHALK body bright on it (user decision 2026-10-25).
+const options = takeOptions({ width: 1600, height: 900, lead: 8, theme: 'black' })
 const exit = process.argv.includes('--exit')
 
 const tree = {
@@ -38,7 +40,7 @@ const tree = {
     kind: 'pane',
     id: 'p-sci',
     widget: 'elec16',
-    state: { unit: 'u1', sciSkin: 'slate', panel: true, tab: 'core' },
+    state: { unit: 'u1', sciSkin: 'chalk', panel: true, tab: 'core' },
   },
 }
 
@@ -100,55 +102,7 @@ await run(async () => {
   await caption('ELEC-16 SCI — a scientific calculator on a 16-bit machine of its own')
   await wait(2600)
 
-  // Exact answers, set as a textbook sets them.
-  await scene(
-    'exact',
-    'Typed in 2D, answered exactly: sin 45° + ½ = (1+√2)/2',
-    'sin 4 5 rp add 1 frac 2 eq',
-    2600,
-  )
-  await scene('decimal', 'F⇄D for the decimal', 'fd', 2200)
-
-  // Percent of what it is added to, and a constant kept.
-  await scene(
-    'percent',
-    '% of what it is added to: 500 + 25% = 625',
-    'ac 5 0 0 add 2 5 func 3 eq',
-    2200,
-  )
-  await scene('constant', 'Constant calculation: 34 + 57, then 45 + 57', 'ac 3 4 add 5 7 eq', 900)
-  await keys('4 5 eq')
-  await wait(2200)
-
-  // EQUATION: a quadratic, its roots exact, then its vertex.
-  await scene(
-    'equation',
-    'EQUATION: x² − 2x − 1 = 0, its roots exact',
-    'menu 5 3 1 eq neg 2 eq neg 1 eq eq',
-    2800,
-  )
-  await scene('vertex', '▼ for the vertex', 'down', 2200)
-
-  // STATS: a line through four points.
-  await scene(
-    'stats',
-    'STATS: one variable or six kinds of regression',
-    'ac menu 2 2 1 eq 2 eq 3 eq 4 eq right up up up up 3 eq 5 eq 7 eq 9 eq eq',
-    3200,
-    150,
-  )
-
-  // BASE: HEX, a logic operation, BIN's bits as dots.
-  await scene(
-    'base',
-    'BASE: 32-bit HEX, DEC, OCT, BIN and base 5, with logic',
-    'menu 3 func 1 sin 0 1 6 func down 1 0 neg tan tan 0 eq',
-    3200,
-    170,
-  )
-  await keys('menu 1 ac')
-
-  // v2: physical constants and units, a sum and an integral, complex numbers, matrices, programs.
+  // v2 first: physical constants and units, a sum and an integral, complex numbers, matrices, programs.
   await scene(
     'const',
     'CONST: twenty physical constants - h × 5×10¹⁴ Hz',
@@ -201,13 +155,61 @@ await run(async () => {
   await scene('run', 'Run it: A = 3, B = 4', 'eq 3 eq 4 eq', 2600, 400)
   await keys('ac menu 1 ac')
 
+  // Exact answers, set as a textbook sets them.
+  await scene(
+    'exact',
+    'Typed in 2D, answered exactly: sin 45° + ½ = (1+√2)/2',
+    'sin 4 5 rp add 1 frac 2 eq',
+    2600,
+  )
+  await scene('decimal', 'F⇄D for the decimal', 'fd', 2200)
+
+  // Percent of what it is added to, and a constant kept.
+  await scene(
+    'percent',
+    '% of what it is added to: 500 + 25% = 625',
+    'ac 5 0 0 add 2 5 func 3 eq',
+    2200,
+  )
+  await scene('constant', 'Constant calculation: 34 + 57, then 45 + 57', 'ac 3 4 add 5 7 eq', 900)
+  await keys('4 5 eq')
+  await wait(2200)
+
+  // EQUATION: a quadratic, its roots exact, then its vertex.
+  await scene(
+    'equation',
+    'EQUATION: x² − 2x − 1 = 0, its roots exact',
+    'menu 5 3 1 eq neg 2 eq neg 1 eq eq',
+    2800,
+  )
+  await scene('vertex', '▼ for the vertex', 'down', 2200)
+
+  // STATS: a line through four points.
+  await scene(
+    'stats',
+    'STATS: one variable or six kinds of regression',
+    'ac menu 2 2 1 eq 2 eq 3 eq 4 eq right up up up up 3 eq 5 eq 7 eq 9 eq eq',
+    3200,
+    150,
+  )
+
+  // BASE: HEX, a logic operation, BIN's bits as dots.
+  await scene(
+    'base',
+    'BASE: 32-bit HEX, DEC, OCT, BIN and base 5, with logic',
+    'menu 3 func 1 sin 0 1 6 func down 1 0 neg tan tan 0 eq',
+    3200,
+    170,
+  )
+  await keys('menu 1 ac')
+
   // The bodies, in TUNE beside it.
-  await caption('Three bodies: SLATE, CHALK and PLAIN in the theme’s own colours')
+  await caption('Three bodies: CHALK, SLATE and PLAIN in the theme’s own colours')
   await press(pane.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')))
   await wait(600)
-  await body('chalk', 2200)
+  await body('slate', 2200)
   await body('plain', 2200)
-  await body('slate', 1200)
+  await body('chalk', 1200)
   await press(pane.getByTestId('elec16-tab').and(page.locator('[data-tab=core]')))
   await away()
   await caption('elecdex — github.com/kurouna/elecdex')

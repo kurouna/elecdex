@@ -28,7 +28,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:keystream` | KEYSTREAM の曲を通しで | |
 | `demo:games` | PLAY-320 の 3 本のゲーム | |
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
-| `demo:sci` | ELEC-16 SCI（SCI-128）単独。本体のキーを手で押すように: sin45°+½ を 2D で打って (1+√2)/2、F⇄D で小数、500+25% = 625、定数計算（K）、EQUATION の 2 次方程式の正確な解と頂点、STATS の直線の回帰、BASE の HEX の AND と BIN のドット、v2 の CONST（h × 5×10¹⁴ Hz）と CONV（100 °F を °C に）、Σ(1/X,1,4) = 25/12 と ∫(X²,0,3) = 9、CPLX の (1+2i)(3−i) と r∠θ、MATRIX で 2×2 を打って逆行列、PROG で斜辺のプログラムを打って走らせる、TUNE で SLATE・CHALK・PLAIN。横に CORE。英語の字幕は電卓と CORE のあいだ（`captionPlace`） | 1600×900、約 130 秒 |
+| `demo:sci` | ELEC-16 SCI（SCI-128）単独。Black のテーマに CHALK の本体（利用者の決定 2026-10-25）。本体のキーを手で押すように、まず v2 の CONST（h × 5×10¹⁴ Hz）と CONV（100 °F を °C に）、Σ(1/X,1,4) = 25/12 と ∫(X²,0,3) = 9、CPLX の (1+2i)(3−i) と r∠θ、MATRIX で 2×2 を打って逆行列、PROG で斜辺のプログラムを打って走らせる。続いて sin45°+½ を 2D で打って (1+√2)/2、F⇄D で小数、500+25% = 625、定数計算（K）、EQUATION の 2 次方程式の正確な解と頂点、STATS の直線の回帰、BASE の HEX の AND と BIN のドット、TUNE で SLATE・PLAIN・CHALK。横に CORE。英語の字幕は電卓と CORE のあいだ（`captionPlace`）。`--theme` で別のテーマ | 1600×900、約 130 秒 |
 | `demo:panes` / `demo:snippets` / `demo:wifi` / `demo:dev` / `demo:elec` / `demo:presets` / `demo:shorts` | X 用の短いもの | |
 | `demo:whatsnew` / `demo:whatsnew22` | そのリリースで増えたもの | |
 | `demo:whatsnew38` | v0.0.38 で増えたもの。ELEC-16 ひとつのペインで SINEWAVE を走らせ、TUNE を開いて光で描く 5 つのスキン（ALLOY、GRAPHITE、NEO、MOCHI、GLASS）を順に。TUNE を畳んで GLASS のキーで `PRINT 4*9`、アクションパレットで Business Light にして明るいガラス、元のテーマに戻して MOCHI と ALLOY で終わる。英語の字幕付き | 1600×900、約 46 秒 |

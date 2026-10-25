@@ -63,7 +63,7 @@ export function takeOptions(defaults) {
     zoom: number('zoom', defaults.zoom ?? 1),
     pace: number('pace', 1),
     stay: number('stay', 3),
-    theme: option('theme') ?? 'tron',
+    theme: option('theme') ?? defaults.theme ?? 'tron',
     shots: option('shots'),
     captions: !process.argv.includes('--no-captions'),
   }
