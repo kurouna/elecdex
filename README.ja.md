@@ -135,8 +135,8 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### desk — 書く、数える、時間を計る
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、3 か月のカレンダーとその下に Utility ペインのタブの前に出した関数電卓 ELEC-16 SCI。sin(45)+1/2 を正確な形 (1+√2)/2 で答えている">
-  <br><sub>desk · Business (Light)</sub>
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Black テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、3 か月のカレンダーとその下に Utility ペインのタブの前に出した関数電卓 ELEC-16 SCI。sin(45)+1/2 を正確な形 (1+√2)/2 で答えている">
+  <br><sub>desk · Black</sub>
 </p>
 
 - **デスク系ペイン** — 入力して使う電卓（全角数字や 3百万 も入力どおりに読み、テープ表示と、
@@ -188,8 +188,8 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### retro — elecdex の 2 台の機械と、その音
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor テーマの retro プリセット：左にシステムの列、右に ELEC-16、その関数電卓 ELEC-16 SCI、CHIP-8 をタブにした 1 つのペイン。手前は関数電卓で SLATE の本体、液晶に sin(45)+1/2 を正確な形 (1+√2)/2 で答え、その下に関数のキーと数字のキー。横にパネルの CORE でレジスタと動いている ROM のコード。その下に 16 バンドのスペクトラム">
-  <br><sub>retro · Phosphor · ELEC-16 は PLAIN スキン</sub>
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Tron テーマの retro プリセット：左にシステムの列、右に ELEC-16、その関数電卓 ELEC-16 SCI、CHIP-8 をタブにした 1 つのペイン。手前は関数電卓で SLATE の本体、液晶に sin(45)+1/2 を正確な形 (1+√2)/2 で答え、その下に関数のキーと数字のキー。横にパネルの CORE でレジスタと動いている ROM のコード。その下に 16 バンドのスペクトラム">
+  <br><sub>retro · Tron · 手前は ELEC-16 SCI</sub>
 </p>
 
 <p align="center">

@@ -138,8 +138,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### desk — writing, counting and keeping time
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk preset in the Business (Light) theme: a notes pane with a release checklist, a timer and a calculator under it; a tasks pane with deadlines drawn as meters over a clipboard history of made-up copies; three months of the calendar over the calculator ELEC-16 SCI, in front of the utility pane's tab, answering sin(45)+1/2 with its exact form (1+√2)/2">
-  <br><sub>desk · Business (Light)</sub>
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk preset in the Black theme: a notes pane with a release checklist, a timer and a calculator under it; a tasks pane with deadlines drawn as meters over a clipboard history of made-up copies; three months of the calendar over the calculator ELEC-16 SCI, in front of the utility pane's tab, answering sin(45)+1/2 with its exact form (1+√2)/2">
+  <br><sub>desk · Black</sub>
 </p>
 
 - **Desk panes** — a calculator you type into (full-width digits and 3百万 read as typed, with a
@@ -194,8 +194,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### retro — two machines of elecdex's own, and the sound
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro preset in the Phosphor theme: the system column on the left; on the right one pane with ELEC-16, its calculator ELEC-16 SCI and CHIP-8 as tabs, the calculator in front in its SLATE body, its LCD answering sin(45)+1/2 with its exact form (1+√2)/2 over two rows of function keys and the number keys, its panel's CORE beside it with the registers and the ROM's code running; under it the spectrum at sixteen bands">
-  <br><sub>retro · Phosphor · the ELEC-16 in its PLAIN skin</sub>
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro preset in the Tron theme: the system column on the left; on the right one pane with ELEC-16, its calculator ELEC-16 SCI and CHIP-8 as tabs, the calculator in front in its SLATE body, its LCD answering sin(45)+1/2 with its exact form (1+√2)/2 over two rows of function keys and the number keys, its panel's CORE beside it with the registers and the ROM's code running; under it the spectrum at sixteen bands">
+  <br><sub>retro · Tron · ELEC-16 SCI in front</sub>
 </p>
 
 <p align="center">

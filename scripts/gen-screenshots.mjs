@@ -864,7 +864,7 @@ if (only.length === 0 || only.includes('elecdex-media')) {
   standIn.server.close()
 }
 // desk: its calculator in front of the utility pane, answering in its exact form.
-await shoot('business-light', 'elecdex-desk', {
+await shoot('black', 'elecdex-desk', {
   layout: withState(preset('desk'), {}, sciTab),
   prepare: deskFiles,
   extra: sciInPreset,
@@ -942,7 +942,7 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
 // retro: its calculator in front of the pocket ELEC-16 and the CHIP-8, answering in its exact
 // form with its panel open (CORE: the ROM running), the demo sound on the spectrum's sixteen
 // bands under them.
-await shoot('phosphor', 'elecdex-retro', {
+await shoot('tron', 'elecdex-retro', {
   layout: withState(preset('retro'), { elec16: { panel: true } }, sciTab),
   env: { ELECDEX_AUDIO_STUB: 'demo' },
   extra: sciInPreset,
