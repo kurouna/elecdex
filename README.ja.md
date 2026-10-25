@@ -135,7 +135,7 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### desk — 書く、数える、時間を計る
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、1 か月のカレンダーとその下にプロジェクトのアドレスの QR コードを出す Utility ペイン、そのタブの後ろに関数電卓 ELEC-16 SCI">
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、3 か月のカレンダーとその下に Utility ペインのタブの前に出した関数電卓 ELEC-16 SCI。sin(45)+1/2 を正確な形 (1+√2)/2 で答えている">
   <br><sub>desk · Business (Light)</sub>
 </p>
 
@@ -188,7 +188,7 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### retro — elecdex の 2 台の機械と、その音
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor テーマの retro プリセット：左にシステムの列、右に ELEC-16、その関数電卓 ELEC-16 SCI、CHIP-8 をタブにした 1 つのペイン。手前の ELEC-16 は PLAIN スキンで、本体の枠がなく、平らな画面に緑の正弦波を 3 本描き、キーはアプリの平らなボタンの形。横にレジスタとコード。その下に 16 バンドのスペクトラム">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor テーマの retro プリセット：左にシステムの列、右に ELEC-16、その関数電卓 ELEC-16 SCI、CHIP-8 をタブにした 1 つのペイン。手前は関数電卓で SLATE の本体、液晶に sin(45)+1/2 を正確な形 (1+√2)/2 で答え、その下に関数のキーと数字のキー。その下に 16 バンドのスペクトラム">
   <br><sub>retro · Phosphor · ELEC-16 は PLAIN スキン</sub>
 </p>
 

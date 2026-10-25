@@ -34,14 +34,15 @@ export async function presetTrees(main) {
 
 /**
  * The tree with state given to the panes of some widgets, and a tab group put on
- * the tab of a given widget: `{ git: { repo } }`, `{ tab: 'rss' }`.
+ * the tab of a given widget, or of the pane a test picks: `{ git: { repo } }`, `'rss'`.
  */
 export function withState(tree, states, tab) {
   const visit = (node) => {
     if (node.kind === 'split') return { ...node, children: node.children.map(visit) }
     if (node.kind === 'tabs') {
       const children = node.children.map(visit)
-      const at = tab === undefined ? -1 : children.findIndex((c) => c.widget === tab)
+      const picks = typeof tab === 'function' ? tab : (c) => c.widget === tab
+      const at = tab === undefined ? -1 : children.findIndex(picks)
       return { ...node, children, activeIndex: at >= 0 ? at : node.activeIndex }
     }
     const state = states[node.widget]

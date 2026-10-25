@@ -123,7 +123,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### desk — 写字、计算和掌握时间
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) 主题下的 desk 预设：记事窗格里是一份发布检查清单，下面是计时器和计算器；任务窗格把截止时间画成仪表，下面是虚构复制内容的剪贴板历史；一个月的日历，下面的实用工具窗格显示项目地址的二维码，其标签页后面是函数计算器 ELEC-16 SCI">
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) 主题下的 desk 预设：记事窗格里是一份发布检查清单，下面是计时器和计算器；任务窗格把截止时间画成仪表，下面是虚构复制内容的剪贴板历史；三个月的日历，下面是切到实用工具窗格标签页前面的函数计算器 ELEC-16 SCI，以精确形式 (1+√2)/2 回答 sin(45)+1/2">
   <br><sub>desk · Business (Light)</sub>
 </p>
 
@@ -171,7 +171,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### retro — elecdex 自己的两台机器，以及声音
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor 主题的 retro 预设：左侧是系统栏；右侧是一个把 ELEC-16、它的函数计算器 ELEC-16 SCI 和 CHIP-8 作为标签页的窗格，前面的 ELEC-16 使用 PLAIN 外观——没有机身，平整的屏幕上用绿色画着三条正弦波，按键是应用自己的扁平按钮——旁边是寄存器和代码；下方是 16 段的频谱">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor 主题的 retro 预设：左侧是系统栏；右侧是一个把 ELEC-16、它的函数计算器 ELEC-16 SCI 和 CHIP-8 作为标签页的窗格，前面是函数计算器的 SLATE 机身，液晶以精确形式 (1+√2)/2 回答 sin(45)+1/2，下面是函数键和数字键；下方是 16 段的频谱">
   <br><sub>retro · Phosphor · ELEC-16 使用 PLAIN 外观</sub>
 </p>
 

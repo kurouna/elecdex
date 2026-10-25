@@ -124,10 +124,12 @@ const months = $derived(
 
 const weekdays = $derived.by(() => {
   const format = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+  const narrow = new Intl.DateTimeFormat(locale, { weekday: 'narrow' })
   // 4 January 2026 is a Sunday.
   return Array.from({ length: 7 }, (_, i) => {
     const day = (weekStart + i) % 7
-    return { day, name: format.format(new Date(2026, 0, 4 + day)) }
+    const date = new Date(2026, 0, 4 + day)
+    return { day, name: format.format(date), initial: narrow.format(date) }
   })
 })
 
@@ -253,7 +255,7 @@ const whenLabel = (inDays: number): string =>
           data-current={current || undefined}
         >
           {#each weekdays as w (w.day)}
-            <span class="weekday" class:sun={w.day === 0} class:sat={w.day === 6} role="columnheader">{w.name}</span>
+            <span class="weekday" class:sun={w.day === 0} class:sat={w.day === 6} role="columnheader" aria-label={w.name}><span class="name">{w.name}</span><span class="initial" aria-hidden="true">{w.initial}</span></span>
           {/each}
           {#key wave.id}
           {#each month.days as date, i (date.getTime())}
@@ -403,6 +405,8 @@ const whenLabel = (inDays: number): string =>
 }
 
 .month {
+  /* Its own width for what is sized by it: the dates, and the weekdays' names. */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -434,7 +438,8 @@ const whenLabel = (inDays: number): string =>
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* Never wider than its month, whatever the text in a column wants. */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-template-rows: auto repeat(6, 1fr);
   gap: 1px;
 }
@@ -450,15 +455,30 @@ const whenLabel = (inDays: number): string =>
   color: var(--text-muted);
 }
 
+.weekday .initial {
+  display: none;
+}
+
+/* A month a third of a narrow pane: the weekdays by their initials (S M T ...). */
+@container (max-width: 16rem) {
+  .weekday .name {
+    display: none;
+  }
+
+  .weekday .initial {
+    display: inline;
+  }
+}
+
 .day {
   position: relative;
   display: grid;
   place-items: center;
   min-height: 0;
   font-family: var(--font-ui);
-  /* Grows with the pane, bounded by row height and column width. The ceiling is
-     for a pane brought to the front, where 1.1rem left the dates lost in cells
-     the size of a hand. */
+  /* Grows with the pane, bounded by row height and its month's width (cqw is the
+     month's, cqh the pane's). The ceiling is for a pane brought to the front,
+     where 1.1rem left the dates lost in cells the size of a hand. */
   font-size: clamp(0.62rem, min(6.5cqh, 5.5cqw), 2.2rem);
   font-variant-numeric: tabular-nums;
   line-height: 1;

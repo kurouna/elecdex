@@ -324,7 +324,7 @@ const elec16Layout = {
 
 /** Switched on and asleep at BASIC's prompt, SINEWAVE loaded and run, a still frame of it. */
 async function sinewave(page) {
-  // The first: the retro preset has its calculator behind the next tab.
+  // The first: a layout may have a calculator beside it, the same widget.
   const device = page.getByTestId('elec16').first()
   await device.waitFor()
   await page.waitForFunction(
@@ -393,13 +393,38 @@ const sciUnit = (dir) => {
  * keys (s for SIN, f for a/b) as a person would, a key a moment.
  */
 async function sciAnswer(page) {
-  const wait = await atStartScreen(page)
+  await atStartScreen(page)
+  await typeSciAnswer(page)
+}
+
+/** sin(45)+1/2 typed into the focused calculator, a key a moment, the pointer out of the way. */
+async function typeSciAnswer(page) {
   for (const key of ['s', '4', '5', ')', '+', '1', 'f', '2', 'Enter']) {
     await page.keyboard.press(key)
-    await wait(150)
+    await page.waitForTimeout(150)
   }
-  await wait(600)
+  await page.waitForTimeout(600)
   await page.mouse.move(W / 2, H / 6)
+}
+
+/** The preset's SCI-128 pane, the pocket ELEC-16 beside it being the same widget. */
+const sciTab = (pane) => pane.widget === 'elec16' && pane.state?.fresh === 'sci-128'
+
+/** A preset's calculator, its new unit asleep at its line, answering sin(45)+1/2. */
+async function sciInPreset(page) {
+  const sci = page.locator('[data-testid=elec16]', { has: page.getByTestId('elec16-sci-device') })
+  await sci.waitFor()
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid=elec16-sci-device]')
+        ?.closest('[data-testid=elec16]')
+        ?.getAttribute('data-asleep') === 'true',
+    null,
+    { timeout: 20_000 },
+  )
+  await sci.focus()
+  await typeSciAnswer(page)
 }
 
 /** The machine focused, a moment after it has come up at its start screen. */
@@ -682,7 +707,17 @@ async function withWebViews(app, page, clip = undefined) {
 async function shoot(
   theme,
   name,
-  { extra, layout, env, settings, social, prepare, save = true, paneOnly = null } = {},
+  {
+    extra,
+    layout,
+    env,
+    settings,
+    social,
+    prepare,
+    save = true,
+    paneOnly = null,
+    fullscreen = false,
+  } = {},
 ) {
   const named = only.includes(name) || (name.startsWith('pane-') && only.includes('panes'))
   if (only.length > 0 && !named) return
@@ -700,8 +735,11 @@ async function shoot(
       ...settings,
     }),
   )
+  // Full screen (a preset whose calculator shows only its LCD in a smaller window): the app as
+  // it starts, on this display; else a window of W x H.
+  const windowed = fullscreen ? [] : ['--windowed']
   const app = await electron.launch({
-    args: [MAIN, '--windowed', '--no-intro', `--user-data-dir=${dir}`, '--lang=en-US'],
+    args: [MAIN, ...windowed, '--no-intro', `--user-data-dir=${dir}`, '--lang=en-US'],
     // Run from the demo home: PowerShell writes a module cache relative to it.
     cwd: HOME,
     env: {
@@ -727,14 +765,16 @@ async function shoot(
   })
   const page = await app.firstWindow()
   await noGamepads(page)
-  await app.evaluate(
-    ({ BrowserWindow }, [w, h]) => {
-      const win = BrowserWindow.getAllWindows()[0]
-      win.setContentSize(w, h)
-      win.center()
-    },
-    [W, H],
-  )
+  if (!fullscreen) {
+    await app.evaluate(
+      ({ BrowserWindow }, [w, h]) => {
+        const win = BrowserWindow.getAllWindows()[0]
+        win.setContentSize(w, h)
+        win.center()
+      },
+      [W, H],
+    )
+  }
   await page.waitForTimeout(4000)
   const terminal = page
     .locator('[data-testid=pane][data-widget=terminal]:not(.hidden) .xterm-helper-textarea')
@@ -823,12 +863,12 @@ if (only.length === 0 || only.includes('elecdex-media')) {
   })
   standIn.server.close()
 }
-// The utility pane with a QR code for the project's page: the most to see of its three tools.
+// desk: its calculator in front of the utility pane, answering in its exact form.
 await shoot('business-light', 'elecdex-desk', {
-  layout: withState(preset('desk'), {
-    utility: { module: 'qr', qrKind: 'url', qrUrl: 'https://github.com/kurouna/elecdex' },
-  }),
+  layout: withState(preset('desk'), {}, sciTab),
   prepare: deskFiles,
+  extra: sciInPreset,
+  fullscreen: true,
 })
 // cockpit: the CLUSTER pane where the system column would be, given a full minute so its
 // lanes run edge to edge, the pointer over the shell so no figure's card is open.
@@ -899,12 +939,13 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
   })
   standIn.close()
 }
-// retro: the ELEC-16 in front of the CHIP-8 in its PLAIN skin drawing a sine wave, the demo
-// sound on the spectrum's sixteen bands under them.
+// retro: its calculator in front of the pocket ELEC-16 and the CHIP-8, answering in its exact
+// form, the demo sound on the spectrum's sixteen bands under them.
 await shoot('phosphor', 'elecdex-retro', {
-  layout: withState(preset('retro'), { elec16: { skin: 'plain' } }),
+  layout: withState(preset('retro'), {}, sciTab),
   env: { ELECDEX_AUDIO_STUB: 'demo' },
-  extra: sinewave,
+  extra: sciInPreset,
+  fullscreen: true,
 })
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
