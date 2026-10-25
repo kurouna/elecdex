@@ -338,6 +338,13 @@ export function setTokensAt(at: u16, length: u16, foot: u16): void {
   drawSeq(0, length, 128 - w, foot)
 }
 
+/** How wide tokens are when set: where an answer too wide for the screen is broken. */
+export function tokensWidth(at: u16, length: u16): u16 {
+  buf = at
+  bufLength = length
+  return measureSeq(0, length)
+}
+
 /** An answer's tokens set right on the answer rows, their lowest dot on row 62. */
 export function setAnswer(at: u16, length: u16): void {
   buf = at

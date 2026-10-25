@@ -152,11 +152,20 @@ export const T_LE = 0xba
 export const T_GE = 0xbb
 export const T_LBL = 0xbc
 export const T_GOTO = 0xbd
+/** FUNC's →PRIME (section 15.4): no token, what FUNC answers to show Ans as its factors. */
+export const FUNC_PRIME = 0x0f
 /** v3's remainder: a mod b, as strong as x and ÷ (section 15.2). */
 export const T_MOD = 0xb6
 /** The physical constants, C0-D3 (consts.e16.ts). */
 export const T_CONST = 0xc0
 export const T_CONST_LAST = 0xd3
+/**
+ * v3's SI prefixes after a value, D4-DC: f p n μ m k M G T, 10⁻¹⁵ to 10¹² (section 15.3). The
+ * one at D4 + i is 10 to 3i - 15 below m, 3i - 12 from k.
+ */
+export const T_FEMTO = 0xd4
+export const T_MILLI = 0xd8
+export const T_TERA = 0xdc
 /* v2's tokens that are characters: i, a program's ? : → ▶ and its = < >. */
 export const T_I = 0x69
 export const T_ASK = 0x3f

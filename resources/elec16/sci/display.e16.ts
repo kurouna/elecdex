@@ -10,6 +10,7 @@ import {
   bytes,
   div,
   i16,
+  memcpy,
   peek,
   peek16,
   poke,
@@ -18,7 +19,7 @@ import {
   u16,
 } from '../../../src/shared/e16c/builtins'
 import { convLabel } from './consts.e16'
-import { setAnswer, setTokensAt } from './layout.e16'
+import { setAnswer, setTokensAt, tokensWidth } from './layout.e16'
 import { bigNumber, textAt, textRight } from './lcd.e16'
 import {
   diffValue,
@@ -36,11 +37,16 @@ import {
   M_ADD,
   M_CMP,
   M_FORMAT,
+  M_FRAC,
   M_IDIV,
+  M_INT,
   M_MOD,
   M_MUL,
+  M_NEG,
   M_RNDTO,
+  M_SQR,
   M_SUB,
+  M_TOINT,
   MATH_ARG,
   MATH_RESULT,
   math,
@@ -49,6 +55,7 @@ import {
   V_R,
   V_S,
   varAt,
+  wholeInto,
 } from './numbers.e16'
 import {
   isFunction,
@@ -65,10 +72,12 @@ import {
   T_PLUS,
   T_POL,
   T_POW,
+  T_POWT,
   T_REC,
   T_ROOT,
   T_SEC,
   T_SEP,
+  T_TIMES,
 } from './tokens.e16'
 
 /** How the answer is shown now. */
@@ -81,6 +90,10 @@ export const SHOW_PAIR = 5
 export const SHOW_FOUND = 6
 /** A decimal CONV made, the conversion named over it (section 14.4). */
 export const SHOW_CONV = 7
+/** Ans as its prime factors, →PRIME's (section 15.4). */
+export const SHOW_PRIME = 8
+/** ENG with its exponent as an SI prefix, ENG pressed again (section 15.3). */
+export const SHOW_PREFIX = 9
 
 /** The text being written, and how long it is. */
 const text = bytes(32)
@@ -151,13 +164,143 @@ export function drawAnswerAs(shown: u16): void {
   else if (shown === SHOW_MIXED) showMixed()
   else if (shown === SHOW_DMS) drawDms()
   else if (shown === SHOW_PAIR) drawPair()
+  else if (shown === SHOW_PRIME) drawPrimes()
   else {
-    if (shown === SHOW_ENG) engText(KEEP_ANS)
+    if (shown === SHOW_ENG || shown === SHOW_PREFIX) engText(KEEP_ANS)
     else decimalText(KEEP_ANS)
+    prefixed = shown === SHOW_PREFIX
     drawDecimal()
+    prefixed = false
     if (shown === SHOW_FOUND) drawFound()
     if (shown === SHOW_CONV) textAt(convLabel(), 1, 40)
   }
+}
+
+/* ---------------- the prime factors ---------------- */
+
+/** Ans's prime factors as tokens, worked out once by primeAns, and how many. */
+const primeTokens = bytes(48)
+let primeLength: u16 = 0
+/** What is left to factor, the two divisors tried, and a number worked with. */
+const leftOver = bytes(8)
+const tryLow = bytes(8)
+const tryHigh = bytes(8)
+const worked = bytes(8)
+/** Divisors 6k - 1 and 6k + 1 are tried up to this k: past it, they are over √ of what is left. */
+let lastK: u16 = 0
+
+/**
+ * Ans as its prime factors (section 15.4) into primeTokens, 2³×3²×5: false for anything that
+ * is not a whole number from 2 to 10¹⁰ - 1 in size. 2 and 3, then 6k ± 1 up to √n; what is
+ * left past that is a prime.
+ */
+export function primeAns(): bool {
+  const n = addr(leftOver)
+  if (formOf(KEEP_ANS)) return false
+  memcpy(n, KEEP_ANS, 8)
+  memcpy(addr(worked), n, 8)
+  math(M_FRAC, addr(worked), 0, 0)
+  if (!isZero(addr(worked))) return false
+  answerLength = 0
+  if (isNegative(n)) {
+    answerToken(T_MINUS)
+    math(M_NEG, n, 0, 0)
+  }
+  wholeInto(addr(worked), 2)
+  if (below(n, addr(worked))) return false
+  // 10¹⁰: 10000², x100.
+  wholeInto(addr(worked), 10000)
+  math(M_MUL, addr(worked), addr(worked), 0)
+  wholeInto(addr(tryLow), 100)
+  math(M_MUL, addr(worked), addr(tryLow), 0)
+  if (!below(n, addr(worked))) return false
+  wholeInto(addr(tryLow), 2)
+  divideOut(addr(tryLow))
+  wholeInto(addr(tryLow), 3)
+  divideOut(addr(tryLow))
+  wholeInto(addr(tryLow), 5)
+  wholeInto(addr(tryHigh), 7)
+  wholeInto(addr(worked), 6)
+  findLastK()
+  for (let k: u16 = 1; k <= lastK; k++) {
+    divideOut(addr(tryLow))
+    divideOut(addr(tryHigh))
+    math(M_ADD, addr(tryLow), addr(worked), 0)
+    math(M_ADD, addr(tryHigh), addr(worked), 0)
+  }
+  wholeInto(addr(worked), 1)
+  if (below(addr(worked), n)) factorToken(n, 1)
+  memcpy(addr(primeTokens), addr(answerTokens), answerLength)
+  primeLength = answerLength
+  return true
+}
+
+/** a < b, two numbers. */
+function below(a: u16, b: u16): bool {
+  math(M_CMP, a, b, 0)
+  return i16(peek16(MATH_RESULT)) < 0
+}
+
+/** `d` divided out of what is left as often as it goes, written as a factor if it went. */
+function divideOut(d: u16): void {
+  let times: u16 = 0
+  for (;;) {
+    memcpy(addr(spare), addr(leftOver), 8)
+    math(M_MOD, addr(spare), d, 0)
+    if (!isZero(addr(spare))) break
+    math(M_IDIV, addr(leftOver), d, 0)
+    times++
+  }
+  if (times === 0) return
+  factorToken(d, times)
+  findLastK()
+}
+
+/** The largest k whose 6k - 1 is not over √ of what is left: (int(√n) + 1) / 6. */
+function findLastK(): void {
+  memcpy(addr(scratch), addr(leftOver), 8)
+  math(M_SQR, addr(scratch), 0, 0)
+  math(M_INT, addr(scratch), 0, 0)
+  wholeInto(addr(unit), 1)
+  math(M_ADD, addr(scratch), addr(unit), 0)
+  wholeInto(addr(unit), 6)
+  math(M_IDIV, addr(scratch), addr(unit), 0)
+  math(M_TOINT, addr(scratch), 0, 0)
+  lastK = peek16(MATH_ARG)
+}
+
+/** A factor `p` to the power `times` after those there are: ×, its digits, the power raised. */
+function factorToken(p: u16, times: u16): void {
+  if (answerLength > 0 && answerTokens[answerLength - 1] !== T_MINUS) answerToken(T_TIMES)
+  answerNumber(p, true)
+  if (times < 2) return
+  answerToken(T_POWT)
+  if (times >= 10) answerToken(0x30 + div(times, 10))
+  answerToken(0x30 + (times % 10))
+  answerToken(T_END)
+}
+
+/** The factors on the answer rows; too wide for them, on two lines, broken after the × nearest the middle. */
+function drawPrimes(): void {
+  const at = addr(primeTokens)
+  const w = tokensWidth(at, primeLength)
+  if (w <= 128) {
+    setTokensAt(at, primeLength, 62)
+    return
+  }
+  let split: u16 = 0
+  let best: u16 = 0xffff
+  for (let i: u16 = 0; i < primeLength; i++) {
+    if (primeTokens[i] !== T_TIMES) continue
+    const twice = tokensWidth(at, i + 1) * 2
+    const off = twice > w ? twice - w : w - twice
+    if (off < best) {
+      best = off
+      split = i + 1
+    }
+  }
+  setTokensAt(at, split, 50)
+  setTokensAt(at + split, primeLength - split, 62)
 }
 
 /** A decimal other than Ans in big digits, as SETUP shows one (CPLX's real answer). */
@@ -173,7 +316,12 @@ function drawDecimal(): void {
     if (text[i] === 0x45) mantissa = i
   }
   let right: u16 = 127
-  if (mantissa < textLength) {
+  if (prefixed && mantissa < textLength) {
+    // The prefix of ENG's exponent in the small font at the foot's right, for x10 and it.
+    prefixText[0] = peek(str('fpn\x9fmkMGT') + prefixIndex())
+    textAt(addr(prefixText), 122, 55)
+    right = 121
+  } else if (mantissa < textLength) {
     const exponent = addr(text) + mantissa + 1
     const digits = textLength - mantissa - 1
     const x = 128 - digits * 6
@@ -447,6 +595,30 @@ function expText(v: u16, digits: u16, eng: bool): void {
 
 /** expText leaves no zeros after the point (AUTO2's exponent form). */
 let trimmed: bool = false
+
+/** Whether drawDecimal writes ENG's exponent as its prefix, and the prefix's letter. */
+let prefixed: bool = false
+const prefixText = bytes(2)
+
+/** ENG's exponent for Ans: d.ddd x 10 to it, a multiple of 3. */
+function engExponent(): i16 {
+  rounded(KEEP_ANS, 10)
+  const e = exponentOf(addr(scratch))
+  return e - (e >= 0 ? e % 3 : (3 - (-e % 3)) % 3)
+}
+
+/** Whether Ans's ENG exponent has an SI prefix: -15 to 12, not 0 (section 15.3). */
+export function engPrefixed(): bool {
+  if (isZero(KEEP_ANS)) return false
+  const n = engExponent()
+  return n !== 0 && n >= -15 && n <= 12
+}
+
+/** The prefix's place in f p n μ m k M G T. */
+function prefixIndex(): u16 {
+  const n = engExponent()
+  return n < 0 ? u16(div(u16(n + 15), 3)) : u16(div(u16(n + 12), 3))
+}
 
 /** ENG: ten significant digits, the exponent a multiple of 3. */
 export function engText(v: u16): void {

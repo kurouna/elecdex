@@ -83,6 +83,7 @@ function wordTable(): u16 {
 export function extName(t: u16): u16 {
   let n: u16 = 0
   if (t >= 0xe0) n = fieldInto(namedTable(), t - 0xe0, 0)
+  else if (t >= 0xd4) n = fieldInto(str('f|p|n|\x9f|m|k|M|G|T'), t - 0xd4, 0)
   else if (t >= 0xc0) n = fieldInto(constTable(), (t - 0xc0) * 3, 0)
   else if (t >= 0xa0) n = fieldInto(wordTable(), t - 0xa0, 0)
   else n = fieldInto(statTable(), t - 0x97, 0)

@@ -81,6 +81,7 @@ import {
 } from './numbers.e16'
 import { PROG_PAGES, progFuncPage, progFuncToken } from './prog.e16'
 import {
+  FUNC_PRIME,
   T_COIN,
   T_DERIV,
   T_DICE,
@@ -88,6 +89,7 @@ import {
   T_INT,
   T_INTEG,
   T_LCM,
+  T_MILLI,
   T_MOD,
   T_PERCENT,
   T_POL,
@@ -429,10 +431,11 @@ function clearMemory(): void {
  * have FUNC screens of their own (cplx.e16.ts, matrix.e16.ts).
  */
 let funcPage: u16 = 0
-const FUNC_PAGES = 5
-const PAGE_MORE = 1
-const PAGE_RANDOM = 2
-const PAGE_STATS = 3
+const FUNC_PAGES = 6
+const PAGE_ENG = 1
+const PAGE_MORE = 2
+const PAGE_RANDOM = 3
+const PAGE_STATS = 4
 
 /** PROG's pages before the calculator's. */
 function extraPages(): u16 {
@@ -473,8 +476,13 @@ function drawFuncPage(): void {
     textAt(str('5:round( 6:pol('), 1, lineY(2))
     textAt(str('7:rec(   8:d/dx('), 1, lineY(3))
     textAt(str('9:\x97(     0:\x90('), 1, lineY(4))
+  } else if (page === PAGE_ENG) {
+    textAt(str('1:k  2:M  3:G'), 1, lineY(0))
+    textAt(str('4:T  5:m  6:\x9f'), 1, lineY(1))
+    textAt(str('7:n  8:p  9:f'), 1, lineY(2))
   } else if (page === PAGE_MORE) {
-    textAt(str('1:mod    2:å('), 1, lineY(0))
+    textAt(str('1:mod    2:\xe5('), 1, lineY(0))
+    textAt(str('3:\x94PRIME'), 1, lineY(1))
   } else if (page === PAGE_RANDOM) {
     textAt(str('1:rand   2:dice'), 1, lineY(0))
     textAt(str('3:coin   4:rint'), 1, lineY(1))
@@ -494,6 +502,7 @@ function drawFuncPage(): void {
 
 function funcTitle(page: u16): u16 {
   if (page === 0) return str('FUNC')
+  if (page === PAGE_ENG) return str('FUNC ENG')
   if (page === PAGE_MORE) return str('FUNC MORE')
   return page === PAGE_RANDOM ? str('FUNC RANDOM') : str('FUNC STATS')
 }
@@ -519,6 +528,7 @@ function pageToken(d: u16): u16 {
   if (funcPage < extraPages()) return progFuncToken(funcPage, d)
   const page = funcPage - extraPages()
   if (page === 0) return funcToken(d)
+  if (page === PAGE_ENG) return prefixToken(d)
   if (page === PAGE_MORE) return moreToken(d)
   if (page === PAGE_RANDOM) return randomToken(d)
   return page === PAGE_STATS ? statToken(d) : sumToken(d)
@@ -551,9 +561,19 @@ function funcToken(d: u16): u16 {
   return 0
 }
 
-/** v3's MORE page: mod and Π( (section 15.2). */
+/**
+ * v3's ENG page: k M G T by 1-4, then m μ n p f by 5-9 (section 15.3); the prefix tokens run
+ * from f (D4) to T (DC), m at D8.
+ */
+function prefixToken(d: u16): u16 {
+  if (d >= 1 && d <= 4) return T_MILLI + d
+  return d >= 5 && d <= 9 ? T_MILLI + 5 - d : 0
+}
+
+/** v3's MORE page: mod and Π( (section 15.2), →PRIME (15.4: not a token, what calc does). */
 function moreToken(d: u16): u16 {
   if (d === 1) return T_MOD
+  if (d === 3) return FUNC_PRIME
   return d === 2 ? T_PROD : 0
 }
 

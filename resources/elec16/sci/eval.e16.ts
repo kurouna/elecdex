@@ -120,6 +120,7 @@ import {
   T_END,
   T_EQUAL,
   T_EXP,
+  T_FEMTO,
   T_FRAC,
   T_GCD,
   T_GE,
@@ -131,10 +132,11 @@ import {
   T_LN,
   T_LOG,
   T_MDIV,
+  T_MILLI,
   T_MIN,
   T_MINUS,
-  T_MOD,
   T_MIXED,
+  T_MOD,
   T_MORE,
   T_MSEP,
   T_NCR,
@@ -144,12 +146,12 @@ import {
   T_OPEN,
   T_PERCENT,
   T_PI,
-  T_PROD,
   T_PLUS,
   T_POINT,
   T_POL,
   T_POW,
   T_POWT,
+  T_PROD,
   T_RAN,
   T_REC,
   T_RINT,
@@ -166,6 +168,7 @@ import {
   T_TAN,
   T_TANH,
   T_TEN,
+  T_TERA,
   T_TIMES,
   T_X2EST,
   T_XEST,
@@ -396,8 +399,21 @@ function post(): void {
       pushInt(100, at)
       binary(M_DIV, at)
       percentEnd = pos
+    } else if (t >= T_FEMTO && t <= T_TERA) {
+      pos++
+      siPrefix(t, at)
     } else return
   }
+}
+
+/** An SI prefix on the value on top: x 10ⁿ, or ÷ 10⁻ⁿ for m and below, its form followed (section 15.3). */
+function siPrefix(t: u16, at: u16): void {
+  const i = t - T_FEMTO
+  const down = t <= T_MILLI
+  pushInt(10, at)
+  pushInt(down ? 15 - 3 * i : 3 * i - 12, at)
+  binary(M_POW, at)
+  binary(down ? M_DIV : M_MUL, at)
 }
 
 /** A run of powers on the value on top, read from the right: 2^3^2 is 2^9. */

@@ -18,16 +18,20 @@ import { baseCommand, baseEvaluate, baseFuncKey, baseFuncScreen, baseToken } fro
 import { constKey, constScreen, convKey, convScreen } from './consts.e16'
 import { cplxEvaluate, cplxTurn } from './cplx.e16'
 import {
+  engPrefixed,
   firstShown,
   hasForm,
   nextShown,
   pairLine,
+  primeAns,
   SHOW_CONV,
   SHOW_DECIMAL,
   SHOW_DMS,
   SHOW_ENG,
   SHOW_FOUND,
   SHOW_PAIR,
+  SHOW_PREFIX,
+  SHOW_PRIME,
 } from './display.e16'
 import { drawAnnunciators, drawScreen } from './draw.e16'
 import { deleteAt, editCursor, editLength, vertical, wrap, wrapStart } from './edit.e16'
@@ -97,6 +101,7 @@ import {
   tableReset,
 } from './table.e16'
 import {
+  FUNC_PRIME,
   isDigit,
   isSeparator,
   opensTemplate,
@@ -108,6 +113,7 @@ import {
   T_DIVIDE,
   T_E,
   T_END,
+  T_FEMTO,
   T_FRAC,
   T_I,
   T_INVERSE,
@@ -127,6 +133,7 @@ import {
   T_SQUARE,
   T_STORE,
   T_TEN,
+  T_TERA,
   T_TIMES,
   T_XNOR,
   T_XROOT,
@@ -532,6 +539,18 @@ function progChosen(p: u16): void {
   drawCalc()
 }
 
+/** FUNC's →PRIME: the line answered first, then its answer (or Ans) as its prime factors. CALC only. */
+function primeOpen(): void {
+  if (mode === MODE_CALC && !answered && length > 0) equals(false)
+  if (mode !== MODE_CALC || !primeAns()) refuse()
+  else {
+    answered = true
+    found = false
+    shown = SHOW_PRIME
+  }
+  drawCalc()
+}
+
 /** SHIFT MENU (CONV): the line answered first, then the conversions for its answer. CALC only. */
 function convOpen(): void {
   if (mode !== MODE_CALC) {
@@ -690,6 +709,10 @@ function tableAsked(r: u16): void {
 function funcChosen(t: u16): void {
   if (t === 0) return
   screen = S_CALC
+  if (t === FUNC_PRIME) {
+    primeOpen()
+    return
+  }
   if (t === 0xfe) {
     length = 0
     cursor = 0
@@ -953,7 +976,8 @@ function fromAns(t: u16): bool {
     t === T_BANG ||
     t === T_NCR ||
     t === T_NPR ||
-    (t >= T_AND && t <= T_XNOR)
+    (t >= T_AND && t <= T_XNOR) ||
+    (t >= T_FEMTO && t <= T_TERA)
   )
 }
 
@@ -1075,10 +1099,14 @@ function solveKey(find: bool): void {
   askStart(addr(line), length, find)
 }
 
-/** Whether the line has a decimal point in it: such a line is answered in decimals first. */
+/**
+ * Whether the line has a decimal point or an SI prefix in it (section 15.3): such a line is
+ * answered in decimals first.
+ */
 function decimalTyped(): bool {
   for (let i: u16 = 0; i < length; i++) {
-    if (line[i] === T_POINT) return true
+    const t = line[i]
+    if (t === T_POINT || (t >= T_FEMTO && t <= T_TERA)) return true
   }
   return false
 }
@@ -1092,8 +1120,14 @@ function exactOrDecimal(shift: bool): void {
     refuse()
     return
   }
-  if (shift) shown = SHOW_ENG
-  else if (twoD() && hasForm()) shown = nextShown(shown)
+  if (shift) {
+    // ENG again: its exponent as an SI prefix, and back (section 15.3).
+    if (shown === SHOW_ENG && !engPrefixed()) {
+      refuse()
+      return
+    }
+    shown = shown === SHOW_ENG ? SHOW_PREFIX : SHOW_ENG
+  } else if (twoD() && hasForm()) shown = nextShown(shown)
   else if (shown !== SHOW_DECIMAL && shown !== SHOW_FOUND) shown = SHOW_DECIMAL
   else {
     refuse()
