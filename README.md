@@ -163,6 +163,19 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
 elecdex starts fullscreen. **F11** leaves fullscreen and **Ctrl+Shift+Q** quits; `--windowed`
 starts in a window and `--no-intro` skips the boot sequence.
 
+### Build from source
+
+```bash
+git clone https://github.com/kurouna/elecdex.git
+cd elecdex
+npm ci
+npm run dev -- -- --windowed --no-intro
+```
+
+`npm ci` downloads Electron and, on macOS, fixes node-pty; on Linux, approve node-pty's install
+script so it can compile. Tests, builds and the other commands are in the
+[Develop guide](docs/guide/develop.md).
+
 ## First steps
 
 | Key | Action |
@@ -171,7 +184,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+F1 … F10 | Go to a layout preset |
 | Ctrl+Shift+G | Saved layouts |
 | Ctrl+Shift+P | Find any action, layout, theme or setting (the action palette) |
-| Ctrl+Shift+Z | Bring the focused pane forward |
+| Ctrl+Shift+Z | Show the focused pane enlarged over the others; again to put it back |
 | Ctrl+Shift+. | Settings |
 | F11 / Ctrl+Shift+Q | Leave fullscreen / quit |
 
@@ -190,7 +203,7 @@ Every shortcut can be rebound in *Settings → Keyboard*; the full list is in
 | [Plugins](docs/guide/plugins-use.md) | Installing plugins and what they may do ([API](docs/plugins.md)) |
 | [Network access and data sources](docs/guide/data-sources.md) | Every service elecdex contacts, how often, and its terms |
 | [Develop](docs/guide/develop.md) | Building, testing, releasing, and why a rewrite |
-| [ELEC-16 manuals](docs/guide/panes-retro.md#elec-16) | BASIC, the E16 machine, e16c, the SOFT CARD, PLAY-320, SCI-128 |
+| [ELEC-16 manuals and guides](docs/guide/panes-retro.md#elec-16) | BASIC, the E16 machine, e16c, the SOFT CARD, PLAY-320, SCI-128, and HTML quick guides with screenshots for the pocket computer and the calculator |
 | [Architecture](docs/architecture.md) · [Decisions](docs/decisions.md) | The design and every decision with its reason (in Japanese) |
 
 ## Third-party assets

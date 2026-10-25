@@ -39,17 +39,17 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
 
 elecdex は、シェルとシステムの状態を 1 つの画面に並べる、SF の端末風のデスクトップアプリです。eDEX-UI（2021 年にアーカイブ）を Electron 45、Svelte 5、TypeScript 7 で一から作り直したもので、GPL-3.0 で公開しています。
 
-- **シェル**: PowerShell、bash、zsh、fish を node-pty でタブと分割に。シェル統合（OSC 7 / OSC 9;9）で、Windows でも各シェルのフォルダを追います。
-- **ペイン**: 組み込みのペイン 40 種と Web ペイン（Browser、YouTube、X）を、保存される分割とタブの木で並べます。レイアウトのプリセット 10 個、保存したレイアウト、アクションパレット。
-- **システムとネットワーク**: CPU、メモリ、GPU、ディスク、プロセス、プログラムごとの TCP ソケット、Wi-Fi とイーサネットの診断。Windows では読むたびにプロセスを起こしません。
-- **外の世界**: 天気（気象庁、NWS、MET Norway）、マーケット、RSS、地震と津波、手元で計算する衛星（SGP4）、同梱の GeoIP データベースで国を決める接続の地球儀。
+- **シェル**: PowerShell、bash、zsh、fish を node-pty でタブと分割に。シェル統合（OSC 7 / OSC 9;9）で、Windows でも各シェルの作業フォルダ（カレントディレクトリ）を追従します。
+- **ペイン**: 組み込みのペイン 40 種と Web ペイン（Browser、YouTube、X）を、状態が保存される分割とタブのツリー構造で並べます。レイアウトのプリセット 10 個、保存したレイアウト、アクションパレット。
+- **システムとネットワーク**: CPU、メモリ、GPU、ディスク、プロセス、プログラムごとの TCP ソケット、Wi-Fi とイーサネットの診断。Windows では読み取りのたびにプロセスを起動しません（常駐する 1 つのサンプラーが読みます）。
+- **外の世界**: 天気（気象庁、NWS、MET Norway）、マーケット、RSS、地震と津波、手元で計算する衛星（SGP4）、通信先の国を同梱の GeoIP データベースで調べて示す地球儀。
 - **仕事と AI**: Git（読み取りと FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code のセッション、OpenAI 互換または Anthropic の API への AI チャット（鍵は OS で暗号化して保存）。
 - **独自の機械**: CHIP-8 のエミュレータと、オリジナルの 16 ビットのポケコン ELEC-16（BASIC、ゲーム機のモデル、関数電卓）。
-- **セキュリティ**: 画面はサンドボックスで、Node もネットワークも使えません（`connect-src 'self'`）。通信はすべてメインプロセスが、ペインがそのデータを要る間だけ行い、テレメトリはありません。プラグインは許可したことだけができるサンドボックスのワーカーで動きます。
+- **セキュリティ**: 画面はサンドボックスで、Node もネットワークも使えません（`connect-src 'self'`）。通信はすべてメインプロセスが、ペインがそのデータを必要としている間だけ行い、テレメトリはありません。プラグインは許可したことだけができるサンドボックスのワーカーで動きます。
 
 ## レイアウトのプリセット
 
-10 個のプリセットで、画面全体をキー 1 つで切り替えます（**Ctrl+Shift+F1**〜**F10**）。cockpit と blank 以外は、左のシステムの列をそのまま残します。絵はそれぞれ別のテーマで撮っています。詳しくは [レイアウトのプリセット](docs/guide/presets.ja.md) にあります。
+10 個のプリセットで、画面全体をキー 1 つで切り替えます（**Ctrl+Shift+F1**〜**F10**）。cockpit と blank 以外は、左のシステムの列をそのまま残します。各スクリーンショットは異なるテーマで撮影しています。詳しくは [レイアウトのプリセット](docs/guide/presets.ja.md) にあります。
 
 <table>
   <tr>
@@ -153,6 +153,17 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
 elecdex はフルスクリーンで起動します。**F11** でフルスクリーンを抜け、**Ctrl+Shift+Q** で終了します。
 `--windowed` を付けるとウィンドウで起動し、`--no-intro` を付けると起動シーケンスを省略します。
 
+### ソースから動かす
+
+```bash
+git clone https://github.com/kurouna/elecdex.git
+cd elecdex
+npm ci
+npm run dev -- -- --windowed --no-intro
+```
+
+`npm ci` は Electron をダウンロードし、macOS では node-pty を直します。Linux では、node-pty がコンパイルできるようにそのインストールスクリプトを許可してください。テスト、ビルド、そのほかのコマンドは [開発ガイド](docs/guide/develop.ja.md) にあります。
+
 ## はじめの操作
 
 | キー | 働き |
@@ -161,7 +172,7 @@ elecdex はフルスクリーンで起動します。**F11** でフルスクリ�
 | Ctrl+Shift+F1 … F10 | レイアウトのプリセットへ |
 | Ctrl+Shift+G | 保存したレイアウト |
 | Ctrl+Shift+P | 操作、レイアウト、テーマ、設定を名前で探す（アクションパレット） |
-| Ctrl+Shift+Z | フォーカスのあるペインを前に出す |
+| Ctrl+Shift+Z | フォーカスのあるペインを、ほかのペインの上に大きく出す（もう一度で戻す） |
 | Ctrl+Shift+. | 設定 |
 | F11 / Ctrl+Shift+Q | 全画面を抜ける / 終了 |
 
@@ -179,7 +190,7 @@ elecdex はフルスクリーンで起動します。**F11** でフルスクリ�
 | [プラグイン](docs/guide/plugins-use.ja.md) | プラグインの入れ方とできること（[API](docs/plugins.md)） |
 | [ネットワークの利用とデータソース](docs/guide/data-sources.ja.md) | elecdex がつなぐ先すべて、頻度と利用条件 |
 | [開発](docs/guide/develop.ja.md) | ビルド、テスト、リリース、作り直した理由 |
-| [ELEC-16 の取扱説明書](docs/guide/panes-retro.ja.md#elec-16) | BASIC、E16 の機械、e16c、SOFT CARD、PLAY-320、SCI-128 |
+| [ELEC-16 の取扱説明書とガイド](docs/guide/panes-retro.ja.md#elec-16) | BASIC、E16 の機械、e16c、SOFT CARD、PLAY-320、SCI-128。ポケコンと関数電卓は、スクリーンショット付きの HTML のかんたんガイドも |
 | [設計](docs/architecture.md) · [決定の記録](docs/decisions.md) | 設計と、すべての決定とその理由 |
 
 ## サードパーティのアセット

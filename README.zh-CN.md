@@ -145,6 +145,17 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
 elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序；`--windowed` 以窗口模式启动，
 `--no-intro` 跳过启动动画。
 
+### 从源码运行
+
+```bash
+git clone https://github.com/kurouna/elecdex.git
+cd elecdex
+npm ci
+npm run dev -- -- --windowed --no-intro
+```
+
+`npm ci` 会下载 Electron，并在 macOS 上修复 node-pty；在 Linux 上，请允许 node-pty 的安装脚本以便编译。测试、构建及其他命令见[开发指南](docs/guide/develop.zh-CN.md)。
+
 ## 开始使用
 
 | 按键 | 作用 |
@@ -153,7 +164,7 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+F1 … F10 | 切换到布局预设 |
 | Ctrl+Shift+G | 已保存的布局 |
 | Ctrl+Shift+P | 按名称查找操作、布局、主题或设置（操作面板） |
-| Ctrl+Shift+Z | 把有焦点的窗格放到前面 |
+| Ctrl+Shift+Z | 把有焦点的窗格放大显示在其他窗格之上；再按一次还原 |
 | Ctrl+Shift+. | 设置 |
 | F11 / Ctrl+Shift+Q | 退出全屏 / 退出应用 |
 
@@ -171,7 +182,7 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | [插件](docs/guide/plugins-use.zh-CN.md) | 安装插件及其能做的事（[API](docs/plugins.md)） |
 | [网络访问与数据来源](docs/guide/data-sources.zh-CN.md) | elecdex 连接的所有服务、频率与条款 |
 | [开发](docs/guide/develop.zh-CN.md) | 构建、测试、发布，以及为什么要重写 |
-| [ELEC-16 使用手册](docs/guide/panes-retro.zh-CN.md#elec-16) | BASIC、E16 机器、e16c、SOFT CARD、PLAY-320、SCI-128 |
+| [ELEC-16 使用手册与指南](docs/guide/panes-retro.zh-CN.md#elec-16) | BASIC、E16 机器、e16c、SOFT CARD、PLAY-320、SCI-128，以及带截图的袖珍电脑与科学计算器 HTML 快速指南 |
 | [架构](docs/architecture.md) · [决策记录](docs/decisions.md) | 设计以及每个决策和理由（日文） |
 
 ## 第三方资源
