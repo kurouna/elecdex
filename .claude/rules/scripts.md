@@ -39,6 +39,7 @@ npm run demo:whatsnew22 # what v0.0.22 added: the pocket's new BASIC, the PLAY-3
 npm run demo:whatsnew34 # what v0.0.34 added: the GPU pane, CLUSTER's GPU lane, nested subagents, the git pane's PUSH, 16:9 (Windows; build first)
 npm run demo:whatsnew36 # what v0.0.35-v0.0.36 added: the ETHERNET pane on a cable with CRC errors, brought forward, and the action palette, 16:9 (Windows; build first)
 npm run demo:whatsnew38 # what v0.0.38 added: the ELEC-16's five skins modelled in light, GLASS following the theme, captioned, 16:9 (Windows; build first)
+npm run demo:whatsnew44 # what v0.0.43-v0.0.44 added: standard to retro through the presets' shelf, ELEC-16 SCI's tab, →PRIME, SI prefixes, Π, mod, nlow, an inequality, captioned, 16:9 (Windows; build first)
 npm run demo:elec16    # the ELEC-16 alone, 1280x600: BASIC, the SOFT CARD, CODE, the skins (Windows; build first)
 npm run demo:sci       # ELEC-16 SCI alone in Black, 16:9, ~130 s: v2's CONST, CONV, Σ, ∫, CPLX, MATRIX, PROG first, then exact answers, %, a constant, EQUATION, STATS, BASE, its bodies, captioned (Windows; build first)
 npm run demo:logwatch  # LOG WATCH alone: a made-up log followed, a burst, filter, PATTERNS, MASK, two lines EXPLAINed by the stand-in, captioned, 16:9, ~55 s (Windows; build first)

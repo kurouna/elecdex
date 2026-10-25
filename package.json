@@ -76,6 +76,7 @@
     "demo:whatsnew34": "node scripts/demo-whatsnew34.mjs",
     "demo:whatsnew36": "node scripts/demo-whatsnew36.mjs",
     "demo:whatsnew38": "node scripts/demo-whatsnew38.mjs",
+    "demo:whatsnew44": "node scripts/demo-whatsnew44.mjs",
     "demo:elec16": "node scripts/demo-elec16.mjs",
     "demo:sci": "node scripts/demo-sci.mjs",
     "demo:games": "node scripts/demo-games.mjs",
