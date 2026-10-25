@@ -33,11 +33,18 @@ export const switchOn = (display: '2d' | 'line' = 'line'): Elec16 => {
   return m
 }
 
-/** Keys pressed by their ids (sci-keys.ts), separated by spaces. */
+/**
+ * Keys pressed by their ids (sci-keys.ts), separated by spaces. `fp:NAME` presses ▼ on FUNC until
+ * its title is `FUNC NAME`, so a test names CALC's FUNC pages rather than counting them.
+ */
 export function keys(m: Elec16, ids: string): void {
   for (const id of ids.split(' ').filter((x) => x !== '')) {
     if (id === 'on') m.brk()
-    else {
+    else if (id.startsWith('fp:')) {
+      const title = `FUNC ${id.slice(3)}`
+      for (let k = 0; k < 12 && band(m)[0] !== title; k++) keys(m, 'down')
+      if (band(m)[0] !== title) throw new Error(`no FUNC page ${title}`)
+    } else {
       const code = sciKeyCode(id)
       m.press(code)
       m.release(code)

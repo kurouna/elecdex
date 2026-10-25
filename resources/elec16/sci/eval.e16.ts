@@ -133,6 +133,7 @@ import {
   T_MDIV,
   T_MIN,
   T_MINUS,
+  T_MOD,
   T_MIXED,
   T_MORE,
   T_MSEP,
@@ -143,6 +144,7 @@ import {
   T_OPEN,
   T_PERCENT,
   T_PI,
+  T_PROD,
   T_PLUS,
   T_POINT,
   T_POL,
@@ -271,12 +273,27 @@ function prod(): void {
   implied()
   for (;;) {
     const t = tok()
-    if (t !== T_TIMES && t !== T_DIVIDE) return
+    if (t !== T_TIMES && t !== T_DIVIDE && t !== T_MOD) return
     const at = pos
     pos++
     implied()
-    binary(t === T_TIMES ? M_MUL : M_DIV, at)
+    if (t === T_MOD) remainder(at)
+    else binary(t === T_TIMES ? M_MUL : M_DIV, at)
   }
+}
+
+/**
+ * a mod b, the two values on top: as calculators' remainders are, a whole number from 0 by a
+ * whole number from 1 alone, MATH for anything else (section 15.2). The unit's MOD is exact.
+ */
+function remainder(at: u16): void {
+  const b = top()
+  const a = b - VALUE_SIZE
+  if (!isWhole(a, at) || !isWhole(b, at) || isNegative(a) || isNegative(b) || isZero(b))
+    fail(E_MATH, at)
+  math(M_MOD, a, b, at)
+  exactWhole(a)
+  pop()
 }
 
 /** Whether a value starts at the token: what a multiplication with no sign multiplies by. */
@@ -496,7 +513,7 @@ function bracketed(t: u16, at: u16): void {
   if (t === T_OPEN) {
     sum()
     if (tok() === T_CLOSE) pos++
-  } else if (t === T_DERIV || t === T_INTEG || t === T_SIGMA) {
+  } else if (t === T_DERIV || t === T_INTEG || t === T_SIGMA || t === T_PROD) {
     pos = calculus(t, pos, at)
   } else if (isFunction(t)) {
     sum()

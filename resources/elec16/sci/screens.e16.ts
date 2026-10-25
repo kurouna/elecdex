@@ -88,8 +88,10 @@ import {
   T_INT,
   T_INTEG,
   T_LCM,
+  T_MOD,
   T_PERCENT,
   T_POL,
+  T_PROD,
   T_RAN,
   T_REC,
   T_RINT,
@@ -422,12 +424,15 @@ function clearMemory(): void {
 /* ---------------- FUNC ---------------- */
 
 /**
- * FUNC's page (▼ and ▲): the functions, random numbers, STATS' results, its sums and estimates;
- * in PROG its own pages come first (prog.e16.ts), and CPLX and MATRIX have FUNC screens of their
- * own (cplx.e16.ts, matrix.e16.ts).
+ * FUNC's page (▼ and ▲): the functions, v3's MORE (section 15.7), random numbers, STATS' results,
+ * its sums and estimates; in PROG its own pages come first (prog.e16.ts), and CPLX and MATRIX
+ * have FUNC screens of their own (cplx.e16.ts, matrix.e16.ts).
  */
 let funcPage: u16 = 0
-const FUNC_PAGES = 4
+const FUNC_PAGES = 5
+const PAGE_MORE = 1
+const PAGE_RANDOM = 2
+const PAGE_STATS = 3
 
 /** PROG's pages before the calculator's. */
 function extraPages(): u16 {
@@ -468,10 +473,12 @@ function drawFuncPage(): void {
     textAt(str('5:round( 6:pol('), 1, lineY(2))
     textAt(str('7:rec(   8:d/dx('), 1, lineY(3))
     textAt(str('9:\x97(     0:\x90('), 1, lineY(4))
-  } else if (page === 1) {
+  } else if (page === PAGE_MORE) {
+    textAt(str('1:mod    2:å('), 1, lineY(0))
+  } else if (page === PAGE_RANDOM) {
     textAt(str('1:rand   2:dice'), 1, lineY(0))
     textAt(str('3:coin   4:rint'), 1, lineY(1))
-  } else if (page === 2) {
+  } else if (page === PAGE_STATS) {
     textAt(str('1:n    2:\x95    3:\x91x'), 1, lineY(0))
     textAt(str('4:sx   5:\x96    6:\x91y'), 1, lineY(1))
     textAt(str('7:sy   8:r    9:a'), 1, lineY(2))
@@ -487,7 +494,8 @@ function drawFuncPage(): void {
 
 function funcTitle(page: u16): u16 {
   if (page === 0) return str('FUNC')
-  return page === 1 ? str('FUNC RANDOM') : str('FUNC STATS')
+  if (page === PAGE_MORE) return str('FUNC MORE')
+  return page === PAGE_RANDOM ? str('FUNC RANDOM') : str('FUNC STATS')
 }
 
 /** A key on FUNC: the token it types (the calculator types it), 1 to go back, 0 to stay. */
@@ -511,8 +519,9 @@ function pageToken(d: u16): u16 {
   if (funcPage < extraPages()) return progFuncToken(funcPage, d)
   const page = funcPage - extraPages()
   if (page === 0) return funcToken(d)
-  if (page === 1) return randomToken(d)
-  return page === 2 ? statToken(d) : sumToken(d)
+  if (page === PAGE_MORE) return moreToken(d)
+  if (page === PAGE_RANDOM) return randomToken(d)
+  return page === PAGE_STATS ? statToken(d) : sumToken(d)
 }
 
 /** The token of FUNC's item `d` (1-9, 0); 0 for none. */
@@ -540,6 +549,12 @@ function funcToken(d: u16): u16 {
       return T_REC
   }
   return 0
+}
+
+/** v3's MORE page: mod and Π( (section 15.2). */
+function moreToken(d: u16): u16 {
+  if (d === 1) return T_MOD
+  return d === 2 ? T_PROD : 0
 }
 
 /** The random page: rand, dice, coin, rint. */

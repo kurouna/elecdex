@@ -67,12 +67,12 @@ function fieldInto(table: u16, n: u16, from: u16): u16 {
 /* ---------------- the names of v2's tokens ---------------- */
 
 /**
- * A0-BD: the functions, ∠, the matrices and a program's words; empty for a code with none.
- * ∫ is 97, Σ 90, ∠ 98, ⇒ E1, ≠ E2, ≤ E3, ≥ E4.
+ * A0-BD: the functions, ∠, the matrices, mod and a program's words; empty for a code with none.
+ * ∫ is 97, Σ 90, Π E5, ∠ 98, ⇒ E1, ≠ E2, ≤ E3, ≥ E4.
  */
 function wordTable(): u16 {
   return str(
-    'd/dx(|\x97(|\x90(|arg(|conj(|Re(|Im(|det(|trn(|dot(|cross(|angle(|||||\x98|MatA|MatB|MatC|MatD|MatAns|||\xe1|\xe2|\xe3|\xe4|lbl |goto ',
+    'd/dx(|\x97(|\x90(|arg(|conj(|Re(|Im(|det(|trn(|dot(|cross(|angle(|\xe5(||||\x98|MatA|MatB|MatC|MatD|MatAns| mod ||\xe1|\xe2|\xe3|\xe4|lbl |goto ',
   )
 }
 

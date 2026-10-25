@@ -879,22 +879,22 @@ describe("after EL-509E's list: % of what it is added to, STATS' results in a li
   }
 
   it.each([
-    ['func down down 1', '3'],
-    ['func down down 2', '2'],
-    ['func down down 3', '0.8164965809'],
-    ['func down down 4', '1'],
-    ['func down down 5', '4.333333333'],
-    ['func down down 8', '0.9933992678'],
-    ['func down down 9', '-0.6666666667'],
-    ['func down down 0', '2.5'],
-    ['func down down down 1', '6'],
-    ['func down down down 2', '14'],
-    ['func down down down 5', '31'],
+    ['func fp:STATS 1', '3'],
+    ['func fp:STATS 2', '2'],
+    ['func fp:STATS 3', '0.8164965809'],
+    ['func fp:STATS 4', '1'],
+    ['func fp:STATS 5', '4.333333333'],
+    ['func fp:STATS 8', '0.9933992678'],
+    ['func fp:STATS 9', '-0.6666666667'],
+    ['func fp:STATS 0', '2.5'],
+    ['func fp:STATS down 1', '6'],
+    ['func fp:STATS down 2', '14'],
+    ['func fp:STATS down 5', '31'],
     // The estimates on y = a + bx: y'(4) = a + 4b, x'(9.333...) = 4.
-    ['func down down down 7 4', '9.333333333'],
-    ['func down down down 6 9 dot 3 3 3 3 3 3 3 3 3 3', '4'],
+    ['func fp:STATS down 7 4', '9.333333333'],
+    ['func fp:STATS down 6 9 dot 3 3 3 3 3 3 3 3 3 3', '4'],
     // In a line like any value: 10 x̄ + 1.
-    ['1 0 func down down 2 add 1', '21'],
+    ['1 0 func fp:STATS 2 add 1', '21'],
   ])("STATS' %s is %s in CALC", (line, value) => {
     const m = withData()
     keys(m, `${line} eq`)
@@ -903,17 +903,17 @@ describe("after EL-509E's list: % of what it is added to, STATS' results in a li
 
   it("shows STATS' results by their names in the line", () => {
     const m = withData()
-    keys(m, 'setup 2 ac func down down 2 add func down down down 7')
+    keys(m, 'setup 2 ac func fp:STATS 2 add func fp:STATS down 7')
     expect(rows(m)[0]).toBe('\u0078\u0304+y\u2032(')
   })
 
   it('says MATH with no data, and for y from one variable', () => {
     const m = switchOn()
-    keys(m, 'menu 2 1 func 3 menu 1 func down down 1 eq')
+    keys(m, 'menu 2 1 func 3 menu 1 func fp:STATS 1 eq')
     expect(lineAt(m, 1, true)).toBe('ERR:MATH')
-    keys(m, 'ac menu 2 1 5 eq menu 1 func down down 5 eq')
+    keys(m, 'ac menu 2 1 5 eq menu 1 func fp:STATS 5 eq')
     expect(lineAt(m, 1, true)).toBe('ERR:MATH')
-    keys(m, 'ac func down down 2 eq')
+    keys(m, 'ac func fp:STATS 2 eq')
     expect(ans(m)).toBe('5')
   })
 })
@@ -945,34 +945,34 @@ describe("the rest of EL-509E's list", () => {
     ['7', 'INV', 11.25641026, -10.09230769, -0.8658000985, 9.237948718, -1.154252199],
   ] as const)('fits %s (%s): a, b, r and the estimates', (kind, _name, a, b, r, y5, x20) => {
     const m = data(kind, XS, YS)
-    keys(m, 'func down down 9 eq')
+    keys(m, 'func fp:STATS 9 eq')
     near(m, a)
-    keys(m, 'ac func down down 0 eq')
+    keys(m, 'ac func fp:STATS 0 eq')
     near(m, b)
-    keys(m, 'ac func down down 8 eq')
+    keys(m, 'ac func fp:STATS 8 eq')
     near(m, r)
-    keys(m, 'ac func down down down 7 5 eq')
+    keys(m, 'ac func fp:STATS down 7 5 eq')
     near(m, y5)
-    keys(m, 'ac func down down down 6 2 0 eq')
+    keys(m, 'ac func fp:STATS down 6 2 0 eq')
     near(m, x20)
   })
 
   it('fits a quadratic: a, b, c, no r, y′ and both x′', () => {
     // y = 1 + 2x + 3x² at x = 0..3.
     const m = data('3', ['0', '1', '2', '3'], ['1', '6', '1 7', '3 4'])
-    keys(m, 'func down down 9 eq')
+    keys(m, 'func fp:STATS 9 eq')
     expect(ans(m)).toBe('1')
-    keys(m, 'ac func down down 0 eq')
+    keys(m, 'ac func fp:STATS 0 eq')
     expect(ans(m)).toBe('2')
-    keys(m, 'ac func down down down 8 eq')
+    keys(m, 'ac func fp:STATS down 8 eq')
     expect(ans(m)).toBe('3')
-    keys(m, 'ac func down down down 7 4 eq')
+    keys(m, 'ac func fp:STATS down 7 4 eq')
     expect(ans(m)).toBe('57')
-    keys(m, 'ac func down down down 6 1 7 eq')
+    keys(m, 'ac func fp:STATS down 6 1 7 eq')
     expect(ans(m)).toBe('2')
-    keys(m, 'ac func down down down 9 1 7 eq')
+    keys(m, 'ac func fp:STATS down 9 1 7 eq')
     expect(ans(m)).toBe('-2.666666667')
-    keys(m, 'ac func down down 8 eq')
+    keys(m, 'ac func fp:STATS 8 eq')
     expect(band(m)[0]).toBe('ERR:MATH')
   })
 
@@ -991,7 +991,7 @@ describe("the rest of EL-509E's list", () => {
   it("FUNC's random page: rand, dice 1-6, coin 0 or 1, rint 0-99", () => {
     const m = switchOn()
     const seen = (item: string, ok: (v: number) => boolean) => {
-      keys(m, `ac func down ${item} eq`)
+      keys(m, `ac func fp:RANDOM ${item} eq`)
       for (let k = 0; k < 20; k++) {
         const v = Number(ans(m))
         expect(ok(v), `${item}: ${v}`).toBe(true)
@@ -1002,7 +1002,7 @@ describe("the rest of EL-509E's list", () => {
     seen('2', (v) => Number.isInteger(v) && v >= 1 && v <= 6)
     seen('3', (v) => v === 0 || v === 1)
     seen('4', (v) => Number.isInteger(v) && v >= 0 && v <= 99)
-    keys(m, 'ac func down 2')
+    keys(m, 'ac func fp:RANDOM 2')
     expect(rows(m)[0]).toBe('dice')
   })
 
@@ -1077,7 +1077,7 @@ describe("the rest of EL-509E's list", () => {
     expect(variable(m, 0)).toBe('0')
     expect(variable(m, 8)).toBe('0')
     expect(ans(m)).toBe('0')
-    keys(m, 'func down down 1 eq')
+    keys(m, 'func fp:STATS 1 eq')
     expect(band(m)[0]).toBe('ERR:MATH')
   })
 
@@ -1099,7 +1099,11 @@ describe('AC on a screen that offers it', () => {
     { name: 'MENU', to: 'menu', hint: 'AC:BACK' },
     { name: 'SETUP', to: 'setup', hint: 'AC:BACK' },
     { name: 'FUNC', to: 'func', hint: 'AC:BACK' },
-    { name: "FUNC's last page", to: 'func down down down', hint: 'AC:BACK' },
+    {
+      name: "FUNC's last page",
+      to: 'func down down down down down down down down',
+      hint: 'AC:BACK',
+    },
     { name: "BASE's FUNC", to: 'menu 3 func', hint: 'AC:BACK' },
     { name: "BASE's FUNC, its second page", to: 'menu 3 func down', hint: 'AC:BACK' },
     { name: "STATS' kinds, on coming in", to: 'menu 2', hint: 'AC:BACK' },
@@ -1218,10 +1222,11 @@ describe("the ROM's and the RAM's room (docs/elec16-sci.md section 6.7)", () => 
 
   it('leaves room in the fixed ROM, where every bank calls', () => {
     // Every byte of the fixed ROM a key goes through is dear: the drawing and the key table
-    // live in banks, so a later part has room here (it once had 2,610 bytes left).
+    // live in banks, so a later part has room here (it once had 2,610 bytes left). v3's ways in
+    // took the floor from 4 KB to 3.5 KB (the user's decision, docs/elec16-sci.md section 15.8).
     let used = 0x4000
     while (used > 0 && built.image[used - 1] === 0xff) used--
-    expect(0x4000 - used).toBeGreaterThanOrEqual(4096)
+    expect(0x4000 - used).toBeGreaterThanOrEqual(3584)
   })
 })
 

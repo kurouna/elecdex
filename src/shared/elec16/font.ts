@@ -226,6 +226,8 @@ export const SYMBOLS: readonly {
   { code: 0xe2, text: '\u2260', rows: '..... ...#. ##### ..#.. ##### .#... .....' },
   { code: 0xe3, text: '\u2264', rows: '...#. ..#.. .#... ..#.. ...#. ..... #####' },
   { code: 0xe4, text: '\u2265', rows: '.#... ..#.. ...#. ..#.. .#... ..... #####' },
+  // v3 (docs/elec16-sci.md section 15.2): the product, \u03a3's partner.
+  { code: 0xe5, text: '\u03a0', rows: '##### .#.#. .#.#. .#.#. .#.#. .#.#. .#.#.' },
 ]
 
 const SYMBOL_ROWS: ReadonlyMap<number, string> = new Map(SYMBOLS.map((s) => [s.code, s.rows]))
@@ -233,7 +235,7 @@ const SYMBOL_ROWS: ReadonlyMap<number, string> = new Map(SYMBOLS.map((s) => [s.c
 /** 0x7F: a solid block, for the cursor and for bars. */
 const BLOCK = '##### ##### ##### ##### ##### ##### #####'
 
-/** Every code the table does not draw (E5-FF, kept for symbols): an empty box. */
+/** Every code the table does not draw (E6-FF, kept for symbols): an empty box. */
 const UNKNOWN = '##### #...# #...# #...# #...# #...# #####'
 
 export const FIRST_CODE = 0x20

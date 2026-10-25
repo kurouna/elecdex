@@ -41,9 +41,11 @@ import { bandWith, barDots, cls, dot, glyphAt, lineY, noCursor, textAt, textRigh
 import {
   BASE_RADIX,
   copy8,
+  E_MATH,
   E_SYNTAX,
   fail,
   isNegative,
+  isZero,
   KEEP_ANS,
   M_ADD,
   M_FORMAT,
@@ -68,6 +70,7 @@ import {
   T_CLOSE,
   T_DIVIDE,
   T_MINUS,
+  T_MOD,
   T_NOT,
   T_OPEN,
   T_OR,
@@ -144,7 +147,7 @@ export function baseCommand(k: u16): bool {
   return false
 }
 
-/** FUNC in BASE: page 1 the bases (1-5), page 2 the logic (1-6, its token); 1 back, 0 stay. */
+/** FUNC in BASE: page 1 the bases (1-5), page 2 the logic and mod (1-7, its token); 1 back, 0 stay. */
 let baseFuncPage: u16 = 0
 
 export function baseFuncKey(k: u16): u16 {
@@ -170,7 +173,8 @@ function logicOf(d: u16): u16 {
   if (d === 3) return T_XOR
   if (d === 4) return T_XNOR
   if (d === 5) return T_NOT
-  return d === 6 ? T_BNEG : 0
+  if (d === 6) return T_BNEG
+  return d === 7 ? T_MOD : 0
 }
 
 export function baseFuncScreen(): void {
@@ -187,6 +191,7 @@ function drawBaseFunc(): void {
   } else {
     textAt(str('1:AND 2:OR 3:XOR'), 1, lineY(0))
     textAt(str('4:XNOR 5:not( 6:neg('), 1, lineY(1))
+    textAt(str('7:mod'), 1, lineY(2))
   }
   textAt(str('\x8d\x8e:PAGE AC:BACK'), 1, lineY(5))
 }
@@ -273,11 +278,14 @@ function prod32(): void {
   sign32()
   for (;;) {
     const t = peekToken()
-    if (t !== T_TIMES && t !== T_DIVIDE) return
+    if (t !== T_TIMES && t !== T_DIVIDE && t !== T_MOD) return
     const where = basePos
     basePos++
     sign32()
-    arithmetic(t === T_TIMES ? M_MUL : M_IDIV, where)
+    // mod as calculators have it: a number from 0 by one from 1 (section 15.2).
+    if (t === T_MOD && (isNegative(top() - VALUE_SIZE) || isNegative(top()) || isZero(top())))
+      fail(E_MATH, where)
+    arithmetic(t === T_TIMES ? M_MUL : t === T_MOD ? M_MOD : M_IDIV, where)
   }
 }
 

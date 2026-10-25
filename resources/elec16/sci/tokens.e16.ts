@@ -138,6 +138,8 @@ export const T_TRN = 0xa8
 export const T_DOT = 0xa9
 export const T_CROSS = 0xaa
 export const T_ANGLE = 0xab
+/** v3's (section 15): Π( beside Σ(. */
+export const T_PROD = 0xac
 /** r∠θ: a complex number by its size and its angle. */
 export const T_POLAR = 0xb0
 /** MatA-MatD, then MatAns. */
@@ -150,6 +152,8 @@ export const T_LE = 0xba
 export const T_GE = 0xbb
 export const T_LBL = 0xbc
 export const T_GOTO = 0xbd
+/** v3's remainder: a mod b, as strong as x and ÷ (section 15.2). */
+export const T_MOD = 0xb6
 /** The physical constants, C0-D3 (consts.e16.ts). */
 export const T_CONST = 0xc0
 export const T_CONST_LAST = 0xd3
@@ -194,7 +198,7 @@ export function isFunction(t: u16): bool {
   return (
     (t >= T_SIN && t <= T_CBRT) ||
     (t >= T_SINH && t <= T_REC) ||
-    (t >= T_DERIV && t <= T_ANGLE) ||
+    (t >= T_DERIV && t <= T_PROD) ||
     t === T_XEST ||
     t === T_YEST ||
     t === T_X2EST

@@ -1,7 +1,7 @@
-// ELEC-16 SCI, ROM bank 8 beside BASE: Σ, d/dx and ∫ of a line in X (docs/
-// elec16-sci.md section 14.5). Each reads its body - the tokens up to its first comma - again
+// ELEC-16 SCI, ROM bank 8 beside BASE: Σ, Π, d/dx and ∫ of a line in X (docs/
+// elec16-sci.md sections 14.5 and 15.2). Each reads its body - the tokens up to its first comma - again
 // for every X it needs, through the evaluation's own reading (eval.e16.ts evalSum), and puts X
-// back as it was when it is done. Σ adds exactly; d/dx and ∫ are decimals in ten digits.
+// back as it was when it is done. Σ adds exactly and Π multiplies exactly; d/dx and ∫ are decimals in ten digits.
 import {
   addr,
   type bool,
@@ -59,12 +59,16 @@ import {
   T_INTEG,
   T_OPEN,
   T_POW,
+  T_PROD,
 } from './tokens.e16'
 
 const X_LETTER = 0x58
 
+/** Whether the Σ being worked out is Π's: its terms multiplied. */
+let multiplying: bool = false
+
 /**
- * Σ(, d/dx( or ∫( (`t`), its arguments from `p` on: its answer on the stack in their place,
+ * Σ(, Π(, d/dx( or ∫( (`t`), its arguments from `p` on: its answer on the stack in their place,
  * and where the reading goes on.
  */
 export function calculus(t: u16, p: u16, at: u16): u16 {
@@ -78,7 +82,10 @@ export function calculus(t: u16, p: u16, at: u16): u16 {
   holdX()
   if (t === T_DERIV) derivative(body, a, at)
   else if (t === T_INTEG) integral(body, a, a + VALUE_SIZE, at)
-  else sigma(body, a, a + VALUE_SIZE, at)
+  else {
+    multiplying = t === T_PROD
+    sigma(body, a, a + VALUE_SIZE, at)
+  }
   copyValue(saved, varAt(X_LETTER))
   releaseX()
   pop()
@@ -140,15 +147,19 @@ function bodyAt(body: u16, x: u16): void {
 
 /* ---------------- Σ ---------------- */
 
-/** Σ: X from a to b (whole, at most 1000 terms), the terms added exactly into a. */
+/** Σ: X from a to b (whole, at most 1000 terms), the terms added exactly into a; Π multiplies. */
 function sigma(body: u16, a: u16, b: u16, at: u16): void {
   const terms = termCount(a, b, at)
-  const sum = pushInt(0, at)
+  const sum = pushInt(multiplying ? 1 : 0, at)
   const x = push(at)
   copyValue(a, x)
   for (let i: u16 = 0; i < terms; i++) {
     bodyAt(body, x)
-    addTop(sum, at)
+    if (multiplying) {
+      math(M_MUL, sum, top(), at)
+      exactBinary(M_MUL, sum, top())
+      pop()
+    } else addTop(sum, at)
     pushInt(1, at)
     addTop(x, at)
   }
