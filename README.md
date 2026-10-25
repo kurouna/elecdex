@@ -194,7 +194,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### retro — two machines of elecdex's own, and the sound
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro preset in the Phosphor theme: the system column on the left; on the right one pane with ELEC-16, its calculator ELEC-16 SCI and CHIP-8 as tabs, the calculator in front in its SLATE body, its LCD answering sin(45)+1/2 with its exact form (1+√2)/2 over two rows of function keys and the number keys; under it the spectrum at sixteen bands">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro preset in the Phosphor theme: the system column on the left; on the right one pane with ELEC-16, its calculator ELEC-16 SCI and CHIP-8 as tabs, the calculator in front in its SLATE body, its LCD answering sin(45)+1/2 with its exact form (1+√2)/2 over two rows of function keys and the number keys, its panel's CORE beside it with the registers and the ROM's code running; under it the spectrum at sixteen bands">
   <br><sub>retro · Phosphor · the ELEC-16 in its PLAIN skin</sub>
 </p>
 

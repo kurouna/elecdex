@@ -171,7 +171,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### retro — elecdex 自己的两台机器，以及声音
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor 主题的 retro 预设：左侧是系统栏；右侧是一个把 ELEC-16、它的函数计算器 ELEC-16 SCI 和 CHIP-8 作为标签页的窗格，前面是函数计算器的 SLATE 机身，液晶以精确形式 (1+√2)/2 回答 sin(45)+1/2，下面是函数键和数字键；下方是 16 段的频谱">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor 主题的 retro 预设：左侧是系统栏；右侧是一个把 ELEC-16、它的函数计算器 ELEC-16 SCI 和 CHIP-8 作为标签页的窗格，前面是函数计算器的 SLATE 机身，液晶以精确形式 (1+√2)/2 回答 sin(45)+1/2，下面是函数键和数字键，旁边是面板的 CORE，显示寄存器和正在运行的 ROM 代码；下方是 16 段的频谱">
   <br><sub>retro · Phosphor · ELEC-16 使用 PLAIN 外观</sub>
 </p>
 

@@ -188,7 +188,7 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 ### retro — elecdex の 2 台の機械と、その音
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor テーマの retro プリセット：左にシステムの列、右に ELEC-16、その関数電卓 ELEC-16 SCI、CHIP-8 をタブにした 1 つのペイン。手前は関数電卓で SLATE の本体、液晶に sin(45)+1/2 を正確な形 (1+√2)/2 で答え、その下に関数のキーと数字のキー。その下に 16 バンドのスペクトラム">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="Phosphor テーマの retro プリセット：左にシステムの列、右に ELEC-16、その関数電卓 ELEC-16 SCI、CHIP-8 をタブにした 1 つのペイン。手前は関数電卓で SLATE の本体、液晶に sin(45)+1/2 を正確な形 (1+√2)/2 で答え、その下に関数のキーと数字のキー。横にパネルの CORE でレジスタと動いている ROM のコード。その下に 16 バンドのスペクトラム">
   <br><sub>retro · Phosphor · ELEC-16 は PLAIN スキン</sub>
 </p>
 

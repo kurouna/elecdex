@@ -940,9 +940,10 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
   standIn.close()
 }
 // retro: its calculator in front of the pocket ELEC-16 and the CHIP-8, answering in its exact
-// form, the demo sound on the spectrum's sixteen bands under them.
+// form with its panel open (CORE: the ROM running), the demo sound on the spectrum's sixteen
+// bands under them.
 await shoot('phosphor', 'elecdex-retro', {
-  layout: withState(preset('retro'), {}, sciTab),
+  layout: withState(preset('retro'), { elec16: { panel: true } }, sciTab),
   env: { ELECDEX_AUDIO_STUB: 'demo' },
   extra: sciInPreset,
   fullscreen: true,
