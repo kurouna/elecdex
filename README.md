@@ -24,7 +24,7 @@ for Windows, macOS and Linux.
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.43 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.44 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -82,7 +82,7 @@ details are in [Layout presets](docs/guide/presets.md).
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.md#retro"><img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro layout preset in the Tron theme"></a><br><sub><b>retro</b> · Ctrl+Shift+F9 · CHIP-8, the ELEC-16 machines and the SCI-128 calculator</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="The blank layout preset in the Amber theme"></a><br><sub><b>blank</b> (<i>unreleased</i>) · Ctrl+Shift+F10 · no pane yet: build a layout of your own</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="The blank layout preset in the Amber theme"></a><br><sub><b>blank</b> · Ctrl+Shift+F10 · no pane yet: build a layout of your own</sub></td>
   </tr>
 </table>
 

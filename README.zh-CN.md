@@ -23,7 +23,7 @@
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
-> **v0.0.43 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.44 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -68,7 +68,7 @@ elecdex 是一个把终端和系统实时信息放在同一屏幕上、带有科
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#retro"><img src="./docs/screenshots/elecdex-retro.jpg" alt="Tron 主题下的 retro 预设"></a><br><sub><b>retro</b> · Ctrl+Shift+F9 · CHIP-8、ELEC-16 系列机器与 SCI-128 科学计算器</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber 主题下的 blank 预设"></a><br><sub><b>blank</b> (<i>unreleased</i>) · Ctrl+Shift+F10 · 尚无窗格：搭建你自己的布局</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber 主题下的 blank 预设"></a><br><sub><b>blank</b> · Ctrl+Shift+F10 · 尚无窗格：搭建你自己的布局</sub></td>
   </tr>
 </table>
 

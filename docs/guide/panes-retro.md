@@ -364,7 +364,7 @@ A scientific calculator of its own design, the model SCI-128, on a 128×64 LCD w
 - **CONST** puts in twenty physical constants (CODATA 2022).
 - **CONV** converts between twenty pairs of units.
 - **Σ, d/dx and ∫** sum, differentiate and integrate a line in X. The sum is kept exact: Σ(1/X,1,4) is 25/12.
-- *Unreleased*:
+- New in v0.0.44:
   - `mod` and Π;
   - →PRIME, an answer as its prime factors (360 is 2³×3²×5);
   - SI prefixes (47k×220p; ENG pressed again shows 10.34μ);

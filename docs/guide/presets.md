@@ -444,14 +444,14 @@ The machine behind its tab is paused while it is out of sight.
 | Key | **Ctrl+Shift+F10** |
 | Panes | none |
 | Picture | Amber, with the add-pane picker open for the first pane |
-| Status | *unreleased* (on `main`, arrives with the next release) |
+| Status | Released in v0.0.44 |
 
 <p align="center">
   <img src="../screenshots/elecdex-blank.jpg" alt="The blank preset in the Amber theme: a workspace with no pane, and over it the add-pane picker listing every widget with its description, the placements right, below, new tab and pop up at its top">
   <br><sub>blank · Amber · the picker open for the first pane</sub>
 </p>
 
-- **blank** (*unreleased*) — a layout with no pane in it: *no panes in this layout* and
+- **blank** — a layout with no pane in it: *no panes in this layout* and
   **+ add pane** (or Ctrl+Shift+A) open the picker, and the first pane chosen fills the screen;
   split it, add tabs and drag panes from there. Closing the last pane of any layout leaves it empty
   in the same way.

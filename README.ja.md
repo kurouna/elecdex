@@ -24,7 +24,7 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
 </p>
 
-> **v0.0.43 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
+> **v0.0.44 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
 > *unreleased* と記したものは `main` にあり、次のリリースで入ります。
 >
 > **Windows で開発し、使っています。** macOS と Linux もリリースごとにビルドしていますが、
@@ -70,7 +70,7 @@ elecdex は、シェルとシステムの状態を 1 つの画面に並べる、
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.ja.md#retro"><img src="./docs/screenshots/elecdex-retro.jpg" alt="Tron テーマの retro プリセット"></a><br><sub><b>retro</b> · Ctrl+Shift+F9 · CHIP-8、ELEC-16 の機械、関数電卓 SCI-128</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber テーマの blank プリセット"></a><br><sub><b>blank</b> (<i>unreleased</i>) · Ctrl+Shift+F10 · ペインなし: 自分のレイアウトを組む</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber テーマの blank プリセット"></a><br><sub><b>blank</b> · Ctrl+Shift+F10 · ペインなし: 自分のレイアウトを組む</sub></td>
   </tr>
 </table>
 

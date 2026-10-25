@@ -393,14 +393,14 @@ elecdex 启动时的默认布局。
 | 按键 | **Ctrl+Shift+F10** |
 | 窗格 | 无 |
 | 截图 | Amber，为第一个窗格打开了选择器 |
-| 状态 | *unreleased*（在 `main` 上，随下一个版本发布） |
+| 状态 | 于 v0.0.44 发布 |
 
 <p align="center">
   <img src="../screenshots/elecdex-blank.jpg" alt="Amber 主题下的 blank 预设：没有任何窗格的工作区上打开了添加窗格的选择器，列出每个小部件及其说明，顶部是放置方式（右侧、下方、新标签页、弹出）">
   <br><sub>blank · Amber · 为第一个窗格打开的选择器</sub>
 </p>
 
-- **blank**（*unreleased*）— 一个窗格也没有的布局：*no panes in this layout* 下方的 **+ add pane**（或
+- **blank** — 一个窗格也没有的布局：*no panes in this layout* 下方的 **+ add pane**（或
   Ctrl+Shift+A）会打开选择器，选中的第一个窗格铺满整个屏幕；之后再拆分、加标签页、拖动窗格。任何布局关闭最后一个
   窗格后，也会像这样变空。
 - 在空布局中，无论选择器选的是哪种放置方式，第一个窗格都会铺满屏幕；拆分和新标签页的按键（Ctrl+Shift+E、
