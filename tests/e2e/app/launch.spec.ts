@@ -142,6 +142,53 @@ test("has no menu of Electron's, so its own keys reach nothing", async () => {
   ).toBe(0)
 })
 
+test('Ctrl and the wheel ask to zoom, and nothing zooms', async () => {
+  // Nothing of elecdex's stops it: Electron only emits zoom-changed for Ctrl and the wheel and
+  // leaves the page as it was. Should a later Electron zoom by itself, the workspace's layout
+  // would grow under the user's hand; this says so. zoom-changed is asserted too, so the test
+  // knows its wheel reached Electron as a request to zoom and not as a plain scroll. The wheel
+  // goes in through sendInputEvent: Playwright's mouse.wheel, held Control or not, never
+  // reached Electron as one (zoom-changed stayed silent). One notch in only, as a notch out
+  // after it would hide a zoom by undoing it.
+  await app.evaluate(({ BrowserWindow }) => {
+    const heard: string[] = []
+    ;(globalThis as unknown as { __zoomAsked: string[] }).__zoomAsked = heard
+    BrowserWindow.getAllWindows()[0]?.webContents.on('zoom-changed', (_event, direction) => {
+      heard.push(direction)
+    })
+  })
+  const level = () =>
+    app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]?.webContents.getZoomLevel(),
+    )
+  const asked = () =>
+    app.evaluate(() => (globalThis as unknown as { __zoomAsked: string[] }).__zoomAsked)
+  // Over the status bar, which takes no wheel of its own.
+  const bar = await page.getByTestId('status-bar').boundingBox()
+  if (bar === null) throw new Error('no status bar')
+  const at = { x: Math.round(bar.x + bar.width / 2), y: Math.round(bar.y + bar.height / 2) }
+  try {
+    await app.evaluate(({ BrowserWindow }, p) => {
+      BrowserWindow.getAllWindows()[0]?.webContents.sendInputEvent({
+        type: 'mouseWheel',
+        ...p,
+        deltaX: 0,
+        deltaY: 120,
+        wheelTicksY: 1,
+        canScroll: true,
+        modifiers: ['control'],
+      })
+    }, at)
+    await expect.poll(asked).toContain('in')
+    await quietFor(500, level, 'the zoom after the wheel')
+    expect(await level()).toBe(0)
+  } finally {
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]?.webContents.setZoomLevel(0),
+    )
+  }
+})
+
 test('reveals only the files main knows, and takes no path from the page', async () => {
   // Found in the sweep: a reveal channel showed any path the page named.
   await app.evaluate(({ shell }) => {
