@@ -150,6 +150,11 @@ test('Ctrl and the wheel ask to zoom, and nothing zooms', async () => {
   // goes in through sendInputEvent: Playwright's mouse.wheel, held Control or not, never
   // reached Electron as one (zoom-changed stayed silent). One notch in only, as a notch out
   // after it would hide a zoom by undoing it.
+  // On macOS Chromium never zooms on Ctrl and the wheel, nor asks (WebContentsImpl's
+  // HandleWheelEvent is not built there: the OS zooms by pinching), so zoom-changed stays
+  // silent: there the test knows its wheel arrived by the page seeing it with Ctrl held.
+  // Found on the macOS runner, where this waited for an "in" that never came.
+  const mac = process.platform === 'darwin'
   await app.evaluate(({ BrowserWindow }) => {
     const heard: string[] = []
     ;(globalThis as unknown as { __zoomAsked: string[] }).__zoomAsked = heard
@@ -157,6 +162,12 @@ test('Ctrl and the wheel ask to zoom, and nothing zooms', async () => {
       heard.push(direction)
     })
   })
+  await page.evaluate(() => {
+    const seen: boolean[] = []
+    ;(window as unknown as { __wheels: boolean[] }).__wheels = seen
+    window.addEventListener('wheel', (e) => seen.push(e.ctrlKey), { capture: true, passive: true })
+  })
+  const wheels = () => page.evaluate(() => (window as unknown as { __wheels: boolean[] }).__wheels)
   const level = () =>
     app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0]?.webContents.getZoomLevel(),
@@ -179,7 +190,8 @@ test('Ctrl and the wheel ask to zoom, and nothing zooms', async () => {
         modifiers: ['control'],
       })
     }, at)
-    await expect.poll(asked).toContain('in')
+    if (mac) await expect.poll(wheels).toContain(true)
+    else await expect.poll(asked).toContain('in')
     await quietFor(500, level, 'the zoom after the wheel')
     expect(await level()).toBe(0)
   } finally {
