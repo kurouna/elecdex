@@ -180,6 +180,22 @@ describe("the calculator's keys from the PC", () => {
     expect(key('Pause', 'Pause')).toEqual({ kind: 'brk' })
   })
 
+  // Found in a review: a capital letter (CapsLock, or Shift held) typed nothing.
+  it('takes a letter in either case: with CapsLock its key, with Shift held its SHIFT face', () => {
+    expect(key('S', 'KeyS')).toEqual({ kind: 'key', code: sciKeyCode('sin'), shift: false })
+    expect(key('S', 'KeyS', { shiftKey: true })).toEqual({
+      kind: 'key',
+      code: sciKeyCode('sin'),
+      shift: true,
+    })
+    expect(key('g', 'KeyG', { shiftKey: true })).toEqual({
+      kind: 'key',
+      code: sciKeyCode('log'),
+      shift: true,
+    })
+    expect(key('Q', 'KeyQ', { shiftKey: true }).kind).toBe('pass')
+  })
+
   it("never takes the app's keys: Ctrl, Alt or the system key, Tab, Escape, the function keys", () => {
     expect(key('7', 'Digit7', { ctrlKey: true }).kind).toBe('pass')
     expect(key('s', 'KeyS', { altKey: true }).kind).toBe('pass')

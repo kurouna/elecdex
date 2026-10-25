@@ -98,6 +98,9 @@ function pastPostfixes(buf: u16, cur: u16): u16 {
   return 0
 }
 
+/** Where the last `wrap` put its opener: the value it took in starts after it. */
+export let wrapStart: u16 = 0
+
 /**
  * a/b, a b/c or ʸ√x at `cur` (`opener` FRAC, MIXED or XROOT): the value before it made the
  * first part - the numerator, the whole part, the index - the cursor in the next; with no value
@@ -105,6 +108,7 @@ function pastPostfixes(buf: u16, cur: u16): u16 {
  */
 export function wrap(buf: u16, length: u16, cur: u16, opener: u16): void {
   const start = operandStart(buf, cur)
+  wrapStart = start
   const size = marksOf(opener)
   memcpy(buf + cur + size, buf + cur, length - cur)
   memcpy(buf + start + 1, buf + start, cur - start)

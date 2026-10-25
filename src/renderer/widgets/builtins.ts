@@ -511,7 +511,7 @@ registerBuiltin({
       key: 'sci',
       pickerTitle: 'elec-16 sci',
       description:
-        'The ELEC-16 as a scientific calculator of its own: a 128 x 64 dot LCD and calculator keys, on a new unit. The calculator itself is still being built.',
+        'The ELEC-16 as a scientific calculator of its own: a 128 x 64 dot LCD and calculator keys, on a new unit.',
       state: { fresh: 'sci-128' },
     },
   ],

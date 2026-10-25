@@ -30,7 +30,7 @@ import {
   SHOW_PAIR,
 } from './display.e16'
 import { drawAnnunciators, drawScreen } from './draw.e16'
-import { deleteAt, editCursor, editLength, vertical, wrap } from './edit.e16'
+import { deleteAt, editCursor, editLength, vertical, wrap, wrapStart } from './edit.e16'
 import { eqnKey, eqnReset, eqnStart } from './equation.e16'
 import { evaluate } from './eval.e16'
 import { exactBinary } from './exact.e16'
@@ -776,11 +776,13 @@ function plainTemplate(k: u16, shift: bool): bool {
   }
   const root = k === K_ROOT && !shift
   if (answered) afresh(fractionKey || k === K_POW)
+  const before = length
+  const at = cursor
   if (fractionKey) {
     wrap(addr(line), length, cursor, T_FRAC)
     edited()
   } else insertTemplate(k, root)
-  tallEnough()
+  tallEnough(before, at, fractionKey ? wrapStart : at)
   drawCalc()
   return true
 }
@@ -792,18 +794,26 @@ function wrapped(opener: u16): void {
     refuse()
     return
   }
+  const before = length
+  const at = cursor
   wrap(addr(line), length, cursor, opener)
   edited()
-  tallEnough()
+  tallEnough(before, at, wrapStart)
   drawCalc()
 }
 
-/** A template too tall to show is taken back out (the last one put in), with a beep. */
-function tallEnough(): void {
+/**
+ * A template too tall to show is taken back out whole, with a beep: the line as it was, `before`
+ * tokens with the cursor `at`. Its opener went in at `start` (the value it took in after it, up to
+ * `at`), its other marks - or the whole of one put in, a 10 or e too - at `at`.
+ */
+function tallEnough(before: u16, at: u16, start: u16): void {
   if (!twoD() || heightOf(addr(line), length) <= LINE_HEIGHT_MAX) return
   refuse()
-  deleteAt(addr(line), length, cursor)
-  edited()
+  memcpy(addr(line) + start, addr(line) + start + 1, at - start)
+  memcpy(addr(line) + at, addr(line) + at + length - before, before - at)
+  length = before
+  cursor = at
 }
 
 /**

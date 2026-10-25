@@ -420,6 +420,26 @@ describe('the 2D display and exact answers (S4)', () => {
     expect(Uint8Array.from(m.state.vram)).toEqual(before)
   })
 
+  // Found in a review: the template taken back was left in when it had a value in it (a/b
+  // or a b/c around a number) or a 10 or e before it (10ˣ, eˣ) - the line as it was before.
+  it.each([
+    ['a/b around a number', 'frac'],
+    ['a b/c around a number', 'shift frac'],
+    ['10ˣ', 'shift log'],
+    ['eˣ', 'shift ln'],
+  ])('takes a too-tall %s back out whole, the line as it was', (_, key) => {
+    const m = switchOn('2d')
+    keys(m, 'frac frac frac 2')
+    const before = Uint8Array.from(m.state.vram)
+    keys(m, key)
+    expect(Uint8Array.from(m.state.vram)).toEqual(before)
+    // The line goes on from where it was, as one that never had the key pressed.
+    const same = switchOn('2d')
+    keys(same, 'frac frac frac 2 3 left del')
+    keys(m, '3 left del')
+    expect(Uint8Array.from(m.state.vram)).toEqual(Uint8Array.from(same.state.vram))
+  })
+
   it('keeps a form in a variable, through OFF and ON', () => {
     const m = switchOn('2d')
     keys(m, '1 frac 3 eq sto neg ac alpha neg add 1 eq')

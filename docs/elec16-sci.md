@@ -184,7 +184,7 @@ ELEC-16 の 3 つ目のモデルとして作る関数電卓の仕様です。**�
 
 ### 5.3 PC のキー
 
-- 数字、`+ - * /`、`^`（xʸ）、`(` `)`、`.`、`Enter`（=）、`Backspace`（DEL）、**`Delete`（AC）**、矢印。文字のキーは関数に（`s` SIN、`c` COS、`t` TAN、`l` LN、`g` LOG、`r` √、`f` a/b、`e` EXP、`!` x!）
+- 数字、`+ - * /`、`^`（xʸ）、`(` `)`、`.`、`Enter`（=）、`Backspace`（DEL）、**`Delete`（AC）**、矢印。文字のキーは関数に（`s` SIN、`c` COS、`t` TAN、`l` LN、`g` LOG、`r` √、`f` a/b、`e` EXP、`!` x!）。CapsLock の大文字も同じキー、Shift を押しながらの文字はそのキーの SHIFT 面（レビューで、大文字が何も打たないと分かり、直した）
 - **Esc は取らない**。Ctrl・Alt・Meta 付き、Tab、ファンクションキーも取らない（pc-keys.ts の今の規則。アプリのショートカットとペインから出る道）。判断は PLAY の `play-input.ts` と同じ形の `sciKeyFate`
 - PASTE は SCI では出さない（数字と演算子だけを通す案もあるが、v1 では要らない）
 - PC のキーで押したキーも本体のキーが沈む

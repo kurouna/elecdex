@@ -2,7 +2,8 @@
 // section 14.8). Four programs kept in v2's region, each a line of statements between colons,
 // edited as the calculator's own line (LINE) and run by =: an expression, one stored (→V),
 // shown (▶), a value asked for (?→V), a condition (⇒), lbl and goto. A statement is evaluated
-// where it is in the line, so an error's place is the program's own. ON or AC stops a run.
+// where it is in the line, so an error's place is the program's own. ON (BRK) stops a run at
+// any time; AC too while ? or ▶ waits for a key.
 import { addr, type bool, bytes, div, peek, str, type u16 } from '../../../src/shared/e16c/builtins'
 import { getkey, K_AC, K_ALPHA, K_DEL, K_EQ, K_SHIFT, refuse } from './calc.e16'
 import { drawAnswerAs, SHOW_DECIMAL } from './display.e16'

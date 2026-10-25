@@ -26,7 +26,8 @@ const BY_PLACE: Readonly<Record<string, string>> = {
 
 /**
  * By the character typed (`event.key`), so a keyboard of any layout types its own digits and
- * signs; the letters are the functions' first letters. `!` is a SHIFT face: x! on x⁻¹.
+ * signs; the letters are the functions' first letters, in either case. `!` is a SHIFT face: x! on
+ * x⁻¹.
  */
 const BY_CHARACTER: Readonly<Record<string, readonly [string, boolean]>> = {
   '0': ['0', false],
@@ -68,7 +69,10 @@ export function sciKeyFate(event: PcKey): SciKeyFate {
   if (event.code === 'Pause') return { kind: 'brk' }
   const placed = BY_PLACE[event.code]
   if (placed !== undefined) return { kind: 'key', code: sciKeyCode(placed), shift: false }
-  const typed = BY_CHARACTER[event.key]
+  const letter = /^[a-z]$/i.test(event.key)
+  const typed = BY_CHARACTER[letter ? event.key.toLowerCase() : event.key]
   if (typed === undefined) return { kind: 'pass' }
-  return { kind: 'key', code: sciKeyCode(typed[0]), shift: typed[1] }
+  // A letter's case is CapsLock's or Shift's; Shift held is the key's SHIFT face, as on the body.
+  const shift = typed[1] || (letter && event.shiftKey)
+  return { kind: 'key', code: sciKeyCode(typed[0]), shift }
 }
