@@ -22,6 +22,7 @@ import { convLabel } from './consts.e16'
 import { setAnswer, setTokensAt, tokensWidth } from './layout.e16'
 import { bigNumber, textAt, textRight } from './lcd.e16'
 import {
+  copy8,
   diffValue,
   FORMAT_AUTO2,
   FORMAT_EXP,
@@ -121,7 +122,7 @@ export function hasForm(): bool {
 /** Whether Ans is a fraction greater than 1 in size, which a mixed number can show. */
 function mixable(): bool {
   if (!hasForm() || !isZero(KEEP_ANS + V_R)) return false
-  copy(KEEP_ANS + V_P, addr(scratch))
+  copy8(KEEP_ANS + V_P, addr(scratch))
   math(M_ABS, addr(scratch), 0, 0)
   math(M_SUB, addr(scratch), KEEP_ANS + V_Q, 0)
   return !isNegative(addr(scratch)) && !isZero(addr(scratch))
@@ -465,17 +466,21 @@ function boundTokens(v: u16, digits: u16): void {
     formTokens(v)
     return
   }
+  formatTokens(v, digits)
+}
+
+/** A decimal in six significant digits as tokens (its characters are its tokens). */
+function shortNumber(v: u16): void {
+  formatTokens(v, 6)
+}
+
+/** A decimal in `digits` significant digits as tokens: its sign the minus, its exponent ᴇ. */
+function formatTokens(v: u16, digits: u16): void {
   format(v, digits)
   for (let i: u16 = 0; i < textLength; i++) {
     const c = text[i]
     answerToken(c === 0x2d ? T_MINUS : c === 0x45 ? T_EXP : c)
   }
-}
-
-/** A decimal in six significant digits as tokens (its characters are its tokens). */
-function shortNumber(v: u16): void {
-  format(v, 6)
-  for (let i: u16 = 0; i < textLength; i++) answerToken(text[i] === 0x2d ? T_MINUS : text[i])
 }
 
 /** p/q as a mixed number: its sign before, the whole part, then what is left over q. */
@@ -484,9 +489,9 @@ function showMixed(): void {
   const p = KEEP_ANS + V_P
   const q = KEEP_ANS + V_Q
   if (isNegative(p)) answerToken(T_MINUS)
-  copy(p, addr(scratch))
+  copy8(p, addr(scratch))
   math(M_ABS, addr(scratch), 0, 0)
-  copy(addr(scratch), addr(spare))
+  copy8(addr(scratch), addr(spare))
   math(M_IDIV, addr(scratch), q, 0)
   math(M_MOD, addr(spare), q, 0)
   answerToken(T_MIXED)
@@ -540,7 +545,7 @@ function isMinusOne(n: u16): bool {
 
 /** Whether a number is 1 in size: exponent 0, the digits 1 then zeros. */
 function isUnit(n: u16): bool {
-  return peek(n + 1) === 0 && peek(n + 2) === 0x10 && peek16(n + 4) === 0 && peek16(n + 6) === 0
+  return peek(n + 1) === 0 && peek16(n + 2) === 0x10 && peek16(n + 4) === 0 && peek16(n + 6) === 0
 }
 
 /* ---------------- a decimal's text ---------------- */
@@ -555,7 +560,7 @@ function format(v: u16, digits: u16): void {
 
 /** `v` rounded by RNDTO's `digits` (significant above 0, places at or below) into scratch. */
 function rounded(v: u16, digits: u16): void {
-  copy(v, addr(scratch))
+  copy8(v, addr(scratch))
   poke16(MATH_ARG, digits)
   math(M_RNDTO, addr(scratch), 0, 0)
 }
@@ -715,14 +720,14 @@ function dmsText(v: u16): void {
     return
   }
   setDigits(1)
-  copy(v, addr(degreePart))
+  copy8(v, addr(degreePart))
   math(M_ABS, addr(degreePart), 0, 0)
   // The minutes: what is past the degrees, x 60; the seconds what is past those, x 60.
-  copy(addr(degreePart), addr(minutePart))
+  copy8(addr(degreePart), addr(minutePart))
   math(M_IDIV, addr(degreePart), addr(unit), 0)
   math(M_SUB, addr(minutePart), addr(degreePart), 0)
   sixty(addr(minutePart))
-  copy(addr(minutePart), addr(spare))
+  copy8(addr(minutePart), addr(spare))
   math(M_IDIV, addr(minutePart), addr(unit), 0)
   math(M_SUB, addr(spare), addr(minutePart), 0)
   sixty(addr(spare))
@@ -730,7 +735,7 @@ function dmsText(v: u16): void {
   math(M_RNDTO, addr(spare), 0, 0)
   // Seconds rounded up to 60 are a minute (1.9999999 is 2°0′0″, never 1°59′60″).
   setDigits(1)
-  copy(addr(unit), addr(scratch))
+  copy8(addr(unit), addr(scratch))
   setDigits(60)
   carry(addr(spare), addr(minutePart))
   carry(addr(minutePart), addr(degreePart))
@@ -774,8 +779,4 @@ function setDigits(n: u16): void {
     unit[1] = 1
     unit[2] = (div(n, 10) << 4) | (n % 10)
   } else unit[2] = n << 4
-}
-
-function copy(from: u16, to: u16): void {
-  for (let k: u16 = 0; k < 8; k++) poke(to + k, peek(from + k))
 }

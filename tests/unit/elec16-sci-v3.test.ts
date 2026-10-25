@@ -472,3 +472,15 @@ describe('found in the review of v3', () => {
     expect(ans(m)).toBe('2')
   })
 })
+
+describe('found in the review after v0.0.42', () => {
+  // The complex roots' short decimals wrote their exponent as the letter E, the inequalities'
+  // bounds as the machine's ᴇ: one way of writing a decimal's tokens now, ᴇ in both.
+  it("writes a complex root's exponent as ᴇ, as every other answer does", () => {
+    const m = switchOn()
+    keys(m, 'menu 5 3 1 eq 0 eq 2 exp 1 4 eq eq')
+    const read = dotText(m.state.vram, 128, 64).join(' ')
+    expect(read).toContain('1.41421ᴇ7i')
+    expect(read).not.toContain('1.41421E7')
+  })
+})

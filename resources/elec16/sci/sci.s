@@ -18779,19 +18779,19 @@ str_242:
 
   .bank 5
   .org 0xc000
-; sci/display.e16.ts:116 hasForm() at -O1
+; sci/display.e16.ts:117 hasForm() at -O1
 hasForm:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/display.e16.ts:117  if (!isExact(KEEP_ANS)) return false
+  ; sci/display.e16.ts:118  if (!isExact(KEEP_ANS)) return false
   li a0, 3080
   call isExact
   bnez a0, .L1
-  ; sci/display.e16.ts:117  return false
+  ; sci/display.e16.ts:118  return false
   li a0, 0
   j .return
 .L1:
-  ; sci/display.e16.ts:118  return !isZero(KEEP_ANS + V_R) || !isOne(KEEP_ANS + V_Q)
+  ; sci/display.e16.ts:119  return !isZero(KEEP_ANS + V_R) || !isOne(KEEP_ANS + V_Q)
   li a0, 3100
   call isZero
   seqz t0, a0
@@ -18807,38 +18807,38 @@ hasForm:
   addi sp, sp, 2
   ret
 
-; sci/display.e16.ts:122 mixable() at -O1
+; sci/display.e16.ts:123 mixable() at -O1
 mixable:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/display.e16.ts:123  if (!hasForm() || !isZero(KEEP_ANS + V_R)) return false
+  ; sci/display.e16.ts:124  if (!hasForm() || !isZero(KEEP_ANS + V_R)) return false
   call hasForm
   beqz a0, .L2
   li a0, 3100
   call isZero
   bnez a0, .L1
 .L2:
-  ; sci/display.e16.ts:123  return false
+  ; sci/display.e16.ts:124  return false
   li a0, 0
   j .return
 .L1:
-  ; sci/display.e16.ts:124  copy(KEEP_ANS + V_P, addr(scratch))
+  ; sci/display.e16.ts:125  copy8(KEEP_ANS + V_P, addr(scratch))
   li a0, 3092
   la a1, scratch
-  call copy
-  ; sci/display.e16.ts:125  math(M_ABS, addr(scratch), 0, 0)
+  call copy8
+  ; sci/display.e16.ts:126  math(M_ABS, addr(scratch), 0, 0)
   li a0, 17
   la a1, scratch
   li a2, 0
   li a3, 0
   call math
-  ; sci/display.e16.ts:126  math(M_SUB, addr(scratch), KEEP_ANS + V_Q, 0)
+  ; sci/display.e16.ts:127  math(M_SUB, addr(scratch), KEEP_ANS + V_Q, 0)
   li a0, 2
   la a1, scratch
   li a2, 3108
   li a3, 0
   call math
-  ; sci/display.e16.ts:127  return !isNegative(addr(scratch)) && !isZero(addr(scratch))
+  ; sci/display.e16.ts:128  return !isNegative(addr(scratch)) && !isZero(addr(scratch))
   la a0, scratch
   call isNegative
   seqz t0, a0
@@ -18854,7 +18854,7 @@ mixable:
   addi sp, sp, 2
   ret
 
-; sci/display.e16.ts:134 pairLine(at, length) at -O1
+; sci/display.e16.ts:135 pairLine(at, length) at -O1
 ;   at in 0(sp)
 ;   length in s0
 ;   first/depth in s1
@@ -18869,38 +18869,38 @@ pairLine:
   sw s3, 10(sp)
   sw a0, 0(sp) ; at
   mv s0, a1 ; length
-  ; sci/display.e16.ts:135  const first = peek(at)
+  ; sci/display.e16.ts:136  const first = peek(at)
   lw t0, 0(sp) ; at
   lbu s1, 0(t0)
-  ; sci/display.e16.ts:136  if (length === 0 || (first !== T_POL && first !== T_REC)) return false
+  ; sci/display.e16.ts:137  if (length === 0 || (first !== T_POL && first !== T_REC)) return false
   beq s0, zero, .L2
   li t0, 235
   beq s1, t0, .L1
   li t0, 236
   beq s1, t0, .L1
 .L2:
-  ; sci/display.e16.ts:136  return false
+  ; sci/display.e16.ts:137  return false
   li a0, 0
   j .return
 .L1:
-  ; sci/display.e16.ts:137  let depth: u16 = 1
+  ; sci/display.e16.ts:138  let depth: u16 = 1
   li s1, 1 ; first/depth
-  ; sci/display.e16.ts:138  for (let i: u16 = 1; i < length; i++) {
+  ; sci/display.e16.ts:139  for (let i: u16 = 1; i < length; i++) {
   li s2, 1 ; i
   j .L5
 .L3:
-  ; sci/display.e16.ts:139  const t = peek(at + i)
+  ; sci/display.e16.ts:140  const t = peek(at + i)
   lw t0, 0(sp) ; at
   add t0, t0, s2
   lbu s3, 0(t0)
-  ; sci/display.e16.ts:140  if (t === T_CLOSE) depth--
+  ; sci/display.e16.ts:141  if (t === T_CLOSE) depth--
   li t0, 41
   bne s3, t0, .L7
-  ; sci/display.e16.ts:140  depth--
+  ; sci/display.e16.ts:141  depth--
   addi s1, s1, -1
   j .L8
 .L7:
-  ; sci/display.e16.ts:141  if (t === T_OPEN || t === T_POW || isFunction(t)) depth++
+  ; sci/display.e16.ts:142  if (t === T_OPEN || t === T_POW || isFunction(t)) depth++
   li t0, 40
   beq s3, t0, .L10
   li t0, 17
@@ -18909,13 +18909,13 @@ pairLine:
   call isFunction
   beqz a0, .L9
 .L10:
-  ; sci/display.e16.ts:141  depth++
+  ; sci/display.e16.ts:142  depth++
   addi s1, s1, 1
 .L9:
 .L8:
-  ; sci/display.e16.ts:142  if (depth === 0) return i === length - 1
+  ; sci/display.e16.ts:143  if (depth === 0) return i === length - 1
   bne s1, zero, .L11
-  ; sci/display.e16.ts:142  return i === length - 1
+  ; sci/display.e16.ts:143  return i === length - 1
   addi t0, s0, -1
   sub t0, s2, t0
   seqz a0, t0
@@ -18924,7 +18924,7 @@ pairLine:
   addi s2, s2, 1
 .L5:
   bltu s2, s0, .L3
-  ; sci/display.e16.ts:144  return true
+  ; sci/display.e16.ts:145  return true
   li a0, 1
 .return:
   lw ra, 2(sp)
@@ -18935,32 +18935,32 @@ pairLine:
   addi sp, sp, 12
   ret
 
-; sci/display.e16.ts:148 firstShown(form) at -O1
+; sci/display.e16.ts:149 firstShown(form) at -O1
 ;   form in s1
 firstShown:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; form
-  ; sci/display.e16.ts:149  if (!form || !hasForm()) return SHOW_DECIMAL
+  ; sci/display.e16.ts:150  if (!form || !hasForm()) return SHOW_DECIMAL
   beqz s1, .L2
   call hasForm
   bnez a0, .L1
 .L2:
-  ; sci/display.e16.ts:149  return SHOW_DECIMAL
+  ; sci/display.e16.ts:150  return SHOW_DECIMAL
   li a0, 0
   j .return
 .L1:
-  ; sci/display.e16.ts:150  if (peek(KEEP_MIXED) !== 0 && mixable()) return SHOW_MIXED
+  ; sci/display.e16.ts:151  if (peek(KEEP_MIXED) !== 0 && mixable()) return SHOW_MIXED
   lbu t0, 3079(zero)
   beq t0, zero, .L3
   call mixable
   beqz a0, .L3
-  ; sci/display.e16.ts:150  return SHOW_MIXED
+  ; sci/display.e16.ts:151  return SHOW_MIXED
   li a0, 2
   j .return
 .L3:
-  ; sci/display.e16.ts:151  return SHOW_FORM
+  ; sci/display.e16.ts:152  return SHOW_FORM
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -18968,17 +18968,17 @@ firstShown:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:155 nextShown(shown) at -O1
+; sci/display.e16.ts:156 nextShown(shown) at -O1
 ;   shown in s1
 nextShown:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; shown
-  ; sci/display.e16.ts:156  if (shown === SHOW_FORM) return mixable() ? SHOW_MIXED : SHOW_DECIMAL
+  ; sci/display.e16.ts:157  if (shown === SHOW_FORM) return mixable() ? SHOW_MIXED : SHOW_DECIMAL
   li t0, 1
   bne s1, t0, .L1
-  ; sci/display.e16.ts:156  return mixable() ? SHOW_MIXED : SHOW_DECIMAL
+  ; sci/display.e16.ts:157  return mixable() ? SHOW_MIXED : SHOW_DECIMAL
   call mixable
   beqz a0, .L2
   li t0, 2
@@ -18989,14 +18989,14 @@ nextShown:
   mv a0, t0
   j .return
 .L1:
-  ; sci/display.e16.ts:157  if (shown === SHOW_MIXED) return SHOW_DECIMAL
+  ; sci/display.e16.ts:158  if (shown === SHOW_MIXED) return SHOW_DECIMAL
   li t0, 2
   bne s1, t0, .L4
-  ; sci/display.e16.ts:157  return SHOW_DECIMAL
+  ; sci/display.e16.ts:158  return SHOW_DECIMAL
   li a0, 0
   j .return
 .L4:
-  ; sci/display.e16.ts:158  return SHOW_FORM
+  ; sci/display.e16.ts:159  return SHOW_FORM
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -19004,82 +19004,82 @@ nextShown:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:164 drawAnswerAs(shown) at -O1
+; sci/display.e16.ts:165 drawAnswerAs(shown) at -O1
 ;   shown in s1
 drawAnswerAs:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; shown
-  ; sci/display.e16.ts:165  if (shown === SHOW_FORM) drawForm()
+  ; sci/display.e16.ts:166  if (shown === SHOW_FORM) drawForm()
   li t0, 1
   bne s1, t0, .L1
-  ; sci/display.e16.ts:165  drawForm()
+  ; sci/display.e16.ts:166  drawForm()
   call drawForm
   j .L2
 .L1:
-  ; sci/display.e16.ts:166  if (shown === SHOW_MIXED) showMixed()
+  ; sci/display.e16.ts:167  if (shown === SHOW_MIXED) showMixed()
   li t0, 2
   bne s1, t0, .L3
-  ; sci/display.e16.ts:166  showMixed()
+  ; sci/display.e16.ts:167  showMixed()
   call showMixed
   j .L4
 .L3:
-  ; sci/display.e16.ts:167  if (shown === SHOW_DMS) drawDms()
+  ; sci/display.e16.ts:168  if (shown === SHOW_DMS) drawDms()
   li t0, 4
   bne s1, t0, .L5
-  ; sci/display.e16.ts:167  drawDms()
+  ; sci/display.e16.ts:168  drawDms()
   call drawDms
   j .L6
 .L5:
-  ; sci/display.e16.ts:168  if (shown === SHOW_PAIR) drawPair()
+  ; sci/display.e16.ts:169  if (shown === SHOW_PAIR) drawPair()
   li t0, 5
   bne s1, t0, .L7
-  ; sci/display.e16.ts:168  drawPair()
+  ; sci/display.e16.ts:169  drawPair()
   call drawPair
   j .L8
 .L7:
-  ; sci/display.e16.ts:169  if (shown === SHOW_PRIME) drawPrimes()
+  ; sci/display.e16.ts:170  if (shown === SHOW_PRIME) drawPrimes()
   li t0, 8
   bne s1, t0, .L9
-  ; sci/display.e16.ts:169  drawPrimes()
+  ; sci/display.e16.ts:170  drawPrimes()
   call drawPrimes
   j .L10
 .L9:
-  ; sci/display.e16.ts:171  if (shown === SHOW_ENG || shown === SHOW_PREFIX) engText(KEEP_ANS)
+  ; sci/display.e16.ts:172  if (shown === SHOW_ENG || shown === SHOW_PREFIX) engText(KEEP_ANS)
   li t0, 3
   beq s1, t0, .L12
   li t0, 9
   bne s1, t0, .L11
 .L12:
-  ; sci/display.e16.ts:171  engText(KEEP_ANS)
+  ; sci/display.e16.ts:172  engText(KEEP_ANS)
   li a0, 3080
   call engText
   j .L13
 .L11:
-  ; sci/display.e16.ts:172  decimalText(KEEP_ANS)
+  ; sci/display.e16.ts:173  decimalText(KEEP_ANS)
   li a0, 3080
   call decimalText
 .L13:
-  ; sci/display.e16.ts:173  prefixed = shown === SHOW_PREFIX
+  ; sci/display.e16.ts:174  prefixed = shown === SHOW_PREFIX
   li t0, 9
   sub t0, s1, t0
   seqz t0, t0
   sw t0, 0x07ae(zero)
-  ; sci/display.e16.ts:174  drawDecimal()
+  ; sci/display.e16.ts:175  drawDecimal()
   call drawDecimal
-  ; sci/display.e16.ts:175  prefixed = false
+  ; sci/display.e16.ts:176  prefixed = false
   sw zero, 0x07ae(zero)
-  ; sci/display.e16.ts:176  if (shown === SHOW_FOUND) drawFound()
+  ; sci/display.e16.ts:177  if (shown === SHOW_FOUND) drawFound()
   li t0, 6
   bne s1, t0, .L14
-  ; sci/display.e16.ts:176  drawFound()
+  ; sci/display.e16.ts:177  drawFound()
   call drawFound
 .L14:
-  ; sci/display.e16.ts:177  if (shown === SHOW_CONV) textAt(convLabel(), 1, 40)
+  ; sci/display.e16.ts:178  if (shown === SHOW_CONV) textAt(convLabel(), 1, 40)
   li t0, 7
   bne s1, t0, .L15
-  ; sci/display.e16.ts:177  textAt(convLabel(), 1, 40)
+  ; sci/display.e16.ts:178  textAt(convLabel(), 1, 40)
   la t0, convLabel
   li t1, 10
   call far_call
@@ -19098,7 +19098,7 @@ drawAnswerAs:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:199 primeAns() at -O1
+; sci/display.e16.ts:200 primeAns() at -O1
 ;   n in s1
 ;   k in s2
 primeAns:
@@ -19106,143 +19106,143 @@ primeAns:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; sci/display.e16.ts:200  const n = addr(leftOver)
+  ; sci/display.e16.ts:201  const n = addr(leftOver)
   la s1, leftOver
-  ; sci/display.e16.ts:201  if (formOf(KEEP_ANS)) return false
+  ; sci/display.e16.ts:202  if (formOf(KEEP_ANS)) return false
   li a0, 3080
   call formOf
   beqz a0, .L1
-  ; sci/display.e16.ts:201  return false
+  ; sci/display.e16.ts:202  return false
   li a0, 0
   j .return
 .L1:
-  ; sci/display.e16.ts:202  memcpy(n, KEEP_ANS, 8)
+  ; sci/display.e16.ts:203  memcpy(n, KEEP_ANS, 8)
   mv a0, s1
   li a1, 3080
   li a2, 8
   mcpy a0, a1, a2
-  ; sci/display.e16.ts:203  memcpy(addr(worked), n, 8)
+  ; sci/display.e16.ts:204  memcpy(addr(worked), n, 8)
   la a0, worked
   mv a1, s1
   li a2, 8
   mcpy a0, a1, a2
-  ; sci/display.e16.ts:204  math(M_FRAC, addr(worked), 0, 0)
+  ; sci/display.e16.ts:205  math(M_FRAC, addr(worked), 0, 0)
   li a0, 19
   la a1, worked
   li a2, 0
   li a3, 0
   call math
-  ; sci/display.e16.ts:205  if (!isZero(addr(worked))) return false
+  ; sci/display.e16.ts:206  if (!isZero(addr(worked))) return false
   la a0, worked
   call isZero
   bnez a0, .L2
-  ; sci/display.e16.ts:205  return false
+  ; sci/display.e16.ts:206  return false
   li a0, 0
   j .return
 .L2:
-  ; sci/display.e16.ts:206  answerLength = 0
+  ; sci/display.e16.ts:207  answerLength = 0
   sw zero, 0x0754(zero)
-  ; sci/display.e16.ts:207  if (isNegative(n)) {
+  ; sci/display.e16.ts:208  if (isNegative(n)) {
   mv a0, s1
   call isNegative
   beqz a0, .L3
-  ; sci/display.e16.ts:208  answerToken(T_MINUS)
+  ; sci/display.e16.ts:209  answerToken(T_MINUS)
   li a0, 45
   call answerToken
-  ; sci/display.e16.ts:209  math(M_NEG, n, 0, 0)
+  ; sci/display.e16.ts:210  math(M_NEG, n, 0, 0)
   li a0, 16
   mv a1, s1
   li a2, 0
   li a3, 0
   call math
 .L3:
-  ; sci/display.e16.ts:211  wholeInto(addr(worked), 2)
+  ; sci/display.e16.ts:212  wholeInto(addr(worked), 2)
   la a0, worked
   li a1, 2
   call wholeInto
-  ; sci/display.e16.ts:212  if (below(n, addr(worked))) return false
+  ; sci/display.e16.ts:213  if (below(n, addr(worked))) return false
   mv a0, s1
   la a1, worked
   call below
   beqz a0, .L4
-  ; sci/display.e16.ts:212  return false
+  ; sci/display.e16.ts:213  return false
   li a0, 0
   j .return
 .L4:
-  ; sci/display.e16.ts:214  wholeInto(addr(worked), 10000)
+  ; sci/display.e16.ts:215  wholeInto(addr(worked), 10000)
   la a0, worked
   li a1, 10000
   call wholeInto
-  ; sci/display.e16.ts:215  math(M_MUL, addr(worked), addr(worked), 0)
+  ; sci/display.e16.ts:216  math(M_MUL, addr(worked), addr(worked), 0)
   li a0, 3
   la a1, worked
   la a2, worked
   li a3, 0
   call math
-  ; sci/display.e16.ts:216  wholeInto(addr(tryLow), 100)
+  ; sci/display.e16.ts:217  wholeInto(addr(tryLow), 100)
   la a0, tryLow
   li a1, 100
   call wholeInto
-  ; sci/display.e16.ts:217  math(M_MUL, addr(worked), addr(tryLow), 0)
+  ; sci/display.e16.ts:218  math(M_MUL, addr(worked), addr(tryLow), 0)
   li a0, 3
   la a1, worked
   la a2, tryLow
   li a3, 0
   call math
-  ; sci/display.e16.ts:218  if (!below(n, addr(worked))) return false
+  ; sci/display.e16.ts:219  if (!below(n, addr(worked))) return false
   mv a0, s1
   la a1, worked
   call below
   bnez a0, .L5
-  ; sci/display.e16.ts:218  return false
+  ; sci/display.e16.ts:219  return false
   li a0, 0
   j .return
 .L5:
-  ; sci/display.e16.ts:219  wholeInto(addr(tryLow), 2)
+  ; sci/display.e16.ts:220  wholeInto(addr(tryLow), 2)
   la a0, tryLow
   li a1, 2
   call wholeInto
-  ; sci/display.e16.ts:220  divideOut(addr(tryLow))
+  ; sci/display.e16.ts:221  divideOut(addr(tryLow))
   la a0, tryLow
   call divideOut
-  ; sci/display.e16.ts:221  wholeInto(addr(tryLow), 3)
+  ; sci/display.e16.ts:222  wholeInto(addr(tryLow), 3)
   la a0, tryLow
   li a1, 3
   call wholeInto
-  ; sci/display.e16.ts:222  divideOut(addr(tryLow))
+  ; sci/display.e16.ts:223  divideOut(addr(tryLow))
   la a0, tryLow
   call divideOut
-  ; sci/display.e16.ts:223  wholeInto(addr(tryLow), 5)
+  ; sci/display.e16.ts:224  wholeInto(addr(tryLow), 5)
   la a0, tryLow
   li a1, 5
   call wholeInto
-  ; sci/display.e16.ts:224  wholeInto(addr(tryHigh), 7)
+  ; sci/display.e16.ts:225  wholeInto(addr(tryHigh), 7)
   la a0, tryHigh
   li a1, 7
   call wholeInto
-  ; sci/display.e16.ts:225  wholeInto(addr(worked), 6)
+  ; sci/display.e16.ts:226  wholeInto(addr(worked), 6)
   la a0, worked
   li a1, 6
   call wholeInto
-  ; sci/display.e16.ts:226  findLastK()
+  ; sci/display.e16.ts:227  findLastK()
   call findLastK
-  ; sci/display.e16.ts:227  for (let k: u16 = 1; k <= lastK; k++) {
+  ; sci/display.e16.ts:228  for (let k: u16 = 1; k <= lastK; k++) {
   li s2, 1 ; k
   j .L8
 .L6:
-  ; sci/display.e16.ts:228  divideOut(addr(tryLow))
+  ; sci/display.e16.ts:229  divideOut(addr(tryLow))
   la a0, tryLow
   call divideOut
-  ; sci/display.e16.ts:229  divideOut(addr(tryHigh))
+  ; sci/display.e16.ts:230  divideOut(addr(tryHigh))
   la a0, tryHigh
   call divideOut
-  ; sci/display.e16.ts:230  math(M_ADD, addr(tryLow), addr(worked), 0)
+  ; sci/display.e16.ts:231  math(M_ADD, addr(tryLow), addr(worked), 0)
   li a0, 1
   la a1, tryLow
   la a2, worked
   li a3, 0
   call math
-  ; sci/display.e16.ts:231  math(M_ADD, addr(tryHigh), addr(worked), 0)
+  ; sci/display.e16.ts:232  math(M_ADD, addr(tryHigh), addr(worked), 0)
   li a0, 1
   la a1, tryHigh
   la a2, worked
@@ -19252,29 +19252,29 @@ primeAns:
 .L8:
   lw t0, 0x07a8(zero)
   bgeu t0, s2, .L6
-  ; sci/display.e16.ts:233  wholeInto(addr(worked), 1)
+  ; sci/display.e16.ts:234  wholeInto(addr(worked), 1)
   la a0, worked
   li a1, 1
   call wholeInto
-  ; sci/display.e16.ts:234  if (below(addr(worked), n)) factorToken(n, 1)
+  ; sci/display.e16.ts:235  if (below(addr(worked), n)) factorToken(n, 1)
   la a0, worked
   mv a1, s1
   call below
   beqz a0, .L10
-  ; sci/display.e16.ts:234  factorToken(n, 1)
+  ; sci/display.e16.ts:235  factorToken(n, 1)
   mv a0, s1
   li a1, 1
   call factorToken
 .L10:
-  ; sci/display.e16.ts:235  memcpy(addr(primeTokens), addr(answerTokens), answerLength)
+  ; sci/display.e16.ts:236  memcpy(addr(primeTokens), addr(answerTokens), answerLength)
   lw a2, 0x0754(zero)
   la a0, primeTokens
   la a1, answerTokens
   mcpy a0, a1, a2
-  ; sci/display.e16.ts:236  primeLength = answerLength
+  ; sci/display.e16.ts:237  primeLength = answerLength
   lw t0, 0x0754(zero)
   sw t0, 0x0786(zero)
-  ; sci/display.e16.ts:237  return true
+  ; sci/display.e16.ts:238  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -19283,7 +19283,7 @@ primeAns:
   addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:241 below(a, b) at -O1
+; sci/display.e16.ts:242 below(a, b) at -O1
 ;   a in s1
 ;   b in s2
 below:
@@ -19293,13 +19293,13 @@ below:
   sw s2, 4(sp)
   mv s1, a0 ; a
   mv s2, a1 ; b
-  ; sci/display.e16.ts:242  math(M_CMP, a, b, 0)
+  ; sci/display.e16.ts:243  math(M_CMP, a, b, 0)
   li a0, 6
   mv a1, s1
   mv a2, s2
   li a3, 0
   call math
-  ; sci/display.e16.ts:243  return i16(peek16(MATH_RESULT)) < 0
+  ; sci/display.e16.ts:244  return i16(peek16(MATH_RESULT)) < 0
   li t0, 65370
   lw t0, 0(t0)
   slti a0, t0, 0
@@ -19310,7 +19310,7 @@ below:
   addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:247 divideOut(d) at -O1
+; sci/display.e16.ts:248 divideOut(d) at -O1
 ;   d in s2
 ;   times in s1
 divideOut:
@@ -19319,48 +19319,48 @@ divideOut:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; d
-  ; sci/display.e16.ts:248  let times: u16 = 0
+  ; sci/display.e16.ts:249  let times: u16 = 0
   li s1, 0 ; times
-  ; sci/display.e16.ts:249  for (;;) {
+  ; sci/display.e16.ts:250  for (;;) {
 .L1:
-  ; sci/display.e16.ts:250  memcpy(addr(spare), addr(leftOver), 8)
+  ; sci/display.e16.ts:251  memcpy(addr(spare), addr(leftOver), 8)
   la a0, spare
   la a1, leftOver
   li a2, 8
   mcpy a0, a1, a2
-  ; sci/display.e16.ts:251  math(M_MOD, addr(spare), d, 0)
+  ; sci/display.e16.ts:252  math(M_MOD, addr(spare), d, 0)
   li a0, 9
   la a1, spare
   mv a2, s2
   li a3, 0
   call math
-  ; sci/display.e16.ts:252  if (!isZero(addr(spare))) break
+  ; sci/display.e16.ts:253  if (!isZero(addr(spare))) break
   la a0, spare
   call isZero
   bnez a0, .L5
-  ; sci/display.e16.ts:252  break
+  ; sci/display.e16.ts:253  break
   j .L4
 .L5:
-  ; sci/display.e16.ts:253  math(M_IDIV, addr(leftOver), d, 0)
+  ; sci/display.e16.ts:254  math(M_IDIV, addr(leftOver), d, 0)
   li a0, 8
   la a1, leftOver
   mv a2, s2
   li a3, 0
   call math
-  ; sci/display.e16.ts:254  times++
+  ; sci/display.e16.ts:255  times++
   addi s1, s1, 1
   j .L1
 .L4:
-  ; sci/display.e16.ts:256  if (times === 0) return
+  ; sci/display.e16.ts:257  if (times === 0) return
   bne s1, zero, .L6
-  ; sci/display.e16.ts:256  return
+  ; sci/display.e16.ts:257  return
   j .return
 .L6:
-  ; sci/display.e16.ts:257  factorToken(d, times)
+  ; sci/display.e16.ts:258  factorToken(d, times)
   mv a0, s2
   mv a1, s1
   call factorToken
-  ; sci/display.e16.ts:258  findLastK()
+  ; sci/display.e16.ts:259  findLastK()
   call findLastK
 .return:
   lw ra, 0(sp)
@@ -19369,54 +19369,54 @@ divideOut:
   addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:262 findLastK() at -O1
+; sci/display.e16.ts:263 findLastK() at -O1
 findLastK:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/display.e16.ts:263  memcpy(addr(scratch), addr(leftOver), 8)
+  ; sci/display.e16.ts:264  memcpy(addr(scratch), addr(leftOver), 8)
   la a0, scratch
   la a1, leftOver
   li a2, 8
   mcpy a0, a1, a2
-  ; sci/display.e16.ts:264  math(M_SQR, addr(scratch), 0, 0)
+  ; sci/display.e16.ts:265  math(M_SQR, addr(scratch), 0, 0)
   li a0, 21
   la a1, scratch
   li a2, 0
   li a3, 0
   call math
-  ; sci/display.e16.ts:265  math(M_INT, addr(scratch), 0, 0)
+  ; sci/display.e16.ts:266  math(M_INT, addr(scratch), 0, 0)
   li a0, 18
   la a1, scratch
   li a2, 0
   li a3, 0
   call math
-  ; sci/display.e16.ts:266  wholeInto(addr(unit), 1)
+  ; sci/display.e16.ts:267  wholeInto(addr(unit), 1)
   la a0, unit
   li a1, 1
   call wholeInto
-  ; sci/display.e16.ts:267  math(M_ADD, addr(scratch), addr(unit), 0)
+  ; sci/display.e16.ts:268  math(M_ADD, addr(scratch), addr(unit), 0)
   li a0, 1
   la a1, scratch
   la a2, unit
   li a3, 0
   call math
-  ; sci/display.e16.ts:268  wholeInto(addr(unit), 6)
+  ; sci/display.e16.ts:269  wholeInto(addr(unit), 6)
   la a0, unit
   li a1, 6
   call wholeInto
-  ; sci/display.e16.ts:269  math(M_IDIV, addr(scratch), addr(unit), 0)
+  ; sci/display.e16.ts:270  math(M_IDIV, addr(scratch), addr(unit), 0)
   li a0, 8
   la a1, scratch
   la a2, unit
   li a3, 0
   call math
-  ; sci/display.e16.ts:270  math(M_TOINT, addr(scratch), 0, 0)
+  ; sci/display.e16.ts:271  math(M_TOINT, addr(scratch), 0, 0)
   li a0, 49
   la a1, scratch
   li a2, 0
   li a3, 0
   call math
-  ; sci/display.e16.ts:271  lastK = peek16(MATH_ARG)
+  ; sci/display.e16.ts:272  lastK = peek16(MATH_ARG)
   li t0, 65366
   lw t0, 0(t0)
   sw t0, 0x07a8(zero)
@@ -19425,7 +19425,7 @@ findLastK:
   addi sp, sp, 2
   ret
 
-; sci/display.e16.ts:275 factorToken(p, times) at -O1
+; sci/display.e16.ts:276 factorToken(p, times) at -O1
 ;   p in s2
 ;   times in s1
 factorToken:
@@ -19435,41 +19435,41 @@ factorToken:
   sw s1, 4(sp)
   mv s2, a0 ; p
   mv s1, a1 ; times
-  ; sci/display.e16.ts:276  if (answerLength > 0 && answerTokens[answerLength - 1] !== T_MINUS) answerToken(T_TIMES)
+  ; sci/display.e16.ts:277  if (answerLength > 0 && answerTokens[answerLength - 1] !== T_MINUS) answerToken(T_TIMES)
   lw t0, 0x0754(zero)
   bgeu zero, t0, .L1
   lw t0, 0x0754(zero)
   lbu t0, answerTokens-1(t0)
   li t1, 45
   beq t0, t1, .L1
-  ; sci/display.e16.ts:276  answerToken(T_TIMES)
+  ; sci/display.e16.ts:277  answerToken(T_TIMES)
   li a0, 129
   call answerToken
 .L1:
-  ; sci/display.e16.ts:277  answerNumber(p, true)
+  ; sci/display.e16.ts:278  answerNumber(p, true)
   mv a0, s2
   li a1, 1
   call answerNumber
-  ; sci/display.e16.ts:278  if (times < 2) return
+  ; sci/display.e16.ts:279  if (times < 2) return
   li t0, 2
   bgeu s1, t0, .L2
-  ; sci/display.e16.ts:278  return
+  ; sci/display.e16.ts:279  return
   j .return
 .L2:
-  ; sci/display.e16.ts:279  answerToken(T_POWT)
+  ; sci/display.e16.ts:280  answerToken(T_POWT)
   li a0, 26
   call answerToken
-  ; sci/display.e16.ts:280  if (times >= 10) answerToken(0x30 + div(times, 10))
+  ; sci/display.e16.ts:281  if (times >= 10) answerToken(0x30 + div(times, 10))
   li t0, 10
   bltu s1, t0, .L3
-  ; sci/display.e16.ts:280  answerToken(0x30 + div(times, 10))
+  ; sci/display.e16.ts:281  answerToken(0x30 + div(times, 10))
   li t1, 52429
   mulhu t0, s1, t1
   srli t0, t0, 3
   addi a0, t0, 48
   call answerToken
 .L3:
-  ; sci/display.e16.ts:281  answerToken(0x30 + (times % 10))
+  ; sci/display.e16.ts:282  answerToken(0x30 + (times % 10))
   li t1, 52429
   mulhu t0, s1, t1
   srli t0, t0, 3
@@ -19478,7 +19478,7 @@ factorToken:
   sub t0, s1, t0
   addi a0, t0, 48
   call answerToken
-  ; sci/display.e16.ts:282  answerToken(T_END)
+  ; sci/display.e16.ts:283  answerToken(T_END)
   li a0, 24
   call answerToken
 .return:
@@ -19488,7 +19488,7 @@ factorToken:
   addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:286 drawPrimes() at -O1
+; sci/display.e16.ts:287 drawPrimes() at -O1
 ;   at in s3
 ;   w in s0
 ;   split in 0(sp)
@@ -19502,52 +19502,52 @@ drawPrimes:
   sw s0, 8(sp)
   sw s1, 10(sp)
   sw s2, 12(sp)
-  ; sci/display.e16.ts:287  const at = addr(primeTokens)
+  ; sci/display.e16.ts:288  const at = addr(primeTokens)
   la s3, primeTokens
-  ; sci/display.e16.ts:288  const w = tokensWidth(at, primeLength)
+  ; sci/display.e16.ts:289  const w = tokensWidth(at, primeLength)
   lw a1, 0x0786(zero)
   mv a0, s3
   la t0, tokensWidth
   li t1, 3
   call far_call
   mv s0, a0 ; w
-  ; sci/display.e16.ts:289  if (w <= 128) {
+  ; sci/display.e16.ts:290  if (w <= 128) {
   li t0, 128
   bltu t0, s0, .L1
-  ; sci/display.e16.ts:290  setTokensAt(at, primeLength, 62)
+  ; sci/display.e16.ts:291  setTokensAt(at, primeLength, 62)
   lw a1, 0x0786(zero)
   mv a0, s3
   li a2, 62
   la t0, setTokensAt
   li t1, 3
   call far_call
-  ; sci/display.e16.ts:291  return
+  ; sci/display.e16.ts:292  return
   j .return
 .L1:
-  ; sci/display.e16.ts:293  let split: u16 = 0
+  ; sci/display.e16.ts:294  let split: u16 = 0
   sw zero, 0(sp) ; split
-  ; sci/display.e16.ts:294  let best: u16 = 0xffff
+  ; sci/display.e16.ts:295  let best: u16 = 0xffff
   li t0, 65535
   sw t0, 2(sp) ; best
-  ; sci/display.e16.ts:295  for (let i: u16 = 0; i < primeLength; i++) {
+  ; sci/display.e16.ts:296  for (let i: u16 = 0; i < primeLength; i++) {
   li s1, 0 ; i
   j .L4
 .L2:
-  ; sci/display.e16.ts:296  if (primeTokens[i] !== T_TIMES) continue
+  ; sci/display.e16.ts:297  if (primeTokens[i] !== T_TIMES) continue
   lbu t0, primeTokens(s1)
   li t1, 129
   beq t0, t1, .L6
-  ; sci/display.e16.ts:296  continue
+  ; sci/display.e16.ts:297  continue
   j .L3
 .L6:
-  ; sci/display.e16.ts:297  const twice = tokensWidth(at, i + 1) * 2
+  ; sci/display.e16.ts:298  const twice = tokensWidth(at, i + 1) * 2
   mv a0, s3
   addi a1, s1, 1
   la t0, tokensWidth
   li t1, 3
   call far_call
   slli s2, a0, 1
-  ; sci/display.e16.ts:298  const off = twice > w ? twice - w : w - twice
+  ; sci/display.e16.ts:299  const off = twice > w ? twice - w : w - twice
   bgeu s0, s2, .L7
   sub t0, s2, s0
   j .L8
@@ -19555,12 +19555,12 @@ drawPrimes:
   sub t0, s0, s2
 .L8:
   mv s2, t0 ; twice/off
-  ; sci/display.e16.ts:299  if (off < best) {
+  ; sci/display.e16.ts:300  if (off < best) {
   lw t0, 2(sp) ; best
   bgeu s2, t0, .L9
-  ; sci/display.e16.ts:300  best = off
+  ; sci/display.e16.ts:301  best = off
   sw s2, 2(sp) ; best
-  ; sci/display.e16.ts:301  split = i + 1
+  ; sci/display.e16.ts:302  split = i + 1
   addi t0, s1, 1
   sw t0, 0(sp) ; split
 .L9:
@@ -19569,14 +19569,14 @@ drawPrimes:
 .L4:
   lw t0, 0x0786(zero)
   bltu s1, t0, .L2
-  ; sci/display.e16.ts:304  setTokensAt(at, split, 50)
+  ; sci/display.e16.ts:305  setTokensAt(at, split, 50)
   mv a0, s3
   lw a1, 0(sp)
   li a2, 50
   la t0, setTokensAt
   li t1, 3
   call far_call
-  ; sci/display.e16.ts:305  setTokensAt(at + split, primeLength - split, 62)
+  ; sci/display.e16.ts:306  setTokensAt(at + split, primeLength - split, 62)
   lw t0, 0(sp) ; split
   add a0, s3, t0
   lw t1, 0x0786(zero)
@@ -19595,17 +19595,17 @@ drawPrimes:
   addi sp, sp, 14
   ret
 
-; sci/display.e16.ts:309 drawBig(v) at -O1
+; sci/display.e16.ts:310 drawBig(v) at -O1
 ;   v in s1
 drawBig:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; v
-  ; sci/display.e16.ts:310  decimalText(v)
+  ; sci/display.e16.ts:311  decimalText(v)
   mv a0, s1
   call decimalText
-  ; sci/display.e16.ts:311  drawDecimal()
+  ; sci/display.e16.ts:312  drawDecimal()
   call drawDecimal
 .return:
   lw ra, 0(sp)
@@ -19613,7 +19613,7 @@ drawBig:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:315 drawDecimal() at -O1
+; sci/display.e16.ts:316 drawDecimal() at -O1
 ;   mantissa in s2
 ;   i/right/exponent in s1
 ;   digits/x in s3
@@ -19623,75 +19623,75 @@ drawDecimal:
   sw s2, 2(sp)
   sw s1, 4(sp)
   sw s3, 6(sp)
-  ; sci/display.e16.ts:316  let mantissa = textLength
+  ; sci/display.e16.ts:317  let mantissa = textLength
   lw s2, 0x06fa(zero)
-  ; sci/display.e16.ts:317  for (let i: u16 = 0; i < textLength; i++) {
+  ; sci/display.e16.ts:318  for (let i: u16 = 0; i < textLength; i++) {
   li s1, 0 ; i/right/exponent
   j .L3
 .L1:
-  ; sci/display.e16.ts:318  if (text[i] === 0x45) mantissa = i
+  ; sci/display.e16.ts:319  if (text[i] === 0x45) mantissa = i
   lbu t0, text(s1)
   li t1, 69
   bne t0, t1, .L5
-  ; sci/display.e16.ts:318  mantissa = i
+  ; sci/display.e16.ts:319  mantissa = i
   mv s2, s1 ; mantissa
 .L5:
   addi s1, s1, 1
 .L3:
   lw t0, 0x06fa(zero)
   bltu s1, t0, .L1
-  ; sci/display.e16.ts:320  let right: u16 = 127
+  ; sci/display.e16.ts:321  let right: u16 = 127
   li s1, 127 ; i/right/exponent
-  ; sci/display.e16.ts:321  if (prefixed && mantissa < textLength) {
+  ; sci/display.e16.ts:322  if (prefixed && mantissa < textLength) {
   lw t0, 0x07ae(zero)
   beqz t0, .L6
   lw t0, 0x06fa(zero)
   bgeu s2, t0, .L6
-  ; sci/display.e16.ts:323  prefixText[0] = peek(str('fpn\x9fmkMGT') + prefixIndex())
+  ; sci/display.e16.ts:324  prefixText[0] = peek(str('fpn\x9fmkMGT') + prefixIndex())
   call prefixIndex
   la t0, str_104
   add t0, t0, a0
   lbu t0, 0(t0)
   sb t0, prefixText(zero)
-  ; sci/display.e16.ts:324  textAt(addr(prefixText), 122, 55)
+  ; sci/display.e16.ts:325  textAt(addr(prefixText), 122, 55)
   la a0, prefixText
   li a1, 122
   li a2, 55
   call textAt
-  ; sci/display.e16.ts:325  right = 121
+  ; sci/display.e16.ts:326  right = 121
   li s1, 121 ; i/right/exponent
   j .L7
 .L6:
-  ; sci/display.e16.ts:326  if (mantissa < textLength) {
+  ; sci/display.e16.ts:327  if (mantissa < textLength) {
   lw t0, 0x06fa(zero)
   bgeu s2, t0, .L8
-  ; sci/display.e16.ts:327  const exponent = addr(text) + mantissa + 1
+  ; sci/display.e16.ts:328  const exponent = addr(text) + mantissa + 1
   addi s1, s2, text+1
-  ; sci/display.e16.ts:328  const digits = textLength - mantissa - 1
+  ; sci/display.e16.ts:329  const digits = textLength - mantissa - 1
   lw t0, 0x06fa(zero)
   sub t0, t0, s2
   addi s3, t0, -1
-  ; sci/display.e16.ts:329  const x = 128 - digits * 6
+  ; sci/display.e16.ts:330  const x = 128 - digits * 6
   slli t1, s3, 2
   slli t0, s3, 1
   add t0, t0, t1
   li t1, 128
   sub s3, t1, t0
-  ; sci/display.e16.ts:330  textAt(exponent, x, 48)
+  ; sci/display.e16.ts:331  textAt(exponent, x, 48)
   mv a0, s1
   mv a1, s3
   li a2, 48
   call textAt
-  ; sci/display.e16.ts:331  textAt(str('\x8110'), x - 18, 55)
+  ; sci/display.e16.ts:332  textAt(str('\x8110'), x - 18, 55)
   la a0, str_105
   addi a1, s3, -18
   li a2, 55
   call textAt
-  ; sci/display.e16.ts:332  right = x - 19
+  ; sci/display.e16.ts:333  right = x - 19
   addi s1, s3, -19
 .L8:
 .L7:
-  ; sci/display.e16.ts:334  bigNumber(addr(text), mantissa, right)
+  ; sci/display.e16.ts:335  bigNumber(addr(text), mantissa, right)
   la a0, text
   mv a1, s2
   mv a2, s1
@@ -19704,31 +19704,31 @@ drawDecimal:
   addi sp, sp, 8
   ret
 
-; sci/display.e16.ts:338 drawPair() at -O1
+; sci/display.e16.ts:339 drawPair() at -O1
 drawPair:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/display.e16.ts:339  textAt(str('X='), 1, 46)
+  ; sci/display.e16.ts:340  textAt(str('X='), 1, 46)
   la a0, str_106
   li a1, 1
   li a2, 46
   call textAt
-  ; sci/display.e16.ts:340  decimalText(varAt(0x58))
+  ; sci/display.e16.ts:341  decimalText(varAt(0x58))
   li a0, 3336
   call decimalText
-  ; sci/display.e16.ts:341  textRight(addr(text), 46)
+  ; sci/display.e16.ts:342  textRight(addr(text), 46)
   la a0, text
   li a1, 46
   call textRight
-  ; sci/display.e16.ts:342  textAt(str('Y='), 1, 55)
+  ; sci/display.e16.ts:343  textAt(str('Y='), 1, 55)
   la a0, str_107
   li a1, 1
   li a2, 55
   call textAt
-  ; sci/display.e16.ts:343  decimalText(varAt(0x59))
+  ; sci/display.e16.ts:344  decimalText(varAt(0x59))
   li a0, 3372
   call decimalText
-  ; sci/display.e16.ts:344  textRight(addr(text), 55)
+  ; sci/display.e16.ts:345  textRight(addr(text), 55)
   la a0, text
   li a1, 55
   call textRight
@@ -19737,24 +19737,24 @@ drawPair:
   addi sp, sp, 2
   ret
 
-; sci/display.e16.ts:348 drawFound() at -O1
+; sci/display.e16.ts:349 drawFound() at -O1
 drawFound:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/display.e16.ts:349  textAt(str('X='), 1, 55)
+  ; sci/display.e16.ts:350  textAt(str('X='), 1, 55)
   la a0, str_106
   li a1, 1
   li a2, 55
   call textAt
-  ; sci/display.e16.ts:350  textAt(str('DIFF='), 1, 37)
+  ; sci/display.e16.ts:351  textAt(str('DIFF='), 1, 37)
   la a0, str_108
   li a1, 1
   li a2, 37
   call textAt
-  ; sci/display.e16.ts:351  decimalText(addr(diffValue))
+  ; sci/display.e16.ts:352  decimalText(addr(diffValue))
   la a0, diffValue
   call decimalText
-  ; sci/display.e16.ts:352  textRight(addr(text), 37)
+  ; sci/display.e16.ts:353  textRight(addr(text), 37)
   la a0, text
   li a1, 37
   call textRight
@@ -19763,14 +19763,14 @@ drawFound:
   addi sp, sp, 2
   ret
 
-; sci/display.e16.ts:356 drawDms() at -O1
+; sci/display.e16.ts:357 drawDms() at -O1
 drawDms:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/display.e16.ts:357  dmsText(KEEP_ANS)
+  ; sci/display.e16.ts:358  dmsText(KEEP_ANS)
   li a0, 3080
   call dmsText
-  ; sci/display.e16.ts:358  textRight(addr(text), 55)
+  ; sci/display.e16.ts:359  textRight(addr(text), 55)
   la a0, text
   li a1, 55
   call textRight
@@ -19779,16 +19779,16 @@ drawDms:
   addi sp, sp, 2
   ret
 
-; sci/display.e16.ts:364 drawForm() at -O1
+; sci/display.e16.ts:365 drawForm() at -O1
 drawForm:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/display.e16.ts:365  answerLength = 0
+  ; sci/display.e16.ts:366  answerLength = 0
   sw zero, 0x0754(zero)
-  ; sci/display.e16.ts:366  formTokens(KEEP_ANS)
+  ; sci/display.e16.ts:367  formTokens(KEEP_ANS)
   li a0, 3080
   call formTokens
-  ; sci/display.e16.ts:367  setAnswer(addr(answerTokens), answerLength)
+  ; sci/display.e16.ts:368  setAnswer(addr(answerTokens), answerLength)
   lw a1, 0x0754(zero)
   la a0, answerTokens
   la t0, setAnswer
@@ -19799,7 +19799,7 @@ drawForm:
   addi sp, sp, 2
   ret
 
-; sci/display.e16.ts:371 formTokens(v/q) at -O1
+; sci/display.e16.ts:372 formTokens(v/q) at -O1
 ;   v/q in s1
 ;   p in s3
 ;   r in s2
@@ -19813,18 +19813,18 @@ formTokens:
   sw s2, 8(sp)
   sw s0, 10(sp)
   mv s1, a0 ; v/q
-  ; sci/display.e16.ts:372  const p = v + V_P
+  ; sci/display.e16.ts:373  const p = v + V_P
   addi s3, s1, 12
-  ; sci/display.e16.ts:373  const r = v + V_R
+  ; sci/display.e16.ts:374  const r = v + V_R
   addi s2, s1, 20
-  ; sci/display.e16.ts:374  const q = v + V_Q
+  ; sci/display.e16.ts:375  const q = v + V_Q
   addi s1, s1, 28
-  ; sci/display.e16.ts:375  const fractionOf = !isOne(q)
+  ; sci/display.e16.ts:376  const fractionOf = !isOne(q)
   mv a0, s1
   call isOne
   seqz t0, a0
   sw t0, 0(sp) ; fractionOf
-  ; sci/display.e16.ts:376  const oneTerm = isZero(p) || isZero(r)
+  ; sci/display.e16.ts:377  const oneTerm = isZero(p) || isZero(r)
   mv a0, s3
   call isZero
   mv t1, a0
@@ -19835,7 +19835,7 @@ formTokens:
   mv t0, a0
 .L1:
   mv s0, t0 ; oneTerm/signOut
-  ; sci/display.e16.ts:378  const signOut = oneTerm && fractionOf && (isZero(r) ? isNegative(p) : isNegative(r))
+  ; sci/display.e16.ts:379  const signOut = oneTerm && fractionOf && (isZero(r) ? isNegative(p) : isNegative(r))
   mv t0, s0
   mv t1, s0
   beqz t1, .L3
@@ -19857,20 +19857,20 @@ formTokens:
 .L5:
 .L2:
   mv s0, t0 ; oneTerm/signOut
-  ; sci/display.e16.ts:379  if (signOut) answerToken(T_MINUS)
+  ; sci/display.e16.ts:380  if (signOut) answerToken(T_MINUS)
   beqz s0, .L6
-  ; sci/display.e16.ts:379  answerToken(T_MINUS)
+  ; sci/display.e16.ts:380  answerToken(T_MINUS)
   li a0, 45
   call answerToken
 .L6:
-  ; sci/display.e16.ts:380  if (fractionOf) answerToken(T_FRAC)
+  ; sci/display.e16.ts:381  if (fractionOf) answerToken(T_FRAC)
   lw t0, 0(sp) ; fractionOf
   beqz t0, .L7
-  ; sci/display.e16.ts:380  answerToken(T_FRAC)
+  ; sci/display.e16.ts:381  answerToken(T_FRAC)
   li a0, 22
   call answerToken
 .L7:
-  ; sci/display.e16.ts:381  if (!isZero(p) || isZero(r)) answerNumber(p, signOut)
+  ; sci/display.e16.ts:382  if (!isZero(p) || isZero(r)) answerNumber(p, signOut)
   mv a0, s3
   call isZero
   beqz a0, .L9
@@ -19878,32 +19878,32 @@ formTokens:
   call isZero
   beqz a0, .L8
 .L9:
-  ; sci/display.e16.ts:381  answerNumber(p, signOut)
+  ; sci/display.e16.ts:382  answerNumber(p, signOut)
   mv a0, s3
   mv a1, s0
   call answerNumber
 .L8:
-  ; sci/display.e16.ts:382  if (!isZero(r)) answerRoot(p, r, signOut)
+  ; sci/display.e16.ts:383  if (!isZero(r)) answerRoot(p, r, signOut)
   mv a0, s2
   call isZero
   bnez a0, .L10
-  ; sci/display.e16.ts:382  answerRoot(p, r, signOut)
+  ; sci/display.e16.ts:383  answerRoot(p, r, signOut)
   mv a0, s3
   mv a1, s2
   mv a2, s0
   call answerRoot
 .L10:
-  ; sci/display.e16.ts:383  if (fractionOf) {
+  ; sci/display.e16.ts:384  if (fractionOf) {
   lw t0, 0(sp) ; fractionOf
   beqz t0, .L11
-  ; sci/display.e16.ts:384  answerToken(T_SEP)
+  ; sci/display.e16.ts:385  answerToken(T_SEP)
   li a0, 23
   call answerToken
-  ; sci/display.e16.ts:385  answerNumber(q, false)
+  ; sci/display.e16.ts:386  answerNumber(q, false)
   mv a0, s1
   li a1, 0
   call answerNumber
-  ; sci/display.e16.ts:386  answerToken(T_END)
+  ; sci/display.e16.ts:387  answerToken(T_END)
   li a0, 24
   call answerToken
 .L11:
@@ -19916,14 +19916,14 @@ formTokens:
   addi sp, sp, 12
   ret
 
-; sci/display.e16.ts:391 formOf(v) at -O1
+; sci/display.e16.ts:392 formOf(v) at -O1
 ;   v in s1
 formOf:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; v
-  ; sci/display.e16.ts:392  return isExact(v) && (!isZero(v + V_R) || !isOne(v + V_Q))
+  ; sci/display.e16.ts:393  return isExact(v) && (!isZero(v + V_R) || !isOne(v + V_Q))
   mv a0, s1
   call isExact
   mv t1, a0
@@ -19946,7 +19946,7 @@ formOf:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:399 drawValueAt(v, foot, twoD) at -O1
+; sci/display.e16.ts:400 drawValueAt(v, foot, twoD) at -O1
 ;   v in s1
 ;   foot in s2
 ;   twoD in s3
@@ -19959,30 +19959,30 @@ drawValueAt:
   mv s1, a0 ; v
   mv s2, a1 ; foot
   mv s3, a2 ; twoD
-  ; sci/display.e16.ts:400  if (twoD && formOf(v)) {
+  ; sci/display.e16.ts:401  if (twoD && formOf(v)) {
   beqz s3, .L1
   mv a0, s1
   call formOf
   beqz a0, .L1
-  ; sci/display.e16.ts:401  answerLength = 0
+  ; sci/display.e16.ts:402  answerLength = 0
   sw zero, 0x0754(zero)
-  ; sci/display.e16.ts:402  formTokens(v)
+  ; sci/display.e16.ts:403  formTokens(v)
   mv a0, s1
   call formTokens
-  ; sci/display.e16.ts:403  setTokensAt(addr(answerTokens), answerLength, foot)
+  ; sci/display.e16.ts:404  setTokensAt(addr(answerTokens), answerLength, foot)
   lw a1, 0x0754(zero)
   la a0, answerTokens
   mv a2, s2
   la t0, setTokensAt
   li t1, 3
   call far_call
-  ; sci/display.e16.ts:404  return
+  ; sci/display.e16.ts:405  return
   j .return
 .L1:
-  ; sci/display.e16.ts:406  decimalText(v)
+  ; sci/display.e16.ts:407  decimalText(v)
   mv a0, s1
   call decimalText
-  ; sci/display.e16.ts:407  textRight(addr(text), foot - 7)
+  ; sci/display.e16.ts:408  textRight(addr(text), foot - 7)
   la a0, text
   addi a1, s2, -7
   call textRight
@@ -19994,7 +19994,7 @@ drawValueAt:
   addi sp, sp, 8
   ret
 
-; sci/display.e16.ts:414 drawComplexAt(re, im, minus, foot) at -O1
+; sci/display.e16.ts:415 drawComplexAt(re, im, minus, foot) at -O1
 ;   re in s1
 ;   im in s2
 ;   minus in s0
@@ -20011,9 +20011,9 @@ drawComplexAt:
   mv s2, a1 ; im
   mv s0, a2 ; minus
   sw a3, 0(sp) ; foot
-  ; sci/display.e16.ts:415  answerLength = 0
+  ; sci/display.e16.ts:416  answerLength = 0
   sw zero, 0x0754(zero)
-  ; sci/display.e16.ts:416  const exact = isExact(re) && isExact(im)
+  ; sci/display.e16.ts:417  const exact = isExact(re) && isExact(im)
   mv a0, s1
   call isExact
   mv t1, a0
@@ -20024,60 +20024,60 @@ drawComplexAt:
   mv t0, a0
 .L1:
   mv s3, t0 ; exact
-  ; sci/display.e16.ts:417  if (!isZero(re)) {
+  ; sci/display.e16.ts:418  if (!isZero(re)) {
   mv a0, s1
   call isZero
   bnez a0, .L2
-  ; sci/display.e16.ts:418  if (exact) formTokens(re)
+  ; sci/display.e16.ts:419  if (exact) formTokens(re)
   beqz s3, .L3
-  ; sci/display.e16.ts:418  formTokens(re)
+  ; sci/display.e16.ts:419  formTokens(re)
   mv a0, s1
   call formTokens
   j .L4
 .L3:
-  ; sci/display.e16.ts:419  shortNumber(re)
+  ; sci/display.e16.ts:420  shortNumber(re)
   mv a0, s1
   call shortNumber
 .L4:
 .L2:
-  ; sci/display.e16.ts:421  if (minus) answerToken(T_MINUS)
+  ; sci/display.e16.ts:422  if (minus) answerToken(T_MINUS)
   beqz s0, .L5
-  ; sci/display.e16.ts:421  answerToken(T_MINUS)
+  ; sci/display.e16.ts:422  answerToken(T_MINUS)
   li a0, 45
   call answerToken
   j .L6
 .L5:
-  ; sci/display.e16.ts:422  if (!isZero(re)) answerToken(T_PLUS)
+  ; sci/display.e16.ts:423  if (!isZero(re)) answerToken(T_PLUS)
   mv a0, s1
   call isZero
   bnez a0, .L7
-  ; sci/display.e16.ts:422  answerToken(T_PLUS)
+  ; sci/display.e16.ts:423  answerToken(T_PLUS)
   li a0, 43
   call answerToken
 .L7:
 .L6:
-  ; sci/display.e16.ts:423  if (!exact || !isOne(im)) {
+  ; sci/display.e16.ts:424  if (!exact || !isOne(im)) {
   beqz s3, .L9
   mv a0, s2
   call isOne
   bnez a0, .L8
 .L9:
-  ; sci/display.e16.ts:424  if (exact) formTokens(im)
+  ; sci/display.e16.ts:425  if (exact) formTokens(im)
   beqz s3, .L10
-  ; sci/display.e16.ts:424  formTokens(im)
+  ; sci/display.e16.ts:425  formTokens(im)
   mv a0, s2
   call formTokens
   j .L11
 .L10:
-  ; sci/display.e16.ts:425  shortNumber(im)
+  ; sci/display.e16.ts:426  shortNumber(im)
   mv a0, s2
   call shortNumber
 .L11:
 .L8:
-  ; sci/display.e16.ts:427  answerToken(0x69)
+  ; sci/display.e16.ts:428  answerToken(0x69)
   li a0, 105
   call answerToken
-  ; sci/display.e16.ts:428  setTokensAt(addr(answerTokens), answerLength, foot)
+  ; sci/display.e16.ts:429  setTokensAt(addr(answerTokens), answerLength, foot)
   lw a1, 0x0754(zero)
   la a0, answerTokens
   lw a2, 0(sp)
@@ -20093,15 +20093,15 @@ drawComplexAt:
   addi sp, sp, 12
   ret
 
-; sci/display.e16.ts:434 setPieceDecimals(on) at -O1
+; sci/display.e16.ts:435 setPieceDecimals(on) at -O1
 ;   on in a0
 setPieceDecimals:
-  ; sci/display.e16.ts:435  pieceDecimals = on
+  ; sci/display.e16.ts:436  pieceDecimals = on
   sw a0, 0x07aa(zero)
 .return:
   ret
 
-; sci/display.e16.ts:443 drawPieceAt(lo, hi, signs, foot) at -O1
+; sci/display.e16.ts:444 drawPieceAt(lo, hi, signs, foot) at -O1
 ;   lo in s1
 ;   hi in s2
 ;   signs in s3
@@ -20117,13 +20117,13 @@ drawPieceAt:
   mv s2, a1 ; hi
   mv s3, a2 ; signs
   mv s0, a3 ; foot
-  ; sci/display.e16.ts:444  pieceTokens(lo, hi, signs, 10)
+  ; sci/display.e16.ts:445  pieceTokens(lo, hi, signs, 10)
   mv a0, s1
   mv a1, s2
   mv a2, s3
   li a3, 10
   call pieceTokens
-  ; sci/display.e16.ts:445  if (tokensWidth(addr(answerTokens), answerLength) > 128) pieceTokens(lo, hi, signs, 6)
+  ; sci/display.e16.ts:446  if (tokensWidth(addr(answerTokens), answerLength) > 128) pieceTokens(lo, hi, signs, 6)
   lw a1, 0x0754(zero)
   la a0, answerTokens
   la t0, tokensWidth
@@ -20131,14 +20131,14 @@ drawPieceAt:
   call far_call
   li t0, 128
   bgeu t0, a0, .L1
-  ; sci/display.e16.ts:445  pieceTokens(lo, hi, signs, 6)
+  ; sci/display.e16.ts:446  pieceTokens(lo, hi, signs, 6)
   mv a0, s1
   mv a1, s2
   mv a2, s3
   li a3, 6
   call pieceTokens
 .L1:
-  ; sci/display.e16.ts:446  setTokensAt(addr(answerTokens), answerLength, foot)
+  ; sci/display.e16.ts:447  setTokensAt(addr(answerTokens), answerLength, foot)
   lw a1, 0x0754(zero)
   la a0, answerTokens
   mv a2, s0
@@ -20154,7 +20154,7 @@ drawPieceAt:
   addi sp, sp, 10
   ret
 
-; sci/display.e16.ts:449 pieceTokens(lo, hi, signs, digits) at -O1
+; sci/display.e16.ts:450 pieceTokens(lo, hi, signs, digits) at -O1
 ;   lo in s1
 ;   hi in s2
 ;   signs in s3
@@ -20170,27 +20170,27 @@ pieceTokens:
   mv s2, a1 ; hi
   mv s3, a2 ; signs
   mv s0, a3 ; digits
-  ; sci/display.e16.ts:450  answerLength = 0
+  ; sci/display.e16.ts:451  answerLength = 0
   sw zero, 0x0754(zero)
-  ; sci/display.e16.ts:451  if (lo !== 0) {
+  ; sci/display.e16.ts:452  if (lo !== 0) {
   beq s1, zero, .L1
-  ; sci/display.e16.ts:452  boundTokens(lo, digits)
+  ; sci/display.e16.ts:453  boundTokens(lo, digits)
   mv a0, s1
   mv a1, s0
   call boundTokens
-  ; sci/display.e16.ts:453  answerToken(signs & 0xff)
+  ; sci/display.e16.ts:454  answerToken(signs & 0xff)
   andi a0, s3, 255
   call answerToken
 .L1:
-  ; sci/display.e16.ts:455  answerToken(0x58)
+  ; sci/display.e16.ts:456  answerToken(0x58)
   li a0, 88
   call answerToken
-  ; sci/display.e16.ts:456  if (hi !== 0) {
+  ; sci/display.e16.ts:457  if (hi !== 0) {
   beq s2, zero, .L2
-  ; sci/display.e16.ts:457  answerToken(signs >> 8)
+  ; sci/display.e16.ts:458  answerToken(signs >> 8)
   srli a0, s3, 8
   call answerToken
-  ; sci/display.e16.ts:458  boundTokens(hi, digits)
+  ; sci/display.e16.ts:459  boundTokens(hi, digits)
   mv a0, s2
   mv a1, s0
   call boundTokens
@@ -20204,17 +20204,17 @@ pieceTokens:
   addi sp, sp, 10
   ret
 
-; sci/display.e16.ts:463 boundTokens(v/i, digits/c) at -O1
-;   v/i in s1
-;   digits/c in s2
+; sci/display.e16.ts:464 boundTokens(v, digits) at -O1
+;   v in s1
+;   digits in s2
 boundTokens:
   addi sp, sp, -6
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  mv s1, a0 ; v/i
-  mv s2, a1 ; digits/c
-  ; sci/display.e16.ts:464  if (peek(KEEP_DISPLAY) === 0 && !pieceDecimals && isExact(v)) {
+  mv s1, a0 ; v
+  mv s2, a1 ; digits
+  ; sci/display.e16.ts:465  if (peek(KEEP_DISPLAY) === 0 && !pieceDecimals && isExact(v)) {
   lbu t0, 3075(zero)
   bne t0, zero, .L1
   lw t0, 0x07aa(zero)
@@ -20222,42 +20222,16 @@ boundTokens:
   mv a0, s1
   call isExact
   beqz a0, .L1
-  ; sci/display.e16.ts:465  formTokens(v)
+  ; sci/display.e16.ts:466  formTokens(v)
   mv a0, s1
   call formTokens
-  ; sci/display.e16.ts:466  return
+  ; sci/display.e16.ts:467  return
   j .return
 .L1:
-  ; sci/display.e16.ts:468  format(v, digits)
+  ; sci/display.e16.ts:469  formatTokens(v, digits)
   mv a0, s1
   mv a1, s2
-  call format
-  ; sci/display.e16.ts:469  for (let i: u16 = 0; i < textLength; i++) {
-  li s1, 0 ; v/i
-  j .L4
-.L2:
-  ; sci/display.e16.ts:470  const c = text[i]
-  lbu s2, text(s1)
-  ; sci/display.e16.ts:471  answerToken(c === 0x2d ? T_MINUS : c === 0x45 ? T_EXP : c)
-  li t0, 45
-  bne s2, t0, .L6
-  li t0, 45
-  j .L7
-.L6:
-  li t0, 69
-  bne s2, t0, .L8
-  li t0, 135
-  j .L9
-.L8:
-  mv t0, s2
-.L9:
-.L7:
-  mv a0, t0
-  call answerToken
-  addi s1, s1, 1
-.L4:
-  lw t0, 0x06fa(zero)
-  bltu s1, t0, .L2
+  call formatTokens
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
@@ -20265,29 +20239,56 @@ boundTokens:
   addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:476 shortNumber(v/i) at -O1
-;   v/i in s1
+; sci/display.e16.ts:473 shortNumber(v) at -O1
+;   v in s1
 shortNumber:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  mv s1, a0 ; v/i
-  ; sci/display.e16.ts:477  format(v, 6)
+  mv s1, a0 ; v
+  ; sci/display.e16.ts:474  formatTokens(v, 6)
   mv a0, s1
   li a1, 6
+  call formatTokens
+.return:
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  addi sp, sp, 4
+  ret
+
+; sci/display.e16.ts:478 formatTokens(v/i, digits/c) at -O1
+;   v/i in s1
+;   digits/c in s2
+formatTokens:
+  addi sp, sp, -6
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  mv s1, a0 ; v/i
+  mv s2, a1 ; digits/c
+  ; sci/display.e16.ts:479  format(v, digits)
+  mv a0, s1
+  mv a1, s2
   call format
-  ; sci/display.e16.ts:478  for (let i: u16 = 0; i < textLength; i++) answerToken(text[i] === 0x2d ? T_MINUS : text[i])
+  ; sci/display.e16.ts:480  for (let i: u16 = 0; i < textLength; i++) {
   li s1, 0 ; v/i
   j .L3
 .L1:
-  ; sci/display.e16.ts:478  answerToken(text[i] === 0x2d ? T_MINUS : text[i])
-  lbu t0, text(s1)
-  li t1, 45
-  bne t0, t1, .L5
+  ; sci/display.e16.ts:481  const c = text[i]
+  lbu s2, text(s1)
+  ; sci/display.e16.ts:482  answerToken(c === 0x2d ? T_MINUS : c === 0x45 ? T_EXP : c)
+  li t0, 45
+  bne s2, t0, .L5
   li t0, 45
   j .L6
 .L5:
-  lbu t0, text(s1)
+  li t0, 69
+  bne s2, t0, .L7
+  li t0, 135
+  j .L8
+.L7:
+  mv t0, s2
+.L8:
 .L6:
   mv a0, t0
   call answerToken
@@ -20298,76 +20299,77 @@ shortNumber:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  addi sp, sp, 4
+  lw s2, 4(sp)
+  addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:482 showMixed() at -O1
+; sci/display.e16.ts:487 showMixed() at -O1
 showMixed:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; sci/display.e16.ts:483  answerLength = 0
+  ; sci/display.e16.ts:488  answerLength = 0
   sw zero, 0x0754(zero)
-  ; sci/display.e16.ts:484  const p = KEEP_ANS + V_P
-  ; sci/display.e16.ts:485  const q = KEEP_ANS + V_Q
-  ; sci/display.e16.ts:486  if (isNegative(p)) answerToken(T_MINUS)
+  ; sci/display.e16.ts:489  const p = KEEP_ANS + V_P
+  ; sci/display.e16.ts:490  const q = KEEP_ANS + V_Q
+  ; sci/display.e16.ts:491  if (isNegative(p)) answerToken(T_MINUS)
   li a0, 3092
   call isNegative
   beqz a0, .L1
-  ; sci/display.e16.ts:486  answerToken(T_MINUS)
+  ; sci/display.e16.ts:491  answerToken(T_MINUS)
   li a0, 45
   call answerToken
 .L1:
-  ; sci/display.e16.ts:487  copy(p, addr(scratch))
+  ; sci/display.e16.ts:492  copy8(p, addr(scratch))
   li a0, 3092
   la a1, scratch
-  call copy
-  ; sci/display.e16.ts:488  math(M_ABS, addr(scratch), 0, 0)
+  call copy8
+  ; sci/display.e16.ts:493  math(M_ABS, addr(scratch), 0, 0)
   li a0, 17
   la a1, scratch
   li a2, 0
   li a3, 0
   call math
-  ; sci/display.e16.ts:489  copy(addr(scratch), addr(spare))
+  ; sci/display.e16.ts:494  copy8(addr(scratch), addr(spare))
   la a0, scratch
   la a1, spare
-  call copy
-  ; sci/display.e16.ts:490  math(M_IDIV, addr(scratch), q, 0)
+  call copy8
+  ; sci/display.e16.ts:495  math(M_IDIV, addr(scratch), q, 0)
   li a0, 8
   la a1, scratch
   li a2, 3108
   li a3, 0
   call math
-  ; sci/display.e16.ts:491  math(M_MOD, addr(spare), q, 0)
+  ; sci/display.e16.ts:496  math(M_MOD, addr(spare), q, 0)
   li a0, 9
   la a1, spare
   li a2, 3108
   li a3, 0
   call math
-  ; sci/display.e16.ts:492  answerToken(T_MIXED)
+  ; sci/display.e16.ts:497  answerToken(T_MIXED)
   li a0, 28
   call answerToken
-  ; sci/display.e16.ts:493  answerNumber(addr(scratch), true)
+  ; sci/display.e16.ts:498  answerNumber(addr(scratch), true)
   la a0, scratch
   li a1, 1
   call answerNumber
-  ; sci/display.e16.ts:494  answerToken(T_MSEP)
+  ; sci/display.e16.ts:499  answerToken(T_MSEP)
   li a0, 29
   call answerToken
-  ; sci/display.e16.ts:495  answerNumber(addr(spare), true)
+  ; sci/display.e16.ts:500  answerNumber(addr(spare), true)
   la a0, spare
   li a1, 1
   call answerNumber
-  ; sci/display.e16.ts:496  answerToken(T_MDIV)
+  ; sci/display.e16.ts:501  answerToken(T_MDIV)
   li a0, 31
   call answerToken
-  ; sci/display.e16.ts:497  answerNumber(q, true)
+  ; sci/display.e16.ts:502  answerNumber(q, true)
   li a0, 3108
   li a1, 1
   call answerNumber
-  ; sci/display.e16.ts:498  answerToken(T_END)
+  ; sci/display.e16.ts:503  answerToken(T_END)
   li a0, 24
   call answerToken
-  ; sci/display.e16.ts:499  setAnswer(addr(answerTokens), answerLength)
+  ; sci/display.e16.ts:504  setAnswer(addr(answerTokens), answerLength)
   lw a1, 0x0754(zero)
   la a0, answerTokens
   la t0, setAnswer
@@ -20378,7 +20380,7 @@ showMixed:
   addi sp, sp, 2
   ret
 
-; sci/display.e16.ts:503 answerRoot(p, r, signOut) at -O1
+; sci/display.e16.ts:508 answerRoot(p, r, signOut) at -O1
 ;   p in s3
 ;   r in s1
 ;   signOut in s0
@@ -20393,13 +20395,13 @@ answerRoot:
   mv s3, a0 ; p
   mv s1, a1 ; r
   mv s0, a2 ; signOut
-  ; sci/display.e16.ts:505  const s = peek16(r - V_R + V_S)
+  ; sci/display.e16.ts:510  const s = peek16(r - V_R + V_S)
   lw s2, -10(s1)
-  ; sci/display.e16.ts:506  if (!isZero(p)) answerToken(isNegative(r) ? T_MINUS : T_PLUS)
+  ; sci/display.e16.ts:511  if (!isZero(p)) answerToken(isNegative(r) ? T_MINUS : T_PLUS)
   mv a0, s3
   call isZero
   bnez a0, .L1
-  ; sci/display.e16.ts:506  answerToken(isNegative(r) ? T_MINUS : T_PLUS)
+  ; sci/display.e16.ts:511  answerToken(isNegative(r) ? T_MINUS : T_PLUS)
   mv a0, s1
   call isNegative
   beqz a0, .L2
@@ -20412,42 +20414,42 @@ answerRoot:
   call answerToken
   j .L4
 .L1:
-  ; sci/display.e16.ts:507  if (isNegative(r) && !signOut) answerToken(T_MINUS)
+  ; sci/display.e16.ts:512  if (isNegative(r) && !signOut) answerToken(T_MINUS)
   mv a0, s1
   call isNegative
   beqz a0, .L5
   bnez s0, .L5
-  ; sci/display.e16.ts:507  answerToken(T_MINUS)
+  ; sci/display.e16.ts:512  answerToken(T_MINUS)
   li a0, 45
   call answerToken
 .L5:
 .L4:
-  ; sci/display.e16.ts:508  if (!isOne(r) && !isMinusOne(r)) answerNumber(r, true)
+  ; sci/display.e16.ts:513  if (!isOne(r) && !isMinusOne(r)) answerNumber(r, true)
   mv a0, s1
   call isOne
   bnez a0, .L6
   mv a0, s1
   call isMinusOne
   bnez a0, .L6
-  ; sci/display.e16.ts:508  answerNumber(r, true)
+  ; sci/display.e16.ts:513  answerNumber(r, true)
   mv a0, s1
   li a1, 1
   call answerNumber
 .L6:
-  ; sci/display.e16.ts:509  answerToken(T_ROOT)
+  ; sci/display.e16.ts:514  answerToken(T_ROOT)
   li a0, 25
   call answerToken
-  ; sci/display.e16.ts:510  if (s >= 10) answerToken(0x30 + div(s, 10))
+  ; sci/display.e16.ts:515  if (s >= 10) answerToken(0x30 + div(s, 10))
   li t0, 10
   bltu s2, t0, .L7
-  ; sci/display.e16.ts:510  answerToken(0x30 + div(s, 10))
+  ; sci/display.e16.ts:515  answerToken(0x30 + div(s, 10))
   li t1, 52429
   mulhu t0, s2, t1
   srli t0, t0, 3
   addi a0, t0, 48
   call answerToken
 .L7:
-  ; sci/display.e16.ts:511  answerToken(0x30 + (s % 10))
+  ; sci/display.e16.ts:516  answerToken(0x30 + (s % 10))
   li t1, 52429
   mulhu t0, s2, t1
   srli t0, t0, 3
@@ -20456,7 +20458,7 @@ answerRoot:
   sub t0, s2, t0
   addi a0, t0, 48
   call answerToken
-  ; sci/display.e16.ts:512  answerToken(T_END)
+  ; sci/display.e16.ts:517  answerToken(T_END)
   li a0, 24
   call answerToken
 .return:
@@ -20468,17 +20470,17 @@ answerRoot:
   addi sp, sp, 10
   ret
 
-; sci/display.e16.ts:515 answerToken(t) at -O1
+; sci/display.e16.ts:520 answerToken(t) at -O1
 ;   t in a0
 answerToken:
-  ; sci/display.e16.ts:516  if (answerLength < 48) {
+  ; sci/display.e16.ts:521  if (answerLength < 48) {
   lw t0, 0x0754(zero)
   li t1, 48
   bgeu t0, t1, .L1
-  ; sci/display.e16.ts:517  answerTokens[answerLength] = t
+  ; sci/display.e16.ts:522  answerTokens[answerLength] = t
   lw t0, 0x0754(zero)
   sb a0, answerTokens(t0)
-  ; sci/display.e16.ts:518  answerLength++
+  ; sci/display.e16.ts:523  answerLength++
   lw t0, 0x0754(zero)
   addi t0, t0, 1
   sw t0, 0x0754(zero)
@@ -20486,7 +20488,7 @@ answerToken:
 .return:
   ret
 
-; sci/display.e16.ts:523 answerNumber(n/i, bare) at -O1
+; sci/display.e16.ts:528 answerNumber(n/i, bare) at -O1
 ;   n/i in s1
 ;   bare in s3
 ;   c in s2
@@ -20498,27 +20500,27 @@ answerNumber:
   sw s2, 6(sp)
   mv s1, a0 ; n/i
   mv s3, a1 ; bare
-  ; sci/display.e16.ts:524  format(n, 12)
+  ; sci/display.e16.ts:529  format(n, 12)
   mv a0, s1
   li a1, 12
   call format
-  ; sci/display.e16.ts:525  for (let i: u16 = 0; i < textLength; i++) {
+  ; sci/display.e16.ts:530  for (let i: u16 = 0; i < textLength; i++) {
   li s1, 0 ; n/i
   j .L3
 .L1:
-  ; sci/display.e16.ts:526  const c = text[i]
+  ; sci/display.e16.ts:531  const c = text[i]
   lbu s2, text(s1)
-  ; sci/display.e16.ts:527  if (c === 0x2d) {
+  ; sci/display.e16.ts:532  if (c === 0x2d) {
   li t0, 45
   bne s2, t0, .L5
-  ; sci/display.e16.ts:528  if (!bare) answerToken(T_MINUS)
+  ; sci/display.e16.ts:533  if (!bare) answerToken(T_MINUS)
   bnez s3, .L7
-  ; sci/display.e16.ts:528  answerToken(T_MINUS)
+  ; sci/display.e16.ts:533  answerToken(T_MINUS)
   li a0, 45
   call answerToken
   j .L7
 .L5:
-  ; sci/display.e16.ts:529  answerToken(c)
+  ; sci/display.e16.ts:534  answerToken(c)
   mv a0, s2
   call answerToken
 .L7:
@@ -20534,14 +20536,14 @@ answerNumber:
   addi sp, sp, 8
   ret
 
-; sci/display.e16.ts:533 isOne(n) at -O1
+; sci/display.e16.ts:538 isOne(n) at -O1
 ;   n in s1
 isOne:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; n
-  ; sci/display.e16.ts:534  return peek(n) === 0 && isUnit(n)
+  ; sci/display.e16.ts:539  return peek(n) === 0 && isUnit(n)
   lbu t0, 0(s1)
   sub t0, t0, zero
   seqz t0, t0
@@ -20558,14 +20560,14 @@ isOne:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:537 isMinusOne(n) at -O1
+; sci/display.e16.ts:542 isMinusOne(n) at -O1
 ;   n in s1
 isMinusOne:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; n
-  ; sci/display.e16.ts:538  return peek(n) !== 0 && isUnit(n)
+  ; sci/display.e16.ts:543  return peek(n) !== 0 && isUnit(n)
   lbu t0, 0(s1)
   sub t0, t0, zero
   snez t0, t0
@@ -20582,16 +20584,16 @@ isMinusOne:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:542 isUnit(n) at -O1
+; sci/display.e16.ts:547 isUnit(n) at -O1
 ;   n in a0
 isUnit:
-  ; sci/display.e16.ts:543  return peek(n + 1) === 0 && peek(n + 2) === 0x10 && peek16(n + 4) === 0 && peek16(n + 6) === 0
+  ; sci/display.e16.ts:548  return peek(n + 1) === 0 && peek16(n + 2) === 0x10 && peek16(n + 4) === 0 && peek16(n + 6) === 0
   lbu t0, 1(a0)
   sub t0, t0, zero
   seqz t0, t0
   mv t1, t0
   beqz t1, .L3
-  lbu t0, 2(a0)
+  lw t0, 2(a0)
   li t1, 16
   sub t0, t0, t1
   seqz t0, t0
@@ -20612,7 +20614,7 @@ isUnit:
 .return:
   ret
 
-; sci/display.e16.ts:549 format(v, digits) at -O1
+; sci/display.e16.ts:554 format(v, digits) at -O1
 ;   v in s1
 ;   digits in s2
 format:
@@ -20622,20 +20624,20 @@ format:
   sw s2, 4(sp)
   mv s1, a0 ; v
   mv s2, a1 ; digits
-  ; sci/display.e16.ts:550  poke16(MATH_ARG, digits)
+  ; sci/display.e16.ts:555  poke16(MATH_ARG, digits)
   li t0, 65366
   sw s2, 0(t0)
-  ; sci/display.e16.ts:551  math(M_FORMAT, v, addr(text), 0)
+  ; sci/display.e16.ts:556  math(M_FORMAT, v, addr(text), 0)
   li a0, 57
   mv a1, s1
   la a2, text
   li a3, 0
   call math
-  ; sci/display.e16.ts:552  textLength = peek16(MATH_ARG)
+  ; sci/display.e16.ts:557  textLength = peek16(MATH_ARG)
   li t0, 65366
   lw t0, 0(t0)
   sw t0, 0x06fa(zero)
-  ; sci/display.e16.ts:553  text[textLength] = 0
+  ; sci/display.e16.ts:558  text[textLength] = 0
   lw t0, 0x06fa(zero)
   sb zero, text(t0)
 .return:
@@ -20645,7 +20647,7 @@ format:
   addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:557 rounded(v, digits) at -O1
+; sci/display.e16.ts:562 rounded(v, digits) at -O1
 ;   v in s1
 ;   digits in s2
 rounded:
@@ -20655,14 +20657,14 @@ rounded:
   sw s2, 4(sp)
   mv s1, a0 ; v
   mv s2, a1 ; digits
-  ; sci/display.e16.ts:558  copy(v, addr(scratch))
+  ; sci/display.e16.ts:563  copy8(v, addr(scratch))
   mv a0, s1
   la a1, scratch
-  call copy
-  ; sci/display.e16.ts:559  poke16(MATH_ARG, digits)
+  call copy8
+  ; sci/display.e16.ts:564  poke16(MATH_ARG, digits)
   li t0, 65366
   sw s2, 0(t0)
-  ; sci/display.e16.ts:560  math(M_RNDTO, addr(scratch), 0, 0)
+  ; sci/display.e16.ts:565  math(M_RNDTO, addr(scratch), 0, 0)
   li a0, 40
   la a1, scratch
   li a2, 0
@@ -20675,12 +20677,12 @@ rounded:
   addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:564 exponentOf(v/e) at -O1
+; sci/display.e16.ts:569 exponentOf(v/e) at -O1
 ;   v/e in a0
 exponentOf:
-  ; sci/display.e16.ts:565  const e = peek(v + 1)
+  ; sci/display.e16.ts:570  const e = peek(v + 1)
   lbu a0, 1(a0)
-  ; sci/display.e16.ts:566  return e >= 128 ? i16(e) - 256 : i16(e)
+  ; sci/display.e16.ts:571  return e >= 128 ? i16(e) - 256 : i16(e)
   li t0, 128
   bltu a0, t0, .L1
   addi t0, a0, -256
@@ -20692,7 +20694,7 @@ exponentOf:
 .return:
   ret
 
-; sci/display.e16.ts:574 decimalText(v) at -O1
+; sci/display.e16.ts:579 decimalText(v) at -O1
 ;   v in s1
 ;   shape in s2
 ;   n in s3
@@ -20703,23 +20705,23 @@ decimalText:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; v
-  ; sci/display.e16.ts:575  const shape = peek(KEEP_FORMAT)
+  ; sci/display.e16.ts:580  const shape = peek(KEEP_FORMAT)
   lbu s2, 3077(zero)
-  ; sci/display.e16.ts:576  const n = peek(KEEP_DIGITS)
+  ; sci/display.e16.ts:581  const n = peek(KEEP_DIGITS)
   lbu s3, 3078(zero)
-  ; sci/display.e16.ts:577  if (shape === FORMAT_FIX) fixText(v, n)
+  ; sci/display.e16.ts:582  if (shape === FORMAT_FIX) fixText(v, n)
   li t0, 1
   bne s2, t0, .L1
-  ; sci/display.e16.ts:577  fixText(v, n)
+  ; sci/display.e16.ts:582  fixText(v, n)
   mv a0, s1
   mv a1, s3
   call fixText
   j .L2
 .L1:
-  ; sci/display.e16.ts:578  if (shape === FORMAT_EXP) expText(v, n === 0 ? 10 : n, false)
+  ; sci/display.e16.ts:583  if (shape === FORMAT_EXP) expText(v, n === 0 ? 10 : n, false)
   li t0, 2
   bne s2, t0, .L3
-  ; sci/display.e16.ts:578  expText(v, n === 0 ? 10 : n, false)
+  ; sci/display.e16.ts:583  expText(v, n === 0 ? 10 : n, false)
   mv t0, s1
   mv t1, s3
   li t2, 0
@@ -20735,7 +20737,7 @@ decimalText:
   call expText
   j .L6
 .L3:
-  ; sci/display.e16.ts:579  autoText(v, shape === FORMAT_AUTO2)
+  ; sci/display.e16.ts:584  autoText(v, shape === FORMAT_AUTO2)
   li t0, 3
   sub t0, s2, t0
   seqz a1, t0
@@ -20751,17 +20753,17 @@ decimalText:
   addi sp, sp, 8
   ret
 
-; sci/display.e16.ts:583 textOf(v) at -O1
+; sci/display.e16.ts:588 textOf(v) at -O1
 ;   v in s1
 textOf:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; v
-  ; sci/display.e16.ts:584  decimalText(v)
+  ; sci/display.e16.ts:589  decimalText(v)
   mv a0, s1
   call decimalText
-  ; sci/display.e16.ts:585  return addr(text)
+  ; sci/display.e16.ts:590  return addr(text)
   la a0, text
 .return:
   lw ra, 0(sp)
@@ -20769,7 +20771,7 @@ textOf:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:589 autoText(v, small/places) at -O1
+; sci/display.e16.ts:594 autoText(v, small/places) at -O1
 ;   v in s1
 ;   small/places in s3
 ;   e in s2
@@ -20781,31 +20783,31 @@ autoText:
   sw s2, 6(sp)
   mv s1, a0 ; v
   mv s3, a1 ; small/places
-  ; sci/display.e16.ts:590  const e = exponentOf(v)
+  ; sci/display.e16.ts:595  const e = exponentOf(v)
   mv a0, s1
   call exponentOf
   mv s2, a0 ; e
-  ; sci/display.e16.ts:591  if (small && !isZero(v) && e < -2) {
+  ; sci/display.e16.ts:596  if (small && !isZero(v) && e < -2) {
   beqz s3, .L1
   mv a0, s1
   call isZero
   bnez a0, .L1
   li t0, 65534
   bge s2, t0, .L1
-  ; sci/display.e16.ts:592  trimmed = true
+  ; sci/display.e16.ts:597  trimmed = true
   li t0, 1
   sw t0, 0x07ac(zero)
-  ; sci/display.e16.ts:593  expText(v, 10, false)
+  ; sci/display.e16.ts:598  expText(v, 10, false)
   mv a0, s1
   li a1, 10
   li a2, 0
   call expText
-  ; sci/display.e16.ts:594  trimmed = false
+  ; sci/display.e16.ts:599  trimmed = false
   sw zero, 0x07ac(zero)
-  ; sci/display.e16.ts:595  return
+  ; sci/display.e16.ts:600  return
   j .return
 .L1:
-  ; sci/display.e16.ts:597  if (isZero(v) || e < -9 || e > 9) {
+  ; sci/display.e16.ts:602  if (isZero(v) || e < -9 || e > 9) {
   mv a0, s1
   call isZero
   bnez a0, .L3
@@ -20814,14 +20816,14 @@ autoText:
   li t0, 9
   bge t0, s2, .L2
 .L3:
-  ; sci/display.e16.ts:598  format(v, 10)
+  ; sci/display.e16.ts:603  format(v, 10)
   mv a0, s1
   li a1, 10
   call format
-  ; sci/display.e16.ts:599  return
+  ; sci/display.e16.ts:604  return
   j .return
 .L2:
-  ; sci/display.e16.ts:601  const places: i16 = e >= 0 ? 9 - e : 9
+  ; sci/display.e16.ts:606  const places: i16 = e >= 0 ? 9 - e : 9
   blt s2, zero, .L4
   li t0, 9
   sub t0, t0, s2
@@ -20830,11 +20832,11 @@ autoText:
   li t0, 9
 .L5:
   mv s3, t0 ; small/places
-  ; sci/display.e16.ts:602  rounded(v, u16(-places))
+  ; sci/display.e16.ts:607  rounded(v, u16(-places))
   neg a1, s3
   mv a0, s1
   call rounded
-  ; sci/display.e16.ts:603  format(addr(scratch), 12)
+  ; sci/display.e16.ts:608  format(addr(scratch), 12)
   la a0, scratch
   li a1, 12
   call format
@@ -20846,7 +20848,7 @@ autoText:
   addi sp, sp, 8
   ret
 
-; sci/display.e16.ts:606 fixText(v/point, n) at -O1
+; sci/display.e16.ts:611 fixText(v/point, n) at -O1
 ;   v/point in s2
 ;   n in s3
 ;   i in s1
@@ -20858,53 +20860,53 @@ fixText:
   sw s1, 6(sp)
   mv s2, a0 ; v/point
   mv s3, a1 ; n
-  ; sci/display.e16.ts:607  rounded(v, u16(-i16(n)))
+  ; sci/display.e16.ts:612  rounded(v, u16(-i16(n)))
   neg a1, s3
   mv a0, s2
   call rounded
-  ; sci/display.e16.ts:608  format(addr(scratch), 12)
+  ; sci/display.e16.ts:613  format(addr(scratch), 12)
   la a0, scratch
   li a1, 12
   call format
-  ; sci/display.e16.ts:610  let point = textLength
+  ; sci/display.e16.ts:615  let point = textLength
   lw s2, 0x06fa(zero)
-  ; sci/display.e16.ts:611  for (let i: u16 = 0; i < textLength; i++) {
+  ; sci/display.e16.ts:616  for (let i: u16 = 0; i < textLength; i++) {
   li s1, 0 ; i
   j .L3
 .L1:
-  ; sci/display.e16.ts:612  if (text[i] === 0x45) return
+  ; sci/display.e16.ts:617  if (text[i] === 0x45) return
   lbu t0, text(s1)
   li t1, 69
   bne t0, t1, .L5
-  ; sci/display.e16.ts:612  return
+  ; sci/display.e16.ts:617  return
   j .return
 .L5:
-  ; sci/display.e16.ts:613  if (text[i] === 0x2e) point = i
+  ; sci/display.e16.ts:618  if (text[i] === 0x2e) point = i
   lbu t0, text(s1)
   li t1, 46
   bne t0, t1, .L6
-  ; sci/display.e16.ts:613  point = i
+  ; sci/display.e16.ts:618  point = i
   mv s2, s1 ; v/point
 .L6:
   addi s1, s1, 1
 .L3:
   lw t0, 0x06fa(zero)
   bltu s1, t0, .L1
-  ; sci/display.e16.ts:615  if (n === 0) return
+  ; sci/display.e16.ts:620  if (n === 0) return
   bne s3, zero, .L7
-  ; sci/display.e16.ts:615  return
+  ; sci/display.e16.ts:620  return
   j .return
 .L7:
-  ; sci/display.e16.ts:616  if (point === textLength) addChar(0x2e)
+  ; sci/display.e16.ts:621  if (point === textLength) addChar(0x2e)
   lw t0, 0x06fa(zero)
   bne s2, t0, .L11
-  ; sci/display.e16.ts:616  addChar(0x2e)
+  ; sci/display.e16.ts:621  addChar(0x2e)
   li a0, 46
   call addChar
-  ; sci/display.e16.ts:617  while (textLength - point - 1 < n) addChar(0x30)
+  ; sci/display.e16.ts:622  while (textLength - point - 1 < n) addChar(0x30)
   j .L11
 .L9:
-  ; sci/display.e16.ts:617  addChar(0x30)
+  ; sci/display.e16.ts:622  addChar(0x30)
   li a0, 48
   call addChar
 .L11:
@@ -20920,7 +20922,7 @@ fixText:
   addi sp, sp, 8
   ret
 
-; sci/display.e16.ts:624 expText(v/w, digits, eng) at -O1
+; sci/display.e16.ts:629 expText(v/w, digits, eng) at -O1
 ;   v/w in s2
 ;   digits in s0
 ;   eng in 2(sp)
@@ -20938,32 +20940,32 @@ expText:
   mv s2, a0 ; v/w
   mv s0, a1 ; digits
   sw a2, 2(sp) ; eng
-  ; sci/display.e16.ts:625  textLength = 0
+  ; sci/display.e16.ts:630  textLength = 0
   sw zero, 0x06fa(zero)
-  ; sci/display.e16.ts:626  rounded(v, digits)
+  ; sci/display.e16.ts:631  rounded(v, digits)
   mv a0, s2
   mv a1, s0
   call rounded
-  ; sci/display.e16.ts:627  const w = addr(scratch)
+  ; sci/display.e16.ts:632  const w = addr(scratch)
   la s2, scratch
-  ; sci/display.e16.ts:628  if (isNegative(w)) addChar(0x2d)
+  ; sci/display.e16.ts:633  if (isNegative(w)) addChar(0x2d)
   mv a0, s2
   call isNegative
   beqz a0, .L1
-  ; sci/display.e16.ts:628  addChar(0x2d)
+  ; sci/display.e16.ts:633  addChar(0x2d)
   li a0, 45
   call addChar
 .L1:
-  ; sci/display.e16.ts:629  const e = exponentOf(w)
+  ; sci/display.e16.ts:634  const e = exponentOf(w)
   mv a0, s2
   call exponentOf
   mv s3, a0 ; e
-  ; sci/display.e16.ts:630  let shift: i16 = 0
+  ; sci/display.e16.ts:635  let shift: i16 = 0
   sw zero, 0(sp) ; shift
-  ; sci/display.e16.ts:631  if (eng) shift = e >= 0 ? e % 3 : (3 - (-e % 3)) % 3
+  ; sci/display.e16.ts:636  if (eng) shift = e >= 0 ? e % 3 : (3 - (-e % 3)) % 3
   lw t0, 2(sp) ; eng
   beqz t0, .L2
-  ; sci/display.e16.ts:631  shift = e >= 0 ? e % 3 : (3 - (-e % 3)) % 3
+  ; sci/display.e16.ts:636  shift = e >= 0 ? e % 3 : (3 - (-e % 3)) % 3
   blt s3, zero, .L3
   li t0, 3
   rem t0, s3, t0
@@ -20979,17 +20981,17 @@ expText:
 .L4:
   sw t0, 0(sp) ; shift
 .L2:
-  ; sci/display.e16.ts:632  for (let k: u16 = 0; k < digits; k++) {
+  ; sci/display.e16.ts:637  for (let k: u16 = 0; k < digits; k++) {
   li s1, 0 ; k
   j .L7
 .L5:
-  ; sci/display.e16.ts:633  const pair = peek(w + 2 + (k >> 1))
+  ; sci/display.e16.ts:638  const pair = peek(w + 2 + (k >> 1))
   srli t0, s1, 1
   addi t1, s2, 2
   add t1, t1, t0
   lbu t1, 0(t1)
   sw t1, 4(sp) ; pair
-  ; sci/display.e16.ts:634  addChar(0x30 + ((k & 1) === 0 ? pair >> 4 : pair & 15))
+  ; sci/display.e16.ts:639  addChar(0x30 + ((k & 1) === 0 ? pair >> 4 : pair & 15))
   andi t1, s1, 1
   li t0, 48
   li t2, 0
@@ -21003,31 +21005,31 @@ expText:
 .L10:
   add a0, t0, t1
   call addChar
-  ; sci/display.e16.ts:635  if (i16(k) === shift && k + 1 < digits) addChar(0x2e)
+  ; sci/display.e16.ts:640  if (i16(k) === shift && k + 1 < digits) addChar(0x2e)
   lw t0, 0(sp) ; shift
   bne s1, t0, .L11
   addi t0, s1, 1
   bgeu t0, s0, .L11
-  ; sci/display.e16.ts:635  addChar(0x2e)
+  ; sci/display.e16.ts:640  addChar(0x2e)
   li a0, 46
   call addChar
 .L11:
   addi s1, s1, 1
 .L7:
   bltu s1, s0, .L5
-  ; sci/display.e16.ts:637  if (eng || trimmed) trimZeros()
+  ; sci/display.e16.ts:642  if (eng || trimmed) trimZeros()
   lw t0, 2(sp) ; eng
   bnez t0, .L13
   lw t0, 0x07ac(zero)
   beqz t0, .L12
 .L13:
-  ; sci/display.e16.ts:637  trimZeros()
+  ; sci/display.e16.ts:642  trimZeros()
   call trimZeros
 .L12:
-  ; sci/display.e16.ts:638  addChar(0x45)
+  ; sci/display.e16.ts:643  addChar(0x45)
   li a0, 69
   call addChar
-  ; sci/display.e16.ts:639  numberChars(e - shift)
+  ; sci/display.e16.ts:644  numberChars(e - shift)
   lw t0, 0(sp) ; shift
   sub a0, s3, t0
   call numberChars
@@ -21040,21 +21042,21 @@ expText:
   addi sp, sp, 16
   ret
 
-; sci/display.e16.ts:650 engExponent() at -O1
+; sci/display.e16.ts:655 engExponent() at -O1
 ;   e in s1
 engExponent:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; sci/display.e16.ts:651  rounded(KEEP_ANS, 10)
+  ; sci/display.e16.ts:656  rounded(KEEP_ANS, 10)
   li a0, 3080
   li a1, 10
   call rounded
-  ; sci/display.e16.ts:652  const e = exponentOf(addr(scratch))
+  ; sci/display.e16.ts:657  const e = exponentOf(addr(scratch))
   la a0, scratch
   call exponentOf
   mv s1, a0 ; e
-  ; sci/display.e16.ts:653  return e - (e >= 0 ? e % 3 : (3 - (-e % 3)) % 3)
+  ; sci/display.e16.ts:658  return e - (e >= 0 ? e % 3 : (3 - (-e % 3)) % 3)
   mv t0, s1
   mv t1, s1
   li t2, 0
@@ -21078,24 +21080,24 @@ engExponent:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:657 engPrefixed() at -O1
+; sci/display.e16.ts:662 engPrefixed() at -O1
 ;   n in s1
 engPrefixed:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; sci/display.e16.ts:658  if (isZero(KEEP_ANS)) return false
+  ; sci/display.e16.ts:663  if (isZero(KEEP_ANS)) return false
   li a0, 3080
   call isZero
   beqz a0, .L1
-  ; sci/display.e16.ts:658  return false
+  ; sci/display.e16.ts:663  return false
   li a0, 0
   j .return
 .L1:
-  ; sci/display.e16.ts:659  const n = engExponent()
+  ; sci/display.e16.ts:664  const n = engExponent()
   call engExponent
   mv s1, a0 ; n
-  ; sci/display.e16.ts:660  return n !== 0 && n >= -15 && n <= 12
+  ; sci/display.e16.ts:665  return n !== 0 && n >= -15 && n <= 12
   sub t0, s1, zero
   snez t0, t0
   mv t1, t0
@@ -21117,16 +21119,16 @@ engPrefixed:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:664 prefixIndex() at -O1
+; sci/display.e16.ts:669 prefixIndex() at -O1
 ;   n in s1
 prefixIndex:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; sci/display.e16.ts:665  const n = engExponent()
+  ; sci/display.e16.ts:670  const n = engExponent()
   call engExponent
   mv s1, a0 ; n
-  ; sci/display.e16.ts:666  return n < 0 ? u16(div(u16(n + 15), 3)) : u16(div(u16(n + 12), 3))
+  ; sci/display.e16.ts:671  return n < 0 ? u16(div(u16(n + 15), 3)) : u16(div(u16(n + 12), 3))
   bge s1, zero, .L1
   addi t0, s1, 15
   li t1, 43691
@@ -21146,25 +21148,25 @@ prefixIndex:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:670 engText(v) at -O1
+; sci/display.e16.ts:675 engText(v) at -O1
 ;   v in s1
 engText:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; v
-  ; sci/display.e16.ts:671  if (isZero(v)) {
+  ; sci/display.e16.ts:676  if (isZero(v)) {
   mv a0, s1
   call isZero
   beqz a0, .L1
-  ; sci/display.e16.ts:672  format(v, 10)
+  ; sci/display.e16.ts:677  format(v, 10)
   mv a0, s1
   li a1, 10
   call format
-  ; sci/display.e16.ts:673  return
+  ; sci/display.e16.ts:678  return
   j .return
 .L1:
-  ; sci/display.e16.ts:675  expText(v, 10, true)
+  ; sci/display.e16.ts:680  expText(v, 10, true)
   mv a0, s1
   li a1, 10
   li a2, 1
@@ -21175,35 +21177,35 @@ engText:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:679 trimZeros() at -O1
+; sci/display.e16.ts:684 trimZeros() at -O1
 ;   point in a1
 ;   i in a0
 trimZeros:
-  ; sci/display.e16.ts:680  let point = textLength
+  ; sci/display.e16.ts:685  let point = textLength
   lw a1, 0x06fa(zero)
-  ; sci/display.e16.ts:681  for (let i: u16 = 0; i < textLength; i++) {
+  ; sci/display.e16.ts:686  for (let i: u16 = 0; i < textLength; i++) {
   li a0, 0 ; i
   j .L3
 .L1:
-  ; sci/display.e16.ts:682  if (text[i] === 0x2e) point = i
+  ; sci/display.e16.ts:687  if (text[i] === 0x2e) point = i
   lbu t0, text(a0)
   li t1, 46
   bne t0, t1, .L5
-  ; sci/display.e16.ts:682  point = i
+  ; sci/display.e16.ts:687  point = i
   mv a1, a0 ; point
 .L5:
   addi a0, a0, 1
 .L3:
   lw t0, 0x06fa(zero)
   bltu a0, t0, .L1
-  ; sci/display.e16.ts:684  if (point === textLength) return
+  ; sci/display.e16.ts:689  if (point === textLength) return
   lw t0, 0x06fa(zero)
   bne a1, t0, .L9
-  ; sci/display.e16.ts:684  return
+  ; sci/display.e16.ts:689  return
   ret
-  ; sci/display.e16.ts:685  while (textLength > point + 1 && text[textLength - 1] === 0x30) textLength--
+  ; sci/display.e16.ts:690  while (textLength > point + 1 && text[textLength - 1] === 0x30) textLength--
 .L7:
-  ; sci/display.e16.ts:685  textLength--
+  ; sci/display.e16.ts:690  textLength--
   lw t0, 0x06fa(zero)
   addi t0, t0, -1
   sw t0, 0x06fa(zero)
@@ -21216,48 +21218,48 @@ trimZeros:
   li t1, 48
   beq t0, t1, .L7
 .L11:
-  ; sci/display.e16.ts:686  if (textLength === point + 1) textLength--
+  ; sci/display.e16.ts:691  if (textLength === point + 1) textLength--
   lw t0, 0x06fa(zero)
   addi t1, a1, 1
   bne t0, t1, .L12
-  ; sci/display.e16.ts:686  textLength--
+  ; sci/display.e16.ts:691  textLength--
   lw t0, 0x06fa(zero)
   addi t0, t0, -1
   sw t0, 0x06fa(zero)
 .L12:
-  ; sci/display.e16.ts:687  text[textLength] = 0
+  ; sci/display.e16.ts:692  text[textLength] = 0
   lw t0, 0x06fa(zero)
   sb zero, text(t0)
 .return:
   ret
 
-; sci/display.e16.ts:691 numberChars(n/k) at -O1
+; sci/display.e16.ts:696 numberChars(n/k) at -O1
 ;   n/k in s1
 numberChars:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; n/k
-  ; sci/display.e16.ts:692  let k = n
-  ; sci/display.e16.ts:693  if (k < 0) {
+  ; sci/display.e16.ts:697  let k = n
+  ; sci/display.e16.ts:698  if (k < 0) {
   bge s1, zero, .L1
-  ; sci/display.e16.ts:694  addChar(0x2d)
+  ; sci/display.e16.ts:699  addChar(0x2d)
   li a0, 45
   call addChar
-  ; sci/display.e16.ts:695  k = -k
+  ; sci/display.e16.ts:700  k = -k
   neg s1, s1
 .L1:
-  ; sci/display.e16.ts:697  if (k >= 10) addChar(0x30 + div(u16(k), 10))
+  ; sci/display.e16.ts:702  if (k >= 10) addChar(0x30 + div(u16(k), 10))
   li t0, 10
   blt s1, t0, .L2
-  ; sci/display.e16.ts:697  addChar(0x30 + div(u16(k), 10))
+  ; sci/display.e16.ts:702  addChar(0x30 + div(u16(k), 10))
   li t1, 52429
   mulhu t0, s1, t1
   srli t0, t0, 3
   addi a0, t0, 48
   call addChar
 .L2:
-  ; sci/display.e16.ts:698  addChar(0x30 + (u16(k) % 10))
+  ; sci/display.e16.ts:703  addChar(0x30 + (u16(k) % 10))
   li t1, 52429
   mulhu t0, s1, t1
   srli t0, t0, 3
@@ -21272,146 +21274,146 @@ numberChars:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:701 addChar(c) at -O1
+; sci/display.e16.ts:706 addChar(c) at -O1
 ;   c in a0
 addChar:
-  ; sci/display.e16.ts:702  if (textLength < 31) {
+  ; sci/display.e16.ts:707  if (textLength < 31) {
   lw t0, 0x06fa(zero)
   li t1, 31
   bgeu t0, t1, .L1
-  ; sci/display.e16.ts:703  text[textLength] = c
+  ; sci/display.e16.ts:708  text[textLength] = c
   lw t0, 0x06fa(zero)
   sb a0, text(t0)
-  ; sci/display.e16.ts:704  textLength++
+  ; sci/display.e16.ts:709  textLength++
   lw t0, 0x06fa(zero)
   addi t0, t0, 1
   sw t0, 0x06fa(zero)
-  ; sci/display.e16.ts:705  text[textLength] = 0
+  ; sci/display.e16.ts:710  text[textLength] = 0
   lw t0, 0x06fa(zero)
   sb zero, text(t0)
 .L1:
 .return:
   ret
 
-; sci/display.e16.ts:712 dmsText(v) at -O1
+; sci/display.e16.ts:717 dmsText(v) at -O1
 ;   v in s1
 dmsText:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; v
-  ; sci/display.e16.ts:713  if (exponentOf(v) > 9) {
+  ; sci/display.e16.ts:718  if (exponentOf(v) > 9) {
   mv a0, s1
   call exponentOf
   li t0, 9
   bge t0, a0, .L1
-  ; sci/display.e16.ts:714  decimalText(v)
+  ; sci/display.e16.ts:719  decimalText(v)
   mv a0, s1
   call decimalText
-  ; sci/display.e16.ts:715  return
+  ; sci/display.e16.ts:720  return
   j .return
 .L1:
-  ; sci/display.e16.ts:717  setDigits(1)
+  ; sci/display.e16.ts:722  setDigits(1)
   li a0, 1
   call setDigits
-  ; sci/display.e16.ts:718  copy(v, addr(degreePart))
+  ; sci/display.e16.ts:723  copy8(v, addr(degreePart))
   mv a0, s1
   la a1, degreePart
-  call copy
-  ; sci/display.e16.ts:719  math(M_ABS, addr(degreePart), 0, 0)
+  call copy8
+  ; sci/display.e16.ts:724  math(M_ABS, addr(degreePart), 0, 0)
   li a0, 17
   la a1, degreePart
   li a2, 0
   li a3, 0
   call math
-  ; sci/display.e16.ts:721  copy(addr(degreePart), addr(minutePart))
+  ; sci/display.e16.ts:726  copy8(addr(degreePart), addr(minutePart))
   la a0, degreePart
   la a1, minutePart
-  call copy
-  ; sci/display.e16.ts:722  math(M_IDIV, addr(degreePart), addr(unit), 0)
+  call copy8
+  ; sci/display.e16.ts:727  math(M_IDIV, addr(degreePart), addr(unit), 0)
   li a0, 8
   la a1, degreePart
   la a2, unit
   li a3, 0
   call math
-  ; sci/display.e16.ts:723  math(M_SUB, addr(minutePart), addr(degreePart), 0)
+  ; sci/display.e16.ts:728  math(M_SUB, addr(minutePart), addr(degreePart), 0)
   li a0, 2
   la a1, minutePart
   la a2, degreePart
   li a3, 0
   call math
-  ; sci/display.e16.ts:724  sixty(addr(minutePart))
+  ; sci/display.e16.ts:729  sixty(addr(minutePart))
   la a0, minutePart
   call sixty
-  ; sci/display.e16.ts:725  copy(addr(minutePart), addr(spare))
+  ; sci/display.e16.ts:730  copy8(addr(minutePart), addr(spare))
   la a0, minutePart
   la a1, spare
-  call copy
-  ; sci/display.e16.ts:726  math(M_IDIV, addr(minutePart), addr(unit), 0)
+  call copy8
+  ; sci/display.e16.ts:731  math(M_IDIV, addr(minutePart), addr(unit), 0)
   li a0, 8
   la a1, minutePart
   la a2, unit
   li a3, 0
   call math
-  ; sci/display.e16.ts:727  math(M_SUB, addr(spare), addr(minutePart), 0)
+  ; sci/display.e16.ts:732  math(M_SUB, addr(spare), addr(minutePart), 0)
   li a0, 2
   la a1, spare
   la a2, minutePart
   li a3, 0
   call math
-  ; sci/display.e16.ts:728  sixty(addr(spare))
+  ; sci/display.e16.ts:733  sixty(addr(spare))
   la a0, spare
   call sixty
-  ; sci/display.e16.ts:729  poke16(MATH_ARG, u16(-2))
+  ; sci/display.e16.ts:734  poke16(MATH_ARG, u16(-2))
   li t0, 65534
   li t1, 65366
   sw t0, 0(t1)
-  ; sci/display.e16.ts:730  math(M_RNDTO, addr(spare), 0, 0)
+  ; sci/display.e16.ts:735  math(M_RNDTO, addr(spare), 0, 0)
   li a0, 40
   la a1, spare
   li a2, 0
   li a3, 0
   call math
-  ; sci/display.e16.ts:732  setDigits(1)
-  li a0, 1
-  call setDigits
-  ; sci/display.e16.ts:733  copy(addr(unit), addr(scratch))
-  la a0, unit
-  la a1, scratch
-  call copy
-  ; sci/display.e16.ts:734  setDigits(60)
-  li a0, 60
-  call setDigits
-  ; sci/display.e16.ts:735  carry(addr(spare), addr(minutePart))
-  la a0, spare
-  la a1, minutePart
-  call carry
-  ; sci/display.e16.ts:736  carry(addr(minutePart), addr(degreePart))
-  la a0, minutePart
-  la a1, degreePart
-  call carry
   ; sci/display.e16.ts:737  setDigits(1)
   li a0, 1
   call setDigits
-  ; sci/display.e16.ts:738  textLength = 0
+  ; sci/display.e16.ts:738  copy8(addr(unit), addr(scratch))
+  la a0, unit
+  la a1, scratch
+  call copy8
+  ; sci/display.e16.ts:739  setDigits(60)
+  li a0, 60
+  call setDigits
+  ; sci/display.e16.ts:740  carry(addr(spare), addr(minutePart))
+  la a0, spare
+  la a1, minutePart
+  call carry
+  ; sci/display.e16.ts:741  carry(addr(minutePart), addr(degreePart))
+  la a0, minutePart
+  la a1, degreePart
+  call carry
+  ; sci/display.e16.ts:742  setDigits(1)
+  li a0, 1
+  call setDigits
+  ; sci/display.e16.ts:743  textLength = 0
   sw zero, 0x06fa(zero)
-  ; sci/display.e16.ts:739  if (isNegative(v)) addChar(0x2d)
+  ; sci/display.e16.ts:744  if (isNegative(v)) addChar(0x2d)
   mv a0, s1
   call isNegative
   beqz a0, .L2
-  ; sci/display.e16.ts:739  addChar(0x2d)
+  ; sci/display.e16.ts:744  addChar(0x2d)
   li a0, 45
   call addChar
 .L2:
-  ; sci/display.e16.ts:740  part(addr(degreePart), T_DEG)
+  ; sci/display.e16.ts:745  part(addr(degreePart), T_DEG)
   la a0, degreePart
   li a1, 136
   call part
-  ; sci/display.e16.ts:741  part(addr(minutePart), T_MIN)
+  ; sci/display.e16.ts:746  part(addr(minutePart), T_MIN)
   la a0, minutePart
   li a1, 137
   call part
-  ; sci/display.e16.ts:742  part(addr(spare), T_SEC)
+  ; sci/display.e16.ts:747  part(addr(spare), T_SEC)
   la a0, spare
   li a1, 138
   call part
@@ -21421,7 +21423,7 @@ dmsText:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:746 carry(low, high) at -O1
+; sci/display.e16.ts:751 carry(low, high) at -O1
 ;   low in s1
 ;   high in s2
 carry:
@@ -21431,26 +21433,26 @@ carry:
   sw s2, 4(sp)
   mv s1, a0 ; low
   mv s2, a1 ; high
-  ; sci/display.e16.ts:747  math(M_CMP, low, addr(unit), 0)
+  ; sci/display.e16.ts:752  math(M_CMP, low, addr(unit), 0)
   li a0, 6
   mv a1, s1
   la a2, unit
   li a3, 0
   call math
-  ; sci/display.e16.ts:748  if (i16(peek16(MATH_RESULT)) < 0) return
+  ; sci/display.e16.ts:753  if (i16(peek16(MATH_RESULT)) < 0) return
   li t0, 65370
   lw t0, 0(t0)
   bge t0, zero, .L1
-  ; sci/display.e16.ts:748  return
+  ; sci/display.e16.ts:753  return
   j .return
 .L1:
-  ; sci/display.e16.ts:749  math(M_SUB, low, addr(unit), 0)
+  ; sci/display.e16.ts:754  math(M_SUB, low, addr(unit), 0)
   li a0, 2
   mv a1, s1
   la a2, unit
   li a3, 0
   call math
-  ; sci/display.e16.ts:750  math(M_ADD, high, addr(scratch), 0)
+  ; sci/display.e16.ts:755  math(M_ADD, high, addr(scratch), 0)
   li a0, 1
   mv a1, s2
   la a2, scratch
@@ -21463,23 +21465,23 @@ carry:
   addi sp, sp, 6
   ret
 
-; sci/display.e16.ts:754 sixty(n) at -O1
+; sci/display.e16.ts:759 sixty(n) at -O1
 ;   n in s1
 sixty:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; n
-  ; sci/display.e16.ts:755  setDigits(60)
+  ; sci/display.e16.ts:760  setDigits(60)
   li a0, 60
   call setDigits
-  ; sci/display.e16.ts:756  math(M_MUL, n, addr(unit), 0)
+  ; sci/display.e16.ts:761  math(M_MUL, n, addr(unit), 0)
   li a0, 3
   mv a1, s1
   la a2, unit
   li a3, 0
   call math
-  ; sci/display.e16.ts:757  setDigits(1)
+  ; sci/display.e16.ts:762  setDigits(1)
   li a0, 1
   call setDigits
 .return:
@@ -21488,7 +21490,7 @@ sixty:
   addi sp, sp, 4
   ret
 
-; sci/display.e16.ts:761 part(n, mark) at -O1
+; sci/display.e16.ts:766 part(n, mark) at -O1
 ;   n in s2
 ;   mark in s3
 ;   at in s1
@@ -21502,26 +21504,26 @@ part:
   sw s0, 8(sp)
   mv s2, a0 ; n
   mv s3, a1 ; mark
-  ; sci/display.e16.ts:762  const at = textLength
+  ; sci/display.e16.ts:767  const at = textLength
   lw s1, 0x06fa(zero)
-  ; sci/display.e16.ts:763  const before = addr(text) + at
+  ; sci/display.e16.ts:768  const before = addr(text) + at
   addi s0, s1, text
-  ; sci/display.e16.ts:764  poke16(MATH_ARG, 10)
+  ; sci/display.e16.ts:769  poke16(MATH_ARG, 10)
   li t0, 10
   li t1, 65366
   sw t0, 0(t1)
-  ; sci/display.e16.ts:765  math(M_FORMAT, n, before, 0)
+  ; sci/display.e16.ts:770  math(M_FORMAT, n, before, 0)
   li a0, 57
   mv a1, s2
   mv a2, s0
   li a3, 0
   call math
-  ; sci/display.e16.ts:766  textLength = at + peek16(MATH_ARG)
+  ; sci/display.e16.ts:771  textLength = at + peek16(MATH_ARG)
   li t0, 65366
   lw t0, 0(t0)
   add t0, s1, t0
   sw t0, 0x06fa(zero)
-  ; sci/display.e16.ts:767  addChar(mark)
+  ; sci/display.e16.ts:772  addChar(mark)
   mv a0, s3
   call addChar
 .return:
@@ -21533,27 +21535,27 @@ part:
   addi sp, sp, 10
   ret
 
-; sci/display.e16.ts:771 setDigits(n) at -O1
+; sci/display.e16.ts:776 setDigits(n) at -O1
 ;   n in a0
 ;   k in a1
 setDigits:
-  ; sci/display.e16.ts:772  for (let k: u16 = 0; k < 8; k++) unit[k] = 0
+  ; sci/display.e16.ts:777  for (let k: u16 = 0; k < 8; k++) unit[k] = 0
   li a1, 0 ; k
   j .L3
 .L1:
-  ; sci/display.e16.ts:772  unit[k] = 0
+  ; sci/display.e16.ts:777  unit[k] = 0
   sb zero, unit(a1)
   addi a1, a1, 1
 .L3:
   li t0, 8
   bltu a1, t0, .L1
-  ; sci/display.e16.ts:773  if (n >= 10) {
+  ; sci/display.e16.ts:778  if (n >= 10) {
   li t0, 10
   bltu a0, t0, .L5
-  ; sci/display.e16.ts:774  unit[1] = 1
+  ; sci/display.e16.ts:779  unit[1] = 1
   li t0, 1
   sb t0, unit+1(zero)
-  ; sci/display.e16.ts:775  unit[2] = (div(n, 10) << 4) | (n % 10)
+  ; sci/display.e16.ts:780  unit[2] = (div(n, 10) << 4) | (n % 10)
   li t1, 52429
   mulhu t0, a0, t1
   srli t0, t0, 3
@@ -21568,31 +21570,10 @@ setDigits:
   sb t0, unit+2(zero)
   j .L6
 .L5:
-  ; sci/display.e16.ts:776  unit[2] = n << 4
+  ; sci/display.e16.ts:781  unit[2] = n << 4
   slli t0, a0, 4
   sb t0, unit+2(zero)
 .L6:
-.return:
-  ret
-
-; sci/display.e16.ts:779 copy(from, to) at -O1
-;   from in a0
-;   to in a1
-;   k in a2
-copy:
-  ; sci/display.e16.ts:780  for (let k: u16 = 0; k < 8; k++) poke(to + k, peek(from + k))
-  li a2, 0 ; k
-  j .L3
-.L1:
-  ; sci/display.e16.ts:780  poke(to + k, peek(from + k))
-  add t0, a1, a2
-  add t1, a0, a2
-  lbu t1, 0(t1)
-  sb t1, 0(t0)
-  addi a2, a2, 1
-.L3:
-  li t0, 8
-  bltu a2, t0, .L1
 .return:
   ret
 
@@ -41176,42 +41157,31 @@ vertexOf:
   ret
 
 ; sci/equation.e16.ts:475 eqSmall(v, n) at -O1
-;   v in s2
-;   n in s3
-;   i in s1
+;   v in s1
+;   n in s2
 eqSmall:
-  addi sp, sp, -8
+  addi sp, sp, -6
   sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s3, 4(sp)
-  sw s1, 6(sp)
-  mv s2, a0 ; v
-  mv s3, a1 ; n
-  ; sci/equation.e16.ts:476  for (let i: u16 = 0; i < VALUE_SIZE; i++) poke(v + i, 0)
-  li s1, 0 ; i
-  j .L3
-.L1:
-  ; sci/equation.e16.ts:476  poke(v + i, 0)
-  add t0, s2, s1
-  sb zero, 0(t0)
-  addi s1, s1, 1
-.L3:
-  li t0, 36
-  bltu s1, t0, .L1
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  mv s1, a0 ; v
+  mv s2, a1 ; n
+  ; sci/equation.e16.ts:476  zeroValue(v)
+  mv a0, s1
+  call zeroValue
   ; sci/equation.e16.ts:477  poke(v + 2, n << 4)
-  slli t0, s3, 4
-  sb t0, 2(s2)
+  slli t0, s2, 4
+  sb t0, 2(s1)
   ; sci/equation.e16.ts:478  exactWhole(v)
-  mv a0, s2
+  mv a0, s1
   la t0, exactWhole
   li t1, 2
   call far_call
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s3, 4(sp)
-  lw s1, 6(sp)
-  addi sp, sp, 8
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  addi sp, sp, 6
   ret
 
 ; sci/equation.e16.ts:485 cubic() at -O1

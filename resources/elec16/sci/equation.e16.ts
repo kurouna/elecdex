@@ -473,7 +473,7 @@ function vertexOf(): void {
 
 /** A whole number below 10, exact. */
 function eqSmall(v: u16, n: u16): void {
-  for (let i: u16 = 0; i < VALUE_SIZE; i++) poke(v + i, 0)
+  zeroValue(v)
   poke(v + 2, n << 4)
   exactWhole(v)
 }
