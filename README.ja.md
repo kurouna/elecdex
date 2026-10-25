@@ -37,10 +37,10 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
 
 ## 機能
 
-ペインは作業ごとに並べ替えられます。9 つの **レイアウトプリセット** が、その作業に合うペインをキー一つ
-（**Ctrl+Shift+F1**〜**F9**）で画面に並べます。cockpit 以外のどのプリセットも左端にシステムの列を持つので、切り替えても
-計器はそのままで、舞台だけが替わります。以下では機能を、それを見せるプリセットごとに
-まとめました。どの画像も、そのプリセットを別々のテーマで写したものです。
+ペインは作業ごとに並べ替えられます。10 個の **レイアウトプリセット** が、その作業に合うペインをキー一つ
+（**Ctrl+Shift+F1**〜**F10**）で画面に並べます。cockpit と blank 以外のどのプリセットも左端にシステムの列を持つので、切り替えても
+計器はそのままで、舞台だけが替わります。最後の blank はペインが一つもない、自分で組み立てるためのレイアウトです。
+以下では機能を、それを見せるプリセットごとにまとめました。どの画像も、そのプリセットを別々のテーマで写したものです。
 
 ### standard — このマシン、シェル、そして外の世界
 
@@ -250,16 +250,27 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
   スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL と 1 対 1 の対戦格闘 ELECFIGHTERの 4 本のゲームと、ゲームを作るキットが付きます。**ELEC-16 SCI**（retro と desk のタブにもある）
   として選ぶと関数電卓になります。式は教科書の形で組まれ、答えは分数や根号のまま残り、統計、進数、関数の表、方程式、複素数、行列、プログラムのモードと、物理定数、単位の換算、Σ・微分・積分があります。
 
+### blank — まだ何もない、自分で組み立てる
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber テーマの blank プリセット：ペインが一つもないワークスペースの上に、ペイン追加のピッカーが開き、すべてのウィジェットが説明つきで並ぶ。上部に配置の選択（右、下、新しいタブ、ポップアップ）">
+  <br><sub>blank · Amber · 最初のペインを選ぶピッカー</sub>
+</p>
+
+- **blank**（*unreleased*）— ペインが一つもないレイアウトです。*no panes in this layout* の下の **+ add pane**
+  （または Ctrl+Shift+A）でピッカーが開き、最初に選んだペインが画面いっぱいに入ります。そこから分割し、タブを足し、
+  ペインをドラッグして組み立てます。どのレイアウトでも、最後のペインを閉じると同じように空になります。
+
 ### レイアウト、見た目、そのほか
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="Tron テーマの standard レイアウトの上に開いたレイアウトダイアログ：1〜9 の番号が付いた保存レイアウトとしての 9 つのプリセット（それぞれに配置の縮図）、その下にプリセットの棚（縮図、一覧での位置、キー Ctrl+Shift+F1〜F9）">
+  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="Tron テーマの standard レイアウトの上に開いたレイアウトダイアログ：保存レイアウトとしてのプリセット（1〜9 が見え、0 の blank はその下。それぞれに配置の縮図）、その下にプリセットの棚（縮図、一覧での位置、キー Ctrl+Shift+F1〜F10。blank は空の枠）">
   <br><sub>レイアウト（Ctrl+Shift+G） · Tron</sub>
 </p>
 
 - **レイアウト** — どのペインもタイトルをドラッグして移動でき、閉じる、分割する、タブにする、サイズを変える、
   元に戻すことができます。レイアウトは保存され、リセットもできます。配置に名前を付けて保存し、
-  あとで戻ることも（Ctrl+Shift+G、またはステータスバーの *layouts*）、9 つのプリセットから始めることも
+  あとで戻ることも（Ctrl+Shift+G、またはステータスバーの *layouts*）、10 個のプリセットから始めることも
   できます。
 - **見た目と操作感** — その場で切り替わる 7 つのテーマ。HUD 向けの Tron、Amber、Phosphor、White、White を反転させて淡い地に黒に近い文字で同じ走査線を引く Black と、
   普段の仕事向けに Windows 11 の配色、システムフォント、フルカラーのアイコンを使う Business (Dark) と
@@ -286,7 +297,7 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
   理由を添えて薄く残り、取り消せないものは Enter 2 回で実行します。
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-palette.jpg" alt="Tron テーマの標準レイアウトに重なるアクションパレット。layout と入力し、種類（all・action・layout・preset・theme・pane・settings）が件数つきで並び、見つかった行は Reset layout と Saved layouts（layout に下線）、続いて 9 つの保存レイアウトとプリセット。右端にそれぞれのキー、standard は current">
+  <img src="./docs/screenshots/elecdex-palette.jpg" alt="Tron テーマの標準レイアウトに重なるアクションパレット。layout と入力し、種類（all・action・layout・preset・theme・pane・settings）が件数つきで並び、見つかった行は Reset layout と Saved layouts（layout に下線）、続いて 10 個の保存レイアウトとプリセット。右端にそれぞれのキー、standard は current">
   <br><sub>アクションパレット（Ctrl+Shift+P） · Tron</sub>
 </p>
 
@@ -389,7 +400,7 @@ Ctrl+Shift+= が Ctrl+Shift+^、Ctrl+Shift+[ / ] が Ctrl+Shift+@ / [）。ア�
 | Ctrl+Shift+Backspace | 既定のレイアウトに戻す（シェルが開いていれば、切り替えと同じく先に確認する） |
 | Ctrl+Shift+G | 保存したレイアウト: 今の配置に名前を付けて残す、または保存した配置に戻る |
 | Ctrl+Shift+1 … 9、0 | 保存したレイアウトのうち、ダイアログに並ぶ順で最初の十を適用（0 が十番目） |
-| Ctrl+Shift+F1 … F9 | プリセットへ切り替え: standard、network、earth、dev、media、desk、ai、cockpit、retro |
+| Ctrl+Shift+F1 … F10 | プリセットへ切り替え: standard、network、earth、dev、media、desk、ai、cockpit、retro、blank |
 | Ctrl+Shift+L | ランチャーを検索（レイアウトになければワークスペースの上にポップアップ） |
 | Ctrl+Shift+U | Utility ペインへ（複数あれば押すたびに次へ）。レイアウトになければポップアップし、もう一度押すと閉じる（Linux の IBus がこのキーを Unicode 入力に使う環境では、割り当てを変えてください） |
 | Ctrl+Shift+S | 選択中のタブのシェルにフォーカス（シェルペインがなければ追加） |
@@ -471,15 +482,15 @@ Escape、もう一度のショートカット、ボタン、または暗幕の�
 ようにする方法（*Settings → General → Layouts*）も示されます。古い配置はブラウン管のように電源が落ち、
 新しい配置は起動時と同じようにペインごとに立ち上がります。動きを減らす設定では、この演出はありません。
 
-一覧の下には 9 つの **プリセット** が、それぞれペインの並びを小さな図にして並んでいます。
+一覧の下には 10 個の **プリセット** が、それぞれペインの並びを小さな図にして並んでいます。
 **standard**（既定のレイアウト）、**network**（地球儀の下に connections、その横に Wi-Fi の下に Ethernet）、**earth**（ORBIT、地球儀、
 地震、天気）、**dev**（AI AGENT、Docker とシェル、clipboard と timer とシェル、GIT と AI チャットと Log Watch。組ごとにタブ）、**media**（YouTube (TV) とその下の now playing・spectrum・mixer、
-タブに重ねた X と RSS）、**desk**（notes、timer、calculator、tasks、calendar、clipboard、utility）、**ai**（上下に 2 つの AI チャットと、GPU ペインの上に ELEC system）、**cockpit**（システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に Wi-Fi と、その下に Ethernet）、**retro**（ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum）です。cockpit 以外は左端にシステムの列を
+タブに重ねた X と RSS）、**desk**（notes、timer、calculator、tasks、calendar、clipboard、utility）、**ai**（上下に 2 つの AI チャットと、GPU ペインの上に ELEC system）、**cockpit**（システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に Wi-Fi と、その下に Ethernet）、**retro**（ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum）、**blank**（ペインなし。自分で足していく）です。cockpit と blank 以外は左端にシステムの列を
 持つので、切り替えても計器はそのままで、舞台だけが替わります。プリセットを選ぶと、そこから作ったレイアウトが
 追加されてそこへ切り替わり、以後は作業に追従する自分のレイアウトになります。もう一度選ぶと、別のものを
 追加せずにそのレイアウトへ戻ります。↺ でプリセットの状態に戻せます。プリセットにはそれぞれ専用のキー
-（Ctrl+Shift+F1 から F9）があり、どこからでも同じことができます。新しくインストールしたときは 9 つが
-Ctrl+Shift+1 から 9 に並んだ状態で始まり、すでにある一覧に足されることはありません。
+（Ctrl+Shift+F1 から F10）があり、どこからでも同じことができます。新しくインストールしたときは 10 個が
+Ctrl+Shift+1 から 0 に並んだ状態で始まり、すでにある一覧に足されることはありません。
 
 レイアウトは、このマシン固有のものを何も含まない一つのファイルに保存されます。**`layouts.json` を別の
 コンピューターにコピーすれば、配置も一緒に持っていけます。** ダイアログの *layouts.json* ボタンで、

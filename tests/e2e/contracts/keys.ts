@@ -63,6 +63,7 @@ export const KEY_ROWS = {
   'layout.preset.ai': { world: 'presets' },
   'layout.preset.cockpit': { world: 'presets' },
   'layout.preset.retro': { world: 'presets' },
+  'layout.preset.blank': { world: 'presets' },
   'launcher.focus': { world: 'workspace' },
   'utility.focus': { world: 'workspace' },
   'shell.focus': { world: 'workspace' },

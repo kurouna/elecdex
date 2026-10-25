@@ -35,9 +35,9 @@
 
 ## 功能
 
-窗格按你正在做的事来编排：九个**布局预设**各用一个按键就能把合适的窗格摆上屏幕——
-**Ctrl+Shift+F1** 到 **F9**——而且除 cockpit 外，每个预设都把系统栏留在左侧，所以切换时换的是舞台，
-仪表仍在原处。下面的功能按展示它们的预设分组，每张图都是该预设配上不同的主题。
+窗格按你正在做的事来编排：十个**布局预设**各用一个按键就能把合适的窗格摆上屏幕——
+**Ctrl+Shift+F1** 到 **F10**——而且除 cockpit 和 blank 外，每个预设都把系统栏留在左侧，所以切换时换的是舞台，
+仪表仍在原处。最后的 blank 一个窗格也没有，用来逐个添加、搭出你自己的布局。下面的功能按展示它们的预设分组，每张图都是该预设配上不同的主题。
 
 ### standard — 这台机器、它的 shell，以及外面的世界
 
@@ -233,16 +233,27 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   ELECLANCE、空战游戏 ELECAIRCOMBAT、方块解谜 ELECDRILL、一对一格斗游戏 ELECFIGHTER四款游戏和制作游戏的工具包。选作 **ELEC-16 SCI**（也是 retro 和 desk 中的标签页）时，它是一台函数计算器：
   算式像教科书一样排版，答案保留分数和根号，并有统计、进制、函数表、方程、复数、矩阵和程序模式，以及物理常数、单位换算、Σ、微分和积分。
 
+### blank — 什么都还没有，由你来搭
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber 主题下的 blank 预设：没有任何窗格的工作区上打开了添加窗格的选择器，列出每个小部件及其说明，顶部是放置方式（右侧、下方、新标签页、弹出）">
+  <br><sub>blank · Amber · 为第一个窗格打开的选择器</sub>
+</p>
+
+- **blank**（*unreleased*）— 一个窗格也没有的布局：*no panes in this layout* 下方的 **+ add pane**（或
+  Ctrl+Shift+A）会打开选择器，选中的第一个窗格铺满整个屏幕；之后再拆分、加标签页、拖动窗格。
+  任何布局关闭最后一个窗格后，也会像这样变空。
+
 ### 布局、外观及其他
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：九个预设作为已保存布局编号为 1 到 9，每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F9">
+  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：预设作为已保存布局，可见编号 1 到 9（编号 0 的 blank 在更下方），每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F10（blank 是空框）">
   <br><sub>布局 (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 - **布局** — 每个窗格都可以拖动标题来移动，也可以关闭、分屏、放入标签页、调整大小并恢复；
   布局会被保存，也可以重置。一种排布可以命名保存以便日后回到它（Ctrl+Shift+G，或状态栏中的
-  *layouts*），也可以从九个预设之一开始。
+  *layouts*），也可以从十个预设之一开始。
 - **外观与体验** — 七种可实时切换的主题：用于 HUD 风格的 Tron、Amber、Phosphor、White，以及把 White 反过来、在浅色底上用近黑文字并带同样扫描线的 Black，
   以及采用 Windows 11 配色、系统字体和全彩图标、适合日常办公的 Business (Dark) 和
   Business (Light)——上面的截图里每一种都出现过。先是一段展示本机真实信息的 Linux 风格启动日志，
@@ -263,7 +274,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   设置分区，每一行都显示当前的按键。当前无法执行的行会变暗并注明原因；无法撤销的操作需按两次 Enter。
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-palette.jpg" alt="Tron 主题下标准布局上方的操作面板，输入了 layout：各类行（all、action、layout、preset、theme、pane、settings）以带数量的按钮排列，找到的行为 Reset layout 和 Saved layouts（layout 带下划线），接着是 9 个已保存布局和预设，右侧是各自的按键，standard 标为 current">
+  <img src="./docs/screenshots/elecdex-palette.jpg" alt="Tron 主题下标准布局上方的操作面板，输入了 layout：各类行（all、action、layout、preset、theme、pane、settings）以带数量的按钮排列，找到的行为 Reset layout 和 Saved layouts（layout 带下划线），接着是 10 个已保存布局和预设，右侧是各自的按键，standard 标为 current">
   <br><sub>操作面板（Ctrl+Shift+P） · Tron</sub>
 </p>
 
@@ -357,7 +368,7 @@ Ctrl+Shift+[ / ] 即 Ctrl+Shift+@ / [）。应用内的列表和提示会按你�
 | Ctrl+Shift+Backspace | 重置为默认布局（有 shell 打开时，与切换布局一样先询问） |
 | Ctrl+Shift+G | 已保存布局：给当前排布命名保存，或回到某个布局 |
 | Ctrl+Shift+1 … 9、0 | 应用前十个已保存布局，顺序与对话框中的列表一致（0 为第十个） |
-| Ctrl+Shift+F1 … F9 | 切换到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro |
+| Ctrl+Shift+F1 … F10 | 切换到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro、blank |
 | Ctrl+Shift+L | 搜索启动器（若布局中没有，则在工作区上方弹出一个） |
 | Ctrl+Shift+U | 实用工具窗格（有多个时每按一次切换到下一个）；布局中没有时弹出，再按一次关闭（Linux 上 IBus 可能占用此键用于 Unicode 输入，请改绑） |
 | Ctrl+Shift+S | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
@@ -428,14 +439,14 @@ elecdex 在前台时按下它会把 elecdex 收起；在其他地方按下则把
 打开时会先询问你，询问中也提供了不再询问的方法（*Settings → General → Layouts*）。旧的排布
 像显像管一样断电，新的排布逐个窗格点亮，和启动时一样——减少动效时则完全没有动画。
 
-列表下方有九个**预设**，每个都画成其窗格的小地图：**standard**（默认布局）、
+列表下方有十个**预设**，每个都画成其窗格的小地图：**standard**（默认布局）、
 **network**（地球下方是连接，旁边是 Wi-Fi，其下是 Ethernet）、**earth**（ORBIT、地球、地震和天气）、**dev**（AI AGENT；
 Docker 和 shell；剪贴板、计时器和 shell；GIT、AI 聊天和 Log Watch——每组都是标签页）、**media**（YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页）、
-**desk**（记事、计时器、计算器、任务、日历、剪贴板和实用工具）、**ai**（上下两个 AI 聊天，以及位于 GPU 窗格之上的 ELEC system）、**cockpit**（以 CLUSTER 面板取代系统栏，下方一个 shell，右侧上方是 Wi-Fi、下方是 Ethernet）以及 **retro**（ELEC-16 和 CHIP-8 作为一个窗格的标签页，下方是 16 段频谱）。除 cockpit 外，每个预设都把系统栏留在左侧，所以切换时换的是
+**desk**（记事、计时器、计算器、任务、日历、剪贴板和实用工具）、**ai**（上下两个 AI 聊天，以及位于 GPU 窗格之上的 ELEC system）、**cockpit**（以 CLUSTER 面板取代系统栏，下方一个 shell，右侧上方是 Wi-Fi、下方是 Ethernet）**retro**（ELEC-16 和 CHIP-8 作为一个窗格的标签页，下方是 16 段频谱）以及 **blank**（没有窗格，由你自己添加）。除 cockpit 和 blank 外，每个预设都把系统栏留在左侧，所以切换时换的是
 舞台，仪表仍在原处。选择一个预设会用它新建一个布局并切换过去——此后它就是你的布局之一，
 跟随你的工作——再次选择它会回到那个布局，而不会再新建一个；↺ 把它恢复为预设原样。每个预设
-都有自己的按键 Ctrl+Shift+F1 到 F9，在任何地方都能做同样的事。全新安装时，这九个预设会占据
-Ctrl+Shift+1 到 9；已有的列表不会被追加。
+都有自己的按键 Ctrl+Shift+F1 到 F10，在任何地方都能做同样的事。全新安装时，这十个预设会占据
+Ctrl+Shift+1 到 0；已有的列表不会被追加。
 
 它们保存在一个不含任何本机专属信息的文件里：**把 `layouts.json` 复制到另一台电脑，你的排布
 就跟着过去了。** 对话框中的 *layouts.json* 按钮会在文件管理器中显示它（详见

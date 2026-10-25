@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { CH } from '@shared/channels'
-import { defaultLayout, fallbackNode, upgradeDefaultHeights } from '@shared/default-layout'
+import { defaultLayout, upgradeDefaultHeights } from '@shared/default-layout'
 import { normalizeTree } from '@shared/layout-ops'
 import { seededLayouts, withPresetLayout, withPresetRestored } from '@shared/layout-presets'
 import {
@@ -102,17 +102,17 @@ export function registerLayoutIpc(): { dispose: () => void } {
         // running take effect on the next reload instead of being masked by a cache.
         store.invalidate()
         const tree = store.read(migrateLayout)
-        return normalizeTree({ ...tree, root: upgradeDefaultHeights(tree.root) }, fallbackNode())
+        return normalizeTree({ ...tree, root: upgradeDefaultHeights(tree.root) })
       },
       [CH.layout.save]: (_event, raw: unknown): LayoutTree => {
         const parsed = LayoutTreeSchema.safeParse(raw)
         if (!parsed.success) {
           // The renderer sent something malformed. Keep what is on disk rather than
           // replacing a good layout with a broken one.
-          return normalizeTree(store.read(migrateLayout), fallbackNode())
+          return normalizeTree(store.read(migrateLayout))
         }
 
-        const normalized = normalizeTree(parsed.data, fallbackNode())
+        const normalized = normalizeTree(parsed.data)
         store.write(normalized)
         writeBack(normalized)
         return normalized
@@ -146,7 +146,7 @@ export function registerLayoutIpc(): { dispose: () => void } {
         // it is rather than saving something that cannot be shown or applied.
         if (name === null || !parsed.success) return summarize(current.items, current.active)
 
-        const tree = portableTree(normalizeTree(parsed.data, fallbackNode()))
+        const tree = portableTree(normalizeTree(parsed.data))
         const next = withSavedLayout(current.items, { id: newLayoutId(current.items), name, tree })
         if (next === null) return summarize(current.items, current.active)
         // Saving the workspace under a name is also entering that layout: what
@@ -164,7 +164,7 @@ export function registerLayoutIpc(): { dispose: () => void } {
         // wrote it, so it goes through the same door as layout.json does.
         const migrated = migrateLayout(entry.tree)
         if (migrated === null) return null
-        const tree = normalizeTree(migrated, fallbackNode())
+        const tree = normalizeTree(migrated)
         store.write(tree)
         setActive(entry.id)
         return tree

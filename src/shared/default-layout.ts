@@ -60,11 +60,6 @@ export function defaultLayout(): LayoutTree {
   return { version: LAYOUT_VERSION, root: defaultLayoutNode() }
 }
 
-/** The layout to fall back to when a tree collapses to nothing. */
-export function fallbackNode(): LayoutNode {
-  return pane('terminal')
-}
-
 /** The left column's widgets, top to bottom, as the default layout has them. */
 export const LEFT_COLUMN: readonly string[] = [
   'clock',

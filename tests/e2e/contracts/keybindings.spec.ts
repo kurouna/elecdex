@@ -442,7 +442,10 @@ test("every preset's key adds the layout made from it and goes there", async () 
       await page.keyboard.press(chordOf(action))
       await expect.poll(active, { timeout: 20_000 }).toBe(preset)
       await settleLayout(page)
-      await expect(page.getByTestId('pane').first()).toBeVisible()
+      // blank has no pane: the workspace offers to add the first instead.
+      const drawn =
+        preset === 'blank' ? page.getByTestId('workspace-empty') : page.getByTestId('pane').first()
+      await expect(drawn).toBeVisible()
     })
     // Each added once, in the order its key was pressed.
     const made = await page.evaluate(async () =>

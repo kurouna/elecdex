@@ -1,11 +1,14 @@
-import { defaultLayout, fallbackNode } from '@shared/default-layout'
+import { defaultLayout } from '@shared/default-layout'
 import {
   addTab,
   closeNode,
   collectPanes,
+  EMPTY_ID,
+  emptyNode,
   findNode,
   findTabsContaining,
   focusTab,
+  isEmptyLayout,
   moveNode,
   moveTabTo,
   neighbourShell,
@@ -16,6 +19,7 @@ import {
   type Placement,
   pane,
   patchPaneState,
+  placeFirst,
   resizeSplit,
   setPaneState,
   split,
@@ -45,6 +49,11 @@ function shapeOf(node: LayoutNode): string {
 
 /** Every invariant `normalize` promises, checked over a whole tree. */
 function assertInvariants(root: LayoutNode): void {
+  // The empty layout is the one node allowed no children, and only as the root.
+  if (isEmptyLayout(root)) {
+    expect(root).toEqual(emptyNode())
+    return
+  }
   walk(root, (node) => {
     if (node.kind === 'split') {
       expect(node.children.length, `split ${node.id} arity`).toBeGreaterThanOrEqual(2)
@@ -785,7 +794,7 @@ describe('moveNode over generated layouts', () => {
     'seed %i: every tab move keeps the tree valid and lands in the gap asked for',
     (seed) => {
       const rand = random(seed)
-      let t = normalizeTree(tree(generate(rand, 3, 'row')), pane('fallback'))
+      let t = normalizeTree(tree(generate(rand, 3, 'row')))
       let moved = 0
       for (let step = 0; step < 50; step++) {
         const nodes = movable(t.root)
@@ -810,7 +819,7 @@ describe('moveNode over generated layouts', () => {
     'seed %i: every move keeps the tree valid and lands where asked',
     (seed) => {
       const rand = random(seed)
-      let t = normalizeTree(tree(generate(rand, 3, 'row')), pane('fallback'))
+      let t = normalizeTree(tree(generate(rand, 3, 'row')))
       let moved = 0
       for (let step = 0; step < 25; step++) {
         const nodes = movable(t.root)
@@ -841,13 +850,13 @@ describe('closeNode, tabs', () => {
     // Regression: closing a tab before the shown one switched to the tab after it.
     const panes = [pane('a'), pane('b'), pane('c')]
     const group = tabs(panes, before)
-    const result = closeNode(tree(group), (panes[closed] as PaneNode).id, fallbackNode())
+    const result = closeNode(tree(group), (panes[closed] as PaneNode).id)
     expect(result.root).toMatchObject({ kind: 'tabs', activeIndex: after })
   })
 
   it('keeps the shown tab when closing a tab before it leaves the rest', () => {
     const [a, b, c, d] = [pane('a'), pane('b'), pane('c'), pane('d')]
-    const result = closeNode(tree(tabs([a, b, c, d], 2)), a.id, fallbackNode())
+    const result = closeNode(tree(tabs([a, b, c, d], 2)), a.id)
     if (result.root.kind !== 'tabs') throw new Error('expected tabs')
     expect(result.root.children[result.root.activeIndex]?.id).toBe(c.id)
   })
@@ -857,7 +866,7 @@ describe('closeNode', () => {
   it('collapses the parent split when one of two panes closes', () => {
     const a = pane('a')
     const b = pane('b')
-    const result = closeNode(tree(split('row', [a, b])), b.id, fallbackNode())
+    const result = closeNode(tree(split('row', [a, b])), b.id)
     expect(result.root).toEqual(a)
   })
 
@@ -865,24 +874,32 @@ describe('closeNode', () => {
     const a = pane('a')
     const b = pane('b')
     const c = pane('c')
-    const result = closeNode(tree(split('row', [a, b, c], [0.5, 0.25, 0.25])), c.id, fallbackNode())
+    const result = closeNode(tree(split('row', [a, b, c], [0.5, 0.25, 0.25])), c.id)
     if (result.root.kind !== 'split') throw new Error('expected split')
     expect(result.root.sizes[0]).toBeCloseTo(2 / 3, 9)
     expect(result.root.sizes[1]).toBeCloseTo(1 / 3, 9)
   })
 
-  it('substitutes the fallback when the last pane closes', () => {
+  it('leaves the empty layout when the last pane closes', () => {
     const only = pane('cpu')
-    const fallback = pane('terminal')
-    const result = closeNode(tree(only), only.id, fallback)
-    expect(result.root).toBe(fallback)
+    const result = closeNode(tree(only), only.id)
+    expect(result.root).toEqual(emptyNode())
+    expect(isEmptyLayout(result)).toBe(true)
+    expect(LayoutTreeSchema.safeParse(result).success).toBe(true)
+  })
+
+  it('leaves the empty layout when the last group, or the last split, closes', () => {
+    const group = tabs([pane('a'), pane('b')])
+    expect(closeNode(tree(group), group.id).root).toEqual(emptyNode())
+    const whole = split('row', [pane('a'), split('column', [pane('b'), pane('c')])])
+    expect(closeNode(tree(whole), whole.id).root).toEqual(emptyNode())
   })
 
   it('closing a tab keeps the group when two or more remain', () => {
     const a = pane('a')
     const b = pane('b')
     const c = pane('c')
-    const result = closeNode(tree(tabs([a, b, c], 2)), c.id, fallbackNode())
+    const result = closeNode(tree(tabs([a, b, c], 2)), c.id)
     expect(result.root.kind).toBe('tabs')
     if (result.root.kind !== 'tabs') return
     expect(result.root.children.map((p) => p.id)).toEqual([a.id, b.id])
@@ -892,13 +909,13 @@ describe('closeNode', () => {
   it('removes a whole subtree when a split id is closed', () => {
     const keep = pane('keep')
     const inner = split('column', [pane('x'), pane('y')])
-    const result = closeNode(tree(split('row', [keep, inner])), inner.id, fallbackNode())
+    const result = closeNode(tree(split('row', [keep, inner])), inner.id)
     expect(result.root).toEqual(keep)
   })
 
   it('is a no-op for an unknown id', () => {
     const t = tree(pane('a'))
-    expect(closeNode(t, 'nope', fallbackNode())).toBe(t)
+    expect(closeNode(t, 'nope')).toBe(t)
   })
 })
 
@@ -1180,7 +1197,8 @@ describe('random operation sequences keep the invariants', () => {
   function randomStep(t: LayoutTree, rand: () => number): LayoutTree {
     const panes = collectPanes(t.root)
     const target = panes[Math.floor(rand() * panes.length)]
-    if (!target) return t
+    // Closed to nothing: start again from a first pane, as the empty workspace does.
+    if (!target) return placeFirst(t, pane('terminal'))
 
     const op = rand()
     if (op < 0.3) {
@@ -1188,7 +1206,7 @@ describe('random operation sequences keep the invariants', () => {
       return splitPane(t, target.id, direction, pane('terminal'))
     }
     if (op < 0.45) return addTab(t, target.id, pane('terminal'))
-    if (op < 0.65) return closeNode(t, target.id, fallbackNode())
+    if (op < 0.65) return closeNode(t, target.id)
     if (op < 0.75) return focusTab(t, target.id)
     if (op < 0.9) return randomTabMove(t, rand, target.id, panes)
     return randomResize(t, rand)
@@ -1202,7 +1220,6 @@ describe('random operation sequences keep the invariants', () => {
       t = randomStep(t, rand)
       assertInvariants(t.root)
       expect(LayoutTreeSchema.safeParse(t).success).toBe(true)
-      expect(collectPanes(t.root).length).toBeGreaterThanOrEqual(1)
     }
   })
 })
@@ -1222,7 +1239,7 @@ describe('normalizeTree and duplicate ids', () => {
     const b = pane('calendar', { id: 'same' })
     const c = pane('rss', { id: 'same' })
     const t = tree(split('row', [a, tabs([b, c])]))
-    const fixed = normalizeTree(t, fallbackNode())
+    const fixed = normalizeTree(t)
     assertInvariants(fixed.root)
     expect(shapeOf(fixed.root)).toBe('row(clock tabs(calendar rss))')
     expect(collectPanes(fixed.root)[0]?.id).toBe('same')
@@ -1240,7 +1257,7 @@ describe('normalizeTree and duplicate ids', () => {
         pane('c', { id: 'x' }),
       ],
     })
-    const fixed = normalizeTree(t, fallbackNode())
+    const fixed = normalizeTree(t)
     assertInvariants(fixed.root)
     expect(fixed.root.id).toBe('x')
   })
@@ -1248,13 +1265,47 @@ describe('normalizeTree and duplicate ids', () => {
   it('keeps every id of a tree that repeats none, and the state that goes with it', () => {
     const shell = pane('terminal', { state: { sessionId: 's1' } })
     const t = tree(split('row', [pane('clock'), tabs([shell, pane('rss')])]))
-    const fixed = normalizeTree(t, fallbackNode())
+    const fixed = normalizeTree(t)
     expect(ids(fixed.root)).toEqual(ids(t.root))
     expect(findNode(fixed.root, shell.id)).toEqual(shell)
   })
 
+  it('makes a tree that collapsed to nothing the empty layout, under its one id', () => {
+    const hollow = tree(split('row', [tabs([]), split('column', [])]))
+    expect(normalizeTree(hollow).root).toEqual(emptyNode())
+    expect(normalizeTree(tree(emptyNode())).root.id).toBe(EMPTY_ID)
+  })
+
   it('leaves a lone pane as it is, the same object', () => {
     const only = pane('clock')
-    expect(normalizeTree(tree(only), fallbackNode()).root).toBe(only)
+    expect(normalizeTree(tree(only)).root).toBe(only)
+  })
+})
+
+describe('placeFirst', () => {
+  it('puts the first pane of an empty layout at the root', () => {
+    const first = pane('clock')
+    const result = placeFirst(tree(emptyNode()), first)
+    expect(result.root).toBe(first)
+    assertInvariants(result.root)
+  })
+
+  it('leaves a layout that has panes as it is', () => {
+    const t = tree(split('row', [pane('a'), pane('b')]))
+    expect(placeFirst(t, pane('clock'))).toBe(t)
+  })
+})
+
+describe('the empty layout under the other operations', () => {
+  const empty = () => tree(emptyNode())
+
+  it('is left as it is by every operation that needs a pane to work on', () => {
+    const t = empty()
+    expect(splitPane(t, 'nope', 'right', pane('a'))).toBe(t)
+    expect(addTab(t, 'nope', pane('a'))).toBe(t)
+    expect(closeNode(t, 'nope')).toBe(t)
+    expect(moveNode(t, 'nope', 'other', 'left')).toBe(t)
+    expect(focusTab(t, 'nope')).toBe(t)
+    expect(visiblePanes(t.root)).toEqual([])
   })
 })

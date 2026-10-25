@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 import { test } from '../support/shared.js'
 import {
+  atDesignSize,
   launch,
   NO_SWITCH_PROMPT,
   SINGLE_TERMINAL,
@@ -22,7 +23,18 @@ import {
  */
 
 const SEED = { ELECDEX_SEED_LAYOUTS: '1' }
-const PRESETS = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai', 'cockpit', 'retro']
+const PRESETS = [
+  'standard',
+  'network',
+  'earth',
+  'dev',
+  'media',
+  'desk',
+  'ai',
+  'cockpit',
+  'retro',
+  'blank',
+]
 
 const widget = (page: Page, id: string) => page.locator(`[data-testid=pane][data-widget="${id}"]`)
 const card = (page: Page, id: string) =>
@@ -85,11 +97,13 @@ test('a first start has every preset on the number keys, and only a first start'
     await expect(card(first.page, 'ai').getByTestId('layouts-preset-badge')).toHaveText('on 7')
     await expect(card(first.page, 'cockpit').getByTestId('layouts-preset-badge')).toHaveText('on 8')
     await expect(card(first.page, 'retro').getByTestId('layouts-preset-badge')).toHaveText('on 9')
+    // Tenth, on the last number key.
+    await expect(card(first.page, 'blank').getByTestId('layouts-preset-badge')).toHaveText('on 0')
     const remove = first.page.getByTestId('layouts-remove').nth(PRESETS.length - 1)
     await remove.click()
     await remove.click()
     await expect(first.page.getByTestId('layouts-item')).toHaveCount(PRESETS.length - 1)
-    await expect(card(first.page, 'retro').getByTestId('layouts-preset-badge')).toHaveText('+ add')
+    await expect(card(first.page, 'blank').getByTestId('layouts-preset-badge')).toHaveText('+ add')
     await first.page.keyboard.press('Escape')
 
     launched = await first.relaunch()
@@ -295,9 +309,72 @@ test('the preset shelf scrolls sideways when it does not fit, by wheel and by ke
     await card(page, 'standard').focus()
     for (let i = 1; i < PRESETS.length; i += 1) await page.keyboard.press('ArrowRight')
     // The last card: along the whole shelf.
-    await expect(card(page, 'retro')).toBeFocused()
-    await expect(card(page, 'retro')).toBeInViewport({ ratio: 0.9 })
+    await expect(card(page, 'blank')).toBeFocused()
+    await expect(card(page, 'blank')).toBeInViewport({ ratio: 0.9 })
     expect(await scroll()).toBeGreaterThan(0)
+  } finally {
+    await close()
+  }
+})
+
+test('at the design size every card is on the shelf at once, blank last', async ({ shared }) => {
+  const { app, page, close } = await shared({ env: SEED, layout: SINGLE_TERMINAL })
+  try {
+    await atDesignSize(app, page)
+    await openLayouts(page)
+    const shelf = page.getByTestId('layouts-shelf')
+    await expect.poll(() => shelf.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+    await expect(page.getByTestId('layouts-preset').last()).toHaveAttribute('data-preset', 'blank')
+    await expect(card(page, 'blank')).toBeInViewport({ ratio: 1 })
+  } finally {
+    await close()
+  }
+})
+
+test('blank has no pane: the first comes from the picker, and closing the last leaves it empty', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    env: SEED,
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  const panes = page.getByTestId('pane')
+  const empty = page.getByTestId('workspace-empty')
+  try {
+    await page.keyboard.press('Control+Shift+F10')
+    await settleLayout(page)
+    await expect(empty).toBeVisible()
+    await expect(panes).toHaveCount(0)
+    expect(savedFile(userData).items.map((l) => l.preset)).toEqual(['blank'])
+
+    // The button opens the picker; whatever its placement, the pane fills the workspace.
+    await page.getByTestId('workspace-empty-add').click()
+    await expect(page.getByTestId('pane-picker')).toBeVisible()
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    await expect(page.getByTestId('pane-picker')).toHaveCount(0)
+    await expect(widget(page, 'clock')).toBeVisible()
+    await expect(empty).toHaveCount(0)
+    await expect(panes).toHaveCount(1)
+
+    // Closing the last pane leaves the layout empty, with no shell put in its place.
+    await widget(page, 'clock').getByTestId('pane-close').click()
+    await expect(empty).toBeVisible()
+    await expect(panes).toHaveCount(0)
+    // From the keyboard too: a split with nothing to split starts with a shell.
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(terminalPane(page)).toHaveCount(1)
+    await terminalPane(page).getByTestId('pane-close').click()
+    await expect(empty).toBeVisible()
+
+    // Empty is kept, as any arrangement: once written, a reload comes back to it.
+    const live = () =>
+      JSON.parse(readFileSync(path.join(userData, 'layout.json'), 'utf8')) as {
+        root: { kind: string; children?: unknown[] }
+      }
+    await expect.poll(() => live().root).toMatchObject({ kind: 'split', children: [] })
+    await page.reload()
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+    await expect(empty).toBeVisible()
+    await expect(panes).toHaveCount(0)
   } finally {
     await close()
   }

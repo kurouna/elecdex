@@ -1,4 +1,4 @@
-import { collectPanes, pane, split, tabs } from '@shared/layout-ops'
+import { collectPanes, emptyNode, isEmptyLayout, pane, split, tabs } from '@shared/layout-ops'
 import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from '@shared/schemas/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Frame } from '../../src/renderer/layout/pane-close.ts'
@@ -130,15 +130,14 @@ describe('closing a pane', () => {
     expect(layout.extending.get(a.id)).toEqual({ top: 0, right: 600, bottom: 0, left: 0 })
   })
 
-  it('a group closed to nothing gives way to the fallback pane', () => {
+  it('a group closed to nothing leaves the empty layout', () => {
     const group = tabs([a, b], 1)
     load(group, b.id)
     layout.close(group.id)
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
-    expect(ids()).toHaveLength(1)
-    expect(ids()).not.toContain(a.id)
-    expect(ids()).not.toContain(b.id)
+    expect(layout.tree.root).toEqual(emptyNode())
     expect(layout.extending.size).toBe(0)
+    expect(layout.focusedPaneId).toBeNull()
   })
 
   it('a group closes at once when motion is reduced', () => {
@@ -192,15 +191,55 @@ describe('closing a pane', () => {
     expect(sfx.play).not.toHaveBeenCalled()
   })
 
-  it('powers on the pane put in when the last one closes, and extends nothing', () => {
+  it('leaves the empty layout when the last pane closes, with nothing put in its place', () => {
+    // A shell used to be put in for it; the empty layout is now a place to add the first pane
+    // (user decision 2026-10-25).
     load(a, a.id)
     layout.close(a.id)
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
-    const [fallback] = ids()
-    expect(fallback).not.toBe(a.id)
-    expect(layout.arrived(fallback as string)).toBe(true)
+    expect(isEmptyLayout(layout.tree)).toBe(true)
+    expect(ids()).toEqual([])
     expect(layout.extending.size).toBe(0)
-    expect(layout.focusedPaneId).toBe(fallback)
+    expect(layout.focusedPaneId).toBeNull()
+  })
+
+  it('leaves the empty layout at once when motion is reduced', () => {
+    animates = false
+    load(a, a.id)
+    layout.close(a.id)
+    expect(layout.closingId).toBeNull()
+    expect(isEmptyLayout(layout.tree)).toBe(true)
+  })
+
+  it('takes the first pane of an empty layout from the picker, whatever its placement', () => {
+    for (const placement of ['right', 'down', 'tab'] as const) {
+      load(emptyNode(), '')
+      layout.focusedPaneId = null
+      layout.addPane('clock', placement)
+      const [first] = collectPanes(layout.tree.root)
+      expect(layout.tree.root, placement).toBe(first)
+      expect(first?.widget).toBe('clock')
+      expect(layout.focusedPaneId).toBe(first?.id)
+      expect(layout.arrived(first?.id as string)).toBe(true)
+    }
+  })
+
+  it('starts an empty layout with a shell from the split and new-tab keys', () => {
+    load(emptyNode(), '')
+    layout.focusedPaneId = null
+    layout.splitFocused('right')
+    expect(collectPanes(layout.tree.root).map((p) => p.widget)).toEqual(['terminal'])
+    load(emptyNode(), '')
+    layout.focusedPaneId = null
+    layout.addTabToFocused()
+    expect(collectPanes(layout.tree.root).map((p) => p.widget)).toEqual(['terminal'])
+  })
+
+  it('adds no first pane to a layout that has panes but no focus', () => {
+    load(split('row', [a, b]), a.id)
+    layout.focusedPaneId = null
+    layout.addFirst('clock')
+    expect(ids()).toEqual([a.id, b.id])
   })
 
   it('does not focus the closing pane', () => {

@@ -6,7 +6,7 @@ import {
   LEFT_COLUMN,
   SYSTEM_COLUMN_WIDTH,
 } from '../../src/shared/default-layout.js'
-import { collectPanes, normalize } from '../../src/shared/layout-ops.js'
+import { collectPanes, isEmptyLayout, normalizeTree } from '../../src/shared/layout-ops.js'
 import {
   freeLayoutName,
   LAYOUT_PRESET_IDS,
@@ -104,14 +104,16 @@ describe('LAYOUT_PRESETS', () => {
 
   it('is already normal: nothing in a preset is changed by loading it', () => {
     for (const preset of LAYOUT_PRESETS) {
-      const tree = preset.build()
-      expect(normalize(tree), preset.id).toEqual(tree)
+      const tree = presetTree(preset)
+      expect(normalizeTree(tree), preset.id).toEqual(tree)
     }
   })
 
-  it('keeps the system column, at the same width and heights, on the left of every one but cockpit', () => {
+  it('keeps the system column, at the same width and heights, on the left of all but cockpit and blank', () => {
     const column = layoutShape(defaultLayoutNode()).filter((r) => LEFT_COLUMN.includes(r.widget))
-    expect([...WITH_SYSTEM_COLUMN]).toEqual(LAYOUT_PRESET_IDS.filter((id) => id !== 'cockpit'))
+    expect([...WITH_SYSTEM_COLUMN]).toEqual(
+      LAYOUT_PRESET_IDS.filter((id) => id !== 'cockpit' && id !== 'blank'),
+    )
     for (const preset of LAYOUT_PRESETS.filter((p) => WITH_SYSTEM_COLUMN.includes(p.id))) {
       const shape = layoutShape(preset.build())
       const left = shape.filter((r) => LEFT_COLUMN.includes(r.widget))
@@ -122,8 +124,15 @@ describe('LAYOUT_PRESETS', () => {
     }
   })
 
-  it('shares the stage out to the full width, for each preset', () => {
+  it('makes blank the empty layout, and it alone', () => {
     for (const preset of LAYOUT_PRESETS) {
+      expect(isEmptyLayout(preset.build()), preset.id).toBe(preset.id === 'blank')
+    }
+    expect(layoutShape(presetTree(presetById('blank') as LayoutPreset))).toEqual([])
+  })
+
+  it('shares the stage out to the full width, for each preset with panes', () => {
+    for (const preset of LAYOUT_PRESETS.filter((p) => p.id !== 'blank')) {
       const area = layoutShape(preset.build()).reduce((sum, r) => sum + r.w * r.h, 0)
       expect(area, preset.id).toBeCloseTo(1, 2)
     }
@@ -405,19 +414,31 @@ describe('seededLayouts', () => {
 
 describe('the order of the presets', () => {
   // The LAYOUTS dialog's shelf, the first start's numbered list and the Ctrl+Shift+F keys all
-  // follow this order; retro is last, after cockpit (user decision 2026-10-10).
-  const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai', 'cockpit', 'retro']
+  // follow this order; retro comes after cockpit (user decision 2026-10-10), and blank is last
+  // (user's request 2026-10-25).
+  const ORDER = [
+    'standard',
+    'network',
+    'earth',
+    'dev',
+    'media',
+    'desk',
+    'ai',
+    'cockpit',
+    'retro',
+    'blank',
+  ]
 
-  it('is the one the user set, retro last', () => {
+  it('is the one the user set, blank last', () => {
     expect([...LAYOUT_PRESET_IDS]).toEqual(ORDER)
     expect(LAYOUT_PRESETS.map((preset) => preset.id)).toEqual(ORDER)
   })
 
-  it('lays the dialog’s shelf out in it, cockpit then retro', () => {
+  it('lays the dialog’s shelf out in it, cockpit then retro, then blank', () => {
     const shelf = presetCards([]).map((card) => card.id)
     expect(shelf).toEqual(ORDER)
     expect(shelf.indexOf('cockpit')).toBe(shelf.indexOf('retro') - 1)
-    expect(shelf.at(-1)).toBe('retro')
+    expect(shelf.at(-1)).toBe('blank')
   })
 })
 

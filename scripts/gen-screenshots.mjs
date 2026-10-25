@@ -948,6 +948,16 @@ await shoot('tron', 'elecdex-retro', {
   extra: sciInPreset,
   fullscreen: true,
 })
+// blank: no pane at all, the add-pane picker open over it for the first one.
+await shoot('amber', 'elecdex-blank', {
+  layout: preset('blank'),
+  extra: async (page) => {
+    await page.getByTestId('workspace-empty-add').click()
+    await page.getByTestId('pane-picker-item').first().waitFor()
+    await page.mouse.move(W / 2, 4)
+    await page.waitForTimeout(900)
+  },
+})
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
 /*

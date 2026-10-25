@@ -620,7 +620,9 @@ user made; do not reverse one without asking.
   `widgetState.patch(paneId, change)` (stores/widget-state.svelte.ts; undefined removes a key) -
   never `layout.patchPaneState` or spreading `state` into `setPaneState`. A tabbed pane is split,
   moved beside or dropped on through its group, and a group holds only panes, of any widget.
-  Nested groups are postponed (user decision 2026-09-17). Splits carry no header; the shell's
+  Nested groups are postponed (user decision 2026-09-17). A tree with no pane is the empty
+  layout (`emptyNode`, the only childless node, as the root): blank is one, and closing the last
+  pane of any layout leaves one, never a shell put in (user decision 2026-10-25). Splits carry no header; the shell's
   TERMINAL header stays, as the group's drag handle and the path. Pane moves are tested at unit,
   component and e2e level: extend those.
 - **A popped-up pane is never in the layout** (§5.13, layout/popup.ts): held in `ui.popup` as one
@@ -662,7 +664,7 @@ user made; do not reverse one without asking.
   - **Presets** (shared/layout-presets.ts) are templates, never a second kind of layout: choosing
     one adds a saved layout carrying `preset` that then follows the work. Each keeps the default
     system column at its width and heights (all but cockpit, whose CLUSTER pane does its job:
-    `WITH_SYSTEM_COLUMN`, user decision 2026-10-10), every pane at its `minSize` (a unit test). Only a
+    `WITH_SYSTEM_COLUMN`, user decision 2026-10-10, and blank), every pane at its `minSize` (a unit test). Only a
     first start is given them; an existing list is never added to (user decision 2026-09-24).
     Decisions are pure (there and layout-shape.ts); only layout/presets.ts knows presets in the
     page. A new preset also needs its key (keybindings.ts, Workspace.svelte), the LAYOUTS

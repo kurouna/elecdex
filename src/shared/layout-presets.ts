@@ -1,5 +1,5 @@
 import { defaultLayoutNode, SYSTEM_COLUMN_WIDTH, systemColumn } from './default-layout.js'
-import { pane, split, tabs } from './layout-ops.js'
+import { emptyNode, pane, split, tabs } from './layout-ops.js'
 import {
   KEYED_LAYOUTS,
   MAX_SAVED_LAYOUTS,
@@ -21,7 +21,8 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
  * Every preset keeps the default layout's system column at the same width and
  * heights, so a switch between them changes the stage and leaves the
  * instruments where the eye expects them - all but cockpit, whose CLUSTER pane
- * says what the column does and more (user decision 2026-10-10). A preset turns nothing on: Starlink,
+ * says what the column does and more (user decision 2026-10-10), and blank, which
+ * has no pane at all (user decision 2026-10-25). A preset turns nothing on: Starlink,
  * quake alerts and the like stay the user's to opt into.
  *
  * Everything here is pure: main and the page both call it, and the tests do.
@@ -37,6 +38,7 @@ export const LAYOUT_PRESET_IDS = [
   'ai',
   'cockpit',
   'retro',
+  'blank',
 ] as const
 export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number]
 
@@ -253,11 +255,19 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
         [1],
       ),
   },
+  {
+    // No pane at all, last on the shelf: a layout to build from nothing, pane by pane from the
+    // picker (user's request 2026-10-25). The workspace shows it as a place to add the first.
+    id: 'blank',
+    name: 'blank',
+    description: 'no panes at all, to add your own one by one',
+    build: emptyNode,
+  },
 ]
 
-/** The presets that keep the system column on their left: every one but cockpit. */
+/** The presets that keep the system column on their left: all but cockpit and blank. */
 export const WITH_SYSTEM_COLUMN: readonly LayoutPresetId[] = LAYOUT_PRESET_IDS.filter(
-  (id) => id !== 'cockpit',
+  (id) => id !== 'cockpit' && id !== 'blank',
 )
 
 export function presetById(id: unknown): LayoutPreset | null {

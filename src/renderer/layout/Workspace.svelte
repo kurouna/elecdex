@@ -5,10 +5,11 @@ import {
   type KeybindingAction,
   keymap,
 } from '@shared/keybindings'
-import { neighbourShell, neighbourTab } from '@shared/layout-ops'
+import { isEmptyLayout, neighbourShell, neighbourTab } from '@shared/layout-ops'
 import { stepFontSize } from '@shared/settings'
 import { type ShortcutFacts, shortcutApplies, shortcutsLeftToPage } from '@shared/shortcut-applies'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
+import { chordHint } from '../lib/chord-hint.ts'
 import { commands } from '../lib/commands.ts'
 import { forgetGonePanes } from '../lib/pane-memory.ts'
 import { editingText } from '../lib/text-field.ts'
@@ -204,6 +205,7 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'layout.preset.ai': () => void goToPreset('ai'),
   'layout.preset.cockpit': () => void goToPreset('cockpit'),
   'layout.preset.retro': () => void goToPreset('retro'),
+  'layout.preset.blank': () => void goToPreset('blank'),
   // The shortcuts that call up a pane: one each in SUMMONS (layout/summon.ts).
   ...summonActions((widget) => summon(widget)),
   'shell.focus': () => focusShell(),
@@ -431,7 +433,21 @@ function onBeforeUnload(): void {
   data-loaded={layout.loaded}
   data-switching={layout.switching}
 >
-  {#if layout.loaded}
+  {#if layout.loaded && isEmptyLayout(layout.tree)}
+    <!-- The blank preset, or a layout whose last pane was closed: a place for the first pane
+         (user decision 2026-10-25). The picker puts it here whatever placement it shows. -->
+    <div class="empty" data-testid="workspace-empty">
+      <p>no panes in this layout</p>
+      <button
+        type="button"
+        title={chordHint('Add a pane', 'pane.add')}
+        onclick={() => ui.openPanePicker()}
+        data-testid="workspace-empty-add"
+      >
+        + add pane
+      </button>
+    </div>
+  {:else if layout.loaded}
     <LayoutNodeView node={layout.tree.root} />
   {/if}
 </div>
@@ -455,6 +471,35 @@ function onBeforeUnload(): void {
   height: 100%;
   min-height: 0;
   min-width: 0;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  border: 1px dashed var(--panel-border);
+  font-family: var(--font-ui);
+  letter-spacing: var(--tracking-wide);
+}
+
+.empty p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--step-0);
+}
+
+.empty button {
+  padding: 0.4rem var(--space-4);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  font-size: var(--step-0);
+}
+
+.empty button:hover {
+  background: var(--surface-2);
 }
 
 /*

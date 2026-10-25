@@ -37,11 +37,11 @@ for Windows, macOS and Linux.
 
 ## Features
 
-The panes are arranged by what you are doing: nine **layout presets** put the right ones on
-screen at a key each - **Ctrl+Shift+F1** to **F9** - and every one but cockpit keeps the system
-column on the left, so a switch changes the stage and leaves the instruments where they were. The
-features below are grouped by the preset that shows them, and each picture is that preset in a
-different theme.
+The panes are arranged by what you are doing: ten **layout presets** put the right ones on
+screen at a key each - **Ctrl+Shift+F1** to **F10** - and every one but cockpit and blank keeps the
+system column on the left, so a switch changes the stage and leaves the instruments where they were.
+The last, blank, has no pane at all, for a layout of your own built pane by pane. The features below
+are grouped by the preset that shows them, and each picture is that preset in a different theme.
 
 ### standard — this machine, its shells and the world outside
 
@@ -260,16 +260,27 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   and roots, modes for statistics, bases, tables, equations, complex numbers, matrices and
   programs, and physical constants, unit conversions, Σ, derivatives and integrals.
 
+### blank — nothing yet, to build your own
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-blank.jpg" alt="The blank preset in the Amber theme: a workspace with no pane, and over it the add-pane picker listing every widget with its description, the placements right, below, new tab and pop up at its top">
+  <br><sub>blank · Amber · the picker open for the first pane</sub>
+</p>
+
+- **blank** (*unreleased*) — a layout with no pane in it: *no panes in this layout* and **+ add pane** (or
+  Ctrl+Shift+A) open the picker, and the first pane chosen fills the screen; split it, add tabs and
+  drag panes from there. Closing the last pane of any layout leaves it empty in the same way.
+
 ### Layouts, looks and the rest
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the nine presets as saved layouts numbered 1 to 9, each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails, where each stands, and their keys Ctrl+Shift+F1 to F9">
+  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (blank, on 0, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F10">
   <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
-  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the nine
+  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the ten
   presets.
 - **Look and feel** — seven themes that switch live: Tron, Amber, Phosphor and White for the HUD, Black (White turned
   over, near-black on a pale ground with the same scanlines),
@@ -297,7 +308,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   cannot run here stays, set back with the reason; what cannot be undone takes Enter twice.
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-palette.jpg" alt="The action palette over the standard layout in the Tron theme, with layout typed: the kinds of row as chips with their counts - all, action, layout, preset, theme, pane, settings - and the rows found, Reset layout and Saved layouts with layout underlined, then the nine saved layouts and the presets, each with its key on the right, standard marked current">
+  <img src="./docs/screenshots/elecdex-palette.jpg" alt="The action palette over the standard layout in the Tron theme, with layout typed: the kinds of row as chips with their counts - all, action, layout, preset, theme, pane, settings - and the rows found, Reset layout and Saved layouts with layout underlined, then the ten saved layouts and the presets, each with its key on the right, standard marked current">
   <br><sub>Action palette (Ctrl+Shift+P) · Tron</sub>
 </p>
 
@@ -398,7 +409,7 @@ own lists and tooltips name them as your keyboard prints them.
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open, as a switch does) |
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
 | Ctrl+Shift+1 … 9, 0 | apply the first ten saved layouts, in the order the dialog lists them (0 is the tenth) |
-| Ctrl+Shift+F1 … F9 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro |
+| Ctrl+Shift+F1 … F10 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro, blank |
 | Ctrl+Shift+L | search the launcher (pops one up over the workspace if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up if the layout has none - pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
@@ -484,16 +495,16 @@ way to stop asking (*Settings → General → Layouts*). The old arrangement pow
 off like a tube and the new one comes up pane by pane, as at boot — and not at all with motion
 reduced.
 
-Nine **presets** sit under the list, each drawn as a small map of its panes:
+Ten **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe over the connections, beside Wi-Fi over Ethernet), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT, an AI chat and Log Watch - each group as tabs), **media**
 (YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system over the GPU pane), **cockpit** (the CLUSTER pane in place of the system column, a shell under it, and Wi-Fi over Ethernet beside it) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one but cockpit keeps the system column on the left, so a switch
+the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system over the GPU pane), **cockpit** (the CLUSTER pane in place of the system column, a shell under it, and Wi-Fi over Ethernet beside it), **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them) and **blank** (no pane at all, to add your own). Every one but cockpit and blank keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
-preset has a key of its own, Ctrl+Shift+F1 to F9, which does the same from anywhere. A new
-install starts with all nine on Ctrl+Shift+1 to 9; an existing list is never added to.
+preset has a key of its own, Ctrl+Shift+F1 to F10, which does the same from anywhere. A new
+install starts with all ten on Ctrl+Shift+1 to 0; an existing list is never added to.
 
 They are kept in one file that holds nothing belonging to this machine: **copy `layouts.json` to
 another computer and your arrangements come with you.** The dialog's *layouts.json* button shows it

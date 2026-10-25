@@ -22,6 +22,11 @@ import { LAYOUT_VERSION } from './schemas/layout.js'
  *  - a split or tab group with no children is removed
  *  - `activeIndex` stays within range
  *  - splits do not nest directly inside a split of the same direction
+ *
+ * A tree that collapses to nothing is the empty layout (`emptyNode`), the one
+ * node with no children: the blank preset is one, and closing the last pane of
+ * any layout leaves one (user decision 2026-10-25). The workspace shows it as a
+ * place to add the first pane.
  */
 
 let counter = 0
@@ -69,6 +74,20 @@ export function normalizeSizes(sizes: number[], count: number): number[] {
   return usable.map((n) => n / total)
 }
 
+/** The empty layout's root, under one id so that it is the same node every time. */
+export const EMPTY_ID = 'empty'
+
+/** The root of a layout with no panes: a split with no children. */
+export function emptyNode(): SplitNode {
+  return { kind: 'split', id: EMPTY_ID, direction: 'row', children: [], sizes: [] }
+}
+
+/** Whether a tree, or its root, holds no panes at all. */
+export function isEmptyLayout(tree: LayoutTree | LayoutNode): boolean {
+  const root = 'root' in tree ? tree.root : tree
+  return root.kind === 'split' && collectPanes(root).length === 0
+}
+
 /**
  * Enforces the tree invariants, bottom-up.
  *
@@ -113,16 +132,16 @@ export function normalize(node: LayoutNode): LayoutNode | null {
 }
 
 /**
- * Normalises a whole tree, substituting `fallback` if it collapsed entirely.
+ * Normalises a whole tree; one that collapsed entirely is the empty layout.
  *
  * Ids are made unique first. A layout.json edited by hand, or a layouts.json
  * carried from another machine, may repeat one: two siblings with one id stop
  * the workspace drawing at all (a keyed list throws), and two nodes anywhere
  * with one id would be closed and moved as one.
  */
-export function normalizeTree(tree: LayoutTree, fallback: LayoutNode): LayoutTree {
+export function normalizeTree(tree: LayoutTree): LayoutTree {
   const root = normalize(uniqueIds(tree.root))
-  return { version: LAYOUT_VERSION, root: root ?? fallback }
+  return { version: LAYOUT_VERSION, root: root ?? emptyNode() }
 }
 
 /**
@@ -297,14 +316,26 @@ export function splitPane(
   if (target === null || target.kind !== 'pane') return tree
   const anchor = findTabsContaining(tree.root, paneId) ?? target
   const replaced = placeBeside(tree.root, anchor.id, incoming, direction)
-  return normalizeTree({ ...tree, root: replaced ?? incoming }, incoming)
+  return normalizeTree({ ...tree, root: replaced ?? incoming })
 }
 
-/** Removes a node (pane or whole group) and collapses what is left. */
-export function closeNode(tree: LayoutTree, id: string, fallback: LayoutNode): LayoutTree {
+/**
+ * Removes a node (pane or whole group) and collapses what is left: the last
+ * pane closed leaves the empty layout.
+ */
+export function closeNode(tree: LayoutTree, id: string): LayoutTree {
   if (findNode(tree.root, id) === null) return tree
   const replaced = replace(tree.root, id, null)
-  return normalizeTree({ ...tree, root: replaced ?? fallback }, fallback)
+  return normalizeTree({ ...tree, root: replaced ?? emptyNode() })
+}
+
+/**
+ * The first pane of an empty layout, which then fills the workspace. A layout
+ * that has panes is returned as it is: a pane goes beside one of them instead.
+ */
+export function placeFirst(tree: LayoutTree, incoming: PaneNode): LayoutTree {
+  if (!isEmptyLayout(tree)) return tree
+  return { version: LAYOUT_VERSION, root: incoming }
 }
 
 /** Adds a pane as a new tab beside `siblingPaneId`, creating a group if needed. */
@@ -313,7 +344,7 @@ export function addTab(tree: LayoutTree, siblingPaneId: string, incoming: PaneNo
   if (target === null || target.kind !== 'pane') return tree
   const anchor = findTabsContaining(tree.root, siblingPaneId) ?? target
   const replaced = placeBeside(tree.root, anchor.id, incoming, 'tab')
-  return normalizeTree({ ...tree, root: replaced ?? incoming }, incoming)
+  return normalizeTree({ ...tree, root: replaced ?? incoming })
 }
 
 /**
@@ -346,7 +377,7 @@ export function moveNode(
   const detached = replace(tree.root, nodeId, null)
   if (detached === null) return tree
   const placed = placeBeside(detached, anchor.id, source, placement)
-  return placed === null ? tree : normalizeTree({ ...tree, root: placed }, placed)
+  return placed === null ? tree : normalizeTree({ ...tree, root: placed })
 }
 
 /**
@@ -393,7 +424,7 @@ export function moveTabTo(
   const kept = findNode(detached, anchor.id)
   if (kept === null || kept.kind === 'split') return tree
   const placed = placeAsTab(detached, kept, source, landing)
-  return placed === null ? tree : normalizeTree({ ...tree, root: placed }, placed)
+  return placed === null ? tree : normalizeTree({ ...tree, root: placed })
 }
 
 /** The tab group directly holding `paneId`, if any. */

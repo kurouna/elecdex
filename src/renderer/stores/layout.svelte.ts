@@ -1,5 +1,5 @@
 import type { SavedLayoutsApi } from '@shared/api'
-import { defaultLayoutNode, fallbackNode } from '@shared/default-layout'
+import { defaultLayoutNode } from '@shared/default-layout'
 import {
   addTab,
   closeNode,
@@ -14,6 +14,7 @@ import {
   type Placement,
   pane,
   patchPaneState,
+  placeFirst,
   resizeSplit,
   setPaneState,
   splitPane,
@@ -511,10 +512,14 @@ class LayoutStore {
     sfx.play('expand')
   }
 
-  /** Splits the focused pane, or does nothing when nothing is focused. */
+  /** Splits the focused pane; in an empty layout, adds the first pane. */
   splitFocused(direction: SplitDirection, widget?: string): void {
     const target = this.focusedPaneId
-    if (target === null) return
+    // An empty layout has nothing to split: the new pane is its first.
+    if (target === null) {
+      this.addFirst(widget ?? 'terminal')
+      return
+    }
     const current = findNode(this.tree.root, target)
     const sameWidget = current?.kind === 'pane' ? current.widget : 'terminal'
     this.split(target, direction, widget ?? sameWidget)
@@ -534,7 +539,10 @@ class LayoutStore {
 
   addTabToFocused(widget?: string): void {
     const target = this.focusedPaneId
-    if (target === null) return
+    if (target === null) {
+      this.addFirst(widget ?? 'terminal')
+      return
+    }
     const current = findNode(this.tree.root, target)
     const sameWidget = current?.kind === 'pane' ? current.widget : 'terminal'
     this.addTab(target, widget ?? sameWidget)
@@ -548,9 +556,28 @@ class LayoutStore {
    */
   addPane(widget: string, placement: PanePlacement, state?: Record<string, unknown>): void {
     const target = this.focusedPaneId ?? this.visible[0]?.id ?? null
-    if (target === null) return
+    if (target === null) {
+      this.addFirst(widget, state)
+      return
+    }
     if (placement === 'tab') this.addTab(target, widget, state)
     else this.split(target, placement === 'right' ? 'right' : 'down', widget, state)
+  }
+
+  /**
+   * The first pane of an empty layout, filling the workspace; nothing when the
+   * layout has panes (or one is still powering off), since a pane then goes
+   * beside one of them.
+   */
+  addFirst(widget: string, state?: Record<string, unknown>): void {
+    this.settle()
+    const incoming = pane(widget, state === undefined ? {} : { state })
+    const next = placeFirst(this.tree, incoming)
+    if (next === this.tree) return
+    this.arriving = incoming.id
+    this.commit(next)
+    this.focusedPaneId = incoming.id
+    sfx.play('expand')
   }
 
   /** The first pane showing `widget`, if any. */
@@ -630,7 +657,7 @@ class LayoutStore {
       return
     }
     this.closingId = id
-    this.focusedPaneId = focusIn(closeNode(this.tree, id, fallbackNode()), this.focusedPaneId)
+    this.focusedPaneId = focusIn(closeNode(this.tree, id), this.focusedPaneId)
     this.closeTimer = setTimeout(() => this.finishClosing(), CLOSE_SETTLE_MS)
   }
 
@@ -655,13 +682,12 @@ class LayoutStore {
     this.closingId = null
     if (id === null) return
     const before = motion?.frames()
-    const arrived = this.remove(id)
+    this.remove(id)
     if (motion === null || before === undefined) return
     // Svelte applies the new tree on its next flush; measure after it, not before.
     flushSync()
     const extending = new Map<string, Inset>()
     for (const [paneId, after] of motion.frames()) {
-      if (paneId === arrived) continue
       const inset = extendFrom(before.get(paneId), after)
       if (inset !== null) extending.set(paneId, inset)
     }
@@ -670,19 +696,12 @@ class LayoutStore {
     this.extendTimer = setTimeout(() => this.stopExtending(), CRT_EXTEND_MS)
   }
 
-  /**
-   * Takes a node out of the tree. A pane put in for a layout closed to nothing
-   * powers on like any pane added; its id is returned so nothing else animates it.
-   */
-  private remove(nodeId: string): string | null {
-    const fallback = fallbackNode()
-    const next = closeNode(this.tree, nodeId, fallback)
-    const arrived = next.root === fallback ? fallback.id : null
-    if (arrived !== null) this.arriving = arrived
+  /** Takes a node out of the tree; the last pane closed leaves the empty layout. */
+  private remove(nodeId: string): void {
+    const next = closeNode(this.tree, nodeId)
     this.commit(next)
     // A pane pinned while it powered off is gone: nothing is over the workspace now.
     if (this.pinnedPaneId !== null && findNode(next.root, this.pinnedPaneId) === null) this.unpin()
-    return arrived
   }
 
   private stopExtending(): void {
