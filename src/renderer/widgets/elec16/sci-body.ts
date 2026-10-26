@@ -5,15 +5,16 @@
  * (layout.ts GLASS), so the body is laid out round it: the plate above in dots, the glass at
  * the size it comes to, the keys below in dots - every part scaled together, never stretched.
  *
- * Three ways to show it, as the pocket models have (BodyMode): the whole body; COMPACT, the
- * glass and a row of keys (the arrows, AC and =) with the PC's keys for the rest; LCD, the
- * glass alone.
+ * Four ways to show it (SciBodyMode): the whole body; SIMPLE, the glass and the number keys
+ * alone, as an everyday calculator has them; COMPACT, the glass and a row of keys (the arrows,
+ * AC and =) with the PC's keys for the rest; LCD, the glass alone. Without a case (PLAIN) there
+ * is no plate either: the glass goes to the top, as COMPACT's does.
  */
 
 import { MODELS } from '@shared/elec16/map'
 import type { Room } from '../emu/screen.js'
 import { GLASS_EXTRA } from './layout.js'
-import type { BodyMode } from './pane-state.js'
+import type { SciBodyMode } from './pane-state.js'
 
 export interface Rect {
   x: number
@@ -73,6 +74,11 @@ const FN = { top: 30, colW: 20, gap: 4, keyH: 9, pitch: 15 }
 export const SEAM_Y = 78
 const NUM = { top: 82, colW: 24, gap: 5, keyH: 12, pitch: 18 }
 const KEYS_HEIGHT = NUM.top + 3 * NUM.pitch + LEGEND + NUM.keyH
+/** SIMPLE's number keys: the whole body's, with no band over them (no SHIFT to print for). */
+const SIMPLE = { pitch: 16 }
+const SIMPLE_HEIGHT = 3 * SIMPLE.pitch + NUM.keyH
+/** COMPACT's one row of keys. */
+const COMPACT_HEIGHT = 9
 /** The cursor pad over the top grid's middle columns, both rows. */
 const PAD: Rect = { x: 2 * (TOP.colW + TOP.gap), y: 1, w: 2 * TOP.colW + TOP.gap, h: 25 }
 
@@ -107,12 +113,26 @@ export const FULL_PLACES: readonly SciPlace[] = [
 export const COMPACT_PLACES: readonly SciPlace[] = grid([COMPACT_ROW], TOP, 'compact').map((p) => ({
   ...p,
   legend: { ...p.legend, h: 0 },
-  key: { ...p.key, y: 0, h: 9 },
+  key: { ...p.key, y: 0, h: COMPACT_HEIGHT },
 }))
+export const SIMPLE_PLACES: readonly SciPlace[] = grid(
+  NUM_ROWS,
+  { ...NUM, top: 0, pitch: SIMPLE.pitch },
+  'num',
+).map((p) => ({ ...p, legend: { ...p.legend, h: 0 }, key: { ...p.key, y: p.legend.y } }))
+
+/** Each mode's keys and how tall they stand, in dots. */
+const MODE_KEYS: Readonly<
+  Record<Exclude<SciBodyMode, 'auto' | 'lcd'>, { places: readonly SciPlace[]; height: number }>
+> = {
+  full: { places: FULL_PLACES, height: KEYS_HEIGHT },
+  simple: { places: SIMPLE_PLACES, height: SIMPLE_HEIGHT },
+  compact: { places: COMPACT_PLACES, height: COMPACT_HEIGHT },
+}
 
 /** The body as laid out at one scale, in CSS pixels. */
 export interface SciLayout {
-  mode: Exclude<BodyMode, 'auto'>
+  mode: Exclude<SciBodyMode, 'auto'>
   width: number
   height: number
   /** Device pixels a dot of the LCD (Lcd.svelte's `scale`). */
@@ -127,11 +147,15 @@ export interface SciLayout {
   keys: readonly (SciPlace & { at: Rect; over: Rect })[]
 }
 
-/** The body at `scale` device pixels a dot on a screen of `ratio`. */
+/**
+ * The body at `scale` device pixels a dot on a screen of `ratio`; `cased` false (PLAIN) leaves
+ * out the plate and the seam, which only a case has.
+ */
 export function sciLayout(
-  mode: Exclude<BodyMode, 'auto'>,
+  mode: Exclude<SciBodyMode, 'auto'>,
   scale: number,
   ratio: number,
+  cased = true,
 ): SciLayout {
   const unit = scale / ratio
   const glass = {
@@ -154,35 +178,34 @@ export function sciLayout(
   }
   // The body is as wide as its plan, or as the glass and a margin where the glass is wider
   // (its frame is in CSS pixels, so at one device pixel a dot it is wider than the plan).
+  const { places, height: keysHeight } = MODE_KEYS[mode]
+  const plated = mode === 'full' && cased
   const width = Math.max(BODY_WIDTH * unit, glass.w + 2 * KEYS_X * unit)
   const keysX = (width - KEYS_WIDTH * unit) / 2
   const glassRect = {
     x: (width - glass.w) / 2,
-    y: (mode === 'full' ? GLASS_TOP : 4) * unit,
+    y: (plated ? GLASS_TOP : 4) * unit,
     ...glass,
   }
   const keysY = glassRect.y + glass.h + GLASS_TO_KEYS * unit
-  const places = mode === 'full' ? FULL_PLACES : COMPACT_PLACES
   const toCss = (r: Rect): Rect => ({
     x: keysX + r.x * unit,
     y: keysY + r.y * unit,
     w: r.w * unit,
     h: r.h * unit,
   })
-  const keysHeight = mode === 'full' ? KEYS_HEIGHT : 9
   return {
     mode,
     width,
     height: keysY + (keysHeight + BOTTOM) * unit,
     scale,
     unit,
-    plate:
-      mode === 'full'
-        ? { x: KEYS_X * unit, y: PLATE.top * unit, w: width - 2 * KEYS_X * unit, h: PLATE.h * unit }
-        : null,
+    plate: plated
+      ? { x: KEYS_X * unit, y: PLATE.top * unit, w: width - 2 * KEYS_X * unit, h: PLATE.h * unit }
+      : null,
     glass: glassRect,
     pad: mode === 'full' ? toCss(PAD) : null,
-    seam: mode === 'full' ? keysY + SEAM_Y * unit : null,
+    seam: mode === 'full' && cased ? keysY + SEAM_Y * unit : null,
     keys: places.map((p) => ({ ...p, at: toCss(p.key), over: toCss(p.legend) })),
   }
 }
@@ -195,12 +218,12 @@ const LEAST_SCALE = 2
  * a dot it fits at. `auto` takes the whole body where it fits at two or more, then COMPACT,
  * then the LCD alone; the LCD alone fits at whatever it can, below one a dot if it must.
  */
-export function sciFit(room: Room, mode: BodyMode): SciLayout | null {
+export function sciFit(room: Room, mode: SciBodyMode, cased = true): SciLayout | null {
   if (room.w <= 0 || room.h <= 0) return null
   const fits = (l: SciLayout) => l.width <= room.w && l.height <= room.h
-  const largest = (m: Exclude<BodyMode, 'auto'>, least: number): SciLayout | null => {
+  const largest = (m: Exclude<SciBodyMode, 'auto'>, least: number): SciLayout | null => {
     for (let s = 12; s >= least; s--) {
-      const l = sciLayout(m, s, room.ratio)
+      const l = sciLayout(m, s, room.ratio, cased)
       if (fits(l)) return l
     }
     return null
@@ -213,7 +236,7 @@ export function sciFit(room: Room, mode: BodyMode): SciLayout | null {
       sciLayout('lcd', smallest(room), room.ratio)
     )
   }
-  return largest(mode, 1) ?? sciLayout(mode, smallest(room), room.ratio)
+  return largest(mode, 1) ?? sciLayout(mode, smallest(room), room.ratio, cased)
 }
 
 /** Less than a device pixel a dot, as much as the room has (no less than a tenth). */
@@ -410,17 +433,18 @@ export const SCI_SKIN_COLOURS: Readonly<Record<SciSkin, SciSkinColours>> = {
     seam: 'var(--panel-rule)',
     bezel: 'transparent',
     solar: 'transparent',
-    fn: ['transparent', 'transparent', 'transparent', 'var(--accent)'],
-    num: ['var(--surface-1)', 'transparent', 'transparent', 'var(--text)'],
-    shift: 'var(--warn)',
-    onShift: 'var(--surface-0)',
+    // No fills but ='s, as the pocket's PLAIN: the keys are their print and the panel rule.
+    fn: ['transparent', 'transparent', 'transparent', 'var(--text-muted)'],
+    num: ['transparent', 'transparent', 'transparent', 'var(--accent)'],
+    shift: 'transparent',
+    onShift: 'var(--warn)',
     shiftPrint: 'var(--warn)',
-    alpha: 'var(--accent)',
-    onAlpha: 'var(--surface-0)',
+    alpha: 'transparent',
+    onAlpha: 'var(--accent)',
     alphaPrint: 'var(--accent)',
-    warm: 'var(--danger)',
-    eq: 'var(--surface-2)',
-    onEq: 'var(--text)',
+    warm: 'transparent',
+    eq: 'var(--accent-faint)',
+    onEq: 'var(--accent-strong)',
     lcd: {
       ground: 'var(--surface-1)',
       dot: 'var(--accent)',

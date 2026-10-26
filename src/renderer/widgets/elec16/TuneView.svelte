@@ -16,7 +16,7 @@ import {
   type Elec16UnitChange,
 } from '@shared/elec16-units'
 import { sfx } from '../../stores/sound.svelte.ts'
-import { BODY_MODES, type BodyMode, type Elec16Pane } from './pane-state.ts'
+import { BODY_MODES, type Elec16Pane, SCI_BODY_MODES, type SciBodyMode } from './pane-state.ts'
 import { PLAY_BODY_MODES, PLAY_SKINS } from './play-body.ts'
 import { SCI_SKINS } from './sci-body.ts'
 import { SKIN_IDS, SKINS, type SkinId } from './skins.ts'
@@ -94,9 +94,10 @@ function pickModel(id: UnitModelId): void {
 }
 $effect(() => () => clearTimeout(disarmModel))
 const offWords = (m: Elec16AutoOff): string => (m === 0 ? 'never' : `${m} min`)
-const BODY_WORDS: Record<BodyMode, string> = {
+const BODY_WORDS: Record<SciBodyMode, string> = {
   auto: 'auto',
   full: 'full',
+  simple: 'simple',
   compact: 'compact',
   lcd: 'lcd',
 }
@@ -333,7 +334,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
   <section>
     <h3>body</h3>
     <div class="chips" role="radiogroup" aria-label="body">
-      {#each BODY_MODES as b (b)}
+      {#each SCI_BODY_MODES as b (b)}
         <button
           type="button"
           class="e16-chip"
@@ -347,8 +348,8 @@ function pick<T>(now: T, next: T, apply: () => void): void {
     </div>
   </section>
   <section>
-    <h3>colour</h3>
-    <div class="chips" role="radiogroup" aria-label="colour">
+    <h3>color</h3>
+    <div class="chips" role="radiogroup" aria-label="color">
       {#each SCI_SKINS as c (c)}
         <button
           type="button"
@@ -389,8 +390,8 @@ function pick<T>(now: T, next: T, apply: () => void): void {
     </div>
   </section>
   <section>
-    <h3>colour</h3>
-    <div class="chips" role="radiogroup" aria-label="colour">
+    <h3>color</h3>
+    <div class="chips" role="radiogroup" aria-label="color">
       {#each PLAY_SKINS as c (c)}
         <button
           type="button"

@@ -3,6 +3,7 @@ import { SCI_KEYS, SCI_NAME_LENGTH, sciKeyCode, sciNameTable } from '@shared/ele
 import { KEY_ROWS } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
 import { pickerChoice, pickerRows } from '../../src/renderer/layout/popup.js'
+import { pocketBody, readElec16Pane } from '../../src/renderer/widgets/elec16/pane-state.js'
 import {
   COMPACT_PLACES,
   FACE_GAP_EM,
@@ -14,6 +15,7 @@ import {
   SCI_SKIN_COLOURS,
   SCI_SKINS,
   type SciLayout,
+  SIMPLE_PLACES,
   sciFit,
   sciLayout,
 } from '../../src/renderer/widgets/elec16/sci-body.js'
@@ -78,10 +80,16 @@ describe("the calculator's body", () => {
   ]
 
   it('keeps every part on the case and none over another, at every scale and density', () => {
-    for (const mode of ['full', 'compact', 'lcd'] as const) {
+    for (const [mode, cased] of [
+      ['full', true],
+      ['full', false],
+      ['simple', true],
+      ['compact', true],
+      ['lcd', true],
+    ] as const) {
       for (const scale of [1, 2, 3, 4]) {
         for (const ratio of [1, 1.25, 1.5, 2]) {
-          const l = sciLayout(mode, scale, ratio)
+          const l = sciLayout(mode, scale, ratio, cased)
           const all = parts(l)
           for (const [name, r] of all)
             expect(inside(r, l.width, l.height), `${mode} ${scale} ${ratio} ${name}`).toBe(true)
@@ -95,6 +103,36 @@ describe("the calculator's body", () => {
         }
       }
     }
+  })
+
+  it('has SIMPLE: the glass and the number keys alone, with nothing printed over them', () => {
+    const l = sciLayout('simple', 3, 1)
+    expect(l.keys.map((k) => k.id)).toEqual(SIMPLE_PLACES.map((p) => p.id))
+    expect(l.keys.map((k) => k.id).sort()).toEqual(
+      FULL_PLACES.filter((p) => p.block === 'num')
+        .map((p) => p.id)
+        .sort(),
+    )
+    expect(l.keys.every((k) => k.over.h === 0)).toBe(true)
+    expect([l.plate, l.pad, l.seam]).toEqual([null, null, null])
+    expect(l.height).toBeLessThan(sciLayout('full', 3, 1).height)
+    expect(sciFit({ w: 1000, h: 1200, ratio: 1 }, 'simple')?.mode).toBe('simple')
+  })
+
+  it('leaves out the plate and the seam without a case (PLAIN), the glass at the top', () => {
+    const cased = sciLayout('full', 3, 1)
+    const bare = sciLayout('full', 3, 1, false)
+    expect([bare.plate, bare.seam]).toEqual([null, null])
+    expect(cased.plate).not.toBeNull()
+    expect(bare.glass.y).toBeLessThan(cased.glass.y)
+    expect(bare.keys.map((k) => k.id)).toEqual(cased.keys.map((k) => k.id))
+    expect(sciFit({ w: 1000, h: 1200, ratio: 1 }, 'auto', false)?.plate).toBeNull()
+  })
+
+  it("keeps SIMPLE the calculator's: the pocket models draw it as AUTO", () => {
+    expect(readElec16Pane({ body: 'simple' }).body).toBe('simple')
+    expect(pocketBody('simple')).toBe('auto')
+    expect(pocketBody('compact')).toBe('compact')
   })
 
   it('gives the LCD a whole number of device pixels a dot, its frame round it', () => {

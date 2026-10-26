@@ -337,9 +337,9 @@ SOFT CARD 附带十三个程序，以只读方式叠加在每台单元的存储�
 | 读取内容 | 不读取机器之外的任何东西 |
 | 更新 | 等待按键时休眠；自动关机与袖珍电脑机型相同 |
 | 平台 | Windows、macOS、Linux（macOS 和 Linux 未经手动验证） |
-| 设置 | TUNE：机身（SLATE、CHALK、PLAIN）、时钟、自动关机、FULL / COMPACT / LCD |
+| 设置 | TUNE：机身（SLATE、CHALK、PLAIN）、时钟、自动关机、FULL / SIMPLE / COMPACT / LCD |
 
-一台自行设计的函数计算器，机型 SCI-128，128×64 液晶，竖长机身：SLATE、CHALK，或使用主题颜色的 PLAIN。用词是它自己的，不使用任何厂商的名称、写法或按键布局。
+一台自行设计的函数计算器，机型 SCI-128，128×64 液晶，竖长机身：SLATE、CHALK，或使用主题颜色的 PLAIN。PLAIN 与袖珍电脑的 PLAIN 一样不画机身，只有液晶和用面板细线框起的按键 *(unreleased)*。SIMPLE 只显示液晶和数字键（0-9、.、EXP、ANS、DEL、AC、+ − × ÷、=），像普通计算器一样使用；AUTO 不会选它 *(unreleased)*。用词是它自己的，不使用任何厂商的名称、写法或按键布局。
 
 ### 输入与答案
 

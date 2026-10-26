@@ -35,6 +35,7 @@ import {
   type Elec16Pane,
   PANEL_WIDTH,
   panelShown,
+  pocketBody,
   readElec16Pane,
 } from './pane-state.ts'
 import { claim, park } from './park.ts'
@@ -568,7 +569,7 @@ onDestroy(() => {
             {runner}
             {skin}
             {lcdColours}
-            mode={pane.body}
+            mode={pocketBody(pane.body)}
             ghost={pane.ghost}
             contrast={pane.contrast}
             seen={visible}

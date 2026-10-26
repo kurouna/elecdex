@@ -26,6 +26,15 @@ export const CODE_FILE = 'MAIN.TS'
 /** How the device is drawn: the whole body, the LCD and a row of keys, or the LCD alone. */
 export const BODY_MODES = ['auto', 'full', 'compact', 'lcd'] as const
 export type BodyMode = (typeof BODY_MODES)[number]
+/**
+ * The calculator's (sci-body.ts): the pocket's, and SIMPLE - the glass and the number keys, as
+ * an everyday calculator has them.
+ */
+export const SCI_BODY_MODES = ['auto', 'full', 'simple', 'compact', 'lcd'] as const
+export type SciBodyMode = (typeof SCI_BODY_MODES)[number]
+
+/** The pocket's body for a pane's: SIMPLE, the calculator's alone, is chosen by the room. */
+export const pocketBody = (mode: SciBodyMode): BodyMode => (mode === 'simple' ? 'auto' : mode)
 
 export interface Elec16Pane {
   skin: SkinId
@@ -39,7 +48,8 @@ export interface Elec16Pane {
    * it holds that unit (its id is then `unit`).
    */
   fresh: UnitModelId | undefined
-  body: BodyMode
+  /** The body as the pocket models and the calculator draw it (SIMPLE is the calculator's). */
+  body: SciBodyMode
   /** Whether the side panel is wanted; it still folds away when the pane is too narrow. */
   panel: boolean
   tab: Elec16Tab
@@ -74,7 +84,7 @@ export function readElec16Pane(
     unit: isUnitId(s.unit) ? s.unit : undefined,
     seed: { ...(clock !== undefined ? { clock } : {}), ...(model !== undefined ? { model } : {}) },
     fresh: UNIT_MODEL_IDS.find((m) => m === s.fresh),
-    body: oneOf(s.body, BODY_MODES, 'auto'),
+    body: oneOf(s.body, SCI_BODY_MODES, 'auto'),
     panel: typeof s.panel === 'boolean' ? s.panel : true,
     tab: oneOf(s.tab, ELEC16_TABS, 'core'),
     ghost: typeof s.ghost === 'boolean' ? s.ghost : true,

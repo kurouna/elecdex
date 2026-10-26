@@ -3,7 +3,7 @@ import { SCI_KEY_BY_ID } from '@shared/elec16/sci-keys'
 import { watchRoom } from '../emu/screen.ts'
 import Lcd from './Lcd.svelte'
 import type { LcdColours } from './lcd-painter.ts'
-import type { BodyMode } from './pane-state.ts'
+import type { SciBodyMode } from './pane-state.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
 import {
   faceRuns,
@@ -22,11 +22,12 @@ import {
  * face printed above it on the left and its ALPHA face on the right. Every place comes from
  * sci-body.ts, the LCD at a whole number of device pixels a dot, never stretched. A key is
  * held while the pointer that pressed it is down; ON is the BRK line. The keys never take the
- * focus, so the PC's keyboard goes on reaching the machine.
+ * focus, so the PC's keyboard goes on reaching the machine. PLAIN draws no case, as the pocket
+ * models' PLAIN: no plate, no seam, flat keys outlined by the panel rule on the pane's ground.
  */
 interface Props {
   runner: Elec16Runner
-  mode: BodyMode
+  mode: SciBodyMode
   skin: SciSkin
   /** The LCD's colours, read through the theme by the widget (PLAIN's are the theme's). */
   lcdColours: LcdColours
@@ -63,9 +64,9 @@ $effect(() => {
   return () => query.removeEventListener('change', moved)
 })
 
-const layout = $derived(sciFit(room, mode))
-const colours = $derived(SCI_SKIN_COLOURS[skin])
 const plain = $derived(skin === 'plain')
+const layout = $derived(sciFit(room, mode, !plain))
+const colours = $derived(SCI_SKIN_COLOURS[skin])
 
 const place = (r: Rect): string => `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`
 
@@ -187,7 +188,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
     <div
       class="body"
       class:plain
-      class:bare={layout.mode === 'lcd'}
+      class:bare={plain || layout.mode === 'lcd'}
       data-mode={layout.mode}
       data-skin={skin}
       style:width="{layout.width}px"
@@ -326,12 +327,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
   touch-action: none;
 }
 
-/* PLAIN: elecdex's own look - no moulding, the panel rule, flat keys, the theme's colours. */
-.body.plain {
-  box-shadow: inset 0 0 0 1px var(--panel-rule);
-}
-
-/* The LCD alone: no case round it. */
+/* The LCD alone, or PLAIN: no case round it. */
 .body.bare {
   background: none;
   box-shadow: none;
@@ -524,18 +520,25 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
   opacity: 0.6;
 }
 
-/* PLAIN's keys: flat, outlined by the panel rule, darkened while held. */
+/*
+ * PLAIN's keys, as the pocket's PLAIN: square tiles on the pane's ground, outlined by the panel
+ * rule, the print in the theme's colours; the outline takes the print's colour under the
+ * pointer, and a held key fills faintly.
+ */
 .body.plain .key,
 .body.plain .pad {
   box-shadow: none;
   outline: 1px solid var(--panel-rule);
-  border-radius: 2px;
+  outline-offset: -1px;
+  border-radius: 0;
 }
 
-.body.plain .key.shift,
-.body.plain .key.alpha,
+.body.plain .key:hover {
+  outline-color: currentColor;
+}
+
 .body.plain .key.warm {
-  outline: 0;
+  color: var(--danger);
 }
 
 .body.plain .key.down {
