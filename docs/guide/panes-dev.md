@@ -113,7 +113,7 @@ FETCH, PULL and PUSH:
 - Each button is pressed twice. The first press of PUSH says how many commits go where and that no hooks run, for example `push ↑2 to origin/main · no hooks`.
 - **No hook runs**, for any of the three: `core.hooksPath` points at an empty folder of elecdex's own. A push therefore skips its pre-push checks (tests, lint), and says so before the second press.
 - **A transport program named by the repository's own config refuses the press** (for example its own `core.sshCommand`, `core.gitProxy`, a credential helper that is not one git ships, `remote.<name>.uploadpack`). Such a repository is synced in the terminal.
-- **Only https, http, ssh and git are spoken**: not a folder on this machine, not `ext::`, not a remote helper. A press on such a remote (a shared folder, often) fails with git's `transport 'file' not allowed` and says to run the same command in the terminal *(unreleased)*.
+- **Only https, http, ssh and git are spoken**: not a folder on this machine, not `ext::`, not a remote helper. A press on such a remote (a shared folder, often) fails with git's `transport 'file' not allowed` and says to run the same command in the terminal.
 - Your own global and system git configuration is used for authentication, ssh and proxies. git is told there is no terminal to ask in; a transfer still waiting after 120 seconds is stopped and reported as **TIMED OUT**.
 - The result is a toast with a short code (`PULLED 3 COMMITS`, `FETCHED · 2 COMMITS BEHIND`, `PUSHED 2 COMMITS`, `DIVERGED`, `REJECTED`, `PULL FAILED`) beside git's own words. One operation runs at a time per repository, and the pane re-reads the repository afterwards.
 
