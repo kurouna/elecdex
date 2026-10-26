@@ -564,6 +564,15 @@ describe('the screen', () => {
     reset.run(1000)
     reset.reset()
     expect(reset.state.vram.every((b) => b === 0)).toBe(true)
+    // PLAY-320 draws from its video memory: switched on, the last game frame showed until the
+    // ROM's first DMA (found in a review).
+    const play = boot('spin:\nj spin', 'play-320')
+    const video = play.state.video
+    expect(video).not.toBeNull()
+    video?.mem.fill(0x5a)
+    play.powerOff()
+    play.brk()
+    expect(video?.mem.every((b) => b === 0)).toBe(true)
   })
 
   it("ignores what is written past the model's screen in the window", () => {

@@ -233,7 +233,7 @@ export function sciFit(room: Room, mode: SciBodyMode, cased = true): SciLayout |
       largest('full', LEAST_SCALE) ??
       largest('compact', LEAST_SCALE) ??
       largest('lcd', 1) ??
-      sciLayout('lcd', smallest(room), room.ratio)
+      sciLayout('lcd', smallest(room), room.ratio, cased)
     )
   }
   return largest(mode, 1) ?? sciLayout(mode, smallest(room), room.ratio, cased)

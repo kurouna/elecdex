@@ -79,6 +79,9 @@ export function resetVideo(v: VideoState): void {
   v.ctrl = VCTRL_ON
   v.page = 0
   v.pending = false
+  // The picture is not kept, as the pocket's screen is not: left, the last game frame showed
+  // until the ROM's first DMA.
+  v.mem.fill(0)
   resetTiles(v.tiles)
 }
 

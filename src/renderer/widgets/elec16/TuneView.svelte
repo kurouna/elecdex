@@ -16,7 +16,13 @@ import {
   type Elec16UnitChange,
 } from '@shared/elec16-units'
 import { sfx } from '../../stores/sound.svelte.ts'
-import { BODY_MODES, type Elec16Pane, SCI_BODY_MODES, type SciBodyMode } from './pane-state.ts'
+import {
+  BODY_MODES,
+  type Elec16Pane,
+  pocketBody,
+  SCI_BODY_MODES,
+  type SciBodyMode,
+} from './pane-state.ts'
 import { PLAY_BODY_MODES, PLAY_SKINS } from './play-body.ts'
 import { SCI_SKINS } from './sci-body.ts'
 import { SKIN_IDS, SKINS, type SkinId } from './skins.ts'
@@ -305,7 +311,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
           type="button"
           class="e16-chip"
           role="radio"
-          aria-checked={pane.body === b}
+          aria-checked={pocketBody(pane.body) === b}
           onclick={() => pick(pane.body, b, () => onchange({ body: b }))}
           data-testid="elec16-body"
           data-body={b}>{BODY_WORDS[b]}</button

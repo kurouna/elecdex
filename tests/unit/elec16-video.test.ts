@@ -165,7 +165,7 @@ describe('the video registers', () => {
     expect(r.a1).toBe(0x8000 | IRQ.vblank)
   })
 
-  it('come back to the display on, page 0 and no VBLANK at a reset, the memory kept', () => {
+  it('come back to the display on, page 0 and no VBLANK at a reset, the memory cleared', () => {
     const m = boot('ebreak')
     m.bus.write16(VIDEO_REG.ctrl, 0)
     m.bus.write16(VIDEO_REG.page, 9)
@@ -174,7 +174,8 @@ describe('the video registers', () => {
     m.reset()
     const v = video(m)
     expect([v.ctrl, v.page, v.pending]).toEqual([VCTRL_ON, 0, false])
-    expect(v.mem[9 * VIDEO_PAGE_SIZE]).toBe(0x42)
+    // Not kept, as the pocket's screen is not (2026-10-27): the last frame showed at ON.
+    expect(v.mem[9 * VIDEO_PAGE_SIZE]).toBe(0)
   })
 })
 
