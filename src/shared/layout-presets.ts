@@ -174,7 +174,9 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
     // in sight. No shell - the one preset for writing, counting and keeping
     // time. The clipboard pane is on screen here, not a tab: it reads the
     // clipboard only while it is seen. The calculator ELEC-16 SCI is a tab beside the
-    // utility pane (user's request 2026-10-24).
+    // utility pane (user's request 2026-10-24), with two thirds of the column so the calculator
+    // keeps its full size and every key in sight on a 1080-line screen (user's request
+    // 2026-10-26).
     id: 'desk',
     name: 'desk',
     description:
@@ -188,7 +190,7 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
             [0.62, 0.38],
           ),
           split('column', [pane('todo'), pane('clipboard')], [0.55, 0.45]),
-          split('column', [pane('calendar'), tabs([pane('utility'), sciPane()])], [0.42, 0.58]),
+          split('column', [pane('calendar'), tabs([pane('utility'), sciPane()])], [0.33, 0.67]),
         ],
         [0.38, 0.31, 0.31],
       ),
