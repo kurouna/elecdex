@@ -717,8 +717,14 @@ describe('FETCH and PUSH in a real git, against what a handed-over repository br
       const result = await w.sync(readState({ ahead: 1 })).run(ID, 'push')
       expect(result.code).not.toBe('pushed')
       expect(existsSync(w.ran)).toBe(false)
+      // And says what to do instead (asked for by the user: git's line alone did not).
+      expect(result.message).toBe(
+        "transport 'file' not allowed: the remote is a folder, run git push in the terminal",
+      )
       // The same for a fetch from it.
-      expect((await w.sync(readState()).run(ID, 'fetch')).code).not.toBe('fetched')
+      expect((await w.sync(readState()).run(ID, 'fetch')).message).toBe(
+        "transport 'file' not allowed: the remote is a folder, run git fetch in the terminal",
+      )
     } finally {
       rmSync(w.dir, { recursive: true, force: true })
     }

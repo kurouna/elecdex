@@ -113,7 +113,7 @@ FETCH、PULL 和 PUSH：
 - 每个按钮都要按两次。第一次按 PUSH 会说明把多少提交推送到哪里，以及不会运行钩子，例如 `push ↑2 to origin/main · no hooks`。
 - **三者都不运行任何钩子**：`core.hooksPath` 指向 elecdex 自己的一个空文件夹。因此 push 会跳过 pre-push 检查（测试、lint），并在第二次按下前说明这一点。
 - **仓库自身配置为传输指定了程序时，按钮会被拒绝**（例如该仓库的 `core.sshCommand`、`core.gitProxy`、git 未自带的凭据助手、`remote.<名称>.uploadpack`）。这样的仓库请在终端中同步。
-- **只使用 https、http、ssh 和 git 协议**：不用本机上的文件夹、`ext::` 或远程助手。
+- **只使用 https、http、ssh 和 git 协议**：不用本机上的文件夹、`ext::` 或远程助手。对这类远程（常见的是共享文件夹）按下时，会以 git 的 `transport 'file' not allowed` 失败，并提示在终端中运行同一命令 *(unreleased)*。
 - 认证、ssh 和代理使用你自己的全局和系统 git 配置。会告诉 git 没有可询问的终端；120 秒后仍在等待的传输会被停止，并显示 **TIMED OUT**。
 - 结果以通知显示，短代码（`PULLED 3 COMMITS`、`FETCHED · 2 COMMITS BEHIND`、`PUSHED 2 COMMITS`、`DIVERGED`、`REJECTED`、`PULL FAILED`）旁附 git 自己的说明。每个仓库同一时间只运行一个操作，结束后窗格重新读取仓库。
 

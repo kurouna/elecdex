@@ -113,7 +113,7 @@ FETCH・PULL・PUSH:
 - どのボタンも 2 回押しです。PUSH を 1 回押すと、何件をどこへ送るかとフックが走らないことを、たとえば `push ↑2 to origin/main · no hooks` のように示します。
 - **フックは一切走りません**（3 つとも）。`core.hooksPath` を elecdex 自身の空のフォルダーに向けるためです。そのため push は pre-push のチェック（テストや lint）を飛ばし、2 回目を押す前にそう表示します。
 - **リポジトリ自身の設定が転送のプログラムを名指すときは押せません**（そのリポジトリの `core.sshCommand`、`core.gitProxy`、git が同梱しない資格情報ヘルパー、`remote.<名前>.uploadpack` など）。そのようなリポジトリはターミナルで同期してください。
-- **話すのは https・http・ssh・git だけです**。この機械の上のフォルダー、`ext::`、リモートヘルパーは使いません。
+- **話すのは https・http・ssh・git だけです**。この機械の上のフォルダー、`ext::`、リモートヘルパーは使いません。そうしたリモート（共有フォルダーが多い）で押すと、git の `transport 'file' not allowed` で失敗し、同じコマンドをターミナルで実行するよう表示します *(unreleased)*。
 - 認証、ssh、プロキシには、利用者自身の global・system の git 設定をそのまま使います。git には問い合わせる端末がないと伝え、それでも 120 秒待つ転送は止めて **TIMED OUT** と示します。
 - 結果はトーストで、短いコード（`PULLED 3 COMMITS`・`FETCHED · 2 COMMITS BEHIND`・`PUSHED 2 COMMITS`・`DIVERGED`・`REJECTED`・`PULL FAILED`）の横に git 自身の言葉を添えます。1 つのリポジトリにつき同時に 1 つだけ実行し、終わったらリポジトリを読み直します。
 

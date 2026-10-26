@@ -102,6 +102,22 @@ const PROTOCOLS: readonly string[] = [
   'protocol.git.allow=always',
 ]
 
+/**
+ * git's own words, and what to do instead when it was `PROTOCOLS` that refused: a remote that
+ * is a folder (a shared one, often) or speaks another transport is still the terminal's to
+ * reach, and git's line alone did not say so (asked for by the user).
+ */
+function syncError(done: GitResult, action: GitSyncAction): string {
+  const said = gitError(done)
+  const transport = /^transport '([^']+)' not allowed/.exec(said)?.[1]
+  if (transport === undefined) return said || 'git gave no reason'
+  const why =
+    transport === 'file'
+      ? 'the remote is a folder'
+      : 'only https, http, ssh and git are spoken here'
+  return `${said}: ${why}, run git ${action} in the terminal`
+}
+
 type Git = (args: readonly string[], timeoutMs?: number) => Promise<GitResult>
 type Result = (code: GitSyncResult['code'], message?: string, commits?: number) => GitSyncResult
 
@@ -118,7 +134,7 @@ function pushOutcome(done: GitResult, ref: string, commits: number, result: Resu
   }
   // `[remote rejected] (pre-receive hook declined)` and the like: the remote's own reasons.
   if (line?.flag === '!') return result('failed', line.summary)
-  if (!done.ok || line === null) return result('failed', gitError(done) || 'git gave no reason')
+  if (!done.ok || line === null) return result('failed', syncError(done, 'push'))
   return result('pushed', '', commits)
 }
 
@@ -193,7 +209,7 @@ export class GitSync {
       if (action === 'pull' && (await this.diverged(git))) {
         return result('diverged', 'merge or rebase in the terminal')
       }
-      return result('failed', gitError(done) || 'git gave no reason')
+      return result('failed', syncError(done, action))
     }
     return action === 'fetch'
       ? result('fetched', '', await this.count(git, 'HEAD..@{upstream}'))
