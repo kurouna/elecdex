@@ -100,6 +100,8 @@ const cap = (id: string): string => (id === 'on' ? 'ON' : (SCI_KEY_BY_ID.get(id)
 const shiftFace = (id: string): string =>
   id === 'on' ? 'OFF' : (SCI_KEY_BY_ID.get(id)?.shift ?? '')
 const alphaFace = (id: string): string => SCI_KEY_BY_ID.get(id)?.alpha ?? ''
+/** The operators and =: the UI face draws these glyphs small beside its digits. */
+const OPERATORS = new Set(['add', 'sub', 'mul', 'div', 'eq'])
 const spoken = (id: string): string =>
   id === 'on' ? 'ON, break' : `${cap(id)}${shiftFace(id) === '' ? '' : `, shift ${shiftFace(id)}`}`
 
@@ -286,6 +288,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
           class:alpha={k.id === 'alpha'}
           class:warm={k.id === 'del' || k.id === 'ac'}
           class:eq={k.id === 'eq'}
+          class:op={OPERATORS.has(k.id)}
           class:down={down.has(k.id)}
           tabindex="-1"
           style={place(k.at)}
@@ -423,11 +426,22 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
   border-radius: calc(2.4 * var(--u)) calc(2.4 * var(--u)) calc(4 * var(--u)) calc(4 * var(--u));
   background: var(--num-key);
   color: var(--num-text);
-  font-size: max(var(--step--1), calc(6 * var(--u)));
+  font-size: calc(var(--op, 1) * max(var(--step--1), calc(6 * var(--u))));
   box-shadow:
     inset 0 1px 0 var(--num-hi),
     0 calc(1.2 * var(--u)) 0 var(--num-side),
     0 calc(2 * var(--u)) calc(2 * var(--u)) rgb(0 0 0 / 0.4);
+}
+
+/* SIMPLE's keys are nearly twice as tall as the whole body's number keys: so is their print. */
+.body[data-mode='simple'] .key.num {
+  font-size: calc(var(--op, 1) * max(var(--step-0), calc(10 * var(--u))));
+}
+
+/* The operators' glyphs sit small in the UI face: raised to the digits' size. */
+.key.op {
+  --op: 1.5;
+  line-height: 1;
 }
 
 .key.shift {
