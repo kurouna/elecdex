@@ -542,6 +542,30 @@ describe('the screen', () => {
     expect([r.a0, r.a1, r.a2]).toEqual([160, 144, 2])
   })
 
+  it('comes back on, or is reset, with nothing of the screen it showed before', () => {
+    // Switched on again, the page drew the old screen for a moment before the ROM cleared it.
+    const draw = `
+      li t0, 0xe000
+      li t1, 0xff
+      sb t1, 3(t0)`
+    const off = boot(`${draw}
+      li t0, ${REG.power}
+      sw zero, 0(t0)
+    spin:
+      j spin`)
+    off.run(1000)
+    expect(off.state.off).toBe(true)
+    const before = off.screenRevision
+    off.brk()
+    expect(off.state.off).toBe(false)
+    expect(off.pixels().every((p) => p === 0)).toBe(true)
+    expect(off.screenRevision).toBeGreaterThan(before)
+    const reset = boot(`${draw}\nebreak`)
+    reset.run(1000)
+    reset.reset()
+    expect(reset.state.vram.every((b) => b === 0)).toBe(true)
+  })
+
   it("ignores what is written past the model's screen in the window", () => {
     const m = boot(`
       li t0, 0xe000 + 1440

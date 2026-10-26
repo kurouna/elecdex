@@ -489,6 +489,9 @@ export class Elec16 implements Core {
     if (s.pad !== null) s.pad.hit = 0
     if (s.apu !== null) resetApu(s.apu)
     s.stall = 0
+    // The screen is not kept: left, the page drew it for a moment before the ROM cleared it.
+    s.vram.fill(0)
+    s.screenRevision++
     // A command out belonged to the program that is gone: its answer is not waited for.
     Object.assign(s.card, createCardState())
     linkLetGo(s)
