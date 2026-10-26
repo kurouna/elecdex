@@ -84,6 +84,7 @@ describe("the calculator's body", () => {
       ['full', true],
       ['full', false],
       ['simple', true],
+      ['simple', false],
       ['compact', true],
       ['lcd', true],
     ] as const) {
@@ -105,7 +106,7 @@ describe("the calculator's body", () => {
     }
   })
 
-  it('has SIMPLE: the glass and the number keys alone, with nothing printed over them', () => {
+  it('has SIMPLE: the plate, the glass and the number keys alone, nothing printed over them', () => {
     const l = sciLayout('simple', 3, 1)
     expect(l.keys.map((k) => k.id)).toEqual(SIMPLE_PLACES.map((p) => p.id))
     expect(l.keys.map((k) => k.id).sort()).toEqual(
@@ -114,8 +115,22 @@ describe("the calculator's body", () => {
         .sort(),
     )
     expect(l.keys.every((k) => k.over.h === 0)).toBe(true)
-    expect([l.plate, l.pad, l.seam]).toEqual([null, null, null])
+    expect(l.plate).not.toBeNull()
+    expect([l.pad, l.seam]).toEqual([null, null])
+    expect(sciLayout('simple', 3, 1, false).plate).toBeNull()
     expect(l.height).toBeLessThan(sciLayout('full', 3, 1).height)
+    // It stands upright, as an everyday calculator does, never as wide as it is tall.
+    for (const cased of [true, false]) {
+      const s = sciLayout('simple', 3, 1, cased)
+      expect(s.height / s.width).toBeGreaterThan(1.3)
+    }
+    // Four keys across in five rows, = at the bottom right.
+    const rows = new Set(l.keys.map((k) => k.at.y))
+    expect(rows.size).toBe(5)
+    expect(new Set(l.keys.map((k) => k.at.x)).size).toBe(4)
+    const eq = l.keys.find((k) => k.id === 'eq')
+    expect(eq?.at.y).toBe(Math.max(...rows))
+    expect(eq?.at.x).toBe(Math.max(...l.keys.map((k) => k.at.x)))
     expect(sciFit({ w: 1000, h: 1200, ratio: 1 }, 'simple')?.mode).toBe('simple')
   })
 

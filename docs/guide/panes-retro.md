@@ -339,7 +339,7 @@ The SOFT CARD brings thirteen programs, laid read-only over every unit's card:
 | Platforms | Windows, macOS, Linux (macOS and Linux not verified by hand) |
 | Settings | TUNE: body (SLATE, CHALK, PLAIN), clock, auto power-off, FULL / SIMPLE / COMPACT / LCD |
 
-A scientific calculator of its own design, the model SCI-128, on a 128×64 LCD with a tall body: SLATE, CHALK, or PLAIN in the theme's colours. PLAIN draws no case, as the pocket models' PLAIN: the LCD and keys outlined by the panel rule. SIMPLE shows the LCD and the number keys alone (0-9, ., EXP, ANS, DEL, AC, + − × ÷, =), as an everyday calculator has them; AUTO never picks it. Its words are its own; no maker's names, spellings or key layouts.
+A scientific calculator of its own design, the model SCI-128, on a 128×64 LCD with a tall body: SLATE, CHALK, or PLAIN in the theme's colours. PLAIN draws no case, as the pocket models' PLAIN: the LCD and keys outlined by the panel rule. SIMPLE shows the LCD and the number keys alone (0-9, ., EXP, ANS, DEL, AC, + − × ÷, =), four across on a tall body, as an everyday calculator has them; AUTO never picks it. Its words are its own; no maker's names, spellings or key layouts.
 
 ### Typing and answers
 

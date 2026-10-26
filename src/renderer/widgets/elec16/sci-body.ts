@@ -6,7 +6,7 @@
  * the size it comes to, the keys below in dots - every part scaled together, never stretched.
  *
  * Four ways to show it (SciBodyMode): the whole body; SIMPLE, the glass and the number keys
- * alone, as an everyday calculator has them; COMPACT, the glass and a row of keys (the arrows,
+ * alone, four across and tall, as an everyday calculator stands; COMPACT, the glass and a row of keys (the arrows,
  * AC and =) with the PC's keys for the rest; LCD, the glass alone. Without a case (PLAIN) there
  * is no plate either: the glass goes to the top, as COMPACT's does.
  */
@@ -63,6 +63,17 @@ const NUM_ROWS: readonly (readonly string[])[] = [
   ['1', '2', '3', 'add', 'sub'],
   ['0', 'dot', 'exp', 'ans', 'eq'],
 ]
+/**
+ * SIMPLE's keys, four across as an everyday calculator has them: the number keys' twenty, the
+ * clearing keys and ANS over the digits, the operators down the right, = at the foot.
+ */
+const SIMPLE_ROWS: readonly (readonly string[])[] = [
+  ['ac', 'del', 'ans', 'div'],
+  ['7', '8', '9', 'mul'],
+  ['4', '5', '6', 'sub'],
+  ['1', '2', '3', 'add'],
+  ['0', 'dot', 'exp', 'eq'],
+]
 /** COMPACT's one row: the arrows, AC and =. */
 const COMPACT_ROW: readonly string[] = ['left', 'up', 'down', 'right', 'ac', 'eq']
 
@@ -74,9 +85,12 @@ const FN = { top: 30, colW: 20, gap: 4, keyH: 9, pitch: 15 }
 export const SEAM_Y = 78
 const NUM = { top: 82, colW: 24, gap: 5, keyH: 12, pitch: 18 }
 const KEYS_HEIGHT = NUM.top + 3 * NUM.pitch + LEGEND + NUM.keyH
-/** SIMPLE's number keys: the whole body's, with no band over them (no SHIFT to print for). */
-const SIMPLE = { pitch: 16 }
-const SIMPLE_HEIGHT = 3 * SIMPLE.pitch + NUM.keyH
+/**
+ * SIMPLE's keys: tall, with no band over them (no SHIFT to print for), so the body stands
+ * upright as the whole body does rather than lying as wide as its glass.
+ */
+const SIMPLE = { colW: 29, gap: 8, keyH: 20, pitch: 28 }
+const SIMPLE_HEIGHT = (SIMPLE_ROWS.length - 1) * SIMPLE.pitch + SIMPLE.keyH
 /** COMPACT's one row of keys. */
 const COMPACT_HEIGHT = 9
 /** The cursor pad over the top grid's middle columns, both rows. */
@@ -115,11 +129,11 @@ export const COMPACT_PLACES: readonly SciPlace[] = grid([COMPACT_ROW], TOP, 'com
   legend: { ...p.legend, h: 0 },
   key: { ...p.key, y: 0, h: COMPACT_HEIGHT },
 }))
-export const SIMPLE_PLACES: readonly SciPlace[] = grid(
-  NUM_ROWS,
-  { ...NUM, top: 0, pitch: SIMPLE.pitch },
-  'num',
-).map((p) => ({ ...p, legend: { ...p.legend, h: 0 }, key: { ...p.key, y: p.legend.y } }))
+export const SIMPLE_PLACES: readonly SciPlace[] = grid(SIMPLE_ROWS, SIMPLE, 'num').map((p) => ({
+  ...p,
+  legend: { ...p.legend, h: 0 },
+  key: { ...p.key, y: p.legend.y },
+}))
 
 /** Each mode's keys and how tall they stand, in dots. */
 const MODE_KEYS: Readonly<
@@ -179,7 +193,8 @@ export function sciLayout(
   // The body is as wide as its plan, or as the glass and a margin where the glass is wider
   // (its frame is in CSS pixels, so at one device pixel a dot it is wider than the plan).
   const { places, height: keysHeight } = MODE_KEYS[mode]
-  const plated = mode === 'full' && cased
+  // A case has its plate over the glass, the whole body's and SIMPLE's alike.
+  const plated = (mode === 'full' || mode === 'simple') && cased
   const width = Math.max(BODY_WIDTH * unit, glass.w + 2 * KEYS_X * unit)
   const keysX = (width - KEYS_WIDTH * unit) / 2
   const glassRect = {
