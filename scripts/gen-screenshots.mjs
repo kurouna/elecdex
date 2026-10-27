@@ -1257,10 +1257,10 @@ for (const [name, extra, pace] of [
   standIn.close()
 }
 /*
- * For posting: what v0.0.48 fixed, in Tron. The pocket ELEC-16 and an SCI-128 side by side in
+ * The README's first picture (elecdex-hero), in Tron: what v0.0.48 fixed. The pocket ELEC-16 and an SCI-128 side by side in
  * the middle column, both in the Tron skin, the pocket over a shell, the system and the world on either
  * side: the pocket prints the BASIC expressions that came out wrong before, the calculator
- * works the cube root that now comes out exact. Only when named.
+ * works the cube root that now comes out exact.
  */
 const whatsNew48Layout = {
   version: 1,
@@ -1320,13 +1320,7 @@ async function whatsNew48(page) {
   await page.mouse.move(W / 2, H / 6)
 }
 
-if (only.includes('social-whatsnew48')) {
-  await shoot('tron', 'social-whatsnew48', {
-    layout: whatsNew48Layout,
-    extra: whatsNew48,
-    social: true,
-  })
-}
+await shoot('tron', 'elecdex-hero', { layout: whatsNew48Layout, extra: whatsNew48 })
 // For posting: the Ethernet pane popped up over the standard layout, on a made-up cable taking
 // CRC errors, its timeline on one minute. Only when named.
 if (only.includes('social-ethernet-popup')) {

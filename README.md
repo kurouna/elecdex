@@ -18,7 +18,7 @@ for Windows, macOS and Linux.
 
 <p align="center">
   <a href="https://youtu.be/JlCZzLhp_PM">
-    <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
+    <img src="./docs/screenshots/elecdex-hero.jpg" alt="elecdex with the Tron theme: system monitors on the left; in the middle the ELEC-16 pocket computer printing BASIC expressions over a shell, beside the ELEC-16 SCI calculator; the world view, markets and weather on the right">
   </a>
   <br>
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>

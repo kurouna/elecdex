@@ -18,7 +18,7 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
 
 <p align="center">
   <a href="https://youtu.be/JlCZzLhp_PM">
-    <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron テーマの elecdex：左にシステムモニター、中央にランチャーとファイルブラウザーを備えた 3 つのシェルタブ、右にワールドビュー、マーケット、天気、カレンダー">
+    <img src="./docs/screenshots/elecdex-hero.jpg" alt="Tron テーマの elecdex：左にシステムモニター、中央にシェルの上で BASIC の式を表示するポケコン ELEC-16 と関数電卓 ELEC-16 SCI、右に世界地図・マーケット・天気">
   </a>
   <br>
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>

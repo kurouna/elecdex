@@ -17,7 +17,7 @@
 
 <p align="center">
   <a href="https://youtu.be/JlCZzLhp_PM">
-    <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron 主题下的 elecdex：左侧是系统监视器，中间是三个 shell 标签页以及启动器和文件浏览器，右侧是世界视图、行情、天气和日历">
+    <img src="./docs/screenshots/elecdex-hero.jpg" alt="Tron 主题下的 elecdex：左侧是系统监视器；中间是在 shell 上方显示 BASIC 表达式结果的 ELEC-16 袖珍电脑，旁边是 ELEC-16 SCI 科学计算器；右侧是世界视图、行情和天气">
   </a>
   <br>
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
