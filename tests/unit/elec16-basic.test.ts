@@ -870,6 +870,48 @@ describe('the integer quotient and the remainder', () => {
   })
 })
 
+describe('signs, powers, comparisons and logic in an expression', () => {
+  it('takes any run of signs before a value', () => {
+    // + was followed by a power only: +-2 was ERR:SYNTAX.
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT +-2;--2;-+2;++2;3-+-2')).toEqual(['-2 2 -2 2 5'])
+    expect(say(m, 'PRINT 2^+-1;+-2^2')).toEqual(['0.5 -4'])
+  })
+
+  it('raises right to left, and takes the rest left to right', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT 2^3^2;2^-1^2;-2^-2')).toEqual(['512 0.5 -0.25'])
+    expect(say(m, 'PRINT 10-2-3;64/4/2;2*3^2')).toEqual(['5 8 18'])
+  })
+
+  it("raises a function's answer, its argument in brackets", () => {
+    // The bracket was raised inside the argument: INT(2.5)^2 was INT 6.25, 6.
+    const m = switchOn('pocket-64')
+    expect(say(m, 'DEG:PRINT INT(2.5)^2;LOG(10)^2;SIN(90)^2;-ABS(-2)^2')).toEqual(['4 1 1 -4'])
+    expect(say(m, 'PRINT INT 2.5^2;SQR(16)^0.5;PEEK(0)^0')).toEqual(['6 2 1'])
+    // The string functions' too: LEN("ABC")^2 raised the string, ERR:TYPE.
+    expect(say(m, 'PRINT LEN("ABC")^2;ASC("A")^0;VAL("2")^3')).toEqual(['9 1 8'])
+    expect(say(m, 'FOR I=1 TO 30:X=RND(3)^2:Y=Y+(X<>1 AND X<>4 AND X<>9):NEXT:PRINT Y')).toEqual([
+      '0',
+    ])
+  })
+
+  it('compares numbers and strings', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT 1<2;2<1;1<=1;2>=3;1<>2;1=1;1>2')).toEqual(['1 0 1 0 1 1 0'])
+    expect(say(m, 'PRINT "A"<"B";"B"<="A";"AB">"A";"A"<>"A";"A"="A"')).toEqual(['1 0 1 0 1'])
+    expect(say(m, 'PRINT 0.1+0.2=0.3;1/3*3=1')).toEqual(['1 0'])
+    expect(say(m, 'PRINT 1=<1')).toEqual(['ERR:SYNTAX'])
+    expect(say(m, 'PRINT "A"<1')).toEqual(['ERR:TYPE'])
+  })
+
+  it('takes NOT before AND before OR', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT 1 AND 0 OR 1;NOT 0;NOT 1=2;0 OR NOT 0 AND 1')).toEqual(['1 1 1 1'])
+    expect(say(m, 'PRINT "A" AND 1')).toEqual(['ERR:TYPE'])
+  })
+})
+
 describe('SPACE$ and STRING$', () => {
   it('make a run of one character, 0 to 255 long', () => {
     const m = switchOn('pocket-64')

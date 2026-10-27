@@ -21,8 +21,10 @@ import {
   log,
   mod,
   mul,
+  neg,
   parse,
   pow,
+  root,
   sin,
   sqrt,
   sub,
@@ -98,6 +100,29 @@ describe('the four operations', () => {
     expect(show(floor(n('2.5')))).toBe('2')
     expect(show(frac(n('-2.25')))).toBe('-0.25')
   })
+
+  it('compare numbers whose difference is too small to be a number', () => {
+    // The difference of these underflows to 0, and compare took them for equal.
+    expect(compare(n('1.00000000001E-99'), n('1E-99'))).toBe(1)
+    expect(compare(n('1E-99'), n('1.00000000001E-99'))).toBe(-1)
+    expect(compare(n('-1.00000000001E-99'), n('-1E-99'))).toBe(-1)
+    expect(compare(n('2E-99'), n('-2E-99'))).toBe(1)
+    expect(compare(n('1E-99'), n('0'))).toBe(1)
+    expect(compare(n('0'), n('-1E-99'))).toBe(1)
+    expect(compare(n('9.99999999999E99'), n('-9.99999999999E99'))).toBe(1)
+    expect(compare(n('1E-99'), n('1E-99'))).toBe(0)
+  })
+
+  it('round at the edges: cancellation, far exponents, half away from zero, a new digit', () => {
+    expect(show(sub(n('1.00000000001'), n('1')), 12)).toBe('0.00000000001')
+    expect(show(add(n('1E20'), n('1')), 12)).toBe('1E20')
+    expect(show(add(n('1E11'), n('0.5')), 12)).toBe('100000000001')
+    expect(show(sub(n('-1E11'), n('0.5')), 12)).toBe('-100000000001')
+    expect(show(add(n('9.99999999999'), n('0.000000000005')), 12)).toBe('10')
+    expect(show(n('9.99999999999E99'), 12)).toBe('9.99999999999E99')
+    fails(() => add(n('9.99999999999E99'), n('1E88')), ERR.overflow)
+    expect(show(div(n('1E-99'), n('10')))).toBe('0')
+  })
 })
 
 describe('functions', () => {
@@ -141,6 +166,34 @@ describe('functions', () => {
     fails(() => pow(n('0.1'), n('-200')), ERR.overflow)
     fails(() => pow(n('0'), n('-1')), ERR.divideByZero)
     fails(() => ln(n('0')), ERR.domain)
+  })
+
+  it('raise a negative number to any whole power, however large', () => {
+    // Whole powers beyond 999 went through the double, which refuses a negative base.
+    expect(show(pow(n('-1'), n('1000')))).toBe('1')
+    expect(show(pow(n('-1'), n('1001')))).toBe('-1')
+    expect(show(pow(n('-1'), n('-1E20')))).toBe('1')
+    expect(show(pow(n('-1.000001'), n('1001')), 12)).toBe(
+      show(neg(pow(n('1.000001'), n('1001'))), 12),
+    )
+    fails(() => pow(n('-10'), n('1000')), ERR.overflow)
+    expect(show(pow(n('-10'), n('-1001')))).toBe('0')
+  })
+
+  it('take whole roots to the last digit, exactly where they are exact', () => {
+    // A power of 1/3 rounded to twelve digits gave 9.99999999998 for the cube root of 1000.
+    expect(show(root(n('1000'), n('3')), 12)).toBe('10')
+    expect(show(root(n('1E9'), n('3')), 12)).toBe('1000')
+    expect(show(root(n('32'), n('5')), 12)).toBe('2')
+    expect(show(root(n('1E-99'), n('3')), 12)).toBe('1E-33')
+    expect(show(root(n('2E-99'), n('3')), 12)).toBe('1.25992104989E-33')
+    expect(show(root(n('2'), n('3')), 12)).toBe('1.25992104989')
+    expect(show(root(n('8'), n('-3')), 12)).toBe('0.5')
+    expect(show(root(n('2'), n('0.5')), 12)).toBe('4')
+    expect(show(root(n('0'), n('3')), 12)).toBe('0')
+    fails(() => root(n('-8'), n('3')), ERR.domain)
+    fails(() => root(n('8'), n('0')), ERR.divideByZero)
+    fails(() => root(n('0'), n('-3')), ERR.divideByZero)
   })
 })
 

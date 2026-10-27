@@ -66,6 +66,7 @@ export const M_ACSH = 0x25
 export const M_ATNH = 0x26
 export const M_ATN2 = 0x27
 export const M_RNDTO = 0x28
+export const M_ROOT = 0x2b
 export const M_FROMINT = 0x30
 export const M_TOINT = 0x31
 export const M_PARSE = 0x38

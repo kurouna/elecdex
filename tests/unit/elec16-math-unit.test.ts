@@ -250,4 +250,16 @@ describe('the maths unit', () => {
     const big = run([MATH_OP.toI32], (mm) => put(mm, A, '2147483648'))
     expect(big.state.math.status).toBe(MATH_ERR.overflow)
   })
+
+  it('takes the B-th root of A to the last digit (ROOT)', () => {
+    const root = (x: string, n: string) =>
+      run([MATH_OP.root], (mm) => {
+        put(mm, A, x)
+        put(mm, B, n)
+      })
+    expect(at(root('1000', '3'), A)).toBe('10')
+    expect(at(root('32', '5'), A)).toBe('2')
+    expect(root('-8', '3').state.math.status).toBe(MATH_ERR.domain)
+    expect(root('8', '0').state.math.status).toBe(MATH_ERR.divideByZero)
+  })
 })

@@ -70,6 +70,8 @@ export const MATH_OP = {
   fromI32: 0x29,
   /** The four bytes at B = A's whole part (towards 0); OVERFLOW outside 32 bits signed. */
   toI32: 0x2a,
+  /** A = the B-th root of A (A not negative), to the last digit (D.root). */
+  root: 0x2b,
   fromInt: 0x30,
   toInt: 0x31,
   /** A whole number from -32768 to 65535 as its 16 bits: an address, signed or not. */
@@ -148,6 +150,7 @@ const CYCLES: Record<Op, number> = {
   [MATH_OP.rndto]: 60,
   [MATH_OP.fromI32]: 30,
   [MATH_OP.toI32]: 30,
+  [MATH_OP.root]: 3000,
   [MATH_OP.fromInt]: 30,
   [MATH_OP.toInt]: 30,
   [MATH_OP.toWord]: 30,
@@ -185,6 +188,7 @@ const BINARY: Partial<Record<Op, (a: D.Dec, b: D.Dec) => D.Dec>> = {
   [MATH_OP.mul]: D.mul,
   [MATH_OP.div]: D.div,
   [MATH_OP.pow]: D.pow,
+  [MATH_OP.root]: D.root,
   [MATH_OP.move]: (_a, b) => b,
   [MATH_OP.idiv]: D.idiv,
   [MATH_OP.mod]: D.mod,

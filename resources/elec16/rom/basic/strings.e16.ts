@@ -17,6 +17,7 @@ import {
   wfi,
 } from '../../../../src/shared/e16c/builtins'
 import {
+  argument,
   checkBreak,
   clearVariables,
   copy8,
@@ -78,7 +79,6 @@ import {
   toInt,
   top,
   txt,
-  unary,
   VAR_HEAD,
   varAt,
   varRoom,
@@ -325,7 +325,7 @@ export function moreFunctions(token: u16): void {
     stringOf()
     return
   }
-  unary()
+  argument()
   if (token === T_SPACES) repeated(CH_SPACE, repeatCount())
   else oneArgument(token)
 }

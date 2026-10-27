@@ -881,6 +881,21 @@ describe("after EL-509E's list: % of what it is added to, STATS' results in a li
     ['2 add lp 5 0 func 3', '2.5'],
     ['2 add shift neg 5 0 func 3', '2.5'],
     ['2 add lp 5 0 func 3 rp', '2.5'],
+    // An exponent is a bracket too: 2+3^(50% was a share of the 2 outside, 5.464101615.
+    ['2 add 3 pow 5 0 func 3', '3.732050808'],
+    ['2 add 3 pow 5 0 func 3 rp', '3.732050808'],
+    ['2 add 4 pow 2 pow 5 0 func 3', '9.102993301'],
+    // A % after the power is still a share of what it is added to.
+    ['5 0 0 add 2 pow 2 rp func 3', '520'],
+    // The rule is the term's: one that ends in % is a share, one that ends in ² is not.
+    ['5 0 0 add 2 mul 2 5 func 3', '750'],
+    ['5 0 0 add 2 5 func 3 sq', '500.0625'],
+    // A root was a power of 1/n rounded to twelve digits: ∛(1000)-10 was -2E-11.
+    ['shift root 1 0 0 0 rp sub 1 0', '0'],
+    ['lp 3 shift pow 1 0 0 0 rp sub 1 0', '0'],
+    ['shift root 1 exp 9 rp sub 1 0 0 0', '0'],
+    ['lp 5 shift pow 3 2 rp sub 2', '0'],
+    ['lp 3 shift pow neg 1 0 0 0 rp add 1 0', '0'],
   ])('%s is %s', (line, value) => {
     expect(answer(line).ans).toBe(value)
   })

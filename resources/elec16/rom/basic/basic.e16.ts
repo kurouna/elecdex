@@ -837,8 +837,22 @@ export function unary(): void {
     math(M_NEG, top(), 0)
     return
   }
-  if (c === CH_PLUS) txt++
+  if (c === CH_PLUS) {
+    // Any run of signs: +-2 is -2, as --2 is 2.
+    txt++
+    unary()
+    return
+  }
   power()
+}
+
+/**
+ * A function's argument: a bracket alone, so the caller raises the function's answer
+ * (INT(2.5)^2 is 4, not INT 6.25), else a sign and ^ as unary() reads them (INT 2.5^2 is 6).
+ */
+export function argument(): void {
+  if (next() === CH_LPAREN) primary()
+  else unary()
 }
 
 function power(): void {
@@ -907,7 +921,7 @@ function functionCall(token: u16): void {
     return
   }
   if (token >= T_SIN && token <= T_EXP) {
-    unary()
+    argument()
     needNumber()
     math(peek(FUNCTION_OPS + (token - T_SIN)), top(), 0)
     return
@@ -925,7 +939,7 @@ function functionCall(token: u16): void {
     return
   }
   if (token === T_PEEK) {
-    unary()
+    argument()
     needNumber()
     setInt(top(), peek(toWord(top())))
     return
@@ -935,7 +949,7 @@ function functionCall(token: u16): void {
 
 /** RND n: a whole number from 1 to n; RND below 1: a fraction from 0 up to 1. */
 function random(): void {
-  unary()
+  argument()
   needNumber()
   const n = top()
   const r = push()

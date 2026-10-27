@@ -3,8 +3,9 @@
  * twelve significant digits, exponents from -99 to 99, as a pocket computer's are. Pure.
  *
  * The four operations and the square root are exact in BigInt and rounded once, half away
- * from zero, so 0.1 + 0.2 is 0.3 and 1 / 3 * 3 is 1. Sines, logarithms and powers go through
- * the double and are rounded to twelve digits, which the display's ten hide.
+ * from zero, so 0.1 + 0.2 is 0.3, and 1 / 3 * 3 is 0.999999999999, shown as 1. Sines,
+ * logarithms, powers and roots go through the double and are rounded to twelve digits, which
+ * the display's ten hide.
  *
  * In memory a number is eight bytes: a sign byte (bit 7; the rest must be 0), the exponent
  * as a signed byte, then twelve BCD digits, the first not 0 unless the number is 0. Its value
@@ -127,10 +128,14 @@ export function mod(a: Dec, b: Dec): Dec {
   return fromSigned(x % y, e)
 }
 
+/** Exact: a difference too small to be a number (it goes to 0) still tells the two apart. */
 export function compare(a: Dec, b: Dec): -1 | 0 | 1 {
-  const d = sub(a, b)
-  if (d.coeff === 0n) return 0
-  return d.neg ? -1 : 1
+  const x = parts(a)
+  const y = parts(b)
+  const e = Math.min(x.e, y.e)
+  const d = x.n * 10n ** BigInt(x.e - e) - y.n * 10n ** BigInt(y.e - e)
+  if (d === 0n) return 0
+  return d < 0n ? -1 : 1
 }
 
 /** The square root, exact to the last digit kept. */
@@ -320,6 +325,11 @@ export function pow(a: Dec, b: Dec): Dec {
   if (compare(floor(b), b) === 0) {
     const k = toBigInt(b)
     if (k >= -999n && k <= 999n) return powInt(a, Number(k))
+    // A larger whole power of a negative number is its size's, negative for an odd power.
+    if (a.neg) {
+      const p = pow(abs(a), b)
+      return k % 2n === 0n ? p : neg(p)
+    }
   }
   if (a.neg) throw domain()
   if (a.coeff === 0n) {
@@ -327,6 +337,29 @@ export function pow(a: Dec, b: Dec): Dec {
     return ZERO
   }
   return fromNumber(toNumber(a) ** toNumber(b))
+}
+
+/**
+ * The b-th root of a (a not negative), through the double, which carries more digits than the
+ * twelve kept: a power of 1/3 rounded to twelve digits made the cube root of 1000
+ * 9.99999999998. For a whole b, the root to ten digits is kept where its power is a exactly.
+ */
+export function root(a: Dec, b: Dec): Dec {
+  if (b.coeff === 0n) throw new DecError(ERR.divideByZero, 'division by zero')
+  if (a.neg) throw domain()
+  if (a.coeff === 0n) {
+    if (b.neg) throw new DecError(ERR.divideByZero, 'division by zero')
+    return ZERO
+  }
+  const r = fromNumber(toNumber(a) ** (1 / toNumber(b)))
+  if (compare(floor(b), b) !== 0) return r
+  const short = roundTo(r, 10)
+  try {
+    if (compare(pow(short, b), a) === 0) return short
+  } catch {
+    // A power too large to hold is not a.
+  }
+  return r
 }
 
 function powInt(a: Dec, k: number): Dec {

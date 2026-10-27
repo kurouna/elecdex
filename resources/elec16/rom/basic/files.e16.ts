@@ -19,6 +19,7 @@ import {
   words,
 } from '../../../../src/shared/e16c/builtins'
 import {
+  argument,
   checkBreak,
   E_CARD,
   E_DATA,
@@ -58,7 +59,6 @@ import {
   toInt,
   top,
   toWord,
-  unary,
   varAt,
   varEnd,
   varRoom,
@@ -513,7 +513,7 @@ function itemLeft(f: u16): bool {
 
 /** EOF(n): 1 when a file read has nothing more, else 0. */
 export function eofFunction(): void {
-  unary()
+  argument()
   needNumber()
   const n = toInt(top())
   if (n < 1 || n > 2 || peek(addr(fileMode) + u16(n) - 1) !== 1) fail(E_FILE)

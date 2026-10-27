@@ -70,6 +70,7 @@ import {
   M_POW,
   M_RND,
   M_RNDTO,
+  M_ROOT,
   M_SIN,
   M_SINH,
   M_SQR,
@@ -439,6 +440,9 @@ function powers(): void {
   // The powers after this one belong to its exponent.
   if (tok() === T_POW || tok() === T_POWT) powers()
   binary(M_POW, at)
+  // The exponent is in brackets, as bracketed()'s are: a % in it is a share of nothing outside,
+  // its bracket left open at the line's end too (2+3^(50% was 3^0.5 of 2 added, 5.46).
+  percentEnd = 0xffff
 }
 
 /** The token a template's part must end with; SYNTAX where it does not. */
@@ -632,11 +636,7 @@ function anyRoot(at: u16): void {
     math(M_SQR, x, 0, at)
     exactSqrt(x)
   } else {
-    const power = pushInt(1, at)
-    copyValue(n, push(at))
-    binary(M_DIV, at)
-    math(M_POW, x, power, at)
-    pop()
+    math(M_ROOT, x, n, at)
     exactWhole(x)
   }
   if (negative) {
@@ -918,10 +918,8 @@ function cubeRoot(x: u16, at: u16): void {
   if (isZero(x)) return
   const negative = isNegative(x)
   if (negative) math(M_NEG, x, 0, at)
-  const third = pushInt(1, at)
-  pushInt(3, at)
-  binary(M_DIV, at)
-  math(M_POW, x, third, at)
+  const three = pushInt(3, at)
+  math(M_ROOT, x, three, at)
   pop()
   if (negative) math(M_NEG, x, 0, at)
 }
