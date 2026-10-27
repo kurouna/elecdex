@@ -421,4 +421,14 @@ describe('a calculator unit (docs/elec16-sci.md section 8.1)', () => {
     expect(u.create().name).toBe('UNIT 3')
     expect(u.create({ model: 'sci-128' }).name).toBe('SCI 2')
   })
+
+  it('never takes the name of a calculator there is, after one was removed', () => {
+    // Counted, SCI 1 removed beside SCI 2 named the next one SCI 2 again.
+    const u = units()
+    const first = u.create({ model: 'sci-128' })
+    u.create({ model: 'sci-128' })
+    u.remove(first.id)
+    expect(u.create({ model: 'sci-128' }).name).toBe('SCI 3')
+    expect(u.list().map((x) => x.name)).toEqual(['SCI 2', 'SCI 3'])
+  })
 })

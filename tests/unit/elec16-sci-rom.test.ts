@@ -867,8 +867,37 @@ describe("after EL-509E's list: % of what it is added to, STATS' results in a li
     ['2 5 func 3', '0.25'],
     // A % inside brackets is a share of nothing: 500+(25%) is 500.25.
     ['5 0 0 add lp 2 5 func 3 rp', '500.25'],
+    // ... and so it is with the bracket left open at the end of the line, or a function's:
+    // 2+(50% and 2+abs(50% were 3, a share of the 2 outside.
+    ['2 add lp 5 0 func 3', '2.5'],
+    ['2 add shift neg 5 0 func 3', '2.5'],
+    ['2 add lp 5 0 func 3 rp', '2.5'],
   ])('%s is %s', (line, value) => {
     expect(answer(line).ans).toBe(value)
+  })
+
+  it('goes on from Ans after an answer with % and a/b, as with x² and the operators', () => {
+    // In LINE both began an empty line, % and ⁄2 alone: ERR:SYNTAX.
+    const m = switchOn()
+    keys(m, '5 0 eq func 3 eq')
+    expect(ans(m)).toBe('0.5')
+    keys(m, 'ac 8 eq frac 2 eq')
+    expect(ans(m)).toBe('4')
+  })
+
+  it('goes on from a long answered line with a template key, the room being the new line', () => {
+    // The room was checked before the line was emptied: after a line of 199 tokens x^ beeped and
+    // the 2 typed next was answered alone.
+    const m = switchOn('2d')
+    keys(m, `${'1 add '.repeat(99)}1 eq`)
+    expect(ans(m)).toBe('100')
+    keys(m, 'pow 2 eq')
+    expect(ans(m)).toBe('10000')
+    keys(m, `ac ${'1 add '.repeat(99)}1 eq frac 4 eq`)
+    expect(ans(m)).toBe('25')
+    // √ starts a line of its own: refused, the 9 typed next was answered alone.
+    keys(m, `ac ${'1 add '.repeat(99)}1 eq root 9 eq`)
+    expect(ans(m)).toBe('3')
   })
 
   /** STATS' 2-VAR table X 1, 2, 3 and Y 2, 4, 7, then back to CALC. */

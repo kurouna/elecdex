@@ -375,6 +375,18 @@ describe('MATRIX (section 14.7)', () => {
     expect(lineAt(m, 1, true)).toBe('MatAns')
   })
 
+  it('keeps Ans a matrix through OFF and ON, as MatAns is kept', () => {
+    // Whether Ans was MatAns was not kept: switched on again, Ans was the last number instead.
+    const m = withA()
+    keys(m, 'func 1 eq')
+    expect(lineAt(m, 1, true)).toBe('MatAns')
+    keys(m, 'shift on on ac ans mul 2 eq')
+    expect(matrix(m, 4)).toEqual([
+      ['2', '4'],
+      ['6', '8'],
+    ])
+  })
+
   it('works with vectors: dot, cross, length and the angle between', () => {
     const m = switchOn()
     keys(m, 'menu 7')

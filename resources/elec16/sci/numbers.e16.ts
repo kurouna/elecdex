@@ -242,6 +242,11 @@ export const V2_END = 0x3000
 export const CPLX_LINE = 0x2802
 export const CPLX_ANS = 0x2870
 export const MATRIX_LINE = 0x2880
+/**
+ * Whether Ans is MatAns (1) or the number (0), kept with MatAns: a global, it went back to the
+ * number on every OFF and ON. In the room after MATRIX's line, which v2's region zeroed.
+ */
+export const MAT_ANSWERED = 0x28f0
 /** MatA-MatD and MatAns: rows, columns, then 3 x 3 numbers of 8 bytes, row by row. */
 export const MATRICES = 0x2900
 export const MATRIX_SIZE = 80

@@ -132,16 +132,16 @@ export class Elec16Units {
 
   /**
    * A new unit, its clock and LCD from `seed`: u<n> after the highest id, named UNIT n - or a
-   * calculator SCI n, counting the calculators (docs/elec16-sci.md section 8.1).
+   * calculator SCI n after the highest SCI n there is (docs/elec16-sci.md section 8.1). Counted,
+   * a calculator removed beside others gave the next one a name still in use.
    */
   create(seed?: Elec16UnitSeed): Elec16Unit {
     const file = this.#units.read()
     const n = Math.max(0, ...file.units.map((u) => Number(u.id.slice(1)))) + 1
     const defaults = unitDefaults(seed)
     const sci = defaults.model === 'sci-128'
-    const name = sci
-      ? `SCI ${file.units.filter((u) => u.model === 'sci-128').length + 1}`
-      : `UNIT ${n}`
+    const sciNumbers = file.units.map((u) => Number(/^SCI (\d+)$/.exec(u.name)?.[1] ?? 0))
+    const name = sci ? `SCI ${Math.max(0, ...sciNumbers) + 1}` : `UNIT ${n}`
     const unit: Elec16Unit = {
       id: `u${n}`,
       name,

@@ -553,6 +553,9 @@ function bracketed(t: u16, at: u16): void {
     if (takesTwo(t)) applyTwo(t, at)
     else apply(t, at)
   } else fail(E_SYNTAX, at)
+  // A % inside is a share of nothing outside, its bracket closed or left open at the line's end
+  // (2+(50% read as 2+50% was 3, not 2.5). A template's END always follows its %.
+  percentEnd = 0xffff
 }
 
 /** A whole random number: dice 1-6, coin 0 or 1, rint 0-99 (rand x 6 + 1, x 2, x 100, cut). */

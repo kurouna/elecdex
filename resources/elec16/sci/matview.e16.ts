@@ -2,13 +2,21 @@
 // section 14.7) - a matrix sized and filled on the grid, an answer shown on it - apart from its
 // evaluation (matrix.e16.ts, in the grid's bank).
 
-import { addr, type bool, bytes, poke, str, type u16 } from '../../../src/shared/e16c/builtins'
+import {
+  addr,
+  type bool,
+  bytes,
+  peek,
+  poke,
+  str,
+  type u16,
+} from '../../../src/shared/e16c/builtins'
 import { K_AC, K_DOWN, K_EQ, K_UP, refuse } from './calc.e16'
 import { GRID_STAY, gridDraw, gridKey, gridOpenMatrix } from './grid.e16'
 import { digitOf } from './keymap.e16'
 import { bandWith, cls, lineY, textAt } from './lcd.e16'
-import { el, matrixAnswer, matrixAt, mCols, mRows } from './matrix.e16'
-import { wholeInto } from './numbers.e16'
+import { el, matrixAt, mCols, mRows } from './matrix.e16'
+import { MAT_ANSWERED, wholeInto } from './numbers.e16'
 import { T_DET, T_MAT } from './tokens.e16'
 
 /* ---------------- EDIT, the grid and the screen ---------------- */
@@ -32,7 +40,7 @@ export function matStart(): void {
 
 /** Whether the answer on screen is a matrix (MatAns), for the line's screen. */
 export function matAnswered(): bool {
-  return matrixAnswer
+  return peek(MAT_ANSWERED) !== 0
 }
 
 export function openGrid(k: u16): void {

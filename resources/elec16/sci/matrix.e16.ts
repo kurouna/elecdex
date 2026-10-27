@@ -47,6 +47,7 @@ import {
   M_SUB,
   M_TAN,
   M_TOINT,
+  MAT_ANSWERED,
   MATH_ANGLE,
   MATH_ARG,
   MATH_RESULT,
@@ -120,9 +121,6 @@ let mLength: u16 = 0
 let mPos: u16 = 0
 let mDepth: u16 = 0
 
-/** The last answer was a matrix (MatAns), not a number (Ans). */
-export let matrixAnswer: bool = false
-
 export function mRows(v: u16): u16 {
   return peek(v)
 }
@@ -188,8 +186,9 @@ export function matEvaluate(from: u16, length: u16): void {
   if (mPos < mLength) fail(E_SYNTAX, mPos)
   const v = mtop()
   const n = push(0)
-  matrixAnswer = !isNumber(v)
-  if (matrixAnswer) {
+  const isMatrix = !isNumber(v)
+  poke(MAT_ANSWERED, isMatrix ? 1 : 0)
+  if (isMatrix) {
     mcopy(v, matrixAt(MAT_ANS))
     for (let i: u16 = 0; i < 36; i += 2) poke16(n + i, peek16(KEEP_ANS + i))
     openGrid(MAT_ANS)
@@ -331,7 +330,7 @@ function mvalue(t: u16, v: u16, at: u16): bool {
     if (mRows(m) === 0) fail(E_DIM, at)
     mcopy(m, v)
   } else if (t === T_ANS) {
-    if (matrixAnswer) mcopy(matrixAt(MAT_ANS), v)
+    if (peek(MAT_ANSWERED) !== 0) mcopy(matrixAt(MAT_ANS), v)
     else copy8(KEEP_ANS, v + 2)
   } else if (t === T_PI) math(M_PI, v + 2, 0, at)
   else if (t === T_E) {

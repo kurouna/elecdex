@@ -123,6 +123,7 @@ import {
   T_MOD,
   T_NCR,
   T_NPR,
+  T_PERCENT,
   T_PLUS,
   T_POINT,
   T_POLAR,
@@ -794,13 +795,14 @@ function plainTemplate(k: u16, shift: bool): bool {
     return fractionKey
   }
   if (!fractionKey && !makesTemplate(k, shift)) return false
+  // The new line first, as wrapped() has it: the room is the new line's, not the answered one's.
+  if (answered) afresh(fractionKey || k === K_POW)
   // A template's marks go in together or not at all: three at most (10, ^, END; FRAC SEP END).
   if (length + 3 > lineMax()) {
     refuse()
     return true
   }
   const root = k === K_ROOT && !shift
-  if (answered) afresh(fractionKey || k === K_POW)
   const before = length
   const at = cursor
   if (fractionKey) {
@@ -964,13 +966,18 @@ function commandKey(k: u16, shift: bool, alpha: bool): bool {
   return true
 }
 
-/** Whether a token goes on from Ans after an answer: an operator, a power or a postfix. */
+/**
+ * Whether a token goes on from Ans after an answer: an operator, a power or a postfix - LINE's ⁄
+ * and % too, as 2D's fraction does.
+ */
 function fromAns(t: u16): bool {
   return (
     t === T_PLUS ||
     t === T_MINUS ||
     t === T_TIMES ||
     t === T_DIVIDE ||
+    t === T_SLASH ||
+    t === T_PERCENT ||
     t === T_POW ||
     t === T_SQUARE ||
     t === T_CUBE ||
