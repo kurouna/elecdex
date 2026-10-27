@@ -79,6 +79,7 @@
     "demo:whatsnew44": "node scripts/demo-whatsnew44.mjs",
     "demo:elec16": "node scripts/demo-elec16.mjs",
     "demo:sci": "node scripts/demo-sci.mjs",
+    "demo:elec16-intro": "node scripts/demo-elec16-intro.mjs",
     "demo:games": "node scripts/demo-games.mjs",
     "demo:logwatch": "node scripts/demo-logwatch.mjs"
   },
