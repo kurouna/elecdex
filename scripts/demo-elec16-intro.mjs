@@ -1,6 +1,7 @@
 /**
  * The ELEC-16 introduced, for a landscape video (X, YouTube): the pocket computer and the
- * scientific calculator side by side, each used as a hand uses it. No games (PLAY-320 has its
+ * scientific calculator side by side, each then brought forward in turn and used as a hand
+ * uses it, its captions under it. No games (PLAY-320 has its
  * own take, demo:games). About four and a half minutes:
  *
  *   pocket     switched off and on; a calculation, ANS, 0.1+0.2 exact, a string answered
@@ -113,8 +114,6 @@ const { app, page, wait, settled, run, caption } = await openTake({
   options,
   standIn,
   prepare: twoUnits,
-  // Under the pocket's body, where its pane has room below it: never over the calculator.
-  captionPlace: { left: '16px', right: '640px', bottom: '28px' },
 })
 const beat = beats({ app, page, wait, settled, theme: options.theme })
 const { away } = beat
@@ -198,7 +197,10 @@ await run(async () => {
   await caption('ELEC-16 — a 16-bit pocket computer and a scientific calculator of its own')
   await wait(3000)
 
-  /* ---------------- the pocket computer ---------------- */
+  /* ---------------- the pocket computer, brought forward ---------------- */
+
+  await caption(null)
+  await forward(pocketMachine)
 
   say('pocket: power')
   await caption('POCKET-48: BASIC in ROM, a 240 × 48 dot LCD, a card for files')
@@ -303,10 +305,12 @@ await run(async () => {
   }
   await pocketPanel(false)
   await pocketKey('cls')
-  await away()
+  await caption(null)
+  await forward(pocketMachine)
 
-  /* ---------------- the calculator ---------------- */
+  /* ---------------- the calculator, brought forward ---------------- */
 
+  await forward(sciMachine)
   await caption('SCI-128: the same machine as a scientific calculator, its own ROM')
   await wait(2600)
   await scene(
@@ -400,10 +404,9 @@ await run(async () => {
   )
   await keys('menu 1 ac')
 
-  // The bodies, in TUNE: the pane brought forward so its panel has room beside the body.
+  // The bodies, in TUNE beside it.
   say('sci: bodies')
-  await caption(null)
-  await forward(sciMachine)
+  await caption('Three colours, and SIMPLE: an everyday calculator')
   await button(sci.getByTestId('elec16-panel-toggle'), 700)
   await button(sci.locator('[data-testid=elec16-tab][data-tab=tune]'), 600)
   for (const skin of ['slate', 'plain']) {
@@ -416,6 +419,7 @@ await run(async () => {
   await wait(2400)
   await button(sci.locator('[data-testid=elec16-body][data-body=auto]'), 1200)
   await button(sci.getByTestId('elec16-panel-toggle'), 600)
+  await caption(null)
   await forward(sciMachine)
 
   await caption('elecdex — github.com/kurouna/elecdex')
