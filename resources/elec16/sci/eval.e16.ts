@@ -950,7 +950,7 @@ export function binary(op: u16, at: u16): void {
 }
 
 /** Whether the number at `n` is whole. */
-function isWhole(n: u16, at: u16): bool {
+export function isWhole(n: u16, at: u16): bool {
   const t = push(at)
   copy8(n, t)
   math(M_FRAC, t, 0, at)

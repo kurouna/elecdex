@@ -1,7 +1,7 @@
 // ELEC-16 SCI, ROM bank 10 beside TABLE: what EL-509E's list asked for that fits nowhere else (docs/
 // elec16-sci.md): the answer turned into the next angle unit, and the constant a line like
 // 34+57 leaves for the next one that is only a number (34+57= then 45= is 45+57).
-import { type bool, peek, poke, type u16 } from '../../../src/shared/e16c/builtins'
+import { type bool, memcpy, peek, poke, type u16 } from '../../../src/shared/e16c/builtins'
 import {
   inexact,
   KEEP_ANGLE,
@@ -94,7 +94,7 @@ export function noteConstant(at: u16, length: u16): void {
     return
   }
   poke(CONST, size)
-  for (let i: u16 = 0; i < size; i++) poke(CONST + 1 + i, peek(at + from + i))
+  memcpy(CONST + 1, at + from, size)
 }
 
 /**
@@ -107,12 +107,12 @@ export function withConstant(at: u16, length: u16): u16 {
   if (length + 1 + size > 190) return 0xffff
   if (constOp === T_TIMES) {
     // The constant first: the number moved along to make room.
-    for (let i = length; i > 0; i--) poke(at + i + size, peek(at + i - 1))
-    for (let i: u16 = 0; i < size; i++) poke(at + i, peek(CONST + 1 + i))
+    memcpy(at + size + 1, at, length)
+    memcpy(at, CONST + 1, size)
     poke(at + size, T_TIMES)
   } else {
     poke(at + length, constOp)
-    for (let i: u16 = 0; i < size; i++) poke(at + length + 1 + i, peek(CONST + 1 + i))
+    memcpy(at + length + 1, CONST + 1, size)
   }
   return length + 1 + size
 }

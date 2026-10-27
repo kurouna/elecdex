@@ -66,17 +66,10 @@ export const paneTitle = (id: ModelId): string => `elec-16 ${id.slice(0, id.inde
 
 /**
  * The models a unit may be, as TUNE offers them and main takes them: every model with a ROM
- * to run. SCI-128 (the scientific calculator, docs/elec16-sci.md) joined in S2 with its first
- * ROM, the start screen and its keys.
+ * to run - all of them since SCI-128 (the scientific calculator, docs/elec16-sci.md) joined in
+ * S2. A name of its own, so a model added before its ROM is left out here alone.
  */
-export const UNIT_MODEL_IDS = [
-  'pocket-32',
-  'pocket-48',
-  'pocket-64',
-  'handheld-160',
-  'play-320',
-  'sci-128',
-] as const satisfies readonly ModelId[]
+export const UNIT_MODEL_IDS: typeof MODEL_IDS = MODEL_IDS
 export type UnitModelId = (typeof UNIT_MODEL_IDS)[number]
 
 /** The ROMs a model runs: the pocket ROM, the PLAY ROM, and the calculator's (S3). */

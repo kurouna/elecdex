@@ -13,6 +13,7 @@ import {
   type bool,
   bytes,
   i16,
+  memset,
   peek,
   peek16,
   poke,
@@ -357,7 +358,7 @@ function sop(op: u16, dst: u16, a: u16, b: u16): void {
 }
 
 function zero(k: u16): void {
-  for (let i: u16 = 0; i < 8; i++) poke(at(k) + i, 0)
+  memset(at(k), 0, 8)
 }
 
 function setWhole(k: u16, v: u16): void {

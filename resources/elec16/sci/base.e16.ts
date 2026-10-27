@@ -8,6 +8,7 @@ import {
   addr,
   type bool,
   bytes,
+  memset,
   peek,
   peek16,
   poke,
@@ -355,7 +356,7 @@ function number32(): void {
 
 /** A whole number below 16 as the maths unit's: one digit, exponent 0. */
 function setDigit(n: u16, v: u16): void {
-  for (let k: u16 = 0; k < 8; k++) poke(n + k, 0)
+  memset(n, 0, 8)
   if (v >= 10) {
     poke(n + 1, 1)
     // 1 then the digit: 10-15 are 0x10-0x15.

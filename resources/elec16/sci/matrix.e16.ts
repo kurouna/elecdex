@@ -6,6 +6,7 @@
 import {
   type bool,
   i16,
+  memcpy,
   peek,
   peek16,
   poke,
@@ -143,7 +144,7 @@ export function matrixAt(k: u16): u16 {
 }
 
 function mcopy(from: u16, to: u16): void {
-  for (let i: u16 = 0; i < MATRIX_SIZE; i += 2) poke16(to + i, peek16(from + i))
+  memcpy(to, from, MATRIX_SIZE)
 }
 
 /** An r x c matrix of zeros at `v` (0 x 0: the number 0). */

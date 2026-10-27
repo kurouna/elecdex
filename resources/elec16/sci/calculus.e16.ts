@@ -7,13 +7,14 @@ import {
   type bool,
   bytes,
   i16,
+  memset,
   peek,
   peek16,
   poke16,
   str,
   type u16,
 } from '../../../src/shared/e16c/builtins'
-import { evalSum, evalToken } from './eval.e16'
+import { evalSum, evalToken, isWhole } from './eval.e16'
 import { exactBinary } from './exact.e16'
 import {
   copy8,
@@ -30,7 +31,6 @@ import {
   M_ADD,
   M_CMP,
   M_DIV,
-  M_FRAC,
   M_MUL,
   M_PARSE,
   M_RNDTO,
@@ -184,7 +184,7 @@ function termCount(a: u16, b: u16, at: u16): u16 {
   const d = push(at)
   copy8(b, d)
   math(M_SUB, d, a, at)
-  if (!isWholeAt(a, at) || !isWholeAt(b, at) || isNegative(d)) fail(E_MATH, at)
+  if (!isWhole(a, at) || !isWhole(b, at) || isNegative(d)) fail(E_MATH, at)
   pushInt(999, at)
   math(M_CMP, d, top(), at)
   pop()
@@ -192,15 +192,6 @@ function termCount(a: u16, b: u16, at: u16): u16 {
   math(M_TOINT, d, 0, at)
   pop()
   return peek16(MATH_ARG) + 1
-}
-
-function isWholeAt(v: u16, at: u16): bool {
-  const f = push(at)
-  copy8(v, f)
-  math(M_FRAC, f, 0, at)
-  const whole = isZero(f)
-  pop()
-  return whole
 }
 
 /* ---------------- d/dx ---------------- */
@@ -437,7 +428,7 @@ function integral(body: u16, a: u16, b: u16, at: u16): void {
 }
 
 function zeroAt(v: u16): void {
-  for (let i: u16 = 0; i < 8; i += 2) poke16(v + i, 0)
+  memset(v, 0, 8)
 }
 
 /**

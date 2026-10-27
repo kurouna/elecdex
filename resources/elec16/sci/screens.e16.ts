@@ -8,6 +8,7 @@ import {
   type bool,
   bytes,
   csrw,
+  memset,
   peek,
   peek16,
   poke,
@@ -168,8 +169,8 @@ function keepReady(): void {
 /** Ans and the variables an exact 0 (SETUP's CLEAR MEMORY too). */
 function zeroValues(): void {
   // Ans and the variables are apart: the mode and the contrast sit between them (0C2C).
-  for (let i: u16 = 0; i < VALUE_SIZE; i++) poke(KEEP_ANS + i, 0)
-  for (let i: u16 = 0; i < 9 * VALUE_SIZE; i++) poke(KEEP_VARS + i, 0)
+  memset(KEEP_ANS, 0, VALUE_SIZE)
+  memset(KEEP_VARS, 0, 9 * VALUE_SIZE)
   exactWhole(KEEP_ANS)
   for (let k: u16 = 0; k < 9; k++) exactWhole(KEEP_VARS + k * VALUE_SIZE)
 }

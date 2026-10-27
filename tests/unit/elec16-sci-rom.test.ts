@@ -633,6 +633,15 @@ describe('the rest of CALC (S5)', () => {
     expect(ans(m)).toBe('-1.414213562')
   })
 
+  it('takes its slope over a millionth of 1 from an X below 1, not of X', () => {
+    // X² has a double root at 0, which Newton's method nears a step at a time: where it stops
+    // depends on the slope's step, so the answer pins it. From 0.3 a step of a millionth of 0.3's
+    // digits stopped at 8.731095017E-12.
+    const m = switchOn()
+    keys(m, 'alpha lp sq shift fx dot 3 eq')
+    expect(ans(m)).toBe('8.731149125E-12')
+  })
+
   it('says FIND when there is no X to find', () => {
     const m = switchOn()
     keys(m, 'alpha lp sq add 1 shift fx eq')
@@ -1068,6 +1077,14 @@ describe("the rest of EL-509E's list", () => {
     expect(read(m)).toContain('K')
     keys(m, 'ac 2 add 3 mul 4 eq 5 eq')
     expect(ans(m)).toBe('5')
+    // A number of another length after the constant: the constant's tokens written whole, none
+    // left from the line before.
+    keys(m, 'ac 3 4 add 5 7 eq 1 2 3 eq')
+    expect(ans(m)).toBe('180')
+    keys(m, 'ac 7 9 sub 5 9 eq 1 2 3 4 eq')
+    expect(ans(m)).toBe('1175')
+    keys(m, 'ac 6 8 mul 2 5 eq 1 2 3 eq')
+    expect(ans(m)).toBe('8364')
     // AC forgets the constant (it once outlived leaving SETUP, which ends with AC).
     keys(m, 'ac 3 4 add 5 7 eq ac 4 5 eq')
     expect(ans(m)).toBe('45')

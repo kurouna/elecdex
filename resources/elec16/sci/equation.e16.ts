@@ -9,6 +9,7 @@ import {
   type bool,
   bytes,
   div,
+  memset,
   peek,
   peek16,
   poke,
@@ -203,7 +204,7 @@ let boundsInDecimals: bool = false
 
 /** An exact 0. */
 function zeroValue(v: u16): void {
-  for (let i: u16 = 0; i < VALUE_SIZE; i++) poke(v + i, 0)
+  memset(v, 0, VALUE_SIZE)
   exactWhole(v)
 }
 

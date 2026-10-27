@@ -228,7 +228,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
       {#if layout.plate !== null}
         <div class="plate" style={place(layout.plate)}>
           <span class="name">ELEC-16 SCI<small>16-BIT SCIENTIFIC · SCI-128</small></span>
-          {#if !plain}<span class="solar" aria-hidden="true"></span>{/if}
+          <span class="solar" aria-hidden="true"></span>
         </div>
       {/if}
       <div class="bezel" style={place(layout.glass)}>

@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { CARD_STATUS, type CardRequest } from '@shared/elec16/card'
 import { cardNameOf, fromMachineText, toMachineText } from '@shared/elec16/charset'
+import { MODEL_IDS, UNIT_MODEL_IDS } from '@shared/elec16/map'
+import { Elec16UnitChangeSchema } from '@shared/elec16-units'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   Elec16Units,
@@ -413,6 +415,15 @@ describe('MOVE HERE, told to the pages', () => {
 })
 
 describe('a calculator unit (docs/elec16-sci.md section 8.1)', () => {
+  it("may be any model, as TUNE offers them and main takes them, in the MODEL register's order", () => {
+    expect(UNIT_MODEL_IDS).toEqual(MODEL_IDS)
+    for (const model of MODEL_IDS) {
+      expect(Elec16UnitChangeSchema.safeParse({ model }).success, model).toBe(true)
+      expect(units().create({ model }).model).toBe(model)
+    }
+    expect(Elec16UnitChangeSchema.safeParse({ model: 'pocket-16' }).success).toBe(false)
+  })
+
   it('is made of the model asked for, named SCI n by the calculators there are', () => {
     const u = units()
     expect(u.list().map((x) => [x.name, x.model])).toEqual([['UNIT 1', 'pocket-48']])

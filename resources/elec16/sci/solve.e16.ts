@@ -7,6 +7,7 @@ import {
   addr,
   type bool,
   bytes,
+  memset,
   peek,
   peek16,
   poke16,
@@ -251,7 +252,7 @@ function exponentBelowZero(v: u16): bool {
 /* Small constants written straight as the maths unit's decimals: sign, exponent, BCD. */
 
 function setConstant(exponent: u16, digits: u16): void {
-  for (let k: u16 = 0; k < VALUE_SIZE; k++) small[k] = 0
+  memset(addr(small), 0, VALUE_SIZE)
   small[1] = exponent
   small[2] = digits
 }
@@ -273,6 +274,6 @@ function setTiny(): void {
 
 /** 1 in `step`. */
 function setOneInStep(): void {
-  for (let k: u16 = 0; k < VALUE_SIZE; k++) step[k] = 0
+  memset(addr(step), 0, VALUE_SIZE)
   step[2] = 0x10
 }
