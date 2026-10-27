@@ -1,7 +1,7 @@
 /**
  * The ELEC-16 introduced, for a landscape video (X, YouTube): the pocket computer and the
  * scientific calculator side by side, each used as a hand uses it. No games (PLAY-320 has its
- * own take, demo:games). About five minutes:
+ * own take, demo:games). About four and a half minutes:
  *
  *   pocket     switched off and on; a calculation, ANS, 0.1+0.2 exact, a string answered
  *   strings    LEFT$, MID$, RIGHT$; SPACE$ and STRING$
@@ -267,7 +267,8 @@ await run(async () => {
   await button(pocket.locator('[data-testid=elec16-soft-file][data-name="SINEWAVE.BAS"]'), 1800)
   await button(pocket.getByTestId('elec16-load'), 600)
   await asleep(pocketMachine)
-  await line('RUN', 5000)
+  // Two cycles drawn dot by dot take about eight seconds at 4 MHz.
+  await line('RUN', 8500)
   // SINEWAVE waits for a key at its end.
   await pocketMachine.focus()
   await page.keyboard.press('x')
@@ -290,10 +291,9 @@ await run(async () => {
     await button(pocket.locator(`[data-testid=elec16-level][data-level="${level}"]`), 1200)
   }
   await caption('RUN ▸ puts it in RAM and calls it')
+  // RUN ▸ shows the machine again as it calls the code.
   await button(pocket.getByTestId('elec16-run'), 300)
   await wait(3800)
-  // Back to the machine, for its body.
-  await button(pocket.getByTestId('elec16-view-toggle'), 800)
 
   say('pocket: skins')
   await caption('Skins in TUNE, the body drawn in light')
