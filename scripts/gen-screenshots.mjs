@@ -1256,6 +1256,77 @@ for (const [name, extra, pace] of [
   })
   standIn.close()
 }
+/*
+ * For posting: what v0.0.48 fixed, in Tron. The pocket ELEC-16 and an SCI-128 side by side in
+ * the middle column, both in the Tron skin, the pocket over a shell, the system and the world on either
+ * side: the pocket prints the BASIC expressions that came out wrong before, the calculator
+ * works the cube root that now comes out exact. Only when named.
+ */
+const whatsNew48Layout = {
+  version: 1,
+  root: split(
+    'row',
+    [
+      split(
+        'column',
+        ['clock', 'sysinfo', 'cpu', 'memory', 'toplist', 'throughput'].map(pane),
+        [0.05, 0.14, 0.24, 0.14, 0.23, 0.2],
+      ),
+      split(
+        'row',
+        [
+          split(
+            'column',
+            [{ ...pane('elec16'), state: { skin: 'tron', panel: false } }, pane('terminal')],
+            [0.56, 0.44],
+          ),
+          { ...pane('elec16'), state: { fresh: 'sci-128', skin: 'tron', panel: false } },
+        ],
+        [0.64, 0.36],
+      ),
+      split('column', ['globe', 'markets', 'weather'].map(pane), [0.4, 0.32, 0.28]),
+    ],
+    [0.17, 0.66, 0.17],
+  ),
+}
+
+/** The pocket printing the fixed BASIC expressions, then the calculator's ∛(1000)-10. */
+async function whatsNew48(page) {
+  await page.waitForFunction(
+    () =>
+      [...document.querySelectorAll('[data-testid=elec16]')].length === 2 &&
+      [...document.querySelectorAll('[data-testid=elec16]')].every(
+        (d) => d.getAttribute('data-asleep') === 'true',
+      ),
+    null,
+    { timeout: 30_000 },
+  )
+  const sciDevice = page.getByTestId('elec16-sci-device')
+  const pocket = page.locator('[data-testid=elec16]', { hasNot: sciDevice })
+  const sci = page.locator('[data-testid=elec16]', { has: sciDevice })
+  await pocket.focus()
+  for (const line of ['PRINT INT(2.5)^2;LEN("ABC")^2', 'PRINT +-2;(-1)^1000']) {
+    await page.keyboard.type(line, { delay: 30 })
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(500)
+  }
+  await sci.focus()
+  // Shift+R is ∛, R's SHIFT face.
+  for (const key of ['Shift+R', '1', '0', '0', '0', ')', '-', '1', '0', 'Enter']) {
+    await page.keyboard.press(key)
+    await page.waitForTimeout(150)
+  }
+  await page.waitForTimeout(800)
+  await page.mouse.move(W / 2, H / 6)
+}
+
+if (only.includes('social-whatsnew48')) {
+  await shoot('tron', 'social-whatsnew48', {
+    layout: whatsNew48Layout,
+    extra: whatsNew48,
+    social: true,
+  })
+}
 // For posting: the Ethernet pane popped up over the standard layout, on a made-up cable taking
 // CRC errors, its timeline on one minute. Only when named.
 if (only.includes('social-ethernet-popup')) {
