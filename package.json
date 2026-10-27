@@ -84,7 +84,7 @@
     "demo:logwatch": "node scripts/demo-logwatch.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.2",
+    "@biomejs/biome": "2.6.3",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
     "@fontsource/albert-sans": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
@@ -113,7 +113,7 @@
     "@xterm/xterm": "^6.0.0",
     "countries-and-timezones": "^3.11.0",
     "electron": "45.0.0",
-    "electron-builder": "26.15.3",
+    "electron-builder": "26.18.0",
     "electron-playwright-helpers": "3.1.2",
     "electron-vite": "6.0.0",
     "fast-check": "^4.10.2",
@@ -125,7 +125,7 @@
     "opentype.js": "^2.0.0",
     "qrcode-generator": "2.0.4",
     "satellite.js": "7.1.0",
-    "svelte": "5.57.2",
+    "svelte": "5.57.3",
     "svelte-check": "4.7.7",
     "three": "^0.186.1",
     "topojson-client": "^3.1.0",
@@ -140,7 +140,7 @@
     "url": "https://github.com/kurouna"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "1.1.0",
+    "@anthropic-ai/sdk": "1.3.0",
     "@ip-location-db/geo-whois-asn-country-mmdb": "^2.3.2026061719",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/addon-unicode11": "^0.9.0",
