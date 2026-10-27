@@ -6,9 +6,9 @@
  * the size it comes to, the keys below in dots - every part scaled together, never stretched.
  *
  * Four ways to show it (SciBodyMode): the whole body; SIMPLE, the glass and the number keys
- * alone, four across and tall, as an everyday calculator stands; COMPACT, the glass and a row of keys (the arrows,
- * AC and =) with the PC's keys for the rest; LCD, the glass alone. Without a case (PLAIN) there
- * is no plate either: the glass goes to the top, as COMPACT's does.
+ * alone, four across and tall, as an everyday calculator stands; COMPACT, the glass and a row
+ * of keys (the arrows, AC and =) with the PC's keys for the rest; LCD, the glass alone. Without
+ * a case (PLAIN) there is no plate either: the glass goes to the top, as COMPACT's does.
  */
 
 import { MODELS } from '@shared/elec16/map'
