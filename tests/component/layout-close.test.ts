@@ -1,8 +1,8 @@
 import { collectPanes, emptyNode, isEmptyLayout, pane, split, tabs } from '@shared/layout-ops'
 import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from '@shared/schemas/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Frame } from '../../src/renderer/layout/geometry.ts'
 import { CLOSE_SETTLE_MS, CRT_EXTEND_MS } from '../../src/renderer/lib/crt-timing.ts'
+import { framesOf } from './support/frames.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -15,35 +15,6 @@ const { sfx } = await import('../../src/renderer/stores/sound.svelte.ts')
  * goes, and the panes that took its room extend into it. Only one close runs at a
  * time: anything else that changes the tree finishes it first.
  */
-
-/**
- * Boxes as a row of equal columns, a column split into equal rows: enough geometry
- * to tell which panes gained room, without a layout engine. A tab group is one box.
- */
-function framesOf(tree: LayoutTree): Map<string, Frame> {
-  const frames = new Map<string, Frame>()
-  const place = (node: LayoutNode, box: Frame): void => {
-    if (node.kind === 'pane') frames.set(node.id, box)
-    else if (node.kind === 'tabs') {
-      const shown = node.children[node.activeIndex]
-      if (shown) frames.set(shown.id, box)
-    } else {
-      const row = node.direction === 'row'
-      const span = row ? box.right - box.left : box.bottom - box.top
-      let at = row ? box.left : box.top
-      node.children.forEach((child, i) => {
-        const size = span * (node.sizes[i] ?? 0)
-        place(
-          child,
-          row ? { ...box, left: at, right: at + size } : { ...box, top: at, bottom: at + size },
-        )
-        at += size
-      })
-    }
-  }
-  place(tree.root, { top: 0, right: 1200, bottom: 600, left: 0 })
-  return frames
-}
 
 let animates = true
 const saved = vi.fn(async (_tree: LayoutTree) => {})

@@ -48,7 +48,7 @@ A shortcut that does nothing in the current state (*Applies when* below) is not 
 | Ctrl+Shift+→ | Focus the pane to the right | `focus.right` | As above |
 | Ctrl+Shift+↑ | Focus the pane above | `focus.up` | As above |
 | Ctrl+Shift+↓ | Focus the pane below | `focus.down` | As above |
-| Ctrl+Tab | Next tab | `tab.next` | The focused pane is in a tab group (such as the shell's tabs), and the keyboard is not in a text field. *unreleased*: was Ctrl+Shift+→ |
+| Ctrl+Tab | Next tab | `tab.next` | The focused pane is in a tab group (such as the shell's tabs). *unreleased*: was Ctrl+Shift+→, and now works from a text field too |
 | Ctrl+Shift+Tab | Previous tab | `tab.previous` | As above. *unreleased*: was Ctrl+Shift+← |
 | Ctrl+Alt+Shift+→ | Next shell pane | `shell.next` | From a shell, when there is another shell pane (or group of shell tabs) to go to |
 | Ctrl+Alt+Shift+← | Previous shell pane | `shell.previous` | As above |

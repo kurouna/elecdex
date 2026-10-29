@@ -275,9 +275,9 @@ async function tabs() {
   await chord('Control+Shift+KeyT', 2500)
   await visibleShell().first().focus()
   await run('$PSVersionTable.PSVersion', 2200)
-  await chord('Control+Shift+ArrowLeft')
-  await chord('Control+Shift+ArrowRight')
-  await chord('Control+Shift+ArrowLeft', 1800)
+  await chord('Control+Shift+Tab')
+  await chord('Control+Tab')
+  await chord('Control+Shift+Tab', 1800)
 }
 
 async function panes() {

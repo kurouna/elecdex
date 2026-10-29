@@ -62,9 +62,10 @@ export function shortcutApplies(action: KeybindingAction, facts: ShortcutFacts):
     case 'shell.fontBigger':
     case 'shell.fontSmaller':
       return facts.anyShell
+    // Ctrl+Tab, which a text field has no use for: the tabs move from one as well.
     case 'tab.next':
     case 'tab.previous':
-      return facts.inTabGroup && !facts.editingText
+      return facts.inTabGroup
     case 'shell.next':
     case 'shell.previous':
       return facts.otherShell

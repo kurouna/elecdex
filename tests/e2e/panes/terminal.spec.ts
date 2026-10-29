@@ -769,3 +769,53 @@ test('a shell pane is headed TERMINAL, and its tabs are named by folder, with pa
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('Ctrl+Shift+Arrow reaches the shell where no pane lies that way, and moves on where one does', async ({
+  shared,
+}) => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 'row',
+      direction: 'row',
+      sizes: [0.5, 0.5],
+      children: [
+        { kind: 'pane', id: 'sh', widget: 'terminal' },
+        { kind: 'pane', id: 'c', widget: 'clock' },
+      ],
+    },
+  }
+  const { page, close } = await shared({ layout })
+  try {
+    const input = page.locator('[data-pane-id=sh] .xterm-helper-textarea').first()
+    await expect(input).toHaveCount(1)
+    await input.focus()
+    // The keys that go on towards the shell's input: the workspace takes a key on the window,
+    // in the capture phase, before the document hears it.
+    await page.evaluate(() => {
+      const heard: string[] = []
+      Object.assign(window, { heard })
+      document.addEventListener(
+        'keydown',
+        ({ key, ctrlKey, shiftKey }) => {
+          if (ctrlKey && shiftKey && key.startsWith('Arrow')) heard.push(key)
+        },
+        true,
+      )
+    })
+    const heard = () => page.evaluate(() => (window as unknown as { heard: string[] }).heard)
+
+    // Nothing to the left of the shell: the key is the shell's, to select by word.
+    await page.keyboard.press('Control+Shift+ArrowLeft')
+    await expect.poll(heard).toEqual(['ArrowLeft'])
+    await expect(page.locator('[data-testid=pane][data-pane-id=sh]')).toHaveClass(/focused/)
+
+    // The clock to its right: the workspace takes it, and the keyboard goes there.
+    await page.keyboard.press('Control+Shift+ArrowRight')
+    await expect(page.locator('[data-testid=pane][data-pane-id=c]')).toHaveClass(/focused/)
+    expect(await heard()).toEqual(['ArrowLeft'])
+  } finally {
+    await close()
+  }
+})

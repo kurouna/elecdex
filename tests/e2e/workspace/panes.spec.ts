@@ -483,7 +483,7 @@ test('a closed shell can be put back from its toast, with its session, after the
     const toast = page.getByTestId('toast').filter({ hasText: 'terminal closed' })
     await expect(toast).toHaveCount(1)
     // Past the reaper's look (four seconds after the panes changed): the shell is kept.
-    // wait: the reaper's look has no signal - it shows only in a shell ended, or not
+    // wait: the reaper gives no sign that it has looked; only a shell it ended would show
     await page.waitForTimeout(4_500)
     expect(await alive()).toBe(true)
 

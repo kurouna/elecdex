@@ -1360,6 +1360,17 @@ describe('withCurrentPanes', () => {
     expect(findNode(back.root, 'b')).toBe(b)
   })
 
+  it("takes a pane's current state inside a group as well", () => {
+    const t = pane('terminal', { id: 't', state: { cwd: '/old' } })
+    const earlier: LayoutTree = { version: LAYOUT_VERSION, root: tabs([pane('clock'), t]) }
+    const now: LayoutTree = {
+      version: LAYOUT_VERSION,
+      root: pane('terminal', { id: 't', state: { cwd: '/new' } }),
+    }
+    const back = withCurrentPanes(earlier, now)
+    expect(back.root.kind === 'tabs' && back.root.children[1]?.state).toEqual({ cwd: '/new' })
+  })
+
   it('is the same tree when no pane it holds has changed', () => {
     const a = pane('clock', { id: 'a' })
     const earlier: LayoutTree = { version: LAYOUT_VERSION, root: tabs([a, pane('notes')]) }

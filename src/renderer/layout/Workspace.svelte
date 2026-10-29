@@ -5,7 +5,7 @@ import {
   type KeybindingAction,
   keymap,
 } from '@shared/keybindings'
-import { type Direction, neighbourToward } from '@shared/layout-direction'
+import type { Direction } from '@shared/layout-direction'
 import {
   isEmptyLayout,
   isShellWidget,
@@ -13,7 +13,6 @@ import {
   neighbourTab,
   SHELL_WIDGET,
 } from '@shared/layout-ops'
-import type { LayoutNode } from '@shared/schemas/layout'
 import { stepFontSize } from '@shared/settings'
 import { type ShortcutFacts, shortcutApplies, shortcutsLeftToPage } from '@shared/shortcut-applies'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
@@ -330,16 +329,20 @@ function shortcutFacts(paneId: string | null, editing: boolean): ShortcutFacts {
     shellToFind: layout.shellToFocus() !== null,
     inTabGroup: paneId !== null && neighbourTab(root, paneId, 1) !== null,
     otherShell: paneId !== null && neighbourShell(root, paneId, 1, isShellWidget) !== null,
-    toward: towardFrom(root, paneId),
+    toward: towardFrom(paneId),
     editingText: editing,
   }
 }
 
 /** Which ways from `paneId` another pane lies, for the arrow keys. */
-function towardFrom(root: LayoutNode, paneId: string | null): Record<Direction, boolean> {
-  const lies = (direction: Direction) =>
-    paneId !== null && neighbourToward(root, paneId, direction) !== null
-  return { left: lies('left'), right: lies('right'), up: lies('up'), down: lies('down') }
+function towardFrom(paneId: string | null): Record<Direction, boolean> {
+  const found = paneId === null ? null : layout.neighboursOf(paneId)
+  return {
+    left: found?.left != null,
+    right: found?.right != null,
+    up: found?.up != null,
+    down: found?.down != null,
+  }
 }
 
 /** Shortcuts that still work with a dialog open. */
@@ -413,9 +416,9 @@ $effect(() => window.elecdex.web.onFocused((paneId) => layout.focus(paneId)))
 /**
  * The shortcuts that would do nothing while the focused pane is a web pane, as one string so
  * the effect below runs only when they change. Main leaves their keys to the page (issue 20):
- * outside a tab group Ctrl+Shift+Arrow selects by word there, and with no shell open
- * Ctrl+Shift+= zooms it. A text field inside the page cannot be seen from here, so in a tab
- * group the tab keys still switch tabs from a page.
+ * with no pane that way Ctrl+Shift+Arrow selects by word there, and with no shell open
+ * Ctrl+Shift+= zooms it. A text field inside the page cannot be seen from here, so with a
+ * pane that way the arrows still move the keyboard from a page.
  */
 const leftToWebPage = $derived.by(() => {
   const paneId = layout.focusedPaneId

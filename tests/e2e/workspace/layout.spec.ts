@@ -910,7 +910,7 @@ test('Ctrl+Shift+0 applies the tenth saved layout, shown as 0', async () => {
   }
 })
 
-test('in a text field, Ctrl+Shift+Arrow selects by word and Ctrl+Tab stays; out of it, they move', async ({
+test('in a text field, Ctrl+Shift+Arrow selects by word and Ctrl+Tab still moves the tabs; out of it, the arrow moves', async ({
   shared,
 }) => {
   const launched = await shared({
@@ -955,15 +955,14 @@ test('in a text field, Ctrl+Shift+Arrow selects by word and Ctrl+Tab stays; out 
     expect(await body.evaluate((el: HTMLTextAreaElement) => el.selectionEnd)).toBeGreaterThan(0)
     await body.press('Control+Shift+ArrowLeft')
     await expect(note).toHaveClass(/focused/)
+    // Ctrl+Tab is no use to the text: the tabs move from it as well.
     await body.press('Control+Tab')
-    expect(await activeTab()).toBe('note')
-
-    // Out of the field, in the same pane, Ctrl+Tab switches tabs and the arrow moves on.
-    await body.evaluate((el: HTMLTextAreaElement) => el.blur())
-    await page.keyboard.press('Control+Tab')
     await expect.poll(activeTab).toBe('other')
     await page.keyboard.press('Control+Shift+Tab')
     await expect.poll(activeTab).toBe('note')
+
+    // Out of the field, in the same pane, the arrow moves the keyboard on.
+    await body.evaluate((el: HTMLTextAreaElement) => el.blur())
     await page.keyboard.press('Control+Shift+ArrowLeft')
     await expect(page.locator('[data-testid=pane][data-pane-id=side]')).toHaveClass(/focused/)
   } finally {

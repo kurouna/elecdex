@@ -47,21 +47,20 @@ describe('shortcutApplies', () => {
     expect(refused).toEqual(['window.toggle'])
   })
 
-  it('leaves the tab keys to a text field, and outside a tab group to the pane', () => {
+  it('moves the tabs from a text field too, and outside a tab group leaves the keys to the pane', () => {
     for (const id of ['tab.next', 'tab.previous'] as const) {
       expect(shortcutApplies(id, ALL)).toBe(true)
-      expect(shortcutApplies(id, { ...ALL, editingText: true })).toBe(false)
+      // Ctrl+Tab, which a field has no use for.
+      expect(shortcutApplies(id, { ...ALL, editingText: true })).toBe(true)
       expect(shortcutApplies(id, { ...ALL, inTabGroup: false })).toBe(false)
     }
-    // Typing in a field leaves every other shortcut as it was.
+    // Typing in a field leaves the arrows to it, to select by word, and every other shortcut as it was.
     const editing = { ...ALL, editingText: true }
     expect(ids.filter((id) => shortcutApplies(id, ALL) !== shortcutApplies(id, editing))).toEqual([
       'focus.left',
       'focus.right',
       'focus.up',
       'focus.down',
-      'tab.next',
-      'tab.previous',
     ])
   })
 

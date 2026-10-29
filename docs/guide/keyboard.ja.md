@@ -48,7 +48,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | Ctrl+Shift+→ | Focus the pane to the right | `focus.right` | 同上 |
 | Ctrl+Shift+↑ | Focus the pane above | `focus.up` | 同上 |
 | Ctrl+Shift+↓ | Focus the pane below | `focus.down` | 同上 |
-| Ctrl+Tab | Next tab | `tab.next` | フォーカス中のペインがタブグループ（シェルのタブなど）にあり、キーボードがテキスト欄にないとき。*unreleased*：以前は Ctrl+Shift+→ |
+| Ctrl+Tab | Next tab | `tab.next` | フォーカス中のペインがタブグループ（シェルのタブなど）にあるとき。*unreleased*：以前は Ctrl+Shift+→。テキスト欄からも効くようになった |
 | Ctrl+Shift+Tab | Previous tab | `tab.previous` | 同上。*unreleased*：以前は Ctrl+Shift+← |
 | Ctrl+Alt+Shift+→ | Next shell pane | `shell.next` | シェルから、移れる別のシェルペイン（またはシェルのタブグループ）があるとき |
 | Ctrl+Alt+Shift+← | Previous shell pane | `shell.previous` | 同上 |

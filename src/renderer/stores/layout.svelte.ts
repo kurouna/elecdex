@@ -1,5 +1,5 @@
 import { defaultLayoutNode } from '@shared/default-layout'
-import { type Direction, neighbourToward } from '@shared/layout-direction'
+import { type Direction, neighboursToward } from '@shared/layout-direction'
 import {
   addTab,
   closeNode,
@@ -333,7 +333,11 @@ class LayoutStore {
     if (node.kind === 'pane' && isShellWidget(node.widget)) this.lastTerminalId = paneId
     const next = focusTab(this.tree, paneId)
     const animates = this.closeMotion?.animates() === true
-    if (next !== this.tree && animates) this.effects.flash(paneId)
+    if (next !== this.tree) {
+      // Another tab in front is the arrangement changed: an undo would put the old one back.
+      this.dropUndo()
+      if (animates) this.effects.flash(paneId)
+    }
     this.commit(next)
     if (fromKeys && animates) this.effects.flare(paneId)
   }
@@ -622,8 +626,9 @@ class LayoutStore {
    */
   undoClose(): void {
     const closed = this.#closed
-    if (closed === null) return
     this.#closed = null
+    // Only while its toast is up: a close no longer offered is no longer kept.
+    if (closed === null || !toasts.items.some((toast) => toast.id === closed.toast)) return
     this.settle()
     const before = this.framesBefore()
     const restored = withCurrentPanes(closed.tree, this.tree)
@@ -669,7 +674,10 @@ class LayoutStore {
 
   resize(splitId: string, sizes: number[]): void {
     this.settle()
-    this.commit(resizeSplit(this.tree, splitId, sizes))
+    const next = resizeSplit(this.tree, splitId, sizes)
+    // Putting the old tree back would undo the sizes too.
+    if (next !== this.tree) this.dropUndo()
+    this.commit(next)
   }
 
   setPaneState(paneId: string, state: Record<string, unknown>): void {
@@ -835,7 +843,12 @@ class LayoutStore {
    * false when none does, so the key goes to the pane.
    */
   focusToward(direction: Direction): boolean {
-    return this.cycleTo((from) => neighbourToward(this.tree.root, from, direction), true)
+    return this.cycleTo((from) => this.neighboursOf(from)[direction], true)
+  }
+
+  /** The pane lying each way from `paneId`, one powering off not counted (it is going). */
+  neighboursOf(paneId: string): Record<Direction, string | null> {
+    return neighboursToward(this.tree.root, paneId, this.closingId)
   }
 
   /**

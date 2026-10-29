@@ -88,6 +88,19 @@ export function flipFrom(before: Frame, after: Frame): Flip | null {
 const ratio = (n: number): string => String(Number(n.toFixed(4)))
 
 /**
+ * The CSS variables a flight's keyframes read, under `prefix`: `--zoom-` for a pane flying
+ * to the front, `--land-` for one a move carried (layout/pane-reflow.ts).
+ */
+export function flipVars(flip: Flip, prefix: string): string[] {
+  return [
+    `${prefix}dx: ${px(flip.dx)}`,
+    `${prefix}dy: ${px(flip.dy)}`,
+    `${prefix}sx: ${ratio(flip.sx)}`,
+    `${prefix}sy: ${ratio(flip.sy)}`,
+  ]
+}
+
+/**
  * The inline style that pins the pane (`pane-pinned`, styles/frames.css) and the
  * CSS variables `crt-zoom` flies it by.
  *
@@ -105,13 +118,7 @@ export function pinStyle(box: Frame, flip: Flip | null, duration: number): strin
     `height: ${px(height(box))}`,
   ]
   if (flip !== null) {
-    parts.push(
-      `--zoom-dx: ${px(flip.dx)}`,
-      `--zoom-dy: ${px(flip.dy)}`,
-      `--zoom-sx: ${ratio(flip.sx)}`,
-      `--zoom-sy: ${ratio(flip.sy)}`,
-      `--crt-duration: ${duration}ms`,
-    )
+    parts.push(...flipVars(flip, '--zoom-'), `--crt-duration: ${duration}ms`)
   }
   return parts.join('; ')
 }

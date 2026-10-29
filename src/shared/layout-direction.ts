@@ -88,11 +88,36 @@ export function neighbourToward(
   paneId: string,
   direction: Direction,
 ): string | null {
+  return neighboursToward(root, paneId)[direction]
+}
+
+/**
+ * The pane lying each way from `paneId` (see neighbourToward), worked out from one walk of
+ * the tree. `skip` is a pane that is no neighbour of anything: one powering off.
+ */
+export function neighboursToward(
+  root: LayoutNode,
+  paneId: string,
+  skip: string | null = null,
+): Record<Direction, string | null> {
   const shares = paneShares(root)
+  if (skip !== null) shares.delete(skip)
   const group = findTabsContaining(root, paneId)
   const fromId = group === null ? paneId : group.children[group.activeIndex]?.id
   const from = fromId === undefined ? undefined : shares.get(fromId)
-  if (from === undefined) return null
+  const found: Record<Direction, string | null> = { left: null, right: null, up: null, down: null }
+  if (fromId === undefined || from === undefined) return found
+  for (const direction of DIRECTIONS) found[direction] = nearest(shares, fromId, from, direction)
+  return found
+}
+
+/** The nearest pane `direction` from `from`, the one sharing most of that side on a tie. */
+function nearest(
+  shares: ReadonlyMap<string, Share>,
+  fromId: string,
+  from: Share,
+  direction: Direction,
+): string | null {
   let best: { id: string; gap: number; overlap: number } | null = null
   for (const [id, to] of shares) {
     if (id === fromId) continue

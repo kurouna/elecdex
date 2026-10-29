@@ -1,7 +1,6 @@
 import { collectPanes, findNode, pane, split, tabs } from '@shared/layout-ops'
 import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from '@shared/schemas/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Frame } from '../../src/renderer/layout/geometry.ts'
 import {
   CLOSE_SETTLE_MS,
   CRT_EDGE_MS,
@@ -9,6 +8,7 @@ import {
   CRT_LAND_MS,
   CRT_TAB_MS,
 } from '../../src/renderer/lib/crt-timing.ts'
+import { framesOf } from './support/frames.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
@@ -18,33 +18,8 @@ const { toasts } = await import('../../src/renderer/stores/toasts.svelte.ts')
 /**
  * What the panes play after the layout changes under them - a move, a split, a
  * tab shown, the keyboard arriving - and a close put back from its toast. The
- * geometry is a stand-in (as in layout-close.test.ts): equal shares of a
- * 1200x600 box, a tab group one box.
+ * geometry is a stand-in (support/frames.ts).
  */
-function framesOf(tree: LayoutTree): Map<string, Frame> {
-  const frames = new Map<string, Frame>()
-  const place = (node: LayoutNode, box: Frame): void => {
-    if (node.kind === 'pane') frames.set(node.id, box)
-    else if (node.kind === 'tabs') {
-      const shown = node.children[node.activeIndex]
-      if (shown) frames.set(shown.id, box)
-    } else {
-      const row = node.direction === 'row'
-      const span = row ? box.right - box.left : box.bottom - box.top
-      let at = row ? box.left : box.top
-      node.children.forEach((child, i) => {
-        const size = span * (node.sizes[i] ?? 0)
-        place(
-          child,
-          row ? { ...box, left: at, right: at + size } : { ...box, top: at, bottom: at + size },
-        )
-        at += size
-      })
-    }
-  }
-  place(tree.root, { top: 0, right: 1200, bottom: 600, left: 0 })
-  return frames
-}
 
 let animates = true
 
@@ -219,5 +194,84 @@ describe('putting a close back', () => {
     layout.close(b.id)
     expect(toasts.items.filter((toast) => toast.title.endsWith(' closed'))).toHaveLength(1)
     expect(layout.undoablePanes.map((node) => node.id)).toEqual([b.id])
+  })
+})
+
+describe('what a close put back keeps', () => {
+  /** The close of `id`, past its power-off, and its toast's undo. */
+  function closeAndUndo(id: string, between: () => void = () => {}): void {
+    layout.close(id)
+    vi.advanceTimersByTime(CLOSE_SETTLE_MS)
+    between()
+    const toast = undoToast()
+    const undo = toast?.actions[0]
+    if (toast !== undefined && undo !== undefined) toasts.run(toast.id, undo)
+  }
+
+  it('is let go of by a divider moved, which putting the old tree back would undo', () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    load(split('row', [a, b, c]), a.id)
+    closeAndUndo(a.id, () => {
+      const row = layout.tree.root
+      if (row.kind === 'split') layout.resize(row.id, [0.8, 0.2])
+    })
+    expect(ids()).toEqual([b.id, c.id])
+    expect(layout.undoablePanes).toEqual([])
+  })
+
+  it('is let go of by another tab brought to the front', () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    load(split('row', [a, tabs([b, c])]), a.id)
+    closeAndUndo(a.id, () => layout.focus(c.id))
+    expect(ids()).toEqual([b.id, c.id])
+  })
+
+  it('puts a whole group back, its tab in front as it was', () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    const group = tabs([b, c], 1)
+    load(split('row', [a, group]), a.id)
+    closeAndUndo(group.id)
+    const back = findNode(layout.tree.root, group.id)
+    expect(back?.kind === 'tabs' && back.activeIndex).toBe(1)
+    expect(ids()).toEqual([a.id, b.id, c.id])
+  })
+
+  it('puts back a tab that was behind another, which has nothing to power on', () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    load(split('row', [a, tabs([b, c])]), a.id)
+    closeAndUndo(c.id)
+    expect(ids()).toEqual([a.id, b.id, c.id])
+    expect(layout.arrived(c.id)).toBe(false)
+  })
+
+  it('cannot be undone once its toast has gone', () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    load(split('row', [a, b]), a.id)
+    layout.close(a.id)
+    vi.advanceTimersByTime(10_000)
+    layout.undoClose()
+    expect(ids()).toEqual([b.id])
+  })
+})
+
+describe('the arrows', () => {
+  it('do not count a pane powering off as one to go to', () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    load(split('row', [a, b]), a.id)
+    expect(layout.neighboursOf(a.id).right).toBe(b.id)
+    layout.close(b.id)
+    expect(layout.closingId).toBe(b.id)
+    expect(layout.neighboursOf(a.id).right).toBeNull()
+    expect(layout.focusToward('right')).toBe(false)
   })
 })

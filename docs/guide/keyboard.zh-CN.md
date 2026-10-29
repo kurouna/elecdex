@@ -48,7 +48,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | Ctrl+Shift+→ | Focus the pane to the right | `focus.right` | 同上 |
 | Ctrl+Shift+↑ | Focus the pane above | `focus.up` | 同上 |
 | Ctrl+Shift+↓ | Focus the pane below | `focus.down` | 同上 |
-| Ctrl+Tab | Next tab | `tab.next` | 当前窗格在标签组中（例如 shell 的标签页），且键盘不在文本框中。*unreleased*：原为 Ctrl+Shift+→ |
+| Ctrl+Tab | Next tab | `tab.next` | 当前窗格在标签组中（例如 shell 的标签页）。*unreleased*：原为 Ctrl+Shift+→，现在在文本框中也有效 |
 | Ctrl+Shift+Tab | Previous tab | `tab.previous` | 同上。*unreleased*：原为 Ctrl+Shift+← |
 | Ctrl+Alt+Shift+→ | Next shell pane | `shell.next` | 在 shell 中，且有另一个 shell 窗格（或 shell 标签组）可去 |
 | Ctrl+Alt+Shift+← | Previous shell pane | `shell.previous` | 同上 |

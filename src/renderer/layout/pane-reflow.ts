@@ -14,7 +14,7 @@
 import { CRT_EDGE_MS, CRT_LAND_MS } from '../lib/crt-timing.js'
 import { type Frame, px } from './geometry.js'
 import { extendFrom, type Inset } from './pane-close.js'
-import { type Flip, flipFrom } from './pane-zoom.js'
+import { type Flip, flipFrom, flipVars } from './pane-zoom.js'
 
 /** The width of the beam on each edge of a pane that came in, 0 on one that stayed. */
 export type Edges = Frame
@@ -94,14 +94,7 @@ export function reflowOf(
 
 /** The CSS variables `crt-land` flies a moved pane in by. */
 export function landStyle(flip: Flip): string {
-  const ratio = (n: number): string => String(Number(n.toFixed(4)))
-  return [
-    `--land-dx: ${px(flip.dx)}`,
-    `--land-dy: ${px(flip.dy)}`,
-    `--land-sx: ${ratio(flip.sx)}`,
-    `--land-sy: ${ratio(flip.sy)}`,
-    `--crt-duration: ${CRT_LAND_MS}ms`,
-  ].join('; ')
+  return [...flipVars(flip, '--land-'), `--crt-duration: ${CRT_LAND_MS}ms`].join('; ')
 }
 
 /** The CSS variables `crt-edge` lights the edges that came in by. */

@@ -1,4 +1,4 @@
-import { neighbourToward, paneShares } from '@shared/layout-direction'
+import { neighboursToward, neighbourToward, paneShares } from '@shared/layout-direction'
 import { pane, split, tabs } from '@shared/layout-ops'
 import { describe, expect, it } from 'vitest'
 
@@ -66,5 +66,16 @@ describe('neighbourToward', () => {
 
   it('knows nothing of a pane not in the tree', () => {
     expect(neighbourToward(GRID, 'gone', 'right')).toBeNull()
+  })
+})
+
+describe('neighboursToward', () => {
+  it('answers every way at once, as neighbourToward does each', () => {
+    expect(neighboursToward(GRID, 'b')).toEqual({ left: 'a', right: 't1', up: null, down: 'c' })
+  })
+
+  it('passes over a pane it is told to skip, as one powering off', () => {
+    expect(neighboursToward(GRID, 'b', 'c').down).toBeNull()
+    expect(neighboursToward(GRID, 'c', 't1').right).toBeNull()
   })
 })

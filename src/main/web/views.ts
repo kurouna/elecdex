@@ -54,7 +54,7 @@ export interface WebViewsOptions {
   keymap: () => ReadonlyMap<string, string>
   /**
    * The actions the page in `owner` has said do nothing now (issue 20): a web page keeps
-   * their keys - outside a tab group, Ctrl+Shift+Arrow selects by word there.
+   * their keys - with no pane that way, Ctrl+Shift+Arrow selects by word there.
    */
   leftToPage: (owner: WebContents) => ReadonlySet<string>
   /**
