@@ -9,7 +9,7 @@ import {
 } from '@shared/chip8-library'
 import { untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
-import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
+import { POWER_OFF_MS } from '../../lib/crt-timing.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'

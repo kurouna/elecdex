@@ -129,8 +129,8 @@ const CLAIM = expect.any(String)
 afterEach(async () => {
   ui.closeSettings()
   paneDrag.source = null
-  layout.zoomedPaneId = null
-  layout.pinnedPaneId = null
+  layout.zoom.paneId = null
+  layout.zoom.pinnedId = null
   // A pane state written in a test leaves a debounced save behind, which would fire
   // after the stubs are gone and throw where nothing is watching.
   await layout.flush()
@@ -223,8 +223,8 @@ describe('WebWidget', () => {
 
     // The pane at the front is DOM, and so is the shade behind it: a view would
     // be drawn above both.
-    layout.zoomedPaneId = 'other'
-    layout.pinnedPaneId = 'other'
+    layout.zoom.paneId = 'other'
+    layout.zoom.pinnedId = 'other'
     await settle()
     expect(api.hide).toHaveBeenLastCalledWith('p', CLAIM, true)
     expect(screen.getByTestId('web-snapshot')).toBeTruthy()
@@ -232,11 +232,11 @@ describe('WebWidget', () => {
     // Released, but still flying home (or powering off): the shade is still
     // fading over this pane, so the page stays aside until it has let go.
     api.show.mockClear()
-    layout.zoomedPaneId = null
+    layout.zoom.paneId = null
     await settle()
     expect(api.show).not.toHaveBeenCalled()
 
-    layout.pinnedPaneId = null
+    layout.zoom.pinnedId = null
     await settle()
     expect(api.show).toHaveBeenCalledWith('p', CLAIM, BODY)
   })
@@ -245,8 +245,8 @@ describe('WebWidget', () => {
     mount()
     await settle()
     api.hide.mockClear()
-    layout.zoomedPaneId = 'p'
-    layout.pinnedPaneId = 'p'
+    layout.zoom.paneId = 'p'
+    layout.zoom.pinnedId = 'p'
     await settle()
     expect(api.hide).not.toHaveBeenCalled()
     expect(screen.getByTestId('web').dataset.showing).toBe('true')

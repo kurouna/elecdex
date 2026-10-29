@@ -19,14 +19,14 @@ import { toasts } from '../stores/toasts.svelte.ts'
  * no leaves the list as it was.
  */
 export async function goToPreset(presetId: string): Promise<boolean> {
-  const kept = layoutFromPreset(layout.savedLayouts, presetId)
-  if (kept !== null) return layout.switchTo(kept.id)
+  const kept = layoutFromPreset(layout.saved.list, presetId)
+  if (kept !== null) return layout.saved.switchTo(kept.id)
   const preset = presetById(presetId)
   if (preset === null) return false
   if (!(await layout.mayReplace(preset.name))) return false
   const answer = await attempt(() => window.elecdex.layout.saved.addPreset(preset.id))
   if (answer === undefined) return false
-  layout.savedLayouts = answer.list
+  layout.saved.list = answer.list
   if (answer.id === null) {
     toasts.show({
       title: 'no room for another layout',
@@ -35,7 +35,7 @@ export async function goToPreset(presetId: string): Promise<boolean> {
     })
     return false
   }
-  return layout.applySaved(answer.id)
+  return layout.saved.apply(answer.id)
 }
 
 /**
@@ -44,13 +44,13 @@ export async function goToPreset(presetId: string): Promise<boolean> {
  * so that save does not land on top of what was just put back.
  */
 export async function restorePreset(id: string): Promise<void> {
-  const entry = layout.savedLayouts.find((saved) => saved.id === id)
+  const entry = layout.saved.list.find((saved) => saved.id === id)
   if (entry === undefined || entry.preset === null) return
   if (entry.active) await layout.flush()
   const list = await attempt(() => window.elecdex.layout.saved.restorePreset(id))
   if (list === undefined) return
-  layout.savedLayouts = list
-  if (entry.active) await layout.applySaved(id)
+  layout.saved.list = list
+  if (entry.active) await layout.saved.apply(id)
 }
 
 async function attempt<T>(run: () => Promise<T>): Promise<T | undefined> {

@@ -87,7 +87,7 @@ const REPO_URL = 'https://github.com/kurouna/elecdex'
  * (Ctrl+Shift+1 and so on, 0 for the tenth), so the bar also teaches the shortcut.
  * Only the first ten have a key, and only those are shown.
  */
-const layoutButtons = $derived(layout.savedLayouts.slice(0, KEYED_LAYOUTS))
+const layoutButtons = $derived(layout.saved.list.slice(0, KEYED_LAYOUTS))
 const layoutChords = $derived.by(() => {
   const bindings = effectiveBindings(
     appearance.settings.keybindings,
@@ -158,7 +158,7 @@ function toggleSound(): void {
           class:active={entry.active}
           aria-pressed={entry.active}
           title={`${entry.name}${layoutChords[i] === null ? '' : ` (${layoutChords[i]})`}`}
-          onclick={() => void layout.switchTo(entry.id)}
+          onclick={() => void layout.saved.switchTo(entry.id)}
           data-testid="layout-slot"
           data-name={entry.name}
         >
@@ -194,7 +194,7 @@ function toggleSound(): void {
       title={chordHint('Saved layouts', 'layout.saved')}
       data-testid="open-layouts"
     >
-      {layout.activeLayout === null ? 'layouts' : `layout · ${layout.activeLayout.name}`}
+      {layout.saved.active === null ? 'layouts' : `layout · ${layout.saved.active.name}`}
     </button>
     <ConfirmButton
       label="reset layout"

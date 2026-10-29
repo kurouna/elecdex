@@ -29,6 +29,15 @@ import { LAYOUT_VERSION } from './schemas/layout.js'
  * place to add the first pane.
  */
 
+/**
+ * The widget a shell pane shows. What is a shell is asked of this alone - the
+ * keys that go to a shell, the boot's and a switch's reveal, the reaper's claims
+ * - so the answer cannot differ from one place to the next.
+ */
+export const SHELL_WIDGET = 'terminal'
+
+export const isShellWidget = (widget: string): boolean => widget === SHELL_WIDGET
+
 let counter = 0
 /** Ids only need to be unique within a tree; a counter plus a prefix suffices. */
 export function newId(prefix = 'n'): string {

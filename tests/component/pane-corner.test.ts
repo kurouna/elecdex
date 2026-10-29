@@ -73,7 +73,7 @@ describe('a pane of its own', () => {
   it('closes and brings forward through the store', () => {
     const node = pane('clock')
     const close = vi.spyOn(layout, 'close').mockImplementation(() => {})
-    const zoom = vi.spyOn(layout, 'toggleZoom').mockImplementation(() => {})
+    const zoom = vi.spyOn(layout.zoom, 'toggle').mockImplementation(() => {})
     const { container } = render(PaneHost, { props: { node, visible: true, tabbed: false } })
     flushSync()
     byTestId(container, 'pane-zoom')?.click()
@@ -98,7 +98,7 @@ describe('a tab group', () => {
     const behind = pane('netstat')
     const node = tabs([shown, behind], 0)
     const close = vi.spyOn(layout, 'close').mockImplementation(() => {})
-    const zoom = vi.spyOn(layout, 'toggleZoom').mockImplementation(() => {})
+    const zoom = vi.spyOn(layout.zoom, 'toggle').mockImplementation(() => {})
     const { container } = render(TabsHost, { props: { node } })
     flushSync()
     // Its own, once: the tabs inside carry none.

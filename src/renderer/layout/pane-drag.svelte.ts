@@ -1,13 +1,8 @@
 import type { Placement } from '@shared/layout-ops'
 import type { Attachment } from 'svelte/attachments'
-import {
-  type Box,
-  dropPlacement,
-  dropPreview,
-  type TabInsertion,
-  tabInsertion,
-} from '../lib/drop-zone.ts'
+import { dropPlacement, dropPreview, type TabInsertion, tabInsertion } from '../lib/drop-zone.ts'
 import { layout } from '../stores/layout.svelte.ts'
+import { type Box, boxOf } from './geometry.ts'
 
 /**
  * Moving panes by dragging their titles.
@@ -54,22 +49,12 @@ interface Strip {
   bounds: Box
 }
 
-/** A DOMRect read once: its fields are prototype getters, so it cannot be spread. */
-const boxOf = (rect: DOMRect): Box => ({
-  left: rect.left,
-  top: rect.top,
-  width: rect.width,
-  height: rect.height,
-})
-
 /** Reads a node's tab strip, or null for a pane that draws none. */
 function measureStrip(host: HTMLElement): Strip | null {
   const strip = host.querySelector<HTMLElement>('[data-drop-strip]')
   if (strip === null) return null
-  const tabs = [...strip.querySelectorAll<HTMLElement>('[data-drop-tab]')].map((tab) =>
-    boxOf(tab.getBoundingClientRect()),
-  )
-  return tabs.length === 0 ? null : { tabs, bounds: boxOf(strip.getBoundingClientRect()) }
+  const tabs = [...strip.querySelectorAll<HTMLElement>('[data-drop-tab]')].map((tab) => boxOf(tab))
+  return tabs.length === 0 ? null : { tabs, bounds: boxOf(strip) }
 }
 
 class PaneDragStore {
@@ -100,7 +85,7 @@ class PaneDragStore {
     // A pane brought to the front covers the workspace, and the shade behind it
     // takes every press: nothing could be dropped on. Putting it back first is
     // also what the gesture means - the pane is being given a new place.
-    layout.unzoom()
+    layout.zoom.putBack()
     this.source = nodeId
     this.label = label
     this.#strip = null
@@ -152,7 +137,7 @@ class PaneDragStore {
     y: number,
     asTab: boolean,
   ): DropTarget | null {
-    const box = boxOf(host.getBoundingClientRect())
+    const box = boxOf(host)
     // Only a strip offers gaps; a pane that draws none takes a plain tab drop.
     const strip = asTab ? this.stripOf(host) : null
     const insertion = strip === null ? null : tabInsertion(strip.tabs, x, strip.bounds)

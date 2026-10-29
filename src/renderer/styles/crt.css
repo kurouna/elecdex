@@ -202,8 +202,9 @@
   }
 }
 
+/* Backwards only: the panes it plays on stay, and its last frame is the pane as it is. */
 .crt-extend {
-  animation: crt-extend var(--crt-duration, 220ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: crt-extend var(--crt-duration, 220ms) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
 }
 
 @keyframes crt-extend {
@@ -273,32 +274,18 @@
   }
 }
 
+/* Every CRT effect, the element and its overlays, stops with motion reduced. */
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) .crt-on,
-  :root:not([data-motion="full"]) .crt-off,
-  :root:not([data-motion="full"]) .crt-extend,
+  :root:not([data-motion="full"]) :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out),
   :root:not([data-motion="full"]) .crt-on::before,
-  :root:not([data-motion="full"]) .crt-on::after,
-  :root:not([data-motion="full"]) .crt-beam::after,
-  :root:not([data-motion="full"]) .crt-extend::after,
-  :root:not([data-motion="full"]) .crt-zoom,
-  :root:not([data-motion="full"]) .crt-zoom-out,
-  :root:not([data-motion="full"]) .crt-zoom::after,
-  :root:not([data-motion="full"]) .crt-zoom-out::after {
+  :root:not([data-motion="full"])
+    :is(.crt-on, .crt-beam, .crt-extend, .crt-zoom, .crt-zoom-out)::after {
     animation: none;
   }
 }
 
-:root[data-motion="reduced"] .crt-on,
-:root[data-motion="reduced"] .crt-off,
-:root[data-motion="reduced"] .crt-extend,
+:root[data-motion="reduced"] :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out),
 :root[data-motion="reduced"] .crt-on::before,
-:root[data-motion="reduced"] .crt-on::after,
-:root[data-motion="reduced"] .crt-beam::after,
-:root[data-motion="reduced"] .crt-extend::after,
-:root[data-motion="reduced"] .crt-zoom,
-:root[data-motion="reduced"] .crt-zoom-out,
-:root[data-motion="reduced"] .crt-zoom::after,
-:root[data-motion="reduced"] .crt-zoom-out::after {
+:root[data-motion="reduced"] :is(.crt-on, .crt-beam, .crt-extend, .crt-zoom, .crt-zoom-out)::after {
   animation: none;
 }

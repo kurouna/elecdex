@@ -9,7 +9,7 @@
  * compositor plays and which no widget can feel.
  */
 
-import type { Frame } from './pane-close.js'
+import { type Frame, px } from './geometry.js'
 
 /**
  * How a widget is brought to the front, which the registry says for each
@@ -29,10 +29,6 @@ export const ZOOM_FRACTION = 0.9
  * widget that fills its column would only be spreading the same rows out.
  */
 export const PANEL_BOX = { w: 880, h: 560 } as const
-/** How long it takes to fly out to that box. */
-export const CRT_ZOOM_MS = 260
-/** And back to its place, a little quicker, as a picture collapsing. */
-export const CRT_UNZOOM_MS = 220
 
 /** The transform that puts an element pinned at its new box back over its old one. */
 export interface Flip {
@@ -89,7 +85,6 @@ export function flipFrom(before: Frame, after: Frame): Flip | null {
   }
 }
 
-const px = (n: number): string => `${Math.round(n)}px`
 const ratio = (n: number): string => String(Number(n.toFixed(4)))
 
 /**

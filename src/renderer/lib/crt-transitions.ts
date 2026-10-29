@@ -2,7 +2,8 @@ import { untrack } from 'svelte'
 import type { TransitionConfig } from 'svelte/transition'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
-import { fadeShade, handoffDelay, POWER_OFF_MS, powerOffStyle } from './crt-motion.ts'
+import { fadeShade, handoffDelay, powerOffStyle } from './crt-motion.ts'
+import { POWER_OFF_MS } from './crt-timing.ts'
 
 /**
  * How dialogs and notices go: `transition:crtPower` on anything that powers on

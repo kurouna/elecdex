@@ -1,5 +1,6 @@
 <script lang="ts">
 import { effectiveBindings, type KeybindingAction } from '@shared/keybindings'
+import { isShellWidget } from '@shared/layout-ops'
 import { LAYOUT_PRESETS } from '@shared/layout-presets'
 import {
   armVerb,
@@ -61,8 +62,6 @@ let input = $state<HTMLInputElement | null>(null)
 let list = $state<HTMLUListElement | null>(null)
 let returnFocus: HTMLElement | null = null
 
-const isShell = (widget: string): boolean => widget === 'terminal'
-
 /** Every row, from what the stores hold now; worked out only while the palette is open. */
 const items = $derived.by((): PaletteItem[] => {
   if (!ui.paletteOpen) return []
@@ -75,12 +74,12 @@ const items = $derived.by((): PaletteItem[] => {
       labels,
       applies: (action: KeybindingAction) => commands.applies(action),
       arm: {
-        anyShell: layout.panes.some((p) => isShell(p.widget)),
+        anyShell: layout.panes.some((p) => isShellWidget(p.widget)),
         confirmSwitch: appearance.settings.layout.confirmSwitch,
       },
     }),
-    ...layoutItems(layout.savedLayouts, bindings, labels),
-    ...presetItems(LAYOUT_PRESETS, layout.savedLayouts, bindings, labels),
+    ...layoutItems(layout.saved.list, bindings, labels),
+    ...presetItems(LAYOUT_PRESETS, layout.saved.list, bindings, labels),
     ...themeItems(appearance.catalog.themes, appearance.theme.id),
     ...paneItems(
       listWidgets(),

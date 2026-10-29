@@ -74,7 +74,7 @@ let shelfBox = $state<HTMLDivElement | null>(null)
  */
 let onShelf = $state(false)
 
-const saved = $derived(layout.savedLayouts)
+const saved = $derived(layout.saved.list)
 const shelf = $derived(presetCards(saved))
 /** Each preset's key as the user has it bound; null when it has none. */
 const presetChords = $derived.by(() => {
@@ -140,9 +140,9 @@ $effect(() => {
  * name box has the keys, to save the arrangement under a name.
  */
 async function openOnActive(): Promise<void> {
-  await layout.loadSaved()
+  await layout.saved.load()
   if (!ui.layoutsOpen) return
-  const at = layout.savedLayouts.findIndex((entry) => entry.active)
+  const at = layout.saved.list.findIndex((entry) => entry.active)
   if (at >= 0) selected = at
   await tick()
   if (at >= 0) rows[at]?.focus()
@@ -160,7 +160,7 @@ function close(): void {
 
 async function keep(): Promise<void> {
   if (cleaned === null) return
-  const kept = await layout.saveAs(cleaned)
+  const kept = await layout.saved.saveAs(cleaned)
   full = !kept
   if (!kept) return
   name = ''
@@ -193,7 +193,7 @@ function choose(key: string, act: () => Promise<unknown>): void {
 
 function apply(id: string): void {
   // Through the store, so the question about the shells is asked here too.
-  choose(`saved:${id}`, () => layout.switchTo(id))
+  choose(`saved:${id}`, () => layout.saved.switchTo(id))
 }
 
 function applyPreset(id: string): void {
@@ -219,7 +219,7 @@ async function commitRename(): Promise<void> {
   if (request === null) return
   const wanted = cleanLayoutName(request.draft)
   if (wanted === null) return
-  await layout.renameSaved(request.id, wanted)
+  await layout.saved.rename(request.id, wanted)
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -413,7 +413,7 @@ function revealFile(): void {
                   title="Move up, onto the key above"
                   aria-label="Move {entry.name} up"
                   disabled={i === 0}
-                  onclick={() => void layout.moveSaved(entry.id, -1)}
+                  onclick={() => void layout.saved.move(entry.id, -1)}
                   data-testid="layouts-up"
                 >
                   ↑
@@ -424,7 +424,7 @@ function revealFile(): void {
                   title="Move down"
                   aria-label="Move {entry.name} down"
                   disabled={i === saved.length - 1}
-                  onclick={() => void layout.moveSaved(entry.id, 1)}
+                  onclick={() => void layout.saved.move(entry.id, 1)}
                   data-testid="layouts-down"
                 >
                   ↓
@@ -448,7 +448,7 @@ function revealFile(): void {
                   action="remove"
                   title="Forget this layout"
                   testid="layouts-remove"
-                  onconfirm={() => void layout.removeSaved(entry.id)}
+                  onconfirm={() => void layout.saved.remove(entry.id)}
                 />
               {/if}
             </li>

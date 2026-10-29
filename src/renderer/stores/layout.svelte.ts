@@ -1,4 +1,3 @@
-import type { SavedLayoutsApi } from '@shared/api'
 import { defaultLayoutNode } from '@shared/default-layout'
 import {
   addTab,
@@ -7,6 +6,7 @@ import {
   findNode,
   findTabsContaining,
   focusTab,
+  isShellWidget,
   moveNode,
   moveTabTo,
   neighbourShell,
@@ -16,12 +16,12 @@ import {
   patchPaneState,
   placeFirst,
   resizeSplit,
+  SHELL_WIDGET,
   setPaneState,
   splitPane,
   visiblePanes,
   wrapAround,
 } from '@shared/layout-ops'
-import type { SavedLayoutSummary } from '@shared/layouts'
 import {
   LAYOUT_VERSION,
   type LayoutNode,
@@ -30,32 +30,20 @@ import {
   type SplitDirection,
 } from '@shared/schemas/layout'
 import { flushSync } from 'svelte'
-import {
-  SWITCH_GAP_MS,
-  SWITCH_OFF_MS,
-  SWITCH_ON_MS,
-  switchDelaysFor,
-  switchRevealEnd,
-  switchSoundTimes,
-} from '../layout/layout-switch.ts'
+import type { Frame } from '../layout/geometry.ts'
+import { switchDelaysFor, switchRevealEnd } from '../layout/layout-switch.ts'
+import { extendFrom, type Inset } from '../layout/pane-close.ts'
+import { revealSoundTimes } from '../lib/boot-sequence.ts'
 import {
   CLOSE_SETTLE_MS,
   CRT_EXTEND_MS,
-  extendFrom,
-  type Frame,
-  type Inset,
-} from '../layout/pane-close.ts'
-import {
-  CRT_UNZOOM_MS,
-  CRT_ZOOM_MS,
-  type Flip,
-  flipFrom,
-  pinStyle,
-  type ZoomMode,
-  zoomBox,
-} from '../layout/pane-zoom.ts'
-import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
+  SWITCH_GAP_MS,
+  SWITCH_OFF_MS,
+  SWITCH_ON_MS,
+} from '../lib/crt-timing.ts'
 import { appearance } from './appearance.svelte.ts'
+import { PaneZoom } from './pane-zoom.svelte.ts'
+import { SavedLayouts } from './saved-layouts.svelte.ts'
 import { sfx } from './sound.svelte.ts'
 import { toasts } from './toasts.svelte.ts'
 import { ui } from './ui.svelte.ts'
@@ -80,9 +68,6 @@ const EMPTY_IDS: ReadonlySet<string> = new Set<string>()
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
-/** A shell is framed differently and powers on ahead of the modules. */
-const isShellWidget = (widget: string): boolean => resolveWidget(widget)?.chrome === 'shell'
-
 /** Where a pane added from the picker goes, relative to the focused pane. */
 export type PanePlacement = 'right' | 'down' | 'tab'
 
@@ -95,23 +80,6 @@ export interface CloseMotion {
   animates(): boolean
   /** The box of every shown pane's frame, by pane id. */
   frames(): Map<string, Frame>
-}
-
-/**
- * What zooming needs from the page, given by the workspace, as closing does: the
- * box a pinned pane is placed in and where a pane's element is laid out, neither
- * of which this store can measure itself.
- */
-export interface ZoomMotion {
-  /** Whether the flight may play now: motion is not reduced and the boot is over. */
-  animates(): boolean
-  /** The workspace's box, which a zoomed pane covers most of. */
-  area(): Frame | null
-  /**
-   * Where the pane's element sits when it is not pinned - its group's box for a
-   * tabbed pane, since the group is what is brought forward.
-   */
-  frameOf(paneId: string): Frame | null
 }
 
 class LayoutStore {
@@ -142,7 +110,7 @@ class LayoutStore {
    * A shell powering off is already gone for them, as it is for the keyboard.
    */
   readonly followedTerminalId = $derived.by(() => {
-    const terminals = this.panes.filter((p) => p.widget === 'terminal' && p.id !== this.closingId)
+    const terminals = this.panes.filter((p) => isShellWidget(p.widget) && p.id !== this.closingId)
     return terminals.find((p) => p.id === this.lastTerminalId)?.id ?? terminals[0]?.id ?? null
   })
 
@@ -166,39 +134,20 @@ class LayoutStore {
   private closeTimer: ReturnType<typeof setTimeout> | null = null
   private extendTimer: ReturnType<typeof setTimeout> | null = null
 
-  /** Unset, a pane cannot be zoomed (and is not in tests that do not set it). */
-  zoomMotion: ZoomMotion | null = null
-  /**
-   * The pane the user has brought to the front, if any. Never saved: a zoom is a
-   * look at one pane, not an arrangement, and a layout that reopened zoomed
-   * would hide the rest of the workspace behind a state the user had forgotten.
-   */
-  zoomedPaneId = $state<string | null>(null)
-  /**
-   * The pane whose element is pinned over the workspace now. The same pane while
-   * it is zoomed, and still it while it flies back to its place or powers off
-   * where it stands - so a pane closed from the front does not snap back first.
-   */
-  pinnedPaneId = $state<string | null>(null)
-  /** Where it is pinned, in viewport pixels. */
-  zoomPin = $state.raw<Frame | null>(null)
-  /** The transform it is flying from, while a flight is playing. */
-  zoomFlip = $state.raw<Flip | null>(null)
-  zoomPhase = $state<'in' | 'out' | null>(null)
-  /** How the pinned pane is placed, which its widget decides (registry). */
-  zoomMode = $state<ZoomMode | null>(null)
-  private zoomTimer: ReturnType<typeof setTimeout> | null = null
+  /** The pane brought to the front, if any (stores/pane-zoom.svelte.ts). */
+  readonly zoom: PaneZoom = new PaneZoom({
+    tree: () => this.tree,
+    settle: () => this.settle(),
+    focus: (paneId) => this.focus(paneId),
+  })
 
-  /** The inline style that places the pinned pane and plays its flight (pinStyle). */
-  readonly zoomStyle = $derived(
-    this.zoomPin === null
-      ? null
-      : pinStyle(
-          this.zoomPin,
-          this.zoomFlip,
-          this.zoomPhase === 'out' ? CRT_UNZOOM_MS : CRT_ZOOM_MS,
-        ),
-  )
+  /** The arrangements kept by name (stores/saved-layouts.svelte.ts). */
+  readonly saved: SavedLayouts = new SavedLayouts({
+    flush: () => this.flush(),
+    snapshot: () => this.snapshot(),
+    replaceTree: (tree) => this.replaceTree(tree),
+    mayReplace: (name) => this.mayReplace(name),
+  })
 
   /** The pane added last, until its host has taken it to power on (see arrived). */
   private arriving: string | null = null
@@ -263,7 +212,7 @@ class LayoutStore {
    */
   private adopt(tree: LayoutTree): void {
     this.tree = tree
-    this.clearZoom()
+    this.zoom.clear()
     this.focusedPaneId = initialFocus(tree)
   }
 
@@ -350,149 +299,10 @@ class LayoutStore {
     if (paneId === this.closingId) return
     const node = findNode(this.tree.root, paneId)
     if (node === null) return
-    if (this.zoomedPaneId !== null && this.zoomedPaneId !== paneId) this.followZoom(paneId)
+    this.zoom.follow(paneId)
     this.focusedPaneId = paneId
-    if (node.kind === 'pane' && node.widget === 'terminal') this.lastTerminalId = paneId
+    if (node.kind === 'pane' && isShellWidget(node.widget)) this.lastTerminalId = paneId
     this.commit(focusTab(this.tree, paneId))
-  }
-
-  /**
-   * Brings a pane to the front of the workspace: it is pinned over the others at
-   * most of the window, and flies there from where it sat. Nothing in the tree
-   * changes, so the pane is not remounted - a shell keeps its session, a web
-   * pane its page - and the panes it covers keep their size, so no terminal is
-   * resized but this one, once.
-   */
-  zoom(paneId: string): void {
-    if (paneId === this.zoomedPaneId) return
-    this.settle()
-    const motion = this.zoomMotion
-    if (motion === null) return
-    // The widget decides whether it is worth the room, and how much (registry):
-    // the shortcut ends here as well as the button, so there is one answer.
-    const mode = this.zoomModeFor(paneId)
-    if (mode === null) return
-    const area = motion.area()
-    const box = area === null ? null : zoomBox(area, mode)
-    // A workspace with no area (a page that has not been laid out yet): nothing
-    // to pin the pane to, and pinning it to nothing would hide it.
-    if (box === null) return
-    const from = motion.frameOf(paneId)
-    this.focus(paneId)
-    this.zoomedPaneId = paneId
-    this.pinnedPaneId = paneId
-    this.zoomPin = box
-    this.zoomMode = mode
-    sfx.play('expand')
-    this.fly('in', motion.animates() && from !== null ? flipFrom(from, box) : null)
-  }
-
-  /** Puts it back where it belongs, flying it down into its place first. */
-  unzoom(): void {
-    const id = this.zoomedPaneId
-    if (id === null) return
-    this.zoomedPaneId = null
-    sfx.play('collapse')
-    const motion = this.zoomMotion
-    const box = this.zoomPin
-    const home = motion?.frameOf(id) ?? null
-    const flip =
-      motion?.animates() === true && box !== null && home !== null ? flipFrom(home, box) : null
-    if (flip === null) {
-      this.unpin()
-      return
-    }
-    this.fly('out', flip)
-  }
-
-  toggleZoom(paneId: string): void {
-    if (paneId === this.zoomedPaneId) this.unzoom()
-    else this.zoom(paneId)
-  }
-
-  /**
-   * How the pane's widget is brought forward, or null when it is not. For a
-   * caller holding only an id (the shortcut); a component with the node itself
-   * asks the registry directly.
-   */
-  zoomModeFor(paneId: string): ZoomMode | null {
-    const node = findNode(this.tree.root, paneId)
-    return node === null || node.kind !== 'pane' ? null : zoomModeOf(node.widget)
-  }
-
-  /** Places the pinned pane again after the window changed size. Not a flight. */
-  repin(): void {
-    if (this.pinnedPaneId === null) return
-    const area = this.zoomMotion?.area() ?? null
-    const box = area === null ? null : zoomBox(area, this.zoomMode ?? 'full')
-    if (box !== null) this.zoomPin = box
-  }
-
-  /** Plays a flight, or, without one, leaves the pane where the phase puts it. */
-  private fly(phase: 'in' | 'out', flip: Flip | null): void {
-    if (this.zoomTimer !== null) clearTimeout(this.zoomTimer)
-    this.zoomTimer = null
-    if (flip === null) {
-      this.zoomPhase = null
-      this.zoomFlip = null
-      if (phase === 'out') this.unpin()
-      return
-    }
-    this.zoomPhase = phase
-    this.zoomFlip = flip
-    this.zoomTimer = setTimeout(
-      () => {
-        this.zoomTimer = null
-        this.zoomPhase = null
-        this.zoomFlip = null
-        if (phase === 'out') this.unpin()
-      },
-      phase === 'out' ? CRT_UNZOOM_MS : CRT_ZOOM_MS,
-    )
-  }
-
-  /** Lets go of the pinned pane, which is laid out with the others again. */
-  private unpin(): void {
-    this.pinnedPaneId = null
-    this.zoomPin = null
-    this.zoomMode = null
-  }
-
-  /**
-   * A tab of the zoomed pane's own group takes the zoom with it - the group is
-   * what is pinned, and the tab shown in it has only changed. Anything else
-   * focused puts the zoomed pane back.
-   */
-  private followZoom(paneId: string): void {
-    const zoomed = this.zoomedPaneId
-    if (zoomed === null) return
-    const group = findTabsContaining(this.tree.root, zoomed)
-    const mode = this.zoomModeFor(paneId)
-    // A tab that is not brought forward at all takes the group back rather than
-    // holding a pane the user was never offered the button for over everything.
-    if (group !== null && group === findTabsContaining(this.tree.root, paneId) && mode !== null) {
-      this.zoomedPaneId = paneId
-      this.pinnedPaneId = paneId
-      this.zoomMode = mode
-      this.repin()
-      return
-    }
-    this.unzoom()
-  }
-
-  /**
-   * Lets go of a zoom at once, without the flight: every change to the tree does
-   * this, since the pane's place is about to be a different one. The pane being
-   * closed stays pinned, so that it powers off where the user is looking.
-   */
-  private clearZoom(closing: string | null = null): void {
-    if (this.zoomTimer !== null) clearTimeout(this.zoomTimer)
-    this.zoomTimer = null
-    this.zoomedPaneId = null
-    this.zoomPhase = null
-    this.zoomFlip = null
-    if (this.pinnedPaneId !== null && this.pinnedPaneId === closing) return
-    this.unpin()
   }
 
   split(
@@ -553,11 +363,11 @@ class LayoutStore {
   ): void {
     const target = this.focusedPaneId
     if (target === null) {
-      this.addFirst(widget ?? 'terminal')
+      this.addFirst(widget ?? SHELL_WIDGET)
       return
     }
     const current = findNode(this.tree.root, target)
-    add(target, widget ?? (current?.kind === 'pane' ? current.widget : 'terminal'))
+    add(target, widget ?? (current?.kind === 'pane' ? current.widget : SHELL_WIDGET))
   }
 
   /**
@@ -645,7 +455,7 @@ class LayoutStore {
     const asked = findNode(this.tree.root, nodeId)
     // Closed from the front: it keeps the room it was pinned in to power off in.
     // A group closed with its shown tab in front does the same, pinned by that tab.
-    const zoomed = this.zoomedPaneId
+    const zoomed = this.zoom.paneId
     const inFront =
       zoomed !== null &&
       (zoomed === nodeId || (asked?.kind === 'tabs' && findNode(asked, zoomed) !== null))
@@ -705,8 +515,7 @@ class LayoutStore {
   private remove(nodeId: string): void {
     const next = closeNode(this.tree, nodeId)
     this.commit(next)
-    // A pane pinned while it powered off is gone: nothing is over the workspace now.
-    if (this.pinnedPaneId !== null && findNode(next.root, this.pinnedPaneId) === null) this.unpin()
+    this.zoom.dropGone(next)
   }
 
   private stopExtending(): void {
@@ -726,7 +535,7 @@ class LayoutStore {
 
   /** Settling, with the pane in `closing` left pinned where it is (see close). */
   private settleFor(closing: string | null): void {
-    this.clearZoom(closing)
+    this.zoom.clear(closing)
     this.stopExtending()
     if (this.closeTimer !== null) clearTimeout(this.closeTimer)
     this.closeTimer = null
@@ -741,7 +550,7 @@ class LayoutStore {
    * and since its corner has no × then (PaneCorner.svelte), this is how it is closed.
    */
   closeFocused(): void {
-    const target = this.zoomedPaneId ?? this.focusedPaneId
+    const target = this.zoom.paneId ?? this.focusedPaneId
     if (target !== null) this.close(target)
   }
 
@@ -777,9 +586,9 @@ class LayoutStore {
       return
     }
     // The default arrangement belongs to no saved layout; main has cleared it.
-    this.markActive(null)
+    this.saved.markActive(null)
     await this.replaceTree(tree)
-    await this.loadSaved()
+    await this.saved.load()
   }
 
   /**
@@ -868,7 +677,7 @@ class LayoutStore {
     delays: ReadonlyMap<string, number>,
     token: number,
   ): void {
-    const { shells, modules } = switchSoundTimes(next.root, isShellWidget, delays)
+    const { shells, modules } = revealSoundTimes(next.root, isShellWidget, delays)
     for (const delay of shells) {
       setTimeout(() => token === this.switchToken && sfx.play('expand'), delay)
     }
@@ -881,153 +690,16 @@ class LayoutStore {
   readonly switchOnMs = SWITCH_ON_MS
 
   /**
-   * Arrangements the user keeps by name (shared/layouts.ts). Only the names are
-   * held here: the trees stay in main until one is applied, so the page never
-   * carries a dozen layouts it is not showing.
-   */
-  savedLayouts = $state.raw<SavedLayoutSummary[]>([])
-
-  async loadSaved(): Promise<void> {
-    try {
-      this.savedLayouts = await window.elecdex.layout.saved.list()
-    } catch (error) {
-      // Not being able to list them costs nothing that is on screen.
-      console.error('[elecdex] could not read the saved layouts', error)
-    }
-  }
-
-  /**
-   * Keeps the current arrangement under a name, replacing one already saved
-   * under it. False when the list is full, so the caller can say so.
-   */
-  async saveAs(name: string): Promise<boolean> {
-    // A pane still powering off is closed as far as a saved arrangement goes,
-    // and a save still pending belongs to the layout being left: keeping the
-    // arrangement under a new name enters that new layout, so main must have
-    // the old one first. Left to the debounce, the last few hundred
-    // milliseconds of work would land in one layout or the other depending on
-    // how long the user took to type the name.
-    await this.flush()
-    const next = await this.ask((saved) => saved.save(name, this.snapshot()))
-    if (next === undefined) return false
-    this.savedLayouts = next
-    return next.some((entry) => entry.name === name)
-  }
-
-  /**
-   * Makes a saved arrangement the live one.
-   *
-   * The pending save is written out first rather than dropped: it holds the
-   * arrangement of the layout being left, and a layout follows the work, so it
-   * has to reach that layout before the workspace becomes another one.
-   */
-  async applySaved(id: string): Promise<boolean> {
-    await this.flush()
-    const tree = await this.ask((saved) => saved.apply(id))
-    // Main could not be asked: `ask` has said so.
-    if (tree === undefined) return false
-    if (tree === null) {
-      // Main no longer has it, or cannot read it (a layouts.json changed by hand,
-      // or written by a newer elecdex): a key that does nothing says why, and the
-      // list is read again so it stops offering what is not there.
-      toasts.show({
-        title: 'the layout could not be applied',
-        body: 'It is no longer saved, or was saved by a newer elecdex. The list now shows what is on disk.',
-        tone: 'warn',
-      })
-      await this.loadSaved()
-      return false
-    }
-    // Which layout is now being worked in, before the effect rather than after
-    // it: main has already decided, and a second switch pressed while the panes
-    // are still coming on asks this list which one it is in.
-    this.markActive(id)
-    await this.replaceTree(tree)
-    await this.loadSaved()
-    return true
-  }
-
-  /** Records which saved layout the workspace belongs to, as main has just said. */
-  private markActive(id: string | null): void {
-    if (this.savedLayouts.every((entry) => entry.active === (entry.id === id))) return
-    this.savedLayouts = this.savedLayouts.map((entry) => ({
-      ...entry,
-      active: entry.id === id,
-    }))
-  }
-
-  /**
-   * Goes to a saved layout, asking first when shells would end by it.
-   *
-   * This is the way in for everything that switches - the number shortcuts, the
-   * buttons in the status bar, the dialog - so the question is asked once, in
-   * one place, whichever of them was used. The layout already being worked in is
-   * not re-applied: there would be nothing to see but the effect.
-   */
-  async switchTo(id: string): Promise<boolean> {
-    const entry = this.savedLayouts.find((layout) => layout.id === id)
-    // A switch still playing is not a reason to refuse: pressing 1 then 2 must
-    // end at 2, and `replaceTree` hands the screen to whichever came last.
-    if (entry === undefined || entry.active) return false
-    if (!(await this.mayReplace(entry.name))) return false
-    return this.applySaved(id)
-  }
-
-  /**
    * Whether the workspace may be replaced by the layout of that name: asked
    * while shells are open, which the replacement would end, and settings have
    * not turned the question off. Also the question a preset asks before it is
    * added (layout/presets.ts), so both ways in say the same thing.
    */
   async mayReplace(name: string, reset = false): Promise<boolean> {
-    const shells = this.panes.filter((node) => node.widget === 'terminal').length
+    const shells = this.panes.filter((node) => isShellWidget(node.widget)).length
     if (shells === 0 || !appearance.settings.layout.confirmSwitch) return true
     return ui.askLayoutSwitch(reset ? { name, shells, reset } : { name, shells })
   }
-
-  async removeSaved(id: string): Promise<void> {
-    await this.change((saved) => saved.remove(id))
-  }
-
-  /** Renames one; the name it keeps is whatever comes back. */
-  async renameSaved(id: string, name: string): Promise<void> {
-    await this.change((saved) => saved.rename(id, name))
-  }
-
-  /** Moves one up or down the list, which is what the number shortcuts follow. */
-  async moveSaved(id: string, delta: number): Promise<void> {
-    await this.change((saved) => saved.move(id, delta))
-  }
-
-  /**
-   * Runs a change to the list and takes the list it answers with. A failure
-   * leaves the list as it is: main is the one that decides what is saved, and
-   * a dialog showing the old list is better than one showing a guess.
-   */
-  private async change(
-    run: (saved: SavedLayoutsApi) => Promise<SavedLayoutSummary[]>,
-  ): Promise<void> {
-    const next = await this.ask(run)
-    if (next !== undefined) this.savedLayouts = next
-  }
-
-  /** Asks main about the saved layouts; undefined when it could not be reached. */
-  private async ask<T>(run: (saved: SavedLayoutsApi) => Promise<T>): Promise<T | undefined> {
-    try {
-      return await run(window.elecdex.layout.saved)
-    } catch (error) {
-      console.error('[elecdex] a saved layout could not be changed', error)
-      toasts.show({
-        title: 'the saved layouts could not be changed',
-        body: 'Nothing was saved. The list on screen is the one on disk.',
-        tone: 'danger',
-      })
-      return undefined
-    }
-  }
-
-  /** The layout being worked in: what the workspace is written back into. */
-  readonly activeLayout = $derived(this.savedLayouts.find((entry) => entry.active) ?? null)
 
   /**
    * Switches the focused pane's tab group to its next or previous tab. Returns
@@ -1042,9 +714,7 @@ class LayoutStore {
    * has focus and there is another; false otherwise, so the key goes to the shell.
    */
   cycleShell(delta: number): boolean {
-    return this.cycleTo((from) =>
-      neighbourShell(this.tree.root, from, delta, (w) => w === 'terminal'),
-    )
+    return this.cycleTo((from) => neighbourShell(this.tree.root, from, delta, isShellWidget))
   }
 
   /**
@@ -1069,7 +739,7 @@ class LayoutStore {
    * (focusing brings that tab forward). Null when the layout has no shell.
    */
   shellToFocus(): string | null {
-    const shown = this.shown.filter((p) => p.widget === 'terminal')
+    const shown = this.shown.filter((p) => isShellWidget(p.widget))
     return (
       shown.find((p) => p.id === this.lastTerminalId)?.id ?? shown[0]?.id ?? this.followedTerminalId
     )
@@ -1101,5 +771,5 @@ function focusIn(tree: LayoutTree, current: string | null): string | null {
  */
 function initialFocus(tree: LayoutTree): string | null {
   const panes = visiblePanes(tree.root)
-  return (panes.find((p) => p.widget === 'terminal') ?? panes[0])?.id ?? null
+  return (panes.find((p) => isShellWidget(p.widget)) ?? panes[0])?.id ?? null
 }

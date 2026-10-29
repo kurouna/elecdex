@@ -5,24 +5,8 @@
  * to each) - and are uncovered from where their frame used to end by a clip.
  */
 
-/** How long a closing pane takes to power off. */
-export const CRT_CLOSE_MS = 300
-/** How long the panes left behind take to extend into the room it left. */
-export const CRT_EXTEND_MS = 220
-/**
- * The tree changes this much after the power-off starts: the animation begins on
- * the frame after the class is added, so a timer of exactly its length would
- * remove the pane a frame before its last, still faintly lit, frame.
- */
-export const CLOSE_SETTLE_MS = CRT_CLOSE_MS + 40
-
-/** A frame's box on screen, in CSS pixels. */
-export interface Frame {
-  top: number
-  right: number
-  bottom: number
-  left: number
-}
+import { CRT_EXTEND_MS } from '../lib/crt-timing.js'
+import { type Frame, px } from './geometry.js'
 
 /** How far in from each side of its new box a pane's clip starts. */
 export type Inset = Frame
@@ -51,46 +35,8 @@ export function extendFrom(before: Frame | undefined, after: Frame): Inset | nul
   return gained ? inset : null
 }
 
-/**
- * The box of every shown pane's frame, by pane id: a tab group's for a tab,
- * since the group is what grows, and the pane's own otherwise.
- */
-export function measureFrames(root: ParentNode = document): Map<string, Frame> {
-  const frames = new Map<string, Frame>()
-  for (const pane of root.querySelectorAll<HTMLElement>('[data-testid=pane]:not(.hidden)')) {
-    const id = pane.dataset.paneId
-    if (id === undefined) continue
-    const frame = pane.closest<HTMLElement>('[data-testid=tabs-host]') ?? pane
-    const { top, right, bottom, left } = frame.getBoundingClientRect()
-    frames.set(id, { top, right, bottom, left })
-  }
-  return frames
-}
-
-/**
- * Where a pane's element sits: its group's box when it is tabbed, as
- * `measureFrames` measures it, since the group is what is brought forward.
- *
- * A pinned pane (brought to the front, layout/pane-zoom.ts) is measured by the
- * slot it came out of instead - its own box is then the one the zoom put it in,
- * not the one it belongs to. Whether it is pinned is read from what is painted
- * rather than from the store, which is a frame ahead of the page: a zoom asked
- * for again while the pane is still flying home would otherwise measure the box
- * the flight is leaving.
- */
-export function frameOfPane(paneId: string, root: ParentNode = document): Frame | null {
-  const pane = root.querySelector<HTMLElement>(`[data-testid=pane][data-pane-id="${paneId}"]`)
-  if (pane === null) return null
-  const host = pane.closest<HTMLElement>('[data-testid=tabs-host]') ?? pane
-  const pinned = getComputedStyle(host).position === 'fixed'
-  const element = pinned ? (host.parentElement ?? host) : host
-  const { top, right, bottom, left } = element.getBoundingClientRect()
-  return { top, right, bottom, left }
-}
-
 /** The CSS variables `crt-extend` reads its starting clip from. */
 export function insetStyle(inset: Inset): string {
-  const px = (n: number) => `${Math.round(n)}px`
   return [
     `--from-top: ${px(inset.top)}`,
     `--from-right: ${px(inset.right)}`,

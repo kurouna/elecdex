@@ -9,6 +9,7 @@ import {
   findTabsContaining,
   focusTab,
   isEmptyLayout,
+  isShellWidget,
   moveNode,
   moveTabTo,
   neighbourShell,
@@ -21,6 +22,7 @@ import {
   patchPaneState,
   placeFirst,
   resizeSplit,
+  SHELL_WIDGET,
   setPaneState,
   split,
   splitPane,
@@ -1328,5 +1330,14 @@ describe('wrapAround', () => {
 
   it('finds nothing in an empty list', () => {
     expect(wrapAround([], 0, 1)).toBeUndefined()
+  })
+})
+
+describe('isShellWidget', () => {
+  it('is the terminal and nothing else', () => {
+    expect(SHELL_WIDGET).toBe('terminal')
+    expect(isShellWidget('terminal')).toBe(true)
+    expect(isShellWidget('clock')).toBe(false)
+    expect(isShellWidget('plugin:terminal')).toBe(false)
   })
 })

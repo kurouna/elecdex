@@ -30,7 +30,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  layout.pinnedPaneId = null
+  layout.zoom.pinnedId = null
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
@@ -70,10 +70,10 @@ describe('a new pane powering on', () => {
   it('is over for a pane brought forward, whose flight takes its place', () => {
     const { node, element } = arrive(false)
     expect(element.classList.contains('crt-on')).toBe(true)
-    layout.pinnedPaneId = node.id
+    layout.zoom.pinnedId = node.id
     flushSync()
     expect(element.classList.contains('crt-on')).toBe(false)
-    layout.pinnedPaneId = null
+    layout.zoom.pinnedId = null
     flushSync()
     expect(element.classList.contains('crt-on')).toBe(false)
   })

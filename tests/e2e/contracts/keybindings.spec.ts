@@ -199,7 +199,7 @@ const WORKSPACE_CHECKS: Record<InWorld<'workspace'>, (w: World) => Promise<void>
   'pane.zoom': async ({ page, press }) => {
     await focus(page, 'solo')
     await press()
-    await expect(paneById(page, 'solo')).toHaveClass(/\bzoomed\b/)
+    await expect(paneById(page, 'solo')).toHaveAttribute('data-zoomed', 'true')
   },
   'focus.next': async ({ page, press }) => {
     // In the order the panes are shown: the group's shell, the shell alone, the clock alone.

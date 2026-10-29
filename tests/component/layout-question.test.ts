@@ -119,9 +119,9 @@ describe('switching', () => {
   it('asks before replacing a workspace that has a shell in it', async () => {
     await layout.load()
     layout.tree = WITH_SHELL
-    await layout.loadSaved()
+    await layout.saved.load()
 
-    const switched = layout.switchTo('one')
+    const switched = layout.saved.switchTo('one')
     await vi.waitFor(() => expect(ui.layoutSwitch).not.toBeNull())
     expect(ui.layoutSwitch?.shells).toBe(1)
     expect(applied).toEqual([])
@@ -133,23 +133,23 @@ describe('switching', () => {
 
   it('goes straight there when no shell would end by it', async () => {
     await layout.load()
-    await layout.loadSaved()
-    expect(await layout.switchTo('one')).toBe(true)
+    await layout.saved.load()
+    expect(await layout.saved.switchTo('one')).toBe(true)
     expect(ui.layoutSwitch).toBeNull()
     expect(applied).toEqual(['one'])
   })
 
   it('does not re-apply the layout already being worked in', async () => {
     await layout.load()
-    await layout.loadSaved()
-    expect(await layout.switchTo('two')).toBe(false)
+    await layout.saved.load()
+    expect(await layout.saved.switchTo('two')).toBe(false)
     expect(applied).toEqual([])
   })
 
   it('does nothing for a layout that is not in the list', async () => {
     await layout.load()
-    await layout.loadSaved()
-    expect(await layout.switchTo('no-such-layout')).toBe(false)
+    await layout.saved.load()
+    expect(await layout.saved.switchTo('no-such-layout')).toBe(false)
     expect(applied).toEqual([])
   })
 })
@@ -192,8 +192,8 @@ describe('a preset', () => {
   it('asks about the shells first, and no leaves the list as it was', async () => {
     await layout.load()
     layout.tree = WITH_SHELL
-    await layout.loadSaved()
-    const before = JSON.parse(JSON.stringify(layout.savedLayouts))
+    await layout.saved.load()
+    const before = JSON.parse(JSON.stringify(layout.saved.list))
 
     const went = goToPreset('earth')
     await vi.waitFor(() => expect(ui.layoutSwitch).not.toBeNull())
@@ -205,7 +205,7 @@ describe('a preset', () => {
     expect(await went).toBe(false)
     expect(addPreset).not.toHaveBeenCalled()
     expect(applied).toEqual([])
-    expect(layout.savedLayouts).toEqual(before)
+    expect(layout.saved.list).toEqual(before)
     expect(layout.tree).toEqual(WITH_SHELL)
   })
 })

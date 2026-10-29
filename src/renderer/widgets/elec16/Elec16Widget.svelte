@@ -3,7 +3,7 @@ import { DEFAULT_MODEL, MODELS, modelName, paneTitle, type RomId } from '@shared
 import { pasteKeys } from '@shared/elec16/paste'
 import { onDestroy, tick, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
-import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
+import { POWER_OFF_MS } from '../../lib/crt-timing.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { colourReader } from '../../lib/css-colour.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'

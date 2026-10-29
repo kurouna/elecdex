@@ -12,7 +12,7 @@ import {
 } from '@shared/quakes'
 import { type Tsunami, tsunamiAlertKey, tsunamiLevelLabel, tsunamiSummary } from '@shared/tsunami'
 import { flip } from 'svelte/animate'
-import { CRT_EXTEND_MS } from './layout/pane-close.ts'
+import { CRT_EXTEND_MS } from './lib/crt-timing.ts'
 import { crtPower } from './lib/crt-transitions.ts'
 import {
   announcedCard,

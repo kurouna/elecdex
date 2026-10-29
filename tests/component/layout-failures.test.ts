@@ -100,11 +100,11 @@ describe('applying a saved layout', () => {
       { id: 'kept', name: 'kept', active: true, preset: null, shape: [] },
     ])
     stub({}, { apply: vi.fn(async () => null) })
-    await layout.loadSaved()
+    await layout.saved.load()
     list.mockResolvedValue([{ id: 'kept', name: 'kept', active: true, preset: null, shape: [] }])
 
-    expect(await layout.applySaved('gone')).toBe(false)
+    expect(await layout.saved.apply('gone')).toBe(false)
     expect(toasts.items.at(-1)?.title).toMatch(/could not be applied/i)
-    expect(layout.savedLayouts.map((entry) => entry.id)).toEqual(['kept'])
+    expect(layout.saved.list.map((entry) => entry.id)).toEqual(['kept'])
   })
 })

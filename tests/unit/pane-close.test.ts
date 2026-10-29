@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { CRT_EXTEND_MS, extendFrom, insetStyle } from '../../src/renderer/layout/pane-close.js'
+import { extendFrom, insetStyle } from '../../src/renderer/layout/pane-close.js'
+import { CRT_EXTEND_MS } from '../../src/renderer/lib/crt-timing.js'
 
 /** Where the panes left behind by a close start uncovering their new room from. */
 describe('extendFrom', () => {

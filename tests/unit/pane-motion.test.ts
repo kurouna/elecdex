@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { CRT_CLOSE_MS, insetStyle } from '../../src/renderer/layout/pane-close.js'
+import { insetStyle } from '../../src/renderer/layout/pane-close.js'
 import { type HostMotionState, hostMotion } from '../../src/renderer/layout/pane-motion.js'
+import { CRT_CLOSE_MS } from '../../src/renderer/lib/crt-timing.js'
 
 /**
  * The effects a pane or a tab group plays on itself, said once for both hosts:

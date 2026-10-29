@@ -1,13 +1,8 @@
 import type { LayoutNode } from '@shared/schemas/layout'
 import { describe, expect, it } from 'vitest'
-import {
-  SWITCH_GAP_MS,
-  SWITCH_OFF_MS,
-  SWITCH_ON_MS,
-  switchDelaysFor,
-  switchRevealEnd,
-  switchSoundTimes,
-} from '../../src/renderer/layout/layout-switch.ts'
+import { switchDelaysFor, switchRevealEnd } from '../../src/renderer/layout/layout-switch.ts'
+import { revealSoundTimes } from '../../src/renderer/lib/boot-sequence.ts'
+import { SWITCH_GAP_MS, SWITCH_OFF_MS, SWITCH_ON_MS } from '../../src/renderer/lib/crt-timing.ts'
 
 /**
  * The timing of a layout switch. The effect itself is CSS, and the e2e watches
@@ -84,21 +79,21 @@ describe('switchRevealEnd', () => {
   })
 })
 
-describe('switchSoundTimes', () => {
+describe('revealSoundTimes', () => {
   it('sounds once per moment, and tells a shell from a module', () => {
     const delays = new Map([
       ['t', 0],
       ['c', 120],
       ['m', 120],
     ])
-    const { shells, modules } = switchSoundTimes(row, isShell, delays)
+    const { shells, modules } = revealSoundTimes(row, isShell, delays)
     expect(shells).toEqual([0])
     // Two modules arriving together are one sound, not two.
     expect(modules).toEqual([120])
   })
 
   it('says nothing about a layout with no panes it knows', () => {
-    const { shells, modules } = switchSoundTimes(pane('c', 'clock'), isShell, new Map())
+    const { shells, modules } = revealSoundTimes(pane('c', 'clock'), isShell, new Map())
     expect(shells).toEqual([])
     expect(modules).toEqual([0])
   })

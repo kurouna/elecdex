@@ -5,7 +5,13 @@ import {
   type KeybindingAction,
   keymap,
 } from '@shared/keybindings'
-import { isEmptyLayout, neighbourShell, neighbourTab } from '@shared/layout-ops'
+import {
+  isEmptyLayout,
+  isShellWidget,
+  neighbourShell,
+  neighbourTab,
+  SHELL_WIDGET,
+} from '@shared/layout-ops'
 import { stepFontSize } from '@shared/settings'
 import { type ShortcutFacts, shortcutApplies, shortcutsLeftToPage } from '@shared/shortcut-applies'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
@@ -20,9 +26,10 @@ import { sessions } from '../stores/sessions.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import '../widgets/builtins.ts'
 import { backdropShade } from '../lib/crt-transitions.ts'
+import { frameOf } from './geometry.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
 import PaneDropOverlay from './PaneDropOverlay.svelte'
-import { frameOfPane, measureFrames } from './pane-close.ts'
+import { frameOfPane, measureFrames } from './pane-measure.ts'
 import { goToPreset } from './presets.ts'
 import { sessionsToReap } from './reap.ts'
 import { isSummonAction, summonActions, summonChoice } from './summon.ts'
@@ -47,7 +54,7 @@ $effect(() => {
   void layout.load()
   // The names only: the trees stay in main. Read at startup because the
   // shortcuts for the first slots work without the dialog ever being opened.
-  void layout.loadSaved()
+  void layout.saved.load()
 })
 
 // Closing animates only in a workspace that is on screen and moving: never with
@@ -66,18 +73,13 @@ $effect(() => {
 // Bringing a pane forward measures the workspace it is pinned over, and the
 // place the pane came out of, which is where it flies from and back to.
 $effect(() => {
-  layout.zoomMotion = {
+  layout.zoom.motion = {
     animates: () => !appearance.reducedMotion && boot.phase === 'done',
-    area: () => {
-      const box = workspace?.getBoundingClientRect()
-      if (box === undefined) return null
-      const { top, right, bottom, left } = box
-      return { top, right, bottom, left }
-    },
+    area: () => (workspace === null ? null : frameOf(workspace)),
     frameOf: (paneId) => frameOfPane(paneId),
   }
   return () => {
-    layout.zoomMotion = null
+    layout.zoom.motion = null
   }
 })
 
@@ -176,8 +178,8 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   // widget that is not brought forward leaves the keys to the pane, as a pane
   // outside a tab group leaves the tab keys to the shell.
   'pane.zoom': () => {
-    const target = layout.zoomedPaneId ?? layout.focusedPaneId
-    if (target !== null) layout.toggleZoom(target)
+    const target = layout.zoom.paneId ?? layout.focusedPaneId
+    if (target !== null) layout.zoom.toggle(target)
   },
   'focus.next': () => layout.cycleFocus(1),
   'focus.previous': () => layout.cycleFocus(-1),
@@ -250,15 +252,15 @@ function summon(widget: string): void {
 /** Focuses the shell in its selected tab, or adds a shell pane first when there is none. */
 function focusShell(): void {
   const pane = layout.shellToFocus()
-  if (pane === null) layout.addPane('terminal', 'right')
+  if (pane === null) layout.addPane(SHELL_WIDGET, 'right')
   else layout.focus(pane)
   ui.focusShell()
 }
 
 /** Applies the saved layout in a slot (an empty one does not apply: `shortcutApplies`). */
 function applySavedSlot(index: number): void {
-  const entry = layout.savedLayouts[index]
-  if (entry !== undefined) void layout.switchTo(entry.id)
+  const entry = layout.saved.list[index]
+  if (entry !== undefined) void layout.saved.switchTo(entry.id)
 }
 
 /**
@@ -269,7 +271,7 @@ function applySavedSlot(index: number): void {
  */
 function findInShell(): boolean {
   const focused = layout.panes.find((p) => p.id === layout.focusedPaneId)
-  if (focused?.widget !== 'terminal') {
+  if (focused === undefined || !isShellWidget(focused.widget)) {
     const pane = layout.shellToFocus()
     if (pane === null) return false
     layout.focus(pane)
@@ -301,8 +303,6 @@ function cycleShell(delta: number): boolean {
   return true
 }
 
-const isShell = (widget: string): boolean => widget === 'terminal'
-
 /**
  * What decides whether the conditional shortcuts apply, with `paneId` as the focused pane.
  * Reads only reactive state, so the web pane's answer below follows the layout by itself.
@@ -310,15 +310,15 @@ const isShell = (widget: string): boolean => widget === 'terminal'
 function shortcutFacts(paneId: string | null, editing: boolean): ShortcutFacts {
   const root = layout.tree.root
   const focused = layout.panes.find((p) => p.id === paneId)
-  const zoomTarget = layout.zoomedPaneId ?? paneId
+  const zoomTarget = layout.zoom.paneId ?? paneId
   return {
-    focusedIsShell: focused !== undefined && isShell(focused.widget),
-    zoomable: zoomTarget !== null && layout.zoomModeFor(zoomTarget) !== null,
-    savedCount: layout.savedLayouts.length,
-    anyShell: layout.panes.some((p) => isShell(p.widget)),
+    focusedIsShell: focused !== undefined && isShellWidget(focused.widget),
+    zoomable: zoomTarget !== null && layout.zoom.modeFor(zoomTarget) !== null,
+    savedCount: layout.saved.list.length,
+    anyShell: layout.panes.some((p) => isShellWidget(p.widget)),
     shellToFind: layout.shellToFocus() !== null,
     inTabGroup: paneId !== null && neighbourTab(root, paneId, 1) !== null,
-    otherShell: paneId !== null && neighbourShell(root, paneId, 1, isShell) !== null,
+    otherShell: paneId !== null && neighbourShell(root, paneId, 1, isShellWidget) !== null,
     editingText: editing,
   }
 }
@@ -362,8 +362,8 @@ function onKeydown(event: KeyboardEvent): void {
   // Escape puts a pane that is forward back, as it closes a dialog. Not a
   // binding: a chord must hold Ctrl or Alt (keybindings.ts), so Escape cannot be
   // one, and a dialog over the workspace has the key first.
-  if (event.key === 'Escape' && layout.zoomedPaneId !== null && !ui.dialogOpen) {
-    layout.unzoom()
+  if (event.key === 'Escape' && layout.zoom.paneId !== null && !ui.dialogOpen) {
+    layout.zoom.putBack()
     claim(event)
     return
   }
@@ -423,7 +423,7 @@ function onBeforeUnload(): void {
 <svelte:window
   onkeydowncapture={onKeydown}
   onbeforeunload={onBeforeUnload}
-  onresize={() => layout.repin()}
+  onresize={() => layout.zoom.repin()}
 />
 
 <div
@@ -451,7 +451,7 @@ function onBeforeUnload(): void {
     <LayoutNodeView node={layout.tree.root} />
   {/if}
 </div>
-{#if layout.zoomedPaneId !== null}
+{#if layout.zoom.paneId !== null}
   <!-- The shade behind the pane that is forward: clicking it puts the pane back,
        as clicking a dialog's backdrop closes the dialog. The keyboard path is
        Escape, handled above, and the shortcut. -->
@@ -459,7 +459,7 @@ function onBeforeUnload(): void {
   <div
     class="zoom-backdrop"
     transition:backdropShade
-    onpointerdown={(e) => e.target === e.currentTarget && layout.unzoom()}
+    onpointerdown={(e) => e.target === e.currentTarget && layout.zoom.putBack()}
     data-testid="zoom-backdrop"
   ></div>
 {/if}

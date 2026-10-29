@@ -6,7 +6,8 @@
  * so an effect added here reaches both.
  */
 
-import { CRT_CLOSE_MS, type Inset, insetStyle } from './pane-close.js'
+import { CRT_CLOSE_MS } from '../lib/crt-timing.js'
+import { type Inset, insetStyle } from './pane-close.js'
 
 /** What a host is doing now, as the layout store says it. */
 export interface HostMotionState {
@@ -16,9 +17,9 @@ export interface HostMotionState {
   extend: Inset | undefined
   /** Pinned over the workspace by the zoom. */
   pinned: boolean
-  /** The zoom's flight, while one plays (`layout.zoomPhase`). */
+  /** The zoom's flight, while one plays (`layout.zoom.phase`). */
   zoomPhase: 'in' | 'out' | null
-  /** Where the zoom pins the host, and its flight (`layout.zoomStyle`). */
+  /** Where the zoom pins the host, and its flight (`layout.zoom.style`). */
   zoomStyle: string | null
   /**
    * Powering on, with the `--crt-*` timing it plays with; null when it is not.

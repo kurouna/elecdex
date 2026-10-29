@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CRT_ZOOM_MS,
   flipFrom,
   PANEL_BOX,
   pinStyle,
   ZOOM_FRACTION,
   zoomBox,
 } from '../../src/renderer/layout/pane-zoom.js'
+import { CRT_ZOOM_MS } from '../../src/renderer/lib/crt-timing.js'
 
 /**
  * The geometry of a pane brought to the front: the box it is pinned in, and the

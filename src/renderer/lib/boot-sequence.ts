@@ -1,5 +1,5 @@
 import type { AppInfo, MachineFacts } from '@shared/api'
-import { collectPanes } from '@shared/layout-ops'
+import { collectPanes, isShellWidget } from '@shared/layout-ops'
 import type { LayoutNode } from '@shared/schemas/layout'
 import { formatBytes } from './format.js'
 
@@ -292,7 +292,7 @@ const NETWORK_SERVICES = [
 function serviceLines(facts: BootFacts): BootLine[] {
   const { info, panes, metricSources, online, alerts, updateCheck, awake } = facts
   const present = new Set(panes.map((p) => p.widget))
-  const terminals = panes.filter((p) => p.widget === 'terminal').length
+  const terminals = panes.filter((p) => isShellWidget(p.widget)).length
   const lines: BootLine[] = [
     plain(''),
     plain(`Welcome to elecdex ${info.version}!`, { strong: true, pause: 400 }),
@@ -421,4 +421,25 @@ export function revealDelays(
     delays.set(id, Math.round(timing.modulesAt + i * gap + jitter))
   })
   return delays
+}
+
+/**
+ * The moments at which something powers on, told apart by what it is: one sound
+ * for the shells, which come on together, and one for each moment a module or a
+ * group of them does. Silent when nothing arrives. The boot reveal and a
+ * layout switch both play them.
+ */
+export function revealSoundTimes(
+  root: LayoutNode,
+  isShell: (widget: string) => boolean,
+  delays: ReadonlyMap<string, number>,
+): { shells: number[]; modules: number[] } {
+  const shells = new Set<number>()
+  const modules = new Set<number>()
+  for (const node of collectPanes(root)) {
+    const delay = delays.get(node.id) ?? 0
+    if (isShell(node.widget)) shells.add(delay)
+    else modules.add(delay)
+  }
+  return { shells: [...shells], modules: [...modules] }
 }

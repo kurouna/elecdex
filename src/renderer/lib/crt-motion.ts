@@ -5,12 +5,7 @@
  * again before it has gone; a class would leave the dialog collapsed.
  */
 
-import { CRT_CLOSE_MS } from '../layout/pane-close.js'
-
-/** How long a dialog or a notice takes to power off, as a pane does. */
-export const POWER_OFF_MS = CRT_CLOSE_MS
-/** How long a dialog's power-on runs (the dialogs' `--crt-duration`). */
-export const DIALOG_ON_MS = 380
+import { DIALOG_ON_MS, POWER_OFF_MS } from './crt-timing.js'
 
 /** Where in the power-off the picture has become the line, and the dot. */
 const LINE_AT = 0.45

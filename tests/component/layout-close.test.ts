@@ -1,13 +1,12 @@
 import { collectPanes, emptyNode, isEmptyLayout, pane, split, tabs } from '@shared/layout-ops'
 import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from '@shared/schemas/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Frame } from '../../src/renderer/layout/pane-close.ts'
+import type { Frame } from '../../src/renderer/layout/geometry.ts'
+import { CLOSE_SETTLE_MS, CRT_EXTEND_MS } from '../../src/renderer/lib/crt-timing.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
-const { CLOSE_SETTLE_MS, CRT_EXTEND_MS, measureFrames } = await import(
-  '../../src/renderer/layout/pane-close.ts'
-)
+const { measureFrames } = await import('../../src/renderer/layout/pane-measure.ts')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { sfx } = await import('../../src/renderer/stores/sound.svelte.ts')
 

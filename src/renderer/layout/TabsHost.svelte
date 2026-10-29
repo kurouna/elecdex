@@ -45,8 +45,8 @@ let aimed = $state(false)
  * come too, so the other tabs are still there to switch to, and the group is one
  * picture rather than a pane floating out of its own frame.
  */
-const pinned = $derived(activeChild !== undefined && layout.pinnedPaneId === activeChild.id)
-const zoomed = $derived(activeChild !== undefined && layout.zoomedPaneId === activeChild.id)
+const pinned = $derived(activeChild !== undefined && layout.zoom.pinnedId === activeChild.id)
+const zoomed = $derived(activeChild !== undefined && layout.zoom.paneId === activeChild.id)
 /**
  * The corner offers the zoom for the tab that is showing, since the group comes
  * forward as a whole: a tab whose widget has nothing to gain from the room is
@@ -58,8 +58,8 @@ const motion = $derived(
     closing: leaving || closing,
     extend,
     pinned,
-    zoomPhase: layout.zoomPhase,
-    zoomStyle: layout.zoomStyle,
+    zoomPhase: layout.zoom.phase,
+    zoomStyle: layout.zoom.style,
   }),
 )
 
@@ -89,7 +89,7 @@ const activeTitle = $derived(
     {zoomed}
     count={node.children.length}
     onzoom={() => {
-      if (activeChild) layout.toggleZoom(activeChild.id)
+      if (activeChild) layout.zoom.toggle(activeChild.id)
     }}
     onclose={() => layout.close(node.id)}
     onaim={(on) => {

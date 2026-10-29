@@ -1,6 +1,6 @@
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { POWER_OFF_MS } from '../../src/renderer/lib/crt-motion.ts'
+import { POWER_OFF_MS } from '../../src/renderer/lib/crt-timing.ts'
 import { backdropShade, crtPower, dialogDelay } from '../../src/renderer/lib/crt-transitions.ts'
 import { appearance } from '../../src/renderer/stores/appearance.svelte.ts'
 import { ui } from '../../src/renderer/stores/ui.svelte.ts'

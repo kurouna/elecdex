@@ -10,7 +10,7 @@ const stores = vi.hoisted(() => ({
     paneWith: vi.fn((_widget: string): string | null => null),
     focus: vi.fn(),
     addPane: vi.fn(),
-    switchTo: vi.fn(async (_id: string) => true),
+    saved: { switchTo: vi.fn(async (_id: string) => true) },
   },
   ui: { openPopup: vi.fn(), openSettings: vi.fn() },
   appearance: { patch: vi.fn(async () => ({})) },
@@ -45,9 +45,9 @@ describe('storeTargets', () => {
 
   it('switches a layout as its number key does, answering as the switch does', async () => {
     expect(await storeTargets.layout('l2')).toBe(true)
-    stores.layout.switchTo.mockResolvedValueOnce(false)
+    stores.layout.saved.switchTo.mockResolvedValueOnce(false)
     expect(await storeTargets.layout('l3')).toBe(false)
-    expect(stores.layout.switchTo.mock.calls).toEqual([['l2'], ['l3']])
+    expect(stores.layout.saved.switchTo.mock.calls).toEqual([['l2'], ['l3']])
   })
 
   it('uses a theme, with its sound once the setting is written', async () => {

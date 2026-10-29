@@ -57,7 +57,7 @@ export function dispatch(item: PaletteItem, targets: PaletteTargets): Went {
 export const storeTargets: PaletteTargets = {
   action: (id) => commands.run(id),
   // The question about the shells is the switch's own (`mayReplace`).
-  layout: (id) => layout.switchTo(id),
+  layout: (id) => layout.saved.switchTo(id),
   theme: (id) => {
     void appearance.patch({ theme: id }).then(() => sfx.play('theme'))
     return true

@@ -95,7 +95,7 @@ describe('applying a saved layout', () => {
     await vi.advanceTimersByTimeAsync(1000)
     expect(outstanding).toBe(true)
 
-    const applied = layout.applySaved('two')
+    const applied = layout.saved.apply('two')
     // Every pending microtask runs here; an apply that did not wait lands now.
     await vi.advanceTimersByTimeAsync(10)
     expect(appliedWhileSaving).toBeNull()
@@ -111,7 +111,7 @@ describe('applying a saved layout', () => {
     // No time passes: the save has not been sent yet.
     expect(outstanding).toBe(false)
 
-    const applied = layout.applySaved('two')
+    const applied = layout.saved.apply('two')
     await vi.advanceTimersByTimeAsync(10)
     // Sent by the flush, and holding the apply up until it is answered.
     expect(outstanding).toBe(true)
@@ -129,7 +129,7 @@ describe('applying a saved layout', () => {
     // depending on how long the user took to type the name.
     await layout.load()
     rearrange()
-    const kept = layout.saveAs('two')
+    const kept = layout.saved.saveAs('two')
     await vi.advanceTimersByTimeAsync(10)
     expect(keptWhileSaving).toBeNull()
 
@@ -148,7 +148,7 @@ describe('applying a saved layout', () => {
       await layout.load()
       const old = layout.panes[0]
       if (old === undefined) throw new Error('no pane')
-      const applied = layout.applySaved('two')
+      const applied = layout.saved.apply('two')
       await vi.advanceTimersByTimeAsync(10)
       const save = vi.mocked(window.elecdex.layout.save)
       save.mockClear()

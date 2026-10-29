@@ -1,5 +1,5 @@
 import type { AppInfo, MachineFacts } from '@shared/api'
-import { collectPanes } from '@shared/layout-ops'
+import { collectPanes, isShellWidget } from '@shared/layout-ops'
 import { METRIC_SOURCE_IDS } from '@shared/metrics'
 import { awakeLine } from '@shared/utility'
 import {
@@ -9,7 +9,9 @@ import {
   lineDelay,
   printedText,
   revealDelays,
+  revealSoundTimes,
 } from '../lib/boot-sequence.ts'
+import { CRT_MODULE_MS, CRT_SHELL_MS } from '../lib/crt-timing.ts'
 import { listWidgets, resolveWidget } from '../widgets/registry.ts'
 import { appearance } from './appearance.svelte.ts'
 import { awake } from './awake.svelte.ts'
@@ -37,12 +39,6 @@ export type BootPhase =
 
 /** How long the title card holds, and when its parts change. */
 export const TITLE_TIMING = { glitchAt: 650, glitchFor: 500, greetAt: 1150, offAt: 2100, end: 2450 }
-
-/** How long one pane's power-on runs; a shell's is longer, as the main screen. */
-export const CRT_MODULE_MS = 650
-export const CRT_SHELL_MS = 900
-/** A pane added later powers on quicker, so it does not hold up the work. */
-export const CRT_ADDED_MS = 520
 
 /** Remembers, per window, that the intro has played, so a reload does not replay it. */
 const PLAYED_KEY = 'elecdex.intro-played'
@@ -172,14 +168,13 @@ class BootStore {
   }
 
   private async playReveal(): Promise<void> {
-    const isShell = (widget: string) => resolveWidget(widget)?.chrome === 'shell'
-    this.delays = revealDelays(layout.tree.root, isShell)
+    this.delays = revealDelays(layout.tree.root, isShellWidget)
     this.phase = 'reveal'
     this.playRevealSounds()
 
     let end = 0
     for (const node of collectPanes(layout.tree.root)) {
-      const duration = isShell(node.widget) ? CRT_SHELL_MS : CRT_MODULE_MS
+      const duration = isShellWidget(node.widget) ? CRT_SHELL_MS : CRT_MODULE_MS
       end = Math.max(end, (this.delays.get(node.id) ?? 0) + duration)
     }
     await wait(end + 50)
@@ -188,13 +183,7 @@ class BootStore {
 
   /** One sound per moment something powers on: the shell opening, then each module as it comes on. */
   private playRevealSounds(): void {
-    const shells = new Set<number>()
-    const modules = new Set<number>()
-    for (const node of collectPanes(layout.tree.root)) {
-      const delay = this.delays.get(node.id) ?? 0
-      if (resolveWidget(node.widget)?.chrome === 'shell') shells.add(delay)
-      else modules.add(delay)
-    }
+    const { shells, modules } = revealSoundTimes(layout.tree.root, isShellWidget, this.delays)
     for (const delay of shells) setTimeout(() => !this.cancelled && sfx.play('expand'), delay)
     for (const delay of modules) setTimeout(() => !this.cancelled && sfx.play('panel'), delay)
   }

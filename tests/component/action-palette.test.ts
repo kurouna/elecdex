@@ -55,7 +55,7 @@ beforeEach(() => {
     version: LAYOUT_VERSION,
     root: split('row', [pane('terminal'), pane('clock')]),
   }
-  layout.savedLayouts = [
+  layout.saved.list = [
     { id: 'l1', name: 'Work', active: true, preset: null, shape: [] },
     { id: 'l2', name: 'Night', active: false, preset: null, shape: [] },
   ]

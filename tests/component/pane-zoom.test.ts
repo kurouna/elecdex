@@ -1,14 +1,13 @@
 import { collectPanes, pane, split, tabs } from '@shared/layout-ops'
 import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from '@shared/schemas/layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Frame } from '../../src/renderer/layout/pane-close.ts'
+import type { Frame } from '../../src/renderer/layout/geometry.ts'
+import { CRT_UNZOOM_MS, CRT_ZOOM_MS } from '../../src/renderer/lib/crt-timing.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
-const { CRT_UNZOOM_MS, CRT_ZOOM_MS, PANEL_BOX } = await import(
-  '../../src/renderer/layout/pane-zoom.ts'
-)
-const { frameOfPane } = await import('../../src/renderer/layout/pane-close.ts')
+const { PANEL_BOX } = await import('../../src/renderer/layout/pane-zoom.ts')
+const { frameOfPane } = await import('../../src/renderer/layout/pane-measure.ts')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { paneDrag } = await import('../../src/renderer/layout/pane-drag.svelte.ts')
 const { registerBuiltin, zoomModeOf } = await import('../../src/renderer/widgets/registry.ts')
@@ -80,7 +79,7 @@ beforeEach(() => {
   animates = true
   area = AREA
   layout.closeMotion = { animates: () => animates, frames: () => framesOf(layout.tree) }
-  layout.zoomMotion = {
+  layout.zoom.motion = {
     animates: () => animates,
     area: () => area,
     // As laid out, never where the pin put it: the real one measures the pane's
@@ -92,7 +91,7 @@ beforeEach(() => {
 afterEach(() => {
   layout.settle()
   layout.closeMotion = null
-  layout.zoomMotion = null
+  layout.zoom.motion = null
   vi.clearAllMocks()
   vi.useRealTimers()
   vi.unstubAllGlobals()
@@ -104,68 +103,68 @@ describe('zooming a pane', () => {
 
   it('pins it over the workspace, focuses it, and flies it out of its place', () => {
     load(split('row', [a, b]), b.id)
-    layout.zoom(a.id)
+    layout.zoom.bring(a.id)
 
-    expect(layout.zoomedPaneId).toBe(a.id)
-    expect(layout.pinnedPaneId).toBe(a.id)
+    expect(layout.zoom.paneId).toBe(a.id)
+    expect(layout.zoom.pinnedId).toBe(a.id)
     expect(layout.focusedPaneId).toBe(a.id)
-    expect(layout.zoomPin).toEqual(PINNED)
-    expect(layout.zoomPhase).toBe('in')
+    expect(layout.zoom.pin).toEqual(PINNED)
+    expect(layout.zoom.phase).toBe('in')
     // From the left half of the window into the middle of it.
-    expect(layout.zoomFlip).toMatchObject({ sx: 500 / 900, sy: 800 / 720 })
-    expect(layout.zoomStyle).toContain('width: 900px')
+    expect(layout.zoom.flip).toMatchObject({ sx: 500 / 900, sy: 800 / 720 })
+    expect(layout.zoom.style).toContain('width: 900px')
 
     vi.advanceTimersByTime(CRT_ZOOM_MS)
-    expect(layout.zoomPhase).toBeNull()
-    expect(layout.zoomFlip).toBeNull()
+    expect(layout.zoom.phase).toBeNull()
+    expect(layout.zoom.flip).toBeNull()
     // Still pinned, and still placed: only the flight is over.
-    expect(layout.zoomPin).toEqual(PINNED)
-    expect(layout.zoomStyle).toContain('height: 720px')
+    expect(layout.zoom.pin).toEqual(PINNED)
+    expect(layout.zoom.style).toContain('height: 720px')
   })
 
   it('flies it back into its place before letting go of it', () => {
     load(split('row', [a, b]), a.id)
-    layout.zoom(a.id)
+    layout.zoom.bring(a.id)
     vi.advanceTimersByTime(CRT_ZOOM_MS)
 
-    layout.toggleZoom(a.id)
-    expect(layout.zoomedPaneId).toBeNull()
+    layout.zoom.toggle(a.id)
+    expect(layout.zoom.paneId).toBeNull()
     // Held over the workspace for as long as the flight lasts.
-    expect(layout.pinnedPaneId).toBe(a.id)
-    expect(layout.zoomPhase).toBe('out')
-    expect(layout.zoomFlip).toMatchObject({ sx: 500 / 900 })
+    expect(layout.zoom.pinnedId).toBe(a.id)
+    expect(layout.zoom.phase).toBe('out')
+    expect(layout.zoom.flip).toMatchObject({ sx: 500 / 900 })
 
     vi.advanceTimersByTime(CRT_UNZOOM_MS)
-    expect(layout.pinnedPaneId).toBeNull()
-    expect(layout.zoomPin).toBeNull()
-    expect(layout.zoomStyle).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
+    expect(layout.zoom.pin).toBeNull()
+    expect(layout.zoom.style).toBeNull()
   })
 
   it('goes there and back at once with motion reduced', () => {
     animates = false
     load(split('row', [a, b]), a.id)
-    layout.zoom(a.id)
-    expect(layout.zoomPhase).toBeNull()
-    expect(layout.zoomFlip).toBeNull()
-    expect(layout.zoomPin).toEqual(PINNED)
+    layout.zoom.bring(a.id)
+    expect(layout.zoom.phase).toBeNull()
+    expect(layout.zoom.flip).toBeNull()
+    expect(layout.zoom.pin).toEqual(PINNED)
 
-    layout.unzoom()
-    expect(layout.pinnedPaneId).toBeNull()
-    expect(layout.zoomPin).toBeNull()
+    layout.zoom.putBack()
+    expect(layout.zoom.pinnedId).toBeNull()
+    expect(layout.zoom.pin).toBeNull()
   })
 
   it('pins nothing when the workspace cannot be measured', () => {
     area = null
     load(split('row', [a, b]), a.id)
-    layout.zoom(a.id)
-    expect(layout.zoomedPaneId).toBeNull()
-    expect(layout.zoomPin).toBeNull()
+    layout.zoom.bring(a.id)
+    expect(layout.zoom.paneId).toBeNull()
+    expect(layout.zoom.pin).toBeNull()
   })
 
   it('does nothing for a pane that is not in the layout', () => {
     load(split('row', [a, b]), a.id)
-    layout.zoom('nowhere')
-    expect(layout.zoomedPaneId).toBeNull()
+    layout.zoom.bring('nowhere')
+    expect(layout.zoom.paneId).toBeNull()
   })
 })
 
@@ -226,21 +225,21 @@ describe('which panes may be brought forward', () => {
 
   it('a pane whose widget says nothing is left where it is', () => {
     load(split('row', [a, small]), small.id)
-    layout.zoom(small.id)
-    expect(layout.zoomedPaneId).toBeNull()
-    expect(layout.pinnedPaneId).toBeNull()
-    expect(layout.zoomPin).toBeNull()
+    layout.zoom.bring(small.id)
+    expect(layout.zoom.paneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
+    expect(layout.zoom.pin).toBeNull()
     // And the toggle does not put it forward either.
-    layout.toggleZoom(small.id)
-    expect(layout.zoomedPaneId).toBeNull()
+    layout.zoom.toggle(small.id)
+    expect(layout.zoom.paneId).toBeNull()
   })
 
   it('a panel widget is pinned in its own box, not over the whole workspace', () => {
     load(split('row', [a, panel]), panel.id)
-    layout.zoom(panel.id)
-    const pin = layout.zoomPin
+    layout.zoom.bring(panel.id)
+    const pin = layout.zoom.pin
     expect(pin).not.toBeNull()
-    expect(layout.zoomMode).toBe('panel')
+    expect(layout.zoom.mode).toBe('panel')
     // The workspace here is 1000x800, so the panel is held to the nine tenths it
     // cannot exceed - what matters is that it is never wider than its own size.
     expect((pin?.right ?? 0) - (pin?.left ?? 0)).toBeLessThanOrEqual(PANEL_BOX.w)
@@ -249,29 +248,29 @@ describe('which panes may be brought forward', () => {
 
   it('a window resize keeps a panel a panel', () => {
     load(split('row', [a, panel]), panel.id)
-    layout.zoom(panel.id)
+    layout.zoom.bring(panel.id)
     vi.advanceTimersByTime(CRT_ZOOM_MS)
     area = { top: 0, right: 4000, bottom: 3000, left: 0 }
-    layout.repin()
-    expect((layout.zoomPin?.right ?? 0) - (layout.zoomPin?.left ?? 0)).toBe(PANEL_BOX.w)
+    layout.zoom.repin()
+    expect((layout.zoom.pin?.right ?? 0) - (layout.zoom.pin?.left ?? 0)).toBe(PANEL_BOX.w)
   })
 
   it('a tab of another size re-places the group it brought forward', () => {
     load(split('row', [a, tabs([pane('rss'), pane('calc')], 0)]), a.id)
     const [, full, panelTab] = collectPanes(layout.tree.root)
     if (full === undefined || panelTab === undefined) throw new Error('no tabs')
-    layout.zoom(full.id)
+    layout.zoom.bring(full.id)
     vi.advanceTimersByTime(CRT_ZOOM_MS)
-    const wide = (layout.zoomPin?.right ?? 0) - (layout.zoomPin?.left ?? 0)
+    const wide = (layout.zoom.pin?.right ?? 0) - (layout.zoom.pin?.left ?? 0)
 
     layout.focus(panelTab.id)
-    expect(layout.zoomedPaneId).toBe(panelTab.id)
-    expect(layout.zoomMode).toBe('panel')
+    expect(layout.zoom.paneId).toBe(panelTab.id)
+    expect(layout.zoom.mode).toBe('panel')
     // The group is still forward, but held to what a panel takes.
-    expect((layout.zoomPin?.bottom ?? 0) - (layout.zoomPin?.top ?? 0)).toBeLessThanOrEqual(
+    expect((layout.zoom.pin?.bottom ?? 0) - (layout.zoom.pin?.top ?? 0)).toBeLessThanOrEqual(
       PANEL_BOX.h,
     )
-    expect((layout.zoomPin?.right ?? 0) - (layout.zoomPin?.left ?? 0)).toBeLessThanOrEqual(wide)
+    expect((layout.zoom.pin?.right ?? 0) - (layout.zoom.pin?.left ?? 0)).toBeLessThanOrEqual(wide)
   })
 
   it('a tab that cannot be brought forward puts the group back', () => {
@@ -280,14 +279,14 @@ describe('which panes may be brought forward', () => {
     const first = collectPanes(group)[1]
     const second = collectPanes(group)[2]
     if (first === undefined || second === undefined) throw new Error('no tabs')
-    layout.zoom(first.id)
+    layout.zoom.bring(first.id)
     vi.advanceTimersByTime(CRT_ZOOM_MS)
-    expect(layout.zoomedPaneId).toBe(first.id)
+    expect(layout.zoom.paneId).toBe(first.id)
 
     layout.focus(second.id)
-    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
     vi.advanceTimersByTime(CRT_UNZOOM_MS)
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
   })
 })
 
@@ -298,60 +297,60 @@ describe('what lets go of a zoomed pane', () => {
 
   const zoom = (root: LayoutNode, id: string): void => {
     load(root, id)
-    layout.zoom(id)
+    layout.zoom.bring(id)
     vi.advanceTimersByTime(CRT_ZOOM_MS)
   }
 
   it('focusing another pane', () => {
     zoom(split('row', [a, b]), a.id)
     layout.focus(b.id)
-    expect(layout.zoomedPaneId).toBeNull()
-    expect(layout.zoomPhase).toBe('out')
+    expect(layout.zoom.paneId).toBeNull()
+    expect(layout.zoom.phase).toBe('out')
     vi.advanceTimersByTime(CRT_UNZOOM_MS)
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
   })
 
   it('but another tab of the same group takes the zoom with it', () => {
     zoom(split('row', [a, tabs([b, c], 0)]), b.id)
     layout.focus(c.id)
-    expect(layout.zoomedPaneId).toBe(c.id)
-    expect(layout.pinnedPaneId).toBe(c.id)
-    expect(layout.zoomPin).toEqual(PINNED)
+    expect(layout.zoom.paneId).toBe(c.id)
+    expect(layout.zoom.pinnedId).toBe(c.id)
+    expect(layout.zoom.pin).toEqual(PINNED)
     // The group has not moved, so nothing flies: only the tab shown in it changed.
-    expect(layout.zoomPhase).toBeNull()
+    expect(layout.zoom.phase).toBeNull()
   })
 
   it('splitting or moving', () => {
     zoom(split('row', [a, b]), a.id)
     layout.split(a.id, 'right', 'clock')
-    expect(layout.zoomedPaneId).toBeNull()
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
 
     zoom(split('row', [a, b]), a.id)
     layout.move(a.id, b.id, 'right')
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
   })
 
   it('closing another pane', () => {
     zoom(split('row', [a, b]), a.id)
     layout.close(b.id)
-    expect(layout.zoomedPaneId).toBeNull()
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
   })
 
   it('closing the zoomed pane itself, which powers off where it stands', () => {
     zoom(split('row', [a, b]), a.id)
     layout.close(a.id)
-    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
     expect(layout.closingId).toBe(a.id)
     // Still over the workspace: a pane that snapped back first would jump.
-    expect(layout.pinnedPaneId).toBe(a.id)
-    expect(layout.zoomPin).toEqual(PINNED)
-    expect(layout.zoomPhase).toBeNull()
+    expect(layout.zoom.pinnedId).toBe(a.id)
+    expect(layout.zoom.pin).toEqual(PINNED)
+    expect(layout.zoom.phase).toBeNull()
 
     vi.advanceTimersByTime(2000)
     expect(ids()).toEqual([b.id])
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
   })
 
   it('closing the focused pane, which is the one forward even when the focus says otherwise', () => {
@@ -362,41 +361,41 @@ describe('what lets go of a zoomed pane', () => {
     expect(layout.closingId).toBe(a.id)
     vi.advanceTimersByTime(2000)
     expect(ids()).toEqual([b.id])
-    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
   })
 
   it('closing the group of the zoomed tab, which powers off in front as a whole', () => {
     const group = tabs([b, c], 0)
     zoom(split('row', [a, group]), b.id)
     layout.close(group.id)
-    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
     expect(layout.closingId).toBe(group.id)
     // The group stays where it was brought forward, pinned by the tab it shows.
-    expect(layout.pinnedPaneId).toBe(b.id)
-    expect(layout.zoomPin).toEqual(PINNED)
-    expect(layout.zoomPhase).toBeNull()
+    expect(layout.zoom.pinnedId).toBe(b.id)
+    expect(layout.zoom.pin).toEqual(PINNED)
+    expect(layout.zoom.phase).toBeNull()
 
     vi.advanceTimersByTime(2000)
     expect(ids()).toEqual([a.id])
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
   })
 
   it('closing a group the zoomed pane is not in', () => {
     const group = tabs([b, c], 0)
     zoom(split('row', [a, group]), a.id)
     layout.close(group.id)
-    expect(layout.zoomedPaneId).toBeNull()
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
     expect(layout.closingId).toBe(group.id)
   })
 
   it('a drag of it, which needs the workspace back to find a drop target', () => {
     zoom(split('row', [a, b]), a.id)
     paneDrag.begin(a.id, 'clock')
-    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
     paneDrag.end(false)
     vi.advanceTimersByTime(CRT_UNZOOM_MS)
-    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
   })
 
   it('resetting the layout, including a zoom asked for while the new tree was on its way', async () => {
@@ -424,8 +423,8 @@ describe('what lets go of a zoomed pane', () => {
     // reset writes out any pending save before it asks, so the ask - and the
     // `deliver` that answers it - exists only after those microtasks have run.
     await vi.advanceTimersByTimeAsync(0)
-    layout.zoom(b.id)
-    expect(layout.zoomedPaneId).toBe(b.id)
+    layout.zoom.bring(b.id)
+    expect(layout.zoom.paneId).toBe(b.id)
 
     deliver(fresh)
     // The tree arriving replaces the whole layout, which powers the old one off
@@ -434,17 +433,17 @@ describe('what lets go of a zoomed pane', () => {
     await done
 
     expect(ids()).toEqual(collectPanes(fresh.root).map((p) => p.id))
-    expect(layout.zoomedPaneId).toBeNull()
-    expect(layout.pinnedPaneId).toBeNull()
-    expect(layout.zoomPin).toBeNull()
+    expect(layout.zoom.paneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBeNull()
+    expect(layout.zoom.pin).toBeNull()
   })
 
   it('a window resize re-places it where it is', () => {
     zoom(split('row', [a, b]), a.id)
     area = { top: 0, right: 500, bottom: 400, left: 0 }
-    layout.repin()
-    expect(layout.zoomPin).toEqual({ top: 20, right: 475, bottom: 380, left: 25 })
+    layout.zoom.repin()
+    expect(layout.zoom.pin).toEqual({ top: 20, right: 475, bottom: 380, left: 25 })
     // Re-placing is not a flight: nothing replays.
-    expect(layout.zoomPhase).toBeNull()
+    expect(layout.zoom.phase).toBeNull()
   })
 })

@@ -233,7 +233,7 @@ shared/palette.ts            <span class="new">NEW</span> 純粋: PaletteItem �
 renderer/palette/
   sources.ts                 <span class="new">NEW</span> PALETTE_SOURCES: 種類ごとに 1 関数 (facts) => PaletteItem[]。足すのは 1 行
     actions   ← KEYBINDING_ACTIONS + actionChord + shortcutApplies（いまの判定をそのまま読む）
-    layouts   ← layout.savedLayouts（スロットのキーも）     presets ← layout/presets.ts
+    layouts   ← layout.saved.list（スロットのキーも）     presets ← layout/presets.ts
     themes    ← BUILTIN_THEMES + 利用者のテーマ             panes   ← listWidgets()（ピッカーと同じ絞り込み）
     settings  ← SettingsDialog の SECTIONS を外へ出したもの
   ActionPalette.svelte       <span class="new">NEW</span> 描くだけ。PanePicker と同じ骨組み（crt-on / crtPower / backdropShade / dialogDelay）

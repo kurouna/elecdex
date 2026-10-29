@@ -1,12 +1,5 @@
 import type { Placement } from '@shared/layout-ops'
-
-/** A box in viewport pixels, as getBoundingClientRect gives it. */
-export interface Box {
-  left: number
-  top: number
-  width: number
-  height: number
-}
+import type { Box } from '../layout/geometry.js'
 
 /**
  * Where a drop at (x, y) over `box` would put the dragged pane.

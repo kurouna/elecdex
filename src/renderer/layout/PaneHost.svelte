@@ -1,9 +1,11 @@
 <script lang="ts">
+import { isShellWidget } from '@shared/layout-ops'
 import type { PaneNode } from '@shared/schemas/layout'
 import { untrack } from 'svelte'
+import { CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../lib/crt-timing.ts'
 import PluginPane from '../plugins/PluginPane.svelte'
 import { appearance } from '../stores/appearance.svelte.ts'
-import { boot, CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../stores/boot.svelte.ts'
+import { boot } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
@@ -42,7 +44,7 @@ const revealDelay = $derived(bootDelay ?? switchDelay)
 const revealDuration = $derived(
   bootDelay === null
     ? layout.switchOnMs
-    : definition?.chrome === 'shell'
+    : isShellWidget(node.widget)
       ? CRT_SHELL_MS
       : CRT_MODULE_MS,
 )
@@ -64,9 +66,9 @@ const closing = $derived(layout.closingId === node.id || (!tabbed && layout.leav
  * outside a group is pinned here - but either way the pane flies with it, which
  * a web pane must know about (its page is a view that cannot be transformed).
  */
-const pinned = $derived(!tabbed && layout.pinnedPaneId === node.id)
-const flying = $derived(layout.pinnedPaneId === node.id && layout.zoomPhase !== null)
-const zoomed = $derived(layout.zoomedPaneId === node.id)
+const pinned = $derived(!tabbed && layout.zoom.pinnedId === node.id)
+const flying = $derived(layout.zoom.pinnedId === node.id && layout.zoom.phase !== null)
+const zoomed = $derived(layout.zoom.paneId === node.id)
 /**
  * Whether this widget is brought forward at all (widgets/registry.ts). Asked of
  * the node this host already has, rather than of the store, which would walk the
@@ -74,7 +76,7 @@ const zoomed = $derived(layout.zoomedPaneId === node.id)
  */
 const zoomable = $derived(zoomModeOf(node.widget) !== null)
 /** Every other pane is behind the zoom: out of reach until it is put back. */
-const behindZoom = $derived(layout.zoomedPaneId !== null && !zoomed)
+const behindZoom = $derived(layout.zoom.paneId !== null && !zoomed)
 /** Uncovering the room a closed pane left; a tab's group does it for a tabbed pane. */
 const extend = $derived(tabbed ? undefined : layout.extending.get(node.id))
 // Each of these cuts short a power-on still playing, whose end is then never seen:
@@ -96,8 +98,8 @@ const motion = $derived(
     closing,
     extend,
     pinned,
-    zoomPhase: layout.zoomPhase,
-    zoomStyle: layout.zoomStyle,
+    zoomPhase: layout.zoom.phase,
+    zoomStyle: layout.zoom.style,
     powerOn,
   }),
 )
@@ -175,7 +177,7 @@ $effect(() => () => paneMeta.clear(node.id))
       kind="pane"
       {zoomable}
       {zoomed}
-      onzoom={() => layout.toggleZoom(node.id)}
+      onzoom={() => layout.zoom.toggle(node.id)}
       onclose={() => layout.close(node.id)}
     />
   {/if}

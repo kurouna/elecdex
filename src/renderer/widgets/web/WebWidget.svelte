@@ -193,7 +193,7 @@ const covered = $derived(
     // a view is always drawn above, so the page steps aside for them. Pinned
     // rather than zoomed, so it stays aside while that pane flies home or powers
     // off, when the shade is still fading over this one.
-    (layout.pinnedPaneId !== null && layout.pinnedPaneId !== paneId) ||
+    (layout.zoom.pinnedId !== null && layout.zoom.pinnedId !== paneId) ||
     (rect !== null && web.covered(rect)),
 )
 const wanted = $derived(hasPage && visible && rect !== null && !covered)
