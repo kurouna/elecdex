@@ -167,7 +167,7 @@ layout（分割・閉じる・リサイズ・リロード・再起動・壊れ�
 | `@win32` 等 | プラットフォーム限定 | 該当 OS |
 | `@real` | 実物の読み取り器（sockets・wifi・ethernet・gpu・docker・media）を読み取り専用で | **判断事項**。CI のランナー限定（使い捨てで「この機械」ではない） |
 
-CI の `retries: 1` は不安定さを隠すので、再試行で通ったテストは flaky として報告させる（`--fail-on-flaky-tests` か reporter）。
+CI の `retries: 1` は不安定さを隠すので、再試行で通ったテストは flaky として報告させる（github reporter の「flaky」の注記と html レポート）。2026-10-30 からは、それで CI を落とさない（docs/decisions.md）。
 
 ## 6. 移行計画
 
@@ -240,14 +240,14 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
 
 - **起動の共有**（tests/e2e/support/shared.ts）: テストは `shared(options)` で、同じ起動条件の前後のテストとアプリを共有する。テストの間に、シェルを終え、main のダイアログと shell の差し替えを戻し、窓を起動時の大きさに戻し、テストのレイアウトを保存してリロードし、ポインタを隅に動かす。設定・保存レイアウト・main がプロファイルに置くファイル（Chromium のキャッシュを除く）・窓が起動時と違えば、黙って起動し直す。起動・終了は時計 1 つで約 1.6 秒、既定レイアウトで約 4.3 秒、リロードは約 0.5 秒（計測）。171 テストが 107 回の起動で済んだ。main がファイルに状態を書くテスト（リポジトリ、ログ、ノート、CHIP-8 のセーブ、キャッシュ）は起動し直しになるので、縮んだのは約 1 分。clipboard（main のメモリの履歴）と「収集プロセスは起動しない」の検査は共有しない。
 - **並列は見送った**: worker 3 で 17.2 分、2 で約 17 分だったが、ホバーで開くカード、ドラッグ、ファイル監視のテストが実行のたびに違う組み合わせで落ちた（chip8・clipboard・docker・zoom・agents・git など）。Chromium の隠れた窓の扱いを止めても変わらず、原因はアプリ 2〜3 個分の負荷。直列（worker 1）のまま。負荷で落ちるテストを一つずつ直せば並列にできる（別の作業）。
-- **組分け**: `npx playwright test` は `e2e`（全部）のあとに `perf`（CPU を測る 5 本、`@perf`）を回す。`--project=e2e` で計測を除ける。CI は `failOnFlakyTests` で、再試行で通ったテストも失敗にする。
+- **組分け**: `npx playwright test` は `e2e`（全部）のあとに `perf`（CPU を測る 5 本、`@perf`）を回す。`--project=e2e` で計測を除ける。CI は 1 回だけ再試行し、再試行で通ったテストは flaky として報告するが、CI は落とさない（2 回とも落ちれば失敗）。
 - **再配置**: tests/e2e/app（9）、workspace（8）、panes（32）、extensions（3）、contracts（11）。
 - **一時フォルダの後始末**: 再起動したテストのプロファイルが消えず、開発機の一時フォルダに 1,300 余り残っていた。`launch()` が作ったプロファイルは、再起動をまたいで最後の close と worker の終了時に消す。
 - **全件 515 件、39.9 分**（`perf` を含む）。
 
 ### 6.6 段階 6 の結果（2026-10-24）
 
-- 段: `npm run test:e2e:smoke`（launch と mount・lifecycle の契約、約 2 分）をコミット前に**追加で**回す。素の `npx playwright test` は全部（最後に `perf`）。CI は再試行で通ったテストも失敗にする（`failOnFlakyTests`）。CI でも計測は今の粗い閾値のまま判定する。
+- 段: `npm run test:e2e:smoke`（launch と mount・lifecycle の契約、約 2 分）をコミット前に**追加で**回す。素の `npx playwright test` は全部（最後に `perf`）。CI は再試行で通ったテストを flaky として報告し、失敗にはしない。CI でも計測は今の粗い閾値のまま判定する。
 - パッケージ版: `scripts/packaged-smoke.mjs`（`npm run test:packaged`）。release/ の実行ファイルを使い捨てプロファイルで起動し、CDP で繋いで、初回起動のプリセット、unpacked の node-pty でのシェル、プリセットの描画、`runAsNode` の fuse を確かめる。CI と release の package ジョブで、ランナーが実行できるもの（Windows x64、Linux x64・arm64、macOS arm64）に走らせる。Windows の開発機で通った。
 - CLAUDE.md: コマンド、コミット前の手順（smoke を追加）、リリース手順 2（`perf` を最後に、`package:dir` と `test:packaged`）。
 

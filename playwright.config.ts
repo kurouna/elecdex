@@ -9,8 +9,11 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  // A test that passed only on its retry fails the run on CI rather than hiding there.
-  failOnFlakyTests: !!process.env.CI,
+  // A test that passed only on its retry is reported (the github reporter's "flaky" notice, the
+  // html report) but does not fail the run: one in nearly every run did, a different test each
+  // time on a busy runner, so a red run no longer told a real failure from a slow one
+  // (docs/decisions.md, 2026-10-30). Failing twice still fails.
+  failOnFlakyTests: false,
   timeout: 60_000,
   expect: { timeout: 10_000 },
   // reporter.ts: on a failure, whether an elecdex runs outside the tests (logged).
