@@ -52,10 +52,44 @@ const START_MS = 20_000
 let ctx: ContractApp
 let page: Page
 
+/**
+ * Starts a short record of what reaches the tabs - presses, clicks, focus and the tab in front,
+ * with the time - for a pane that does not come forward to say what happened instead.
+ */
+const recordTabs = (on: Page) =>
+  on.evaluate(() => {
+    const log: string[] = []
+    const start = performance.now()
+    const note = (what: string) => {
+      log.push(`${Math.round(performance.now() - start)} ${what}`)
+      if (log.length > 40) log.shift()
+    }
+    const idOf = (target: EventTarget | null) =>
+      target instanceof Element
+        ? (target.closest('[data-pane-id]')?.getAttribute('data-pane-id') ?? target.tagName)
+        : '?'
+    for (const type of ['pointerdown', 'pointerup', 'click', 'focusin'])
+      document.addEventListener(type, (event) => note(`${type} ${idOf(event.target)}`), true)
+    let front: string | null | undefined
+    new MutationObserver(() => {
+      const now = document
+        .querySelector('[data-testid=tabs-host] li.active [data-testid=tab]')
+        ?.getAttribute('data-pane-id')
+      if (now === front) return
+      front = now
+      note(`front ${now}`)
+    }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] })
+    Object.assign(window, { tabRecord: log })
+  })
+
+const tabRecord = (on: Page) =>
+  on.evaluate(() => (window as unknown as { tabRecord: string[] }).tabRecord.slice(-16).join(' ; '))
+
 test.beforeEach(async () => {
   ctx = await launchContracts()
   page = ctx.page
   await expect(page.getByTestId('pane')).toHaveCount(PANES.length)
+  await recordTabs(page)
 })
 
 test.afterEach(async () => {
@@ -65,7 +99,11 @@ test.afterEach(async () => {
 /** Brings `row`'s pane forward, puts it to work the first time, and waits until it is. */
 async function atWork(row: PaneRow, first: boolean, timeout: number): Promise<void> {
   await tabOf(page, row.widget).click()
-  await expect(contractPane(page, row.widget)).toBeVisible()
+  await expect(contractPane(page, row.widget))
+    .toBeVisible()
+    .catch(async (error: Error) => {
+      throw new Error(`${error.message.split('\n')[0]} | ${await tabRecord(page)}`)
+    })
   if (first && row.work) await row.work(ctx.app, page, ctx.world)
   await expect
     .poll(async () => missing(row, await footprint(ctx.app, page)), {
