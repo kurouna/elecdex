@@ -10,18 +10,20 @@ import {
   isShellWidget,
   moveNode,
   moveTabTo,
+  type NodePlace,
   neighbourShell,
   neighbourTab,
   type Placement,
   pane,
   patchPaneState,
   placeFirst,
+  placeOf,
+  putBack,
   resizeSplit,
   SHELL_WIDGET,
   setPaneState,
   splitPane,
   visiblePanes,
-  withCurrentPanes,
   wrapAround,
 } from '@shared/layout-ops'
 import {
@@ -30,6 +32,7 @@ import {
   type LayoutTree,
   type PaneNode,
   type SplitDirection,
+  type TabsNode,
 } from '@shared/schemas/layout'
 import { flushSync } from 'svelte'
 import type { Frame } from '../layout/geometry.ts'
@@ -69,9 +72,10 @@ const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(
 /** How long a closed pane can be put back from its toast. */
 const UNDO_CLOSE_MS = 6000
 
-/** The last close, while it can be put back: the tree before it and what it took. */
+/** The last close, while it can be put back: what it took, and where that sat. */
 interface ClosedPanes {
-  tree: LayoutTree
+  node: PaneNode | TabsNode
+  place: NodePlace
   focused: string | null
   panes: readonly PaneNode[]
   toast: number
@@ -333,11 +337,7 @@ class LayoutStore {
     if (node.kind === 'pane' && isShellWidget(node.widget)) this.lastTerminalId = paneId
     const next = focusTab(this.tree, paneId)
     const animates = this.closeMotion?.animates() === true
-    if (next !== this.tree) {
-      // Another tab in front is the arrangement changed: an undo would put the old one back.
-      this.dropUndo()
-      if (animates) this.effects.flash(paneId)
-    }
+    if (next !== this.tree && animates) this.effects.flash(paneId)
     this.commit(next)
     if (fromKeys && animates) this.effects.flare(paneId)
   }
@@ -383,7 +383,6 @@ class LayoutStore {
     const incoming = pane(widget, state === undefined ? {} : { state })
     const next = place(incoming)
     if (next === this.tree) return
-    this.dropUndo()
     const before = this.framesBefore()
     this.arriving = incoming.id
     this.commit(next)
@@ -477,7 +476,6 @@ class LayoutStore {
   /** Takes the result of a move, focusing what moved. A move that changed nothing does nothing. */
   private applyMove(next: LayoutTree, nodeId: string): void {
     if (next === this.tree) return
-    this.dropUndo()
     const before = this.framesBefore()
     const fromGroup = this.groupOf(nodeId)
     this.commit(next)
@@ -591,14 +589,17 @@ class LayoutStore {
   }
 
   /**
-   * Says a close in a toast that can put it back, for a few seconds: the tree
-   * before it is kept, and the panes it took, whose shells the reaper leaves be
-   * meanwhile. Only the last close is kept, and only until the next change to
-   * the arrangement, after which putting the old tree back would undo that too.
+   * Says a close in a toast that can put it back, for a few seconds: what it took
+   * is kept, with where it sat (`placeOf`), and the reaper leaves its shells be
+   * meanwhile. Only the last close is kept. Kept by its place rather than as the
+   * tree it was in, so what changes in the meantime - a divider moved, a tab
+   * shown, a pane added - is not undone with it.
    */
   private offerUndo(node: LayoutNode): void {
     this.dropUndo()
+    if (node.kind === 'split') return
     const panes = collectPanes(node)
+    const place = placeOf(this.tree, node.id) ?? { kind: 'root' }
     const name =
       node.kind === 'pane'
         ? (resolveWidget(node.widget)?.title ?? node.widget)
@@ -608,7 +609,7 @@ class LayoutStore {
       timeoutMs: UNDO_CLOSE_MS,
       actions: [{ label: 'undo', primary: true, run: () => this.undoClose() }],
     })
-    this.#closed = { tree: this.tree, focused: this.focusedPaneId, panes, toast }
+    this.#closed = { node, place, focused: this.focusedPaneId, panes, toast }
   }
 
   /** Lets go of the last close, and of its toast. */
@@ -620,9 +621,9 @@ class LayoutStore {
   }
 
   /**
-   * Puts the last close back: the tree as it was, with every pane still in it as
-   * it is now - a shell's state written since is kept. The panes put back power
-   * on as new ones do, and the ones that give them room light their edges.
+   * Puts the last close back where it sat (`putBack`): beside its old neighbour
+   * with its old share of their room, or among its old tabs. The panes put back
+   * power on as new ones do, and the ones that give them room light their edges.
    */
   undoClose(): void {
     const closed = this.#closed
@@ -631,7 +632,7 @@ class LayoutStore {
     if (closed === null || !toasts.items.some((toast) => toast.id === closed.toast)) return
     this.settle()
     const before = this.framesBefore()
-    const restored = withCurrentPanes(closed.tree, this.tree)
+    const restored = putBack(this.tree, closed.node, closed.place)
     const back = new Set(closed.panes.map((node) => node.id))
     this.arriving = visiblePanes(restored.root).find((node) => back.has(node.id))?.id ?? null
     this.commit(restored)
@@ -639,6 +640,8 @@ class LayoutStore {
       this.focusedPaneId = closed.focused
     }
     sfx.play('expand')
+    // Its toast goes with it, however it was asked for.
+    toasts.dismiss(closed.toast)
     this.reflow(before, undefined, back)
   }
 
@@ -674,10 +677,7 @@ class LayoutStore {
 
   resize(splitId: string, sizes: number[]): void {
     this.settle()
-    const next = resizeSplit(this.tree, splitId, sizes)
-    // Putting the old tree back would undo the sizes too.
-    if (next !== this.tree) this.dropUndo()
-    this.commit(next)
+    this.commit(resizeSplit(this.tree, splitId, sizes))
   }
 
   setPaneState(paneId: string, state: Record<string, unknown>): void {

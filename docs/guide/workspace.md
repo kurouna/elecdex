@@ -97,8 +97,10 @@ to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of 
 - **Ctrl+Shift+W** closes the focused pane, as does its **×** button (shown on hover). A tab
   group's × closes every tab in it; a tab's own × closes just that tab. The closed pane powers off
   and the panes beside it extend into its room.
-- *unreleased*: a close can be put back. Its notice offers **undo** for six seconds, until the
-  arrangement changes again; only the last close is kept. A shell put back keeps its session and
+- *unreleased*: a close can be put back. Its notice offers **undo** for six seconds, and the pane
+  goes back where it was - beside the same neighbour with the same share of the room, or among
+  the same tabs - keeping whatever you changed in the meantime; with its neighbour gone too, it
+  goes beside the first pane. Only the last close is kept. A shell put back keeps its session and
   scrollback; a web page opens again at the address it showed.
 - Closing the last pane of any layout leaves it empty: *no panes in this layout* and
   **+ add pane** open the picker, and the first pane chosen fills the screen. In an empty layout

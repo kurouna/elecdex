@@ -83,9 +83,8 @@ const behindZoom = $derived(layout.zoom.paneId !== null && !zoomed)
  * the room it gained, flying in from where a move took it, or lighting the edges
  * a split drew in. A tab's group plays them for a tabbed pane.
  */
-const extend = $derived(tabbed ? undefined : layout.effects.extending.get(node.id))
-const landing = $derived(tabbed ? undefined : layout.effects.landing.get(node.id))
-const edges = $derived(tabbed ? undefined : layout.effects.edging.get(node.id))
+const played = $derived(layout.effects.reflow.get(node.id))
+const reflow = $derived(tabbed ? undefined : played)
 /**
  * A tab just brought to the front of its group flickers on, as a set changing
  * channel. Not a web page: its view is drawn over the pane, which would only be
@@ -95,13 +94,12 @@ const flashing = $derived(
   visible && layout.effects.flashing === node.id && !node.widget.startsWith(WEB_WIDGET_PREFIX),
 )
 // Each of these cuts short a power-on still playing, whose end is then never seen:
-// a close, an extension or a landing replaces its animation, as the flight of a pane
-// brought forward does, and a tab put behind another is display:none, which cancels
+// a close or anything a change of layout plays replaces its animation, as the flight of
+// a pane brought forward does, and a tab put behind another is display:none, which cancels
 // it without an event to say so. Left set, the power-on played again - when the tab
 // was next shown, or in front of everything as the flight landed.
 $effect(() => {
-  if (closing || extend !== undefined || landing !== undefined || pinned || !visible)
-    poweringOn = false
+  if (closing || reflow !== undefined || pinned || !visible) poweringOn = false
 })
 /** The power-on's timing while it plays: the boot's or a switch's reveal, an arrival, a tab shown. */
 const powerOn = $derived.by(() => {
@@ -113,9 +111,7 @@ const powerOn = $derived.by(() => {
 const motion = $derived(
   hostMotion({
     closing,
-    extend,
-    landing,
-    edges,
+    reflow,
     pinned,
     zoom: layout.zoom,
     powerOn,
@@ -124,11 +120,7 @@ const motion = $derived(
 )
 /** Drawn scaled or clipped rather than at its place; a tab's group clips or flies it as a whole. */
 const transitioning = $derived(
-  motion.poweringOn ||
-    closing ||
-    flying ||
-    layout.effects.extending.has(node.id) ||
-    layout.effects.landing.has(node.id),
+  motion.poweringOn || closing || flying || played?.kind === 'extend' || played?.kind === 'land',
 )
 
 // The sources the widget declares: kept ones for as long as the pane exists, the rest while it is seen.

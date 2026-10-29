@@ -12,11 +12,11 @@ import { CRT_CLOSE_MS, CRT_FLARE_MS } from '../../src/renderer/lib/crt-timing.js
 
 const still: HostMotionState = {
   closing: false,
-  extend: undefined,
   pinned: false,
   zoom: { phase: null, style: null },
 }
 const inset = { top: 10, right: 0, bottom: 0, left: 0 }
+const extend = { kind: 'extend', inset } as const
 const ZOOM = 'position: fixed; top: 0px; left: 0px; width: 100px; height: 100px'
 const ADDED = '--crt-duration: 520ms'
 
@@ -47,13 +47,13 @@ describe('hostMotion', () => {
   })
 
   it('powers off rather than extending: the class and the style say the same', () => {
-    const motion = hostMotion({ ...still, closing: true, extend: inset })
+    const motion = hostMotion({ ...still, closing: true, reflow: extend })
     expect(on(motion.classes)).toEqual(['crt-off', 'crt-beam'])
     expect(motion.style).toBe(`--crt-duration: ${CRT_CLOSE_MS}ms`)
   })
 
   it('extends from its inset, cutting short a power-on', () => {
-    const motion = hostMotion({ ...still, extend: inset, powerOn: ADDED })
+    const motion = hostMotion({ ...still, reflow: extend, powerOn: ADDED })
     expect(on(motion.classes)).toEqual(['crt-extend'])
     expect(motion.style).toBe(insetStyle(inset))
   })
@@ -87,25 +87,20 @@ describe('hostMotion', () => {
 
   it('flies a moved host in, and lights the edges of one that lost room', () => {
     const flip = { dx: -600, dy: 0, sx: 1, sy: 1 }
-    const landing = hostMotion({ ...still, landing: flip, powerOn: ADDED })
+    const landing = hostMotion({ ...still, reflow: { kind: 'land', flip }, powerOn: ADDED })
     expect(on(landing.classes)).toEqual(['crt-land'])
     expect(landing.style).toBe(landStyle(flip))
     const edges = { top: 0, right: 2, bottom: 0, left: 0 }
-    const edged = hostMotion({ ...still, edges })
+    const edged = hostMotion({ ...still, reflow: { kind: 'edge', edges } })
     expect(on(edged.classes)).toEqual(['crt-edge'])
     expect(edged.style).toBe(edgeStyle(edges))
   })
 
   it('plays one effect of its own at a time, the first that applies', () => {
-    const flip = { dx: 10, dy: 0, sx: 1, sy: 1 }
-    const edges = { top: 2, right: 0, bottom: 0, left: 0 }
-    expect(on(hostMotion({ ...still, extend: inset, landing: flip, edges }).classes)).toEqual([
-      'crt-extend',
-    ])
-    expect(on(hostMotion({ ...still, landing: flip, edges, flare: true }).classes)).toEqual([
-      'crt-land',
-    ])
-    expect(on(hostMotion({ ...still, edges, powerOn: ADDED }).classes)).toEqual(['crt-edge'])
+    const land = { kind: 'land', flip: { dx: 10, dy: 0, sx: 1, sy: 1 } } as const
+    const edge = { kind: 'edge', edges: { top: 2, right: 0, bottom: 0, left: 0 } } as const
+    expect(on(hostMotion({ ...still, reflow: land, flare: true }).classes)).toEqual(['crt-land'])
+    expect(on(hostMotion({ ...still, reflow: edge, powerOn: ADDED }).classes)).toEqual(['crt-edge'])
   })
 
   it('flares only when nothing else of its own plays, and not while the zoom flies it', () => {

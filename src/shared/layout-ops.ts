@@ -597,23 +597,154 @@ export function mergePaneState(
 }
 
 /**
- * `tree` with each of its panes as `current` has it now, where `current` still
- * holds it: an arrangement kept from earlier (a close to be undone) put back
- * without losing what its panes have written to their state since. Panes only
- * `tree` holds stay as they were. The same tree when nothing differs.
+ * Where a node sat, so that it can be put back there once it has gone - a close undone.
+ * Kept by its neighbours rather than as the whole tree it was in, so whatever changed in
+ * the tree since (a divider moved, a tab shown, a pane added) stays as it is.
  */
-export function withCurrentPanes(tree: LayoutTree, current: LayoutTree): LayoutTree {
-  const now = new Map(collectPanes(current.root).map((node) => [node.id, node]))
-  const swap = (node: LayoutNode): LayoutNode => {
-    if (node.kind === 'pane') return now.get(node.id) ?? node
-    const children = node.children.map(swap)
-    if (children.every((child, i) => child === node.children[i])) return node
-    return node.kind === 'tabs'
-      ? { ...node, children: children as PaneNode[] }
-      : { ...node, children }
+export type NodePlace =
+  /** It was the whole layout. */
+  | { kind: 'root' }
+  /** A tab of `group` at `index`, beside its `others`; `shown` when it was the tab in front. */
+  | { kind: 'tab'; group: string; others: readonly string[]; index: number; shown: boolean }
+  /**
+   * In a split, on `placement`'s side of `beside` (the node before it, else the one after),
+   * with `share` of the split's room and `pair` of the room the two had; `panes` are the
+   * panes `beside` held, to find it by when a later change has reshaped it.
+   */
+  | {
+      kind: 'side'
+      beside: string
+      panes: readonly string[]
+      placement: SplitDirection
+      share: number
+      pair: number
+    }
+
+/** The split or group directly holding the node `id`, if any. */
+function parentOf(node: LayoutNode, id: string): SplitNode | TabsNode | null {
+  let found: SplitNode | TabsNode | null = null
+  walk(node, (n) => {
+    if (found === null && n.kind !== 'pane' && n.children.some((c) => c.id === id)) found = n
+  })
+  return found
+}
+
+/** Where the node `id` sits in `tree`, for `putBack`; null when it is not there. */
+export function placeOf(tree: LayoutTree, id: string): NodePlace | null {
+  if (tree.root.id === id) return { kind: 'root' }
+  const parent = parentOf(tree.root, id)
+  if (parent === null) return null
+  const index = parent.children.findIndex((c) => c.id === id)
+  if (parent.kind === 'tabs') {
+    const others = parent.children.filter((c) => c.id !== id).map((c) => c.id)
+    return { kind: 'tab', group: parent.id, others, index, shown: parent.activeIndex === index }
   }
-  const root = swap(tree.root)
-  return root === tree.root ? tree : { ...tree, root }
+  const after = index > 0
+  const at = after ? index - 1 : index + 1
+  const sibling = parent.children[at]
+  if (sibling === undefined) return null
+  const row = parent.direction === 'row'
+  const placement: SplitDirection = after ? (row ? 'right' : 'down') : row ? 'left' : 'up'
+  const mine = parent.sizes[index] ?? 0
+  const theirs = parent.sizes[at] ?? 0
+  return {
+    kind: 'side',
+    beside: sibling.id,
+    panes: collectPanes(sibling).map((p) => p.id),
+    placement,
+    share: mine,
+    pair: mine + theirs > 0 ? mine / (mine + theirs) : 0.5,
+  }
+}
+
+/**
+ * `node` back in `tree` where `place` says it was: beside the same neighbour with its old
+ * share of their room, or among the same tabs at its old place. When that neighbour has gone
+ * altogether it goes beside the first pane shown, so a close can always be undone.
+ */
+export function putBack(tree: LayoutTree, node: PaneNode | TabsNode, place: NodePlace): LayoutTree {
+  return placeAgain(tree, node, place) ?? besideFirst(tree, node)
+}
+
+function placeAgain(
+  tree: LayoutTree,
+  node: PaneNode | TabsNode,
+  place: NodePlace,
+): LayoutTree | null {
+  switch (place.kind) {
+    case 'root':
+      return isEmptyLayout(tree) ? { version: LAYOUT_VERSION, root: node } : null
+    case 'tab':
+      return node.kind === 'pane' ? asTabAgain(tree, node, place) : null
+    case 'side':
+      return besideAgain(tree, node, place)
+  }
+}
+
+/** The first of `ids` still in the tree, as what it is drawn in: its group, or itself. */
+function firstPresent(root: LayoutNode, ids: readonly string[]): LayoutNode | null {
+  for (const id of ids) {
+    const found = findNode(root, id)
+    if (found !== null)
+      return found.kind === 'pane' ? (findTabsContaining(root, id) ?? found) : found
+  }
+  return null
+}
+
+function asTabAgain(
+  tree: LayoutTree,
+  node: PaneNode,
+  place: Extract<NodePlace, { kind: 'tab' }>,
+): LayoutTree | null {
+  const group = findNode(tree.root, place.group)
+  const target = group?.kind === 'tabs' ? group : firstPresent(tree.root, place.others)
+  if (target === null || target.kind === 'split') return null
+  const inFront = target.kind === 'tabs' ? target.children[target.activeIndex]?.id : target.id
+  const placed = placeAsTab(tree.root, target, node, place.index)
+  if (placed === null) return null
+  const next = normalizeTree({ ...tree, root: placed })
+  // A tab that was behind another goes back behind the one in front now.
+  return place.shown || inFront === undefined ? next : focusTab(next, inFront)
+}
+
+function besideAgain(
+  tree: LayoutTree,
+  node: PaneNode | TabsNode,
+  place: Extract<NodePlace, { kind: 'side' }>,
+): LayoutTree | null {
+  const found = findNode(tree.root, place.beside)
+  const target = found ?? firstPresent(tree.root, place.panes)
+  if (target === null) return null
+  // A pane that has joined a group since is drawn in it: the group is the neighbour.
+  const anchor =
+    target.kind === 'pane' ? (findTabsContaining(tree.root, target.id) ?? target) : target
+  const axis = place.placement === 'left' || place.placement === 'right' ? 'row' : 'column'
+  const first = place.placement === 'left' || place.placement === 'up'
+  const parent = parentOf(tree.root, anchor.id)
+  // Still in a split of that way: back in it at its place with its old share, the others
+  // making room in proportion - as it was, when nothing has changed since.
+  if (parent?.kind === 'split' && parent.direction === axis) {
+    const at = parent.children.findIndex((c) => c.id === anchor.id) + (first ? 0 : 1)
+    const children = [...parent.children.slice(0, at), node, ...parent.children.slice(at)]
+    const rest = parent.sizes.map((n) => n * (1 - place.share))
+    const sizes = [...rest.slice(0, at), place.share, ...rest.slice(at)]
+    const replaced = replace(tree.root, parent.id, { ...parent, children, sizes })
+    return replaced === null ? null : normalizeTree({ ...tree, root: replaced })
+  }
+  // The split collapsed into the neighbour, or the neighbour has moved: the two share its room.
+  const sizes = first ? [place.pair, 1 - place.pair] : [1 - place.pair, place.pair]
+  const pair = split(axis, first ? [node, anchor] : [anchor, node], sizes)
+  const replaced = replace(tree.root, anchor.id, pair)
+  return replaced === null ? null : normalizeTree({ ...tree, root: replaced })
+}
+
+/** `node` to the right of the first pane shown, or the whole of an empty layout. */
+function besideFirst(tree: LayoutTree, node: PaneNode | TabsNode): LayoutTree {
+  const first = visiblePanes(tree.root)[0]
+  if (first === undefined) return { version: LAYOUT_VERSION, root: node }
+  const anchor = findTabsContaining(tree.root, first.id) ?? first
+  const replaced = replace(tree.root, anchor.id, split('row', [anchor, node]))
+  return replaced === null ? tree : normalizeTree({ ...tree, root: replaced })
 }
 
 /** The panes on screen, in tree order: each pane on its own, and each group's shown tab. */

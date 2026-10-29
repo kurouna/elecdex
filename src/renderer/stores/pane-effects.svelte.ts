@@ -1,13 +1,5 @@
-import type { Inset } from '../layout/pane-close.ts'
-import type { Edges, Reflow } from '../layout/pane-reflow.ts'
-import type { Flip } from '../layout/pane-zoom.ts'
-import {
-  CRT_EDGE_MS,
-  CRT_EXTEND_MS,
-  CRT_FLARE_MS,
-  CRT_LAND_MS,
-  CRT_TAB_MS,
-} from '../lib/crt-timing.ts'
+import { EFFECT_MS, type PaneEffect, type Reflow } from '../layout/pane-reflow.ts'
+import { CRT_FLARE_MS, CRT_TAB_MS } from '../lib/crt-timing.ts'
 
 const NONE: ReadonlyMap<never, never> = new Map<never, never>()
 
@@ -18,12 +10,12 @@ const NONE: ReadonlyMap<never, never> = new Map<never, never>()
  * change to the tree ends them all at once (`stop`), as it settles a close.
  */
 export class PaneEffects {
-  /** Panes uncovering the room a change gave them, with where their clip starts. */
-  extending = $state.raw<ReadonlyMap<string, Inset>>(NONE)
-  /** Panes a move carried somewhere else, flying in from where they were. */
-  landing = $state.raw<ReadonlyMap<string, Flip>>(NONE)
-  /** Panes a change took room from, with the edges that came in. */
-  edging = $state.raw<ReadonlyMap<string, Edges>>(NONE)
+  /**
+   * What a change of layout plays on each pane it moved, by pane id (layout/pane-reflow.ts):
+   * flying in from where it was, uncovering the room it gained, or lighting the edges that
+   * came in - one each.
+   */
+  reflow = $state.raw<ReadonlyMap<string, PaneEffect>>(NONE)
   /** The tab just brought to the front of its group, flickering on. */
   flashing = $state<string | null>(null)
   /** The pane the keyboard has just come to, whose frame flares. */
@@ -35,7 +27,7 @@ export class PaneEffects {
    * as `data-reflowing`, so a test can wait for the screen to stand still.
    */
   get reflowing(): boolean {
-    return this.extending.size > 0 || this.landing.size > 0 || this.edging.size > 0
+    return this.reflow.size > 0
   }
 
   #reflowTimer: ReturnType<typeof setTimeout> | null = null
@@ -45,16 +37,10 @@ export class PaneEffects {
   /** Plays what a change of layout gave each pane, until the longest of them is over. */
   play(reflow: Reflow): void {
     this.stopReflow()
-    const { extending, landing, edging } = reflow
-    const ms = Math.max(
-      extending.size > 0 ? CRT_EXTEND_MS : 0,
-      landing.size > 0 ? CRT_LAND_MS : 0,
-      edging.size > 0 ? CRT_EDGE_MS : 0,
-    )
-    if (ms === 0) return
-    if (extending.size > 0) this.extending = extending
-    if (landing.size > 0) this.landing = landing
-    if (edging.size > 0) this.edging = edging
+    if (reflow.size === 0) return
+    let ms = 0
+    for (const effect of reflow.values()) ms = Math.max(ms, EFFECT_MS[effect.kind])
+    this.reflow = reflow
     this.#reflowTimer = setTimeout(() => this.stopReflow(), ms)
   }
 
@@ -63,9 +49,7 @@ export class PaneEffects {
     if (this.#reflowTimer !== null) clearTimeout(this.#reflowTimer)
     this.#reflowTimer = null
     // Only when something plays: a new empty map would be a change to every host.
-    if (this.extending.size > 0) this.extending = NONE
-    if (this.landing.size > 0) this.landing = NONE
-    if (this.edging.size > 0) this.edging = NONE
+    if (this.reflow.size > 0) this.reflow = NONE
   }
 
   /** A tab brought to the front of its group flickers on, as a set changing channel. */

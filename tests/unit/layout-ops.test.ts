@@ -21,6 +21,8 @@ import {
   pane,
   patchPaneState,
   placeFirst,
+  placeOf,
+  putBack,
   resizeSplit,
   SHELL_WIDGET,
   setPaneState,
@@ -29,7 +31,6 @@ import {
   tabs,
   visiblePanes,
   walk,
-  withCurrentPanes,
   wrapAround,
 } from '@shared/layout-ops'
 import {
@@ -1343,37 +1344,85 @@ describe('isShellWidget', () => {
   })
 })
 
-describe('withCurrentPanes', () => {
-  it('puts an earlier tree back with each pane it shares as the current tree has it', () => {
-    const a = pane('terminal', { id: 'a', state: { cwd: '/old' } })
-    const b = pane('clock', { id: 'b' })
-    const earlier: LayoutTree = { version: LAYOUT_VERSION, root: split('row', [a, b]) }
-    const now: LayoutTree = {
-      version: LAYOUT_VERSION,
-      root: pane('terminal', { id: 'a', state: { cwd: '/new' } }),
-    }
-    const back = withCurrentPanes(earlier, now)
-    expect(collectPanes(back.root).map((p) => [p.id, p.state?.cwd])).toEqual([
-      ['a', '/new'],
-      ['b', undefined],
-    ])
-    expect(findNode(back.root, 'b')).toBe(b)
-  })
+describe('placeOf and putBack', () => {
+  const tree = (root: LayoutNode): LayoutTree => ({ version: LAYOUT_VERSION, root })
+  const sizes = (t: LayoutTree) =>
+    t.root.kind === 'split' ? t.root.sizes.map((n) => Number(n.toFixed(2))) : []
 
-  it("takes a pane's current state inside a group as well", () => {
-    const t = pane('terminal', { id: 't', state: { cwd: '/old' } })
-    const earlier: LayoutTree = { version: LAYOUT_VERSION, root: tabs([pane('clock'), t]) }
-    const now: LayoutTree = {
-      version: LAYOUT_VERSION,
-      root: pane('terminal', { id: 't', state: { cwd: '/new' } }),
-    }
-    const back = withCurrentPanes(earlier, now)
-    expect(back.root.kind === 'tabs' && back.root.children[1]?.state).toEqual({ cwd: '/new' })
-  })
-
-  it('is the same tree when no pane it holds has changed', () => {
+  it('puts a pane back beside the one before it, with its share of their room', () => {
     const a = pane('clock', { id: 'a' })
-    const earlier: LayoutTree = { version: LAYOUT_VERSION, root: tabs([a, pane('notes')]) }
-    expect(withCurrentPanes(earlier, { version: LAYOUT_VERSION, root: a })).toBe(earlier)
+    const b = pane('calendar', { id: 'b' })
+    const c = pane('notes', { id: 'c' })
+    const before = tree(split('row', [a, b, c], [0.2, 0.3, 0.5]))
+    const place = placeOf(before, 'b')
+    expect(place).toMatchObject({ kind: 'side', beside: 'a', placement: 'right' })
+    const back = putBack(closeNode(before, 'b'), b, place ?? { kind: 'root' })
+    expect(collectPanes(back.root).map((p) => p.id)).toEqual(['a', 'b', 'c'])
+    // As it was: nothing changed since.
+    expect(sizes(back)).toEqual([0.2, 0.3, 0.5])
+  })
+
+  it('puts the first of a split back before the one after it', () => {
+    const a = pane('clock', { id: 'a' })
+    const b = pane('calendar', { id: 'b' })
+    const before = tree(split('column', [a, b]))
+    expect(placeOf(before, 'a')).toMatchObject({ kind: 'side', beside: 'b', placement: 'up' })
+    const back = putBack(closeNode(before, 'a'), a, placeOf(before, 'a') ?? { kind: 'root' })
+    expect(back.root.kind === 'split' && back.root.direction).toBe('column')
+    expect(collectPanes(back.root).map((p) => p.id)).toEqual(['a', 'b'])
+  })
+
+  it('puts a tab back at its place in its group, behind the tab in front when it was', () => {
+    const a = pane('clock', { id: 'a' })
+    const b = pane('calendar', { id: 'b' })
+    const c = pane('notes', { id: 'c' })
+    const before = tree(tabs([a, b, c], 0))
+    const place = placeOf(before, 'b')
+    expect(place).toMatchObject({ kind: 'tab', index: 1, shown: false })
+    const back = putBack(closeNode(before, 'b'), b, place ?? { kind: 'root' })
+    expect(back.root.kind === 'tabs' && back.root.children.map((p) => p.id)).toEqual([
+      'a',
+      'b',
+      'c',
+    ])
+    expect(back.root.kind === 'tabs' && back.root.activeIndex).toBe(0)
+  })
+
+  it('makes a group again from the tab left when the group had collapsed', () => {
+    const a = pane('clock', { id: 'a' })
+    const b = pane('calendar', { id: 'b' })
+    const before = tree(tabs([a, b], 1))
+    const place = placeOf(before, 'b') ?? { kind: 'root' }
+    const after = closeNode(before, 'b')
+    expect(after.root.kind).toBe('pane')
+    const back = putBack(after, b, place)
+    expect(back.root.kind === 'tabs' && back.root.children.map((p) => p.id)).toEqual(['a', 'b'])
+    expect(back.root.kind === 'tabs' && back.root.activeIndex).toBe(1)
+  })
+
+  it('finds a neighbour reshaped since by a pane it held', () => {
+    const a = pane('clock', { id: 'a' })
+    const b = pane('calendar', { id: 'b' })
+    const c = pane('notes', { id: 'c' })
+    const before = tree(split('row', [split('column', [a, b]), c]))
+    const place = placeOf(before, 'c') ?? { kind: 'root' }
+    // The column the closed pane sat beside has collapsed into a since.
+    const reshaped = closeNode(closeNode(before, 'c'), 'b')
+    const back = putBack(reshaped, c, place)
+    expect(collectPanes(back.root).map((p) => p.id)).toEqual(['a', 'c'])
+  })
+
+  it('puts the whole layout back into an empty one, and beside the first pane when its place is gone', () => {
+    const a = pane('clock', { id: 'a' })
+    const only = tree(a)
+    expect(placeOf(only, 'a')).toEqual({ kind: 'root' })
+    expect(putBack(closeNode(only, 'a'), a, { kind: 'root' }).root).toBe(a)
+    const other = tree(pane('notes', { id: 'n' }))
+    const back = putBack(other, a, { kind: 'root' })
+    expect(collectPanes(back.root).map((p) => p.id)).toEqual(['n', 'a'])
+  })
+
+  it('knows no place for a node not in the tree', () => {
+    expect(placeOf(tree(pane('clock', { id: 'a' })), 'gone')).toBeNull()
   })
 })

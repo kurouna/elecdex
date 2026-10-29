@@ -25,9 +25,7 @@ const focused = $derived(node.children.some((c) => c.id === layout.focusedPaneId
  * lighting the edges a split drew in. Keyed by the tab it shows, which is where
  * the group's frame was measured.
  */
-const extend = $derived(activeChild ? layout.effects.extending.get(activeChild.id) : undefined)
-const landing = $derived(activeChild ? layout.effects.landing.get(activeChild.id) : undefined)
-const edges = $derived(activeChild ? layout.effects.edging.get(activeChild.id) : undefined)
+const reflow = $derived(activeChild ? layout.effects.reflow.get(activeChild.id) : undefined)
 /** The keyboard has just come to one of its tabs: the group's frame is the one that flares. */
 const flare = $derived(node.children.some((child) => child.id === layout.effects.flaring))
 /**
@@ -65,9 +63,7 @@ const zoomable = $derived(activeChild !== undefined && zoomModeOf(activeChild.wi
 const motion = $derived(
   hostMotion({
     closing: leaving || closing,
-    extend,
-    landing,
-    edges,
+    reflow,
     pinned,
     zoom: layout.zoom,
     flare,

@@ -7,20 +7,14 @@
  */
 
 import { CRT_CLOSE_MS, CRT_FLARE_MS } from '../lib/crt-timing.js'
-import { type Inset, insetStyle } from './pane-close.js'
-import { type Edges, edgeStyle, landStyle } from './pane-reflow.js'
-import type { Flip } from './pane-zoom.js'
+import { effectStyle, type PaneEffect } from './pane-reflow.js'
 
 /** What a host is doing now, as the layout store says it. */
 export interface HostMotionState {
   /** Powering off: closed, or the whole screen giving way to another layout. */
   closing: boolean
-  /** Uncovering the room a change gave it, from this inset. */
-  extend: Inset | undefined
-  /** Flying in from where it was before a move, by this transform. */
-  landing?: Flip | undefined
-  /** The edges a split or a move drew in, lit. */
-  edges?: Edges | undefined
+  /** What a change of layout plays on it: flying in, extending, or its moved edges lit. */
+  reflow?: PaneEffect | undefined
   /** Pinned over the workspace by the zoom. */
   pinned: boolean
   /**
@@ -45,7 +39,7 @@ export interface HostMotion {
   poweringOn: boolean
 }
 
-type Own = 'off' | 'extend' | 'land' | 'edge' | 'on' | 'flare'
+type Own = 'off' | PaneEffect['kind'] | 'on' | 'flare'
 
 /**
  * The one effect of the host's own that plays, the first that applies: they
@@ -58,9 +52,7 @@ type Own = 'off' | 'extend' | 'land' | 'edge' | 'on' | 'flare'
  */
 function ownEffect(state: HostMotionState): Own | null {
   if (state.closing) return 'off'
-  if (state.extend !== undefined) return 'extend'
-  if (state.landing !== undefined) return 'land'
-  if (state.edges !== undefined) return 'edge'
+  if (state.reflow !== undefined) return state.reflow.kind
   if ((state.powerOn ?? null) !== null) return 'on'
   const flying = state.pinned && state.zoom.phase !== null
   return state.flare === true && !flying ? 'flare' : null
@@ -71,11 +63,9 @@ function ownStyle(own: Own | null, state: HostMotionState): string | null {
     case 'off':
       return `--crt-duration: ${CRT_CLOSE_MS}ms`
     case 'extend':
-      return state.extend === undefined ? null : insetStyle(state.extend)
     case 'land':
-      return state.landing === undefined ? null : landStyle(state.landing)
     case 'edge':
-      return state.edges === undefined ? null : edgeStyle(state.edges)
+      return state.reflow === undefined ? null : effectStyle(state.reflow)
     case 'on':
       return state.powerOn ?? null
     case 'flare':

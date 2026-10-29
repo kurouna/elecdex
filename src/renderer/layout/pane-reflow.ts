@@ -11,19 +11,28 @@
  * a beam run along the edges that came in, so the eye is told where it went.
  */
 
-import { CRT_EDGE_MS, CRT_LAND_MS } from '../lib/crt-timing.js'
+import { CRT_EDGE_MS, CRT_EXTEND_MS, CRT_LAND_MS } from '../lib/crt-timing.js'
 import { type Frame, px } from './geometry.js'
-import { extendFrom, type Inset } from './pane-close.js'
+import { extendFrom, type Inset, insetStyle } from './pane-close.js'
 import { type Flip, flipFrom, flipVars } from './pane-zoom.js'
 
 /** The width of the beam on each edge of a pane that came in, 0 on one that stayed. */
 export type Edges = Frame
 
-/** What each shown pane plays after a change, by pane id; a pane is in one map at most. */
-export interface Reflow {
-  landing: Map<string, Flip>
-  extending: Map<string, Inset>
-  edging: Map<string, Edges>
+/** What one pane plays after a change: it flies, it extends, or its moved edges light. */
+export type PaneEffect =
+  | { kind: 'land'; flip: Flip }
+  | { kind: 'extend'; inset: Inset }
+  | { kind: 'edge'; edges: Edges }
+
+/** What each shown pane plays after a change, by pane id: one effect each, or none. */
+export type Reflow = Map<string, PaneEffect>
+
+/** How long each effect plays. */
+export const EFFECT_MS: Readonly<Record<PaneEffect['kind'], number>> = {
+  land: CRT_LAND_MS,
+  extend: CRT_EXTEND_MS,
+  edge: CRT_EDGE_MS,
 }
 
 /** Changes smaller than this are rounding, not a move. */
@@ -72,24 +81,37 @@ export function reflowOf(
   moved: ReadonlySet<string> = new Set(),
   fresh: ReadonlySet<string> = new Set(),
 ): Reflow {
-  const reflow: Reflow = { landing: new Map(), extending: new Map(), edging: new Map() }
+  const reflow: Reflow = new Map()
   for (const [paneId, frame] of after) {
     if (fresh.has(paneId)) continue
-    const was = before.get(paneId)
-    if (moved.has(paneId) || (was !== undefined && sameSize(was, frame))) {
-      const flip = was === undefined ? null : flipFrom(was, frame)
-      if (flip !== null && !still(flip)) reflow.landing.set(paneId, flip)
-      continue
-    }
-    const inset = extendFrom(was, frame)
-    if (inset !== null) {
-      reflow.extending.set(paneId, inset)
-      continue
-    }
-    const edges = edgesFrom(was, frame)
-    if (edges !== null) reflow.edging.set(paneId, edges)
+    const effect = effectOf(before.get(paneId), frame, moved.has(paneId))
+    if (effect !== null) reflow.set(paneId, effect)
   }
   return reflow
+}
+
+/** What a pane that was at `was` and is at `frame` plays; `moved` when the change carried it. */
+function effectOf(was: Frame | undefined, frame: Frame, moved: boolean): PaneEffect | null {
+  if (moved || (was !== undefined && sameSize(was, frame))) {
+    const flip = was === undefined ? null : flipFrom(was, frame)
+    return flip === null || still(flip) ? null : { kind: 'land', flip }
+  }
+  const inset = extendFrom(was, frame)
+  if (inset !== null) return { kind: 'extend', inset }
+  const edges = edgesFrom(was, frame)
+  return edges === null ? null : { kind: 'edge', edges }
+}
+
+/** The CSS variables an effect plays by. */
+export function effectStyle(effect: PaneEffect): string {
+  switch (effect.kind) {
+    case 'land':
+      return landStyle(effect.flip)
+    case 'extend':
+      return insetStyle(effect.inset)
+    case 'edge':
+      return edgeStyle(effect.edges)
+  }
 }
 
 /** The CSS variables `crt-land` flies a moved pane in by. */

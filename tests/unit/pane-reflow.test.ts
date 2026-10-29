@@ -40,9 +40,7 @@ describe('edgesFrom', () => {
 describe('reflowOf', () => {
   it('flies a moved pane in from where it was', () => {
     const reflow = reflowOf(new Map([['m', LEFT]]), new Map([['m', RIGHT]]), new Set(['m']))
-    expect(reflow.landing.get('m')).toEqual({ dx: -600, dy: 0, sx: 1, sy: 1 })
-    expect(reflow.extending.size).toBe(0)
-    expect(reflow.edging.size).toBe(0)
+    expect([...reflow]).toEqual([['m', { kind: 'land', flip: { dx: -600, dy: 0, sx: 1, sy: 1 } }]])
   })
 
   it('does not fly a moved pane that ended where it began, nor one that was not shown', () => {
@@ -54,13 +52,12 @@ describe('reflowOf', () => {
       ]),
       new Set(['m', 'n']),
     )
-    expect(reflow.landing.size).toBe(0)
+    expect(reflow.size).toBe(0)
   })
 
   it('flies a pane that only changed place, as the one a moved pane swapped with', () => {
     const reflow = reflowOf(new Map([['b', RIGHT]]), new Map([['b', LEFT]]))
-    expect(reflow.landing.get('b')).toEqual({ dx: 600, dy: 0, sx: 1, sy: 1 })
-    expect(reflow.extending.size).toBe(0)
+    expect([...reflow]).toEqual([['b', { kind: 'land', flip: { dx: 600, dy: 0, sx: 1, sy: 1 } }]])
   })
 
   it('extends what gained room and lights what only lost it', () => {
@@ -73,13 +70,22 @@ describe('reflowOf', () => {
       ['b', box(0, 1200, 600, 400)],
     ])
     const reflow = reflowOf(before, after)
-    expect(reflow.edging.get('a')).toEqual({ top: 0, right: 2, bottom: 0, left: 0 })
-    expect(reflow.extending.get('b')).toEqual({ top: 0, right: 0, bottom: 0, left: 200 })
+    expect(reflow.get('a')).toEqual({
+      kind: 'edge',
+      edges: { top: 0, right: 2, bottom: 0, left: 0 },
+    })
+    expect(reflow.get('b')).toEqual({
+      kind: 'extend',
+      inset: { top: 0, right: 0, bottom: 0, left: 200 },
+    })
   })
 
   it('uncovers a pane that was not shown before from a line across its middle', () => {
     const reflow = reflowOf(new Map(), new Map([['t', WHOLE]]))
-    expect(reflow.extending.get('t')).toEqual({ top: 300, right: 0, bottom: 300, left: 0 })
+    expect(reflow.get('t')).toEqual({
+      kind: 'extend',
+      inset: { top: 300, right: 0, bottom: 300, left: 0 },
+    })
   })
 
   it('leaves the panes the change added to power on by themselves', () => {
@@ -92,8 +98,8 @@ describe('reflowOf', () => {
       new Set(),
       new Set(['new']),
     )
-    expect([...reflow.edging.keys()]).toEqual(['a'])
-    expect(reflow.extending.has('new')).toBe(false)
+    expect([...reflow.keys()]).toEqual(['a'])
+    expect(reflow.get('a')?.kind).toBe('edge')
   })
 })
 
