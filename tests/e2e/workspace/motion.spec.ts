@@ -121,20 +121,17 @@ test('a pane added from the picker powers on once', async ({ shared }) => {
 const paneNode = (id: string, widget: string) => ({ kind: 'pane', id, widget })
 const byId = paneById
 
-/** Starts counting the power-ons panes play, by widget and with their length, from here on. */
+/** Starts counting the power-ons panes play, by widget, from here on. */
 const recordPowerOns = (page: Page) =>
   page.evaluate(() => {
     const played: string[] = []
-    const lengths: string[] = []
-    Object.assign(window, { powerOns: played, powerOnLengths: lengths })
+    ;(window as unknown as { powerOns: string[] }).powerOns = played
     document.addEventListener(
       'animationstart',
       (event) => {
         const el = event.target as HTMLElement
-        if (event.animationName !== 'crt-power-on' || el.dataset.testid !== 'pane') return
-        played.push(el.dataset.widget ?? '')
-        // Read as it starts: a tab's flicker is over in a moment.
-        lengths.push(getComputedStyle(el).getPropertyValue('--crt-duration').trim())
+        if (event.animationName === 'crt-power-on' && el.dataset.testid === 'pane')
+          played.push(el.dataset.widget ?? '')
       },
       true,
     )
@@ -143,8 +140,29 @@ const recordPowerOns = (page: Page) =>
 const powerOns = (page: Page) =>
   page.evaluate(() => (window as unknown as { powerOns: string[] }).powerOns)
 
-const powerOnLengths = (page: Page) =>
-  page.evaluate(() => (window as unknown as { powerOnLengths: string[] }).powerOnLengths)
+/**
+ * Starts noting every power-on a pane is given, by widget and length, as the class is put on
+ * rather than as the animation starts: a tab's flicker lasts 220 ms, and on a slow runner its
+ * class can be taken off again before the first frame has started it.
+ */
+const recordFlickers = (page: Page) =>
+  page.evaluate(() => {
+    const given: string[] = []
+    const lit = new Set<Element>()
+    Object.assign(window, { flickers: given })
+    new MutationObserver(() => {
+      for (const el of document.querySelectorAll<HTMLElement>('[data-testid=pane]')) {
+        const on = el.classList.contains('crt-on')
+        if (on && !lit.has(el))
+          given.push(`${el.dataset.widget}:${el.style.getPropertyValue('--crt-duration').trim()}`)
+        if (on) lit.add(el)
+        else lit.delete(el)
+      }
+    }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] })
+  })
+
+const flickers = (page: Page) =>
+  page.evaluate(() => (window as unknown as { flickers: string[] }).flickers)
 
 test('a new tab put behind another before it has powered on does not power on again when shown', async ({
   shared,
@@ -179,10 +197,11 @@ test('a new tab put behind another before it has powered on does not power on ag
 
     // Shown, it flickers on as any tab brought to the front does - the short one,
     // never the new pane's power-on played again.
+    await recordFlickers(page)
     await page.getByTestId('tab').nth(2).click()
-    await quietFor(700, () => powerOns(page), 'the power-ons played')
-    expect(await powerOns(page)).toEqual([...played, 'calendar'])
-    expect((await powerOnLengths(page)).at(-1)).toBe('220ms')
+    await expect.poll(() => flickers(page)).toEqual(['calendar:220ms'])
+    await expect(page.locator('[data-testid=pane].crt-on')).toHaveCount(0)
+    expect(await flickers(page)).toEqual(['calendar:220ms'])
   } finally {
     await close()
   }
@@ -974,15 +993,14 @@ test('a tab brought to the front flickers on, quicker than a pane added', async 
   const { page, close } = await shared({ layout })
   try {
     await settleLayout(page)
-    await recordPowerOns(page)
+    await recordFlickers(page)
     await page.getByTestId('tab').nth(1).click()
-    await expect.poll(() => powerOns(page)).toEqual(['sysinfo'])
-    expect(await powerOnLengths(page)).toEqual(['220ms'])
+    await expect.poll(() => flickers(page)).toEqual(['sysinfo:220ms'])
     await expect(byId(page, 'b')).not.toHaveClass(/crt-on/)
     // Shown again by clicking the tab already in front: nothing to bring forward.
     await page.getByTestId('tab').nth(1).click()
-    await quietFor(400, () => powerOns(page), 'the power-ons played')
-    expect(await powerOns(page)).toEqual(['sysinfo'])
+    await quietFor(400, () => flickers(page), 'the power-ons given')
+    expect(await flickers(page)).toEqual(['sysinfo:220ms'])
   } finally {
     await close()
   }
