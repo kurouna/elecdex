@@ -19,12 +19,14 @@ import {
   setPaneState,
   splitPane,
   visiblePanes,
+  wrapAround,
 } from '@shared/layout-ops'
 import type { SavedLayoutSummary } from '@shared/layouts'
 import {
   LAYOUT_VERSION,
   type LayoutNode,
   type LayoutTree,
+  type PaneNode,
   type SplitDirection,
 } from '@shared/schemas/layout'
 import { flushSync } from 'svelte'
@@ -187,7 +189,7 @@ class LayoutStore {
   zoomMode = $state<ZoomMode | null>(null)
   private zoomTimer: ReturnType<typeof setTimeout> | null = null
 
-  /** The CSS variables that place the pinned pane and play its flight. */
+  /** The inline style that places the pinned pane and plays its flight (pinStyle). */
   readonly zoomStyle = $derived(
     this.zoomPin === null
       ? null
@@ -499,53 +501,63 @@ class LayoutStore {
     widget: string,
     state?: Record<string, unknown>,
   ): void {
-    this.settle()
-    const incoming = pane(widget, state === undefined ? {} : { state })
-    const next = splitPane(this.tree, paneId, direction, incoming)
-    // A target that has gone - it may have gone with the close just finished -
-    // adds nothing, so nothing is focused, powered on or heard either: focus on a
-    // pane that was never made would leave every key for the focused pane dead.
-    if (next === this.tree) return
-    this.arriving = incoming.id
-    this.commit(next)
-    this.focusedPaneId = incoming.id
-    sfx.play('expand')
+    this.insert(widget, state, 'expand', (incoming) =>
+      splitPane(this.tree, paneId, direction, incoming),
+    )
   }
 
   /** Splits the focused pane; in an empty layout, adds the first pane. */
   splitFocused(direction: SplitDirection, widget?: string): void {
-    const target = this.focusedPaneId
-    // An empty layout has nothing to split: the new pane is its first.
-    if (target === null) {
-      this.addFirst(widget ?? 'terminal')
-      return
-    }
-    const current = findNode(this.tree.root, target)
-    const sameWidget = current?.kind === 'pane' ? current.widget : 'terminal'
-    this.split(target, direction, widget ?? sameWidget)
+    this.besideFocused(widget, (target, chosen) => this.split(target, direction, chosen))
   }
 
   addTab(siblingPaneId: string, widget: string, state?: Record<string, unknown>): void {
+    this.insert(widget, state, 'folder', (incoming) => addTab(this.tree, siblingPaneId, incoming))
+  }
+
+  addTabToFocused(widget?: string): void {
+    this.besideFocused(widget, (target, chosen) => this.addTab(target, chosen))
+  }
+
+  /**
+   * Adds a new pane of `widget` with the op `place` gives: it powers on, takes
+   * focus and is heard. A target that has gone - it may have gone with the close
+   * just settled - adds nothing, so nothing is focused, powered on or heard
+   * either: focus on a pane that was never made would leave every key for the
+   * focused pane dead.
+   */
+  private insert(
+    widget: string,
+    state: Record<string, unknown> | undefined,
+    sound: 'expand' | 'folder',
+    place: (incoming: PaneNode) => LayoutTree,
+  ): void {
     this.settle()
     const incoming = pane(widget, state === undefined ? {} : { state })
-    const next = addTab(this.tree, siblingPaneId, incoming)
-    // As for a split: a sibling that has gone adds nothing.
+    const next = place(incoming)
     if (next === this.tree) return
     this.arriving = incoming.id
     this.commit(next)
     this.focusedPaneId = incoming.id
-    sfx.play('folder')
+    sfx.play(sound)
   }
 
-  addTabToFocused(widget?: string): void {
+  /**
+   * Adds a pane beside the focused one through `add`: of `widget`, or of the
+   * focused pane's own widget when none is named. An empty layout has nothing to
+   * go beside, so the new pane is its first.
+   */
+  private besideFocused(
+    widget: string | undefined,
+    add: (target: string, widget: string) => void,
+  ): void {
     const target = this.focusedPaneId
     if (target === null) {
       this.addFirst(widget ?? 'terminal')
       return
     }
     const current = findNode(this.tree.root, target)
-    const sameWidget = current?.kind === 'pane' ? current.widget : 'terminal'
-    this.addTab(target, widget ?? sameWidget)
+    add(target, widget ?? (current?.kind === 'pane' ? current.widget : 'terminal'))
   }
 
   /**
@@ -570,14 +582,7 @@ class LayoutStore {
    * beside one of them.
    */
   addFirst(widget: string, state?: Record<string, unknown>): void {
-    this.settle()
-    const incoming = pane(widget, state === undefined ? {} : { state })
-    const next = placeFirst(this.tree, incoming)
-    if (next === this.tree) return
-    this.arriving = incoming.id
-    this.commit(next)
-    this.focusedPaneId = incoming.id
-    sfx.play('expand')
+    this.insert(widget, state, 'expand', (incoming) => placeFirst(this.tree, incoming))
   }
 
   /** The first pane showing `widget`, if any. */
@@ -1077,9 +1082,7 @@ class LayoutStore {
     const current = order.findIndex((p) => p.id === this.focusedPaneId)
     // From no pane, forward starts at the first and back at the last.
     const next =
-      current === -1
-        ? order[delta > 0 ? 0 : order.length - 1]
-        : order[(current + delta + order.length) % order.length]
+      current === -1 ? order[delta > 0 ? 0 : order.length - 1] : wrapAround(order, current, delta)
     if (next) this.focus(next.id)
   }
 }

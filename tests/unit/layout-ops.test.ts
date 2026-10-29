@@ -27,6 +27,7 @@ import {
   tabs,
   visiblePanes,
   walk,
+  wrapAround,
 } from '@shared/layout-ops'
 import {
   LAYOUT_VERSION,
@@ -1307,5 +1308,25 @@ describe('the empty layout under the other operations', () => {
     expect(moveNode(t, 'nope', 'other', 'left')).toBe(t)
     expect(focusTab(t, 'nope')).toBe(t)
     expect(visiblePanes(t.root)).toEqual([])
+  })
+})
+
+describe('wrapAround', () => {
+  const items = ['a', 'b', 'c']
+
+  it('steps on and back within the list', () => {
+    expect(wrapAround(items, 0, 1)).toBe('b')
+    expect(wrapAround(items, 2, -1)).toBe('b')
+  })
+
+  it('wraps round either end, however far it steps', () => {
+    expect(wrapAround(items, 2, 1)).toBe('a')
+    expect(wrapAround(items, 0, -1)).toBe('c')
+    expect(wrapAround(items, 1, 7)).toBe('c')
+    expect(wrapAround(items, 1, -7)).toBe('a')
+  })
+
+  it('finds nothing in an empty list', () => {
+    expect(wrapAround([], 0, 1)).toBeUndefined()
   })
 })

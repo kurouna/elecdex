@@ -113,14 +113,14 @@ describe('zooming a pane', () => {
     expect(layout.zoomPhase).toBe('in')
     // From the left half of the window into the middle of it.
     expect(layout.zoomFlip).toMatchObject({ sx: 500 / 900, sy: 800 / 720 })
-    expect(layout.zoomStyle).toContain('--zoom-width: 900px')
+    expect(layout.zoomStyle).toContain('width: 900px')
 
     vi.advanceTimersByTime(CRT_ZOOM_MS)
     expect(layout.zoomPhase).toBeNull()
     expect(layout.zoomFlip).toBeNull()
     // Still pinned, and still placed: only the flight is over.
     expect(layout.zoomPin).toEqual(PINNED)
-    expect(layout.zoomStyle).toContain('--zoom-height: 720px')
+    expect(layout.zoomStyle).toContain('height: 720px')
   })
 
   it('flies it back into its place before letting go of it', () => {

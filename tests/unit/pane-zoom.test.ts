@@ -73,13 +73,13 @@ describe('flipFrom', () => {
 describe('pinStyle', () => {
   it('places the pane in whole pixels', () => {
     expect(pinStyle(box(40.4, 950, 760, 50), null, CRT_ZOOM_MS)).toBe(
-      '--zoom-top: 40px; --zoom-left: 50px; --zoom-width: 900px; --zoom-height: 720px',
+      'position: fixed; top: 40px; left: 50px; width: 900px; height: 720px',
     )
   })
 
   it('adds the flight it plays, when there is one', () => {
     expect(pinStyle(box(0, 100, 100, 0), { dx: -30, dy: 12, sx: 0.5, sy: 0.25 }, 260)).toBe(
-      '--zoom-top: 0px; --zoom-left: 0px; --zoom-width: 100px; --zoom-height: 100px; ' +
+      'position: fixed; top: 0px; left: 0px; width: 100px; height: 100px; ' +
         '--zoom-dx: -30px; --zoom-dy: 12px; --zoom-sx: 0.5; --zoom-sy: 0.25; --crt-duration: 260ms',
     )
   })

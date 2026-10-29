@@ -243,6 +243,21 @@ function replace(node: LayoutNode, id: string, replacement: LayoutNode | null): 
   return { ...node, children, sizes: normalizeSizes(sizes, children.length) }
 }
 
+/**
+ * The tree with the node `id` replaced in place, without normalising: for a
+ * change that leaves the shape alone (a tab shown, sizes, a pane's state).
+ */
+function replaceIn(tree: LayoutTree, id: string, replacement: LayoutNode): LayoutTree {
+  const replaced = replace(tree.root, id, replacement)
+  return replaced === null ? tree : { ...tree, root: replaced }
+}
+
+/** The item `delta` places on from `index`, wrapping round either end. */
+export function wrapAround<T>(items: readonly T[], index: number, delta: number): T | undefined {
+  const count = items.length
+  return count === 0 ? undefined : items[(((index + delta) % count) + count) % count]
+}
+
 /** Where a node goes relative to another: on one side of it, or as a tab with it. */
 export type Placement = SplitDirection | 'tab'
 
@@ -312,10 +327,23 @@ export function splitPane(
   direction: SplitDirection,
   incoming: PaneNode,
 ): LayoutTree {
+  return placeBesidePane(tree, paneId, incoming, direction)
+}
+
+/**
+ * Puts a new pane beside the pane `paneId`, or as a tab with it - through its
+ * group when it is tabbed. The same tree when the pane is not found.
+ */
+function placeBesidePane(
+  tree: LayoutTree,
+  paneId: string,
+  incoming: PaneNode,
+  placement: Placement,
+): LayoutTree {
   const target = findNode(tree.root, paneId)
   if (target === null || target.kind !== 'pane') return tree
   const anchor = findTabsContaining(tree.root, paneId) ?? target
-  const replaced = placeBeside(tree.root, anchor.id, incoming, direction)
+  const replaced = placeBeside(tree.root, anchor.id, incoming, placement)
   return normalizeTree({ ...tree, root: replaced ?? incoming })
 }
 
@@ -340,11 +368,25 @@ export function placeFirst(tree: LayoutTree, incoming: PaneNode): LayoutTree {
 
 /** Adds a pane as a new tab beside `siblingPaneId`, creating a group if needed. */
 export function addTab(tree: LayoutTree, siblingPaneId: string, incoming: PaneNode): LayoutTree {
-  const target = findNode(tree.root, siblingPaneId)
-  if (target === null || target.kind !== 'pane') return tree
-  const anchor = findTabsContaining(tree.root, siblingPaneId) ?? target
-  const replaced = placeBeside(tree.root, anchor.id, incoming, 'tab')
-  return normalizeTree({ ...tree, root: replaced ?? incoming })
+  return placeBesidePane(tree, siblingPaneId, incoming, 'tab')
+}
+
+/**
+ * The start of a move: the node dragged and the node it lands by - the group,
+ * for a tab - or null when the move cannot be made (a split dragged, an id that
+ * is gone, or a node going beside something inside itself).
+ */
+function moveEnds(
+  tree: LayoutTree,
+  nodeId: string,
+  targetId: string,
+): { source: PaneNode | TabsNode; anchor: LayoutNode } | null {
+  const source = findNode(tree.root, nodeId)
+  const target = findNode(tree.root, targetId)
+  if (source === null || source.kind === 'split' || target === null) return null
+  const anchor =
+    target.kind === 'pane' ? (findTabsContaining(tree.root, targetId) ?? target) : target
+  return findNode(source, anchor.id) === null ? { source, anchor } : null
 }
 
 /**
@@ -363,13 +405,9 @@ export function moveNode(
   targetId: string,
   placement: Placement,
 ): LayoutTree {
-  const source = findNode(tree.root, nodeId)
-  const target = findNode(tree.root, targetId)
-  if (source === null || source.kind === 'split' || target === null) return tree
-
-  const anchor =
-    target.kind === 'pane' ? (findTabsContaining(tree.root, targetId) ?? target) : target
-  if (findNode(source, anchor.id) !== null) return tree
+  const ends = moveEnds(tree, nodeId, targetId)
+  if (ends === null) return tree
+  const { source, anchor } = ends
   if (placement === 'tab' && findNode(anchor, nodeId) !== null) return tree
 
   // Detach without normalising, so the anchor keeps its id even when this empties
@@ -399,15 +437,11 @@ export function moveTabTo(
   targetId: string,
   index: number,
 ): LayoutTree {
-  const source = findNode(tree.root, nodeId)
-  const target = findNode(tree.root, targetId)
-  if (source === null || source.kind === 'split' || target === null) return tree
-
-  const anchor =
-    target.kind === 'pane' ? (findTabsContaining(tree.root, targetId) ?? target) : target
-  // A split holds no tabs, and nothing goes inside itself or inside what it holds.
-  if (anchor.kind === 'split' || anchor.id === nodeId) return tree
-  if (findNode(source, anchor.id) !== null) return tree
+  const ends = moveEnds(tree, nodeId, targetId)
+  if (ends === null) return tree
+  const { source, anchor } = ends
+  // A split holds no tabs.
+  if (anchor.kind === 'split') return tree
 
   const existing = anchor.kind === 'tabs' ? anchor.children : [anchor]
   const at = Math.min(Math.max(index, 0), existing.length)
@@ -446,8 +480,7 @@ export function neighbourTab(node: LayoutNode, paneId: string, delta: number): s
   const group = findTabsContaining(node, paneId)
   if (group === null || group.children.length < 2) return null
   const index = group.children.findIndex((c) => c.id === paneId)
-  const count = group.children.length
-  return group.children[(((index + delta) % count) + count) % count]?.id ?? null
+  return wrapAround(group.children, index, delta)?.id ?? null
 }
 
 /**
@@ -481,8 +514,7 @@ export function neighbourShell(
   visit(node)
   const index = stops.findIndex((stop) => stop.panes.includes(paneId))
   if (index === -1 || stops.length < 2) return null
-  const count = stops.length
-  return stops[(((index + delta) % count) + count) % count]?.target ?? null
+  return wrapAround(stops, index, delta)?.target ?? null
 }
 
 /** Focuses a tab within its group. A no-op for a pane that is not tabbed. */
@@ -491,8 +523,7 @@ export function focusTab(tree: LayoutTree, paneId: string): LayoutTree {
   if (group === null) return tree
   const index = group.children.findIndex((c) => c.id === paneId)
   if (index === -1 || index === group.activeIndex) return tree
-  const replaced = replace(tree.root, group.id, { ...group, activeIndex: index })
-  return replaced === null ? tree : { ...tree, root: replaced }
+  return replaceIn(tree, group.id, { ...group, activeIndex: index })
 }
 
 /** Sets a split's child sizes, renormalised. A no-op for a bad id or arity. */
@@ -500,11 +531,7 @@ export function resizeSplit(tree: LayoutTree, splitId: string, sizes: number[]):
   const node = findNode(tree.root, splitId)
   if (node === null || node.kind !== 'split') return tree
   if (sizes.length !== node.children.length) return tree
-  const replaced = replace(tree.root, splitId, {
-    ...node,
-    sizes: normalizeSizes(sizes, node.children.length),
-  })
-  return replaced === null ? tree : { ...tree, root: replaced }
+  return replaceIn(tree, splitId, { ...node, sizes: normalizeSizes(sizes, node.children.length) })
 }
 
 /** Replaces a pane's `state`, e.g. to record which session it adopted. */
@@ -515,8 +542,7 @@ export function setPaneState(
 ): LayoutTree {
   const node = findNode(tree.root, paneId)
   if (node === null || node.kind !== 'pane') return tree
-  const replaced = replace(tree.root, paneId, { ...node, state })
-  return replaced === null ? tree : { ...tree, root: replaced }
+  return replaceIn(tree, paneId, { ...node, state })
 }
 
 /**
@@ -560,7 +586,7 @@ export function mergePaneState(
   return changed ? state : null
 }
 
-/** The pane that should have focus: the active tab of its group, or the pane. */
+/** The panes on screen, in tree order: each pane on its own, and each group's shown tab. */
 export function visiblePanes(node: LayoutNode): PaneNode[] {
   if (node.kind === 'pane') return [node]
   if (node.kind === 'tabs') {

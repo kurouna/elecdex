@@ -200,10 +200,10 @@ test('a new pane brought forward before it has powered on does not power on agai
         }),
       )
     })
-    await expect(page.locator('[data-testid=pane].zoomed')).toHaveCount(1)
+    await expect(page.locator('[data-testid=pane].pane-pinned')).toHaveCount(1)
     await quietFor(1200, () => powerOns(page), 'the power-ons played')
     expect(await powerOns(page)).toEqual(['notes'])
-    await expect(page.locator('[data-testid=pane].zoomed')).not.toHaveClass(/crt-on/)
+    await expect(page.locator('[data-testid=pane].pane-pinned')).not.toHaveClass(/crt-on/)
   } finally {
     await close()
   }
@@ -819,11 +819,11 @@ test('with motion reduced, nothing moves: the wave ends before it begins, a new 
 
     // A pane brought forward is simply there, at its full size, and simply back.
     await page.keyboard.press('Control+Shift+KeyZ')
-    const forward = page.locator('[data-testid=pane].zoomed')
+    const forward = page.locator('[data-testid=pane].pane-pinned')
     await expect(forward).toHaveCount(1)
     await expect(forward).not.toHaveClass(/crt-zoom/)
     await page.keyboard.press('Escape')
-    await expect(page.locator('[data-testid=pane].zoomed')).toHaveCount(0)
+    await expect(page.locator('[data-testid=pane].pane-pinned')).toHaveCount(0)
     await expect(page.locator('.crt-zoom, .crt-zoom-out')).toHaveCount(0)
   } finally {
     await close()

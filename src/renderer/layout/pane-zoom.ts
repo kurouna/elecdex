@@ -92,13 +92,22 @@ export function flipFrom(before: Frame, after: Frame): Flip | null {
 const px = (n: number): string => `${Math.round(n)}px`
 const ratio = (n: number): string => String(Number(n.toFixed(4)))
 
-/** The CSS variables `crt-pinned` places the pane with, and `crt-zoom` flies it by. */
+/**
+ * The inline style that pins the pane (`pane-pinned`, styles/frames.css) and the
+ * CSS variables `crt-zoom` flies it by.
+ *
+ * Fixed rather than moved in the tree: the pane is not remounted, so its widget
+ * keeps everything it holds, and the slot it came out of keeps its size, so none
+ * of the panes it covers is resized. Inline, because each host's own rule makes
+ * it `position: relative`, and a shared rule would have to outrank both.
+ */
 export function pinStyle(box: Frame, flip: Flip | null, duration: number): string {
   const parts = [
-    `--zoom-top: ${px(box.top)}`,
-    `--zoom-left: ${px(box.left)}`,
-    `--zoom-width: ${px(width(box))}`,
-    `--zoom-height: ${px(height(box))}`,
+    'position: fixed',
+    `top: ${px(box.top)}`,
+    `left: ${px(box.left)}`,
+    `width: ${px(width(box))}`,
+    `height: ${px(height(box))}`,
   ]
   if (flip !== null) {
     parts.push(

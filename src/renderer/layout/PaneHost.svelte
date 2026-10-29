@@ -9,8 +9,8 @@ import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
 import PaneCorner from './PaneCorner.svelte'
 import PaneFault from './PaneFault.svelte'
-import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
+import { hostMotion } from './pane-motion.ts'
 import TabStrip from './TabStrip.svelte'
 import { holdWidgetMetrics } from './widget-metrics.svelte.ts'
 import ZoomFrame from './ZoomFrame.svelte'
@@ -85,20 +85,25 @@ const extend = $derived(tabbed ? undefined : layout.extending.get(node.id))
 $effect(() => {
   if (closing || extend !== undefined || pinned || !visible) poweringOn = false
 })
-const crtOn = $derived(!closing && extend === undefined && (revealDelay !== null || poweringOn))
-/** Drawn scaled or clipped rather than at its place; a tab's group clips it as a whole. */
-const transitioning = $derived(crtOn || closing || flying || layout.extending.has(node.id))
-const crtStyle = $derived.by(() => {
-  if (closing) return `--crt-duration: ${CRT_CLOSE_MS}ms`
-  if (extend !== undefined) return insetStyle(extend)
+/** The power-on's timing while it plays: the boot's or a switch's reveal, or an arrival. */
+const powerOn = $derived.by(() => {
   if (revealDelay !== null)
     return `--crt-delay: ${revealDelay}ms; --crt-duration: ${revealDuration}ms`
-  return poweringOn ? `--crt-duration: ${CRT_ADDED_MS}ms` : undefined
+  return poweringOn ? `--crt-duration: ${CRT_ADDED_MS}ms` : null
 })
-/** The pane's own effects, then where the zoom has put it, which comes last. */
-const paneStyle = $derived(
-  [crtStyle, pinned ? layout.zoomStyle : null].filter((part) => part != null).join('; ') ||
-    undefined,
+const motion = $derived(
+  hostMotion({
+    closing,
+    extend,
+    pinned,
+    zoomPhase: layout.zoomPhase,
+    zoomStyle: layout.zoomStyle,
+    powerOn,
+  }),
+)
+/** Drawn scaled or clipped rather than at its place; a tab's group clips it as a whole. */
+const transitioning = $derived(
+  motion.classes['crt-on'] === true || closing || flying || layout.extending.has(node.id),
 )
 
 // The sources the widget declares: kept ones for as long as the pane exists, the rest while it is seen.
@@ -144,17 +149,10 @@ $effect(() => () => paneMeta.clear(node.id))
 
 <section
   aria-label={title}
-  class="pane chrome-{chrome}"
+  class={['pane', `chrome-${chrome}`, motion.classes]}
   class:focused
   class:hidden={!visible}
-  class:crt-on={crtOn}
-  class:crt-off={closing}
-  class:crt-beam={closing}
-  class:crt-extend={extend !== undefined}
-  class:zoomed={pinned}
-  class:crt-zoom={pinned && layout.zoomPhase === 'in'}
-  class:crt-zoom-out={pinned && layout.zoomPhase === 'out'}
-  style={paneStyle}
+  style={motion.style}
   inert={closing || behindZoom}
   data-testid="pane"
   data-pane-id={node.id}
@@ -223,24 +221,6 @@ $effect(() => () => paneMeta.clear(node.id))
   min-width: 0;
   min-height: 0;
   height: 100%;
-}
-
-/*
- * Pinned over the workspace by the zoom (styles/crt.css plays the flight). Fixed
- * rather than moved in the tree: the pane is not remounted, so its widget keeps
- * everything it holds, and the slot it came out of keeps its size, so none of
- * the panes it covers is resized.
- */
-.pane.zoomed {
-  position: fixed;
-  /* On the app's own ground: a pane is see-through, and over the shade its
-     widget would be read against whatever is behind it. */
-  background: var(--app-bg);
-  top: var(--zoom-top);
-  left: var(--zoom-left);
-  width: var(--zoom-width);
-  height: var(--zoom-height);
-  z-index: 61;
 }
 
 /* A hidden tab keeps its DOM (and its shell) but takes no space. */

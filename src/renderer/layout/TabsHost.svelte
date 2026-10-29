@@ -5,8 +5,8 @@ import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
 import PaneCorner from './PaneCorner.svelte'
 import PaneHost from './PaneHost.svelte'
-import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
+import { hostMotion } from './pane-motion.ts'
 import TabStrip from './TabStrip.svelte'
 import ZoomFrame from './ZoomFrame.svelte'
 
@@ -53,14 +53,14 @@ const zoomed = $derived(activeChild !== undefined && layout.zoomedPaneId === act
  * offered nothing while it is the one on screen.
  */
 const zoomable = $derived(activeChild !== undefined && zoomModeOf(activeChild.widget) !== null)
-const groupStyle = $derived(
-  [
-    leaving || closing ? `--crt-duration: ${CRT_CLOSE_MS}ms` : null,
-    extend === undefined ? null : insetStyle(extend),
-    pinned ? layout.zoomStyle : null,
-  ]
-    .filter((part) => part != null)
-    .join('; ') || undefined,
+const motion = $derived(
+  hostMotion({
+    closing: leaving || closing,
+    extend,
+    pinned,
+    zoomPhase: layout.zoomPhase,
+    zoomStyle: layout.zoomStyle,
+  }),
 )
 
 /** The selected tab's own title where it has one, else its widget's (TERMINAL for a shell). */
@@ -72,15 +72,9 @@ const activeTitle = $derived(
 </script>
 
 <section
-  class="tabs-host"
+  class={['tabs-host', motion.classes]}
   class:focused
-  class:crt-off={leaving || closing}
-  class:crt-beam={leaving || closing}
-  class:crt-extend={extend !== undefined}
-  class:zoomed={pinned}
-  class:crt-zoom={pinned && layout.zoomPhase === 'in'}
-  class:crt-zoom-out={pinned && layout.zoomPhase === 'out'}
-  style={groupStyle}
+  style={motion.style}
   inert={leaving || closing}
   data-testid="tabs-host"
   data-node-id={node.id}
@@ -148,19 +142,6 @@ const activeTitle = $derived(
   flex-direction: column;
   flex: 1;
   min-height: 0;
-}
-
-/* Pinned over the workspace by the zoom, as a lone pane is (layout/PaneHost). */
-.tabs-host.zoomed {
-  position: fixed;
-  /* On the app's own ground: a pane is see-through, and over the shade its
-     widget would be read against whatever is behind it. */
-  background: var(--app-bg);
-  top: var(--zoom-top);
-  left: var(--zoom-left);
-  width: var(--zoom-width);
-  height: var(--zoom-height);
-  z-index: 61;
 }
 
 .tabs-host.focused > .frame {

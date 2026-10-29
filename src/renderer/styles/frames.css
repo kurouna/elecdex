@@ -282,6 +282,18 @@
   border-top: var(--rule-width) dashed var(--panel-rule);
 }
 
+/*
+ * A pane or a tab group brought to the front (layout/pane-motion.ts), pinned at
+ * the box its inline style gives (layout/pane-zoom.ts `pinStyle`): above the
+ * workspace's shade (Workspace.svelte, 60), and on the app's own ground - a pane
+ * is see-through, and over the shade its widget would be read against whatever
+ * is behind it.
+ */
+.pane-pinned {
+  z-index: 61;
+  background: var(--app-bg);
+}
+
 /* ------------------------------------------------------------------------
  * Zoom frame (layout/ZoomFrame.svelte): round a pane brought to the front.
  * The shell frame's vocabulary a size up - its notched corners, its masked
