@@ -71,7 +71,8 @@ export function mutationsIn(
       }
       const observers = selectors.map((selector) => {
         const observer = new MutationObserver((records) => {
-          const seen = (counts[selector] ??= [])
+          const seen = counts[selector] ?? []
+          counts[selector] = seen
           for (const record of records) if (seen.length < 5) seen.push(describe(record))
         })
         const el = document.querySelector(selector)

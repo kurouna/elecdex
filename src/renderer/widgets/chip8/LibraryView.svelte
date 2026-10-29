@@ -93,7 +93,15 @@ function stir(): void {
     awake = false
   }, ATTRACT_AWAKE_MS)
 }
-stir()
+// The half minute counts only while the library is seen: unseen, its demo is already still,
+// and a library behind a tab must change nothing of itself (the lifecycle contract).
+$effect(() => {
+  if (seen) untrack(stir)
+  else if (dozing !== null) {
+    clearTimeout(dozing)
+    dozing = null
+  }
+})
 $effect(() => () => {
   if (dozing !== null) clearTimeout(dozing)
 })
