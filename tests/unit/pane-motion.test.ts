@@ -13,8 +13,7 @@ const still: HostMotionState = {
   closing: false,
   extend: undefined,
   pinned: false,
-  zoomPhase: null,
-  zoomStyle: null,
+  zoom: { phase: null, style: null },
 }
 const inset = { top: 10, right: 0, bottom: 0, left: 0 }
 const ZOOM = 'position: fixed; top: 0px; left: 0px; width: 100px; height: 100px'
@@ -36,10 +35,18 @@ describe('hostMotion', () => {
     const motion = hostMotion({ ...still, powerOn: ADDED })
     expect(on(motion.classes)).toEqual(['crt-on'])
     expect(motion.style).toBe(ADDED)
+    expect(motion.poweringOn).toBe(true)
   })
 
   it('powers off with the beam, cutting short a power-on', () => {
     const motion = hostMotion({ ...still, closing: true, powerOn: ADDED })
+    expect(on(motion.classes)).toEqual(['crt-off', 'crt-beam'])
+    expect(motion.style).toBe(`--crt-duration: ${CRT_CLOSE_MS}ms`)
+    expect(motion.poweringOn).toBe(false)
+  })
+
+  it('powers off rather than extending: the class and the style say the same', () => {
+    const motion = hostMotion({ ...still, closing: true, extend: inset })
     expect(on(motion.classes)).toEqual(['crt-off', 'crt-beam'])
     expect(motion.style).toBe(`--crt-duration: ${CRT_CLOSE_MS}ms`)
   })
@@ -51,23 +58,28 @@ describe('hostMotion', () => {
   })
 
   it('is pinned by the zoom style, which comes after its own effect', () => {
-    const motion = hostMotion({ ...still, closing: true, pinned: true, zoomStyle: ZOOM })
+    const motion = hostMotion({
+      ...still,
+      closing: true,
+      pinned: true,
+      zoom: { phase: null, style: ZOOM },
+    })
     expect(on(motion.classes)).toEqual(['crt-off', 'crt-beam', 'pane-pinned'])
     expect(motion.style).toBe(`--crt-duration: ${CRT_CLOSE_MS}ms; ${ZOOM}`)
   })
 
   it('flies in and out only while pinned', () => {
-    const flying = { ...still, zoomStyle: ZOOM }
-    expect(on(hostMotion({ ...flying, pinned: true, zoomPhase: 'in' }).classes)).toEqual([
+    const flying = (phase: 'in' | 'out') => ({ ...still, zoom: { phase, style: ZOOM } })
+    expect(on(hostMotion({ ...flying('in'), pinned: true }).classes)).toEqual([
       'pane-pinned',
       'crt-zoom',
     ])
-    expect(on(hostMotion({ ...flying, pinned: true, zoomPhase: 'out' }).classes)).toEqual([
+    expect(on(hostMotion({ ...flying('out'), pinned: true }).classes)).toEqual([
       'pane-pinned',
       'crt-zoom-out',
     ])
     // Another host while one flies: the zoom is not its own.
-    const other = hostMotion({ ...flying, zoomPhase: 'in' })
+    const other = hostMotion(flying('in'))
     expect(on(other.classes)).toEqual([])
     expect(other.style).toBeUndefined()
   })

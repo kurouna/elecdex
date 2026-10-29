@@ -98,14 +98,13 @@ const motion = $derived(
     closing,
     extend,
     pinned,
-    zoomPhase: layout.zoom.phase,
-    zoomStyle: layout.zoom.style,
+    zoom: layout.zoom,
     powerOn,
   }),
 )
 /** Drawn scaled or clipped rather than at its place; a tab's group clips it as a whole. */
 const transitioning = $derived(
-  motion.classes['crt-on'] === true || closing || flying || layout.extending.has(node.id),
+  motion.poweringOn || closing || flying || layout.extending.has(node.id),
 )
 
 // The sources the widget declares: kept ones for as long as the pane exists, the rest while it is seen.

@@ -31,8 +31,9 @@ import { LAYOUT_VERSION } from './schemas/layout.js'
 
 /**
  * The widget a shell pane shows. What is a shell is asked of this alone - the
- * keys that go to a shell, the boot's and a switch's reveal, the reaper's claims
- * - so the answer cannot differ from one place to the next.
+ * keys that go to a shell, the shell the file browser follows, the question
+ * before a switch, the boot's and a switch's reveal - so the answer cannot
+ * differ from one place to the next.
  */
 export const SHELL_WIDGET = 'terminal'
 

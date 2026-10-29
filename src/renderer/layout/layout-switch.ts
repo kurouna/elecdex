@@ -14,9 +14,9 @@ import { SWITCH_ON_MS } from '../lib/crt-timing.ts'
  * The timing lives here rather than with the boot sequence because it is a
  * different moment: at boot the reveal is the show, and a switch has to be over
  * quickly enough that it does not stand between the user and the work. It is
- * also here rather than in the store so the numbers can be read by a test and
- * the store carries no cycle back to the boot store; its lengths are with the
- * other effects' in lib/crt-timing.ts.
+ * also here rather than in the store so its shape can be read by a test and the
+ * store carries no cycle back to the boot store. How long each part takes is
+ * with the other effects' lengths, in lib/crt-timing.ts.
  */
 
 /**

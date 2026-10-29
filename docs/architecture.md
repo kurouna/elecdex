@@ -433,7 +433,7 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 **方式**: ツリーは一切触らず、そのペインの要素だけを `position: fixed` でワークスペースの上に留める（`layout/pane-zoom.ts` が幾何、`stores/pane-zoom.svelte.ts` が状態で、レイアウトのストアに `layout.zoom` として載る。置き方はインラインの style（`pinStyle`）、重なり順と地は `styles/frames.css` の `.pane-pinned`）。
 - 再マウントしない。ツリーを書き換えて 1 枚にする案も、別のレイヤーへ移す案も、ウィジェットの再マウントを起こす（シェルは再接続、Web ペインはビューを開き直し、WebGL は context を失う。§5.3・「Remounts happen」）
 - ペインが抜けても**スロット（`SplitHost` の `.slot`）は flex の比率でそのまま**なので、後ろのペインは 1 ピクセルも動かない＝ほかのターミナルには一切リサイズが飛ばない
-- タブの中のペインはグループ（`TabsHost`）ごと前に出す。タブストリップも一緒に来るので、前面のままタブを切り替えられる。切り替えたときはズームが新しいタブに移る（`followZoom`）
+- タブの中のペインはグループ（`TabsHost`）ごと前に出す。タブストリップも一緒に来るので、前面のままタブを切り替えられる。切り替えたときはズームが新しいタブに移る（`layout.zoom.follow`）
 - 状態は保存しない。ズームは「今この 1 枚を見る」ための状態で、レイアウトとして復元すると、ユーザーが忘れたまま残った状態が残りのワークスペースを隠すため
 
 **演出**（`styles/crt.css` の `crt-zoom`）: ペインは**最初のフレームから最終サイズ**に置かれ、そこから元の位置・大きさへの transform（FLIP）で飛んでくる。
@@ -442,8 +442,8 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 - 飛行の起点・終点は `frameOfPane` が測る。留まっているかどうかは**実際に描かれている状態**（`position: fixed`）で判定する。ストアの状態はページより 1 フレーム先を行っており、戻る飛行の途中でもう一度ズームすると、飛行が離れつつある箱を測ってしまうため
 - 背後には暗幕（`zoom-backdrop`）。ダイアログと同じ `backdropShade` で出入りする。押すと元に戻る
 - **枠**（`layout/ZoomFrame.svelte`、`styles/frames.css` の `.zoom-frame`、2026-09-25 利用者の依頼）: 前面のペインとタブグループを、シェル枠の語彙（右上と左下を切り落とした縁取り）を一回り大きくした枠で囲み、四角い 2 隅に照準のようなブラケット、上下の辺の中央に目盛り、下の辺に `ESC · RETURN` を置く。ペインの箱の**外側**（0.7rem）に、ペインの後ろ（`z-index: -1`）で描く。内側に描くと、ズームがウィジェットに与えた大きさを枠が削るため。留めた要素の子なので、飛行の transform に一緒に乗り、自分の描画コストはない（何も動かない）。縁は通常のシェル枠（50%）より明るい 75%
-- 動きを減らす設定では飛ばず、そのまま置かれ、そのまま戻る（`zoomMotion.animates()`）
-- Web ペインのビューはネイティブ層で DOM より手前に描かれるため、**留まっているペイン以外の Web ペインはビューを隠してスナップショットに差し替える**（`layout.zoom.pinnedId` で判定する。矩形の重なりでは、前面のペイン自身が自分のカバー矩形の内側に入って自分を隠してしまう。`zoomedPaneId` では、戻る飛行中や電源オフ中＝暗幕がまだ消えていない間にビューが復帰してしまう）。前面に出た Web ペイン自身は、ペイン本体の `ResizeObserver` がそのまま新しい矩形を main に送るので、追加の IPC はない
+- 動きを減らす設定では飛ばず、そのまま置かれ、そのまま戻る（`layout.zoom.motion.animates()`）
+- Web ペインのビューはネイティブ層で DOM より手前に描かれるため、**留まっているペイン以外の Web ペインはビューを隠してスナップショットに差し替える**（`layout.zoom.pinnedId` で判定する。矩形の重なりでは、前面のペイン自身が自分のカバー矩形の内側に入って自分を隠してしまう。`layout.zoom.paneId` では、戻る飛行中や電源オフ中＝暗幕がまだ消えていない間にビューが復帰してしまう）。前面に出た Web ペイン自身は、ペイン本体の `ResizeObserver` がそのまま新しい矩形を main に送るので、追加の IPC はない
 
 **どのペインを出せるか**: ウィジェットの登録（`widgets/registry.ts` の `zoom`）が決める。**既定は「出さない」**で、指定のないウィジェットには ⤢ ボタンも出ず、ショートカットも効かない（`layout.zoom.modeFor` が唯一の判定で、ボタンもキーもここを通る）。
 - `'full'`: ワークスペースの 9 割。与えられた場所を埋めるもの — シェル、Web ページ、地球儀、スペクトラム、CPU / メモリ / トラフィックのチャート、相場、RSS、AI チャット、地震、ランチャー、ファイル、カレンダー、天気、メモ、タスク、時計
@@ -458,14 +458,15 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 
 **操作**: `Ctrl+Shift+Z`（keybindings.ts の `pane.zoom`。Web ペインのページからも main 経由で届く）、ペイン右上の ⤢ ボタン（× の隣。モジュール枠・単独のシェル・タブグループのどれも同じ角に持つ、`layout/PaneCorner.svelte`）、暗幕のクリック、Escape。Escape はコードとして表現できない（Ctrl/Alt かファンクションキーが要る）ので Workspace が直接見る。ダイアログが開いている間はダイアログのもの。
 
-**前面にある間の角**: × は出さず、⤡（戻す）だけを × のあった右端に置く（利用者の決定 2026-10-03）。前面に重なった枠の角のボタンはダイアログの × と同じく「ここを離れる」と読まれ、⤡ の隣の × を戻すつもりで押してペインをレイアウトから消す誤操作が繰り返し起きた。タブグループの × も同じく隠し、タブごとの × は帯の中なので残す。前面のペインを閉じるのは `Ctrl+Shift+W` だけで、フォーカスがどこにあっても前面のペインを閉じる（`closeFocused` は `zoomedPaneId` を先に見る）。
+**前面にある間の角**: × は出さず、⤡（戻す）だけを × のあった右端に置く（利用者の決定 2026-10-03）。前面に重なった枠の角のボタンはダイアログの × と同じく「ここを離れる」と読まれ、⤡ の隣の × を戻すつもりで押してペインをレイアウトから消す誤操作が繰り返し起きた。タブグループの × も同じく隠し、タブごとの × は帯の中なので残す。前面のペインを閉じるのは `Ctrl+Shift+W` だけで、フォーカスがどこにあっても前面のペインを閉じる（`closeFocused` は `layout.zoom.paneId` を先に見る）。
 
 **テスト**: 単体（`zoomBox` / `flipFrom` / `pinStyle`）、コンポーネント（留め・飛行・解除の条件すべて、`tests/component/pane-zoom.test.ts`）、e2e（実寸で 9 割、枠がペインの外側を囲み戻すと消えること、後ろのペインが動かないこと、最初のフレームで最終サイズであること、シェルの履歴が壊れないこと、タブグループ、Web ペインのビューの追従、動きを減らす設定）。
 
 ### 5.6 保存レイアウト（名前を付けた配置）
 
 `LayoutTree` がデータなので、**配置に名前を付けて持っておく**のは木をもう1本持つだけで済む
-（`src/shared/layouts.ts`、`layouts.json`、最大20件）。
+（`src/shared/layouts.ts`、`layouts.json`、最大20件）。ページ側の一覧と操作は
+`stores/saved-layouts.svelte.ts` で、レイアウトのストアに `layout.saved` として載る。
 
 **作業に追従する**。ファイルは名前付きの配置の一覧と `active`（いま作業中の id）を持ち、main は
 `layout.save` のたびにその木を active のエントリにも書き戻す。スナップショット方式（明示的に
@@ -1978,12 +1979,13 @@ elecdex/
 │     ├─ index.html / main.ts / App.svelte / BootScreen / SettingsDialog / TitleBar / Toasts / ...
 │     ├─ audio-capture/    # 隠しキャプチャウィンドウのページ（workspace とは別セッション）
 │     ├─ layout/           # Workspace、LayoutNodeView、SplitHost、TabsHost、PaneHost、PaneCorner（右上の ⤢ / ×）、
-│     │                    # TabStrip、PanePicker、LayoutsDialog、pane-drag / pane-close / pane-zoom / layout-switch
+│     │                    # TabStrip、PanePicker、LayoutsDialog、pane-drag / pane-close / pane-zoom / layout-switch、
+│     │                    # pane-motion（ペインとタブグループの演出）/ pane-measure（DOM の計測）/ geometry（Frame・Box）
 │     ├─ plugins/          # PluginHost（Worker）、PluginPane、ブロック描画（CanvasBlock を含む）、合成音源（synth・voices・held）、Worker に渡す環境とフォント、設定欄
 │     ├─ widgets/          # registry.ts、builtins.ts、common/（StreamChart、Digits、SegmentMeter、HoverCard・CardRows（§7.4）…）、
 │     │                    # ウィジェットごとのフォルダ（monitor/ は監視系をまとめて持つ）、emu/（エミュレータ共通の部品、emu.md）
-│     ├─ lib/              # frame-loop、crt-transitions、sfx、webgl、time-series、markdown（AI チャットの木）、hover-card（§7.4）…
-│     ├─ stores/           # layout、appearance、sessions、metrics、ui、web、background …（runes）
+│     ├─ lib/              # frame-loop、crt-transitions、crt-timing（CRT 演出の長さ）、sfx、webgl、time-series、markdown（AI チャットの木）、hover-card（§7.4）…
+│     ├─ stores/           # layout（その部品の pane-zoom・saved-layouts）、appearance、sessions、metrics、ui、web、background …（runes）
 │     └─ styles/           # reset / tokens / frames / effects / crt / motion
 ├─ tests/
 │  ├─ unit/                # Vitest（node）

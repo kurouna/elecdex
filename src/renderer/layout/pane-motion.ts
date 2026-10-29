@@ -17,10 +17,12 @@ export interface HostMotionState {
   extend: Inset | undefined
   /** Pinned over the workspace by the zoom. */
   pinned: boolean
-  /** The zoom's flight, while one plays (`layout.zoom.phase`). */
-  zoomPhase: 'in' | 'out' | null
-  /** Where the zoom pins the host, and its flight (`layout.zoom.style`). */
-  zoomStyle: string | null
+  /**
+   * The zoom, as `layout.zoom` has it: its flight while one plays, and the
+   * style that pins a host and flies it. Passed whole, so every host reads both
+   * from the one place.
+   */
+  zoom: { readonly phase: 'in' | 'out' | null; readonly style: string | null }
   /**
    * Powering on, with the `--crt-*` timing it plays with; null when it is not.
    * Only a pane powers on by itself: a group's tabs power on inside it.
@@ -31,18 +33,23 @@ export interface HostMotionState {
 export interface HostMotion {
   classes: Record<string, boolean>
   style: string | undefined
+  /** Powering on now: drawn scaled from a line rather than at its place. */
+  poweringOn: boolean
 }
 
 export function hostMotion(state: HostMotionState): HostMotion {
-  const { closing, extend, pinned, zoomPhase } = state
-  // A close or an extension takes the place of a power-on still playing, and
-  // the two never run together: every change to the tree settles a close first.
+  const { closing, pinned, zoom } = state
+  // One effect of the host's own at a time, a close first: a close or an
+  // extension takes the place of a power-on still playing, and a close the
+  // place of an extension (every change to the tree settles a close first, so
+  // the two meet only for the moment a close begins).
+  const extend = closing ? undefined : state.extend
   const powerOn = closing || extend !== undefined ? null : (state.powerOn ?? null)
   let own: string | null = powerOn
   if (closing) own = `--crt-duration: ${CRT_CLOSE_MS}ms`
   else if (extend !== undefined) own = insetStyle(extend)
   // Where the zoom puts it comes last, after the host's own effects.
-  const parts = [own, pinned ? state.zoomStyle : null].filter((part) => part !== null)
+  const parts = [own, pinned ? zoom.style : null].filter((part) => part !== null)
   return {
     classes: {
       'crt-on': powerOn !== null,
@@ -50,9 +57,10 @@ export function hostMotion(state: HostMotionState): HostMotion {
       'crt-beam': closing,
       'crt-extend': extend !== undefined,
       'pane-pinned': pinned,
-      'crt-zoom': pinned && zoomPhase === 'in',
-      'crt-zoom-out': pinned && zoomPhase === 'out',
+      'crt-zoom': pinned && zoom.phase === 'in',
+      'crt-zoom-out': pinned && zoom.phase === 'out',
     },
     style: parts.join('; ') || undefined,
+    poweringOn: powerOn !== null,
   }
 }

@@ -58,8 +58,7 @@ const motion = $derived(
     closing: leaving || closing,
     extend,
     pinned,
-    zoomPhase: layout.zoom.phase,
-    zoomStyle: layout.zoom.style,
+    zoom: layout.zoom,
   }),
 )
 
