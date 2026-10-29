@@ -28,6 +28,7 @@ npm run demo:presets   # the layouts dialog stepping through every preset, for a
 npm run demo:shorts    # the same in a tall 9:16 window, layouts in 2 or 3 tiers (--tiers=2|3; Windows; build first)
 npm run demo:wifi      # the Wi-Fi pane on the train stub, 9:16, cards opening on the way (Windows; build first)
 npm run demo:panes     # DOCKER, CLIPBOARD, NOW PLAYING and UTILITY at work, 16:9, under 30 s (Windows; build first)
+npm run demo:panefx    # the panes at work in the dev preset: the switch, Ctrl+Shift+Arrow and the flare, Ctrl+Tab's flicker, a split, a drag that flies, a drop as a tab, forward, close and undo, captioned, 16:9 (Windows; build first)
 npm run demo:cockpit   # the cockpit preset: CLUSTER's cards, a load on every core, forward, resized, Black (Windows; build first)
 npm run demo:tour      # the introduction video: boot, presets, ETHERNET, ORBIT, agents, Docker, media, the palette, ELEC, themes (Windows; build first)
 npm run demo:tour-black # the same tour in the Black theme (--theme=black), its themes ending on Black (Windows; build first)
