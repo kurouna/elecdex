@@ -41,7 +41,8 @@
 .crt-zoom-out,
 .crt-land,
 .crt-edge,
-.crt-flare {
+.crt-flare,
+.crt-flicker {
   position: relative;
   transform-origin: 50% 50%;
 }
@@ -57,6 +58,7 @@
    opening edges - fading as the picture opens. */
 .crt-on::after,
 .crt-on::before,
+.crt-flicker::before,
 .crt-beam::after,
 .crt-extend::after,
 .crt-zoom::after,
@@ -95,7 +97,8 @@
 }
 
 /* Scanlines that flicker while the tube warms up. */
-.crt-on::before {
+.crt-on::before,
+.crt-flicker::before {
   background: repeating-linear-gradient(
     to bottom,
     hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.14) 0 1px,
@@ -355,11 +358,44 @@
   }
 }
 
+/*
+ * A tab brought to the front of its group, as a set changing channel: the picture
+ * flickers up through its scanlines, overexposed for a moment, in its own box. Never
+ * scaled as a power-on is: crt-power-on's snap overshoots, and a pane that grew past
+ * its box for that moment lay over the tab strip, taking the release of a click on
+ * the next tab (the click then went nowhere). Opacity and a filter only.
+ */
+.crt-flicker {
+  animation: crt-flicker var(--crt-duration, 220ms) linear backwards;
+}
+
+@keyframes crt-flicker {
+  0% {
+    opacity: 0;
+    filter: brightness(3) saturate(0.4);
+  }
+  20% {
+    opacity: 1;
+    filter: brightness(2.2) saturate(0.6);
+  }
+  35% {
+    opacity: 0.55;
+  }
+  55% {
+    opacity: 1;
+    filter: brightness(1.5) saturate(0.8);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+  }
+}
+
 /* Every CRT effect, the element and its overlays, stops with motion reduced. */
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"])
-    :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out, .crt-land),
-  :root:not([data-motion="full"]) .crt-on::before,
+    :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out, .crt-land, .crt-flicker),
+  :root:not([data-motion="full"]) :is(.crt-on, .crt-flicker)::before,
   :root:not([data-motion="full"])
     :is(
       .crt-on,
@@ -376,8 +412,8 @@
 }
 
 :root[data-motion="reduced"]
-  :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out, .crt-land),
-:root[data-motion="reduced"] .crt-on::before,
+  :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out, .crt-land, .crt-flicker),
+:root[data-motion="reduced"] :is(.crt-on, .crt-flicker)::before,
 :root[data-motion="reduced"]
   :is(
     .crt-on,

@@ -141,9 +141,10 @@ const powerOns = (page: Page) =>
   page.evaluate(() => (window as unknown as { powerOns: string[] }).powerOns)
 
 /**
- * Starts noting every power-on a pane is given, by widget and length, as the class is put on
- * rather than as the animation starts: a tab's flicker lasts 220 ms, and on a slow runner its
- * class can be taken off again before the first frame has started it.
+ * Starts noting every power-on a pane is given - by widget and length, or `flicker` for a
+ * tab's - as the class is put on rather than as the animation starts: a tab's flicker lasts
+ * 220 ms, and on a slow runner its class can be taken off again before the first frame has
+ * started it.
  */
 const recordFlickers = (page: Page) =>
   page.evaluate(() => {
@@ -152,9 +153,10 @@ const recordFlickers = (page: Page) =>
     Object.assign(window, { flickers: given })
     new MutationObserver(() => {
       for (const el of document.querySelectorAll<HTMLElement>('[data-testid=pane]')) {
-        const on = el.classList.contains('crt-on')
-        if (on && !lit.has(el))
-          given.push(`${el.dataset.widget}:${el.style.getPropertyValue('--crt-duration').trim()}`)
+        const flicker = el.classList.contains('crt-flicker')
+        const on = flicker || el.classList.contains('crt-on')
+        const how = flicker ? 'flicker' : el.style.getPropertyValue('--crt-duration').trim()
+        if (on && !lit.has(el)) given.push(`${el.dataset.widget}:${how}`)
         if (on) lit.add(el)
         else lit.delete(el)
       }
@@ -199,9 +201,9 @@ test('a new tab put behind another before it has powered on does not power on ag
     // never the new pane's power-on played again.
     await recordFlickers(page)
     await page.getByTestId('tab').nth(2).click()
-    await expect.poll(() => flickers(page)).toEqual(['calendar:220ms'])
-    await expect(page.locator('[data-testid=pane].crt-on')).toHaveCount(0)
-    expect(await flickers(page)).toEqual(['calendar:220ms'])
+    await expect.poll(() => flickers(page)).toEqual(['calendar:flicker'])
+    await expect(page.locator('[data-testid=pane]:is(.crt-on, .crt-flicker)')).toHaveCount(0)
+    expect(await flickers(page)).toEqual(['calendar:flicker'])
   } finally {
     await close()
   }
@@ -995,12 +997,63 @@ test('a tab brought to the front flickers on, quicker than a pane added', async 
     await settleLayout(page)
     await recordFlickers(page)
     await page.getByTestId('tab').nth(1).click()
-    await expect.poll(() => flickers(page)).toEqual(['sysinfo:220ms'])
-    await expect(byId(page, 'b')).not.toHaveClass(/crt-on/)
+    await expect.poll(() => flickers(page)).toEqual(['sysinfo:flicker'])
+    await expect(byId(page, 'b')).not.toHaveClass(/crt-flicker/)
     // Shown again by clicking the tab already in front: nothing to bring forward.
     await page.getByTestId('tab').nth(1).click()
     await quietFor(400, () => flickers(page), 'the power-ons given')
-    expect(await flickers(page)).toEqual(['sysinfo:220ms'])
+    expect(await flickers(page)).toEqual(['sysinfo:flicker'])
+  } finally {
+    await close()
+  }
+})
+
+test('a tab flickering on stays in its own box, so the next tab is pressed at once', async ({
+  shared,
+}) => {
+  // Regression: the flicker was the power-on, whose snap scales the picture past its box; a
+  // tab's pane grew over the strip for a moment, the release of a click on the next tab landed
+  // on it, and the click went nowhere (the lifecycle contract caught it on the runners).
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'tabs',
+      id: 'g',
+      activeIndex: 0,
+      children: [paneNode('a', 'calendar'), paneNode('b', 'sysinfo'), paneNode('c', 'clock')],
+    },
+  }
+  const { page, close } = await shared({ layout })
+  try {
+    await settleLayout(page)
+    // The pane's top against the strip's foot, every frame of the flicker.
+    const closest = await page.evaluate(async () => {
+      const pane = document.querySelector('[data-testid=pane][data-pane-id=b]')
+      const strip = document.querySelector('[data-testid=tab-strip]')
+      document.querySelector<HTMLElement>('[data-testid=tab][data-pane-id=b]')?.click()
+      if (pane === null || strip === null) return null
+      const foot = strip.getBoundingClientRect().bottom
+      let least = Number.POSITIVE_INFINITY
+      const end = performance.now() + 400
+      while (performance.now() < end) {
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+        least = Math.min(least, pane.getBoundingClientRect().top - foot)
+      }
+      return least
+    })
+    expect(closest).not.toBeNull()
+    expect(closest).toBeGreaterThanOrEqual(0)
+
+    // Pressed one straight after the other, each tab comes to the front.
+    for (const [id, next] of [
+      ['a', 'c'],
+      ['b', 'a'],
+      ['c', 'b'],
+    ] as const) {
+      await page.locator(`[data-testid=tab][data-pane-id=${id}]`).click()
+      await page.locator(`[data-testid=tab][data-pane-id=${next}]`).click()
+      await expect(byId(page, next)).toBeVisible()
+    }
   } finally {
     await close()
   }

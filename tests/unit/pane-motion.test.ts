@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { insetStyle } from '../../src/renderer/layout/pane-close.js'
 import { type HostMotionState, hostMotion } from '../../src/renderer/layout/pane-motion.js'
 import { edgeStyle, landStyle } from '../../src/renderer/layout/pane-reflow.js'
-import { CRT_CLOSE_MS, CRT_FLARE_MS } from '../../src/renderer/lib/crt-timing.js'
+import { CRT_CLOSE_MS, CRT_FLARE_MS, CRT_TAB_MS } from '../../src/renderer/lib/crt-timing.js'
 
 /**
  * The effects a pane or a tab group plays on itself, said once for both hosts:
@@ -101,6 +101,18 @@ describe('hostMotion', () => {
     const edge = { kind: 'edge', edges: { top: 2, right: 0, bottom: 0, left: 0 } } as const
     expect(on(hostMotion({ ...still, reflow: land, flare: true }).classes)).toEqual(['crt-land'])
     expect(on(hostMotion({ ...still, reflow: edge, powerOn: ADDED }).classes)).toEqual(['crt-edge'])
+  })
+
+  it('flickers a tab on in its own box: not the power-on, which is scaled past it', () => {
+    const flicker = hostMotion({ ...still, flicker: true })
+    expect(on(flicker.classes)).toEqual(['crt-flicker'])
+    expect(flicker.style).toBe(`--crt-duration: ${CRT_TAB_MS}ms`)
+    expect(flicker.poweringOn).toBe(false)
+    // A power-on of its own (an arrival) is the one that plays; a flare gives way to a flicker.
+    expect(on(hostMotion({ ...still, flicker: true, powerOn: ADDED }).classes)).toEqual(['crt-on'])
+    expect(on(hostMotion({ ...still, flicker: true, flare: true }).classes)).toEqual([
+      'crt-flicker',
+    ])
   })
 
   it('flares only when nothing else of its own plays, and not while the zoom flies it', () => {

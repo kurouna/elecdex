@@ -6,7 +6,7 @@
  * and places them, so an effect added here reaches both.
  */
 
-import { CRT_CLOSE_MS, CRT_FLARE_MS } from '../lib/crt-timing.js'
+import { CRT_CLOSE_MS, CRT_FLARE_MS, CRT_TAB_MS } from '../lib/crt-timing.js'
 import { effectStyle, type PaneEffect } from './pane-reflow.js'
 
 /** What a host is doing now, as the layout store says it. */
@@ -28,6 +28,11 @@ export interface HostMotionState {
    * Only a pane powers on by itself: a group's tabs power on inside it.
    */
   powerOn?: string | null
+  /**
+   * A tab just brought to the front: it flickers on in its own box, never scaled
+   * past it as a power-on is, so the tab strip above it stays the strip's to press.
+   */
+  flicker?: boolean
   /** The keyboard has just come to it: its frame flares once. */
   flare?: boolean
 }
@@ -39,7 +44,7 @@ export interface HostMotion {
   poweringOn: boolean
 }
 
-type Own = 'off' | PaneEffect['kind'] | 'on' | 'flare'
+type Own = 'off' | PaneEffect['kind'] | 'on' | 'flicker' | 'flare'
 
 /**
  * The one effect of the host's own that plays, the first that applies: they
@@ -54,6 +59,7 @@ function ownEffect(state: HostMotionState): Own | null {
   if (state.closing) return 'off'
   if (state.reflow !== undefined) return state.reflow.kind
   if ((state.powerOn ?? null) !== null) return 'on'
+  if (state.flicker === true) return 'flicker'
   const flying = state.pinned && state.zoom.phase !== null
   return state.flare === true && !flying ? 'flare' : null
 }
@@ -68,6 +74,8 @@ function ownStyle(own: Own | null, state: HostMotionState): string | null {
       return state.reflow === undefined ? null : effectStyle(state.reflow)
     case 'on':
       return state.powerOn ?? null
+    case 'flicker':
+      return `--crt-duration: ${CRT_TAB_MS}ms`
     case 'flare':
       return `--crt-duration: ${CRT_FLARE_MS}ms`
     default:
@@ -83,6 +91,7 @@ export function hostMotion(state: HostMotionState): HostMotion {
   return {
     classes: {
       'crt-on': own === 'on',
+      'crt-flicker': own === 'flicker',
       'crt-off': own === 'off',
       'crt-beam': own === 'off',
       'crt-extend': own === 'extend',

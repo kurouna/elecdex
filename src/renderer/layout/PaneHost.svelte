@@ -3,7 +3,7 @@ import { isShellWidget } from '@shared/layout-ops'
 import type { PaneNode } from '@shared/schemas/layout'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
 import { untrack } from 'svelte'
-import { CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS, CRT_TAB_MS } from '../lib/crt-timing.ts'
+import { CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../lib/crt-timing.ts'
 import PluginPane from '../plugins/PluginPane.svelte'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { boot } from '../stores/boot.svelte.ts'
@@ -101,12 +101,11 @@ const flashing = $derived(
 $effect(() => {
   if (closing || reflow !== undefined || pinned || !visible) poweringOn = false
 })
-/** The power-on's timing while it plays: the boot's or a switch's reveal, an arrival, a tab shown. */
+/** The power-on's timing while it plays: the boot's or a switch's reveal, or an arrival. */
 const powerOn = $derived.by(() => {
   if (revealDelay !== null)
     return `--crt-delay: ${revealDelay}ms; --crt-duration: ${revealDuration}ms`
-  if (poweringOn) return `--crt-duration: ${CRT_ADDED_MS}ms`
-  return flashing ? `--crt-duration: ${CRT_TAB_MS}ms` : null
+  return poweringOn ? `--crt-duration: ${CRT_ADDED_MS}ms` : null
 })
 const motion = $derived(
   hostMotion({
@@ -115,6 +114,7 @@ const motion = $derived(
     pinned,
     zoom: layout.zoom,
     powerOn,
+    flicker: flashing,
     flare: !tabbed && layout.effects.flaring === node.id,
   }),
 )
