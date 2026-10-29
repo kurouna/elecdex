@@ -89,12 +89,14 @@ async function eachRow(rows: PaneRow[], check: (row: PaneRow) => Promise<void>):
     try {
       await check(row)
     } catch (error) {
-      // The first lines: a locator's failure says there what it resolved to, and its class.
-      failed[row.widget] = String((error as Error).message)
+      // The first line, and what a locator last resolved to - the element and its class -
+      // from the call log, which says why it was not as expected.
+      const lines = String((error as Error).message)
         .split('\n')
-        .filter((line) => line.trim() !== '')
-        .slice(0, 8)
-        .join(' | ')
+        .map((line) => line.trim())
+        .filter((line) => line !== '')
+      const resolved = lines.filter((line) => /resolved to|unexpected value/.test(line))
+      failed[row.widget] = [lines[0] ?? '', ...resolved.slice(-2)].join(' | ')
     }
   }
   expect(failed).toEqual({})
