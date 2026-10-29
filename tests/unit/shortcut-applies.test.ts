@@ -21,6 +21,7 @@ const ALL: ShortcutFacts = {
   shellToFind: true,
   inTabGroup: true,
   otherShell: true,
+  toward: { left: true, right: true, up: true, down: true },
   editingText: false,
 }
 
@@ -33,6 +34,7 @@ const LONE_WEB_PANE: ShortcutFacts = {
   shellToFind: false,
   inTabGroup: false,
   otherShell: false,
+  toward: { left: false, right: false, up: false, down: false },
   editingText: false,
 }
 
@@ -54,9 +56,23 @@ describe('shortcutApplies', () => {
     // Typing in a field leaves every other shortcut as it was.
     const editing = { ...ALL, editingText: true }
     expect(ids.filter((id) => shortcutApplies(id, ALL) !== shortcutApplies(id, editing))).toEqual([
+      'focus.left',
+      'focus.right',
+      'focus.up',
+      'focus.down',
       'tab.next',
       'tab.previous',
     ])
+  })
+
+  it('takes an arrow only when a pane lies that way, else leaves it to the pane', () => {
+    const facts = { ...ALL, toward: { left: false, right: true, up: false, down: false } }
+    expect(shortcutApplies('focus.right', facts)).toBe(true)
+    expect(shortcutApplies('focus.left', facts)).toBe(false)
+    expect(shortcutApplies('focus.up', facts)).toBe(false)
+    expect(shortcutApplies('focus.down', facts)).toBe(false)
+    // A text field keeps them, to select by word.
+    expect(shortcutApplies('focus.right', { ...facts, editingText: true })).toBe(false)
   })
 
   it('takes a saved layout key only for a slot that holds one', () => {
@@ -93,6 +109,10 @@ describe('shortcutApplies', () => {
 describe('shortcutsLeftToPage', () => {
   it("leaves a lone web pane the keys that would do nothing, and never the app's own", () => {
     expect(shortcutsLeftToPage(LONE_WEB_PANE)).toEqual([
+      'focus.left',
+      'focus.right',
+      'focus.up',
+      'focus.down',
       'layout.saved1',
       'layout.saved2',
       'layout.saved3',

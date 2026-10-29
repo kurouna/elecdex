@@ -25,7 +25,7 @@ elecdex is a science-fiction terminal emulator and system monitor for Windows, m
 
 Every shortcut below is the default. All but the divider keys and Escape can be rebound in *Settings → Keyboard* (see [Rebinding shortcuts](#rebinding-shortcuts)); the *Action* column is the name the settings list and the action palette use, and the *id* is the key for `keybindings` in `settings.json`. On macOS, Ctrl in a chord also matches Cmd.
 
-A shortcut that does nothing in the current state (*Applies when* below) is not taken: the key goes on to the focused pane. Outside a tab group, for example, Ctrl+Shift+← / → still reach the shell, where PSReadLine selects by word.
+A shortcut that does nothing in the current state (*Applies when* below) is not taken: the key goes on to the focused pane. With no pane to its left or right, for example, Ctrl+Shift+← / → still reach the shell, where PSReadLine selects by word.
 
 ### Panes
 
@@ -44,8 +44,12 @@ A shortcut that does nothing in the current state (*Applies when* below) is not 
 | --- | --- | --- | --- |
 | Ctrl+Shift+] | Focus next pane | `focus.next` | Always |
 | Ctrl+Shift+[ | Focus previous pane | `focus.previous` | Always |
-| Ctrl+Shift+→ | Next tab | `tab.next` | The focused pane is in a tab group (such as the shell's tabs), and the keyboard is not in a text field |
-| Ctrl+Shift+← | Previous tab | `tab.previous` | As above |
+| Ctrl+Shift+← | Focus the pane to the left | `focus.left` | *unreleased*. A pane lies that way - beside it and sharing some of that side; the nearest, the one sharing most when several touch - and the keyboard is not in a text field |
+| Ctrl+Shift+→ | Focus the pane to the right | `focus.right` | As above |
+| Ctrl+Shift+↑ | Focus the pane above | `focus.up` | As above |
+| Ctrl+Shift+↓ | Focus the pane below | `focus.down` | As above |
+| Ctrl+Tab | Next tab | `tab.next` | The focused pane is in a tab group (such as the shell's tabs), and the keyboard is not in a text field. *unreleased*: was Ctrl+Shift+→ |
+| Ctrl+Shift+Tab | Previous tab | `tab.previous` | As above. *unreleased*: was Ctrl+Shift+← |
 | Ctrl+Alt+Shift+→ | Next shell pane | `shell.next` | From a shell, when there is another shell pane (or group of shell tabs) to go to |
 | Ctrl+Alt+Shift+← | Previous shell pane | `shell.previous` | As above |
 

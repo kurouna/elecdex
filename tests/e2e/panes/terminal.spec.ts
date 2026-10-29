@@ -568,7 +568,7 @@ test('selecting text copies it, and a right-click pastes', async () => {
   expect(await echoed()).toContain(marker)
 })
 
-test('Ctrl+Shift+Arrow switches the shell tabs, and Ctrl+Shift+S takes focus back', async () => {
+test('Ctrl+Tab switches the shell tabs, and Ctrl+Shift+S takes focus back', async () => {
   const strip = page.getByTestId('tabs-host').getByTestId('tab')
   if ((await strip.count()) < 2) {
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
@@ -587,11 +587,11 @@ test('Ctrl+Shift+Arrow switches the shell tabs, and Ctrl+Shift+S takes focus bac
   const first = await activeTab()
   await expect.poll(focusedPane).toBe(first)
 
-  await page.keyboard.press('Control+Shift+ArrowRight')
+  await page.keyboard.press('Control+Tab')
   await expect.poll(activeTab).not.toBe(first)
   const second = await activeTab()
   await expect.poll(focusedPane).toBe(second)
-  await page.keyboard.press('Control+Shift+ArrowLeft')
+  await page.keyboard.press('Control+Shift+Tab')
   await expect.poll(activeTab).toBe(first)
 
   // Focus leaves the shell; the shortcut brings it back to the selected tab.

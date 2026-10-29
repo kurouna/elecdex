@@ -910,7 +910,7 @@ test('Ctrl+Shift+0 applies the tenth saved layout, shown as 0', async () => {
   }
 })
 
-test('in a text field in a tab group, Ctrl+Shift+Arrow selects by word rather than switching tabs', async ({
+test('in a text field, Ctrl+Shift+Arrow selects by word and Ctrl+Tab stays; out of it, they move', async ({
   shared,
 }) => {
   const launched = await shared({
@@ -948,19 +948,24 @@ test('in a text field in a tab group, Ctrl+Shift+Arrow selects by word rather th
     await body.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(0, 0))
     await expect(page.locator('[data-testid=pane][data-pane-id=note]')).toHaveClass(/focused/)
 
-    // In the note the keys are the text's (issue 20): a word is selected, the tab stays.
+    const note = page.locator('[data-testid=pane][data-pane-id=note]')
+    // In the note the keys are the text's (issue 20): a word is selected, the pane to the
+    // left is not gone to, and the tab stays.
     await body.press('Control+Shift+ArrowRight')
     expect(await body.evaluate((el: HTMLTextAreaElement) => el.selectionEnd)).toBeGreaterThan(0)
-    expect(await activeTab()).toBe('note')
     await body.press('Control+Shift+ArrowLeft')
+    await expect(note).toHaveClass(/focused/)
+    await body.press('Control+Tab')
     expect(await activeTab()).toBe('note')
 
-    // Out of the field, in the same pane, they switch tabs again.
+    // Out of the field, in the same pane, Ctrl+Tab switches tabs and the arrow moves on.
     await body.evaluate((el: HTMLTextAreaElement) => el.blur())
-    await page.keyboard.press('Control+Shift+ArrowRight')
+    await page.keyboard.press('Control+Tab')
     await expect.poll(activeTab).toBe('other')
-    await page.keyboard.press('Control+Shift+ArrowLeft')
+    await page.keyboard.press('Control+Shift+Tab')
     await expect.poll(activeTab).toBe('note')
+    await page.keyboard.press('Control+Shift+ArrowLeft')
+    await expect(page.locator('[data-testid=pane][data-pane-id=side]')).toHaveClass(/focused/)
   } finally {
     await launched.close()
   }

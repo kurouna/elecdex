@@ -5,6 +5,7 @@ import {
   type KeybindingAction,
   keymap,
 } from '@shared/keybindings'
+import { type Direction, neighbourToward } from '@shared/layout-direction'
 import {
   isEmptyLayout,
   isShellWidget,
@@ -12,6 +13,7 @@ import {
   neighbourTab,
   SHELL_WIDGET,
 } from '@shared/layout-ops'
+import type { LayoutNode } from '@shared/schemas/layout'
 import { stepFontSize } from '@shared/settings'
 import { type ShortcutFacts, shortcutApplies, shortcutsLeftToPage } from '@shared/shortcut-applies'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
@@ -187,6 +189,11 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   },
   'focus.next': () => layout.cycleFocus(1),
   'focus.previous': () => layout.cycleFocus(-1),
+  // By where the panes are; with nothing that way the keys go to the pane (a shell's word selection).
+  'focus.left': () => layout.focusToward('left'),
+  'focus.right': () => layout.focusToward('right'),
+  'focus.up': () => layout.focusToward('up'),
+  'focus.down': () => layout.focusToward('down'),
   // Asked first while shells are open, as a switch is: a reset ends them too.
   'layout.reset': () => void layout.confirmReset(),
   'layout.saved': () => ui.openLayouts(),
@@ -221,7 +228,7 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   // Every shell's type size, from the settings: no shell needs the keyboard for it.
   'shell.fontBigger': () => stepShellFont(1),
   'shell.fontSmaller': () => stepShellFont(-1),
-  // Only in a tab group: elsewhere a shell keeps the keys (PSReadLine selects by word).
+  // Only in a tab group: elsewhere the keys are the pane's.
   'tab.next': () => layout.cycleTab(1),
   'tab.previous': () => layout.cycleTab(-1),
   // Only from a shell, and only when there is another shell pane to go to.
@@ -323,8 +330,16 @@ function shortcutFacts(paneId: string | null, editing: boolean): ShortcutFacts {
     shellToFind: layout.shellToFocus() !== null,
     inTabGroup: paneId !== null && neighbourTab(root, paneId, 1) !== null,
     otherShell: paneId !== null && neighbourShell(root, paneId, 1, isShellWidget) !== null,
+    toward: towardFrom(root, paneId),
     editingText: editing,
   }
+}
+
+/** Which ways from `paneId` another pane lies, for the arrow keys. */
+function towardFrom(root: LayoutNode, paneId: string | null): Record<Direction, boolean> {
+  const lies = (direction: Direction) =>
+    paneId !== null && neighbourToward(root, paneId, direction) !== null
+  return { left: lies('left'), right: lies('right'), up: lies('up'), down: lies('down') }
 }
 
 /** Shortcuts that still work with a dialog open. */

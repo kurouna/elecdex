@@ -212,6 +212,36 @@ const WORKSPACE_CHECKS: Record<InWorld<'workspace'>, (w: World) => Promise<void>
     await press()
     await expect.poll(() => focusedPane(page)).toBe('sh1')
   },
+  'focus.left': async ({ page, press }) => {
+    // Beside the group: its shown tab is the pane the keys reach there.
+    await focusShell(page, 'sh2')
+    await press()
+    await expect.poll(() => focusedPane(page)).toBe('sh1')
+  },
+  'focus.right': async ({ page, press }) => {
+    await focusShell(page, 'sh2')
+    await press()
+    await expect.poll(() => focusedPane(page)).toBe('solo')
+  },
+  'focus.up': async ({ page, press }) => {
+    // The four sit in a row: a pane is split off below the clock to go up from.
+    await focus(page, 'solo')
+    await page.keyboard.press('Control+Shift+KeyO')
+    await expect.poll(async () => (await ids(page)).length).toBe(5)
+    const below = await focusedPane(page)
+    expect(below).not.toBe('solo')
+    await press()
+    await expect.poll(() => focusedPane(page)).toBe('solo')
+  },
+  'focus.down': async ({ page, press }) => {
+    await focus(page, 'solo')
+    await page.keyboard.press('Control+Shift+KeyO')
+    await expect.poll(async () => (await ids(page)).length).toBe(5)
+    const below = await focusedPane(page)
+    await focus(page, 'solo')
+    await press()
+    await expect.poll(() => focusedPane(page)).toBe(below)
+  },
   'layout.reset': async ({ page, press }) => {
     // Shells are open, so the reset asks first, as a switch does (layout.spec has the rest).
     await focus(page, 'solo')

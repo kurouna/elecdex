@@ -1,4 +1,5 @@
 import { defaultLayoutNode } from '@shared/default-layout'
+import { type Direction, neighbourToward } from '@shared/layout-direction'
 import {
   addTab,
   closeNode,
@@ -827,6 +828,14 @@ class LayoutStore {
    */
   cycleShell(delta: number): boolean {
     return this.cycleTo((from) => neighbourShell(this.tree.root, from, delta, isShellWidget), true)
+  }
+
+  /**
+   * Focuses the pane lying `direction` from the focused one (shared/layout-direction.ts);
+   * false when none does, so the key goes to the pane.
+   */
+  focusToward(direction: Direction): boolean {
+    return this.cycleTo((from) => neighbourToward(this.tree.root, from, direction), true)
   }
 
   /**

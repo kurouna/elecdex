@@ -204,7 +204,7 @@ working day - each of them is in a picture on the [presets](presets.md) page.
   off and brings the next one up pane by pane; dialogs, notices and pop-ups power on and off too.
 - *unreleased*: when a split or a move takes room from a pane, a beam runs along the edges that
   moved; a tab brought to the front of its group flickers on, as a set changing channel; and the
-  frame of the pane the keyboard moves to (**Ctrl+Shift+]** / **[**, the shell keys, a pane's own
+  frame of the pane the keyboard moves to (**Ctrl+Shift+]** / **[** and the arrows, the shell keys, a pane's own
   shortcut) flares once. A pane you click does not flare.
 - Scanlines and glow, synthesised interface sounds, a themed title bar and a status bar that slides
   in from the bottom edge.
@@ -354,6 +354,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+W | close the focused pane, or the pane that is forward |
 | Ctrl+Shift+Z | bring the focused pane forward over the workspace, and put it back (Escape too) |
 | Ctrl+Shift+] / [ | focus the next / previous pane |
+| Ctrl+Shift+← / → / ↑ / ↓ | *unreleased*: focus the pane that way; with none there, the key goes to the pane |
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open) |
 | Ctrl+Shift+G | saved layouts |
 | Ctrl+Shift+1 … 9, 0 | apply the first ten saved layouts, in the order the dialog lists them (0 is the tenth); an empty slot leaves the keys to the focused pane |
@@ -364,7 +365,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
 | Ctrl+Shift+K | clear the shell's scrollback |
 | Ctrl+Shift+= / - | larger or smaller type in every shell |
-| Ctrl+Shift+→ / ← | next / previous tab in the focused tab group, such as the shell's tabs |
+| Ctrl+Tab / Ctrl+Shift+Tab | next / previous tab in the focused tab group, such as the shell's tabs (*unreleased*: was Ctrl+Shift+→ / ←) |
 | Ctrl+Alt+Shift+→ / ← | from a shell: next / previous shell pane (or group of shell tabs) |
 | Ctrl+Shift+. | settings |
 | Ctrl+Shift+P | the action palette |
@@ -377,8 +378,8 @@ them as your keyboard prints them, as they are bound now.
 
 - In a shell, selecting text copies it and a right-click pastes, as in PuTTY or Windows Terminal;
   Ctrl+C stays the shell's interrupt. A match the search bar moves to is not copied - only what you
-  select yourself is. Outside a tab group Ctrl+Shift+← / → still reach the shell, where PSReadLine
-  selects by word.
+  select yourself is. With no pane to its left or right, Ctrl+Shift+← / → still reach the shell,
+  where PSReadLine selects by word.
 - A shortcut that does not apply where you are leaves its keys to the pane: Ctrl+Shift+Z on a pane
   that does not come forward, the tab keys outside a tab group.
 

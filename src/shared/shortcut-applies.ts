@@ -1,13 +1,14 @@
 import { z } from 'zod'
 import { isGlobal, KEYBINDING_ACTIONS, type KeybindingAction } from './keybindings.js'
+import type { Direction } from './layout-direction.js'
 
 /**
  * Whether a shortcut applies right now (issue 20).
  *
  * Some shortcuts do something only in some states - the tab keys only in a tab group, a
- * saved layout's key only when that slot holds one - and otherwise leave the key to the
- * focused pane: a shell selects by word with Ctrl+Shift+Arrow, a web page zooms with
- * Ctrl+Shift+=. The workspace asks this before running an action, and the same answer
+ * saved layout's key only when that slot holds one, an arrow only when a pane lies that
+ * way - and otherwise leave the key to the focused pane: a shell selects by word with
+ * Ctrl+Shift+Arrow, a web page zooms with Ctrl+Shift+=. The workspace asks this before running an action, and the same answer
  * tells main which keys a focused web page may keep, so the two can never disagree.
  */
 
@@ -27,6 +28,8 @@ export interface ShortcutFacts {
   inTabGroup: boolean
   /** The focused pane is a shell and there is another shell to go to. */
   otherShell: boolean
+  /** Which ways from the focused pane another pane lies (shared/layout-direction.ts). */
+  toward: Readonly<Record<Direction, boolean>>
   /**
    * The keyboard is in a text field (lib/text-field.ts), where Ctrl+Shift+Arrow selects
    * by word - a shell's hidden textarea is not one.
@@ -36,8 +39,19 @@ export interface ShortcutFacts {
 
 const SAVED_SLOT = /^layout\.saved(\d+)$/
 
+/** The keys that move to the pane lying one way. */
+const TOWARD: Partial<Record<KeybindingAction, Direction>> = {
+  'focus.left': 'left',
+  'focus.right': 'right',
+  'focus.up': 'up',
+  'focus.down': 'down',
+}
+
 /** Whether `action` does something now; false leaves its key to whatever has the keyboard. */
 export function shortcutApplies(action: KeybindingAction, facts: ShortcutFacts): boolean {
+  const direction = TOWARD[action]
+  // A text field selects by word with the same keys.
+  if (direction !== undefined) return facts.toward[direction] && !facts.editingText
   switch (action) {
     case 'pane.zoom':
       return facts.zoomable

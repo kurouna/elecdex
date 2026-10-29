@@ -47,6 +47,7 @@ const NOTHING: ShortcutFacts = {
   anyShell: false,
   shellToFind: false,
   inTabGroup: false,
+  toward: { left: false, right: false, up: false, down: false },
   otherShell: false,
   editingText: false,
 }

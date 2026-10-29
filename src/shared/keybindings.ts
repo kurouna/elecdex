@@ -21,6 +21,12 @@ export const KEYBINDING_ACTIONS = [
   { id: 'pane.zoom', label: 'Bring the pane forward', chord: 'Ctrl+Shift+KeyZ' },
   { id: 'focus.next', label: 'Focus next pane', chord: 'Ctrl+Shift+BracketRight' },
   { id: 'focus.previous', label: 'Focus previous pane', chord: 'Ctrl+Shift+BracketLeft' },
+  // By where the panes are (shared/layout-direction.ts); with nothing that way the key goes to
+  // the pane, where a shell selects by word (user decision 2026-10-29).
+  { id: 'focus.left', label: 'Focus the pane to the left', chord: 'Ctrl+Shift+ArrowLeft' },
+  { id: 'focus.right', label: 'Focus the pane to the right', chord: 'Ctrl+Shift+ArrowRight' },
+  { id: 'focus.up', label: 'Focus the pane above', chord: 'Ctrl+Shift+ArrowUp' },
+  { id: 'focus.down', label: 'Focus the pane below', chord: 'Ctrl+Shift+ArrowDown' },
   { id: 'layout.reset', label: 'Reset layout', chord: 'Ctrl+Shift+Backspace' },
   { id: 'layout.saved', label: 'Saved layouts', chord: 'Ctrl+Shift+KeyG' },
   // The first ten saved arrangements, the tenth on 0, by position in the list - which is why the
@@ -58,8 +64,9 @@ export const KEYBINDING_ACTIONS = [
   { id: 'shell.clear', label: "Clear the shell's scrollback", chord: 'Ctrl+Shift+KeyK' },
   { id: 'shell.fontBigger', label: 'Larger type in the shells', chord: 'Ctrl+Shift+Equal' },
   { id: 'shell.fontSmaller', label: 'Smaller type in the shells', chord: 'Ctrl+Shift+Minus' },
-  { id: 'tab.next', label: 'Next tab', chord: 'Ctrl+Shift+ArrowRight' },
-  { id: 'tab.previous', label: 'Previous tab', chord: 'Ctrl+Shift+ArrowLeft' },
+  // As a browser's tabs (user decision 2026-10-29): the arrows are the panes' own.
+  { id: 'tab.next', label: 'Next tab', chord: 'Ctrl+Tab' },
+  { id: 'tab.previous', label: 'Previous tab', chord: 'Ctrl+Shift+Tab' },
   { id: 'shell.next', label: 'Next shell pane', chord: 'Ctrl+Alt+Shift+ArrowRight' },
   { id: 'shell.previous', label: 'Previous shell pane', chord: 'Ctrl+Alt+Shift+ArrowLeft' },
   { id: 'settings.open', label: 'Open settings', chord: 'Ctrl+Shift+Period' },
