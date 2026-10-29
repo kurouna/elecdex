@@ -71,7 +71,7 @@ to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of 
   reorders it.
 - A shell tab drags out on its own, and a tab group's header moves the whole group.
 - **Escape** cancels a drag. A moved shell keeps its session.
-- *unreleased*: while you drag, brackets at its corners mark the area the pane would take. A
+- While you drag, brackets at its corners mark the area the pane would take. A
   dropped pane flies from where it was to where it lands, and so does a pane it changed places
   with; one dropped into a group as a tab flickers on there.
 - **Resize** by dragging the divider between two panes, or focus it and use the **arrow keys**
@@ -97,7 +97,7 @@ to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of 
 - **Ctrl+Shift+W** closes the focused pane, as does its **×** button (shown on hover). A tab
   group's × closes every tab in it; a tab's own × closes just that tab. The closed pane powers off
   and the panes beside it extend into its room.
-- *unreleased*: a close can be put back. Its notice offers **undo** for six seconds, and the pane
+- A close can be put back. Its notice offers **undo** for six seconds, and the pane
   goes back where it was - beside the same neighbour with the same share of the room, or among
   the same tabs - keeping whatever you changed in the meantime; with its neighbour gone too, it
   goes beside the first pane. Only the last close is kept. A shell put back keeps its session and
@@ -204,7 +204,7 @@ working day - each of them is in a picture on the [presets](presets.md) page.
 - **Panes power on and off.** A pane added later powers on the same way; a closed one powers off
   and the panes beside it extend into its room; switching to a saved layout powers the whole screen
   off and brings the next one up pane by pane; dialogs, notices and pop-ups power on and off too.
-- *unreleased*: when a split or a move takes room from a pane, a beam runs along the edges that
+- When a split or a move takes room from a pane, a beam runs along the edges that
   moved; a tab brought to the front of its group flickers on, as a set changing channel; and the
   frame of the pane the keyboard moves to (**Ctrl+Shift+]** / **[** and the arrows, the shell keys, a pane's own
   shortcut) flares once. A pane you click does not flare.
@@ -356,7 +356,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+W | close the focused pane, or the pane that is forward |
 | Ctrl+Shift+Z | bring the focused pane forward over the workspace, and put it back (Escape too) |
 | Ctrl+Shift+] / [ | focus the next / previous pane |
-| Ctrl+Shift+← / → / ↑ / ↓ | *unreleased*: focus the pane that way; with none there, the key goes to the pane |
+| Ctrl+Shift+← / → / ↑ / ↓ | focus the pane that way; with none there, the key goes to the pane |
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open) |
 | Ctrl+Shift+G | saved layouts |
 | Ctrl+Shift+1 … 9, 0 | apply the first ten saved layouts, in the order the dialog lists them (0 is the tenth); an empty slot leaves the keys to the focused pane |
@@ -367,7 +367,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
 | Ctrl+Shift+K | clear the shell's scrollback |
 | Ctrl+Shift+= / - | larger or smaller type in every shell |
-| Ctrl+Tab / Ctrl+Shift+Tab | next / previous tab in the focused tab group, such as the shell's tabs (*unreleased*: was Ctrl+Shift+→ / ←) |
+| Ctrl+Tab / Ctrl+Shift+Tab | next / previous tab in the focused tab group, such as the shell's tabs (Ctrl+Shift+→ / ← until v0.0.48) |
 | Ctrl+Alt+Shift+→ / ← | from a shell: next / previous shell pane (or group of shell tabs) |
 | Ctrl+Shift+. | settings |
 | Ctrl+Shift+P | the action palette |

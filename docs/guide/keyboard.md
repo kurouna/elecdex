@@ -44,12 +44,12 @@ A shortcut that does nothing in the current state (*Applies when* below) is not 
 | --- | --- | --- | --- |
 | Ctrl+Shift+] | Focus next pane | `focus.next` | Always |
 | Ctrl+Shift+[ | Focus previous pane | `focus.previous` | Always |
-| Ctrl+Shift+← | Focus the pane to the left | `focus.left` | *unreleased*. A pane lies that way - beside it and sharing some of that side; the nearest, the one sharing most when several touch - and the keyboard is not in a text field |
+| Ctrl+Shift+← | Focus the pane to the left | `focus.left` | A pane lies that way - beside it and sharing some of that side; the nearest, the one sharing most when several touch - and the keyboard is not in a text field |
 | Ctrl+Shift+→ | Focus the pane to the right | `focus.right` | As above |
 | Ctrl+Shift+↑ | Focus the pane above | `focus.up` | As above |
 | Ctrl+Shift+↓ | Focus the pane below | `focus.down` | As above |
-| Ctrl+Tab | Next tab | `tab.next` | The focused pane is in a tab group (such as the shell's tabs). *unreleased*: was Ctrl+Shift+→, and now works from a text field too |
-| Ctrl+Shift+Tab | Previous tab | `tab.previous` | As above. *unreleased*: was Ctrl+Shift+← |
+| Ctrl+Tab | Next tab | `tab.next` | The focused pane is in a tab group (such as the shell's tabs). Ctrl+Shift+→ until v0.0.48; works from a text field too |
+| Ctrl+Shift+Tab | Previous tab | `tab.previous` | As above. Ctrl+Shift+← until v0.0.48 |
 | Ctrl+Alt+Shift+→ | Next shell pane | `shell.next` | From a shell, when there is another shell pane (or group of shell tabs) to go to |
 | Ctrl+Alt+Shift+← | Previous shell pane | `shell.previous` | As above |
 
