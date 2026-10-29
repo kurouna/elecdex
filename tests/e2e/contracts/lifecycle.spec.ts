@@ -89,7 +89,12 @@ async function eachRow(rows: PaneRow[], check: (row: PaneRow) => Promise<void>):
     try {
       await check(row)
     } catch (error) {
-      failed[row.widget] = String((error as Error).message).split('\n')[0] ?? ''
+      // The first lines: a locator's failure says there what it resolved to, and its class.
+      failed[row.widget] = String((error as Error).message)
+        .split('\n')
+        .filter((line) => line.trim() !== '')
+        .slice(0, 8)
+        .join(' | ')
     }
   }
   expect(failed).toEqual({})
