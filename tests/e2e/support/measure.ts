@@ -46,21 +46,33 @@ export async function idleCpu(
 }
 
 /**
- * Every change the page makes inside the elements `selectors` find over `ms`, counted by a
- * MutationObserver: the selectors where anything changed, with their counts (empty when nothing
- * did). An element that is not there is not watched.
+ * Every change the page makes inside the elements `selectors` find over `ms`, seen by a
+ * MutationObserver: the selectors where anything changed, each with what did - the kind of
+ * change and the element it was on, the first few - so a failure says what moved, not only
+ * that something did (empty when nothing did). An element that is not there is not watched.
  */
 export function mutationsIn(
   page: Page,
   selectors: string[],
   ms: number,
-): Promise<Record<string, number>> {
+): Promise<Record<string, string[]>> {
   return page.evaluate(
     async ({ selectors, ms }) => {
-      const counts: Record<string, number> = {}
+      const counts: Record<string, string[]> = {}
+      const describe = (record: MutationRecord): string => {
+        const target = record.target
+        const el = target instanceof Element ? target : target.parentElement
+        const name =
+          el === null
+            ? '?'
+            : `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}${el.getAttribute('data-testid') ? `[${el.getAttribute('data-testid')}]` : ''}.${[...(el.classList ?? [])].slice(0, 3).join('.')}`
+        const what = record.type === 'attributes' ? `${record.attributeName}` : record.type
+        return `${what} on ${name}`
+      }
       const observers = selectors.map((selector) => {
         const observer = new MutationObserver((records) => {
-          counts[selector] = (counts[selector] ?? 0) + records.length
+          const seen = (counts[selector] ??= [])
+          for (const record of records) if (seen.length < 5) seen.push(describe(record))
         })
         const el = document.querySelector(selector)
         if (el !== null)
