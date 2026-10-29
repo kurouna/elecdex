@@ -5,16 +5,20 @@ import { expect } from '@playwright/test'
 import { savedLayout } from './launch.js'
 
 /**
- * Waits until no layout is being carried away or brought up.
+ * Waits until no layout is being carried away or brought up, and no change of
+ * layout is still playing on a pane.
  *
  * Applying a saved layout - and resetting, which is the same thing - powers the
  * screen off and the next arrangement on, and through all of it the panes are
- * drawn scaled and clipped. Anything that measures a pane or presses on one has
- * to wait for that to end, or it will press where the pane is going to be
- * rather than where it is.
+ * drawn scaled and clipped; a pane moved flies to its place, and the panes
+ * beside a close or a split are clipped or lit. Anything that measures a pane or
+ * presses on one has to wait for that to end, or it will press where the pane
+ * is going to be rather than where it is.
  */
 export async function settleLayout(page: Page): Promise<void> {
-  await expect(page.getByTestId('workspace')).toHaveAttribute('data-switching', 'false')
+  const workspace = page.getByTestId('workspace')
+  await expect(workspace).toHaveAttribute('data-switching', 'false')
+  await expect(workspace).toHaveAttribute('data-reflowing', 'false')
 }
 
 /**

@@ -88,10 +88,10 @@ describe('closing a pane', () => {
     expect(layout.closingId).toBeNull()
     expect(ids()).toEqual([b.id])
     // b was the right half and is now everything: its clip starts at its old left.
-    expect(layout.extending.get(b.id)).toEqual({ top: 0, right: 0, bottom: 0, left: 600 })
+    expect(layout.effects.extending.get(b.id)).toEqual({ top: 0, right: 0, bottom: 0, left: 600 })
 
     vi.advanceTimersByTime(CRT_EXTEND_MS)
-    expect(layout.extending.size).toBe(0)
+    expect(layout.effects.extending.size).toBe(0)
     expect(sfx.play).toHaveBeenCalledTimes(1)
   })
 
@@ -99,8 +99,8 @@ describe('closing a pane', () => {
     load(split('row', [a, split('column', [b, c])]), b.id)
     layout.close(b.id)
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
-    expect([...layout.extending.keys()]).toEqual([c.id])
-    expect(layout.extending.get(c.id)).toEqual({ top: 300, right: 0, bottom: 0, left: 0 })
+    expect([...layout.effects.extending.keys()]).toEqual([c.id])
+    expect(layout.effects.extending.get(c.id)).toEqual({ top: 300, right: 0, bottom: 0, left: 0 })
   })
 
   it('opens the tab that takes a closed tab’s place from its middle', () => {
@@ -109,8 +109,8 @@ describe('closing a pane', () => {
     layout.close(c.id)
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
     expect(ids()).toEqual([a.id, b.id, d.id])
-    expect([...layout.extending.keys()]).toEqual([d.id])
-    expect(layout.extending.get(d.id)).toEqual({ top: 300, right: 0, bottom: 300, left: 0 })
+    expect([...layout.effects.extending.keys()]).toEqual([d.id])
+    expect(layout.effects.extending.get(d.id)).toEqual({ top: 300, right: 0, bottom: 300, left: 0 })
   })
 
   it('closes a whole group by its id: it powers off as one, then every tab goes', () => {
@@ -126,7 +126,7 @@ describe('closing a pane', () => {
     expect(layout.closingId).toBeNull()
     expect(ids()).toEqual([a.id])
     // a was the left half and is now everything: its clip starts at its old right.
-    expect(layout.extending.get(a.id)).toEqual({ top: 0, right: 600, bottom: 0, left: 0 })
+    expect(layout.effects.extending.get(a.id)).toEqual({ top: 0, right: 600, bottom: 0, left: 0 })
   })
 
   it('a group closed to nothing leaves the empty layout', () => {
@@ -135,7 +135,7 @@ describe('closing a pane', () => {
     layout.close(group.id)
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
     expect(layout.tree.root).toEqual(emptyNode())
-    expect(layout.extending.size).toBe(0)
+    expect(layout.effects.extending.size).toBe(0)
     expect(layout.focusedPaneId).toBeNull()
   })
 
@@ -155,7 +155,7 @@ describe('closing a pane', () => {
     layout.close(a.id)
     expect(layout.closingId).toBeNull()
     expect(ids()).toEqual([b.id])
-    expect(layout.extending.size).toBe(0)
+    expect(layout.effects.extending.size).toBe(0)
   })
 
   it('closes at once without a workspace to animate in', () => {
@@ -198,7 +198,7 @@ describe('closing a pane', () => {
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
     expect(isEmptyLayout(layout.tree)).toBe(true)
     expect(ids()).toEqual([])
-    expect(layout.extending.size).toBe(0)
+    expect(layout.effects.extending.size).toBe(0)
     expect(layout.focusedPaneId).toBeNull()
   })
 
@@ -274,25 +274,25 @@ describe('a change during a close', () => {
     layout.close(c.id)
     expect(ids()).toEqual([a.id, c.id])
     expect(layout.closingId).toBe(c.id)
-    expect(layout.extending.size).toBe(0)
+    expect(layout.effects.extending.size).toBe(0)
 
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
     expect(ids()).toEqual([a.id])
-    expect([...layout.extending.keys()]).toEqual([a.id])
+    expect([...layout.effects.extending.keys()]).toEqual([a.id])
     // Measured from the tree the first close left: a was the left half.
-    expect(layout.extending.get(a.id)).toEqual({ top: 0, right: 600, bottom: 0, left: 0 })
+    expect(layout.effects.extending.get(a.id)).toEqual({ top: 0, right: 600, bottom: 0, left: 0 })
   })
 
   it('a close during an extension stops it before measuring', () => {
     load(split('row', [a, b, c]), a.id)
     layout.close(a.id)
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
-    expect(layout.extending.size).toBe(2)
+    expect(layout.effects.extending.size).toBe(2)
     layout.close(b.id)
-    expect(layout.extending.size).toBe(0)
+    expect(layout.effects.extending.size).toBe(0)
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
-    expect([...layout.extending.keys()]).toEqual([c.id])
-    expect(layout.extending.get(c.id)).toEqual({ top: 0, right: 0, bottom: 0, left: 600 })
+    expect([...layout.effects.extending.keys()]).toEqual([c.id])
+    expect(layout.effects.extending.get(c.id)).toEqual({ top: 0, right: 0, bottom: 0, left: 600 })
   })
 
   it('closing the other tab of a pair finishes the close first', () => {
@@ -318,7 +318,7 @@ describe('a change during a close', () => {
     expect(ids()).not.toContain(b.id)
     vi.advanceTimersByTime(CLOSE_SETTLE_MS + CRT_EXTEND_MS)
     expect(ids()).not.toContain(b.id)
-    expect(layout.extending.size).toBe(0)
+    expect(layout.effects.extending.size).toBe(0)
   })
 
   it('switching tabs finishes the close first, and skips the tab that closed', () => {

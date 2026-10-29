@@ -20,6 +20,7 @@ import {
   setPaneState,
   splitPane,
   visiblePanes,
+  withCurrentPanes,
   wrapAround,
 } from '@shared/layout-ops'
 import {
@@ -32,16 +33,12 @@ import {
 import { flushSync } from 'svelte'
 import type { Frame } from '../layout/geometry.ts'
 import { switchDelaysFor, switchRevealEnd } from '../layout/layout-switch.ts'
-import { extendFrom, type Inset } from '../layout/pane-close.ts'
+import { reflowOf } from '../layout/pane-reflow.ts'
 import { revealSoundTimes } from '../lib/boot-sequence.ts'
-import {
-  CLOSE_SETTLE_MS,
-  CRT_EXTEND_MS,
-  SWITCH_GAP_MS,
-  SWITCH_OFF_MS,
-  SWITCH_ON_MS,
-} from '../lib/crt-timing.ts'
+import { CLOSE_SETTLE_MS, SWITCH_GAP_MS, SWITCH_OFF_MS, SWITCH_ON_MS } from '../lib/crt-timing.ts'
+import { resolveWidget } from '../widgets/registry.ts'
 import { appearance } from './appearance.svelte.ts'
+import { PaneEffects } from './pane-effects.svelte.ts'
 import { PaneZoom } from './pane-zoom.svelte.ts'
 import { SavedLayouts } from './saved-layouts.svelte.ts'
 import { sfx } from './sound.svelte.ts'
@@ -68,15 +65,27 @@ const EMPTY_IDS: ReadonlySet<string> = new Set<string>()
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
+/** How long a closed pane can be put back from its toast. */
+const UNDO_CLOSE_MS = 6000
+
+/** The last close, while it can be put back: the tree before it and what it took. */
+interface ClosedPanes {
+  tree: LayoutTree
+  focused: string | null
+  panes: readonly PaneNode[]
+  toast: number
+}
+
 /** Where a pane added from the picker goes, relative to the focused pane. */
 export type PanePlacement = 'right' | 'down' | 'tab'
 
 /**
- * What closing needs from the page, given by the workspace: this store cannot ask
- * the boot or appearance stores itself (boot imports it) and has no DOM of its own.
+ * What the effects of a change of layout need from the page - a close, a move, a
+ * split, a tab shown - given by the workspace: this store cannot ask the boot or
+ * appearance stores itself (boot imports it) and has no DOM of its own.
  */
 export interface CloseMotion {
-  /** Whether a close may animate now: motion is not reduced and the boot is over. */
+  /** Whether a change may animate now: motion is not reduced and the boot is over. */
   animates(): boolean
   /** The box of every shown pane's frame, by pane id. */
   frames(): Map<string, Frame>
@@ -129,10 +138,23 @@ class LayoutStore {
    * to reason about a tree another close is about to change.
    */
   closingId = $state<string | null>(null)
-  /** Panes uncovering the room a close gave them, with where their clip starts. */
-  extending = $state.raw<ReadonlyMap<string, Inset>>(new Map())
   private closeTimer: ReturnType<typeof setTimeout> | null = null
-  private extendTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** What the panes play once a change has happened to them (stores/pane-effects.svelte.ts). */
+  readonly effects = new PaneEffects()
+
+  /** The last close, while its toast can still put it back (see undoClose). */
+  #closed = $state.raw<ClosedPanes | null>(null)
+  /**
+   * The panes the last close took, while it can be undone: the workspace's reaper
+   * counts their shells as still claimed, so putting a shell back finds its
+   * session. Empty once the toast has gone, which lets the reaper look again.
+   */
+  readonly undoablePanes = $derived.by((): readonly PaneNode[] => {
+    const closed = this.#closed
+    if (closed === null || !toasts.items.some((toast) => toast.id === closed.toast)) return []
+    return closed.panes
+  })
 
   /** The pane brought to the front, if any (stores/pane-zoom.svelte.ts). */
   readonly zoom: PaneZoom = new PaneZoom({
@@ -211,6 +233,7 @@ class LayoutStore {
    * pane behind it inert, the workspace would take no click and no key.
    */
   private adopt(tree: LayoutTree): void {
+    this.dropUndo()
     this.tree = tree
     this.zoom.clear()
     this.focusedPaneId = initialFocus(tree)
@@ -295,14 +318,23 @@ class LayoutStore {
     await this.saving
   }
 
-  focus(paneId: string): void {
+  /**
+   * Gives a pane the keyboard, bringing its tab to the front of its group - which
+   * then flickers on. `fromKeys` when a shortcut moved it there: the pane's frame
+   * flares once, so the eye finds where the keyboard went.
+   */
+  focus(paneId: string, fromKeys = false): void {
     if (paneId === this.closingId) return
     const node = findNode(this.tree.root, paneId)
     if (node === null) return
     this.zoom.follow(paneId)
     this.focusedPaneId = paneId
     if (node.kind === 'pane' && isShellWidget(node.widget)) this.lastTerminalId = paneId
-    this.commit(focusTab(this.tree, paneId))
+    const next = focusTab(this.tree, paneId)
+    const animates = this.closeMotion?.animates() === true
+    if (next !== this.tree && animates) this.effects.flash(paneId)
+    this.commit(next)
+    if (fromKeys && animates) this.effects.flare(paneId)
   }
 
   split(
@@ -346,10 +378,14 @@ class LayoutStore {
     const incoming = pane(widget, state === undefined ? {} : { state })
     const next = place(incoming)
     if (next === this.tree) return
+    this.dropUndo()
+    const before = this.framesBefore()
     this.arriving = incoming.id
     this.commit(next)
     this.focusedPaneId = incoming.id
     sfx.play(sound)
+    // The new pane powers on by itself; the ones it took room from light the edges that came in.
+    this.reflow(before, undefined, new Set([incoming.id]))
   }
 
   /**
@@ -436,11 +472,28 @@ class LayoutStore {
   /** Takes the result of a move, focusing what moved. A move that changed nothing does nothing. */
   private applyMove(next: LayoutTree, nodeId: string): void {
     if (next === this.tree) return
+    this.dropUndo()
+    const before = this.framesBefore()
+    const fromGroup = this.groupOf(nodeId)
     this.commit(next)
     const moved = findNode(next.root, nodeId)
-    const shown = moved === null ? null : visiblePanes(moved)[0]
+    const shown = moved === null ? undefined : visiblePanes(moved)[0]
     if (shown) this.focus(shown.id)
     sfx.play('expand')
+    if (shown === undefined) {
+      this.reflow(before)
+      return
+    }
+    // A pane that joined a group of others is drawn in that group's frame, which
+    // stayed where it was: the pane flickers on there, as a tab shown does,
+    // rather than flying the whole group in from where the pane used to be.
+    const group = findTabsContaining(next.root, shown.id)
+    if (group === null || moved?.kind === 'tabs') {
+      this.reflow(before, new Set([shown.id]))
+      return
+    }
+    this.reflow(before, undefined, new Set([shown.id]))
+    if (before !== null && fromGroup !== group.id) this.effects.flash(shown.id)
   }
 
   /**
@@ -465,6 +518,7 @@ class LayoutStore {
     if (node === null) return
     const id = node.id
     sfx.play('collapse')
+    this.offerUndo(node)
     // A group is always on screen; a pane is not when it is a tab behind another.
     const shown = node.kind === 'tabs' || this.visible.some((p) => p.id === id)
     if (!shown || this.closeMotion?.animates() !== true) {
@@ -496,19 +550,32 @@ class LayoutStore {
     this.closeTimer = null
     this.closingId = null
     if (id === null) return
-    const before = motion?.frames()
+    const before = motion?.frames() ?? null
     this.remove(id)
-    if (motion === null || before === undefined) return
+    this.reflow(before)
+  }
+
+  /** Every shown pane's frame now, when the change about to be made may play; else null. */
+  private framesBefore(): Map<string, Frame> | null {
+    const motion = this.closeMotion
+    return motion?.animates() === true ? motion.frames() : null
+  }
+
+  /**
+   * After a change to the tree: lets Svelte lay the new tree out, measures every
+   * pane again and plays what the change did to each (layout/pane-reflow.ts) -
+   * `moved` fly in, `fresh` play nothing here, the rest extend or light their edges.
+   */
+  private reflow(
+    before: Map<string, Frame> | null,
+    moved?: ReadonlySet<string>,
+    fresh?: ReadonlySet<string>,
+  ): void {
+    const motion = this.closeMotion
+    if (before === null || motion === null) return
     // Svelte applies the new tree on its next flush; measure after it, not before.
     flushSync()
-    const extending = new Map<string, Inset>()
-    for (const [paneId, after] of motion.frames()) {
-      const inset = extendFrom(before.get(paneId), after)
-      if (inset !== null) extending.set(paneId, inset)
-    }
-    if (extending.size === 0) return
-    this.extending = extending
-    this.extendTimer = setTimeout(() => this.stopExtending(), CRT_EXTEND_MS)
+    this.effects.play(reflowOf(before, motion.frames(), moved, fresh))
   }
 
   /** Takes a node out of the tree; the last pane closed leaves the empty layout. */
@@ -518,10 +585,55 @@ class LayoutStore {
     this.zoom.dropGone(next)
   }
 
-  private stopExtending(): void {
-    if (this.extendTimer !== null) clearTimeout(this.extendTimer)
-    this.extendTimer = null
-    if (this.extending.size > 0) this.extending = new Map()
+  /**
+   * Says a close in a toast that can put it back, for a few seconds: the tree
+   * before it is kept, and the panes it took, whose shells the reaper leaves be
+   * meanwhile. Only the last close is kept, and only until the next change to
+   * the arrangement, after which putting the old tree back would undo that too.
+   */
+  private offerUndo(node: LayoutNode): void {
+    this.dropUndo()
+    const panes = collectPanes(node)
+    const name =
+      node.kind === 'pane'
+        ? (resolveWidget(node.widget)?.title ?? node.widget)
+        : `${panes.length} tabs`
+    const toast = toasts.show({
+      title: `${name} closed`,
+      timeoutMs: UNDO_CLOSE_MS,
+      actions: [{ label: 'undo', primary: true, run: () => this.undoClose() }],
+    })
+    this.#closed = { tree: this.tree, focused: this.focusedPaneId, panes, toast }
+  }
+
+  /** Lets go of the last close, and of its toast. */
+  private dropUndo(): void {
+    const closed = this.#closed
+    if (closed === null) return
+    this.#closed = null
+    toasts.dismiss(closed.toast)
+  }
+
+  /**
+   * Puts the last close back: the tree as it was, with every pane still in it as
+   * it is now - a shell's state written since is kept. The panes put back power
+   * on as new ones do, and the ones that give them room light their edges.
+   */
+  undoClose(): void {
+    const closed = this.#closed
+    if (closed === null) return
+    this.#closed = null
+    this.settle()
+    const before = this.framesBefore()
+    const restored = withCurrentPanes(closed.tree, this.tree)
+    const back = new Set(closed.panes.map((node) => node.id))
+    this.arriving = visiblePanes(restored.root).find((node) => back.has(node.id))?.id ?? null
+    this.commit(restored)
+    if (closed.focused !== null && findNode(restored.root, closed.focused) !== null) {
+      this.focusedPaneId = closed.focused
+    }
+    sfx.play('expand')
+    this.reflow(before, undefined, back)
   }
 
   /**
@@ -536,7 +648,7 @@ class LayoutStore {
   /** Settling, with the pane in `closing` left pinned where it is (see close). */
   private settleFor(closing: string | null): void {
     this.zoom.clear(closing)
-    this.stopExtending()
+    this.effects.stop()
     if (this.closeTimer !== null) clearTimeout(this.closeTimer)
     this.closeTimer = null
     const id = this.closingId
@@ -714,7 +826,7 @@ class LayoutStore {
    * has focus and there is another; false otherwise, so the key goes to the shell.
    */
   cycleShell(delta: number): boolean {
-    return this.cycleTo((from) => neighbourShell(this.tree.root, from, delta, isShellWidget))
+    return this.cycleTo((from) => neighbourShell(this.tree.root, from, delta, isShellWidget), true)
   }
 
   /**
@@ -723,13 +835,13 @@ class LayoutStore {
    * finish a close first, and the neighbour is found again in the tree it leaves,
    * since the one found before may have been the pane that closed.
    */
-  private cycleTo(find: (from: string) => string | null): boolean {
+  private cycleTo(find: (from: string) => string | null, flare = false): boolean {
     const neighbour = () => (this.focusedPaneId === null ? null : find(this.focusedPaneId))
     if (neighbour() === null) return false
     this.settle()
     const next = neighbour()
     if (next === null) return false
-    this.focus(next)
+    this.focus(next, flare)
     return true
   }
 
@@ -753,7 +865,7 @@ class LayoutStore {
     // From no pane, forward starts at the first and back at the last.
     const next =
       current === -1 ? order[delta > 0 ? 0 : order.length - 1] : wrapAround(order, current, delta)
-    if (next) this.focus(next.id)
+    if (next) this.focus(next.id, true)
   }
 }
 

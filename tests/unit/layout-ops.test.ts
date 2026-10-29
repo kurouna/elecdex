@@ -29,6 +29,7 @@ import {
   tabs,
   visiblePanes,
   walk,
+  withCurrentPanes,
   wrapAround,
 } from '@shared/layout-ops'
 import {
@@ -1339,5 +1340,29 @@ describe('isShellWidget', () => {
     expect(isShellWidget('terminal')).toBe(true)
     expect(isShellWidget('clock')).toBe(false)
     expect(isShellWidget('plugin:terminal')).toBe(false)
+  })
+})
+
+describe('withCurrentPanes', () => {
+  it('puts an earlier tree back with each pane it shares as the current tree has it', () => {
+    const a = pane('terminal', { id: 'a', state: { cwd: '/old' } })
+    const b = pane('clock', { id: 'b' })
+    const earlier: LayoutTree = { version: LAYOUT_VERSION, root: split('row', [a, b]) }
+    const now: LayoutTree = {
+      version: LAYOUT_VERSION,
+      root: pane('terminal', { id: 'a', state: { cwd: '/new' } }),
+    }
+    const back = withCurrentPanes(earlier, now)
+    expect(collectPanes(back.root).map((p) => [p.id, p.state?.cwd])).toEqual([
+      ['a', '/new'],
+      ['b', undefined],
+    ])
+    expect(findNode(back.root, 'b')).toBe(b)
+  })
+
+  it('is the same tree when no pane it holds has changed', () => {
+    const a = pane('clock', { id: 'a' })
+    const earlier: LayoutTree = { version: LAYOUT_VERSION, root: tabs([a, pane('notes')]) }
+    expect(withCurrentPanes(earlier, { version: LAYOUT_VERSION, root: a })).toBe(earlier)
   })
 })

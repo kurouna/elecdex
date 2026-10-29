@@ -71,7 +71,10 @@ async function drag(handle: Locator, x: number, y: number, release = true) {
   await page.mouse.down()
   await page.mouse.move(x, y, { steps: 12 })
   await expect(page.getByTestId('pane-drag'), `the drag started (pressed on ${hit})`).toHaveCount(1)
-  if (release) await page.mouse.up()
+  if (!release) return
+  await page.mouse.up()
+  // The moved pane flies to its place: measure it once it is there.
+  await settleLayout(page)
 }
 
 /** A point just inside `side` of a box, halfway along it. */
@@ -157,6 +160,7 @@ for (const side of ['left', 'right', 'up', 'down'] as const) {
       .toBe(true)
     await page.mouse.up()
     await expect(page.getByTestId('pane-drag')).toHaveCount(0)
+    await settleLayout(page)
 
     // The moved pane now sits on that side of the globe, sharing its row or column.
     const memoryAfter = await boxOf(paneWith('memory'))

@@ -596,6 +596,26 @@ export function mergePaneState(
   return changed ? state : null
 }
 
+/**
+ * `tree` with each of its panes as `current` has it now, where `current` still
+ * holds it: an arrangement kept from earlier (a close to be undone) put back
+ * without losing what its panes have written to their state since. Panes only
+ * `tree` holds stay as they were. The same tree when nothing differs.
+ */
+export function withCurrentPanes(tree: LayoutTree, current: LayoutTree): LayoutTree {
+  const now = new Map(collectPanes(current.root).map((node) => [node.id, node]))
+  const swap = (node: LayoutNode): LayoutNode => {
+    if (node.kind === 'pane') return now.get(node.id) ?? node
+    const children = node.children.map(swap)
+    if (children.every((child, i) => child === node.children[i])) return node
+    return node.kind === 'tabs'
+      ? { ...node, children: children as PaneNode[] }
+      : { ...node, children }
+  }
+  const root = swap(tree.root)
+  return root === tree.root ? tree : { ...tree, root }
+}
+
 /** The panes on screen, in tree order: each pane on its own, and each group's shown tab. */
 export function visiblePanes(node: LayoutNode): PaneNode[] {
   if (node.kind === 'pane') return [node]

@@ -25,6 +25,15 @@ export const CRT_EXTEND_MS = 220
  */
 export const CLOSE_SETTLE_MS = CRT_CLOSE_MS + 40
 
+/** A moved pane flying from its old place to where the move put it (layout/pane-reflow.ts). */
+export const CRT_LAND_MS = 280
+/** The beam along the edges a split or a move drew in. */
+export const CRT_EDGE_MS = 320
+/** A tab brought to the front of its group flickering on, as a set changing channel. */
+export const CRT_TAB_MS = 220
+/** A pane's frame flaring once as the keyboard moves to it. */
+export const CRT_FLARE_MS = 480
+
 /** A pane flying out to the front of the workspace. */
 export const CRT_ZOOM_MS = 260
 /** And back to its place, a little quicker, as a picture collapsing. */

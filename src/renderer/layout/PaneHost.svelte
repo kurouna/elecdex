@@ -1,8 +1,9 @@
 <script lang="ts">
 import { isShellWidget } from '@shared/layout-ops'
 import type { PaneNode } from '@shared/schemas/layout'
+import { WEB_WIDGET_PREFIX } from '@shared/web'
 import { untrack } from 'svelte'
-import { CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../lib/crt-timing.ts'
+import { CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS, CRT_TAB_MS } from '../lib/crt-timing.ts'
 import PluginPane from '../plugins/PluginPane.svelte'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { boot } from '../stores/boot.svelte.ts'
@@ -77,34 +78,57 @@ const zoomed = $derived(layout.zoom.paneId === node.id)
 const zoomable = $derived(zoomModeOf(node.widget) !== null)
 /** Every other pane is behind the zoom: out of reach until it is put back. */
 const behindZoom = $derived(layout.zoom.paneId !== null && !zoomed)
-/** Uncovering the room a closed pane left; a tab's group does it for a tabbed pane. */
-const extend = $derived(tabbed ? undefined : layout.extending.get(node.id))
+/**
+ * What a change of layout plays on this pane (layout/pane-reflow.ts): uncovering
+ * the room it gained, flying in from where a move took it, or lighting the edges
+ * a split drew in. A tab's group plays them for a tabbed pane.
+ */
+const extend = $derived(tabbed ? undefined : layout.effects.extending.get(node.id))
+const landing = $derived(tabbed ? undefined : layout.effects.landing.get(node.id))
+const edges = $derived(tabbed ? undefined : layout.effects.edging.get(node.id))
+/**
+ * A tab just brought to the front of its group flickers on, as a set changing
+ * channel. Not a web page: its view is drawn over the pane, which would only be
+ * put behind a picture of itself for the moment the flicker lasts.
+ */
+const flashing = $derived(
+  visible && layout.effects.flashing === node.id && !node.widget.startsWith(WEB_WIDGET_PREFIX),
+)
 // Each of these cuts short a power-on still playing, whose end is then never seen:
-// a close or an extension replaces its animation, as the flight of a pane brought
-// forward does, and a tab put behind another is display:none, which cancels it
-// without an event to say so. Left set, the power-on played again - when the tab
+// a close, an extension or a landing replaces its animation, as the flight of a pane
+// brought forward does, and a tab put behind another is display:none, which cancels
+// it without an event to say so. Left set, the power-on played again - when the tab
 // was next shown, or in front of everything as the flight landed.
 $effect(() => {
-  if (closing || extend !== undefined || pinned || !visible) poweringOn = false
+  if (closing || extend !== undefined || landing !== undefined || pinned || !visible)
+    poweringOn = false
 })
-/** The power-on's timing while it plays: the boot's or a switch's reveal, or an arrival. */
+/** The power-on's timing while it plays: the boot's or a switch's reveal, an arrival, a tab shown. */
 const powerOn = $derived.by(() => {
   if (revealDelay !== null)
     return `--crt-delay: ${revealDelay}ms; --crt-duration: ${revealDuration}ms`
-  return poweringOn ? `--crt-duration: ${CRT_ADDED_MS}ms` : null
+  if (poweringOn) return `--crt-duration: ${CRT_ADDED_MS}ms`
+  return flashing ? `--crt-duration: ${CRT_TAB_MS}ms` : null
 })
 const motion = $derived(
   hostMotion({
     closing,
     extend,
+    landing,
+    edges,
     pinned,
     zoom: layout.zoom,
     powerOn,
+    flare: !tabbed && layout.effects.flaring === node.id,
   }),
 )
-/** Drawn scaled or clipped rather than at its place; a tab's group clips it as a whole. */
+/** Drawn scaled or clipped rather than at its place; a tab's group clips or flies it as a whole. */
 const transitioning = $derived(
-  motion.poweringOn || closing || flying || layout.extending.has(node.id),
+  motion.poweringOn ||
+    closing ||
+    flying ||
+    layout.effects.extending.has(node.id) ||
+    layout.effects.landing.has(node.id),
 )
 
 // The sources the widget declares: kept ones for as long as the pane exists, the rest while it is seen.

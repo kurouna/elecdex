@@ -445,3 +445,56 @@ test('an exception nothing in the page caught is said as a toast, once', async (
     await close()
   }
 })
+
+test('a closed shell can be put back from its toast, with its session, after the reaper has looked', async ({
+  shared,
+}) => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [0.5, 0.5],
+      children: [
+        { kind: 'pane', id: 'sh', widget: 'terminal' },
+        { kind: 'pane', id: 'c', widget: 'clock' },
+      ],
+    },
+  }
+  const { page, userData, close } = await shared({ layout })
+  try {
+    const shell = terminalPane(page)
+    await expect(shell.getByTestId('terminal-host')).toBeVisible()
+    // The shell's own session, as the pane records it: the app may run others' too.
+    const recorded = () => {
+      const saved = JSON.parse(savedLayout(userData) ?? 'null') as {
+        root?: { children?: Array<{ id: string; state?: { sessionId?: string } }> }
+      } | null
+      return saved?.root?.children?.find((child) => child.id === 'sh')?.state?.sessionId ?? null
+    }
+    await expect.poll(recorded).not.toBeNull()
+    const session = recorded()
+    const alive = async () =>
+      (await page.evaluate(() => window.elecdex.pty.list())).some((s) => s.id === session)
+    expect(await alive()).toBe(true)
+
+    await closePane(shell)
+    const toast = page.getByTestId('toast').filter({ hasText: 'terminal closed' })
+    await expect(toast).toHaveCount(1)
+    // Past the reaper's look (four seconds after the panes changed): the shell is kept.
+    // wait: the reaper's look has no signal - it shows only in a shell ended, or not
+    await page.waitForTimeout(4_500)
+    expect(await alive()).toBe(true)
+
+    await toast.getByTestId('toast-action').filter({ hasText: 'undo' }).click({ delay: 20 })
+    await expect(toast).toHaveCount(0)
+    await expect(page.getByTestId('pane')).toHaveCount(2)
+    await expect(terminalPane(page)).toHaveAttribute('data-pane-id', 'sh')
+    await expect(terminalPane(page).getByTestId('terminal-host')).toBeVisible()
+    expect(await alive()).toBe(true)
+    await expect.poll(recorded).toBe(session)
+  } finally {
+    await close()
+  }
+})

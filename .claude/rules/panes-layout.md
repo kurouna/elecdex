@@ -103,6 +103,11 @@ the files above is read or edited.
   - Panes: `layout.arrived`; closing via `layout.closingId` and a `crt-extend` clip
     (layout/pane-close.ts), never animated sizes. One close at a time; tree changes call
     `layout.settle()` first.
+  - After a move, a split, a close or an undo, `reflow` measures the panes before and after and
+    `layout.effects` plays one effect each (layout/pane-reflow.ts: fly, extend, lit edges); a tab
+    shown flickers on, the keyboard's arrival flares (`focus(id, true)`, never a click). A host
+    plays one effect of its own at a time, chosen in `hostMotion` (layout/pane-motion.ts): a new
+    one goes there, for both hosts.
   - Layouts: `layout.leaving`, then pane by pane (layout/layout-switch.ts); last switch wins.
   - Zoom (`layout.zoom`, §5.5): `position: fixed` and a transform (`crt-zoom`), never growing;
     the tree is untouched, nothing remounts, and every tree change lets go of it. Forward, its

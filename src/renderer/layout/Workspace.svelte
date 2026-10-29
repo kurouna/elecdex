@@ -85,8 +85,10 @@ $effect(() => {
 
 // Re-arm the reaper whenever the set of panes changes - only then: `paneIds` stays the
 // same through a resize, a tab click or a pane's state written, which `panes` does not.
+// And when a close can no longer be undone: the shells it took are no longer claimed.
 $effect(() => {
   void layout.paneIds
+  void layout.undoablePanes
 
   armReaper()
 
@@ -111,8 +113,9 @@ function armReaper(): void {
 async function reapOrphans(): Promise<void> {
   if (!layout.loaded) return
 
-  // Forget store entries for panes that are gone, so the store does not grow.
-  const paneIds = new Set(layout.panes.map((p) => p.id))
+  // Forget store entries for panes that are gone, so the store does not grow. A pane
+  // whose close can still be undone is not gone yet: put back, it finds what it had.
+  const paneIds = new Set([...layout.panes, ...layout.undoablePanes].map((p) => p.id))
   sessions.retainOnly(paneIds)
   forgetGonePanes(paneIds)
 
@@ -139,7 +142,8 @@ async function reapOrphans(): Promise<void> {
  */
 function claimedSessions(): Set<string> {
   const claimed = new Set<string>()
-  for (const node of layout.panes) {
+  // A pane whose close can still be undone keeps its shell, so putting it back finds it.
+  for (const node of [...layout.panes, ...layout.undoablePanes]) {
     // The live adoption, and the id recorded in layout state - the latter covers
     // a pane that restored its session but has not re-adopted it yet.
     const live = sessions.get(node.id).sessionId
@@ -244,7 +248,7 @@ function summon(widget: string): void {
   if (choice.kind === 'focus') {
     // Another widget popped up goes, as it would for this one's.
     ui.closePopup()
-    layout.focus(choice.paneId)
+    layout.focus(choice.paneId, true)
   } else if (choice.kind === 'popup') ui.openPopup(widget)
   ui.summon(choice.paneId, choice.kind === 'again')
 }
@@ -253,7 +257,7 @@ function summon(widget: string): void {
 function focusShell(): void {
   const pane = layout.shellToFocus()
   if (pane === null) layout.addPane(SHELL_WIDGET, 'right')
-  else layout.focus(pane)
+  else layout.focus(pane, true)
   ui.focusShell()
 }
 
@@ -432,6 +436,7 @@ function onBeforeUnload(): void {
   data-testid="workspace"
   data-loaded={layout.loaded}
   data-switching={layout.switching}
+  data-reflowing={layout.effects.reflowing}
 >
   {#if layout.loaded && isEmptyLayout(layout.tree)}
     <!-- The blank preset, or a layout whose last pane was closed: a place for the first pane

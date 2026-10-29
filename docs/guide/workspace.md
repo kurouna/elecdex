@@ -71,6 +71,9 @@ to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of 
   reorders it.
 - A shell tab drags out on its own, and a tab group's header moves the whole group.
 - **Escape** cancels a drag. A moved shell keeps its session.
+- *unreleased*: while you drag, brackets at its corners mark the area the pane would take. A
+  dropped pane flies from where it was to where it lands, and so does a pane it changed places
+  with; one dropped into a group as a tab flickers on there.
 - **Resize** by dragging the divider between two panes, or focus it and use the **arrow keys**
   (**Shift** for larger steps). **Double-click** a divider to share the room of the two panes
   beside it evenly. A divider moves only the two panes beside it.
@@ -94,6 +97,9 @@ to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of 
 - **Ctrl+Shift+W** closes the focused pane, as does its **×** button (shown on hover). A tab
   group's × closes every tab in it; a tab's own × closes just that tab. The closed pane powers off
   and the panes beside it extend into its room.
+- *unreleased*: a close can be put back. Its notice offers **undo** for six seconds, until the
+  arrangement changes again; only the last close is kept. A shell put back keeps its session and
+  scrollback; a web page opens again at the address it showed.
 - Closing the last pane of any layout leaves it empty: *no panes in this layout* and
   **+ add pane** open the picker, and the first pane chosen fills the screen. In an empty layout
   the split and new-tab keys add a shell.
@@ -196,6 +202,10 @@ working day - each of them is in a picture on the [presets](presets.md) page.
 - **Panes power on and off.** A pane added later powers on the same way; a closed one powers off
   and the panes beside it extend into its room; switching to a saved layout powers the whole screen
   off and brings the next one up pane by pane; dialogs, notices and pop-ups power on and off too.
+- *unreleased*: when a split or a move takes room from a pane, a beam runs along the edges that
+  moved; a tab brought to the front of its group flickers on, as a set changing channel; and the
+  frame of the pane the keyboard moves to (**Ctrl+Shift+]** / **[**, the shell keys, a pane's own
+  shortcut) flares once. A pane you click does not flare.
 - Scanlines and glow, synthesised interface sounds, a themed title bar and a status bar that slides
   in from the bottom edge.
 - Short entrance effects - a wave of dates for each month, a forecast rising in, new headlines and

@@ -19,8 +19,17 @@ const { node }: Props = $props()
 const activeChild = $derived(node.children[node.activeIndex] ?? node.children[0])
 const activeMeta = $derived(activeChild ? paneMeta.get(activeChild.id) : {})
 const focused = $derived(node.children.some((c) => c.id === layout.focusedPaneId))
-/** The group, as a whole, uncovers the room a closed pane left it. */
-const extend = $derived(activeChild ? layout.extending.get(activeChild.id) : undefined)
+/**
+ * What a change of layout plays on the group, as a whole (layout/pane-reflow.ts):
+ * uncovering the room a closed pane left it, flying in from where a move took it,
+ * lighting the edges a split drew in. Keyed by the tab it shows, which is where
+ * the group's frame was measured.
+ */
+const extend = $derived(activeChild ? layout.effects.extending.get(activeChild.id) : undefined)
+const landing = $derived(activeChild ? layout.effects.landing.get(activeChild.id) : undefined)
+const edges = $derived(activeChild ? layout.effects.edging.get(activeChild.id) : undefined)
+/** The keyboard has just come to one of its tabs: the group's frame is the one that flares. */
+const flare = $derived(node.children.some((child) => child.id === layout.effects.flaring))
 /**
  * The whole group powers off with its panes when one layout gives way to
  * another: its header and tab strip are part of the picture, and leaving them
@@ -57,8 +66,11 @@ const motion = $derived(
   hostMotion({
     closing: leaving || closing,
     extend,
+    landing,
+    edges,
     pinned,
     zoom: layout.zoom,
+    flare,
   }),
 )
 

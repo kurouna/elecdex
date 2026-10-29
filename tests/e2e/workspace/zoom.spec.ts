@@ -5,6 +5,7 @@ import {
   paneOf,
   SINGLE_TERMINAL,
   sessionIds,
+  settleLayout,
   terminalPane,
   typeInto,
   zoomSettled,
@@ -277,8 +278,10 @@ test('dragging the pane that is forward puts it back, so it can be dropped somew
     await expect(page.getByTestId('pane-drop-preview')).toHaveCount(1)
     await page.mouse.up()
 
-    // It really moved: under the calendar, at the bottom of the right column.
+    // It really moved: under the calendar, at the bottom of the right column - measured
+    // once it has flown there.
     await zoomSettled(page)
+    await settleLayout(page)
     const moved = await boxOf(page, '[data-testid=pane][data-widget=cpu]')
     expect(moved.y).toBeGreaterThan(onto.y)
   } finally {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { insetStyle } from '../../src/renderer/layout/pane-close.js'
 import { type HostMotionState, hostMotion } from '../../src/renderer/layout/pane-motion.js'
-import { CRT_CLOSE_MS } from '../../src/renderer/lib/crt-timing.js'
+import { edgeStyle, landStyle } from '../../src/renderer/layout/pane-reflow.js'
+import { CRT_CLOSE_MS, CRT_FLARE_MS } from '../../src/renderer/lib/crt-timing.js'
 
 /**
  * The effects a pane or a tab group plays on itself, said once for both hosts:
@@ -82,5 +83,45 @@ describe('hostMotion', () => {
     const other = hostMotion(flying('in'))
     expect(on(other.classes)).toEqual([])
     expect(other.style).toBeUndefined()
+  })
+
+  it('flies a moved host in, and lights the edges of one that lost room', () => {
+    const flip = { dx: -600, dy: 0, sx: 1, sy: 1 }
+    const landing = hostMotion({ ...still, landing: flip, powerOn: ADDED })
+    expect(on(landing.classes)).toEqual(['crt-land'])
+    expect(landing.style).toBe(landStyle(flip))
+    const edges = { top: 0, right: 2, bottom: 0, left: 0 }
+    const edged = hostMotion({ ...still, edges })
+    expect(on(edged.classes)).toEqual(['crt-edge'])
+    expect(edged.style).toBe(edgeStyle(edges))
+  })
+
+  it('plays one effect of its own at a time, the first that applies', () => {
+    const flip = { dx: 10, dy: 0, sx: 1, sy: 1 }
+    const edges = { top: 2, right: 0, bottom: 0, left: 0 }
+    expect(on(hostMotion({ ...still, extend: inset, landing: flip, edges }).classes)).toEqual([
+      'crt-extend',
+    ])
+    expect(on(hostMotion({ ...still, landing: flip, edges, flare: true }).classes)).toEqual([
+      'crt-land',
+    ])
+    expect(on(hostMotion({ ...still, edges, powerOn: ADDED }).classes)).toEqual(['crt-edge'])
+  })
+
+  it('flares only when nothing else of its own plays, and not while the zoom flies it', () => {
+    const flared = hostMotion({ ...still, flare: true })
+    expect(on(flared.classes)).toEqual(['crt-flare'])
+    expect(flared.style).toBe(`--crt-duration: ${CRT_FLARE_MS}ms`)
+    expect(on(hostMotion({ ...still, flare: true, powerOn: ADDED }).classes)).toEqual(['crt-on'])
+    const flying = {
+      ...still,
+      pinned: true,
+      zoom: { phase: 'in' as const, style: ZOOM },
+      flare: true,
+    }
+    expect(on(hostMotion(flying).classes)).toEqual(['pane-pinned', 'crt-zoom'])
+    // Pinned and standing still, it flares where it is.
+    const standing = { ...flying, zoom: { phase: null, style: ZOOM } }
+    expect(on(hostMotion(standing).classes)).toEqual(['crt-flare', 'pane-pinned'])
   })
 })

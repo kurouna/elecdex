@@ -14,6 +14,7 @@ import {
   putWindowAway,
   quietFor,
   removeDir,
+  settleLayout,
   single,
   waitForSaved,
 } from '../support.js'
@@ -120,17 +121,20 @@ test('a pane added from the picker powers on once', async ({ shared }) => {
 const paneNode = (id: string, widget: string) => ({ kind: 'pane', id, widget })
 const byId = paneById
 
-/** Starts counting the power-ons panes play, by widget, from here on. */
+/** Starts counting the power-ons panes play, by widget and with their length, from here on. */
 const recordPowerOns = (page: Page) =>
   page.evaluate(() => {
     const played: string[] = []
-    ;(window as unknown as { powerOns: string[] }).powerOns = played
+    const lengths: string[] = []
+    Object.assign(window, { powerOns: played, powerOnLengths: lengths })
     document.addEventListener(
       'animationstart',
       (event) => {
         const el = event.target as HTMLElement
-        if (event.animationName === 'crt-power-on' && el.dataset.testid === 'pane')
-          played.push(el.dataset.widget ?? '')
+        if (event.animationName !== 'crt-power-on' || el.dataset.testid !== 'pane') return
+        played.push(el.dataset.widget ?? '')
+        // Read as it starts: a tab's flicker is over in a moment.
+        lengths.push(getComputedStyle(el).getPropertyValue('--crt-duration').trim())
       },
       true,
     )
@@ -138,6 +142,9 @@ const recordPowerOns = (page: Page) =>
 
 const powerOns = (page: Page) =>
   page.evaluate(() => (window as unknown as { powerOns: string[] }).powerOns)
+
+const powerOnLengths = (page: Page) =>
+  page.evaluate(() => (window as unknown as { powerOnLengths: string[] }).powerOnLengths)
 
 test('a new tab put behind another before it has powered on does not power on again when shown', async ({
   shared,
@@ -170,9 +177,12 @@ test('a new tab put behind another before it has powered on does not power on ag
     const played = await powerOns(page)
     expect(played.length).toBeGreaterThanOrEqual(1)
 
+    // Shown, it flickers on as any tab brought to the front does - the short one,
+    // never the new pane's power-on played again.
     await page.getByTestId('tab').nth(2).click()
     await quietFor(700, () => powerOns(page), 'the power-ons played')
-    expect(await powerOns(page)).toEqual(played)
+    expect(await powerOns(page)).toEqual([...played, 'calendar'])
+    expect((await powerOnLengths(page)).at(-1)).toBe('220ms')
   } finally {
     await close()
   }
@@ -890,4 +900,128 @@ test('a busy button icon follows the motion setting: it turns, or pulses with mo
   expect(reduced.refresh).toMatch(/pulse/)
   expect(reduced.play).toMatch(/pulse/)
   expect((await busyIcons('full', true)).refresh).toMatch(/turn/)
+})
+
+/** Two module panes side by side, the clock on the left. */
+const CLOCK_AND_CALENDAR = {
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 's',
+    direction: 'row',
+    sizes: [0.5, 0.5],
+    children: [paneNode('c', 'clock'), paneNode('k', 'calendar')],
+  },
+}
+
+test('a moved pane flies to where it was dropped, and the pane it swapped with flies too', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: CLOCK_AND_CALENDAR })
+  try {
+    await settleLayout(page)
+    await recordEffects(page)
+    // The clock has no title: it is dragged by the rule along its top.
+    const title = byId(page, 'c').getByTestId('pane-drag-strip')
+    const from = await title.boundingBox()
+    const target = await byId(page, 'k').boundingBox()
+    if (from === null || target === null) throw new Error('the panes have no boxes')
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(target.x + target.width - 8, target.y + target.height / 2, { steps: 12 })
+    await page.mouse.up()
+    await expect(page.locator('[data-testid=pane]').first()).toHaveAttribute('data-pane-id', 'k')
+    // Both landed, by a transform alone, and nothing is left playing.
+    await expect(page.locator('.crt-land')).toHaveCount(0)
+    expect(await effectsSeen(page)).toEqual(['c:crt-land', 'k:crt-land'])
+    await expect(byId(page, 'c')).toHaveCSS('transform', 'none')
+  } finally {
+    await close()
+  }
+})
+
+test('a split lights the edge the new pane came in by, as the new pane powers on', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: single('clock', { id: 'c' }) })
+  try {
+    await settleLayout(page)
+    await byId(page, 'c').click()
+    await recordEffects(page)
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(page.getByTestId('pane')).toHaveCount(2)
+    await expect(page.locator('.crt-edge, .crt-on')).toHaveCount(0)
+    const seen = await effectsSeen(page)
+    expect(seen).toContain('c:crt-edge')
+    expect(seen.filter((effect) => !effect.startsWith('c:'))).toEqual([
+      expect.stringMatching(/:crt-on$/),
+    ])
+  } finally {
+    await close()
+  }
+})
+
+test('a tab brought to the front flickers on, quicker than a pane added', async ({ shared }) => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'tabs',
+      id: 'g',
+      activeIndex: 0,
+      children: [paneNode('a', 'calendar'), paneNode('b', 'sysinfo')],
+    },
+  }
+  const { page, close } = await shared({ layout })
+  try {
+    await settleLayout(page)
+    await recordPowerOns(page)
+    await page.getByTestId('tab').nth(1).click()
+    await expect.poll(() => powerOns(page)).toEqual(['sysinfo'])
+    expect(await powerOnLengths(page)).toEqual(['220ms'])
+    await expect(byId(page, 'b')).not.toHaveClass(/crt-on/)
+    // Shown again by clicking the tab already in front: nothing to bring forward.
+    await page.getByTestId('tab').nth(1).click()
+    await quietFor(400, () => powerOns(page), 'the power-ons played')
+    expect(await powerOns(page)).toEqual(['sysinfo'])
+  } finally {
+    await close()
+  }
+})
+
+test('the frame of the pane the keyboard moves to flares once, and a click does not', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({ layout: CLOCK_AND_CALENDAR })
+  try {
+    await settleLayout(page)
+    await recordEffects(page)
+    await byId(page, 'c').click()
+    await page.keyboard.press('Control+Shift+BracketRight')
+    await expect(byId(page, 'k')).toHaveClass(/focused/)
+    await expect(page.locator('.crt-flare')).toHaveCount(0)
+    expect(await effectsSeen(page)).toEqual(['k:crt-flare'])
+  } finally {
+    await close()
+  }
+})
+
+test('with motion reduced, a move, a split, a tab and the keyboard play nothing', async ({
+  shared,
+}) => {
+  const { page, close } = await shared({
+    layout: CLOCK_AND_CALENDAR,
+    settings: { sound: { enabled: false }, motion: 'reduced' },
+  })
+  try {
+    await expect(page.getByTestId('pane')).toHaveCount(2)
+    await recordEffects(page)
+    await byId(page, 'c').click()
+    await page.keyboard.press('Control+Shift+BracketRight')
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(page.getByTestId('pane')).toHaveCount(3)
+    await quietFor(600, () => effectsSeen(page), 'the effects seen')
+    expect(await effectsSeen(page)).toEqual([])
+  } finally {
+    await close()
+  }
 })

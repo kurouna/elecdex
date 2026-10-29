@@ -26,6 +26,11 @@
  * `crt-extend` uncovers a picture from the box given by
  * `--from-top/right/bottom/left` (insets) to its whole area, with the beam on
  * the edges that move: what the panes left behind do when one closes.
+ * `crt-land` flies a pane in from `--land-dx/dy/sx/sy` (where a move took it
+ * from), `crt-edge` lights the edges `--edge-top/right/bottom/left` name (the
+ * ones a split or a move drew in), and `crt-flare` lights a pane's frame once
+ * (the keyboard has come to it): the effects of a change of layout,
+ * layout/pane-reflow.ts.
  */
 
 .crt-on,
@@ -33,7 +38,10 @@
 .crt-beam,
 .crt-extend,
 .crt-zoom,
-.crt-zoom-out {
+.crt-zoom-out,
+.crt-land,
+.crt-edge,
+.crt-flare {
   position: relative;
   transform-origin: 50% 50%;
 }
@@ -52,7 +60,10 @@
 .crt-beam::after,
 .crt-extend::after,
 .crt-zoom::after,
-.crt-zoom-out::after {
+.crt-zoom-out::after,
+.crt-land::after,
+.crt-edge::after,
+.crt-flare::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -65,7 +76,8 @@
 .crt-on::after,
 .crt-beam::after,
 .crt-zoom::after,
-.crt-zoom-out::after {
+.crt-zoom-out::after,
+.crt-land::after {
   background:
     linear-gradient(
       to bottom,
@@ -274,18 +286,108 @@
   }
 }
 
+/*
+ * A pane a move carried somewhere else (layout/pane-reflow.ts): laid out at its
+ * new place and size at once, and flown there from the old one by a transform, as
+ * a pane brought forward is - a little overexposed on the way, its opening edges
+ * lit by the beam.
+ */
+.crt-land {
+  animation: crt-land var(--crt-duration, 280ms) cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+@keyframes crt-land {
+  0% {
+    transform: translate(var(--land-dx), var(--land-dy)) scale(var(--land-sx), var(--land-sy));
+    filter: brightness(1.6) saturate(0.85);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
+/*
+ * A pane a split or a move took room from: a rule runs along each edge that came
+ * in and fades, so the eye is told where the room went. The overlay alone plays,
+ * by its opacity: the pane itself is already at its new size.
+ */
+.crt-edge::after {
+  border-style: solid;
+  border-color: var(--accent-strong);
+  border-width: var(--edge-top, 0) var(--edge-right, 0) var(--edge-bottom, 0) var(--edge-left, 0);
+  animation: crt-edge var(--crt-duration, 320ms) ease-out backwards;
+}
+
+@keyframes crt-edge {
+  0% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/*
+ * The pane the keyboard has just come to: its frame flares once and settles, so
+ * the eye finds where the keyboard went. Drawn once, faded by its opacity.
+ */
+.crt-flare::after {
+  border: var(--rule-width) solid var(--accent-strong);
+  box-shadow:
+    0 0 0.9rem var(--accent-dim),
+    inset 0 0 0.9rem var(--accent-faint);
+  animation: crt-flare var(--crt-duration, 480ms) ease-out backwards;
+}
+
+@keyframes crt-flare {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 /* Every CRT effect, the element and its overlays, stops with motion reduced. */
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-motion="full"]) :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out),
+  :root:not([data-motion="full"])
+    :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out, .crt-land),
   :root:not([data-motion="full"]) .crt-on::before,
   :root:not([data-motion="full"])
-    :is(.crt-on, .crt-beam, .crt-extend, .crt-zoom, .crt-zoom-out)::after {
+    :is(
+      .crt-on,
+      .crt-beam,
+      .crt-extend,
+      .crt-zoom,
+      .crt-zoom-out,
+      .crt-land,
+      .crt-edge,
+      .crt-flare
+    )::after {
     animation: none;
   }
 }
 
-:root[data-motion="reduced"] :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out),
+:root[data-motion="reduced"]
+  :is(.crt-on, .crt-off, .crt-extend, .crt-zoom, .crt-zoom-out, .crt-land),
 :root[data-motion="reduced"] .crt-on::before,
-:root[data-motion="reduced"] :is(.crt-on, .crt-beam, .crt-extend, .crt-zoom, .crt-zoom-out)::after {
+:root[data-motion="reduced"]
+  :is(
+    .crt-on,
+    .crt-beam,
+    .crt-extend,
+    .crt-zoom,
+    .crt-zoom-out,
+    .crt-land,
+    .crt-edge,
+    .crt-flare
+  )::after {
   animation: none;
 }
