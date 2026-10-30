@@ -111,6 +111,15 @@ test.describe('in every room', () => {
       // one could stay a tier up where it is near a line - as the 9:16 window is on macOS's type.
       // The tour opens at its size, as this does.
       await sizeTo(app, width, height)
+      // macOS keeps a window within the screen, and the runner's is shorter than the 9:16
+      // room (it gave 540x677 for 540x960): a room the window cannot be is not this one.
+      const given = await app.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]?.getContentSize(),
+      )
+      test.skip(
+        given?.[0] !== width || given?.[1] !== height,
+        `the screen has no room for a ${width}x${height} window (given ${given?.join('x')})`,
+      )
       await app.evaluate(
         ({ BrowserWindow }, z) => BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(z),
         zoom ?? 1,
