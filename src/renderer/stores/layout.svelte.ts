@@ -66,6 +66,8 @@ const SAVE_DEBOUNCE_MS = 400
 
 /** Shared empty set, so `leaving` does not allocate one per switch. */
 const EMPTY_IDS: ReadonlySet<string> = new Set<string>()
+/** One empty list, so a derived that has nothing to hold stays the same value. */
+const EMPTY_PANES: readonly PaneNode[] = []
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -157,7 +159,9 @@ class LayoutStore {
    */
   readonly undoablePanes = $derived.by((): readonly PaneNode[] => {
     const closed = this.#closed
-    if (closed === null || !toasts.items.some((toast) => toast.id === closed.toast)) return []
+    if (closed === null || !toasts.items.some((toast) => toast.id === closed.toast)) {
+      return EMPTY_PANES
+    }
     return closed.panes
   })
 
@@ -241,6 +245,7 @@ class LayoutStore {
     this.dropUndo()
     this.tree = tree
     this.zoom.clear()
+    this.effects.stop()
     this.focusedPaneId = initialFocus(tree)
   }
 
@@ -630,7 +635,12 @@ class LayoutStore {
     this.#closed = null
     // Only while its toast is up: a close no longer offered is no longer kept.
     if (closed === null || !toasts.items.some((toast) => toast.id === closed.toast)) return
+    const powering = this.closingId !== null
     this.settle()
+    // Undone while it powered off, the pane's host is still mounted: let it go first, so
+    // the pane put back mounts afresh and powers on - else the same host stayed, nothing
+    // asked `arrived`, and the pane powered on as new the next time a move remounted it.
+    if (powering) flushSync()
     const before = this.framesBefore()
     const restored = putBack(this.tree, closed.node, closed.place)
     const back = new Set(closed.panes.map((node) => node.id))

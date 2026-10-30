@@ -125,6 +125,24 @@ describe('a tab shown', () => {
     expect(layout.effects.flashing).toBe(b.id)
   })
 
+  it('stops flickering when a tree is taken without motion, as a layout read from disk is', async () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    load(tabs([a, b]), a.id)
+    layout.focus(b.id)
+    expect(layout.effects.flashing).toBe(b.id)
+    animates = false
+    const other = pane('notes')
+    vi.stubGlobal('elecdex', {
+      layout: {
+        save: vi.fn(async (_tree: LayoutTree) => {}),
+        load: vi.fn(async () => ({ version: LAYOUT_VERSION, root: other })),
+      },
+    })
+    await layout.load()
+    expect(layout.effects.flashing).toBeNull()
+  })
+
   it('does not flicker without motion', () => {
     animates = false
     const a = pane('clock')
@@ -195,6 +213,13 @@ describe('putting a close back', () => {
     vi.advanceTimersByTime(CLOSE_SETTLE_MS)
     // A newer close takes its place, with its own toast.
     expect(toasts.items.filter((toast) => toast.title.endsWith(' closed'))).toHaveLength(1)
+  })
+
+  it('answers the same empty list while nothing can be undone, so the reaper is not put off by every toast', () => {
+    const empty = layout.undoablePanes
+    expect(empty).toEqual([])
+    toasts.show({ title: 'something else' })
+    expect(layout.undoablePanes).toBe(empty)
   })
 
   it('stops claiming the shells once its toast has gone', () => {
