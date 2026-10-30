@@ -865,12 +865,17 @@ class LayoutStore {
    * Focuses the neighbour `find` gives for the focused pane, or returns false when
    * there is none, leaving the key - and a close in progress - alone. A move does
    * finish a close first, and the neighbour is found again in the tree it leaves,
-   * since the one found before may have been the pane that closed.
+   * since the one found before may have been the pane that closed. Moving focus
+   * is not a change to the tree, so a pane forward is left for `focus` to deal
+   * with: flown back as every other way back does, or taken along to another tab
+   * of its group. (While a close is in progress nothing is forward: bringing a
+   * pane forward settles first.)
    */
   private cycleTo(find: (from: string) => string | null, flare = false): boolean {
     const neighbour = () => (this.focusedPaneId === null ? null : find(this.focusedPaneId))
     if (neighbour() === null) return false
-    this.settle()
+    if (this.closingId !== null) this.settle()
+    else this.effects.stop()
     const next = neighbour()
     if (next === null) return false
     this.focus(next, flare)

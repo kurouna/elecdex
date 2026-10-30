@@ -320,6 +320,33 @@ describe('what lets go of a zoomed pane', () => {
     expect(layout.zoom.phase).toBeNull()
   })
 
+  // Found in review: the keyboard's moves finished a close first by settling, which let go of the
+  // zoom at once, so the pane snapped back where every other way back flies it.
+  it.each([
+    ['an arrow (Ctrl+Shift+Arrow)', () => layout.focusToward('right')],
+    ['the next shell', () => layout.cycleShell(1)],
+  ])('the keyboard moving on with %s, which flies it back as a click does', (_, move) => {
+    const d = pane('terminal')
+    // From the shell b forward, the arrow goes right to d, and so does the next shell.
+    zoom(split('row', [a, b, d]), b.id)
+    expect(move()).toBe(true)
+    expect(layout.focusedPaneId).toBe(d.id)
+    expect(layout.zoom.paneId).toBeNull()
+    expect(layout.zoom.pinnedId).toBe(b.id)
+    expect(layout.zoom.phase).toBe('out')
+    vi.advanceTimersByTime(CRT_UNZOOM_MS)
+    expect(layout.zoom.pinnedId).toBeNull()
+  })
+
+  it('but the next tab of its group from the keyboard takes the zoom with it', () => {
+    zoom(split('row', [a, tabs([b, c], 0)]), b.id)
+    expect(layout.cycleTab(1)).toBe(true)
+    expect(layout.focusedPaneId).toBe(c.id)
+    expect(layout.zoom.paneId).toBe(c.id)
+    expect(layout.zoom.pinnedId).toBe(c.id)
+    expect(layout.zoom.pin).toEqual(PINNED)
+  })
+
   it('splitting or moving', () => {
     zoom(split('row', [a, b]), a.id)
     layout.split(a.id, 'right', 'clock')
