@@ -819,10 +819,38 @@ test('the line between the library list and the details is dragged, kept, and pu
   const profile = launched.userData
   try {
     await designSize(launched.app, launched.page)
-    const width = async (page: Page) =>
-      (await page.locator('[role=listbox]:not([inert])').boundingBox())?.width ?? 0
+    // The list's laid-out width, not its box on screen: the pane powers on scaled from a line
+    // (a transform), and a width taken from its box then was a fraction of the real one - the
+    // "88 wide before the drag" a runner reported.
+    const width = (page: Page) =>
+      page
+        .locator('[role=listbox]:not([inert])')
+        .evaluate((el) => (el as HTMLElement).offsetWidth)
+        .catch(() => 0)
     const page = launched.page
+    // Pressed only once the pane and the library in it have powered on: until then they are
+    // drawn scaled from a line, and the line between the parts is measured where it is passing
+    // (a runner pressed it with the library a third of its width, and the drag leapt).
+    // Its animations are waited for, not its classes: a part that shows keeps `crt-on`.
+    const poweredOn = (on: Page) =>
+      expect
+        .poll(() =>
+          on
+            .locator('[data-testid=pane][data-widget=chip8]')
+            .evaluate(
+              (el) =>
+                el
+                  .getAnimations({ subtree: true })
+                  .filter(
+                    (a) =>
+                      (a as CSSAnimation).animationName === 'crt-power-on' &&
+                      a.playState === 'running',
+                  ).length,
+            ),
+        )
+        .toBe(0)
     await expect(page.getByTestId('chip8-split')).toBeVisible()
+    await poweredOn(page)
     // Measured once the list has powered on (it opens from a line) and the layout has settled:
     // measured as soon as it passed 300, the double-click's half after the relaunch missed it by
     // 108-117 on the CI runners (2026-10-25) - the same each time, never seen here, so the half
@@ -847,6 +875,7 @@ test('the line between the library list and the details is dragged, kept, and pu
 
     launched = await launched.relaunch()
     await designSize(launched.app, launched.page)
+    await poweredOn(launched.page)
     await expect.poll(async () => Math.abs((await width(launched.page)) - after)).toBeLessThan(4)
     // A double-click puts it back at half - once the relaunched layout has settled, and with the
     // presses held a moment: on the Linux runner a double-click right after the relaunch was lost.

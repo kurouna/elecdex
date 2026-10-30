@@ -48,12 +48,13 @@ let dragging = $state(false)
 
 const clamp = (share: number): number => Math.min(max, Math.max(min, share))
 
-function shareAt(event: PointerEvent): number | null {
+/** Where the pointer is, as a share of `within`, unclamped; null when there is no room to measure. */
+function pointerShare(event: PointerEvent): number | null {
   const box = within()?.getBoundingClientRect()
   if (box === undefined || box.width === 0 || box.height === 0) return null
-  return clamp(
-    axis === 'x' ? (event.clientX - box.left) / box.width : (event.clientY - box.top) / box.height,
-  )
+  return axis === 'x'
+    ? (event.clientX - box.left) / box.width
+    : (event.clientY - box.top) / box.height
 }
 
 function down(event: PointerEvent): void {
@@ -63,11 +64,17 @@ function down(event: PointerEvent): void {
   handle.setPointerCapture(event.pointerId)
   dragging = true
   let last = value
+  // The line follows the pointer by how far it moves, not to where it is: the handle is a band
+  // beside the line (on its far side with edge 'start'), so taking the pointer's own place made
+  // the line jump by half the band at a press that did not move - and the second press of a
+  // double-click then missed the handle.
+  const grabbed = pointerShare(event)
+  const offset = grabbed === null ? 0 : grabbed - value
   const move = (e: PointerEvent) => {
-    const share = shareAt(e)
-    if (share === null) return
-    last = share
-    onmove(share)
+    const at = pointerShare(e)
+    if (at === null) return
+    last = clamp(at - offset)
+    onmove(last)
   }
   const up = () => {
     dragging = false

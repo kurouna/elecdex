@@ -106,13 +106,23 @@ test.describe('in every room', () => {
     test(`lays itself out ${tier} at ${width}x${height}${how}, its parts never running into each other`, async () => {
       const { app, page } = launched
       const layout = beside(share, column === true ? 'column' : 'row')
-      await page.evaluate((tree) => window.elecdex.layout.save(tree as never), layout)
-      await reloadWorkspace(page)
+      // The room first, then the layout drawn in it: a tier is kept until the size is a little
+      // past its line (clusterTier's hysteresis), so a pane shrunk into the room from the last
+      // one could stay a tier up where it is near a line - as the 9:16 window is on macOS's type.
+      // The tour opens at its size, as this does.
       await sizeTo(app, width, height)
       await app.evaluate(
         ({ BrowserWindow }, z) => BrowserWindow.getAllWindows()[0]?.webContents.setZoomFactor(z),
         zoom ?? 1,
       )
+      await page.evaluate((tree) => window.elecdex.layout.save(tree as never), layout)
+      await reloadWorkspace(page)
+      // The zoom is the origin's and outlives the reload; said here so a change to that is seen.
+      expect(
+        await app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()[0]?.webContents.getZoomFactor(),
+        ),
+      ).toBeCloseTo(zoom ?? 1)
       await expect(page.getByTestId('cluster')).toHaveAttribute('data-tier', tier)
       // A few readings in, so every lane has something in it.
       await expect(page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
