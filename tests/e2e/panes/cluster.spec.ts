@@ -123,7 +123,27 @@ test.describe('in every room', () => {
           BrowserWindow.getAllWindows()[0]?.webContents.getZoomFactor(),
         ),
       ).toBeCloseTo(zoom ?? 1)
-      await expect(page.getByTestId('cluster')).toHaveAttribute('data-tier', tier)
+      // A tier other than the room's says the sizes it was given, which differ by system (the
+      // window a system lets be, the type).
+      const sizes = async () =>
+        JSON.stringify({
+          content: await app.evaluate(({ BrowserWindow }) =>
+            BrowserWindow.getAllWindows()[0]?.getContentSize(),
+          ),
+          ...(await page.evaluate(() => {
+            const box = document.querySelector('[data-testid=cluster]')?.getBoundingClientRect()
+            return {
+              inner: [window.innerWidth, window.innerHeight],
+              font: getComputedStyle(document.documentElement).fontSize,
+              cluster: box === undefined ? null : [Math.round(box.width), Math.round(box.height)],
+            }
+          })),
+        })
+      await expect(page.getByTestId('cluster'))
+        .toHaveAttribute('data-tier', tier)
+        .catch(async (error: Error) => {
+          throw new Error(`${error.message.split('\n')[0]} ${await sizes()}`)
+        })
       // A few readings in, so every lane has something in it.
       await expect(page.getByTestId('cluster-figure-cpu')).toContainText(/\d/)
       await partsApart(page)
