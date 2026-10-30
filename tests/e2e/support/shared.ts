@@ -29,7 +29,7 @@ export type SharedOptions = Pick<
 
 /** Chromium's own folders and files in a profile: none of them is main's. */
 const CHROMIUM =
-  /^(Cache|Code Cache|GPUCache|GPUPersistentCache|GrShaderCache|ShaderCache|Dawn\w*|Local Storage|Session Storage|Network|blob_storage|Shared Dictionary|SharedStorage|IndexedDB|Partitions|WebStorage|Crashpad|Service Worker|VideoDecodeStats|shared_proto_db|databases|Dictionaries|Trust Tokens|Local State|Preferences|DIPS.*|DevToolsActivePort|lockfile|declarative_performance_observer.*|.*\.log|Cookies.*|Network Persistent State|TransportSecurity)$/
+  /^(Cache|Code Cache|GPUCache|GPUPersistentCache|GrShaderCache|ShaderCache|Dawn\w*|Local Storage|Session Storage|Network|blob_storage|Shared Dictionary|SharedStorage|IndexedDB|Partitions|WebStorage|Crashpad|Service Worker|Extension State|VideoDecodeStats|shared_proto_db|databases|Dictionaries|Trust Tokens|Local State|Preferences|DIPS.*|DevToolsActivePort|lockfile|declarative_performance_observer.*|.*\.log|Cookies.*|Network Persistent State|TransportSecurity)$/
 
 /** Files main manages through APIs the reset checks directly, or rewrites as it runs. */
 const CHECKED_ELSEWHERE = new Set(['layout.json', 'layouts.json', 'settings.json'])
