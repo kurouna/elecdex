@@ -698,7 +698,9 @@ test.describe('web panes', () => {
       await webPane(app.page).hover()
       await webPane(app.page).getByTestId('pane-close').click()
       await expect(webPane(app.page)).toHaveCount(0)
-      await expect.poll(async () => (await views(app)).length).toBe(0)
+      // At once, not when the close can no longer be undone (6 s) and the reaper comes round:
+      // the page once went on playing, hidden, until then.
+      await expect.poll(async () => (await views(app)).length, { timeout: 3_000 }).toBe(0)
       await expect
         .poll(() =>
           app.app.evaluate(

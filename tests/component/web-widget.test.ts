@@ -10,6 +10,7 @@ vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn
 
 const { default: WebWidget } = await import('../../src/renderer/widgets/web/WebWidget.svelte')
 const { default: LayoutNodeView } = await import('../../src/renderer/layout/LayoutNodeView.svelte')
+const { default: LayoutRoot } = await import('./LayoutRoot.svelte')
 const { registerBuiltin } = await import('../../src/renderer/widgets/registry.ts')
 registerBuiltin({ id: 'web.youtube', title: 'youtube', component: WebWidget })
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
@@ -323,6 +324,30 @@ describe('WebWidget', () => {
     closed.unmount()
     await settle()
     expect(api.close).toHaveBeenCalledWith('p', CLAIM)
+  })
+
+  it('closes its view when the pane is closed, though the teardown comes with the change to the tree', async () => {
+    // Through the real pane host and a close from the store: the widget ends in the same
+    // flush that takes its pane out of the tree, and a teardown sees the state from before
+    // that change - so it once took the pane for moved, hid the page and left it playing.
+    layout.tree = {
+      version: LAYOUT_VERSION,
+      root: {
+        kind: 'split',
+        id: 'root',
+        direction: 'row',
+        sizes: [0.5, 0.5],
+        children: [{ kind: 'pane', id: 'c', widget: 'clock' }, layout.tree.root],
+      },
+    }
+    const view = render(LayoutRoot)
+    await settle()
+    expect(api.open).toHaveBeenCalledTimes(1)
+    layout.close('p')
+    await settle()
+    expect(api.close).toHaveBeenCalledWith('p', CLAIM)
+    expect(api.hide).not.toHaveBeenCalledWith('p', CLAIM, false)
+    view.unmount()
   })
 
   it("speaks for its own mount only: a moved pane's old component cannot hide the new one's page", async () => {

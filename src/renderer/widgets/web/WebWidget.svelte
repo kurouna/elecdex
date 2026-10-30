@@ -74,9 +74,14 @@ $effect(() => {
     live = false
     off()
     offPicture()
-    // A moved pane mounts again and takes its view back; a closed one is gone.
-    if (layout.panes.some((p) => p.id === id)) void api.hide(id, claim, false)
-    else api.close(id, claim)
+    // A moved pane mounts again and takes its view back; a closed one is gone. Asked
+    // after the teardown, not in it: Svelte gives a teardown the state as it was before
+    // the change that ends the mount, so a closed pane still looked to be in the layout,
+    // and its page was only hidden - playing on until the reaper came round.
+    queueMicrotask(() => {
+      if (layout.panes.some((p) => p.id === id)) void api.hide(id, claim, false)
+      else api.close(id, claim)
+    })
   }
 })
 
