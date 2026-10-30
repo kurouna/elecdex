@@ -130,8 +130,8 @@ window over the other panes, which keep their place behind a shade.
 - **Escape**, the shortcut again, the button or a click on the shade puts it back. While a pane is
   forward its corner holds only **⤡** (put back), never a × beside it; **Ctrl+Shift+W** closes
   the pane that is forward.
-- A tab comes forward with its group, so its other tabs are still there to switch to. *unreleased*:
-  moving to another pane from the keyboard flies the pane back as the button does; the next tab of its group
+- A tab comes forward with its group, so its other tabs are still there to switch to. Moving to
+  another pane from the keyboard flies the pane back as the button does; the next tab of its group
   stays forward.
 - Nothing is rearranged and nothing is saved: a shell keeps its session and a web pane its page.
   The panes behind do not move by a pixel, so no other shell is resized. Any change to the tree
