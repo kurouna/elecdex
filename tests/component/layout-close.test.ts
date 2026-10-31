@@ -363,6 +363,45 @@ describe('a change during a close', () => {
     expect(layout.focusedPaneId).toBe(t3.id)
   })
 
+  it('a pair dragged while one of its tabs powers off moves the tab that is left', () => {
+    // Finishing the close collapses the pair into c, so the group's id had gone by the time
+    // the move looked for it: the drop the preview offered did nothing.
+    const group = tabs([b, c], 0)
+    load(split('row', [a, group]), a.id)
+    layout.close(b.id)
+    expect(layout.canMove(group.id, a.id, 'left')).toBe(true)
+    layout.move(group.id, a.id, 'left')
+    expect(ids()).toEqual([c.id, a.id])
+    expect(layout.focusedPaneId).toBe(c.id)
+  })
+
+  it('a drop onto a pair one of whose tabs powers off lands by the tab that is left', () => {
+    const group = tabs([b, c], 0)
+    load(split('row', [a, group]), a.id)
+    layout.close(b.id)
+    layout.move(a.id, group.id, 'right')
+    expect(ids()).toEqual([c.id, a.id])
+  })
+
+  it('a tab dropped into a pair one of whose tabs powers off joins the tab that is left', () => {
+    const group = tabs([b, c], 0)
+    load(split('row', [a, group]), a.id)
+    layout.close(b.id)
+    layout.moveTab(a.id, group.id, 1)
+    expect(ids()).toEqual([a.id, c.id])
+    expect(layout.groupOf(a.id)).not.toBeNull()
+  })
+
+  it('a tab dropped at a gap past a tab powering off lands at that gap once it has gone', () => {
+    // The gap was counted with the closing tab in the strip: the drop landed one tab further on.
+    const d = pane('rss')
+    const group = tabs([b, c, d], 0)
+    load(split('row', [a, group]), a.id)
+    layout.close(b.id)
+    layout.moveTab(a.id, group.id, 2)
+    expect(ids()).toEqual([c.id, a.id, d.id])
+  })
+
   it('a tab or shell key with nowhere to go leaves the close running', () => {
     load(split('row', [a, b, c]), a.id)
     layout.close(b.id)

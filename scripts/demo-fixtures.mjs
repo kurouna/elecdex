@@ -42,6 +42,21 @@ export const GIT_ENV = {
   GIT_COMMITTER_EMAIL: 'demo@example.com',
 }
 writeFileSync(GIT_ENV.GIT_CONFIG_GLOBAL, '')
+// Every git call of the run reads it, so it goes only as the run ends.
+process.on('exit', () => dropFolder(path.dirname(GIT_ENV.GIT_CONFIG_GLOBAL)))
+
+/**
+ * Takes away a folder the run made in the temp folder (a profile, a Claude folder) once what
+ * used it is done. Electron can hold a profile's files for a moment after it quits on Windows,
+ * so it is tried a few times, and a folder that will not go is left rather than failing the run.
+ */
+export function dropFolder(dir) {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  } catch {
+    // Left in the temp folder: the system's to clear.
+  }
+}
 export const git = (args, date) =>
   execFileSync('git', args, {
     cwd: PROJECT,

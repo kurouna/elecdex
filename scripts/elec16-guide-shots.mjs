@@ -9,7 +9,7 @@
  * Windows only, like the other takes. Run `npm run build` first, then
  * `node scripts/elec16-guide-shots.mjs [pocket] [sci]` (both when neither is named).
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { _electron as electron } from '@playwright/test'
@@ -74,7 +74,17 @@ async function open(model, state, theme) {
   )
   await page.waitForTimeout(1000)
   await machine.focus()
-  return { app, page, machine }
+  return { app, page, machine, profile }
+}
+
+/** Closes the app and takes its profile away; Electron can hold its files a moment after it quits. */
+async function shut(app, profile) {
+  await app.close()
+  try {
+    rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  } catch {
+    // Left in the temp folder: the system's to clear.
+  }
 }
 
 /** The pointer out of the pictures, and a moment for the LCD's afterglow to settle. */
@@ -102,7 +112,7 @@ async function lines(page, ...typed) {
 }
 
 async function pocket() {
-  const { app, page } = await open(
+  const { app, page, profile } = await open(
     'pocket-48',
     { skin: 'classic', panel: true, tab: 'core' },
     'tron',
@@ -143,14 +153,14 @@ async function pocket() {
     await page.waitForTimeout(1500)
     await shot(page, page.locator('[data-testid=pane]'), 'pocket-code')
   } finally {
-    await app.close()
+    await shut(app, profile)
   }
 }
 
 /* ---------------- the calculator ---------------- */
 
 async function sci() {
-  const { app, page } = await open(
+  const { app, page, profile } = await open(
     'sci-128',
     { sciSkin: 'chalk', panel: true, tab: 'core' },
     'tron',
@@ -202,7 +212,7 @@ async function sci() {
     )
     await at('ac', 'sci-prog')
   } finally {
-    await app.close()
+    await shut(app, profile)
   }
 }
 

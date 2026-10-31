@@ -460,8 +460,9 @@ class LayoutStore {
    * focuses what moved. Does nothing when the move would not change the layout.
    */
   move(nodeId: string, targetId: string, placement: Placement): void {
-    this.settle()
-    this.applyMove(moveNode(this.tree, nodeId, targetId, placement), nodeId)
+    const ends = this.settleKeeping(nodeId, targetId)
+    if (ends === null) return
+    this.applyMove(moveNode(this.tree, ends.node, ends.target, placement), ends.node)
   }
 
   /**
@@ -469,8 +470,29 @@ class LayoutStore {
    * dragging a tab along the strip it is in, or into another group's.
    */
   moveTab(nodeId: string, targetId: string, index: number): void {
+    // The gap was found in the strip as drawn, with any tab powering off still in it.
+    const strip = findNode(this.tree.root, targetId)
+    const before = strip?.kind === 'tabs' ? strip.children.slice(0, index) : []
+    const gap = index - before.filter((child) => this.closingPanes.has(child.id)).length
+    const ends = this.settleKeeping(nodeId, targetId)
+    if (ends === null) return
+    this.applyMove(moveTabTo(this.tree, ends.node, ends.target, gap), ends.node)
+  }
+
+  /**
+   * Finishes a close in progress for a move, and finds both its ends again in the tree
+   * that leaves (`remainsOf`): a pair of tabs one of which powered off is now its other
+   * tab, which the drag meant as much as the group. Null when either end has gone.
+   */
+  private settleKeeping(nodeId: string, targetId: string): { node: string; target: string } | null {
+    const node = findNode(this.tree.root, nodeId)
+    const target = findNode(this.tree.root, targetId)
     this.settle()
-    this.applyMove(moveTabTo(this.tree, nodeId, targetId, index), nodeId)
+    const nodeNow = node === null ? null : this.remainsOf(node)
+    const targetNow = target === null ? null : this.remainsOf(target)
+    return nodeNow === null || targetNow === null
+      ? null
+      : { node: nodeNow.id, target: targetNow.id }
   }
 
   /** Whether moving `nodeId` to `targetId` with `placement` would change the layout. */
@@ -925,10 +947,16 @@ class LayoutStore {
 
 export const layout = new LayoutStore()
 
-/** The pane to keep focused in `tree`: `current` while it is still there, else the first shown. */
+/**
+ * The pane to keep focused in `tree`: `current` while it is still there, else the first shown.
+ * A tab that a change put behind another - a closed tab put back in front of it - hands the
+ * keyboard to the tab now in front, so the keys never go to a pane that is not on screen.
+ */
 function focusIn(tree: LayoutTree, current: string | null): string | null {
-  if (current === null || findNode(tree.root, current) !== null) return current
-  return visiblePanes(tree.root)[0]?.id ?? null
+  if (current === null) return null
+  if (findNode(tree.root, current) === null) return visiblePanes(tree.root)[0]?.id ?? null
+  const group = findTabsContaining(tree.root, current)
+  return group === null ? current : (group.children[group.activeIndex]?.id ?? current)
 }
 
 /**

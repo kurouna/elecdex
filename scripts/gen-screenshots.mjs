@@ -28,6 +28,7 @@ import { startCouncil } from './demo-beats.mjs'
 import {
   claudeFolder,
   demoRepository,
+  dropFolder,
   gitRepos,
   HOME,
   keepOrbits,
@@ -725,9 +726,7 @@ async function shoot(
   const named = only.includes(name) || (name.startsWith('pane-') && only.includes('panes'))
   if (only.length > 0 && !named) return
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-readme-'))
-  // `claude`: the made-up Claude Code folder the AI AGENT pane reads, made only for a shot taken
-  // and taken away after it, as the demos do.
-  const claudeDir = claude ? claudeFolder() : null
+  const agents = agentsFolder(claude)
   if (layout) writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layout))
   prepare?.(dir)
   seedOrbits(dir)
@@ -766,7 +765,7 @@ async function shoot(
       ELECDEX_GPU_STUB: 'demo',
       // A stand-in power-save blocker: a shot never keeps this machine awake.
       ELECDEX_AWAKE_STUB: '1',
-      ...(claudeDir === null ? {} : { ELECDEX_CLAUDE_DIR: claudeDir }),
+      ...agents.env,
       ...env,
     },
   })
@@ -816,7 +815,22 @@ async function shoot(
   }
   await app.close()
   keepOrbits(dir)
-  if (claudeDir !== null) rmSync(claudeDir, { recursive: true, force: true })
+  dropFolder(dir)
+  agents.drop()
+}
+
+/**
+ * The made-up Claude Code folder the AI AGENT pane reads, for a shot that asks for it
+ * (`claude`): made only for a shot taken, and taken away after it.
+ */
+function agentsFolder(wanted) {
+  const dir = wanted ? claudeFolder() : null
+  return {
+    env: dir === null ? {} : { ELECDEX_CLAUDE_DIR: dir },
+    drop: () => {
+      if (dir !== null) dropFolder(dir)
+    },
+  }
 }
 
 const PRESETS = await presetTrees(MAIN)

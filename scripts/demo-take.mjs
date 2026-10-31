@@ -15,6 +15,7 @@ import { _electron as electron } from '@playwright/test'
 import {
   claudeFolder,
   demoRepository,
+  dropFolder,
   gitRepos,
   HOME,
   keepOrbits,
@@ -201,6 +202,8 @@ export async function openTake({
   seedOrbits(profile)
   deskFiles(profile)
   prepare(profile)
+  // A take that brings its own Claude folder makes none here to leave behind.
+  const claude = env.ELECDEX_CLAUDE_DIR === undefined ? claudeFolder() : null
 
   const app = await electron.launch({
     // `intro`: the boot sequence plays as the window opens, welcoming a made-up user.
@@ -218,8 +221,7 @@ export async function openTake({
       USERPROFILE: HOME,
       HOMEPATH: '\\Users\\Public\\Documents\\elecdex-demo',
       HOME,
-      // A take that brings its own Claude folder makes none here to leave behind.
-      ...(env.ELECDEX_CLAUDE_DIR === undefined ? { ELECDEX_CLAUDE_DIR: claudeFolder() } : {}),
+      ...(claude === null ? {} : { ELECDEX_CLAUDE_DIR: claude }),
       ELECDEX_SOCKETS_STUB: 'demo',
       ELECDEX_WIFI_STUB: 'demo',
       // A made-up wired link (network and cockpit): never this machine's adapters.
@@ -381,6 +383,9 @@ export async function openTake({
     }
     end()
     await app.close().catch(() => {})
+    // Their orbits kept (end), the profile and the Claude folder made here go.
+    dropFolder(profile)
+    if (claude !== null) dropFolder(claude)
   }
 
   return { app, page, wait, settled, run, caption }

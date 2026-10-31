@@ -32,6 +32,7 @@ import { _electron as electron } from '@playwright/test'
 import {
   DEMO_FILES,
   demoRepository,
+  dropFolder,
   git,
   gitRepos,
   HOME,
@@ -699,3 +700,5 @@ try {
 }
 end()
 await app.close().catch(() => {})
+dropFolder(profile)
+dropFolder(claude)

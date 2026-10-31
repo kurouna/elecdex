@@ -372,6 +372,29 @@ describe('what a close put back keeps', () => {
     expect(back?.kind === 'tabs' && back.children[back.activeIndex]?.id).toBe(c.id)
   })
 
+  it('hands the keyboard to a tab put back in front of the one that had it', () => {
+    // The tab that took a closed tab's place kept the keyboard once the closed one came back
+    // in front of it: the keys went to a tab behind the one on screen.
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    const d = pane('rss')
+    const group = tabs([b, c, d], 1)
+    load(split('row', [a, group]), a.id)
+    layout.close(c.id)
+    vi.advanceTimersByTime(CLOSE_SETTLE_MS)
+    const after = findNode(layout.tree.root, group.id)
+    const took = after?.kind === 'tabs' ? after.children[after.activeIndex]?.id : undefined
+    layout.focus(took ?? '')
+    expect(layout.focusedPaneId).toBe(took)
+    const toast = undoToast()
+    const undo = toast?.actions[0]
+    if (toast !== undefined && undo !== undefined) toasts.run(toast.id, undo)
+    const back = findNode(layout.tree.root, group.id)
+    expect(back?.kind === 'tabs' && back.children[back.activeIndex]?.id).toBe(c.id)
+    expect(layout.focusedPaneId).toBe(c.id)
+  })
+
   it('cannot be undone once its toast has gone', () => {
     const a = pane('clock')
     const b = pane('calendar')

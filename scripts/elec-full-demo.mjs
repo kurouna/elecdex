@@ -19,7 +19,7 @@
  *   --theme=tron       any built-in theme
  *   --user=taro        the name the boot sequence welcomes (--host=ELECDEX-DEMO for the machine)
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -369,3 +369,13 @@ try {
 }
 await app.close().catch(() => {})
 server.close()
+dropProfile(dir)
+
+/** Takes away the run's profile; Electron can hold its files a moment after it quits. */
+function dropProfile(dir) {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  } catch {
+    // Left in the temp folder: the system's to clear.
+  }
+}
