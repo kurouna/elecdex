@@ -255,6 +255,15 @@ describe('the ELEC-16 runner', () => {
     expect(s === undefined ? '' : screenText(s.vram, 240, 48)[0]?.trimEnd()).toBe(
       'ELEC-16 BASIC 1.0',
     )
+    // Paused by the player, then switched on again out of sight (TUNE's model): it is the
+    // player's pause, which being seen never lifts, though the new machine has not run.
+    runner.pause()
+    runner.setSeen(false)
+    runner.boot(ROM, 'pocket-48', 4_000_000)
+    expect(runner.machine?.state.instret).toBe(0)
+    runner.setSeen(true)
+    expect(runner.pausedBy).toBe('player')
+    expect(runner.status).toBe('paused')
   })
 
   it('takes over a machine out of sight as it was: asleep goes on when seen, a program stays paused', () => {

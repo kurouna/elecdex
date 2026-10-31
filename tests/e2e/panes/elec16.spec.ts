@@ -147,6 +147,15 @@ test('mounted behind a tab, it goes on to its prompt when first shown, and again
       await expect(root, when).toHaveAttribute('data-status', 'running')
       await booted(page)
       await expect(root, when).toHaveAttribute('data-asleep', 'true')
+      if (when === 'first start') {
+        await root.focus()
+        await typeLine(page, 'print 6*7')
+        await expect.poll(() => lcdLines(page)).toContain('42')
+        await expect(root).toHaveAttribute('data-asleep', 'true')
+      } else {
+        // Its screen from before: taken over from its battery backup, not switched on afresh.
+        await expect.poll(() => lcdLines(page)).toContain('42')
+      }
       // Back behind the clock, where the restart finds it.
       await page.getByTestId('tab').nth(1).click()
       await expect(root, when).toHaveAttribute('data-status', 'paused')
