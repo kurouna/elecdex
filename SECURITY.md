@@ -13,8 +13,7 @@ Report it privately through GitHub: the **Security** tab of this repository →
 **Report a vulnerability**. Please do not open a public issue, discussion or pull request for it.
 
 Say which version and platform, what an attacker can do, and how to reproduce it. elecdex is
-maintained by one person; reports are answered as soon as possible, and the fix is credited to you
-in the release notes unless you would rather not be named.
+maintained by one person; reports are answered as soon as possible.
 
 ## What counts
 
@@ -46,7 +45,7 @@ elecdex はプレリリースです。対象は最新のリリースだけで、
 
 GitHub で非公開のまま報告してください。このリポジトリの **Security** タブ → **Report a vulnerability** です。公開の Issue、Discussion、プルリクエストには書かないでください。
 
-バージョンとプラットフォーム、攻撃者に何ができるか、再現の手順を書いてください。elecdex は 1 人で開発しています。できるだけ早く返事をし、名前を出してほしくない場合を除いて、修正したリリースノートに報告者として記します。
+バージョンとプラットフォーム、攻撃者に何ができるか、再現の手順を書いてください。elecdex は 1 人で開発しています。できるだけ早く返事をします。
 
 ### 対象になるもの
 
@@ -73,7 +72,7 @@ elecdex 目前是预发布版。只支持最新版本：修复会合入 `main`�
 
 请通过 GitHub 私下报告：本仓库的 **Security** 标签页 → **Report a vulnerability**。请不要在公开的 Issue、Discussion 或拉取请求中提及。
 
-请写明版本和平台、攻击者能做什么，以及复现步骤。elecdex 由一个人维护，会尽快回复；除非你不希望署名，修复所在版本的发布说明中会注明报告者。
+请写明版本和平台、攻击者能做什么，以及复现步骤。elecdex 由一个人维护，会尽快回复。
 
 ### 适用范围
 
