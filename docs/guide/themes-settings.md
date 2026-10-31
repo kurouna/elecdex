@@ -35,7 +35,7 @@ Eight themes switch live, without a reload: the page sets the theme as CSS varia
 | Black | `black` | light | White turned over: near-black text #0A080D on the pale #D7E0EA, with the same scanlines and only a trace of glow |
 | Business (Dark) | `business-dark` | dark | Windows 11's dark mode colours and default blue accent, Segoe UI and Cascadia Mono, Windows Terminal's Campbell scheme, no grid, scanlines or glow, launcher icons in their own colours |
 | Business (Light) | `business-light` | light | The same in Windows 11's light mode, with the One Half Light scheme |
-| Paper | `paper` | light | *unreleased*: monochrome and plain, like an e-paper display: ink #111111 on grey paper (#D9D9D5, panes #E5E5E1), a hueless accent, the terminal's sixteen colours as a ladder of distinct greys, Segoe UI and Cascadia Mono, no grid, scanlines or glow |
+| Paper | `paper` | light | Monochrome and plain, like an e-paper display: ink #111111 on grey paper (#D9D9D5, panes #E5E5E1), a hueless accent, the terminal's sixteen colours as a ladder of distinct greys, Segoe UI and Cascadia Mono, no grid, scanlines or glow |
 
 - Tron, Amber, Phosphor and White are for the HUD; Business (Dark) and Business (Light) are for an ordinary working day; Paper is monochrome and plain.
 - Text is the theme's accent colour unless the theme sets text colours, as the Business themes and Paper do.
@@ -48,7 +48,7 @@ Eight themes switch live, without a reload: the page sets the theme as CSS varia
 
 ![The ai preset in the Business (Dark) theme: two AI chat panes, and the ELEC system over the GPU pane; every answer is a stand-in's, made for the picture](../screenshots/elecdex-ai.jpg)
 
-![*unreleased*: the dev preset in the Paper theme, ink on grey paper: an AI agent at work and the git pane over a made-up repository, and the shell printing its history and changes in the terminal's greys; the agents' records and the repository are made up for the picture](../screenshots/elecdex-paper.jpg)
+![The dev preset in the Paper theme, ink on grey paper: an AI agent at work and the git pane over a made-up repository, and the shell printing its history and changes in the terminal's greys; the agents' records and the repository are made up for the picture](../screenshots/elecdex-paper.jpg)
 
 Every theme appears in a picture: Tron (standard, earth), Amber (blank, CHIP-8), Phosphor (dev), White (network, media), Black (cockpit), Paper (desk, and dev above), Business (Dark) (ai) and Business (Light) (the ELEC-16 SCI calculator).
 

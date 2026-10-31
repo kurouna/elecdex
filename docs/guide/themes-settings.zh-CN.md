@@ -35,7 +35,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | Black | `black` | light | 把 White 反过来：浅色 #D7E0EA 底上的近黑 #0A080D 文字，同样的扫描线，只有一丝辉光 |
 | Business (Dark) | `business-dark` | dark | Windows 11 深色模式的配色和默认蓝色强调色，Segoe UI 和 Cascadia Mono，Windows Terminal 的 Campbell 配色；无网格、扫描线和辉光，启动器图标显示原本颜色 |
 | Business (Light) | `business-light` | light | 同上，采用 Windows 11 浅色模式和 One Half Light 配色 |
-| Paper | `paper` | light | *unreleased*：像电子纸屏幕一样的单色简洁主题：灰色纸面（#D9D9D5，窗格 #E5E5E1）上的 #111111 墨色，无色相的强调色，终端的 16 种颜色是深浅各不相同的灰色，Segoe UI 和 Cascadia Mono，无网格、扫描线和辉光 |
+| Paper | `paper` | light | 像电子纸屏幕一样的单色简洁主题：灰色纸面（#D9D9D5，窗格 #E5E5E1）上的 #111111 墨色，无色相的强调色，终端的 16 种颜色是深浅各不相同的灰色，Segoe UI 和 Cascadia Mono，无网格、扫描线和辉光 |
 
 - Tron、Amber、Phosphor 和 White 用于 HUD 风格；Business (Dark) 和 Business (Light) 适合日常办公；Paper 是单色而简洁的。
 - 文字使用主题的强调色，除非主题像 Business 主题和 Paper 那样设置了文字颜色。
@@ -48,7 +48,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 ![Business (Dark) 主题下的 ai 预设：两个 AI 聊天窗格，以及位于 GPU 窗格之上的 ELEC system；所有回答都由为截图制作的替身写成](../screenshots/elecdex-ai.jpg)
 
-![*unreleased*：Paper 主题下的 dev 预设，灰色纸面上的墨色文字：正在工作的 AI 代理、打开虚构仓库的 git 窗格，以及用终端的灰色打印其历史和变更的 shell；代理的记录和仓库都是为截图制作的](../screenshots/elecdex-paper.jpg)
+![Paper 主题下的 dev 预设，灰色纸面上的墨色文字：正在工作的 AI 代理、打开虚构仓库的 git 窗格，以及用终端的灰色打印其历史和变更的 shell；代理的记录和仓库都是为截图制作的](../screenshots/elecdex-paper.jpg)
 
 每种主题都出现在某张截图里：Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk 和上面的 dev）、Business (Dark)（ai）和 Business (Light)（函数计算器 ELEC-16 SCI）。
 

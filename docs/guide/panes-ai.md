@@ -36,7 +36,7 @@ The **ai** preset (Ctrl+Shift+F7) holds two AI chat panes one over the other, an
 | Reads / data source | The providers you list in *Settings → AI*: a server on your computer or network, or a hosted API. Conversations are files in `chats/` in the app's data folder (userData), one file per conversation. |
 | Updates | An answer streams while it is written; main passes it to the pane in batches every 100 ms. Nothing is sent anywhere until you send a message, press **test**, or open the model list. |
 | Platforms | Keys are encrypted with the operating system's store (DPAPI on Windows, the Keychain on macOS, the desktop keyring on Linux). On Linux without a keyring the key is kept in memory only, until elecdex quits, and the settings say so. macOS and Linux are not sufficiently verified by hand. |
-| Privacy | An API key never reaches the page and is never written to `settings.json`. A key is sent only to the address it was entered for, and never over plain http beyond this computer and the local network. Images are re-encoded in the page, which leaves EXIF (including GPS position) behind. Files are passed as bytes, never by path. The model has no tools on this computer: it cannot read files or run commands. *unreleased*: Claude (Anthropic's dialect) may search the web on Anthropic's side, at most 5 times an answer; the search runs at Anthropic, nothing runs here, and each search is billed to your account. |
+| Privacy | An API key never reaches the page and is never written to `settings.json`. A key is sent only to the address it was entered for, and never over plain http beyond this computer and the local network. Images are re-encoded in the page, which leaves EXIF (including GPS position) behind. Files are passed as bytes, never by path. The model has no tools on this computer: it cannot read files or run commands. Claude (Anthropic's dialect) may search the web on Anthropic's side, at most 5 times an answer; the search runs at Anthropic, nothing runs here, and each search is billed to your account. |
 | Settings | *Settings → AI*: providers (preset, address, API key, *context window*), an optional system prompt, *summarise what no longer fits* (off by default). In the pane: provider and model. |
 
 ### Setting up a provider
@@ -86,7 +86,7 @@ A provider is an address and a dialect. There are two dialects: OpenAI-compatibl
 - An empty pane shows where it points (`LINK STANDBY`, the provider and model, the address); with no provider it shows `NO LINK`. The model field shows `QUERYING` while a provider's list is read, or `NO LIST` with the reason when it cannot be.
 - A conversation belongs to the app, not the pane: moving the pane, putting it behind a tab or reloading the page does not interrupt an answer. An answer nobody is following any more is stopped after 3 seconds, so closing the pane stops the request.
 - An optional system prompt in the settings goes ahead of every conversation.
-- *unreleased*: a provider on Anthropic's dialect may search the web when a question needs it (Anthropic's `web_search` tool, at most 5 searches an answer, each billed by Anthropic). The answer after a search starts a new paragraph, and the pages it cited are listed under it as **Sources**. If Anthropic's search loop pauses an answer, the app asks it to go on (at most 3 times), and an answer still paused ends `TRUNCATED` with the reason. Providers on the OpenAI-compatible dialect are not asked to search.
+- A provider on Anthropic's dialect may search the web when a question needs it (Anthropic's `web_search` tool, at most 5 searches an answer, each billed by Anthropic). The answer after a search starts a new paragraph, and the pages it cited are listed under it as **Sources**. If Anthropic's search loop pauses an answer, the app asks it to go on (at most 3 times), and an answer still paused ends `TRUNCATED` with the reason. Providers on the OpenAI-compatible dialect are not asked to search.
 
 ### Attached files
 
@@ -140,7 +140,7 @@ With *summarise what no longer fits* on (*Settings → AI*; off by default), the
 
 ### What it does not do
 
-- **No tools.** No MCP, no tool calls: the model cannot read your files or run commands, and never reads a file of its own accord. The one exception is Claude's web search (*unreleased*), which runs on Anthropic's servers, not on this computer. A model that could start processes or read files would first need a consent design like the plugins'.
+- **No tools.** No MCP, no tool calls: the model cannot read your files or run commands, and never reads a file of its own accord. The one exception is Claude's web search, which runs on Anthropic's servers, not on this computer. A model that could start processes or read files would first need a consent design like the plugins'.
 - No branching of conversations, and no named prompt profiles: one optional system prompt applies to every conversation.
 - No request on mount: a chat pane sitting in a layout calls nobody.
 
