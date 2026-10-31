@@ -86,7 +86,7 @@ A provider is an address and a dialect. There are two dialects: OpenAI-compatibl
 - An empty pane shows where it points (`LINK STANDBY`, the provider and model, the address); with no provider it shows `NO LINK`. The model field shows `QUERYING` while a provider's list is read, or `NO LIST` with the reason when it cannot be.
 - A conversation belongs to the app, not the pane: moving the pane, putting it behind a tab or reloading the page does not interrupt an answer. An answer nobody is following any more is stopped after 3 seconds, so closing the pane stops the request.
 - An optional system prompt in the settings goes ahead of every conversation.
-- *unreleased*: a provider on Anthropic's dialect may search the web when a question needs it (Anthropic's `web_search` tool, at most 5 searches an answer, each billed by Anthropic). The answer after a search starts a new paragraph, and the pages it cited are listed under it as **Sources**. Providers on the OpenAI-compatible dialect are not asked to search.
+- *unreleased*: a provider on Anthropic's dialect may search the web when a question needs it (Anthropic's `web_search` tool, at most 5 searches an answer, each billed by Anthropic). The answer after a search starts a new paragraph, and the pages it cited are listed under it as **Sources**. If Anthropic's search loop pauses an answer, the app asks it to go on (at most 3 times), and an answer still paused ends `TRUNCATED` with the reason. Providers on the OpenAI-compatible dialect are not asked to search.
 
 ### Attached files
 

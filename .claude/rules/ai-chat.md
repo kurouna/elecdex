@@ -46,7 +46,8 @@ the files above is read or edited.
   - A model's text is untrusted: drawn from lib/markdown.ts's tree, never as HTML.
   - The Anthropic adapter follows the claude-api skill (capabilities from the Models API,
     `stop_reason` first, thinking summarized and never replayed, fallbacks only on Anthropic's
-    endpoint).
+    endpoint). A turn the web search paused (`pause_turn`) is sent back whole to go on, at most
+    `CONTINUATIONS` times, then ends `TRUNCATED` with the reason.
   - The link vocabulary never hides what the user must read: an end code always has the
     provider's words beside it, not in a tooltip. Failures are one set (`FAILED`, read by colour
     and sound); add a `ChatStop` deliberately. Caret and lamp step with lib/pulse.svelte.ts, not a

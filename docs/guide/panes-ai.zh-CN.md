@@ -86,7 +86,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 - 空窗格会显示它指向哪里（`LINK STANDBY`、提供方和模型、地址）；没有提供方时显示 `NO LINK`。读取提供方的模型列表时模型字段显示 `QUERYING`，读不到时显示 `NO LIST` 及原因。
 - 对话属于应用而不属于窗格：移动窗格、把它放到标签页后面或重新加载页面都不会中断回答。无人关注的回答会在 3 秒后停止，所以关闭窗格会停止请求。
 - 设置中可选的系统提示词会放在每段对话的最前面。
-- *unreleased*：使用 Anthropic 方言的提供方在问题需要时可能会搜索网络（Anthropic 的 `web_search` 工具，一次回答最多 5 次，每次搜索由 Anthropic 计费）。搜索之后的回答从新的段落开始，引用的网页以 **Sources** 列在下方。不会请 OpenAI 兼容方言的提供方进行搜索。
+- *unreleased*：使用 Anthropic 方言的提供方在问题需要时可能会搜索网络（Anthropic 的 `web_search` 工具，一次回答最多 5 次，每次搜索由 Anthropic 计费）。搜索之后的回答从新的段落开始，引用的网页以 **Sources** 列在下方。如果 Anthropic 的搜索循环让回答中途暂停，应用会请它继续（最多 3 次），仍然暂停的回答以 `TRUNCATED` 结束并附上原因。不会请 OpenAI 兼容方言的提供方进行搜索。
 
 ### 附件
 

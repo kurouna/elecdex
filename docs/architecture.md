@@ -717,6 +717,9 @@ run 自体は毎秒 10 回作り直されるオブジェクトなので、それ
 何も動かず、境界は変わらない（ELEC-16 の LINK の SEARCH と同じ判断）。検索の後の文は段落を改め、引用したページを
 `Sources:` として回答の末尾に足す（Anthropic が出典の表示を求めるため。ペインはテキストしか描かないので、回答の
 テキストに含める）。OpenAI 互換の方言には頼まない（ローカルのサーバーは知らない欄で断りうる）。
+サーバーの検索のループが上限に達して `stop_reason: pause_turn` で止まった回答は、止まった回答をそのまま assistant として
+足して頼み直す（「続けて」のような質問は足さない。考えの過程も同じ回答の中なので送り返す）。最大 3 回（`CONTINUATIONS`）で、
+それでも止まっていれば `TRUNCATED` とその理由で終える。
 
 **ファイル添付（2026-10-01、利用者の仕様案を元に設計）**。利用者が自分で選んだテキスト・画像・PDF を質問に添える
 （`shared/ai-attach.ts`、`main/ai/files.ts`、`widgets/aichat/attach.ts`・`draft.svelte.ts`・`Payload.svelte`・`FileCard.svelte`）。

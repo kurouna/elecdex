@@ -28,7 +28,8 @@ import {
  * Only text is sent back as history. Thinking blocks are shown and kept, never
  * replayed: with no tools of ours in play (a web search is the server's own) the API does not
  * need them, and leaving them out is what lets an earlier question be edited without
- * invalidating anything.
+ * invalidating anything. The one exception is within an answer: a turn a search paused goes
+ * back whole, its thinking with it, for the server to go on from.
  */
 
 /** Room for a long answer; streaming, so no request timeout stands in its way. */
@@ -67,6 +68,9 @@ function failure(error: unknown): unknown {
     return new ProviderError(error.message.slice(0, 300))
   return error
 }
+
+/** How many times a paused turn is sent back to go on: past this, the answer ends as it stands. */
+const CONTINUATIONS = 3
 
 /** The most sources listed under an answer: the rest are still cited in what it read. */
 const SOURCES = 10
@@ -194,6 +198,10 @@ function resultOf(
   const answer = answerAfterSearch(message)
   if (answer !== null) result.answer = answer
   if (message.stop_reason === 'max_tokens') result.stop = 'length'
+  if (message.stop_reason === 'pause_turn') {
+    result.stop = 'length'
+    result.note = 'the web search paused the answer too many times'
+  }
   if (message.stop_reason === 'refusal') {
     result.stop = 'refusal'
     const why = message.stop_details?.explanation
@@ -248,23 +256,45 @@ export function anthropicAdapter(fetchLike: FetchLike): ProviderAdapter {
         if (event.type === 'content_block_start' && event.content_block !== undefined)
           out.block(event.content_block.type)
       }
-      const message = await (fallbacks
-        ? // The beta surface only where its parameter is used: a proxy need not know it.
-          client.beta.messages
-            .stream({ ...params, betas: [FALLBACK_BETA], fallbacks: 'default' }, options(request))
-            .on('streamEvent', onEvent)
-            .on('text', (piece) => out.text(piece))
-            .on('thinking', (piece) => out.thinking(piece))
-            .finalMessage()
-        : client.messages
-            .stream(params, options(request))
-            .on('streamEvent', onEvent)
-            .on('text', (piece) => out.text(piece))
-            .on('thinking', (piece) => out.thinking(piece))
-            .finalMessage())
+      type Turn = Anthropic.Message | Anthropic.Beta.BetaMessage
+      const once = (messages: typeof params.messages): Promise<Turn> =>
+        fallbacks
+          ? // The beta surface only where its parameter is used: a proxy need not know it.
+            client.beta.messages
+              .stream(
+                { ...params, messages, betas: [FALLBACK_BETA], fallbacks: 'default' },
+                options(request),
+              )
+              .on('streamEvent', onEvent)
+              .on('text', (piece) => out.text(piece))
+              .on('thinking', (piece) => out.thinking(piece))
+              .finalMessage()
+          : client.messages
+              .stream({ ...params, messages }, options(request))
+              .on('streamEvent', onEvent)
+              .on('text', (piece) => out.text(piece))
+              .on('thinking', (piece) => out.thinking(piece))
+              .finalMessage()
+      // A search that ran the server's loop to its limit pauses the turn: sent back as it
+      // stands, with no new question, it goes on where it stopped.
+      const turns: Turn[] = []
+      let messages = params.messages
+      for (;;) {
+        const turn = await once(messages)
+        turns.push(turn)
+        if (turn.stop_reason !== 'pause_turn' || turns.length > CONTINUATIONS) break
+        const content = turn.content as Anthropic.ContentBlockParam[]
+        messages = [...messages, { role: 'assistant', content }]
+      }
+      const last = turns.at(-1) as Turn
+      const content = turns.flatMap((t): readonly unknown[] => t.content)
+      const message = { ...last, content } as Turn
       const sources = sourcesOf(message)
       if (sources !== '') sink.text(sources)
-      return resultOf(message, request.model)
+      const result = resultOf(message, request.model)
+      if (result.usage !== undefined)
+        result.usage.output = turns.reduce((sum, t) => sum + t.usage.output_tokens, 0)
+      return result
     } catch (error) {
       throw failure(error)
     }

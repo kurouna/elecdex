@@ -638,6 +638,76 @@ describe('the Anthropic dialect', () => {
       // LINK reads the answer alone: no searching words, no sources.
       expect(result.answer).toBe('Sunny all day.')
     })
+
+    /** The first part of `searched()`, ending where the server paused: the search asked for. */
+    const paused = (): string[] => [
+      ...searched().slice(0, 7),
+      event('message_delta', {
+        delta: { stop_reason: 'pause_turn', stop_sequence: null },
+        usage: { output_tokens: 4 },
+      }),
+      event('message_stop', {}),
+    ]
+    /** The rest: the search's result and the answer, in a response of their own counted from 0. */
+    const resumed = (): string[] => [
+      answer('claude-test')[0] as string,
+      ...searched()
+        .slice(7)
+        .map((e) => e.replace(/"index":(\d+)/, (_, n: string) => `"index":${Number(n) - 2}`)),
+    ]
+
+    const serveTurns = (turns: Array<() => string[]>): void => {
+      let next = 0
+      reply = (req, res) => {
+        if (req.path.startsWith('/v1/models/')) {
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end(JSON.stringify(modelInfo(false)))
+          return
+        }
+        const turn = turns[Math.min(next, turns.length - 1)] as () => string[]
+        next += 1
+        sse(res, turn())
+      }
+    }
+
+    it('a paused turn is sent back as it stands, and goes on where it stopped', async () => {
+      serveTurns([paused, resumed])
+      const { got, sink } = collect()
+      const result = await anthropicAdapter(nodeFetch).stream({ ...ask(), webSearch: 5 }, sink)
+
+      const posts = seen.filter((entry) => entry.method === 'POST')
+      expect(posts).toHaveLength(2)
+      const again = posts[1]?.body as { messages: { role: string; content: unknown }[] }
+      // The question as it was, then the paused turn - no "continue" of ours after it.
+      expect(again.messages).toHaveLength(4)
+      expect(again.messages.at(-1)).toMatchObject({
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Looking.' },
+          { type: 'server_tool_use', id: 'srvtoolu_1', input: { query: 'weather' } },
+        ],
+      })
+      expect(got.text).toBe(
+        'Looking.\n\nSunny all day.\n\nSources:\n' +
+          '- [Sunny today](https://w.example/a)\n' +
+          '- [https://w.example/b_%28c%29](https://w.example/b_%28c%29)',
+      )
+      expect(result.stop).toBeUndefined()
+      expect(result.answer).toBe('Sunny all day.')
+      // Both requests wrote; what was read is the last request's, which holds the first.
+      expect(result.usage).toEqual({ input: 40, output: 13 })
+    })
+
+    it('but not for ever: an answer still paused ends early, and says why', async () => {
+      serveTurns([paused])
+      const result = await anthropicAdapter(nodeFetch).stream(
+        { ...ask(), webSearch: 5 },
+        collect().sink,
+      )
+      expect(seen.filter((entry) => entry.method === 'POST')).toHaveLength(4)
+      expect(result.stop).toBe('length')
+      expect(result.note).toBe('the web search paused the answer too many times')
+    })
   })
 
   it('names the model that answered when it is not the one asked for', async () => {
