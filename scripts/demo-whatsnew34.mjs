@@ -22,53 +22,20 @@
  * the take is over. The options are demo-take.mjs's (`takeOptions`): `--pace` on every pause,
  * `--theme`, `--shots=<dir>` to look the take over.
  */
-import { execFileSync } from 'node:child_process'
-import { rmSync, writeFileSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import path from 'node:path'
 import { beats } from './demo-beats.mjs'
-import { claudeFolder, GIT_ENV, git, HOME, PROJECT } from './demo-fixtures.mjs'
+import { claudeFolder, REMOTE, remoteBehind } from './demo-fixtures.mjs'
 import { MAIN, openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 import { presetTrees } from './preset-shots.mjs'
 
 const options = takeOptions({ width: 1600, height: 900, lead: 8 })
 const exit = process.argv.includes('--exit')
 
-/* ---- The remote the git pane pushes to: the demo checkout one commit ahead of it ---- */
-
-const REMOTE = `${HOME}\\remotes\\orbit-tracker.git`
-
-/** A bare remote of the demo checkout as it was, tracked, and a commit made since. */
-function remoteBehind() {
-  rmSync(REMOTE, { recursive: true, force: true })
-  execFileSync('git', ['clone', '-q', '--bare', PROJECT, REMOTE], {
-    cwd: HOME,
-    env: GIT_ENV,
-    stdio: 'ignore',
-  })
-  git(['remote', 'add', 'origin', REMOTE])
-  git(['fetch', '-q', 'origin'])
-  git(['branch', '-q', '--set-upstream-to=origin/main', 'main'])
-  // Only this file is committed: the rest of the working tree stays as the pane shows it.
-  const file = 'src/orbit/eclipse.ts'
-  writeFileSync(
-    path.join(PROJECT, file),
-    '/** Seconds the ISS spends in the earth shadow on a pass, from the reference times. */\nexport const ECLIPSE_MARGIN_S = 4\n',
-  )
-  git(['add', '--', file])
-  git([
-    'commit',
-    '-q',
-    '-m',
-    'feat(orbit): a margin on the shadow entry, from the reference times',
-    '--',
-    file,
-  ])
-}
-
 /* ---- The saved layouts: the dev preset with the GPU pane, and the cockpit preset ---- */
 
 const { standIn } = await prepareData()
-remoteBehind()
+const remote = await remoteBehind()
 const claude = claudeFolder()
 const trees = await presetTrees(MAIN)
 const preset = (id) => {
@@ -234,4 +201,5 @@ await run(async () => {
 rmSync(claude, { recursive: true, force: true })
 // The remote lives in the demo home (a temp folder's path would show the user's name), so it is
 // taken away again, folder and all: a later take or screenshot run starts from the home as it was.
+remote.close()
 rmSync(path.dirname(REMOTE), { recursive: true, force: true })

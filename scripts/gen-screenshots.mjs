@@ -19,7 +19,7 @@
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
  * so nothing of the machine is in them.
  */
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -33,7 +33,9 @@ import {
   keepOrbits,
   PROJECT,
   prepareHome,
+  REMOTE,
   REPO_ID,
+  remoteBehind,
   SESSION,
   seedOrbits,
 } from './demo-fixtures.mjs'
@@ -1257,7 +1259,7 @@ for (const [name, extra, pace] of [
   standIn.close()
 }
 /*
- * The README's first picture (elecdex-hero), in Tron: what v0.0.48 fixed. The pocket ELEC-16 and an SCI-128 side by side in
+ * docs/elec16.md's picture (elecdex-elec16-pair), in Tron: what v0.0.48 fixed. The pocket ELEC-16 and an SCI-128 side by side in
  * the middle column, both in the Tron skin, the pocket over a shell, the system and the world on either
  * side: the pocket prints the BASIC expressions that came out wrong before, the calculator
  * works the cube root that now comes out exact.
@@ -1320,7 +1322,59 @@ async function whatsNew48(page) {
   await page.mouse.move(W / 2, H / 6)
 }
 
-await shoot('tron', 'elecdex-hero', { layout: whatsNew48Layout, extra: whatsNew48 })
+await shoot('tron', 'elecdex-elec16-pair', { layout: whatsNew48Layout, extra: whatsNew48 })
+
+/*
+ * The README's first picture (elecdex-hero), in Tron: the dev preset at work - a coding agent's
+ * session, the repository it changes, the system column beside - with two toasts in the corner:
+ * a task's reminder come due, and the git pane's PUSH to a bare remote in the demo home, never a
+ * real one.
+ */
+const DUE_TASK = 'Review the pull request for the orbit map'
+
+/** The desk's tasks, the first due 40 s after the profile is written: its reminder lands in the shot. */
+function dueSoon(dir) {
+  deskFiles(dir)
+  const file = path.join(dir, 'tasks.json')
+  const tasks = JSON.parse(readFileSync(file, 'utf8'))
+  for (const task of tasks.tasks) if (task.title === DUE_TASK) task.due = Date.now() + 40_000
+  writeFileSync(file, JSON.stringify(tasks))
+}
+
+/** The reminder up, then the commit ahead of origin pushed (two presses): both toasts on screen. */
+async function dueAndPushed(page) {
+  const toast = page.getByTestId('toast')
+  await toast.filter({ hasText: DUE_TASK }).waitFor({ timeout: 40_000 })
+  const repo = page.locator('[data-testid=pane][data-widget=git]')
+  await repo.getByTestId('git-head').filter({ hasText: '↑1' }).waitFor({ timeout: 20_000 })
+  const push = repo.getByTestId('git-push')
+  await push.click()
+  await page.waitForTimeout(1200)
+  await push.click()
+  await toast.filter({ hasText: 'PUSHED' }).waitFor({ timeout: 30_000 })
+  // Off the stack and the panes: a pointer resting on a pane would show its buttons.
+  await page.mouse.move(W / 2, 4)
+  await page.waitForTimeout(900)
+}
+
+if (only.length === 0 || only.includes('elecdex-hero')) {
+  demoRepository()
+  const remote = await remoteBehind()
+  await shoot('tron', 'elecdex-hero', {
+    layout: withState(preset('dev'), {
+      agents: { open: SESSION },
+      git: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
+    }),
+    env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
+    prepare: (dir) => {
+      gitRepos(dir)
+      dueSoon(dir)
+    },
+    extra: dueAndPushed,
+  })
+  remote.close()
+  rmSync(path.dirname(REMOTE), { recursive: true, force: true })
+}
 // For posting: the Ethernet pane popped up over the standard layout, on a made-up cable taking
 // CRC errors, its timeline on one minute. Only when named.
 if (only.includes('social-ethernet-popup')) {

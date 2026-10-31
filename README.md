@@ -19,7 +19,7 @@ current, secure stack.
 
 <p align="center">
   <a href="https://youtu.be/JlCZzLhp_PM">
-    <img src="./docs/screenshots/elecdex-hero.jpg" alt="elecdex with the Tron theme: system monitors on the left; in the middle the ELEC-16 pocket computer printing BASIC expressions over a shell, beside the ELEC-16 SCI calculator; the world view, markets and weather on the right">
+    <img src="./docs/screenshots/elecdex-hero.jpg" alt="elecdex in the dev layout preset with the Tron theme: system monitors on the left; a coding agent's sessions, Docker containers and the clipboard in the middle; the git pane's commit graph and diff on the right, with two toasts in the corner: a task due now and a push of one commit">
   </a>
   <br>
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>

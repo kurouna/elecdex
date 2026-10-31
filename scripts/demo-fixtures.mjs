@@ -4,8 +4,9 @@
  * tracker by a made-up author, and a made-up Claude Code folder for the AI AGENT pane - so no
  * shot or recording carries this machine's paths, files, repositories or sessions.
  */
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -214,6 +215,112 @@ export function demoRepository({ pending = true } = {}) {
   // Not yet committed: the work the agent in the AI AGENT shot is doing.
   put('src/orbit/passes.ts', PASSES_NOW)
   put('src/orbit/shadow.ts', SHADOW)
+}
+
+/*
+ * The remote the git pane pushes to: a bare repository in the demo home (a temp folder's path would
+ * show the user's name), so a PUSH never leaves this machine. Take it away again when done,
+ * folder and all, so a later take or screenshot run starts from the home as it was.
+ */
+export const REMOTE = `${HOME}\\remotes\\orbit-tracker.git`
+
+/** The CGI's own status and headers, split from the body that follows them. */
+function cgiHead(raw) {
+  const headers = {}
+  let status = 200
+  for (const line of raw.split('\r\n')) {
+    const at = line.indexOf(':')
+    const name = line.slice(0, at).trim()
+    const value = line.slice(at + 1).trim()
+    if (name.toLowerCase() === 'status') status = Number.parseInt(value, 10)
+    else headers[name] = value
+  }
+  return { status, headers }
+}
+
+/*
+ * The remote served over http on 127.0.0.1 by git's own http-backend: the git pane speaks only
+ * hosted transports and refuses a folder (main/git/sync.ts), so the demo remote is reached the
+ * way a hosted one is, and nothing leaves this machine. Pushes are taken as from user "demo".
+ */
+function serveRemote() {
+  const server = createServer((req, res) => {
+    const url = new URL(req.url ?? '/', 'http://127.0.0.1')
+    const header = (name, cgi) =>
+      req.headers[name] === undefined ? {} : { [cgi]: req.headers[name] }
+    const backend = spawn('git', ['http-backend'], {
+      env: {
+        ...GIT_ENV,
+        GIT_PROJECT_ROOT: path.dirname(REMOTE),
+        GIT_HTTP_EXPORT_ALL: '1',
+        REMOTE_USER: 'demo',
+        REMOTE_ADDR: '127.0.0.1',
+        REQUEST_METHOD: req.method ?? 'GET',
+        PATH_INFO: decodeURIComponent(url.pathname),
+        QUERY_STRING: url.search.slice(1),
+        ...header('content-type', 'CONTENT_TYPE'),
+        ...header('content-length', 'CONTENT_LENGTH'),
+        ...header('content-encoding', 'HTTP_CONTENT_ENCODING'),
+        ...header('git-protocol', 'GIT_PROTOCOL'),
+      },
+    })
+    req.pipe(backend.stdin)
+    let head = Buffer.alloc(0)
+    let started = false
+    backend.stdout.on('data', (chunk) => {
+      if (started) {
+        res.write(chunk)
+        return
+      }
+      head = Buffer.concat([head, chunk])
+      const end = head.indexOf('\r\n\r\n')
+      if (end < 0) return
+      const { status, headers } = cgiHead(head.subarray(0, end).toString())
+      res.writeHead(status, headers)
+      started = true
+      res.write(head.subarray(end + 4))
+    })
+    backend.stdout.on('end', () => res.end())
+  })
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve(server))
+  })
+}
+
+/**
+ * A bare remote of the demo checkout as it was, served over http and tracked, and a commit made
+ * since. Resolves to the server, to be closed when the take or the shot is done.
+ */
+export async function remoteBehind() {
+  rmSync(REMOTE, { recursive: true, force: true })
+  execFileSync('git', ['clone', '-q', '--bare', PROJECT, REMOTE], {
+    cwd: HOME,
+    env: GIT_ENV,
+    stdio: 'ignore',
+  })
+  const server = await serveRemote()
+  const url = `http://127.0.0.1:${server.address().port}/${path.basename(REMOTE)}`
+  git(['remote', 'add', 'origin', url])
+  // What a fetch would say, written by hand: the remote is where the clone was taken. A fetch run
+  // synchronously here would wait on a server this very thread has to answer.
+  git(['update-ref', 'refs/remotes/origin/main', 'HEAD'])
+  git(['branch', '-q', '--set-upstream-to=origin/main', 'main'])
+  // Only this file is committed: the rest of the working tree stays as the pane shows it.
+  const file = 'src/orbit/eclipse.ts'
+  writeFileSync(
+    path.join(PROJECT, file),
+    '/** Seconds the ISS spends in the earth shadow on a pass, from the reference times. */\nexport const ECLIPSE_MARGIN_S = 4\n',
+  )
+  git(['add', '--', file])
+  git([
+    'commit',
+    '-q',
+    '-m',
+    'feat(orbit): a margin on the shadow entry, from the reference times',
+    '--',
+    file,
+  ])
+  return server
 }
 
 export const REPO_ID = '0e1ec0de0e1ec0de'

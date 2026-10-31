@@ -16,7 +16,7 @@ SF 風のターミナルエミュレーター兼システムモニターです�
 
 <p align="center">
   <a href="https://youtu.be/JlCZzLhp_PM">
-    <img src="./docs/screenshots/elecdex-hero.jpg" alt="Tron テーマの elecdex：左にシステムモニター、中央にシェルの上で BASIC の式を表示するポケコン ELEC-16 と関数電卓 ELEC-16 SCI、右に世界地図・マーケット・天気">
+    <img src="./docs/screenshots/elecdex-hero.jpg" alt="Tron テーマの dev プリセットの elecdex：左にシステムモニター、中央にコーディングエージェントのセッション・Docker のコンテナ・クリップボード、右に Git ペインのコミットグラフと差分。右下にタスクの期限と 1 コミットの PUSH を知らせる 2 つのトースト通知">
   </a>
   <br>
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
