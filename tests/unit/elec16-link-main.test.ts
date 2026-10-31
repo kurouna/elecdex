@@ -150,7 +150,7 @@ describe('the AI service', () => {
       request('TOKYO', { type: AI_TYPES.indexOf('WEATHER') }),
       context(),
     )
-    expect(asked[0]?.webSearch).toBe(true)
+    expect(asked[0]?.webSearch).toBe(3)
     // A search has no cap either (it had 3,000 tokens).
     expect(asked[0]?.maxTokens).toBeUndefined()
     expect(asked[0]?.system).toContain('Today is 2026-10-04.')

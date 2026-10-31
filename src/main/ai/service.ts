@@ -72,6 +72,12 @@ const RATIO_MAX = 2
  */
 const COMPACT_TRIES = 2
 
+/**
+ * The web searches Claude may make for one answer: room to look again when the first results
+ * miss, and a ceiling on what a question costs (each search is billed).
+ */
+const CHAT_SEARCHES = 5
+
 export interface AiDeps {
   store: ChatStore
   /** The questions' files: waiting in drafts, and kept beside their conversations. */
@@ -600,6 +606,9 @@ export class AiChatService {
           system: running.outgoing.system,
           messages,
           signal: running.abort.signal,
+          // Claude searches the web on Anthropic's side when a question needs it (user decision
+          // 2026-10-31); nothing runs here. Not the OpenAI dialect: a local server refuses it.
+          ...(target.provider.kind === 'anthropic' ? { webSearch: CHAT_SEARCHES } : {}),
         },
         {
           text: (piece) => this.append(running, 'text', piece),

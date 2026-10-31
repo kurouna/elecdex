@@ -259,7 +259,7 @@ const bodyFor = (request: StreamRequest): string =>
     stream_options: { include_usage: true },
     ...(request.maxTokens === undefined ? {} : capOf(request)),
     // OpenAI's own search; a server without it refuses the request (or ignores the field).
-    ...(request.webSearch === true ? { web_search_options: {} } : {}),
+    ...(request.webSearch !== undefined ? { web_search_options: {} } : {}),
     messages: [
       ...(request.system === '' ? [] : [{ role: 'system', content: request.system }]),
       ...request.messages.map((m) => ({ role: m.role, content: contentOf(m) })),

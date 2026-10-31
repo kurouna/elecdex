@@ -61,4 +61,6 @@ the files above is read or edited.
     Files count in `chatWindow` and are cut with their message.
   - No tools, MCP, branching or prompt profiles (user decisions 2026-09-20/21). Do not add them
     without asking: a model that can start processes or read files needs a consent design like
-    the plugins' first. The model never reads a file of its own accord.
+    the plugins' first. The model never reads a file of its own accord. The one exception is
+    Anthropic's server-side web search on Anthropic's dialect (user decision 2026-10-31,
+    `CHAT_SEARCHES`): nothing runs here, and the pages cited are listed under the answer.

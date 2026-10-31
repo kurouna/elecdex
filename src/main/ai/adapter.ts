@@ -46,10 +46,11 @@ export interface StreamRequest extends AdapterTarget {
    */
   noThinking?: boolean
   /**
-   * Let the provider search the web on its own side (LINK's SEARCH and WEATHER). Nothing runs
-   * here; a provider that cannot refuses the request, or ignores it.
+   * Let the provider search the web on its own side, at most this many times for one answer
+   * (the AI chat pane on Anthropic's dialect, LINK's SEARCH and WEATHER). Nothing runs here; a
+   * provider that cannot refuses the request, or ignores it. Unset: no search.
    */
-  webSearch?: boolean
+  webSearch?: number
 }
 
 export interface StreamSink {

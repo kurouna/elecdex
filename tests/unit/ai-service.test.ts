@@ -30,10 +30,17 @@ const REMOTE_HTTP: AiProvider = {
   baseUrl: 'http://far.example/v1',
 }
 const BROKEN: AiProvider = { ...LOCAL, id: 'broken', name: 'Broken', baseUrl: 'not a url' }
+const CLAUDE: AiProvider = {
+  id: 'claude',
+  name: 'Claude',
+  kind: 'anthropic',
+  baseUrl: 'http://localhost:9000',
+  model: 'claude-test',
+}
 
 function harness(dir: string, keys: Record<string, string> = {}) {
   return aiHarness(dir, {
-    providers: [LOCAL, REMOTE_HTTP, BROKEN],
+    providers: [LOCAL, REMOTE_HTTP, BROKEN, CLAUDE],
     keys,
     systemPrompt: 'be brief',
     models: [{ id: 'llama3' }],
@@ -301,6 +308,20 @@ describe('which provider is asked', () => {
     h.service.send(chatId, { ...ASK, text: 'x' })
     await h.settle()
     expect((h.pending[0] as Pending).request.key).toBe('sk-local')
+  })
+
+  it('Claude may search the web for an answer; the OpenAI dialect is never asked to', async () => {
+    const h = harness(dir)
+    const chatId = h.service.create() as string
+    h.service.send(chatId, { provider: 'claude', model: 'claude-test', text: 'news?' })
+    await h.settle()
+    expect((h.pending[0] as Pending).request.webSearch).toBe(5)
+    ;(h.pending[0] as Pending).end()
+    await h.settle()
+
+    h.service.send(chatId, { ...ASK, text: 'and here?' })
+    await h.settle()
+    expect((h.pending[1] as Pending).request).not.toHaveProperty('webSearch')
   })
 
   it('the model list is asked of the same address, and a failure is words', async () => {

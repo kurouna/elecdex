@@ -538,6 +538,108 @@ describe('the Anthropic dialect', () => {
     expect(result.stop).toBe('refusal')
   })
 
+  describe('a web search', () => {
+    const cite = (url: string, title: string) => ({
+      type: 'web_search_result_location',
+      url,
+      title,
+      encrypted_index: 'i',
+      cited_text: 'x',
+    })
+    const searched = (): string[] => [
+      answer('claude-test')[0] as string,
+      event('content_block_start', { index: 0, content_block: { type: 'text', text: '' } }),
+      event('content_block_delta', { index: 0, delta: { type: 'text_delta', text: 'Looking.' } }),
+      event('content_block_stop', { index: 0 }),
+      event('content_block_start', {
+        index: 1,
+        content_block: { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: {} },
+      }),
+      event('content_block_delta', {
+        index: 1,
+        delta: { type: 'input_json_delta', partial_json: '{"query":"weather"}' },
+      }),
+      event('content_block_stop', { index: 1 }),
+      event('content_block_start', {
+        index: 2,
+        content_block: {
+          type: 'web_search_tool_result',
+          tool_use_id: 'srvtoolu_1',
+          content: [
+            {
+              type: 'web_search_result',
+              url: 'https://w.example/a',
+              title: 'A',
+              encrypted_content: 'e',
+              page_age: null,
+            },
+          ],
+        },
+      }),
+      event('content_block_stop', { index: 2 }),
+      event('content_block_start', {
+        index: 3,
+        content_block: { type: 'text', text: '', citations: [] },
+      }),
+      event('content_block_delta', {
+        index: 3,
+        delta: { type: 'citations_delta', citation: cite('https://w.example/a', 'Sunny [today]') },
+      }),
+      event('content_block_delta', { index: 3, delta: { type: 'text_delta', text: 'Sunny' } }),
+      event('content_block_stop', { index: 3 }),
+      event('content_block_start', {
+        index: 4,
+        content_block: { type: 'text', text: '', citations: [] },
+      }),
+      event('content_block_delta', {
+        index: 4,
+        delta: { type: 'citations_delta', citation: cite('https://w.example/a', 'again') },
+      }),
+      event('content_block_delta', {
+        index: 4,
+        delta: { type: 'citations_delta', citation: cite('https://w.example/b_(c)', '') },
+      }),
+      event('content_block_delta', { index: 4, delta: { type: 'text_delta', text: ' all day.' } }),
+      event('content_block_stop', { index: 4 }),
+      event('message_delta', {
+        delta: { stop_reason: 'end_turn', stop_sequence: null },
+        usage: { output_tokens: 9 },
+      }),
+      event('message_stop', {}),
+    ]
+
+    it('is offered as the basic search tool, as many times as asked; not at all unasked', async () => {
+      serve(true)
+      await anthropicAdapter(nodeFetch).stream({ ...ask(), webSearch: 5 }, collect().sink)
+      expect(seen.find((entry) => entry.method === 'POST')?.body).toMatchObject({
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
+      })
+      seen.length = 0
+      await anthropicAdapter(nodeFetch).stream(ask(), collect().sink)
+      expect(seen.find((entry) => entry.method === 'POST')?.body).not.toHaveProperty('tools')
+    })
+
+    it('answers in a paragraph of its own, with the pages it cited listed once each', async () => {
+      reply = (req, res) => {
+        if (req.path.startsWith('/v1/models/')) {
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end(JSON.stringify(modelInfo(false)))
+          return
+        }
+        sse(res, searched())
+      }
+      const { got, sink } = collect()
+      const result = await anthropicAdapter(nodeFetch).stream({ ...ask(), webSearch: 5 }, sink)
+      expect(got.text).toBe(
+        'Looking.\n\nSunny all day.\n\nSources:\n' +
+          '- [Sunny today](https://w.example/a)\n' +
+          '- [https://w.example/b_%28c%29](https://w.example/b_%28c%29)',
+      )
+      // LINK reads the answer alone: no searching words, no sources.
+      expect(result.answer).toBe('Sunny all day.')
+    })
+  })
+
   it('names the model that answered when it is not the one asked for', async () => {
     serve(true)
     const result = await anthropicAdapter(nodeFetch).stream(ask('claude-other'), collect().sink)

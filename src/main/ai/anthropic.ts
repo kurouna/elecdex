@@ -26,8 +26,9 @@ import {
  * guidance puts them; never the Files API, which would leave copies with the service to manage.
  *
  * Only text is sent back as history. Thinking blocks are shown and kept, never
- * replayed: with no tools in play the API does not need them, and leaving them
- * out is what lets an earlier question be edited without invalidating anything.
+ * replayed: with no tools of ours in play (a web search is the server's own) the API does not
+ * need them, and leaving them out is what lets an earlier question be edited without
+ * invalidating anything.
  */
 
 /** Room for a long answer; streaming, so no request timeout stands in its way. */
@@ -67,8 +68,8 @@ function failure(error: unknown): unknown {
   return error
 }
 
-/** The searches one LINK question may make: enough for an answer, not a bill. */
-const SEARCHES = 3
+/** The most sources listed under an answer: the rest are still cited in what it read. */
+const SOURCES = 10
 
 const paramsFor = (request: StreamRequest, model: ModelFacts) => ({
   model: request.model,
@@ -81,10 +82,14 @@ const paramsFor = (request: StreamRequest, model: ModelFacts) => ({
     ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } }
     : {}),
   // The basic search, which every model with search takes, with no code run for it.
-  ...(request.webSearch === true
+  ...(request.webSearch !== undefined
     ? {
         tools: [
-          { type: 'web_search_20250305' as const, name: 'web_search' as const, max_uses: SEARCHES },
+          {
+            type: 'web_search_20250305' as const,
+            name: 'web_search' as const,
+            max_uses: request.webSearch,
+          },
         ],
       }
     : {}),
@@ -103,6 +108,52 @@ function answerAfterSearch(message: Anthropic.Message | Anthropic.Beta.BetaMessa
     .slice(last + 1)
     .map((b) => (b.type === 'text' ? (b.text ?? '') : ''))
     .join('')
+}
+
+/** What is read of a citation: only a search result's has an address. */
+type Citation = { type?: string; url?: unknown; title?: unknown }
+
+/**
+ * The pages an answer cited, as a markdown list to go after it: Anthropic asks that an answer
+ * from its web search be shown with its sources, and the pane draws only text. A title loses its
+ * brackets and an address its parentheses, so neither can end the link early.
+ */
+export function sourcesOf(message: Anthropic.Message | Anthropic.Beta.BetaMessage): string {
+  const found = new Map<string, string>()
+  for (const block of message.content as readonly { type: string; citations?: unknown }[]) {
+    if (block.type !== 'text' || !Array.isArray(block.citations)) continue
+    for (const c of block.citations as readonly Citation[]) {
+      if (c.type !== 'web_search_result_location' || typeof c.url !== 'string') continue
+      if (!found.has(c.url)) found.set(c.url, typeof c.title === 'string' ? c.title : '')
+    }
+  }
+  const lines = [...found].slice(0, SOURCES).map(([url, title]) => {
+    const href = url.replace(/\(/g, '%28').replace(/\)/g, '%29')
+    const name = title.replace(/[[\]]/g, '').trim() || href
+    return `- [${name}](${href})`
+  })
+  return lines.length === 0 ? '' : `\n\nSources:\n${lines.join('\n')}`
+}
+
+/**
+ * The sink a search's answer is written through: the text the model writes after a search
+ * starts a new paragraph, where it would otherwise run on from what it said before searching.
+ */
+function searchingSink(sink: StreamSink) {
+  let wrote = false
+  let searched = false
+  return {
+    text(piece: string): void {
+      if (searched && wrote) sink.text(`\n\n${piece}`)
+      else sink.text(piece)
+      searched = false
+      wrote ||= piece !== ''
+    },
+    thinking: (piece: string): void => sink.thinking(piece),
+    block(type: string): void {
+      if (type === 'server_tool_use' || type === 'web_search_tool_result') searched = true
+    },
+  }
 }
 
 const mediaBlock = (media: Media): Anthropic.ImageBlockParam | Anthropic.DocumentBlockParam =>
@@ -192,18 +243,27 @@ export function anthropicAdapter(fetchLike: FetchLike): ProviderAdapter {
       const params = paramsFor(request, await factsFor(client, request, request.model))
       const fallbacks =
         FALLBACK_MODELS.has(request.model) && new URL(request.baseUrl).host === FIRST_PARTY_HOST
+      const out = searchingSink(sink)
+      const onEvent = (event: { type: string; content_block?: { type: string } }): void => {
+        if (event.type === 'content_block_start' && event.content_block !== undefined)
+          out.block(event.content_block.type)
+      }
       const message = await (fallbacks
         ? // The beta surface only where its parameter is used: a proxy need not know it.
           client.beta.messages
             .stream({ ...params, betas: [FALLBACK_BETA], fallbacks: 'default' }, options(request))
-            .on('text', (piece) => sink.text(piece))
-            .on('thinking', (piece) => sink.thinking(piece))
+            .on('streamEvent', onEvent)
+            .on('text', (piece) => out.text(piece))
+            .on('thinking', (piece) => out.thinking(piece))
             .finalMessage()
         : client.messages
             .stream(params, options(request))
-            .on('text', (piece) => sink.text(piece))
-            .on('thinking', (piece) => sink.thinking(piece))
+            .on('streamEvent', onEvent)
+            .on('text', (piece) => out.text(piece))
+            .on('thinking', (piece) => out.thinking(piece))
             .finalMessage())
+      const sources = sourcesOf(message)
+      if (sources !== '') sink.text(sources)
       return resultOf(message, request.model)
     } catch (error) {
       throw failure(error)

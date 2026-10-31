@@ -43,6 +43,9 @@ export interface AiLinkDeps {
 /** Exchanges a conversation keeps. */
 export const AI_TURNS = 10
 
+/** The searches one SEARCH or WEATHER question may make: enough for an answer, not a bill. */
+const LINK_SEARCHES = 3
+
 interface Talk {
   provider: string
   turns: { question: string; answer: string }[]
@@ -92,7 +95,7 @@ export class AiLinkService implements LinkService {
       // models that reason first (Gemini 2.5 spends its thinking from it), and what the LCD
       // shows is cut to the room the program gave anyway (lcdReply).
       noThinking: true,
-      ...(traits.search ? { webSearch: true } : {}),
+      ...(traits.search ? { webSearch: LINK_SEARCHES } : {}),
     })
     if ('status' in said) return said
     if (traits.search && said.text.trim().toUpperCase().startsWith(NO_SEARCH)) {
