@@ -84,6 +84,37 @@ describe('a move', () => {
     expect(layout.effects.flashing).toBeNull()
   })
 
+  it('focuses the tab a whole group shows once it has joined another, and flickers it on', () => {
+    // The group's own id is gone once its tabs have joined: nothing was focused, and the
+    // keyboard stayed with a tab now behind the one shown.
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    const d = pane('rss')
+    const group = tabs([b, c], 1)
+    load(split('row', [a, group, d]), c.id)
+    layout.move(group.id, d.id, 'tab')
+    expect(findNode(layout.tree.root, group.id)).toBeNull()
+    const joined = findNode(layout.tree.root, layout.groupOf(b.id) ?? '')
+    expect(joined?.kind === 'tabs' && joined.children[joined.activeIndex]?.id).toBe(b.id)
+    expect(layout.focusedPaneId).toBe(b.id)
+    expect(layout.effects.flashing).toBe(b.id)
+  })
+
+  it('focuses the tab a whole group shows once it has joined another by its strip', () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    const d = pane('rss')
+    const e = pane('weather')
+    const group = tabs([b, c], 1)
+    load(split('row', [a, group, tabs([d, e])]), a.id)
+    layout.moveTab(group.id, d.id, 1)
+    expect(layout.focusedPaneId).toBe(b.id)
+    const joined = findNode(layout.tree.root, layout.groupOf(b.id) ?? '')
+    expect(joined?.kind === 'tabs' && joined.children[joined.activeIndex]?.id).toBe(b.id)
+  })
+
   it('plays nothing without motion', () => {
     animates = false
     const a = pane('clock')
@@ -314,6 +345,31 @@ describe('what a close put back keeps', () => {
     closeAndUndo(c.id)
     expect(ids()).toEqual([a.id, b.id, c.id])
     expect(layout.arrived(c.id)).toBe(false)
+  })
+
+  it('leaves the keyboard where it is when the close put back did not have it', () => {
+    // The focus at the close was put back as it was, though another tab had been shown since:
+    // the keyboard went to a tab behind the one on screen.
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    load(split('row', [a, tabs([b, c])]), b.id)
+    closeAndUndo(a.id, () => layout.focus(c.id))
+    expect(ids()).toEqual([a.id, b.id, c.id])
+    expect(layout.focusedPaneId).toBe(c.id)
+  })
+
+  it('gives the keyboard back to the pane put back when it had it, bringing its tab forward', () => {
+    const a = pane('clock')
+    const b = pane('calendar')
+    const c = pane('notes')
+    const d = pane('rss')
+    const group = tabs([b, c, d], 1)
+    load(split('row', [a, group]), c.id)
+    closeAndUndo(c.id, () => layout.focus(a.id))
+    expect(layout.focusedPaneId).toBe(c.id)
+    const back = findNode(layout.tree.root, group.id)
+    expect(back?.kind === 'tabs' && back.children[back.activeIndex]?.id).toBe(c.id)
   })
 
   it('cannot be undone once its toast has gone', () => {

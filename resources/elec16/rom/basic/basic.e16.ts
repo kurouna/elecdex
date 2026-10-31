@@ -838,9 +838,10 @@ export function unary(): void {
     return
   }
   if (c === CH_PLUS) {
-    // Any run of signs: +-2 is -2, as --2 is 2.
+    // Any run of signs: +-2 is -2, as --2 is 2. A sign is a number's, as - is: +"A" is TYPE.
     txt++
     unary()
+    needNumber()
     return
   }
   power()

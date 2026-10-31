@@ -244,6 +244,26 @@ describe('closing a pane', () => {
     expect(layout.closingId).toBe(a.id)
   })
 
+  it('does not focus a pane in a group powering off as a whole, nor follow its shell', () => {
+    // The group's id was compared with pane ids: its tabs stayed in the keyboard's reach.
+    const [t1, t2] = [pane('terminal'), pane('terminal')]
+    const group = tabs([t1, t2])
+    load(split('row', [a, group]), t1.id)
+    layout.focus(t1.id)
+    expect(layout.followedTerminalId).toBe(t1.id)
+    layout.close(group.id)
+    expect(layout.closingId).toBe(group.id)
+    expect(layout.focusedPaneId).toBe(a.id)
+    layout.focus(t1.id)
+    expect(layout.focusedPaneId).toBe(a.id)
+    layout.cycleFocus(1)
+    expect(layout.focusedPaneId).toBe(a.id)
+    expect(layout.neighboursOf(a.id).right).toBeNull()
+    expect(layout.followedTerminalId).toBeNull()
+    expect(layout.shellToFocus()).toBeNull()
+    expect(layout.closingId).toBe(group.id)
+  })
+
   it('keeps the closing pane while its state changes, and removes it on time', () => {
     load(split('row', [a, b]), a.id)
     layout.close(a.id)

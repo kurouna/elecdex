@@ -350,6 +350,52 @@ describe('WebWidget', () => {
     view.unmount()
   })
 
+  it('steps aside as a tab while its group powers off, as a whole or with its layout', async () => {
+    // A tab's host was told of its own close only: its page stayed over the group's power-off.
+    const page = { url: 'https://www.youtube.com/watch?v=1' }
+    layout.tree = {
+      version: LAYOUT_VERSION,
+      root: {
+        kind: 'split',
+        id: 'root',
+        direction: 'row',
+        sizes: [0.5, 0.5],
+        children: [
+          { kind: 'pane', id: 'n', widget: 'clock' },
+          {
+            kind: 'tabs',
+            id: 'g',
+            activeIndex: 0,
+            children: [
+              { kind: 'pane', id: 'p', widget: 'web.youtube', state: page },
+              { kind: 'pane', id: 'c', widget: 'clock' },
+            ],
+          },
+        ],
+      },
+    }
+    layout.closeMotion = { animates: () => true, frames: () => new Map() }
+    const view = render(LayoutRoot)
+    await settle()
+    expect(screen.getByTestId('web').dataset.showing).toBe('true')
+
+    layout.leaving = new Set(['n', 'p', 'c'])
+    await settle()
+    expect(api.hide).toHaveBeenLastCalledWith('p', CLAIM, true)
+    layout.leaving = new Set()
+    await settle()
+    expect(screen.getByTestId('web').dataset.showing).toBe('true')
+
+    api.hide.mockClear()
+    layout.close('g')
+    await settle()
+    expect(layout.closingId).toBe('g')
+    expect(api.hide).toHaveBeenLastCalledWith('p', CLAIM, true)
+    layout.settle()
+    layout.closeMotion = null
+    view.unmount()
+  })
+
   it("speaks for its own mount only: a moved pane's old component cannot hide the new one's page", async () => {
     const old = mount()
     await settle()

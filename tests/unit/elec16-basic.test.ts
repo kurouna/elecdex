@@ -878,6 +878,14 @@ describe('signs, powers, comparisons and logic in an expression', () => {
     expect(say(m, 'PRINT 2^+-1;+-2^2')).toEqual(['0.5 -4'])
   })
 
+  it('takes a sign only before a number, + as well as -', () => {
+    // + let a string through: +"A" printed A, where -"A" is ERR:TYPE.
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT +"A"')).toEqual(['ERR:TYPE'])
+    expect(say(m, 'PRINT -"A"')).toEqual(['ERR:TYPE'])
+    expect(say(m, 'A$="B":PRINT ++A$')).toEqual(['ERR:TYPE'])
+  })
+
   it('raises right to left, and takes the rest left to right', () => {
     const m = switchOn('pocket-64')
     expect(say(m, 'PRINT 2^3^2;2^-1^2;-2^-2')).toEqual(['512 0.5 -0.25'])

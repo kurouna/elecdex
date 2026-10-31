@@ -24,9 +24,14 @@ interface Props {
   visible: boolean
   /** True inside a tab group, which draws the chrome itself. */
   tabbed: boolean
+  /**
+   * The tab group this pane is in powers off, closed as a whole or with its layout:
+   * the group plays it, but the pane is going too.
+   */
+  going?: boolean
 }
 
-const { node, visible, tabbed }: Props = $props()
+const { node, visible, tabbed, going = false }: Props = $props()
 
 const definition = $derived(resolveWidget(node.widget))
 const meta = $derived(paneMeta.get(node.id))
@@ -99,7 +104,7 @@ const flashing = $derived(
 // it without an event to say so. Left set, the power-on played again - when the tab
 // was next shown, or in front of everything as the flight landed.
 $effect(() => {
-  if (closing || reflow !== undefined || pinned || !visible) poweringOn = false
+  if (closing || going || reflow !== undefined || pinned || !visible) poweringOn = false
 })
 /** The power-on's timing while it plays: the boot's or a switch's reveal, or an arrival. */
 const powerOn = $derived.by(() => {
@@ -120,7 +125,12 @@ const motion = $derived(
 )
 /** Drawn scaled or clipped rather than at its place; a tab's group clips or flies it as a whole. */
 const transitioning = $derived(
-  motion.poweringOn || closing || flying || played?.kind === 'extend' || played?.kind === 'land',
+  motion.poweringOn ||
+    closing ||
+    going ||
+    flying ||
+    played?.kind === 'extend' ||
+    played?.kind === 'land',
 )
 
 // The sources the widget declares: kept ones for as long as the pane exists, the rest while it is seen.

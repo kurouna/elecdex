@@ -78,4 +78,12 @@ describe('neighboursToward', () => {
     expect(neighboursToward(GRID, 'b', 'c').down).toBeNull()
     expect(neighboursToward(GRID, 'c', 't1').right).toBeNull()
   })
+
+  it('passes over a whole group it is told to skip, by the group’s id', () => {
+    // Skipped by id among the shown panes only: a group powering off kept its tab as a neighbour.
+    const group = tabs([t1, t2])
+    const root = split('row', [a, group], [0.5, 0.5])
+    expect(neighboursToward(root, 'a', group.id).right).toBeNull()
+    expect(paneShares(root).has('t1')).toBe(true)
+  })
 })

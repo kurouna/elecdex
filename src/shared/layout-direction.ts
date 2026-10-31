@@ -27,18 +27,20 @@ const EPSILON = 1e-6
 
 /**
  * Where each shown pane sits, as a share of the workspace: a tab group's box is
- * its shown tab's, since that is the pane the keyboard reaches there.
+ * its shown tab's, since that is the pane the keyboard reaches there. `skip` is a
+ * node left out, pane or group: one powering off.
  */
-export function paneShares(root: LayoutNode): Map<string, Share> {
+export function paneShares(root: LayoutNode, skip: string | null = null): Map<string, Share> {
   const shares = new Map<string, Share>()
   const place = (node: LayoutNode, share: Share): void => {
+    if (node.id === skip) return
     if (node.kind === 'pane') {
       shares.set(node.id, share)
       return
     }
     if (node.kind === 'tabs') {
       const shown = node.children[node.activeIndex]
-      if (shown) shares.set(shown.id, share)
+      if (shown && shown.id !== skip) shares.set(shown.id, share)
       return
     }
     const row = node.direction === 'row'
@@ -93,15 +95,14 @@ export function neighbourToward(
 
 /**
  * The pane lying each way from `paneId` (see neighbourToward), worked out from one walk of
- * the tree. `skip` is a pane that is no neighbour of anything: one powering off.
+ * the tree. `skip` is a pane or group that is no neighbour of anything: one powering off.
  */
 export function neighboursToward(
   root: LayoutNode,
   paneId: string,
   skip: string | null = null,
 ): Record<Direction, string | null> {
-  const shares = paneShares(root)
-  if (skip !== null) shares.delete(skip)
+  const shares = paneShares(root, skip)
   const group = findTabsContaining(root, paneId)
   const fromId = group === null ? paneId : group.children[group.activeIndex]?.id
   const from = fromId === undefined ? undefined : shares.get(fromId)

@@ -121,7 +121,7 @@ const activeTitle = $derived(
 
     <div class="panes">
       {#each node.children as child, index (child.id)}
-        <PaneHost node={child} visible={index === node.activeIndex} tabbed={true} />
+        <PaneHost node={child} visible={index === node.activeIndex} tabbed={true} going={leaving || closing} />
       {/each}
     </div>
   </div>

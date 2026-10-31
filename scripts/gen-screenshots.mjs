@@ -719,11 +719,15 @@ async function shoot(
     save = true,
     paneOnly = null,
     fullscreen = false,
+    claude = false,
   } = {},
 ) {
   const named = only.includes(name) || (name.startsWith('pane-') && only.includes('panes'))
   if (only.length > 0 && !named) return
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-readme-'))
+  // `claude`: the made-up Claude Code folder the AI AGENT pane reads, made only for a shot taken
+  // and taken away after it, as the demos do.
+  const claudeDir = claude ? claudeFolder() : null
   if (layout) writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layout))
   prepare?.(dir)
   seedOrbits(dir)
@@ -762,6 +766,7 @@ async function shoot(
       ELECDEX_GPU_STUB: 'demo',
       // A stand-in power-save blocker: a shot never keeps this machine awake.
       ELECDEX_AWAKE_STUB: '1',
+      ...(claudeDir === null ? {} : { ELECDEX_CLAUDE_DIR: claudeDir }),
       ...env,
     },
   })
@@ -811,6 +816,7 @@ async function shoot(
   }
   await app.close()
   keepOrbits(dir)
+  if (claudeDir !== null) rmSync(claudeDir, { recursive: true, force: true })
 }
 
 const PRESETS = await presetTrees(MAIN)
@@ -840,7 +846,7 @@ if (only.length === 0 || only.includes('elecdex-dev')) {
       agents: { open: SESSION },
       git: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
     }),
-    env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
+    claude: true,
     prepare: gitRepos,
     // A rest on the merged branch's commit: the card with the whole of it.
     extra: async (page) => {
@@ -861,7 +867,7 @@ if (only.length === 0 || only.includes('elecdex-paper')) {
       agents: { open: SESSION },
       git: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
     }),
-    env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
+    claude: true,
     prepare: gitRepos,
     extra: async (page) => {
       // The preset keeps its shell behind the containers: bring that tab forward.
@@ -1158,7 +1164,7 @@ if (only.length === 0 || only.includes('panes') || only.some((n) => n.startsWith
   if (only.length === 0 || only.includes('panes') || only.includes('pane-agents')) {
     await shootPane('agents', 'short', {
       state: { open: SESSION },
-      env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
+      claude: true,
       extra: offCards,
     })
   }
@@ -1397,7 +1403,7 @@ if (only.length === 0 || only.includes('elecdex-hero')) {
       agents: { open: SESSION },
       git: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
     }),
-    env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
+    claude: true,
     prepare: (dir) => {
       gitRepos(dir)
       dueSoon(dir)

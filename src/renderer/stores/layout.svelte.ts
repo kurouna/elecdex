@@ -113,8 +113,16 @@ class LayoutStore {
    */
   readonly paneIds = $derived(this.panes.map((p) => p.id).join(' '))
   readonly visible = $derived(visiblePanes(this.tree.root))
+  /**
+   * The panes powering off: the one closing, or every tab of a group closed as a
+   * whole - whose id is the group's, never one of its panes'.
+   */
+  private readonly closingPanes = $derived.by(() => {
+    const node = this.closingId === null ? null : findNode(this.tree.root, this.closingId)
+    return new Set(node === null ? [] : collectPanes(node).map((p) => p.id))
+  })
   /** The visible panes that stay: what the keyboard can move to. */
-  private readonly shown = $derived(this.visible.filter((p) => p.id !== this.closingId))
+  private readonly shown = $derived(this.visible.filter((p) => !this.closingPanes.has(p.id)))
 
   /** The terminal pane focused most recently, as remembered by focus(). */
   private lastTerminalId = $state<string | null>(null)
@@ -126,7 +134,9 @@ class LayoutStore {
    * A shell powering off is already gone for them, as it is for the keyboard.
    */
   readonly followedTerminalId = $derived.by(() => {
-    const terminals = this.panes.filter((p) => isShellWidget(p.widget) && p.id !== this.closingId)
+    const terminals = this.panes.filter(
+      (p) => isShellWidget(p.widget) && !this.closingPanes.has(p.id),
+    )
     return terminals.find((p) => p.id === this.lastTerminalId)?.id ?? terminals[0]?.id ?? null
   })
 
@@ -334,7 +344,7 @@ class LayoutStore {
    * flares once, so the eye finds where the keyboard went.
    */
   focus(paneId: string, fromKeys = false): void {
-    if (paneId === this.closingId) return
+    if (this.closingPanes.has(paneId)) return
     const node = findNode(this.tree.root, paneId)
     if (node === null) return
     this.zoom.follow(paneId)
@@ -483,8 +493,13 @@ class LayoutStore {
     if (next === this.tree) return
     const before = this.framesBefore()
     const fromGroup = this.groupOf(nodeId)
+    // A whole group dropped among another's tabs leaves its id behind: what moved is then
+    // the tab it brought first, which that group now shows.
+    const asked = findNode(this.tree.root, nodeId)
+    const lead = asked?.kind === 'tabs' ? asked.children[0]?.id : undefined
     this.commit(next)
-    const moved = findNode(next.root, nodeId)
+    const moved =
+      findNode(next.root, nodeId) ?? (lead === undefined ? null : findNode(next.root, lead))
     const shown = moved === null ? undefined : visiblePanes(moved)[0]
     if (shown) this.focus(shown.id)
     sfx.play('expand')
@@ -644,11 +659,13 @@ class LayoutStore {
     const before = this.framesBefore()
     const restored = putBack(this.tree, closed.node, closed.place)
     const back = new Set(closed.panes.map((node) => node.id))
-    this.arriving = visiblePanes(restored.root).find((node) => back.has(node.id))?.id ?? null
-    this.commit(restored)
-    if (closed.focused !== null && findNode(restored.root, closed.focused) !== null) {
-      this.focusedPaneId = closed.focused
-    }
+    // The keyboard goes back only to a pane the close took it from, its tab brought to the
+    // front: one that was elsewhere stays where it is now, which may be another tab since shown.
+    const focused = closed.focused !== null && back.has(closed.focused) ? closed.focused : null
+    const tree = focused === null ? restored : focusTab(restored, focused)
+    this.arriving = visiblePanes(tree.root).find((node) => back.has(node.id))?.id ?? null
+    this.commit(tree)
+    if (focused !== null) this.focusedPaneId = focused
     sfx.play('expand')
     // Its toast goes with it, however it was asked for.
     toasts.dismiss(closed.toast)
