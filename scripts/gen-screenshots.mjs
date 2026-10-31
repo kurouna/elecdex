@@ -866,7 +866,7 @@ if (only.length === 0 || only.includes('elecdex-media')) {
   standIn.server.close()
 }
 // desk: its calculator in front of the utility pane, answering in its exact form.
-await shoot('black', 'elecdex-desk', {
+await shoot('paper', 'elecdex-desk', {
   layout: withState(preset('desk'), {}, sciTab),
   prepare: deskFiles,
   extra: sciInPreset,

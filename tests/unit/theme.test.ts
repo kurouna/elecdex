@@ -22,7 +22,7 @@ const custom: Theme = {
 }
 
 describe('built-in themes', () => {
-  it('ships seven valid themes, the default among them', () => {
+  it('ships eight valid themes, the default among them', () => {
     expect(BUILTIN_THEMES.map((t) => t.id)).toEqual([
       'tron',
       'amber',
@@ -31,6 +31,7 @@ describe('built-in themes', () => {
       'black',
       'business-dark',
       'business-light',
+      'paper',
     ])
     for (const theme of BUILTIN_THEMES) expect(ThemeSchema.safeParse(theme).success).toBe(true)
     expect(BUILTIN_THEMES.some((t) => t.id === DEFAULT_THEME_ID)).toBe(true)
@@ -64,6 +65,7 @@ describe('mergeThemes', () => {
       'black',
       'business-dark',
       'business-light',
+      'paper',
       'ice',
     ])
   })
@@ -79,6 +81,7 @@ describe('mergeThemes', () => {
       'black',
       'business-dark',
       'business-light',
+      'paper',
     ])
     expect(merged[1]?.name).toBe('My Amber')
   })
@@ -359,5 +362,29 @@ describe('the Black theme', () => {
       '4%',
     ])
     expect(vars['--scanlines']).toBe('1')
+  })
+})
+
+describe('the Paper theme', () => {
+  it('is monochrome and plain: ink on grey paper, grey ANSI, no grid, glow or scanlines', () => {
+    const paper = BUILTIN_THEMES.find((t) => t.id === 'paper') as Theme
+    expect(paper.mode).toBe('light')
+    const vars = themeVariables(paper)
+    expect(vars['--accent-s']).toBe('0%')
+    expect(vars['--line']).toBe(vars['--surface-1'])
+    expect(vars['--text-base']).toBe('#111111')
+    expect(vars['--glow']).toBe('0')
+    expect(vars['--scanlines']).toBe('0')
+    // Pulled fully to a hueless accent, every derived ANSI colour is a grey.
+    const xterm = buildXtermTheme({
+      hue: paper.accent.h,
+      saturation: paper.accent.s,
+      lightness: paper.accent.l,
+      foreground: '#111111',
+      background: paper.surfaces.s1,
+      pull: paper.terminal?.ansiPull ?? 0,
+    })
+    expect(xterm.red).toMatch(/^hsl\(\S+ 0% /)
+    expect(xterm.brightBlue).toMatch(/^hsl\(\S+ 0% /)
   })
 })

@@ -2,7 +2,7 @@
 
 # 主题与设置 — elecdex
 
-elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监视器，是对 eDEX-UI 的重写。本页介绍七种内置主题以及如何添加自己的主题、动效和声音设置、设置对话框、`settings.json` 的所有键及其默认值、各操作系统上应用保存文件的位置、布局文件，以及更新检查。macOS 和 Linux 只经过自动化测试的构建和运行，尚未经过充分的人工验证。
+elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监视器，是对 eDEX-UI 的重写。本页介绍八种内置主题以及如何添加自己的主题、动效和声音设置、设置对话框、`settings.json` 的所有键及其默认值、各操作系统上应用保存文件的位置、布局文件，以及更新检查。macOS 和 Linux 只经过自动化测试的构建和运行，尚未经过充分的人工验证。
 
 ## 本页内容
 
@@ -24,7 +24,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | 设置 | `settings.json` 中的 `theme`（默认 `"tron"`；不存在的主题 id 会回退到它） |
 | 文件 | 你自己的主题：应用数据文件夹中的 `themes` 文件夹 |
 
-七种主题可实时切换，无需重新加载：页面把主题设置为 CSS 变量，画布类窗格会重新读取颜色。
+八种主题可实时切换，无需重新加载：页面把主题设置为 CSS 变量，画布类窗格会重新读取颜色。
 
 | 主题 | id | 模式 | 外观 |
 | --- | --- | --- | --- |
@@ -35,9 +35,10 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | Black | `black` | light | 把 White 反过来：浅色 #D7E0EA 底上的近黑 #0A080D 文字，同样的扫描线，只有一丝辉光 |
 | Business (Dark) | `business-dark` | dark | Windows 11 深色模式的配色和默认蓝色强调色，Segoe UI 和 Cascadia Mono，Windows Terminal 的 Campbell 配色；无网格、扫描线和辉光，启动器图标显示原本颜色 |
 | Business (Light) | `business-light` | light | 同上，采用 Windows 11 浅色模式和 One Half Light 配色 |
+| Paper | `paper` | light | *unreleased*：像电子纸屏幕一样的单色简洁主题：灰色纸面（#D9D9D5，窗格 #E5E5E1）上的 #111111 墨色，无色相的强调色，灰色的终端颜色，Segoe UI 和 Cascadia Mono，无网格、扫描线和辉光 |
 
-- Tron、Amber、Phosphor 和 White 用于 HUD 风格；Business (Dark) 和 Business (Light) 适合日常办公。
-- 文字使用主题的强调色，除非主题像 Business 主题那样设置了文字颜色。
+- Tron、Amber、Phosphor 和 White 用于 HUD 风格；Business (Dark) 和 Business (Light) 适合日常办公；Paper 是单色而简洁的。
+- 文字使用主题的强调色，除非主题像 Business 主题和 Paper 那样设置了文字颜色。
 - 浅色主题（`mode: "light"`）的状态颜色更深，终端会把浅淡的颜色提高到 4.5:1 的对比度。
 - Business 主题从不给网页窗格着色（见下面的 `web.tint`）。
 
@@ -47,7 +48,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 ![Business (Dark) 主题下的 ai 预设：两个 AI 聊天窗格，以及位于 GPU 窗格之上的 ELEC system；所有回答都由为截图制作的替身写成](../screenshots/elecdex-ai.jpg)
 
-每种主题都出现在某张截图里：Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（desk、cockpit）、Business (Dark)（ai）和 Business (Light)（函数计算器 ELEC-16 SCI）。
+每种主题都出现在某张截图里：Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk）、Business (Dark)（ai）和 Business (Light)（函数计算器 ELEC-16 SCI）。
 
 ## 添加主题
 

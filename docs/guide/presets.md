@@ -45,7 +45,7 @@ network traffic, top to bottom, in 18% of the window's width.
 | Ctrl+Shift+F3 | [earth](#earth) | [Orbit](panes-world.md#orbit) over a [Terminal](panes-system.md#terminal); [World view](panes-network.md#world-view), [Quakes](panes-world.md#quakes), [Weather](panes-world.md#weather) | Tron |
 | Ctrl+Shift+F4 | [dev](#dev) | [AI Agent](panes-dev.md#ai-agent); [Docker](panes-dev.md#docker) and a Terminal as tabs; [Clipboard](panes-desk.md#clipboard), [Timer](panes-desk.md#timer) and a Terminal as tabs; [Git](panes-dev.md#git), [AI chat](panes-ai.md#ai-chat) and [Log Watch](panes-dev.md#log-watch) as tabs | Phosphor |
 | Ctrl+Shift+F5 | [media](#media) | YouTube (TV) ([web pane](panes-media.md#browser-youtube-and-x)); [Now playing](panes-media.md#now-playing), [Spectrum](panes-media.md#spectrum), [Mixer](panes-media.md#mixer); X and [RSS](panes-world.md#rss) as tabs | White |
-| Ctrl+Shift+F6 | [desk](#desk) | [Notes](panes-desk.md#notes); [Timer](panes-desk.md#timer) beside [Calculator](panes-desk.md#calculator); [Tasks](panes-desk.md#tasks) over [Clipboard](panes-desk.md#clipboard); [Calendar](panes-desk.md#calendar) over [Utility](panes-desk.md#utility) and [ELEC-16](panes-retro.md#elec-16) SCI as tabs | Black |
+| Ctrl+Shift+F6 | [desk](#desk) | [Notes](panes-desk.md#notes); [Timer](panes-desk.md#timer) beside [Calculator](panes-desk.md#calculator); [Tasks](panes-desk.md#tasks) over [Clipboard](panes-desk.md#clipboard); [Calendar](panes-desk.md#calendar) over [Utility](panes-desk.md#utility) and [ELEC-16](panes-retro.md#elec-16) SCI as tabs | Paper |
 | Ctrl+Shift+F7 | [ai](#ai) | two [AI chat](panes-ai.md#ai-chat) panes, one over the other; [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | no system column: [Cluster](panes-system.md#cluster) over a [Terminal](panes-system.md#terminal); [Wi-Fi](panes-network.md#wi-fi) over [Ethernet](panes-network.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.md#elec-16), ELEC-16 SCI and [CHIP-8](panes-retro.md#chip-8) as tabs of one pane; [Spectrum](panes-media.md#spectrum) at sixteen bands under them | Tron |
@@ -272,11 +272,11 @@ The arrangement elecdex opens with.
 | --- | --- |
 | Key | **Ctrl+Shift+F6** |
 | Panes | system column; three columns: [Notes](panes-desk.md#notes) over [Timer](panes-desk.md#timer) and [Calculator](panes-desk.md#calculator); [Tasks](panes-desk.md#tasks) over [Clipboard](panes-desk.md#clipboard); [Calendar](panes-desk.md#calendar) over [Utility](panes-desk.md#utility), with ELEC-16 SCI as a tab beside it. No shell |
-| Picture | Black |
+| Picture | Paper |
 
 <p align="center">
-  <img src="../screenshots/elecdex-desk.jpg" alt="The desk preset in the Black theme: a notes pane with a release checklist, a timer and a calculator under it; a tasks pane with deadlines drawn as meters over a clipboard history of made-up copies; three months of the calendar over the calculator ELEC-16 SCI, in front of the utility pane's tab, answering sin(45)+1/2 with its exact form (1+√2)/2">
-  <br><sub>desk · Black</sub>
+  <img src="../screenshots/elecdex-desk.jpg" alt="The desk preset in the Paper theme: a notes pane with a release checklist, a timer and a calculator under it; a tasks pane with deadlines drawn as meters over a clipboard history of made-up copies; three months of the calendar over the calculator ELEC-16 SCI, in front of the utility pane's tab, answering sin(45)+1/2 with its exact form (1+√2)/2">
+  <br><sub>desk · Paper</sub>
 </p>
 
 - **Desk panes** — a [calculator](panes-desk.md#calculator) you type into (full-width digits and

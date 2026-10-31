@@ -180,9 +180,9 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 
 ## 見た目と操作感
 
-**見た目と操作感** — その場で切り替わる 7 つのテーマ。HUD 向けの Tron、Amber、Phosphor、White、White を反転させて
+**見た目と操作感** — その場で切り替わる 8 つのテーマ。HUD 向けの Tron、Amber、Phosphor、White、White を反転させて
 淡い地に黒に近い文字で同じ走査線を引く Black と、普段の仕事向けに Windows 11 の配色、システムフォント、フルカラーの
-アイコンを使う Business (Dark) と Business (Light) があり、どれも[プリセット](presets.ja.md)のページのいずれかの
+アイコンを使う Business (Dark) と Business (Light)、（*unreleased*）電子ペーパーのようにモノクロでシンプルな Paper があり、どれも[プリセット](presets.ja.md)のページのいずれかの
 画像に写っています。
 
 - このマシンの実際の情報を並べる Linux 風のブートログのあと、**CRT の電源が入るような起動シーケンス** が続きます。
@@ -200,7 +200,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
   既定）、**full**、**reduced** から選びます。モーションを減らす設定（またはシステムの「視差効果を減らす」設定）
   にすると、何も動きません。CRT の演出、前面に出るペインの飛行、登場エフェクトは省かれます。
 - ウィンドウが隠れているか最小化されている間、常時動くアニメーションは止まります。
-- 明るいテーマ（Black と Business (Light)）では、状態の色を濃くし、シェルの最小コントラストを確保します。
+- 明るいテーマ（Black、Business (Light)、Paper）では、状態の色を濃くし、シェルの最小コントラストを確保します。
 
 ## 設定
 

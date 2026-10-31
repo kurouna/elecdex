@@ -160,9 +160,9 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
 
 ## 外观与体验
 
-**外观与体验** — 七种可实时切换的主题：用于 HUD 风格的 Tron、Amber、Phosphor、White，以及把 White 反过来、在浅色底上
+**外观与体验** — 八种可实时切换的主题：用于 HUD 风格的 Tron、Amber、Phosphor、White，以及把 White 反过来、在浅色底上
 用近黑文字并带同样扫描线的 Black，以及采用 Windows 11 配色、系统字体和全彩图标、适合日常办公的 Business (Dark) 和
-Business (Light)——[预设](presets.zh-CN.md)页面的截图里每一种都出现过。
+Business (Light)，以及（*unreleased*）像电子纸屏幕一样单色简洁的 Paper——[预设](presets.zh-CN.md)页面的截图里每一种都出现过。
 
 - 先是一段展示本机真实信息的 Linux 风格启动日志，随后是 **CRT 通电式的启动动画**。
 - **窗格会通电和断电。** 之后添加的窗格同样会这样通电；关闭的窗格会断电，旁边的窗格随之延伸占据它的空间；切换到
@@ -175,7 +175,7 @@ Business (Light)——[预设](presets.zh-CN.md)页面的截图里每一种都�
   **reduced**。减少动效时（或系统开启了减少动态效果），一切都不会动：CRT 过渡、窗格放到前面的飞行动画和入场效果都会
   省略。
 - 窗口隐藏或最小化时，常驻动画会暂停。
-- 浅色主题（Black 和 Business (Light)）使用更深的状态颜色，并保证 shell 的最低对比度。
+- 浅色主题（Black、Business (Light) 和 Paper）使用更深的状态颜色，并保证 shell 的最低对比度。
 
 ## 设置
 

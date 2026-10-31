@@ -2,7 +2,7 @@ English | [日本語](themes-settings.ja.md) | [简体中文](themes-settings.zh
 
 # Themes and settings — elecdex
 
-elecdex is a science-fiction terminal emulator and system monitor for Windows, macOS and Linux, a rewrite of eDEX-UI. This page covers its seven built-in themes and how to add your own, the motion and sound settings, the settings dialog, every key of `settings.json` with its default, where the app keeps its files on each operating system, the layout files, and the update check. macOS and Linux are built and run by the automated tests only and are not sufficiently verified by hand.
+elecdex is a science-fiction terminal emulator and system monitor for Windows, macOS and Linux, a rewrite of eDEX-UI. This page covers its eight built-in themes and how to add your own, the motion and sound settings, the settings dialog, every key of `settings.json` with its default, where the app keeps its files on each operating system, the layout files, and the update check. macOS and Linux are built and run by the automated tests only and are not sufficiently verified by hand.
 
 ## On this page
 
@@ -24,7 +24,7 @@ elecdex is a science-fiction terminal emulator and system monitor for Windows, m
 | Settings | `theme` in `settings.json` (default `"tron"`; an id no theme has falls back to it) |
 | Files | Your own themes: the `themes` folder in the app's data folder |
 
-Seven themes switch live, without a reload: the page sets the theme as CSS variables, and the canvas panes re-read their colours.
+Eight themes switch live, without a reload: the page sets the theme as CSS variables, and the canvas panes re-read their colours.
 
 | Theme | id | Mode | Look |
 | --- | --- | --- | --- |
@@ -35,9 +35,10 @@ Seven themes switch live, without a reload: the page sets the theme as CSS varia
 | Black | `black` | light | White turned over: near-black text #0A080D on the pale #D7E0EA, with the same scanlines and only a trace of glow |
 | Business (Dark) | `business-dark` | dark | Windows 11's dark mode colours and default blue accent, Segoe UI and Cascadia Mono, Windows Terminal's Campbell scheme, no grid, scanlines or glow, launcher icons in their own colours |
 | Business (Light) | `business-light` | light | The same in Windows 11's light mode, with the One Half Light scheme |
+| Paper | `paper` | light | *unreleased*: monochrome and plain, like an e-paper display: ink #111111 on grey paper (#D9D9D5, panes #E5E5E1), a hueless accent, grey terminal colours, Segoe UI and Cascadia Mono, no grid, scanlines or glow |
 
-- Tron, Amber, Phosphor and White are for the HUD; Business (Dark) and Business (Light) are for an ordinary working day.
-- Text is the theme's accent colour unless the theme sets text colours, as the Business themes do.
+- Tron, Amber, Phosphor and White are for the HUD; Business (Dark) and Business (Light) are for an ordinary working day; Paper is monochrome and plain.
+- Text is the theme's accent colour unless the theme sets text colours, as the Business themes and Paper do.
 - A light theme (`mode: "light"`) gets darker status colours, and the terminal raises faint colours to a 4.5:1 contrast.
 - The Business themes never tint web panes (see `web.tint` below).
 
@@ -47,7 +48,7 @@ Seven themes switch live, without a reload: the page sets the theme as CSS varia
 
 ![The ai preset in the Business (Dark) theme: two AI chat panes, and the ELEC system over the GPU pane; every answer is a stand-in's, made for the picture](../screenshots/elecdex-ai.jpg)
 
-Every theme appears in a picture: Tron (standard, earth), Amber (blank, CHIP-8), Phosphor (dev), White (network, media), Black (desk, cockpit), Business (Dark) (ai) and Business (Light) (the ELEC-16 SCI calculator).
+Every theme appears in a picture: Tron (standard, earth), Amber (blank, CHIP-8), Phosphor (dev), White (network, media), Black (cockpit), Paper (desk), Business (Dark) (ai) and Business (Light) (the ELEC-16 SCI calculator).
 
 ## Adding a theme
 

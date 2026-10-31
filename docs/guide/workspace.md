@@ -197,10 +197,10 @@ buttons at the left of the status bar.
 
 ## Look and feel
 
-**Look and feel** — seven themes that switch live: Tron, Amber, Phosphor and White for the HUD,
+**Look and feel** — eight themes that switch live: Tron, Amber, Phosphor and White for the HUD,
 Black (White turned over, near-black on a pale ground with the same scanlines), and Business (Dark)
 and Business (Light) in Windows 11 colours, system fonts and full-colour icons for an ordinary
-working day - each of them is in a picture on the [presets](presets.md) page.
+working day, and (*unreleased*) Paper, monochrome and plain like an e-paper display - each of them is in a picture on the [presets](presets.md) page.
 
 - **CRT power-on boot sequence** after a Linux-style boot log of this machine's real facts.
 - **Panes power on and off.** A pane added later powers on the same way; a closed one powers off
@@ -219,7 +219,7 @@ working day - each of them is in a picture on the [presets](presets.md) page.
   system's reduce-motion setting), nothing moves: the CRT transitions, the flight of a pane brought
   forward and the entrance effects are skipped.
 - Ambient animation pauses while the window is hidden or minimised.
-- The light themes, Black and Business (Light), use darker status colours and a minimum contrast
+- The light themes, Black, Business (Light) and Paper, use darker status colours and a minimum contrast
   in the shell.
 
 ## Settings

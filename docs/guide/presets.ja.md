@@ -43,7 +43,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 | Ctrl+Shift+F3 | [earth](#earth) | [Orbit](panes-world.ja.md#orbit) の下に [Terminal](panes-system.ja.md#terminal)、[World view](panes-network.ja.md#world-view)・[Quakes](panes-world.ja.md#quakes)・[Weather](panes-world.ja.md#weather) | Tron |
 | Ctrl+Shift+F4 | [dev](#dev) | [AI Agent](panes-dev.ja.md#ai-agent)、[Docker](panes-dev.ja.md#docker) とシェルのタブ、[Clipboard](panes-desk.ja.md#clipboard)・[Timer](panes-desk.ja.md#timer)・シェルのタブ、[Git](panes-dev.ja.md#git)・[AI chat](panes-ai.ja.md#ai-chat)・[Log Watch](panes-dev.ja.md#log-watch) のタブ | Phosphor |
 | Ctrl+Shift+F5 | [media](#media) | YouTube (TV)（[Web ペイン](panes-media.ja.md#browser-youtube-and-x)）、[Now playing](panes-media.ja.md#now-playing)・[Spectrum](panes-media.ja.md#spectrum)・[Mixer](panes-media.ja.md#mixer)、X と [RSS](panes-world.ja.md#rss) のタブ | White |
-| Ctrl+Shift+F6 | [desk](#desk) | [Notes](panes-desk.ja.md#notes)、[Timer](panes-desk.ja.md#timer) と [Calculator](panes-desk.ja.md#calculator)、[Tasks](panes-desk.ja.md#tasks) の下に [Clipboard](panes-desk.ja.md#clipboard)、[Calendar](panes-desk.ja.md#calendar) の下に [Utility](panes-desk.ja.md#utility) と [ELEC-16](panes-retro.ja.md#elec-16) SCI のタブ | Black |
+| Ctrl+Shift+F6 | [desk](#desk) | [Notes](panes-desk.ja.md#notes)、[Timer](panes-desk.ja.md#timer) と [Calculator](panes-desk.ja.md#calculator)、[Tasks](panes-desk.ja.md#tasks) の下に [Clipboard](panes-desk.ja.md#clipboard)、[Calendar](panes-desk.ja.md#calendar) の下に [Utility](panes-desk.ja.md#utility) と [ELEC-16](panes-retro.ja.md#elec-16) SCI のタブ | Paper |
 | Ctrl+Shift+F7 | [ai](#ai) | 上下に 2 つの [AI chat](panes-ai.ja.md#ai-chat)、[ELEC system](panes-ai.ja.md#elec-system) の下に [GPU](panes-system.ja.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | システムの列なし。[Cluster](panes-system.ja.md#cluster) の下に [Terminal](panes-system.ja.md#terminal)、[Wi-Fi](panes-network.ja.md#wi-fi) の下に [Ethernet](panes-network.ja.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.ja.md#elec-16)・ELEC-16 SCI・[CHIP-8](panes-retro.ja.md#chip-8) をタブにした 1 つのペイン、その下に 16 バンドの [Spectrum](panes-media.ja.md#spectrum) | Tron |
@@ -252,11 +252,11 @@ elecdex を最初に開いたときの配置です。
 | --- | --- |
 | キー | **Ctrl+Shift+F6** |
 | ペイン | システムの列。3 列: [Notes](panes-desk.ja.md#notes) の下に [Timer](panes-desk.ja.md#timer) と [Calculator](panes-desk.ja.md#calculator)、[Tasks](panes-desk.ja.md#tasks) の下に [Clipboard](panes-desk.ja.md#clipboard)、[Calendar](panes-desk.ja.md#calendar) の下に [Utility](panes-desk.ja.md#utility)（横のタブに ELEC-16 SCI）。シェルなし |
-| 画像 | Black |
+| 画像 | Paper |
 
 <p align="center">
-  <img src="../screenshots/elecdex-desk.jpg" alt="Black テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、3 か月のカレンダーとその下に Utility ペインのタブの前に出した関数電卓 ELEC-16 SCI。sin(45)+1/2 を正確な形 (1+√2)/2 で答えている">
-  <br><sub>desk · Black</sub>
+  <img src="../screenshots/elecdex-desk.jpg" alt="Paper テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、3 か月のカレンダーとその下に Utility ペインのタブの前に出した関数電卓 ELEC-16 SCI。sin(45)+1/2 を正確な形 (1+√2)/2 で答えている">
+  <br><sub>desk · Paper</sub>
 </p>
 
 - **デスク系ペイン** — 入力して使う[電卓](panes-desk.ja.md#calculator)（全角数字や 3百万 も入力どおりに読み、

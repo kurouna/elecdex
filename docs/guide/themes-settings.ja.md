@@ -2,7 +2,7 @@
 
 # テーマと設定 — elecdex
 
-elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレーター兼システムモニターで、eDEX-UI を作り直したものです。このページは、7 つの組み込みテーマと自分のテーマの追加、モーションとサウンドの設定、設定ダイアログ、`settings.json` のすべてのキーと既定値、OS ごとのファイルの置き場所、レイアウトのファイル、アップデートの確認を説明します。macOS と Linux は自動テストでビルドと実行をしているだけで、手作業での確認は十分ではありません。
+elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレーター兼システムモニターで、eDEX-UI を作り直したものです。このページは、8 つの組み込みテーマと自分のテーマの追加、モーションとサウンドの設定、設定ダイアログ、`settings.json` のすべてのキーと既定値、OS ごとのファイルの置き場所、レイアウトのファイル、アップデートの確認を説明します。macOS と Linux は自動テストでビルドと実行をしているだけで、手作業での確認は十分ではありません。
 
 ## このページの内容
 
@@ -24,7 +24,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | 設定 | `settings.json` の `theme`（既定は `"tron"`。どのテーマにもない id はこれに戻ります） |
 | ファイル | 自分のテーマ: アプリのデータフォルダーの `themes` フォルダー |
 
-7 つのテーマは、再読み込みせずにその場で切り替わります。ページはテーマを CSS 変数として設定し、キャンバスのペインは色を読み直します。
+8 つのテーマは、再読み込みせずにその場で切り替わります。ページはテーマを CSS 変数として設定し、キャンバスのペインは色を読み直します。
 
 | テーマ | id | モード | 見た目 |
 | --- | --- | --- | --- |
@@ -35,9 +35,10 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | Black | `black` | light | White を反転させたもの。淡い #D7E0EA の地に黒に近い #0A080D の文字、同じ走査線と、ごくわずかなグロー |
 | Business (Dark) | `business-dark` | dark | Windows 11 のダークモードの配色と既定の青いアクセント、Segoe UI と Cascadia Mono、Windows Terminal の Campbell 配色。グリッド・走査線・グローなし、ランチャーのアイコンは元の色 |
 | Business (Light) | `business-light` | light | 同じものを Windows 11 のライトモードで。One Half Light 配色 |
+| Paper | `paper` | light | *unreleased*: 電子ペーパーのようなモノクロでシンプルなもの。灰色の紙（#D9D9D5、ペインは #E5E5E1）に #111111 のインク、色相のないアクセント、灰色の端末の色、Segoe UI と Cascadia Mono。グリッド・走査線・グローなし |
 
-- Tron、Amber、Phosphor、White は HUD 向け、Business (Dark) と Business (Light) は普段の仕事向けです。
-- 文字はテーマのアクセント色です。ただし Business テーマのように文字色を指定したテーマは除きます。
+- Tron、Amber、Phosphor、White は HUD 向け、Business (Dark) と Business (Light) は普段の仕事向け、Paper はモノクロでシンプルです。
+- 文字はテーマのアクセント色です。ただし Business テーマや Paper のように文字色を指定したテーマは除きます。
 - 明るいテーマ（`mode: "light"`）では、ステータス色が濃くなり、ターミナルは薄い色を 4.5:1 のコントラストまで引き上げます。
 - Business テーマは Web ペインに色を付けません（下の `web.tint`）。
 
@@ -47,7 +48,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 
 ![Business (Dark) テーマの ai プリセット。2 つの AI チャットペインと、GPU ペインの上の ELEC system。回答はすべて画像用の代役が書いたもの](../screenshots/elecdex-ai.jpg)
 
-どのテーマもいずれかの画像に写っています: Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（desk、cockpit）、Business (Dark)（ai）、Business (Light)（関数電卓 ELEC-16 SCI）。
+どのテーマもいずれかの画像に写っています: Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk）、Business (Dark)（ai）、Business (Light)（関数電卓 ELEC-16 SCI）。
 
 ## テーマの追加
 

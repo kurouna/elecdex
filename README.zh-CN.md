@@ -60,7 +60,7 @@ elecdex 是一款桌面应用，用分屏和标签页把 40 种内置窗格排�
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#media"><img src="./docs/screenshots/elecdex-media.jpg" alt="White 主题下的 media 预设"></a><br><sub><b>media</b> · Ctrl+Shift+F5 · 网页窗格、声音频谱、混音器、正在播放</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="Black 主题下的 desk 预设"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · 笔记、任务、计时器、剪贴板、日历、工具</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="Paper 主题下的 desk 预设"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · 笔记、任务、计时器、剪贴板、日历、工具</sub></td>
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · 两个 AI 聊天、ELEC 评议、GPU</sub></td>

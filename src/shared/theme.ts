@@ -110,6 +110,9 @@ export const DEFAULT_THEME_ID = 'tron'
  *    Windows 11's dark and light mode colours and the default blue accent, with
  *    its system fonts and a Windows Terminal colour scheme (Campbell, One Half
  *    Light), no grid, scanlines or glow.
+ *  - paper: monochrome and plain, like an e-paper display - near-black ink on a
+ *    grey paper ground, grey terminal colours, no grid, scanlines or glow
+ *    (user's request 2026-10-31).
  */
 const WINDOWS_FONTS = {
   display: '"Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif',
@@ -244,6 +247,25 @@ export const BUILTIN_THEMES: readonly Theme[] = [
       },
     },
     effects: { scanlines: false, glow: 0, iconTint: false },
+  },
+  {
+    id: 'paper',
+    name: 'Paper',
+    author: 'elecdex',
+    mode: 'light',
+    // Ink: a black with no hue, so frames, highlights and icons are all one ink.
+    accent: { h: 0, s: 0, l: 7 },
+    // Grey paper, panes a shade lighter; the grid line matches the panes, so there is none.
+    surfaces: { s0: '#d9d9d5', s1: '#e5e5e1', s2: '#efefeb', line: '#e5e5e1' },
+    text: { primary: '#111111', muted: '#5c5c5c' },
+    fonts: {
+      display: '"Segoe UI Variable Display", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif',
+      ui: '"Segoe UI Variable Text", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif',
+      mono: WINDOWS_FONTS.mono,
+    },
+    // Pulled all the way to the inkless accent: the ANSI colours become greys.
+    terminal: { ansiPull: 1 },
+    effects: { scanlines: false, glow: 0 },
   },
 ]
 
