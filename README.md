@@ -12,9 +12,10 @@
 
 # elecdex
 
-A science-fiction desktop terminal emulator and system monitor — a ground-up rewrite of
-[eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021) on a current, secure stack,
-for Windows, macOS and Linux.
+A sci-fi terminal emulator and system monitor for Windows, macOS and Linux that also lays out
+weather, markets, earthquakes, Git, Docker, AI chat and more as panes on one screen, beside your
+shells. An alternative to [eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021), rewritten from the ground up on a
+current, secure stack.
 
 <p align="center">
   <a href="https://youtu.be/JlCZzLhp_PM">
@@ -37,9 +38,11 @@ for Windows, macOS and Linux.
 
 ## What it is
 
-elecdex is a desktop application that puts shells and live system information on one screen, in
-the look of a science-fiction terminal. It is a ground-up rewrite of eDEX-UI (archived in 2021) on
-Electron 45, Svelte 5 and TypeScript 7, released under the GPL-3.0.
+elecdex is a desktop application that arranges 40 built-in panes in splits and tabs on one
+screen, in the look of a science-fiction terminal: the shells and system monitors eDEX-UI is known
+for, and beside them network diagnostics, the world outside, development tools, AI, desk tools,
+media and two machines of its own. It began as a ground-up rewrite of eDEX-UI (archived in 2021),
+is built on Electron 45, Svelte 5 and TypeScript 7, and is released under the GPL-3.0.
 
 - **Shells**: PowerShell, bash, zsh and fish in tabs and splits through node-pty, with shell
   integration (OSC 7 / OSC 9;9) that follows each shell's folder - on Windows too.
@@ -51,6 +54,8 @@ Electron 45, Svelte 5 and TypeScript 7, released under the GPL-3.0.
   computed locally (SGP4), a globe of connections placed with a bundled GeoIP database.
 - **Work and AI**: Git (read, FETCH/PULL/PUSH), Docker, Log Watch, Claude Code sessions, AI chat over
   any OpenAI-compatible or Anthropic endpoint with keys kept encrypted by the OS.
+- **Desk and media**: notes, tasks, a timer, the clipboard, a calendar and a calculator; a sound
+  spectrum, a mixer and Now Playing.
 - **Machines of its own**: a CHIP-8 emulator and ELEC-16, an original 16-bit pocket computer with
   BASIC, a game model and a scientific calculator.
 - **Security model**: the page is sandboxed with no Node and no network (`connect-src 'self'`);

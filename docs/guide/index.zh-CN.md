@@ -2,7 +2,7 @@
 
 # 用户指南 — elecdex
 
-elecdex 是面向 Windows、macOS 和 Linux 的科幻风格桌面终端模拟器兼系统监视器，是 eDEX-UI 基于 Electron 45、Svelte 5 和 TypeScript 7 的完全重写，以 GPL-3.0 发布。本指南逐一说明每个窗格和功能：显示什么、数据从哪里来、多久更新一次、绝不读取或发送什么，以及在各平台上的差异。elecdex 在 Windows 上开发和使用；macOS 和 Linux 版本仅由 CI 测试，尚未经过充分的手动验证。
+elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监控工具，可把从终端、系统监控到天气、Git、AI 聊天的 40 种窗格排布在同一屏幕上；它是 eDEX-UI 基于 Electron 45、Svelte 5 和 TypeScript 7 的完全重写，以 GPL-3.0 发布。本指南逐一说明每个窗格和功能：显示什么、数据从哪里来、多久更新一次、绝不读取或发送什么，以及在各平台上的差异。elecdex 在 Windows 上开发和使用；macOS 和 Linux 版本仅由 CI 测试，尚未经过充分的手动验证。
 
 ## 从这里开始
 

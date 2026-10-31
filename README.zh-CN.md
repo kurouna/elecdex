@@ -12,8 +12,7 @@
 
 # elecdex
 
-一款科幻风格的桌面终端模拟器兼系统监视器。它在当下安全的技术栈上从零重写了
-[eDEX-UI](https://github.com/GitSquared/edex-ui)（已于 2021 年归档），支持 Windows、macOS 和 Linux。
+一款科幻风格的终端模拟器兼系统监控工具，支持 Windows、macOS 和 Linux；在终端旁边，还能把天气、行情、地震、Git、Docker、AI 聊天等以窗格形式排布在同一屏幕上。它在当下安全的技术栈上从零重写了 [eDEX-UI](https://github.com/GitSquared/edex-ui)（已于 2021 年归档），可以作为其替代品使用。
 
 <p align="center">
   <a href="https://youtu.be/JlCZzLhp_PM">
@@ -33,15 +32,16 @@
 > 设计说明：[docs/architecture.md](docs/architecture.md)。每项决策及其理由：
 > [docs/decisions.md](docs/decisions.md)。
 
-## 这是什么
+## elecdex 是什么
 
-elecdex 是一个把终端和系统实时信息放在同一屏幕上、带有科幻终端外观的桌面应用。它是 eDEX-UI（2021 年已归档）的完全重写，基于 Electron 45、Svelte 5 和 TypeScript 7，以 GPL-3.0 发布。
+elecdex 是一款桌面应用，用分屏和标签页把 40 种内置窗格排布在同一屏幕上，外观像科幻电影里的终端。除了 eDEX-UI 为人熟知的终端和系统监控，还有网络诊断、天气与地震等外部世界的信息、开发工具、AI、笔记和计时器等桌面工具、媒体，以及两台自有的机器。它始于对 eDEX-UI（2021 年已归档）的从零重写，基于 Electron 45、Svelte 5 和 TypeScript 7 构建，以 GPL-3.0 发布。
 
 - **终端**：通过 node-pty 在标签页和分屏中运行 PowerShell、bash、zsh 和 fish；借助 shell 集成（OSC 7 / OSC 9;9）跟随每个 shell 的目录，Windows 上也一样。
 - **窗格**：40 种内置窗格加上网页窗格（Browser、YouTube、X），排列在一棵会被保存的分屏与标签页树中；10 个布局预设、已保存的布局、操作面板。
 - **系统与网络**：CPU、内存、GPU、磁盘、进程、按程序分组的每个 TCP 套接字、Wi-Fi 与以太网诊断；在 Windows 上读取时不会每次启动新进程。
 - **外部世界**：天气（日本气象厅、NWS、MET Norway）、市场行情、RSS、地震与海啸、在本地计算的卫星位置（SGP4）、用内置 GeoIP 数据库定位的连接地球视图。
 - **工作与 AI**：Git（读取以及 FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code 会话；可连接任何 OpenAI 兼容或 Anthropic 端点的 AI 聊天，密钥由操作系统加密保存。
+- **桌面与媒体**：笔记、任务、计时器、剪贴板、日历和计算器；声音频谱、混音器和正在播放（Now Playing）。
 - **自有的机器**：CHIP-8 模拟器，以及原创的 16 位袖珍电脑 ELEC-16（BASIC、游戏机型号、科学计算器）。
 - **安全模型**：页面运行在沙箱中，没有 Node，也没有网络（`connect-src 'self'`）；所有请求都由主进程发出，且只在某个窗格需要时进行；没有遥测。插件运行在沙箱化的 worker 中，只能做被授权的事。
 

@@ -2,8 +2,9 @@ English | [日本語](index.ja.md) | [简体中文](index.zh-CN.md)
 
 # User guide — elecdex
 
-elecdex is a science-fiction desktop terminal emulator and system monitor for Windows, macOS and
-Linux, a ground-up rewrite of eDEX-UI on Electron 45, Svelte 5 and TypeScript 7 (GPL-3.0). This
+elecdex is a sci-fi terminal emulator and system monitor for Windows, macOS and Linux that lays
+out 40 panes on one screen, from shells and system monitors to weather, Git and AI chat; it is a
+ground-up rewrite of eDEX-UI on Electron 45, Svelte 5 and TypeScript 7 (GPL-3.0). This
 guide describes every pane and feature: what each one shows, where its data comes from, how often
 it updates, what it never reads or sends, and how it differs between platforms. elecdex is
 developed and used on Windows; macOS and Linux builds are tested by CI only and are not
