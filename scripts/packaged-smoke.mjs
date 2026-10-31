@@ -77,8 +77,13 @@ async function smoke(exe) {
       `--remote-debugging-port=${port}`,
       ...sandbox,
     ],
-    { env, stdio: 'ignore' },
+    { env, stdio: ['ignore', 'ignore', 'pipe'] },
   )
+  // What main says on stderr: a warning there is a fault the page never sees.
+  let said = ''
+  child.stderr.on('data', (chunk) => {
+    said += chunk
+  })
   let browser
   try {
     for (let i = 0; i < 60 && !browser; i++) {
@@ -167,6 +172,8 @@ async function smoke(exe) {
     }
     log('a shell answered')
 
+    await closedShellEndsItsWork(page, () => said)
+
     // A preset is applied and drawn.
     const first = saved[0]
     await page.evaluate((id) => window.elecdex.layout.saved.apply(id), first.id)
@@ -181,6 +188,74 @@ async function smoke(exe) {
     await sleep(1000)
     rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
   }
+}
+
+/** Whether the node started with `<count>` as its argument is running: the count tells it apart. */
+function nodeAlive(count) {
+  const out = spawnSync(
+    'powershell',
+    [
+      '-NoProfile',
+      '-Command',
+      `@(Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match ' ${count}$' }).Count`,
+    ],
+    { encoding: 'utf8' },
+  )
+  return Number.parseInt(out.stdout.trim(), 10) > 0
+}
+
+/**
+ * A program started in a shell ends when the shell is closed. node-pty kills what is left on
+ * the console's process list, which it fetched with child_process.fork: refused in the package,
+ * whose runAsNode fuse is off, so every close was an unhandled rejection and the list never came
+ * (main/pty/console-list.ts asks a utilityProcess now). Windows 11's ConPTY ends a node on the
+ * console as it closes even so: the rejection is what tells the old way from the new.
+ */
+async function closedShellEndsItsWork(page, said) {
+  // ConPTY's console list is Windows' alone; elsewhere the shell's process group is signalled.
+  if (process.platform !== 'win32') return
+  const count = 4000 + Math.floor(Math.random() * 900)
+  const id = await page.evaluate(async (line) => {
+    const session = await window.elecdex.pty.create({ cols: 100, rows: 30 })
+    const decoder = new TextDecoder()
+    let text = ''
+    // Typed once a prompt ends what the shell has said, and again every few seconds until the
+    // program is seen, as the sum above is: a slow start may take the first line before its prompt.
+    void window.elecdex.pty.attach(session.id, {
+      onData: (chunk) => {
+        text += decoder.decode(chunk, { stream: true })
+        // biome-ignore lint/suspicious/noControlCharactersInRegex: escape sequences are what it removes.
+        const plain = text.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|[\r\n]/g, '')
+        if (window.__retype !== undefined || !/[>$#%]\s*$/.test(plain)) return
+        const type = () => window.elecdex.pty.write(session.id, `${line}\r`)
+        type()
+        window.__retype = setInterval(type, 3000)
+      },
+      onExit: () => {},
+      onCwd: () => {},
+      onCommandEnd: () => {},
+      onIntegrationUnavailable: () => {},
+    })
+    return session.id
+  }, `node -e 'setInterval(Date.now,1000)' ${count}`)
+  for (let i = 0; i < 60 && !nodeAlive(count); i++) await sleep(500)
+  await page.evaluate(() => clearInterval(window.__retype))
+  if (!nodeAlive(count)) throw new Error('the program typed into the shell never started')
+  await page.evaluate((session) => window.elecdex.pty.dispose(session), id)
+  for (let i = 0; i < 20 && nodeAlive(count); i++) await sleep(500)
+  if (nodeAlive(count)) {
+    spawnSync('powershell', [
+      '-NoProfile',
+      '-Command',
+      `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match ' ${count}$' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`,
+    ])
+    throw new Error('a program started in a shell kept running after the shell was closed')
+  }
+  // Refused, the fork was an unhandled rejection on every close, and the list never came.
+  if (said().includes('child_process.fork() is not supported')) {
+    throw new Error('closing a shell still forks for its console list, which the package refuses')
+  }
+  log('closing a shell ended what ran in it')
 }
 
 /** The runAsNode fuse: told to run as Node, the executable must not. */

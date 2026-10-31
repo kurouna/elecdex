@@ -248,7 +248,7 @@ CI の `retries: 1` は不安定さを隠すので、再試行で通ったテス
 ### 6.6 段階 6 の結果（2026-10-24）
 
 - 段: `npm run test:e2e:smoke`（launch と mount・lifecycle の契約、約 2 分）をコミット前に**追加で**回す。素の `npx playwright test` は全部（最後に `perf`）。CI は再試行で通ったテストを flaky として報告し、失敗にはしない。CI でも計測は今の粗い閾値のまま判定する。
-- パッケージ版: `scripts/packaged-smoke.mjs`（`npm run test:packaged`）。release/ の実行ファイルを使い捨てプロファイルで起動し、CDP で繋いで、初回起動のプリセット、unpacked の node-pty でのシェル、プリセットの描画、`runAsNode` の fuse を確かめる。CI と release の package ジョブで、ランナーが実行できるもの（Windows x64、Linux x64・arm64、macOS arm64）に走らせる。Windows の開発機で通った。
+- パッケージ版: `scripts/packaged-smoke.mjs`（`npm run test:packaged`）。release/ の実行ファイルを使い捨てプロファイルで起動し、CDP で繋いで、初回起動のプリセット、unpacked の node-pty でのシェル、プリセットの描画、`runAsNode` の fuse を確かめる。Windows ではさらに、シェルで起こした node がシェルを閉じると終わることと、閉じたときに main が fork を断られたと言わないこと（2026-10-31）。CI と release の package ジョブで、ランナーが実行できるもの（Windows x64、Linux x64・arm64、macOS arm64）に走らせる。Windows の開発機で通った。
 - CLAUDE.md: コマンド、コミット前の手順（smoke を追加）、リリース手順 2（`perf` を最後に、`package:dir` と `test:packaged`）。
 
 ### 6.7 段階 7 の結果（2026-10-24）

@@ -32,6 +32,8 @@ export default defineConfig({
           index: r('src/main/index.ts'),
           // Forked as an Electron utilityProcess by the metrics broker.
           'metrics.worker': r('src/services/metrics.worker.ts'),
+          // Forked as an Electron utilityProcess when shells close (main/pty/console-list.ts).
+          'console-list.worker': r('src/services/console-list.worker.ts'),
         },
       },
     },

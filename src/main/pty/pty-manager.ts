@@ -3,6 +3,7 @@ import type { PtyCreateOptions, PtySessionSummary } from '@shared/api'
 import type { IPty } from 'node-pty'
 import { spawn } from 'node-pty'
 import { APP_VERSION } from '../build-info.js'
+import { listConsoleOutOfProcess, listConsolesNoMore } from './console-list.js'
 import { OscParser } from './osc-parser.js'
 import { ScreenMirror } from './screen-mirror.js'
 import { buildInjection, defaultShell, terminalEnv } from './shell-integration.js'
@@ -106,6 +107,7 @@ export class PtyManager {
         cwd: opts.cwd ?? env.HOME ?? process.cwd(),
         env,
       })
+      listConsoleOutOfProcess(pty)
       return { shell, injection, pty }
     }
     const chosen = opts.shell ?? defaultShell(baseEnv)
@@ -197,7 +199,9 @@ export class PtyManager {
     session.mirror.dispose()
   }
 
+  /** Every session, as the app quits. */
   disposeAll(): void {
+    listConsolesNoMore()
     for (const id of [...this.sessions.keys()]) this.dispose(id)
   }
 
