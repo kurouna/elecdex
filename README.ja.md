@@ -22,7 +22,7 @@ SF 風のターミナルエミュレーター兼システムモニターです�
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
 </p>
 
-> **v0.0.53 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
+> **v0.0.54 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
 > *unreleased* と記したものは `main` にあり、次のリリースで入ります。
 >
 > **Windows で開発し、使っています。** macOS と Linux もリリースごとにビルドしていますが、
@@ -149,7 +149,7 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
   *SUID sandbox helper* についてのメッセージを出して止まることがあります。その場合は deb を使ってください。
   `--no-sandbox` を付けて起動しないでください。レンダラーをあなたのファイルから遠ざけているのは、このサンドボックスです。
 
-elecdex はフルスクリーンで起動します。**F11** でフルスクリーンを抜け、**Ctrl+Shift+Q** で終了します（*unreleased*：yes で確かめてから）。
+elecdex はフルスクリーンで起動します。**F11** でフルスクリーンを抜け、**Ctrl+Shift+Q** で、yes で確かめてから終了します。
 `--windowed` を付けるとウィンドウで起動し、`--no-intro` を付けると起動シーケンスを省略します。
 
 ### ソースから動かす

@@ -95,7 +95,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | --- | --- | --- | --- |
 | F11 | Toggle fullscreen | `window.fullscreen` | 全部 |
 | Ctrl+Shift+M | Minimize window | `window.minimize` | Windows、Linux（macOS 不会最小化全屏窗口） |
-| Ctrl+Shift+Q | Quit | `app.quit` | 全部。即使关闭窗口只会把 elecdex 隐藏到通知区域，此键也会退出。*unreleased*：先以 yes / no 确认，键盘焦点在 no 上（Enter 和 Escape 不会退出） |
+| Ctrl+Shift+Q | Quit | `app.quit` | 全部。即使关闭窗口只会把 elecdex 隐藏到通知区域，此键也会退出。先以 yes / no 确认，键盘焦点在 no 上（Enter 和 Escape 不会退出） |
 | Ctrl+Alt+Shift+E | Show or hide elecdex | `window.toggle` | 在任何应用中都有效。默认关闭，需在 *Settings → Window* 中开启；Wayland 会话中不可用 |
 
 ### 不能重新绑定的按键

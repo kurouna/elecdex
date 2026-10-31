@@ -273,7 +273,7 @@ elecdex 继续运行），其登录项也无法以隐藏方式启动；Linux 上
   在其他任何地方，它会把 elecdex 带到最前面。
 - *登录时启动*：如果系统把它关掉了（Windows 上是任务管理器的启动应用），设置中也会显示为已关闭。只有安装版应用可用。
   *start in the background* 让 elecdex 在登录时以隐藏方式启动。
-- **Ctrl+Shift+Q** 会退出，即使关闭窗口只是把 elecdex 收到通知区域时也是如此。明确的退出总是会退出。*unreleased*：Q 就在布局键 1、2 的下方，所以会先以 yes / no 确认。键盘焦点在 no 上，Enter 和 Escape 不会退出。
+- **Ctrl+Shift+Q** 会退出，即使关闭窗口只是把 elecdex 收到通知区域时也是如此。明确的退出总是会退出。Q 就在布局键 1、2 的下方，所以会先以 yes / no 确认。键盘焦点在 no 上，Enter 和 Escape 不会退出。
 - 无论发生什么，再次启动 elecdex 都会把正在运行的那个带回来，所以窗口永远不会找不到。
 
 ## 实用工具

@@ -22,7 +22,7 @@
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分钟介绍视频</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">短视频（竖屏）</a>
 </p>
 
-> **v0.0.53 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.54 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -142,7 +142,7 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
   因为 AppArmor 在那里阻止了沙箱。这种情况请改用 deb。不要用 `--no-sandbox` 启动：正是沙箱让
   渲染进程无法接触你的文件。
 
-elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序（*unreleased*：确认 yes 之后）；`--windowed` 以窗口模式启动，
+elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 在确认 yes 后退出程序；`--windowed` 以窗口模式启动，
 `--no-intro` 跳过启动动画。
 
 ### 从源码运行

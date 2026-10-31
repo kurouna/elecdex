@@ -25,7 +25,7 @@ current, secure stack.
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.53 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.54 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -165,7 +165,7 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
   *SUID sandbox helper*, because AppArmor blocks the sandbox there. Use the deb in that case. Do not
   start it with `--no-sandbox`: the sandbox is what keeps the renderer away from your files.
 
-elecdex starts fullscreen. **F11** leaves fullscreen and **Ctrl+Shift+Q** quits (*unreleased*: after a yes); `--windowed`
+elecdex starts fullscreen. **F11** leaves fullscreen and **Ctrl+Shift+Q** quits after a yes; `--windowed`
 starts in a window and `--no-intro` skips the boot sequence.
 
 ### Build from source

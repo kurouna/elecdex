@@ -95,7 +95,7 @@ On Linux, IBus may keep Ctrl+Shift+U for typing a character by its code, so the 
 | --- | --- | --- | --- |
 | F11 | Toggle fullscreen | `window.fullscreen` | All |
 | Ctrl+Shift+M | Minimize window | `window.minimize` | Windows, Linux (macOS does not minimise a fullscreen window) |
-| Ctrl+Shift+Q | Quit | `app.quit` | All. Quits even when closing only hides elecdex to the notification area. *unreleased*: asks first, yes or no, with the keyboard on no (Enter and Escape stay) |
+| Ctrl+Shift+Q | Quit | `app.quit` | All. Quits even when closing only hides elecdex to the notification area. Asks first, yes or no, with the keyboard on no (Enter and Escape stay) |
 | Ctrl+Alt+Shift+E | Show or hide elecdex | `window.toggle` | Works from any app. Off until turned on in *Settings → Window*; not in a Wayland session |
 
 ### Keys that are not rebindable
