@@ -209,6 +209,65 @@ test('a new tab put behind another before it has powered on does not power on ag
   }
 })
 
+// On a light theme the overexposure turned a tab shown, or a pane opening, white for 200 ms:
+// brightness on a pale ground is no glow. There the picture only flickers and opens.
+for (const [theme, glare] of [
+  ['tron', 'brightness(3) saturate(0.4)'],
+  ['paper', 'brightness(1) saturate(1)'],
+] as const) {
+  test(`a tab shown and a pane opening in ${theme} start at ${glare}`, async ({ shared }) => {
+    const layout = {
+      version: 1,
+      root: {
+        kind: 'tabs',
+        id: 'g',
+        activeIndex: 0,
+        children: [paneNode('a', 'calendar'), paneNode('b', 'sysinfo')],
+      },
+    }
+    const { page, close } = await shared({ layout, settings: { theme } })
+    try {
+      await expect(page.getByTestId('tab')).toHaveCount(2)
+      await settleLayout(page)
+      // The first frame of an effect, held there: the class comes off once it has played.
+      const startOf = (selector: string, name: string) =>
+        page.evaluate(
+          async ([selector, name]) => {
+            const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+            for (let i = 0; i < 60; i++) {
+              const el = document.querySelector<HTMLElement>(selector)
+              const effect = el
+                ?.getAnimations()
+                .find((a) => (a as CSSAnimation).animationName === name)
+              if (el && effect) {
+                effect.pause()
+                effect.currentTime = 0
+                const filter = getComputedStyle(el).filter
+                effect.finish()
+                return filter
+              }
+              await frame()
+            }
+            return 'never played'
+          },
+          [selector, name] as const,
+        )
+      const flicker = startOf('[data-testid=pane][data-pane-id=b]', 'crt-flicker')
+      await page.getByTestId('tab').nth(1).click()
+      expect(await flicker).toBe(glare)
+
+      const powerOn = startOf('[data-testid=pane][data-widget=notes]', 'crt-power-on')
+      await page.keyboard.press('Control+Shift+KeyA')
+      await page.locator('[data-testid=pane-picker-item][data-widget=notes]').click()
+      expect(await powerOn).toBe(
+        theme === 'tron' ? 'brightness(5) saturate(0.4)' : 'brightness(1) saturate(1)',
+      )
+    } finally {
+      await close()
+    }
+  })
+}
+
 test('a new pane brought forward before it has powered on does not power on again in front', async ({
   shared,
 }) => {

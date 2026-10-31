@@ -126,6 +126,9 @@
   --warn: hsl(var(--hue-warn) 95% 36%);
   --ok: hsl(var(--hue-ok) 60% 32%);
   --info: hsl(var(--hue-info) 80% 40%);
+  /* No overexposure as a picture opens (crt.css): on a pale ground it is the pane gone
+     white for a moment, not a tube warming up. */
+  --crt-glare: 0;
 }
 
 /* Respect the OS setting; the in-app toggle sets `data-motion="reduced"`. */
