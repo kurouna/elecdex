@@ -216,6 +216,9 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.#shift = false
     this.stopPaste()
     this.pausedBy = paused ? 'player' : null
+    // Asleep as the machine itself knows (a snapshot keeps it), not as the loop last said: one
+    // taken over out of sight has not run here yet.
+    this.asleep = machine.state.sleeping
     this.#changed()
   }
 
@@ -438,11 +441,15 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.#disarmOff()
   }
 
-  /** Coming back into sight, a machine that was asleep at its prompt goes on by itself. */
+  /**
+   * Coming back into sight, a machine that was asleep at its prompt goes on by itself, and so
+   * does one switched on out of sight (a pane mounted behind its tab) that has not run an
+   * instruction yet: it has nothing under way to lose, and would go to its prompt.
+   */
   override setSeen(seen: boolean): void {
-    const wasAsleep = this.asleep
+    const goesOn = this.asleep || this.machine?.state.instret === 0
     super.setSeen(seen)
-    if (seen && wasAsleep && this.pausedBy === 'hidden') this.resume()
+    if (seen && goesOn && this.pausedBy === 'hidden') this.resume()
   }
 
   /** The machine as it is now shown beside it: off, and its annunciators. */

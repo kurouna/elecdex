@@ -132,6 +132,31 @@ test('pauses behind a tab, and comes back by itself when it was asleep at its pr
   }
 })
 
+test('mounted behind a tab, it goes on to its prompt when first shown, and again after a restart', async () => {
+  // The clock in front: the machine is switched on, and after the restart brought back from
+  // its battery backup, out of sight.
+  const behind = { ...BEHIND_A_TAB, root: { ...BEHIND_A_TAB.root, activeIndex: 1 } }
+  let launched = await launch(undefined, { layout: behind })
+  try {
+    for (const when of ['first start', 'restart']) {
+      const { page } = launched
+      await settleLayout(page)
+      const root = page.getByTestId('elec16')
+      await expect(root, when).toHaveAttribute('data-status', 'paused')
+      await page.getByTestId('tab').nth(0).click()
+      await expect(root, when).toHaveAttribute('data-status', 'running')
+      await booted(page)
+      await expect(root, when).toHaveAttribute('data-asleep', 'true')
+      // Back behind the clock, where the restart finds it.
+      await page.getByTestId('tab').nth(1).click()
+      await expect(root, when).toHaveAttribute('data-status', 'paused')
+      if (when === 'first start') launched = await launched.relaunch()
+    }
+  } finally {
+    await launched.close()
+  }
+})
+
 test('a pane split beside it keeps its machine, RAM, screen and all', async () => {
   const { page, close } = await launchBeside()
   try {

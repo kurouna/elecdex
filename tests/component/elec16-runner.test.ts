@@ -3,6 +3,7 @@ import { screenText } from '@shared/elec16/font'
 import { keyCode } from '@shared/elec16/keys'
 import type { LinkAnswer } from '@shared/elec16/link'
 import { LINK_CMD, LINK_REG, LINK_STATUS } from '@shared/elec16/link-services'
+import { Elec16 } from '@shared/elec16/machine'
 import { pasteKeys } from '@shared/elec16/paste'
 import { romFromFile } from '@shared/elec16/rom'
 import { ANNUNCIATORS } from '@shared/elec16/state'
@@ -235,6 +236,45 @@ describe('the ELEC-16 runner', () => {
     runner.setSeen(false)
     runner.setSeen(true)
     expect(runner.status).toBe('paused')
+  })
+
+  it('switched on out of sight (a pane behind its tab), goes on to its prompt when first seen', () => {
+    const clock = fakeLoopHost()
+    const runner = new Elec16Runner(clock.host)
+    runner.setSeen(false)
+    runner.boot(ROM, 'pocket-48', 4_000_000)
+    clock.advance(500)
+    // Nothing runs unseen: not one instruction, nothing on the LCD.
+    expect(runner.pausedBy).toBe('hidden')
+    expect(runner.machine?.state.instret).toBe(0)
+    runner.setSeen(true)
+    expect(runner.status).toBe('running')
+    clock.advance(500)
+    expect(runner.asleep).toBe(true)
+    const s = runner.machine?.state
+    expect(s === undefined ? '' : screenText(s.vram, 240, 48)[0]?.trimEnd()).toBe(
+      'ELEC-16 BASIC 1.0',
+    )
+  })
+
+  it('takes over a machine out of sight as it was: asleep goes on when seen, a program stays paused', () => {
+    for (const how of ['moved', 'restored'] as const) {
+      for (const busy of [false, true]) {
+        const { clock, runner } = setUp()
+        if (busy) runForever(runner, clock.advance)
+        const left = runner.detach()
+        if (left === null) throw new Error('no machine')
+        // A moved pane hands the machine itself; a restart brings it back from its battery backup.
+        const machine = how === 'moved' ? left : Elec16.restore(ROM, left.snapshot())
+        if (machine === null) throw new Error('no snapshot')
+        const next = new Elec16Runner(clock.host)
+        next.setSeen(false)
+        next.adopt(machine, 4_000_000, false)
+        expect(next.pausedBy, `${how} busy=${busy}`).toBe('hidden')
+        next.setSeen(true)
+        expect(next.status, `${how} busy=${busy}`).toBe(busy ? 'paused' : 'running')
+      }
+    }
   })
 
   it('stops with BRK, and switches off and on with the power switch', () => {
