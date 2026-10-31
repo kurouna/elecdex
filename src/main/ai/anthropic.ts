@@ -120,7 +120,8 @@ type Citation = { type?: string; url?: unknown; title?: unknown }
 /**
  * The pages an answer cited, as a markdown list to go after it: Anthropic asks that an answer
  * from its web search be shown with its sources, and the pane draws only text. A title loses its
- * brackets and an address its parentheses, so neither can end the link early.
+ * brackets and an address its parentheses, so neither can end the link early; a title's line
+ * breaks become spaces, or the item would end on its first line.
  */
 export function sourcesOf(message: Anthropic.Message | Anthropic.Beta.BetaMessage): string {
   const found = new Map<string, string>()
@@ -133,7 +134,7 @@ export function sourcesOf(message: Anthropic.Message | Anthropic.Beta.BetaMessag
   }
   const lines = [...found].slice(0, SOURCES).map(([url, title]) => {
     const href = url.replace(/\(/g, '%28').replace(/\)/g, '%29')
-    const name = title.replace(/[[\]]/g, '').trim() || href
+    const name = title.replace(/[[\]]/g, '').replace(/\s+/g, ' ').trim() || href
     return `- [${name}](${href})`
   })
   return lines.length === 0 ? '' : `\n\nSources:\n${lines.join('\n')}`

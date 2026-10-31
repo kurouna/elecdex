@@ -583,7 +583,10 @@ describe('the Anthropic dialect', () => {
       }),
       event('content_block_delta', {
         index: 3,
-        delta: { type: 'citations_delta', citation: cite('https://w.example/a', 'Sunny [today]') },
+        delta: {
+          type: 'citations_delta',
+          citation: cite('https://w.example/a', 'Sunny\n [today]'),
+        },
       }),
       event('content_block_delta', { index: 3, delta: { type: 'text_delta', text: 'Sunny' } }),
       event('content_block_stop', { index: 3 }),
@@ -669,6 +672,27 @@ describe('the Anthropic dialect', () => {
         sse(res, turn())
       }
     }
+
+    it("on Anthropic's own endpoint, with fallbacks, the answer is written the same", async () => {
+      serveTurns([searched])
+      // Anthropic's address, answered here.
+      const toHere: typeof nodeFetch = (url, init) =>
+        nodeFetch(url.replace('https://api.anthropic.com', origin), init)
+      const { got, sink } = collect()
+      await anthropicAdapter(toHere).stream(
+        { ...ask('claude-fable-5-1'), baseUrl: 'https://api.anthropic.com', webSearch: 5 },
+        sink,
+      )
+      expect(seen.find((entry) => entry.method === 'POST')?.body).toMatchObject({
+        fallbacks: 'default',
+        tools: [{ type: 'web_search_20250305', max_uses: 5 }],
+      })
+      expect(got.text).toBe(
+        'Looking.\n\nSunny all day.\n\nSources:\n' +
+          '- [Sunny today](https://w.example/a)\n' +
+          '- [https://w.example/b_%28c%29](https://w.example/b_%28c%29)',
+      )
+    })
 
     it('a paused turn is sent back as it stands, and goes on where it stopped', async () => {
       serveTurns([paused, resumed])
