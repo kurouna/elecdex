@@ -21,7 +21,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 
 <p align="center">
   <img src="../screenshots/elecdex-desk.jpg" alt="Paper テーマの desk プリセット：リリースのチェックリストを書いたメモペインとその下のタイマーと電卓、期限をメーターで描くタスクペインとその下の架空のコピーを並べたクリップボード履歴、3 か月のカレンダーとその下に Utility ペインのタブの前に出した関数電卓 ELEC-16 SCI。sin(45)+1/2 を正確な形 (1+√2)/2 で答えている">
-  <br><sub>desk · Black</sub>
+  <br><sub>desk · Paper</sub>
 </p>
 
 **desk** プリセット（Ctrl+Shift+F6）には、システム列の横に、メモとその下のタイマーと電卓、タスクとその下のクリップボード履歴、カレンダーとその下の Utility ペイン（その後ろのタブに関数電卓 [ELEC-16](panes-retro.ja.md#elec-16) SCI）が並びます。

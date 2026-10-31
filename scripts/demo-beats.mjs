@@ -177,7 +177,16 @@ export function prepareMusic() {
 /* ---- The beats ---- */
 
 /** The built-in themes the tours end on, in turn, before the one they began in. */
-const THEMES = ['tron', 'amber', 'phosphor', 'white', 'black', 'business-dark', 'business-light']
+const THEMES = [
+  'tron',
+  'amber',
+  'phosphor',
+  'white',
+  'black',
+  'business-dark',
+  'business-light',
+  'paper',
+]
 
 /**
  * The beats on an open take (demo-take.mjs `openTake`); `theme` is the one it began in, and

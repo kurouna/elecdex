@@ -21,7 +21,7 @@ elecdex is a science-fiction terminal emulator and system monitor for Windows, m
 
 <p align="center">
   <img src="../screenshots/elecdex-desk.jpg" alt="The desk preset in the Paper theme: a notes pane with a release checklist, a timer and a calculator under it; a tasks pane with deadlines drawn as meters over a clipboard history of made-up copies; three months of the calendar over the calculator ELEC-16 SCI, in front of the utility pane's tab, answering sin(45)+1/2 with its exact form (1+√2)/2">
-  <br><sub>desk · Black</sub>
+  <br><sub>desk · Paper</sub>
 </p>
 
 The **desk** preset (Ctrl+Shift+F6) holds, beside the system column: notes over a timer and a calculator; tasks over the clipboard history; and the calendar over the utility pane, with the scientific calculator [ELEC-16](panes-retro.md#elec-16) SCI in a tab behind it.

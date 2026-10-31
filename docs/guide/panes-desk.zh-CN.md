@@ -21,7 +21,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 <p align="center">
   <img src="../screenshots/elecdex-desk.jpg" alt="Paper 主题下的 desk 预设：记事窗格里是一份发布检查清单，下面是计时器和计算器；任务窗格把截止时间画成仪表，下面是虚构复制内容的剪贴板历史；三个月的日历，下面是切到实用工具窗格标签页前面的函数计算器 ELEC-16 SCI，以精确形式 (1+√2)/2 回答 sin(45)+1/2">
-  <br><sub>desk · Black</sub>
+  <br><sub>desk · Paper</sub>
 </p>
 
 **desk** 预设（Ctrl+Shift+F6）在系统栏旁边依次放着：记事及其下方的计时器和计算器；任务及其下方的剪贴板历史；日历及其下方的实用工具窗格（其后面的标签页是函数计算器 [ELEC-16](panes-retro.zh-CN.md#elec-16) SCI）。

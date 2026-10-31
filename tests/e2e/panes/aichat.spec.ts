@@ -3,6 +3,7 @@ import type { ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Locator, type Page } from '@playwright/test'
+import { BUILTIN_THEMES } from '../../../src/shared/theme.js'
 import { test } from '../support/shared.js'
 import {
   type AiRequest,
@@ -491,7 +492,8 @@ test('"send" is seen to come alive when there is something to send, in every the
         const style = getComputedStyle(el)
         return { color: style.color, ground: style.backgroundColor, opacity: style.opacity }
       })
-    for (const theme of ['tron', 'amber', 'phosphor', 'white', 'business-dark', 'business-light']) {
+    // Every built-in theme, those added later too: a list written out had left Black and Paper out.
+    for (const theme of BUILTIN_THEMES.map((t) => t.id)) {
       await page.evaluate((id) => window.elecdex.settings.patch({ theme: id }), theme)
       await pane(page).getByTestId('aichat-input').fill('')
       await expect(send).toBeDisabled()
