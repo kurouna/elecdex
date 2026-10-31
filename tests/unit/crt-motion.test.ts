@@ -17,6 +17,17 @@ describe('powerOffStyle', () => {
     expect(powerOffStyle(1)).toBe('transform: scale(0, 0); filter: brightness(6); opacity: 0;')
   })
 
+  // On a light theme the bright line and dot were the dialog gone white as it closed.
+  it('squeezes and shrinks without overexposure where the theme has no glare', () => {
+    expect(powerOffStyle(0.45, '', 0)).toBe(
+      'transform: scale(1, 0.004); filter: brightness(1); opacity: 1;',
+    )
+    expect(powerOffStyle(0.8, '', 0)).toBe(
+      'transform: scale(0.02, 0.004); filter: brightness(1); opacity: 1;',
+    )
+    expect(powerOffStyle(0.45, '', 0.5)).toContain('filter: brightness(2.5);')
+  })
+
   it('squeezes before it shrinks, and fades only at the end', () => {
     const scale = (p: number) =>
       (/scale\(([\d.]+), ([\d.]+)\)/.exec(powerOffStyle(p)) ?? []).slice(1).map(Number)

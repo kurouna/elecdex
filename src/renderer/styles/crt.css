@@ -192,17 +192,17 @@
   45% {
     opacity: 1;
     transform: scale(1, 0.004);
-    filter: brightness(4);
+    filter: brightness(calc(1 + 3 * var(--crt-glare, 1)));
   }
   80% {
     opacity: 1;
     transform: scale(0.02, 0.004);
-    filter: brightness(6);
+    filter: brightness(calc(1 + 5 * var(--crt-glare, 1)));
   }
   100% {
     opacity: 0;
     transform: scale(0, 0);
-    filter: brightness(6);
+    filter: brightness(calc(1 + 5 * var(--crt-glare, 1)));
   }
 }
 
@@ -228,7 +228,8 @@
 @keyframes crt-extend {
   0% {
     clip-path: inset(var(--from-top) var(--from-right) var(--from-bottom) var(--from-left));
-    filter: brightness(1.8) saturate(0.8);
+    filter: brightness(calc(1 + 0.8 * var(--crt-glare, 1)))
+      saturate(calc(1 - 0.2 * var(--crt-glare, 1)));
   }
   100% {
     clip-path: inset(0);
@@ -284,7 +285,8 @@
 @keyframes crt-zoom {
   0% {
     transform: translate(var(--zoom-dx), var(--zoom-dy)) scale(var(--zoom-sx), var(--zoom-sy));
-    filter: brightness(1.7) saturate(0.85);
+    filter: brightness(calc(1 + 0.7 * var(--crt-glare, 1)))
+      saturate(calc(1 - 0.15 * var(--crt-glare, 1)));
   }
   100% {
     transform: none;
@@ -305,7 +307,8 @@
 @keyframes crt-land {
   0% {
     transform: translate(var(--land-dx), var(--land-dy)) scale(var(--land-sx), var(--land-sy));
-    filter: brightness(1.6) saturate(0.85);
+    filter: brightness(calc(1 + 0.6 * var(--crt-glare, 1)))
+      saturate(calc(1 - 0.15 * var(--crt-glare, 1)));
   }
   100% {
     transform: none;
@@ -368,9 +371,9 @@
  * its box for that moment lay over the tab strip, taking the release of a click on
  * the next tab (the click then went nowhere). Opacity and a filter only.
  *
- * The overexposure here and in crt-power-on is `--crt-glare` strong: a light theme sets it to
- * 0 (tokens.css), as brightness on a pale ground turned the pane white for 200 ms, and keeps
- * only the flicker and the opening.
+ * The overexposure here, and in every effect of this file, is `--crt-glare` strong: a light
+ * theme sets it to 0 (tokens.css), as brightness on a pale ground turned the pane white for
+ * 200 ms, and keeps only the flicker, the opening, the closing and the flight.
  */
 .crt-flicker {
   animation: crt-flicker var(--crt-duration, 220ms) linear backwards;

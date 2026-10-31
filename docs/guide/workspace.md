@@ -220,9 +220,9 @@ working day, and (*unreleased*) Paper, monochrome and plain like an e-paper disp
   forward and the entrance effects are skipped.
 - Ambient animation pauses while the window is hidden or minimised.
 - The light themes, Black, Business (Light) and Paper, use darker status colours and a minimum contrast
-  in the shell. *unreleased*: on them a tab brought forward and a pane or dialog powering on
-  are not overexposed, which on a pale ground turned them white for a moment; they only flicker
-  and open.
+  in the shell. *unreleased*: on them no CRT effect is overexposed - a tab brought forward, a pane
+  or dialog powering on or off, a pane taking room, flying or brought forward - which on a pale
+  ground turned it white for a moment; they only flicker, open, close and move.
 
 ## Settings
 

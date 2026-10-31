@@ -40,9 +40,11 @@ export function crtPower(node: HTMLElement): TransitionConfig {
   node.classList.add('crt-beam')
   // Asked after animate:flip has lifted a leaving toast out of the flow, translated back to its place.
   const base = node.style.transform
+  // The theme's overexposure (tokens.css), read once: unset is the full glare.
+  const glare = Number.parseFloat(getComputedStyle(node).getPropertyValue('--crt-glare'))
   return {
     duration: POWER_OFF_MS,
-    css: (_t, u) => powerOffStyle(u, base),
+    css: (_t, u) => powerOffStyle(u, base, Number.isNaN(glare) ? 1 : glare),
     // A cancelled close has played back to the whole picture: the beam is spent, and
     // its class goes with it, leaving the element as it was before the close.
     tick: (t) => {

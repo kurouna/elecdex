@@ -20,9 +20,11 @@ const easeIn = (k: number) => k * k
 /**
  * The style `progress` (0 to 1) into the power-off: squeeze to the line, shrink to
  * the dot, fade. `base` is a transform the element already has, kept in front of
- * the scale (Svelte's animate:flip holds a leaving element in place with one).
+ * the scale (Svelte's animate:flip holds a leaving element in place with one). `glare` is the
+ * page's `--crt-glare`: how overexposed the line and the dot are, 0 on a light theme, where
+ * brightness turns a pale picture white.
  */
-export function powerOffStyle(progress: number, base = ''): string {
+export function powerOffStyle(progress: number, base = '', glare = 1): string {
   const p = Math.min(Math.max(progress, 0), 1)
   let x = 1
   let y: number
@@ -46,7 +48,8 @@ export function powerOffStyle(progress: number, base = ''): string {
   }
   const n = (v: number) => Number(v.toFixed(4))
   const scale = `scale(${n(x)}, ${n(y)})`
-  return `transform: ${base ? `${base} ${scale}` : scale}; filter: brightness(${n(brightness)}); opacity: ${n(opacity)};`
+  const glared = 1 + (brightness - 1) * glare
+  return `transform: ${base ? `${base} ${scale}` : scale}; filter: brightness(${n(glared)}); opacity: ${n(opacity)};`
 }
 
 /** A computed `rgb()`/`rgba()` colour with its alpha scaled by `t`, for a shade fading out. */

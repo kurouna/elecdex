@@ -209,13 +209,55 @@ test('a new tab put behind another before it has powered on does not power on ag
   }
 })
 
-// On a light theme the overexposure turned a tab shown, or a pane opening, white for 200 ms:
-// brightness on a pale ground is no glow. There the picture only flickers and opens.
-for (const [theme, glare] of [
-  ['tron', 'brightness(3) saturate(0.4)'],
-  ['paper', 'brightness(1) saturate(1)'],
-] as const) {
-  test(`a tab shown and a pane opening in ${theme} start at ${glare}`, async ({ shared }) => {
+/**
+ * The filter `selector`'s `name` animation gives it `at` (0 to 1) of the way through, held
+ * there and then finished, as soon as it plays: the class comes off once it has.
+ */
+const effectAt = (page: Page, selector: string, name: string, at = 0) =>
+  page.evaluate(
+    async ([selector, name, at]) => {
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      for (let i = 0; i < 60; i++) {
+        const el = document.querySelector<HTMLElement>(selector)
+        const effect = el?.getAnimations().find((a) => (a as CSSAnimation).animationName === name)
+        if (el && effect) {
+          effect.pause()
+          effect.currentTime = Number(effect.effect?.getComputedTiming().duration ?? 0) * at
+          const filter = getComputedStyle(el).filter
+          effect.finish()
+          return filter
+        }
+        await frame()
+      }
+      return 'never played'
+    },
+    [selector, name, at] as const,
+  )
+
+// On a light theme an overexposed effect turned a tab shown, a pane opening, closing, taking
+// room or brought forward white for a moment: brightness on a pale ground is no glow. There the
+// picture only flickers, opens, closes and flies.
+const GLARE = {
+  tron: { flicker: 'brightness(3) saturate(0.4)', on: 'brightness(5) saturate(0.4)' },
+  paper: { flicker: 'brightness(1) saturate(1)', on: 'brightness(1) saturate(1)' },
+} as const
+const GLARE_AWAY = {
+  tron: {
+    off: 'brightness(4)',
+    extend: 'brightness(1.8) saturate(0.8)',
+    zoom: 'brightness(1.7) saturate(0.85)',
+  },
+  paper: {
+    off: 'brightness(1)',
+    extend: 'brightness(1) saturate(1)',
+    zoom: 'brightness(1) saturate(1)',
+  },
+} as const
+
+for (const theme of ['tron', 'paper'] as const) {
+  test(`a tab shown and a pane opening are overexposed only off a light theme (${theme})`, async ({
+    shared,
+  }) => {
     const layout = {
       version: 1,
       root: {
@@ -229,39 +271,48 @@ for (const [theme, glare] of [
     try {
       await expect(page.getByTestId('tab')).toHaveCount(2)
       await settleLayout(page)
-      // The first frame of an effect, held there: the class comes off once it has played.
-      const startOf = (selector: string, name: string) =>
-        page.evaluate(
-          async ([selector, name]) => {
-            const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
-            for (let i = 0; i < 60; i++) {
-              const el = document.querySelector<HTMLElement>(selector)
-              const effect = el
-                ?.getAnimations()
-                .find((a) => (a as CSSAnimation).animationName === name)
-              if (el && effect) {
-                effect.pause()
-                effect.currentTime = 0
-                const filter = getComputedStyle(el).filter
-                effect.finish()
-                return filter
-              }
-              await frame()
-            }
-            return 'never played'
-          },
-          [selector, name] as const,
-        )
-      const flicker = startOf('[data-testid=pane][data-pane-id=b]', 'crt-flicker')
+      const flicker = effectAt(page, '[data-testid=pane][data-pane-id=b]', 'crt-flicker')
       await page.getByTestId('tab').nth(1).click()
-      expect(await flicker).toBe(glare)
+      expect(await flicker).toBe(GLARE[theme].flicker)
 
-      const powerOn = startOf('[data-testid=pane][data-widget=notes]', 'crt-power-on')
+      const powerOn = effectAt(page, '[data-testid=pane][data-widget=notes]', 'crt-power-on')
       await page.keyboard.press('Control+Shift+KeyA')
       await page.locator('[data-testid=pane-picker-item][data-widget=notes]').click()
-      expect(await powerOn).toBe(
-        theme === 'tron' ? 'brightness(5) saturate(0.4)' : 'brightness(1) saturate(1)',
-      )
+      expect(await powerOn).toBe(GLARE[theme].on)
+    } finally {
+      await close()
+    }
+  })
+
+  test(`a pane closing, taking room and brought forward are overexposed only off a light theme (${theme})`, async ({
+    shared,
+  }) => {
+    const layout = {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: [0.5, 0.5],
+        children: [paneNode('a', 'calendar'), paneNode('b', 'sysinfo')],
+      },
+    }
+    const { page, close } = await shared({ layout, settings: { theme } })
+    try {
+      await settleLayout(page)
+      const zoom = effectAt(page, '[data-testid=pane][data-pane-id=a]', 'crt-zoom')
+      await byId(page, 'a').click()
+      await page.keyboard.press('Control+Shift+KeyZ')
+      expect(await zoom).toBe(GLARE_AWAY[theme].zoom)
+      await page.keyboard.press('Control+Shift+KeyZ')
+      await expect(page.locator('.crt-zoom, .crt-zoom-out')).toHaveCount(0)
+
+      // The line, 45% of the way: the brightest the picture is before it shrinks to the dot.
+      const off = effectAt(page, '[data-testid=pane][data-pane-id=b]', 'crt-power-off', 0.45)
+      const extend = effectAt(page, '[data-testid=pane][data-pane-id=a]', 'crt-extend')
+      await byId(page, 'b').getByTestId('pane-close').click()
+      expect(await off).toBe(GLARE_AWAY[theme].off)
+      expect(await extend).toBe(GLARE_AWAY[theme].extend)
     } finally {
       await close()
     }
