@@ -17,7 +17,7 @@ sufficiently verified by hand.
 | [Layout presets](presets.md) | The ten presets (standard, network, earth, dev, media, desk, ai, cockpit, retro, blank), the keys Ctrl+Shift+F1 to F10, and the panes in each |
 | [Workspace](workspace.md) | Panes, splits and tabs, moving and closing, bringing a pane forward, pop-up panes, saved layouts, the action palette, motion and sound, running in the background |
 | [Keyboard shortcuts](keyboard.md) | Every default chord, how to rebind them, and the system-wide show/hide shortcut |
-| [Themes and settings](themes-settings.md) | The seven themes and `settings.json` |
+| [Themes and settings](themes-settings.md) | The eight themes and `settings.json` |
 
 ## Panes
 

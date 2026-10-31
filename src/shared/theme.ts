@@ -111,7 +111,7 @@ export const DEFAULT_THEME_ID = 'tron'
  *    its system fonts and a Windows Terminal colour scheme (Campbell, One Half
  *    Light), no grid, scanlines or glow.
  *  - paper: monochrome and plain, like an e-paper display - near-black ink on a
- *    grey paper ground, grey terminal colours, no grid, scanlines or glow
+ *    grey paper ground, a ladder of greys for the terminal, no grid, scanlines or glow
  *    (user's request 2026-10-31).
  */
 const WINDOWS_FONTS = {
@@ -263,8 +263,30 @@ export const BUILTIN_THEMES: readonly Theme[] = [
       ui: '"Segoe UI Variable Text", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif',
       mono: WINDOWS_FONTS.mono,
     },
-    // Pulled all the way to the inkless accent: the ANSI colours become greys.
-    terminal: { ansiPull: 1 },
+    terminal: {
+      // A ladder of greys, as e-paper has, rather than the derived colours pulled to the
+      // inkless accent: those collapse to one grey, and git diff would say nothing. Each
+      // colour is a step of its own, a bright one a step darker than its normal; all but
+      // white and bright white keep 4.5:1 on the pane, so xterm leaves them as they are.
+      ansi: {
+        black: '#111111',
+        red: '#262626',
+        green: '#606060',
+        yellow: '#4c4c4c',
+        blue: '#343434',
+        magenta: '#404040',
+        cyan: '#565656',
+        white: '#8c8c89',
+        brightBlack: '#666666',
+        brightRed: '#1a1a1a',
+        brightGreen: '#5a5a5a',
+        brightYellow: '#424242',
+        brightBlue: '#2a2a2a',
+        brightMagenta: '#363636',
+        brightCyan: '#4e4e4e',
+        brightWhite: '#f5f5f1',
+      },
+    },
     effects: { scanlines: false, glow: 0 },
   },
 ]

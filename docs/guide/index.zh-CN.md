@@ -11,7 +11,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | [布局预设](presets.zh-CN.md) | 10 个预设（standard、network、earth、dev、media、desk、ai、cockpit、retro、blank）、按键 Ctrl+Shift+F1 到 F10，以及每个预设中的窗格 |
 | [工作区](workspace.zh-CN.md) | 窗格、分屏与标签页、移动与关闭、把窗格放到前面、弹出窗格、已保存的布局、操作面板、动效与声音、后台运行 |
 | [键盘快捷键](keyboard.zh-CN.md) | 全部默认按键、如何重新绑定，以及全局显示/隐藏快捷键 |
-| [主题与设置](themes-settings.zh-CN.md) | 7 个主题与 `settings.json` |
+| [主题与设置](themes-settings.zh-CN.md) | 8 个主题与 `settings.json` |
 
 ## 窗格
 

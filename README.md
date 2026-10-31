@@ -204,7 +204,7 @@ Every shortcut can be rebound in *Settings → Keyboard*; the full list is in
 | [Layout presets](docs/guide/presets.md) | The ten presets, pane by pane |
 | [Workspace](docs/guide/workspace.md) | Panes, splits, tabs, saved layouts, the palette, themes and motion, running in the background |
 | [Keyboard shortcuts](docs/guide/keyboard.md) | Every default chord, rebinding, global shortcuts |
-| [Themes and settings](docs/guide/themes-settings.md) | The seven themes, `settings.json` |
+| [Themes and settings](docs/guide/themes-settings.md) | The eight themes, `settings.json` |
 | [Plugins](docs/guide/plugins-use.md) | Installing plugins and what they may do ([API](docs/plugins.md)) |
 | [Network access and data sources](docs/guide/data-sources.md) | Every service elecdex contacts, how often, and its terms |
 | [Develop](docs/guide/develop.md) | Building, testing, releasing, and why a rewrite |

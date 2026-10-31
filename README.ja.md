@@ -185,7 +185,7 @@ npm run dev -- -- --windowed --no-intro
 | [レイアウトのプリセット](docs/guide/presets.ja.md) | 10 個のプリセットをペインごとに |
 | [ワークスペース](docs/guide/workspace.ja.md) | ペイン、分割、タブ、保存したレイアウト、パレット、テーマと動き、バックグラウンドでの実行 |
 | [キーボードショートカット](docs/guide/keyboard.ja.md) | 既定のキーすべて、割り当ての変更、システム全体のショートカット |
-| [テーマと設定](docs/guide/themes-settings.ja.md) | 7 つのテーマ、`settings.json` |
+| [テーマと設定](docs/guide/themes-settings.ja.md) | 8 つのテーマ、`settings.json` |
 | [プラグイン](docs/guide/plugins-use.ja.md) | プラグインの入れ方とできること（[API](docs/plugins.md)） |
 | [ネットワークの利用とデータソース](docs/guide/data-sources.ja.md) | elecdex がつなぐ先すべて、頻度と利用条件 |
 | [開発](docs/guide/develop.ja.md) | ビルド、テスト、リリース、作り直した理由 |

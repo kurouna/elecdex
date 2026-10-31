@@ -178,7 +178,7 @@ npm run dev -- -- --windowed --no-intro
 | [布局预设](docs/guide/presets.zh-CN.md) | 10 个预设，逐个窗格说明 |
 | [工作区](docs/guide/workspace.zh-CN.md) | 窗格、分屏、标签页、已保存的布局、操作面板、主题与动效、后台运行 |
 | [键盘快捷键](docs/guide/keyboard.zh-CN.md) | 全部默认按键、重新绑定、全局快捷键 |
-| [主题与设置](docs/guide/themes-settings.zh-CN.md) | 7 个主题、`settings.json` |
+| [主题与设置](docs/guide/themes-settings.zh-CN.md) | 8 个主题、`settings.json` |
 | [插件](docs/guide/plugins-use.zh-CN.md) | 安装插件及其能做的事（[API](docs/plugins.md)） |
 | [网络访问与数据来源](docs/guide/data-sources.zh-CN.md) | elecdex 连接的所有服务、频率与条款 |
 | [开发](docs/guide/develop.zh-CN.md) | 构建、测试、发布，以及为什么要重写 |

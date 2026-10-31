@@ -35,7 +35,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | Black | `black` | light | White を反転させたもの。淡い #D7E0EA の地に黒に近い #0A080D の文字、同じ走査線と、ごくわずかなグロー |
 | Business (Dark) | `business-dark` | dark | Windows 11 のダークモードの配色と既定の青いアクセント、Segoe UI と Cascadia Mono、Windows Terminal の Campbell 配色。グリッド・走査線・グローなし、ランチャーのアイコンは元の色 |
 | Business (Light) | `business-light` | light | 同じものを Windows 11 のライトモードで。One Half Light 配色 |
-| Paper | `paper` | light | *unreleased*: 電子ペーパーのようなモノクロでシンプルなもの。灰色の紙（#D9D9D5、ペインは #E5E5E1）に #111111 のインク、色相のないアクセント、灰色の端末の色、Segoe UI と Cascadia Mono。グリッド・走査線・グローなし |
+| Paper | `paper` | light | *unreleased*: 電子ペーパーのようなモノクロでシンプルなもの。灰色の紙（#D9D9D5、ペインは #E5E5E1）に #111111 のインク、色相のないアクセント、端末の 16 色はそれぞれ濃さの違う灰色、Segoe UI と Cascadia Mono。グリッド・走査線・グローなし |
 
 - Tron、Amber、Phosphor、White は HUD 向け、Business (Dark) と Business (Light) は普段の仕事向け、Paper はモノクロでシンプルです。
 - 文字はテーマのアクセント色です。ただし Business テーマや Paper のように文字色を指定したテーマは除きます。

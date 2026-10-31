@@ -11,7 +11,7 @@ elecdex は、Windows・macOS・Linux 向けの SF 風のターミナルエミ�
 | [レイアウトのプリセット](presets.ja.md) | 10 個のプリセット（standard、network、earth、dev、media、desk、ai、cockpit、retro、blank）、キー Ctrl+Shift+F1〜F10、それぞれのペイン |
 | [ワークスペース](workspace.ja.md) | ペイン、分割とタブ、移動と閉じ方、ペインを前に出す、ポップアップのペイン、保存したレイアウト、アクションパレット、動きと音、バックグラウンドでの実行 |
 | [キーボードショートカット](keyboard.ja.md) | 既定のキーすべて、割り当ての変え方、システム全体の表示・非表示のショートカット |
-| [テーマと設定](themes-settings.ja.md) | 7 つのテーマと `settings.json` |
+| [テーマと設定](themes-settings.ja.md) | 8 つのテーマと `settings.json` |
 
 ## ペイン
 

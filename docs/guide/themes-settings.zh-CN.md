@@ -35,7 +35,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | Black | `black` | light | 把 White 反过来：浅色 #D7E0EA 底上的近黑 #0A080D 文字，同样的扫描线，只有一丝辉光 |
 | Business (Dark) | `business-dark` | dark | Windows 11 深色模式的配色和默认蓝色强调色，Segoe UI 和 Cascadia Mono，Windows Terminal 的 Campbell 配色；无网格、扫描线和辉光，启动器图标显示原本颜色 |
 | Business (Light) | `business-light` | light | 同上，采用 Windows 11 浅色模式和 One Half Light 配色 |
-| Paper | `paper` | light | *unreleased*：像电子纸屏幕一样的单色简洁主题：灰色纸面（#D9D9D5，窗格 #E5E5E1）上的 #111111 墨色，无色相的强调色，灰色的终端颜色，Segoe UI 和 Cascadia Mono，无网格、扫描线和辉光 |
+| Paper | `paper` | light | *unreleased*：像电子纸屏幕一样的单色简洁主题：灰色纸面（#D9D9D5，窗格 #E5E5E1）上的 #111111 墨色，无色相的强调色，终端的 16 种颜色是深浅各不相同的灰色，Segoe UI 和 Cascadia Mono，无网格、扫描线和辉光 |
 
 - Tron、Amber、Phosphor 和 White 用于 HUD 风格；Business (Dark) 和 Business (Light) 适合日常办公；Paper 是单色而简洁的。
 - 文字使用主题的强调色，除非主题像 Business 主题和 Paper 那样设置了文字颜色。

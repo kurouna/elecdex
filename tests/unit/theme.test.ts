@@ -366,7 +366,7 @@ describe('the Black theme', () => {
 })
 
 describe('the Paper theme', () => {
-  it('is monochrome and plain: ink on grey paper, grey ANSI, no grid, glow or scanlines', () => {
+  it('is monochrome and plain: ink on grey paper, no grid, glow or scanlines', () => {
     const paper = BUILTIN_THEMES.find((t) => t.id === 'paper') as Theme
     expect(paper.mode).toBe('light')
     const vars = themeVariables(paper)
@@ -375,16 +375,33 @@ describe('the Paper theme', () => {
     expect(vars['--text-base']).toBe('#111111')
     expect(vars['--glow']).toBe('0')
     expect(vars['--scanlines']).toBe('0')
-    // Pulled fully to a hueless accent, every derived ANSI colour is a grey.
-    const xterm = buildXtermTheme({
-      hue: paper.accent.h,
-      saturation: paper.accent.s,
-      lightness: paper.accent.l,
-      foreground: '#111111',
-      background: paper.surfaces.s1,
-      pull: paper.terminal?.ansiPull ?? 0,
-    })
-    expect(xterm.red).toMatch(/^hsl\(\S+ 0% /)
-    expect(xterm.brightBlue).toMatch(/^hsl\(\S+ 0% /)
+  })
+
+  // Derived colours pulled to the hueless accent were all one grey: git diff said nothing.
+  it('gives the terminal sixteen greys, each its own, the readable ones at 4.5:1 on the pane', () => {
+    const paper = BUILTIN_THEMES.find((t) => t.id === 'paper') as Theme
+    const ansi = Object.entries(paper.terminal?.ansi ?? {}).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined,
+    )
+    const greys = ansi.map(([, grey]) => grey)
+    expect(greys).toHaveLength(16)
+    expect(new Set(greys).size).toBe(16)
+    // Greys: the three channels at most a few steps apart (the whites lean to the paper).
+    for (const grey of greys) {
+      const channels = [1, 3, 5].map((k) => Number.parseInt(grey.slice(k, k + 2), 16))
+      expect(Math.max(...channels) - Math.min(...channels), grey).toBeLessThanOrEqual(4)
+    }
+    const luminance = (hex: string): number => {
+      const [r, g, b] = [1, 3, 5].map((i) => {
+        const v = Number.parseInt(hex.slice(i, i + 2), 16) / 255
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+      }) as [number, number, number]
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+    const ground = luminance(paper.surfaces.s1) + 0.05
+    for (const [name, grey] of ansi) {
+      if (name === 'white' || name === 'brightWhite') continue
+      expect(ground / (luminance(grey) + 0.05), name).toBeGreaterThanOrEqual(4.5)
+    }
   })
 })

@@ -1846,7 +1846,7 @@ const ThemeSchema = z.object({
 })
 ```
 
-- 内蔵は6つ: tron / amber / phosphor / white / business-dark / business-light。地球儀などの Canvas / WebGL は
+- 内蔵は8つ: tron / amber / phosphor / white / black / business-dark / business-light / paper。地球儀などの Canvas / WebGL は
   テーマ専用の色を持たず、同じトークンを `appearance.revision` のたびに読み直す
 - **どのテーマも全ての変数を設定する**（`themeVariables`）ので、切り替えで前のテーマの値が残らない
 
