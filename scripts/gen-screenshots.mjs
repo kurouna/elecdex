@@ -15,7 +15,8 @@
  * a scripted pad (demo-play-kit.mjs's, and elecfighter below), with no gamepad of this machine
  * reaching the page.
  *
- * Shots for posting (`social-elec-sitting`, `social-elec-approved`, `social-ethernet-popup`) are taken only when named,
+ * Shots for posting (`social-elec-sitting`, `social-elec-approved`, `social-ethernet-popup`,
+ * `social-paper-cockpit`, `social-paper-earth`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
  * so nothing of the machine is in them.
  */
@@ -926,7 +927,7 @@ await shoot('paper', 'elecdex-desk', {
 })
 // cockpit: the CLUSTER pane where the system column would be, given a full minute so its
 // lanes run edge to edge, the pointer over the shell so no figure's card is open.
-await shoot('black', 'elecdex-cockpit', {
+const cockpit = {
   layout: withState(preset('cockpit'), { wifi: { window: '1m' }, ethernet: { window: '1m' } }),
   extra: async (page) => {
     await page.mouse.move(W * 0.35, H * 0.9)
@@ -934,7 +935,8 @@ await shoot('black', 'elecdex-cockpit', {
     // Off the second, so the clock's digits are not caught rolling in.
     await page.waitForTimeout(1000 - (Date.now() % 1000) + 450)
   },
-})
+}
+await shoot('black', 'elecdex-cockpit', cockpit)
 // The layouts dialog on a first start: every preset on the shelf and on the number keys.
 await shoot('tron', 'elecdex-layouts', {
   env: { ELECDEX_SEED_LAYOUTS: '1' },
@@ -1426,6 +1428,17 @@ if (only.length === 0 || only.includes('elecdex-hero')) {
   })
   remote.close()
   rmSync(path.dirname(REMOTE), { recursive: true, force: true })
+}
+// For posting: the cockpit and earth presets in the Paper theme, as their README shots are
+// taken. Only when named.
+if (only.includes('social-paper-cockpit')) {
+  await shoot('paper', 'social-paper-cockpit', { ...cockpit, social: true })
+}
+if (only.includes('social-paper-earth')) {
+  await shoot('paper', 'social-paper-earth', {
+    layout: withState(preset('earth'), { orbit: { starlink: true } }),
+    social: true,
+  })
 }
 // For posting: the Ethernet pane popped up over the standard layout, on a made-up cable taking
 // CRC errors, its timeline on one minute. Only when named.
