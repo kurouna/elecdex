@@ -48,7 +48,9 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 ![Business (Dark) 主题下的 ai 预设：两个 AI 聊天窗格，以及位于 GPU 窗格之上的 ELEC system；所有回答都由为截图制作的替身写成](../screenshots/elecdex-ai.jpg)
 
-每种主题都出现在某张截图里：Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk）、Business (Dark)（ai）和 Business (Light)（函数计算器 ELEC-16 SCI）。
+![*unreleased*：Paper 主题下的 dev 预设，灰色纸面上的墨色文字：正在工作的 AI 代理、打开虚构仓库的 git 窗格，以及用终端的灰色打印其历史和变更的 shell；代理的记录和仓库都是为截图制作的](../screenshots/elecdex-paper.jpg)
+
+每种主题都出现在某张截图里：Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk 和上面的 dev）、Business (Dark)（ai）和 Business (Light)（函数计算器 ELEC-16 SCI）。
 
 ## 添加主题
 

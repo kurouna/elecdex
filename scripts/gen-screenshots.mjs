@@ -852,6 +852,38 @@ if (only.length === 0 || only.includes('elecdex-dev')) {
     },
   })
 }
+// The Paper theme at work: the same development shot, with the shell printing the demo history
+// and changes in colour, so the terminal's ladder of greys shows.
+if (only.length === 0 || only.includes('elecdex-paper')) {
+  demoRepository()
+  await shoot('paper', 'elecdex-paper', {
+    layout: withState(preset('dev'), {
+      agents: { open: SESSION },
+      git: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
+    }),
+    env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
+    prepare: gitRepos,
+    extra: async (page) => {
+      // The preset keeps its shell behind the containers: bring that tab forward.
+      const shell = await page.evaluate(() => {
+        const hosts = [...document.querySelectorAll('[data-testid=tabs-host]')]
+        const host = hosts.find((h) => h.querySelector('[data-widget=docker]'))
+        return host?.querySelector('[data-testid=pane][data-widget=terminal]')?.dataset.paneId
+      })
+      await page.locator(`[data-testid=tab][data-pane-id="${shell}"]`).click({ delay: 20 })
+      await page.waitForTimeout(1500)
+      await page
+        .locator(`[data-testid=pane][data-pane-id="${shell}"] .xterm-helper-textarea`)
+        .focus()
+      await page.keyboard.type(
+        `cd "${PROJECT}"; Clear-Host; git -c color.ui=always log --graph --oneline --decorate -6; git -c color.ui=always status -s`,
+      )
+      await page.keyboard.press('Enter')
+      await page.mouse.move(W / 2, 4)
+      await page.waitForTimeout(2500)
+    },
+  })
+}
 // Media: stand-ins for YouTube and X, a made-up feed behind, the demo sound on the spectrum.
 if (only.length === 0 || only.includes('elecdex-media')) {
   const standIn = await mediaStandIn()

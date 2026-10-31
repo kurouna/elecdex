@@ -48,7 +48,9 @@ Eight themes switch live, without a reload: the page sets the theme as CSS varia
 
 ![The ai preset in the Business (Dark) theme: two AI chat panes, and the ELEC system over the GPU pane; every answer is a stand-in's, made for the picture](../screenshots/elecdex-ai.jpg)
 
-Every theme appears in a picture: Tron (standard, earth), Amber (blank, CHIP-8), Phosphor (dev), White (network, media), Black (cockpit), Paper (desk), Business (Dark) (ai) and Business (Light) (the ELEC-16 SCI calculator).
+![*unreleased*: the dev preset in the Paper theme, ink on grey paper: an AI agent at work and the git pane over a made-up repository, and the shell printing its history and changes in the terminal's greys; the agents' records and the repository are made up for the picture](../screenshots/elecdex-paper.jpg)
+
+Every theme appears in a picture: Tron (standard, earth), Amber (blank, CHIP-8), Phosphor (dev), White (network, media), Black (cockpit), Paper (desk, and dev above), Business (Dark) (ai) and Business (Light) (the ELEC-16 SCI calculator).
 
 ## Adding a theme
 
