@@ -593,6 +593,37 @@ describe('WebViews', () => {
     expect(hoisted.theme.themeSource).toBe('light')
   })
 
+  it('lets a tint or a picture under way end quietly when the pane closes meanwhile', async () => {
+    // A closed view has no webContents at all in Electron: a tint waiting on the page's CSS
+    // read it once the pane had gone, and threw (seen switching layouts quickly with web panes).
+    const rejected: unknown[] = []
+    const note = (reason: unknown) => rejected.push(reason)
+    process.on('unhandledRejection', note)
+    try {
+      views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+      const closing = view()
+      const contents = closing.webContents
+      let finish: (key: string) => void = () => {}
+      contents.insertCSS.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          }),
+      )
+      views.setAppearance(look('#00ffff'))
+      await flush()
+      // A second change queued behind it starts only after the page has gone.
+      views.setAppearance(look('#ff0000'))
+      views.close(asOwner(owner), 'p', null)
+      ;(closing as unknown as { webContents: unknown }).webContents = undefined
+      finish('k-late')
+      for (let i = 0; i < 5; i += 1) await flush()
+      expect(rejected).toEqual([])
+    } finally {
+      process.off('unhandledRejection', note)
+    }
+  })
+
   it('lets a pane answer the tint for itself, and go back to following the setting', async () => {
     views.open(asOwner(owner), 'p', 'a', preset('x'), null)
     views.open(asOwner(owner), 'q', 'b', preset('youtube'), null)

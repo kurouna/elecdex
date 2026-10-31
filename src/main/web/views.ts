@@ -647,9 +647,9 @@ export class WebViews {
    * light scheme's black text on a dark ground.
    */
   private async rescheme(entry: Entry): Promise<boolean> {
-    const contents = entry.view.webContents
+    const contents = pageOf(entry)
     const dark = this.appearance.dark
-    if (contents.isDestroyed() || entry.scheme?.dark === dark) return false
+    if (contents === null || entry.scheme?.dark === dark) return false
     const previous = entry.scheme
     entry.scheme = null
     try {
@@ -663,9 +663,9 @@ export class WebViews {
 
   /** Puts the page in the theme's colour, or takes it out, when that differs from what it has. */
   private async retint(entry: Entry): Promise<boolean> {
-    const contents = entry.view.webContents
+    const contents = pageOf(entry)
     const wanted = paneTint(this.appearance, entry.tintChoice)
-    if (contents.isDestroyed() || (entry.css?.tint ?? null) === wanted) return false
+    if (contents === null || (entry.css?.tint ?? null) === wanted) return false
     const previous = entry.css
     entry.css = null
     if (wanted !== null) {
@@ -702,7 +702,7 @@ export class WebViews {
   /** Takes the hidden view's picture again; true when there is nothing more to do about it. */
   private async repicture(entry: Entry): Promise<boolean> {
     const hidden = (): boolean =>
-      !entry.view.webContents.isDestroyed() && !entry.view.getVisible() && entry.snapshot !== null
+      pageOf(entry) !== null && !entry.view.getVisible() && entry.snapshot !== null
     if (!hidden()) return true
     const picture = await this.capture(entry)
     if (!hidden()) return true
@@ -728,9 +728,19 @@ export class WebViews {
   }
 
   private sendState(entry: Entry): void {
-    if (entry.view.webContents.isDestroyed() || this.entries.get(entry.paneId) !== entry) return
+    if (pageOf(entry) === null || this.entries.get(entry.paneId) !== entry) return
     send(entry.owner, 'state', this.stateOf(entry))
   }
+}
+
+/**
+ * The view's page, or null once it has gone. Electron leaves a closed view with no webContents
+ * at all, so what runs after a wait - a tint, a picture taken again - asks here rather than
+ * reading `view.webContents` as it did before the wait.
+ */
+function pageOf(entry: Entry): WebContents | null {
+  const contents = entry.view.webContents as WebContents | undefined
+  return contents === undefined || contents.isDestroyed() ? null : contents
 }
 
 function send(
