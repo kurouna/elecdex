@@ -115,8 +115,12 @@ test('quitting leaves no process of the app behind: shells, the collector, the G
   const main = app.process().pid ?? 0
   const children = await descendants(main)
   expect(children.length).toBeGreaterThan(3)
-  // The press quits the app under it: the page may be gone before the press answers.
-  await page.keyboard.press('Control+Shift+KeyQ').catch(() => {})
+  await page.keyboard.press('Control+Shift+KeyQ')
+  // Yes quits the app under it: the page may be gone before the click answers.
+  await page
+    .getByTestId('quit-yes')
+    .click({ delay: 20 })
+    .catch(() => {})
   await exited(app)
   await expect
     .poll(() => children.filter(alive), {

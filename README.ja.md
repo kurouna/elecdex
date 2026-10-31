@@ -149,7 +149,7 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
   *SUID sandbox helper* についてのメッセージを出して止まることがあります。その場合は deb を使ってください。
   `--no-sandbox` を付けて起動しないでください。レンダラーをあなたのファイルから遠ざけているのは、このサンドボックスです。
 
-elecdex はフルスクリーンで起動します。**F11** でフルスクリーンを抜け、**Ctrl+Shift+Q** で終了します。
+elecdex はフルスクリーンで起動します。**F11** でフルスクリーンを抜け、**Ctrl+Shift+Q** で終了します（*unreleased*：yes で確かめてから）。
 `--windowed` を付けるとウィンドウで起動し、`--no-intro` を付けると起動シーケンスを省略します。
 
 ### ソースから動かす

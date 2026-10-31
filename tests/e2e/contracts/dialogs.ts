@@ -116,6 +116,14 @@ export const DIALOGS: DialogRow[] = [
     close: ESCAPE,
   },
   {
+    // Ctrl+Shift+Q asks before it quits; Escape stays.
+    overlay: 'quit',
+    component: 'layout/QuitDialog.svelte',
+    testid: 'quit-dialog',
+    open: ({ page }) => page.keyboard.press('Control+Shift+KeyQ'),
+    close: ESCAPE,
+  },
+  {
     overlay: 'paste',
     component: 'widgets/terminal/PasteDialog.svelte',
     testid: 'paste-dialog',

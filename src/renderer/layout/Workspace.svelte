@@ -238,8 +238,13 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'palette.open': () => ui.openPalette(),
   'window.fullscreen': () => window.elecdex.system.toggleFullscreen(),
   'window.minimize': () => window.elecdex.system.minimize(),
-  // Fullscreen has no window frame and no close button; this is the way out.
-  'app.quit': () => window.elecdex.system.quit(),
+  // Fullscreen has no window frame and no close button; this is the way out. It asks first:
+  // Q lies under 1 and 2, the layouts' keys (QuitDialog.svelte).
+  'app.quit': () => {
+    void ui.askQuit().then((go) => {
+      if (go) window.elecdex.system.quit()
+    })
+  },
   // System-wide: main registers it with the OS, so the page never receives it.
   'window.toggle': () => {},
 }

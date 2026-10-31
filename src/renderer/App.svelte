@@ -10,6 +10,7 @@ import LayoutsDialog from './layout/LayoutsDialog.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import PopupPane from './layout/PopupPane.svelte'
 import { popupPaneId } from './layout/popup.ts'
+import QuitDialog from './layout/QuitDialog.svelte'
 import SwitchLayoutDialog from './layout/SwitchLayoutDialog.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { chordHint } from './lib/chord-hint.ts'
@@ -250,6 +251,7 @@ function toggleSound(): void {
 <PopupPane />
 <LayoutsDialog />
 <SwitchLayoutDialog />
+<QuitDialog />
 <PasteDialog />
 <LocationPicker />
 <SettingsDialog />

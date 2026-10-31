@@ -165,7 +165,7 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
   *SUID sandbox helper*, because AppArmor blocks the sandbox there. Use the deb in that case. Do not
   start it with `--no-sandbox`: the sandbox is what keeps the renderer away from your files.
 
-elecdex starts fullscreen. **F11** leaves fullscreen and **Ctrl+Shift+Q** quits; `--windowed`
+elecdex starts fullscreen. **F11** leaves fullscreen and **Ctrl+Shift+Q** quits (*unreleased*: after a yes); `--windowed`
 starts in a window and `--no-intro` skips the boot sequence.
 
 ### Build from source

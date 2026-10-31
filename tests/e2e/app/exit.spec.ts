@@ -60,16 +60,29 @@ test('a window still asking for sessions while the app quits gets an answer', as
   }
 })
 
-test('Ctrl+Shift+Q quits, even with a terminal focused', async () => {
+test('Ctrl+Shift+Q asks first, even with a terminal focused: no stays, yes quits', async () => {
+  // Q lies under 1 and 2: a slip while switching layouts with Ctrl+Shift+1..9 quit at once.
   const { app, page, close } = await launch()
   try {
     await page
       .locator('[data-testid=pane][data-widget=terminal]:not(.hidden) .xterm-helper-textarea')
       .first()
       .focus()
+    const dialog = page.getByTestId('quit-dialog')
+    await page.keyboard.press('Control+Shift+KeyQ')
+    await expect(dialog).toBeVisible()
+    // The keyboard starts on no: a stray Enter stays.
+    await page.keyboard.press('Enter')
+    await expect(dialog).toHaveCount(0)
+    expect(await page.evaluate(() => document.visibilityState)).toBe('visible')
+    await page.keyboard.press('Control+Shift+KeyQ')
+    await expect(dialog).toBeVisible()
     const gone = exited(app)
-    // The window can close before the key-up is delivered, which rejects the press.
-    await page.keyboard.press('Control+Shift+KeyQ').catch(() => {})
+    // The window can close before the click's release is delivered, which rejects it.
+    await page
+      .getByTestId('quit-yes')
+      .click({ delay: 20 })
+      .catch(() => {})
     await gone
   } finally {
     await close().catch(() => {})
@@ -103,7 +116,8 @@ test('a rearrangement made a moment before quitting is still saved, live and in 
           }),
         )
       press('KeyE')
-      press('KeyQ')
+      // What yes in the quit question does: Ctrl+Shift+Q itself asks first.
+      window.elecdex.system.quit()
     })
     await gone
 

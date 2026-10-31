@@ -92,7 +92,7 @@ export const KEY_ROWS = {
   'app.quit': {
     elsewhere: {
       spec: 'app/exit.spec.ts',
-      test: 'Ctrl+Shift+Q quits, even with a terminal focused',
+      test: 'Ctrl+Shift+Q asks first, even with a terminal focused: no stays, yes quits',
       why: 'it ends the one app every other row runs in',
     },
   },

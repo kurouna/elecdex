@@ -142,7 +142,7 @@ xattr -dr com.apple.quarantine /Applications/elecdex.app
   因为 AppArmor 在那里阻止了沙箱。这种情况请改用 deb。不要用 `--no-sandbox` 启动：正是沙箱让
   渲染进程无法接触你的文件。
 
-elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序；`--windowed` 以窗口模式启动，
+elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序（*unreleased*：确认 yes 之后）；`--windowed` 以窗口模式启动，
 `--no-intro` 跳过启动动画。
 
 ### 从源码运行

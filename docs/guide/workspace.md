@@ -333,7 +333,8 @@ has neither says so instead of showing a switch that does nothing. All off until
   turned it off (on Windows, in Task Manager's startup apps). It is available only in the installed
   app. *Start in the background* starts elecdex hidden at sign-in.
 - **Ctrl+Shift+Q** quits, also when closing only hides elecdex to the notification area. An
-  explicit quit always quits.
+  explicit quit always quits. *unreleased*: it asks first, yes or no, since Q lies under 1 and 2,
+  the layouts' keys. The keyboard starts on no, so Enter and Escape stay.
 - Whatever happens, starting elecdex again brings the running one back, so the window is never out
   of reach.
 

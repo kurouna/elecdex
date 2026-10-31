@@ -32,6 +32,7 @@ type Overlay =
   | 'layouts'
   | 'switch'
   | 'paste'
+  | 'quit'
   | 'settings'
   | 'location'
   | 'popup'
@@ -76,6 +77,7 @@ class UiStore {
   private clearFor(opening: Overlay): void {
     if (opening !== 'switch') this.answerLayoutSwitch(false)
     if (opening !== 'paste') this.answerPaste(false)
+    if (opening !== 'quit') this.answerQuit(false)
     const others = CLOSABLE.filter((overlay) => overlay !== opening && overlay !== OVER[opening])
     this.closing(others.some((overlay) => this.showing(overlay)))
     for (const overlay of others) this.hide(overlay)
@@ -208,6 +210,29 @@ class UiStore {
   }
 
   /**
+   * The question Ctrl+Shift+Q asks before elecdex quits (layout/QuitDialog.svelte): a request,
+   * as the layout switch is, for the shortcut to await.
+   */
+  quit = $state.raw<{ answer: (go: boolean) => void } | null>(null)
+
+  askQuit(): Promise<boolean> {
+    // Asked again while it is on screen: that one is the one being answered.
+    if (this.quit !== null) return Promise.resolve(false)
+    this.clearFor('quit')
+    return new Promise<boolean>((resolve) => {
+      this.quit = { answer: resolve }
+    })
+  }
+
+  answerQuit(go: boolean): void {
+    const request = this.quit
+    if (request === null) return
+    this.closing(true)
+    this.quit = null
+    request.answer(go)
+  }
+
+  /**
    * The last pane called up by its shortcut (layout/summon.ts), for the pane to
    * answer (lib/summoned.svelte.ts). Numbered, so the same call twice still
    * arrives, and timed, so a pane mounting in answer can tell a fresh call
@@ -267,6 +292,7 @@ class UiStore {
       this.layoutsOpen ||
       this.layoutSwitch !== null ||
       this.paste !== null ||
+      this.quit !== null ||
       this.popup !== null
     )
   }

@@ -95,7 +95,7 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 | --- | --- | --- | --- |
 | F11 | Toggle fullscreen | `window.fullscreen` | すべて |
 | Ctrl+Shift+M | Minimize window | `window.minimize` | Windows、Linux（macOS はフルスクリーンのウィンドウを最小化しない） |
-| Ctrl+Shift+Q | Quit | `app.quit` | すべて。閉じても elecdex を通知領域に隠すだけの設定のときも終了する |
+| Ctrl+Shift+Q | Quit | `app.quit` | すべて。閉じても elecdex を通知領域に隠すだけの設定のときも終了する。*unreleased*：先に yes / no で確かめる。キーボードは no にあり、Enter と Escape では終了しない |
 | Ctrl+Alt+Shift+E | Show or hide elecdex | `window.toggle` | どのアプリからでも効く。*Settings → Window* でオンにするまでオフ。Wayland セッションでは不可 |
 
 ### 割り当てを変えられないキー
