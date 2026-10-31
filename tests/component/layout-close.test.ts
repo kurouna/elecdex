@@ -264,6 +264,21 @@ describe('closing a pane', () => {
     expect(layout.closingId).toBe(group.id)
   })
 
+  it('keeps the keyboard off a tab powering off while a pane state is written', () => {
+    // Focus moved at the close to the tab taking b's place, still behind b while b powers
+    // off: a pane state written then handed the keyboard to the tab in front - b, going.
+    const group = tabs([b, c], 0)
+    load(split('row', [group, a]), b.id)
+    layout.close(b.id)
+    expect(layout.closingId).toBe(b.id)
+    const moved = layout.focusedPaneId
+    expect(moved).not.toBe(b.id)
+    layout.setPaneState(a.id, { x: 1 })
+    expect(layout.focusedPaneId).toBe(moved)
+    vi.advanceTimersByTime(CLOSE_SETTLE_MS)
+    expect(layout.focusedPaneId).toBe(c.id)
+  })
+
   it('keeps the closing pane while its state changes, and removes it on time', () => {
     load(split('row', [a, b]), a.id)
     layout.close(a.id)

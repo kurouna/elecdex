@@ -264,7 +264,7 @@ class LayoutStore {
     if (next === this.tree) return
     this.tree = next
 
-    this.focusedPaneId = focusIn(next, this.focusedPaneId)
+    this.focusedPaneId = focusIn(next, this.focusedPaneId, this.closingPanes)
 
     this.scheduleSave()
   }
@@ -950,13 +950,20 @@ export const layout = new LayoutStore()
 /**
  * The pane to keep focused in `tree`: `current` while it is still there, else the first shown.
  * A tab that a change put behind another - a closed tab put back in front of it - hands the
- * keyboard to the tab now in front, so the keys never go to a pane that is not on screen.
+ * keyboard to the tab now in front, so the keys never go to a pane that is not on screen;
+ * not to one in `going`, though: a tab powering off is still in front of the tab that takes
+ * its place, which has the keyboard already.
  */
-function focusIn(tree: LayoutTree, current: string | null): string | null {
+function focusIn(
+  tree: LayoutTree,
+  current: string | null,
+  going: ReadonlySet<string> = new Set(),
+): string | null {
   if (current === null) return null
   if (findNode(tree.root, current) === null) return visiblePanes(tree.root)[0]?.id ?? null
   const group = findTabsContaining(tree.root, current)
-  return group === null ? current : (group.children[group.activeIndex]?.id ?? current)
+  const front = group?.children[group.activeIndex]?.id
+  return front === undefined || going.has(front) ? current : front
 }
 
 /**
