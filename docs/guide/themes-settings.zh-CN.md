@@ -169,7 +169,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `terminal.fontSize` | `13` | shell 的字号（像素），8 到 32 |
 | `terminal.confirmPaste` | `true` | 粘贴多于一行的文本前询问（每个换行都会执行一条命令） |
 | `terminal.bell` | `"both"` | `both`、`flash`、`sound`、`off` |
-| `terminal.win32InputMode` | `true` | *unreleased* Windows：当 ConPTY 请求时，按键以 Windows 键盘事件发送（win32-input-mode），使 Ctrl+Space 等以原本的按键到达控制台程序 |
+| `terminal.win32InputMode` | `true` | Windows：当 ConPTY 请求时，按键以 Windows 键盘事件发送（win32-input-mode），使 Ctrl+Space 等以原本的按键到达控制台程序 |
 | `launcher.showSystem` | `true` | 列出平台自己的应用 |
 | `launcher.items` | `[]` | 手动添加的启动器条目（`name`、`target`，可选 `args`；最多 200 个）；只能在此文件中编辑 |
 | `keybindings` | `{}` | 快捷键覆盖：操作 id → 按键，或 `null` 表示不绑定（见[键盘与布局](keyboard.zh-CN.md#重新绑定快捷键)） |

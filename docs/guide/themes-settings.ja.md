@@ -169,7 +169,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `terminal.fontSize` | `13` | シェルの文字の大きさ（ピクセル）、8〜32 |
 | `terminal.confirmPaste` | `true` | 2 行以上のテキストを貼り付ける前に確認する（改行ごとにコマンドが実行されるため） |
 | `terminal.bell` | `"both"` | `both`、`flash`、`sound`、`off` |
-| `terminal.win32InputMode` | `true` | *unreleased* Windows: ConPTY が求めたとき、キーを Windows のキーイベントとして送る（win32-input-mode）。Ctrl+Space などがそのキーのままコンソールのプログラムに届く |
+| `terminal.win32InputMode` | `true` | Windows: ConPTY が求めたとき、キーを Windows のキーイベントとして送る（win32-input-mode）。Ctrl+Space などがそのキーのままコンソールのプログラムに届く |
 | `launcher.showSystem` | `true` | プラットフォームのアプリを一覧に出す |
 | `launcher.items` | `[]` | 手で加えるランチャーの項目（`name`、`target`、任意の `args`。200 個まで）。このファイルでだけ編集します |
 | `keybindings` | `{}` | ショートカットの上書き: アクションの id → キー、または割り当てなしの `null`（[キーボードとレイアウト](keyboard.ja.md#ショートカットの割り当て変更)） |
