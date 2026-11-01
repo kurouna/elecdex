@@ -155,6 +155,7 @@ export function withDemoState(tree, standIn) {
  * the captions before the take: `log` over the boot log, `title` over its title card, `shell`
  * while the first shell is typed into (any of them may be left out). `captionPlace` is laid
  * over the caption's holder (`left`, `right`, `bottom`) where a pane fills the bottom centre.
+ * `typeFirst: false` leaves the first shell at its prompt: a take that types into it itself.
  */
 export async function openTake({
   items,
@@ -166,6 +167,7 @@ export async function openTake({
   opening = {},
   prepare = () => {},
   captionPlace = {},
+  typeFirst = true,
 }) {
   const profile = mkdtempSync(path.join(tmpdir(), 'elecdex-demo-'))
   writeFileSync(path.join(profile, 'layout.json'), JSON.stringify(items[0].tree))
@@ -365,8 +367,10 @@ export async function openTake({
     if (intro) await bootPlays()
     // The typing is the take's opening, and the first switch follows it at once.
     if (opening.shell !== undefined) await caption(opening.shell)
-    say('shell: types')
-    await shellAtWork()
+    if (typeFirst) {
+      say('shell: types')
+      await shellAtWork()
+    }
     return true
   }
 

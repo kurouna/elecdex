@@ -33,6 +33,7 @@ npm run demo:cockpit   # the cockpit preset: CLUSTER's cards, a load on every co
 npm run demo:tour      # the introduction video: boot, presets, ETHERNET, ORBIT, agents, Docker, media, the palette, ELEC, themes (Windows; build first)
 npm run demo:tour-black # the same tour in the Black theme (--theme=black), its themes ending on Black (Windows; build first)
 npm run demo:tour-shorts # the same tour, 9:16 in two tiers, under 2 min, for Shorts (Windows; build first)
+npm run demo:emacs     # Windows Emacs (emacs -nw) in the standard preset's shell, split with C-x 3 and brought forward: windows, dired, C-SPC, C-M-SPC, C-/, org, tetris, 16:9, ~30 s, no captions (needs Windows Emacs: ELECDEX_DEMO_EMACS or %LOCALAPPDATA%\emacs-*; Windows; build first)
 npm run demo:keystream # KEYSTREAM: menu previews, a track typed on time through instrument changes, its result (Windows; build first)
 npm run demo:snippets  # the clipboard pane's snippets: kept, written, moved, pasted into the shell, 16:9, under 30 s (Windows; build first)
 npm run demo:whatsnew  # what v0.0.19-v0.0.20 added, most striking first: CHIP-8, files in the ai preset's chat, dev's agent tree and FETCH/PULL, 16:9 (Windows; build first)
