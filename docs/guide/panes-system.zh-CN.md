@@ -132,6 +132,7 @@ eDEX-UI 每秒轮询 `/proc/<pid>/cwd`、`lsof` 和 `ps`，在 Windows 上无法
 - 粘贴多行文本前会先确认（每个换行都会执行一条命令），也可以选择不再询问（`terminal.confirmPaste`）。含有制表符和换行以外的控制字符的文本也会确认。
 - 程序可以用 OSC 52 写入剪贴板；读取剪贴板的请求不会得到回应。
 - *unreleased* 在 Windows 上，当 ConPTY 请求时，按键以 Windows 键盘事件发送给 shell（win32-input-mode，与 Windows Terminal 相同），因此 Ctrl+Space、Ctrl+Alt+Space、Ctrl+/ 和 Ctrl+. 会以原本的按键到达控制台程序；此前在日文键盘布局下，Emacs（`emacs -nw`）会把 Ctrl+Space 读成 `C-"`。输入法输入的文字、死键、AltGr 和粘贴键仍按文本发送。可在 *Settings → General → Terminal* 中关闭（`terminal.win32InputMode`）。
+- 以 `emacs -nw` 运行的 Windows 版 Emacs 无法从控制台接收 ASCII 以外的字符：右键粘贴的文本或用输入法输入的文字会丢失其中的日文（或 `é`）。ConPTY 正确传递了这些字符，但 Emacs 每个字符只读取一个字节。原因在 Emacs 一侧，因此使用 ConPTY 的终端（包括 Windows Terminal）无论怎样发送都无法送达。请用读取 Windows 剪贴板的 Emacs 自带的 `C-y` 粘贴，或使用 GUI 版 Emacs（`runemacs.exe`）。
 - 响铃（BEL）时窗格边缘闪烁并发出声音，每 0.5 秒最多一次。可在 *Settings → General → Terminal* 中选择两者、其一或都关闭（`terminal.bell`：`both`、`flash`、`sound`、`off`）。
 - **Ctrl+Shift+K** 清除回滚缓冲区；**Ctrl+Shift+=** 和 **Ctrl+Shift+-** 放大或缩小所有 shell 的字号（`terminal.fontSize`，8 到 32 px，默认 13）；字号也在设置中。
 

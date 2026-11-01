@@ -132,6 +132,7 @@ eDEX-UI は `/proc/<pid>/cwd`・`lsof`・`ps` を毎秒ポーリングし、Wind
 - 複数行のテキストを貼り付けるときは先に確認します（改行ごとにコマンドが実行されるため）。確認をやめることもできます（`terminal.confirmPaste`）。タブと改行以外の制御文字を含むテキストでも確認します。
 - プログラムは OSC 52 でクリップボードに書き込めますが、読み取りの問い合わせには何も返しません。
 - *unreleased* Windows では、ConPTY が求めたとき、キーを Windows のキーイベントとしてシェルに送ります（win32-input-mode。Windows Terminal と同じ）。Ctrl+Space、Ctrl+Alt+Space、Ctrl+/、Ctrl+. がそのキーのままコンソールのプログラムに届きます。以前は、日本語配列で Emacs（`emacs -nw`）が Ctrl+Space を `C-"` と読んでいました。IME で入力した文字、デッドキー、AltGr、貼り付けのキーは、これまでどおり文字として送ります。*Settings → General → Terminal* で切れます（`terminal.win32InputMode`）。
+- Windows 版 Emacs を `emacs -nw` で動かすと、コンソールから ASCII 以外の文字を受け取れません。右クリックで貼り付けたテキストや IME で打った文字から、日本語（や `é`）が抜けます。ConPTY は文字を正しく渡していて、Emacs が各文字の 1 バイトしか読まないためです。原因は Emacs 側にあるので、ConPTY を使う端末（Windows Terminal も）では送り方を変えても届きません。貼り付けは Windows のクリップボードを読む Emacs の `C-y` で行うか、GUI 版の Emacs（`runemacs.exe`）を使ってください。
 - ベル（BEL）が鳴るとペインの縁が光って音が出ます。0.5 秒に 1 度までです。*Settings → General → Terminal* で両方・どちらか一方・どちらも出さないを選べます（`terminal.bell`: `both`・`flash`・`sound`・`off`）。
 - **Ctrl+Shift+K** でスクロールバックを消し、**Ctrl+Shift+=** と **Ctrl+Shift+-** ですべてのシェルの文字を大きく・小さくします（`terminal.fontSize`、8〜32 px、既定は 13）。大きさは設定にもあります。
 
