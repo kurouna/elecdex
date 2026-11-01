@@ -1788,6 +1788,17 @@ Windows では、PowerShell 7 が `%ProgramFiles%\PowerShell\7\pwsh.exe`（イ�
 
 ページの側（widgets/terminal/input.ts）: OSC 52 はクリップボードへの書き込みだけを受け、読み取りの問い合わせには何も返さない（クリップボードの中身をプログラムに渡さない）。シェルが出したリンクは Ctrl+クリック（⌘+クリック）で開く。アタッチ前に打ったキーは保って、つながったら順に送る。隠れたタブのペインは WebGL のコンテキストを取らず、見えたときに取る。
 
+### 6.4 Windows のキー入力: win32-input-mode（2026-11-01）
+
+ConPTY は起動時に `CSI ? 9001 h` を出し、キーを Windows のキーイベントとして送るよう端末に求める。xterm.js 6 はこれを知らず、キーを VT の文字列にして送るので、ConPTY は文字列から US 配列を前提にキーを推し量って作り直す。Ctrl+Space は NUL になり、ConPTY はそれを Ctrl+Shift+2 に戻し、Windows 版 Emacs（`-nw`）は日本語配列でそれを `C-"` と読んでいた。Ctrl+/ と Ctrl+. は xterm.js が何も送らない。測った表は [decisions.md](decisions.md)。
+
+- **ページ**（widgets/terminal/win32-input.ts、TerminalWidget の `bindWin32Input`）: モードが立っていて `terminal.win32InputMode`（既定 true）なら、keydown と keyup を `CSI Vk ; Sc ; Uc ; Kd ; Cs ; Rc _` で送る。Vk は `keyCode`、Sc は `code` から表で引くスキャンコード、Uc は Windows が出す文字（Ctrl+英字は制御文字、ほかの Ctrl は 0）、Cs は修飾キーと拡張キーの印
+- **xterm.js に任せるもの**（これまでどおり文字列で送る）: IME の変換中（`isComposing`、229、`Process`）、デッドキー、AltGr、Win キー、スキャンコードの分からないキー、貼り付けのキー（Ctrl+Shift+V、Shift+Insert。貼り付けの確認を通すため）
+- **修飾キーだけのイベントは送らない**。Windows Terminal は送るが要らず、elecdex のショートカット（Ctrl+Shift+] など）で押した Ctrl・Shift が、押下だけ届いて離されないままになる。keyup は、自分が keydown を送ったキーにだけ送る（`PressedKeys`）。ワークスペースが押下を取ったキーの keyup は何も送らない
+- **モードの記録**: ConPTY が `?9001h` を出すのはペインがつながる前で、シリアライズした画面もモードを持たない。main の `ScreenMirror` が CSI のハンドラでモードを記録し、立っていればスナップショットの後ろに `?9001h` を足す。ページの xterm も同じハンドラで受ける。preload の API は変えていない
+- keydown で `preventDefault` する（keypress と input で同じ文字がもう一度送られないように）。xterm が自分で送るときと同じく、押すと一番下までスクロールする。終了したシェルの再開も keydown で
+- 確かめ方: terminal-extras.spec.ts（Windows のみ。PowerShell の ReadKey が Ctrl+Space を VK 32・LeftCtrlPressed と読む。設定を切ると以前の Shift→Ctrl+Shift+2。Ctrl+C の中断）、win32-input.test.ts、screen-mirror.test.ts
+
 ---
 
 ## 7. テーマ / デザイントークン

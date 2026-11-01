@@ -506,6 +506,17 @@ function describeUpdate(status: UpdateStatus): string {
                   <option value="off">off</option>
                 </select>
               </label>
+              {#if platform === 'win32'}
+                <label class="row">
+                  <span>send keys as Windows key events</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.terminal.win32InputMode}
+                    onchange={(e) => patch({ terminal: { win32InputMode: e.currentTarget.checked } })}
+                    data-testid="settings-terminal-win32-input"
+                  />
+                </label>
+              {/if}
             </section>
 
             <section>

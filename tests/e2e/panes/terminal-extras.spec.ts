@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 import { test } from '../support/shared.js'
-import { shellReady as ready } from '../support/terminal.js'
+import { readScreen, shellReady as ready, screenLines } from '../support/terminal.js'
 import {
   type Launched,
   launch,
@@ -74,6 +74,86 @@ test('several lines pasted ask first; a line alone goes straight in', async () =
     await paste('echo alone')
     await quietFor(600, () => page.getByTestId('paste-dialog').count(), 'the paste dialogs')
     await expect(page.getByTestId('paste-dialog')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
+/**
+ * A PowerShell line that says it is reading (a key pressed before that went to PSReadLine, which
+ * reads ahead), reads one key as a console program does (the key event ConPTY made) and prints
+ * it. Each printed word is joined from parts, so the line as typed does not show it.
+ */
+const READ_KEY =
+  "'read' + 'ing'; $k = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown'); 'KEY=' + $k.VirtualKeyCode + '/' + $k.ControlKeyState + '.'"
+
+test('Windows: Ctrl+Space reaches a console program as itself, and as text with the setting off', async () => {
+  const launched = await launch(undefined, { layout: SINGLE_TERMINAL })
+  const { page, platform } = launched
+  try {
+    test.skip(platform !== 'win32', 'win32-input-mode is ConPTY’s')
+    await ready(page)
+    const pane = terminalPane(page).first()
+    const [id] = await sessionIds(page)
+    if (id === undefined) throw new Error('no shell session')
+    const screen = async () => screenLines(await readScreen(page, id))
+    /** Presses Ctrl+Space once the line is reading, and answers the key it read. */
+    const ctrlSpace = async (): Promise<string> => {
+      const reading = (await screen()).filter((line) => line === 'reading').length
+      await typeInto(page, pane, READ_KEY)
+      await expect
+        .poll(async () => (await screen()).filter((line) => line === 'reading').length, {
+          timeout: 20_000,
+        })
+        .toBe(reading + 1)
+      await page.keyboard.press('Control+Space')
+      let read = ''
+      await expect
+        .poll(
+          async () => {
+            // The last one: the line typed shows `KEY=` too, without a number after it. The
+            // dot ends it: ConPTY moves the cursor rather than break the line before a prompt.
+            const found = [...(await screen()).join('\n').matchAll(/KEY=(\d+\/[\w, ]+)\./g)]
+            read = found.at(-1)?.[1] ?? ''
+            return found.length
+          },
+          { timeout: 20_000 },
+        )
+        .toBe(reading + 1)
+      return read
+    }
+
+    // Through xterm's text it was NUL, which ConPTY made Ctrl+Shift+2 (Emacs read C-").
+    expect(await ctrlSpace()).toBe('32/LeftCtrlPressed')
+    // Off, it goes as before: NUL, read as Shift, then Ctrl+Shift+2.
+    await page.evaluate(() =>
+      window.elecdex.settings.patch({ terminal: { win32InputMode: false } }),
+    )
+    expect(await ctrlSpace()).toBe('16/ShiftPressed')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('Windows: Ctrl+C still stops a command with keys sent as key events', async () => {
+  const launched = await launch(undefined, { layout: SINGLE_TERMINAL })
+  const { page, platform } = launched
+  try {
+    test.skip(platform !== 'win32', 'win32-input-mode is ConPTY’s')
+    await ready(page)
+    const pane = terminalPane(page).first()
+    const [id] = await sessionIds(page)
+    if (id === undefined) throw new Error('no shell session')
+    await typeInto(page, pane, 'Start-Sleep -Seconds 120')
+    // wait: the sleep has to have begun for Ctrl+C to stop it rather than the line.
+    await page.waitForTimeout(1500)
+    await page.keyboard.press('Control+c')
+    await typeInto(page, pane, "'after' + 'stop'")
+    await expect
+      .poll(async () => screenLines(await readScreen(page, id)).includes('afterstop'), {
+        timeout: 20_000,
+      })
+      .toBe(true)
   } finally {
     await launched.close()
   }

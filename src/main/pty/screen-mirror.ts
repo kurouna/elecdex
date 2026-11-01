@@ -1,3 +1,4 @@
+import { WIN32_INPUT_MODE_ON, win32ModeChange } from '@shared/win32-input-mode'
 import { SerializeAddon } from '@xterm/addon-serialize'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 // A CommonJS package whose named exports Node's ESM loader cannot detect, unlike
@@ -46,6 +47,8 @@ export class ScreenMirror {
   private backlog = 0
   /** Called once the backlog falls to MIRROR_LOW_WATER. */
   private drained: (() => void) | null = null
+  /** Whether the session asked for keys as Windows key events (win32-input-mode). */
+  private win32Input = false
 
   constructor(cols: number, rows: number) {
     this.terminal = new Terminal({
@@ -60,6 +63,16 @@ export class ScreenMirror {
     const unicode = new Unicode11Addon()
     this.terminal.loadAddon(unicode)
     this.terminal.unicode.activeVersion = '11'
+    // ConPTY asks for win32-input-mode once, as it starts, before any pane is there to hear it,
+    // and a serialised screen does not carry the mode: kept here, and put after the snapshot.
+    // False lets xterm go on to the other modes the same sequence names.
+    const mode = (set: boolean) => (params: (number | number[])[]) => {
+      const change = win32ModeChange(params, set)
+      if (change !== undefined) this.win32Input = change
+      return false
+    }
+    this.terminal.parser.registerCsiHandler({ prefix: '?', final: 'h' }, mode(true))
+    this.terminal.parser.registerCsiHandler({ prefix: '?', final: 'l' }, mode(false))
   }
 
   write(chunk: Uint8Array): void {
@@ -109,7 +122,8 @@ export class ScreenMirror {
     return new Promise((resolve) => {
       const settle = () => {
         if (!this.waiting.delete(settle)) return
-        resolve(this.serializer.serialize())
+        const screen = this.serializer.serialize()
+        resolve(this.win32Input ? screen + WIN32_INPUT_MODE_ON : screen)
       }
       this.waiting.add(settle)
       this.terminal.write('', settle)

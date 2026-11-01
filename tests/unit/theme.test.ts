@@ -161,7 +161,13 @@ describe('settings', () => {
       theme: 'tron',
       sound: { enabled: true, volume: 0.5 },
       motion: 'system',
-      terminal: { startDirectory: '', fontSize: 13, confirmPaste: true, bell: 'both' },
+      terminal: {
+        startDirectory: '',
+        fontSize: 13,
+        confirmPaste: true,
+        bell: 'both',
+        win32InputMode: true,
+      },
       launcher: { showSystem: true, items: [] },
       keybindings: {},
       window: {
@@ -237,6 +243,7 @@ describe('settings', () => {
       fontSize: 13,
       confirmPaste: true,
       bell: 'both',
+      win32InputMode: true,
     })
     // A size out of range, or a bell it does not know, falls back rather than failing the file.
     const odd = SettingsSchema.parse({ terminal: { fontSize: 99, bell: 'loud' } }).terminal

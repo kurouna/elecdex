@@ -1,4 +1,5 @@
 <script lang="ts">
+import { win32ModeChange } from '@shared/win32-input-mode'
 import { ClipboardAddon } from '@xterm/addon-clipboard'
 import { FitAddon } from '@xterm/addon-fit'
 import { SearchAddon } from '@xterm/addon-search'
@@ -29,6 +30,7 @@ import {
 } from './input.ts'
 import TerminalSearch, { type SearchHow } from './TerminalSearch.svelte'
 import { WebglKeeper } from './webgl-keeper.ts'
+import { PressedKeys } from './win32-input.ts'
 import './xterm-css.ts'
 import {
   buildXtermTheme,
@@ -323,6 +325,10 @@ $effect(() => {
     terminal.onKey(() => {
       if (ended()) restart()
     })
+    bindWin32Input(terminal, (sequence, down) => {
+      if (!ended()) typed.type(sequence, send)
+      else if (down) restart()
+    })
     terminal.onBell(bell)
     detachClipboard = bindClipboard(terminal, el)
     const t = terminal
@@ -554,6 +560,39 @@ function bindClipboard(t: Terminal, el: HTMLElement): () => void {
     el.removeEventListener('contextmenu', paste)
     el.removeEventListener('paste', keyPaste, true)
   }
+}
+
+const onWindows = window.elecdex.system.platform === 'win32'
+
+/**
+ * Keys as Windows key events while ConPTY asks for them (win32-input-mode, win32-input.ts) and
+ * the settings allow it: Ctrl+Space reached Emacs as C-" through xterm's text. A key the
+ * encoding leaves alone (an input method, the paste keys) goes on to xterm as before. `key`
+ * gets each sequence to send, and whether it is a press.
+ */
+function bindWin32Input(t: Terminal, key: (sequence: string, down: boolean) => void): void {
+  let asked = false
+  const mode = (set: boolean) => (params: (number | number[])[]) => {
+    const change = win32ModeChange(params, set)
+    if (change !== undefined) asked = change
+    // Other modes named by the same sequence are xterm's.
+    return false
+  }
+  t.parser.registerCsiHandler({ prefix: '?', final: 'h' }, mode(true))
+  t.parser.registerCsiHandler({ prefix: '?', final: 'l' }, mode(false))
+  const pressed = new PressedKeys()
+  t.attachCustomKeyEventHandler((event) => {
+    if (!onWindows || !asked || !appearance.settings.terminal.win32InputMode) return true
+    const sequence = pressed.take(event)
+    if (sequence === null) return true
+    // No keypress or input event after it, which would send the character a second time.
+    event.preventDefault()
+    // Typing brings the view back to the prompt, as xterm does for the keys it sends.
+    const down = event.type === 'keydown'
+    if (down) t.scrollToBottom()
+    if (sequence !== '') key(sequence, down)
+    return false
+  })
 }
 
 /** Pastes, asking first when the text has a line break and the settings ask (PasteDialog). */

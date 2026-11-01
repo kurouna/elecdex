@@ -131,6 +131,7 @@ eDEX-UI は `/proc/<pid>/cwd`・`lsof`・`ps` を毎秒ポーリングし、Wind
 - PuTTY や Windows Terminal と同じく、選択するとコピーされ、右クリックで貼り付けます。Ctrl+C はシェルの割り込みのままです。
 - 複数行のテキストを貼り付けるときは先に確認します（改行ごとにコマンドが実行されるため）。確認をやめることもできます（`terminal.confirmPaste`）。タブと改行以外の制御文字を含むテキストでも確認します。
 - プログラムは OSC 52 でクリップボードに書き込めますが、読み取りの問い合わせには何も返しません。
+- *unreleased* Windows では、ConPTY が求めたとき、キーを Windows のキーイベントとしてシェルに送ります（win32-input-mode。Windows Terminal と同じ）。Ctrl+Space、Ctrl+Alt+Space、Ctrl+/、Ctrl+. がそのキーのままコンソールのプログラムに届きます。以前は、日本語配列で Emacs（`emacs -nw`）が Ctrl+Space を `C-"` と読んでいました。IME で入力した文字、デッドキー、AltGr、貼り付けのキーは、これまでどおり文字として送ります。*Settings → General → Terminal* で切れます（`terminal.win32InputMode`）。
 - ベル（BEL）が鳴るとペインの縁が光って音が出ます。0.5 秒に 1 度までです。*Settings → General → Terminal* で両方・どちらか一方・どちらも出さないを選べます（`terminal.bell`: `both`・`flash`・`sound`・`off`）。
 - **Ctrl+Shift+K** でスクロールバックを消し、**Ctrl+Shift+=** と **Ctrl+Shift+-** ですべてのシェルの文字を大きく・小さくします（`terminal.fontSize`、8〜32 px、既定は 13）。大きさは設定にもあります。
 

@@ -169,6 +169,7 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `terminal.fontSize` | `13` | The shells' type size in pixels, 8 to 32 |
 | `terminal.confirmPaste` | `true` | Ask before pasting text of more than one line (each line break would run a command) |
 | `terminal.bell` | `"both"` | `both`, `flash`, `sound`, `off` |
+| `terminal.win32InputMode` | `true` | *unreleased* Windows: send keys as Windows key events when ConPTY asks (win32-input-mode), so Ctrl+Space and the like reach console programs as themselves |
 | `launcher.showSystem` | `true` | List the platform's own applications |
 | `launcher.items` | `[]` | Launcher entries added by hand (`name`, `target`, optional `args`; up to 200); edited in this file only |
 | `keybindings` | `{}` | Shortcut overrides: action id → chord, or `null` for none ([Keyboard and layouts](keyboard.md#rebinding-shortcuts)) |

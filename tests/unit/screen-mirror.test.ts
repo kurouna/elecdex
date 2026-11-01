@@ -103,6 +103,19 @@ describe('ScreenMirror', () => {
     mirror.dispose()
   })
 
+  it("carries ConPTY's win32-input-mode into the snapshot, which a serialised screen loses", async () => {
+    // ConPTY asks for it once, as it starts, before any pane is attached: a pane attaching
+    // later learns it only from the snapshot.
+    const mirror = new ScreenMirror(20, 5)
+    mirror.write(bytes('\u001b[?9001h\u001b[?1004hPS> '))
+    expect((await mirror.snapshot()).endsWith('\u001b[?9001h')).toBe(true)
+    // Split across chunks, and turned off again.
+    mirror.write(bytes('\u001b[?90'))
+    mirror.write(bytes('01l'))
+    expect(await mirror.snapshot()).not.toContain('9001')
+    mirror.dispose()
+  })
+
   it('settles a pending snapshot when the session ends first', async () => {
     const mirror = new ScreenMirror(20, 5)
     mirror.write(bytes('bye'))

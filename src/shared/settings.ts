@@ -87,12 +87,19 @@ export const SettingsSchema = z.object({
       confirmPaste: z.boolean().catch(true).default(true),
       /** What a bell (BEL) from the shell does: a flash of the pane, the sound, both or nothing. */
       bell: z.enum(['both', 'flash', 'sound', 'off']).catch('both').default('both'),
+      /**
+       * Windows: send keys as Windows key events when the console asks (win32-input-mode), so
+       * Ctrl+Space, Ctrl+/ and the like reach console programs as the keys they are. Off sends
+       * them as text, as before (widgets/terminal/win32-input.ts).
+       */
+      win32InputMode: z.boolean().catch(true).default(true),
     })
     .default({
       startDirectory: '',
       fontSize: TERMINAL_FONT.base,
       confirmPaste: true,
       bell: 'both',
+      win32InputMode: true,
     }),
   launcher: z
     .object({

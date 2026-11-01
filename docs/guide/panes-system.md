@@ -131,6 +131,7 @@ A new shell pane (from the picker, a new tab, a split or a preset) starts in the
 - Selecting text copies it and a right-click pastes, as in PuTTY or Windows Terminal; Ctrl+C stays the shell's interrupt.
 - Pasting text of several lines asks first, because each line break runs a command; the dialog has a way to stop asking (`terminal.confirmPaste`). It also asks for text with control characters other than tab and line breaks.
 - Programs may write to the clipboard with OSC 52; requests to read it get no answer.
+- *unreleased* On Windows, keys go to the shell as Windows key events when ConPTY asks for them (win32-input-mode, as in Windows Terminal), so Ctrl+Space, Ctrl+Alt+Space, Ctrl+/ and Ctrl+. reach console programs as the keys they are; before, Emacs (`emacs -nw`) read Ctrl+Space as `C-"` on a Japanese layout. Text from an input method, dead keys, AltGr and the paste keys go as text, as before. *Settings → General → Terminal* turns it off (`terminal.win32InputMode`).
 - A bell (BEL) flashes the pane's edge and sounds, at most once every half second. *Settings → General → Terminal* chooses both, one, or neither (`terminal.bell`: `both`, `flash`, `sound`, `off`).
 - **Ctrl+Shift+K** clears the scrollback. **Ctrl+Shift+=** and **Ctrl+Shift+-** make every shell's type larger or smaller (`terminal.fontSize`, 8 to 32 px, default 13); the size is also in the settings.
 
