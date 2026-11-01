@@ -297,10 +297,9 @@
 /* ------------------------------------------------------------------------
  * Zoom frame (layout/ZoomFrame.svelte): round a pane brought to the front.
  * The shell frame's vocabulary a size up - its notched corners, its masked
- * border - with brackets on the two square corners and a rail of ticks at the
- * middle of the long edges. Outside the pane's box and behind it: the pane is
- * pinned at the size the zoom gave it (layout/pane-zoom.ts), and a frame inside
- * would take that room from the widget.
+ * border - with brackets on the two square corners. Outside the pane's box and
+ * behind it: the pane is pinned at the size the zoom gave it
+ * (layout/pane-zoom.ts), and a frame inside would take that room from the widget.
  * ---------------------------------------------------------------------- */
 .zoom-frame {
   --zoom-gap: 0.7rem;
@@ -382,28 +381,6 @@
   bottom: 0;
   border-right-width: 2px;
   border-bottom-width: 2px;
-}
-
-/* Five ticks standing on the middle of the top and bottom edges. */
-.zoom-rail {
-  position: absolute;
-  left: 50%;
-  width: 4.5rem;
-  height: 0.35rem;
-  transform: translateX(-50%);
-  background: repeating-linear-gradient(
-    to right,
-    var(--accent) 0 2px,
-    transparent 2px calc((100% - 2px) / 4)
-  );
-}
-
-.zoom-rail.top {
-  top: 0;
-}
-
-.zoom-rail.bottom {
-  bottom: 0;
 }
 
 /* How it goes back, on the bottom edge, short of the notch. */
