@@ -144,15 +144,23 @@ test('Windows: Ctrl+C still stops a command with keys sent as key events', async
     const pane = terminalPane(page).first()
     const [id] = await sessionIds(page)
     if (id === undefined) throw new Error('no shell session')
-    await typeInto(page, pane, 'Start-Sleep -Seconds 120')
-    // wait: the sleep has to have begun for Ctrl+C to stop it rather than the line.
-    await page.waitForTimeout(1500)
+    const screen = async () => screenLines(await readScreen(page, id))
+    const prompts = async () => (await screen()).filter((line) => line.startsWith('PS ')).length
+    // The sleep has to have begun for Ctrl+C to stop it rather than the line: the line says so
+    // first, joined from parts so the line as typed does not show it. A fixed wait was not
+    // enough with the whole suite running.
+    await typeInto(page, pane, "'sleep' + 'ing'; Start-Sleep -Seconds 120")
+    await expect
+      .poll(async () => (await screen()).includes('sleeping'), { timeout: 20_000 })
+      .toBe(true)
+    const before = await prompts()
     await page.keyboard.press('Control+c')
+    // The prompt coming back is the stop. PowerShell drops what was typed ahead of it when a
+    // command is stopped, so the next line waits for it.
+    await expect.poll(prompts, { timeout: 20_000 }).toBe(before + 1)
     await typeInto(page, pane, "'after' + 'stop'")
     await expect
-      .poll(async () => screenLines(await readScreen(page, id)).includes('afterstop'), {
-        timeout: 20_000,
-      })
+      .poll(async () => (await screen()).includes('afterstop'), { timeout: 20_000 })
       .toBe(true)
   } finally {
     await launched.close()
