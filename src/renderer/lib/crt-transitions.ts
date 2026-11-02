@@ -4,6 +4,7 @@ import { appearance } from '../stores/appearance.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import { fadeShade, handoffDelay, powerOffStyle } from './crt-motion.ts'
 import { POWER_OFF_MS } from './crt-timing.ts'
+import { cssNumber } from './css-number.ts'
 
 /**
  * How dialogs and notices go: `transition:crtPower` on anything that powers on
@@ -42,10 +43,10 @@ export function crtPower(node: HTMLElement): TransitionConfig {
   const base = node.style.transform
   // The theme's overexposure (tokens.css), read once: a page without the tokens (a component
   // test) has the full glare.
-  const glare = Number.parseFloat(getComputedStyle(node).getPropertyValue('--crt-glare'))
+  const glare = cssNumber(getComputedStyle(node), '--crt-glare', 1)
   return {
     duration: POWER_OFF_MS,
-    css: (_t, u) => powerOffStyle(u, base, Number.isNaN(glare) ? 1 : glare),
+    css: (_t, u) => powerOffStyle(u, base, glare),
     // A cancelled close has played back to the whole picture: the beam is spent, and
     // its class goes with it, leaving the element as it was before the close.
     tick: (t) => {
