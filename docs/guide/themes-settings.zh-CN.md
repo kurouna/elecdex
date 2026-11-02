@@ -82,7 +82,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `terminal.ansi` | 否 | 按名称指定 16 种 ANSI 颜色中的任意几种（`black` … `brightWhite`），均为 `#rrggbb`；逐个优先于推导出的调色板 |
 | `effects.scanlines` | 否 | 覆盖整个屏幕的 CRT 扫描线 |
 | `effects.glow` | 否 | 文字的荧光辉光，0 到 1 |
-| `effects.iconTint` | 否 | `false` 使启动器图标显示其原本的颜色。否则以强调色绘制；*unreleased*：强调色亮度低于 25 %（Paper、Black）时，以灰色的明暗绘制，而不会变成黑色的形状 |
+| `effects.iconTint` | 否 | `false` 使启动器图标显示其原本的颜色。否则以强调色绘制；强调色亮度低于 25 %（Paper、Black）时，以灰色的明暗绘制，而不会变成黑色的形状 |
 
 颜色格式为 `#rrggbb`。主题会先经过校验，再转换为一组固定的 CSS 变量；其中的任何内容都不会被当作 CSS 或 HTML 解析。
 

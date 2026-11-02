@@ -321,7 +321,7 @@ eDEX-UI 每秒轮询 `/proc/<pid>/cwd`、`lsof` 和 `ps`，在 Windows 上无法
 | 位置 | standard 预设（shell 下方）；选择器名称 *launcher*；**Ctrl+Shift+L** 搜索启动器（布局中没有时会弹出一个到工作区上方） |
 | 读取 | Windows：开始菜单文件夹（所有用户和当前用户）以及 shell 列出的打包应用。macOS：`/Applications`、`/System/Applications`、`~/Applications` 中的 `.app`。Linux：XDG 应用目录中的 `.desktop` 文件。再加上你自己的条目 |
 | 设置 | `settings.json` 中的 `launcher.items` 和 `launcher.showSystem`（窗格的 **EDIT LIST** 按钮会打开它） |
-| 保存 | *unreleased*：在用户数据文件夹中，以 `launcher-catalog.json` 保存应用列表，以 `launcher-icons/` 保存图标；下次启动时立即显示两者，同时在后台重新扫描列表。图标 30 天后重新获取，“没有图标”不会保存 |
+| 保存 | 在用户数据文件夹中，以 `launcher-catalog.json` 保存应用列表，以 `launcher-icons/` 保存图标；下次启动时立即显示两者，同时在后台重新扫描列表。图标 30 天后重新获取，“没有图标”不会保存 |
 
 <p align="center">
   <img src="../screenshots/pane-launcher.jpg" alt="单独的启动器窗格：筛选框下是以主题强调色绘制的应用图标网格">

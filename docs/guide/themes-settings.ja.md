@@ -82,7 +82,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `terminal.ansi` | いいえ | 16 の ANSI 色を名前で（`black` … `brightWhite`）、それぞれ `#rrggbb`。導き出した色より 1 色ずつ優先されます |
 | `effects.scanlines` | いいえ | 画面全体の CRT の走査線 |
 | `effects.glow` | いいえ | 文字の蛍光体のグロー、0〜1 |
-| `effects.iconTint` | いいえ | `false` にするとランチャーのアイコンを元の色で表示します。それ以外ではアクセント色で描きます。*unreleased*: アクセントの明度が 25 % 未満（Paper、Black）のときは、黒い形にならないよう灰色の濃淡で描きます |
+| `effects.iconTint` | いいえ | `false` にするとランチャーのアイコンを元の色で表示します。それ以外ではアクセント色で描きます。アクセントの明度が 25 % 未満（Paper、Black）のときは、黒い形にならないよう灰色の濃淡で描きます |
 
 色は `#rrggbb` で指定します。テーマは検証されてから決まった組の CSS 変数に変換され、中身が CSS や HTML として解釈されることはありません。
 

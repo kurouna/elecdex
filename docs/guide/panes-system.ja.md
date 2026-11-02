@@ -321,7 +321,7 @@ eDEX-UI は `/proc/<pid>/cwd`・`lsof`・`ps` を毎秒ポーリングし、Wind
 | 場所 | standard プリセット（シェルの下）。ピッカー名 *launcher*。**Ctrl+Shift+L** でランチャーを検索（レイアウトになければワークスペースの上にポップアップします） |
 | 読むもの | Windows: スタートメニューのフォルダー（全ユーザーとこのユーザー）と、シェルが並べるパッケージアプリ。macOS: `/Applications`・`/System/Applications`・`~/Applications` の `.app`。Linux: XDG のアプリケーションフォルダーの `.desktop` ファイル。それに自分の項目 |
 | 設定 | `settings.json` の `launcher.items` と `launcher.showSystem`（ペインの **EDIT LIST** ボタンで開けます） |
-| 保存するもの | *unreleased*: ユーザーデータのフォルダーに、アプリの一覧を `launcher-catalog.json`、アイコンを `launcher-icons/` として残します。次の起動では両方をすぐ表示し、一覧は裏で走査し直します。アイコンは 30 日たつと取り直し、「アイコンなし」は残しません |
+| 保存するもの | ユーザーデータのフォルダーに、アプリの一覧を `launcher-catalog.json`、アイコンを `launcher-icons/` として残します。次の起動では両方をすぐ表示し、一覧は裏で走査し直します。アイコンは 30 日たつと取り直し、「アイコンなし」は残しません |
 
 <p align="center">
   <img src="../screenshots/pane-launcher.jpg" alt="Launcher ペイン単体：絞り込み欄と、テーマのアクセント色で描かれたアプリのアイコンのグリッド">

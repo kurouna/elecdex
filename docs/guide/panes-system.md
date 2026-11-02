@@ -321,7 +321,7 @@ Levels (from `src/shared/cluster.ts`; the numbers, bars, cores, lamps and messag
 | Where | standard preset (under the shells); picker: *launcher*; **Ctrl+Shift+L** searches the launcher, popping one up over the workspace if the layout has none |
 | Reads | Windows: the Start Menu folders (all users and this user) and the packaged apps the shell lists. macOS: `.app` bundles in `/Applications`, `/System/Applications`, `~/Applications`. Linux: `.desktop` files in the XDG application folders. Plus your own entries |
 | Settings | `launcher.items` and `launcher.showSystem` in `settings.json` (the pane's **EDIT LIST** button opens it) |
-| Keeps | *unreleased*: the application list in `launcher-catalog.json` and the icons in `launcher-icons/` in the user data folder, so the next start shows both at once while the list is scanned again behind them; an icon is drawn again after 30 days, and "no icon" is not kept |
+| Keeps | the application list in `launcher-catalog.json` and the icons in `launcher-icons/` in the user data folder, so the next start shows both at once while the list is scanned again behind them; an icon is drawn again after 30 days, and "no icon" is not kept |
 
 <p align="center">
   <img src="../screenshots/pane-launcher.jpg" alt="The Launcher pane on its own: a filter field over a grid of application icons drawn in the theme's accent colour">
