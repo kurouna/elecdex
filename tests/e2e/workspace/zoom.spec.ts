@@ -258,6 +258,44 @@ test('a tab group comes forward with its strip, and another tab keeps it forward
   }
 })
 
+test('a tab with no zoom of its own takes the group back in a flight, not a snap', async ({
+  shared,
+}) => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'tabs',
+      id: 'g',
+      activeIndex: 0,
+      children: [
+        { kind: 'pane', id: 'a', widget: 'calendar' },
+        { kind: 'pane', id: 'b', widget: 'sysinfo' },
+      ],
+    },
+  }
+  const { page, close } = await shared({ layout })
+  try {
+    const group = page.getByTestId('tabs-host').first()
+    await group.hover()
+    await group.getByTestId('group-zoom').click()
+    await expect(page.getByTestId('zoom-backdrop')).toBeVisible()
+    await zoomSettled(page)
+
+    // The flight home is keyed to the tab that was forward, which is no longer the one
+    // shown: the group must still be the one flying, one frame after the switch.
+    const flying = await page.evaluate(async () => {
+      document.querySelectorAll<HTMLElement>('[data-testid=tab]')[1]?.click()
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      return document.querySelector('[data-testid=tabs-host]')?.classList.contains('crt-zoom-out')
+    })
+    expect(flying).toBe(true)
+    await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
+    await expect(group).not.toHaveClass(/crt-zoom-out/)
+  } finally {
+    await close()
+  }
+})
+
 test('dragging the pane that is forward puts it back, so it can be dropped somewhere', async ({
   shared,
 }) => {

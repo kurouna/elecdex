@@ -125,10 +125,10 @@ const cells = $derived([...value])
     transform: translateY(0.55em);
     opacity: 0;
     /* Overexposed as the CRT effects are, never on a light theme (--crt-glare, crt.css). */
-    filter: brightness(calc(1 + 1.2 * var(--crt-glare, 1)));
+    filter: brightness(calc(1 + 1.2 * var(--crt-glare)));
   }
   60% {
-    filter: brightness(calc(1 + 0.5 * var(--crt-glare, 1)));
+    filter: brightness(calc(1 + 0.5 * var(--crt-glare)));
   }
   to {
     transform: none;

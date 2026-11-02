@@ -732,6 +732,55 @@ describe('the Anthropic dialect', () => {
       expect(result.stop).toBe('length')
       expect(result.note).toBe('the web search paused the answer too many times')
     })
+
+    it('the searches a pause cost count against the answer: no request is given them back', async () => {
+      serveTurns([paused])
+      const uses = () =>
+        seen
+          .filter((entry) => entry.method === 'POST')
+          .map((entry) => (entry.body as { tools: { max_uses: number }[] }).tools[0]?.max_uses)
+      await anthropicAdapter(nodeFetch).stream({ ...ask(), webSearch: 5 }, collect().sink)
+      // One search in each paused turn: what is left goes with the next request.
+      expect(uses()).toEqual([5, 4, 3, 2])
+
+      seen.length = 0
+      const result = await anthropicAdapter(nodeFetch).stream(
+        { ...ask(), webSearch: 2 },
+        collect().sink,
+      )
+      // Spent, it is not asked again: the answer ends early, saying why.
+      expect(uses()).toEqual([2, 1])
+      expect(result.stop).toBe('length')
+      expect(result.note).toBe('the web search used every search the answer had')
+    })
+
+    it('reasoning on either side of a search is two paragraphs, not one run together', async () => {
+      const thought = (index: number, text: string): string[] => [
+        event('content_block_start', {
+          index,
+          content_block: { type: 'thinking', thinking: '', signature: '' },
+        }),
+        event('content_block_delta', { index, delta: { type: 'thinking_delta', thinking: text } }),
+        event('content_block_stop', { index }),
+      ]
+      const all = searched()
+      serveTurns([
+        () => [
+          all[0] as string,
+          ...thought(0, 'First.'),
+          // The search and its result, at 1 and 2 as they were.
+          ...all.slice(4, 9),
+          ...thought(3, 'Then.'),
+          // The answer, a block further on.
+          ...all
+            .slice(9)
+            .map((e) => e.replace(/"index":(\d+)/, (_, n: string) => `"index":${Number(n) + 1}`)),
+        ],
+      ])
+      const { got, sink } = collect()
+      await anthropicAdapter(nodeFetch).stream({ ...ask(), webSearch: 5 }, sink)
+      expect(got.thinking).toBe('First.\n\nThen.')
+    })
   })
 
   it('names the model that answered when it is not the one asked for', async () => {

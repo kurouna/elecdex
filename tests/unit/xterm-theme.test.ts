@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildXtermTheme,
   hsl,
   hslToHex,
+  paletteFromCss,
   searchDecorations,
   withBoxGlyphs,
 } from '../../src/renderer/widgets/terminal/xterm-theme.js'
@@ -200,5 +201,32 @@ describe('withBoxGlyphs, as the review read it', () => {
     expect(withBoxGlyphs('" Consolas ", monospace')).toBe(
       '" Consolas ", "Cascadia Mono", Menlo, "DejaVu Sans Mono", monospace',
     )
+  })
+})
+
+describe('paletteFromCss', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const reading = (vars: Record<string, string>) => {
+    vi.stubGlobal('getComputedStyle', () => ({
+      getPropertyValue: (name: string) => vars[name] ?? '',
+    }))
+    return paletteFromCss({} as Element)
+  }
+
+  it('takes a zero as the zero it is: an inkless accent (Paper) stays without hue or colour', () => {
+    const palette = reading({
+      '--accent-h': '0',
+      '--accent-s': '0%',
+      '--accent-l': '7%',
+      '--terminal-ansi-pull': '0',
+    })
+    expect(palette).toMatchObject({ hue: 0, saturation: 0, lightness: 7, pull: 0 })
+  })
+
+  it("falls back to Tron's colours only where a variable is missing", () => {
+    expect(reading({})).toMatchObject({ hue: 183, saturation: 22, lightness: 74 })
   })
 })

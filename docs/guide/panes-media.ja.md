@@ -108,7 +108,7 @@ elecdex は eDEX-UI を Electron で作り直した SF 風のターミナルエ�
 
 - ページは既定では本来の色で表示します。
 - アドレスの右にある ◐ ボタンで、そのペインのページを見ている間テーマの色で描けます。
-- *Settings → General → tint pages in the theme's colour* は、自分のボタンを使っていないペインの既定です。Business テーマでは色付けしません。
+- *Settings → General → tint pages in the theme's colour* は、自分のボタンを使っていないペインの既定です。Business テーマでは色付けしません。ほぼ黒のアクセント（Paper、Black）では、白は白のまま、黒がインクの色になる濃淡で描きます。
 - ページにはテーマの明暗（`prefers-color-scheme`）を伝え、自分で色を決めていないページにはそれに合う既定の色を与えます。暗いテーマでも文字が読めます。
 
 ### ページにできること、できないこと

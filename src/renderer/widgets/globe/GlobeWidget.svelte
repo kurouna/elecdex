@@ -3,6 +3,7 @@ import type { ConnectionCountry } from '@shared/metrics'
 import type { QuakeState } from '@shared/quakes'
 import { untrack } from 'svelte'
 import { Color } from 'three'
+import { cssNumber } from '../../lib/css-number.ts'
 import { onFrame } from '../../lib/frame-loop.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
@@ -64,8 +65,7 @@ $effect(() => {
 
 function readColors(el: Element): GlobeColors {
   const style = getComputedStyle(el)
-  const n = (name: string, fallback: number) =>
-    Number.parseFloat(style.getPropertyValue(name)) || fallback
+  const n = (name: string, fallback: number) => cssNumber(style, name, fallback)
   const accent = new Color().setHSL(
     n('--accent-h', 183) / 360,
     n('--accent-s', 22) / 100,

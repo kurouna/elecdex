@@ -86,19 +86,14 @@ const paramsFor = (request: StreamRequest, model: ModelFacts) => ({
     ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } }
     : {}),
   // The basic search, which every model with search takes, with no code run for it.
-  ...(request.webSearch !== undefined
-    ? {
-        tools: [
-          {
-            type: 'web_search_20250305' as const,
-            name: 'web_search' as const,
-            max_uses: request.webSearch,
-          },
-        ],
-      }
-    : {}),
+  ...(request.webSearch !== undefined ? { tools: searchTools(request.webSearch) } : {}),
   messages: request.messages.map((m) => ({ role: m.role, content: contentOf(m) })),
 })
+
+/** The basic search, allowed `uses` searches. */
+const searchTools = (uses: number) => [
+  { type: 'web_search_20250305' as const, name: 'web_search' as const, max_uses: uses },
+]
 
 /** The text after the last search result: the answer, without what was said while searching. */
 function answerAfterSearch(message: Anthropic.Message | Anthropic.Beta.BetaMessage): string | null {
@@ -147,6 +142,9 @@ export function sourcesOf(message: Anthropic.Message | Anthropic.Beta.BetaMessag
 function searchingSink(sink: StreamSink) {
   let wrote = false
   let searched = false
+  // Reasoning comes in a block on either side of a search: each block is a paragraph of its own.
+  let thought = false
+  let newThought = false
   return {
     text(piece: string): void {
       if (searched && wrote) sink.text(`\n\n${piece}`)
@@ -154,12 +152,24 @@ function searchingSink(sink: StreamSink) {
       searched = false
       wrote ||= piece !== ''
     },
-    thinking: (piece: string): void => sink.thinking(piece),
+    thinking(piece: string): void {
+      if (piece === '') return
+      sink.thinking(newThought && thought ? `\n\n${piece}` : piece)
+      newThought = false
+      thought = true
+    },
     block(type: string): void {
       if (type === 'server_tool_use' || type === 'web_search_tool_result') searched = true
+      if (type === 'thinking') newThought = true
     },
   }
 }
+
+/** The searches a turn ran, which count against the answer's `max_uses` in the turns after it. */
+const searchesIn = (turn: { content: readonly unknown[] }): number =>
+  (turn.content as readonly { type: string; name?: string }[]).filter(
+    (b) => b.type === 'server_tool_use' && b.name === 'web_search',
+  ).length
 
 const mediaBlock = (media: Media): Anthropic.ImageBlockParam | Anthropic.DocumentBlockParam =>
   media.kind === 'image'
@@ -258,32 +268,43 @@ export function anthropicAdapter(fetchLike: FetchLike): ProviderAdapter {
           out.block(event.content_block.type)
       }
       type Turn = Anthropic.Message | Anthropic.Beta.BetaMessage
-      const once = (messages: typeof params.messages): Promise<Turn> =>
-        fallbacks
+      const once = (
+        messages: typeof params.messages,
+        searches: number | undefined,
+      ): Promise<Turn> => {
+        const asked = {
+          ...params,
+          ...(searches === undefined ? {} : { tools: searchTools(searches) }),
+          messages,
+        }
+        return fallbacks
           ? // The beta surface only where its parameter is used: a proxy need not know it.
             client.beta.messages
-              .stream(
-                { ...params, messages, betas: [FALLBACK_BETA], fallbacks: 'default' },
-                options(request),
-              )
+              .stream({ ...asked, betas: [FALLBACK_BETA], fallbacks: 'default' }, options(request))
               .on('streamEvent', onEvent)
               .on('text', (piece) => out.text(piece))
               .on('thinking', (piece) => out.thinking(piece))
               .finalMessage()
           : client.messages
-              .stream({ ...params, messages }, options(request))
+              .stream(asked, options(request))
               .on('streamEvent', onEvent)
               .on('text', (piece) => out.text(piece))
               .on('thinking', (piece) => out.thinking(piece))
               .finalMessage()
+      }
       // A search that ran the server's loop to its limit pauses the turn: sent back as it
-      // stands, with no new question, it goes on where it stopped.
+      // stands, with no new question, it goes on where it stopped. The searches are the
+      // answer's, not each request's: what is left of them goes on, and none left ends it.
       const turns: Turn[] = []
       let messages = params.messages
+      let searches = request.webSearch
+      let spent = false
       for (;;) {
-        const turn = await once(messages)
+        const turn = await once(messages, searches)
         turns.push(turn)
-        if (turn.stop_reason !== 'pause_turn' || turns.length > CONTINUATIONS) break
+        if (searches !== undefined) searches -= searchesIn(turn)
+        spent = searches !== undefined && searches <= 0
+        if (turn.stop_reason !== 'pause_turn' || turns.length > CONTINUATIONS || spent) break
         const content = turn.content as Anthropic.ContentBlockParam[]
         messages = [...messages, { role: 'assistant', content }]
       }
@@ -293,6 +314,9 @@ export function anthropicAdapter(fetchLike: FetchLike): ProviderAdapter {
       const sources = sourcesOf(message)
       if (sources !== '') sink.text(sources)
       const result = resultOf(message, request.model)
+      // Paused with no search left to go on with: said as that, not as too many pauses.
+      if (last.stop_reason === 'pause_turn' && spent)
+        result.note = 'the web search used every search the answer had'
       if (result.usage !== undefined)
         result.usage.output = turns.reduce((sum, t) => sum + t.usage.output_tokens, 0)
       return result

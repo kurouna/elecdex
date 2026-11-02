@@ -48,10 +48,25 @@ function inlineNode(m: RegExpExecArray): Inline {
   if (em !== undefined) return { t: 'em', c: parseInline(em) }
   if (m[8] !== undefined && m[9] !== undefined) {
     const href = safeHref(m[9])
-    return href === null ? { t: 'text', v: m[0] } : { t: 'link', href, c: parseInline(m[8]) }
+    return href === null
+      ? { t: 'text', v: m[0] }
+      : { t: 'link', href, c: unlinked(parseInline(m[8])) }
   }
   const href = safeHref(m[0])
   return href === null ? { t: 'text', v: m[0] } : { t: 'link', href, c: [{ t: 'text', v: m[0] }] }
+}
+
+/**
+ * A link's name with no link in it: an address there (a source listed by its address) is
+ * text, or the pane would draw a button inside a button and one click open the page twice.
+ */
+function unlinked(nodes: Inline[]): Inline[] {
+  return nodes.flatMap((node): Inline[] => {
+    if (node.t === 'link') return unlinked(node.c)
+    if (node.t === 'strong' || node.t === 'em' || node.t === 'del')
+      return [{ t: node.t, c: unlinked(node.c) }]
+    return [node]
+  })
 }
 
 export function parseInline(source: string): Inline[] {

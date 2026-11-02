@@ -108,7 +108,7 @@ The preset is a template: choosing it adds a saved layout that then follows your
 
 - Pages are shown in their own colours by default.
 - The ◐ button on the right of the address draws that pane's pages in the theme's colour, as you watch.
-- *Settings → General → tint pages in the theme's colour* is the default for panes that have not used their own button. The Business themes never tint.
+- *Settings → General → tint pages in the theme's colour* is the default for panes that have not used their own button. The Business themes never tint. Over a near-black accent (Paper, Black) a page is drawn in greys instead: white stays white and black takes the ink.
 - The page is told the theme's light or dark mode (`prefers-color-scheme`), and a page that declares no colours of its own is given the matching default colours, so its text stays readable on a dark theme.
 
 ### What the page can and cannot do

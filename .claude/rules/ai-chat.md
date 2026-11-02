@@ -47,7 +47,8 @@ the files above is read or edited.
   - The Anthropic adapter follows the claude-api skill (capabilities from the Models API,
     `stop_reason` first, thinking summarized and never replayed, fallbacks only on Anthropic's
     endpoint). A turn the web search paused (`pause_turn`) is sent back whole to go on, at most
-    `CONTINUATIONS` times, then ends `TRUNCATED` with the reason.
+    `CONTINUATIONS` times, with the searches the answer has left as `max_uses` (none left ends it),
+    then ends `TRUNCATED` with the reason. A searched answer's input count is never a measure.
   - The link vocabulary never hides what the user must read: an end code always has the
     provider's words beside it, not in a tooltip. Failures are one set (`FAILED`, read by colour
     and sound); add a `ChatStop` deliberately. Caret and lamp step with lib/pulse.svelte.ts, not a

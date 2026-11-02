@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Theme } from './theme.js'
+import { INK_ACCENT_MAX_LIGHTNESS, type Theme } from './theme.js'
 import { HEX_COLOUR } from './validate.js'
 
 /**
@@ -384,10 +384,19 @@ const LUMA = [0.2126, 0.7152, 0.0722] as const
  * The CSS that draws a page in one colour: each pixel's brightness times the tint,
  * so white becomes the tint and black stays black, as the launcher's icons are
  * drawn. An SVG colour matrix, which Chromium applies on the compositor.
+ *
+ * Over a near-black ink (Paper, Black) that would leave the whole page black, so
+ * there the page is screened over the ink instead, as the launcher's icons are
+ * (`iconLook`): white stays white and black takes the ink, the page in greys.
  */
 export function tintCss(tint: string): string {
   const rgb = [1, 3, 5].map((i) => Number.parseInt(tint.slice(i, i + 2), 16) / 255)
-  const row = (c: number): string => [...LUMA.map((w) => +(w * c).toFixed(4)), 0, 0].join(' ')
+  const lightness = ((Math.max(...rgb) + Math.min(...rgb)) / 2) * 100
+  const ink = lightness < INK_ACCENT_MAX_LIGHTNESS
+  const row = (c: number): string =>
+    ink
+      ? [...LUMA.map((w) => +(w * (1 - c)).toFixed(4)), 0, +c.toFixed(4)].join(' ')
+      : [...LUMA.map((w) => +(w * c).toFixed(4)), 0, 0].join(' ')
   const values = [...rgb.map(row), '0 0 0 1 0'].join(' ')
   const svg =
     "<svg xmlns='http://www.w3.org/2000/svg'><filter id='t' color-interpolation-filters='sRGB'>" +

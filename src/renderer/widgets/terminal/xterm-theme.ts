@@ -1,6 +1,7 @@
 import type { AnsiOverrides, Theme } from '@shared/theme'
 import type { ISearchOptions } from '@xterm/addon-search'
 import type { ITheme } from '@xterm/xterm'
+import { cssNumber } from '../../lib/css-number.js'
 
 /**
  * Derives xterm's 16-colour palette from the active design tokens.
@@ -186,17 +187,18 @@ const round = (n: number): number => Math.round(n * 100) / 100
 export function paletteFromCss(el: Element): PaletteInput {
   const style = getComputedStyle(el)
   const read = (name: string): string => style.getPropertyValue(name).trim()
+  const number = (name: string, fallback: number): number => cssNumber(style, name, fallback)
 
   return {
-    hue: Number.parseFloat(read('--accent-h')) || 183,
-    saturation: Number.parseFloat(read('--accent-s')) || 22,
-    lightness: Number.parseFloat(read('--accent-l')) || 74,
+    hue: number('--accent-h', 183),
+    saturation: number('--accent-s', 22),
+    lightness: number('--accent-l', 74),
     foreground: read('--text') || '#aacfd1',
     // Panels are transparent so the grid shows through, but xterm's WebGL
     // renderer cannot draw a transparent background (it comes out black), so the
     // terminal takes the solid ground colour instead.
     background: read('--app-bg') || '#05080d',
-    pull: Number.parseFloat(read('--terminal-ansi-pull')) || SATURATION_PULL,
+    pull: number('--terminal-ansi-pull', SATURATION_PULL),
   }
 }
 

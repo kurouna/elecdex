@@ -658,7 +658,7 @@ function toggleFinished(session: AgentSession): void {
   from {
     opacity: 0.2;
     /* Overexposed as the CRT effects are, never on a light theme (--crt-glare, crt.css). */
-    filter: brightness(calc(1 + 0.8 * var(--crt-glare, 1)));
+    filter: brightness(calc(1 + 0.8 * var(--crt-glare)));
   }
 }
 

@@ -756,7 +756,7 @@ function jump(step: 1 | -1): void {
   from {
     opacity: 0;
     /* Overexposed as the CRT effects are, never on a light theme (--crt-glare, crt.css). */
-    filter: brightness(calc(1 + 1.2 * var(--crt-glare, 1)));
+    filter: brightness(calc(1 + 1.2 * var(--crt-glare)));
   }
   35% {
     opacity: 1;

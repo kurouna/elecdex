@@ -67,4 +67,17 @@ describe('overexposure in animations', () => {
     const light = /:root\[data-mode="light"\]\s*\{([^}]*)\}/.exec(tokens)?.[1] ?? ''
     expect(light).toMatch(/--crt-glare:\s*0;/)
   })
+
+  it('is set on every theme, so nothing that reads it needs a fallback of its own', () => {
+    const tokens = readFileSync(path.join(RENDERER, 'styles/tokens.css'), 'utf8')
+    const root = /:root\s*\{([^}]*)\}/.exec(tokens)?.[1] ?? ''
+    expect(root).toMatch(/--crt-glare:\s*1;/)
+    const fallbacks: string[] = []
+    for (const file of files(RENDERER)) {
+      if (readFileSync(file, 'utf8').includes('var(--crt-glare,')) {
+        fallbacks.push(path.relative(RENDERER, file))
+      }
+    }
+    expect(fallbacks).toEqual([])
+  })
 })

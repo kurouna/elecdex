@@ -34,6 +34,20 @@ describe('inline markdown', () => {
     ])
   })
 
+  it('a link named by its address, or with one in its name, is one link, not one inside another', () => {
+    // As the web search's sources are listed when a page has no title.
+    expect(parseInline('[https://w.example/a](https://w.example/a)')).toEqual([
+      { t: 'link', href: 'https://w.example/a', c: [text('https://w.example/a')] },
+    ])
+    expect(parseInline('[**see** https://x.test/b](https://w.example/a)')).toEqual([
+      {
+        t: 'link',
+        href: 'https://w.example/a',
+        c: [{ t: 'strong', c: [text('see')] }, text(' '), text('https://x.test/b')],
+      },
+    ])
+  })
+
   it('only a web address becomes a link', () => {
     expect(safeHref('javascript:alert(1)')).toBeNull()
     expect(safeHref('file:///etc/passwd')).toBeNull()

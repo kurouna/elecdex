@@ -285,6 +285,16 @@ describe("the provider's own count", () => {
     expect((await h.ask(chatId, {})).messages).toHaveLength(3)
   })
 
+  it('is not believed of an answer that searched the web, whose pages it also counts', async () => {
+    const h = harness(dir)
+    const chatId = h.service.create() as string
+    await h.ask(chatId, {})
+    await h.ask(chatId, {})
+    // The pages a search read are counted as input, though the conversation never held them.
+    await h.ask(chatId, {}, { usage: { input: 1040, output: 100 }, answer: 'Sunny.' })
+    expect((await h.ask(chatId, {})).messages).toHaveLength(7)
+  })
+
   it('is not believed of a short prompt, where the template decides the figure', async () => {
     const h = harness(dir)
     const chatId = h.service.create() as string

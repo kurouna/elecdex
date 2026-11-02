@@ -379,7 +379,35 @@ describe('appearance', () => {
     // Nothing in the CSS can close the string or the rule early.
     expect(css.slice(0, -4)).not.toMatch(/[;}]\s*\S/)
   })
+
+  it('over a near-black ink (Paper, Black) keeps the page legible: white stays white, black takes the ink', () => {
+    for (const id of ['paper', 'black']) {
+      const ink = webAppearance(theme(id), true).accent as string
+      expect(ink).not.toBeNull()
+      const values = matrixOf(tintCss(ink))
+      const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(ink.slice(i, i + 2), 16) / 255)
+      // White paper stays paper, rather than going the ink's near-black with the text on it.
+      expect(apply(values, [1, 1, 1]).map((v) => +v.toFixed(3))).toEqual([1, 1, 1])
+      expect(apply(values, [0, 0, 0]).map((v) => +v.toFixed(3))).toEqual(
+        [r, g, b].map((v) => +(v as number).toFixed(3)),
+      )
+    }
+  })
 })
+
+/** The colour matrix a tint's CSS carries. */
+function matrixOf(css: string): number[] {
+  const svg = decodeURIComponent(css.slice(css.indexOf(',') + 1, css.lastIndexOf('#t')))
+  return (svg.match(/values='([^']+)'/)?.[1] ?? '').split(' ').map(Number)
+}
+
+/** What the matrix makes of an opaque pixel, its rows' offsets counted as feColorMatrix does. */
+function apply(values: number[], rgb: number[]): number[] {
+  return [0, 1, 2].map((row) => {
+    const at = (k: number) => values[row * 5 + k] ?? 0
+    return at(0) * (rgb[0] ?? 0) + at(1) * (rgb[1] ?? 0) + at(2) * (rgb[2] ?? 0) + at(3) + at(4)
+  })
+}
 
 describe('inputs from the page', () => {
   it('accept only whole-pixel, sized rectangles', () => {

@@ -699,7 +699,8 @@ export class AiChatService {
   private finish(running: Running, result: StreamResult): void {
     if (running.finished) return
     this.close(running)
-    this.measured(running.outgoing, result.usage)
+    // A search's pages are counted as input the conversation never held: no measure of it.
+    if (result.answer === undefined) this.measured(running.outgoing, result.usage)
 
     const { run } = running
     const now = this.deps.now()

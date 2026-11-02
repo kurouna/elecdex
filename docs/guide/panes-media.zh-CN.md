@@ -108,7 +108,7 @@ elecdex 是用 Electron 重写 eDEX-UI 而成的科幻风格终端模拟器兼�
 
 - 页面默认以其自身的配色显示。
 - 地址栏右侧的 ◐ 按钮会让该窗格的页面改用主题色绘制，所见即所得。
-- *Settings → General → tint pages in the theme's colour* 是尚未使用自己按钮的窗格的默认值。Business 主题下从不着色。
+- *Settings → General → tint pages in the theme's colour* 是尚未使用自己按钮的窗格的默认值。Business 主题下从不着色。在近乎黑色的强调色（Paper、Black）下，页面改以灰阶绘制：白色保持白色，黑色变为墨色。
 - 页面会得知主题的明暗（`prefers-color-scheme`）；没有自行声明颜色的页面会得到相应的默认颜色，所以在深色主题下文字也能读清。
 
 ### 页面能做什么、不能做什么

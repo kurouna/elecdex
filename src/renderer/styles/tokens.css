@@ -41,6 +41,8 @@
   --glow: 0;
   --scanlines: 0;
   --terminal-ansi-pull: 0.45;
+  /* How overexposed a picture is as it opens (crt.css); a light theme has none. */
+  --crt-glare: 1;
 
   /* ---------- semantic: colour ---------- */
   --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));

@@ -24,6 +24,7 @@ paths:
   - "tests/unit/xterm-theme*"
   - "tests/unit/hover-card*"
   - "tests/unit/crt-motion*"
+  - "tests/unit/crt-glare*"
   - "docs/palette.md"
   - "docs/palette-mock/**"
   - "src/main/ipc/layout.ts"
@@ -125,7 +126,7 @@ the files above is read or edited.
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on
   `appearance.revision`. Components read semantic tokens. Text is the accent unless a theme sets
   `text`. Never assume a dark ground: `mode: 'light'` sets `data-mode="light"` (darker status
-  colours, xterm's minimum contrast); check both Business themes and Black. Every theme sets every variable
+  colours, xterm's minimum contrast); check both Business themes, Black and Paper. Every theme sets every variable
   (`themeVariables`).
 - **Detail cards** (§7.4) are `widgets/common/HoverCard.svelte`, placed and timed by
   lib/hover-card.ts (`cardPlacement`, `anchorOf`, `HoverRest`) - never a widget's own card or a

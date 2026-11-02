@@ -15,6 +15,7 @@
  */
 
 import { type Health, roundMs } from '@shared/netpath'
+import { cssNumber } from '../../lib/css-number.js'
 
 /** A station on the path strip (PathStrip.svelte), as a pane fills it in. */
 export interface StationView {
@@ -79,7 +80,7 @@ export function readPalette(el: Element): Palette {
     warn: read('--warn', '#e0b030'),
     danger: read('--danger', '#e04040'),
     font: read('--font-mono', 'monospace'),
-    glow: Number.parseFloat(read('--glow', '0')) || 0,
+    glow: cssNumber(style, '--glow', 0),
   }
 }
 

@@ -50,9 +50,11 @@ let aimed = $state(false)
 /**
  * A tab brought to the front brings its group with it: the strip and the header
  * come too, so the other tabs are still there to switch to, and the group is one
- * picture rather than a pane floating out of its own frame.
+ * picture rather than a pane floating out of its own frame. Any of its tabs: a
+ * tab with no zoom of its own, shown, sends the group home pinned by the tab
+ * that was forward, and the flight is the group's.
  */
-const pinned = $derived(activeChild !== undefined && layout.zoom.pinnedId === activeChild.id)
+const pinned = $derived(node.children.some((c) => c.id === layout.zoom.pinnedId))
 const zoomed = $derived(activeChild !== undefined && layout.zoom.paneId === activeChild.id)
 /**
  * The corner offers the zoom for the tab that is showing, since the group comes
