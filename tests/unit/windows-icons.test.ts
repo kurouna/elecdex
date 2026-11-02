@@ -91,14 +91,20 @@ describe('IconBatcher', () => {
     expect(extract.mock.calls).toEqual([[['a']], [['b']]])
   })
 
-  it('a failed run answers null, and the next request tries again', async () => {
+  it('a failed run rejects rather than answering "no icon", and the next request tries again', async () => {
     const extract = vi
       .fn<(files: readonly string[]) => Promise<Array<string | null>>>()
       .mockRejectedValueOnce(new Error('PowerShell blocked'))
       .mockResolvedValueOnce(['icon'])
     const batcher = new IconBatcher(extract, 1)
-    expect(await batcher.get('a')).toBeNull()
+    await expect(batcher.get('a')).rejects.toThrow('PowerShell blocked')
     expect(await batcher.get('a')).toBe('icon')
+  })
+
+  it('tells the shell having no icon apart from a run that failed', async () => {
+    const extract = vi.fn(async () => [null])
+    const batcher = new IconBatcher(extract, 1)
+    expect(await batcher.get('a')).toBeNull()
   })
 })
 

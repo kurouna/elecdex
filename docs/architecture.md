@@ -1933,6 +1933,8 @@ ai-keys.json        # AI プロバイダの API キー。OS の暗号化（safeS
 alarms.json         # アラーム（時刻・曜日・on/off。main 所有。ペインを閉じていても鳴る）
 background.json     # 「通知領域に入りました」の案内を出し済みかどうか
 launcher-usage.json # ランチャーの起動回数（よく使う順）
+launcher-catalog.json # ランチャーが最後に走査したアプリの一覧（次の起動ですぐ出し、裏で走査し直す）
+launcher-icons/     # ランチャーのアイコン。項目 id ごとの PNG（30 日で取り直す。アイコンなしと Windows の代わりのアイコンは残さない）
 quake-alerts.json   # 通知済みの地震・津波（再起動で同じものを知らせ直さない）
 feeds-cache.json / weather-cache.json / weather-cache-points.json   # 最後に取れたデータ
 themes/             # ユーザーテーマ（内蔵へのオーバーレイ）

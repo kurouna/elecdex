@@ -1,4 +1,6 @@
 import { execFileSync } from 'node:child_process'
+import { existsSync, readdirSync, statSync } from 'node:fs'
+import path from 'node:path'
 import { expect } from '@playwright/test'
 import { test } from '../support/shared.js'
 import { beside, launch, quietFor, savedLayout, single } from '../support.js'
@@ -282,6 +284,38 @@ test('the launcher lists the platform applications, with icons in the theme colo
   }
 })
 
+/** The icons kept on disk, by file name, with when each was written. */
+function savedIcons(userData: string): Map<string, number> {
+  const dir = path.join(userData, 'launcher-icons')
+  if (!existsSync(dir)) return new Map()
+  return new Map(
+    readdirSync(dir)
+      .filter((name) => name.endsWith('.png'))
+      .map((name) => [name, statSync(path.join(dir, name)).mtimeMs]),
+  )
+}
+
+test('the next start shows the list and the icons kept from this one, drawing none again', async () => {
+  let launched = await launch(undefined, { layout: layout('launcher') })
+  try {
+    const icon = launched.page.getByTestId('launcher-icon').first()
+    await expect(icon).toBeVisible({ timeout: 20_000 })
+    expect(existsSync(path.join(launched.userData, 'launcher-catalog.json'))).toBe(true)
+    await expect.poll(() => savedIcons(launched.userData).size).toBeGreaterThan(0)
+    const before = savedIcons(launched.userData)
+
+    launched = await launched.relaunch()
+    await expect(launched.page.getByTestId('launcher-icon').first()).toBeVisible({
+      timeout: 20_000,
+    })
+    // Read back, not drawn and written again.
+    const after = savedIcons(launched.userData)
+    for (const [name, written] of before) expect(after.get(name), name).toBe(written)
+  } finally {
+    await launched.close()
+  }
+})
+
 /** The name of a packaged app (Store or MSIX) on this machine, as the Start Menu shows it. */
 function packagedAppName(): string | null {
   const script = [
@@ -316,6 +350,25 @@ test('the launcher lists packaged apps that have no Start Menu shortcut, with th
 })
 
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+for (const theme of ['paper', 'black']) {
+  test(`the launcher keeps its icons' shading over the near-black accent of ${theme}`, async () => {
+    const { page, close } = await launch(undefined, {
+      layout: layout('launcher'),
+      settings: { theme, sound: { enabled: false } },
+    })
+    try {
+      const icon = page.getByTestId('launcher-icon').first()
+      await expect(icon).toBeVisible({ timeout: 20_000 })
+      // Screened over the ink: multiplied, every icon was a black shape.
+      const blend = () =>
+        icon.evaluate((el) => getComputedStyle(el.querySelector('img') as Element).mixBlendMode)
+      await expect.poll(blend).toBe('screen')
+    } finally {
+      await close()
+    }
+  })
+}
 
 for (const theme of ['business-dark', 'business-light']) {
   test(`the launcher shows icons in their own colours in ${theme}`, async () => {

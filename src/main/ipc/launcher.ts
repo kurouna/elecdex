@@ -17,6 +17,14 @@ import {
   systemEntries,
   userEntries,
 } from '../launcher/catalog.js'
+import {
+  type CatalogFile,
+  CatalogFileSchema,
+  catalogFileOf,
+  emptyCatalogFile,
+  savedCatalog,
+} from '../launcher/catalog-file.js'
+import { type DrawnIcon, IconStore } from '../launcher/icon-store.js'
 import { SystemCache } from '../launcher/system-cache.js'
 import { APPS_FOLDER, packagedAppIdOf } from '../launcher/windows-apps.js'
 import { IconBatcher } from '../launcher/windows-icons.js'
@@ -35,6 +43,10 @@ import { registerTable } from './table.js'
  *
  * Successful launches are counted in launcher-usage.json (by id, which is a hash
  * of the target, so it survives restarts) and the list is ordered by them.
+ *
+ * The platform's list and the icons are kept in userData (launcher-catalog.json,
+ * launcher-icons/), so a start shows the tiles and their icons without waiting
+ * for a scan or a PowerShell; the scan runs behind and corrects them.
  */
 
 const UsageSchema = z.record(
@@ -45,24 +57,43 @@ const UsageSchema = z.record(
 /** Past this age the platform's application list is served once more and refreshed behind. */
 const SYSTEM_CACHE_MS = 60_000
 
-/** Icons are cached for the life of the app; a changed shortcut icon is rare. */
-const ICON_CACHE_LIMIT = 1000
-
 export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => void } {
+  const userData = app.getPath('userData')
+  const shellIcons = process.platform === 'win32' ? new IconBatcher() : null
+  const icons = new IconStore({
+    dir: path.join(userData, 'launcher-icons'),
+    draw: (target) => drawIcon(target, shellIcons),
+  })
+  const saved = new JsonStore<CatalogFile>({
+    file: path.join(userData, 'launcher-catalog.json'),
+    schema: CatalogFileSchema,
+    makeDefault: () => emptyCatalogFile(),
+  })
   const system = new SystemCache<CatalogEntry>({
     scan: systemEntries,
     maxAgeMs: SYSTEM_CACHE_MS,
+    initial: () => savedCatalog(saved.read()),
+    onScanned: (entries, changed) => {
+      if (changed) {
+        try {
+          saved.write(catalogFileOf(entries))
+        } catch (error) {
+          // The next start scans before it shows anything, as before.
+          console.error('[elecdex] cannot save the launcher list', error)
+        }
+      }
+      const user = userEntries(settings.current().launcher.items)
+      void icons.prune(new Set([...user, ...entries].map((e) => e.id)))
+    },
     onChange: () => {
       for (const win of appWindows()) {
         if (!win.webContents.isDestroyed()) win.webContents.send(CH.launcher.changed)
       }
     },
   })
-  const icons = new Map<string, string | null>()
-  const shellIcons = process.platform === 'win32' ? new IconBatcher() : null
   let byId = new Map<string, CatalogEntry>()
   const usage = new JsonStore<Record<string, LaunchUsage>>({
-    file: path.join(app.getPath('userData'), 'launcher-usage.json'),
+    file: path.join(userData, 'launcher-usage.json'),
     schema: UsageSchema,
     makeDefault: () => ({}),
   })
@@ -90,14 +121,9 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
 
       [CH.launcher.icon]: async (_event, raw: unknown): Promise<string | null> => {
         if (typeof raw !== 'string') return null
-        if (icons.has(raw)) return icons.get(raw) ?? null
         const entry = byId.get(raw)
         if (!entry || /^https?:/i.test(entry.target)) return null
-        const data =
-          (await shellIcons?.get(entry.target)) ??
-          (entry.target.startsWith(APPS_FOLDER) ? null : await electronIcon(entry.target))
-        if (icons.size < ICON_CACHE_LIMIT) icons.set(raw, data)
-        return data
+        return icons.get(entry.id, entry.target)
       },
 
       [CH.launcher.launch]: async (_event, raw: unknown): Promise<LaunchResult> => {
@@ -124,6 +150,25 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
       unregister()
     },
   }
+}
+
+/**
+ * An entry's icon, drawn the platform's way. On Windows that is the shell's,
+ * and only it is kept on disk: Electron's, taken where the shell gave none or
+ * could not be asked, is often the generic program icon (windows-icons.ts).
+ */
+async function drawIcon(target: string, shellIcons: IconBatcher | null): Promise<DrawnIcon> {
+  if (shellIcons === null) {
+    const icon = await electronIcon(target)
+    return { icon, keep: icon !== null }
+  }
+  try {
+    const icon = await shellIcons.get(target)
+    if (icon !== null) return { icon, keep: true }
+  } catch {
+    // PowerShell failed or is blocked: Electron's icon for now, the shell's on the next start.
+  }
+  return { icon: target.startsWith(APPS_FOLDER) ? null : await electronIcon(target), keep: false }
 }
 
 /**

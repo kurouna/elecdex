@@ -78,9 +78,12 @@ export function stubIntersectionObserver(report: 'visible' | 'none' = 'visible')
       constructor(callback: IntersectionObserverCallback) {
         this.#callback = callback
       }
-      observe(): void {
+      observe(target: Element): void {
         if (report === 'none') return
-        this.#callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never)
+        this.#callback(
+          [{ isIntersecting: true, target } as IntersectionObserverEntry],
+          this as never,
+        )
       }
       unobserve(): void {}
       disconnect(): void {}

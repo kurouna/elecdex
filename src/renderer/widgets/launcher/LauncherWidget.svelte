@@ -8,6 +8,7 @@ import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
+import { launcherIcon, requestLauncherIcon } from './icons.svelte.ts'
 
 /**
  * An application launcher: the platform's own list (Start Menu on Windows,
@@ -17,7 +18,7 @@ import type { WidgetProps } from '../registry.ts'
  *
  * Type to filter; Enter starts the first match. The "Search the launcher"
  * shortcut (Ctrl+Shift+L by default) puts the cursor in the filter from anywhere. Icons are fetched lazily, only
- * for tiles that scroll into view, and drawn in the theme's accent colour: the
+ * for tiles that scroll into view (or half a pane below it), once per page (icons.svelte.ts), and drawn in the theme's accent colour: the
  * icon's own shape is the mask, and its grayscale shading is multiplied over the
  * accent, so each icon stays recognisable while the grid reads as one HUD. The
  * original colours come back on hover, and always in a theme with iconTint off. All of it is static CSS - nothing is
@@ -31,7 +32,6 @@ let filter = $state(untrack(() => recallTyped(paneId, 'filter')))
 // Kept through a move, which remounts the pane (lib/pane-memory.ts).
 $effect(() => keepTyped(paneId, 'filter', filter))
 let status = $state<{ text: string; error: boolean } | null>(null)
-let icons = $state.raw<Record<string, string | null>>({})
 let grid = $state<HTMLUListElement | null>(null)
 let filterInput = $state<HTMLInputElement | null>(null)
 
@@ -83,7 +83,7 @@ $effect(() => {
   })
 })
 
-// Icons for tiles that come into view, once each.
+// Icons for tiles that come into view, or are about to as the list scrolls.
 $effect(() => {
   const root = grid
   void visible
@@ -93,15 +93,11 @@ $effect(() => {
       for (const item of seen) {
         if (!item.isIntersecting) continue
         const id = (item.target as HTMLElement).dataset.id
-        if (!id || id in icons) continue
-        icons = { ...icons, [id]: null }
-        void window.elecdex.launcher.icon(id).then((data) => {
-          icons = { ...icons, [id]: data }
-        })
+        if (id) requestLauncherIcon(id)
         observer.unobserve(item.target)
       }
     },
-    { root },
+    { root, rootMargin: '0px 0px 50% 0px' },
   )
   for (const tile of root.querySelectorAll('[data-id]')) observer.observe(tile)
   return () => observer.disconnect()
@@ -216,6 +212,7 @@ const initial = (name: string) =>
   {:else}
     <ul class="grid" bind:this={grid}>
       {#each visible as entry, i (entry.id)}
+        {@const icon = launcherIcon(entry.id)}
         <li>
           <button
             type="button"
@@ -231,9 +228,9 @@ const initial = (name: string) =>
             data-launches={entry.launches}
           >
             <span class="icon">
-              {#if icons[entry.id]}
-                <span class="glyph" style:--icon={`url("${icons[entry.id]}")`} data-testid="launcher-icon">
-                  <img src={icons[entry.id]} alt="" />
+              {#if icon}
+                <span class="glyph" style:--icon={`url("${icon}")`} data-testid="launcher-icon">
+                  <img src={icon} alt="" />
                 </span>
               {:else}
                 <span class="monogram">{initial(entry.name)}</span>
@@ -393,6 +390,14 @@ const initial = (name: string) =>
   /* Lifted so dark outlines become a dim accent rather than vanishing into black. */
   filter: grayscale(1) brightness(1.45) contrast(1.15);
   mix-blend-mode: multiply;
+}
+
+/* Over a near-black accent a multiplied icon is a black shape: screened, it keeps its
+   shading in greys, black taking the ink (`iconLook`, shared/theme.ts). Before the
+   hover rules, which have the same weight and must win. */
+:global(:root[data-icons="ink"]) .glyph img {
+  filter: grayscale(1);
+  mix-blend-mode: screen;
 }
 
 .tile:hover .glyph,

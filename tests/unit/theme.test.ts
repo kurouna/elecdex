@@ -2,6 +2,7 @@ import { applySettingsPatch, defaultSettings, SettingsSchema, stepFontSize } fro
 import {
   BUILTIN_THEMES,
   DEFAULT_THEME_ID,
+  iconLook,
   mergeThemes,
   type Theme,
   ThemeSchema,
@@ -136,6 +137,19 @@ describe('themeVariables', () => {
       expect(business.effects?.iconTint).toBe(false)
     },
   )
+
+  it('screens launcher icons over a near-black accent, where multiplying leaves black shapes', () => {
+    const look = (id: string) => iconLook(BUILTIN_THEMES.find((t) => t.id === id) as Theme)
+    expect(look('paper')).toBe('ink')
+    expect(look('black')).toBe('ink')
+    expect(look('tron')).toBe('tinted')
+    expect(look('white')).toBe('tinted')
+    expect(look('amber')).toBe('tinted')
+    expect(look('business-light')).toBe('color')
+    // A user theme by its accent alone.
+    const tron = BUILTIN_THEMES.find((t) => t.id === 'tron') as Theme
+    expect(iconLook({ ...tron, id: 'mine', accent: { h: 0, s: 0, l: 10 } })).toBe('ink')
+  })
 
   it('knows only dark and light modes', () => {
     expect(ThemeSchema.safeParse({ ...custom, mode: 'light' }).success).toBe(true)

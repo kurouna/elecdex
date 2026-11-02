@@ -321,6 +321,7 @@ Levels (from `src/shared/cluster.ts`; the numbers, bars, cores, lamps and messag
 | Where | standard preset (under the shells); picker: *launcher*; **Ctrl+Shift+L** searches the launcher, popping one up over the workspace if the layout has none |
 | Reads | Windows: the Start Menu folders (all users and this user) and the packaged apps the shell lists. macOS: `.app` bundles in `/Applications`, `/System/Applications`, `~/Applications`. Linux: `.desktop` files in the XDG application folders. Plus your own entries |
 | Settings | `launcher.items` and `launcher.showSystem` in `settings.json` (the pane's **EDIT LIST** button opens it) |
+| Keeps | *unreleased*: the application list in `launcher-catalog.json` and the icons in `launcher-icons/` in the user data folder, so the next start shows both at once while the list is scanned again behind them; an icon is drawn again after 30 days, and "no icon" is not kept |
 
 <p align="center">
   <img src="../screenshots/pane-launcher.jpg" alt="The Launcher pane on its own: a filter field over a grid of application icons drawn in the theme's accent colour">
@@ -329,7 +330,7 @@ Levels (from `src/shared/cluster.ts`; the numbers, bars, cores, lamps and messag
 
 - The platform's applications plus your own entries, most used first: elecdex counts successful launches and orders the list by them. Until something has been started, your own entries come first.
 - Type to filter; Enter starts the first match.
-- Icons take the theme's accent and show their own colours on hover (always, in the Business themes). Icons are fetched only for tiles that scroll into view.
+- Icons take the theme's accent and show their own colours on hover (always, in the Business themes). Icons are fetched only for tiles that scroll into view, or are within half a pane of it.
 - On Windows the icons are drawn by the Windows shell, and apps are named as the Start Menu shows them, packaged apps without a shortcut (Teams, Outlook, Terminal) included.
 - The page launches an entry by an opaque id from the main process's own list, never by a path or a command, so a compromised page cannot run anything that is not in the list.
 - A popped-up launcher goes away once it has started something.

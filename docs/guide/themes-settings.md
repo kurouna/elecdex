@@ -82,7 +82,7 @@ To add a theme, drop a JSON file into the `themes` folder next to `settings.json
 | `terminal.ansi` | no | Any of the 16 ANSI colours by name (`black` … `brightWhite`), each `#rrggbb`; these win over the derived palette one by one |
 | `effects.scanlines` | no | CRT scanlines over the whole screen |
 | `effects.glow` | no | Phosphor glow on text, 0 to 1 |
-| `effects.iconTint` | no | `false` shows launcher icons in their own colours |
+| `effects.iconTint` | no | `false` shows launcher icons in their own colours. Otherwise they take the accent; *unreleased*: over an accent darker than 25 % lightness (Paper, Black) they keep their shading in greys instead of turning into black shapes |
 
 Colours are `#rrggbb`. A theme is validated and turned into a fixed set of CSS variables; nothing in it is ever parsed as CSS or HTML.
 

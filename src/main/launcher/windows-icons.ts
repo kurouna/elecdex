@@ -20,9 +20,9 @@ import { spawn } from 'node:child_process'
  *
  * One PowerShell runs per batch, reading one base64 UTF-8 path per line on stdin
  * (so no path is ever part of a command line) and writing one line back per
- * path: a base64 PNG, or `-` when there is no icon. Batches are rare - the first
- * time the launcher shows its tiles, and after its catalog changes - and the
- * icons are cached for the life of the app.
+ * path: a base64 PNG, or `-` when there is no icon. Batches are rare - a tile
+ * whose icon is not on disk yet (icon-store.ts) - so one costs a PowerShell start
+ * at most once a month per app.
  */
 
 /** Paths per PowerShell run: a Start Menu is a few hundred shortcuts; stdout stays small. */
@@ -175,13 +175,20 @@ export async function extractWindowsIcons(
  * Collects icon requests arriving together - the launcher asks for each tile's
  * icon separately - into batches, so a screenful of tiles costs one PowerShell
  * rather than one each. Batches run one at a time: requests that arrive during a
- * run, or that did not fit in it, go in the next. A failed batch answers null for
- * its files; the caller decides what to fall back to.
+ * run, or that did not fit in it, go in the next. A failed batch rejects for its
+ * files rather than answering null: "the shell has no icon" is an answer worth
+ * keeping, a run that timed out or was blocked is not, and the caller decides
+ * what to fall back to.
  */
+interface Waiter {
+  resolve: (icon: string | null) => void
+  reject: (error: unknown) => void
+}
+
 export class IconBatcher {
   readonly #extract: (files: readonly string[]) => Promise<Array<string | null>>
   readonly #delayMs: number
-  readonly #pending = new Map<string, Array<(icon: string | null) => void>>()
+  readonly #pending = new Map<string, Waiter[]>()
   #timer: ReturnType<typeof setTimeout> | null = null
   #running = false
 
@@ -194,10 +201,10 @@ export class IconBatcher {
   }
 
   get(file: string): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const waiting = this.#pending.get(file)
-      if (waiting) waiting.push(resolve)
-      else this.#pending.set(file, [resolve])
+      if (waiting) waiting.push({ resolve, reject })
+      else this.#pending.set(file, [{ resolve, reject }])
       this.#schedule()
     })
   }
@@ -212,15 +219,14 @@ export class IconBatcher {
     this.#running = true
     const batch = [...this.#pending].slice(0, ICON_BATCH_MAX)
     for (const [file] of batch) this.#pending.delete(file)
-    let icons: ReadonlyArray<string | null> = []
     try {
-      icons = await this.#extract(batch.map(([file]) => file))
-    } catch {
-      // No icons from this batch; each file answers null below.
+      const icons = await this.#extract(batch.map(([file]) => file))
+      batch.forEach(([, waiting], i) => {
+        for (const { resolve } of waiting) resolve(icons[i] ?? null)
+      })
+    } catch (error) {
+      for (const [, waiting] of batch) for (const { reject } of waiting) reject(error)
     }
-    batch.forEach(([, waiting], i) => {
-      for (const resolve of waiting) resolve(icons[i] ?? null)
-    })
     this.#running = false
     this.#schedule()
   }

@@ -297,6 +297,22 @@ export interface ThemeProblem {
   message: string
 }
 
+/** Below this accent lightness, launcher icons are screened over it rather than multiplied. */
+export const INK_ACCENT_MAX_LIGHTNESS = 25
+
+/**
+ * How the launcher draws its icons in a theme. `tinted`: the grayscale icon is
+ * multiplied over the accent, so white takes the accent and black stays black.
+ * Over a near-black accent (Paper, Black) that leaves every icon a black shape,
+ * so there it is `ink`: the icon is screened over the accent, black takes the
+ * accent and the icon keeps its shading in greys. `color`: the icon as it is.
+ * Decided by the accent, not the theme's name, so a user theme is drawn the same way.
+ */
+export function iconLook(theme: Theme): 'color' | 'tinted' | 'ink' {
+  if (theme.effects?.iconTint === false) return 'color'
+  return theme.accent.l < INK_ACCENT_MAX_LIGHTNESS ? 'ink' : 'tinted'
+}
+
 /**
  * Built-ins overlaid with user themes: a user theme with a built-in's id
  * replaces it, the rest are appended. Order is stable for a menu.

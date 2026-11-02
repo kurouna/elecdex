@@ -28,12 +28,21 @@ function manualScan() {
   return { scan, answer }
 }
 
-function setup() {
+function setup(initial?: Entry[] | null) {
   let now = 0
   const { scan, answer } = manualScan()
   const onChange = vi.fn()
-  const cache = new SystemCache<Entry>({ scan, maxAgeMs: 60_000, onChange, now: () => now })
-  return { cache, scan, answer, onChange, advance: (ms: number) => (now += ms) }
+  const onScanned = vi.fn()
+  const read = vi.fn(() => initial ?? null)
+  const cache = new SystemCache<Entry>({
+    scan,
+    maxAgeMs: 60_000,
+    onChange,
+    now: () => now,
+    onScanned,
+    ...(initial === undefined ? {} : { initial: read }),
+  })
+  return { cache, scan, answer, onChange, onScanned, read, advance: (ms: number) => (now += ms) }
 }
 
 describe('SystemCache', () => {
@@ -120,5 +129,44 @@ describe('SystemCache', () => {
     expect(scan).toHaveBeenCalledTimes(2)
     await answer([e('A')])
     expect(await second).toEqual([e('A')])
+  })
+
+  it('serves the list a previous start saved without waiting, and scans behind it', async () => {
+    const { cache, scan, answer, onChange, onScanned, read } = setup([e('A')])
+    expect(read).not.toHaveBeenCalled()
+    expect(await cache.get()).toEqual([e('A')])
+    expect(scan).toHaveBeenCalledTimes(1)
+    // Shared: a second request while the scan runs starts no other.
+    expect(await cache.get()).toEqual([e('A')])
+    expect(scan).toHaveBeenCalledTimes(1)
+    await answer([e('A'), e('B')])
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onScanned).toHaveBeenCalledWith([e('A'), e('B')], true)
+    expect(await cache.get()).toEqual([e('A'), e('B')])
+    expect(read).toHaveBeenCalledTimes(1)
+  })
+
+  it('says a scan changed nothing when it found the saved list, and reports no change', async () => {
+    const { cache, answer, onChange, onScanned } = setup([e('A')])
+    await cache.get()
+    await answer([e('A')])
+    expect(onScanned).toHaveBeenCalledWith([e('A')], false)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('says the first scan with nothing saved changed the list, to save it', async () => {
+    const { cache, answer, onScanned } = setup(null)
+    const first = cache.get()
+    await answer([e('A')])
+    expect(await first).toEqual([e('A')])
+    expect(onScanned).toHaveBeenCalledWith([e('A')], true)
+  })
+
+  it('tells a change the panes do not see (a new command line) to save it, without reporting it', async () => {
+    const { cache, answer, onChange, onScanned } = setup([{ ...e('A'), exec: 'a' } as Entry])
+    await cache.get()
+    await answer([{ ...e('A'), exec: 'b' } as Entry])
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onScanned).toHaveBeenCalledWith([{ ...e('A'), exec: 'b' }], true)
   })
 })

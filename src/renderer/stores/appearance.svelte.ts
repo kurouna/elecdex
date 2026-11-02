@@ -1,6 +1,12 @@
 import type { ThemeCatalog } from '@shared/api'
 import { defaultSettings, type Settings, type SettingsPatch } from '@shared/settings'
-import { BUILTIN_THEMES, DEFAULT_THEME_ID, type Theme, themeVariables } from '@shared/theme'
+import {
+  BUILTIN_THEMES,
+  DEFAULT_THEME_ID,
+  iconLook,
+  type Theme,
+  themeVariables,
+} from '@shared/theme'
 
 /**
  * Settings and the active theme, kept in step with main.
@@ -78,7 +84,7 @@ class AppearanceStore {
     }
     root.dataset.theme = theme.id
     root.dataset.mode = theme.mode ?? 'dark'
-    root.dataset.icons = theme.effects?.iconTint === false ? 'color' : 'tinted'
+    root.dataset.icons = iconLook(theme)
     root.dataset.scanlines = theme.effects?.scanlines ? 'on' : 'off'
     if ((theme.effects?.glow ?? 0) > 0) root.dataset.glow = 'on'
     else delete root.dataset.glow
