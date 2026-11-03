@@ -1,4 +1,5 @@
 <script lang="ts">
+import { pingOffline } from '@shared/metrics'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
@@ -9,7 +10,8 @@ import type { WidgetProps } from '../registry.ts'
  *
  * ONLINE means the interface is up AND the ping host answered - an interface can
  * be up on a network with no route out, and the original reported that as
- * offline too.
+ * offline too. "Answered" forgives one lost echo (`PING_OFFLINE_AFTER`): the PING
+ * cell shows it lost, the state waits for the next.
  */
 const { paneId }: WidgetProps = $props()
 
@@ -19,7 +21,7 @@ const ping = $derived(metrics.get('net.ping'))
 const state = $derived.by(() => {
   if (iface === null && ping === null) return 'UNKNOWN'
   const up = iface?.state === 'up' || iface?.state === 'unknown'
-  return up && ping?.ms !== null && ping?.ms !== undefined ? 'ONLINE' : 'OFFLINE'
+  return up && ping !== null && !pingOffline(ping) ? 'ONLINE' : 'OFFLINE'
 })
 
 $effect(() => {

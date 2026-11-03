@@ -1,4 +1,5 @@
 <script lang="ts">
+import { pingOffline } from '@shared/metrics'
 import { untrack } from 'svelte'
 import { formatTotal, toMegabytesPerSecond } from '../../lib/format.ts'
 import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
@@ -43,7 +44,8 @@ $effect(() => {
   paneMeta.set(paneId, { subtitle: 'UP / DOWN, MB/S' })
 })
 
-const offline = $derived(ping !== null && ping.ms === null)
+// Echoes lost in a row, not one: a single loss is a Wi-Fi hiccup, not an outage.
+const offline = $derived(pingOffline(ping))
 
 // Both halves share one scale, so the larger of the two directions sets it.
 const peak = $derived(

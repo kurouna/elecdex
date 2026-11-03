@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { ConnectionCountry } from '@shared/metrics'
+import { type ConnectionCountry, pingOffline } from '@shared/metrics'
 import type { QuakeState } from '@shared/quakes'
 import { untrack } from 'svelte'
 import { Color } from 'three'
@@ -43,7 +43,7 @@ const home = guessHome(zone, navigator.language, new Date())
 
 const connections = $derived(metrics.get('net.connections'))
 const ping = $derived(metrics.get('net.ping'))
-const offline = $derived(ping !== null && ping.ms === null && (connections?.total ?? 0) === 0)
+const offline = $derived(pingOffline(ping) && (connections?.total ?? 0) === 0)
 const countries = $derived<ConnectionCountry[]>(connections?.countries ?? [])
 
 /** The earthquake list, followed without keeping it alive. */

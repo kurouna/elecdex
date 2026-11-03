@@ -198,4 +198,38 @@ describe('the Windows sampler, with a made-up PowerShell', () => {
     expect(sampler.readings.get('power')).toBe(2)
     sampler.stop()
   })
+
+  it('counts lost echoes in a row once per echo, and anew after the sampler exits', async () => {
+    const children: ReturnType<typeof fakeChild>[] = []
+    const sampler = new WindowsSampler('127.0.0.1', () => {
+      const child = fakeChild()
+      children.push(child)
+      return child as never
+    })
+    const echo = (ms: number | null) =>
+      children.at(-1)?.stdout.write(`${JSON.stringify({ t: 'ping', data: { ms } })}\n`)
+    const lost = async () => (await sampler.netPing()).lost
+
+    const first = sampler.netPing()
+    echo(null)
+    expect((await first).lost).toBe(1)
+    // The collector reads again before the next echo: the same loss, not a second one.
+    expect(await lost()).toBe(1)
+    echo(null)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(await lost()).toBe(2)
+    echo(4)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(await sampler.netPing()).toEqual({ host: '127.0.0.1', ms: 4, lost: 0 })
+
+    echo(null)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(await lost()).toBe(1)
+    // A new sampler starts counting from nothing: the old one's losses are stale.
+    sampler.stop()
+    const again = sampler.netPing()
+    echo(null)
+    expect((await again).lost).toBe(1)
+    sampler.stop()
+  })
 })

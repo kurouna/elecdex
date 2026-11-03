@@ -42,7 +42,8 @@ The other panes of the system column are on [System panes](panes-system.md). Eve
 | Platforms | Windows: the sampler (IP Helper for the interface, ICMP for the echo). macOS, Linux: systeminformation, or the Wi-Fi or Ethernet pane's running echo when there is one |
 
 - Three figures: **STATE**, the interface's **IPV4** address, and **PING** to `1.1.1.1` in milliseconds. The subtitle names the interface.
-- **ONLINE** means the interface is up *and* the ping host answered: an interface can be up on a network with no route out, and that is reported as **OFFLINE**. With no reading yet, **UNKNOWN**.
+- **ONLINE** means the interface is up *and* the ping host answers: an interface can be up on a network with no route out, and that is reported as **OFFLINE**. With no reading yet, **UNKNOWN**.
+- **OFFLINE** comes after two echoes in a row go unanswered (about 10 seconds), never after one: a Wi-Fi link can pass nothing for a few seconds without dropping. A single lost echo shows as `--ms` in **PING** while the state stays.
 - With no default route, Windows falls back to any real adapter with an address (never loopback) and reports it down.
 - The pane has no ⤢ button: a pane of a few figures gains nothing from filling the window.
 - elecdex never calls systeminformation's Wi-Fi functions or its interface list on Windows: they run `netsh wlan`, which Windows 11 treats as location access and answers with a permission prompt.
@@ -57,6 +58,7 @@ The other panes of the system column are on [System panes](panes-system.md). Eve
 
 - Running totals (`OUT` and `IN`) over one graph labelled in MB/s: upload above the axis, download mirrored below it, on one scale set by the larger direction.
 - The traffic goes on being sampled behind another tab or with the window put away, so the graph has no gap when the pane is seen again; the totals written on the pane are updated only while it is seen.
+- **OFFLINE** is written over the graph when two echoes to `1.1.1.1` in a row go unanswered, the same rule as network status.
 
 ## World view
 

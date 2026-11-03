@@ -24,6 +24,7 @@ import type {
   ProcessEntry,
   ProcessList,
 } from '@shared/metrics'
+import { lostAfter } from '@shared/metrics'
 import si from 'systeminformation'
 import { type DiskCounters, diskIoBetween, parseDiskstats, posixVolumes } from './disks.js'
 import { readEthernet } from './ethernet/index.js'
@@ -250,14 +251,23 @@ async function netThroughput(): Promise<NetThroughput> {
   }
 }
 
+/** Echoes lost in a row, outside Windows: the sampler counts its own there. */
+let pingLost = 0
+
 async function netPing(): Promise<NetPing> {
   if (windowsSampler) return windowsSampler.netPing()
+  const ms = await internetEcho()
+  pingLost = lostAfter(pingLost, ms)
+  return { host: PING_HOST, ms, lost: pingLost }
+}
+
+async function internetEcho(): Promise<number | null> {
   // While the Wi-Fi or Ethernet pane pings the same host every second (one stream serves both,
   // wifi/index.ts), its echo is this one's too.
   const shared = sharedInternetPing(PING_HOST)
-  if (shared !== undefined) return { host: PING_HOST, ms: shared }
+  if (shared !== undefined) return shared
   const ms = await si.inetLatency(PING_HOST)
-  return { host: PING_HOST, ms: typeof ms === 'number' && ms >= 0 ? ms : null }
+  return typeof ms === 'number' && ms >= 0 ? ms : null
 }
 
 async function netConnections(): Promise<NetConnections> {

@@ -13,6 +13,7 @@ import type {
   ProcessEntry,
   ProcessList,
 } from '@shared/metrics'
+import { lostAfter } from '@shared/metrics'
 import type { NetWifi, NetWifiEvents } from '@shared/wifi'
 import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
 import {
@@ -851,7 +852,8 @@ export class WindowsSampler {
   private procPrevious: Reading<RawProcess> | null = null
   private procCurrent: Reading<RawProcess> | null = null
   private ifaces: RawIface[] | null = null
-  private ping: { ms: number | null } | null = null
+  /** The last echo, and how many in a row went unanswered: counted here, once per echo. */
+  private ping: { ms: number | null; lost: number } | null = null
   private tcp: string[] | null = null
   private listeners: RawListener[] = []
   private power: RawPower | null = null
@@ -901,7 +903,7 @@ export class WindowsSampler {
 
   async netPing(): Promise<NetPing> {
     await this.until(['ping'], () => this.ping !== null)
-    return { host: this.pingHost, ms: this.ping?.ms ?? null }
+    return { host: this.pingHost, ms: this.ping?.ms ?? null, lost: this.ping?.lost ?? 0 }
   }
 
   /** Remote addresses of established TCP connections, for the globe. */
@@ -1180,7 +1182,9 @@ export class WindowsSampler {
         this.ifaces = parsed.data
         break
       case 'ping':
-        this.ping = { ms: parsed.ms }
+        // Counted per line, not per read: the collector reads on its own five-second clock and
+        // may read one echo twice, or none, between two lines.
+        this.ping = { ms: parsed.ms, lost: lostAfter(this.ping?.lost ?? 0, parsed.ms) }
         break
       case 'tcp':
         this.tcp = parsed.rows

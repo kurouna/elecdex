@@ -49,7 +49,7 @@ const readings = (over: Partial<Readings> = {}): Readings => ({
   mem: { total: 32e9, used: 16e9, free: 16e9 },
   net: { iface: 'Ethernet', rxSec: 1_250_000, txSec: 125_000, rxTotal: 41.8e9, txTotal: 3.9e9 },
   io: { readSec: 2e6, writeSec: 1e6, busy: 7 },
-  ping: { host: '1.1.1.1', ms: 14 },
+  ping: { host: '1.1.1.1', ms: 14, lost: 0 },
   link: { iface: 'Ethernet', ip4: '192.168.0.12', mac: null, state: 'up' },
   swap: { total: 4e9, used: 1e9, available: 0, active: 0 },
   volumes: { volumes: [volume('C:\\', 300e9), volume('D:\\', 100e9)] },
@@ -95,7 +95,7 @@ describe('lane figures', () => {
   })
 
   it('say LOST for no echo, and nothing for what is not read', () => {
-    expect(laneFigure('ping', readings({ ping: { host: 'h', ms: null } }))).toMatchObject({
+    expect(laneFigure('ping', readings({ ping: { host: 'h', ms: null, lost: 1 } }))).toMatchObject({
       value: 'LOST',
       word: true,
       level: 'crit',

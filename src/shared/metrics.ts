@@ -122,9 +122,28 @@ export interface NetThroughput {
 
 export interface NetPing {
   host: string
-  /** Round trip in milliseconds, or null when unreachable. */
+  /** Round trip in milliseconds, or null when this echo went unanswered. */
   ms: number | null
+  /** Echoes unanswered in a row, this one included: 0 when it was answered. */
+  lost: number
 }
+
+/**
+ * Echoes lost in a row before the network panes say OFFLINE. One lost echo is no outage: a
+ * Wi-Fi link that stays associated can pass nothing for a few seconds (three echoes a second
+ * apart, lost once in half an hour, measured 2026-11-03), and with one echo every five seconds
+ * a single loss painted OFFLINE over the panes for five seconds. Two in a row is about ten
+ * seconds without an answer.
+ */
+export const PING_OFFLINE_AFTER = 2
+
+/** The `lost` count after an echo, from the count before it. */
+export const lostAfter = (before: number, ms: number | null): number =>
+  ms === null ? before + 1 : 0
+
+/** Whether the network panes call the internet unreachable: no answer for long enough. */
+export const pingOffline = (ping: NetPing | null): boolean =>
+  ping !== null && ping.lost >= PING_OFFLINE_AFTER
 
 export interface ConnectionCountry {
   /** ISO 3166 alpha-2. */
