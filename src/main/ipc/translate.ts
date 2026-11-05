@@ -2,6 +2,7 @@ import { CH } from '@shared/channels'
 import { PLAMO_LICENSE_URL } from '@shared/translate/board'
 import { PANE_ID, RunRequestSchema } from '@shared/translate/run'
 import { app, BrowserWindow, dialog, net, shell, type WebContents } from 'electron'
+import { RunFollowers } from '../translate/followers.js'
 import { TranslateService } from '../translate/service.js'
 import { whenPageGoes, whenPageLoads } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
@@ -83,22 +84,9 @@ export function registerTranslateIpc(settings: SettingsHandle): {
 
   // Who follows which pane's run: each follow is one follower in main, dropped with its page. A
   // reload holds the run until the page has loaded again (§8.5).
-  const following = new Map<WebContents, Map<string, number>>()
+  const following = new RunFollowers<WebContents>(service.runs, CH.translate.runEvent)
   const owner = {}
-  const pageGone = (sender: WebContents): void => {
-    const panes = following.get(sender)
-    following.delete(sender)
-    const how = sender.isDestroyed() ? 'now' : 'reload'
-    for (const [paneId, count] of panes ?? []) {
-      for (let i = 0; i < count; i++) service.runs.unfollow(paneId, how)
-    }
-  }
-  const unsubscribeRuns = service.onRunEvent((event) => {
-    for (const [sender, panes] of following) {
-      if (panes.has(event.paneId) && !sender.isDestroyed())
-        sender.send(CH.translate.runEvent, event)
-    }
-  })
+  const unsubscribeRuns = service.onRunEvent((event) => following.publish(event))
   const paneOf = (raw: unknown): string | null =>
     typeof raw === 'string' && PANE_ID.test(raw) ? raw : null
 
@@ -118,21 +106,13 @@ export function registerTranslateIpc(settings: SettingsHandle): {
         const paneId = paneOf(raw)
         if (paneId === null) return
         const sender = event.sender
-        whenPageGoes(sender, owner, () => pageGone(sender))
+        whenPageGoes(sender, owner, () => following.gone(sender))
         whenPageLoads(sender, owner, () => service.runs.pageLoaded())
-        const panes = following.get(sender) ?? new Map<string, number>()
-        following.set(sender, panes)
-        panes.set(paneId, (panes.get(paneId) ?? 0) + 1)
-        sender.send(CH.translate.runEvent, service.runs.follow(paneId))
+        following.follow(sender, paneId)
       },
       [CH.translate.unfollow]: (event, raw) => {
         const paneId = paneOf(raw)
-        const panes = following.get(event.sender)
-        const count = paneId === null ? 0 : (panes?.get(paneId) ?? 0)
-        if (paneId === null || !panes || count === 0) return
-        if (count > 1) panes.set(paneId, count - 1)
-        else panes.delete(paneId)
-        service.runs.unfollow(paneId)
+        if (paneId !== null) following.unfollow(event.sender, paneId)
       },
       [CH.translate.stop]: (_event, raw) => {
         const paneId = paneOf(raw)

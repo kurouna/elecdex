@@ -67,13 +67,13 @@ import type { Settings } from '@shared/settings'
 import type { SnippetAdded, SnippetDraft, SnippetView } from '@shared/snippets'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from '@shared/tasks'
 import type { TranslateBoard } from '@shared/translate/board'
-import type { RunEvent } from '@shared/translate/run'
 import type { UpdateStatus } from '@shared/updates'
 import type { AwakeState } from '@shared/utility'
 import type { OfficeInfo } from '@shared/weather'
 import type { WeatherUpdate } from '@shared/weather-report'
 import type { WebState } from '@shared/web'
 import { contextBridge, ipcRenderer } from 'electron'
+import { runFollowing } from './run-follow.js'
 
 /**
  * The only bridge between the sandboxed renderer and the main process.
@@ -365,32 +365,12 @@ const subscribeTranslate = keyedSubscriptions<TranslateBoard>({
   keyOf: () => 'board',
 })
 
-/**
- * A pane's TRANSLATE run. Not a keyed subscription: a run's events are numbered, and a page that
- * follows is given a snapshot of its own rather than the last event again. Each handler is one
- * follower in main.
- */
-const runHandlers = new Map<string, Set<(event: RunEvent) => void>>()
-ipcRenderer.on(CH.translate.runEvent, (_event, payload: RunEvent) => {
-  for (const handler of runHandlers.get(payload.paneId) ?? []) handler(payload)
+/** A pane's TRANSLATE run: a snapshot, then numbered patches (preload/run-follow.ts). */
+const followRun = runFollowing(ipcRenderer, {
+  follow: CH.translate.follow,
+  unfollow: CH.translate.unfollow,
+  event: CH.translate.runEvent,
 })
-function followRun(paneId: string, handler: (event: RunEvent) => void): () => void {
-  let set = runHandlers.get(paneId)
-  if (!set) {
-    set = new Set()
-    runHandlers.set(paneId, set)
-  }
-  set.add(handler)
-  ipcRenderer.send(CH.translate.follow, paneId)
-  let active = true
-  return () => {
-    if (!active) return
-    active = false
-    set.delete(handler)
-    if (set.size === 0) runHandlers.delete(paneId)
-    ipcRenderer.send(CH.translate.unfollow, paneId)
-  }
-}
 
 /** The one agents board: every handler shares one subscription, as a keyed one would. */
 const subscribeAgents = keyedSubscriptions<AgentBoard>({

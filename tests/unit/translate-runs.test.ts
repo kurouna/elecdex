@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { type Completion, type Endpoint, NoStopError } from '../../src/main/translate/llama'
+import {
+  type Completion,
+  type Endpoint,
+  NoStopError,
+  ServerAnswerError,
+} from '../../src/main/translate/llama'
 import {
   FLUSH_MS,
   mergePatch,
@@ -383,6 +388,66 @@ describe('TranslateRuns', () => {
     // A snapshot to a page that follows now carries the seq the next patch follows.
     const snapshot = h.runs.follow('p1')
     expect(snapshot.seq).toBe(seqs.at(-1))
+  })
+})
+
+describe('TranslateRuns and asking again', () => {
+  it('does not ask again what the server refused (an HTTP error), and says it refused', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.\n\nB.'))
+    await h.settle()
+    h.calls[0]?.reject(new ServerAnswerError('/completion answered HTTP 400'))
+    await h.settle()
+    h.tick(FLUSH_MS)
+    expect(h.calls).toHaveLength(1)
+    expect(h.page('p1')?.reason).toBe(
+      'The engine refused the request: /completion answered HTTP 400',
+    )
+  })
+
+  it('never starts the engine again for a run stopped while the last attempt settled', async () => {
+    let ensures = 0
+    let release: () => void = () => {}
+    const h = harness({
+      ensure: async () => {
+        ensures++
+        return ENDPOINT
+      },
+      settle: () =>
+        new Promise<void>((resolve) => {
+          release = resolve
+        }),
+    })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.'))
+    await h.settle()
+    h.calls[0]?.reject(new TypeError('fetch failed'))
+    await h.settle()
+    h.runs.stop('p1')
+    release()
+    await h.settle()
+    expect(ensures).toBe(1)
+    expect(h.calls).toHaveLength(1)
+  })
+
+  it('waits for the engine to settle before it asks again', async () => {
+    const order: string[] = []
+    const h = harness({
+      settle: async () => {
+        order.push('settle')
+      },
+      ensure: async () => {
+        order.push('ensure')
+        return ENDPOINT
+      },
+    })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.'))
+    await h.settle()
+    h.calls[0]?.reject(new TypeError('fetch failed'))
+    await h.settle()
+    expect(order).toEqual(['ensure', 'settle', 'ensure'])
   })
 })
 

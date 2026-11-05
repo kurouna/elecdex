@@ -272,7 +272,7 @@ async function translate(page: Page, text: string): Promise<void> {
 
 const blocks = (page: Page) => page.getByTestId('translate-block')
 
-test('TRANSLATE writes the blocks in order, with the source laid out on the spine', async () => {
+test('TRANSLATE writes every block, with the source laid out on the spine', async () => {
   const { page, close } = await launch(undefined, withModel())
   try {
     await translate(page, 'Hello.\n\nThe second block\nkeeps its line.\n\nThird.')
@@ -298,9 +298,7 @@ test('STOP (Ctrl+.) keeps the block being written and leaves the rest untranslat
     await translate(page, `${long}\n\nAfter it.`)
     await expect(blocks(page).first()).toHaveAttribute('data-st', 'running', { timeout: 15_000 })
     await expect(blocks(page).first()).toContainText('[ja] A long')
-    // Into the source (it turns back into the text to edit), and the key from there.
-    await page.getByTestId('translate-source-blocks').click()
-    await expect(page.getByTestId('translate-source')).toBeFocused()
+    // Straight after Ctrl+Enter, with nothing clicked: the pane kept the focus.
     await page.keyboard.press('Control+Period')
     await expect(blocks(page).first()).toHaveAttribute('data-st', 'stopped')
     await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'none')

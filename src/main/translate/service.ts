@@ -149,7 +149,7 @@ export class TranslateService {
       ctx: () => this.#settings.ctx,
       tokenize: (endpoint, text, signal) => tokenize(fetch, endpoint, text, signal),
       complete: (endpoint, body, signal, onText) =>
-        streamCompletion(fetch, endpoint, body, signal, onText),
+        streamCompletion(fetch, endpoint, body, signal, onText, env.stallMs),
       setTimer: (fn, ms) => setTimeout(fn, ms),
       clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
       publish: (event) => {

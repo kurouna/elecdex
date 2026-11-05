@@ -92,13 +92,19 @@ const sourceOf = (r: RunView): string =>
     r.tail,
   )
 
-// A page reloaded loses its drafts: the run main kept brings its source back.
+// A page reloaded loses its drafts: the run main kept brings its source back - once, from the
+// first run this mount sees, never again (Clear and an emptied text would come back otherwise).
+let restored = false
 $effect(() => {
   const r = run
-  if (r !== null && text === '' && r.blocks.length > 0) {
-    text = sourceOf(r)
-    draftId = r.draftId
-  }
+  if (restored || r === null) return
+  restored = true
+  untrack(() => {
+    if (text === '' && r.blocks.length > 0) {
+      text = sourceOf(r)
+      draftId = r.draftId
+    }
+  })
 })
 
 const showBlocks = $derived(
@@ -116,7 +122,8 @@ async function translate(): Promise<void> {
   if (!canRun) return
   problem = null
   editing = false
-  textarea?.blur()
+  // Focus stays in the pane (the source turns into its blocks), so Ctrl+. reaches it.
+  root?.focus()
   const answer = await api.run({
     paneId,
     draftId,
@@ -156,6 +163,14 @@ function swap(): void {
 
 function copy(): void {
   if (run !== null) void navigator.clipboard?.writeText(targetText(run)).catch(() => {})
+}
+
+/** Enter on the source's blocks edits them, as a click does; focus alone does not. */
+function onBlocksKey(event: KeyboardEvent): void {
+  if (event.key === 'Enter' && !event.ctrlKey && !event.isComposing) {
+    event.preventDefault()
+    edit()
+  }
 }
 
 function onSourceKey(event: KeyboardEvent): void {
@@ -199,7 +214,7 @@ interface Link {
   state: BlockView['state']
 }
 let links = $state.raw<Link[]>([])
-let size = $state({ width: 0, height: 0 })
+let size = $state.raw({ width: 0, height: 0 })
 
 $effect(() => {
   const el = root
@@ -248,7 +263,7 @@ function layoutLinks(): void {
     !els.srcText ||
     !els.dstText
   ) {
-    links = []
+    if (links.length > 0) links = []
     return
   }
   const g = els.gutter
@@ -280,8 +295,21 @@ function layoutLinks(): void {
       state: block.state,
     })
   }
-  size = { width: els.duo.clientWidth, height: els.duo.clientHeight }
-  links = next
+  const width = els.duo.clientWidth
+  const height = els.duo.clientHeight
+  // Assigned only when something moved: this runs with every patch, ten times a second.
+  if (width !== size.width || height !== size.height) size = { width, height }
+  if (!sameLinks(links, next)) links = next
+}
+
+function sameLinks(a: readonly Link[], b: readonly Link[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((link, i) => {
+      const other = b[i]
+      return other !== undefined && link.path === other.path && link.state === other.state
+    })
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +350,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="text-view" class:narrow bind:this={root} onkeydown={onKey} data-testid="translate-text">
+<div class="text-view" class:narrow bind:this={root} onkeydown={onKey} tabindex="-1" data-testid="translate-text">
   <div class="toolbar">
     {#snippet language(side: 'src' | 'tgt', code: string)}
       <span class="anchor">
@@ -373,7 +401,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
         <div class="text" bind:this={srcText} onscroll={schedule}>
           {#if showBlocks && run !== null}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <div class="blocks" role="textbox" tabindex="0" aria-label="Source text" onclick={edit} onfocus={edit} data-testid="translate-source-blocks">
+            <div class="blocks" role="textbox" tabindex="0" aria-label="Source text" onclick={edit} onkeydown={onBlocksKey} data-testid="translate-source-blocks">
               {#each run.blocks as block (block.index)}
                 <p
                   class="seg"
@@ -511,7 +539,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 </div>
 
 <style>
-.text-view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.text-view { outline: none; position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .toolbar { display: flex; align-items: center; gap: var(--space-2) var(--space-3); flex-wrap: wrap; min-height: 1.6rem; padding-right: 1.7rem; }
 .spacer { flex: 1; }
 .pair { display: flex; align-items: stretch; gap: var(--space-1); }

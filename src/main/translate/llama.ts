@@ -24,6 +24,12 @@ export class NoStopError extends Error {}
 /** The server answered, but not with a translation (an HTTP error): not a crash of the engine. */
 export class ServerAnswerError extends Error {}
 
+/** Nothing came for the stall time while a block was written: taken as an engine that stopped. */
+export class StalledError extends Error {}
+
+/** How long a stream may go without a byte before it is given up (§4.2's minute). */
+export const STREAM_STALL_MS = 60_000
+
 function headers(key: string | null): Record<string, string> {
   return key
     ? { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }
@@ -63,6 +69,7 @@ export async function streamCompletion(
   body: Record<string, unknown>,
   signal: AbortSignal,
   onText: (text: string) => void,
+  stallMs = STREAM_STALL_MS,
 ): Promise<Completion> {
   const response = await fetchFn(`${endpoint.origin}/completion`, {
     method: 'POST',
@@ -81,7 +88,7 @@ export async function streamCompletion(
   const reader = response.body.getReader()
   let buffer = ''
   for (;;) {
-    const { done, value } = await reader.read()
+    const { done, value } = await readWithin(reader, stallMs)
     if (done) break
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
@@ -97,6 +104,31 @@ export async function streamCompletion(
   const end = readLine(buffer, onText)
   if (end) return end
   throw new NoStopError('The engine ended its answer without the end mark.')
+}
+
+/**
+ * The next chunk, or a StalledError when none comes in time: a server that keeps the socket open
+ * and writes nothing would otherwise hold the block, and the queue behind it, for ever.
+ */
+async function readWithin(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  ms: number,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const stalled = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new StalledError(`Nothing came for ${Math.round(ms / 1000)} s.`)),
+      ms,
+    )
+  })
+  try {
+    return await Promise.race([reader.read(), stalled])
+  } catch (error) {
+    if (error instanceof StalledError) await reader.cancel().catch(() => {})
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /** One `data:` line: its text handed on, and how it ended when it is the last. */

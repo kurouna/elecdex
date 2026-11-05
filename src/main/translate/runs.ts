@@ -8,7 +8,7 @@ import {
   type RunState,
   type RunView,
 } from '@shared/translate/run'
-import { type Completion, type Endpoint, NoStopError } from './llama.js'
+import { type Completion, type Endpoint, NoStopError, ServerAnswerError } from './llama.js'
 
 /**
  * The translations main holds, one per pane, and the one queue they wait in (docs/translate.md
@@ -288,7 +288,8 @@ export class TranslateRuns {
     } finally {
       this.#deps.end()
       if (run.abort === controller) run.abort = null
-      this.#queueFlush(run)
+      // A run replaced or dropped meanwhile has nothing more to send.
+      if (this.#runs.get(run.view.paneId) === run) this.#queueFlush(run)
     }
   }
 
@@ -304,6 +305,8 @@ export class TranslateRuns {
           this.#live(run, signal) &&
           !(error instanceof TooLongError) &&
           !(error instanceof NoStopError) &&
+          // The server answered, with an error: asking the same again gets the same answer.
+          !(error instanceof ServerAnswerError) &&
           !this.#deps.external()
         if (!retry) throw error
         this.#patch(run, { index, text: '' })
@@ -313,6 +316,8 @@ export class TranslateRuns {
   }
 
   async #writeBlock(run: Run, index: number, history: Pair[], signal: AbortSignal): Promise<void> {
+    // Stopped or replaced while the last attempt settled: never start the engine for it.
+    if (!this.#live(run, signal)) return
     const endpoint = await this.#deps.ensure()
     if (!this.#live(run, signal)) return
     const block = run.view.blocks[index]
@@ -418,7 +423,9 @@ export class TranslateRuns {
       ? `The server does not answer (${message}).`
       : error instanceof NoStopError
         ? message
-        : `The engine stopped: ${message}`
+        : error instanceof ServerAnswerError
+          ? `The engine refused the request: ${message}`
+          : `The engine stopped: ${message}`
     const block = run.view.blocks[index]
     this.#patch(run, {
       index,
