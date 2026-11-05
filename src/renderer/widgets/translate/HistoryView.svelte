@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { HistoryRow } from '@shared/translate/history'
+import { onBoundary } from '../../lib/frame-loop.ts'
 import { historyDays, historyPair, historyTime } from './translate-view.ts'
 
 /**
@@ -36,7 +37,18 @@ $effect(() => () => {
   if (armTimer !== null) clearTimeout(armTimer)
 })
 
-const days = $derived(historyDays(rows ?? [], filter, Date.now()))
+// Today and Yesterday move on at midnight: checked on the hour, assigned only when the day changed.
+let today = $state(new Date().toDateString())
+$effect(() =>
+  onBoundary(3_600_000, () => {
+    const now = new Date().toDateString()
+    if (now !== today) today = now
+  }),
+)
+const days = $derived.by(() => {
+  void today
+  return historyDays(rows ?? [], filter, Date.now())
+})
 
 function clear(): void {
   if (armTimer !== null) clearTimeout(armTimer)

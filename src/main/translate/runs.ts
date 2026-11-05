@@ -228,7 +228,7 @@ export class TranslateRuns {
       request: {
         paneId,
         draftId: view.draftId,
-        text: '',
+        text: view.blocks.map((b) => b.lead + b.source).join('') + view.tail,
         srcLang: view.srcLang,
         tgtLang: view.tgtLang,
         mode: 'translate',

@@ -10,7 +10,7 @@ import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import EngineView from './EngineView.svelte'
 import HistoryView from './HistoryView.svelte'
-import { isActive, keepDraft, newDraftId, RunFollower } from './run-follower.svelte.ts'
+import { draftOf, isActive, keepDraft, newDraftId, RunFollower } from './run-follower.svelte.ts'
 import SetupView from './SetupView.svelte'
 import TextView from './TextView.svelte'
 import { firstSetupStep, phaseLamp, whereTextGoes } from './translate-view.ts'
@@ -56,7 +56,8 @@ $effect(() => {
 async function openEntry(row: HistoryRow): Promise<void> {
   const answer = await window.elecdex.translate.historyOpen(paneId, row.id)
   if ('problem' in answer) return
-  keepDraft(paneId, { text: '', draftId: newDraftId(), context: '' })
+  // The pane's context stays: an entry carries none of its own.
+  keepDraft(paneId, { text: '', draftId: newDraftId(), context: draftOf(paneId).context })
   widgetState.patch(paneId, {
     srcLang: row.srcLang,
     tgtLang: row.tgtLang,

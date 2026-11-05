@@ -776,7 +776,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 .dhead b { color: var(--text); font-weight: 500; }
 .ctxbox { width: 100%; min-height: 4.2rem; resize: vertical; background: transparent; border: 1px solid var(--panel-rule); color: var(--text); padding: 0.3rem 0.4rem; font-family: var(--font-ui); font-size: var(--step--1); line-height: 1.5; outline: none; }
 .ctxbox:focus { border-color: var(--accent); }
-.small { font-size: var(--step--2); letter-spacing: 0.03em; }
+.small { font-size: var(--step--1); letter-spacing: 0.03em; }
 .tog .lamp-live { width: 0.45rem; height: 0.45rem; border: 1px solid var(--text-muted); display: inline-block; transform: rotate(45deg); }
 .tog[aria-pressed="true"] .lamp-live { border-color: var(--ok); background: var(--ok); }
 .tag.info { color: var(--info); }

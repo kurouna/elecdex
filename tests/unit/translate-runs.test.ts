@@ -459,9 +459,12 @@ describe('TranslateRuns with a glossary, a context and the history', () => {
     h.runs.stop('p1')
     h.runs.start(request('p1', 'B.\n\nC.'))
     await answer(h, 'あ')
-    h.runs.start(request('p1', 'D.'))
+    // One that wrote a block and is then dropped, nobody following it.
+    h.runs.start(request('p1', 'D.\n\nE.'))
+    await answer(h, 'え')
     h.runs.unfollow('p1')
     h.tick(ORPHAN_MS)
+    expect(h.runs.watching()).toEqual([])
     expect(records).toEqual([])
   })
 

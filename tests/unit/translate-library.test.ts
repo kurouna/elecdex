@@ -18,6 +18,7 @@ import {
   entryTarget,
   type HistoryEntry,
   historyRow,
+  readHistory,
   recordEntry,
 } from '../../src/shared/translate/history'
 
@@ -117,8 +118,8 @@ const entry = (over: Partial<HistoryEntry> = {}): HistoryEntry => ({
   tgtLang: 'ja',
   form: 'polite',
   blocks: [
-    { lead: '', source: 'Hello.', text: 'こんにちは。' },
-    { lead: '\n\n', source: 'Bye.', text: 'さようなら。' },
+    { lead: '', source: 'Hello.', text: 'こんにちは。', done: true },
+    { lead: '\n\n', source: 'Bye.', text: 'さようなら。', done: true },
   ],
   tail: '',
   partial: null,
@@ -163,7 +164,8 @@ describe('the history', () => {
     expect(entrySource(entry())).toBe('Hello.\n\nBye.')
     expect(entryTarget(entry())).toBe('こんにちは。\n\nさようなら。')
     expect(
-      historyRow(entry({ blocks: [{ lead: '', source: 'x'.repeat(1000), text: 'y' }] })).source,
+      historyRow(entry({ blocks: [{ lead: '', source: 'x'.repeat(1000), text: 'y', done: true }] }))
+        .source,
     ).toHaveLength(240)
   })
 })
@@ -241,5 +243,46 @@ describe('TranslateLibrary', () => {
     ).toEqual(['e1'])
     writeFileSync(path.join(dir, 'glossaries.json'), 'not json')
     expect(make().glossaries()).toEqual([])
+  })
+})
+
+describe('the files, as hand edits may leave them', () => {
+  it('refuses a glossary for Easy Japanese alone: a Japanese one serves it', () => {
+    expect(
+      readGlossaries({
+        version: 1,
+        glossaries: [{ id: 'g', name: 'n', targetLang: 'ja(easy)', terms: [] }],
+      }),
+    ).toEqual([])
+  })
+
+  it('keeps the first fifty glossaries of a file with more, rather than none', () => {
+    const many = Array.from({ length: 51 }, (_, i) => ({
+      id: `g${i}`,
+      name: `n${i}`,
+      targetLang: null,
+      terms: [],
+    }))
+    expect(readGlossaries({ version: 1, glossaries: many })).toHaveLength(50)
+  })
+
+  it('drops an entry whose languages are none of the model’s', () => {
+    const bad = { ...entry(), id: 'bad', srcLang: 'nonsense' }
+    const detected = { ...entry(), id: 'bad2', detected: 'zz' }
+    expect(readHistory({ version: 1, entries: [entry(), bad, detected] }).map((e) => e.id)).toEqual(
+      ['e1'],
+    )
+  })
+
+  it('measures the 4 MB in UTF-8 bytes, three a Japanese character', () => {
+    const japanese = entry({
+      blocks: [{ lead: '', source: 'あ'.repeat(1000), text: 'い'.repeat(1000), done: true }],
+    })
+    // About 6 KB of UTF-8, though 2,000 characters: a 3 KB limit keeps it alone.
+    const kept = recordEntry([entry({ id: 'old', draftId: 'old' })], japanese, {
+      count: 200,
+      bytes: 3000,
+    })
+    expect(kept.map((e) => e.id)).toEqual(['e1'])
   })
 })

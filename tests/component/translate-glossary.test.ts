@@ -83,3 +83,41 @@ describe('GlossaryDrawer', () => {
     ])
   })
 })
+
+describe('GlossaryDrawer and edits still waiting', () => {
+  it('saves an edit to its own glossary when another is chosen before the moment passes', async () => {
+    const other: Glossary = { id: 'g2', name: 'Other', targetLang: null, terms: [] }
+    render(GlossaryDrawer, {
+      props: {
+        glossaries: [glossary, other],
+        selected: 'g1',
+        tgtLang: 'ja',
+        text: '',
+        onselect: () => {},
+      },
+    })
+    await fireEvent.click(screen.getByRole('button', { name: '+ Term' }))
+    await fireEvent.input(screen.getByLabelText('Source term 1'), { target: { value: 'pane' } })
+    await fireEvent.input(screen.getByLabelText('Target term 1'), { target: { value: 'ペイン' } })
+    await fireEvent.change(screen.getByLabelText('Glossary'), { target: { value: 'g2' } })
+    await settle()
+    expect(saved.at(-1)).toMatchObject({ id: 'g1', terms: [{ source: 'pane', target: 'ペイン' }] })
+  })
+
+  it('saves an edit still waiting before making a new glossary, which is Japanese for Easy Japanese', async () => {
+    render(GlossaryDrawer, {
+      props: {
+        glossaries: [glossary],
+        selected: 'g1',
+        tgtLang: 'ja(easy)',
+        text: '',
+        onselect: () => {},
+      },
+    })
+    await fireEvent.input(screen.getByLabelText('Glossary name'), { target: { value: 'Renamed' } })
+    await fireEvent.click(screen.getByRole('button', { name: '+ New' }))
+    await settle()
+    expect(saved[0]).toMatchObject({ id: 'g1', name: 'Renamed' })
+    expect(saved[1]?.targetLang).toBe('ja')
+  })
+})

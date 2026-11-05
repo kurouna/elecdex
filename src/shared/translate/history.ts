@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { isTargetLang } from './languages.js'
+import { isSourceLang, isTargetLang } from './languages.js'
 
 /**
  * The history (docs/translate.md §7): one entry per draft of the source, kept by main in
@@ -14,6 +14,8 @@ const BlockSchema = z.object({
   lead: z.string().max(2000),
   source: z.string().max(20_000),
   text: z.string().max(80_000),
+  /** Written through: a run stopped part way keeps the rest as not translated (default for files before it). */
+  done: z.boolean().default(true),
 })
 
 export const HistoryEntrySchema = z.object({
@@ -23,8 +25,8 @@ export const HistoryEntrySchema = z.object({
   at: z.number(),
   updatedAt: z.number(),
   /** What was asked for (`auto` too), and what the letters made certain on AUTO. */
-  srcLang: z.string().max(16),
-  detected: z.string().max(16).nullable(),
+  srcLang: z.union([z.literal('auto'), z.string().refine(isSourceLang)]),
+  detected: z.string().refine(isSourceLang).nullable(),
   tgtLang: z.string().refine(isTargetLang),
   form: z.enum(['plain', 'polite']).nullable(),
   blocks: z.array(BlockSchema).max(2000),
@@ -38,20 +40,19 @@ export type HistoryEntry = z.infer<typeof HistoryEntrySchema>
 
 export const HistoryFileSchema = z.object({
   version: z.literal(1).default(1),
-  entries: z
-    .array(z.unknown())
-    .max(MAX_HISTORY * 2)
-    .default([]),
+  entries: z.array(z.unknown()).default([]),
 })
 
 /** The entries a file holds: a broken one is dropped alone. */
 export function readHistory(raw: unknown): HistoryEntry[] {
   const parsed = HistoryFileSchema.safeParse(raw)
   if (!parsed.success) return []
-  return parsed.data.entries.flatMap((entry) => {
-    const one = HistoryEntrySchema.safeParse(entry)
-    return one.success ? [one.data] : []
-  })
+  return parsed.data.entries
+    .flatMap((entry) => {
+      const one = HistoryEntrySchema.safeParse(entry)
+      return one.success ? [one.data] : []
+    })
+    .slice(0, MAX_HISTORY)
 }
 
 /**
@@ -109,9 +110,11 @@ export function recordEntry(
   return kept
 }
 
-/** About what an entry takes in the file: UTF-16 length is near enough for a limit. */
+const encoder = new TextEncoder()
+
+/** What an entry takes in the file, in UTF-8 bytes: Japanese is three a character. */
 function entryBytes(entry: HistoryEntry): number {
-  return JSON.stringify(entry).length
+  return encoder.encode(JSON.stringify(entry)).length
 }
 
 /** The source of an entry as one text. */

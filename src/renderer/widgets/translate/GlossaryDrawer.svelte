@@ -8,7 +8,7 @@ import {
   parseTermLines,
   type Term,
 } from '@shared/translate/glossary'
-import { LANGUAGES } from '@shared/translate/languages'
+import { asSource, LANGUAGES } from '@shared/translate/languages'
 import { langCode } from './translate-view.ts'
 
 /**
@@ -61,17 +61,31 @@ function flush(): void {
   const glossary = $state.snapshot(draft) as Glossary
   // Rows still empty are kept on screen, never sent: main takes only whole terms.
   const terms = glossary.terms.filter((t) => t.source.trim() !== '' && t.target.trim() !== '')
+  const sent: Glossary = { ...glossary, terms }
   void api
-    .glossarySave({ ...glossary, terms })
-    .then((answer) => (problem = answer?.problem ?? null))
+    .glossarySave(sent)
+    .then((answer) => {
+      problem = answer?.problem ?? null
+      // Saved whole and not edited since: main's copy is this pane's again, so another pane's
+      // later change to the same glossary shows here. A row still half typed keeps the draft.
+      if (
+        !answer &&
+        draft?.id === glossary.id &&
+        JSON.stringify($state.snapshot(draft)) === JSON.stringify(sent)
+      )
+        draft = null
+    })
     .catch((error: unknown) => (problem = error instanceof Error ? error.message : String(error)))
 }
 
 async function create(): Promise<void> {
+  // An edit still waiting is saved first, to the glossary it was made in.
+  flush()
   const glossary: Glossary = {
     id: crypto.randomUUID().replaceAll('-', '').slice(0, 16),
     name: `Glossary ${glossaries.length + 1}`,
-    targetLang: tgtLang,
+    // A Japanese glossary also serves Easy Japanese (§6.3): never one for Easy Japanese alone.
+    targetLang: asSource(tgtLang),
     terms: [],
   }
   const answer = await api.glossarySave(glossary)
@@ -124,6 +138,7 @@ function applyPaste(): void {
       aria-label="Glossary"
       value={selected ?? ''}
       onchange={(e) => {
+        flush()
         draft = null
         onselect(e.currentTarget.value === '' ? null : e.currentTarget.value)
       }}
@@ -189,7 +204,7 @@ select, .name { background: var(--app-bg); color: var(--text); border: 1px solid
 .meta { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .meta label { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
 .name { min-width: 8rem; }
-.note { font-size: var(--step--2); color: var(--text-muted); letter-spacing: 0.04em; margin: 0; }
+.note { font-size: var(--step--1); color: var(--text-muted); letter-spacing: 0.04em; margin: 0; }
 .note.warn { color: var(--warn); }
 .terms { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto; gap: 0.15rem 0.6rem; align-items: center; font-family: var(--font-mono); font-size: var(--step--1); max-height: 9rem; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
 .terms input { width: 100%; min-width: 0; background: transparent; border: 0; border-bottom: 1px solid var(--panel-rule); padding: 0.05rem 0.1rem; color: var(--text); outline: none; font: inherit; }

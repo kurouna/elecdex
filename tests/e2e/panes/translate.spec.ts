@@ -552,3 +552,29 @@ test('ROUND TRIP puts each block back into the source language and scores it', a
     await close()
   }
 })
+
+test('HISTORY keeps one entry a draft: typing on replaces it, a new text adds one', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await translate(page, 'A draft that goes on.')
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await page.getByTestId('translate-source-blocks').click()
+    // Typed on at its end: the same draft.
+    await page.getByTestId('translate-source').press('End')
+    await page.getByTestId('translate-source').pressSequentially(' More.')
+    await page.getByTestId('translate-source').press('Control+Enter')
+    await expect(blocks(page).first()).toContainText('More.', { timeout: 15_000 })
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    // Replaced whole: a new draft.
+    await page.getByTestId('translate-source-blocks').click()
+    await translate(page, 'Something else entirely, and longer than that.')
+    await expect(blocks(page).first()).toContainText('Something else', { timeout: 15_000 })
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await page.getByTestId('translate-view-history').click()
+    const rows = page.getByTestId('translate-history-row')
+    await expect(rows).toHaveCount(2)
+    await expect(rows.nth(1)).toContainText('A draft that goes on. More.')
+  } finally {
+    await close()
+  }
+})

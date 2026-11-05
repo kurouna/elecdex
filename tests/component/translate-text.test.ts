@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RunFollower } from '../../src/renderer/widgets/translate/run-follower.svelte.ts'
 import {
+  historyDays,
+  historyPair,
+  historyTime,
   pickerRows,
   swapped,
   targetInfo,
@@ -8,6 +11,7 @@ import {
   targetText,
   withRecent,
 } from '../../src/renderer/widgets/translate/translate-view.ts'
+import type { HistoryRow } from '../../src/shared/translate/history'
 import type { RunEvent, RunView } from '../../src/shared/translate/run'
 
 /** TEXT's page side (docs/translate.md §3, §8.5): following a run, and what the view decides. */
@@ -195,5 +199,49 @@ describe('the TEXT view', () => {
   it('says where a run stands', () => {
     expect(targetInfo(run({ state: 'waiting' }))).toBe('waiting for another pane')
     expect(targetInfo(run({ state: 'stopped' }))).toBe('stopped at 0 / 2')
+  })
+})
+
+describe('the HISTORY list', () => {
+  const row = (over: Partial<HistoryRow> = {}): HistoryRow => ({
+    id: 'h1',
+    at: 0,
+    updatedAt: new Date(2026, 10, 6, 9, 5).getTime(),
+    srcLang: 'auto',
+    detected: null,
+    tgtLang: 'ja',
+    form: 'polite',
+    source: 'Hello there.',
+    target: 'こんにちは。',
+    chars: 12,
+    partial: null,
+    ...over,
+  })
+
+  it('writes the languages, AUTO only when nothing was certain', () => {
+    expect(historyPair(row())).toBe('AUTO → JA')
+    expect(historyPair(row({ detected: 'en' }))).toBe('EN → JA')
+    expect(historyPair(row({ srcLang: 'fr', tgtLang: 'ja(easy)' }))).toBe('FR → EASY JA')
+  })
+
+  it('puts the rows under their days, and filters by either side', () => {
+    const now = new Date(2026, 10, 6, 12).getTime()
+    const rows = [
+      row(),
+      row({
+        id: 'h2',
+        updatedAt: new Date(2026, 10, 5, 22).getTime(),
+        source: 'Bye.',
+        target: 'さようなら。',
+      }),
+      row({ id: 'h3', updatedAt: new Date(2026, 9, 1).getTime() }),
+    ]
+    expect(historyDays(rows, '', now).map((d) => [d.label, d.rows.length])).toEqual([
+      ['Today', 1],
+      ['Yesterday', 1],
+      ['2026-10-01', 1],
+    ])
+    expect(historyDays(rows, 'さよう', now).map((d) => d.rows[0]?.id)).toEqual(['h2'])
+    expect(historyTime(row().updatedAt)).toBe('09:05')
   })
 })

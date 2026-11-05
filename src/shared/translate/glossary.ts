@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { EASY_JAPANESE, isTargetLang } from './languages.js'
+import { EASY_JAPANESE, isSourceLang } from './languages.js'
 
 /**
  * Glossaries (docs/translate.md §6.3): named lists of terms, each for one target language or for
@@ -21,8 +21,11 @@ export const TermSchema = z.object({
 export const GlossarySchema = z.object({
   id: z.string().regex(/^[\w-]{1,40}$/),
   name: z.string().trim().min(1).max(60),
-  /** The language its translations are in; null: any. */
-  targetLang: z.string().refine(isTargetLang).nullable(),
+  /**
+   * The language its translations are in; null: any. One of the 53, never Easy Japanese alone:
+   * a Japanese glossary serves both (§6.3).
+   */
+  targetLang: z.string().refine(isSourceLang).nullable(),
   terms: z.array(TermSchema).max(MAX_TERMS),
 })
 
@@ -31,17 +34,20 @@ export type Term = z.infer<typeof TermSchema>
 
 export const GlossaryFileSchema = z.object({
   version: z.literal(1).default(1),
-  glossaries: z.array(z.unknown()).max(MAX_GLOSSARIES).default([]),
+  glossaries: z.array(z.unknown()).default([]),
 })
 
 /** The glossaries a file holds: a broken one is dropped alone, never the file. */
 export function readGlossaries(raw: unknown): Glossary[] {
   const parsed = GlossaryFileSchema.safeParse(raw)
   if (!parsed.success) return []
-  return parsed.data.glossaries.flatMap((g) => {
-    const one = GlossarySchema.safeParse(g)
-    return one.success ? [one.data] : []
-  })
+  // Each read alone, and the first fifty kept: a hand edit past the limit loses no file.
+  return parsed.data.glossaries
+    .flatMap((g) => {
+      const one = GlossarySchema.safeParse(g)
+      return one.success ? [one.data] : []
+    })
+    .slice(0, MAX_GLOSSARIES)
 }
 
 /**
