@@ -610,7 +610,10 @@ test('Ctrl+Shift+Y brings TRANSLATE up with the clipboard’s text and translate
     await expect(popup).toHaveCount(0)
     await stubOf(app, 'clipboard').copy('A password.', { private: true })
     await page.keyboard.press('Control+Shift+KeyY')
+    // Answered: the call with no text opens the source for typing, focused - and empty.
+    await expect(popup.getByTestId('translate-source')).toBeFocused()
     await expect(popup.getByTestId('translate-source')).toHaveValue('')
+    expect(await watching(page, 'translate')).not.toContain('A password.')
   } finally {
     await close()
   }

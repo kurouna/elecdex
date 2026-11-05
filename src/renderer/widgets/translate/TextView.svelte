@@ -256,6 +256,8 @@ $effect(() => {
   if (call === null || call.seq === follower.summonHandled) return
   follower.summonHandled = call.seq
   untrack(() => {
+    // The call's text, never a held run's source arriving after it.
+    restored = true
     text = call.text
     lastText = text
     draftId = newDraftId()

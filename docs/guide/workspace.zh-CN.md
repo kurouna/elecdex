@@ -116,7 +116,7 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
 
 | | |
 | --- | --- |
-| 位置 | 添加窗格选择器中的 **▣ pop up**；操作面板的 PANE 行；布局中没有对应窗格时的 **Ctrl+Shift+L**（启动器）和 **Ctrl+Shift+U**（实用工具） |
+| 位置 | 添加窗格选择器中的 **▣ pop up**；操作面板的 PANE 行；布局中没有对应窗格时的 **Ctrl+Shift+L**（启动器）、**Ctrl+Shift+U**（实用工具）和 **Ctrl+Shift+Y**（TRANSLATE，*unreleased*） |
 | 保存 | 从不保存（窗格和位置都不保存）；其中的选择保留到应用退出 |
 | 设计 | [architecture.md §5.13](../architecture.md)（日文） |
 
@@ -128,7 +128,8 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
   文件浏览器（它跟随布局中的 shell）、CHIP-8 和 ELEC-16；网页和插件也不行。选择器中这些会标为 *pane only*。
 - 在弹出窗格中所做的选择，在应用退出之前，下次弹出时仍然保留。
 - 布局中没有启动器时，**Ctrl+Shift+L** 会同样弹出启动器，启动某个程序后启动器即消失。**Ctrl+Shift+U** 转到实用
-  工具窗格：布局中有就转到下一个，没有就弹出；再按一次收起。
+  工具窗格：布局中有就转到下一个，没有就弹出；再按一次收起。**Ctrl+Shift+Y** *(unreleased)* 以同样方式转到
+  TRANSLATE 窗格，带上剪贴板中的文本并立即翻译。
 - 唯一能在弹出窗格之上打开的是天气窗格的地点选择器。
 
 ## 已保存布局
@@ -304,6 +305,7 @@ Ctrl+Shift+@ / [）。应用自己的列表和提示会按你的键盘印字显�
 | Ctrl+Shift+F1 … F10 | 转到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro、blank |
 | Ctrl+Shift+L | 搜索启动器（布局中没有时弹出一个） |
 | Ctrl+Shift+U | 实用工具窗格：布局中的下一个，没有则弹出；再按一次收起（Linux 上 IBus 可能占用这组按键来按编码输入字符：请重新绑定） |
+| Ctrl+Shift+Y | 带着剪贴板中的文本前往 TRANSLATE 窗格 *(unreleased)* 并立即翻译：布局中的下一个，没有则弹出 |
 | Ctrl+Shift+S | 聚焦所选标签页中的 shell（没有 shell 窗格时添加一个） |
 | Ctrl+Shift+F | 在 shell 的回滚缓冲区中查找（Enter / Shift+Enter 下一个和上一个，Escape 关闭） |
 | Ctrl+Shift+K | 清空 shell 的回滚缓冲区 |

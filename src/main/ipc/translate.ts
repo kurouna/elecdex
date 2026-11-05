@@ -165,7 +165,9 @@ export function registerTranslateIpc(
       // Ctrl+Shift+Y (§12): the clipboard's text once, to translate; nothing for any other copy.
       [CH.translate.clipboardText]: async () => {
         const text = await clipboardText()
-        return text !== null && text.trim() !== '' ? text.slice(0, MAX_SOURCE_CHARS) : null
+        // Not cut to the pane's limit: a text past it is shown as too long, never shortened unsaid.
+        // Bounded only so a huge copy does not cross IPC whole.
+        return text !== null && text.trim() !== '' ? text.slice(0, MAX_SOURCE_CHARS * 10) : null
       },
       [CH.translate.glossaries]: () => service.library.glossaries(),
       [CH.translate.glossarySave]: (_event, raw) => service.library.saveGlossary(raw),

@@ -170,10 +170,11 @@ export class TranslateRuns {
     if (!run || !block || block.state === 'running' || block.state === 'queued') return
     this.#dropTrip(run, block)
     this.#patch(run, { index, text, edited: true, state: 'done', note: null, trip: null })
-    // A TRANSLATE run already in the history is written there again, mended (§7).
-    if (run.view.mode === 'translate' && run.view.state === 'done' && run.recorded) {
+    // A run already in the history is written there again, mended (§7): TRANSLATE at once, LIVE
+    // once its draft has rested again.
+    if (run.view.state === 'done' && run.recorded) {
       run.recorded = false
-      this.#recorded(run)
+      this.#ended(run)
     }
   }
 
@@ -190,7 +191,7 @@ export class TranslateRuns {
     this.#dropTrip(run, block)
     this.#patch(run, { index, text: '', state: 'queued', note: null, edited: false, trip: null })
     // Written again, it is recorded again when it is done (§7: the entry is rewritten).
-    if (run.view.mode === 'translate') run.recorded = false
+    run.recorded = false
     if (run.view.state !== 'running') this.#setState(run, 'running', null)
     if (!this.#queue.includes(paneId)) this.#queue.push(paneId)
     this.#pump()

@@ -461,7 +461,8 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
   - `ELECDEX_LLAMA_STALL_MS`: §4.2 の 60 秒を spec のために短くする（`silent-boot` の spec は 2 秒にする）。
   - `ELECDEX_LLAMA_STUB_MODE`: `slow-boot`、`silent-boot`（`/health` の要求の記録の行だけを書き、ほかは何も書かずに
     読み込みが続く: §4.2 の止まりの判定と、記録の行を数えないことを確かめる）、`crash-mid`
-    （書いている途中で落ちる）、`no-stop`（stop の印なしで終わる）、`limit`、`unauthorized`（外部サーバーの 401）。
+    （書いている途中で落ちる）、`no-stop`（stop の印なしで終わる）、`limit`、`unauthorized`（外部サーバーの 401）、
+    `demo`（README のショット: 架空のリリースノートを本当の日本語に訳し、英語へ少し言い換えて訳し戻す）。
     §8.5 の表の行を 1 つずつ起こせる。
   - `ELECDEX_TRANSLATE_MANIFEST`: テストのときだけ読むマニフェスト（JSON、本物と同じ zod の形で検査）。spec のスタブの
     サーバーが配る小さなファイルを、その本当の sha256 と大きさで載せる。これで取得・Range・検証・展開を本物の

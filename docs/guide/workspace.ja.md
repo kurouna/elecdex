@@ -131,7 +131,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 
 | | |
 | --- | --- |
-| 場所 | ペイン追加のピッカーの **▣ pop up**。アクションパレットの PANE の行。レイアウトにないときの **Ctrl+Shift+L**（ランチャー）と **Ctrl+Shift+U**（Utility） |
+| 場所 | ペイン追加のピッカーの **▣ pop up**。アクションパレットの PANE の行。レイアウトにないときの **Ctrl+Shift+L**（ランチャー）、**Ctrl+Shift+U**（Utility）、**Ctrl+Shift+Y**（TRANSLATE、*unreleased*） |
 | 保存 | しない（ペインも位置も）。中で選んだものはアプリを終えるまで残る |
 | 設計 | [architecture.md §5.13](../architecture.md) |
 
@@ -145,7 +145,8 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 - ポップアップの中で選んだものは、アプリを終えるまで、次に開いたときにも残ります。
 - **Ctrl+Shift+L** は、レイアウトにランチャーがないときに同じようにランチャーを出し、何かを起動するとランチャーは
   消えます。**Ctrl+Shift+U** は Utility ペインへ行きます。レイアウトにあれば次のものへ、なければポップアップで
-  出し、もう一度押すと片付きます。
+  出し、もう一度押すと片付きます。**Ctrl+Shift+Y** *(unreleased)* は同じように TRANSLATE ペインへ行き、
+  クリップボードの文を持って行ってすぐ訳します。
 - ポップアップの上に開くのは、天気ペインの地点選択だけです。
 
 ## 保存レイアウト
@@ -341,6 +342,7 @@ Ctrl+Shift+[ / ] は Ctrl+Shift+@ / [）。アプリ内の一覧やツールチ�
 | Ctrl+Shift+F1〜F10 | プリセットへ: standard、network、earth、dev、media、desk、ai、cockpit、retro、blank |
 | Ctrl+Shift+L | ランチャーを検索（レイアウトになければポップアップで出す） |
 | Ctrl+Shift+U | Utility ペイン: レイアウトの次のもの、なければポップアップ。もう一度押すと片付く（Linux では IBus がコードによる文字入力にこのキーを使うことがあるので、変更してください） |
+| Ctrl+Shift+Y | TRANSLATE ペイン *(unreleased)* へクリップボードの文を持って行き、すぐ訳す: レイアウトの次のもの、なければポップアップ |
 | Ctrl+Shift+S | 選択中のタブのシェルにフォーカス（シェルのペインがなければ追加） |
 | Ctrl+Shift+F | シェルのスクロールバックを検索（Enter / Shift+Enter で次と前、Escape で閉じる） |
 | Ctrl+Shift+K | シェルのスクロールバックを消去 |

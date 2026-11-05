@@ -2,7 +2,7 @@
 
 # AI のペイン — elecdex
 
-elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレータ兼システムモニタです。このページは、言語モデルを使う 2 つのペインを説明します。自分で動かすモデル（Ollama、LM Studio、llama.cpp、そのほか OpenAI 互換のサーバー）や API キーを持っているホスト型サービス（Anthropic、OpenAI、Gemini、OpenRouter）と話す **AI chat** と、はい／いいえで答える議題を 3 つのモデルの評議会にかけて票を議決する **ELEC system** です。プロバイダーと 2 つの方言、API キーの置き場所、長い会話をモデルのコンテキストウィンドウに収める方法、添付ファイルとその上限、あえて持たせていない機能を扱います。elecdex は Windows で開発・使用しています。macOS と Linux は自動テストでビルド・実行しただけで、人の手による確認は十分ではありません。
+elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレータ兼システムモニタです。このページは、言語モデルを使うペインを説明します。自分で動かすモデル（Ollama、LM Studio、llama.cpp、そのほか OpenAI 互換のサーバー）や API キーを持っているホスト型サービス（Anthropic、OpenAI、Gemini、OpenRouter）と話す **AI chat** と、はい／いいえで答える議題を 3 つのモデルの評議会にかけて票を議決する **ELEC system**、この PC で動かす PLaMo 3 Translate で 53 言語とやさしい日本語の間を訳す **TRANSLATE** *(unreleased)* です。プロバイダーと 2 つの方言、API キーの置き場所、長い会話をモデルのコンテキストウィンドウに収める方法、添付ファイルとその上限、あえて持たせていない機能を扱います。elecdex は Windows で開発・使用しています。macOS と Linux は自動テストでビルド・実行しただけで、人の手による確認は十分ではありません。
 
 **このページの内容**
 

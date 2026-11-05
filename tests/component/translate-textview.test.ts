@@ -59,9 +59,14 @@ const runOf = (source: string, state: RunView['state'] = 'done'): RunView => ({
 })
 
 let pane = 0
-function mount(paneState: Record<string, unknown> = {}, visible = true) {
-  const paneId = `tv-${++pane}`
-  const follower = new RunFollower(paneId)
+function mount(
+  paneState: Record<string, unknown> = {},
+  visible = true,
+  summon: { seq: number; text: string } | null = null,
+  given: InstanceType<typeof RunFollower> | null = null,
+) {
+  const paneId = given?.paneId ?? `tv-${++pane}`
+  const follower = given ?? new RunFollower(paneId)
   const view = render(TextView, {
     props: {
       paneId,
@@ -72,6 +77,7 @@ function mount(paneState: Record<string, unknown> = {}, visible = true) {
       onsetup: () => {},
       onengine: () => {},
       onhistory: () => {},
+      summon,
     },
   })
   follower.follow()
@@ -79,7 +85,7 @@ function mount(paneState: Record<string, unknown> = {}, visible = true) {
     handler?.({ paneId, seq, kind: 'snapshot', run: run && { ...run, paneId } })
     await settle()
   }
-  return { paneId, send, view }
+  return { paneId, send, view, follower }
 }
 
 beforeEach(() => {
@@ -211,5 +217,29 @@ describe('TEXT with LIVE and ROUND TRIP', () => {
     await send(runOf('Hi.'))
     expect(screen.getByTestId('translate-trip-needs-lang')).toBeTruthy()
     expect(translate.roundTrip).not.toHaveBeenCalled()
+  })
+})
+
+describe('TEXT answering Ctrl+Shift+Y', () => {
+  it('translates the clipboard’s text once, though TEXT mounts again with the same call', async () => {
+    const first = mount({}, true, { seq: 1, text: 'Hi.' })
+    await settle()
+    expect(translate.run).toHaveBeenCalledTimes(1)
+    expect(translate.run).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'Hi.', mode: 'translate' }),
+    )
+    cleanup()
+    // HISTORY and back: TEXT mounts afresh, the call is the same one.
+    mount({}, true, { seq: 1, text: 'Hi.' }, first.follower)
+    await settle()
+    expect(translate.run).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens an empty source for typing when the clipboard has no text', async () => {
+    mount({}, true, { seq: 1, text: '' })
+    await settle()
+    expect(translate.run).not.toHaveBeenCalled()
+    await settle()
+    expect(document.activeElement).toBe(screen.getByTestId('translate-source'))
   })
 })

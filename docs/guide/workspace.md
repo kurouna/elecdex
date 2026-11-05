@@ -143,7 +143,7 @@ window over the other panes, which keep their place behind a shade.
 
 | | |
 | --- | --- |
-| Where | **▣ pop up** in the add-pane picker; the action palette's PANE rows; **Ctrl+Shift+L** (launcher) and **Ctrl+Shift+U** (utility) when the layout has none |
+| Where | **▣ pop up** in the add-pane picker; the action palette's PANE rows; **Ctrl+Shift+L** (launcher), **Ctrl+Shift+U** (utility) and **Ctrl+Shift+Y** (TRANSLATE, *unreleased*) when the layout has none |
 | Saved | never: neither the pane nor its place; its choices last until the app quits |
 | Design | [architecture.md §5.13](../architecture.md) (Japanese) |
 
@@ -157,7 +157,8 @@ as it was - it is not saved, and **Escape**, the × or a click beside it puts it
 - What you choose in a popped-up pane is there when you pop it up again, until the app quits.
 - **Ctrl+Shift+L** does the same for the launcher when the layout has none, and the launcher goes
   once it has started something. **Ctrl+Shift+U** goes to the utility pane: the next one in the
-  layout, or popped up if the layout has none; pressed again, put away.
+  layout, or popped up if the layout has none; pressed again, put away. **Ctrl+Shift+Y** *(unreleased)*
+  goes to the TRANSLATE pane the same way, taking the clipboard's text and translating it at once.
 - Only the weather pane's place picker opens over a pop-up.
 
 ## Saved layouts
@@ -369,6 +370,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+F1 … F10 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro, blank |
 | Ctrl+Shift+L | search the launcher (pops one up if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up; pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
+| Ctrl+Shift+Y | the TRANSLATE pane *(unreleased)* with the clipboard's text, translated at once: the next one in the layout, or popped up |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
 | Ctrl+Shift+K | clear the shell's scrollback |

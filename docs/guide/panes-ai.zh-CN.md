@@ -2,7 +2,7 @@
 
 # AI 窗格 — elecdex
 
-elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监视器。本页介绍它的两个语言模型窗格：**AI chat**，与你自己运行的模型（Ollama、LM Studio、llama.cpp 或任何兼容 OpenAI 的服务器）或你持有 API 密钥的托管服务（Anthropic、OpenAI、Gemini、OpenRouter）对话；以及 **ELEC system**，把一个是非题形式的议案交给由三个模型组成的评议会，并根据它们的投票作出决议。本页说明提供方及其两种协议、API 密钥保存在哪里、长对话如何适应模型的上下文窗口、附件及其限制，以及这两个窗格有意不做的事情。elecdex 在 Windows 上开发和使用；macOS 和 Linux 只经过自动化测试的构建和运行，尚未经过充分的人工验证。
+elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监视器。本页介绍它的语言模型窗格：**AI chat**，与你自己运行的模型（Ollama、LM Studio、llama.cpp 或任何兼容 OpenAI 的服务器）或你持有 API 密钥的托管服务（Anthropic、OpenAI、Gemini、OpenRouter）对话；以及 **ELEC system**，把一个是非题形式的议案交给由三个模型组成的评议会，并根据它们的投票作出决议；以及 **TRANSLATE** *(unreleased)*，用在本机运行的 PLaMo 3 Translate 在 53 种语言与简易日语之间翻译。本页说明提供方及其两种协议、API 密钥保存在哪里、长对话如何适应模型的上下文窗口、附件及其限制，以及这些窗格有意不做的事情。elecdex 在 Windows 上开发和使用；macOS 和 Linux 只经过自动化测试的构建和运行，尚未经过充分的人工验证。
 
 **本页内容**
 

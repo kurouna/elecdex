@@ -775,6 +775,23 @@ describe('TranslateRuns, round trips and the history together', () => {
     expect(records).toEqual([])
   })
 
+  it('writes a mended LIVE run into the history again, once its draft has rested', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(live('p1', 'One.'))
+    await answer(h, 'いち')
+    h.tick(LIVE_RECORD_MS)
+    h.runs.editBlock('p1', 0, '一')
+    expect(records).toHaveLength(1)
+    h.tick(LIVE_RECORD_MS)
+    expect(records.map((r) => r.blocks[0]?.text)).toEqual(['いち', '一'])
+    h.runs.retry('p1', 0)
+    await answer(h, 'イチ')
+    h.tick(LIVE_RECORD_MS)
+    expect(records.map((r) => r.blocks[0]?.text)).toEqual(['いち', '一', 'イチ'])
+  })
+
   it('writes a mended TRANSLATE run into the history again', async () => {
     const records: RunView[] = []
     const h = harness({ record: (view) => records.push(view) })
