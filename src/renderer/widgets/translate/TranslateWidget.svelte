@@ -42,12 +42,17 @@ $effect(() => {
   if (view !== 'engine' && view !== 'setup') pendingModel = null
 })
 
+$effect(() => {
+  // Let go only once the board says so: main publishes it a moment after the settings are written,
+  // and until then the board still names the model before (SETUP would take that one as fetched).
+  if (pendingModel !== null && board?.selectedModel === pendingModel) pendingModel = null
+})
+
 /** The chosen model becomes the settings', and the engine follows it; awaited before a fetch. */
 async function commitModel(): Promise<void> {
   const id = pendingModel
   if (id !== null && id !== board?.selectedModel)
     await appearance.patch({ translate: { modelId: id } })
-  pendingModel = null
 }
 let step = $state(1)
 
@@ -114,7 +119,7 @@ onSummoned(
 )
 
 function openSetup(at?: number): void {
-  if (board) step = at ?? firstSetupStep(board)
+  if (board) step = at ?? firstSetupStep(board, chosenModel)
   view = 'setup'
 }
 </script>

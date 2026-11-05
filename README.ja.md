@@ -35,10 +35,10 @@ SF 風のターミナルエミュレーター兼システムモニターです�
 
 ## elecdex とは
 
-elecdex は、組み込みの 40 種のペインを分割とタブで 1 つの画面に並べる、SF の端末風のデスクトップアプリです。eDEX-UI でおなじみのシェルとシステムモニターに加えて、ネットワークの診断、天気や地震などの外の世界、開発ツール、AI、メモやタイマーなどの道具、メディア、独自の 2 台のマシンがそろっています。eDEX-UI（2021 年にアーカイブ）を一から書き直したことから始まり、Electron 45、Svelte 5、TypeScript 7 で作られ、GPL-3.0 で公開しています。
+elecdex は、組み込みの 41 種のペインを分割とタブで 1 つの画面に並べる、SF の端末風のデスクトップアプリです。eDEX-UI でおなじみのシェルとシステムモニターに加えて、ネットワークの診断、天気や地震などの外の世界、開発ツール、AI、メモやタイマーなどの道具、メディア、独自の 2 台のマシンがそろっています。eDEX-UI（2021 年にアーカイブ）を一から書き直したことから始まり、Electron 45、Svelte 5、TypeScript 7 で作られ、GPL-3.0 で公開しています。
 
 - **シェル**: PowerShell、bash、zsh、fish を node-pty でタブと分割に。シェル統合（OSC 7 / OSC 9;9）で、Windows でも各シェルの作業フォルダ（カレントディレクトリ）を追従します。
-- **ペイン**: 組み込みのペイン 40 種と Web ペイン（Browser、YouTube、X）を、状態が保存される分割とタブのツリー構造で並べます。レイアウトのプリセット 10 個、保存したレイアウト、アクションパレット。
+- **ペイン**: 組み込みのペイン 41 種と Web ペイン（Browser、YouTube、X）を、状態が保存される分割とタブのツリー構造で並べます。レイアウトのプリセット 10 個、保存したレイアウト、アクションパレット。
 - **システムとネットワーク**: CPU、メモリ、GPU、ディスク、プロセス、プログラムごとの TCP ソケット、Wi-Fi とイーサネットの診断。Windows では読み取りのたびにプロセスを起動しません（常駐する 1 つのサンプラーが読みます）。
 - **外の世界**: 天気（気象庁、NWS、MET Norway）、マーケット、RSS、地震と津波、手元で計算する衛星（SGP4）、通信先の国を同梱の GeoIP データベースで調べて示す地球儀。
 - **仕事と AI**: Git（読み取りと FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code のセッション、OpenAI 互換または Anthropic の API への AI チャット（鍵は OS で暗号化して保存）、この PC で動かす PLaMo 3 Translate での翻訳 *(unreleased)*。
@@ -85,6 +85,13 @@ elecdex は、組み込みの 40 種のペインを分割とタブで 1 つの�
 | デスク | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility | [デスクのペイン](docs/guide/panes-desk.ja.md) |
 | メディア | Spectrum、Browser、YouTube、X、Mixer、Now playing | [メディアのペイン](docs/guide/panes-media.ja.md) |
 | レトロ | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） | [レトロのペイン](docs/guide/panes-retro.ja.md) |
+
+**TRANSLATE** *(unreleased)* は、Preferred Networks の PLaMo 3 Translate を llama.cpp でこの PC で動かし、53 言語とやさしい日本語の間を訳します。訳す文は PC の外に出ません。原文はブロックごとに訳し、背骨で訳文とつなぎます。LIVE は打ちながら訳し、ROUND TRIP は各ブロックを訳し戻して点数を付け、用語集と文脈が用語をそろえ、Ctrl+Shift+Y でクリップボードの文を持って呼び出せます。エンジンとモデルはセットアップで 1 度だけ取得します（[AI のペイン：TRANSLATE](docs/guide/panes-ai.ja.md#translate)）。
+
+<p align="center">
+  <a href="docs/guide/panes-ai.ja.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="TRANSLATE ペイン: 英語の架空のリリースノートが、背骨でブロックごとに日本語訳とつながり、それぞれに英語への訳し戻しと chrF の点数が付く"></a>
+  <br><sub>TRANSLATE · 代わりのエンジンと架空の文</sub>
+</p>
 
 ## インストール
 

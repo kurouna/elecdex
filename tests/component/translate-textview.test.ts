@@ -157,6 +157,38 @@ describe('TEXT', () => {
     expect(translate.stop).toHaveBeenCalledWith(paneId)
   })
 
+  it('joins a block on the spine once it is translated, never while it waits', async () => {
+    const { send } = mount()
+    const run = runOf('One.\n\nTwo.')
+    const first = run.blocks[0] as RunView['blocks'][number]
+    const two = (state: 'queued' | 'done'): RunView => ({
+      ...run,
+      state: state === 'done' ? 'done' : 'running',
+      blocks: [
+        first,
+        {
+          ...first,
+          index: 1,
+          lead: '\n\n',
+          source: 'Two.',
+          text: state === 'done' ? '二' : '',
+          state,
+        },
+      ],
+    })
+    // The spine is laid out on a timer of its own, after the DOM has the change.
+    const laidOut = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      await settle()
+    }
+    await send(two('queued'))
+    await laidOut()
+    expect(screen.getAllByTestId('translate-node')).toHaveLength(1)
+    await send(two('done'), 2)
+    await laidOut()
+    expect(screen.getAllByTestId('translate-node')).toHaveLength(2)
+  })
+
   it('does not turn the source back into the editor on focus alone', async () => {
     const { send } = mount()
     await send(runOf('Hello.'))

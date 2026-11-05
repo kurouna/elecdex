@@ -504,7 +504,8 @@ function sourceY(box: HTMLElement): (index: number) => number | null {
   if (!showBlocks && area && mirror && editWrap) {
     // The textarea's own width: its scroll bar takes some of it from the text.
     mirror.style.width = `${area.clientWidth}px`
-    const base = con.offsetTop + editWrap.offsetTop + mirror.offsetTop - area.scrollTop + lead
+    const base =
+      con.offsetTop + editWrap.offsetTop + mirror.offsetTop - area.scrollTop - box.scrollTop + lead
     return (index) => {
       const span = mirror?.querySelector<HTMLElement>(`.mseg[data-i="${index}"]`)
       return span ? clamp(base + span.offsetTop) : null
@@ -873,9 +874,12 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 .dst .console.tx { --frame-color: var(--accent); }
 .src .console:focus-within { --frame-color: var(--accent); }
 .text { flex: 1; min-height: 0; overflow-y: auto; padding: 0.55rem 0.2rem 0.6rem; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; user-select: text; }
-.edit-wrap { position: relative; height: 100%; }
-.mirror { position: absolute; top: 0; left: 0; box-sizing: border-box; visibility: hidden; pointer-events: none; padding: 0 0.6rem; font-family: var(--font-ui); font-size: var(--step-1); line-height: 1.75; white-space: pre-wrap; overflow-wrap: break-word; }
-textarea { width: 100%; height: 100%; resize: none; border: 0; outline: none; background: transparent; padding: 0 0.6rem; font-family: var(--font-ui); font-size: var(--step-1); line-height: 1.75; color: var(--text); }
+/* Clipped: the mirror is as tall as the text, and would make the box scroll beside the textarea. */
+.edit-wrap { position: relative; height: 100%; overflow: hidden; }
+/* Laid out alike in one rule, so the mirror wraps the text where the textarea does. */
+.mirror, textarea { box-sizing: border-box; padding: 0 0.6rem; font-family: var(--font-ui); font-size: var(--step-1); font-weight: normal; line-height: 1.75; letter-spacing: normal; word-spacing: normal; text-transform: none; white-space: pre-wrap; overflow-wrap: break-word; }
+.mirror { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; }
+textarea { width: 100%; height: 100%; resize: none; border: 0; outline: none; background: transparent; color: var(--text); }
 textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
 .blocks { min-height: 100%; outline: none; cursor: text; }
 .actions { display: flex; align-items: center; gap: var(--space-1); padding: 0.3rem 0.6rem 0.4rem 0.9rem; border-top: 1px solid var(--panel-rule); flex-wrap: wrap; }

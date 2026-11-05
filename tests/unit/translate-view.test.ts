@@ -83,6 +83,19 @@ describe('translate view', () => {
     ).toBe(4)
   })
 
+  it('opens SETUP from the start for a model only chosen, fetched or not', () => {
+    const both = board({
+      models: board().models.map((m) => ({
+        ...m,
+        installed: m.id === 'plamo3-2b-q4km' || m.id === 'plamo3-0.8b-q40',
+      })),
+    })
+    // READY tests the settings' model: it is not where a model chosen in ENGINE is set up.
+    expect(firstSetupStep(both, 'plamo3-0.8b-q4km')).toBe(1)
+    expect(firstSetupStep(both, 'plamo3-0.8b-q40')).toBe(1)
+    expect(firstSetupStep(both, 'plamo3-2b-q4km')).toBe(5)
+  })
+
   it('lamps every phase', () => {
     expect(phaseLamp('absent').word).toBe('No model')
     expect(phaseLamp('fault').kind).toBe('bad')

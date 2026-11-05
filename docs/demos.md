@@ -26,6 +26,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `demo:cockpit` | cockpit プリセット単独（カード、全コアの負荷、前に出す、境目のドラッグ、テーマ） | 1600×900、Black、約 61 秒 |
 | `demo:devflow` | dev プリセットの紹介と使い方（standard から Ctrl+Shift+G のダイアログでプリセットの dev を選ぶ、エージェント、Git の差分とコミット、テストの負荷、Docker の再起動、クリップボード、AI チャット、シェル）。英語の字幕付き。`demo:devflow-ja`（`--ja`）は字幕だけ日本語 | 1600×900、約 62 秒 |
 | `demo:logwatch` | LOG WATCH ペイン単独（ファイルを選ぶ、流れる行・×n・NEW、ERROR BURST とスタックトレース、/regex/ の絞り込み、PATTERNS と MUTE、MASK、2 行を選んで EXPLAIN）。英語の字幕付き。ログはテイクが固定の種から書き、AI は代役 | 1280×720、約 55 秒 |
+| `demo:translate` | TRANSLATE ペイン単独。モデルのない状態から SET UP（ENGINE、この PC に合う 2B のモデル、LICENCE に同意、FETCH の進み具合と sha256 の確かめ、READY の自己テスト）、英語のリリースノートを貼ると LIVE がブロックごとに訳して背骨でつなぐ、訳先をやさしい日本語に替えて訳し直し、日本語に戻して ROUND TRIP の訳し戻しと点数、HISTORY からやさしい日本語の訳を開き直す、最後にコピーした文を Ctrl+Shift+Y で呼び出して訳す。英語の字幕付き。モデルとエンジンだけはこの PC のもの（利用者の決定 2026-11-06。`%APPDATA%elecdex	ranslate`、`--from=` で別のフォルダー）: エンジンはテイクのプロファイルに写し、FETCH は 127.0.0.1 の Hugging Face の代役がこの PC のモデルを `--mbps`（既定 160 MB/s）の速さで渡す「ダウンロードしているふり」。訳はこの PC で本物のモデルが書くので、毎回少し違う | 1600×900、約 115 秒（モデルの速さによる） |
 | `demo:keystream` | KEYSTREAM の曲を通しで | |
 | `demo:games` | PLAY-320 の 3 本のゲーム | |
 | `demo:elec16` | ELEC-16 単独 | 1280×600 |
@@ -53,9 +54,9 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 | `--pace=1` | すべての待ち時間に掛ける係数（1.5 でゆっくり、0.8 で速く） |
 | `--theme=tron` | 組み込みテーマのどれか |
 | `--shots=<dir>` | 2 秒ごとにスクリーンショットを保存する。撮れたものを確かめるため |
-| `--exit` | 最後に窓を閉じる（tour、tour-shorts、cockpit、games、keystream、panes、snippets、whatsnew など） |
+| `--exit` | 最後に窓を閉じる（tour、tour-shorts、cockpit、games、keystream、panes、snippets、whatsnew、translate など） |
 | `--no-intro` | 起動画面を飛ばす（tour、tour-shorts） |
-| `--no-captions` | 下の英語の字幕を出さない（字幕を付けたデモ: tour、tour-black、tour-shorts、devflow） |
+| `--no-captions` | 下の英語の字幕を出さない（字幕を付けたデモ: tour、tour-black、tour-shorts、devflow、translate など） |
 
 字幕は `openTake` が返す `caption(text)` で出す（`null` で消す）。下中央をペインが埋めるテイクは、`openTake` の `captionPlace`（`left` `right` `bottom`）で置き場所を変える（demo:sci）。紹介デモの字幕の文面は demo-beats.mjs の `CAPTIONS` と `OPENING` に 1 回だけ書き、横型と縦型の両方が使う。デモがページに足す要素で、クリックもポインターも
 下へ通し、何も待たないので、操作も長さも字幕のないときと同じ。画面の下中央に出す（Web ペインはページの上に
@@ -76,6 +77,7 @@ Windows でだけ動く（README のスクリーンショットと同じく、Wi
 - **音楽**: KEYSTREAM の自作曲を WAV に書き出し（keystream-wav.mjs、一時フォルダーにキャッシュ）、
   スペクトラムの代役が鳴らす（`ELECDEX_AUDIO_STUB=tracks`）。
 - **本物**: 人工衛星の軌道要素、天気、マーケット、地震（ペインが普段どおり取りに行く）。
+  demo:translate だけは、この PC で取得済みの PLaMo 3 Translate のモデルと llama.cpp のエンジンで訳す（1 節）。
 - **この PC の値が映るもの**: システム列と CLUSTER の CPU・メモリ・機種名・ローカル IP など。
   README のスクリーンショット（`npm run gen:screenshots`）とは違い、デモでは隠していない。
   サムネイルに使うときは気をつける。

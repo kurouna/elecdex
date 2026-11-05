@@ -16,9 +16,9 @@ import {
 } from './translate-view.ts'
 
 /**
- * SETUP (docs/translate.md §3): ENGINE, MODEL, LICENCE, FETCH, READY. Every step's choice goes to
- * main at once (the source, the model in settings, the consent), so a pane closed half way finds
- * it where it was left; the fetch goes on with the pane closed.
+ * SETUP (docs/translate.md §3): ENGINE, MODEL, LICENCE, FETCH, READY. The engine's source and the
+ * consent go to main at once, so a pane closed half way finds them where they were left; the model
+ * chosen becomes the settings' only when its fetch starts. The fetch goes on with the pane closed.
  */
 interface Props {
   board: TranslateBoard
@@ -49,8 +49,10 @@ $effect(() => {
 })
 
 $effect(() => {
-  // A fetch that has finished moves on to READY by itself.
-  if (step === 4 && board.fetch === null && board.models.find((m) => m.id === chosen)?.installed)
+  // A fetch that has finished moves on to READY by itself: the settings' model, in place. Until the
+  // board names the chosen model, it is the one before that it says is in place.
+  const model = board.models.find((m) => m.id === chosen)
+  if (step === 4 && board.fetch === null && board.selectedModel === chosen && model?.installed)
     onstep(5)
 })
 

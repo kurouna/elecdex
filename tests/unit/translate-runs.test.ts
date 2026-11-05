@@ -803,6 +803,59 @@ describe('TranslateRuns, round trips and the history together', () => {
   })
 })
 
+describe('TranslateRuns, items once left for later', () => {
+  const live = (paneId: string, text: string) => ({
+    ...request(paneId, text),
+    mode: 'live' as const,
+  })
+
+  it('LIVE writes a block again when the glossary terms it takes have changed', async () => {
+    let terms = [{ source: 'pane', target: 'ペイン' }]
+    const h = harness({
+      glossary: () => ({ id: 'g1', name: 'Terms', targetLang: 'ja', terms }),
+    })
+    h.runs.follow('p1')
+    h.runs.start({ ...live('p1', 'A pane.\n\nOther.'), glossaryId: 'g1' })
+    await answer(h, 'ペイン。')
+    await answer(h, '他。')
+    terms = [{ source: 'pane', target: '窓枠' }]
+    h.runs.start({ ...live('p1', 'A pane.\n\nOther.'), glossaryId: 'g1' })
+    const again = await answer(h, '窓枠。')
+    expect(again.prompt).toContain('窓枠')
+    h.tick(FLUSH_MS)
+    // The block without the term was kept.
+    expect(h.calls).toHaveLength(3)
+  })
+
+  it('says a RETRY waits behind another pane’s block, not that it runs', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.follow('p2')
+    h.runs.start(request('p1', 'A.'))
+    await answer(h, 'あ')
+    h.runs.start(request('p2', 'B.'))
+    await h.settle()
+    h.runs.retry('p1', 0)
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.state).toBe('waiting')
+  })
+
+  it('gives a round trip room by its block, and fails one cut at the limit', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.'))
+    await answer(h, 'いち')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    const trip = h.calls.at(-1)
+    trip?.onText('One')
+    trip?.resolve({ stopType: 'limit', tokens: 1, ms: 1 })
+    await h.settle()
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks[0]?.trip?.state).toBe('failed')
+  })
+})
+
 describe('TranslateRuns and CLEAR', () => {
   it('puts the run away: stops what it writes, tells the pages, records nothing', async () => {
     const records: RunView[] = []

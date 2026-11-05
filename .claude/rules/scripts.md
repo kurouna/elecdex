@@ -46,6 +46,7 @@ npm run demo:elec16    # the ELEC-16 alone, 1280x600: BASIC, the SOFT CARD, CODE
 npm run demo:sci       # ELEC-16 SCI alone in Black, 16:9, ~130 s: v2's CONST, CONV, Σ, ∫, CPLX, MATRIX, PROG first, then exact answers, %, a constant, EQUATION, STATS, BASE, its bodies, captioned (Windows; build first)
 npm run demo:elec16-intro # the pocket and the calculator side by side, no games, captioned, 16:9, ~275 s, each brought forward in turn: power, ANS, strings, kana, AUTO and BEEP, RENUM, graphics, GPRINT, MON, the SOFT CARD, CODE, skins; then 2D exact, →PRIME, SI prefixes, Σ, ∫, CONST, CPLX, MATRIX, EQUATION, an inequality, STATS, nlow, BASE, its bodies with SIMPLE (Windows; build first)
 npm run demo:logwatch  # LOG WATCH alone: a made-up log followed, a burst, filter, PATTERNS, MASK, two lines EXPLAINed by the stand-in, captioned, 16:9, ~55 s (Windows; build first)
+npm run demo:translate # TRANSLATE alone: SET UP with a pretended FETCH, LIVE on the spine, Easy Japanese, ROUND TRIP, HISTORY, Ctrl+Shift+Y, captioned, 16:9, ~115 s; the model and engine are this PC's (--from, --mbps; Windows; build first)
 npm run demo:games     # the PLAY-320's three games played, bodies and themes changing, CORE beside (Windows; build first)
 node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)
 node scripts/elecaircombat-art.mjs       # the same for ELECAIRCOMBAT

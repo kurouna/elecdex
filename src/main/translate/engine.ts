@@ -79,6 +79,8 @@ interface Running {
   key: string
   stopping: boolean
   exited: boolean
+  /** Settles when the process has ended: one listener for every wait on it. */
+  ended: Promise<void>
 }
 
 /** Whether a new configuration restarts a running server: what it was started with changed. */
@@ -277,8 +279,7 @@ export class TranslateEngine {
   async settle(ms = 1000): Promise<void> {
     const running = this.#running
     if (!running || running.exited) return
-    const exited = new Promise<void>((resolve) => running.process.onExit(() => resolve()))
-    await Promise.race([exited, this.#deps.sleep(ms)])
+    await Promise.race([running.ended, this.#deps.sleep(ms)])
   }
 
   /** RESTART: from a fault too; the crash budget is not counted again. */
@@ -395,7 +396,18 @@ export class TranslateEngine {
     ]
     // The key goes in the environment, never on the command line, where other processes read it.
     const proc = this.#deps.spawn(launch, args, { ...launch.env, LLAMA_API_KEY: key })
-    const running: Running = { process: proc, launch, port, key, stopping: false, exited: false }
+    let ended: () => void = () => {}
+    const running: Running = {
+      process: proc,
+      launch,
+      port,
+      key,
+      stopping: false,
+      exited: false,
+      ended: new Promise<void>((resolve) => {
+        ended = resolve
+      }),
+    }
     this.#running = running
     let lastProgress = this.#deps.now()
     let partial = ''
@@ -409,6 +421,7 @@ export class TranslateEngine {
     this.#deps.onPid(proc.pid)
     proc.onExit((code) => {
       running.exited = true
+      ended()
       this.#note(`[elecdex] llama-server ended (code ${code})`)
       if (this.#running !== running) return
       this.#running = null
@@ -451,7 +464,7 @@ export class TranslateEngine {
     running.stopping = true
     if (this.#running === running) this.#running = null
     if (running.exited) return
-    const exited = new Promise<void>((resolve) => running.process.onExit(() => resolve()))
+    const exited = running.ended
     running.process.kill()
     const timer = this.#deps.setTimer(() => {
       if (!running.exited) running.process.kill(true)

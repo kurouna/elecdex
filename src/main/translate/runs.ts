@@ -208,7 +208,7 @@ export class TranslateRuns {
     this.#patch(run, { index, text: '', state: 'queued', note: null, edited: false, trip: null })
     // Written again, it is recorded again when it is done (§7: the entry is rewritten).
     run.recorded = false
-    if (run.view.state !== 'running') this.#setState(run, 'running', null)
+    this.#resume(run)
     if (!this.#queue.includes(paneId)) this.#queue.push(paneId)
     this.#pump()
   }
@@ -240,7 +240,7 @@ export class TranslateRuns {
       asked = true
     }
     if (!asked) return
-    if (run.view.state === 'done') this.#setState(run, 'running', null)
+    this.#resume(run)
     if (!this.#queue.includes(paneId)) this.#queue.push(paneId)
     this.#pump()
   }
@@ -290,6 +290,13 @@ export class TranslateRuns {
     if (!this.#followers.get(paneId)) this.#armOrphan(run, ORPHAN_MS)
     this.#deps.changed()
     return version
+  }
+
+  /** A run given more to do: waiting while another pane's block is written, else running. */
+  #resume(run: Run): void {
+    const behind = this.#queue.some((id) => id !== run.view.paneId)
+    const state = behind ? 'waiting' : 'running'
+    if (run.view.state !== state) this.#setState(run, state, null)
   }
 
   /** The history is told of a run that wrote something (§7): at its end, once. */
@@ -464,12 +471,15 @@ export class TranslateRuns {
         ...(takesForm(lang) ? { form: 'polite' as const } : {}),
       })
       const room = this.#deps.ctx() - (await this.#deps.tokenize(endpoint, prompt, signal))
+      // As a block's own translation: up to four times what goes in, never past the context.
+      const want = Math.max(256, (await this.#deps.tokenize(endpoint, block.text, signal)) * 4)
+      if (room < Math.min(want, MIN_ROOM)) throw new TooLongError('no room for the round trip')
       let back = ''
-      await this.#deps.complete(
+      const completion = await this.#deps.complete(
         endpoint,
         {
           prompt,
-          n_predict: Math.max(64, Math.min(room, 1024)),
+          n_predict: Math.min(room, want),
           temperature: 0,
           stop: PFML_STOP,
           cache_prompt: true,
@@ -483,6 +493,8 @@ export class TranslateRuns {
         },
       )
       if (!this.#live(run, signal)) return
+      // Cut at the limit, it would score low for no fault of the translation: said as failed.
+      if (completion.stopType === 'limit') throw new TooLongError('round trip cut at the limit')
       this.#patch(run, {
         index,
         trip: { state: 'done', score: Math.round(chrF(block.source, back)) },
@@ -794,9 +806,13 @@ function inherit(run: Run, old: Run): void {
   run.tripLang = old.tripLang
   const written = new Map<string, BlockView>()
   for (const block of old.view.blocks) if (block.state === 'done') written.set(block.source, block)
+  // The terms the block would take, compared: a glossary edited since sends it again.
+  const termsOf = (terms: readonly Term[], source: string) =>
+    JSON.stringify(selectTerms(terms, source))
   run.view.blocks = run.view.blocks.map((block) => {
     const found = written.get(block.source)
-    if (!found) return block
+    if (!found || termsOf(run.terms, block.source) !== termsOf(old.terms, block.source))
+      return block
     // A round trip back already is the same block's: kept, not asked again at every pause.
     return {
       ...found,

@@ -368,6 +368,14 @@ describe('TranslateEngine', () => {
     expect(again.origin).toBe('http://127.0.0.1:40001')
   })
 
+  it('waits on one promise for a process, however often it is asked to settle', async () => {
+    const h = harness()
+    await h.engine.ensure()
+    const before = h.servers[0]?.exits.length ?? 0
+    for (let i = 0; i < 3; i++) await h.engine.settle(1)
+    expect(h.servers[0]?.exits.length).toBe(before)
+  })
+
   it('does not wait long for a server that is still running', async () => {
     const h = harness()
     await h.engine.ensure()

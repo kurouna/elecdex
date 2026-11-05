@@ -34,10 +34,10 @@
 
 ## elecdex 是什么
 
-elecdex 是一款桌面应用，用分屏和标签页把 40 种内置窗格排布在同一屏幕上，外观像科幻电影里的终端。除了 eDEX-UI 为人熟知的终端和系统监控，还有网络诊断、天气与地震等外部世界的信息、开发工具、AI、笔记和计时器等桌面工具、媒体，以及两台自有的机器。它始于对 eDEX-UI（2021 年已归档）的从零重写，基于 Electron 45、Svelte 5 和 TypeScript 7 构建，以 GPL-3.0 发布。
+elecdex 是一款桌面应用，用分屏和标签页把 41 种内置窗格排布在同一屏幕上，外观像科幻电影里的终端。除了 eDEX-UI 为人熟知的终端和系统监控，还有网络诊断、天气与地震等外部世界的信息、开发工具、AI、笔记和计时器等桌面工具、媒体，以及两台自有的机器。它始于对 eDEX-UI（2021 年已归档）的从零重写，基于 Electron 45、Svelte 5 和 TypeScript 7 构建，以 GPL-3.0 发布。
 
 - **终端**：通过 node-pty 在标签页和分屏中运行 PowerShell、bash、zsh 和 fish；借助 shell 集成（OSC 7 / OSC 9;9）跟随每个 shell 的目录，Windows 上也一样。
-- **窗格**：40 种内置窗格加上网页窗格（Browser、YouTube、X），排列在一棵会被保存的分屏与标签页树中；10 个布局预设、已保存的布局、操作面板。
+- **窗格**：41 种内置窗格加上网页窗格（Browser、YouTube、X），排列在一棵会被保存的分屏与标签页树中；10 个布局预设、已保存的布局、操作面板。
 - **系统与网络**：CPU、内存、GPU、磁盘、进程、按程序分组的每个 TCP 套接字、Wi-Fi 与以太网诊断；在 Windows 上读取时不会每次启动新进程。
 - **外部世界**：天气（日本气象厅、NWS、MET Norway）、市场行情、RSS、地震与海啸、在本地计算的卫星位置（SGP4）、用内置 GeoIP 数据库定位的连接地球视图。
 - **工作与 AI**：Git（读取以及 FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code 会话；可连接任何 OpenAI 兼容或 Anthropic 端点的 AI 聊天，密钥由操作系统加密保存；在本机运行 PLaMo 3 Translate 的翻译 *(unreleased)*。
@@ -84,6 +84,13 @@ elecdex 是一款桌面应用，用分屏和标签页把 40 种内置窗格排�
 | 桌面 | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility | [桌面窗格](docs/guide/panes-desk.zh-CN.md) |
 | 媒体 | Spectrum、Browser、YouTube、X、Mixer、Now playing | [媒体窗格](docs/guide/panes-media.zh-CN.md) |
 | 复古 | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） | [复古窗格](docs/guide/panes-retro.zh-CN.md) |
+
+**TRANSLATE** *(unreleased)* 通过 llama.cpp 在本机运行 Preferred Networks 的 PLaMo 3 Translate，在 53 种语言与简易日语之间翻译；所翻译的内容不会离开本机。原文逐块翻译，并通过脊线与译文相连；LIVE 边输入边翻译，ROUND TRIP 把每个块译回并打分，术语表和上下文让术语保持一致，Ctrl+Shift+Y 带着剪贴板中的文本调出它。引擎和模型在设置中获取一次（[AI 窗格：TRANSLATE](docs/guide/panes-ai.zh-CN.md#translate)）。
+
+<p align="center">
+  <a href="docs/guide/panes-ai.zh-CN.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="TRANSLATE 窗格：虚构的英文发布说明通过脊线逐块与日文译文相连，每块附有译回英文的结果和 chrF 分数"></a>
+  <br><sub>TRANSLATE · 替身引擎与虚构文本</sub>
+</p>
 
 ## 安装
 

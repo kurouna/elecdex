@@ -43,11 +43,16 @@ export function whereTextGoes(engine: EngineView): { text: string; warn: boolean
   return { text: 'local, nothing leaves this PC', warn: false }
 }
 
-/** The step SETUP opens on: READY when the engine and the model are in place, else the first. */
-export function firstSetupStep(board: TranslateBoard): number {
-  const model = board.models.find((m) => m.id === board.selectedModel)
+/**
+ * The step SETUP opens on: FETCH while one goes on; READY when the engine and the chosen model are
+ * in place and that model is the settings' (READY tests the settings' model); else the first. A
+ * model only chosen in ENGINE is set up from the start, so it is agreed to and fetched.
+ */
+export function firstSetupStep(board: TranslateBoard, chosen = board.selectedModel): number {
+  const model = board.models.find((m) => m.id === chosen)
   if (board.fetch && board.fetch.phase !== 'failed') return 4
-  if (model?.installed && (board.engine.fetched || board.engine.source !== 'fetched')) return 5
+  const engine = board.engine.fetched || board.engine.source !== 'fetched'
+  if (chosen === board.selectedModel && model?.installed && engine) return 5
   return 1
 }
 

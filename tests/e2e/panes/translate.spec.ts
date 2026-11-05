@@ -27,6 +27,8 @@ import {
 const MODEL = Buffer.from(Array.from({ length: 64 * 1024 }, (_, i) => (i * 7) % 256))
 const SHA = createHash('sha256').update(MODEL).digest('hex')
 const FILE = 'plamo-3-translate-2b-Q4_K_M.gguf'
+/** The 0.8B model's file, for a test that sets up a second model. */
+const LITE_FILE = 'plamo-3-translate-0.8b-Q4_K_M.gguf'
 
 interface ModelServer {
   server: Server
@@ -41,7 +43,7 @@ async function modelServer(): Promise<ModelServer> {
   const state: ModelServer = { server: createServer(), base: '', asked: [], mode: 'serve' }
   state.server.on('request', (req, res) => {
     state.asked.push(req.url ?? '')
-    if (!req.url?.endsWith(`/${FILE}`)) {
+    if (!req.url?.endsWith(`/${FILE}`) && !req.url?.endsWith(`/${LITE_FILE}`)) {
       res.writeHead(404)
       res.end()
       return
@@ -76,7 +78,8 @@ async function setupToFetch(page: Page): Promise<void> {
 /** The footer's engine lamp: its word. */
 const lamp = (page: Page) => page.getByTestId('translate-pane').locator('.foot .lampw')
 
-function manifest(): string {
+/** The stand-in manifest: the 2B model, and with `lite` the 0.8B as well. */
+function manifest(lite = false): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-translate-'))
   const file = path.join(dir, 'manifest.json')
   writeFileSync(
@@ -96,6 +99,23 @@ function manifest(): string {
           ramGB: 1,
           vramGB: null,
         },
+        ...(lite
+          ? [
+              {
+                id: 'plamo3-0.8b-q4km',
+                tier: 'lite',
+                params: '0.8B',
+                quant: 'Q4_K_M',
+                repo: 'pfnet/plamo-3-translate-0.8b-GGUF',
+                revision: 'abcdef2',
+                file: LITE_FILE,
+                bytes: MODEL.length,
+                sha256: SHA,
+                ramGB: 1,
+                vramGB: null,
+              },
+            ]
+          : []),
       ],
     }),
   )
@@ -697,8 +717,45 @@ test('a model chosen in ENGINE is put back when the view is left without DONE', 
   }
 })
 
+test('DONE makes a model chosen in ENGINE, and fetched, the settings’', async () => {
+  const given = withModel()
+  const { page, close, userData } = await launch(undefined, {
+    ...given,
+    files: {
+      ...given.files,
+      [`translate/models/plamo3-0.8b-q4km/${LITE_FILE}`]: 'x'.repeat(MODEL.length),
+    },
+    env: { ...given.env, ELECDEX_TRANSLATE_MANIFEST: manifest(true) },
+  })
+  try {
+    const pane = page.locator('[data-testid=pane]').first()
+    await page.getByTestId('translate-settings-toggle').click()
+    await page.getByTestId('translate-engine').getByRole('button', { name: '0.8B Q4_K_M' }).click()
+    // In place: DONE, not its setup.
+    await expect(page.getByTestId('translate-engine-done')).toHaveText('Done')
+    await page.getByTestId('translate-engine-done').click()
+    await expect(page.getByTestId('translate-text')).toBeVisible()
+    await expect(pane).toContainText('plamo-3-translate-0.8b-q4km')
+    await expect
+      .poll(
+        () =>
+          JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).translate?.modelId,
+      )
+      .toBe('plamo3-0.8b-q4km')
+  } finally {
+    await close()
+  }
+})
+
 test('a model chosen for SETUP becomes the settings’ only when its fetch starts', async () => {
-  const { page, close } = await launch(undefined, withModel())
+  // The fetch stalls half way, so SETUP must stay on FETCH: the model before it is in place, and
+  // a board not yet naming the new one once took that for the fetch done and opened READY.
+  const hf = await modelServer()
+  hf.mode = 'stall'
+  const { page, close } = await launch(undefined, {
+    ...withModel(),
+    env: { ELECDEX_TRANSLATE_MANIFEST: manifest(true), ELECDEX_HF_BASE_URL: hf.base },
+  })
   try {
     const pane = page.locator('[data-testid=pane]').first()
     await page.getByTestId('translate-settings-toggle').click()
@@ -711,8 +768,41 @@ test('a model chosen for SETUP becomes the settings’ only when its fetch start
     await expect(pane).toContainText('plamo-3-translate-2b-q4km')
     await page.getByTestId('translate-agree').click()
     await page.getByTestId('translate-next').click()
-    // Agreed and fetching: now it is the pane's model.
+    // Agreed and fetching: now it is the pane's model, and SETUP shows its fetch.
     await expect(pane).toContainText('plamo-3-translate-0.8b-q4km')
+    const setup = page.getByTestId('translate-setup')
+    await expect(setup.locator('.steps li.now')).toContainText('Fetch')
+    await expect(setup).toContainText('downloading')
+    await expect(page.getByTestId('translate-selftest')).toHaveCount(0)
+    expect(hf.asked).toEqual([`/pfnet/plamo-3-translate-0.8b-GGUF/resolve/abcdef2/${LITE_FILE}`])
+  } finally {
+    await close()
+    stopServer(hf.server)
+  }
+})
+
+test('the source being typed scrolls in its textarea alone, and the spine follows it', async () => {
+  const { page, close } = await launch(undefined, withModel('', true))
+  try {
+    const source = page.getByTestId('translate-source')
+    const many = Array.from({ length: 40 }, (_, i) => `Block ${i + 1}.`).join('\n\n')
+    await source.fill(many)
+    await expect(blocks(page).nth(39)).toHaveAttribute('data-st', 'done', { timeout: 30_000 })
+    await expect(source).toBeFocused()
+    // The mirror the spine measures is as tall as the text: the box around it must not scroll.
+    const box = page.getByTestId('translate-text').locator('.text').first()
+    const scroll = await box.evaluate((el) => el.scrollHeight - el.clientHeight)
+    expect(scroll).toBeLessThanOrEqual(1)
+    // Scrolled to its end, the textarea shows the last blocks, and their links sit inside it.
+    await source.evaluate((el) => {
+      el.scrollTop = el.scrollHeight
+      el.dispatchEvent(new Event('scroll'))
+    })
+    const area = await source.boundingBox()
+    const last = page.getByTestId('translate-node').last()
+    await expect(last).toBeVisible()
+    const node = await last.boundingBox()
+    expect(node && area && node.y >= area.y - 4 && node.y <= area.y + area.height).toBe(true)
   } finally {
     await close()
   }

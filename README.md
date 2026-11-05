@@ -38,7 +38,7 @@ current, secure stack.
 
 ## What it is
 
-elecdex is a desktop application that arranges 40 built-in panes in splits and tabs on one
+elecdex is a desktop application that arranges 41 built-in panes in splits and tabs on one
 screen, in the look of a science-fiction terminal: the shells and system monitors eDEX-UI is known
 for, and beside them network diagnostics, the world outside, development tools, AI, desk tools,
 media and two machines of its own. It began as a ground-up rewrite of eDEX-UI (archived in 2021),
@@ -46,7 +46,7 @@ is built on Electron 45, Svelte 5 and TypeScript 7, and is released under the GP
 
 - **Shells**: PowerShell, bash, zsh and fish in tabs and splits through node-pty, with shell
   integration (OSC 7 / OSC 9;9) that follows each shell's folder - on Windows too.
-- **Panes**: 40 built-in panes plus web panes (Browser, YouTube, X), arranged in a persisted tree of
+- **Panes**: 41 built-in panes plus web panes (Browser, YouTube, X), arranged in a persisted tree of
   splits and tabs; ten layout presets, saved layouts, an action palette.
 - **System and network**: CPU, memory, GPU, disks, processes, every TCP socket by program, Wi-Fi
   and Ethernet diagnostics - read without a process per reading on Windows.
@@ -104,6 +104,18 @@ details are in [Layout presets](docs/guide/presets.md).
 | Desk | Calculator, Notes, Tasks, Timer, Clipboard, Calendar, Utility | [Desk panes](docs/guide/panes-desk.md) |
 | Media | Spectrum, Browser, YouTube, X, Mixer, Now playing | [Media panes](docs/guide/panes-media.md) |
 | Retro | CHIP-8, ELEC-16 (POCKET, HANDHELD, PLAY-320, SCI-128) | [Retro panes](docs/guide/panes-retro.md) |
+
+**TRANSLATE** *(unreleased)* translates between 53 languages and Easy Japanese with Preferred
+Networks' PLaMo 3 Translate, run on this computer through llama.cpp: nothing you translate leaves
+it. The source is translated block by block, joined to its translation on the spine; LIVE translates
+as you type, ROUND TRIP puts each block back and scores it, a glossary and a context keep the terms,
+and Ctrl+Shift+Y brings the clipboard's text to it. Setting up fetches the engine and a model once
+([AI panes: TRANSLATE](docs/guide/panes-ai.md#translate)).
+
+<p align="center">
+  <a href="docs/guide/panes-ai.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="The TRANSLATE pane: made-up release notes in English joined block by block on the spine to their Japanese translation, each with its round trip back into English and a chrF score"></a>
+  <br><sub>TRANSLATE · a stand-in engine with made-up text</sub>
+</p>
 
 ## Install
 

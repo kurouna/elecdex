@@ -17,6 +17,10 @@ describe('chrF', () => {
     expect(missing).toBeLessThan(added)
   })
 
+  it('scores a short answer low: an order it is too short for counts as nothing matched', () => {
+    expect(chrF('abcdefgh', 'abc')).toBeLessThan(20)
+  })
+
   it('works on text without spaces, as Japanese', () => {
     expect(chrF('ペインは右にある', 'ペインは右にある')).toBe(100)
     expect(chrF('ペインは右にある', 'ペインは左にある')).toBeGreaterThan(30)

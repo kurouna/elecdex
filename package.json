@@ -83,7 +83,8 @@
     "demo:sci": "node scripts/demo-sci.mjs",
     "demo:elec16-intro": "node scripts/demo-elec16-intro.mjs",
     "demo:games": "node scripts/demo-games.mjs",
-    "demo:logwatch": "node scripts/demo-logwatch.mjs"
+    "demo:logwatch": "node scripts/demo-logwatch.mjs",
+    "demo:translate": "node scripts/demo-translate.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",

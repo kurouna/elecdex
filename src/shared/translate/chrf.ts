@@ -27,11 +27,13 @@ export function chrF(reference: string, hypothesis: string): number {
     const hyp = grams(hypothesis, n)
     const refTotal = [...ref.values()].reduce((a, b) => a + b, 0)
     const hypTotal = [...hyp.values()].reduce((a, b) => a + b, 0)
-    if (refTotal === 0 || hypTotal === 0) continue
+    // An order neither text is long enough for is left out; one only the answer lacks is an order
+    // with nothing matched (sacreBLEU), so a short or empty answer does not score as a close one.
+    if (refTotal === 0 && hypTotal === 0) continue
     let match = 0
     for (const [gram, count] of hyp) match += Math.min(count, ref.get(gram) ?? 0)
-    precision += match / hypTotal
-    recall += match / refTotal
+    precision += hypTotal > 0 ? match / hypTotal : 0
+    recall += refTotal > 0 ? match / refTotal : 0
     orders++
   }
   if (orders === 0) return reference.trim() === hypothesis.trim() ? 100 : 0
