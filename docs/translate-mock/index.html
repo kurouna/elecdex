@@ -315,6 +315,9 @@ kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--tex
 .dst .seg.hot, .dst .seg[data-st="run"] { border-left-color: var(--accent); }
 .dst .seg[data-st="queued"] { color: var(--text-muted); }
 .dst .seg[data-st="edited"] { border-left-color: var(--info); }
+.dst .seg[data-st="stopped"] { border-left-color: var(--warn); color: var(--text-muted); }
+.dst .seg[data-st="none"] { color: var(--text-muted); }
+.stoptag { margin-left: 0.5rem; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--warn); }
 .qd { font-size: var(--step--2); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-muted); font-family: var(--font-ui); }
 .caret { display: inline-block; width: 0.5em; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; background: var(--accent); animation: beat 1s steps(1, end) infinite; animation-play-state: var(--ambient-play-state, running); }
 .tok { animation: tok calc(260ms * var(--motion-scale)) ease-out backwards; }
@@ -357,6 +360,8 @@ kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--tex
 .node[data-st="run"] { border-color: var(--accent); color: var(--accent-strong); animation: beat 1s steps(1, end) infinite; animation-play-state: var(--ambient-play-state, running); }
 .node[data-st="done"] { border-color: var(--accent-dim); color: var(--text); background: color-mix(in srgb, var(--accent) 14%, var(--app-bg)); }
 .node[data-st="edited"] { border-color: var(--info); color: var(--info); }
+.node[data-st="stopped"] { border-color: var(--warn); color: var(--warn); }
+.node[data-st="none"] { border-style: dashed; }
 .node.hot { border-color: var(--accent); color: var(--app-bg); background: var(--accent); animation: none; }
 
 /* No text to show: the state, the way the rest of the HUD states things (aichat standby). */
@@ -638,11 +643,10 @@ kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--tex
     <button data-v="text">Text</button><button data-v="history">History</button><button data-v="setup">Setup</button><button data-v="engine">Engine</button>
   </div>
   <div class="grp" data-g="mode"><span>State</span>
-    <button data-v="nomodel">No model</button><button data-v="empty">Empty</button><button data-v="standby">Standby</button><button data-v="boot">Boot</button><button data-v="run">Translating</button><button data-v="done">Done</button><button data-v="fault">Fault</button>
+    <button data-v="nomodel">No model</button><button data-v="empty">Empty</button><button data-v="standby">Standby</button><button data-v="boot">Boot</button><button data-v="run">Translating</button><button data-v="done">Done</button><button data-v="stopped">Stopped</button><button data-v="fault">Fault</button>
   </div>
   <div class="grp" data-g="step"><span>Setup step</span>
     <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button>
-    <button data-v="missing" data-flag="engine">engine missing</button>
   </div>
   <div class="grp" data-g="width"><span>Width</span><button data-v="wide">Wide</button><button data-v="narrow">Narrow</button></div>
   <div class="grp" data-g="theme"><span>Theme</span>
@@ -684,7 +688,7 @@ kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--tex
 
       <div class="drawer" id="drawer" hidden>
         <section id="dGloss">
-          <div class="dhead"><b>Glossary</b><span>EN → JA · 3 terms · used for every segment</span><span class="spacer"></span><button type="button" class="btn">+ Term</button><button type="button" class="btn">Paste TSV</button></div>
+          <div class="dhead"><b>Glossary</b><span>Release notes · for JA only · 3 terms · the ones in the text are sent</span><span class="spacer"></span><button type="button" class="btn">+ Term</button><button type="button" class="btn">Paste TSV</button></div>
           <div class="terms">
             <input id="g1s" value="collector" aria-label="Source term 1"><span class="arr">→</span><input id="g1t" value="コレクター" aria-label="Target term 1"><span class="hits">1 hit</span><button type="button" class="x" aria-label="Remove">×</button>
             <input id="g2s" value="pane" aria-label="Source term 2"><span class="arr">→</span><input id="g2t" value="ペイン" aria-label="Target term 2"><span class="hits">1 hit</span><button type="button" class="x" aria-label="Remove">×</button>
@@ -774,36 +778,35 @@ kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--tex
   <div>
     <h2>このモックで見られるもの</h2>
     <ul>
-      <li><b>TEXT</b>：左が原文、右が訳文。原文を段落（文のまとまり）に分け、llama-server のスロットで並列に訳します（モデルカードの推奨どおり 1 リクエスト 1 段落）。中央の背骨に段落ごとの線と番号が通り、どこがどこに訳されたかを示します。段落・番号にポインタを置くと両側が光り、番号のカードに所要時間とトークン数が出ます。</li>
-      <li>訳文は届いたそばから書かれ（キャレットは共有パルス）、書き終えた段落は他のペインと同じ fx-fresh のバーで知らせます。訳している間だけ訳文の枠がアクセント色になります。</li>
-      <li><b>FORM</b>（常体／敬体、訳先が日本語のときだけ有効）、<b>GLOSSARY</b>（用語集。原文と訳文の該当語に下線）、<b>CONTEXT</b>（文脈。訳さず、毎回いっしょに渡す）、<b>ROUND TRIP</b>（訳文を原文の言語に訳し戻して意味のずれを見る。一致度は chrF）、<b>LIVE</b>（打ち終えて 0.6 秒で、変わった段落だけ訳し直す）。</li>
-      <li>訳文の段落ごとに RETRY / EDIT / COPY。EDIT で直した段落は、後の段落を訳すときの履歴（前の訳）として使われ、言い回しがそろいます。</li>
-      <li><b>STATE</b>：NO MODEL → SETUP、STANDBY（エンジン停止中。最初の翻訳で起動）、BOOT（llama-server のログを 1 行ずつ）、FAULT（終了コードと stderr の末尾、RESTART）。</li>
-      <li><b>SETUP</b>：ENGINE（llama-server を探す／既存サーバーのアドレス）→ MODEL（この PC のメモリと GPU から推奨。4 サイズ × 量子化）→ LICENCE（PLaMo コミュニティライセンスへの同意）→ FETCH（再開できるダウンロードと sha256 照合）→ READY（自己テストの 1 文）。</li>
-      <li><b>HISTORY</b> と <b>ENGINE</b>（右上のスライダー：起動方法、モデルの追加・削除、コンテキスト長・スロット・GPU 層・アイドル停止、ログ、ライセンス）。</li>
-      <li>開閉するものは CRT のパワーオン／オフ、押したボタンはランチャーのタイルと同じ点滅。8 テーマすべてで見られます。</li>
+      <li>設計は <code>docs/translate.md</code>。利用者のテストアプリ（PLaMo3TranslateTest）で確かめた機能を取り込み、2026-11-05 に直した。</li>
+      <li><b>TEXT</b>：左が原文、右が訳文。原文を段落に分け、<b>段落ごとに順番に</b>、前の 2 段落の原文と訳文を履歴に添えて訳す（llama-server は 1 スロット）。中央の背骨に段落ごとの線と番号が通り、段落・番号にポインタを置くと両側が光り、番号のカードに時間・トークン数・使った履歴が出る。</li>
+      <li>訳文は届いたそばから書かれ（キャレットは共有パルス）、書き終えた段落は fx-fresh のバー。訳している間だけ訳文の枠がアクセント色。</li>
+      <li><b>訳先</b>に <b>やさしい日本語</b>（<code>ja(easy)</code>、訳先だけ。入れ替えると日本語になる）。<b>FORM</b>（常体／敬体）は訳先が日本語のときだけ。</li>
+      <li><b>GLOSSARY</b>（訳先の言語を持つ用語集。原文と訳文の該当語に下線）、<b>CONTEXT</b>、<b>ROUND TRIP</b>（訳し戻しと一致度）、<b>LIVE</b>。段落ごとに RETRY / EDIT / COPY。</li>
+      <li><b>STATE</b>：NO MODEL、STANDBY（最初の翻訳で起動）、BOOT（llama-server のログ）、TRANSLATING、DONE、<b>STOPPED</b>（止めた段落を「止めた」と添えて薄く残し、後ろの段落は訳していないと出す）、FAULT。</li>
+      <li><b>SETUP</b>：ENGINE（elecdex が固定ビルドを取る・自分の llama-server・既に動いているサーバー）→ MODEL → LICENCE → FETCH（エンジンとモデル、sha256）→ READY（試し訳）。<b>ENGINE</b> 画面も同じ 3 つの入手先。</li>
+      <li>開閉は CRT のパワーオン／オフ、押したボタンはランチャーのタイルと同じ点滅。8 テーマすべてで見られる。</li>
     </ul>
   </div>
   <div>
-    <h2>仕組みの案</h2>
+    <h2>仕組みの要点（translate.md）</h2>
     <ul>
-      <li>main の新しいモジュール（<code>main/translate/</code>）が llama-server を子プロセスとして起動：<code>--host 127.0.0.1 --port &lt;空き番号&gt; --api-key &lt;起動ごとの乱数&gt; --no-webui -c 16384 -np 4</code>。ほかのプロセスやブラウザからは使えず、ページは IPC だけで話します（ページのネットワーク禁止はそのまま）。</li>
-      <li>プロンプトは PFML3 を shared の純関数で組み立てて <code>/completion</code> にストリーミング（モデルカードが本番向けに勧める形。chat_template.jinja は不要）。原文に紛れた <code>&lt;|plamo:…|&gt;</code> は無害化してから渡します。<code>temperature 0</code>、stop は <code>&lt;|plamo:tag|&gt;</code> と <code>&lt;|plamo:bos|&gt;</code>。</li>
-      <li>段落ごとに並列、直前の段落の原文と訳を履歴として添えて一貫させます。結果は段落の内容と設定のハッシュで覚え、LIVE や言語の切り替えでは変わった段落だけ訳し直します。</li>
-      <li>モデルは main が Hugging Face から取得（Range で再開、sha256 照合、<code>replaceFile</code> で置く）。外に出る通信はこのダウンロードだけです。</li>
-      <li>エンジンは最初の翻訳で起動し、10 分使わなければ止め、最後の TRANSLATE ペインを閉じても止めます。見えていない間は新しく何も始めません（訳しかけの段落は書き終えます）。</li>
-      <li>フッターに「PLaMo 3 Translate · PLaMo Community License」を常に出し、data-sources.md にダウンロード先と頻度を書きます。</li>
+      <li>main が llama-server を起動：<code>127.0.0.1</code>、空きポート、起動ごとのキーを環境変数 <code>LLAMA_API_KEY</code> で、<code>--no-webui -np 1</code>。ページはポートもキーも知らず、IPC だけで話す。</li>
+      <li>PFML3 は公式テンプレートと同じ並び（context → 履歴 → glossary → input）を純関数で組み、<code>/completion</code> にストリーミング。<code>&lt;|plamo:</code> はゼロ幅スペースで無害化し、表示の前に戻す。</li>
+      <li>エンジンは最初の翻訳で起動し、10 分使わなければ止める。異常終了の自動再起動は 10 分に 1 回まで。複数のペインは main の待ち行列で順番に。</li>
+      <li>モデルはリビジョン固定・sha256・Range で再開。sha256 は worker で計算する。履歴は下書きごとに 1 件（消えない）、main の JSON に上限 200 件。</li>
     </ul>
   </div>
   <div>
     <h2>決めたいこと</h2>
     <div class="q">
-      <b>Q1</b><span>llama-server の入手。<span class="rec">推奨：A</span> 利用者が入れたもの（<code>winget install llama.cpp</code> / <code>brew install llama.cpp</code>）を探して使い、既に動いているサーバーのアドレスも選べる。B は elecdex が GitHub のリリースから実行ファイルを取ってくる（GPU 別のビルド選びと署名のない exe の扱いが要る）。</span>
-      <b>Q2</b><span>モデルの一覧。0.8B / 2B / 8B / 31B の 4 つを出し、PC のメモリと VRAM から推奨を付ける（このモックでは 2B）。31B（19.5 GB）も一覧に出すか。メモリの目安は実測で決めます。</span>
-      <b>Q3</b><span>履歴。main のファイルに保存（上限 200 件、CLEAR、保存しない設定あり）か、メモリだけか。</span>
-      <b>Q4</b><span>LIVE の既定。<span class="rec">推奨：オフ</span>（Ctrl+Enter で訳す）。</span>
-      <b>Q5</b><span>呼び出しキー。Ctrl+Shift+Y（空いています）でクリップボードの文を持って TRANSLATE を出す（レイアウトに無ければポップアップ）。</span>
-      <b>Q6</b><span>ROUND TRIP の一致度（chrF の数値とバー）を出すか、訳し戻した文だけにするか。</span>
+      <b>Q1</b><span>llama-server の入手。<span class="rec">推奨：A</span> セットアップで固定ビルド（b12110）を取る。自分の llama-server と既存のサーバーも選べる。B はテストアプリのように同梱（全員の配布物が約 130 MB 増える）。</span>
+      <b>Q2</b><span>31B（19.5 GB）も一覧に出すか。<span class="rec">案：出す</span>（大きすぎると示す）。</span>
+      <b>Q3</b><span>履歴。<span class="rec">案：main の JSON に保存</span>（上限 200 件、保存しない設定あり）。</span>
+      <b>Q4</b><span>LIVE の既定。テストアプリの「入力が止まって 500 ms で自動」が使えているので、<span class="rec">案：オン</span>。</span>
+      <b>Q5</b><span>呼び出しキー Ctrl+Shift+Y（空き）。クリップボードの文を持って出す。</span>
+      <b>Q6</b><span>ROUND TRIP の一致度（chrF）を出すか。<span class="rec">案：出す</span>。</span>
+      <b>Q7</b><span>訳す単位。<span class="rec">案：段落ごとに順番、前の 2 段落を履歴に</span>（最初のモックの 4 スロット並列はやめた）。</span>
     </div>
   </div>
 </section>
@@ -816,7 +819,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 /* ---------- made-up data ---------- */
 const LANGS = [
-  ['ja', '日本語', 'Japanese'], ['en', 'English', 'English'], ['zh-hans', '简体中文', 'Chinese, simplified'], ['zh-hant', '繁體中文', 'Chinese, traditional'], ['ko', '한국어', 'Korean'],
+  ['ja', '日本語', 'Japanese'], ['ja(easy)', 'やさしい日本語', 'Easy Japanese, target only'], ['en', 'English', 'English'], ['zh-hans', '简体中文', 'Chinese, simplified'], ['zh-hant', '繁體中文', 'Chinese, traditional'], ['ko', '한국어', 'Korean'],
   ['ar', 'العربية', 'Arabic'], ['az', 'Azərbaycan', 'Azerbaijani'], ['be', 'Беларуская', 'Belarusian'], ['bg', 'Български', 'Bulgarian'], ['bn', 'বাংলা', 'Bengali'],
   ['ca', 'Català', 'Catalan'], ['ceb', 'Cebuano', 'Cebuano'], ['de', 'Deutsch', 'German'], ['es', 'Español', 'Spanish'], ['et', 'Eesti', 'Estonian'],
   ['eu', 'Euskara', 'Basque'], ['fa', 'فارسی', 'Persian'], ['fr', 'Français', 'French'], ['gu', 'ગુજરાતી', 'Gujarati'], ['he', 'עברית', 'Hebrew'],
@@ -853,6 +856,13 @@ const TEXTS = {
     'サーバーが 2 秒以内に応答しない場合、{ペイン}は最後に取得できた正常な値を画面に残し、古い値であることを示す。',
     'このマシンの外には何も送信されない。モデルはローカルで動作し、ネットワークへの要求はモデルの{重み}のダウンロードだけだ。',
     'ワイドモニターでのちらつきを報告してくれた皆さんに感謝する。',
+  ],
+  'ja(easy)': [
+    '0.4 で変わったこと',
+    '{コレクター}は、CPU と同じ道で GPU も調べるようになりました。1 回に送るメッセージは、3 つから 1 つになりました。',
+    'サーバーが 2 秒の間に返事をしないときは、{ペイン}は前の正しい数字を画面に残します。そして、その数字が古いことを見せます。',
+    'この PC の外には何も送りません。モデルはこの PC の中で動きます。ネットワークを使うのは、モデルの{重み}をダウンロードするときだけです。',
+    'ワイドモニターの画面のちらつきを教えてくれた皆さん、ありがとうございました。',
   ],
   'zh-hans': [
     '0.4 版的变更',
@@ -902,10 +912,10 @@ const MODELS = [
 ];
 const QUANTS = ['Q4_K_M', 'Q4_0', 'Q3_K_M', 'Q2_K'];
 const ENGINE_LOG = [
-  ['20:29:41', 'build: b7123 (Vulkan, CPU AVX2) for x86_64-pc-windows-msvc'],
+  ['20:29:41', 'build: b12110 (Vulkan, CPU AVX2) for x86_64-pc-windows-msvc'],
   ['20:29:41', 'llama_model_loader: loaded meta data from plamo-3-translate-2b-Q4_K_M.gguf'],
   ['20:29:42', 'load_tensors: offloading all layers to GPU · Vulkan0 Intel(R) Iris(R) Xe Graphics'],
-  ['20:29:42', 'llama_context: n_ctx = 16384, n_seq_max = 4'],
+  ['20:29:42', 'llama_context: n_ctx = 16384, n_seq_max = 1'],
   ['20:29:43', 'main: server is listening on http://127.0.0.1:8642'],
   ['20:41:07', 'slot launch_slot_: id 0 | task 412 | processing task'],
   ['20:41:09', 'srv  update_slots: all slots are idle'],
@@ -920,7 +930,7 @@ const FAULT_LOG = [
 const S = {
   view: 'text', mode: 'done', form: 'polite', src: 'auto', srcText: 'en', dst: 'ja',
   gloss: false, ctx: false, trip: false, live: false, narrow: false,
-  step: 2, engine: 'found', model: 'std', quant: 0, agreed: false, fetchPct: 0, paused: false,
+  step: 2, engineSrc: 'fetch', model: 'std', quant: 0, agreed: false, fetchPct: 0, paused: false,
   theme: 'tron', segs: [], hot: null, tok: 0, t0: 0, ext: false,
 };
 let timers = [];
@@ -931,8 +941,9 @@ const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
 const key = (lang) => (lang === 'ja' ? `ja-${S.form}` : lang);
 const srcSegs = () => TEXTS[S.srcText === 'ja' ? 'ja-polite' : S.srcText];
 const outSegs = () => (S.dst === S.srcText ? null : TEXTS[key(S.dst)] || null);
-const termsOn = () => S.srcText === 'en' && S.dst === 'ja';
-const tripOn = () => S.trip && termsOn();
+const termsOn = () => S.srcText === 'en' && (S.dst === 'ja' || S.dst === 'ja(easy)');
+const tripOn = () => S.trip && S.srcText === 'en' && S.dst === 'ja';
+const pad = (i) => String(i + 1).padStart(2, '0');
 const plain = (s) => s.replace(/\{([^}]+)\}/g, '$1');
 const markup = (s, terms) => esc(s).replace(/\{([^}]+)\}/g, (_, t) => (terms ? `<span class="term" data-card="term:${t}">${t}</span>` : t));
 const code = (c) => c.toUpperCase();
@@ -1004,7 +1015,7 @@ function renderDst() {
       el.innerHTML = standby('ok', 'Ready', 'Awaiting input', 'plamo-3-translate-2b · Q4_K_M · 127.0.0.1:8642', '', 'Type or paste on the left. <kbd>Ctrl+Enter</kbd> translates; <kbd>Ctrl+Shift+Y</kbd> brings this pane with the clipboard\u2019s text.');
       break;
     case 'standby':
-      el.innerHTML = standby('off', 'Engine standby', 'PLaMo 3 Translate · 2B', 'llama-server b7123 starts with the first translation: about 2 s and 1.9 GB.', '&gt; translate', 'It stops again after 10 minutes without a translation, or when the last TRANSLATE pane closes.');
+      el.innerHTML = standby('off', 'Engine standby', 'PLaMo 3 Translate · 2B', 'llama-server b12110 starts with the first translation: about 2 s and 1.9 GB.', '&gt; translate', 'It stops again after 10 minutes without a translation, or when the last TRANSLATE pane closes.');
       break;
     case 'boot':
       el.innerHTML = '<div class="boot" id="boot"><div class="boot-head">Engine power on</div></div>';
@@ -1034,7 +1045,9 @@ function paintSeg(i) {
   const out = outSegs();
   const seg = S.segs[i] || { st: 'done' };
   el.dataset.st = seg.st;
-  if (seg.st === 'queued') el.innerHTML = '<span class="qd">queued · waiting for a slot</span>';
+  if (seg.st === 'queued') el.innerHTML = `<span class="qd">queued · after ${i === 0 ? 'the engine' : `segment ${pad(i - 1)}`}</span>`;
+  else if (seg.st === 'none') el.innerHTML = '<span class="qd">not translated</span>';
+  else if (seg.st === 'stopped') el.innerHTML = `${esc(seg.shown)}<span class="stoptag">STOPPED · Ctrl+Enter translates again</span>`;
   else if (seg.st === 'run') el.innerHTML = `${esc(seg.shown.slice(0, -seg.last))}<span class="tok">${esc(seg.shown.slice(-seg.last))}</span><i class="caret"></i>`;
   else {
     const body = seg.edited ? esc(seg.edited) + '<span class="edtag">EDITED</span>' : markup(out[i], termsOn());
@@ -1057,6 +1070,7 @@ function renderInfo() {
     const n = S.segs.filter((s) => s.st === 'done').length;
     fig = ` · ${n}/5 · ${S.tok} tok · ${(85 + Math.round(Math.random() * 4))} t/s`;
   } else if (S.mode === 'done' && out) fig = ' · 158 tok · 86 t/s · 1.9 s';
+  else if (S.mode === 'stopped' && out) fig = ' · stopped at 03 · 2/5';
   $('#dstInfo').innerHTML = lang + fig;
   renderFoot();
 }
@@ -1072,14 +1086,15 @@ function renderFoot() {
   }
   switch (S.view === 'setup' ? 'done' : S.mode) {
     case 'nomodel': lamp = ['nomodel', 'No model']; figs = '<span>set up downloads PLaMo 3 Translate (0.6 – 19.5 GB) once</span>'; break;
-    case 'standby': lamp = ['off', 'Standby']; figs = '<span class="fig">llama-server b7123 · stopped · starts with the first translation</span>'; break;
+    case 'standby': lamp = ['off', 'Standby']; figs = '<span class="fig">llama-server b12110 · stopped · starts with the first translation</span>'; break;
     case 'boot': lamp = ['beat', 'Boot']; figs = '<span class="fig">loading plamo-3-translate-2b-Q4_K_M.gguf</span>'; break;
     case 'run': {
       const n = S.segs.filter((s) => s.st === 'run').length;
-      lamp = ['beat', 'TX']; figs = `<span class="fig"><em>${n}</em> of 4 slots · 127.0.0.1:8642</span>`; break;
+      lamp = ['beat', 'TX']; figs = `<span class="fig"><em>${n}</em> of 1 slot · 127.0.0.1:8642</span>`; break;
     }
+    case 'stopped': lamp = ['', 'Ready']; figs = '<span class="fig">stopped at segment 03 · <em>Ctrl+Enter</em> translates again</span>'; break;
     case 'fault': lamp = ['bad', 'Fault']; figs = '<span class="fig">llama-server exited · code 1 · 20:41:09</span>'; break;
-    default: lamp = ['', 'Ready']; figs = '<span class="fig">llama-server b7123 · 127.0.0.1:8642 · <em>Vulkan</em> · ctx 16K · 4 slots · 1.9 GB</span>';
+    default: lamp = ['', 'Ready']; figs = '<span class="fig">llama-server b12110 · 127.0.0.1:8642 · <em>Vulkan</em> · ctx 16K · 1 slot · 1.9 GB</span>';
   }
   f.innerHTML = `<span class="lampw ${lamp[0]}" data-card="engine"><i></i><b>${lamp[1]}</b></span>${figs}${live}${right}`;
 }
@@ -1090,7 +1105,7 @@ function scheduleLinks() { cancelAnimationFrame(linkFrame); linkFrame = requestA
 function drawLinks() {
   const svg = $('#links');
   const nodes = $('#nodes');
-  const show = S.view === 'text' && !S.narrow && (S.mode === 'run' || S.mode === 'done') && outSegs();
+  const show = S.view === 'text' && !S.narrow && ['run', 'done', 'stopped'].includes(S.mode) && outSegs();
   $('#dir').style.visibility = show ? 'hidden' : 'visible';
   if (!show) { svg.innerHTML = ''; nodes.innerHTML = ''; return; }
   // Laid out by offsets, not client rects: a view powering on is scaled to a line for a moment,
@@ -1153,7 +1168,8 @@ function runTranslation() {
   let next = 0;
   let active = 0;
   let done = 0;
-  const pump = () => { while (active < 4 && next < out.length) { start(next++); active++; } };
+  // One slot: segments go in order, each with the two before it as history (translate.md §6.1).
+  const pump = () => { while (active < 1 && next < out.length) { start(next++); active++; } };
   const start = (i) => {
     const full = plain(out[i]);
     const seg = S.segs[i];
@@ -1169,7 +1185,7 @@ function runTranslation() {
       seg.last = Math.min(n, pos);
       S.tok += 1;
       paintSeg(i);
-      if (pos < full.length) { later(step, 26 + Math.random() * 34); renderInfo(); scheduleLinks(); return; }
+      if (pos < full.length) { later(step, 14 + Math.random() * 18); renderInfo(); scheduleLinks(); return; }
       seg.st = 'done';
       seg.fresh = true;
       paintSeg(i);
@@ -1177,7 +1193,7 @@ function runTranslation() {
       if (done === out.length) { S.mode = 'done'; syncMock(); $('#dstConsole').classList.remove('tx'); renderInfo(); scheduleLinks(); return; }
       pump(); renderInfo(); scheduleLinks();
     };
-    later(step, 160 + i * 50);
+    later(step, 120);
   };
   pump();
 }
@@ -1188,11 +1204,11 @@ function runBoot() {
   renderSrc();
   renderDst();
   const lines = [
-    ['SPAWN', 'llama-server b7123 <span class="mut">· 127.0.0.1:8642 · api key set · web ui off</span>'],
+    ['SPAWN', 'llama-server b12110 <span class="mut">· 127.0.0.1:8642 · api key set · web ui off</span>'],
     ['LOAD', 'plamo-3-translate-2b-Q4_K_M.gguf <span class="mut">· 1.81 GB</span>'],
     ['TENSORS', '<span class="cells" id="bootCells">' + '<i></i>'.repeat(24) + '</span> <span id="bootPct">0%</span>'],
     ['OFFLOAD', 'all layers → GPU <span class="mut">· Vulkan0 · Intel Iris Xe</span>'],
-    ['CONTEXT', '16384 tokens <span class="mut">· 4 slots · temperature 0</span>'],
+    ['CONTEXT', '16384 tokens <span class="mut">· 1 slot · temperature 0</span>'],
     ['READY', 'listening <span class="mut">· up in 1.6 s</span>', 'ok'],
   ];
   const now = new Date(2026, 10, 5, 20, 41, 7);
@@ -1245,7 +1261,7 @@ function renderSetup() {
   $('#sBack').disabled = S.step === 1 || S.step >= 4;
   $('#sCancel').hidden = S.step === 5;
   const next = $('#sNext');
-  next.disabled = (S.step === 1 && S.engine === 'missing' && !S.ext) || (S.step === 3 && !S.agreed) || (S.step === 4 && S.fetchPct < 100);
+  next.disabled = (S.step === 3 && !S.agreed) || (S.step === 4 && S.fetchPct < 100);
   next.textContent = { 1: 'Next', 2: 'Next', 3: 'Agree and fetch', 4: 'Next', 5: 'Start translating' }[S.step];
   $('#sWhere').textContent = { 1: 'step 1 of 5 · engine', 2: 'step 2 of 5 · model', 3: 'step 3 of 5 · licence', 4: 'goes on with this pane closed', 5: '' }[S.step];
   $('#headSub').textContent = `setup · ${S.step}/5`;
@@ -1255,23 +1271,8 @@ function renderSetup() {
 const STEP_VIEWS = {
   1: () => `
     <div class="shead"><h2>Engine</h2><p>llama.cpp's llama-server runs the model on this PC.</p></div>
-    ${S.engine === 'found' ? `
-    <div class="probe"><span class="st"><i class="slamp ok"></i>Found</span>
-      <span class="what">llama-server b7123 · Vulkan · CPU AVX2<small>C:\\Tools\\llama.cpp\\llama-server.exe</small></span>
-      <span class="row"><button type="button" class="btn">Rescan</button><button type="button" class="btn">Choose…</button></span></div>
-    <p class="small">elecdex starts it when you translate, on 127.0.0.1 with a key of its own, and stops it after 10 idle minutes.</p>` : `
-    <div class="probe miss"><span class="st"><i class="slamp"></i>Not found</span>
-      <span class="what">llama-server is not on PATH or in the usual places<small>Install llama.cpp with one of these, then rescan, or choose the file.</small></span>
-      <span class="row"><button type="button" class="btn lit">Rescan</button><button type="button" class="btn">Choose…</button></span></div>
-    <div class="cmds">
-      <span class="os">Windows</span><code>winget install llama.cpp</code><button type="button" class="btn">Copy</button>
-      <span class="os">macOS</span><code>brew install llama.cpp</code><button type="button" class="btn">Copy</button>
-      <span class="os">Linux</span><code>brew install llama.cpp</code><button type="button" class="btn">Copy</button>
-    </div>
-    <p class="small">Or build it from github.com/ggml-org/llama.cpp. A GPU build (Vulkan, CUDA, Metal) is much faster than the CPU one.</p>`}
-    <div class="or">or</div>
-    <div class="ext"><span class="lbl">Use a server already running</span><input class="field" id="extAddr" placeholder="http://192.168.1.20:8080" aria-label="Server address"><button type="button" class="btn" id="extTest">Test</button></div>
-    <p class="small">elecdex then starts nothing. The server must run a PLaMo 3 Translate model; elecdex asks it which one before the first translation.</p>`,
+    <div class="val" style="display:flex;flex-direction:column;gap:0.7rem;font-size:var(--step--1)">${engineOptions()}</div>
+    <p class="small">elecdex starts the engine when you translate, on 127.0.0.1 with a key of its own, and stops it after 10 idle minutes.</p>`,
   2: () => `
     <div class="shead"><h2>Model</h2><p>PLaMo 3 Translate by Preferred Networks · 53 languages. More can be added later.</p></div>
     <div class="pc">This PC<b>RAM 16 GB</b><b>GPU Intel Iris Xe · shared memory</b><b>free 85.9 GB</b></div>
@@ -1317,6 +1318,7 @@ const STEP_VIEWS = {
       </div>
     </div>
     <div class="jobs" id="jobs">
+      <span class="k">ENGINE</span><span class="p">llama-b12110-bin-win-vulkan-x64.zip · cpu-x64.zip</span><span class="s ok">86 MB · sha256 ok</span>
       <span class="k">GET</span><span class="p">plamo-3-translate-${m.p.toLowerCase()}-${QUANTS[S.quant]}.gguf</span><span class="s run" id="j1">receiving</span>
       <span class="k">VERIFY</span><span class="p">sha256 against the repository's record</span><span class="s" id="j2">waiting</span>
       <span class="k">PLACE</span><span class="p">…\\elecdex\\translate\\models</span><span class="s" id="j3">waiting</span>
@@ -1329,7 +1331,7 @@ const STEP_VIEWS = {
       <span class="state"><i class="slamp ok"></i>Engine up · model verified</span>
       <div class="selftest">
         <span class="k">Model</span><span>plamo-3-translate-2b · Q4_K_M · sha256 ok</span>
-        <span class="k">Engine</span><span>llama-server b7123 · Vulkan · all layers on the GPU</span>
+        <span class="k">Engine</span><span>llama-server b12110 · Vulkan · all layers on the GPU</span>
         <span class="k">Self test</span><span>Good morning. → おはようございます。 <span class="mut">· 0.31 s · 88 t/s</span></span>
       </div>
     </div>`,
@@ -1381,20 +1383,27 @@ function setDigits(el, s) {
 }
 
 /* ---------- engine settings ---------- */
+// Where llama-server comes from (translate.md §4.1): a pinned build elecdex fetches, one of your own, or a server already running.
+function engineOptions() {
+  const on = (v) => (S.engineSrc === v ? ' on' : '');
+  return `
+      <div class="opt${on('fetch')}" data-src="fetch"><i class="rd"></i><b>Fetched by elecdex</b>
+        <span class="sub"><span class="mono">llama.cpp b12110 · Vulkan + CPU · 86 MB</span><span class="mono mut">github.com/ggml-org/llama.cpp · sha256 pinned · MIT</span></span>
+        <span class="sub small">The build elecdex is tested with. Fetched with the model, checked, kept under …\\elecdex\\translate\\engine.</span></div>
+      <div class="opt${on('own')}" data-src="own"><i class="rd"></i><b>My own llama-server</b>
+        <span class="sub"><span class="mono mut">${S.engineSrc === 'own' ? 'C:\\Tools\\llama.cpp\\llama-server.exe · b12204' : 'not chosen'}</span><button type="button" class="btn">Choose…</button></span>
+        <span class="sub small">b7563 or later (PLaMo 3 support). winget install llama.cpp, brew install llama.cpp.</span></div>
+      <div class="opt${on('external')}" data-src="external"><i class="rd"></i><b>A server already running</b>
+        <span class="sub"><input class="field" value="http://192.168.1.20:8080" aria-label="External server" style="flex:0 1 16rem"><button type="button" class="btn">Test</button></span>
+        <span class="sub small">elecdex starts nothing, and what you translate is sent to this address.</span></div>`;
+}
 function renderEngine() {
   const m = MODELS;
   $('#eng').innerHTML = `
     <span class="lbl">Engine</span>
-    <div class="val">
-      <div class="opt${S.ext ? '' : ' on'}" data-ext="0"><i class="rd"></i><b>Managed</b>
-        <span class="sub"><span class="mono">llama-server b7123 · Vulkan</span><span class="mono mut">C:\\Tools\\llama.cpp\\llama-server.exe</span><button type="button" class="btn">Choose…</button><button type="button" class="btn">Rescan</button></span>
-        <span class="sub small">elecdex starts it when you translate and stops it after the idle time below.</span></div>
-      <div class="opt${S.ext ? ' on' : ''}" data-ext="1"><i class="rd"></i><b>External</b>
-        <span class="sub"><input class="field" value="http://192.168.1.20:8080" aria-label="External server" style="flex:0 1 16rem"><button type="button" class="btn">Test</button></span>
-        <span class="sub small">A server you run, on this PC or the network. elecdex starts and stops nothing.</span></div>
-    </div>
+    <div class="val">${engineOptions()}</div>
     <span class="lbl">State</span>
-    <div class="val"><span class="mono"><i class="slamp ok" style="margin-right:0.45rem"></i>Ready · pid 18244 · up 12 min · 1.9 GB · 127.0.0.1:8642</span>
+    <div class="val"><span class="mono"><i class="slamp ok" style="margin-right:0.45rem"></i>Ready · llama.cpp b12110 · Vulkan · pid 18244 · up 12 min · 1.9 GB</span>
       <span class="ext"><button type="button" class="btn">Stop</button><button type="button" class="btn">Restart</button></span></div>
     <span class="lbl">Models</span>
     <div class="val">
@@ -1407,11 +1416,10 @@ function renderEngine() {
     <span class="lbl">Run</span>
     <div class="val"><div class="runs">
       <label>Context<select><option>4096</option><option>8192</option><option selected>16384</option><option>32768</option></select></label>
-      <label>Slots<select><option>1</option><option>2</option><option selected>4</option><option>8</option></select></label>
       <label>GPU layers<select><option selected>auto</option><option>all</option><option>none (CPU)</option></select></label>
       <label>Threads<select><option selected>auto</option><option>4</option><option>8</option></select></label>
       <label>Stop when idle<select><option>5 min</option><option selected>10 min</option><option>30 min</option><option>never</option></select></label>
-    </div><span class="small">A change restarts the engine. Context is shared by the slots: 16384 over 4 is 4096 a segment.</span></div>
+    </div><span class="small">A change restarts the engine.</span></div>
     <span class="lbl">Log</span>
     <div class="val"><pre class="logbox">${ENGINE_LOG.map(([t, l]) => `<b>${t}</b>  ${esc(l)}`).join('\n')}</pre><span><button type="button" class="btn">Copy log</button></span></div>
     <span class="lbl">Licence</span>
@@ -1439,6 +1447,11 @@ function setMode(mode) {
   clearTimers();
   S.mode = mode;
   S.segs = (outSegs() || []).map(() => ({ st: 'done' }));
+  if (mode === 'stopped' && outSegs()) {
+    // Esc in the middle of segment 03: what came stays, dimmed and said, never shown as finished.
+    const third = plain(outSegs()[2]);
+    S.segs = [{ st: 'done' }, { st: 'done' }, { st: 'stopped', shown: third.slice(0, Math.floor(third.length * 0.45)) }, { st: 'none' }, { st: 'none' }];
+  }
   if (S.view !== 'text') { S.view = 'text'; ['vHistory', 'vSetup', 'vEngine'].forEach((id) => { $(`#${id}`).hidden = true; }); $('#vText').hidden = false; crt($('#vText')); }
   $('#headSub').textContent = mode === 'nomodel' ? 'no model' : 'plamo-3-translate-2b · Q4_K_M';
   if (mode === 'boot') { renderLangs(); runBoot(); return; }
@@ -1478,7 +1491,8 @@ function paintPop(q) {
   let html = '';
   if (popSide === 'src' && (!q || 'auto detect'.includes(q.toLowerCase()))) html += `<button type="button" class="li" data-code="auto"><span class="m">${cur === 'auto' ? '◆' : ''}</span><span class="c">auto</span><span>detect from the text</span><span class="e"></span></button>`;
   if (!q) html += `<div class="g">Recent</div>${RECENT.map((c) => item(LANG[c])).join('')}<div class="g">All 53</div>`;
-  html += LANGS.filter(match).map(item).join('');
+  // やさしい日本語は訳先だけ（モデルのテンプレートも翻訳元には受け付けない）
+  html += LANGS.filter((l) => match(l) && (popSide === 'dst' || l[0] !== 'ja(easy)')).map(item).join('');
   $('#poplist').innerHTML = html;
 }
 function closePop() {
@@ -1500,7 +1514,9 @@ function choose(c) {
 }
 function swap() {
   const a = S.srcText;
-  if (!TEXTS[S.dst === 'ja' ? 'ja-polite' : S.dst]) { S.dst = a; } else { S.srcText = S.dst; S.dst = a; }
+  // やさしい日本語は翻訳元にならないので、入れ替えると日本語になる
+  const next = S.dst === 'ja(easy)' ? 'ja' : S.dst;
+  if (!TEXTS[next === 'ja' ? 'ja-polite' : next]) { S.dst = a; } else { S.srcText = next; S.dst = a; }
   S.src = S.srcText;
   if (S.mode === 'done' || S.mode === 'run') runTranslation(); else { renderLangs(); renderSrc(); renderDst(); }
 }
@@ -1513,8 +1529,8 @@ function cardHTML(k) {
   if (kind === 'node') {
     const i = Number(arg); const st = STATS[i]; const seg = S.segs[i] || { st: 'done' };
     return `<h4><span>Segment ${String(i + 1).padStart(2, '0')}</span><span>${seg.edited ? 'edited' : seg.st}</span></h4><dl>
-      <dt>tokens</dt><dd>${st[0]} in → ${st[1]} out</dd><dt>time</dt><dd>${st[2]} s · slot ${st[3]}</dd>
-      <dt>history</dt><dd>${i === 0 ? 'none, the first segment' : `segment ${String(i).padStart(2, '0')} sent with it`}</dd></dl>`;
+      <dt>tokens</dt><dd>${st[0]} in → ${st[1]} out</dd><dt>time</dt><dd>${st[2]} s</dd>
+      <dt>history</dt><dd>${i === 0 ? 'none, the first segment' : i === 1 ? 'segment 01 sent with it' : `segments ${pad(i - 2)} and ${pad(i - 1)} sent with it`}</dd></dl>`;
   }
   if (kind === 'term') return `<h4><span>Glossary</span><span>EN → JA</span></h4><dl><dt>term</dt><dd>${esc(arg)} → ${esc(GLOSS[arg] || '')}</dd><dt>applies</dt><dd>every segment of this pane</dd></dl>`;
   if (kind === 'match') return `<h4><span>Round trip</span><span>chrF ${arg}</span></h4><dl><dt>reads</dt><dd>how close the back translation is to the source, by characters</dd><dt>below 70</dt><dd>worth a look: the sense may have moved</dd></dl>`;
@@ -1522,7 +1538,7 @@ function cardHTML(k) {
     const m = MODELS.find((x) => x.id === arg);
     return `<h4><span>${m.name} · ${m.p}</span><span>${m.fit[0]}</span></h4><dl><dt>file</dt><dd>${m.sizes[0]} at Q4_K_M</dd><dt>needs</dt><dd>${m.need} (estimate, to be measured)</dd><dt>this PC</dt><dd>RAM 16 GB · GPU shares system memory</dd></dl>`;
   }
-  if (kind === 'engine') return `<h4><span>Engine</span><span>llama-server b7123</span></h4><dl><dt>process</dt><dd>pid 18244 · up 12 min · 1.9 GB</dd><dt>address</dt><dd>127.0.0.1:8642 · key of its own</dd><dt>stops</dt><dd>after 10 idle minutes, or with the last TRANSLATE pane</dd></dl>`;
+  if (kind === 'engine') return `<h4><span>Engine</span><span>llama-server b12110</span></h4><dl><dt>process</dt><dd>pid 18244 · up 12 min · 1.9 GB</dd><dt>address</dt><dd>127.0.0.1:8642 · key of its own</dd><dt>stops</dt><dd>after 10 idle minutes, or with the last TRANSLATE pane</dd></dl>`;
   if (kind === 'swap') return `<h4><span>Swap</span></h4><dl><dt>does</dt><dd>exchanges the languages; the translation becomes the source</dd></dl>`;
   if (kind === 'form') return `<h4><span>Form</span><span>Japanese only</span></h4><dl><dt>plain</dt><dd>だ・である調</dd><dt>polite</dt><dd>です・ます調</dd></dl>`;
   if (kind === 'trip') return `<h4><span>Round trip</span></h4><dl><dt>does</dt><dd>translates each segment back into the source language, under it, with how close it came</dd><dt>costs</dt><dd>a second pass through the engine</dd></dl>`;
@@ -1640,7 +1656,7 @@ $('#vSetup').addEventListener('click', (e) => {
   if (e.target.closest('#agree')) { S.agreed = !S.agreed; renderSetup(); }
   if (e.target.closest('#pause')) { S.paused = !S.paused; e.target.closest('#pause').textContent = S.paused ? 'Resume' : 'Pause'; $('#meter').classList.toggle('paused', S.paused); }
   if (e.target.closest('#fcancel')) { clearInterval(fetchTimer); S.fetchPct = 0; S.paused = false; S.step = 2; syncMock(); renderSetup(); }
-  if (e.target.closest('#extTest')) { S.ext = true; renderSetup(); }
+  const src = e.target.closest('.opt[data-src]'); if (src && !e.target.closest('input, button')) { S.engineSrc = src.dataset.src; renderSetup(); }
 });
 $('#sNext').addEventListener('click', () => {
   if (S.step === 5) { S.mode = 'empty'; S.segs = []; show('text'); return; }
@@ -1648,15 +1664,14 @@ $('#sNext').addEventListener('click', () => {
 });
 $('#sBack').addEventListener('click', () => { if (S.step > 1) { S.step -= 1; syncMock(); renderSetup(); } });
 $('#sCancel').addEventListener('click', () => { clearInterval(fetchTimer); S.mode = 'nomodel'; show('text'); });
-$('#vEngine').addEventListener('click', (e) => { const o = e.target.closest('.opt'); if (o && !e.target.closest('input, button')) { S.ext = o.dataset.ext === '1'; renderEngine(); } });
+$('#vEngine').addEventListener('click', (e) => { const o = e.target.closest('.opt[data-src]'); if (o && !e.target.closest('input, button')) { S.engineSrc = o.dataset.src; renderEngine(); } });
 
 /* ---------- mock bar ---------- */
 function syncMock() {
   const pressed = { view: S.view, mode: S.view === 'text' ? S.mode : '', step: S.view === 'setup' ? String(S.step) : '', width: S.narrow ? 'narrow' : 'wide', theme: S.theme };
   $$('#mockbar .grp').forEach((g) => {
     $$('button', g).forEach((b) => {
-      if (b.dataset.flag) b.setAttribute('aria-pressed', String(S.engine === 'missing'));
-      else b.setAttribute('aria-pressed', String(b.dataset.v === pressed[g.dataset.g]));
+      b.setAttribute('aria-pressed', String(b.dataset.v === pressed[g.dataset.g]));
     });
   });
 }
@@ -1677,8 +1692,10 @@ $('#mockbar').addEventListener('click', (e) => {
   if (g === 'view') show(v);
   if (g === 'mode') setMode(v);
   if (g === 'step') {
-    if (b.dataset.flag) { S.engine = S.engine === 'missing' ? 'found' : 'missing'; S.step = 1; S.ext = false; }
-    else { S.step = Number(v); if (S.step === 4) { S.fetchPct = 0; S.paused = false; } if (S.step === 5) S.fetchPct = 100; if (S.step > 3) S.agreed = true; }
+    S.step = Number(v);
+    if (S.step === 4) { S.fetchPct = 0; S.paused = false; }
+    if (S.step === 5) S.fetchPct = 100;
+    if (S.step > 3) S.agreed = true;
     if (S.view !== 'setup') show('setup'); else { renderSetup(); syncMock(); }
   }
   if (g === 'width') { S.narrow = v === 'narrow'; $('#pane').classList.toggle('narrow', S.narrow); crt($('#pane')); scheduleLinks(); syncMock(); }

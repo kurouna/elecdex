@@ -1716,6 +1716,16 @@ Ctrl+Shift+P で開くダイアログ（palette/ActionPalette.svelte）。ショ
 - **Enter 2 回**: 終了・スクロールバックの消去と、確認ダイアログが聞かないときのリセット（`armsFirst`）
 - **RECENT** はページのメモリだけ。テーマの試し当て、個々の設定、プラグインが項目を足す API は入れていない
 
+### 5.25 TRANSLATE ペイン（PLaMo 3 Translate をこの PC で、設計中）
+
+組み込みペイン `translate`（予定、まだ実装していない）。Preferred Networks の PLaMo 3 Translate（GGUF）を llama.cpp の `llama-server` で動かし、53 言語とやさしい日本語の間を訳す。訳す文はこの PC から出ず、外への通信はモデル（とエンジン）のダウンロードだけ（2026-11-05、利用者の依頼）。
+
+- **main が全部持つ**: エンジンの入手・起動（127.0.0.1、空きポート、環境変数で渡すキー、`--no-webui`）・停止、モデルの取得（リビジョン固定、sha256、再開）、PFML3 の組み立てと `/completion` のストリームの中継、用語集・履歴のファイル。ページは llama-server と話さない
+- **寿命**: 最初の翻訳で起動し、使わなければ止める。見えていない間は新しく何も始めない（訳しかけは書き終える）
+- **画面**: 原文と訳文を中央の背骨でつなぎ、段落ごとに順番に訳す。SETUP の 5 段階、HISTORY、ENGINE
+
+設計、決定の記録、利用者のテストアプリから得たことは **[translate.md](translate.md)** に、見た目のたたき台は [translate-mock/index.html](translate-mock/index.html) に置く。
+
 ## 6. ターミナル設計
 
 ### 6.1 構成
