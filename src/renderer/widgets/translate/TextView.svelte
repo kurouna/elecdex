@@ -1,6 +1,9 @@
 <script lang="ts">
 import { joinBlocks, MAX_SOURCE_CHARS, splitBlocks } from '@shared/translate/blocks'
 import type { TranslateBoard } from '@shared/translate/board'
+import { detectLanguage } from '@shared/translate/detect'
+import { type Glossary, glossaryApplies, MAX_CONTEXT_CHARS } from '@shared/translate/glossary'
+import { continuesDraft } from '@shared/translate/history'
 import { isSourceLang, isTargetLang, takesForm } from '@shared/translate/languages'
 import type { BlockView, RunView } from '@shared/translate/run'
 import { untrack } from 'svelte'
@@ -8,6 +11,7 @@ import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/h
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import BlockCard from './BlockCard.svelte'
+import GlossaryDrawer from './GlossaryDrawer.svelte'
 import LangPicker from './LangPicker.svelte'
 import {
   draftOf,
@@ -29,6 +33,7 @@ import {
   targetText,
   withRecent,
 } from './translate-view.ts'
+import ViewSwitch from './ViewSwitch.svelte'
 
 /**
  * TEXT (docs/translate.md §3, §6.1): the source on the left, the translation on the right, and
@@ -43,9 +48,11 @@ interface Props {
   follower: RunFollower
   onsetup: () => void
   onengine: () => void
+  onhistory: () => void
 }
 
-const { paneId, board, paneState, visible, follower, onsetup, onengine }: Props = $props()
+const { paneId, board, paneState, visible, follower, onsetup, onengine, onhistory }: Props =
+  $props()
 const api = window.elecdex.translate
 
 // ---------------------------------------------------------------------------
@@ -78,11 +85,53 @@ function pick(side: 'src' | 'tgt', code: string): void {
 const draft = draftOf(untrack(() => paneId))
 let text = $state(draft.text)
 let draftId = $state(draft.draftId)
+let context = $state(draft.context)
 let editing = $state(false)
 let textarea = $state<HTMLTextAreaElement | null>(null)
 let problem = $state<string | null>(null)
 
-$effect(() => keepDraft(paneId, text, draftId))
+$effect(() => keepDraft(paneId, { text, draftId, context }))
+
+/**
+ * One history entry a draft (§7): half or more of the text deleted or replaced, or emptied,
+ * starts a new one; typing on, a small cut or an insertion goes on.
+ */
+let lastText = untrack(() => text)
+function onSourceInput(): void {
+  if (!continuesDraft(lastText, text)) draftId = newDraftId()
+  lastText = text
+}
+
+// ---------------------------------------------------------------------------
+// The drawer: the glossary or the context (§6.3); which one is open is the pane's
+// ---------------------------------------------------------------------------
+
+const drawer = $derived(
+  paneState?.drawer === 'glossary' || paneState?.drawer === 'context' ? paneState.drawer : null,
+)
+const glossaryId = $derived(typeof paneState?.glossaryId === 'string' ? paneState.glossaryId : null)
+let glossaries = $state.raw<Glossary[]>([])
+const chosen = $derived(glossaries.find((g) => g.id === glossaryId) ?? null)
+
+// Main's glossaries, asked for while one is chosen or the drawer is open, and again after a change.
+$effect(() => {
+  void board.library
+  if (glossaryId === null && drawer !== 'glossary') return
+  let live = true
+  void api.glossaries().then((list) => {
+    if (live) glossaries = list
+  })
+  return () => {
+    live = false
+  }
+})
+
+function toggleDrawer(which: 'glossary' | 'context'): void {
+  widgetState.patch(paneId, { drawer: drawer === which ? undefined : which })
+}
+
+/** On AUTO, what the letters make certain (§6.5): shown, and what a swap and ROUND TRIP use. */
+const detected = $derived(srcLang === 'auto' ? detectLanguage(text) : null)
 
 const run = $derived(follower.run)
 const busy = $derived(isActive(run))
@@ -102,7 +151,9 @@ $effect(() => {
   untrack(() => {
     if (text === '' && r.blocks.length > 0) {
       text = sourceOf(r)
+      lastText = text
       draftId = r.draftId
+      if (context === '') context = r.context
     }
   })
 })
@@ -131,6 +182,8 @@ async function translate(): Promise<void> {
     srcLang,
     tgtLang,
     ...(takesForm(tgtLang) ? { form } : {}),
+    ...(glossaryId ? { glossaryId } : {}),
+    ...(context.trim() ? { context } : {}),
     mode: 'translate',
   })
   if ('problem' in answer) problem = answer.problem
@@ -147,16 +200,18 @@ function edit(): void {
 
 function clear(): void {
   text = ''
+  lastText = ''
   draftId = newDraftId()
   edit()
 }
 
 function swap(): void {
-  const next = swapped(srcLang, tgtLang)
+  const next = swapped(detected ?? srcLang, tgtLang)
   if (next === null) return
   widgetState.patch(paneId, { srcLang: next.src, tgtLang: next.tgt })
   if (run !== null && run.state === 'done' && run.blocks.length > 0) {
     text = targetText(run)
+    lastText = text
     draftId = newDraftId()
   }
 }
@@ -352,6 +407,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="text-view" class:narrow bind:this={root} onkeydown={onKey} tabindex="-1" data-testid="translate-text">
   <div class="toolbar">
+    <ViewSwitch view="text" onchange={(next) => next === 'history' && onhistory()} />
     {#snippet language(side: 'src' | 'tgt', code: string)}
       <span class="anchor">
         <button
@@ -379,7 +435,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
         type="button"
         class="swap"
         aria-label="Swap the languages"
-        disabled={swapped(srcLang, tgtLang) === null}
+        disabled={swapped(detected ?? srcLang, tgtLang) === null}
         data-testid="translate-swap"
         onclick={swap}
       >
@@ -392,11 +448,47 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
       <button type="button" aria-pressed={form === 'plain'} onclick={() => widgetState.patch(paneId, { form: 'plain' })}>Plain<small>だ・である</small></button>
       <button type="button" aria-pressed={form === 'polite'} onclick={() => widgetState.patch(paneId, { form: 'polite' })}>Polite<small>です・ます</small></button>
     </div>
+    <span class="spacer"></span>
+    <div class="opts">
+      <button type="button" class="tog" aria-pressed={drawer === 'glossary'} data-testid="translate-glossary-toggle" onclick={() => toggleDrawer('glossary')}>
+        Glossary{#if chosen}<em class:off={!glossaryApplies(chosen.targetLang, tgtLang)}>{chosen.terms.length}</em>{/if}
+      </button>
+      <button type="button" class="tog" aria-pressed={drawer === 'context'} data-testid="translate-context-toggle" onclick={() => toggleDrawer('context')}>
+        Context{#if context.trim() !== ''}<i class="dot"></i>{/if}
+      </button>
+    </div>
   </div>
+
+  {#if drawer !== null}
+    <div class="drawer crt-on" data-testid="translate-drawer">
+      {#if drawer === 'glossary'}
+        <GlossaryDrawer
+          {glossaries}
+          selected={glossaryId}
+          {tgtLang}
+          {text}
+          onselect={(id) => widgetState.patch(paneId, { glossaryId: id ?? undefined })}
+        />
+      {:else}
+        <section class="context">
+          <div class="dhead"><b>Context</b><span>sent with every block, never translated · {context.length.toLocaleString('en-US')} / {MAX_CONTEXT_CHARS.toLocaleString('en-US')}</span></div>
+          <textarea
+            class="ctxbox"
+            bind:value={context}
+            maxlength={MAX_CONTEXT_CHARS}
+            aria-label="Context"
+            spellcheck="false"
+            data-testid="translate-context"
+            placeholder="What the text is and who reads it: release notes of a system monitor, for its users. Keep the product's terms."
+          ></textarea>
+        </section>
+      {/if}
+    </div>
+  {/if}
 
   <div class="duo" bind:this={duo}>
     <div class="side src">
-      <div class="hud-label"><span>Source</span><span>{sourceInfo(srcLang, text.length, blockCount)}</span></div>
+      <div class="hud-label"><span>Source</span><span data-testid="translate-source-info">{sourceInfo(srcLang, text.length, blockCount, detected)}</span></div>
       <div class="console frame">
         <div class="text" bind:this={srcText} onscroll={schedule}>
           {#if showBlocks && run !== null}
@@ -416,6 +508,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
             <textarea
               bind:this={textarea}
               bind:value={text}
+              oninput={onSourceInput}
               spellcheck="false"
               aria-label="Source text"
               placeholder="Type or paste text. Ctrl+Enter translates it."
@@ -500,6 +593,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
         <div class="actions">
           <button type="button" class="btn" disabled={run === null || run.blocks.length === 0} onclick={copy}>Copy</button>
           <span class="spacer"></span>
+          {#if run?.glossary && !run.glossary.used}<span class="small warn" data-testid="translate-glossary-unused">glossary “{run.glossary.name}” not used into {langCode(run.tgtLang)}</span>{/if}
           {#if problem}<span class="problem" data-testid="translate-problem">{problem}</span>{/if}
         </div>
       </div>
@@ -559,6 +653,20 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 .form button small { font-size: var(--step--2); letter-spacing: 0; margin-left: 0.25rem; opacity: 0.75; text-transform: none; }
 .form button[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
 .form.off { opacity: 0.35; pointer-events: none; }
+.opts { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.tog { display: inline-flex; align-items: center; gap: 0.3rem; background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.5rem; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.tog em { font-style: normal; font-family: var(--font-mono); color: var(--accent-strong); }
+.tog em.off { color: var(--warn); }
+.tog .dot { width: 0.3rem; height: 0.3rem; background: var(--accent); display: inline-block; }
+.tog:hover { color: var(--accent); }
+.tog[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
+.drawer { padding: var(--space-2); border-top: 1px dashed var(--panel-rule); border-bottom: 1px dashed var(--panel-rule); }
+.dhead { display: flex; align-items: center; gap: var(--space-2); margin-bottom: 0.3rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.dhead b { color: var(--text); font-weight: 500; }
+.ctxbox { width: 100%; min-height: 4.2rem; resize: vertical; background: transparent; border: 1px solid var(--panel-rule); color: var(--text); padding: 0.3rem 0.4rem; font-family: var(--font-ui); font-size: var(--step--1); line-height: 1.5; outline: none; }
+.ctxbox:focus { border-color: var(--accent); }
+.small { font-size: var(--step--2); letter-spacing: 0.03em; }
+.small.warn { color: var(--warn); }
 
 .duo { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 2.8rem minmax(0, 1fr); }
 .narrow .duo { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 0.9rem minmax(0, 1.2fr); }

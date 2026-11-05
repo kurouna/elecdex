@@ -9,20 +9,29 @@ import { applyPatch, type RunEvent, type RunView } from '@shared/translate/run'
  * the pane sat finished behind a tab) stays on screen until the next translation.
  */
 
-/** What the pane was typing, by pane, for as long as the page lives: a moved pane remounts. */
-const drafts = new Map<string, { text: string; draftId: string }>()
+/**
+ * What the pane was typing, and its context, by pane, for as long as the page lives: a moved pane
+ * remounts. Never the pane's state, which layouts save (§8.1): the text is the user's.
+ */
+export interface Draft {
+  text: string
+  draftId: string
+  context: string
+}
 
-export function draftOf(paneId: string): { text: string; draftId: string } {
+const drafts = new Map<string, Draft>()
+
+export function draftOf(paneId: string): Draft {
   let draft = drafts.get(paneId)
   if (!draft) {
-    draft = { text: '', draftId: newDraftId() }
+    draft = { text: '', draftId: newDraftId(), context: '' }
     drafts.set(paneId, draft)
   }
   return draft
 }
 
-export function keepDraft(paneId: string, text: string, draftId: string): void {
-  drafts.set(paneId, { text, draftId })
+export function keepDraft(paneId: string, draft: Draft): void {
+  drafts.set(paneId, draft)
 }
 
 export function newDraftId(): string {

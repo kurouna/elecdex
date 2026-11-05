@@ -27,6 +27,7 @@ import {
   RELEASES_BASE_URL,
 } from '@shared/translate/engines'
 import { parseExternalUrl, servesPlamo } from '@shared/translate/external'
+import type { HistoryEntry } from '@shared/translate/history'
 import {
   HF_BASE_URL,
   MODELS,
@@ -35,7 +36,7 @@ import {
   modelUrl,
 } from '@shared/translate/models'
 import { buildPrompt, PFML_STOP, restore } from '@shared/translate/pfml3'
-import type { RunEvent } from '@shared/translate/run'
+import type { RunEvent, RunRequest, RunView } from '@shared/translate/run'
 import { z } from 'zod'
 import { JsonStore } from '../store/json-store.js'
 import { replaceFile } from '../store/replace-file.js'
@@ -49,6 +50,7 @@ import {
 import { FetchError, fetchFile, fileSize, partOf } from './fetcher.js'
 import { sha256File, stopHashing } from './hash.js'
 import { installEngine, SERVER_NAME, sweepTemps } from './installer.js'
+import { TranslateLibrary } from './library.js'
 import { streamCompletion, tokenize } from './llama.js'
 import { endOrphan, processName, readLeftPid, writePid } from './orphan.js'
 import { TranslateRuns } from './runs.js'
@@ -94,6 +96,8 @@ export class TranslateService {
   readonly engine: TranslateEngine
   /** The panes' translations and their queue (§8.5). */
   readonly runs: TranslateRuns
+  /** The glossaries and the history (§6.3, §7). */
+  readonly library: TranslateLibrary
   readonly #runListeners = new Set<(event: RunEvent) => void>()
   #settings: Settings['translate']
   #fetch: FetchView | null = null
@@ -139,7 +143,14 @@ export class TranslateService {
       stallMs: env.stallMs ?? 60_000,
       pollMs: 250,
     })
+    this.library = new TranslateLibrary(this.#root, {
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
+      changed: () => this.#changed(),
+    })
     this.runs = new TranslateRuns({
+      glossary: (id) => this.library.glossary(id),
+      record: (view, request) => this.#record(view, request),
       ensure: () => this.engine.ensure(),
       begin: () => this.engine.begin(),
       end: () => this.engine.end(),
@@ -201,6 +212,65 @@ export class TranslateService {
     return this.engine.configure(next)
   }
 
+  /**
+   * A run that came to its end, into the history (§7): unless the history is turned off. A run
+   * stopped before the end is marked with how far it got.
+   */
+  #record(view: RunView, request: RunRequest): void {
+    if (!this.#settings.saveHistory) return
+    const done = view.blocks.filter((block) => block.state === 'done').length
+    const now = Date.now()
+    const entry: HistoryEntry = {
+      id: randomBytes(8).toString('hex'),
+      draftId: request.draftId,
+      at: now,
+      updatedAt: now,
+      srcLang: view.srcLang,
+      detected: view.detected,
+      tgtLang: view.tgtLang,
+      form: view.form,
+      blocks: view.blocks.map((block) => ({
+        lead: block.lead,
+        source: block.source,
+        text: block.text,
+      })),
+      tail: view.tail,
+      partial: view.state === 'done' ? null : { done, total: view.blocks.length },
+      model: this.#settings.modelId,
+    }
+    this.library.record(entry)
+  }
+
+  /** HISTORY opens an entry: it is put on the pane as a finished run. */
+  showEntry(paneId: string, id: string): { version: number } | { problem: string } {
+    const entry = this.library.entry(id)
+    if (!entry) return { problem: 'That entry is gone.' }
+    return {
+      version: this.runs.show(paneId, {
+        draftId: entry.draftId,
+        srcLang: entry.srcLang,
+        tgtLang: entry.tgtLang,
+        form: entry.form,
+        blocks: entry.blocks.map((block, index) => ({
+          index,
+          lead: block.lead,
+          source: block.source,
+          text: block.text,
+          state: index < (entry.partial?.done ?? entry.blocks.length) ? 'done' : 'none',
+          note: null,
+          tokens: null,
+          ms: null,
+          history: 0,
+          terms: 0,
+        })),
+        tail: entry.tail,
+        detected: entry.detected,
+        context: '',
+        glossary: null,
+      }),
+    }
+  }
+
   /** STOP or RESTART of the engine (ENGINE, FAULT): the runs stop with it. */
   stopEngine(): Promise<void> {
     this.runs.stopAll('The engine was stopped.')
@@ -226,6 +296,7 @@ export class TranslateService {
       models,
       fetch: this.#fetch,
       selectedModel: this.#settings.modelId,
+      library: this.library.revision,
       machine: { ...this.#machine, freeBytes: await freeBytes(this.#root) },
     }
   }
@@ -418,6 +489,7 @@ export class TranslateService {
   /** elecdex is quitting (§4.3): no waiting on anything. */
   quit(): void {
     this.runs.quit()
+    this.library.flush()
     this.pause()
     stopHashing()
     this.engine.killNow()

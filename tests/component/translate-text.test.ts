@@ -32,6 +32,7 @@ const run = (over: Partial<RunView> = {}): RunView => ({
       tokens: null,
       ms: null,
       history: 0,
+      terms: 0,
     },
     {
       index: 1,
@@ -43,9 +44,13 @@ const run = (over: Partial<RunView> = {}): RunView => ({
       tokens: null,
       ms: null,
       history: 0,
+      terms: 0,
     },
   ],
   tail: '\n',
+  detected: null,
+  context: '',
+  glossary: null,
   ...over,
 })
 

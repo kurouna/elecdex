@@ -1,16 +1,20 @@
 <script lang="ts">
 import type { TranslateBoard } from '@shared/translate/board'
+import type { HistoryRow } from '@shared/translate/history'
 import { untrack } from 'svelte'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import EngineView from './EngineView.svelte'
-import { isActive, RunFollower } from './run-follower.svelte.ts'
+import HistoryView from './HistoryView.svelte'
+import { isActive, keepDraft, newDraftId, RunFollower } from './run-follower.svelte.ts'
 import SetupView from './SetupView.svelte'
 import TextView from './TextView.svelte'
 import { firstSetupStep, phaseLamp, whereTextGoes } from './translate-view.ts'
+import ViewSwitch from './ViewSwitch.svelte'
 
 /**
  * TRANSLATE: PLaMo 3 Translate on this PC through llama-server (docs/translate.md). Main starts
@@ -22,7 +26,7 @@ const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props(
 const visible = $derived(seen(inTab))
 
 let board = $state.raw<TranslateBoard | null>(null)
-let view = $state<'text' | 'setup' | 'engine'>('text')
+let view = $state<'text' | 'history' | 'setup' | 'engine'>('text')
 let step = $state(1)
 
 $effect(() => (visible ? window.elecdex.translate.subscribe((next) => (board = next)) : undefined))
@@ -44,6 +48,23 @@ $effect(() => {
   })
 })
 
+/**
+ * A history row opened (§3): main puts the entry on this pane as a finished run - its snapshot
+ * reaches the follower before the answer - and TEXT, mounted afresh on an empty draft, takes the
+ * source back from it; the languages and form become the pane's again.
+ */
+async function openEntry(row: HistoryRow): Promise<void> {
+  const answer = await window.elecdex.translate.historyOpen(paneId, row.id)
+  if ('problem' in answer) return
+  keepDraft(paneId, { text: '', draftId: newDraftId(), context: '' })
+  widgetState.patch(paneId, {
+    srcLang: row.srcLang,
+    tgtLang: row.tgtLang,
+    ...(row.form ? { form: row.form } : {}),
+  })
+  view = 'text'
+}
+
 function openSetup(): void {
   if (board) step = firstSetupStep(board)
   view = 'setup'
@@ -60,7 +81,14 @@ function openSetup(): void {
   {#if board}
     {#key view}
       <div class="view crt-on">
-        {#if view === 'setup'}
+        {#if view === 'history'}
+          <div class="toolbar"><ViewSwitch view="history" onchange={(next) => (view = next)} /></div>
+          <HistoryView
+            revision={board.library}
+            saving={settings.saveHistory}
+            onopen={(row) => void openEntry(row)}
+          />
+        {:else if view === 'setup'}
           <SetupView
             {board}
             {step}
@@ -79,6 +107,7 @@ function openSetup(): void {
             {follower}
             onsetup={openSetup}
             onengine={() => (view = 'engine')}
+            onhistory={() => (view = 'history')}
           />
         {/if}
       </div>
@@ -108,5 +137,6 @@ function openSetup(): void {
 .fig { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
 .credit { text-transform: none; letter-spacing: 0.02em; }
 .spacer { flex: 1; }
+.toolbar { display: flex; align-items: center; min-height: 1.6rem; padding-right: 1.7rem; margin-bottom: var(--space-1); }
 .warn { color: var(--warn); }
 </style>

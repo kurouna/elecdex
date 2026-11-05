@@ -1,5 +1,6 @@
 import { joinBlocks } from '@shared/translate/blocks'
 import type { EnginePhase, EngineView, FetchView, TranslateBoard } from '@shared/translate/board'
+import type { HistoryRow } from '@shared/translate/history'
 import { asSource, EASY_JAPANESE, LANGUAGES } from '@shared/translate/languages'
 import { type ModelEntry, type ModelFit, modelFit } from '@shared/translate/models'
 import type { RunView } from '@shared/translate/run'
@@ -207,8 +208,14 @@ export function targetText(run: RunView): string {
 }
 
 /** What the source side's label says: the language, blocks and characters. */
-export function sourceInfo(src: string, chars: number, blocks: number): string {
-  const parts = [langCode(src)]
+export function sourceInfo(
+  src: string,
+  chars: number,
+  blocks: number,
+  detected: string | null = null,
+): string {
+  // On AUTO, "≈ EN" only when the letters make it certain (§6.5).
+  const parts = [detected ? `${langCode(src)} ≈ ${langCode(detected)}` : langCode(src)]
   if (blocks > 0) parts.push(`${blocks} ${blocks === 1 ? 'block' : 'blocks'}`)
   parts.push(`${chars.toLocaleString('en-US')} ch`)
   return parts.join(' · ')
@@ -231,4 +238,50 @@ export function targetInfo(run: RunView | null): string {
     case 'done':
       return `${run.blocks.length} ${run.blocks.length === 1 ? 'block' : 'blocks'}${rate}`
   }
+}
+
+// ---------------------------------------------------------------------------
+// HISTORY (phase 3)
+// ---------------------------------------------------------------------------
+
+/** An entry's languages as the list writes them: `EN → JA`, `AUTO → JA` when nothing was certain. */
+export function historyPair(row: Pick<HistoryRow, 'srcLang' | 'detected' | 'tgtLang'>): string {
+  const src = row.srcLang === 'auto' ? (row.detected ?? 'auto') : row.srcLang
+  return `${langCode(src)} → ${langCode(row.tgtLang)}`
+}
+
+export function historyTime(at: number): string {
+  const d = new Date(at)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function dayLabel(at: number, now: number): string {
+  const day = (t: number) => new Date(t).toDateString()
+  if (day(at) === day(now)) return 'Today'
+  if (day(at) === day(now - 86_400_000)) return 'Yesterday'
+  const d = new Date(at)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** The rows a filter keeps (either side, case ignored), under their days, newest first. */
+export function historyDays(
+  rows: readonly HistoryRow[],
+  filter: string,
+  now: number,
+): { label: string; rows: HistoryRow[] }[] {
+  const needle = filter.trim().toLowerCase()
+  const kept = needle
+    ? rows.filter(
+        (row) =>
+          row.source.toLowerCase().includes(needle) || row.target.toLowerCase().includes(needle),
+      )
+    : rows
+  const days: { label: string; rows: HistoryRow[] }[] = []
+  for (const row of kept) {
+    const label = dayLabel(row.updatedAt, now)
+    const last = days.at(-1)
+    if (last?.label === label) last.rows.push(row)
+    else days.push({ label, rows: [row] })
+  }
+  return days
 }

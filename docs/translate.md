@@ -348,8 +348,11 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 | `consent` | handle | `{modelId}` ライセンスへの同意を記録 |
 | `fetch` / `pause` / `resume` / `cancelFetch` / `removeModel` | handle | 取得（エンジン → モデルの順に必要なものだけ）と削除 |
 | `logs` | handle | リングバッファ（ENGINE の LOG） |
-| `history` / `historyClear` / `historyRemove` | handle | 一覧（絞り込みはページ）、2 度押しの CLEAR、1 件 |
-| `glossaries` / `glossarySave` / `glossaryRemove` / `glossaryImport` | handle | 用語集の読み書き（取り込みは 5,000 件まで） |
+| `history` / `historyClear` / `historyRemove` / `historyOpen` | handle | 一覧（各件の頭 240 字だけ。絞り込みはページ）、2 度押しの CLEAR、1 件、1 件をペインに訳し終えた依頼として置く（`{paneId, id}`） |
+| `glossaries` / `glossarySave` / `glossaryRemove` | handle | 用語集の読み書き。保存は 1 つを丸ごと（zod で検査）。TSV / CSV の貼り付けはページが解いて `glossarySave` で送る（5,000 件まで） |
+
+用語集と履歴が変わると、盤の `library`（版の数）が増える。用語集か HISTORY を出しているペインは、それを見て
+聞き直す（新しい購読のチャネルは作らない）。
 | `clipboardText` | handle | Ctrl+Shift+Y のとき、main のクリップボードのモジュールから文字だけ（`ELECDEX_CLIPBOARD_STUB` が効く） |
 | `openLicence` | handle | ライセンスの全文を既定のブラウザで（許可した URL だけ） |
 | `watching` | handle | 診断（§8.6） |
@@ -481,6 +484,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
    （2026-11-06 に実装。チャネルは `run`・`follow`/`unfollow`・`runEvent`・`stop` まで。`cancelLive` と
    `editBlock` は段階 4。原文と訳文は `--font-ui` の `--step-0`、AI チャットの回答と同じ）
 3. 用語集・文脈・HISTORY・翻訳元の判定
+   （2026-11-06 に実装。文脈は下書きと同じくページのメモリと main の依頼にだけ持ち、ペインの状態には入れない）
 4. ROUND TRIP・LIVE・EDIT したブロックを履歴に
 5. 呼び出しキー（Ctrl+Shift+Y）、プリセットへの配置、ガイドとショット、README
 6. 後の候補: .txt / .md を落として訳す、外部サーバーの鍵、CUDA のビルド

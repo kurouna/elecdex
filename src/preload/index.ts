@@ -690,6 +690,13 @@ const api: ElecdexApi = {
     run: (request) => ipcRenderer.invoke(CH.translate.run, request),
     follow: (paneId, handler) => followRun(paneId, handler),
     stop: (paneId) => ipcRenderer.send(CH.translate.stop, paneId),
+    glossaries: () => ipcRenderer.invoke(CH.translate.glossaries),
+    glossarySave: (glossary) => ipcRenderer.invoke(CH.translate.glossarySave, glossary),
+    glossaryRemove: (id) => ipcRenderer.invoke(CH.translate.glossaryRemove, id),
+    history: () => ipcRenderer.invoke(CH.translate.history),
+    historyRemove: (id) => ipcRenderer.invoke(CH.translate.historyRemove, id),
+    historyClear: () => ipcRenderer.invoke(CH.translate.historyClear),
+    historyOpen: (paneId, id) => ipcRenderer.invoke(CH.translate.historyOpen, paneId, id),
     watching: () => ipcRenderer.invoke(CH.translate.watching),
   },
   elec16: {

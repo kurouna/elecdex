@@ -1,4 +1,6 @@
 import { splitBlocks, splitParts } from '@shared/translate/blocks'
+import { detectLanguage } from '@shared/translate/detect'
+import { type Glossary, glossaryApplies, selectTerms, type Term } from '@shared/translate/glossary'
 import { buildPrompt, formFor, PFML_STOP, restore } from '@shared/translate/pfml3'
 import {
   applyBlockPatch,
@@ -48,6 +50,10 @@ export interface RunsDeps {
   ): Promise<Completion>
   setTimer(fn: () => void, ms: number): unknown
   clearTimer(handle: unknown): void
+  /** A glossary by id, or null. */
+  glossary(id: string): Glossary | null
+  /** A run came to its end (done, or stopped with something written): for the history (§7). */
+  record(view: RunView, request: RunRequest): void
   /** A patch or a new run, for every page that follows the pane. */
   publish(event: RunEvent): void
   /** What `watching()` answers changed. */
@@ -60,6 +66,8 @@ class TooLongError extends Error {}
 interface Run {
   view: RunView
   request: RunRequest
+  /** The glossary's terms when it is used for this target, else none. */
+  terms: readonly Term[]
   abort: AbortController | null
   orphan: unknown
   pending: Map<number, BlockPatch>
@@ -96,7 +104,10 @@ export class TranslateRuns {
     const { blocks, tail } = splitBlocks(request.text)
     const version = ++this.#version
     const busy = this.#queue.some((id) => id !== request.paneId)
+    const glossary = request.glossaryId ? this.#deps.glossary(request.glossaryId) : null
+    const used = glossary !== null && glossaryApplies(glossary.targetLang, request.tgtLang)
     const run: Run = {
+      terms: used && glossary ? glossary.terms : [],
       view: {
         paneId: request.paneId,
         draftId: request.draftId,
@@ -116,8 +127,12 @@ export class TranslateRuns {
           tokens: null,
           ms: null,
           history: 0,
+          terms: 0,
         })),
         tail,
+        detected: request.srcLang === 'auto' ? detectLanguage(request.text) : null,
+        context: request.context ?? '',
+        glossary: glossary ? { name: glossary.name, used } : null,
       },
       request,
       abort: null,
@@ -152,6 +167,46 @@ export class TranslateRuns {
     this.#setState(run, 'stopped', reason)
     this.#queue = this.#queue.filter((id) => id !== paneId)
     this.#flushNow(run)
+    this.#recorded(run)
+  }
+
+  /**
+   * A finished translation put on a pane, from the history (HISTORY opens it): a run that is done,
+   * followed and dropped as any other, and not recorded again.
+   */
+  show(paneId: string, view: Omit<RunView, 'paneId' | 'version' | 'state' | 'reason'>): number {
+    const old = this.#runs.get(paneId)
+    if (old) this.#retire(old)
+    this.#queue = this.#queue.filter((id) => id !== paneId)
+    const version = ++this.#version
+    const run: Run = {
+      terms: [],
+      view: { ...structuredClone(view), paneId, version, state: 'done', reason: null },
+      request: {
+        paneId,
+        draftId: view.draftId,
+        text: '',
+        srcLang: view.srcLang,
+        tgtLang: view.tgtLang,
+        mode: 'translate',
+      },
+      abort: null,
+      orphan: null,
+      pending: new Map(),
+      pendingRun: {},
+      flush: null,
+    }
+    this.#runs.set(paneId, run)
+    this.#deps.publish(this.#snapshotEvent(paneId, true))
+    if (!this.#followers.get(paneId)) this.#armOrphan(run, ORPHAN_MS)
+    this.#deps.changed()
+    return version
+  }
+
+  /** The history is told of a run that wrote something (§7): at its end, once. */
+  #recorded(run: Run): void {
+    if (!run.view.blocks.some((block) => block.state === 'done')) return
+    this.#deps.record(structuredClone(run.view), run.request)
   }
 
   /** The engine was stopped, or its model or settings changed: every run stops (§8.5). */
@@ -268,6 +323,7 @@ export class TranslateRuns {
   #finish(run: Run): void {
     this.#setState(run, 'done', null)
     this.#flushNow(run)
+    this.#recorded(run)
   }
 
   #live(run: Run, signal: AbortSignal): boolean {
@@ -279,7 +335,8 @@ export class TranslateRuns {
     run.abort = controller
     if (run.view.state !== 'running') this.#setState(run, 'running', null)
     const history = this.#history(run, index)
-    this.#patch(run, { index, state: 'running', history: history.length })
+    const terms = selectTerms(run.terms, run.view.blocks[index]?.source ?? '').length
+    this.#patch(run, { index, state: 'running', history: history.length, terms })
     this.#deps.begin()
     try {
       await this.#attempts(run, index, history, controller.signal)
@@ -391,12 +448,15 @@ export class TranslateRuns {
   }
 
   #prompt(run: Run, text: string, history: Pair[]): string {
-    const { srcLang, tgtLang, form } = run.request
+    const { srcLang, tgtLang, form, context } = run.request
     return buildPrompt({
       text,
       target: tgtLang,
       ...(srcLang === 'auto' ? {} : { source: srcLang }),
       ...(form ? { form } : {}),
+      ...(context?.trim() ? { context } : {}),
+      // The terms this part holds (§6.3): a long block's parts each take their own.
+      glossary: selectTerms(run.terms, text),
       history,
     })
   }

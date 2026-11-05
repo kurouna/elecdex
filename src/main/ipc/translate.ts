@@ -1,5 +1,6 @@
 import { CH } from '@shared/channels'
 import { PLAMO_LICENSE_URL } from '@shared/translate/board'
+import { historyRow } from '@shared/translate/history'
 import { PANE_ID, RunRequestSchema } from '@shared/translate/run'
 import { app, BrowserWindow, dialog, net, shell, type WebContents } from 'electron'
 import { RunFollowers } from '../translate/followers.js'
@@ -15,6 +16,8 @@ import { PageSubscribers, registerTable } from './table.js'
  */
 
 const SOURCES = new Set(['fetched', 'own', 'external'])
+/** A glossary's or a history entry's id. */
+const ENTRY_ID = /^[\w-]{1,40}$/
 
 export function registerTranslateIpc(settings: SettingsHandle): {
   dispose: () => void
@@ -130,6 +133,23 @@ export function registerTranslateIpc(settings: SettingsHandle): {
         if (!parsed.success) return { problem: 'Not a translation request.' }
         if (service.engine.phase === 'absent') return { problem: 'Set up a model first.' }
         return { version: service.runs.start(parsed.data) }
+      },
+      [CH.translate.glossaries]: () => service.library.glossaries(),
+      [CH.translate.glossarySave]: (_event, raw) => service.library.saveGlossary(raw),
+      [CH.translate.glossaryRemove]: (_event, raw) => {
+        if (typeof raw === 'string' && ENTRY_ID.test(raw)) service.library.removeGlossary(raw)
+      },
+      [CH.translate.history]: () => service.library.history().map(historyRow),
+      [CH.translate.historyRemove]: (_event, raw) => {
+        if (typeof raw === 'string' && ENTRY_ID.test(raw)) service.library.removeEntry(raw)
+      },
+      [CH.translate.historyClear]: () => service.library.clearHistory(),
+      [CH.translate.historyOpen]: (_event, rawPane, rawId) => {
+        const paneId = paneOf(rawPane)
+        if (paneId === null || typeof rawId !== 'string' || !ENTRY_ID.test(rawId)) {
+          return { problem: 'No such entry.' }
+        }
+        return service.showEntry(paneId, rawId)
       },
       [CH.translate.setSource]: (_event, kind) => {
         if (typeof kind !== 'string' || !SOURCES.has(kind)) return { problem: 'No such source.' }

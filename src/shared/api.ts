@@ -75,6 +75,8 @@ import type { SnippetAdded, SnippetDraft, SnippetView } from './snippets.js'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from './tasks.js'
 import type { Theme, ThemeProblem } from './theme.js'
 import type { EngineSourceKind, TranslateBoard } from './translate/board.js'
+import type { Glossary } from './translate/glossary.js'
+import type { HistoryRow } from './translate/history.js'
 import type { RunEvent, RunRequest } from './translate/run.js'
 import type { UpdateStatus } from './updates.js'
 import type { AwakeRequest, AwakeState, UtilityCopy } from './utility.js'
@@ -634,6 +636,16 @@ export interface TranslateApi {
   follow(paneId: string, handler: (event: RunEvent) => void): () => void
   /** STOP: the block being written stays, the rest is not translated. */
   stop(paneId: string): void
+  glossaries(): Promise<Glossary[]>
+  /** Adds or replaces a glossary, whole; a problem when it is not one. */
+  glossarySave(glossary: Glossary): Promise<{ problem: string } | null>
+  glossaryRemove(id: string): Promise<void>
+  /** The history, newest first, each entry's start only. */
+  history(): Promise<HistoryRow[]>
+  historyRemove(id: string): Promise<void>
+  historyClear(): Promise<void>
+  /** Puts an entry on a pane as a finished translation; its version, or why not. */
+  historyOpen(paneId: string, id: string): Promise<{ version: number } | { problem: string }>
   /** Diagnostics: `board`, `fetch`, `run:<paneId>`; empty when idle. */
   watching(): Promise<string[]>
 }

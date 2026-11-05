@@ -48,6 +48,8 @@ function harness(over: Partial<RunsDeps> = {}) {
       busy--
     },
     settle: async () => {},
+    glossary: () => null,
+    record: () => {},
     external: () => false,
     unreachable: () => log.push('unreachable'),
     ctx: () => 16384,
@@ -388,6 +390,122 @@ describe('TranslateRuns', () => {
     // A snapshot to a page that follows now carries the seq the next patch follows.
     const snapshot = h.runs.follow('p1')
     expect(snapshot.seq).toBe(seqs.at(-1))
+  })
+})
+
+describe('TranslateRuns with a glossary, a context and the history', () => {
+  const glossary = {
+    id: 'g1',
+    name: 'Terms',
+    targetLang: 'ja',
+    terms: [
+      { source: 'pane', target: 'ペイン' },
+      { source: 'window', target: 'ウィンドウ' },
+    ],
+  }
+
+  it('sends each block the glossary terms it holds, and the context with every one', async () => {
+    const h = harness({ glossary: (id) => (id === 'g1' ? glossary : null) })
+    h.runs.follow('p1')
+    h.runs.start({
+      ...request('p1', 'A pane.\n\nA window.'),
+      glossaryId: 'g1',
+      context: 'Release notes.',
+    })
+    const first = await answer(h, 'あ')
+    const second = await answer(h, 'い')
+    expect(first.prompt).toContain('ペイン')
+    expect(first.prompt).not.toContain('ウィンドウ')
+    expect(second.prompt).toContain('ウィンドウ')
+    for (const call of [first, second]) expect(call.prompt).toContain('Release notes.')
+    h.tick(FLUSH_MS)
+    const view = h.page('p1')
+    expect(view?.glossary).toEqual({ name: 'Terms', used: true })
+    expect(view?.blocks.map((b) => b.terms)).toEqual([1, 1])
+  })
+
+  it('does not use a glossary for another target, and says so', async () => {
+    const h = harness({ glossary: () => glossary })
+    h.runs.follow('p1')
+    h.runs.start({ ...request('p1', 'A pane.', 'fr'), glossaryId: 'g1' })
+    const call = await answer(h, 'x')
+    expect(call.prompt).not.toContain('ペイン')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.glossary).toEqual({ name: 'Terms', used: false })
+  })
+
+  it('records a run that wrote everything, and one stopped part way with how far it got', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.'))
+    await answer(h, 'あ')
+    expect(records.map((r) => r.state)).toEqual(['done'])
+    h.runs.start(request('p1', 'A.\n\nB.'))
+    await answer(h, 'あ')
+    await h.settle()
+    h.runs.stop('p1')
+    expect(records.at(-1)?.state).toBe('stopped')
+    expect(records.at(-1)?.blocks.map((b) => b.state)).toEqual(['done', 'stopped'])
+  })
+
+  it('never records a run that wrote nothing, one replaced, or one dropped', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.'))
+    await h.settle()
+    h.runs.stop('p1')
+    h.runs.start(request('p1', 'B.\n\nC.'))
+    await answer(h, 'あ')
+    h.runs.start(request('p1', 'D.'))
+    h.runs.unfollow('p1')
+    h.tick(ORPHAN_MS)
+    expect(records).toEqual([])
+  })
+
+  it('says on AUTO what the letters make certain', () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start({
+      ...request('p1', 'The metrics collector now runs in its own process, and it is fast.'),
+      srcLang: 'auto' as never,
+    })
+    expect(h.page('p1')?.detected).toBe('en')
+  })
+
+  it('puts a finished translation from the history on a pane, done, without writing it again', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.show('p1', {
+      draftId: 'd9',
+      srcLang: 'en',
+      tgtLang: 'ja',
+      form: 'polite',
+      blocks: [
+        {
+          index: 0,
+          lead: '',
+          source: 'Hi.',
+          text: 'やあ。',
+          state: 'done',
+          note: null,
+          tokens: null,
+          ms: null,
+          history: 0,
+          terms: 0,
+        },
+      ],
+      tail: '',
+      detected: null,
+      context: '',
+      glossary: null,
+    })
+    await h.settle()
+    expect(h.page('p1')).toMatchObject({ state: 'done', draftId: 'd9' })
+    expect(h.calls).toEqual([])
+    expect(records).toEqual([])
   })
 })
 

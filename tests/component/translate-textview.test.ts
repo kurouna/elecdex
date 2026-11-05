@@ -44,9 +44,13 @@ const runOf = (source: string, state: RunView['state'] = 'done'): RunView => ({
       tokens: null,
       ms: null,
       history: 0,
+      terms: 0,
     },
   ],
   tail: '',
+  detected: null,
+  context: '',
+  glossary: null,
 })
 
 let pane = 0
@@ -62,6 +66,7 @@ function mount() {
       follower,
       onsetup: () => {},
       onengine: () => {},
+      onhistory: () => {},
     },
   })
   follower.follow()

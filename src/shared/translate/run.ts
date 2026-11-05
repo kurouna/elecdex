@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MAX_SOURCE_CHARS } from './blocks.js'
+import { MAX_CONTEXT_CHARS } from './glossary.js'
 import { isSourceLang, isTargetLang } from './languages.js'
 
 /**
@@ -23,6 +24,8 @@ export interface BlockView {
   ms: number | null
   /** How many earlier blocks went with it as history. */
   history: number
+  /** Glossary terms that went with it. */
+  terms: number
 }
 
 /** waiting: behind another pane's; running; done; stopped (with a reason). */
@@ -39,6 +42,12 @@ export interface RunView {
   reason: string | null
   blocks: BlockView[]
   tail: string
+  /** On AUTO, the language the letters made certain (§6.5), else null. */
+  detected: string | null
+  /** The context sent with every block (§6.3). */
+  context: string
+  /** The glossary chosen, and whether it was used: one for another language is not (§6.3). */
+  glossary: { name: string; used: boolean } | null
 }
 
 export interface BlockPatch {
@@ -52,6 +61,7 @@ export interface BlockPatch {
   tokens?: number | null
   ms?: number | null
   history?: number
+  terms?: number
 }
 
 export type RunEvent =
@@ -77,6 +87,11 @@ export const RunRequestSchema = z.object({
   srcLang: z.union([z.literal('auto'), z.string().refine(isSourceLang)]),
   tgtLang: z.string().refine(isTargetLang),
   form: z.enum(['plain', 'polite']).optional(),
+  glossaryId: z
+    .string()
+    .regex(/^[\w-]{1,40}$/)
+    .optional(),
+  context: z.string().max(MAX_CONTEXT_CHARS).optional(),
   mode: z.enum(['translate']),
 })
 
@@ -105,5 +120,6 @@ export function applyBlockPatch(block: BlockView, patch: BlockPatch): BlockView 
     ...(patch.tokens === undefined ? {} : { tokens: patch.tokens }),
     ...(patch.ms === undefined ? {} : { ms: patch.ms }),
     ...(patch.history === undefined ? {} : { history: patch.history }),
+    ...(patch.terms === undefined ? {} : { terms: patch.terms }),
   }
 }

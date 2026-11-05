@@ -184,6 +184,15 @@ export const CH = {
     runEvent: 'translate:run-event',
     /** renderer -> main, fire and forget: STOP a pane's run. */
     stop: 'translate:stop',
+    /** The glossaries (§6.3): the list, one saved whole, one removed. */
+    glossaries: 'translate:glossaries',
+    glossarySave: 'translate:glossary-save',
+    glossaryRemove: 'translate:glossary-remove',
+    /** The history (§7): its rows, an entry removed, all cleared, an entry put on a pane. */
+    history: 'translate:history',
+    historyRemove: 'translate:history-remove',
+    historyClear: 'translate:history-clear',
+    historyOpen: 'translate:history-open',
     watching: 'translate:watching',
   },
   /** The CHIP-8 pane (shared/chip8-library.ts): the library, a program's bytes, its saves. */

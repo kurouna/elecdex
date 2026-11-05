@@ -81,6 +81,8 @@ export interface TranslateBoard {
   models: ModelView[]
   fetch: FetchView | null
   selectedModel: string
+  /** Grows with every change of the glossaries or the history: a pane showing either asks again. */
+  library: number
   machine: MachineView
 }
 

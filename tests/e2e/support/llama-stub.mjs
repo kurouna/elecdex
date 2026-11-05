@@ -1,7 +1,8 @@
 // A stand-in for llama.cpp's llama-server in the e2e tests (docs/translate.md §11). Main starts it
 // as it would the real one: with node (ELECTRON_RUN_AS_NODE), the server's own arguments and the
 // key in LLAMA_API_KEY. It loads nothing and never leaves 127.0.0.1. A translation is made up
-// from the input, so a spec can tell what came back for what it sent.
+// from the input, so a spec can tell what came back for what it sent: `[lang] text`, then the
+// glossary terms the prompt carried (` {pane=ペイン}`) and ` {ctx}` when it carried a context.
 //
 // ELECDEX_LLAMA_STUB_MODE: slow-boot (503 for 1.5 s), silent-boot (writes only /health request
 // lines and never becomes ready), crash-mid (ends while writing), no-stop (the stream ends with no
@@ -30,10 +31,20 @@ function lastInput(prompt) {
   return { text, lang }
 }
 
+/** The glossary's terms in the prompt, as `source=target`, and whether a context came. */
+function extras(prompt) {
+  const glossary = prompt.split('<|plamo:tag|>glossary')[1]?.split('<|plamo:tag|>')[0] ?? ''
+  const terms = [...glossary.matchAll(/<\|plamo:index\|>([^<]*)<\|plamo:item\|>([^<]*)/g)].map(
+    (m) => `${m[1]}=${m[2]}`,
+  )
+  const context = prompt.includes('<|plamo:tag|>context<|plamo:msg|>')
+  return `${terms.length ? ` {${terms.join(',')}}` : ''}${context ? ' {ctx}' : ''}`
+}
+
 function translate(prompt) {
   const { text, lang } = lastInput(prompt)
   if (text === 'Good morning.') return lang === 'ja' ? 'おはようございます。' : 'Good morning.'
-  return `[${lang}] ${text}`
+  return `[${lang}] ${text}${extras(prompt)}`
 }
 
 function send(res, status, body) {

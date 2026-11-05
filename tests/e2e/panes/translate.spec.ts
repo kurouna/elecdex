@@ -395,3 +395,94 @@ test('the languages and the form are the pane’s, and Easy Japanese takes no fo
     await close()
   }
 })
+
+/* ---- phase 3: the glossary, the context, AUTO, HISTORY ---- */
+
+test('a glossary made in the drawer goes with the blocks that hold its terms, and the context with all', async () => {
+  const { page, close, userData } = await launch(undefined, withModel())
+  try {
+    await page.getByTestId('translate-glossary-toggle').click()
+    const drawer = page.getByTestId('translate-glossary')
+    await drawer.getByRole('button', { name: '+ New' }).click()
+    await drawer.getByRole('button', { name: '+ Term' }).click()
+    await drawer.getByLabel('Source term 1').fill('pane')
+    await drawer.getByLabel('Target term 1').fill('ペイン')
+    // Saved to main's own file a moment after the last edit.
+    await expect
+      .poll(() => {
+        try {
+          return readFileSync(path.join(userData, 'translate', 'glossaries.json'), 'utf8')
+        } catch {
+          return ''
+        }
+      })
+      .toContain('ペイン')
+    await page.getByTestId('translate-context-toggle').click()
+    await page.getByTestId('translate-context').fill('Release notes of a system monitor.')
+    await translate(page, 'The pane is here.\n\nNothing else.')
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await expect(blocks(page).first()).toContainText('{pane=ペイン} {ctx}')
+    await expect(blocks(page).nth(1)).not.toContainText('pane=')
+    await expect(blocks(page).nth(1)).toContainText('{ctx}')
+    // Into French, the Japanese glossary is not used, and the pane says so.
+    await page.getByTestId('translate-tgt-lang').click()
+    await page.getByTestId('translate-lang-tgt').locator('[data-code="fr"]').click()
+    await page.getByTestId('translate-source-blocks').click()
+    await page.getByTestId('translate-source').press('Control+Enter')
+    await expect(page.getByTestId('translate-glossary-unused')).toBeVisible({ timeout: 15_000 })
+    await expect(blocks(page).first()).not.toContainText('pane=')
+  } finally {
+    await close()
+  }
+})
+
+test('AUTO says the language the letters make certain, and then lets the languages be swapped', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await expect(page.getByTestId('translate-swap')).toBeDisabled()
+    await page
+      .getByTestId('translate-source')
+      .fill('The metrics collector now runs in its own process, and it is fast.')
+    await expect(page.getByTestId('translate-source-info')).toContainText('AUTO ≈ EN')
+    await page.getByTestId('translate-swap').click()
+    await expect(page.getByTestId('translate-src-lang')).toContainText('JA')
+    await expect(page.getByTestId('translate-tgt-lang')).toContainText('EN')
+  } finally {
+    await close()
+  }
+})
+
+test('HISTORY keeps a translation, opens it again in TEXT, and forgets it', async () => {
+  const { page, close, userData } = await launch(undefined, withModel())
+  try {
+    await translate(page, 'Kept in the history.')
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    // Written to main's file within its two seconds.
+    await expect
+      .poll(() => {
+        try {
+          return readFileSync(path.join(userData, 'translate', 'history.json'), 'utf8')
+        } catch {
+          return ''
+        }
+      })
+      .toContain('Kept in the history.')
+    await page.getByTestId('translate-source-blocks').click()
+    await page.getByTestId('translate-source').fill('Something else entirely.')
+    await page.getByTestId('translate-view-history').click()
+    const rows = page.getByTestId('translate-history-row')
+    await expect(rows).toHaveCount(1)
+    await expect(rows.first()).toContainText('Kept in the history.')
+    await rows.first().getByRole('button').first().click()
+    await expect(page.getByTestId('translate-source-blocks')).toContainText('Kept in the history.')
+    await expect(blocks(page).first()).toContainText('[ja] Kept in the history.')
+    await page.getByTestId('translate-view-history').click()
+    // CLEAR asks by its second press.
+    await page.getByTestId('translate-history-clear').click()
+    await expect(rows).toHaveCount(1)
+    await page.getByTestId('translate-history-clear').click()
+    await expect(rows).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

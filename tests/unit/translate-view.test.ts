@@ -33,6 +33,7 @@ const engine = (over: Partial<EngineView> = {}): EngineView => ({
 
 const board = (over: Partial<TranslateBoard> = {}): TranslateBoard => ({
   engine: engine(),
+  library: 0,
   models: MODELS.map((m) => ({ id: m.id, installed: false, partialBytes: 0, consentAt: null })),
   fetch: null,
   selectedModel: 'plamo3-2b-q4km',
