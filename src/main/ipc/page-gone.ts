@@ -47,3 +47,28 @@ export function whenPageGoes(sender: PageEvents, owner: object, onGone: () => vo
   }
   if (!modules.has(owner)) modules.set(owner, onGone)
 }
+
+/** What is used of a WebContents to hear it has loaded. */
+export interface PageLoads {
+  on(event: 'did-finish-load', listener: () => void): unknown
+}
+
+const loading = new WeakMap<PageLoads, Map<object, () => void>>()
+
+/**
+ * Calls `onLoad` whenever the page in `sender` finishes loading (after a reload too), with one
+ * listener on the page for every module, as `whenPageGoes` does. TRANSLATE holds a pane's run
+ * through a reload until then (docs/translate.md §8.5).
+ */
+export function whenPageLoads(sender: PageLoads, owner: object, onLoad: () => void): void {
+  let modules = loading.get(sender)
+  if (modules === undefined) {
+    const handlers = new Map<object, () => void>()
+    modules = handlers
+    loading.set(sender, handlers)
+    sender.on('did-finish-load', () => {
+      for (const handler of [...handlers.values()]) handler()
+    })
+  }
+  if (!modules.has(owner)) modules.set(owner, onLoad)
+}

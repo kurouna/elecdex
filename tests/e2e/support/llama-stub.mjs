@@ -106,7 +106,8 @@ const server = createServer((req, res) => {
       }
       res.end()
     }, 15)
-    req.on('close', () => clearInterval(timer))
+    // The response's close: the request's comes as soon as its body has been read.
+    res.on('close', () => clearInterval(timer))
   })
 })
 

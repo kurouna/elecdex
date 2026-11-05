@@ -1,5 +1,8 @@
+import { joinBlocks } from '@shared/translate/blocks'
 import type { EnginePhase, EngineView, FetchView, TranslateBoard } from '@shared/translate/board'
+import { asSource, EASY_JAPANESE, LANGUAGES } from '@shared/translate/languages'
 import { type ModelEntry, type ModelFit, modelFit } from '@shared/translate/models'
+import type { RunView } from '@shared/translate/run'
 
 /**
  * What the TRANSLATE pane shows of the board, decided apart from the components so a unit test
@@ -108,4 +111,124 @@ export const TIER_NOTE: Record<ModelEntry['tier'], string> = {
   standard: 'The balance of quality and speed for most PCs.',
   pro: 'Higher quality. Slow without a GPU of 8 GB.',
   max: 'The best quality. A workstation’s model.',
+}
+
+// ---------------------------------------------------------------------------
+// TEXT (phase 2)
+// ---------------------------------------------------------------------------
+
+/** What the target side shows (§3): the blocks, or the state when there are none to show. */
+export type TargetMode = 'nomodel' | 'empty' | 'boot' | 'fault' | 'blocks'
+
+export function targetMode(board: TranslateBoard, run: RunView | null): TargetMode {
+  const phase = board.engine.phase
+  if (phase === 'absent' && run === null) return 'nomodel'
+  if (run === null || run.blocks.length === 0) return 'empty'
+  const nothingYet = run.blocks.every((block) => block.text === '')
+  if (phase === 'starting' && nothingYet && run.state === 'running') return 'boot'
+  if (phase === 'fault' && run.state === 'stopped' && nothingYet) return 'fault'
+  return 'blocks'
+}
+
+/** A language's code as the pane writes it: upper case, `ja(easy)` as EASY JA. */
+export function langCode(code: string): string {
+  if (code === 'auto') return 'AUTO'
+  if (code === EASY_JAPANESE) return 'EASY JA'
+  return code.toUpperCase()
+}
+
+export function langName(code: string): string {
+  if (code === 'auto') return 'detect'
+  if (code === EASY_JAPANESE) return 'やさしい日本語'
+  return LANGUAGES.find((language) => language.code === code)?.native ?? code
+}
+
+/** The spine's direction when nothing is drawn on it: `EN ▸ JA`. */
+export function direction(src: string, tgt: string): string {
+  return `${langCode(src)} ▸ ${langCode(tgt)}`
+}
+
+/** A block's number on the spine: 01, 02 … */
+export function blockNumber(index: number): string {
+  return String(index + 1).padStart(2, '0')
+}
+
+/** A language picker's rows: the recent ones first, then the rest; filtered by code or name. */
+export function pickerRows(
+  side: 'src' | 'tgt',
+  recent: readonly string[],
+  filter: string,
+): { group: 'recent' | 'all'; code: string; native: string; english: string }[] {
+  const all = [
+    ...(side === 'src' ? [{ code: 'auto', native: 'detect', english: 'Auto detect' }] : []),
+    ...LANGUAGES.flatMap((language) =>
+      side === 'tgt' && language.code === 'ja'
+        ? [language, { code: EASY_JAPANESE, native: 'やさしい日本語', english: 'Easy Japanese' }]
+        : [language],
+    ),
+  ]
+  const needle = filter.trim().toLowerCase()
+  const matches = (row: (typeof all)[number]): boolean =>
+    needle === '' ||
+    row.code.toLowerCase().includes(needle) ||
+    row.native.toLowerCase().includes(needle) ||
+    row.english.toLowerCase().includes(needle)
+  const recentRows = recent
+    .map((code) => all.find((row) => row.code === code))
+    .filter((row): row is (typeof all)[number] => row !== undefined && matches(row))
+    .map((row) => ({ group: 'recent' as const, ...row }))
+  const rest = all
+    .filter((row) => matches(row) && !recent.includes(row.code))
+    .map((row) => ({ group: 'all' as const, ...row }))
+  return [...recentRows, ...rest]
+}
+
+/** The recent languages after choosing one: it first, five at most. */
+export function withRecent(recent: readonly string[], code: string): string[] {
+  if (code === 'auto') return [...recent]
+  return [code, ...recent.filter((c) => c !== code)].slice(0, 5)
+}
+
+/**
+ * The languages swapped (§6.3): Easy Japanese comes back as Japanese, AUTO cannot be a target, so
+ * a swap from AUTO is not offered (null) until the source is known (phase 3's detection).
+ */
+export function swapped(src: string, tgt: string): { src: string; tgt: string } | null {
+  if (src === 'auto') return null
+  return { src: asSource(tgt), tgt: src }
+}
+
+/** The translation as one text, laid out as the source was. */
+export function targetText(run: RunView): string {
+  return joinBlocks(
+    run.blocks.map((block) => ({ lead: block.lead, text: block.text })),
+    run.tail,
+  )
+}
+
+/** What the source side's label says: the language, blocks and characters. */
+export function sourceInfo(src: string, chars: number, blocks: number): string {
+  const parts = [langCode(src)]
+  if (blocks > 0) parts.push(`${blocks} ${blocks === 1 ? 'block' : 'blocks'}`)
+  parts.push(`${chars.toLocaleString('en-US')} ch`)
+  return parts.join(' · ')
+}
+
+/** What the target side's label says while and after it is written. */
+export function targetInfo(run: RunView | null): string {
+  if (run === null) return ''
+  const done = run.blocks.filter((block) => block.state === 'done').length
+  const tokens = run.blocks.reduce((sum, block) => sum + (block.tokens ?? 0), 0)
+  const ms = run.blocks.reduce((sum, block) => sum + (block.ms ?? 0), 0)
+  const rate = ms > 0 ? ` · ${Math.round((tokens / ms) * 1000)} t/s` : ''
+  switch (run.state) {
+    case 'waiting':
+      return 'waiting for another pane'
+    case 'running':
+      return `${done} / ${run.blocks.length}${rate}`
+    case 'stopped':
+      return `stopped at ${done} / ${run.blocks.length}`
+    case 'done':
+      return `${run.blocks.length} ${run.blocks.length === 1 ? 'block' : 'blocks'}${rate}`
+  }
 }

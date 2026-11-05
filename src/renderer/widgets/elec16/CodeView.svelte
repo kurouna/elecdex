@@ -336,7 +336,7 @@ select,
 }
 
 select option {
-  background: var(--panel-bg, var(--bg));
+  background: var(--panel-bg);
 }
 
 .sides {

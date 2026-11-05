@@ -175,6 +175,15 @@ export const CH = {
     logs: 'translate:logs',
     selfTest: 'translate:self-test',
     openLicence: 'translate:open-licence',
+    /** A translation for a pane (§8.5): main holds it; the answer is its version. */
+    run: 'translate:run',
+    /** renderer -> main, fire and forget: follow a pane's run; a snapshot comes first. */
+    follow: 'translate:follow',
+    unfollow: 'translate:unfollow',
+    /** main -> renderer: a RunEvent, a snapshot or the patches of the last 100 ms. */
+    runEvent: 'translate:run-event',
+    /** renderer -> main, fire and forget: STOP a pane's run. */
+    stop: 'translate:stop',
     watching: 'translate:watching',
   },
   /** The CHIP-8 pane (shared/chip8-library.ts): the library, a program's bytes, its saves. */

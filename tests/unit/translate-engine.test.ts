@@ -355,6 +355,27 @@ describe('TranslateEngine', () => {
     expect(h.engine.backend).toBe('vulkan')
   })
 
+  it('after a failed request, waits for a crashed server to be heard, so the retry finds the restart', async () => {
+    const h = harness({ launches: [launch('cpu')] })
+    await h.engine.ensure()
+    const server = h.servers[0]
+    // The socket closed first; the process's end is heard a moment later.
+    const settled = h.engine.settle()
+    server?.exit(139)
+    await settled
+    const again = await h.engine.ensure()
+    expect(h.servers).toHaveLength(2)
+    expect(again.origin).toBe('http://127.0.0.1:40001')
+  })
+
+  it('does not wait long for a server that is still running', async () => {
+    const h = harness()
+    await h.engine.ensure()
+    await h.engine.settle(5)
+    expect(h.servers).toHaveLength(1)
+    expect(h.engine.phase).toBe('ready')
+  })
+
   it('probes an external server once and marks it unreachable when it does not answer', async () => {
     const h = harness({ source: 'external', origin: 'http://192.168.1.20:8080', launches: [] })
     expect(h.engine.phase).toBe('external-untested')

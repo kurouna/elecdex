@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Page } from '@playwright/test'
 import { test } from '../support/shared.js'
-import { launch, single, watching } from '../support.js'
+import { closePane, launch, reloadWorkspace, single, watching } from '../support.js'
 
 /**
  * The TRANSLATE pane's phase 1 (docs/translate.md §12): SETUP fetches a model and READY's self
@@ -248,6 +248,151 @@ test('ENGINE refuses an external address that is not one, before asking the netw
     await engine.getByRole('button', { name: 'Test' }).click()
     await expect(engine).toContainText('No user name or password in the address.')
     await expect(page.getByTestId('translate-where')).toContainText('local')
+  } finally {
+    await close()
+  }
+})
+
+/* ---- TEXT (phase 2): block by block through the stand-in engine ---- */
+
+/** A pane with a model in place (its size is not checked to start) and the stand-in engine. */
+function withModel(mode = '') {
+  return {
+    layout: single('translate'),
+    files: { [`translate/models/plamo3-2b-q4km/${FILE}`]: 'x' },
+    env: { ELECDEX_TRANSLATE_MANIFEST: manifest(), ELECDEX_LLAMA_STUB_MODE: mode },
+  }
+}
+
+async function translate(page: Page, text: string): Promise<void> {
+  const source = page.getByTestId('translate-source')
+  await source.fill(text)
+  await source.press('Control+Enter')
+}
+
+const blocks = (page: Page) => page.getByTestId('translate-block')
+
+test('TRANSLATE writes the blocks in order, with the source laid out on the spine', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await translate(page, 'Hello.\n\nThe second block\nkeeps its line.\n\nThird.')
+    await expect(blocks(page)).toHaveCount(3)
+    await expect(blocks(page).nth(2)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await expect(blocks(page).nth(0)).toContainText('[ja] Hello.')
+    await expect(blocks(page).nth(1)).toContainText('[ja] The second block\nkeeps its line.')
+    // The source is shown as the same blocks, each joined to its translation on the spine.
+    await expect(page.getByTestId('translate-source-blocks').locator('.seg')).toHaveCount(3)
+    await expect(page.getByTestId('translate-node')).toHaveCount(3)
+    await expect(page.getByTestId('translate-node').first()).toHaveAttribute('data-st', 'done')
+    // Done: main keeps the run only while the pane follows it.
+    expect(await watching(page, 'translate')).toEqual(['board', 'run:translate'])
+  } finally {
+    await close()
+  }
+})
+
+test('STOP (Ctrl+.) keeps the block being written and leaves the rest untranslated', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    const long = 'A long sentence that takes a while to write. '.repeat(12).trim()
+    await translate(page, `${long}\n\nAfter it.`)
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'running', { timeout: 15_000 })
+    await expect(blocks(page).first()).toContainText('[ja] A long')
+    // Into the source (it turns back into the text to edit), and the key from there.
+    await page.getByTestId('translate-source-blocks').click()
+    await expect(page.getByTestId('translate-source')).toBeFocused()
+    await page.keyboard.press('Control+Period')
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'stopped')
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'none')
+    await expect(page.getByTestId('translate-reason')).toContainText('Stopped.')
+    await expect(page.getByTestId('translate-go')).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
+test('a translation goes on through a reload, and the page is given it back', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    const long = 'Written while the page goes away and comes back. '.repeat(10).trim()
+    await translate(page, `${long}\n\nThe last one.`)
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'running', { timeout: 15_000 })
+    await reloadWorkspace(page)
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'done', { timeout: 20_000 })
+    await expect(blocks(page).first()).toContainText(`[ja] ${long}`)
+    // The source came back with it, from main.
+    await expect(page.getByTestId('translate-source-blocks')).toContainText('The last one.')
+  } finally {
+    await close()
+  }
+})
+
+test('closed, the pane leaves main holding nothing of its run', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await translate(page, 'Something.')
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await closePane(page.locator('[data-testid=pane]').first())
+    await expect.poll(() => watching(page, 'translate'), { timeout: 10_000 }).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
+test('a stream that ends without its end mark fails the block and stops, never shown as done', async () => {
+  const { page, close } = await launch(undefined, withModel('no-stop'))
+  try {
+    await translate(page, 'One.\n\nTwo.')
+    await expect(page.getByTestId('translate-reason')).toContainText('end mark', {
+      timeout: 15_000,
+    })
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'failed')
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'none')
+  } finally {
+    await close()
+  }
+})
+
+test('a block cut at the length limit says so, and the rest goes on', async () => {
+  const { page, close } = await launch(undefined, withModel('limit'))
+  try {
+    await translate(page, 'One.\n\nTwo.')
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await expect(blocks(page).first()).toContainText('Cut at the length limit.')
+  } finally {
+    await close()
+  }
+})
+
+test('an engine that ends under a block twice stops the run and says so', async () => {
+  const { page, close } = await launch(undefined, withModel('crash-mid'))
+  try {
+    await translate(page, 'A sentence long enough to be cut while it is written.')
+    await expect(page.getByTestId('translate-reason')).toContainText('engine', {
+      timeout: 20_000,
+    })
+    await expect(lamp(page)).toContainText('Fault')
+  } finally {
+    await close()
+  }
+})
+
+test('the languages and the form are the pane’s, and Easy Japanese takes no form', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await page.getByTestId('translate-tgt-lang').click()
+    const picker = page.getByTestId('translate-lang-tgt')
+    await picker.getByLabel('Filter the languages').fill('easy')
+    await picker.locator('[data-code="ja(easy)"]').click()
+    await expect(page.getByTestId('translate-tgt-lang')).toContainText('EASY JA')
+    await expect(page.getByTestId('translate-form')).toHaveClass(/off/)
+    await translate(page, 'Hello.')
+    await expect(blocks(page).first()).toContainText('[ja(easy)] Hello.', { timeout: 15_000 })
+    // The source side never offers Easy Japanese.
+    await page.getByTestId('translate-src-lang').click()
+    await expect(
+      page.getByTestId('translate-lang-src').locator('[data-code="ja(easy)"]'),
+    ).toHaveCount(0)
   } finally {
     await close()
   }

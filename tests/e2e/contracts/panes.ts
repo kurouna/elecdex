@@ -199,7 +199,8 @@ export const PANES: PaneRow[] = [
   },
   { widget: 'agents', seen: { modules: ['agents'] }, popup: true, zoom: 'full' },
   { widget: 'docker', seen: { modules: ['docker'] }, popup: true, zoom: 'full' },
-  // Seen, it follows the engine's board; translations, and what goes on unseen, come in phase 2.
+  // Seen, it follows the engine's board. A translation being written goes on unseen (main holds it;
+  // translate.spec), but the contracts' app has no model, so nothing of it moves here: left quiet.
   {
     widget: 'translate',
     seen: { modules: ['translate'] },

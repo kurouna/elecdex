@@ -67,6 +67,7 @@ import type { Settings } from '@shared/settings'
 import type { SnippetAdded, SnippetDraft, SnippetView } from '@shared/snippets'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from '@shared/tasks'
 import type { TranslateBoard } from '@shared/translate/board'
+import type { RunEvent } from '@shared/translate/run'
 import type { UpdateStatus } from '@shared/updates'
 import type { AwakeState } from '@shared/utility'
 import type { OfficeInfo } from '@shared/weather'
@@ -363,6 +364,33 @@ const subscribeTranslate = keyedSubscriptions<TranslateBoard>({
   event: CH.translate.board,
   keyOf: () => 'board',
 })
+
+/**
+ * A pane's TRANSLATE run. Not a keyed subscription: a run's events are numbered, and a page that
+ * follows is given a snapshot of its own rather than the last event again. Each handler is one
+ * follower in main.
+ */
+const runHandlers = new Map<string, Set<(event: RunEvent) => void>>()
+ipcRenderer.on(CH.translate.runEvent, (_event, payload: RunEvent) => {
+  for (const handler of runHandlers.get(payload.paneId) ?? []) handler(payload)
+})
+function followRun(paneId: string, handler: (event: RunEvent) => void): () => void {
+  let set = runHandlers.get(paneId)
+  if (!set) {
+    set = new Set()
+    runHandlers.set(paneId, set)
+  }
+  set.add(handler)
+  ipcRenderer.send(CH.translate.follow, paneId)
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    set.delete(handler)
+    if (set.size === 0) runHandlers.delete(paneId)
+    ipcRenderer.send(CH.translate.unfollow, paneId)
+  }
+}
 
 /** The one agents board: every handler shares one subscription, as a keyed one would. */
 const subscribeAgents = keyedSubscriptions<AgentBoard>({
@@ -679,6 +707,9 @@ const api: ElecdexApi = {
     logs: () => ipcRenderer.invoke(CH.translate.logs),
     selfTest: () => ipcRenderer.invoke(CH.translate.selfTest),
     openLicence: () => ipcRenderer.invoke(CH.translate.openLicence),
+    run: (request) => ipcRenderer.invoke(CH.translate.run, request),
+    follow: (paneId, handler) => followRun(paneId, handler),
+    stop: (paneId) => ipcRenderer.send(CH.translate.stop, paneId),
     watching: () => ipcRenderer.invoke(CH.translate.watching),
   },
   elec16: {

@@ -81,6 +81,18 @@ interface Running {
   exited: boolean
 }
 
+/** Whether a new configuration restarts a running server: what it was started with changed. */
+export function restarts(before: EngineConfig, after: EngineConfig): boolean {
+  return (
+    before.source !== after.source ||
+    before.modelPath !== after.modelPath ||
+    before.ctx !== after.ctx ||
+    before.launches.map((l) => l.exe + l.backend).join() !==
+      after.launches.map((l) => l.exe + l.backend).join() ||
+    before.origin !== after.origin
+  )
+}
+
 export class TranslateEngine {
   #phase: EnginePhase = 'stopped'
   #config: EngineConfig
@@ -132,6 +144,11 @@ export class TranslateEngine {
     return this.#phase === 'ready' ? (this.#running?.port ?? null) : null
   }
 
+  /** What it runs with now: the service compares a new configuration to it (restarts). */
+  get config(): EngineConfig {
+    return this.#config
+  }
+
   get ctx(): number {
     return this.#config.ctx
   }
@@ -162,13 +179,7 @@ export class TranslateEngine {
   configure(config: EngineConfig): Promise<void> {
     const before = this.#config
     this.#config = config
-    const restart =
-      before.source !== config.source ||
-      before.modelPath !== config.modelPath ||
-      before.ctx !== config.ctx ||
-      before.launches.map((l) => l.exe + l.backend).join() !==
-        config.launches.map((l) => l.exe + l.backend).join() ||
-      before.origin !== config.origin
+    const restart = restarts(before, config)
     if (before.idleMinutes !== config.idleMinutes && this.#busy === 0) this.#armIdle()
     if (!restart) return Promise.resolve()
     // Up, or at fault: a change of settings is the way out of a fault too (§8.4).
@@ -255,6 +266,19 @@ export class TranslateEngine {
       this.#error = null
     }
     this.#emit()
+  }
+
+  /**
+   * A request to the server failed: gives its exit a moment to be heard. A crashed server's socket
+   * closes before its process is seen to end, and a request asked again at once would go to the
+   * dead port; once the exit is heard, the crash is handled (a restart, or FAULT) and `ensure`
+   * waits for it. A server still running after the moment failed the request some other way.
+   */
+  async settle(ms = 1000): Promise<void> {
+    const running = this.#running
+    if (!running || running.exited) return
+    const exited = new Promise<void>((resolve) => running.process.onExit(() => resolve()))
+    await Promise.race([exited, this.#deps.sleep(ms)])
   }
 
   /** RESTART: from a fault too; the crash budget is not counted again. */

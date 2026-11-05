@@ -550,6 +550,51 @@ export const IPC_ROWS: IpcRow[] = [
     refused: { resolves: undefined },
   },
   {
+    method: 'translate.run',
+    bad: [
+      ['x'],
+      [123],
+      [
+        {
+          paneId: WIN_PATH,
+          draftId: 'd1',
+          text: 'x',
+          srcLang: 'en',
+          tgtLang: 'ja',
+          mode: 'translate',
+        },
+      ],
+      [{ paneId: 'p1', draftId: 'd1', text: 'x', srcLang: 'xx', tgtLang: 'ja', mode: 'translate' }],
+      // Easy Japanese is a target only.
+      [
+        {
+          paneId: 'p1',
+          draftId: 'd1',
+          text: 'x',
+          srcLang: 'ja(easy)',
+          tgtLang: 'en',
+          mode: 'translate',
+        },
+      ],
+      [{ paneId: 'p1', draftId: 'd1', text: 'x', srcLang: 'en', tgtLang: 'ja', mode: 'nope' }],
+    ],
+    refused: { resolves: { problem: 'Not a translation request.' } },
+    probe: { call: 'translate.watching' },
+  },
+  {
+    method: 'translate.follow',
+    bad: [[123], [WIN_PATH], [big(1000)]],
+    refused: { ignored: true },
+    probe: { call: 'translate.watching' },
+    subscribes: true,
+  },
+  {
+    method: 'translate.stop',
+    bad: [[123], [WIN_PATH], ['nope']],
+    refused: { ignored: true },
+    probe: { call: 'translate.watching' },
+  },
+  {
     method: 'docker.control',
     bad: [
       ['nope', 'remove'],

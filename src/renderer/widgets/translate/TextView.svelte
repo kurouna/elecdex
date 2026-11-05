@@ -1,0 +1,625 @@
+<script lang="ts">
+import { joinBlocks, MAX_SOURCE_CHARS, splitBlocks } from '@shared/translate/blocks'
+import type { TranslateBoard } from '@shared/translate/board'
+import { isSourceLang, isTargetLang, takesForm } from '@shared/translate/languages'
+import type { BlockView, RunView } from '@shared/translate/run'
+import { untrack } from 'svelte'
+import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { pulse } from '../../lib/pulse.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
+import BlockCard from './BlockCard.svelte'
+import LangPicker from './LangPicker.svelte'
+import {
+  draftOf,
+  isActive,
+  keepDraft,
+  newDraftId,
+  type RunFollower,
+} from './run-follower.svelte.ts'
+import {
+  blockNumber,
+  direction,
+  langCode,
+  langName,
+  phaseLamp,
+  sourceInfo,
+  swapped,
+  targetInfo,
+  targetMode,
+  targetText,
+  withRecent,
+} from './translate-view.ts'
+
+/**
+ * TEXT (docs/translate.md §3, §6.1): the source on the left, the translation on the right, and
+ * the spine between them, where each block's number and link sit. Main writes the translation
+ * block by block; this pane sends the text, follows the run and draws it.
+ */
+interface Props {
+  paneId: string
+  board: TranslateBoard
+  paneState: Record<string, unknown> | undefined
+  visible: boolean
+  follower: RunFollower
+  onsetup: () => void
+  onengine: () => void
+}
+
+const { paneId, board, paneState, visible, follower, onsetup, onengine }: Props = $props()
+const api = window.elecdex.translate
+
+// ---------------------------------------------------------------------------
+// Languages and form: the pane's own choices (its state), never the text
+// ---------------------------------------------------------------------------
+
+const srcLang = $derived(isSourceLang(paneState?.srcLang) ? paneState.srcLang : 'auto')
+const tgtLang = $derived(isTargetLang(paneState?.tgtLang) ? paneState.tgtLang : 'ja')
+const form = $derived(paneState?.form === 'plain' ? 'plain' : 'polite')
+const recentOf = (key: string): string[] => {
+  const value = paneState?.[key]
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []
+}
+let picking = $state<'src' | 'tgt' | null>(null)
+
+function pick(side: 'src' | 'tgt', code: string): void {
+  picking = null
+  const key = side === 'src' ? 'recentSrc' : 'recentTgt'
+  widgetState.patch(paneId, {
+    [side === 'src' ? 'srcLang' : 'tgtLang']: code,
+    [key]: withRecent(recentOf(key), code),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// The source: kept by pane for as long as the page lives (a moved pane remounts)
+// ---------------------------------------------------------------------------
+
+// A pane's id is its mount's for good (a moved pane is mounted again): the draft is taken once.
+const draft = draftOf(untrack(() => paneId))
+let text = $state(draft.text)
+let draftId = $state(draft.draftId)
+let editing = $state(false)
+let textarea = $state<HTMLTextAreaElement | null>(null)
+let problem = $state<string | null>(null)
+
+$effect(() => keepDraft(paneId, text, draftId))
+
+const run = $derived(follower.run)
+const busy = $derived(isActive(run))
+const sourceOf = (r: RunView): string =>
+  joinBlocks(
+    r.blocks.map((b) => ({ lead: b.lead, text: b.source })),
+    r.tail,
+  )
+
+// A page reloaded loses its drafts: the run main kept brings its source back.
+$effect(() => {
+  const r = run
+  if (r !== null && text === '' && r.blocks.length > 0) {
+    text = sourceOf(r)
+    draftId = r.draftId
+  }
+})
+
+const showBlocks = $derived(
+  !editing &&
+    run !== null &&
+    run.blocks.length > 0 &&
+    sourceOf(run) === text.replace(/\r\n?/g, '\n'),
+)
+const blockCount = $derived(splitBlocks(text).blocks.length)
+const tooLong = $derived(text.length > MAX_SOURCE_CHARS)
+const mode = $derived(targetMode(board, run))
+const canRun = $derived(text.trim() !== '' && !tooLong && board.engine.phase !== 'absent')
+
+async function translate(): Promise<void> {
+  if (!canRun) return
+  problem = null
+  editing = false
+  textarea?.blur()
+  const answer = await api.run({
+    paneId,
+    draftId,
+    text,
+    srcLang,
+    tgtLang,
+    ...(takesForm(tgtLang) ? { form } : {}),
+    mode: 'translate',
+  })
+  if ('problem' in answer) problem = answer.problem
+}
+
+function stop(): void {
+  api.stop(paneId)
+}
+
+function edit(): void {
+  editing = true
+  queueMicrotask(() => textarea?.focus())
+}
+
+function clear(): void {
+  text = ''
+  draftId = newDraftId()
+  edit()
+}
+
+function swap(): void {
+  const next = swapped(srcLang, tgtLang)
+  if (next === null) return
+  widgetState.patch(paneId, { srcLang: next.src, tgtLang: next.tgt })
+  if (run !== null && run.state === 'done' && run.blocks.length > 0) {
+    text = targetText(run)
+    draftId = newDraftId()
+  }
+}
+
+function copy(): void {
+  if (run !== null) void navigator.clipboard?.writeText(targetText(run)).catch(() => {})
+}
+
+function onSourceKey(event: KeyboardEvent): void {
+  if (event.key === 'Enter' && event.ctrlKey && !event.isComposing) {
+    event.preventDefault()
+    void translate()
+  }
+}
+
+// Ctrl+. stops (Esc closes a popup, which PopupPane takes first: §3).
+function onKey(event: KeyboardEvent): void {
+  if (event.key === '.' && event.ctrlKey && busy) {
+    event.preventDefault()
+    stop()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The caret: the shared pulse, only while a block is written and seen
+// ---------------------------------------------------------------------------
+
+$effect(() => (busy && visible ? pulse.use() : undefined))
+
+// ---------------------------------------------------------------------------
+// The spine: links and numbers, laid out by offsets when anything moves
+// ---------------------------------------------------------------------------
+
+let root = $state<HTMLDivElement | null>(null)
+let duo = $state<HTMLDivElement | null>(null)
+let gutter = $state<HTMLDivElement | null>(null)
+let srcText = $state<HTMLDivElement | null>(null)
+let dstText = $state<HTMLDivElement | null>(null)
+let narrow = $state(false)
+let hot = $state<number | null>(null)
+
+interface Link {
+  index: number
+  path: string
+  x: number
+  y: number
+  state: BlockView['state']
+}
+let links = $state.raw<Link[]>([])
+let size = $state({ width: 0, height: 0 })
+
+$effect(() => {
+  const el = root
+  if (el === null) return
+  const observer = new ResizeObserver((entries) => {
+    const width = entries[0]?.contentRect.width ?? 0
+    narrow = width > 0 && width < 600
+    schedule()
+  })
+  observer.observe(el)
+  return () => observer.disconnect()
+})
+
+let pending: ReturnType<typeof setTimeout> | null = null
+function schedule(): void {
+  if (pending !== null) return
+  // After the DOM has the change: laid out by offsets, never client rects, so a view powering
+  // on (scaled to a line for a moment) does not fold every link into it.
+  pending = setTimeout(() => {
+    pending = null
+    layoutLinks()
+  }, 0)
+}
+
+$effect(() => () => {
+  if (pending !== null) clearTimeout(pending)
+})
+
+$effect(() => {
+  // What moves the blocks.
+  void run
+  void showBlocks
+  void narrow
+  void mode
+  schedule()
+})
+
+function layoutLinks(): void {
+  const els = { duo, gutter, srcText, dstText }
+  if (
+    narrow ||
+    !showBlocks ||
+    mode !== 'blocks' ||
+    !els.duo ||
+    !els.gutter ||
+    !els.srcText ||
+    !els.dstText
+  ) {
+    links = []
+    return
+  }
+  const g = els.gutter
+  const x0 = g.offsetLeft
+  const x3 = g.offsetLeft + g.offsetWidth
+  const x1 = x0 + 5
+  const x2 = x3 - 5
+  const lead = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+  const y = (seg: HTMLElement, box: HTMLElement): number => {
+    const con = box.parentElement as HTMLElement
+    const top = con.offsetTop + box.offsetTop
+    return Math.max(
+      top + 4,
+      Math.min(top + box.clientHeight - 4, con.offsetTop + seg.offsetTop - box.scrollTop + lead),
+    )
+  }
+  const next: Link[] = []
+  for (const block of run?.blocks ?? []) {
+    const s = els.srcText.querySelector<HTMLElement>(`.seg[data-i="${block.index}"]`)
+    const t = els.dstText.querySelector<HTMLElement>(`.seg[data-i="${block.index}"]`)
+    if (!s || !t) continue
+    const ys = y(s, els.srcText)
+    const yt = y(t, els.dstText)
+    next.push({
+      index: block.index,
+      path: `M${x0} ${ys} H${x1} L${x2} ${yt} H${x3}`,
+      x: (x1 + x2) / 2,
+      y: (ys + yt) / 2,
+      state: block.state,
+    })
+  }
+  size = { width: els.duo.clientWidth, height: els.duo.clientHeight }
+  links = next
+}
+
+// ---------------------------------------------------------------------------
+// A number's card
+// ---------------------------------------------------------------------------
+
+let card = $state.raw<{ index: number; anchor: CardAnchor; bounds: CardSize } | null>(null)
+const resting = new HoverRest<number>(() => (card = null))
+$effect(() => () => resting.dispose())
+
+function onNode(index: number, event: PointerEvent | FocusEvent | null): void {
+  if (event === null) {
+    resting.leave(index)
+    hot = null
+    return
+  }
+  hot = index
+  const target = event.currentTarget as HTMLElement
+  const x = event instanceof PointerEvent ? event.clientX : null
+  resting.enter(
+    index,
+    () => {
+      if (root === null) return
+      const box = root.getBoundingClientRect()
+      card = {
+        index,
+        anchor: anchorOf(box, target.getBoundingClientRect(), x),
+        bounds: { width: box.width, height: box.height },
+      }
+    },
+    x === null,
+  )
+}
+
+const cardBlock = $derived(card === null ? null : (run?.blocks[card.index] ?? null))
+const lamp = $derived(phaseLamp(board.engine.phase))
+const bootLines = $derived(board.engine.bootLines.slice(-12))
+</script>
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="text-view" class:narrow bind:this={root} onkeydown={onKey} data-testid="translate-text">
+  <div class="toolbar">
+    {#snippet language(side: 'src' | 'tgt', code: string)}
+      <span class="anchor">
+        <button
+          type="button"
+          class="lang"
+          aria-haspopup="dialog"
+          aria-expanded={picking === side}
+          data-testid="translate-{side}-lang"
+          onclick={() => (picking = picking === side ? null : side)}
+        ><b>{langCode(code)}</b><small>{langName(code)}</small><i>▾</i></button>
+        {#if picking === side}
+          <LangPicker
+            {side}
+            current={code}
+            recent={recentOf(side === 'src' ? 'recentSrc' : 'recentTgt')}
+            onpick={(next) => pick(side, next)}
+            onclose={() => (picking = null)}
+          />
+        {/if}
+      </span>
+    {/snippet}
+    <div class="pair">
+      {@render language('src', srcLang)}
+      <button
+        type="button"
+        class="swap"
+        aria-label="Swap the languages"
+        disabled={swapped(srcLang, tgtLang) === null}
+        data-testid="translate-swap"
+        onclick={swap}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5" /></svg>
+      </button>
+      {@render language('tgt', tgtLang)}
+    </div>
+    <div class="form" class:off={!takesForm(tgtLang)} data-testid="translate-form">
+      <span>Form</span>
+      <button type="button" aria-pressed={form === 'plain'} onclick={() => widgetState.patch(paneId, { form: 'plain' })}>Plain<small>だ・である</small></button>
+      <button type="button" aria-pressed={form === 'polite'} onclick={() => widgetState.patch(paneId, { form: 'polite' })}>Polite<small>です・ます</small></button>
+    </div>
+  </div>
+
+  <div class="duo" bind:this={duo}>
+    <div class="side src">
+      <div class="hud-label"><span>Source</span><span>{sourceInfo(srcLang, text.length, blockCount)}</span></div>
+      <div class="console frame">
+        <div class="text" bind:this={srcText} onscroll={schedule}>
+          {#if showBlocks && run !== null}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <div class="blocks" role="textbox" tabindex="0" aria-label="Source text" onclick={edit} onfocus={edit} data-testid="translate-source-blocks">
+              {#each run.blocks as block (block.index)}
+                <p
+                  class="seg"
+                  class:hot={hot === block.index}
+                  data-i={block.index}
+                  onpointerenter={() => (hot = block.index)}
+                  onpointerleave={() => (hot = null)}
+                >{block.source}</p>
+              {/each}
+            </div>
+          {:else}
+            <textarea
+              bind:this={textarea}
+              bind:value={text}
+              spellcheck="false"
+              aria-label="Source text"
+              placeholder="Type or paste text. Ctrl+Enter translates it."
+              data-testid="translate-source"
+              onfocus={() => (editing = true)}
+              onblur={() => (editing = false)}
+              onkeydown={onSourceKey}
+            ></textarea>
+          {/if}
+        </div>
+        <div class="actions">
+          <button type="button" class="btn" disabled={text === ''} onclick={clear}>Clear</button>
+          <span class="spacer"></span>
+          <span class="count" class:over={tooLong}>{text.length.toLocaleString('en-US')} / {MAX_SOURCE_CHARS.toLocaleString('en-US')}</span>
+          <kbd>{busy ? 'Ctrl+.' : 'Ctrl+Enter'}</kbd>
+          {#if busy}
+            <button type="button" class="btn warn" data-testid="translate-stop" onclick={stop}>Stop</button>
+          {:else}
+            <button type="button" class="btn lit" disabled={!canRun} data-testid="translate-go" onclick={() => void translate()}>Translate</button>
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <div class="gutter" bind:this={gutter}>
+      {#if links.length === 0}<span class="dir">{direction(srcLang, tgtLang)}</span>{/if}
+    </div>
+
+    <div class="side dst">
+      <div class="hud-label"><span>Target</span><span>{targetInfo(run)}</span></div>
+      <div class="console frame" class:tx={busy}>
+        <div class="text" bind:this={dstText} onscroll={schedule} data-testid="translate-target">
+          {#if mode === 'nomodel'}
+            <div class="standby" data-testid="translate-standby">
+              <span class="state"><i class="lamp {lamp.kind}"></i>{lamp.word}</span>
+              <span class="big">PLaMo 3 Translate</span>
+              <span class="host">Runs on this PC through llama.cpp. Setting up fetches the engine and a model once; after that nothing you translate leaves this machine.</span>
+              <button type="button" class="command" data-testid="translate-setup-open" onclick={onsetup}>&gt; set up translation</button>
+            </div>
+          {:else if mode === 'empty'}
+            <div class="standby" data-testid="translate-standby">
+              <span class="state"><i class="lamp {lamp.kind}"></i>{lamp.word}</span>
+              <span class="big">Awaiting input</span>
+              <span class="host">{board.selectedModel}{board.engine.build ? ` · ${board.engine.build}` : ''}{board.engine.backend ? ` · ${board.engine.backend}` : ''}</span>
+              {#if board.engine.phase === 'fault'}<span class="problem">{board.engine.error}</span>{/if}
+              <span class="hint">Type or paste on the left. <kbd>Ctrl+Enter</kbd> translates, block by block; <kbd>Ctrl+.</kbd> stops.</span>
+            </div>
+          {:else if mode === 'boot'}
+            <div class="boot" data-testid="translate-boot">
+              <div class="boot-head">Engine power on</div>
+              {#each bootLines as line, i (i)}<div class="ln">{line}</div>{/each}
+            </div>
+          {:else if mode === 'fault'}
+            <div class="fault" data-testid="translate-fault">
+              <h3><i class="lamp bad"></i>Engine fault</h3>
+              <p>{run?.reason ?? board.engine.error}</p>
+              {#if board.engine.error}<pre>{board.engine.error}</pre>{/if}
+              <div class="row">
+                <button type="button" class="btn lit" onclick={() => void api.engineRestart()}>Restart engine</button>
+                <button type="button" class="btn" onclick={onengine}>Engine settings</button>
+              </div>
+            </div>
+          {:else if run !== null}
+            {#each run.blocks as block (block.index)}
+              <div
+                class="seg"
+                class:hot={hot === block.index}
+                data-i={block.index}
+                data-st={block.state}
+                data-pulse={pulse.phase}
+                data-testid="translate-block"
+                role="presentation"
+                onpointerenter={() => (hot = block.index)}
+                onpointerleave={() => (hot = null)}
+              ><!-- One line: the block keeps its own line breaks (pre-wrap), and the template's would show. -->{#if block.state === 'done'}<i class="fresh" aria-hidden="true"></i>{/if}{block.text}{#if block.state === 'running'}<span class="caret"></span>{/if}{#if block.state === 'queued' && block.text === ''}<span class="qd">waiting</span>{/if}{#if block.state === 'none' && block.text === ''}<span class="qd">not translated</span>{/if}{#if block.state === 'stopped'}<span class="tag warn">stopped</span>{/if}{#if block.note}<span class="tag" class:warn={block.state !== 'failed'} class:bad={block.state === 'failed'}>{block.note}</span>{/if}</div>
+            {/each}
+            {#if run.state === 'stopped' && run.reason}
+              <p class="reason" data-testid="translate-reason">{run.reason} <kbd>Ctrl+Enter</kbd> translates again.</p>
+            {/if}
+          {/if}
+        </div>
+        <div class="actions">
+          <button type="button" class="btn" disabled={run === null || run.blocks.length === 0} onclick={copy}>Copy</button>
+          <span class="spacer"></span>
+          {#if problem}<span class="problem" data-testid="translate-problem">{problem}</span>{/if}
+        </div>
+      </div>
+    </div>
+
+    {#if links.length > 0}
+      <svg class="links" viewBox="0 0 {size.width} {size.height}" aria-hidden="true">
+        {#each links as link (link.index)}
+          <path d={link.path} class:run={link.state === 'running'} class:hot={hot === link.index} />
+        {/each}
+      </svg>
+      <div class="nodes">
+        {#each links as link (link.index)}
+          <button
+            type="button"
+            class="node"
+            class:hot={hot === link.index}
+            data-st={link.state}
+            data-pulse={pulse.phase}
+            data-testid="translate-node"
+            style:left="{link.x}px"
+            style:top="{link.y}px"
+            aria-label="Block {blockNumber(link.index)}"
+            onpointerenter={(e) => onNode(link.index, e)}
+            onpointerleave={() => onNode(link.index, null)}
+            onfocus={(e) => onNode(link.index, e)}
+            onblur={() => onNode(link.index, null)}
+          >{blockNumber(link.index)}</button>
+        {/each}
+      </div>
+    {/if}
+  </div>
+
+  {#if card !== null && cardBlock !== null}
+    <BlockCard block={cardBlock} anchor={card.anchor} bounds={card.bounds} />
+  {/if}
+</div>
+
+<style>
+.text-view { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.toolbar { display: flex; align-items: center; gap: var(--space-2) var(--space-3); flex-wrap: wrap; min-height: 1.6rem; padding-right: 1.7rem; }
+.spacer { flex: 1; }
+.pair { display: flex; align-items: stretch; gap: var(--space-1); }
+.anchor { position: relative; display: flex; }
+.lang { display: flex; align-items: baseline; gap: 0.4rem; min-width: 7.2rem; padding: 0.1rem 0.5rem; border: 1px solid var(--panel-border); background: var(--app-bg); color: var(--text); font-family: var(--font-mono); font-size: var(--step--1); text-align: left; }
+.lang b { font-weight: 700; color: var(--accent-strong); text-transform: uppercase; }
+.lang small { color: var(--text-muted); font-size: var(--step--2); flex: 1; white-space: nowrap; }
+.lang i { font-style: normal; color: var(--text-muted); font-size: var(--step--2); }
+.lang:hover, .lang[aria-expanded="true"] { border-color: var(--accent); }
+.swap { width: 1.8rem; border: 1px solid var(--panel-rule); background: transparent; color: var(--text-muted); padding: 0; display: grid; place-items: center; }
+.swap svg { width: 0.95rem; height: 0.95rem; }
+.swap:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+.swap:disabled { opacity: 0.35; }
+.form { display: flex; align-items: center; gap: 0.3rem; }
+.form > span { font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; }
+.form button { background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.45rem; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.form button small { font-size: var(--step--2); letter-spacing: 0; margin-left: 0.25rem; opacity: 0.75; text-transform: none; }
+.form button[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
+.form.off { opacity: 0.35; pointer-events: none; }
+
+.duo { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 2.8rem minmax(0, 1fr); }
+.narrow .duo { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 0.9rem minmax(0, 1.2fr); }
+.side { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.hud-label { position: relative; display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); padding: 0 var(--space-2) 1px; font-size: var(--step--2); font-weight: 500; line-height: 1.5; letter-spacing: var(--tracking-wide); text-transform: uppercase; border-bottom: 1px solid var(--panel-rule); white-space: nowrap; min-width: 0; margin-bottom: 0.35rem; }
+.hud-label > * { overflow: hidden; text-overflow: ellipsis; }
+.hud-label > :last-child { color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.02em; }
+
+.frame { position: relative; --notch: var(--frame-notch); clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, var(--notch) 100%, 0 calc(100% - var(--notch))); }
+.frame::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: var(--frame-color, var(--panel-border)); clip-path: inherit; padding: 1px; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; }
+.frame::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(to top right, transparent calc(50% - 1px), var(--frame-color, var(--panel-border)) calc(50% - 1px) 50%, transparent 50%) top right / var(--notch) var(--notch) no-repeat, linear-gradient(to top right, transparent 50%, var(--frame-color, var(--panel-border)) 50% calc(50% + 1px), transparent calc(50% + 1px)) bottom left / var(--notch) var(--notch) no-repeat; }
+.console { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.dst .console { --frame-color: var(--panel-rule); }
+.dst .console.tx { --frame-color: var(--accent); }
+.src .console:focus-within { --frame-color: var(--accent); }
+.text { flex: 1; min-height: 0; overflow-y: auto; padding: 0.55rem 0.2rem 0.6rem; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; user-select: text; }
+textarea { width: 100%; height: 100%; resize: none; border: 0; outline: none; background: transparent; padding: 0 0.6rem; font-family: var(--font-ui); font-size: var(--step-0); line-height: 1.75; color: var(--text); }
+textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
+.blocks { min-height: 100%; outline: none; cursor: text; }
+.actions { display: flex; align-items: center; gap: var(--space-1); padding: 0.3rem 0.6rem 0.4rem 0.9rem; border-top: 1px solid var(--panel-rule); flex-wrap: wrap; }
+.count { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); margin: 0 0.3rem; }
+.count.over { color: var(--danger); }
+.btn { background: transparent; border: 1px solid var(--panel-border); padding: 0.05rem 0.55rem; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap; }
+.btn:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.lit:not(:disabled) { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-faint); }
+.btn.lit:not(:disabled):hover { background: var(--accent); color: var(--app-bg); }
+.btn.warn { border-color: var(--warn); color: var(--warn); }
+kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); border: 1px solid var(--panel-rule); padding: 0 0.3rem; }
+
+.seg { position: relative; padding: 0.15rem 0.6rem 0.2rem 0.7rem; margin: 0; font-size: var(--step-0); line-height: 1.75; border-left: 2px solid transparent; overflow-wrap: anywhere; white-space: pre-wrap; }
+.seg + .seg { margin-top: 0.45rem; }
+.src .seg { border-left: 0; border-right: 2px solid transparent; padding: 0.15rem 0.7rem 0.2rem 0.6rem; }
+.seg.hot { background: var(--accent-faint); }
+.src .seg.hot { border-right-color: var(--accent); }
+.dst .seg.hot, .dst .seg[data-st="running"] { border-left-color: var(--accent); }
+.dst .seg[data-st="queued"] { color: var(--text-muted); }
+.dst .seg[data-st="stopped"] { border-left-color: var(--warn); color: var(--text-muted); }
+.dst .seg[data-st="failed"] { border-left-color: var(--danger); }
+.dst .seg[data-st="none"] { color: var(--text-muted); }
+.qd { font-size: var(--step--2); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-muted); font-family: var(--font-ui); }
+.tag { margin-left: 0.5rem; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); white-space: normal; }
+.tag.warn { color: var(--warn); }
+.tag.bad { color: var(--danger); }
+.caret { display: inline-block; width: 0.5em; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; background: var(--accent); }
+.seg[data-pulse="1"] .caret, .seg[data-pulse="3"] .caret { opacity: 0.6; }
+.seg[data-pulse="2"] .caret { opacity: 0.25; }
+.fresh { position: absolute; inset: 0; pointer-events: none; opacity: 0; border-left: 2px solid var(--accent); background: linear-gradient(to right, color-mix(in srgb, var(--accent) 16%, transparent), transparent 75%); animation: fresh calc(3s * var(--motion-scale)) linear backwards; animation-play-state: var(--ambient-play-state); }
+@keyframes fresh { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }
+.reason { margin: 0.6rem 0.7rem 0; font-size: var(--step--1); color: var(--warn); }
+
+.gutter { position: relative; background: linear-gradient(var(--panel-rule), var(--panel-rule)) 50% 1.6rem / 1px calc(100% - 3.2rem) no-repeat; }
+.narrow .gutter { background: linear-gradient(var(--panel-rule), var(--panel-rule)) 1.6rem 50% / calc(100% - 3.2rem) 1px no-repeat; }
+.dir { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); writing-mode: vertical-rl; font-size: var(--step--2); letter-spacing: var(--tracking-wider); color: var(--text-muted); background: var(--app-bg); padding: 0.4rem 0; font-family: var(--font-mono); white-space: nowrap; }
+.narrow .dir { writing-mode: horizontal-tb; padding: 0 0.5rem; }
+.links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 3; }
+.links path { fill: none; stroke: var(--panel-rule); stroke-width: 1; }
+.links path.run { stroke: var(--accent-dim); stroke-dasharray: 3 3; }
+.links path.hot { stroke: var(--accent); stroke-width: 1.5; }
+.nodes { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.node { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; min-width: 1.55rem; padding: 0 0.15rem; border: 1px solid var(--panel-rule); background: var(--app-bg); font-family: var(--font-mono); font-size: var(--step--2); line-height: 1.35; color: var(--text-muted); text-align: center; }
+.node[data-st="running"] { border-color: var(--accent); color: var(--accent-strong); }
+.node[data-st="running"][data-pulse="2"] { opacity: 0.4; }
+.node[data-st="done"] { border-color: var(--accent-dim); color: var(--text); background: color-mix(in srgb, var(--accent) 14%, var(--app-bg)); }
+.node[data-st="stopped"] { border-color: var(--warn); color: var(--warn); }
+.node[data-st="failed"] { border-color: var(--danger); color: var(--danger); }
+.node[data-st="none"], .node[data-st="queued"] { border-style: dashed; }
+.node.hot { border-color: var(--accent); color: var(--app-bg); background: var(--accent); }
+
+.standby { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem; height: 100%; text-align: center; padding: 1rem; user-select: none; }
+.state { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--step--2); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-muted); }
+.lamp { width: 0.5rem; height: 0.5rem; border: 1px solid var(--text-muted); display: inline-block; }
+.lamp.ok { border-color: var(--ok); background: var(--ok); }
+.lamp.warn { border-color: var(--warn); }
+.lamp.bad { border-color: var(--danger); background: var(--danger); }
+.lamp.busy { border-color: var(--accent); background: var(--accent); }
+.big { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--accent-strong); }
+.host { font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); max-width: 30rem; overflow-wrap: anywhere; }
+.hint { font-size: var(--step--1); color: var(--text-muted); line-height: 1.6; max-width: 28rem; }
+.command { margin-top: var(--space-2); padding: var(--space-1) var(--space-3); border: 1px solid var(--accent); background: transparent; color: var(--accent-strong); font-family: var(--font-mono); font-size: var(--step--1); }
+.command:hover { background: var(--accent-faint); }
+.problem { color: var(--danger); font-size: var(--step--1); }
+.boot { padding: 0.3rem 0.8rem; font-family: var(--font-mono); font-size: var(--step--1); line-height: 1.75; }
+.boot .ln { overflow-wrap: anywhere; color: var(--text-muted); }
+.boot-head { display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0 0.4rem; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wider); color: var(--text-muted); text-transform: uppercase; }
+.boot-head::after { content: ""; flex: 1; border-top: 1px dashed var(--panel-rule); }
+.fault { padding: 0.6rem 0.9rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.fault h3 { margin: 0; display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-display); font-weight: 500; font-size: var(--step-1); letter-spacing: var(--tracking-wide); color: var(--danger); }
+.fault p { margin: 0; font-size: var(--step--1); line-height: 1.6; }
+.fault pre { margin: 0; padding: 0.4rem 0.6rem; border-left: 2px solid var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); font-family: var(--font-mono); font-size: var(--step--2); line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+.fault .row { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+</style>

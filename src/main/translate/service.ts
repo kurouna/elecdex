@@ -35,19 +35,23 @@ import {
   modelUrl,
 } from '@shared/translate/models'
 import { buildPrompt, PFML_STOP, restore } from '@shared/translate/pfml3'
+import type { RunEvent } from '@shared/translate/run'
 import { z } from 'zod'
 import { JsonStore } from '../store/json-store.js'
 import { replaceFile } from '../store/replace-file.js'
 import {
   type EngineConfig,
   type EngineLaunch,
+  restarts,
   type ServerProcess,
   TranslateEngine,
 } from './engine.js'
 import { FetchError, fetchFile, fileSize, partOf } from './fetcher.js'
 import { sha256File, stopHashing } from './hash.js'
 import { installEngine, SERVER_NAME, sweepTemps } from './installer.js'
+import { streamCompletion, tokenize } from './llama.js'
 import { endOrphan, processName, readLeftPid, writePid } from './orphan.js'
+import { TranslateRuns } from './runs.js'
 
 /**
  * The TRANSLATE pane's main side (docs/translate.md §8): the board the panes see, the engine and
@@ -88,6 +92,9 @@ export class TranslateService {
   readonly #models: readonly ModelEntry[]
   readonly #engines: readonly EngineAsset[]
   readonly engine: TranslateEngine
+  /** The panes' translations and their queue (§8.5). */
+  readonly runs: TranslateRuns
+  readonly #runListeners = new Set<(event: RunEvent) => void>()
   #settings: Settings['translate']
   #fetch: FetchView | null = null
   #fetchAbort: AbortController | null = null
@@ -132,6 +139,24 @@ export class TranslateService {
       stallMs: env.stallMs ?? 60_000,
       pollMs: 250,
     })
+    this.runs = new TranslateRuns({
+      ensure: () => this.engine.ensure(),
+      begin: () => this.engine.begin(),
+      end: () => this.engine.end(),
+      settle: () => this.engine.settle(),
+      external: () => this.#file.read().source === 'external',
+      unreachable: () => this.engine.unreachable(),
+      ctx: () => this.#settings.ctx,
+      tokenize: (endpoint, text, signal) => tokenize(fetch, endpoint, text, signal),
+      complete: (endpoint, body, signal, onText) =>
+        streamCompletion(fetch, endpoint, body, signal, onText),
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
+      publish: (event) => {
+        for (const listener of this.#runListeners) listener(event)
+      },
+      changed: () => {},
+    })
     void sweepTemps(this.#root)
     void endOrphan(left, {
       processName: (pid) => (env.processName ?? processName)(pid),
@@ -152,11 +177,39 @@ export class TranslateService {
     return () => this.#listeners.delete(listener)
   }
 
+  /** Every run's events, for the IPC module to hand to the pages following each pane. */
+  onRunEvent(listener: (event: RunEvent) => void): () => void {
+    this.#runListeners.add(listener)
+    return () => this.#runListeners.delete(listener)
+  }
+
   /** New settings: the engine takes what changed (§8.4). */
   setSettings(settings: Settings['translate']): void {
+    const model = this.#settings.modelId !== settings.modelId
     this.#settings = settings
-    void this.engine.configure(this.#config())
+    void this.#reconfigure(model ? 'The model was changed.' : 'The engine settings were changed.')
     this.#changed()
+  }
+
+  /**
+   * The engine takes a new configuration. When that restarts it, the runs stop first and say why
+   * (§8.5): a translation is never carried on by another model or context.
+   */
+  #reconfigure(reason: string): Promise<void> {
+    const next = this.#config()
+    if (restarts(this.engine.config, next)) this.runs.stopAll(reason)
+    return this.engine.configure(next)
+  }
+
+  /** STOP or RESTART of the engine (ENGINE, FAULT): the runs stop with it. */
+  stopEngine(): Promise<void> {
+    this.runs.stopAll('The engine was stopped.')
+    return this.engine.stop()
+  }
+
+  restartEngine(): Promise<void> {
+    this.runs.stopAll('The engine was restarted.')
+    return this.engine.restart()
   }
 
   async board(): Promise<TranslateBoard> {
@@ -182,9 +235,8 @@ export class TranslateService {
   }
 
   watching(): string[] {
-    return this.#fetch && this.#fetch.phase !== 'paused' && this.#fetch.phase !== 'failed'
-      ? ['fetch']
-      : []
+    const fetching = this.#fetch && this.#fetch.phase !== 'paused' && this.#fetch.phase !== 'failed'
+    return [...(fetching ? ['fetch'] : []), ...this.runs.watching()]
   }
 
   consent(modelId: string, licence: string): void {
@@ -206,7 +258,7 @@ export class TranslateService {
     if (kind === 'own' && !file.own) throw new Error('Choose your llama-server first.')
     if (kind === 'external' && !file.external) throw new Error('Test a server address first.')
     this.#file.write({ ...file, source: kind })
-    void this.engine.configure(this.#config())
+    void this.#reconfigure('The engine was changed.')
     this.#changed()
   }
 
@@ -220,7 +272,7 @@ export class TranslateService {
     }
     const current = this.#file.read()
     this.#file.write({ ...current, own: { path: file, build }, source: 'own' })
-    void this.engine.configure(this.#config())
+    void this.#reconfigure('The engine was changed.')
     this.#changed()
     return { build }
   }
@@ -250,7 +302,7 @@ export class TranslateService {
     const current = this.#file.read()
     this.#file.write({ ...current, external: { origin: parsed.origin }, source: 'external' })
     // After the change has taken: the restart it causes would otherwise mark the server untested again.
-    await this.engine.configure(this.#config())
+    await this.#reconfigure('The engine was changed.')
     this.engine.tested(true)
     this.#changed()
     return { ok: true, host: parsed.host }
@@ -284,7 +336,7 @@ export class TranslateService {
       if (engine) await this.#fetchEngine(engine, controller.signal)
       await this.#fetchModel(model, controller.signal)
       this.#fetch = null
-      void this.engine.configure(this.#config())
+      void this.#reconfigure('A model was put in place.')
     } catch (error) {
       this.#failed(error, controller.signal)
     } finally {
@@ -323,9 +375,12 @@ export class TranslateService {
     // A model being fetched is cancelled first, never removed from under its writer.
     if (this.#fetch?.kind === 'model' && this.#fetch.id === modelId) await this.cancelFetch()
     // Windows keeps a loaded model's file open: stop the server first (§4.3).
-    if (modelId === this.#settings.modelId) await this.engine.stop()
+    if (modelId === this.#settings.modelId) {
+      this.runs.stopAll('The model was removed.')
+      await this.engine.stop()
+    }
     await rm(path.dirname(this.#modelPath(model)), { recursive: true, force: true })
-    void this.engine.configure(this.#config())
+    void this.#reconfigure('The model was removed.')
     this.#changed()
   }
 
@@ -362,6 +417,7 @@ export class TranslateService {
 
   /** elecdex is quitting (§4.3): no waiting on anything. */
   quit(): void {
+    this.runs.quit()
     this.pause()
     stopHashing()
     this.engine.killNow()

@@ -1,7 +1,9 @@
 import { CH } from '@shared/channels'
 import { PLAMO_LICENSE_URL } from '@shared/translate/board'
-import { app, BrowserWindow, dialog, net, shell } from 'electron'
+import { PANE_ID, RunRequestSchema } from '@shared/translate/run'
+import { app, BrowserWindow, dialog, net, shell, type WebContents } from 'electron'
 import { TranslateService } from '../translate/service.js'
+import { whenPageGoes, whenPageLoads } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 import { PageSubscribers, registerTable } from './table.js'
 
@@ -79,6 +81,27 @@ export function registerTranslateIpc(settings: SettingsHandle): {
   }
   service.onChange(publish)
 
+  // Who follows which pane's run: each follow is one follower in main, dropped with its page. A
+  // reload holds the run until the page has loaded again (§8.5).
+  const following = new Map<WebContents, Map<string, number>>()
+  const owner = {}
+  const pageGone = (sender: WebContents): void => {
+    const panes = following.get(sender)
+    following.delete(sender)
+    const how = sender.isDestroyed() ? 'now' : 'reload'
+    for (const [paneId, count] of panes ?? []) {
+      for (let i = 0; i < count; i++) service.runs.unfollow(paneId, how)
+    }
+  }
+  const unsubscribeRuns = service.onRunEvent((event) => {
+    for (const [sender, panes] of following) {
+      if (panes.has(event.paneId) && !sender.isDestroyed())
+        sender.send(CH.translate.runEvent, event)
+    }
+  })
+  const paneOf = (raw: unknown): string | null =>
+    typeof raw === 'string' && PANE_ID.test(raw) ? raw : null
+
   const knownModel = (id: unknown): id is string =>
     typeof id === 'string' && service.models.some((model) => model.id === id)
 
@@ -91,13 +114,43 @@ export function registerTranslateIpc(settings: SettingsHandle): {
         })
       },
       [CH.translate.unsubscribe]: (event) => subscribers.drop(event.sender),
+      [CH.translate.follow]: (event, raw) => {
+        const paneId = paneOf(raw)
+        if (paneId === null) return
+        const sender = event.sender
+        whenPageGoes(sender, owner, () => pageGone(sender))
+        whenPageLoads(sender, owner, () => service.runs.pageLoaded())
+        const panes = following.get(sender) ?? new Map<string, number>()
+        following.set(sender, panes)
+        panes.set(paneId, (panes.get(paneId) ?? 0) + 1)
+        sender.send(CH.translate.runEvent, service.runs.follow(paneId))
+      },
+      [CH.translate.unfollow]: (event, raw) => {
+        const paneId = paneOf(raw)
+        const panes = following.get(event.sender)
+        const count = paneId === null ? 0 : (panes?.get(paneId) ?? 0)
+        if (paneId === null || !panes || count === 0) return
+        if (count > 1) panes.set(paneId, count - 1)
+        else panes.delete(paneId)
+        service.runs.unfollow(paneId)
+      },
+      [CH.translate.stop]: (_event, raw) => {
+        const paneId = paneOf(raw)
+        if (paneId !== null) service.runs.stop(paneId)
+      },
     },
     handle: {
       [CH.translate.engineStart]: async () => {
         await service.engine.ensure().catch(() => {})
       },
-      [CH.translate.engineStop]: () => service.engine.stop(),
-      [CH.translate.engineRestart]: () => service.engine.restart(),
+      [CH.translate.engineStop]: () => service.stopEngine(),
+      [CH.translate.engineRestart]: () => service.restartEngine(),
+      [CH.translate.run]: (_event, raw) => {
+        const parsed = RunRequestSchema.safeParse(raw)
+        if (!parsed.success) return { problem: 'Not a translation request.' }
+        if (service.engine.phase === 'absent') return { problem: 'Set up a model first.' }
+        return { version: service.runs.start(parsed.data) }
+      },
       [CH.translate.setSource]: (_event, kind) => {
         if (typeof kind !== 'string' || !SOURCES.has(kind)) return { problem: 'No such source.' }
         try {
@@ -159,6 +212,7 @@ export function registerTranslateIpc(settings: SettingsHandle): {
     dispose: () => {
       if (timer) clearTimeout(timer)
       timer = null
+      unsubscribeRuns()
       unregister()
     },
     quit: () => service.quit(),
