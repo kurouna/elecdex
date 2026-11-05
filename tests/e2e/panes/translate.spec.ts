@@ -272,7 +272,7 @@ function withModel(mode = '', live = false) {
   return {
     layout: single('translate'),
     settings: { translate: { live } },
-    files: { [`translate/models/plamo3-2b-q4km/${FILE}`]: 'x' },
+    files: { [`translate/models/plamo3-2b-q4km/${FILE}`]: 'x'.repeat(MODEL.length) },
     env: { ELECDEX_TRANSLATE_MANIFEST: manifest(), ELECDEX_LLAMA_STUB_MODE: mode },
   }
 }
@@ -614,6 +614,62 @@ test('Ctrl+Shift+Y brings TRANSLATE up with the clipboard’s text and translate
     await expect(popup.getByTestId('translate-source')).toBeFocused()
     await expect(popup.getByTestId('translate-source')).toHaveValue('')
     expect(await watching(page, 'translate')).not.toContain('A password.')
+  } finally {
+    await close()
+  }
+})
+
+/* ---- after the first try by hand (2026-11-06) ---- */
+
+test('CLEAR clears the translation with the source', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await translate(page, 'Something to clear.')
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await page.getByRole('button', { name: 'Clear' }).click()
+    await expect(page.getByTestId('translate-source')).toHaveValue('')
+    await expect(blocks(page)).toHaveCount(0)
+    await expect(page.getByTestId('translate-standby')).toBeVisible()
+    await expect.poll(() => watching(page, 'translate')).toEqual(['board'])
+  } finally {
+    await close()
+  }
+})
+
+test('the spine joins each block as it is translated, while the source is still being typed', async () => {
+  const { page, close } = await launch(undefined, withModel('', true))
+  try {
+    const source = page.getByTestId('translate-source')
+    await source.fill('First block.\n\nSecond block.\n\nThird block.')
+    await expect(blocks(page).nth(2)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    // Still in the textarea, never clicked out of it: the links are drawn all the same.
+    await expect(source).toBeFocused()
+    await expect(page.getByTestId('translate-node')).toHaveCount(3)
+    // Each link starts at its own block: lower blocks, lower links.
+    const tops = await page
+      .getByTestId('translate-node')
+      .evaluateAll((nodes) => nodes.map((n) => (n as HTMLElement).getBoundingClientRect().top))
+    expect(tops[1] ?? 0).toBeGreaterThan(tops[0] ?? 0)
+    expect(tops[2] ?? 0).toBeGreaterThan(tops[1] ?? 0)
+  } finally {
+    await close()
+  }
+})
+
+test('ENGINE sends a model chosen and not fetched to its setup, not back to TEXT', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await page.getByTestId('translate-settings-toggle').click()
+    const engine = page.getByTestId('translate-engine')
+    await expect(page.getByTestId('translate-engine-done')).toHaveText('Done')
+    await engine.getByRole('button', { name: '0.8B Q4_K_M' }).click()
+    await expect(page.getByTestId('translate-engine-done')).toContainText('Set up this model')
+    await expect(engine).toContainText('not fetched')
+    await page.getByTestId('translate-engine-done').click()
+    await expect(page.getByTestId('translate-setup')).toBeVisible()
+    await expect(page.getByTestId('translate-setup').locator('.steps li.now')).toContainText(
+      'Model',
+    )
   } finally {
     await close()
   }

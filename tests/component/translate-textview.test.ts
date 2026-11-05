@@ -96,6 +96,7 @@ beforeEach(() => {
     run: vi.fn(async () => ({ version: 1 })),
     stop: vi.fn(),
     roundTrip: vi.fn(async () => undefined),
+    clear: vi.fn(),
     cancelLive: vi.fn(),
     follow: vi.fn((_paneId: string, h: (event: RunEvent) => void) => {
       handler = h
@@ -126,6 +127,19 @@ describe('TEXT', () => {
     // A later snapshot of the same run does not bring it back either.
     await send(runOf('Hello.'), 2)
     expect((screen.getByTestId('translate-source') as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('clears the translation with the source: main puts the run away and the page shows none', async () => {
+    const { paneId, send } = mount()
+    await send(runOf('Hello.'))
+    expect(screen.getAllByTestId('translate-block')).toHaveLength(1)
+    await fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(translate.clear).toHaveBeenCalledWith(paneId)
+    // Main's answer: the run put away.
+    handler?.({ paneId, seq: 2, kind: 'snapshot', run: null, cleared: true })
+    await settle()
+    expect(screen.queryAllByTestId('translate-block')).toHaveLength(0)
+    expect(screen.getByTestId('translate-standby')).toBeTruthy()
   })
 
   it('keeps focus in the pane after Ctrl+Enter, so Ctrl+. stops at once', async () => {

@@ -636,6 +636,8 @@ export interface TranslateApi {
   follow(paneId: string, handler: (event: RunEvent) => void): () => void
   /** STOP: the block being written stays, the rest is not translated. */
   stop(paneId: string): void
+  /** CLEAR: the pane's run is put away; the translation goes with the source. */
+  clear(paneId: string): void
   /** The pane went out of sight: a LIVE run stops. */
   cancelLive(paneId: string): void
   editBlock(paneId: string, index: number, text: string): Promise<void>

@@ -690,6 +690,7 @@ const api: ElecdexApi = {
     run: (request) => ipcRenderer.invoke(CH.translate.run, request),
     follow: (paneId, handler) => followRun(paneId, handler),
     stop: (paneId) => ipcRenderer.send(CH.translate.stop, paneId),
+    clear: (paneId) => ipcRenderer.send(CH.translate.clear, paneId),
     cancelLive: (paneId) => ipcRenderer.send(CH.translate.cancelLive, paneId),
     editBlock: (paneId, index, text) =>
       ipcRenderer.invoke(CH.translate.editBlock, paneId, index, text),

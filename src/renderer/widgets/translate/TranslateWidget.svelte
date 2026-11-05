@@ -92,8 +92,8 @@ onSummoned(
   },
 )
 
-function openSetup(): void {
-  if (board) step = firstSetupStep(board)
+function openSetup(at?: number): void {
+  if (board) step = at ?? firstSetupStep(board)
   view = 'setup'
 }
 </script>
@@ -124,7 +124,7 @@ function openSetup(): void {
             ondone={() => (view = 'text')}
           />
         {:else if view === 'engine'}
-          <EngineView {board} {settings} onsetup={openSetup} ondone={() => (view = 'text')} />
+          <EngineView {board} {settings} onsetup={(at) => openSetup(at)} ondone={() => (view = 'text')} />
         {:else}
           <TextView
             {paneId}
@@ -132,7 +132,7 @@ function openSetup(): void {
             {paneState}
             {visible}
             {follower}
-            onsetup={openSetup}
+            onsetup={() => openSetup()}
             onengine={() => (view = 'engine')}
             onhistory={() => (view = 'history')}
             {summon}

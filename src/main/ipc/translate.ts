@@ -131,6 +131,10 @@ export function registerTranslateIpc(
         const paneId = paneOf(raw)
         if (paneId !== null) service.runs.stop(paneId)
       },
+      [CH.translate.clear]: (_event, raw) => {
+        const paneId = paneOf(raw)
+        if (paneId !== null) service.runs.discard(paneId)
+      },
       [CH.translate.cancelLive]: (_event, raw) => {
         const paneId = paneOf(raw)
         if (paneId !== null) service.runs.cancelLive(paneId)

@@ -183,7 +183,7 @@ const nextDisabled = $derived(
               {quant}<small>{entry ? formatBytes(entry.bytes) : 'none'}</small>
             </button>
           {/each}
-          <span class="small">Q4_K_M is the model card’s default. Q2_K loses noticeably.</span>
+          <span class="small">How finely the model’s weights are stored: fewer bits make the file smaller and the engine faster, at some cost in quality. Q4_K_M is the model card’s default; Q2_K loses noticeably.</span>
         </div>
       {:else if step === 3}
         <div class="head"><h2>Licence</h2><p>{selected?.repo} · {selected?.quant} · {selected ? formatBytes(selected.bytes) : ''}</p></div>
@@ -247,7 +247,9 @@ const nextDisabled = $derived(
 </div>
 
 <style>
-.setup { display: flex; flex-direction: column; gap: var(--space-2); height: 100%; min-height: 0; }
+/* A column of its own, the buttons right under the step: a wizard filling a whole screen would
+   leave NEXT a long way off from what it follows (user's report 2026-11-06). */
+.setup { display: flex; flex-direction: column; gap: var(--space-2); height: 100%; min-height: 0; width: 100%; max-width: 64rem; margin: 0 auto; }
 .steps { list-style: none; margin: var(--space-1) 0 0; padding: 0 1.9rem 0 var(--space-2); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); isolation: isolate; }
 .steps li { position: relative; display: flex; justify-content: center; align-items: center; gap: var(--space-1); height: 1.5rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); white-space: nowrap; overflow: hidden; }
 .steps li::before { content: ''; position: absolute; inset: 0; z-index: -1; border: 1px solid var(--panel-rule); transform: skewX(-35deg); }
@@ -255,7 +257,7 @@ const nextDisabled = $derived(
 .steps li.done::before { background: var(--accent-dim); border-color: var(--accent-dim); }
 .steps li.now { color: var(--accent-strong); }
 .steps li.now::before { border-color: var(--accent); background: var(--accent-faint); }
-.body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3); scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
+.body { flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-3); scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
 .head { display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
 h2 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: var(--step-2); letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent-strong); }
 .head p, .small { margin: 0; font-size: var(--step--1); color: var(--text-muted); }
@@ -273,7 +275,8 @@ h2 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: v
 .btn:not(:disabled):hover, .chip:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
 .btn:disabled, .chip:disabled { opacity: 0.45; cursor: default; }
 .btn.lit:not(:disabled) { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-faint); }
-.chip { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+/* A choice that is read, not a label: the reading size (§7's type roles). */
+.chip { font-family: var(--font-mono); font-size: var(--step--1); text-transform: none; letter-spacing: 0; }
 .chip small { margin-left: var(--space-1); color: var(--text-muted); }
 .chip[aria-pressed='true'] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
 .pc { display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }

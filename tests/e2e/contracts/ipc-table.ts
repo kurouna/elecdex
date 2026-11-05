@@ -593,6 +593,12 @@ export const IPC_ROWS: IpcRow[] = [
     subscribes: true,
   },
   {
+    method: 'translate.clear',
+    bad: [[123], [WIN_PATH], [big(1000)]],
+    refused: { ignored: true },
+    probe: { call: 'translate.watching' },
+  },
+  {
     method: 'translate.cancelLive',
     bad: [[123], [WIN_PATH], [big(1000)]],
     refused: { ignored: true },

@@ -184,6 +184,8 @@ export const CH = {
     runEvent: 'translate:run-event',
     /** renderer -> main, fire and forget: STOP a pane's run. */
     stop: 'translate:stop',
+    /** renderer -> main, fire and forget: CLEAR puts the pane's run away. */
+    clear: 'translate:clear',
     /** renderer -> main, fire and forget: a pane went out of sight while LIVE wrote (§8.5). */
     cancelLive: 'translate:cancel-live',
     /** A block's translation changed by hand (EDIT), or written again (RETRY) (§6.1). */

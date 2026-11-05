@@ -242,7 +242,7 @@ The first time, **> set up translation** walks through five steps: **ENGINE** (t
 
 - **Languages** — the source is one of the 53 or **AUTO**, which lets the model judge; the target is one of the 53 or Easy Japanese. On AUTO the pane writes `AUTO ≈ EN` when the letters make the language certain (kana, hangul and other scripts, or clearly more of one language's common words), and then the languages can be swapped. The recent languages come first in each list.
 - **Form** — PLAIN (だ・である) or POLITE (です・ます), into Japanese only.
-- **TRANSLATE** (Ctrl+Enter) writes every block again; **STOP** (Ctrl+.) stops: the block being written stays, marked, and the ones after it are left untranslated. A block too long for the context is said and skipped; one cut at the length limit is marked.
+- **TRANSLATE** (Ctrl+Enter) writes every block again; **STOP** (Ctrl+.) stops: the block being written stays, marked, and the ones after it are left untranslated. A block too long for the context is said and skipped; one cut at the length limit is marked. **CLEAR** empties the source and the translation with it.
 - **Glossary** — named lists of terms, each for one target language or for any (a Japanese glossary is used into Easy Japanese too). Only the terms a block holds go with it, longest first, 50 at most; a term ending in a letter of a spaced script is matched as a whole word. Terms can be pasted as TSV or CSV. A glossary for another language is not used, and the pane says so.
 - **Context** — up to 2,000 characters of what the text is and who reads it, sent with every block and never translated.
 - **ROUND TRIP** — every translated block is put back into the source language and compared with the source by chrF; a score under 70 is shown in the warning colour.

@@ -154,6 +154,22 @@ export class TranslateRuns {
     if (run.view.mode === 'translate') this.#recorded(run)
   }
 
+  /**
+   * CLEAR (§3): the pane's run is put away - stopped if it writes, never recorded - and every page
+   * following it is told to show none.
+   */
+  discard(paneId: string): void {
+    const run = this.#runs.get(paneId)
+    if (!run) return
+    this.#retire(run)
+    this.#runs.delete(paneId)
+    this.#queue = this.#queue.filter((id) => id !== paneId)
+    const seq = (this.#seq.get(paneId) ?? 0) + 1
+    this.#seq.set(paneId, seq)
+    this.#deps.publish({ paneId, seq, kind: 'snapshot', run: null, cleared: true })
+    this.#deps.changed()
+  }
+
   /** The pane went out of sight while LIVE was writing: it stops, as STOP does (§8.5). */
   cancelLive(paneId: string): void {
     if (this.#runs.get(paneId)?.view.mode === 'live')

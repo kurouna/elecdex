@@ -803,6 +803,25 @@ describe('TranslateRuns, round trips and the history together', () => {
   })
 })
 
+describe('TranslateRuns and CLEAR', () => {
+  it('puts the run away: stops what it writes, tells the pages, records nothing', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.\n\nTwo.'))
+    await answer(h, 'いち')
+    await h.settle()
+    h.runs.discard('p1')
+    expect(h.calls.at(-1)?.signal.aborted).toBe(true)
+    expect(h.events.at(-1)).toMatchObject({ kind: 'snapshot', run: null, cleared: true })
+    expect(h.runs.watching()).toEqual([])
+    await h.settle()
+    expect(records).toEqual([])
+    // A page that follows again is given nothing.
+    expect(h.runs.follow('p1')).toMatchObject({ kind: 'snapshot', run: null })
+  })
+})
+
 describe('TranslateRuns and asking again', () => {
   it('does not ask again what the server refused (an HTTP error), and says it refused', async () => {
     const h = harness()

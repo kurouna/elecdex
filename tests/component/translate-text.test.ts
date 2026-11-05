@@ -136,6 +136,15 @@ describe('RunFollower', () => {
     expect(io.follows()).toBe(2)
   })
 
+  it('shows nothing once CLEAR has put the run away', () => {
+    const io = stubFollow()
+    const follower = new RunFollower('p1')
+    follower.follow()
+    io.send({ paneId: 'p1', seq: 1, kind: 'snapshot', run: run({ state: 'done' }) })
+    io.send({ paneId: 'p1', seq: 2, kind: 'snapshot', run: null, cleared: true })
+    expect(follower.run).toBeNull()
+  })
+
   it('keeps what it saw when main has dropped the run, and says one cut short', () => {
     const io = stubFollow()
     const follower = new RunFollower('p1')

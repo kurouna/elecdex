@@ -220,6 +220,10 @@ function edit(): void {
 }
 
 function clear(): void {
+  if (liveTimer !== null) clearTimeout(liveTimer)
+  liveTimer = null
+  // The translation goes with its source (§3): main puts the run away, and so does the page.
+  api.clear(paneId)
   text = ''
   lastText = ''
   draftId = newDraftId()
@@ -388,6 +392,10 @@ let root = $state<HTMLDivElement | null>(null)
 let duo = $state<HTMLDivElement | null>(null)
 let gutter = $state<HTMLDivElement | null>(null)
 let srcText = $state<HTMLDivElement | null>(null)
+let editWrap = $state<HTMLDivElement | null>(null)
+let mirror = $state<HTMLDivElement | null>(null)
+/** The source as blocks, for the mirror the spine measures while the source is edited. */
+const mirrorBlocks = $derived(splitBlocks(text))
 let dstText = $state<HTMLDivElement | null>(null)
 let narrow = $state(false)
 let hot = $state<number | null>(null)
@@ -435,23 +443,17 @@ $effect(() => {
   void showBlocks
   void narrow
   void mode
+  void text
   schedule()
 })
 
 function layoutLinks(): void {
   const els = { duo, gutter, srcText, dstText }
-  if (
-    narrow ||
-    !showBlocks ||
-    mode !== 'blocks' ||
-    !els.duo ||
-    !els.gutter ||
-    !els.srcText ||
-    !els.dstText
-  ) {
+  if (narrow || mode !== 'blocks' || !els.duo || !els.gutter || !els.srcText || !els.dstText) {
     if (links.length > 0) links = []
     return
   }
+  const source = sourceY(els.srcText)
   const g = els.gutter
   const x0 = g.offsetLeft
   const x3 = g.offsetLeft + g.offsetWidth
@@ -468,10 +470,11 @@ function layoutLinks(): void {
   }
   const next: Link[] = []
   for (const block of run?.blocks ?? []) {
-    const s = els.srcText.querySelector<HTMLElement>(`.seg[data-i="${block.index}"]`)
+    // Joined as each is translated: one still waiting, or never written, has no link yet.
+    if (block.state === 'queued' || block.state === 'none') continue
     const t = els.dstText.querySelector<HTMLElement>(`.seg[data-i="${block.index}"]`)
-    if (!s || !t) continue
-    const ys = y(s, els.srcText)
+    const ys = source(block.index)
+    if (!t || ys === null) continue
     const yt = y(t, els.dstText)
     next.push({
       index: block.index,
@@ -486,6 +489,31 @@ function layoutLinks(): void {
   // Assigned only when something moved: this runs with every patch, ten times a second.
   if (width !== size.width || height !== size.height) size = { width, height }
   if (!sameLinks(links, next)) links = next
+}
+
+/**
+ * Where a source block sits: its paragraph when the source shows as blocks; while it is edited,
+ * its place in the mirror, the text laid out as the textarea wraps it, less the textarea's scroll.
+ */
+function sourceY(box: HTMLElement): (index: number) => number | null {
+  const con = box.parentElement as HTMLElement
+  const top = con.offsetTop + box.offsetTop
+  const lead = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+  const clamp = (v: number) => Math.max(top + 4, Math.min(top + box.clientHeight - 4, v))
+  const area = textarea
+  if (!showBlocks && area && mirror && editWrap) {
+    // The textarea's own width: its scroll bar takes some of it from the text.
+    mirror.style.width = `${area.clientWidth}px`
+    const base = con.offsetTop + editWrap.offsetTop + mirror.offsetTop - area.scrollTop + lead
+    return (index) => {
+      const span = mirror?.querySelector<HTMLElement>(`.mseg[data-i="${index}"]`)
+      return span ? clamp(base + span.offsetTop) : null
+    }
+  }
+  return (index) => {
+    const seg = box.querySelector<HTMLElement>(`.seg[data-i="${index}"]`)
+    return seg ? clamp(con.offsetTop + seg.offsetTop - box.scrollTop + lead) : null
+  }
 }
 
 function sameLinks(a: readonly Link[], b: readonly Link[]): boolean {
@@ -639,18 +667,24 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
               {/each}
             </div>
           {:else}
-            <textarea
-              bind:this={textarea}
-              bind:value={text}
-              oninput={onSourceInput}
-              spellcheck="false"
-              aria-label="Source text"
-              placeholder="Type or paste text. Ctrl+Enter translates it."
-              data-testid="translate-source"
-              onfocus={() => (editing = true)}
-              onblur={() => (editing = false)}
-              onkeydown={onSourceKey}
-            ></textarea>
+            <div class="edit-wrap" bind:this={editWrap}>
+              <!-- The text as the textarea wraps it, unseen: where each block sits, for the spine while
+                   the source is edited. One line: it is pre-wrap, and the template's would show. -->
+              <div class="mirror" aria-hidden="true" bind:this={mirror}>{#each mirrorBlocks.blocks as block, i (i)}{block.lead}<span class="mseg" data-i={i}>{block.text}</span>{/each}{mirrorBlocks.tail}</div>
+              <textarea
+                bind:this={textarea}
+                bind:value={text}
+                oninput={onSourceInput}
+                onscroll={schedule}
+                spellcheck="false"
+                aria-label="Source text"
+                placeholder="Type or paste text. Ctrl+Enter translates it."
+                data-testid="translate-source"
+                onfocus={() => (editing = true)}
+                onblur={() => (editing = false)}
+                onkeydown={onSourceKey}
+              ></textarea>
+            </div>
           {/if}
         </div>
         <div class="actions">
@@ -839,7 +873,9 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 .dst .console.tx { --frame-color: var(--accent); }
 .src .console:focus-within { --frame-color: var(--accent); }
 .text { flex: 1; min-height: 0; overflow-y: auto; padding: 0.55rem 0.2rem 0.6rem; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; user-select: text; }
-textarea { width: 100%; height: 100%; resize: none; border: 0; outline: none; background: transparent; padding: 0 0.6rem; font-family: var(--font-ui); font-size: var(--step-0); line-height: 1.75; color: var(--text); }
+.edit-wrap { position: relative; height: 100%; }
+.mirror { position: absolute; top: 0; left: 0; box-sizing: border-box; visibility: hidden; pointer-events: none; padding: 0 0.6rem; font-family: var(--font-ui); font-size: var(--step-1); line-height: 1.75; white-space: pre-wrap; overflow-wrap: break-word; }
+textarea { width: 100%; height: 100%; resize: none; border: 0; outline: none; background: transparent; padding: 0 0.6rem; font-family: var(--font-ui); font-size: var(--step-1); line-height: 1.75; color: var(--text); }
 textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
 .blocks { min-height: 100%; outline: none; cursor: text; }
 .actions { display: flex; align-items: center; gap: var(--space-1); padding: 0.3rem 0.6rem 0.4rem 0.9rem; border-top: 1px solid var(--panel-rule); flex-wrap: wrap; }
@@ -853,7 +889,7 @@ textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
 .btn.warn { border-color: var(--warn); color: var(--warn); }
 kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); border: 1px solid var(--panel-rule); padding: 0 0.3rem; }
 
-.seg { position: relative; padding: 0.15rem 0.6rem 0.2rem 0.7rem; margin: 0; font-size: var(--step-0); line-height: 1.75; border-left: 2px solid transparent; overflow-wrap: anywhere; white-space: pre-wrap; }
+.seg { position: relative; padding: 0.15rem 0.6rem 0.2rem 0.7rem; margin: 0; font-size: var(--step-1); line-height: 1.75; border-left: 2px solid transparent; overflow-wrap: anywhere; white-space: pre-wrap; }
 .seg + .seg { margin-top: 0.45rem; }
 .src .seg { border-left: 0; border-right: 2px solid transparent; padding: 0.15rem 0.7rem 0.2rem 0.6rem; }
 .seg.hot { background: var(--accent-faint); }

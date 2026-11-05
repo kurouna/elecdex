@@ -73,7 +73,8 @@ export class RunFollower {
   #handle(event: RunEvent): void {
     if (event.kind === 'snapshot') {
       this.#seq = event.seq
-      this.run = event.run ?? this.#dropped()
+      // Put away by CLEAR: nothing shows. Dropped for want of a follower: what was seen stays.
+      this.run = event.cleared ? null : (event.run ?? this.#dropped())
       return
     }
     const run = this.run

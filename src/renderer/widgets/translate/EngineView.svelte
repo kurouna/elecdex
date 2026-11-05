@@ -14,12 +14,18 @@ import { formatBytes, phaseLamp } from './translate-view.ts'
 interface Props {
   board: TranslateBoard
   settings: Settings['translate']
-  onsetup: () => void
+  /** Opens SETUP, at a step when one is given. */
+  onsetup: (step?: number) => void
   ondone: () => void
 }
 
 const { board, settings, onsetup, ondone }: Props = $props()
 const api = window.elecdex.translate
+/** Whether the chosen model is fetched: a model only listed has nothing to run. */
+const selectedInPlace = $derived(
+  board.engine.source === 'external' ||
+    (board.models.find((m) => m.id === board.selectedModel)?.installed ?? false),
+)
 let logs = $state<string[]>([])
 let address = $state('')
 let problem = $state<string | null>(null)
@@ -56,7 +62,15 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
 </script>
 
 <div class="engine" data-testid="translate-engine">
-  <div class="bar"><span class="lbl">Engine and models</span><span class="spacer"></span><button type="button" class="btn lit" onclick={ondone}>Done</button></div>
+  <div class="bar">
+    <span class="lbl">Engine and models</span><span class="spacer"></span>
+    <!-- A model chosen and not fetched cannot translate: the way on is its setup, not back to TEXT. -->
+    {#if selectedInPlace}
+      <button type="button" class="btn lit" data-testid="translate-engine-done" onclick={ondone}>Done</button>
+    {:else}
+      <button type="button" class="btn lit" data-testid="translate-engine-done" onclick={() => onsetup(2)}>Set up this model ›</button>
+    {/if}
+  </div>
   <div class="grid">
     <span class="lbl">Engine</span>
     <div class="val">
@@ -102,11 +116,11 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
           {#if state?.installed}
             <button type="button" class="btn" onclick={() => void api.removeModel(model.id)}>Delete</button>
           {:else}
-            <span class="small">{state && state.partialBytes > 0 ? `${formatBytes(state.partialBytes)} fetched` : ''}</span>
+            <span class="small">{state && state.partialBytes > 0 ? `${formatBytes(state.partialBytes)} fetched` : model.id === board.selectedModel ? 'not fetched' : ''}</span>
           {/if}
         {/each}
       </div>
-      <button type="button" class="btn" onclick={onsetup}>Set up a model…</button>
+      <button type="button" class="btn" onclick={() => onsetup()}>Set up a model…</button>
     </div>
 
     <span class="lbl">Run</span>
@@ -163,6 +177,11 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
 .lamp.bad { background: var(--danger); border-color: var(--danger); }
 .lamp.busy { background: var(--accent); border-color: var(--accent); }
 .models { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr); gap: 0.15rem var(--space-3); align-items: center; }
+/* In a row of the list: the diamond on the text's middle, not where an option's first line sits;
+   DELETE as wide as its word. */
+.models .rd { margin-top: 0; justify-self: center; }
+.models .btn { justify-self: start; align-self: center; }
+.models .small { margin: 0; }
 .name { background: transparent; border: 0; padding: 0; color: var(--text); font-family: var(--font-mono); font-size: var(--step--1); text-align: left; cursor: pointer; }
 .runs { flex-direction: row; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .runs label { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }

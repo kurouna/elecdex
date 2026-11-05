@@ -485,7 +485,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
    （2026-11-06 に実装。段階 5 までピッカーには出さない `unlisted`）
 2. TEXT: ブロックごとの順番の翻訳、依頼と待ち行列、背骨、言語、文体、やさしい日本語、STOP、FAULT
    （2026-11-06 に実装。チャネルは `run`・`follow`/`unfollow`・`runEvent`・`stop` まで。`cancelLive` と
-   `editBlock` は段階 4。原文と訳文は `--font-ui` の `--step-0`、AI チャットの回答と同じ）
+   `editBlock` は段階 4。原文と訳文は `--font-ui` の `--step-1`。AI チャットの問いと答えも同じ大きさ。2026-11-06 に利用者の依頼で `--step-0` から上げた）
 3. 用語集・文脈・HISTORY・翻訳元の判定
    （2026-11-06 に実装。文脈は下書きと同じくページのメモリと main の依頼にだけ持ち、ペインの状態には入れない）
 4. ROUND TRIP・LIVE・EDIT したブロックを履歴に

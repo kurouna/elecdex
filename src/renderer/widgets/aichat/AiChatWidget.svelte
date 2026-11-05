@@ -1364,6 +1364,21 @@ summary.cut::-webkit-details-marker {
   cursor: default;
 }
 
+/*
+ * What was asked and what came back is read at length: a step larger than the HUD's text
+ * (user's request 2026-11-06). Markdown is shared with ELEC and LOG WATCH, so it is set here; its
+ * top headings, sized for the smaller text, keep up with it.
+ */
+.said,
+.message > :global(.markdown) {
+  font-size: var(--step-1);
+}
+
+.message > :global(.markdown .heading[data-level='1']),
+.message > :global(.markdown .heading[data-level='2']) {
+  font-size: var(--step-1);
+}
+
 .said {
   margin: 0;
   white-space: pre-wrap;

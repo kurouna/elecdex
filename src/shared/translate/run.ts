@@ -91,7 +91,14 @@ export interface BlockPatch {
 }
 
 export type RunEvent =
-  | { paneId: string; seq: number; kind: 'snapshot'; run: RunView | null }
+  | {
+      paneId: string
+      seq: number
+      kind: 'snapshot'
+      run: RunView | null
+      /** CLEAR: the run was put away on purpose, and the page shows none either. */
+      cleared?: true
+    }
   | {
       paneId: string
       seq: number
