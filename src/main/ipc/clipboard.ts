@@ -28,7 +28,17 @@ export interface ClipboardWriter {
   writeImage(png: Uint8Array): Promise<void>
 }
 
-export function registerClipboardIpc(): { dispose: () => void; writer: ClipboardWriter } {
+/**
+ * The clipboard's text, read once on a person's call (TRANSLATE's Ctrl+Shift+Y): through the same
+ * reader as the history, so the tests' stand-in answers and a copy marked private is never read.
+ */
+export type ClipboardTextReader = () => Promise<string | null>
+
+export function registerClipboardIpc(): {
+  dispose: () => void
+  writer: ClipboardWriter
+  readText: ClipboardTextReader
+} {
   const subscribers = new PageSubscribers((anyone) => watcher.sync(anyone))
   const stub = process.env.ELECDEX_CLIPBOARD_STUB
   const stand =
@@ -85,8 +95,15 @@ export function registerClipboardIpc(): { dispose: () => void; writer: Clipboard
     writeImage: stand?.writeImage ?? writeSystemImage,
   }
 
+  const read = stand?.read ?? readSystemClipboard
+  const readText: ClipboardTextReader = async () => {
+    const got = await read(null).catch(() => null)
+    return got?.kind === 'text' ? got.text : null
+  }
+
   return {
     writer,
+    readText,
     dispose: () => {
       watcher.dispose()
       snippetsIpc.dispose()

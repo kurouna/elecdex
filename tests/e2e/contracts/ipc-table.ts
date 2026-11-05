@@ -116,6 +116,7 @@ export const NO_ARGUMENT = [
   'translate.glossaries',
   'translate.history',
   'translate.historyClear',
+  'translate.clipboardText',
   'utility.awake.state',
   'utility.awake.extend',
   'chip8.list',

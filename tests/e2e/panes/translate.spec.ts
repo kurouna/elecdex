@@ -6,7 +6,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Page } from '@playwright/test'
 import { test } from '../support/shared.js'
-import { closePane, launch, reloadWorkspace, single, watching } from '../support.js'
+import {
+  closePane,
+  launch,
+  reloadWorkspace,
+  SINGLE_TERMINAL,
+  single,
+  stubOf,
+  watching,
+} from '../support.js'
 
 /**
  * The TRANSLATE pane's phase 1 (docs/translate.md §12): SETUP fetches a model and READY's self
@@ -574,6 +582,35 @@ test('HISTORY keeps one entry a draft: typing on replaces it, a new text adds on
     const rows = page.getByTestId('translate-history-row')
     await expect(rows).toHaveCount(2)
     await expect(rows.nth(1)).toContainText('A draft that goes on. More.')
+  } finally {
+    await close()
+  }
+})
+
+/* ---- phase 5: Ctrl+Shift+Y ---- */
+
+test('Ctrl+Shift+Y brings TRANSLATE up with the clipboard’s text and translates it at once', async () => {
+  const { page, app, close } = await launch(undefined, {
+    ...withModel(),
+    layout: SINGLE_TERMINAL,
+  })
+  try {
+    await stubOf(app, 'clipboard').copy('Copied to translate.')
+    await page.keyboard.press('Control+Shift+KeyY')
+    const popup = page.getByTestId('popup-pane')
+    await expect(popup).toHaveAttribute('data-widget', 'translate')
+    await expect(popup.getByTestId('translate-block').first()).toContainText(
+      '[ja] Copied to translate.',
+      {
+        timeout: 15_000,
+      },
+    )
+    // A copy marked private is never read: the pane opens on an empty source.
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+    await stubOf(app, 'clipboard').copy('A password.', { private: true })
+    await page.keyboard.press('Control+Shift+KeyY')
+    await expect(popup.getByTestId('translate-source')).toHaveValue('')
   } finally {
     await close()
   }

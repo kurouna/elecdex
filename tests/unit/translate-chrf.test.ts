@@ -42,11 +42,14 @@ describe('round trip patches', () => {
   }
 
   it('builds a round trip from its patches, and null takes it away', () => {
-    let b = applyBlockPatch(block, { index: 0, trip: { text: '', state: 'queued', score: null } })
+    let b = applyBlockPatch(block, {
+      index: 0,
+      trip: { text: '', state: 'queued', score: null, lang: 'en' },
+    })
     b = applyBlockPatch(b, { index: 0, trip: { state: 'running' } })
     b = applyBlockPatch(b, { index: 0, trip: { append: 'Hi' } })
     b = applyBlockPatch(b, { index: 0, trip: { append: '.', state: 'done', score: 100 } })
-    expect(b.trip).toEqual({ text: 'Hi.', state: 'done', score: 100 })
+    expect(b.trip).toEqual({ text: 'Hi.', state: 'done', score: 100, lang: 'en' })
     expect(applyBlockPatch(b, { index: 0, trip: null }).trip).toBeNull()
   })
 
@@ -57,6 +60,12 @@ describe('round trip patches', () => {
     })
     expect(mergeTripPatch({ append: 'a' }, { text: '' })).toEqual({ text: '' })
     expect(mergeTripPatch({ append: 'a' }, null)).toBeNull()
-    expect(mergeTripPatch(null, { append: 'c' })).toEqual({ append: 'c' })
+    // After the trip was taken away: a whole new one, nothing of the old showing through.
+    expect(mergeTripPatch(null, { append: 'c' })).toEqual({
+      text: 'c',
+      state: 'queued',
+      score: null,
+      lang: '',
+    })
   })
 })

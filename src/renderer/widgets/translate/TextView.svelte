@@ -51,10 +51,21 @@ interface Props {
   onsetup: () => void
   onengine: () => void
   onhistory: () => void
+  /** Ctrl+Shift+Y's text, once for each call (`seq`). */
+  summon?: { seq: number; text: string } | null
 }
 
-const { paneId, board, paneState, visible, follower, onsetup, onengine, onhistory }: Props =
-  $props()
+const {
+  paneId,
+  board,
+  paneState,
+  visible,
+  follower,
+  onsetup,
+  onengine,
+  onhistory,
+  summon = null,
+}: Props = $props()
 const api = window.elecdex.translate
 
 // ---------------------------------------------------------------------------
@@ -238,6 +249,21 @@ function onBlocksKey(event: KeyboardEvent): void {
   }
 }
 
+// Ctrl+Shift+Y: the clipboard's text becomes the source of a new draft and is translated, or
+// the source is opened empty for typing.
+$effect(() => {
+  const call = summon
+  if (call === null || call.seq === follower.summonHandled) return
+  follower.summonHandled = call.seq
+  untrack(() => {
+    text = call.text
+    lastText = text
+    draftId = newDraftId()
+    if (call.text.trim() === '') edit()
+    else void translate()
+  })
+})
+
 function onSourceKey(event: KeyboardEvent): void {
   if (event.key === 'Enter' && event.ctrlKey && !event.isComposing) {
     event.preventDefault()
@@ -293,11 +319,6 @@ $effect(() => {
   if (untrack(() => run !== null && run.mode === 'live' && text.trim() !== '')) untrack(liveRun)
 })
 
-// Out of sight, a LIVE run stops (§8.5): what is typed for the screen is not written unseen.
-$effect(() => {
-  if (!visible && run !== null && run.mode === 'live' && isActive(run)) api.cancelLive(paneId)
-})
-
 // ---------------------------------------------------------------------------
 // ROUND TRIP (§6.4): every written block back into the source language, compared
 // ---------------------------------------------------------------------------
@@ -309,7 +330,8 @@ let tripAsked = ''
 
 $effect(() => {
   const r = run
-  if (!roundTrip || r === null || tripLang === null) return
+  // Nothing new starts unseen (§8.5): a run finished behind a tab is compared once shown.
+  if (!visible || !roundTrip || r === null || tripLang === null) return
   const wanting = r.blocks.some((b) => b.state === 'done' && b.trip === null)
   // Once a run is done, and once for each version (a block mended or written again asks anew).
   const key = `${r.version}:${r.blocks.map((b) => (b.trip === null ? b.index : '')).join(',')}`
@@ -324,16 +346,19 @@ $effect(() => {
 
 let editingBlock = $state<number | null>(null)
 let blockDraft = $state('')
+/** The run the block was opened in: a newer one by the time it is saved is not edited. */
+let editingVersion = 0
 
 function editBlock(block: BlockView): void {
   editingBlock = block.index
+  editingVersion = run?.version ?? 0
   blockDraft = block.text
 }
 
 function saveBlock(): void {
   const index = editingBlock
   editingBlock = null
-  if (index === null || run === null) return
+  if (index === null || run === null || run.version !== editingVersion) return
   if (run.blocks[index]?.text !== blockDraft) void api.editBlock(paneId, index, blockDraft)
 }
 
@@ -585,6 +610,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
             aria-label="Context"
             spellcheck="false"
             data-testid="translate-context"
+            oninput={liveRun}
             placeholder="What the text is and who reads it: release notes of a system monitor, for its users. Keep the product's terms."
           ></textarea>
         </section>
@@ -690,7 +716,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
                 onpointerenter={() => (hot = block.index)}
                 onpointerleave={() => (hot = null)}
                 data-edited={block.edited}
-              ><!-- One line: the block keeps its own line breaks (pre-wrap), and the template's would show. -->{#if editingBlock === block.index}<textarea class="block-edit" bind:value={blockDraft} use:focusOnMount aria-label="Edit block {blockNumber(block.index)}" data-testid="translate-block-edit" onkeydown={onBlockEditKey} onblur={saveBlock}></textarea>{:else}{#if block.state === 'done'}<i class="fresh" aria-hidden="true"></i>{/if}{block.text}{#if block.state === 'running'}<span class="caret"></span>{/if}{#if block.state === 'queued' && block.text === ''}<span class="qd">waiting</span>{/if}{#if block.state === 'none' && block.text === ''}<span class="qd">not translated</span>{/if}{#if block.state === 'stopped'}<span class="tag warn">stopped</span>{/if}{#if block.edited}<span class="tag info">edited</span>{/if}{#if block.note}<span class="tag" class:warn={block.state !== 'failed'} class:bad={block.state === 'failed'}>{block.note}</span>{/if}{#if !busy && (block.state === 'done' || block.state === 'failed' || block.state === 'stopped' || block.state === 'none')}<span class="acts"><button type="button" data-testid="translate-block-retry" onclick={() => void api.retryBlock(paneId, block.index)}>Retry</button><button type="button" data-testid="translate-block-edit-open" onclick={() => editBlock(block)}>Edit</button><button type="button" onclick={() => void navigator.clipboard?.writeText(block.text).catch(() => {})}>Copy</button></span>{/if}{#if block.trip}<span class="trip" data-testid="translate-trip"><span class="back"><span class="tl">{langCode(tripLang ?? '')}</span>{block.trip.text}{#if block.trip.state === 'running'}<span class="caret"></span>{/if}{#if block.trip.state === 'failed'}<span class="tag bad">round trip failed</span>{/if}</span>{#if block.trip.score !== null}<span class="match" class:low={block.trip.score < CHRF_WARN} data-testid="translate-trip-score"><span class="bar"><i style:width="{block.trip.score}%"></i></span>{block.trip.score}</span>{/if}</span>{/if}{/if}</div>
+              ><!-- One line: the block keeps its own line breaks (pre-wrap), and the template's would show. -->{#if editingBlock === block.index}<textarea class="block-edit" bind:value={blockDraft} use:focusOnMount aria-label="Edit block {blockNumber(block.index)}" data-testid="translate-block-edit" onkeydown={onBlockEditKey} onblur={saveBlock}></textarea>{:else}{#if block.state === 'done'}<i class="fresh" aria-hidden="true"></i>{/if}{block.text}{#if block.state === 'running'}<span class="caret"></span>{/if}{#if block.state === 'queued' && block.text === ''}<span class="qd">waiting</span>{/if}{#if block.state === 'none' && block.text === ''}<span class="qd">not translated</span>{/if}{#if block.state === 'stopped'}<span class="tag warn">stopped</span>{/if}{#if block.edited}<span class="tag info">edited</span>{/if}{#if block.note}<span class="tag" class:warn={block.state !== 'failed'} class:bad={block.state === 'failed'}>{block.note}</span>{/if}{#if !busy && (block.state === 'done' || block.state === 'failed' || block.state === 'stopped' || block.state === 'none')}<span class="acts"><button type="button" data-testid="translate-block-retry" onclick={() => void api.retryBlock(paneId, block.index)}>Retry</button><button type="button" data-testid="translate-block-edit-open" onclick={() => editBlock(block)}>Edit</button><button type="button" onclick={() => void navigator.clipboard?.writeText(block.text).catch(() => {})}>Copy</button></span>{/if}{#if block.trip}<span class="trip" data-testid="translate-trip"><span class="back"><span class="tl">{langCode(block.trip.lang)}</span>{block.trip.text}{#if block.trip.state === 'running'}<span class="caret"></span>{/if}{#if block.trip.state === 'failed'}<span class="tag bad">round trip failed</span>{/if}</span>{#if block.trip.score !== null}<span class="match" class:low={block.trip.score < CHRF_WARN} data-testid="translate-trip-score"><span class="bar"><i style:width="{block.trip.score}%"></i></span>{block.trip.score}</span>{/if}</span>{/if}{/if}</div>
             {/each}
             {#if roundTrip && tripLang === null && run.state === 'done'}
               <p class="reason" data-testid="translate-trip-needs-lang">Round trip: choose the source language; AUTO could not tell it.</p>

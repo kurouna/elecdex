@@ -13,6 +13,8 @@ export interface Trip {
   text: string
   state: 'queued' | 'running' | 'done' | 'failed'
   score: number | null
+  /** The language it went back into. */
+  lang: string
 }
 
 export interface TripPatch {
@@ -20,6 +22,7 @@ export interface TripPatch {
   append?: string
   state?: Trip['state']
   score?: number | null
+  lang?: string
 }
 
 /** queued: waits its turn; running: being written; done; stopped: STOP, or the run was stopped; failed; none: never translated. */
@@ -151,11 +154,12 @@ export function applyBlockPatch(block: BlockView, patch: BlockPatch): BlockView 
 
 function patchedTrip(trip: Trip | null, patch: TripPatch | null): Trip | null {
   if (patch === null) return null
-  const base = trip ?? { text: '', state: 'queued' as const, score: null }
+  const base = trip ?? { text: '', state: 'queued' as const, score: null, lang: '' }
   return {
     text: (patch.text ?? base.text) + (patch.append ?? ''),
     state: patch.state ?? base.state,
     score: patch.score === undefined ? base.score : patch.score,
+    lang: patch.lang ?? base.lang,
   }
 }
 
@@ -164,7 +168,16 @@ export function mergeTripPatch(
   before: TripPatch | null | undefined,
   after: TripPatch | null,
 ): TripPatch | null {
-  if (after === null || before === null || before === undefined) return after
+  if (after === null || before === undefined) return after
+  // After a trip taken away, the patch builds a new one whole: none of an older trip may show through.
+  if (before === null) {
+    return {
+      text: (after.text ?? '') + (after.append ?? ''),
+      state: after.state ?? 'queued',
+      score: after.score ?? null,
+      lang: after.lang ?? '',
+    }
+  }
   const append =
     after.text !== undefined ? (after.append ?? '') : (before.append ?? '') + (after.append ?? '')
   const merged: TripPatch = { ...before, ...after }

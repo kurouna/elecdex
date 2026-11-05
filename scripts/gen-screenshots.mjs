@@ -1259,6 +1259,38 @@ if (only.length === 0 || only.includes('panes') || only.some((n) => n.startsWith
     standIn.server.close()
   }
   await shootPane('quakes', 'medium', { extra: offCards })
+  // TRANSLATE through the tests' stand-in llama-server at =demo: real Japanese for made-up
+  // release notes, their round trips scored; no model is fetched or run.
+  await shootPane('translate', 'wide', {
+    state: { srcLang: 'en', tgtLang: 'ja', form: 'polite', roundTrip: true },
+    settings: { translate: { live: false } },
+    env: {
+      ELECDEX_LLAMA_SERVER: path.resolve('tests/e2e/support/llama-stub.mjs'),
+      ELECDEX_LLAMA_STUB_MODE: 'demo',
+      ELECDEX_HF_BASE_URL: 'http://127.0.0.1:9',
+      ELECDEX_LLAMA_RELEASES_URL: 'http://127.0.0.1:9',
+    },
+    prepare: (dir) => {
+      const models = path.join(dir, 'translate', 'models', 'plamo3-2b-q4km')
+      mkdirSync(models, { recursive: true })
+      writeFileSync(path.join(models, 'plamo-3-translate-2b-Q4_K_M.gguf'), 'x')
+    },
+    extra: async (page) => {
+      const source = page.locator('[data-testid=translate-source]')
+      await source.fill(
+        [
+          'Release notes',
+          'The metrics collector now runs in its own process, so a slow disk never holds up the window.',
+          'Panes behind a tab stop reading what they do not chart, and take it up again as soon as they are shown.',
+          'Translation runs on this PC: nothing you translate leaves this machine.',
+        ].join('\n\n'),
+      )
+      await source.press('Control+Enter')
+      await page.locator('[data-testid=translate-trip-score]').nth(3).waitFor({ timeout: 30_000 })
+      await page.mouse.move(W / 2, 4)
+      await page.waitForTimeout(3500)
+    },
+  })
   await shootPane('calc', 'small', { extra: calculating })
   await shootPane('notes', 'medium', {
     state: stateIn('desk', 'notes'),

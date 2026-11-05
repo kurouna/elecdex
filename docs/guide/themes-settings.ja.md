@@ -196,6 +196,12 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `ai.providers` | `[]` | 登録した AI プロバイダー。キーはここには保存しません |
 | `ai.systemPrompt` | `""` | すべての会話の先頭に送る |
 | `ai.compact` | `false` | 会話がプロバイダーの窓を超えたら、モデルに要約を求める |
+| `translate.modelId` | `"plamo3-2b-q4km"` | TRANSLATE のモデル *(unreleased)*。マニフェストのもの。エンジンの入手先はここにない（`translate/engine.json`） |
+| `translate.ctx` | `16384` | エンジンのコンテキスト。4096・8192・16384・32768 トークン |
+| `translate.device` | `"auto"` | `auto`: GPU 版、起動できなければ CPU 版。`cpu`: CPU 版だけ |
+| `translate.idleMinutes` | `10` | 使わなければこの分数でエンジンを止める: 5・10・30、0 で止めない |
+| `translate.live` | `true` | 打ち終えて 0.6 秒で訳し、変わったブロックだけを訳し直す |
+| `translate.saveHistory` | `true` | 訳したものを HISTORY に残す（`translate/history.json`） |
 | `agents.sources` | `["claude-code"]` | AI AGENT ペインが記録を読む相手 |
 | `git.openCommand` | `""` | git ペインでダブルクリックしたファイルを開く方法（`{file}`、`{line}`、`{dir}` を埋める。シェルを通さずプログラムとして実行）。空ならシステムのアプリ。このファイルでだけ設定します |
 | `logWatch.keepLines` | `5000` | さかのぼれる行数: 1000、5000、20000、50000 |

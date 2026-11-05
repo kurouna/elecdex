@@ -269,6 +269,12 @@ const WORKSPACE_CHECKS: Record<InWorld<'workspace'>, (w: World) => Promise<void>
     await press()
     await expect(page.getByTestId('popup-pane')).toHaveAttribute('data-widget', 'utility')
   },
+  'translate.focus': async ({ page, press }) => {
+    // No TRANSLATE pane in the layout: it pops up, with the stand-in clipboard's text (none here).
+    await focus(page, 'solo')
+    await press()
+    await expect(page.getByTestId('popup-pane')).toHaveAttribute('data-widget', 'translate')
+  },
   'shell.focus': async ({ page, press }) => {
     await focus(page, 'solo')
     await press()

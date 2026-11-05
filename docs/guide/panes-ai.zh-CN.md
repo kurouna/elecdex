@@ -9,6 +9,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 - [ai 预设](#ai-预设)
 - [AI chat](#ai-chat)
 - [ELEC system](#elec-system)
+- [TRANSLATE](#translate)
 - [另请参阅](#另请参阅)
 
 ## ai 预设
@@ -18,7 +19,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
   <br><sub>ai · Business (Dark) — 回答来自为截图准备的替身</sub>
 </p>
 
-**ai** 预设（Ctrl+Shift+F7）包含上下排列的两个 AI 聊天窗格，右侧是 ELEC system，其下是 [GPU](panes-system.zh-CN.md#gpu) 窗格。GPU 窗格显示 GPU 的负载和它自身显存的占用：在本机运行的模型所依赖的东西。两种 AI 窗格都只在你发送内容时才询问提供方，所以在那之前这个预设没有任何开销。
+**ai** 预设（Ctrl+Shift+F7）包含上下排列的两个 AI 聊天窗格，右侧是 ELEC system，其下是 [GPU](panes-system.zh-CN.md#gpu) 窗格。GPU 窗格显示 GPU 的负载和它自身显存的占用：在本机运行的模型所依赖的东西。两种 AI 窗格都只在你发送内容时才询问提供方，所以在那之前这个预设没有任何开销。第二个聊天窗格后面的标签页是 [TRANSLATE](#translate) *(unreleased)*：在本机运行 PLaMo 3 Translate，引擎只在第一次翻译时才启动。
 
 - **AI 聊天** — 与你自己运行的语言模型对话（Ollama、LM Studio、llama.cpp——任何支持 OpenAI chat API 的服务），或与你持有 API 密钥的服务对话（Anthropic、OpenAI、Gemini、OpenRouter）。回答以流式到达，推理过程默认折叠；密钥由操作系统加密，永远不会传到页面；对话保存在你的电脑上。提问时可以附上文本文件、图片和 PDF：用 **+** 选择、拖放到窗格上，或粘贴图片。图片在发送前会被缩小并重新绘制，所以相机写入文件的信息（例如拍摄地点）不会被发送出去。
 - **ELEC system** — 把一个是非题形式的议案交给由三个模型组成的评议会：LOGOS（逻辑）、ETHOS（伦理）和 PATHOS（情感）各自从自己的立场评判，投票 APPROVE、REJECT 或 ABSTAIN，窗格按多数决或全体一致作出决议。席位使用 AI 聊天的提供方——三个席位都用同一个模型也可以。
@@ -213,9 +214,51 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 - **again** 把同一议案交给当前就座的评议会；**log** 列出过去的评议及其决议，可重新打开、导出为 markdown 或删除。最多保存 200 次评议，超出后拒绝新的评议。
 - 评议期间，光效以显示器的刷新率运行，约占一个 CPU 核心的 70%（在开发者机器上实测）；等待议案时没有任何动画，约 0.5%。不在默认布局中。
 
+## TRANSLATE
+
+*(unreleased)*
+
+<p align="center">
+  <img src="../screenshots/pane-translate.jpg" alt="单独的 TRANSLATE 窗格：左侧是虚构的英文发布说明，四个块通过脊线上带编号的连线与右侧的日文译文相连，每个译好的块下方是译回英文的结果和 chrF 分数条；工具栏显示 EN 到 JA、礼貌体，ROUND TRIP 已开启">
+  <br><sub>TRANSLATE · 替身引擎与虚构文本</sub>
+</p>
+
+TRANSLATE 通过 llama.cpp 的 `llama-server` 在本机运行 Preferred Networks 的 PLaMo 3 Translate，在 53 种语言与简易日语（やさしい日本語）之间翻译。原文按空行切成块，按顺序逐块翻译；每个块都带上前两个块作为历史，使术语和文体保持一致。两侧之间的脊线把每个块与其译文连起来。引擎在第一次翻译时由 main 启动，一段时间不用就停止；页面从不直接与引擎通信。
+
+| | |
+| --- | --- |
+| 位置 | **ai** 预设（Ctrl+Shift+F7）中第二个 AI chat 后面的标签页；或从选择器添加（Ctrl+Shift+A，"translate"）。**Ctrl+Shift+Y** 带着剪贴板中的文本调出它并立即翻译（布局中没有 TRANSLATE 窗格时以弹出窗口出现）。可置前铺满窗口（Ctrl+Shift+Z）。不在默认布局中。 |
+| 读取 / 数据来源 | 引擎：elecdex 获取的 llama-server（llama.cpp b12110）、你自己的 llama-server（b7563 或更高，在引擎设置中选择），或其他地址上的 llama-server。模型：一个 PLaMo 3 Translate GGUF 文件（0.8B、2B、8B 或 31B，Q4_K_M、Q4_0、Q3_K_M 或 Q2_K），在设置中获取一次。文件位于应用数据文件夹（userData）的 `translate/` 中：`engine.json`、`engine/`、`models/`、`glossaries.json`、`history.json`、`llama-server.pid`。 |
+| 更新 | 在翻译之前什么都不运行。引擎随第一次翻译启动（加载时显示其日志），10 分钟未使用即停止（5、10、30 分钟或从不）。译文边写边到，main 每 100 ms 传给窗格一次。开启 **LIVE** 时，停止输入 0.6 秒后请求翻译，只重新翻译有变化的块。 |
+| 平台 | 获取的引擎：Windows 为 Vulkan 版和 CPU 版（x64；Arm64 只有 CPU 版），macOS 为 Metal 版（Apple 芯片；Intel 为 CPU 版），Linux 为 Vulkan 版和 CPU 版（x64）。设备为 AUTO 时先尝试 GPU 版，无法启动则改用 CPU 版。macOS 和 Linux 尚未经过充分的人工验证。 |
+| 隐私 | 所翻译的内容留在本机：引擎只在 127.0.0.1 上监听，并有页面不知道的专用密钥。只有当你选择其他地址的 llama-server 时，文本才会发到那里，窗格底部会写明（"sent to …"）。原文和上下文从不写入布局；历史是本机上的文件，可以关闭。只有按下 Ctrl+Shift+Y 时才读取剪贴板，标记为私密的复制内容（密码管理器的）从不读取。 |
+| 设置 | `settings.json` → `translate`：`modelId`（默认 `plamo3-2b-q4km`）、`ctx`（4096、8192、16384 或 32768；默认 16384）、`device`（`auto` 或 `cpu`）、`idleMinutes`（5、10、30，0 为从不；默认 10）、`live`（默认 true）、`saveHistory`（默认 true）。引擎的来源另存于 `translate/engine.json`，只在窗格中更改。窗格中：语言、文体、术语表、ROUND TRIP。 |
+
+### 设置
+
+第一次使用时，**> set up translation** 引导五个步骤：**ENGINE**（获取的版本、自己的 llama-server，或一个地址）、**MODEL**（四种大小，以及与本机内存的匹配程度）、**LICENCE**（PLaMo 社区许可证，必须同意）、**FETCH**（引擎和模型，可 PAUSE、RESUME、CANCEL；暂停或中断的下载从中断处继续），以及 **READY**，通过引擎试译一句。每个文件在使用前都会与 elecdex 固定的 sha256 核对。
+
+### 翻译
+
+- **语言** — 源语言为 53 种之一或 **AUTO**（让模型判断）；目标语言为 53 种之一或简易日语。在 AUTO 下，当文字能确定语言时（假名、韩文等文字，或某种语言的常用词明显更多），窗格显示 `AUTO ≈ EN`，此时可以交换语言。两个列表都把最近用过的语言放在前面。
+- **文体** — PLAIN（だ・である）或 POLITE（です・ます），仅在译成日语时。
+- **TRANSLATE**（Ctrl+Enter）重新翻译所有块；**STOP**（Ctrl+.）停止：正在写的块会保留并加上标记，其后的块不翻译。长到放不进上下文的块会说明并跳过；因长度上限被截断的块会加标记。
+- **术语表** — 有名称的术语列表，针对某一目标语言或任意语言（日语术语表也用于简易日语）。每个块只附带它包含的术语，按长度从长到短，最多 50 个；以用空格分词的文字结尾的术语按完整单词匹配。可以以 TSV 或 CSV 粘贴。针对其他语言的术语表不会使用，窗格会说明。
+- **上下文** — 最多 2,000 字，说明文本是什么、谁来读，随每个块发送，不翻译。
+- **ROUND TRIP** — 把每个译好的块译回源语言，并用 chrF 与原文比较；低于 70 以警告色显示。
+- **块的按钮** — RETRY 在原位重新翻译；EDIT 手动修改，之后翻译的块会把修改后的文本作为历史；COPY 复制。指针停在脊线的编号上时，显示该块的 token 数、用时和历史。
+- **HISTORY** — 原文的每个草稿一条（继续输入则替换，换成别的文本则新增一条），最多 200 条、4 MB，最旧的先删除。中途停止的翻译会保留，并标明翻译到哪里。点击一行可在 TEXT 中重新打开；CLEAR 需按两次。
+
+### 不做的事
+
+- 不翻译文件；文本靠输入或粘贴（最多 20,000 字）。
+- 不使用托管服务：模型在本机或你指定的 llama-server 上运行。
+- 不保存外部 llama-server 的密钥；要求密钥的服务器会被拒绝。
+
 ## 另请参阅
 
 - [预设：ai](presets.zh-CN.md#ai)
 - [网络访问与数据来源](data-sources.zh-CN.md) — AI 窗格发送什么、发给谁。
 - [设计：§5.7 AI 聊天窗格、§5.8 ELEC 系统窗格](../architecture.md)（日文）
+- [设计：TRANSLATE](../translate.md)（日文）
 - [决策记录](../decisions.md)（日文）

@@ -70,6 +70,7 @@ export const KEY_ROWS = {
   'layout.preset.blank': { world: 'presets' },
   'launcher.focus': { world: 'workspace' },
   'utility.focus': { world: 'workspace' },
+  'translate.focus': { world: 'workspace' },
   'shell.focus': { world: 'workspace' },
   'shell.find': { world: 'workspace' },
   'shell.clear': { world: 'workspace' },

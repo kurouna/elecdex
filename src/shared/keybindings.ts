@@ -59,6 +59,11 @@ export const KEYBINDING_ACTIONS = [
   // IBus on a Linux desktop may keep Ctrl+Shift+U for typing a character by its
   // code, so there the key can be taken before elecdex sees it: rebind it.
   { id: 'utility.focus', label: 'Open the utility pane', chord: 'Ctrl+Shift+KeyU' },
+  {
+    id: 'translate.focus',
+    label: 'Translate the clipboard',
+    chord: 'Ctrl+Shift+KeyY',
+  },
   { id: 'shell.focus', label: 'Focus the shell', chord: 'Ctrl+Shift+KeyS' },
   { id: 'shell.find', label: 'Search the shell', chord: 'Ctrl+Shift+KeyF' },
   { id: 'shell.clear', label: "Clear the shell's scrollback", chord: 'Ctrl+Shift+KeyK' },

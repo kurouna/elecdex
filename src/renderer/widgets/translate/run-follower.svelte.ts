@@ -46,6 +46,8 @@ export function isActive(run: RunView | null): boolean {
 export class RunFollower {
   readonly paneId: string
   run = $state.raw<RunView | null>(null)
+  /** The last Ctrl+Shift+Y TEXT answered: kept here, as TEXT mounts again with every view. */
+  summonHandled = 0
   #seq = -1
   #release: (() => void) | null = null
 

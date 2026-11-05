@@ -41,7 +41,7 @@ elecdex は、組み込みの 40 種のペインを分割とタブで 1 つの�
 - **ペイン**: 組み込みのペイン 40 種と Web ペイン（Browser、YouTube、X）を、状態が保存される分割とタブのツリー構造で並べます。レイアウトのプリセット 10 個、保存したレイアウト、アクションパレット。
 - **システムとネットワーク**: CPU、メモリ、GPU、ディスク、プロセス、プログラムごとの TCP ソケット、Wi-Fi とイーサネットの診断。Windows では読み取りのたびにプロセスを起動しません（常駐する 1 つのサンプラーが読みます）。
 - **外の世界**: 天気（気象庁、NWS、MET Norway）、マーケット、RSS、地震と津波、手元で計算する衛星（SGP4）、通信先の国を同梱の GeoIP データベースで調べて示す地球儀。
-- **仕事と AI**: Git（読み取りと FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code のセッション、OpenAI 互換または Anthropic の API への AI チャット（鍵は OS で暗号化して保存）。
+- **仕事と AI**: Git（読み取りと FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code のセッション、OpenAI 互換または Anthropic の API への AI チャット（鍵は OS で暗号化して保存）、この PC で動かす PLaMo 3 Translate での翻訳 *(unreleased)*。
 - **デスクとメディア**: メモ、タスク、タイマー、クリップボード、カレンダー、電卓。音のスペクトラム、ミキサー、再生中の曲（Now Playing）。
 - **独自の機械**: CHIP-8 のエミュレータと、オリジナルの 16 ビットのポケコン ELEC-16（BASIC、ゲーム機のモデル、関数電卓）。
 - **セキュリティ**: 画面はサンドボックスで、Node もネットワークも使えません（`connect-src 'self'`）。通信はすべてメインプロセスが、ペインがそのデータを必要としている間だけ行い、テレメトリはありません。プラグインは許可したことだけができるサンドボックスのワーカーで動きます。
@@ -64,7 +64,7 @@ elecdex は、組み込みの 40 種のペインを分割とタブで 1 つの�
     <td align="center" width="50%"><a href="docs/guide/presets.ja.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="Paper テーマの desk プリセット"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · メモ、タスク、タイマー、クリップボード、カレンダー、ユーティリティ</sub></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) テーマの ai プリセット"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · 2 つの AI チャット、ELEC の評議、GPU</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) テーマの ai プリセット"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · 2 つの AI チャット、ELEC の評議、GPU、タブに TRANSLATE *(unreleased)*</sub></td>
     <td align="center" width="50%"><a href="docs/guide/presets.ja.md#cockpit"><img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black テーマの cockpit プリセット"></a><br><sub><b>cockpit</b> · Ctrl+Shift+F8 · マシン全体を 1 枚の CLUSTER ペインに</sub></td>
   </tr>
   <tr>
@@ -81,7 +81,7 @@ elecdex は、組み込みの 40 種のペインを分割とタブで 1 つの�
 | ネットワーク | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet | [ネットワークのペイン](docs/guide/panes-network.ja.md) |
 | 開発 | AI Agent、Git、Docker、Log Watch | [開発のペイン](docs/guide/panes-dev.ja.md) |
 | 外の世界 | Orbit、Markets、Weather、RSS、Quakes、地震と津波の通知 | [外の世界のペイン](docs/guide/panes-world.ja.md) |
-| AI | AI chat、ELEC system | [AI のペイン](docs/guide/panes-ai.ja.md) |
+| AI | AI chat、ELEC system、TRANSLATE *(unreleased)* | [AI のペイン](docs/guide/panes-ai.ja.md) |
 | デスク | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility | [デスクのペイン](docs/guide/panes-desk.ja.md) |
 | メディア | Spectrum、Browser、YouTube、X、Mixer、Now playing | [メディアのペイン](docs/guide/panes-media.ja.md) |
 | レトロ | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） | [レトロのペイン](docs/guide/panes-retro.ja.md) |

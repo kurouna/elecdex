@@ -40,7 +40,7 @@ elecdex 是一款桌面应用，用分屏和标签页把 40 种内置窗格排�
 - **窗格**：40 种内置窗格加上网页窗格（Browser、YouTube、X），排列在一棵会被保存的分屏与标签页树中；10 个布局预设、已保存的布局、操作面板。
 - **系统与网络**：CPU、内存、GPU、磁盘、进程、按程序分组的每个 TCP 套接字、Wi-Fi 与以太网诊断；在 Windows 上读取时不会每次启动新进程。
 - **外部世界**：天气（日本气象厅、NWS、MET Norway）、市场行情、RSS、地震与海啸、在本地计算的卫星位置（SGP4）、用内置 GeoIP 数据库定位的连接地球视图。
-- **工作与 AI**：Git（读取以及 FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code 会话；可连接任何 OpenAI 兼容或 Anthropic 端点的 AI 聊天，密钥由操作系统加密保存。
+- **工作与 AI**：Git（读取以及 FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code 会话；可连接任何 OpenAI 兼容或 Anthropic 端点的 AI 聊天，密钥由操作系统加密保存；在本机运行 PLaMo 3 Translate 的翻译 *(unreleased)*。
 - **桌面与媒体**：笔记、任务、计时器、剪贴板、日历和计算器；声音频谱、混音器和正在播放（Now Playing）。
 - **自有的机器**：CHIP-8 模拟器，以及原创的 16 位袖珍电脑 ELEC-16（BASIC、游戏机型号、科学计算器）。
 - **安全模型**：页面运行在沙箱中，没有 Node，也没有网络（`connect-src 'self'`）；所有请求都由主进程发出，且只在某个窗格需要时进行；没有遥测。插件运行在沙箱化的 worker 中，只能做被授权的事。
@@ -63,7 +63,7 @@ elecdex 是一款桌面应用，用分屏和标签页把 40 种内置窗格排�
     <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="Paper 主题下的 desk 预设"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · 笔记、任务、计时器、剪贴板、日历、工具</sub></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · 两个 AI 聊天、ELEC 评议、GPU</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · 两个 AI 聊天、ELEC 评议、GPU、标签页中的 TRANSLATE *(unreleased)*</sub></td>
     <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#cockpit"><img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black 主题下的 cockpit 预设"></a><br><sub><b>cockpit</b> · Ctrl+Shift+F8 · 整台机器集中在一个 CLUSTER 窗格</sub></td>
   </tr>
   <tr>
@@ -80,7 +80,7 @@ elecdex 是一款桌面应用，用分屏和标签页把 40 种内置窗格排�
 | 网络 | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet | [网络窗格](docs/guide/panes-network.zh-CN.md) |
 | 开发 | AI Agent、Git、Docker、Log Watch | [开发窗格](docs/guide/panes-dev.zh-CN.md) |
 | 外部世界 | Orbit、Markets、Weather、RSS、Quakes、地震与海啸提醒 | [外部世界窗格](docs/guide/panes-world.zh-CN.md) |
-| AI | AI chat、ELEC system | [AI 窗格](docs/guide/panes-ai.zh-CN.md) |
+| AI | AI chat、ELEC system、TRANSLATE *(unreleased)* | [AI 窗格](docs/guide/panes-ai.zh-CN.md) |
 | 桌面 | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility | [桌面窗格](docs/guide/panes-desk.zh-CN.md) |
 | 媒体 | Spectrum、Browser、YouTube、X、Mixer、Now playing | [媒体窗格](docs/guide/panes-media.zh-CN.md) |
 | 复古 | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） | [复古窗格](docs/guide/panes-retro.zh-CN.md) |

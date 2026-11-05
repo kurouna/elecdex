@@ -651,6 +651,141 @@ describe('TranslateRuns and LIVE, EDIT, RETRY, ROUND TRIP', () => {
   })
 })
 
+describe('TranslateRuns, round trips and the history together', () => {
+  const live = (paneId: string, text: string) => ({
+    ...request(paneId, text),
+    mode: 'live' as const,
+  })
+
+  it('never records a LIVE run while its round trips are written; it waits for them', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(live('p1', 'One.'))
+    await answer(h, 'いち')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    h.tick(LIVE_RECORD_MS)
+    expect(records).toEqual([])
+    await answer(h, 'One.')
+    h.tick(LIVE_RECORD_MS)
+    expect(records.map((r) => r.state)).toEqual(['done'])
+  })
+
+  it('calls off the round trip of a block that is written again or mended', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.'))
+    await answer(h, 'いち')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    const trip = h.calls.at(-1)
+    h.runs.retry('p1', 0)
+    expect(trip?.signal.aborted).toBe(true)
+    await answer(h, 'イチ')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks[0]).toMatchObject({ text: 'イチ', trip: null })
+  })
+
+  it('keeps a LIVE run’s round trips of the blocks that did not change', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(live('p1', 'One.\n\nTwo.'))
+    await answer(h, 'いち')
+    await answer(h, 'に')
+    h.runs.roundTrip('p1', 'en')
+    await answer(h, 'One.')
+    await answer(h, 'Two.')
+    h.runs.start(live('p1', 'One.\n\nTwo, changed.'))
+    await answer(h, 'に改')
+    h.runs.roundTrip('p1', 'en')
+    const back = await answer(h, 'Two, changed.')
+    // Only the changed block went back: the first kept its trip.
+    expect(back.prompt).toContain('に改')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks.map((b) => b.trip?.state)).toEqual(['done', 'done'])
+    expect(h.calls).toHaveLength(6)
+  })
+
+  it('asks every block again when the trips go into another language', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.'))
+    await answer(h, 'いち')
+    h.runs.roundTrip('p1', 'en')
+    await answer(h, 'One.')
+    h.runs.roundTrip('p1', 'fr')
+    const back = await answer(h, 'Un.')
+    expect(back.prompt).toContain('lang<|plamo:val|>fr')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks[0]?.trip).toMatchObject({ text: 'Un.', lang: 'fr' })
+  })
+
+  it('compares nothing of a stopped translation', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.\n\nTwo.'))
+    await answer(h, 'いち')
+    await h.settle()
+    h.runs.stop('p1')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    expect(h.calls).toHaveLength(2)
+  })
+
+  it('calls off a round trip being written when the pane asks anew', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.'))
+    await answer(h, 'いち')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    const trip = h.calls.at(-1)
+    h.runs.start(request('p1', 'Two.'))
+    expect(trip?.signal.aborted).toBe(true)
+  })
+
+  it('goes back politely into Japanese, and with no form into anything else', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start({ ...request('p1', 'Bonjour.'), srcLang: 'fr', tgtLang: 'ja' })
+    await answer(h, 'こんにちは。')
+    h.runs.roundTrip('p1', 'fr')
+    const intoFrench = await answer(h, 'Bonjour.')
+    expect(intoFrench.prompt).not.toContain('form')
+    h.runs.start({ ...request('p1', 'Hello.'), srcLang: 'en', tgtLang: 'en' })
+    h.runs.start({ ...request('p2', 'Hello.'), srcLang: 'en', tgtLang: 'fr' })
+    h.runs.follow('p2')
+    await answer(h, 'Hello.')
+    await answer(h, 'Bonjour.')
+    h.runs.roundTrip('p2', 'ja')
+    const intoJapanese = await answer(h, 'こんにちは。')
+    expect(intoJapanese.prompt).toContain('form<|plamo:val|>polite')
+  })
+
+  it('never records a LIVE run whose pane closed before it rested', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(live('p1', 'One.'))
+    await answer(h, 'いち')
+    h.runs.unfollow('p1')
+    h.tick(ORPHAN_MS)
+    h.tick(LIVE_RECORD_MS)
+    expect(records).toEqual([])
+  })
+
+  it('writes a mended TRANSLATE run into the history again', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.'))
+    await answer(h, 'いち')
+    h.runs.editBlock('p1', 0, '一')
+    expect(records.map((r) => r.blocks[0]?.text)).toEqual(['いち', '一'])
+  })
+})
+
 describe('TranslateRuns and asking again', () => {
   it('does not ask again what the server refused (an HTTP error), and says it refused', async () => {
     const h = harness()

@@ -370,7 +370,7 @@ registerBuiltin({
   popup: true,
 })
 
-// Unlisted while it is built (docs/translate.md §12): a layout naming it opens it, the picker does not offer it.
+// TRANSLATE (docs/translate.md): main runs llama-server and fetches; the pane follows and draws.
 registerBuiltin({
   id: 'translate',
   title: 'translate',
@@ -381,7 +381,6 @@ registerBuiltin({
   multiple: true,
   zoom: 'full',
   popup: true,
-  unlisted: true,
 })
 
 registerBuiltin({

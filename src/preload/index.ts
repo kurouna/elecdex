@@ -695,6 +695,7 @@ const api: ElecdexApi = {
       ipcRenderer.invoke(CH.translate.editBlock, paneId, index, text),
     retryBlock: (paneId, index) => ipcRenderer.invoke(CH.translate.retryBlock, paneId, index),
     roundTrip: (paneId, lang) => ipcRenderer.invoke(CH.translate.roundTrip, paneId, lang),
+    clipboardText: () => ipcRenderer.invoke(CH.translate.clipboardText),
     glossaries: () => ipcRenderer.invoke(CH.translate.glossaries),
     glossarySave: (glossary) => ipcRenderer.invoke(CH.translate.glossarySave, glossary),
     glossaryRemove: (id) => ipcRenderer.invoke(CH.translate.glossaryRemove, id),

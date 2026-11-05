@@ -83,6 +83,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | Ctrl+Shift+P | Find an action | `palette.open` | 操作面板：输入文字查找并执行所有快捷键操作、已保存布局、预设、主题、窗格和设置分区，并显示各自的按键；无法撤销的操作需按两次 Enter |
 | Ctrl+Shift+L | Search the launcher | `launcher.focus` | 搜索启动器（若布局中没有，则在工作区上方弹出一个） |
 | Ctrl+Shift+U | Open the utility pane | `utility.focus` | 实用工具窗格（有多个时每按一次切换到下一个）；布局中没有时弹出，再按一次关闭 |
+| Ctrl+Shift+Y | Translate the clipboard | `translate.focus` | 带着剪贴板中的文本前往 TRANSLATE 窗格 *(unreleased)* 并立即翻译（有多个时每按一次切换到下一个；布局中没有时弹出）；剪贴板中没有文本时，以空的原文打开 |
 | Ctrl+Shift+. | Open settings | `settings.open` | 设置对话框 |
 
 在操作面板中，↑ ↓ 选择，Tab 和 Shift+Tab 切换行的种类，PageUp 和 PageDown 每次移动 8 行，Enter 执行，Escape 关闭。当前无法执行的行仍留在列表中，变暗并注明原因（例如 *not in a tab group*）。设计见 [docs/palette.md](../palette.md)（日文）。
@@ -244,7 +245,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | **dev** | Ctrl+Shift+F4 | AI AGENT；Docker 和 shell；剪贴板、计时器和 shell；GIT、AI 聊天和 Log Watch（每组都是标签页） |
 | **media** | Ctrl+Shift+F5 | YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页 |
 | **desk** | Ctrl+Shift+F6 | 记事、计时器、计算器、任务、日历、剪贴板和实用工具 |
-| **ai** | Ctrl+Shift+F7 | 上下两个 AI 聊天，以及位于 GPU 窗格之上的 ELEC system |
+| **ai** | Ctrl+Shift+F7 | 上下两个 AI 聊天（第二个后面是 TRANSLATE，*unreleased*），以及位于 GPU 窗格之上的 ELEC system |
 | **cockpit** | Ctrl+Shift+F8 | 以 CLUSTER 面板取代系统栏，下方一个 shell，右侧上方是 Wi-Fi、下方是 Ethernet |
 | **retro** | Ctrl+Shift+F9 | ELEC-16 和 CHIP-8 作为一个窗格的标签页，下方是 16 段频谱 |
 | **blank** | Ctrl+Shift+F10 | 没有窗格，由你自己添加 |

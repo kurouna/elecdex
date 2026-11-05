@@ -53,7 +53,8 @@ is built on Electron 45, Svelte 5 and TypeScript 7, and is released under the GP
 - **The world**: weather (JMA, NWS, MET Norway), markets, RSS, earthquakes and tsunamis, satellites
   computed locally (SGP4), a globe of connections placed with a bundled GeoIP database.
 - **Work and AI**: Git (read, FETCH/PULL/PUSH), Docker, Log Watch, Claude Code sessions, AI chat over
-  any OpenAI-compatible or Anthropic endpoint with keys kept encrypted by the OS.
+  any OpenAI-compatible or Anthropic endpoint with keys kept encrypted by the OS; translation with
+  PLaMo 3 Translate run on this computer *(unreleased)*.
 - **Desk and media**: notes, tasks, a timer, the clipboard, a calendar and a calculator; a sound
   spectrum, a mixer and Now Playing.
 - **Machines of its own**: a CHIP-8 emulator and ELEC-16, an original 16-bit pocket computer with
@@ -82,7 +83,7 @@ details are in [Layout presets](docs/guide/presets.md).
     <td align="center" width="50%"><a href="docs/guide/presets.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk layout preset in the Paper theme"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · notes, tasks, timer, clipboard, calendar, utility</sub></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><a href="docs/guide/presets.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai layout preset in the Business (Dark) theme"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · two AI chats, the ELEC council, the GPU</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai layout preset in the Business (Dark) theme"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · two AI chats, the ELEC council, the GPU, TRANSLATE in a tab *(unreleased)*</sub></td>
     <td align="center" width="50%"><a href="docs/guide/presets.md#cockpit"><img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit layout preset in the Black theme"></a><br><sub><b>cockpit</b> · Ctrl+Shift+F8 · the whole machine on one CLUSTER pane</sub></td>
   </tr>
   <tr>
@@ -99,7 +100,7 @@ details are in [Layout presets](docs/guide/presets.md).
 | Network | Network status, Network traffic, World view, Connections, Wi-Fi, Ethernet | [Network panes](docs/guide/panes-network.md) |
 | Development | AI Agent, Git, Docker, Log Watch | [Development panes](docs/guide/panes-dev.md) |
 | World | Orbit, Markets, Weather, RSS, Quakes, earthquake and tsunami alerts | [World panes](docs/guide/panes-world.md) |
-| AI | AI chat, ELEC system | [AI panes](docs/guide/panes-ai.md) |
+| AI | AI chat, ELEC system, TRANSLATE *(unreleased)* | [AI panes](docs/guide/panes-ai.md) |
 | Desk | Calculator, Notes, Tasks, Timer, Clipboard, Calendar, Utility | [Desk panes](docs/guide/panes-desk.md) |
 | Media | Spectrum, Browser, YouTube, X, Mixer, Now playing | [Media panes](docs/guide/panes-media.md) |
 | Retro | CHIP-8, ELEC-16 (POCKET, HANDHELD, PLAY-320, SCI-128) | [Retro panes](docs/guide/panes-retro.md) |

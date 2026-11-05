@@ -491,6 +491,8 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
    （2026-11-06 に実装。LIVE は設定 `live`、ROUND TRIP はペインの状態 `roundTrip`。e2e は LIVE を切って打つ。
    LIVE の試験だけが入れる）
 5. 呼び出しキー（Ctrl+Shift+Y）、プリセットへの配置、ガイドとショット、README
+   （2026-11-06 に実装。ピッカーに出し、ai プリセットの 2 つ目の AI chat の裏のタブに置いた。ショットは代わりのエンジンの
+   `ELECDEX_LLAMA_STUB_MODE=demo` で、架空のリリースノートを本当の日本語に訳したものを見せる。リリースまで *unreleased*）
 6. 後の候補: .txt / .md を落として訳す、外部サーバーの鍵、CUDA のビルド
 
 **呼び出しキー（段階 5）**: ウィジェットは `popup: true`（レイアウトの store に触れない）。`SUMMONS`

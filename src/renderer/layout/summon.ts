@@ -17,6 +17,7 @@ import { popupPaneId } from './popup.js'
 export const SUMMONS = {
   'launcher.focus': 'launcher',
   'utility.focus': 'utility',
+  'translate.focus': 'translate',
 } as const satisfies Partial<Record<KeybindingAction, string>>
 
 export type SummonAction = keyof typeof SUMMONS

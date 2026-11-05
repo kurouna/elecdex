@@ -641,6 +641,8 @@ export interface TranslateApi {
   editBlock(paneId: string, index: number, text: string): Promise<void>
   retryBlock(paneId: string, index: number): Promise<void>
   roundTrip(paneId: string, lang: string): Promise<void>
+  /** The clipboard's text for Ctrl+Shift+Y, or null when it holds none. */
+  clipboardText(): Promise<string | null>
   glossaries(): Promise<Glossary[]>
   /** Adds or replaces a glossary, whole; a problem when it is not one. */
   glossarySave(glossary: Glossary): Promise<{ problem: string } | null>

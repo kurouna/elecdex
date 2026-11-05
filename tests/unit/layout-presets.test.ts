@@ -194,8 +194,8 @@ describe('LAYOUT_PRESETS', () => {
     ])
   })
 
-  it('stacks two chats beside the council in ai, the council with the wider column and the GPU under it', () => {
-    expect(places('ai')).toEqual([['aichat'], ['aichat'], ['elec'], ['gpu']])
+  it('stacks two chats beside the council in ai, TRANSLATE behind the second, the council wider and the GPU under it', () => {
+    expect(places('ai')).toEqual([['aichat'], ['aichat', 'translate'], ['elec'], ['gpu']])
     const shape = layoutShape(presetTree(presetById('ai') as LayoutPreset))
     const row = (widget: string) => shape.find((r) => r.widget === widget)
     expect(row('elec')?.w ?? 0).toBeGreaterThan(row('aichat')?.w ?? 0)

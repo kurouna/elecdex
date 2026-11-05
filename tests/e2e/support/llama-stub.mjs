@@ -4,6 +4,8 @@
 // from the input, so a spec can tell what came back for what it sent: `[lang] text`, then the
 // glossary terms the prompt carried (` {pane=ペイン}`) and ` {ctx}` when it carried a context.
 //
+// ELECDEX_LLAMA_STUB_MODE=demo (the README's shot): the made-up release notes of DEMO in real
+// Japanese, and their round trips back into English, a little reworded.
 // ELECDEX_LLAMA_STUB_MODE: slow-boot (503 for 1.5 s), silent-boot (writes only /health request
 // lines and never becomes ready), crash-mid (ends while writing), no-stop (the stream ends with no
 // stop chunk), limit (stop_type limit).
@@ -41,8 +43,27 @@ function extras(prompt) {
   return `${terms.length ? ` {${terms.join(',')}}` : ''}${context ? ' {ctx}' : ''}`
 }
 
+/** The demo's sentences and what they come back as: made up, for the screenshots only. */
+const DEMO = {
+  'Release notes': 'リリースノート',
+  'The metrics collector now runs in its own process, so a slow disk never holds up the window.':
+    'メトリクスの収集は独立したプロセスで動くようになり、ディスクが遅くてもウィンドウが止まらなくなりました。',
+  'Panes behind a tab stop reading what they do not chart, and take it up again as soon as they are shown.':
+    'タブの裏にあるペインは、グラフにしないものを読むのをやめ、表示されるとすぐに読み直します。',
+  'Translation runs on this PC: nothing you translate leaves this machine.':
+    '翻訳はこの PC で動きます。訳した文がこのマシンの外に出ることはありません。',
+  リリースノート: 'Release notes',
+  'メトリクスの収集は独立したプロセスで動くようになり、ディスクが遅くてもウィンドウが止まらなくなりました。':
+    'Metrics collection now runs in a separate process, so a slow disk no longer stops the window.',
+  'タブの裏にあるペインは、グラフにしないものを読むのをやめ、表示されるとすぐに読み直します。':
+    'Panes behind a tab stop reading what they do not graph, and read it again as soon as they are shown.',
+  '翻訳はこの PC で動きます。訳した文がこのマシンの外に出ることはありません。':
+    'Translation runs on this PC: text you translate never leaves this machine.',
+}
+
 function translate(prompt) {
   const { text, lang } = lastInput(prompt)
+  if (mode === 'demo' && DEMO[text]) return DEMO[text]
   if (text === 'Good morning.') return lang === 'ja' ? 'おはようございます。' : 'Good morning.'
   return `[${lang}] ${text}${extras(prompt)}`
 }

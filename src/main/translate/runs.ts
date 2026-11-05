@@ -168,7 +168,18 @@ export class TranslateRuns {
     const run = this.#runs.get(paneId)
     const block = run?.view.blocks[index]
     if (!run || !block || block.state === 'running' || block.state === 'queued') return
+    this.#dropTrip(run, block)
     this.#patch(run, { index, text, edited: true, state: 'done', note: null, trip: null })
+    // A TRANSLATE run already in the history is written there again, mended (§7).
+    if (run.view.mode === 'translate' && run.view.state === 'done' && run.recorded) {
+      run.recorded = false
+      this.#recorded(run)
+    }
+  }
+
+  /** A round trip being written of a block about to change is called off: its text is the old one's. */
+  #dropTrip(run: Run, block: BlockView): void {
+    if (block.trip?.state === 'running') run.abort?.abort()
   }
 
   /** RETRY (§6.1): one block written again, in its place, with the blocks before it as history. */
@@ -176,7 +187,10 @@ export class TranslateRuns {
     const run = this.#runs.get(paneId)
     const block = run?.view.blocks[index]
     if (!run || !block || block.state === 'running' || block.state === 'queued') return
+    this.#dropTrip(run, block)
     this.#patch(run, { index, text: '', state: 'queued', note: null, edited: false, trip: null })
+    // Written again, it is recorded again when it is done (§7: the entry is rewritten).
+    if (run.view.mode === 'translate') run.recorded = false
     if (run.view.state !== 'running') this.#setState(run, 'running', null)
     if (!this.#queue.includes(paneId)) this.#queue.push(paneId)
     this.#pump()
@@ -188,13 +202,24 @@ export class TranslateRuns {
    */
   roundTrip(paneId: string, lang: string): void {
     const run = this.#runs.get(paneId)
-    if (!run) return
+    // A translation stopped is not compared (§6.4): its trips would run on with no STOP to reach.
+    if (!run || run.view.state === 'stopped') return
+    if (run.tripLang !== null && run.tripLang !== lang) {
+      // Into another language: the trips there were go, every block is asked again.
+      for (const block of run.view.blocks) {
+        this.#dropTrip(run, block)
+        if (block.trip) this.#patch(run, { index: block.index, trip: null })
+      }
+    }
     run.tripLang = lang
     let asked = false
     for (const block of run.view.blocks) {
       if (block.state !== 'done' || block.trip?.state === 'done' || block.trip?.state === 'running')
         continue
-      this.#patch(run, { index: block.index, trip: { text: '', state: 'queued', score: null } })
+      this.#patch(run, {
+        index: block.index,
+        trip: { text: '', state: 'queued', score: null, lang },
+      })
       asked = true
     }
     if (!asked) return
@@ -269,7 +294,12 @@ export class TranslateRuns {
     if (run.recorded || run.liveRecord !== null) return
     run.liveRecord = this.#deps.setTimer(() => {
       run.liveRecord = null
-      if (this.#runs.get(run.view.paneId) === run) this.#recorded(run)
+      const paneId = run.view.paneId
+      // Round trips or a RETRY at work: recorded when they end (#finish comes back here), never
+      // half done. A pane closed meanwhile (nobody follows, no reload holds it) is not recorded,
+      // though its run waits a little longer to be dropped (§7).
+      const shown = (this.#followers.get(paneId) ?? 0) > 0 || this.#held.has(paneId)
+      if (this.#runs.get(paneId) === run && run.view.state === 'done' && shown) this.#recorded(run)
     }, LIVE_RECORD_MS)
   }
 
@@ -744,11 +774,18 @@ function inherit(run: Run, old: Run): void {
     (a.context ?? '') === (b.context ?? '') &&
     (a.glossaryId ?? null) === (b.glossaryId ?? null)
   if (!same) return
+  run.tripLang = old.tripLang
   const written = new Map<string, BlockView>()
   for (const block of old.view.blocks) if (block.state === 'done') written.set(block.source, block)
   run.view.blocks = run.view.blocks.map((block) => {
     const found = written.get(block.source)
     if (!found) return block
-    return { ...found, index: block.index, lead: block.lead, trip: null }
+    // A round trip back already is the same block's: kept, not asked again at every pause.
+    return {
+      ...found,
+      index: block.index,
+      lead: block.lead,
+      trip: found.trip?.state === 'done' ? found.trip : null,
+    }
   })
 }

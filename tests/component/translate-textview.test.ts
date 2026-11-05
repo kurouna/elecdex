@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defaultSettings } from '../../src/shared/settings'
 import type { TranslateBoard } from '../../src/shared/translate/board'
 import type { RunEvent, RunView } from '../../src/shared/translate/run'
 import { stubMatchMedia, stubResizeObserver } from './support/dom.ts'
@@ -7,6 +8,7 @@ import { settle } from './support/settle.ts'
 
 const { default: TextView } = await import('../../src/renderer/widgets/translate/TextView.svelte')
 const { RunFollower } = await import('../../src/renderer/widgets/translate/run-follower.svelte.ts')
+const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
 
 /**
  * TEXT mounted (docs/translate.md §3): what its effects do with the source and the run, and the
@@ -57,15 +59,15 @@ const runOf = (source: string, state: RunView['state'] = 'done'): RunView => ({
 })
 
 let pane = 0
-function mount() {
+function mount(paneState: Record<string, unknown> = {}, visible = true) {
   const paneId = `tv-${++pane}`
   const follower = new RunFollower(paneId)
-  render(TextView, {
+  const view = render(TextView, {
     props: {
       paneId,
       board,
-      paneState: {},
-      visible: true,
+      paneState,
+      visible,
       follower,
       onsetup: () => {},
       onengine: () => {},
@@ -77,7 +79,7 @@ function mount() {
     handler?.({ paneId, seq, kind: 'snapshot', run: run && { ...run, paneId } })
     await settle()
   }
-  return { paneId, send }
+  return { paneId, send, view }
 }
 
 beforeEach(() => {
@@ -87,6 +89,8 @@ beforeEach(() => {
   translate = {
     run: vi.fn(async () => ({ version: 1 })),
     stop: vi.fn(),
+    roundTrip: vi.fn(async () => undefined),
+    cancelLive: vi.fn(),
     follow: vi.fn((_paneId: string, h: (event: RunEvent) => void) => {
       handler = h
       return () => {}
@@ -143,5 +147,69 @@ describe('TEXT', () => {
     await fireEvent.keyDown(blocks, { key: 'Enter' })
     await settle()
     expect(screen.getByTestId('translate-source')).toBeTruthy()
+  })
+})
+
+describe('TEXT with LIVE and ROUND TRIP', () => {
+  const withLive = (live: boolean) => {
+    const settings = defaultSettings()
+    appearance.settings = { ...settings, translate: { ...settings.translate, live } }
+  }
+
+  it('asks LIVE 0.6 s after the typing stops, and Ctrl+Enter takes its place', async () => {
+    vi.useFakeTimers()
+    try {
+      withLive(true)
+      mount()
+      const source = screen.getByTestId('translate-source') as HTMLTextAreaElement
+      await fireEvent.input(source, { target: { value: 'Hello.' } })
+      vi.advanceTimersByTime(500)
+      expect(translate.run).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(100)
+      expect(translate.run).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'live' }))
+      translate.run?.mockClear()
+      await fireEvent.input(source, { target: { value: 'Hello again.' } })
+      await fireEvent.keyDown(source, { key: 'Enter', ctrlKey: true })
+      vi.advanceTimersByTime(1000)
+      expect((translate.run?.mock.calls ?? []).map((c) => (c[0] as { mode: string }).mode)).toEqual(
+        ['translate'],
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('asks nothing while LIVE is off', async () => {
+    vi.useFakeTimers()
+    try {
+      withLive(false)
+      mount()
+      await fireEvent.input(screen.getByTestId('translate-source'), { target: { value: 'Hello.' } })
+      vi.advanceTimersByTime(2000)
+      expect(translate.run).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('asks for the round trips of a finished run once, only while the pane is seen', async () => {
+    withLive(false)
+    const hidden = mount({ srcLang: 'en', roundTrip: true }, false)
+    await hidden.send(runOf('Hello.'))
+    expect(translate.roundTrip).not.toHaveBeenCalled()
+    await hidden.view.rerender({ visible: true })
+    await settle()
+    expect(translate.roundTrip).toHaveBeenCalledTimes(1)
+    expect(translate.roundTrip).toHaveBeenCalledWith(hidden.paneId, 'en')
+    await hidden.send(runOf('Hello.'), 2)
+    expect(translate.roundTrip).toHaveBeenCalledTimes(1)
+  })
+
+  it('says so when AUTO cannot tell what to go back into', async () => {
+    withLive(false)
+    const { send } = mount({ roundTrip: true })
+    await send(runOf('Hi.'))
+    expect(screen.getByTestId('translate-trip-needs-lang')).toBeTruthy()
+    expect(translate.roundTrip).not.toHaveBeenCalled()
   })
 })

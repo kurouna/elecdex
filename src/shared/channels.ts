@@ -191,6 +191,8 @@ export const CH = {
     retryBlock: 'translate:retry-block',
     /** ROUND TRIP (§6.4): every written block back into a language, scored. */
     roundTrip: 'translate:round-trip',
+    /** Ctrl+Shift+Y: the clipboard's text, read once by main (its stand-in in the tests). */
+    clipboardText: 'translate:clipboard-text',
     /** The glossaries (§6.3): the list, one saved whole, one removed. */
     glossaries: 'translate:glossaries',
     glossarySave: 'translate:glossary-save',

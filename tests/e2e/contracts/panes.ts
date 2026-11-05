@@ -206,7 +206,6 @@ export const PANES: PaneRow[] = [
     seen: { modules: ['translate'] },
     popup: true,
     zoom: 'full',
-    unlisted: true,
   },
   { widget: 'orbit', seen: { modules: ['orbits'] }, popup: true, zoom: 'full' },
   {

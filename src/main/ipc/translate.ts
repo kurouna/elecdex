@@ -1,4 +1,5 @@
 import { CH } from '@shared/channels'
+import { MAX_SOURCE_CHARS } from '@shared/translate/blocks'
 import { PLAMO_LICENSE_URL } from '@shared/translate/board'
 import { historyRow } from '@shared/translate/history'
 import { isSourceLang } from '@shared/translate/languages'
@@ -6,6 +7,7 @@ import { PANE_ID, RunRequestSchema } from '@shared/translate/run'
 import { app, BrowserWindow, dialog, net, shell, type WebContents } from 'electron'
 import { RunFollowers } from '../translate/followers.js'
 import { TranslateService } from '../translate/service.js'
+import type { ClipboardTextReader } from './clipboard.js'
 import { whenPageGoes, whenPageLoads } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 import { PageSubscribers, registerTable } from './table.js'
@@ -24,7 +26,10 @@ const MAX_BLOCK_TEXT = 80_000
 /** A glossary's or a history entry's id. */
 const ENTRY_ID = /^[\w-]{1,40}$/
 
-export function registerTranslateIpc(settings: SettingsHandle): {
+export function registerTranslateIpc(
+  settings: SettingsHandle,
+  clipboardText: ClipboardTextReader,
+): {
   dispose: () => void
   /** elecdex is quitting: the engine, a fetch and the hashing end now (§4.3). */
   quit: () => void
@@ -156,6 +161,11 @@ export function registerTranslateIpc(settings: SettingsHandle): {
       [CH.translate.roundTrip]: (_event, rawPane, rawLang) => {
         const paneId = paneOf(rawPane)
         if (paneId !== null && isSourceLang(rawLang)) service.runs.roundTrip(paneId, rawLang)
+      },
+      // Ctrl+Shift+Y (§12): the clipboard's text once, to translate; nothing for any other copy.
+      [CH.translate.clipboardText]: async () => {
+        const text = await clipboardText()
+        return text !== null && text.trim() !== '' ? text.slice(0, MAX_SOURCE_CHARS) : null
       },
       [CH.translate.glossaries]: () => service.library.glossaries(),
       [CH.translate.glossarySave]: (_event, raw) => service.library.saveGlossary(raw),

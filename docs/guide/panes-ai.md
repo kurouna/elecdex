@@ -2,13 +2,14 @@ English | [日本語](panes-ai.ja.md) | [简体中文](panes-ai.zh-CN.md)
 
 # AI panes — elecdex
 
-elecdex is a science-fiction terminal emulator and system monitor for Windows, macOS and Linux. This page covers its two language-model panes: **AI chat**, which talks to a model you run yourself (Ollama, LM Studio, llama.cpp or any OpenAI-compatible server) or to a hosted service you have an API key for (Anthropic, OpenAI, Gemini, OpenRouter), and the **ELEC system**, which puts a yes-or-no motion to a council of three models and resolves their votes. It describes the providers and their two dialects, where API keys are kept, how a long conversation is fitted to a model's context window, attached files and their limits, and what the panes deliberately do not do. elecdex is developed and used on Windows; on macOS and Linux it has been built and run only by the automated tests and is not sufficiently verified by hand.
+elecdex is a science-fiction terminal emulator and system monitor for Windows, macOS and Linux. This page covers its language-model panes: **AI chat**, which talks to a model you run yourself (Ollama, LM Studio, llama.cpp or any OpenAI-compatible server) or to a hosted service you have an API key for (Anthropic, OpenAI, Gemini, OpenRouter), and the **ELEC system**, which puts a yes-or-no motion to a council of three models and resolves their votes. It describes the providers and their two dialects, where API keys are kept, how a long conversation is fitted to a model's context window, attached files and their limits, and what the panes deliberately do not do. elecdex is developed and used on Windows; on macOS and Linux it has been built and run only by the automated tests and is not sufficiently verified by hand.
 
 **On this page**
 
 - [ai preset](#ai-preset)
 - [AI chat](#ai-chat)
 - [ELEC system](#elec-system)
+- [TRANSLATE](#translate)
 - [See also](#see-also)
 
 ## ai preset
@@ -18,7 +19,7 @@ elecdex is a science-fiction terminal emulator and system monitor for Windows, m
   <br><sub>ai · Business (Dark) — the answers are a stand-in's, made for the picture</sub>
 </p>
 
-The **ai** preset (Ctrl+Shift+F7) holds two AI chat panes one over the other, and on the right the ELEC system over the [GPU](panes-system.md#gpu) pane, which shows the GPU's load and how full its own memory is: what a model run on this machine leans on. Both kinds of AI pane ask a provider only when you send something, so the preset costs nothing until then.
+The **ai** preset (Ctrl+Shift+F7) holds two AI chat panes one over the other, and on the right the ELEC system over the [GPU](panes-system.md#gpu) pane, which shows the GPU's load and how full its own memory is: what a model run on this machine leans on. Both kinds of AI pane ask a provider only when you send something, so the preset costs nothing until then. Behind the second chat, as a tab, is [TRANSLATE](#translate) *(unreleased)*: PLaMo 3 Translate run on this computer, whose engine starts only with the first translation.
 
 - **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI, Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by the operating system and never reach the page, and conversations stay on your computer. Text files, images and PDFs go with a question - picked with **+**, dropped on the pane or pasted as a picture; an image is made small and drawn again before it is sent, so what a camera wrote into the file (where a photo was taken) never leaves.
 - **ELEC system** — put a yes-or-no motion to a council of three models: LOGOS (logic), ETHOS (ethics) and PATHOS (feeling) each judge it from their own standpoint and vote APPROVE, REJECT or ABSTAIN, and the pane resolves it by majority or unanimity. The seats use the providers of the AI chat - the same model in all three will do.
@@ -213,9 +214,51 @@ With **2 rounds** each unit then reads the others' first statements and votes ag
 - **again** puts the same motion to the council as it is seated now; **log** lists past deliberations with their resolutions, to reopen, export as markdown or delete. Up to 200 deliberations are kept; a new one is refused past this.
 - While the council sits, its light runs at the display's rate and costs about 70% of one CPU core (measured on the developer's machine); waiting for a motion, nothing moves and the pane costs about 0.5%. It is not in the default layout.
 
+## TRANSLATE
+
+*(unreleased)*
+
+<p align="center">
+  <img src="../screenshots/pane-translate.jpg" alt="The TRANSLATE pane on its own: made-up release notes in English on the left, four blocks joined by numbered links on the spine to their Japanese translation on the right, each translated block followed by its round trip back into English with a chrF score bar; the toolbar shows EN to JA, the polite form, and ROUND TRIP turned on">
+  <br><sub>TRANSLATE · a stand-in engine with made-up text</sub>
+</p>
+
+TRANSLATE runs Preferred Networks' PLaMo 3 Translate on this computer through llama.cpp's `llama-server`, between 53 languages and Easy Japanese (やさしい日本語). The source is cut into blocks at blank lines and translated block by block, in order, each with the two blocks before it as history, so terms and tone stay consistent; the spine between the two sides joins each block to its translation. Main starts the engine on the first translation and stops it after a while unused; the page never talks to the engine itself.
+
+| | |
+| --- | --- |
+| Where | A tab behind the second AI chat in the **ai** preset (Ctrl+Shift+F7); or add it from the picker (Ctrl+Shift+A, "translate"). **Ctrl+Shift+Y** brings it up with the clipboard's text and translates it at once (a pop-up when no TRANSLATE pane is in the layout). Can be brought forward to fill the window (Ctrl+Shift+Z). Not in the default layout. |
+| Reads / data source | The engine: the llama-server build elecdex fetches (llama.cpp b12110), your own llama-server (b7563 or later, chosen in the engine settings), or a llama-server at another address. The model: one PLaMo 3 Translate GGUF file (0.8B, 2B, 8B or 31B, in Q4_K_M, Q4_0, Q3_K_M or Q2_K), fetched once in the setup. Files live in `translate/` in the app's data folder (userData): `engine.json`, `engine/`, `models/`, `glossaries.json`, `history.json`, `llama-server.pid`. |
+| Updates | Nothing runs until something is translated. The engine starts with the first translation (its log is shown while it loads) and stops after 10 minutes unused (5, 10, 30 or never). A translation streams in; main passes it to the pane every 100 ms. With **LIVE** on, a translation is asked 0.6 s after the typing stops, and only the blocks that changed are written again. |
+| Platforms | The fetched engine: Vulkan and CPU builds on Windows (x64; CPU only on Arm64), Metal on macOS (Apple silicon; CPU on Intel), Vulkan and CPU on Linux (x64). With the device on AUTO a GPU build is tried first, and the CPU build takes over when it cannot start. macOS and Linux are not sufficiently verified by hand. |
+| Privacy | What you translate stays on this computer: the engine listens on 127.0.0.1 only, with a key of its own the page never sees. Only a llama-server you choose at another address receives the text, and the pane's footer says so ("sent to …"). The source and the context are never written into the layout; the history is a file on this computer and can be turned off. The clipboard is read only when you press Ctrl+Shift+Y, and a copy marked private (a password manager's) is never read. |
+| Settings | `settings.json` → `translate`: `modelId` (default `plamo3-2b-q4km`), `ctx` (4096, 8192, 16384 or 32768; default 16384), `device` (`auto` or `cpu`), `idleMinutes` (5, 10, 30 or 0 for never; default 10), `live` (default true), `saveHistory` (default true). Where the engine comes from is kept apart, in `translate/engine.json`, and changes only in the pane. In the pane: the languages, the form, the glossary, ROUND TRIP. |
+
+### Setting up
+
+The first time, **> set up translation** walks through five steps: **ENGINE** (the fetched build, your own llama-server, or an address), **MODEL** (four sizes, each with how well it fits this computer's memory), **LICENCE** (the PLaMo Community License, which must be agreed to), **FETCH** (the engine and the model, with PAUSE, RESUME and CANCEL; a paused or broken download resumes where it stopped) and **READY**, which translates one sentence through the engine as a test. Every file is checked against the sha256 elecdex pins before it is used.
+
+### Translating
+
+- **Languages** — the source is one of the 53 or **AUTO**, which lets the model judge; the target is one of the 53 or Easy Japanese. On AUTO the pane writes `AUTO ≈ EN` when the letters make the language certain (kana, hangul and other scripts, or clearly more of one language's common words), and then the languages can be swapped. The recent languages come first in each list.
+- **Form** — PLAIN (だ・である) or POLITE (です・ます), into Japanese only.
+- **TRANSLATE** (Ctrl+Enter) writes every block again; **STOP** (Ctrl+.) stops: the block being written stays, marked, and the ones after it are left untranslated. A block too long for the context is said and skipped; one cut at the length limit is marked.
+- **Glossary** — named lists of terms, each for one target language or for any (a Japanese glossary is used into Easy Japanese too). Only the terms a block holds go with it, longest first, 50 at most; a term ending in a letter of a spaced script is matched as a whole word. Terms can be pasted as TSV or CSV. A glossary for another language is not used, and the pane says so.
+- **Context** — up to 2,000 characters of what the text is and who reads it, sent with every block and never translated.
+- **ROUND TRIP** — every translated block is put back into the source language and compared with the source by chrF; a score under 70 is shown in the warning colour.
+- **A block's buttons** — RETRY writes it again in its place; EDIT mends it by hand, and the blocks written after it take the mended text as history; COPY copies it. Resting on a number of the spine shows the block's tokens, time and history.
+- **HISTORY** — one entry for each draft of the source (typing on replaces it, a new text adds one), 200 entries and 4 MB at most, the oldest going first. A translation stopped part way is kept marked with how far it got. A row opens the translation again in TEXT; CLEAR asks by its second press.
+
+### What it does not do
+
+- It does not translate files; text is typed or pasted, up to 20,000 characters.
+- It does not use a hosted service: the model runs on this computer, or on a llama-server you name.
+- It does not keep a key for an external llama-server; one that asks for a key is refused.
+
 ## See also
 
 - [Presets: ai](presets.md#ai)
 - [Network access and data sources](data-sources.md) — what the AI panes send, and to whom.
 - [Design: §5.7 AI chat and §5.8 ELEC system](../architecture.md) (Japanese).
+- [Design: TRANSLATE](../translate.md) (Japanese).
 - [Decision log](../decisions.md) (Japanese).

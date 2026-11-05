@@ -196,6 +196,12 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `ai.providers` | `[]` | 你列出的 AI 提供方；密钥不保存在这里 |
 | `ai.systemPrompt` | `""` | 在每段对话之前发送 |
 | `ai.compact` | `false` | 对话超出提供方的窗口时，请模型生成摘要 |
+| `translate.modelId` | `"plamo3-2b-q4km"` | TRANSLATE 的模型 *(unreleased)*：清单中的一项；引擎的来源不在这里（`translate/engine.json`） |
+| `translate.ctx` | `16384` | 引擎的上下文：4096、8192、16384 或 32768 个 token |
+| `translate.device` | `"auto"` | `auto`：GPU 版，无法启动则用 CPU 版；`cpu`：只用 CPU 版 |
+| `translate.idleMinutes` | `10` | 未使用这么多分钟后停止引擎：5、10、30，0 为从不 |
+| `translate.live` | `true` | 停止输入 0.6 秒后翻译，只重新翻译有变化的块 |
+| `translate.saveHistory` | `true` | 把译文保留在 HISTORY 中（`translate/history.json`） |
 | `agents.sources` | `["claude-code"]` | AI AGENT 窗格读取谁的记录 |
 | `git.openCommand` | `""` | git 窗格打开双击文件的方式（填入 `{file}`、`{line}`、`{dir}`；作为程序运行，从不经过 shell）；为空则使用系统的应用。只能在此文件中设置 |
 | `logWatch.keepLines` | `5000` | 可回滚的行数：1000、5000、20000 或 50000 |

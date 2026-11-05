@@ -2,6 +2,7 @@
 import type { TranslateBoard } from '@shared/translate/board'
 import type { HistoryRow } from '@shared/translate/history'
 import { untrack } from 'svelte'
+import { onSummoned } from '../../lib/summoned.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
@@ -36,6 +37,15 @@ const follower = new RunFollower(untrack(() => paneId))
 const following = $derived(visible || isActive(follower.run))
 $effect(() => (following ? follower.follow() : undefined))
 
+// Out of sight, a LIVE run stops (§8.5): what is typed for the screen is not written unseen. Here,
+// not in TEXT, which HISTORY and ENGINE take the place of.
+$effect(() => {
+  const run = follower.run
+  if (!visible && run !== null && run.mode === 'live' && isActive(run)) {
+    window.elecdex.translate.cancelLive(paneId)
+  }
+})
+
 const settings = $derived(appearance.settings.translate)
 const lamp = $derived(board ? phaseLamp(board.engine.phase) : null)
 const where = $derived(board ? whereTextGoes(board.engine) : null)
@@ -65,6 +75,22 @@ async function openEntry(row: HistoryRow): Promise<void> {
   })
   view = 'text'
 }
+
+/**
+ * Ctrl+Shift+Y (§12): the pane comes up with the clipboard's text, read by main, and translates
+ * it at once (recorded as a TRANSLATE is); with no text there, it opens on an empty source.
+ */
+let summon = $state.raw<{ seq: number; text: string } | null>(null)
+let summons = 0
+onSummoned(
+  () => paneId,
+  () => {
+    void window.elecdex.translate.clipboardText().then((text) => {
+      view = 'text'
+      summon = { seq: ++summons, text: text ?? '' }
+    })
+  },
+)
 
 function openSetup(): void {
   if (board) step = firstSetupStep(board)
@@ -109,6 +135,7 @@ function openSetup(): void {
             onsetup={openSetup}
             onengine={() => (view = 'engine')}
             onhistory={() => (view = 'history')}
+            {summon}
           />
         {/if}
       </div>
