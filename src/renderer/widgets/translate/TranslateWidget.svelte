@@ -28,6 +28,27 @@ const visible = $derived(seen(inTab))
 
 let board = $state.raw<TranslateBoard | null>(null)
 let view = $state<'text' | 'history' | 'setup' | 'engine'>('text')
+
+/**
+ * A model chosen in ENGINE or SETUP and not yet the settings' (user's request 2026-11-06): written
+ * only by DONE with a model in place, or by SETUP's fetch, which fetches the settings' model.
+ * Leaving the two views any other way puts it back: a model only listed must never become the one
+ * TEXT translates with.
+ */
+let pendingModel = $state<string | null>(null)
+const chosenModel = $derived(pendingModel ?? board?.selectedModel ?? '')
+
+$effect(() => {
+  if (view !== 'engine' && view !== 'setup') pendingModel = null
+})
+
+/** The chosen model becomes the settings', and the engine follows it; awaited before a fetch. */
+async function commitModel(): Promise<void> {
+  const id = pendingModel
+  if (id !== null && id !== board?.selectedModel)
+    await appearance.patch({ translate: { modelId: id } })
+  pendingModel = null
+}
 let step = $state(1)
 
 $effect(() => (visible ? window.elecdex.translate.subscribe((next) => (board = next)) : undefined))
@@ -120,11 +141,20 @@ function openSetup(at?: number): void {
             {board}
             {step}
             onstep={(next) => (step = next)}
-            onselect={(modelId) => void appearance.patch({ translate: { modelId } })}
+            chosen={chosenModel}
+            onselect={(modelId) => (pendingModel = modelId)}
+            oncommit={commitModel}
             ondone={() => (view = 'text')}
           />
         {:else if view === 'engine'}
-          <EngineView {board} {settings} onsetup={(at) => openSetup(at)} ondone={() => (view = 'text')} />
+          <EngineView
+            {board}
+            {settings}
+            chosen={chosenModel}
+            onpick={(modelId) => (pendingModel = modelId)}
+            onsetup={(at) => openSetup(at)}
+            ondone={() => void commitModel().then(() => (view = 'text'))}
+          />
         {:else}
           <TextView
             {paneId}

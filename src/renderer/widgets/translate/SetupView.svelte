@@ -24,18 +24,19 @@ interface Props {
   board: TranslateBoard
   step: number
   onstep: (step: number) => void
+  /** The model chosen in SETUP: written to the settings only when its fetch starts. */
+  chosen: string
   onselect: (modelId: string) => void
+  oncommit: () => Promise<void>
   ondone: () => void
 }
 
-const { board, step, onstep, onselect, ondone }: Props = $props()
+const { board, step, chosen, onstep, onselect, oncommit, ondone }: Props = $props()
 const api = window.elecdex.translate
 
 const STEPS = ['Engine', 'Model', 'Licence', 'Fetch', 'Ready']
-const selected = $derived(MODELS.find((m) => m.id === board.selectedModel))
-const consented = $derived(
-  board.models.find((m) => m.id === board.selectedModel)?.consentAt != null,
-)
+const selected = $derived(MODELS.find((m) => m.id === chosen))
+const consented = $derived(board.models.find((m) => m.id === chosen)?.consentAt != null)
 const recommended = $derived(recommendedModel(MODELS, board.machine.ramGB, board.machine.vramGB))
 let agreed = $state(false)
 let address = $state('')
@@ -49,11 +50,7 @@ $effect(() => {
 
 $effect(() => {
   // A fetch that has finished moves on to READY by itself.
-  if (
-    step === 4 &&
-    board.fetch === null &&
-    board.models.find((m) => m.id === board.selectedModel)?.installed
-  )
+  if (step === 4 && board.fetch === null && board.models.find((m) => m.id === chosen)?.installed)
     onstep(5)
 })
 
@@ -90,6 +87,8 @@ async function next(): Promise<void> {
   if (step === 3) {
     if (!selected) return
     await api.consent(selected.id)
+    // Now the choice is the settings': main fetches, and then runs, the settings' model.
+    await oncommit()
     const answer = await api.fetch()
     if (answer) {
       problem = answer.problem

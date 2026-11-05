@@ -14,17 +14,20 @@ import { formatBytes, phaseLamp } from './translate-view.ts'
 interface Props {
   board: TranslateBoard
   settings: Settings['translate']
+  /** The model chosen here: the settings' until another is picked, written only by DONE. */
+  chosen: string
+  onpick: (modelId: string) => void
   /** Opens SETUP, at a step when one is given. */
   onsetup: (step?: number) => void
   ondone: () => void
 }
 
-const { board, settings, onsetup, ondone }: Props = $props()
+const { board, settings, chosen, onpick, onsetup, ondone }: Props = $props()
 const api = window.elecdex.translate
 /** Whether the chosen model is fetched: a model only listed has nothing to run. */
 const selectedInPlace = $derived(
   board.engine.source === 'external' ||
-    (board.models.find((m) => m.id === board.selectedModel)?.installed ?? false),
+    (board.models.find((m) => m.id === chosen)?.installed ?? false),
 )
 let logs = $state<string[]>([])
 let address = $state('')
@@ -110,13 +113,13 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
       <div class="models">
         {#each MODELS as model (model.id)}
           {@const state = board.models.find((m) => m.id === model.id)}
-          <i class="rd" class:on={model.id === board.selectedModel}></i>
-          <button type="button" class="name" onclick={() => patch({ modelId: model.id })}>{model.params} {model.quant}</button>
+          <i class="rd" class:on={model.id === chosen}></i>
+          <button type="button" class="name" onclick={() => onpick(model.id)}>{model.params} {model.quant}</button>
           <span class="mono muted">{formatBytes(model.bytes)}</span>
           {#if state?.installed}
             <button type="button" class="btn" onclick={() => void api.removeModel(model.id)}>Delete</button>
           {:else}
-            <span class="small">{state && state.partialBytes > 0 ? `${formatBytes(state.partialBytes)} fetched` : model.id === board.selectedModel ? 'not fetched' : ''}</span>
+            <span class="small">{state && state.partialBytes > 0 ? `${formatBytes(state.partialBytes)} fetched` : model.id === chosen ? 'not fetched' : ''}</span>
           {/if}
         {/each}
       </div>

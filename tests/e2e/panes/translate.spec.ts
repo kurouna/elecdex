@@ -674,3 +674,46 @@ test('ENGINE sends a model chosen and not fetched to its setup, not back to TEXT
     await close()
   }
 })
+
+test('a model chosen in ENGINE is put back when the view is left without DONE', async () => {
+  const { page, close, userData } = await launch(undefined, withModel())
+  try {
+    const pane = page.locator('[data-testid=pane]').first()
+    await expect(pane).toContainText('plamo-3-translate-2b-q4km')
+    await page.getByTestId('translate-settings-toggle').click()
+    await page.getByTestId('translate-engine').getByRole('button', { name: '0.8B Q4_K_M' }).click()
+    await expect(page.getByTestId('translate-engine-done')).toContainText('Set up this model')
+    // Left by the settings button, neither DONE nor a fetch: nothing was chosen.
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(page.getByTestId('translate-text')).toBeVisible()
+    await expect(pane).toContainText('plamo-3-translate-2b-q4km')
+    const settings = JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8'))
+    expect(settings.translate?.modelId ?? 'plamo3-2b-q4km').toBe('plamo3-2b-q4km')
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(page.getByTestId('translate-engine-done')).toHaveText('Done')
+    await expect(page.getByTestId('translate-engine')).not.toContainText('not fetched')
+  } finally {
+    await close()
+  }
+})
+
+test('a model chosen for SETUP becomes the settings’ only when its fetch starts', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    const pane = page.locator('[data-testid=pane]').first()
+    await page.getByTestId('translate-settings-toggle').click()
+    await page.getByTestId('translate-engine').getByRole('button', { name: '0.8B Q4_K_M' }).click()
+    await page.getByTestId('translate-engine-done').click()
+    await expect(page.getByTestId('translate-setup').locator('.steps li.now')).toContainText(
+      'Model',
+    )
+    await page.getByTestId('translate-next').click()
+    await expect(pane).toContainText('plamo-3-translate-2b-q4km')
+    await page.getByTestId('translate-agree').click()
+    await page.getByTestId('translate-next').click()
+    // Agreed and fetching: now it is the pane's model.
+    await expect(pane).toContainText('plamo-3-translate-0.8b-q4km')
+  } finally {
+    await close()
+  }
+})
