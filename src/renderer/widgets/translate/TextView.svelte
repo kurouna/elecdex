@@ -1,6 +1,7 @@
 <script lang="ts">
 import { joinBlocks, MAX_SOURCE_CHARS, splitBlocks } from '@shared/translate/blocks'
 import type { TranslateBoard } from '@shared/translate/board'
+import { CHRF_WARN } from '@shared/translate/chrf'
 import { detectLanguage } from '@shared/translate/detect'
 import { type Glossary, glossaryApplies, MAX_CONTEXT_CHARS } from '@shared/translate/glossary'
 import { continuesDraft } from '@shared/translate/history'
@@ -9,6 +10,7 @@ import type { BlockView, RunView } from '@shared/translate/run'
 import { untrack } from 'svelte'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
+import { appearance } from '../../stores/appearance.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import BlockCard from './BlockCard.svelte'
 import GlossaryDrawer from './GlossaryDrawer.svelte'
@@ -100,6 +102,7 @@ let lastText = untrack(() => text)
 function onSourceInput(): void {
   if (!continuesDraft(lastText, text)) draftId = newDraftId()
   lastText = text
+  liveRun()
 }
 
 // ---------------------------------------------------------------------------
@@ -170,11 +173,18 @@ const mode = $derived(targetMode(board, run))
 const canRun = $derived(text.trim() !== '' && !tooLong && board.engine.phase !== 'absent')
 
 async function translate(): Promise<void> {
-  if (!canRun) return
-  problem = null
+  if (liveTimer !== null) clearTimeout(liveTimer)
+  liveTimer = null
   editing = false
   // Focus stays in the pane (the source turns into its blocks), so Ctrl+. reaches it.
   root?.focus()
+  await ask('translate')
+}
+
+/** TRANSLATE writes every block again; LIVE only what changed, while the text is still typed. */
+async function ask(mode: 'translate' | 'live'): Promise<void> {
+  if (!canRun) return
+  problem = null
   const answer = await api.run({
     paneId,
     draftId,
@@ -184,7 +194,7 @@ async function translate(): Promise<void> {
     ...(takesForm(tgtLang) ? { form } : {}),
     ...(glossaryId ? { glossaryId } : {}),
     ...(context.trim() ? { context } : {}),
-    mode: 'translate',
+    mode,
   })
   if ('problem' in answer) problem = answer.problem
 }
@@ -248,6 +258,100 @@ function onKey(event: KeyboardEvent): void {
 // ---------------------------------------------------------------------------
 
 $effect(() => (busy && visible ? pulse.use() : undefined))
+
+// ---------------------------------------------------------------------------
+// LIVE (§6.1): 0.6 s after the typing stops, only the blocks that changed are written again
+// ---------------------------------------------------------------------------
+
+const LIVE_MS = 600
+const live = $derived(appearance.settings.translate.live)
+let liveTimer: ReturnType<typeof setTimeout> | null = null
+
+function liveRun(): void {
+  if (liveTimer !== null) clearTimeout(liveTimer)
+  liveTimer = null
+  if (!live || !canRun) return
+  liveTimer = setTimeout(() => {
+    liveTimer = null
+    void ask('live')
+  }, LIVE_MS)
+}
+
+$effect(() => () => {
+  if (liveTimer !== null) clearTimeout(liveTimer)
+})
+
+// A change of language, form or glossary asks again too, once there is something written - not
+// the first look at them when the pane mounts (a moved pane would ask for nothing new).
+let settled = false
+$effect(() => {
+  void [srcLang, tgtLang, form, glossaryId]
+  if (!settled) {
+    settled = true
+    return
+  }
+  if (untrack(() => run !== null && run.mode === 'live' && text.trim() !== '')) untrack(liveRun)
+})
+
+// Out of sight, a LIVE run stops (§8.5): what is typed for the screen is not written unseen.
+$effect(() => {
+  if (!visible && run !== null && run.mode === 'live' && isActive(run)) api.cancelLive(paneId)
+})
+
+// ---------------------------------------------------------------------------
+// ROUND TRIP (§6.4): every written block back into the source language, compared
+// ---------------------------------------------------------------------------
+
+const roundTrip = $derived(paneState?.roundTrip === true)
+/** The language a round trip goes back into: the source's, or on AUTO what was certain. */
+const tripLang = $derived(srcLang !== 'auto' ? srcLang : (run?.detected ?? detected))
+let tripAsked = ''
+
+$effect(() => {
+  const r = run
+  if (!roundTrip || r === null || tripLang === null) return
+  const wanting = r.blocks.some((b) => b.state === 'done' && b.trip === null)
+  // Once a run is done, and once for each version (a block mended or written again asks anew).
+  const key = `${r.version}:${r.blocks.map((b) => (b.trip === null ? b.index : '')).join(',')}`
+  if (r.state !== 'done' || !wanting || key === tripAsked) return
+  tripAsked = key
+  void api.roundTrip(paneId, tripLang)
+})
+
+// ---------------------------------------------------------------------------
+// A block's own buttons: RETRY, EDIT, COPY (§3)
+// ---------------------------------------------------------------------------
+
+let editingBlock = $state<number | null>(null)
+let blockDraft = $state('')
+
+function editBlock(block: BlockView): void {
+  editingBlock = block.index
+  blockDraft = block.text
+}
+
+function saveBlock(): void {
+  const index = editingBlock
+  editingBlock = null
+  if (index === null || run === null) return
+  if (run.blocks[index]?.text !== blockDraft) void api.editBlock(paneId, index, blockDraft)
+}
+
+function onBlockEditKey(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    editingBlock = null
+  } else if (event.key === 'Enter' && event.ctrlKey && !event.isComposing) {
+    event.preventDefault()
+    event.stopPropagation()
+    saveBlock()
+  }
+}
+
+function focusOnMount(node: HTMLTextAreaElement): void {
+  queueMicrotask(() => node.focus())
+}
 
 // ---------------------------------------------------------------------------
 // The spine: links and numbers, laid out by offsets when anything moves
@@ -456,6 +560,8 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
       <button type="button" class="tog" aria-pressed={drawer === 'context'} data-testid="translate-context-toggle" onclick={() => toggleDrawer('context')}>
         Context{#if context.trim() !== ''}<i class="dot"></i>{/if}
       </button>
+      <button type="button" class="tog" aria-pressed={roundTrip} data-testid="translate-trip-toggle" onclick={() => widgetState.patch(paneId, { roundTrip: roundTrip ? undefined : true })}>Round trip</button>
+      <button type="button" class="tog" aria-pressed={live} data-testid="translate-live-toggle" onclick={() => void appearance.patch({ translate: { live: !live } })}><i class="lamp-live"></i>Live</button>
     </div>
   </div>
 
@@ -583,8 +689,12 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
                 role="presentation"
                 onpointerenter={() => (hot = block.index)}
                 onpointerleave={() => (hot = null)}
-              ><!-- One line: the block keeps its own line breaks (pre-wrap), and the template's would show. -->{#if block.state === 'done'}<i class="fresh" aria-hidden="true"></i>{/if}{block.text}{#if block.state === 'running'}<span class="caret"></span>{/if}{#if block.state === 'queued' && block.text === ''}<span class="qd">waiting</span>{/if}{#if block.state === 'none' && block.text === ''}<span class="qd">not translated</span>{/if}{#if block.state === 'stopped'}<span class="tag warn">stopped</span>{/if}{#if block.note}<span class="tag" class:warn={block.state !== 'failed'} class:bad={block.state === 'failed'}>{block.note}</span>{/if}</div>
+                data-edited={block.edited}
+              ><!-- One line: the block keeps its own line breaks (pre-wrap), and the template's would show. -->{#if editingBlock === block.index}<textarea class="block-edit" bind:value={blockDraft} use:focusOnMount aria-label="Edit block {blockNumber(block.index)}" data-testid="translate-block-edit" onkeydown={onBlockEditKey} onblur={saveBlock}></textarea>{:else}{#if block.state === 'done'}<i class="fresh" aria-hidden="true"></i>{/if}{block.text}{#if block.state === 'running'}<span class="caret"></span>{/if}{#if block.state === 'queued' && block.text === ''}<span class="qd">waiting</span>{/if}{#if block.state === 'none' && block.text === ''}<span class="qd">not translated</span>{/if}{#if block.state === 'stopped'}<span class="tag warn">stopped</span>{/if}{#if block.edited}<span class="tag info">edited</span>{/if}{#if block.note}<span class="tag" class:warn={block.state !== 'failed'} class:bad={block.state === 'failed'}>{block.note}</span>{/if}{#if !busy && (block.state === 'done' || block.state === 'failed' || block.state === 'stopped' || block.state === 'none')}<span class="acts"><button type="button" data-testid="translate-block-retry" onclick={() => void api.retryBlock(paneId, block.index)}>Retry</button><button type="button" data-testid="translate-block-edit-open" onclick={() => editBlock(block)}>Edit</button><button type="button" onclick={() => void navigator.clipboard?.writeText(block.text).catch(() => {})}>Copy</button></span>{/if}{#if block.trip}<span class="trip" data-testid="translate-trip"><span class="back"><span class="tl">{langCode(tripLang ?? '')}</span>{block.trip.text}{#if block.trip.state === 'running'}<span class="caret"></span>{/if}{#if block.trip.state === 'failed'}<span class="tag bad">round trip failed</span>{/if}</span>{#if block.trip.score !== null}<span class="match" class:low={block.trip.score < CHRF_WARN} data-testid="translate-trip-score"><span class="bar"><i style:width="{block.trip.score}%"></i></span>{block.trip.score}</span>{/if}</span>{/if}{/if}</div>
             {/each}
+            {#if roundTrip && tripLang === null && run.state === 'done'}
+              <p class="reason" data-testid="translate-trip-needs-lang">Round trip: choose the source language; AUTO could not tell it.</p>
+            {/if}
             {#if run.state === 'stopped' && run.reason}
               <p class="reason" data-testid="translate-reason">{run.reason} <kbd>Ctrl+Enter</kbd> translates again.</p>
             {/if}
@@ -612,6 +722,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
             class="node"
             class:hot={hot === link.index}
             data-st={link.state}
+            data-edited={run?.blocks[link.index]?.edited ?? false}
             data-pulse={pulse.phase}
             data-testid="translate-node"
             style:left="{link.x}px"
@@ -666,6 +777,23 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 .ctxbox { width: 100%; min-height: 4.2rem; resize: vertical; background: transparent; border: 1px solid var(--panel-rule); color: var(--text); padding: 0.3rem 0.4rem; font-family: var(--font-ui); font-size: var(--step--1); line-height: 1.5; outline: none; }
 .ctxbox:focus { border-color: var(--accent); }
 .small { font-size: var(--step--2); letter-spacing: 0.03em; }
+.tog .lamp-live { width: 0.45rem; height: 0.45rem; border: 1px solid var(--text-muted); display: inline-block; transform: rotate(45deg); }
+.tog[aria-pressed="true"] .lamp-live { border-color: var(--ok); background: var(--ok); }
+.tag.info { color: var(--info); }
+.dst .seg[data-edited="true"] { border-left-color: var(--info); }
+.node[data-edited="true"] { border-color: var(--info); color: var(--info); }
+.acts { position: absolute; top: 0.1rem; right: 0.3rem; display: flex; gap: 0.15rem; opacity: 0; background: var(--panel-bg-raised); padding: 0 0.15rem; border: 1px solid var(--panel-rule); white-space: nowrap; }
+.seg:hover .acts, .acts:focus-within { opacity: 1; }
+.acts button { border: 0; background: transparent; color: var(--text-muted); padding: 0 0.3rem; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; line-height: 1.6; }
+.acts button:hover { color: var(--accent); }
+.block-edit { width: 100%; min-height: 4rem; resize: vertical; background: color-mix(in srgb, var(--info) 8%, transparent); border: 1px dashed var(--info); color: var(--text); font: inherit; padding: 0.2rem 0.3rem; outline: none; }
+.trip { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: baseline; margin-top: 0.2rem; padding-top: 0.2rem; border-top: 1px dashed var(--panel-rule); font-family: var(--font-ui); font-size: var(--step--1); line-height: 1.45; color: var(--text-muted); white-space: pre-wrap; }
+.trip .tl { font-size: var(--step--2); letter-spacing: var(--tracking-wide); margin-right: 0.35rem; }
+.match { display: inline-flex; align-items: center; gap: 0.3rem; font-family: var(--font-mono); font-size: var(--step--2); white-space: nowrap; color: var(--ok); }
+.match .bar { width: 2.6rem; height: 0.3rem; background: var(--accent-faint); position: relative; }
+.match .bar i { position: absolute; inset: 0 auto 0 0; background: var(--ok); }
+.match.low { color: var(--warn); }
+.match.low .bar i { background: var(--warn); }
 .small.warn { color: var(--warn); }
 
 .duo { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 2.8rem minmax(0, 1fr); }

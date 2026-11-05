@@ -340,6 +340,8 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 | `stop` | ページ → main（on） | `{paneId}` の依頼を止める（STOP、Ctrl+.） |
 | `cancelLive` | ページ → main（on） | `{paneId}` の LIVE の依頼を取り消す（ペインが隠れたとき） |
 | `editBlock` | ページ → main（handle） | `{paneId, index, text}` 直したブロック（その後の履歴に使う） |
+| `retryBlock` | ページ → main（handle） | `{paneId, index}` 1 ブロックだけ、その場で訳し直す（設計の `run` の `only` の代わり。依頼を作り直さない） |
+| `roundTrip` | ページ → main（handle） | `{paneId, lang}` 訳し終えたブロックを `lang` へ訳し戻す（`run` の `mode: 'roundtrip'` の代わり。同じ依頼の中で、訳のあとに 1 つずつ） |
 | `engineStart` / `engineStop` / `engineRestart` | handle | 盤の STOP / RESTART、FAULT の RESTART |
 | `setSource` | handle | `'fetched'|'own'|'external'`。own は選び済みのときだけ、external はアドレスを入れて TEST が通ったときだけ |
 | `pickOwn` | handle | main のファイル選択。`--version` を確かめて `engine.json` に置く |
@@ -486,6 +488,8 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 3. 用語集・文脈・HISTORY・翻訳元の判定
    （2026-11-06 に実装。文脈は下書きと同じくページのメモリと main の依頼にだけ持ち、ペインの状態には入れない）
 4. ROUND TRIP・LIVE・EDIT したブロックを履歴に
+   （2026-11-06 に実装。LIVE は設定 `live`、ROUND TRIP はペインの状態 `roundTrip`。e2e は LIVE を切って打つ。
+   LIVE の試験だけが入れる）
 5. 呼び出しキー（Ctrl+Shift+Y）、プリセットへの配置、ガイドとショット、README
 6. 後の候補: .txt / .md を落として訳す、外部サーバーの鍵、CUDA のビルド
 

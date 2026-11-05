@@ -690,6 +690,11 @@ const api: ElecdexApi = {
     run: (request) => ipcRenderer.invoke(CH.translate.run, request),
     follow: (paneId, handler) => followRun(paneId, handler),
     stop: (paneId) => ipcRenderer.send(CH.translate.stop, paneId),
+    cancelLive: (paneId) => ipcRenderer.send(CH.translate.cancelLive, paneId),
+    editBlock: (paneId, index, text) =>
+      ipcRenderer.invoke(CH.translate.editBlock, paneId, index, text),
+    retryBlock: (paneId, index) => ipcRenderer.invoke(CH.translate.retryBlock, paneId, index),
+    roundTrip: (paneId, lang) => ipcRenderer.invoke(CH.translate.roundTrip, paneId, lang),
     glossaries: () => ipcRenderer.invoke(CH.translate.glossaries),
     glossarySave: (glossary) => ipcRenderer.invoke(CH.translate.glossarySave, glossary),
     glossaryRemove: (id) => ipcRenderer.invoke(CH.translate.glossaryRemove, id),

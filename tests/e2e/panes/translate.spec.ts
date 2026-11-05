@@ -256,9 +256,14 @@ test('ENGINE refuses an external address that is not one, before asking the netw
 /* ---- TEXT (phase 2): block by block through the stand-in engine ---- */
 
 /** A pane with a model in place (its size is not checked to start) and the stand-in engine. */
-function withModel(mode = '') {
+/**
+ * A pane with a model in place (its size is not checked to start) and the stand-in engine. LIVE
+ * is off unless a test turns it on: a test types, and only TRANSLATE should ask then.
+ */
+function withModel(mode = '', live = false) {
   return {
     layout: single('translate'),
+    settings: { translate: { live } },
     files: { [`translate/models/plamo3-2b-q4km/${FILE}`]: 'x' },
     env: { ELECDEX_TRANSLATE_MANIFEST: manifest(), ELECDEX_LLAMA_STUB_MODE: mode },
   }
@@ -482,6 +487,67 @@ test('HISTORY keeps a translation, opens it again in TEXT, and forgets it', asyn
     await expect(rows).toHaveCount(1)
     await page.getByTestId('translate-history-clear').click()
     await expect(rows).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+/* ---- phase 4: LIVE, EDIT, RETRY, ROUND TRIP ---- */
+
+test('LIVE translates as it is typed, and writes again only the block that changed', async () => {
+  const { page, close } = await launch(undefined, withModel('', true))
+  try {
+    const source = page.getByTestId('translate-source')
+    await source.fill('First block.\n\nSecond block.')
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await expect(blocks(page).first()).toContainText('[ja] First block.')
+    // The typing goes on in the source; only the second block changes.
+    await source.fill('First block.\n\nSecond block, changed.')
+    await expect(blocks(page).nth(1)).toContainText('[ja] Second block, changed.', {
+      timeout: 15_000,
+    })
+    await expect(source).toBeFocused()
+    expect(await watching(page, 'translate')).toContain('run:translate')
+  } finally {
+    await close()
+  }
+})
+
+test('EDIT mends a block by hand, and RETRY writes one again', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await translate(page, 'One.\n\nTwo.')
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await blocks(page).first().hover()
+    await blocks(page).first().getByTestId('translate-block-edit-open').click()
+    const editor = page.getByTestId('translate-block-edit')
+    await editor.fill('手で直した一。')
+    await editor.press('Control+Enter')
+    await expect(blocks(page).first()).toContainText('手で直した一。')
+    await expect(blocks(page).first()).toHaveAttribute('data-edited', 'true')
+    await blocks(page).nth(1).hover()
+    await blocks(page).nth(1).getByTestId('translate-block-retry').click()
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await expect(blocks(page).nth(1)).toContainText('[ja] Two.')
+    // The mended block stays as it was mended.
+    await expect(blocks(page).first()).toContainText('手で直した一。')
+  } finally {
+    await close()
+  }
+})
+
+test('ROUND TRIP puts each block back into the source language and scores it', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await page.getByTestId('translate-src-lang').click()
+    await page.getByTestId('translate-lang-src').locator('[data-code="en"]').click()
+    await page.getByTestId('translate-trip-toggle').click()
+    await translate(page, 'Round and round.\n\nAgain.')
+    await expect(page.getByTestId('translate-trip-score')).toHaveCount(2, { timeout: 20_000 })
+    // The stand-in writes "[en] [ja] Round and round.": close, but not the same.
+    await expect(page.getByTestId('translate-trip').first()).toContainText(
+      '[en] [ja] Round and round.',
+    )
   } finally {
     await close()
   }

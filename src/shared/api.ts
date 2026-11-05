@@ -636,6 +636,11 @@ export interface TranslateApi {
   follow(paneId: string, handler: (event: RunEvent) => void): () => void
   /** STOP: the block being written stays, the rest is not translated. */
   stop(paneId: string): void
+  /** The pane went out of sight: a LIVE run stops. */
+  cancelLive(paneId: string): void
+  editBlock(paneId: string, index: number, text: string): Promise<void>
+  retryBlock(paneId: string, index: number): Promise<void>
+  roundTrip(paneId: string, lang: string): Promise<void>
   glossaries(): Promise<Glossary[]>
   /** Adds or replaces a glossary, whole; a problem when it is not one. */
   glossarySave(glossary: Glossary): Promise<{ problem: string } | null>

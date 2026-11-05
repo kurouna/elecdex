@@ -8,6 +8,20 @@ import { isSourceLang, isTargetLang } from './languages.js'
  * the page: a snapshot when a page follows, then patches gathered every 100 ms.
  */
 
+/** A block put back into the source language (ROUND TRIP, §6.4), and how much it kept (chrF). */
+export interface Trip {
+  text: string
+  state: 'queued' | 'running' | 'done' | 'failed'
+  score: number | null
+}
+
+export interface TripPatch {
+  text?: string
+  append?: string
+  state?: Trip['state']
+  score?: number | null
+}
+
 /** queued: waits its turn; running: being written; done; stopped: STOP, or the run was stopped; failed; none: never translated. */
 export type BlockState = 'queued' | 'running' | 'done' | 'stopped' | 'failed' | 'none'
 
@@ -26,6 +40,10 @@ export interface BlockView {
   history: number
   /** Glossary terms that went with it. */
   terms: number
+  /** Changed by hand (EDIT): what later blocks take as history. */
+  edited: boolean
+  /** Its round trip, once asked for. */
+  trip: Trip | null
 }
 
 /** waiting: behind another pane's; running; done; stopped (with a reason). */
@@ -35,6 +53,8 @@ export interface RunView {
   paneId: string
   draftId: string
   version: number
+  /** TRANSLATE (Ctrl+Enter) or LIVE (as it is typed): recorded differently (§7). */
+  mode: 'translate' | 'live'
   srcLang: string
   tgtLang: string
   form: 'plain' | 'polite' | null
@@ -62,6 +82,9 @@ export interface BlockPatch {
   ms?: number | null
   history?: number
   terms?: number
+  edited?: boolean
+  /** null takes the round trip away; a patch changes it. */
+  trip?: TripPatch | null
 }
 
 export type RunEvent =
@@ -92,7 +115,7 @@ export const RunRequestSchema = z.object({
     .regex(/^[\w-]{1,40}$/)
     .optional(),
   context: z.string().max(MAX_CONTEXT_CHARS).optional(),
-  mode: z.enum(['translate']),
+  mode: z.enum(['translate', 'live']),
 })
 
 export type RunRequest = z.infer<typeof RunRequestSchema>
@@ -121,5 +144,32 @@ export function applyBlockPatch(block: BlockView, patch: BlockPatch): BlockView 
     ...(patch.ms === undefined ? {} : { ms: patch.ms }),
     ...(patch.history === undefined ? {} : { history: patch.history }),
     ...(patch.terms === undefined ? {} : { terms: patch.terms }),
+    ...(patch.edited === undefined ? {} : { edited: patch.edited }),
+    ...(patch.trip === undefined ? {} : { trip: patchedTrip(block.trip, patch.trip) }),
   }
+}
+
+function patchedTrip(trip: Trip | null, patch: TripPatch | null): Trip | null {
+  if (patch === null) return null
+  const base = trip ?? { text: '', state: 'queued' as const, score: null }
+  return {
+    text: (patch.text ?? base.text) + (patch.append ?? ''),
+    state: patch.state ?? base.state,
+    score: patch.score === undefined ? base.score : patch.score,
+  }
+}
+
+/** Two patches of one round trip as one: a whole text drops what was appended before it. */
+export function mergeTripPatch(
+  before: TripPatch | null | undefined,
+  after: TripPatch | null,
+): TripPatch | null {
+  if (after === null || before === null || before === undefined) return after
+  const append =
+    after.text !== undefined ? (after.append ?? '') : (before.append ?? '') + (after.append ?? '')
+  const merged: TripPatch = { ...before, ...after }
+  if (after.text === undefined && before.text !== undefined) merged.text = before.text
+  if (append) merged.append = append
+  else delete merged.append
+  return merged
 }

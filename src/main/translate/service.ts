@@ -262,6 +262,8 @@ export class TranslateService {
           ms: null,
           history: 0,
           terms: 0,
+          edited: false,
+          trip: null,
         })),
         tail: entry.tail,
         detected: entry.detected,

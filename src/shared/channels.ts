@@ -184,6 +184,13 @@ export const CH = {
     runEvent: 'translate:run-event',
     /** renderer -> main, fire and forget: STOP a pane's run. */
     stop: 'translate:stop',
+    /** renderer -> main, fire and forget: a pane went out of sight while LIVE wrote (§8.5). */
+    cancelLive: 'translate:cancel-live',
+    /** A block's translation changed by hand (EDIT), or written again (RETRY) (§6.1). */
+    editBlock: 'translate:edit-block',
+    retryBlock: 'translate:retry-block',
+    /** ROUND TRIP (§6.4): every written block back into a language, scored. */
+    roundTrip: 'translate:round-trip',
     /** The glossaries (§6.3): the list, one saved whole, one removed. */
     glossaries: 'translate:glossaries',
     glossarySave: 'translate:glossary-save',

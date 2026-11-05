@@ -7,6 +7,7 @@ import {
 } from '../../src/main/translate/llama'
 import {
   FLUSH_MS,
+  LIVE_RECORD_MS,
   mergePatch,
   ORPHAN_MS,
   RELOAD_HOLD_MS,
@@ -495,6 +496,8 @@ describe('TranslateRuns with a glossary, a context and the history', () => {
           ms: null,
           history: 0,
           terms: 0,
+          edited: false,
+          trip: null,
         },
       ],
       tail: '',
@@ -506,6 +509,142 @@ describe('TranslateRuns with a glossary, a context and the history', () => {
     expect(h.page('p1')).toMatchObject({ state: 'done', draftId: 'd9' })
     expect(h.calls).toEqual([])
     expect(records).toEqual([])
+  })
+})
+
+describe('TranslateRuns and LIVE, EDIT, RETRY, ROUND TRIP', () => {
+  const live = (paneId: string, text: string) => ({
+    ...request(paneId, text),
+    mode: 'live' as const,
+  })
+
+  it('LIVE writes again only the blocks that changed, taking the rest from the run it replaces', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(live('p1', 'One.\n\nTwo.'))
+    await answer(h, 'いち')
+    await answer(h, 'に')
+    h.runs.start(live('p1', 'One.\n\nTwo, changed.\n\nThree.'))
+    const changed = await answer(h, 'に改')
+    expect(changed.prompt).toContain('Two, changed.')
+    await answer(h, 'さん')
+    h.tick(FLUSH_MS)
+    // Three asked in all for the second run: the unchanged first block was not.
+    expect(h.calls).toHaveLength(4)
+    expect(h.page('p1')?.blocks.map((b) => b.text)).toEqual(['いち', 'に改', 'さん'])
+  })
+
+  it('LIVE takes nothing from a run in other languages, or with another context', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(live('p1', 'One.'))
+    await answer(h, 'いち')
+    h.runs.start({ ...live('p1', 'One.'), tgtLang: 'fr' })
+    await answer(h, 'un')
+    h.runs.start({ ...live('p1', 'One.'), tgtLang: 'fr', context: 'x' })
+    await answer(h, 'un')
+    expect(h.calls).toHaveLength(3)
+  })
+
+  it('records a LIVE run once its draft has rested, and never one replaced or stopped before', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(live('p1', 'One.'))
+    await answer(h, 'いち')
+    h.tick(LIVE_RECORD_MS - 1)
+    // Typed on before it rested: that one is never recorded.
+    h.runs.start(live('p1', 'One. And on.'))
+    await answer(h, 'いち、続き')
+    h.tick(LIVE_RECORD_MS)
+    expect(records.map((r) => r.blocks[0]?.text)).toEqual(['いち、続き'])
+    h.runs.start(live('p1', 'Other.'))
+    await h.settle()
+    h.runs.stop('p1')
+    h.tick(LIVE_RECORD_MS)
+    expect(records).toHaveLength(1)
+  })
+
+  it('stops a LIVE run when its pane goes out of sight, and leaves a TRANSLATE one alone', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.'))
+    await h.settle()
+    h.runs.cancelLive('p1')
+    expect(h.calls[0]?.signal.aborted).toBe(false)
+    h.runs.start(live('p1', 'B.'))
+    await h.settle()
+    h.runs.cancelLive('p1')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.state).toBe('stopped')
+  })
+
+  it('takes a block mended by hand as history for the ones written after it', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.\n\nTwo.\n\nThree.'))
+    await answer(h, 'いち')
+    // Mended while the second is written: the third takes the mended text as history.
+    h.runs.editBlock('p1', 0, '一（直した）')
+    const second = await answer(h, 'に')
+    expect(second.prompt).not.toContain('一（直した）')
+    const third = await answer(h, 'さん')
+    expect(third.prompt).toContain('一（直した）')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks[0]).toMatchObject({ text: '一（直した）', edited: true })
+  })
+
+  it('RETRY writes one block again in its place, with the blocks before it as history', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.\n\nTwo.'))
+    await answer(h, 'いち')
+    await answer(h, 'に')
+    h.runs.retry('p1', 0)
+    const again = await answer(h, 'イチ')
+    expect(again.prompt).not.toContain('に')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks.map((b) => b.text)).toEqual(['イチ', 'に'])
+    expect(h.page('p1')?.state).toBe('done')
+  })
+
+  it('ROUND TRIP puts every written block back, scores it, and records the run once', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'Hello.\n\nBye.'))
+    await answer(h, 'こんにちは。')
+    await answer(h, 'さようなら。')
+    h.runs.roundTrip('p1', 'en')
+    const back = await answer(h, 'Hello.')
+    // Into the source language, from the target, with no history.
+    expect(back.prompt).toContain('こんにちは。')
+    expect(back.prompt).not.toContain('Bye.')
+    await answer(h, 'Good bye.')
+    h.tick(FLUSH_MS)
+    const view = h.page('p1')
+    expect(view?.blocks.map((b) => [b.trip?.text, b.trip?.state])).toEqual([
+      ['Hello.', 'done'],
+      ['Good bye.', 'done'],
+    ])
+    expect(view?.blocks[0]?.trip?.score).toBe(100)
+    expect(view?.blocks[1]?.trip?.score).toBeLessThan(100)
+    expect(view?.state).toBe('done')
+    expect(records).toHaveLength(1)
+  })
+
+  it('a new request takes the round trips still waiting with it', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.\n\nB.'))
+    await answer(h, 'あ')
+    await answer(h, 'い')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    h.runs.start(request('p1', 'C.'))
+    await answer(h, 'う')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks.map((b) => b.trip)).toEqual([null])
   })
 })
 

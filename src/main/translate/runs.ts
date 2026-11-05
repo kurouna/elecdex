@@ -1,10 +1,14 @@
 import { splitBlocks, splitParts } from '@shared/translate/blocks'
+import { chrF } from '@shared/translate/chrf'
 import { detectLanguage } from '@shared/translate/detect'
 import { type Glossary, glossaryApplies, selectTerms, type Term } from '@shared/translate/glossary'
+import { EASY_JAPANESE, takesForm } from '@shared/translate/languages'
 import { buildPrompt, formFor, PFML_STOP, restore } from '@shared/translate/pfml3'
 import {
   applyBlockPatch,
   type BlockPatch,
+  type BlockView,
+  mergeTripPatch,
   type RunEvent,
   type RunRequest,
   type RunState,
@@ -27,6 +31,8 @@ export const FLUSH_MS = 100
 export const ORPHAN_MS = 5000
 /** A reload holds that clock until the page has loaded, but not longer than this. */
 export const RELOAD_HOLD_MS = 60_000
+/** A LIVE translation is recorded once its draft has not changed for this long (§7). */
+export const LIVE_RECORD_MS = 5000
 /** Room the answer needs at least, in tokens, before history is given up for it. */
 const MIN_ROOM = 64
 
@@ -70,6 +76,12 @@ interface Run {
   terms: readonly Term[]
   abort: AbortController | null
   orphan: unknown
+  /** Told to the history already: once a run, however its round trips go on. */
+  recorded: boolean
+  /** A finished LIVE run waits this long to be recorded. */
+  liveRecord: unknown
+  /** The language its round trips go back into (§6.4). */
+  tripLang: string | null
   pending: Map<number, BlockPatch>
   pendingRun: { state?: RunState; reason?: string | null }
   flush: unknown
@@ -101,55 +113,23 @@ export class TranslateRuns {
   start(request: RunRequest): number {
     const old = this.#runs.get(request.paneId)
     if (old) this.#retire(old)
-    const { blocks, tail } = splitBlocks(request.text)
-    const version = ++this.#version
     const busy = this.#queue.some((id) => id !== request.paneId)
     const glossary = request.glossaryId ? this.#deps.glossary(request.glossaryId) : null
-    const used = glossary !== null && glossaryApplies(glossary.targetLang, request.tgtLang)
-    const run: Run = {
-      terms: used && glossary ? glossary.terms : [],
-      view: {
-        paneId: request.paneId,
-        draftId: request.draftId,
-        version,
-        srcLang: request.srcLang,
-        tgtLang: request.tgtLang,
-        form: formFor(request.tgtLang, request.form) ?? null,
-        state: blocks.length === 0 ? 'done' : busy ? 'waiting' : 'running',
-        reason: null,
-        blocks: blocks.map((block, index) => ({
-          index,
-          lead: block.lead,
-          source: block.text,
-          text: '',
-          state: 'queued',
-          note: null,
-          tokens: null,
-          ms: null,
-          history: 0,
-          terms: 0,
-        })),
-        tail,
-        detected: request.srcLang === 'auto' ? detectLanguage(request.text) : null,
-        context: request.context ?? '',
-        glossary: glossary ? { name: glossary.name, used } : null,
-      },
-      request,
-      abort: null,
-      orphan: null,
-      pending: new Map(),
-      pendingRun: {},
-      flush: null,
-    }
+    const run = newRun(request, ++this.#version, busy, glossary)
+    const version = run.view.version
+    if (request.mode === 'live' && old) inherit(run, old)
+    const work = run.view.blocks.some((block) => block.state === 'queued')
+    if (!work) run.view.state = 'done'
     this.#runs.set(request.paneId, run)
-    if (blocks.length > 0 && !this.#queue.includes(request.paneId)) this.#queue.push(request.paneId)
-    if (blocks.length === 0) this.#queue = this.#queue.filter((id) => id !== request.paneId)
+    if (work && !this.#queue.includes(request.paneId)) this.#queue.push(request.paneId)
+    if (!work) this.#queue = this.#queue.filter((id) => id !== request.paneId)
     this.#deps.publish(this.#snapshotEvent(request.paneId, true))
     // Asked, and nobody follows it (closed in between): it must not run on unread.
     if (!this.#followers.get(request.paneId)) {
       this.#armOrphan(run, this.#held.has(request.paneId) ? RELOAD_HOLD_MS + ORPHAN_MS : ORPHAN_MS)
     }
     this.#deps.changed()
+    if (!work) this.#ended(run)
     this.#pump()
     return version
   }
@@ -163,25 +143,88 @@ export class TranslateRuns {
     for (const block of run.view.blocks) {
       if (block.state === 'running') this.#patch(run, { index: block.index, state: 'stopped' })
       else if (block.state === 'queued') this.#patch(run, { index: block.index, state: 'none' })
+      // Round trips not yet back go: a translation stopped is not compared.
+      if (block.trip && block.trip.state !== 'done')
+        this.#patch(run, { index: block.index, trip: null })
     }
     this.#setState(run, 'stopped', reason)
     this.#queue = this.#queue.filter((id) => id !== paneId)
     this.#flushNow(run)
-    this.#recorded(run)
+    // A LIVE run stopped part way is not recorded (§7): what was typed is still changing.
+    if (run.view.mode === 'translate') this.#recorded(run)
+  }
+
+  /** The pane went out of sight while LIVE was writing: it stops, as STOP does (§8.5). */
+  cancelLive(paneId: string): void {
+    if (this.#runs.get(paneId)?.view.mode === 'live')
+      this.stop(paneId, 'Stopped: the pane was hidden.')
+  }
+
+  /**
+   * EDIT (§6.1): a block's translation changed by hand. Blocks written after it take it as their
+   * history; the ones already written stay. Its round trip, now of another text, goes.
+   */
+  editBlock(paneId: string, index: number, text: string): void {
+    const run = this.#runs.get(paneId)
+    const block = run?.view.blocks[index]
+    if (!run || !block || block.state === 'running' || block.state === 'queued') return
+    this.#patch(run, { index, text, edited: true, state: 'done', note: null, trip: null })
+  }
+
+  /** RETRY (§6.1): one block written again, in its place, with the blocks before it as history. */
+  retry(paneId: string, index: number): void {
+    const run = this.#runs.get(paneId)
+    const block = run?.view.blocks[index]
+    if (!run || !block || block.state === 'running' || block.state === 'queued') return
+    this.#patch(run, { index, text: '', state: 'queued', note: null, edited: false, trip: null })
+    if (run.view.state !== 'running') this.#setState(run, 'running', null)
+    if (!this.#queue.includes(paneId)) this.#queue.push(paneId)
+    this.#pump()
+  }
+
+  /**
+   * ROUND TRIP (§6.4): every block written is put back into `lang` and compared with its source,
+   * one at a time in the same queue, with no history and no glossary.
+   */
+  roundTrip(paneId: string, lang: string): void {
+    const run = this.#runs.get(paneId)
+    if (!run) return
+    run.tripLang = lang
+    let asked = false
+    for (const block of run.view.blocks) {
+      if (block.state !== 'done' || block.trip?.state === 'done' || block.trip?.state === 'running')
+        continue
+      this.#patch(run, { index: block.index, trip: { text: '', state: 'queued', score: null } })
+      asked = true
+    }
+    if (!asked) return
+    if (run.view.state === 'done') this.#setState(run, 'running', null)
+    if (!this.#queue.includes(paneId)) this.#queue.push(paneId)
+    this.#pump()
   }
 
   /**
    * A finished translation put on a pane, from the history (HISTORY opens it): a run that is done,
    * followed and dropped as any other, and not recorded again.
    */
-  show(paneId: string, view: Omit<RunView, 'paneId' | 'version' | 'state' | 'reason'>): number {
+  show(
+    paneId: string,
+    view: Omit<RunView, 'paneId' | 'version' | 'state' | 'reason' | 'mode'>,
+  ): number {
     const old = this.#runs.get(paneId)
     if (old) this.#retire(old)
     this.#queue = this.#queue.filter((id) => id !== paneId)
     const version = ++this.#version
     const run: Run = {
       terms: [],
-      view: { ...structuredClone(view), paneId, version, state: 'done', reason: null },
+      view: {
+        ...structuredClone(view),
+        paneId,
+        version,
+        mode: 'translate',
+        state: 'done',
+        reason: null,
+      },
       request: {
         paneId,
         draftId: view.draftId,
@@ -192,6 +235,10 @@ export class TranslateRuns {
       },
       abort: null,
       orphan: null,
+      // From the history: never written there again.
+      recorded: true,
+      liveRecord: null,
+      tripLang: null,
       pending: new Map(),
       pendingRun: {},
       flush: null,
@@ -205,8 +252,25 @@ export class TranslateRuns {
 
   /** The history is told of a run that wrote something (§7): at its end, once. */
   #recorded(run: Run): void {
-    if (!run.view.blocks.some((block) => block.state === 'done')) return
+    if (run.recorded || !run.view.blocks.some((block) => block.state === 'done')) return
+    run.recorded = true
     this.#deps.record(structuredClone(run.view), run.request)
+  }
+
+  /**
+   * A run with nothing left to write: TRANSLATE is recorded now; LIVE once its draft has rested
+   * (a newer LIVE run replaces it, and a closed pane drops it, before then: neither is recorded).
+   */
+  #ended(run: Run): void {
+    if (run.view.mode === 'translate') {
+      this.#recorded(run)
+      return
+    }
+    if (run.recorded || run.liveRecord !== null) return
+    run.liveRecord = this.#deps.setTimer(() => {
+      run.liveRecord = null
+      if (this.#runs.get(run.view.paneId) === run) this.#recorded(run)
+    }, LIVE_RECORD_MS)
   }
 
   /** The engine was stopped, or its model or settings changed: every run stops (§8.5). */
@@ -269,6 +333,8 @@ export class TranslateRuns {
     run.abort?.abort()
     run.abort = null
     this.#clearOrphan(run)
+    if (run.liveRecord !== null) this.#deps.clearTimer(run.liveRecord)
+    run.liveRecord = null
     if (run.flush !== null) this.#deps.clearTimer(run.flush)
     run.flush = null
   }
@@ -302,11 +368,14 @@ export class TranslateRuns {
     })
   }
 
-  #nextWork(): { run: Run; index: number } | null {
+  #nextWork(): { run: Run; index: number; trip: boolean } | null {
     for (const paneId of [...this.#queue]) {
       const run = this.#runs.get(paneId)
       const block = run?.view.blocks.find((b) => b.state === 'queued')
-      if (run && block) return { run, index: block.index }
+      if (run && block) return { run, index: block.index, trip: false }
+      // Its round trips, once every block is written.
+      const back = run?.view.blocks.find((b) => b.trip?.state === 'queued')
+      if (run && back) return { run, index: back.index, trip: true }
       // Nothing left in it: done.
       this.#queue = this.#queue.filter((id) => id !== paneId)
       if (run && run.view.state !== 'stopped') this.#finish(run)
@@ -316,14 +385,68 @@ export class TranslateRuns {
 
   async #loop(): Promise<void> {
     for (let work = this.#nextWork(); work; work = this.#nextWork()) {
-      await this.#translateBlock(work.run, work.index)
+      if (work.trip) await this.#translateTrip(work.run, work.index)
+      else await this.#translateBlock(work.run, work.index)
     }
   }
 
   #finish(run: Run): void {
     this.#setState(run, 'done', null)
     this.#flushNow(run)
-    this.#recorded(run)
+    this.#ended(run)
+  }
+
+  /** One block's round trip: back into the source language, scored against the source (§6.4). */
+  async #translateTrip(run: Run, index: number): Promise<void> {
+    const controller = new AbortController()
+    run.abort = controller
+    const signal = controller.signal
+    this.#patch(run, { index, trip: { state: 'running' } })
+    this.#deps.begin()
+    try {
+      const block = run.view.blocks[index]
+      const lang = run.tripLang
+      if (!block || !lang) return
+      const endpoint = await this.#deps.ensure()
+      if (!this.#live(run, signal)) return
+      const from = run.view.tgtLang === EASY_JAPANESE ? 'ja' : run.view.tgtLang
+      const prompt = buildPrompt({
+        text: block.text,
+        target: lang,
+        source: from,
+        ...(takesForm(lang) ? { form: 'polite' as const } : {}),
+      })
+      const room = this.#deps.ctx() - (await this.#deps.tokenize(endpoint, prompt, signal))
+      let back = ''
+      await this.#deps.complete(
+        endpoint,
+        {
+          prompt,
+          n_predict: Math.max(64, Math.min(room, 1024)),
+          temperature: 0,
+          stop: PFML_STOP,
+          cache_prompt: true,
+        },
+        signal,
+        (piece) => {
+          if (!this.#live(run, signal)) return
+          const shown = restore(piece)
+          back += shown
+          this.#patch(run, { index, trip: { append: shown } })
+        },
+      )
+      if (!this.#live(run, signal)) return
+      this.#patch(run, {
+        index,
+        trip: { state: 'done', score: Math.round(chrF(block.source, back)) },
+      })
+    } catch {
+      if (this.#live(run, signal)) this.#patch(run, { index, trip: { state: 'failed' } })
+    } finally {
+      this.#deps.end()
+      if (run.abort === controller) run.abort = null
+      if (this.#runs.get(run.view.paneId) === run) this.#queueFlush(run)
+    }
   }
 
   #live(run: Run, signal: AbortSignal): boolean {
@@ -549,5 +672,83 @@ export function mergePatch(before: BlockPatch, after: BlockPatch): BlockPatch {
   if (after.text === undefined && before.text !== undefined) merged.text = before.text
   if (append) merged.append = append
   else delete merged.append
+  if (after.trip !== undefined) merged.trip = mergeTripPatch(before.trip, after.trip)
+  else if (before.trip !== undefined) merged.trip = before.trip
   return merged
+}
+
+/** A run as asked: every block waiting, the glossary's terms when it is for this target. */
+function newRun(
+  request: RunRequest,
+  version: number,
+  busy: boolean,
+  glossary: Glossary | null,
+): Run {
+  const { blocks, tail } = splitBlocks(request.text)
+  const used = glossary !== null && glossaryApplies(glossary.targetLang, request.tgtLang)
+  return {
+    terms: used && glossary ? glossary.terms : [],
+    view: {
+      paneId: request.paneId,
+      draftId: request.draftId,
+      version,
+      srcLang: request.srcLang,
+      tgtLang: request.tgtLang,
+      mode: request.mode,
+      form: formFor(request.tgtLang, request.form) ?? null,
+      state: busy ? 'waiting' : 'running',
+      reason: null,
+      blocks: blocks.map((block, index) => ({
+        index,
+        lead: block.lead,
+        source: block.text,
+        text: '',
+        state: 'queued',
+        note: null,
+        tokens: null,
+        ms: null,
+        history: 0,
+        terms: 0,
+        edited: false,
+        trip: null,
+      })),
+      tail,
+      detected: request.srcLang === 'auto' ? detectLanguage(request.text) : null,
+      context: request.context ?? '',
+      glossary: glossary ? { name: glossary.name, used } : null,
+    },
+    request,
+    abort: null,
+    orphan: null,
+    recorded: false,
+    liveRecord: null,
+    tripLang: null,
+    pending: new Map(),
+    pendingRun: {},
+    flush: null,
+  }
+}
+
+/**
+ * A LIVE run takes from the one it replaces every block written from the same source in the same
+ * languages, form, context and glossary (§6.1): only what changed is written again. History is
+ * not part of that: a block mended by hand would otherwise send every block after it again.
+ */
+function inherit(run: Run, old: Run): void {
+  const a = run.request
+  const b = old.request
+  const same =
+    a.srcLang === b.srcLang &&
+    a.tgtLang === b.tgtLang &&
+    a.form === b.form &&
+    (a.context ?? '') === (b.context ?? '') &&
+    (a.glossaryId ?? null) === (b.glossaryId ?? null)
+  if (!same) return
+  const written = new Map<string, BlockView>()
+  for (const block of old.view.blocks) if (block.state === 'done') written.set(block.source, block)
+  run.view.blocks = run.view.blocks.map((block) => {
+    const found = written.get(block.source)
+    if (!found) return block
+    return { ...found, index: block.index, lead: block.lead, trip: null }
+  })
 }

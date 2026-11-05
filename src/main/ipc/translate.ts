@@ -1,6 +1,7 @@
 import { CH } from '@shared/channels'
 import { PLAMO_LICENSE_URL } from '@shared/translate/board'
 import { historyRow } from '@shared/translate/history'
+import { isSourceLang } from '@shared/translate/languages'
 import { PANE_ID, RunRequestSchema } from '@shared/translate/run'
 import { app, BrowserWindow, dialog, net, shell, type WebContents } from 'electron'
 import { RunFollowers } from '../translate/followers.js'
@@ -16,6 +17,10 @@ import { PageSubscribers, registerTable } from './table.js'
  */
 
 const SOURCES = new Set(['fetched', 'own', 'external'])
+/** A block's place in a run, and the longest text EDIT may give one. */
+const blockIndex = (raw: unknown): raw is number =>
+  typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw < 10_000
+const MAX_BLOCK_TEXT = 80_000
 /** A glossary's or a history entry's id. */
 const ENTRY_ID = /^[\w-]{1,40}$/
 
@@ -121,6 +126,10 @@ export function registerTranslateIpc(settings: SettingsHandle): {
         const paneId = paneOf(raw)
         if (paneId !== null) service.runs.stop(paneId)
       },
+      [CH.translate.cancelLive]: (_event, raw) => {
+        const paneId = paneOf(raw)
+        if (paneId !== null) service.runs.cancelLive(paneId)
+      },
     },
     handle: {
       [CH.translate.engineStart]: async () => {
@@ -133,6 +142,20 @@ export function registerTranslateIpc(settings: SettingsHandle): {
         if (!parsed.success) return { problem: 'Not a translation request.' }
         if (service.engine.phase === 'absent') return { problem: 'Set up a model first.' }
         return { version: service.runs.start(parsed.data) }
+      },
+      [CH.translate.editBlock]: (_event, rawPane, rawIndex, rawText) => {
+        const paneId = paneOf(rawPane)
+        if (paneId === null || !blockIndex(rawIndex)) return
+        if (typeof rawText !== 'string' || rawText.length > MAX_BLOCK_TEXT) return
+        service.runs.editBlock(paneId, rawIndex, rawText)
+      },
+      [CH.translate.retryBlock]: (_event, rawPane, rawIndex) => {
+        const paneId = paneOf(rawPane)
+        if (paneId !== null && blockIndex(rawIndex)) service.runs.retry(paneId, rawIndex)
+      },
+      [CH.translate.roundTrip]: (_event, rawPane, rawLang) => {
+        const paneId = paneOf(rawPane)
+        if (paneId !== null && isSourceLang(rawLang)) service.runs.roundTrip(paneId, rawLang)
       },
       [CH.translate.glossaries]: () => service.library.glossaries(),
       [CH.translate.glossarySave]: (_event, raw) => service.library.saveGlossary(raw),

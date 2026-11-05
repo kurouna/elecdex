@@ -592,6 +592,46 @@ export const IPC_ROWS: IpcRow[] = [
     subscribes: true,
   },
   {
+    method: 'translate.cancelLive',
+    bad: [[123], [WIN_PATH], [big(1000)]],
+    refused: { ignored: true },
+    probe: { call: 'translate.watching' },
+  },
+  {
+    method: 'translate.editBlock',
+    bad: [
+      [WIN_PATH, 0, 'x'],
+      ['p1', -1, 'x'],
+      ['p1', 1.5, 'x'],
+      ['p1', 0, 123],
+      ['p1', 0, big(100_000)],
+    ],
+    refused: { resolves: undefined },
+    probe: { call: 'translate.watching' },
+  },
+  {
+    method: 'translate.retryBlock',
+    bad: [
+      [WIN_PATH, 0],
+      ['p1', -1],
+      ['p1', 'x'],
+    ],
+    refused: { resolves: undefined },
+    probe: { call: 'translate.watching' },
+  },
+  {
+    method: 'translate.roundTrip',
+    bad: [
+      [WIN_PATH, 'en'],
+      ['p1', 'xx'],
+      // Easy Japanese is a target only, never what a round trip goes back into.
+      ['p1', 'ja(easy)'],
+      ['p1', 123],
+    ],
+    refused: { resolves: undefined },
+    probe: { call: 'translate.watching' },
+  },
+  {
     method: 'translate.glossarySave',
     bad: [
       ['x'],
