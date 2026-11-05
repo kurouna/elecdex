@@ -66,6 +66,7 @@ import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
 import type { SnippetAdded, SnippetDraft, SnippetView } from '@shared/snippets'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from '@shared/tasks'
+import type { TranslateBoard } from '@shared/translate/board'
 import type { UpdateStatus } from '@shared/updates'
 import type { AwakeState } from '@shared/utility'
 import type { OfficeInfo } from '@shared/weather'
@@ -352,6 +353,14 @@ const subscribeDocker = keyedSubscriptions<DockerBoard>({
   subscribe: CH.docker.subscribe,
   unsubscribe: CH.docker.unsubscribe,
   event: CH.docker.update,
+  keyOf: () => 'board',
+})
+
+/** The one TRANSLATE board: engine, models and fetch, shared by every pane showing it. */
+const subscribeTranslate = keyedSubscriptions<TranslateBoard>({
+  subscribe: CH.translate.subscribe,
+  unsubscribe: CH.translate.unsubscribe,
+  event: CH.translate.board,
   keyOf: () => 'board',
 })
 
@@ -653,6 +662,24 @@ const api: ElecdexApi = {
     control: (id, action) =>
       ipcRenderer.invoke(CH.docker.control, id, action) as Promise<DockerControlResult>,
     watching: () => ipcRenderer.invoke(CH.docker.watching) as Promise<string[]>,
+  },
+  translate: {
+    subscribe: (handler) => subscribeTranslate('board', handler),
+    engineStart: () => ipcRenderer.invoke(CH.translate.engineStart),
+    engineStop: () => ipcRenderer.invoke(CH.translate.engineStop),
+    engineRestart: () => ipcRenderer.invoke(CH.translate.engineRestart),
+    setSource: (kind) => ipcRenderer.invoke(CH.translate.setSource, kind),
+    pickOwn: () => ipcRenderer.invoke(CH.translate.pickOwn),
+    testExternal: (address) => ipcRenderer.invoke(CH.translate.testExternal, address),
+    consent: (modelId) => ipcRenderer.invoke(CH.translate.consent, modelId),
+    fetch: () => ipcRenderer.invoke(CH.translate.fetch),
+    pause: () => ipcRenderer.invoke(CH.translate.pause),
+    cancelFetch: () => ipcRenderer.invoke(CH.translate.cancelFetch),
+    removeModel: (modelId) => ipcRenderer.invoke(CH.translate.removeModel, modelId),
+    logs: () => ipcRenderer.invoke(CH.translate.logs),
+    selfTest: () => ipcRenderer.invoke(CH.translate.selfTest),
+    openLicence: () => ipcRenderer.invoke(CH.translate.openLicence),
+    watching: () => ipcRenderer.invoke(CH.translate.watching),
   },
   elec16: {
     board: (seed) => ipcRenderer.invoke(CH.elec16.board, seed) as Promise<Elec16Board>,

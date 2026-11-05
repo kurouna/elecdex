@@ -164,7 +164,9 @@ export function modelUrl(
 export type ModelFit = 'fits' | 'tight' | 'too-big'
 
 export function modelFit(model: ModelEntry, ramGB: number, vramGB: number | null): ModelFit {
-  if (ramGB < model.ramGB) return ramGB * 2 <= model.ramGB ? 'too-big' : 'tight'
+  // A file larger than the memory, with room left for the system, cannot be loaded at all.
+  if (ramGB * 1024 ** 3 < model.bytes * 1.25) return 'too-big'
+  if (ramGB < model.ramGB) return 'tight'
   if (model.vramGB !== null && (vramGB === null || vramGB < model.vramGB)) return 'tight'
   return 'fits'
 }

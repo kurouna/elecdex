@@ -2,7 +2,7 @@
 
 Preferred Networks の翻訳特化モデル PLaMo 3 Translate を、llama.cpp の `llama-server` でこの PC の上で動かし、
 elecdex のペインから使う翻訳ペイン。訳す文はこの PC から出ない（利用者が外部のサーバーを選んだときは別、§4.1）。
-外に出る通信はエンジンとモデルのダウンロードだけ。**まだ実装していない**（2026-11-05、設計の段階）。要約は
+外に出る通信はエンジンとモデルのダウンロードだけ。**作成中**（2026-11-06、段階 1 まで。§12）。要約は
 architecture.md §5.25。
 
 見た目のたたき台はモック [translate-mock/index.html](translate-mock/index.html)（ブラウザで開くだけで動く。
@@ -467,6 +467,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 ## 12. 段階
 
 1. エンジンとモデル: 取得器、入手（A と自分の llama-server と外部）、状態機械、SETUP の 5 段階、ENGINE 画面
+   （2026-11-06 に実装。翻訳ができるまでピッカーには出さない `unlisted`。TEXT 画面はエンジンの状態だけを出す）
 2. TEXT: ブロックごとの順番の翻訳、依頼と待ち行列、背骨、言語、文体、やさしい日本語、STOP、FAULT
 3. 用語集・文脈・HISTORY・翻訳元の判定
 4. ROUND TRIP・LIVE・EDIT したブロックを履歴に

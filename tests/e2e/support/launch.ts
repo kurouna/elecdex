@@ -247,6 +247,11 @@ export const STUB_ENV: Record<string, string> = {
   // A stand-in Docker engine: never this machine's containers, and none started or
   // stopped (src/main/docker/stub.ts). Specs change it through globalThis.__elecdexDocker.
   ELECDEX_DOCKER_STUB: '1',
+  // TRANSLATE: no model or engine is ever fetched from Hugging Face or GitHub, and a stand-in
+  // answers for llama-server (tests/e2e/support/llama-stub.mjs, docs/translate.md section 11).
+  ELECDEX_HF_BASE_URL: 'http://127.0.0.1:9/hf',
+  ELECDEX_LLAMA_RELEASES_URL: 'http://127.0.0.1:9/llama',
+  ELECDEX_LLAMA_SERVER: fileURLToPath(new URL('./llama-stub.mjs', import.meta.url)),
   // A stand-in power-save blocker and power source: no run keeps this machine awake
   // (src/main/awake/stub.ts). Specs read the hold through globalThis.__elecdexAwake.
   ELECDEX_AWAKE_STUB: '1',

@@ -26,6 +26,7 @@ export interface Footprint {
   nowPlaying: string[]
   docker: string[]
   logwatch: string[]
+  translate: string[]
   /** The earthquake list is being kept current (`quakes.observe`'s `active`). */
   quakes: boolean
   /** The hidden capture window of the spectrum is open. */
@@ -65,6 +66,8 @@ export interface PaneRow {
   popup: boolean
   /** builtins.ts `zoom`. */
   zoom: 'full' | 'panel' | null
+  /** builtins.ts `unlisted: true`: a layout opens it, the picker does not offer it. */
+  unlisted?: true
 }
 
 const FEED = 'http://127.0.0.1:9/feed.xml'
@@ -196,6 +199,14 @@ export const PANES: PaneRow[] = [
   },
   { widget: 'agents', seen: { modules: ['agents'] }, popup: true, zoom: 'full' },
   { widget: 'docker', seen: { modules: ['docker'] }, popup: true, zoom: 'full' },
+  // Seen, it follows the engine's board; translations, and what goes on unseen, come in phase 2.
+  {
+    widget: 'translate',
+    seen: { modules: ['translate'] },
+    popup: true,
+    zoom: 'full',
+    unlisted: true,
+  },
   { widget: 'orbit', seen: { modules: ['orbits'] }, popup: true, zoom: 'full' },
   {
     widget: 'rss',

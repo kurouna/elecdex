@@ -1,0 +1,117 @@
+import { describe, expect, it } from 'vitest'
+import {
+  canTranslate,
+  etaText,
+  fetchPercent,
+  firstSetupStep,
+  formatBytes,
+  phaseLamp,
+  tiers,
+  whereTextGoes,
+} from '../../src/renderer/widgets/translate/translate-view'
+import type { EngineView, TranslateBoard } from '../../src/shared/translate/board'
+import { MODELS } from '../../src/shared/translate/models'
+
+const engine = (over: Partial<EngineView> = {}): EngineView => ({
+  phase: 'stopped',
+  source: 'fetched',
+  build: 'b12110',
+  backend: null,
+  device: null,
+  port: null,
+  ctx: 16384,
+  error: null,
+  fallback: null,
+  bootLines: [],
+  externalHost: null,
+  externalLoopback: false,
+  own: null,
+  fetched: true,
+  memoryBytes: null,
+  ...over,
+})
+
+const board = (over: Partial<TranslateBoard> = {}): TranslateBoard => ({
+  engine: engine(),
+  models: MODELS.map((m) => ({ id: m.id, installed: false, partialBytes: 0, consentAt: null })),
+  fetch: null,
+  selectedModel: 'plamo3-2b-q4km',
+  machine: { ramGB: 16, vramGB: null, gpu: null, freeBytes: null },
+  ...over,
+})
+
+describe('translate view', () => {
+  it('says where the text goes, warning for a server off this machine', () => {
+    expect(whereTextGoes(engine())).toEqual({ text: 'local, nothing leaves this PC', warn: false })
+    expect(
+      whereTextGoes(engine({ source: 'external', externalHost: '192.168.1.20:8080' })),
+    ).toEqual({
+      text: 'sent to 192.168.1.20:8080',
+      warn: true,
+    })
+    expect(
+      whereTextGoes(
+        engine({ source: 'external', externalHost: 'localhost:8080', externalLoopback: true }),
+      ).warn,
+    ).toBe(false)
+  })
+
+  it('opens SETUP where it is needed', () => {
+    expect(firstSetupStep(board())).toBe(1)
+    const installed = board({
+      models: board().models.map((m) => ({ ...m, installed: m.id === 'plamo3-2b-q4km' })),
+    })
+    expect(firstSetupStep(installed)).toBe(5)
+    expect(
+      firstSetupStep(board({ engine: engine({ fetched: false }), models: installed.models })),
+    ).toBe(1)
+    expect(
+      firstSetupStep(
+        board({
+          fetch: {
+            kind: 'model',
+            id: 'x',
+            phase: 'downloading',
+            received: 1,
+            total: 2,
+            speed: 1,
+            error: null,
+          },
+        }),
+      ),
+    ).toBe(4)
+  })
+
+  it('lamps every phase', () => {
+    expect(phaseLamp('absent').word).toBe('No model')
+    expect(phaseLamp('fault').kind).toBe('bad')
+    expect(phaseLamp('external-unreachable').kind).toBe('bad')
+    expect(canTranslate(board({ engine: engine({ phase: 'absent' }) }))).toBe(false)
+  })
+
+  it('formats sizes and times as the setup shows them', () => {
+    expect(formatBytes(573_116_288)).toBe('573 MB')
+    expect(formatBytes(1_807_192_480)).toBe('1.81 GB')
+    const fetch = {
+      kind: 'model' as const,
+      id: 'x',
+      phase: 'downloading' as const,
+      received: 362e6,
+      total: 1810e6,
+      speed: 34.6e6,
+      error: null,
+    }
+    expect(fetchPercent(fetch)).toBe(20)
+    expect(etaText(fetch)).toBe('about 0:42 left')
+    expect(etaText({ ...fetch, speed: 0 })).toBe('')
+  })
+
+  it('groups the manifest by tier in order', () => {
+    expect(tiers(MODELS).map((t) => `${t.tier}:${t.params}:${t.entries.length}`)).toEqual([
+      'lite:0.8B:4',
+      'standard:2B:4',
+      'pro:8B:3',
+      'max:31B:3',
+    ])
+  })
+})

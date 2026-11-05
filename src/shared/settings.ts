@@ -12,6 +12,7 @@ import {
 import { PLUGIN_ID, type PluginSettings, PluginSettingsSchema } from './plugins.js'
 import { INTENSITIES, MAGNITUDES } from './quakes.js'
 import { DEFAULT_THEME_ID } from './theme.js'
+import { TRANSLATE_DEFAULTS, TranslateSettingsSchema } from './translate/settings.js'
 
 /**
  * User settings, kept in settings.json under userData.
@@ -295,6 +296,13 @@ export const SettingsSchema = z.object({
         .default(DEFAULT_INITIAL_LINES),
     })
     .default({ keepLines: DEFAULT_KEEP_LINES, initialLines: DEFAULT_INITIAL_LINES }),
+  /**
+   * The TRANSLATE pane (docs/translate.md section 8.2): what the engine runs with and how the pane
+   * behaves. Where the engine comes from (a path, a server's address) and the licence consents are
+   * not here but in main's translate/engine.json: a settings patch from the page must never make
+   * main start a program or send text to a host.
+   */
+  translate: TranslateSettingsSchema.default(TRANSLATE_DEFAULTS),
   /** The CHIP-8 pane (docs/architecture.md section 5.18). */
   chip8: z
     .object({
@@ -381,6 +389,7 @@ export interface SettingsPatch {
   elec?: Partial<Settings['elec']>
   chip8?: Partial<Settings['chip8']>
   logWatch?: Partial<Settings['logWatch']>
+  translate?: Partial<Settings['translate']>
   elec16?: Partial<Settings['elec16']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
   plugins?: Record<string, Partial<PluginSettings> | null>
@@ -420,6 +429,8 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     elec: merge(current.elec, p.elec),
     chip8: merge(current.chip8, p.chip8),
     logWatch: merge(current.logWatch, p.logWatch),
+    // The schema keeps its six keys and drops any other: nothing of the engine's source gets in.
+    translate: merge(current.translate, p.translate),
     elec16: merge(current.elec16, p.elec16),
     terminal: merge(current.terminal, p.terminal),
     plugins: mergePlugins(current.plugins, p.plugins),

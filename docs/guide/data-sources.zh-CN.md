@@ -23,5 +23,6 @@ elecdex 是面向 Windows、macOS 和 Linux 的桌面终端模拟器兼系统监
 | Wi-Fi 窗格 | 你自己的网关，以及 `1.1.1.1`（网络状态窗格本来就在 ping 的主机） | 每秒各一次 ping，且只在 Wi-Fi 窗格显示在屏幕上时进行；对互联网的 ping 与网络状态窗格读取的是同一个，因此不会重复询问同一主机。其余一切——信号、信道、连接日志——都从操作系统读取，从不询问外部服务。在 Windows 上网络名称取自连接配置文件，任何需要位置权限的内容（BSSID、扫描）都不读取；在 macOS 上没有定位服务时网络名称保持隐藏，而 elecdex 从不请求该权限。 |
 | Ethernet 窗格 | 你自己的网关（从有线网卡自己的地址发出），以及 `1.1.1.1` | 与 Wi-Fi 窗格相同：每秒各一次，只在窗格显示在屏幕上时进行，对互联网的 ping 与 Wi-Fi 窗格和网络状态窗格读取的是同一个。链路、计数器和驱动设置从操作系统读取，从不更改；不读取网卡的 ID 和网络名称。 |
 | 更新检查 | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | 启用时（默认）在启动 15 秒后请求一次最新发布的版本，此后每天一次。不下载也不安装任何东西：有新版本时会显示一条通知，点击打开其页面。 |
+| 翻译引擎与模型 *(unreleased)* | [Hugging Face](https://huggingface.co/pfnet)（`pfnet/plamo-3-translate-*-GGUF`，各自固定在某个修订版）和 GitHub 上的 [llama.cpp 发布](https://github.com/ggml-org/llama.cpp/releases)（构建 b12110） | 仅在 TRANSLATE 窗格的设置中按下 **Agree and fetch** 时获取：适用于本机平台的 llama-server（Windows 约 62 MB）、它的 MIT 许可证，以及所选模型（0.4 至 19.5 GB）。每个文件在使用前都会与 elecdex 固定的 sha256 核对；暂停或中断的下载以范围请求继续。所翻译的文本不会发送到任何地方：引擎在 127.0.0.1 上以专用密钥运行；若选择其他地址的 llama-server，文本会发送到那里。模型按 [PLaMo 社区许可证](https://plamo.preferredai.jp/info/plamo-community-license-ja) 使用，在设置中同意。 |
 
 另见：[指南目录](index.zh-CN.md) · [第三方资源](../../README.zh-CN.md#第三方资源)

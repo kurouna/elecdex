@@ -149,6 +149,34 @@ export const CH = {
     control: 'docker:control',
     watching: 'docker:watching',
   },
+  /**
+   * The TRANSLATE pane (docs/translate.md §8.3): PLaMo 3 Translate through llama-server, which
+   * only main starts and talks to. Where the engine comes from is changed only here (a picker,
+   * a TEST), never through settings.
+   */
+  translate: {
+    /** renderer -> main, fire and forget: follow the board (engine, models, fetch). */
+    subscribe: 'translate:subscribe',
+    unsubscribe: 'translate:unsubscribe',
+    /** main -> renderer: a TranslateBoard. */
+    board: 'translate:board',
+    engineStart: 'translate:engine-start',
+    engineStop: 'translate:engine-stop',
+    engineRestart: 'translate:engine-restart',
+    setSource: 'translate:set-source',
+    /** Main opens a file picker for the user's own llama-server; the page never hands over a path. */
+    pickOwn: 'translate:pick-own',
+    testExternal: 'translate:test-external',
+    consent: 'translate:consent',
+    fetch: 'translate:fetch',
+    pause: 'translate:pause',
+    cancelFetch: 'translate:cancel-fetch',
+    removeModel: 'translate:remove-model',
+    logs: 'translate:logs',
+    selfTest: 'translate:self-test',
+    openLicence: 'translate:open-licence',
+    watching: 'translate:watching',
+  },
   /** The CHIP-8 pane (shared/chip8-library.ts): the library, a program's bytes, its saves. */
   chip8: {
     list: 'chip8:list',

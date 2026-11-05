@@ -74,6 +74,7 @@ import type { Settings, SettingsPatch } from './settings.js'
 import type { SnippetAdded, SnippetDraft, SnippetView } from './snippets.js'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from './tasks.js'
 import type { Theme, ThemeProblem } from './theme.js'
+import type { EngineSourceKind, TranslateBoard } from './translate/board.js'
 import type { UpdateStatus } from './updates.js'
 import type { AwakeRequest, AwakeState, UtilityCopy } from './utility.js'
 import type { OfficeInfo } from './weather.js'
@@ -600,6 +601,37 @@ export interface DockerApi {
 }
 
 /**
+ * The TRANSLATE pane (docs/translate.md §8.3). The page sees the engine as a board and never its
+ * key; where it comes from changes only through main's picker and an external server's TEST.
+ */
+export interface TranslateApi {
+  /** The board at once, then after each change. Shared by every pane showing it. */
+  subscribe(handler: (board: TranslateBoard) => void): () => void
+  engineStart(): Promise<void>
+  engineStop(): Promise<void>
+  engineRestart(): Promise<void>
+  setSource(kind: EngineSourceKind): Promise<{ problem: string } | null>
+  /** Main's file picker; null when it was closed. */
+  pickOwn(): Promise<{ build: number } | { problem: string } | null>
+  testExternal(
+    address: string,
+  ): Promise<{ ok: true; host: string } | { ok: false; problem: string }>
+  /** Records that the PLaMo Community License was agreed to for a model. */
+  consent(modelId: string): Promise<void>
+  /** Fetches what the selected model needs (the engine first when elecdex provides it). */
+  fetch(): Promise<{ problem: string } | null>
+  pause(): Promise<void>
+  cancelFetch(): Promise<void>
+  removeModel(modelId: string): Promise<void>
+  logs(): Promise<string[]>
+  /** READY's one sentence through the engine; not kept in the history. */
+  selfTest(): Promise<{ text: string; tokensPerSecond: number } | { problem: string }>
+  openLicence(): Promise<void>
+  /** Diagnostics: `board`, `fetch` (and runs, later); empty when idle. */
+  watching(): Promise<string[]>
+}
+
+/**
  * The UTILITY pane (docs/architecture.md section 5.16). AWAKE's hold is main's -
  * one for the machine, kept whether or not a pane shows it - and the page is
  * told of every change. Sealed secrets and copies go through main too.
@@ -954,6 +986,7 @@ export interface ElecdexApi {
   snippets: SnippetsApi
   nowPlaying: NowPlayingApi
   docker: DockerApi
+  translate: TranslateApi
   utility: UtilityApi
   chip8: Chip8Api
   elec16: Elec16Api

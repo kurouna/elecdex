@@ -96,6 +96,7 @@ export function idle(rows: PaneRow[] = PANES): Footprint {
     nowPlaying: [],
     docker: [],
     logwatch: [],
+    translate: [],
     quakes: false,
     capture: false,
   }

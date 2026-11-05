@@ -29,6 +29,7 @@ import { registerQuakesIpc } from './ipc/quakes.js'
 import { registerSettingsIpc } from './ipc/settings.js'
 import { registerSystemIpc } from './ipc/system.js'
 import { registerTasksIpc } from './ipc/tasks.js'
+import { registerTranslateIpc } from './ipc/translate.js'
 import { registerUpdatesIpc } from './ipc/updates.js'
 import { registerUtilityIpc, type UtilityIpc } from './ipc/utility.js'
 import { registerWeatherIpc } from './ipc/weather.js'
@@ -110,6 +111,7 @@ let audioIpc: { dispose: () => void } | null = null
 let pluginsIpc: { dispose: () => void } | null = null
 let webIpc: { dispose: () => void } | null = null
 let logWatchIpc: { dispose: () => void } | null = null
+let translateIpc: { dispose: () => void; quit: () => void } | null = null
 let background: Background | null = null
 
 // Before the app is ready, as Electron asks: the page is served from app:// (app-protocol.ts).
@@ -170,6 +172,7 @@ app.whenReady().then(() => {
   aiIpc = ai
   aiLinks = ai.links
   logWatchIpc = registerLogWatchIpc(settings, ai.links)
+  translateIpc = registerTranslateIpc(settings)
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
   notesIpc = registerNotesIpc()
@@ -210,6 +213,8 @@ app.on('before-quit', () => {
   // Kill every shell before the app tears down, so no orphaned pty survives.
   // The handlers stay until will-quit: the window can still ask for sessions.
   ptyIpc?.closeSessions()
+  // llama-server, a model download and its hashing end with the app, never outlive it (translate.md §4.3).
+  translateIpc?.quit()
 })
 
 // Handlers must outlive the windows: a closing renderer flushes its pending
@@ -274,6 +279,8 @@ app.on('will-quit', () => {
   webIpc = null
   logWatchIpc?.dispose()
   logWatchIpc = null
+  translateIpc?.dispose()
+  translateIpc = null
   background?.dispose()
   background = null
 })

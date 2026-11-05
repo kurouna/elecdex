@@ -74,11 +74,13 @@ test('the picker offers every built-in pane, and pops up exactly those the regis
     await page.keyboard.press('Escape')
     await expect(picker).toHaveCount(0)
 
-    const builtins = PANES.map((r) => r.widget)
+    // An unlisted pane is opened by a layout or a key, never offered by the picker.
+    const builtins = PANES.filter((r) => !r.unlisted).map((r) => r.widget)
     expect(builtins.filter((id) => !(id in rows))).toEqual([])
+    expect(PANES.filter((r) => r.unlisted && r.widget in rows).map((r) => r.widget)).toEqual([])
     const poppable = builtins.filter((id) => rows[id] === 'pop up').sort()
     expect(poppable).toEqual(
-      PANES.filter((r) => r.popup)
+      PANES.filter((r) => r.popup && !r.unlisted)
         .map((r) => r.widget)
         .sort(),
     )

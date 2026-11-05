@@ -33,6 +33,10 @@ the files above is read or edited.
   - `ELECDEX_GPU_STUB=1`: a made-up GPU, so every machine draws the same panes (`=demo`, `=none`);
   - `ELECDEX_PING_HOST=127.0.0.1`: the network panes' internet echo stays on this machine (only a
     loopback address is taken);
+  - TRANSLATE: closed ports for `ELECDEX_HF_BASE_URL` and `ELECDEX_LLAMA_RELEASES_URL` (no model
+    or engine is ever fetched), and `ELECDEX_LLAMA_SERVER`, the llama-server stand-in
+    tests/e2e/support/llama-stub.mjs (failures by `ELECDEX_LLAMA_STUB_MODE`); a spec that fetches
+    serves a few kilobytes under `ELECDEX_TRANSLATE_MANIFEST` (docs/translate.md §11);
   - `ELECDEX_SEED_LAYOUTS=0`: no presets in a new profile (layout-presets.spec.ts turns it on).
   A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`. Keep it that way.
 - **Test craft.** A test that fails only under load is usually its own fault.

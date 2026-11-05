@@ -73,6 +73,9 @@ describe('models', () => {
     const big = modelById('plamo3-31b-q4km')
     const pro = modelById('plamo3-8b-q4km')
     expect(modelFit(big, 16, null)).toBe('too-big')
+    // A 19.5 GB file never loads into 17 GB, though 17 is more than half of the 32 it wants.
+    expect(modelFit(big, 17, null)).toBe('too-big')
+    expect(modelFit(big, 24, null)).toBe('tight')
     expect(modelFit(pro, 16, null)).toBe('tight')
     expect(modelFit(pro, 16, 8)).toBe('fits')
     expect(recommendedModel(MODELS, 16, null)?.id).toBe('plamo3-2b-q4km')

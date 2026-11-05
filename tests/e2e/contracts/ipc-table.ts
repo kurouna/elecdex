@@ -103,6 +103,16 @@ export const NO_ARGUMENT = [
   'nowPlaying.art',
   'nowPlaying.watching',
   'docker.watching',
+  'translate.engineStart',
+  'translate.engineStop',
+  'translate.engineRestart',
+  'translate.fetch',
+  'translate.pause',
+  'translate.cancelFetch',
+  'translate.logs',
+  'translate.selfTest',
+  'translate.openLicence',
+  'translate.watching',
   'utility.awake.state',
   'utility.awake.extend',
   'chip8.list',
@@ -154,6 +164,7 @@ export const HANDLER_ONLY = [
   'snippets.onChange',
   'nowPlaying.subscribe',
   'docker.subscribe',
+  'translate.subscribe',
   'utility.awake.onChange',
   'chip8.onChange',
   'elec16.onChange',
@@ -197,6 +208,10 @@ export const IPC_REASONS: IpcReason[] = [
     method: 'logwatch.pick',
     reason:
       "its one flag only chooses the picker's title; main opens its own picker whatever it is (logwatch.spec drives it)",
+  },
+  {
+    method: 'translate.pickOwn',
+    reason: 'takes nothing: main opens its own file picker (a test would wait on a dialog)',
   },
   {
     method: 'web.onState',
@@ -511,6 +526,28 @@ export const IPC_ROWS: IpcRow[] = [
     method: 'nowPlaying.seek',
     bad: [['x'], [-1], [1e12]],
     refused: { resolves: 'unsupported' },
+  },
+  /* ---- TRANSLATE: the engine's source changes only through main's picker and a TEST ---- */
+  {
+    method: 'translate.setSource',
+    bad: [['nope'], [123], [WIN_PATH]],
+    refused: { resolves: { problem: 'No such source.' } },
+  },
+  {
+    method: 'translate.testExternal',
+    // Each is refused before anything is asked of the network.
+    bad: [['file:///C:/x'], [WIN_PATH], [123], ['http://user:pw@127.0.0.1:1'], [big(400)]],
+    refused: { matches: { ok: false } },
+  },
+  {
+    method: 'translate.consent',
+    bad: [['nope'], [123], [WIN_PATH]],
+    refused: { resolves: undefined },
+  },
+  {
+    method: 'translate.removeModel',
+    bad: [['nope'], [123], [UP]],
+    refused: { resolves: undefined },
   },
   {
     method: 'docker.control',

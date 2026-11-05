@@ -197,6 +197,14 @@ describe('settings', () => {
       agents: { sources: ['claude-code'] },
       git: { openCommand: '' },
       logWatch: { keepLines: 5000, initialLines: 500 },
+      translate: {
+        modelId: 'plamo3-2b-q4km',
+        ctx: 16384,
+        device: 'auto',
+        idleMinutes: 10,
+        live: true,
+        saveHistory: true,
+      },
       chip8: { core: true, volume: 0.5 },
       elec16: {
         volume: 0.5,

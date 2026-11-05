@@ -12,6 +12,7 @@ export const WATCHING_MODULES = [
   'nowPlaying',
   'docker',
   'logwatch',
+  'translate',
 ] as const
 export type WatchingModule = (typeof WATCHING_MODULES)[number]
 

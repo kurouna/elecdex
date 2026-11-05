@@ -44,6 +44,7 @@ function registered(): Registered[] {
         {
           id,
           popup: /^\s*popup: true,$/m.test(block),
+          unlisted: /^\s*unlisted: true,$/m.test(block),
           zoom: zoom ?? null,
           metrics: sourcesOf(block, 'metrics'),
           kept: sourcesOf(block, 'keepWhileHidden'),
@@ -64,6 +65,7 @@ describe('the e2e contracts table', () => {
     const table = PANES.map((r) => ({
       id: r.widget,
       popup: r.popup,
+      unlisted: r.unlisted === true,
       zoom: r.zoom,
       metrics: [...(r.seen?.metrics ?? [])].sort(),
       kept: [...(r.kept ?? [])].sort(),

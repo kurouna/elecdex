@@ -38,6 +38,7 @@ import RssWidget from './rss/RssWidget.svelte'
 import TerminalWidget from './terminal/TerminalWidget.svelte'
 import TimerWidget from './timer/TimerWidget.svelte'
 import TodoWidget from './todo/TodoWidget.svelte'
+import TranslateWidget from './translate/TranslateWidget.svelte'
 import UtilityWidget from './utility/UtilityWidget.svelte'
 import WeatherWidget from './weather/WeatherWidget.svelte'
 import WebWidget from './web/WebWidget.svelte'
@@ -367,6 +368,20 @@ registerBuiltin({
   multiple: true,
   zoom: 'full',
   popup: true,
+})
+
+// Unlisted while it is built (docs/translate.md §12): a layout naming it opens it, the picker does not offer it.
+registerBuiltin({
+  id: 'translate',
+  title: 'translate',
+  description:
+    'PLaMo 3 Translate on this PC through llama.cpp: 53 languages and Easy Japanese, paragraph by paragraph, with a glossary, context and the plain or polite form. Nothing you translate leaves this machine.',
+  component: TranslateWidget,
+  minSize: { w: 300, h: 220 },
+  multiple: true,
+  zoom: 'full',
+  popup: true,
+  unlisted: true,
 })
 
 registerBuiltin({
