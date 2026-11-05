@@ -21,7 +21,8 @@
       "!docs/agents-mock",
       "!docs/palette-mock",
       "!docs/elec16-skins-mock",
-      "!docs/elec16-sci-mock"
+      "!docs/elec16-sci-mock",
+      "!docs/translate-mock"
     ]
   },
   "formatter": {

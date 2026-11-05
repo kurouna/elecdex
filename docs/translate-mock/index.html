@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="tron">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRANSLATE pane mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of elecdex's TRANSLATE pane: PLaMo 3 Translate run by llama.cpp's llama-server.
+ * Standalone - no elecdex code, nothing connected, every text and figure is made up.
+ * Colours follow tokens.css (primitive -> semantic) and the built-in themes of shared/theme.ts,
+ * so the theme buttons show the pane in each of them. Layout idea: source and target as two
+ * framed consoles, joined through a centre spine where each segment's link and lamp sit.
+ */
+:root {
+  --accent-h: 183; --accent-s: 22%; --accent-l: 74%;
+  --surface-0: #000; --surface-1: #05080d; --surface-2: #0b1118; --line: #262828;
+  --text-base: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --text-muted-base: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --hue-danger: 0; --hue-warn: 45; --hue-ok: 130; --hue-info: 212;
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --glow: 0; --crt-glare: 1;
+
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --text: var(--text-base);
+  --text-muted: var(--text-muted-base);
+  --app-bg: var(--surface-1);
+  --panel-raised: var(--surface-2);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
+  --danger: hsl(var(--hue-danger) 80% 60%);
+  --warn: hsl(var(--hue-warn) 85% 58%);
+  --ok: hsl(var(--hue-ok) 60% 52%);
+  --info: hsl(var(--hue-info) 85% 66%);
+
+  --step--2: 0.625rem; --step--1: 0.75rem; --step-0: 0.875rem; --step-1: 1.125rem;
+  --step-2: 1.5rem; --step-3: 2.25rem; --step-4: 3.5rem;
+  --tracking-wide: 0.12em; --tracking-wider: 0.28em;
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
+  --dur-fast: 120ms; --dur-base: 240ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-scale: 1;
+  --frame-notch: 0.75rem; --tick-size: 0.5rem; --grid-cell: 1.35rem;
+  --corner-room: 2.5rem;
+  color-scheme: dark;
+}
+/* The built-in themes (shared/theme.ts). */
+:root[data-theme="amber"] { --accent-h: 36; --accent-s: 90%; --accent-l: 50%; --surface-1: #0a0603; --surface-2: #160e06; --line: #2b1c0c; --hue-danger: 4; --hue-warn: 52; --hue-ok: 88; --glow: 0.35; }
+:root[data-theme="phosphor"] { --accent-h: 128; --accent-s: 60%; --accent-l: 48%; --surface-1: #020703; --surface-2: #061109; --line: #10281a; --hue-danger: 8; --hue-warn: 58; --hue-ok: 150; --glow: 0.3; }
+:root[data-theme="white"] { --accent-h: 212; --accent-s: 31%; --accent-l: 88%; --surface-1: #0a0b0d; --surface-2: #15181c; --line: #262a30; --glow: 0.3; }
+:root[data-theme="black"] { --accent-h: 264; --accent-s: 24%; --accent-l: 4%; --surface-1: #d7e0ea; --surface-2: #e4eaf1; --line: #c4ceda; --glow: 0.1; }
+:root[data-theme="business-dark"] {
+  --accent-h: 199; --accent-s: 100%; --accent-l: 69%; --surface-1: #202020; --surface-2: #2c2c2c; --line: #202020;
+  --text-base: #ffffff; --text-muted-base: #9e9e9e; --hue-danger: 354; --hue-warn: 40; --hue-ok: 113; --hue-info: 206;
+}
+:root[data-theme="business-light"] {
+  --accent-h: 209; --accent-s: 100%; --accent-l: 36%; --surface-1: #f3f3f3; --surface-2: #ffffff; --line: #f3f3f3;
+  --text-base: #1a1a1a; --text-muted-base: #5f5f5f; --hue-danger: 354; --hue-warn: 32; --hue-ok: 120; --hue-info: 209;
+}
+:root[data-theme="paper"] {
+  --accent-h: 0; --accent-s: 0%; --accent-l: 7%; --surface-1: #e5e5e1; --surface-2: #efefeb; --line: #e5e5e1;
+  --text-base: #111111; --text-muted-base: #5c5c5c;
+}
+:root[data-theme^="business"] {
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, "JetBrains Mono", ui-monospace, monospace;
+}
+:root[data-theme="paper"] {
+  --font-display: "Segoe UI Variable Display", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Segoe UI Variable Text", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, "JetBrains Mono", ui-monospace, monospace;
+}
+/* A light theme: the status colours and the strong accent go darker (tokens.css). */
+:root[data-mode="light"] {
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) - 10%));
+  --danger: hsl(var(--hue-danger) 75% 44%);
+  --warn: hsl(var(--hue-warn) 95% 36%);
+  --ok: hsl(var(--hue-ok) 60% 32%);
+  --info: hsl(var(--hue-info) 80% 40%);
+  --crt-glare: 0;
+  color-scheme: light;
+}
+:root[data-theme="black"] { --accent-strong: hsl(264 24% 20%); }
+@media (prefers-reduced-motion: reduce) { :root { --motion-scale: 0; } }
+
+/* ---------- page ---------- */
+* { box-sizing: border-box; }
+html { font-size: clamp(11px, 1.48vh, 26px); }
+body {
+  margin: 0; min-height: 100%; padding: 1rem max(16px, 1.2rem) 2rem;
+  color: var(--text); font-family: var(--font-ui); font-size: var(--step-0); line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  background:
+    linear-gradient(90deg, var(--app-bg) calc(var(--grid-cell) - 1px), transparent 0) center / var(--grid-cell) var(--grid-cell),
+    linear-gradient(var(--app-bg) calc(var(--grid-cell) - 1px), transparent 0) center / var(--grid-cell) var(--grid-cell),
+    var(--line);
+  background-color: var(--app-bg);
+}
+:root[data-scanlines] body::after {
+  content: ""; position: fixed; inset: 0; z-index: 2000; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.22) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 60%, rgb(0 0 0 / 0.35) 100%);
+}
+:root[data-mode="light"][data-scanlines] body::after {
+  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.06) 0 1px, transparent 1px 3px);
+}
+:root[data-glow] .pane { text-shadow: 0 0 calc(var(--glow) * 0.55rem) hsl(var(--accent-h) var(--accent-s) var(--accent-l) / calc(var(--glow) * 1.2)); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+.doc { display: flex; align-items: baseline; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.doc h1 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: var(--step-2); letter-spacing: 0.06em; color: var(--accent-strong); }
+.doc h1 span { font-family: var(--font-ui); font-size: var(--step-0); letter-spacing: var(--tracking-wide); color: var(--text-muted); margin-left: 0.4rem; }
+.doc p { margin: 0; color: var(--text-muted); font-size: var(--step--1); max-width: 60rem; line-height: 1.6; }
+
+.mockbar {
+  display: flex; flex-wrap: wrap; gap: 0.45rem 1.4rem; align-items: center; margin-bottom: 1rem;
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+  padding: 0.4rem 0.5rem; border: 1px dashed var(--panel-rule);
+}
+.mockbar .grp { display: flex; gap: 0.2rem; align-items: center; flex-wrap: wrap; }
+.mockbar .grp > span { margin-right: 0.35rem; }
+.mockbar button {
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.45rem;
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+}
+.mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--app-bg); border-color: var(--accent); }
+.mockbar .tag { border: 1px solid var(--warn); color: var(--warn); padding: 0 0.35rem; }
+
+.stage { display: flex; gap: 1.2rem; align-items: flex-start; flex-wrap: wrap; }
+
+/* ---------- the pane: a module, a rule with ticks and no box ---------- */
+.pane {
+  position: relative; display: flex; flex-direction: column; min-width: 0;
+  width: 68rem; max-width: 100%; height: min(80vh, 50rem); min-height: 34rem;
+  border-top: 1px solid var(--panel-rule); padding-top: var(--space-1);
+}
+.pane.narrow { width: 31rem; height: min(92vh, 56rem); }
+.pane::before, .pane::after {
+  content: ""; position: absolute; top: calc(-1 * var(--tick-size) * 0.65); height: var(--tick-size);
+  border-left: 1px solid var(--panel-rule); pointer-events: none;
+}
+.pane::before { left: -1px; } .pane::after { right: -1px; }
+.module-title {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3);
+  padding: 0 var(--corner-room) 0 var(--space-1); min-width: 0; white-space: nowrap;
+  font-family: var(--font-ui); font-size: var(--step-1); font-weight: 300; line-height: 1.25; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.module-title > :last-child { overflow: hidden; text-overflow: ellipsis; font-size: var(--step--1); color: var(--text-muted); letter-spacing: 0.02em; text-transform: none; font-family: var(--font-mono); }
+.corner { position: absolute; top: -0.55rem; right: 0; display: flex; gap: 2px; opacity: 0; transition: opacity var(--dur-fast); }
+.pane:hover .corner { opacity: 1; }
+.corner span { width: 1rem; height: 1rem; display: grid; place-items: center; font-size: var(--step--2); border: 1px solid var(--panel-rule); background: var(--app-bg); color: var(--text-muted); }
+/* In the toolbar's row, as in the AI chat pane; the toolbars keep its room free. */
+.settings-toggle {
+  position: absolute; z-index: 2; top: 1.95rem; right: 0; width: 1.4rem; height: 1.4rem; padding: 0.15rem;
+  border: 0; background: transparent; color: var(--text-muted);
+}
+.settings-toggle:hover, .settings-toggle[aria-expanded="true"] { color: var(--accent); }
+.settings-toggle svg { width: 100%; height: 100%; display: block; }
+
+.view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) var(--space-1) 0; }
+.view[hidden] { display: none; }
+
+/* ---------- toolbar ---------- */
+.toolbar { display: flex; align-items: center; gap: var(--space-2) var(--space-3); flex-wrap: wrap; min-height: 1.6rem; padding-right: 1.7rem; }
+.spacer { flex: 1; }
+.vt { display: flex; }
+.vt button {
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.55rem; margin-left: -1px;
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+}
+.vt button[aria-selected="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); position: relative; z-index: 1; }
+.vt button:hover { color: var(--accent); }
+.pair { display: flex; align-items: stretch; gap: var(--space-1); }
+.lang {
+  display: flex; align-items: baseline; gap: 0.4rem; min-width: 7.2rem; padding: 0.1rem 0.5rem;
+  border: 1px solid var(--panel-border); background: var(--app-bg);
+  font-family: var(--font-mono); font-size: var(--step--1); text-align: left;
+}
+.lang b { font-weight: 700; color: var(--accent-strong); text-transform: uppercase; }
+.lang small { color: var(--text-muted); font-size: var(--step--2); flex: 1; white-space: nowrap; }
+.lang i { font-style: normal; color: var(--text-muted); font-size: var(--step--2); }
+.lang:hover, .lang[aria-expanded="true"] { border-color: var(--accent); }
+.swap {
+  width: 1.8rem; border: 1px solid var(--panel-rule); background: transparent; color: var(--text-muted); padding: 0;
+  display: grid; place-items: center;
+}
+.swap svg { width: 0.95rem; height: 0.95rem; transition: transform calc(var(--dur-base) * 1.5) var(--ease-emphasized); }
+.swap:hover { color: var(--accent); border-color: var(--accent); }
+.swap:hover svg { transform: rotate(180deg); }
+.form { display: flex; align-items: center; gap: 0.3rem; }
+.form > span, .lbl { font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; }
+.form button, .chipbtn {
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.45rem; color: var(--text-muted);
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase;
+}
+.form button small { font-size: var(--step--2); letter-spacing: 0; margin-left: 0.25rem; opacity: 0.75; text-transform: none; }
+.form button[aria-pressed="true"], .chipbtn[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
+.form.off { opacity: 0.35; pointer-events: none; }
+.opts { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.tog {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.5rem; color: var(--text-muted);
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase;
+}
+.tog em { font-style: normal; font-family: var(--font-mono); color: var(--accent-strong); }
+.tog .dot { width: 0.3rem; height: 0.3rem; background: var(--accent); display: inline-block; }
+.tog:hover { color: var(--accent); }
+.tog[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
+.tog .lamp { width: 0.45rem; height: 0.45rem; border: 1px solid var(--text-muted); display: inline-block; transform: rotate(45deg); }
+.tog[aria-pressed="true"] .lamp { border-color: var(--ok); background: var(--ok); animation: beat 1s steps(1, end) infinite; animation-play-state: var(--ambient-play-state, running); }
+
+.btn {
+  background: transparent; border: 1px solid var(--panel-border); padding: 0.05rem 0.55rem; color: var(--text-muted);
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap;
+}
+.btn:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.lit:not(:disabled) { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-faint); }
+.btn.lit:not(:disabled):hover { background: var(--accent); color: var(--app-bg); }
+.btn.warn { border-color: var(--warn); color: var(--warn); }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); border: 1px solid var(--panel-rule); padding: 0 0.3rem; }
+
+/* ---------- drawer: glossary and context ---------- */
+.drawer { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-4); padding: var(--space-2) var(--space-2) var(--space-2); border-top: 1px dashed var(--panel-rule); border-bottom: 1px dashed var(--panel-rule); }
+.drawer[hidden] { display: none; }
+.drawer.one { grid-template-columns: minmax(0, 1fr); }
+.drawer section[hidden] { display: none; }
+.dhead { display: flex; align-items: center; gap: var(--space-2); margin-bottom: 0.3rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.dhead b { color: var(--text); font-weight: 500; }
+.terms { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto auto; gap: 0.15rem 0.6rem; align-items: center; font-family: var(--font-mono); font-size: var(--step--1); }
+.terms input { width: 100%; min-width: 0; background: transparent; border: 0; border-bottom: 1px solid var(--panel-rule); padding: 0.05rem 0.1rem; color: var(--text); outline: none; }
+.terms input:focus { border-bottom-color: var(--accent); }
+.terms input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
+.terms .arr { color: var(--text-muted); }
+.terms .hits { font-size: var(--step--2); color: var(--info); font-family: var(--font-ui); letter-spacing: var(--tracking-wide); text-transform: uppercase; white-space: nowrap; }
+.terms .hits.none { color: var(--text-muted); }
+.terms .x { border: 0; background: transparent; color: var(--text-muted); padding: 0 0.2rem; }
+.terms .x:hover { color: var(--danger); }
+.ctxbox { width: 100%; min-height: 4.2rem; resize: vertical; background: transparent; border: 1px solid var(--panel-rule); color: var(--text); padding: 0.3rem 0.4rem; font-family: var(--font-ui); font-size: var(--step--1); line-height: 1.5; outline: none; }
+.ctxbox:focus { border-color: var(--accent); }
+.dnote { margin-top: 0.25rem; font-size: var(--step--2); color: var(--text-muted); letter-spacing: 0.04em; }
+
+/* ---------- source | spine | target ---------- */
+.duo { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 2.8rem minmax(0, 1fr); }
+.side { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.hud-label {
+  position: relative; display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3);
+  padding: 0 var(--space-2) 1px; font-size: var(--step--2); font-weight: 500; line-height: 1.5; letter-spacing: var(--tracking-wide); text-transform: uppercase;
+  border-bottom: 1px solid var(--panel-rule); white-space: nowrap; min-width: 0; margin-bottom: 0.35rem;
+}
+.hud-label > * { overflow: hidden; text-overflow: ellipsis; }
+.hud-label > :last-child { color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.02em; }
+.hud-label > :last-child b { color: var(--text); font-weight: 500; }
+.hud-label::before, .hud-label::after { content: ""; position: absolute; bottom: calc(-1 * var(--tick-size) * 0.6); height: calc(var(--tick-size) * 0.6); border-left: 1px solid var(--panel-rule); }
+.hud-label::before { left: 0; } .hud-label::after { right: 0; }
+
+/* The shell's frame: a border with its top-right and bottom-left corners cut (frames.css). */
+.frame {
+  position: relative; --notch: var(--frame-notch);
+  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, var(--notch) 100%, 0 calc(100% - var(--notch)));
+}
+.frame::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: var(--frame-color, var(--panel-border)); clip-path: inherit; padding: 1px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude;
+}
+.frame::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1px), var(--frame-color, var(--panel-border)) calc(50% - 1px) 50%, transparent 50%) top right / var(--notch) var(--notch) no-repeat,
+    linear-gradient(to top right, transparent 50%, var(--frame-color, var(--panel-border)) 50% calc(50% + 1px), transparent calc(50% + 1px)) bottom left / var(--notch) var(--notch) no-repeat;
+}
+.console { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.dst .console { --frame-color: var(--panel-rule); }
+.dst .console.tx { --frame-color: var(--accent); }
+.src .console:focus-within { --frame-color: var(--accent); }
+.text {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 0.55rem 0.2rem 0.6rem;
+  scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; user-select: text;
+}
+.text textarea {
+  width: 100%; height: 100%; resize: none; border: 0; outline: none; background: transparent; padding: 0 0.6rem;
+  font-family: var(--font-ui); font-size: var(--step-0); line-height: 1.75; color: var(--text);
+}
+.actions {
+  display: flex; align-items: center; gap: var(--space-1); padding: 0.3rem 0.6rem 0.4rem 0.9rem;
+  border-top: 1px solid var(--panel-rule); flex-wrap: wrap;
+}
+.actions .count { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); margin: 0 0.3rem; }
+
+.seg {
+  position: relative; padding: 0.15rem 0.6rem 0.2rem 0.7rem; font-size: var(--step-0); line-height: 1.75;
+  border-left: 2px solid transparent; overflow-wrap: anywhere;
+}
+.seg + .seg { margin-top: 0.45rem; }
+.src .seg { border-left: 0; border-right: 2px solid transparent; padding: 0.15rem 0.7rem 0.2rem 0.6rem; }
+.seg.h { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: 0.02em; line-height: 1.5; }
+.seg.hot { background: var(--accent-faint); }
+.src .seg.hot { border-right-color: var(--accent); }
+.dst .seg.hot, .dst .seg[data-st="run"] { border-left-color: var(--accent); }
+.dst .seg[data-st="queued"] { color: var(--text-muted); }
+.dst .seg[data-st="edited"] { border-left-color: var(--info); }
+.qd { font-size: var(--step--2); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-muted); font-family: var(--font-ui); }
+.caret { display: inline-block; width: 0.5em; height: 1.05em; margin-left: 1px; vertical-align: -0.15em; background: var(--accent); animation: beat 1s steps(1, end) infinite; animation-play-state: var(--ambient-play-state, running); }
+.tok { animation: tok calc(260ms * var(--motion-scale)) ease-out backwards; }
+@keyframes tok { from { opacity: 0.25; } }
+.term { text-decoration: underline dotted var(--info); text-decoration-thickness: 1px; text-underline-offset: 0.3em; cursor: help; }
+.dst .term { text-decoration-style: solid; text-decoration-color: color-mix(in srgb, var(--info) 60%, transparent); }
+.edtag { margin-left: 0.4rem; font-size: var(--step--2); color: var(--info); letter-spacing: var(--tracking-wide); font-family: var(--font-ui); }
+.acts {
+  position: absolute; top: 0.1rem; right: 0.3rem; display: flex; gap: 0.15rem; opacity: 0; transition: opacity var(--dur-fast);
+  background: var(--panel-raised); padding: 0 0.15rem; border: 1px solid var(--panel-rule);
+}
+.seg:hover .acts, .acts:focus-within { opacity: 1; }
+.acts button { border: 0; background: transparent; color: var(--text-muted); padding: 0 0.3rem; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); line-height: 1.6; }
+.acts button:hover { color: var(--accent); }
+.seg[contenteditable="true"] { outline: 1px dashed var(--info); outline-offset: -1px; background: color-mix(in srgb, var(--info) 8%, transparent); }
+
+/* The round trip: the target put back into the source language, under each segment. */
+.trip { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: baseline; margin-top: 0.2rem; padding-top: 0.2rem; border-top: 1px dashed var(--panel-rule); font-family: var(--font-ui); font-size: var(--step--1); line-height: 1.45; color: var(--text-muted); letter-spacing: 0; }
+.trip .tl { font-size: var(--step--2); letter-spacing: var(--tracking-wide); margin-right: 0.35rem; color: var(--text-muted); opacity: 0.8; }
+.match { display: inline-flex; align-items: center; gap: 0.3rem; font-family: var(--font-mono); font-size: var(--step--2); white-space: nowrap; }
+.match .bar { width: 2.6rem; height: 0.3rem; background: var(--accent-faint); position: relative; }
+.match .bar i { position: absolute; inset: 0 auto 0 0; background: var(--ok); }
+.match.mid .bar i { background: var(--warn); } .match.mid { color: var(--warn); }
+.match.low .bar i { background: var(--danger); } .match.low { color: var(--danger); }
+.match.hi { color: var(--ok); }
+
+/* The spine: the centre column, where each segment's link and lamp sit. */
+.gutter { position: relative; background: linear-gradient(var(--panel-rule), var(--panel-rule)) 50% 1.6rem / 1px calc(100% - 3.2rem) no-repeat; }
+.gutter .dir { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); writing-mode: vertical-rl; font-size: var(--step--2); letter-spacing: var(--tracking-wider); color: var(--text-muted); background: var(--app-bg); padding: 0.4rem 0; font-family: var(--font-mono); }
+.links { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 3; }
+.links path { fill: none; stroke: var(--panel-rule); stroke-width: 1; }
+.links path.run { stroke: var(--accent-dim); stroke-dasharray: 3 3; }
+.links path.hot { stroke: var(--accent); stroke-width: 1.5; }
+.nodes { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.node {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto;
+  min-width: 1.55rem; padding: 0 0.15rem; border: 1px solid var(--panel-rule); background: var(--app-bg);
+  font-family: var(--font-mono); font-size: var(--step--2); line-height: 1.35; color: var(--text-muted); text-align: center;
+}
+.node[data-st="run"] { border-color: var(--accent); color: var(--accent-strong); animation: beat 1s steps(1, end) infinite; animation-play-state: var(--ambient-play-state, running); }
+.node[data-st="done"] { border-color: var(--accent-dim); color: var(--text); background: color-mix(in srgb, var(--accent) 14%, var(--app-bg)); }
+.node[data-st="edited"] { border-color: var(--info); color: var(--info); }
+.node.hot { border-color: var(--accent); color: var(--app-bg); background: var(--accent); animation: none; }
+
+/* No text to show: the state, the way the rest of the HUD states things (aichat standby). */
+.standby { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem; height: 100%; text-align: center; padding: 1rem; user-select: none; }
+.state { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--step--2); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--text-muted); }
+.slamp { width: 0.5rem; height: 0.5rem; border: 1px solid var(--warn); display: inline-block; }
+.slamp.ok { border-color: var(--ok); background: var(--ok); }
+.slamp.off { border-color: var(--text-muted); }
+.slamp.bad { border-color: var(--danger); background: var(--danger); }
+.slamp.beat { animation: beat 1s steps(1, end) infinite; animation-play-state: var(--ambient-play-state, running); }
+.big { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--accent-strong); }
+.host { font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); max-width: 30rem; overflow-wrap: anywhere; }
+.command { margin-top: var(--space-2); padding: var(--space-1) var(--space-3); border: 1px solid var(--accent); background: transparent; color: var(--accent-strong); font-family: var(--font-mono); font-size: var(--step--1); }
+.command:hover { background: var(--accent-faint); }
+.hint { font-size: var(--step--1); color: var(--text-muted); line-height: 1.6; max-width: 28rem; }
+.hint kbd { margin: 0 0.15rem; }
+
+/* The engine coming up: llama-server's start, read from its own log, a line at a time. */
+.boot { padding: 0.3rem 0.8rem; font-family: var(--font-mono); font-size: var(--step--1); line-height: 1.75; }
+.boot .ln { display: grid; grid-template-columns: 4.4rem 4.6rem minmax(0, 1fr); gap: 0.5rem; animation: rise calc(360ms * var(--motion-scale)) var(--ease-emphasized) backwards; }
+.boot .t { color: var(--text-muted); }
+.boot .k { color: var(--accent-strong); font-weight: 700; }
+.boot .v { overflow-wrap: anywhere; }
+.boot .v .mut { color: var(--text-muted); }
+.boot .ln.ok .k { color: var(--ok); }
+.cells { display: inline-flex; gap: 2px; vertical-align: -0.05em; }
+.cells i { width: 0.42rem; height: 0.7rem; background: var(--accent-faint); display: inline-block; }
+.cells i.on { background: var(--accent); }
+.cells i.head { background: var(--accent-strong); }
+.boot-head { display: flex; align-items: center; gap: 0.6rem; margin: 0.2rem 0 0.4rem; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wider); color: var(--text-muted); text-transform: uppercase; }
+.boot-head::after { content: ""; flex: 1; border-top: 1px dashed var(--panel-rule); }
+
+.fault { padding: 0.6rem 0.9rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.fault h3 { margin: 0; display: flex; align-items: center; gap: 0.6rem; font-family: var(--font-display); font-weight: 500; font-size: var(--step-1); letter-spacing: var(--tracking-wide); color: var(--danger); }
+.fault p { margin: 0; font-size: var(--step--1); line-height: 1.6; }
+.fault pre { margin: 0; padding: 0.4rem 0.6rem; border-left: 2px solid var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); font-family: var(--font-mono); font-size: var(--step--2); line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
+.fault .row { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+
+.note-out { padding: 1rem; color: var(--text-muted); font-size: var(--step--1); line-height: 1.6; }
+
+/* ---------- foot ---------- */
+.foot {
+  display: flex; align-items: center; gap: 0.4rem 0.9rem; padding: 0.25rem 0.4rem; margin-top: var(--space-2);
+  border-top: 1px solid var(--panel-rule); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); flex-wrap: wrap;
+}
+.foot .lampw { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--text); font-weight: 600; cursor: help; }
+.foot .lampw i { width: 0.5rem; height: 0.5rem; transform: rotate(45deg); display: inline-block; border: 1px solid var(--ok); background: var(--ok); }
+.foot .lampw.off i { background: transparent; border-color: var(--text-muted); }
+.foot .lampw.nomodel i { background: transparent; border-color: var(--warn); }
+.foot .lampw.nomodel b { color: var(--warn); }
+.foot .lampw.bad i { background: var(--danger); border-color: var(--danger); }
+.foot .lampw.bad b { color: var(--danger); }
+.foot .lampw.beat i { animation: beat 0.5s steps(1, end) infinite; animation-play-state: var(--ambient-play-state, running); }
+.foot b { font-weight: 600; }
+.foot .fig { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.foot .fig em { font-style: normal; color: var(--text); }
+.foot .credit { text-transform: none; letter-spacing: 0.02em; }
+
+/* ---------- setup ---------- */
+.steps { list-style: none; margin: 0.2rem 0 0; padding: 0 2rem 0 0.3rem; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.55rem; }
+.steps li {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: 0.45rem; height: 1.55rem;
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); white-space: nowrap; overflow: hidden;
+}
+.steps li::before { content: ""; position: absolute; inset: 0; border: 1px solid var(--panel-rule); transform: skewX(-35deg); z-index: -1; }
+.steps li b { font-family: var(--font-mono); font-weight: 500; }
+.steps li.done { color: var(--app-bg); }
+.steps li.done::before { background: var(--accent-dim); border-color: var(--accent-dim); }
+.steps li.done { color: var(--text); }
+.steps li.now { color: var(--accent-strong); }
+.steps li.now::before { border-color: var(--accent); background: var(--accent-faint); }
+.steps { isolation: isolate; }
+.stepbody { flex: 1; min-height: 0; overflow-y: auto; padding: 0.6rem 0.6rem 0.2rem; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; display: flex; flex-direction: column; gap: 0.8rem; }
+.sfoot { display: flex; align-items: center; gap: var(--space-2); padding: 0.35rem 0.4rem 0; border-top: 1px solid var(--panel-rule); }
+.sfoot .where { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.shead { display: flex; align-items: baseline; gap: 0.8rem; }
+.shead h2 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: var(--step-2); letter-spacing: 0.05em; color: var(--accent-strong); text-transform: uppercase; }
+.shead p { margin: 0; color: var(--text-muted); font-size: var(--step--1); }
+.probe { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.3rem 0.9rem; align-items: center; padding: 0.6rem 0.8rem; border-left: 2px solid var(--ok); background: color-mix(in srgb, var(--ok) 7%, transparent); }
+.probe.miss { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 7%, transparent); }
+.probe .st { display: inline-flex; align-items: center; gap: 0.45rem; font-size: var(--step--2); letter-spacing: var(--tracking-wider); font-weight: 600; color: var(--ok); text-transform: uppercase; }
+.probe.miss .st { color: var(--warn); }
+.probe .what { font-family: var(--font-mono); font-size: var(--step--1); min-width: 0; }
+.probe .what small { display: block; color: var(--text-muted); font-size: var(--step--2); overflow-wrap: anywhere; }
+.probe .row { display: flex; gap: var(--space-1); }
+.cmds { display: grid; grid-template-columns: auto auto auto; justify-content: start; gap: 0.25rem 0.8rem; align-items: center; font-family: var(--font-mono); font-size: var(--step--1); }
+.cmds .os { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; }
+.cmds code { padding: 0.1rem 0.45rem; border: 1px solid var(--panel-rule); background: var(--accent-faint); overflow-wrap: anywhere; }
+.or { display: flex; align-items: center; gap: 0.7rem; font-size: var(--step--2); letter-spacing: var(--tracking-wider); color: var(--text-muted); text-transform: uppercase; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px dashed var(--panel-rule); }
+.ext { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.field { flex: 1 1 14rem; min-width: 0; padding: 0.15rem 0.45rem; border: 1px solid var(--panel-border); background: var(--app-bg); font-family: var(--font-mono); font-size: var(--step--1); color: var(--text); outline: none; }
+.field:focus { border-color: var(--accent); }
+.small { font-size: var(--step--2); color: var(--text-muted); letter-spacing: 0.03em; line-height: 1.5; }
+.pc { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; }
+.pc b { font-family: var(--font-mono); font-weight: 500; color: var(--text); text-transform: none; letter-spacing: 0; margin-left: 0.3rem; }
+.models { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; }
+.narrow .models { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mcard { --frame-color: var(--panel-rule); text-align: left; background: transparent; border: 0; padding: 0.55rem 0.7rem 0.6rem; display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.mcard:hover { --frame-color: var(--panel-border); }
+.mcard[aria-checked="true"] { --frame-color: var(--accent); background: var(--accent-faint); }
+.mcard[aria-disabled="true"] { opacity: 0.55; }
+.mcard .top { display: flex; align-items: center; gap: 0.4rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.mcard .top .rec { color: var(--app-bg); background: var(--accent); padding: 0 0.3rem; font-weight: 600; }
+.mcard .top .radio { margin-left: auto; width: 0.6rem; height: 0.6rem; border: 1px solid var(--panel-border); transform: rotate(45deg); }
+.mcard[aria-checked="true"] .radio { background: var(--accent); border-color: var(--accent); }
+.mcard .size { font-family: var(--font-display); font-size: var(--step-3); line-height: 1; color: var(--accent-strong); letter-spacing: 0.02em; }
+.mcard .size small { font-size: var(--step--1); color: var(--text-muted); margin-left: 0.3rem; font-family: var(--font-mono); }
+.mcard .spec { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); line-height: 1.6; }
+.mcard .spec b { color: var(--text); font-weight: 500; }
+.mcard .desc { font-size: var(--step--1); line-height: 1.45; min-height: 2.9em; }
+.fit { display: flex; align-items: center; gap: 0.4rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.fit .cells i { width: 0.36rem; height: 0.55rem; }
+.fit.ok b { color: var(--ok); } .fit.ok .cells i.on { background: var(--ok); }
+.fit.tight b { color: var(--warn); } .fit.tight .cells i.on { background: var(--warn); }
+.fit.no b { color: var(--danger); } .fit.no .cells i.on { background: var(--danger); }
+.quant { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+.quant .chipbtn { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; font-size: var(--step--2); }
+.quant .chipbtn small { color: var(--text-muted); margin-left: 0.3rem; }
+.quant .chipbtn:disabled { opacity: 0.35; cursor: default; }
+.lic { padding: 0.7rem 0.9rem; border: 1px solid var(--panel-rule); display: flex; flex-direction: column; gap: 0.55rem; font-size: var(--step--1); line-height: 1.6; max-width: 48rem; }
+.lic h3 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: var(--step-0); letter-spacing: 0.04em; }
+.lic dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.2rem 1rem; }
+.lic dt { font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; padding-top: 0.15rem; }
+.lic dd { margin: 0; }
+.lic a { color: var(--accent-strong); text-underline-offset: 0.2em; font-size: var(--step--1); }
+.agree { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.55rem 0.8rem; border: 1px dashed var(--panel-border); max-width: 48rem; cursor: pointer; font-size: var(--step--1); line-height: 1.55; }
+.agree .box { flex: none; width: 0.85rem; height: 0.85rem; margin-top: 0.2rem; border: 1px solid var(--panel-border); display: grid; place-items: center; }
+.agree.on { border-style: solid; border-color: var(--accent); background: var(--accent-faint); }
+.agree.on .box { background: var(--accent); border-color: var(--accent); }
+.agree.on .box::after { content: ""; width: 0.35rem; height: 0.35rem; background: var(--app-bg); }
+.fetch { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem 1.6rem; align-items: center; }
+.narrow .fetch { grid-template-columns: minmax(0, 1fr); }
+.pct { font-family: var(--font-display); font-size: var(--step-4); line-height: 1; color: var(--accent-strong); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; }
+.pct small { font-size: var(--step-1); color: var(--text-muted); margin-left: 0.2rem; }
+.pct span { display: inline-block; }
+.fx-digit { animation: fx-digit calc(140ms * var(--motion-scale)) var(--ease-out) backwards; }
+@keyframes fx-digit { from { opacity: 0; transform: translateY(0.3em); } }
+.meter { display: flex; gap: 2px; height: 0.9rem; }
+.meter i { flex: 1; background: var(--accent-faint); }
+.meter i.on { background: var(--accent); }
+.meter i.head { background: var(--accent-strong); animation: beat 0.5s steps(1, end) infinite; }
+.meter.paused i.head { animation: none; background: var(--warn); }
+.rate { margin-top: 0.4rem; display: flex; gap: 1.2rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); }
+.rate em { font-style: normal; color: var(--text); }
+.jobs { font-family: var(--font-mono); font-size: var(--step--1); line-height: 1.8; display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) auto; gap: 0 0.8rem; }
+.jobs .k { color: var(--accent-strong); font-weight: 700; }
+.jobs .s { color: var(--text-muted); text-align: right; white-space: nowrap; }
+.jobs .s.ok { color: var(--ok); }
+.jobs .s.run { color: var(--accent); }
+.jobs .p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ready { display: flex; flex-direction: column; align-items: center; gap: 0.7rem; padding-top: 1rem; text-align: center; }
+.plate {
+  position: relative; padding: 0.3rem 2.4rem 0.4rem; font-family: var(--font-display); font-size: var(--step-4); line-height: 1.1; letter-spacing: 0.32em;
+  color: var(--ok); --frame-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); padding-right: calc(2.4rem - 0.32em);
+}
+.selftest { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.25rem 0.9rem; text-align: left; font-family: var(--font-mono); font-size: var(--step--1); padding: 0.5rem 0.9rem; border-left: 1px solid var(--panel-rule); }
+.selftest .k { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; padding-top: 0.15rem; }
+
+/* ---------- history ---------- */
+.search { flex: 1 1 10rem; min-width: 0; background: transparent; border: 1px solid var(--panel-rule); color: var(--text); font-family: var(--font-mono); font-size: var(--step--1); padding: 0.1rem 0.4rem; outline: none; }
+.search:focus { border-color: var(--accent); }
+.hlist { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
+.sep { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0.2rem 0.25rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.sep::after { content: ""; flex: 1; border-top: 1px dashed var(--panel-rule); }
+.hrow {
+  display: grid; grid-template-columns: 3rem 5.6rem 3.6rem minmax(0, 1fr) 4rem 2rem; gap: 0.7rem; align-items: baseline; width: 100%;
+  padding: 0.25rem 0.4rem; border: 0; border-left: 2px solid transparent; background: transparent; text-align: left;
+  font-family: var(--font-mono); font-size: var(--step--1);
+}
+.hrow:hover { background: var(--accent-faint); border-left-color: var(--accent); }
+.hrow .t, .hrow .n, .hrow .m { color: var(--text-muted); font-size: var(--step--2); }
+.hrow .p { color: var(--accent-strong); font-weight: 500; white-space: nowrap; }
+.hrow .f { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); }
+.hrow .x { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui); font-size: var(--step--1); }
+.hrow .n { text-align: right; }
+.narrow .hrow { grid-template-columns: 2.8rem 5.4rem minmax(0, 1fr); }
+.narrow .hrow .f, .narrow .hrow .n, .narrow .hrow .m { display: none; }
+
+/* ---------- engine ---------- */
+.eng { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: 5.6rem minmax(0, 1fr); gap: 0.85rem 1.2rem; align-content: start; padding: 0.4rem 0.5rem; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
+.narrow .eng { grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
+.narrow .eng > .lbl { margin-top: 0.6rem; }
+.eng > .lbl { padding-top: 0.2rem; border-top: 1px solid var(--panel-rule); }
+.eng > .val { border-top: 1px solid var(--panel-rule); padding-top: 0.3rem; display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; font-size: var(--step--1); }
+.opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.1rem 0.6rem; align-items: start; cursor: pointer; }
+.opt .rd { width: 0.6rem; height: 0.6rem; margin-top: 0.3rem; border: 1px solid var(--panel-border); transform: rotate(45deg); }
+.opt.on .rd { background: var(--accent); border-color: var(--accent); }
+.opt b { font-size: var(--step--2); letter-spacing: var(--tracking-wide); font-weight: 600; text-transform: uppercase; }
+.opt .sub { grid-column: 2; display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; align-items: center; }
+.mono { font-family: var(--font-mono); font-size: var(--step--1); }
+.mut { color: var(--text-muted); }
+.mrows { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto; gap: 0.15rem 0.8rem; align-items: center; font-family: var(--font-mono); font-size: var(--step--1); }
+.mrows .nm { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.mrows .st { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+.mrows .st.on { color: var(--ok); }
+.mrows .rd { width: 0.55rem; height: 0.55rem; border: 1px solid var(--panel-border); transform: rotate(45deg); }
+.mrows .rd.on { background: var(--accent); border-color: var(--accent); }
+.runs { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
+.runs label { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.runs select { background: var(--app-bg); color: var(--text); border: 1px solid var(--panel-border); font-family: var(--font-mono); font-size: var(--step--2); padding: 0.05rem 0.2rem; }
+.logbox { margin: 0; padding: 0.35rem 0.6rem; border-left: 1px solid var(--panel-rule); font-family: var(--font-mono); font-size: var(--step--2); line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-muted); max-height: 9rem; overflow-y: auto; }
+.logbox b { color: var(--text); font-weight: 500; }
+
+/* ---------- popover, card ---------- */
+.pop {
+  position: absolute; z-index: 20; width: 19rem; max-height: 22rem; display: flex; flex-direction: column;
+  background: var(--panel-raised); border: 1px solid var(--panel-border); box-shadow: 0 0.5rem 1.8rem rgb(0 0 0 / 0.45);
+}
+.pop[hidden] { display: none; }
+.pop input { margin: 0.4rem; flex: none; }
+.pop .list { overflow-y: auto; padding-bottom: 0.3rem; scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
+.pop .g { padding: 0.35rem 0.6rem 0.15rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; }
+.li { display: grid; grid-template-columns: 0.7rem 3.8rem minmax(0, 1fr) auto; gap: 0.4rem; align-items: baseline; width: 100%; padding: 0.12rem 0.6rem; border: 0; background: transparent; text-align: left; font-family: var(--font-mono); font-size: var(--step--1); }
+.li:hover, .li:focus-visible { background: var(--accent-faint); outline: none; }
+.li .c { color: var(--accent-strong); font-weight: 700; text-transform: uppercase; font-size: var(--step--2); }
+.li .e { color: var(--text-muted); font-size: var(--step--2); font-family: var(--font-ui); letter-spacing: 0.04em; }
+.li .m { color: var(--accent); font-size: var(--step--2); }
+.card {
+  position: absolute; z-index: 25; width: min(21rem, 90%); padding: 0.45rem 0.65rem; background: var(--panel-raised); border: 1px solid var(--panel-border);
+  font-family: var(--font-mono); font-size: var(--step--1); pointer-events: none; box-shadow: 0 0.4rem 1.6rem rgb(0 0 0 / 0.45);
+}
+.card[hidden] { display: none; }
+.card h4 { margin: 0 0 0.3rem; display: flex; justify-content: space-between; gap: 1rem; font-family: var(--font-ui); font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.card dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.1rem 0.8rem; }
+.card dt { color: var(--text-muted); font-size: var(--step--2); padding-top: 0.1rem; font-family: var(--font-ui); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.card dd { margin: 0; overflow-wrap: anywhere; }
+
+/* ---------- motion ---------- */
+@keyframes beat { 0% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes rise { from { opacity: 0; transform: translateY(0.35rem); } }
+.crt-on { animation: crt-on calc(560ms * var(--motion-scale)) linear backwards; transform-origin: 50% 50%; }
+@keyframes crt-on {
+  0% { opacity: 0; transform: scale(0.3, 0.004); filter: brightness(calc(1 + 4 * var(--crt-glare))); }
+  6% { opacity: 1; transform: scale(1, 0.004); filter: brightness(calc(1 + 4 * var(--crt-glare))); animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+  58% { transform: scale(1, 1); filter: brightness(calc(1 + 0.9 * var(--crt-glare))); animation-timing-function: ease-out; }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+.crt-off { animation: crt-off calc(240ms * var(--motion-scale)) ease-in forwards; transform-origin: 50% 50%; }
+@keyframes crt-off { 60% { transform: scale(1, 0.004); opacity: 1; } 100% { transform: scale(0, 0.004); opacity: 0; } }
+/* A pressed control blinks, as a launcher tile does: on the 100 ms beat. */
+.blink { animation: blink calc(400ms * var(--motion-scale)) steps(1, end); }
+@keyframes blink { 0% { opacity: 0.3; } 25% { opacity: 1; } 50% { opacity: 0.3; } 75% { opacity: 1; } }
+.fx-fresh { position: relative; }
+.fx-fresh::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  border-left: 2px solid var(--accent);
+  background: linear-gradient(to right, color-mix(in srgb, var(--accent) 16%, transparent), transparent 75%);
+  animation: fresh 3s linear backwards;
+}
+@keyframes fresh { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------- narrow: source over target ---------- */
+.narrow .duo { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 0.9rem minmax(0, 1.2fr); }
+.narrow .gutter { background: linear-gradient(var(--panel-rule), var(--panel-rule)) 1.6rem 50% / calc(100% - 3.2rem) 1px no-repeat; }
+.narrow .gutter .dir { writing-mode: horizontal-tb; padding: 0 0.5rem; }
+.narrow .drawer { grid-template-columns: minmax(0, 1fr); }
+.narrow .toolbar .spacer { display: none; }
+
+/* ---------- notes under the mock ---------- */
+.notes { margin-top: 1.6rem; max-width: 68rem; display: grid; gap: 1.2rem; font-size: var(--step--1); line-height: 1.75; }
+.notes h2 { margin: 0 0 0.3rem; font-family: var(--font-display); font-weight: 500; font-size: var(--step-1); letter-spacing: 0.04em; color: var(--accent-strong); border-bottom: 1px solid var(--panel-rule); padding-bottom: 0.15rem; }
+.notes ul, .notes ol { margin: 0; padding-left: 1.3rem; }
+.notes li + li { margin-top: 0.2rem; }
+.notes code { font-family: var(--font-mono); font-size: 0.92em; padding: 0 0.25rem; background: var(--accent-faint); }
+.notes .q { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: 0.3rem 0.6rem; }
+.notes .q b { font-family: var(--font-mono); color: var(--accent-strong); }
+.notes .rec { color: var(--ok); }
+</style>
+</head>
+<body>
+<header class="doc">
+  <h1>TRANSLATE <span>pane mock</span></h1>
+  <p>PLaMo 3 Translate を llama.cpp の llama-server で動かし、elecdex から使う翻訳ペインのモックです。何にも接続していません。訳文・数値・パスはすべて作り物の例です。上の帯はモックの操作用で、ペインの一部ではありません。</p>
+</header>
+
+<nav class="mockbar" id="mockbar" aria-label="Mock controls">
+  <div class="grp" data-g="view"><span>View</span>
+    <button data-v="text">Text</button><button data-v="history">History</button><button data-v="setup">Setup</button><button data-v="engine">Engine</button>
+  </div>
+  <div class="grp" data-g="mode"><span>State</span>
+    <button data-v="nomodel">No model</button><button data-v="empty">Empty</button><button data-v="standby">Standby</button><button data-v="boot">Boot</button><button data-v="run">Translating</button><button data-v="done">Done</button><button data-v="fault">Fault</button>
+  </div>
+  <div class="grp" data-g="step"><span>Setup step</span>
+    <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button>
+    <button data-v="missing" data-flag="engine">engine missing</button>
+  </div>
+  <div class="grp" data-g="width"><span>Width</span><button data-v="wide">Wide</button><button data-v="narrow">Narrow</button></div>
+  <div class="grp" data-g="theme"><span>Theme</span>
+    <button data-v="tron">Tron</button><button data-v="amber">Amber</button><button data-v="phosphor">Phosphor</button><button data-v="white">White</button><button data-v="black">Black</button><button data-v="business-dark">Business dark</button><button data-v="business-light">Business light</button><button data-v="paper">Paper</button>
+  </div>
+</nav>
+
+<main class="stage">
+  <section class="pane" id="pane" aria-label="TRANSLATE">
+    <div class="corner" aria-hidden="true"><span>⤢</span><span>×</span></div>
+    <div class="module-title"><span>Translate</span><span id="headSub">plamo-3-translate-2b · Q4_K_M</span></div>
+    <button type="button" class="settings-toggle" id="settingsBtn" aria-label="Engine and models" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+    </button>
+
+    <!-- TEXT -->
+    <div class="view" id="vText">
+      <div class="toolbar">
+        <div class="vt" role="tablist"><button role="tab" aria-selected="true" data-to="text">Text</button><button role="tab" aria-selected="false" data-to="history">History</button></div>
+        <div class="pair">
+          <button type="button" class="lang" id="srcLang" aria-haspopup="listbox" aria-expanded="false"></button>
+          <button type="button" class="swap" id="swap" aria-label="Swap the languages and the texts" data-card="swap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5"/></svg>
+          </button>
+          <button type="button" class="lang" id="dstLang" aria-haspopup="listbox" aria-expanded="false"></button>
+        </div>
+        <div class="form" id="form" data-card="form"><span>Form</span>
+          <button type="button" data-form="plain" aria-pressed="false">Plain<small>だ・である</small></button>
+          <button type="button" data-form="polite" aria-pressed="true">Polite<small>です・ます</small></button>
+        </div>
+        <span class="spacer"></span>
+        <div class="opts">
+          <button type="button" class="tog" id="tGloss" aria-pressed="false">Glossary <em>3</em></button>
+          <button type="button" class="tog" id="tCtx" aria-pressed="false">Context <i class="dot"></i></button>
+          <button type="button" class="tog" id="tTrip" aria-pressed="false" data-card="trip">Round trip</button>
+          <button type="button" class="tog" id="tLive" aria-pressed="false" data-card="live"><i class="lamp"></i>Live</button>
+        </div>
+      </div>
+
+      <div class="drawer" id="drawer" hidden>
+        <section id="dGloss">
+          <div class="dhead"><b>Glossary</b><span>EN → JA · 3 terms · used for every segment</span><span class="spacer"></span><button type="button" class="btn">+ Term</button><button type="button" class="btn">Paste TSV</button></div>
+          <div class="terms">
+            <input id="g1s" value="collector" aria-label="Source term 1"><span class="arr">→</span><input id="g1t" value="コレクター" aria-label="Target term 1"><span class="hits">1 hit</span><button type="button" class="x" aria-label="Remove">×</button>
+            <input id="g2s" value="pane" aria-label="Source term 2"><span class="arr">→</span><input id="g2t" value="ペイン" aria-label="Target term 2"><span class="hits">1 hit</span><button type="button" class="x" aria-label="Remove">×</button>
+            <input id="g3s" value="weights" aria-label="Source term 3"><span class="arr">→</span><input id="g3t" value="重み" aria-label="Target term 3"><span class="hits">1 hit</span><button type="button" class="x" aria-label="Remove">×</button>
+            <input id="g4s" placeholder="term" aria-label="New source term"><span class="arr">→</span><input id="g4t" placeholder="translation" aria-label="New target term"><span class="hits none">—</span><span></span>
+          </div>
+        </section>
+        <section id="dCtx">
+          <div class="dhead"><b>Context</b><span>sent with every segment · ≈ 21 tok</span></div>
+          <textarea class="ctxbox" id="ctxbox" aria-label="Context">Release notes of a system monitor app, written for the people who use it. Keep the product's terms.</textarea>
+          <div class="dnote">What the text is and who reads it. Never translated, only read.</div>
+        </section>
+      </div>
+
+      <div class="duo" id="duo">
+        <div class="side src">
+          <div class="hud-label"><span>Source</span><span id="srcInfo"></span></div>
+          <div class="console frame">
+            <div class="text" id="srcText"></div>
+            <div class="actions">
+              <button type="button" class="btn" id="paste">Paste</button>
+              <button type="button" class="btn" id="clear">Clear</button>
+              <span class="spacer"></span>
+              <span class="count" id="srcCount"></span>
+              <kbd>Ctrl+Enter</kbd>
+              <button type="button" class="btn lit" id="go">Translate</button>
+            </div>
+          </div>
+        </div>
+        <div class="gutter" id="gutter"><span class="dir" id="dir">EN ▸ JA</span></div>
+        <div class="side dst">
+          <div class="hud-label"><span>Target</span><span id="dstInfo"></span></div>
+          <div class="console frame" id="dstConsole">
+            <div class="text" id="dstText"></div>
+            <div class="actions">
+              <button type="button" class="btn" id="copy">Copy</button>
+              <button type="button" class="btn" id="pairs" data-card="pairs">Copy pairs</button>
+              <span class="spacer"></span>
+              <button type="button" class="btn" id="toSrc">Use as source</button>
+            </div>
+          </div>
+        </div>
+        <svg class="links" id="links" aria-hidden="true"></svg>
+        <div class="nodes" id="nodes"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="view" id="vHistory" hidden>
+      <div class="toolbar">
+        <div class="vt" role="tablist"><button role="tab" aria-selected="false" data-to="text">Text</button><button role="tab" aria-selected="true" data-to="history">History</button></div>
+        <input class="search" id="hsearch" placeholder="filter · text, language" aria-label="Filter the history">
+        <span class="lbl" id="hcount"></span>
+        <button type="button" class="btn" id="hclear" data-card="hclear">Clear</button>
+      </div>
+      <div class="hlist" id="hlist"></div>
+    </div>
+
+    <!-- SETUP -->
+    <div class="view" id="vSetup" hidden>
+      <ol class="steps" id="steps">
+        <li data-s="1"><b>01</b>Engine</li><li data-s="2"><b>02</b>Model</li><li data-s="3"><b>03</b>Licence</li><li data-s="4"><b>04</b>Fetch</li><li data-s="5"><b>05</b>Ready</li>
+      </ol>
+      <div class="stepbody" id="stepBody"></div>
+      <div class="sfoot">
+        <button type="button" class="btn" id="sBack">Back</button>
+        <span class="spacer"></span>
+        <span class="where" id="sWhere"></span>
+        <button type="button" class="btn" id="sCancel">Cancel</button>
+        <button type="button" class="btn lit" id="sNext">Next</button>
+      </div>
+    </div>
+
+    <!-- ENGINE -->
+    <div class="view" id="vEngine" hidden>
+      <div class="toolbar"><span class="lbl">Engine and models</span><span class="spacer"></span><button type="button" class="btn lit" id="eDone">Done</button></div>
+      <div class="eng" id="eng"></div>
+    </div>
+
+    <footer class="foot" id="foot"></footer>
+    <div class="pop" id="pop" hidden></div>
+    <div class="card" id="card" hidden></div>
+  </section>
+</main>
+
+<section class="notes" aria-label="Design notes">
+  <div>
+    <h2>このモックで見られるもの</h2>
+    <ul>
+      <li><b>TEXT</b>：左が原文、右が訳文。原文を段落（文のまとまり）に分け、llama-server のスロットで並列に訳します（モデルカードの推奨どおり 1 リクエスト 1 段落）。中央の背骨に段落ごとの線と番号が通り、どこがどこに訳されたかを示します。段落・番号にポインタを置くと両側が光り、番号のカードに所要時間とトークン数が出ます。</li>
+      <li>訳文は届いたそばから書かれ（キャレットは共有パルス）、書き終えた段落は他のペインと同じ fx-fresh のバーで知らせます。訳している間だけ訳文の枠がアクセント色になります。</li>
+      <li><b>FORM</b>（常体／敬体、訳先が日本語のときだけ有効）、<b>GLOSSARY</b>（用語集。原文と訳文の該当語に下線）、<b>CONTEXT</b>（文脈。訳さず、毎回いっしょに渡す）、<b>ROUND TRIP</b>（訳文を原文の言語に訳し戻して意味のずれを見る。一致度は chrF）、<b>LIVE</b>（打ち終えて 0.6 秒で、変わった段落だけ訳し直す）。</li>
+      <li>訳文の段落ごとに RETRY / EDIT / COPY。EDIT で直した段落は、後の段落を訳すときの履歴（前の訳）として使われ、言い回しがそろいます。</li>
+      <li><b>STATE</b>：NO MODEL → SETUP、STANDBY（エンジン停止中。最初の翻訳で起動）、BOOT（llama-server のログを 1 行ずつ）、FAULT（終了コードと stderr の末尾、RESTART）。</li>
+      <li><b>SETUP</b>：ENGINE（llama-server を探す／既存サーバーのアドレス）→ MODEL（この PC のメモリと GPU から推奨。4 サイズ × 量子化）→ LICENCE（PLaMo コミュニティライセンスへの同意）→ FETCH（再開できるダウンロードと sha256 照合）→ READY（自己テストの 1 文）。</li>
+      <li><b>HISTORY</b> と <b>ENGINE</b>（右上のスライダー：起動方法、モデルの追加・削除、コンテキスト長・スロット・GPU 層・アイドル停止、ログ、ライセンス）。</li>
+      <li>開閉するものは CRT のパワーオン／オフ、押したボタンはランチャーのタイルと同じ点滅。8 テーマすべてで見られます。</li>
+    </ul>
+  </div>
+  <div>
+    <h2>仕組みの案</h2>
+    <ul>
+      <li>main の新しいモジュール（<code>main/translate/</code>）が llama-server を子プロセスとして起動：<code>--host 127.0.0.1 --port &lt;空き番号&gt; --api-key &lt;起動ごとの乱数&gt; --no-webui -c 16384 -np 4</code>。ほかのプロセスやブラウザからは使えず、ページは IPC だけで話します（ページのネットワーク禁止はそのまま）。</li>
+      <li>プロンプトは PFML3 を shared の純関数で組み立てて <code>/completion</code> にストリーミング（モデルカードが本番向けに勧める形。chat_template.jinja は不要）。原文に紛れた <code>&lt;|plamo:…|&gt;</code> は無害化してから渡します。<code>temperature 0</code>、stop は <code>&lt;|plamo:tag|&gt;</code> と <code>&lt;|plamo:bos|&gt;</code>。</li>
+      <li>段落ごとに並列、直前の段落の原文と訳を履歴として添えて一貫させます。結果は段落の内容と設定のハッシュで覚え、LIVE や言語の切り替えでは変わった段落だけ訳し直します。</li>
+      <li>モデルは main が Hugging Face から取得（Range で再開、sha256 照合、<code>replaceFile</code> で置く）。外に出る通信はこのダウンロードだけです。</li>
+      <li>エンジンは最初の翻訳で起動し、10 分使わなければ止め、最後の TRANSLATE ペインを閉じても止めます。見えていない間は新しく何も始めません（訳しかけの段落は書き終えます）。</li>
+      <li>フッターに「PLaMo 3 Translate · PLaMo Community License」を常に出し、data-sources.md にダウンロード先と頻度を書きます。</li>
+    </ul>
+  </div>
+  <div>
+    <h2>決めたいこと</h2>
+    <div class="q">
+      <b>Q1</b><span>llama-server の入手。<span class="rec">推奨：A</span> 利用者が入れたもの（<code>winget install llama.cpp</code> / <code>brew install llama.cpp</code>）を探して使い、既に動いているサーバーのアドレスも選べる。B は elecdex が GitHub のリリースから実行ファイルを取ってくる（GPU 別のビルド選びと署名のない exe の扱いが要る）。</span>
+      <b>Q2</b><span>モデルの一覧。0.8B / 2B / 8B / 31B の 4 つを出し、PC のメモリと VRAM から推奨を付ける（このモックでは 2B）。31B（19.5 GB）も一覧に出すか。メモリの目安は実測で決めます。</span>
+      <b>Q3</b><span>履歴。main のファイルに保存（上限 200 件、CLEAR、保存しない設定あり）か、メモリだけか。</span>
+      <b>Q4</b><span>LIVE の既定。<span class="rec">推奨：オフ</span>（Ctrl+Enter で訳す）。</span>
+      <b>Q5</b><span>呼び出しキー。Ctrl+Shift+Y（空いています）でクリップボードの文を持って TRANSLATE を出す（レイアウトに無ければポップアップ）。</span>
+      <b>Q6</b><span>ROUND TRIP の一致度（chrF の数値とバー）を出すか、訳し戻した文だけにするか。</span>
+    </div>
+  </div>
+</section>
+
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+/* ---------- made-up data ---------- */
+const LANGS = [
+  ['ja', '日本語', 'Japanese'], ['en', 'English', 'English'], ['zh-hans', '简体中文', 'Chinese, simplified'], ['zh-hant', '繁體中文', 'Chinese, traditional'], ['ko', '한국어', 'Korean'],
+  ['ar', 'العربية', 'Arabic'], ['az', 'Azərbaycan', 'Azerbaijani'], ['be', 'Беларуская', 'Belarusian'], ['bg', 'Български', 'Bulgarian'], ['bn', 'বাংলা', 'Bengali'],
+  ['ca', 'Català', 'Catalan'], ['ceb', 'Cebuano', 'Cebuano'], ['de', 'Deutsch', 'German'], ['es', 'Español', 'Spanish'], ['et', 'Eesti', 'Estonian'],
+  ['eu', 'Euskara', 'Basque'], ['fa', 'فارسی', 'Persian'], ['fr', 'Français', 'French'], ['gu', 'ગુજરાતી', 'Gujarati'], ['he', 'עברית', 'Hebrew'],
+  ['hi', 'हिन्दी', 'Hindi'], ['hr', 'Hrvatski', 'Croatian'], ['hu', 'Magyar', 'Hungarian'], ['hy', 'Հայերեն', 'Armenian'], ['id', 'Bahasa Indonesia', 'Indonesian'],
+  ['it', 'Italiano', 'Italian'], ['jv', 'Basa Jawa', 'Javanese'], ['ka', 'ქართული', 'Georgian'], ['kk', 'Қазақ', 'Kazakh'], ['km', 'ខ្មែរ', 'Khmer'],
+  ['lt', 'Lietuvių', 'Lithuanian'], ['lv', 'Latviešu', 'Latvian'], ['ml', 'മലയാളം', 'Malayalam'], ['mr', 'मराठी', 'Marathi'], ['ms', 'Bahasa Melayu', 'Malay'],
+  ['my', 'မြန်မာ', 'Burmese'], ['ne', 'नेपाली', 'Nepali'], ['nl', 'Nederlands', 'Dutch'], ['pa', 'ਪੰਜਾਬੀ', 'Punjabi'], ['pl', 'Polski', 'Polish'],
+  ['ru', 'Русский', 'Russian'], ['si', 'සිංහල', 'Sinhala'], ['sk', 'Slovenčina', 'Slovak'], ['sl', 'Slovenščina', 'Slovenian'], ['sr', 'Српски', 'Serbian'],
+  ['sw', 'Kiswahili', 'Swahili'], ['ta', 'தமிழ்', 'Tamil'], ['te', 'తెలుగు', 'Telugu'], ['th', 'ไทย', 'Thai'], ['tl', 'Tagalog', 'Tagalog'],
+  ['ur', 'اردو', 'Urdu'], ['uz', 'Oʻzbek', 'Uzbek'], ['vi', 'Tiếng Việt', 'Vietnamese'],
+];
+const LANG = Object.fromEntries(LANGS.map((l) => [l[0], l]));
+const RECENT = ['ja', 'en', 'zh-hans', 'ko'];
+
+// {term} marks a glossary term; the first segment is a heading.
+const TEXTS = {
+  en: [
+    'What changed in 0.4',
+    'The {collector} now samples the GPU through the same channel as the CPU, so a reading costs one message instead of three.',
+    'If the server does not answer within two seconds, the {pane} keeps the last good value on screen and marks it stale.',
+    'Nothing is sent outside this machine: the model runs locally, and the only request to the network is the download of its {weights}.',
+    'Thanks to everyone who reported the flicker on wide monitors.',
+  ],
+  'ja-polite': [
+    '0.4 での変更点',
+    '{コレクター}は CPU と同じチャネルで GPU も計測するようになり、1 回の読み取りに必要なメッセージが 3 通から 1 通になりました。',
+    'サーバーが 2 秒以内に応答しない場合、{ペイン}は最後に取得できた正常な値を画面に残し、古い値であることを示します。',
+    'このマシンの外には何も送信されません。モデルはローカルで動作し、ネットワークへの要求はモデルの{重み}のダウンロードだけです。',
+    'ワイドモニターでのちらつきを報告してくださった皆さまに感謝します。',
+  ],
+  'ja-plain': [
+    '0.4 での変更点',
+    '{コレクター}は CPU と同じチャネルで GPU も計測するようになり、1 回の読み取りに必要なメッセージが 3 通から 1 通になった。',
+    'サーバーが 2 秒以内に応答しない場合、{ペイン}は最後に取得できた正常な値を画面に残し、古い値であることを示す。',
+    'このマシンの外には何も送信されない。モデルはローカルで動作し、ネットワークへの要求はモデルの{重み}のダウンロードだけだ。',
+    'ワイドモニターでのちらつきを報告してくれた皆さんに感謝する。',
+  ],
+  'zh-hans': [
+    '0.4 版的变更',
+    '采集器现在通过与 CPU 相同的通道对 GPU 采样，因此一次读取只需一条消息，而不是三条。',
+    '如果服务器在两秒内没有响应，窗格会在屏幕上保留最后一个有效值，并将其标记为过时。',
+    '不会向本机以外发送任何内容：模型在本地运行，唯一的网络请求是下载其权重。',
+    '感谢所有报告宽屏显示器闪烁问题的用户。',
+  ],
+  ko: [
+    '0.4 변경 사항',
+    '이제 수집기가 CPU와 같은 채널로 GPU를 샘플링하므로, 한 번 읽는 데 메시지가 세 개가 아니라 하나만 듭니다.',
+    '서버가 2초 안에 응답하지 않으면 패널은 마지막으로 받은 정상 값을 화면에 그대로 두고 오래된 값으로 표시합니다.',
+    '이 컴퓨터 밖으로는 아무것도 전송되지 않습니다. 모델은 로컬에서 실행되며, 네트워크 요청은 모델 가중치를 내려받는 것뿐입니다.',
+    '와이드 모니터의 깜빡임을 제보해 주신 모든 분께 감사드립니다.',
+  ],
+  fr: [
+    'Les changements de la 0.4',
+    'Le collecteur échantillonne désormais le GPU par le même canal que le CPU : une lecture coûte un message au lieu de trois.',
+    'Si le serveur ne répond pas dans les deux secondes, le volet garde à l’écran la dernière valeur valide et la signale comme périmée.',
+    'Rien n’est envoyé hors de cette machine : le modèle s’exécute localement, et la seule requête réseau est le téléchargement de ses poids.',
+    'Merci à toutes celles et ceux qui ont signalé le scintillement sur les écrans larges.',
+  ],
+};
+const TRIP = [
+  ['Changes in 0.4', 74],
+  ['The collector now also measures the GPU over the same channel as the CPU, so one reading needs one message instead of three.', 88],
+  ['If the server does not respond within two seconds, the pane leaves the last valid value on screen and shows that it is stale.', 90],
+  ['Nothing is sent outside this machine. The model runs locally, and the only request to the network is downloading the model’s weights.', 93],
+  ['Thanks to everyone who reported the flicker on wide monitors.', 100],
+];
+const STATS = [[9, 7, 0.14, 1], [31, 44, 0.58, 2], [28, 41, 0.55, 3], [33, 47, 0.61, 4], [13, 19, 0.27, 1]];
+const GLOSS = { collector: 'コレクター', pane: 'ペイン', weights: '重み', 'コレクター': 'collector', 'ペイン': 'pane', '重み': 'weights' };
+const HISTORY = [
+  ['Today', '20:41', 'EN → JA', 'Polite', 'What changed in 0.4 · The collector now samples the GPU through the same channel as the CPU…', 412, '2B'],
+  ['Today', '18:12', 'JA → EN', '', '来週の打ち合わせは木曜 14 時からに変更になりました。資料は前日までに共有します。', 96, '2B'],
+  ['Today', '11:05', 'EN → JA', 'Plain', 'error: cannot lock ref refs/remotes/origin/main: is at 3f2a9c1 but expected 8d0e4b7', 88, '2B'],
+  ['Yesterday', '22:30', 'KO → JA', 'Polite', '이번 업데이트에서 배터리 사용 시간이 개선되었습니다.', 28, '2B'],
+  ['Yesterday', '16:47', 'EN → JA', 'Polite', 'Thank you for the detailed report. We were able to reproduce the crash on the second monitor…', 640, '8B'],
+  ['Nov 3', '09:14', 'FR → JA', 'Plain', 'La réunion est reportée à lundi prochain en raison des congés.', 62, '2B'],
+  ['Nov 3', '08:52', 'EN → ZH-HANS', '', 'Your order has shipped and should arrive within three business days.', 71, '2B'],
+];
+const MODELS = [
+  { id: 'lite', name: 'Lite', p: '0.8B', sizes: ['573 MB', '548 MB', '486 MB', '410 MB'], need: 'RAM 4 GB+', desc: 'Fastest. Japanese ↔ English holds up well even at this size.', fit: ['ok', 10] },
+  { id: 'std', name: 'Standard', p: '2B', sizes: ['1.81 GB', '1.70 GB', '1.50 GB', '1.23 GB'], need: 'RAM 8 GB+', desc: 'The balance of quality and speed for most PCs.', fit: ['ok', 8], rec: true },
+  { id: 'pro', name: 'Pro', p: '8B', sizes: ['5.28 GB', null, '4.31 GB', '3.45 GB'], need: 'RAM 16 GB+ · VRAM 8 GB+', desc: 'Higher quality. Slow here without a GPU of 8 GB.', fit: ['tight', 4] },
+  { id: 'max', name: 'Max', p: '31B', sizes: ['19.53 GB', null, '15.86 GB', '12.61 GB'], need: 'RAM 32 GB+ · VRAM 24 GB+', desc: 'The best quality. A workstation\u2019s model.', fit: ['no', 2] },
+];
+const QUANTS = ['Q4_K_M', 'Q4_0', 'Q3_K_M', 'Q2_K'];
+const ENGINE_LOG = [
+  ['20:29:41', 'build: b7123 (Vulkan, CPU AVX2) for x86_64-pc-windows-msvc'],
+  ['20:29:41', 'llama_model_loader: loaded meta data from plamo-3-translate-2b-Q4_K_M.gguf'],
+  ['20:29:42', 'load_tensors: offloading all layers to GPU · Vulkan0 Intel(R) Iris(R) Xe Graphics'],
+  ['20:29:42', 'llama_context: n_ctx = 16384, n_seq_max = 4'],
+  ['20:29:43', 'main: server is listening on http://127.0.0.1:8642'],
+  ['20:41:07', 'slot launch_slot_: id 0 | task 412 | processing task'],
+  ['20:41:09', 'srv  update_slots: all slots are idle'],
+];
+const FAULT_LOG = [
+  'ggml_vulkan: Device memory allocation of size 1342177280 failed.',
+  'llama_model_load: error loading model: unable to allocate Vulkan0 buffer',
+  'main: exiting due to model loading error',
+];
+
+/* ---------- state ---------- */
+const S = {
+  view: 'text', mode: 'done', form: 'polite', src: 'auto', srcText: 'en', dst: 'ja',
+  gloss: false, ctx: false, trip: false, live: false, narrow: false,
+  step: 2, engine: 'found', model: 'std', quant: 0, agreed: false, fetchPct: 0, paused: false,
+  theme: 'tron', segs: [], hot: null, tok: 0, t0: 0, ext: false,
+};
+let timers = [];
+const later = (fn, ms) => { const id = setTimeout(fn, ms); timers.push(id); return id; };
+const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+/* ---------- text helpers ---------- */
+const key = (lang) => (lang === 'ja' ? `ja-${S.form}` : lang);
+const srcSegs = () => TEXTS[S.srcText === 'ja' ? 'ja-polite' : S.srcText];
+const outSegs = () => (S.dst === S.srcText ? null : TEXTS[key(S.dst)] || null);
+const termsOn = () => S.srcText === 'en' && S.dst === 'ja';
+const tripOn = () => S.trip && termsOn();
+const plain = (s) => s.replace(/\{([^}]+)\}/g, '$1');
+const markup = (s, terms) => esc(s).replace(/\{([^}]+)\}/g, (_, t) => (terms ? `<span class="term" data-card="term:${t}">${t}</span>` : t));
+const code = (c) => c.toUpperCase();
+const filled = () => !['nomodel', 'empty'].includes(S.mode);
+const chars = () => (filled() ? srcSegs().reduce((n, s) => n + plain(s).length, 0) : 0);
+
+/* ---------- toolbar ---------- */
+function renderLangs() {
+  const det = S.src === 'auto';
+  const sl = LANG[S.srcText];
+  $('#srcLang').innerHTML = det
+    ? `<b>Auto</b><small>${filled() ? `≈ ${code(S.srcText)} ${esc(sl[1])}` : 'detect'}</small><i>▾</i>`
+    : `<b>${code(sl[0])}</b><small>${esc(sl[1])}</small><i>▾</i>`;
+  const dl = LANG[S.dst];
+  $('#dstLang').innerHTML = `<b>${code(dl[0])}</b><small>${esc(dl[1])}</small><i>▾</i>`;
+  $('#form').classList.toggle('off', S.dst !== 'ja');
+  $$('#form button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.form === S.form)));
+  $('#dir').textContent = `${code(S.srcText)} ▸ ${code(S.dst)}`;
+  $('#tGloss').setAttribute('aria-pressed', String(S.gloss));
+  $('#tCtx').setAttribute('aria-pressed', String(S.ctx));
+  $('#tTrip').setAttribute('aria-pressed', String(S.trip));
+  $('#tLive').setAttribute('aria-pressed', String(S.live));
+  const dr = $('#drawer');
+  const open = S.gloss || S.ctx;
+  if (open && dr.hidden) { dr.hidden = false; crt(dr); }
+  if (!open) dr.hidden = true;
+  $('#dGloss').hidden = !S.gloss;
+  $('#dCtx').hidden = !S.ctx;
+  dr.classList.toggle('one', !(S.gloss && S.ctx));
+}
+
+/* ---------- source ---------- */
+function renderSrc() {
+  const el = $('#srcText');
+  if (!filled()) {
+    el.innerHTML = '<textarea id="srcInput" spellcheck="false" aria-label="Source text" placeholder="Type or paste text. Ctrl+Enter translates it."></textarea>';
+  } else {
+    const terms = termsOn();
+    el.innerHTML = srcSegs().map((s, i) => `<p class="seg${i === 0 ? ' h' : ''}" data-i="${i}">${markup(s, terms)}</p>`).join('');
+  }
+  const n = chars();
+  $('#srcInfo').innerHTML = filled()
+    ? `<b>${code(S.srcText)}</b>${S.src === 'auto' ? ' · auto' : ''} · 5 seg · ${n} ch`
+    : S.src === 'auto' ? 'auto' : code(S.srcText);
+  $('#srcCount').textContent = `${n.toLocaleString('en')} / 20,000`;
+  $('#go').disabled = S.mode === 'nomodel';
+  $('#clear').disabled = !filled();
+}
+
+/* ---------- target ---------- */
+function standby(lamp, state, big, host, cmd, hint) {
+  return `<div class="standby crt-on">
+    <span class="state"><i class="slamp ${lamp}"></i>${state}</span>
+    <span class="big">${big}</span>
+    ${host ? `<span class="host">${host}</span>` : ''}
+    ${cmd ? `<button type="button" class="command" id="cmd">${cmd}</button>` : ''}
+    ${hint ? `<span class="hint">${hint}</span>` : ''}
+  </div>`;
+}
+function renderDst() {
+  const el = $('#dstText');
+  $('#dstConsole').classList.toggle('tx', S.mode === 'run' || S.mode === 'boot');
+  const out = outSegs();
+  switch (S.mode) {
+    case 'nomodel':
+      el.innerHTML = standby('', 'No model', 'PLaMo 3 Translate', 'Runs on this PC through llama.cpp. Set up downloads the model once; after that nothing you translate leaves this machine.', '&gt; set up translation', '');
+      break;
+    case 'empty':
+      el.innerHTML = standby('ok', 'Ready', 'Awaiting input', 'plamo-3-translate-2b · Q4_K_M · 127.0.0.1:8642', '', 'Type or paste on the left. <kbd>Ctrl+Enter</kbd> translates; <kbd>Ctrl+Shift+Y</kbd> brings this pane with the clipboard\u2019s text.');
+      break;
+    case 'standby':
+      el.innerHTML = standby('off', 'Engine standby', 'PLaMo 3 Translate · 2B', 'llama-server b7123 starts with the first translation: about 2 s and 1.9 GB.', '&gt; translate', 'It stops again after 10 minutes without a translation, or when the last TRANSLATE pane closes.');
+      break;
+    case 'boot':
+      el.innerHTML = '<div class="boot" id="boot"><div class="boot-head">Engine power on</div></div>';
+      break;
+    case 'fault':
+      el.innerHTML = `<div class="fault crt-on">
+        <h3><i class="slamp bad"></i>Engine fault</h3>
+        <p>llama-server stopped while loading the model (exit code 1). The GPU had no room for it: lower <b>GPU layers</b> or <b>context</b> in the engine settings, or close what else uses the GPU.</p>
+        <pre>${FAULT_LOG.map(esc).join('\n')}</pre>
+        <div class="row"><button type="button" class="btn lit" id="restart">Restart engine</button><button type="button" class="btn" id="faultCopy">Copy log</button><button type="button" class="btn" id="faultSet">Engine settings</button></div>
+      </div>`;
+      break;
+    default:
+      if (!out) {
+        el.innerHTML = `<div class="note-out">${S.dst === S.srcText ? 'The source is already in this language.' : `このモックには ${code(S.dst)} の訳例がありません（JA / EN / ZH-HANS / KO / FR だけ）。`}</div>`;
+        break;
+      }
+      el.innerHTML = out.map((_, i) => `<div class="seg${i === 0 ? ' h' : ''}" data-i="${i}" data-st="${S.segs[i]?.st || 'done'}"></div>`).join('');
+      out.forEach((_, i) => paintSeg(i));
+  }
+  renderInfo();
+  scheduleLinks();
+}
+function paintSeg(i) {
+  const el = $(`#dstText .seg[data-i="${i}"]`);
+  if (!el) return;
+  const out = outSegs();
+  const seg = S.segs[i] || { st: 'done' };
+  el.dataset.st = seg.st;
+  if (seg.st === 'queued') el.innerHTML = '<span class="qd">queued · waiting for a slot</span>';
+  else if (seg.st === 'run') el.innerHTML = `${esc(seg.shown.slice(0, -seg.last))}<span class="tok">${esc(seg.shown.slice(-seg.last))}</span><i class="caret"></i>`;
+  else {
+    const body = seg.edited ? esc(seg.edited) + '<span class="edtag">EDITED</span>' : markup(out[i], termsOn());
+    const trip = tripOn() && !seg.edited ? `<div class="trip"><span><span class="tl">BACK</span>${esc(TRIP[i][0])}</span>${matchHTML(TRIP[i][1])}</div>` : '';
+    el.innerHTML = `${body}${trip}<span class="acts"><button type="button" data-act="retry">Retry</button><button type="button" data-act="edit">Edit</button><button type="button" data-act="copy">Copy</button></span>`;
+    if (seg.edited) el.dataset.st = 'edited';
+  }
+  if (seg.fresh) {
+    el.classList.remove('fx-fresh'); void el.offsetWidth; el.classList.add('fx-fresh');
+    seg.fresh = false;
+  }
+}
+const matchHTML = (v) => `<span class="match ${v >= 85 ? 'hi' : v >= 70 ? 'mid' : 'low'}" data-card="match:${v}"><span class="bar"><i style="width:${v}%"></i></span>${v}</span>`;
+
+function renderInfo() {
+  const out = outSegs();
+  const lang = `<b>${code(S.dst)}</b>${S.dst === 'ja' ? ` · ${S.form}` : ''}`;
+  let fig = '';
+  if (S.mode === 'run') {
+    const n = S.segs.filter((s) => s.st === 'done').length;
+    fig = ` · ${n}/5 · ${S.tok} tok · ${(85 + Math.round(Math.random() * 4))} t/s`;
+  } else if (S.mode === 'done' && out) fig = ' · 158 tok · 86 t/s · 1.9 s';
+  $('#dstInfo').innerHTML = lang + fig;
+  renderFoot();
+}
+function renderFoot() {
+  const f = $('#foot');
+  const right = '<span class="spacer"></span><span class="credit">PLaMo 3 Translate · PLaMo Community License</span><span>· local, nothing leaves this PC</span>';
+  const live = S.live ? '<span class="fig">LIVE · 0.6 s after typing stops</span>' : '';
+  let lamp;
+  let figs;
+  if (S.view === 'setup' && S.step < 5) {
+    f.innerHTML = `<span class="lampw nomodel"><i></i><b>Setup</b></span><span>nothing runs until the model is in place</span>${right}`;
+    return;
+  }
+  switch (S.view === 'setup' ? 'done' : S.mode) {
+    case 'nomodel': lamp = ['nomodel', 'No model']; figs = '<span>set up downloads PLaMo 3 Translate (0.6 – 19.5 GB) once</span>'; break;
+    case 'standby': lamp = ['off', 'Standby']; figs = '<span class="fig">llama-server b7123 · stopped · starts with the first translation</span>'; break;
+    case 'boot': lamp = ['beat', 'Boot']; figs = '<span class="fig">loading plamo-3-translate-2b-Q4_K_M.gguf</span>'; break;
+    case 'run': {
+      const n = S.segs.filter((s) => s.st === 'run').length;
+      lamp = ['beat', 'TX']; figs = `<span class="fig"><em>${n}</em> of 4 slots · 127.0.0.1:8642</span>`; break;
+    }
+    case 'fault': lamp = ['bad', 'Fault']; figs = '<span class="fig">llama-server exited · code 1 · 20:41:09</span>'; break;
+    default: lamp = ['', 'Ready']; figs = '<span class="fig">llama-server b7123 · 127.0.0.1:8642 · <em>Vulkan</em> · ctx 16K · 4 slots · 1.9 GB</span>';
+  }
+  f.innerHTML = `<span class="lampw ${lamp[0]}" data-card="engine"><i></i><b>${lamp[1]}</b></span>${figs}${live}${right}`;
+}
+
+/* ---------- the spine's links ---------- */
+let linkFrame = 0;
+function scheduleLinks() { cancelAnimationFrame(linkFrame); linkFrame = requestAnimationFrame(drawLinks); }
+function drawLinks() {
+  const svg = $('#links');
+  const nodes = $('#nodes');
+  const show = S.view === 'text' && !S.narrow && (S.mode === 'run' || S.mode === 'done') && outSegs();
+  $('#dir').style.visibility = show ? 'hidden' : 'visible';
+  if (!show) { svg.innerHTML = ''; nodes.innerHTML = ''; return; }
+  // Laid out by offsets, not client rects: a view powering on is scaled to a line for a moment,
+  // and rects read then would fold every link into it.
+  const duo = $('#duo');
+  const g = $('#gutter');
+  const sT = $('#srcText');
+  const dT = $('#dstText');
+  const sC = sT.parentElement;
+  const dC = dT.parentElement;
+  const x0 = g.offsetLeft;
+  const x3 = g.offsetLeft + g.offsetWidth;
+  const x1 = x0 + 5;
+  const x2 = x3 - 5;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lead = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  const y = (seg, text, con) => clamp(
+    con.offsetTop + seg.offsetTop - text.scrollTop + lead,
+    con.offsetTop + text.offsetTop + 4,
+    con.offsetTop + text.offsetTop + text.clientHeight - 4,
+  );
+  let paths = '';
+  let html = '';
+  $$('#srcText .seg').forEach((s) => {
+    const i = Number(s.dataset.i);
+    const t = $(`#dstText .seg[data-i="${i}"]`);
+    if (!t) return;
+    const ys = y(s, sT, sC);
+    const yt = y(t, dT, dC);
+    const st = S.segs[i]?.st || 'done';
+    const hot = S.hot === i;
+    paths += `<path d="M${x0} ${ys} H${x1} L${x2} ${yt} H${x3}" class="${st === 'done' ? '' : st === 'run' ? 'run' : 'q'}${hot ? ' hot' : ''}"/>`;
+    const nst = S.segs[i]?.edited ? 'edited' : st;
+    html += `<button type="button" class="node${hot ? ' hot' : ''}" data-i="${i}" data-st="${nst}" data-card="node:${i}" style="left:${(x1 + x2) / 2}px;top:${(ys + yt) / 2}px">${String(i + 1).padStart(2, '0')}</button>`;
+  });
+  svg.setAttribute('viewBox', `0 0 ${duo.clientWidth} ${duo.clientHeight}`);
+  svg.innerHTML = paths;
+  nodes.innerHTML = html;
+}
+function setHot(i) {
+  if (S.hot === i) return;
+  S.hot = i;
+  $$('#duo .seg').forEach((el) => el.classList.toggle('hot', Number(el.dataset.i) === i));
+  scheduleLinks();
+}
+
+/* ---------- translating ---------- */
+function runTranslation() {
+  clearTimers();
+  closePop();
+  const out = outSegs();
+  S.mode = 'run';
+  S.segs = (out || []).map(() => ({ st: 'queued', shown: '', last: 0 }));
+  S.tok = 0;
+  syncMock();
+  renderSrc();
+  renderLangs();
+  renderDst();
+  if (!out) { S.mode = 'done'; syncMock(); renderInfo(); return; }
+  let next = 0;
+  let active = 0;
+  let done = 0;
+  const pump = () => { while (active < 4 && next < out.length) { start(next++); active++; } };
+  const start = (i) => {
+    const full = plain(out[i]);
+    const seg = S.segs[i];
+    seg.st = 'run';
+    paintSeg(i);
+    renderFoot();
+    let pos = 0;
+    const step = () => {
+      if (S.mode !== 'run') return;
+      const n = 1 + Math.floor(Math.random() * 3);
+      pos = Math.min(full.length, pos + n);
+      seg.shown = full.slice(0, pos);
+      seg.last = Math.min(n, pos);
+      S.tok += 1;
+      paintSeg(i);
+      if (pos < full.length) { later(step, 26 + Math.random() * 34); renderInfo(); scheduleLinks(); return; }
+      seg.st = 'done';
+      seg.fresh = true;
+      paintSeg(i);
+      active--; done++;
+      if (done === out.length) { S.mode = 'done'; syncMock(); $('#dstConsole').classList.remove('tx'); renderInfo(); scheduleLinks(); return; }
+      pump(); renderInfo(); scheduleLinks();
+    };
+    later(step, 160 + i * 50);
+  };
+  pump();
+}
+function runBoot() {
+  clearTimers();
+  S.mode = 'boot';
+  syncMock();
+  renderSrc();
+  renderDst();
+  const lines = [
+    ['SPAWN', 'llama-server b7123 <span class="mut">· 127.0.0.1:8642 · api key set · web ui off</span>'],
+    ['LOAD', 'plamo-3-translate-2b-Q4_K_M.gguf <span class="mut">· 1.81 GB</span>'],
+    ['TENSORS', '<span class="cells" id="bootCells">' + '<i></i>'.repeat(24) + '</span> <span id="bootPct">0%</span>'],
+    ['OFFLOAD', 'all layers → GPU <span class="mut">· Vulkan0 · Intel Iris Xe</span>'],
+    ['CONTEXT', '16384 tokens <span class="mut">· 4 slots · temperature 0</span>'],
+    ['READY', 'listening <span class="mut">· up in 1.6 s</span>', 'ok'],
+  ];
+  const now = new Date(2026, 10, 5, 20, 41, 7);
+  const t = () => now.toTimeString().slice(0, 8);
+  let i = 0;
+  const add = () => {
+    const [k, v, cls] = lines[i];
+    $('#boot').insertAdjacentHTML('beforeend', `<div class="ln ${cls || ''}"><span class="t">${t()}</span><span class="k">${k}</span><span class="v">${v}</span></div>`);
+    if (k === 'TENSORS') {
+      let c = 0;
+      const fill = () => {
+        c += 2;
+        $$('#bootCells i').forEach((el, j) => { el.className = j < c - 1 ? 'on' : j === c - 1 ? 'head' : ''; });
+        $('#bootPct').textContent = `${Math.round((c / 24) * 100)}%`;
+        if (c < 24) later(fill, 55); else { now.setSeconds(now.getSeconds() + 1); i++; later(add, 160); }
+      };
+      later(fill, 120);
+      return;
+    }
+    i++;
+    if (i < lines.length) later(add, 230);
+    else later(runTranslation, 650);
+  };
+  later(add, 250);
+}
+
+/* ---------- history ---------- */
+function renderHistory() {
+  const q = $('#hsearch').value.trim().toLowerCase();
+  const rows = HISTORY.filter((h) => !q || h.join(' ').toLowerCase().includes(q));
+  let day = '';
+  let html = '';
+  rows.forEach((h, n) => {
+    if (h[0] !== day) { day = h[0]; html += `<div class="sep">${day}</div>`; }
+    html += `<button type="button" class="hrow" style="animation-delay:${n * 40}ms" data-h="${n}"><span class="t">${h[1]}</span><span class="p">${h[2]}</span><span class="f">${h[3]}</span><span class="x">${esc(h[4])}</span><span class="n">${h[5]} ch</span><span class="m">${h[6]}</span></button>`;
+  });
+  $('#hlist').innerHTML = html || '<div class="note-out">Nothing matches.</div>';
+  $('#hcount').textContent = `${rows.length} of ${HISTORY.length} · kept on this PC`;
+}
+
+/* ---------- setup ---------- */
+function renderSetup() {
+  $$('#steps li').forEach((li) => {
+    const s = Number(li.dataset.s);
+    li.className = s < S.step ? 'done' : s === S.step ? 'now' : '';
+  });
+  const body = $('#stepBody');
+  body.innerHTML = STEP_VIEWS[S.step]();
+  body.classList.remove('crt-on'); void body.offsetWidth; body.classList.add('crt-on');
+  $('#sBack').disabled = S.step === 1 || S.step >= 4;
+  $('#sCancel').hidden = S.step === 5;
+  const next = $('#sNext');
+  next.disabled = (S.step === 1 && S.engine === 'missing' && !S.ext) || (S.step === 3 && !S.agreed) || (S.step === 4 && S.fetchPct < 100);
+  next.textContent = { 1: 'Next', 2: 'Next', 3: 'Agree and fetch', 4: 'Next', 5: 'Start translating' }[S.step];
+  $('#sWhere').textContent = { 1: 'step 1 of 5 · engine', 2: 'step 2 of 5 · model', 3: 'step 3 of 5 · licence', 4: 'goes on with this pane closed', 5: '' }[S.step];
+  $('#headSub').textContent = `setup · ${S.step}/5`;
+  renderFoot();
+  if (S.step === 4) startFetch();
+}
+const STEP_VIEWS = {
+  1: () => `
+    <div class="shead"><h2>Engine</h2><p>llama.cpp's llama-server runs the model on this PC.</p></div>
+    ${S.engine === 'found' ? `
+    <div class="probe"><span class="st"><i class="slamp ok"></i>Found</span>
+      <span class="what">llama-server b7123 · Vulkan · CPU AVX2<small>C:\\Tools\\llama.cpp\\llama-server.exe</small></span>
+      <span class="row"><button type="button" class="btn">Rescan</button><button type="button" class="btn">Choose…</button></span></div>
+    <p class="small">elecdex starts it when you translate, on 127.0.0.1 with a key of its own, and stops it after 10 idle minutes.</p>` : `
+    <div class="probe miss"><span class="st"><i class="slamp"></i>Not found</span>
+      <span class="what">llama-server is not on PATH or in the usual places<small>Install llama.cpp with one of these, then rescan, or choose the file.</small></span>
+      <span class="row"><button type="button" class="btn lit">Rescan</button><button type="button" class="btn">Choose…</button></span></div>
+    <div class="cmds">
+      <span class="os">Windows</span><code>winget install llama.cpp</code><button type="button" class="btn">Copy</button>
+      <span class="os">macOS</span><code>brew install llama.cpp</code><button type="button" class="btn">Copy</button>
+      <span class="os">Linux</span><code>brew install llama.cpp</code><button type="button" class="btn">Copy</button>
+    </div>
+    <p class="small">Or build it from github.com/ggml-org/llama.cpp. A GPU build (Vulkan, CUDA, Metal) is much faster than the CPU one.</p>`}
+    <div class="or">or</div>
+    <div class="ext"><span class="lbl">Use a server already running</span><input class="field" id="extAddr" placeholder="http://192.168.1.20:8080" aria-label="Server address"><button type="button" class="btn" id="extTest">Test</button></div>
+    <p class="small">elecdex then starts nothing. The server must run a PLaMo 3 Translate model; elecdex asks it which one before the first translation.</p>`,
+  2: () => `
+    <div class="shead"><h2>Model</h2><p>PLaMo 3 Translate by Preferred Networks · 53 languages. More can be added later.</p></div>
+    <div class="pc">This PC<b>RAM 16 GB</b><b>GPU Intel Iris Xe · shared memory</b><b>free 85.9 GB</b></div>
+    <div class="models" role="radiogroup" aria-label="Model">${MODELS.map((m) => `
+      <button type="button" class="mcard frame" role="radio" aria-checked="${S.model === m.id}" ${m.fit[0] === 'no' ? 'aria-disabled="true"' : ''} data-model="${m.id}" data-card="fit:${m.id}">
+        <span class="top">${m.name}${m.rec ? '<span class="rec">for this PC</span>' : ''}<i class="radio"></i></span>
+        <span class="size">${m.p}<small>${m.sizes[S.model === m.id ? S.quant : 0] || m.sizes[0]}</small></span>
+        <span class="spec"><b>${m.need}</b></span>
+        <span class="desc">${m.desc}</span>
+        <span class="fit ${m.fit[0]}"><span class="cells">${Array.from({ length: 10 }, (_, j) => `<i class="${j < m.fit[1] ? 'on' : ''}"></i>`).join('')}</span><b>${{ ok: 'fits', tight: 'tight', no: 'too big' }[m.fit[0]]}</b></span>
+      </button>`).join('')}
+    </div>
+    <div class="quant"><span class="lbl">Quantisation</span>${QUANTS.map((q, j) => {
+      const m = MODELS.find((x) => x.id === S.model);
+      return `<button type="button" class="chipbtn" data-q="${j}" aria-pressed="${S.quant === j}" ${m.sizes[j] ? '' : 'disabled'}>${q}<small>${m.sizes[j] || 'none'}</small></button>`;
+    }).join('')}<span class="small">Q4_K_M is the model card's default. Q2_K loses noticeably.</span></div>`,
+  3: () => {
+    const m = MODELS.find((x) => x.id === S.model);
+    return `
+    <div class="shead"><h2>Licence</h2><p>${m.name} · pfnet/plamo-3-translate-${m.p.toLowerCase()}-GGUF · ${QUANTS[S.quant]} · ${m.sizes[S.quant]}</p></div>
+    <div class="lic">
+      <h3>PLaMo Community License</h3>
+      <span>Preferred Networks publishes PLaMo 3 Translate under its PLaMo Community License. Downloading and using the model is under its terms.</span>
+      <dl>
+        <dt>Personal</dt><dd>Free, including non-commercial and academic use. No registration.</dd>
+        <dt>Commercial</dt><dd>Free when revenue is ¥1 billion a year or less, after registering the use with Preferred Networks.</dd>
+        <dt>Larger</dt><dd>Over ¥1 billion: a separate licence agreement.</dd>
+      </dl>
+      <a href="https://huggingface.co/pfnet/plamo-3-translate-2b-GGUF" target="_blank" rel="noopener">Read the model card and the full licence ↗</a>
+    </div>
+    <div class="agree${S.agreed ? ' on' : ''}" id="agree" role="checkbox" aria-checked="${S.agreed}" tabindex="0"><span class="box"></span><span>I have read the PLaMo Community License and will download and use the model under its terms.</span></div>
+    <p class="small">Saved to …\\elecdex\\translate\\models. The only request to the network is this download, from huggingface.co.</p>`;
+  },
+  4: () => {
+    const m = MODELS.find((x) => x.id === S.model);
+    return `
+    <div class="shead"><h2>Fetch</h2><p>huggingface.co/pfnet/plamo-3-translate-${m.p.toLowerCase()}-GGUF</p></div>
+    <div class="fetch">
+      <div class="pct" id="pct"><span>0</span><small>%</small></div>
+      <div>
+        <div class="meter${S.paused ? ' paused' : ''}" id="meter">${'<i></i>'.repeat(48)}</div>
+        <div class="rate"><span><em id="mb">0.0</em> / 1,810.0 MB</span><span><em id="spd">34.6</em> MB/s</span><span>about <em id="eta">0:52</em> left</span></div>
+      </div>
+    </div>
+    <div class="jobs" id="jobs">
+      <span class="k">GET</span><span class="p">plamo-3-translate-${m.p.toLowerCase()}-${QUANTS[S.quant]}.gguf</span><span class="s run" id="j1">receiving</span>
+      <span class="k">VERIFY</span><span class="p">sha256 against the repository's record</span><span class="s" id="j2">waiting</span>
+      <span class="k">PLACE</span><span class="p">…\\elecdex\\translate\\models</span><span class="s" id="j3">waiting</span>
+    </div>
+    <div class="ext"><button type="button" class="btn" id="pause">${S.paused ? 'Resume' : 'Pause'}</button><button type="button" class="btn" id="fcancel">Cancel</button><span class="small">Picks up where it stopped after a pause, a lost connection or a restart.</span></div>`;
+  },
+  5: () => `
+    <div class="ready">
+      <div class="plate frame crt-on">READY</div>
+      <span class="state"><i class="slamp ok"></i>Engine up · model verified</span>
+      <div class="selftest">
+        <span class="k">Model</span><span>plamo-3-translate-2b · Q4_K_M · sha256 ok</span>
+        <span class="k">Engine</span><span>llama-server b7123 · Vulkan · all layers on the GPU</span>
+        <span class="k">Self test</span><span>Good morning. → おはようございます。 <span class="mut">· 0.31 s · 88 t/s</span></span>
+      </div>
+    </div>`,
+};
+let fetchTimer = 0;
+function startFetch() {
+  clearInterval(fetchTimer);
+  const total = 1810;
+  const paint = () => {
+    const pct = Math.min(100, S.fetchPct);
+    setDigits($('#pct'), String(Math.floor(pct)));
+    const on = Math.floor((pct / 100) * 48);
+    $$('#meter i').forEach((el, j) => { el.className = j < on ? 'on' : j === on && pct < 100 ? 'head' : ''; });
+    const mb = (total * pct) / 100;
+    $('#mb').textContent = mb.toLocaleString('en', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const left = Math.max(0, Math.round((total - mb) / 34.6));
+    $('#eta').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    $('#spd').textContent = S.paused ? '0.0' : (33.8 + Math.random() * 1.8).toFixed(1);
+  };
+  paint();
+  if (S.fetchPct >= 100) { finishFetch(true); return; }
+  fetchTimer = setInterval(() => {
+    if (S.view !== 'setup' || S.step !== 4) { clearInterval(fetchTimer); return; }
+    if (S.paused) { paint(); return; }
+    S.fetchPct = Math.min(100, S.fetchPct + 1.6 + Math.random() * 0.8);
+    paint();
+    if (S.fetchPct >= 100) { clearInterval(fetchTimer); finishFetch(false); }
+  }, 240);
+}
+function finishFetch(instant) {
+  const j1 = $('#j1'); const j2 = $('#j2'); const j3 = $('#j3');
+  j1.textContent = '1,810.0 MB'; j1.className = 's ok';
+  const verify = () => { j2.textContent = 'checking'; j2.className = 's run'; };
+  const ok = () => {
+    j2.textContent = 'ok'; j2.className = 's ok'; j3.textContent = 'done'; j3.className = 's ok';
+    $('#sNext').disabled = false;
+    if (!instant) later(() => { if (S.step === 4 && S.view === 'setup') { S.step = 5; syncMock(); renderSetup(); } }, 900);
+  };
+  if (instant) { ok(); return; }
+  verify();
+  later(ok, 700);
+}
+function setDigits(el, s) {
+  const spans = $$('span', el).filter((x) => !x.closest('small'));
+  const old = spans.map((x) => x.textContent).join('');
+  if (old === s) return;
+  const html = [...s].map((ch, j) => `<span class="${old[j] !== ch || old.length !== s.length ? 'fx-digit' : ''}">${ch}</span>`).join('');
+  el.innerHTML = `${html}<small>%</small>`;
+}
+
+/* ---------- engine settings ---------- */
+function renderEngine() {
+  const m = MODELS;
+  $('#eng').innerHTML = `
+    <span class="lbl">Engine</span>
+    <div class="val">
+      <div class="opt${S.ext ? '' : ' on'}" data-ext="0"><i class="rd"></i><b>Managed</b>
+        <span class="sub"><span class="mono">llama-server b7123 · Vulkan</span><span class="mono mut">C:\\Tools\\llama.cpp\\llama-server.exe</span><button type="button" class="btn">Choose…</button><button type="button" class="btn">Rescan</button></span>
+        <span class="sub small">elecdex starts it when you translate and stops it after the idle time below.</span></div>
+      <div class="opt${S.ext ? ' on' : ''}" data-ext="1"><i class="rd"></i><b>External</b>
+        <span class="sub"><input class="field" value="http://192.168.1.20:8080" aria-label="External server" style="flex:0 1 16rem"><button type="button" class="btn">Test</button></span>
+        <span class="sub small">A server you run, on this PC or the network. elecdex starts and stops nothing.</span></div>
+    </div>
+    <span class="lbl">State</span>
+    <div class="val"><span class="mono"><i class="slamp ok" style="margin-right:0.45rem"></i>Ready · pid 18244 · up 12 min · 1.9 GB · 127.0.0.1:8642</span>
+      <span class="ext"><button type="button" class="btn">Stop</button><button type="button" class="btn">Restart</button></span></div>
+    <span class="lbl">Models</span>
+    <div class="val">
+      <div class="mrows">${m.map((x) => `
+        <i class="rd${x.id === 'std' ? ' on' : ''}"></i><span class="nm">${x.name}</span><span>${x.p}</span><span class="mut">${x.id === 'std' ? 'Q4_K_M · ' : ''}${x.sizes[0]}</span>
+        ${x.id === 'std' ? '<span class="st on">installed · in use</span>' : x.id === 'lite' ? '<span class="st"><button type="button" class="btn">Fetch</button></span>' : `<span class="st"><button type="button" class="btn">Fetch</button></span>`}`).join('')}
+      </div>
+      <span class="small">…\\elecdex\\translate\\models · 1.81 GB used · 85.9 GB free <button type="button" class="btn" style="margin-left:0.4rem">Open folder</button> <button type="button" class="btn" style="margin-left:0.2rem">Delete Standard</button></span>
+    </div>
+    <span class="lbl">Run</span>
+    <div class="val"><div class="runs">
+      <label>Context<select><option>4096</option><option>8192</option><option selected>16384</option><option>32768</option></select></label>
+      <label>Slots<select><option>1</option><option>2</option><option selected>4</option><option>8</option></select></label>
+      <label>GPU layers<select><option selected>auto</option><option>all</option><option>none (CPU)</option></select></label>
+      <label>Threads<select><option selected>auto</option><option>4</option><option>8</option></select></label>
+      <label>Stop when idle<select><option>5 min</option><option selected>10 min</option><option>30 min</option><option>never</option></select></label>
+    </div><span class="small">A change restarts the engine. Context is shared by the slots: 16384 over 4 is 4096 a segment.</span></div>
+    <span class="lbl">Log</span>
+    <div class="val"><pre class="logbox">${ENGINE_LOG.map(([t, l]) => `<b>${t}</b>  ${esc(l)}`).join('\n')}</pre><span><button type="button" class="btn">Copy log</button></span></div>
+    <span class="lbl">Licence</span>
+    <div class="val"><span>PLaMo Community License · agreed 2026-11-05 · <a href="https://huggingface.co/pfnet/plamo-3-translate-2b-GGUF" target="_blank" rel="noopener" style="color:var(--accent-strong)">model card ↗</a></span></div>`;
+}
+
+/* ---------- views ---------- */
+function crt(el) { el.classList.remove('crt-on'); void el.offsetWidth; el.classList.add('crt-on'); }
+function show(view) {
+  closePop();
+  S.view = view;
+  const ids = { text: 'vText', history: 'vHistory', setup: 'vSetup', engine: 'vEngine' };
+  Object.entries(ids).forEach(([v, id]) => { $(`#${id}`).hidden = v !== view; });
+  crt($(`#${ids[view]}`));
+  $('#settingsBtn').setAttribute('aria-expanded', String(view === 'engine'));
+  $('#headSub').textContent = view === 'setup' ? `setup · ${S.step}/5` : S.mode === 'nomodel' ? 'no model' : 'plamo-3-translate-2b · Q4_K_M';
+  if (view === 'history') renderHistory();
+  if (view === 'setup') renderSetup();
+  if (view === 'engine') renderEngine();
+  if (view === 'text') { renderLangs(); renderSrc(); renderDst(); }
+  if (view !== 'text') renderFoot();
+  syncMock();
+}
+function setMode(mode) {
+  clearTimers();
+  S.mode = mode;
+  S.segs = (outSegs() || []).map(() => ({ st: 'done' }));
+  if (S.view !== 'text') { S.view = 'text'; ['vHistory', 'vSetup', 'vEngine'].forEach((id) => { $(`#${id}`).hidden = true; }); $('#vText').hidden = false; crt($('#vText')); }
+  $('#headSub').textContent = mode === 'nomodel' ? 'no model' : 'plamo-3-translate-2b · Q4_K_M';
+  if (mode === 'boot') { renderLangs(); runBoot(); return; }
+  if (mode === 'run') { renderLangs(); runTranslation(); return; }
+  renderLangs(); renderSrc(); renderDst(); syncMock();
+}
+function translate() {
+  if (S.mode === 'nomodel') return;
+  if (S.mode === 'empty') { S.mode = 'done'; }
+  if (S.mode === 'standby' || S.mode === 'fault') { runBoot(); return; }
+  runTranslation();
+}
+
+/* ---------- language popover ---------- */
+let popSide = null;
+function openPop(side) {
+  const pop = $('#pop');
+  if (popSide === side) { closePop(); return; }
+  popSide = side;
+  const btn = side === 'src' ? $('#srcLang') : $('#dstLang');
+  $$('.lang').forEach((b) => b.setAttribute('aria-expanded', String(b === btn)));
+  const pane = $('#pane').getBoundingClientRect();
+  const r = btn.getBoundingClientRect();
+  pop.style.left = `${Math.max(0, Math.min(r.left - pane.left, pane.width - pop.offsetWidth - 4, pane.width - 19 * parseFloat(getComputedStyle(document.documentElement).fontSize)))}px`;
+  pop.style.top = `${r.bottom - pane.top + 4}px`;
+  pop.hidden = false;
+  pop.innerHTML = `<input class="search" id="popq" placeholder="filter · code or name" aria-label="Filter languages"><div class="list" id="poplist" role="listbox"></div>`;
+  paintPop('');
+  crt(pop);
+  $('#popq').addEventListener('input', (e) => paintPop(e.target.value));
+  $('#popq').focus();
+}
+function paintPop(q) {
+  const cur = popSide === 'src' ? (S.src === 'auto' ? 'auto' : S.srcText) : S.dst;
+  const match = (l) => !q || l.join(' ').toLowerCase().includes(q.toLowerCase());
+  const item = (l) => `<button type="button" class="li" role="option" data-code="${l[0]}"><span class="m">${l[0] === cur ? '◆' : ''}</span><span class="c">${l[0]}</span><span>${esc(l[1])}</span><span class="e">${esc(l[2])}</span></button>`;
+  let html = '';
+  if (popSide === 'src' && (!q || 'auto detect'.includes(q.toLowerCase()))) html += `<button type="button" class="li" data-code="auto"><span class="m">${cur === 'auto' ? '◆' : ''}</span><span class="c">auto</span><span>detect from the text</span><span class="e"></span></button>`;
+  if (!q) html += `<div class="g">Recent</div>${RECENT.map((c) => item(LANG[c])).join('')}<div class="g">All 53</div>`;
+  html += LANGS.filter(match).map(item).join('');
+  $('#poplist').innerHTML = html;
+}
+function closePop() {
+  const pop = $('#pop');
+  if (pop.hidden) return;
+  popSide = null;
+  $$('.lang').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+  pop.classList.remove('crt-on'); pop.classList.add('crt-off');
+  setTimeout(() => { pop.hidden = true; pop.classList.remove('crt-off'); }, 240 * (matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1));
+}
+function choose(c) {
+  const side = popSide;
+  closePop();
+  if (side === 'src') {
+    if (c === 'auto') S.src = 'auto';
+    else { S.src = c; if (TEXTS[c === 'ja' ? 'ja-polite' : c]) S.srcText = c; }
+  } else S.dst = c;
+  if (S.mode === 'done' || S.mode === 'run') runTranslation(); else { renderLangs(); renderSrc(); renderDst(); }
+}
+function swap() {
+  const a = S.srcText;
+  if (!TEXTS[S.dst === 'ja' ? 'ja-polite' : S.dst]) { S.dst = a; } else { S.srcText = S.dst; S.dst = a; }
+  S.src = S.srcText;
+  if (S.mode === 'done' || S.mode === 'run') runTranslation(); else { renderLangs(); renderSrc(); renderDst(); }
+}
+
+/* ---------- hover cards ---------- */
+let cardTimer = 0;
+let cardFor = null;
+function cardHTML(k) {
+  const [kind, arg] = k.split(':');
+  if (kind === 'node') {
+    const i = Number(arg); const st = STATS[i]; const seg = S.segs[i] || { st: 'done' };
+    return `<h4><span>Segment ${String(i + 1).padStart(2, '0')}</span><span>${seg.edited ? 'edited' : seg.st}</span></h4><dl>
+      <dt>tokens</dt><dd>${st[0]} in → ${st[1]} out</dd><dt>time</dt><dd>${st[2]} s · slot ${st[3]}</dd>
+      <dt>history</dt><dd>${i === 0 ? 'none, the first segment' : `segment ${String(i).padStart(2, '0')} sent with it`}</dd></dl>`;
+  }
+  if (kind === 'term') return `<h4><span>Glossary</span><span>EN → JA</span></h4><dl><dt>term</dt><dd>${esc(arg)} → ${esc(GLOSS[arg] || '')}</dd><dt>applies</dt><dd>every segment of this pane</dd></dl>`;
+  if (kind === 'match') return `<h4><span>Round trip</span><span>chrF ${arg}</span></h4><dl><dt>reads</dt><dd>how close the back translation is to the source, by characters</dd><dt>below 70</dt><dd>worth a look: the sense may have moved</dd></dl>`;
+  if (kind === 'fit') {
+    const m = MODELS.find((x) => x.id === arg);
+    return `<h4><span>${m.name} · ${m.p}</span><span>${m.fit[0]}</span></h4><dl><dt>file</dt><dd>${m.sizes[0]} at Q4_K_M</dd><dt>needs</dt><dd>${m.need} (estimate, to be measured)</dd><dt>this PC</dt><dd>RAM 16 GB · GPU shares system memory</dd></dl>`;
+  }
+  if (kind === 'engine') return `<h4><span>Engine</span><span>llama-server b7123</span></h4><dl><dt>process</dt><dd>pid 18244 · up 12 min · 1.9 GB</dd><dt>address</dt><dd>127.0.0.1:8642 · key of its own</dd><dt>stops</dt><dd>after 10 idle minutes, or with the last TRANSLATE pane</dd></dl>`;
+  if (kind === 'swap') return `<h4><span>Swap</span></h4><dl><dt>does</dt><dd>exchanges the languages; the translation becomes the source</dd></dl>`;
+  if (kind === 'form') return `<h4><span>Form</span><span>Japanese only</span></h4><dl><dt>plain</dt><dd>だ・である調</dd><dt>polite</dt><dd>です・ます調</dd></dl>`;
+  if (kind === 'trip') return `<h4><span>Round trip</span></h4><dl><dt>does</dt><dd>translates each segment back into the source language, under it, with how close it came</dd><dt>costs</dt><dd>a second pass through the engine</dd></dl>`;
+  if (kind === 'live') return `<h4><span>Live</span></h4><dl><dt>does</dt><dd>translates 0.6 s after typing stops</dd><dt>only</dt><dd>the segments that changed</dd></dl>`;
+  if (kind === 'pairs') return `<h4><span>Copy pairs</span></h4><dl><dt>copies</dt><dd>each source segment with its translation under it, as Markdown</dd></dl>`;
+  if (kind === 'hclear') return `<h4><span>Clear</span></h4><dl><dt>does</dt><dd>empties the history; asks with a second press</dd></dl>`;
+  return '';
+}
+function showCard(el) {
+  const card = $('#card');
+  const html = cardHTML(el.dataset.card);
+  if (!html) return;
+  card.innerHTML = html;
+  card.hidden = false;
+  const pane = $('#pane').getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const w = card.offsetWidth; const h = card.offsetHeight;
+  let x = r.left - pane.left; let y = r.bottom - pane.top + 6;
+  x = Math.max(0, Math.min(x, pane.width - w));
+  if (y + h > pane.height) y = r.top - pane.top - h - 6;
+  card.style.left = `${x}px`; card.style.top = `${y}px`;
+  crt(card);
+}
+document.addEventListener('mouseover', (e) => {
+  const el = e.target.closest('[data-card]');
+  if (el === cardFor) return;
+  clearTimeout(cardTimer);
+  cardFor = el;
+  $('#card').hidden = true;
+  if (el && $('#pane').contains(el)) cardTimer = setTimeout(() => showCard(el), 380);
+});
+
+/* ---------- events ---------- */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button, .agree, .opt');
+  if (b && $('#pane').contains(b) && !b.disabled) { b.classList.remove('blink'); void b.offsetWidth; b.classList.add('blink'); }
+  if (!e.target.closest('#pop, .lang')) closePop();
+});
+document.addEventListener('animationend', (e) => { if (e.animationName === 'blink') e.target.classList.remove('blink'); });
+
+$('#srcLang').addEventListener('click', () => openPop('src'));
+$('#dstLang').addEventListener('click', () => openPop('dst'));
+$('#pop').addEventListener('click', (e) => { const li = e.target.closest('.li'); if (li) choose(li.dataset.code); });
+$('#swap').addEventListener('click', swap);
+$$('#form button').forEach((b) => b.addEventListener('click', () => { S.form = b.dataset.form; if (S.mode === 'done' || S.mode === 'run') runTranslation(); else renderLangs(); }));
+$('#tGloss').addEventListener('click', () => { S.gloss = !S.gloss; renderLangs(); scheduleLinks(); });
+$('#tCtx').addEventListener('click', () => { S.ctx = !S.ctx; renderLangs(); scheduleLinks(); });
+$('#tTrip').addEventListener('click', () => { S.trip = !S.trip; renderLangs(); if (S.mode === 'done') renderDst(); });
+$('#tLive').addEventListener('click', () => { S.live = !S.live; renderLangs(); renderFoot(); });
+$('#go').addEventListener('click', translate);
+$('#paste').addEventListener('click', () => { if (S.mode === 'nomodel') return; if (!filled()) { S.mode = 'standby'; S.segs = []; renderSrc(); renderLangs(); renderDst(); syncMock(); } });
+$('#clear').addEventListener('click', () => { clearTimers(); S.mode = S.mode === 'nomodel' ? 'nomodel' : 'empty'; renderSrc(); renderLangs(); renderDst(); syncMock(); });
+$('#toSrc').addEventListener('click', swap);
+const copyText = (t) => { try { navigator.clipboard.writeText(t).catch(() => {}); } catch { /* the viewer may refuse */ } };
+$('#copy').addEventListener('click', () => { const o = outSegs(); if (o) copyText(o.map(plain).join('\n\n')); });
+$('#pairs').addEventListener('click', () => { const o = outSegs(); if (o) copyText(srcSegs().map((s, i) => `${plain(s)}\n> ${plain(o[i])}`).join('\n\n')); });
+$('#settingsBtn').addEventListener('click', () => show(S.view === 'engine' ? 'text' : 'engine'));
+$('#eDone').addEventListener('click', () => show('text'));
+$('#hsearch').addEventListener('input', renderHistory);
+$('#hlist').addEventListener('click', (e) => { if (e.target.closest('.hrow')) { S.srcText = 'en'; S.src = 'auto'; S.dst = 'ja'; S.mode = 'done'; S.segs = TEXTS.en.map(() => ({ st: 'done' })); show('text'); } });
+$('#hclear').addEventListener('click', (e) => {
+  const b = e.currentTarget;
+  if (b.dataset.armed) { delete b.dataset.armed; b.textContent = 'Clear'; b.classList.remove('warn'); $('#hlist').innerHTML = '<div class="note-out">History is empty.</div>'; return; }
+  b.dataset.armed = '1'; b.textContent = 'Press again'; b.classList.add('warn');
+  setTimeout(() => { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = 'Clear'; b.classList.remove('warn'); } }, 3000);
+});
+$$('.vt button').forEach((b) => b.addEventListener('click', () => show(b.dataset.to)));
+
+$('#vText').addEventListener('click', (e) => {
+  if (e.target.closest('#cmd')) { if (S.mode === 'nomodel') { S.step = 1; S.fetchPct = 0; S.agreed = false; show('setup'); } else translate(); }
+  if (e.target.closest('#restart')) runBoot();
+  if (e.target.closest('#faultSet')) show('engine');
+  if (e.target.closest('#faultCopy')) copyText(FAULT_LOG.join('\n'));
+  const act = e.target.closest('[data-act]');
+  if (act) {
+    const seg = act.closest('.seg'); const i = Number(seg.dataset.i);
+    if (act.dataset.act === 'copy') copyText(seg.innerText.replace(/(Retry|Edit|Copy)\s*/g, '').trim());
+    if (act.dataset.act === 'edit') {
+      $('.acts', seg)?.remove(); $('.trip', seg)?.remove();
+      seg.contentEditable = 'true'; seg.focus();
+      seg.addEventListener('blur', () => { seg.contentEditable = 'false'; S.segs[i].edited = seg.innerText.replace(/EDITED$/, '').trim(); paintSeg(i); scheduleLinks(); }, { once: true });
+    }
+    if (act.dataset.act === 'retry') retrySeg(i);
+  }
+});
+function retrySeg(i) {
+  const out = outSegs(); if (!out) return;
+  const full = plain(out[i]); const seg = S.segs[i];
+  seg.st = 'run'; seg.edited = undefined; seg.shown = ''; seg.last = 0;
+  let pos = 0;
+  const step = () => {
+    const n = 1 + Math.floor(Math.random() * 3);
+    pos = Math.min(full.length, pos + n); seg.shown = full.slice(0, pos); seg.last = Math.min(n, pos);
+    paintSeg(i); scheduleLinks();
+    if (pos < full.length) setTimeout(step, 30 + Math.random() * 30); else { seg.st = 'done'; seg.fresh = true; paintSeg(i); scheduleLinks(); }
+  };
+  paintSeg(i); setTimeout(step, 160);
+}
+$('#duo').addEventListener('mouseover', (e) => { const el = e.target.closest('[data-i]'); setHot(el ? Number(el.dataset.i) : null); });
+$('#duo').addEventListener('mouseleave', () => setHot(null));
+$('#srcText').addEventListener('scroll', scheduleLinks);
+$('#dstText').addEventListener('scroll', scheduleLinks);
+new ResizeObserver(scheduleLinks).observe($('#duo'));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.ctrlKey && S.view === 'text') { e.preventDefault(); translate(); }
+  if (e.key === 'Escape') closePop();
+});
+
+/* setup */
+$('#vSetup').addEventListener('click', (e) => {
+  const card = e.target.closest('.mcard');
+  if (card && card.getAttribute('aria-disabled') !== 'true') { S.model = card.dataset.model; S.quant = 0; renderSetup(); }
+  const q = e.target.closest('[data-q]');
+  if (q && !q.disabled) { S.quant = Number(q.dataset.q); renderSetup(); }
+  if (e.target.closest('#agree')) { S.agreed = !S.agreed; renderSetup(); }
+  if (e.target.closest('#pause')) { S.paused = !S.paused; e.target.closest('#pause').textContent = S.paused ? 'Resume' : 'Pause'; $('#meter').classList.toggle('paused', S.paused); }
+  if (e.target.closest('#fcancel')) { clearInterval(fetchTimer); S.fetchPct = 0; S.paused = false; S.step = 2; syncMock(); renderSetup(); }
+  if (e.target.closest('#extTest')) { S.ext = true; renderSetup(); }
+});
+$('#sNext').addEventListener('click', () => {
+  if (S.step === 5) { S.mode = 'empty'; S.segs = []; show('text'); return; }
+  S.step += 1; syncMock(); renderSetup();
+});
+$('#sBack').addEventListener('click', () => { if (S.step > 1) { S.step -= 1; syncMock(); renderSetup(); } });
+$('#sCancel').addEventListener('click', () => { clearInterval(fetchTimer); S.mode = 'nomodel'; show('text'); });
+$('#vEngine').addEventListener('click', (e) => { const o = e.target.closest('.opt'); if (o && !e.target.closest('input, button')) { S.ext = o.dataset.ext === '1'; renderEngine(); } });
+
+/* ---------- mock bar ---------- */
+function syncMock() {
+  const pressed = { view: S.view, mode: S.view === 'text' ? S.mode : '', step: S.view === 'setup' ? String(S.step) : '', width: S.narrow ? 'narrow' : 'wide', theme: S.theme };
+  $$('#mockbar .grp').forEach((g) => {
+    $$('button', g).forEach((b) => {
+      if (b.dataset.flag) b.setAttribute('aria-pressed', String(S.engine === 'missing'));
+      else b.setAttribute('aria-pressed', String(b.dataset.v === pressed[g.dataset.g]));
+    });
+  });
+}
+function applyTheme(t) {
+  S.theme = t;
+  const root = document.documentElement;
+  root.dataset.theme = t;
+  const light = ['black', 'business-light', 'paper'].includes(t);
+  if (light) root.dataset.mode = 'light'; else delete root.dataset.mode;
+  if (['amber', 'phosphor', 'white', 'black'].includes(t)) root.dataset.scanlines = ''; else delete root.dataset.scanlines;
+  if (['amber', 'phosphor', 'white', 'black'].includes(t)) root.dataset.glow = ''; else delete root.dataset.glow;
+  syncMock();
+  scheduleLinks();
+}
+$('#mockbar').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  const g = b.closest('.grp').dataset.g; const v = b.dataset.v;
+  if (g === 'view') show(v);
+  if (g === 'mode') setMode(v);
+  if (g === 'step') {
+    if (b.dataset.flag) { S.engine = S.engine === 'missing' ? 'found' : 'missing'; S.step = 1; S.ext = false; }
+    else { S.step = Number(v); if (S.step === 4) { S.fetchPct = 0; S.paused = false; } if (S.step === 5) S.fetchPct = 100; if (S.step > 3) S.agreed = true; }
+    if (S.view !== 'setup') show('setup'); else { renderSetup(); syncMock(); }
+  }
+  if (g === 'width') { S.narrow = v === 'narrow'; $('#pane').classList.toggle('narrow', S.narrow); crt($('#pane')); scheduleLinks(); syncMock(); }
+  if (g === 'theme') applyTheme(v);
+});
+
+/* ---------- start: a finished translation, round trip shown ---------- */
+(function init() {
+  const hash = location.hash.slice(1);
+  S.segs = TEXTS.en.map(() => ({ st: 'done' }));
+  applyTheme('tron');
+  if (['history', 'setup', 'engine'].includes(hash)) show(hash);
+  else show('text');
+})();
+</script>
+</body>
+</html>
