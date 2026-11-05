@@ -21,6 +21,8 @@ export interface EngineLaunch {
 }
 
 export interface ServerProcess {
+  /** The process id, for the PID file that finds an orphan after main crashed (§4.2). */
+  pid: number | null
   onOutput(listener: (chunk: string) => void): void
   onExit(listener: (code: number | null) => void): void
   /** Asks it to end; `hard` kills it. */
@@ -52,6 +54,8 @@ export interface EngineDeps {
   now: () => number
   /** The board changed. */
   onChange: () => void
+  /** A server process began (its pid) or ended (null): main keeps translate/llama-server.pid. */
+  onPid: (pid: number | null) => void
   /** Bytes-without-output after which a load counts as stalled (60 s; tests shorten it). */
   stallMs: number
   pollMs: number
@@ -83,6 +87,7 @@ export class TranslateEngine {
   #gen = 0
   #running: Running | null = null
   #starting: Promise<Endpoint> | null = null
+  #stopping: Promise<void> | null = null
   #log: string[] = []
   #boot: string[] = []
   #error: string | null = null
@@ -150,7 +155,11 @@ export class TranslateEngine {
    * A new configuration (settings, a model fetched or chosen, the source). A running server is
    * restarted only for what it was started with: the model, the context, the builds, the source.
    */
-  configure(config: EngineConfig): void {
+  /**
+   * Resolves once the change has taken: a caller that sets a state after it (TEST marking an
+   * external server ready) waits for this, or the restart would overwrite it.
+   */
+  configure(config: EngineConfig): Promise<void> {
     const before = this.#config
     this.#config = config
     const restart =
@@ -161,20 +170,23 @@ export class TranslateEngine {
         config.launches.map((l) => l.exe + l.backend).join() ||
       before.origin !== config.origin
     if (before.idleMinutes !== config.idleMinutes && this.#busy === 0) this.#armIdle()
-    if (!restart) return
-    const wasUp = this.#phase === 'ready' || this.#phase === 'starting'
-    void this.stop().then(() => {
-      // A change of settings is also the way out of a fault (§8.4).
+    if (!restart) return Promise.resolve()
+    // Up, or at fault: a change of settings is the way out of a fault too (§8.4).
+    const startAgain =
+      this.#phase === 'ready' || this.#phase === 'starting' || this.#phase === 'fault'
+    return this.stop().then(() => {
       this.#error = null
       this.#phase = this.#restingPhase()
       this.#emit()
-      if (wasUp && this.#phase === 'stopped') void this.ensure().catch(() => {})
+      if (startAgain && this.#phase === 'stopped') void this.ensure().catch(() => {})
     })
   }
 
   /** The server to send to, started (or probed) when it is not up. */
   ensure(): Promise<Endpoint> {
     if (this.#config.source === 'external') return this.#probeExternal()
+    // A request while it stops waits for the stop, then starts it: never a second server beside a dying one.
+    if (this.#stopping) return this.#stopping.then(() => this.ensure())
     const running = this.#running
     if (this.#phase === 'ready' && running) {
       return Promise.resolve({ origin: `http://127.0.0.1:${running.port}`, key: running.key })
@@ -217,20 +229,31 @@ export class TranslateEngine {
     this.#emit()
   }
 
-  async stop(): Promise<void> {
+  stop(): Promise<void> {
+    if (this.#stopping) return this.#stopping
+    this.#stopping = this.#stop().finally(() => {
+      this.#stopping = null
+    })
+    return this.#stopping
+  }
+
+  async #stop(): Promise<void> {
     this.#gen++
     this.#clearIdle()
     const running = this.#running
-    if (!running) {
-      if (this.#phase === 'starting' || this.#phase === 'ready') this.#phase = this.#restingPhase()
+    const starting = this.#starting
+    if (running) {
+      this.#phase = 'stopping'
       this.#emit()
-      return
+      await this.#kill(running)
     }
-    this.#phase = 'stopping'
-    this.#emit()
-    await this.#kill(running)
-    this.#phase = this.#restingPhase()
-    this.#error = null
+    // A start under way sees the new generation at its next check and gives up: wait for it, or a
+    // RESTART right after would be handed that dying start instead of a new one.
+    await starting?.catch(() => {})
+    if (running || this.#phase === 'starting' || this.#phase === 'ready') {
+      this.#phase = this.#restingPhase()
+      this.#error = null
+    }
     this.#emit()
   }
 
@@ -251,6 +274,7 @@ export class TranslateEngine {
     if (running && !running.exited) {
       running.stopping = true
       running.process.kill(true)
+      this.#deps.onPid(null)
     }
   }
 
@@ -358,11 +382,13 @@ export class TranslateEngine {
       partial = lines.pop() ?? ''
       for (const line of lines) this.#note(line.replace(/\r$/, ''))
     })
+    this.#deps.onPid(proc.pid)
     proc.onExit((code) => {
       running.exited = true
       this.#note(`[elecdex] llama-server ended (code ${code})`)
       if (this.#running !== running) return
       this.#running = null
+      this.#deps.onPid(null)
       if (!running.stopping && this.#phase === 'ready') this.#crashed(code)
     })
     const started = this.#deps.now()
@@ -382,6 +408,8 @@ export class TranslateEngine {
   }
 
   #crashed(code: number | null): void {
+    // An idle clock armed before the crash must not stop the restart it would land in.
+    this.#clearIdle()
     const decision = decideRestart(this.#restarts, this.#deps.now())
     this.#restarts = decision.recent
     if (decision.allow) {
@@ -406,6 +434,7 @@ export class TranslateEngine {
     }, STOP_GRACE_MS)
     await exited
     this.#deps.clearTimer(timer)
+    this.#deps.onPid(null)
   }
 
   #armIdle(): void {

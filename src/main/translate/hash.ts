@@ -44,6 +44,12 @@ export function sha256File(file: string, signal?: AbortSignal): Promise<string> 
       done()
       reject(error)
     })
+    // A worker ended without a word (stopHashing on quit, or it ran out of memory): the promise
+    // must settle, or the fetch that waits on it waits for ever. After an answer this is a no-op.
+    worker.once('exit', () => {
+      done()
+      reject(new Error('The hashing stopped before it finished.'))
+    })
   })
 }
 

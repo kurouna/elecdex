@@ -5,14 +5,21 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { type FetcherDeps, fetchFile, partOf, rangeStart } from '../../src/main/translate/fetcher'
-import { sha256File } from '../../src/main/translate/hash'
+import {
+  FetchError,
+  type FetcherDeps,
+  fetchFile,
+  partOf,
+  rangeStart,
+  writeFailure,
+} from '../../src/main/translate/fetcher'
+import { sha256File, stopHashing } from '../../src/main/translate/hash'
 
 const BODY = Buffer.from(Array.from({ length: 50_000 }, (_, i) => i % 251))
 const SHA = createHash('sha256').update(BODY).digest('hex')
 
 /** How the stub answers a ranged request. */
-let rangeMode: 'honest' | 'wrong-start' | 'ignore' = 'honest'
+let rangeMode: 'honest' | 'wrong-start' | 'ignore' | 'stall' = 'honest'
 let requests: (string | undefined)[] = []
 let server: Server
 let base = ''
@@ -25,6 +32,12 @@ beforeEach(async () => {
   server = createServer((req, res) => {
     const range = req.headers.range
     requests.push(range)
+    if (rangeMode === 'stall') {
+      // Half the file, then nothing: a download in progress when PAUSE or CANCEL comes.
+      res.writeHead(200)
+      res.write(BODY.subarray(0, 20_000))
+      return
+    }
     const match = range ? /bytes=(\d+)-/.exec(range) : null
     if (match && rangeMode !== 'ignore') {
       const asked = Number(match[1])
@@ -41,6 +54,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  server.closeAllConnections()
   await new Promise<void>((resolve) => server.close(() => resolve()))
   rmSync(dir, { recursive: true, force: true })
 })
@@ -120,6 +134,55 @@ describe('fetchFile', () => {
     requests = []
     await fetchFile(t, deps(), () => {}, new AbortController().signal)
     expect(requests).toEqual([])
+  })
+})
+
+describe('fetchFile when it cannot go on', () => {
+  it('stops on abort with what it had written kept in the .part', async () => {
+    rangeMode = 'stall'
+    const t = target()
+    const controller = new AbortController()
+    const run = fetchFile(t, deps(), () => {}, controller.signal)
+    // Wait until the first half is on disk.
+    await expect
+      .poll(() => {
+        try {
+          return readFileSync(partOf(t.dest)).length
+        } catch {
+          return 0
+        }
+      })
+      .toBe(20_000)
+    controller.abort()
+    await expect(run).rejects.toThrow()
+    expect(readFileSync(partOf(t.dest)).equals(BODY.subarray(0, 20_000))).toBe(true)
+  })
+
+  it('says a write it cannot make, rather than ending main with an unheard stream error', async () => {
+    const t = target()
+    // A folder where the .part goes: opening it for writing fails.
+    mkdirSync(partOf(t.dest), { recursive: true })
+    await expect(fetchFile(t, deps(), () => {}, new AbortController().signal)).rejects.toThrow(
+      FetchError,
+    )
+  })
+
+  it('does not retry a full disk, and retries a passing lock', () => {
+    const full = Object.assign(new Error('no space'), { code: 'ENOSPC' })
+    const locked = Object.assign(new Error('busy'), { code: 'EBUSY' })
+    expect(writeFailure(full).retryable).toBe(false)
+    expect(writeFailure(full).message).toMatch(/disk is full/)
+    expect(writeFailure(locked).retryable).toBe(true)
+  })
+})
+
+describe('sha256File', () => {
+  it('settles when its worker is ended before it answers (quitting)', async () => {
+    const file = path.join(dir, 'big.bin')
+    writeFileSync(file, Buffer.alloc(64 * 1024 * 1024))
+    const hashing = sha256File(file)
+    stopHashing()
+    await expect(hashing).rejects.toThrow(/stopped before it finished/)
   })
 })
 

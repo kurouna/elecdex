@@ -8,7 +8,10 @@ import {
 } from '../../src/main/translate/engine'
 
 /** A llama-server that answers /health after `loadPolls` polls, and can be made to crash. */
+let nextPid = 1000
+
 class FakeServer implements ServerProcess {
+  readonly pid = nextPid++
   output: ((chunk: string) => void)[] = []
   exits: ((code: number | null) => void)[] = []
   killed = 0
@@ -59,15 +62,24 @@ function harness(
     devices?: string[]
     silent?: boolean
     healthLog?: boolean
+    /** Health checks answer 503 until this many have been asked. */
+    loadPolls?: number
+    /** Health checks answer 503 while this is set. */
+    hold?: boolean
   } = {},
 ) {
   const servers: FakeServer[] = []
+  const pids: (number | null)[] = []
+  /** How many servers were still alive as each one was started: never more than none. */
+  const aliveAtSpawn: number[] = []
+  let polls = 0
   const timers = new Map<number, () => void>()
   let nextTimer = 1
   let clock = 0
   const changes: string[] = []
   const deps: EngineDeps = {
     spawn: (l, args, env) => {
+      aliveAtSpawn.push(servers.filter((s) => !s.ended).length)
       const server = new FakeServer(l, args, env)
       servers.push(server)
       if (!behaviour.silent) server.write('srv  load_model: loading model\n')
@@ -80,6 +92,8 @@ function harness(
       if (behaviour.healthLog)
         server.write('srv  log_server_r: request: GET /health 127.0.0.1 503\n')
       if (behaviour.failBackend === 'cpu-loading') return 503
+      if (behaviour.loadPolls !== undefined && polls++ < behaviour.loadPolls) return 503
+      if (behaviour.hold) return 503
       return server.launch.backend === behaviour.failBackend ? 503 : 200
     },
     listDevices: async () => behaviour.devices ?? ['Vulkan0: Test GPU'],
@@ -97,6 +111,7 @@ function harness(
     },
     now: () => clock,
     onChange: () => changes.push(engine.phase),
+    onPid: (pid) => pids.push(pid),
     stallMs: 60_000,
     pollMs: 250,
   }
@@ -117,7 +132,17 @@ function harness(
       fn()
     }
   }
-  return { engine, servers, changes, fireTimers, timers, advance: (ms: number) => (clock += ms) }
+  return {
+    engine,
+    config,
+    servers,
+    pids,
+    aliveAtSpawn,
+    changes,
+    fireTimers,
+    timers,
+    advance: (ms: number) => (clock += ms),
+  }
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -232,7 +257,7 @@ describe('TranslateEngine', () => {
   it('a change of model restarts a running server', async () => {
     const h = harness()
     await h.engine.ensure()
-    h.engine.configure({
+    await h.engine.configure({
       ...{
         source: 'fetched',
         launches: [launch('vulkan'), launch('cpu')],
@@ -247,6 +272,87 @@ describe('TranslateEngine', () => {
     expect(h.servers).toHaveLength(2)
     expect(h.servers[1]?.args).toEqual(expect.arrayContaining(['/models/other.gguf']))
     expect(h.engine.phase).toBe('ready')
+  })
+
+  it('reports the pid of each server it starts, and none once it ends', async () => {
+    const h = harness()
+    await h.engine.ensure()
+    const first = h.servers[0]?.pid
+    expect(h.pids).toEqual([first])
+    await h.engine.stop()
+    expect(h.pids).toEqual([first, null])
+    await h.engine.ensure()
+    h.servers[1]?.exit(139)
+    await settle()
+    await settle()
+    // The crash said the pid was gone, and the restart named its own.
+    expect(h.pids).toEqual([first, null, h.servers[1]?.pid, null, h.servers[2]?.pid])
+  })
+
+  it('a request while it stops waits for the stop, then starts a new server', async () => {
+    const h = harness()
+    await h.engine.ensure()
+    const stopping = h.engine.stop()
+    const again = h.engine.ensure()
+    await stopping
+    const endpoint = await again
+    expect(h.servers).toHaveLength(2)
+    expect(h.servers[0]?.killed).toBe(1)
+    expect(h.aliveAtSpawn).toEqual([0, 0])
+    expect(endpoint.origin).toBe('http://127.0.0.1:40001')
+    expect(h.engine.phase).toBe('ready')
+  })
+
+  it('a change of model while it starts calls that start off and starts with the new model', async () => {
+    const h = harness({}, { loadPolls: 3 })
+    const first = h.engine.ensure()
+    await settle()
+    const changed = h.engine.configure({ ...h.config, modelPath: '/models/other.gguf' })
+    await expect(first).rejects.toThrow(/called off/)
+    await changed
+    for (let i = 0; i < 10; i++) await settle()
+    expect(h.engine.phase).toBe('ready')
+    expect(h.servers.at(-1)?.args).toEqual(expect.arrayContaining(['/models/other.gguf']))
+    // Every server but the last was ended: never two at once.
+    expect(h.servers.slice(0, -1).every((s) => s.ended)).toBe(true)
+  })
+
+  it('RESTART while it starts waits for that start to end, then starts once', async () => {
+    const h = harness({ launches: [launch('cpu')] }, { loadPolls: 3 })
+    const first = h.engine.ensure()
+    await settle()
+    await h.engine.restart()
+    await expect(first).rejects.toThrow()
+    expect(h.engine.phase).toBe('ready')
+    expect(h.servers.filter((s) => !s.ended)).toHaveLength(1)
+  })
+
+  it('an idle clock armed before a crash does not stop the restart under way', async () => {
+    const behaviour: { hold?: boolean } = {}
+    const h = harness({ launches: [launch('cpu')] }, behaviour)
+    await h.engine.ensure()
+    expect(h.timers.size).toBe(1)
+    // The server crashes, and its restart is still loading when the old idle clock would ring.
+    behaviour.hold = true
+    h.servers[0]?.exit(139)
+    await settle()
+    await settle()
+    expect(h.engine.phase).toBe('starting')
+    h.fireTimers()
+    behaviour.hold = false
+    for (let i = 0; i < 6; i++) await settle()
+    expect(h.engine.phase).toBe('ready')
+    expect(h.servers[1]?.ended).toBe(false)
+  })
+
+  it('a change of settings is the way out of a fault', async () => {
+    const h = harness({ launches: [launch('cpu')] }, { failBackend: 'cpu' })
+    await expect(h.engine.ensure()).rejects.toThrow()
+    expect(h.engine.phase).toBe('fault')
+    await h.engine.configure({ ...h.config, launches: [launch('vulkan')] })
+    for (let i = 0; i < 6; i++) await settle()
+    expect(h.engine.phase).toBe('ready')
+    expect(h.engine.backend).toBe('vulkan')
   })
 
   it('probes an external server once and marks it unreachable when it does not answer', async () => {

@@ -49,9 +49,33 @@ export function registerTranslateIpc(settings: SettingsHandle): {
   settings.onChange((next) => service.setSettings(next.translate))
 
   const subscribers = new PageSubscribers(() => {})
-  const publish = (): void => {
+  // Changes come in bursts (a download's progress, the engine's boot lines), and each board stats
+  // every model's files: one board per 50 ms, and never two in flight, so they arrive in order.
+  let timer: NodeJS.Timeout | null = null
+  let building = false
+  let again = false
+  const send = (): void => {
+    timer = null
     if (subscribers.size === 0) return
-    void service.board().then((board) => subscribers.send(CH.translate.board, board))
+    if (building) {
+      again = true
+      return
+    }
+    building = true
+    void service
+      .board()
+      .then((board) => subscribers.send(CH.translate.board, board))
+      .catch((error) => console.error('[elecdex] translate board', error))
+      .finally(() => {
+        building = false
+        if (again) {
+          again = false
+          send()
+        }
+      })
+  }
+  const publish = (): void => {
+    timer ??= setTimeout(send, 50)
   }
   service.onChange(publish)
 
@@ -133,6 +157,8 @@ export function registerTranslateIpc(settings: SettingsHandle): {
 
   return {
     dispose: () => {
+      if (timer) clearTimeout(timer)
+      timer = null
       unregister()
     },
     quit: () => service.quit(),

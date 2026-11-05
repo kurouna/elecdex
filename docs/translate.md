@@ -124,7 +124,7 @@ architecture.md §5.25。
 - `tar` は OS のもの（Windows は `System32\tar.exe`。bsdtar は zip も開ける）を **`execFile` で非同期に**走らせる
   （テストアプリの `execFileSync` は main を数秒止める）。
 - 版を上げるのは elecdex のリリースでマニフェストを変えたときだけ。古いビルドのフォルダは、新しいビルドで
-  エンジンが起動できたら消す。
+  エンジンが起動できたら消す（まだ実装していない。ビルドを上げる最初のリリースで入れる）。
 
 ほかの入手先も選べる（ENGINE 画面）。どれを使うかと、その中身は main だけのファイル `translate/engine.json`
 （§8.1）に置き、設定のパッチ（`settings.patch`）では変えられない（`git.openCommand` と同じ理由: ページが任意の
@@ -326,7 +326,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 
 ### 8.3 チャネル（`CH.translate.*`）
 
-入力はすべて zod で検査する。言語コードは `^(ja\(easy\)|[a-z]{2,3}(-[a-z]{4})?)$` かつ一覧にあるもの。
+入力はすべて main で検査する（zod か、`unknown` のままの明示の検査）。言語コードは `^(ja\(easy\)|[a-z]{2,3}(-[a-z]{4})?)$` かつ一覧にあるもの。
 
 | チャネル | 向き | 中身 |
 |---|---|---|

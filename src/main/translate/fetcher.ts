@@ -163,12 +163,19 @@ async function writeBody(
   signal: AbortSignal,
 ): Promise<number> {
   const out = createWriteStream(part, { flags: offset > 0 ? 'a' : 'w' })
+  // A stream's 'error' with no listener is thrown out of the event loop and ends main: a full disk
+  // or an antivirus lock is kept here and thrown from the loop below instead.
+  let failure: Error | null = null
+  out.on('error', (error) => {
+    failure = error
+  })
   const reader = body.getReader()
   const meter = speedMeter()
   let received = offset
   let lastReport = 0
   try {
     for (;;) {
+      if (failure) throw writeFailure(failure)
       const { done, value } = await reader.read()
       if (done) return received
       received += value.byteLength
@@ -179,8 +186,26 @@ async function writeBody(
       onProgress({ phase: 'downloading', received, total, speed: meter(received, now) })
     }
   } finally {
-    await new Promise<void>((resolve) => out.end(() => resolve()))
+    await closed(out)
+    await reader.cancel().catch(() => {})
   }
+}
+
+/** Ends the stream, settling also when it failed (its end callback is then never called). */
+function closed(out: WriteStream): Promise<void> {
+  if (out.destroyed) return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    out.once('close', () => resolve())
+    out.end()
+  })
+}
+
+/** A failed write as a fetch error: a full disk is said and not retried, a passing lock is. */
+export function writeFailure(error: Error): FetchError {
+  const code = (error as NodeJS.ErrnoException).code
+  return code === 'ENOSPC'
+    ? new FetchError('The disk is full.', false)
+    : new FetchError(`Cannot write the download (${code ?? error.message}).`, true)
 }
 
 /** The first byte of a `Content-Range: bytes 100-199/200`, or null. */
@@ -206,15 +231,25 @@ function speedMeter(): (bytes: number, now: number) => number {
 
 function drained(out: WriteStream, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const onAbort = (): void => {
+    const settle = (): void => {
       out.off('drain', onDrain)
+      out.off('error', onError)
+      signal.removeEventListener('abort', onAbort)
+    }
+    const onAbort = (): void => {
+      settle()
       reject(new Error('aborted'))
     }
+    const onError = (error: Error): void => {
+      settle()
+      reject(writeFailure(error))
+    }
     const onDrain = (): void => {
-      signal.removeEventListener('abort', onAbort)
+      settle()
       resolve()
     }
     out.once('drain', onDrain)
+    out.once('error', onError)
     signal.addEventListener('abort', onAbort, { once: true })
   })
 }

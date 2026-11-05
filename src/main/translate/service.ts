@@ -47,6 +47,7 @@ import {
 import { FetchError, fetchFile, fileSize, partOf } from './fetcher.js'
 import { sha256File, stopHashing } from './hash.js'
 import { installEngine, SERVER_NAME, sweepTemps } from './installer.js'
+import { endOrphan, processName, readLeftPid, writePid } from './orphan.js'
 
 /**
  * The TRANSLATE pane's main side (docs/translate.md §8): the board the panes see, the engine and
@@ -71,6 +72,8 @@ export interface ServiceEnv {
   /** Chromium's fetch for downloads (it knows the system's proxy); node's for llama-server. */
   netFetch: (url: string, init: RequestInit) => Promise<Response>
   gpuName: () => Promise<string | null>
+  /** What the OS calls a process (the orphan check, §4.2); tests stand one in. */
+  processName?: ((pid: number) => Promise<string | null>) | undefined
 }
 
 const ManifestSchema = z.object({
@@ -88,6 +91,8 @@ export class TranslateService {
   #settings: Settings['translate']
   #fetch: FetchView | null = null
   #fetchAbort: AbortController | null = null
+  /** The fetch under way, so CANCEL and removing a model can wait for its writer to let go. */
+  #fetchRun: Promise<void> | null = null
   #paused: { kind: 'engine' | 'model'; id: string } | null = null
   #machine: MachineView = {
     // GiB, as the OS says it: 16 GB of memory is 17.2e9 bytes.
@@ -110,6 +115,8 @@ export class TranslateService {
     const manifest = readManifest(env.manifest)
     this.#models = manifest.models ?? MODELS
     this.#engines = manifest.engines ?? ENGINES
+    // Read before the engine can start a server of its own, which would write its pid there.
+    const left = readLeftPid(this.#root)
     this.engine = new TranslateEngine(this.#config(), {
       spawn: (launch, args, envVars) => spawnServer(launch, args, envVars),
       health: (origin, key) => health(origin, key),
@@ -121,10 +128,15 @@ export class TranslateService {
       sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       now: () => Date.now(),
       onChange: () => this.#changed(),
+      onPid: (pid) => writePid(this.#root, pid),
       stallMs: env.stallMs ?? 60_000,
       pollMs: 250,
     })
     void sweepTemps(this.#root)
+    void endOrphan(left, {
+      processName: (pid) => (env.processName ?? processName)(pid),
+      kill: (pid) => process.kill(pid),
+    })
     void env.gpuName().then((gpu) => {
       this.#machine = { ...this.#machine, gpu }
       this.#changed()
@@ -143,7 +155,7 @@ export class TranslateService {
   /** New settings: the engine takes what changed (§8.4). */
   setSettings(settings: Settings['translate']): void {
     this.#settings = settings
-    this.engine.configure(this.#config())
+    void this.engine.configure(this.#config())
     this.#changed()
   }
 
@@ -194,7 +206,7 @@ export class TranslateService {
     if (kind === 'own' && !file.own) throw new Error('Choose your llama-server first.')
     if (kind === 'external' && !file.external) throw new Error('Test a server address first.')
     this.#file.write({ ...file, source: kind })
-    this.engine.configure(this.#config())
+    void this.engine.configure(this.#config())
     this.#changed()
   }
 
@@ -208,7 +220,7 @@ export class TranslateService {
     }
     const current = this.#file.read()
     this.#file.write({ ...current, own: { path: file, build }, source: 'own' })
-    this.engine.configure(this.#config())
+    void this.engine.configure(this.#config())
     this.#changed()
     return { build }
   }
@@ -237,7 +249,8 @@ export class TranslateService {
       return { ok: false, problem: 'That server does not run a PLaMo 3 Translate model.' }
     const current = this.#file.read()
     this.#file.write({ ...current, external: { origin: parsed.origin }, source: 'external' })
-    this.engine.configure(this.#config())
+    // After the change has taken: the restart it causes would otherwise mark the server untested again.
+    await this.engine.configure(this.#config())
     this.engine.tested(true)
     this.#changed()
     return { ok: true, host: parsed.host }
@@ -252,8 +265,15 @@ export class TranslateService {
   }
 
   /** Fetches what the selected model needs: the engine first when elecdex provides it, then the model. */
-  async fetchSelected(): Promise<void> {
-    if (this.#fetchAbort) return
+  fetchSelected(): Promise<void> {
+    if (this.#fetchRun) return this.#fetchRun
+    this.#fetchRun = this.#fetchSelected().finally(() => {
+      this.#fetchRun = null
+    })
+    return this.#fetchRun
+  }
+
+  async #fetchSelected(): Promise<void> {
     const model = this.#selectedModel()
     if (!model || this.fetchProblem()) return
     const controller = new AbortController()
@@ -264,7 +284,7 @@ export class TranslateService {
       if (engine) await this.#fetchEngine(engine, controller.signal)
       await this.#fetchModel(model, controller.signal)
       this.#fetch = null
-      this.engine.configure(this.#config())
+      void this.engine.configure(this.#config())
     } catch (error) {
       this.#failed(error, controller.signal)
     } finally {
@@ -281,25 +301,31 @@ export class TranslateService {
     this.#fetchAbort.abort()
   }
 
+  /** CANCEL drops the `.part` (§5), once the writer has let go of it: Windows cannot remove an open file. */
   async cancelFetch(): Promise<void> {
     const fetching = this.#fetch
     this.#paused = null
     this.#fetchAbort?.abort()
+    await this.#fetchRun?.catch(() => {})
     this.#fetch = null
-    if (fetching?.kind === 'model') {
-      const model = this.#models.find((m) => m.id === fetching.id)
-      if (model) await rm(partOf(this.#modelPath(model)), { force: true })
-    }
+    const model =
+      fetching?.kind === 'model' ? this.#models.find((m) => m.id === fetching.id) : undefined
+    const engine =
+      fetching?.kind === 'engine' ? this.#engines.find((e) => e.target === fetching.id) : undefined
+    if (model) await rm(partOf(this.#modelPath(model)), { force: true })
+    if (engine) await rm(partOf(this.#archivePath(engine)), { force: true })
     this.#changed()
   }
 
   async removeModel(modelId: string): Promise<void> {
     const model = this.#models.find((m) => m.id === modelId)
     if (!model) return
+    // A model being fetched is cancelled first, never removed from under its writer.
+    if (this.#fetch?.kind === 'model' && this.#fetch.id === modelId) await this.cancelFetch()
     // Windows keeps a loaded model's file open: stop the server first (§4.3).
     if (modelId === this.#settings.modelId) await this.engine.stop()
     await rm(path.dirname(this.#modelPath(model)), { recursive: true, force: true })
-    this.engine.configure(this.#config())
+    void this.engine.configure(this.#config())
     this.#changed()
   }
 
@@ -353,10 +379,7 @@ export class TranslateService {
   }
 
   async #fetchEngine(engine: EngineAsset, signal: AbortSignal): Promise<void> {
-    const archive = path.join(
-      this.#root,
-      `engine-${ENGINE_BUILD}-${engine.target}${path.extname(engine.asset) === '.zip' ? '.zip' : '.tar.gz'}`,
-    )
+    const archive = this.#archivePath(engine)
     const target = {
       url: engineUrl(this.#releasesBase(), engine),
       dest: archive,
@@ -452,6 +475,11 @@ export class TranslateService {
 
   #modelPath(model: ModelEntry): string {
     return path.join(this.#root, 'models', model.id, model.file)
+  }
+
+  #archivePath(engine: EngineAsset): string {
+    const ext = path.extname(engine.asset) === '.zip' ? '.zip' : '.tar.gz'
+    return path.join(this.#root, `engine-${ENGINE_BUILD}-${engine.target}${ext}`)
   }
 
   #engineDir(engine: EngineAsset): string {
@@ -600,6 +628,7 @@ function spawnServer(
   child.stdout.setEncoding('utf8')
   child.stderr.setEncoding('utf8')
   return {
+    pid: child.pid ?? null,
     onOutput: (listener) => {
       child.stdout.on('data', listener)
       child.stderr.on('data', listener)
