@@ -56,9 +56,16 @@ export interface EngineView {
 export interface ModelView {
   id: string
   installed: boolean
+  /** The commit of the file in place, or null. */
+  revision: string | null
+  /** A newer commit than the one in place, found by ENGINE's daily check (§5); null when none. */
+  update: { revision: string; date: string | null } | null
   /** Bytes of an unfinished fetch, kept to resume. */
   partialBytes: number
-  /** When the licence was agreed to for this model, or null. */
+  /**
+   * When the licence and the fetch were agreed to for this model's newest commit known, or null:
+   * an agreement to an older commit, or one made before commits were followed, is asked again.
+   */
   consentAt: string | null
 }
 
@@ -109,6 +116,10 @@ export const EngineFileSchema = z.object({
     .record(z.string(), z.array(z.string().max(200)).max(16))
     .catch({})
     .default({}),
+  /**
+   * Each agreement, with the file it is for: the newest commit when it was made, its size and
+   * sha256 (§5). One made before commits were followed has no size: it is asked again.
+   */
   consents: z
     .record(
       z.string(),
@@ -116,10 +127,52 @@ export const EngineFileSchema = z.object({
         at: z.string().max(40),
         revision: z.string().max(64),
         licence: z.string().max(300),
+        bytes: z.number().int().positive().optional(),
+        sha256: z
+          .string()
+          .regex(/^[0-9a-f]{64}$/)
+          .optional(),
       }),
     )
     .catch({})
     .default({}),
+  /** The file each model has in place, once fetched: what it is checked against (§5). */
+  installed: z
+    .record(
+      z.string(),
+      z.object({
+        revision: z.string().max(64),
+        bytes: z.number().int().positive(),
+        sha256: z.string().regex(/^[0-9a-f]{64}$/),
+        at: z.string().max(40),
+      }),
+    )
+    .catch({})
+    .default({}),
+  /** Each repository's newest commit, as last heard (an agreement, or ENGINE's daily check). */
+  latest: z
+    .record(
+      z.string(),
+      z.object({
+        revision: z.string().max(64),
+        date: z.string().max(40).nullable(),
+        /** Each GGUF file at that commit: an update is a file that changed, not a commit. */
+        files: z
+          .record(
+            z.string(),
+            z.object({
+              bytes: z.number().int().positive(),
+              sha256: z.string().regex(/^[0-9a-f]{64}$/),
+            }),
+          )
+          .catch({})
+          .default({}),
+      }),
+    )
+    .catch({})
+    .default({}),
+  /** When ENGINE last asked for newer commits: at most once a day (user's request 2026-11-06). */
+  checkedAt: z.string().max(40).nullable().catch(null).default(null),
 })
 
 export type EngineFile = z.infer<typeof EngineFileSchema>

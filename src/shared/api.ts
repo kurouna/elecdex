@@ -621,9 +621,12 @@ export interface TranslateApi {
   ): Promise<{ ok: true; host: string } | { ok: false; problem: string }>
   /**
    * Records that the PLaMo Community License was agreed to for a model, and the fetch with it:
-   * in engine.json and in the consent log (translate/licence-consents.txt).
+   * in engine.json and in the consent log (translate/licence-consents.txt). It is for the newest
+   * commit of the model's repository, asked of Hugging Face; the answer is that commit.
    */
-  consent(modelId: string): Promise<void>
+  consent(modelId: string): Promise<{ revision: string } | { problem: string } | undefined>
+  /** ENGINE opened: newer commits of the models in place, asked at most once a day. */
+  checkUpdates(): Promise<void>
   /** Fetches what the selected model needs (the engine first when elecdex provides it). */
   fetch(): Promise<{ problem: string } | null>
   pause(): Promise<void>

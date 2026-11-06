@@ -158,6 +158,11 @@ function openSetup(at?: number): void {
             chosen={chosenModel}
             onpick={(modelId) => (pendingModel = modelId)}
             onsetup={(at) => openSetup(at)}
+            onupdate={(modelId) => {
+              // The update is agreed to and fetched in SETUP, from its licence.
+              pendingModel = modelId
+              openSetup(3)
+            }}
             ondone={() => void commitModel().then(() => (view = 'text'))}
           />
         {:else}

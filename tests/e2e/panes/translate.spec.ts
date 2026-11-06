@@ -31,30 +31,62 @@ const FILE = 'plamo-3-translate-2b-Q4_K_M.gguf'
 /** The 0.8B model's file, for a test that sets up a second model. */
 const LITE_FILE = 'plamo-3-translate-0.8b-Q4_K_M.gguf'
 
+/** The repositories' newest commit, as the stand-in for Hugging Face tells it. */
+const COMMIT = 'abcdef1'.padEnd(40, '0')
+
 interface ModelServer {
   server: Server
   base: string
   asked: string[]
   /** 'stall': half the file, then nothing, as a download under way when PAUSE or CANCEL comes. */
   mode: 'serve' | 'stall'
+  /** The newest commit the revision API tells, and the file served at it. */
+  commit: string
+  body: Buffer
 }
 
-/** Serves the made-up model at its manifest path. */
+/** What a test asked of the stand-in's files (the revision API left out). */
+const files = (hf: ModelServer) => hf.asked.filter((url) => !url.startsWith('/api/'))
+
+/** Serves the made-up model at any commit, and Hugging Face's revision API for its repositories. */
 async function modelServer(): Promise<ModelServer> {
-  const state: ModelServer = { server: createServer(), base: '', asked: [], mode: 'serve' }
+  const state: ModelServer = {
+    server: createServer(),
+    base: '',
+    asked: [],
+    mode: 'serve',
+    commit: COMMIT,
+    body: MODEL,
+  }
   state.server.on('request', (req, res) => {
     state.asked.push(req.url ?? '')
+    if (req.url?.startsWith('/api/models/')) {
+      const sha256 = createHash('sha256').update(state.body).digest('hex')
+      const lfs = { sha256, size: state.body.length }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(
+        JSON.stringify({
+          sha: state.commit,
+          lastModified: '2026-11-06T00:49:00.000Z',
+          siblings: [
+            { rfilename: FILE, lfs },
+            { rfilename: LITE_FILE, lfs },
+          ],
+        }),
+      )
+      return
+    }
     if (!req.url?.endsWith(`/${FILE}`) && !req.url?.endsWith(`/${LITE_FILE}`)) {
       res.writeHead(404)
       res.end()
       return
     }
-    res.writeHead(200, { 'content-length': String(MODEL.length) })
+    res.writeHead(200, { 'content-length': String(state.body.length) })
     if (state.mode === 'stall') {
-      res.write(MODEL.subarray(0, MODEL.length / 2))
+      res.write(state.body.subarray(0, state.body.length / 2))
       return
     }
-    res.end(MODEL)
+    res.end(state.body)
   })
   await new Promise<void>((resolve) => state.server.listen(0, '127.0.0.1', resolve))
   state.base = `http://127.0.0.1:${(state.server.address() as AddressInfo).port}`
@@ -174,22 +206,24 @@ test('SETUP fetches the model, checks it, and READY translates through the engin
     const entry = readFileSync(log, 'utf8')
     expect(entry).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z {2}agreed {2}plamo3-2b-q4km$/m)
     expect(entry).toMatch(/opened from elecdex \d{4}-/)
-    expect(entry).toContain(`pfnet/plamo-3-translate-2b-GGUF@abcdef1 ${FILE}`)
-    // An opening goes with one agreement: the next, with no page opened for it, says so rather
-    // than repeating the time the page was opened before.
-    await page.evaluate(() => window.elecdex.translate.consent('plamo3-2b-q4km'))
-    const entries = readFileSync(log, 'utf8').split(/\n(?=\d{4}-)/)
-    expect(entries).toHaveLength(2)
-    expect(entries[1]).toContain('opened from elecdex (not opened for this agreement)')
+    expect(entry).toContain(`pfnet/plamo-3-translate-2b-GGUF@${COMMIT} ${FILE}`)
 
     // FETCH, then READY by itself, with the self test through the engine.
     await expect(page.getByTestId('translate-selftest')).toContainText('おはようございます。', {
       timeout: 30_000,
     })
-    expect(hf.asked).toEqual([`/pfnet/plamo-3-translate-2b-GGUF/resolve/abcdef1/${FILE}`])
+    // The newest commit, asked of the revision API as the licence was agreed to.
+    expect(hf.asked[0]).toBe('/api/models/pfnet/plamo-3-translate-2b-GGUF/revision/main?blobs=true')
+    expect(files(hf)).toEqual([`/pfnet/plamo-3-translate-2b-GGUF/resolve/${COMMIT}/${FILE}`])
     expect(existsSync(path.join(userData, 'translate', 'models', 'plamo3-2b-q4km', FILE))).toBe(
       true,
     )
+    // Once fetched (an agreement is refused while its model is written): an opening goes with one
+    // agreement; the next, with no page opened for it, says so rather than repeating the time.
+    await page.evaluate(() => window.elecdex.translate.consent('plamo3-2b-q4km'))
+    const entries = readFileSync(log, 'utf8').split(/\n(?=\d{4}-)/)
+    expect(entries).toHaveLength(2)
+    expect(entries[1]).toContain('opened from elecdex (not opened for this agreement)')
     await page.getByTestId('translate-next').click()
     await expect(page.getByTestId('translate-standby')).toContainText('Ready')
     await expect(page.getByTestId('translate-where')).toContainText('local, nothing leaves this PC')
@@ -715,26 +749,74 @@ test('the spine joins each block as it is translated, while the source is still 
 })
 
 test('an agreement that could not be written keeps the licence page’s opening for its retry', async () => {
-  const { app, page, close, userData } = await launch(undefined, withModel())
+  const hf = await modelServer()
+  const { app, page, close, userData } = await launch(undefined, {
+    ...withModel(),
+    env: { ...withModel().env, ELECDEX_HF_BASE_URL: hf.base },
+  })
   const log = path.join(userData, 'translate', 'licence-consents.txt')
   try {
     await stubOpenExternal(app)
     await page.evaluate(() => window.elecdex.translate.openLicence('plamo'))
     // A folder where the log goes: the agreement cannot be written.
     mkdirSync(log, { recursive: true })
-    const failed = await page.evaluate(() =>
-      window.elecdex.translate.consent('plamo3-2b-q4km').then(
-        () => 'written',
-        () => 'refused',
-      ),
-    )
-    expect(failed).toBe('refused')
+    const failed = await page.evaluate(() => window.elecdex.translate.consent('plamo3-2b-q4km'))
+    expect(failed).toEqual({ problem: expect.stringMatching(/could not be written down/) })
     rmSync(log, { recursive: true, force: true })
-    await page.evaluate(() => window.elecdex.translate.consent('plamo3-2b-q4km'))
+    const retried = await page.evaluate(() => window.elecdex.translate.consent('plamo3-2b-q4km'))
+    expect(retried).toEqual({ revision: COMMIT })
     // The retry says when the page was opened for it, not that it was not.
     expect(readFileSync(log, 'utf8')).toMatch(/opened from elecdex \d{4}-/)
   } finally {
     await close()
+    stopServer(hf.server)
+  }
+})
+
+test('ENGINE offers a newer commit once a day, and UPDATE agrees to it and replaces the file', async () => {
+  const hf = await modelServer()
+  // The model in place is the first release (by its size); Hugging Face now has a newer commit.
+  const NEWER = 'e'.repeat(40)
+  hf.commit = NEWER
+  hf.body = Buffer.from(MODEL.map((byte) => (byte + 1) % 256))
+  const { app, page, close, userData } = await launch(undefined, {
+    ...withModel(),
+    env: { ...withModel().env, ELECDEX_HF_BASE_URL: hf.base },
+  })
+  const asks = () => hf.asked.filter((url) => url.startsWith('/api/')).length
+  const model = path.join(userData, 'translate', 'models', 'plamo3-2b-q4km', FILE)
+  try {
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(page.getByTestId('translate-update')).toBeVisible()
+    await expect(page.getByTestId('translate-engine')).toContainText('newer, 2026-11-06')
+    expect(asks()).toBe(1)
+    // Opened again the same day: nothing asked.
+    await page.getByTestId('translate-settings-toggle').click()
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(page.getByTestId('translate-update')).toBeVisible()
+    expect(asks()).toBe(1)
+    // UPDATE goes through the licence, for the newer commit, and fetches it.
+    await page.getByTestId('translate-update').click()
+    const setup = page.getByTestId('translate-setup')
+    await expect(setup.locator('.steps li.now')).toContainText('Licence')
+    await expect(page.getByTestId('translate-agree')).toBeDisabled()
+    await agree(page, app)
+    await page.getByTestId('translate-next').click()
+    await expect(page.getByTestId('translate-selftest')).toContainText('おはようございます。', {
+      timeout: 30_000,
+    })
+    expect(files(hf)).toEqual([`/pfnet/plamo-3-translate-2b-GGUF/resolve/${NEWER}/${FILE}`])
+    expect(readFileSync(model).equals(hf.body)).toBe(true)
+    const engine = JSON.parse(readFileSync(path.join(userData, 'translate', 'engine.json'), 'utf8'))
+    expect(engine.installed['plamo3-2b-q4km'].revision).toBe(NEWER)
+    // Up to date: no UPDATE any more.
+    await page.getByTestId('translate-next').click()
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(page.getByTestId('translate-engine')).toBeVisible()
+    await expect(page.getByTestId('translate-update')).toHaveCount(0)
+  } finally {
+    await close()
+    stopServer(hf.server)
   }
 })
 
@@ -836,7 +918,7 @@ test('a model chosen for SETUP becomes the settings’ only when its fetch start
     await expect(setup.locator('.steps li.now')).toContainText('Fetch')
     await expect(setup).toContainText('downloading')
     await expect(page.getByTestId('translate-selftest')).toHaveCount(0)
-    expect(hf.asked).toEqual([`/pfnet/plamo-3-translate-0.8b-GGUF/resolve/abcdef2/${LITE_FILE}`])
+    expect(files(hf)).toEqual([`/pfnet/plamo-3-translate-0.8b-GGUF/resolve/${COMMIT}/${LITE_FILE}`])
   } finally {
     await close()
     stopServer(hf.server)

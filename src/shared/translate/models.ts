@@ -1,10 +1,12 @@
 import { z } from 'zod'
 
 /**
- * The PLaMo 3 Translate GGUF files elecdex may fetch (docs/translate.md §5). Each is pinned to a
- * revision of its repository, with its size and sha256 from that revision, so what is fetched is
- * what was tested and a file that does not match is never put in place. Read from Hugging Face's
- * API on 2026-11-05.
+ * The PLaMo 3 Translate GGUF files elecdex may fetch (docs/translate.md §5). What is fetched is the
+ * newest commit of each repository, asked of Hugging Face when the licence is agreed to, and
+ * checked against the size and sha256 it gives (revisions.ts; user decision 2026-11-06: a pinned
+ * commit stopped being served when the repositories were updated). The revision, size and sha256
+ * here are the first releases (2026-11-04), read from Hugging Face's API on 2026-11-05: a file
+ * fetched then, with no record of its own, is recognised by them, and the sizes guide the setup.
  */
 
 export type ModelTier = 'lite' | 'standard' | 'pro' | 'max'
@@ -20,6 +22,7 @@ export interface ModelEntry {
   params: string
   quant: Quant
   repo: string
+  /** The release elecdex knew when it was made (see above), not what is fetched. */
   revision: string
   file: string
   bytes: number
@@ -152,7 +155,7 @@ export const DEFAULT_MODEL_ID = 'plamo3-2b-q4km'
 
 export const HF_BASE_URL = 'https://huggingface.co'
 
-/** Where a model file is fetched from, at its pinned revision. */
+/** Where a model file is fetched from, at the commit agreed to. */
 export function modelUrl(
   base: string,
   model: Pick<ModelEntry, 'repo' | 'revision' | 'file'>,

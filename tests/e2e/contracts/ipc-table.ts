@@ -111,6 +111,7 @@ export const NO_ARGUMENT = [
   'translate.cancelFetch',
   'translate.logs',
   'translate.selfTest',
+  'translate.checkUpdates',
   'translate.watching',
   'translate.glossaries',
   'translate.history',

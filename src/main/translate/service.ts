@@ -12,6 +12,7 @@ import {
   type EngineView,
   type FetchView,
   type MachineView,
+  type ModelView,
   type TranslateBoard,
 } from '@shared/translate/board'
 import {
@@ -35,12 +36,21 @@ import {
   modelUrl,
 } from '@shared/translate/models'
 import { buildPrompt, PFML_STOP, restore } from '@shared/translate/pfml3'
+import {
+  behind,
+  dueForCheck,
+  inPlace,
+  parseRevision,
+  type RemoteFile,
+  type RepoRevision,
+  revisionUrl,
+} from '@shared/translate/revisions'
 import type { RunEvent, RunRequest, RunView } from '@shared/translate/run'
 import { z } from 'zod'
 import LLAMA_LICENSES from '../../../resources/translate/llama.cpp-licenses.txt?raw'
 import { JsonStore } from '../store/json-store.js'
-import { replaceFile } from '../store/replace-file.js'
-import { appendConsent } from './consent-log.js'
+import { replaceFileNow } from '../store/replace-file.js'
+import { appendConsent, appendMove } from './consent-log.js'
 import {
   type EngineConfig,
   type EngineLaunch,
@@ -48,7 +58,7 @@ import {
   type ServerProcess,
   TranslateEngine,
 } from './engine.js'
-import { fetchFile, fileSize, partOf } from './fetcher.js'
+import { FetchError, type FetchTarget, fetchFile, fileSize, partOf } from './fetcher.js'
 import { sha256File, stopHashing } from './hash.js'
 import { installEngine, SERVER_NAME, sweepTemps } from './installer.js'
 import { TranslateLibrary } from './library.js'
@@ -123,6 +133,10 @@ export class TranslateService {
     freeBytes: null,
   }
   readonly #listeners = new Set<() => void>()
+  /** ENGINE's check for newer commits while it is under way (§5). */
+  #checking: Promise<void> | null = null
+  /** Models being agreed to now: no fetch of theirs starts until the agreement is written. */
+  readonly #agreeing = new Set<string>()
 
   constructor(env: ServiceEnv, settings: Settings['translate']) {
     this.#env = env
@@ -295,14 +309,8 @@ export class TranslateService {
   }
 
   async board(): Promise<TranslateBoard> {
-    const models = await Promise.all(
-      this.#models.map(async (model) => ({
-        id: model.id,
-        installed: (await fileSize(this.#modelPath(model))) === model.bytes,
-        partialBytes: await fileSize(partOf(this.#modelPath(model))),
-        consentAt: this.#file.read().consents[model.id]?.at ?? null,
-      })),
-    )
+    const file = this.#file.read()
+    const models = await Promise.all(this.#models.map((model) => this.#modelView(model, file)))
     return {
       engine: this.#engineView(),
       models,
@@ -319,16 +327,149 @@ export class TranslateService {
 
   watching(): string[] {
     const fetching = this.#fetch && this.#fetch.phase !== 'paused' && this.#fetch.phase !== 'failed'
-    return [...(fetching ? ['fetch'] : []), ...this.runs.watching()]
+    return [
+      ...(fetching ? ['fetch'] : []),
+      ...this.runs.watching(),
+      ...(this.#checking ? ['update-check'] : []),
+    ].sort()
   }
 
   /**
-   * The licence agreed to, and the fetch: kept in engine.json for the app, and added to the
-   * consent log with what was shown and what will be fetched (consent-log.ts).
+   * ENGINE was opened: ask Hugging Face for the newest commits of the models in place, at most once
+   * a day (user's request 2026-11-06), whatever the answer. A model behind its repository is then
+   * offered UPDATE; nothing is fetched by itself.
    */
-  async consent(modelId: string, agreement: Agreement): Promise<void> {
+  checkUpdates(now = Date.now()): Promise<void> {
+    if (this.#checking) return this.#checking
+    if (!dueForCheck(this.#file.read().checkedAt, now)) return Promise.resolve()
+    this.#checking = this.#check(now).finally(() => {
+      this.#checking = null
+      this.#changed()
+    })
+    return this.#checking
+  }
+
+  async #check(now: number): Promise<void> {
+    const repos = new Set<string>()
+    for (const model of this.#models) {
+      if (await this.#inPlace(model, this.#file.read())) repos.add(model.repo)
+    }
+    // Nothing in place, nothing asked: the first agreement asks for itself.
+    if (repos.size === 0) return
+    this.#file.write({ ...this.#file.read(), checkedAt: new Date(now).toISOString() })
+    for (const repo of repos) {
+      const heard = await this.#askRevision(repo)
+      if (heard) this.#hear(repo, heard)
+    }
+  }
+
+  /** The newest commit of a repository, asked of Hugging Face; null when it did not answer. */
+  async #askRevision(repo: string): Promise<RepoRevision | null> {
+    try {
+      const response = await this.#env.netFetch(revisionUrl(this.#hfBase(), repo), {
+        signal: AbortSignal.timeout(15_000),
+      })
+      return response.ok ? parseRevision(await response.json()) : null
+    } catch {
+      return null
+    }
+  }
+
+  /** A repository's newest commit and its files, kept for the board. */
+  #hear(repo: string, heard: RepoRevision): void {
+    const file = this.#file.read()
+    this.#file.write({
+      ...file,
+      latest: {
+        ...file.latest,
+        [repo]: { revision: heard.revision, date: heard.date, files: heard.files },
+      },
+    })
+  }
+
+  /**
+   * A fetch run under way, the engine's or a model's: no agreement is made meanwhile, since the
+   * run goes on from the engine to the model and would read the agreement before it.
+   */
+  #fetchUnderWay(): boolean {
+    return this.#fetchRun !== null
+  }
+
+  /** The file a model has in place: its record, or a first release's by its size (revisions.ts). */
+  async #inPlace(model: ModelEntry, file: EngineFile): Promise<RemoteFile | null> {
+    return inPlace(file.installed[model.id], model, await fileSize(this.#modelPath(model)))
+  }
+
+  async #modelView(model: ModelEntry, file: EngineFile): Promise<ModelView> {
+    const installed = await this.#inPlace(model, file)
+    const latest = file.latest[model.repo]
+    const newest = latest?.files[model.file]
+    const agreed = file.consents[model.id]
+    // An agreement counts for the newest file known only: an update is agreed to again.
+    const current =
+      agreed?.sha256 !== undefined && (newest === undefined || agreed.sha256 === newest.sha256)
+    return {
+      id: model.id,
+      installed: installed !== null,
+      revision: installed?.revision ?? null,
+      update:
+        latest && behind(installed, newest)
+          ? { revision: latest.revision, date: latest.date }
+          : null,
+      partialBytes: await fileSize(partOf(this.#modelPath(model))),
+      consentAt: current && agreed ? agreed.at : null,
+    }
+  }
+
+  /**
+   * The licence agreed to, and the fetch, for the newest commit of the model's repository, asked
+   * of Hugging Face now (§5): kept in engine.json for the app, and added to the consent log with
+   * what was shown and what will be fetched (consent-log.ts). The answer is the commit agreed to.
+   */
+  async consent(
+    modelId: string,
+    agreement: Agreement,
+  ): Promise<{ revision: string } | { problem: string }> {
     const model = this.#models.find((m) => m.id === modelId)
-    if (!model) throw new Error('No such model.')
+    if (!model) return { problem: 'No such model.' }
+    if (this.#fetchUnderWay() || this.#agreeing.has(model.id)) {
+      return { problem: 'A fetch is under way: let it finish, or cancel it, first.' }
+    }
+    // From here until the agreement is written, no fetch of this model starts (fetchProblem):
+    // one would read the agreement before it and mix two versions in its part.
+    this.#agreeing.add(model.id)
+    try {
+      return await this.#agree(model, agreement)
+    } finally {
+      this.#agreeing.delete(model.id)
+    }
+  }
+
+  async #agree(
+    model: ModelEntry,
+    agreement: Agreement,
+  ): Promise<{ revision: string } | { problem: string }> {
+    const heard = await this.#askRevision(model.repo)
+    if (!heard) return { problem: 'Hugging Face did not answer: try again in a while.' }
+    const offered = heard.files[model.file]
+    if (!offered) return { problem: `${model.file} is no longer offered by Preferred Networks.` }
+    const target: RemoteFile = { revision: heard.revision, ...offered }
+    try {
+      await this.#writeAgreement(model, target, agreement)
+    } catch (error) {
+      const why = error instanceof Error ? error.message : String(error)
+      return { problem: `The agreement could not be written down (${why}).` }
+    }
+    this.#hear(model.repo, heard)
+    this.#changed()
+    return { revision: target.revision }
+  }
+
+  async #writeAgreement(
+    model: ModelEntry,
+    target: RemoteFile,
+    agreement: Agreement,
+  ): Promise<void> {
     const at = new Date().toISOString()
     const engines = this.#enginesToFetch()
     // The log first: an agreement it could not keep is no agreement, and nothing is fetched on it.
@@ -338,10 +479,10 @@ export class TranslateService {
       model: {
         id: model.id,
         repo: model.repo,
-        revision: model.revision,
+        revision: target.revision,
         file: model.file,
-        bytes: model.bytes,
-        sha256: model.sha256,
+        bytes: target.bytes,
+        sha256: target.sha256,
       },
       licence: {
         name: 'PLaMo Community License',
@@ -349,22 +490,29 @@ export class TranslateService {
         openedAt: agreement.openedAt,
       },
       downloads: [
-        `the model from ${modelUrl(this.#hfBase(), model)}`,
+        `the model from ${modelUrl(this.#hfBase(), { ...model, revision: target.revision })}`,
         ...engines.map(
           (engine) =>
             `llama.cpp ${ENGINE_BUILD} (MIT) from ${engineUrl(this.#releasesBase(), engine)}`,
         ),
       ],
     })
-    const file = this.#file.read()
+    // A part of another file is of no use for this one, paused or failed: it goes, with its fetch.
+    // None is writing: one could not start while this model is being agreed to.
+    if (this.#file.read().consents[model.id]?.sha256 !== target.sha256) {
+      if (this.#fetch?.kind === 'model' && this.#fetch.id === model.id) {
+        this.#fetch = null
+        this.#paused = null
+      }
+      await rm(partOf(this.#modelPath(model)), { force: true })
+    }
     this.#file.write({
-      ...file,
+      ...this.#file.read(),
       consents: {
-        ...file.consents,
-        [modelId]: { at, revision: model.revision, licence: agreement.licence },
+        ...this.#file.read().consents,
+        [model.id]: { at, licence: agreement.licence, ...target },
       },
     })
-    this.#changed()
   }
 
   setSource(kind: EngineFile['source']): void {
@@ -426,7 +574,10 @@ export class TranslateService {
   fetchProblem(): string | null {
     const model = this.#selectedModel()
     if (!model) return 'No such model.'
-    if (!this.#file.read().consents[model.id]) return 'Agree to the licence first.'
+    // An agreement made before commits were followed names no file: it is asked again.
+    if (this.#file.read().consents[model.id]?.bytes === undefined)
+      return 'Agree to the licence first.'
+    if (this.#agreeing.has(model.id)) return 'The licence is being agreed to: a moment, please.'
     return null
   }
 
@@ -453,10 +604,22 @@ export class TranslateService {
       void this.#reconfigure('A model was put in place.')
     } catch (error) {
       this.#failed(error, controller.signal)
+      // Said at once as the server answered; why, in plain words, once Hugging Face is asked.
+      void this.#explain(model, error)
     } finally {
       this.#fetchAbort = null
       this.#changed()
     }
+  }
+
+  /** A failed fetch's error replaced by why it failed, if it is still that failure by then. */
+  async #explain(model: ModelEntry, error: unknown): Promise<void> {
+    const failed = this.#fetch
+    if (failed?.kind !== 'model' || failed.phase !== 'failed') return
+    const why = await this.#goneWhy(model, error)
+    if (why === null || this.#fetch !== failed) return
+    this.#fetch = { ...failed, error: why }
+    this.#changed()
   }
 
   /** PAUSE keeps the `.part`; elecdex quitting pauses too (§5). */
@@ -494,6 +657,7 @@ export class TranslateService {
       await this.engine.stop()
     }
     await rm(path.dirname(this.#modelPath(model)), { recursive: true, force: true })
+    this.#remember(model, null)
     void this.#reconfigure('The model was removed.')
     this.#changed()
   }
@@ -538,13 +702,13 @@ export class TranslateService {
     this.engine.killNow()
   }
 
-  #failed(error: unknown, signal: AbortSignal): void {
+  #failed(error: unknown, signal: AbortSignal, why: string | null = null): void {
     const fetching = this.#fetch
     if (signal.aborted) {
       this.#fetch = this.#paused && fetching ? { ...fetching, phase: 'paused', speed: 0 } : null
       return
     }
-    const message = error instanceof Error ? error.message : String(error)
+    const message = why ?? (error instanceof Error ? error.message : String(error))
     this.#fetch = fetching ? { ...fetching, phase: 'failed', speed: 0, error: message } : null
   }
 
@@ -580,21 +744,107 @@ export class TranslateService {
     }
   }
 
+  /** The commit agreed to, unless it is the one in place: an update replaces the file. */
   async #fetchModel(model: ModelEntry, signal: AbortSignal): Promise<void> {
-    const target = {
-      url: modelUrl(this.#hfBase(), model),
-      dest: this.#modelPath(model),
-      bytes: model.bytes,
-      sha256: model.sha256,
+    // Belt and braces: an agreement never runs beside a fetch (consent above), but this one
+    // reads the agreement only now, after the engine.
+    if (this.#agreeing.has(model.id))
+      throw new Error('The licence is being agreed to: a moment, please.')
+    const agreed = this.#file.read().consents[model.id]
+    if (agreed?.bytes === undefined || agreed.sha256 === undefined) {
+      throw new Error('Agree to the licence first.')
     }
-    await this.#download('model', model.id, target, signal)
+    const wanted: RemoteFile = {
+      revision: agreed.revision,
+      bytes: agreed.bytes,
+      sha256: agreed.sha256,
+    }
+    const current = await this.#inPlace(model, this.#file.read())
+    // The same file at another commit (only something else changed): no download, a new record.
+    if (current?.sha256 === wanted.sha256) {
+      this.#remember(model, wanted)
+      return
+    }
+    const target = {
+      url: modelUrl(this.#hfBase(), { ...model, revision: wanted.revision }),
+      dest: this.#modelPath(model),
+      bytes: wanted.bytes,
+      sha256: wanted.sha256,
+      replace: current !== null,
+    }
+    await this.#download('model', model.id, target, signal, (part, dest) =>
+      this.#placeModel(model, part, dest),
+    )
+    this.#remember(model, wanted)
+  }
+
+  /** The file a model has in place, written down: what the board and an update are told by. */
+  #remember(model: ModelEntry, placed: RemoteFile | null): void {
+    const file = this.#file.read()
+    const installed = { ...file.installed }
+    if (placed) installed[model.id] = { ...placed, at: new Date().toISOString() }
+    else delete installed[model.id]
+    this.#file.write({ ...file, installed })
+  }
+
+  /**
+   * Why a model's download was refused, in plain words, when the commit agreed to is no longer
+   * served (HTTP 403 or 404): asked of Hugging Face again, a newer file is kept for the board,
+   * so LICENCE asks for it. Null for anything else.
+   */
+  async #goneWhy(model: ModelEntry, error: unknown): Promise<string | null> {
+    if (!(error instanceof FetchError) || (error.status !== 403 && error.status !== 404))
+      return null
+    const heard = await this.#askRevision(model.repo)
+    const newest = heard?.files[model.file]
+    if (!heard || !newest) {
+      return `Hugging Face no longer serves this file (HTTP ${error.status}). Try Resume later.`
+    }
+    this.#hear(model.repo, heard)
+    const file = this.#file.read()
+    const agreed = file.consents[model.id]
+    // Already at the newest commit (agreed again meanwhile): nothing moved, and nothing is logged.
+    if (agreed?.revision === heard.revision) {
+      return `Hugging Face no longer serves this file (HTTP ${error.status}). Try Resume later.`
+    }
+    if (agreed && newest.sha256 === agreed.sha256) {
+      // The very file, at a newer commit that changed something else: the agreement is for this
+      // file, so it follows the commit, and what was fetched goes on from where it stopped.
+      this.#file.write({
+        ...file,
+        consents: { ...file.consents, [model.id]: { ...agreed, revision: heard.revision } },
+      })
+      // Kept with the agreement it follows: the same file, fetched from another address.
+      await appendMove(this.#root, {
+        at: new Date().toISOString(),
+        modelId: model.id,
+        from: agreed.revision,
+        to: heard.revision,
+        sha256: agreed.sha256 ?? newest.sha256,
+        url: modelUrl(this.#hfBase(), { ...model, revision: heard.revision }),
+      }).catch(() => {})
+      return 'Hugging Face moved this file to a newer version of the repository: press Resume.'
+    }
+    return 'Hugging Face now offers a newer version of this model: cancel, and set it up again to agree to it.'
+  }
+
+  /** An update of the model the engine runs: Windows keeps it open, so the engine stops first. */
+  async #placeModel(model: ModelEntry, part: string, dest: string): Promise<void> {
+    if (model.id === this.#settings.modelId && existsSync(dest)) {
+      this.runs.stopAll('The model is being updated.')
+      await this.engine.stop()
+    }
+    // Awaited: the record of the file in place is written next, and the engine starts on it.
+    await replaceFileNow(part, dest)
   }
 
   async #download(
     kind: 'engine' | 'model',
     id: string,
-    target: { url: string; dest: string; bytes: number; sha256: string },
+    target: FetchTarget,
     signal: AbortSignal,
+    // Awaited: what was fetched is used next (an archive unpacked, a model run).
+    place: (part: string, dest: string) => void | Promise<void> = replaceFileNow,
   ): Promise<void> {
     this.#setFetch({
       kind,
@@ -611,7 +861,7 @@ export class TranslateService {
         fetch: (url, init) => this.#env.netFetch(url, init),
         hash: (file, s) => sha256File(file, s),
         freeBytes,
-        place: (part, dest) => replaceFile(part, dest),
+        place,
         sleep: (ms, s) => sleepFor(ms, s),
         now: () => Date.now(),
       },

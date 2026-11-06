@@ -38,6 +38,36 @@ export function consentEntry(record: ConsentRecord): string {
   ].join('\n')
 }
 
+/** An agreement that followed its file to a newer commit (docs/translate.md §5). */
+export interface MoveRecord {
+  at: string
+  modelId: string
+  from: string
+  to: string
+  sha256: string
+  url: string
+}
+
+/**
+ * A line for an agreement that followed its file: the repository moved on with the file unchanged
+ * (the same sha256), so the file agreed to is fetched from the newer commit's address.
+ */
+export function moveEntry(record: MoveRecord): string {
+  return [
+    `${record.at}  moved   ${record.modelId}`,
+    `  file       the same file, sha256 ${record.sha256}`,
+    `  commit     ${record.from} -> ${record.to}`,
+    `  downloads  ${record.url}`,
+    '',
+  ].join('\n')
+}
+
+/** Adds a move to the log, as `appendConsent` adds an agreement. */
+export async function appendMove(root: string, record: MoveRecord): Promise<void> {
+  await mkdir(root, { recursive: true })
+  await appendFile(path.join(root, CONSENT_LOG), `${moveEntry(record)}\n`, 'utf8')
+}
+
 /** Adds an entry to the log in `root` (translate/), never rewriting what is there. */
 export async function appendConsent(root: string, record: ConsentRecord): Promise<void> {
   await mkdir(root, { recursive: true })

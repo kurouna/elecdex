@@ -222,7 +222,7 @@ export function registerTranslateIpc(
       [CH.translate.consent]: async (_event, modelId) => {
         if (!knownModel(modelId)) return
         const openedAt = licenceOpenedAt
-        await service.consent(modelId, {
+        const answer = await service.consent(modelId, {
           licence: PLAMO_LICENSE_URL,
           openedAt,
           appVersion: app.getVersion(),
@@ -230,7 +230,12 @@ export function registerTranslateIpc(
         // Spent on this agreement, once it is written: a later one says when the page was opened
         // for it, or that it was not. One that failed to be written keeps it for its retry, and a
         // page opened again in the meantime is kept for the next.
-        if (licenceOpenedAt === openedAt) licenceOpenedAt = null
+        if ('revision' in answer && licenceOpenedAt === openedAt) licenceOpenedAt = null
+        return answer
+      },
+      // ENGINE opened: newer commits of the models in place, asked at most once a day (§5).
+      [CH.translate.checkUpdates]: async () => {
+        await service.checkUpdates()
       },
       [CH.translate.fetch]: () => {
         const problem = service.fetchProblem()

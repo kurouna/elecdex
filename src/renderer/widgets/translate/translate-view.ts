@@ -50,7 +50,8 @@ export function whereTextGoes(engine: EngineView): { text: string; warn: boolean
  */
 export function firstSetupStep(board: TranslateBoard, chosen = board.selectedModel): number {
   const model = board.models.find((m) => m.id === chosen)
-  if (board.fetch && board.fetch.phase !== 'failed') return 4
+  // A fetch under way, paused or failed: its progress, its error, RESUME and CANCEL are on FETCH.
+  if (board.fetch) return 4
   const engine = board.engine.fetched || board.engine.source !== 'fetched'
   if (chosen === board.selectedModel && model?.installed && engine) return 5
   return 1

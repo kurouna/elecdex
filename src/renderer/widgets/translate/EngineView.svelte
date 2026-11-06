@@ -19,11 +19,18 @@ interface Props {
   onpick: (modelId: string) => void
   /** Opens SETUP, at a step when one is given. */
   onsetup: (step?: number) => void
+  /** UPDATE: a model in place set up again at its newest commit, from LICENCE (§5). */
+  onupdate: (modelId: string) => void
   ondone: () => void
 }
 
-const { board, settings, chosen, onpick, onsetup, ondone }: Props = $props()
+const { board, settings, chosen, onpick, onsetup, onupdate, ondone }: Props = $props()
 const api = window.elecdex.translate
+
+// Opened: main asks for newer commits of the models in place, at most once a day (§5).
+$effect(() => {
+  void api.checkUpdates()
+})
 /** Whether the chosen model is fetched: a model only listed has nothing to run. */
 const selectedInPlace = $derived(
   board.engine.source === 'external' ||
@@ -117,7 +124,13 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
           <button type="button" class="name" onclick={() => onpick(model.id)}>{model.params} {model.quant}</button>
           <span class="mono muted">{formatBytes(model.bytes)}</span>
           {#if state?.installed}
-            <button type="button" class="btn" onclick={() => void api.removeModel(model.id)}>Delete</button>
+            <span class="acts">
+              {#if state.update}
+                <button type="button" class="btn lit" data-testid="translate-update" onclick={() => onupdate(model.id)}>Update</button>
+                <span class="small">newer, {state.update.date?.slice(0, 10) ?? 'out now'}</span>
+              {/if}
+              <button type="button" class="btn" onclick={() => void api.removeModel(model.id)}>Delete</button>
+            </span>
           {:else}
             <span class="small">{state && state.partialBytes > 0 ? `${formatBytes(state.partialBytes)} fetched` : model.id === chosen ? 'not fetched' : ''}</span>
           {/if}
@@ -188,6 +201,7 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
 .models .rd { margin-top: 0; justify-self: center; }
 .models .btn { justify-self: start; align-self: center; }
 .models .small { margin: 0; }
+.models .acts { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .name { background: transparent; border: 0; padding: 0; color: var(--text); font-family: var(--font-mono); font-size: var(--step--1); text-align: left; cursor: pointer; }
 .runs { flex-direction: row; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .runs label { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }

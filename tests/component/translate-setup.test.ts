@@ -46,6 +46,8 @@ const board = (over: Partial<TranslateBoard> = {}): TranslateBoard => ({
     id: m.id,
     installed: false,
     partialBytes: 0,
+    revision: null,
+    update: null,
     consentAt: m.id === AGREED ? '2026-11-06T00:00:00.000Z' : null,
   })),
   fetch: null,
@@ -60,9 +62,11 @@ beforeEach(() => {
   stubResizeObserver()
   translate = {
     openLicence: vi.fn(async () => undefined),
-    consent: vi.fn(async () => undefined),
+    consent: vi.fn(async () => ({ revision: 'b'.repeat(40) })),
     fetch: vi.fn(async () => ({ problem: 'stop here' })),
     testExternal: vi.fn(async () => ({ ok: false, problem: 'no' })),
+    checkUpdates: vi.fn(async () => undefined),
+    removeModel: vi.fn(async () => undefined),
     setSource: vi.fn(async () => null),
     logs: vi.fn(async () => []),
     selfTest: vi.fn(async () => ({ problem: 'no' })),
@@ -135,6 +139,85 @@ describe('SETUP’s LICENCE', () => {
   })
 })
 
+describe('ENGINE and the newest commits', () => {
+  function engineView(over: Partial<TranslateBoard>, onupdate = vi.fn()) {
+    render(EngineView, {
+      props: {
+        board: board(over),
+        settings: TRANSLATE_DEFAULTS,
+        chosen: AGREED,
+        onpick: () => {},
+        onsetup: () => {},
+        onupdate,
+        ondone: () => {},
+      },
+    })
+    return onupdate
+  }
+
+  it('asks main to look for newer commits as it opens', async () => {
+    engineView({})
+    await settle()
+    expect(translate.checkUpdates).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers UPDATE, with the date, for a model behind its repository', async () => {
+    const models = board().models.map((m) =>
+      m.id === AGREED
+        ? {
+            ...m,
+            installed: true,
+            revision: 'a'.repeat(40),
+            update: { revision: 'e'.repeat(40), date: '2026-11-06T00:49:00.000Z' },
+          }
+        : m,
+    )
+    const onupdate = engineView({ models })
+    await settle()
+    expect(screen.getByTestId('translate-engine').textContent).toContain('newer, 2026-11-06')
+    await fireEvent.click(screen.getByTestId('translate-update'))
+    expect(onupdate).toHaveBeenCalledWith(AGREED)
+  })
+
+  it('offers no UPDATE for a model at its newest commit', async () => {
+    const models = board().models.map((m) => (m.id === AGREED ? { ...m, installed: true } : m))
+    engineView({ models })
+    await settle()
+    expect(screen.queryByTestId('translate-update')).toBeNull()
+  })
+})
+
+describe('SETUP’s agreement when Hugging Face does not answer', () => {
+  it('says so and stays on LICENCE, fetching nothing', async () => {
+    translate.consent = vi.fn(async () => ({
+      problem: 'Hugging Face did not answer: try again in a while.',
+    }))
+    const onstep = vi.fn()
+    render(SetupView, {
+      props: {
+        board: board(),
+        step: 3,
+        chosen: 'plamo3-0.8b-q4km',
+        onstep,
+        onselect: () => {},
+        oncommit: async () => {},
+        ondone: () => {},
+      },
+    })
+    await fireEvent.click(screen.getByTestId('translate-licence-open'))
+    await settle()
+    await fireEvent.click(agree())
+    await fireEvent.click(screen.getByTestId('translate-agree-fetch'))
+    await settle()
+    await fireEvent.click(screen.getByTestId('translate-next'))
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    await settle()
+    expect(screen.getByTestId('translate-problem').textContent).toMatch(/did not answer/)
+    expect(translate.fetch).not.toHaveBeenCalled()
+    expect(onstep).not.toHaveBeenCalled()
+  })
+})
+
 describe('TEST of an external server with nothing typed', () => {
   const saved = engine({
     source: 'external',
@@ -150,6 +233,7 @@ describe('TEST of an external server with nothing typed', () => {
         chosen: AGREED,
         onpick: () => {},
         onsetup: () => {},
+        onupdate: () => {},
         ondone: () => {},
       },
     })

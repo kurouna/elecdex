@@ -34,7 +34,14 @@ const engine = (over: Partial<EngineView> = {}): EngineView => ({
 const board = (over: Partial<TranslateBoard> = {}): TranslateBoard => ({
   engine: engine(),
   library: 0,
-  models: MODELS.map((m) => ({ id: m.id, installed: false, partialBytes: 0, consentAt: null })),
+  models: MODELS.map((m) => ({
+    id: m.id,
+    installed: false,
+    revision: null,
+    update: null,
+    partialBytes: 0,
+    consentAt: null,
+  })),
   fetch: null,
   selectedModel: 'plamo3-2b-q4km',
   machine: { ramGB: 16, vramGB: null, gpu: null, freeBytes: null },
@@ -81,6 +88,18 @@ describe('translate view', () => {
         }),
       ),
     ).toBe(4)
+    // A failed fetch opens on FETCH too, where its error, RESUME and CANCEL are, never on READY
+    // with the file before it.
+    const failed = {
+      kind: 'model' as const,
+      id: 'plamo3-2b-q4km',
+      phase: 'failed' as const,
+      received: 1,
+      total: 2,
+      speed: 0,
+      error: 'HTTP 403',
+    }
+    expect(firstSetupStep(board({ models: installed.models, fetch: failed }))).toBe(4)
   })
 
   it('opens SETUP from the start for a model only chosen, fetched or not', () => {

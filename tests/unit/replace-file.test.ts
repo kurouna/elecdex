@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { REPLACE_RETRY_FOR_MS, replaceFile } from '../../src/main/store/replace-file.js'
+import {
+  REPLACE_RETRY_FOR_MS,
+  replaceFile,
+  replaceFileNow,
+} from '../../src/main/store/replace-file.js'
 
 /**
  * The rename behind every atomic write in main (src/main/store/replace-file.ts).
@@ -80,5 +84,49 @@ describe('replaceFile', () => {
     expect(console.warn).toHaveBeenCalledOnce()
     vi.advanceTimersByTime(REPLACE_RETRY_FOR_MS)
     expect(calls).toHaveLength(tries)
+  })
+})
+
+describe('replaceFileNow', () => {
+  const refused = () => Object.assign(new Error('held'), { code: 'EPERM' })
+
+  it('settles only once the file is in place, after the refusals', async () => {
+    let tries = 0
+    let clock = 0
+    await replaceFileNow('a.part', 'a', {
+      rename: () => {
+        tries++
+        if (tries < 4) throw refused()
+      },
+      sleep: async (ms) => {
+        clock += ms
+      },
+      now: () => clock,
+    })
+    expect(tries).toBe(4)
+  })
+
+  it('throws any other error at once, and a refusal that outlasts the retries', async () => {
+    const gone = Object.assign(new Error('gone'), { code: 'ENOENT' })
+    await expect(
+      replaceFileNow('a.part', 'a', {
+        rename: () => {
+          throw gone
+        },
+      }),
+    ).rejects.toBe(gone)
+    let clock = 0
+    await expect(
+      replaceFileNow('a.part', 'a', {
+        rename: () => {
+          throw refused()
+        },
+        sleep: async (ms) => {
+          clock += ms
+        },
+        now: () => clock,
+      }),
+    ).rejects.toThrow('held')
+    expect(clock).toBeGreaterThanOrEqual(REPLACE_RETRY_FOR_MS)
   })
 })

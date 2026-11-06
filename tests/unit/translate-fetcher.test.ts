@@ -228,6 +228,38 @@ describe('sha256File', () => {
     stopHashing()
     await expect(hashing).rejects.toThrow(/stopped before it finished/)
   })
+
+  it('leaves no handle on the file it read: it can be replaced and removed at once', async () => {
+    // A worker ended between the stream's 'end' and its 'close' kept the file open for the
+    // rest of the process; on Windows a file held open cannot be replaced (an UPDATE) or
+    // removed (a DELETE). Hashed again and again, so a leak cannot hide behind timing.
+    const file = path.join(dir, 'model.gguf')
+    const next = path.join(dir, 'model.gguf.part')
+    for (let i = 0; i < 80; i++) {
+      writeFileSync(file, Buffer.alloc(256 * 1024, i))
+      await sha256File(file)
+      writeFileSync(next, Buffer.alloc(256 * 1024, i + 1))
+      renameSync(next, file)
+      rmSync(file)
+    }
+  })
+
+  it('leaves no handle either when it is stopped half way (PAUSE, CANCEL)', async () => {
+    const file = path.join(dir, 'model.gguf')
+    for (let i = 0; i < 20; i++) {
+      writeFileSync(file, Buffer.alloc(16 * 1024 * 1024, i))
+      const controller = new AbortController()
+      const hashing = sha256File(file, controller.signal)
+      await new Promise((resolve) => setTimeout(resolve, i % 5))
+      controller.abort()
+      await hashing.catch(() => {})
+      // As RESUME's placing or an UPDATE does: another file renamed over it.
+      const next = `${file}.next`
+      writeFileSync(next, 'x')
+      renameSync(next, file)
+      rmSync(file)
+    }
+  })
 })
 
 describe('rangeStart', () => {

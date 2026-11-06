@@ -174,6 +174,8 @@ export const CH = {
     removeModel: 'translate:remove-model',
     logs: 'translate:logs',
     selfTest: 'translate:self-test',
+    /** ENGINE opened: ask for newer commits of the models in place, at most once a day. */
+    checkUpdates: 'translate:check-updates',
     openLicence: 'translate:open-licence',
     /** A translation for a pane (§8.5): main holds it; the answer is its version. */
     run: 'translate:run',

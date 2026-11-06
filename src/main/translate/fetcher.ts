@@ -16,6 +16,8 @@ export interface FetchTarget {
   dest: string
   bytes: number
   sha256: string
+  /** A file in place is replaced (an update), never taken for this one by its size. */
+  replace?: boolean
 }
 
 export interface FetchProgress {
@@ -30,18 +32,21 @@ export interface FetcherDeps {
   hash: (file: string, signal: AbortSignal) => Promise<string>
   /** Bytes free where the file goes, or null when that cannot be told. */
   freeBytes: (dir: string) => Promise<number | null>
-  /** Puts the finished `.part` in place (`replaceFile`). */
-  place: (part: string, dest: string) => void
+  /** Puts the finished `.part` in place (`replaceFileNow`), after whatever holds the old file let go. */
+  place: (part: string, dest: string) => void | Promise<void>
   sleep: (ms: number, signal: AbortSignal) => Promise<void>
   now: () => number
 }
 
 export class FetchError extends Error {
   readonly retryable: boolean
+  /** The HTTP status the server answered, when that is why. */
+  readonly status: number | null
 
-  constructor(message: string, retryable: boolean) {
+  constructor(message: string, retryable: boolean, status: number | null = null) {
     super(message)
     this.retryable = retryable
+    this.status = status
   }
 }
 
@@ -66,7 +71,7 @@ export async function fetchFile(
   onProgress: (progress: FetchProgress) => void,
   signal: AbortSignal,
 ): Promise<void> {
-  if ((await fileSize(target.dest)) === target.bytes) return
+  if (!target.replace && (await fileSize(target.dest)) === target.bytes) return
   await mkdir(path.dirname(target.dest), { recursive: true })
   const part = partOf(target.dest)
   const free = await deps.freeBytes(path.dirname(target.dest))
@@ -94,7 +99,7 @@ export async function fetchFile(
     await rm(part, { force: true })
     throw new FetchError('The file did not match its checksum; fetch it again.', false)
   }
-  deps.place(part, target.dest)
+  await deps.place(part, target.dest)
 }
 
 async function downloadOnce(
@@ -147,6 +152,7 @@ async function writesFrom(response: Response, offset: number, part: string): Pro
     throw new FetchError(
       `The download failed (HTTP ${response.status}).`,
       response.status >= 500 || response.status === 429,
+      response.status,
     )
   }
   const start = rangeStart(response.headers.get('content-range'))

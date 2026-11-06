@@ -16,9 +16,10 @@
  * The model is real and so is the engine (user's request 2026-11-06): the ones already fetched
  * into this PC's elecdex (%APPDATA%\elecdex\translate, or `--from=<that folder>`). The engine's
  * folder is copied into the take's fresh profile; the model is never fetched from Hugging Face.
- * FETCH pretends: a server on 127.0.0.1 stands in for Hugging Face and hands out this PC's model
- * file at a download's pace (`--mbps`, 160 MB/s), so the progress, the sha256 check and the file
- * put in place are the app's own. Everything else is the other takes' stand-ins (demo-take.mjs);
+ * FETCH pretends: a server on 127.0.0.1 stands in for Hugging Face, answers its revision API with
+ * this PC's model file's size and sha256 (read at the start, a few seconds), and hands the file out
+ * at a download's pace (`--mbps`, 160 MB/s), so the progress, the sha256 check and the file put in
+ * place are the app's own. Everything else is the other takes' stand-ins (demo-take.mjs);
  * the machine's RAM, GPU and free space show in MODEL, as this PC's values do in every take.
  *
  * The window is 1600x900 at a zoom of 1, a 16:9 frame; record the window. The take starts after
@@ -27,6 +28,7 @@
  * options are demo-take.mjs's (`takeOptions`): `--pace`, `--theme`, `--shots=<dir>`,
  * `--no-captions`.
  */
+import { createHash } from 'node:crypto'
 import { cpSync, createReadStream, existsSync, mkdirSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
@@ -52,13 +54,40 @@ for (const needed of [MODEL, ENGINE]) {
 }
 const MBPS = Number(arg('mbps', '160'))
 
+/** The model file's sha256, read once: the stand-in's revision API gives it, as Hugging Face's does. */
+function sha256Of(file) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256')
+    createReadStream(file)
+      .on('data', (chunk) => hash.update(chunk))
+      .on('end', () => resolve(hash.digest('hex')))
+      .on('error', reject)
+  })
+}
+
+/** The commit the stand-in names as the newest: any 40 hex digits do. */
+const COMMIT = 'de30de30'.padEnd(40, '0')
+
 /**
- * Hugging Face's stand-in: this PC's model file at a download's pace, whatever path is asked.
- * Ranged requests are answered too, as the fetcher resumes with them.
+ * Hugging Face's stand-in: its revision API for the model's repository (the newest commit, with
+ * this PC's file's size and sha256), and this PC's model file at a download's pace, whatever path
+ * is asked. Ranged requests are answered too, as the fetcher resumes with them.
  */
-function modelServer() {
+async function modelServer() {
   const size = statSync(MODEL).size
+  const sha256 = await sha256Of(MODEL)
   const server = createServer((req, res) => {
+    if (req.url?.startsWith('/api/models/')) {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(
+        JSON.stringify({
+          sha: COMMIT,
+          lastModified: new Date().toISOString(),
+          siblings: [{ rfilename: MODEL_FILE, lfs: { sha256, size } }],
+        }),
+      )
+      return
+    }
     const range = /bytes=(\d+)-/.exec(req.headers.range ?? '')
     const start = range ? Number(range[1]) : 0
     res.writeHead(range ? 206 : 200, {

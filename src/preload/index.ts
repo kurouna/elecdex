@@ -686,6 +686,7 @@ const api: ElecdexApi = {
     removeModel: (modelId) => ipcRenderer.invoke(CH.translate.removeModel, modelId),
     logs: () => ipcRenderer.invoke(CH.translate.logs),
     selfTest: () => ipcRenderer.invoke(CH.translate.selfTest),
+    checkUpdates: () => ipcRenderer.invoke(CH.translate.checkUpdates),
     openLicence: (page) => ipcRenderer.invoke(CH.translate.openLicence, page),
     run: (request) => ipcRenderer.invoke(CH.translate.run, request),
     follow: (paneId, handler) => followRun(paneId, handler),

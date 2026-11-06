@@ -32,15 +32,49 @@ const MODEL = {
 } as const
 
 let mode: 'serve' | 'stall' | 'missing' = 'serve'
+/** The repository's newest commit as the stand-in tells it, and the file it serves at it. */
+let latest = { commit: 'c'.repeat(40), body: BODY }
+/** A commit whose files the stand-in refuses (404), as the CDN refused a superseded one. */
+let gone: string | null = null
+/** Holds the revision API's answer back, as a slow network would. */
+let hold: Promise<void> | null = null
+/** What was asked of the stand-in: the revision API, and the files. */
+let asked: string[] = []
 let server: Server
 let dir = ''
 let base = ''
 
 beforeEach(async () => {
   mode = 'serve'
+  latest = { commit: 'c'.repeat(40), body: BODY }
+  gone = null
+  hold = null
+  asked = []
   dir = mkdtempSync(path.join(tmpdir(), 'elecdex-translate-'))
-  server = createServer((req, res) => {
-    if (mode === 'missing') {
+  server = createServer(async (req, res) => {
+    asked.push(req.url ?? '')
+    if (req.url?.startsWith('/api/models/')) {
+      if (hold) await hold
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(
+        JSON.stringify({
+          sha: latest.commit,
+          lastModified: '2026-11-06T00:49:00.000Z',
+          siblings: [
+            {
+              rfilename: 'test.gguf',
+              lfs: {
+                sha256: createHash('sha256').update(latest.body).digest('hex'),
+                size: latest.body.length,
+              },
+            },
+          ],
+        }),
+      )
+      return
+    }
+    const body = latest.body
+    if (mode === 'missing' || (gone !== null && req.url?.includes(gone))) {
       res.writeHead(404)
       res.end()
       return
@@ -48,13 +82,13 @@ beforeEach(async () => {
     const match = /bytes=(\d+)-/.exec(req.headers.range ?? '')
     const start = match ? Number(match[1]) : 0
     res.writeHead(match ? 206 : 200, {
-      ...(match ? { 'content-range': `bytes ${start}-${BODY.length - 1}/${BODY.length}` } : {}),
+      ...(match ? { 'content-range': `bytes ${start}-${body.length - 1}/${body.length}` } : {}),
     })
     if (mode === 'stall') {
-      res.write(BODY.subarray(start, Math.max(start, 15_000)))
+      res.write(body.subarray(start, Math.max(start, 15_000)))
       return
     }
-    res.end(BODY.subarray(start))
+    res.end(body.subarray(start))
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -207,9 +241,11 @@ describe('TranslateService and the licence agreed to', () => {
     expect(entries[0]).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z {2}agreed {2}test-model\n/)
     expect(entries[0]).toContain('https://example.test/licence')
     expect(entries[0]).toContain(`opened from elecdex ${opened}`)
-    expect(entries[0]).toContain(`pfnet/test@abcdef0 test.gguf`)
+    expect(entries[0]).toContain(`pfnet/test@${'c'.repeat(40)} test.gguf`)
     expect(entries[0]).toContain(`sha256 ${MODEL.sha256}`)
-    expect(entries[0]).toContain(`the model from ${base}/pfnet/test/resolve/abcdef0/test.gguf`)
+    expect(entries[0]).toContain(
+      `the model from ${base}/pfnet/test/resolve/${'c'.repeat(40)}/test.gguf`,
+    )
     expect(entries[0]).toContain(
       'llama.cpp b12110 (MIT) from http://127.0.0.1:9/b12110/llama-b12110-bin-test.zip',
     )
@@ -222,7 +258,9 @@ describe('TranslateService and the licence agreed to', () => {
     const { service } = await make({}, false)
     // A folder where the log goes: the agreement cannot be written down.
     mkdirSync(path.join(dir, 'translate', 'licence-consents.txt'), { recursive: true })
-    await expect(service.consent(MODEL.id, AGREEMENT)).rejects.toThrow()
+    expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({
+      problem: expect.stringMatching(/could not be written down/),
+    })
     expect(service.fetchProblem()).toMatch(/licence/)
     expect((await service.board()).models[0]?.consentAt).toBeNull()
   })
@@ -265,5 +303,216 @@ describe('TranslateService and a server left running (§4.2)', () => {
     service.quit()
     await run
     expect((await service.board()).fetch?.phase).toBe('paused')
+  })
+})
+
+describe('TranslateService and the newest commits (§5)', () => {
+  const NEW = 'e'.repeat(40)
+  const DAY = 24 * 60 * 60 * 1000
+  const apiAsks = () => asked.filter((url) => url.startsWith('/api/models/')).length
+
+  it('agrees to the newest commit and fetches that one, checked against its own sha256', async () => {
+    const newer = Buffer.from(Array.from({ length: 41_000 }, (_, i) => (i * 11) % 251))
+    latest = { commit: NEW, body: newer }
+    const { service, modelPath } = await make({}, false)
+    expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({ revision: NEW })
+    await service.fetchSelected()
+    expect(readFileSync(modelPath).equals(newer)).toBe(true)
+    expect(asked).toContain(`/pfnet/test/resolve/${NEW}/test.gguf`)
+    const model = (await service.board()).models[0]
+    expect(model?.installed).toBe(true)
+    expect(model?.revision).toBe(NEW)
+    expect(model?.update).toBeNull()
+  })
+
+  it('agrees to nothing when Hugging Face does not answer', async () => {
+    const { service } = await make({ hfBase: 'http://127.0.0.1:9' }, false)
+    expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({
+      problem: expect.stringMatching(/Hugging Face did not answer/),
+    })
+    expect(service.fetchProblem()).toMatch(/licence/)
+  })
+
+  it('takes a file fetched before commits were followed, and asks for newer ones once a day', async () => {
+    const { service, modelPath } = await make({}, false)
+    mkdirSync(path.dirname(modelPath), { recursive: true })
+    writeFileSync(modelPath, BODY)
+    let model = (await service.board()).models[0]
+    // The first release, by its size: in place, and nothing known newer yet.
+    expect(model?.installed).toBe(true)
+    expect(model?.revision).toBe(MODEL.revision)
+    expect(model?.update).toBeNull()
+    latest = { commit: NEW, body: Buffer.from(BODY.map((byte) => (byte + 7) % 256)) }
+    const now = Date.parse('2026-11-06T09:00:00.000Z')
+    await service.checkUpdates(now)
+    expect(apiAsks()).toBe(1)
+    model = (await service.board()).models[0]
+    expect(model?.update).toEqual({ revision: NEW, date: '2026-11-06T00:49:00.000Z' })
+    // Asked again only a day later.
+    await service.checkUpdates(now + DAY - 1)
+    expect(apiAsks()).toBe(1)
+    await service.checkUpdates(now + DAY)
+    expect(apiAsks()).toBe(2)
+  })
+
+  it('fetches nothing again for a newer commit that left the file as it was', async () => {
+    const { service, modelPath } = await make()
+    await service.fetchSelected()
+    // Another commit (the README, say), the same file.
+    latest = { commit: NEW, body: BODY }
+    await service.checkUpdates(Date.parse('2026-11-06T09:00:00.000Z'))
+    expect((await service.board()).models[0]?.update).toBeNull()
+    asked = []
+    expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({ revision: NEW })
+    await service.fetchSelected()
+    expect(asked.filter((url) => url.includes('/resolve/'))).toEqual([])
+    expect(readFileSync(modelPath).equals(BODY)).toBe(true)
+    expect((await service.board()).models[0]?.revision).toBe(NEW)
+  })
+
+  it('drops a paused part of another file when a newer one is agreed to', async () => {
+    mode = 'stall'
+    const { service, modelPath } = await make()
+    const run = service.fetchSelected()
+    await expect.poll(() => partSize(modelPath)).toBe(15_000)
+    // Agreeing while it writes is refused; paused, the part of the old file goes.
+    expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({
+      problem: expect.stringMatching(/fetch is under way/),
+    })
+    service.pause()
+    await run
+    latest = { commit: NEW, body: Buffer.from(BODY.map((byte) => (byte + 3) % 256)) }
+    expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({ revision: NEW })
+    expect(partSize(modelPath)).toBe(0)
+    expect((await service.board()).fetch).toBeNull()
+  })
+
+  it('says in plain words that a newer version came out when the agreed one is refused', async () => {
+    const { service } = await make()
+    // The commit agreed to is no longer served, and a newer file is.
+    mode = 'missing'
+    latest = { commit: NEW, body: Buffer.from(BODY.map((byte) => (byte + 5) % 256)) }
+    await service.fetchSelected()
+    // Failed at once, with the server's answer; why, once Hugging Face was asked.
+    expect((await service.board()).fetch?.phase).toBe('failed')
+    await expect
+      .poll(async () => (await service.board()).fetch?.error)
+      .toMatch(/newer version of this model/)
+    // LICENCE asks again, for the newer file.
+    expect((await service.board()).models[0]?.consentAt).toBeNull()
+  })
+
+  it('agrees to nothing while the engine is being fetched, before the model', async () => {
+    mode = 'stall'
+    const engine = {
+      target: `${process.platform}-${process.arch}-cpu`,
+      platform: process.platform,
+      arch: process.arch,
+      backend: 'cpu',
+      asset: 'llama-b12110-bin-test.zip',
+      bytes: 62_000,
+      sha256: 'a'.repeat(64),
+    }
+    const { service } = await make({ stubServer: undefined, releasesBase: base }, true, [engine])
+    void service.fetchSelected()
+    await expect.poll(async () => (await service.board()).fetch?.kind).toBe('engine')
+    // The run goes on to the model after the engine: an agreement now would come between.
+    expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({
+      problem: expect.stringMatching(/fetch is under way/),
+    })
+    await service.cancelFetch()
+  })
+
+  it('starts no fetch of a model while it is being agreed to', async () => {
+    mode = 'stall'
+    const { service, modelPath } = await make()
+    const first = service.fetchSelected()
+    await expect.poll(() => partSize(modelPath)).toBe(15_000)
+    service.pause()
+    await first
+    // An agreement to a newer file, its answer held back while RESUME is pressed.
+    let release = () => {}
+    hold = new Promise((resolve) => {
+      release = resolve
+    })
+    latest = { commit: NEW, body: Buffer.from(BODY.map((byte) => (byte + 9) % 256)) }
+    const agreeing = service.consent(MODEL.id, AGREEMENT)
+    await expect.poll(() => asked.filter((url) => url.startsWith('/api/')).length).toBe(2)
+    // RESUME waits: a fetch now would read the agreement before this one and mix two files.
+    expect(service.fetchProblem()).toMatch(/being agreed to/)
+    await service.fetchSelected()
+    expect(service.watching()).not.toContain('fetch')
+    release()
+    expect(await agreeing).toEqual({ revision: NEW })
+    // The old file's part went with the agreement to the new one; the fetch starts afresh.
+    expect(existsSync(partOf(modelPath))).toBe(false)
+    expect(service.fetchProblem()).toBeNull()
+  })
+
+  it('lets RESUME go on when the very file moved to a newer commit', async () => {
+    mode = 'stall'
+    const { service, modelPath } = await make()
+    const run = service.fetchSelected()
+    await expect.poll(() => partSize(modelPath)).toBe(15_000)
+    service.pause()
+    await run
+    // A README-only commit: the commit agreed to is refused now, the file is the same.
+    mode = 'serve'
+    gone = 'c'.repeat(40)
+    latest = { commit: NEW, body: BODY }
+    await service.fetchSelected()
+    await expect.poll(async () => (await service.board()).fetch?.error).toMatch(/press Resume/)
+    // The agreement followed its file, and the log says so.
+    const log = readFileSync(path.join(dir, 'translate', 'licence-consents.txt'), 'utf8')
+    expect(log).toContain('moved   test-model')
+    expect(log).toContain(`commit     ${'c'.repeat(40)} -> ${NEW}`)
+    expect((await service.board()).models[0]?.consentAt).not.toBeNull()
+    // RESUME: from the newer commit, from where it stopped.
+    asked = []
+    await service.fetchSelected()
+    expect(readFileSync(modelPath).equals(BODY)).toBe(true)
+    expect(asked.filter((url) => url.includes('/resolve/'))).toEqual([
+      `/pfnet/test/resolve/${NEW}/test.gguf`,
+    ])
+    expect((await service.board()).models[0]?.revision).toBe(NEW)
+  })
+
+  it('forgets the file in place when the model is removed', async () => {
+    const { service, modelPath } = await make()
+    await service.fetchSelected()
+    await service.removeModel(MODEL.id)
+    const engine = JSON.parse(readFileSync(path.join(dir, 'translate', 'engine.json'), 'utf8'))
+    expect(engine.installed[MODEL.id]).toBeUndefined()
+    expect(existsSync(modelPath)).toBe(false)
+    // The agreements stay (user's request 2026-11-06): the log as it was, and the consent.
+    expect(engine.consents[MODEL.id]).toBeDefined()
+    const log = readFileSync(path.join(dir, 'translate', 'licence-consents.txt'), 'utf8')
+    expect(log).toMatch(/agreed {2}test-model/)
+  })
+
+  it('asks nothing while no model is in place', async () => {
+    const { service } = await make({}, false)
+    await service.checkUpdates(Date.parse('2026-11-06T09:00:00.000Z'))
+    expect(apiAsks()).toBe(0)
+  })
+
+  it('asks for the agreement again once a newer commit is heard, and the update replaces the file', async () => {
+    const { service, modelPath } = await make()
+    await service.fetchSelected()
+    expect((await service.board()).models[0]?.consentAt).not.toBeNull()
+    // A newer commit of the same size: never taken for the file in place by its size.
+    const same = Buffer.from(BODY.map((byte) => (byte + 1) % 256))
+    latest = { commit: NEW, body: same }
+    await service.checkUpdates(Date.parse('2026-11-06T09:00:00.000Z'))
+    let model = (await service.board()).models[0]
+    expect(model?.update?.revision).toBe(NEW)
+    expect(model?.consentAt).toBeNull()
+    expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({ revision: NEW })
+    await service.fetchSelected()
+    expect(readFileSync(modelPath).equals(same)).toBe(true)
+    model = (await service.board()).models[0]
+    expect(model?.revision).toBe(NEW)
+    expect(model?.update).toBeNull()
+    expect(model?.consentAt).not.toBeNull()
   })
 })

@@ -42,6 +42,11 @@ let agreed = $state(false)
 /** The fetch agreed to as well (user's request 2026-11-06): what AGREE AND FETCH downloads. */
 let fetchAgreed = $state(false)
 /**
+ * The commit agreed to in this setup, as main answered it: FETCH goes on to READY only once that
+ * commit is in place, never on the file before it (an update replaces one in place).
+ */
+let agreedRevision = $state<string | null>(null)
+/**
  * The licence's page opened from here for the agreement to come: the summary is a guide, the page
  * is the text that holds and may change, so it is opened before the licence can be agreed to (user's
  * request 2026-11-06). A model agreed to before needs no new opening; each new agreement does.
@@ -60,10 +65,18 @@ $effect(() => {
 })
 
 $effect(() => {
-  // A fetch that has finished moves on to READY by itself: the settings' model, in place. Until the
-  // board names the chosen model, it is the one before that it says is in place.
+  // A fetch that has finished moves on to READY by itself: the settings' model, in place at the
+  // commit agreed to. Until the board names the chosen model, it is the one before that it says is
+  // in place; until the update is placed, the file before it is.
   const model = board.models.find((m) => m.id === chosen)
-  if (step === 4 && board.fetch === null && board.selectedModel === chosen && model?.installed)
+  const placed = agreedRevision === null || model?.revision === agreedRevision
+  if (
+    step === 4 &&
+    board.fetch === null &&
+    board.selectedModel === chosen &&
+    model?.installed &&
+    placed
+  )
     onstep(5)
 })
 
@@ -105,7 +118,12 @@ async function next(): Promise<void> {
   problem = null
   if (step === 3) {
     if (!selected) return
-    await api.consent(selected.id)
+    const agreed = await api.consent(selected.id)
+    if (!agreed || 'problem' in agreed) {
+      problem = agreed?.problem ?? 'No such model.'
+      return
+    }
+    agreedRevision = agreed.revision
     // Spent: another model agreed to later in this setup asks for the page again.
     clicked = false
     // Now the choice is the settings': main fetches, and then runs, the settings' model.
@@ -224,7 +242,7 @@ const nextDisabled = $derived(
         <div class="lic gets">
           <h3>Agree and fetch downloads</h3>
           <dl>
-            <dt>Model</dt><dd class="mono">{selected?.file} · {selected ? formatBytes(selected.bytes) : ''} · huggingface.co</dd>
+            <dt>Model</dt><dd><span class="mono">{selected?.file} · about {selected ? formatBytes(selected.bytes) : ''} · huggingface.co</span> · its newest version, asked of Hugging Face as you agree</dd>
             {#if board.engine.toFetchBytes > 0}
               <dt>Engine</dt><dd><span class="mono">llama.cpp {ENGINE_BUILD} · {formatBytes(board.engine.toFetchBytes)} · github.com</span> · MIT (<button type="button" class="link" onclick={() => void api.openLicence('llama')}>licence ↗</button>)</dd>
             {/if}

@@ -39,6 +39,35 @@ const pending = new Set<string>()
 /** A write to `temp` is still waiting to be renamed over its file: the file on disk is older. */
 export const replacePending = (temp: string): boolean => pending.has(temp)
 
+/**
+ * `replaceFile` for a caller that goes on with the file it placed: a fetched model, which the
+ * engine is started on and its record written for, or an engine archive, unpacked next. The same
+ * retries, awaited instead of left to run behind the call; given up, the error is thrown. Found
+ * when an update was recorded while the file on disk was still the one before it (2026-11-06).
+ */
+export async function replaceFileNow(
+  temp: string,
+  file: string,
+  deps: ReplaceDeps & { sleep?: (ms: number) => Promise<void> } = {},
+): Promise<void> {
+  const rename = deps.rename ?? renameSync
+  const sleep =
+    deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+  const now = deps.now ?? Date.now
+  const giveUpAt = now() + REPLACE_RETRY_FOR_MS
+  let wait = 5
+  for (;;) {
+    try {
+      rename(temp, file)
+      return
+    } catch (error) {
+      if (!TRANSIENT.has(code(error)) || now() >= giveUpAt) throw error
+    }
+    await sleep(wait)
+    wait = Math.min(wait * 2, 100)
+  }
+}
+
 export function replaceFile(temp: string, file: string, deps: ReplaceDeps = {}): void {
   const rename = deps.rename ?? renameSync
   try {

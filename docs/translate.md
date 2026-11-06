@@ -116,7 +116,7 @@ architecture.md §5.25。
     `engine.json` に同意を置く（記録できなかった同意では取得しない）。
   - 開くページは名前で指す（`LICENCE_PAGES`: `plamo`・`register`・`llama`）。ページがアドレスを渡すことはない。
 - **HISTORY**: 絞り込み、日ごとの区切り、行を押すと TEXT に戻して開く。CLEAR は 2 度押し。
-- **ENGINE**: エンジンの入手先、状態（STOP / RESTART）、モデルの一覧（取得・削除・切り替え）、実行の設定
+- **ENGINE**: エンジンの入手先、状態（STOP / RESTART）、モデルの一覧（取得・削除・切り替え・UPDATE、§5）、実行の設定
   （コンテキスト長、デバイス: AUTO（GPU、だめなら CPU）/ CPU だけ、止めるまでの時間）、ログ、ライセンスへの同意の記録。
   **モデルの選択は仮**（2026-11-06、利用者の依頼）: ENGINE と SETUP で選んだモデルは、取得済みのモデルで DONE を押した
   とき、または SETUP で取得を始めたとき（main は設定のモデルを取得する）にだけ設定の `modelId` に書く。ほかの抜け方
@@ -200,16 +200,47 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 
 ## 5. モデル
 
-- マニフェスト（`shared/translate/models.ts`）にリポジトリ、**リビジョン（コミット SHA）**、ファイル名、バイト数、
-  sha256、必要なメモリの目安を持つ。URL は `<HF の基点>/<repo>/resolve/<revision>/<file>`（基点は既定で
-  `https://huggingface.co`、テストでは `ELECDEX_HF_BASE_URL`）。
+- **版は固定しない**（2026-11-06、利用者の決定）。リポジトリが更新されると、固定したコミットのファイルは CDN で
+  403 になった（4 つのリポジトリが 2026-11-06 00:49 UTC にチャットテンプレートの更新で一斉に新しいコミットになり、
+  GGUF は埋め込みのテンプレートの分だけ 6,912 バイトずつ大きくなった）。マニフェスト（`shared/translate/models.ts`）
+  はリポジトリ、ファイル名、メモリの目安と、**最初の版（2026-11-04）のリビジョン・大きさ・sha256** を持つ。最初の版は
+  取得するものではなく、記録のないまま置いてあるファイルを大きさで見分けるため（`shared/translate/revisions.ts` の
+  `inPlace`）と、セットアップの大きさの目安。
+- **同意するときに最新を聞く**: LICENCE の同意で main が Hugging Face のリビジョンの API
+  （`<基点>/api/models/<repo>/revision/main?blobs=true`）に聞き、最新のコミットと、そのファイルの大きさ・sha256 を
+  同意（`engine.json` の `consents`）と同意の記録に書く。取得はそのコミットの URL
+  `<基点>/<repo>/resolve/<commit>/<file>` から（途中で main が進んでも混ざらない）。答えがなければ同意しない
+  （「Hugging Face did not answer」）。そのモデルを取得している最中（書いている・確かめている・置いている）は
+  同意しない。別のファイル（sha256 が違う）への同意では、止めた・失敗した取得とその `.part` を消す。取得が済むと
+  `installed` にコミット・大きさ・sha256 を書き、置いてあるかどうかはそれで見る（DELETE で消すのはこの記録とファイルだけ。同意と同意の記録は残す、利用者の依頼 2026-11-06）。置いてあるファイルと
+  sha256 が同じなら取得せず、記録のコミットだけを新しくする。同意したコミットが 403 か 404 で断られたら API に聞き直し、
+  新しいファイルがあれば `latest` に置いて「新しい版が出た。取り消してセットアップし直す」と言う（LICENCE が聞き直す）。
+  同じファイルが新しいコミットに移っただけ（README の更新など）なら、同意のコミットをそちらに移し「Resume を押す」と言う
+  （途中まで取ったものから続く）。同意の記録にも「moved」の項を足す（同じ sha256、コミットの移り先、取得先の URL）。
+  同意している間（API に聞いて書き終えるまで）は、そのモデルの取得を始めない（`fetchProblem`）。失敗はまず HTTP の答えのまま出し、この言い換えは API の答えのあとで差し替える
+  （その間も CANCEL と PAUSE は待たない）。基点は既定で `https://huggingface.co`、テストでは
+  `ELECDEX_HF_BASE_URL`（同じ代役がリビジョンの API にも答える）。
+- **更新の確かめ**（利用者の依頼）: ENGINE を開くと `checkUpdates` が、最後に聞いてから 24 時間以上たっていれば
+  （`checkedAt`。時計が 1 日以上戻ったときも）、置いてあるモデルのリポジトリだけを聞く。聞いた時刻は答えがなくても
+  1 回と数える。置いてあるモデルが 1 つもなければ聞かない。新しいコミットとそのファイルの大きさ・sha256 は
+  `latest` に置き、置いてあるファイルと **sha256 が違うときだけ**盤のモデルの `update` になる（README やほかの量子化だけの
+  コミットで、同じ数 GB を取り直さない）。ひとりでには取らない。**UPDATE** は SETUP の LICENCE から（ライセンスは
+  変わりうるので同意し直す。古いファイルへの同意は盤の `consentAt` で null に見せる。UPDATE したモデルは、セットアップ
+  したモデルと同じくペインのモデルになる。SETUP は設定のモデルを取得するため。同意した時点でモデルが替わるので、
+  ほかのペインの訳はそこで止まり、取得を取り消してもモデルは UPDATE したもののまま）、FETCH で置き換え（同じ大きさでも取り違えない
+  `replace`。エンジンが使っているモデルなら、置く前にエンジンを止める。Windows は開いているファイルを置き換え
+  られない）、READY で試す。SETUP は同意で返ったコミットが置かれるまで READY に進まない。
 - 取得器（`main/translate/fetcher.ts`、エンジンと共用）は `net.fetch`。`.part` に書き、HTTP Range で再開。
   206 なのに Content-Range の始まりが合わない、Range に 200 が返った、ときは最初からやり直す。失敗は 1 s から
   15 s まで倍にして 5 回まで。取得の前に空き容量を確かめる（残りの大きさ＋256 MB）。進捗は 200 ms ごと、速さは
   指数平滑。
-- 終わったら sha256 を **worker** で確かめ、合えば `replaceFile` で置く（1.8 GB を main で回すと、4 MB ずつでも
-  main が止まる時間が積み重なる。テストアプリは main で計算していた）。
-- ライセンスへの同意は、モデルごとに、日時・リビジョン・ライセンスの URL を `engine.json` に記録し、
+- 終わったら sha256 を **worker** で確かめ、合えば `replaceFileNow` で置く（2026-11-06: `replaceFile` は Windows で拒まれた
+  名前の変更をあとで試し直して先に戻るため、ファイルがまだ前のままなのに置いたと記録した。取得したものはすぐ使うので、
+  試し直しを待つ版にした）。worker はファイルを閉じてから答える（`end` で答えると、main がその場で worker を終え、
+  閉じる前なら開いたままプロセスに残った。Windows は開いたファイルを置き換えも消しもできないので、UPDATE と DELETE が
+  失敗した）。sha256 を worker で計算するのは、1.8 GB を main で回すと、4 MB ずつでも main が止まる時間が積み重なる
+  ため（テストアプリは main で計算していた）。
+- ライセンスへの同意は、モデルごとに、日時・コミット・大きさ・sha256・ライセンスの URL を `engine.json` に記録し、
   `licence-consents.txt` に追記する（§3）。別のモデルを取るときも、その都度同意を求める。
 - **llama.cpp のライセンス**（2026-11-06）: リリースの zip には LLVM の OpenMP（`LICENSE-LLVM-OpenMP`）しか入って
   いない。llama.cpp の LICENSE（MIT）と、llama-server に組み込まれたコード（nlohmann/json、cpp-httplib、xxHash、
@@ -321,7 +352,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 
 | パス（`userData/` の下） | 中身 | 書き方 |
 |---|---|---|
-| `translate/engine.json` | エンジンの入手先（fetched / own / external）、自分の llama-server のパスとビルド番号、外部のアドレス、ビルドごとの `--list-devices` の結果、モデルごとのライセンスへの同意 | main だけ。`replaceFile` |
+| `translate/engine.json` | エンジンの入手先（fetched / own / external）、自分の llama-server のパスとビルド番号、外部のアドレス、ビルドごとの `--list-devices` の結果、モデルごとのライセンスへの同意（コミット・大きさ・sha256）、置いてあるファイル（`installed`）、リポジトリごとの最新のコミットとファイル（`latest`）、最後に更新を聞いた時刻（`checkedAt`） | main だけ。`replaceFile` |
 | `translate/engine/<build>/<target>/` | 取ってきた llama-server と DLL、`LICENSE-llama.cpp`（同梱のライセンス一式）、`LICENSE-LLVM-OpenMP`（zip のもの） |
 | `translate/licence-consents.txt` | ライセンスとダウンロードへの同意の記録（§3）。追記だけ | main だけ。`appendFile` | 一時フォルダから名前を変えて置く |
 | `translate/engine-tmp-<乱数>/`、`translate/engine-<build>-<target>.zip.part` | 展開中・取得中 | 起動時に一時フォルダを消す |
@@ -369,7 +400,8 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 | `setSource` | handle | `'fetched'|'own'|'external'`。own は選び済みのときだけ、external はアドレスを入れて TEST が通ったときだけ |
 | `pickOwn` | handle | main のファイル選択。`--version` を確かめて `engine.json` に置く |
 | `testExternal` | handle | `{url}` を検査し `/props` を読む。通れば `engine.json` に置く |
-| `consent` | handle | `{modelId}` ライセンスとダウンロードへの同意を記録（`engine.json` と `licence-consents.txt`） |
+| `consent` | handle | `{modelId}` 最新のコミットを聞き、ライセンスとダウンロードへの同意を記録（`engine.json` と `licence-consents.txt`）。答えは `{revision}` か `{problem}` |
+| `checkUpdates` | handle | ENGINE を開いたとき。置いてあるモデルの新しいコミットを 24 時間に 1 回まで聞く（§5） |
 | `fetch` / `pause` / `cancelFetch` / `removeModel` | handle | 取得（エンジン → モデルの順に必要なものだけ。止めたものの続きも `fetch`）と削除。モデルの選択は専用のチャネルではなく、設定の `modelId` を `settings.patch` で書く（§3 の仮の選択） |
 | `selfTest` | handle | READY の 1 文。履歴には残さない |
 | `logs` | handle | リングバッファ（ENGINE の LOG） |
@@ -445,6 +477,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 - `board` … どこかのページがエンジンの盤を購読している
 - `run:<paneId>` … main が持っている依頼（訳している・待っている・追う人を待っている 5 秒の間）
 - `fetch` … 取得の途中
+- `update-check` … ENGINE を開いて、新しいコミットを Hugging Face に聞いている間（§5）
 
 契約のアプリにはモデルがないので、ライフサイクルの契約では依頼は起きない。依頼がタブの裏・再読み込み・閉じたときに
 どうなるかは translate.spec が受け持つ（再読み込みで続く、閉じたら `watching()` が空になる）。
