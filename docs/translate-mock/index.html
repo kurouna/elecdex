@@ -1538,7 +1538,7 @@ function cardHTML(k) {
       <dt>history</dt><dd>${i === 0 ? 'none, the first segment' : i === 1 ? 'segment 01 sent with it' : `segments ${pad(i - 2)} and ${pad(i - 1)} sent with it`}</dd></dl>`;
   }
   if (kind === 'term') return `<h4><span>Glossary</span><span>EN → JA</span></h4><dl><dt>term</dt><dd>${esc(arg)} → ${esc(GLOSS[arg] || '')}</dd><dt>applies</dt><dd>every segment of this pane</dd></dl>`;
-  if (kind === 'match') return `<h4><span>Round trip</span><span>chrF ${arg}</span></h4><dl><dt>reads</dt><dd>how close the back translation is to the source, by characters</dd><dt>below 70</dt><dd>worth a look: the sense may have moved</dd></dl>`;
+  if (kind === 'match') return `<h4><span>Round trip</span><span>chrF ${arg}</span></h4><dl><dt>reads</dt><dd>how close the back translation is to the source, by characters</dd><dt>below 50</dt><dd>worth a look: the sense may have moved (30 for a language written without spaces)</dd></dl>`;
   if (kind === 'fit') {
     const m = MODELS.find((x) => x.id === arg);
     return `<h4><span>${m.name} · ${m.p}</span><span>${m.fit[0]}</span></h4><dl><dt>file</dt><dd>${m.sizes[0]} at Q4_K_M</dd><dt>needs</dt><dd>${m.need} (estimate, to be measured)</dd><dt>this PC</dt><dd>RAM 16 GB · GPU shares system memory</dd></dl>`;

@@ -839,6 +839,17 @@ describe('TranslateRuns, items once left for later', () => {
     expect(h.page('p1')?.state).toBe('waiting')
   })
 
+  it('puts a Japanese block back in its own form: だ・である stays plain', async () => {
+    const h = harness()
+    h.runs.follow('p1')
+    h.runs.start({ ...request('p1', '隣の客はよく柿食う客だ', 'en'), srcLang: 'ja' })
+    await answer(h, 'The guest next door eats a lot of persimmons.')
+    h.runs.roundTrip('p1', 'ja')
+    await h.settle()
+    expect(h.calls.at(-1)?.prompt).toContain('form<|plamo:val|>plain')
+    expect(h.calls.at(-1)?.prompt).not.toContain('polite')
+  })
+
   it('gives a round trip room by its block, and fails one cut at the limit', async () => {
     const h = harness()
     h.runs.follow('p1')

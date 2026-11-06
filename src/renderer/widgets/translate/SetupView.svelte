@@ -381,6 +381,5 @@ h2 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: v
 .problem { margin: 0; color: var(--danger); font-size: var(--step--1); }
 .foot { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2) 0; border-top: 1px solid var(--panel-rule); }
 .spacer { flex: 1; }
-.setup :global(:is(.btn, .chip, .mcard):active), .setup :global(.blinking) { animation: tr-press 100ms linear infinite; animation-play-state: var(--ambient-play-state); }
-@keyframes -global-tr-press { 50% { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); } }
+/* The press that blinks is the pane's (TranslateWidget.svelte), for every view. */
 </style>

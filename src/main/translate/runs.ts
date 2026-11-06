@@ -1,6 +1,7 @@
 import { splitBlocks, splitParts } from '@shared/translate/blocks'
 import { chrF } from '@shared/translate/chrf'
 import { detectLanguage } from '@shared/translate/detect'
+import { formOf } from '@shared/translate/form'
 import { type Glossary, glossaryApplies, selectTerms, type Term } from '@shared/translate/glossary'
 import { EASY_JAPANESE, takesForm } from '@shared/translate/languages'
 import { buildPrompt, formFor, PFML_STOP, restore } from '@shared/translate/pfml3'
@@ -462,7 +463,9 @@ export class TranslateRuns {
         text: block.text,
         target: lang,
         source: from,
-        ...(takesForm(lang) ? { form: 'polite' as const } : {}),
+        // Back into Japanese in the source's own form: put back into です・ます, a plain source
+        // scores half what it would (form.ts).
+        ...(takesForm(lang) ? { form: formOf(block.source) } : {}),
       })
       const room = this.#deps.ctx() - (await this.#deps.tokenize(endpoint, prompt, signal))
       // As a block's own translation: up to four times what goes in, never past the context.

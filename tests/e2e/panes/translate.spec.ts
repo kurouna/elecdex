@@ -1016,6 +1016,42 @@ test('a drag across two blocks keeps its selection, and the block it ended on st
   }
 })
 
+test('a TRANSLATE button held flashes the accent, as CHIP-8’s and the ELEC-16’s do, in every view', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  /** The animation running on a button held down (moved off before the release: no click). */
+  const held = async (button: Locator): Promise<string> => {
+    const box = await button.boundingBox()
+    if (!box) throw new Error('the button is not laid out')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    const name = await button.evaluate((el) => getComputedStyle(el).animationName)
+    await page.mouse.move(4, 4)
+    await page.mouse.up()
+    return name
+  }
+  try {
+    await translate(page, 'One block.')
+    await expect(blocks(page).nth(0)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    // TEXT: CLEAR and COPY, a toggle, the view switch.
+    await expect.poll(() => held(page.getByRole('button', { name: 'Clear' }))).toBe('tr-press')
+    await expect
+      .poll(() => held(page.getByRole('button', { name: 'Copy' }).last()))
+      .toBe('tr-press')
+    await expect.poll(() => held(page.getByTestId('translate-trip-toggle'))).toBe('tr-press')
+    await expect.poll(() => held(page.getByTestId('translate-view-history'))).toBe('tr-press')
+    // The settings button every pane shares keeps its own way.
+    expect(await held(page.getByTestId('translate-settings-toggle'))).not.toBe('tr-press')
+    // ENGINE.
+    await page.getByTestId('translate-settings-toggle').click()
+    const engine = page.getByTestId('translate-engine')
+    await expect
+      .poll(() => held(engine.getByRole('button', { name: 'Set up a model…' })))
+      .toBe('tr-press')
+  } finally {
+    await close()
+  }
+})
+
 test('the source being typed scrolls in its textarea alone, and the spine follows it', async () => {
   const { page, close } = await launch(undefined, withModel('', true))
   try {

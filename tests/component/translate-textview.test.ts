@@ -202,6 +202,41 @@ describe('TEXT', () => {
   })
 })
 
+describe('TEXT’s round trip score', () => {
+  const scored = (score: number, lang: string): RunView => {
+    const run = runOf('One.')
+    const block = run.blocks[0] as RunView['blocks'][number]
+    return { ...run, blocks: [{ ...block, trip: { text: 'back', state: 'done', score, lang } }] }
+  }
+  const low = () => screen.getByTestId('translate-trip-score').classList.contains('low')
+
+  it('is said in the warning colour under its language’s line: 50, or 30 written without spaces', async () => {
+    const { send } = mount()
+    await send(scored(40, 'en'))
+    expect(low()).toBe(true)
+    await send(scored(40, 'ja'), 2)
+    expect(low()).toBe(false)
+    await send(scored(25, 'ja'), 3)
+    expect(low()).toBe(true)
+  })
+
+  it('says numbers that changed, whatever the score', async () => {
+    const { send } = mount()
+    const run = runOf('予算は五千万円です')
+    const block = run.blocks[0] as RunView['blocks'][number]
+    const back = (text: string): RunView => ({
+      ...run,
+      blocks: [{ ...block, trip: { text, state: 'done', score: 74, lang: 'ja' } }],
+    })
+    await send(back('予算は500万円です'))
+    expect(screen.getByTestId('translate-trip-numbers').textContent).toBe('numbers differ')
+    expect(low()).toBe(true)
+    await send(back('予算は5000万円です'), 2)
+    expect(screen.queryByTestId('translate-trip-numbers')).toBeNull()
+    expect(low()).toBe(false)
+  })
+})
+
 describe('TEXT opening the editor from the blocks (user’s report 2026-11-06)', () => {
   const twoBlocks = (): RunView => {
     const run = runOf('First block.')
