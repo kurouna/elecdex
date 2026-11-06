@@ -87,6 +87,40 @@ test('the terminal renders into a sized canvas', async () => {
   await expect(terminalPane(page).locator('.xterm-screen canvas').first()).toBeVisible()
 })
 
+test('the glyphs are drawn in the terminal font, never the canvas default', async () => {
+  // xterm's WebGL renderer sets ` normal 13px <family>` (a space before it) on the canvas it
+  // draws glyphs on; Chromium 156.0.8078.80 dropped that, and every shell drew 10px sans-serif in
+  // its monospaced cells (2026-11-07). The page takes the space off (lib/canvas-font.ts).
+  expect(
+    await page.evaluate(() => {
+      const ctx = document.createElement('canvas').getContext('2d')
+      if (!ctx) return 'no context'
+      ctx.font = ' normal 13px monospace'
+      return ctx.font
+    }),
+  ).toBe('13px monospace')
+  // And what xterm sets as it draws glyphs it has not drawn before: each one taken.
+  await page.evaluate(() => {
+    const proto = CanvasRenderingContext2D.prototype
+    const desc = Object.getOwnPropertyDescriptor(proto, 'font')
+    const seen: string[] = []
+    ;(globalThis as { __fontsSet?: string[] }).__fontsSet = seen
+    Object.defineProperty(proto, 'font', {
+      ...desc,
+      set(this: CanvasRenderingContext2D, value: string) {
+        desc?.set?.call(this, value)
+        seen.push(`${value} => ${desc?.get?.call(this)}`)
+      },
+    })
+  })
+  // A comment line in the visible shell, of letters it has not drawn yet.
+  await typeInto(page, terminalPane(page), `# QXJZ glyphs ~^{}| ${Date.now()}`)
+  const fontsSet = () =>
+    page.evaluate(() => (globalThis as { __fontsSet?: string[] }).__fontsSet ?? [])
+  await expect.poll(fontsSet).not.toEqual([])
+  expect((await fontsSet()).filter((line) => line.endsWith('=> 10px sans-serif'))).toEqual([])
+})
+
 test('nothing listens on a TCP port', async () => {
   // The original project tunnelled every pty over ws://127.0.0.1:3000+, one
   // port per tab. elecdex uses a MessagePort, so those ports stay free.
