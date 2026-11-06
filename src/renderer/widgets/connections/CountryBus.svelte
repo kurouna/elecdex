@@ -30,7 +30,7 @@ const most = $derived(Math.max(1, ...countries.map((entry) => entry.count)))
     <span class="quiet">no peers outside this network</span>
   {:else}
     {#each countries as entry (entry.code)}
-      <button
+      <button data-press="off"
         type="button"
         class="tag"
         class:lit={hovered === entry.code}

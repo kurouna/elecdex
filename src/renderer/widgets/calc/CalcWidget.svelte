@@ -301,7 +301,7 @@ const histogram = $derived.by<Bar[]>(() => {
       <div class="group">
         <span class="group-title">try</span>
         {#each CALC_EXAMPLES as example (example)}
-          <button type="button" class="example" onclick={() => (input = example)}>
+          <button data-press="off" type="button" class="example" onclick={() => (input = example)}>
             {example}
           </button>
         {/each}
@@ -339,7 +339,7 @@ const histogram = $derived.by<Bar[]>(() => {
     <div class="tape" bind:this={tapeEl} data-testid="calc-tape">
       {#each tape as entry, i (i)}
         <div class="row" class:landed={i === tape.length - 1} data-testid="calc-tape-row">
-          <button
+          <button data-press="off"
           type="button"
           class="src"
           onclick={() => (input = entry.src)}
@@ -347,7 +347,7 @@ const histogram = $derived.by<Bar[]>(() => {
         >
             {#if entry.assigned}<span class="assigned">{entry.assigned}</span>{/if}{entry.src}
           </button>
-          <button
+          <button data-press="off"
             type="button"
             class="value"
             onclick={() => reuse(entry)}
@@ -456,7 +456,7 @@ const histogram = $derived.by<Bar[]>(() => {
             {#each report.figures as figure (figure.label)}
               <!-- A figure is a number like any other: taking it into the
                    calculator is one click, rather than reading it back by eye. -->
-              <button
+              <button data-press="off"
                 type="button"
                 class="figure"
                 title="Use this in the calculator"

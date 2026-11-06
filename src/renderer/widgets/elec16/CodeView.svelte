@@ -250,7 +250,7 @@ onDestroy(() => {
       <ul class="errors" data-testid="elec16-code-errors">
         {#each chosen.errors as e, k (k)}
           <li>
-            <button type="button" onclick={() => goTo(e.line, e.column)}
+            <button data-press="off" type="button" onclick={() => goTo(e.line, e.column)}
               >{e.file}{e.line > 0 ? `:${e.line}:${e.column}` : ''}</button
             >
             {e.message}

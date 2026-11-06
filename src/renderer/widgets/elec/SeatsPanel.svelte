@@ -101,7 +101,7 @@ async function loadModels(providerId: string): Promise<void> {
   {/each}
   <p class="note">
     The same model may sit in every seat: each unit is given its own standpoint.
-    <button type="button" class="link" onclick={() => ui.openSettings('ai')} data-testid="elec-standpoints">standpoints › settings</button>
+    <button data-press="off" type="button" class="link" onclick={() => ui.openSettings('ai')} data-testid="elec-standpoints">standpoints › settings</button>
   </p>
 </div>
 

@@ -214,7 +214,7 @@ const initial = (name: string) =>
       {#each visible as entry, i (entry.id)}
         {@const icon = launcherIcon(entry.id)}
         <li>
-          <button
+          <button data-press="off"
             type="button"
             class="tile"
             class:pinned={entry.source === 'user'}

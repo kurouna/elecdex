@@ -796,13 +796,13 @@ const exportChat = oneAtATime(async (id: string): Promise<void> => {
             <span class="who">{message.role === 'user' ? 'you' : (message.model ?? 'remote')}</span>
             <span class="meta">{time(message.at)}</span>
             <span class="rule"></span>
-            <button type="button" class="act" onclick={() => void copied.copy(message.id, message.text)}>
+            <button data-press="off" type="button" class="act" onclick={() => void copied.copy(message.id, message.text)}>
               {copied.key === message.id ? 'copied' : 'copy'}
             </button>
             {#if message.role === 'user'}
-              <button type="button" class="act" disabled={busy} onclick={() => edit(message)} data-testid="aichat-edit">edit</button>
+              <button data-press="off" type="button" class="act" disabled={busy} onclick={() => edit(message)} data-testid="aichat-edit">edit</button>
             {:else if i === messages.length - 1}
-              <button type="button" class="act" disabled={busy} onclick={() => void ask(undefined)} data-testid="aichat-regenerate">
+              <button data-press="off" type="button" class="act" disabled={busy} onclick={() => void ask(undefined)} data-testid="aichat-regenerate">
                 again
               </button>
             {/if}

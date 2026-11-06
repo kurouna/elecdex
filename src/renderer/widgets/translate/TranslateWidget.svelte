@@ -207,11 +207,4 @@ function openSetup(at?: number): void {
 .spacer { flex: 1; }
 .toolbar { display: flex; align-items: center; min-height: 1.6rem; padding-right: 1.7rem; margin-bottom: var(--space-1); }
 .warn { color: var(--warn); }
-/* The press that blinks (lib/blink.ts), as CHIP-8's and the ELEC-16's buttons do: one held flashes
-   the accent on the 100 ms beat, and a choice that changes what is shown (afterBlink) blinks three
-   beats first. Every view's buttons, in one place (user's report 2026-11-06: only SETUP had it);
-   not the text links, the spine's numbers, or a row of a list (a model's name, a history entry,
-   a language), which are not buttons to the eye, nor the settings button every pane shares. */
-.translate :global(button:not(:disabled, .link, .node, .name, .open, .li, .settings-toggle):active), .translate :global(.blinking) { animation: tr-press 100ms linear infinite; animation-play-state: var(--ambient-play-state); }
-@keyframes -global-tr-press { 50% { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); } }
 </style>

@@ -388,7 +388,7 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
         transition:crtPower
       >
         {#each shown as program, i (program.id)}
-          <button
+          <button data-press="off"
             type="button"
             tabindex="-1"
             class="row"

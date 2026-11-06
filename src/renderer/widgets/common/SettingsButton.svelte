@@ -15,7 +15,7 @@ interface Props {
 const { open, label, testid, ontoggle }: Props = $props()
 </script>
 
-<button
+<button data-press="off"
   type="button"
   class="settings-toggle"
   aria-label={label}

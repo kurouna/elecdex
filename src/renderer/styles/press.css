@@ -1,0 +1,25 @@
+/*
+ * The press that blinks (lib/blink.ts, docs/architecture.md section 7), for every pane's buttons
+ * in one place: a button or row held down flashes the accent on the 100 ms beat, and a choice that
+ * changes what is shown (`afterBlink`) blinks three beats first. Every pane, built-in or plugin, in
+ * the layout or popped up, and a group's corner and tabs, take it without a rule of their own (user
+ * decision 2026-11-06: until then each pane had its own, and about twenty had none).
+ *
+ * A button that is not one to the eye - a text link, a hit area over a canvas, a key that shows
+ * its press its own way - says `data-press="off"`; tests/unit/press.test.ts lists every one, and
+ * tests/e2e/contracts/press.spec.ts holds one button of every pane.
+ */
+:is(.pane[data-widget], .popup[data-widget], .tabs-host)
+  :is(button, [role="button"]):not(:disabled, [aria-disabled="true"], [data-press="off"]):active,
+:is(.pane[data-widget], .popup[data-widget], .tabs-host) .blinking {
+  animation: press 100ms linear infinite;
+  animation-play-state: var(--ambient-play-state);
+}
+
+@keyframes press {
+  50% {
+    background: var(--accent);
+    color: var(--text-inverse);
+    border-color: var(--accent);
+  }
+}

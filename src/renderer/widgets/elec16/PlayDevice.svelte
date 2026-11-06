@@ -140,7 +140,7 @@ $effect(() => () => {
       {#each PAD_BUTTONS.filter((b) => body.buttons[b].shape === 'shoulder') as b (b)}
         {@const r = body.buttons[b]}
         {@const [face, shade, text] = tone(b)}
-        <button
+        <button data-press="off"
           type="button"
           tabindex="-1"
           class="pad shoulder"
@@ -184,7 +184,7 @@ $effect(() => () => {
       {#each PAD_BUTTONS.filter((b) => body.buttons[b].shape !== 'shoulder') as b (b)}
         {@const r = body.buttons[b]}
         {@const [face, shade, text] = tone(b)}
-        <button
+        <button data-press="off"
           type="button"
           tabindex="-1"
           class="pad {r.shape} {b}"

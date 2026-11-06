@@ -211,6 +211,10 @@ working day, and Paper, monochrome and plain like an e-paper display - each of t
   moved; a tab brought to the front of its group flickers on, as a set changing channel; and the
   frame of the pane the keyboard moves to (**Ctrl+Shift+]** / **[** and the arrows, the shell keys, a pane's own
   shortcut) flares once. A pane you click does not flare.
+- *Unreleased:* every button in a pane, a pop-up and a group's corner flashes the accent while it
+  is held, on a 100 ms beat, and a choice that changes what is shown blinks three beats before it
+  happens. Text links, hit areas over a picture, and keys and tiles that show their press their own
+  way are left out.
 - Scanlines and glow, synthesised interface sounds, a themed title bar and a status bar that slides
   in from the bottom edge.
 - Short entrance effects - a wave of dates for each month, a forecast rising in, new headlines and

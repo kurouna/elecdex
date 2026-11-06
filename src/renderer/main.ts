@@ -10,6 +10,7 @@ import './styles/frames.css'
 import './styles/crt.css'
 import './styles/motion.css'
 import './styles/effects.css'
+import './styles/press.css'
 
 import { mount } from 'svelte'
 import App from './App.svelte'

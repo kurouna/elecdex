@@ -68,6 +68,8 @@ export interface PaneRow {
   zoom: 'full' | 'panel' | null
   /** builtins.ts `unlisted: true`: a layout opens it, the picker does not offer it. */
   unlisted?: true
+  /** Why the pane shows no button to hold in the contracts' world (press.spec.ts). */
+  pressless?: string
 }
 
 const FEED = 'http://127.0.0.1:9/feed.xml'
@@ -81,13 +83,15 @@ async function pick(app: ElectronApplication, page: Page, answer: string, button
 export const PANES: PaneRow[] = [
   {
     widget: 'terminal',
+    pressless: 'the shell draws on a canvas; its search and paste bars open on a key',
     goesOn: 'its shell: a session runs behind a tab and in a minimised window',
     popup: false,
     zoom: 'full',
   },
-  { widget: 'clock', popup: true, zoom: 'full' },
+  { widget: 'clock', pressless: 'a readout: nothing to press', popup: true, zoom: 'full' },
   {
     widget: 'sysinfo',
+    pressless: 'a readout: nothing to press',
     seen: { metrics: ['os.uptime', 'os.info', 'power.battery', 'hardware.system'] },
     kept: ['os.info', 'hardware.system'],
     popup: true,
@@ -102,6 +106,7 @@ export const PANES: PaneRow[] = [
   },
   {
     widget: 'memory',
+    pressless: 'a readout: nothing to press',
     seen: { metrics: ['mem.usage', 'mem.swap'] },
     kept: ['mem.usage', 'mem.swap'],
     popup: true,
@@ -109,19 +114,39 @@ export const PANES: PaneRow[] = [
   },
   {
     widget: 'gpu',
+    pressless: 'a readout: nothing to press',
     seen: { metrics: ['gpu.usage'] },
     kept: ['gpu.usage'],
     popup: true,
     zoom: 'full',
   },
-  { widget: 'disk', seen: { metrics: ['disk.volumes', 'disk.io'] }, popup: true, zoom: 'panel' },
-  { widget: 'toplist', seen: { metrics: ['proc.list'] }, popup: true, zoom: 'panel' },
-  { widget: 'netstat', seen: { metrics: ['net.interface', 'net.ping'] }, popup: true, zoom: null },
+  {
+    widget: 'disk',
+    pressless: 'a readout: nothing to press',
+    seen: { metrics: ['disk.volumes', 'disk.io'] },
+    popup: true,
+    zoom: 'panel',
+  },
+  {
+    widget: 'toplist',
+    pressless: 'a readout: nothing to press',
+    seen: { metrics: ['proc.list'] },
+    popup: true,
+    zoom: 'panel',
+  },
+  {
+    widget: 'netstat',
+    pressless: 'a readout: nothing to press',
+    seen: { metrics: ['net.interface', 'net.ping'] },
+    popup: true,
+    zoom: null,
+  },
   { widget: 'connections', seen: { metrics: ['net.sockets'] }, popup: true, zoom: 'full' },
   { widget: 'wifi', seen: { metrics: ['net.wifi', 'net.wifi.events'] }, popup: true, zoom: 'full' },
   { widget: 'ethernet', seen: { metrics: ['net.ethernet'] }, popup: true, zoom: 'full' },
   {
     widget: 'throughput',
+    pressless: 'a readout: nothing to press',
     seen: { metrics: ['net.throughput', 'net.ping'] },
     kept: ['net.throughput'],
     popup: true,
@@ -129,6 +154,7 @@ export const PANES: PaneRow[] = [
   },
   {
     widget: 'cluster',
+    pressless: 'a readout: nothing to press',
     seen: {
       metrics: [
         'cpu.load',
@@ -161,10 +187,17 @@ export const PANES: PaneRow[] = [
     popup: true,
     zoom: 'full',
   },
-  { widget: 'filesystem', popup: false, zoom: 'full' },
-  { widget: 'weather', seen: { modules: ['weather'] }, popup: true, zoom: 'full' },
+  { widget: 'filesystem', pressless: 'its tiles blink their own way', popup: false, zoom: 'full' },
+  {
+    widget: 'weather',
+    pressless: 'with no forecast, only the settings icon and the credit, both left out',
+    seen: { modules: ['weather'] },
+    popup: true,
+    zoom: 'full',
+  },
   {
     widget: 'globe',
+    pressless: 'a readout: nothing to press',
     seen: { metrics: ['net.connections', 'net.ping'] },
     popup: true,
     zoom: 'full',
@@ -210,6 +243,7 @@ export const PANES: PaneRow[] = [
   { widget: 'orbit', seen: { modules: ['orbits'] }, popup: true, zoom: 'full' },
   {
     widget: 'rss',
+    pressless: 'with no headline, only the settings icon, left out',
     state: { feeds: [FEED] },
     seen: { modules: ['feeds'] },
     popup: true,
@@ -217,13 +251,20 @@ export const PANES: PaneRow[] = [
   },
   {
     widget: 'quakes',
+    pressless: 'with no quake listed, only the settings icon and the credit, both left out',
     seen: { quakes: true },
     goesOn: 'quake alerts, when they are on (main keeps the list for them; quakes.spec)',
     popup: true,
     zoom: 'full',
   },
   { widget: 'calendar', popup: true, zoom: 'full' },
-  { widget: 'spectrum', seen: { capture: true }, popup: true, zoom: 'full' },
+  {
+    widget: 'spectrum',
+    pressless: 'only the settings icon, left out',
+    seen: { capture: true },
+    popup: true,
+    zoom: 'full',
+  },
   { widget: 'mixer', popup: true, zoom: 'panel' },
   { widget: 'nowplaying', seen: { modules: ['nowPlaying'] }, popup: true, zoom: 'panel' },
   {
@@ -236,7 +277,12 @@ export const PANES: PaneRow[] = [
   { widget: 'elec16', popup: false, zoom: 'full' },
   { widget: 'calc', popup: true, zoom: 'panel' },
   { widget: 'notes', popup: true, zoom: 'full' },
-  { widget: 'todo', popup: true, zoom: 'full' },
+  {
+    widget: 'todo',
+    pressless: 'with no task, only the settings icon and the list’s name, both left out',
+    popup: true,
+    zoom: 'full',
+  },
   { widget: 'clipboard', seen: { modules: ['clipboard'] }, popup: true, zoom: 'full' },
   {
     widget: 'timer',

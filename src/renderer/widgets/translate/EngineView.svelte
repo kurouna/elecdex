@@ -163,8 +163,8 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
 
     <span class="lbl">Licence</span>
     <div class="val">
-      <span>Model: PLaMo Community License · Built with PLaMo · <button type="button" class="link" onclick={() => void api.openLicence('plamo')}>read it ↗</button></span>
-      <span>Engine: llama.cpp, MIT · <button type="button" class="link" onclick={() => void api.openLicence('llama')}>read it ↗</button> · its licences and those of the code built into it are kept beside it</span>
+      <span>Model: PLaMo Community License · Built with PLaMo · <button data-press="off" type="button" class="link" onclick={() => void api.openLicence('plamo')}>read it ↗</button></span>
+      <span>Engine: llama.cpp, MIT · <button data-press="off" type="button" class="link" onclick={() => void api.openLicence('llama')}>read it ↗</button> · its licences and those of the code built into it are kept beside it</span>
     </div>
   </div>
 </div>

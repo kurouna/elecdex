@@ -355,7 +355,7 @@ async function copy(): Promise<void> {
       {:else if built.kind === 'over'}
         <span class="empty warn" data-testid="qr-over">OVER CAPACITY</span>
       {:else if veiled}
-        <button type="button" class="veil" onclick={() => (revealed = true)} data-testid="qr-reveal">
+        <button data-press="off" type="button" class="veil" onclick={() => (revealed = true)} data-testid="qr-reveal">
           <b>REVEAL</b><span>the code holds the password</span>
         </button>
       {/if}

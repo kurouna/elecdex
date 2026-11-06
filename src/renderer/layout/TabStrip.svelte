@@ -52,7 +52,7 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
       class:doomed
       data-drop-tab={child.id}
     >
-      <button
+      <button data-press="off"
         type="button"
         class="select"
         onclick={() => layout.focus(child.id)}
@@ -82,7 +82,7 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
     </li>
   {/each}
   <li class="tab new-tab">
-    <button
+    <button data-press="off"
       type="button"
       class="select"
       aria-label="New tab"

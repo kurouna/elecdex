@@ -78,7 +78,7 @@ $effect(() => {
           <li class="label">{line.label}:</li>
         {/if}
         <li class:current={line.current} class:stop={runner.breakpoints.includes(line.address)}>
-          <button
+          <button data-press="off"
             type="button"
             class="mark"
             aria-label={`breakpoint at ${hex(line.address)}`}

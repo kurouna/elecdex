@@ -163,7 +163,7 @@ function nudge(alarm: Alarm, minutes: number): void {
           />
           <div class="of">
             <span class="name">{alarm.label || 'alarm'}</span>
-            <button
+            <button data-press="off"
               type="button"
               class="days"
               title="Choose the days"
@@ -182,7 +182,7 @@ function nudge(alarm: Alarm, minutes: number): void {
           >
         </div>
 
-        <button
+        <button data-press="off"
           type="button"
           class="switch"
           role="switch"

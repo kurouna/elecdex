@@ -10,7 +10,7 @@ const { count, onjump, testid }: Props = $props()
 </script>
 
 {#if count > 0}
-  <button type="button" class="pill fx-rise" onclick={onjump} data-testid={testid}>
+  <button data-press="off" type="button" class="pill fx-rise" onclick={onjump} data-testid={testid}>
     <span aria-hidden="true">↑</span> {count} new
   </button>
 {/if}

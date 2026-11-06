@@ -230,11 +230,11 @@ const nextDisabled = $derived(
           <p>Preferred Networks publishes PLaMo 3 Translate under its PLaMo Community License. Downloading and using the model is under its terms.</p>
           <dl>
             <dt>Personal</dt><dd>Free, including non-commercial and academic use. No registration.</dd>
-            <dt>Commercial</dt><dd>Free when revenue is ¥1 billion a year or less, after <button type="button" class="link" onclick={() => void api.openLicence('register')}>registering the use ↗</button> with Preferred Networks. Use at work, in an organisation, or in making a product or service is commercial.</dd>
+            <dt>Commercial</dt><dd>Free when revenue is ¥1 billion a year or less, after <button data-press="off" type="button" class="link" onclick={() => void api.openLicence('register')}>registering the use ↗</button> with Preferred Networks. Use at work, in an organisation, or in making a product or service is commercial.</dd>
             <dt>Larger</dt><dd>Over ¥1 billion: a separate licence agreement.</dd>
           </dl>
           <p class="note">This is a summary. The licence on Preferred Networks’ site is the one that holds, and it may change: open it and read it before you agree.</p>
-          <button type="button" class="link" data-testid="translate-licence-open" onclick={() => void openLicence()}>Read the licence on Preferred Networks’ site ↗</button>
+          <button data-press="off" type="button" class="link" data-testid="translate-licence-open" onclick={() => void openLicence()}>Read the licence on Preferred Networks’ site ↗</button>
         </div>
         <button type="button" class="agree" class:on={agreed} role="checkbox" aria-checked={agreed} disabled={!opened} data-testid="translate-agree" onclick={() => (agreed = !agreed)}>
           <span class="box"></span><span>I have read the PLaMo Community License on Preferred Networks’ site and will use the model under its terms.{#if !opened}<em>{' Open the licence above first.'}</em>{/if}</span>
@@ -244,7 +244,7 @@ const nextDisabled = $derived(
           <dl>
             <dt>Model</dt><dd><span class="mono">{selected?.file} · about {selected ? formatBytes(selected.bytes) : ''} · huggingface.co</span> · its newest version, asked of Hugging Face as you agree</dd>
             {#if board.engine.toFetchBytes > 0}
-              <dt>Engine</dt><dd><span class="mono">llama.cpp {ENGINE_BUILD} · {formatBytes(board.engine.toFetchBytes)} · github.com</span> · MIT (<button type="button" class="link" onclick={() => void api.openLicence('llama')}>licence ↗</button>)</dd>
+              <dt>Engine</dt><dd><span class="mono">llama.cpp {ENGINE_BUILD} · {formatBytes(board.engine.toFetchBytes)} · github.com</span> · MIT (<button data-press="off" type="button" class="link" onclick={() => void api.openLicence('llama')}>licence ↗</button>)</dd>
             {/if}
           </dl>
           <p class="small">Each file is checked against its sha256. The licences of llama.cpp and of the code built into it are written beside the engine. This agreement is recorded with its time in licence-consents.txt, in elecdex’s translate folder.</p>

@@ -284,7 +284,7 @@ function jump(step: 1 | -1): void {
               {/if}
             </figcaption>
             {#if image !== null}
-              <button
+              <button data-press="off"
                 type="button"
                 class="frame"
                 title="Look closer: zoom and pan"

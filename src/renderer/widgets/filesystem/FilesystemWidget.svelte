@@ -182,14 +182,14 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
   {#if showDrives}
     <ul class="grid" data-testid="fs-drives">
       <li>
-        <button type="button" class="tile" onclick={() => (showDrives = false)} style:--delay={stagger(0)}>
+        <button data-press="off" type="button" class="tile" onclick={() => (showDrives = false)} style:--delay={stagger(0)}>
           <FsIcon kind="up" />
           <span class="name">back</span>
         </button>
       </li>
       {#each drives ?? [] as drive, i (drive.path)}
         <li>
-          <button
+          <button data-press="off"
             type="button"
             class="tile"
             title={`${drive.path} — ${formatBytes(drive.free)} free of ${formatBytes(drive.total)}`}
@@ -209,14 +209,14 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
     {#key listing.path}
       <ul class="grid" data-testid="fs-entries">
         <li>
-          <button type="button" class="tile" onclick={() => (showDrives = true)} style:--delay={stagger(0)} data-testid="fs-show-drives">
+          <button data-press="off" type="button" class="tile" onclick={() => (showDrives = true)} style:--delay={stagger(0)} data-testid="fs-show-drives">
             <FsIcon kind="drive" />
             <span class="name">drives</span>
           </button>
         </li>
         {#if listing.parent !== null}
           <li>
-            <button type="button" class="tile" onclick={up} style:--delay={stagger(1)} data-testid="fs-up">
+            <button data-press="off" type="button" class="tile" onclick={up} style:--delay={stagger(1)} data-testid="fs-up">
               <FsIcon kind="up" />
               <span class="name">..</span>
             </button>
@@ -224,7 +224,7 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
         {/if}
         {#each listing.entries as entry, i (entry.name)}
           <li>
-            <button
+            <button data-press="off"
               type="button"
               class="tile"
               class:hidden-entry={entry.hidden}

@@ -244,7 +244,7 @@ const openPage = (): void => void window.elecdex.system.openExternal(page)
   {:else}
     {#if today}
       <section class="today fx-rise" data-testid="weather-today">
-        <button type="button" class="now" title={page} onclick={openPage} data-testid="weather-open">
+        <button data-press="off" type="button" class="now" title={page} onclick={openPage} data-testid="weather-open">
           <SkyIcon glyph={report.now?.sky ?? today.sky} />
           <span class="today-text">
             <span class="telop" data-testid="weather-telop">{summaryText(today)}</span>
@@ -278,7 +278,7 @@ const openPage = (): void => void window.elecdex.system.openExternal(page)
         {#each week as day, i (day.date)}
           {@const label = dayLabel(day.date)}
           <li>
-            <button
+            <button data-press="off"
               type="button"
               class="day fx-rise"
               style:--fx-delay={`${(i + 1) * WEEK_STAGGER_MS}ms`}
@@ -297,7 +297,7 @@ const openPage = (): void => void window.elecdex.system.openExternal(page)
     {/if}
   {/if}
 
-  <button
+  <button data-press="off"
     type="button"
     class="attribution"
     title={source.url}

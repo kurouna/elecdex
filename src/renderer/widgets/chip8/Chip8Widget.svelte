@@ -492,18 +492,4 @@ onDestroy(() => {
   opacity: 0.4;
   cursor: default;
 }
-
-.chip8 :global(:is(.c8-btn, .c8-chip:not(.plain), .tab):active),
-.chip8 :global(.blinking) {
-  animation: c8-press 100ms linear infinite;
-  animation-play-state: var(--ambient-play-state);
-}
-
-@keyframes -global-c8-press {
-  50% {
-    background: var(--accent);
-    color: var(--text-inverse);
-    border-color: var(--accent);
-  }
-}
 </style>

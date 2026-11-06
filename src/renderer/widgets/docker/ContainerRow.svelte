@@ -75,7 +75,7 @@ const running = $derived(container.state === 'running')
   bind:this={rowEl}
 >
   <i class="lamp" aria-hidden="true"></i>
-  <button
+  <button data-press="off"
     type="button"
     class="name"
     onclick={() => oncopy('name')}
@@ -93,7 +93,7 @@ const running = $derived(container.state === 'running')
     {#each shownPorts as port (portLabel(port))}
       {@const url = portUrl(port)}
       {#if url !== null}
-        <button type="button" class="port link" title="open {url}" onclick={() => onopen(url)} data-testid="docker-port">{portLabel(port)}</button>
+        <button data-press="off" type="button" class="port link" title="open {url}" onclick={() => onopen(url)} data-testid="docker-port">{portLabel(port)}</button>
       {:else}
         <span class="port" data-testid="docker-port">{portLabel(port)}</span>
       {/if}

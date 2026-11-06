@@ -884,7 +884,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
       </svg>
       <div class="nodes">
         {#each links as link (link.index)}
-          <button
+          <button data-press="off"
             type="button"
             class="node"
             class:hot={hot === link.index}

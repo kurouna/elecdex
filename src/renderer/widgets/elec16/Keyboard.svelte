@@ -150,7 +150,7 @@ const squeeze = $derived.by((): ReadonlyMap<string, number> => {
 </script>
 
 {#snippet key(slot: KeySlot, column: number, pad: boolean)}
-  <button
+  <button data-press="off"
     type="button"
     class="key"
     class:fn={isFn(slot.id)}
@@ -299,9 +299,9 @@ const squeeze = $derived.by((): ReadonlyMap<string, number> => {
   filter: brightness(0.88);
 }
 
-/* Flat tiles blink while held, as every press in elecdex does (ELEC, TRON). */
+/* Flat tiles blink while held, as every press in elecdex does (styles/press.css's keyframes). */
 :global(.keys-flat) .key.down {
-  animation: e16-press 100ms linear infinite;
+  animation: press 100ms linear infinite;
   animation-play-state: var(--ambient-play-state);
 }
 

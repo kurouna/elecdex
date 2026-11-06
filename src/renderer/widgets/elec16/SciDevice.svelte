@@ -253,7 +253,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
       {#if layout.pad !== null}
         <div class="pad" style={place(layout.pad)} data-testid="elec16-sci-pad">
           {#each ARROWS as arrow (arrow.id)}
-            <button
+            <button data-press="off"
               type="button"
               class="end"
               class:down={down.has(arrow.id)}
@@ -281,7 +281,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
             ></span
           >
         {/if}
-        <button
+        <button data-press="off"
           type="button"
           class="key {k.block}"
           class:shift={k.id === 'shift'}

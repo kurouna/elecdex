@@ -66,7 +66,7 @@ function focused(file: ChatAttachment, event: FocusEvent | MouseEvent): void {
         data-testid="aichat-chip"
         transition:crtPower
       >
-        <button
+        <button data-press="off"
           type="button"
           class="face"
           aria-label="{file.name}, {file.kind === 'pdf' ? 'PDF' : file.kind}, {fileSize(file.bytes)}"

@@ -323,7 +323,7 @@ const exportNote = oneAtATime(async (id: string): Promise<void> => {
   />
 
   <div class="head">
-    <button
+    <button data-press="off"
       type="button"
       class="switch"
       onclick={() => (switcherOpen = !switcherOpen)}

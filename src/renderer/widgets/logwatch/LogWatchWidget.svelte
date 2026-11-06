@@ -460,7 +460,7 @@ $effect(() => {
       <span class="figure err"><small>ERR 5 MIN</small><b data-testid="logwatch-err">{counts.ERR}</b></span>
       <span class="figure warn"><small>WARN 5 MIN</small><b>{counts.WRN}</b></span>
       <span class="where" data-testid="logwatch-where">
-        <button
+        <button data-press="off"
           type="button"
           class="file"
           onclick={chooseAnother}

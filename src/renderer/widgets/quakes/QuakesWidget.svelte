@@ -203,7 +203,7 @@ function meta(quake: Quake): string {
   {/if}
 
   {#if source !== null}
-    <button
+    <button data-press="off"
       type="button"
       class="credit"
       title={SOURCES[source].page}

@@ -542,7 +542,7 @@ function sparkOf(candles: readonly CandlePoint[], range: Parameters<typeof divid
           data-pct={pct.toFixed(2)}
           data-clipped={clipped}
         >
-          <button
+          <button data-press="off"
             type="button"
             class="hit"
             onclick={() => openDetail(row.symbol)}

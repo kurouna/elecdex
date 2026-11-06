@@ -573,7 +573,7 @@ function telemetry(ballot: Ballot): string | null {
         <span class="said quiet">awaiting motion · type one below</span>
       {:else}
         {#key session.id}
-          <button
+          <button data-press="off"
             type="button"
             class="said fx-rise"
             title={motionOpen ? 'show less' : session.motion}
@@ -585,10 +585,10 @@ function telemetry(ballot: Ballot): string | null {
         {/key}
         <span class="tools">
           <span class="meta">{time(session.createdAt)}</span>
-          <button type="button" class="act" onclick={() => void copied.copy(session.id, session.motion)}>
+          <button data-press="off" type="button" class="act" onclick={() => void copied.copy(session.id, session.motion)}>
             {copied.key === session.id ? 'copied' : 'copy'}
           </button>
-          <button type="button" class="act" onclick={() => (draft = session.motion)} title="put it in the line below, to change and submit">
+          <button data-press="off" type="button" class="act" onclick={() => (draft = session.motion)} title="put it in the line below, to change and submit">
             edit
           </button>
         </span>

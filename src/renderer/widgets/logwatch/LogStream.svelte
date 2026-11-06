@@ -303,7 +303,7 @@ const lineOf = (row: Row): LogLine | null => (row.item.kind === 'line' ? row.ite
               {#if row.reps > 1}<span class="rep" data-testid="logwatch-reps">×{row.reps}</span>{/if}
               {#if line.fresh}<span class="new" data-testid="logwatch-new">NEW</span>{/if}
               {#if line.more.length > 0}
-                <button
+                <button data-press="off"
                   type="button"
                   class="more"
                   aria-expanded={open.has(line.seq)}

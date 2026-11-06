@@ -1066,20 +1066,18 @@ test('a TRANSLATE button held flashes the accent, as CHIP-8’s and the ELEC-16�
     await translate(page, 'One block.')
     await expect(blocks(page).nth(0)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
     // TEXT: CLEAR and COPY, a toggle, the view switch.
-    await expect.poll(() => held(page.getByRole('button', { name: 'Clear' }))).toBe('tr-press')
-    await expect
-      .poll(() => held(page.getByRole('button', { name: 'Copy' }).last()))
-      .toBe('tr-press')
-    await expect.poll(() => held(page.getByTestId('translate-trip-toggle'))).toBe('tr-press')
-    await expect.poll(() => held(page.getByTestId('translate-view-history'))).toBe('tr-press')
+    await expect.poll(() => held(page.getByRole('button', { name: 'Clear' }))).toBe('press')
+    await expect.poll(() => held(page.getByRole('button', { name: 'Copy' }).last())).toBe('press')
+    await expect.poll(() => held(page.getByTestId('translate-trip-toggle'))).toBe('press')
+    await expect.poll(() => held(page.getByTestId('translate-view-history'))).toBe('press')
     // The settings button every pane shares keeps its own way.
-    expect(await held(page.getByTestId('translate-settings-toggle'))).not.toBe('tr-press')
+    expect(await held(page.getByTestId('translate-settings-toggle'))).not.toBe('press')
     // ENGINE.
     await page.getByTestId('translate-settings-toggle').click()
     const engine = page.getByTestId('translate-engine')
     await expect
       .poll(() => held(engine.getByRole('button', { name: 'Set up a model…' })))
-      .toBe('tr-press')
+      .toBe('press')
   } finally {
     await close()
   }

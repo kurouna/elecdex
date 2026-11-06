@@ -350,7 +350,7 @@ $effect(() => {
   />
 
   <div class="head">
-    <button
+    <button data-press="off"
       type="button"
       class="list-name"
       onclick={() => (listsOpen = !listsOpen)}
@@ -544,7 +544,7 @@ $effect(() => {
               data-testid="todo-edit-title"
             />
           {:else}
-            <button
+            <button data-press="off"
               type="button"
               class="title"
               title="Click to rename"
@@ -569,7 +569,7 @@ $effect(() => {
               data-testid="todo-edit-due"
             />
           {:else}
-            <button
+            <button data-press="off"
               type="button"
               class="when"
               title="Click to set a deadline"
@@ -614,7 +614,7 @@ $effect(() => {
           <span>done</span>
           <span class="band-count">{done.length}</span>
         </button>
-        <button type="button" class="clear" onclick={clearDone} data-testid="todo-clear-done">clear</button>
+        <button data-press="off" type="button" class="clear" onclick={clearDone} data-testid="todo-clear-done">clear</button>
       </div>
       {#if showCompleted}
         {#each done as task (task.id)}

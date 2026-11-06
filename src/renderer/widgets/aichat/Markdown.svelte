@@ -20,7 +20,7 @@ $effect(() => () => copied.dispose())
 </script>
 
 <!-- One line on purpose: white space between these tags would be drawn between the words. -->
-{#snippet inline(nodes: Inline[])}{#each nodes as node, i (i)}{#if node.t === 'text'}{node.v}{:else if node.t === 'code'}<code>{node.v}</code>{:else if node.t === 'strong'}<strong>{@render inline(node.c)}</strong>{:else if node.t === 'em'}<em>{@render inline(node.c)}</em>{:else if node.t === 'del'}<del>{@render inline(node.c)}</del>{:else if node.t === 'link'}<button type="button" class="link" title={node.href} onclick={() => void window.elecdex.system.openExternal(node.href)}>{@render inline(node.c)}</button>{/if}{/each}{/snippet}
+{#snippet inline(nodes: Inline[])}{#each nodes as node, i (i)}{#if node.t === 'text'}{node.v}{:else if node.t === 'code'}<code>{node.v}</code>{:else if node.t === 'strong'}<strong>{@render inline(node.c)}</strong>{:else if node.t === 'em'}<em>{@render inline(node.c)}</em>{:else if node.t === 'del'}<del>{@render inline(node.c)}</del>{:else if node.t === 'link'}<button data-press="off" type="button" class="link" title={node.href} onclick={() => void window.elecdex.system.openExternal(node.href)}>{@render inline(node.c)}</button>{/if}{/each}{/snippet}
 
 {#snippet block(nodes: Block[], path: string)}
   {#each nodes as node, i (i)}
@@ -32,7 +32,7 @@ $effect(() => () => copied.dispose())
       <div class="code" data-testid="chat-code">
         <div class="code-bar">
           <span>{node.lang}</span>
-          <button type="button" onclick={() => void copied.copy(`${path}${i}`, node.v)} data-testid="chat-code-copy">
+          <button data-press="off" type="button" onclick={() => void copied.copy(`${path}${i}`, node.v)} data-testid="chat-code-copy">
             {copied.key === `${path}${i}` ? 'copied' : 'copy'}
           </button>
         </div>

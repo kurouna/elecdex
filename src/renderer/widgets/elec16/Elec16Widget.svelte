@@ -867,18 +867,4 @@ onDestroy(() => {
   opacity: 0.4;
   cursor: default;
 }
-
-.elec16 :global(:is(.e16-btn, .e16-chip:not(.plain), .tab):active),
-.elec16 :global(.blinking) {
-  animation: e16-press 100ms linear infinite;
-  animation-play-state: var(--ambient-play-state);
-}
-
-@keyframes -global-e16-press {
-  50% {
-    background: var(--accent);
-    color: var(--text-inverse);
-    border-color: var(--accent);
-  }
-}
 </style>

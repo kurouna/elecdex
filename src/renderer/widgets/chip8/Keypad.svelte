@@ -31,7 +31,7 @@ function up(): void {
 <div class="keypad" role="group" aria-label="keypad" data-testid="chip8-keypad">
   {#each KEYPAD_LAYOUT as row, r (r)}
     {#each row as pad (pad.key)}
-      <button
+      <button data-press="off"
         type="button"
         tabindex="-1"
         class="pad"
