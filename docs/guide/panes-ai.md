@@ -2,7 +2,7 @@ English | [日本語](panes-ai.ja.md) | [简体中文](panes-ai.zh-CN.md)
 
 # AI panes — elecdex
 
-elecdex is a science-fiction terminal emulator and system monitor for Windows, macOS and Linux. This page covers its language-model panes: **AI chat**, which talks to a model you run yourself (Ollama, LM Studio, llama.cpp or any OpenAI-compatible server) or to a hosted service you have an API key for (Anthropic, OpenAI, Gemini, OpenRouter), the **ELEC system**, which puts a yes-or-no motion to a council of three models and resolves their votes, and **TRANSLATE** *(unreleased)*, which translates between 53 languages and Easy Japanese with PLaMo 3 Translate run on this computer. It describes the providers and their two dialects, where API keys are kept, how a long conversation is fitted to a model's context window, attached files and their limits, and what the panes deliberately do not do. elecdex is developed and used on Windows; on macOS and Linux it has been built and run only by the automated tests and is not sufficiently verified by hand.
+elecdex is a science-fiction terminal emulator and system monitor for Windows, macOS and Linux. This page covers its language-model panes: **AI chat**, which talks to a model you run yourself (Ollama, LM Studio, llama.cpp or any OpenAI-compatible server) or to a hosted service you have an API key for (Anthropic, OpenAI, Gemini, OpenRouter), the **ELEC system**, which puts a yes-or-no motion to a council of three models and resolves their votes, and **TRANSLATE**, which translates between 53 languages and Easy Japanese with PLaMo 3 Translate run on this computer. It describes the providers and their two dialects, where API keys are kept, how a long conversation is fitted to a model's context window, attached files and their limits, and what the panes deliberately do not do. elecdex is developed and used on Windows; on macOS and Linux it has been built and run only by the automated tests and is not sufficiently verified by hand.
 
 **On this page**
 
@@ -19,7 +19,7 @@ elecdex is a science-fiction terminal emulator and system monitor for Windows, m
   <br><sub>ai · Business (Dark) — the answers are a stand-in's, made for the picture</sub>
 </p>
 
-The **ai** preset (Ctrl+Shift+F7) holds an AI chat pane over a [TRANSLATE](#translate) *(unreleased)* pane, and on the right the ELEC system over the [GPU](panes-system.md#gpu) pane, which shows the GPU's load and how full its own memory is: what a model run on this machine leans on. Both kinds of AI pane ask a provider only when you send something, and TRANSLATE runs PLaMo 3 Translate on this computer, its engine started only by the first translation, so the preset costs nothing until then.
+The **ai** preset (Ctrl+Shift+F7) holds an AI chat pane over a [TRANSLATE](#translate) pane, and on the right the ELEC system over the [GPU](panes-system.md#gpu) pane, which shows the GPU's load and how full its own memory is: what a model run on this machine leans on. Both kinds of AI pane ask a provider only when you send something, and TRANSLATE runs PLaMo 3 Translate on this computer, its engine started only by the first translation, so the preset costs nothing until then.
 
 - **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI, Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by the operating system and never reach the page, and conversations stay on your computer. Text files, images and PDFs go with a question - picked with **+**, dropped on the pane or pasted as a picture; an image is made small and drawn again before it is sent, so what a camera wrote into the file (where a photo was taken) never leaves.
 - **ELEC system** — put a yes-or-no motion to a council of three models: LOGOS (logic), ETHOS (ethics) and PATHOS (feeling) each judge it from their own standpoint and vote APPROVE, REJECT or ABSTAIN, and the pane resolves it by majority or unanimity. The seats use the providers of the AI chat - the same model in all three will do.
@@ -215,8 +215,6 @@ With **2 rounds** each unit then reads the others' first statements and votes ag
 - While the council sits, its light runs at the display's rate and costs about 70% of one CPU core (measured on the developer's machine); waiting for a motion, nothing moves and the pane costs about 0.5%. It is not in the default layout.
 
 ## TRANSLATE
-
-*(unreleased)*
 
 <p align="center">
   <img src="../screenshots/pane-translate.jpg" alt="The TRANSLATE pane on its own: made-up release notes in English on the left, four blocks joined by numbered links on the spine to their Japanese translation on the right, each translated block followed by its round trip back into English with a chrF score bar; the toolbar shows EN to JA, the polite form, and ROUND TRIP turned on">

@@ -110,7 +110,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 | `npm run gen:cities` | The weather picker's city list (GeoNames) |
 | `npm run gen:orbit-map` | The ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL) |
 | `npm run gen:chip8` | The CHIP-8 library and previews, `resources/chip8/programs.json` |
-| `npm run gen:llama-licenses` | The licences of the llama.cpp build TRANSLATE fetches and of the code built into it, `resources/translate/llama.cpp-licenses.txt`, read from llama.cpp's repository at the build's commit; run it when the build changes *(unreleased)* |
+| `npm run gen:llama-licenses` | The licences of the llama.cpp build TRANSLATE fetches and of the code built into it, `resources/translate/llama.cpp-licenses.txt`, read from llama.cpp's repository at the build's commit; run it when the build changes |
 | `npm run gen:elec16` | The ELEC-16 ROMs (BASIC through e16c, the assembly), the SOFT CARD and the game shelf |
 | `npm run gen:screenshots` | The README screenshots in a demo profile (Windows; build first) |
 | `npm run demo:*` | Screen recordings of the app on stand-ins (Windows; build first); how each is made: [docs/demos.md](../demos.md) |

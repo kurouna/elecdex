@@ -2,7 +2,7 @@
 
 # AI 窗格 — elecdex
 
-elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监视器。本页介绍它的语言模型窗格：**AI chat**，与你自己运行的模型（Ollama、LM Studio、llama.cpp 或任何兼容 OpenAI 的服务器）或你持有 API 密钥的托管服务（Anthropic、OpenAI、Gemini、OpenRouter）对话；以及 **ELEC system**，把一个是非题形式的议案交给由三个模型组成的评议会，并根据它们的投票作出决议；以及 **TRANSLATE** *(unreleased)*，用在本机运行的 PLaMo 3 Translate 在 53 种语言与简易日语之间翻译。本页说明提供方及其两种协议、API 密钥保存在哪里、长对话如何适应模型的上下文窗口、附件及其限制，以及这些窗格有意不做的事情。elecdex 在 Windows 上开发和使用；macOS 和 Linux 只经过自动化测试的构建和运行，尚未经过充分的人工验证。
+elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监视器。本页介绍它的语言模型窗格：**AI chat**，与你自己运行的模型（Ollama、LM Studio、llama.cpp 或任何兼容 OpenAI 的服务器）或你持有 API 密钥的托管服务（Anthropic、OpenAI、Gemini、OpenRouter）对话；以及 **ELEC system**，把一个是非题形式的议案交给由三个模型组成的评议会，并根据它们的投票作出决议；以及 **TRANSLATE**，用在本机运行的 PLaMo 3 Translate 在 53 种语言与简易日语之间翻译。本页说明提供方及其两种协议、API 密钥保存在哪里、长对话如何适应模型的上下文窗口、附件及其限制，以及这些窗格有意不做的事情。elecdex 在 Windows 上开发和使用；macOS 和 Linux 只经过自动化测试的构建和运行，尚未经过充分的人工验证。
 
 **本页内容**
 
@@ -19,7 +19,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
   <br><sub>ai · Business (Dark) — 回答来自为截图准备的替身</sub>
 </p>
 
-**ai** 预设（Ctrl+Shift+F7）包含一个 AI 聊天窗格及其下方的 [TRANSLATE](#translate) *(unreleased)* 窗格，右侧是 ELEC system，其下是 [GPU](panes-system.zh-CN.md#gpu) 窗格。GPU 窗格显示 GPU 的负载和它自身显存的占用：在本机运行的模型所依赖的东西。两种 AI 窗格都只在你发送内容时才询问提供方，TRANSLATE 在本机运行 PLaMo 3 Translate，引擎只在第一次翻译时才启动，所以在那之前这个预设没有任何开销。
+**ai** 预设（Ctrl+Shift+F7）包含一个 AI 聊天窗格及其下方的 [TRANSLATE](#translate) 窗格，右侧是 ELEC system，其下是 [GPU](panes-system.zh-CN.md#gpu) 窗格。GPU 窗格显示 GPU 的负载和它自身显存的占用：在本机运行的模型所依赖的东西。两种 AI 窗格都只在你发送内容时才询问提供方，TRANSLATE 在本机运行 PLaMo 3 Translate，引擎只在第一次翻译时才启动，所以在那之前这个预设没有任何开销。
 
 - **AI 聊天** — 与你自己运行的语言模型对话（Ollama、LM Studio、llama.cpp——任何支持 OpenAI chat API 的服务），或与你持有 API 密钥的服务对话（Anthropic、OpenAI、Gemini、OpenRouter）。回答以流式到达，推理过程默认折叠；密钥由操作系统加密，永远不会传到页面；对话保存在你的电脑上。提问时可以附上文本文件、图片和 PDF：用 **+** 选择、拖放到窗格上，或粘贴图片。图片在发送前会被缩小并重新绘制，所以相机写入文件的信息（例如拍摄地点）不会被发送出去。
 - **ELEC system** — 把一个是非题形式的议案交给由三个模型组成的评议会：LOGOS（逻辑）、ETHOS（伦理）和 PATHOS（情感）各自从自己的立场评判，投票 APPROVE、REJECT 或 ABSTAIN，窗格按多数决或全体一致作出决议。席位使用 AI 聊天的提供方——三个席位都用同一个模型也可以。
@@ -215,8 +215,6 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 - 评议期间，光效以显示器的刷新率运行，约占一个 CPU 核心的 70%（在开发者机器上实测）；等待议案时没有任何动画，约 0.5%。不在默认布局中。
 
 ## TRANSLATE
-
-*(unreleased)*
 
 <p align="center">
   <img src="../screenshots/pane-translate.jpg" alt="单独的 TRANSLATE 窗格：左侧是虚构的英文发布说明，四个块通过脊线上带编号的连线与右侧的日文译文相连，每个译好的块下方是译回英文的结果和 chrF 分数条；工具栏显示 EN 到 JA、礼貌体，ROUND TRIP 已开启">

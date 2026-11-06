@@ -21,7 +21,7 @@ elecdex は、Windows・macOS・Linux 向けの SF 風のターミナルエミ�
 | [ネットワークのペイン](panes-network.ja.md) | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet |
 | [開発のペイン](panes-dev.ja.md) | AI Agent、Git、Docker、Log Watch |
 | [外の世界のペイン](panes-world.ja.md) | Orbit、Markets、Weather、RSS、Quakes、地震と津波の通知 |
-| [AI のペイン](panes-ai.ja.md) | AI chat、ELEC system、TRANSLATE *(unreleased)* |
+| [AI のペイン](panes-ai.ja.md) | AI chat、ELEC system、TRANSLATE |
 | [デスクのペイン](panes-desk.ja.md) | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility |
 | [メディアのペイン](panes-media.ja.md) | Spectrum、Browser、YouTube、X、Mixer、Now playing |
 | [レトロのペイン](panes-retro.ja.md) | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） |

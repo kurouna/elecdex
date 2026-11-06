@@ -83,7 +83,7 @@ The type size is kept as `terminal.fontSize` in `settings.json`: 13 px by defaul
 | Ctrl+Shift+P | Find an action | `palette.open` | The action palette: every shortcut's action, saved layout, preset, theme, pane and settings section, found by typing, each with its key. What cannot be undone takes Enter twice |
 | Ctrl+Shift+L | Search the launcher | `launcher.focus` | Searches the launcher; pops one up over the workspace if the layout has none |
 | Ctrl+Shift+U | Open the utility pane | `utility.focus` | The utility pane: the next one in the layout, or popped up if the layout has none; pressed again, put away |
-| Ctrl+Shift+Y | Translate the clipboard | `translate.focus` | The TRANSLATE pane *(unreleased)* with the clipboard's text, translated at once: the next one in the layout, or popped up if the layout has none; with no text on the clipboard, it opens on an empty source |
+| Ctrl+Shift+Y | Translate the clipboard | `translate.focus` | The TRANSLATE pane with the clipboard's text, translated at once: the next one in the layout, or popped up if the layout has none; with no text on the clipboard, it opens on an empty source |
 | Ctrl+Shift+. | Open settings | `settings.open` | The settings dialog |
 
 In the action palette, ↑ ↓ choose, Tab and Shift+Tab change the kind of row, PageUp and PageDown move eight rows, Enter runs and Escape closes. A row that cannot run now stays in the list, set back with the reason (for example *not in a tab group*). Design: [docs/palette.md](../palette.md) (Japanese).
@@ -245,7 +245,7 @@ Ten presets sit under the list in the layouts dialog, each drawn as a small map 
 | **dev** | Ctrl+Shift+F4 | AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT, an AI chat and Log Watch (each group as tabs) |
 | **media** | Ctrl+Shift+F5 | YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs |
 | **desk** | Ctrl+Shift+F6 | Notes, a timer, the calculator, tasks, the calendar, the clipboard and the utility pane |
-| **ai** | Ctrl+Shift+F7 | An AI chat over TRANSLATE (*unreleased*), and the ELEC system over the GPU pane |
+| **ai** | Ctrl+Shift+F7 | An AI chat over TRANSLATE, and the ELEC system over the GPU pane |
 | **cockpit** | Ctrl+Shift+F8 | The CLUSTER pane in place of the system column, a shell under it, and Wi-Fi over Ethernet beside it |
 | **retro** | Ctrl+Shift+F9 | The ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them |
 | **blank** | Ctrl+Shift+F10 | No pane at all, to add your own |

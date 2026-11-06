@@ -27,7 +27,7 @@ sufficiently verified by hand.
 | [Network panes](panes-network.md) | Network status, Network traffic, World view, Connections, Wi-Fi, Ethernet |
 | [Development panes](panes-dev.md) | AI Agent, Git, Docker, Log Watch |
 | [World panes](panes-world.md) | Orbit, Markets, Weather, RSS, Quakes, earthquake and tsunami alerts |
-| [AI panes](panes-ai.md) | AI chat, ELEC system, TRANSLATE *(unreleased)* |
+| [AI panes](panes-ai.md) | AI chat, ELEC system, TRANSLATE |
 | [Desk panes](panes-desk.md) | Calculator, Notes, Tasks, Timer, Clipboard, Calendar, Utility |
 | [Media panes](panes-media.md) | Spectrum, Browser, YouTube, X, Mixer, Now playing |
 | [Retro panes](panes-retro.md) | CHIP-8, ELEC-16 (POCKET, HANDHELD, PLAY-320, SCI-128) |

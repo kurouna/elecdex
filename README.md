@@ -25,7 +25,7 @@ current, secure stack.
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.56 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.57 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -54,7 +54,7 @@ is built on Electron 45, Svelte 5 and TypeScript 7, and is released under the GP
   computed locally (SGP4), a globe of connections placed with a bundled GeoIP database.
 - **Work and AI**: Git (read, FETCH/PULL/PUSH), Docker, Log Watch, Claude Code sessions, AI chat over
   any OpenAI-compatible or Anthropic endpoint with keys kept encrypted by the OS; translation with
-  PLaMo 3 Translate run on this computer *(unreleased)*.
+  PLaMo 3 Translate run on this computer.
 - **Desk and media**: notes, tasks, a timer, the clipboard, a calendar and a calculator; a sound
   spectrum, a mixer and Now Playing.
 - **Machines of its own**: a CHIP-8 emulator and ELEC-16, an original 16-bit pocket computer with
@@ -83,7 +83,7 @@ details are in [Layout presets](docs/guide/presets.md).
     <td align="center" width="50%"><a href="docs/guide/presets.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk layout preset in the Paper theme"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · notes, tasks, timer, clipboard, calendar, utility</sub></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><a href="docs/guide/presets.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai layout preset in the Business (Dark) theme"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · an AI chat over TRANSLATE *(unreleased)*, the ELEC council, the GPU</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai layout preset in the Business (Dark) theme"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · an AI chat over TRANSLATE, the ELEC council, the GPU</sub></td>
     <td align="center" width="50%"><a href="docs/guide/presets.md#cockpit"><img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit layout preset in the Black theme"></a><br><sub><b>cockpit</b> · Ctrl+Shift+F8 · the whole machine on one CLUSTER pane</sub></td>
   </tr>
   <tr>
@@ -100,12 +100,12 @@ details are in [Layout presets](docs/guide/presets.md).
 | Network | Network status, Network traffic, World view, Connections, Wi-Fi, Ethernet | [Network panes](docs/guide/panes-network.md) |
 | Development | AI Agent, Git, Docker, Log Watch | [Development panes](docs/guide/panes-dev.md) |
 | World | Orbit, Markets, Weather, RSS, Quakes, earthquake and tsunami alerts | [World panes](docs/guide/panes-world.md) |
-| AI | AI chat, ELEC system, TRANSLATE *(unreleased)* | [AI panes](docs/guide/panes-ai.md) |
+| AI | AI chat, ELEC system, TRANSLATE | [AI panes](docs/guide/panes-ai.md) |
 | Desk | Calculator, Notes, Tasks, Timer, Clipboard, Calendar, Utility | [Desk panes](docs/guide/panes-desk.md) |
 | Media | Spectrum, Browser, YouTube, X, Mixer, Now playing | [Media panes](docs/guide/panes-media.md) |
 | Retro | CHIP-8, ELEC-16 (POCKET, HANDHELD, PLAY-320, SCI-128) | [Retro panes](docs/guide/panes-retro.md) |
 
-**TRANSLATE** *(unreleased)* translates between 53 languages and Easy Japanese with Preferred
+**TRANSLATE** translates between 53 languages and Easy Japanese with Preferred
 Networks' PLaMo 3 Translate, run on this computer through llama.cpp: nothing you translate leaves
 it. The source is translated block by block, joined to its translation on the spine; LIVE translates
 as you type, ROUND TRIP puts each block back and scores it, a glossary and a context keep the terms,
@@ -245,7 +245,7 @@ Every shortcut can be rebound in *Settings → Keyboard*; the full list is in
 | Calculator's expression evaluator | [elecxzy](https://github.com/kurouna/elecxzy) `src/utils/calc`, copied unmodified into `src/shared/calc/vendor` | MIT |
 | CHIP-8 fonts | [Octo](https://github.com/JohnEarnest/Octo) `js/emulator.js`, copied into `src/shared/chip8/fonts.ts` | MIT |
 | CHIP-8 programs | [chip8Archive](https://github.com/JohnEarnest/chip8Archive), by their authors, in `resources/chip8/archive` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); credited in the pane |
-| TRANSLATE's engine and model *(unreleased)* | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110, and [PLaMo 3 Translate](https://huggingface.co/pfnet) by Preferred Networks: not bundled, fetched in the pane's setup | llama.cpp: MIT; its licences, and those of the code built into llama-server, come with elecdex and are written beside the engine. The model: [PLaMo Community License](https://plamo.preferredai.jp/info/plamo-community-license-ja), read and agreed to in the setup. Built with PLaMo |
+| TRANSLATE's engine and model | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110, and [PLaMo 3 Translate](https://huggingface.co/pfnet) by Preferred Networks: not bundled, fetched in the pane's setup | llama.cpp: MIT; its licences, and those of the code built into llama-server, come with elecdex and are written beside the engine. The model: [PLaMo Community License](https://plamo.preferredai.jp/info/plamo-community-license-ja), read and agreed to in the setup. Built with PLaMo |
 | CHIP-8 test programs (DIAG) | [chip8-test-suite](https://github.com/Timendus/chip8-test-suite) by Timendus, in `resources/chip8/test-suite` with their Octo sources | GPL-3.0 |
 
 The geolocation database is bundled, so there is no account, no API key and no first-run

@@ -83,7 +83,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | Ctrl+Shift+P | Find an action | `palette.open` | アクションパレット: ショートカットのアクション・保存レイアウト・プリセット・テーマ・ペイン・設定のセクションを、文字で探して実行。それぞれのキーつき。取り消せないものは Enter 2 回 |
 | Ctrl+Shift+L | Search the launcher | `launcher.focus` | ランチャーを検索（レイアウトになければワークスペースの上にポップアップ） |
 | Ctrl+Shift+U | Open the utility pane | `utility.focus` | Utility ペインへ（複数あれば押すたびに次へ）。レイアウトになければポップアップし、もう一度押すと閉じる |
-| Ctrl+Shift+Y | Translate the clipboard | `translate.focus` | TRANSLATE ペイン *(unreleased)* へクリップボードの文を持って行き、すぐ訳す（複数あれば押すたびに次へ。レイアウトになければポップアップ）。クリップボードに文がなければ、空の原文で開く |
+| Ctrl+Shift+Y | Translate the clipboard | `translate.focus` | TRANSLATE ペイン へクリップボードの文を持って行き、すぐ訳す（複数あれば押すたびに次へ。レイアウトになければポップアップ）。クリップボードに文がなければ、空の原文で開く |
 | Ctrl+Shift+. | Open settings | `settings.open` | 設定ダイアログ |
 
 アクションパレットでは、↑ ↓ で選び、Tab と Shift+Tab で行の種類を切り替え、PageUp と PageDown で 8 行ずつ動き、Enter で実行、Escape で閉じます。今は実行できない行も一覧に残り、理由（たとえば *not in a tab group*）を添えて薄く表示されます。設計は [docs/palette.md](../palette.md) にあります。
@@ -245,7 +245,7 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 | **dev** | Ctrl+Shift+F4 | AI AGENT、Docker とシェル、clipboard と timer とシェル、GIT と AI チャットと Log Watch（組ごとにタブ） |
 | **media** | Ctrl+Shift+F5 | YouTube (TV) とその下の now playing・spectrum・mixer、タブに重ねた X と RSS |
 | **desk** | Ctrl+Shift+F6 | notes、timer、calculator、tasks、calendar、clipboard、utility |
-| **ai** | Ctrl+Shift+F7 | AI チャットとその下の TRANSLATE（*unreleased*）と、GPU ペインの上に ELEC system |
+| **ai** | Ctrl+Shift+F7 | AI チャットとその下の TRANSLATEと、GPU ペインの上に ELEC system |
 | **cockpit** | Ctrl+Shift+F8 | システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に Wi-Fi と、その下に Ethernet |
 | **retro** | Ctrl+Shift+F9 | ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum |
 | **blank** | Ctrl+Shift+F10 | ペインなし。自分で足していく |

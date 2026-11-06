@@ -196,7 +196,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `ai.providers` | `[]` | 登録した AI プロバイダー。キーはここには保存しません |
 | `ai.systemPrompt` | `""` | すべての会話の先頭に送る |
 | `ai.compact` | `false` | 会話がプロバイダーの窓を超えたら、モデルに要約を求める |
-| `translate.modelId` | `"plamo3-2b-q4km"` | TRANSLATE のモデル *(unreleased)*。マニフェストのもの。エンジンの入手先はここにない（`translate/engine.json`） |
+| `translate.modelId` | `"plamo3-2b-q4km"` | TRANSLATE のモデル。マニフェストのもの。エンジンの入手先はここにない（`translate/engine.json`） |
 | `translate.ctx` | `16384` | エンジンのコンテキスト。4096・8192・16384・32768 トークン |
 | `translate.device` | `"auto"` | `auto`: GPU 版、起動できなければ CPU 版。`cpu`: CPU 版だけ |
 | `translate.idleMinutes` | `10` | 使わなければこの分数でエンジンを止める: 5・10・30、0 で止めない |

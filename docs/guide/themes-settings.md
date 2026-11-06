@@ -196,7 +196,7 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `ai.providers` | `[]` | The AI providers you listed; no key is kept here |
 | `ai.systemPrompt` | `""` | Sent ahead of every conversation |
 | `ai.compact` | `false` | Ask the model for a summary when a conversation outgrows a provider's window |
-| `translate.modelId` | `"plamo3-2b-q4km"` | TRANSLATE's model *(unreleased)*: one of the manifest's; where the engine comes from is not here (`translate/engine.json`) |
+| `translate.modelId` | `"plamo3-2b-q4km"` | TRANSLATE's model: one of the manifest's; where the engine comes from is not here (`translate/engine.json`) |
 | `translate.ctx` | `16384` | The engine's context, 4096, 8192, 16384 or 32768 tokens |
 | `translate.device` | `"auto"` | `auto`: a GPU build, the CPU build if it cannot start; `cpu`: the CPU build only |
 | `translate.idleMinutes` | `10` | Stop the engine after this many minutes unused: 5, 10, 30, or 0 for never |

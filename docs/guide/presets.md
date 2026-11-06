@@ -46,7 +46,7 @@ network traffic, top to bottom, in 18% of the window's width.
 | Ctrl+Shift+F4 | [dev](#dev) | [AI Agent](panes-dev.md#ai-agent); [Docker](panes-dev.md#docker) and a Terminal as tabs; [Clipboard](panes-desk.md#clipboard), [Timer](panes-desk.md#timer) and a Terminal as tabs; [Git](panes-dev.md#git), [AI chat](panes-ai.md#ai-chat) and [Log Watch](panes-dev.md#log-watch) as tabs | Phosphor |
 | Ctrl+Shift+F5 | [media](#media) | YouTube (TV) ([web pane](panes-media.md#browser-youtube-and-x)); [Now playing](panes-media.md#now-playing), [Spectrum](panes-media.md#spectrum), [Mixer](panes-media.md#mixer); X and [RSS](panes-world.md#rss) as tabs | White |
 | Ctrl+Shift+F6 | [desk](#desk) | [Notes](panes-desk.md#notes); [Timer](panes-desk.md#timer) beside [Calculator](panes-desk.md#calculator); [Tasks](panes-desk.md#tasks) over [Clipboard](panes-desk.md#clipboard); [Calendar](panes-desk.md#calendar) over [Utility](panes-desk.md#utility) and [ELEC-16](panes-retro.md#elec-16) SCI as tabs | Paper |
-| Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.md#ai-chat) over [TRANSLATE](panes-ai.md#translate) *(unreleased)*; [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) | Business (Dark) |
+| Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.md#ai-chat) over [TRANSLATE](panes-ai.md#translate); [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | no system column: [Cluster](panes-system.md#cluster) over a [Terminal](panes-system.md#terminal); [Wi-Fi](panes-network.md#wi-fi) over [Ethernet](panes-network.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.md#elec-16), ELEC-16 SCI and [CHIP-8](panes-retro.md#chip-8) as tabs of one pane; [Spectrum](panes-media.md#spectrum) at sixteen bands under them | Tron |
 | Ctrl+Shift+F10 | [blank](#blank) | none | Amber |
@@ -300,7 +300,7 @@ The arrangement elecdex opens with.
 | | |
 | --- | --- |
 | Key | **Ctrl+Shift+F7** |
-| Panes | system column; [AI chat](panes-ai.md#ai-chat) over [TRANSLATE](panes-ai.md#translate) *(unreleased)*; on the right, with the most room, [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) |
+| Panes | system column; [AI chat](panes-ai.md#ai-chat) over [TRANSLATE](panes-ai.md#translate); on the right, with the most room, [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) |
 | Picture | Business (Dark) |
 
 <p align="center">

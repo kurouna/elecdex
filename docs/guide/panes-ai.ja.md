@@ -2,7 +2,7 @@
 
 # AI のペイン — elecdex
 
-elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレータ兼システムモニタです。このページは、言語モデルを使うペインを説明します。自分で動かすモデル（Ollama、LM Studio、llama.cpp、そのほか OpenAI 互換のサーバー）や API キーを持っているホスト型サービス（Anthropic、OpenAI、Gemini、OpenRouter）と話す **AI chat** と、はい／いいえで答える議題を 3 つのモデルの評議会にかけて票を議決する **ELEC system**、この PC で動かす PLaMo 3 Translate で 53 言語とやさしい日本語の間を訳す **TRANSLATE** *(unreleased)* です。プロバイダーと 2 つの方言、API キーの置き場所、長い会話をモデルのコンテキストウィンドウに収める方法、添付ファイルとその上限、あえて持たせていない機能を扱います。elecdex は Windows で開発・使用しています。macOS と Linux は自動テストでビルド・実行しただけで、人の手による確認は十分ではありません。
+elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレータ兼システムモニタです。このページは、言語モデルを使うペインを説明します。自分で動かすモデル（Ollama、LM Studio、llama.cpp、そのほか OpenAI 互換のサーバー）や API キーを持っているホスト型サービス（Anthropic、OpenAI、Gemini、OpenRouter）と話す **AI chat** と、はい／いいえで答える議題を 3 つのモデルの評議会にかけて票を議決する **ELEC system**、この PC で動かす PLaMo 3 Translate で 53 言語とやさしい日本語の間を訳す **TRANSLATE** です。プロバイダーと 2 つの方言、API キーの置き場所、長い会話をモデルのコンテキストウィンドウに収める方法、添付ファイルとその上限、あえて持たせていない機能を扱います。elecdex は Windows で開発・使用しています。macOS と Linux は自動テストでビルド・実行しただけで、人の手による確認は十分ではありません。
 
 **このページの内容**
 
@@ -19,7 +19,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
   <br><sub>ai · Business (Dark) — 回答は撮影用に用意した代役のもの</sub>
 </p>
 
-**ai** プリセット（Ctrl+Shift+F7）には、AI チャットペインとその下の [TRANSLATE](#translate) *(unreleased)* ペインと、右側に ELEC system、その下に [GPU](panes-system.ja.md#gpu) ペインがあります。GPU ペインは GPU の負荷と GPU 自身のメモリの埋まり具合を示します。この機械で動かすモデルが頼るものです。どちらの AI ペインも送信したときにだけプロバイダーに問い合わせ、TRANSLATE は PLaMo 3 Translate をこの PC で動かし、エンジンは最初の翻訳で初めて起動するので、それまでこのプリセットは何も費やしません。
+**ai** プリセット（Ctrl+Shift+F7）には、AI チャットペインとその下の [TRANSLATE](#translate) ペインと、右側に ELEC system、その下に [GPU](panes-system.ja.md#gpu) ペインがあります。GPU ペインは GPU の負荷と GPU 自身のメモリの埋まり具合を示します。この機械で動かすモデルが頼るものです。どちらの AI ペインも送信したときにだけプロバイダーに問い合わせ、TRANSLATE は PLaMo 3 Translate をこの PC で動かし、エンジンは最初の翻訳で初めて起動するので、それまでこのプリセットは何も費やしません。
 
 - **AI チャット** — 自分で動かす言語モデル（Ollama、LM Studio、llama.cpp など、OpenAI のチャット API を話すもの）や、API キーを持っているサービス（Anthropic、OpenAI、Gemini、OpenRouter）と会話できます。回答はストリーミングで届き、推論部分は折りたたまれます。キーは OS によって暗号化されてページには渡らず、会話はこのコンピューターの中にとどまります。テキストファイル・画像・PDF を質問に添えられます。**+** で選ぶか、ペインにドロップするか、画像を貼り付けます。画像は送る前に小さく描き直すので、カメラがファイルに書き込んだ情報（撮影場所など）は外に出ません。
 - **ELEC system** — はい／いいえで答える議題を 3 つのモデルの評議会にかけます。LOGOS（論理）、ETHOS（倫理）、PATHOS（感情）がそれぞれの立場から判断して APPROVE、REJECT、ABSTAIN のいずれかに投票し、ペインが多数決または全会一致で議決します。各席は AI チャットのプロバイダーを使います。3 席すべてが同じモデルでも構いません。
@@ -215,8 +215,6 @@ Ollama では、設定しているコンテキスト長を入力してくださ�
 - 審議の間、光の演出はディスプレイのリフレッシュレートで動き、1 コアの約 70% を使います（開発者の機械での実測）。議題を待っている間は何も動かず、約 0.5% です。既定のレイアウトにはありません。
 
 ## TRANSLATE
-
-*(unreleased)*
 
 <p align="center">
   <img src="../screenshots/pane-translate.jpg" alt="TRANSLATE ペインだけ: 左に英語の架空のリリースノート、4 つのブロックが背骨の番号付きの線で右の日本語訳とつながり、訳した各ブロックの下に英語への訳し戻しと chrF の点数の棒。ツールバーは EN から JA、です・ます、ROUND TRIP がオン">

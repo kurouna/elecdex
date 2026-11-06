@@ -21,7 +21,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | [网络窗格](panes-network.zh-CN.md) | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet |
 | [开发窗格](panes-dev.zh-CN.md) | AI Agent、Git、Docker、Log Watch |
 | [外部世界窗格](panes-world.zh-CN.md) | Orbit、Markets、Weather、RSS、Quakes、地震与海啸提醒 |
-| [AI 窗格](panes-ai.zh-CN.md) | AI chat、ELEC system、TRANSLATE *(unreleased)* |
+| [AI 窗格](panes-ai.zh-CN.md) | AI chat、ELEC system、TRANSLATE |
 | [桌面窗格](panes-desk.zh-CN.md) | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility |
 | [媒体窗格](panes-media.zh-CN.md) | Spectrum、Browser、YouTube、X、Mixer、Now playing |
 | [复古窗格](panes-retro.zh-CN.md) | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） |
