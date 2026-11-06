@@ -46,7 +46,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 ![Black 主题下的 cockpit 预设：浅色底上的近黑文字，带扫描线](../screenshots/elecdex-cockpit.jpg)
 
-![Business (Dark) 主题下的 ai 预设：两个 AI 聊天窗格，以及位于 GPU 窗格之上的 ELEC system；所有回答都由为截图制作的替身写成](../screenshots/elecdex-ai.jpg)
+![Business (Dark) 主题下的 ai 预设：位于 TRANSLATE 窗格之上的 AI 聊天窗格，以及位于 GPU 窗格之上的 ELEC system；所有回答和译文都由为截图制作的替身写成](../screenshots/elecdex-ai.jpg)
 
 ![Paper 主题下的 dev 预设，灰色纸面上的墨色文字：正在工作的 AI 代理、打开虚构仓库的 git 窗格，以及用终端的灰色打印其历史和变更的 shell；代理的记录和仓库都是为截图制作的](../screenshots/elecdex-paper.jpg)
 

@@ -5,6 +5,7 @@ import {
   firstSetupStep,
   formatBytes,
   phaseLamp,
+  sourceOffset,
   tiers,
   whereTextGoes,
 } from '../../src/renderer/widgets/translate/translate-view'
@@ -145,5 +146,21 @@ describe('translate view', () => {
       'pro:8B:3',
       'max:31B:3',
     ])
+  })
+})
+
+describe('sourceOffset', () => {
+  const blocks = [
+    { lead: '', source: 'First.' },
+    { lead: '\n\n  ', source: 'Second.' },
+  ]
+  it('counts the blocks and leads before a point, and clamps it to its block', () => {
+    expect(sourceOffset(blocks, 0, 0)).toBe(0)
+    expect(sourceOffset(blocks, 0, 3)).toBe(3)
+    expect(sourceOffset(blocks, 1, 0)).toBe(10)
+    expect(sourceOffset(blocks, 1, 4)).toBe(14)
+    expect(sourceOffset(blocks, 1, 99)).toBe(17)
+    expect(sourceOffset(blocks, 1, -1)).toBe(10)
+    expect(sourceOffset(blocks, 5, 0)).toBe(17)
   })
 })

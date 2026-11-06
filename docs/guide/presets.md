@@ -46,7 +46,7 @@ network traffic, top to bottom, in 18% of the window's width.
 | Ctrl+Shift+F4 | [dev](#dev) | [AI Agent](panes-dev.md#ai-agent); [Docker](panes-dev.md#docker) and a Terminal as tabs; [Clipboard](panes-desk.md#clipboard), [Timer](panes-desk.md#timer) and a Terminal as tabs; [Git](panes-dev.md#git), [AI chat](panes-ai.md#ai-chat) and [Log Watch](panes-dev.md#log-watch) as tabs | Phosphor |
 | Ctrl+Shift+F5 | [media](#media) | YouTube (TV) ([web pane](panes-media.md#browser-youtube-and-x)); [Now playing](panes-media.md#now-playing), [Spectrum](panes-media.md#spectrum), [Mixer](panes-media.md#mixer); X and [RSS](panes-world.md#rss) as tabs | White |
 | Ctrl+Shift+F6 | [desk](#desk) | [Notes](panes-desk.md#notes); [Timer](panes-desk.md#timer) beside [Calculator](panes-desk.md#calculator); [Tasks](panes-desk.md#tasks) over [Clipboard](panes-desk.md#clipboard); [Calendar](panes-desk.md#calendar) over [Utility](panes-desk.md#utility) and [ELEC-16](panes-retro.md#elec-16) SCI as tabs | Paper |
-| Ctrl+Shift+F7 | [ai](#ai) | two [AI chat](panes-ai.md#ai-chat) panes, one over the other, [TRANSLATE](panes-ai.md#translate) *(unreleased)* behind the second; [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) | Business (Dark) |
+| Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.md#ai-chat) over [TRANSLATE](panes-ai.md#translate) *(unreleased)*; [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | no system column: [Cluster](panes-system.md#cluster) over a [Terminal](panes-system.md#terminal); [Wi-Fi](panes-network.md#wi-fi) over [Ethernet](panes-network.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.md#elec-16), ELEC-16 SCI and [CHIP-8](panes-retro.md#chip-8) as tabs of one pane; [Spectrum](panes-media.md#spectrum) at sixteen bands under them | Tron |
 | Ctrl+Shift+F10 | [blank](#blank) | none | Amber |
@@ -295,16 +295,16 @@ The arrangement elecdex opens with.
 
 ## ai
 
-*Two conversations, a council, and the GPU they run on.*
+*A conversation, a translator, a council, and the GPU they run on.*
 
 | | |
 | --- | --- |
 | Key | **Ctrl+Shift+F7** |
-| Panes | system column; two [AI chat](panes-ai.md#ai-chat) panes, one over the other, [TRANSLATE](panes-ai.md#translate) *(unreleased)* as a tab behind the second; on the right, with the most room, [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) |
+| Panes | system column; [AI chat](panes-ai.md#ai-chat) over [TRANSLATE](panes-ai.md#translate) *(unreleased)*; on the right, with the most room, [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) |
 | Picture | Business (Dark) |
 
 <p align="center">
-  <img src="../screenshots/elecdex-ai.jpg" alt="The ai preset in the Business (Dark) theme, every answer written by a stand-in made for the picture: two AI chat panes one over the other - the top one on Ollama with a question about watching a folder in Node.js answered with a code block, and a second answer arriving, its heading reading RX with the seconds and characters so far; the bottom one on LM Studio, answering what git pull --ff-only refuses to do - and on the right an ELEC system pane, LOGOS and PATHOS lit green with APPROVE, ETHOS outvoted with REJECT, the resolution strip reading APPROVED 2-1-0-0; under it a GPU pane charting a made-up adapter's load and video memory over a minute, with its engines and VRAM and shared memory as bars">
+  <img src="../screenshots/elecdex-ai.jpg" alt="The ai preset in the Business (Dark) theme, every answer written by a stand-in made for the picture: an AI chat pane on Ollama, with a question about watching a folder in Node.js answered with a code block and a second answer arriving, its heading reading RX with the seconds and characters so far; under it a TRANSLATE pane, made-up release notes translated into Japanese block by block with each round trip back into English scored; on the right an ELEC system pane, LOGOS and PATHOS lit green with APPROVE, ETHOS outvoted with REJECT, the resolution strip reading APPROVED 2-1-0-0; under it a GPU pane charting a made-up adapter's load and video memory over a minute, with its engines and VRAM and shared memory as bars">
   <br><sub>ai · Business (Dark) — the answers are a stand-in's, made for the picture</sub>
 </p>
 

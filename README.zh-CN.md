@@ -63,7 +63,7 @@ elecdex 是一款桌面应用，用分屏和标签页把 41 种内置窗格排�
     <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="Paper 主题下的 desk 预设"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · 笔记、任务、计时器、剪贴板、日历、工具</sub></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · 两个 AI 聊天、ELEC 评议、GPU、标签页中的 TRANSLATE *(unreleased)*</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · AI 聊天及其下方的 TRANSLATE *(unreleased)*、ELEC 评议、GPU</sub></td>
     <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#cockpit"><img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black 主题下的 cockpit 预设"></a><br><sub><b>cockpit</b> · Ctrl+Shift+F8 · 整台机器集中在一个 CLUSTER 窗格</sub></td>
   </tr>
   <tr>

@@ -83,7 +83,7 @@ details are in [Layout presets](docs/guide/presets.md).
     <td align="center" width="50%"><a href="docs/guide/presets.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk layout preset in the Paper theme"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · notes, tasks, timer, clipboard, calendar, utility</sub></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><a href="docs/guide/presets.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai layout preset in the Business (Dark) theme"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · two AI chats, the ELEC council, the GPU, TRANSLATE in a tab *(unreleased)*</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai layout preset in the Business (Dark) theme"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · an AI chat over TRANSLATE *(unreleased)*, the ELEC council, the GPU</sub></td>
     <td align="center" width="50%"><a href="docs/guide/presets.md#cockpit"><img src="./docs/screenshots/elecdex-cockpit.jpg" alt="The cockpit layout preset in the Black theme"></a><br><sub><b>cockpit</b> · Ctrl+Shift+F8 · the whole machine on one CLUSTER pane</sub></td>
   </tr>
   <tr>

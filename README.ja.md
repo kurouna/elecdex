@@ -64,7 +64,7 @@ elecdex は、組み込みの 41 種のペインを分割とタブで 1 つの�
     <td align="center" width="50%"><a href="docs/guide/presets.ja.md#desk"><img src="./docs/screenshots/elecdex-desk.jpg" alt="Paper テーマの desk プリセット"></a><br><sub><b>desk</b> · Ctrl+Shift+F6 · メモ、タスク、タイマー、クリップボード、カレンダー、ユーティリティ</sub></td>
   </tr>
   <tr>
-    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) テーマの ai プリセット"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · 2 つの AI チャット、ELEC の評議、GPU、タブに TRANSLATE *(unreleased)*</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#ai"><img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) テーマの ai プリセット"></a><br><sub><b>ai</b> · Ctrl+Shift+F7 · AI チャットとその下の TRANSLATE *(unreleased)*、ELEC の評議、GPU</sub></td>
     <td align="center" width="50%"><a href="docs/guide/presets.ja.md#cockpit"><img src="./docs/screenshots/elecdex-cockpit.jpg" alt="Black テーマの cockpit プリセット"></a><br><sub><b>cockpit</b> · Ctrl+Shift+F8 · マシン全体を 1 枚の CLUSTER ペインに</sub></td>
   </tr>
   <tr>

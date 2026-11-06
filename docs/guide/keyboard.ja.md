@@ -245,7 +245,7 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 | **dev** | Ctrl+Shift+F4 | AI AGENT、Docker とシェル、clipboard と timer とシェル、GIT と AI チャットと Log Watch（組ごとにタブ） |
 | **media** | Ctrl+Shift+F5 | YouTube (TV) とその下の now playing・spectrum・mixer、タブに重ねた X と RSS |
 | **desk** | Ctrl+Shift+F6 | notes、timer、calculator、tasks、calendar、clipboard、utility |
-| **ai** | Ctrl+Shift+F7 | 上下に 2 つの AI チャット（2 つ目の裏に TRANSLATE、*unreleased*）と、GPU ペインの上に ELEC system |
+| **ai** | Ctrl+Shift+F7 | AI チャットとその下の TRANSLATE（*unreleased*）と、GPU ペインの上に ELEC system |
 | **cockpit** | Ctrl+Shift+F8 | システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に Wi-Fi と、その下に Ethernet |
 | **retro** | Ctrl+Shift+F9 | ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum |
 | **blank** | Ctrl+Shift+F10 | ペインなし。自分で足していく |

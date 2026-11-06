@@ -1718,7 +1718,7 @@ Ctrl+Shift+P で開くダイアログ（palette/ActionPalette.svelte）。ショ
 
 ### 5.25 TRANSLATE ペイン（PLaMo 3 Translate をこの PC で、未リリース）
 
-組み込みペイン `translate`（2026-11-06 に段階 5 まで実装、未リリース。ai プリセットの 2 つ目の AI chat の裏のタブ、Ctrl+Shift+Y で呼び出す）。Preferred Networks の PLaMo 3 Translate（GGUF）を llama.cpp の `llama-server` で動かし、53 言語とやさしい日本語の間を訳す。訳す文はこの PC から出ず、外への通信はモデル（とエンジン）のダウンロードだけ（2026-11-05、利用者の依頼）。
+組み込みペイン `translate`（2026-11-06 に段階 5 まで実装、未リリース。ai プリセットの AI chat の下、Ctrl+Shift+Y で呼び出す）。Preferred Networks の PLaMo 3 Translate（GGUF）を llama.cpp の `llama-server` で動かし、53 言語とやさしい日本語の間を訳す。訳す文はこの PC から出ず、外への通信はモデル（とエンジン）のダウンロードだけ（2026-11-05、利用者の依頼）。
 
 - **main が全部持つ**: エンジンの入手・起動（127.0.0.1、空きポート、環境変数で渡すキー、`--no-webui`）・停止、モデルの取得（リビジョン固定、sha256、再開）、PFML3 の組み立てと `/completion` のストリームの中継、用語集・履歴のファイル。ページは llama-server と話さない
 - **寿命**: 最初の翻訳で起動し、使わなければ止める。見えていない間は新しく何も始めない（訳しかけは書き終える）

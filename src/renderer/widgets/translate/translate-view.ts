@@ -150,6 +150,25 @@ export function direction(src: string, tgt: string): string {
   return `${langCode(src)} ▸ ${langCode(tgt)}`
 }
 
+/**
+ * Where a point of the source shown as blocks lies in the source text: past the blocks before it
+ * and their leads, then `offset` into the block's own text (clamped to it). The caret is put
+ * there when a click turns the blocks into the editor (§3, user's report 2026-11-06).
+ */
+export function sourceOffset(
+  blocks: readonly { lead: string; source: string }[],
+  index: number,
+  offset: number,
+): number {
+  let at = 0
+  for (const [i, block] of blocks.entries()) {
+    at += block.lead.length
+    if (i === index) return at + Math.max(0, Math.min(offset, block.source.length))
+    at += block.source.length
+  }
+  return at
+}
+
 /** A block's number on the spine: 01, 02 … */
 export function blockNumber(index: number): string {
   return String(index + 1).padStart(2, '0')

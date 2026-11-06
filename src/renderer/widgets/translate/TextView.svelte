@@ -7,7 +7,7 @@ import { type Glossary, glossaryApplies, MAX_CONTEXT_CHARS } from '@shared/trans
 import { continuesDraft } from '@shared/translate/history'
 import { isSourceLang, isTargetLang, takesForm } from '@shared/translate/languages'
 import type { BlockView, RunView } from '@shared/translate/run'
-import { untrack } from 'svelte'
+import { tick, untrack } from 'svelte'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
@@ -29,6 +29,7 @@ import {
   langName,
   phaseLamp,
   sourceInfo,
+  sourceOffset,
   swapped,
   targetInfo,
   targetMode,
@@ -216,9 +217,112 @@ function stop(): void {
   api.stop(paneId)
 }
 
-function edit(): void {
+/** What the editor opens with: the selection in the source, and a block kept where it was seen. */
+interface EditAt {
+  start: number
+  end: number
+  backward: boolean
+  /** The block that stays put on screen, and where its first glyph was drawn (client y). */
+  keep: { index: number; screenY: number } | null
+}
+
+/**
+ * The source's blocks turn into the editor (§3). The caret goes where the click put it, a
+ * selection made in the blocks is kept, and the textarea is scrolled so the block clicked stays
+ * where it was on screen: never the caret at the end and the text scrolled to it (user's report
+ * 2026-11-06). Opened from the keyboard, the caret goes to the start of the first block in view.
+ */
+async function edit(at: EditAt | null = null): Promise<void> {
   editing = true
-  queueMicrotask(() => textarea?.focus())
+  await tick()
+  const area = textarea
+  if (!area) return
+  area.focus({ preventScroll: true })
+  if (!at) return
+  area.setSelectionRange(at.start, at.end, at.backward ? 'backward' : 'forward')
+  const span = at.keep && mirror?.querySelector<HTMLElement>(`.mseg[data-i="${at.keep.index}"]`)
+  if (at.keep && mirror && span) {
+    // The mirror lays the text out as the textarea wraps it: the block's first glyph in the
+    // textarea, scrolled to where that glyph was on screen, so the text does not move. Glyph
+    // against glyph on both sides, never a line box against a glyph (half the leading apart).
+    mirror.style.width = `${area.clientWidth}px`
+    const glyph = (span.getClientRects()[0]?.top ?? 0) - mirror.getBoundingClientRect().top
+    const y = at.keep.screenY - area.getBoundingClientRect().top
+    area.scrollTop = Math.max(0, glyph - y)
+  }
+}
+
+/** A point of the page's selection, as an offset in the source; null outside the blocks. */
+function sourcePoint(node: Node | null, offset: number): number | null {
+  const element = node instanceof Element ? node : (node?.parentElement ?? null)
+  const seg = element?.closest<HTMLElement>('.blocks .seg')
+  if (!seg || !run) return null
+  const within = node === seg ? (offset === 0 ? 0 : (seg.textContent ?? '').length) : offset
+  return sourceOffset(run.blocks, Number(seg.dataset.i), within)
+}
+
+/** A block's place on screen: where its first glyph is drawn. */
+function keepOf(seg: HTMLElement | null): EditAt['keep'] {
+  if (!seg) return null
+  const first = seg.firstChild
+  let screenY = seg.getBoundingClientRect().top
+  if (first instanceof Text && first.length > 0) {
+    const range = document.createRange()
+    range.setStart(first, 0)
+    range.setEnd(first, 1)
+    // Ranges without a layout to measure (a test's DOM) keep the block's own top.
+    screenY = range.getClientRects?.()[0]?.top ?? screenY
+  }
+  return { index: Number(seg.dataset.i), screenY }
+}
+
+/** The block a node of the selection is in, or null. */
+const segOf = (node: Node | null): HTMLElement | null =>
+  (node instanceof Element ? node : (node?.parentElement ?? null))?.closest<HTMLElement>(
+    '.blocks .seg',
+  ) ?? null
+
+/** A click in the blocks: the selection it left there (a caret, or what was dragged over). */
+function editFromClick(event: MouseEvent): void {
+  const selection = window.getSelection()
+  const anchor = selection ? sourcePoint(selection.anchorNode, selection.anchorOffset) : null
+  const focus = selection ? sourcePoint(selection.focusNode, selection.focusOffset) : null
+  // The block to keep in place: where the selection ends (a drag across blocks, or a click in the
+  // gap between two, is sent to the blocks' box, not to a block), else the block clicked.
+  const seg =
+    segOf(selection?.focusNode ?? null) ??
+    segOf(selection?.anchorNode ?? null) ??
+    (event.target as Element | null)?.closest<HTMLElement>('.blocks .seg') ??
+    null
+  if (anchor === null) {
+    // Below the last block, or on no text: the end of the source, its last block kept in place.
+    const last = srcText?.querySelector<HTMLElement>('.blocks .seg:last-of-type') ?? null
+    void edit({ start: text.length, end: text.length, backward: false, keep: keepOf(seg ?? last) })
+    return
+  }
+  const other = focus ?? anchor
+  void edit({
+    start: Math.min(anchor, other),
+    end: Math.max(anchor, other),
+    backward: other < anchor,
+    keep: keepOf(seg),
+  })
+}
+
+/** Enter on the blocks: the caret at the start of the first block in view, kept where it is. */
+function editFromKey(): void {
+  const box = srcText
+  const segs = [...(box?.querySelectorAll<HTMLElement>('.blocks .seg') ?? [])]
+  const top = box?.getBoundingClientRect().top ?? 0
+  // The first block wholly in view, so its start (the caret) is on screen; else the first in part.
+  const seen =
+    segs.find((seg) => seg.getBoundingClientRect().top >= top) ??
+    segs.find((seg) => seg.getBoundingClientRect().bottom > top) ??
+    segs[0] ??
+    null
+  const index = seen ? Number(seen.dataset.i) : 0
+  const start = run ? sourceOffset(run.blocks, index, 0) : 0
+  void edit({ start, end: start, backward: false, keep: keepOf(seen) })
 }
 
 function clear(): void {
@@ -229,7 +333,7 @@ function clear(): void {
   text = ''
   lastText = ''
   draftId = newDraftId()
-  edit()
+  void edit()
 }
 
 function swap(): void {
@@ -251,7 +355,7 @@ function copy(): void {
 function onBlocksKey(event: KeyboardEvent): void {
   if (event.key === 'Enter' && !event.ctrlKey && !event.isComposing) {
     event.preventDefault()
-    edit()
+    editFromKey()
   }
 }
 
@@ -267,7 +371,7 @@ $effect(() => {
     text = call.text
     lastText = text
     draftId = newDraftId()
-    if (call.text.trim() === '') edit()
+    if (call.text.trim() === '') void edit()
     else void translate()
   })
 })
@@ -656,7 +760,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
         <div class="text" bind:this={srcText} onscroll={schedule}>
           {#if showBlocks && run !== null}
             <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <div class="blocks" role="textbox" tabindex="0" aria-label="Source text" onclick={edit} onkeydown={onBlocksKey} data-testid="translate-source-blocks">
+            <div class="blocks" role="textbox" tabindex="0" aria-label="Source text" onclick={editFromClick} onkeydown={onBlocksKey} data-testid="translate-source-blocks">
               {#each run.blocks as block (block.index)}
                 <p
                   class="seg"

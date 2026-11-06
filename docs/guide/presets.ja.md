@@ -44,7 +44,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 | Ctrl+Shift+F4 | [dev](#dev) | [AI Agent](panes-dev.ja.md#ai-agent)、[Docker](panes-dev.ja.md#docker) とシェルのタブ、[Clipboard](panes-desk.ja.md#clipboard)・[Timer](panes-desk.ja.md#timer)・シェルのタブ、[Git](panes-dev.ja.md#git)・[AI chat](panes-ai.ja.md#ai-chat)・[Log Watch](panes-dev.ja.md#log-watch) のタブ | Phosphor |
 | Ctrl+Shift+F5 | [media](#media) | YouTube (TV)（[Web ペイン](panes-media.ja.md#browser-youtube-and-x)）、[Now playing](panes-media.ja.md#now-playing)・[Spectrum](panes-media.ja.md#spectrum)・[Mixer](panes-media.ja.md#mixer)、X と [RSS](panes-world.ja.md#rss) のタブ | White |
 | Ctrl+Shift+F6 | [desk](#desk) | [Notes](panes-desk.ja.md#notes)、[Timer](panes-desk.ja.md#timer) と [Calculator](panes-desk.ja.md#calculator)、[Tasks](panes-desk.ja.md#tasks) の下に [Clipboard](panes-desk.ja.md#clipboard)、[Calendar](panes-desk.ja.md#calendar) の下に [Utility](panes-desk.ja.md#utility) と [ELEC-16](panes-retro.ja.md#elec-16) SCI のタブ | Paper |
-| Ctrl+Shift+F7 | [ai](#ai) | 上下に 2 つの [AI chat](panes-ai.ja.md#ai-chat)（2 つ目の裏に [TRANSLATE](panes-ai.ja.md#translate) *(unreleased)*）、[ELEC system](panes-ai.ja.md#elec-system) の下に [GPU](panes-system.ja.md#gpu) | Business (Dark) |
+| Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.ja.md#ai-chat) の下に [TRANSLATE](panes-ai.ja.md#translate) *(unreleased)*、[ELEC system](panes-ai.ja.md#elec-system) の下に [GPU](panes-system.ja.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | システムの列なし。[Cluster](panes-system.ja.md#cluster) の下に [Terminal](panes-system.ja.md#terminal)、[Wi-Fi](panes-network.ja.md#wi-fi) の下に [Ethernet](panes-network.ja.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.ja.md#elec-16)・ELEC-16 SCI・[CHIP-8](panes-retro.ja.md#chip-8) をタブにした 1 つのペイン、その下に 16 バンドの [Spectrum](panes-media.ja.md#spectrum) | Tron |
 | Ctrl+Shift+F10 | [blank](#blank) | なし | Amber |
@@ -272,16 +272,16 @@ elecdex を最初に開いたときの配置です。
 
 ## ai
 
-*2 つの会話と評議会、それを動かす GPU。*
+*会話と翻訳と評議会、それを動かす GPU。*
 
 | | |
 | --- | --- |
 | キー | **Ctrl+Shift+F7** |
-| ペイン | システムの列。上下に 2 つの [AI chat](panes-ai.ja.md#ai-chat)、2 つ目の裏のタブに [TRANSLATE](panes-ai.ja.md#translate) *(unreleased)*。右のいちばん広い列に [ELEC system](panes-ai.ja.md#elec-system)、その下に [GPU](panes-system.ja.md#gpu) |
+| ペイン | システムの列。[AI chat](panes-ai.ja.md#ai-chat) の下に [TRANSLATE](panes-ai.ja.md#translate) *(unreleased)*。右のいちばん広い列に [ELEC system](panes-ai.ja.md#elec-system)、その下に [GPU](panes-system.ja.md#gpu) |
 | 画像 | Business (Dark) |
 
 <p align="center">
-  <img src="../screenshots/elecdex-ai.jpg" alt="Business (Dark) テーマの ai プリセット（回答はすべて撮影用に用意した代役によるもの）：上下に並んだ 2 つの AI チャットペイン。上は Ollama で、Node.js でフォルダーを監視する方法への、コードブロック付きの回答と、届きつつある 2 つ目の回答（見出しに RX と経過秒数・文字数）。下は LM Studio で、git pull --ff-only が何を拒むかへの回答。右に ELEC system ペイン：LOGOS と PATHOS は APPROVE で緑に点灯し、REJECT で少数となった ETHOS、議決の帯は APPROVED 2-1-0-0。その下に GPU ペイン：架空のアダプタの負荷とビデオメモリの 1 分間の推移、エンジンごとの負荷、VRAM と共有メモリの棒">
+  <img src="../screenshots/elecdex-ai.jpg" alt="Business (Dark) テーマの ai プリセット（回答と訳はすべて撮影用に用意した代役によるもの）：AI チャットペインは Ollama で、Node.js でフォルダーを監視する方法への、コードブロック付きの回答と、届きつつある 2 つ目の回答（見出しに RX と経過秒数・文字数）。その下に TRANSLATE ペイン：架空のリリースノートをブロックごとに日本語に訳し、それぞれ英語への訳し戻しに点数を付けたもの。右に ELEC system ペイン：LOGOS と PATHOS は APPROVE で緑に点灯し、REJECT で少数となった ETHOS、議決の帯は APPROVED 2-1-0-0。その下に GPU ペイン：架空のアダプタの負荷とビデオメモリの 1 分間の推移、エンジンごとの負荷、VRAM と共有メモリの棒">
   <br><sub>ai · Business (Dark) — 回答は撮影用に用意した代役のもの</sub>
 </p>
 

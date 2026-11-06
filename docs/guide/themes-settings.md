@@ -46,7 +46,7 @@ Eight themes switch live, without a reload: the page sets the theme as CSS varia
 
 ![The cockpit preset in the Black theme, near-black on a pale ground with scanlines](../screenshots/elecdex-cockpit.jpg)
 
-![The ai preset in the Business (Dark) theme: two AI chat panes, and the ELEC system over the GPU pane; every answer is a stand-in's, made for the picture](../screenshots/elecdex-ai.jpg)
+![The ai preset in the Business (Dark) theme: an AI chat pane over a TRANSLATE pane, and the ELEC system over the GPU pane; every answer and translation is a stand-in's, made for the picture](../screenshots/elecdex-ai.jpg)
 
 ![The dev preset in the Paper theme, ink on grey paper: an AI agent at work and the git pane over a made-up repository, and the shell printing its history and changes in the terminal's greys; the agents' records and the repository are made up for the picture](../screenshots/elecdex-paper.jpg)
 

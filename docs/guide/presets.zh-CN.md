@@ -41,7 +41,7 @@ network status 和 network traffic，占窗口宽度的 18%。
 | Ctrl+Shift+F4 | [dev](#dev) | [AI Agent](panes-dev.zh-CN.md#ai-agent)；[Docker](panes-dev.zh-CN.md#docker) 与一个 shell 的标签页；[Clipboard](panes-desk.zh-CN.md#clipboard)、[Timer](panes-desk.zh-CN.md#timer) 与一个 shell 的标签页；[Git](panes-dev.zh-CN.md#git)、[AI chat](panes-ai.zh-CN.md#ai-chat) 与 [Log Watch](panes-dev.zh-CN.md#log-watch) 的标签页 | Phosphor |
 | Ctrl+Shift+F5 | [media](#media) | YouTube (TV)（[网页窗格](panes-media.zh-CN.md#browser-youtube-and-x)）；[Now playing](panes-media.zh-CN.md#now-playing)、[Spectrum](panes-media.zh-CN.md#spectrum)、[Mixer](panes-media.zh-CN.md#mixer)；X 与 [RSS](panes-world.zh-CN.md#rss) 的标签页 | White |
 | Ctrl+Shift+F6 | [desk](#desk) | [Notes](panes-desk.zh-CN.md#notes)；[Timer](panes-desk.zh-CN.md#timer) 与 [Calculator](panes-desk.zh-CN.md#calculator)；[Tasks](panes-desk.zh-CN.md#tasks) 下方是 [Clipboard](panes-desk.zh-CN.md#clipboard)；[Calendar](panes-desk.zh-CN.md#calendar) 下方是 [Utility](panes-desk.zh-CN.md#utility) 与 [ELEC-16](panes-retro.zh-CN.md#elec-16) SCI 的标签页 | Paper |
-| Ctrl+Shift+F7 | [ai](#ai) | 上下两个 [AI chat](panes-ai.zh-CN.md#ai-chat)（第二个后面是 [TRANSLATE](panes-ai.zh-CN.md#translate) *(unreleased)*）；[ELEC system](panes-ai.zh-CN.md#elec-system) 下方是 [GPU](panes-system.zh-CN.md#gpu) | Business (Dark) |
+| Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.zh-CN.md#ai-chat) 下方是 [TRANSLATE](panes-ai.zh-CN.md#translate) *(unreleased)*；[ELEC system](panes-ai.zh-CN.md#elec-system) 下方是 [GPU](panes-system.zh-CN.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | 没有系统栏：[Cluster](panes-system.zh-CN.md#cluster) 下方是 [Terminal](panes-system.zh-CN.md#terminal)；[Wi-Fi](panes-network.zh-CN.md#wi-fi) 下方是 [Ethernet](panes-network.zh-CN.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | 把 [ELEC-16](panes-retro.zh-CN.md#elec-16)、ELEC-16 SCI 和 [CHIP-8](panes-retro.zh-CN.md#chip-8) 作为标签页的一个窗格；其下是 16 段的 [Spectrum](panes-media.zh-CN.md#spectrum) | Tron |
 | Ctrl+Shift+F10 | [blank](#blank) | 无 | Amber |
@@ -254,16 +254,16 @@ elecdex 启动时的默认布局。
 
 ## ai
 
-*两段对话、一个评议会，以及运行它们的 GPU。*
+*一段对话、一个翻译、一个评议会，以及运行它们的 GPU。*
 
 | | |
 | --- | --- |
 | 按键 | **Ctrl+Shift+F7** |
-| 窗格 | 系统栏；上下两个 [AI chat](panes-ai.zh-CN.md#ai-chat)，第二个后面的标签页是 [TRANSLATE](panes-ai.zh-CN.md#translate) *(unreleased)*；右侧空间最大的一栏是 [ELEC system](panes-ai.zh-CN.md#elec-system)，其下是 [GPU](panes-system.zh-CN.md#gpu) |
+| 窗格 | 系统栏；[AI chat](panes-ai.zh-CN.md#ai-chat) 下方是 [TRANSLATE](panes-ai.zh-CN.md#translate) *(unreleased)*；右侧空间最大的一栏是 [ELEC system](panes-ai.zh-CN.md#elec-system)，其下是 [GPU](panes-system.zh-CN.md#gpu) |
 | 截图 | Business (Dark) |
 
 <p align="center">
-  <img src="../screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设（所有回答都来自为截图准备的替身）：上下排列的两个 AI 聊天窗格。上面的连接 Ollama，关于在 Node.js 中监视文件夹的提问得到了带代码块的回答，第二个回答正在到达，其标题显示 RX 以及到目前为止的秒数和字符数；下面的连接 LM Studio，回答 git pull --ff-only 会拒绝做什么。右侧是 ELEC system 窗格：LOGOS 和 PATHOS 以绿色亮起并显示 APPROVE，投了 REJECT 的 ETHOS 被多数否决，决议条显示 APPROVED 2-1-0-0；其下是 GPU 窗格：一个虚构适配器最近一分钟的负载和显存曲线、各引擎的负载，以及显存和共享内存的柱">
+  <img src="../screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设（所有回答和译文都来自为截图准备的替身）：连接 Ollama 的 AI 聊天窗格，关于在 Node.js 中监视文件夹的提问得到了带代码块的回答，第二个回答正在到达，其标题显示 RX 以及到目前为止的秒数和字符数；其下是 TRANSLATE 窗格，虚构的发布说明被逐块译成日文，每块译回英文的结果都有分数。右侧是 ELEC system 窗格：LOGOS 和 PATHOS 以绿色亮起并显示 APPROVE，投了 REJECT 的 ETHOS 被多数否决，决议条显示 APPROVED 2-1-0-0；其下是 GPU 窗格：一个虚构适配器最近一分钟的负载和显存曲线、各引擎的负载，以及显存和共享内存的柱">
   <br><sub>ai · Business (Dark) — 回答来自为截图准备的替身</sub>
 </p>
 

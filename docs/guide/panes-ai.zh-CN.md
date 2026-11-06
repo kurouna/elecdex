@@ -15,11 +15,11 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 ## ai 预设
 
 <p align="center">
-  <img src="../screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设（所有回答都来自为截图准备的替身）：上下排列的两个 AI 聊天窗格。上面的连接 Ollama，关于在 Node.js 中监视文件夹的提问得到了带代码块的回答，第二个回答正在到达，其标题显示 RX 以及到目前为止的秒数和字符数；下面的连接 LM Studio，回答 git pull --ff-only 会拒绝做什么。右侧是 ELEC system 窗格：LOGOS 和 PATHOS 以绿色亮起并显示 APPROVE，投了 REJECT 的 ETHOS 被多数否决，决议条显示 APPROVED 2-1-0-0；其下是 GPU 窗格：一个虚构适配器最近一分钟的负载和显存曲线、各引擎的负载，以及显存和共享内存的柱">
+  <img src="../screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设（所有回答和译文都来自为截图准备的替身）：连接 Ollama 的 AI 聊天窗格，关于在 Node.js 中监视文件夹的提问得到了带代码块的回答，第二个回答正在到达，其标题显示 RX 以及到目前为止的秒数和字符数；其下是 TRANSLATE 窗格，虚构的发布说明被逐块译成日文，每块译回英文的结果都有分数。右侧是 ELEC system 窗格：LOGOS 和 PATHOS 以绿色亮起并显示 APPROVE，投了 REJECT 的 ETHOS 被多数否决，决议条显示 APPROVED 2-1-0-0；其下是 GPU 窗格：一个虚构适配器最近一分钟的负载和显存曲线、各引擎的负载，以及显存和共享内存的柱">
   <br><sub>ai · Business (Dark) — 回答来自为截图准备的替身</sub>
 </p>
 
-**ai** 预设（Ctrl+Shift+F7）包含上下排列的两个 AI 聊天窗格，右侧是 ELEC system，其下是 [GPU](panes-system.zh-CN.md#gpu) 窗格。GPU 窗格显示 GPU 的负载和它自身显存的占用：在本机运行的模型所依赖的东西。两种 AI 窗格都只在你发送内容时才询问提供方，所以在那之前这个预设没有任何开销。第二个聊天窗格后面的标签页是 [TRANSLATE](#translate) *(unreleased)*：在本机运行 PLaMo 3 Translate，引擎只在第一次翻译时才启动。
+**ai** 预设（Ctrl+Shift+F7）包含一个 AI 聊天窗格及其下方的 [TRANSLATE](#translate) *(unreleased)* 窗格，右侧是 ELEC system，其下是 [GPU](panes-system.zh-CN.md#gpu) 窗格。GPU 窗格显示 GPU 的负载和它自身显存的占用：在本机运行的模型所依赖的东西。两种 AI 窗格都只在你发送内容时才询问提供方，TRANSLATE 在本机运行 PLaMo 3 Translate，引擎只在第一次翻译时才启动，所以在那之前这个预设没有任何开销。
 
 - **AI 聊天** — 与你自己运行的语言模型对话（Ollama、LM Studio、llama.cpp——任何支持 OpenAI chat API 的服务），或与你持有 API 密钥的服务对话（Anthropic、OpenAI、Gemini、OpenRouter）。回答以流式到达，推理过程默认折叠；密钥由操作系统加密，永远不会传到页面；对话保存在你的电脑上。提问时可以附上文本文件、图片和 PDF：用 **+** 选择、拖放到窗格上，或粘贴图片。图片在发送前会被缩小并重新绘制，所以相机写入文件的信息（例如拍摄地点）不会被发送出去。
 - **ELEC system** — 把一个是非题形式的议案交给由三个模型组成的评议会：LOGOS（逻辑）、ETHOS（伦理）和 PATHOS（情感）各自从自己的立场评判，投票 APPROVE、REJECT 或 ABSTAIN，窗格按多数决或全体一致作出决议。席位使用 AI 聊天的提供方——三个席位都用同一个模型也可以。
@@ -227,7 +227,7 @@ TRANSLATE 通过 llama.cpp 的 `llama-server` 在本机运行 Preferred Networks
 
 | | |
 | --- | --- |
-| 位置 | **ai** 预设（Ctrl+Shift+F7）中第二个 AI chat 后面的标签页；或从选择器添加（Ctrl+Shift+A，"translate"）。**Ctrl+Shift+Y** 带着剪贴板中的文本调出它并立即翻译（布局中没有 TRANSLATE 窗格时以弹出窗口出现）。可置前铺满窗口（Ctrl+Shift+Z）。不在默认布局中。 |
+| 位置 | **ai** 预设（Ctrl+Shift+F7）中 AI chat 的下方；或从选择器添加（Ctrl+Shift+A，"translate"）。**Ctrl+Shift+Y** 带着剪贴板中的文本调出它并立即翻译（布局中没有 TRANSLATE 窗格时以弹出窗口出现）。可置前铺满窗口（Ctrl+Shift+Z）。不在默认布局中。 |
 | 读取 / 数据来源 | 引擎：elecdex 获取的 llama-server（llama.cpp b12110）、你自己的 llama-server（b7563 或更高，在引擎设置中选择），或其他地址上的 llama-server。模型：一个 PLaMo 3 Translate GGUF 文件（0.8B、2B、8B 或 31B，Q4_K_M、Q4_0、Q3_K_M 或 Q2_K），在设置中获取一次。文件位于应用数据文件夹（userData）的 `translate/` 中：`engine.json`、`engine/`、`models/`、`glossaries.json`、`history.json`、`llama-server.pid`、`licence-consents.txt`。 |
 | 更新 | 在翻译之前什么都不运行。引擎随第一次翻译启动（加载时显示其日志），10 分钟未使用即停止（5、10、30 分钟或从不）。译文边写边到，main 每 100 ms 传给窗格一次。开启 **LIVE** 时，停止输入 0.6 秒后请求翻译，只重新翻译有变化的块。打开引擎设置时，会向 Hugging Face 询问已获取模型的新版本（24 小时最多一次）。 |
 | 平台 | 获取的引擎：Windows 为 Vulkan 版和 CPU 版（x64；Arm64 只有 CPU 版），macOS 为 Metal 版（Apple 芯片；Intel 为 CPU 版），Linux 为 Vulkan 版和 CPU 版（x64）。设备为 AUTO 时先尝试 GPU 版，无法启动则改用 CPU 版。macOS 和 Linux 尚未经过充分的人工验证。 |

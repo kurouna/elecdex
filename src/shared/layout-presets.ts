@@ -196,21 +196,22 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
       ),
   },
   {
-    // Two conversations one over the other, and the council on the right with
+    // A conversation over TRANSLATE, and the council on the right with
     // the most room, which its three plates are drawn for (user decision
     // 2026-10-01). Both kinds of pane ask a provider only when the user sends,
     // so the preset costs nothing until then. Under the council the GPU, which a
-    // model run on this machine leans on (user decision 2026-10-17). TRANSLATE is a
-    // tab behind the second conversation: the model it runs on this machine is
-    // the GPU's too, and it starts nothing until something is translated.
+    // model run on this machine leans on (user decision 2026-10-17). TRANSLATE under
+    // the conversation, alone (user decision 2026-11-06: a second chat beside one
+    // above was one too many): the model it runs on this machine is the GPU's too,
+    // and it starts nothing until something is translated.
     id: 'ai',
     name: 'ai',
     description:
-      'two conversations with models, a translator behind the second, a council of three to put a motion to, and the GPU they run on',
+      'a conversation with a model over a translator, a council of three to put a motion to, and the GPU they run on',
     build: () =>
       withSystemColumn(
         [
-          split('column', [pane('aichat'), tabs([pane('aichat'), pane('translate')])], [0.5, 0.5]),
+          split('column', [pane('aichat'), pane('translate')], [0.5, 0.5]),
           split('column', [pane('elec'), pane('gpu')], [0.74, 0.26]),
         ],
         [0.45, 0.55],

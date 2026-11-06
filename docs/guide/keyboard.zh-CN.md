@@ -245,7 +245,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | **dev** | Ctrl+Shift+F4 | AI AGENT；Docker 和 shell；剪贴板、计时器和 shell；GIT、AI 聊天和 Log Watch（每组都是标签页） |
 | **media** | Ctrl+Shift+F5 | YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页 |
 | **desk** | Ctrl+Shift+F6 | 记事、计时器、计算器、任务、日历、剪贴板和实用工具 |
-| **ai** | Ctrl+Shift+F7 | 上下两个 AI 聊天（第二个后面是 TRANSLATE，*unreleased*），以及位于 GPU 窗格之上的 ELEC system |
+| **ai** | Ctrl+Shift+F7 | AI 聊天及其下方的 TRANSLATE（*unreleased*），以及位于 GPU 窗格之上的 ELEC system |
 | **cockpit** | Ctrl+Shift+F8 | 以 CLUSTER 面板取代系统栏，下方一个 shell，右侧上方是 Wi-Fi、下方是 Ethernet |
 | **retro** | Ctrl+Shift+F9 | ELEC-16 和 CHIP-8 作为一个窗格的标签页，下方是 16 段频谱 |
 | **blank** | Ctrl+Shift+F10 | 没有窗格，由你自己添加 |

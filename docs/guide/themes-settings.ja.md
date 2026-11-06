@@ -46,7 +46,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 
 ![Black テーマの cockpit プリセット。淡い地に黒に近い文字と走査線](../screenshots/elecdex-cockpit.jpg)
 
-![Business (Dark) テーマの ai プリセット。2 つの AI チャットペインと、GPU ペインの上の ELEC system。回答はすべて画像用の代役が書いたもの](../screenshots/elecdex-ai.jpg)
+![Business (Dark) テーマの ai プリセット。TRANSLATE ペインの上の AI チャットペインと、GPU ペインの上の ELEC system。回答と訳はすべて画像用の代役が書いたもの](../screenshots/elecdex-ai.jpg)
 
 ![Paper テーマの dev プリセット。灰色の紙にインクの文字で、作業中の AI エージェント、架空のリポジトリを開いた git ペイン、その履歴と変更を端末の灰色で出したシェル。エージェントの記録とリポジトリは画像用に作ったもの](../screenshots/elecdex-paper.jpg)
 

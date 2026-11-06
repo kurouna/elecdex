@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { type ElectronApplication, expect, type Page } from '@playwright/test'
+import { type ElectronApplication, expect, type Locator, type Page } from '@playwright/test'
 import { test } from '../support/shared.js'
 import { openedExternally, stubOpenExternal } from '../support/stubs/external.js'
 import {
@@ -922,6 +922,97 @@ test('a model chosen for SETUP becomes the settings’ only when its fetch start
   } finally {
     await close()
     stopServer(hf.server)
+  }
+})
+
+/** The source as blocks, scrolled to block 25 as a reader would be: its `.seg`. */
+async function scrolledTo25(page: Page) {
+  const many = Array.from({ length: 40 }, (_, i) => `Block ${i + 1} of the source.`).join('\n\n')
+  await translate(page, many)
+  await expect(blocks(page).nth(39)).toHaveAttribute('data-st', 'done', { timeout: 30_000 })
+  const shown = page.getByTestId('translate-source-blocks')
+  await expect(shown).toBeVisible()
+  const seg = shown.locator('.seg[data-i="24"]')
+  const top = await seg.evaluate((el) => (el as HTMLElement).offsetTop - 120)
+  await page.locator('.side.src .text').evaluate((el, at) => {
+    el.scrollTop = at
+  }, top)
+  return seg
+}
+
+/** Where a block's first line of text is on screen, in the blocks. */
+const lineOf = (seg: Locator) =>
+  seg.evaluate((el) => {
+    // The first glyph's top, as it is drawn.
+    const range = document.createRange()
+    range.setStart(el.firstChild as Text, 0)
+    range.setEnd(el.firstChild as Text, 1)
+    return range.getClientRects()[0]?.top ?? Number.NaN
+  })
+
+/**
+ * The editor: its selection, and where a block's first glyph is drawn: the mirror lays the text
+ * out as the textarea does, so its glyph's place in the mirror, less the scroll, is the textarea's.
+ */
+const editorAt = (page: Page, index: number) =>
+  page.getByTestId('translate-source').evaluate((el, i) => {
+    const area = el as HTMLTextAreaElement
+    const mirror = area.parentElement?.querySelector('.mirror') as HTMLElement
+    const span = mirror.querySelector(`.mseg[data-i="${i}"]`) as HTMLElement
+    const glyph = (span.getClientRects()[0]?.top ?? Number.NaN) - mirror.getBoundingClientRect().top
+    return {
+      start: area.selectionStart,
+      end: area.selectionEnd,
+      length: area.value.length,
+      value: area.value,
+      line: area.getBoundingClientRect().top + glyph - area.scrollTop,
+    }
+  }, index)
+
+test('a click in the source opens the editor where it landed, the text not moving', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    const seg = await scrolledTo25(page)
+    const before = await lineOf(seg)
+    const rect = await seg.boundingBox()
+    if (!rect) throw new Error('block 25 is not laid out')
+    // On "Block 2|5 of …", well inside the text.
+    await page.mouse.click(rect.x + 60, rect.y + rect.height / 2)
+    await expect(page.getByTestId('translate-source')).toBeFocused()
+    const at = await editorAt(page, 24)
+    const blockStart = at.value.indexOf('Block 25 ')
+    // The caret is in block 25, not at the end of the source.
+    expect(at.start).toBe(at.end)
+    expect(at.start).toBeGreaterThan(blockStart)
+    expect(at.start).toBeLessThan(blockStart + 'Block 25 of the source.'.length)
+    expect(at.start).not.toBe(at.length)
+    // And its text is drawn where it was, to half a pixel.
+    expect(Math.abs(at.line - before)).toBeLessThan(0.5)
+  } finally {
+    await close()
+  }
+})
+
+test('a drag across two blocks keeps its selection, and the block it ended on stays put', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    const from = await scrolledTo25(page)
+    const to = page.getByTestId('translate-source-blocks').locator('.seg[data-i="25"]')
+    const before = await lineOf(to)
+    const a = await from.boundingBox()
+    const b = await to.boundingBox()
+    if (!a || !b) throw new Error('blocks 25 and 26 are not laid out')
+    // From inside block 25 to inside block 26: the click goes to the blocks' box, not to a block.
+    await page.mouse.move(a.x + 60, a.y + a.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(b.x + 60, b.y + b.height / 2, { steps: 6 })
+    await page.mouse.up()
+    await expect(page.getByTestId('translate-source')).toBeFocused()
+    const at = await editorAt(page, 25)
+    expect(at.value.slice(at.start, at.end)).toMatch(/^\S* of the source\.\n\nBlock 2/)
+    expect(Math.abs(at.line - before)).toBeLessThan(0.5)
+  } finally {
+    await close()
   }
 })
 

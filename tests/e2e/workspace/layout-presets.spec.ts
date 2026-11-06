@@ -265,10 +265,11 @@ test('Ctrl+Shift and a function key go to each preset, and each card names its k
     await expect(widget(page, 'timer')).toBeHidden()
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     await expect(widget(page, 'terminal')).toHaveCount(2)
-    // Two chats one over the other, the council beside them.
+    // A chat over TRANSLATE, alone and not in a tab (user decision 2026-11-06), the council beside.
     await page.keyboard.press('Control+Shift+F7')
     await settleLayout(page)
-    await expect(widget(page, 'aichat')).toHaveCount(2)
+    await expect(widget(page, 'aichat')).toHaveCount(1)
+    await expect(widget(page, 'translate')).toBeVisible()
     await expect(widget(page, 'elec')).toBeVisible()
     // Already among them: the key goes back to it rather than adding another.
     await page.keyboard.press('Control+Shift+F6')

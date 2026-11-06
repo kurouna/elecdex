@@ -202,6 +202,59 @@ describe('TEXT', () => {
   })
 })
 
+describe('TEXT opening the editor from the blocks (user’s report 2026-11-06)', () => {
+  const twoBlocks = (): RunView => {
+    const run = runOf('First block.')
+    const first = run.blocks[0] as RunView['blocks'][number]
+    return {
+      ...run,
+      blocks: [first, { ...first, index: 1, lead: '\n\n', source: 'Second block.' }],
+    }
+  }
+  const textNodeOf = (index: number): Text => {
+    const seg = screen
+      .getByTestId('translate-source-blocks')
+      .querySelector(`.seg[data-i="${index}"]`) as HTMLElement
+    return seg.firstChild as Text
+  }
+  const opened = async () => {
+    await settle()
+    return screen.getByTestId('translate-source') as HTMLTextAreaElement
+  }
+
+  it('puts the caret where the click landed, never at the end', async () => {
+    const { send } = mount()
+    await send(twoBlocks())
+    // A click leaves a caret in the text where it landed: "Second |block."
+    window.getSelection()?.collapse(textNodeOf(1), 7)
+    await fireEvent.click(textNodeOf(1).parentElement as HTMLElement)
+    const area = await opened()
+    // "First block." + "\n\n" + "Second " = 21.
+    expect(area.selectionStart).toBe(21)
+    expect(area.selectionEnd).toBe(21)
+    expect(document.activeElement).toBe(area)
+  })
+
+  it('keeps a selection dragged across blocks, and its direction', async () => {
+    const { send } = mount()
+    await send(twoBlocks())
+    const selection = window.getSelection()
+    selection?.setBaseAndExtent(textNodeOf(1), 6, textNodeOf(0), 6)
+    await fireEvent.click(textNodeOf(1).parentElement as HTMLElement)
+    const area = await opened()
+    expect([area.selectionStart, area.selectionEnd]).toEqual([6, 20])
+    expect(area.selectionDirection).toBe('backward')
+  })
+
+  it('opens at the start of the first block in view from the keyboard', async () => {
+    const { send } = mount()
+    await send(twoBlocks())
+    await fireEvent.keyDown(screen.getByTestId('translate-source-blocks'), { key: 'Enter' })
+    const area = await opened()
+    expect(area.selectionStart).toBe(0)
+  })
+})
+
 describe('TEXT with LIVE and ROUND TRIP', () => {
   const withLive = (live: boolean) => {
     const settings = defaultSettings()

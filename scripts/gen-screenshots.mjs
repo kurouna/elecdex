@@ -141,21 +141,6 @@ const CHAT = [
   },
 ]
 
-/** The bottom pane's conversation: one question, answered whole. */
-const ASIDE = {
-  ask: 'What does git pull --ff-only refuse to do?',
-  answer: [
-    'It refuses to make a merge commit. If your branch and its upstream have both moved on, the pull stops and leaves everything as it was:',
-    '',
-    '```sh',
-    'git pull --ff-only',
-    '# fatal: Not possible to fast-forward, aborting.',
-    '```',
-    '',
-    'Then choose yourself: `git rebase` onto the upstream, or `git merge` it.',
-  ].join('\n'),
-}
-
 /** The text of a request's last user message. */
 function lastAsk(body) {
   const messages = body.messages ?? []
@@ -174,7 +159,7 @@ function aiStandIn(pace = 25) {
       const system = String(body.messages?.[0]?.content ?? '')
       const unit = /UNIT-\d/.exec(system)?.[0]
       const ask = lastAsk(body)
-      const chat = [...CHAT, ASIDE].find((turn) => turn.ask === ask) ?? CHAT[0]
+      const chat = CHAT.find((turn) => turn.ask === ask) ?? CHAT[0]
       const answer = unit !== undefined ? VOTES[unit] : chat.answer
       const wait = unit === undefined && chat === CHAT[1] ? 110 : pace
       res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -201,7 +186,7 @@ function aiStandIn(pace = 25) {
   })
 }
 
-/** The ai preset's two chats, each on a provider of its own, top first. */
+/** The chats of a layout, each on a provider of its own, in order (the last one for any more). */
 function chatsOn(tree, providers) {
   let at = 0
   const visit = (node) => {
@@ -644,11 +629,42 @@ async function ask(chat, question) {
   await chat.getByTestId('aichat-usage').last().waitFor()
 }
 
-/** The council decided, the bottom chat answered, and the top one's second answer arriving. */
+/** Made-up release notes, translated in the TRANSLATE shots by the stand-in engine. */
+const RELEASE_NOTES = [
+  'Release notes',
+  'The metrics collector now runs in its own process, so a slow disk never holds up the window.',
+  'Panes behind a tab stop reading what they do not chart, and take it up again as soon as they are shown.',
+  'Translation runs on this PC: nothing you translate leaves this machine.',
+].join('\n\n')
+
+/** TRANSLATE through the tests' stand-in llama-server at =demo, with a model file in place. */
+const TRANSLATE_STAND_IN = {
+  env: {
+    ELECDEX_LLAMA_SERVER: path.resolve('tests/e2e/support/llama-stub.mjs'),
+    ELECDEX_LLAMA_STUB_MODE: 'demo',
+    ELECDEX_HF_BASE_URL: 'http://127.0.0.1:9',
+    ELECDEX_LLAMA_RELEASES_URL: 'http://127.0.0.1:9',
+  },
+  prepare: (dir) => {
+    const models = path.join(dir, 'translate', 'models', 'plamo3-2b-q4km')
+    mkdirSync(models, { recursive: true })
+    writeFileSync(path.join(models, 'plamo-3-translate-2b-Q4_K_M.gguf'), 'x')
+  },
+}
+
+/** The release notes translated, and their round trips scored. */
+async function translating(page) {
+  const source = page.locator('[data-testid=translate-source]')
+  await source.fill(RELEASE_NOTES)
+  await source.press('Control+Enter')
+  await page.locator('[data-testid=translate-trip-score]').nth(3).waitFor({ timeout: 30_000 })
+}
+
+/** The council decided, the release notes translated, and the chat's second answer arriving. */
 async function conversing(page) {
   const chats = page.locator('[data-testid=pane][data-widget=aichat]')
   await deliberating(page)
-  await ask(chats.nth(1), ASIDE.ask)
+  await translating(page)
   await ask(chats.nth(0), CHAT[0].ask)
   const input = chats.nth(0).getByTestId('aichat-input')
   await input.fill(CHAT[1].ask)
@@ -964,17 +980,18 @@ await shoot('tron', 'elecdex-palette', {
     await page.waitForTimeout(900)
   },
 })
-// The ai preset: two chats on two local servers, and the council, all answered by a stand-in.
+// The ai preset: a chat on a local server, TRANSLATE on the stand-in engine, and the council,
+// all answered by stand-ins.
 if (only.length === 0 || only.includes('elecdex-ai')) {
   const standIn = await aiStandIn()
   const baseUrl = `http://127.0.0.1:${standIn.address().port}/v1`
-  const providers = [
-    { id: 'ollama', name: 'Ollama', kind: 'openai', baseUrl, model: 'qwen3:14b' },
-    { id: 'lmstudio', name: 'LM Studio', kind: 'openai', baseUrl, model: 'gemma-3-12b' },
-  ]
+  const providers = [{ id: 'ollama', name: 'Ollama', kind: 'openai', baseUrl, model: 'qwen3:14b' }]
   await shoot('business-dark', 'elecdex-ai', {
-    layout: chatsOn(preset('ai'), ['ollama', 'lmstudio']),
-    settings: { ai: { providers } },
+    layout: withState(chatsOn(preset('ai'), ['ollama']), {
+      translate: { srcLang: 'en', tgtLang: 'ja', form: 'polite', roundTrip: true },
+    }),
+    settings: { ai: { providers }, translate: { live: false } },
+    ...TRANSLATE_STAND_IN,
     extra: conversing,
   })
   standIn.close()
@@ -1264,29 +1281,9 @@ if (only.length === 0 || only.includes('panes') || only.some((n) => n.startsWith
   await shootPane('translate', 'wide', {
     state: { srcLang: 'en', tgtLang: 'ja', form: 'polite', roundTrip: true },
     settings: { translate: { live: false } },
-    env: {
-      ELECDEX_LLAMA_SERVER: path.resolve('tests/e2e/support/llama-stub.mjs'),
-      ELECDEX_LLAMA_STUB_MODE: 'demo',
-      ELECDEX_HF_BASE_URL: 'http://127.0.0.1:9',
-      ELECDEX_LLAMA_RELEASES_URL: 'http://127.0.0.1:9',
-    },
-    prepare: (dir) => {
-      const models = path.join(dir, 'translate', 'models', 'plamo3-2b-q4km')
-      mkdirSync(models, { recursive: true })
-      writeFileSync(path.join(models, 'plamo-3-translate-2b-Q4_K_M.gguf'), 'x')
-    },
+    ...TRANSLATE_STAND_IN,
     extra: async (page) => {
-      const source = page.locator('[data-testid=translate-source]')
-      await source.fill(
-        [
-          'Release notes',
-          'The metrics collector now runs in its own process, so a slow disk never holds up the window.',
-          'Panes behind a tab stop reading what they do not chart, and take it up again as soon as they are shown.',
-          'Translation runs on this PC: nothing you translate leaves this machine.',
-        ].join('\n\n'),
-      )
-      await source.press('Control+Enter')
-      await page.locator('[data-testid=translate-trip-score]').nth(3).waitFor({ timeout: 30_000 })
+      await translating(page)
       await page.mouse.move(W / 2, 4)
       await page.waitForTimeout(3500)
     },

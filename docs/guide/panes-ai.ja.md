@@ -15,11 +15,11 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 ## ai プリセット
 
 <p align="center">
-  <img src="../screenshots/elecdex-ai.jpg" alt="Business (Dark) テーマの ai プリセット（回答はすべて撮影用に用意した代役によるもの）：上下に並んだ 2 つの AI チャットペイン。上は Ollama で、Node.js でフォルダーを監視する方法への、コードブロック付きの回答と、届きつつある 2 つ目の回答（見出しに RX と経過秒数・文字数）。下は LM Studio で、git pull --ff-only が何を拒むかへの回答。右に ELEC system ペイン：LOGOS と PATHOS は APPROVE で緑に点灯し、REJECT で少数となった ETHOS、議決の帯は APPROVED 2-1-0-0。その下に GPU ペイン：架空のアダプタの負荷とビデオメモリの 1 分間の推移、エンジンごとの負荷、VRAM と共有メモリの棒">
+  <img src="../screenshots/elecdex-ai.jpg" alt="Business (Dark) テーマの ai プリセット（回答と訳はすべて撮影用に用意した代役によるもの）：AI チャットペインは Ollama で、Node.js でフォルダーを監視する方法への、コードブロック付きの回答と、届きつつある 2 つ目の回答（見出しに RX と経過秒数・文字数）。その下に TRANSLATE ペイン：架空のリリースノートをブロックごとに日本語に訳し、それぞれ英語への訳し戻しに点数を付けたもの。右に ELEC system ペイン：LOGOS と PATHOS は APPROVE で緑に点灯し、REJECT で少数となった ETHOS、議決の帯は APPROVED 2-1-0-0。その下に GPU ペイン：架空のアダプタの負荷とビデオメモリの 1 分間の推移、エンジンごとの負荷、VRAM と共有メモリの棒">
   <br><sub>ai · Business (Dark) — 回答は撮影用に用意した代役のもの</sub>
 </p>
 
-**ai** プリセット（Ctrl+Shift+F7）には、上下に並んだ 2 つの AI チャットペインと、右側に ELEC system、その下に [GPU](panes-system.ja.md#gpu) ペインがあります。GPU ペインは GPU の負荷と GPU 自身のメモリの埋まり具合を示します。この機械で動かすモデルが頼るものです。どちらの AI ペインも送信したときにだけプロバイダーに問い合わせるので、それまでこのプリセットは何も費やしません。2 つ目のチャットの裏のタブには [TRANSLATE](#translate) *(unreleased)* があります。PLaMo 3 Translate をこの PC で動かすペインで、エンジンは最初の翻訳で初めて起動します。
+**ai** プリセット（Ctrl+Shift+F7）には、AI チャットペインとその下の [TRANSLATE](#translate) *(unreleased)* ペインと、右側に ELEC system、その下に [GPU](panes-system.ja.md#gpu) ペインがあります。GPU ペインは GPU の負荷と GPU 自身のメモリの埋まり具合を示します。この機械で動かすモデルが頼るものです。どちらの AI ペインも送信したときにだけプロバイダーに問い合わせ、TRANSLATE は PLaMo 3 Translate をこの PC で動かし、エンジンは最初の翻訳で初めて起動するので、それまでこのプリセットは何も費やしません。
 
 - **AI チャット** — 自分で動かす言語モデル（Ollama、LM Studio、llama.cpp など、OpenAI のチャット API を話すもの）や、API キーを持っているサービス（Anthropic、OpenAI、Gemini、OpenRouter）と会話できます。回答はストリーミングで届き、推論部分は折りたたまれます。キーは OS によって暗号化されてページには渡らず、会話はこのコンピューターの中にとどまります。テキストファイル・画像・PDF を質問に添えられます。**+** で選ぶか、ペインにドロップするか、画像を貼り付けます。画像は送る前に小さく描き直すので、カメラがファイルに書き込んだ情報（撮影場所など）は外に出ません。
 - **ELEC system** — はい／いいえで答える議題を 3 つのモデルの評議会にかけます。LOGOS（論理）、ETHOS（倫理）、PATHOS（感情）がそれぞれの立場から判断して APPROVE、REJECT、ABSTAIN のいずれかに投票し、ペインが多数決または全会一致で議決します。各席は AI チャットのプロバイダーを使います。3 席すべてが同じモデルでも構いません。
@@ -227,7 +227,7 @@ TRANSLATE は、Preferred Networks の PLaMo 3 Translate を llama.cpp の `llam
 
 | | |
 | --- | --- |
-| 場所 | **ai** プリセット（Ctrl+Shift+F7）の 2 つ目の AI chat の裏のタブ。またはピッカー（Ctrl+Shift+A、「translate」）から追加。**Ctrl+Shift+Y** でクリップボードの文を持って呼び出し、すぐに訳す（レイアウトに TRANSLATE ペインがなければポップアップ）。ウィンドウいっぱいに前へ出せる（Ctrl+Shift+Z）。既定のレイアウトにはない。 |
+| 場所 | **ai** プリセット（Ctrl+Shift+F7）の AI chat の下。またはピッカー（Ctrl+Shift+A、「translate」）から追加。**Ctrl+Shift+Y** でクリップボードの文を持って呼び出し、すぐに訳す（レイアウトに TRANSLATE ペインがなければポップアップ）。ウィンドウいっぱいに前へ出せる（Ctrl+Shift+Z）。既定のレイアウトにはない。 |
 | 読むもの / データソース | エンジン: elecdex が取得する llama-server（llama.cpp b12110）、自分の llama-server（b7563 以降、エンジンの設定で選ぶ）、またはほかのアドレスの llama-server。モデル: PLaMo 3 Translate の GGUF ファイル 1 つ（0.8B・2B・8B・31B、Q4_K_M・Q4_0・Q3_K_M・Q2_K）をセットアップで 1 度だけ取得する。ファイルはアプリのデータフォルダ（userData）の `translate/` にある: `engine.json`、`engine/`、`models/`、`glossaries.json`、`history.json`、`llama-server.pid`、`licence-consents.txt`。 |
 | 更新 | 何か訳すまで何も動かない。エンジンは最初の翻訳で起動し（読み込みの間はそのログを出す）、10 分使わなければ止まる（5・10・30 分・止めない）。訳文は書かれるそばから届き、main が 100 ms ごとにペインへ渡す。**LIVE** がオンなら、打ち終えて 0.6 秒で頼み、変わったブロックだけを訳し直す。エンジンの設定を開くと、取得済みのモデルの新しい版を Hugging Face に聞く（24 時間に 1 回まで）。 |
 | プラットフォーム | 取得するエンジン: Windows は Vulkan 版と CPU 版（x64。Arm64 は CPU 版だけ）、macOS は Metal 版（Apple シリコン。Intel は CPU 版）、Linux は Vulkan 版と CPU 版（x64）。デバイスが AUTO なら GPU 版を先に試し、起動できなければ CPU 版に替える。macOS と Linux は手で十分に確かめていない。 |

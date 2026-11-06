@@ -245,7 +245,7 @@ Ten presets sit under the list in the layouts dialog, each drawn as a small map 
 | **dev** | Ctrl+Shift+F4 | AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT, an AI chat and Log Watch (each group as tabs) |
 | **media** | Ctrl+Shift+F5 | YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs |
 | **desk** | Ctrl+Shift+F6 | Notes, a timer, the calculator, tasks, the calendar, the clipboard and the utility pane |
-| **ai** | Ctrl+Shift+F7 | Two AI chats one over the other (TRANSLATE behind the second, *unreleased*), and the ELEC system over the GPU pane |
+| **ai** | Ctrl+Shift+F7 | An AI chat over TRANSLATE (*unreleased*), and the ELEC system over the GPU pane |
 | **cockpit** | Ctrl+Shift+F8 | The CLUSTER pane in place of the system column, a shell under it, and Wi-Fi over Ethernet beside it |
 | **retro** | Ctrl+Shift+F9 | The ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them |
 | **blank** | Ctrl+Shift+F10 | No pane at all, to add your own |
