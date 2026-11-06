@@ -62,6 +62,23 @@ const DEMO = {
     'Panes behind a tab stop reading what they do not graph, and read it again as soon as they are shown.',
   '翻訳はこの PC で動きます。訳した文がこのマシンの外に出ることはありません。':
     'Translation runs on this PC: text you translate never leaves this machine.',
+  // The posting shot's longer notes (gen-screenshots.mjs, social-black-translate).
+  'The TRANSLATE pane translates between 53 languages and Easy Japanese, block by block.':
+    'TRANSLATE ペインは、53 の言語とやさしい日本語の間を、ブロックごとに訳します。',
+  'Each block is joined to its translation on the spine, so you can see where every sentence went.':
+    'ブロックはそれぞれ背骨で訳文とつながるので、どの文がどこへ訳されたかが分かります。',
+  'Round trip puts each translation back into the source language and scores how close it comes.':
+    'ラウンドトリップは、訳文を元の言語へ訳し戻し、どれだけ近いかを点数で示します。',
+  'A glossary keeps your terms the same from one block to the next.':
+    '用語集を使えば、ブロックが変わっても用語がそろいます。',
+  'TRANSLATE ペインは、53 の言語とやさしい日本語の間を、ブロックごとに訳します。':
+    'The TRANSLATE pane translates between 53 languages and Easy Japanese, one block at a time.',
+  'ブロックはそれぞれ背骨で訳文とつながるので、どの文がどこへ訳されたかが分かります。':
+    'Each block is linked to its translation on the spine, so you can tell where each sentence went.',
+  'ラウンドトリップは、訳文を元の言語へ訳し戻し、どれだけ近いかを点数で示します。':
+    'Round trip translates each translation back into the source language and shows how close it is as a score.',
+  '用語集を使えば、ブロックが変わっても用語がそろいます。':
+    'With a glossary, your terms stay the same from one block to the next.',
 }
 
 function translate(prompt) {

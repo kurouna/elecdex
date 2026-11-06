@@ -16,7 +16,7 @@
  * reaching the page.
  *
  * Shots for posting (`social-elec-sitting`, `social-elec-approved`, `social-ethernet-popup`,
- * `social-paper-cockpit`, `social-paper-earth`) are taken only when named,
+ * `social-paper-cockpit`, `social-paper-earth`, `social-black-translate`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
  * so nothing of the machine is in them.
  */
@@ -1486,6 +1486,49 @@ if (only.includes('social-ethernet-popup')) {
       // A minute of readings, so the timeline runs edge to edge.
       await page.waitForTimeout(62_000)
       await page.mouse.move(W / 2, 5)
+      await page.waitForTimeout(800)
+    },
+  })
+}
+// For posting: TRANSLATE in the room the standard layout gives everything but its system
+// column, in the Black theme, the stand-in engine's notes translated and one paragraph of the
+// translation selected, the pointer resting on it so its source and its link on the spine light
+// up. Only when named.
+if (only.includes('social-black-translate')) {
+  const standard = preset('standard')
+  const [column] = standard.root.children
+  const share = standard.root.sizes[0]
+  const translate = {
+    kind: 'pane',
+    id: 'social-translate',
+    widget: 'translate',
+    state: { srcLang: 'en', tgtLang: 'ja', form: 'polite', roundTrip: true },
+  }
+  const notes = [
+    RELEASE_NOTES,
+    'The TRANSLATE pane translates between 53 languages and Easy Japanese, block by block.',
+    'Each block is joined to its translation on the spine, so you can see where every sentence went.',
+    'Round trip puts each translation back into the source language and scores how close it comes.',
+    'A glossary keeps your terms the same from one block to the next.',
+  ].join('\n\n')
+  await shoot('black', 'social-black-translate', {
+    layout: {
+      ...standard,
+      root: { ...standard.root, children: [column, translate], sizes: [share, 1 - share] },
+    },
+    settings: { translate: { live: false } },
+    ...TRANSLATE_STAND_IN,
+    social: true,
+    extra: async (page) => {
+      const source = page.locator('[data-testid=translate-source]')
+      await source.fill(notes)
+      await source.press('Control+Enter')
+      await page.locator('[data-testid=translate-trip-score]').nth(7).waitFor({ timeout: 60_000 })
+      // The paragraph on the spine: pressed three times near its start, clear of its buttons.
+      await page
+        .getByTestId('translate-block')
+        .nth(5)
+        .click({ clickCount: 3, position: { x: 40, y: 14 } })
       await page.waitForTimeout(800)
     },
   })
