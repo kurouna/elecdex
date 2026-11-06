@@ -98,11 +98,22 @@ architecture.md §5.25。
   CPU へ切り替えて続くので（§4.2）FAULT にならない。FAULT は CPU でも起動できない、または動いている途中で落ちて
   再起動の回数を越えたとき。
 - **足元**: ランプとエンジンの要約（ビルド、GPU か CPU、コンテキスト、メモリ、`127.0.0.1:ポート`）。ポートは
-  main が表示用に送る値で、キーは送らない（ポートだけでは使えない）。右に「PLaMo 3 Translate · PLaMo Community
-  License」。エンジンがこの PC のものなら「local, nothing leaves this PC」、外部のサーバーなら
+  main が表示用に送る値で、キーは送らない（ポートだけでは使えない）。右に「Built with PLaMo · PLaMo 3 Translate · PLaMo
+  Community License · llama.cpp」（ライセンス第 4 条の表示、2026-11-06）。エンジンがこの PC のものなら「local, nothing leaves this PC」、外部のサーバーなら
   「sent to <ホスト>」（ループバック以外は警告の色）。
 - **SETUP**: ENGINE → MODEL → LICENCE → FETCH → READY（試し訳 1 文）。LICENCE の段の同意は、確認のダイアログでは
   なくペインの中の段なので dialogs.ts の対象外。
+  - **LICENCE の段**（2026-11-06、利用者の依頼）: 同意は 2 つ。(1) PLaMo コミュニティライセンス。ペインの要約は
+    目安で、効力があるのは PFN のサイトの本文（変わりうる）なので、ペインからそのページを開くまでチェックできない
+    （その旨を書く）。商用の行には、仕事・組織内・製品やサービスの開発での利用は商用（第 1 条）と書き、登録フォーム
+    （第 3 条が示すもの）へのリンクを置く。(2) ダウンロード。**Agree and fetch** が取るもの（モデルのファイルと大きさ・
+    huggingface.co、elecdex がエンジンを取るときは llama.cpp のビルドと大きさ・github.com・MIT）を並べる。両方に
+    チェックして初めて進める。前に同意したモデルなら両方チェック済みで開く。
+  - **同意の記録**: main は `engine.json` の `consents`（アプリが使う最新のもの）に加えて、
+    `translate/licence-consents.txt` に 1 件ずつ追記する（書き換えない。トラブルのときの証拠として人が読める形）:
+    日時、モデル、ライセンスの名前とアドレス、そのページを elecdex から開いた日時、同意した 2 つの文、モデルの
+    リポジトリ@リビジョン・ファイル・バイト数・sha256、取得するものの URL、elecdex の版。
+  - 開くページは名前で指す（`LICENCE_PAGES`: `plamo`・`register`・`llama`）。ページがアドレスを渡すことはない。
 - **HISTORY**: 絞り込み、日ごとの区切り、行を押すと TEXT に戻して開く。CLEAR は 2 度押し。
 - **ENGINE**: エンジンの入手先、状態（STOP / RESTART）、モデルの一覧（取得・削除・切り替え）、実行の設定
   （コンテキスト長、デバイス: AUTO（GPU、だめなら CPU）/ CPU だけ、止めるまでの時間）、ログ、ライセンスへの同意の記録。
@@ -124,7 +135,7 @@ architecture.md §5.25。
   （Vulkan 38 MB ＋ CPU 25 MB の zip）、展開して約 132 MB。
 - 取得はモデルと同じ取得器（§5）で、`.part`・Range・再試行・sha256（worker）も同じ。確かめてから、
   **新しい一時フォルダ**（`translate/engine-tmp-<乱数>/`）に `tar` で展開し、llama-server とその DLL / so / dylib
-  以外を消し、llama.cpp の LICENSE（MIT、同じコミットのもの）を置いてから、`translate/engine/<build>/<target>/` へ
+  以外を消し、llama.cpp のライセンス一式を `LICENSE-llama.cpp` として置いてから、`translate/engine/<build>/<target>/` へ
   名前を変えて置く。途中まで展開したフォルダがエンジンと取り違えられることはない。`engine-tmp-*` は起動時に消す。
 - `tar` は OS のもの（Windows は `System32\tar.exe`。bsdtar は zip も開ける）を **`execFile` で非同期に**走らせる
   （テストアプリの `execFileSync` は main を数秒止める）。
@@ -197,8 +208,14 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
   指数平滑。
 - 終わったら sha256 を **worker** で確かめ、合えば `replaceFile` で置く（1.8 GB を main で回すと、4 MB ずつでも
   main が止まる時間が積み重なる。テストアプリは main で計算していた）。
-- ライセンスへの同意は、モデルごとに、日時・リビジョン・ライセンスの URL を `engine.json` に記録する。別の
-  モデルを取るときも、その都度同意を求める。
+- ライセンスへの同意は、モデルごとに、日時・リビジョン・ライセンスの URL を `engine.json` に記録し、
+  `licence-consents.txt` に追記する（§3）。別のモデルを取るときも、その都度同意を求める。
+- **llama.cpp のライセンス**（2026-11-06）: リリースの zip には LLVM の OpenMP（`LICENSE-LLVM-OpenMP`）しか入って
+  いない。llama.cpp の LICENSE（MIT）と、llama-server に組み込まれたコード（nlohmann/json、cpp-httplib、xxHash、
+  sha256、rotate-bits、SHA-1、miniaudio、stb_image、subprocess.h）のライセンスを、`npm run gen:llama-licenses` が
+  そのビルドのコミットから `resources/translate/llama.cpp-licenses.txt` に集め、main に `?raw` で組み込む。取得の
+  たびに取りに行くことはしない（以前は取りに行き、失敗すると 1 行の代わりを書いていた）。ビルドを変えたら走らせる
+  （translate-licences.test.ts がビルドとコミットの一致を見る）。
 - 一度に 1 つ（エンジンかモデル）。PAUSE は `.part` を残し、CANCEL は消す。ペインを閉じても続く。elecdex を
   終えるときは PAUSE と同じにし、次の起動では PAUSE のまま利用者の RESUME を待つ（勝手に再開しない）。
 - `chat_template.jinja` は取らない（`/completion` に PFML3 を直接渡すので要らない）。
@@ -304,7 +321,8 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 | パス（`userData/` の下） | 中身 | 書き方 |
 |---|---|---|
 | `translate/engine.json` | エンジンの入手先（fetched / own / external）、自分の llama-server のパスとビルド番号、外部のアドレス、ビルドごとの `--list-devices` の結果、モデルごとのライセンスへの同意 | main だけ。`replaceFile` |
-| `translate/engine/<build>/<target>/` | 取ってきた llama-server と DLL、LICENSE | 一時フォルダから名前を変えて置く |
+| `translate/engine/<build>/<target>/` | 取ってきた llama-server と DLL、`LICENSE-llama.cpp`（同梱のライセンス一式）、`LICENSE-LLVM-OpenMP`（zip のもの） |
+| `translate/licence-consents.txt` | ライセンスとダウンロードへの同意の記録（§3）。追記だけ | main だけ。`appendFile` | 一時フォルダから名前を変えて置く |
 | `translate/engine-tmp-<乱数>/`、`translate/engine-<build>-<target>.zip.part` | 展開中・取得中 | 起動時に一時フォルダを消す |
 | `translate/models/<model id>/<file>`（＋ `.part`） | GGUF | `.part` から `replaceFile` |
 | `translate/glossaries.json` | 用語集（名前、訳先の言語、用語） | `replaceFile` |
@@ -350,7 +368,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 | `pickOwn` | handle | main のファイル選択。`--version` を確かめて `engine.json` に置く |
 | `testExternal` | handle | `{url}` を検査し `/props` を読む。通れば `engine.json` に置く |
 | `selectModel` | handle | マニフェストの id（設定の `modelId`） |
-| `consent` | handle | `{modelId}` ライセンスへの同意を記録 |
+| `consent` | handle | `{modelId}` ライセンスとダウンロードへの同意を記録（`engine.json` と `licence-consents.txt`） |
 | `fetch` / `pause` / `resume` / `cancelFetch` / `removeModel` | handle | 取得（エンジン → モデルの順に必要なものだけ）と削除 |
 | `logs` | handle | リングバッファ（ENGINE の LOG） |
 | `history` / `historyClear` / `historyRemove` / `historyOpen` | handle | 一覧（各件の頭 240 字だけ。絞り込みはページ）、2 度押しの CLEAR、1 件、1 件をペインに訳し終えた依頼として置く（`{paneId, id}`） |
@@ -359,7 +377,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 用語集と履歴が変わると、盤の `library`（版の数）が増える。用語集か HISTORY を出しているペインは、それを見て
 聞き直す（新しい購読のチャネルは作らない）。
 | `clipboardText` | handle | Ctrl+Shift+Y のとき、main のクリップボードのモジュールから文字だけ（`ELECDEX_CLIPBOARD_STUB` が効く） |
-| `openLicence` | handle | ライセンスの全文を既定のブラウザで（許可した URL だけ） |
+| `openLicence` | handle | `{page}`（`plamo` / `register` / `llama`）の決まったページを既定のブラウザで。`plamo` は開いた日時を同意の記録に残す |
 | `watching` | handle | 診断（§8.6） |
 
 どのチャネルも `tests/e2e/contracts/ipc-table.ts` に行を足す（IPC のメソッドの一覧の契約）。

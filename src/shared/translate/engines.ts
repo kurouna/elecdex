@@ -12,7 +12,8 @@ export const ENGINE_COMMIT = 'cd959bae99ff4bed22bef2604f45241c09bbb8c8'
 export const MIN_OWN_BUILD = 7563
 
 export const RELEASES_BASE_URL = 'https://github.com/ggml-org/llama.cpp/releases/download'
-export const LICENSE_URL = `https://raw.githubusercontent.com/ggml-org/llama.cpp/${ENGINE_COMMIT}/LICENSE`
+/** llama.cpp's licence at the build's commit, opened from ENGINE and SETUP. */
+export const LICENSE_URL = `https://github.com/ggml-org/llama.cpp/blob/${ENGINE_COMMIT}/LICENSE`
 
 export type EngineBackend = 'vulkan' | 'metal' | 'cpu'
 

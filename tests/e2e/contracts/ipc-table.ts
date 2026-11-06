@@ -111,7 +111,6 @@ export const NO_ARGUMENT = [
   'translate.cancelFetch',
   'translate.logs',
   'translate.selfTest',
-  'translate.openLicence',
   'translate.watching',
   'translate.glossaries',
   'translate.history',
@@ -546,6 +545,12 @@ export const IPC_ROWS: IpcRow[] = [
   {
     method: 'translate.consent',
     bad: [['nope'], [123], [WIN_PATH]],
+    refused: { resolves: undefined },
+  },
+  {
+    // A page by name, never an address: anything else opens nothing.
+    method: 'translate.openLicence',
+    bad: [['https://example.com'], ['toString'], [123], []],
     refused: { resolves: undefined },
   },
   {

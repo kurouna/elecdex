@@ -18,6 +18,8 @@ files:
   - '!resources/elec16/sci/**'
   # ELEC-16 PLAY's bundled games: only games.json is read.
   - '!resources/elec16/games/*/**'
+  # llama.cpp's licences: built into main (?raw) and written beside the engine it fetches.
+  - '!resources/translate/**'
   - package.json
   # The GeoIP package ships the database three ways; only the combined file is read.
   - '!node_modules/@ip-location-db/geo-whois-asn-country-mmdb/geo-whois-asn-country-ipv4.mmdb'

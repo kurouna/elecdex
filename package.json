@@ -54,6 +54,7 @@
     "gen:cities": "node scripts/gen-cities.mjs",
     "gen:orbit-map": "node scripts/gen-orbit-map.mjs",
     "gen:chip8": "node scripts/gen-chip8.mjs",
+    "gen:llama-licenses": "node scripts/gen-llama-licenses.mjs",
     "gen:elec16": "node scripts/gen-elec16.mjs",
     "gen:screenshots": "node scripts/gen-screenshots.mjs",
     "demo:elec": "node scripts/demo-elec.mjs",

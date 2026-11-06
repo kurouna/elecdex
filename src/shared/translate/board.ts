@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { EngineBackend } from './engines.js'
+import { type EngineBackend, LICENSE_URL } from './engines.js'
 
 /**
  * What a TRANSLATE pane is shown of the engine, the models and a fetch (docs/translate.md §8.3,
@@ -46,6 +46,8 @@ export interface EngineView {
   fetched: boolean
   /** Bytes of memory the engine uses, when known. */
   memoryBytes: number | null
+  /** Bytes of the llama.cpp builds a fetch would bring: 0 when they are in place or not elecdex's. */
+  toFetchBytes: number
 }
 
 export interface ModelView {
@@ -120,3 +122,16 @@ export const EngineFileSchema = z.object({
 export type EngineFile = z.infer<typeof EngineFileSchema>
 
 export const PLAMO_LICENSE_URL = 'https://plamo.preferredai.jp/info/plamo-community-license-ja'
+
+/**
+ * The pages SETUP and ENGINE open in the browser, by name: the page names one, main opens only
+ * these. The registration form is the one the licence itself gives (Article 3).
+ */
+export const LICENCE_PAGES = {
+  plamo: PLAMO_LICENSE_URL,
+  register: 'https://forms.gle/mTL8tBLrMYXKNZD56',
+  llama: LICENSE_URL,
+} as const
+export type LicencePage = keyof typeof LICENCE_PAGES
+export const isLicencePage = (raw: unknown): raw is LicencePage =>
+  typeof raw === 'string' && Object.hasOwn(LICENCE_PAGES, raw)

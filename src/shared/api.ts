@@ -74,7 +74,7 @@ import type { Settings, SettingsPatch } from './settings.js'
 import type { SnippetAdded, SnippetDraft, SnippetView } from './snippets.js'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from './tasks.js'
 import type { Theme, ThemeProblem } from './theme.js'
-import type { EngineSourceKind, TranslateBoard } from './translate/board.js'
+import type { EngineSourceKind, LicencePage, TranslateBoard } from './translate/board.js'
 import type { Glossary } from './translate/glossary.js'
 import type { HistoryRow } from './translate/history.js'
 import type { RunEvent, RunRequest } from './translate/run.js'
@@ -619,7 +619,10 @@ export interface TranslateApi {
   testExternal(
     address: string,
   ): Promise<{ ok: true; host: string } | { ok: false; problem: string }>
-  /** Records that the PLaMo Community License was agreed to for a model. */
+  /**
+   * Records that the PLaMo Community License was agreed to for a model, and the fetch with it:
+   * in engine.json and in the consent log (translate/licence-consents.txt).
+   */
   consent(modelId: string): Promise<void>
   /** Fetches what the selected model needs (the engine first when elecdex provides it). */
   fetch(): Promise<{ problem: string } | null>
@@ -629,7 +632,8 @@ export interface TranslateApi {
   logs(): Promise<string[]>
   /** READY's one sentence through the engine; not kept in the history. */
   selfTest(): Promise<{ text: string; tokensPerSecond: number } | { problem: string }>
-  openLicence(): Promise<void>
+  /** Opens one of the fixed licence pages in the browser (LICENCE_PAGES). */
+  openLicence(page: LicencePage): Promise<void>
   /** Translates a pane's text; main holds the run, the answer is its version. */
   run(request: RunRequest): Promise<{ version: number } | { problem: string }>
   /** Follows a pane's run: a snapshot first, then patches. */

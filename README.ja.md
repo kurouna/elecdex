@@ -86,7 +86,7 @@ elecdex は、組み込みの 41 種のペインを分割とタブで 1 つの�
 | メディア | Spectrum、Browser、YouTube、X、Mixer、Now playing | [メディアのペイン](docs/guide/panes-media.ja.md) |
 | レトロ | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） | [レトロのペイン](docs/guide/panes-retro.ja.md) |
 
-**TRANSLATE** *(unreleased)* は、Preferred Networks の PLaMo 3 Translate を llama.cpp でこの PC で動かし、53 言語とやさしい日本語の間を訳します。訳す文は PC の外に出ません。原文はブロックごとに訳し、背骨で訳文とつなぎます。LIVE は打ちながら訳し、ROUND TRIP は各ブロックを訳し戻して点数を付け、用語集と文脈が用語をそろえ、Ctrl+Shift+Y でクリップボードの文を持って呼び出せます。エンジンとモデルはセットアップで 1 度だけ取得します（[AI のペイン：TRANSLATE](docs/guide/panes-ai.ja.md#translate)）。
+**TRANSLATE** *(unreleased)* は、Preferred Networks の PLaMo 3 Translate を llama.cpp でこの PC で動かし、53 言語とやさしい日本語の間を訳します。訳す文は PC の外に出ません。原文はブロックごとに訳し、背骨で訳文とつなぎます。LIVE は打ちながら訳し、ROUND TRIP は各ブロックを訳し戻して点数を付け、用語集と文脈が用語をそろえ、Ctrl+Shift+Y でクリップボードの文を持って呼び出せます。エンジンとモデルは、Preferred Networks のサイトでライセンスを読んで同意したあと、セットアップで 1 度だけ取得します（[AI のペイン：TRANSLATE](docs/guide/panes-ai.ja.md#translate)）。Built with PLaMo。
 
 <p align="center">
   <a href="docs/guide/panes-ai.ja.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="TRANSLATE ペイン: 英語の架空のリリースノートが、背骨でブロックごとに日本語訳とつながり、それぞれに英語への訳し戻しと chrF の点数が付く"></a>
@@ -219,6 +219,7 @@ npm run dev -- -- --windowed --no-intro
 | 電卓の式評価器 | [elecxzy](https://github.com/kurouna/elecxzy) の `src/utils/calc` を無修正で `src/shared/calc/vendor` にコピー | MIT |
 | CHIP-8 のフォント | [Octo](https://github.com/JohnEarnest/Octo) の `js/emulator.js` から `src/shared/chip8/fonts.ts` にコピー | MIT |
 | CHIP-8 のプログラム | [chip8Archive](https://github.com/JohnEarnest/chip8Archive)（作者はそれぞれ）。`resources/chip8/archive` に同梱 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)。ペインに表示 |
+| TRANSLATE のエンジンとモデル *(unreleased)* | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110 と Preferred Networks の [PLaMo 3 Translate](https://huggingface.co/pfnet)。同梱せず、ペインのセットアップで取得する | llama.cpp: MIT。そのライセンスと、llama-server に組み込まれたコードのライセンスは elecdex に同梱し、エンジンの横に書き出す。モデル: [PLaMo コミュニティライセンス](https://plamo.preferredai.jp/info/plamo-community-license-ja)。セットアップで読んで同意する。Built with PLaMo |
 | CHIP-8 のテスト用プログラム（DIAG） | Timendus の [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)。`resources/chip8/test-suite` に Octo のソースとともに同梱 | GPL-3.0 |
 
 ジオロケーションのデータベースは同梱されているため、アカウントも API キーも初回起動時の

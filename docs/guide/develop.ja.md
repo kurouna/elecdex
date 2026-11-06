@@ -110,6 +110,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 | `npm run gen:cities` | 天気の地点選択の都市一覧（GeoNames） |
 | `npm run gen:orbit-map` | ORBIT の地図: 陸の点とタイムゾーンの線（timezone-boundary-builder、ODbL） |
 | `npm run gen:chip8` | CHIP-8 のライブラリとプレビュー、`resources/chip8/programs.json` |
+| `npm run gen:llama-licenses` | TRANSLATE が取得する llama.cpp のビルドと、それに組み込まれたコードのライセンス、`resources/translate/llama.cpp-licenses.txt`。llama.cpp のリポジトリのそのビルドのコミットから読む。ビルドを変えたら走らせる *(unreleased)* |
 | `npm run gen:elec16` | ELEC-16 の ROM（e16c による BASIC、アセンブリ）、SOFT CARD、ゲームの棚 |
 | `npm run gen:screenshots` | デモ用プロファイルでの README のスクリーンショット（Windows、先にビルド） |
 | `npm run demo:*` | 代役の上で動くアプリの画面録画（Windows、先にビルド）。作り方は [docs/demos.md](../demos.md) |

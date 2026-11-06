@@ -85,7 +85,7 @@ elecdex 是一款桌面应用，用分屏和标签页把 41 种内置窗格排�
 | 媒体 | Spectrum、Browser、YouTube、X、Mixer、Now playing | [媒体窗格](docs/guide/panes-media.zh-CN.md) |
 | 复古 | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） | [复古窗格](docs/guide/panes-retro.zh-CN.md) |
 
-**TRANSLATE** *(unreleased)* 通过 llama.cpp 在本机运行 Preferred Networks 的 PLaMo 3 Translate，在 53 种语言与简易日语之间翻译；所翻译的内容不会离开本机。原文逐块翻译，并通过脊线与译文相连；LIVE 边输入边翻译，ROUND TRIP 把每个块译回并打分，术语表和上下文让术语保持一致，Ctrl+Shift+Y 带着剪贴板中的文本调出它。引擎和模型在设置中获取一次（[AI 窗格：TRANSLATE](docs/guide/panes-ai.zh-CN.md#translate)）。
+**TRANSLATE** *(unreleased)* 通过 llama.cpp 在本机运行 Preferred Networks 的 PLaMo 3 Translate，在 53 种语言与简易日语之间翻译；所翻译的内容不会离开本机。原文逐块翻译，并通过脊线与译文相连；LIVE 边输入边翻译，ROUND TRIP 把每个块译回并打分，术语表和上下文让术语保持一致，Ctrl+Shift+Y 带着剪贴板中的文本调出它。引擎和模型在 Preferred Networks 网站上阅读并同意许可证后，在设置中获取一次（[AI 窗格：TRANSLATE](docs/guide/panes-ai.zh-CN.md#translate)）。Built with PLaMo。
 
 <p align="center">
   <a href="docs/guide/panes-ai.zh-CN.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="TRANSLATE 窗格：虚构的英文发布说明通过脊线逐块与日文译文相连，每块附有译回英文的结果和 chrF 分数"></a>
@@ -212,6 +212,7 @@ npm run dev -- -- --windowed --no-intro
 | 计算器的表达式求值器 | [elecxzy](https://github.com/kurouna/elecxzy) `src/utils/calc`，原样复制到 `src/shared/calc/vendor` | MIT |
 | CHIP-8 字体 | [Octo](https://github.com/JohnEarnest/Octo) 的 `js/emulator.js`，复制到 `src/shared/chip8/fonts.ts` | MIT |
 | CHIP-8 程序 | [chip8Archive](https://github.com/JohnEarnest/chip8Archive)，作者各异，内置于 `resources/chip8/archive` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)；在窗格中署名 |
+| TRANSLATE 的引擎与模型 *(unreleased)* | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110 与 Preferred Networks 的 [PLaMo 3 Translate](https://huggingface.co/pfnet)：不随附，在窗格的设置中获取 | llama.cpp：MIT；它的许可证以及 llama-server 中内置代码的许可证随 elecdex 附带，并写在引擎旁边。模型：[PLaMo 社区许可证](https://plamo.preferredai.jp/info/plamo-community-license-ja)，在设置中阅读并同意。Built with PLaMo |
 | CHIP-8 测试程序（DIAG） | Timendus 的 [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)，连同其 Octo 源码内置于 `resources/chip8/test-suite` | GPL-3.0 |
 
 地理定位数据库是内置的，因此不需要账号、API 密钥或首次运行时下载，IP 查询也永远不会离开本机。

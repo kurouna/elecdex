@@ -39,13 +39,23 @@ const selected = $derived(MODELS.find((m) => m.id === chosen))
 const consented = $derived(board.models.find((m) => m.id === chosen)?.consentAt != null)
 const recommended = $derived(recommendedModel(MODELS, board.machine.ramGB, board.machine.vramGB))
 let agreed = $state(false)
+/** The fetch agreed to as well (user's request 2026-11-06): what AGREE AND FETCH downloads. */
+let fetchAgreed = $state(false)
+/**
+ * The licence's page opened from here: the summary is a guide, the page is the text that holds
+ * and may change, so it is opened before the licence can be agreed to (user's request 2026-11-06).
+ */
+let opened = $state(false)
 let address = $state('')
 let problem = $state<string | null>(null)
 let selfTest = $state<{ text: string; tokensPerSecond: number } | { problem: string } | null>(null)
 
 $effect(() => {
   // The licence step opens agreed when this model was agreed to before.
-  if (step === 3) agreed = consented
+  if (step !== 3) return
+  agreed = consented
+  fetchAgreed = consented
+  if (consented) opened = true
 })
 
 $effect(() => {
@@ -72,6 +82,11 @@ async function setSource(kind: EngineSourceKind): Promise<void> {
   }
   const answer = await api.setSource(kind)
   if (answer) problem = answer.problem
+}
+
+async function openLicence(): Promise<void> {
+  await api.openLicence('plamo')
+  opened = true
 }
 
 async function test(): Promise<void> {
@@ -114,7 +129,7 @@ const nextDisabled = $derived(
     board.engine.source === 'external' &&
     board.engine.phase === 'external-untested') ||
     (step === 2 && !selected) ||
-    (step === 3 && !agreed) ||
+    (step === 3 && !(agreed && fetchAgreed)) ||
     (step === 4 && board.fetch !== null),
 )
 </script>
@@ -133,8 +148,8 @@ const nextDisabled = $derived(
         <div class="options">
           <button type="button" class="opt" class:on={board.engine.source === 'fetched'} onclick={() => void setSource('fetched')}>
             <i class="rd"></i><b>Fetched by elecdex</b>
-            <span class="mono">llama.cpp {ENGINE_BUILD} · {board.engine.fetched ? 'in place' : 'fetched with the model'}</span>
-            <span class="small">The build elecdex is tested with: checked against its sha256, kept with elecdex’s data.</span>
+            <span class="mono">llama.cpp {ENGINE_BUILD} · MIT · {board.engine.fetched ? 'in place' : 'fetched from github.com with the model, by Agree and fetch'}</span>
+            <span class="small">The build elecdex is tested with: checked against its sha256, kept with elecdex’s data, its licences beside it.</span>
           </button>
           <button type="button" class="opt" class:on={board.engine.source === 'own'} onclick={() => void setSource('own')}>
             <i class="rd"></i><b>My own llama-server</b>
@@ -193,13 +208,27 @@ const nextDisabled = $derived(
           <p>Preferred Networks publishes PLaMo 3 Translate under its PLaMo Community License. Downloading and using the model is under its terms.</p>
           <dl>
             <dt>Personal</dt><dd>Free, including non-commercial and academic use. No registration.</dd>
-            <dt>Commercial</dt><dd>Free when revenue is ¥1 billion a year or less, after registering the use with Preferred Networks.</dd>
+            <dt>Commercial</dt><dd>Free when revenue is ¥1 billion a year or less, after <button type="button" class="link" onclick={() => void api.openLicence('register')}>registering the use ↗</button> with Preferred Networks. Use at work, in an organisation, or in making a product or service is commercial.</dd>
             <dt>Larger</dt><dd>Over ¥1 billion: a separate licence agreement.</dd>
           </dl>
-          <button type="button" class="link" onclick={() => void api.openLicence()}>Read the full licence ↗</button>
+          <p class="note">This is a summary. The licence on Preferred Networks’ site is the one that holds, and it may change: open it and read it before you agree.</p>
+          <button type="button" class="link" data-testid="translate-licence-open" onclick={() => void openLicence()}>Read the licence on Preferred Networks’ site ↗</button>
         </div>
-        <button type="button" class="agree" class:on={agreed} role="checkbox" aria-checked={agreed} data-testid="translate-agree" onclick={() => (agreed = !agreed)}>
-          <span class="box"></span><span>I have read the PLaMo Community License and will download and use the model under its terms.</span>
+        <button type="button" class="agree" class:on={agreed} role="checkbox" aria-checked={agreed} disabled={!opened} data-testid="translate-agree" onclick={() => (agreed = !agreed)}>
+          <span class="box"></span><span>I have read the PLaMo Community License on Preferred Networks’ site and will use the model under its terms.{#if !opened}<em>{' Open the licence above first.'}</em>{/if}</span>
+        </button>
+        <div class="lic gets">
+          <h3>Agree and fetch downloads</h3>
+          <dl>
+            <dt>Model</dt><dd class="mono">{selected?.file} · {selected ? formatBytes(selected.bytes) : ''} · huggingface.co</dd>
+            {#if board.engine.toFetchBytes > 0}
+              <dt>Engine</dt><dd><span class="mono">llama.cpp {ENGINE_BUILD} · {formatBytes(board.engine.toFetchBytes)} · github.com</span> · MIT (<button type="button" class="link" onclick={() => void api.openLicence('llama')}>licence ↗</button>)</dd>
+            {/if}
+          </dl>
+          <p class="small">Each file is checked against its sha256. The licences of llama.cpp and of the code built into it are written beside the engine. This agreement is recorded with its time in licence-consents.txt, in elecdex’s translate folder.</p>
+        </div>
+        <button type="button" class="agree" class:on={fetchAgreed} role="checkbox" aria-checked={fetchAgreed} data-testid="translate-agree-fetch" onclick={() => (fetchAgreed = !fetchAgreed)}>
+          <span class="box"></span><span>I agree that elecdex downloads these files to this PC.</span>
         </button>
       {:else if step === 4}
         {@const fetch = board.fetch}
@@ -306,6 +335,10 @@ h2 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: v
 .lic dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.2rem var(--space-4); }
 .lic dt { font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; }
 .lic dd { margin: 0; }
+.lic .note { color: var(--text-muted); }
+.agree em { font-style: normal; color: var(--warn); }
+.agree:disabled { cursor: default; color: var(--text-muted); }
+.lic .link { display: inline; }
 .link { align-self: flex-start; background: transparent; border: 0; padding: 0; color: var(--accent-strong); text-decoration: underline; font: inherit; cursor: pointer; }
 .agree { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px dashed var(--panel-border); background: transparent; color: var(--text); font: inherit; font-size: var(--step--1); text-align: left; max-width: 48rem; cursor: pointer; }
 .agree.on { border-style: solid; border-color: var(--accent); background: var(--accent-faint); }

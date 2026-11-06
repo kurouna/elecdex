@@ -110,6 +110,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 | `npm run gen:cities` | 天气选择器的城市列表（GeoNames） |
 | `npm run gen:orbit-map` | ORBIT 地图：陆地点和时区线（timezone-boundary-builder，ODbL） |
 | `npm run gen:chip8` | CHIP-8 程序库和预览，`resources/chip8/programs.json` |
+| `npm run gen:llama-licenses` | TRANSLATE 获取的 llama.cpp 构建及其内置代码的许可证，`resources/translate/llama.cpp-licenses.txt`，从 llama.cpp 仓库中该构建的提交读取；更换构建时运行 *(unreleased)* |
 | `npm run gen:elec16` | ELEC-16 的 ROM（经 e16c 编译的 BASIC、汇编）、SOFT CARD 和游戏架 |
 | `npm run gen:screenshots` | 在演示配置下生成 README 截图（Windows；先构建） |
 | `npm run demo:*` | 在替身数据上运行应用的录屏（Windows；先构建）；每个的制作方法见 [docs/demos.md](../demos.md) |

@@ -4,8 +4,9 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { expect, type Page } from '@playwright/test'
+import { type ElectronApplication, expect, type Page } from '@playwright/test'
 import { test } from '../support/shared.js'
+import { openedExternally, stubOpenExternal } from '../support/stubs/external.js'
 import {
   closePane,
   launch,
@@ -65,13 +66,24 @@ const stopServer = (server: Server): void => {
   server.close()
 }
 
+/**
+ * LICENCE as a person goes through it: the licence's page opened (the browser stubbed, so nothing
+ * leaves the machine), the licence agreed to, and the fetch.
+ */
+async function agree(page: Page, app: ElectronApplication): Promise<void> {
+  await stubOpenExternal(app)
+  await page.getByTestId('translate-licence-open').click()
+  await page.getByTestId('translate-agree').click()
+  await page.getByTestId('translate-agree-fetch').click()
+}
+
 /** SETUP up to its FETCH step with the 2B model, the licence agreed to. */
-async function setupToFetch(page: Page): Promise<void> {
+async function setupToFetch(page: Page, app: ElectronApplication): Promise<void> {
   await page.getByTestId('translate-setup-open').click()
   await page.getByTestId('translate-next').click()
   await page.getByTestId('translate-model-standard').click()
   await page.getByTestId('translate-next').click()
-  await page.getByTestId('translate-agree').click()
+  await agree(page, app)
   await page.getByTestId('translate-next').click()
 }
 
@@ -124,7 +136,7 @@ function manifest(lite = false): string {
 
 test('SETUP fetches the model, checks it, and READY translates through the engine', async () => {
   const hf = await modelServer()
-  const { page, close, userData } = await launch(undefined, {
+  const { app, page, close, userData } = await launch(undefined, {
     layout: single('translate'),
     env: { ELECDEX_TRANSLATE_MANIFEST: manifest(), ELECDEX_HF_BASE_URL: hf.base },
   })
@@ -139,10 +151,30 @@ test('SETUP fetches the model, checks it, and READY translates through the engin
     await page.getByTestId('translate-next').click() // ENGINE: fetched by elecdex (the stand-in)
     await page.getByTestId('translate-model-standard').click()
     await page.getByTestId('translate-next').click() // MODEL
-    // LICENCE: nothing goes before the licence is agreed to.
+    // LICENCE: nothing goes before the licence is agreed to, and it cannot be agreed to before its
+    // page, the text that holds, is opened.
     await expect(page.getByTestId('translate-next')).toBeDisabled()
+    await expect(page.getByTestId('translate-agree')).toBeDisabled()
+    await expect(page.getByTestId('translate-agree')).toContainText('Open the licence above first')
+    await stubOpenExternal(app)
+    await page.getByTestId('translate-licence-open').click()
+    await expect
+      .poll(() => openedExternally(app))
+      .toEqual(['https://plamo.preferredai.jp/info/plamo-community-license-ja'])
     await page.getByTestId('translate-agree').click()
+    // The licence alone is not enough: the fetch is agreed to as well.
+    await expect(page.getByTestId('translate-next')).toBeDisabled()
+    await expect(page.getByTestId('translate-setup')).toContainText('Agree and fetch downloads')
+    await expect(page.getByTestId('translate-setup')).toContainText(`${FILE}`)
+    await page.getByTestId('translate-agree-fetch').click()
     await page.getByTestId('translate-next').click()
+    // Kept in the consent log, with when the page was opened and what is fetched.
+    const log = path.join(userData, 'translate', 'licence-consents.txt')
+    await expect.poll(() => existsSync(log)).toBe(true)
+    const entry = readFileSync(log, 'utf8')
+    expect(entry).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z {2}agreed {2}plamo3-2b-q4km$/m)
+    expect(entry).toMatch(/opened from elecdex \d{4}-/)
+    expect(entry).toContain(`pfnet/plamo-3-translate-2b-GGUF@abcdef1 ${FILE}`)
 
     // FETCH, then READY by itself, with the self test through the engine.
     await expect(page.getByTestId('translate-selftest')).toContainText('おはようございます。', {
@@ -164,13 +196,13 @@ test('SETUP fetches the model, checks it, and READY translates through the engin
 test('PAUSE keeps what was fetched and stops the watch; RESUME finishes it', async () => {
   const hf = await modelServer()
   hf.mode = 'stall'
-  const { page, close, userData } = await launch(undefined, {
+  const { app, page, close, userData } = await launch(undefined, {
     layout: single('translate'),
     env: { ELECDEX_TRANSLATE_MANIFEST: manifest(), ELECDEX_HF_BASE_URL: hf.base },
   })
   const part = path.join(userData, 'translate', 'models', 'plamo3-2b-q4km', `${FILE}.part`)
   try {
-    await setupToFetch(page)
+    await setupToFetch(page, app)
     await expect(page.getByTestId('translate-fetch-percent')).toContainText('50')
     expect(await watching(page, 'translate')).toEqual(['board', 'fetch'])
     await page.getByRole('button', { name: 'Pause' }).click()
@@ -191,13 +223,13 @@ test('PAUSE keeps what was fetched and stops the watch; RESUME finishes it', asy
 test('CANCEL removes what was fetched and goes back to the models', async () => {
   const hf = await modelServer()
   hf.mode = 'stall'
-  const { page, close, userData } = await launch(undefined, {
+  const { app, page, close, userData } = await launch(undefined, {
     layout: single('translate'),
     env: { ELECDEX_TRANSLATE_MANIFEST: manifest(), ELECDEX_HF_BASE_URL: hf.base },
   })
   const part = path.join(userData, 'translate', 'models', 'plamo3-2b-q4km', `${FILE}.part`)
   try {
-    await setupToFetch(page)
+    await setupToFetch(page, app)
     await expect(page.getByTestId('translate-fetch-percent')).toContainText('50')
     await page.getByRole('button', { name: 'Cancel' }).click()
     await expect(page.getByTestId('translate-model-standard')).toBeVisible()
@@ -752,7 +784,7 @@ test('a model chosen for SETUP becomes the settings’ only when its fetch start
   // a board not yet naming the new one once took that for the fetch done and opened READY.
   const hf = await modelServer()
   hf.mode = 'stall'
-  const { page, close } = await launch(undefined, {
+  const { app, page, close } = await launch(undefined, {
     ...withModel(),
     env: { ELECDEX_TRANSLATE_MANIFEST: manifest(true), ELECDEX_HF_BASE_URL: hf.base },
   })
@@ -766,7 +798,7 @@ test('a model chosen for SETUP becomes the settings’ only when its fetch start
     )
     await page.getByTestId('translate-next').click()
     await expect(pane).toContainText('plamo-3-translate-2b-q4km')
-    await page.getByTestId('translate-agree').click()
+    await agree(page, app)
     await page.getByTestId('translate-next').click()
     // Agreed and fetching: now it is the pane's model, and SETUP shows its fetch.
     await expect(pane).toContainText('plamo-3-translate-0.8b-q4km')

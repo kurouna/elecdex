@@ -4,7 +4,8 @@
  *
  * The take:
  *   OPEN     the pane with no model: "> set up translation"
- *   SETUP    ENGINE (in place), MODEL (2B, fits this PC), LICENCE agreed, FETCH (the progress and
+ *   SETUP    ENGINE (in place), MODEL (2B, fits this PC), LICENCE (its page opened, the licence and
+ *            the download agreed to), FETCH (the progress and
  *            the sha256 check), READY (one sentence through the engine)
  *   LIVE     release notes pasted in, translated as they land, block by block, joined on the spine
  *   EASY     the target turned to Easy Japanese: LIVE asks again
@@ -150,10 +151,19 @@ async function setup() {
   await press(page.getByTestId('translate-model-standard'))
   await wait(2600)
   await next()
-  await caption('The model is used under the PLaMo Community License')
-  await wait(2400)
+  await caption('The model is used under the PLaMo Community License, read on its own site')
+  await wait(2000)
+  // The licence page opens in the browser: here the take keeps it from opening one.
+  await app.evaluate(({ shell }) => {
+    shell.openExternal = async () => {}
+  })
+  await press(page.getByTestId('translate-licence-open'))
+  await wait(1000)
   await press(page.getByTestId('translate-agree'))
-  await wait(1200)
+  await wait(900)
+  await caption('Agreed with the download it brings, and kept with its time')
+  await press(page.getByTestId('translate-agree-fetch'))
+  await wait(2000)
   await next()
   await caption('Fetched once, then checked against its sha256')
   await page.getByTestId('translate-selftest').waitFor({ timeout: 180_000 })

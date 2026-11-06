@@ -18,6 +18,7 @@ npm run gen:geo        # globe land points, country centroids, time zone table
 npm run gen:cities     # weather picker city list (GeoNames)
 npm run gen:orbit-map  # ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL)
 npm run gen:chip8      # CHIP-8 library + previews: resources/chip8/programs.json (--archive <dir> to update chip8Archive)
+npm run gen:llama-licenses # the llama.cpp build's licences and its built-in code's: resources/translate/llama.cpp-licenses.txt (run when ENGINE_BUILD changes)
 npm run gen:elec16     # ELEC-16 ROM: BASIC (e16c) -> basic.s, rom/*.s -> rom.json; soft/ -> soft.json
 npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)

@@ -21,7 +21,6 @@ import {
   EngineAssetSchema,
   enginesFor,
   engineUrl,
-  LICENSE_URL,
   MIN_OWN_BUILD,
   parseBuild,
   RELEASES_BASE_URL,
@@ -38,8 +37,10 @@ import {
 import { buildPrompt, PFML_STOP, restore } from '@shared/translate/pfml3'
 import type { RunEvent, RunRequest, RunView } from '@shared/translate/run'
 import { z } from 'zod'
+import LLAMA_LICENSES from '../../../resources/translate/llama.cpp-licenses.txt?raw'
 import { JsonStore } from '../store/json-store.js'
 import { replaceFile } from '../store/replace-file.js'
+import { appendConsent } from './consent-log.js'
 import {
   type EngineConfig,
   type EngineLaunch,
@@ -61,6 +62,15 @@ import { TranslateRuns } from './runs.js'
  * models. Translation runs come in phase 2. Everything the page sends was checked by the IPC
  * module before it reaches here.
  */
+
+/** What the page agreed to in SETUP's LICENCE step, as main knows it. */
+export interface Agreement {
+  /** The licence's address. */
+  licence: string
+  /** When its page was last opened from elecdex, or null. */
+  openedAt: string | null
+  appVersion: string
+}
 
 export interface ServiceEnv {
   userData: string
@@ -313,16 +323,46 @@ export class TranslateService {
     return [...(fetching ? ['fetch'] : []), ...this.runs.watching()]
   }
 
-  consent(modelId: string, licence: string): void {
+  /**
+   * The licence agreed to, and the fetch: kept in engine.json for the app, and added to the
+   * consent log with what was shown and what will be fetched (consent-log.ts).
+   */
+  async consent(modelId: string, agreement: Agreement): Promise<void> {
     const model = this.#models.find((m) => m.id === modelId)
     if (!model) throw new Error('No such model.')
+    const at = new Date().toISOString()
     const file = this.#file.read()
     this.#file.write({
       ...file,
       consents: {
         ...file.consents,
-        [modelId]: { at: new Date().toISOString(), revision: model.revision, licence },
+        [modelId]: { at, revision: model.revision, licence: agreement.licence },
       },
+    })
+    const engines = this.#enginesToFetch()
+    await appendConsent(this.#root, {
+      at,
+      appVersion: agreement.appVersion,
+      model: {
+        id: model.id,
+        repo: model.repo,
+        revision: model.revision,
+        file: model.file,
+        bytes: model.bytes,
+        sha256: model.sha256,
+      },
+      licence: {
+        name: 'PLaMo Community License',
+        url: agreement.licence,
+        openedAt: agreement.openedAt,
+      },
+      downloads: [
+        `the model from ${modelUrl(this.#hfBase(), model)}`,
+        ...engines.map(
+          (engine) =>
+            `llama.cpp ${ENGINE_BUILD} (MIT) from ${engineUrl(this.#releasesBase(), engine)}`,
+        ),
+      ],
     })
     this.#changed()
   }
@@ -527,13 +567,8 @@ export class TranslateService {
       speed: 0,
       error: null,
     })
-    const licence = await this.#env
-      .netFetch(LICENSE_URL, { signal })
-      .then((r) =>
-        r.ok ? r.text() : 'llama.cpp is MIT licensed: https://github.com/ggml-org/llama.cpp',
-      )
-      .catch(() => 'llama.cpp is MIT licensed: https://github.com/ggml-org/llama.cpp')
-    await installEngine(archive, this.#root, this.#engineDir(engine), licence)
+    // The licences come with elecdex (npm run gen:llama-licenses): no request, never a stand-in.
+    await installEngine(archive, this.#root, this.#engineDir(engine), LLAMA_LICENSES)
     await rm(archive, { force: true })
     // The other builds of this platform (the CPU fallback) come with it.
     for (const other of enginesFor(this.#engines, this.#env.platform, this.#env.arch)) {
@@ -619,8 +654,13 @@ export class TranslateService {
 
   /** The build elecdex fetches is needed when it is the source, missing, and no stub stands in. */
   #needsEngine(): EngineAsset | undefined {
-    if (this.#file.read().source !== 'fetched' || this.#env.stubServer) return undefined
-    return enginesFor(this.#engines, this.#env.platform, this.#env.arch).find(
+    return this.#enginesToFetch()[0]
+  }
+
+  /** The builds of this platform a fetch would bring, none when the engine is not elecdex's. */
+  #enginesToFetch(): EngineAsset[] {
+    if (this.#file.read().source !== 'fetched' || this.#env.stubServer) return []
+    return enginesFor(this.#engines, this.#env.platform, this.#env.arch).filter(
       (engine) => !existsSync(path.join(this.#engineDir(engine), SERVER_NAME)),
     )
   }
@@ -706,6 +746,7 @@ export class TranslateService {
           existsSync(path.join(this.#engineDir(engine), SERVER_NAME)),
         ),
       memoryBytes: null,
+      toFetchBytes: this.#enginesToFetch().reduce((sum, engine) => sum + engine.bytes, 0),
     }
   }
 

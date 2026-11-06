@@ -66,9 +66,11 @@ afterEach(async () => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-function make(over: Partial<ServiceEnv> = {}, agreed = true) {
+const AGREEMENT = { licence: 'licence', openedAt: null, appVersion: '0.0.0' }
+
+async function make(over: Partial<ServiceEnv> = {}, agreed = true, engines: unknown[] = []) {
   const manifest = path.join(dir, 'manifest.json')
-  writeFileSync(manifest, JSON.stringify({ models: [MODEL] }))
+  writeFileSync(manifest, JSON.stringify({ models: [MODEL], engines }))
   const service = new TranslateService(
     {
       userData: dir,
@@ -87,7 +89,7 @@ function make(over: Partial<ServiceEnv> = {}, agreed = true) {
     },
     { ...TRANSLATE_DEFAULTS, modelId: MODEL.id },
   )
-  if (agreed) service.consent(MODEL.id, 'licence')
+  if (agreed) await service.consent(MODEL.id, AGREEMENT)
   const modelPath = path.join(dir, 'translate', 'models', MODEL.id, MODEL.file)
   return { service, modelPath }
 }
@@ -102,7 +104,7 @@ const partSize = (file: string): number => {
 
 describe('TranslateService fetching', () => {
   it('fetches the selected model and watches nothing once it is in place', async () => {
-    const { service, modelPath } = make()
+    const { service, modelPath } = await make()
     await service.fetchSelected()
     expect(readFileSync(modelPath).equals(BODY)).toBe(true)
     expect(service.watching()).toEqual([])
@@ -113,7 +115,7 @@ describe('TranslateService fetching', () => {
 
   it('PAUSE keeps the .part and says paused; FETCH again resumes it', async () => {
     mode = 'stall'
-    const { service, modelPath } = make()
+    const { service, modelPath } = await make()
     const run = service.fetchSelected()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     expect(service.watching()).toEqual(['fetch'])
@@ -129,7 +131,7 @@ describe('TranslateService fetching', () => {
 
   it('CANCEL waits for the writer to let go, then removes the .part', async () => {
     mode = 'stall'
-    const { service, modelPath } = make()
+    const { service, modelPath } = await make()
     void service.fetchSelected()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     await service.cancelFetch()
@@ -140,7 +142,7 @@ describe('TranslateService fetching', () => {
 
   it('removing a model being fetched cancels the fetch first', async () => {
     mode = 'stall'
-    const { service, modelPath } = make()
+    const { service, modelPath } = await make()
     const run = service.fetchSelected()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     await service.removeModel(MODEL.id)
@@ -151,7 +153,7 @@ describe('TranslateService fetching', () => {
 
   it('a failure is said on the board and stops the watch', async () => {
     mode = 'missing'
-    const { service } = make()
+    const { service } = await make()
     await service.fetchSelected()
     const fetching = (await service.board()).fetch
     expect(fetching?.phase).toBe('failed')
@@ -160,7 +162,7 @@ describe('TranslateService fetching', () => {
   })
 
   it('shares one fetch between two FETCH presses', async () => {
-    const { service } = make()
+    const { service } = await make()
     const a = service.fetchSelected()
     const b = service.fetchSelected()
     expect(a).toBe(b)
@@ -168,12 +170,65 @@ describe('TranslateService fetching', () => {
   })
 
   it('refuses to fetch before the licence is agreed to', async () => {
-    const { service, modelPath } = make({}, false)
+    const { service, modelPath } = await make({}, false)
     expect(service.fetchProblem()).toMatch(/licence/)
     await service.fetchSelected()
     expect(existsSync(partOf(modelPath))).toBe(false)
-    service.consent(MODEL.id, 'licence')
+    await service.consent(MODEL.id, AGREEMENT)
     expect(service.fetchProblem()).toBeNull()
+  })
+})
+
+describe('TranslateService and the licence agreed to', () => {
+  const ENGINE = {
+    target: `${process.platform}-${process.arch}-cpu`,
+    platform: process.platform,
+    arch: process.arch,
+    backend: 'cpu',
+    asset: 'llama-b12110-bin-test.zip',
+    bytes: 62_000_000,
+    sha256: 'a'.repeat(64),
+  }
+
+  it('records every agreement in a log only added to, with the licence and what is fetched', async () => {
+    const { service } = await make({ stubServer: undefined }, false, [ENGINE])
+    // The engine is elecdex's and not in place: the fetch brings it, and SETUP says how much.
+    expect((await service.board()).engine.toFetchBytes).toBe(ENGINE.bytes)
+    const opened = '2026-11-06T08:00:00.000Z'
+    await service.consent(MODEL.id, {
+      licence: 'https://example.test/licence',
+      openedAt: opened,
+      appVersion: '9.9.9',
+    })
+    await service.consent(MODEL.id, { ...AGREEMENT, appVersion: '9.9.9' })
+    const log = readFileSync(path.join(dir, 'translate', 'licence-consents.txt'), 'utf8')
+    const entries = log.split(/\n(?=\d{4}-)/)
+    expect(entries).toHaveLength(2)
+    expect(entries[0]).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z {2}agreed {2}test-model\n/)
+    expect(entries[0]).toContain('https://example.test/licence')
+    expect(entries[0]).toContain(`opened from elecdex ${opened}`)
+    expect(entries[0]).toContain(`pfnet/test@abcdef0 test.gguf`)
+    expect(entries[0]).toContain(`sha256 ${MODEL.sha256}`)
+    expect(entries[0]).toContain(`the model from ${base}/pfnet/test/resolve/abcdef0/test.gguf`)
+    expect(entries[0]).toContain(
+      'llama.cpp b12110 (MIT) from http://127.0.0.1:9/b12110/llama-b12110-bin-test.zip',
+    )
+    expect(entries[0]).toContain('elecdex    9.9.9')
+    // The second, with no page opened, says so; the first is kept as it was.
+    expect(entries[1]).toContain('opened from elecdex (not this session)')
+  })
+
+  it('lists no engine to fetch once it is in place', async () => {
+    const { service } = await make({ stubServer: undefined }, false, [ENGINE])
+    const server = process.platform === 'win32' ? 'llama-server.exe' : 'llama-server'
+    const folder = path.join(dir, 'translate', 'engine', 'b12110', ENGINE.target)
+    mkdirSync(folder, { recursive: true })
+    writeFileSync(path.join(folder, server), '')
+    expect((await service.board()).engine.toFetchBytes).toBe(0)
+    await service.consent(MODEL.id, AGREEMENT)
+    const log = readFileSync(path.join(dir, 'translate', 'licence-consents.txt'), 'utf8')
+    expect(log).toContain('the model from')
+    expect(log).not.toContain('llama.cpp')
   })
 })
 
@@ -183,7 +238,7 @@ describe('TranslateService and a server left running (§4.2)', () => {
     mkdirSync(root, { recursive: true })
     writeFileSync(path.join(root, PID_FILE), '4242')
     const asked: number[] = []
-    make({
+    await make({
       processName: async (pid) => {
         asked.push(pid)
         // Not a llama-server: the number was reused by something else, which is left alone.
@@ -195,7 +250,7 @@ describe('TranslateService and a server left running (§4.2)', () => {
 
   it('quits without waiting, the fetch paused', async () => {
     mode = 'stall'
-    const { service, modelPath } = make()
+    const { service, modelPath } = await make()
     const run = service.fetchSelected()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     service.quit()

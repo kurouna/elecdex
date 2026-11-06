@@ -1,6 +1,6 @@
 import { CH } from '@shared/channels'
 import { MAX_SOURCE_CHARS } from '@shared/translate/blocks'
-import { PLAMO_LICENSE_URL } from '@shared/translate/board'
+import { isLicencePage, LICENCE_PAGES, PLAMO_LICENSE_URL } from '@shared/translate/board'
 import { historyRow } from '@shared/translate/history'
 import { isSourceLang } from '@shared/translate/languages'
 import { PANE_ID, RunRequestSchema } from '@shared/translate/run'
@@ -35,6 +35,8 @@ export function registerTranslateIpc(
   quit: () => void
 } {
   const env = process.env
+  /** When the PLaMo Community License's page was last opened from elecdex, for the consent log. */
+  let licenceOpenedAt: string | null = null
   const stallMs = Number(env.ELECDEX_LLAMA_STALL_MS)
   const service = new TranslateService(
     {
@@ -217,8 +219,13 @@ export function registerTranslateIpc(
         return service.chooseOwn(file)
       },
       [CH.translate.testExternal]: (_event, address) => service.testExternal(address),
-      [CH.translate.consent]: (_event, modelId) => {
-        if (knownModel(modelId)) service.consent(modelId, PLAMO_LICENSE_URL)
+      [CH.translate.consent]: async (_event, modelId) => {
+        if (!knownModel(modelId)) return
+        await service.consent(modelId, {
+          licence: PLAMO_LICENSE_URL,
+          openedAt: licenceOpenedAt,
+          appVersion: app.getVersion(),
+        })
       },
       [CH.translate.fetch]: () => {
         const problem = service.fetchProblem()
@@ -240,8 +247,13 @@ export function registerTranslateIpc(
           return { problem: error instanceof Error ? error.message : String(error) }
         }
       },
-      // A fixed address only: the page cannot name what is opened.
-      [CH.translate.openLicence]: () => shell.openExternal(PLAMO_LICENSE_URL),
+      // Fixed addresses only: the page names one of them, never the address.
+      [CH.translate.openLicence]: async (_event, page) => {
+        if (!isLicencePage(page)) return
+        // When the licence's own page was opened, for the consent log.
+        if (page === 'plamo') licenceOpenedAt = new Date().toISOString()
+        await shell.openExternal(LICENCE_PAGES[page])
+      },
       [CH.translate.watching]: () =>
         [...(subscribers.size > 0 ? ['board'] : []), ...service.watching()].sort(),
     },

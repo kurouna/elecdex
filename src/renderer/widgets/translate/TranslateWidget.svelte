@@ -179,7 +179,7 @@ function openSetup(at?: number): void {
       <span class="lampw {lamp?.kind}"><i></i><b>{lamp?.word}</b></span>
       <span class="fig">{board.engine.build ?? ''}{board.engine.port ? ` · 127.0.0.1:${board.engine.port}` : ''} · ctx {board.engine.ctx}</span>
       <span class="spacer"></span>
-      <span class="credit">PLaMo 3 Translate · PLaMo Community License</span>
+      <span class="credit">Built with PLaMo · PLaMo 3 Translate · PLaMo Community License · llama.cpp</span>
       <span class:warn={where?.warn} data-testid="translate-where">· {where?.text}</span>
     </footer>
   {/if}

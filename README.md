@@ -109,8 +109,9 @@ details are in [Layout presets](docs/guide/presets.md).
 Networks' PLaMo 3 Translate, run on this computer through llama.cpp: nothing you translate leaves
 it. The source is translated block by block, joined to its translation on the spine; LIVE translates
 as you type, ROUND TRIP puts each block back and scores it, a glossary and a context keep the terms,
-and Ctrl+Shift+Y brings the clipboard's text to it. Setting up fetches the engine and a model once
-([AI panes: TRANSLATE](docs/guide/panes-ai.md#translate)).
+and Ctrl+Shift+Y brings the clipboard's text to it. Setting up fetches the engine and a model once,
+after the licence is read on Preferred Networks' site and agreed to
+([AI panes: TRANSLATE](docs/guide/panes-ai.md#translate)). Built with PLaMo.
 
 <p align="center">
   <a href="docs/guide/panes-ai.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="The TRANSLATE pane: made-up release notes in English joined block by block on the spine to their Japanese translation, each with its round trip back into English and a chrF score"></a>
@@ -244,6 +245,7 @@ Every shortcut can be rebound in *Settings → Keyboard*; the full list is in
 | Calculator's expression evaluator | [elecxzy](https://github.com/kurouna/elecxzy) `src/utils/calc`, copied unmodified into `src/shared/calc/vendor` | MIT |
 | CHIP-8 fonts | [Octo](https://github.com/JohnEarnest/Octo) `js/emulator.js`, copied into `src/shared/chip8/fonts.ts` | MIT |
 | CHIP-8 programs | [chip8Archive](https://github.com/JohnEarnest/chip8Archive), by their authors, in `resources/chip8/archive` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); credited in the pane |
+| TRANSLATE's engine and model *(unreleased)* | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110, and [PLaMo 3 Translate](https://huggingface.co/pfnet) by Preferred Networks: not bundled, fetched in the pane's setup | llama.cpp: MIT; its licences, and those of the code built into llama-server, come with elecdex and are written beside the engine. The model: [PLaMo Community License](https://plamo.preferredai.jp/info/plamo-community-license-ja), read and agreed to in the setup. Built with PLaMo |
 | CHIP-8 test programs (DIAG) | [chip8-test-suite](https://github.com/Timendus/chip8-test-suite) by Timendus, in `resources/chip8/test-suite` with their Octo sources | GPL-3.0 |
 
 The geolocation database is bundled, so there is no account, no API key and no first-run
