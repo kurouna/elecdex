@@ -973,6 +973,22 @@ const lineOf = (seg: Locator) =>
   })
 
 /**
+ * Where a block's glyph is drawn: its left quarter, so a press there puts the caret before it. By
+ * the glyph, not by pixels from the block's edge: in the runners' smaller window (a 1024x640 one
+ * does it here too) 60 px from the edge, at the block's middle, landed in "the", past the number
+ * this aimed at.
+ */
+const glyphAt = (seg: Locator, offset: number) =>
+  seg.evaluate((el, at) => {
+    const range = document.createRange()
+    range.setStart(el.firstChild as Text, at)
+    range.setEnd(el.firstChild as Text, at + 1)
+    const box = range.getClientRects()[0]
+    if (!box) throw new Error('the glyph is not laid out')
+    return { x: box.left + box.width / 4, y: box.top + box.height / 2 }
+  }, offset)
+
+/**
  * The editor: its selection, and where a block's first glyph is drawn: the mirror lays the text
  * out as the textarea does, so its glyph's place in the mirror, less the scroll, is the textarea's.
  */
@@ -996,18 +1012,14 @@ test('a click in the source opens the editor where it landed, the text not movin
   try {
     const seg = await scrolledTo25(page)
     const before = await lineOf(seg)
-    const rect = await seg.boundingBox()
-    if (!rect) throw new Error('block 25 is not laid out')
     // On "Block 2|5 of …", well inside the text.
-    await page.mouse.click(rect.x + 60, rect.y + rect.height / 2)
+    const glyph = await glyphAt(seg, 7)
+    await page.mouse.click(glyph.x, glyph.y)
     await expect(page.getByTestId('translate-source')).toBeFocused()
     const at = await editorAt(page, 24)
-    const blockStart = at.value.indexOf('Block 25 ')
-    // The caret is in block 25, not at the end of the source.
+    // The caret is where it was pressed, not at the end of the source.
     expect(at.start).toBe(at.end)
-    expect(at.start).toBeGreaterThan(blockStart)
-    expect(at.start).toBeLessThan(blockStart + 'Block 25 of the source.'.length)
-    expect(at.start).not.toBe(at.length)
+    expect(at.start).toBe(at.value.indexOf('Block 25 ') + 7)
     // And its text is drawn where it was, to half a pixel.
     expect(Math.abs(at.line - before)).toBeLessThan(0.5)
   } finally {
@@ -1021,17 +1033,16 @@ test('a drag across two blocks keeps its selection, and the block it ended on st
     const from = await scrolledTo25(page)
     const to = page.getByTestId('translate-source-blocks').locator('.seg[data-i="25"]')
     const before = await lineOf(to)
-    const a = await from.boundingBox()
-    const b = await to.boundingBox()
-    if (!a || !b) throw new Error('blocks 25 and 26 are not laid out')
-    // From inside block 25 to inside block 26: the click goes to the blocks' box, not to a block.
-    await page.mouse.move(a.x + 60, a.y + a.height / 2)
+    // From "Block 2|5" to "Block 2|6": the click goes to the blocks' box, not to a block.
+    const a = await glyphAt(from, 7)
+    const b = await glyphAt(to, 7)
+    await page.mouse.move(a.x, a.y)
     await page.mouse.down()
-    await page.mouse.move(b.x + 60, b.y + b.height / 2, { steps: 6 })
+    await page.mouse.move(b.x, b.y, { steps: 6 })
     await page.mouse.up()
     await expect(page.getByTestId('translate-source')).toBeFocused()
     const at = await editorAt(page, 25)
-    expect(at.value.slice(at.start, at.end)).toMatch(/^\S* of the source\.\n\nBlock 2/)
+    expect(at.value.slice(at.start, at.end)).toBe('5 of the source.\n\nBlock 2')
     expect(Math.abs(at.line - before)).toBeLessThan(0.5)
   } finally {
     await close()
