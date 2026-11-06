@@ -2,6 +2,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   DATA_SOURCES,
+  FETCHED,
   packageRootOf,
   readPackage,
   renderNotices,
@@ -62,5 +63,9 @@ describe('the third-party notices', () => {
     expect(text.indexOf('svelte@')).toBeLessThan(text.indexOf('zod@'))
     expect(text).toMatch(/Permission is hereby granted/)
     for (const source of DATA_SOURCES) expect(text).toContain(source.name)
+    // What TRANSLATE fetches is named, with its licence, though it is not in the package.
+    expect(text).toContain('Fetched on request, not included')
+    for (const item of FETCHED) expect(text).toContain(`${item.name}\n  Used for:`)
+    expect(text).toContain('Built with PLaMo')
   })
 })

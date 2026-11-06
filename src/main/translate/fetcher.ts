@@ -116,6 +116,11 @@ async function downloadOnce(
     redirect: 'follow',
   })
   offset = await writesFrom(response, offset, part)
+  const said = sizeSaid(response)
+  if (said !== null && said !== target.bytes) {
+    await response.body?.cancel()
+    throw new FetchError(`The server's file is ${said} bytes, not ${target.bytes}.`, false)
+  }
   if (!response.body) throw new FetchError('The server sent nothing.', true)
   const received = await writeBody(
     response.body,
@@ -177,7 +182,18 @@ async function writeBody(
     for (;;) {
       if (failure) throw writeFailure(failure)
       const { done, value } = await reader.read()
-      if (done) return received
+      if (done) {
+        // The last bytes reach the disk only as the stream ends: a full disk is said there too,
+        // not left for the checksum to take for a bad download (and drop the whole part).
+        await closed(out)
+        if (failure) throw writeFailure(failure)
+        return received
+      }
+      // More than the file holds: a broken server or proxy, stopped before it fills the disk.
+      // Not retried: a server or proxy that answers with the wrong object does so every time.
+      if (received + value.byteLength > total) {
+        throw new FetchError(`The server sent more than the file's ${total} bytes.`, false)
+      }
       received += value.byteLength
       if (!out.write(value)) await drained(out, signal)
       const now = deps.now()
@@ -191,12 +207,16 @@ async function writeBody(
   }
 }
 
-/** Ends the stream, settling also when it failed (its end callback is then never called). */
+/**
+ * Ends the stream and waits for its 'close', which comes after its 'error': a write that failed
+ * destroys the stream at once but says why only once the file is closed, so a stream already
+ * destroyed is waited for too, never taken as done.
+ */
 function closed(out: WriteStream): Promise<void> {
-  if (out.destroyed) return Promise.resolve()
+  if (out.closed) return Promise.resolve()
   return new Promise<void>((resolve) => {
     out.once('close', () => resolve())
-    out.end()
+    if (!out.destroyed) out.end()
   })
 }
 
@@ -206,6 +226,21 @@ export function writeFailure(error: Error): FetchError {
   return code === 'ENOSPC'
     ? new FetchError('The disk is full.', false)
     : new FetchError(`Cannot write the download (${code ?? error.message}).`, true)
+}
+
+/**
+ * The size of the whole file as the answer says it, before its body is read: a 206's
+ * `Content-Range` total, a 200's `Content-Length`. Null when it says none, or when the body is
+ * encoded (its length is then not the file's).
+ */
+export function sizeSaid(response: Response): number | null {
+  if (response.headers.get('content-encoding')) return null
+  if (response.status === 206) {
+    const total = /\/(\d+)\s*$/.exec(response.headers.get('content-range') ?? '')?.[1]
+    return total ? Number(total) : null
+  }
+  const length = response.headers.get('content-length')
+  return length && /^\d+$/.test(length) ? Number(length) : null
 }
 
 /** The first byte of a `Content-Range: bytes 100-199/200`, or null. */

@@ -1,4 +1,4 @@
-import { EASY_JAPANESE, isSourceLang, isTargetLang, takesForm } from './languages.js'
+import { isSourceLang, isTargetLang, takesForm } from './languages.js'
 
 /**
  * The PFML3 prompt of PLaMo 3 Translate (docs/translate.md §2, §6.2), in the order of the model's
@@ -95,5 +95,5 @@ function glossary(entries: NonNullable<TranslationPrompt['glossary']>): string {
 
 /** Easy Japanese takes no form; anything else but Japanese neither. */
 export function formFor(target: string, form: Form | undefined): Form | undefined {
-  return target !== EASY_JAPANESE && takesForm(target) ? form : undefined
+  return takesForm(target) ? form : undefined
 }

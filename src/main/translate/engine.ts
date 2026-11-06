@@ -1,6 +1,7 @@
 import type { EnginePhase } from '@shared/translate/board'
 import { bootLimitMs, type EngineBackend, showsProgress } from '@shared/translate/engines'
 import { decideRestart } from '@shared/translate/restart'
+import type { Endpoint } from './llama.js'
 
 /**
  * llama-server's life (docs/translate.md §4.2, §4.3, §8.4): started on the first translation,
@@ -59,12 +60,6 @@ export interface EngineDeps {
   /** Bytes-without-output after which a load counts as stalled (60 s; tests shorten it). */
   stallMs: number
   pollMs: number
-}
-
-export interface Endpoint {
-  origin: string
-  /** Null for an external server, which elecdex holds no key for. */
-  key: string | null
 }
 
 const LOG_LINES = 400

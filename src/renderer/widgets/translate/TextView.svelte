@@ -178,7 +178,9 @@ const showBlocks = $derived(
     run.blocks.length > 0 &&
     sourceOf(run) === text.replace(/\r\n?/g, '\n'),
 )
-const blockCount = $derived(splitBlocks(text).blocks.length)
+/** The source as blocks: counted here, and laid out in the mirror the spine measures while it is edited. */
+const mirrorBlocks = $derived(splitBlocks(text))
+const blockCount = $derived(mirrorBlocks.blocks.length)
 const tooLong = $derived(text.length > MAX_SOURCE_CHARS)
 const mode = $derived(targetMode(board, run))
 const canRun = $derived(text.trim() !== '' && !tooLong && board.engine.phase !== 'absent')
@@ -394,8 +396,6 @@ let gutter = $state<HTMLDivElement | null>(null)
 let srcText = $state<HTMLDivElement | null>(null)
 let editWrap = $state<HTMLDivElement | null>(null)
 let mirror = $state<HTMLDivElement | null>(null)
-/** The source as blocks, for the mirror the spine measures while the source is edited. */
-const mirrorBlocks = $derived(splitBlocks(text))
 let dstText = $state<HTMLDivElement | null>(null)
 let narrow = $state(false)
 let hot = $state<number | null>(null)

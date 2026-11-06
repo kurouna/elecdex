@@ -48,11 +48,11 @@ import {
   type ServerProcess,
   TranslateEngine,
 } from './engine.js'
-import { FetchError, fetchFile, fileSize, partOf } from './fetcher.js'
+import { fetchFile, fileSize, partOf } from './fetcher.js'
 import { sha256File, stopHashing } from './hash.js'
 import { installEngine, SERVER_NAME, sweepTemps } from './installer.js'
 import { TranslateLibrary } from './library.js'
-import { streamCompletion, tokenize } from './llama.js'
+import { authHeaders, streamCompletion, tokenize } from './llama.js'
 import { endOrphan, processName, readLeftPid, writePid } from './orphan.js'
 import { TranslateRuns } from './runs.js'
 
@@ -176,7 +176,6 @@ export class TranslateService {
       publish: (event) => {
         for (const listener of this.#runListeners) listener(event)
       },
-      changed: () => {},
     })
     void sweepTemps(this.#root)
     void endOrphan(left, {
@@ -331,15 +330,8 @@ export class TranslateService {
     const model = this.#models.find((m) => m.id === modelId)
     if (!model) throw new Error('No such model.')
     const at = new Date().toISOString()
-    const file = this.#file.read()
-    this.#file.write({
-      ...file,
-      consents: {
-        ...file.consents,
-        [modelId]: { at, revision: model.revision, licence: agreement.licence },
-      },
-    })
     const engines = this.#enginesToFetch()
+    // The log first: an agreement it could not keep is no agreement, and nothing is fetched on it.
     await appendConsent(this.#root, {
       at,
       appVersion: agreement.appVersion,
@@ -363,6 +355,14 @@ export class TranslateService {
             `llama.cpp ${ENGINE_BUILD} (MIT) from ${engineUrl(this.#releasesBase(), engine)}`,
         ),
       ],
+    })
+    const file = this.#file.read()
+    this.#file.write({
+      ...file,
+      consents: {
+        ...file.consents,
+        [modelId]: { at, revision: model.revision, licence: agreement.licence },
+      },
     })
     this.#changed()
   }
@@ -544,8 +544,7 @@ export class TranslateService {
       this.#fetch = this.#paused && fetching ? { ...fetching, phase: 'paused', speed: 0 } : null
       return
     }
-    const message =
-      error instanceof FetchError || error instanceof Error ? error.message : String(error)
+    const message = error instanceof Error ? error.message : String(error)
     this.#fetch = fetching ? { ...fetching, phase: 'failed', speed: 0, error: message } : null
   }
 
@@ -739,13 +738,13 @@ export class TranslateService {
       bootLines: this.engine.bootLines(),
       externalHost: external?.ok ? external.host : null,
       externalLoopback: external?.ok ? external.loopback : false,
+      externalOrigin: external?.ok ? external.origin : null,
       own: file.own ? { name: path.basename(file.own.path), build: file.own.build } : null,
       fetched:
         Boolean(this.#env.stubServer) ||
         enginesFor(this.#engines, this.#env.platform, this.#env.arch).some((engine) =>
           existsSync(path.join(this.#engineDir(engine), SERVER_NAME)),
         ),
-      memoryBytes: null,
       toFetchBytes: this.#enginesToFetch().reduce((sum, engine) => sum + engine.bytes, 0),
     }
   }
@@ -759,7 +758,9 @@ export class TranslateService {
     const devices = [...output.matchAll(/^\s*\w+\d+:\s*(.+?)\s*\(\d+ MiB/gm)]
       .map((m) => m[1] ?? '')
       .filter(Boolean)
-    this.#file.write({ ...this.#file.read(), devices: { ...file.devices, [key]: devices } })
+    // Read again after the wait: another write may have come in the meantime.
+    const latest = this.#file.read()
+    this.#file.write({ ...latest, devices: { ...latest.devices, [key]: devices } })
     return devices
   }
 
@@ -825,12 +826,6 @@ async function health(origin: string, key: string | null): Promise<number | null
   } catch {
     return null
   }
-}
-
-function authHeaders(key: string | null): Record<string, string> {
-  return key
-    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }
-    : { 'Content-Type': 'application/json' }
 }
 
 function freePort(): Promise<number> {

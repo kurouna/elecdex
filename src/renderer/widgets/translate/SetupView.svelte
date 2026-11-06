@@ -42,10 +42,12 @@ let agreed = $state(false)
 /** The fetch agreed to as well (user's request 2026-11-06): what AGREE AND FETCH downloads. */
 let fetchAgreed = $state(false)
 /**
- * The licence's page opened from here: the summary is a guide, the page is the text that holds
- * and may change, so it is opened before the licence can be agreed to (user's request 2026-11-06).
+ * The licence's page opened from here for the agreement to come: the summary is a guide, the page
+ * is the text that holds and may change, so it is opened before the licence can be agreed to (user's
+ * request 2026-11-06). A model agreed to before needs no new opening; each new agreement does.
  */
-let opened = $state(false)
+let clicked = $state(false)
+const opened = $derived(consented || clicked)
 let address = $state('')
 let problem = $state<string | null>(null)
 let selfTest = $state<{ text: string; tokensPerSecond: number } | { problem: string } | null>(null)
@@ -55,7 +57,6 @@ $effect(() => {
   if (step !== 3) return
   agreed = consented
   fetchAgreed = consented
-  if (consented) opened = true
 })
 
 $effect(() => {
@@ -86,12 +87,13 @@ async function setSource(kind: EngineSourceKind): Promise<void> {
 
 async function openLicence(): Promise<void> {
   await api.openLicence('plamo')
-  opened = true
+  clicked = true
 }
 
 async function test(): Promise<void> {
   problem = null
-  const answer = await api.testExternal(address)
+  // Nothing typed: the saved server again, as ENGINE does.
+  const answer = await api.testExternal(address || board.engine.externalOrigin || '')
   if (!answer.ok) problem = answer.problem
 }
 
@@ -104,6 +106,8 @@ async function next(): Promise<void> {
   if (step === 3) {
     if (!selected) return
     await api.consent(selected.id)
+    // Spent: another model agreed to later in this setup asks for the page again.
+    clicked = false
     // Now the choice is the settings': main fetches, and then runs, the settings' model.
     await oncommit()
     const answer = await api.fetch()
@@ -159,7 +163,7 @@ const nextDisabled = $derived(
           <div class="opt" class:on={board.engine.source === 'external'}>
             <i class="rd"></i><b>A server already running</b>
             <span class="row">
-              <input class="field" bind:value={address} placeholder={board.engine.externalHost ?? 'http://192.168.1.20:8080'} aria-label="Server address" data-testid="translate-external" />
+              <input class="field" bind:value={address} placeholder={board.engine.externalOrigin ?? 'http://192.168.1.20:8080'} aria-label="Server address" data-testid="translate-external" />
               <button type="button" class="btn" onclick={() => void test()}>Test</button>
             </span>
             <span class="small">elecdex starts nothing, and what you translate is sent to this address.</span>

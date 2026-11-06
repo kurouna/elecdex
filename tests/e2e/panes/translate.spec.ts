@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -175,6 +175,12 @@ test('SETUP fetches the model, checks it, and READY translates through the engin
     expect(entry).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z {2}agreed {2}plamo3-2b-q4km$/m)
     expect(entry).toMatch(/opened from elecdex \d{4}-/)
     expect(entry).toContain(`pfnet/plamo-3-translate-2b-GGUF@abcdef1 ${FILE}`)
+    // An opening goes with one agreement: the next, with no page opened for it, says so rather
+    // than repeating the time the page was opened before.
+    await page.evaluate(() => window.elecdex.translate.consent('plamo3-2b-q4km'))
+    const entries = readFileSync(log, 'utf8').split(/\n(?=\d{4}-)/)
+    expect(entries).toHaveLength(2)
+    expect(entries[1]).toContain('opened from elecdex (not opened for this agreement)')
 
     // FETCH, then READY by itself, with the self test through the engine.
     await expect(page.getByTestId('translate-selftest')).toContainText('おはようございます。', {
@@ -703,6 +709,30 @@ test('the spine joins each block as it is translated, while the source is still 
       .evaluateAll((nodes) => nodes.map((n) => (n as HTMLElement).getBoundingClientRect().top))
     expect(tops[1] ?? 0).toBeGreaterThan(tops[0] ?? 0)
     expect(tops[2] ?? 0).toBeGreaterThan(tops[1] ?? 0)
+  } finally {
+    await close()
+  }
+})
+
+test('an agreement that could not be written keeps the licence page’s opening for its retry', async () => {
+  const { app, page, close, userData } = await launch(undefined, withModel())
+  const log = path.join(userData, 'translate', 'licence-consents.txt')
+  try {
+    await stubOpenExternal(app)
+    await page.evaluate(() => window.elecdex.translate.openLicence('plamo'))
+    // A folder where the log goes: the agreement cannot be written.
+    mkdirSync(log, { recursive: true })
+    const failed = await page.evaluate(() =>
+      window.elecdex.translate.consent('plamo3-2b-q4km').then(
+        () => 'written',
+        () => 'refused',
+      ),
+    )
+    expect(failed).toBe('refused')
+    rmSync(log, { recursive: true, force: true })
+    await page.evaluate(() => window.elecdex.translate.consent('plamo3-2b-q4km'))
+    // The retry says when the page was opened for it, not that it was not.
+    expect(readFileSync(log, 'utf8')).toMatch(/opened from elecdex \d{4}-/)
   } finally {
     await close()
   }

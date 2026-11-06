@@ -27,7 +27,7 @@ export function consentEntry(record: ConsentRecord): string {
     `${record.at}  agreed  ${model.id}`,
     `  licence    ${licence.name}`,
     `             ${licence.url}`,
-    `             opened from elecdex ${licence.openedAt ?? '(not this session)'}`,
+    `             opened from elecdex ${licence.openedAt ?? '(not opened for this agreement)'}`,
     '  agreed     I have read the licence on Preferred Networks’ site and will use the model under its terms.',
     '             I agree that elecdex downloads the files below to this PC.',
     `  model      ${model.repo}@${model.revision} ${model.file}`,

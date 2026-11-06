@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  canTranslate,
   etaText,
   fetchPercent,
   firstSetupStep,
@@ -25,9 +24,10 @@ const engine = (over: Partial<EngineView> = {}): EngineView => ({
   bootLines: [],
   externalHost: null,
   externalLoopback: false,
+  externalOrigin: null,
   own: null,
   fetched: true,
-  memoryBytes: null,
+  toFetchBytes: 0,
   ...over,
 })
 
@@ -100,7 +100,6 @@ describe('translate view', () => {
     expect(phaseLamp('absent').word).toBe('No model')
     expect(phaseLamp('fault').kind).toBe('bad')
     expect(phaseLamp('external-unreachable').kind).toBe('bad')
-    expect(canTranslate(board({ engine: engine({ phase: 'absent' }) }))).toBe(false)
   })
 
   it('formats sizes and times as the setup shows them', () => {

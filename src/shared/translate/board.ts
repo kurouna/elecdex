@@ -40,12 +40,15 @@ export interface EngineView {
   /** The external server's host, and whether it is this machine (§3's footer). */
   externalHost: string | null
   externalLoopback: boolean
+  /**
+   * The external server's origin as saved (scheme, host, port): what TEST asks again when nothing
+   * is typed, so an https server is never tried as http.
+   */
+  externalOrigin: string | null
   /** The user's own llama-server: its file name and build, once chosen. */
   own: { name: string; build: number } | null
   /** Whether the engine elecdex fetches is in place. */
   fetched: boolean
-  /** Bytes of memory the engine uses, when known. */
-  memoryBytes: number | null
   /** Bytes of the llama.cpp builds a fetch would bring: 0 when they are in place or not elecdex's. */
   toFetchBytes: number
 }

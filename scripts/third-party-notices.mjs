@@ -198,6 +198,27 @@ export const DATA_SOURCES = [
   },
 ]
 
+/**
+ * What the app fetches on the user's request and does not include: named in the notices so the
+ * list is whole (TRANSLATE's engine and model, docs/translate.md §4.1, §3).
+ */
+export const FETCHED = [
+  {
+    name: 'llama.cpp',
+    use: "TRANSLATE's engine (llama-server), fetched from its GitHub releases in the pane's setup",
+    licence:
+      'MIT. Its licence, and those of the code built into llama-server, come with elecdex and are written beside the engine as LICENSE-llama.cpp.',
+    credit: 'Copyright (c) The ggml authors. https://github.com/ggml-org/llama.cpp',
+  },
+  {
+    name: 'PLaMo 3 Translate',
+    use: "TRANSLATE's model, fetched from Hugging Face in the pane's setup after its licence is read and agreed to",
+    licence:
+      'PLaMo Community License, https://plamo.preferredai.jp/info/plamo-community-license-ja',
+    credit: 'Built with PLaMo. By Preferred Networks, Inc. https://huggingface.co/pfnet',
+  },
+]
+
 /** Packages whose data, not code, is in the app: made into the data files at build time. */
 export const DATA_PACKAGES = ['world-atlas', 'i18n-iso-countries', 'countries-and-timezones']
 
@@ -242,6 +263,11 @@ export function renderNotices(packages, extra = []) {
   for (const source of DATA_SOURCES) {
     lines.push(source.name, `  Used for: ${source.use}`, `  Licence: ${source.licence}`)
     lines.push(`  ${source.credit}`, '')
+  }
+  lines.push(rule('='), 'Fetched on request, not included', rule('='), '')
+  for (const item of FETCHED) {
+    lines.push(item.name, `  Used for: ${item.use}`, `  Licence: ${item.licence}`)
+    lines.push(`  ${item.credit}`, '')
   }
   for (const block of extra) lines.push(rule('-'), block.title, rule('-'), '', block.text, '')
   lines.push(rule('='), `Software (${sorted.length} packages)`, rule('='), '')

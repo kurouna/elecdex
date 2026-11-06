@@ -56,11 +56,6 @@ export function firstSetupStep(board: TranslateBoard, chosen = board.selectedMod
   return 1
 }
 
-/** Whether the pane has what it needs to translate: a model in place and an engine to run it. */
-export function canTranslate(board: TranslateBoard): boolean {
-  return board.engine.phase !== 'absent'
-}
-
 /** Bytes as Hugging Face writes them (1 GB = 10^9 bytes). */
 export function formatBytes(bytes: number): string {
   if (bytes < 1e6) return `${Math.max(0, Math.round(bytes / 1e3))} KB`

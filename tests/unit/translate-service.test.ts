@@ -215,7 +215,16 @@ describe('TranslateService and the licence agreed to', () => {
     )
     expect(entries[0]).toContain('elecdex    9.9.9')
     // The second, with no page opened, says so; the first is kept as it was.
-    expect(entries[1]).toContain('opened from elecdex (not this session)')
+    expect(entries[1]).toContain('opened from elecdex (not opened for this agreement)')
+  })
+
+  it('keeps no agreement the log could not keep: nothing is fetched on it', async () => {
+    const { service } = await make({}, false)
+    // A folder where the log goes: the agreement cannot be written down.
+    mkdirSync(path.join(dir, 'translate', 'licence-consents.txt'), { recursive: true })
+    await expect(service.consent(MODEL.id, AGREEMENT)).rejects.toThrow()
+    expect(service.fetchProblem()).toMatch(/licence/)
+    expect((await service.board()).models[0]?.consentAt).toBeNull()
   })
 
   it('lists no engine to fetch once it is in place', async () => {

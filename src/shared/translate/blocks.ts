@@ -95,12 +95,21 @@ function sentences(text: string): string[] {
   return [...segmenter.segment(text)].map((s) => s.segment)
 }
 
+/**
+ * A sentence in pieces of at most `maxChars` UTF-16 units, as `splitParts` counts them, taken a
+ * code point at a time so a surrogate pair is never cut in two (one alone may pass a limit of 1).
+ */
 function byChars(sentence: string, maxChars: number): string[] {
   if (sentence.length <= maxChars) return [sentence]
   const pieces: string[] = []
-  // By code points, so a surrogate pair is never cut in two.
-  const chars = [...sentence]
-  for (let at = 0; at < chars.length; at += maxChars)
-    pieces.push(chars.slice(at, at + maxChars).join(''))
+  let piece = ''
+  for (const char of sentence) {
+    if (piece !== '' && piece.length + char.length > maxChars) {
+      pieces.push(piece)
+      piece = ''
+    }
+    piece += char
+  }
+  if (piece !== '') pieces.push(piece)
   return pieces
 }

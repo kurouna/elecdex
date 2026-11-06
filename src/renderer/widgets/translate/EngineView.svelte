@@ -55,7 +55,7 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
     return
   }
   if (kind === 'external') {
-    const answer = await api.testExternal(address || `http://${board.engine.externalHost ?? ''}`)
+    const answer = await api.testExternal(address || board.engine.externalOrigin || '')
     if (!answer.ok) problem = answer.problem
     return
   }
@@ -88,7 +88,7 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
       <div class="opt" class:on={external}>
         <i class="rd"></i><b>A server already running</b>
         <span class="row">
-          <input class="field" bind:value={address} placeholder={board.engine.externalHost ?? 'http://192.168.1.20:8080'} aria-label="Server address" />
+          <input class="field" bind:value={address} placeholder={board.engine.externalOrigin ?? 'http://192.168.1.20:8080'} aria-label="Server address" />
           <button type="button" class="btn" onclick={() => void setSource('external')}>Test</button>
         </span>
       </div>

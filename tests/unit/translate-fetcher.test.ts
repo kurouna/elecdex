@@ -11,6 +11,7 @@ import {
   fetchFile,
   partOf,
   rangeStart,
+  sizeSaid,
   writeFailure,
 } from '../../src/main/translate/fetcher'
 import { sha256File, stopHashing } from '../../src/main/translate/hash'
@@ -19,7 +20,7 @@ const BODY = Buffer.from(Array.from({ length: 50_000 }, (_, i) => i % 251))
 const SHA = createHash('sha256').update(BODY).digest('hex')
 
 /** How the stub answers a ranged request. */
-let rangeMode: 'honest' | 'wrong-start' | 'ignore' | 'stall' = 'honest'
+let rangeMode: 'honest' | 'wrong-start' | 'ignore' | 'stall' | 'too-much' | 'wrong-size' = 'honest'
 let requests: (string | undefined)[] = []
 let server: Server
 let base = ''
@@ -36,6 +37,19 @@ beforeEach(async () => {
       // Half the file, then nothing: a download in progress when PAUSE or CANCEL comes.
       res.writeHead(200)
       res.write(BODY.subarray(0, 20_000))
+      return
+    }
+    if (rangeMode === 'too-much') {
+      // A broken server or proxy: far more than the file, and not the file, its size unsaid.
+      res.writeHead(200)
+      res.write(Buffer.alloc(BODY.length * 3 + 1, 9))
+      res.end()
+      return
+    }
+    if (rangeMode === 'wrong-size') {
+      // Another file, its size said up front.
+      res.writeHead(200, { 'content-length': String(BODY.length * 2) })
+      res.end(Buffer.alloc(BODY.length * 2, 9))
       return
     }
     const match = range ? /bytes=(\d+)-/.exec(range) : null
@@ -167,6 +181,36 @@ describe('fetchFile when it cannot go on', () => {
     )
   })
 
+  it('stops a server that sends more than the file holds before it fills the disk', async () => {
+    rangeMode = 'too-much'
+    const t = target()
+    await expect(fetchFile(t, deps(), () => {}, new AbortController().signal)).rejects.toThrow(
+      /more than the file's 50000 bytes/,
+    )
+    // The wrong object every time: not asked for again.
+    expect(requests).toHaveLength(1)
+    // Never more than the file on disk, whatever came.
+    let size = 0
+    try {
+      size = readFileSync(partOf(t.dest)).length
+    } catch {}
+    expect(size).toBeLessThanOrEqual(BODY.length)
+  })
+
+  it('refuses an answer that says another size before reading a byte of it', async () => {
+    rangeMode = 'wrong-size'
+    const t = target()
+    await expect(fetchFile(t, deps(), () => {}, new AbortController().signal)).rejects.toThrow(
+      /is 100000 bytes, not 50000/,
+    )
+    expect(requests).toHaveLength(1)
+    let size = 0
+    try {
+      size = readFileSync(partOf(t.dest)).length
+    } catch {}
+    expect(size).toBe(0)
+  })
+
   it('does not retry a full disk, and retries a passing lock', () => {
     const full = Object.assign(new Error('no space'), { code: 'ENOSPC' })
     const locked = Object.assign(new Error('busy'), { code: 'EBUSY' })
@@ -187,6 +231,15 @@ describe('sha256File', () => {
 })
 
 describe('rangeStart', () => {
+  it('reads the whole file’s size an answer says, and none from an encoded body', () => {
+    const answer = (status: number, headers: Record<string, string>) =>
+      new Response(status === 206 || status === 200 ? 'x' : null, { status, headers })
+    expect(sizeSaid(answer(200, { 'content-length': '50000' }))).toBe(50_000)
+    expect(sizeSaid(answer(206, { 'content-range': 'bytes 100-49999/50000' }))).toBe(50_000)
+    expect(sizeSaid(answer(206, { 'content-range': 'bytes 100-49999/*' }))).toBeNull()
+    expect(sizeSaid(answer(200, { 'content-length': '12', 'content-encoding': 'gzip' }))).toBeNull()
+  })
+
   it('reads where a Content-Range begins', () => {
     expect(rangeStart('bytes 100-199/200')).toBe(100)
     expect(rangeStart(null)).toBeNull()

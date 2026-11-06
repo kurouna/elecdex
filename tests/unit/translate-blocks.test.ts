@@ -60,6 +60,17 @@ describe('splitBlocks', () => {
 })
 
 describe('splitParts', () => {
+  it('keeps a part of surrogate pairs within the size it counts in, never cutting one', () => {
+    // 30 emoji with no full stop: 60 UTF-16 units, one sentence, cut by characters.
+    const text = '😀'.repeat(30)
+    const parts = splitParts(text, 60, 20)
+    expect(parts.join('')).toBe(text)
+    for (const part of parts) {
+      expect(part.length).toBeLessThanOrEqual(20)
+      expect(part).toMatch(/^(?:😀)+$/u)
+    }
+  })
+
   it('leaves a block within the limit whole', () => {
     expect(splitParts('Short. Text.', 10)).toEqual(['Short. Text.'])
   })

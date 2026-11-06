@@ -62,8 +62,6 @@ export interface RunsDeps {
   record(view: RunView, request: RunRequest): void
   /** A patch or a new run, for every page that follows the pane. */
   publish(event: RunEvent): void
-  /** What `watching()` answers changed. */
-  changed(): void
 }
 
 /** The block cannot be put in the context even alone: said on the block, the run goes on. */
@@ -128,7 +126,6 @@ export class TranslateRuns {
     if (!this.#followers.get(request.paneId)) {
       this.#armOrphan(run, this.#held.has(request.paneId) ? RELOAD_HOLD_MS + ORPHAN_MS : ORPHAN_MS)
     }
-    this.#deps.changed()
     if (!work) this.#ended(run)
     this.#pump()
     return version
@@ -167,7 +164,6 @@ export class TranslateRuns {
     const seq = (this.#seq.get(paneId) ?? 0) + 1
     this.#seq.set(paneId, seq)
     this.#deps.publish({ paneId, seq, kind: 'snapshot', run: null, cleared: true })
-    this.#deps.changed()
   }
 
   /** The pane went out of sight while LIVE was writing: it stops, as STOP does (§8.5). */
@@ -288,7 +284,6 @@ export class TranslateRuns {
     this.#runs.set(paneId, run)
     this.#deps.publish(this.#snapshotEvent(paneId, true))
     if (!this.#followers.get(paneId)) this.#armOrphan(run, ORPHAN_MS)
-    this.#deps.changed()
     return version
   }
 
@@ -403,7 +398,6 @@ export class TranslateRuns {
       this.#retire(run)
       this.#runs.delete(run.view.paneId)
       this.#queue = this.#queue.filter((id) => id !== run.view.paneId)
-      this.#deps.changed()
     }, ms)
   }
 

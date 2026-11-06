@@ -68,7 +68,6 @@ function harness(over: Partial<RunsDeps> = {}) {
     },
     clearTimer: (id) => timers.delete(id as number),
     publish: (event) => events.push(structuredClone(event)),
-    changed: () => log.push('changed'),
     ...over,
   }
   const runs = new TranslateRuns(deps)

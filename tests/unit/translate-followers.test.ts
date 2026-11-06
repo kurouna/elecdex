@@ -51,7 +51,6 @@ function world() {
     },
     clearTimer: (id) => timers.delete(id as number),
     publish: (event) => followers.publish(event),
-    changed: () => {},
   })
   const pages = new RunFollowers<Page>(runs, 'run-event')
   followers.publish = (event) => pages.publish(event)

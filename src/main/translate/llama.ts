@@ -4,6 +4,7 @@
  * and `stop_type`.
  */
 
+/** Where llama-server answers, and its key: null for an external server, which elecdex holds none for. */
 export interface Endpoint {
   origin: string
   key: string | null
@@ -30,7 +31,8 @@ export class StalledError extends Error {}
 /** How long a stream may go without a byte before it is given up (§4.2's minute). */
 export const STREAM_STALL_MS = 60_000
 
-function headers(key: string | null): Record<string, string> {
+/** The headers of a request to llama-server: its key, when elecdex started it with one. */
+export function authHeaders(key: string | null): Record<string, string> {
   return key
     ? { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` }
     : { 'Content-Type': 'application/json' }
@@ -44,7 +46,7 @@ export async function tokenize(
 ): Promise<number> {
   const response = await fetchFn(`${endpoint.origin}/tokenize`, {
     method: 'POST',
-    headers: headers(endpoint.key),
+    headers: authHeaders(endpoint.key),
     body: JSON.stringify({ content }),
     redirect: 'error',
     signal,
@@ -73,7 +75,7 @@ export async function streamCompletion(
 ): Promise<Completion> {
   const response = await fetchFn(`${endpoint.origin}/completion`, {
     method: 'POST',
-    headers: headers(endpoint.key),
+    headers: authHeaders(endpoint.key),
     body: JSON.stringify({ ...body, stream: true }),
     redirect: 'error',
     signal,

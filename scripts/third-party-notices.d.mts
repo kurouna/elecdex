@@ -28,6 +28,8 @@ export interface DataSource {
 
 export const BUNDLED_DIR: string
 export const DATA_SOURCES: readonly DataSource[]
+/** What the app fetches on request and does not include (TRANSLATE's engine and model). */
+export const FETCHED: readonly DataSource[]
 export const DATA_PACKAGES: readonly string[]
 export function packageRootOf(id: string): string | null
 export function bundledPackages(target: string): Plugin

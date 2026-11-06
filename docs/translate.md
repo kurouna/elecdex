@@ -2,7 +2,7 @@
 
 Preferred Networks の翻訳特化モデル PLaMo 3 Translate を、llama.cpp の `llama-server` でこの PC の上で動かし、
 elecdex のペインから使う翻訳ペイン。訳す文はこの PC から出ない（利用者が外部のサーバーを選んだときは別、§4.1）。
-外に出る通信はエンジンとモデルのダウンロードだけ。**作成中**（2026-11-06、段階 1 まで。§12）。要約は
+外に出る通信はエンジンとモデルのダウンロードだけ。**段階 5 まで実装済み、未リリース**（2026-11-06。§12）。要約は
 architecture.md §5.25。
 
 見た目のたたき台はモック [translate-mock/index.html](translate-mock/index.html)（ブラウザで開くだけで動く。
@@ -97,7 +97,7 @@ architecture.md §5.25。
   ログを 1 行ずつ）、TX、READY、FAULT（終了コードと stderr の末尾、RESTART、ENGINE へ）。読み込み時の GPU の失敗は
   CPU へ切り替えて続くので（§4.2）FAULT にならない。FAULT は CPU でも起動できない、または動いている途中で落ちて
   再起動の回数を越えたとき。
-- **足元**: ランプとエンジンの要約（ビルド、GPU か CPU、コンテキスト、メモリ、`127.0.0.1:ポート`）。ポートは
+- **足元**: ランプとエンジンの要約（ビルド、GPU か CPU、コンテキスト、`127.0.0.1:ポート`。メモリは測らないので出さない）。ポートは
   main が表示用に送る値で、キーは送らない（ポートだけでは使えない）。右に「Built with PLaMo · PLaMo 3 Translate · PLaMo
   Community License · llama.cpp」（ライセンス第 4 条の表示、2026-11-06）。エンジンがこの PC のものなら「local, nothing leaves this PC」、外部のサーバーなら
   「sent to <ホスト>」（ループバック以外は警告の色）。
@@ -112,7 +112,8 @@ architecture.md §5.25。
   - **同意の記録**: main は `engine.json` の `consents`（アプリが使う最新のもの）に加えて、
     `translate/licence-consents.txt` に 1 件ずつ追記する（書き換えない。トラブルのときの証拠として人が読める形）:
     日時、モデル、ライセンスの名前とアドレス、そのページを elecdex から開いた日時、同意した 2 つの文、モデルの
-    リポジトリ@リビジョン・ファイル・バイト数・sha256、取得するものの URL、elecdex の版。
+    リポジトリ@リビジョン・ファイル・バイト数・sha256、取得するものの URL、elecdex の版。記録を先に書き、書けたときだけ
+    `engine.json` に同意を置く（記録できなかった同意では取得しない）。
   - 開くページは名前で指す（`LICENCE_PAGES`: `plamo`・`register`・`llama`）。ページがアドレスを渡すことはない。
 - **HISTORY**: 絞り込み、日ごとの区切り、行を押すと TEXT に戻して開く。CLEAR は 2 度押し。
 - **ENGINE**: エンジンの入手先、状態（STOP / RESTART）、モデルの一覧（取得・削除・切り替え）、実行の設定
@@ -271,7 +272,7 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 翻訳元を選んでいればそれ、AUTO なら判定（§6.5）が確かなときだけその言語。確かでなければ、ROUND TRIP を押したときに
 翻訳元の言語を選んでもらう。
 
-- 依頼は `run` の `mode: 'roundtrip'`（§8.3）。そのペインの依頼の一部として、同じ待ち行列で 1 ブロックずつ訳す。
+- 依頼は `roundTrip` のチャネル（§8.3）。そのペインの依頼の一部として、同じ待ち行列で 1 ブロックずつ訳す。
 - 訳し戻しには**履歴も用語集も渡さない**（用語集の訳先は訳し戻しの原文側になるので合わない）。文体は、訳し戻しの
   訳先（＝原文の言語）が `ja` のときだけ `polite` を付ける。
 - 同じペインの新しい依頼（LIVE・TRANSLATE）は、まだ済んでいない訳し戻しを取り消す（訳文が変われば意味がない）。
@@ -354,31 +355,32 @@ llama-server -m <model.gguf> -c <ctx> --host 127.0.0.1 --port <空き番号> --a
 | チャネル | 向き | 中身 |
 |---|---|---|
 | `subscribe` / `unsubscribe` | ページ → main（on） | エンジンの盤（状態・モデルの一覧・取得の進捗）を購読する。`PageSubscribers`、`whenPageGoes` で落とす |
-| `board` | main → ページ | 盤の全体（状態、ビルド、デバイス、ポート、モデルごとの状態、取得の進捗、入手先の種類、外部のホスト名） |
-| `run` | ページ → main（handle） | `{paneId, draftId, text, srcLang|'auto', tgtLang, form?, contextText?, glossaryId?, mode: 'translate'|'live'|'summon'|'roundtrip', only?: blockIndex}`。`summon` は記録では translate と同じ（§7）。`roundtrip` は `{paneId, index?, srcLang}` だけを使い、済んだブロックを訳し戻す（§6.4）。答えは run の版番号 |
+| `board` | main → ページ | 盤の全体（状態、ビルド、デバイス、ポート、モデルごとの状態、取得の進捗、入手先の種類、外部のホスト名と origin、取得するエンジンの大きさ） |
+| `run` | ページ → main（handle） | `{paneId, draftId, text, srcLang|'auto', tgtLang, form?, contextText?, glossaryId?, mode: 'translate'|'live'}`。Ctrl+Shift+Y の呼び出しは `translate` で頼む（記録も同じ、§7）。1 ブロックの訳し直しは `retryBlock`、訳し戻しは `roundTrip`。答えは run の版番号 |
 | `follow` / `unfollow` | ページ → main（on） | `{paneId}` の依頼を追う。追い始めにスナップショット |
 | `runEvent` | main → ページ | `{paneId, seq, kind: 'snapshot'|'patch', ...}`。`patch` はブロックごとの差分（全文の置き換え・追記・状態・注記）と依頼の状態を 100 ms ぶんまとめたもの。`seq` が飛んだか版が違えば、ページは `follow` し直す。追い始めたページには、ほかのページへ差分を送り切ってからスナップショットを送り、そのあとで数に入れる（差分がスナップショットより先に届かない） |
 | `stop` | ページ → main（on） | `{paneId}` の依頼を止める（STOP、Ctrl+.） |
 | `cancelLive` | ページ → main（on） | `{paneId}` の LIVE の依頼を取り消す（ペインが隠れたとき） |
 | `editBlock` | ページ → main（handle） | `{paneId, index, text}` 直したブロック（その後の履歴に使う） |
 | `retryBlock` | ページ → main（handle） | `{paneId, index}` 1 ブロックだけ、その場で訳し直す（設計の `run` の `only` の代わり。依頼を作り直さない） |
-| `roundTrip` | ページ → main（handle） | `{paneId, lang}` 訳し終えたブロックを `lang` へ訳し戻す（`run` の `mode: 'roundtrip'` の代わり。同じ依頼の中で、訳のあとに 1 つずつ） |
+| `roundTrip` | ページ → main（handle） | `{paneId, lang}` 訳し終えたブロックを `lang` へ訳し戻す（同じ依頼の中で、訳のあとに 1 つずつ） |
+| `clear` | ページ → main（on） | `{paneId}` CLEAR: 依頼を片付け、`cleared` のスナップショットを送る |
 | `engineStart` / `engineStop` / `engineRestart` | handle | 盤の STOP / RESTART、FAULT の RESTART |
 | `setSource` | handle | `'fetched'|'own'|'external'`。own は選び済みのときだけ、external はアドレスを入れて TEST が通ったときだけ |
 | `pickOwn` | handle | main のファイル選択。`--version` を確かめて `engine.json` に置く |
 | `testExternal` | handle | `{url}` を検査し `/props` を読む。通れば `engine.json` に置く |
-| `selectModel` | handle | マニフェストの id（設定の `modelId`） |
 | `consent` | handle | `{modelId}` ライセンスとダウンロードへの同意を記録（`engine.json` と `licence-consents.txt`） |
-| `fetch` / `pause` / `resume` / `cancelFetch` / `removeModel` | handle | 取得（エンジン → モデルの順に必要なものだけ）と削除 |
+| `fetch` / `pause` / `cancelFetch` / `removeModel` | handle | 取得（エンジン → モデルの順に必要なものだけ。止めたものの続きも `fetch`）と削除。モデルの選択は専用のチャネルではなく、設定の `modelId` を `settings.patch` で書く（§3 の仮の選択） |
+| `selfTest` | handle | READY の 1 文。履歴には残さない |
 | `logs` | handle | リングバッファ（ENGINE の LOG） |
 | `history` / `historyClear` / `historyRemove` / `historyOpen` | handle | 一覧（各件の頭 240 字だけ。絞り込みはページ）、2 度押しの CLEAR、1 件、1 件をペインに訳し終えた依頼として置く（`{paneId, id}`） |
 | `glossaries` / `glossarySave` / `glossaryRemove` | handle | 用語集の読み書き。保存は 1 つを丸ごと（zod で検査）。TSV / CSV の貼り付けはページが解いて `glossarySave` で送る（5,000 件まで） |
+| `watching` | handle | 診断（§8.6）。盤の購読、取得、ペインごとの依頼 |
+| `clipboardText` | handle | Ctrl+Shift+Y のとき、main のクリップボードのモジュールから文字だけ（`ELECDEX_CLIPBOARD_STUB` が効く） |
+| `openLicence` | handle | `{page}`（`plamo` / `register` / `llama`）の決まったページを既定のブラウザで。`plamo` は開いた日時を同意の記録に残す |
 
 用語集と履歴が変わると、盤の `library`（版の数）が増える。用語集か HISTORY を出しているペインは、それを見て
 聞き直す（新しい購読のチャネルは作らない）。
-| `clipboardText` | handle | Ctrl+Shift+Y のとき、main のクリップボードのモジュールから文字だけ（`ELECDEX_CLIPBOARD_STUB` が効く） |
-| `openLicence` | handle | `{page}`（`plamo` / `register` / `llama`）の決まったページを既定のブラウザで。`plamo` は開いた日時を同意の記録に残す |
-| `watching` | handle | 診断（§8.6） |
 
 どのチャネルも `tests/e2e/contracts/ipc-table.ts` に行を足す（IPC のメソッドの一覧の契約）。
 

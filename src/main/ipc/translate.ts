@@ -221,11 +221,16 @@ export function registerTranslateIpc(
       [CH.translate.testExternal]: (_event, address) => service.testExternal(address),
       [CH.translate.consent]: async (_event, modelId) => {
         if (!knownModel(modelId)) return
+        const openedAt = licenceOpenedAt
         await service.consent(modelId, {
           licence: PLAMO_LICENSE_URL,
-          openedAt: licenceOpenedAt,
+          openedAt,
           appVersion: app.getVersion(),
         })
+        // Spent on this agreement, once it is written: a later one says when the page was opened
+        // for it, or that it was not. One that failed to be written keeps it for its retry, and a
+        // page opened again in the meantime is kept for the next.
+        if (licenceOpenedAt === openedAt) licenceOpenedAt = null
       },
       [CH.translate.fetch]: () => {
         const problem = service.fetchProblem()
