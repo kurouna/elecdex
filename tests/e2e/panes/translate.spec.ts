@@ -467,6 +467,28 @@ test('a block cut at the length limit says so, and the rest goes on', async () =
   }
 })
 
+test('an engine that stops answering is stopped and started again, and the block is written', async () => {
+  const flag = path.join(mkdtempSync(path.join(tmpdir(), 'elecdex-wedge-')), 'wedged')
+  const given = withModel('wedge-once')
+  const { page, close } = await launch(undefined, {
+    ...given,
+    // The stall time shortened, but not so far that a slow start of the stub (twice here) is taken
+    // for a load that stopped.
+    env: { ...given.env, ELECDEX_LLAMA_STUB_FLAG: flag, ELECDEX_LLAMA_STALL_MS: '5000' },
+  })
+  try {
+    await translate(page, 'Hello.')
+    await expect(blocks(page).nth(0)).toHaveAttribute('data-st', 'done', { timeout: 30_000 })
+    await expect(blocks(page).nth(0)).toContainText('[ja] Hello.')
+    // The first server answered nothing; a second wrote the block.
+    expect(existsSync(flag)).toBe(true)
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(page.getByTestId('translate-engine')).toContainText('stopped answering')
+  } finally {
+    await close()
+  }
+})
+
 test('an engine that ends under a block twice stops the run and says so', async () => {
   const { page, close } = await launch(undefined, withModel('crash-mid'))
   try {

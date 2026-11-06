@@ -1,5 +1,10 @@
 import type { EnginePhase } from '@shared/translate/board'
-import { bootLimitMs, type EngineBackend, showsProgress } from '@shared/translate/engines'
+import {
+  answerStallMs,
+  bootLimitMs,
+  type EngineBackend,
+  showsProgress,
+} from '@shared/translate/engines'
 import { decideRestart } from '@shared/translate/restart'
 import type { Endpoint } from './llama.js'
 
@@ -103,6 +108,11 @@ export class TranslateEngine {
   #fallback: string | null = null
   #device: string | null = null
   #restarts: number[] = []
+  /**
+   * A GPU build that stopped answering in this session (`stalled`): the next start skips it for
+   * the CPU build, and says why. RESTART, or a new configuration, tries it again.
+   */
+  #hung: { backend: EngineBackend; note: string } | null = null
   #idle: unknown = null
   #busy = 0
   readonly #deps: EngineDeps
@@ -177,6 +187,7 @@ export class TranslateEngine {
     const before = this.#config
     this.#config = config
     const restart = restarts(before, config)
+    if (restart) this.#hung = null
     if (before.idleMinutes !== config.idleMinutes && this.#busy === 0) this.#armIdle()
     if (!restart) return Promise.resolve()
     // Up, or at fault: a change of settings is the way out of a fault too (§8.4).
@@ -277,8 +288,57 @@ export class TranslateEngine {
     await Promise.race([running.ended, this.#deps.sleep(ms)])
   }
 
+  /**
+   * A request to the server got nothing back for the stall time (§8.4): it is up, but wedged (a
+   * GPU job that never ended, seen on the Vulkan build 2026-11-06), and answers nothing more. It is
+   * stopped and counted as a crash is: started again, or at fault when it keeps happening. A GPU
+   * build gives way to the CPU build for the rest of the session, as one that does not start does.
+   */
+  stalled(): Promise<void> {
+    const running = this.#running
+    if (!running || this.#config.source === 'external') return Promise.resolve()
+    if (this.#stopping) return this.#stopping
+    // Through the stop path: a translation, RESTART or a change of settings meanwhile waits for it
+    // and never starts a second server beside the wedged one.
+    this.#stopping = this.#stopStalled(running).finally(() => {
+      this.#stopping = null
+    })
+    return this.#stopping
+  }
+
+  async #stopStalled(running: Running): Promise<void> {
+    const cpu = this.#config.launches.some((launch) => launch.backend === 'cpu')
+    if (running.launch.backend !== 'cpu' && cpu) {
+      const note = `The ${running.launch.backend} build stopped answering; running on the cpu build.`
+      this.#hung = { backend: running.launch.backend, note }
+    }
+    this.#note('[elecdex] llama-server stopped answering; stopping it')
+    this.#gen++
+    this.#clearIdle()
+    this.#phase = 'stopping'
+    this.#emit()
+    // A process caught in a GPU driver may not end even when killed hard: it is let go after the
+    // grace twice over, and the next server takes a port of its own.
+    await Promise.race([this.#kill(running), this.#deps.sleep(STOP_GRACE_MS * 2)])
+    const decision = decideRestart(this.#restarts, this.#deps.now())
+    this.#restarts = decision.recent
+    if (!decision.allow) {
+      this.#phase = 'fault'
+      this.#error = `llama-server stopped answering again${this.#lastError()}`
+    } else {
+      this.#phase = this.#restingPhase()
+    }
+    this.#emit()
+  }
+
+  /** How long an answer may send nothing (§4.3): longer for a bigger model. */
+  answerStallMs(): number {
+    return answerStallMs(this.#deps.stallMs, this.#config.modelBytes)
+  }
+
   /** RESTART: from a fault too; the crash budget is not counted again. */
   async restart(): Promise<void> {
+    this.#hung = null
     await this.stop()
     this.#error = null
     this.#phase = this.#restingPhase()
@@ -311,11 +371,14 @@ export class TranslateEngine {
 
   async #start(): Promise<Endpoint> {
     const gen = ++this.#gen
-    const launches = this.#config.launches
+    // A build that stopped answering in this session is left out while another is there.
+    const hung = this.#hung
+    const kept = this.#config.launches.filter((launch) => launch.backend !== hung?.backend)
+    const launches = kept.length > 0 ? kept : this.#config.launches
     this.#phase = 'starting'
     this.#boot = []
     this.#error = null
-    this.#fallback = null
+    this.#fallback = this.#hung?.note ?? null
     this.#device = null
     this.#emit()
     let last: unknown = new Error('No build of llama-server to start.')
@@ -466,7 +529,8 @@ export class TranslateEngine {
     }, STOP_GRACE_MS)
     await exited
     this.#deps.clearTimer(timer)
-    this.#deps.onPid(null)
+    // A server let go before it ended (a wedged one) may end after the next has written its pid.
+    if (!this.#running) this.#deps.onPid(null)
   }
 
   #armIdle(): void {

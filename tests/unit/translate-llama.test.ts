@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   type FetchLike,
   NoStopError,
@@ -87,5 +87,89 @@ describe('tokenize', () => {
   it('counts the tokens llama-server answers', async () => {
     const fetch: FetchLike = async () => Response.json({ tokens: [1, 2, 3] })
     expect(await tokenize(fetch, ENDPOINT, 'abc', new AbortController().signal)).toBe(3)
+  })
+})
+
+describe('a server that answers nothing', () => {
+  /** A fetch that never answers, until its signal is aborted. */
+  const silent: FetchLike = (_url, init) =>
+    new Promise((_, reject) => {
+      init.signal?.addEventListener('abort', () =>
+        reject(init.signal?.reason ?? new Error('aborted')),
+      )
+    })
+
+  it('gives /completion up as stalled when no answer begins in the stall time', async () => {
+    const asking = streamCompletion(
+      silent,
+      ENDPOINT,
+      { prompt: 'p' },
+      new AbortController().signal,
+      () => {},
+      30,
+    )
+    await expect(asking).rejects.toBeInstanceOf(StalledError)
+  })
+
+  it('gives /tokenize up as stalled', async () => {
+    vi.useFakeTimers()
+    try {
+      const asking = tokenize(silent, ENDPOINT, 'text', new AbortController().signal)
+      const caught = asking.catch((error: unknown) => error)
+      await vi.advanceTimersByTimeAsync(15_000)
+      expect(await caught).toBeInstanceOf(StalledError)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stops timing once the answer begins: a stream longer than the stall time, with short gaps, is read whole', async () => {
+    const encoder = new TextEncoder()
+    const fetch: FetchLike = async () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          async start(controller) {
+            for (const piece of ['あ', 'い', 'う', 'え']) {
+              await new Promise((resolve) => setTimeout(resolve, 20))
+              controller.enqueue(encoder.encode(data({ content: piece, stop: false })))
+            }
+            controller.enqueue(encoder.encode(data({ content: '', stop: true, stop_type: 'eos' })))
+            controller.close()
+          },
+        }),
+        { status: 200 },
+      )
+    let text = ''
+    // 50 ms for the gaps (20 ms each), 80 ms the whole.
+    await streamCompletion(
+      fetch,
+      ENDPOINT,
+      { prompt: 'p' },
+      new AbortController().signal,
+      (t) => {
+        text += t
+      },
+      50,
+    )
+    expect(text).toBe('あいうえ')
+  })
+
+  it('asks for the progress of reading the prompt, which keeps a long prompt from timing out', async () => {
+    const { fetch, asked } = streaming([data({ content: 'x', stop: true, stop_type: 'eos' })])
+    await streamCompletion(fetch, ENDPOINT, { prompt: 'p' }, new AbortController().signal, () => {})
+    expect(JSON.parse(String(asked[0]?.body)).return_progress).toBe(true)
+  })
+
+  it('reads a progress chunk as a sign of life, with no text of its own', async () => {
+    const { fetch } = streaming([
+      data({ prompt_progress: { total: 100, cache: 0, processed: 50, time_ms: 10 } }),
+      data({ content: 'x', stop: false }),
+      data({ content: '', stop: true, stop_type: 'eos' }),
+    ])
+    let text = ''
+    await streamCompletion(fetch, ENDPOINT, { prompt: 'p' }, new AbortController().signal, (t) => {
+      text += t
+    })
+    expect(text).toBe('x')
   })
 })

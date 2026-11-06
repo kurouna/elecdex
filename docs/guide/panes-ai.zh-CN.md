@@ -230,7 +230,7 @@ TRANSLATE 通过 llama.cpp 的 `llama-server` 在本机运行 Preferred Networks
 | 位置 | **ai** 预设（Ctrl+Shift+F7）中 AI chat 的下方；或从选择器添加（Ctrl+Shift+A，"translate"）。**Ctrl+Shift+Y** 带着剪贴板中的文本调出它并立即翻译（布局中没有 TRANSLATE 窗格时以弹出窗口出现）。可置前铺满窗口（Ctrl+Shift+Z）。不在默认布局中。 |
 | 读取 / 数据来源 | 引擎：elecdex 获取的 llama-server（llama.cpp b12110）、你自己的 llama-server（b7563 或更高，在引擎设置中选择），或其他地址上的 llama-server。模型：一个 PLaMo 3 Translate GGUF 文件（0.8B、2B、8B 或 31B，Q4_K_M、Q4_0、Q3_K_M 或 Q2_K），在设置中获取一次。文件位于应用数据文件夹（userData）的 `translate/` 中：`engine.json`、`engine/`、`models/`、`glossaries.json`、`history.json`、`llama-server.pid`、`licence-consents.txt`。 |
 | 更新 | 在翻译之前什么都不运行。引擎随第一次翻译启动（加载时显示其日志），10 分钟未使用即停止（5、10、30 分钟或从不）。译文边写边到，main 每 100 ms 传给窗格一次。开启 **LIVE** 时，停止输入 0.6 秒后请求翻译，只重新翻译有变化的块。打开引擎设置时，会向 Hugging Face 询问已获取模型的新版本（24 小时最多一次）。 |
-| 平台 | 获取的引擎：Windows 为 Vulkan 版和 CPU 版（x64；Arm64 只有 CPU 版），macOS 为 Metal 版（Apple 芯片；Intel 为 CPU 版），Linux 为 Vulkan 版和 CPU 版（x64）。设备为 AUTO 时先尝试 GPU 版，无法启动则改用 CPU 版。macOS 和 Linux 尚未经过充分的人工验证。 |
+| 平台 | 获取的引擎：Windows 为 Vulkan 版和 CPU 版（x64；Arm64 只有 CPU 版），macOS 为 Metal 版（Apple 芯片；Intel 为 CPU 版），Linux 为 Vulkan 版和 CPU 版（x64）。设备为 AUTO 时先尝试 GPU 版，无法启动则改用 CPU 版。不再应答（1 分钟没有任何输出，模型越大等待越久）时会停止服务器，并改用 CPU 版重新启动，直到 RESTART 或更改设置。反复发生则停在 FAULT。macOS 和 Linux 尚未经过充分的人工验证。 |
 | 隐私 | 所翻译的内容留在本机：引擎只在 127.0.0.1 上监听，并有页面不知道的专用密钥。只有当你选择其他地址的 llama-server 时，文本才会发到那里，窗格底部会写明（"sent to …"）。原文和上下文从不写入布局；历史是本机上的文件，可以关闭。只有按下 Ctrl+Shift+Y 时才读取剪贴板，标记为私密的复制内容（密码管理器的）从不读取。 |
 | 设置 | `settings.json` → `translate`：`modelId`（默认 `plamo3-2b-q4km`）、`ctx`（4096、8192、16384 或 32768；默认 16384）、`device`（`auto` 或 `cpu`）、`idleMinutes`（5、10、30，0 为从不；默认 10）、`live`（默认 true）、`saveHistory`（默认 true）。引擎的来源另存于 `translate/engine.json`，只在窗格中更改。窗格中：语言、文体、术语表、ROUND TRIP。 |
 

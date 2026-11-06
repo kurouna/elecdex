@@ -31,6 +31,34 @@ export class StalledError extends Error {}
 /** How long a stream may go without a byte before it is given up (§4.2's minute). */
 export const STREAM_STALL_MS = 60_000
 
+/** How long /tokenize may take: the HTTP thread answers it at once, unless the server is wedged. */
+export const TOKENIZE_MS = 15_000
+
+/**
+ * A request that sends nothing back for `ms`, as a StalledError: a server alive but wedged (a GPU
+ * job that never ends, 2026-11-06) keeps accepting requests and answers none.
+ */
+async function within<T>(
+  ms: number,
+  signal: AbortSignal,
+  ask: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  // Its own controller, stopped once the answer has begun: the body that follows (a stream that
+  // may run for minutes) is timed by its gaps, never cut by this.
+  const late = new AbortController()
+  const timer = setTimeout(() => late.abort(), ms)
+  try {
+    return await ask(AbortSignal.any([signal, late.signal]))
+  } catch (error) {
+    if (late.signal.aborted && !signal.aborted) {
+      throw new StalledError(`Nothing came for ${Math.round(ms / 1000)} s.`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** The headers of a request to llama-server: its key, when elecdex started it with one. */
 export function authHeaders(key: string | null): Record<string, string> {
   return key
@@ -44,13 +72,15 @@ export async function tokenize(
   content: string,
   signal: AbortSignal,
 ): Promise<number> {
-  const response = await fetchFn(`${endpoint.origin}/tokenize`, {
-    method: 'POST',
-    headers: authHeaders(endpoint.key),
-    body: JSON.stringify({ content }),
-    redirect: 'error',
-    signal,
-  })
+  const response = await within(TOKENIZE_MS, signal, (s) =>
+    fetchFn(`${endpoint.origin}/tokenize`, {
+      method: 'POST',
+      headers: authHeaders(endpoint.key),
+      body: JSON.stringify({ content }),
+      redirect: 'error',
+      signal: s,
+    }),
+  )
   if (!response.ok) throw new ServerAnswerError(`/tokenize answered HTTP ${response.status}`)
   const body = (await response.json()) as { tokens?: unknown[] }
   return Array.isArray(body.tokens) ? body.tokens.length : 0
@@ -73,13 +103,17 @@ export async function streamCompletion(
   onText: (text: string) => void,
   stallMs = STREAM_STALL_MS,
 ): Promise<Completion> {
-  const response = await fetchFn(`${endpoint.origin}/completion`, {
-    method: 'POST',
-    headers: authHeaders(endpoint.key),
-    body: JSON.stringify({ ...body, stream: true }),
-    redirect: 'error',
-    signal,
-  })
+  // The answer's start is timed as its gaps are: the progress of reading the prompt is streamed
+  // (return_progress), so a long prompt keeps the timer fed and a wedged server does not.
+  const response = await within(stallMs, signal, (s) =>
+    fetchFn(`${endpoint.origin}/completion`, {
+      method: 'POST',
+      headers: authHeaders(endpoint.key),
+      body: JSON.stringify({ ...body, stream: true, return_progress: true }),
+      redirect: 'error',
+      signal: s,
+    }),
+  )
   if (!response.ok || !response.body) {
     const detail = await response.text().catch(() => '')
     throw new ServerAnswerError(

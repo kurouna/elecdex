@@ -4,6 +4,7 @@ import {
   type Endpoint,
   NoStopError,
   ServerAnswerError,
+  StalledError,
 } from '../../src/main/translate/llama'
 import {
   FLUSH_MS,
@@ -49,6 +50,7 @@ function harness(over: Partial<RunsDeps> = {}) {
       busy--
     },
     settle: async () => {},
+    stalled: async () => {},
     glossary: () => null,
     record: () => {},
     external: () => false,
@@ -837,6 +839,61 @@ describe('TranslateRuns, items once left for later', () => {
     h.runs.retry('p1', 0)
     h.tick(FLUSH_MS)
     expect(h.page('p1')?.state).toBe('waiting')
+  })
+
+  it('stops a server that answered nothing before the block is asked again, and only then', async () => {
+    const seen: string[] = []
+    const h = harness({
+      settle: async () => {
+        seen.push('settle')
+      },
+      stalled: async () => {
+        seen.push('stalled')
+      },
+    })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.'))
+    await h.settle()
+    // Nothing came: the wedged server is stopped, never waited for.
+    h.calls[0]?.reject(new StalledError('Nothing came for 60 s.'))
+    await h.settle()
+    expect(seen).toEqual(['stalled'])
+    await answer(h, 'あ')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks[0]?.state).toBe('done')
+    // A crash (the connection lost) is waited for, as before.
+    h.runs.start(request('p1', 'B.'))
+    await h.settle()
+    h.calls.at(-1)?.reject(new TypeError('fetch failed'))
+    await h.settle()
+    expect(seen).toEqual(['stalled', 'settle'])
+  })
+
+  it('stops a server that answers nothing on the second attempt too, and under a round trip', async () => {
+    let stalled = 0
+    const h = harness({
+      stalled: async () => {
+        stalled++
+      },
+    })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.'))
+    await h.settle()
+    h.calls[0]?.reject(new StalledError('Nothing came for 60 s.'))
+    await h.settle()
+    h.calls[1]?.reject(new StalledError('Nothing came for 60 s.'))
+    await h.settle()
+    // Not asked a third time, but the second wedged server is stopped as the first was.
+    expect(h.page('p1')?.blocks[0]?.state).not.toBe('done')
+    expect(stalled).toBe(2)
+    h.runs.start(request('p1', 'B.'))
+    await answer(h, 'び')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    h.calls.at(-1)?.reject(new StalledError('Nothing came for 60 s.'))
+    await h.settle()
+    expect(h.page('p1')?.blocks[0]?.trip?.state).toBe('failed')
+    expect(stalled).toBe(3)
   })
 
   it('puts a Japanese block back in its own form: だ・である stays plain', async () => {

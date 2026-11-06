@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  answerStallMs,
   bootLimitMs,
   ENGINES,
   EngineAssetSchema,
@@ -120,6 +121,11 @@ describe('engines', () => {
   it('waits longer for a larger model', () => {
     expect(bootLimitMs(1.8e9)).toBe(240_000)
     expect(bootLimitMs(19.5e9)).toBe(120_000 + 20 * 60_000)
+    // An answer may send nothing for a minute, or a minute per GB of a bigger model: one batch of
+    // the prompt read on the CPU build.
+    expect(answerStallMs(60_000, 0.4e9)).toBe(60_000)
+    expect(answerStallMs(60_000, 1.5e9)).toBe(90_000)
+    expect(answerStallMs(1_500, 1e3)).toBe(1_500)
   })
 })
 

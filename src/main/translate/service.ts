@@ -179,12 +179,13 @@ export class TranslateService {
       begin: () => this.engine.begin(),
       end: () => this.engine.end(),
       settle: () => this.engine.settle(),
+      stalled: () => this.engine.stalled(),
       external: () => this.#file.read().source === 'external',
       unreachable: () => this.engine.unreachable(),
       ctx: () => this.#settings.ctx,
       tokenize: (endpoint, text, signal) => tokenize(fetch, endpoint, text, signal),
       complete: (endpoint, body, signal, onText) =>
-        streamCompletion(fetch, endpoint, body, signal, onText, env.stallMs),
+        streamCompletion(fetch, endpoint, body, signal, onText, this.engine.answerStallMs()),
       setTimer: (fn, ms) => setTimeout(fn, ms),
       clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
       publish: (event) => {

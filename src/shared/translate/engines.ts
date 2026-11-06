@@ -149,6 +149,16 @@ export function bootLimitMs(modelBytes: number): number {
   return 120_000 + Math.ceil(modelBytes / 1e9) * 60_000
 }
 
+/**
+ * How long an answer may send nothing before the server is taken as wedged (§4.3): the stall time,
+ * or longer for a big model. llama-server reads a prompt in batches of 2,048 tokens and says so
+ * after each (`return_progress`); on the CPU build one batch took about 30 s for the 2B model of
+ * 1.5 GB (12 threads, 2026-11-06), so a minute per GB leaves twice that again for a slower machine.
+ */
+export function answerStallMs(stallMs: number, modelBytes: number): number {
+  return Math.max(stallMs, Math.ceil((modelBytes / 1e9) * 60_000))
+}
+
 export const EngineAssetSchema = z.object({
   target: z.string().regex(/^[a-z0-9]+-[a-z0-9]+-[a-z]+$/),
   platform: z.string().max(16),

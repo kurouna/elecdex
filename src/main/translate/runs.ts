@@ -15,7 +15,13 @@ import {
   type RunState,
   type RunView,
 } from '@shared/translate/run'
-import { type Completion, type Endpoint, NoStopError, ServerAnswerError } from './llama.js'
+import {
+  type Completion,
+  type Endpoint,
+  NoStopError,
+  ServerAnswerError,
+  StalledError,
+} from './llama.js'
 
 /**
  * The translations main holds, one per pane, and the one queue they wait in (docs/translate.md
@@ -44,6 +50,8 @@ export interface RunsDeps {
   end(): void
   /** After a request failed: the engine is given a moment to hear whether its server ended. */
   settle(): Promise<void>
+  /** A request got nothing back: the wedged server is stopped (TranslateEngine.stalled). */
+  stalled(): Promise<void>
   /** The engine is another machine's: a failure there is "unreachable", never a crash. */
   external(): boolean
   unreachable(): void
@@ -496,13 +504,20 @@ export class TranslateRuns {
         index,
         trip: { state: 'done', score: Math.round(chrF(block.source, back)) },
       })
-    } catch {
+    } catch (error) {
       if (this.#live(run, signal)) this.#patch(run, { index, trip: { state: 'failed' } })
+      // A wedged server is stopped here too, or every round trip behind this one waits on it.
+      if (error instanceof StalledError) await this.#stalled()
     } finally {
       this.#deps.end()
       if (run.abort === controller) run.abort = null
       if (this.#runs.get(run.view.paneId) === run) this.#queueFlush(run)
     }
+  }
+
+  /** Stops a wedged server; the wait is bounded by the engine. Its failure is the engine's to show. */
+  async #stalled(): Promise<void> {
+    await this.#deps.stalled().catch(() => {})
   }
 
   #live(run: Run, signal: AbortSignal): boolean {
@@ -536,6 +551,11 @@ export class TranslateRuns {
         await this.#writeBlock(run, index, history, signal)
         return
       } catch (error) {
+        // A server that answered nothing is up but wedged: waiting for it to end would wait for
+        // ever. It is stopped (and started again, maybe on the CPU build), on the last attempt
+        // too, so the next block is not sent to it.
+        const stalled = error instanceof StalledError && !this.#deps.external()
+        if (stalled) await this.#stalled()
         const retry =
           attempt === 1 &&
           this.#live(run, signal) &&
@@ -546,7 +566,8 @@ export class TranslateRuns {
           !this.#deps.external()
         if (!retry) throw error
         this.#patch(run, { index, text: '' })
-        await this.#deps.settle()
+        // A crash is given a moment to be heard.
+        if (!stalled) await this.#deps.settle()
       }
     }
   }

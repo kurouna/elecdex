@@ -392,4 +392,61 @@ describe('TranslateEngine', () => {
     expect(h.engine.phase).toBe('external-unreachable')
     expect(h.servers).toHaveLength(0)
   })
+
+  it('stops a server that stopped answering, and starts the CPU build in its place', async () => {
+    const { engine, servers } = harness()
+    await engine.ensure()
+    expect(engine.backend).toBe('vulkan')
+    await engine.stalled()
+    expect(servers[0]?.killed).toBe(1)
+    expect(engine.phase).toBe('stopped')
+    await engine.ensure()
+    expect(engine.backend).toBe('cpu')
+    expect(engine.fallback).toMatch(/vulkan build stopped answering/)
+    expect(engine.logs().join('\n')).toMatch(/stopped answering; stopping it/)
+    // RESTART tries the GPU build again.
+    await engine.restart()
+    expect(engine.backend).toBe('vulkan')
+  })
+
+  it('counts a server that stops answering as a crash: at fault when it keeps happening', async () => {
+    const { engine } = harness({ launches: [launch('cpu')] })
+    await engine.ensure()
+    await engine.stalled()
+    await engine.ensure()
+    expect(engine.phase).toBe('ready')
+    await engine.stalled()
+    expect(engine.phase).toBe('fault')
+    expect(engine.error).toMatch(/stopped answering again/)
+  })
+
+  it('a translation asked while a wedged server is stopped waits for the stop, and the server it starts is kept', async () => {
+    const { engine, servers, pids } = harness()
+    await engine.ensure()
+    const wedged = servers[0]
+    if (!wedged) throw new Error('no server')
+    // Caught in its driver: killed, it does not end until it is told to.
+    wedged.kill = () => {
+      wedged.killed++
+    }
+    const stopping = engine.stalled()
+    const asked = engine.ensure()
+    expect(engine.phase).toBe('stopping')
+    await stopping
+    await asked
+    expect(engine.phase).toBe('ready')
+    expect(servers).toHaveLength(2)
+    // The wedged one ends at last: the new server's state and pid stay.
+    wedged.exit(0)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(engine.phase).toBe('ready')
+    await engine.ensure()
+    expect(servers).toHaveLength(2)
+    expect(pids.at(-1)).toBe(servers[1]?.pid)
+  })
+
+  it('gives an answer longer to send nothing for a bigger model', () => {
+    const { engine } = harness({ modelBytes: 5.3e9 })
+    expect(engine.answerStallMs()).toBe(318_000)
+  })
 })

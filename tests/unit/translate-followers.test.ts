@@ -33,6 +33,7 @@ function world() {
     begin: () => {},
     end: () => {},
     settle: async () => {},
+    stalled: async () => {},
     glossary: () => null,
     record: () => {},
     external: () => false,

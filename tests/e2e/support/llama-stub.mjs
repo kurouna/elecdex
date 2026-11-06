@@ -8,7 +8,10 @@
 // Japanese, and their round trips back into English, a little reworded.
 // ELECDEX_LLAMA_STUB_MODE: slow-boot (503 for 1.5 s), silent-boot (writes only /health request
 // lines and never becomes ready), crash-mid (ends while writing), no-stop (the stream ends with no
-// stop chunk), limit (stop_type limit).
+// stop chunk), limit (stop_type limit), wedge-once (the first /completion of a test is taken and
+// never answered, as a server wedged in its GPU is: alive, /health 200, nothing more; the server
+// main starts after it answers. ELECDEX_LLAMA_STUB_FLAG names the file that says it happened).
+import { existsSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 
 const args = process.argv.slice(2)
@@ -105,6 +108,12 @@ const server = createServer((req, res) => {
     }
     if (req.url !== '/completion') {
       send(res, 404, { error: { message: 'not here' } })
+      return
+    }
+    const flag = process.env.ELECDEX_LLAMA_STUB_FLAG
+    if (mode === 'wedge-once' && flag && !existsSync(flag)) {
+      writeFileSync(flag, String(process.pid))
+      // Taken, never answered: the socket stays open until main gives up on it.
       return
     }
     const out = translate(String(body.prompt ?? ''))
