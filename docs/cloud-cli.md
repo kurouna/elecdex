@@ -11,13 +11,13 @@ AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON
 |------|------|------|
 | 2026-11-07 | AWS ペインと GITHUB ペインを作る。CLI 経由で情報を取り、既存コードと疎結合にする。UI は既存ペインと揃える | 利用者の案 |
 | 2026-11-07 | AWS は無料の API の範囲だけを呼ぶ | 利用者の指定 |
-| 2026-11-07 | **（要決定）** CLI は PowerShell を通さず、main が `aws.exe` / `gh.exe` を直接起動する（§2.1） | 提案。利用者の案は「PowerShell 経由」 |
+| 2026-11-07 | **（判断待ち）** CLI は PowerShell を通さず、main が `aws.exe` / `gh.exe` を直接起動する（§2.1）。2026-11-08 に利点と欠点を実測して利用者に示した（利点が無く欠点だけなら直接でよい、と利用者） | 提案。利用者の案は「PowerShell 経由」 |
 | 2026-11-07 | 初版を Opus 5.5 と Fable 5.1 に見せ、指摘で直した（§11） | 利用者の指定 |
 | 2026-11-07 | プリセット `cloud` を作り、LAYOUTS（Ctrl+Shift+G）の棚で `blank` の前に置く（§10） | 利用者の指定 |
 | 2026-11-08 | 名前は既存のペイン（NETWORK STATUS など）に合わせて **AWS STATUS** と **GITHUB STATUS**。ウィジェット id は `aws` と `github`、ピッカーは "aws status" と "github status" | 利用者の決定 |
 | 2026-11-08 | `cloud` を入れると、新しく入れた人の `blank` に番号のキーが付かなくなる。それでよい | 利用者の決定 |
 | 2026-11-08 | AWS と GitHub の**公開ステータス**を出す。**障害のときだけ**ペインに出し、障害が起きたらトーストを出すかを設定で選べる（既定 ON）（§12） | 利用者の決定 |
-| 2026-11-08 | 通知（公開ステータスの障害、AWS のコストの QUOTA）のためだけに、ペインがレイアウトにある間は隠れていても読む（§13）。地震の通知と同じ扱いの例外 | 上の 2 つの決定から（トーストは見えていないときにこそ要る） |
+| 2026-11-08 | ~~通知のためだけに、ペインがレイアウトにある間は隠れていても読む~~ → **取りやめ**: 障害の通知も QUOTA も、ペインが見えている間だけ読み、その時点でトーストを出す。見えている間だけの規則に例外を作らない（§13） | 利用者の決定 |
 | 2026-11-08 | 決定を反映した版を、もう一度サブエージェントのレビューに回す。Opus 5.5（RSS の事象の鍵と「開いている」の決め方、304 が効かないこと、テストのスタブ、GitHub の通知の多さ、重複除けをディスクに、UTC の月、背後の読み取りと `credential_process`、契約の表）と Fable 5.1（Cost Explorer の 1 枚の矛盾と畳み方、上限の表を 1 つに、推定の 1 行を固定、AWS の帯の 3 色、トーストの形を 1 つに、§13 の伝え方、MASK と OS の通知）の指摘で直した | 利用者の指定 |
 
 ## 1. 目的と非目的
@@ -40,22 +40,44 @@ AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON
 
 ## 2. 起動（main、`src/main/cloud-cli/`）
 
-### 2.1 PowerShell を通さず直接起動する（要決定）
+### 2.1 PowerShell を通さず直接起動する（推奨。利用者の判断待ち）
 
 Wi-Fi ペインが PowerShell を使うのは、Win32 の API（`wlanapi`、`GetIfTable2`）に届く手段が PowerShell の C#
 しか無いからで、それも 1 本の常駐プロセス（`WindowsSampler`）に読ませている。`aws` と `gh` はそれ自体が
-実行ファイルなので、PowerShell を挟む理由が無い。
+実行ファイルなので、PowerShell を挟んでも CLI のプロセスは 1 回ごとにでき、その上に PowerShell が 1 つ増える。
 
-| | 直接（`execFile(path, argv)`） | PowerShell 経由 |
-|---|---|---|
-| 1 回の費用（実測 2026-11-07、i5-1335U） | `gh --version` 88 ms、`gh api rate_limit` 390 ms | 上に PowerShell の起動 228 ms が毎回足される |
-| 引数 | 配列のまま。シェルが読み替えない | スクリプトの文字列に組む。引用符の誤りがそのまま注入になる |
-| main を止める時間 | `spawn` 1 回（git と同じ 3〜13 ms） | `spawn` 1 回＋スクリプトの走査（CLAUDE.md の注意） |
-| 利用者の環境 | プロセスの環境 | `-NoProfile` なので同じ（プロファイルの設定は入らない） |
-| macOS / Linux | 同じコード | 別の経路が要る |
+**実測**（2026-11-08、i5-1335U、Windows 11、3 回の平均）:
 
-PowerShell の常駐プロセスに CLI を起動させても、CLI のプロセスは 1 回ごとにでき、得るものが無い。git ペイン
-（main/git/run.ts）と同じ `execFile` にし、**シェルは使わない**（`shell: false`、`.cmd` も起動しない）。
+| | 直接 | PowerShell 5.1 経由 | PowerShell 7 経由 |
+|---|---|---|---|
+| 起動だけ（`-Command "exit 0"`） | — | 179 ms | 271 ms |
+| `gh api rate_limit` | 383 ms | 552 ms（+169 ms） | — |
+| `aws sts get-caller-identity`（この回は資格情報の期限切れで失敗した呼び出し） | 1,382 ms | 1,388 ms | 1,522 ms |
+| PowerShell 1 つのメモリ | — | 67 MB | — |
+
+**PowerShell を通す利点**（あるとすれば）:
+
+| 利点 | 実際には |
+|---|---|
+| `.cmd` / `.ps1` の shim（pip の `aws.cmd`、一部のパッケージマネージャー）もそのまま動く | 対象は AWS CLI **v2** と gh で、どちらも `.exe`。v1 は形が違うので対象外にしている（§2.2） |
+| Wi-Fi の常駐の PowerShell（`WindowsSampler`）に起動を任せれば、main の `spawn`（3〜13 ms）が要らない | CLI のプロセスは結局できる。main を止めたくなければ utilityProcess から直接起動すれば足りる（§3.4） |
+| 利用者のプロファイルの環境（エイリアス、`$env` の設定）が効く | `-NoProfile` で起動する決まり（CLAUDE.md）なので効かない。効かせると起動がさらに遅く、結果が人ごとに変わる |
+| PowerShell の AWS Tools（`AWS.Tools.*`）も使える | CLI ではなくなる。モジュールの導入が要る |
+
+**PowerShell を通す欠点**:
+
+| 欠点 | 中身 |
+|---|---|
+| 遅い・重い | 1 回ごとに +170〜270 ms と 67 MB。AWS は 1 時間に約 130 回起動するので、1 時間に約 25〜35 秒・CPU が余分にかかる |
+| 注入の危険 | 引数を配列でなくスクリプトの文字列に組む。プロファイル名や `owner/repo` の引用符の誤りが、そのまま別のコマンドになる。直接なら引数は配列で、シェルが読み替えない |
+| 会社の PC で止まる | AppLocker、制約付き言語モード（Constrained Language Mode）、PowerShell の禁止が企業の端末ではよくある。AMSI（ウイルス対策）がスクリプトを走査して遅くもなる。クラウドのエンジニアの多くは会社の PC で使う |
+| 文字コード | PowerShell 5.1 はパイプの出力を自分の文字コード（日本語版の既定は cp932）で変換し直す。CLI の UTF-8 の JSON を化かしうる（この PC はたまたま UTF-8 に設定済み） |
+| 間違いの読み取り | PowerShell は CLI の標準エラーを ErrorRecord に包み、終了コードも `$LASTEXITCODE` を通す。拒否・期限切れの分類（§4）が 1 段難しくなる |
+| 止め方 | 時間切れで PowerShell を止めても子の `aws.exe` が残る。木ごと止める手当てが 1 段増える |
+| macOS / Linux | 別の経路が要る（pwsh は既定で入っていない） |
+
+**判断**: 利点はどれも対象外か別の手段で足り、欠点は速さ・安全・会社の PC での動作・文字コードに及ぶ。git ペイン
+（main/git/run.ts）と同じ `execFile` で直接起動し、**シェルは使わない**（`shell: false`、`.cmd` も起動しない）を推す。
 重さの本体は CLI のほうにある（§5）。
 
 ### 2.2 実行ファイルの見つけ方
@@ -150,7 +172,7 @@ interface Probe<T> {
 ### 3.1 見えている間だけ
 
 - 既存の購読の規則どおり: ペインは `seen` の間だけボードを購読し、参照カウントで、`whenPageGoes` で落とす。
-  `keepWhileHidden` には載せない。最後の購読者が去ったら時刻表を止める。**例外は通知のための 3 つだけ**（§13）
+  `keepWhileHidden` には載せない。最後の購読者が去ったら時刻表を止める。**例外は無い**: 公開ステータスと QUOTA も見えている間だけ（§13、利用者の決定 2026-11-08）
 - probe ごとに壁時計の周期（`BoundaryTimer`。1 分、5 分、15 分、1 時間、6 時間、1 日）で呼ぶ。**同じ周期の
   probe が境界で一斉に起動しないよう、probe の id から決まるずれ（周期の 1/4 まで、秒単位）を足す**
   （AWS CLI は 1 回ごとに重いので、15 分の境界で 40 本が並ぶと 20〜40 秒の塊になる）
@@ -258,9 +280,8 @@ src/renderer/widgets/github/  GithubWidget.svelte と部品
 | src/shared/channels.ts、api.ts、src/preload/index.ts | `aws.*`・`github.*` のチャンネルと型と橋（ボードの購読、REFRESH、`open(itemId)`、プロファイル一覧） |
 | 診断 | 各モジュールの `watching()`（購読中のボードの id、並べた `string[]`、何も無ければ空） |
 | src/renderer/widgets/builtins.ts | 2 行（`keepWhileHidden` なし、`zoom: 'full'`、`popup: true`） |
-| tests/e2e/contracts/panes.ts | 2 行（見えている間に main がすること、残すもの、隠れて続けるもの＝通知の読み取りだけ、§13） |
-| CLAUDE.md の Subscriptions の規則 | 「見えていなくても続くもの」の列挙に「AWS STATUS・GITHUB STATUS の通知（公開ステータスの障害、コストの QUOTA）」を足す |
-| main の通知（トースト） | 既存の地震の通知と同じ経路で、ペインの外から出すトースト（§13） |
+| tests/e2e/contracts/panes.ts | 2 行（見えている間に main がすること、残すもの、隠れて続けるもの＝なし） |
+| main の通知（トースト） | 既存の地震の通知と同じ判断（`windowInFront()`）で、ページのトーストか OS の通知を出す共通の関数（§12.5） |
 | tests/e2e/contracts/dialogs.ts、ホバーカードの一覧のテスト | notice、障害の帯、Cost Explorer の 1 枚、2 つのトースト、各カード（「+2 more」、QUOTA、Budgets と QUOTA の違い）の行 |
 | docs/guide/themes-settings.md | 新しい鍵 `aws.incidents`・`github.incidents` と既定値（3 か国語） |
 | tests/e2e/support.ts の `STUB_ENV` | `ELECDEX_CLOUD_STUB=1` |
@@ -437,7 +458,7 @@ PaneHost の見出しと二重になる、常に動くアニメーション、Cl
 | 計画保守 | なし | `…/api/v2/scheduled-maintenances/active.json`（173 B） |
 | 大きさ | 約 60 KB、42 項目（3 月まで遡る） | 平常時 160 B と 173 B |
 | 条件付き要求 | **効かない**: ETag と Last-Modified を返すが、`If-None-Match` も `If-Modified-Since` も 200 で 59,917 B。gzip も無い | 効く（弱い ETag で 304） |
-| 周期 | 見えている間 5 分（フィードの `<ttl>` は 5）、隠れている間 15 分（§13。5 分では 1 日に約 17 MB になるため） | 5 分 |
+| 周期 | 見えている間だけ 5 分（フィードの `<ttl>` は 5。1 回 60 KB、条件付き要求が効かない） | 見えている間だけ 5 分 |
 | 呼ばないもの | `health.aws.amazon.com/public/currentevents`（ダッシュボードの JSON。260 KB の UTF-16 で、文書の無い内部の形） | `summary.json`（全部品の状態。要るのは障害と保守だけ）、`shortlink`（`stspg.io` で main のホストの確かめに通らない） |
 
 - **CLI は使わない**。サインインの要らない公開の HTTPS を main で取る。feeds/ から借りるのは XML の解析と退きの
@@ -498,10 +519,13 @@ github: { incidents: { notify: true, system: true, minSeverity: 'major', compone
 ```
 
 - **既定が ON の理由**をスキーマのコメントに書く（利用者の決定 2026-11-08）。地震の通知（既定 OFF）と違い、
-  ペインをレイアウトに置いたことが同意の代わりになる（§13）。音は無い
+  ペインを置いて見ていることが同意の代わりになる（読むのは見えている間だけ、§13）。音は無い
 - 出すとき: `minSeverity` 以上の新しい障害を初めて見たとき、その重さが上がったとき。**解消のトーストは、
   その事象をトーストしたときだけ**。同じ出どころのトーストは 15 分に 1 度までにまとめる（「3 GitHub incidents」）
-- **最初の読み取りで既に起きていた障害**（ペインを置いたとき、アプリを起動したとき）は帯だけで、トーストしない
+- **いつトーストするか**: ペインが見えて読み取ったときに、まだトーストしていない障害を見つけたら、その時点で。
+  隠れていた間に始まった障害も、見えたときの最初の読み取りで 1 度トーストする（まとめて「2 AWS incidents since
+  09:12」）。ただし、**ペインを初めて置いたときの読み取りで既に起きていた障害**は帯だけ（置いた瞬間に古い障害を
+  並べないため）。7 日より更新の無い事象はいつもトーストしない
 - **重複除けはディスクに持つ**: トーストした事象の id と重さを `cloud-alerts.json`（`replaceFile`、30 日で刈る）に。
   メモリだけだと、起動のたびに続いている障害をトーストし直す（地震の通知の `quake-alerts.json` と同じ）
 - 送り先: elecdex のウィンドウが前にあればページのトースト、前に無ければ（`windowInFront()` が false）`system`
@@ -520,27 +544,21 @@ github: { incidents: { notify: true, system: true, minSeverity: 'major', compone
   11 月までの 42 項目から）。GitHub の `major` 以上は 1 日に 1 件を下回る（10-27〜11-05 の 50 件から）
 - 同じ障害が 2 枚の AWS ペイン（リージョンが違う）に当たっても 1 度。2 枚のリージョンの和で判断する
 
-## 13. 見えていないときに続けるもの（通知のためだけ）
+## 13. 見えている間だけ（通知も例外にしない）
 
-トーストは見えていないときにこそ要る。そこで次のものだけは、**ペインが今のレイアウトにある間**（後ろのタブ・
-最小化・トレイの中でも）続ける。保存しただけで開いていないレイアウトのペインは数えない。
+利用者の決定（2026-11-08）: 障害の通知と QUOTA のために、ペインが隠れているときに読む必要は無い。**見えている
+間だけ読み、その時点でトーストを出す**。初版のこの節にあった「レイアウトにある間は隠れていても読む」例外は
+取りやめた。
 
-| 続けるもの | 条件 | 周期（隠れている間） | 費用 |
-|---|---|---|---|
-| AWS の公開ステータス | `aws.incidents.notify` が ON | 15 分（60 KB、304 が効かない） | 無料（公開の RSS） |
-| GitHub の公開ステータス | `github.incidents.notify` が ON | 5 分（304 は数バイト） | 無料（公開の API） |
-| AWS のコストの QUOTA（[aws.md](aws.md) §5.6） | QUOTA が 0 より大きく、プロファイルが `credential_process` でない | 6 時間 | 無料枠（見えている間の `billing` probe を生かし続けるだけ。2 本めの呼び出しは作らない） |
-
-- **ページから main への伝え方**: ボードの購読（`seen` の間だけ）とは別に、**通知の購読**をウィジェットが
-  マウントしてから破棄されるまで持つ（シェルがセッションを持つのと同じ形）。参照カウントで、`whenPageGoes` で落ちる。
-  `keepWhileHidden`（メトリクスのソースの表）には載せない。契約の表の既存の `goesOn` の列にこの購読を書く
-- ペインを閉じた、レイアウトを替えた、設定を OFF にした: すぐ止める（参照カウント、`whenPageGoes`）
-- 同じアカウント・同じホストのペインが複数あっても読み取りは 1 つ
-- ほかの probe（在庫、CloudTrail、受信箱など）は今までどおり見えている間だけ
-- **診断と契約**: `watching()` は種類ごとに分けた項目を返す（`board:<profile>`、`status:aws`、`status:github`、
-  `quota:<account>`）。契約の表（tests/e2e/contracts/panes.ts）に「隠れて続けるもの」として `status:*` と
-  `quota:*` を書く。lifecycle の e2e は、設定が OFF なら隠れている間 `[]`、ON ならちょうどこれらだけ、を確かめる
-- **CLAUDE.md を直す**: Subscriptions の「見えていなくても続くもの」の列挙と、Network lives in main の項（出どころ
-  ごとの条件の列挙）の両方に、この 3 つを足す。`credential_process` のプロファイルは、見えていないときに鍵束や MFA の
-  窓を開かないよう、背後では読まない（QUOTA の欄にそう書く）
-- 背後で走る AWS CLI の読み取りも CloudTrail に残る。台帳のカードに書く
+- 公開ステータス（AWS・GitHub）と QUOTA の請求メトリクスは、ほかの probe と同じく**ボードの購読（`seen` の間）**
+  に載る。`keepWhileHidden` にも、別の購読にも載せない。最後の購読者が去れば止まる
+- 隠れていた間に起きたことは、見えたときの最初の読み取りで分かり、まだ知らせていなければそこでトーストする
+  （§12.5、[aws.md](aws.md) §5.6）。重複除けはディスクにあるので、起動し直しても同じものを繰り返さない
+- そのため CLAUDE.md の Subscriptions と Network lives in main の規則は**変えない**（新しい通信先を data-sources.md と
+  Network lives in main の列挙に「AWS STATUS・GITHUB STATUS が見えている間だけ」と足すだけ）
+- `credential_process` のプロファイルも、見えている間だけ読むので窓が誰も見ていないときに開くことは無い
+- 契約の表（tests/e2e/contracts/panes.ts）の「隠れて続けるもの」は**なし**。lifecycle の e2e は、隠れている間・
+  最小化・閉じたあとに、公開ステータスも請求メトリクスも読まないことを確かめる。`watching()` は種類ごとの項目
+  （`board:<profile>`、`status:aws`、`status:github`）を返し、見えていなければ `[]`
+- 代わりに失うもの: elecdex を最小化していたりペインが後ろのタブにあったりすると、障害や QUOTA 超えはそのペインを
+  見るまで知らせない。ペインの設定の欄にそう書く（「Checked while this pane is shown」）

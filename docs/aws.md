@@ -23,6 +23,7 @@
 | 2026-11-08 | Price List の API が有料と分かったら、ACTIVE の推定の単価は同梱の表にする。どちらでも、ACTIVE の下部に推定であることを明記する（§5.0） | 利用者の決定 |
 | 2026-11-08 | 公開ステータス（AWS Health Dashboard の RSS）を障害のときだけ出し、トーストは設定で選べる（既定 ON）（cloud-cli.md §12） | 利用者の決定 |
 | 2026-11-08 | **コストの QUOTA**: あらかじめ決めた金額を今月の見込み額が超えたらトースト。既定は 0（OFF）（§5.6） | 利用者の指定 |
+| 2026-11-08 | QUOTA は USD でよい。障害の通知と QUOTA は**ペインが見えている間だけ読み、その時点でトースト**（隠れている間には読まない） | 利用者の決定 |
 
 ## 1. 何を見せるか（インフラのエンジニアの問い）
 
@@ -211,6 +212,7 @@
 | 確かめたこと | どうなっていたか |
 |---|---|
 | サインインの種類 | `aws configure list` の TYPE が `login`: 2025 年に入った `aws login`（コンソールの資格情報。CLI が更新用のトークンで自分で更新し続ける。置き場所は `AWS_LOGIN_CACHE_DIRECTORY` で変えられる） |
+| 期限切れの文（2026-11-08 に実物で出た） | `aws: [ERROR]: Unable to refresh login credentials because of a change in your password. Please reauthenticate with your new password using 'aws login'.` → SIGNED OUT、`aws login --profile=<名前>` をコピーさせる |
 | 拒否の文 | 終了コード 254、`User: arn:aws:… is not authorized to perform: freetier:GetAccountPlanState on resource: arn:…`。ARN を 2 つ含む |
 | `freetier get-account-plan-state` | `accountPlanType`、`accountPlanStatus`、`accountPlanRemainingCredits.amount`、`accountPlanExpirationDate` |
 | `freetier get-free-tier-usage` | 旧プランのアカウントで、サービス・使用の種類・実績・上限が返った |
@@ -423,19 +425,18 @@ Cost Explorer（API 1 要求の価格）、Budgets（監視と通知は無料）
   - すでに超えている状態で QUOTA を決めたら、いちばん上の段を 1 度だけ。QUOTA を上げたら段を数え直す
   - 値が下がっても（クレジット、返金）知らせ直さない
   - 送り先は §12.5（cloud-cli.md）と同じ: ウィンドウが前ならページのトースト、前に無ければ OS の通知
-- **見えていないときも読む**: QUOTA が 0 より大きい間は、ペインがレイアウトにある限り 6 時間ごとに請求メトリクスを
-  読む（cloud-cli.md §13。見えている間の `billing` probe を生かし続けるだけで、2 本めは作らない）
-  - プロファイルからアカウント ID への対応を `aws-billing.json` に持つ（起動したあとペインが後ろのタブにあると、
-    `sts get-caller-identity` は見えるまで走らないため）
-  - **`credential_process` のプロファイルは背後では読まない**（鍵束や MFA の窓を誰も見ていないときに開かないため）。
-    QUOTA の欄に「checked only while the pane is shown, because this profile asks for credentials」と出す
-  - SIGNED OUT になったら黙って止めず、見出しの badge に「quota not checked since 09:00」と出し、1 度だけトースト
+- **読むのは見えている間だけ**（利用者の決定 2026-11-08）: ペインが見えている間の `billing` probe（6 時間ごと、見えた
+  ときに 6 時間より古ければすぐ）の結果で比べ、段を超えていればその時点でトースト。隠れている間は読まない
+  - 隠れていた間に段を超えていたら、見えたときの最初の読み取りで 1 度トーストする（段は月ごとにディスクにあるので、
+    起動し直しても繰り返さない）
+  - SIGNED OUT のあいだは比べられない。MTD の横に「quota not checked since 09:00」と出す（トーストはしない）
 - **支払いのアカウント**では、`LinkedAccount` の次元の無い `EstimatedCharges` は組織全体の請求になる。欄に「On the
   payer account this is the whole organization's bill.」と書く（メンバーのアカウントを個別に見る `LinkedAccount` は後で）
-- **SLOW ×4** は見えている間の周期だけを延ばし、QUOTA の背後の 6 時間はそのまま（請求メトリクスが進むのが 1 日に
+- **SLOW ×4** を選んでも `billing` は 6 時間のまま（請求メトリクスが進むのが 1 日に
   数回なので、これより延ばすと知らせが 1 日遅れる）
 - COST のゲージの目盛りは、選んだ段に従う（「100% only」なら 80% の目盛りを描かない）
-- **遅れと限界を書く**: 欄に「Checked every 6 hours: a toast can come half a day after the money was spent. AWS Budgets
+- **遅れと限界を書く**: 欄に「Checked every 6 hours while this pane is shown: a toast can come half a day after the money
+  was spent, or later if the pane is not shown. AWS Budgets
   is the alarm AWS keeps; this one is elecdex's own, on screen.」
 - **画面**: 上段の MTD に QUOTA を並べる（`$824 · 82% of quota $1,000`、80% で warn、100% で danger）。COST の 1 段目に
   QUOTA のゲージ（予算のゲージとは別: 予算は AWS Budgets のもの、QUOTA は elecdex の中だけのもの）。カードで違いを言う
