@@ -122,6 +122,8 @@ describe('engines', () => {
     expect(showsProgress('srv  load_model: loading model')).toBe(true)
     expect(showsProgress('srv  log_server_r: request: GET /health 127.0.0.1 503\n')).toBe(false)
     expect(showsProgress('\n\n')).toBe(false)
+    // One chunk carrying both: the dots count.
+    expect(showsProgress('srv  log_server_r: request: GET /health 127.0.0.1 503\n....')).toBe(true)
   })
 
   it('waits longer for a larger model', () => {

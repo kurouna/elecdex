@@ -21,6 +21,7 @@ import {
   type Endpoint,
   NoStopError,
   ServerAnswerError,
+  ServerUnusableError,
   StalledError,
 } from './llama.js'
 
@@ -866,6 +867,9 @@ function failureReason(
   message: string,
   external: boolean,
 ): { text: string; unreachable: boolean } {
+  // Asked again before the text went, it said why in full (review 2026-11-07: a server running
+  // another model was said as one that does not answer), and is shown unreachable already.
+  if (error instanceof ServerUnusableError) return { text: message, unreachable: false }
   const answered = error instanceof ServerAnswerError || error instanceof NoStopError
   if (external && !answered)
     return { text: `The server does not answer (${message}).`, unreachable: true }

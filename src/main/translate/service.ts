@@ -570,6 +570,7 @@ export class TranslateService {
     if (this.#file.read().consents[model.id]?.sha256 !== target.sha256) {
       if (this.#fetch?.kind === 'model' && this.#fetch.id === model.id) {
         this.#fetch = null
+        this.#fetchTarget = null
         this.#paused = null
       }
       await rm(partOf(this.#modelPath(model)), { force: true })
@@ -703,8 +704,14 @@ export class TranslateService {
     if (other && this.#fetch !== null)
       return "Another model's download is paused or failed: resume or cancel it first."
     // An agreement made before commits were followed names no file: it is asked again.
-    if (this.#file.read().consents[model.id]?.bytes === undefined)
-      return 'Agree to the licence first.'
+    const file = this.#file.read()
+    const agreed = file.consents[model.id]
+    if (agreed?.bytes === undefined) return 'Agree to the licence first.'
+    // An agreement counts for the newest file known only, as the board says (#modelView): RESUME
+    // of an older one would ask for the commit refused again (review 2026-11-07).
+    const newest = file.latest[model.repo]?.files[model.file]
+    if (newest !== undefined && agreed.sha256 !== newest.sha256)
+      return 'Hugging Face now offers a newer version of this model: cancel, and set it up again to agree to it.'
     if (this.#agreeing.has(model.id)) return 'The licence is being agreed to: a moment, please.'
     return null
   }
@@ -799,7 +806,9 @@ export class TranslateService {
     const model = this.#models.find((m) => m.id === modelId)
     if (!model) return
     // A model being fetched is cancelled first, never removed from under its writer.
-    if (this.#fetch?.kind === 'model' && this.#fetch.id === modelId) await this.cancelFetch()
+    // A fetch for it counts from its start, the engine fetched first included (review 2026-11-07).
+    if (this.#fetchTarget === modelId && (this.#fetch !== null || this.#fetchRun !== null))
+      await this.cancelFetch()
     // Windows keeps a loaded model's file open: stop the server first (§4.3).
     if (modelId === this.#settings.modelId) {
       this.runs.stopAll('The model was removed.')

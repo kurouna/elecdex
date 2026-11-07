@@ -73,10 +73,17 @@ $effect(() => {
   fetchAgreed = consented
 })
 
-/** The chosen model in place at the commit agreed to: until an update is placed, the file before it is. */
+/**
+ * The chosen model in place at the commit agreed to, with the engine it needs: until an update is
+ * placed, the file before it is. SETUP mounted afresh (the pane went to TEXT and back) knows no
+ * commit agreed to: a newer one known, or a fetch for the model left, says the file is not the one
+ * (review 2026-11-07: CANCEL of an update went on to READY on the file before it).
+ */
 const placed = $derived.by(() => {
   const model = board.models.find((m) => m.id === chosen)
-  return model?.installed === true && (agreedRevision === null || model.revision === agreedRevision)
+  if (model?.installed !== true || board.fetchingModel === chosen) return false
+  if (board.engine.source === 'fetched' && !board.engine.fetched) return false
+  return agreedRevision === null ? model.update === null : model.revision === agreedRevision
 })
 
 /**
@@ -86,7 +93,9 @@ const placed = $derived.by(() => {
  */
 let fetchSeen = $state(false)
 $effect(() => {
-  if (step === 4 && board.fetchingModel === chosen) fetchSeen = true
+  // Left, FETCH forgets it: the next fetch asked for is seen afresh (review 2026-11-07).
+  if (step !== 4) fetchSeen = false
+  else if (board.fetchingModel === chosen) fetchSeen = true
 })
 const fetchGone = $derived(
   step === 4 && fetchSeen && board.fetchingModel !== chosen && board.fetch === null && !placed,
@@ -97,11 +106,20 @@ $effect(() => {
   if (step === 4 && board.fetch === null && placed) onstep(5)
 })
 
-/** READY's self test, asked once: of the chosen model, made the settings' first. */
+/**
+ * READY's self test, asked once each time READY is reached: of the chosen model, made the settings'
+ * first. Left for FETCH (another model's fetch, from the foot) and reached again, it asks again for
+ * that one (review 2026-11-07).
+ */
 let testing = false
 $effect(() => {
-  if (step !== 5 || testing) return
+  if (step !== 5) {
+    testing = false
+    return
+  }
+  if (testing) return
   testing = true
+  selfTest = null
   void readyTest()
 })
 
@@ -110,9 +128,15 @@ async function readyTest(): Promise<void> {
   // every pane without the model that was translating. Awaited: main has the new settings, and the
   // engine their model, before the test is sent - the engine before it would answer for the model
   // it ran (2026-11-07). An external server runs its own model: nothing is chosen for it.
-  if (board.engine.source !== 'external' && board.models.find((m) => m.id === chosen)?.installed)
-    await oncommit()
+  if (board.engine.source !== 'external' && placed) await oncommit()
   selfTest = await api.selfTest()
+}
+
+/** RESUME of the download left; refused (a newer version to agree to first), it says why. */
+async function resume(): Promise<void> {
+  problem = null
+  const answer = await api.fetch(board.fetchingModel ?? chosen)
+  if (answer) problem = answer.problem
 }
 
 async function setSource(kind: EngineSourceKind): Promise<void> {
@@ -303,7 +327,7 @@ const nextDisabled = $derived(
           {#if fetch.error}<p class="problem">{fetch.error}</p>{/if}
           <div class="row">
             {#if fetch.phase === 'paused' || fetch.phase === 'failed'}
-              <button type="button" class="btn lit" onclick={() => void api.fetch(board.fetchingModel ?? chosen)}>Resume</button>
+              <button type="button" class="btn lit" onclick={() => void resume()}>Resume</button>
             {:else}
               <button type="button" class="btn" onclick={() => void api.pause()}>Pause</button>
             {/if}

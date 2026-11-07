@@ -126,6 +126,15 @@ describe('the texts as they are compared', () => {
     expect(numbersDiffer('第三章に5つの例がある。', '第4章に5つの例がある。')).toBe(true)
   })
 
+  it('says a number dropped when a lone numeral was all the other side had left', () => {
+    // Review 2026-11-07: 第3章 answered 第三章, left nothing, and the 5 lost went unseen.
+    expect(numbersDiffer('第三章に5つの例がある。', '第3章に例がある。')).toBe(true)
+    expect(numbersDiffer('五分後に3回押す。', '5分後に押す。')).toBe(true)
+    // A lone numeral that answers nothing is still no number: one side only, not judged.
+    expect(numbersDiffer('十分です。', 'That is enough.')).toBe(false)
+    expect(numbersDiffer('第三章', '第3章')).toBe(false)
+  })
+
   it('takes the 一 of a word for no number, nor one for a digit', () => {
     // Paraphrases that drop 十分, 一般 or 一緒: not numbers, never flagged.
     expect(numbersDiffer('十分に注意して、3回確認する。', '充分に注意して、3回確認する。')).toBe(

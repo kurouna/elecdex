@@ -4,6 +4,7 @@ import {
   type Endpoint,
   NoStopError,
   ServerAnswerError,
+  ServerUnusableError,
   StalledError,
 } from '../../src/main/translate/llama'
 import {
@@ -327,6 +328,24 @@ describe('TranslateRuns', () => {
     h.tick(FLUSH_MS)
     expect(h.log).not.toContain('unreachable')
     expect(h.page('p1')?.reason).toMatch(/server refused the request/)
+  })
+
+  it("says why an external server asked again cannot be used, in the probe's own words", async () => {
+    // Review 2026-11-07: a server running another model was said as one that does not answer.
+    const why = 'That server does not run a PLaMo 3 Translate model.'
+    const h = harness({
+      external: () => true,
+      ensure: async () => {
+        throw new ServerUnusableError(why)
+      },
+    })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.'))
+    await h.settle()
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.reason).toBe(why)
+    // The probe marked the engine as it found it: nothing more is said over it.
+    expect(h.log).not.toContain('unreachable')
   })
 
   it('drops a run nobody follows after five seconds, stopping what it writes', async () => {

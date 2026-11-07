@@ -154,7 +154,12 @@ export function numbersDiffer(source: string, back: string): boolean {
   const theirs = numberReading(back)
   const left = less(ours.sure, theirs.maybe)
   const right = less(theirs.sure, ours.maybe)
-  if (left.length === 0 || right.length === 0) return false
+  // A side holds numbers when it has sure ones, or lone numerals that answered the other side's:
+  // asked before the answered ones are taken away, so a number dropped beside one answered is
+  // seen (review 2026-11-07: 第三章に5つ against 第3章に said nothing).
+  const oursHas = ours.sure.length > 0 || right.length < theirs.sure.length
+  const theirsHas = theirs.sure.length > 0 || left.length < ours.sure.length
+  if (!oursHas || !theirsHas) return false
   return left.join(' ') !== right.join(' ')
 }
 

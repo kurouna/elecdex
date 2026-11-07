@@ -25,6 +25,13 @@ export class NoStopError extends Error {}
 /** The server answered, but not with a translation (an HTTP error): not a crash of the engine. */
 export class ServerAnswerError extends Error {}
 
+/**
+ * An external server asked again before text goes to it, and not usable now: it did not answer,
+ * runs a model that is not PLaMo, or asks for a key. The message says which, in full, and the
+ * engine already shows the server unreachable.
+ */
+export class ServerUnusableError extends Error {}
+
 /** Nothing came for the stall time while a block was written: taken as an engine that stopped. */
 export class StalledError extends Error {}
 

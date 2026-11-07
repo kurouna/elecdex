@@ -625,6 +625,11 @@ describe('TranslateService and the newest commits (§5)', () => {
       .toMatch(/newer version of this model/)
     // LICENCE asks again, for the newer file.
     expect((await service.board()).models[0]?.consentAt).toBeNull()
+    // RESUME is refused (review 2026-11-07): it would ask for the refused commit again.
+    expect(service.fetchProblem()).toMatch(/newer version/)
+    asked = []
+    await service.fetchFor()
+    expect(asked.filter((url) => url.includes('/resolve/'))).toEqual([])
   })
 
   it('agrees to nothing while the engine is being fetched, before the model', async () => {
@@ -646,6 +651,29 @@ describe('TranslateService and the newest commits (§5)', () => {
       problem: expect.stringMatching(/fetch is under way/),
     })
     await service.cancelFetch()
+  })
+
+  it('removing a model cancels its fetch while the engine is fetched for it', async () => {
+    // Review 2026-11-07: only a model's own download was cancelled; the run went on to fetch it.
+    mode = 'stall'
+    const engine = {
+      target: `${process.platform}-${process.arch}-cpu`,
+      platform: process.platform,
+      arch: process.arch,
+      backend: 'cpu',
+      asset: 'llama-b12110-bin-test.zip',
+      bytes: 62_000,
+      sha256: 'a'.repeat(64),
+    }
+    const { service } = await make({ stubServer: undefined, releasesBase: base }, true, [engine])
+    const run = service.fetchFor()
+    await expect.poll(async () => (await service.board()).fetch?.kind).toBe('engine')
+    await service.removeModel(MODEL.id)
+    await run
+    const board = await service.board()
+    expect(board.fetch).toBeNull()
+    expect(board.fetchingModel).toBeNull()
+    expect(asked.filter((url) => url.includes('/resolve/'))).toEqual([])
   })
 
   it('starts no fetch of a model while it is being agreed to', async () => {

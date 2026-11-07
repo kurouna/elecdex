@@ -6,6 +6,7 @@ import {
   type ServerProcess,
   TranslateEngine,
 } from '../../src/main/translate/engine'
+import { ServerUnusableError } from '../../src/main/translate/llama'
 
 /** A llama-server that answers /health after `loadPolls` polls, and can be made to crash. */
 let nextPid = 1000
@@ -403,6 +404,8 @@ describe('TranslateEngine', () => {
       { source: 'external', origin: 'http://127.0.0.1:8210', launches: [] },
       { probe: () => answer },
     )
+    // Answered, and not usable: said as it is, never as a server that does not answer.
+    await expect(h.engine.ensure()).rejects.toBeInstanceOf(ServerUnusableError)
     await expect(h.engine.ensure()).rejects.toThrow(/does not run a PLaMo/)
     expect(h.engine.phase).toBe('external-unreachable')
     answer = null

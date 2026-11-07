@@ -608,3 +608,128 @@ describe('SETUP when the download ends without the model in place', () => {
     expect(translate.selfTest).toHaveBeenCalledOnce()
   })
 })
+
+describe('SETUP opened again, or a step taken twice', () => {
+  // Review 2026-11-07: SETUP is mounted afresh when the pane goes to TEXT and back, and forgets the
+  // commit agreed to; FETCH and READY are left and come back in one mount.
+  const OTHER = 'plamo3-0.8b-q4km'
+  const downloading = (id: string) => ({
+    kind: 'model' as const,
+    id,
+    phase: 'downloading' as const,
+    received: 1,
+    total: 10,
+    speed: 0,
+    error: null,
+  })
+  /** The model in use, its file of an older commit in place, and a newer one out. */
+  const updating = (over: Partial<TranslateBoard> = {}) =>
+    board({
+      models: board().models.map((m) =>
+        m.id === AGREED
+          ? {
+              ...m,
+              installed: true,
+              revision: 'a'.repeat(40),
+              update: { revision: 'b'.repeat(40), date: null },
+            }
+          : m,
+      ),
+      ...over,
+    })
+  const props = (
+    b: TranslateBoard,
+    step: number,
+    chosen = AGREED,
+    oncommit = vi.fn(async () => {}),
+  ) => ({
+    board: b,
+    step,
+    chosen,
+    onstep: vi.fn(),
+    onselect: () => {},
+    oncommit,
+    ondone: () => {},
+  })
+
+  it('takes the older file of an update for no fetch finished, opened again on FETCH', async () => {
+    const p = props(updating({ fetch: downloading(AGREED), fetchingModel: AGREED }), 4)
+    const view = render(SetupView, { props: p })
+    await settle()
+    expect((screen.getByTestId('translate-next') as HTMLButtonElement).disabled).toBe(true)
+    // CANCEL, here or in another pane: the update ended without its file, never READY.
+    await view.rerender({ board: updating() })
+    await settle()
+    expect(p.onstep).not.toHaveBeenCalledWith(5)
+    expect(screen.getByTestId('translate-fetch-gone')).toBeTruthy()
+  })
+
+  it('waits for the engine too: a model in place alone is not READY', async () => {
+    const placed = (over: Partial<TranslateBoard> = {}) =>
+      board({
+        engine: engine({ fetched: false, toFetchBytes: 62_000 }),
+        models: board().models.map((m) => (m.id === AGREED ? { ...m, installed: true } : m)),
+        ...over,
+      })
+    // The fetch just asked for, not on the board yet: the engine is still to come.
+    const p = props(placed(), 4)
+    const view = render(SetupView, { props: p })
+    await settle()
+    expect(p.onstep).not.toHaveBeenCalledWith(5)
+    expect((screen.getByTestId('translate-next') as HTMLButtonElement).disabled).toBe(true)
+    await view.rerender({ board: placed({ engine: engine() }) })
+    await settle()
+    expect(p.onstep).toHaveBeenCalledWith(5)
+  })
+
+  it('says nothing ended on a second FETCH before its fetch is on the board', async () => {
+    const p = props(board({ fetch: downloading(OTHER), fetchingModel: OTHER }), 4, OTHER)
+    const view = render(SetupView, { props: p })
+    await settle()
+    await view.rerender({ board: board() })
+    await settle()
+    expect(screen.getByTestId('translate-fetch-gone')).toBeTruthy()
+    // Back to the models, agreed again: FETCH before the board names the new fetch.
+    await view.rerender({ step: 2 })
+    await settle()
+    await view.rerender({ step: 4 })
+    await settle()
+    expect(screen.queryByTestId('translate-fetch-gone')).toBeNull()
+  })
+
+  it('tests READY again, with the model made the settings’, each time it is reached', async () => {
+    const inPlace = board({
+      models: board().models.map((m) =>
+        m.id === AGREED || m.id === OTHER ? { ...m, installed: true } : m,
+      ),
+    })
+    const oncommit = vi.fn(async () => {})
+    const view = render(SetupView, { props: props(inPlace, 5, AGREED, oncommit) })
+    await settle()
+    expect(translate.selfTest).toHaveBeenCalledTimes(1)
+    // Another model's fetch, opened from the foot, finishes: READY again, for that one.
+    await view.rerender({
+      step: 4,
+      chosen: OTHER,
+      board: { ...inPlace, fetch: downloading(OTHER), fetchingModel: OTHER },
+    })
+    await settle()
+    await view.rerender({ step: 5, board: inPlace })
+    await settle()
+    expect(translate.selfTest).toHaveBeenCalledTimes(2)
+    expect(oncommit).toHaveBeenCalledTimes(2)
+    expect(screen.getByTestId('translate-selftest').textContent).toMatch(/no/)
+  })
+
+  it('says why RESUME is refused', async () => {
+    translate.fetch = vi.fn(async () => ({ problem: 'Agree to the newer version first.' }))
+    const failed = { ...downloading(AGREED), phase: 'failed' as const, error: 'newer' }
+    render(SetupView, { props: props(board({ fetch: failed, fetchingModel: AGREED }), 4) })
+    await settle()
+    await fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    await settle()
+    expect(screen.getByTestId('translate-problem').textContent).toBe(
+      'Agree to the newer version first.',
+    )
+  })
+})

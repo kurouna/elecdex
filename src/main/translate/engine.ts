@@ -6,7 +6,7 @@ import {
   showsProgress,
 } from '@shared/translate/engines'
 import { decideRestart } from '@shared/translate/restart'
-import type { Endpoint } from './llama.js'
+import { type Endpoint, ServerUnusableError } from './llama.js'
 
 /**
  * llama-server's life (docs/translate.md §4.2, §4.3, §8.4): started on the first translation,
@@ -397,7 +397,7 @@ export class TranslateEngine {
     // request goes to the server now set (review 2026-11-07).
     if (this.#config.origin !== origin) return this.ensure()
     this.tested(problem === null)
-    if (problem !== null) throw new Error(problem)
+    if (problem !== null) throw new ServerUnusableError(problem)
     return { origin, key: null }
   }
 
