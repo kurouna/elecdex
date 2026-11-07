@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { type EngineBackend, LICENSE_URL } from './engines.js'
+import type { ServerModel } from './external.js'
 
 /**
  * What a TRANSLATE pane is shown of the engine, the models and a fetch (docs/translate.md §8.3,
@@ -45,6 +46,11 @@ export interface EngineView {
    * is typed, so an https server is never tried as http.
    */
   externalOrigin: string | null
+  /**
+   * What the external server runs, read when TEST passes, when ENGINE opens and when the server
+   * answers again: empty for elecdex's own engines, and until TEST passes.
+   */
+  serverModels: ServerModel[]
   /** The user's own llama-server: its file name and build, once chosen. */
   own: { name: string; build: number } | null
   /** Whether the engine elecdex fetches is in place. */

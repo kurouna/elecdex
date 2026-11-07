@@ -236,6 +236,8 @@ TRANSLATE 通过 llama.cpp 的 `llama-server` 在本机运行 Preferred Networks
 
 第一次使用时，**> set up translation** 引导五个步骤：**ENGINE**（获取的版本、自己的 llama-server，或一个地址）、**MODEL**（四种大小，以及与本机内存的匹配程度）、**LICENCE**（见下文）、**FETCH**（引擎和模型，可 PAUSE、RESUME、CANCEL；暂停或中断的下载从中断处继续），以及 **READY**，通过引擎试译一句。引擎是 elecdex 固定的构建，并与固定的 sha256 核对。模型是其仓库的最新版本：同意许可证时向 Hugging Face 询问，使用前核对 Hugging Face 为该版本给出的大小和 sha256。
 
+**其他地址上的 llama-server** 运行它自己的模型，因此不需要为它选择、同意或获取任何东西。*未发布：*引擎设置不再显示模型列表，而是显示服务器正在运行的模型——文件名，以及服务器给出时的大小。在 **Test** 通过时、打开设置时以及服务器再次应答时从服务器读取。**Test** 通过之前此处为空。窗格标题也显示该模型的名称，设置向导从 **ENGINE** 直接进入 **READY**。
+
 **更新。** 打开引擎设置时，最多每 24 小时一次、只针对已获取的模型，向 Hugging Face 询问是否有新版本。文件有变化的模型会显示 **Update** 及该版本的日期（只改了 README 等其他文件的版本，不会重新获取同样的数 GB）；不会自行获取。**Update** 与设置一样把该模型设为窗格的模型，并再次经过 **LICENCE**（许可证可能已变更，且每次下载都需同意），然后 **FETCH** 替换现有文件，**READY** 进行测试。删除模型用 **Delete**；删除的是模型文件，同意及其记录会保留。
 
 **LICENCE** 需要两项同意。第一项是 PLaMo 社区许可证：窗格显示摘要，但具有效力的是 Preferred Networks 网站上的许可证，且可能变更，因此必须先从窗格打开该页面，才能勾选。在工作中、在组织内部或为开发产品或服务而使用属于商业用途；年收入 10 亿日元以下时，登记用途后免费（窗格提供登记表的链接）。第二项是下载：窗格列出 **Agree and fetch** 获取的内容及其大小——来自 huggingface.co 的模型文件，以及由 elecdex 获取引擎时来自 github.com 的 llama.cpp 构建（MIT）。每次同意都会连同时间、许可证地址、打开该页面的时间、文件和 elecdex 版本追加到 `translate/licence-consents.txt`（只追加，不改写）。llama.cpp 的许可证以及 llama-server 中内置代码的许可证随 elecdex 附带，并以 `LICENSE-llama.cpp` 写在引擎旁边；引擎设置中有两份许可证的链接，窗格底部显示 Built with PLaMo。

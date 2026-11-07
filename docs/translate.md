@@ -121,6 +121,11 @@ architecture.md §5.25。
   **モデルの選択は仮**（2026-11-06、利用者の依頼）: ENGINE と SETUP で選んだモデルは、取得済みのモデルで DONE を押した
   とき、または SETUP で取得を始めたとき（main は設定のモデルを取得する）にだけ設定の `modelId` に書く。ほかの抜け方
   （設定のボタン、HISTORY など）では元に戻す。未取得のモデルを選ぶと DONE は「Set up this model」になり、MODEL の段へ行く。
+  **外部のサーバーのとき**（2026-11-07、利用者の依頼）: サーバーは自分のモデルを動かし、elecdex の選択は使われない
+  ので、モデルの一覧・取得・削除・UPDATE・「Set up a model…」は出さない。代わりに、サーバーが動かしているモデル
+  （盤の `serverModels`: `/props` の `model_path` のファイル名と、`/v1/models` の `meta` の大きさ・パラメータ数）を
+  出す。TEST が通るまでは空で「Test the server to see the model it runs.」。ペインの副題、STANDBY の行、READY の
+  Model もそのモデルの名前（TEST の前はホスト）。SETUP は ENGINE の段から READY へ直接進む。
 - **狭いペイン**: 原文の下に訳文。背骨は横の線になり、対応はポインタを置いたときの光だけで見せる。
 
 ## 4. エンジン（llama-server）
@@ -152,7 +157,15 @@ architecture.md §5.25。
 - **外部のサーバー**: 既に動いている llama-server のアドレス。elecdex は何も起動しない。アドレスは `http:` か
   `https:` の URL で、ユーザー情報（`user:pass@`）なし、パスは捨てる。リダイレクトは辿らない（`redirect: 'error'`、
   openai.ts と同じ）。TEST で `/props` を読み、`model_path` に `plamo-3-translate` を含むかを見る。401 なら
-  「キーが要るサーバー（まだ対応していない）」と言い、PLaMo ではないとは言わない。
+  「キーが要るサーバー（まだ対応していない）」と言い、PLaMo ではないとは言わない。通れば `/v1/models` も読み、
+  サーバーのモデルの名前と大きさを main のメモリに持つ（ファイルには書かない）。1 つなら `/props` のファイル名で
+  呼ぶ（`/v1/models` の id は起動時の `--alias` で、何も言わないことがある）。router のように複数なら id を並べる
+  だけで、選ばせはしない。`/v1/models` がなくても TEST は通る（大きさが空になるだけ）。読み直すのは、ENGINE を
+  開いたとき（`checkUpdates`）と、届かなかったサーバーがまた答えたとき（盤が `external-ready` に戻ったとき）。
+  別のモデルで立て直されたサーバーを古い名前で見せないため。答えの止まりの判定（`answerStallMs`）は、このとき
+  サーバーのモデルの大きさで測る。分からなければ 60 秒。
+  **OpenAI 互換のサーバー（Ollama など）は対象外**: elecdex は `/completion` に PFML3 を特殊トークンごと渡し、
+  `/tokenize` で数え、`/props` で確かめる。どれも llama-server のもの。
 
 **B（採らない、テストアプリの方式）: アプリに同梱する。** 展開して約 132 MB（Windows）。翻訳を使わない人も含めて
 全員の配布物が大きくなる。

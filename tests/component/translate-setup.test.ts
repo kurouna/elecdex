@@ -33,6 +33,7 @@ const engine = (over: Partial<EngineState> = {}): EngineState => ({
   externalHost: null,
   externalLoopback: false,
   externalOrigin: null,
+  serverModels: [],
   own: null,
   fetched: true,
   toFetchBytes: 0,
@@ -255,5 +256,52 @@ describe('TEST of an external server with nothing typed', () => {
     })
     await fireEvent.click(screen.getByRole('button', { name: 'Test' }))
     expect(translate.testExternal).toHaveBeenCalledWith('https://llm.example.test:8443')
+  })
+})
+
+describe('SETUP with a tested external server', () => {
+  // User's request 2026-11-07: the server runs its own model, so nothing is chosen or fetched.
+  const ready = engine({
+    source: 'external',
+    phase: 'external-ready',
+    externalHost: '127.0.0.1:8210',
+    externalOrigin: 'http://127.0.0.1:8210',
+    serverModels: [{ name: 'plamo-3-translate-0.8b-kansai.gguf', bytes: null, params: null }],
+  })
+
+  it('goes from ENGINE straight to READY', async () => {
+    const onstep = vi.fn()
+    render(SetupView, {
+      props: {
+        board: board({ engine: ready }),
+        step: 1,
+        chosen: AGREED,
+        onstep,
+        onselect: () => {},
+        oncommit: async () => {},
+        ondone: () => {},
+      },
+    })
+    await fireEvent.click(screen.getByTestId('translate-next'))
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    expect(onstep).toHaveBeenCalledWith(5)
+  })
+
+  it("names the server's model on READY, not the one chosen here", async () => {
+    render(SetupView, {
+      props: {
+        board: board({ engine: ready }),
+        step: 5,
+        chosen: AGREED,
+        onstep: () => {},
+        onselect: () => {},
+        oncommit: async () => {},
+        ondone: () => {},
+      },
+    })
+    await settle()
+    const text = screen.getByTestId('translate-selftest').textContent ?? ''
+    expect(text).toContain('plamo-3-translate-0.8b-kansai')
+    expect(text).not.toContain('2b')
   })
 })

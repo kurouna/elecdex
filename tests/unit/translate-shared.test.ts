@@ -10,7 +10,12 @@ import {
   RELEASES_BASE_URL,
   showsProgress,
 } from '../../src/shared/translate/engines'
-import { isLoopback, parseExternalUrl, servesPlamo } from '../../src/shared/translate/external'
+import {
+  isLoopback,
+  parseExternalUrl,
+  serverModels,
+  servesPlamo,
+} from '../../src/shared/translate/external'
 import {
   asSource,
   EASY_JAPANESE,
@@ -177,6 +182,33 @@ describe('external server address', () => {
     expect(servesPlamo({ model_path: 'C:/m/plamo-3-translate-2b-Q4_K_M.gguf' })).toBe(true)
     expect(servesPlamo({ model_path: 'qwen3.gguf' })).toBe(false)
     expect(servesPlamo(null)).toBe(false)
+  })
+
+  it('names one model by its file, sized from /v1/models, whatever alias it is listed by', () => {
+    const props = { model_path: 'C:\\m\\plamo-3-translate-0.8b-kansai.gguf' }
+    const list = {
+      data: [{ id: 'plamo-3-translate', meta: { size: 655698560, n_params: 890344960 } }],
+    }
+    expect(serverModels(props, list)).toEqual([
+      { name: 'plamo-3-translate-0.8b-kansai.gguf', bytes: 655698560, params: 890344960 },
+    ])
+    // A server without /v1/models, or with no sizes in it: the file all the same.
+    expect(serverModels({ model_path: '/m/a.gguf' }, null)).toEqual([
+      { name: 'a.gguf', bytes: null, params: null },
+    ])
+    expect(
+      serverModels({ model_path: '/m/a.gguf' }, { data: [{ id: 'x', meta: { size: -1 } }] }),
+    ).toEqual([{ name: 'a.gguf', bytes: null, params: null }])
+  })
+
+  it('lists a router by its ids, and nothing for what is not a list', () => {
+    const list = { data: [{ id: 'a', meta: { size: 1 } }, { id: 'b' }, { nope: 1 }, 'x'] }
+    expect(serverModels({}, list)).toEqual([
+      { name: 'a', bytes: 1, params: null },
+      { name: 'b', bytes: null, params: null },
+    ])
+    expect(serverModels(null, { data: 'x' })).toEqual([])
+    expect(serverModels({}, null)).toEqual([])
   })
 })
 

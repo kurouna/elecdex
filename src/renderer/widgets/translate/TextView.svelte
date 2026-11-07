@@ -28,6 +28,7 @@ import {
   langCode,
   langName,
   phaseLamp,
+  shownModel,
   sourceInfo,
   sourceOffset,
   swapped,
@@ -825,7 +826,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
             <div class="standby" data-testid="translate-standby">
               <span class="state"><i class="lamp {lamp.kind}"></i>{lamp.word}</span>
               <span class="big">Awaiting input</span>
-              <span class="host">{board.selectedModel}{board.engine.build ? ` · ${board.engine.build}` : ''}{board.engine.backend ? ` · ${board.engine.backend}` : ''}</span>
+              <span class="host" data-testid="translate-standby-model">{shownModel(board, board.selectedModel)}{board.engine.build ? ` · ${board.engine.build}` : ''}{board.engine.backend ? ` · ${board.engine.backend}` : ''}</span>
               {#if board.engine.phase === 'fault'}<span class="problem">{board.engine.error}</span>{/if}
               <span class="hint">Type or paste on the left. <kbd>Ctrl+Enter</kbd> translates, block by block; <kbd>Ctrl+.</kbd> stops.</span>
             </div>

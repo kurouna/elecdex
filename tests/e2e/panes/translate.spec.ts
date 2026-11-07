@@ -281,20 +281,36 @@ test('CANCEL removes what was fetched and goes back to the models', async () => 
   }
 })
 
-test('TEST of an external server that runs PLaMo 3 makes it the engine', async () => {
-  // A server elsewhere, here on loopback: /props names the model, /health is ready.
-  const external = createServer((req, res) => {
+/**
+ * A server elsewhere, here on loopback, as llama-server answers: /props names the model's file,
+ * /v1/models gives its size under the alias it was started with, /health is ready.
+ */
+async function externalServer(): Promise<{
+  server: Server
+  port: number
+  model: { file: string }
+}> {
+  const model = { file: 'plamo-3-translate-8b-Q4_K_M.gguf' }
+  const server = createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'application/json' })
-    res.end(
-      JSON.stringify(
-        req.url === '/props'
-          ? { model_path: '/models/plamo-3-translate-8b-Q4_K_M.gguf', total_slots: 1 }
-          : { status: 'ok' },
-      ),
-    )
+    const answer =
+      req.url === '/props'
+        ? { model_path: `/models/${model.file}`, total_slots: 1 }
+        : req.url === '/v1/models'
+          ? {
+              object: 'list',
+              data: [{ id: 'plamo-3-translate', meta: { n_params: 8.1e9, size: 5.28e9 } }],
+            }
+          : { status: 'ok' }
+    res.end(JSON.stringify(answer))
   })
-  await new Promise<void>((resolve) => external.listen(0, '127.0.0.1', resolve))
-  const port = (external.address() as AddressInfo).port
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  return { server, port: (server.address() as AddressInfo).port, model }
+}
+
+test('TEST of an external server that runs PLaMo 3 makes it the engine', async () => {
+  const external = await externalServer()
+  const { port } = external
   const { page, close, userData } = await launch(undefined, { layout: single('translate') })
   try {
     await page.getByTestId('translate-settings-toggle').click()
@@ -309,7 +325,44 @@ test('TEST of an external server that runs PLaMo 3 makes it the engine', async (
     expect(file.source).toBe('external')
   } finally {
     await close()
-    stopServer(external)
+    stopServer(external.server)
+  }
+})
+
+test('an external server shows the model it runs, never elecdex’s list to choose from', async () => {
+  // User's request 2026-11-07: the server runs its own model, so a list there chose nothing.
+  const external = await externalServer()
+  const { page, close } = await launch(undefined, { layout: single('translate') })
+  try {
+    await page.getByTestId('translate-settings-toggle').click()
+    const engine = page.getByTestId('translate-engine')
+    await expect(engine.getByRole('button', { name: 'Set up a model…' })).toBeVisible()
+    await engine.getByLabel('Server address').fill(`http://127.0.0.1:${external.port}`)
+    await engine.getByRole('button', { name: 'Test' }).click()
+    const models = page.getByTestId('translate-server-models')
+    // Named by its file, not by the alias /v1/models lists it under; sized from /v1/models.
+    await expect(models).toContainText('plamo-3-translate-8b-Q4_K_M.gguf')
+    await expect(models).toContainText('8.1B params · 5.28 GB')
+    await expect(engine.getByRole('button', { name: 'Set up a model…' })).toHaveCount(0)
+    await expect(engine.getByRole('button', { name: /^0\.8B/ })).toHaveCount(0)
+    await expect(page.getByTestId('pane-subtitle')).toContainText('plamo-3-translate-8b-Q4_K_M')
+
+    // The server started again with another model: ENGINE opened again reads it again.
+    external.model.file = 'plamo-3-translate-0.8b-kansai.gguf'
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(engine).toHaveCount(0)
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(models).toContainText('plamo-3-translate-0.8b-kansai.gguf')
+    await expect(page.getByTestId('pane-subtitle')).toContainText('plamo-3-translate-0.8b-kansai')
+
+    // Back to elecdex's own engine: its list again, and the server's model is not named.
+    await engine.getByRole('button', { name: /Fetched by elecdex/ }).click()
+    await expect(engine.getByRole('button', { name: 'Set up a model…' })).toBeVisible()
+    await expect(models).toHaveCount(0)
+    await expect(page.getByTestId('pane-subtitle')).not.toContainText('kansai')
+  } finally {
+    await close()
+    stopServer(external.server)
   }
 })
 

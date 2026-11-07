@@ -5,6 +5,8 @@ import {
   firstSetupStep,
   formatBytes,
   phaseLamp,
+  serverModelFacts,
+  shownModel,
   sourceOffset,
   tiers,
   whereTextGoes,
@@ -26,6 +28,7 @@ const engine = (over: Partial<EngineView> = {}): EngineView => ({
   externalHost: null,
   externalLoopback: false,
   externalOrigin: null,
+  serverModels: [],
   own: null,
   fetched: true,
   toFetchBytes: 0,
@@ -50,6 +53,26 @@ const board = (over: Partial<TranslateBoard> = {}): TranslateBoard => ({
 })
 
 describe('translate view', () => {
+  it("names an external server's own model, never elecdex's choice", () => {
+    expect(shownModel(board(), 'plamo3-2b-q4km')).toBe('plamo3-2b-q4km')
+    const external = (over: Partial<EngineView>) =>
+      board({ engine: engine({ source: 'external', externalHost: '127.0.0.1:8210', ...over }) })
+    // Until TEST has read it: the server, not the model elecdex has chosen.
+    expect(shownModel(external({}), 'plamo3-2b-q4km')).toBe('127.0.0.1:8210')
+    expect(shownModel(external({ externalHost: null }), 'x')).toBe('external server')
+    const one = { name: 'plamo-3-translate-0.8b-kansai.gguf', bytes: 655e6, params: 0.8e9 }
+    expect(shownModel(external({ serverModels: [one] }), 'x')).toBe('plamo-3-translate-0.8b-kansai')
+    expect(shownModel(external({ serverModels: [one, { ...one, name: 'b' }] }), 'x')).toBe(
+      'plamo-3-translate-0.8b-kansai, b',
+    )
+  })
+
+  it("writes a server model's size from what it said, leaving out what it did not", () => {
+    expect(serverModelFacts({ bytes: 655e6, params: 0.84e9 })).toBe('0.8B params · 655 MB')
+    expect(serverModelFacts({ bytes: null, params: null })).toBe('')
+    expect(serverModelFacts({ bytes: 5.28e9, params: null })).toBe('5.28 GB')
+  })
+
   it('says where the text goes, warning for a server off this machine', () => {
     expect(whereTextGoes(engine())).toEqual({ text: 'local, nothing leaves this PC', warn: false })
     expect(

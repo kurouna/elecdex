@@ -4,7 +4,7 @@ import type { TranslateBoard } from '@shared/translate/board'
 import { MODELS } from '@shared/translate/models'
 import { CTX_SIZES, IDLE_MINUTES } from '@shared/translate/settings'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { formatBytes, phaseLamp } from './translate-view.ts'
+import { formatBytes, phaseLamp, serverModelFacts } from './translate-view.ts'
 
 /**
  * ENGINE (docs/translate.md §3): where the engine comes from, its state, the models, how it runs,
@@ -116,6 +116,24 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
     </div>
 
     <span class="lbl">Models</span>
+    <!-- An external server runs its own model: elecdex's list would choose nothing (user's request 2026-11-07). -->
+    {#if external}
+    <div class="val" data-testid="translate-server-models">
+      {#if board.engine.phase === 'external-ready' && board.engine.serverModels.length > 0}
+        <span class="small">The server runs its own model:</span>
+        <div class="models">
+          {#each board.engine.serverModels as model (model.name)}
+            <i class="rd on"></i>
+            <span class="served">{model.name}</span>
+            <span class="mono muted">{serverModelFacts(model)}</span>
+            <span></span>
+          {/each}
+        </div>
+      {:else}
+        <span class="small">Test the server to see the model it runs.</span>
+      {/if}
+    </div>
+    {:else}
     <div class="val">
       <div class="models">
         {#each MODELS as model (model.id)}
@@ -138,6 +156,7 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
       </div>
       <button type="button" class="btn" onclick={() => onsetup()}>Set up a model…</button>
     </div>
+    {/if}
 
     <span class="lbl">Run</span>
     <div class="val runs">
@@ -202,6 +221,7 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
 .models .btn { justify-self: start; align-self: center; }
 .models .small { margin: 0; }
 .models .acts { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.served { font-family: var(--font-mono); font-size: var(--step--1); overflow-wrap: anywhere; }
 .name { background: transparent; border: 0; padding: 0; color: var(--text); font-family: var(--font-mono); font-size: var(--step--1); text-align: left; cursor: pointer; }
 .runs { flex-direction: row; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .runs label { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }

@@ -44,6 +44,26 @@ export function whereTextGoes(engine: EngineView): { text: string; warn: boolean
 }
 
 /**
+ * The model the pane names (its subtitle, the footer, READY): an external server's own, never
+ * elecdex's choice, which it does not run (user's request 2026-11-07); its host until TEST has
+ * read it. `local` is how the caller writes elecdex's own model.
+ */
+export function shownModel(board: TranslateBoard, local: string): string {
+  if (board.engine.source !== 'external') return local
+  const names = board.engine.serverModels.map((model) => model.name.replace(/\.gguf$/i, ''))
+  if (names.length > 0) return names.join(', ')
+  return board.engine.externalHost ?? 'external server'
+}
+
+/** "0.8B · 655 MB" for a server's model, from what `/v1/models` said. */
+export function serverModelFacts(model: { bytes: number | null; params: number | null }): string {
+  const parts: string[] = []
+  if (model.params !== null) parts.push(`${(model.params / 1e9).toFixed(1)}B params`)
+  if (model.bytes !== null) parts.push(formatBytes(model.bytes))
+  return parts.join(' · ')
+}
+
+/**
  * The step SETUP opens on: FETCH while one goes on; READY when the engine and the chosen model are
  * in place and that model is the settings' (READY tests the settings' model); else the first. A
  * model only chosen in ENGINE is set up from the start, so it is agreed to and fetched.

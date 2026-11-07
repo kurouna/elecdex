@@ -26,7 +26,12 @@ import {
   parseBuild,
   RELEASES_BASE_URL,
 } from '@shared/translate/engines'
-import { parseExternalUrl, servesPlamo } from '@shared/translate/external'
+import {
+  parseExternalUrl,
+  type ServerModel,
+  serverModels,
+  servesPlamo,
+} from '@shared/translate/external'
 import type { HistoryEntry } from '@shared/translate/history'
 import {
   HF_BASE_URL,
@@ -135,6 +140,11 @@ export class TranslateService {
   readonly #listeners = new Set<() => void>()
   /** ENGINE's check for newer commits while it is under way (§5). */
   #checking: Promise<void> | null = null
+  /** What the external server runs, as last read; empty until TEST passes (EngineView.serverModels). */
+  #serverModels: ServerModel[] = []
+  /** TEST is reading the server: the ready it brings is not a server answering again. */
+  #testing = false
+  #lastPhase: string | null = null
   /** Models being agreed to now: no fetch of theirs starts until the agreement is written. */
   readonly #agreeing = new Set<string>()
 
@@ -341,6 +351,8 @@ export class TranslateService {
    * offered UPDATE; nothing is fetched by itself.
    */
   checkUpdates(now = Date.now()): Promise<void> {
+    // ENGINE was opened: an external server may run another model since it was last read.
+    void this.refreshServer()
     if (this.#checking) return this.#checking
     if (!dueForCheck(this.#file.read().checkedAt, now)) return Promise.resolve()
     this.#checking = this.#check(now).finally(() => {
@@ -520,6 +532,8 @@ export class TranslateService {
     const file = this.#file.read()
     if (kind === 'own' && !file.own) throw new Error('Choose your llama-server first.')
     if (kind === 'external' && !file.external) throw new Error('Test a server address first.')
+    // Chosen again untested, the server's models are read again when it answers.
+    this.#serverModels = []
     this.#file.write({ ...file, source: kind })
     void this.#reconfigure('The engine was changed.')
     this.#changed()
@@ -546,29 +560,42 @@ export class TranslateService {
   ): Promise<{ ok: true; host: string } | { ok: false; problem: string }> {
     const parsed = parseExternalUrl(raw)
     if (!parsed.ok) return parsed
-    let response: Response
+    this.#testing = true
     try {
-      response = await fetch(`${parsed.origin}/props`, {
-        redirect: 'error',
-        signal: AbortSignal.timeout(5000),
-      })
-    } catch {
-      return { ok: false, problem: `Nothing answered at ${parsed.host}.` }
+      const read = await readServer(parsed.origin)
+      if ('problem' in read) {
+        const problem =
+          read.problem === 'nothing' ? `Nothing answered at ${parsed.host}.` : read.problem
+        return { ok: false, problem }
+      }
+      this.#serverModels = read.models
+      const current = this.#file.read()
+      this.#file.write({ ...current, external: { origin: parsed.origin }, source: 'external' })
+      // After the change has taken: the restart it causes would otherwise mark the server untested again.
+      await this.#reconfigure('The engine was changed.')
+      this.engine.tested(true)
+      this.#changed()
+      return { ok: true, host: parsed.host }
+    } finally {
+      this.#testing = false
     }
-    if (response.status === 401) {
-      return { ok: false, problem: 'That server needs a key, which elecdex does not support yet.' }
-    }
-    if (!response.ok) return { ok: false, problem: `The server answered HTTP ${response.status}.` }
-    const props: unknown = await response.json().catch(() => null)
-    if (!servesPlamo(props))
-      return { ok: false, problem: 'That server does not run a PLaMo 3 Translate model.' }
-    const current = this.#file.read()
-    this.#file.write({ ...current, external: { origin: parsed.origin }, source: 'external' })
-    // After the change has taken: the restart it causes would otherwise mark the server untested again.
-    await this.#reconfigure('The engine was changed.')
-    this.engine.tested(true)
+  }
+
+  /**
+   * Reads again what the external server runs (ENGINE opened, or the server answers again): it
+   * may have been started with another model since. Nothing answering keeps what was read.
+   */
+  async refreshServer(): Promise<void> {
+    const file = this.#file.read()
+    if (file.source !== 'external' || !file.external) return
+    if (this.engine.phase !== 'external-ready') return
+    const read = await readServer(file.external.origin)
+    if ('problem' in read || this.#file.read().external?.origin !== file.external.origin) return
+    if (JSON.stringify(read.models) === JSON.stringify(this.#serverModels)) return
+    this.#serverModels = read.models
+    // The answer's wait follows the model's size (answerStallMs); nothing restarts for it.
+    void this.engine.configure(this.#config())
     this.#changed()
-    return { ok: true, host: parsed.host }
   }
 
   /** Why a fetch cannot start now, or null: asked before starting one, so the page hears it. */
@@ -962,11 +989,14 @@ export class TranslateService {
     const file = this.#file.read()
     const model = this.#selectedModel()
     const installed = model && existsSync(this.#modelPath(model)) ? model : undefined
+    // An external server runs its own model, whatever is chosen here: its size is the one it says.
+    const bytes =
+      file.source === 'external' ? (this.#serverModels[0]?.bytes ?? 0) : (installed?.bytes ?? 0)
     return {
       source: file.source,
       launches: this.#launches(file),
       modelPath: installed ? this.#modelPath(installed) : null,
-      modelBytes: installed?.bytes ?? 0,
+      modelBytes: bytes,
       ctx: this.#settings.ctx,
       idleMinutes: this.#settings.idleMinutes,
       origin: file.external?.origin ?? null,
@@ -990,6 +1020,7 @@ export class TranslateService {
       externalHost: external?.ok ? external.host : null,
       externalLoopback: external?.ok ? external.loopback : false,
       externalOrigin: external?.ok ? external.origin : null,
+      serverModels: file.source === 'external' ? this.#serverModels : [],
       own: file.own ? { name: path.basename(file.own.path), build: file.own.build } : null,
       fetched:
         Boolean(this.#env.stubServer) ||
@@ -1024,6 +1055,11 @@ export class TranslateService {
   }
 
   #changed(): void {
+    // An external server that answers again may have been started with another model.
+    const phase = this.engine.phase
+    if (phase === 'external-ready' && this.#lastPhase !== phase && !this.#testing)
+      void this.refreshServer()
+    this.#lastPhase = phase
     for (const listener of this.#listeners) listener()
   }
 }
@@ -1077,6 +1113,33 @@ async function health(origin: string, key: string | null): Promise<number | null
   } catch {
     return null
   }
+}
+
+/**
+ * What an external server runs (§4.1): its `/props` must name PLaMo 3 Translate; `/v1/models`
+ * adds the sizes, and a server without it is taken all the same. Redirects are refused.
+ */
+async function readServer(
+  origin: string,
+): Promise<{ models: ServerModel[] } | { problem: 'nothing' | (string & {}) }> {
+  const get = (route: string) =>
+    fetch(`${origin}${route}`, { redirect: 'error', signal: AbortSignal.timeout(5000) })
+  let response: Response
+  try {
+    response = await get('/props')
+  } catch {
+    return { problem: 'nothing' }
+  }
+  if (response.status === 401) {
+    return { problem: 'That server needs a key, which elecdex does not support yet.' }
+  }
+  if (!response.ok) return { problem: `The server answered HTTP ${response.status}.` }
+  const props: unknown = await response.json().catch(() => null)
+  if (!servesPlamo(props)) return { problem: 'That server does not run a PLaMo 3 Translate model.' }
+  const list: unknown = await get('/v1/models')
+    .then((answer) => (answer.ok ? answer.json() : null))
+    .catch(() => null)
+  return { models: serverModels(props, list) }
 }
 
 function freePort(): Promise<number> {

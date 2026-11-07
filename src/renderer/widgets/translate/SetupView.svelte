@@ -10,6 +10,7 @@ import {
   fitCells,
   formatBytes,
   modelFit,
+  shownModel,
   TIER_NAME,
   TIER_NOTE,
   tiers,
@@ -138,6 +139,11 @@ async function next(): Promise<void> {
   }
   if (step === 5) {
     ondone()
+    return
+  }
+  // A tested external server runs its own model: nothing to choose, agree to or fetch here.
+  if (step === 1 && board.engine.source === 'external') {
+    onstep(5)
     return
   }
   onstep(step + 1)
@@ -278,7 +284,7 @@ const nextDisabled = $derived(
         <div class="ready">
           <div class="plate">READY</div>
           <div class="selftest" data-testid="translate-selftest">
-            <span class="k">Model</span><span>{selected?.file}</span>
+            <span class="k">Model</span><span>{shownModel(board, selected?.file ?? '')}</span>
             <span class="k">Engine</span><span>{board.engine.build ?? ''} · {board.engine.backend ?? '…'}{board.engine.device ? ` · ${board.engine.device}` : ''}</span>
             <span class="k">Self test</span>
             <span>

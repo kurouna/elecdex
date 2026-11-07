@@ -14,7 +14,7 @@ import HistoryView from './HistoryView.svelte'
 import { draftOf, isActive, keepDraft, newDraftId, RunFollower } from './run-follower.svelte.ts'
 import SetupView from './SetupView.svelte'
 import TextView from './TextView.svelte'
-import { firstSetupStep, phaseLamp, whereTextGoes } from './translate-view.ts'
+import { firstSetupStep, phaseLamp, shownModel, whereTextGoes } from './translate-view.ts'
 import ViewSwitch from './ViewSwitch.svelte'
 
 /**
@@ -79,7 +79,9 @@ const where = $derived(board ? whereTextGoes(board.engine) : null)
 $effect(() => {
   const b = board
   paneMeta.set(paneId, {
-    subtitle: b ? `${b.selectedModel.replace(/^plamo3-/, 'plamo-3-translate-')}` : 'translate',
+    subtitle: b
+      ? shownModel(b, b.selectedModel.replace(/^plamo3-/, 'plamo-3-translate-'))
+      : 'translate',
     ...(b?.engine.phase === 'fault' ? { badge: 'engine fault', badgeKind: 'danger' as const } : {}),
   })
 })
