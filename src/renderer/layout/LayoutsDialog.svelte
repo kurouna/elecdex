@@ -537,8 +537,8 @@ function revealFile(): void {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  /* Wide enough for the ten presets' cards in a row; a narrower window scrolls the shelf. */
-  width: min(76rem, 92vw);
+  /* Wide enough for the eleven presets' cards in a row; a narrower window scrolls the shelf. */
+  width: min(83rem, 92vw);
   max-height: min(42rem, 90vh);
   background: var(--app-bg);
 }

@@ -11,6 +11,9 @@ export const WATCHING_MODULES = [
   'clipboard',
   'nowPlaying',
   'docker',
+  'github',
+  'aws',
+  'cloud',
   'logwatch',
   'translate',
 ] as const

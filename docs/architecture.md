@@ -1726,6 +1726,19 @@ Ctrl+Shift+P で開くダイアログ（palette/ActionPalette.svelte）。ショ
 
 設計、決定の記録、利用者のテストアプリから得たことは **[translate.md](translate.md)** に、見た目のたたき台は [translate-mock/index.html](translate-mock/index.html) に置く。
 
+### 5.26 AWS STATUS と GITHUB STATUS（CLI を通して読むクラウドのペイン）
+
+組み込みペイン `aws` と `github`（2026-11-08 に実装、未リリース。プリセット `cloud`、Ctrl+Shift+F10）。利用者の AWS CLI v2 と GitHub CLI を main が直接起動して（シェルも PowerShell も通さない）読み、書き込みは一切しない。認証は CLI のもので、elecdex は資格情報もトークンも見ない。
+
+- **共通の核**（`src/main/cloud-cli/`、`src/shared/cloud-cli/`）: 実行ファイルの探し方（PATH の絶対パスと既知の置き場所だけ）、固定の cwd・環境・タイムアウト、両ペインで同時 2 本までの起動、probe の表を壁時計の格子で回す `ProbeScheduler`（ずらし、失敗の退き、サインインが切れたら REFRESH まで止まる、先に読むべき probe を待つ `after` と `keyOf`）、標準エラーの分類と伏せ字、1 日の台帳
+- **見えている間だけ**: ボードの購読は `seen` の間だけで、`keepWhileHidden` は無い。公開ステータス（AWS の RSS、githubstatus.com）とコストの QUOTA も同じ購読に載り、隠れている間は読まない
+- **ページが送るのは鍵と id だけ**: ボードの鍵（プロファイル・リージョン、またはリポジトリの一覧の正準形）と、main が見せた項目の id。一覧・1 件・履歴・開く URL はどれも main が自分の直前の読み取りから作る
+- **費用**: AWS は無料の API と CloudWatch の無料枠だけ。有料の Cost Explorer は、そのアカウントを初めて見せたときにペインの中の 1 枚で尋ね、ON・頻度・月の上限をアカウントごとに `aws-billing.json` に持つ。ACTIVE の推定は同梱の単価表（`shared/aws/list-prices.ts`）
+- **画面**: 共通の見た目は `styles/cloud-pane.css`（`.cloudpane`）、公開ステータスの帯は `widgets/cloud/IncidentBand.svelte`、トーストは `stores/cloud-alerts.svelte.ts`
+- **テスト**: `ELECDEX_CLOUD_STUB` で両 CLI を代役に（`stub-aws.ts`、`stub-github.ts`）、公開ステータスの URL は閉じたポート
+
+設計、決定の記録、モックは **[cloud-cli.md](cloud-cli.md)**（共通）、**[aws.md](aws.md)**、**[github.md](github.md)** と [aws-mock/index.html](aws-mock/index.html)、[github-mock/index.html](github-mock/index.html)。
+
 ## 6. ターミナル設計
 
 ### 6.1 構成

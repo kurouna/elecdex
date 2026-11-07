@@ -35,20 +35,20 @@ SF 風のターミナルエミュレーター兼システムモニターです�
 
 ## elecdex とは
 
-elecdex は、組み込みの 41 種のペインを分割とタブで 1 つの画面に並べる、SF の端末風のデスクトップアプリです。eDEX-UI でおなじみのシェルとシステムモニターに加えて、ネットワークの診断、天気や地震などの外の世界、開発ツール、AI、メモやタイマーなどの道具、メディア、独自の 2 台のマシンがそろっています。eDEX-UI（2021 年にアーカイブ）を一から書き直したことから始まり、Electron 45、Svelte 5、TypeScript 7 で作られ、GPL-3.0 で公開しています。
+elecdex は、組み込みの 43 種のペインを分割とタブで 1 つの画面に並べる、SF の端末風のデスクトップアプリです。eDEX-UI でおなじみのシェルとシステムモニターに加えて、ネットワークの診断、天気や地震などの外の世界、開発ツール、AI、メモやタイマーなどの道具、メディア、独自の 2 台のマシンがそろっています。eDEX-UI（2021 年にアーカイブ）を一から書き直したことから始まり、Electron 45、Svelte 5、TypeScript 7 で作られ、GPL-3.0 で公開しています。
 
 - **シェル**: PowerShell、bash、zsh、fish を node-pty でタブと分割に。シェル統合（OSC 7 / OSC 9;9）で、Windows でも各シェルの作業フォルダ（カレントディレクトリ）を追従します。
-- **ペイン**: 組み込みのペイン 41 種と Web ペイン（Browser、YouTube、X）を、状態が保存される分割とタブのツリー構造で並べます。レイアウトのプリセット 10 個、保存したレイアウト、アクションパレット。
+- **ペイン**: 組み込みのペイン 43 種と Web ペイン（Browser、YouTube、X）を、状態が保存される分割とタブのツリー構造で並べます。レイアウトのプリセット 11 個、保存したレイアウト、アクションパレット。
 - **システムとネットワーク**: CPU、メモリ、GPU、ディスク、プロセス、プログラムごとの TCP ソケット、Wi-Fi とイーサネットの診断。Windows では読み取りのたびにプロセスを起動しません（常駐する 1 つのサンプラーが読みます）。
 - **外の世界**: 天気（気象庁、NWS、MET Norway）、マーケット、RSS、地震と津波、手元で計算する衛星（SGP4）、通信先の国を同梱の GeoIP データベースで調べて示す地球儀。
-- **仕事と AI**: Git（読み取りと FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code のセッション、OpenAI 互換または Anthropic の API への AI チャット（鍵は OS で暗号化して保存）、この PC で動かす PLaMo 3 Translate での翻訳。
+- **仕事と AI**: Git（読み取りと FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code のセッション、それぞれの CLI を通して読む AWS のアカウントと GitHub *（未リリース）*、OpenAI 互換または Anthropic の API への AI チャット（鍵は OS で暗号化して保存）、この PC で動かす PLaMo 3 Translate での翻訳。
 - **デスクとメディア**: メモ、タスク、タイマー、クリップボード、カレンダー、電卓。音のスペクトラム、ミキサー、再生中の曲（Now Playing）。
 - **独自の機械**: CHIP-8 のエミュレータと、オリジナルの 16 ビットのポケコン ELEC-16（BASIC、ゲーム機のモデル、関数電卓）。
 - **セキュリティ**: 画面はサンドボックスで、Node もネットワークも使えません（`connect-src 'self'`）。通信はすべてメインプロセスが、ペインがそのデータを必要としている間だけ行い、テレメトリはありません。プラグインは許可したことだけができるサンドボックスのワーカーで動きます。
 
 ## レイアウトのプリセット
 
-10 個のプリセットで、画面全体をキー 1 つで切り替えます（**Ctrl+Shift+F1**〜**F10**）。cockpit と blank 以外は、左のシステムの列をそのまま残します。各スクリーンショットは異なるテーマで撮影しています。詳しくは [レイアウトのプリセット](docs/guide/presets.ja.md) にあります。
+11 個のプリセットで、画面全体をキー 1 つで切り替えます（**Ctrl+Shift+F1**〜**F11**）。cockpit と blank 以外は、左のシステムの列をそのまま残します。各スクリーンショットは異なるテーマで撮影しています。詳しくは [レイアウトのプリセット](docs/guide/presets.ja.md) にあります。
 
 <table>
   <tr>
@@ -69,7 +69,11 @@ elecdex は、組み込みの 41 種のペインを分割とタブで 1 つの�
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.ja.md#retro"><img src="./docs/screenshots/elecdex-retro.jpg" alt="Tron テーマの retro プリセット"></a><br><sub><b>retro</b> · Ctrl+Shift+F9 · CHIP-8、ELEC-16 の機械、関数電卓 SCI-128</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber テーマの blank プリセット"></a><br><sub><b>blank</b> · Ctrl+Shift+F10 · ペインなし: 自分のレイアウトを組む</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#cloud"><img src="./docs/screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット"></a><br><sub><b>cloud</b>（<i>未リリース</i>） · Ctrl+Shift+F10 · AWS STATUS、GITHUB STATUS、シェルと LOG WATCH</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber テーマの blank プリセット"></a><br><sub><b>blank</b> · Ctrl+Shift+F11 · ペインなし: 自分のレイアウトを組む</sub></td>
+    <td width="50%"></td>
   </tr>
 </table>
 
@@ -80,6 +84,7 @@ elecdex は、組み込みの 41 種のペインを分割とタブで 1 つの�
 | システム | Terminal、Clock、System、CPU、Memory、GPU、Disk、Top processes、Cluster、Launcher、Filesystem | [システムのペイン](docs/guide/panes-system.ja.md) |
 | ネットワーク | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet | [ネットワークのペイン](docs/guide/panes-network.ja.md) |
 | 開発 | AI Agent、Git、Docker、Log Watch | [開発のペイン](docs/guide/panes-dev.ja.md) |
+| クラウド *（未リリース）* | AWS STATUS、GITHUB STATUS | [クラウドのペイン](docs/guide/panes-cloud.ja.md) |
 | 外の世界 | Orbit、Markets、Weather、RSS、Quakes、地震と津波の通知 | [外の世界のペイン](docs/guide/panes-world.ja.md) |
 | AI | AI chat、ELEC system、TRANSLATE | [AI のペイン](docs/guide/panes-ai.ja.md) |
 | デスク | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility | [デスクのペイン](docs/guide/panes-desk.ja.md) |
@@ -168,7 +173,7 @@ npm run dev -- -- --windowed --no-intro
 | キー | 働き |
 | --- | --- |
 | Ctrl+Shift+A | ペインを足す（ピッカー） |
-| Ctrl+Shift+F1 … F10 | レイアウトのプリセットへ |
+| Ctrl+Shift+F1 … F11 | レイアウトのプリセットへ |
 | Ctrl+Shift+G | 保存したレイアウト |
 | Ctrl+Shift+P | 操作、レイアウト、テーマ、設定を名前で探す（アクションパレット） |
 | Ctrl+Shift+Z | フォーカスのあるペインを、ほかのペインの上に大きく出す（もう一度で戻す） |
@@ -182,7 +187,7 @@ npm run dev -- -- --windowed --no-intro
 | ページ | 内容 |
 | --- | --- |
 | [ユーザーガイド](docs/guide/index.ja.md) | 下のページの目次 |
-| [レイアウトのプリセット](docs/guide/presets.ja.md) | 10 個のプリセットをペインごとに |
+| [レイアウトのプリセット](docs/guide/presets.ja.md) | 11 個のプリセットをペインごとに |
 | [ワークスペース](docs/guide/workspace.ja.md) | ペイン、分割、タブ、保存したレイアウト、パレット、テーマと動き、バックグラウンドでの実行 |
 | [キーボードショートカット](docs/guide/keyboard.ja.md) | 既定のキーすべて、割り当ての変更、システム全体のショートカット |
 | [テーマと設定](docs/guide/themes-settings.ja.md) | 8 つのテーマ、`settings.json` |
@@ -213,6 +218,7 @@ npm run dev -- -- --windowed --no-intro
 | CHIP-8 のフォント | [Octo](https://github.com/JohnEarnest/Octo) の `js/emulator.js` から `src/shared/chip8/fonts.ts` にコピー | MIT |
 | CHIP-8 のプログラム | [chip8Archive](https://github.com/JohnEarnest/chip8Archive)（作者はそれぞれ）。`resources/chip8/archive` に同梱 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)。ペインに表示 |
 | TRANSLATE のエンジンとモデル | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110 と Preferred Networks の [PLaMo 3 Translate](https://huggingface.co/pfnet)。同梱せず、ペインのセットアップで取得する | llama.cpp: MIT。そのライセンスと、llama-server に組み込まれたコードのライセンスは elecdex に同梱し、エンジンの横に書き出す。モデル: [PLaMo コミュニティライセンス](https://plamo.preferredai.jp/info/plamo-community-license-ja)。セットアップで読んで同意する。Built with PLaMo |
+| AWS の単価（AWS STATUS の推定） *（未リリース）* | AWS の公開の料金ページ（2026-11 時点）。`src/shared/aws/list-prices.ts` に | 事実であり、ライセンスの対象となる著作物ではない。おおよその値で、リリースのたびに確かめる |
 | CHIP-8 のテスト用プログラム（DIAG） | Timendus の [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)。`resources/chip8/test-suite` に Octo のソースとともに同梱 | GPL-3.0 |
 
 ジオロケーションのデータベースは同梱されているため、アカウントも API キーも初回起動時の

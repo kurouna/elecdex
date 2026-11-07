@@ -59,7 +59,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | --- | --- | --- | --- |
 | Ctrl+Shift+G | Saved layouts | `layout.saved` | レイアウトのダイアログを開く: 今の配置に名前を付けて残す、または保存した配置に戻る |
 | Ctrl+Shift+1 … 9、0 | Apply the 1st … 10th saved layout | `layout.saved1` … `layout.saved10` | 保存したレイアウトのうち、ダイアログに並ぶ順で最初の十を適用（0 が十番目）。空いている番号のキーはフォーカス中のペインに渡る |
-| Ctrl+Shift+F1 … F10 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | プリセットへ切り替え: F1 standard、F2 network、F3 earth、F4 dev、F5 media、F6 desk、F7 ai、F8 cockpit、F9 retro、F10 blank |
+| Ctrl+Shift+F1 … F11 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | プリセットへ切り替え: F1 standard、F2 network、F3 earth、F4 dev、F5 media、F6 desk、F7 ai、F8 cockpit、F9 retro、F10 cloud（`layout.preset.cloud`）、F11 blank *（未リリース: cloud は新しく、blank は F10 でした）* |
 | Ctrl+Shift+Backspace | Reset layout | `layout.reset` | 既定のレイアウトに戻す。シェルが開いていれば、切り替えと同じく先に確認する |
 
 プリセットのキーはプリセットの位置ではなく id に結びついているので、割り当てを動かしたキーは同じプリセットに残ります。
@@ -107,6 +107,8 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 | 区切り線をダブルクリック | 2 つのペインの間 | 両隣の 2 つのペインで広さを等分する |
 | Escape | 手前に出したペイン | 元に戻す |
 | Escape | ダイアログ、パレット、ポップアップしたペイン、ドラッグ中 | 閉じる、または取り消す |
+| Enter | AWS STATUS か GITHUB STATUS の行（フォーカスがペインにあるとき）*（未リリース）* | 行を開く: AWS STATUS では掘り下げの 1 段下（サービス、次に 1 つのリソース）、GITHUB STATUS ではその項目をブラウザーで。障害の帯ではステータスのページ |
+| Escape か Backspace | 掘り下げている AWS STATUS か GITHUB STATUS（フォーカスがペインにあり、入力欄にないとき）*（未リリース）* | 1 段上へ |
 
 ## ほかのキー配列でのキー
 
@@ -218,7 +220,7 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 
 ## 保存したレイアウト
 
-![Tron テーマの standard レイアウトの上に開いたレイアウトダイアログ。保存レイアウトとしてのプリセット（1〜9 が見え、それぞれに配置の縮図）と、その下にプリセットの棚とキー Ctrl+Shift+F1〜F10](../screenshots/elecdex-layouts.jpg)
+![Tron テーマの standard レイアウトの上に開いたレイアウトダイアログ。保存レイアウトとしてのプリセット（1〜9 が見え、それぞれに配置の縮図）と、その下にプリセットの棚とキー Ctrl+Shift+F1〜F11](../screenshots/elecdex-layouts.jpg)
 
 | | |
 | --- | --- |
@@ -235,7 +237,7 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 
 ## プリセット
 
-レイアウトのダイアログの一覧の下に、10 個のプリセットが、それぞれペインの並びを小さな図にして並んでいます。
+レイアウトのダイアログの一覧の下に、11 個のプリセットが、それぞれペインの並びを小さな図にして並んでいます。
 
 | プリセット | キー | ペイン |
 | --- | --- | --- |
@@ -248,12 +250,13 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 | **ai** | Ctrl+Shift+F7 | AI チャットとその下の TRANSLATEと、GPU ペインの上に ELEC system |
 | **cockpit** | Ctrl+Shift+F8 | システムの列の代わりに CLUSTER ペイン、その下にシェル 1 つ、右に Wi-Fi と、その下に Ethernet |
 | **retro** | Ctrl+Shift+F9 | ELEC-16 と CHIP-8 をタブにした 1 つのペインと、その下に 16 バンドの spectrum |
-| **blank** | Ctrl+Shift+F10 | ペインなし。自分で足していく |
+| **cloud** *（未リリース）* | Ctrl+Shift+F10 | AWS STATUS と、シェルの上に GITHUB STATUS（シェルの横のタブに Log Watch） |
+| **blank** | Ctrl+Shift+F11 | ペインなし。自分で足していく |
 
 - cockpit と blank 以外は左端にシステムの列を持つので、切り替えても計器はそのままで、舞台だけが替わります。
 - プリセットを選ぶと、そこから作ったレイアウトが追加されてそこへ切り替わり、以後は作業に追従する自分のレイアウトになります。もう一度選ぶと、別のものを追加せずにそのレイアウトへ戻ります。↺ でプリセットの状態に戻せます。
 - プリセットのキーを使えば、どこからでも同じことができます。
-- 新しくインストールしたときは 10 個が Ctrl+Shift+1 から 0 に並んだ状態で始まり、すでにある一覧に足されることはありません。
+- 新しくインストールしたときは 11 個すべてが入り、先頭の 10 個が Ctrl+Shift+1 から 0 に並びます。11 個目の blank には番号のキーが付きません *（未リリース）*。すでにある一覧に足されることはありません。
 
 ## タブグループ
 

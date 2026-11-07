@@ -217,6 +217,7 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'layout.preset.ai': () => void goToPreset('ai'),
   'layout.preset.cockpit': () => void goToPreset('cockpit'),
   'layout.preset.retro': () => void goToPreset('retro'),
+  'layout.preset.cloud': () => void goToPreset('cloud'),
   'layout.preset.blank': () => void goToPreset('blank'),
   // The shortcuts that call up a pane: one each in SUMMONS (layout/summon.ts).
   ...summonActions((widget) => summon(widget)),

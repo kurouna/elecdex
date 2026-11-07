@@ -1,4 +1,8 @@
-import { execFile, spawn } from 'node:child_process'
+import { execFile } from 'node:child_process'
+import { killTree } from '../process/kill-tree.js'
+
+// Shared with the CLI panes (main/cloud-cli/run.ts); kept here under its old name for git's callers.
+export { killTree, type TreeKillDeps } from '../process/kill-tree.js'
 
 /**
  * Runs git for the git pane: to read, and for the three writes the user presses
@@ -75,43 +79,6 @@ export type RunGit = (
   args: readonly string[],
   options?: { timeoutMs?: number },
 ) => Promise<GitResult>
-
-/** What ending a process tree needs: a way to start taskkill, and to signal a group. */
-export interface TreeKillDeps {
-  platform: NodeJS.Platform
-  spawn(command: string, args: readonly string[]): void
-  kill(pid: number, signal: NodeJS.Signals): void
-}
-
-const TREE_KILL: TreeKillDeps = {
-  platform: process.platform,
-  spawn: (command, args) => {
-    spawn(command, [...args], { windowsHide: true, stdio: 'ignore' }).on('error', () => {})
-  },
-  kill: (pid, signal) => process.kill(pid, signal),
-}
-
-/**
- * Ends git and everything it started. Stopping git alone left its helpers behind - on Windows
- * git-remote-https, ssh, or Git Credential Manager's window still asking for a password after
- * the pane had said TIMED OUT (found in review). Windows has no process groups: taskkill /T
- * walks the tree. Elsewhere git leads a group of its own (`detached`), signalled whole.
- */
-export function killTree(pid: number, deps: TreeKillDeps = TREE_KILL): void {
-  if (deps.platform === 'win32') {
-    deps.spawn('taskkill', ['/pid', String(pid), '/T', '/F'])
-    return
-  }
-  try {
-    deps.kill(-pid, 'SIGKILL')
-  } catch {
-    try {
-      deps.kill(pid, 'SIGKILL')
-    } catch {
-      // Gone already.
-    }
-  }
-}
 
 export const runGit: RunGit = (cwd, args, options) =>
   new Promise((resolve) => {

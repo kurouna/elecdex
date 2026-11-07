@@ -3,16 +3,16 @@ English | [日本語](presets.ja.md) | [简体中文](presets.zh-CN.md)
 # Layout presets — elecdex
 
 elecdex is a science-fiction desktop terminal emulator and system monitor, a rewrite of eDEX-UI on
-Electron, Svelte and TypeScript. This page describes its ten **layout presets** - standard,
-network, earth, dev, media, desk, ai, cockpit, retro and blank - which put the panes for one kind
-of work on screen at a key each (**Ctrl+Shift+F1** to **F10**): what each preset holds, how presets
+Electron, Svelte and TypeScript. This page describes its eleven **layout presets** - standard,
+network, earth, dev, media, desk, ai, cockpit, retro, cloud *(unreleased)* and blank - which put the panes for one kind
+of work on screen at a key each (**Ctrl+Shift+F1** to **F11**): what each preset holds, how presets
 become saved layouts, and the features each one shows. elecdex runs on Windows, macOS and Linux; it
 is developed and used on Windows, and macOS and Linux have only been run by the automated tests on
 GitHub Actions, so they are not sufficiently verified.
 
 ## On this page
 
-- [The ten presets at a glance](#the-ten-presets-at-a-glance)
+- [The eleven presets at a glance](#the-eleven-presets-at-a-glance)
 - [How presets work](#how-presets-work)
 - [standard](#standard)
 - [network](#network)
@@ -23,15 +23,16 @@ GitHub Actions, so they are not sufficiently verified.
 - [ai](#ai)
 - [cockpit](#cockpit)
 - [retro](#retro)
+- [cloud](#cloud)
 - [blank](#blank)
 
-The panes are arranged by what you are doing: ten layout presets put the right ones on screen at a
-key each - Ctrl+Shift+F1 to F10 - and every one but cockpit and blank keeps the system column on
+The panes are arranged by what you are doing: eleven layout presets put the right ones on screen at a
+key each - Ctrl+Shift+F1 to F11 - and every one but cockpit and blank keeps the system column on
 the left, so a switch changes the stage and leaves the instruments where they were. The last,
 blank, has no pane at all, for a layout of your own built pane by pane. The features below are
 grouped by the preset that shows them, and each picture is that preset in a different theme.
 
-## The ten presets at a glance
+## The eleven presets at a glance
 
 The **system column** is the default layout's left column, the same in every preset that has it:
 clock, [system](panes-system.md#system), [CPU](panes-system.md#cpu),
@@ -49,13 +50,14 @@ network traffic, top to bottom, in 18% of the window's width.
 | Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.md#ai-chat) over [TRANSLATE](panes-ai.md#translate); [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | no system column: [Cluster](panes-system.md#cluster) over a [Terminal](panes-system.md#terminal); [Wi-Fi](panes-network.md#wi-fi) over [Ethernet](panes-network.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.md#elec-16), ELEC-16 SCI and [CHIP-8](panes-retro.md#chip-8) as tabs of one pane; [Spectrum](panes-media.md#spectrum) at sixteen bands under them | Tron |
-| Ctrl+Shift+F10 | [blank](#blank) | none | Amber |
+| Ctrl+Shift+F10 | [cloud](#cloud) *(unreleased)* | [AWS STATUS](panes-cloud.md#aws-status); [GITHUB STATUS](panes-cloud.md#github-status) over a [Terminal](panes-system.md#terminal) and [Log Watch](panes-dev.md#log-watch) as tabs | Business (Light) |
+| Ctrl+Shift+F11 | [blank](#blank) | none | Amber |
 
 ## How presets work
 
 | | |
 | --- | --- |
-| Where | the LAYOUTS dialog (**Ctrl+Shift+G**, or *layouts* in the status bar): the shelf of presets under the list of saved layouts; **Ctrl+Shift+F1** to **F10**; the action palette (**Ctrl+Shift+P**), whose PRESET rows run the same keys |
+| Where | the LAYOUTS dialog (**Ctrl+Shift+G**, or *layouts* in the status bar): the shelf of presets under the list of saved layouts; **Ctrl+Shift+F1** to **F11**; the action palette (**Ctrl+Shift+P**), whose PRESET rows run the same keys |
 | Stored in | `layouts.json`, as saved layouts that remember which preset they came from |
 | Settings | *Settings → General → Layouts* → *ask before switching layout* (on by default); the keys in *Settings → Keyboard* |
 
@@ -70,12 +72,14 @@ A preset is a **template**, never a second kind of layout:
 - **↺ puts a layout back to its preset**, keeping its name and its place in the list.
 - If you already keep a layout of your own with the preset's name, the new one is numbered
   (`desk 2`).
-- Each preset has a key of its own, **Ctrl+Shift+F1** to **F10**, in the shelf's order, which does
+- Each preset has a key of its own, **Ctrl+Shift+F1** to **F11**, in the shelf's order, which does
   the same from anywhere: it goes to the layout made from the preset, or adds one. The keys are
   bound to the preset, not to its place, so a key you rebind stays on the same preset when presets
   are added. They carry Ctrl+Shift because bare F keys belong to the tasks pane (F2 edits) and to
   programs in the shell such as htop or mc.
-- **A new install starts with all ten**, on Ctrl+Shift+1 to 0, standard active. A new install is
+- **A new install starts with all eleven**, standard active. The first ten are on Ctrl+Shift+1 to 9
+  and 0; blank, the eleventh, has no number key *(unreleased: it was on 0 until cloud came)* and is
+  reached with Ctrl+Shift+F11 or from the shelf. A new install is
   one with neither `layout.json` nor `layouts.json`. An existing list of saved layouts is never
   added to: add a preset from the shelf.
 - At most 20 layouts are kept; when the list is full, a preset cannot be added until one is
@@ -87,7 +91,7 @@ A preset is a **template**, never a second kind of layout:
 The LAYOUTS dialog:
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (blank, on 0, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F10">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (cloud on 0 and blank, with no number key, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F11">
   <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
 </p>
 
@@ -98,7 +102,7 @@ The LAYOUTS dialog:
   **+ add** (not among them). The card shows its preset's key underneath.
 - The shelf is one row that scrolls sideways; the mouse wheel scrolls it. **Tab** moves from the
   list to the shelf, **←** / **→** between cards, **↑** back to the list. At the 1920x1080 design
-  size all ten cards fit in one row.
+  size all eleven cards fit in one row.
 - The chosen row or card blinks (three times, 100 ms each), then the dialog powers off and the
   switch begins. With motion reduced it switches at once.
 
@@ -435,13 +439,43 @@ The machine behind its tab is paused while it is out of sight.
   *elec-16 sci* row does, so no one's BASIC program is cleared to make a calculator of it; its
   panel is folded so the body has the room.
 
+## cloud
+
+*The account, the repositories, and a shell for both CLIs.*
+
+| | |
+| --- | --- |
+| Key | **Ctrl+Shift+F10** |
+| Panes | system column; [AWS STATUS](panes-cloud.md#aws-status) on the stage (0.58 of its width); on the right [GITHUB STATUS](panes-cloud.md#github-status) (0.62 of the height) over a [Terminal](panes-system.md#terminal), with [Log Watch](panes-dev.md#log-watch) as a tab beside it |
+| Picture | Business (Light) |
+| Status | *unreleased* (on `main`, arrives with the next release) |
+
+<p align="center">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="The cloud preset in the Business (Light) theme: the system column on the left; an AWS STATUS pane on a made-up account acme-prod with one alarm, the month to date and its forecast against the budget, the one-line Cost Explorer question, the ACCOUNT PULSE band and the ATTENTION list; on the right a GITHUB STATUS pane of a made-up user octo-aki with the contribution grid and its QUEUE; under it a shell with a LOG WATCH tab beside it">
+  <br><sub>cloud · Business (Light) — a stand-in AWS CLI and gh, made-up account and user</sub>
+</p>
+
+- **[AWS STATUS](panes-cloud.md#aws-status)** — an AWS account through your own AWS CLI: what needs
+  someone (alarms, failed stacks and backups, expiring certificates, risky settings), what runs and
+  bills now at list prices with its idle and wasted resources, this month's cost against the budget
+  and a quota of your own, and who changed what in CloudTrail; a service and a single resource open
+  inside the pane. Free APIs only; Cost Explorer, the one paid API, only if you turn it on.
+- **[GITHUB STATUS](panes-cloud.md#github-status)** — GitHub through your own `gh`: one queue of what
+  waits on you (red default branches, failing pull requests, review requests, mentions, issues
+  nobody answered), the notifications, the last day's events in your repositories, and a tile per
+  repository with its stars, runs and latest release.
+- Both read only while they are shown, change nothing and never see a credential: the CLIs sign in
+  as they always do. While AWS's or GitHub's public status shows an incident, a band says so.
+- The shell under GITHUB STATUS is there for the CLIs themselves (`aws login`, `gh auth login`), with
+  [Log Watch](panes-dev.md#log-watch) in the tab beside it.
+
 ## blank
 
 *Nothing yet, to build your own.*
 
 | | |
 | --- | --- |
-| Key | **Ctrl+Shift+F10** |
+| Key | **Ctrl+Shift+F11** *(unreleased: Ctrl+Shift+F10 until cloud came)* |
 | Panes | none |
 | Picture | Amber, with the add-pane picker open for the first pane |
 | Status | Released in v0.0.44 |

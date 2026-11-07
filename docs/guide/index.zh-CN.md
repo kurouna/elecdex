@@ -2,13 +2,13 @@
 
 # 用户指南 — elecdex
 
-elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监控工具，可把从终端、系统监控到天气、Git、AI 聊天的 41 种窗格排布在同一屏幕上；它是 eDEX-UI 基于 Electron 45、Svelte 5 和 TypeScript 7 的完全重写，以 GPL-3.0 发布。本指南逐一说明每个窗格和功能：显示什么、数据从哪里来、多久更新一次、绝不读取或发送什么，以及在各平台上的差异。elecdex 在 Windows 上开发和使用；macOS 和 Linux 版本仅由 CI 测试，尚未经过充分的手动验证。
+elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系统监控工具，可把从终端、系统监控到天气、Git、AI 聊天的 43 种窗格排布在同一屏幕上；它是 eDEX-UI 基于 Electron 45、Svelte 5 和 TypeScript 7 的完全重写，以 GPL-3.0 发布。本指南逐一说明每个窗格和功能：显示什么、数据从哪里来、多久更新一次、绝不读取或发送什么，以及在各平台上的差异。elecdex 在 Windows 上开发和使用；macOS 和 Linux 版本仅由 CI 测试，尚未经过充分的手动验证。
 
 ## 从这里开始
 
 | 页面 | 内容 |
 | --- | --- |
-| [布局预设](presets.zh-CN.md) | 10 个预设（standard、network、earth、dev、media、desk、ai、cockpit、retro、blank）、按键 Ctrl+Shift+F1 到 F10，以及每个预设中的窗格 |
+| [布局预设](presets.zh-CN.md) | 11 个预设（standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未发布）*、blank）、按键 Ctrl+Shift+F1 到 F11，以及每个预设中的窗格 |
 | [工作区](workspace.zh-CN.md) | 窗格、分屏与标签页、移动与关闭、把窗格放到前面、弹出窗格、已保存的布局、操作面板、动效与声音、后台运行 |
 | [键盘快捷键](keyboard.zh-CN.md) | 全部默认按键、如何重新绑定，以及全局显示/隐藏快捷键 |
 | [主题与设置](themes-settings.zh-CN.md) | 8 个主题与 `settings.json` |
@@ -20,6 +20,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | [系统窗格](panes-system.zh-CN.md) | Terminal、Clock、System、CPU、Memory、GPU、Disk、Top processes、Cluster、Launcher、Filesystem |
 | [网络窗格](panes-network.zh-CN.md) | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet |
 | [开发窗格](panes-dev.zh-CN.md) | AI Agent、Git、Docker、Log Watch |
+| [云窗格](panes-cloud.zh-CN.md) *（未发布）* | AWS STATUS、GITHUB STATUS |
 | [外部世界窗格](panes-world.zh-CN.md) | Orbit、Markets、Weather、RSS、Quakes、地震与海啸提醒 |
 | [AI 窗格](panes-ai.zh-CN.md) | AI chat、ELEC system、TRANSLATE |
 | [桌面窗格](panes-desk.zh-CN.md) | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility |

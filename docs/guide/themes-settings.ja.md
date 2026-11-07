@@ -50,7 +50,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 
 ![Paper テーマの dev プリセット。灰色の紙にインクの文字で、作業中の AI エージェント、架空のリポジトリを開いた git ペイン、その履歴と変更を端末の灰色で出したシェル。エージェントの記録とリポジトリは画像用に作ったもの](../screenshots/elecdex-paper.jpg)
 
-どのテーマもいずれかの画像に写っています: Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk と上の dev）、Business (Dark)（ai）、Business (Light)（関数電卓 ELEC-16 SCI）。
+どのテーマもいずれかの画像に写っています: Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk と上の dev）、Business (Dark)（ai）、Business (Light)（cloud と、関数電卓 ELEC-16 SCI）。
 
 ## テーマの追加
 
@@ -193,6 +193,13 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `reminders.sound` | `true` | 音（インターフェース音がオンのとき） |
 | `reminders.snoozeMinutes` | `10` | *snooze* で先送りする時間、1〜1440 分 |
 | `reminders.leadMinutes` | `0` | 期限の何分前に知らせるか、0〜1440 |
+| `aws.incidents.notify` | `true` | *未リリース。* AWS の公開ステータスに、AWS STATUS ペインのリージョンかグローバルなサービスの障害が出たらトースト。地震の通知と違って既定でオン。ステータスを読むのはそのペインが見えている間だけだからです（[クラウドのペイン](panes-cloud.ja.md#公開ステータスと障害のトースト)） |
+| `aws.incidents.system` | `true` | ウィンドウが前に無いときは OS の通知も（アカウントの名前は書きません） |
+| `aws.incidents.minSeverity` | `"warn"` | 知らせるいちばん軽い障害: `info`、`warn`（impact、degradation）、`danger`（disruption） |
+| `github.incidents.notify` | `true` | *未リリース。* GitHub の公開ステータスについて同じこと。GITHUB STATUS ペインが見えている間 |
+| `github.incidents.system` | `true` | ウィンドウが前に無いときは OS の通知も |
+| `github.incidents.minSeverity` | `"danger"` | `info`、`warn`（GitHub の minor）、`danger`（major と critical） |
+| `github.incidents.skip` | `["Copilot"]` | 障害を知らせない部品（30 個まで）。部品の名前の無い障害はいつも知らせます |
 | `ai.providers` | `[]` | 登録した AI プロバイダー。キーはここには保存しません |
 | `ai.systemPrompt` | `""` | すべての会話の先頭に送る |
 | `ai.compact` | `false` | 会話がプロバイダーの窓を超えたら、モデルに要約を求める |
@@ -218,6 +225,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `plugins` | `{}` | プラグインの id ごとに: 有効かどうか、同意した権限、設定値（[プラグイン](plugins-use.ja.md)） |
 
 - 一部のグループ（ELEC system、LINK、ELEC-16 と CHIP-8 の値、ターミナルの新しい項目）は、手編集の誤りがあってもその値だけが既定値に戻ります。
+- `aws` と `github` の鍵は、どちらのペインの ⚙ でも *Every AWS STATUS pane* / *Every GITHUB STATUS pane* の欄で変えられます（ここを手で書き換えても構いません）。各ペインが何を読むか（プロファイル、リージョン、リポジトリ）は、ここではなくレイアウトのペインに持ちます。
 - AI の API キーはこのファイルにはありません。OS が暗号化して `ai-keys.json` に入れるので、`settings.json` は別のマシンにコピーできます。
 
 ## ファイルの場所
@@ -247,6 +255,10 @@ macOS と Linux のパスは Electron の既定に従ったもので、手作業
 | `chats/`、`elec/` | AI の会話と ELEC system の審議 |
 | `git-repos.json`、`log-files.json` | git ペインと LOG WATCH ペインで選んだリポジトリとログファイル（id で識別） |
 | `awake.json` | Utility ペインの AWAKE の保持 |
+| `aws-billing.json` | *未リリース。* AWS STATUS のアカウントごとの、Cost Explorer の答え・上限・数、コストの QUOTA と知らせた段、プロファイルとアカウントの対応 |
+| `github-stars.json` | *未リリース。* GITHUB STATUS: 公開リポジトリのスターの日ごとの数、90 日 |
+| `cloud-alerts.json` | *未リリース。* 知らせ済みの AWS と GitHub の障害、30 日 |
+| `cli-cwd/` | *未リリース。* AWS と GitHub の CLI を起動する空のフォルダー |
 | `feeds-cache.json` | フィードごとの最新の RSS 見出し |
 | `Partitions/web` | Web ペインの Cookie とサイトデータ（*sign out of all sites* まで） |
 

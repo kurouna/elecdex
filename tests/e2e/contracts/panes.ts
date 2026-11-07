@@ -25,6 +25,10 @@ export interface Footprint {
   clipboard: string[]
   nowPlaying: string[]
   docker: string[]
+  github: string[]
+  aws: string[]
+  /** The public status read for the CLI panes (status:aws, status:github). */
+  cloud: string[]
   logwatch: string[]
   translate: string[]
   /** The earthquake list is being kept current (`quakes.observe`'s `active`). */
@@ -232,6 +236,8 @@ export const PANES: PaneRow[] = [
   },
   { widget: 'agents', seen: { modules: ['agents'] }, popup: true, zoom: 'full' },
   { widget: 'docker', seen: { modules: ['docker'] }, popup: true, zoom: 'full' },
+  { widget: 'github', seen: { modules: ['github', 'cloud'] }, popup: true, zoom: 'full' },
+  { widget: 'aws', seen: { modules: ['aws', 'cloud'] }, popup: true, zoom: 'full' },
   // Seen, it follows the engine's board. A translation being written goes on unseen (main holds it;
   // translate.spec), but the contracts' app has no model, so nothing of it moves here: left quiet.
   {

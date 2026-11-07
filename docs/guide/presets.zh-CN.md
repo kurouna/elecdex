@@ -3,14 +3,14 @@
 # 布局预设 — elecdex
 
 elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 Electron、Svelte 和 TypeScript 重写了 eDEX-UI。本页介绍它的
-十个**布局预设**——standard、network、earth、dev、media、desk、ai、cockpit、retro 和 blank——每个都用一个按键
-（**Ctrl+Shift+F1** 到 **F10**）把某类工作所需的窗格摆上屏幕：每个预设包含什么、预设如何变成已保存布局，以及每个预设
+十一个**布局预设**——standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未发布）* 和 blank——每个都用一个按键
+（**Ctrl+Shift+F1** 到 **F11**）把某类工作所需的窗格摆上屏幕：每个预设包含什么、预设如何变成已保存布局，以及每个预设
 展示的功能。elecdex 可在 Windows、macOS 和 Linux 上运行；它在 Windows 上开发和使用，macOS 和 Linux 只在 GitHub
 Actions 的自动化测试中运行过，因此尚未经过充分验证。
 
 ## 本页内容
 
-- [十个预设一览](#十个预设一览)
+- [十一个预设一览](#十一个预设一览)
 - [预设如何工作](#预设如何工作)
 - [standard](#standard)
 - [network](#network)
@@ -21,13 +21,14 @@ Actions 的自动化测试中运行过，因此尚未经过充分验证。
 - [ai](#ai)
 - [cockpit](#cockpit)
 - [retro](#retro)
+- [cloud](#cloud)
 - [blank](#blank)
 
-窗格按你正在做的事来编排：十个布局预设各用一个按键就能把合适的窗格摆上屏幕——Ctrl+Shift+F1 到 F10——而且除
+窗格按你正在做的事来编排：十一个布局预设各用一个按键就能把合适的窗格摆上屏幕——Ctrl+Shift+F1 到 F11——而且除
 cockpit 和 blank 外，每个预设都把系统栏留在左侧，所以切换时换的是舞台，仪表仍在原处。最后的 blank 一个窗格也没有，
 用来逐个添加、搭出你自己的布局。下面的功能按展示它们的预设分组，每张图都是该预设配上不同的主题。
 
-## 十个预设一览
+## 十一个预设一览
 
 **系统栏**是默认布局的左栏，在每个带它的预设里都一样：从上到下依次是时钟、[system](panes-system.zh-CN.md#system)、
 [CPU](panes-system.zh-CN.md#cpu)、[memory](panes-system.zh-CN.md#memory)、[disk](panes-system.zh-CN.md#disk)、top processes、
@@ -44,13 +45,14 @@ network status 和 network traffic，占窗口宽度的 18%。
 | Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.zh-CN.md#ai-chat) 下方是 [TRANSLATE](panes-ai.zh-CN.md#translate)；[ELEC system](panes-ai.zh-CN.md#elec-system) 下方是 [GPU](panes-system.zh-CN.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | 没有系统栏：[Cluster](panes-system.zh-CN.md#cluster) 下方是 [Terminal](panes-system.zh-CN.md#terminal)；[Wi-Fi](panes-network.zh-CN.md#wi-fi) 下方是 [Ethernet](panes-network.zh-CN.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | 把 [ELEC-16](panes-retro.zh-CN.md#elec-16)、ELEC-16 SCI 和 [CHIP-8](panes-retro.zh-CN.md#chip-8) 作为标签页的一个窗格；其下是 16 段的 [Spectrum](panes-media.zh-CN.md#spectrum) | Tron |
-| Ctrl+Shift+F10 | [blank](#blank) | 无 | Amber |
+| Ctrl+Shift+F10 | [cloud](#cloud) *（未发布）* | [AWS STATUS](panes-cloud.zh-CN.md#aws-status)；[GITHUB STATUS](panes-cloud.zh-CN.md#github-status) 下方是 [Terminal](panes-system.zh-CN.md#terminal) 与 [Log Watch](panes-dev.zh-CN.md#log-watch) 的标签页 | Business (Light) |
+| Ctrl+Shift+F11 | [blank](#blank) | 无 | Amber |
 
 ## 预设如何工作
 
 | | |
 | --- | --- |
-| 位置 | LAYOUTS 对话框（**Ctrl+Shift+G**，或状态栏中的 *layouts*）：已保存布局列表下方的预设架子；**Ctrl+Shift+F1** 到 **F10**；操作面板（**Ctrl+Shift+P**）中的 PRESET 行（走与按键相同的路径） |
+| 位置 | LAYOUTS 对话框（**Ctrl+Shift+G**，或状态栏中的 *layouts*）：已保存布局列表下方的预设架子；**Ctrl+Shift+F1** 到 **F11**；操作面板（**Ctrl+Shift+P**）中的 PRESET 行（走与按键相同的路径） |
 | 保存位置 | `layouts.json`，作为记得自己来自哪个预设的已保存布局 |
 | 设置 | *Settings → General → Layouts* → *ask before switching layout*（默认开启）；按键在 *Settings → Keyboard* |
 
@@ -62,10 +64,11 @@ network status 和 network traffic，占窗口宽度的 18%。
 - **再次选择它会回到那个布局**，而不是再添加一个。布局只记得自己来自哪个预设，因此同一个预设不会被添加两次。
 - **↺ 把布局恢复为它的预设**，名称和在列表中的位置保持不变。
 - 如果你已经有一个与预设同名的自建布局，新建的会加上编号（`desk 2`）。
-- 每个预设都有自己的按键 **Ctrl+Shift+F1** 到 **F10**（按架子的顺序），在任何地方都做同样的事：有由它生成的布局就
+- 每个预设都有自己的按键 **Ctrl+Shift+F1** 到 **F11**（按架子的顺序），在任何地方都做同样的事：有由它生成的布局就
   转到那里，没有就添加一个。按键绑定的是预设而不是位置，所以以后增加预设时，你重新绑定的按键仍留在同一个预设上。
   按键带 Ctrl+Shift，是因为裸的 F 键属于任务窗格（F2 编辑）和 shell 中的程序，例如 htop 或 mc。
-- **新安装会一次得到全部十个**，放在 Ctrl+Shift+1 到 0 上，standard 为当前布局。新安装指 `layout.json` 和
+- **新安装会一次得到全部十一个**，standard 为当前布局。前十个放在 Ctrl+Shift+1 到 9 和 0 上；第十一个 blank
+  没有数字键 *（未发布：在 cloud 加入之前它在 0 上）*，可用 Ctrl+Shift+F11 或从架子上进入。新安装指 `layout.json` 和
   `layouts.json` 都不存在。已有的已保存布局列表绝不会被自动添加：请从架子上添加预设。
 - 最多保存 20 个布局；列表满时，要先删除一个才能添加预设。
 - 预设不会开启任何东西：Starlink、地震警报之类仍由你自己决定是否开启。
@@ -75,7 +78,7 @@ network status 和 network traffic，占窗口宽度的 18%。
 LAYOUTS 对话框：
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：预设作为已保存布局，可见编号 1 到 9（编号 0 的 blank 在更下方），每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F10（blank 是空框）">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：预设作为已保存布局，可见编号 1 到 9（编号 0 的 cloud 和没有编号的 blank 在更下方），每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F11（blank 是空框）">
   <br><sub>布局 (Ctrl+Shift+G) · Tron</sub>
 </p>
 
@@ -83,7 +86,7 @@ LAYOUTS 对话框：
 - 卡片显示预设的状态：**on 3**（由它生成的布局在该数字键上）、**kept**（在你的布局中，但在前十个之外）、
   **in this one**（就是你当前所在的布局）或 **+ add**（尚未添加）。卡片下方显示该预设的按键。
 - 架子只有一行，可横向滚动，鼠标滚轮也能滚动它。**Tab** 从列表移到架子，**←** / **→** 在卡片间移动，**↑** 回到
-  列表。在 1920x1080 的设计尺寸下，十张卡片排得下一行。
+  列表。在 1920x1080 的设计尺寸下，十一张卡片排得下一行。
 - 选中的行或卡片会闪烁三次（每次 100 ms），然后对话框断电、开始切换。减少动效时立即切换。
 
 在 1920x1080 下，每个预设的所有窗格都不小于其最小尺寸；在 1366x768 下，舞台上的窗格也不小于最小尺寸（由单元测试
@@ -384,13 +387,41 @@ elecdex 启动时的默认布局。
 - retro 和 desk 中的 ELEC-16 SCI 标签页与选择器中的 *elec-16 sci* 行一样，从一台新的 SCI-128 机器开始，不会为了做
   计算器而清掉任何人的 BASIC 程序；它的面板是折叠的，好让机身有足够的空间。
 
+## cloud
+
+*账户、仓库，以及供两个 CLI 使用的 shell。*
+
+| | |
+| --- | --- |
+| 按键 | **Ctrl+Shift+F10** |
+| 窗格 | 系统栏；舞台上是 [AWS STATUS](panes-cloud.zh-CN.md#aws-status)（宽度的 0.58）；右侧是 [GITHUB STATUS](panes-cloud.zh-CN.md#github-status)（高度的 0.62），其下是 [Terminal](panes-system.zh-CN.md#terminal)，旁边的标签页是 [Log Watch](panes-dev.zh-CN.md#log-watch) |
+| 截图 | Business (Light) |
+| 状态 | *未发布*（已在 `main` 上，随下一个版本发布） |
+
+<p align="center">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统栏；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带和 ATTENTION 列表；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
+  <br><sub>cloud · Business (Light) — 替身 AWS CLI 和 gh，虚构的账户和用户</sub>
+</p>
+
+- **[AWS STATUS](panes-cloud.zh-CN.md#aws-status)** — 通过你自己的 AWS CLI 查看 AWS 账户：需要人处理的事（告警、失败的
+  堆栈和备份、即将到期的证书、有风险的设置），按标价计算的此刻正在运行并计费的资源及其闲置和浪费，本月费用相对于
+  预算和你自定的 QUOTA，以及 CloudTrail 中谁改了什么；可在窗格内打开一个服务和单个资源。只用免费 API；唯一的付费
+  API Cost Explorer 仅在你开启时使用。
+- **[GITHUB STATUS](panes-cloud.zh-CN.md#github-status)** — 通过你自己的 `gh` 查看 GitHub：把等你处理的事汇成一个队列
+  （变红的默认分支、失败的拉取请求、审查请求、提及、无人回应的 issue），通知，你的仓库最近一天的事件，以及每个仓库
+  一个图块，显示星标、运行和最新发布。
+- 两者都只在可见时读取，不做任何更改，也从不接触凭据：由 CLI 按惯常方式登录。AWS 或 GitHub 的公开状态显示故障时，
+  会有一条横带提示。
+- GITHUB STATUS 下方的 shell 供 CLI 本身使用（`aws login`、`gh auth login`），旁边的标签页是
+  [Log Watch](panes-dev.zh-CN.md#log-watch)。
+
 ## blank
 
 *什么都还没有，由你来搭。*
 
 | | |
 | --- | --- |
-| 按键 | **Ctrl+Shift+F10** |
+| 按键 | **Ctrl+Shift+F11** *（未发布：在 cloud 加入之前为 Ctrl+Shift+F10）* |
 | 窗格 | 无 |
 | 截图 | Amber，为第一个窗格打开了选择器 |
 | 状态 | 于 v0.0.44 发布 |

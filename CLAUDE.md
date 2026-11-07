@@ -32,6 +32,7 @@ alone tends to break a promise the code quietly depends on. The design is in
 | NOW PLAYING | [now-playing.md](.claude/rules/now-playing.md) | §5.15 |
 | UTILITY (AWAKE, CODEC, QR) | [utility.md](.claude/rules/utility.md) | §5.16 |
 | DOCKER | [docker.md](.claude/rules/docker.md) | §5.17 |
+| AWS STATUS and GITHUB STATUS: the CLIs, probes, public status | [cloud-cli.md](.claude/rules/cloud-cli.md) | §5.26; docs/cloud-cli.md, aws.md, github.md |
 | CHIP-8 and the emulators' shared base | [chip8.md](.claude/rules/chip8.md) | §5.18; docs/emu.md |
 | ELEC-16: the pocket, PLAY-320, its games and kit, SCI | [elec16.md](.claude/rules/elec16.md) | §5.19; docs/elec16.md and the elec16-*.md documents |
 | CLUSTER | [cluster.md](.claude/rules/cluster.md) | §5.20; docs/cluster.md |
@@ -88,7 +89,8 @@ src/main/        main process: window, ipc/ (handlers, table.ts), store/ (json f
                  one folder per service (weather/, markets/, feeds/, quakes/, orbits/, clipboard/,
                  media/, ai/, agents/, git/, chip8/, elec16/, launcher/, audio/, plugins/, web/,
                  background/, reminders/, updates/, awake/, docker/, logwatch/, secrets/,
-                 translate/),
+                 translate/, cloud-cli/ (the CLI panes' runner, scheduler, stand-ins, public
+                 status), aws/, github/),
                  metrics/ (the broker between the collector and pages),
                  boundary-timer.ts (readings on the wall clock's grid)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/, ethernet/, gpu/)
@@ -134,7 +136,9 @@ user made; do not reverse one without asking.
   service is asked where something is. TRANSLATE fetches its model and engine only in SETUP (or
   UPDATE), and asks Hugging Face for a newer version as a licence is agreed to and when ENGINE
   opens, at most once a day; what is translated never leaves the computer unless the user chose
-  an external server (docs/translate.md §10, data-sources.md). Fetch only while a pane needs the data, batch, back off on failure,
+  an external server (docs/translate.md §10, data-sources.md). AWS STATUS and GITHUB STATUS run
+  the user's own `aws` and `gh` and read AWS's and GitHub's public status, only while one of
+  their panes is shown (docs/cloud-cli.md). Fetch only while a pane needs the data, batch, back off on failure,
   keep the last good data on screen.
 - **Subscriptions** (metrics, fs watches, weather offices, market symbols, feed URLs, the quake
   list, every pane board) are reference-counted in preload and main, and dropped on reload and

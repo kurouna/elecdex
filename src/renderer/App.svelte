@@ -24,6 +24,7 @@ import { appearance } from './stores/appearance.svelte.ts'
 import { awake } from './stores/awake.svelte.ts'
 import { background } from './stores/background.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
+import { watchCloudAlerts } from './stores/cloud-alerts.svelte.ts'
 import { layout } from './stores/layout.svelte.ts'
 import { watchAlarms, watchReminders } from './stores/reminders.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
@@ -57,6 +58,7 @@ $effect(() => {
 // listens for them here rather than in the widget.
 $effect(() => watchReminders())
 $effect(() => watchAlarms())
+$effect(() => watchCloudAlerts())
 
 // AWAKE's hold goes on with no pane open, so the status bar follows it for the whole window.
 $effect(() => void awake.init())

@@ -103,6 +103,10 @@ export const NO_ARGUMENT = [
   'nowPlaying.art',
   'nowPlaying.watching',
   'docker.watching',
+  'github.watching',
+  'aws.profiles',
+  'aws.watching',
+  'cloud.watching',
   'translate.engineStart',
   'translate.engineStop',
   'translate.engineRestart',
@@ -167,6 +171,7 @@ export const HANDLER_ONLY = [
   'snippets.onChange',
   'nowPlaying.subscribe',
   'docker.subscribe',
+  'cloud.onAlert',
   'translate.subscribe',
   'utility.awake.onChange',
   'chip8.onChange',
@@ -418,6 +423,26 @@ export const IPC_ROWS: IpcRow[] = [
     bad: [[WIN_PATH], [UP], [123]],
     refused: { ignored: true },
     probe: { call: 'git.watching' },
+    subscribes: true,
+  },
+  {
+    method: 'github.subscribe',
+    bad: [['x'], [UP], [123], ['{"repos":"auto"}']],
+    refused: { ignored: true },
+    probe: { call: 'github.watching' },
+    subscribes: true,
+  },
+  {
+    method: 'aws.subscribe',
+    bad: [
+      ['x'],
+      [UP],
+      [123],
+      ['{"profile":"default"}'],
+      ['{"profile":"--debug","regions":[],"activity":true,"slow":false}'],
+    ],
+    refused: { ignored: true },
+    probe: { call: 'aws.watching' },
     subscribes: true,
   },
   {
@@ -1009,6 +1034,100 @@ export const IPC_ROWS: IpcRow[] = [
     method: 'git.log',
     bad: [['x'], [{ repoId: REPO_NONE }], [{ repoId: WIN_PATH, count: 1e9 }]],
     refused: { resolves: null },
+  },
+  {
+    // Not subscribed to any of these keys: nothing is read, opened or refreshed for it.
+    method: 'github.refresh',
+    bad: [['x'], [123], [big(10_000)]],
+    refused: { resolves: 0 },
+    probe: { call: 'github.watching' },
+  },
+  {
+    method: 'github.detail',
+    bad: [
+      ['x', 'octo/tern'],
+      [123, 456],
+      ['x', UP],
+    ],
+    refused: { resolves: null },
+    probe: { call: 'github.watching' },
+  },
+  {
+    method: 'github.open',
+    bad: [
+      ['x', 'repo:octo/tern'],
+      [123, 456],
+      ['x', 'https://example.com'],
+    ],
+    refused: { resolves: false },
+  },
+  {
+    // Not subscribed to any of these keys: nothing is read, opened, answered or set for it.
+    method: 'aws.refresh',
+    bad: [['x'], [123], [big(10_000)]],
+    refused: { resolves: 0 },
+    probe: { call: 'aws.watching' },
+  },
+  {
+    method: 'aws.drill',
+    bad: [
+      ['x', 'ec2'],
+      [123, 456],
+      ['x', UP],
+    ],
+    refused: { resolves: null },
+    probe: { call: 'aws.watching' },
+  },
+  {
+    method: 'aws.item',
+    bad: [
+      ['x', 'ec2', 'i-0'],
+      [123, 456, 789],
+      ['x', 'ec2', UP],
+    ],
+    refused: { resolves: null },
+  },
+  {
+    method: 'aws.history',
+    bad: [
+      ['x', 'ec2', 'i-0'],
+      [123, 456, 789],
+      ['x', 's3', WIN_PATH],
+    ],
+    refused: { resolves: null },
+    probe: { call: 'aws.watching' },
+  },
+  {
+    method: 'aws.open',
+    bad: [
+      ['x', 'account:billing'],
+      [123, 456],
+      ['x', 'https://example.com'],
+    ],
+    refused: { resolves: false },
+  },
+  {
+    method: 'aws.costExplorer',
+    bad: [
+      ['x', { state: 'on' }],
+      [123, null],
+      ['x', { state: 'on', cap: 1e9 }],
+    ],
+    refused: { resolves: false },
+  },
+  {
+    method: 'aws.quota',
+    bad: [
+      ['x', { usd: 100, steps: '100' }],
+      [123, null],
+      ['x', { usd: -1, steps: '100' }],
+    ],
+    refused: { resolves: false },
+  },
+  {
+    method: 'cloud.open',
+    bad: [['x'], [123], ['https://example.com'], [UP]],
+    refused: { resolves: false },
   },
   {
     method: 'git.open',

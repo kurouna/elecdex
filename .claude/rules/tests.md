@@ -27,6 +27,9 @@ the files above is read or edited.
   - `ELECDEX_WIFI_STUB=1`: a made-up link, echoes and log (`=train`, `=dual`, `=demo`);
   - `ELECDEX_ETHER_STUB=1`: a made-up wired link and echoes (`=flapping`, `=crc`, `=dual`, `=demo`, ...);
   - `ELECDEX_DOCKER_STUB=1`: a stand-in engine (`=demo`, `=down`, `=denied`);
+  - `ELECDEX_CLOUD_STUB=1`: a stand-in gh and aws, never the CLIs, accounts or network
+    (`=demo`, `=signedout`, `=nocli`, `=offline`, ...; `globalThis.__elecdexCloud` changes it),
+    and closed ports for their public status, `ELECDEX_AWS_STATUS_URL` and `ELECDEX_GITHUB_STATUS_URL`;
   - `ELECDEX_AWAKE_STUB=1`: no real power-save blocker or power source;
   - `ELECDEX_AI_KEYS_STUB=1`: a reversible stand-in for `safeStorage`; AI providers are a spec's
     local stub;

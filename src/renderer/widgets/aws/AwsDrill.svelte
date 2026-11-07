@@ -1,0 +1,314 @@
+<script lang="ts">
+import type { DrillPlace } from '@shared/aws/board'
+import { DRILL, type DrillColumn, facets, filterRows, sortRows } from '@shared/aws/drill'
+import type { AwsService, DrillItem, DrillRow, HistoryEvent } from '@shared/aws/types'
+import { sfx } from '../../stores/sound.svelte.ts'
+import { ageText, clockText, MASKED } from '../cloud/cloud-view.ts'
+import { dateCell, gibText, money } from './aws-view.ts'
+
+/**
+ * The drill-down's second and third steps (docs/aws.md §5): a service's facet bars and its list,
+ * then one resource. The list comes from main's last reading once per reading; the facets, the
+ * cross-filtering and the sort are worked out here. Where the pane has drilled to lives in its
+ * state, so a remount comes back to the same place; an id main no longer has goes back a step.
+ */
+interface Props {
+  boardKey: string
+  place: DrillPlace
+  /** The board's reading time: a new one fetches the list again. */
+  readAt: number | null
+  masked: boolean
+  now: number
+  narrow: boolean
+  onplace: (next: DrillPlace | null) => void
+  onopen: (id: string) => void
+}
+
+const { boardKey, place, readAt, masked, now, narrow, onplace, onopen }: Props = $props()
+
+let rows = $state.raw<DrillRow[] | null>(null)
+let item = $state.raw<DrillItem | null>(null)
+let history = $state.raw<HistoryEvent[] | 'failed' | null>(null)
+let gone = $state<number | null>(null)
+
+const def = $derived(DRILL[place.service])
+
+$effect(() => {
+  const service = place.service
+  void readAt
+  const key = boardKey
+  void window.elecdex.aws.drill(key, service).then((next) => {
+    if (place.service === service) rows = next ?? []
+  })
+})
+
+$effect(() => {
+  const id = place.item
+  const service = place.service
+  void readAt
+  history = null
+  if (id === null) {
+    item = null
+    return
+  }
+  void window.elecdex.aws.item(boardKey, service, id).then((next) => {
+    if (place.item !== id) return
+    if (next === null) {
+      // Gone since the last reading: back to the list, saying when (aws.md §5.1).
+      gone = Date.now()
+      onplace({ ...place, item: null })
+      return
+    }
+    item = next
+  })
+})
+
+const filtered = $derived(rows === null ? [] : filterRows(rows, place.filters))
+const groups = $derived(rows === null ? [] : facets(rows, def, place.filters))
+const sort = $derived(place.sort ?? { column: def.sort, down: true })
+const sorted = $derived(sortRows(filtered, sort.column, sort.down))
+const columns = $derived(
+  narrow
+    ? def.columns.filter((c, i) => i === 0 || c.key === 'state' || c.kind === 'money')
+    : def.columns,
+)
+/** The first column wider, the numbers narrower: fixed per service, so rows line up. */
+const template = $derived(
+  [
+    'minmax(8rem, 2fr)',
+    ...columns
+      .slice(1)
+      .map((c) => (c.kind === 'text' ? 'minmax(0, 1fr)' : 'minmax(4.5rem, 0.8fr)')),
+  ].join(' '),
+)
+const maxOf = $derived(
+  Object.fromEntries(
+    def.columns
+      .filter((c) => c.kind === 'money' || c.kind === 'gib' || c.kind === 'num')
+      .map((c) => [
+        c.key,
+        Math.max(
+          0,
+          ...filtered.map((r) =>
+            typeof r.cells[c.key] === 'number' ? (r.cells[c.key] as number) : 0,
+          ),
+        ),
+      ]),
+  ),
+)
+
+function toggleFilter(key: string, value: string): void {
+  sfx.play('panel')
+  const filters = { ...place.filters }
+  if (filters[key] === value) delete filters[key]
+  else filters[key] = value
+  onplace({ ...place, filters })
+}
+
+function sortBy(column: string): void {
+  sfx.play('panel')
+  const down = sort.column === column ? !sort.down : true
+  onplace({ ...place, sort: { column, down } })
+}
+
+function choose(row: DrillRow): void {
+  sfx.play('expand')
+  gone = null
+  onplace({ ...place, item: row.id })
+}
+
+function onRowKey(event: KeyboardEvent, row: DrillRow): void {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    choose(row)
+  }
+}
+
+function related(service: AwsService, id: string): void {
+  sfx.play('expand')
+  onplace({ service, filters: {}, sort: null, item: id })
+}
+
+let oneEl = $state<HTMLElement | null>(null)
+async function readHistory(): Promise<void> {
+  if (item === null) return
+  sfx.play('panel')
+  history = (await window.elecdex.aws.history(boardKey, item.service, item.id)) ?? 'failed'
+  // The button pressed is gone with the answer: the focus stays in the pane, so Escape still goes up.
+  oneEl?.focus({ preventScroll: true })
+}
+
+function cell(column: DrillColumn, row: DrillRow): string {
+  const value = row.cells[column.key]
+  if (column.masked && masked) return MASKED
+  if (column.kind === 'money') return typeof value === 'number' ? money(value) : '—'
+  if (column.kind === 'gib') return typeof value === 'number' ? gibText(value) : '—'
+  if (column.kind === 'date') {
+    if (typeof value !== 'number') return '—'
+    return column.key === 'up' ? ageText(value, now) : dateCell(value, now)
+  }
+  return value === null || value === undefined ? '—' : String(value)
+}
+
+const shown = (name: string, i: number) =>
+  masked && def.columns[0]?.masked && i === 0 ? MASKED : name
+
+/** Takes the focus as the list or the item appears, so Escape goes up from the keyboard. */
+function takeFocus(el: HTMLElement): void {
+  el.focus({ preventScroll: true })
+}
+</script>
+
+{#if place.item === null}
+  <div class="drill" data-testid="aws-drill-list">
+    {#if gone !== null}<p class="gone" role="status">gone since {clockText(gone)}: not in the last reading</p>{/if}
+    <div class="facets" class:narrow>
+      {#each groups as group (group.key)}
+        <div class="facet" data-testid="aws-facet">
+          <small>{group.label}</small>
+          {#each group.bars as bar (bar.value)}
+            <button type="button" class="bar1" class:on={bar.on} aria-pressed={bar.on} onclick={() => toggleFilter(group.key, bar.value)} data-testid="aws-facet-bar">
+              <span class="v">{bar.value}</span><span class="fill" style:--share={bar.share}></span><span class="n">{bar.count}</span>
+            </button>
+          {/each}
+        </div>
+      {/each}
+    </div>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="table" tabindex="-1" {@attach takeFocus}>
+      <div class="row head" style:grid-template-columns={template}>
+        {#each columns as column (column.key)}
+          <button type="button" class:num={column.kind !== 'text'} onclick={() => sortBy(column.key)} data-testid="aws-sort">
+            {column.label}{#if sort.column === column.key}{sort.down ? ' ▼' : ' ▲'}{/if}
+          </button>
+        {/each}
+      </div>
+      {#each sorted as row (row.id)}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="row" style:grid-template-columns={template} data-weight={row.weight} tabindex="0" role="link" onclick={() => choose(row)} onkeydown={(e) => onRowKey(e, row)} data-testid="aws-drill-row">
+          {#each columns as column, i (column.key)}
+            <span class:num={column.kind !== 'text'} class:lead={i === 0}>
+              {#if maxOf[column.key]}<i class="bg" style:--share={(typeof row.cells[column.key] === 'number' ? (row.cells[column.key] as number) : 0) / (maxOf[column.key] || 1)}></i>{/if}
+              {i === 0 ? shown(cell(column, row), i) : cell(column, row)}
+            </span>
+          {/each}
+        </div>
+      {:else}
+        <p class="none">{rows === null ? '…' : 'nothing here with these filters'}</p>
+      {/each}
+    </div>
+    <p class="count">{filtered.length} of {rows?.length ?? 0} · read {clockText(readAt)}{(rows?.length ?? 0) >= 1000 ? ' · 1,000 of at least 1,000' : ''}</p>
+  </div>
+{:else if item !== null}
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <div class="drill one" data-testid="aws-drill-item" tabindex="-1" bind:this={oneEl} {@attach takeFocus}>
+    <header class="ihead">
+      <span class="state" data-state={item.state ?? ''}><i></i>{item.state ?? item.service}</span>
+      <b>{masked && def.columns[0]?.masked ? MASKED : item.name}</b>
+      <span class="spacer"></span>
+      <button type="button" class="tool" onclick={() => item && onopen(`item:${item.service}:${item.region}:${item.id}`)} data-testid="aws-console">↗ CONSOLE</button>
+    </header>
+    {#if item.attention.length > 0}
+      <div class="findings">
+        {#each item.attention as finding (finding.id)}
+          <p data-weight={finding.weight}><span class="tag" data-weight={finding.weight}>{finding.tag}</span> {finding.title}</p>
+        {/each}
+      </div>
+    {/if}
+    <dl class="fields">
+      {#each item.fields as field (field.label)}
+        <dt>{field.label}</dt><dd class:mono={true}>{field.masked && masked ? MASKED : field.value}</dd>
+      {/each}
+    </dl>
+    {#if item.related.length > 0}
+      <div class="sep">related</div>
+      {#each item.related as other (`${other.service}:${other.id}`)}
+        <button type="button" class="rel" onclick={() => related(other.service, other.id)} data-testid="aws-related">
+          <span class="svc">{DRILL[other.service].label}</span><span class="mono">{other.name}</span><span class="dim">{other.note}</span>
+        </button>
+      {/each}
+    {/if}
+    <div class="sep">history</div>
+    {#if history === null}
+      <button type="button" class="tool" onclick={() => void readHistory()} data-testid="aws-history">HISTORY · CloudTrail, free</button>
+    {:else if history === 'failed'}
+      <p class="none">CloudTrail did not answer (refused, or timed out) · <button type="button" class="tool" onclick={() => void readHistory()}>TRY AGAIN</button></p>
+    {:else if history.length === 0}
+      <p class="none">no write in CloudTrail's 90 days for this name</p>
+    {:else}
+      {#each history as event (`${event.at}:${event.name}`)}
+        <p class="hist"><span class="mono">{dateCell(event.at, now)}</span><span>{masked ? MASKED : event.who}</span><span class="mono">{event.name}</span></p>
+      {/each}
+    {/if}
+  </div>
+{/if}
+
+<style>
+.drill { display: flex; flex-direction: column; gap: 0.4rem; min-height: 0; }
+.gone { margin: 0; color: var(--warn); font-size: var(--step--1); }
+.facets { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.4rem 1rem; }
+.facets.narrow { grid-template-columns: 1fr; }
+.facet { display: flex; flex-direction: column; gap: 0.12rem; }
+.facet small { font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); }
+.bar1 {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) 2.4rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.05rem 0.2rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  cursor: pointer;
+  text-align: left;
+}
+.bar1:hover { border-color: var(--panel-rule); color: var(--text); }
+.bar1.on { border-color: var(--accent); color: var(--text); background: var(--accent-faint); }
+.bar1 .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar1 .fill { height: 0.4rem; background: linear-gradient(90deg, var(--bar) calc(var(--share) * 100%), color-mix(in srgb, var(--accent) 10%, transparent) 0); }
+.bar1 .n { text-align: right; }
+.table { display: flex; flex-direction: column; outline: 0; }
+.row {
+  position: relative;
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.12rem 0.4rem 0.12rem 0.35rem;
+  border-left: 2px solid transparent;
+  font-size: var(--step--1);
+}
+.row[role='link'] { cursor: pointer; }
+.row[role='link']:hover, .row:focus-visible { background: var(--accent-faint); outline: 1px solid var(--accent); outline-offset: -1px; }
+.row:not(:focus-visible):hover { outline: 0; }
+.row[data-weight='danger'] { border-left-color: var(--danger); }
+.row[data-weight='warn'] { border-left-color: var(--warn); }
+.row.head { border-bottom: 1px solid var(--panel-rule); }
+.row.head button { background: transparent; border: 0; padding: 0; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-align: left; cursor: pointer; }
+.row.head button.num { text-align: right; }
+.row span { position: relative; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); color: var(--text-dim); }
+.row span.lead { color: var(--text); }
+.row span.num { text-align: right; }
+.bg { position: absolute; inset: 0.15rem 0 0.15rem auto; width: calc(var(--share) * 100%); background: color-mix(in srgb, var(--accent) 12%, transparent); z-index: -1; }
+.none { margin: 0.6rem 0; color: var(--text-dim); font-size: var(--step--1); }
+.count { margin: 0; font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); }
+.one { outline: 0; gap: 0.3rem; }
+.ihead { display: flex; align-items: center; gap: 0.7rem; }
+.ihead b { font-family: var(--font-display); font-size: var(--step-1); font-weight: 500; color: var(--accent-strong); }
+.state { display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--step--1); text-transform: uppercase; letter-spacing: var(--tracking-wide); color: var(--text-dim); }
+.state i { width: 0.45rem; height: 0.45rem; transform: rotate(45deg); background: var(--text-muted); }
+.state[data-state='running'] i, .state[data-state='available'] i, .state[data-state='in-use'] i { background: var(--ok); }
+.state[data-state='stopped'] i { background: var(--warn); }
+.spacer { flex: 1; }
+.findings p { margin: 0.1rem 0; font-size: var(--step--1); }
+.fields { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.1rem 1rem; margin: 0.2rem 0; font-size: var(--step--1); }
+.fields dt { color: var(--text-muted); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; align-self: center; }
+.fields dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.mono { font-family: var(--font-mono); }
+.rel { display: grid; grid-template-columns: 7rem minmax(0, 1fr) minmax(0, 1fr); gap: 0.6rem; padding: 0.12rem 0.35rem; border: 0; border-left: 2px solid transparent; background: transparent; color: var(--text); font-size: var(--step--1); text-align: left; cursor: pointer; }
+.rel:hover, .rel:focus-visible { background: var(--accent-faint); }
+.rel .svc { font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--text-muted); text-transform: uppercase; }
+.dim { color: var(--text-dim); }
+.hist { display: grid; grid-template-columns: 13rem 8rem minmax(0, 1fr); gap: 0.6rem; margin: 0.05rem 0; font-size: var(--step--1); color: var(--text-dim); }
+</style>

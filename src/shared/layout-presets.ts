@@ -38,6 +38,7 @@ export const LAYOUT_PRESET_IDS = [
   'ai',
   'cockpit',
   'retro',
+  'cloud',
   'blank',
 ] as const
 export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number]
@@ -258,6 +259,26 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
           ),
         ],
         [1],
+      ),
+  },
+  {
+    // The cloud engineer's desk (docs/cloud-cli.md §10, user's request 2026-11-07): AWS STATUS
+    // on the stage, GITHUB STATUS above a shell and LOG WATCH behind one tab strip, before blank
+    // on the shelf. Both CLI panes read only while shown, so the tab behind costs nothing.
+    id: 'cloud',
+    name: 'cloud',
+    description: 'AWS STATUS on the stage, GITHUB STATUS beside it, a shell and LOG WATCH under it',
+    build: () =>
+      withSystemColumn(
+        [
+          pane('aws'),
+          split(
+            'column',
+            [pane('github'), tabs([pane('terminal'), pane('logwatch')])],
+            [0.62, 0.38],
+          ),
+        ],
+        [0.58, 0.42],
       ),
   },
   {

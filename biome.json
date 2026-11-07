@@ -22,7 +22,9 @@
       "!docs/palette-mock",
       "!docs/elec16-skins-mock",
       "!docs/elec16-sci-mock",
-      "!docs/translate-mock"
+      "!docs/translate-mock",
+      "!docs/aws-mock",
+      "!docs/github-mock"
     ]
   },
   "formatter": {

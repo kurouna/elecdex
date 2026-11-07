@@ -11,6 +11,7 @@ import type {
 import type { AttachmentView, AttachResult, AttachUpload } from './ai-attach.js'
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
+import type { AwsBoard, AwsService, DrillItem, DrillRow, HistoryEvent } from './aws/types.js'
 import type { BackgroundState } from './background.js'
 import type {
   Chip8ImportChange,
@@ -51,6 +52,7 @@ import type {
   GitState,
 } from './git.js'
 import type { GitSyncAction, GitSyncResult } from './git-sync.js'
+import type { GithubBoard, RepoDetail } from './github/types.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { SavedLayoutSummary } from './layouts.js'
 import type {
@@ -591,6 +593,72 @@ export interface Elec16Api {
   devWatching(): Promise<string[]>
 }
 
+/**
+ * GITHUB STATUS (docs/github.md). The page names a board by its key and an item by its opaque id;
+ * main runs gh, keeps the token to itself and opens only URLs it read.
+ */
+export interface GithubApi {
+  /** Keeps a board current while subscribed; main reads it only while some page is. */
+  subscribe(key: string, handler: (board: GithubBoard) => void): () => void
+  /** Every reading now, at most once in 30 s per board: answers the wait left (ms). */
+  refresh(key: string): Promise<number>
+  /** One watched repository's runs, open PRs and releases (read when opened, kept 5 min). */
+  detail(key: string, repo: string): Promise<RepoDetail | null>
+  /** Opens an item the board showed, in the browser. */
+  open(key: string, id: string): Promise<boolean>
+  /** Diagnostics: the boards main reads now, sorted; empty when idle. */
+  watching(): Promise<string[]>
+}
+
+/**
+ * AWS STATUS (docs/aws.md): a board per profile and regions, read by main through AWS CLI only
+ * while a pane is seen. The page sends a board key and ids of what main showed - never a command,
+ * an argument, a URL or a path.
+ */
+export interface AwsApi {
+  subscribe(key: string, handler: (board: AwsBoard) => void): () => void
+  /** Every reading now, at most once in 30 s per board: answers the wait left (ms). */
+  refresh(key: string): Promise<number>
+  /** A service's list for the drill-down, from main's last reading. */
+  drill(key: string, service: AwsService): Promise<DrillRow[] | null>
+  /** One resource of that list: its fields, what is related, its findings. */
+  item(key: string, service: AwsService, id: string): Promise<DrillItem | null>
+  /** Its CloudTrail, read when HISTORY is pressed (free; kept five minutes). */
+  history(key: string, service: AwsService, id: string): Promise<HistoryEvent[] | null>
+  /** Opens a console page main builds from its own reading (item:… or account:… ids). */
+  open(key: string, id: string): Promise<boolean>
+  /** Cost Explorer's answer for the board's account (a paid API, asked once; aws.md §3.3). */
+  costExplorer(
+    key: string,
+    answer: { state: 'on' | 'off' | 'later'; every?: 'manual' | 'day' | '12h'; cap?: number },
+  ): Promise<boolean>
+  /** The cost QUOTA of the board's account, USD (0 is off). */
+  quota(key: string, quota: { usd: number; steps: '80-100' | '100' }): Promise<boolean>
+  /** The profiles AWS CLI knows (`aws configure list-profiles`, a local read). */
+  profiles(): Promise<string[]>
+  watching(): Promise<string[]>
+}
+
+/** The CLI panes' toasts: a public incident, a cost QUOTA step. */
+export interface CloudApi {
+  onAlert(handler: (alert: CloudAlertView) => void): () => void
+  /** Opens the status page of an incident a toast named. */
+  open(alertId: string): Promise<boolean>
+  /** Diagnostics: the public statuses main reads now (status:aws, status:github). */
+  watching(): Promise<string[]>
+}
+
+/** A toast from main: OPEN STATUS for an incident, OPEN COST (that board's COST tab) for a QUOTA. */
+export interface CloudAlertView {
+  id: string
+  title: string
+  body: string
+  /** The body without the account, for while a pane masks (MASK). */
+  maskedBody: string
+  tone: 'warn' | 'danger'
+  action: { kind: 'status' } | { kind: 'cost'; key: string }
+}
+
 export interface DockerApi {
   /**
    * Keeps the list current while subscribed: at once, then after each change.
@@ -1024,6 +1092,9 @@ export interface ElecdexApi {
   snippets: SnippetsApi
   nowPlaying: NowPlayingApi
   docker: DockerApi
+  github: GithubApi
+  aws: AwsApi
+  cloud: CloudApi
   translate: TranslateApi
   utility: UtilityApi
   chip8: Chip8Api

@@ -408,15 +408,18 @@ describe('seededLayouts', () => {
     expect(seen).toEqual(LAYOUT_PRESETS.map((_, i) => i))
   })
 
-  it('fits on the number keys', () => {
-    expect(LAYOUT_PRESETS.length).toBeLessThanOrEqual(KEYED_LAYOUTS)
+  it('fits on the number keys, all but blank (user decision 2026-11-08: cloud took its place)', () => {
+    const keyed = LAYOUT_PRESETS.slice(0, KEYED_LAYOUTS).map((preset) => preset.id)
+    expect(keyed).toHaveLength(KEYED_LAYOUTS)
+    expect(keyed.at(-1)).toBe('cloud')
+    expect(LAYOUT_PRESETS.slice(KEYED_LAYOUTS).map((preset) => preset.id)).toEqual(['blank'])
   })
 })
 
 describe('the order of the presets', () => {
   // The LAYOUTS dialog's shelf, the first start's numbered list and the Ctrl+Shift+F keys all
-  // follow this order; retro comes after cockpit (user decision 2026-10-10), and blank is last
-  // (user's request 2026-10-25).
+  // follow this order; retro comes after cockpit (user decision 2026-10-10), cloud before blank
+  // (user's request 2026-11-07), and blank is last (user's request 2026-10-25).
   const ORDER = [
     'standard',
     'network',
@@ -427,6 +430,7 @@ describe('the order of the presets', () => {
     'ai',
     'cockpit',
     'retro',
+    'cloud',
     'blank',
   ]
 

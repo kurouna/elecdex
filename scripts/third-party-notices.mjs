@@ -190,6 +190,13 @@ export const DATA_SOURCES = [
     credit: 'https://github.com/JohnEarnest/chip8Archive',
   },
   {
+    name: 'AWS list prices',
+    use: "AWS STATUS's ACTIVE estimates: US East On-Demand unit prices of common types, as AWS's public pricing pages give them (src/shared/aws/list-prices.ts, the table's date in PRICES_AS_OF)",
+    licence:
+      'Prices are facts, not a licensed work; approximate, and checked against the pricing pages with each release',
+    credit: 'Amazon Web Services pricing, https://aws.amazon.com/pricing/',
+  },
+  {
     name: 'chip8-test-suite',
     use: "the CHIP-8 pane's DIAG programs (resources/chip8/test-suite), shipped with the Octo sources they are built from",
     licence:

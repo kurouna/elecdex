@@ -3,7 +3,7 @@ English | [日本語](index.ja.md) | [简体中文](index.zh-CN.md)
 # User guide — elecdex
 
 elecdex is a sci-fi terminal emulator and system monitor for Windows, macOS and Linux that lays
-out 41 panes on one screen, from shells and system monitors to weather, Git and AI chat; it is a
+out 43 panes on one screen, from shells and system monitors to weather, Git and AI chat; it is a
 ground-up rewrite of eDEX-UI on Electron 45, Svelte 5 and TypeScript 7 (GPL-3.0). This
 guide describes every pane and feature: what each one shows, where its data comes from, how often
 it updates, what it never reads or sends, and how it differs between platforms. elecdex is
@@ -14,7 +14,7 @@ sufficiently verified by hand.
 
 | Page | What it covers |
 | --- | --- |
-| [Layout presets](presets.md) | The ten presets (standard, network, earth, dev, media, desk, ai, cockpit, retro, blank), the keys Ctrl+Shift+F1 to F10, and the panes in each |
+| [Layout presets](presets.md) | The eleven presets (standard, network, earth, dev, media, desk, ai, cockpit, retro, cloud *(unreleased)*, blank), the keys Ctrl+Shift+F1 to F11, and the panes in each |
 | [Workspace](workspace.md) | Panes, splits and tabs, moving and closing, bringing a pane forward, pop-up panes, saved layouts, the action palette, motion and sound, running in the background |
 | [Keyboard shortcuts](keyboard.md) | Every default chord, how to rebind them, and the system-wide show/hide shortcut |
 | [Themes and settings](themes-settings.md) | The eight themes and `settings.json` |
@@ -26,6 +26,7 @@ sufficiently verified by hand.
 | [System panes](panes-system.md) | Terminal, Clock, System, CPU, Memory, GPU, Disk, Top processes, Cluster, Launcher, Filesystem |
 | [Network panes](panes-network.md) | Network status, Network traffic, World view, Connections, Wi-Fi, Ethernet |
 | [Development panes](panes-dev.md) | AI Agent, Git, Docker, Log Watch |
+| [Cloud panes](panes-cloud.md) *(unreleased)* | AWS STATUS, GITHUB STATUS |
 | [World panes](panes-world.md) | Orbit, Markets, Weather, RSS, Quakes, earthquake and tsunami alerts |
 | [AI panes](panes-ai.md) | AI chat, ELEC system, TRANSLATE |
 | [Desk panes](panes-desk.md) | Calculator, Notes, Tasks, Timer, Clipboard, Calendar, Utility |

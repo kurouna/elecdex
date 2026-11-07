@@ -28,13 +28,13 @@ they are not sufficiently verified.
 - [The status bar and the window](#the-status-bar-and-the-window)
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (blank, on 0, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F10">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (cloud on 0 and blank, with no number key, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F11">
   <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
 brought back; the layout is saved and can be reset. An arrangement can be kept by name and returned
-to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the ten
+to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the eleven
 [presets](presets.md).
 
 ## Panes, splits and tabs
@@ -165,7 +165,7 @@ as it was - it is not saved, and **Escape**, the × or a click beside it puts it
 
 | | |
 | --- | --- |
-| Shortcut | **Ctrl+Shift+G** (the LAYOUTS dialog); **Ctrl+Shift+1** … **9**, **0** (the first ten); **Ctrl+Shift+F1** … **F10** (presets) |
+| Shortcut | **Ctrl+Shift+G** (the LAYOUTS dialog); **Ctrl+Shift+1** … **9**, **0** (the first ten); **Ctrl+Shift+F1** … **F11** (presets) |
 | Stored in | `layouts.json`, at most 20 entries |
 | Settings | *Settings → General → Layouts* → *ask before switching layout* (on by default) |
 | Design | [architecture.md §5.6](../architecture.md) (Japanese) |
@@ -193,7 +193,7 @@ buttons at the left of the status bar.
   session is left out): **copy `layouts.json` to another computer and your arrangements come with
   you.** The dialog's *layouts.json* button shows it in the file manager. A broken entry in the
   file is dropped alone; the rest are kept.
-- The ten **presets** sit on a shelf under the list. Choosing one adds a layout made from it; see
+- The eleven **presets** sit on a shelf under the list. Choosing one adds a layout made from it; see
   [Layout presets](presets.md#how-presets-work).
 
 ## Look and feel
@@ -276,7 +276,7 @@ here stays, set back with the reason; what cannot be undone takes Enter twice.
 | --- | --- |
 | ACTION | what the action's shortcut does, judged the same way (from the pane focused before the palette opened) |
 | LAYOUT | applies the saved layout, asking first while shells are open, as the number keys do |
-| PRESET | goes to the layout made from the preset, or adds one, as Ctrl+Shift+F1 … F10 do |
+| PRESET | goes to the layout made from the preset, or adds one, as Ctrl+Shift+F1 … F11 do |
 | THEME | applies the theme |
 | PANE | pops the widget up where it can be, otherwise adds it to the right; a single pane already in the layout is focused |
 | SETTINGS | opens the settings dialog at that section |
@@ -371,7 +371,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open) |
 | Ctrl+Shift+G | saved layouts |
 | Ctrl+Shift+1 … 9, 0 | apply the first ten saved layouts, in the order the dialog lists them (0 is the tenth); an empty slot leaves the keys to the focused pane |
-| Ctrl+Shift+F1 … F10 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro, blank |
+| Ctrl+Shift+F1 … F11 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro, cloud *(unreleased)*, blank |
 | Ctrl+Shift+L | search the launcher (pops one up if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up; pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
 | Ctrl+Shift+Y | the TRANSLATE pane with the clipboard's text, translated at once: the next one in the layout, or popped up |

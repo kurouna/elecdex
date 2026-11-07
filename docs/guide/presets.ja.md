@@ -3,15 +3,15 @@
 # レイアウトプリセット — elecdex
 
 elecdex は SF 風のデスクトップ向けターミナルエミュレーター兼システムモニターで、eDEX-UI を Electron・Svelte・
-TypeScript で作り直したものです。このページでは、作業ごとのペインをキー一つ（**Ctrl+Shift+F1**〜**F10**）で画面に
-並べる 10 個の **レイアウトプリセット**（standard、network、earth、dev、media、desk、ai、cockpit、retro、blank）に
+TypeScript で作り直したものです。このページでは、作業ごとのペインをキー一つ（**Ctrl+Shift+F1**〜**F11**）で画面に
+並べる 11 個の **レイアウトプリセット**（standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未リリース）*、blank）に
 ついて、それぞれの中身、プリセットが保存レイアウトになる仕組み、各プリセットが見せる機能を説明します。elecdex は
 Windows・macOS・Linux で動きます。開発と利用は Windows で行っており、macOS と Linux は GitHub Actions の自動テストで
 動かしただけなので、十分には検証されていません。
 
 ## このページの内容
 
-- [10 個のプリセットの一覧](#10-個のプリセットの一覧)
+- [11 個のプリセットの一覧](#11-個のプリセットの一覧)
 - [プリセットの仕組み](#プリセットの仕組み)
 - [standard](#standard)
 - [network](#network)
@@ -22,15 +22,16 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 - [ai](#ai)
 - [cockpit](#cockpit)
 - [retro](#retro)
+- [cloud](#cloud)
 - [blank](#blank)
 
-ペインは作業ごとに並べ替えられます。10 個のレイアウトプリセットが、その作業に合うペインをキー一つ
-（Ctrl+Shift+F1〜F10）で画面に並べます。cockpit と blank 以外のどのプリセットも左端にシステムの列を持つので、
+ペインは作業ごとに並べ替えられます。11 個のレイアウトプリセットが、その作業に合うペインをキー一つ
+（Ctrl+Shift+F1〜F11）で画面に並べます。cockpit と blank 以外のどのプリセットも左端にシステムの列を持つので、
 切り替えても計器はそのままで、舞台だけが替わります。最後の blank はペインが一つもない、自分で組み立てるための
 レイアウトです。以下では機能を、それを見せるプリセットごとにまとめました。どの画像も、そのプリセットを別々の
 テーマで写したものです。
 
-## 10 個のプリセットの一覧
+## 11 個のプリセットの一覧
 
 **システムの列** は既定のレイアウトの左の列で、これを持つどのプリセットでも同じです。上から時計、
 [system](panes-system.ja.md#system)、[CPU](panes-system.ja.md#cpu)、[memory](panes-system.ja.md#memory)、
@@ -47,13 +48,14 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 | Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.ja.md#ai-chat) の下に [TRANSLATE](panes-ai.ja.md#translate)、[ELEC system](panes-ai.ja.md#elec-system) の下に [GPU](panes-system.ja.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | システムの列なし。[Cluster](panes-system.ja.md#cluster) の下に [Terminal](panes-system.ja.md#terminal)、[Wi-Fi](panes-network.ja.md#wi-fi) の下に [Ethernet](panes-network.ja.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.ja.md#elec-16)・ELEC-16 SCI・[CHIP-8](panes-retro.ja.md#chip-8) をタブにした 1 つのペイン、その下に 16 バンドの [Spectrum](panes-media.ja.md#spectrum) | Tron |
-| Ctrl+Shift+F10 | [blank](#blank) | なし | Amber |
+| Ctrl+Shift+F10 | [cloud](#cloud) *（未リリース）* | [AWS STATUS](panes-cloud.ja.md#aws-status)、[GITHUB STATUS](panes-cloud.ja.md#github-status) の下に [Terminal](panes-system.ja.md#terminal) と [Log Watch](panes-dev.ja.md#log-watch) のタブ | Business (Light) |
+| Ctrl+Shift+F11 | [blank](#blank) | なし | Amber |
 
 ## プリセットの仕組み
 
 | | |
 | --- | --- |
-| 場所 | LAYOUTS ダイアログ（**Ctrl+Shift+G**、またはステータスバーの *layouts*）の、保存レイアウトの一覧の下にあるプリセットの棚。**Ctrl+Shift+F1**〜**F10**。アクションパレット（**Ctrl+Shift+P**）の PRESET の行（同じキーの操作を通る） |
+| 場所 | LAYOUTS ダイアログ（**Ctrl+Shift+G**、またはステータスバーの *layouts*）の、保存レイアウトの一覧の下にあるプリセットの棚。**Ctrl+Shift+F1**〜**F11**。アクションパレット（**Ctrl+Shift+P**）の PRESET の行（同じキーの操作を通る） |
 | 保存先 | `layouts.json`。作った元のプリセットを覚えている保存レイアウトとして |
 | 設定 | *Settings → General → Layouts* の *ask before switching layout*（既定はオン）。キーは *Settings → Keyboard* |
 
@@ -66,11 +68,13 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
   覚えているので、同じプリセットが二重に足されることはありません。
 - **↺ でレイアウトをプリセットの形に戻します。** 名前と一覧での位置は保たれます。
 - プリセットと同じ名前のレイアウトをすでに持っていれば、新しいものには番号が付きます（`desk 2`）。
-- 各プリセットには専用のキー **Ctrl+Shift+F1**〜**F10**（棚の順）があり、どこからでも同じことをします。作った
+- 各プリセットには専用のキー **Ctrl+Shift+F1**〜**F11**（棚の順）があり、どこからでも同じことをします。作った
   レイアウトがあればそこへ、なければ足して切り替えます。キーは位置ではなくプリセットに結び付くので、プリセットが
   増えても、変更したキーは同じプリセットに残ります。素の F キーは tasks ペイン（F2 で編集）や、シェルの中の
   htop・mc のようなプログラムが使うので、Ctrl+Shift を付けています。
-- **新しくインストールすると 10 個すべてが** Ctrl+Shift+1〜0 に入り、standard が使用中になります。新しい
+- **新しくインストールすると 11 個すべてが**入り、standard が使用中になります。先頭の 10 個が Ctrl+Shift+1〜9 と 0 に
+  入り、11 個目の blank には番号のキーが付きません *（未リリース: cloud が来るまでは 0 でした）*。Ctrl+Shift+F11 か
+  棚から行けます。新しい
   インストールとは `layout.json` も `layouts.json` もない状態です。既存の保存レイアウトの一覧に自動で足すことは
   ありません。棚から足してください。
 - 保存できるレイアウトは最大 20 件で、一覧がいっぱいのときは 1 件消すまでプリセットを足せません。
@@ -81,7 +85,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 LAYOUTS ダイアログ:
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron テーマの standard レイアウトの上に開いたレイアウトダイアログ：保存レイアウトとしてのプリセット（1〜9 が見え、0 の blank はその下。それぞれに配置の縮図）、その下にプリセットの棚（縮図、一覧での位置、キー Ctrl+Shift+F1〜F10。blank は空の枠）">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron テーマの standard レイアウトの上に開いたレイアウトダイアログ：保存レイアウトとしてのプリセット（1〜9 が見え、0 の cloud と番号の無い blank はその下。それぞれに配置の縮図）、その下にプリセットの棚（縮図、一覧での位置、キー Ctrl+Shift+F1〜F11。blank は空の枠）">
   <br><sub>レイアウト（Ctrl+Shift+G） · Tron</sub>
 </p>
 
@@ -90,7 +94,7 @@ LAYOUTS ダイアログ:
   レイアウトの中にあるが、先頭 10 件の外）、**in this one**（いま作業中のレイアウト）、**+ add**（まだない）。
   カードの下にはそのプリセットのキーが出ます。
 - 棚は 1 行で、横にスクロールします。マウスホイールでも動きます。**Tab** で一覧から棚へ、**←** / **→** で
-  カードを移り、**↑** で一覧へ戻ります。1920x1080 の設計サイズでは 10 枚が 1 行に収まります。
+  カードを移り、**↑** で一覧へ戻ります。1920x1080 の設計サイズでは 11 枚が 1 行に収まります。
 - 選んだ行やカードは 3 回（100 ms ずつ）点滅してからダイアログが消灯し、切り替えが始まります。モーションを
   減らす設定ではすぐに切り替わります。
 
@@ -406,13 +410,42 @@ elecdex を最初に開いたときの配置です。
 - retro と desk の ELEC-16 SCI のタブは、ピッカーの *elec-16 sci* の行と同じく、新しい SCI-128 の機体で始まります。
   誰かの BASIC のプログラムを消して電卓にすることはありません。本体に場所を取らせるため、パネルは畳んであります。
 
+## cloud
+
+*アカウントとリポジトリ、2 つの CLI のためのシェル。*
+
+| | |
+| --- | --- |
+| キー | **Ctrl+Shift+F10** |
+| ペイン | システムの列。舞台に [AWS STATUS](panes-cloud.ja.md#aws-status)（幅の 0.58）。右に [GITHUB STATUS](panes-cloud.ja.md#github-status)（高さの 0.62）、その下に [Terminal](panes-system.ja.md#terminal) と、その横のタブに [Log Watch](panes-dev.ja.md#log-watch) |
+| 画像 | Business (Light) |
+| 状態 | *未リリース*（`main` にあり、次のリリースで届きます） |
+
+<p align="center">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、ATTENTION の一覧）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
+  <br><sub>cloud · Business (Light) — 代役の AWS CLI と gh、架空のアカウントと利用者</sub>
+</p>
+
+- **[AWS STATUS](panes-cloud.ja.md#aws-status)** — 自分の AWS CLI を通した AWS のアカウント。手を要するもの（アラーム、
+  失敗したスタックとバックアップ、期限の来る証明書、危ない設定）、いま動いていて料金のかかっているものを定価で、
+  遊んでいるもの・無駄なものとともに、今月の費用を予算と自分で決めた QUOTA に対して、CloudTrail で誰が何を変えたか。
+  サービスと 1 つのリソースをペインの中で開けます。無料の API だけを使い、唯一の有料の API である Cost Explorer は
+  有効にしたときだけ。
+- **[GITHUB STATUS](panes-cloud.ja.md#github-status)** — 自分の `gh` を通した GitHub。自分を待っているものを 1 つの
+  キューに（赤い既定ブランチ、失敗している PR、レビュー依頼、メンション、誰も答えていない Issue）、通知、自分の
+  リポジトリの直近 1 日のイベント、スター・実行・最新のリリースを載せたリポジトリごとのタイル。
+- どちらも見えている間だけ読み、何も変えず、資格情報を見ません（サインインは CLI がいつもどおり行います）。
+  AWS か GitHub の公開ステータスに障害が出ている間は、帯がそう知らせます。
+- GITHUB STATUS の下のシェルは CLI そのもの（`aws login`、`gh auth login`）のためのもので、その横のタブに
+  [Log Watch](panes-dev.ja.md#log-watch) があります。
+
 ## blank
 
 *まだ何もない、自分で組み立てる。*
 
 | | |
 | --- | --- |
-| キー | **Ctrl+Shift+F10** |
+| キー | **Ctrl+Shift+F11** *（未リリース: cloud が来るまでは Ctrl+Shift+F10）* |
 | ペイン | なし |
 | 画像 | Amber（最初のペインを選ぶピッカーを開いたところ） |
 | 状態 | v0.0.44 でリリース |

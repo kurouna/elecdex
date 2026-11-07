@@ -3,7 +3,7 @@
 AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON を読んで見せるペイン **AWS STATUS** と
 **GITHUB STATUS** の、両方に共通する部分の設計（文中の「AWS ペイン」「GITHUB ペイン」はこの 2 つ）。ペインそのものは [aws.md](aws.md) と [github.md](github.md)。見た目のたたき台は
 [aws-mock/index.html](aws-mock/index.html) と [github-mock/index.html](github-mock/index.html)（ブラウザで開く
-だけで動く。数字はすべて作り物）。**設計段階（未実装）**。
+だけで動く。数字はすべて作り物）。**2026-11-08 に実装（未リリース）**。実装で決めたこと・設計から見送ったものは §0 と [decisions.md](decisions.md) の末尾。
 
 ## 0. 決定の記録
 
@@ -19,6 +19,7 @@ AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON
 | 2026-11-08 | AWS と GitHub の**公開ステータス**を出す。**障害のときだけ**ペインに出し、障害が起きたらトーストを出すかを設定で選べる（既定 ON）（§12） | 利用者の決定 |
 | 2026-11-08 | ~~通知のためだけに、ペインがレイアウトにある間は隠れていても読む~~ → **取りやめ**: 障害の通知も QUOTA も、ペインが見えている間だけ読み、その時点でトーストを出す。見えている間だけの規則に例外を作らない（§13） | 利用者の決定 |
 | 2026-11-08 | 決定を反映した版を、もう一度サブエージェントのレビューに回す。Opus 5.5（RSS の事象の鍵と「開いている」の決め方、304 が効かないこと、テストのスタブ、GitHub の通知の多さ、重複除けをディスクに、UTC の月、背後の読み取りと `credential_process`、契約の表）と Fable 5.1（Cost Explorer の 1 枚の矛盾と畳み方、上限の表を 1 つに、推定の 1 行を固定、AWS の帯の 3 色、トーストの形を 1 つに、§13 の伝え方、MASK と OS の通知）の指摘で直した | 利用者の指定 |
+| 2026-11-08 | **実装**: 先に読むべき probe を待つ `after` と、その答えの `keyOf` が変わったときだけ読み直す仕組みを核に足した。共通の見た目は `styles/cloud-pane.css`。OS の通知は MASK にかかわらずアカウントの名前を出さない。代役は `ELECDEX_CLOUD_STUB`、公開ステータスの URL は `ELECDEX_AWS_STATUS_URL`・`ELECDEX_GITHUB_STATUS_URL` | 実装（decisions.md） |
 
 ## 1. 目的と非目的
 
@@ -419,7 +420,7 @@ main が自分の直前の読み取りから URL を組み、ホストを確か�
 - **並び**: `LAYOUT_PRESET_IDS` と `LAYOUT_PRESETS` の `retro` と `blank` の間に入れる。LAYOUTS の棚は
   `LAYOUT_PRESETS` の順に並ぶので、`cloud` は `blank` の前に出る（棚は横にスクロールするので、11 枚でも 1 行の
   まま。panes-layout.md の「どのカードも 1 行に」を保つ）
-- **キー**: `layout.preset.cloud` に Ctrl+Shift+F11（空いている。F11 だけは全画面）。プリセットのキーは場所ではなく
+- **キー**: `layout.preset.cloud` に Ctrl+Shift+F10、`blank` は F11 へ（実装で決めた: F キーは棚の順、keybindings.test.ts。decisions.md）。プリセットのキーは場所ではなく
   id に付くので、`blank` は Ctrl+Shift+F10 のまま
 - **番号のキー**（Ctrl+Shift+1〜9, 0）: 最初の起動はプリセットを順に保存したレイアウトにする（`seededLayouts`）。
   `KEYED_LAYOUTS` は 10 なので、`cloud` が 10 番め（Ctrl+Shift+0）になり、**新しく入れた人の `blank` には番号の
@@ -433,7 +434,7 @@ main が自分の直前の読み取りから URL を組み、ホストを確か�
   keybindings.ts、Workspace.svelte（プリセットのキー）、tests/e2e/workspace/layout-presets.spec.ts の `PRESETS`、
   単体テスト（minSize、システムの列、並び）、scripts/gen-screenshots.mjs のショット（代役 `ELECDEX_CLOUD_STUB=1` の
   demo で）、README の gallery のセルと数（「ten presets」→「eleven presets」）、docs/guide/presets.md の節と表と数、
-  keyboard.md の Ctrl+Shift+F11、すべて英・日・中の 3 か国語で
+  keyboard.md の Ctrl+Shift+F10（cloud）と F11（blank）、すべて英・日・中の 3 か国語で
 
 ## 11. レビューで直したこと（2026-11-07）
 

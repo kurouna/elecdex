@@ -34,20 +34,20 @@
 
 ## elecdex 是什么
 
-elecdex 是一款桌面应用，用分屏和标签页把 41 种内置窗格排布在同一屏幕上，外观像科幻电影里的终端。除了 eDEX-UI 为人熟知的终端和系统监控，还有网络诊断、天气与地震等外部世界的信息、开发工具、AI、笔记和计时器等桌面工具、媒体，以及两台自有的机器。它始于对 eDEX-UI（2021 年已归档）的从零重写，基于 Electron 45、Svelte 5 和 TypeScript 7 构建，以 GPL-3.0 发布。
+elecdex 是一款桌面应用，用分屏和标签页把 43 种内置窗格排布在同一屏幕上，外观像科幻电影里的终端。除了 eDEX-UI 为人熟知的终端和系统监控，还有网络诊断、天气与地震等外部世界的信息、开发工具、AI、笔记和计时器等桌面工具、媒体，以及两台自有的机器。它始于对 eDEX-UI（2021 年已归档）的从零重写，基于 Electron 45、Svelte 5 和 TypeScript 7 构建，以 GPL-3.0 发布。
 
 - **终端**：通过 node-pty 在标签页和分屏中运行 PowerShell、bash、zsh 和 fish；借助 shell 集成（OSC 7 / OSC 9;9）跟随每个 shell 的目录，Windows 上也一样。
-- **窗格**：41 种内置窗格加上网页窗格（Browser、YouTube、X），排列在一棵会被保存的分屏与标签页树中；10 个布局预设、已保存的布局、操作面板。
+- **窗格**：43 种内置窗格加上网页窗格（Browser、YouTube、X），排列在一棵会被保存的分屏与标签页树中；11 个布局预设、已保存的布局、操作面板。
 - **系统与网络**：CPU、内存、GPU、磁盘、进程、按程序分组的每个 TCP 套接字、Wi-Fi 与以太网诊断；在 Windows 上读取时不会每次启动新进程。
 - **外部世界**：天气（日本气象厅、NWS、MET Norway）、市场行情、RSS、地震与海啸、在本地计算的卫星位置（SGP4）、用内置 GeoIP 数据库定位的连接地球视图。
-- **工作与 AI**：Git（读取以及 FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code 会话；可连接任何 OpenAI 兼容或 Anthropic 端点的 AI 聊天，密钥由操作系统加密保存；在本机运行 PLaMo 3 Translate 的翻译。
+- **工作与 AI**：Git（读取以及 FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code 会话；通过各自的 CLI 读取的 AWS 账户和 GitHub *（未发布）*；可连接任何 OpenAI 兼容或 Anthropic 端点的 AI 聊天，密钥由操作系统加密保存；在本机运行 PLaMo 3 Translate 的翻译。
 - **桌面与媒体**：笔记、任务、计时器、剪贴板、日历和计算器；声音频谱、混音器和正在播放（Now Playing）。
 - **自有的机器**：CHIP-8 模拟器，以及原创的 16 位袖珍电脑 ELEC-16（BASIC、游戏机型号、科学计算器）。
 - **安全模型**：页面运行在沙箱中，没有 Node，也没有网络（`connect-src 'self'`）；所有请求都由主进程发出，且只在某个窗格需要时进行；没有遥测。插件运行在沙箱化的 worker 中，只能做被授权的事。
 
 ## 布局预设
 
-10 个预设一键切换整个屏幕（**Ctrl+Shift+F1** 到 **F10**）；除 cockpit 和 blank 外，都保留左侧的系统列。每张图都是该预设在不同主题下的样子；详情见[布局预设](docs/guide/presets.zh-CN.md)。
+11 个预设一键切换整个屏幕（**Ctrl+Shift+F1** 到 **F11**）；除 cockpit 和 blank 外，都保留左侧的系统列。每张图都是该预设在不同主题下的样子；详情见[布局预设](docs/guide/presets.zh-CN.md)。
 
 <table>
   <tr>
@@ -68,7 +68,11 @@ elecdex 是一款桌面应用，用分屏和标签页把 41 种内置窗格排�
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#retro"><img src="./docs/screenshots/elecdex-retro.jpg" alt="Tron 主题下的 retro 预设"></a><br><sub><b>retro</b> · Ctrl+Shift+F9 · CHIP-8、ELEC-16 系列机器与 SCI-128 科学计算器</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber 主题下的 blank 预设"></a><br><sub><b>blank</b> · Ctrl+Shift+F10 · 尚无窗格：搭建你自己的布局</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#cloud"><img src="./docs/screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设"></a><br><sub><b>cloud</b>（<i>未发布</i>） · Ctrl+Shift+F10 · AWS STATUS、GITHUB STATUS、一个 shell 和 LOG WATCH</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><a href="docs/guide/presets.zh-CN.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber 主题下的 blank 预设"></a><br><sub><b>blank</b> · Ctrl+Shift+F11 · 尚无窗格：搭建你自己的布局</sub></td>
+    <td width="50%"></td>
   </tr>
 </table>
 
@@ -79,6 +83,7 @@ elecdex 是一款桌面应用，用分屏和标签页把 41 种内置窗格排�
 | 系统 | Terminal、Clock、System、CPU、Memory、GPU、Disk、Top processes、Cluster、Launcher、Filesystem | [系统窗格](docs/guide/panes-system.zh-CN.md) |
 | 网络 | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet | [网络窗格](docs/guide/panes-network.zh-CN.md) |
 | 开发 | AI Agent、Git、Docker、Log Watch | [开发窗格](docs/guide/panes-dev.zh-CN.md) |
+| 云 *（未发布）* | AWS STATUS、GITHUB STATUS | [云窗格](docs/guide/panes-cloud.zh-CN.md) |
 | 外部世界 | Orbit、Markets、Weather、RSS、Quakes、地震与海啸提醒 | [外部世界窗格](docs/guide/panes-world.zh-CN.md) |
 | AI | AI chat、ELEC system、TRANSLATE | [AI 窗格](docs/guide/panes-ai.zh-CN.md) |
 | 桌面 | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility | [桌面窗格](docs/guide/panes-desk.zh-CN.md) |
@@ -161,7 +166,7 @@ npm run dev -- -- --windowed --no-intro
 | 按键 | 作用 |
 | --- | --- |
 | Ctrl+Shift+A | 添加窗格（选择器） |
-| Ctrl+Shift+F1 … F10 | 切换到布局预设 |
+| Ctrl+Shift+F1 … F11 | 切换到布局预设 |
 | Ctrl+Shift+G | 已保存的布局 |
 | Ctrl+Shift+P | 按名称查找操作、布局、主题或设置（操作面板） |
 | Ctrl+Shift+Z | 把有焦点的窗格放大显示在其他窗格之上；再按一次还原 |
@@ -175,7 +180,7 @@ npm run dev -- -- --windowed --no-intro
 | 页面 | 内容 |
 | --- | --- |
 | [用户指南](docs/guide/index.zh-CN.md) | 下列页面的目录 |
-| [布局预设](docs/guide/presets.zh-CN.md) | 10 个预设，逐个窗格说明 |
+| [布局预设](docs/guide/presets.zh-CN.md) | 11 个预设，逐个窗格说明 |
 | [工作区](docs/guide/workspace.zh-CN.md) | 窗格、分屏、标签页、已保存的布局、操作面板、主题与动效、后台运行 |
 | [键盘快捷键](docs/guide/keyboard.zh-CN.md) | 全部默认按键、重新绑定、全局快捷键 |
 | [主题与设置](docs/guide/themes-settings.zh-CN.md) | 8 个主题、`settings.json` |
@@ -206,6 +211,7 @@ npm run dev -- -- --windowed --no-intro
 | CHIP-8 字体 | [Octo](https://github.com/JohnEarnest/Octo) 的 `js/emulator.js`，复制到 `src/shared/chip8/fonts.ts` | MIT |
 | CHIP-8 程序 | [chip8Archive](https://github.com/JohnEarnest/chip8Archive)，作者各异，内置于 `resources/chip8/archive` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)；在窗格中署名 |
 | TRANSLATE 的引擎与模型 | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110 与 Preferred Networks 的 [PLaMo 3 Translate](https://huggingface.co/pfnet)：不随附，在窗格的设置中获取 | llama.cpp：MIT；它的许可证以及 llama-server 中内置代码的许可证随 elecdex 附带，并写在引擎旁边。模型：[PLaMo 社区许可证](https://plamo.preferredai.jp/info/plamo-community-license-ja)，在设置中阅读并同意。Built with PLaMo |
+| AWS 单价（AWS STATUS 的估算） *（未发布）* | AWS 公开的价格页面（截至 2026-11），位于 `src/shared/aws/list-prices.ts` | 属于事实，不是受许可保护的作品；为近似值，每次发布时核对 |
 | CHIP-8 测试程序（DIAG） | Timendus 的 [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)，连同其 Octo 源码内置于 `resources/chip8/test-suite` | GPL-3.0 |
 
 地理定位数据库是内置的，因此不需要账号、API 密钥或首次运行时下载，IP 查询也永远不会离开本机。

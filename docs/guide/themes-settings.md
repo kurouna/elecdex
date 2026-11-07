@@ -50,7 +50,7 @@ Eight themes switch live, without a reload: the page sets the theme as CSS varia
 
 ![The dev preset in the Paper theme, ink on grey paper: an AI agent at work and the git pane over a made-up repository, and the shell printing its history and changes in the terminal's greys; the agents' records and the repository are made up for the picture](../screenshots/elecdex-paper.jpg)
 
-Every theme appears in a picture: Tron (standard, earth), Amber (blank, CHIP-8), Phosphor (dev), White (network, media), Black (cockpit), Paper (desk, and dev above), Business (Dark) (ai) and Business (Light) (the ELEC-16 SCI calculator).
+Every theme appears in a picture: Tron (standard, earth), Amber (blank, CHIP-8), Phosphor (dev), White (network, media), Black (cockpit), Paper (desk, and dev above), Business (Dark) (ai) and Business (Light) (cloud, and the ELEC-16 SCI calculator).
 
 ## Adding a theme
 
@@ -193,6 +193,13 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `reminders.sound` | `true` | A sound, with interface sounds on |
 | `reminders.snoozeMinutes` | `10` | How long *snooze* puts a task off for, 1 to 1440 |
 | `reminders.leadMinutes` | `0` | Announce this many minutes before the deadline, 0 to 1440 |
+| `aws.incidents.notify` | `true` | *Unreleased.* A toast when AWS's public status shows an incident in an AWS STATUS pane's regions or a global service. On by default, unlike the quake alerts, because the status is read only while such a pane is shown ([Cloud panes](panes-cloud.md#public-status-and-incident-toasts)) |
+| `aws.incidents.system` | `true` | Also a system notification when the window is not in front (it never names the account) |
+| `aws.incidents.minSeverity` | `"warn"` | The lightest incident told: `info`, `warn` (impact, degradation) or `danger` (disruption) |
+| `github.incidents.notify` | `true` | *Unreleased.* The same for GitHub's public status, while a GITHUB STATUS pane is shown |
+| `github.incidents.system` | `true` | Also a system notification when the window is not in front |
+| `github.incidents.minSeverity` | `"danger"` | `info`, `warn` (GitHub's minor) or `danger` (major and critical) |
+| `github.incidents.skip` | `["Copilot"]` | Components whose incidents are not told (up to 30 names); an incident that names no component is always told |
 | `ai.providers` | `[]` | The AI providers you listed; no key is kept here |
 | `ai.systemPrompt` | `""` | Sent ahead of every conversation |
 | `ai.compact` | `false` | Ask the model for a summary when a conversation outgrows a provider's window |
@@ -218,6 +225,7 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `plugins` | `{}` | Per plugin id: whether it is on, what you agreed it may do, its setting values ([Plugins](plugins-use.md)) |
 
 - A slip in a hand edit of some groups (the ELEC system, LINK, the ELEC-16 and CHIP-8 values, the terminal's newer fields) costs only that value, which falls back to its default.
+- The `aws` and `github` keys are changed from either pane's ⚙, under *Every AWS STATUS pane* / *Every GITHUB STATUS pane* (or by hand here). What each pane reads (its profile, regions, repositories) is kept with the pane in the layout, not here.
 - AI API keys are not in this file: they are encrypted by the operating system into `ai-keys.json`, so `settings.json` can be copied to another machine.
 
 ## Where the files are
@@ -247,6 +255,10 @@ What is in it:
 | `chats/`, `elec/` | AI conversations and ELEC system deliberations |
 | `git-repos.json`, `log-files.json` | The repositories and log files chosen in the git and LOG WATCH panes, known by id |
 | `awake.json` | The utility pane's AWAKE hold |
+| `aws-billing.json` | *Unreleased.* AWS STATUS, per account: the Cost Explorer answer, cap and count, the cost QUOTA and the steps told, and which account a profile is |
+| `github-stars.json` | *Unreleased.* GITHUB STATUS: daily star counts of public repositories, 90 days |
+| `cloud-alerts.json` | *Unreleased.* The AWS and GitHub incidents already told, 30 days |
+| `cli-cwd/` | *Unreleased.* An empty folder the AWS and GitHub CLIs are started in |
 | `feeds-cache.json` | The last RSS headlines per feed |
 | `Partitions/web` | The web panes' cookies and site data, until *sign out of all sites* |
 

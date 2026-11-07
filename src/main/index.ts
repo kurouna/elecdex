@@ -11,6 +11,7 @@ import { registerAlarmsIpc } from './ipc/alarms.js'
 import { registerAudioIpc } from './ipc/audio.js'
 import { registerChip8Ipc } from './ipc/chip8.js'
 import { registerClipboardIpc } from './ipc/clipboard.js'
+import { registerCloudIpc } from './ipc/cloud.js'
 import { registerDockerIpc } from './ipc/docker.js'
 import { type Elec16AiLinks, registerElec16Ipc } from './ipc/elec16.js'
 import { registerFeedsIpc } from './ipc/feeds.js'
@@ -93,6 +94,7 @@ let feedsIpc: { dispose: () => void } | null = null
 let clipboardIpc: ReturnType<typeof registerClipboardIpc> | null = null
 let nowPlayingIpc: { dispose: () => void } | null = null
 let dockerIpc: { dispose: () => void } | null = null
+let cloudIpc: { dispose: () => void } | null = null
 let chip8Ipc: { dispose: () => void } | null = null
 let elec16Ipc: { dispose: () => void } | null = null
 let utilityIpc: UtilityIpc | null = null
@@ -161,6 +163,7 @@ app.whenReady().then(() => {
   clipboardIpc = registerClipboardIpc()
   nowPlayingIpc = registerNowPlayingIpc()
   dockerIpc = registerDockerIpc()
+  cloudIpc = registerCloudIpc(settings)
   chip8Ipc = registerChip8Ipc()
   elec16Ipc = registerElec16Ipc(settings, () => aiLinks)
   // Before the window: AWAKE's hold from last time is taken up at once.
@@ -246,6 +249,8 @@ app.on('will-quit', () => {
   nowPlayingIpc = null
   dockerIpc?.dispose()
   dockerIpc = null
+  cloudIpc?.dispose()
+  cloudIpc = null
   chip8Ipc?.dispose()
   chip8Ipc = null
   elec16Ipc?.dispose()

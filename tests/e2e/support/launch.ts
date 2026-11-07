@@ -247,6 +247,12 @@ export const STUB_ENV: Record<string, string> = {
   // A stand-in Docker engine: never this machine's containers, and none started or
   // stopped (src/main/docker/stub.ts). Specs change it through globalThis.__elecdexDocker.
   ELECDEX_DOCKER_STUB: '1',
+  // A stand-in gh and aws: never this machine's CLIs, accounts or the network
+  // (src/main/cloud-cli/stub-*.ts). Specs change the mode through globalThis.__elecdexCloud.
+  ELECDEX_CLOUD_STUB: '1',
+  // And their public status: a closed port, never AWS's or GitHub's (cloud-cli.md section 12.1).
+  ELECDEX_AWS_STATUS_URL: 'http://127.0.0.1:9/aws/all.rss',
+  ELECDEX_GITHUB_STATUS_URL: 'http://127.0.0.1:9/github/api/v2/incidents/unresolved.json',
   // TRANSLATE: no model or engine is ever fetched from Hugging Face or GitHub, and a stand-in
   // answers for llama-server (tests/e2e/support/llama-stub.mjs, docs/translate.md section 11).
   ELECDEX_HF_BASE_URL: 'http://127.0.0.1:9/hf',

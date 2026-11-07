@@ -778,6 +778,11 @@ async function shoot(
       ELECDEX_NOWPLAYING_STUB: 'demo',
       // A made-up Docker engine (the dev layout): never this machine's containers.
       ELECDEX_DOCKER_STUB: 'demo',
+      // A stand-in gh and aws (the cloud panes): never this machine's CLIs, accounts or the network.
+      ELECDEX_CLOUD_STUB: 'demo',
+      // Their public status stays off the network too: a closed port, no incident band.
+      ELECDEX_AWS_STATUS_URL: 'http://127.0.0.1:9/aws',
+      ELECDEX_GITHUB_STATUS_URL: 'http://127.0.0.1:9/github',
       // A made-up GPU: never this machine's adapter or its load.
       ELECDEX_GPU_STUB: 'demo',
       // A stand-in power-save blocker: a shot never keeps this machine awake.
@@ -953,7 +958,7 @@ const cockpit = {
   },
 }
 await shoot('black', 'elecdex-cockpit', cockpit)
-// The layouts dialog on a first start: every preset on the shelf and on the number keys.
+// The layouts dialog on a first start: every preset on the shelf, the first ten on the number keys.
 await shoot('tron', 'elecdex-layouts', {
   env: { ELECDEX_SEED_LAYOUTS: '1' },
   extra: async (page) => {
@@ -1020,6 +1025,16 @@ await shoot('tron', 'elecdex-retro', {
   env: { ELECDEX_AUDIO_STUB: 'demo' },
   extra: sciInPreset,
   fullscreen: true,
+})
+// cloud: AWS STATUS and GITHUB STATUS on their stand-ins (a made-up account, a made-up gh user),
+// in Business Light, so the light ground's legibility is in the gallery too.
+await shoot('business-light', 'elecdex-cloud', {
+  layout: withState(preset('cloud'), { aws: { regions: ['ap-northeast-1', 'us-east-1'] } }),
+  extra: async (page) => {
+    await page.getByTestId('aws-attention-row').first().waitFor()
+    await page.mouse.move(W / 2, 4)
+    await page.waitForTimeout(900)
+  },
 })
 // blank: no pane at all, the add-pane picker open over it for the first one.
 await shoot('amber', 'elecdex-blank', {
@@ -1211,6 +1226,11 @@ if (only.length === 0 || only.includes('panes') || only.some((n) => n.startsWith
     })
   }
   await shootPane('docker', 'medium', { extra: offCards })
+  await shootPane('github', 'wide', { extra: offCards })
+  await shootPane('aws', 'wide', {
+    state: { regions: ['ap-northeast-1', 'us-east-1'], tab: 'active' },
+    extra: offCards,
+  })
   if (only.length === 0 || only.includes('panes') || only.includes('pane-logwatch')) {
     const council = await startCouncil({ chat: LOGWATCH_ANSWER })
     history()

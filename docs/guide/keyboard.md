@@ -59,7 +59,7 @@ A shortcut that does nothing in the current state (*Applies when* below) is not 
 | --- | --- | --- | --- |
 | Ctrl+Shift+G | Saved layouts | `layout.saved` | Opens the layouts dialog: keep this arrangement by name, or go back to one |
 | Ctrl+Shift+1 … 9, 0 | Apply the 1st … 10th saved layout | `layout.saved1` … `layout.saved10` | Applies the first ten saved layouts, in the order the dialog lists them (0 is the tenth). A key whose slot is empty is left to the focused pane |
-| Ctrl+Shift+F1 … F10 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | Goes to a preset: F1 standard, F2 network, F3 earth, F4 dev, F5 media, F6 desk, F7 ai, F8 cockpit, F9 retro, F10 blank |
+| Ctrl+Shift+F1 … F11 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | Goes to a preset: F1 standard, F2 network, F3 earth, F4 dev, F5 media, F6 desk, F7 ai, F8 cockpit, F9 retro, F10 cloud (`layout.preset.cloud`), F11 blank *(unreleased: cloud is new, and blank was on F10)* |
 | Ctrl+Shift+Backspace | Reset layout | `layout.reset` | Resets to the default layout; asks first while shells are open, as a switch does |
 
 The preset keys are tied to the preset's id, not to its place, so a key you moved stays on the same preset.
@@ -107,6 +107,8 @@ On Linux, IBus may keep Ctrl+Shift+U for typing a character by its code, so the 
 | Double-click on a divider | Between two panes | Shares the room of the two panes beside it evenly |
 | Escape | A pane brought forward | Puts it back |
 | Escape | A dialog, the palette, a popped-up pane, a drag | Closes or cancels |
+| Enter | A row of AWS STATUS or GITHUB STATUS, with the focus in the pane *(unreleased)* | Opens the row: in AWS STATUS a step down its drill-down (a service, then one resource), in GITHUB STATUS the item in your browser; on the incident band, the status page |
+| Escape or Backspace | AWS STATUS or GITHUB STATUS while drilled down, with the focus in the pane and not in a text field *(unreleased)* | A step up |
 
 ## Keys on other keyboard layouts
 
@@ -218,7 +220,7 @@ Chords are stored as physical keys (`KeyboardEvent.code`, such as `Ctrl+Shift+Ke
 
 ## Saved layouts
 
-![The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view, each with a thumbnail of its arrangement, and below them the shelf of presets with their keys Ctrl+Shift+F1 to F10](../screenshots/elecdex-layouts.jpg)
+![The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view, each with a thumbnail of its arrangement, and below them the shelf of presets with their keys Ctrl+Shift+F1 to F11](../screenshots/elecdex-layouts.jpg)
 
 | | |
 | --- | --- |
@@ -235,7 +237,7 @@ Chords are stored as physical keys (`KeyboardEvent.code`, such as `Ctrl+Shift+Ke
 
 ## Presets
 
-Ten presets sit under the list in the layouts dialog, each drawn as a small map of its panes.
+Eleven presets sit under the list in the layouts dialog, each drawn as a small map of its panes.
 
 | Preset | Key | Panes |
 | --- | --- | --- |
@@ -248,12 +250,13 @@ Ten presets sit under the list in the layouts dialog, each drawn as a small map 
 | **ai** | Ctrl+Shift+F7 | An AI chat over TRANSLATE, and the ELEC system over the GPU pane |
 | **cockpit** | Ctrl+Shift+F8 | The CLUSTER pane in place of the system column, a shell under it, and Wi-Fi over Ethernet beside it |
 | **retro** | Ctrl+Shift+F9 | The ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them |
-| **blank** | Ctrl+Shift+F10 | No pane at all, to add your own |
+| **cloud** *(unreleased)* | Ctrl+Shift+F10 | AWS STATUS, and GITHUB STATUS over a shell with Log Watch in a tab beside it |
+| **blank** | Ctrl+Shift+F11 | No pane at all, to add your own |
 
 - Every preset but cockpit and blank keeps the system column on the left, so a switch changes the stage and leaves the instruments where they were.
 - Choosing a preset adds a layout made from it and goes there; from then on it is one of your layouts, following your work. Choosing it again goes back to that layout rather than adding another. ↺ puts it back to the preset.
 - Each preset's key does the same from anywhere.
-- A new install starts with all ten on Ctrl+Shift+1 to 0; an existing list is never added to.
+- A new install starts with all eleven, the first ten on Ctrl+Shift+1 to 0; blank, the eleventh, has no number key *(unreleased)*. An existing list is never added to.
 
 ## Tab groups
 

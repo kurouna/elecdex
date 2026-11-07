@@ -139,6 +139,43 @@ export const CH = {
     art: 'now-playing:art',
     watching: 'now-playing:watching',
   },
+  /** GITHUB STATUS (docs/github.md): boards by key, read through gh only while a pane is seen. */
+  github: {
+    /** renderer -> main, fire and forget: a board key (shared/github/board.ts). */
+    subscribe: 'github:subscribe',
+    unsubscribe: 'github:unsubscribe',
+    /** main -> renderer: a GithubBoard. */
+    update: 'github:update',
+    refresh: 'github:refresh',
+    detail: 'github:detail',
+    open: 'github:open',
+    watching: 'github:watching',
+  },
+  /** AWS STATUS (docs/aws.md): boards by key, read only while a pane is seen. */
+  aws: {
+    /** renderer -> main, fire and forget: a board key (shared/aws/board.ts). */
+    subscribe: 'aws:subscribe',
+    unsubscribe: 'aws:unsubscribe',
+    /** main -> renderer: an AwsBoard. */
+    update: 'aws:update',
+    refresh: 'aws:refresh',
+    drill: 'aws:drill',
+    item: 'aws:item',
+    history: 'aws:history',
+    open: 'aws:open',
+    costExplorer: 'aws:cost-explorer',
+    quota: 'aws:quota',
+    profiles: 'aws:profiles',
+    watching: 'aws:watching',
+  },
+  /** What both CLI panes share: the public status's toasts and the cost QUOTA's (cloud-cli.md §12). */
+  cloud: {
+    /** main -> renderer: a CloudAlert to toast. */
+    alert: 'cloud:alert',
+    /** renderer -> main: open the status page a toast named. */
+    open: 'cloud:open',
+    watching: 'cloud:watching',
+  },
   /** The DOCKER pane (shared/docker.ts): one engine, followed only while a pane is seen. */
   docker: {
     /** renderer -> main, fire and forget: keep the list current. */

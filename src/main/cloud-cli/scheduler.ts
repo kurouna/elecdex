@@ -1,0 +1,343 @@
+import { type CliProblem, classifyCliError, redactCliText } from '@shared/cloud-cli/errors'
+import type { LedgerEntry } from '@shared/cloud-cli/ledger'
+import {
+  backoffMs,
+  type CliCall,
+  type CliResult,
+  isDue,
+  type Probe,
+  type RunCli,
+  staggerMs,
+} from '@shared/cloud-cli/probe'
+import { BoundaryTimer, type TimerDeps } from '../boundary-timer.js'
+
+/**
+ * Runs one board's probes on the wall clock's grid while somebody looks (docs/cloud-cli.md §3).
+ *
+ * Each probe has a timer on its period's boundary and starts a little after it (`staggerMs`), so
+ * a board's probes do not all start the CLI at once. A probe that fails waits longer each time
+ * (1, 2, 4 … 30 minutes); one signed out stops the board until REFRESH, since a credential
+ * helper may open a window on every start. Results stay when the board stops: shown again at
+ * once, and read again only when older than their period.
+ */
+
+export interface ProbeOutcome<T = unknown> {
+  value: T | null
+  problem: CliProblem | null
+  /** When the last good value was read. */
+  at: number | null
+  /** When it was last tried. */
+  triedAt: number | null
+  /**
+   * The operations its last reading was refused, by name (AWS's "perform: ce:GetCostAndUsage"):
+   * a tolerated call's too, which sets no problem but still makes the board PARTIAL.
+   */
+  denied: string[]
+}
+
+export interface SchedulerDeps<C> extends TimerDeps {
+  cli: RunCli
+  /** Two starts at most, across every board (§2.3). */
+  limit: <T>(work: () => Promise<T>) => Promise<T>
+  record: (entry: LedgerEntry) => void
+  changed: () => void
+  context: () => C
+}
+
+/** What a call that was not started answers (the board stopped, halted or was refreshed). */
+const SKIPPED: CliResult = {
+  ok: false,
+  code: -1,
+  stdout: '',
+  stderr: '',
+  missing: false,
+  timedOut: false,
+  tooLarge: false,
+}
+
+/** A probe whose CLI could not even be started, signed out or not there: nothing else will work. */
+const stopsTheBoard = (problem: CliProblem | null): boolean =>
+  problem !== null && (problem.kind === 'no-cli' || problem.kind === 'signed-out')
+
+/** A gh answer read with `-i` whose status line says 304: unchanged, and free of rate limit. */
+export const isNotModified = (call: CliCall, result: CliResult): boolean =>
+  call.tool === 'gh' && /^HTTP\/[\d.]+ 304/.test(result.stdout)
+
+export class ProbeScheduler<C> {
+  readonly #deps: SchedulerDeps<C>
+  readonly #probes: readonly Probe<C, unknown>[]
+  readonly #timers = new Map<string, BoundaryTimer>()
+  readonly #outcomes = new Map<string, ProbeOutcome>()
+  readonly #failures = new Map<string, number>()
+  readonly #running = new Set<string>()
+  readonly #pending = new Set<unknown>()
+  /** The last `keyOf` of each probe others run after. */
+  readonly #keys = new Map<string, string>()
+  /** Probes asked to run while they were running: they go once more when they end. */
+  readonly #again = new Set<string>()
+  #started = false
+  #halted = false
+  /** Starts, stops and refreshes: a run from an older one may no longer start the CLI. */
+  #generation = 0
+
+  constructor(deps: SchedulerDeps<C>, probes: readonly Probe<C, unknown>[]) {
+    this.#deps = deps
+    this.#probes = probes
+  }
+
+  get active(): boolean {
+    return this.#started
+  }
+
+  /** Stopped for a missing CLI or a sign-in, until `refresh`. */
+  get halted(): boolean {
+    return this.#halted
+  }
+
+  outcome<T>(id: string): ProbeOutcome<T> {
+    return (
+      (this.#outcomes.get(id) as ProbeOutcome<T> | undefined) ?? {
+        value: null,
+        problem: null,
+        at: null,
+        triedAt: null,
+        denied: [],
+      }
+    )
+  }
+
+  problems(): (CliProblem | null)[] {
+    return this.#probes.map((probe) => this.#outcomes.get(probe.id)?.problem ?? null)
+  }
+
+  /** Every operation refused in the probes' last readings, sorted. */
+  denied(): string[] {
+    return [...new Set([...this.#outcomes.values()].flatMap((outcome) => outcome.denied))].sort()
+  }
+
+  anyReading(): boolean {
+    return [...this.#outcomes.values()].some((outcome) => outcome.at !== null)
+  }
+
+  start(): void {
+    if (this.#started) return
+    this.#started = true
+    this.#generation += 1
+    for (const probe of this.#probes) {
+      const timer = new BoundaryTimer(this.#deps, probe.every, () => this.#later(probe))
+      this.#timers.set(probe.id, timer)
+      timer.start()
+      if (isDue(this.outcome(probe.id).at, probe.every, this.#deps.now())) void this.#run(probe)
+    }
+  }
+
+  /** Stops the timers; calls still waiting for a CLI slot are dropped, not started. */
+  stop(): void {
+    this.#started = false
+    this.#generation += 1
+    this.#again.clear()
+    for (const timer of this.#timers.values()) timer.stop()
+    this.#timers.clear()
+    for (const handle of this.#pending) this.#deps.clearTimer(handle)
+    this.#pending.clear()
+  }
+
+  /**
+   * Every probe now, even a halted board's (the user pressed REFRESH, or signed in). A probe
+   * still running from before goes again when it ends; what it met before the press cannot halt
+   * the board again.
+   */
+  refresh(): void {
+    this.#halted = false
+    this.#generation += 1
+    this.#failures.clear()
+    for (const probe of this.#probes) {
+      if (this.#running.has(probe.id)) this.#again.add(probe.id)
+      else void this.#run(probe)
+    }
+  }
+
+  /** One probe now, when the page opened what it reads (a drill-down's on-demand reading). */
+  runNow(id: string): void {
+    const probe = this.#probes.find((entry) => entry.id === id)
+    if (probe === undefined) return
+    if (this.#running.has(probe.id)) this.#again.add(probe.id)
+    else void this.#run(probe)
+  }
+
+  #later(probe: Probe<C, unknown>, ms = staggerMs(probe.id, probe.every)): void {
+    const handle = this.#deps.setTimer(() => {
+      this.#pending.delete(handle)
+      void this.#run(probe)
+    }, ms)
+    this.#pending.add(handle)
+  }
+
+  /**
+   * Whether a probe may start now: the board runs, it is not already running, what it reads for
+   * has been read, and its wait is over.
+   */
+  #mayRun(probe: Probe<C, unknown>): boolean {
+    if (!this.#started || this.#halted || this.#running.has(probe.id)) return false
+    if (probe.after !== undefined && this.outcome(probe.after).at === null) return false
+    const failures = this.#failures.get(probe.id) ?? 0
+    const tried = this.outcome(probe.id).triedAt
+    return failures === 0 || tried === null || this.#deps.now() - tried >= backoffMs(failures)
+  }
+
+  /** Whether a run started in `generation` may still start the CLI. */
+  #live(generation: number): boolean {
+    return this.#started && !this.#halted && generation === this.#generation
+  }
+
+  async #run(probe: Probe<C, unknown>): Promise<void> {
+    if (!this.#mayRun(probe)) return
+    this.#running.add(probe.id)
+    const generation = this.#generation
+    const calls = {
+      problem: null as CliProblem | null,
+      requests: 0,
+      notModified: false,
+      denied: [] as string[],
+      skipped: false,
+    }
+    // A call that waited for a slot while the board stopped, halted or was refreshed is not
+    // started: a signed-out profile must not open a credential window per queued call.
+    const cli: RunCli = async (call) => {
+      const result = await this.#deps.limit(() =>
+        this.#live(generation) ? this.#deps.cli(call) : Promise.resolve(SKIPPED),
+      )
+      if (result === SKIPPED) {
+        calls.skipped = true
+        return result
+      }
+      calls.requests += 1
+      if (isNotModified(call, result)) calls.notModified = true
+      else if (!result.ok) {
+        noteFailure(calls, call, result)
+        // At once, not when the probe ends: the calls queued behind this one must not start.
+        if (stopsTheBoard(calls.problem) && generation === this.#generation) this.#halted = true
+      }
+      return result
+    }
+    const before = this.outcome(probe.id)
+    try {
+      const value = await probe.run(this.#deps.context(), cli, before.value)
+      if (!calls.skipped)
+        this.#outcomes.set(probe.id, settled(before, value, calls, this.#deps.now()))
+    } catch (error) {
+      calls.problem ??= {
+        kind: 'error',
+        text: redactCliText(error instanceof Error ? error.message : 'failed').slice(0, 120),
+      }
+      this.#outcomes.set(probe.id, {
+        ...before,
+        problem: calls.problem,
+        triedAt: this.#deps.now(),
+        denied: calls.denied,
+      })
+    } finally {
+      this.#running.delete(probe.id)
+    }
+    this.#settle(probe, calls, generation)
+  }
+
+  /** After a run: failures and the halt, the dependents, the ledger, and a retry or a rerun. */
+  #settle(
+    probe: Probe<C, unknown>,
+    calls: { problem: CliProblem | null; requests: number; notModified: boolean; skipped: boolean },
+    generation: number,
+  ): void {
+    const current = generation === this.#generation
+    if (!calls.skipped && current) {
+      const failures = calls.problem === null ? 0 : (this.#failures.get(probe.id) ?? 0) + 1
+      this.#failures.set(probe.id, failures)
+      if (stopsTheBoard(calls.problem)) this.#halted = true
+      // After a failure, try again when the wait is over, not only on the period's boundary.
+      else if (failures > 0 && this.#started && backoffMs(failures) < probe.every)
+        this.#later(probe, backoffMs(failures))
+      this.#runDependents(probe)
+    }
+    this.#deps.record({
+      probe: probe.id,
+      cost: probe.cost,
+      requests: calls.requests,
+      notModified: calls.notModified,
+      failed: calls.problem !== null,
+    })
+    this.#deps.changed()
+    if (this.#again.delete(probe.id)) void this.#run(probe)
+  }
+
+  /**
+   * The probes after this one, when what they read for changed or was read for the first time
+   * (a probe without `keyOf` has one key: its first reading lets its dependents go, once).
+   */
+  #runDependents(probe: Probe<C, unknown>): void {
+    const value = this.outcome(probe.id).value
+    if (value === null) return
+    const key = probe.keyOf === undefined ? '' : probe.keyOf(value)
+    if (this.#keys.get(probe.id) === key) return
+    this.#keys.set(probe.id, key)
+    for (const dependent of this.#probes) {
+      if (dependent.after !== probe.id) continue
+      if (this.#running.has(dependent.id)) this.#again.add(dependent.id)
+      else void this.#run(dependent)
+    }
+  }
+}
+
+/**
+ * The outcome of a finished reading. A probe answers null for "nothing new": a 304 keeps the
+ * value and counts as a fresh look.
+ */
+/** A failed call: its refused operation noted, and the probe's problem unless it is tolerated. */
+function noteFailure(
+  calls: { problem: CliProblem | null; denied: string[] },
+  call: CliCall,
+  result: CliResult,
+): void {
+  const problem = classifyCliError(call.tool, result)
+  if (problem.kind === 'denied' && problem.action !== null) calls.denied.push(problem.action)
+  if (calls.problem === null && call.tolerated !== true) calls.problem = problem
+}
+
+function settled(
+  before: ProbeOutcome,
+  value: unknown,
+  calls: { problem: CliProblem | null; notModified: boolean; denied: string[] },
+  now: number,
+): ProbeOutcome {
+  const read = value !== null && value !== undefined
+  return {
+    denied: calls.denied,
+    value: read ? value : before.value,
+    problem: calls.problem,
+    at: read || (calls.notModified && calls.problem === null) ? now : before.at,
+    triedAt: now,
+  }
+}
+
+/** A limit on how many CLI starts run at once, shared by every board. */
+export function concurrencyLimit(max: number): <T>(work: () => Promise<T>) => Promise<T> {
+  let running = 0
+  const queue: (() => void)[] = []
+  const next = (): void => {
+    if (running >= max) return
+    const start = queue.shift()
+    if (start !== undefined) start()
+  }
+  return (work) =>
+    new Promise((resolve, reject) => {
+      queue.push(() => {
+        running += 1
+        work()
+          .then(resolve, reject)
+          .finally(() => {
+            running -= 1
+            next()
+          })
+      })
+      next()
+    })
+}

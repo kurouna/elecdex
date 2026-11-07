@@ -11,6 +11,7 @@ import type { AttachmentView, AttachResult } from '@shared/ai-attach'
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from '@shared/alarms'
 import type {
   AppInfo,
+  CloudAlertView,
   ElecdexApi,
   MachineFacts,
   PtyCreateOptions,
@@ -21,6 +22,7 @@ import type {
   WindowState,
 } from '@shared/api'
 import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
+import type { AwsBoard, DrillItem, DrillRow, HistoryEvent } from '@shared/aws/types'
 import type { BackgroundState } from '@shared/background'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { Chip8ImportResult, Chip8Program, Chip8SlotInfo } from '@shared/chip8-library'
@@ -45,6 +47,7 @@ import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
 import type { GitDiff, GitFile, GitLog, GitRepoRef, GitState } from '@shared/git'
 import type { GitSyncResult } from '@shared/git-sync'
+import type { GithubBoard, RepoDetail } from '@shared/github/types'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { SavedLayoutSummary } from '@shared/layouts'
 import {
@@ -355,6 +358,22 @@ const subscribeDocker = keyedSubscriptions<DockerBoard>({
   unsubscribe: CH.docker.unsubscribe,
   event: CH.docker.update,
   keyOf: () => 'board',
+})
+
+/** GITHUB STATUS boards by key, each shared by every pane showing it. */
+const subscribeGithub = keyedSubscriptions<GithubBoard>({
+  subscribe: CH.github.subscribe,
+  unsubscribe: CH.github.unsubscribe,
+  event: CH.github.update,
+  keyOf: (board) => board.key,
+})
+
+/** AWS STATUS boards by key, each shared by every pane showing it. */
+const subscribeAws = keyedSubscriptions<AwsBoard>({
+  subscribe: CH.aws.subscribe,
+  unsubscribe: CH.aws.unsubscribe,
+  event: CH.aws.update,
+  keyOf: (board) => board.key,
 })
 
 /** The one TRANSLATE board: engine, models and fetch, shared by every pane showing it. */
@@ -670,6 +689,35 @@ const api: ElecdexApi = {
     control: (id, action) =>
       ipcRenderer.invoke(CH.docker.control, id, action) as Promise<DockerControlResult>,
     watching: () => ipcRenderer.invoke(CH.docker.watching) as Promise<string[]>,
+  },
+  github: {
+    subscribe: (key, handler) => subscribeGithub(key, handler),
+    refresh: (key) => ipcRenderer.invoke(CH.github.refresh, key) as Promise<number>,
+    detail: (key, repo) =>
+      ipcRenderer.invoke(CH.github.detail, key, repo) as Promise<RepoDetail | null>,
+    open: (key, id) => ipcRenderer.invoke(CH.github.open, key, id) as Promise<boolean>,
+    watching: () => ipcRenderer.invoke(CH.github.watching) as Promise<string[]>,
+  },
+  aws: {
+    subscribe: (key, handler) => subscribeAws(key, handler),
+    refresh: (key) => ipcRenderer.invoke(CH.aws.refresh, key) as Promise<number>,
+    drill: (key, service) =>
+      ipcRenderer.invoke(CH.aws.drill, key, service) as Promise<DrillRow[] | null>,
+    item: (key, service, id) =>
+      ipcRenderer.invoke(CH.aws.item, key, service, id) as Promise<DrillItem | null>,
+    history: (key, service, id) =>
+      ipcRenderer.invoke(CH.aws.history, key, service, id) as Promise<HistoryEvent[] | null>,
+    open: (key, id) => ipcRenderer.invoke(CH.aws.open, key, id) as Promise<boolean>,
+    costExplorer: (key, answer) =>
+      ipcRenderer.invoke(CH.aws.costExplorer, key, answer) as Promise<boolean>,
+    quota: (key, quota) => ipcRenderer.invoke(CH.aws.quota, key, quota) as Promise<boolean>,
+    profiles: () => ipcRenderer.invoke(CH.aws.profiles) as Promise<string[]>,
+    watching: () => ipcRenderer.invoke(CH.aws.watching) as Promise<string[]>,
+  },
+  cloud: {
+    onAlert: (handler) => listen<CloudAlertView>(CH.cloud.alert, handler),
+    open: (alertId) => ipcRenderer.invoke(CH.cloud.open, alertId) as Promise<boolean>,
+    watching: () => ipcRenderer.invoke(CH.cloud.watching) as Promise<string[]>,
   },
   translate: {
     subscribe: (handler) => subscribeTranslate('board', handler),

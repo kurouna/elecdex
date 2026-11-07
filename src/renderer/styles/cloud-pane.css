@@ -1,0 +1,562 @@
+/*
+ * What AWS STATUS and GITHUB STATUS draw alike (docs/cloud-cli.md §7): the link word, the top
+ * row's figures, tools and chips, notices, tabs, crumbs, the list's rows with their weight on the
+ * left edge, tags, cards, the settings and the ledger's foot. Each widget's root carries
+ * `cloudpane`; what only one of them draws stays in its own component.
+ */
+
+.cloudpane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-1);
+  font-family: var(--font-ui);
+  /* Text people read, a step dimmer than the accent yet readable (cloud-cli.md §7.1). */
+  --text-dim: color-mix(in srgb, var(--text) 78%, var(--surface-1));
+  --bar: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.cloudpane .top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+  min-width: 0;
+  padding-right: 1.6rem;
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+}
+
+.cloudpane .link {
+  --tone: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--step--1);
+  font-weight: 600;
+  color: var(--tone);
+}
+
+.cloudpane .link[data-tone="ok"] {
+  --tone: var(--ok);
+}
+
+.cloudpane .link[data-tone="warn"] {
+  --tone: var(--warn);
+}
+
+.cloudpane .link[data-tone="danger"] {
+  --tone: var(--danger);
+}
+
+.cloudpane .link[data-tone="accent"] {
+  --tone: var(--accent);
+}
+
+.cloudpane .link i {
+  width: 0.45rem;
+  height: 0.45rem;
+  transform: rotate(45deg);
+  background: var(--tone);
+  box-shadow: 0 0 calc(var(--glow) * 0.5rem) var(--tone);
+}
+
+.cloudpane .link[data-tone="accent"] i {
+  animation: cloudpane-blink 0.6s steps(2, jump-none) infinite;
+  animation-play-state: var(--ambient-play-state);
+}
+
+@keyframes cloudpane-blink {
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.cloudpane .figure {
+  display: flex;
+  flex-direction: column;
+  font: inherit;
+  line-height: 1.15;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cloudpane .figure small {
+  color: var(--text-muted);
+  font-size: var(--step--2);
+}
+
+.cloudpane .figure > span {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.cloudpane .figure:hover > span {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cloudpane .danger {
+  color: var(--danger);
+}
+
+.cloudpane .warn {
+  color: var(--warn);
+}
+
+.cloudpane .ok {
+  color: var(--ok);
+}
+
+.cloudpane .dim {
+  color: var(--text-dim);
+}
+
+.cloudpane .spacer {
+  flex: 1;
+}
+
+.cloudpane .when {
+  color: var(--text-muted);
+}
+
+.cloudpane .when b {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: 0;
+  font-size: var(--step--1);
+}
+
+.cloudpane .tool,
+.cloudpane .chip {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+
+.cloudpane .tool:hover,
+.cloudpane .chip:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.cloudpane .tool.on,
+.cloudpane .chip.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+}
+
+.cloudpane .tool:disabled {
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.cloudpane .chip {
+  text-transform: uppercase;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+}
+
+.cloudpane .chip em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  margin-left: 0.25rem;
+}
+
+.cloudpane .notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--warn);
+  font-size: var(--step--1);
+}
+
+.cloudpane code {
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--panel-rule);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text);
+}
+
+.cloudpane .tabs {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.cloudpane .tabs button {
+  padding: 0.1rem 0.7rem;
+  border: 1px solid var(--panel-rule);
+  border-bottom: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+}
+
+.cloudpane .tabs button[aria-selected="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse);
+}
+
+.cloudpane .tabs em {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  margin-left: 0.3rem;
+}
+
+.cloudpane .bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.cloudpane .crumbs {
+  font-size: var(--step--1);
+}
+
+.cloudpane .crumbs button {
+  background: transparent;
+  border: 0;
+  color: var(--text-dim);
+  font: inherit;
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+}
+
+.cloudpane .crumbs .back {
+  border: 1px solid var(--panel-rule);
+  font-family: var(--font-mono);
+}
+
+.cloudpane .crumbs .gt {
+  color: var(--panel-border);
+}
+
+.cloudpane .crumbs .here {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.cloudpane .view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-top: 1px solid var(--panel-rule);
+  padding-top: 0.2rem;
+  container: cloudview / inline-size;
+}
+
+.cloudpane .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 8rem;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: var(--step--1);
+  text-align: center;
+  padding: 1rem;
+}
+
+.cloudpane .empty b {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--step-1);
+  letter-spacing: var(--tracking-wider);
+  text-shadow: 0 0 calc(var(--glow) * 0.5rem) currentColor;
+}
+
+.cloudpane .sep {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.45rem 0 0.2rem;
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cloudpane .sep::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--panel-rule);
+}
+
+.cloudpane .sep b {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: 0;
+}
+
+.cloudpane .row {
+  position: relative;
+  display: grid;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.14rem 0.5rem 0.14rem 0.35rem;
+  border-left: 2px solid transparent;
+  font-size: var(--step--1);
+}
+
+.cloudpane .row[role="link"] {
+  cursor: pointer;
+}
+
+.cloudpane .row[role="link"]:hover,
+.cloudpane .row:focus-visible {
+  background: var(--accent-faint);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.cloudpane .row:not(:focus-visible):hover {
+  outline: 0;
+}
+
+.cloudpane .row[data-weight="danger"] {
+  border-left-color: var(--danger);
+}
+
+.cloudpane .row[data-weight="warn"] {
+  border-left-color: var(--warn);
+}
+
+.cloudpane .row[data-weight="info"] {
+  border-left-color: var(--info);
+}
+
+.cloudpane .repo,
+.cloudpane .mono {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cloudpane .mono.strong {
+  color: var(--text);
+}
+
+.cloudpane .right {
+  text-align: right;
+}
+
+.cloudpane .title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.cloudpane .num {
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  margin-right: 0.35rem;
+}
+
+.cloudpane .tag {
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid var(--panel-rule);
+  color: var(--text-dim);
+  white-space: nowrap;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+}
+
+.cloudpane .tag[data-weight="danger"] {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.cloudpane .tag[data-weight="warn"] {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.cloudpane .tag[data-weight="info"] {
+  color: var(--info);
+  border-color: var(--info);
+}
+
+.cloudpane .age {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-dim);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cloudpane .go {
+  visibility: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.cloudpane .row:hover .go,
+.cloudpane .row:focus-visible .go {
+  visibility: visible;
+}
+
+.cloudpane .ci {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  border: 1px solid var(--text-muted);
+  align-self: center;
+  flex: none;
+}
+
+.cloudpane .ci[data-state="success"] {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+.cloudpane .ci[data-state="failure"] {
+  background: var(--danger);
+  border-color: var(--danger);
+  box-shadow: 0 0 calc(var(--glow) * 0.35rem) var(--danger);
+}
+
+.cloudpane .ci[data-state="pending"] {
+  border-color: var(--warn);
+  background: linear-gradient(90deg, var(--warn) 50%, transparent 50%);
+}
+
+.cloudpane .ci[data-state="action"] {
+  border-color: var(--warn);
+  outline: 1px dashed var(--warn);
+  outline-offset: 1px;
+}
+
+.cloudpane .pre {
+  color: var(--warn);
+  border-color: var(--warn);
+  margin-left: 0.3rem;
+}
+
+.cloudpane .chead {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.cloudpane .chead span:last-child {
+  color: var(--text-dim);
+}
+
+.cloudpane .cnote {
+  margin: 0.35rem 0 0;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--panel-rule);
+  font-size: var(--step--1);
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+.cloudpane .settings {
+  position: absolute;
+  z-index: 6;
+  top: 2rem;
+  right: var(--space-1);
+  width: min(24rem, calc(100% - 1rem));
+  padding: 0.6rem 0.8rem 0.8rem;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-2);
+  font-size: var(--step--1);
+}
+
+.cloudpane .settings h5 {
+  margin: 0 0 0.3rem;
+  font-weight: 500;
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--panel-rule);
+}
+
+.cloudpane .opt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.3rem 0;
+}
+
+.cloudpane .seg {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.cloudpane textarea {
+  width: 100%;
+  height: 4.4rem;
+  resize: none;
+  background: var(--surface-1);
+  color: var(--text);
+  border: 1px solid var(--panel-rule);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  padding: 0.2rem 0.3rem;
+}
+
+.cloudpane .settings p {
+  margin: 0.4rem 0 0;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.cloudpane .foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--panel-rule);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.cloudpane .foot span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

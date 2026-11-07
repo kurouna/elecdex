@@ -214,6 +214,40 @@ export const SettingsSchema = z.object({
       sound: true,
     }),
   /**
+   * AWS STATUS and GITHUB STATUS (docs/cloud-cli.md §12.5): a toast when the service's public
+   * status shows an incident. On by default, unlike the quake alerts (user decision 2026-11-08):
+   * the status is read only while one of the panes is shown, so placing the pane and looking at
+   * it stands for the consent. No sound. Changed in the panes' ⚙, under "Every … pane".
+   */
+  aws: z
+    .object({
+      incidents: z
+        .object({
+          notify: z.boolean().default(true),
+          /** Also a system notification, when the window is not in front. */
+          system: z.boolean().default(true),
+          minSeverity: z.enum(['info', 'warn', 'danger']).default('warn'),
+        })
+        .default({ notify: true, system: true, minSeverity: 'warn' }),
+    })
+    .default({ incidents: { notify: true, system: true, minSeverity: 'warn' } }),
+  github: z
+    .object({
+      incidents: z
+        .object({
+          notify: z.boolean().default(true),
+          system: z.boolean().default(true),
+          /** GitHub's impacts: minor is warn, major and critical are danger. */
+          minSeverity: z.enum(['info', 'warn', 'danger']).default('danger'),
+          /** Components left out (Copilot by default: a third of the incidents are it alone). */
+          skip: z.array(z.string().max(60)).max(30).default(['Copilot']),
+        })
+        .default({ notify: true, system: true, minSeverity: 'danger', skip: ['Copilot'] }),
+    })
+    .default({
+      incidents: { notify: true, system: true, minSeverity: 'danger', skip: ['Copilot'] },
+    }),
+  /**
    * Task reminders (the tasks pane). Unlike the quake alerts these are on by default:
    * nothing is fetched for them, they only go off for deadlines the user typed in, and
    * a reminder that has to be switched on first is a reminder that is missed once.
@@ -383,6 +417,9 @@ export interface SettingsPatch {
   agents?: Partial<Settings['agents']>
   quakes?: Partial<Settings['quakes']>
   reminders?: Partial<Settings['reminders']>
+  /** `incidents` replaces the whole group. */
+  aws?: Partial<Settings['aws']>
+  github?: Partial<Settings['github']>
   /** `providers` replaces the whole list. */
   ai?: Partial<Settings['ai']>
   /** `seats` and `personas` replace the whole list. */
@@ -425,6 +462,8 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     layout: merge(current.layout, p.layout),
     quakes: merge(current.quakes, p.quakes),
     reminders: merge(current.reminders, p.reminders),
+    aws: merge(current.aws, p.aws),
+    github: merge(current.github, p.github),
     ai: merge(current.ai, p.ai),
     elec: merge(current.elec, p.elec),
     chip8: merge(current.chip8, p.chip8),

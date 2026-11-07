@@ -27,13 +27,13 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 - [ステータスバーとウィンドウ](#ステータスバーとウィンドウ)
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron テーマの standard レイアウトの上に開いたレイアウトダイアログ：保存レイアウトとしてのプリセット（1〜9 が見え、0 の blank はその下。それぞれに配置の縮図）、その下にプリセットの棚（縮図、一覧での位置、キー Ctrl+Shift+F1〜F10。blank は空の枠）">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron テーマの standard レイアウトの上に開いたレイアウトダイアログ：保存レイアウトとしてのプリセット（1〜9 が見え、0 の cloud と番号の無い blank はその下。それぞれに配置の縮図）、その下にプリセットの棚（縮図、一覧での位置、キー Ctrl+Shift+F1〜F11。blank は空の枠）">
   <br><sub>レイアウト（Ctrl+Shift+G） · Tron</sub>
 </p>
 
 **レイアウト** — どのペインもタイトルをドラッグして移動でき、閉じる、分割する、タブにする、サイズを変える、元に
 戻すことができます。レイアウトは保存され、リセットもできます。配置に名前を付けて保存し、あとで戻ることも
-（Ctrl+Shift+G、またはステータスバーの *layouts*）、10 個の[プリセット](presets.ja.md)から始めることもできます。
+（Ctrl+Shift+G、またはステータスバーの *layouts*）、11 個の[プリセット](presets.ja.md)から始めることもできます。
 
 ## ペイン・分割・タブ
 
@@ -153,7 +153,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 
 | | |
 | --- | --- |
-| ショートカット | **Ctrl+Shift+G**（LAYOUTS ダイアログ）、**Ctrl+Shift+1**〜**9**・**0**（先頭 10 件）、**Ctrl+Shift+F1**〜**F10**（プリセット） |
+| ショートカット | **Ctrl+Shift+G**（LAYOUTS ダイアログ）、**Ctrl+Shift+1**〜**9**・**0**（先頭 10 件）、**Ctrl+Shift+F1**〜**F11**（プリセット） |
 | 保存先 | `layouts.json`、最大 20 件 |
 | 設定 | *Settings → General → Layouts* の *ask before switching layout*（既定はオン） |
 | 設計 | [architecture.md §5.6](../architecture.md) |
@@ -176,7 +176,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
   あります）。**`layouts.json` を別のコンピューターにコピーすれば、配置もいっしょに移ります。** ダイアログの
   *layouts.json* ボタンでファイルマネージャーに表示できます。ファイルの壊れたエントリーはそれだけが捨てられ、
   ほかは残ります。
-- 一覧の下の棚に 10 個の **プリセット** があります。選ぶとそこから作ったレイアウトが足されます。
+- 一覧の下の棚に 11 個の **プリセット** があります。選ぶとそこから作ったレイアウトが足されます。
   [レイアウトプリセット](presets.ja.md#プリセットの仕組み)を参照してください。
 
 ## 見た目と操作感
@@ -252,7 +252,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 | --- | --- |
 | ACTION | そのアクションのショートカットと同じこと。使えるかどうかも同じ判定（パレットを開く前にフォーカスのあったペインで判断） |
 | LAYOUT | 保存レイアウトを適用する。番号キーと同じく、シェルが開いていれば先に確認する |
-| PRESET | Ctrl+Shift+F1〜F10 と同じく、プリセットから作ったレイアウトへ行くか、足して行く |
+| PRESET | Ctrl+Shift+F1〜F11 と同じく、プリセットから作ったレイアウトへ行くか、足して行く |
 | THEME | テーマを当てる |
 | PANE | ポップアップにできればポップアップで、できなければ右に追加する。1 つしか置けないペインがすでにあればフォーカスする |
 | SETTINGS | 設定ダイアログをそのセクションで開く |
@@ -342,7 +342,7 @@ Ctrl+Shift+[ / ] は Ctrl+Shift+@ / [）。アプリ内の一覧やツールチ�
 | Ctrl+Shift+Backspace | 既定のレイアウトに戻す（シェルが開いている間は先に確認） |
 | Ctrl+Shift+G | 保存レイアウト |
 | Ctrl+Shift+1〜9、0 | 先頭 10 件の保存レイアウトを、ダイアログの並び順で適用（0 は 10 件目）。空の番号ならキーはフォーカスのあるペインへ |
-| Ctrl+Shift+F1〜F10 | プリセットへ: standard、network、earth、dev、media、desk、ai、cockpit、retro、blank |
+| Ctrl+Shift+F1〜F11 | プリセットへ: standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未リリース）*、blank |
 | Ctrl+Shift+L | ランチャーを検索（レイアウトになければポップアップで出す） |
 | Ctrl+Shift+U | Utility ペイン: レイアウトの次のもの、なければポップアップ。もう一度押すと片付く（Linux では IBus がコードによる文字入力にこのキーを使うことがあるので、変更してください） |
 | Ctrl+Shift+Y | TRANSLATE ペイン へクリップボードの文を持って行き、すぐ訳す: レイアウトの次のもの、なければポップアップ |

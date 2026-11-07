@@ -4,6 +4,7 @@ import AgentsWidget from './agents/AgentsWidget.svelte'
 import AiChatWidget from './aichat/AiChatWidget.svelte'
 import MixerWidget from './audio/MixerWidget.svelte'
 import SpectrumWidget from './audio/SpectrumWidget.svelte'
+import AwsWidget from './aws/AwsWidget.svelte'
 import CalcWidget from './calc/CalcWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
 import Chip8Widget from './chip8/Chip8Widget.svelte'
@@ -16,6 +17,7 @@ import Elec16Widget from './elec16/Elec16Widget.svelte'
 import EthernetWidget from './ethernet/EthernetWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GitWidget from './git/GitWidget.svelte'
+import GithubWidget from './github/GithubWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
 import LauncherWidget from './launcher/LauncherWidget.svelte'
 import LogWatchWidget from './logwatch/LogWatchWidget.svelte'
@@ -402,6 +404,30 @@ registerBuiltin({
     "The local Docker engine's containers by Compose project, with their ports, health and use; start, stop, restart, pause. Linked only while it shows.",
   component: DockerWidget,
   minSize: { w: 260, h: 140 },
+  zoom: 'full',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'aws',
+  title: 'aws status',
+  pickerTitle: 'aws status',
+  description:
+    "What needs someone in an AWS account, what runs and bills now, the month's cost and who changed what, read through your own AWS CLI. Free APIs only, Cost Explorer if you say so. Only while it shows.",
+  component: AwsWidget,
+  minSize: { w: 320, h: 180 },
+  zoom: 'full',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'github',
+  title: 'github status',
+  pickerTitle: 'github status',
+  description:
+    'What waits on you on GitHub, your inbox, what happened in your repositories and the repositories themselves, read through your own gh. Only while it shows.',
+  component: GithubWidget,
+  minSize: { w: 300, h: 160 },
   zoom: 'full',
   popup: true,
 })

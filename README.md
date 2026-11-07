@@ -38,7 +38,7 @@ current, secure stack.
 
 ## What it is
 
-elecdex is a desktop application that arranges 41 built-in panes in splits and tabs on one
+elecdex is a desktop application that arranges 43 built-in panes in splits and tabs on one
 screen, in the look of a science-fiction terminal: the shells and system monitors eDEX-UI is known
 for, and beside them network diagnostics, the world outside, development tools, AI, desk tools,
 media and two machines of its own. It began as a ground-up rewrite of eDEX-UI (archived in 2021),
@@ -46,13 +46,14 @@ is built on Electron 45, Svelte 5 and TypeScript 7, and is released under the GP
 
 - **Shells**: PowerShell, bash, zsh and fish in tabs and splits through node-pty, with shell
   integration (OSC 7 / OSC 9;9) that follows each shell's folder - on Windows too.
-- **Panes**: 41 built-in panes plus web panes (Browser, YouTube, X), arranged in a persisted tree of
-  splits and tabs; ten layout presets, saved layouts, an action palette.
+- **Panes**: 43 built-in panes plus web panes (Browser, YouTube, X), arranged in a persisted tree of
+  splits and tabs; eleven layout presets, saved layouts, an action palette.
 - **System and network**: CPU, memory, GPU, disks, processes, every TCP socket by program, Wi-Fi
   and Ethernet diagnostics - read without a process per reading on Windows.
 - **The world**: weather (JMA, NWS, MET Norway), markets, RSS, earthquakes and tsunamis, satellites
   computed locally (SGP4), a globe of connections placed with a bundled GeoIP database.
-- **Work and AI**: Git (read, FETCH/PULL/PUSH), Docker, Log Watch, Claude Code sessions, AI chat over
+- **Work and AI**: Git (read, FETCH/PULL/PUSH), Docker, Log Watch, Claude Code sessions, an AWS
+  account and GitHub read through their own CLIs *(unreleased)*, AI chat over
   any OpenAI-compatible or Anthropic endpoint with keys kept encrypted by the OS; translation with
   PLaMo 3 Translate run on this computer.
 - **Desk and media**: notes, tasks, a timer, the clipboard, a calendar and a calculator; a sound
@@ -65,7 +66,7 @@ is built on Electron 45, Svelte 5 and TypeScript 7, and is released under the GP
 
 ## Layout presets
 
-Ten presets switch the whole screen at a key (**Ctrl+Shift+F1** to **F10**); all but cockpit and
+Eleven presets switch the whole screen at a key (**Ctrl+Shift+F1** to **F11**); all but cockpit and
 blank keep the system column on the left. Each picture is that preset in a different theme;
 details are in [Layout presets](docs/guide/presets.md).
 
@@ -88,7 +89,11 @@ details are in [Layout presets](docs/guide/presets.md).
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.md#retro"><img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro layout preset in the Tron theme"></a><br><sub><b>retro</b> · Ctrl+Shift+F9 · CHIP-8, the ELEC-16 machines and the SCI-128 calculator</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="The blank layout preset in the Amber theme"></a><br><sub><b>blank</b> · Ctrl+Shift+F10 · no pane yet: build a layout of your own</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.md#cloud"><img src="./docs/screenshots/elecdex-cloud.jpg" alt="The cloud layout preset in the Business (Light) theme"></a><br><sub><b>cloud</b> (<i>unreleased</i>) · Ctrl+Shift+F10 · AWS STATUS, GITHUB STATUS, a shell and LOG WATCH</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><a href="docs/guide/presets.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="The blank layout preset in the Amber theme"></a><br><sub><b>blank</b> · Ctrl+Shift+F11 · no pane yet: build a layout of your own</sub></td>
+    <td width="50%"></td>
   </tr>
 </table>
 
@@ -99,6 +104,7 @@ details are in [Layout presets](docs/guide/presets.md).
 | System | Terminal, Clock, System, CPU, Memory, GPU, Disk, Top processes, Cluster, Launcher, Filesystem | [System panes](docs/guide/panes-system.md) |
 | Network | Network status, Network traffic, World view, Connections, Wi-Fi, Ethernet | [Network panes](docs/guide/panes-network.md) |
 | Development | AI Agent, Git, Docker, Log Watch | [Development panes](docs/guide/panes-dev.md) |
+| Cloud *(unreleased)* | AWS STATUS, GITHUB STATUS | [Cloud panes](docs/guide/panes-cloud.md) |
 | World | Orbit, Markets, Weather, RSS, Quakes, earthquake and tsunami alerts | [World panes](docs/guide/panes-world.md) |
 | AI | AI chat, ELEC system, TRANSLATE | [AI panes](docs/guide/panes-ai.md) |
 | Desk | Calculator, Notes, Tasks, Timer, Clipboard, Calendar, Utility | [Desk panes](docs/guide/panes-desk.md) |
@@ -187,7 +193,7 @@ script so it can compile. Tests, builds and the other commands are in the
 | Key | Action |
 | --- | --- |
 | Ctrl+Shift+A | Add a pane (the picker) |
-| Ctrl+Shift+F1 … F10 | Go to a layout preset |
+| Ctrl+Shift+F1 … F11 | Go to a layout preset |
 | Ctrl+Shift+G | Saved layouts |
 | Ctrl+Shift+P | Find any action, layout, theme or setting (the action palette) |
 | Ctrl+Shift+Z | Show the focused pane enlarged over the others; again to put it back |
@@ -202,7 +208,7 @@ Every shortcut can be rebound in *Settings → Keyboard*; the full list is in
 | Page | What it covers |
 | --- | --- |
 | [User guide](docs/guide/index.md) | The index of the pages below |
-| [Layout presets](docs/guide/presets.md) | The ten presets, pane by pane |
+| [Layout presets](docs/guide/presets.md) | The eleven presets, pane by pane |
 | [Workspace](docs/guide/workspace.md) | Panes, splits, tabs, saved layouts, the palette, themes and motion, running in the background |
 | [Keyboard shortcuts](docs/guide/keyboard.md) | Every default chord, rebinding, global shortcuts |
 | [Themes and settings](docs/guide/themes-settings.md) | The eight themes, `settings.json` |
@@ -233,6 +239,7 @@ Every shortcut can be rebound in *Settings → Keyboard*; the full list is in
 | CHIP-8 fonts | [Octo](https://github.com/JohnEarnest/Octo) `js/emulator.js`, copied into `src/shared/chip8/fonts.ts` | MIT |
 | CHIP-8 programs | [chip8Archive](https://github.com/JohnEarnest/chip8Archive), by their authors, in `resources/chip8/archive` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); credited in the pane |
 | TRANSLATE's engine and model | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110, and [PLaMo 3 Translate](https://huggingface.co/pfnet) by Preferred Networks: not bundled, fetched in the pane's setup | llama.cpp: MIT; its licences, and those of the code built into llama-server, come with elecdex and are written beside the engine. The model: [PLaMo Community License](https://plamo.preferredai.jp/info/plamo-community-license-ja), read and agreed to in the setup. Built with PLaMo |
+| AWS unit prices (AWS STATUS's estimates) *(unreleased)* | AWS's public pricing pages, as of 2026-11, in `src/shared/aws/list-prices.ts` | Facts, not a licensed work; approximate, checked with each release |
 | CHIP-8 test programs (DIAG) | [chip8-test-suite](https://github.com/Timendus/chip8-test-suite) by Timendus, in `resources/chip8/test-suite` with their Octo sources | GPL-3.0 |
 
 The geolocation database is bundled, so there is no account, no API key and no first-run

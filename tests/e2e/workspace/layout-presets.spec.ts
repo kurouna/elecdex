@@ -33,6 +33,7 @@ const PRESETS = [
   'ai',
   'cockpit',
   'retro',
+  'cloud',
   'blank',
 ]
 
@@ -78,7 +79,8 @@ test('a first start has every preset on the number keys, and only a first start'
 
     await showStatusBar(first.page)
     const slots = first.page.getByTestId('layout-slot')
-    await expect(slots).toHaveCount(PRESETS.length)
+    // Ten number keys: the eleventh preset is kept without one.
+    await expect(slots).toHaveCount(Math.min(PRESETS.length, 10))
     await expect(slots.nth(2)).toHaveAttribute('data-name', 'earth')
     await expect(slots.nth(0)).toHaveAttribute('aria-pressed', 'true')
 
@@ -97,8 +99,9 @@ test('a first start has every preset on the number keys, and only a first start'
     await expect(card(first.page, 'ai').getByTestId('layouts-preset-badge')).toHaveText('on 7')
     await expect(card(first.page, 'cockpit').getByTestId('layouts-preset-badge')).toHaveText('on 8')
     await expect(card(first.page, 'retro').getByTestId('layouts-preset-badge')).toHaveText('on 9')
-    // Tenth, on the last number key.
-    await expect(card(first.page, 'blank').getByTestId('layouts-preset-badge')).toHaveText('on 0')
+    // Tenth, on the last number key; the eleventh is kept with no key (user decision 2026-11-08).
+    await expect(card(first.page, 'cloud').getByTestId('layouts-preset-badge')).toHaveText('on 0')
+    await expect(card(first.page, 'blank').getByTestId('layouts-preset-badge')).toHaveText('kept')
     const remove = first.page.getByTestId('layouts-remove').nth(PRESETS.length - 1)
     await remove.click()
     await remove.click()
@@ -341,7 +344,7 @@ test('blank has no pane: the first comes from the picker, and closing the last l
   const panes = page.getByTestId('pane')
   const empty = page.getByTestId('workspace-empty')
   try {
-    await page.keyboard.press('Control+Shift+F10')
+    await page.keyboard.press('Control+Shift+F11')
     await settleLayout(page)
     await expect(empty).toBeVisible()
     await expect(panes).toHaveCount(0)

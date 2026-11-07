@@ -220,6 +220,10 @@ describe('settings', () => {
         system: true,
         sound: true,
       },
+      aws: { incidents: { notify: true, system: true, minSeverity: 'warn' } },
+      github: {
+        incidents: { notify: true, system: true, minSeverity: 'danger', skip: ['Copilot'] },
+      },
       reminders: {
         notify: true,
         system: true,

@@ -25,12 +25,12 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
 - [状态栏和窗口](#状态栏和窗口)
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：预设作为已保存布局，可见编号 1 到 9（编号 0 的 blank 在更下方），每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F10（blank 是空框）">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：预设作为已保存布局，可见编号 1 到 9（编号 0 的 cloud 和没有编号的 blank 在更下方），每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F11（blank 是空框）">
   <br><sub>布局 (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 **布局** — 每个窗格都可以拖动标题来移动，也可以关闭、分屏、放入标签页、调整大小并恢复；布局会被保存，也可以重置。
-一种排布可以命名保存以便日后回到它（Ctrl+Shift+G，或状态栏中的 *layouts*），也可以从十个[预设](presets.zh-CN.md)
+一种排布可以命名保存以便日后回到它（Ctrl+Shift+G，或状态栏中的 *layouts*），也可以从十一个[预设](presets.zh-CN.md)
 之一开始。
 
 ## 窗格、分屏和标签页
@@ -136,7 +136,7 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
 
 | | |
 | --- | --- |
-| 快捷键 | **Ctrl+Shift+G**（LAYOUTS 对话框）；**Ctrl+Shift+1** … **9**、**0**（前十个）；**Ctrl+Shift+F1** … **F10**（预设） |
+| 快捷键 | **Ctrl+Shift+G**（LAYOUTS 对话框）；**Ctrl+Shift+1** … **9**、**0**（前十个）；**Ctrl+Shift+F1** … **F11**（预设） |
 | 保存位置 | `layouts.json`，最多 20 项 |
 | 设置 | *Settings → General → Layouts* → *ask before switching layout*（默认开启） |
 | 设计 | [architecture.md §5.6](../architecture.md)（日文） |
@@ -157,7 +157,7 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
 - 已保存布局集中在一个文件里，其中不含任何属于本机的内容（shell 的会话已去除）：**把 `layouts.json` 复制到另一台
   电脑，你的排布就跟着过去了。** 对话框中的 *layouts.json* 按钮会在文件管理器中显示它。文件中损坏的条目只丢弃该
   条，其余保留。
-- 列表下方的架子上有十个**预设**。选择一个会添加由它生成的布局；见[布局预设](presets.zh-CN.md#预设如何工作)。
+- 列表下方的架子上有十一个**预设**。选择一个会添加由它生成的布局；见[布局预设](presets.zh-CN.md#预设如何工作)。
 
 ## 外观与体验
 
@@ -224,7 +224,7 @@ Business (Light)，以及像电子纸屏幕一样单色简洁的 Paper——[预
 | --- | --- |
 | ACTION | 与该操作的快捷键相同，可否执行也用同样的判断（以打开面板前获得焦点的窗格为准） |
 | LAYOUT | 应用该已保存布局；与数字键一样，有 shell 打开时先询问 |
-| PRESET | 与 Ctrl+Shift+F1 … F10 一样，转到由该预设生成的布局，没有就添加一个 |
+| PRESET | 与 Ctrl+Shift+F1 … F11 一样，转到由该预设生成的布局，没有就添加一个 |
 | THEME | 应用该主题 |
 | PANE | 能弹出的就弹出，否则添加到右侧；只能有一个且已在布局中的窗格则转到它 |
 | SETTINGS | 在该分区打开设置对话框 |
@@ -304,7 +304,7 @@ Ctrl+Shift+@ / [）。应用自己的列表和提示会按你的键盘印字显�
 | Ctrl+Shift+Backspace | 重置为默认布局（有 shell 打开时先询问） |
 | Ctrl+Shift+G | 已保存布局 |
 | Ctrl+Shift+1 … 9、0 | 按对话框中的顺序应用前十个已保存布局（0 为第十个）；空位时按键留给当前窗格 |
-| Ctrl+Shift+F1 … F10 | 转到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro、blank |
+| Ctrl+Shift+F1 … F11 | 转到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未发布）*、blank |
 | Ctrl+Shift+L | 搜索启动器（布局中没有时弹出一个） |
 | Ctrl+Shift+U | 实用工具窗格：布局中的下一个，没有则弹出；再按一次收起（Linux 上 IBus 可能占用这组按键来按编码输入字符：请重新绑定） |
 | Ctrl+Shift+Y | 带着剪贴板中的文本前往 TRANSLATE 窗格 并立即翻译：布局中的下一个，没有则弹出 |

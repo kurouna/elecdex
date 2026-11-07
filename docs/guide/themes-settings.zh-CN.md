@@ -50,7 +50,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 ![Paper 主题下的 dev 预设，灰色纸面上的墨色文字：正在工作的 AI 代理、打开虚构仓库的 git 窗格，以及用终端的灰色打印其历史和变更的 shell；代理的记录和仓库都是为截图制作的](../screenshots/elecdex-paper.jpg)
 
-每种主题都出现在某张截图里：Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk 和上面的 dev）、Business (Dark)（ai）和 Business (Light)（函数计算器 ELEC-16 SCI）。
+每种主题都出现在某张截图里：Tron（standard、earth）、Amber（blank、CHIP-8）、Phosphor（dev）、White（network、media）、Black（cockpit）、Paper（desk 和上面的 dev）、Business (Dark)（ai）和 Business (Light)（cloud，以及函数计算器 ELEC-16 SCI）。
 
 ## 添加主题
 
@@ -193,6 +193,13 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `reminders.sound` | `true` | 声音（界面音效开启时） |
 | `reminders.snoozeMinutes` | `10` | *snooze* 推迟任务的时长，1 到 1440 分钟 |
 | `reminders.leadMinutes` | `0` | 在截止时间前多少分钟提醒，0 到 1440 |
+| `aws.incidents.notify` | `true` | *未发布。* AWS 的公开状态显示 AWS STATUS 窗格所在区域或全局服务有故障时弹出通知。与地震提醒不同，默认开启，因为只在这样的窗格可见时才读取状态（[云窗格](panes-cloud.zh-CN.md#公开状态与故障通知)） |
+| `aws.incidents.system` | `true` | 窗口不在前台时也发系统通知（从不写出账户名称） |
+| `aws.incidents.minSeverity` | `"warn"` | 通知的最低严重程度：`info`、`warn`（impact、degradation）或 `danger`（disruption） |
+| `github.incidents.notify` | `true` | *未发布。* 对 GitHub 的公开状态做同样的事，在 GITHUB STATUS 窗格可见时 |
+| `github.incidents.system` | `true` | 窗口不在前台时也发系统通知 |
+| `github.incidents.minSeverity` | `"danger"` | `info`、`warn`（GitHub 的 minor）或 `danger`（major 和 critical） |
+| `github.incidents.skip` | `["Copilot"]` | 不通知其故障的组件（最多 30 个名称）；不涉及任何组件的故障总会通知 |
 | `ai.providers` | `[]` | 你列出的 AI 提供方；密钥不保存在这里 |
 | `ai.systemPrompt` | `""` | 在每段对话之前发送 |
 | `ai.compact` | `false` | 对话超出提供方的窗口时，请模型生成摘要 |
@@ -218,6 +225,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `plugins` | `{}` | 按插件 id：是否开启、你同意的权限、设置值（见[插件](plugins-use.zh-CN.md)） |
 
 - 部分分组（ELEC system、LINK、ELEC-16 和 CHIP-8 的值、终端的较新字段）手动编辑出错时，只有出错的那个值会回退为默认值。
+- `aws` 和 `github` 的键可在任一窗格的 ⚙ 中 *Every AWS STATUS pane* / *Every GITHUB STATUS pane* 一栏更改（也可在此手动编辑）。每个窗格读取什么（配置文件、区域、仓库）保存在布局中的窗格里，而不在这里。
 - AI API 密钥不在此文件中：它们由操作系统加密后存入 `ai-keys.json`，因此 `settings.json` 可以复制到另一台机器。
 
 ## 文件位置
@@ -247,6 +255,10 @@ macOS 和 Linux 的路径遵循 Electron 的默认值，尚未经过充分的人
 | `chats/`、`elec/` | AI 对话和 ELEC system 的审议记录 |
 | `git-repos.json`、`log-files.json` | 在 git 和 LOG WATCH 窗格中选择的仓库和日志文件，以 id 标识 |
 | `awake.json` | 实用工具窗格的 AWAKE 保持状态 |
+| `aws-billing.json` | *未发布。* AWS STATUS 按账户保存的：Cost Explorer 的回答、上限和计数，成本 QUOTA 及已通知的档位，以及配置文件对应的账户 |
+| `github-stars.json` | *未发布。* GITHUB STATUS：公开仓库每天的星标数，90 天 |
+| `cloud-alerts.json` | *未发布。* 已通知过的 AWS 和 GitHub 故障，30 天 |
+| `cli-cwd/` | *未发布。* 启动 AWS 和 GitHub CLI 时所在的空文件夹 |
 | `feeds-cache.json` | 每个订阅源最近的 RSS 标题 |
 | `Partitions/web` | 网页窗格的 Cookie 和网站数据，直到 *sign out of all sites* |
 
