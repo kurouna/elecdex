@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   etaText,
+  fetchLine,
   fetchPercent,
   firstSetupStep,
   formatBytes,
+  modelName,
   phaseLamp,
   serverModelFacts,
+  setupAnotherStep,
   shownModel,
   sourceOffset,
   tiers,
@@ -29,6 +32,7 @@ const engine = (over: Partial<EngineView> = {}): EngineView => ({
   externalLoopback: false,
   externalOrigin: null,
   serverModels: [],
+  serverProblem: null,
   own: null,
   fetched: true,
   toFetchBytes: 0,
@@ -65,6 +69,36 @@ describe('translate view', () => {
     expect(shownModel(external({ serverModels: [one, { ...one, name: 'b' }] }), 'x')).toBe(
       'plamo-3-translate-0.8b-kansai, b',
     )
+  })
+
+  it('opens "Set up a model…" at MODEL, never READY of the model in place (review 2026-11-07)', () => {
+    const installed = board({
+      models: board().models.map((m) => ({ ...m, installed: m.id === 'plamo3-2b-q4km' })),
+    })
+    expect(firstSetupStep(installed)).toBe(5)
+    expect(setupAnotherStep(installed)).toBe(2)
+    // Where something is still needed first, that step as before.
+    expect(setupAnotherStep(board({ engine: engine({ fetched: false }) }))).toBe(1)
+  })
+
+  it('says a download at NO MODEL as it stands', () => {
+    const fetch = {
+      kind: 'model' as const,
+      id: 'm',
+      phase: 'downloading' as const,
+      received: 1.32e9,
+      total: 5.28e9,
+      speed: 1,
+      error: null,
+    }
+    expect(fetchLine(fetch)).toBe('The model is being fetched: 25%, 1.32 GB of 5.28 GB.')
+    expect(fetchLine({ ...fetch, phase: 'paused' })).toBe(
+      "The model's download is paused at 1.32 GB of 5.28 GB.",
+    )
+    expect(fetchLine({ ...fetch, kind: 'engine', phase: 'failed', error: 'HTTP 404' })).toBe(
+      "The engine's download failed: HTTP 404.",
+    )
+    expect(modelName('plamo3-2b-q4km')).toBe('plamo-3-translate-2b-q4km')
   })
 
   it("writes a server model's size from what it said, leaving out what it did not", () => {

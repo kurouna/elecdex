@@ -66,6 +66,8 @@ function harness(
     loadPolls?: number
     /** Health checks answer 503 while this is set. */
     hold?: boolean
+    /** An external server's answer to "can it be used": null when it can. */
+    probe?: () => string | null
   } = {},
 ) {
   const servers: FakeServer[] = []
@@ -114,6 +116,7 @@ function harness(
     onPid: (pid) => pids.push(pid),
     stallMs: 60_000,
     pollMs: 250,
+    ...(behaviour.probe ? { probeExternal: async () => behaviour.probe?.() ?? null } : {}),
   }
   const config: EngineConfig = {
     source: 'fetched',
@@ -391,6 +394,49 @@ describe('TranslateEngine', () => {
     await expect(h.engine.ensure()).rejects.toThrow(/does not answer/)
     expect(h.engine.phase).toBe('external-unreachable')
     expect(h.servers).toHaveLength(0)
+  })
+
+  it('asks an external server what it runs before it is ready again, and refuses one not PLaMo', async () => {
+    // Review 2026-11-07: /health alone let text go to a server restarted with another model.
+    let answer: string | null = 'That server does not run a PLaMo 3 Translate model.'
+    const h = harness(
+      { source: 'external', origin: 'http://127.0.0.1:8210', launches: [] },
+      { probe: () => answer },
+    )
+    await expect(h.engine.ensure()).rejects.toThrow(/does not run a PLaMo/)
+    expect(h.engine.phase).toBe('external-unreachable')
+    answer = null
+    await expect(h.engine.ensure()).resolves.toMatchObject({ origin: 'http://127.0.0.1:8210' })
+    expect(h.engine.phase).toBe('external-ready')
+  })
+
+  it('an external server is not restarted by a local model or context changing', async () => {
+    // Review 2026-11-07: a model fetched in the background marked the server untested.
+    const h = harness({ source: 'external', origin: 'http://127.0.0.1:8210', launches: [] })
+    h.engine.tested(true)
+    await h.engine.configure({ ...h.config, modelPath: '/models/other.gguf', ctx: 4096 })
+    expect(h.engine.phase).toBe('external-ready')
+    await h.engine.configure({ ...h.config, origin: 'http://127.0.0.1:8211' })
+    expect(h.engine.phase).toBe('external-untested')
+  })
+
+  it('two changes in a row restart once, and the board says it starts while it does', async () => {
+    // Review 2026-11-07: the second change's end marked the first one's start "stopped".
+    const behaviour: { hold?: boolean } = {}
+    const h = harness({ launches: [launch('cpu')] }, behaviour)
+    await h.engine.ensure()
+    // The next server keeps loading until let go.
+    behaviour.hold = true
+    const one = h.engine.configure({ ...h.config, launches: [launch('cpu')], ctx: 8192 })
+    const two = h.engine.configure({ ...h.config, launches: [launch('cpu')], ctx: 4096 })
+    await Promise.all([one, two])
+    for (let i = 0; i < 4; i++) await settle()
+    expect(h.engine.phase).toBe('starting')
+    behaviour.hold = false
+    for (let i = 0; i < 10; i++) await settle()
+    expect(h.engine.phase).toBe('ready')
+    expect(h.servers.filter((s) => !s.ended)).toHaveLength(1)
+    expect(h.servers.at(-1)?.args).toEqual(expect.arrayContaining(['4096']))
   })
 
   it('stops a server that stopped answering, and starts the CPU build in its place', async () => {

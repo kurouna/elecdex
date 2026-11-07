@@ -9,6 +9,7 @@ import {
   applyBlockPatch,
   type BlockPatch,
   type BlockView,
+  HIDDEN_REASON,
   mergeTripPatch,
   type RunEvent,
   type RunRequest,
@@ -177,8 +178,7 @@ export class TranslateRuns {
 
   /** The pane went out of sight while LIVE was writing: it stops, as STOP does (§8.5). */
   cancelLive(paneId: string): void {
-    if (this.#runs.get(paneId)?.view.mode === 'live')
-      this.stop(paneId, 'Stopped: the pane was hidden.')
+    if (this.#runs.get(paneId)?.view.mode === 'live') this.stop(paneId, HIDDEN_REASON)
   }
 
   /**
@@ -258,6 +258,9 @@ export class TranslateRuns {
     paneId: string,
     view: Omit<RunView, 'paneId' | 'version' | 'state' | 'reason' | 'mode'>,
   ): number {
+    // A TRANSLATE still writing is stopped first, so what it wrote is recorded as partial (§7).
+    if (this.#runs.get(paneId)?.view.mode === 'translate')
+      this.stop(paneId, 'Stopped: a history entry was opened.')
     const old = this.#runs.get(paneId)
     if (old) this.#retire(old)
     this.#queue = this.#queue.filter((id) => id !== paneId)
@@ -448,6 +451,14 @@ export class TranslateRuns {
   }
 
   #finish(run: Run): void {
+    // Blocks left unwritten (STOP, then RETRY of one of them) keep the run stopped: a translation
+    // with gaps is never shown, nor recorded, as done (§3, review 2026-11-07).
+    if (run.view.blocks.some((block) => block.state === 'none' || block.state === 'stopped')) {
+      this.#setState(run, 'stopped', 'Not every block is translated.')
+      this.#flushNow(run)
+      if (run.view.mode === 'translate') this.#recorded(run)
+      return
+    }
     this.#setState(run, 'done', null)
     this.#flushNow(run)
     this.#ended(run)
@@ -678,21 +689,15 @@ export class TranslateRuns {
       return
     }
     const external = this.#deps.external()
-    if (external) this.#deps.unreachable()
-    const reason = external
-      ? `The server does not answer (${message}).`
-      : error instanceof NoStopError
-        ? message
-        : error instanceof ServerAnswerError
-          ? `The engine refused the request: ${message}`
-          : `The engine stopped: ${message}`
+    const reason = failureReason(error, message, external)
+    if (reason.unreachable) this.#deps.unreachable()
     const block = run.view.blocks[index]
     this.#patch(run, {
       index,
       state: block && block.text !== '' ? 'failed' : 'none',
       note: message,
     })
-    this.stop(run.view.paneId, reason)
+    this.stop(run.view.paneId, reason.text)
   }
 
   #setState(run: Run, state: RunState, reason: string | null): void {
@@ -839,4 +844,25 @@ function inherit(run: Run, old: Run): void {
       trip: found.trip?.state === 'done' ? found.trip : null,
     }
   })
+}
+
+/**
+ * Why a run stopped on a failed block, and whether the external server is unreachable: one that
+ * answered (an HTTP error, a stream cut short) is still there, only one that did not answer is
+ * unreachable (review 2026-11-07).
+ */
+function failureReason(
+  error: unknown,
+  message: string,
+  external: boolean,
+): { text: string; unreachable: boolean } {
+  const answered = error instanceof ServerAnswerError || error instanceof NoStopError
+  if (external && !answered)
+    return { text: `The server does not answer (${message}).`, unreachable: true }
+  if (error instanceof NoStopError) return { text: message, unreachable: false }
+  if (error instanceof ServerAnswerError) {
+    const who = external ? 'server' : 'engine'
+    return { text: `The ${who} refused the request: ${message}`, unreachable: false }
+  }
+  return { text: `The engine stopped: ${message}`, unreachable: false }
 }

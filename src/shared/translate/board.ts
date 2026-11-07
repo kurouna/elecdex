@@ -51,6 +51,8 @@ export interface EngineView {
    * answers again: empty for elecdex's own engines, and until TEST passes.
    */
   serverModels: ServerModel[]
+  /** Why the external server cannot be used, as last heard (not PLaMo, a key, no answer). */
+  serverProblem: string | null
   /** The user's own llama-server: its file name and build, once chosen. */
   own: { name: string; build: number } | null
   /** Whether the engine elecdex fetches is in place. */

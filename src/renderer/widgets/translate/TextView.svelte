@@ -6,8 +6,9 @@ import { detectLanguage } from '@shared/translate/detect'
 import { type Glossary, glossaryApplies, MAX_CONTEXT_CHARS } from '@shared/translate/glossary'
 import { continuesDraft } from '@shared/translate/history'
 import { isSourceLang, isTargetLang, takesForm } from '@shared/translate/languages'
-import type { BlockView, RunView } from '@shared/translate/run'
+import { type BlockView, HIDDEN_REASON, type RunView } from '@shared/translate/run'
 import { tick, untrack } from 'svelte'
+import { chordHint } from '../../lib/chord-hint.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
@@ -25,8 +26,10 @@ import {
 import {
   blockNumber,
   direction,
+  fetchLine,
   langCode,
   langName,
+  modelName,
   phaseLamp,
   shownModel,
   sourceInfo,
@@ -409,7 +412,7 @@ let liveTimer: ReturnType<typeof setTimeout> | null = null
 function liveRun(): void {
   if (liveTimer !== null) clearTimeout(liveTimer)
   liveTimer = null
-  if (!live || !canRun) return
+  if (!live || !canRun || !visible) return
   liveTimer = setTimeout(() => {
     liveTimer = null
     void ask('live')
@@ -420,8 +423,21 @@ $effect(() => () => {
   if (liveTimer !== null) clearTimeout(liveTimer)
 })
 
-// A change of language, form or glossary asks again too, once there is something written - not
-// the first look at them when the pane mounts (a moved pane would ask for nothing new).
+// Nothing LIVE starts unseen (§4.3): typing just before the pane went out of sight asks nothing,
+// and a LIVE run stopped by that is asked again once the pane is seen (review 2026-11-07).
+$effect(() => {
+  if (!visible) {
+    if (liveTimer !== null) clearTimeout(liveTimer)
+    liveTimer = null
+    return
+  }
+  const r = untrack(() => run)
+  if (r?.mode === 'live' && r.state === 'stopped' && r.reason === HIDDEN_REASON) untrack(liveRun)
+})
+
+// A change of language, form or glossary asks again too while LIVE is on and there is text,
+// however the last translation was asked - not the first look at them when the pane mounts (a
+// moved pane would ask for nothing new).
 let settled = false
 $effect(() => {
   void [srcLang, tgtLang, form, glossaryId]
@@ -429,7 +445,7 @@ $effect(() => {
     settled = true
     return
   }
-  if (untrack(() => run !== null && run.mode === 'live' && text.trim() !== '')) untrack(liveRun)
+  if (untrack(() => text.trim() !== '')) untrack(liveRun)
 })
 
 // ---------------------------------------------------------------------------
@@ -700,7 +716,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
         type="button"
         class="swap"
         aria-label="Swap the languages"
-        disabled={swapped(detected ?? srcLang, tgtLang) === null}
+        disabled={busy || swapped(detected ?? srcLang, tgtLang) === null}
         data-testid="translate-swap"
         onclick={swap}
       >
@@ -708,11 +724,14 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
       </button>
       {@render language('tgt', tgtLang)}
     </div>
-    <div class="form" class:off={!takesForm(tgtLang)} data-testid="translate-form">
+    <!-- Only into Japanese (§3): for any other target there is no form, so none is offered. -->
+    {#if takesForm(tgtLang)}
+    <div class="form" data-testid="translate-form">
       <span>Form</span>
       <button type="button" aria-pressed={form === 'plain'} onclick={() => widgetState.patch(paneId, { form: 'plain' })}>Plain<small>だ・である</small></button>
       <button type="button" aria-pressed={form === 'polite'} onclick={() => widgetState.patch(paneId, { form: 'polite' })}>Polite<small>です・ます</small></button>
     </div>
+    {/if}
     <span class="spacer"></span>
     <div class="opts">
       <button type="button" class="tog" aria-pressed={drawer === 'glossary'} data-testid="translate-glossary-toggle" onclick={() => toggleDrawer('glossary')}>
@@ -820,15 +839,21 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
               <span class="state"><i class="lamp {lamp.kind}"></i>{lamp.word}</span>
               <span class="big">PLaMo 3 Translate</span>
               <span class="host">Runs on this PC through llama.cpp. Setting up fetches the engine and a model once; after that nothing you translate leaves this machine.</span>
-              <button type="button" class="command" data-testid="translate-setup-open" onclick={onsetup}>&gt; set up translation</button>
+              <!-- A download under way, paused or failed is said here, not hidden behind NO MODEL. -->
+              {#if board.fetch}
+                <span class="hint" data-testid="translate-standby-fetch">{fetchLine(board.fetch)}</span>
+                <button type="button" class="command" data-testid="translate-setup-open" onclick={onsetup}>&gt; {board.fetch.phase === 'downloading' || board.fetch.phase === 'verifying' || board.fetch.phase === 'placing' ? 'see the download' : 'go on with the download'}</button>
+              {:else}
+                <button type="button" class="command" data-testid="translate-setup-open" onclick={onsetup}>&gt; set up translation</button>
+              {/if}
             </div>
           {:else if mode === 'empty'}
             <div class="standby" data-testid="translate-standby">
               <span class="state"><i class="lamp {lamp.kind}"></i>{lamp.word}</span>
               <span class="big">Awaiting input</span>
-              <span class="host" data-testid="translate-standby-model">{shownModel(board, board.selectedModel)}{board.engine.build ? ` · ${board.engine.build}` : ''}{board.engine.backend ? ` · ${board.engine.backend}` : ''}</span>
-              {#if board.engine.phase === 'fault'}<span class="problem">{board.engine.error}</span>{/if}
-              <span class="hint">Type or paste on the left. <kbd>Ctrl+Enter</kbd> translates, block by block; <kbd>Ctrl+.</kbd> stops.</span>
+              <span class="host" data-testid="translate-standby-model">{shownModel(board, modelName(board.selectedModel))}{board.engine.build ? ` · ${board.engine.build}` : ''}{board.engine.backend ? ` · ${board.engine.backend}` : ''}</span>
+              {#if board.engine.phase === 'fault'}<span class="problem">{board.engine.error}</span><button type="button" class="command" onclick={() => void api.engineRestart()}>&gt; restart the engine</button>{/if}
+              <span class="hint">Type or paste on the left. <kbd>Ctrl+Enter</kbd> translates, block by block; <kbd>Ctrl+.</kbd> stops. {chordHint('From anywhere, the clipboard’s text is brought here', 'translate.focus')}.</span>
             </div>
           {:else if mode === 'boot'}
             <div class="boot" data-testid="translate-boot">
@@ -864,7 +889,8 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
               <p class="reason" data-testid="translate-trip-needs-lang">Round trip: choose the source language; AUTO could not tell it.</p>
             {/if}
             {#if run.state === 'stopped' && run.reason}
-              <p class="reason" data-testid="translate-reason">{run.reason} <kbd>Ctrl+Enter</kbd> translates again.</p>
+              <!-- At fault, Ctrl+Enter cannot start the engine: the way on is RESTART (review 2026-11-07). -->
+              <p class="reason" data-testid="translate-reason">{run.reason} {#if board.engine.phase === 'fault'}<button type="button" class="btn lit" data-testid="translate-reason-restart" onclick={() => void api.engineRestart()}>Restart engine</button>{:else}<kbd>Ctrl+Enter</kbd> translates again.{/if}</p>
             {/if}
           {/if}
         </div>
@@ -931,7 +957,6 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 .form button { background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.45rem; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
 .form button small { font-size: var(--step--2); letter-spacing: 0; margin-left: 0.25rem; opacity: 0.75; text-transform: none; }
 .form button[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
-.form.off { opacity: 0.35; pointer-events: none; }
 .opts { display: flex; gap: var(--space-1); flex-wrap: wrap; }
 .tog { display: inline-flex; align-items: center; gap: 0.3rem; background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.5rem; color: var(--text-muted); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
 .tog em { font-style: normal; font-family: var(--font-mono); color: var(--accent-strong); }

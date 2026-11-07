@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { rm, statfs } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import os from 'node:os'
@@ -143,9 +143,10 @@ export class TranslateService {
   #checking: Promise<void> | null = null
   /** What the external server runs and its context, as last read; nothing until TEST passes. */
   #server: ServerRead = { models: [], ctx: null }
-  /** TEST is reading the server: the ready it brings is not a server answering again. */
-  #testing = false
-  #lastPhase: string | null = null
+  /** Why the external server cannot be used, as last heard (not PLaMo, a key, no answer). */
+  #serverProblem: string | null = null
+  /** A CANCEL letting go of its `.part`: no fetch starts until it has (review 2026-11-07). */
+  #cancelling = false
   /** Models being agreed to now: no fetch of theirs starts until the agreement is written. */
   readonly #agreeing = new Set<string>()
 
@@ -166,6 +167,7 @@ export class TranslateService {
     this.engine = new TranslateEngine(this.#config(), {
       spawn: (launch, args, envVars) => spawnServer(launch, args, envVars),
       health: (origin, key) => health(origin, key),
+      probeExternal: (origin) => this.#probeExternal(origin),
       listDevices: (launch) => this.#listDevices(launch),
       freePort,
       randomKey: () => randomBytes(24).toString('hex'),
@@ -203,6 +205,7 @@ export class TranslateService {
         for (const listener of this.#runListeners) listener(event)
       },
     })
+    this.#pausedOnDisk()
     void sweepTemps(this.#root)
     void endOrphan(left, {
       processName: (pid) => (env.processName ?? processName)(pid),
@@ -216,6 +219,33 @@ export class TranslateService {
 
   get models(): readonly ModelEntry[] {
     return this.#models
+  }
+
+  /**
+   * The selected model's `.part`, left by a fetch paused or by elecdex quitting, is shown paused
+   * for RESUME (§5: never taken up by itself), with no new agreement (review 2026-11-07: it used
+   * to be forgotten, and the whole setup walked again).
+   */
+  #pausedOnDisk(): void {
+    const model = this.#selectedModel()
+    const total = model ? this.#file.read().consents[model.id]?.bytes : undefined
+    if (!model || total === undefined) return
+    let received: number
+    try {
+      received = statSync(partOf(this.#modelPath(model))).size
+    } catch {
+      return
+    }
+    this.#fetch = {
+      kind: 'model',
+      id: model.id,
+      phase: 'paused',
+      received,
+      total,
+      speed: 0,
+      error: null,
+    }
+    this.#paused = { kind: 'model', id: model.id }
   }
 
   onChange(listener: () => void): () => void {
@@ -272,7 +302,11 @@ export class TranslateService {
       })),
       tail: view.tail,
       partial: view.state === 'done' ? null : { done, total: view.blocks.length },
-      model: this.#settings.modelId,
+      // The model that wrote it: an external server's own, never the one chosen here.
+      model:
+        this.#file.read().source === 'external'
+          ? (this.#server.models[0]?.name ?? 'external server').slice(0, 64)
+          : this.#settings.modelId,
     }
     this.library.record(entry)
   }
@@ -317,6 +351,10 @@ export class TranslateService {
 
   restartEngine(): Promise<void> {
     this.runs.stopAll('The engine was restarted.')
+    // RESTART asks the builds for their GPUs again: a driver installed since is found (review
+    // 2026-11-07; the answer was kept for good).
+    const file = this.#file.read()
+    if (Object.keys(file.devices).length > 0) this.#file.write({ ...file, devices: {} })
     return this.engine.restart()
   }
 
@@ -535,6 +573,7 @@ export class TranslateService {
     if (kind === 'external' && !file.external) throw new Error('Test a server address first.')
     // Chosen again untested, the server's models are read again when it answers.
     this.#server = { models: [], ctx: null }
+    this.#serverProblem = null
     this.#file.write({ ...file, source: kind })
     void this.#reconfigure('The engine was changed.')
     this.#changed()
@@ -561,37 +600,39 @@ export class TranslateService {
   ): Promise<{ ok: true; host: string } | { ok: false; problem: string }> {
     const parsed = parseExternalUrl(raw)
     if (!parsed.ok) return parsed
-    this.#testing = true
-    try {
-      const read = await readServer(parsed.origin)
-      if ('problem' in read) {
-        const problem =
-          read.problem === 'nothing' ? `Nothing answered at ${parsed.host}.` : read.problem
-        return { ok: false, problem }
-      }
-      this.#server = read
-      const current = this.#file.read()
-      this.#file.write({ ...current, external: { origin: parsed.origin }, source: 'external' })
-      // After the change has taken: the restart it causes would otherwise mark the server untested again.
-      await this.#reconfigure('The engine was changed.')
-      this.engine.tested(true)
-      this.#changed()
-      return { ok: true, host: parsed.host }
-    } finally {
-      this.#testing = false
+    const read = await readServer(parsed.origin)
+    if ('problem' in read) {
+      const problem =
+        read.problem === 'nothing' ? `Nothing answered at ${parsed.host}.` : read.problem
+      return { ok: false, problem }
     }
+    this.#server = read
+    this.#serverProblem = null
+    const current = this.#file.read()
+    this.#file.write({ ...current, external: { origin: parsed.origin }, source: 'external' })
+    // After the change has taken: the restart it causes would otherwise mark the server untested again.
+    await this.#reconfigure('The engine was changed.')
+    this.engine.tested(true)
+    this.#changed()
+    return { ok: true, host: parsed.host }
   }
 
   /**
-   * Reads again what the external server runs (ENGINE opened, or the server answers again): it
-   * may have been started with another model since. Nothing answering keeps what was read.
+   * Reads again what the external server runs (ENGINE opened): it may have been started with
+   * another model since. One that no longer runs PLaMo 3 Translate is not used until it does
+   * (review 2026-11-07); one that does not answer keeps what was read, and its next request says.
    */
   async refreshServer(): Promise<void> {
     const file = this.#file.read()
     if (file.source !== 'external' || !file.external) return
     if (this.engine.phase !== 'external-ready') return
     const read = await readServer(file.external.origin)
-    if ('problem' in read || this.#file.read().external?.origin !== file.external.origin) return
+    if (this.#file.read().external?.origin !== file.external.origin) return
+    if ('problem' in read) {
+      if (read.problem === 'nothing') return
+      this.#unusable(read.problem)
+      return
+    }
     if (JSON.stringify(read) === JSON.stringify(this.#server)) return
     this.#server = read
     // The answer's wait follows the model's size (answerStallMs); nothing restarts for it.
@@ -599,8 +640,35 @@ export class TranslateService {
     this.#changed()
   }
 
+  /**
+   * The engine's probe of an external server before it is used again: it must answer and run
+   * PLaMo 3 Translate, and what it runs is read anew. Null when it can be used, else why not.
+   */
+  async #probeExternal(origin: string): Promise<string | null> {
+    const read = await readServer(origin)
+    if ('problem' in read) {
+      const problem =
+        read.problem === 'nothing' ? `The server at ${origin} does not answer.` : read.problem
+      this.#serverProblem = problem
+      return problem
+    }
+    this.#server = read
+    this.#serverProblem = null
+    void this.engine.configure(this.#config())
+    return null
+  }
+
+  #unusable(problem: string): void {
+    this.#serverProblem = problem
+    this.#server = { models: [], ctx: null }
+    this.runs.stopAll(problem)
+    this.engine.tested(false)
+    this.#changed()
+  }
+
   /** Why a fetch cannot start now, or null: asked before starting one, so the page hears it. */
   fetchProblem(): string | null {
+    if (this.#cancelling) return 'The download is being cancelled: a moment, please.'
     const model = this.#selectedModel()
     if (!model) return 'No such model.'
     // An agreement made before commits were followed names no file: it is asked again.
@@ -622,6 +690,8 @@ export class TranslateService {
   async #fetchSelected(): Promise<void> {
     const model = this.#selectedModel()
     if (!model || this.fetchProblem()) return
+    // A fetch paused before elecdex last quit is taken up from its `.part` (§5).
+    if (this.#fetch?.phase === 'paused') this.#fetch = { ...this.#fetch, phase: 'downloading' }
     const controller = new AbortController()
     this.#fetchAbort = controller
     this.#paused = null
@@ -663,16 +733,25 @@ export class TranslateService {
   async cancelFetch(): Promise<void> {
     const fetching = this.#fetch
     this.#paused = null
-    this.#fetchAbort?.abort()
-    await this.#fetchRun?.catch(() => {})
-    this.#fetch = null
-    const model =
-      fetching?.kind === 'model' ? this.#models.find((m) => m.id === fetching.id) : undefined
-    const engine =
-      fetching?.kind === 'engine' ? this.#engines.find((e) => e.target === fetching.id) : undefined
-    if (model) await rm(partOf(this.#modelPath(model)), { force: true })
-    if (engine) await rm(partOf(this.#archivePath(engine)), { force: true })
-    this.#changed()
+    // Until the `.part` is gone no fetch starts: a RESUME pressed meanwhile would write into the
+    // file this removes (review 2026-11-07).
+    this.#cancelling = true
+    try {
+      this.#fetchAbort?.abort()
+      await this.#fetchRun?.catch(() => {})
+      this.#fetch = null
+      const model =
+        fetching?.kind === 'model' ? this.#models.find((m) => m.id === fetching.id) : undefined
+      const engine =
+        fetching?.kind === 'engine'
+          ? this.#engines.find((e) => e.target === fetching.id)
+          : undefined
+      if (model) await rm(partOf(this.#modelPath(model)), { force: true })
+      if (engine) await rm(partOf(this.#archivePath(engine)), { force: true })
+    } finally {
+      this.#cancelling = false
+      this.#changed()
+    }
   }
 
   async removeModel(modelId: string): Promise<void> {
@@ -697,6 +776,8 @@ export class TranslateService {
     this.engine.begin()
     try {
       const response = await fetch(`${endpoint.origin}/completion`, {
+        // Never followed elsewhere (§4.1), and as long as any answer may take for this model.
+        redirect: 'error',
         method: 'POST',
         headers: authHeaders(endpoint.key),
         body: JSON.stringify({
@@ -706,7 +787,7 @@ export class TranslateService {
           stop: PFML_STOP,
           cache_prompt: false,
         }),
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(this.engine.answerStallMs()),
       })
       if (!response.ok) throw new Error(`The engine answered HTTP ${response.status}.`)
       const body = (await response.json()) as {
@@ -1031,6 +1112,7 @@ export class TranslateService {
       externalLoopback: external?.ok ? external.loopback : false,
       externalOrigin: external?.ok ? external.origin : null,
       serverModels: file.source === 'external' ? this.#server.models : [],
+      serverProblem: file.source === 'external' ? this.#serverProblem : null,
       own: file.own ? { name: path.basename(file.own.path), build: file.own.build } : null,
       fetched:
         Boolean(this.#env.stubServer) ||
@@ -1065,11 +1147,6 @@ export class TranslateService {
   }
 
   #changed(): void {
-    // An external server that answers again may have been started with another model.
-    const phase = this.engine.phase
-    if (phase === 'external-ready' && this.#lastPhase !== phase && !this.#testing)
-      void this.refreshServer()
-    this.#lastPhase = phase
     for (const listener of this.#listeners) listener()
   }
 }
@@ -1116,6 +1193,7 @@ function spawnServer(
 async function health(origin: string, key: string | null): Promise<number | null> {
   try {
     const response = await fetch(`${origin}/health`, {
+      redirect: 'error',
       headers: authHeaders(key),
       signal: AbortSignal.timeout(2000),
     })

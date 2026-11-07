@@ -29,10 +29,12 @@ interface Props {
   chosen: string
   onselect: (modelId: string) => void
   oncommit: () => Promise<void>
+  /** FETCH's CANCEL went through: the model in use before it may be put back. */
+  oncancelled?: () => void
   ondone: () => void
 }
 
-const { board, step, chosen, onstep, onselect, oncommit, ondone }: Props = $props()
+const { board, step, chosen, onstep, onselect, oncommit, oncancelled, ondone }: Props = $props()
 const api = window.elecdex.translate
 
 const STEPS = ['Engine', 'Model', 'Licence', 'Fetch', 'Ready']
@@ -276,7 +278,7 @@ const nextDisabled = $derived(
             {:else}
               <button type="button" class="btn" onclick={() => void api.pause()}>Pause</button>
             {/if}
-            <button type="button" class="btn" onclick={() => void api.cancelFetch().then(() => onstep(2))}>Cancel</button>
+            <button type="button" class="btn" onclick={() => void api.cancelFetch().then(() => { oncancelled?.(); onstep(2) })}>Cancel</button>
             <span class="small">Picks up where it stopped after a pause, a lost connection or a restart.</span>
           </div>
         {/if}

@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -109,6 +110,32 @@ describe('TranslateService and the history', () => {
       model: MODEL.id,
       blocks: [{ source: 'Hello.', text: '[ja] Hello.', done: true }],
     })
+  })
+
+  it("records an external server's own model, not the one chosen here", async () => {
+    // Review 2026-11-07: the entry named elecdex's choice, which the text never went through.
+    const port = 40_000 + Math.floor(Math.random() * 10_000)
+    const ext = spawn(
+      process.execPath,
+      [STUB, '--port', String(port), '-m', '/m/plamo-3-translate-8b-x.gguf'],
+      {
+        stdio: 'ignore',
+        env: { ...process.env, LLAMA_API_KEY: '' },
+      },
+    )
+    try {
+      const s = make()
+      const origin = `http://127.0.0.1:${port}`
+      await expect
+        .poll(async () => (await s.testExternal(origin)).ok, { timeout: 15_000 })
+        .toBe(true)
+      s.runs.follow('p1')
+      s.runs.start(request('p1', 'Hello.'))
+      await expect.poll(() => s.library.history().length, { timeout: 15_000 }).toBe(1)
+      expect(s.library.history()[0]?.model).toBe('plamo-3-translate-8b-x.gguf')
+    } finally {
+      ext.kill()
+    }
   })
 
   it('records nothing while the history is turned off', async () => {

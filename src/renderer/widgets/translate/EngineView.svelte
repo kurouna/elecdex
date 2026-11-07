@@ -4,7 +4,14 @@ import type { TranslateBoard } from '@shared/translate/board'
 import { MODELS } from '@shared/translate/models'
 import { CTX_SIZES, IDLE_MINUTES } from '@shared/translate/settings'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { formatBytes, phaseLamp, serverModelFacts } from './translate-view.ts'
+import {
+  FIT_WORD,
+  formatBytes,
+  modelFit,
+  modelName,
+  phaseLamp,
+  serverModelFacts,
+} from './translate-view.ts'
 
 /**
  * ENGINE (docs/translate.md §3): where the engine comes from, its state, the models, how it runs,
@@ -17,8 +24,8 @@ interface Props {
   /** The model chosen here: the settings' until another is picked, written only by DONE. */
   chosen: string
   onpick: (modelId: string) => void
-  /** Opens SETUP, at a step when one is given. */
-  onsetup: (step?: number) => void
+  /** Opens SETUP, at a step when one is given; `another` to set up another model (never READY). */
+  onsetup: (step?: number | 'another') => void
   /** UPDATE: a model in place set up again at its newest commit, from LICENCE (§5). */
   onupdate: (modelId: string) => void
   ondone: () => void
@@ -39,35 +46,60 @@ const selectedInPlace = $derived(
 let logs = $state<string[]>([])
 let address = $state('')
 let problem = $state<string | null>(null)
+/** The model whose DELETE was pressed once: a second press removes it (review 2026-11-07). */
+let deleting = $state<string | null>(null)
 
+// The log follows the engine: every boot line while it starts, else each change of state.
 $effect(() => {
   void board.engine.phase
+  void board.engine.bootLines.length
   void api.logs().then((lines) => {
-    logs = lines.slice(-12)
+    logs = lines.slice(-50)
   })
 })
 
 const lamp = $derived(phaseLamp(board.engine.phase))
 const external = $derived(board.engine.source === 'external')
+const phase = $derived(board.engine.phase)
+/** The settings' model, which runs: marked "in use" beside the one chosen here (§3). */
+const inUse = $derived(board.selectedModel)
 
 function patch(change: Partial<Settings['translate']>): void {
   void appearance.patch({ translate: change })
 }
 
-async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
+/** A source chosen before is switched to at once; its file or address is picked or tested apart. */
+async function setSource(kind: 'fetched' | 'own'): Promise<void> {
   problem = null
-  if (kind === 'own') {
-    const picked = await api.pickOwn()
-    if (picked && 'problem' in picked) problem = picked.problem
-    return
-  }
-  if (kind === 'external') {
-    const answer = await api.testExternal(address || board.engine.externalOrigin || '')
-    if (!answer.ok) problem = answer.problem
-    return
-  }
+  if (kind === 'own' && !board.engine.own) return chooseOwn()
   const answer = await api.setSource(kind)
   if (answer) problem = answer.problem
+}
+
+async function chooseOwn(): Promise<void> {
+  problem = null
+  const picked = await api.pickOwn()
+  if (picked && 'problem' in picked) problem = picked.problem
+}
+
+async function test(): Promise<void> {
+  problem = null
+  const answer = await api.testExternal(address || board.engine.externalOrigin || '')
+  if (!answer.ok) problem = answer.problem
+  else address = ''
+}
+
+function remove(modelId: string): void {
+  if (deleting !== modelId) {
+    deleting = modelId
+    return
+  }
+  deleting = null
+  void api.removeModel(modelId)
+}
+
+function copyLog(): void {
+  void navigator.clipboard?.writeText(logs.join('\n')).catch(() => {})
 }
 </script>
 
@@ -88,16 +120,21 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
         <i class="rd"></i><b>Fetched by elecdex</b>
         <span class="mono">llama.cpp {board.engine.build ?? ''} · {board.engine.fetched ? 'in place' : 'not fetched yet'}</span>
       </button>
-      <button type="button" class="opt" class:on={board.engine.source === 'own'} onclick={() => void setSource('own')}>
-        <i class="rd"></i><b>My own llama-server</b>
-        <span class="mono">{board.engine.own ? `${board.engine.own.name} · b${board.engine.own.build}` : 'choose the file…'}</span>
-      </button>
-      <div class="opt" class:on={external}>
-        <i class="rd"></i><b>A server already running</b>
+      <div class="opt" class:on={board.engine.source === 'own'}>
+        <button type="button" class="pick" onclick={() => void setSource('own')}><i class="rd"></i><b>My own llama-server</b></button>
         <span class="row">
-          <input class="field" bind:value={address} placeholder={board.engine.externalOrigin ?? 'http://192.168.1.20:8080'} aria-label="Server address" />
-          <button type="button" class="btn" onclick={() => void setSource('external')}>Test</button>
+          <span class="mono">{board.engine.own ? `${board.engine.own.name} · b${board.engine.own.build}` : 'no file chosen'}</span>
+          <button type="button" class="btn" onclick={() => void chooseOwn()}>Choose…</button>
         </span>
+      </div>
+      <div class="opt" class:on={external}>
+        <span class="pick"><i class="rd"></i><b>A server already running</b></span>
+        {#if board.engine.externalOrigin}<span class="mono" data-testid="translate-external-saved">{external ? 'In use' : 'Tested'}: {board.engine.externalOrigin}</span>{/if}
+        <span class="row">
+          <input class="field" bind:value={address} placeholder={board.engine.externalOrigin ?? 'http://192.168.1.20:8080'} aria-label="Server address" onkeydown={(e) => { if (e.key === 'Enter' && !e.isComposing) void test() }} />
+          <button type="button" class="btn" onclick={() => void test()}>Test</button>
+        </span>
+        <span class="small">Test checks the address and, when it runs PLaMo 3 Translate, sends every translation there.</span>
       </div>
       {#if problem}<p class="problem">{problem}</p>{/if}
     </div>
@@ -108,9 +145,14 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
       {#if board.engine.fallback}<span class="small">{board.engine.fallback}</span>{/if}
       {#if board.engine.error}<span class="problem">{board.engine.error}</span>{/if}
       {#if !external}
+        <!-- STOP while it starts too (a large model loads for minutes); START from standby. -->
         <span class="row">
-          <button type="button" class="btn" disabled={board.engine.phase !== 'ready'} onclick={() => void api.engineStop()}>Stop</button>
-          <button type="button" class="btn" disabled={board.engine.phase === 'absent'} onclick={() => void api.engineRestart()}>Restart</button>
+          <button type="button" class="btn" data-testid="translate-engine-stop" disabled={phase !== 'ready' && phase !== 'starting'} onclick={() => void api.engineStop()}>Stop</button>
+          {#if phase === 'stopped'}
+            <button type="button" class="btn" data-testid="translate-engine-start" onclick={() => void api.engineStart()}>Start</button>
+          {:else}
+            <button type="button" class="btn" disabled={phase === 'absent' || phase === 'stopping'} onclick={() => void api.engineRestart()}>Restart</button>
+          {/if}
         </span>
       {/if}
     </div>
@@ -129,6 +171,10 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
             <span></span>
           {/each}
         </div>
+      {:else if board.engine.serverProblem}
+        <span class="problem">{board.engine.serverProblem}</span>
+      {:else if board.engine.phase === 'external-unreachable'}
+        <span class="small">The server at {board.engine.externalHost} does not answer.</span>
       {:else}
         <span class="small">Test the server to see the model it runs.</span>
       {/if}
@@ -138,23 +184,30 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
       <div class="models">
         {#each MODELS as model (model.id)}
           {@const state = board.models.find((m) => m.id === model.id)}
+          {@const fit = modelFit(model, board.machine.ramGB, board.machine.vramGB)}
           <i class="rd" class:on={model.id === chosen}></i>
           <button type="button" class="name" onclick={() => onpick(model.id)}>{model.params} {model.quant}</button>
-          <span class="mono muted">{formatBytes(model.bytes)}</span>
+          <span class="mono muted">{formatBytes(model.bytes)}{#if fit !== 'fits'} · <span class:warn={fit === 'too-big'}>{FIT_WORD[fit]}</span>{/if}</span>
           {#if state?.installed}
             <span class="acts">
+              {#if model.id === inUse}<span class="tag" data-testid="translate-in-use">in use</span>{/if}
               {#if state.update}
                 <button type="button" class="btn lit" data-testid="translate-update" onclick={() => onupdate(model.id)}>Update</button>
                 <span class="small">newer, {state.update.date?.slice(0, 10) ?? 'out now'}</span>
               {/if}
-              <button type="button" class="btn" onclick={() => void api.removeModel(model.id)}>Delete</button>
+              <!-- Gigabytes, and the model in use stops the engine: a second press removes it. -->
+              <button type="button" class="btn" class:warn={deleting === model.id} data-testid="translate-delete" onclick={() => remove(model.id)} onblur={() => { if (deleting === model.id) deleting = null }}>{deleting === model.id ? (model.id === inUse ? 'Delete, stopping the engine?' : `Delete ${formatBytes(model.bytes)}?`) : 'Delete'}</button>
             </span>
           {:else}
             <span class="small">{state && state.partialBytes > 0 ? `${formatBytes(state.partialBytes)} fetched` : model.id === chosen ? 'not fetched' : ''}</span>
           {/if}
         {/each}
       </div>
-      <button type="button" class="btn" onclick={() => onsetup()}>Set up a model…</button>
+      <!-- The choice waits for DONE (user's request 2026-11-06): said, so it is not taken for made. -->
+      {#if chosen !== inUse}
+        <span class="small pending" data-testid="translate-model-pending">{modelName(chosen)} is chosen: {selectedInPlace ? 'Done switches to it' : 'Set up this model › fetches it'}; leaving otherwise keeps {modelName(inUse)}.</span>
+      {/if}
+      <button type="button" class="btn" onclick={() => onsetup('another')}>Set up a model…</button>
     </div>
     {/if}
 
@@ -181,18 +234,29 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
           {#each IDLE_MINUTES as minutes (minutes)}<option value={minutes}>{minutes === 0 ? 'never' : `${minutes} min`}</option>{/each}
         </select>
       </label>
+      <span class="small note" data-testid="translate-run-note">Context and Device restart the engine and stop any translation under way; Stop when idle applies at once.</span>
     </div>
     {/if}
 
     <span class="lbl">Log</span>
-    <div class="val"><pre class="log">{logs.join('\n')}</pre></div>
+    <div class="val">
+      <pre class="log" data-testid="translate-log">{logs.join('\n')}</pre>
+      {#if logs.length > 0}<button type="button" class="btn" onclick={copyLog}>Copy log</button>{/if}
+    </div>
 
     <span class="lbl">Licence</span>
     <div class="val">
       <span>Model: PLaMo Community License · Built with PLaMo · <button data-press="off" type="button" class="link" onclick={() => void api.openLicence('plamo')}>read it ↗</button></span>
-      <!-- An external server is not elecdex's build: its licences are its own. -->
+      <!-- §3: the agreement recorded for each model in place (its log is translate/licence-consents.txt). -->
       {#if !external}
-      <span>Engine: llama.cpp, MIT · <button data-press="off" type="button" class="link" onclick={() => void api.openLicence('llama')}>read it ↗</button> · its licences and those of the code built into it are kept beside it</span>
+        {#each board.models.filter((m) => m.installed && m.consentAt) as model (model.id)}
+          <span class="small" data-testid="translate-consent">{modelName(model.id)}: agreed {model.consentAt?.slice(0, 10)}</span>
+        {/each}
+      {/if}
+      {#if external}
+        <span class="small">Engine: the server’s own build; its licences are its own.</span>
+      {:else}
+        <span>Engine: llama.cpp, MIT · <button data-press="off" type="button" class="link" onclick={() => void api.openLicence('llama')}>read it ↗</button> · its licences and those of the code built into it are kept beside it</span>
       {/if}
     </div>
   </div>
@@ -209,6 +273,17 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
 .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.1rem var(--space-2); text-align: left; background: transparent; border: 0; padding: 0; color: var(--text); font: inherit; cursor: pointer; }
 .opt > :not(.rd) { grid-column: 2; }
 .opt b { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+div.opt { cursor: default; }
+/* The row's own selector: the diamond and the name, a button where choosing it switches at once. */
+.pick { grid-column: 1 / -1 !important; display: inline-flex; align-items: center; gap: var(--space-2); background: transparent; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+span.pick { cursor: default; }
+.pick .rd { margin-top: 0; }
+.opt.on .pick .rd { background: var(--accent); border-color: var(--accent); }
+.tag { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--accent-strong); border: 1px solid var(--accent); padding: 0 0.3rem; }
+.warn { color: var(--warn); }
+.btn.warn { color: var(--warn); border-color: var(--warn); }
+.pending { color: var(--accent-strong); }
+.note { flex-basis: 100%; }
 .rd { width: 0.55rem; height: 0.55rem; margin-top: 0.3rem; border: 1px solid var(--panel-border); transform: rotate(45deg); }
 .rd.on, .opt.on .rd { background: var(--accent); border-color: var(--accent); }
 .mono { font-family: var(--font-mono); font-size: var(--step--1); }

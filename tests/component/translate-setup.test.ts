@@ -34,6 +34,7 @@ const engine = (over: Partial<EngineState> = {}): EngineState => ({
   externalLoopback: false,
   externalOrigin: null,
   serverModels: [],
+  serverProblem: null,
   own: null,
   fetched: true,
   toFetchBytes: 0,
@@ -178,6 +179,87 @@ describe('ENGINE and the newest commits', () => {
     expect(screen.getByTestId('translate-engine').textContent).toContain('newer, 2026-11-06')
     await fireEvent.click(screen.getByTestId('translate-update'))
     expect(onupdate).toHaveBeenCalledWith(AGREED)
+  })
+
+  it('marks the model in use, and says a choice waits for DONE (review 2026-11-07)', async () => {
+    const models = board().models.map((m) => (m.id === AGREED ? { ...m, installed: true } : m))
+    render(EngineView, {
+      props: {
+        board: board({ models }),
+        settings: TRANSLATE_DEFAULTS,
+        chosen: 'plamo3-0.8b-q4km',
+        onpick: () => {},
+        onsetup: () => {},
+        onupdate: () => {},
+        ondone: () => {},
+      },
+    })
+    await settle()
+    expect(screen.getByTestId('translate-in-use').closest('.acts')).not.toBeNull()
+    expect(screen.getByTestId('translate-model-pending').textContent).toMatch(
+      /plamo-3-translate-0\.8b-q4km is chosen: Set up this model › fetches it; leaving otherwise keeps plamo-3-translate-2b-q4km/,
+    )
+  })
+
+  it('deletes a model only on a second press, saying what the first one would do', async () => {
+    translate.removeModel = vi.fn(async () => undefined)
+    const models = board().models.map((m) => (m.id === AGREED ? { ...m, installed: true } : m))
+    engineView({ models })
+    await settle()
+    const del = screen.getByTestId('translate-delete')
+    await fireEvent.click(del)
+    expect(translate.removeModel).not.toHaveBeenCalled()
+    expect(del.textContent).toMatch(/stopping the engine/)
+    await fireEvent.click(del)
+    expect(translate.removeModel).toHaveBeenCalledWith(AGREED)
+  })
+
+  it('stops an engine that is starting, and starts one on standby', async () => {
+    translate.engineStop = vi.fn(async () => undefined)
+    translate.engineStart = vi.fn(async () => undefined)
+    engineView({ engine: engine({ phase: 'starting' }) })
+    await settle()
+    const stop = screen.getByTestId('translate-engine-stop') as HTMLButtonElement
+    expect(stop.disabled).toBe(false)
+    cleanup()
+    engineView({ engine: engine({ phase: 'stopped' }) })
+    await settle()
+    await fireEvent.click(screen.getByTestId('translate-engine-start'))
+    expect(translate.engineStart).toHaveBeenCalled()
+  })
+
+  it('switches to a llama-server chosen before without its picker, which Choose… opens', async () => {
+    translate.pickOwn = vi.fn(async () => null)
+    engineView({ engine: engine({ own: { name: 'llama-server.exe', build: 12110 } }) })
+    await settle()
+    await fireEvent.click(screen.getByRole('button', { name: /My own llama-server/ }))
+    expect(translate.setSource).toHaveBeenCalledWith('own')
+    expect(translate.pickOwn).not.toHaveBeenCalled()
+    await fireEvent.click(screen.getByRole('button', { name: 'Choose…' }))
+    expect(translate.pickOwn).toHaveBeenCalled()
+  })
+
+  it('says why an external server is not used, and tests an address on Enter', async () => {
+    engineView({
+      engine: engine({
+        source: 'external',
+        phase: 'external-unreachable',
+        externalHost: '127.0.0.1:8210',
+        externalOrigin: 'http://127.0.0.1:8210',
+        serverProblem: 'That server does not run a PLaMo 3 Translate model.',
+      }),
+    })
+    await settle()
+    expect(screen.getByTestId('translate-server-models').textContent).toContain(
+      'does not run a PLaMo',
+    )
+    expect(screen.getByTestId('translate-external-saved').textContent).toContain(
+      'In use: http://127.0.0.1:8210',
+    )
+    const field = screen.getByLabelText('Server address')
+    await fireEvent.input(field, { target: { value: 'http://127.0.0.1:9000' } })
+    await fireEvent.keyDown(field, { key: 'Enter' })
+    expect(translate.testExternal).toHaveBeenCalledWith('http://127.0.0.1:9000')
   })
 
   it('offers no UPDATE for a model at its newest commit', async () => {

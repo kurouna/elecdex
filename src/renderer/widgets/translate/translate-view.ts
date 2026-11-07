@@ -55,6 +55,28 @@ export function shownModel(board: TranslateBoard, local: string): string {
   return board.engine.externalHost ?? 'external server'
 }
 
+/** elecdex's model as the pane names it everywhere: `plamo3-2b-q4km` → `plamo-3-translate-2b-q4km`. */
+export function modelName(id: string): string {
+  return id.replace(/^plamo3-/, 'plamo-3-translate-')
+}
+
+/** A download as NO MODEL says it (review 2026-11-07: it was hidden there). */
+export function fetchLine(fetch: FetchView): string {
+  const what = fetch.kind === 'engine' ? 'The engine' : 'The model'
+  const amount = `${formatBytes(fetch.received)} of ${formatBytes(fetch.total)}`
+  switch (fetch.phase) {
+    case 'downloading':
+      return `${what} is being fetched: ${fetchPercent(fetch)}%, ${amount}.`
+    case 'verifying':
+    case 'placing':
+      return `${what} is fetched and being checked.`
+    case 'paused':
+      return `${what}'s download is paused at ${amount}.`
+    case 'failed':
+      return `${what}'s download failed: ${fetch.error ?? 'no reason given'}.`
+  }
+}
+
 /** "0.8B · 655 MB" for a server's model, from what `/v1/models` said. */
 export function serverModelFacts(model: { bytes: number | null; params: number | null }): string {
   const parts: string[] = []
@@ -75,6 +97,15 @@ export function firstSetupStep(board: TranslateBoard, chosen = board.selectedMod
   const engine = board.engine.fetched || board.engine.source !== 'fetched'
   if (chosen === board.selectedModel && model?.installed && engine) return 5
   return 1
+}
+
+/**
+ * ENGINE's "Set up a model…": to set up another model, so never READY's self test of the one in
+ * place (review 2026-11-07: it booted the engine there, with no way back); MODEL instead.
+ */
+export function setupAnotherStep(board: TranslateBoard, chosen = board.selectedModel): number {
+  const step = firstSetupStep(board, chosen)
+  return step === 5 ? 2 : step
 }
 
 /** Bytes as Hugging Face writes them (1 GB = 10^9 bytes). */

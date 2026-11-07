@@ -51,6 +51,11 @@ export interface EngineDeps {
   spawn: (launch: EngineLaunch, args: string[], env: Record<string, string>) => ServerProcess
   /** The status of GET /health, or null when nothing answered. */
   health: (origin: string, key: string | null) => Promise<number | null>
+  /**
+   * An external server asked whether it can be used (it answers and runs PLaMo 3 Translate): null
+   * when it can, else why not. Without it, `/health` alone is asked.
+   */
+  probeExternal?: (origin: string) => Promise<string | null>
   listDevices: (launch: EngineLaunch) => Promise<string[]>
   freePort: () => Promise<number>
   randomKey: () => string
@@ -85,6 +90,10 @@ interface Running {
 
 /** Whether a new configuration restarts a running server: what it was started with changed. */
 export function restarts(before: EngineConfig, after: EngineConfig): boolean {
+  // An external server runs its own model and context: only another source or address is a new
+  // server (review 2026-11-07: a local model fetched used to mark it untested and stop every run).
+  if (before.source === 'external' && after.source === 'external')
+    return before.origin !== after.origin
   return (
     before.source !== after.source ||
     before.modelPath !== after.modelPath ||
@@ -115,6 +124,10 @@ export class TranslateEngine {
   #hung: { backend: EngineBackend; note: string } | null = null
   #idle: unknown = null
   #busy = 0
+  /** Configures under way: the last one's stop owns the restart (`configure`). */
+  #configures = 0
+  #startAgain = false
+  #configured: Promise<void> = Promise.resolve()
   readonly #deps: EngineDeps
 
   constructor(config: EngineConfig, deps: EngineDeps) {
@@ -190,15 +203,26 @@ export class TranslateEngine {
     if (restart) this.#hung = null
     if (before.idleMinutes !== config.idleMinutes && this.#busy === 0) this.#armIdle()
     if (!restart) return Promise.resolve()
-    // Up, or at fault: a change of settings is the way out of a fault too (§8.4).
-    const startAgain =
+    // Up, or at fault: a change of settings is the way out of a fault too (§8.4). Changes that
+    // come while the stop is under way share it: the last one owns the restart, and starts again
+    // if any of them found it up (review 2026-11-07: the first used to start a server the second
+    // then marked stopped, its boot unseen).
+    this.#startAgain ||=
       this.#phase === 'ready' || this.#phase === 'starting' || this.#phase === 'fault'
-    return this.stop().then(() => {
+    const gen = ++this.#configures
+    // A caller of a change overtaken waits for the last one, so what it sets after (TEST's ready)
+    // is not overwritten by the restart still to come.
+    this.#configured = this.stop().then((): Promise<void> | undefined => {
+      if (gen !== this.#configures) return this.#configured
+      const startAgain = this.#startAgain
+      this.#startAgain = false
       this.#error = null
       this.#phase = this.#restingPhase()
       this.#emit()
       if (startAgain && this.#phase === 'stopped') void this.ensure().catch(() => {})
+      return undefined
     })
+    return this.#configured
   }
 
   /** The server to send to, started (or probed) when it is not up. */
@@ -362,10 +386,15 @@ export class TranslateEngine {
     const origin = this.#config.origin
     if (!origin) throw new Error('No server address is set.')
     if (this.#phase === 'external-ready') return { origin, key: null }
-    const status = await this.#deps.health(origin, null)
-    const ok = status === 200
-    this.tested(ok)
-    if (!ok) throw new Error(`The server at ${origin} does not answer.`)
+    // Answering again, it may run another model since: asked what it runs, not only whether it
+    // is up (review 2026-11-07), so text never goes to a model that is not PLaMo.
+    const problem = this.#deps.probeExternal
+      ? await this.#deps.probeExternal(origin)
+      : (await this.#deps.health(origin, null)) === 200
+        ? null
+        : `The server at ${origin} does not answer.`
+    this.tested(problem === null)
+    if (problem !== null) throw new Error(problem)
     return { origin, key: null }
   }
 

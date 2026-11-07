@@ -202,6 +202,61 @@ describe('TEXT', () => {
   })
 })
 
+describe('TEXT and what it offers (review 2026-11-07)', () => {
+  it('offers the form only into Japanese', async () => {
+    const { view } = mount({ tgtLang: 'ja' })
+    expect(screen.queryByTestId('translate-form')).not.toBeNull()
+    await view.rerender({ paneState: { tgtLang: 'en' } })
+    expect(screen.queryByTestId('translate-form')).toBeNull()
+  })
+
+  it('offers RESTART, not Ctrl+Enter, when a run stopped and the engine is at fault', async () => {
+    const restart = vi.fn(async () => undefined)
+    translate.engineRestart = restart
+    const faulted = {
+      ...board,
+      engine: { ...board.engine, phase: 'fault', error: 'crashed' },
+    } as unknown as TranslateBoard
+    const { send, view } = mount()
+    await view.rerender({ board: faulted })
+    await send({ ...runOf('A.'), state: 'stopped', reason: 'The engine stopped: crashed.' })
+    const reason = screen.getByTestId('translate-reason')
+    expect(reason.textContent).not.toContain('Ctrl+Enter')
+    await fireEvent.click(screen.getByTestId('translate-reason-restart'))
+    expect(restart).toHaveBeenCalled()
+  })
+
+  it('says a download under way at NO MODEL', async () => {
+    const absent = {
+      ...board,
+      engine: { ...board.engine, phase: 'absent' },
+      fetch: {
+        kind: 'model',
+        id: 'm',
+        phase: 'paused',
+        received: 3e9,
+        total: 5.28e9,
+        speed: 0,
+        error: null,
+      },
+    } as unknown as TranslateBoard
+    const { view } = mount()
+    await view.rerender({ board: absent })
+    expect(screen.getByTestId('translate-standby-fetch').textContent).toContain(
+      'paused at 3.00 GB of 5.28 GB',
+    )
+    expect(screen.getByTestId('translate-setup-open').textContent).toContain(
+      'go on with the download',
+    )
+  })
+
+  it('does not swap the languages while a translation is written', async () => {
+    const { send } = mount({ srcLang: 'en', tgtLang: 'ja' })
+    await send(runOf('A.', 'running'))
+    expect((screen.getByTestId('translate-swap') as HTMLButtonElement).disabled).toBe(true)
+  })
+})
+
 describe('TEXT’s round trip score', () => {
   const scored = (score: number, lang: string): RunView => {
     const run = runOf('One.')
@@ -314,6 +369,40 @@ describe('TEXT with LIVE and ROUND TRIP', () => {
       expect((translate.run?.mock.calls ?? []).map((c) => (c[0] as { mode: string }).mode)).toEqual(
         ['translate'],
       )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('asks nothing LIVE once the pane is out of sight, though typed just before', async () => {
+    // Review 2026-11-07: the 0.6 s wait went on unseen and asked, booting the engine.
+    vi.useFakeTimers()
+    try {
+      withLive(true)
+      const { view } = mount()
+      await fireEvent.input(screen.getByTestId('translate-source'), { target: { value: 'Hello.' } })
+      vi.advanceTimersByTime(300)
+      await view.rerender({ visible: false })
+      vi.advanceTimersByTime(1000)
+      expect(translate.run).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('asks LIVE again for a new target language, whatever asked the last translation', async () => {
+    vi.useFakeTimers()
+    try {
+      withLive(true)
+      const { view, send } = mount({ tgtLang: 'ja' })
+      await fireEvent.input(screen.getByTestId('translate-source'), { target: { value: 'Hello.' } })
+      vi.advanceTimersByTime(600)
+      // The last one was a TRANSLATE (Ctrl+Enter): LIVE still follows the language.
+      await send(runOf('Hello.'))
+      translate.run?.mockClear()
+      await view.rerender({ paneState: { tgtLang: 'fr' } })
+      vi.advanceTimersByTime(600)
+      expect(translate.run).toHaveBeenLastCalledWith(expect.objectContaining({ tgtLang: 'fr' }))
     } finally {
       vi.useRealTimers()
     }

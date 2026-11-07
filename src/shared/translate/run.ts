@@ -52,6 +52,9 @@ export interface BlockView {
 /** waiting: behind another pane's; running; done; stopped (with a reason). */
 export type RunState = 'waiting' | 'running' | 'done' | 'stopped'
 
+/** The reason of a LIVE run stopped as its pane went out of sight: the page asks again when seen. */
+export const HIDDEN_REASON = 'Stopped: the pane was hidden.'
+
 export interface RunView {
   paneId: string
   draftId: string

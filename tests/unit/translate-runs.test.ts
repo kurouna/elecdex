@@ -317,6 +317,18 @@ describe('TranslateRuns', () => {
     expect(h.calls).toHaveLength(1)
   })
 
+  it('an external server that answers with an error is still there: refused, not unreachable', async () => {
+    const h = harness({ external: () => true })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.\n\nB.'))
+    await h.settle()
+    h.calls[0]?.reject(new ServerAnswerError('/completion answered HTTP 400'))
+    await h.settle()
+    h.tick(FLUSH_MS)
+    expect(h.log).not.toContain('unreachable')
+    expect(h.page('p1')?.reason).toMatch(/server refused the request/)
+  })
+
   it('drops a run nobody follows after five seconds, stopping what it writes', async () => {
     const h = harness()
     h.runs.follow('p1')
@@ -514,6 +526,29 @@ describe('TranslateRuns with a glossary, a context and the history', () => {
     expect(h.calls).toEqual([])
     expect(records).toEqual([])
   })
+
+  it('records what a TRANSLATE wrote, as partial, when a history entry is opened over it', async () => {
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'A.\n\nB.'))
+    await answer(h, 'あ')
+    await h.settle()
+    h.runs.show('p1', {
+      draftId: 'd9',
+      srcLang: 'en',
+      tgtLang: 'ja',
+      form: 'polite',
+      blocks: [],
+      tail: '',
+      detected: null,
+      context: '',
+      glossary: null,
+    })
+    expect(records).toHaveLength(1)
+    expect(records[0]?.state).toBe('stopped')
+    expect(records[0]?.blocks.map((b) => b.state)).toEqual(['done', 'stopped'])
+  })
 })
 
 describe('TranslateRuns and LIVE, EDIT, RETRY, ROUND TRIP', () => {
@@ -610,6 +645,33 @@ describe('TranslateRuns and LIVE, EDIT, RETRY, ROUND TRIP', () => {
     h.tick(FLUSH_MS)
     expect(h.page('p1')?.blocks.map((b) => b.text)).toEqual(['イチ', 'に'])
     expect(h.page('p1')?.state).toBe('done')
+  })
+
+  it('RETRY after STOP writes that block and leaves the run stopped, recorded partial', async () => {
+    // Review 2026-11-07: the run used to end "done" with blocks never translated.
+    const records: RunView[] = []
+    const h = harness({ record: (view) => records.push(view) })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.\n\nTwo.\n\nThree.'))
+    await answer(h, 'いち')
+    await h.settle()
+    h.runs.stop('p1')
+    h.runs.retry('p1', 1)
+    await answer(h, 'に')
+    await h.settle()
+    h.tick(FLUSH_MS)
+    const view = h.page('p1')
+    expect(view?.blocks.map((b) => b.state)).toEqual(['done', 'done', 'none'])
+    expect(view?.state).toBe('stopped')
+    expect(view?.reason).toMatch(/Not every block/)
+    expect(records.at(-1)?.state).toBe('stopped')
+    // Retried to the end, it is done.
+    h.runs.retry('p1', 2)
+    await answer(h, 'さん')
+    await h.settle()
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.state).toBe('done')
+    expect(records.at(-1)?.state).toBe('done')
   })
 
   it('ROUND TRIP puts every written block back, scores it, and records the run once', async () => {

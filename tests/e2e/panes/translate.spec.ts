@@ -392,7 +392,8 @@ test('a llama-server that writes nothing while it loads is given up as a FAULT',
   try {
     await page.getByTestId('translate-settings-toggle').click()
     const engine = page.getByTestId('translate-engine')
-    await engine.getByRole('button', { name: 'Restart' }).click()
+    // Standby: START (review 2026-11-07; it was RESTART, read as a repair).
+    await engine.getByTestId('translate-engine-start').click()
     await expect(engine).toContainText('stopped loading', { timeout: 15_000 })
     await expect(lamp(page)).toContainText('Fault')
   } finally {
@@ -575,7 +576,8 @@ test('the languages and the form are the pane’s, and Easy Japanese takes no fo
     await picker.getByLabel('Filter the languages').fill('easy')
     await picker.locator('[data-code="ja(easy)"]').click()
     await expect(page.getByTestId('translate-tgt-lang')).toContainText('EASY JA')
-    await expect(page.getByTestId('translate-form')).toHaveClass(/off/)
+    // Not into Japanese: no form is offered (review 2026-11-07: it was only dimmed, and focusable).
+    await expect(page.getByTestId('translate-form')).toHaveCount(0)
     await translate(page, 'Hello.')
     await expect(blocks(page).first()).toContainText('[ja(easy)] Hello.', { timeout: 15_000 })
     // The source side never offers Easy Japanese.
@@ -1006,9 +1008,33 @@ test('a model chosen for SETUP becomes the settings’ only when its fetch start
     await expect(setup).toContainText('downloading')
     await expect(page.getByTestId('translate-selftest')).toHaveCount(0)
     expect(files(hf)).toEqual([`/pfnet/plamo-3-translate-0.8b-GGUF/resolve/${COMMIT}/${LITE_FILE}`])
+    // Cancelled, the model in place before is the pane's again, never NO MODEL beside it
+    // (review 2026-11-07).
+    await setup.getByRole('button', { name: 'Cancel' }).click()
+    await expect(pane).toContainText('plamo-3-translate-2b-q4km')
+    await page.getByTestId('translate-settings-toggle').click()
+    await expect(page.getByTestId('translate-in-use')).toHaveCount(1)
   } finally {
     await close()
     stopServer(hf.server)
+  }
+})
+
+test('“Set up a model…” with a model in place opens MODEL, starting nothing', async () => {
+  // Review 2026-11-07: it opened READY, whose self test booted the engine, with no way back.
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await page.getByTestId('translate-settings-toggle').click()
+    await page
+      .getByTestId('translate-engine')
+      .getByRole('button', { name: 'Set up a model…' })
+      .click()
+    const setup = page.getByTestId('translate-setup')
+    await expect(setup.locator('.steps li.now')).toContainText('Model')
+    await expect(page.getByTestId('translate-selftest')).toHaveCount(0)
+    await expect(lamp(page)).toContainText('Standby')
+  } finally {
+    await close()
   }
 })
 

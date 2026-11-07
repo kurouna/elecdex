@@ -174,6 +174,18 @@ describe('TranslateService fetching', () => {
     expect(service.watching()).toEqual([])
   })
 
+  it('starts no fetch while CANCEL is removing the .part', async () => {
+    // Review 2026-11-07: a RESUME pressed during CANCEL wrote into the file CANCEL then removed.
+    mode = 'stall'
+    const { service, modelPath } = await make()
+    void service.fetchSelected()
+    await expect.poll(() => partSize(modelPath)).toBe(15_000)
+    const cancelling = service.cancelFetch()
+    expect(service.fetchProblem()).toMatch(/being cancelled/)
+    await cancelling
+    expect(service.fetchProblem()).toBeNull()
+  })
+
   it('removing a model being fetched cancels the fetch first', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()
@@ -303,6 +315,100 @@ describe('TranslateService and a server left running (§4.2)', () => {
     service.quit()
     await run
     expect((await service.board()).fetch?.phase).toBe('paused')
+  })
+
+  it('shows a fetch paused before quitting as paused at the next start, and RESUME takes it up', async () => {
+    // §5; review 2026-11-07: it used to be forgotten, and the setup walked again from the start.
+    mode = 'stall'
+    const first = await make()
+    const run = first.service.fetchSelected()
+    await expect.poll(() => partSize(first.modelPath)).toBe(15_000)
+    first.service.quit()
+    await run
+    mode = 'serve'
+    // The next start, on the same folder, with no new agreement.
+    const { service, modelPath } = await make({}, false)
+    const board = await service.board()
+    expect(board.fetch).toMatchObject({ kind: 'model', phase: 'paused', received: 15_000 })
+    expect(service.watching()).toEqual([])
+    expect(service.fetchProblem()).toBeNull()
+    await service.fetchSelected()
+    expect(readFileSync(modelPath).equals(BODY)).toBe(true)
+    expect(asked.filter((url) => url.includes('test.gguf')).length).toBe(2)
+  })
+})
+
+describe('TranslateService and an external server', () => {
+  /** A llama-server elsewhere: /completion may send the text on to `elsewhere` by a redirect. */
+  async function external(state: { model: string; redirect?: string }) {
+    const hits: string[] = []
+    const ext = createServer((req, res) => {
+      hits.push(req.url ?? '')
+      if (req.url === '/completion' && state.redirect) {
+        res.writeHead(302, { location: `${state.redirect}/completion` })
+        res.end()
+        return
+      }
+      res.writeHead(200, { 'content-type': 'application/json' })
+      const props = {
+        model_path: `/m/${state.model}`,
+        default_generation_settings: { n_ctx: 2048 },
+      }
+      res.end(JSON.stringify(req.url === '/props' ? props : { status: 'ok' }))
+    })
+    await new Promise<void>((resolve) => ext.listen(0, '127.0.0.1', resolve))
+    const origin = `http://127.0.0.1:${(ext.address() as AddressInfo).port}`
+    return { ext, origin, hits }
+  }
+
+  it('never follows a redirect with the self test’s text', async () => {
+    // §4.1; review 2026-11-07: the self test followed one where translations did not.
+    const { service } = await make()
+    const state = { model: 'plamo-3-translate-2b-Q4_K_M.gguf', redirect: base }
+    const { ext, origin } = await external(state)
+    try {
+      expect(await service.testExternal(origin)).toMatchObject({ ok: true })
+      await expect(service.selfTest()).rejects.toThrow()
+      expect(asked).not.toContain('/completion')
+    } finally {
+      ext.closeAllConnections()
+      ext.close()
+    }
+  })
+
+  it('stops using a server that no longer runs PLaMo 3 Translate, and says why', async () => {
+    const { service } = await make()
+    const state = { model: 'plamo-3-translate-2b-Q4_K_M.gguf' }
+    const { ext, origin } = await external(state)
+    try {
+      await service.testExternal(origin)
+      expect(service.engine.phase).toBe('external-ready')
+      state.model = 'qwen3-8b.gguf'
+      await service.refreshServer()
+      const board = await service.board()
+      expect(service.engine.phase).toBe('external-unreachable')
+      expect(board.engine.serverProblem).toMatch(/does not run a PLaMo/)
+      expect(board.engine.serverModels).toEqual([])
+      // Asked again before it is used, it still refuses: no text goes to it.
+      await expect(service.engine.ensure()).rejects.toThrow(/does not run a PLaMo/)
+      state.model = 'plamo-3-translate-2b-Q4_K_M.gguf'
+      await service.engine.ensure()
+      expect((await service.board()).engine.serverProblem).toBeNull()
+    } finally {
+      ext.closeAllConnections()
+      ext.close()
+    }
+  })
+
+  it('RESTART asks the builds for their GPUs again', async () => {
+    const { service } = await make()
+    const file = path.join(dir, 'translate', 'engine.json')
+    const before = JSON.parse(readFileSync(file, 'utf8'))
+    writeFileSync(file, JSON.stringify({ ...before, devices: { 'b1:/x': [] } }))
+    const again = await make({}, false)
+    await again.service.restartEngine()
+    expect(JSON.parse(readFileSync(file, 'utf8')).devices).toEqual({})
+    void service
   })
 })
 

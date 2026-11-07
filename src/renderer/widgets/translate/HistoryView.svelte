@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { HistoryRow } from '@shared/translate/history'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { appearance } from '../../stores/appearance.svelte.ts'
 import { historyDays, historyPair, historyTime } from './translate-view.ts'
 
 /**
@@ -65,7 +66,9 @@ function clear(): void {
 <div class="history" data-testid="translate-history">
   <div class="bar">
     <input class="search" bind:value={filter} placeholder="filter" aria-label="Filter the history" spellcheck="false" />
-    <span class="count">{rows?.length ?? 0} / 200{saving ? '' : ' · not saving'}</span>
+    <span class="count">{rows?.length ?? 0} / 200</span>
+    <!-- Q3's "keep no history" (§7), where the history is: it lived only in settings.json. -->
+    <button type="button" class="btn" aria-pressed={saving} data-testid="translate-history-keep" onclick={() => void appearance.patch({ translate: { saveHistory: !saving } })}>{saving ? 'Keeping history' : 'Not keeping history'}</button>
     <button type="button" class="btn" class:warn={armed} disabled={(rows?.length ?? 0) === 0} data-testid="translate-history-clear" onclick={clear}>{armed ? 'Clear all?' : 'Clear'}</button>
   </div>
   <div class="list">

@@ -14,7 +14,14 @@ import HistoryView from './HistoryView.svelte'
 import { draftOf, isActive, keepDraft, newDraftId, RunFollower } from './run-follower.svelte.ts'
 import SetupView from './SetupView.svelte'
 import TextView from './TextView.svelte'
-import { firstSetupStep, phaseLamp, shownModel, whereTextGoes } from './translate-view.ts'
+import {
+  firstSetupStep,
+  modelName,
+  phaseLamp,
+  setupAnotherStep,
+  shownModel,
+  whereTextGoes,
+} from './translate-view.ts'
 import ViewSwitch from './ViewSwitch.svelte'
 
 /**
@@ -51,8 +58,23 @@ $effect(() => {
 /** The chosen model becomes the settings', and the engine follows it; awaited before a fetch. */
 async function commitModel(): Promise<void> {
   const id = pendingModel
-  if (id !== null && id !== board?.selectedModel)
+  if (id !== null && id !== board?.selectedModel) {
+    previousModel = board?.selectedModel ?? null
     await appearance.patch({ translate: { modelId: id } })
+  }
+}
+
+/**
+ * The model in use before SETUP's fetch made another the settings': a CANCEL of that fetch puts
+ * it back when it is in place, so the pane is not left at NO MODEL beside a model that works
+ * (review 2026-11-07).
+ */
+let previousModel: string | null = null
+function fetchCancelled(): void {
+  const before = previousModel
+  previousModel = null
+  if (before !== null && board?.models.find((m) => m.id === before)?.installed)
+    void appearance.patch({ translate: { modelId: before } })
 }
 let step = $state(1)
 
@@ -79,9 +101,7 @@ const where = $derived(board ? whereTextGoes(board.engine) : null)
 $effect(() => {
   const b = board
   paneMeta.set(paneId, {
-    subtitle: b
-      ? shownModel(b, b.selectedModel.replace(/^plamo3-/, 'plamo-3-translate-'))
-      : 'translate',
+    subtitle: b ? shownModel(b, modelName(b.selectedModel)) : 'translate',
     ...(b?.engine.phase === 'fault' ? { badge: 'engine fault', badgeKind: 'danger' as const } : {}),
   })
 })
@@ -120,8 +140,13 @@ onSummoned(
   },
 )
 
-function openSetup(at?: number): void {
-  if (board) step = at ?? firstSetupStep(board, chosenModel)
+/** SETUP at a step, where it is needed, or (`another`) to set up another model: never at READY. */
+function openSetup(at?: number | 'another'): void {
+  if (board)
+    step =
+      at === 'another'
+        ? setupAnotherStep(board, chosenModel)
+        : (at ?? firstSetupStep(board, chosenModel))
   view = 'setup'
 }
 </script>
@@ -151,6 +176,7 @@ function openSetup(at?: number): void {
             chosen={chosenModel}
             onselect={(modelId) => (pendingModel = modelId)}
             oncommit={commitModel}
+            oncancelled={fetchCancelled}
             ondone={() => (view = 'text')}
           />
         {:else if view === 'engine'}
