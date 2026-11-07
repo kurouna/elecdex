@@ -11,7 +11,7 @@ import {
   openaiProvider,
   piecesOf,
 } from '../support/stubs/ai.js'
-import { launch, saveDialogAnswers, single } from '../support.js'
+import { beside, launch, saveDialogAnswers, settleLayout, single } from '../support.js'
 
 /**
  * The ELEC system pane against a provider served from this machine, speaking the
@@ -98,6 +98,30 @@ const unit = (page: Page, n: number) =>
   pane(page).locator(`[data-testid=elec-unit][data-unit="${n}"]`)
 const ballot = (page: Page, n: number) =>
   pane(page).locator(`[data-testid=elec-ballot][data-unit="${n}"]`)
+
+test("the floor's grid stays on the stage, never over the panes beside it", async () => {
+  const { page, close } = await launch(undefined, {
+    layout: beside('elec', { id: 'e', sizes: [60, 40] }),
+    settings: withProviders('yes'),
+  })
+  try {
+    await expect(pane(page).getByTestId('elec-stage')).toBeVisible()
+    await settleLayout(page)
+    // The floor was 10% wider than the stage on each side, and its grid ran over the next pane.
+    const [stage, floor] = await pane(page)
+      .getByTestId('elec-stage')
+      .evaluate((element) =>
+        [element, element.querySelector('.floor')].map((box) => {
+          const rect = box?.getBoundingClientRect()
+          return rect === undefined ? null : { left: rect.left, right: rect.right }
+        }),
+      )
+    expect(floor?.left).toBeGreaterThanOrEqual(stage?.left ?? Number.NaN)
+    expect(floor?.right).toBeLessThanOrEqual(stage?.right ?? Number.NaN)
+  } finally {
+    await close()
+  }
+})
 
 test('with no provider the pane asks for one, and nothing is touched', async () => {
   const { page, userData, close } = await launch(undefined, { layout: layout() })

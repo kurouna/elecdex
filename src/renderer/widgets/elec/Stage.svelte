@@ -302,7 +302,8 @@ $effect(() => {
 /* The floor: a grid in perspective, fading into the horizon. */
 .floor {
   position: absolute;
-  inset: 45% -10% 0;
+  /* The stage's own width: wider, the grid ran over the panes beside it. */
+  inset: 45% 0 0;
   overflow: hidden;
   perspective: 22rem;
   perspective-origin: 50% 0;

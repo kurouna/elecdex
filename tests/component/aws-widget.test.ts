@@ -149,9 +149,26 @@ describe('AwsWidget', () => {
     const off = screen.getByTestId('aws-ce-off')
     expect(on.className).toBe(off.className)
     await fireEvent.click(off)
-    expect(costExplorer).toHaveBeenCalledWith(KEY, { state: 'off' })
+    await vi.waitFor(() => expect(costExplorer).toHaveBeenCalledWith(KEY, { state: 'off' }))
     await fireEvent.click(on)
-    expect(costExplorer).toHaveBeenLastCalledWith(KEY, { state: 'on', every: 'day', cap: 100 })
+    await vi.waitFor(() =>
+      expect(costExplorer).toHaveBeenLastCalledWith(KEY, { state: 'on', every: 'day', cap: 100 }),
+    )
+  })
+
+  it('blinks an answer to the Cost Explorer question before it takes the question away', async () => {
+    await mount()
+    await push(await boardOf())
+    for (const id of ['aws-ce-on', 'aws-ce-off', 'aws-ce-later']) {
+      costExplorer.mockClear()
+      const button = screen.getByTestId(id)
+      await fireEvent.click(button)
+      // The answer waits for the blink: a click shorter than a beat showed nothing before.
+      expect(button.classList.contains('blinking')).toBe(true)
+      expect(costExplorer).not.toHaveBeenCalled()
+      await vi.waitFor(() => expect(costExplorer).toHaveBeenCalledTimes(1))
+      expect(button.classList.contains('blinking')).toBe(false)
+    }
   })
 
   it("drills from an ACTIVE row into main's list for that service", async () => {

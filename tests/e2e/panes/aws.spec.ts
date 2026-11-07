@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 import { captureOpens, cloudMode, opened } from '../support/cloud.js'
 import { test } from '../support/shared.js'
-import { launch, tabbed } from '../support.js'
+import { beside, launch, tabbed } from '../support.js'
 
 /**
  * AWS STATUS (docs/aws.md), on main's stand-in AWS CLI (support.ts sets ELECDEX_CLOUD_STUB=1):
@@ -119,6 +119,27 @@ test('says the way out when signed out, and when the CLI is not there', async ()
     await expect(page.getByTestId('aws-nocli')).toBeVisible()
   } finally {
     await cloudMode(app, 'aws', null)
+    await close()
+  }
+})
+
+test("PARTIAL's refused operations wrap inside a narrow pane, never past its edge", async () => {
+  const { page, close } = await launch(undefined, {
+    layout: beside('aws', { state: { regions: REGIONS }, sizes: [12, 88] }),
+    env: { ELECDEX_CLOUD_STUB: 'partial' },
+  })
+  try {
+    const notice = page.getByTestId('aws-denied')
+    await expect(notice).toContainText('guardduty:ListDetectors')
+    // The list was one line that ran on over the pane beside it (white-space: nowrap).
+    const overrun = await notice.evaluate((element) => {
+      const range = document.createRange()
+      range.selectNodeContents(element)
+      const pane = element.closest('[data-testid=pane]')?.getBoundingClientRect()
+      return pane === undefined ? Number.NaN : range.getBoundingClientRect().right - pane.right
+    })
+    expect(overrun).toBeLessThanOrEqual(0)
+  } finally {
     await close()
   }
 })

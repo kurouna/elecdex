@@ -4,6 +4,7 @@ import { CE_CAPS } from '@shared/aws/billing'
 import { awsBoardKey, type DrillPlace, MAX_REGIONS, readAwsPane } from '@shared/aws/board'
 import { DRILL } from '@shared/aws/drill'
 import type { AttentionItem, AwsBoard, AwsService, TrailEvent } from '@shared/aws/types'
+import { afterBlink } from '../../lib/blink.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import {
@@ -211,6 +212,15 @@ async function answer(state: 'on' | 'off' | 'later'): Promise<void> {
     state === 'on' ? { state, every: askEvery, cap: askCap } : { state },
   )
   askMore = false
+}
+
+/**
+ * An answer takes the question (or the line) away with it, so the press blinks its three beats
+ * first, as every choice that changes what is shown does (lib/blink.ts): a click shorter than a
+ * beat otherwise showed nothing at all.
+ */
+function choose(button: HTMLElement, state: 'on' | 'off' | 'later'): void {
+  afterBlink(button, () => void answer(state))
 }
 
 let quotaText = $state('')
@@ -426,7 +436,7 @@ const crumbsFrom = $derived(
     </div>
   {:else if board !== null && board.denied.length > 0}
     <div class="notice crt-on quiet" role="status" data-testid="aws-denied">
-      <span>PARTIAL · this role may not read: <span class="mono">{board.denied.join(' · ')}</span>. The rest is read.</span>
+      <span class="denied">PARTIAL · this role may not read: <span class="ops">{#each board.denied as op (op)}<span class="op">{op}</span>{/each}</span>. The rest is read.</span>
     </div>
   {/if}
 
@@ -444,9 +454,9 @@ const crumbsFrom = $derived(
       <div class="ask crt-on" transition:crtPower data-testid="aws-ce-ask">
         <div class="ask-line">
           <span>Cost Explorer for <b>{masked ? MASKED : (board.account.alias ?? board.account.id)}</b>: turn on? <span class="dim">paid, $0.01 a request</span></span>
-          <button type="button" class="tool" onclick={() => void answer('on')} data-testid="aws-ce-on">TURN ON</button>
-          <button type="button" class="tool" onclick={() => void answer('off')} data-testid="aws-ce-off">KEEP OFF</button>
-          {#if !narrow}<button type="button" class="tool" onclick={() => void answer('later')} data-testid="aws-ce-later">LATER</button>{/if}
+          <button type="button" class="tool" onclick={(e) => choose(e.currentTarget, 'on')} data-testid="aws-ce-on">TURN ON</button>
+          <button type="button" class="tool" onclick={(e) => choose(e.currentTarget, 'off')} data-testid="aws-ce-off">KEEP OFF</button>
+          {#if !narrow}<button type="button" class="tool" onclick={(e) => choose(e.currentTarget, 'later')} data-testid="aws-ce-later">LATER</button>{/if}
           {#if !narrow}<button type="button" class="tool" aria-expanded={askMore} onclick={() => (askMore = !askMore)}>{askMore ? '▾' : '▸'} more</button>{/if}
         </div>
         {#if askMore}
@@ -602,7 +612,7 @@ const crumbsFrom = $derived(
             <p class="ask-text">No service reported yet this month.</p>
           {/each}
           {#if board.cost.ce.state !== 'on'}
-            <p class="ask-text" data-testid="aws-ce-off-line">Cost Explorer is off · about ${ceEstimate('day', 100).usd.toFixed(2)} a month at once a day. <button type="button" class="tool" onclick={() => void answer('on')}>TURN ON</button></p>
+            <p class="ask-text" data-testid="aws-ce-off-line">Cost Explorer is off · about ${ceEstimate('day', 100).usd.toFixed(2)} a month at once a day. <button type="button" class="tool" onclick={(e) => choose(e.currentTarget, 'on')}>TURN ON</button></p>
           {:else}
             <p class="ask-text">Cost Explorer: {board.cost.ce.usedThisMonth} of {board.cost.ce.cap} requests this month · read {clockText(board.cost.ce.readAt)}</p>
           {/if}
@@ -742,6 +752,10 @@ const crumbsFrom = $derived(
 .rsel i[data-tone='warn'] { background: var(--warn); }
 .rsel i[data-tone='none'] { background: var(--ok); }
 .notice.quiet { border-color: var(--panel-rule); color: var(--text-dim); }
+/* The refused operations wrap between them, and a long one within itself: never past the pane. */
+.denied { min-width: 0; overflow-wrap: anywhere; }
+.ops { font-family: var(--font-mono); }
+.op:not(:last-child)::after { content: ' · '; }
 .mono { font-family: var(--font-mono); }
 .ask { border: 1px solid var(--accent); padding: 0.2rem 0.6rem; font-size: var(--step--1); }
 .ask-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.7rem; }
