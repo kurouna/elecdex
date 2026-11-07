@@ -420,7 +420,7 @@ main が自分の直前の読み取りから URL を組み、ホストを確か�
 - **並び**: `LAYOUT_PRESET_IDS` と `LAYOUT_PRESETS` の `retro` と `blank` の間に入れる。LAYOUTS の棚は
   `LAYOUT_PRESETS` の順に並ぶので、`cloud` は `blank` の前に出る（棚は横にスクロールするので、11 枚でも 1 行の
   まま。panes-layout.md の「どのカードも 1 行に」を保つ）
-- **キー**: `layout.preset.cloud` に Ctrl+Shift+F10、`blank` は F11 へ（実装で決めた: F キーは棚の順、keybindings.test.ts。decisions.md）。プリセットのキーは場所ではなく
+- **キー**: `layout.preset.cloud` に Ctrl+Shift+F10、`blank` は F11 へ（F キーは棚の順、keybindings.test.ts。利用者の決定 2026-11-08、decisions.md）。プリセットのキーは場所ではなく
   id に付くので、`blank` は Ctrl+Shift+F10 のまま
 - **番号のキー**（Ctrl+Shift+1〜9, 0）: 最初の起動はプリセットを順に保存したレイアウトにする（`seededLayouts`）。
   `KEYED_LAYOUTS` は 10 なので、`cloud` が 10 番め（Ctrl+Shift+0）になり、**新しく入れた人の `blank` には番号の
