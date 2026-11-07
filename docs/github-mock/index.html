@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GITHUB pane mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of the GITHUB pane, standalone: no elecdex code, no GitHub call, every repository,
+ * person and figure made up. Colours follow tokens.css (primitive -> semantic).
+ * The top row copies PaneHost's header (title, subtitle, badge); everything under it is the widget.
+ */
+:root {
+  --accent-h: 183; --accent-s: 22%; --accent-l: 74%;
+  --surface-1: #05080d; --surface-2: #0b1118; --grid: #262828;
+  --hue-danger: 0; --hue-warn: 45; --hue-ok: 130; --hue-info: 212;
+  --status-l: 60%; --glow: 1;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --text: var(--accent); --text-inverse: var(--surface-1);
+  --text-muted: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --danger: hsl(var(--hue-danger) 80% var(--status-l));
+  --warn: hsl(var(--hue-warn) 85% calc(var(--status-l) - 2%));
+  --ok: hsl(var(--hue-ok) 60% calc(var(--status-l) - 8%));
+  --info: hsl(var(--hue-info) 85% calc(var(--status-l) + 6%));
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --step--2: 0.625rem; --step--1: 0.75rem; --step-0: 0.875rem; --step-1: 1.125rem; --step-2: 1.5rem; --step-3: 2.25rem;
+  --tracking-wide: 0.12em; --tracking-wider: 0.28em;
+  --ambient-play-state: running;
+}
+:root[data-theme="green"] { --accent-h: 120; --accent-s: 100%; --accent-l: 45%; --surface-1: #000; --surface-2: #031003; --grid: #0d1f0d; }
+:root[data-theme="black"] { --accent-h: 0; --accent-s: 0%; --accent-l: 86%; --surface-1: #000; --surface-2: #0d0d0d; --grid: #141414; --glow: 0; }
+:root[data-theme="business"] { --accent-h: 214; --accent-s: 55%; --accent-l: 34%; --surface-1: #f4f6f9; --surface-2: #ffffff; --grid: #e2e6ec; --status-l: 42%; --glow: 0; color-scheme: light; }
+html { font-size: clamp(14px, 1.48vh, 22px); }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; color: var(--text); font-family: var(--font-ui); background-color: var(--surface-1); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 2.2rem 2.2rem; padding: 1rem; }
+button { font: inherit; color: inherit; }
+.mockbar { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; align-items: center; font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; margin-bottom: 0.8rem; color: var(--text-muted); }
+.mockbar .grp { display: flex; gap: 0.25rem; align-items: center; flex-wrap: wrap; }
+.mockbar .grp > span { margin-right: 0.3rem; }
+.mockbar button { background: transparent; border: 1px solid var(--panel-rule); padding: 0.1rem 0.5rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide); }
+.mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
+.note { font-size: var(--step--1); color: var(--text-muted); margin: 0.6rem 0 0; max-width: 72rem; line-height: 1.6; }
+
+.pane { position: relative; display: flex; flex-direction: column; min-width: 0; height: min(84vh, 56rem); width: 64rem; max-width: 100%; border-top: 1px solid var(--panel-rule); }
+.pane.medium { width: 46rem; } .pane.narrow { width: 30rem; } .pane.short { height: 26rem; }
+.pane::before, .pane::after { content: ""; position: absolute; top: -1px; width: 1px; height: 0.4rem; background: var(--panel-rule); }
+.pane::before { left: 0; } .pane::after { right: 0; }
+.host { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.15rem 0.4rem 0.2rem; white-space: nowrap; min-width: 0; }
+.host .title { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: 0.04em; }
+.host .sub { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.host .badge { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; border: 1px solid currentColor; padding: 0 0.35rem; }
+.host .badge.danger { color: var(--danger); } .host .badge.warn { color: var(--warn); } .host .badge.none { display: none; }
+.host .ctl { color: var(--text-muted); font-size: var(--step--1); letter-spacing: 0.3em; }
+
+.top { display: flex; align-items: center; gap: 0.9rem; padding: 0.2rem 0.4rem 0.35rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; flex-wrap: wrap; border-top: 1px solid var(--accent-faint); }
+.lamp { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; }
+.lamp i { width: 0.5rem; height: 0.5rem; transform: rotate(45deg); background: var(--ok); display: inline-block; box-shadow: 0 0 calc(var(--glow) * 0.5rem) currentColor; }
+.lamp.ok { color: var(--ok); } .lamp.warn { color: var(--warn); } .lamp.warn i { background: var(--warn); }
+.lamp.danger { color: var(--danger); } .lamp.danger i { background: var(--danger); }
+.lamp.muted { color: var(--text-muted); } .lamp.muted i { background: transparent; outline: 1px solid var(--text-muted); box-shadow: none; }
+.lamp.linking { color: var(--accent); } .lamp.linking i { background: var(--accent); animation: blink 0.6s steps(2, jump-none) infinite; animation-play-state: var(--ambient-play-state); }
+@keyframes blink { 50% { opacity: 0.2; } }
+.lamp small { font-weight: 400; color: var(--text-muted); margin-left: 0.2rem; }
+.figure { display: flex; flex-direction: column; line-height: 1.15; }
+.figure small { color: var(--text-muted); font-size: var(--step--2); }
+.figure span { font-family: var(--font-mono); font-size: var(--step--1); text-transform: none; letter-spacing: 0; }
+.figure .d { color: var(--danger); } .figure .w { color: var(--warn); } .figure .i { color: var(--info); } .figure .z { color: var(--text-muted); }
+.rate { display: none; grid-template-columns: auto 4rem auto; gap: 0.05rem 0.35rem; align-items: center; color: var(--warn); }
+.rate.show { display: grid; }
+.rate .track { height: 0.3rem; border: 1px solid var(--warn); position: relative; } .rate .track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--warn); }
+.rate b { font-family: var(--font-mono); font-weight: 400; letter-spacing: 0; }
+.spacer { flex: 1; }
+.when { color: var(--text-muted); } .when b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; }
+.btn { position: relative; background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.45rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.btn:hover { border-color: var(--accent); } .btn[aria-pressed="true"] { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
+.btn:disabled { cursor: default; color: var(--text-muted); }
+.btn .wait { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--accent); width: calc(var(--left, 0) * 100%); }
+.settings-toggle { width: 1.4rem; height: 1.4rem; padding: 0.15rem; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; }
+.settings-toggle:hover, .settings-toggle[aria-pressed="true"] { color: var(--accent); }
+.settings-toggle svg { display: block; width: 100%; height: 100%; }
+.narrow .when { display: none; }
+.notice { display: none; margin: 0 0.4rem 0.3rem; padding: 0.3rem 0.6rem; border: 1px solid var(--warn); background: hsl(var(--hue-warn) 85% 50% / 0.08); font-size: var(--step--1); align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.notice.show { display: flex; animation: crt 0.18s ease-out; }
+.notice code { font-family: var(--font-mono); font-size: var(--step--1); padding: 0.05rem 0.4rem; border: 1px solid var(--panel-rule); background: var(--surface-2); }
+.notice .t { flex: 1; min-width: 12rem; }
+
+/* the contribution band: one 2D canvas drawn like a circuit board; words in HTML */
+.contrib { display: grid; grid-template-columns: 9rem 1fr 5.5rem; gap: 0.8rem; align-items: center; padding: 0.35rem 0.4rem 0.4rem; border-top: 1px solid var(--panel-rule); border-bottom: 1px solid var(--panel-rule); }
+.narrow .contrib { grid-template-columns: 1fr 4rem; } .narrow .contrib .yr { display: none; }
+.pane.short .contrib, .pane.no-band .contrib { display: none; }
+.lbl { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); line-height: 1.5; }
+.lbl b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; }
+.big { font-family: var(--font-display); font-size: var(--step-2); line-height: 1.05; font-weight: 500; color: var(--accent-strong); font-variant-numeric: tabular-nums; text-shadow: 0 0 calc(var(--glow) * 0.6rem) var(--accent); }
+.big small { font-size: var(--step-0); color: var(--text-muted); text-shadow: none; }
+.heat { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.heat .months { position: relative; height: 0.85rem; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.heat .months span { position: absolute; top: 0; padding-left: 0.2rem; border-left: 1px solid var(--panel-rule); line-height: 0.85rem; }
+.heat canvas { display: block; cursor: crosshair; }
+.streak { text-align: right; }
+
+.tabs { display: flex; gap: 0.2rem; padding: 0.35rem 0.4rem 0; align-items: flex-end; flex-wrap: wrap; }
+.tab { background: transparent; border: 1px solid var(--panel-rule); border-bottom: none; padding: 0.1rem 0.7rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.tab[aria-selected="true"] { color: var(--text-inverse); background: var(--accent); border-color: var(--accent); }
+.tab em { font-style: normal; font-family: var(--font-mono); font-size: var(--step--2); margin-left: 0.3rem; }
+.bar2 { display: none; align-items: center; gap: 0.35rem; padding: 0.25rem 0.4rem; border-top: 1px solid var(--panel-rule); flex-wrap: wrap; min-height: 1.7rem; }
+.bar2.show { display: flex; }
+.chip { background: transparent; border: 1px solid var(--panel-rule); padding: 0 0.4rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); }
+.chip[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
+.chip em { font-style: normal; font-family: var(--font-mono); margin-left: 0.25rem; }
+.crumbs { display: flex; align-items: center; gap: 0.25rem; font-size: var(--step--1); }
+.crumbs button { background: transparent; border: 0; padding: 0 0.15rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.crumbs button:hover { color: var(--text); }
+.crumbs .here { color: var(--text); cursor: default; font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.crumbs .gt { color: var(--panel-border); }
+.crumbs .back { border: 1px solid var(--panel-rule); padding: 0 0.4rem; font-family: var(--font-mono); }
+
+.body { position: relative; flex: 1; min-height: 0; border-top: 1px solid var(--panel-rule); display: flex; flex-direction: column; }
+.view { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 0.2rem 0 0.4rem; }
+.view::-webkit-scrollbar { display: none; }
+.view.on { animation: crt 0.22s ease-out; transform-origin: 50% 0; } .view.up { animation: crt 0.22s ease-out; transform-origin: 50% 100%; }
+@keyframes crt { from { transform: scaleY(0.02); opacity: 0.4; } to { transform: scaleY(1); opacity: 1; } }
+.stale .view, .stale .contrib, .stale .top .figure span { opacity: 0.55; }
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem; height: 100%; min-height: 8rem; color: var(--text-muted); font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; text-align: center; padding: 1rem; }
+.empty b { font-family: var(--font-display); font-weight: 500; font-size: var(--step-1); color: var(--ok); letter-spacing: var(--tracking-wider); text-shadow: 0 0 calc(var(--glow) * 0.5rem) currentColor; }
+.empty b.d { color: var(--danger); } .empty b.w { color: var(--warn); }
+.empty code { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; color: var(--text); border: 1px solid var(--panel-rule); padding: 0.1rem 0.5rem; background: var(--surface-2); }
+.sep { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0.4rem 0.2rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.sep::after { content: ""; flex: 1; border-top: 1px dashed var(--panel-rule); }
+.sep b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; }
+
+.row { position: relative; display: grid; gap: 0.6rem; align-items: baseline; padding: 0.14rem 0.6rem 0.14rem 0.4rem; border-left: 2px solid transparent; font-size: var(--step--1); }
+.row:hover, .row:focus-visible { background: var(--accent-faint); outline: none; }
+.row.danger { border-left-color: var(--danger); } .row.warn { border-left-color: var(--warn); } .row.info { border-left-color: var(--info); } .row.ok { border-left-color: var(--ok); }
+.row.quiet { opacity: 0.75; } .row.read { opacity: 0.6; }
+.fx-fresh { position: relative; animation: wipe 0.42s ease-out backwards; }
+.fx-fresh::before { content: ""; position: absolute; inset: 0; border-left: 2px solid var(--accent); background: linear-gradient(to right, hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.16), transparent 75%); opacity: 0; pointer-events: none; animation: fresh 3s linear backwards; }
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes fresh { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.kind { font-family: var(--font-mono); font-size: var(--step--2); font-weight: 700; text-align: center; border: 1px solid var(--panel-rule); color: var(--text-muted); padding: 0 0.15rem; }
+.kind.k-pr, .kind.k-is { color: var(--text); border-color: var(--panel-border); }
+.kind.k-ci, .kind.k-sec { color: var(--danger); border-color: var(--danger); } .kind.k-run { color: var(--warn); border-color: var(--warn); } .kind.k-rl { color: var(--accent-strong); border-color: var(--accent-dim); }
+.repo { font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ttl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ttl .num { font-family: var(--font-mono); color: var(--text-muted); margin-right: 0.35rem; }
+.tag { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; font-weight: 600; text-align: center; border: 1px solid var(--panel-rule); color: var(--text-muted); padding: 0 0.2rem; white-space: nowrap; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); }
+.tag.danger { color: var(--danger); border-color: var(--danger); } .tag.warn { color: var(--warn); border-color: var(--warn); } .tag.ok { color: var(--ok); border-color: var(--ok); } .tag.info { color: var(--info); border-color: var(--info); }
+.age { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); text-align: right; white-space: nowrap; }
+.age.w { color: var(--warn); } .age.d { color: var(--danger); }
+.unread { width: 0.4rem; height: 0.4rem; transform: rotate(45deg); background: var(--accent); justify-self: center; align-self: center; } .unread.no { background: transparent; }
+.open { visibility: hidden; background: transparent; border: 1px solid var(--panel-rule); cursor: pointer; font-family: var(--font-mono); font-size: var(--step--2); padding: 0 0.3rem; color: var(--text-muted); }
+.row:hover .open, .row:focus .open, .row:focus-within .open { visibility: visible; }
+.open:hover { color: var(--accent); border-color: var(--accent); }
+/* CI lamps: still, never pulsing. Running is half filled. */
+.ci { width: 0.55rem; height: 0.55rem; border-radius: 50%; align-self: center; justify-self: center; border: 1px solid var(--text-muted); flex: none; }
+.ci.success { background: var(--ok); border-color: var(--ok); } .ci.failure { background: var(--danger); border-color: var(--danger); box-shadow: 0 0 calc(var(--glow) * 0.35rem) var(--danger); }
+.ci.pending { border-color: var(--warn); background: linear-gradient(90deg, var(--warn) 50%, transparent 50%); }
+.ci.action { border-color: var(--warn); background: transparent; outline: 1px dashed var(--warn); outline-offset: 1px; }
+.ci.none, .ci.cancelled { opacity: 0.35; }
+.r-q { grid-template-columns: 2.4rem 10rem 1fr 6rem 3rem 1.6rem; }
+.r-in { grid-template-columns: 0.6rem 2.4rem 10rem 1fr 5.4rem 2.8rem 1.6rem; }
+.r-ev { grid-template-columns: 10rem 1fr 3rem; }
+.r-run { grid-template-columns: 0.7rem 8rem 9rem 1fr 5.5rem 3.6rem 3rem; }
+.r-pr { grid-template-columns: 5.4rem 0.7rem 1fr 6rem 3rem; }
+.r-rel { grid-template-columns: 6rem 1fr 6rem 3rem; }
+.medium .r-q { grid-template-columns: 2.4rem 8rem 1fr 5.4rem 3rem; } .medium .r-q .open { display: none; }
+.medium .r-in { grid-template-columns: 0.6rem 2.4rem 8rem 1fr 2.8rem; } .medium .r-in .tag, .medium .r-in .open { display: none; }
+.narrow .r-q { grid-template-columns: 2.4rem 1fr 4.6rem; } .narrow .r-q .repo, .narrow .r-q .age, .narrow .r-q .open { display: none; }
+.narrow .r-in { grid-template-columns: 0.6rem 2.4rem 1fr 2.8rem; } .narrow .r-in .repo, .narrow .r-in .tag, .narrow .r-in .open { display: none; }
+.narrow .r-ev { grid-template-columns: 1fr 3rem; } .narrow .r-ev .repo { display: none; }
+.mono { font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evs { display: flex; flex-wrap: wrap; gap: 0.25rem 0.7rem; min-width: 0; }
+.evs span { white-space: nowrap; } .evs b { font-family: var(--font-mono); font-weight: 500; color: var(--accent-strong); }
+.evs .mine { color: var(--text-muted); }
+
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; padding: 0.3rem 0.4rem; }
+.medium .tiles { grid-template-columns: repeat(2, 1fr); } .narrow .tiles { grid-template-columns: 1fr; }
+.tile { position: relative; border: 1px solid var(--panel-rule); padding: 0.35rem 0.5rem 0.4rem; display: flex; flex-direction: column; gap: 0.28rem; cursor: pointer; background: transparent; text-align: left; font-family: var(--font-ui); color: var(--text); }
+.tile::before, .tile::after { content: ""; position: absolute; width: 0.4rem; height: 0.4rem; border-color: var(--accent); border-style: solid; }
+.tile::before { left: -1px; top: -1px; border-width: 1px 0 0 1px; } .tile::after { right: -1px; bottom: -1px; border-width: 0 1px 1px 0; }
+.tile:hover, .tile:focus-visible { background: var(--accent-faint); outline: none; }
+.tile.red { border-color: hsl(var(--hue-danger) 80% var(--status-l) / 0.7); } .tile.red::before, .tile.red::after { border-color: var(--danger); }
+.tile .nm { display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-mono); font-size: var(--step--1); min-width: 0; }
+.tile .nm .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.tile .nm .lock { font-size: var(--step--2); color: var(--text-muted); border: 1px solid var(--panel-rule); padding: 0 0.2rem; flex: none; }
+.tile .stars { display: flex; align-items: flex-end; gap: 0.5rem; }
+.tile .stars .n { font-family: var(--font-display); font-size: var(--step-1); line-height: 1; color: var(--accent-strong); }
+.tile .stars .dl { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ok); } .tile .stars .dl.zero { color: var(--text-muted); }
+.tile svg.spark { flex: 1; height: 1.3rem; min-width: 3rem; }
+.tile svg.spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.2; vector-effect: non-scaling-stroke; } .tile svg.spark polygon { fill: var(--accent-faint); }
+.tile .facts { display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 0.2rem 0.6rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.tile .facts b { display: block; font-family: var(--font-mono); font-size: var(--step--1); font-weight: 400; color: var(--text); letter-spacing: 0; text-transform: none; }
+.tile .facts b.d { color: var(--danger); } .tile .facts b.z { color: var(--text-muted); }
+.tile .runs { display: flex; align-items: center; gap: 0.22rem; }
+.tile .runs .lbl { margin-right: 0.3rem; }
+.tile .rl { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); border-top: 1px dashed var(--panel-rule); padding-top: 0.2rem; }
+.tile .rl b { color: var(--text); font-weight: 400; }
+.pre { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); color: var(--warn); border: 1px solid var(--warn); padding: 0 0.2rem; margin-left: 0.2rem; }
+.tile .views { display: flex; align-items: flex-end; gap: 1px; height: 0.9rem; } .tile .views i { flex: 1; background: var(--accent-dim); min-height: 1px; }
+.narrow .tile .views { display: none; }
+.rtop { display: flex; gap: 1.4rem; flex-wrap: wrap; padding: 0.4rem 0.6rem 0.3rem; border-bottom: 1px solid var(--panel-rule); }
+.rtop .k { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.rtop .v { font-family: var(--font-display); font-size: var(--step-1); color: var(--accent-strong); }
+
+.foot { position: relative; display: flex; justify-content: space-between; gap: 1rem; padding: 0.2rem 0.4rem; border-top: 1px solid var(--panel-rule); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+.foot .ledger { cursor: default; overflow: hidden; text-overflow: ellipsis; }
+.foot .ledger b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; } .foot .ledger b.zero { color: var(--ok); }
+.narrow .foot .rt { display: none; }
+.card { position: absolute; z-index: 5; width: min(28rem, 92%); background: var(--surface-2); border: 1px solid var(--panel-border); padding: 0.5rem 0.7rem; font-family: var(--font-mono); font-size: var(--step--1); display: none; pointer-events: none; box-shadow: 0 0.4rem 1.6rem rgb(0 0 0 / 0.45); }
+.card.show { display: block; animation: crt 0.18s ease-out; }
+.card h4 { margin: 0 0 0.35rem; font-family: var(--font-ui); font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); display: flex; justify-content: space-between; gap: 1rem; }
+.card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.8rem; margin: 0; } .card dt { color: var(--text-muted); } .card dd { margin: 0; overflow-wrap: anywhere; }
+.card .why { margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px solid var(--panel-rule); color: var(--text-muted); font-size: var(--step--2); line-height: 1.5; font-family: var(--font-ui); letter-spacing: 0.02em; }
+.card table { width: 100%; border-collapse: collapse; font-size: var(--step--2); } .card td { padding: 0.05rem 0.3rem 0.05rem 0; } .card td.n { text-align: right; }
+.settings { position: absolute; z-index: 6; right: 0.4rem; top: 3.6rem; width: 23rem; background: var(--surface-2); border: 1px solid var(--panel-border); padding: 0.6rem 0.8rem 0.8rem; display: none; font-size: var(--step--1); }
+.settings.show { display: block; animation: crt 0.18s ease-out; }
+.settings h5 { margin: 0.5rem 0 0.3rem; font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--panel-rule); padding-bottom: 0.15rem; }
+.settings h5:first-child { margin-top: 0; }
+.settings .opt { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin: 0.3rem 0; }
+.settings .seg { display: flex; gap: 0.15rem; flex-wrap: wrap; justify-content: flex-end; } .settings .seg .btn { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.settings textarea { width: 100%; height: 4.4rem; background: var(--surface-1); color: var(--text); border: 1px solid var(--panel-rule); font-family: var(--font-mono); font-size: var(--step--2); padding: 0.2rem 0.3rem; resize: none; }
+.settings p { margin: 0.2rem 0 0; font-size: var(--step--2); color: var(--text-muted); line-height: 1.5; }
+
+/* ---------- legibility (UI audit 2026-11-07: measured in all four themes at 1366x768) ---------- */
+:root { --text-dim: color-mix(in srgb, var(--text) 78%, var(--surface-1)); --bar: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6); }
+:root[data-theme="business"] {
+  --accent-h: 209; --accent-s: 100%; --accent-l: 36%; --surface-1: #f3f3f3; --surface-2: #ffffff; --grid: #f3f3f3; --glow: 0; color-scheme: light;
+  --text: #1a1a1a; --text-muted: #5f5f5f; --text-inverse: #ffffff; --accent-strong: hsl(209 100% 26%);
+  --danger: hsl(354 75% 44%); --warn: hsl(32 95% 36%); --ok: hsl(120 60% 32%); --info: hsl(209 80% 40%); --bar: hsl(209 100% 36% / 0.7);
+}
+.age, .mono, .repo, .card dt, .card .why, .crumbs button, .foot, .evs .mine, .ttl .num, .tile .rl { color: var(--text-dim); }
+.age, .card .why, .card table, .settings p, .tab em, .chip em, .lbl b { font-size: var(--step--1); }
+.lamp small, .rate small { font-size: var(--step--2); }
+.tile .views i { background: var(--bar); }
+.ci.none, .ci.cancelled { opacity: 1; border-color: var(--text-muted); background: transparent; }
+/* Read and quiet rows lose colour, not contrast. */
+.row.read, .row.quiet { opacity: 1; }
+.row.read .ttl, .row.quiet .ttl, .row.read .repo, .row.quiet .repo { color: var(--text-dim); }
+.stale .top .figure span span { opacity: 1; }
+.btn:disabled { border-style: dashed; cursor: not-allowed; color: var(--text-muted); }
+.row:focus-visible, .tile:focus-visible, .btn:focus-visible, .chip:focus-visible, .tab:focus-visible, .open:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.card { max-height: calc(100% - 0.5rem); overflow: auto; } .card td { white-space: nowrap; }
+.row.go { cursor: pointer; }
+.r-q, .r-in { grid-template-columns: 2.4rem 11rem 1fr 6rem 3rem 1.6rem; }
+.r-in { grid-template-columns: 0.6rem 2.4rem 11rem 1fr 5.4rem 2.8rem 1.6rem; }
+.r-rel { grid-template-columns: 9rem 1fr 6rem 3rem; }
+.r-run { grid-template-columns: 0.7rem 6rem 8rem 1fr 6.5rem 4rem 3rem 1.6rem; }
+.r-run.head { cursor: default; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--panel-rule); }
+.r-run.head:hover { background: transparent; }
+.medium .r-run { grid-template-columns: 0.7rem 6rem 1fr 3rem 1.6rem; } .medium .r-run > :nth-child(3), .medium .r-run > :nth-child(5), .medium .r-run > :nth-child(6) { display: none; }
+.narrow .r-run { grid-template-columns: 0.7rem 5rem 1fr 3rem; } .narrow .r-run > :nth-child(3), .narrow .r-run > :nth-child(5), .narrow .r-run > :nth-child(6), .narrow .r-run > :nth-child(8) { display: none; }
+.toast { position: absolute; left: 50%; bottom: 2.2rem; transform: translateX(-50%); z-index: 7; white-space: nowrap; max-width: 96%; overflow: hidden; text-overflow: ellipsis; background: var(--surface-2); border: 1px solid var(--accent); padding: 0.25rem 0.8rem; font-family: var(--font-mono); font-size: var(--step--1); display: none; }
+.toast.show { display: block; animation: crt 0.18s ease-out; }
+.narrow .r-pr { grid-template-columns: 5.4rem 0.7rem 1fr 3rem; } .narrow .r-pr > :nth-child(4) { display: none; }
+
+/* ---------- second audit (2026-11-07) ---------- */
+.card.wide { width: min(40rem, 96%); }
+.card td { white-space: normal; } .card td.n, .card td:nth-child(3) { white-space: nowrap; }
+.short .card .why { display: none; }
+.host .sub, .tab em, .chip em, .settings p, .empty, .crumbs .gt, .tile .stars .dl.zero { color: var(--text-dim); }
+.lamp small { font-size: var(--step--1); text-transform: none; letter-spacing: 0; }
+.when b, .foot .ledger b { font-size: var(--step--1); }
+:root[data-theme="business"] .kind.k-pr, :root[data-theme="business"] .kind.k-is { border-color: var(--text-muted); }
+:root[data-theme="business"] .kind.k-rl { border-color: var(--accent); }
+:root[data-theme="business"] { --bar: hsl(209 100% 36% / 0.85); }
+.tile .rl { white-space: nowrap; } .tile .rl > span:first-child { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.medium .r-q { grid-template-columns: 2.4rem 11rem 1fr 5.4rem 3rem; }
+.medium .r-in { grid-template-columns: 0.6rem 2.4rem 11rem 1fr 2.8rem; }
+.r-pr { grid-template-columns: 5.4rem 0.7rem 1fr 7.5rem 3rem; }
+.stale .view, .stale .contrib { opacity: 0.75; }
+.settings-toggle:focus-visible, .crumbs button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+</style>
+</head>
+<body>
+<div class="mockbar">
+  <div class="grp"><span>Theme</span><button type="button" data-theme="tron" aria-pressed="true">Tron</button><button type="button" data-theme="green">Green</button><button type="button" data-theme="black">Black</button><button type="button" data-theme="business">Business</button></div>
+  <div class="grp"><span>Size</span><button type="button" data-width="wide" aria-pressed="true">Wide</button><button type="button" data-width="medium">Medium</button><button type="button" data-width="narrow">Narrow</button><button type="button" data-width="short">Short</button></div>
+  <div class="grp"><span>Link</span><button type="button" data-link="linked" aria-pressed="true">Linked</button><button type="button" data-link="finegrained">Fine-grained token</button><button type="button" data-link="envtoken">GH_TOKEN set</button><button type="button" data-link="signedout">Signed out</button><button type="button" data-link="ratelow">Rate low</button><button type="button" data-link="offline">Offline</button><button type="button" data-link="nocli">No CLI</button></div>
+  <div class="grp"><span>Simulate</span><button type="button" id="sim-review">Review requested</button><button type="button" id="sim-ci">CI fails on my PR</button><button type="button" id="sim-star">Stars and an issue arrive</button><button type="button" id="sim-zero">Nothing waits</button></div>
+</div>
+
+<section class="pane" id="pane">
+  <div class="host"><span class="title">GITHUB</span><span class="sub" id="sub"></span><span class="badge danger" id="badge"></span><span class="ctl">⤢ ×</span></div>
+  <div class="top">
+    <span class="lamp ok" id="lamp"><i></i><span id="lamp-text">LINKED</span><small id="lamp-sub"></small></span>
+    <span class="figure"><small>Queue</small><span id="f-queue"></span></span>
+    <span class="figure"><small>Review</small><span id="f-review"></span></span>
+    <span class="figure"><small>Main red</small><span id="f-red"></span></span>
+    <span class="rate" id="rate"><small>REST</small><span class="track"><i style="width:8%"></i></span><b>412</b><small>GQL</small><span class="track"><i style="width:7.6%"></i></span><b>380</b></span>
+    <span class="spacer"></span>
+    <span class="when">inbox next <b id="w-next">14:23</b> · read <b>14:22</b></span>
+    <button type="button" class="btn" id="b-mask" aria-pressed="false">Mask</button>
+    <button type="button" class="btn" id="b-refresh">Refresh<span class="wait"></span></button>
+    <button type="button" class="settings-toggle" id="b-set" aria-label="github settings" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg></button>
+  </div>
+  <div class="notice" id="notice"><span class="t" id="notice-t"></span><code id="notice-c"></code><button type="button" class="btn" id="notice-copy">Copy</button></div>
+
+  <div class="contrib" id="contrib">
+    <div class="yr"><div class="lbl">Contributions · last year</div><div class="big" id="c-total">1,495</div><div class="lbl">this week <b>31</b> · last <b>44</b></div></div>
+    <div class="heat"><div class="months" id="months"></div><canvas id="heat"></canvas></div>
+    <div class="streak"><div class="lbl">Streak</div><div class="big">12<small>d</small></div><div class="lbl">best <b>41d</b></div></div>
+  </div>
+
+  <div class="tabs">
+    <button type="button" class="tab" data-tab="queue" aria-selected="true">Queue<em id="t-queue"></em></button>
+    <button type="button" class="tab" data-tab="inbox" aria-selected="false">Inbox<em id="t-inbox"></em></button>
+    <button type="button" class="tab" data-tab="events" aria-selected="false">Events<em id="t-events"></em></button>
+    <button type="button" class="tab" data-tab="repos" aria-selected="false">Repos<em id="t-repos"></em></button>
+  </div>
+  <div class="bar2" id="bar2"></div>
+  <div class="body" id="body"><div class="view" id="view" tabindex="-1"></div><div class="card" id="card"></div><div class="toast" id="toast" role="status"></div></div>
+  <div class="foot"><span class="ledger" id="ledger"></span><span class="rt">read only · only while shown · gh 2.100.0 (2.103.3 is out)</span></div>
+
+  <div class="settings" id="settings">
+    <h5>This pane</h5>
+    <div class="opt"><span>Repositories</span><span class="seg" data-opt="repos"><button type="button" class="btn" data-v="auto" aria-pressed="true">auto · my top 8 by stars</button><button type="button" class="btn" data-v="pinned">pinned</button></span></div>
+    <textarea spellcheck="false" placeholder="owner/name, one a line (12 at most)">octo-aki/tern
+octo-aki/lumen-cli
+starfield-org/starfield</textarea>
+    <div class="opt"><span>Inbox</span><span class="seg" data-opt="inbox"><button type="button" class="btn" aria-pressed="true">all unread</button><button type="button" class="btn">participating</button></span></div>
+    <div class="opt"><span>Contribution band</span><span class="seg" data-opt="band"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
+    <p>The account is gh's own (<code>gh auth status</code>); elecdex never sees the token. The pane keeps to 5% of each hour's rate limit with 12 repositories, reads the inbox no sooner than GitHub's poll interval, and an unchanged answer (304) costs nothing.</p>
+  </div>
+</section>
+<p class="note">モック: すべて架空のアカウント・リポジトリ・人で、GitHub には何も問い合わせません。<b>QUEUE</b> は自分を待っているものを重複なく 1 本に（既定ブランチの赤、自分の PR の失敗、レビュー依頼、承認待ちの実行、非公開の脆弱性報告、誰も答えていない Issue）。<b>EVENTS</b> は見張るリポジトリで起きたこと。<b>REPOS</b> のタイルを押すと、AWS ペインと同じパンくずでリポジトリの中（RUNS・PULLS・RELEASES）へ掘れます（Escape / Backspace で戻る）。↗ は実物では github.com のそのページを開きます。CI のランプは点滅せず、走っている実行は半分の塗り、承認待ちは破線。</p>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const ME = 'octo-aki';
+const REPOS = [
+  { nm: 'octo-aki/tern', st: 4823, dw: 57, fk: 311, is: 42, pr: 7, rel: 'v0.9.2', pre: false, ra: '6d', ahead: 38, dl: '18.2k', alerts: 1, priv: false, runs: ['success', 'success', 'failure', 'success', 'success', 'success', 'cancelled', 'success', 'pending', 'action'], s: [4760, 4766, 4771, 4779, 4790, 4797, 4805, 4823], v: [212, 240, 198, 260, 305, 288, 190, 170, 260, 330, 410, 380, 295, 312] },
+  { nm: 'octo-aki/lumen-cli', st: 1290, dw: 12, fk: 64, is: 18, pr: 3, rel: 'v2.5.0-rc.1', pre: true, ra: '1d', ahead: 4, dl: '3.1k', alerts: 0, priv: false, red: true, runs: ['success', 'success', 'success', 'success', 'failure', 'success', 'success', 'failure', 'failure', 'failure'], s: [1276, 1277, 1279, 1280, 1283, 1285, 1287, 1290], v: [80, 92, 70, 66, 101, 140, 120, 90, 85, 94, 130, 150, 160, 170] },
+  { nm: 'starfield-org/starfield', st: 21410, dw: 184, fk: 2210, is: 612, pr: 88, rel: 'v3.2.0', pre: false, ra: '1d', ahead: 61, dl: '96k', alerts: null, priv: false, runs: ['success', 'success', 'success', 'failure', 'success', 'success', 'success', 'success', 'success', 'pending'], s: [21226, 21250, 21281, 21310, 21333, 21360, 21388, 21410], v: [] },
+  { nm: 'octo-aki/wasm-sketch', st: 96, dw: 3, fk: 5, is: 2, pr: 0, rel: 'v0.1.0', pre: false, ra: '40d', ahead: 12, dl: '210', alerts: 'off', priv: false, runs: ['success', 'success', 'success', 'success', 'success'], s: [93, 93, 94, 94, 95, 95, 96, 96], v: [10, 12, 8, 14, 9, 11, 13, 9, 7, 15, 12, 10, 9, 11] },
+  { nm: 'octo-aki/dotfiles', st: 214, dw: 0, fk: 9, is: 0, pr: 0, rel: '—', pre: false, ra: '', ahead: 0, dl: '', alerts: 'off', priv: false, runs: [], s: [214, 214, 214, 214, 214, 214, 214, 214], v: [6, 4, 9, 5, 3, 2, 8, 7, 4, 5, 6, 3, 2, 4] },
+  { nm: 'octo-aki/infra-notes', st: 0, dw: 0, fk: 0, is: 3, pr: 1, rel: '—', pre: false, ra: '', ahead: 0, dl: '', alerts: 0, priv: true, runs: ['success', 'success'], s: [0, 0, 0, 0, 0, 0, 0, 0], v: [] },
+];
+// The queue: one line per thing that waits on me, the same PR never twice (shared/github/queue.ts).
+const QUEUE = [
+  { w: 'danger', k: 'ci', repo: 'octo-aki/lumen-cli', t: 'main is red · release failed 3 times in a row', tag: 'Main red', tagw: 'danger', age: '2h', why: 'The default branch\'s last three runs of release failed (actions/runs, ETag). Your repository, so it comes first.' },
+  { w: 'danger', k: 'sec', repo: 'octo-aki/tern', t: 'private vulnerability report · frame header overflow', tag: 'Security', tagw: 'danger', age: '5h', why: 'security-advisories?state=triage (admin only). Reported privately: nobody else can see it yet.' },
+  { w: 'danger', k: 'pr', repo: 'starfield-org/starfield', n: 1897, t: 'Windows: long path support in the asset loader', tag: 'Failing', tagw: 'danger', age: '1d', mine: true, why: 'Your PR. prVerdict picks the worst: checks FAILURE (2 of 14), review REVIEW_REQUIRED, mergeable MERGEABLE.' },
+  { w: 'warn', k: 'pr', repo: 'starfield-org/starfield', n: 1874, t: 'Fix flaky snapshot test on macOS runners', tag: 'Waiting 8d', tagw: 'danger', age: '8d', by: 'mvd', why: 'Asked of you 8 days ago (danger at 7, GH_LIMITS.reviewDangerDays). +24 −61.' },
+  { w: 'warn', k: 'run', repo: 'octo-aki/tern', n: 408, t: 'Approve workflows for a first-time contributor', tag: 'Approve', tagw: 'warn', age: '4d', by: 'first-timer-42', why: 'actions/runs?status=action_required: ci waits for a maintainer to approve it. The pane only shows it; approving is a write.' },
+  { w: 'warn', k: 'pr', repo: 'starfield-org/starfield', n: 1866, t: 'Renderer: batch glyph uploads', tag: 'Conflict', tagw: 'warn', age: '6d', mine: true, why: 'Your PR conflicts with main, and changes were asked for.' },
+  { w: 'info', k: 'pr', repo: 'octo-aki/tern', n: 412, t: 'Add streaming parser for chunked frames', tag: 'Review', tagw: 'info', age: '35m', by: 'rin-ws', why: 'Review requested by name. It is also in INBOX; here it is shown once.' },
+  { w: 'info', k: 'pr', repo: 'starfield-org/starfield', n: 1901, t: 'docs: translate the guide into Korean', tag: 'Waiting 4d', tagw: 'warn', age: '4d', by: 'jiho-k', why: 'Asked of you through the team @starfield-org/docs. Warn at 3 days.' },
+  { w: 'info', k: 'is', repo: 'starfield-org/starfield', n: 1893, t: '@octo-aki could you check the Windows path handling here?', tag: 'Mention', tagw: 'info', age: '1h', by: 'mvd', why: 'A mention from the inbox, folded in.' },
+  { w: 'info', k: 'is', repo: 'octo-aki/lumen-cli', n: 88, t: 'Crash on start with an empty config file', tag: 'Assigned', tagw: 'info', age: '1d', by: 'sora-t', why: 'Assigned to you.' },
+  { w: '', k: 'is', repo: 'octo-aki/tern', n: 413, t: 'Panic when the frame header is truncated', tag: 'Triage', tagw: '', age: '3h', by: 'q-lin', why: 'No comment, label or assignee yet. Oldest first in this group.' },
+  { w: '', k: 'pr', repo: 'octo-aki/lumen-cli', n: 92, t: 'Feature: --json output for `lumen status`', tag: 'Triage', tagw: '', age: '2d', by: 'emre', why: 'A PR nobody has reviewed.' },
+];
+const INBOX = [
+  { k: 'pr', repo: 'octo-aki/tern', n: 412, t: 'Add streaming parser for chunked frames', why: 'review', age: '35m', un: true },
+  { k: 'is', repo: 'starfield-org/starfield', n: 1893, t: '@octo-aki could you check the Windows path handling here?', why: 'mention', age: '1h', un: true },
+  { k: 'ci', repo: 'octo-aki/lumen-cli', t: 'Run failed: release · main · 4f2a91c', why: 'ci', age: '2h', un: true },
+  { k: 'sec', repo: 'octo-aki/tern', t: 'Dependabot alert: high severity in serde-json < 1.0.140', why: 'security', age: '5h', un: true },
+  { k: 'pr', repo: 'starfield-org/starfield', n: 1901, t: 'docs: translate the guide into Korean', why: 'review', age: '9h', un: true },
+  { k: 'is', repo: 'octo-aki/lumen-cli', n: 88, t: 'Crash on start with an empty config file', why: 'assign', age: '1d', un: true },
+  { k: 'rl', repo: 'starfield-org/starfield', t: 'Release v3.2.0', why: 'subscribed', age: '1d', un: false },
+  { k: 'pr', repo: 'octo-aki/tern', n: 409, t: 'Bump tokio from 1.47 to 1.48', why: 'subscribed', age: '2d', un: false },
+];
+const EVENTS = [
+  { repo: 'octo-aki/tern', at: '14:10', parts: [['★', '+4'], ['new issue', '1'], ['PR opened', '1'], ['fork', '+2']] },
+  { repo: 'starfield-org/starfield', at: '13:52', parts: [['★', '+31'], ['new issues', '6'], ['PRs opened', '4'], ['merged', '3'], ['comments', '27']] },
+  { repo: 'octo-aki/lumen-cli', at: '12:40', parts: [['release', 'v2.5.0-rc.1'], ['push', '3 commits'], ['★', '+2']], mine: 'push, release by you' },
+  { repo: 'octo-aki/wasm-sketch', at: '09:15', parts: [['★', '+1']] },
+];
+const REASON = { review: ['Review', 'info'], mention: ['Mention', ''], assign: ['Assign', ''], ci: ['CI', 'danger'], security: ['Security', 'danger'], subscribed: ['Watching', ''] };
+const KIND = { pr: 'PR', is: 'IS', ci: 'CI', sec: 'SEC', rl: 'RL', run: 'RUN' };
+
+const state = { link: 'linked', mask: false, tab: 'queue', filter: 'all', calls: 512, c304: 380, drill: [], wait: 0, zero: false, fresh: new Set() };
+const LINKS = {
+  linked: { lamp: 'ok', text: 'LINKED', sub: '' },
+  finegrained: { lamp: 'warn', text: 'PARTIAL', sub: 'inbox needs a classic token', badge: ['warn', 'partial'], noInbox: 'A fine-grained token cannot read notifications at all. Sign in with gh (it uses an OAuth token) or use a classic token; everything else is read.', cmd: 'gh auth login' },
+  envtoken: { lamp: 'warn', text: 'PARTIAL', sub: 'GH_TOKEN lacks notifications', badge: ['warn', 'partial'], noInbox: 'The token comes from GH_TOKEN in the environment, so gh auth refresh cannot add a scope. Give that token the notifications scope, or unset GH_TOKEN and sign in with gh.', cmd: 'gh auth status' },
+  signedout: { lamp: 'warn', text: 'SIGNED OUT', sub: 'github.com', stale: true, badge: ['warn', 'signed out'], notice: ['gh is not signed in to github.com, or its token expired and could not be renewed. Sign in from a shell; the pane reads again at REFRESH.', 'gh auth login'] },
+  ratelow: { lamp: 'warn', text: 'RATE LOW', sub: 'slowed ×4 · reset 15:04', badge: ['warn', 'rate low'], rate: true },
+  offline: { lamp: 'muted', text: 'OFFLINE', sub: 'last good 14:18', stale: true, badge: ['warn', 'offline'] },
+  nocli: { lamp: 'danger', text: 'NO CLI', sub: '', empty: true, badge: ['danger', 'no cli'] },
+};
+const L = () => LINKS[state.link];
+const isPriv = (repo) => REPOS.some((r) => r.nm === repo && r.priv);
+// The user's own repositories go by their name alone, so the column keeps the part that differs.
+const rn = (repo) => (state.mask && isPriv(repo) ? 'private repo' : repo.startsWith(`${ME}/`) ? repo.slice(ME.length + 1) : repo);
+const tt = (repo, t) => (state.mask && isPriv(repo) ? '•••••••••' : t);
+const who = (n) => (state.mask ? '•••••' : n);
+
+function queue() { return state.zero ? [] : QUEUE; }
+function renderTop() {
+  const l = L();
+  $('lamp').className = `lamp ${l.lamp}`; $('lamp-text').textContent = l.text; $('lamp-sub').textContent = l.sub ? `· ${l.sub}` : '';
+  $('pane').classList.toggle('stale', !!l.stale);
+  $('notice').classList.toggle('show', !!l.notice);
+  if (l.notice) { $('notice-t').textContent = l.notice[0]; $('notice-c').textContent = l.notice[1]; }
+  $('sub').textContent = l.empty ? '' : `@${who(ME)} · github.com · repo, read:org, workflow`;
+  const q = queue(); const d = q.filter((x) => x.w === 'danger').length;
+  const red = REPOS.filter((r) => r.red).length;
+  const b = $('badge');
+  if (l.badge) { b.className = `badge ${l.badge[0]}`; b.textContent = l.badge[1]; }
+  else if (red && !state.zero) { b.className = 'badge danger'; b.textContent = 'main red'; }
+  else b.className = 'badge none';
+  $('f-queue').innerHTML = l.empty ? '—' : `${q.length}${d ? ` · <span class="d">${d}</span>` : ''}`;
+  const rv = q.filter((x) => x.tag === 'Review' || x.tag.startsWith('Waiting')).length;
+  $('f-review').innerHTML = l.empty ? '—' : `<span class="${rv ? 'i' : 'z'}">${rv}</span>`;
+  $('f-red').innerHTML = l.empty ? '—' : `<span class="${red && !state.zero ? 'd' : 'z'}">${state.zero ? 0 : red}</span>`;
+  $('rate').classList.toggle('show', !!l.rate);
+  $('w-next').textContent = l.empty ? '—' : l.noInbox ? '—' : state.link === 'ratelow' ? '14:26' : '14:23';
+  $('t-queue').textContent = l.empty ? '' : q.length;
+  $('t-inbox').textContent = l.empty ? '' : l.noInbox ? '—' : INBOX.filter((x) => x.un).length;
+  $('t-events').textContent = l.empty ? '' : EVENTS.length;
+  $('t-repos').textContent = l.empty ? '' : REPOS.length;
+  $('ledger').innerHTML = l.empty ? 'requests today <b>0</b> · gh.exe not found'
+    : `requests today <b>${state.calls}</b> · 304 free <b>${state.c304}</b> · rest <b>132</b>/h · gql <b>48</b> pts/h · paid APIs <b class="zero">0</b>`;
+}
+
+// ---------- the contribution grid: one canvas, colours re-read on a theme change ----------
+function seeded(i) { const x = Math.sin(i * 12.9898) * 43758.5453; return x - Math.floor(x); }
+const DAYS = [];
+for (let i = 0; i < 53 * 7; i++) { const wk = Math.floor(i / 7), dow = i % 7; const base = dow === 0 || dow === 6 ? 0.35 : 0.85; const burst = wk > 38 && wk < 46 ? 1.6 : 1; const r = seeded(i); DAYS.push(r < 0.18 * (2 - base) ? 0 : Math.round(r * 9 * base * burst)); }
+for (let i = DAYS.length - 12; i < DAYS.length; i++) DAYS[i] = Math.max(DAYS[i], 1 + Math.round(seeded(i + 7) * 5));
+function renderHeat() {
+  const cv = $('heat');
+  if (!cv.offsetParent) return;
+  const narrow = $('pane').classList.contains('narrow');
+  const weeks = narrow ? 26 : 53;
+  const room = cv.parentElement.clientWidth, gap = 2;
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  const cell = Math.max(3, Math.min((room - gap * (weeks - 1)) / weeks, (3.6 * rem - gap * 6) / 7));
+  const w = Math.round(cell * weeks + gap * (weeks - 1)), h = Math.round(cell * 7 + gap * 6);
+  cv.style.width = `${w}px`; cv.style.height = `${h}px`; $('months').style.width = `${w}px`;
+  const dpr = window.devicePixelRatio || 1; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const cs = getComputedStyle(document.documentElement);
+  const H = cs.getPropertyValue('--accent-h').trim(), S = cs.getPropertyValue('--accent-s').trim(), Lt = cs.getPropertyValue('--accent-l').trim();
+  const levels = [0.07, 0.28, 0.48, 0.72, 1];
+  const start = DAYS.length - weeks * 7;
+  for (let i = 0; i < weeks * 7; i++) {
+    const v = DAYS[start + i]; const lv = v === 0 ? 0 : v < 3 ? 1 : v < 5 ? 2 : v < 8 ? 3 : 4;
+    const x = Math.floor(i / 7) * (cell + gap), y = (i % 7) * (cell + gap);
+    g.fillStyle = `hsl(${H} ${S} ${Lt} / ${levels[lv]})`; g.fillRect(x, y, cell, cell);
+    // A pad on a board: the brightest cells get a lit core rather than a solid fill.
+    if (lv === 4 && cell > 5) { g.fillStyle = `hsl(${H} ${S} calc(${Lt} + 14%) / 1)`; g.fillRect(x + cell * 0.3, y + cell * 0.3, cell * 0.4, cell * 0.4); }
+  }
+  const months = $('months'); months.innerHTML = '';
+  const names = ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'];
+  for (let m = 0; m < 12; m++) { const wk = Math.round((m / 12) * 53) - (53 - weeks); if (wk < 0) continue; const s = document.createElement('span'); s.textContent = names[m]; s.style.left = `${wk * (cell + gap)}px`; months.appendChild(s); }
+  cv.onmousemove = (e) => {
+    const r = cv.getBoundingClientRect(); const wk = Math.floor((e.clientX - r.left) / (cell + gap)), d = Math.floor((e.clientY - r.top) / (cell + gap));
+    if (wk < 0 || wk >= weeks || d < 0 || d > 6) { hideCard(); return; }
+    const idx = start + wk * 7 + d; const date = new Date(2026, 10, 7 - (DAYS.length - 1 - idx));
+    showCard(cv, `<h4><span>${date.toISOString().slice(0, 10)}</span><span>${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()]}</span></h4><dl><dt>contributions</dt><dd>${DAYS[idx]}</dd></dl><div class="why">GitHub's contribution calendar (GraphQL, its own probe once an hour).</div>`, true, e.clientX - r.left);
+  };
+  cv.onmouseleave = hideCard;
+}
+
+// ---------- the bar under the tabs ----------
+function renderBar2() {
+  const b = $('bar2'); b.innerHTML = '';
+  if (state.tab === 'repos' && state.drill.length) {
+    const c = document.createElement('span'); c.className = 'crumbs';
+    c.innerHTML = '<button type="button" class="back">‹</button><button type="button">repos</button><span class="gt">›</span>';
+    const here = document.createElement('button'); here.type = 'button'; here.className = 'here'; here.textContent = rn(state.drill[0]); c.appendChild(here);
+    c.querySelector('.back').onclick = up; c.children[1].onclick = up;
+    b.appendChild(c); b.classList.add('show'); return;
+  }
+  const sets = { queue: ['all', 'mine', 'review', 'security', 'mention', 'triage'], inbox: ['all', 'review', 'mention', 'assign', 'ci', 'security'] }[state.tab];
+  if (!sets || L().empty || (state.tab === 'inbox' && L().noInbox)) { b.classList.remove('show'); return; }
+  for (const k of sets) {
+    const ch = document.createElement('button'); ch.type = 'button'; ch.className = 'chip';
+    const n = state.tab === 'queue' ? queue().filter((x) => qMatch(x, k)).length : INBOX.filter((x) => k === 'all' || x.why === k).length;
+    ch.innerHTML = `${k}${k === 'all' ? '' : `<em>${n}</em>`}`; ch.setAttribute('aria-pressed', String(state.filter === k));
+    ch.onclick = () => { state.filter = k; renderView(); }; b.appendChild(ch);
+  }
+  b.classList.add('show');
+}
+const qMatch = (x, k) => k === 'all' || (k === 'mine' && (x.mine || x.k === 'ci')) || (k === 'review' && (x.tag === 'Review' || x.tag.startsWith('Waiting'))) || (k === 'security' && x.k === 'sec') || (k === 'mention' && x.tag === 'Mention') || (k === 'triage' && x.tag === 'Triage');
+
+// ---------- views ----------
+function renderView(dir) {
+  hideCard();
+  const v = $('view'); v.className = 'view'; void v.offsetWidth; v.classList.add(dir === 'up' ? 'up' : 'on'); v.innerHTML = '';
+  renderBar2();
+  if (L().empty) { v.innerHTML = '<div class="empty"><b class="d">NO CLI</b>GitHub CLI (gh) was not found on PATH or in its install folders.<br>Install it and sign in, then restart elecdex (a running app keeps its old PATH).<code>winget install GitHub.cli</code></div>'; return; }
+  if (state.tab === 'queue') return viewQueue(v);
+  if (state.tab === 'inbox') return viewInbox(v);
+  if (state.tab === 'events') return viewEvents(v);
+  return state.drill.length ? viewRepo(v, state.drill[0]) : viewRepos(v);
+}
+function openBtn() { return '<button type="button" class="open" aria-label="open on github.com">↗</button>'; }
+// A row that opens: click, Enter or its ↗. In the app the page sends the item's id and main opens the URL.
+let toastTimer = 0;
+function toast(text) { const t = $('toast'); t.textContent = text; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+function wireOpen(el, url) {
+  el.classList.add('go');
+  const go = () => toast(`would open ${url}`);
+  el.addEventListener('click', go);
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+}
+function hover(el, html) { el.addEventListener('mouseenter', () => showCard(el, html())); el.addEventListener('mouseleave', hideCard); el.addEventListener('focus', () => showCard(el, html(), true)); el.addEventListener('blur', hideCard); }
+function viewQueue(v) {
+  const q = queue().filter((x) => qMatch(x, state.filter));
+  if (!q.length) { v.innerHTML = '<div class="empty"><b>Nothing waits on you</b>last read 14:22 · next 14:25</div>'; return; }
+  let group = null;
+  const groups = { danger: 'Broken or blocked', warn: 'Waiting too long', info: 'For you', '': 'Triage · nobody has answered' };
+  for (const x of q) {
+    if (x.w !== group) { group = x.w; v.insertAdjacentHTML('beforeend', `<div class="sep">${groups[group]} <b>${q.filter((y) => y.w === group).length}</b></div>`); }
+    const el = document.createElement('div'); el.className = `row r-q ${x.w}${x.w === '' ? ' quiet' : ''}${state.fresh.has(x) ? ' fx-fresh' : ''}`; el.tabIndex = 0;
+    el.innerHTML = `<span class="kind k-${x.k}">${KIND[x.k]}</span><span class="repo"></span><span class="ttl">${x.n ? `<span class="num">#${x.n}</span>` : ''}<span class="tx"></span></span><span class="tag ${x.tagw}">${x.tag}</span><span class="age ${x.tag.startsWith('Waiting 8') ? 'd' : ''}">${x.age}</span>${openBtn()}`;
+    el.querySelector('.repo').textContent = rn(x.repo); el.querySelector('.tx').textContent = tt(x.repo, x.t);
+    hover(el, () => `<h4><span>${KIND[x.k]} · ${esc(rn(x.repo))}${x.n ? ` #${x.n}` : ''}</span><span>${x.by ? `by ${esc(who(x.by))}` : x.mine ? 'yours' : ''}</span></h4><div class="why">${esc(x.why)} Enter or ↗ opens it on github.com (main builds the URL from its own reading).</div>`);
+    wireOpen(el, `github.com/${x.repo}${x.n ? `/${x.k === 'pr' || x.k === 'run' ? 'pull' : 'issues'}/${x.n}` : x.k === 'ci' ? '/actions' : '/security'}`);
+    v.appendChild(el);
+  }
+  state.fresh.clear();
+}
+function viewInbox(v) {
+  if (L().noInbox) { v.innerHTML = `<div class="empty"><b class="w">Inbox not readable</b>${esc(L().noInbox)}<code>${L().cmd}</code></div>`; return; }
+  const rows = INBOX.filter((x) => state.filter === 'all' || x.why === state.filter);
+  if (!rows.length) { v.innerHTML = '<div class="empty"><b>Inbox zero</b>next read 14:23</div>'; return; }
+  for (const r of rows) {
+    const [label, w] = REASON[r.why];
+    const el = document.createElement('div'); el.className = `row r-in ${r.why === 'security' || r.why === 'ci' ? 'danger' : r.why === 'review' ? 'info' : ''}${r.un ? '' : ' read'}`; el.tabIndex = 0;
+    el.innerHTML = `<span class="unread${r.un ? '' : ' no'}"></span><span class="kind k-${r.k}">${KIND[r.k]}</span><span class="repo"></span><span class="ttl">${r.n ? `<span class="num">#${r.n}</span>` : ''}<span class="tx"></span></span><span class="tag ${w}">${label}</span><span class="age">${r.age}</span>${openBtn()}`;
+    el.querySelector('.repo').textContent = rn(r.repo); el.querySelector('.tx').textContent = tt(r.repo, r.t);
+    wireOpen(el, `github.com/${r.repo}${r.n ? `/${r.k === 'pr' ? 'pull' : 'issues'}/${r.n}` : ''}`);
+    v.appendChild(el);
+  }
+  v.insertAdjacentHTML('beforeend', '<div class="sep">the raw inbox · the pane marks nothing as read · polled at X-Poll-Interval (60 s), 304 costs nothing</div>');
+}
+function viewEvents(v) {
+  v.insertAdjacentHTML('beforeend', '<div class="sep">in your repositories · since 09:12</div>');
+  for (const e of [...(state.extraEvents || []), ...EVENTS]) {
+    const el = document.createElement('div'); el.className = `row r-ev${e.fresh ? ' fx-fresh' : ''}`;
+    el.innerHTML = `<span class="repo"></span><span class="evs">${e.parts.map(([k, n]) => `<span>${k === '★' ? '★' : k} <b>${esc(n)}</b></span>`).join('')}${e.mine ? `<span class="mine">· ${e.mine}</span>` : ''}</span><span class="age">${e.at}</span>`;
+    el.querySelector('.repo').textContent = rn(e.repo);
+    hover(el, () => `<h4><span>${esc(rn(e.repo))}</span><span>since 09:12</span></h4><div class="why">repos/{o}/{r}/events, every 5 min with the last ETag (304 is free). GitHub delivers events a few minutes late and keeps 300 or 90 days.</div>`);
+    v.appendChild(el); e.fresh = false;
+  }
+}
+function spark(s) { const min = Math.min(...s), max = Math.max(...s), span = max - min || 1; const pts = s.map((y, i) => `${(i / (s.length - 1)) * 100},${20 - ((y - min) / span) * 18}`).join(' '); return `<svg class="spark" viewBox="0 0 100 20" preserveAspectRatio="none"><polygon points="0,20 ${pts} 100,20"/><polyline points="${pts}"/></svg>`; }
+const alertText = (a) => (a === 'off' ? '<b class="z">off</b>' : a === null ? '<b class="z">—</b>' : `<b class="${a ? 'd' : ''}">${a}</b>`);
+function viewRepos(v) {
+  const g = document.createElement('div'); g.className = 'tiles';
+  for (const r of REPOS) {
+    const t = document.createElement('button'); t.type = 'button'; t.className = `tile${r.red ? ' red' : ''}`;
+    const max = Math.max(...r.v, 1);
+    t.innerHTML = `<div class="nm"><span class="ci ${r.runs[r.runs.length - 1] || 'none'}"></span><span class="t"></span>${r.priv ? '<span class="lock">PRIVATE</span>' : ''}</div>
+      <div class="stars"><span class="n">★ ${r.st.toLocaleString('en')}</span><span class="dl${r.dw ? '' : ' zero'}">${r.dw ? `+${r.dw}` : '±0'} 7d</span>${spark(r.s)}</div>
+      <div class="facts"><span>forks<b>${r.fk.toLocaleString('en')}</b></span><span>issues<b>${r.is}</b></span><span>PRs<b>${r.pr}</b></span><span>alerts${alertText(r.alerts)}</span></div>
+      <div class="runs"><span class="lbl">runs</span>${r.runs.length ? r.runs.map((s) => `<span class="ci ${s}"></span>`).join('') : '<span class="lbl">none</span>'}</div>
+      ${r.v.length ? `<span class="views">${r.v.map((x) => `<i style="height:${(x / max) * 100}%"></i>`).join('')}</span>` : ''}
+      <div class="rl"><span>release <b>${r.rel}</b>${r.pre ? '<span class="pre">PRE</span>' : ''}${r.ra ? ` · ${r.ra}` : ''}${r.ahead ? ` · +${r.ahead} since` : ''}</span><span>${r.dl ? `↓ <b>${r.dl}</b>` : ''}</span></div>`;
+    t.querySelector('.t').textContent = rn(r.nm);
+    t.onclick = () => { state.drill = [r.nm]; renderView(); };
+    hover(t, () => `<h4><span>${esc(rn(r.nm))}</span><span>${r.priv ? 'private' : 'public'}</span></h4><dl><dt>views 14 d</dt><dd>${r.v.length ? r.v.reduce((a, b) => a + b, 0).toLocaleString('en') : 'not shown: needs push access'}</dd><dt>alerts</dt><dd>${r.alerts === 'off' ? 'Dependabot alerts are disabled' : r.alerts === null ? 'needs admin or security manager' : `${r.alerts} open`}</dd></dl><div class="why">Stars over time are elecdex's own daily notes, public repositories only. The release is the newest, prereleases included (latestRelease skips them). Press to open the repository.</div>`);
+    g.appendChild(t);
+  }
+  v.appendChild(g);
+}
+function viewRepo(v, nm) {
+  const r = REPOS.find((x) => x.nm === nm);
+  v.insertAdjacentHTML('beforeend', `<div class="rtop">${[['stars', r.st.toLocaleString('en')], ['forks', r.fk.toLocaleString('en')], ['views 14 d', r.v.length ? r.v.reduce((a, b) => a + b, 0).toLocaleString('en') : '—'], ['clones 14 d', r.v.length ? Math.round(r.v.reduce((a, b) => a + b, 0) / 7) : '—'], ['open issues', r.is], ['open PRs', r.pr]].map(([k, x]) => `<div><div class="k">${k}</div><div class="v">${x}</div></div>`).join('')}</div>`);
+  v.insertAdjacentHTML('beforeend', '<div class="sep">runs · the last 20</div>');
+  const RUNS = [['failure', 'release', 'main', 'Bump version to 0.9.3', 'push', '4m 12s', '2h'], ['failure', 'release', 'main', 'Sign the Windows build', 'push', '4m 03s', '5h'], ['action', 'ci', 'fix-typo', 'Fix typo in README (#408) · awaiting approval', 'pull_request', '—', '4d'], ['pending', 'ci', 'bench-decoder', 'Benchmarks for the frame decoder (#410)', 'pull_request', '1m 40s', 'now'], ['success', 'ci', 'main', 'Parse trailers after the last chunk', 'push', '6m 03s', '3h'], ['success', 'pages', 'main', 'docs: decoder options', 'push', '58s', '1d'], ['cancelled', 'nightly', 'main', 'scheduled', 'schedule', '—', '1d']];
+  v.insertAdjacentHTML('beforeend', '<div class="row r-run head"><span></span><span>Workflow</span><span>Branch</span><span>Commit or PR</span><span>Event</span><span style="text-align:right">Took</span><span style="text-align:right">Age</span><span></span></div>');
+  for (const [s, wf, br, title, ev, dur, age] of RUNS) {
+    const el = document.createElement('div'); el.className = `row r-run ${s === 'failure' ? 'danger' : s === 'action' ? 'warn' : ''}`; el.tabIndex = 0;
+    el.innerHTML = `<span class="ci ${s}"></span><span class="mono"></span><span class="mono"></span><span class="ttl"></span><span class="mono">${ev}</span><span class="mono" style="text-align:right">${dur}</span><span class="age">${age}</span>${openBtn()}`;
+    el.children[1].textContent = wf; el.children[2].textContent = br; el.children[3].textContent = tt(nm, title);
+    wireOpen(el, `github.com/${nm}/actions/runs/…`); v.appendChild(el);
+  }
+  v.insertAdjacentHTML('beforeend', '<div class="sep">pulls · open</div>');
+  for (const [vd, ci, n, t, by, a] of [['Waiting', 'success', 412, 'Add streaming parser for chunked frames', 'rin-ws', '35m'], ['Pending', 'pending', 410, 'Benchmarks for the frame decoder', ME, '20m'], ['Approve', 'action', 408, 'Fix typo in README', 'first-timer-42', '4d']]) {
+    const el = document.createElement('div'); el.className = 'row r-pr'; el.tabIndex = 0;
+    el.innerHTML = `<span class="tag ${vd === 'Approve' ? 'warn' : vd === 'Pending' ? 'info' : ''}">${vd}</span><span class="ci ${ci}"></span><span class="ttl"><span class="num">#${n}</span><span class="tx"></span></span><span class="mono"></span><span class="age">${a}</span>`;
+    el.querySelector('.tx').textContent = tt(nm, t); el.children[3].textContent = who(by); wireOpen(el, `github.com/${nm}/pull/${n}`); v.appendChild(el);
+  }
+  v.insertAdjacentHTML('beforeend', '<div class="sep">releases</div>');
+  for (const [tag, pre, dl, ahead, a] of [[r.rel, r.pre, r.dl || '—', r.ahead, r.ra || '—'], ['v0.9.1', false, '9.4k', 0, '31d'], ['v0.9.0', false, '12.0k', 0, '58d']]) {
+    const el = document.createElement('div'); el.className = 'row r-rel';
+    el.innerHTML = `<span class="mono" style="color:var(--text)">${esc(tag)}${pre ? '<span class="pre">PRE</span>' : ''}</span><span class="mono">${ahead ? `+${ahead} commits since` : ''}</span><span class="mono" style="text-align:right">↓ ${dl}</span><span class="age">${a}</span>`;
+    v.appendChild(el);
+  }
+  v.insertAdjacentHTML('beforeend', '<div class="sep">read when opened · one GraphQL query and one REST call with ETag · kept 5 min</div>');
+}
+function up() { if (state.drill.length) { state.drill = []; renderView('up'); } }
+
+let cardTimer = 0;
+function showCard(anchor, html, now, atX) {
+  clearTimeout(cardTimer);
+  cardTimer = setTimeout(() => {
+    const card = $('card');
+    if (card.dataset.h !== html || !card.classList.contains('show')) { card.innerHTML = html; card.dataset.h = html; card.classList.remove('wide'); card.classList.remove('show'); void card.offsetWidth; card.classList.add('show'); }
+    const body = $('body').getBoundingClientRect(), a = anchor.getBoundingClientRect(), h = card.offsetHeight;
+    let top = a.bottom - body.top + 4;
+    if (anchor.id === 'heat') top = 2; else if (top + h > body.height) top = Math.max(0, a.top - body.top - h - 4);
+    card.style.top = `${top}px`;
+    const left = atX !== undefined ? a.left - body.left + atX - 40 : a.left - body.left + 24;
+    card.style.left = `${Math.min(Math.max(0, left), body.width - card.offsetWidth)}px`;
+  }, now ? 0 : 450);
+}
+function hideCard() { clearTimeout(cardTimer); $('card').classList.remove('show'); }
+$('ledger').addEventListener('mouseenter', () => {
+  clearTimeout(cardTimer);
+  cardTimer = setTimeout(() => {
+    const P = [['auth', 'gh auth status --json hosts', '15 min', 4], ['rate', 'rate_limit (not counted)', '5 min', 12], ['inbox', 'notifications · If-Modified-Since', '60 s', 410], ['queue', 'graphql · 4 searches · ~4 pts', '5 min', 12], ['repos', 'graphql · 6 repositories', '15 min', 4], ['events ×6', 'repos/…/events · ETag', '5 min', 36], ['runs ×6', 'actions/runs · ETag', '5 min', 24], ['advisories · ahead', 'security-advisories · compare', '1 h', 6], ['traffic ×4', 'traffic/views · clones', '6 h', 4]];
+    const card = $('card');
+    card.classList.add('wide'); card.innerHTML = `<h4><span>requests today · by probe</span><span>${state.calls}</span></h4><table>${P.map(([a, b, c, d]) => `<tr><td>${a}</td><td>${b}</td><td>${c}</td><td class="n">${d}</td></tr>`).join('')}</table><div class="why">${state.c304} of them answered 304 (unchanged) and used no rate limit. The pane keeps to 5% of each hour's limit with 12 repositories and slows to a quarter below 10% left. gh.exe: %ProgramFiles%\\GitHub CLI.</div>`;
+    card.dataset.h = ''; card.classList.remove('show'); void card.offsetWidth; card.classList.add('show');
+    const body = $('body').getBoundingClientRect(); card.style.left = '0.4rem'; card.style.top = `${Math.max(0, body.height - card.offsetHeight - 4)}px`;
+  }, 450);
+});
+$('ledger').addEventListener('mouseleave', hideCard);
+
+function render() { renderTop(); renderHeat(); renderView(); }
+for (const t of document.querySelectorAll('.tab')) t.onclick = () => { state.tab = t.dataset.tab; state.filter = 'all'; for (const x of document.querySelectorAll('.tab')) x.setAttribute('aria-selected', String(x === t)); renderView(); };
+$('pane').addEventListener('keydown', (e) => { if ((e.key === 'Escape' || e.key === 'Backspace') && state.drill.length && !(e.target instanceof HTMLTextAreaElement)) { e.preventDefault(); up(); $('view').focus(); } });
+function group(attr, fn) { for (const b of document.querySelectorAll(`.mockbar [data-${attr}]`)) b.onclick = () => { for (const x of document.querySelectorAll(`.mockbar [data-${attr}]`)) x.setAttribute('aria-pressed', String(x === b)); fn(b.dataset[attr]); }; }
+group('theme', (v) => { if (v === 'tron') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v; renderHeat(); });
+group('width', (v) => { const p = $('pane'); p.classList.remove('medium', 'narrow', 'short'); if (v !== 'wide') p.classList.add(v); render(); });
+group('link', (v) => { state.link = v; render(); });
+$('b-mask').onclick = () => { state.mask = !state.mask; $('b-mask').setAttribute('aria-pressed', String(state.mask)); renderTop(); renderView(); };
+$('b-set').onclick = () => { const s = $('settings'); const on = !s.classList.contains('show'); s.classList.toggle('show', on); $('b-set').setAttribute('aria-pressed', String(on)); };
+for (const seg of document.querySelectorAll('.settings .seg')) for (const b of seg.querySelectorAll('.btn')) b.onclick = () => { for (const x of seg.querySelectorAll('.btn')) x.setAttribute('aria-pressed', String(x === b)); if (seg.dataset.opt === 'band') { $('pane').classList.toggle('no-band', b.dataset.v === 'off'); renderHeat(); } };
+$('notice-copy').onclick = () => { const b = $('notice-copy'); b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1200); };
+$('b-refresh').onclick = () => {
+  if (state.wait > 0 || L().empty) return;
+  $('lamp').className = 'lamp linking'; $('lamp-text').textContent = 'LINKING';
+  state.wait = 30; const btn = $('b-refresh'); btn.disabled = true; btn.style.setProperty('--left', '1');
+  setTimeout(() => { state.calls += 9; if (L().stale) { state.link = 'linked'; for (const x of document.querySelectorAll('.mockbar [data-link]')) x.setAttribute('aria-pressed', String(x.dataset.link === 'linked')); } render(); }, 1100);
+  const tick = () => { state.wait -= 1; btn.style.setProperty('--left', String(state.wait / 30)); if (state.wait > 0) setTimeout(tick, 1000); else btn.disabled = false; };
+  setTimeout(tick, 1000);
+};
+// New rows go where their weight puts them; the rows already there keep their order.
+$('sim-review').onclick = () => { state.zero = false; const x = { w: 'info', k: 'pr', repo: 'octo-aki/lumen-cli', n: 93, t: 'Speed up startup by lazy-loading plugins', tag: 'Review', tagw: 'info', age: 'now', by: 'emre', why: 'Review requested by name, just now.' }; const i = QUEUE.findIndex((y) => y.w === 'info'); QUEUE.splice(i, 0, x); state.fresh.add(x); state.calls += 2; render(); };
+$('sim-ci').onclick = () => { const x = { w: 'danger', k: 'pr', repo: 'octo-aki/tern', n: 410, t: 'Benchmarks for the frame decoder', tag: 'Failing', tagw: 'danger', age: '20m', mine: true, why: 'Your PR: checks went from PENDING to FAILURE at the last reading.' }; const i = QUEUE.findIndex((y) => y.w !== 'danger'); QUEUE.splice(i, 0, x); state.fresh.add(x); state.calls += 2; render(); };
+$('sim-star').onclick = () => { state.extraEvents = [{ repo: 'octo-aki/wasm-sketch', at: '14:24', parts: [['★', '+12'], ['new issue', '1']], fresh: true }]; state.calls += 1; state.tab = 'events'; for (const x of document.querySelectorAll('.tab')) x.setAttribute('aria-selected', String(x.dataset.tab === 'events')); render(); };
+$('sim-zero').onclick = () => { state.zero = !state.zero; render(); };
+window.addEventListener('resize', renderHeat);
+render();
+</script>
+</body>
+</html>

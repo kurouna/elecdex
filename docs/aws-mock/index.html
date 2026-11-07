@@ -1,0 +1,1276 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWS pane mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of the AWS pane, standalone: no elecdex code, no AWS call, every figure made up.
+ * Colours follow tokens.css (primitive -> semantic) so the themes can be switched.
+ * The top row copies PaneHost's header (title, subtitle, badge); everything under it is the widget.
+ */
+:root {
+  --accent-h: 183; --accent-s: 22%; --accent-l: 74%;
+  --surface-1: #05080d; --surface-2: #0b1118; --grid: #262828;
+  --hue-danger: 0; --hue-warn: 45; --hue-ok: 130; --hue-info: 212;
+  --status-l: 60%; --glow: 1;
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --text: var(--accent); --text-inverse: var(--surface-1);
+  --text-muted: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --danger: hsl(var(--hue-danger) 80% var(--status-l));
+  --warn: hsl(var(--hue-warn) 85% calc(var(--status-l) - 2%));
+  --ok: hsl(var(--hue-ok) 60% calc(var(--status-l) - 8%));
+  --info: hsl(var(--hue-info) 85% calc(var(--status-l) + 6%));
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --step--2: 0.625rem; --step--1: 0.75rem; --step-0: 0.875rem; --step-1: 1.125rem; --step-2: 1.5rem; --step-3: 2.25rem;
+  --tracking-wide: 0.12em; --tracking-wider: 0.28em;
+  --ambient-play-state: running;
+}
+:root[data-theme="green"] { --accent-h: 120; --accent-s: 100%; --accent-l: 45%; --surface-1: #000; --surface-2: #031003; --grid: #0d1f0d; }
+:root[data-theme="black"] { --accent-h: 0; --accent-s: 0%; --accent-l: 86%; --surface-1: #000; --surface-2: #0d0d0d; --grid: #141414; --glow: 0; }
+:root[data-theme="business"] {
+  --accent-h: 214; --accent-s: 55%; --accent-l: 34%; --surface-1: #f4f6f9; --surface-2: #ffffff; --grid: #e2e6ec;
+  --status-l: 42%; --glow: 0; color-scheme: light;
+}
+html { font-size: clamp(14px, 1.48vh, 22px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; color: var(--text); font-family: var(--font-ui); background-color: var(--surface-1);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 2.2rem 2.2rem; padding: 1rem;
+}
+button { font: inherit; color: inherit; }
+
+/* ---------- mock controls (not part of the pane) ---------- */
+.mockbar { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; align-items: center; font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; margin-bottom: 0.8rem; color: var(--text-muted); }
+.mockbar .grp { display: flex; gap: 0.25rem; align-items: center; flex-wrap: wrap; }
+.mockbar .grp > span { margin-right: 0.3rem; }
+.mockbar button { background: transparent; border: 1px solid var(--panel-rule); padding: 0.1rem 0.5rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide); }
+.mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
+.note { font-size: var(--step--1); color: var(--text-muted); margin: 0.6rem 0 0; max-width: 72rem; line-height: 1.6; }
+
+/* ---------- the pane frame and PaneHost's header ---------- */
+.pane { position: relative; display: flex; flex-direction: column; min-width: 0; height: min(84vh, 56rem); width: 66rem; max-width: 100%; border-top: 1px solid var(--panel-rule); }
+.pane.medium { width: 46rem; } .pane.narrow { width: 30rem; }
+.pane.short { height: 26rem; }
+.pane::before, .pane::after { content: ""; position: absolute; top: -1px; width: 1px; height: 0.4rem; background: var(--panel-rule); }
+.pane::before { left: 0; } .pane::after { right: 0; }
+.host { display: flex; align-items: baseline; gap: 0.7rem; padding: 0.15rem 0.4rem 0.2rem; white-space: nowrap; min-width: 0; }
+.host .title { font-family: var(--font-display); font-size: var(--step-1); letter-spacing: 0.04em; }
+.host .sub { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.host .badge { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; border: 1px solid currentColor; padding: 0 0.35rem; }
+.host .badge.danger { color: var(--danger); } .host .badge.warn { color: var(--warn); } .host .badge.none { display: none; }
+.host .ctl { color: var(--text-muted); font-size: var(--step--1); letter-spacing: 0.3em; }
+
+/* ---------- the widget's top row ---------- */
+.top { display: flex; align-items: center; gap: 0.9rem; padding: 0.2rem 0.4rem 0.35rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; flex-wrap: wrap; border-top: 1px solid var(--accent-faint); }
+.lamp { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; }
+.lamp i { width: 0.5rem; height: 0.5rem; transform: rotate(45deg); background: var(--ok); display: inline-block; box-shadow: 0 0 calc(var(--glow) * 0.5rem) currentColor; }
+.lamp.ok { color: var(--ok); }
+.lamp.warn { color: var(--warn); } .lamp.warn i { background: var(--warn); }
+.lamp.danger { color: var(--danger); } .lamp.danger i { background: var(--danger); }
+.lamp.muted { color: var(--text-muted); } .lamp.muted i { background: transparent; outline: 1px solid var(--text-muted); box-shadow: none; }
+.lamp.linking { color: var(--accent); } .lamp.linking i { background: var(--accent); animation: blink 0.6s steps(2, jump-none) infinite; animation-play-state: var(--ambient-play-state); }
+@keyframes blink { 50% { opacity: 0.2; } }
+.lamp small { font-weight: 400; color: var(--text-muted); margin-left: 0.2rem; }
+.figure { display: flex; flex-direction: column; line-height: 1.15; background: transparent; border: 0; padding: 0; text-align: left; }
+.figure small { color: var(--text-muted); font-size: var(--step--2); }
+.figure span { font-family: var(--font-mono); font-size: var(--step--1); text-transform: none; letter-spacing: 0; }
+.figure .d { color: var(--danger); } .figure .w { color: var(--warn); }
+button.figure { cursor: pointer; } button.figure:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.rsel { display: flex; gap: 0; }
+.rsel button { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--panel-rule); margin-left: -1px; background: transparent; cursor: pointer; padding: 0.02rem 0.45rem; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); letter-spacing: 0; text-transform: none; }
+.rsel button[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); position: relative; }
+.rsel i { width: 0.36rem; height: 0.36rem; transform: rotate(45deg); background: var(--ok); }
+.rsel i.danger { background: var(--danger); box-shadow: 0 0 calc(var(--glow) * 0.4rem) var(--danger); } .rsel i.warn { background: var(--warn); } .rsel i.none { display: none; }
+.spacer { flex: 1; }
+.when { color: var(--text-muted); text-align: right; }
+.when b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; }
+.btn { position: relative; background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.45rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.btn:hover { border-color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); }
+.btn:disabled { cursor: default; color: var(--text-muted); border-color: var(--panel-rule); }
+.btn .wait { position: absolute; left: 0; bottom: -1px; height: 1px; background: var(--accent); width: calc(var(--left, 0) * 100%); }
+.settings-toggle { width: 1.4rem; height: 1.4rem; padding: 0.15rem; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; }
+.settings-toggle:hover, .settings-toggle[aria-pressed="true"] { color: var(--accent); }
+.settings-toggle svg { display: block; width: 100%; height: 100%; }
+.narrow .when, .narrow .top .fig-att { display: none; }
+
+.notice { display: none; margin: 0 0.4rem 0.3rem; padding: 0.3rem 0.6rem; border: 1px solid var(--warn); background: hsl(var(--hue-warn) 85% 50% / 0.08); font-size: var(--step--1); align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+.notice.show { display: flex; animation: crt 0.18s ease-out; }
+.notice code { font-family: var(--font-mono); font-size: var(--step--1); padding: 0.05rem 0.4rem; border: 1px solid var(--panel-rule); background: var(--surface-2); }
+.notice .t { flex: 1; min-width: 12rem; }
+
+/* ---------- ACCOUNT PULSE: one 2D canvas, words in HTML ---------- */
+.pulse { position: relative; padding: 0.3rem 0.4rem 0.1rem; border-top: 1px solid var(--panel-rule); border-bottom: 1px solid var(--panel-rule); }
+.pulse .head { display: flex; justify-content: space-between; gap: 1rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.pulse .head b { color: var(--text); font-weight: 500; }
+.pulse .legend { display: flex; gap: 0.8rem; }
+.pulse .legend span::before { content: ""; display: inline-block; width: 0.5rem; height: 0.18rem; margin-right: 0.3rem; vertical-align: middle; background: var(--accent-dim); }
+.pulse .legend .e::before { background: var(--danger); } .pulse .legend .l::before { background: var(--info); transform: rotate(45deg); width: 0.3rem; height: 0.3rem; }
+.pulse .legend .a::before { background: hsl(var(--hue-danger) 80% var(--status-l) / 0.35); height: 0.45rem; }
+.pulse canvas { display: block; width: 100%; height: 2.6rem; margin-top: 0.15rem; cursor: crosshair; }
+.pulse .axis { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); margin-top: 0.05rem; }
+.pane.no-pulse .pulse, .pane.short .pulse { display: none; }
+.narrow .pulse .legend { display: none; }
+
+/* ---------- tabs, crumbs, filters ---------- */
+.tabs { display: flex; gap: 0.2rem; padding: 0.35rem 0.4rem 0; align-items: flex-end; flex-wrap: wrap; }
+.tab { background: transparent; border: 1px solid var(--panel-rule); border-bottom: none; padding: 0.1rem 0.7rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.tab[aria-selected="true"] { color: var(--text-inverse); background: var(--accent); border-color: var(--accent); }
+.tab em { font-style: normal; font-family: var(--font-mono); font-size: var(--step--2); margin-left: 0.3rem; }
+.narrow .tab { padding: 0.1rem 0.4rem; }
+.bar2 { display: none; align-items: center; gap: 0.35rem; padding: 0.25rem 0.4rem; border-top: 1px solid var(--panel-rule); flex-wrap: wrap; min-height: 1.7rem; }
+.bar2.show { display: flex; }
+.crumbs { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; font-size: var(--step--1); }
+.crumbs button { background: transparent; border: 0; padding: 0 0.15rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.crumbs button:hover { color: var(--text); }
+.crumbs button.here { color: var(--text); cursor: default; font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.crumbs .gt { color: var(--panel-border); }
+.crumbs .back { border: 1px solid var(--panel-rule); padding: 0 0.4rem; font-family: var(--font-mono); }
+.chip { background: transparent; border: 1px solid var(--panel-rule); padding: 0 0.4rem; cursor: pointer; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); }
+.chip[aria-pressed="true"] { color: var(--text); border-color: var(--accent-dim); background: var(--accent-faint); }
+.chip.f { color: var(--text); border-color: var(--accent); font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.chip.f::after { content: " ×"; color: var(--text-muted); }
+
+/* ---------- body ---------- */
+.body { position: relative; flex: 1; min-height: 0; border-top: 1px solid var(--panel-rule); display: flex; flex-direction: column; }
+.view { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 0.2rem 0 0.4rem; }
+.view::-webkit-scrollbar { display: none; }
+.view.on { animation: crt 0.22s ease-out; transform-origin: 50% 0; }
+.view.up { animation: crt 0.22s ease-out; transform-origin: 50% 100%; }
+@keyframes crt { from { transform: scaleY(0.02); opacity: 0.4; } to { transform: scaleY(1); opacity: 1; } }
+.stale .view, .stale .pulse, .stale .top .figure span { opacity: 0.55; }
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem; height: 100%; min-height: 8rem; color: var(--text-muted); font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; text-align: center; padding: 1rem; }
+.empty b { font-family: var(--font-display); font-weight: 500; font-size: var(--step-1); color: var(--ok); letter-spacing: var(--tracking-wider); text-shadow: 0 0 calc(var(--glow) * 0.5rem) currentColor; }
+.empty b.d { color: var(--danger); }
+.empty code { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; color: var(--text); border: 1px solid var(--panel-rule); padding: 0.1rem 0.5rem; background: var(--surface-2); }
+.sep { display: flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0.4rem 0.2rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.sep::after { content: ""; flex: 1; border-top: 1px dashed var(--panel-rule); }
+.sep b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; }
+
+/* rows: the left edge carries the weight; tags are outlined */
+.row { position: relative; display: grid; gap: 0.6rem; align-items: baseline; padding: 0.14rem 0.6rem 0.14rem 0.4rem; border-left: 2px solid transparent; font-size: var(--step--1); cursor: pointer; }
+.row:hover, .row:focus-visible { background: var(--accent-faint); outline: none; }
+.row.danger { border-left-color: var(--danger); } .row.warn { border-left-color: var(--warn); } .row.info { border-left-color: var(--info); }
+.fx-fresh { position: relative; animation: wipe 0.42s ease-out backwards; }
+.fx-fresh::before { content: ""; position: absolute; inset: 0; border-left: 2px solid var(--accent); background: linear-gradient(to right, hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.16), transparent 75%); opacity: 0; pointer-events: none; animation: fresh 3s linear backwards; }
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes fresh { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+.tag { font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; font-weight: 600; text-align: center; border: 1px solid var(--panel-rule); color: var(--text-muted); padding: 0 0.2rem; white-space: nowrap; clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%); }
+.danger > .tag, .tag.danger { color: var(--danger); border-color: var(--danger); }
+.warn > .tag, .tag.warn { color: var(--warn); border-color: var(--warn); }
+.info > .tag, .tag.info { color: var(--info); border-color: var(--info); }
+.tag.ok { color: var(--ok); border-color: var(--ok); }
+.msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg b { font-weight: 500; color: var(--accent-strong); }
+.mono { font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.age { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); text-align: right; white-space: nowrap; }
+.open { visibility: hidden; background: transparent; border: 1px solid var(--panel-rule); cursor: pointer; font-family: var(--font-mono); font-size: var(--step--2); padding: 0 0.3rem; color: var(--text-muted); }
+.row:hover .open, .row:focus-within .open, .row:focus .open { visibility: visible; }
+.open:hover { color: var(--accent); border-color: var(--accent); }
+.r-att { grid-template-columns: 5.4rem 1fr 11rem 7.4rem 3rem 1.6rem; }
+.medium .r-att { grid-template-columns: 5.4rem 1fr 9rem 3rem 1.6rem; } .medium .r-att .rg { display: none; }
+.narrow .r-att { grid-template-columns: 5.2rem 1fr 2.6rem; } .narrow .r-att .rid, .narrow .r-att .rg, .narrow .r-att .open { display: none; }
+
+/* RESOURCES level 1: services down, regions across, with today's change */
+.changes { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; margin: 0.35rem 0.4rem 0.2rem; font-size: var(--step--1); }
+.changes span { font-family: var(--font-mono); }
+.changes .p { color: var(--ok); } .changes .m { color: var(--warn); }
+.changes .since { color: var(--text-muted); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.inv { display: grid; margin: 0.2rem 0.4rem; font-size: var(--step--1); }
+.inv .h { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--panel-rule); position: sticky; top: 0; background: var(--surface-1); z-index: 1; }
+.inv .h.num { text-align: right; font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.inv .svc { padding: 0.2rem 0.4rem; font-size: var(--step--1); letter-spacing: var(--tracking-wide); text-transform: uppercase; border-bottom: 1px solid var(--accent-faint); display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+.inv .svc::after { content: "›"; margin-left: auto; color: var(--text-muted); }
+.inv .svc:hover, .inv .cell:hover { background: var(--accent-faint); }
+.inv .cell { position: relative; padding: 0.2rem 0.4rem; border-bottom: 1px solid var(--accent-faint); border-left: 1px solid var(--accent-faint); display: flex; align-items: center; gap: 0.4rem; justify-content: flex-end; cursor: pointer; }
+.inv .cell .n { font-family: var(--font-mono); min-width: 1.6rem; text-align: right; }
+.inv .cell .n.zero { color: var(--text-muted); opacity: 0.45; }
+.inv .cell .dl { font-family: var(--font-mono); font-size: var(--step--2); min-width: 1.6rem; text-align: right; }
+.inv .cell .dl.p { color: var(--ok); } .inv .cell .dl.m { color: var(--warn); }
+.inv .cell .dot { position: absolute; right: 0.15rem; top: 0.18rem; width: 0.3rem; height: 0.3rem; transform: rotate(45deg); background: var(--warn); }
+.inv .cell .dot.d { background: var(--danger); }
+.inv .cell.total { background: var(--accent-faint); }
+
+/* ACTIVE: the meter, one stacked bar, a row per service */
+.meter { display: grid; grid-template-columns: 13rem 12rem 1fr; gap: 1.2rem; padding: 0.45rem 0.6rem 0.3rem; }
+.medium .meter { grid-template-columns: 1fr 1fr; } .medium .meter .wide { grid-column: 1 / -1; }
+.narrow .meter { grid-template-columns: 1fr 1fr; gap: 0.6rem; } .narrow .meter .wide { display: none; }
+.narrow .meter .big { font-size: var(--step-2); }
+.big.w { color: var(--warn); text-shadow: 0 0 calc(var(--glow) * 0.6rem) var(--warn); }
+.stackbar { display: flex; gap: 2px; height: 1.15rem; margin: 0.1rem 0.6rem 0.35rem; }
+.stackbar .seg { min-width: 3px; border: 0; padding: 0 0.3rem; cursor: pointer; background: var(--accent-dim); color: var(--text-inverse); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; overflow: hidden; white-space: nowrap; text-align: left; }
+.stackbar .seg:nth-child(odd) { background: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.55); }
+.stackbar .seg:hover { background: var(--accent); }
+.stackbar .seg.w { box-shadow: inset 0 -2px var(--warn); }
+.arow { display: grid; grid-template-columns: 7rem 7.5rem 1fr 13rem 4.2rem 2.4rem; gap: 0.6rem; align-items: center; padding: 0.2rem 0.6rem 0.2rem 0.4rem; border-left: 2px solid transparent; border-bottom: 1px solid var(--accent-faint); font-size: var(--step--1); cursor: pointer; }
+.arow:hover, .arow:focus-visible { background: var(--accent-faint); outline: none; }
+.arow.warn { border-left-color: var(--warn); }
+.arow.head { cursor: default; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--panel-rule); }
+.arow.head:hover { background: transparent; }
+.arow.quiet { cursor: default; color: var(--text-muted); } .arow.quiet:hover { background: transparent; }
+.arow .sv { letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.arow .wst { color: var(--warn); font-family: var(--font-mono); font-size: var(--step--1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arow .cbar { display: grid; grid-template-columns: 1fr 4.4rem; gap: 0.5rem; align-items: center; }
+.arow .cbar .tr { position: relative; height: 0.55rem; background: var(--accent-faint); }
+.arow .cbar .tr i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-dim); border-right: 1px solid var(--accent); }
+.arow .cbar .tr u { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--warn); }
+.arow .cbar b { font-family: var(--font-mono); font-weight: 400; text-align: right; }
+.arow .rgs { display: flex; gap: 0.35rem; font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.arow .rgs i { width: 0.45rem; height: 0.45rem; transform: rotate(45deg); outline: 1px solid var(--panel-rule); }
+.arow .rgs i.on { background: var(--accent); outline: 0; }
+.arow .dlt { font-family: var(--font-mono); font-size: var(--step--1); text-align: right; }
+.arow .dlt.p { color: var(--ok); } .arow .dlt.m { color: var(--warn); }
+.medium .arow { grid-template-columns: 6rem 6.5rem 1fr 10rem 2rem; } .medium .arow .rgs { display: none; }
+.narrow .arow { grid-template-columns: 5rem 1fr 7.5rem; } .narrow .arow .mono, .narrow .arow .rgs, .narrow .arow .dlt { display: none; }
+.narrow .arow.quiet .mono { display: block; }
+.ce { margin: 0.4rem 0.6rem; padding: 0.4rem 0.6rem; border: 1px dashed var(--panel-border); display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; font-size: var(--step--1); }
+.ce .t { flex: 1; min-width: 14rem; color: var(--text-muted); line-height: 1.5; }
+.ce .t b { color: var(--text); font-weight: 500; }
+.ce.on { border-style: solid; border-color: var(--accent-dim); }
+.paid { color: var(--warn); font-family: var(--font-mono); }
+.utbl { width: calc(100% - 1.2rem); margin: 0.2rem 0.6rem; border-collapse: collapse; font-size: var(--step--1); }
+.utbl td { padding: 0.12rem 0.4rem; border-bottom: 1px solid var(--accent-faint); }
+.utbl td.n { text-align: right; font-family: var(--font-mono); }
+.utbl td.k { font-family: var(--font-mono); }
+
+/* level 2: facets and the table */
+.facets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem 1rem; padding: 0.35rem 0.6rem 0.5rem; border-bottom: 1px solid var(--panel-rule); }
+.medium .facets { grid-template-columns: repeat(2, 1fr); }
+.narrow .facets { grid-template-columns: 1fr; }
+.narrow .facets .fg:nth-child(n+2) { display: none; }
+.fg h6 { margin: 0 0 0.15rem; font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.fb { display: grid; grid-template-columns: minmax(3.5rem, 6.5rem) minmax(2.5rem, 1fr) 1.8rem; gap: 0.4rem; align-items: center; width: 100%; background: transparent; border: 0; padding: 0.06rem 0; cursor: pointer; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text); text-align: left; }
+.fb .k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb .tr { height: 0.42rem; position: relative; background: var(--accent-faint); }
+.fb .tr i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-dim); }
+.fb .n { text-align: right; color: var(--text-muted); }
+.fb:hover .tr i { background: var(--accent); }
+.fb.on .tr i { background: var(--accent); box-shadow: 0 0 calc(var(--glow) * 0.4rem) var(--accent); }
+.fb.on .k { color: var(--accent-strong); }
+.fb.zero { opacity: 0.35; }
+.fb.warn .tr i { background: var(--warn); } .fb.danger .tr i { background: var(--danger); }
+.tbl { width: 100%; border-collapse: collapse; font-size: var(--step--1); }
+.tbl th { position: sticky; top: 0; background: var(--surface-1); z-index: 1; text-align: left; font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--panel-rule); cursor: pointer; white-space: nowrap; user-select: none; }
+.tbl th.num, .tbl td.num { text-align: right; }
+.tbl th:hover { color: var(--text); }
+.tbl th .s { color: var(--accent); margin-left: 0.2rem; }
+.tbl td { padding: 0.14rem 0.5rem; border-bottom: 1px solid var(--accent-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 14rem; }
+.tbl td.mono { font-family: var(--font-mono); color: var(--text-muted); }
+.tbl td.num { font-family: var(--font-mono); position: relative; }
+.tbl td.num i { position: absolute; right: 0.5rem; bottom: 2px; height: 2px; background: var(--accent-faint); }
+.tbl tr { cursor: pointer; }
+.tbl tbody tr:hover, .tbl tbody tr:focus-visible { background: var(--accent-faint); outline: none; }
+.tbl tr.warn td:first-child { box-shadow: inset 2px 0 var(--warn); } .tbl tr.danger td:first-child { box-shadow: inset 2px 0 var(--danger); }
+.st { display: inline-flex; align-items: center; gap: 0.3rem; }
+.st i { width: 0.4rem; height: 0.4rem; transform: rotate(45deg); background: var(--ok); }
+.st.off i { background: transparent; outline: 1px solid var(--text-muted); } .st.off { color: var(--text-muted); }
+.st.warn i { background: var(--warn); } .st.warn { color: var(--warn); }
+.st.danger i { background: var(--danger); } .st.danger { color: var(--danger); }
+.lfoot { margin: 0.4rem 0.6rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.narrow .tbl .c3, .narrow .tbl .c4, .narrow .tbl .c5, .narrow .tbl .c6 { display: none; }
+.medium .tbl .c5, .medium .tbl .c6 { display: none; }
+
+/* level 3: one resource */
+.one { padding: 0.4rem 0.6rem; }
+.one .hd { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
+.one .nm { font-family: var(--font-display); font-size: var(--step-2); font-weight: 500; color: var(--accent-strong); text-shadow: 0 0 calc(var(--glow) * 0.6rem) var(--accent); }
+.one .kind { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.one .acts { margin-left: auto; display: flex; gap: 0.3rem; }
+.one .grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 0.6rem 1.4rem; margin-top: 0.5rem; }
+.narrow .one .grid { grid-template-columns: 1fr; }
+.one h6 { margin: 0 0 0.25rem; font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--panel-rule); padding-bottom: 0.15rem; }
+.one dl { display: grid; grid-template-columns: auto 1fr; gap: 0.14rem 0.9rem; margin: 0; font-size: var(--step--1); }
+.one dt { color: var(--text-muted); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; align-self: center; }
+.one dd { margin: 0; font-family: var(--font-mono); overflow-wrap: anywhere; }
+.one dd.w { color: var(--warn); } .one dd.d { color: var(--danger); } .one dd.o { color: var(--ok); }
+.rel { display: grid; grid-template-columns: 3.6rem 1fr auto; gap: 0.5rem; padding: 0.12rem 0.3rem; font-size: var(--step--1); cursor: pointer; border-left: 2px solid transparent; }
+.rel:hover, .rel:focus-visible { background: var(--accent-faint); outline: none; }
+.rel.warn { border-left-color: var(--warn); }
+.rel .k { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); align-self: center; }
+.rel .v { font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rel .x { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.rel::after { content: "›"; color: var(--text-muted); }
+.rel { grid-template-columns: 3.6rem 1fr auto 0.6rem; }
+.hist { margin-top: 0.4rem; }
+.ev { display: grid; grid-template-columns: 4.6rem 8rem 1fr 6rem; gap: 0.6rem; padding: 0.1rem 0.3rem; font-size: var(--step--1); border-left: 2px solid transparent; }
+.ev.err { border-left-color: var(--danger); } .ev.login { border-left-color: var(--info); }
+.ev .t { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+.ev .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
+.ev .op { font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev .res { font-family: var(--font-mono); font-size: var(--step--1); text-align: right; color: var(--ok); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev.err .res { color: var(--danger); }
+.activity .ev { grid-template-columns: 4.6rem 9rem 1fr 6.5rem 7.4rem 7rem; padding: 0.12rem 0.6rem 0.12rem 0.4rem; }
+.activity .ev .svc2, .activity .ev .rg { font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); }
+.medium .activity .ev { grid-template-columns: 4.4rem 8rem 1fr 6rem; } .medium .activity .ev .svc2, .medium .activity .ev .rg { display: none; }
+.narrow .activity .ev { grid-template-columns: 4.2rem 1fr 5rem; } .narrow .activity .ev .who, .narrow .activity .ev .svc2, .narrow .activity .ev .rg { display: none; }
+
+/* COST */
+.costtop { display: grid; grid-template-columns: 14rem 1fr; gap: 1.2rem; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--panel-rule); }
+.narrow .costtop { grid-template-columns: 1fr; }
+.big { font-family: var(--font-display); font-size: var(--step-3); line-height: 1.05; font-weight: 500; color: var(--accent-strong); font-variant-numeric: tabular-nums; text-shadow: 0 0 calc(var(--glow) * 0.6rem) var(--accent); }
+.big small { font-size: var(--step-0); color: var(--text-muted); margin-left: 0.15rem; text-shadow: none; }
+.lbl { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); line-height: 1.6; }
+.lbl b { color: var(--text); font-family: var(--font-mono); font-weight: 400; letter-spacing: 0; }
+.lbl b.w { color: var(--warn); } .lbl b.p { color: var(--warn); } .lbl b.o { color: var(--ok); }
+.gauge { display: grid; grid-template-columns: 5rem 1fr 3.2rem; gap: 0.5rem; align-items: center; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); margin: 0.15rem 0; }
+.gauge .track { position: relative; height: 0.45rem; border: 1px solid var(--panel-rule); }
+.gauge .track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-dim); }
+.gauge .track i.over { background: var(--warn); }
+.gauge .track .tick { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--text); }
+.gauge b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; text-align: right; }
+.gauge b.w { color: var(--warn); }
+.svcbars { padding: 0.3rem 0.6rem; }
+.sb { display: grid; grid-template-columns: 11rem 1fr 4.6rem 3.2rem 0.6rem; gap: 0.6rem; align-items: center; width: 100%; background: transparent; border: 0; border-left: 2px solid transparent; padding: 0.12rem 0.2rem; cursor: pointer; font-size: var(--step--1); color: var(--text); text-align: left; }
+.sb:hover, .sb:focus-visible { background: var(--accent-faint); outline: none; }
+.sb .k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb .tr { height: 0.55rem; background: var(--accent-faint); position: relative; }
+.sb .tr i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-dim); border-right: 1px solid var(--accent); }
+.sb .tr u { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--text-muted); }
+.sb .v { font-family: var(--font-mono); text-align: right; }
+.sb .d { font-family: var(--font-mono); font-size: var(--step--2); text-align: right; color: var(--text-muted); }
+.sb .d.up { color: var(--warn); } .sb .d.dn { color: var(--ok); }
+.sb::after { content: "›"; color: var(--text-muted); }
+.narrow .sb { grid-template-columns: 7rem 1fr 4rem 0.6rem; } .narrow .sb .d { display: none; }
+.curve { padding: 0.4rem 0.6rem; }
+.curve svg { width: 100%; height: 9rem; display: block; }
+.curve .cur { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.curve .area { fill: var(--accent-faint); }
+.curve .prev { fill: none; stroke: var(--text-muted); stroke-dasharray: 4 3; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.curve .axis { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); }
+
+/* ACCOUNT */
+.idgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.2rem; padding: 0.4rem 0.6rem; }
+.narrow .idgrid { grid-template-columns: 1fr; }
+.idbox.full { grid-column: 1 / -1; }
+.ctab { width: 100%; border-collapse: collapse; font-size: var(--step--1); }
+.ctab th { text-align: left; font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); padding: 0.1rem 0.3rem; border-bottom: 1px solid var(--panel-rule); }
+.ctab td { font-family: var(--font-mono); padding: 0.1rem 0.3rem; border-bottom: 1px solid var(--accent-faint); }
+.ctab td.w { color: var(--warn); } .ctab td.o { color: var(--ok); } .ctab td.m { color: var(--text-muted); }
+.denied { color: var(--warn); font-family: var(--font-mono); font-size: var(--step--1); }
+
+/* ---------- foot ---------- */
+.foot { position: relative; display: flex; justify-content: space-between; gap: 1rem; padding: 0.2rem 0.4rem; border-top: 1px solid var(--panel-rule); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+.foot .ledger { cursor: default; overflow: hidden; text-overflow: ellipsis; }
+.foot .ledger b { font-family: var(--font-mono); font-weight: 400; color: var(--text); letter-spacing: 0; }
+.foot .ledger b.zero { color: var(--ok); }
+.narrow .foot .rt { display: none; }
+
+/* ---------- hover card ---------- */
+.card { position: absolute; z-index: 5; width: min(28rem, 92%); background: var(--surface-2); border: 1px solid var(--panel-border); padding: 0.5rem 0.7rem; font-family: var(--font-mono); font-size: var(--step--1); display: none; pointer-events: none; box-shadow: 0 0.4rem 1.6rem rgb(0 0 0 / 0.45); }
+.card.show { display: block; animation: crt 0.18s ease-out; }
+.card h4 { margin: 0 0 0.35rem; font-family: var(--font-ui); font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); display: flex; justify-content: space-between; gap: 1rem; }
+.card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.8rem; margin: 0; }
+.card dt { color: var(--text-muted); } .card dd { margin: 0; overflow-wrap: anywhere; }
+.card .why { margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px solid var(--panel-rule); color: var(--text-muted); font-size: var(--step--2); line-height: 1.5; font-family: var(--font-ui); letter-spacing: 0.02em; }
+.card table { width: 100%; border-collapse: collapse; font-size: var(--step--2); }
+.card td { padding: 0.05rem 0.3rem 0.05rem 0; } .card td.n { text-align: right; } .card td.ft { color: var(--info); } .card td.fr { color: var(--ok); }
+
+/* ---------- settings ---------- */
+.settings { position: absolute; z-index: 6; right: 0.4rem; top: 3.6rem; width: 22rem; background: var(--surface-2); border: 1px solid var(--panel-border); padding: 0.6rem 0.8rem 0.8rem; display: none; font-size: var(--step--1); }
+.settings.show { display: block; animation: crt 0.18s ease-out; }
+.settings h5 { margin: 0.5rem 0 0.3rem; font-weight: 500; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--panel-rule); padding-bottom: 0.15rem; }
+.settings h5:first-child { margin-top: 0; }
+.settings .opt { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin: 0.3rem 0; }
+.settings .seg { display: flex; gap: 0.15rem; flex-wrap: wrap; justify-content: flex-end; }
+.settings .seg .btn { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; }
+.settings select { background: var(--surface-2); color: var(--text); border: 1px solid var(--panel-rule); font-family: var(--font-mono); font-size: var(--step--2); padding: 0.05rem 0.3rem; }
+.settings p { margin: 0.2rem 0 0; font-size: var(--step--2); color: var(--text-muted); line-height: 1.5; }
+
+/* ---------- legibility (UI audit 2026-11-07: measured in all four themes at 1366x768) ---------- */
+/* Business as the app has it: shared/theme.ts business-light and tokens.css's data-mode="light". */
+:root { --text-dim: color-mix(in srgb, var(--text) 78%, var(--surface-1)); --bar: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6); }
+:root[data-theme="business"] {
+  --accent-h: 209; --accent-s: 100%; --accent-l: 36%; --surface-1: #f3f3f3; --surface-2: #ffffff; --grid: #f3f3f3; --glow: 0; color-scheme: light;
+  --text: #1a1a1a; --text-muted: #5f5f5f; --text-inverse: #ffffff; --accent-strong: hsl(209 100% 26%);
+  --danger: hsl(354 75% 44%); --warn: hsl(32 95% 36%); --ok: hsl(120 60% 32%); --info: hsl(209 80% 40%); --bar: hsl(209 100% 36% / 0.7);
+}
+/* Data people read is never --text-muted (3.5:1 on the dark grounds): secondary data takes --text-dim (about 5:1). */
+.age, .mono, .rid, .rg, .ev .t, .ev .who, .activity .ev .svc2, .activity .ev .rg, .rel .x, .sb .d, .fb .n, .lfoot, .card dt, .card .why, .tbl td.mono, .crumbs button, .foot, .changes span:not(.p):not(.m), .rsel button { color: var(--text-dim); }
+/* Readable data and sentences at --step--1 at least; --step--2 stays for labels and chrome. */
+.age, .fb, .sb .d, .ev .t, .rel .x, .lbl b, .gauge b, .card .why, .card table, .settings p, .rsel button, .tab em { font-size: var(--step--1); }
+.lfoot, .prose { font-size: var(--step--1); text-transform: none; letter-spacing: 0.01em; }
+.lamp small { font-size: var(--step--2); }
+.r-att .msg { font-size: var(--step-0); }
+/* Bars and marks at 3:1 or more against the ground. */
+.fb .tr i, .sb .tr i, .arow .cbar .tr i, .gauge .track i, .tbl td.num i, .bars i { background: var(--bar); }
+.gauge .track i.over { background: var(--warn); }
+.stackbar .seg { background: var(--accent); color: var(--text-inverse); }
+.stackbar .seg:nth-child(odd) { background: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.8); }
+.stackbar .seg:hover { background: var(--accent-strong); }
+/* Stale dims once, not twice for nested spans. */
+.stale .top .figure span span { opacity: 1; }
+.btn:disabled { border-style: dashed; cursor: not-allowed; color: var(--text-muted); }
+/* Keyboard focus that can be seen. */
+.row:focus-visible, .arow:focus-visible, .sb:focus-visible, .rel:focus-visible, .tbl tbody tr:focus-visible, .fb:focus-visible, .seg:focus-visible, .btn:focus-visible, .chip:focus-visible, .tab:focus-visible, .open:focus-visible, button.figure:focus-visible, .rsel button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.card { max-height: calc(100% - 0.5rem); overflow: auto; }
+.card td { white-space: nowrap; }
+/* The top figures are buttons alike: each goes where its number comes from. */
+button.figure { text-transform: inherit; letter-spacing: inherit; font: inherit; color: inherit; cursor: pointer; }
+button.figure:hover span { text-decoration: underline; text-underline-offset: 3px; }
+/* ATTENTION: weight, age, then what is wrong at the reading size; the id and region after. */
+.r-att { grid-template-columns: 5.4rem 3rem 1fr 11rem 7.4rem 1.6rem; }
+.r-att .age { text-align: left; }
+.medium .r-att { grid-template-columns: 5.4rem 3rem 1fr 1.6rem; } .medium .r-att .rid, .medium .r-att .rg { display: none; }
+.narrow .r-att { grid-template-columns: 5.2rem 2.8rem 1fr; } .narrow .r-att .rid, .narrow .r-att .rg, .narrow .r-att .open { display: none; }
+.narrow .arow.head > :nth-child(2), .narrow .arow.head > :nth-child(5), .narrow .arow.head > :nth-child(6) { display: none; }
+.medium .arow.head > :nth-child(5) { display: none; }
+.activity .ev { grid-template-columns: 4.6rem 9rem 1fr 6.5rem 7.4rem 11rem; }
+.medium .activity .ev { grid-template-columns: 4.4rem 8rem 1fr 9rem; }
+.narrow .activity .ev { grid-template-columns: 4.2rem 1fr 8rem; }
+/* Level 3: the reason a resource is red is drawn where the red comes from. */
+.rel::after { content: ""; } .rel.go::after { content: "›"; }
+.rel:not(.go) { cursor: default; }
+.rel.danger { border-left-color: var(--danger); } .rel.danger .x { color: var(--danger); }
+.rel.warn .x { color: var(--warn); }
+.tbl td.flag { overflow: visible; }
+.tbl td.flag .tag { font-size: var(--step--2); }
+.tbl tbody tr { cursor: pointer; }
+.tbl tbody tr td:last-child::after { content: " ›"; color: var(--text-muted); }
+.arow:not(.head):not(.quiet)::after { content: ""; }
+.arow .sv::after { content: " ›"; color: var(--text-muted); }
+.curve .proj { fill: none; stroke: var(--accent); stroke-dasharray: 1 3; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.curve .ylab { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); }
+
+/* ---------- second audit (2026-11-07) ---------- */
+.card.wide { width: min(40rem, 96%); }
+.card td { white-space: normal; } .card td.n, .card td.ft, .card td.fr, .card td:nth-child(3) { white-space: nowrap; }
+.short .card .why { display: none; }
+.hist .ev { grid-template-columns: 5.4rem 7rem 1fr 10rem; }
+.st.off, .host .sub, .tab em, .ce .t, .lbl.prose, .settings p, .empty, .crumbs .gt, .ctab td.m { color: var(--text-dim); }
+.lamp small { font-size: var(--step--1); text-transform: none; letter-spacing: 0; }
+.when b, .foot .ledger b { font-size: var(--step--1); }
+.tbl td.flag .tag { font-size: var(--step--1); }
+.arow .rgs i:not(.on) { outline-color: var(--text-muted); }
+:root[data-theme="business"] { --bar: hsl(209 100% 36% / 0.85); }
+/* The money column stays at every width: the board is sorted by it. */
+.medium .tbl .c3, .medium .tbl .c6 { display: none; } .medium .tbl .c5 { display: table-cell; }
+.narrow .tbl .c1, .narrow .tbl .c3, .narrow .tbl .c4, .narrow .tbl .c6 { display: none; }
+.narrow .tbl .c5 { display: none; } .narrow .tbl .money, .medium .tbl .money { display: table-cell; }
+.fb { grid-template-columns: minmax(3.5rem, 7.5rem) minmax(2.5rem, 1fr) 1.8rem; }
+.costtop { grid-template-columns: 15rem 1fr; }
+/* Stale keeps the last good reading readable: one dimming step, not a fade-out. */
+.stale .view, .stale .pulse, .stale .cost { opacity: 0.75; }
+.settings-toggle:focus-visible, .crumbs button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+</style>
+</head>
+<body>
+<div class="mockbar">
+  <div class="grp"><span>Theme</span><button type="button" data-theme="tron" aria-pressed="true">Tron</button><button type="button" data-theme="green">Green</button><button type="button" data-theme="black">Black</button><button type="button" data-theme="business">Business</button></div>
+  <div class="grp"><span>Size</span><button type="button" data-width="wide" aria-pressed="true">Wide</button><button type="button" data-width="medium">Medium</button><button type="button" data-width="narrow">Narrow</button><button type="button" data-width="short">Short</button></div>
+  <div class="grp"><span>Link</span><button type="button" data-link="linked" aria-pressed="true">Linked</button><button type="button" data-link="partial">Partial</button><button type="button" data-link="login">Login expired</button><button type="button" data-link="mfa">MFA profile</button><button type="button" data-link="throttled">Throttled</button><button type="button" data-link="offline">Offline</button><button type="button" data-link="nocli">No CLI</button></div>
+  <div class="grp"><span>Account</span><button type="button" data-acct="busy" aria-pressed="true">Busy</button><button type="button" data-acct="clean">Clean</button><button type="button" data-acct="nobilling">Billing alerts off</button></div>
+  <div class="grp"><span>Cost Explorer</span><button type="button" data-ce="off" aria-pressed="true">Off</button><button type="button" data-ce="day">1 day</button><button type="button" data-ce="cap">Cap reached</button></div>
+  <div class="grp"><span>Simulate</span><button type="button" id="sim-alarm">Alarm fires</button><button type="button" id="sim-launch">Instance launched</button></div>
+</div>
+
+<section class="pane" id="pane">
+  <!-- PaneHost's header (not the widget): registry title, paneMeta.subtitle and badge, zoom / close -->
+  <div class="host"><span class="title">AWS</span><span class="sub" id="sub"></span><span class="badge danger" id="badge"></span><span class="ctl">⤢ ×</span></div>
+
+  <div class="top">
+    <span class="lamp ok" id="lamp"><i></i><span id="lamp-text">LINKED</span><small id="lamp-sub"></small></span>
+    <button type="button" class="figure" id="f-alarm-btn"><small>Alarms</small><span id="f-alarm"></span></button>
+    <button type="button" class="figure fig-att" id="f-att-btn"><small>Attention</small><span id="f-att"></span></button>
+    <button type="button" class="figure" id="f-mtd-btn"><small>Month to date</small><span id="f-mtd"></span></button>
+    <span class="rsel" id="rsel"></span>
+    <span class="spacer"></span>
+    <span class="when">next <b id="w-next">14:30</b> · read <b id="w-last">14:20</b></span>
+    <button type="button" class="btn" id="b-mask" aria-pressed="false">Mask</button>
+    <button type="button" class="btn" id="b-refresh">Refresh<span class="wait"></span></button>
+    <button type="button" class="settings-toggle" id="b-set" aria-label="aws settings" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg></button>
+  </div>
+  <div class="notice" id="notice"><span class="t" id="notice-t"></span><code id="notice-c"></code><button type="button" class="btn" id="notice-copy">Copy</button></div>
+
+  <div class="pulse" id="pulse">
+    <div class="head"><span><b>Account pulse</b> · 24 h · CloudTrail writes</span><span class="legend"><span>writes</span><span class="e">errors · denied</span><span class="l">console sign-in</span><span class="a">alarm</span></span></div>
+    <canvas id="pulse-cv"></canvas>
+    <div class="axis"><span>−24 h</span><span>−18 h</span><span>−12 h</span><span>−6 h</span><span>now · last 15 min still arriving</span></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button type="button" class="tab" data-tab="attention" aria-selected="true">Attention<em id="t-att"></em></button>
+    <button type="button" class="tab" data-tab="active" aria-selected="false">Active</button>
+    <button type="button" class="tab" data-tab="cost" aria-selected="false">Cost</button>
+    <button type="button" class="tab" data-tab="activity" aria-selected="false">Activity</button>
+    <button type="button" class="tab" data-tab="account" aria-selected="false">Account</button>
+  </div>
+  <div class="bar2" id="bar2"></div>
+  <div class="body" id="body">
+    <div class="view" id="view" tabindex="-1"></div>
+    <div class="card" id="card"></div>
+  </div>
+  <div class="foot"><span class="ledger" id="ledger"></span><span class="rt">read only · only while shown · aws-cli/2.39.6</span></div>
+
+  <div class="settings" id="settings">
+    <h5>This pane</h5>
+    <div class="opt"><span>Profile</span><select><option>prod-readonly</option><option>staging</option><option>default</option></select></div>
+    <div class="opt"><span>Regions (4 at most)</span><span class="seg"><button type="button" class="btn" aria-pressed="true">ap-northeast-1</button><button type="button" class="btn" aria-pressed="true">us-east-1</button><button type="button" class="btn" aria-pressed="true">eu-west-1</button><button type="button" class="btn">us-west-2</button><button type="button" class="btn">+ 13</button></span></div>
+    <div class="opt"><span>Account pulse</span><span class="seg" data-opt="pulse"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
+    <div class="opt"><span>Activity (CloudTrail)</span><span class="seg" data-opt="x"><button type="button" class="btn" aria-pressed="true">on</button><button type="button" class="btn">off</button></span></div>
+    <div class="opt"><span>Pace</span><span class="seg" data-opt="x"><button type="button" class="btn" aria-pressed="true">normal</button><button type="button" class="btn">slow ×4</button></span></div>
+    <h5>Cost Explorer · <span class="paid">paid · $0.01 a request</span></h5>
+    <div class="opt"><span>Read</span><span class="seg" data-opt="ce"><button type="button" class="btn" data-v="off" aria-pressed="true">off</button><button type="button" class="btn" data-v="manual">manual</button><button type="button" class="btn" data-v="day">1 day</button><button type="button" class="btn" data-v="12h">12 h</button></span></div>
+    <div class="opt"><span>Monthly cap · this account</span><span class="seg" data-opt="cap"><button type="button" class="btn">10</button><button type="button" class="btn">50</button><button type="button" class="btn" aria-pressed="true">100 · $1</button><button type="button" class="btn">500</button></span></div>
+    <p id="ce-est">At once a day: ≈ 60 requests · $0.60 a month (two a day: costs by service, and AWS's forecast; a breakdown you press for is one more). This month so far: 0 · $0.00. Shorter than 12 h is not offered: Cost Explorer's data moves a few times a day.</p>
+    <p>The profile is the AWS CLI's own (<code>aws configure list-profiles</code>); elecdex holds no key. Every call is a read with no per-request price; Cost Explorer and GetMetricData are never called. Reads appear in the account's CloudTrail.</p>
+  </div>
+</section>
+<p class="note">モック: すべて架空のアカウントと数字で、AWS には何も問い合わせません。<b>ACTIVE</b> はいま動いていて料金の発生しているものを推定の月額の大きい順に（立ち上げっぱなしの GPU インスタンス、12 TB の S3 バケットなど。推定は定価で、割引や無料枠は入れない）。<b>ドリルダウン</b>: ACTIVE でサービスの行（または上の積み上げの帯）を押すと 2 段目（上の棒を押すとクロスフィルタ、列の見出しで並べ替え）、行を押すと 3 段目（関係するものを押すと横へ掘れる、HISTORY でそのリソースの CloudTrail）。COST はサービスの棒から日ごとの曲線へ、その下の使用の種類・リージョン別は有料の Cost Explorer（上の Cost Explorer で ON にして試せる。押すたびに $0.01 と台帳に数える）。ATTENTION の行は該当リソースの 3 段目へ飛び、↗ は実物ではコンソールを開きます。Enter で下へ、Escape / Backspace で上へ。行・セル・帯・足元の台帳にマウスを止めると詳細カード。</p>
+
+<script>
+'use strict';
+// ---------- a seeded random, so the made-up account is the same on every load ----------
+let seed = 7;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+const pick = (a) => a[Math.floor(rnd() * a.length)];
+const hex = (n) => { let s = ''; while (s.length < n) s += Math.floor(rnd() * 16).toString(16); return s; };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+const ACCT = { profile: 'prod-readonly', alias: 'acme-prod', id: '482913507216', role: 'ReadOnly', session: 'aki' };
+const REGIONS = ['ap-northeast-1', 'us-east-1', 'eu-west-1'];
+const SHORT = { 'ap-northeast-1': 'ap-ne-1', 'us-east-1': 'us-e-1', 'eu-west-1': 'eu-w-1' };
+
+// ---------- the made-up resources ----------
+const R = { EC2: [], EBS: [], EIP: [], RDS: [], Lambda: [], ECS: [], EKS: [], ELB: [], NAT: [], VPC: [], Stacks: [], ACM: [], Snapshots: [] };
+const TYPES = ['m7g.large', 'm7g.xlarge', 'c7i.2xlarge', 't3.small', 't3.medium', 'r7g.large'];
+const VCPU = { 'm7g.large': 2, 'm7g.xlarge': 4, 'c7i.2xlarge': 8, 't3.small': 2, 't3.medium': 2, 'r7g.large': 2 };
+const NAMES = ['web', 'api', 'batch', 'worker', 'bastion', 'search', 'cache', 'ingest'];
+function addEc2(region, n, nameBase) {
+  for (let i = 0; i < n; i++) {
+    const t = pick(TYPES);
+    const stopped = rnd() < 0.12;
+    const id = `i-0${hex(16)}`;
+    const nm = nameBase || `${pick(NAMES)}-${Math.floor(rnd() * 9) + 1}`;
+    const inst = { id, name: nm, type: t, state: stopped ? 'stopped' : 'running', az: `${region}${pick(['a', 'c', 'd'])}`, region, platform: rnd() < 0.15 ? 'windows' : 'linux/unix', days: Math.floor(rnd() * 400) + 1, vcpu: VCPU[t], ip: `10.${Math.floor(rnd() * 9)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 250) + 2}`, imds: rnd() < 0.8 ? 'required' : 'optional', sgOpen: rnd() < 0.08 };
+    if (stopped) inst.stoppedDays = Math.floor(rnd() * 60) + 1;
+    R.EC2.push(inst);
+    const vols = rnd() < 0.3 ? 2 : 1;
+    for (let v = 0; v < vols; v++) R.EBS.push({ id: `vol-0${hex(16)}`, name: v ? `${nm}-data` : `${nm}-root`, gib: v ? pick([100, 200, 500]) : pick([20, 30, 50]), type: pick(['gp3', 'gp3', 'gp2', 'io2']), state: 'in-use', attached: id, region, days: inst.days });
+    if (rnd() < 0.2) R.EIP.push({ id: `eipalloc-0${hex(8)}`, ip: `54.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}.${Math.floor(rnd() * 255)}`, assoc: id, region });
+  }
+}
+addEc2('ap-northeast-1', 6); addEc2('us-east-1', 3); addEc2('eu-west-1', 1);
+R.EC2.push({ id: 'i-0f3e2d1c0b9a87654', name: 'bastion-old', type: 't3.small', state: 'stopped', stoppedDays: 41, az: 'ap-northeast-1a', region: 'ap-northeast-1', platform: 'linux/unix', days: 690, vcpu: 2, ip: '10.0.4.18', imds: 'optional', sgOpen: true });
+R.EBS.push({ id: 'vol-0bb51c3d4e5f60718', name: 'bastion-old-root', gib: 100, type: 'gp2', state: 'in-use', attached: 'i-0f3e2d1c0b9a87654', region: 'ap-northeast-1', days: 690 });
+for (const [g, d] of [[200, 19], [120, 6], [100, 2]]) R.EBS.push({ id: `vol-0${hex(16)}`, name: '', gib: g, type: 'gp3', state: 'available', attached: null, region: 'ap-northeast-1', days: d });
+R.EIP.push({ id: 'eipalloc-07c1f0a9', ip: '54.250.31.207', assoc: null, region: 'us-east-1' });
+for (const v of R.EBS.slice(0, 40)) { const n = Math.floor(rnd() * 5); for (let i = 0; i < n; i++) R.Snapshots.push({ id: `snap-0${hex(16)}`, vol: v.id, gib: v.gib, days: Math.floor(rnd() * 200), region: v.region }); }
+R.RDS.push({ id: 'orders-db', engine: 'postgres 16.4', cls: 'db.r7g.large', state: 'available', multiaz: 'yes', ext: 'standard', region: 'ap-northeast-1', maint: '11-18 system-update' });
+R.RDS.push({ id: 'legacy-mysql', engine: 'mysql 5.7.44', cls: 'db.t3.medium', state: 'available', multiaz: 'no', ext: 'EXTENDED', region: 'ap-northeast-1' });
+R.RDS.push({ id: 'reports', engine: 'postgres 15.8', cls: 'db.m7g.large', state: 'stopped', multiaz: 'no', ext: 'standard', region: 'eu-west-1' });
+const RUNTIMES = ['nodejs22.x', 'nodejs22.x', 'python3.13', 'python3.12', 'java21', 'nodejs18.x', 'provided.al2023'];
+for (const [rg, n] of [['ap-northeast-1', 39], ['us-east-1', 12], ['eu-west-1', 4]]) for (let i = 0; i < n; i++) R.Lambda.push({ id: `${pick(['image', 'order', 'mail', 'auth', 'sync', 'report', 'hook'])}-${pick(['resize', 'notify', 'export', 'check', 'sweep', 'handler'])}${i ? `-${i}` : ''}`, runtime: pick(RUNTIMES), mem: pick([128, 256, 512, 1024, 2048]), days: Math.floor(rnd() * 500), region: rg });
+R.Lambda[0].id = 'image-resize'; R.Lambda[0].runtime = 'nodejs18.x';
+for (const [s, c, run, des, rg] of [['web', 'prod', 6, 6, 'ap-northeast-1'], ['api', 'prod', 4, 4, 'ap-northeast-1'], ['worker', 'prod', 1, 3, 'ap-northeast-1'], ['cron', 'prod', 1, 1, 'ap-northeast-1'], ['admin', 'prod', 2, 2, 'ap-northeast-1'], ['ingest', 'data', 3, 3, 'ap-northeast-1'], ['etl', 'data', 0, 2, 'ap-northeast-1'], ['beacon', 'edge', 2, 2, 'eu-west-1'], ['relay', 'edge', 2, 2, 'eu-west-1']]) R.ECS.push({ id: s, cluster: c, running: run, desired: des, launch: pick(['FARGATE', 'FARGATE', 'EC2']), region: rg });
+R.EKS.push({ id: 'platform', ver: '1.31', support: '2026-11-26', ext: 'standard', region: 'ap-northeast-1' });
+for (const [id, t, rg] of [['web-alb', 'application', 'ap-northeast-1'], ['api-alb', 'application', 'ap-northeast-1'], ['grpc-nlb', 'network', 'ap-northeast-1'], ['us-alb', 'application', 'us-east-1']]) R.ELB.push({ id, type: t, scheme: id.includes('nlb') ? 'internal' : 'internet-facing', state: 'active', region: rg });
+for (const rg of ['ap-northeast-1', 'ap-northeast-1', 'us-east-1', 'eu-west-1']) R.NAT.push({ id: `nat-0${hex(16)}`, vpc: 'vpc-0a1b2c3d', state: 'available', region: rg });
+for (const [rg, n] of [['ap-northeast-1', 3], ['us-east-1', 2], ['eu-west-1', 1]]) for (let i = 0; i < n; i++) R.VPC.push({ id: `vpc-0${hex(16)}`, name: i ? `${pick(['data', 'shared', 'sandbox'])}` : 'main', cidr: `10.${i}.0.0/16`, def: i === 2 ? 'yes' : 'no', region: rg });
+for (const [rg, n] of [['ap-northeast-1', 17], ['us-east-1', 4], ['eu-west-1', 5]]) for (let i = 0; i < n; i++) R.Stacks.push({ id: `${pick(['network', 'app', 'data', 'iam', 'monitoring', 'pipeline'])}-${pick(['core', 'web', 'batch', 'base'])}${i ? `-${i}` : ''}`, status: 'UPDATE_COMPLETE', days: Math.floor(rnd() * 120), region: rg });
+R.Stacks.push({ id: 'billing-batch', status: 'UPDATE_ROLLBACK_FAILED', days: 2, region: 'eu-west-1' });
+for (const [d, t, k, u, e, rg] of [['shop.example.com', 'IMPORTED', 'RSA_2048', 'yes', 5, 'us-east-1'], ['api.example.com', 'AMAZON_ISSUED', 'EC_prime256v1', 'yes', 212, 'ap-northeast-1'], ['*.example.com', 'AMAZON_ISSUED', 'RSA_2048', 'yes', 301, 'ap-northeast-1'], ['old.example.net', 'AMAZON_ISSUED', 'RSA_2048', 'no', 88, 'us-east-1'], ['cdn.example.com', 'AMAZON_ISSUED', 'EC_prime256v1', 'yes', 190, 'us-east-1']]) R.ACM.push({ id: d, type: t, key: k, inuse: u, expires: e, region: rg });
+
+// A forgotten training box and some big buckets: what the ACTIVE board is for.
+R.EC2.push({ id: 'i-0a77c0ffee0012345', name: 'gpu-train-1', type: 'g5.xlarge', state: 'running', az: 'ap-northeast-1c', region: 'ap-northeast-1', platform: 'linux/unix', days: 23, vcpu: 4, ip: '10.2.9.41', imds: 'required', sgOpen: false, cpu: [0.6, 0.4, 0.5, 0.3, 0.4, 0.4, 0.3] });
+R.EBS.push({ id: 'vol-0c0ffee00a1b2c3d4', name: 'gpu-train-1-root', gib: 500, type: 'gp3', state: 'in-use', attached: 'i-0a77c0ffee0012345', region: 'ap-northeast-1', days: 23 });
+for (const x of R.EC2) if (x.state === 'running' && !x.cpu) { const base = 6 + rnd() * 30; x.cpu = Array.from({ length: 7 }, () => +(base * (0.7 + rnd() * 0.6)).toFixed(1)); }
+R.S3 = [];
+for (const [n, rg, std, ia, gl, obj] of [['ml-training-snapshots-2024', 'ap-northeast-1', 12400, 0, 0, 1.9e6], ['acme-prod-logs', 'ap-northeast-1', 3840, 6200, 0, 48e6], ['acme-backups', 'us-east-1', 210, 0, 18400, 0.6e6], ['shop-assets', 'us-east-1', 96, 0, 0, 2.1e5], ['cdk-hnb659fds-assets', 'ap-northeast-1', 4, 0, 0, 3200], ['athena-results-acme', 'eu-west-1', 61, 0, 0, 8.2e4], ['terraform-state-acme', 'ap-northeast-1', 0.2, 0, 0, 410]]) R.S3.push({ id: n, region: rg, std, ia, gl, gb: std + ia + gl, obj, cls: gl > std ? 'GLACIER' : ia > std ? 'STANDARD_IA' : 'STANDARD', days: 0 });
+
+// ---------- list prices (made up for the mock; the app reads Price List weekly, On-Demand, Linux) ----------
+const HOURS = 730;
+const P = { ec2: { 'm7g.large': 0.105, 'm7g.xlarge': 0.21, 'c7i.2xlarge': 0.428, 't3.small': 0.0272, 't3.medium': 0.0544, 'r7g.large': 0.137, 'g5.xlarge': 1.459 }, ebs: { gp3: 0.096, gp2: 0.12, io2: 0.142 }, snap: 0.05, eip: 0.005, nat: 0.062, elb: 0.0243, rds: { 'db.r7g.large': 0.30, 'db.t3.medium': 0.105, 'db.m7g.large': 0.226 }, rdsExt: 0.1, eks: 0.10, eksExt: 0.60, task: 0.031, s3: { std: 0.025, ia: 0.0138, gl: 0.0045 } };
+const idle = (x) => x.state === 'running' && x.cpu && x.cpu.reduce((a, b) => a + b, 0) / 7 < 2 && Math.max(...x.cpu) < 10;
+// What one resource costs a month at list price, or null for what is not billed by the hour (shared/aws/active-cost.ts in the app).
+function monthly(svc, x) {
+  switch (svc) {
+    case 'EC2': return x.state === 'running' ? (P.ec2[x.type] || 0.1) * HOURS : 0;
+    case 'EBS': return x.gib * (P.ebs[x.type] || 0.1);
+    case 'Snapshots': return x.gib * P.snap;
+    case 'EIP': return P.eip * HOURS;
+    case 'NAT': return x.state === 'available' ? P.nat * HOURS : 0;
+    case 'ELB': return P.elb * HOURS;
+    case 'RDS': return x.state === 'available' ? ((P.rds[x.cls] || 0.2) * (x.multiaz === 'yes' ? 2 : 1) + (x.ext === 'EXTENDED' ? P.rdsExt * 2 : 0)) * HOURS : 0;
+    case 'EKS': return (x.ext === 'EXTENDED' ? P.eksExt : P.eks) * HOURS;
+    case 'ECS': return x.launch === 'FARGATE' ? x.running * P.task * HOURS : 0;
+    case 'S3': return x.std * P.s3.std + x.ia * P.s3.ia + x.gl * P.s3.gl;
+    default: return null;
+  }
+}
+const usd = (v) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v >= 100 ? `$${v.toFixed(0)}` : `$${v.toFixed(2)}`);
+const gbText = (g) => (g >= 1000 ? `${(g / 1000).toFixed(1)} TB` : `${g.toFixed(g < 10 ? 1 : 0)} GB`);
+
+// ---------- the drill table: facets, columns, related, per service ----------
+const bucket = (v, cuts, labels) => labels[cuts.findIndex((c) => v <= c) === -1 ? labels.length - 1 : cuts.findIndex((c) => v <= c)];
+const age = (d) => (d >= 365 ? `${Math.floor(d / 365)}y ${Math.floor((d % 365) / 30)}mo` : d >= 30 ? `${Math.floor(d / 30)}mo` : `${d}d`);
+const DRILL = {
+  EC2: { noun: 'instances', facets: [['activity', 'Activity', (x) => (idle(x) ? 'idle' : x.state)], ['type', 'Type'], ['az', 'AZ'], ['platform', 'Platform']],
+    cols: [['name', 'Name'], ['type', 'Type'], ['state', 'State', 'st'], ['days', 'Running for', 'run'], ['cpu', 'CPU 7 d', 'cpu'], ['$', '≈ $/month', 'usd'], ['id', 'Id', 'mono']],
+    weight: (x) => (x.sgOpen && x.state === 'running' ? 'danger' : x.stoppedDays > 30 || idle(x) ? 'warn' : '') },
+  S3: { noun: 'buckets', facets: [['region', 'Region'], ['cls', 'Mostly'], ['size', 'Size', (x) => bucket(x.gb, [100, 1000, 10000], ['<100 GB', '<1 TB', '<10 TB', '≥10 TB'])]],
+    cols: [['id', 'Bucket', 'bkt'], ['region', 'Region', 'mono'], ['gb', 'Size', 'gb'], ['obj', 'Objects', 'cnt'], ['cls', 'Mostly'], ['$', '≈ $/month', 'usd']],
+    weight: (x) => (x.std > 10000 ? 'warn' : '') },
+  EBS: { noun: 'volumes', facets: [['state', 'State'], ['type', 'Type'], ['size', 'Size', (x) => bucket(x.gib, [30, 100, 300], ['≤30 GiB', '≤100 GiB', '≤300 GiB', '>300 GiB'])]],
+    cols: [['id', 'Id', 'mono'], ['name', 'Name'], ['gib', 'GiB', 'num'], ['type', 'Type'], ['state', 'State', 'st'], ['$', '≈ $/month', 'usd'], ['attached', 'Attached to', 'mono']],
+    weight: (x) => (x.state === 'available' ? 'warn' : '') },
+  EIP: { noun: 'addresses', facets: [['assoc', 'Associated', (x) => (x.assoc ? 'yes' : 'no')]], cols: [['ip', 'Address', 'ip'], ['id', 'Allocation', 'mono'], ['assoc', 'Associated to', 'mono'], ['$', '≈ $/month', 'usd']], weight: (x) => (x.assoc ? '' : 'warn') },
+  RDS: { noun: 'instances', facets: [['engine', 'Engine', (x) => x.engine.split(' ')[0]], ['cls', 'Class'], ['state', 'State'], ['ext', 'Support']],
+    cols: [['id', 'Name'], ['engine', 'Engine'], ['cls', 'Class'], ['state', 'State', 'st'], ['multiaz', 'Multi-AZ'], ['ext', 'Support'], ['$', '≈ $/month', 'usd']], weight: (x) => (x.ext === 'EXTENDED' || x.maint ? 'warn' : '') },
+  Lambda: { noun: 'functions', facets: [['runtime', 'Runtime'], ['mem', 'Memory', (x) => `${x.mem} MB`], ['mod', 'Modified', (x) => bucket(x.days, [30, 180], ['≤30 d', '≤180 d', 'older'])]],
+    cols: [['id', 'Name'], ['runtime', 'Runtime'], ['mem', 'MB', 'num'], ['days', 'Modified', 'age']], weight: (x) => (x.runtime === 'nodejs18.x' ? 'warn' : '') },
+  ECS: { noun: 'services', facets: [['cluster', 'Cluster'], ['launch', 'Launch type'], ['health', 'Health', (x) => (x.running === 0 && x.desired > 0 ? 'down' : x.running < x.desired ? 'short' : 'steady')]],
+    cols: [['id', 'Service'], ['cluster', 'Cluster'], ['running', 'Running', 'num'], ['desired', 'Desired', 'num'], ['launch', 'Launch']], weight: (x) => (x.running === 0 && x.desired > 0 ? 'danger' : x.running < x.desired ? 'warn' : '') },
+  EKS: { noun: 'clusters', facets: [['ver', 'Version'], ['ext', 'Support']], cols: [['id', 'Cluster'], ['ver', 'Version'], ['support', 'Standard support ends', 'mono'], ['ext', 'Support']], weight: () => 'warn' },
+  ELB: { noun: 'load balancers', facets: [['type', 'Type'], ['scheme', 'Scheme']], cols: [['id', 'Name'], ['type', 'Type'], ['scheme', 'Scheme'], ['state', 'State', 'st']], weight: () => '' },
+  NAT: { noun: 'gateways', facets: [['state', 'State']], cols: [['id', 'Id', 'mono'], ['vpc', 'VPC', 'mono'], ['state', 'State', 'st']], weight: () => '' },
+  VPC: { noun: 'vpcs', facets: [['def', 'Default']], cols: [['id', 'Id', 'mono'], ['name', 'Name'], ['cidr', 'CIDR', 'mono'], ['def', 'Default']], weight: () => '' },
+  Stacks: { noun: 'stacks', facets: [['status', 'Status']], cols: [['id', 'Stack'], ['status', 'Status', 'st'], ['days', 'Updated', 'age']], weight: (x) => (x.status.includes('FAILED') ? 'danger' : '') },
+  ACM: { noun: 'certificates', facets: [['type', 'Type'], ['key', 'Key'], ['inuse', 'In use']], cols: [['id', 'Domain', 'dom'], ['type', 'Type'], ['key', 'Key'], ['inuse', 'In use'], ['expires', 'Days left', 'num']], weight: (x) => (x.expires <= 7 && x.inuse === 'yes' ? 'danger' : x.expires <= 30 ? 'warn' : '') },
+  Snapshots: { noun: 'snapshots', facets: [['agebin', 'Age', (x) => bucket(x.days, [30, 90], ['≤30 d', '≤90 d', '>90 d'])]], cols: [['id', 'Id', 'mono'], ['vol', 'Volume', 'mono'], ['gib', 'GiB', 'num'], ['days', 'Created', 'age']], weight: () => '' },
+};
+DRILL.NAT.cols.push(['$', '≈ $/month', 'usd']); DRILL.ELB.cols.push(['$', '≈ $/month', 'usd']); DRILL.EKS.cols.push(['$', '≈ $/month', 'usd']); DRILL.Snapshots.cols.push(['$', '≈ $/month', 'usd']); DRILL.ECS.cols.push(['$', '≈ $/month', 'usd']);
+for (const svc of Object.keys(DRILL)) for (const x of R[svc]) x.$ = monthly(svc, x) ?? 0;
+const SERVICES = Object.keys(DRILL);
+const label = (svc, x) => x.name || x.id;
+
+// ---------- attention, derived from the resources (the app does this in shared/aws/attention.ts) ----------
+function attention() {
+  if (state.acct === 'clean') return state.extra.slice();
+  const out = [...state.extra,
+    { w: 'danger', tag: 'Alarm', parts: ['', 'api-5xx-rate', ' in ALARM · 5XX > 2% for 3 of 3 periods'], rid: 'alarm/api-5xx-rate', rg: 'ap-northeast-1', age: '12m', go: ['ELB', 'web-alb'] },
+    { w: 'danger', tag: 'Expiry', parts: ['certificate ', 'shop.example.com', ' expires in 5 days · IMPORTED · in use'], rid: 'acm/9f2c…41de', rg: 'us-east-1', age: '5d', go: ['ACM', 'shop.example.com'] },
+    { w: 'danger', tag: 'Stack', parts: ['stack ', 'billing-batch', ' UPDATE_ROLLBACK_FAILED'], rid: 'billing-batch', rg: 'eu-west-1', age: '2d', go: ['Stacks', 'billing-batch'] },
+    { w: 'danger', tag: 'Security', parts: ['', 'bastion-old', ' has a security group open to 0.0.0.0/0 on 22'], rid: 'i-0f3e2d1c0b9a87654', rg: 'ap-northeast-1', age: '—', go: ['EC2', 'i-0f3e2d1c0b9a87654'] },
+    { w: 'warn', tag: 'Cost', parts: ['', 'gpu-train-1', ' (g5.xlarge) up 23 days at 0.4% CPU · ≈ $1.1k a month'], rid: 'i-0a77c0ffee0012345', rg: 'ap-northeast-1', age: '23d', go: ['EC2', 'i-0a77c0ffee0012345'] },
+    { w: 'warn', tag: 'Health', parts: ['ECS service ', 'worker', ' running 1 of 3'], rid: 'prod/worker', rg: 'ap-northeast-1', age: '25m', go: ['ECS', 'worker'] },
+    { w: 'warn', tag: 'Budget', parts: ['', 'monthly-cap', ' forecast 110% · $3,650 of $3,300'], rid: 'budget/monthly-cap', rg: 'global', age: '—', go: null, tab: 'cost' },
+    { w: 'warn', tag: 'Cost', parts: ['3 volumes not attached · ', '420 GiB', ' still billed'], rid: 'vol-… ×3', rg: 'ap-northeast-1', age: '19d', go: ['EBS', null, { state: 'available' }] },
+    { w: 'warn', tag: 'Cost', parts: ['RDS ', 'legacy-mysql', ' on extended support · about 6× the standard price'], rid: 'legacy-mysql', rg: 'ap-northeast-1', age: '—', go: ['RDS', 'legacy-mysql'] },
+    { w: 'warn', tag: 'Cost', parts: ['Elastic IP not associated · ', '54.250.31.207', ''], rid: 'eipalloc-07c1f0a9', rg: 'us-east-1', age: '—', go: ['EIP', 'eipalloc-07c1f0a9'], ip: true },
+    { w: 'warn', tag: 'Cost', parts: ['instance ', 'bastion-old', ' stopped 41 days · EBS 100 GiB still billed'], rid: 'i-0f3e2d1c0b9a87654', rg: 'ap-northeast-1', age: '41d', go: ['EC2', 'i-0f3e2d1c0b9a87654'] },
+    { w: 'warn', tag: 'Support', parts: ['EKS ', 'platform', ' 1.31 · standard support ends in 19 days'], rid: 'platform', rg: 'ap-northeast-1', age: '—', go: ['EKS', 'platform'] },
+    { w: 'warn', tag: 'Support', parts: ['Lambda ', 'image-resize', ' on nodejs18.x · support ends in 61 days'], rid: 'image-resize', rg: 'ap-northeast-1', age: '—', go: ['Lambda', 'image-resize'] },
+    { w: 'warn', tag: 'Expiry', parts: ['RDS ', 'orders-db', ' maintenance forced on 11-18 · system-update'], rid: 'orders-db', rg: 'ap-northeast-1', age: '11d', go: ['RDS', 'orders-db'] },
+    { w: 'warn', tag: 'Security', parts: ['IAM user ', 'ci-deploy', ' · access key 412 days old'], rid: 'AKIA••••••••7Q2F', rg: 'global', age: '412d', go: null, tab: 'account', who: true },
+    { w: 'warn', tag: 'Quota', parts: ['On-Demand standard vCPU ', '52 of 64', ' · 81%'], rid: 'L-1216C47A', rg: 'ap-northeast-1', age: '—', go: null, tab: 'account' },
+  ];
+  let rows = out;
+  if (state.acct === 'nobilling') rows = rows.filter((r) => r.tag !== 'Budget');
+  if (state.link === 'partial') rows = rows.filter((r) => !r.who);
+  const order = { danger: 0, warn: 1, info: 2 };
+  return rows.sort((a, b) => order[a.w] - order[b.w]);
+}
+function worstIn(region) {
+  const rows = attention().filter((r) => r.rg === region);
+  return rows.some((r) => r.w === 'danger') ? 'danger' : rows.length ? 'warn' : 'none';
+}
+
+// ---------- state ----------
+const state = { link: 'linked', acct: 'busy', mask: false, tab: 'attention', region: 'all', actFilter: 'all', calls: 214, extra: [], wait: 0,
+  // the drill stack per tab: [{lv:2, svc, filters, sort}] or [{lv:3, svc, id}] ... the app keeps it in pane state
+  drill: { active: [], cost: [] }, histOpen: false, newIds: new Set() };
+
+const LINKS = {
+  linked: { lamp: 'ok', text: 'LINKED', sub: '' },
+  partial: { lamp: 'warn', text: 'PARTIAL', sub: '2 checks denied', badge: ['warn', 'partial'] },
+  login: { lamp: 'warn', text: 'SIGNED OUT', sub: 'aws login expired', stale: true, badge: ['warn', 'signed out'], notice: ['The console sign-in of this profile has run out and could not be renewed. Sign in again from a shell; the pane reads again at REFRESH.', 'aws login --profile=prod-readonly'] },
+  mfa: { lamp: 'warn', text: 'SIGNED OUT', sub: 'MFA code needed', stale: true, badge: ['warn', 'mfa'], notice: ['This profile asks for an MFA code, which the pane cannot type. Run any command once in a shell; the CLI keeps the session. The pane waits for REFRESH.', 'aws sts get-caller-identity --profile=prod-readonly'] },
+  throttled: { lamp: 'warn', text: 'THROTTLED', sub: 'retry 14:31', stale: true, badge: ['warn', 'throttled'] },
+  offline: { lamp: 'muted', text: 'OFFLINE', sub: 'last good 14:14', stale: true, badge: ['warn', 'offline'] },
+  nocli: { lamp: 'danger', text: 'NO CLI', sub: '', empty: true, badge: ['danger', 'no cli'] },
+};
+const L = () => LINKS[state.link];
+state.ce = 'off'; state.paid = 0; state.ceUsage = {};
+const maskId = () => (state.mask ? '••••-••••-••••' : `${ACCT.id.slice(0, 4)}-${ACCT.id.slice(4, 8)}-${ACCT.id.slice(8)}`);
+const who = (n) => (state.mask ? '•••••' : n);
+const ipMask = (ip) => (state.mask ? ip.replace(/\.\d+\.\d+$/, '.•••.•••') : ip);
+const domMask = (d) => (state.mask ? d.replace(/^[^.]+/, '•••') : d);
+const inRegion = (x) => state.region === 'all' || x.region === state.region || x.rg === state.region || x.rg === 'global';
+
+// ---------- top ----------
+function renderTop() {
+  const l = L();
+  $('lamp').className = `lamp ${l.lamp}`; $('lamp-text').textContent = l.text; $('lamp-sub').textContent = l.sub ? `· ${l.sub}` : '';
+  $('pane').classList.toggle('stale', !!l.stale);
+  $('notice').classList.toggle('show', !!l.notice);
+  if (l.notice) { $('notice-t').textContent = l.notice[0]; $('notice-c').textContent = l.notice[1]; }
+  $('sub').textContent = l.empty ? '' : `${ACCT.profile} · ${state.mask ? '•••••' : ACCT.alias} (${maskId()}) · ${ACCT.role}`;
+  const rows = attention();
+  const d = rows.filter((r) => r.w === 'danger').length, w = rows.filter((r) => r.w === 'warn').length;
+  const alarms = rows.filter((r) => r.tag === 'Alarm').length;
+  const badge = $('badge');
+  if (l.badge) { badge.className = `badge ${l.badge[0]}`; badge.textContent = l.badge[1]; }
+  else if (alarms) { badge.className = 'badge danger'; badge.textContent = `${alarms} alarm${alarms > 1 ? 's' : ''}`; }
+  else if (d) { badge.className = 'badge danger'; badge.textContent = `${d} danger`; }
+  else badge.className = 'badge none';
+  $('f-alarm').innerHTML = l.empty ? '—' : `<span class="${alarms ? 'd' : ''}">${alarms}</span>`;
+  $('f-att').innerHTML = l.empty ? '—' : `<span class="d">${d} danger</span> · <span class="w">${w} warn</span>`;
+  $('f-mtd').innerHTML = l.empty ? '—' : state.acct === 'nobilling' ? 'billing metric off' : '$824 · <span class="w">forecast 110% of budget</span>';
+  $('t-att').textContent = l.empty ? '' : rows.length;
+  $('w-last').textContent = l.empty ? '—' : l.stale ? (state.link === 'offline' ? '14:14' : '11:05') : '14:20';
+  $('w-next').textContent = l.empty ? '—' : state.link === 'throttled' ? '14:31' : state.link === 'login' || state.link === 'mfa' ? 'on refresh' : '14:30';
+  const rs = $('rsel'); rs.innerHTML = '';
+  if (!l.empty) {
+    const narrow = $('pane').classList.contains('narrow');
+    for (const r of ['all', ...REGIONS]) {
+      if (narrow && r !== 'all' && r !== state.region) continue;
+      const b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('aria-pressed', String(state.region === r));
+      b.innerHTML = r === 'all' ? `ALL${narrow ? ` · ${REGIONS.length}` : ''}` : `<i class="${worstIn(r)}"></i>${SHORT[r]}`;
+      b.onclick = () => { state.region = narrow && r === 'all' && state.region === 'all' ? REGIONS[0] : state.region === r && r !== 'all' ? 'all' : r; render(); };
+      rs.appendChild(b);
+    }
+  }
+  $('ledger').innerHTML = l.empty ? 'requests today <b>0</b> · aws.exe not found'
+    : `${state.ce === 'cap' ? '<b class="paid">CE CAP REACHED</b> · ' : ''}requests today <b>${state.calls}</b> · free <b>${state.calls - 38}</b> · free tier <b>38</b> · ${state.ce === 'off' ? 'paid APIs <b class="zero">0</b>' : `paid APIs <b class="paid">${state.paid}</b> · <b class="paid">$${(state.paid / 100).toFixed(2)}</b> this month · cap $1.00`}`;
+}
+
+// ---------- the pulse: one canvas, redrawn only when its data or the theme changes ----------
+const BINS = []; for (let i = 0; i < 96; i++) { const day = i > 30 && i < 76; BINS.push({ w: Math.floor(rnd() * (day ? 9 : 3)), e: rnd() < (day ? 0.18 : 0.05) ? 1 + Math.floor(rnd() * 2) : 0, l: rnd() < (day ? 0.08 : 0.01) ? 1 : 0 }); }
+BINS[44].e = 6; BINS[44].w = 3; // an AccessDenied run at about 13 h ago
+const ALARM_FROM = 95;
+function renderPulse() {
+  const cv = $('pulse-cv');
+  if (!cv.offsetParent) return;
+  const w = cv.clientWidth, h = cv.clientHeight, dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const cs = getComputedStyle(document.documentElement);
+  const v = (n) => cs.getPropertyValue(n).trim();
+  const H = v('--accent-h'), S = v('--accent-s'), Lt = v('--accent-l');
+  const dangerL = v('--status-l');
+  const bw = w / 96, max = 10, base = h - 2;
+  if (state.acct !== 'clean' && !L().empty) { g.fillStyle = `hsl(0 80% ${dangerL} / 0.22)`; g.fillRect(ALARM_FROM * bw, 0, w - ALARM_FROM * bw, h); }
+  g.fillStyle = `hsl(${H} ${S} ${Lt} / 0.12)`; g.fillRect(0, base, w, 1);
+  for (let i = 0; i < 96; i++) {
+    const b = BINS[i]; const x = i * bw;
+    const lag = i === 95 ? 0.4 : 1;
+    if (b.w) { g.fillStyle = `hsl(${H} ${S} ${Lt} / ${0.55 * lag})`; const hh = (b.w / max) * (h - 8); g.fillRect(x + 0.5, base - hh, Math.max(1, bw - 1.5), hh); }
+    if (b.e) { g.fillStyle = `hsl(0 80% ${dangerL} / ${lag})`; const hh = (b.e / max) * (h - 8); const top = base - (b.w / max) * (h - 8) - hh - 1; g.fillRect(x + 0.5, top, Math.max(1, bw - 1.5), hh); }
+    if (b.l) { g.fillStyle = `hsl(212 85% calc(${dangerL} + 6%) / ${lag})`; g.save(); g.translate(x + bw / 2, 4); g.rotate(Math.PI / 4); g.fillRect(-2, -2, 4, 4); g.restore(); }
+  }
+  cv.onmousemove = (e) => {
+    const r = cv.getBoundingClientRect(); const i = Math.min(95, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * 96)));
+    const b = BINS[i]; const mins = (95 - i) * 15; const t = new Date(2026, 10, 7, 14, 20 - mins);
+    const hhmm = `${String(t.getHours()).padStart(2, '0')}:${String(Math.floor(t.getMinutes() / 15) * 15).padStart(2, '0')}`;
+    showCard(cv, `<h4><span>${hhmm} · 15 min</span><span>${b.w} writes</span></h4><dl><dt>errors</dt><dd>${b.e}${i === 44 ? ' · AccessDenied ×6 by ci-deploy (iam:PassRole)' : ''}</dd><dt>sign-ins</dt><dd>${b.l}</dd></dl>${i === 95 ? '<div class="why">CloudTrail delivers events about 5 minutes late on average, without a promise: this bin is still filling.</div>' : ''}`, true, e.clientX - r.left);
+  };
+  cv.onmouseleave = hideCard;
+}
+
+// ---------- the bar under the tabs: crumbs or filters ----------
+function stack() { return state.drill[state.tab] || []; }
+function renderBar2() {
+  const b = $('bar2'); b.innerHTML = '';
+  const st = stack();
+  if ((state.tab === 'active' || state.tab === 'cost') && st.length) {
+    const c = document.createElement('span'); c.className = 'crumbs';
+    const back = document.createElement('button'); back.type = 'button'; back.className = 'back'; back.textContent = '‹'; back.title = ''; back.onclick = up; c.appendChild(back);
+    const root = document.createElement('button'); root.type = 'button'; root.textContent = state.tab; root.onclick = () => { state.drill[state.tab] = []; renderView('up'); }; c.appendChild(root);
+    const shown = st.length > 5 ? st.slice(-5) : st;
+    if (st.length > 5) c.insertAdjacentHTML('beforeend', '<span class="gt">›</span><span class="gt">…</span>');
+    shown.forEach((s, i) => {
+      c.insertAdjacentHTML('beforeend', '<span class="gt">›</span>');
+      const k = document.createElement('button'); k.type = 'button';
+      const isLast = i === shown.length - 1;
+      k.className = isLast ? 'here' : '';
+      k.textContent = s.lv === 2 ? `${s.svc}${s.region && s.region !== 'all' ? ` · ${SHORT[s.region]}` : ''}` : s.lv === 'c2' ? s.svc : crumbName(s);
+      if (!isLast) k.onclick = () => { state.drill[state.tab] = st.slice(0, st.length - shown.length + i + 1); renderView('up'); };
+      c.appendChild(k);
+    });
+    b.appendChild(c);
+    const top = st[st.length - 1];
+    if (top.lv === 2) for (const [k, v] of Object.entries(top.filters)) {
+      const ch = document.createElement('button'); ch.type = 'button'; ch.className = 'chip f'; ch.textContent = `${k} = ${v}`;
+      ch.onclick = () => { delete top.filters[k]; renderView(); }; b.appendChild(ch);
+    }
+    b.classList.add('show'); return;
+  }
+  if (state.tab === 'activity' && !L().empty) {
+    for (const k of ['all', 'writes', 'logins', 'errors', 'security']) {
+      const ch = document.createElement('button'); ch.type = 'button'; ch.className = 'chip'; ch.textContent = k; ch.setAttribute('aria-pressed', String(state.actFilter === k));
+      ch.onclick = () => { state.actFilter = k; renderView(); }; b.appendChild(ch);
+    }
+    b.classList.add('show'); return;
+  }
+  b.classList.remove('show');
+}
+function crumbName(s) { const x = R[s.svc].find((r) => r.id === s.id); return x ? (s.svc === 'ACM' ? domMask(x.id) : s.svc === 'EIP' ? ipMask(x.ip) : s.svc === 'S3' && state.mask ? 'bucket-••' : label(s.svc, x)) : s.id; }
+// Why a row is flagged, in a word or three: the list says it, not only its red or amber edge.
+function flagOf(svc, x) {
+  switch (svc) {
+    case 'EC2': return x.sgOpen && x.state === 'running' ? '22 open to world' : idle(x) ? 'idle 7 d' : x.stoppedDays > 30 ? `stopped ${x.stoppedDays} d` : '';
+    case 'EBS': return x.state === 'available' ? 'not attached' : '';
+    case 'EIP': return x.assoc ? '' : 'not associated';
+    case 'RDS': return x.ext === 'EXTENDED' ? 'extended support' : x.maint ? 'forced maintenance' : '';
+    case 'Lambda': return x.runtime === 'nodejs18.x' ? 'runtime ends soon' : '';
+    case 'ECS': return x.running === 0 && x.desired > 0 ? 'down' : x.running < x.desired ? 'running < desired' : '';
+    case 'EKS': return 'support ends in 19 d';
+    case 'Stacks': return x.status.includes('FAILED') ? 'failed' : '';
+    case 'ACM': return x.expires <= 30 ? `expires in ${x.expires} d` : '';
+    case 'S3': return x.std > 10000 ? '>10 TB in Standard' : '';
+    default: return '';
+  }
+}
+// Seven daily CPU averages as a small line (from get-metric-statistics, once a day; never GetMetricData).
+function cpuSpark(a, isIdle) {
+  const max = 100; const pts = a.map((v, i) => `${(i / 6) * 40},${12 - (v / max) * 11}`).join(' ');
+  const avg = a.reduce((s, v) => s + v, 0) / 7;
+  return `<svg viewBox="0 0 40 12" style="width:2.6rem;height:0.8rem;vertical-align:middle;overflow:visible" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${isIdle ? 'var(--warn)' : 'var(--accent)'}" stroke-width="1.2" vector-effect="non-scaling-stroke"/></svg> <span class="mono" style="color:${isIdle ? 'var(--warn)' : 'var(--text-dim)'}">${avg.toFixed(1)}%</span>`;
+}
+
+// ---------- views ----------
+function renderView(dir) {
+  hideCard();
+  const v = $('view');
+  v.className = 'view';
+  void v.offsetWidth;
+  v.classList.add(dir === 'up' ? 'up' : 'on');
+  v.innerHTML = '';
+  renderBar2();
+  if (L().empty) { v.innerHTML = '<div class="empty"><b class="d">NO CLI</b>AWS CLI v2 was not found on PATH or in its install folders.<br>Install it, then restart elecdex (a running app keeps its old PATH).<code>winget install Amazon.AWSCLI</code></div>'; return; }
+  const st = stack(); const top = st[st.length - 1];
+  if (state.tab === 'attention') return viewAttention(v);
+  if (state.tab === 'active') return !top ? viewActive(v) : top.lv === 2 ? viewService(v, top) : viewOne(v, top);
+  if (state.tab === 'cost') return !top ? viewCost(v) : viewCostService(v, top);
+  if (state.tab === 'activity') return viewActivity(v);
+  return viewAccount(v);
+}
+function drillTo(entry, tab = 'active') {
+  if (state.tab !== tab) selectTab(tab, false);
+  state.drill[tab].push(entry); state.histOpen = false; renderView();
+}
+function up() { const st = stack(); if (st.length) { st.pop(); state.histOpen = false; renderView('up'); } }
+
+function viewAttention(v) {
+  const rows = attention().filter(inRegion);
+  if (!rows.length) { v.innerHTML = `<div class="empty"><b>Nothing needs attention</b>31 checks across ${REGIONS.length} regions · read 14:20</div>`; return; }
+  let group = null;
+  for (const r of rows) {
+    if (r.w !== group) { group = r.w; v.insertAdjacentHTML('beforeend', `<div class="sep">${group === 'danger' ? 'Broken, exposed or about to expire' : 'Costing money or due soon'} <b>${rows.filter((x) => x.w === group).length}</b></div>`); }
+    const el = document.createElement('div');
+    el.className = `row r-att ${r.w}${r.fresh ? ' fx-fresh' : ''}`; el.tabIndex = 0;
+    const msg = document.createElement('span'); msg.className = 'msg';
+    msg.append(r.parts[0]); const b = document.createElement('b'); b.textContent = r.ip ? ipMask(r.parts[1]) : r.who ? who(r.parts[1]) : r.tag === 'Expiry' && r.parts[1].includes('.') ? domMask(r.parts[1]) : r.parts[1]; msg.append(b, r.parts[2]);
+    el.innerHTML = `<span class="tag">${r.tag}</span><span class="age">${r.age}</span>`;
+    el.appendChild(msg);
+    el.insertAdjacentHTML('beforeend', `<span class="mono rid">${esc(r.rid)}</span><span class="mono rg">${r.rg}</span><button type="button" class="open" aria-label="open in the AWS console">↗</button>`);
+    const go = () => { if (r.go) { const [svc, id, filters] = r.go; drillTo(id ? { lv: 3, svc, id } : { lv: 2, svc, region: r.rg, filters: filters || {}, sort: null }); } else if (r.tab) selectTab(r.tab); };
+    el.onclick = (e) => { if (e.target.classList.contains('open')) return; go(); };
+    el.onkeydown = (e) => { if (e.key === 'Enter') go(); };
+    hover(el, () => `<h4><span>${r.tag} · ${r.w}</span><span>read by ${probeOf(r.tag)}</span></h4><div class="why">${WHY[r.tag]} Press the row to drill into it; ↗ opens the AWS console in your browser (its own sign-in).</div>`);
+    v.appendChild(el); r.fresh = false;
+  }
+  if (state.link === 'partial') {
+    v.insertAdjacentHTML('beforeend', '<div class="sep">not checked</div>');
+    for (const a of ['iam:GenerateCredentialReport', 'guardduty:ListDetectors']) v.insertAdjacentHTML('beforeend', `<div class="row r-att"><span class="tag">Denied</span><span class="msg">the profile may not call <span class="denied">${a}</span></span><span class="mono rid"></span><span class="mono rg">—</span><span class="age"></span><span></span></div>`);
+  }
+}
+const WHY = { Alarm: 'CloudWatch alarm state ALARM (describe-alarms, composite included). The metric itself is not read: GetMetricData is billed.', Expiry: 'IMPORTED certificates do not renew; an AMAZON_ISSUED one still within 30 days means its renewal (60 days ahead) has not happened.', Stack: 'A stack in UPDATE_ROLLBACK_FAILED takes no update until ContinueUpdateRollback.', Security: 'Judged in main from the rules; the rules themselves never reach the page.', Health: 'running < desired from describe-services.', Budget: 'AWS\'s own forecast from Budgets. Actual is 26%.', Cost: 'Billed while it sits there. The pane counts GiB and days, not money.', Support: 'EKS dates come from describe-cluster-versions; Lambda runtime dates from a table shipped with elecdex (checked 2026-11-07).', Quota: 'Service Quotas L-1216C47A against running On-Demand A/C/D/H/I/M/R/T/Z vCPUs (spot left out).' };
+const probeOf = (t) => ({ Alarm: 'alarms · 5 min', Expiry: 'acm · 1 day', Stack: 'stacks · 15 min', Security: 'sgopen · 1 h', Health: 'ecs · 1 h', Budget: 'budgets · 6 h', Cost: 'volumes · 1 h', Support: 'eks · 1 day', Quota: 'quota · 1 day' })[t] || '—';
+
+// ACTIVE level 1: what runs and bills now, by service, the largest first
+const DELTA = { EC2: 3, NAT: -1, EBS: 1, Lambda: 3 };
+const ACTIVE_COUNT = { EC2: (x) => x.state === 'running', S3: (x) => x.gb > 0, EBS: () => true, Snapshots: () => true, NAT: (x) => x.state === 'available', EIP: () => true, ELB: () => true, RDS: (x) => x.state === 'available', EKS: () => true, ECS: (x) => x.running > 0 };
+const WASTE = { EC2: (x) => idle(x) || x.stoppedDays > 30, EBS: (x) => x.state === 'available', EIP: (x) => !x.assoc, RDS: (x) => x.ext === 'EXTENDED', EKS: (x) => x.ext === 'EXTENDED', Snapshots: (x) => !R.EBS.some((b) => b.id === x.vol) };
+const WASTE_WORD = { EC2: 'idle', EBS: 'loose', EIP: 'loose', RDS: 'ext. support', EKS: 'ext. support', Snapshots: 'orphaned' };
+function activeBoard() {
+  const regs = state.region === 'all' ? REGIONS : [state.region];
+  const rows = [];
+  for (const svc of Object.keys(ACTIVE_COUNT)) {
+    const items = R[svc].filter((x) => regs.includes(x.region));
+    const on = items.filter(ACTIVE_COUNT[svc]);
+    const cost = items.reduce((a, x) => a + (x.$ || 0), 0);
+    const waste = WASTE[svc] ? items.filter(WASTE[svc]) : [];
+    // A stopped instance's own cost is 0; what it wastes is its volumes', counted under EBS.
+    const per = regs.map((r) => items.filter((x) => x.region === r).reduce((a, x) => a + (x.$ || 0), 0));
+    rows.push({ svc, items, on, cost, waste, wasteCost: waste.reduce((a, x) => a + (x.$ || 0), 0), per, regs });
+  }
+  return rows.sort((a, b) => b.cost - a.cost);
+}
+function viewActive(v) {
+  const rows = activeBoard();
+  const total = rows.reduce((a, r) => a + r.cost, 0);
+  const waste = rows.reduce((a, r) => a + r.wasteCost, 0);
+  const top = document.createElement('div'); top.className = 'meter';
+  top.innerHTML = `<div class="mfig"><div class="lbl">Running now · at list price</div><div class="big">≈ $${(total / HOURS).toFixed(2)}<small>/ h</small></div><div class="lbl">≈ <b>${usd(total)}</b> a month at this rate</div></div>
+    <div class="mfig"><div class="lbl">Idle or wasted</div><div class="big w">≈ ${usd(waste)}<small>/ mo</small></div><div class="lbl"><b class="w">${rows.reduce((a, r) => a + r.waste.length, 0)}</b> resources · marked in the rows</div></div>
+    <div class="mfig wide"><div class="lbl">Billing metric · this month so far <b>$824.17</b> · straight line <b>$3,650</b></div><div class="lbl prose">An estimate of what is switched on, not the bill: Savings Plans, RIs, the free tier, data transfer and requests are left out.</div></div>`;
+  v.appendChild(top);
+  const stack = document.createElement('div'); stack.className = 'stackbar';
+  for (const r of rows.filter((x) => x.cost > 0)) {
+    const seg = document.createElement('button'); seg.type = 'button'; seg.className = `seg${r.waste.length ? ' w' : ''}`;
+    seg.style.flex = String(r.cost); seg.textContent = r.cost / total > 0.07 ? r.svc : '';
+    seg.onclick = () => drillTo({ lv: 2, svc: r.svc, region: state.region, filters: {}, sort: null });
+    hover(seg, () => `<h4><span>${r.svc}</span><span>${((r.cost / total) * 100).toFixed(0)}% of what runs</span></h4><dl><dt>a month</dt><dd>≈ ${usd(r.cost)}</dd></dl>`);
+    stack.appendChild(seg);
+  }
+  v.appendChild(stack);
+  v.insertAdjacentHTML('beforeend', '<div class="changes"><span class="since">since 09:12</span><span class="p">+3 EC2</span><span>(web-3, web-4, web-5)</span><span class="p">+1 EBS</span><span class="p">+3 Lambda</span><span class="m">−1 NAT</span><span class="m">1 instance stopped</span></div>');
+  v.insertAdjacentHTML('beforeend', `<div class="arow head"><span>Service</span><span>Active</span><span>Idle · waste</span><span>≈ a month</span><span class="rgs">regions</span><span>Today</span></div>`);
+  const max = Math.max(1, ...rows.map((r) => r.cost));
+  for (const r of rows.filter((x) => x.cost > 0)) {
+    const el = document.createElement('div'); el.className = `arow${r.waste.length ? ' warn' : ''}`; el.tabIndex = 0;
+    const dl = DELTA[r.svc] || 0;
+    const extra = r.svc === 'S3' ? ` · ${gbText(r.items.reduce((a, x) => a + x.gb, 0))}` : r.svc === 'EBS' || r.svc === 'Snapshots' ? ` · ${gbText(r.items.reduce((a, x) => a + x.gib, 0))}` : '';
+    el.innerHTML = `<span class="sv">${r.svc}</span><span class="mono">${r.on.length}${extra}</span><span class="wst">${r.waste.length ? `${r.waste.length} ${WASTE_WORD[r.svc]} · ≈ ${usd(r.wasteCost)}` : ''}</span><span class="cbar"><span class="tr"><i style="width:${(r.cost / max) * 100}%"></i><u style="width:${(r.wasteCost / max) * 100}%"></u></span><b>≈ ${usd(r.cost)}</b></span><span class="rgs">${r.per.map((c) => `<i class="${c > 0 ? 'on' : ''}" style="opacity:${c > 0 ? 0.35 + 0.65 * Math.min(1, c / (r.cost || 1)) : 1}"></i>`).join('')}</span><span class="dlt ${dl > 0 ? 'p' : dl < 0 ? 'm' : ''}">${dl > 0 ? `+${dl}` : dl < 0 ? dl : ''}</span>`;
+    const open = () => drillTo({ lv: 2, svc: r.svc, region: state.region, filters: {}, sort: null });
+    el.onclick = open; el.onkeydown = (e) => { if (e.key === 'Enter') open(); };
+    hover(el, () => { const t = r.items.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0)).slice(0, 5); return `<h4><span>${r.svc} · the largest</span><span>${r.items.length} ${DRILL[r.svc].noun}</span></h4><table>${t.map((x) => `<tr><td>${esc(r.svc === 'S3' && state.mask ? 'bucket-••' : label(r.svc, x))}</td><td>${r.svc === 'EC2' ? (x.state === 'running' ? `up ${age(x.days)}${idle(x) ? ' · IDLE' : ''}` : x.state) : r.svc === 'S3' ? gbText(x.gb) : r.svc === 'EBS' ? `${x.gib} GiB ${x.state}` : ''}</td><td class="n">≈ ${usd(x.$ || 0)}</td></tr>`).join('')}</table>`; });
+    v.appendChild(el);
+  }
+  v.insertAdjacentHTML('beforeend', '<div class="arow quiet"><span class="sv">Not billing by the hour</span><span class="mono" style="grid-column:2 / -1">Lambda · ACM · VPC · Stacks: usage-based or free — the real amount is under COST</span></div>');
+  v.insertAdjacentHTML('beforeend', '<div class="lfoot">read 14:05 · next 15:00 · S3 sizes and CPU once a day · list prices from Price List, weekly</div>');
+}
+
+// level 2: facets with cross-filtering, a sortable table
+function viewService(v, top) {
+  const def = DRILL[top.svc];
+  const region = top.region && top.region !== 'all' ? top.region : null;
+  const all = R[top.svc].filter((x) => !region || x.region === region);
+  const val = (f, x) => (f[2] ? f[2](x) : String(x[f[0]]));
+  const match = (x, except) => Object.entries(top.filters).every(([k, want]) => k === except || val(def.facets.find((f) => f[0] === k), x) === want);
+  const fx = document.createElement('div'); fx.className = 'facets';
+  for (const f of def.facets) {
+    const counts = new Map();
+    for (const x of all) if (match(x, f[0])) counts.set(val(f, x), (counts.get(val(f, x)) || 0) + 1);
+    for (const x of all) if (!counts.has(val(f, x))) counts.set(val(f, x), 0);
+    const max = Math.max(1, ...counts.values());
+    const grp = document.createElement('div'); grp.className = 'fg';
+    grp.innerHTML = `<h6>${f[1]}</h6>`;
+    [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).forEach(([k, n]) => {
+      const b = document.createElement('button'); b.type = 'button';
+      const sample = all.find((x) => val(f, x) === k);
+      const wt = sample ? def.weight(sample) : '';
+      b.className = `fb${top.filters[f[0]] === k ? ' on' : ''}${n ? '' : ' zero'}${(k === 'available' && top.svc === 'EBS') || k === 'EXTENDED' || k === 'no' && top.svc === 'EIP' || k === 'nodejs18.x' || k === 'short' ? ' warn' : k === 'down' || k === 'UPDATE_ROLLBACK_FAILED' ? ' danger' : ''}`;
+      b.innerHTML = `<span class="k">${esc(k)}</span><span class="tr"><i style="width:${(n / max) * 100}%"></i></span><span class="n">${n}</span>`;
+      b.onclick = () => { if (top.filters[f[0]] === k) delete top.filters[f[0]]; else top.filters[f[0]] = k; renderView(); };
+      void wt;
+      grp.appendChild(b);
+    });
+    fx.appendChild(grp);
+  }
+  v.appendChild(fx);
+  let rows = all.filter((x) => match(x));
+  if (top.sort) { const [k, dir] = top.sort; rows = rows.slice().sort((a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * dir); }
+  else { const o = { danger: 0, warn: 1, '': 2 }; rows = rows.slice().sort((a, b) => o[def.weight(a)] - o[def.weight(b)] || (b.$ || 0) - (a.$ || 0)); }
+  const t = document.createElement('table'); t.className = 'tbl';
+  const nums = {};
+  for (const c of def.cols) if (['num', 'usd', 'gb', 'cnt'].includes(c[2])) nums[c[0]] = Math.max(1, ...rows.map((x) => x[c[0]]));
+  const head = document.createElement('tr');
+  def.cols.forEach((c, i) => {
+    const th = document.createElement('th'); th.className = `c${i}${['num', 'usd', 'gb', 'cnt'].includes(c[2]) ? ' num' : ''}${c[2] === 'usd' ? ' money' : ''}`;
+    th.innerHTML = `${c[1]}${top.sort && top.sort[0] === c[0] ? `<span class="s">${top.sort[1] > 0 ? '▲' : '▼'}</span>` : ''}`;
+    th.onclick = () => { top.sort = top.sort && top.sort[0] === c[0] ? (top.sort[1] > 0 ? [c[0], -1] : null) : [c[0], 1]; renderView(); };
+    head.appendChild(th);
+    if (i === 0) { const f = document.createElement('th'); f.textContent = 'Flag'; f.style.cursor = 'default'; head.appendChild(f); }
+  });
+  const thead = document.createElement('thead'); thead.appendChild(head); t.appendChild(thead);
+  const tb = document.createElement('tbody');
+  for (const x of rows) {
+    const tr = document.createElement('tr'); tr.tabIndex = 0; tr.className = def.weight(x);
+    def.cols.forEach((c, i) => {
+      const td = document.createElement('td'); td.className = `c${i}${['num', 'usd', 'gb', 'cnt'].includes(c[2]) ? ' num' : c[2] === 'mono' ? ' mono' : ''}${c[2] === 'usd' ? ' money' : ''}`;
+      const raw = x[c[0]];
+      if (c[2] === 'st') { const s = String(raw); const cls = /running|in-use|available$|active|COMPLETE/.test(s) && !(top.svc === 'EBS' && s === 'available') ? '' : /FAILED|impaired/.test(s) ? 'danger' : s === 'available' ? 'warn' : 'off'; td.innerHTML = `<span class="st ${cls}"><i></i>${esc(s)}</span>`; }
+      else if (c[2] === 'num' || c[2] === 'usd' || c[2] === 'gb' || c[2] === 'cnt') td.innerHTML = `<i style="width:${(raw / nums[c[0]]) * 60}%"></i>${c[2] === 'usd' ? (raw ? `≈ ${usd(raw)}` : '—') : c[2] === 'gb' ? gbText(raw) : c[2] === 'cnt' ? Number(raw).toLocaleString('en', { notation: 'compact' }) : raw}`;
+      else if (c[2] === 'run') td.textContent = x.state === 'running' ? age(raw) : x.stoppedDays ? `stopped ${x.stoppedDays}d` : '—';
+      else if (c[2] === 'cpu') td.innerHTML = raw ? cpuSpark(raw, idle(x)) : '<span class="mono">—</span>';
+      else if (c[2] === 'bkt') td.textContent = state.mask ? `bucket-${String(x.id.length).padStart(2, '0')}` : raw;
+      else if (c[2] === 'age') td.textContent = age(raw);
+      else if (c[2] === 'ip') td.textContent = ipMask(raw);
+      else if (c[2] === 'dom') td.textContent = domMask(raw);
+      else td.textContent = raw == null ? '—' : String(raw);
+      tr.appendChild(td);
+      if (i === 0) { const f = document.createElement('td'); f.className = 'flag'; const why = flagOf(top.svc, x); if (why) f.innerHTML = `<span class="tag ${def.weight(x) || 'warn'}">${esc(why)}</span>`; tr.appendChild(f); }
+    });
+    tr.onclick = () => drillTo({ lv: 3, svc: top.svc, id: x.id });
+    tr.onkeydown = (e) => { if (e.key === 'Enter') tr.onclick(); };
+    tb.appendChild(tr);
+  }
+  t.appendChild(tb); v.appendChild(t);
+  v.insertAdjacentHTML('beforeend', `<div class="lfoot">${all.length} ${def.noun}${region ? ` in ${region}` : ''} · ${rows.length} shown · read 14:05 · next 15:00</div>`);
+}
+
+// level 3: one resource, with its relations to drill sideways
+function viewOne(v, top) {
+  const x = R[top.svc].find((r) => r.id === top.id);
+  if (!x) { v.innerHTML = '<div class="empty">gone since 14:05 · back to the list</div>'; return; }
+  const def = DRILL[top.svc]; const wt = def.weight(x);
+  const box = document.createElement('div'); box.className = 'one';
+  const name = top.svc === 'ACM' ? domMask(x.id) : top.svc === 'EIP' ? ipMask(x.ip) : top.svc === 'S3' && state.mask ? 'bucket-••' : label(top.svc, x);
+  const stateWord = x.state || x.status || (x.inuse ? `in use: ${x.inuse}` : '');
+  // The lamp says the state; why it is flagged is a tag of its own (a red "running" read as a failure).
+  const lampKind = /FAILED/.test(stateWord) ? 'danger' : /stopped/.test(stateWord) || (top.svc === 'EBS' && stateWord === 'available') ? 'muted' : 'ok';
+  box.innerHTML = `<div class="hd"><span class="lamp ${lampKind}"><i></i>${esc(stateWord || 'listed')}</span><span class="nm"></span>${wt ? `<span class="tag ${wt}">${esc(flagOf(top.svc, x))}</span>` : ''}<span class="kind">${top.svc} · ${x.region}${x.az ? ` · ${x.az}` : ''}</span><span class="acts"><button type="button" class="btn" id="b-hist" aria-pressed="${state.histOpen}">History</button><button type="button" class="btn">↗ Console</button></span></div>`;
+  box.querySelector('.nm').textContent = name;
+  const grid = document.createElement('div'); grid.className = 'grid';
+  const fields = document.createElement('div');
+  let dl = '<h6>Fields</h6><dl>';
+  for (const c of def.cols) {
+    const raw = x[c[0]];
+    if (c[2] === 'cpu') { if (raw) dl += `<dt>${c[1]}</dt><dd>${cpuSpark(raw, idle(x))} avg ${(raw.reduce((a, b) => a + b, 0) / 7).toFixed(1)}% · max ${Math.max(...raw)}%${idle(x) ? ' · <b style="color:var(--warn);font-weight:500">IDLE</b>' : ''}</dd>`; continue; }
+    const text = c[2] === 'age' ? `${age(raw)} ago` : c[2] === 'run' ? (x.state === 'running' ? `${age(raw)} since its last start` : '—') : c[2] === 'usd' ? (raw ? `≈ ${usd(raw)} at list price` : '—') : c[2] === 'gb' ? gbText(raw) : c[2] === 'cnt' ? Number(raw).toLocaleString('en') : c[2] === 'bkt' ? (state.mask ? 'bucket-••' : raw) : c[2] === 'ip' ? ipMask(raw) : c[2] === 'dom' ? domMask(raw) : raw ?? '—';
+    dl += `<dt>${c[1]}</dt><dd${c[2] === 'usd' && idle(x) ? ' class="w"' : ''}>${esc(text)}</dd>`;
+  }
+  if (top.svc === 'S3') dl += `<dt>Standard</dt><dd>${gbText(x.std)}</dd><dt>Standard-IA</dt><dd>${gbText(x.ia)}</dd><dt>Glacier</dt><dd>${gbText(x.gl)}</dd><dt>Read</dt><dd>CloudWatch BucketSizeBytes · once a day · no S3 call</dd>`;
+  if (top.svc === 'EC2') dl += `<dt>Private IP</dt><dd>${ipMask(x.ip)}</dd><dt>IMDS v2</dt><dd class="${x.imds === 'optional' ? 'w' : 'o'}">${x.imds}</dd><dt>Platform</dt><dd>${x.platform}</dd>${x.stoppedDays ? `<dt>Stopped</dt><dd class="w">${x.stoppedDays} days ago · User initiated</dd>` : ''}`;
+  if (top.svc === 'RDS' && x.maint) dl += `<dt>Maintenance</dt><dd class="w">forced ${x.maint}</dd>`;
+  if (top.svc === 'EKS') dl += '<dt>Upgrade policy</dt><dd>STANDARD</dd><dt>Next version</dt><dd>1.32 · standard to 2027-03-23</dd>';
+  dl += '</dl>';
+  fields.innerHTML = dl;
+  grid.appendChild(fields);
+  const side = document.createElement('div');
+  const rel = relations(top.svc, x);
+  side.innerHTML = `<h6>Related</h6>${rel.length ? '' : '<div class="lbl">nothing linked</div>'}`;
+  for (const r of rel) {
+    const el = document.createElement('div'); el.className = `rel${r.w ? ` ${r.w}` : ''}${r.go ? ' go' : ''}`; if (r.go) el.tabIndex = 0;
+    el.innerHTML = `<span class="k">${r.kind}</span><span class="v"></span><span class="x">${esc(r.extra || '')}</span>`;
+    el.querySelector('.v').textContent = r.text;
+    if (r.go) { el.onclick = () => drillTo({ lv: 3, svc: r.go[0], id: r.go[1] }); el.onkeydown = (e) => { if (e.key === 'Enter') el.onclick(); }; }
+    else el.style.cursor = 'default';
+    side.appendChild(el);
+  }
+  const att = attention().filter((a) => a.go && a.go[1] === x.id);
+  if (att.length) { side.insertAdjacentHTML('beforeend', '<h6 style="margin-top:0.6rem">Attention</h6>'); for (const a of att) side.insertAdjacentHTML('beforeend', `<div class="rel ${a.w}" style="cursor:default"><span class="k">${a.tag}</span><span class="v">${esc(a.parts.join(''))}</span><span class="x">${a.age}</span></div>`); }
+  grid.appendChild(side); box.appendChild(grid);
+  const hist = document.createElement('div'); hist.className = 'hist';
+  if (state.histOpen) {
+    hist.innerHTML = '<h6 style="margin:0.6rem 0 0.2rem;font-weight:500;font-size:var(--step--2);letter-spacing:var(--tracking-wide);text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--panel-rule)">History · CloudTrail for this resource · 90 days</h6>';
+    for (const [t, n, op, res] of [['11-07 13:58', 'terraform', 'CreateTags', null], ['11-06 22:10', 'aki', 'ModifyInstanceAttribute', null], ['11-02 09:14', 'ci-deploy', 'StopInstances', 'UnauthorizedOperation'], ['10-21 16:40', 'aki', 'StartInstances', null]]) hist.insertAdjacentHTML('beforeend', `<div class="ev${res ? ' err' : ''}"><span class="t">${t}</span><span class="who">${esc(who(n))}</span><span class="op">${op}</span><span class="res">${res || 'ok'}</span></div>`);
+  }
+  box.appendChild(hist);
+  v.appendChild(box);
+  box.querySelector('#b-hist').onclick = () => { state.histOpen = !state.histOpen; state.calls += 1; renderView(); renderTop(); };
+}
+function relations(svc, x) {
+  const out = [];
+  if (svc === 'EC2') {
+    for (const vol of R.EBS.filter((b) => b.attached === x.id)) out.push({ kind: 'Volume', text: `${vol.id}`, extra: `${vol.gib} GiB ${vol.type}`, go: ['EBS', vol.id] });
+    for (const e of R.EIP.filter((b) => b.assoc === x.id)) out.push({ kind: 'EIP', text: ipMask(e.ip), go: ['EIP', e.id] });
+    out.push({ kind: 'SG', text: x.sgOpen ? 'sg-0a91… bastion-ssh' : 'sg-0c22… web', extra: x.sgOpen ? '22 open to 0.0.0.0/0' : 'no world-open port', w: x.sgOpen ? 'danger' : '' });
+    out.push({ kind: 'Alarm', text: x.name.startsWith('web') ? 'web-cpu-high · OK' : 'none watching it', extra: '' });
+  }
+  if (svc === 'EBS') {
+    if (x.attached) { const i = R.EC2.find((e) => e.id === x.attached); out.push({ kind: 'Instance', text: i ? i.name : x.attached, extra: i ? i.state : '', go: ['EC2', x.attached] }); }
+    const snaps = R.Snapshots.filter((s) => s.vol === x.id);
+    for (const s of snaps.slice(0, 4)) out.push({ kind: 'Snapshot', text: s.id, extra: `${age(s.days)} ago`, go: ['Snapshots', s.id] });
+    if (snaps.length > 4) out.push({ kind: '', text: `+${snaps.length - 4} more snapshots` });
+  }
+  if (svc === 'EIP' && x.assoc) out.push({ kind: 'Instance', text: (R.EC2.find((e) => e.id === x.assoc) || {}).name || x.assoc, go: ['EC2', x.assoc] });
+  if (svc === 'Snapshots') out.push({ kind: 'Volume', text: x.vol, go: R.EBS.some((b) => b.id === x.vol) ? ['EBS', x.vol] : null });
+  if (svc === 'EKS') for (const [n, t, c] of [['general', 'm7g.large', '3 / 3'], ['spot-batch', 'c7i.xlarge', '0 / 4']]) out.push({ kind: 'Nodes', text: n, extra: `${t} · ${c}` });
+  if (svc === 'Stacks' && x.status.includes('FAILED')) for (const [r, e] of [['BatchQueue', 'UPDATE_FAILED · Resource handler returned message: "Invalid request provided"'], ['BatchRole', 'UPDATE_COMPLETE']]) out.push({ kind: 'Event', text: r, extra: e.slice(0, 48), w: e.includes('FAILED') ? 'danger' : '' });
+  if (svc === 'RDS') out.push({ kind: 'Snapshot', text: `${x.id}-auto`, extra: '7 kept · latest 03:10' });
+  return out;
+}
+
+// COST: by service from the billing metric's ServiceName dimension
+const SVC_COST = [['Amazon EC2', 352.4, 268.0], ['Amazon RDS', 154.2, 150.1], ['EC2 - Other (EBS, NAT)', 118.6, 104.3], ['Amazon S3', 86.9, 84.0], ['Amazon ECS', 71.3, 70.8], ['Amazon CloudFront', 13.8, 15.6], ['Amazon EKS', 14.6, 14.6], ['Elastic Load Balancing', 12.9, 12.8], ['AWS Lambda', 6.1, 5.0], ['Amazon CloudWatch', 9.3, 8.1], ['AWS KMS', 4.2, 4.2], ['other (6)', 4.47, 4.1]];
+function viewCost(v) {
+  if (state.acct === 'nobilling') { v.innerHTML = '<div class="empty"><b class="d">Billing metrics are off</b>Billing preferences → Receive CloudWatch billing alerts turns them on (free).<br>Budgets still read: monthly-cap $3,300.</div>'; return; }
+  v.insertAdjacentHTML('beforeend', `<div class="costtop"><div><div class="lbl">Month to date · estimated · USD</div><div class="big">$824<small>.17</small></div><div class="lbl">same day last month <b>$796.20</b> · <b class="p">+3.6%</b><br>billing metric <b>2h ago</b> · moves a few times a day</div></div>
+    <div><div class="lbl">Budget · monthly-cap · $3,300</div>
+    <div class="gauge"><span>Actual</span><span class="track"><i style="width:25.8%"></i><span class="tick" style="left:80%"></span></span><b>26%</b></div>
+    <div class="gauge"><span>AWS forecast</span><span class="track"><i class="over" style="width:100%"></i><span class="tick" style="left:90.5%"></span></span><b class="w">110%</b></div>
+    <div class="lbl" style="margin-top:0.3rem">Free plan · credits <b>$61.40</b> of $200 left · ends <b>2027-03-02</b></div></div></div>`);
+  v.appendChild(ceCard());
+  v.insertAdjacentHTML('beforeend', `<div class="sep">by service · this month · vs the same day last month · ${state.ce === 'off' ? 'billing metric (free tier)' : 'Cost Explorer · through 11-06'}</div>`);
+  const box = document.createElement('div'); box.className = 'svcbars';
+  const max = SVC_COST[0][1];
+  for (const [n, cur, prev] of SVC_COST) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'sb';
+    const d = ((cur - prev) / prev) * 100;
+    b.innerHTML = `<span class="k"></span><span class="tr"><i style="width:${(cur / max) * 100}%"></i><u style="left:${(prev / max) * 100}%"></u></span><span class="v">$${cur.toFixed(2)}</span><span class="d ${d > 5 ? 'up' : d < -5 ? 'dn' : ''}">${d >= 0 ? '+' : ''}${d.toFixed(0)}%</span>`;
+    b.querySelector('.k').textContent = n;
+    b.onclick = () => drillTo({ lv: 'c2', svc: n, cur, prev }, 'cost');
+    hover(b, () => `<h4><span>${esc(n)}</span><span>${((cur / 824.17) * 100).toFixed(1)}% of the month</span></h4><dl><dt>last month</dt><dd>$${prev.toFixed(2)} by this day (the tick)</dd></dl><div class="why">EstimatedCharges by ServiceName (get-metric-statistics, free tier). Press for its daily curve.</div>`);
+    box.appendChild(b);
+  }
+  v.appendChild(box);
+  v.insertAdjacentHTML('beforeend', '<div class="lfoot">by tag or by resource needs a Cost and Usage Report, which this pane does not read · Billing console ↗</div>');
+}
+// Cost Explorer is paid: off until the user turns it on, then once a day under a monthly cap.
+function ceCard() {
+  const c = document.createElement('div');
+  if (state.ce === 'off') {
+    c.className = 'ce';
+    c.innerHTML = '<span class="t"><b>Cost Explorer is off.</b> It adds the real amount by usage type and region, and AWS\'s forecast without a budget. It is a paid API: <span class="paid">$0.01 a request</span> · at once a day ≈ $0.60 a month, under a cap you set.</span><button type="button" class="btn">Turn on…</button>';
+    c.querySelector('button').onclick = () => { $('settings').classList.add('show'); $('b-set').setAttribute('aria-pressed', 'true'); };
+  } else {
+    c.className = 'ce on';
+    c.innerHTML = `<span class="t"><b>Cost Explorer · once a day</b> · read 00:07 · ${state.paid} requests this month · <span class="paid">$${(state.paid / 100).toFixed(2)}</span> of a $1.00 cap${state.ce === 'cap' ? ' · <b style="color:var(--warn)">cap reached: nothing more is called until 12-01</b>' : ''}<br>AWS forecast for November <b>$3,520</b> · actual through 11-06 <b>$781.40</b></span>`;
+  }
+  return c;
+}
+function viewCostService(v, top) {
+  const days = 7, n = 30;
+  const per = top.cur / days, perPrev = top.prev / days;
+  const cur = [], prev = [];
+  for (let d = 1; d <= n; d++) { prev.push(perPrev * d * (1 + Math.sin(d) * 0.03)); if (d <= days) cur.push(per * d * (1 + Math.cos(d) * 0.04)); }
+  const max = Math.max(per * n, perPrev * n) * 1.05;
+  const pt = (arr) => arr.map((y, i) => `${(i / (n - 1)) * 100},${40 - (y / max) * 38}`).join(' ');
+  const projEnd = per * n;
+  v.insertAdjacentHTML('beforeend', `<div class="costtop"><div><div class="lbl">${esc(top.svc)} · month to date</div><div class="big">$${top.cur.toFixed(2)}</div><div class="lbl">same day last month <b>$${top.prev.toFixed(2)}</b><br>straight line to 11-30 <b>$${projEnd.toFixed(0)}</b> · full days only</div></div><div class="lbl prose" style="align-self:center">${state.ce === 'off' ? 'The billing metric stops at the service: usage types (instance hours, NAT GB, EBS GB-month) and regions need Cost Explorer, a paid API this pane calls only when you turn it on.' : 'The curve is the free billing metric; the breakdown below is Cost Explorer (paid), read only when pressed and kept for a day.'}</div></div>
+    <div class="curve"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><polyline class="prev" points="${pt(prev)}"/><polygon class="area" points="0,40 ${pt(cur)} ${((days - 1) / (n - 1)) * 100},40"/><polyline class="cur" points="${pt(cur)}"/><polyline class="proj" points="${pt(cur.slice(-1))} 100,${40 - (projEnd / max) * 38}"/></svg>
+    <div class="ylab"><span>$0 at the foot · $${max.toFixed(0)} at the top</span><span>— this month · · · straight line · - - last month</span></div>
+    <div class="axis"><span>11-01</span><span>11-07 today</span><span>11-30</span></div></div>`);
+  // The third level: only Cost Explorer knows usage types and regions. Each press is one paid request, kept 24 h.
+  v.insertAdjacentHTML('beforeend', '<div class="sep">breakdown · Cost Explorer</div>');
+  if (state.ce === 'off') { v.appendChild(ceCard()); return; }
+  const row = document.createElement('div'); row.className = 'ce on';
+  const kept = state.ceUsage[top.svc];
+  row.innerHTML = `<span class="t">${kept ? `read ${kept.at} · kept until tomorrow, pressing again calls nothing` : 'Not read yet for this service.'}${state.ce === 'cap' ? ' <b style="color:var(--warn)">Cap reached · nothing more is called until 12-01.</b>' : ''}</span>`;
+  for (const k of ['usage type', 'region']) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn';
+    b.innerHTML = `By ${k}${kept && kept[k] ? '' : ' · <span class="paid">$0.01</span>'}`;
+    b.disabled = state.ce === 'cap' && !(kept && kept[k]);
+    b.onclick = () => { const e = state.ceUsage[top.svc] || (state.ceUsage[top.svc] = { at: '14:24' }); if (!e[k]) { e[k] = true; state.paid += 1; renderTop(); } e.show = k; renderView(); };
+    row.appendChild(b);
+  }
+  v.appendChild(row);
+  if (kept && kept.show) {
+    const lines = kept.show === 'region' ? [['ap-northeast-1', 0.71], ['us-east-1', 0.21], ['eu-west-1', 0.08]] : top.svc.includes('EC2') ? [['APN1-BoxUsage:g5.xlarge', 0.52], ['APN1-BoxUsage:m7g.large', 0.21], ['APN1-BoxUsage:c7i.2xlarge', 0.14], ['USE1-BoxUsage:m7g.xlarge', 0.09], ['other', 0.04]] : [['APN1-EBS:VolumeUsage.gp3', 0.46], ['APN1-NatGateway-Hours', 0.22], ['APN1-NatGateway-Bytes', 0.19], ['APN1-EBS:SnapshotUsage', 0.13]];
+    v.insertAdjacentHTML('beforeend', `<table class="utbl">${lines.map(([k, f]) => `<tr><td class="k">${k}</td><td style="width:45%"><span style="display:block;height:0.5rem;background:var(--accent-dim);width:${f * 100}%"></span></td><td class="n">$${(top.cur * f).toFixed(2)}</td></tr>`).join('')}</table>`);
+  }
+}
+
+function viewActivity(v) {
+  v.classList.add('activity');
+  const T = [['14:05:12', 'ci-deploy', 'IAMUser', 'RunInstances', 'ec2', 'ap-northeast-1', 'UnauthorizedOperation'], ['13:58:30', 'terraform', 'AssumedRole', 'PutBucketPolicy', 's3', 'us-east-1', null, 'sec'], ['13:52:07', 'terraform', 'AssumedRole', 'CreateTags', 'ec2', 'eu-west-1', null], ['13:41:55', 'ken', 'AssumedRole', 'ConsoleLogin', 'signin', 'us-east-1', 'Failure · no MFA', 'login'], ['13:41:20', 'ken', 'AssumedRole', 'ConsoleLogin', 'signin', 'us-east-1', null, 'login'], ['13:20:44', 'aki', 'AssumedRole', 'AuthorizeSecurityGroupIngress', 'ec2', 'ap-northeast-1', null, 'sec'], ['12:02:10', 'ci-deploy', 'IAMUser', 'UpdateFunctionCode', 'lambda', 'ap-northeast-1', null], ['01:10:03', 'ci-deploy', 'IAMUser', 'PassRole', 'iam', 'global', 'AccessDenied ×6', 'sec']];
+  const f = state.actFilter;
+  const all = [...state.trail, ...T];
+  for (const t of all) {
+    const [time, n, kind, op, svc, rg, err, k] = t;
+    if (f === 'logins' && k !== 'login') continue;
+    if (f === 'errors' && !err) continue;
+    if (f === 'writes' && k === 'login') continue;
+    if (f === 'security' && k !== 'sec' && k !== 'login') continue;
+    if (state.region !== 'all' && rg !== state.region && rg !== 'global') continue;
+    const el = document.createElement('div'); el.className = `ev${err ? ' err' : k === 'login' ? ' login' : ''}${t.fresh ? ' fx-fresh' : ''}`;
+    el.innerHTML = `<span class="t">${time}</span><span class="who"></span><span class="op"></span><span class="svc2">${svc}</span><span class="rg">${rg}</span><span class="res">${err ? esc(err) : 'ok'}</span>`;
+    el.querySelector('.who').textContent = `${who(n)} · ${kind}`; el.querySelector('.op').textContent = op;
+    v.appendChild(el); t.fresh = false;
+  }
+  v.insertAdjacentHTML('beforeend', '<div class="lfoot">writes only (ReadOnly=false) · AWS services\' own calls left out · 50 a region at most, 38 read · CloudTrail is about 5 min behind</div>');
+}
+
+function viewAccount(v) {
+  const acc = state.mask ? '••••••••••••' : ACCT.id;
+  const denied = state.link === 'partial';
+  v.innerHTML = `<div class="idgrid">
+    <div class="idbox one" style="padding:0"><h6>Signed in as</h6><dl><dt>arn</dt><dd>arn:aws:sts::${acc}:assumed-role/${ACCT.role}/${esc(who(ACCT.session))}</dd><dt>sign-in</dt><dd>aws login · console credentials, renewed by the CLI</dd><dt>account</dt><dd>${state.mask ? '•••••' : ACCT.alias} · ${acc}</dd></dl></div>
+    <div class="idbox one" style="padding:0"><h6>Account summary</h6><dl><dt>root MFA</dt><dd class="o">on</dd><dt>root keys</dt><dd class="o">none</dd><dt>root last used</dt><dd>2026-08-02</dd><dt>users</dt><dd>7 · 2 without MFA</dd><dt>roles</dt><dd>64</dd></dl></div>
+    <div class="idbox one full" style="padding:0"><h6>Credential report · 11-07 03:00</h6>${denied ? '<span class="denied">DENIED · iam:GenerateCredentialReport</span>' : `<table class="ctab"><tr><th>user</th><th>console</th><th>MFA</th><th>key age</th><th>key last used</th></tr>
+      <tr><td>${who('aki')}</td><td>yes</td><td class="o">yes</td><td class="m">—</td><td class="m">—</td></tr><tr><td>${who('ci-deploy')}</td><td class="m">no</td><td class="m">—</td><td class="w">412 d</td><td>2h ago</td></tr>
+      <tr><td>${who('ken')}</td><td>yes</td><td class="w">no</td><td>34 d</td><td>3 d ago</td></tr><tr><td>${who('legacy-ftp')}</td><td>yes</td><td class="w">no</td><td class="w">903 d</td><td class="w">never</td></tr></table>`}</div>
+    <div class="idbox one" style="padding:0"><h6>Quotas · ap-northeast-1</h6><dl><dt>vCPU std</dt><dd class="w">52 / 64 · 81%</dd><dt>EIPs</dt><dd>4 / 5</dd></dl></div>
+    <div class="idbox one" style="padding:0"><h6>Commitments</h6><dl><dt>Savings Plan</dt><dd>compute · ends 2027-04-01</dd><dt>RDS RI</dt><dd class="w">db.r7g.large · ends in 24 days</dd><dt>domains</dt><dd>example.com · auto-renew on · 2027-02-11</dd></dl></div>
+  </div>`;
+}
+
+// ---------- hover cards: after a rest, kept in the pane, never repeating the row ----------
+let cardTimer = 0;
+function hover(el, html) { el.addEventListener('mouseenter', () => showCard(el, html())); el.addEventListener('mouseleave', hideCard); el.addEventListener('focus', () => showCard(el, html(), true)); el.addEventListener('blur', hideCard); }
+function showCard(anchor, html, now, atX) {
+  clearTimeout(cardTimer);
+  cardTimer = setTimeout(() => {
+    const card = $('card');
+    if (card.dataset.h !== html || !card.classList.contains('show')) { card.innerHTML = html; card.dataset.h = html; card.classList.remove('wide'); card.classList.remove('show'); void card.offsetWidth; card.classList.add('show'); }
+    const body = $('body').getBoundingClientRect(), a = anchor.getBoundingClientRect(), h = card.offsetHeight;
+    let top = a.bottom - body.top + 4;
+    if (anchor.id === 'pulse-cv') top = 2; else if (top + h > body.height) top = Math.max(0, a.top - body.top - h - 4);
+    card.style.top = `${top}px`;
+    const left = atX !== undefined ? a.left - body.left + atX - 40 : a.left - body.left + 24;
+    card.style.left = `${Math.min(Math.max(0, left), body.width - card.offsetWidth)}px`;
+  }, now ? 0 : 450);
+}
+function hideCard() { clearTimeout(cardTimer); $('card').classList.remove('show'); }
+const PROBES = [['identity', 'sts get-caller-identity', '15 min', 'free', 9], ['s3size · ec2cpu', 'cloudwatch list-metrics · get-metric-statistics', '1 day', 'free tier', 31], ['prices', 'pricing get-products', '7 days', 'free?', 0], ['alarms ×3', 'cloudwatch describe-alarms', '5 min', 'free tier', 36], ['health ×3', 'ec2 describe-instance-status', '5 min', 'free', 36], ['trail ×3', 'cloudtrail lookup-events', '15 min', 'free', 27], ['stacks ×3', 'cloudformation list-stacks', '15 min', 'free', 27], ['inventory ×3', 'ec2 · rds · lambda · ecs … (12)', '1 h', 'free', 58], ['billing', 'cloudwatch get-metric-statistics', '6 h', 'free tier', 2], ['budgets · plan', 'budgets · freetier', '6–12 h', 'free', 3], ['daily', 'acm · eks · domains · RI/SP · quota …', '1 day', 'free', 16]];
+$('ledger').addEventListener('mouseenter', () => {
+  clearTimeout(cardTimer);
+  cardTimer = setTimeout(() => {
+    const card = $('card');
+    card.classList.add('wide'); card.innerHTML = `<h4><span>requests today · by probe</span><span>${state.calls}</span></h4><table>${PROBES.map(([a, b, c, d, n]) => `<tr><td>${a}</td><td>${b}</td><td>${c}</td><td class="${d === 'free' ? 'fr' : 'ft'}">${d}</td><td class="n">${n}</td></tr>`).join('')}</table>${state.ce === 'off' ? '' : `<table><tr><td>ce.month · ce.forecast</td><td>ce get-cost-and-usage · get-cost-forecast</td><td>1 day</td><td class="paid">paid</td><td class="n">${state.paid}</td></tr></table>`}<div class="why">Paid APIs = calls with a per-request price: only Cost Explorer, and only once you turn it on (off by default, a monthly cap). GetMetricData and S3 listings are never made. The price of the API is not the whole story: each read is a CloudTrail management event (~${state.calls} today), which a second trail or a SIEM may bill by count, and CloudWatch's 1M free requests are shared by the whole account. aws.exe: %LOCALAPPDATA%\\Programs\\Amazon\\AWSCLIV2 · 1.2 s and 0.6 s of CPU a call.</div>`;
+    card.dataset.h = ''; card.classList.remove('show'); void card.offsetWidth; card.classList.add('show');
+    const body = $('body').getBoundingClientRect(); card.style.left = '0.4rem'; card.style.top = `${Math.max(0, body.height - card.offsetHeight - 4)}px`;
+  }, 450);
+});
+$('ledger').addEventListener('mouseleave', hideCard);
+
+// ---------- tabs and keys ----------
+function selectTab(t, draw = true) {
+  state.tab = t;
+  for (const x of document.querySelectorAll('.tab')) x.setAttribute('aria-selected', String(x.dataset.tab === t));
+  if (draw) renderView();
+}
+for (const t of document.querySelectorAll('.tab')) t.onclick = () => selectTab(t.dataset.tab);
+$('f-mtd-btn').onclick = () => { state.drill.cost = []; selectTab('cost'); };
+$('f-alarm-btn').onclick = () => selectTab('attention');
+$('f-att-btn').onclick = () => selectTab('attention');
+// Enter goes down (on the focused row); Escape or Backspace goes up - only while focus is inside the pane.
+$('pane').addEventListener('keydown', (e) => {
+  if ((e.key === 'Escape' || e.key === 'Backspace') && stack().length && !(e.target instanceof HTMLInputElement)) { e.preventDefault(); up(); $('view').focus(); }
+});
+
+function render() { renderTop(); renderPulse(); renderView(); }
+
+// ---------- mock controls ----------
+function group(attr, fn) { for (const b of document.querySelectorAll(`.mockbar [data-${attr}]`)) b.onclick = () => { for (const x of document.querySelectorAll(`.mockbar [data-${attr}]`)) x.setAttribute('aria-pressed', String(x === b)); fn(b.dataset[attr]); }; }
+group('theme', (v) => { if (v === 'tron') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v; renderPulse(); });
+group('width', (v) => { const p = $('pane'); p.classList.remove('medium', 'narrow', 'short'); if (v !== 'wide') p.classList.add(v); render(); });
+group('link', (v) => { state.link = v; render(); });
+group('acct', (v) => { state.acct = v; state.extra = []; render(); });
+$('b-mask').onclick = () => { state.mask = !state.mask; $('b-mask').setAttribute('aria-pressed', String(state.mask)); renderTop(); renderView(); };
+$('b-set').onclick = () => { const s = $('settings'); const on = !s.classList.contains('show'); s.classList.toggle('show', on); $('b-set').setAttribute('aria-pressed', String(on)); };
+for (const seg of document.querySelectorAll('.settings .seg')) for (const b of seg.querySelectorAll('.btn')) b.onclick = () => {
+  if (seg.dataset.opt) for (const x of seg.querySelectorAll('.btn')) x.setAttribute('aria-pressed', String(x === b)); else b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+  if (seg.dataset.opt === 'pulse') { $('pane').classList.toggle('no-pulse', b.dataset.v === 'off'); renderPulse(); }
+  if (seg.dataset.opt === 'ce') setCe(b.dataset.v === 'off' ? 'off' : 'day');
+};
+// Cost Explorer's state, from the mock bar or the settings: off, on (once a day), or on with the month's cap reached.
+function setCe(v) {
+  state.ce = v; state.paid = v === 'off' ? 0 : v === 'cap' ? 100 : Math.max(state.paid, 14);
+  for (const x of document.querySelectorAll('.mockbar [data-ce]')) x.setAttribute('aria-pressed', String(x.dataset.ce === v));
+  for (const x of document.querySelectorAll('.settings [data-opt="ce"] .btn')) x.setAttribute('aria-pressed', String(x.dataset.v === (v === 'off' ? 'off' : 'day')));
+  $('ce-est').textContent = v === 'off' ? 'At once a day: ≈ 60 requests · $0.60 a month (two a day: costs by service, and AWS\'s forecast; a breakdown you press for is one more). This month so far: 0 · $0.00. Shorter than 12 h is not offered: Cost Explorer\'s data moves a few times a day.'
+    : `At once a day: ≈ 60 requests · $0.60 a month. This month so far: ${state.paid} · $${(state.paid / 100).toFixed(2)}${v === 'cap' ? ' — the cap is reached; nothing more until 12-01' : ''}.`;
+  renderTop(); renderView();
+}
+group('ce', setCe);
+$('notice-copy').onclick = () => { const b = $('notice-copy'); b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1200); };
+// REFRESH: main holds the 30 s; the underline shows what main answered.
+$('b-refresh').onclick = () => {
+  if (state.wait > 0 || L().empty) return;
+  $('lamp').className = 'lamp linking'; $('lamp-text').textContent = 'LINKING';
+  state.wait = 30; const btn = $('b-refresh'); btn.disabled = true; btn.style.setProperty('--left', '1');
+  setTimeout(() => { state.calls += 14; if (L().stale) { state.link = 'linked'; for (const x of document.querySelectorAll('.mockbar [data-link]')) x.setAttribute('aria-pressed', String(x.dataset.link === 'linked')); } render(); }, 1600);
+  const tick = () => { state.wait -= 1; btn.style.setProperty('--left', String(state.wait / 30)); if (state.wait > 0) setTimeout(tick, 1000); else btn.disabled = false; };
+  setTimeout(tick, 1000);
+};
+state.trail = [];
+$('sim-alarm').onclick = () => { state.extra.unshift({ w: 'danger', tag: 'Alarm', parts: ['', 'orders-queue-depth', ' in ALARM · ApproximateNumberOfMessagesVisible > 500'], rid: 'alarm/orders-queue-depth', rg: 'ap-northeast-1', age: 'now', go: ['ECS', 'worker'], fresh: true }); state.calls += 3; render(); };
+$('sim-launch').onclick = () => {
+  const before = R.EC2.length; seed = 991; addEc2('ap-northeast-1', 1, 'web-6'); const x = R.EC2[before]; x.state = 'running'; x.days = 0; x.cpu = [0, 0, 0, 0, 0, 0, 12];
+  x.$ = monthly('EC2', x); for (const b of R.EBS.filter((v) => v.attached === x.id)) b.$ = monthly('EBS', b);
+  const t = ['14:22:31', 'ci-deploy', 'IAMUser', 'RunInstances', 'ec2', 'ap-northeast-1', null]; t.fresh = true; state.trail.unshift(t);
+  DELTA.EC2 += 1; state.calls += 3; render();
+};
+window.addEventListener('resize', renderPulse);
+render();
+</script>
+</body>
+</html>
