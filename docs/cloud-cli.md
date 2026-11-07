@@ -11,7 +11,7 @@ AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON
 |------|------|------|
 | 2026-11-07 | AWS ペインと GITHUB ペインを作る。CLI 経由で情報を取り、既存コードと疎結合にする。UI は既存ペインと揃える | 利用者の案 |
 | 2026-11-07 | AWS は無料の API の範囲だけを呼ぶ | 利用者の指定 |
-| 2026-11-07 | **（判断待ち）** CLI は PowerShell を通さず、main が `aws.exe` / `gh.exe` を直接起動する（§2.1）。2026-11-08 に利点と欠点を実測して利用者に示した（利点が無く欠点だけなら直接でよい、と利用者） | 提案。利用者の案は「PowerShell 経由」 |
+| 2026-11-08 | **CLI はシェルを通さず、main が `aws.exe` / `gh.exe` を直接起動する**（§2.1）。PowerShell 経由の利点と欠点を実測して示し、利用者が直接を選んだ | 利用者の決定（初めの案は「PowerShell 経由」） |
 | 2026-11-07 | 初版を Opus 5.5 と Fable 5.1 に見せ、指摘で直した（§11） | 利用者の指定 |
 | 2026-11-07 | プリセット `cloud` を作り、LAYOUTS（Ctrl+Shift+G）の棚で `blank` の前に置く（§10） | 利用者の指定 |
 | 2026-11-08 | 名前は既存のペイン（NETWORK STATUS など）に合わせて **AWS STATUS** と **GITHUB STATUS**。ウィジェット id は `aws` と `github`、ピッカーは "aws status" と "github status" | 利用者の決定 |
@@ -40,7 +40,7 @@ AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON
 
 ## 2. 起動（main、`src/main/cloud-cli/`）
 
-### 2.1 PowerShell を通さず直接起動する（推奨。利用者の判断待ち）
+### 2.1 PowerShell を通さず直接起動する（利用者の決定 2026-11-08）
 
 Wi-Fi ペインが PowerShell を使うのは、Win32 の API（`wlanapi`、`GetIfTable2`）に届く手段が PowerShell の C#
 しか無いからで、それも 1 本の常駐プロセス（`WindowsSampler`）に読ませている。`aws` と `gh` はそれ自体が
@@ -76,8 +76,8 @@ Wi-Fi ペインが PowerShell を使うのは、Win32 の API（`wlanapi`、`Get
 | 止め方 | 時間切れで PowerShell を止めても子の `aws.exe` が残る。木ごと止める手当てが 1 段増える |
 | macOS / Linux | 別の経路が要る（pwsh は既定で入っていない） |
 
-**判断**: 利点はどれも対象外か別の手段で足り、欠点は速さ・安全・会社の PC での動作・文字コードに及ぶ。git ペイン
-（main/git/run.ts）と同じ `execFile` で直接起動し、**シェルは使わない**（`shell: false`、`.cmd` も起動しない）を推す。
+**決定**（2026-11-08）: 利点はどれも対象外か別の手段で足り、欠点は速さ・安全・会社の PC での動作・文字コードに及ぶので、git ペイン
+（main/git/run.ts）と同じ `execFile` で直接起動し、**シェルは使わない**（`shell: false`、`.cmd` も起動しない）。
 重さの本体は CLI のほうにある（§5）。
 
 ### 2.2 実行ファイルの見つけ方
