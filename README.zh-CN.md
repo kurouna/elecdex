@@ -85,13 +85,6 @@ elecdex 是一款桌面应用，用分屏和标签页把 41 种内置窗格排�
 | 媒体 | Spectrum、Browser、YouTube、X、Mixer、Now playing | [媒体窗格](docs/guide/panes-media.zh-CN.md) |
 | 复古 | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） | [复古窗格](docs/guide/panes-retro.zh-CN.md) |
 
-**TRANSLATE** 通过 llama.cpp 在本机运行 Preferred Networks 的 PLaMo 3 Translate，在 53 种语言与简易日语之间翻译；所翻译的内容不会离开本机。原文逐块翻译，并通过脊线与译文相连；LIVE 边输入边翻译，ROUND TRIP 把每个块译回并打分，术语表和上下文让术语保持一致，Ctrl+Shift+Y 带着剪贴板中的文本调出它。引擎和模型在 Preferred Networks 网站上阅读并同意许可证后，在设置中获取一次（[AI 窗格：TRANSLATE](docs/guide/panes-ai.zh-CN.md#translate)）。Built with PLaMo。
-
-<p align="center">
-  <a href="docs/guide/panes-ai.zh-CN.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="TRANSLATE 窗格：虚构的英文发布说明通过脊线逐块与日文译文相连，每块附有译回英文的结果和 chrF 分数"></a>
-  <br><sub>TRANSLATE · 替身引擎与虚构文本</sub>
-</p>
-
 ## 安装
 
 从 [Releases](https://github.com/kurouna/elecdex/releases) 下载适合你平台的安装包：

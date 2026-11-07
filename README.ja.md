@@ -86,13 +86,6 @@ elecdex は、組み込みの 41 種のペインを分割とタブで 1 つの�
 | メディア | Spectrum、Browser、YouTube、X、Mixer、Now playing | [メディアのペイン](docs/guide/panes-media.ja.md) |
 | レトロ | CHIP-8、ELEC-16（POCKET、HANDHELD、PLAY-320、SCI-128） | [レトロのペイン](docs/guide/panes-retro.ja.md) |
 
-**TRANSLATE** は、Preferred Networks の PLaMo 3 Translate を llama.cpp でこの PC で動かし、53 言語とやさしい日本語の間を訳します。訳す文は PC の外に出ません。原文はブロックごとに訳し、背骨で訳文とつなぎます。LIVE は打ちながら訳し、ROUND TRIP は各ブロックを訳し戻して点数を付け、用語集と文脈が用語をそろえ、Ctrl+Shift+Y でクリップボードの文を持って呼び出せます。エンジンとモデルは、Preferred Networks のサイトでライセンスを読んで同意したあと、セットアップで 1 度だけ取得します（[AI のペイン：TRANSLATE](docs/guide/panes-ai.ja.md#translate)）。Built with PLaMo。
-
-<p align="center">
-  <a href="docs/guide/panes-ai.ja.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="TRANSLATE ペイン: 英語の架空のリリースノートが、背骨でブロックごとに日本語訳とつながり、それぞれに英語への訳し戻しと chrF の点数が付く"></a>
-  <br><sub>TRANSLATE · 代わりのエンジンと架空の文</sub>
-</p>
-
 ## インストール
 
 お使いのプラットフォーム向けのインストーラーを

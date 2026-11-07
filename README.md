@@ -105,19 +105,6 @@ details are in [Layout presets](docs/guide/presets.md).
 | Media | Spectrum, Browser, YouTube, X, Mixer, Now playing | [Media panes](docs/guide/panes-media.md) |
 | Retro | CHIP-8, ELEC-16 (POCKET, HANDHELD, PLAY-320, SCI-128) | [Retro panes](docs/guide/panes-retro.md) |
 
-**TRANSLATE** translates between 53 languages and Easy Japanese with Preferred
-Networks' PLaMo 3 Translate, run on this computer through llama.cpp: nothing you translate leaves
-it. The source is translated block by block, joined to its translation on the spine; LIVE translates
-as you type, ROUND TRIP puts each block back and scores it, a glossary and a context keep the terms,
-and Ctrl+Shift+Y brings the clipboard's text to it. Setting up fetches the engine and a model once,
-after the licence is read on Preferred Networks' site and agreed to
-([AI panes: TRANSLATE](docs/guide/panes-ai.md#translate)). Built with PLaMo.
-
-<p align="center">
-  <a href="docs/guide/panes-ai.md#translate"><img src="./docs/screenshots/pane-translate.jpg" width="760" alt="The TRANSLATE pane: made-up release notes in English joined block by block on the spine to their Japanese translation, each with its round trip back into English and a chrF score"></a>
-  <br><sub>TRANSLATE · a stand-in engine with made-up text</sub>
-</p>
-
 ## Install
 
 Download the installer for your platform from
