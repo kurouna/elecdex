@@ -40,6 +40,7 @@ alone tends to break a promise the code quietly depends on. The design is in
 | Plugins | [plugins.md](.claude/rules/plugins.md) | docs/plugins.md |
 | AI chat | [ai-chat.md](.claude/rules/ai-chat.md) | §5.7 |
 | ELEC (the council) | [elec.md](.claude/rules/elec.md) | §5.8 |
+| TRANSLATE | [translate.md](.claude/rules/translate.md) | §5.25; docs/translate.md |
 | git pane | [git.md](.claude/rules/git.md) | §5.9 |
 | AI AGENT | [agents.md](.claude/rules/agents.md) | §5.11; docs/agents-codex.md |
 | Tests: the stubs, test craft, the reporter | [tests.md](.claude/rules/tests.md) | docs/e2e-design.md |
@@ -86,7 +87,8 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 src/main/        main process: window, ipc/ (handlers, table.ts), store/ (json files), pty/, fs/,
                  one folder per service (weather/, markets/, feeds/, quakes/, orbits/, clipboard/,
                  media/, ai/, agents/, git/, chip8/, elec16/, launcher/, audio/, plugins/, web/,
-                 background/, reminders/, updates/, awake/, docker/, logwatch/, secrets/),
+                 background/, reminders/, updates/, awake/, docker/, logwatch/, secrets/,
+                 translate/),
                  metrics/ (the broker between the collector and pages),
                  boundary-timer.ts (readings on the wall clock's grid)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/, ethernet/, gpu/)
@@ -129,8 +131,11 @@ user made; do not reverse one without asking.
   pane is seen, only for the chosen source), CelesTrak orbital elements (§5.10: only while an
   ORBIT pane shows the set, at most the stations twice a day and Starlink once, kept on disk,
   nothing for a day after any answer but a 200). Positions are computed in the page (SGP4); no
-  service is asked where something is. Fetch only while a pane needs the data, batch, back off on
-  failure, keep the last good data on screen.
+  service is asked where something is. TRANSLATE fetches its model and engine only in SETUP (or
+  UPDATE), and asks Hugging Face for a newer version as a licence is agreed to and when ENGINE
+  opens, at most once a day; what is translated never leaves the computer unless the user chose
+  an external server (docs/translate.md §10, data-sources.md). Fetch only while a pane needs the data, batch, back off on failure,
+  keep the last good data on screen.
 - **Subscriptions** (metrics, fs watches, weather offices, market symbols, feed URLs, the quake
   list, every pane board) are reference-counted in preload and main, and dropped on reload and
   destroy through `whenPageGoes` (main/ipc/page-gone.ts) - never a module's own page listeners.
