@@ -572,6 +572,28 @@ describe('TranslateService and an external server', () => {
     }
   })
 
+  it('leaves a TEST under way alone when a source it cannot switch to is asked for', async () => {
+    // Review 2026-11-07: a refused switch to the own llama-server, never chosen, cut the TEST off.
+    const { service } = await make()
+    let release!: () => void
+    const a = await external({
+      model: 'plamo-3-translate-2b-Q4_K_M.gguf',
+      hold: new Promise<void>((resolve) => {
+        release = resolve
+      }),
+    })
+    try {
+      const testing = service.testExternal(a.origin)
+      await expect.poll(() => a.hits.filter((url) => url === '/props').length).toBe(1)
+      expect(() => service.setSource('own')).toThrow(/Choose your llama-server first/)
+      release()
+      expect(await testing).toMatchObject({ ok: true })
+    } finally {
+      a.ext.closeAllConnections()
+      a.ext.close()
+    }
+  })
+
   it('cuts off the check of an own llama-server when another engine is chosen', async () => {
     let asked: AbortSignal | undefined
     const { service } = await make({

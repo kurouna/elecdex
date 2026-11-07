@@ -773,16 +773,66 @@ describe('TranslateRuns and LIVE, EDIT, RETRY, ROUND TRIP', () => {
     expect(h.page('p1')?.blocks[0]?.trip?.state).toBe('failed')
   })
 
-  it('a round trip an external server refuses leaves it reachable', async () => {
+  it('a round trip an external server refuses leaves it reachable, and the trips behind go on', async () => {
     const h = harness({ external: () => true })
     h.runs.follow('p1')
-    h.runs.start(request('p1', 'Hello.'))
+    h.runs.start(request('p1', 'Hello.\n\nBye.'))
     await answer(h, 'こんにちは。')
+    await answer(h, 'さようなら。')
     h.runs.roundTrip('p1', 'en')
     await h.settle()
     h.calls.at(-1)?.reject(new ServerAnswerError('/completion answered HTTP 400'))
     await h.settle()
     expect(h.log).not.toContain('unreachable')
+    // One block's refusal says nothing of the next: it is asked.
+    await answer(h, 'Good bye.')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.blocks.map((b) => b.trip?.state)).toEqual(['failed', 'done'])
+  })
+
+  it('fails the round trips behind one an external server did not answer, asking it no more', async () => {
+    // Review 2026-11-07: each trip behind asked the server again in turn, five seconds each.
+    const h = harness({ external: () => true })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.\n\nTwo.\n\nThree.'))
+    await answer(h, '一。')
+    await answer(h, '二。')
+    await answer(h, '三。')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    const asked = h.calls.length
+    h.calls.at(-1)?.reject(new TypeError('fetch failed'))
+    await h.settle()
+    h.tick(FLUSH_MS)
+    expect(h.calls).toHaveLength(asked)
+    expect(h.page('p1')?.blocks.map((b) => b.trip?.state)).toEqual(['failed', 'failed', 'failed'])
+    expect(h.page('p1')?.state).toBe('done')
+  })
+
+  it('fails the round trips behind one whose server, asked again, cannot be used', async () => {
+    let usable = true
+    let ensured = 0
+    const h = harness({
+      external: () => true,
+      ensure: async () => {
+        ensured++
+        if (!usable)
+          throw new ServerUnusableError('That server does not run a PLaMo 3 Translate model.')
+        return ENDPOINT
+      },
+    })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'One.\n\nTwo.\n\nThree.'))
+    await answer(h, '一。')
+    await answer(h, '二。')
+    await answer(h, '三。')
+    usable = false
+    const before = ensured
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    h.tick(FLUSH_MS)
+    expect(ensured - before).toBe(1)
+    expect(h.page('p1')?.blocks.map((b) => b.trip?.state)).toEqual(['failed', 'failed', 'failed'])
   })
 
   it('a new request takes the round trips still waiting with it', async () => {

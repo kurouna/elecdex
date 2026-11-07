@@ -538,14 +538,21 @@ export class TranslateRuns {
 
   /**
    * A round trip that could not be written: said failed on its block. An external server that did
-   * not answer is unreachable, as when translating (review 2026-11-07): READY stayed lit, and each
-   * trip behind waited on the network in turn.
+   * not answer is unreachable, as when translating (review 2026-11-07: READY stayed lit).
    */
   #tripFailed(run: Run, index: number, error: unknown): void {
     this.#patch(run, { index, trip: { state: 'failed' } })
     if (error instanceof TooLongError) return
     const message = error instanceof Error ? error.message : String(error)
-    if (failureReason(error, message, this.#deps.external()).unreachable) this.#deps.unreachable()
+    const unreachable = failureReason(error, message, this.#deps.external()).unreachable
+    if (unreachable) this.#deps.unreachable()
+    // A server that cannot be used fails the trips behind too: each would ask it again in turn,
+    // up to five seconds each (review 2026-11-07). One refusal (an HTTP error) is that block's.
+    if (!unreachable && !(error instanceof ServerUnusableError)) return
+    for (const block of run.view.blocks) {
+      if (block.trip?.state === 'queued')
+        this.#patch(run, { index: block.index, trip: { state: 'failed' } })
+    }
   }
 
   /** Stops a wedged server; the wait is bounded by the engine. Its failure is the engine's to show. */

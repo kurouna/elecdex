@@ -594,10 +594,11 @@ export class TranslateService {
   }
 
   setSource(kind: EngineFile['source']): void {
-    this.#choose()
     const file = this.#file.read()
     if (kind === 'own' && !file.own) throw new Error('Choose your llama-server first.')
     if (kind === 'external' && !file.external) throw new Error('Test a server address first.')
+    // Only a switch that takes cuts off the choice under way (review 2026-11-07).
+    this.#choose()
     // Chosen again untested, the server's models are read again when it answers.
     this.#server = { models: [], ctx: null }
     this.#serverProblem = null
