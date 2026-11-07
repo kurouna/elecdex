@@ -526,7 +526,7 @@ export class TranslateRuns {
         trip: { state: 'done', score: Math.round(chrF(block.source, back)) },
       })
     } catch (error) {
-      if (this.#live(run, signal)) this.#patch(run, { index, trip: { state: 'failed' } })
+      if (this.#live(run, signal)) this.#tripFailed(run, index, error)
       // A wedged server is stopped here too, or every round trip behind this one waits on it.
       if (error instanceof StalledError) await this.#stalled()
     } finally {
@@ -534,6 +534,18 @@ export class TranslateRuns {
       if (run.abort === controller) run.abort = null
       if (this.#runs.get(run.view.paneId) === run) this.#queueFlush(run)
     }
+  }
+
+  /**
+   * A round trip that could not be written: said failed on its block. An external server that did
+   * not answer is unreachable, as when translating (review 2026-11-07): READY stayed lit, and each
+   * trip behind waited on the network in turn.
+   */
+  #tripFailed(run: Run, index: number, error: unknown): void {
+    this.#patch(run, { index, trip: { state: 'failed' } })
+    if (error instanceof TooLongError) return
+    const message = error instanceof Error ? error.message : String(error)
+    if (failureReason(error, message, this.#deps.external()).unreachable) this.#deps.unreachable()
   }
 
   /** Stops a wedged server; the wait is bounded by the engine. Its failure is the engine's to show. */

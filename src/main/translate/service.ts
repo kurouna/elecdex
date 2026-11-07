@@ -7,6 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import type { Settings } from '@shared/settings'
 import {
+  CHOSEN_MEANWHILE,
   type EngineFile,
   EngineFileSchema,
   type EngineView,
@@ -106,6 +107,8 @@ export interface ServiceEnv {
   gpuName: () => Promise<string | null>
   /** What the OS calls a process (the orphan check, §4.2); tests stand one in. */
   processName?: ((pid: number) => Promise<string | null>) | undefined
+  /** A llama-server's `--version` output, cut off by the signal; tests stand one in. */
+  versionOf?: ((file: string, signal: AbortSignal) => Promise<string>) | undefined
 }
 
 const ManifestSchema = z.object({
@@ -155,6 +158,12 @@ export class TranslateService {
    * goes on translating until the new one is in place and chosen.
    */
   #fetchTarget: string | null = null
+  /**
+   * The choice of engine under way (TEST, an own llama-server, a source): the next one cuts it off,
+   * so the last choice is the one that holds (review 2026-11-07: an older TEST answering late wrote
+   * its server over the newer one's).
+   */
+  #choosing: AbortController | null = null
 
   constructor(env: ServiceEnv, settings: Settings['translate']) {
     this.#env = env
@@ -585,6 +594,7 @@ export class TranslateService {
   }
 
   setSource(kind: EngineFile['source']): void {
+    this.#choose()
     const file = this.#file.read()
     if (kind === 'own' && !file.own) throw new Error('Choose your llama-server first.')
     if (kind === 'external' && !file.external) throw new Error('Test a server address first.')
@@ -598,7 +608,9 @@ export class TranslateService {
 
   /** A llama-server of the user's own, chosen through main's picker: its build must read PLaMo 3. */
   async chooseOwn(file: string): Promise<{ build: number } | { problem: string }> {
-    const output = await runForOutput(file, ['--version'])
+    const signal = this.#choose()
+    const output = await (this.#env.versionOf ?? versionOf)(file, signal)
+    if (signal.aborted) return { problem: CHOSEN_MEANWHILE }
     const build = parseBuild(output)
     if (build === null) return { problem: 'That is not llama-server: it did not tell its version.' }
     if (build < MIN_OWN_BUILD) {
@@ -611,13 +623,22 @@ export class TranslateService {
     return { build }
   }
 
+  /** A new choice of engine: the one under way is cut off. */
+  #choose(): AbortSignal {
+    this.#choosing?.abort()
+    this.#choosing = new AbortController()
+    return this.#choosing.signal
+  }
+
   /** TEST of an external server (§4.1): its /props must name PLaMo 3 Translate. */
   async testExternal(
     raw: unknown,
   ): Promise<{ ok: true; host: string } | { ok: false; problem: string }> {
     const parsed = parseExternalUrl(raw)
     if (!parsed.ok) return parsed
-    const read = await readServer(parsed.origin)
+    const signal = this.#choose()
+    const read = await readServer(parsed.origin, signal)
+    if (signal.aborted) return { ok: false, problem: CHOSEN_MEANWHILE }
     if ('problem' in read) {
       const problem =
         read.problem === 'nothing' ? `Nothing answered at ${parsed.host}.` : read.problem
@@ -629,6 +650,8 @@ export class TranslateService {
     this.#file.write({ ...current, external: { origin: parsed.origin }, source: 'external' })
     // After the change has taken: the restart it causes would otherwise mark the server untested again.
     await this.#reconfigure('The engine was changed.')
+    // Another choice came while the engine took this one: it holds, and this one is not said done.
+    if (signal.aborted) return { ok: false, problem: CHOSEN_MEANWHILE }
     this.engine.tested(true)
     this.#changed()
     return { ok: true, host: parsed.host }
@@ -1269,9 +1292,11 @@ interface ServerRead {
  */
 async function readServer(
   origin: string,
+  cut?: AbortSignal,
 ): Promise<ServerRead | { problem: 'nothing' | (string & {}) }> {
-  const get = (route: string) =>
-    fetch(`${origin}${route}`, { redirect: 'error', signal: AbortSignal.timeout(5000) })
+  const signal = () =>
+    cut ? AbortSignal.any([AbortSignal.timeout(5000), cut]) : AbortSignal.timeout(5000)
+  const get = (route: string) => fetch(`${origin}${route}`, { redirect: 'error', signal: signal() })
   let response: Response
   try {
     response = await get('/props')
@@ -1322,12 +1347,22 @@ async function freeBytes(dir: string): Promise<number | null> {
 }
 
 /** A program's stdout and stderr together, run with execFile (never Sync): `--version`, `--list-devices`. */
-function runForOutput(file: string, args: string[]): Promise<string> {
+/** `--version` of a llama-server, cut off with the choice it was asked for. */
+function versionOf(file: string, signal: AbortSignal): Promise<string> {
+  return runForOutput(file, ['--version'], signal)
+}
+
+function runForOutput(file: string, args: string[], signal?: AbortSignal): Promise<string> {
   return new Promise((resolve) => {
     execFile(
       file,
       args,
-      { windowsHide: true, timeout: 15_000, cwd: path.dirname(file) },
+      {
+        windowsHide: true,
+        timeout: 15_000,
+        cwd: path.dirname(file),
+        ...(signal ? { signal } : {}),
+      },
       (_error, stdout, stderr) => {
         resolve(`${stdout}\n${stderr}`)
       },

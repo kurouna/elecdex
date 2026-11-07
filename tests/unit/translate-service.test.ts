@@ -519,6 +519,77 @@ describe('TranslateService and an external server', () => {
     }
   })
 
+  it('cuts off a TEST still waiting when another address is tested: the last one is used', async () => {
+    // Review 2026-11-07: the older TEST, answering late, wrote its server over the newer one.
+    const { service } = await make()
+    const slow = {
+      model: 'plamo-3-translate-2b-Q4_K_M.gguf',
+      hold: new Promise<void>(() => {}),
+    }
+    const a = await external(slow)
+    const b = await external({ model: 'plamo-3-translate-8b-Q4_K_M.gguf' })
+    try {
+      const first = service.testExternal(a.origin)
+      await expect.poll(() => a.hits.filter((url) => url === '/props').length).toBe(1)
+      const second = service.testExternal(b.origin)
+      // The first is cut off at once: it answers before the second, and takes nothing.
+      expect(await first).toEqual({ ok: false, problem: expect.stringMatching(/meanwhile/) })
+      expect(await second).toMatchObject({ ok: true })
+      const board = await service.board()
+      expect(board.engine.externalOrigin).toBe(b.origin)
+      expect(board.engine.serverModels.map((m) => m.name)).toEqual([
+        'plamo-3-translate-8b-Q4_K_M.gguf',
+      ])
+      expect(service.engine.phase).toBe('external-ready')
+    } finally {
+      for (const { ext } of [a, b]) {
+        ext.closeAllConnections()
+        ext.close()
+      }
+    }
+  })
+
+  it('cuts off a TEST still waiting when another engine is chosen', async () => {
+    const { service } = await make()
+    let release!: () => void
+    const a = await external({
+      model: 'plamo-3-translate-2b-Q4_K_M.gguf',
+      hold: new Promise<void>((resolve) => {
+        release = resolve
+      }),
+    })
+    try {
+      const testing = service.testExternal(a.origin)
+      await expect.poll(() => a.hits.filter((url) => url === '/props').length).toBe(1)
+      service.setSource('fetched')
+      // The server answers after all: too late, the engine chosen since stays.
+      release()
+      expect(await testing).toEqual({ ok: false, problem: expect.stringMatching(/meanwhile/) })
+      expect((await service.board()).engine.source).toBe('fetched')
+    } finally {
+      a.ext.closeAllConnections()
+      a.ext.close()
+    }
+  })
+
+  it('cuts off the check of an own llama-server when another engine is chosen', async () => {
+    let asked: AbortSignal | undefined
+    const { service } = await make({
+      versionOf: (_file, signal) => {
+        asked = signal
+        return new Promise((resolve) =>
+          signal.addEventListener('abort', () => resolve('version: 8000 (abc)'), { once: true }),
+        )
+      },
+    })
+    const choosing = service.chooseOwn(path.join(dir, 'llama-server.exe'))
+    await expect.poll(() => asked).toBeDefined()
+    service.setSource('fetched')
+    expect(asked?.aborted).toBe(true)
+    expect(await choosing).toEqual({ problem: expect.stringMatching(/meanwhile/) })
+    expect((await service.board()).engine.source).toBe('fetched')
+  })
+
   it('RESTART asks the builds for their GPUs again', async () => {
     const { service } = await make()
     const file = path.join(dir, 'translate', 'engine.json')

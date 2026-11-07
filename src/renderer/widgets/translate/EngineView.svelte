@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { Settings } from '@shared/settings'
-import type { TranslateBoard } from '@shared/translate/board'
+import { CHOSEN_MEANWHILE, type TranslateBoard } from '@shared/translate/board'
 import { MODELS } from '@shared/translate/models'
 import { CTX_SIZES, IDLE_MINUTES } from '@shared/translate/settings'
 import { appearance } from '../../stores/appearance.svelte.ts'
@@ -88,14 +88,15 @@ async function setSource(kind: 'fetched' | 'own'): Promise<void> {
 async function chooseOwn(): Promise<void> {
   problem = null
   const picked = await api.pickOwn()
-  if (picked && 'problem' in picked) problem = picked.problem
+  if (picked && 'problem' in picked && picked.problem !== CHOSEN_MEANWHILE) problem = picked.problem
 }
 
 async function test(): Promise<void> {
   problem = null
   const answer = await api.testExternal(address || board.engine.externalOrigin || '')
-  if (!answer.ok) problem = answer.problem
-  else address = ''
+  // Cut off by a later choice, it says nothing: the later one does.
+  if (!answer.ok && answer.problem !== CHOSEN_MEANWHILE) problem = answer.problem
+  else if (answer.ok) address = ''
 }
 
 function remove(modelId: string): void {

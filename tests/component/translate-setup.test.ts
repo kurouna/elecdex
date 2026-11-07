@@ -783,3 +783,53 @@ describe('SETUP opened again, or a step taken twice', () => {
     expect(screen.queryByTestId('translate-problem')).toBeNull()
   })
 })
+
+describe('TEST cut off by a later choice', () => {
+  // Review 2026-11-07: main cuts off a TEST when another engine is chosen; the one cut off says so,
+  // which is no problem of the server tested since, and the page does not show it.
+  const saved = engine({ source: 'external', externalOrigin: 'http://127.0.0.1:8210' })
+  const twice = async () => {
+    let first!: (answer: unknown) => void
+    translate.testExternal = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise((resolve) => (first = resolve)))
+      .mockImplementationOnce(async () => ({ ok: true, host: '127.0.0.1:8211' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Test' }))
+    await settle()
+    first({ ok: false, problem: 'Another engine was chosen meanwhile.' })
+    await settle()
+  }
+
+  it('shows nothing of it in ENGINE', async () => {
+    render(EngineView, {
+      props: {
+        board: board({ engine: saved }),
+        settings: TRANSLATE_DEFAULTS,
+        chosen: AGREED,
+        onpick: () => {},
+        onsetup: () => {},
+        onupdate: () => {},
+        ondone: () => {},
+      },
+    })
+    await twice()
+    expect(screen.queryByText(/chosen meanwhile/)).toBeNull()
+  })
+
+  it('shows nothing of it in SETUP', async () => {
+    render(SetupView, {
+      props: {
+        board: board({ engine: saved }),
+        step: 1,
+        chosen: AGREED,
+        onstep: () => {},
+        onselect: () => {},
+        oncommit: async () => {},
+        ondone: () => {},
+      },
+    })
+    await twice()
+    expect(screen.queryByTestId('translate-problem')).toBeNull()
+  })
+})

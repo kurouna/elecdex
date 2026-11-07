@@ -1,5 +1,9 @@
 <script lang="ts">
-import type { EngineSourceKind, TranslateBoard } from '@shared/translate/board'
+import {
+  CHOSEN_MEANWHILE,
+  type EngineSourceKind,
+  type TranslateBoard,
+} from '@shared/translate/board'
 import { ENGINE_BUILD } from '@shared/translate/engines'
 import { MODELS, type ModelEntry, QUANTS, recommendedModel } from '@shared/translate/models'
 import { afterBlink } from '../../lib/blink.ts'
@@ -152,7 +156,8 @@ async function setSource(kind: EngineSourceKind): Promise<void> {
   problem = null
   if (kind === 'own' && !board.engine.own) {
     const picked = await api.pickOwn()
-    if (picked && 'problem' in picked) problem = picked.problem
+    if (picked && 'problem' in picked && picked.problem !== CHOSEN_MEANWHILE)
+      problem = picked.problem
     return
   }
   const answer = await api.setSource(kind)
@@ -168,7 +173,8 @@ async function test(): Promise<void> {
   problem = null
   // Nothing typed: the saved server again, as ENGINE does.
   const answer = await api.testExternal(address || board.engine.externalOrigin || '')
-  if (!answer.ok) problem = answer.problem
+  // Cut off by a later choice, it says nothing: the later one does.
+  if (!answer.ok && answer.problem !== CHOSEN_MEANWHILE) problem = answer.problem
 }
 
 function quantOf(model: ModelEntry | undefined, quant: string): ModelEntry | undefined {

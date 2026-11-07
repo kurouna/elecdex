@@ -10,6 +10,12 @@ import type { ServerModel } from './external.js'
 
 export type EngineSourceKind = 'fetched' | 'own' | 'external'
 
+/**
+ * What a choice of engine (TEST, an own llama-server) answers when a later choice cut it off: it took
+ * nothing, and the page shows nothing of it - the later choice says how it went.
+ */
+export const CHOSEN_MEANWHILE = 'Another engine was chosen meanwhile.'
+
 /** The engine's state (§8.4). The external-* states replace the others for a server elecdex did not start. */
 export type EnginePhase =
   | 'absent'

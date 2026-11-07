@@ -756,6 +756,35 @@ describe('TranslateRuns and LIVE, EDIT, RETRY, ROUND TRIP', () => {
     expect(records).toHaveLength(1)
   })
 
+  it('a round trip an external server does not answer marks it unreachable', async () => {
+    // Review 2026-11-07: translating marked it, a round trip did not: READY stayed lit, and each
+    // trip behind waited on the network in turn.
+    const h = harness({ external: () => true })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'Hello.\n\nBye.'))
+    await answer(h, 'こんにちは。')
+    await answer(h, 'さようなら。')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    h.calls.at(-1)?.reject(new TypeError('fetch failed'))
+    await h.settle()
+    h.tick(FLUSH_MS)
+    expect(h.log).toContain('unreachable')
+    expect(h.page('p1')?.blocks[0]?.trip?.state).toBe('failed')
+  })
+
+  it('a round trip an external server refuses leaves it reachable', async () => {
+    const h = harness({ external: () => true })
+    h.runs.follow('p1')
+    h.runs.start(request('p1', 'Hello.'))
+    await answer(h, 'こんにちは。')
+    h.runs.roundTrip('p1', 'en')
+    await h.settle()
+    h.calls.at(-1)?.reject(new ServerAnswerError('/completion answered HTTP 400'))
+    await h.settle()
+    expect(h.log).not.toContain('unreachable')
+  })
+
   it('a new request takes the round trips still waiting with it', async () => {
     const h = harness()
     h.runs.follow('p1')
