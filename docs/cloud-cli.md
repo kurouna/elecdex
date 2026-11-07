@@ -1,7 +1,7 @@
-# CLI を読むペインの共通の核（AWS・GITHUB）設計
+# CLI を読むペインの共通の核（AWS STATUS・GITHUB STATUS）設計
 
-AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON を読んで見せるペインの、両方に共通する
-部分の設計。ペインそのものは [aws.md](aws.md) と [github.md](github.md)。見た目のたたき台は
+AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON を読んで見せるペイン **AWS STATUS** と
+**GITHUB STATUS** の、両方に共通する部分の設計（文中の「AWS ペイン」「GITHUB ペイン」はこの 2 つ）。ペインそのものは [aws.md](aws.md) と [github.md](github.md)。見た目のたたき台は
 [aws-mock/index.html](aws-mock/index.html) と [github-mock/index.html](github-mock/index.html)（ブラウザで開く
 だけで動く。数字はすべて作り物）。**設計段階（未実装）**。
 
@@ -14,6 +14,11 @@ AWS CLI（`aws`）と GitHub CLI（`gh`）を main から起動し、その JSON
 | 2026-11-07 | **（要決定）** CLI は PowerShell を通さず、main が `aws.exe` / `gh.exe` を直接起動する（§2.1） | 提案。利用者の案は「PowerShell 経由」 |
 | 2026-11-07 | 初版を Opus 5.5 と Fable 5.1 に見せ、指摘で直した（§11） | 利用者の指定 |
 | 2026-11-07 | プリセット `cloud` を作り、LAYOUTS（Ctrl+Shift+G）の棚で `blank` の前に置く（§10） | 利用者の指定 |
+| 2026-11-08 | 名前は既存のペイン（NETWORK STATUS など）に合わせて **AWS STATUS** と **GITHUB STATUS**。ウィジェット id は `aws` と `github`、ピッカーは "aws status" と "github status" | 利用者の決定 |
+| 2026-11-08 | `cloud` を入れると、新しく入れた人の `blank` に番号のキーが付かなくなる。それでよい | 利用者の決定 |
+| 2026-11-08 | AWS と GitHub の**公開ステータス**を出す。**障害のときだけ**ペインに出し、障害が起きたらトーストを出すかを設定で選べる（既定 ON）（§12） | 利用者の決定 |
+| 2026-11-08 | 通知（公開ステータスの障害、AWS のコストの QUOTA）のためだけに、ペインがレイアウトにある間は隠れていても読む（§13）。地震の通知と同じ扱いの例外 | 上の 2 つの決定から（トーストは見えていないときにこそ要る） |
+| 2026-11-08 | 決定を反映した版を、もう一度サブエージェントのレビューに回す。Opus 5.5（RSS の事象の鍵と「開いている」の決め方、304 が効かないこと、テストのスタブ、GitHub の通知の多さ、重複除けをディスクに、UTC の月、背後の読み取りと `credential_process`、契約の表）と Fable 5.1（Cost Explorer の 1 枚の矛盾と畳み方、上限の表を 1 つに、推定の 1 行を固定、AWS の帯の 3 色、トーストの形を 1 つに、§13 の伝え方、MASK と OS の通知）の指摘で直した | 利用者の指定 |
 
 ## 1. 目的と非目的
 
@@ -145,7 +150,7 @@ interface Probe<T> {
 ### 3.1 見えている間だけ
 
 - 既存の購読の規則どおり: ペインは `seen` の間だけボードを購読し、参照カウントで、`whenPageGoes` で落とす。
-  `keepWhileHidden` には載せない。最後の購読者が去ったら時刻表を止める
+  `keepWhileHidden` には載せない。最後の購読者が去ったら時刻表を止める。**例外は通知のための 3 つだけ**（§13）
 - probe ごとに壁時計の周期（`BoundaryTimer`。1 分、5 分、15 分、1 時間、6 時間、1 日）で呼ぶ。**同じ周期の
   probe が境界で一斉に起動しないよう、probe の id から決まるずれ（周期の 1/4 まで、秒単位）を足す**
   （AWS CLI は 1 回ごとに重いので、15 分の境界で 40 本が並ぶと 20〜40 秒の塊になる）
@@ -178,8 +183,10 @@ interface Probe<T> {
 
 ### 3.3 結果の持ち方
 
-- main のメモリだけ（DOCKER ペインと同じ）。再起動したら呼び直す。ディスクに書くのは台帳と、GitHub の
-  公開リポジトリのスターの日ごとの数（[github.md](github.md) §6）だけ
+- main のメモリだけ（DOCKER ペインと同じ）。再起動したら呼び直す。ディスクに書くのは次の 4 つだけ: 台帳（`cli-ledger.json`、数だけ）、GitHub の
+  公開リポジトリのスターの日ごとの数（`github-stars.json`、[github.md](github.md) §6）、AWS のアカウントごとの設定
+  （`aws-billing.json`: Cost Explorer の答えと上限、QUOTA と知らせた段、プロファイルからアカウント ID への対応。
+  アカウント ID を含む）、トーストした障害の id（`cloud-alerts.json`、§12.5）
 - 同じボードを見るペインが複数あれば、結果も時刻表も 1 つ
 - 変化を見せるため（AWS の CHANGES、GitHub の EVENTS）、ボードごとに「今日最初に読んだもの」の id の集合を
   メモリに持つ（再起動で消える。見出しに「since 09:12」と起点を出す）
@@ -251,8 +258,11 @@ src/renderer/widgets/github/  GithubWidget.svelte と部品
 | src/shared/channels.ts、api.ts、src/preload/index.ts | `aws.*`・`github.*` のチャンネルと型と橋（ボードの購読、REFRESH、`open(itemId)`、プロファイル一覧） |
 | 診断 | 各モジュールの `watching()`（購読中のボードの id、並べた `string[]`、何も無ければ空） |
 | src/renderer/widgets/builtins.ts | 2 行（`keepWhileHidden` なし、`zoom: 'full'`、`popup: true`） |
-| tests/e2e/contracts/panes.ts | 2 行（見えている間に main がすること、残すもの、隠れて続けるもの＝なし） |
-| tests/e2e/contracts/dialogs.ts、ホバーカードの一覧のテスト | notice と各カードの行 |
+| tests/e2e/contracts/panes.ts | 2 行（見えている間に main がすること、残すもの、隠れて続けるもの＝通知の読み取りだけ、§13） |
+| CLAUDE.md の Subscriptions の規則 | 「見えていなくても続くもの」の列挙に「AWS STATUS・GITHUB STATUS の通知（公開ステータスの障害、コストの QUOTA）」を足す |
+| main の通知（トースト） | 既存の地震の通知と同じ経路で、ペインの外から出すトースト（§13） |
+| tests/e2e/contracts/dialogs.ts、ホバーカードの一覧のテスト | notice、障害の帯、Cost Explorer の 1 枚、2 つのトースト、各カード（「+2 more」、QUOTA、Budgets と QUOTA の違い）の行 |
+| docs/guide/themes-settings.md | 新しい鍵 `aws.incidents`・`github.incidents` と既定値（3 か国語） |
 | tests/e2e/support.ts の `STUB_ENV` | `ELECDEX_CLOUD_STUB=1` |
 | tests/unit/plugin-api の確かめ | aws・github が無いこと |
 | main/git/run.ts | `killTree` を main/process/kill-tree.ts へ移す（再エクスポート） |
@@ -268,7 +278,7 @@ main が自分の直前の読み取りから URL を組み、ホストを確か�
 既存ペインの言葉に揃える（DOCKER・LOG WATCH・Wi-Fi・git）。モックの一番上の行は PaneHost の見出しを
 写したもので、ウィジェットのものではない。
 
-- **見出し（PaneHost）**: 登録の名前（`AWS` / `GITHUB`）、`paneMeta.subtitle` にプロファイルとアカウント
+- **見出し（PaneHost）**: 登録の名前（`AWS STATUS` / `GITHUB STATUS`）、`paneMeta.subtitle` にプロファイルとアカウント
   （ログイン名とホスト）、`badge` に §4 の語。MASK 中は subtitle も伏せる（タブとグループの副題にも出るため）
 - **ウィジェットの上段**: ◆ランプと語、いくつかの数字（`.figure`: 小さなラベルの上に mono の値）、
   絞り込みの札、右端に MASK・REFRESH・⚙（Wi-Fi の MASK / COPY、LOG WATCH と同じ位置）
@@ -393,10 +403,11 @@ main が自分の直前の読み取りから URL を組み、ホストを確か�
 - **番号のキー**（Ctrl+Shift+1〜9, 0）: 最初の起動はプリセットを順に保存したレイアウトにする（`seededLayouts`）。
   `KEYED_LAYOUTS` は 10 なので、`cloud` が 10 番め（Ctrl+Shift+0）になり、**新しく入れた人の `blank` には番号の
   キーが付かなくなる**（F10 では行ける）。今の利用者のレイアウトの一覧には足さない（利用者の決定 2026-09-24、
-  棚から選べば足される）。**（要決定）** これでよいか（`blank` は何も無いレイアウトなので番号は要らないと考える）
+  棚から選べば足される）。利用者の決定（2026-11-08）: それでよい（`blank` は F10 と棚で行ける）
 - **システムの列**: 既定の幅と高さのまま（`WITH_SYSTEM_COLUMN` に入る）。どのペインも `minSize` 以上（単体テスト）
-- **プリセットは何もオンにしない**: AWS ペインは見えたときに既定のプロファイル（`AWS_PROFILE` か `default`）で
-  無料の読み取りを始めるだけで、Cost Explorer（有料）は OFF のまま。CLI が無ければ NO CLI の 1 枚
+- **プリセットは何もオンにしない**: AWS STATUS は見えたときに既定のプロファイル（`AWS_PROFILE` か `default`）で
+  無料の読み取りを始め、Cost Explorer（有料）は最初に表示したときに尋ねる（[aws.md](aws.md) §3.3）。公開ステータスの
+  トーストの既定 ON はペインの既定で、プリセットが入れるものではない。CLI が無ければ NO CLI の 1 枚
 - **一緒に直すもの**（CLAUDE.md とレイアウトの規則のとおり、同じコミットで）: shared/layout-presets.ts、
   keybindings.ts、Workspace.svelte（プリセットのキー）、tests/e2e/workspace/layout-presets.spec.ts の `PRESETS`、
   単体テスト（minSize、システムの列、並び）、scripts/gen-screenshots.mjs のショット（代役 `ELECDEX_CLOUD_STUB=1` の
@@ -412,3 +423,124 @@ PaneHost の見出しと二重になる、常に動くアニメーション、Cl
 細部（今いるフォルダ、cp932、`GH_PAGER`、`GH_HOST`）、`credential_process` の窓、REFRESH を main で縛る、
 `openExternal` をやめて id で開く、一斉起動のずれ、CloudTrail に残る自分の読み取り、MASK の一覧。
 各ペインの中身の直しは aws.md・github.md の §0 に。
+
+## 12. 公開ステータス（障害のときだけ）
+
+利用者の決定（2026-11-08）: AWS と GitHub の公開ステータスを出す。**障害が起きているときだけ**ペインに出し、
+平常時は何も場所を取らない。障害が起きたらトーストを出すかを設定で選べ、既定は ON。
+
+### 12.1 取得先と実測（2026-11-07〜08）
+
+| | AWS STATUS | GITHUB STATUS |
+|---|---|---|
+| 障害 | `https://status.aws.amazon.com/rss/all.rss`（AWS Health Dashboard の公式の RSS、サインイン不要） | `https://www.githubstatus.com/api/v2/incidents/unresolved.json`（Statuspage の公開 API） |
+| 計画保守 | なし | `…/api/v2/scheduled-maintenances/active.json`（173 B） |
+| 大きさ | 約 60 KB、42 項目（3 月まで遡る） | 平常時 160 B と 173 B |
+| 条件付き要求 | **効かない**: ETag と Last-Modified を返すが、`If-None-Match` も `If-Modified-Since` も 200 で 59,917 B。gzip も無い | 効く（弱い ETag で 304） |
+| 周期 | 見えている間 5 分（フィードの `<ttl>` は 5）、隠れている間 15 分（§13。5 分では 1 日に約 17 MB になるため） | 5 分 |
+| 呼ばないもの | `health.aws.amazon.com/public/currentevents`（ダッシュボードの JSON。260 KB の UTF-16 で、文書の無い内部の形） | `summary.json`（全部品の状態。要るのは障害と保守だけ）、`shortlink`（`stspg.io` で main のホストの確かめに通らない） |
+
+- **CLI は使わない**。サインインの要らない公開の HTTPS を main で取る。feeds/ から借りるのは XML の解析と退きの
+  関数だけで、その購読の表には載せない（RSS ペインの `watching()` に混ざらないため）。新しい通信先として
+  data-sources.md に、何を・どの周期で・測った大きさを書く
+- **テスト**: `STUB_ENV` に `ELECDEX_AWS_STATUS_URL` と `ELECDEX_GITHUB_STATUS_URL`（閉じたポート）を足し、
+  tests.md に書く。e2e は保存した本物のフィード（`tests/fixtures/cloud-cli/status/all.rss` など）をローカルの
+  スタブで返す。トーストの既定が ON なので、これが無いとペインを置くだけの e2e（lifecycle、`cloud` のプリセット、
+  スクリーンショット）が AWS と GitHub に届いてしまう
+
+### 12.2 AWS の RSS の読み方（`awsStatusEvents`、純粋。保存した本物のフィードでテスト）
+
+本物のフィードで確かめた形: どの `guid` も `https://status.aws.amazon.com/#<slug>_<epoch>`（例
+`ec2-us-west-2_1794013936`）。`<slug>` はサービスとリージョン、`<epoch>` はその**更新**の時刻で、更新ごとに変わる。
+解消は題だけに出る（`Service is operating normally: [RESOLVED] …`）。ほかの頭は `Service impact:`、
+`Service disruption:`、`Service degradation:`、`Informational message:`。同じ事象の題は大文字小文字が揺れる。
+`pubDate` は PST/PDT の文字列。
+
+- **鍵**は `guid` の `#` から最後の `_` まで（`ec2-us-west-2`）。**時刻**は `<epoch>`（`pubDate` は使わない）
+- 鍵ごとに時刻の順に並べ、**最後の解消より後の、解消でない最初の項目から**を「起きている」とする。解消の項目が
+  来るまで開いたまま。**24 時間で閉じたとはみなさない**（実例: `multipleservices-me-central-1` と `me-south-1` は
+  3 月から解消の項目が無く、ダッシュボードも障害のまま）
+- 最後の更新から 7 日を超えた事象は淡く出し（「last update 53 d ago」）、トーストは出さない
+- **事象の id**（重複を除く鍵）＝鍵＋開いた項目の時刻
+- **重さ**: disruption は danger、impact・degradation は warn、Informational は info。題の頭で決める
+- **リージョン**: `<slug>` の末尾がリージョンの形ならそれ。そうでないもの（`multipleservices`、`route53` など）は
+  グローバルとして、どのペインにも出す。ペインは設定のリージョンとグローバルだけを見せる
+
+### 12.3 GitHub の読み方
+
+- `incidents[]` の `id`・`name`・`impact`（none / minor / major / critical）・`status`（investigating / identified /
+  monitoring）・`components[].name`・`updated_at`。`impact: none` は info。`components` が空（実測で 50 件中 17 件）の
+  ときは `name` で見せる。URL は `https://www.githubstatus.com/incidents/<id>` を main が組む
+- **計画保守**は info の帯にして、トーストは出さない
+- **部品の絞り込み**（設定 COMPONENTS）: 既定は Copilot を除く全部（実測: 10-27〜11-05 の 50 件のうち約 3 分の 1 が
+  Copilot だけの障害）。Git Operations、API Requests、Actions、Pages、Packages、Webhooks、Issues、Pull Requests…を選べる。
+  `components` が空の障害（実測 50 件中 17 件）は部品で絞れないので、**いつも通す**
+
+### 12.4 ペインでの見せ方
+
+- 障害が起きている間だけ、上段の下に 1 行の帯。AWS は `AWS · ap-northeast-1 · Amazon EC2 · Service disruption:
+  Increased API error rates · since 13:40`（AWS の RSS には investigating のような段階の語は無い）、GitHub は
+  `GITHUB · major · Actions, Pages · Delayed job starts · investigating`。重さの色（§12.2、§12.3: AWS も danger /
+  warn / info の 3 色）。**帯を押すとカード**（障害の一覧、それぞれの更新の時刻）で、公式のステータスのページは
+  ポインタかフォーカスのあるときに出す ↗（か Enter）で開く（「行全体のクリックでは開かない」§7 と同じ。main が URL を
+  組む）。2 件以上なら帯の右に「+2 more」。帯にもキーボードのフォーカスの枠（§7.1）
+- 見出しの `paneMeta.badge` の順: アラーム（AWS）/ MAIN RED（GitHub）＞ QUOTA 超え ＞ 公開の障害 ＞ リンクの語
+- **公開の障害と自分のアカウントは別物**: 帯のカードに「This is AWS's public status, not your account's.」
+  （アカウントごとの AWS Health は Business サポートが要るので読まない）
+
+### 12.5 トースト（設定）
+
+設定は地震の通知と同じ形にする（settings.json）:
+
+```ts
+aws:    { incidents: { notify: true, system: true, minSeverity: 'warn' } }               // notify の既定 true
+github: { incidents: { notify: true, system: true, minSeverity: 'major', components: [...] } }
+```
+
+- **既定が ON の理由**をスキーマのコメントに書く（利用者の決定 2026-11-08）。地震の通知（既定 OFF）と違い、
+  ペインをレイアウトに置いたことが同意の代わりになる（§13）。音は無い
+- 出すとき: `minSeverity` 以上の新しい障害を初めて見たとき、その重さが上がったとき。**解消のトーストは、
+  その事象をトーストしたときだけ**。同じ出どころのトーストは 15 分に 1 度までにまとめる（「3 GitHub incidents」）
+- **最初の読み取りで既に起きていた障害**（ペインを置いたとき、アプリを起動したとき）は帯だけで、トーストしない
+- **重複除けはディスクに持つ**: トーストした事象の id と重さを `cloud-alerts.json`（`replaceFile`、30 日で刈る）に。
+  メモリだけだと、起動のたびに続いている障害をトーストし直す（地震の通知の `quake-alerts.json` と同じ）
+- 送り先: elecdex のウィンドウが前にあればページのトースト、前に無ければ（`windowInFront()` が false）`system`
+  が ON なら OS の通知。地震の通知と同じ判断で、共通の通知の関数を通す（地震のチャンネルは使わない）
+- **トーストの形は 1 つ**（アプリのトーストの store の形: 題・本文・1 つの操作、10 秒）: 題は出どころと重さ
+  （「AWS incident · ap-northeast-1」「GitHub incident · major」「Cost quota · 100%」）、本文はサービス・部品・要約・
+  時刻、操作は **OPEN STATUS**（障害）か **OPEN COST**（QUOTA: そのペインの COST タブへ）。AWS も GitHub も同じ形で
+  描く（モックの 2 つは揃える）
+- **OS の通知を押したら** elecdex のウィンドウを前に出し、そのペインに焦点を移す（地震の通知の `showMainWindow` と
+  同じ）。**MASK**: どれかのペインが MASK 中なら、OS の通知の本文からアカウントの別名と ID を除く（「an AWS account
+  passed 100% of its quota」）。通知センターに残るのは画面の MASK の外なので。設定の欄にそう書く
+- **どこで変えるか**: 鍵は settings.json の `aws.incidents` と `github.incidents`（themes-settings.md に載せる）。変えるのは
+  **ペインの ⚙ の「Every … pane」の欄だけ**（そこにすべての鍵: notify・system・minSeverity、GitHub は components も）。
+  設定の画面には「AWS STATUS と GITHUB STATUS の ⚙ で変える」と 1 行だけ書く
+- **数の見込み**: AWS の `minSeverity: warn` で 4 リージョンなら、まとめた後で 1 日に 1〜3 件ほど（RSS の 3 月から
+  11 月までの 42 項目から）。GitHub の `major` 以上は 1 日に 1 件を下回る（10-27〜11-05 の 50 件から）
+- 同じ障害が 2 枚の AWS ペイン（リージョンが違う）に当たっても 1 度。2 枚のリージョンの和で判断する
+
+## 13. 見えていないときに続けるもの（通知のためだけ）
+
+トーストは見えていないときにこそ要る。そこで次のものだけは、**ペインが今のレイアウトにある間**（後ろのタブ・
+最小化・トレイの中でも）続ける。保存しただけで開いていないレイアウトのペインは数えない。
+
+| 続けるもの | 条件 | 周期（隠れている間） | 費用 |
+|---|---|---|---|
+| AWS の公開ステータス | `aws.incidents.notify` が ON | 15 分（60 KB、304 が効かない） | 無料（公開の RSS） |
+| GitHub の公開ステータス | `github.incidents.notify` が ON | 5 分（304 は数バイト） | 無料（公開の API） |
+| AWS のコストの QUOTA（[aws.md](aws.md) §5.6） | QUOTA が 0 より大きく、プロファイルが `credential_process` でない | 6 時間 | 無料枠（見えている間の `billing` probe を生かし続けるだけ。2 本めの呼び出しは作らない） |
+
+- **ページから main への伝え方**: ボードの購読（`seen` の間だけ）とは別に、**通知の購読**をウィジェットが
+  マウントしてから破棄されるまで持つ（シェルがセッションを持つのと同じ形）。参照カウントで、`whenPageGoes` で落ちる。
+  `keepWhileHidden`（メトリクスのソースの表）には載せない。契約の表の既存の `goesOn` の列にこの購読を書く
+- ペインを閉じた、レイアウトを替えた、設定を OFF にした: すぐ止める（参照カウント、`whenPageGoes`）
+- 同じアカウント・同じホストのペインが複数あっても読み取りは 1 つ
+- ほかの probe（在庫、CloudTrail、受信箱など）は今までどおり見えている間だけ
+- **診断と契約**: `watching()` は種類ごとに分けた項目を返す（`board:<profile>`、`status:aws`、`status:github`、
+  `quota:<account>`）。契約の表（tests/e2e/contracts/panes.ts）に「隠れて続けるもの」として `status:*` と
+  `quota:*` を書く。lifecycle の e2e は、設定が OFF なら隠れている間 `[]`、ON ならちょうどこれらだけ、を確かめる
+- **CLAUDE.md を直す**: Subscriptions の「見えていなくても続くもの」の列挙と、Network lives in main の項（出どころ
+  ごとの条件の列挙）の両方に、この 3 つを足す。`credential_process` のプロファイルは、見えていないときに鍵束や MFA の
+  窓を開かないよう、背後では読まない（QUOTA の欄にそう書く）
+- 背後で走る AWS CLI の読み取りも CloudTrail に残る。台帳のカードに書く

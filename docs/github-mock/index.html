@@ -257,8 +257,21 @@ button { font: inherit; color: inherit; }
 .r-run.head:hover { background: transparent; }
 .medium .r-run { grid-template-columns: 0.7rem 6rem 1fr 3rem 1.6rem; } .medium .r-run > :nth-child(3), .medium .r-run > :nth-child(5), .medium .r-run > :nth-child(6) { display: none; }
 .narrow .r-run { grid-template-columns: 0.7rem 5rem 1fr 3rem; } .narrow .r-run > :nth-child(3), .narrow .r-run > :nth-child(5), .narrow .r-run > :nth-child(6), .narrow .r-run > :nth-child(8) { display: none; }
-.toast { position: absolute; left: 50%; bottom: 2.2rem; transform: translateX(-50%); z-index: 7; white-space: nowrap; max-width: 96%; overflow: hidden; text-overflow: ellipsis; background: var(--surface-2); border: 1px solid var(--accent); padding: 0.25rem 0.8rem; font-family: var(--font-mono); font-size: var(--step--1); display: none; }
-.toast.show { display: block; animation: crt 0.18s ease-out; }
+.toast { position: absolute; right: 0.6rem; bottom: 0.6rem; z-index: 8; width: min(24rem, 92%); background: var(--surface-2); border: 1px solid var(--accent); border-left: 3px solid var(--accent); padding: 0.4rem 0.7rem; display: none; flex-direction: column; gap: 0.15rem; font-size: var(--step--1); box-shadow: 0 0.4rem 1.6rem rgb(0 0 0 / 0.45); }
+.toast b { font-family: var(--font-ui); font-weight: 600; letter-spacing: var(--tracking-wide); text-transform: uppercase; font-size: var(--step--2); } .toast.warn b { color: var(--warn); } .toast.danger b { color: var(--danger); }
+.toast span { line-height: 1.45; } .toast .act { align-self: flex-end; margin-top: 0.15rem; }
+.toast.show { display: flex; animation: crt 0.18s ease-out; }
+.toast.warn { border-color: var(--warn); } .toast.danger { border-color: var(--danger); }
+.incident { display: none; width: calc(100% - 0.8rem); margin: 0 0.4rem 0.3rem; padding: 0.22rem 0.6rem; border: 1px solid var(--warn); border-left-width: 3px; background: hsl(var(--hue-warn) 85% 50% / 0.08); color: var(--text); font-family: var(--font-ui); font-size: var(--step--1); text-align: left; cursor: pointer; gap: 0.6rem; align-items: baseline; }
+.incident.show { display: flex; animation: crt 0.18s ease-out; }
+.incident.danger { border-color: var(--danger); background: hsl(var(--hue-danger) 80% 50% / 0.08); }
+.incident .src { font-weight: 600; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--warn); }
+.incident.danger .src { color: var(--danger); }
+.incident.info { border-color: var(--info); background: hsl(var(--hue-info) 85% 50% / 0.07); } .incident.info .src { color: var(--info); }
+.incident .when2 { margin-left: auto; font-family: var(--font-mono); color: var(--text-dim); white-space: nowrap; }
+.incident:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.incident .go { border: 1px solid var(--panel-rule); padding: 0 0.3rem; font-family: var(--font-mono); visibility: hidden; }
+.incident:hover .go, .incident:focus-visible .go { visibility: visible; }
 .narrow .r-pr { grid-template-columns: 5.4rem 0.7rem 1fr 3rem; } .narrow .r-pr > :nth-child(4) { display: none; }
 
 /* ---------- second audit (2026-11-07) ---------- */
@@ -284,11 +297,12 @@ button { font: inherit; color: inherit; }
   <div class="grp"><span>Theme</span><button type="button" data-theme="tron" aria-pressed="true">Tron</button><button type="button" data-theme="green">Green</button><button type="button" data-theme="black">Black</button><button type="button" data-theme="business">Business</button></div>
   <div class="grp"><span>Size</span><button type="button" data-width="wide" aria-pressed="true">Wide</button><button type="button" data-width="medium">Medium</button><button type="button" data-width="narrow">Narrow</button><button type="button" data-width="short">Short</button></div>
   <div class="grp"><span>Link</span><button type="button" data-link="linked" aria-pressed="true">Linked</button><button type="button" data-link="finegrained">Fine-grained token</button><button type="button" data-link="envtoken">GH_TOKEN set</button><button type="button" data-link="signedout">Signed out</button><button type="button" data-link="ratelow">Rate low</button><button type="button" data-link="offline">Offline</button><button type="button" data-link="nocli">No CLI</button></div>
-  <div class="grp"><span>Simulate</span><button type="button" id="sim-review">Review requested</button><button type="button" id="sim-ci">CI fails on my PR</button><button type="button" id="sim-star">Stars and an issue arrive</button><button type="button" id="sim-zero">Nothing waits</button></div>
+  <div class="grp"><span>GitHub public status</span><button type="button" data-inc="none" aria-pressed="true">No incident</button><button type="button" data-inc="minor">Minor · Actions</button><button type="button" data-inc="major">Major · Git, API</button><button type="button" data-inc="maint">Scheduled maintenance</button></div>
+  <div class="grp"><span>Simulate</span><button type="button" id="sim-inc">Incident starts (toast)</button><button type="button" id="sim-review">Review requested</button><button type="button" id="sim-ci">CI fails on my PR</button><button type="button" id="sim-star">Stars and an issue arrive</button><button type="button" id="sim-zero">Nothing waits</button></div>
 </div>
 
 <section class="pane" id="pane">
-  <div class="host"><span class="title">GITHUB</span><span class="sub" id="sub"></span><span class="badge danger" id="badge"></span><span class="ctl">⤢ ×</span></div>
+  <div class="host"><span class="title">GITHUB STATUS</span><span class="sub" id="sub"></span><span class="badge danger" id="badge"></span><span class="ctl">⤢ ×</span></div>
   <div class="top">
     <span class="lamp ok" id="lamp"><i></i><span id="lamp-text">LINKED</span><small id="lamp-sub"></small></span>
     <span class="figure"><small>Queue</small><span id="f-queue"></span></span>
@@ -302,6 +316,8 @@ button { font: inherit; color: inherit; }
     <button type="button" class="settings-toggle" id="b-set" aria-label="github settings" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg></button>
   </div>
   <div class="notice" id="notice"><span class="t" id="notice-t"></span><code id="notice-c"></code><button type="button" class="btn" id="notice-copy">Copy</button></div>
+  <!-- Only while githubstatus.com has an unresolved incident. -->
+  <button type="button" class="incident" id="incident"></button>
 
   <div class="contrib" id="contrib">
     <div class="yr"><div class="lbl">Contributions · last year</div><div class="big" id="c-total">1,495</div><div class="lbl">this week <b>31</b> · last <b>44</b></div></div>
@@ -316,7 +332,7 @@ button { font: inherit; color: inherit; }
     <button type="button" class="tab" data-tab="repos" aria-selected="false">Repos<em id="t-repos"></em></button>
   </div>
   <div class="bar2" id="bar2"></div>
-  <div class="body" id="body"><div class="view" id="view" tabindex="-1"></div><div class="card" id="card"></div><div class="toast" id="toast" role="status"></div></div>
+  <div class="body" id="body"><div class="view" id="view" tabindex="-1"></div><div class="card" id="card"></div><div class="toast" id="toast" role="status"><b id="toast-t"></b><span id="toast-b"></span><button type="button" class="btn act" id="toast-act"></button></div></div>
   <div class="foot"><span class="ledger" id="ledger"></span><span class="rt">read only · only while shown · gh 2.100.0 (2.103.3 is out)</span></div>
 
   <div class="settings" id="settings">
@@ -327,10 +343,16 @@ octo-aki/lumen-cli
 starfield-org/starfield</textarea>
     <div class="opt"><span>Inbox</span><span class="seg" data-opt="inbox"><button type="button" class="btn" aria-pressed="true">all unread</button><button type="button" class="btn">participating</button></span></div>
     <div class="opt"><span>Contribution band</span><span class="seg" data-opt="band"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
+    <h5>Every GITHUB STATUS pane</h5>
+    <div class="opt"><span>Toast when GitHub has an incident</span><span class="seg" data-opt="inc-toast"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
+    <div class="opt"><span>When the window is not in front</span><span class="seg" data-opt="sys"><button type="button" class="btn" aria-pressed="true">OS notification</button><button type="button" class="btn">wait for the window</button></span></div>
+    <div class="opt"><span>Toast from</span><span class="seg" data-opt="minsev"><button type="button" class="btn">minor</button><button type="button" class="btn" aria-pressed="true">major</button><button type="button" class="btn">critical</button></span></div>
+    <div class="opt"><span>Components</span><span class="seg" data-opt="comp"><button type="button" class="btn" aria-pressed="true">all but Copilot</button><button type="button" class="btn">all</button><button type="button" class="btn">choose…</button></span></div>
+    <p>From githubstatus.com (no sign-in): every 5 minutes while a pane is shown, and while it is behind a tab when toasts are on; an unchanged answer is a 304 of a few bytes. GitHub posts about five incidents a day, a third of them Copilot only, so the default toasts only major and critical ones. Scheduled maintenance is shown, never toasted.</p>
     <p>The account is gh's own (<code>gh auth status</code>); elecdex never sees the token. The pane keeps to 5% of each hour's rate limit with 12 repositories, reads the inbox no sooner than GitHub's poll interval, and an unchanged answer (304) costs nothing.</p>
   </div>
 </section>
-<p class="note">モック: すべて架空のアカウント・リポジトリ・人で、GitHub には何も問い合わせません。<b>QUEUE</b> は自分を待っているものを重複なく 1 本に（既定ブランチの赤、自分の PR の失敗、レビュー依頼、承認待ちの実行、非公開の脆弱性報告、誰も答えていない Issue）。<b>EVENTS</b> は見張るリポジトリで起きたこと。<b>REPOS</b> のタイルを押すと、AWS ペインと同じパンくずでリポジトリの中（RUNS・PULLS・RELEASES）へ掘れます（Escape / Backspace で戻る）。↗ は実物では github.com のそのページを開きます。CI のランプは点滅せず、走っている実行は半分の塗り、承認待ちは破線。</p>
+<p class="note">モック: すべて架空のアカウント・リポジトリ・人で、GitHub には何も問い合わせません。<b>2026-11-08 の決定</b>: 名前は GITHUB STATUS。GitHub public status で githubstatus.com の障害の帯（障害のときだけ）、Simulate の Incident starts でトースト（設定で OFF にできる、既定 ON。既定では major 以上だけをトーストし、minor は帯だけ。計画保守は info の帯だけ）。障害中は MAIN RED の行のカードに「GitHub 側の障害かもしれない」と添える。<b>QUEUE</b> は自分を待っているものを重複なく 1 本に（既定ブランチの赤、自分の PR の失敗、レビュー依頼、承認待ちの実行、非公開の脆弱性報告、誰も答えていない Issue）。<b>EVENTS</b> は見張るリポジトリで起きたこと。<b>REPOS</b> のタイルを押すと、AWS ペインと同じパンくずでリポジトリの中（RUNS・PULLS・RELEASES）へ掘れます（Escape / Backspace で戻る）。↗ は実物では github.com のそのページを開きます。CI のランプは点滅せず、走っている実行は半分の塗り、承認待ちは破線。</p>
 
 <script>
 'use strict';
@@ -379,7 +401,7 @@ const EVENTS = [
 const REASON = { review: ['Review', 'info'], mention: ['Mention', ''], assign: ['Assign', ''], ci: ['CI', 'danger'], security: ['Security', 'danger'], subscribed: ['Watching', ''] };
 const KIND = { pr: 'PR', is: 'IS', ci: 'CI', sec: 'SEC', rl: 'RL', run: 'RUN' };
 
-const state = { link: 'linked', mask: false, tab: 'queue', filter: 'all', calls: 512, c304: 380, drill: [], wait: 0, zero: false, fresh: new Set() };
+const state = { inc: 'none', link: 'linked', mask: false, tab: 'queue', filter: 'all', calls: 512, c304: 380, drill: [], wait: 0, zero: false, fresh: new Set() };
 const LINKS = {
   linked: { lamp: 'ok', text: 'LINKED', sub: '' },
   finegrained: { lamp: 'warn', text: 'PARTIAL', sub: 'inbox needs a classic token', badge: ['warn', 'partial'], noInbox: 'A fine-grained token cannot read notifications at all. Sign in with gh (it uses an OAuth token) or use a classic token; everything else is read.', cmd: 'gh auth login' },
@@ -409,7 +431,18 @@ function renderTop() {
   const b = $('badge');
   if (l.badge) { b.className = `badge ${l.badge[0]}`; b.textContent = l.badge[1]; }
   else if (red && !state.zero) { b.className = 'badge danger'; b.textContent = 'main red'; }
+  else if (state.inc !== 'none' && state.inc !== 'maint') { b.className = `badge ${state.inc === 'major' ? 'danger' : 'warn'}`; b.textContent = 'GitHub incident'; }
   else b.className = 'badge none';
+  // The public status band: only while githubstatus.com has an unresolved incident or an active maintenance.
+  const inc = $('incident');
+  inc.classList.toggle('show', state.inc !== 'none' && !l.empty);
+  inc.classList.toggle('danger', state.inc === 'major');
+  inc.classList.toggle('info', state.inc === 'maint');
+  inc.innerHTML = state.inc === 'major'
+    ? '<span class="src">GitHub · major</span><span>Git Operations, API Requests · Degraded performance for git pushes</span><span class="when2">since 13:52 · identified</span><span class="go">↗</span>'
+    : state.inc === 'maint'
+      ? '<span class="src">GitHub · maintenance</span><span>Packages · Scheduled maintenance of the npm registry</span><span class="when2">14:00–15:00 UTC · in progress</span><span class="go">↗</span>'
+      : '<span class="src">GitHub · minor</span><span>Actions · Delayed job starts for hosted runners</span><span class="when2">since 13:40 · investigating</span><span class="go">↗</span>';
   $('f-queue').innerHTML = l.empty ? '—' : `${q.length}${d ? ` · <span class="d">${d}</span>` : ''}`;
   const rv = q.filter((x) => x.tag === 'Review' || x.tag.startsWith('Waiting')).length;
   $('f-review').innerHTML = l.empty ? '—' : `<span class="${rv ? 'i' : 'z'}">${rv}</span>`;
@@ -500,10 +533,15 @@ function renderView(dir) {
 function openBtn() { return '<button type="button" class="open" aria-label="open on github.com">↗</button>'; }
 // A row that opens: click, Enter or its ↗. In the app the page sends the item's id and main opens the URL.
 let toastTimer = 0;
-function toast(text) { const t = $('toast'); t.textContent = text; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+// One toast shape for both panes (the app's toast store): a title, a body and one action.
+function toast(body, title = 'Opens', kind = '', act = '', onAct = null) {
+  const t = $('toast'); t.className = `toast ${kind}`; $('toast-t').textContent = title; $('toast-b').textContent = body;
+  const a = $('toast-act'); a.style.display = act ? '' : 'none'; a.textContent = act; a.onclick = () => { t.classList.remove('show'); if (onAct) onAct(); };
+  void t.offsetWidth; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), act ? 6000 : 2400);
+}
 function wireOpen(el, url) {
   el.classList.add('go');
-  const go = () => toast(`would open ${url}`);
+  const go = () => toast(`${url} in your browser (main builds the URL from its own reading).`);
   el.addEventListener('click', go);
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
 }
@@ -518,7 +556,7 @@ function viewQueue(v) {
     const el = document.createElement('div'); el.className = `row r-q ${x.w}${x.w === '' ? ' quiet' : ''}${state.fresh.has(x) ? ' fx-fresh' : ''}`; el.tabIndex = 0;
     el.innerHTML = `<span class="kind k-${x.k}">${KIND[x.k]}</span><span class="repo"></span><span class="ttl">${x.n ? `<span class="num">#${x.n}</span>` : ''}<span class="tx"></span></span><span class="tag ${x.tagw}">${x.tag}</span><span class="age ${x.tag.startsWith('Waiting 8') ? 'd' : ''}">${x.age}</span>${openBtn()}`;
     el.querySelector('.repo').textContent = rn(x.repo); el.querySelector('.tx').textContent = tt(x.repo, x.t);
-    hover(el, () => `<h4><span>${KIND[x.k]} · ${esc(rn(x.repo))}${x.n ? ` #${x.n}` : ''}</span><span>${x.by ? `by ${esc(who(x.by))}` : x.mine ? 'yours' : ''}</span></h4><div class="why">${esc(x.why)} Enter or ↗ opens it on github.com (main builds the URL from its own reading).</div>`);
+    hover(el, () => `<h4><span>${KIND[x.k]} · ${esc(rn(x.repo))}${x.n ? ` #${x.n}` : ''}</span><span>${x.by ? `by ${esc(who(x.by))}` : x.mine ? 'yours' : ''}</span></h4><div class="why">${esc(x.why)}${x.k === 'ci' && state.inc !== 'none' && state.inc !== 'maint' ? ' GitHub has an open incident since 13:40: it may not be your change.' : ''} Enter or ↗ opens it on github.com (main builds the URL from its own reading).</div>`);
     wireOpen(el, `github.com/${x.repo}${x.n ? `/${x.k === 'pr' || x.k === 'run' ? 'pull' : 'issues'}/${x.n}` : x.k === 'ci' ? '/actions' : '/security'}`);
     v.appendChild(el);
   }
@@ -647,6 +685,21 @@ $('sim-review').onclick = () => { state.zero = false; const x = { w: 'info', k: 
 $('sim-ci').onclick = () => { const x = { w: 'danger', k: 'pr', repo: 'octo-aki/tern', n: 410, t: 'Benchmarks for the frame decoder', tag: 'Failing', tagw: 'danger', age: '20m', mine: true, why: 'Your PR: checks went from PENDING to FAILURE at the last reading.' }; const i = QUEUE.findIndex((y) => y.w !== 'danger'); QUEUE.splice(i, 0, x); state.fresh.add(x); state.calls += 2; render(); };
 $('sim-star').onclick = () => { state.extraEvents = [{ repo: 'octo-aki/wasm-sketch', at: '14:24', parts: [['★', '+12'], ['new issue', '1']], fresh: true }]; state.calls += 1; state.tab = 'events'; for (const x of document.querySelectorAll('.tab')) x.setAttribute('aria-selected', String(x.dataset.tab === 'events')); render(); };
 $('sim-zero').onclick = () => { state.zero = !state.zero; render(); };
+// The public status: the band, the badge, and a toast the first time an incident is seen (the setting INCIDENT TOASTS, on by default).
+function incToast() {
+  const major = state.inc === 'major';
+  toast(major ? 'Git Operations, API Requests · Degraded performance for git pushes · since 13:52' : 'Actions · Delayed job starts for hosted runners · since 13:40',
+    major ? 'GitHub incident · major' : 'GitHub incident · minor', major ? 'danger' : 'warn', 'Open status', () => toast('www.githubstatus.com/incidents/<id> in your browser (main builds the URL).'));
+}
+group('inc', (v) => { state.inc = v; renderTop(); renderView(); });
+// With the default "toast from major", a minor incident gets the band only; this one is major, so it toasts.
+$('sim-inc').onclick = () => { state.inc = 'major'; for (const x of document.querySelectorAll('.mockbar [data-inc]')) x.setAttribute('aria-pressed', String(x.dataset.inc === 'major')); renderTop(); renderView(); incToast(); };
+// The band opens its card; only its ↗ (or Enter on the focused band) opens githubstatus.com.
+$('incident').onclick = (e) => {
+  if (e.target.classList.contains('go')) { toast('www.githubstatus.com/incidents/<id> in your browser (main builds it; the stspg.io shortlink is not used).'); return; }
+  showCard($('incident'), `<h4><span>githubstatus.com · ${state.inc === 'maint' ? 'maintenance' : '1 unresolved'}</span><span>read 14:20</span></h4><dl><dt>${state.inc === 'major' ? '13:52' : state.inc === 'maint' ? '14:00' : '13:40'}</dt><dd>${state.inc === 'major' ? 'Identified: a configuration change is being rolled back.' : state.inc === 'maint' ? 'npm registry maintenance, read-only until 15:00 UTC.' : 'Investigating delayed job starts on hosted runners.'}</dd></dl><div class="why">GitHub's public status. ↗ or Enter opens the incident page.</div>`, true);
+};
+$('incident').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); toast('www.githubstatus.com/incidents/<id> in your browser.'); } };
 window.addEventListener('resize', renderHeat);
 render();
 </script>

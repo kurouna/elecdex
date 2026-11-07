@@ -1,6 +1,6 @@
-# AWS ペイン 設計
+# AWS STATUS ペイン 設計
 
-クラウド（インフラ・基盤）エンジニアが「いまこのアカウントで気にすべきこと」を 1 枚で見て、気になった
+**AWS STATUS**（文中の「AWS ペイン」）は、クラウド（インフラ・基盤）エンジニアが「いまこのアカウントで気にすべきこと」を 1 枚で見て、気になった
 サービスを **BI のようにドリルダウン**して詳細まで確かめるペイン。利用者の AWS CLI v2 の認証にそのまま乗り、
 **1 要求ごとに値段の付く API は呼ばず**、見えている間だけ読む。読むだけで、何も変えない。共通の核（起動・
 許可リスト・時刻表・台帳・状態の語・画面の作法）は [cloud-cli.md](cloud-cli.md)。モックは
@@ -12,13 +12,17 @@
 |------|------|------|
 | 2026-11-07 | AWS CLI 経由で、インフラ・基盤のエンジニアが要る情報を出すペイン。無料の API の範囲 | 利用者の案 |
 | 2026-11-07 | 各サービスを選ぶと、BI のようにドリルダウンして詳細を確かめられる（§5） | 利用者の指定 |
-| 2026-11-07 | **（要決定）** 名前は AWS（ウィジェット id `aws`、ピッカーは "aws account"） | 提案 |
+| 2026-11-08 | 名前は **AWS STATUS**（ウィジェット id `aws`、ピッカーは "aws status"）。既存のペインの名前に合わせた | 利用者の決定 |
 | 2026-11-07 | プリセット `cloud` の左の主役（舞台の 0.58）。LAYOUTS で `blank` の前（cloud-cli.md §10） | 利用者の指定 |
-| 2026-11-07 | **（要決定）** v1 は 1 ペインに 1 プロファイル、リージョンは 4 つまで。複数アカウントを 1 枚にまとめるのは、CLI の重さを測ってから（§11） | 提案（Fable 5.1 は 1 枚に 4 プロファイルを推した） |
+| 2026-11-08 | 1 ペインに 1 プロファイル、リージョンは 4 つまで。複数アカウントを 1 枚にまとめるのは、CLI の重さを測ってから（§11） | 利用者の決定（提案のとおり） |
 | 2026-11-07 | レビュー（Opus 5.5・Fable 5.1）で直したもの: 一斉起動をやめ周期を延ばす（在庫は 1 時間、アラームは 5 分）、`--query` で欄を絞る、CloudTrail の欄と見せ方、Free Tier の新プラン、EKS と RDS のサポート期限を API で、ACM の鍵の種類、グローバルなサービスの `--region us-east-1`、vCPU の数え方、複合アラーム、ルートと SG と RI/SP とドメインの期限など足りない読み取り、在庫の表を「変化」に、COST を 1 行に、見出しを PaneHost に | レビュー（cloud-cli.md §11） |
 | 2026-11-07 | **Cost Explorer の API は有料**（1 要求 0.01 USD、ページごとに 1 要求。公式の料金ページで確かめた）。それでも要るので削らず、**明示して有効にする有料の probe** にする: 既定は OFF、有効にしたら 1 日 1 回、設定で頻度（手動・1 日・12 時間）と ON / OFF と月の上限（既定 100 要求 = 1 USD）を変えられる（§3.3） | 利用者の指摘と指定 |
 | 2026-11-07 | **ACTIVE**: どのリソース・サービスが動いていて料金が発生しているかを 1 枚で見るダッシュボードを、RESOURCES に代えて置く。立ち上げっぱなしの EC2、大きな S3、付いていないボリュームなどが、推定の月額とともに見える（§5.0） | 利用者の指定 |
 | 2026-11-07 | 実測: AWS CLI 2.39.6 は 1 回 約 1.2 秒・CPU 0.59 秒・最大 95 MB（`--version` だけで 0.45 秒）。gh の約 3 倍 | 測定（i5-1335U、§3.5） |
+| 2026-11-08 | **Cost Explorer は、そのアカウントを AWS STATUS で最初に表示したときに ON にするか尋ねる**（ペインの中の 1 枚。答えはアカウントごとに main が持つ）（§3.3） | 利用者の決定（「既定 OFF」から替えた） |
+| 2026-11-08 | Price List の API が有料と分かったら、ACTIVE の推定の単価は同梱の表にする。どちらでも、ACTIVE の下部に推定であることを明記する（§5.0） | 利用者の決定 |
+| 2026-11-08 | 公開ステータス（AWS Health Dashboard の RSS）を障害のときだけ出し、トーストは設定で選べる（既定 ON）（cloud-cli.md §12） | 利用者の決定 |
+| 2026-11-08 | **コストの QUOTA**: あらかじめ決めた金額を今月の見込み額が超えたらトースト。既定は 0（OFF）（§5.6） | 利用者の指定 |
 
 ## 1. 何を見せるか（インフラのエンジニアの問い）
 
@@ -131,8 +135,37 @@
 | ce.forecast G | `ce get-cost-forecast --granularity MONTHLY --metric UNBLENDED_COST`（今日から月末） | 1 日 | 1 | AWS の予測（予算が無くても） |
 | ce.usage G | `ce get-cost-and-usage … --filter SERVICE=<名前> --group-by USAGE_TYPE`（または REGION） | **押したときだけ**（COST の 2 段目で） | 1 | 使用の種類・リージョン別の内訳 |
 
-- **既定は OFF**。COST タブに「Cost Explorer is off · about $0.60 a month at once a day」と、有効にするボタンを
-  出す。押すと設定の選び（頻度と上限）を開く。黙って有効にはならない
+- **最初に表示したときに尋ねる**（利用者の決定 2026-11-08）: あるアカウントを AWS STATUS で初めて表示したとき、
+  上段の下にペインの中の 1 枚（ダイアログではない。ペインは並べて見るものなので）を CRT の点灯で出す:
+  「Turn on Cost Explorer for acme-prod? It adds the real amount by usage type and region and AWS's forecast. It is a
+  paid API: $0.01 a request.」と、**TURN ON**、**KEEP OFF**、**LATER** の 3 つのボタン
+  - **TURN ON と KEEP OFF は同じ重さ**のボタンにする（有料の側だけを塗って押させない）
+  - 1 枚の中で頻度（MANUAL · ONCE A DAY · EVERY 12 H）と月の上限を選べる。上限の選びは 1 枚と ⚙ で**同じ 1 つの表**
+    （`CE_CAPS`: 10 · 50 · 100 · 200 · 500 · 1,000 要求）で、どこでも**金額と要求数を両方**書く（`$1.00 = 100`）。選びごとに月の見込みを出し（`once a day ≈ 60 requests · $0.60`、`every 12 h ≈ 120 ·
+    $1.20`）、**頻度 × 30 日が上限を超えるなら** warn で「the cap would stop it around day 25」と言う。応答が
+    ページに分かれた月は、その数も見込みに足す
+  - **誰にでも尋ねる**（使えるかを先に確かめる無料の手段が無く、確かめのためだけに有料の要求はしない）。1 枚には
+    「Needs Cost Explorer enabled in the Billing console (for a member account, by the payer) and
+    ce:GetCostAndUsage.」と書いておく。ON にしたあとの最初の読み取りが拒まれた（AccessDenied）か、Cost Explorer が
+    有効でない（AWS は有効にしてからデータが出るまで最大 24 時間と言う）なら、**OFF に戻し**、理由を ⚙ の欄と
+    上段の下の 1 行の notice（トーストではない）に出す: 「Cost Explorer refused: this role may not call
+    ce:GetCostAndUsage. Turned off.」。この状態は `refused` として持ち、⚙ で ON にし直せる（その 1 回も 1 要求）。
+    読み取り専用の SSO ロールでメンバーのアカウントを見る、よくある場合がこれに当たる
+  - **ボタンが何をするかを 1 枚に書く**（文なので `--step--1`・`--text-dim`）: 「Keep off: never asked again for this
+    account. Later: asked again the next time elecdex starts. Either way, ⚙ changes it.」
+  - **答えはアカウントごとに main が持つ**（`aws-billing.json`、`replaceFile`。月の上限と同じ持ち主）。答えた時刻も
+    持ち、設定の欄と台帳のカードに「kept off · 11-08」「on since 11-08」と出す。どこか 1 枚で答えたら、同じ
+    アカウントを見ているほかのペインの 1 枚も閉じる（main が配る）
+  - **LATER** は「アプリを次に起動したあと、1 日に 1 度まで」また尋ねる（main がアカウントごとに持つ）。
+    ペインの再マウントやタブの切り替えでは出し直さない（再マウントは起きるので）
+  - ペインのフォーカスは奪わない。1 枚が出ている間も、ほかのタブは使える。MASK 中はアカウントの名前を伏せる
+  - **畳んで出すのが既定**: 1 枚は 1 行（「Cost Explorer for acme-prod: turn on? · paid, $0.01 a request · TURN ON ·
+    KEEP OFF · ▸ more」）で出し、▸ で全文と頻度・上限の選びが開く。一度きりの問いがペインの本体（そのために置いた
+    もの）を押し下げないため。TURN ON を 1 行のまま押したら既定（1 日 1 回、100 要求 = $1.00）で ON。幅が 32 rem
+    未満なら TURN ON と KEEP OFF だけを残す
+  - 1 枚は notice と同じく `crt-on` と `transition:crtPower` で、tests/e2e/contracts/dialogs.ts に行を足す
+- OFF のとき、COST タブに「Cost Explorer is off · about $0.60 a month at once a day」と、有効にするボタンを出す
+  （押すと同じ 1 枚）。黙って有効にはならない
 - **頻度**（ペインの設定）: OFF · MANUAL（REFRESH と、2 段目のボタンでだけ）· 1 DAY（既定）· 12 H。それより短い
   周期は選べない（Cost Explorer のデータは 1 日に数回しか進まず、短くしてもお金がかかるだけ）
 - **月の上限**（既定 100 要求 = 1 USD、10〜1,000）: 台帳が今月の Cost Explorer の要求数を数え、上限に達したら
@@ -140,7 +173,7 @@
   いくつあっても 1 つ）で、main が持つ
 - **押すと有料のボタン**には値段を書く（`BY USAGE TYPE · $0.01`）。結果は 24 時間持ち、その間は押しても呼ばない
 - 1 日の呼び出しは、有効にしたペインが見えていた日の最初の境界（00:00 からのずれ付き）。隠れていた日には呼ばない
-- 台帳と足元: `PAID APIs 2 · $0.02 this month · cap $1.00`。型の上の `cost` は `'free' | 'free-tier' | 'paid'` になり、
+- 台帳と足元: `PAID APIs 2 · $0.02 this month · cap $1.00`。型の上の `cost` は `'free' | 'free-tier' | Paid`（設定の鍵・1 要求の値段・上限の鍵を持つ形、cloud-cli.md §2.4）になり、
   **`'paid'` は `PAID_PROBES` の表にあるものだけ**、それぞれ設定の鍵と上限を持つことを、表のテストが縛る
   （cloud-cli.md §2.4）
 - 有料で、利用者が選べない時間ごとの粒度・リソースごとの粒度（`--granularity HOURLY`、`get-cost-and-usage-with-resources`）
@@ -288,7 +321,17 @@ Cost Explorer（API 1 要求の価格）、Budgets（監視と通知は無料）
 
 - 推定は**定価（On-Demand、Linux、共有テナンシー）**で、Savings Plans・RI・無料枠・割引・データ転送・要求の
   料金は入れない。数字の頭に必ず `≈` を付け、メーターのカードにそう書く。単価は Price List から週に 1 度、
-  使っている型・クラスだけ（§3.1 の prices）
+  使っている型・クラスだけ（§3.1 の prices）。**Price List の API に値段があると分かったら、同梱の単価の表
+  （`shared/aws/list-prices.ts`、リージョンと型ごと、確かめた日付と出典付き、リリースの手順で更新）に替える**
+  （利用者の決定 2026-11-08）。どちらで読んだかを下部に書く。同梱の表は新しい同梱のデータなので、README の第三者の表と
+  `DATA_SOURCES` に行を足し（3 か国語）、AWS の価格の公開の条件を確かめる。Price List の API に値段があるかは公式の
+  記載が見つからず（2 度のレビューでも）、実装の前に確かめて decisions.md に日付と出典を書く
+- **下部に推定であることを明記する**（利用者の決定 2026-11-08）: ACTIVE の一覧の下に、**スクロールしても動かない
+  1 行**（一覧の外、足元の台帳の上）を読む大きさ（`--step--1`、文の形）で: 「≈ Estimates at list prices, not your
+  bill · Price List, 11-05 ⓘ」。ⓘ に留まるとカードで全文（「On-Demand list prices for what is switched on. Savings
+  Plans, RIs, the free tier, discounts, data transfer and requests are left out. The bill is under COST.」）。出どころは
+  **使っているほうだけ**を書く（Price List なら読んだ日、同梱の表なら「prices shipped with elecdex, checked
+  2026-11-07」）。2 段目・3 段目でも金額の列がある間は同じ 1 行を固定で出す
 - 行に留まるとカード: そのサービスで額の大きい上位 5 件（名前、動いている時間、推定の月額）
 - 2 段目（ACTIVE › EC2）の一覧には「running for」（最後に起動してからの時間）、「≈ $/month」、7 日の CPU の細い線
   （1 日ごと 7 点、`get-metric-statistics` の結果。グラフ用に GetMetricData は使わない）が加わり、既定の並びは
@@ -362,15 +405,57 @@ Cost Explorer（API 1 要求の価格）、Budgets（監視と通知は無料）
 | Snapshots | AGE | id、ボリューム、GiB、作成 | ボリューム |
 | Alarms | STATE · NAMESPACE | 名前、状態、メトリクス、更新 | 見ているリソース |
 
+### 5.6 コストの QUOTA（金額を超えたらトースト）
+
+利用者の指定（2026-11-08）: あらかじめ決めた金額を超えたらトーストで知らせる。既定は 0（OFF）。
+
+- **何と比べるか**: 今月ここまでの見込み額（請求メトリクス `EstimatedCharges` の月初からの最大。無料枠、6 時間ごと）。
+  月末の予測ではない（予測が QUOTA を超えたら知らせる段は「後で」、利用者に確かめる）
+- **通貨**: 請求メトリクスは **USD**（`Currency=USD` の次元。請求書を円で受け取っていてもメトリクスは USD）。QUOTA も
+  USD で決め、設定の欄にそう書く。`list-metrics` が USD 以外の通貨を返すアカウントでは QUOTA を断る
+- **月は AWS の月（UTC）**: 請求メトリクスは UTC の 1 日 00:00（日本では 9:00）に 0 に戻る。段の数え直しも UTC の月で、
+  UTC の月初より後の点だけを使う（日本の 0 時に数え直すと、先月の合計で 1 日の朝に誤ったトーストが出る）
+- **設定**（アカウントごとに main の `aws-billing.json`）: QUOTA（USD、0 = OFF、既定 0）と、知らせる段（既定は 80% と
+  100%。100% だけにもできる）
+- **トースト**: 見込み額が段を初めて超えたとき、その月（UTC）に 1 度ずつ。「acme-prod passed 80% of its $1,000 quota ·
+  $812 this month」。100% は danger、80% は warn
+  - **知らせた段は月ごとに `aws-billing.json` に持つ**（メモリだけだと、起動のたびに同じ段をまた知らせる）
+  - すでに超えている状態で QUOTA を決めたら、いちばん上の段を 1 度だけ。QUOTA を上げたら段を数え直す
+  - 値が下がっても（クレジット、返金）知らせ直さない
+  - 送り先は §12.5（cloud-cli.md）と同じ: ウィンドウが前ならページのトースト、前に無ければ OS の通知
+- **見えていないときも読む**: QUOTA が 0 より大きい間は、ペインがレイアウトにある限り 6 時間ごとに請求メトリクスを
+  読む（cloud-cli.md §13。見えている間の `billing` probe を生かし続けるだけで、2 本めは作らない）
+  - プロファイルからアカウント ID への対応を `aws-billing.json` に持つ（起動したあとペインが後ろのタブにあると、
+    `sts get-caller-identity` は見えるまで走らないため）
+  - **`credential_process` のプロファイルは背後では読まない**（鍵束や MFA の窓を誰も見ていないときに開かないため）。
+    QUOTA の欄に「checked only while the pane is shown, because this profile asks for credentials」と出す
+  - SIGNED OUT になったら黙って止めず、見出しの badge に「quota not checked since 09:00」と出し、1 度だけトースト
+- **支払いのアカウント**では、`LinkedAccount` の次元の無い `EstimatedCharges` は組織全体の請求になる。欄に「On the
+  payer account this is the whole organization's bill.」と書く（メンバーのアカウントを個別に見る `LinkedAccount` は後で）
+- **SLOW ×4** は見えている間の周期だけを延ばし、QUOTA の背後の 6 時間はそのまま（請求メトリクスが進むのが 1 日に
+  数回なので、これより延ばすと知らせが 1 日遅れる）
+- COST のゲージの目盛りは、選んだ段に従う（「100% only」なら 80% の目盛りを描かない）
+- **遅れと限界を書く**: 欄に「Checked every 6 hours: a toast can come half a day after the money was spent. AWS Budgets
+  is the alarm AWS keeps; this one is elecdex's own, on screen.」
+- **画面**: 上段の MTD に QUOTA を並べる（`$824 · 82% of quota $1,000`、80% で warn、100% で danger）。COST の 1 段目に
+  QUOTA のゲージ（予算のゲージとは別: 予算は AWS Budgets のもの、QUOTA は elecdex の中だけのもの）。カードで違いを言う
+- **使えないとき**: 請求メトリクスが無い（billing alerts が OFF）なら入力を無効にし、理由を出す。メンバーの
+  アカウントは、支払いのアカウントが billing alerts を ON にしていないとメトリクスが無い（CloudWatch の文書）。
+  そう言う。新しい無料プランのアカウントでメトリクスがクレジットを差し引くかは未確認: 実装の前にクレジットのある
+  アカウントで確かめ、引かないなら欄に書く
+
 ## 6. 画面
 
 モックのとおり。上から:
 
-- **見出し（PaneHost）**: `AWS`、subtitle に `prod-readonly · acme-prod (4829-1350-7216)`、badge にいちばん重い
-  もの（「1 alarm」）か §4 の語
-- **上段**: ◆ランプと語、ALARMS、ATTENTION（danger · warn）、**MTD**（`$412 · forecast 110%`、押すと COST タブ）、
+- **見出し（PaneHost）**: `AWS STATUS`、subtitle に `prod-readonly · acme-prod (4829-1350-7216)`、badge にいちばん重い
+  もの（「1 alarm」「AWS incident」「over quota」）か §4 の語
+- **上段**: ◆ランプと語、ALARMS、ATTENTION（danger · warn）、**MTD**（`$824 · forecast 110% of budget`。QUOTA が
+  あれば `· 82% of quota`。押すと COST タブ）、
   リージョンのランプの選び（`ALL · ap-ne-1 · us-e-1 · eu-w-1`。1 つだけ選ぶ絞り込みで、各ランプはその
   リージョンのいちばん重い注意の色）、右端に MASK・REFRESH・⚙
+- **障害の帯**（AWS の公開ステータスに障害があるときだけ、1 行。cloud-cli.md §12）
+- **Cost Explorer の 1 枚**（このアカウントを初めて表示したときだけ。§3.3）
 - **帯 ACCOUNT PULSE**（このペインの印。2D canvas 1 枚、文字は HTML。高さが足りないときと設定で消える）:
   直近 24 時間、15 分ごと 96 本。書き込みの操作を刻み、エラーと拒否を danger、コンソールのサインインを info の
   菱形、いま鳴っているアラームを鳴り始めた時刻から今までの danger の帯で描く。右端の 15 分は「CloudTrail の
@@ -405,11 +490,20 @@ Cost Explorer（API 1 要求の価格）、Budgets（監視と通知は無料）
 
 ## 8. 設定（ペインごと）
 
-PROFILE（一覧から）、REGIONS（4 つまで）、PULSE（ON / OFF）、ACTIVITY（ON / OFF。CloudTrail を呼ばない）、SLOW
-（周期 4 倍）、**COST EXPLORER（有料）**: OFF（既定）· MANUAL · 1 DAY · 12 H と、月の上限（10〜1,000 要求、既定 100）。
-有料の設定の欄には、いまの頻度での月の見込み（「≈ 60 requests · $0.60 a month」）と今月の実績を並べる。
-Cost Explorer の上限はアカウントごとに main が持つ（同じアカウントのペインで共有）。全体の設定（settings.json）は持たない。ペインの状態にプロファイル名・リージョン・ON/OFF・MASK・
-タブ・ドリルダウンの位置だけ。
+**このペイン**（ペインの状態）: PROFILE（一覧から）、REGIONS（4 つまで）、PULSE（ON / OFF）、ACTIVITY（ON / OFF。
+CloudTrail を呼ばない）、SLOW（周期 4 倍）。MASK、タブ、ドリルダウンの位置。
+
+**このアカウント**（main の `aws-billing.json`、同じアカウントのペインで共有）:
+
+- **COST EXPLORER（有料）**: OFF · MANUAL · 1 DAY · 12 H と、月の上限（10〜1,000 要求、既定 100）。最初に表示したときに
+  尋ねる（§3.3）。欄には、いまの頻度での月の見込み（「≈ 60 requests · $0.60 a month」）と今月の実績を並べる
+- **COST QUOTA**: USD、0 = OFF（既定）、知らせる段（80% と 100% / 100% だけ）（§5.6）
+
+**AWS STATUS 全体**（settings.json の `aws`、全ペインで共有）:
+
+- **`aws.incidents`**: `notify`（AWS の公開ステータスに障害が出たらトースト、既定 ON）、`system`（ウィンドウが前に無いときは OS の通知、既定 ON）、`minSeverity`（既定 warn）（cloud-cli.md §12）
+
+全体の設定は最後のものだけ。プロファイルの鍵、ARN、結果は持たない。
 
 ## 9. 要る権限（最小のポリシーを作る人のため）
 
@@ -434,16 +528,15 @@ Cost Explorer の上限はアカウントごとに main が持つ（同じアカ
 
 複数プロファイルを 1 枚に（測ってから）、Cost Optimization Hub と Compute Optimizer の提案（無料だが登録が要る）、
 CUR による資源ごとの実額、Security Hub、IAM Access Analyzer の外部アクセス、Compute Optimizer の提案、
-Organizations の横断、SSO・login のセッションの残り時間、AWS の公開ステータス（利用者に聞く、§12）。
+Organizations の横断、SSO・login のセッションの残り時間、QUOTA を円で決める（為替の取得が要る）。
 
-## 12. 利用者に聞くこと
+## 12. 利用者の決定（2026-11-08、§0 にも）
 
-- 名前（AWS）と、1 ペイン 1 プロファイルで始めること
-- Cost Explorer の既定を OFF（有効にするまで呼ばない）にすること。ON を既定にすると、ペインを置いただけで
-  月 0.6 USD ほどがかかる
-- Price List の API に料金が無いことを確かめられなければ、単価を同梱の表にすること（ACTIVE の推定）
-- AWS Health Dashboard の公開フィード（サインイン不要、無料）で、選んだリージョンの障害を出すか。CLI ではなく
-  main の既存のフィードの取得になる（新しい通信先なので data-sources.md に足す）
+- 名前は AWS STATUS、1 ペイン 1 プロファイル
+- Cost Explorer は、そのアカウントを最初に表示したときに尋ねる（§3.3）
+- Price List が有料なら同梱の単価の表。ACTIVE の下部に推定であることを明記（§5.0）
+- 公開ステータスは障害のときだけ、トーストは設定で（既定 ON）（cloud-cli.md §12）
+- コストの QUOTA、既定 0 = OFF（§5.6）。メトリクスが USD なので QUOTA も USD
 
 ## 13. テスト
 

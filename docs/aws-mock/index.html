@@ -463,6 +463,52 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
 /* Stale keeps the last good reading readable: one dimming step, not a fade-out. */
 .stale .view, .stale .pulse, .stale .cost { opacity: 0.75; }
 .settings-toggle:focus-visible, .crumbs button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- 2026-11-08: the public status band, the Cost Explorer question, toasts, the quota ---------- */
+.incident { display: none; width: calc(100% - 0.8rem); margin: 0 0.4rem 0.3rem; padding: 0.22rem 0.6rem; border: 1px solid var(--warn); border-left-width: 3px; background: hsl(var(--hue-warn) 85% 50% / 0.08); color: var(--text); font-family: var(--font-ui); font-size: var(--step--1); text-align: left; cursor: pointer; gap: 0.6rem; align-items: baseline; }
+.incident.show { display: flex; animation: crt 0.18s ease-out; }
+.incident .src { font-weight: 600; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--warn); }
+.incident .when2 { margin-left: auto; font-family: var(--font-mono); color: var(--text-dim); }
+.incident:hover { background: hsl(var(--hue-warn) 85% 50% / 0.16); }
+.incident:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.incident.danger { border-color: var(--danger); background: hsl(var(--hue-danger) 80% 50% / 0.08); } .incident.danger .src { color: var(--danger); }
+.incident.info { border-color: var(--info); background: hsl(var(--hue-info) 85% 50% / 0.07); } .incident.info .src { color: var(--info); }
+.incident .go { border: 1px solid var(--panel-rule); padding: 0 0.3rem; font-family: var(--font-mono); visibility: hidden; }
+.incident:hover .go, .incident:focus-visible .go { visibility: visible; }
+/* The Cost Explorer question: one line by default, the whole card on "more". */
+.ask .line { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.ask .line .q1 { flex: 1; min-width: 12rem; }
+.ask .line .acts1 { display: flex; gap: 0.3rem; }
+.ask .full { display: none; flex-direction: column; gap: 0.35rem; border-top: 1px dashed var(--panel-rule); padding-top: 0.35rem; }
+.ask.open .full { display: flex; } .ask.open .line .acts1 #ask-on1, .ask.open .line .acts1 #ask-off1 { display: none; }
+.ask .help, .ask .opts .lbl { font-size: var(--step--1); color: var(--text-dim); text-transform: none; letter-spacing: 0; }
+.narrow .ask .more { display: none; }
+.cenote { display: none; margin: 0 0.4rem 0.3rem; padding: 0.2rem 0.6rem; border: 1px solid var(--warn); font-size: var(--step--1); color: var(--text); }
+.cenote.show { display: block; animation: crt 0.18s ease-out; }
+.estbar { display: none; padding: 0.2rem 0.6rem; border-top: 1px dashed var(--panel-border); font-size: var(--step--1); color: var(--text-dim); cursor: default; }
+.estbar.show { display: flex; gap: 0.4rem; align-items: baseline; }
+.estbar b { color: var(--text); font-weight: 500; }
+.toast .act { align-self: flex-end; margin-top: 0.15rem; font-size: var(--step--2); }
+.ask { display: none; margin: 0 0.4rem 0.35rem; padding: 0.45rem 0.7rem 0.5rem; border: 1px solid var(--accent); background: var(--surface-2); font-size: var(--step--1); line-height: 1.5; flex-direction: column; gap: 0.35rem; }
+.ask.show { display: flex; animation: crt 0.22s ease-out; }
+.ask .q b { color: var(--accent-strong); font-weight: 500; }
+.ask .opts, .ask .acts { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.ask .seg { display: flex; gap: 0.15rem; } .ask .seg .btn { font-family: var(--font-mono); text-transform: none; letter-spacing: 0; font-size: var(--step--1); }
+.ask .acts .lbl { margin-left: auto; }
+.btn.primary { background: var(--accent); color: var(--text-inverse); border-color: var(--accent); font-size: var(--step--1); }
+.ask .acts .btn { font-size: var(--step--1); padding: 0.1rem 0.6rem; }
+.toast { position: absolute; right: 0.6rem; bottom: 0.6rem; z-index: 8; width: min(24rem, 92%); background: var(--surface-2); border: 1px solid var(--accent); border-left: 3px solid var(--accent); padding: 0.4rem 0.7rem; display: none; flex-direction: column; gap: 0.15rem; font-size: var(--step--1); box-shadow: 0 0.4rem 1.6rem rgb(0 0 0 / 0.45); }
+.toast.show { display: flex; animation: crt 0.18s ease-out; }
+.toast.warn { border-color: var(--warn); } .toast.danger { border-color: var(--danger); }
+.toast b { font-family: var(--font-ui); font-weight: 600; letter-spacing: var(--tracking-wide); text-transform: uppercase; font-size: var(--step--2); }
+.toast.warn b { color: var(--warn); } .toast.danger b { color: var(--danger); }
+.toast span { line-height: 1.45; }
+.money-in input { width: 6rem; background: var(--surface-1); color: var(--text); border: 1px solid var(--panel-rule); font-family: var(--font-mono); font-size: var(--step--1); padding: 0.05rem 0.3rem; }
+.quota-w { color: var(--warn); } .quota-d { color: var(--danger); }
+.ask .est { font-family: var(--font-mono); color: var(--text-dim); } .ask .est.over { color: var(--warn); }
+.money-in input:disabled { border-style: dashed; color: var(--text-muted); cursor: not-allowed; }
+.estimate { margin: 0.5rem 0.6rem 0.3rem; padding: 0.35rem 0.6rem; border-top: 1px dashed var(--panel-border); font-size: var(--step--1); line-height: 1.5; color: var(--text-dim); }
+.estimate b { color: var(--text); font-weight: 500; }
 </style>
 </head>
 <body>
@@ -471,13 +517,15 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
   <div class="grp"><span>Size</span><button type="button" data-width="wide" aria-pressed="true">Wide</button><button type="button" data-width="medium">Medium</button><button type="button" data-width="narrow">Narrow</button><button type="button" data-width="short">Short</button></div>
   <div class="grp"><span>Link</span><button type="button" data-link="linked" aria-pressed="true">Linked</button><button type="button" data-link="partial">Partial</button><button type="button" data-link="login">Login expired</button><button type="button" data-link="mfa">MFA profile</button><button type="button" data-link="throttled">Throttled</button><button type="button" data-link="offline">Offline</button><button type="button" data-link="nocli">No CLI</button></div>
   <div class="grp"><span>Account</span><button type="button" data-acct="busy" aria-pressed="true">Busy</button><button type="button" data-acct="clean">Clean</button><button type="button" data-acct="nobilling">Billing alerts off</button></div>
-  <div class="grp"><span>Cost Explorer</span><button type="button" data-ce="off" aria-pressed="true">Off</button><button type="button" data-ce="day">1 day</button><button type="button" data-ce="cap">Cap reached</button></div>
-  <div class="grp"><span>Simulate</span><button type="button" id="sim-alarm">Alarm fires</button><button type="button" id="sim-launch">Instance launched</button></div>
+  <div class="grp"><span>Cost Explorer</span><button type="button" data-ce="ask" aria-pressed="true">Not asked yet</button><button type="button" data-ce="off">Off</button><button type="button" data-ce="day">1 day</button><button type="button" data-ce="cap">Cap reached</button><button type="button" data-ce="refused">Refused by AWS</button></div>
+  <div class="grp"><span>Quota</span><button type="button" data-quota="0" aria-pressed="true">Off ($0)</button><button type="button" data-quota="1000">$1,000 (82%)</button><button type="button" data-quota="800">$800 (over)</button></div>
+  <div class="grp"><span>AWS public status</span><button type="button" data-inc="none" aria-pressed="true">No incident</button><button type="button" data-inc="one">Incident in ap-northeast-1</button></div>
+  <div class="grp"><span>Simulate</span><button type="button" id="sim-alarm">Alarm fires</button><button type="button" id="sim-launch">Instance launched</button><button type="button" id="sim-quota">Quota passed (toast)</button><button type="button" id="sim-inc">Incident starts (toast)</button></div>
 </div>
 
 <section class="pane" id="pane">
   <!-- PaneHost's header (not the widget): registry title, paneMeta.subtitle and badge, zoom / close -->
-  <div class="host"><span class="title">AWS</span><span class="sub" id="sub"></span><span class="badge danger" id="badge"></span><span class="ctl">⤢ ×</span></div>
+  <div class="host"><span class="title">AWS STATUS</span><span class="sub" id="sub"></span><span class="badge danger" id="badge"></span><span class="ctl">⤢ ×</span></div>
 
   <div class="top">
     <span class="lamp ok" id="lamp"><i></i><span id="lamp-text">LINKED</span><small id="lamp-sub"></small></span>
@@ -492,6 +540,20 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
     <button type="button" class="settings-toggle" id="b-set" aria-label="aws settings" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg></button>
   </div>
   <div class="notice" id="notice"><span class="t" id="notice-t"></span><code id="notice-c"></code><button type="button" class="btn" id="notice-copy">Copy</button></div>
+  <!-- Only while AWS's public status has an open event in this pane's regions (or a global one). -->
+  <button type="button" class="incident" id="incident"></button>
+  <div class="cenote" id="cenote" role="status">Cost Explorer refused: this role may not call ce:GetCostAndUsage, or Cost Explorer is not enabled for the account. Turned off · ⚙ to try again.</div>
+  <!-- Asked once per account, the first time a pane shows it; the answer lives in main. -->
+  <div class="ask" id="ce-ask">
+    <div class="line"><span class="q1"><b>Cost Explorer for <span id="ask-acct">acme-prod</span>: turn on?</b> <span class="paid">paid · $0.01 a request</span></span><span class="acts1"><button type="button" class="btn" id="ask-on1">Turn on</button><button type="button" class="btn" id="ask-off1">Keep off</button><button type="button" class="btn more" id="ask-more" aria-expanded="false">▸ more</button></span></div>
+    <div class="full">
+      <div class="q">It adds the real amount by usage type and region, and AWS's own forecast, never more than the cap. Needs Cost Explorer enabled in the Billing console (for a member account, by the payer) and ce:GetCostAndUsage.</div>
+      <div class="est" id="ask-est">once a day ≈ 60 requests · $0.60 a month · within the $1.00 cap</div>
+      <div class="opts"><span class="lbl">Read</span><span class="seg" id="ask-freq"><button type="button" class="btn" data-v="manual">manual</button><button type="button" class="btn" data-v="day" aria-pressed="true">once a day</button><button type="button" class="btn" data-v="12h">every 12 h</button></span><span class="lbl">Cap a month</span><span class="seg" id="ask-cap"><button type="button" class="btn">$0.10 = 10</button><button type="button" class="btn">$0.50 = 50</button><button type="button" class="btn" aria-pressed="true">$1.00 = 100</button><button type="button" class="btn">$2.00 = 200</button><button type="button" class="btn">$5.00 = 500</button><button type="button" class="btn">$10 = 1,000</button></span></div>
+      <div class="acts"><button type="button" class="btn" id="ask-on">Turn on · once a day</button><button type="button" class="btn" id="ask-off">Keep off</button><button type="button" class="btn" id="ask-later">Later</button></div>
+      <div class="help">Keep off: never asked again for this account. Later: asked again the next time elecdex starts. Either way, ⚙ changes it.</div>
+    </div>
+  </div>
 
   <div class="pulse" id="pulse">
     <div class="head"><span><b>Account pulse</b> · 24 h · CloudTrail writes</span><span class="legend"><span>writes</span><span class="e">errors · denied</span><span class="l">console sign-in</span><span class="a">alarm</span></span></div>
@@ -510,7 +572,9 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
   <div class="body" id="body">
     <div class="view" id="view" tabindex="-1"></div>
     <div class="card" id="card"></div>
+    <div class="toast" id="toast" role="status"><b id="toast-t"></b><span id="toast-b"></span><button type="button" class="btn act" id="toast-act"></button></div>
   </div>
+  <div class="estbar" id="estbar"><b>≈ Estimates at list prices, not your bill</b> · Price List, 11-05 · <span id="est-i" tabindex="0">ⓘ</span></div>
   <div class="foot"><span class="ledger" id="ledger"></span><span class="rt">read only · only while shown · aws-cli/2.39.6</span></div>
 
   <div class="settings" id="settings">
@@ -520,14 +584,26 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
     <div class="opt"><span>Account pulse</span><span class="seg" data-opt="pulse"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
     <div class="opt"><span>Activity (CloudTrail)</span><span class="seg" data-opt="x"><button type="button" class="btn" aria-pressed="true">on</button><button type="button" class="btn">off</button></span></div>
     <div class="opt"><span>Pace</span><span class="seg" data-opt="x"><button type="button" class="btn" aria-pressed="true">normal</button><button type="button" class="btn">slow ×4</button></span></div>
-    <h5>Cost Explorer · <span class="paid">paid · $0.01 a request</span></h5>
+    <h5>This account · <span id="set-acct">acme-prod</span> · Cost Explorer <span class="paid">paid · $0.01 a request</span></h5>
+    <p id="ce-hist">not answered yet</p>
     <div class="opt"><span>Read</span><span class="seg" data-opt="ce"><button type="button" class="btn" data-v="off" aria-pressed="true">off</button><button type="button" class="btn" data-v="manual">manual</button><button type="button" class="btn" data-v="day">1 day</button><button type="button" class="btn" data-v="12h">12 h</button></span></div>
-    <div class="opt"><span>Monthly cap · this account</span><span class="seg" data-opt="cap"><button type="button" class="btn">10</button><button type="button" class="btn">50</button><button type="button" class="btn" aria-pressed="true">100 · $1</button><button type="button" class="btn">500</button></span></div>
+    <div class="opt"><span>Monthly cap</span><span class="seg" data-opt="cap"><button type="button" class="btn">$0.10 = 10</button><button type="button" class="btn">$0.50 = 50</button><button type="button" class="btn" aria-pressed="true">$1.00 = 100</button><button type="button" class="btn">$2.00 = 200</button><button type="button" class="btn">$5.00 = 500</button><button type="button" class="btn">$10 = 1,000</button></span></div>
     <p id="ce-est">At once a day: ≈ 60 requests · $0.60 a month (two a day: costs by service, and AWS's forecast; a breakdown you press for is one more). This month so far: 0 · $0.00. Shorter than 12 h is not offered: Cost Explorer's data moves a few times a day.</p>
-    <p>The profile is the AWS CLI's own (<code>aws configure list-profiles</code>); elecdex holds no key. Every call is a read with no per-request price; Cost Explorer and GetMetricData are never called. Reads appear in the account's CloudTrail.</p>
+    <h5>This account · cost quota</h5>
+    <div class="opt"><span>Quota a month (USD, 0 = off)</span><span class="money-in">$ <input type="number" id="quota-in" min="0" step="50" value="0"></span></div>
+    <p id="quota-why" style="color:var(--warn)"></p>
+    <div class="opt"><span>Tell me at</span><span class="seg" data-opt="steps"><button type="button" class="btn" aria-pressed="true">80% and 100%</button><button type="button" class="btn">100% only</button></span></div>
+    <p>Compared with this month's charges so far (the billing metric, in USD even if your invoice is in yen; the month is AWS's, in UTC). Checked every 6 hours, also while the pane is behind a tab: a toast can come half a day after the money was spent. AWS Budgets is the alarm AWS keeps; this one is elecdex's own, on screen.</p>
+    <h5>Every AWS STATUS pane</h5>
+    <div class="opt"><span>Toast when AWS has an incident</span><span class="seg" data-opt="inc-toast"><button type="button" class="btn" data-v="on" aria-pressed="true">on</button><button type="button" class="btn" data-v="off">off</button></span></div>
+    <div class="opt"><span>Toast from</span><span class="seg" data-opt="amin"><button type="button" class="btn" aria-pressed="true">impact and up</button><button type="button" class="btn">disruption only</button></span></div>
+    <div class="opt"><span>When the window is not in front</span><span class="seg" data-opt="sys"><button type="button" class="btn" aria-pressed="true">OS notification</button><button type="button" class="btn">wait for the window</button></span></div>
+    <p>While any pane is masked, OS notifications leave out the account's alias and id. Clicking one brings elecdex to the front, on this pane.</p>
+    <p>From AWS's public status RSS (no sign-in): every 5 minutes while a pane is shown; with toasts on, every 15 minutes while it is behind a tab or minimised (the feed is 60 KB and is never answered 304). Only events in this pane's regions and global ones; disruptions and impacts toast, informational messages do not. It is AWS's public status, not your account's.</p>
+    <p>The profile is the AWS CLI's own (<code>aws configure list-profiles</code>); elecdex holds no key. Only Cost Explorer has a per-request price, and only if you turn it on. Reads appear in the account's CloudTrail.</p>
   </div>
 </section>
-<p class="note">モック: すべて架空のアカウントと数字で、AWS には何も問い合わせません。<b>ACTIVE</b> はいま動いていて料金の発生しているものを推定の月額の大きい順に（立ち上げっぱなしの GPU インスタンス、12 TB の S3 バケットなど。推定は定価で、割引や無料枠は入れない）。<b>ドリルダウン</b>: ACTIVE でサービスの行（または上の積み上げの帯）を押すと 2 段目（上の棒を押すとクロスフィルタ、列の見出しで並べ替え）、行を押すと 3 段目（関係するものを押すと横へ掘れる、HISTORY でそのリソースの CloudTrail）。COST はサービスの棒から日ごとの曲線へ、その下の使用の種類・リージョン別は有料の Cost Explorer（上の Cost Explorer で ON にして試せる。押すたびに $0.01 と台帳に数える）。ATTENTION の行は該当リソースの 3 段目へ飛び、↗ は実物ではコンソールを開きます。Enter で下へ、Escape / Backspace で上へ。行・セル・帯・足元の台帳にマウスを止めると詳細カード。</p>
+<p class="note">モック: すべて架空のアカウントと数字で、AWS には何も問い合わせません。<b>2026-11-08 の決定</b>: 名前は AWS STATUS。初めて表示したアカウントでは Cost Explorer を ON にするかを上段の下の 1 枚で尋ねる（上の Cost Explorer で状態を替えられる）。Quota で月の見込み額の QUOTA（USD、既定 0 = OFF）、AWS public status で公開ステータスの障害の帯（障害のときだけ）、Simulate で QUOTA 超えと障害のトースト（ウィンドウが隠れているときは OS の通知）。ACTIVE の下部に推定であることを明記。<b>ACTIVE</b> はいま動いていて料金の発生しているものを推定の月額の大きい順に（立ち上げっぱなしの GPU インスタンス、12 TB の S3 バケットなど。推定は定価で、割引や無料枠は入れない）。<b>ドリルダウン</b>: ACTIVE でサービスの行（または上の積み上げの帯）を押すと 2 段目（上の棒を押すとクロスフィルタ、列の見出しで並べ替え）、行を押すと 3 段目（関係するものを押すと横へ掘れる、HISTORY でそのリソースの CloudTrail）。COST はサービスの棒から日ごとの曲線へ、その下の使用の種類・リージョン別は有料の Cost Explorer（上の Cost Explorer で ON にして試せる。押すたびに $0.01 と台帳に数える）。ATTENTION の行は該当リソースの 3 段目へ飛び、↗ は実物ではコンソールを開きます。Enter で下へ、Escape / Backspace で上へ。行・セル・帯・足元の台帳にマウスを止めると詳細カード。</p>
 
 <script>
 'use strict';
@@ -693,7 +769,8 @@ const LINKS = {
   nocli: { lamp: 'danger', text: 'NO CLI', sub: '', empty: true, badge: ['danger', 'no cli'] },
 };
 const L = () => LINKS[state.link];
-state.ce = 'off'; state.paid = 0; state.ceUsage = {};
+state.ce = 'ask'; state.paid = 0; state.ceUsage = {}; state.quota = 0; state.inc = 'none'; state.askHidden = false;
+const ceOff = () => state.ce === 'off' || state.ce === 'ask' || state.ce === 'refused';
 const maskId = () => (state.mask ? '••••-••••-••••' : `${ACCT.id.slice(0, 4)}-${ACCT.id.slice(4, 8)}-${ACCT.id.slice(8)}`);
 const who = (n) => (state.mask ? '•••••' : n);
 const ipMask = (ip) => (state.mask ? ip.replace(/\.\d+\.\d+$/, '.•••.•••') : ip);
@@ -712,13 +789,25 @@ function renderTop() {
   const d = rows.filter((r) => r.w === 'danger').length, w = rows.filter((r) => r.w === 'warn').length;
   const alarms = rows.filter((r) => r.tag === 'Alarm').length;
   const badge = $('badge');
+  const qShare = state.quota ? 824.17 / state.quota : 0;
   if (l.badge) { badge.className = `badge ${l.badge[0]}`; badge.textContent = l.badge[1]; }
   else if (alarms) { badge.className = 'badge danger'; badge.textContent = `${alarms} alarm${alarms > 1 ? 's' : ''}`; }
+  else if (qShare >= 1) { badge.className = 'badge danger'; badge.textContent = 'over quota'; }
+  else if (state.inc !== 'none') { badge.className = 'badge warn'; badge.textContent = 'AWS incident'; }
   else if (d) { badge.className = 'badge danger'; badge.textContent = `${d} danger`; }
   else badge.className = 'badge none';
   $('f-alarm').innerHTML = l.empty ? '—' : `<span class="${alarms ? 'd' : ''}">${alarms}</span>`;
   $('f-att').innerHTML = l.empty ? '—' : `<span class="d">${d} danger</span> · <span class="w">${w} warn</span>`;
-  $('f-mtd').innerHTML = l.empty ? '—' : state.acct === 'nobilling' ? 'billing metric off' : '$824 · <span class="w">forecast 110% of budget</span>';
+  $('f-mtd').innerHTML = l.empty ? '—' : state.acct === 'nobilling' ? 'billing metric off' : `$824 · <span class="w">forecast 110% of budget</span>${state.quota ? ` · <span class="${qShare >= 1 ? 'quota-d' : qShare >= 0.8 ? 'quota-w' : ''}">${Math.round(qShare * 100)}% of quota $${state.quota.toLocaleString('en')}</span>` : ''}`;
+  // The public status band: only while AWS has an open event in this pane's regions.
+  const inc = $('incident');
+  inc.classList.toggle('show', state.inc !== 'none' && !l.empty);
+  inc.classList.add('danger'); inc.innerHTML = '<span class="src">AWS · disruption</span><span>ap-northeast-1 · Amazon EC2 · Service disruption: Increased API error rates</span><span class="when2">since 13:40 · updated 14:05</span><span class="go">↗</span>';
+  // The Cost Explorer question: the first time this account is shown, until it is answered.
+  $('ce-ask').classList.toggle('show', state.ce === 'ask' && !state.askHidden && !l.empty);
+  $('ask-acct').textContent = state.mask ? 'this account' : ACCT.alias; $('set-acct').textContent = state.mask ? 'this account' : ACCT.alias;
+  $('cenote').classList.toggle('show', state.ce === 'refused' && !l.empty);
+  $('ce-hist').textContent = { ask: 'not answered yet', off: 'kept off · 11-08 14:21', day: 'on since 11-08 14:21 · once a day', cap: 'on since 11-01 · cap reached 11-25', refused: 'refused by AWS 11-08 14:22 (AccessDenied) · turned off' }[state.ce] || '';
   $('t-att').textContent = l.empty ? '' : rows.length;
   $('w-last').textContent = l.empty ? '—' : l.stale ? (state.link === 'offline' ? '14:14' : '11:05') : '14:20';
   $('w-next').textContent = l.empty ? '—' : state.link === 'throttled' ? '14:31' : state.link === 'login' || state.link === 'mfa' ? 'on refresh' : '14:30';
@@ -735,7 +824,7 @@ function renderTop() {
     }
   }
   $('ledger').innerHTML = l.empty ? 'requests today <b>0</b> · aws.exe not found'
-    : `${state.ce === 'cap' ? '<b class="paid">CE CAP REACHED</b> · ' : ''}requests today <b>${state.calls}</b> · free <b>${state.calls - 38}</b> · free tier <b>38</b> · ${state.ce === 'off' ? 'paid APIs <b class="zero">0</b>' : `paid APIs <b class="paid">${state.paid}</b> · <b class="paid">$${(state.paid / 100).toFixed(2)}</b> this month · cap $1.00`}`;
+    : `${state.ce === 'cap' ? '<b class="paid">CE CAP REACHED</b> · ' : ''}requests today <b>${state.calls}</b> · free <b>${state.calls - 38}</b> · free tier <b>38</b> · ${ceOff() ? 'paid APIs <b class="zero">0</b>' : `paid APIs <b class="paid">${state.paid}</b> · <b class="paid">$${(state.paid / 100).toFixed(2)}</b> this month · cap $1.00`}`;
 }
 
 // ---------- the pulse: one canvas, redrawn only when its data or the theme changes ----------
@@ -841,6 +930,7 @@ function renderView(dir) {
   v.classList.add(dir === 'up' ? 'up' : 'on');
   v.innerHTML = '';
   renderBar2();
+  $('estbar').classList.toggle('show', state.tab === 'active' && !L().empty);
   if (L().empty) { v.innerHTML = '<div class="empty"><b class="d">NO CLI</b>AWS CLI v2 was not found on PATH or in its install folders.<br>Install it, then restart elecdex (a running app keeps its old PATH).<code>winget install Amazon.AWSCLI</code></div>'; return; }
   const st = stack(); const top = st[st.length - 1];
   if (state.tab === 'attention') return viewAttention(v);
@@ -933,7 +1023,7 @@ function viewActive(v) {
     v.appendChild(el);
   }
   v.insertAdjacentHTML('beforeend', '<div class="arow quiet"><span class="sv">Not billing by the hour</span><span class="mono" style="grid-column:2 / -1">Lambda · ACM · VPC · Stacks: usage-based or free — the real amount is under COST</span></div>');
-  v.insertAdjacentHTML('beforeend', '<div class="lfoot">read 14:05 · next 15:00 · S3 sizes and CPU once a day · list prices from Price List, weekly</div>');
+  // The estimate note is pinned under the list (#estbar), outside the scroll: said every time, seen without scrolling.
 }
 
 // level 2: facets with cross-filtering, a sortable table
@@ -1086,9 +1176,10 @@ function viewCost(v) {
     <div><div class="lbl">Budget · monthly-cap · $3,300</div>
     <div class="gauge"><span>Actual</span><span class="track"><i style="width:25.8%"></i><span class="tick" style="left:80%"></span></span><b>26%</b></div>
     <div class="gauge"><span>AWS forecast</span><span class="track"><i class="over" style="width:100%"></i><span class="tick" style="left:90.5%"></span></span><b class="w">110%</b></div>
+    ${state.quota ? `<div class="gauge"><span>Quota</span><span class="track"><i class="${824.17 / state.quota >= 0.8 ? 'over' : ''}" style="width:${Math.min(100, (824.17 / state.quota) * 100)}%"></i><span class="tick" style="left:80%"></span></span><b class="${824.17 / state.quota >= 0.8 ? 'w' : ''}">${Math.round((824.17 / state.quota) * 100)}%</b></div><div class="lbl">quota <b>$${state.quota.toLocaleString('en')}</b> · elecdex's own alert, apart from AWS Budgets</div>` : '<div class="lbl">no cost quota · set one under ⚙ to get a toast</div>'}
     <div class="lbl" style="margin-top:0.3rem">Free plan · credits <b>$61.40</b> of $200 left · ends <b>2027-03-02</b></div></div></div>`);
   v.appendChild(ceCard());
-  v.insertAdjacentHTML('beforeend', `<div class="sep">by service · this month · vs the same day last month · ${state.ce === 'off' ? 'billing metric (free tier)' : 'Cost Explorer · through 11-06'}</div>`);
+  v.insertAdjacentHTML('beforeend', `<div class="sep">by service · this month · vs the same day last month · ${ceOff() ? 'billing metric (free tier)' : 'Cost Explorer · through 11-06'}</div>`);
   const box = document.createElement('div'); box.className = 'svcbars';
   const max = SVC_COST[0][1];
   for (const [n, cur, prev] of SVC_COST) {
@@ -1106,7 +1197,7 @@ function viewCost(v) {
 // Cost Explorer is paid: off until the user turns it on, then once a day under a monthly cap.
 function ceCard() {
   const c = document.createElement('div');
-  if (state.ce === 'off') {
+  if (ceOff()) {
     c.className = 'ce';
     c.innerHTML = '<span class="t"><b>Cost Explorer is off.</b> It adds the real amount by usage type and region, and AWS\'s forecast without a budget. It is a paid API: <span class="paid">$0.01 a request</span> · at once a day ≈ $0.60 a month, under a cap you set.</span><button type="button" class="btn">Turn on…</button>';
     c.querySelector('button').onclick = () => { $('settings').classList.add('show'); $('b-set').setAttribute('aria-pressed', 'true'); };
@@ -1124,13 +1215,13 @@ function viewCostService(v, top) {
   const max = Math.max(per * n, perPrev * n) * 1.05;
   const pt = (arr) => arr.map((y, i) => `${(i / (n - 1)) * 100},${40 - (y / max) * 38}`).join(' ');
   const projEnd = per * n;
-  v.insertAdjacentHTML('beforeend', `<div class="costtop"><div><div class="lbl">${esc(top.svc)} · month to date</div><div class="big">$${top.cur.toFixed(2)}</div><div class="lbl">same day last month <b>$${top.prev.toFixed(2)}</b><br>straight line to 11-30 <b>$${projEnd.toFixed(0)}</b> · full days only</div></div><div class="lbl prose" style="align-self:center">${state.ce === 'off' ? 'The billing metric stops at the service: usage types (instance hours, NAT GB, EBS GB-month) and regions need Cost Explorer, a paid API this pane calls only when you turn it on.' : 'The curve is the free billing metric; the breakdown below is Cost Explorer (paid), read only when pressed and kept for a day.'}</div></div>
+  v.insertAdjacentHTML('beforeend', `<div class="costtop"><div><div class="lbl">${esc(top.svc)} · month to date</div><div class="big">$${top.cur.toFixed(2)}</div><div class="lbl">same day last month <b>$${top.prev.toFixed(2)}</b><br>straight line to 11-30 <b>$${projEnd.toFixed(0)}</b> · full days only</div></div><div class="lbl prose" style="align-self:center">${ceOff() ? 'The billing metric stops at the service: usage types (instance hours, NAT GB, EBS GB-month) and regions need Cost Explorer, a paid API this pane calls only when you turn it on.' : 'The curve is the free billing metric; the breakdown below is Cost Explorer (paid), read only when pressed and kept for a day.'}</div></div>
     <div class="curve"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><polyline class="prev" points="${pt(prev)}"/><polygon class="area" points="0,40 ${pt(cur)} ${((days - 1) / (n - 1)) * 100},40"/><polyline class="cur" points="${pt(cur)}"/><polyline class="proj" points="${pt(cur.slice(-1))} 100,${40 - (projEnd / max) * 38}"/></svg>
     <div class="ylab"><span>$0 at the foot · $${max.toFixed(0)} at the top</span><span>— this month · · · straight line · - - last month</span></div>
     <div class="axis"><span>11-01</span><span>11-07 today</span><span>11-30</span></div></div>`);
   // The third level: only Cost Explorer knows usage types and regions. Each press is one paid request, kept 24 h.
   v.insertAdjacentHTML('beforeend', '<div class="sep">breakdown · Cost Explorer</div>');
-  if (state.ce === 'off') { v.appendChild(ceCard()); return; }
+  if (ceOff()) { v.appendChild(ceCard()); return; }
   const row = document.createElement('div'); row.className = 'ce on';
   const kept = state.ceUsage[top.svc];
   row.innerHTML = `<span class="t">${kept ? `read ${kept.at} · kept until tomorrow, pressing again calls nothing` : 'Not read yet for this service.'}${state.ce === 'cap' ? ' <b style="color:var(--warn)">Cap reached · nothing more is called until 12-01.</b>' : ''}</span>`;
@@ -1204,7 +1295,7 @@ $('ledger').addEventListener('mouseenter', () => {
   clearTimeout(cardTimer);
   cardTimer = setTimeout(() => {
     const card = $('card');
-    card.classList.add('wide'); card.innerHTML = `<h4><span>requests today · by probe</span><span>${state.calls}</span></h4><table>${PROBES.map(([a, b, c, d, n]) => `<tr><td>${a}</td><td>${b}</td><td>${c}</td><td class="${d === 'free' ? 'fr' : 'ft'}">${d}</td><td class="n">${n}</td></tr>`).join('')}</table>${state.ce === 'off' ? '' : `<table><tr><td>ce.month · ce.forecast</td><td>ce get-cost-and-usage · get-cost-forecast</td><td>1 day</td><td class="paid">paid</td><td class="n">${state.paid}</td></tr></table>`}<div class="why">Paid APIs = calls with a per-request price: only Cost Explorer, and only once you turn it on (off by default, a monthly cap). GetMetricData and S3 listings are never made. The price of the API is not the whole story: each read is a CloudTrail management event (~${state.calls} today), which a second trail or a SIEM may bill by count, and CloudWatch's 1M free requests are shared by the whole account. aws.exe: %LOCALAPPDATA%\\Programs\\Amazon\\AWSCLIV2 · 1.2 s and 0.6 s of CPU a call.</div>`;
+    card.classList.add('wide'); card.innerHTML = `<h4><span>requests today · by probe</span><span>${state.calls}</span></h4><table>${PROBES.map(([a, b, c, d, n]) => `<tr><td>${a}</td><td>${b}</td><td>${c}</td><td class="${d === 'free' ? 'fr' : 'ft'}">${d}</td><td class="n">${n}</td></tr>`).join('')}</table>${ceOff() ? '' : `<table><tr><td>ce.month · ce.forecast</td><td>ce get-cost-and-usage · get-cost-forecast</td><td>1 day</td><td class="paid">paid</td><td class="n">${state.paid}</td></tr></table>`}<div class="why">Paid APIs = calls with a per-request price: only Cost Explorer, and only once you turn it on (off by default, a monthly cap). GetMetricData and S3 listings are never made. The price of the API is not the whole story: each read is a CloudTrail management event (~${state.calls} today), which a second trail or a SIEM may bill by count, and CloudWatch's 1M free requests are shared by the whole account. aws.exe: %LOCALAPPDATA%\\Programs\\Amazon\\AWSCLIV2 · 1.2 s and 0.6 s of CPU a call.</div>`;
     card.dataset.h = ''; card.classList.remove('show'); void card.offsetWidth; card.classList.add('show');
     const body = $('body').getBoundingClientRect(); card.style.left = '0.4rem'; card.style.top = `${Math.max(0, body.height - card.offsetHeight - 4)}px`;
   }, 450);
@@ -1233,7 +1324,7 @@ function group(attr, fn) { for (const b of document.querySelectorAll(`.mockbar [
 group('theme', (v) => { if (v === 'tron') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v; renderPulse(); });
 group('width', (v) => { const p = $('pane'); p.classList.remove('medium', 'narrow', 'short'); if (v !== 'wide') p.classList.add(v); render(); });
 group('link', (v) => { state.link = v; render(); });
-group('acct', (v) => { state.acct = v; state.extra = []; render(); });
+group('acct', (v) => { state.acct = v; state.extra = []; const q = $('quota-in'); q.disabled = v === 'nobilling'; q.title = ''; $('quota-why').textContent = v === 'nobilling' ? 'Not available: this account has no billing metric (Billing preferences → Receive CloudWatch billing alerts; for a member account, the payer turns it on).' : ''; render(); });
 $('b-mask').onclick = () => { state.mask = !state.mask; $('b-mask').setAttribute('aria-pressed', String(state.mask)); renderTop(); renderView(); };
 $('b-set').onclick = () => { const s = $('settings'); const on = !s.classList.contains('show'); s.classList.toggle('show', on); $('b-set').setAttribute('aria-pressed', String(on)); };
 for (const seg of document.querySelectorAll('.settings .seg')) for (const b of seg.querySelectorAll('.btn')) b.onclick = () => {
@@ -1243,7 +1334,9 @@ for (const seg of document.querySelectorAll('.settings .seg')) for (const b of s
 };
 // Cost Explorer's state, from the mock bar or the settings: off, on (once a day), or on with the month's cap reached.
 function setCe(v) {
-  state.ce = v; state.paid = v === 'off' ? 0 : v === 'cap' ? 100 : Math.max(state.paid, 14);
+  state.ce = v; state.paid = v === 'off' || v === 'ask' || v === 'refused' ? 0 : v === 'cap' ? 100 : Math.max(state.paid, 14);
+  if (v === 'ask') state.askHidden = false;
+  if (v === 'refused') state.paid = 1;
   for (const x of document.querySelectorAll('.mockbar [data-ce]')) x.setAttribute('aria-pressed', String(x.dataset.ce === v));
   for (const x of document.querySelectorAll('.settings [data-opt="ce"] .btn')) x.setAttribute('aria-pressed', String(x.dataset.v === (v === 'off' ? 'off' : 'day')));
   $('ce-est').textContent = v === 'off' ? 'At once a day: ≈ 60 requests · $0.60 a month (two a day: costs by service, and AWS\'s forecast; a breakdown you press for is one more). This month so far: 0 · $0.00. Shorter than 12 h is not offered: Cost Explorer\'s data moves a few times a day.'
@@ -1251,6 +1344,53 @@ function setCe(v) {
   renderTop(); renderView();
 }
 group('ce', setCe);
+$('ask-on').onclick = () => setCe('day');
+$('ask-off').onclick = () => setCe('off');
+$('ask-later').onclick = () => { state.askHidden = true; renderTop(); };
+// The month's estimate for the chosen frequency, and a warning when the cap would stop it before the month ends.
+function askEstimate() {
+  const f = $('ask-freq').querySelector('[aria-pressed="true"]').dataset.v;
+  const cap = Number($('ask-cap').querySelector('[aria-pressed="true"]').textContent.split('=')[1]);
+  const est = $('ask-est');
+  if (f === 'manual') { est.className = 'est'; est.textContent = 'manual: only when you press REFRESH or a breakdown · $0.01 each'; return; }
+  const n = f === 'day' ? 60 : 120;
+  const stop = Math.floor((cap / n) * 30);
+  est.className = `est${n > cap ? ' over' : ''}`;
+  est.textContent = `${f === 'day' ? 'once a day' : 'every 12 h'} ≈ ${n} requests · $${(n / 100).toFixed(2)} a month${n > cap ? ` · the $${(cap / 100).toFixed(2)} cap would stop it around day ${stop}` : ` · within the $${(cap / 100).toFixed(2)} cap`}`;
+}
+for (const seg of [$('ask-freq'), $('ask-cap')]) for (const b of seg.querySelectorAll('.btn')) b.onclick = () => {
+  for (const x of seg.querySelectorAll('.btn')) x.setAttribute('aria-pressed', String(x === b));
+  if (seg.id === 'ask-freq') $('ask-on').textContent = `Turn on · ${b.textContent}`;
+  askEstimate();
+};
+// Toasts: in the page while the window is shown; the app sends an OS notification instead when it is hidden.
+let toastTimer = 0;
+// One toast shape for both panes (the app's toast store): a title, a body and one action.
+function toast(kind, title, body, act, onAct) {
+  const t = $('toast'); t.className = `toast ${kind}`; $('toast-t').textContent = title; $('toast-b').textContent = body;
+  const a = $('toast-act'); a.style.display = act ? '' : 'none'; a.textContent = act || ''; a.onclick = () => { t.classList.remove('show'); if (onAct) onAct(); };
+  void t.offsetWidth; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 5000);
+}
+function setQuota(q) {
+  state.quota = q; $('quota-in').value = String(q);
+  for (const x of document.querySelectorAll('.mockbar [data-quota]')) x.setAttribute('aria-pressed', String(Number(x.dataset.quota) === q));
+  renderTop(); renderView();
+}
+group('quota', (v) => setQuota(Number(v)));
+$('quota-in').onchange = () => setQuota(Math.max(0, Number($('quota-in').value) || 0));
+group('inc', (v) => { state.inc = v; renderTop(); });
+// The band opens its card; only its ↗ (or Enter on the focused band) opens AWS's page.
+$('incident').onclick = (e) => {
+  if (e.target.classList.contains('go')) { toast('', 'Opens', 'health.aws.amazon.com/health/status in your browser (main builds the URL).'); return; }
+  showCard($('incident'), '<h4><span>AWS public status · 1 open</span><span>RSS read 14:20</span></h4><dl><dt>13:40</dt><dd>Service disruption: Increased API error rates (Amazon EC2, ap-northeast-1)</dd><dt>14:05</dt><dd>We continue to work toward recovery; launches are delayed.</dd></dl><div class="why">This is AWS\'s public status, not your account\'s. ↗ or Enter opens the page.</div>', true);
+};
+$('incident').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); toast('', 'Opens', 'health.aws.amazon.com/health/status in your browser (main builds the URL).'); } };
+$('sim-quota').onclick = () => { setQuota(800); toast('danger', 'Cost quota · 100% · acme-prod', 'Passed 100% of its $800 quota: $824 this month so far (billing metric, 14:00).', 'Open cost', () => selectTab('cost')); };
+$('sim-inc').onclick = () => { state.inc = 'one'; for (const x of document.querySelectorAll('.mockbar [data-inc]')) x.setAttribute('aria-pressed', String(x.dataset.inc === 'one')); renderTop(); toast('danger', 'AWS incident · ap-northeast-1', 'Amazon EC2 · Service disruption: Increased API error rates · since 13:40. AWS public status, not your account.', 'Open status', () => toast('', 'Opens', 'health.aws.amazon.com/health/status in your browser.')); };
+$('ask-more').onclick = () => { const a = $('ce-ask'); const open = !a.classList.contains('open'); a.classList.toggle('open', open); $('ask-more').setAttribute('aria-expanded', String(open)); $('ask-more').textContent = open ? '▾ less' : '▸ more'; askEstimate(); };
+$('ask-on1').onclick = () => setCe('day');
+$('ask-off1').onclick = () => setCe('off');
+hover($('est-i'), () => '<h4><span>About these figures</span><span>Price List · 11-05</span></h4><div class="why">On-Demand list prices for what is switched on. Savings Plans, RIs, the free tier, discounts, data transfer and requests are left out. The bill is under COST.</div>');
 $('notice-copy').onclick = () => { const b = $('notice-copy'); b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy'; }, 1200); };
 // REFRESH: main holds the 30 s; the underline shows what main answered.
 $('b-refresh').onclick = () => {

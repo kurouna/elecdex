@@ -1,6 +1,6 @@
-# GITHUB ペイン 設計
+# GITHUB STATUS ペイン 設計
 
-GitHub でオープンソースなどを開発・保守する人が「いま自分を待っているもの」と「自分のリポジトリで何が
+**GITHUB STATUS**（文中の「GITHUB ペイン」）は、GitHub でオープンソースなどを開発・保守する人が「いま自分を待っているもの」と「自分のリポジトリで何が
 起きたか」を 1 枚で見て、リポジトリを選べばその中まで掘れるペイン。利用者の GitHub CLI（`gh`）の認証に
 そのまま乗り、見えている間だけ、レート制限の小さな一部で読む。読むだけで、何も変えない。共通の核は
 [cloud-cli.md](cloud-cli.md)。モックは [github-mock/index.html](github-mock/index.html)。**設計段階（未実装）**。
@@ -13,7 +13,8 @@ git ペイン（§5.9）とは別物: あちらは手元の 1 リポジトリの
 | 日付 | 決定 | 経緯 |
 |------|------|------|
 | 2026-11-07 | GitHub CLI 経由で、OSS などの開発者が要る情報を出すペイン | 利用者の案 |
-| 2026-11-07 | **（要決定）** 名前は GITHUB（ウィジェット id `github`、ピッカーは "github activity"） | 提案 |
+| 2026-11-08 | 名前は **GITHUB STATUS**（ウィジェット id `github`、ピッカーは "github status"）。既存のペインの名前に合わせた | 利用者の決定 |
+| 2026-11-08 | GitHub の公開ステータス（githubstatus.com）を障害のときだけ出し、トーストは設定で選べる（既定 ON）（cloud-cli.md §12） | 利用者の決定 |
 | 2026-11-07 | プリセット `cloud` の右上（舞台の 0.42 の上 0.62、下はシェルと LOG WATCH のタブ）（cloud-cli.md §10） | 利用者の指定 |
 | 2026-11-07 | **（要決定）** v1 は github.com だけ（GHES は後で） | 提案 |
 | 2026-11-07 | レビュー（Opus 5.5・Fable 5.1）で直したもの: 最初のタブを重複の無い QUEUE に、リポジトリのイベント（EVENTS）を足す、ACTIONS をリポジトリのタイルと掘った先へ、レートのゲージは少ないときだけ、数え下げの輪をやめる、貢献の格子は印として残し 1 時間ごとの別の probe に、fine-grained トークンと通知、`mergeable` の UNKNOWN、Issue の数の定義、スターの記録は公開リポジトリだけ | レビュー（cloud-cli.md §11） |
@@ -151,7 +152,11 @@ REST の `open_issues_count` は PR を含むので使わない）、`pullReques
 
 モックのとおり。上から:
 
-- **見出し（PaneHost）**: `GITHUB`、subtitle に `@login · github.com`、badge に「main red」（danger）か §4 の語
+- **見出し（PaneHost）**: `GITHUB STATUS`、subtitle に `@login · github.com`、badge に「main red」（danger）、
+  「GitHub incident」か §4 の語
+- **障害の帯**（githubstatus.com に未解決の障害があるときだけ、1 行。impact と部品と状態。cloud-cli.md §12）。
+  CI の失敗が GitHub 側の障害と重なっていれば、QUEUE の MAIN RED の行のカードに「GitHub Actions has an open
+  incident since 13:40」と添える（自分のせいかどうかを見分けるため）
 - **上段**: ◆ランプと語、QUEUE（数、danger の数）、REVIEW（自分を待つ PR）、MAIN RED（既定ブランチが赤い
   リポジトリの数、0 なら淡く）、RATE LOW のときだけ REST / GQL の残り、右に「inbox next 14:23」（時刻を、
   変わったときだけ書く）、右端に MASK・REFRESH・⚙
@@ -217,8 +222,12 @@ REST の `open_issues_count` は PR を含むので使わない）、`pullReques
 ## 9. 後で
 
 既読化（2 度押し、別の設計）、Actions の分数と課金（`user` スコープが要る: 確かめた）、Discussions、Sponsors、
-GHES、組織の全リポジトリ横断、Dependabot の個々の警告、githubstatus.com の公開の状態（利用者に聞く: 新しい
-通信先になる）。
+GHES、組織の全リポジトリ横断、Dependabot の個々の警告。
+
+設定（settings.json の `github.incidents`、全ペインで共有。cloud-cli.md §12.5）: **notify**（GitHub の公開ステータスに障害が出たら
+トースト、既定 ON）、**minSeverity**（既定 major: 実測で 1 日に約 5 件の障害が出るので、minor まで知らせると多すぎる）、
+**components**（既定は Copilot を除く全部）、**system**（ウィンドウが前に無いときの OS の通知、既定 ON）。計画保守は
+info の帯だけで、トーストは出さない。ペインの状態: 見張るリポジトリ（AUTO / PINNED）、INBOX の範囲、貢献の帯、MASK、タブ。
 
 ## 10. テスト
 
