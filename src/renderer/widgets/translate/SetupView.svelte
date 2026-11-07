@@ -54,7 +54,7 @@ let fetchAgreed = $state(false)
  * The commit agreed to in this setup, as main answered it: FETCH goes on to READY only once that
  * commit is in place, never on the file before it (an update replaces one in place).
  */
-let agreedRevision = $state<string | null>(null)
+let agreedRevision = $state<{ model: string; revision: string } | null>(null)
 /**
  * The licence's page opened from here for the agreement to come: the summary is a guide, the page
  * is the text that holds and may change, so it is opened before the licence can be agreed to (user's
@@ -65,6 +65,12 @@ const opened = $derived(consented || clicked)
 let address = $state('')
 let problem = $state<string | null>(null)
 let selfTest = $state<{ text: string; tokensPerSecond: number } | { problem: string } | null>(null)
+
+$effect(() => {
+  // A problem is said on its own step: another step taken is not told it (review 2026-11-07).
+  void step
+  problem = null
+})
 
 $effect(() => {
   // The licence step opens agreed when this model was agreed to before.
@@ -83,7 +89,10 @@ const placed = $derived.by(() => {
   const model = board.models.find((m) => m.id === chosen)
   if (model?.installed !== true || board.fetchingModel === chosen) return false
   if (board.engine.source === 'fetched' && !board.engine.fetched) return false
-  return agreedRevision === null ? model.update === null : model.revision === agreedRevision
+  // Each model is a repository of its own: another model's commit says nothing of this one's
+  // (review 2026-11-07: one opened from the foot after agreeing to another never went on).
+  const agreedHere = agreedRevision?.model === chosen ? agreedRevision.revision : null
+  return agreedHere === null ? model.update === null : model.revision === agreedHere
 })
 
 /**
@@ -175,7 +184,7 @@ async function next(): Promise<void> {
       problem = agreed?.problem ?? 'No such model.'
       return
     }
-    agreedRevision = agreed.revision
+    agreedRevision = { model: selected.id, revision: agreed.revision }
     // Spent: another model agreed to later in this setup asks for the page again.
     clicked = false
     // Fetched beside the model in use, which goes on translating: READY makes it the settings'.

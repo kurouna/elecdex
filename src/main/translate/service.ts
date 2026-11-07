@@ -779,6 +779,9 @@ export class TranslateService {
   /** CANCEL drops the `.part` (§5), once the writer has let go of it: Windows cannot remove an open file. */
   async cancelFetch(): Promise<void> {
     const fetching = this.#fetch
+    // The model it is for, from its start: its `.part` goes too while the engine is fetched for it,
+    // or before its progress is on the board (review 2026-11-07: one left came back paused).
+    const target = this.#fetchTarget
     this.#paused = null
     // Until the `.part` is gone no fetch starts: a RESUME pressed meanwhile would write into the
     // file this removes (review 2026-11-07).
@@ -788,8 +791,8 @@ export class TranslateService {
       await this.#fetchRun?.catch(() => {})
       this.#fetch = null
       this.#fetchTarget = null
-      const model =
-        fetching?.kind === 'model' ? this.#models.find((m) => m.id === fetching.id) : undefined
+      const modelId = fetching?.kind === 'model' ? fetching.id : target
+      const model = this.#models.find((m) => m.id === modelId)
       const engine =
         fetching?.kind === 'engine'
           ? this.#engines.find((e) => e.target === fetching.id)

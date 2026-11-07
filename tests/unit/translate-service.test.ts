@@ -676,6 +676,41 @@ describe('TranslateService and the newest commits (§5)', () => {
     expect(asked.filter((url) => url.includes('/resolve/'))).toEqual([])
   })
 
+  it("CANCEL drops the model's part while the engine is fetched for it", async () => {
+    // Review 2026-11-07: only a part whose own download was on the board went; a model's part
+    // left from before stayed, and came back paused at the next start.
+    mode = 'stall'
+    const engine = {
+      target: `${process.platform}-${process.arch}-cpu`,
+      platform: process.platform,
+      arch: process.arch,
+      backend: 'cpu',
+      asset: 'llama-b12110-bin-test.zip',
+      bytes: 62_000,
+      sha256: 'a'.repeat(64),
+    }
+    const { service, modelPath } = await make({ stubServer: undefined, releasesBase: base }, true, [
+      engine,
+    ])
+    mkdirSync(path.dirname(modelPath), { recursive: true })
+    writeFileSync(partOf(modelPath), BODY.subarray(0, 9_000))
+    void service.fetchFor()
+    await expect.poll(async () => (await service.board()).fetch?.kind).toBe('engine')
+    await service.cancelFetch()
+    expect(existsSync(partOf(modelPath))).toBe(false)
+  })
+
+  it('CANCEL drops the part of a fetch cancelled before its progress is on the board', async () => {
+    mode = 'stall'
+    const { service, modelPath } = await make()
+    mkdirSync(path.dirname(modelPath), { recursive: true })
+    writeFileSync(partOf(modelPath), BODY.subarray(0, 9_000))
+    void service.fetchFor()
+    await service.cancelFetch()
+    expect(existsSync(partOf(modelPath))).toBe(false)
+    expect((await service.board()).fetch).toBeNull()
+  })
+
   it('starts no fetch of a model while it is being agreed to', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()

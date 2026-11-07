@@ -732,4 +732,54 @@ describe('SETUP opened again, or a step taken twice', () => {
       'Agree to the newer version first.',
     )
   })
+
+  it('goes on to READY for another model opened from the foot, after agreeing to one', async () => {
+    // Review 2026-11-07: the commit agreed to for one model was held against another's file, of
+    // another repository, and FETCH never went on.
+    translate.fetch = vi.fn(async () => null)
+    translate.consent = vi.fn(async () => ({ revision: 'a'.repeat(40) }))
+    const agreedAll = (over: Partial<TranslateBoard> = {}) =>
+      board({
+        models: board().models.map((m) => ({ ...m, consentAt: '2026-11-06T00:00:00Z' })),
+        ...over,
+      })
+    const p = props(agreedAll(), 3)
+    const view = render(SetupView, { props: p })
+    await settle()
+    await fireEvent.click(screen.getByTestId('translate-next'))
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    await settle()
+    expect(p.onstep).toHaveBeenCalledWith(4)
+    // Cancelled; another pane's fetch of OTHER, opened from the foot, finishes at its own commit.
+    await view.rerender({
+      step: 4,
+      chosen: OTHER,
+      board: agreedAll({ fetch: downloading(OTHER), fetchingModel: OTHER }),
+    })
+    await settle()
+    const done = agreedAll({
+      models: agreedAll().models.map((m) =>
+        m.id === OTHER ? { ...m, installed: true, revision: 'c'.repeat(40) } : m,
+      ),
+    })
+    await view.rerender({ board: done })
+    await settle()
+    expect(p.onstep).toHaveBeenCalledWith(5)
+  })
+
+  it('leaves a problem behind on the step it was said on', async () => {
+    translate.fetch = vi.fn(async () => ({ problem: 'Agree to the newer version first.' }))
+    const failed = { ...downloading(AGREED), phase: 'failed' as const, error: 'newer' }
+    const view = render(SetupView, {
+      props: props(board({ fetch: failed, fetchingModel: AGREED }), 4),
+    })
+    await settle()
+    await fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+    await settle()
+    expect(screen.getByTestId('translate-problem')).toBeTruthy()
+    // CANCEL, as it says: MODEL is not told the download's problem.
+    await view.rerender({ step: 2, board: board() })
+    await settle()
+    expect(screen.queryByTestId('translate-problem')).toBeNull()
+  })
 })
