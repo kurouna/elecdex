@@ -126,6 +126,10 @@ architecture.md §5.25。
   （盤の `serverModels`: `/props` の `model_path` のファイル名と、`/v1/models` の `meta` の大きさ・パラメータ数）を
   出す。TEST が通るまでは空で「Test the server to see the model it runs.」。ペインの副題、STANDBY の行、READY の
   Model もそのモデルの名前（TEST の前はホスト）。SETUP は ENGINE の段から READY へ直接進む。
+  実行の設定（コンテキスト長・デバイス・止めるまでの時間）も届かないので出さず、「Set by the server’s own options ·
+  context <n>」とだけ言う（n は `/props` の `default_generation_settings.n_ctx`。依頼の長さもこれで測る。言わない
+  サーバーなら設定の値）。ライセンスの Engine の行（elecdex の llama.cpp のビルドの話）も出さない。Model の行は残す
+  （TEST が PLaMo を確かめて通すので、使うのは PLaMo のまま）。
 - **狭いペイン**: 原文の下に訳文。背骨は横の線になり、対応はポインタを置いたときの光だけで見せる。
 
 ## 4. エンジン（llama-server）

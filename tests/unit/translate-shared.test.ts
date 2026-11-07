@@ -13,6 +13,7 @@ import {
 import {
   isLoopback,
   parseExternalUrl,
+  serverCtx,
   serverModels,
   servesPlamo,
 } from '../../src/shared/translate/external'
@@ -199,6 +200,14 @@ describe('external server address', () => {
     expect(
       serverModels({ model_path: '/m/a.gguf' }, { data: [{ id: 'x', meta: { size: -1 } }] }),
     ).toEqual([{ name: 'a.gguf', bytes: null, params: null }])
+  })
+
+  it('reads the context a server was started with, and nothing it did not say', () => {
+    expect(serverCtx({ default_generation_settings: { n_ctx: 16384 } })).toBe(16384)
+    expect(serverCtx({ default_generation_settings: { n_ctx: 0 } })).toBeNull()
+    expect(serverCtx({ default_generation_settings: { n_ctx: '4096' } })).toBeNull()
+    expect(serverCtx({ n_ctx: 4096 })).toBeNull()
+    expect(serverCtx(null)).toBeNull()
   })
 
   it('lists a router by its ids, and nothing for what is not a list', () => {

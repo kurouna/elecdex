@@ -69,6 +69,19 @@ export function serverModels(props: unknown, list: unknown): ServerModel[] {
   return entries
 }
 
+/**
+ * The context a llama-server was started with (`-c`), from `/props`'s
+ * `default_generation_settings.n_ctx`; null where it does not say. Its own options decide it, not
+ * elecdex's settings, so a request is measured against it.
+ */
+export function serverCtx(props: unknown): number | null {
+  if (typeof props !== 'object' || props === null) return null
+  const settings = (props as { default_generation_settings?: unknown }).default_generation_settings
+  if (typeof settings !== 'object' || settings === null) return null
+  const n = (settings as { n_ctx?: unknown }).n_ctx
+  return typeof n === 'number' && Number.isInteger(n) && n > 0 ? n : null
+}
+
 function modelPath(props: unknown): string | null {
   if (typeof props !== 'object' || props === null) return null
   const path = (props as { model_path?: unknown }).model_path

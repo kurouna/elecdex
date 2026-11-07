@@ -29,6 +29,7 @@ import {
 import {
   parseExternalUrl,
   type ServerModel,
+  serverCtx,
   serverModels,
   servesPlamo,
 } from '@shared/translate/external'
@@ -140,8 +141,8 @@ export class TranslateService {
   readonly #listeners = new Set<() => void>()
   /** ENGINE's check for newer commits while it is under way (§5). */
   #checking: Promise<void> | null = null
-  /** What the external server runs, as last read; empty until TEST passes (EngineView.serverModels). */
-  #serverModels: ServerModel[] = []
+  /** What the external server runs and its context, as last read; nothing until TEST passes. */
+  #server: ServerRead = { models: [], ctx: null }
   /** TEST is reading the server: the ready it brings is not a server answering again. */
   #testing = false
   #lastPhase: string | null = null
@@ -192,7 +193,7 @@ export class TranslateService {
       stalled: () => this.engine.stalled(),
       external: () => this.#file.read().source === 'external',
       unreachable: () => this.engine.unreachable(),
-      ctx: () => this.#settings.ctx,
+      ctx: () => this.#ctx(),
       tokenize: (endpoint, text, signal) => tokenize(fetch, endpoint, text, signal),
       complete: (endpoint, body, signal, onText) =>
         streamCompletion(fetch, endpoint, body, signal, onText, this.engine.answerStallMs()),
@@ -533,7 +534,7 @@ export class TranslateService {
     if (kind === 'own' && !file.own) throw new Error('Choose your llama-server first.')
     if (kind === 'external' && !file.external) throw new Error('Test a server address first.')
     // Chosen again untested, the server's models are read again when it answers.
-    this.#serverModels = []
+    this.#server = { models: [], ctx: null }
     this.#file.write({ ...file, source: kind })
     void this.#reconfigure('The engine was changed.')
     this.#changed()
@@ -568,7 +569,7 @@ export class TranslateService {
           read.problem === 'nothing' ? `Nothing answered at ${parsed.host}.` : read.problem
         return { ok: false, problem }
       }
-      this.#serverModels = read.models
+      this.#server = read
       const current = this.#file.read()
       this.#file.write({ ...current, external: { origin: parsed.origin }, source: 'external' })
       // After the change has taken: the restart it causes would otherwise mark the server untested again.
@@ -591,8 +592,8 @@ export class TranslateService {
     if (this.engine.phase !== 'external-ready') return
     const read = await readServer(file.external.origin)
     if ('problem' in read || this.#file.read().external?.origin !== file.external.origin) return
-    if (JSON.stringify(read.models) === JSON.stringify(this.#serverModels)) return
-    this.#serverModels = read.models
+    if (JSON.stringify(read) === JSON.stringify(this.#server)) return
+    this.#server = read
     // The answer's wait follows the model's size (answerStallMs); nothing restarts for it.
     void this.engine.configure(this.#config())
     this.#changed()
@@ -991,7 +992,7 @@ export class TranslateService {
     const installed = model && existsSync(this.#modelPath(model)) ? model : undefined
     // An external server runs its own model, whatever is chosen here: its size is the one it says.
     const bytes =
-      file.source === 'external' ? (this.#serverModels[0]?.bytes ?? 0) : (installed?.bytes ?? 0)
+      file.source === 'external' ? (this.#server.models[0]?.bytes ?? 0) : (installed?.bytes ?? 0)
     return {
       source: file.source,
       launches: this.#launches(file),
@@ -1001,6 +1002,15 @@ export class TranslateService {
       idleMinutes: this.#settings.idleMinutes,
       origin: file.external?.origin ?? null,
     }
+  }
+
+  /**
+   * The context a request is measured against: an external server's own (its `-c`, not elecdex's
+   * setting, which it never hears), or the setting for the engines elecdex starts.
+   */
+  #ctx(): number {
+    const external = this.#file.read().source === 'external'
+    return (external ? this.#server.ctx : null) ?? this.#settings.ctx
   }
 
   #engineView(): EngineView {
@@ -1013,14 +1023,14 @@ export class TranslateService {
       backend: this.engine.backend,
       device: this.engine.device,
       port: this.engine.port,
-      ctx: this.engine.ctx,
+      ctx: file.source === 'external' ? this.#ctx() : this.engine.ctx,
       error: this.engine.error,
       fallback: this.engine.fallback,
       bootLines: this.engine.bootLines(),
       externalHost: external?.ok ? external.host : null,
       externalLoopback: external?.ok ? external.loopback : false,
       externalOrigin: external?.ok ? external.origin : null,
-      serverModels: file.source === 'external' ? this.#serverModels : [],
+      serverModels: file.source === 'external' ? this.#server.models : [],
       own: file.own ? { name: path.basename(file.own.path), build: file.own.build } : null,
       fetched:
         Boolean(this.#env.stubServer) ||
@@ -1115,13 +1125,20 @@ async function health(origin: string, key: string | null): Promise<number | null
   }
 }
 
+/** What an external server said of itself: its models, and the context it was started with. */
+interface ServerRead {
+  models: ServerModel[]
+  ctx: number | null
+}
+
 /**
- * What an external server runs (§4.1): its `/props` must name PLaMo 3 Translate; `/v1/models`
- * adds the sizes, and a server without it is taken all the same. Redirects are refused.
+ * What an external server runs (§4.1): its `/props` must name PLaMo 3 Translate, and says its
+ * context; `/v1/models` adds the sizes, and a server without it is taken all the same. Redirects
+ * are refused.
  */
 async function readServer(
   origin: string,
-): Promise<{ models: ServerModel[] } | { problem: 'nothing' | (string & {}) }> {
+): Promise<ServerRead | { problem: 'nothing' | (string & {}) }> {
   const get = (route: string) =>
     fetch(`${origin}${route}`, { redirect: 'error', signal: AbortSignal.timeout(5000) })
   let response: Response
@@ -1139,7 +1156,7 @@ async function readServer(
   const list: unknown = await get('/v1/models')
     .then((answer) => (answer.ok ? answer.json() : null))
     .catch(() => null)
-  return { models: serverModels(props, list) }
+  return { models: serverModels(props, list), ctx: serverCtx(props) }
 }
 
 function freePort(): Promise<number> {

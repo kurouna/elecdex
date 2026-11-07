@@ -159,6 +159,12 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
     {/if}
 
     <span class="lbl">Run</span>
+    <!-- The server's own options decide how it runs: these settings never reach it. -->
+    {#if external}
+    <div class="val" data-testid="translate-server-run">
+      <span class="small">Set by the server’s own options{board.engine.phase === 'external-ready' ? ` · context ${board.engine.ctx}` : ''}.</span>
+    </div>
+    {:else}
     <div class="val runs">
       <label>Context
         <select value={settings.ctx} onchange={(e) => patch({ ctx: Number(e.currentTarget.value) })}>
@@ -176,6 +182,7 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
         </select>
       </label>
     </div>
+    {/if}
 
     <span class="lbl">Log</span>
     <div class="val"><pre class="log">{logs.join('\n')}</pre></div>
@@ -183,7 +190,10 @@ async function setSource(kind: 'fetched' | 'own' | 'external'): Promise<void> {
     <span class="lbl">Licence</span>
     <div class="val">
       <span>Model: PLaMo Community License · Built with PLaMo · <button data-press="off" type="button" class="link" onclick={() => void api.openLicence('plamo')}>read it ↗</button></span>
+      <!-- An external server is not elecdex's build: its licences are its own. -->
+      {#if !external}
       <span>Engine: llama.cpp, MIT · <button data-press="off" type="button" class="link" onclick={() => void api.openLicence('llama')}>read it ↗</button> · its licences and those of the code built into it are kept beside it</span>
+      {/if}
     </div>
   </div>
 </div>

@@ -295,7 +295,11 @@ async function externalServer(): Promise<{
     res.writeHead(200, { 'content-type': 'application/json' })
     const answer =
       req.url === '/props'
-        ? { model_path: `/models/${model.file}`, total_slots: 1 }
+        ? {
+            model_path: `/models/${model.file}`,
+            total_slots: 1,
+            default_generation_settings: { n_ctx: 4096 },
+          }
         : req.url === '/v1/models'
           ? {
               object: 'list',
@@ -329,7 +333,7 @@ test('TEST of an external server that runs PLaMo 3 makes it the engine', async (
   }
 })
 
-test('an external server shows the model it runs, never elecdex’s list to choose from', async () => {
+test('an external server shows the model it runs, never elecdex’s list or settings that do not reach it', async () => {
   // User's request 2026-11-07: the server runs its own model, so a list there chose nothing.
   const external = await externalServer()
   const { page, close } = await launch(undefined, { layout: single('translate') })
@@ -346,6 +350,12 @@ test('an external server shows the model it runs, never elecdex’s list to choo
     await expect(engine.getByRole('button', { name: 'Set up a model…' })).toHaveCount(0)
     await expect(engine.getByRole('button', { name: /^0\.8B/ })).toHaveCount(0)
     await expect(page.getByTestId('pane-subtitle')).toContainText('plamo-3-translate-8b-Q4_K_M')
+    // Its own options decide how it runs, and its licences are its own: elecdex's never reach it.
+    await expect(page.getByTestId('translate-server-run')).toContainText('context 4096')
+    await expect(engine.getByLabel('Context')).toHaveCount(0)
+    await expect(engine.getByLabel('Device')).toHaveCount(0)
+    await expect(engine).not.toContainText('Engine: llama.cpp')
+    await expect(engine).toContainText('Model: PLaMo Community License')
 
     // The server started again with another model: ENGINE opened again reads it again.
     external.model.file = 'plamo-3-translate-0.8b-kansai.gguf'
@@ -360,6 +370,8 @@ test('an external server shows the model it runs, never elecdex’s list to choo
     await expect(engine.getByRole('button', { name: 'Set up a model…' })).toBeVisible()
     await expect(models).toHaveCount(0)
     await expect(page.getByTestId('pane-subtitle')).not.toContainText('kansai')
+    await expect(engine.getByLabel('Context')).toBeVisible()
+    await expect(engine).toContainText('Engine: llama.cpp')
   } finally {
     await close()
     stopServer(external.server)
