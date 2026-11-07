@@ -393,6 +393,9 @@ export class TranslateEngine {
       : (await this.#deps.health(origin, null)) === 200
         ? null
         : `The server at ${origin} does not answer.`
+    // Another server set meanwhile (TEST of a new address): this answer is not its, and the
+    // request goes to the server now set (review 2026-11-07).
+    if (this.#config.origin !== origin) return this.ensure()
     this.tested(problem === null)
     if (problem !== null) throw new Error(problem)
     return { origin, key: null }

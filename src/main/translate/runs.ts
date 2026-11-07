@@ -86,6 +86,11 @@ interface Run {
   orphan: unknown
   /** Told to the history already: once a run, however its round trips go on. */
   recorded: boolean
+  /**
+   * Opened from the history: its blocks never written are the entry's, not gaps this run left,
+   * so they do not keep it stopped (review 2026-11-07: a ROUND TRIP of a partial entry did).
+   */
+  fromHistory: boolean
   /** A finished LIVE run waits this long to be recorded. */
   liveRecord: unknown
   /** The language its round trips go back into (§6.4). */
@@ -287,6 +292,7 @@ export class TranslateRuns {
       orphan: null,
       // From the history: never written there again.
       recorded: true,
+      fromHistory: true,
       liveRecord: null,
       tripLang: null,
       pending: new Map(),
@@ -452,8 +458,11 @@ export class TranslateRuns {
 
   #finish(run: Run): void {
     // Blocks left unwritten (STOP, then RETRY of one of them) keep the run stopped: a translation
-    // with gaps is never shown, nor recorded, as done (§3, review 2026-11-07).
-    if (run.view.blocks.some((block) => block.state === 'none' || block.state === 'stopped')) {
+    // with gaps is never shown, nor recorded, as done (§3, review 2026-11-07). An entry opened from
+    // the history keeps its own gaps, as it was shown.
+    const gap = (block: RunView['blocks'][number]): boolean =>
+      block.state === 'stopped' || (block.state === 'none' && !run.fromHistory)
+    if (run.view.blocks.some(gap)) {
       this.#setState(run, 'stopped', 'Not every block is translated.')
       this.#flushNow(run)
       if (run.view.mode === 'translate') this.#recorded(run)
@@ -803,6 +812,7 @@ function newRun(
     abort: null,
     orphan: null,
     recorded: false,
+    fromHistory: false,
     liveRecord: null,
     tripLang: null,
     pending: new Map(),

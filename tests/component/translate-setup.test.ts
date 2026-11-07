@@ -164,6 +164,47 @@ describe('ENGINE and the newest commits', () => {
     expect(translate.checkUpdates).toHaveBeenCalledTimes(1)
   })
 
+  it('says another model’s download comes first, and holds UPDATE until it is done (review 2026-11-07)', async () => {
+    const onsetup = vi.fn()
+    const models = board().models.map((m) =>
+      m.id === AGREED
+        ? {
+            ...m,
+            installed: true,
+            revision: 'a'.repeat(40),
+            update: { revision: 'e'.repeat(40), date: '2026-11-06T00:49:00.000Z' },
+          }
+        : m,
+    )
+    const fetch = {
+      kind: 'model' as const,
+      id: 'plamo3-0.8b-q4km',
+      phase: 'paused' as const,
+      received: 1,
+      total: 2,
+      speed: 0,
+      error: null,
+    }
+    render(EngineView, {
+      props: {
+        board: board({ models, fetch, fetchingModel: 'plamo3-0.8b-q4km' }),
+        settings: TRANSLATE_DEFAULTS,
+        chosen: AGREED,
+        onpick: () => {},
+        onsetup,
+        onupdate: () => {},
+        ondone: () => {},
+      },
+    })
+    await settle()
+    expect(screen.getByTestId('translate-fetch-left').textContent).toMatch(
+      /plamo-3-translate-0\.8b-q4km's download is paused: setting up or updating another model waits/,
+    )
+    expect((screen.getByTestId('translate-update') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByTestId('translate-fetch-left-open'))
+    expect(onsetup).toHaveBeenCalledWith(4)
+  })
+
   it('offers UPDATE, with the date, for a model behind its repository', async () => {
     const models = board().models.map((m) =>
       m.id === AGREED
@@ -489,7 +530,9 @@ describe('SETUP fetching a model beside the one in use', () => {
     })
     render(SetupView, {
       props: {
-        board: inUse(),
+        board: inUse({
+          models: inUse().models.map((m) => (m.id === OTHER ? { ...m, installed: true } : m)),
+        }),
         step: 5,
         chosen: OTHER,
         onstep: () => {},
@@ -504,5 +547,64 @@ describe('SETUP fetching a model beside the one in use', () => {
     commit()
     await settle()
     expect(order).toEqual(['commit', 'selfTest'])
+  })
+})
+
+describe('SETUP when the download ends without the model in place', () => {
+  // Review 2026-11-07: cancelled in another pane, FETCH let NEXT through to READY, which made a
+  // model not in place the settings' and left every pane without the one that translated.
+  const OTHER = 'plamo3-0.8b-q4km'
+  const fetch = {
+    kind: 'model' as const,
+    id: OTHER,
+    phase: 'downloading' as const,
+    received: 1,
+    total: 10,
+    speed: 0,
+    error: null,
+  }
+  const inUse = (over: Partial<TranslateBoard> = {}) =>
+    board({
+      models: board().models.map((m) => (m.id === AGREED ? { ...m, installed: true } : m)),
+      ...over,
+    })
+  const props = (b: TranslateBoard, step: number, oncommit = vi.fn(async () => {})) => ({
+    board: b,
+    step,
+    chosen: OTHER,
+    onstep: vi.fn(),
+    onselect: () => {},
+    oncommit,
+    ondone: () => {},
+  })
+
+  it('says so on FETCH, keeps NEXT off, and goes back to the models', async () => {
+    const p = props(inUse({ fetch, fetchingModel: OTHER }), 4)
+    const view = render(SetupView, { props: p })
+    await settle()
+    expect(screen.queryByTestId('translate-fetch-gone')).toBeNull()
+    await view.rerender({ board: inUse() })
+    await settle()
+    expect(screen.getByTestId('translate-fetch-gone').textContent).toMatch(
+      /ended without plamo-3-translate-0\.8b-q4km in place/,
+    )
+    expect((screen.getByTestId('translate-next') as HTMLButtonElement).disabled).toBe(true)
+    await fireEvent.click(screen.getByRole('button', { name: 'Back to models' }))
+    expect(p.onstep).toHaveBeenCalledWith(2)
+    expect(p.onstep).not.toHaveBeenCalledWith(5)
+  })
+
+  it('says nothing ended before the fetch just asked for is on the board', async () => {
+    render(SetupView, { props: props(inUse(), 4) })
+    await settle()
+    expect(screen.queryByTestId('translate-fetch-gone')).toBeNull()
+  })
+
+  it('never makes a model not in place the settings’ on READY', async () => {
+    const oncommit = vi.fn(async () => {})
+    render(SetupView, { props: props(inUse(), 5, oncommit) })
+    await settle()
+    expect(oncommit).not.toHaveBeenCalled()
+    expect(translate.selfTest).toHaveBeenCalledOnce()
   })
 })

@@ -380,7 +380,7 @@ export class TranslateService {
       engine: this.#engineView(),
       models,
       fetch: this.#fetch,
-      fetchingModel: this.#fetch ? this.#fetchTarget : null,
+      fetchingModel: this.#fetch !== null || this.#fetchRun !== null ? this.#fetchTarget : null,
       selectedModel: this.#settings.modelId,
       library: this.library.revision,
       machine: { ...this.#machine, freeBytes: await freeBytes(this.#root) },
@@ -662,12 +662,16 @@ export class TranslateService {
    */
   async #probeExternal(origin: string): Promise<string | null> {
     const read = await readServer(origin)
+    // A server replaced while it was asked (TEST of another address): its answer is not the new
+    // one's, which keeps what its own TEST read (review 2026-11-07).
+    const current = this.#file.read().external?.origin === origin
     if ('problem' in read) {
       const problem =
         read.problem === 'nothing' ? `The server at ${origin} does not answer.` : read.problem
-      this.#serverProblem = problem
+      if (current) this.#serverProblem = problem
       return problem
     }
+    if (!current) return null
     this.#server = read
     this.#serverProblem = null
     void this.engine.configure(this.#config())
@@ -690,10 +694,14 @@ export class TranslateService {
     if (this.#cancelling) return 'The download is being cancelled: a moment, please.'
     const model = this.#models.find((m) => m.id === modelId)
     if (!model) return 'No such model.'
-    // One fetch at a time: another model's, paused or failed, is resumed or cancelled first, so
-    // its `.part` is never left behind unseen.
-    if (this.#fetch !== null && this.#fetchTarget !== null && this.#fetchTarget !== modelId)
-      return 'Another model is being fetched: resume or cancel it first.'
+    // One fetch at a time: another model's, under way, paused or failed, is finished or cancelled
+    // first, so its `.part` is never left behind unseen. Under way counts from the start, before
+    // its progress is on the board (review 2026-11-07: a second one joined the first's run).
+    const other = this.#fetchTarget !== null && this.#fetchTarget !== modelId
+    if (other && this.#fetchRun !== null)
+      return 'Another model is being fetched: let it finish, or cancel it, first.'
+    if (other && this.#fetch !== null)
+      return "Another model's download is paused or failed: resume or cancel it first."
     // An agreement made before commits were followed names no file: it is asked again.
     if (this.#file.read().consents[model.id]?.bytes === undefined)
       return 'Agree to the licence first.'
@@ -718,6 +726,8 @@ export class TranslateService {
     const model = this.#models.find((m) => m.id === modelId)
     if (!model || this.fetchProblem(modelId)) return
     this.#fetchTarget = model.id
+    // Said at once: SETUP waits for the board to name the model being fetched.
+    this.#changed()
     // A fetch paused before elecdex last quit is taken up from its `.part` (§5).
     if (this.#fetch?.phase === 'paused') this.#fetch = { ...this.#fetch, phase: 'downloading' }
     const controller = new AbortController()

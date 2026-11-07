@@ -73,12 +73,28 @@ $effect(() => {
   fetchAgreed = consented
 })
 
-$effect(() => {
-  // A fetch that has finished moves on to READY by itself: the chosen model in place at the
-  // commit agreed to. Until an update is placed, the file before it is.
+/** The chosen model in place at the commit agreed to: until an update is placed, the file before it is. */
+const placed = $derived.by(() => {
   const model = board.models.find((m) => m.id === chosen)
-  const placed = agreedRevision === null || model?.revision === agreedRevision
-  if (step === 4 && board.fetch === null && model?.installed && placed) onstep(5)
+  return model?.installed === true && (agreedRevision === null || model.revision === agreedRevision)
+})
+
+/**
+ * FETCH saw its fetch on the board. Until then a fetch just asked for may not be there yet; once
+ * it was, a board with none and the model not in place means it ended without it (cancelled in
+ * another pane, or dropped).
+ */
+let fetchSeen = $state(false)
+$effect(() => {
+  if (step === 4 && board.fetchingModel === chosen) fetchSeen = true
+})
+const fetchGone = $derived(
+  step === 4 && fetchSeen && board.fetchingModel !== chosen && board.fetch === null && !placed,
+)
+
+$effect(() => {
+  // A fetch that has finished moves on to READY by itself.
+  if (step === 4 && board.fetch === null && placed) onstep(5)
 })
 
 /** READY's self test, asked once: of the chosen model, made the settings' first. */
@@ -90,9 +106,12 @@ $effect(() => {
 })
 
 async function readyTest(): Promise<void> {
-  // Awaited: main has the new settings, and the engine their model, before the test is sent - the
-  // engine before it would answer for the model it ran (2026-11-07).
-  await oncommit()
+  // Only a model in place becomes the settings' (review 2026-11-07): one not fetched would leave
+  // every pane without the model that was translating. Awaited: main has the new settings, and the
+  // engine their model, before the test is sent - the engine before it would answer for the model
+  // it ran (2026-11-07). An external server runs its own model: nothing is chosen for it.
+  if (board.engine.source !== 'external' && board.models.find((m) => m.id === chosen)?.installed)
+    await oncommit()
   selfTest = await api.selfTest()
 }
 
@@ -165,7 +184,8 @@ const nextDisabled = $derived(
     board.engine.phase === 'external-untested') ||
     (step === 2 && !selected) ||
     (step === 3 && !(agreed && fetchAgreed)) ||
-    (step === 4 && board.fetch !== null),
+    // FETCH goes on by itself once the model is in place; never to READY without it.
+    (step === 4 && !placed),
 )
 </script>
 
@@ -268,6 +288,10 @@ const nextDisabled = $derived(
       {:else if step === 4}
         {@const fetch = board.fetch}
         <div class="head"><h2>Fetch</h2><p>{fetch?.kind === 'engine' ? 'llama.cpp from github.com' : 'the model from huggingface.co'}</p></div>
+        {#if fetchGone}
+          <p class="problem" data-testid="translate-fetch-gone">The download ended without {modelName(chosen)} in place: it was cancelled or stopped.</p>
+          <div class="row"><button type="button" class="btn lit" onclick={() => onstep(2)}>Back to models</button></div>
+        {/if}
         {#if fetch}
           <div class="fetch">
             <div class="pct" data-testid="translate-fetch-percent">{fetchPercent(fetch)}<small>%</small></div>

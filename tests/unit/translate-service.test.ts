@@ -386,11 +386,24 @@ describe('TranslateService fetching a model beside the one in use', () => {
     await expect.poll(() => partSize(otherPath())).toBe(15_000)
     service.pause()
     await run
-    expect(service.fetchProblem(MODEL.id)).toMatch(/Another model is being fetched/)
+    expect(service.fetchProblem(MODEL.id)).toMatch(/paused or failed/)
     expect(service.fetchProblem(OTHER.id)).toBeNull()
     await service.cancelFetch()
     expect((await service.board()).fetchingModel).toBeNull()
     expect(service.fetchProblem(MODEL.id)).toBeNull()
+  })
+
+  it('refuses another model from the moment a fetch starts, before its progress is on the board', async () => {
+    // Review 2026-11-07: in that window a second fetch was let through and joined the first's run.
+    const { service } = await inUse()
+    mode = 'stall'
+    const run = service.fetchFor(OTHER.id)
+    expect(service.fetchProblem(MODEL.id)).toMatch(/Another model is being fetched/)
+    expect((await service.board()).fetchingModel).toBe(OTHER.id)
+    await expect.poll(() => partSize(otherPath())).toBe(15_000)
+    service.pause()
+    await run
+    expect(service.fetchProblem(MODEL.id)).toMatch(/paused or failed/)
   })
 
   it('shows a paused fetch of a model not in use at the next start, for that model', async () => {
@@ -409,10 +422,11 @@ describe('TranslateService fetching a model beside the one in use', () => {
 
 describe('TranslateService and an external server', () => {
   /** A llama-server elsewhere: /completion may send the text on to `elsewhere` by a redirect. */
-  async function external(state: { model: string; redirect?: string }) {
+  async function external(state: { model: string; redirect?: string; hold?: Promise<void> }) {
     const hits: string[] = []
-    const ext = createServer((req, res) => {
+    const ext = createServer(async (req, res) => {
       hits.push(req.url ?? '')
+      if (req.url === '/props' && state.hold) await state.hold
       if (req.url === '/completion' && state.redirect) {
         res.writeHead(302, { location: `${state.redirect}/completion` })
         res.end()
@@ -466,6 +480,42 @@ describe('TranslateService and an external server', () => {
     } finally {
       ext.closeAllConnections()
       ext.close()
+    }
+  })
+
+  it('keeps what TEST read of a new server when the old one answers a probe late', async () => {
+    // Review 2026-11-07: the old server's answer, asked before TEST, overwrote the new one's model.
+    const { service } = await make()
+    let release!: () => void
+    const old = { model: 'plamo-3-translate-2b-Q4_K_M.gguf' } as {
+      model: string
+      hold?: Promise<void>
+    }
+    const a = await external(old)
+    const b = await external({ model: 'plamo-3-translate-8b-Q4_K_M.gguf' })
+    try {
+      await service.testExternal(a.origin)
+      old.hold = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      // Not known ready: the next request asks the server what it runs first.
+      service.engine.tested(false)
+      const probe = service.engine.ensure().catch(() => {})
+      await expect.poll(() => a.hits.filter((url) => url === '/props').length).toBe(2)
+      expect(await service.testExternal(b.origin)).toMatchObject({ ok: true })
+      release()
+      await probe
+      const board = await service.board()
+      expect(board.engine.serverModels.map((m) => m.name)).toEqual([
+        'plamo-3-translate-8b-Q4_K_M.gguf',
+      ])
+      // Nor does the old server's answer decide whether the new one is up.
+      expect(service.engine.phase).toBe('external-ready')
+    } finally {
+      for (const { ext } of [a, b]) {
+        ext.closeAllConnections()
+        ext.close()
+      }
     }
   })
 

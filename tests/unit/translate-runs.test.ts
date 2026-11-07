@@ -527,6 +527,44 @@ describe('TranslateRuns with a glossary, a context and the history', () => {
     expect(records).toEqual([])
   })
 
+  it('leaves a partial entry from the history done after a ROUND TRIP, so another can follow', async () => {
+    // Review 2026-11-07: its blocks never written were taken for gaps, and the run stopped.
+    const h = harness()
+    h.runs.follow('p1')
+    const block = (index: number, source: string, text: string, state: 'done' | 'none') => ({
+      index,
+      lead: index === 0 ? '' : '\n\n',
+      source,
+      text,
+      state,
+      note: null,
+      tokens: null,
+      ms: null,
+      history: 0,
+      terms: 0,
+      edited: false,
+      trip: null,
+    })
+    h.runs.show('p1', {
+      draftId: 'd9',
+      srcLang: 'en',
+      tgtLang: 'ja',
+      form: 'polite',
+      blocks: [block(0, 'Hi.', 'やあ。', 'done'), block(1, 'Bye.', '', 'none')],
+      tail: '',
+      detected: null,
+      context: '',
+      glossary: null,
+    })
+    h.runs.roundTrip('p1', 'en')
+    await answer(h, 'Hi.')
+    h.tick(FLUSH_MS)
+    expect(h.page('p1')?.state).toBe('done')
+    h.runs.roundTrip('p1', 'fr')
+    const again = await answer(h, 'Salut.')
+    expect(again.prompt).toContain('やあ。')
+  })
+
   it('records what a TRANSLATE wrote, as partial, when a history entry is opened over it', async () => {
     const records: RunView[] = []
     const h = harness({ record: (view) => records.push(view) })

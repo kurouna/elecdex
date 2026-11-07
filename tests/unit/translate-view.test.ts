@@ -10,6 +10,7 @@ import {
   phaseLamp,
   serverModelFacts,
   setupAnotherStep,
+  setupOpening,
   shownModel,
   sourceOffset,
   tiers,
@@ -81,6 +82,31 @@ describe('translate view', () => {
     expect(setupAnotherStep(installed)).toBe(2)
     // Where something is still needed first, that step as before.
     expect(setupAnotherStep(board({ engine: engine({ fetched: false }) }))).toBe(1)
+  })
+
+  it('opens SETUP on a download left, for its model, wherever it was asked to open (review 2026-11-07)', () => {
+    const fetch = {
+      kind: 'model' as const,
+      id: 'plamo3-31b-q4km',
+      phase: 'paused' as const,
+      received: 1,
+      total: 2,
+      speed: 0,
+      error: null,
+    }
+    const left = board({ fetch, fetchingModel: 'plamo3-31b-q4km' })
+    // An Update asked for at LICENCE, and "Set up this model ›" at MODEL: the download comes first.
+    expect(setupOpening(left, 'plamo3-2b-q4km', 3)).toEqual({ step: 4, model: 'plamo3-31b-q4km' })
+    expect(setupOpening(left, 'plamo3-0.8b-q4km', 2)).toEqual({ step: 4, model: 'plamo3-31b-q4km' })
+    expect(setupOpening(left, 'plamo3-2b-q4km', 'another')).toEqual({
+      step: 4,
+      model: 'plamo3-31b-q4km',
+    })
+    // With none left, the step asked for and the model chosen.
+    expect(setupOpening(board(), 'plamo3-0.8b-q4km', 2)).toEqual({
+      step: 2,
+      model: 'plamo3-0.8b-q4km',
+    })
   })
 
   it('says a download at NO MODEL as it stands', () => {

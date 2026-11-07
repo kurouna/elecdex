@@ -127,6 +127,23 @@ export function setupAnotherStep(board: TranslateBoard, chosen = board.selectedM
   return step === 5 ? 2 : step
 }
 
+/**
+ * Where SETUP opens, and for which model: at the step asked for (`another`: to set up another
+ * model), else where it is needed. A download left (under way, paused or failed) comes first,
+ * wherever it was asked to open: on FETCH, for the model it is for (review 2026-11-07: LICENCE of
+ * another was a dead end, and an Update was quietly swapped for it). ENGINE says so beforehand.
+ */
+export function setupOpening(
+  board: TranslateBoard,
+  chosen: string,
+  at?: number | 'another',
+): { step: number; model: string } {
+  if (board.fetch && board.fetchingModel) return { step: 4, model: board.fetchingModel }
+  const step =
+    at === 'another' ? setupAnotherStep(board, chosen) : (at ?? firstSetupStep(board, chosen))
+  return { step, model: chosen }
+}
+
 /** Bytes as Hugging Face writes them (1 GB = 10^9 bytes). */
 export function formatBytes(bytes: number): string {
   if (bytes < 1e6) return `${Math.max(0, Math.round(bytes / 1e3))} KB`

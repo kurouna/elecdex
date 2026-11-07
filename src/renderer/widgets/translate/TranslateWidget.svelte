@@ -16,10 +16,9 @@ import SetupView from './SetupView.svelte'
 import TextView from './TextView.svelte'
 import {
   fetchFoot,
-  firstSetupStep,
   modelName,
   phaseLamp,
-  setupAnotherStep,
+  setupOpening,
   shownModel,
   whereTextGoes,
 } from './translate-view.ts'
@@ -130,13 +129,10 @@ onSummoned(
 
 /** SETUP at a step, where it is needed, or (`another`) to set up another model: never at READY. */
 function openSetup(at?: number | 'another'): void {
-  // A fetch left under way goes on in SETUP for the model it is for, not the one in use.
-  if (board?.fetchingModel) pendingModel = board.fetchingModel
-  if (board)
-    step =
-      at === 'another'
-        ? setupAnotherStep(board, chosenModel)
-        : (at ?? firstSetupStep(board, chosenModel))
+  if (!board) return
+  const opening = setupOpening(board, chosenModel, at)
+  step = opening.step
+  if (opening.model !== chosenModel) pendingModel = opening.model
   view = 'setup'
 }
 </script>

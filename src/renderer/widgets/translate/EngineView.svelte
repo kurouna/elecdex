@@ -63,6 +63,15 @@ const external = $derived(board.engine.source === 'external')
 const phase = $derived(board.engine.phase)
 /** The settings' model, which runs: marked "in use" beside the one chosen here (§3). */
 const inUse = $derived(board.selectedModel)
+/** Another model's download left (under way, paused or failed): it comes before any other setup. */
+const leftFetch = $derived.by(() => {
+  const fetch = board.fetch
+  const model = board.fetchingModel
+  if (!fetch || !model) return null
+  const word =
+    fetch.phase === 'paused' ? 'paused' : fetch.phase === 'failed' ? 'failed' : 'under way'
+  return { model, word }
+})
 
 function patch(change: Partial<Settings['translate']>): void {
   void appearance.patch({ translate: change })
@@ -192,7 +201,7 @@ function copyLog(): void {
             <span class="acts">
               {#if model.id === inUse}<span class="tag" data-testid="translate-in-use">in use</span>{/if}
               {#if state.update}
-                <button type="button" class="btn lit" data-testid="translate-update" onclick={() => onupdate(model.id)}>Update</button>
+                <button type="button" class="btn lit" data-testid="translate-update" disabled={board.fetch !== null && board.fetchingModel !== null && board.fetchingModel !== model.id} onclick={() => onupdate(model.id)}>Update</button>
                 <span class="small">newer, {state.update.date?.slice(0, 10) ?? 'out now'}</span>
               {/if}
               <!-- Gigabytes, and the model in use stops the engine: a second press removes it. -->
@@ -203,6 +212,12 @@ function copyLog(): void {
           {/if}
         {/each}
       </div>
+      <!-- One download at a time: another model's left is finished or cancelled before any other is
+           set up or updated (review 2026-11-07), and said here, with the way to it. -->
+      {#if leftFetch !== null}
+        <span class="small pending" data-testid="translate-fetch-left">{modelName(leftFetch.model)}'s download is {leftFetch.word}: setting up or updating another model waits until it is finished or cancelled.</span>
+        <button type="button" class="btn" data-testid="translate-fetch-left-open" onclick={() => onsetup(4)}>See the download ›</button>
+      {/if}
       <!-- The choice waits for DONE (user's request 2026-11-06): said, so it is not taken for made. -->
       {#if chosen !== inUse}
         <span class="small pending" data-testid="translate-model-pending">{modelName(chosen)} is chosen: {selectedInPlace ? 'Done switches to it' : 'Set up this model › fetches it'}; leaving otherwise keeps {modelName(inUse)}.</span>
