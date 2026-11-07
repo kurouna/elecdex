@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   etaText,
+  fetchFoot,
   fetchLine,
   fetchPercent,
   firstSetupStep,
@@ -51,6 +52,7 @@ const board = (over: Partial<TranslateBoard> = {}): TranslateBoard => ({
     consentAt: null,
   })),
   fetch: null,
+  fetchingModel: null,
   selectedModel: 'plamo3-2b-q4km',
   machine: { ramGB: 16, vramGB: null, gpu: null, freeBytes: null },
   ...over,
@@ -99,6 +101,26 @@ describe('translate view', () => {
       "The engine's download failed: HTTP 404.",
     )
     expect(modelName('plamo3-2b-q4km')).toBe('plamo-3-translate-2b-q4km')
+  })
+
+  it('says another model’s download shortly, for the footer beside the model in use', () => {
+    const fetch = {
+      kind: 'model' as const,
+      id: 'plamo3-31b-q4km',
+      phase: 'downloading' as const,
+      received: 5e9,
+      total: 20e9,
+      speed: 1,
+      error: null,
+    }
+    expect(fetchFoot(fetch, 'plamo3-31b-q4km')).toBe('plamo-3-translate-31b-q4km 25% fetched')
+    expect(fetchFoot({ ...fetch, phase: 'paused' }, 'plamo3-31b-q4km')).toBe(
+      'plamo-3-translate-31b-q4km paused at 25%',
+    )
+    // The engine fetched first is said as the model's download it is for.
+    expect(fetchFoot({ ...fetch, kind: 'engine', phase: 'failed' }, 'plamo3-31b-q4km')).toBe(
+      'plamo-3-translate-31b-q4km download failed',
+    )
   })
 
   it("writes a server model's size from what it said, leaving out what it did not", () => {

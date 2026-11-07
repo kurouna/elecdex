@@ -53,6 +53,7 @@ const board = (over: Partial<TranslateBoard> = {}): TranslateBoard => ({
     consentAt: m.id === AGREED ? '2026-11-06T00:00:00.000Z' : null,
   })),
   fetch: null,
+  fetchingModel: null,
   selectedModel: AGREED,
   library: 0,
   machine: { ramGB: 16, vramGB: null, gpu: null, freeBytes: null },
@@ -385,5 +386,123 @@ describe('SETUP with a tested external server', () => {
     const text = screen.getByTestId('translate-selftest').textContent ?? ''
     expect(text).toContain('plamo-3-translate-0.8b-kansai')
     expect(text).not.toContain('2b')
+  })
+})
+
+describe('SETUP fetching a model beside the one in use', () => {
+  // User's choice 2026-11-07: the model in use goes on translating while another is fetched, and
+  // the fetched one becomes the settings' at READY - before its self test, so that test is its.
+  const OTHER = 'plamo3-0.8b-q4km'
+  const inUse = (over: Partial<TranslateBoard> = {}) =>
+    board({
+      models: board().models.map((m) =>
+        m.id === AGREED ? { ...m, installed: true } : { ...m, consentAt: '2026-11-06T00:00:00Z' },
+      ),
+      ...over,
+    })
+
+  it('fetches the model chosen without making it the settings’', async () => {
+    translate.fetch = vi.fn(async () => null)
+    const oncommit = vi.fn(async () => {})
+    const onstep = vi.fn()
+    render(SetupView, {
+      props: {
+        board: inUse(),
+        step: 3,
+        chosen: OTHER,
+        onstep,
+        onselect: () => {},
+        oncommit,
+        ondone: () => {},
+      },
+    })
+    await settle()
+    await fireEvent.click(screen.getByTestId('translate-next'))
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    await settle()
+    expect(translate.fetch).toHaveBeenCalledWith(OTHER)
+    expect(oncommit).not.toHaveBeenCalled()
+    expect(onstep).toHaveBeenCalledWith(4)
+  })
+
+  it('says on FETCH that the model in use goes on translating', async () => {
+    const fetch = {
+      kind: 'model' as const,
+      id: OTHER,
+      phase: 'downloading' as const,
+      received: 1,
+      total: 10,
+      speed: 0,
+      error: null,
+    }
+    render(SetupView, {
+      props: {
+        board: inUse({ fetch, fetchingModel: OTHER }),
+        step: 4,
+        chosen: OTHER,
+        onstep: () => {},
+        onselect: () => {},
+        oncommit: async () => {},
+        ondone: () => {},
+      },
+    })
+    await settle()
+    expect(screen.getByTestId('translate-fetch-in-use').textContent).toMatch(
+      /plamo-3-translate-2b-q4km goes on translating meanwhile; plamo-3-translate-0\.8b-q4km takes over at Ready/,
+    )
+  })
+
+  it('moves to READY once the model chosen is in place, though another is in use', async () => {
+    const onstep = vi.fn()
+    const placed = inUse()
+    placed.models = placed.models.map((m) => (m.id === OTHER ? { ...m, installed: true } : m))
+    render(SetupView, {
+      props: {
+        board: placed,
+        step: 4,
+        chosen: OTHER,
+        onstep,
+        onselect: () => {},
+        oncommit: async () => {},
+        ondone: () => {},
+      },
+    })
+    await settle()
+    expect(onstep).toHaveBeenCalledWith(5)
+  })
+
+  it('makes the model the settings’ on READY before asking for the self test', async () => {
+    const order: string[] = []
+    let commit!: () => void
+    const oncommit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          commit = () => {
+            order.push('commit')
+            resolve()
+          }
+        }),
+    )
+    translate.selfTest = vi.fn(async () => {
+      order.push('selfTest')
+      return { text: 'おはよう', tokensPerSecond: 50 }
+    })
+    render(SetupView, {
+      props: {
+        board: inUse(),
+        step: 5,
+        chosen: OTHER,
+        onstep: () => {},
+        onselect: () => {},
+        oncommit,
+        ondone: () => {},
+      },
+    })
+    await settle()
+    expect(oncommit).toHaveBeenCalledOnce()
+    expect(translate.selfTest).not.toHaveBeenCalled()
+    commit()
+    await settle()
+    expect(order).toEqual(['commit', 'selfTest'])
   })
 })

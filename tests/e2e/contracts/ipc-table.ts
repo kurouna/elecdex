@@ -106,7 +106,6 @@ export const NO_ARGUMENT = [
   'translate.engineStart',
   'translate.engineStop',
   'translate.engineRestart',
-  'translate.fetch',
   'translate.pause',
   'translate.cancelFetch',
   'translate.logs',
@@ -553,6 +552,12 @@ export const IPC_ROWS: IpcRow[] = [
     method: 'translate.openLicence',
     bad: [['https://example.com'], ['toString'], [123], []],
     refused: { resolves: undefined },
+  },
+  {
+    // A model of the catalog by id: anything else fetches nothing.
+    method: 'translate.fetch',
+    bad: [['nope'], [123], [UP], []],
+    refused: { resolves: { problem: 'No such model.' } },
   },
   {
     method: 'translate.removeModel',

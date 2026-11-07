@@ -100,6 +100,11 @@ export interface TranslateBoard {
   engine: EngineView
   models: ModelView[]
   fetch: FetchView | null
+  /**
+   * The model the fetch (under way, paused or failed) is for, or null: not always the model in use,
+   * which goes on translating until the new one is in place and chosen (2026-11-07).
+   */
+  fetchingModel: string | null
   selectedModel: string
   /** Grows with every change of the glossaries or the history: a pane showing either asks again. */
   library: number

@@ -77,6 +77,25 @@ export function fetchLine(fetch: FetchView): string {
   }
 }
 
+/**
+ * Another model's download as the footer says it, beside the model in use (2026-11-07): short,
+ * since the pane goes on translating and SETUP has the rest.
+ */
+export function fetchFoot(fetch: FetchView, modelId: string): string {
+  const name = modelName(modelId)
+  switch (fetch.phase) {
+    case 'downloading':
+      return `${name} ${fetchPercent(fetch)}% fetched`
+    case 'verifying':
+    case 'placing':
+      return `${name} being checked`
+    case 'paused':
+      return `${name} paused at ${fetchPercent(fetch)}%`
+    case 'failed':
+      return `${name} download failed`
+  }
+}
+
 /** "0.8B · 655 MB" for a server's model, from what `/v1/models` said. */
 export function serverModelFacts(model: { bytes: number | null; params: number | null }): string {
   const parts: string[] = []

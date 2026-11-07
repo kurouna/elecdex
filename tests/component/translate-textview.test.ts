@@ -23,6 +23,7 @@ const board = {
   engine: { phase: 'ready', bootLines: [], build: 'b1', backend: 'cpu', error: null },
   models: [],
   fetch: null,
+  fetchingModel: null,
   selectedModel: 'm',
 } as unknown as TranslateBoard
 

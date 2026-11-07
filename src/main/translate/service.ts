@@ -149,6 +149,12 @@ export class TranslateService {
   #cancelling = false
   /** Models being agreed to now: no fetch of theirs starts until the agreement is written. */
   readonly #agreeing = new Set<string>()
+  /**
+   * The model a fetch under way, paused or failed is for (the engine is fetched for it first),
+   * while `#fetch` says how it goes. Not the model in use (user's choice 2026-11-07): that one
+   * goes on translating until the new one is in place and chosen.
+   */
+  #fetchTarget: string | null = null
 
   constructor(env: ServiceEnv, settings: Settings['translate']) {
     this.#env = env
@@ -222,20 +228,28 @@ export class TranslateService {
   }
 
   /**
-   * The selected model's `.part`, left by a fetch paused or by elecdex quitting, is shown paused
-   * for RESUME (§5: never taken up by itself), with no new agreement (review 2026-11-07: it used
-   * to be forgotten, and the whole setup walked again).
+   * A model's `.part`, left by a fetch paused or by elecdex quitting, is shown paused for RESUME
+   * (§5: never taken up by itself), with no new agreement (review 2026-11-07: it used to be
+   * forgotten, and the whole setup walked again). The fetch may be for a model other than the one
+   * in use (2026-11-07): the one in use is looked for first, then the others.
    */
   #pausedOnDisk(): void {
-    const model = this.#selectedModel()
-    const total = model ? this.#file.read().consents[model.id]?.bytes : undefined
-    if (!model || total === undefined) return
-    let received: number
-    try {
-      received = statSync(partOf(this.#modelPath(model))).size
-    } catch {
+    const consents = this.#file.read().consents
+    const selected = this.#selectedModel()
+    const order = selected
+      ? [selected, ...this.#models.filter((m) => m !== selected)]
+      : this.#models
+    for (const model of order) {
+      const total = consents[model.id]?.bytes
+      if (total === undefined) continue
+      const received = partSize(partOf(this.#modelPath(model)))
+      if (received === null) continue
+      this.#showPaused(model, received, total)
       return
     }
+  }
+
+  #showPaused(model: ModelEntry, received: number, total: number): void {
     this.#fetch = {
       kind: 'model',
       id: model.id,
@@ -246,6 +260,7 @@ export class TranslateService {
       error: null,
     }
     this.#paused = { kind: 'model', id: model.id }
+    this.#fetchTarget = model.id
   }
 
   onChange(listener: () => void): () => void {
@@ -365,6 +380,7 @@ export class TranslateService {
       engine: this.#engineView(),
       models,
       fetch: this.#fetch,
+      fetchingModel: this.#fetch ? this.#fetchTarget : null,
       selectedModel: this.#settings.modelId,
       library: this.library.revision,
       machine: { ...this.#machine, freeBytes: await freeBytes(this.#root) },
@@ -666,11 +682,18 @@ export class TranslateService {
     this.#changed()
   }
 
-  /** Why a fetch cannot start now, or null: asked before starting one, so the page hears it. */
-  fetchProblem(): string | null {
+  /**
+   * Why a fetch of this model (the one in use when none is named) cannot start now, or null: asked
+   * before starting one, so the page hears it.
+   */
+  fetchProblem(modelId = this.#settings.modelId): string | null {
     if (this.#cancelling) return 'The download is being cancelled: a moment, please.'
-    const model = this.#selectedModel()
+    const model = this.#models.find((m) => m.id === modelId)
     if (!model) return 'No such model.'
+    // One fetch at a time: another model's, paused or failed, is resumed or cancelled first, so
+    // its `.part` is never left behind unseen.
+    if (this.#fetch !== null && this.#fetchTarget !== null && this.#fetchTarget !== modelId)
+      return 'Another model is being fetched: resume or cancel it first.'
     // An agreement made before commits were followed names no file: it is asked again.
     if (this.#file.read().consents[model.id]?.bytes === undefined)
       return 'Agree to the licence first.'
@@ -678,18 +701,23 @@ export class TranslateService {
     return null
   }
 
-  /** Fetches what the selected model needs: the engine first when elecdex provides it, then the model. */
-  fetchSelected(): Promise<void> {
+  /**
+   * Fetches what a model needs (the one in use when none is named): the engine first when elecdex
+   * provides it, then the model. The settings are not touched (user's choice 2026-11-07): the
+   * engine runs the fetched one only when it is the model in use (a first setup, an update).
+   */
+  fetchFor(modelId = this.#settings.modelId): Promise<void> {
     if (this.#fetchRun) return this.#fetchRun
-    this.#fetchRun = this.#fetchSelected().finally(() => {
+    this.#fetchRun = this.#fetchFor(modelId).finally(() => {
       this.#fetchRun = null
     })
     return this.#fetchRun
   }
 
-  async #fetchSelected(): Promise<void> {
-    const model = this.#selectedModel()
-    if (!model || this.fetchProblem()) return
+  async #fetchFor(modelId: string): Promise<void> {
+    const model = this.#models.find((m) => m.id === modelId)
+    if (!model || this.fetchProblem(modelId)) return
+    this.#fetchTarget = model.id
     // A fetch paused before elecdex last quit is taken up from its `.part` (§5).
     if (this.#fetch?.phase === 'paused') this.#fetch = { ...this.#fetch, phase: 'downloading' }
     const controller = new AbortController()
@@ -700,9 +728,11 @@ export class TranslateService {
       if (engine) await this.#fetchEngine(engine, controller.signal)
       await this.#fetchModel(model, controller.signal)
       this.#fetch = null
+      this.#fetchTarget = null
       void this.#reconfigure('A model was put in place.')
     } catch (error) {
       this.#failed(error, controller.signal)
+      if (this.#fetch === null) this.#fetchTarget = null
       // Said at once as the server answered; why, in plain words, once Hugging Face is asked.
       void this.#explain(model, error)
     } finally {
@@ -740,6 +770,7 @@ export class TranslateService {
       this.#fetchAbort?.abort()
       await this.#fetchRun?.catch(() => {})
       this.#fetch = null
+      this.#fetchTarget = null
       const model =
         fetching?.kind === 'model' ? this.#models.find((m) => m.id === fetching.id) : undefined
       const engine =
@@ -1248,6 +1279,15 @@ function freePort(): Promise<number> {
       server.close(() => resolve(port))
     })
   })
+}
+
+/** A `.part`'s size, or null when there is none. */
+function partSize(file: string): number | null {
+  try {
+    return statSync(file).size
+  } catch {
+    return null
+  }
 }
 
 async function freeBytes(dir: string): Promise<number | null> {

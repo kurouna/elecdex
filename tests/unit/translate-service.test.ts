@@ -102,9 +102,17 @@ afterEach(async () => {
 
 const AGREEMENT = { licence: 'licence', openedAt: null, appVersion: '0.0.0' }
 
-async function make(over: Partial<ServiceEnv> = {}, agreed = true, engines: unknown[] = []) {
+/** A second model of the same repository, so one can be fetched beside the one in use. */
+const OTHER = { ...MODEL, id: 'test-other' } as const
+
+async function make(
+  over: Partial<ServiceEnv> = {},
+  agreed = true,
+  engines: unknown[] = [],
+  models: unknown[] = [MODEL],
+) {
   const manifest = path.join(dir, 'manifest.json')
-  writeFileSync(manifest, JSON.stringify({ models: [MODEL], engines }))
+  writeFileSync(manifest, JSON.stringify({ models, engines }))
   const service = new TranslateService(
     {
       userData: dir,
@@ -139,7 +147,7 @@ const partSize = (file: string): number => {
 describe('TranslateService fetching', () => {
   it('fetches the selected model and watches nothing once it is in place', async () => {
     const { service, modelPath } = await make()
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(readFileSync(modelPath).equals(BODY)).toBe(true)
     expect(service.watching()).toEqual([])
     const board = await service.board()
@@ -150,7 +158,7 @@ describe('TranslateService fetching', () => {
   it('PAUSE keeps the .part and says paused; FETCH again resumes it', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()
-    const run = service.fetchSelected()
+    const run = service.fetchFor()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     expect(service.watching()).toEqual(['fetch'])
     service.pause()
@@ -159,14 +167,14 @@ describe('TranslateService fetching', () => {
     expect(service.watching()).toEqual([])
     expect(partSize(modelPath)).toBe(15_000)
     mode = 'serve'
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(readFileSync(modelPath).equals(BODY)).toBe(true)
   })
 
   it('CANCEL waits for the writer to let go, then removes the .part', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()
-    void service.fetchSelected()
+    void service.fetchFor()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     await service.cancelFetch()
     expect(existsSync(partOf(modelPath))).toBe(false)
@@ -178,7 +186,7 @@ describe('TranslateService fetching', () => {
     // Review 2026-11-07: a RESUME pressed during CANCEL wrote into the file CANCEL then removed.
     mode = 'stall'
     const { service, modelPath } = await make()
-    void service.fetchSelected()
+    void service.fetchFor()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     const cancelling = service.cancelFetch()
     expect(service.fetchProblem()).toMatch(/being cancelled/)
@@ -189,7 +197,7 @@ describe('TranslateService fetching', () => {
   it('removing a model being fetched cancels the fetch first', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()
-    const run = service.fetchSelected()
+    const run = service.fetchFor()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     await service.removeModel(MODEL.id)
     await run
@@ -200,7 +208,7 @@ describe('TranslateService fetching', () => {
   it('a failure is said on the board and stops the watch', async () => {
     mode = 'missing'
     const { service } = await make()
-    await service.fetchSelected()
+    await service.fetchFor()
     const fetching = (await service.board()).fetch
     expect(fetching?.phase).toBe('failed')
     expect(fetching?.error).toMatch(/404/)
@@ -209,8 +217,8 @@ describe('TranslateService fetching', () => {
 
   it('shares one fetch between two FETCH presses', async () => {
     const { service } = await make()
-    const a = service.fetchSelected()
-    const b = service.fetchSelected()
+    const a = service.fetchFor()
+    const b = service.fetchFor()
     expect(a).toBe(b)
     await a
   })
@@ -218,7 +226,7 @@ describe('TranslateService fetching', () => {
   it('refuses to fetch before the licence is agreed to', async () => {
     const { service, modelPath } = await make({}, false)
     expect(service.fetchProblem()).toMatch(/licence/)
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(existsSync(partOf(modelPath))).toBe(false)
     await service.consent(MODEL.id, AGREEMENT)
     expect(service.fetchProblem()).toBeNull()
@@ -310,7 +318,7 @@ describe('TranslateService and a server left running (§4.2)', () => {
   it('quits without waiting, the fetch paused', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()
-    const run = service.fetchSelected()
+    const run = service.fetchFor()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     service.quit()
     await run
@@ -321,7 +329,7 @@ describe('TranslateService and a server left running (§4.2)', () => {
     // §5; review 2026-11-07: it used to be forgotten, and the setup walked again from the start.
     mode = 'stall'
     const first = await make()
-    const run = first.service.fetchSelected()
+    const run = first.service.fetchFor()
     await expect.poll(() => partSize(first.modelPath)).toBe(15_000)
     first.service.quit()
     await run
@@ -332,9 +340,70 @@ describe('TranslateService and a server left running (§4.2)', () => {
     expect(board.fetch).toMatchObject({ kind: 'model', phase: 'paused', received: 15_000 })
     expect(service.watching()).toEqual([])
     expect(service.fetchProblem()).toBeNull()
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(readFileSync(modelPath).equals(BODY)).toBe(true)
     expect(asked.filter((url) => url.includes('test.gguf')).length).toBe(2)
+  })
+})
+
+describe('TranslateService fetching a model beside the one in use', () => {
+  // User's choice 2026-11-07: the model in use goes on translating while another is fetched; the
+  // page makes the fetched one the settings' at READY.
+  const otherPath = (): string => path.join(dir, 'translate', 'models', OTHER.id, OTHER.file)
+
+  async function inUse() {
+    const made = await make({}, true, [], [MODEL, OTHER])
+    await made.service.fetchFor()
+    await made.service.consent(OTHER.id, AGREEMENT)
+    return made
+  }
+
+  it('fetches the model named, and the engine keeps the model in use', async () => {
+    const { service, modelPath } = await inUse()
+    expect(service.engine.config.modelPath).toBe(modelPath)
+    mode = 'stall'
+    const run = service.fetchFor(OTHER.id)
+    await expect.poll(() => partSize(otherPath())).toBe(15_000)
+    const during = await service.board()
+    expect(during.fetchingModel).toBe(OTHER.id)
+    expect(during.selectedModel).toBe(MODEL.id)
+    service.pause()
+    await run
+    mode = 'serve'
+    await service.fetchFor(OTHER.id)
+    const after = await service.board()
+    expect(readFileSync(otherPath()).equals(BODY)).toBe(true)
+    expect(after.models.find((m) => m.id === OTHER.id)?.installed).toBe(true)
+    expect(after.fetchingModel).toBeNull()
+    expect(after.selectedModel).toBe(MODEL.id)
+    expect(service.engine.config.modelPath).toBe(modelPath)
+  })
+
+  it('refuses another fetch while one is paused, and names none once it is cancelled', async () => {
+    const { service } = await inUse()
+    mode = 'stall'
+    const run = service.fetchFor(OTHER.id)
+    await expect.poll(() => partSize(otherPath())).toBe(15_000)
+    service.pause()
+    await run
+    expect(service.fetchProblem(MODEL.id)).toMatch(/Another model is being fetched/)
+    expect(service.fetchProblem(OTHER.id)).toBeNull()
+    await service.cancelFetch()
+    expect((await service.board()).fetchingModel).toBeNull()
+    expect(service.fetchProblem(MODEL.id)).toBeNull()
+  })
+
+  it('shows a paused fetch of a model not in use at the next start, for that model', async () => {
+    const first = await inUse()
+    mode = 'stall'
+    const run = first.service.fetchFor(OTHER.id)
+    await expect.poll(() => partSize(otherPath())).toBe(15_000)
+    first.service.quit()
+    await run
+    const { service } = await make({}, false, [], [MODEL, OTHER])
+    const board = await service.board()
+    expect(board.fetch).toMatchObject({ kind: 'model', id: OTHER.id, phase: 'paused' })
+    expect(board.fetchingModel).toBe(OTHER.id)
   })
 })
 
@@ -422,7 +491,7 @@ describe('TranslateService and the newest commits (§5)', () => {
     latest = { commit: NEW, body: newer }
     const { service, modelPath } = await make({}, false)
     expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({ revision: NEW })
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(readFileSync(modelPath).equals(newer)).toBe(true)
     expect(asked).toContain(`/pfnet/test/resolve/${NEW}/test.gguf`)
     const model = (await service.board()).models[0]
@@ -463,14 +532,14 @@ describe('TranslateService and the newest commits (§5)', () => {
 
   it('fetches nothing again for a newer commit that left the file as it was', async () => {
     const { service, modelPath } = await make()
-    await service.fetchSelected()
+    await service.fetchFor()
     // Another commit (the README, say), the same file.
     latest = { commit: NEW, body: BODY }
     await service.checkUpdates(Date.parse('2026-11-06T09:00:00.000Z'))
     expect((await service.board()).models[0]?.update).toBeNull()
     asked = []
     expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({ revision: NEW })
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(asked.filter((url) => url.includes('/resolve/'))).toEqual([])
     expect(readFileSync(modelPath).equals(BODY)).toBe(true)
     expect((await service.board()).models[0]?.revision).toBe(NEW)
@@ -479,7 +548,7 @@ describe('TranslateService and the newest commits (§5)', () => {
   it('drops a paused part of another file when a newer one is agreed to', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()
-    const run = service.fetchSelected()
+    const run = service.fetchFor()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     // Agreeing while it writes is refused; paused, the part of the old file goes.
     expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({
@@ -498,7 +567,7 @@ describe('TranslateService and the newest commits (§5)', () => {
     // The commit agreed to is no longer served, and a newer file is.
     mode = 'missing'
     latest = { commit: NEW, body: Buffer.from(BODY.map((byte) => (byte + 5) % 256)) }
-    await service.fetchSelected()
+    await service.fetchFor()
     // Failed at once, with the server's answer; why, once Hugging Face was asked.
     expect((await service.board()).fetch?.phase).toBe('failed')
     await expect
@@ -520,7 +589,7 @@ describe('TranslateService and the newest commits (§5)', () => {
       sha256: 'a'.repeat(64),
     }
     const { service } = await make({ stubServer: undefined, releasesBase: base }, true, [engine])
-    void service.fetchSelected()
+    void service.fetchFor()
     await expect.poll(async () => (await service.board()).fetch?.kind).toBe('engine')
     // The run goes on to the model after the engine: an agreement now would come between.
     expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({
@@ -532,7 +601,7 @@ describe('TranslateService and the newest commits (§5)', () => {
   it('starts no fetch of a model while it is being agreed to', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()
-    const first = service.fetchSelected()
+    const first = service.fetchFor()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     service.pause()
     await first
@@ -546,7 +615,7 @@ describe('TranslateService and the newest commits (§5)', () => {
     await expect.poll(() => asked.filter((url) => url.startsWith('/api/')).length).toBe(2)
     // RESUME waits: a fetch now would read the agreement before this one and mix two files.
     expect(service.fetchProblem()).toMatch(/being agreed to/)
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(service.watching()).not.toContain('fetch')
     release()
     expect(await agreeing).toEqual({ revision: NEW })
@@ -558,7 +627,7 @@ describe('TranslateService and the newest commits (§5)', () => {
   it('lets RESUME go on when the very file moved to a newer commit', async () => {
     mode = 'stall'
     const { service, modelPath } = await make()
-    const run = service.fetchSelected()
+    const run = service.fetchFor()
     await expect.poll(() => partSize(modelPath)).toBe(15_000)
     service.pause()
     await run
@@ -566,7 +635,7 @@ describe('TranslateService and the newest commits (§5)', () => {
     mode = 'serve'
     gone = 'c'.repeat(40)
     latest = { commit: NEW, body: BODY }
-    await service.fetchSelected()
+    await service.fetchFor()
     await expect.poll(async () => (await service.board()).fetch?.error).toMatch(/press Resume/)
     // The agreement followed its file, and the log says so.
     const log = readFileSync(path.join(dir, 'translate', 'licence-consents.txt'), 'utf8')
@@ -575,7 +644,7 @@ describe('TranslateService and the newest commits (§5)', () => {
     expect((await service.board()).models[0]?.consentAt).not.toBeNull()
     // RESUME: from the newer commit, from where it stopped.
     asked = []
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(readFileSync(modelPath).equals(BODY)).toBe(true)
     expect(asked.filter((url) => url.includes('/resolve/'))).toEqual([
       `/pfnet/test/resolve/${NEW}/test.gguf`,
@@ -585,7 +654,7 @@ describe('TranslateService and the newest commits (§5)', () => {
 
   it('forgets the file in place when the model is removed', async () => {
     const { service, modelPath } = await make()
-    await service.fetchSelected()
+    await service.fetchFor()
     await service.removeModel(MODEL.id)
     const engine = JSON.parse(readFileSync(path.join(dir, 'translate', 'engine.json'), 'utf8'))
     expect(engine.installed[MODEL.id]).toBeUndefined()
@@ -604,7 +673,7 @@ describe('TranslateService and the newest commits (§5)', () => {
 
   it('asks for the agreement again once a newer commit is heard, and the update replaces the file', async () => {
     const { service, modelPath } = await make()
-    await service.fetchSelected()
+    await service.fetchFor()
     expect((await service.board()).models[0]?.consentAt).not.toBeNull()
     // A newer commit of the same size: never taken for the file in place by its size.
     const same = Buffer.from(BODY.map((byte) => (byte + 1) % 256))
@@ -614,7 +683,7 @@ describe('TranslateService and the newest commits (§5)', () => {
     expect(model?.update?.revision).toBe(NEW)
     expect(model?.consentAt).toBeNull()
     expect(await service.consent(MODEL.id, AGREEMENT)).toEqual({ revision: NEW })
-    await service.fetchSelected()
+    await service.fetchFor()
     expect(readFileSync(modelPath).equals(same)).toBe(true)
     model = (await service.board()).models[0]
     expect(model?.revision).toBe(NEW)

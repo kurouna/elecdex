@@ -627,8 +627,11 @@ export interface TranslateApi {
   consent(modelId: string): Promise<{ revision: string } | { problem: string } | undefined>
   /** ENGINE opened: newer commits of the models in place, asked at most once a day. */
   checkUpdates(): Promise<void>
-  /** Fetches what the selected model needs (the engine first when elecdex provides it). */
-  fetch(): Promise<{ problem: string } | null>
+  /**
+   * Fetches what a model needs (the engine first when elecdex provides it). The model in use stays
+   * in use: choosing the fetched one is the page's, once it is in place.
+   */
+  fetch(modelId: string): Promise<{ problem: string } | null>
   pause(): Promise<void>
   cancelFetch(): Promise<void>
   removeModel(modelId: string): Promise<void>

@@ -237,11 +237,12 @@ export function registerTranslateIpc(
       [CH.translate.checkUpdates]: async () => {
         await service.checkUpdates()
       },
-      [CH.translate.fetch]: () => {
-        const problem = service.fetchProblem()
+      [CH.translate.fetch]: (_event, modelId) => {
+        if (!knownModel(modelId)) return { problem: 'No such model.' }
+        const problem = service.fetchProblem(modelId)
         if (problem) return { problem }
         // Runs on with the pane closed; how it goes is on the board.
-        void service.fetchSelected()
+        void service.fetchFor(modelId)
         return null
       },
       [CH.translate.pause]: () => service.pause(),

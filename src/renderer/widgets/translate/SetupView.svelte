@@ -10,6 +10,7 @@ import {
   fitCells,
   formatBytes,
   modelFit,
+  modelName,
   shownModel,
   TIER_NAME,
   TIER_NOTE,
@@ -18,28 +19,33 @@ import {
 
 /**
  * SETUP (docs/translate.md §3): ENGINE, MODEL, LICENCE, FETCH, READY. The engine's source and the
- * consent go to main at once, so a pane closed half way finds them where they were left; the model
- * chosen becomes the settings' only when its fetch starts. The fetch goes on with the pane closed.
+ * consent go to main at once, so a pane closed half way finds them where they were left. The model
+ * chosen is fetched beside the one in use, which goes on translating (user's choice 2026-11-07),
+ * and becomes the settings' only at READY, once it is in place. The fetch goes on with the pane
+ * closed.
  */
 interface Props {
   board: TranslateBoard
   step: number
   onstep: (step: number) => void
-  /** The model chosen in SETUP: written to the settings only when its fetch starts. */
+  /** The model chosen in SETUP: written to the settings only at READY, once it is in place. */
   chosen: string
   onselect: (modelId: string) => void
   oncommit: () => Promise<void>
-  /** FETCH's CANCEL went through: the model in use before it may be put back. */
-  oncancelled?: () => void
   ondone: () => void
 }
 
-const { board, step, chosen, onstep, onselect, oncommit, oncancelled, ondone }: Props = $props()
+const { board, step, chosen, onstep, onselect, oncommit, ondone }: Props = $props()
 const api = window.elecdex.translate
 
 const STEPS = ['Engine', 'Model', 'Licence', 'Fetch', 'Ready']
 const selected = $derived(MODELS.find((m) => m.id === chosen))
 const consented = $derived(board.models.find((m) => m.id === chosen)?.consentAt != null)
+/** A model in place and in use beside the one fetched: it translates until READY. */
+const inUseNow = $derived(
+  board.selectedModel !== chosen &&
+    board.models.some((m) => m.id === board.selectedModel && m.installed),
+)
 const recommended = $derived(recommendedModel(MODELS, board.machine.ramGB, board.machine.vramGB))
 let agreed = $state(false)
 /** The fetch agreed to as well (user's request 2026-11-06): what AGREE AND FETCH downloads. */
@@ -68,27 +74,27 @@ $effect(() => {
 })
 
 $effect(() => {
-  // A fetch that has finished moves on to READY by itself: the settings' model, in place at the
-  // commit agreed to. Until the board names the chosen model, it is the one before that it says is
-  // in place; until the update is placed, the file before it is.
+  // A fetch that has finished moves on to READY by itself: the chosen model in place at the
+  // commit agreed to. Until an update is placed, the file before it is.
   const model = board.models.find((m) => m.id === chosen)
   const placed = agreedRevision === null || model?.revision === agreedRevision
-  if (
-    step === 4 &&
-    board.fetch === null &&
-    board.selectedModel === chosen &&
-    model?.installed &&
-    placed
-  )
-    onstep(5)
+  if (step === 4 && board.fetch === null && model?.installed && placed) onstep(5)
 })
 
+/** READY's self test, asked once: of the chosen model, made the settings' first. */
+let testing = false
 $effect(() => {
-  if (step !== 5 || selfTest !== null) return
-  void api.selfTest().then((result) => {
-    selfTest = result
-  })
+  if (step !== 5 || testing) return
+  testing = true
+  void readyTest()
 })
+
+async function readyTest(): Promise<void> {
+  // Awaited: main has the new settings, and the engine their model, before the test is sent - the
+  // engine before it would answer for the model it ran (2026-11-07).
+  await oncommit()
+  selfTest = await api.selfTest()
+}
 
 async function setSource(kind: EngineSourceKind): Promise<void> {
   problem = null
@@ -129,9 +135,8 @@ async function next(): Promise<void> {
     agreedRevision = agreed.revision
     // Spent: another model agreed to later in this setup asks for the page again.
     clicked = false
-    // Now the choice is the settings': main fetches, and then runs, the settings' model.
-    await oncommit()
-    const answer = await api.fetch()
+    // Fetched beside the model in use, which goes on translating: READY makes it the settings'.
+    const answer = await api.fetch(selected.id)
     if (answer) {
       problem = answer.problem
       return
@@ -274,13 +279,16 @@ const nextDisabled = $derived(
           {#if fetch.error}<p class="problem">{fetch.error}</p>{/if}
           <div class="row">
             {#if fetch.phase === 'paused' || fetch.phase === 'failed'}
-              <button type="button" class="btn lit" onclick={() => void api.fetch()}>Resume</button>
+              <button type="button" class="btn lit" onclick={() => void api.fetch(board.fetchingModel ?? chosen)}>Resume</button>
             {:else}
               <button type="button" class="btn" onclick={() => void api.pause()}>Pause</button>
             {/if}
-            <button type="button" class="btn" onclick={() => void api.cancelFetch().then(() => { oncancelled?.(); onstep(2) })}>Cancel</button>
+            <button type="button" class="btn" onclick={() => void api.cancelFetch().then(() => onstep(2))}>Cancel</button>
             <span class="small">Picks up where it stopped after a pause, a lost connection or a restart.</span>
           </div>
+          {#if inUseNow}
+            <p class="small" data-testid="translate-fetch-in-use">{modelName(board.selectedModel)} goes on translating meanwhile; {modelName(chosen)} takes over at Ready.</p>
+          {/if}
         {/if}
       {:else}
         <div class="ready">

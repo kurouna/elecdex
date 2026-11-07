@@ -980,9 +980,9 @@ test('DONE makes a model chosen in ENGINE, and fetched, the settings’', async 
   }
 })
 
-test('a model chosen for SETUP becomes the settings’ only when its fetch starts', async () => {
-  // The fetch stalls half way, so SETUP must stay on FETCH: the model before it is in place, and
-  // a board not yet naming the new one once took that for the fetch done and opened READY.
+test('the model in use goes on translating while another is fetched, which READY makes the pane’s', async () => {
+  // User's choice 2026-11-07: a model being fetched no longer leaves the pane at NO MODEL. The
+  // fetch stalls half way, so SETUP stays on FETCH: the model in place must not be taken for it.
   const hf = await modelServer()
   hf.mode = 'stall'
   const { app, page, close } = await launch(undefined, {
@@ -998,19 +998,63 @@ test('a model chosen for SETUP becomes the settings’ only when its fetch start
       'Model',
     )
     await page.getByTestId('translate-next').click()
-    await expect(pane).toContainText('plamo-3-translate-2b-q4km')
     await agree(page, app)
     await page.getByTestId('translate-next').click()
-    // Agreed and fetching: now it is the pane's model, and SETUP shows its fetch.
-    await expect(pane).toContainText('plamo-3-translate-0.8b-q4km')
     const setup = page.getByTestId('translate-setup')
     await expect(setup.locator('.steps li.now')).toContainText('Fetch')
     await expect(setup).toContainText('downloading')
-    await expect(page.getByTestId('translate-selftest')).toHaveCount(0)
+    await expect(page.getByTestId('translate-fetch-in-use')).toContainText(
+      'plamo-3-translate-2b-q4km goes on translating meanwhile',
+    )
     expect(files(hf)).toEqual([`/pfnet/plamo-3-translate-0.8b-GGUF/resolve/${COMMIT}/${LITE_FILE}`])
-    // Cancelled, the model in place before is the pane's again, never NO MODEL beside it
-    // (review 2026-11-07).
+    // Still the pane's model, and TEXT translates with it while the download goes on.
+    await expect(pane).toContainText('plamo-3-translate-2b-q4km')
+    await expect(page.getByTestId('translate-selftest')).toHaveCount(0)
+    await page.getByTestId('translate-settings-toggle').click()
+    await page.getByTestId('translate-settings-toggle').click()
+    await translate(page, 'Hello.')
+    await expect(blocks(page).first()).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    await expect(blocks(page).first()).toContainText('[ja] Hello.')
+    // The footer says the download, and opens SETUP on it for the model it is for.
+    const foot = page.getByTestId('translate-foot-fetch')
+    await expect(foot).toContainText('plamo-3-translate-0.8b-q4km')
+    await foot.click()
+    await expect(setup.locator('.steps li.now')).toContainText('Fetch')
+    await setup.getByRole('button', { name: 'Pause' }).click()
+    await expect(setup).toContainText('paused')
+    hf.mode = 'serve'
+    await setup.getByRole('button', { name: 'Resume' }).click()
+    // In place: READY makes it the pane's model, and tests it.
+    await expect(page.getByTestId('translate-selftest')).toContainText('おはようございます。', {
+      timeout: 30_000,
+    })
+    await expect(pane).toContainText('plamo-3-translate-0.8b-q4km')
+    await expect(page.getByTestId('translate-foot-fetch')).toHaveCount(0)
+  } finally {
+    await close()
+    stopServer(hf.server)
+  }
+})
+
+test('CANCEL of another model’s fetch leaves the model in use as it was', async () => {
+  const hf = await modelServer()
+  hf.mode = 'stall'
+  const { app, page, close } = await launch(undefined, {
+    ...withModel(),
+    env: { ELECDEX_TRANSLATE_MANIFEST: manifest(true), ELECDEX_HF_BASE_URL: hf.base },
+  })
+  try {
+    const pane = page.locator('[data-testid=pane]').first()
+    await page.getByTestId('translate-settings-toggle').click()
+    await page.getByTestId('translate-engine').getByRole('button', { name: '0.8B Q4_K_M' }).click()
+    await page.getByTestId('translate-engine-done').click()
+    await page.getByTestId('translate-next').click()
+    await agree(page, app)
+    await page.getByTestId('translate-next').click()
+    const setup = page.getByTestId('translate-setup')
+    await expect(setup).toContainText('downloading')
     await setup.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByTestId('translate-model-standard')).toBeVisible()
     await expect(pane).toContainText('plamo-3-translate-2b-q4km')
     await page.getByTestId('translate-settings-toggle').click()
     await expect(page.getByTestId('translate-in-use')).toHaveCount(1)

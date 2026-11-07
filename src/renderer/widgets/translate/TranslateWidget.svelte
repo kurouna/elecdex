@@ -15,6 +15,7 @@ import { draftOf, isActive, keepDraft, newDraftId, RunFollower } from './run-fol
 import SetupView from './SetupView.svelte'
 import TextView from './TextView.svelte'
 import {
+  fetchFoot,
   firstSetupStep,
   modelName,
   phaseLamp,
@@ -38,7 +39,8 @@ let view = $state<'text' | 'history' | 'setup' | 'engine'>('text')
 
 /**
  * A model chosen in ENGINE or SETUP and not yet the settings' (user's request 2026-11-06): written
- * only by DONE with a model in place, or by SETUP's fetch, which fetches the settings' model.
+ * only by DONE with a model in place, or by SETUP's READY once it is fetched (2026-11-07: the model
+ * in use goes on translating while another is fetched).
  * Leaving the two views any other way puts it back: a model only listed must never become the one
  * TEXT translates with.
  */
@@ -59,22 +61,8 @@ $effect(() => {
 async function commitModel(): Promise<void> {
   const id = pendingModel
   if (id !== null && id !== board?.selectedModel) {
-    previousModel = board?.selectedModel ?? null
     await appearance.patch({ translate: { modelId: id } })
   }
-}
-
-/**
- * The model in use before SETUP's fetch made another the settings': a CANCEL of that fetch puts
- * it back when it is in place, so the pane is not left at NO MODEL beside a model that works
- * (review 2026-11-07).
- */
-let previousModel: string | null = null
-function fetchCancelled(): void {
-  const before = previousModel
-  previousModel = null
-  if (before !== null && board?.models.find((m) => m.id === before)?.installed)
-    void appearance.patch({ translate: { modelId: before } })
 }
 let step = $state(1)
 
@@ -142,6 +130,8 @@ onSummoned(
 
 /** SETUP at a step, where it is needed, or (`another`) to set up another model: never at READY. */
 function openSetup(at?: number | 'another'): void {
+  // A fetch left under way goes on in SETUP for the model it is for, not the one in use.
+  if (board?.fetchingModel) pendingModel = board.fetchingModel
   if (board)
     step =
       at === 'another'
@@ -176,7 +166,6 @@ function openSetup(at?: number | 'another'): void {
             chosen={chosenModel}
             onselect={(modelId) => (pendingModel = modelId)}
             oncommit={commitModel}
-            oncancelled={fetchCancelled}
             ondone={() => (view = 'text')}
           />
         {:else if view === 'engine'}
@@ -212,6 +201,10 @@ function openSetup(at?: number | 'another'): void {
       <span class="lampw {lamp?.kind}"><i></i><b>{lamp?.word}</b></span>
       <span class="fig">{board.engine.build ?? ''}{board.engine.port ? ` · 127.0.0.1:${board.engine.port}` : ''} · ctx {board.engine.ctx}</span>
       <span class="spacer"></span>
+      <!-- Another model's download, beside the model in use: TEXT goes on translating with that one. -->
+      {#if board.fetch && board.fetchingModel && board.fetchingModel !== board.selectedModel}
+        <button type="button" class="fetching" data-testid="translate-foot-fetch" onclick={() => openSetup()}>{fetchFoot(board.fetch, board.fetchingModel)}</button>
+      {/if}
       <span class="credit">Built with PLaMo · PLaMo 3 Translate · PLaMo Community License · llama.cpp</span>
       <span class:warn={where?.warn} data-testid="translate-where">· {where?.text}</span>
     </footer>
@@ -222,6 +215,7 @@ function openSetup(at?: number | 'another'): void {
 .translate { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 var(--space-1); font-family: var(--font-ui); color: var(--text); }
 .view { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-top: var(--space-1); }
 .foot { display: flex; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-1) var(--space-1); margin-top: var(--space-1); border-top: 1px solid var(--panel-rule); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); flex-wrap: wrap; }
+.fetching { background: transparent; border: 0; padding: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--accent-strong); cursor: pointer; }
 .lampw { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text); font-weight: 600; }
 .lampw i { width: 0.5rem; height: 0.5rem; transform: rotate(45deg); border: 1px solid var(--text-muted); }
 .lampw.ok i { background: var(--ok); border-color: var(--ok); }
