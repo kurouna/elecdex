@@ -22,7 +22,7 @@ SF 風のターミナルエミュレーター兼システムモニターです�
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">3 分の紹介動画</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">ショート（縦型）</a>
 </p>
 
-> **v0.0.59 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
+> **v0.0.60 — プレリリース。** 以下に書いた機能はすべて現時点で動作します。ビルドには署名がありません。
 > *unreleased* と記したものは `main` にあり、次のリリースで入ります。
 >
 > **Windows で開発し、使っています。** macOS と Linux もリリースごとにビルドしていますが、
@@ -41,7 +41,7 @@ elecdex は、組み込みの 43 種のペインを分割とタブで 1 つの�
 - **ペイン**: 組み込みのペイン 43 種と Web ペイン（Browser、YouTube、X）を、状態が保存される分割とタブのツリー構造で並べます。レイアウトのプリセット 11 個、保存したレイアウト、アクションパレット。
 - **システムとネットワーク**: CPU、メモリ、GPU、ディスク、プロセス、プログラムごとの TCP ソケット、Wi-Fi とイーサネットの診断。Windows では読み取りのたびにプロセスを起動しません（常駐する 1 つのサンプラーが読みます）。
 - **外の世界**: 天気（気象庁、NWS、MET Norway）、マーケット、RSS、地震と津波、手元で計算する衛星（SGP4）、通信先の国を同梱の GeoIP データベースで調べて示す地球儀。
-- **仕事と AI**: Git（読み取りと FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code のセッション、それぞれの CLI を通して読む AWS のアカウントと GitHub *（未リリース）*、OpenAI 互換または Anthropic の API への AI チャット（鍵は OS で暗号化して保存）、この PC で動かす PLaMo 3 Translate での翻訳。
+- **仕事と AI**: Git（読み取りと FETCH/PULL/PUSH）、Docker、Log Watch、Claude Code のセッション、それぞれの CLI を通して読む AWS のアカウントと GitHub、OpenAI 互換または Anthropic の API への AI チャット（鍵は OS で暗号化して保存）、この PC で動かす PLaMo 3 Translate での翻訳。
 - **デスクとメディア**: メモ、タスク、タイマー、クリップボード、カレンダー、電卓。音のスペクトラム、ミキサー、再生中の曲（Now Playing）。
 - **独自の機械**: CHIP-8 のエミュレータと、オリジナルの 16 ビットのポケコン ELEC-16（BASIC、ゲーム機のモデル、関数電卓）。
 - **セキュリティ**: 画面はサンドボックスで、Node もネットワークも使えません（`connect-src 'self'`）。通信はすべてメインプロセスが、ペインがそのデータを必要としている間だけ行い、テレメトリはありません。プラグインは許可したことだけができるサンドボックスのワーカーで動きます。
@@ -69,7 +69,7 @@ elecdex は、組み込みの 43 種のペインを分割とタブで 1 つの�
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.ja.md#retro"><img src="./docs/screenshots/elecdex-retro.jpg" alt="Tron テーマの retro プリセット"></a><br><sub><b>retro</b> · Ctrl+Shift+F9 · CHIP-8、ELEC-16 の機械、関数電卓 SCI-128</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#cloud"><img src="./docs/screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット"></a><br><sub><b>cloud</b>（<i>未リリース</i>） · Ctrl+Shift+F10 · AWS STATUS、GITHUB STATUS、シェルと LOG WATCH</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.ja.md#cloud"><img src="./docs/screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット"></a><br><sub><b>cloud</b> · Ctrl+Shift+F10 · AWS STATUS、GITHUB STATUS、シェルと LOG WATCH</sub></td>
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.ja.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="Amber テーマの blank プリセット"></a><br><sub><b>blank</b> · Ctrl+Shift+F11 · ペインなし: 自分のレイアウトを組む</sub></td>
@@ -84,7 +84,7 @@ elecdex は、組み込みの 43 種のペインを分割とタブで 1 つの�
 | システム | Terminal、Clock、System、CPU、Memory、GPU、Disk、Top processes、Cluster、Launcher、Filesystem | [システムのペイン](docs/guide/panes-system.ja.md) |
 | ネットワーク | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet | [ネットワークのペイン](docs/guide/panes-network.ja.md) |
 | 開発 | AI Agent、Git、Docker、Log Watch | [開発のペイン](docs/guide/panes-dev.ja.md) |
-| クラウド *（未リリース）* | AWS STATUS、GITHUB STATUS | [クラウドのペイン](docs/guide/panes-cloud.ja.md) |
+| クラウド | AWS STATUS、GITHUB STATUS | [クラウドのペイン](docs/guide/panes-cloud.ja.md) |
 | 外の世界 | Orbit、Markets、Weather、RSS、Quakes、地震と津波の通知 | [外の世界のペイン](docs/guide/panes-world.ja.md) |
 | AI | AI chat、ELEC system、TRANSLATE | [AI のペイン](docs/guide/panes-ai.ja.md) |
 | デスク | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility | [デスクのペイン](docs/guide/panes-desk.ja.md) |
@@ -218,7 +218,7 @@ npm run dev -- -- --windowed --no-intro
 | CHIP-8 のフォント | [Octo](https://github.com/JohnEarnest/Octo) の `js/emulator.js` から `src/shared/chip8/fonts.ts` にコピー | MIT |
 | CHIP-8 のプログラム | [chip8Archive](https://github.com/JohnEarnest/chip8Archive)（作者はそれぞれ）。`resources/chip8/archive` に同梱 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)。ペインに表示 |
 | TRANSLATE のエンジンとモデル | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110 と Preferred Networks の [PLaMo 3 Translate](https://huggingface.co/pfnet)。同梱せず、ペインのセットアップで取得する | llama.cpp: MIT。そのライセンスと、llama-server に組み込まれたコードのライセンスは elecdex に同梱し、エンジンの横に書き出す。モデル: [PLaMo コミュニティライセンス](https://plamo.preferredai.jp/info/plamo-community-license-ja)。セットアップで読んで同意する。Built with PLaMo |
-| AWS の単価（AWS STATUS の推定） *（未リリース）* | AWS の公開の料金ページ（2026-11 時点）。`src/shared/aws/list-prices.ts` に | 事実であり、ライセンスの対象となる著作物ではない。おおよその値で、リリースのたびに確かめる |
+| AWS の単価（AWS STATUS の推定） | AWS の公開の料金ページ（2026-11 時点）。`src/shared/aws/list-prices.ts` に | 事実であり、ライセンスの対象となる著作物ではない。おおよその値で、リリースのたびに確かめる |
 | CHIP-8 のテスト用プログラム（DIAG） | Timendus の [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)。`resources/chip8/test-suite` に Octo のソースとともに同梱 | GPL-3.0 |
 
 ジオロケーションのデータベースは同梱されているため、アカウントも API キーも初回起動時の

@@ -342,7 +342,7 @@ Ctrl+Shift+[ / ] は Ctrl+Shift+@ / [）。アプリ内の一覧やツールチ�
 | Ctrl+Shift+Backspace | 既定のレイアウトに戻す（シェルが開いている間は先に確認） |
 | Ctrl+Shift+G | 保存レイアウト |
 | Ctrl+Shift+1〜9、0 | 先頭 10 件の保存レイアウトを、ダイアログの並び順で適用（0 は 10 件目）。空の番号ならキーはフォーカスのあるペインへ |
-| Ctrl+Shift+F1〜F11 | プリセットへ: standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未リリース）*、blank |
+| Ctrl+Shift+F1〜F11 | プリセットへ: standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud、blank |
 | Ctrl+Shift+L | ランチャーを検索（レイアウトになければポップアップで出す） |
 | Ctrl+Shift+U | Utility ペイン: レイアウトの次のもの、なければポップアップ。もう一度押すと片付く（Linux では IBus がコードによる文字入力にこのキーを使うことがあるので、変更してください） |
 | Ctrl+Shift+Y | TRANSLATE ペイン へクリップボードの文を持って行き、すぐ訳す: レイアウトの次のもの、なければポップアップ |

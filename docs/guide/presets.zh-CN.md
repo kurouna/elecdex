@@ -3,7 +3,7 @@
 # 布局预设 — elecdex
 
 elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 Electron、Svelte 和 TypeScript 重写了 eDEX-UI。本页介绍它的
-十一个**布局预设**——standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未发布）* 和 blank——每个都用一个按键
+十一个**布局预设**——standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud 和 blank——每个都用一个按键
 （**Ctrl+Shift+F1** 到 **F11**）把某类工作所需的窗格摆上屏幕：每个预设包含什么、预设如何变成已保存布局，以及每个预设
 展示的功能。elecdex 可在 Windows、macOS 和 Linux 上运行；它在 Windows 上开发和使用，macOS 和 Linux 只在 GitHub
 Actions 的自动化测试中运行过，因此尚未经过充分验证。
@@ -45,7 +45,7 @@ network status 和 network traffic，占窗口宽度的 18%。
 | Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.zh-CN.md#ai-chat) 下方是 [TRANSLATE](panes-ai.zh-CN.md#translate)；[ELEC system](panes-ai.zh-CN.md#elec-system) 下方是 [GPU](panes-system.zh-CN.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | 没有系统栏：[Cluster](panes-system.zh-CN.md#cluster) 下方是 [Terminal](panes-system.zh-CN.md#terminal)；[Wi-Fi](panes-network.zh-CN.md#wi-fi) 下方是 [Ethernet](panes-network.zh-CN.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | 把 [ELEC-16](panes-retro.zh-CN.md#elec-16)、ELEC-16 SCI 和 [CHIP-8](panes-retro.zh-CN.md#chip-8) 作为标签页的一个窗格；其下是 16 段的 [Spectrum](panes-media.zh-CN.md#spectrum) | Tron |
-| Ctrl+Shift+F10 | [cloud](#cloud) *（未发布）* | [AWS STATUS](panes-cloud.zh-CN.md#aws-status)；[GITHUB STATUS](panes-cloud.zh-CN.md#github-status) 下方是 [Terminal](panes-system.zh-CN.md#terminal) 与 [Log Watch](panes-dev.zh-CN.md#log-watch) 的标签页 | Business (Light) |
+| Ctrl+Shift+F10 | [cloud](#cloud) | [AWS STATUS](panes-cloud.zh-CN.md#aws-status)；[GITHUB STATUS](panes-cloud.zh-CN.md#github-status) 下方是 [Terminal](panes-system.zh-CN.md#terminal) 与 [Log Watch](panes-dev.zh-CN.md#log-watch) 的标签页 | Business (Light) |
 | Ctrl+Shift+F11 | [blank](#blank) | 无 | Amber |
 
 ## 预设如何工作
@@ -68,7 +68,7 @@ network status 和 network traffic，占窗口宽度的 18%。
   转到那里，没有就添加一个。按键绑定的是预设而不是位置，所以以后增加预设时，你重新绑定的按键仍留在同一个预设上。
   按键带 Ctrl+Shift，是因为裸的 F 键属于任务窗格（F2 编辑）和 shell 中的程序，例如 htop 或 mc。
 - **新安装会一次得到全部十一个**，standard 为当前布局。前十个放在 Ctrl+Shift+1 到 9 和 0 上；第十一个 blank
-  没有数字键 *（未发布：在 cloud 加入之前它在 0 上）*，可用 Ctrl+Shift+F11 或从架子上进入。新安装指 `layout.json` 和
+  没有数字键 *（v0.0.60 之前在 0 上）*，可用 Ctrl+Shift+F11 或从架子上进入。新安装指 `layout.json` 和
   `layouts.json` 都不存在。已有的已保存布局列表绝不会被自动添加：请从架子上添加预设。
 - 最多保存 20 个布局；列表满时，要先删除一个才能添加预设。
 - 预设不会开启任何东西：Starlink、地震警报之类仍由你自己决定是否开启。
@@ -396,7 +396,7 @@ elecdex 启动时的默认布局。
 | 按键 | **Ctrl+Shift+F10** |
 | 窗格 | 系统栏；舞台上是 [AWS STATUS](panes-cloud.zh-CN.md#aws-status)（宽度的 0.58）；右侧是 [GITHUB STATUS](panes-cloud.zh-CN.md#github-status)（高度的 0.62），其下是 [Terminal](panes-system.zh-CN.md#terminal)，旁边的标签页是 [Log Watch](panes-dev.zh-CN.md#log-watch) |
 | 截图 | Business (Light) |
-| 状态 | *未发布*（已在 `main` 上，随下一个版本发布） |
+| 状态 | 于 v0.0.60 发布 |
 
 <p align="center">
   <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统栏；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带和 ATTENTION 列表；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
@@ -421,7 +421,7 @@ elecdex 启动时的默认布局。
 
 | | |
 | --- | --- |
-| 按键 | **Ctrl+Shift+F11** *（未发布：在 cloud 加入之前为 Ctrl+Shift+F10）* |
+| 按键 | **Ctrl+Shift+F11** *（v0.0.60 之前为 Ctrl+Shift+F10）* |
 | 窗格 | 无 |
 | 截图 | Amber，为第一个窗格打开了选择器 |
 | 状态 | 于 v0.0.44 发布 |

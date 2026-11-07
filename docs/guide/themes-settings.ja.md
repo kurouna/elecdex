@@ -193,10 +193,10 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `reminders.sound` | `true` | 音（インターフェース音がオンのとき） |
 | `reminders.snoozeMinutes` | `10` | *snooze* で先送りする時間、1〜1440 分 |
 | `reminders.leadMinutes` | `0` | 期限の何分前に知らせるか、0〜1440 |
-| `aws.incidents.notify` | `true` | *未リリース。* AWS の公開ステータスに、AWS STATUS ペインのリージョンかグローバルなサービスの障害が出たらトースト。地震の通知と違って既定でオン。ステータスを読むのはそのペインが見えている間だけだからです（[クラウドのペイン](panes-cloud.ja.md#公開ステータスと障害のトースト)） |
+| `aws.incidents.notify` | `true` | AWS の公開ステータスに、AWS STATUS ペインのリージョンかグローバルなサービスの障害が出たらトースト。地震の通知と違って既定でオン。ステータスを読むのはそのペインが見えている間だけだからです（[クラウドのペイン](panes-cloud.ja.md#公開ステータスと障害のトースト)） |
 | `aws.incidents.system` | `true` | ウィンドウが前に無いときは OS の通知も（アカウントの名前は書きません） |
 | `aws.incidents.minSeverity` | `"warn"` | 知らせるいちばん軽い障害: `info`、`warn`（impact、degradation）、`danger`（disruption） |
-| `github.incidents.notify` | `true` | *未リリース。* GitHub の公開ステータスについて同じこと。GITHUB STATUS ペインが見えている間 |
+| `github.incidents.notify` | `true` | GitHub の公開ステータスについて同じこと。GITHUB STATUS ペインが見えている間 |
 | `github.incidents.system` | `true` | ウィンドウが前に無いときは OS の通知も |
 | `github.incidents.minSeverity` | `"danger"` | `info`、`warn`（GitHub の minor）、`danger`（major と critical） |
 | `github.incidents.skip` | `["Copilot"]` | 障害を知らせない部品（30 個まで）。部品の名前の無い障害はいつも知らせます |
@@ -255,10 +255,10 @@ macOS と Linux のパスは Electron の既定に従ったもので、手作業
 | `chats/`、`elec/` | AI の会話と ELEC system の審議 |
 | `git-repos.json`、`log-files.json` | git ペインと LOG WATCH ペインで選んだリポジトリとログファイル（id で識別） |
 | `awake.json` | Utility ペインの AWAKE の保持 |
-| `aws-billing.json` | *未リリース。* AWS STATUS のアカウントごとの、Cost Explorer の答え・上限・数、コストの QUOTA と知らせた段、プロファイルとアカウントの対応 |
-| `github-stars.json` | *未リリース。* GITHUB STATUS: 公開リポジトリのスターの日ごとの数、90 日 |
-| `cloud-alerts.json` | *未リリース。* 知らせ済みの AWS と GitHub の障害、30 日 |
-| `cli-cwd/` | *未リリース。* AWS と GitHub の CLI を起動する空のフォルダー |
+| `aws-billing.json` | AWS STATUS のアカウントごとの、Cost Explorer の答え・上限・数、コストの QUOTA と知らせた段、プロファイルとアカウントの対応 |
+| `github-stars.json` | GITHUB STATUS: 公開リポジトリのスターの日ごとの数、90 日 |
+| `cloud-alerts.json` | 知らせ済みの AWS と GitHub の障害、30 日 |
+| `cli-cwd/` | AWS と GitHub の CLI を起動する空のフォルダー |
 | `feeds-cache.json` | フィードごとの最新の RSS 見出し |
 | `Partitions/web` | Web ペインの Cookie とサイトデータ（*sign out of all sites* まで） |
 

@@ -4,7 +4,7 @@
 
 elecdex は SF 風のデスクトップ向けターミナルエミュレーター兼システムモニターで、eDEX-UI を Electron・Svelte・
 TypeScript で作り直したものです。このページでは、作業ごとのペインをキー一つ（**Ctrl+Shift+F1**〜**F11**）で画面に
-並べる 11 個の **レイアウトプリセット**（standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未リリース）*、blank）に
+並べる 11 個の **レイアウトプリセット**（standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud、blank）に
 ついて、それぞれの中身、プリセットが保存レイアウトになる仕組み、各プリセットが見せる機能を説明します。elecdex は
 Windows・macOS・Linux で動きます。開発と利用は Windows で行っており、macOS と Linux は GitHub Actions の自動テストで
 動かしただけなので、十分には検証されていません。
@@ -48,7 +48,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
 | Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.ja.md#ai-chat) の下に [TRANSLATE](panes-ai.ja.md#translate)、[ELEC system](panes-ai.ja.md#elec-system) の下に [GPU](panes-system.ja.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | システムの列なし。[Cluster](panes-system.ja.md#cluster) の下に [Terminal](panes-system.ja.md#terminal)、[Wi-Fi](panes-network.ja.md#wi-fi) の下に [Ethernet](panes-network.ja.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.ja.md#elec-16)・ELEC-16 SCI・[CHIP-8](panes-retro.ja.md#chip-8) をタブにした 1 つのペイン、その下に 16 バンドの [Spectrum](panes-media.ja.md#spectrum) | Tron |
-| Ctrl+Shift+F10 | [cloud](#cloud) *（未リリース）* | [AWS STATUS](panes-cloud.ja.md#aws-status)、[GITHUB STATUS](panes-cloud.ja.md#github-status) の下に [Terminal](panes-system.ja.md#terminal) と [Log Watch](panes-dev.ja.md#log-watch) のタブ | Business (Light) |
+| Ctrl+Shift+F10 | [cloud](#cloud) | [AWS STATUS](panes-cloud.ja.md#aws-status)、[GITHUB STATUS](panes-cloud.ja.md#github-status) の下に [Terminal](panes-system.ja.md#terminal) と [Log Watch](panes-dev.ja.md#log-watch) のタブ | Business (Light) |
 | Ctrl+Shift+F11 | [blank](#blank) | なし | Amber |
 
 ## プリセットの仕組み
@@ -73,7 +73,7 @@ Windows・macOS・Linux で動きます。開発と利用は Windows で行っ�
   増えても、変更したキーは同じプリセットに残ります。素の F キーは tasks ペイン（F2 で編集）や、シェルの中の
   htop・mc のようなプログラムが使うので、Ctrl+Shift を付けています。
 - **新しくインストールすると 11 個すべてが**入り、standard が使用中になります。先頭の 10 個が Ctrl+Shift+1〜9 と 0 に
-  入り、11 個目の blank には番号のキーが付きません *（未リリース: cloud が来るまでは 0 でした）*。Ctrl+Shift+F11 か
+  入り、11 個目の blank には番号のキーが付きません *（v0.0.60 より前は 0）*。Ctrl+Shift+F11 か
   棚から行けます。新しい
   インストールとは `layout.json` も `layouts.json` もない状態です。既存の保存レイアウトの一覧に自動で足すことは
   ありません。棚から足してください。
@@ -419,7 +419,7 @@ elecdex を最初に開いたときの配置です。
 | キー | **Ctrl+Shift+F10** |
 | ペイン | システムの列。舞台に [AWS STATUS](panes-cloud.ja.md#aws-status)（幅の 0.58）。右に [GITHUB STATUS](panes-cloud.ja.md#github-status)（高さの 0.62）、その下に [Terminal](panes-system.ja.md#terminal) と、その横のタブに [Log Watch](panes-dev.ja.md#log-watch) |
 | 画像 | Business (Light) |
-| 状態 | *未リリース*（`main` にあり、次のリリースで届きます） |
+| 状態 | v0.0.60 でリリース |
 
 <p align="center">
   <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、ATTENTION の一覧）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
@@ -445,7 +445,7 @@ elecdex を最初に開いたときの配置です。
 
 | | |
 | --- | --- |
-| キー | **Ctrl+Shift+F11** *（未リリース: cloud が来るまでは Ctrl+Shift+F10）* |
+| キー | **Ctrl+Shift+F11** *（v0.0.60 より前は Ctrl+Shift+F10）* |
 | ペイン | なし |
 | 画像 | Amber（最初のペインを選ぶピッカーを開いたところ） |
 | 状態 | v0.0.44 でリリース |

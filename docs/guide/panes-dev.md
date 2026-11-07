@@ -37,7 +37,7 @@ The dev preset (Ctrl+Shift+F4) is agents at work, the containers they run, and t
 
 - The panes in front are the ones that read only while they are on screen (the Docker engine, the clipboard), so a fresh dev layout shows them working.
 - In short: **AI Agent** shows the Claude Code sessions at work on your computer - what each is doing this moment, how much it carries, its subagents and background tasks, and a diff of every file it changed. **Git** shows a repository you choose, kept current as it changes; FETCH, PULL fast-forward only, and PUSH, never forced; one pane per repository. **Docker** shows the engine's containers by Compose project; start, stop, restart and pause from the row. **Log Watch** follows a log file as it grows, with **EXPLAIN** to ask the model of your AI settings about the lines you choose.
-- Presets are templates: choosing one adds a saved layout that then follows your changes. A new install starts with all eleven presets (*unreleased*: ten in v0.0.59); an existing list of layouts is never added to.
+- Presets are templates: choosing one adds a saved layout that then follows your changes. A new install starts with all eleven presets; an existing list of layouts is never added to.
 
 ## AI Agent
 

@@ -371,7 +371,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open) |
 | Ctrl+Shift+G | saved layouts |
 | Ctrl+Shift+1 … 9, 0 | apply the first ten saved layouts, in the order the dialog lists them (0 is the tenth); an empty slot leaves the keys to the focused pane |
-| Ctrl+Shift+F1 … F11 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro, cloud *(unreleased)*, blank |
+| Ctrl+Shift+F1 … F11 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro, cloud, blank |
 | Ctrl+Shift+L | search the launcher (pops one up if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up; pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
 | Ctrl+Shift+Y | the TRANSLATE pane with the clipboard's text, translated at once: the next one in the layout, or popped up |

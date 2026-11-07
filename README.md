@@ -25,7 +25,7 @@ current, secure stack.
   ▶ <a href="https://youtu.be/JlCZzLhp_PM">Watch the 3-minute tour</a> · <a href="https://youtube.com/shorts/K-Is8LihR1w">Shorts (vertical)</a>
 </p>
 
-> **v0.0.59 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.60 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -53,7 +53,7 @@ is built on Electron 45, Svelte 5 and TypeScript 7, and is released under the GP
 - **The world**: weather (JMA, NWS, MET Norway), markets, RSS, earthquakes and tsunamis, satellites
   computed locally (SGP4), a globe of connections placed with a bundled GeoIP database.
 - **Work and AI**: Git (read, FETCH/PULL/PUSH), Docker, Log Watch, Claude Code sessions, an AWS
-  account and GitHub read through their own CLIs *(unreleased)*, AI chat over
+  account and GitHub read through their own CLIs, AI chat over
   any OpenAI-compatible or Anthropic endpoint with keys kept encrypted by the OS; translation with
   PLaMo 3 Translate run on this computer.
 - **Desk and media**: notes, tasks, a timer, the clipboard, a calendar and a calculator; a sound
@@ -89,7 +89,7 @@ details are in [Layout presets](docs/guide/presets.md).
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.md#retro"><img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro layout preset in the Tron theme"></a><br><sub><b>retro</b> · Ctrl+Shift+F9 · CHIP-8, the ELEC-16 machines and the SCI-128 calculator</sub></td>
-    <td align="center" width="50%"><a href="docs/guide/presets.md#cloud"><img src="./docs/screenshots/elecdex-cloud.jpg" alt="The cloud layout preset in the Business (Light) theme"></a><br><sub><b>cloud</b> (<i>unreleased</i>) · Ctrl+Shift+F10 · AWS STATUS, GITHUB STATUS, a shell and LOG WATCH</sub></td>
+    <td align="center" width="50%"><a href="docs/guide/presets.md#cloud"><img src="./docs/screenshots/elecdex-cloud.jpg" alt="The cloud layout preset in the Business (Light) theme"></a><br><sub><b>cloud</b> · Ctrl+Shift+F10 · AWS STATUS, GITHUB STATUS, a shell and LOG WATCH</sub></td>
   </tr>
   <tr>
     <td align="center" width="50%"><a href="docs/guide/presets.md#blank"><img src="./docs/screenshots/elecdex-blank.jpg" alt="The blank layout preset in the Amber theme"></a><br><sub><b>blank</b> · Ctrl+Shift+F11 · no pane yet: build a layout of your own</sub></td>
@@ -104,7 +104,7 @@ details are in [Layout presets](docs/guide/presets.md).
 | System | Terminal, Clock, System, CPU, Memory, GPU, Disk, Top processes, Cluster, Launcher, Filesystem | [System panes](docs/guide/panes-system.md) |
 | Network | Network status, Network traffic, World view, Connections, Wi-Fi, Ethernet | [Network panes](docs/guide/panes-network.md) |
 | Development | AI Agent, Git, Docker, Log Watch | [Development panes](docs/guide/panes-dev.md) |
-| Cloud *(unreleased)* | AWS STATUS, GITHUB STATUS | [Cloud panes](docs/guide/panes-cloud.md) |
+| Cloud | AWS STATUS, GITHUB STATUS | [Cloud panes](docs/guide/panes-cloud.md) |
 | World | Orbit, Markets, Weather, RSS, Quakes, earthquake and tsunami alerts | [World panes](docs/guide/panes-world.md) |
 | AI | AI chat, ELEC system, TRANSLATE | [AI panes](docs/guide/panes-ai.md) |
 | Desk | Calculator, Notes, Tasks, Timer, Clipboard, Calendar, Utility | [Desk panes](docs/guide/panes-desk.md) |
@@ -239,7 +239,7 @@ Every shortcut can be rebound in *Settings → Keyboard*; the full list is in
 | CHIP-8 fonts | [Octo](https://github.com/JohnEarnest/Octo) `js/emulator.js`, copied into `src/shared/chip8/fonts.ts` | MIT |
 | CHIP-8 programs | [chip8Archive](https://github.com/JohnEarnest/chip8Archive), by their authors, in `resources/chip8/archive` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); credited in the pane |
 | TRANSLATE's engine and model | [llama.cpp](https://github.com/ggml-org/llama.cpp) b12110, and [PLaMo 3 Translate](https://huggingface.co/pfnet) by Preferred Networks: not bundled, fetched in the pane's setup | llama.cpp: MIT; its licences, and those of the code built into llama-server, come with elecdex and are written beside the engine. The model: [PLaMo Community License](https://plamo.preferredai.jp/info/plamo-community-license-ja), read and agreed to in the setup. Built with PLaMo |
-| AWS unit prices (AWS STATUS's estimates) *(unreleased)* | AWS's public pricing pages, as of 2026-11, in `src/shared/aws/list-prices.ts` | Facts, not a licensed work; approximate, checked with each release |
+| AWS unit prices (AWS STATUS's estimates) | AWS's public pricing pages, as of 2026-11, in `src/shared/aws/list-prices.ts` | Facts, not a licensed work; approximate, checked with each release |
 | CHIP-8 test programs (DIAG) | [chip8-test-suite](https://github.com/Timendus/chip8-test-suite) by Timendus, in `resources/chip8/test-suite` with their Octo sources | GPL-3.0 |
 
 The geolocation database is bundled, so there is no account, no API key and no first-run

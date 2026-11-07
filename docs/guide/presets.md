@@ -4,7 +4,7 @@ English | [日本語](presets.ja.md) | [简体中文](presets.zh-CN.md)
 
 elecdex is a science-fiction desktop terminal emulator and system monitor, a rewrite of eDEX-UI on
 Electron, Svelte and TypeScript. This page describes its eleven **layout presets** - standard,
-network, earth, dev, media, desk, ai, cockpit, retro, cloud *(unreleased)* and blank - which put the panes for one kind
+network, earth, dev, media, desk, ai, cockpit, retro, cloud and blank - which put the panes for one kind
 of work on screen at a key each (**Ctrl+Shift+F1** to **F11**): what each preset holds, how presets
 become saved layouts, and the features each one shows. elecdex runs on Windows, macOS and Linux; it
 is developed and used on Windows, and macOS and Linux have only been run by the automated tests on
@@ -50,7 +50,7 @@ network traffic, top to bottom, in 18% of the window's width.
 | Ctrl+Shift+F7 | [ai](#ai) | [AI chat](panes-ai.md#ai-chat) over [TRANSLATE](panes-ai.md#translate); [ELEC system](panes-ai.md#elec-system) over [GPU](panes-system.md#gpu) | Business (Dark) |
 | Ctrl+Shift+F8 | [cockpit](#cockpit) | no system column: [Cluster](panes-system.md#cluster) over a [Terminal](panes-system.md#terminal); [Wi-Fi](panes-network.md#wi-fi) over [Ethernet](panes-network.md#ethernet) | Black |
 | Ctrl+Shift+F9 | [retro](#retro) | [ELEC-16](panes-retro.md#elec-16), ELEC-16 SCI and [CHIP-8](panes-retro.md#chip-8) as tabs of one pane; [Spectrum](panes-media.md#spectrum) at sixteen bands under them | Tron |
-| Ctrl+Shift+F10 | [cloud](#cloud) *(unreleased)* | [AWS STATUS](panes-cloud.md#aws-status); [GITHUB STATUS](panes-cloud.md#github-status) over a [Terminal](panes-system.md#terminal) and [Log Watch](panes-dev.md#log-watch) as tabs | Business (Light) |
+| Ctrl+Shift+F10 | [cloud](#cloud) | [AWS STATUS](panes-cloud.md#aws-status); [GITHUB STATUS](panes-cloud.md#github-status) over a [Terminal](panes-system.md#terminal) and [Log Watch](panes-dev.md#log-watch) as tabs | Business (Light) |
 | Ctrl+Shift+F11 | [blank](#blank) | none | Amber |
 
 ## How presets work
@@ -78,7 +78,7 @@ A preset is a **template**, never a second kind of layout:
   are added. They carry Ctrl+Shift because bare F keys belong to the tasks pane (F2 edits) and to
   programs in the shell such as htop or mc.
 - **A new install starts with all eleven**, standard active. The first ten are on Ctrl+Shift+1 to 9
-  and 0; blank, the eleventh, has no number key *(unreleased: it was on 0 until cloud came)* and is
+  and 0; blank, the eleventh, has no number key *(on 0 before v0.0.60)* and is
   reached with Ctrl+Shift+F11 or from the shelf. A new install is
   one with neither `layout.json` nor `layouts.json`. An existing list of saved layouts is never
   added to: add a preset from the shelf.
@@ -448,7 +448,7 @@ The machine behind its tab is paused while it is out of sight.
 | Key | **Ctrl+Shift+F10** |
 | Panes | system column; [AWS STATUS](panes-cloud.md#aws-status) on the stage (0.58 of its width); on the right [GITHUB STATUS](panes-cloud.md#github-status) (0.62 of the height) over a [Terminal](panes-system.md#terminal), with [Log Watch](panes-dev.md#log-watch) as a tab beside it |
 | Picture | Business (Light) |
-| Status | *unreleased* (on `main`, arrives with the next release) |
+| Status | Released in v0.0.60 |
 
 <p align="center">
   <img src="../screenshots/elecdex-cloud.jpg" alt="The cloud preset in the Business (Light) theme: the system column on the left; an AWS STATUS pane on a made-up account acme-prod with one alarm, the month to date and its forecast against the budget, the one-line Cost Explorer question, the ACCOUNT PULSE band and the ATTENTION list; on the right a GITHUB STATUS pane of a made-up user octo-aki with the contribution grid and its QUEUE; under it a shell with a LOG WATCH tab beside it">
@@ -475,7 +475,7 @@ The machine behind its tab is paused while it is out of sight.
 
 | | |
 | --- | --- |
-| Key | **Ctrl+Shift+F11** *(unreleased: Ctrl+Shift+F10 until cloud came)* |
+| Key | **Ctrl+Shift+F11** *(Ctrl+Shift+F10 before v0.0.60)* |
 | Panes | none |
 | Picture | Amber, with the add-pane picker open for the first pane |
 | Status | Released in v0.0.44 |

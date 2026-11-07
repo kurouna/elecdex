@@ -304,7 +304,7 @@ Ctrl+Shift+@ / [）。应用自己的列表和提示会按你的键盘印字显�
 | Ctrl+Shift+Backspace | 重置为默认布局（有 shell 打开时先询问） |
 | Ctrl+Shift+G | 已保存布局 |
 | Ctrl+Shift+1 … 9、0 | 按对话框中的顺序应用前十个已保存布局（0 为第十个）；空位时按键留给当前窗格 |
-| Ctrl+Shift+F1 … F11 | 转到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未发布）*、blank |
+| Ctrl+Shift+F1 … F11 | 转到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud、blank |
 | Ctrl+Shift+L | 搜索启动器（布局中没有时弹出一个） |
 | Ctrl+Shift+U | 实用工具窗格：布局中的下一个，没有则弹出；再按一次收起（Linux 上 IBus 可能占用这组按键来按编码输入字符：请重新绑定） |
 | Ctrl+Shift+Y | 带着剪贴板中的文本前往 TRANSLATE 窗格 并立即翻译：布局中的下一个，没有则弹出 |

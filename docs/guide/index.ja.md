@@ -8,7 +8,7 @@ elecdex は、Windows・macOS・Linux 向けの SF 風のターミナルエミ�
 
 | ページ | 内容 |
 | --- | --- |
-| [レイアウトのプリセット](presets.ja.md) | 11 個のプリセット（standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud *（未リリース）*、blank）、キー Ctrl+Shift+F1〜F11、それぞれのペイン |
+| [レイアウトのプリセット](presets.ja.md) | 11 個のプリセット（standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud、blank）、キー Ctrl+Shift+F1〜F11、それぞれのペイン |
 | [ワークスペース](workspace.ja.md) | ペイン、分割とタブ、移動と閉じ方、ペインを前に出す、ポップアップのペイン、保存したレイアウト、アクションパレット、動きと音、バックグラウンドでの実行 |
 | [キーボードショートカット](keyboard.ja.md) | 既定のキーすべて、割り当ての変え方、システム全体の表示・非表示のショートカット |
 | [テーマと設定](themes-settings.ja.md) | 8 つのテーマと `settings.json` |
@@ -20,7 +20,7 @@ elecdex は、Windows・macOS・Linux 向けの SF 風のターミナルエミ�
 | [システムのペイン](panes-system.ja.md) | Terminal、Clock、System、CPU、Memory、GPU、Disk、Top processes、Cluster、Launcher、Filesystem |
 | [ネットワークのペイン](panes-network.ja.md) | Network status、Network traffic、World view、Connections、Wi-Fi、Ethernet |
 | [開発のペイン](panes-dev.ja.md) | AI Agent、Git、Docker、Log Watch |
-| [クラウドのペイン](panes-cloud.ja.md) *（未リリース）* | AWS STATUS、GITHUB STATUS |
+| [クラウドのペイン](panes-cloud.ja.md) | AWS STATUS、GITHUB STATUS |
 | [外の世界のペイン](panes-world.ja.md) | Orbit、Markets、Weather、RSS、Quakes、地震と津波の通知 |
 | [AI のペイン](panes-ai.ja.md) | AI chat、ELEC system、TRANSLATE |
 | [デスクのペイン](panes-desk.ja.md) | Calculator、Notes、Tasks、Timer、Clipboard、Calendar、Utility |

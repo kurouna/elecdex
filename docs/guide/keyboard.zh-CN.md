@@ -59,7 +59,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | --- | --- | --- | --- |
 | Ctrl+Shift+G | Saved layouts | `layout.saved` | 打开布局对话框：给当前排布命名保存，或回到某个布局 |
 | Ctrl+Shift+1 … 9、0 | Apply the 1st … 10th saved layout | `layout.saved1` … `layout.saved10` | 应用前十个已保存布局，顺序与对话框中的列表一致（0 为第十个）。对应位置为空时，按键交给当前窗格 |
-| Ctrl+Shift+F1 … F11 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | 切换到预设：F1 standard、F2 network、F3 earth、F4 dev、F5 media、F6 desk、F7 ai、F8 cockpit、F9 retro、F10 cloud（`layout.preset.cloud`）、F11 blank *（未发布：cloud 是新增的，blank 原在 F10）* |
+| Ctrl+Shift+F1 … F11 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | 切换到预设：F1 standard、F2 network、F3 earth、F4 dev、F5 media、F6 desk、F7 ai、F8 cockpit、F9 retro、F10 cloud（`layout.preset.cloud`）、F11 blank *（v0.0.60 之前 blank 在 F10）* |
 | Ctrl+Shift+Backspace | Reset layout | `layout.reset` | 重置为默认布局（有 shell 打开时，与切换布局一样先询问） |
 
 预设的按键绑定在预设的 id 上，而不是它的位置上，所以你改过的按键始终对应同一个预设。
@@ -107,8 +107,8 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | 双击分隔条 | 两个窗格之间 | 让两侧的两个窗格平分空间 |
 | Escape | 被放大的窗格 | 放回原位 |
 | Escape | 对话框、操作面板、弹出窗格、拖动中 | 关闭或取消 |
-| Enter | AWS STATUS 或 GITHUB STATUS 的一行，焦点在窗格内时 *（未发布）* | 打开该行：在 AWS STATUS 中下钻一层（先是服务，再是单个资源），在 GITHUB STATUS 中在浏览器里打开该项；在故障横带上打开状态页面 |
-| Escape 或 Backspace | 正在下钻的 AWS STATUS 或 GITHUB STATUS，焦点在窗格内且不在输入框中时 *（未发布）* | 返回一层 |
+| Enter | AWS STATUS 或 GITHUB STATUS 的一行，焦点在窗格内时 | 打开该行：在 AWS STATUS 中下钻一层（先是服务，再是单个资源），在 GITHUB STATUS 中在浏览器里打开该项；在故障横带上打开状态页面 |
+| Escape 或 Backspace | 正在下钻的 AWS STATUS 或 GITHUB STATUS，焦点在窗格内且不在输入框中时 | 返回一层 |
 
 ## 其他键盘布局上的按键
 
@@ -250,13 +250,13 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | **ai** | Ctrl+Shift+F7 | AI 聊天及其下方的 TRANSLATE，以及位于 GPU 窗格之上的 ELEC system |
 | **cockpit** | Ctrl+Shift+F8 | 以 CLUSTER 面板取代系统栏，下方一个 shell，右侧上方是 Wi-Fi、下方是 Ethernet |
 | **retro** | Ctrl+Shift+F9 | ELEC-16 和 CHIP-8 作为一个窗格的标签页，下方是 16 段频谱 |
-| **cloud** *（未发布）* | Ctrl+Shift+F10 | AWS STATUS，以及位于 shell 之上的 GITHUB STATUS（shell 旁边的标签页是 Log Watch） |
+| **cloud** | Ctrl+Shift+F10 | AWS STATUS，以及位于 shell 之上的 GITHUB STATUS（shell 旁边的标签页是 Log Watch） |
 | **blank** | Ctrl+Shift+F11 | 没有窗格，由你自己添加 |
 
 - 除 cockpit 和 blank 外，每个预设都把系统栏留在左侧，所以切换时换的是舞台，仪表仍在原处。
 - 选择一个预设会用它新建一个布局并切换过去——此后它就是你的布局之一，跟随你的工作——再次选择它会回到那个布局，而不会再新建一个；↺ 把它恢复为预设原样。
 - 每个预设的按键在任何地方都能做同样的事。
-- 全新安装时会得到全部十一个预设，前十个占据 Ctrl+Shift+1 到 0；第十一个 blank 没有数字键 *（未发布）*。已有的列表不会被追加。
+- 全新安装时会得到全部十一个预设，前十个占据 Ctrl+Shift+1 到 0；第十一个 blank 没有数字键。已有的列表不会被追加。
 
 ## 标签组
 

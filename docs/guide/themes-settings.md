@@ -193,10 +193,10 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `reminders.sound` | `true` | A sound, with interface sounds on |
 | `reminders.snoozeMinutes` | `10` | How long *snooze* puts a task off for, 1 to 1440 |
 | `reminders.leadMinutes` | `0` | Announce this many minutes before the deadline, 0 to 1440 |
-| `aws.incidents.notify` | `true` | *Unreleased.* A toast when AWS's public status shows an incident in an AWS STATUS pane's regions or a global service. On by default, unlike the quake alerts, because the status is read only while such a pane is shown ([Cloud panes](panes-cloud.md#public-status-and-incident-toasts)) |
+| `aws.incidents.notify` | `true` | A toast when AWS's public status shows an incident in an AWS STATUS pane's regions or a global service. On by default, unlike the quake alerts, because the status is read only while such a pane is shown ([Cloud panes](panes-cloud.md#public-status-and-incident-toasts)) |
 | `aws.incidents.system` | `true` | Also a system notification when the window is not in front (it never names the account) |
 | `aws.incidents.minSeverity` | `"warn"` | The lightest incident told: `info`, `warn` (impact, degradation) or `danger` (disruption) |
-| `github.incidents.notify` | `true` | *Unreleased.* The same for GitHub's public status, while a GITHUB STATUS pane is shown |
+| `github.incidents.notify` | `true` | The same for GitHub's public status, while a GITHUB STATUS pane is shown |
 | `github.incidents.system` | `true` | Also a system notification when the window is not in front |
 | `github.incidents.minSeverity` | `"danger"` | `info`, `warn` (GitHub's minor) or `danger` (major and critical) |
 | `github.incidents.skip` | `["Copilot"]` | Components whose incidents are not told (up to 30 names); an incident that names no component is always told |
@@ -255,10 +255,10 @@ What is in it:
 | `chats/`, `elec/` | AI conversations and ELEC system deliberations |
 | `git-repos.json`, `log-files.json` | The repositories and log files chosen in the git and LOG WATCH panes, known by id |
 | `awake.json` | The utility pane's AWAKE hold |
-| `aws-billing.json` | *Unreleased.* AWS STATUS, per account: the Cost Explorer answer, cap and count, the cost QUOTA and the steps told, and which account a profile is |
-| `github-stars.json` | *Unreleased.* GITHUB STATUS: daily star counts of public repositories, 90 days |
-| `cloud-alerts.json` | *Unreleased.* The AWS and GitHub incidents already told, 30 days |
-| `cli-cwd/` | *Unreleased.* An empty folder the AWS and GitHub CLIs are started in |
+| `aws-billing.json` | AWS STATUS, per account: the Cost Explorer answer, cap and count, the cost QUOTA and the steps told, and which account a profile is |
+| `github-stars.json` | GITHUB STATUS: daily star counts of public repositories, 90 days |
+| `cloud-alerts.json` | The AWS and GitHub incidents already told, 30 days |
+| `cli-cwd/` | An empty folder the AWS and GitHub CLIs are started in |
 | `feeds-cache.json` | The last RSS headlines per feed |
 | `Partitions/web` | The web panes' cookies and site data, until *sign out of all sites* |
 

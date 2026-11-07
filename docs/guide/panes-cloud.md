@@ -2,9 +2,7 @@ English | [日本語](panes-cloud.ja.md) | [简体中文](panes-cloud.zh-CN.md)
 
 # Cloud panes: AWS STATUS and GITHUB STATUS — elecdex
 
-elecdex is a science-fiction terminal emulator and system monitor, a rewrite of eDEX-UI on Electron, Svelte and TypeScript. This page covers its two panes for cloud work *(unreleased)*: **AWS STATUS** (what needs someone in an AWS account, what runs and bills in it now, this month's cost and who changed what) and **GITHUB STATUS** (what waits on you on GitHub, your notifications, what happened in your repositories, and the repositories themselves). Both read through the command-line tools you already use, AWS CLI v2 and GitHub CLI, only while the pane is shown, and change nothing. For each it states what it reads, how often, what it costs, what it never reads or does, and its settings. elecdex runs on Windows, macOS and Linux; it is developed and used on Windows, and macOS and Linux have only been built and run by the automated tests, so they are not sufficiently verified.
-
-*Unreleased*: everything on this page is on `main` and arrives with the next release.
+elecdex is a science-fiction terminal emulator and system monitor, a rewrite of eDEX-UI on Electron, Svelte and TypeScript. This page covers its two panes for cloud work: **AWS STATUS** (what needs someone in an AWS account, what runs and bills in it now, this month's cost and who changed what) and **GITHUB STATUS** (what waits on you on GitHub, your notifications, what happened in your repositories, and the repositories themselves). Both read through the command-line tools you already use, AWS CLI v2 and GitHub CLI, only while the pane is shown, and change nothing. For each it states what it reads, how often, what it costs, what it never reads or does, and its settings. elecdex runs on Windows, macOS and Linux; it is developed and used on Windows, and macOS and Linux have only been built and run by the automated tests, so they are not sufficiently verified.
 
 On this page:
 

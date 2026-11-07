@@ -2,9 +2,7 @@
 
 # 云窗格：AWS STATUS 和 GITHUB STATUS — elecdex
 
-elecdex 是一个科幻风格的终端模拟器和系统监视器，是用 Electron、Svelte 和 TypeScript 重写的 eDEX-UI。本页介绍它面向云端工作的两个窗格 *（未发布）*：**AWS STATUS**（AWS 账户中需要人处理的事、此刻正在运行并计费的资源、本月的费用，以及谁改了什么）和 **GITHUB STATUS**（GitHub 上等你处理的事、你的通知、你的仓库中发生的事，以及仓库本身）。两者都通过你已在使用的命令行工具 AWS CLI v2 和 GitHub CLI 读取，只在窗格可见时读取，且不做任何更改。对每个窗格，本页说明它读取什么、多久一次、费用、从不读取或从不做什么，以及它的设置。elecdex 可在 Windows、macOS 和 Linux 上运行；它在 Windows 上开发和使用，macOS 和 Linux 只经过自动化测试的构建和运行，因此尚未得到充分验证。
-
-*未发布*：本页的所有内容都已在 `main` 上，随下一个版本发布。
+elecdex 是一个科幻风格的终端模拟器和系统监视器，是用 Electron、Svelte 和 TypeScript 重写的 eDEX-UI。本页介绍它面向云端工作的两个窗格：**AWS STATUS**（AWS 账户中需要人处理的事、此刻正在运行并计费的资源、本月的费用，以及谁改了什么）和 **GITHUB STATUS**（GitHub 上等你处理的事、你的通知、你的仓库中发生的事，以及仓库本身）。两者都通过你已在使用的命令行工具 AWS CLI v2 和 GitHub CLI 读取，只在窗格可见时读取，且不做任何更改。对每个窗格，本页说明它读取什么、多久一次、费用、从不读取或从不做什么，以及它的设置。elecdex 可在 Windows、macOS 和 Linux 上运行；它在 Windows 上开发和使用，macOS 和 Linux 只经过自动化测试的构建和运行，因此尚未得到充分验证。
 
 本页内容：
 
