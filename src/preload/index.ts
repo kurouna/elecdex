@@ -694,7 +694,7 @@ const api: ElecdexApi = {
     subscribe: (key, handler) => subscribeGithub(key, handler),
     refresh: (key) => ipcRenderer.invoke(CH.github.refresh, key) as Promise<number>,
     detail: (key, repo) =>
-      ipcRenderer.invoke(CH.github.detail, key, repo) as Promise<RepoDetail | null>,
+      ipcRenderer.invoke(CH.github.detail, key, repo) as Promise<RepoDetail | 'waiting' | null>,
     open: (key, id) => ipcRenderer.invoke(CH.github.open, key, id) as Promise<boolean>,
     watching: () => ipcRenderer.invoke(CH.github.watching) as Promise<string[]>,
   },
@@ -704,7 +704,9 @@ const api: ElecdexApi = {
     drill: (key, service) =>
       ipcRenderer.invoke(CH.aws.drill, key, service) as Promise<DrillRow[] | null>,
     item: (key, service, id, region) =>
-      ipcRenderer.invoke(CH.aws.item, key, service, id, region) as Promise<DrillItem | null>,
+      ipcRenderer.invoke(CH.aws.item, key, service, id, region) as Promise<
+        DrillItem | 'unread' | null
+      >,
     history: (key, service, id, region) =>
       ipcRenderer.invoke(CH.aws.history, key, service, id, region) as Promise<
         HistoryEvent[] | null

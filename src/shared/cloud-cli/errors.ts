@@ -20,6 +20,8 @@ export type CliProblem =
    */
   | { kind: 'not-offered'; service: string }
   | { kind: 'timeout' }
+  /** An answer past the 4 MB a call may print (`maxBuffer`): not read, and said in words of our own. */
+  | { kind: 'too-large' }
   | { kind: 'error'; text: string }
 
 const AWS_MFA = /Enter MFA code|mfa_serial|MFA token/i
@@ -60,6 +62,7 @@ const SIGNED_OUT: Record<CliTool, readonly [RegExp, 'login' | 'sso' | 'mfa' | 'k
 export function classifyCliError(tool: CliTool, result: CliResult): CliProblem {
   if (result.missing) return { kind: 'no-cli' }
   if (result.timedOut) return { kind: 'timeout' }
+  if (result.tooLarge) return { kind: 'too-large' }
   const text = result.stderr
   const via = SIGNED_OUT[tool].find(([pattern]) => pattern.test(text))?.[1]
   if (via !== undefined) return { kind: 'signed-out', via }
@@ -110,6 +113,23 @@ function firstLine(text: string): string {
       .map((part) => part.trim())
       .find((part) => part !== '') ?? ''
   return line.replace(/^(aws: \[ERROR\]: |gh: |error: )/i, '').slice(0, 120)
+}
+
+/**
+ * The foot's sentence for a problem of a kind that has no text of the CLI's: a timeout, an
+ * answer too large. Fixed words, so they say nothing of the account.
+ */
+export const PROBLEM_WORDS = {
+  timeout: 'a reading took over 20 s and was stopped: tried again later',
+  'too-large': 'an answer was over 4 MB and was not read: tried again later',
+} as const
+
+/** The foot's sentence: an error's redacted first line, else a timeout's or a large answer's words. */
+export function problemText(problems: readonly (CliProblem | null)[]): string | null {
+  for (const p of problems) if (p?.kind === 'error') return p.text
+  for (const p of problems)
+    if (p?.kind === 'timeout' || p?.kind === 'too-large') return PROBLEM_WORDS[p.kind]
+  return null
 }
 
 /** The command a signed-out profile or host is told to run in a shell (never run by the pane). */

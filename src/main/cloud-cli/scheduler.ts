@@ -6,6 +6,7 @@ import {
   type CliPriority,
   type CliResult,
   isDue,
+  isFree,
   MINUTE,
   type Probe,
   type RunCli,
@@ -39,7 +40,7 @@ export interface ProbeOutcome<T = unknown> {
 
 export interface SchedulerDeps<C> extends TimerDeps {
   cli: RunCli
-  /** Two starts at most, across every board (§2.3); `first` calls go ahead of `later` ones. */
+  /** `CLI_LANES` starts at most, across every board (§2.3); `first` calls go ahead of `later` ones. */
   limit: <T>(work: () => Promise<T>, priority?: CliPriority) => Promise<T>
   /** The queue a probe without `first` waits in: AWS's are `later`, GitHub's all `first`. */
   priority?: CliPriority
@@ -128,7 +129,13 @@ export class ProbeScheduler<C> {
    */
   readonly #afterParent = new Set<string>()
   #started = false
-  #halted = false
+  /**
+   * The generation in which a missing CLI or a sign-out stopped the board (null: not stopped),
+   * until REFRESH. A stop does not clear it, and the reading that met it keeps its problem when it
+   * ends after the stop: the board hidden before the halting reading ended once said LINKED shown
+   * again, every problem null, while it read nothing until REFRESH.
+   */
+  #haltedIn: number | null = null
   /** Starts, stops and refreshes: a run from an older one may no longer start the CLI. */
   #generation = 0
 
@@ -143,7 +150,7 @@ export class ProbeScheduler<C> {
 
   /** Stopped for a missing CLI or a sign-in, until `refresh`. */
   get halted(): boolean {
-    return this.#halted
+    return this.#haltedIn !== null
   }
 
   outcome<T>(id: string): ProbeOutcome<T> {
@@ -182,9 +189,19 @@ export class ProbeScheduler<C> {
       // A run left from before the stop is of the old generation: its calls still waiting are
       // dropped, so the probe is looked at again when that run ends.
       if (this.#running.has(probe.id)) this.#resume.add(probe.id)
-      else if (isDue(this.outcome(probe.id).at, probe.every, this.#deps.now()))
-        void this.#run(probe)
+      else if (isDue(this.#readAt(probe), probe.every, this.#deps.now())) void this.#run(probe)
     }
+  }
+
+  /**
+   * When the probe last read all it reads: `readAllAt` where a retry reads only a few parts
+   * (GITHUB STATUS' per-repository probes), else its outcome's time. A board shown again, a resumed
+   * run and a boundary all count from it, so a retry or a prune does not put off a reading due.
+   */
+  #readAt(probe: Probe<C, unknown>): number | null {
+    return probe.readAllAt === undefined
+      ? this.outcome(probe.id).at
+      : probe.readAllAt(this.#deps.context())
   }
 
   /** Stops the timers; calls still waiting for a CLI slot are dropped, not started. */
@@ -206,7 +223,7 @@ export class ProbeScheduler<C> {
    * the board again.
    */
   refresh(): void {
-    this.#halted = false
+    this.#haltedIn = null
     this.#generation += 1
     this.#failures.clear()
     for (const probe of this.#probes) {
@@ -227,10 +244,11 @@ export class ProbeScheduler<C> {
    * A period's boundary. A reading taken just before it (the board was shown a few seconds before
    * the boundary) stands until the next one: it would be read twice in a row. "Just" is the
    * stagger's own span (a quarter of the period, five minutes at most): half a period once let a
-   * daily reading taken at 13:00 skip midnight and stand 35 hours.
+   * daily reading taken at 13:00 skip midnight and stand 35 hours. A retry of a few parts is no
+   * such reading (`readAllAt`): the others' turn is on this boundary.
    */
   #onBoundary(probe: Probe<C, unknown>): void {
-    const { at } = this.outcome(probe.id)
+    const at = this.#readAt(probe)
     const failing = (this.#failures.get(probe.id) ?? 0) > 0
     const just = Math.min(probe.every / 4, 5 * MINUTE)
     if (!failing && at !== null && this.#deps.now() - at < just) return
@@ -250,7 +268,7 @@ export class ProbeScheduler<C> {
    * has been read, and its wait is over.
    */
   #mayRun(probe: Probe<C, unknown>): boolean {
-    if (!this.#started || this.#halted || this.#running.has(probe.id)) return false
+    if (!this.#started || this.halted || this.#running.has(probe.id)) return false
     if (probe.after !== undefined && this.outcome(probe.after).at === null) return false
     // Only RESOURCES' bulk chain waits: a probe a REFRESH press starts (MANUAL Cost Explorer)
     // must start inside the press, not after its parent answers.
@@ -261,7 +279,9 @@ export class ProbeScheduler<C> {
     if (probe.bulk === 'judge' && !this.#countsTried()) return false
     const failures = this.#failures.get(probe.id) ?? 0
     const tried = this.outcome(probe.id).triedAt
-    return failures === 0 || tried === null || this.#deps.now() - tried >= backoffMs(failures)
+    if (failures === 0 || tried === null || this.#deps.now() - tried >= backoffMs(failures))
+      return true
+    return probe.dueThroughBackoff?.(this.#deps.context()) === true
   }
 
   /**
@@ -284,9 +304,18 @@ export class ProbeScheduler<C> {
     return bulk(work, probe.bulk === 'count' ? 'first' : 'later')
   }
 
+  /**
+   * Whether a reading's own missing CLI or sign-out stopped the board, and the halt still stands:
+   * set in the reading's generation, not cleared by a REFRESH since (one that came after it
+   * cannot halt the board again). A stop and start since do not matter.
+   */
+  #haltedBy(calls: Calls, generation: number): boolean {
+    return stopsTheBoard(calls.problem) && this.#haltedIn === generation
+  }
+
   /** Whether a run started in `generation` may still start the CLI. */
   #live(generation: number): boolean {
-    return this.#started && !this.#halted && generation === this.#generation
+    return this.#started && !this.halted && generation === this.#generation
   }
 
   async #run(probe: Probe<C, unknown>): Promise<void> {
@@ -317,7 +346,8 @@ export class ProbeScheduler<C> {
       else if (!result.ok && !isPartialAnswer(call, result)) {
         noteFailure(calls, call, result)
         // At once, not when the probe ends: the calls queued behind this one must not start.
-        if (stopsTheBoard(calls.problem) && generation === this.#generation) this.#halted = true
+        if (stopsTheBoard(calls.problem) && generation === this.#generation)
+          this.#haltedIn = generation
       }
       return result
     }
@@ -328,6 +358,16 @@ export class ProbeScheduler<C> {
       )
       if (!calls.skipped)
         this.#outcomes.set(probe.id, settled(before, value, calls, this.#deps.now()))
+      // Its own sign-out halted the board, and the calls queued behind it came back skipped (a
+      // repository each, more than the lanes): the problem is still this reading's, or the board
+      // would say LINKED while it reads nothing until REFRESH.
+      else if (this.#haltedBy(calls, generation))
+        this.#outcomes.set(probe.id, {
+          ...before,
+          problem: calls.problem,
+          triedAt: this.#deps.now(),
+          denied: calls.denied,
+        })
     } catch (error) {
       calls.problem ??= {
         kind: 'error',
@@ -351,7 +391,9 @@ export class ProbeScheduler<C> {
     // A run of before a stop, the board shown again since: what it read stands, but what it met
     // cannot halt the new generation or back it off (as after a REFRESH).
     const resumed = !current && this.#started && this.#resume.delete(probe.id)
-    if (!calls.skipped && current) this.#failed(probe, calls.problem)
+    // The reading that halted the board counts its failure though the board stopped since.
+    if ((!calls.skipped && current) || this.#haltedBy(calls, generation))
+      this.#failed(probe, calls.problem)
     if (!calls.skipped && (current || (resumed && calls.problem === null))) {
       this.#runDependents(probe)
       if (probe.bulk === 'count') this.#startJudges()
@@ -359,7 +401,7 @@ export class ProbeScheduler<C> {
     this.#counted(probe, calls)
     this.#startWaiting(probe)
     if (this.#again.delete(probe.id)) void this.#run(probe)
-    else if (resumed && isDue(this.outcome(probe.id).at, probe.every, this.#deps.now()))
+    else if (resumed && isDue(this.#readAt(probe), probe.every, this.#deps.now()))
       void this.#run(probe)
   }
 
@@ -383,9 +425,16 @@ export class ProbeScheduler<C> {
   #failed(probe: Probe<C, unknown>, problem: CliProblem | null): void {
     const failures = problem === null ? 0 : (this.#failures.get(probe.id) ?? 0) + 1
     this.#failures.set(probe.id, failures)
-    if (stopsTheBoard(problem)) this.#halted = true
-    // After a failure, try again when the wait is over, not only on the period's boundary.
-    else if (failures > 0 && this.#started && backoffMs(failures) < probe.every)
+    if (stopsTheBoard(problem)) this.#haltedIn ??= this.#generation
+    // After a failure, try again when the wait is over, not only on the period's boundary. A
+    // probe that bills (Cost Explorer, GetMetricData, S3's list) waits for its period: a retry
+    // within minutes would pay again (aws.md §14.4a).
+    else if (
+      failures > 0 &&
+      this.#started &&
+      isFree(probe.cost) &&
+      backoffMs(failures) < probe.every
+    )
       this.#later(probe, backoffMs(failures))
   }
 
@@ -437,7 +486,24 @@ function noteFailure(
   // A region without the service is an answer, not a failure: no backoff, no OFFLINE (§14.4).
   if (problem.kind === 'not-offered') return
   if (problem.kind === 'denied' && problem.action !== null) calls.denied.push(problem.action)
-  if (calls.problem === null && call.tolerated !== true) calls.problem = problem
+  // GitHub's rate limit is never a call's own: met on a tolerated call (a repository's runs), it
+  // is still THROTTLED, and the probe backs off. AWS throttles by the API, and every RESOURCES
+  // call is tolerated, its paid and metered ones too: there it marks nothing, as before.
+  const rateLimit = call.tool === 'gh' && problem.kind === 'throttled'
+  if (calls.problem === null && (!toleratedFailure(call, result) || rateLimit))
+    calls.problem = problem
+}
+
+/**
+ * Whether a failed call's failure is its own and marks nothing. gh's tolerated calls (a
+ * repository's traffic, the inbox) are read with `-i`: only a 403 or 404 is the repository's or
+ * the token's own "no". Offline, a timeout or a 5xx says nothing about the repository and is the
+ * probe's failure, retried on its back-off (github.md §3) - it once left the board LINKED and the
+ * reading counted as read for its whole period while every tile said "not read yet".
+ */
+function toleratedFailure(call: CliCall, result: CliResult): boolean {
+  if (call.tolerated !== true) return false
+  return call.tool !== 'gh' || /^HTTP\/[\d.]+ 40[34]\b/.test(result.stdout)
 }
 
 function settled(before: ProbeOutcome, value: unknown, calls: Calls, now: number): ProbeOutcome {

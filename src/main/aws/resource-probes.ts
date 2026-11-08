@@ -57,7 +57,7 @@ import type { PerRegion } from '@shared/aws/readings'
 import { allResources, balancerDimension, GLOBAL, type Res } from '@shared/aws/resources'
 import { classifyCliError } from '@shared/cloud-cli/errors'
 import type { CliCall, CliResult, Probe, ProbeCost, RunCli } from '@shared/cloud-cli/probe'
-import { DAY, HOUR, MINUTE } from '@shared/cloud-cli/probe'
+import { DAY, HOUR, isFree, MINUTE } from '@shared/cloud-cli/probe'
 import { z } from 'zod'
 import { notStarted } from '../cloud-cli/scheduler.js'
 import { type AwsContext, dimensionsArg, iso, NAME_TAG } from './probes.js'
@@ -183,7 +183,7 @@ interface SharedSpec<T> {
 function fresh(ctx: AwsContext, id: string, cost: ProbeCost, at: number): boolean {
   const now = ctx.now()
   if (now - at >= ctx.every(id)) return false
-  if (cost !== 'free' && cost !== 'free-tier') return true
+  if (!isFree(cost)) return true
   return !(ctx.refreshedAt() > at && now - at > 5 * MINUTE)
 }
 
@@ -1540,15 +1540,17 @@ export const sweepProbe: Probe<AwsContext, PerRegion<SweepRegion>> = {
   run: async (ctx, cli, previous) => {
     const store = ctx.shared()
     if (store === null) return previous ?? {}
+    // Off, only a press reads: each region once, its reading kept until the next press.
     const { on, asked } = store.sweep()
-    if (!on) return {}
+    if (!on && asked === null) return {}
     const out: PerRegion<SweepRegion> = {}
     for (const region of otherRegions(ctx))
       out[region] = await readOnce(store, 'res-sweep', region, {
         schema: SweepRegionSchema,
-        // Young, and not older than the last "check other regions now".
+        // Young (off: any age), and not older than the last "check other regions now".
         keep: (kept) =>
-          ctx.now() - kept.at < ctx.every('res-sweep') && (asked === null || kept.at >= asked),
+          (!on || ctx.now() - kept.at < ctx.every('res-sweep')) &&
+          (asked === null || kept.at >= asked),
         fallback: null,
         read: () => sweepRegion(cli, ctx, region),
       })

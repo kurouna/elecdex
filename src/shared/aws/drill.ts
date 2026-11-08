@@ -5,7 +5,15 @@ import { TILE } from './labels.js'
 import { HOURS_A_MONTH, prices } from './list-prices.js'
 import type { Instance } from './parse.js'
 import { type AwsReadings, type CpuWeek, everywhere } from './readings.js'
-import { elsewhereRows, resourcesOf, SERVICES } from './resources.js'
+import {
+  elsewhereRows,
+  GLOBAL,
+  readGlobally,
+  readIn,
+  readState,
+  resourcesOf,
+  SERVICES,
+} from './resources.js'
 import type { AttentionItem, AwsService, DrillItem, DrillRow, Weight } from './types.js'
 
 /**
@@ -592,6 +600,33 @@ const fmt = (value: string | number | null | undefined) =>
  */
 export function itemColumns(def: DrillDef): DrillColumn[] {
   return def.columns.filter((c) => c.key !== 'name' && c.label !== 'id' && c.label !== 'region')
+}
+
+/**
+ * Whether an item not found is still to be read, not gone: the reading it would be in (its
+ * service's list in a region the pane reads, or the weekly sweep while it is on) has not answered
+ * and the board has never tried it (`tried`: the list's probe, the sweep's). A drill kept over a
+ * restart asks for its item before the board's first reading. Once tried, a region that refused
+ * or failed, or one taken out of the pane with the sweep off, would never answer: there the item
+ * is gone, never "not read yet" for good. A service read for the whole account (S3, CloudFront,
+ * Route 53) is in its one reading whatever region its row carries (a bucket's own): never the
+ * sweep's, nor gone before that reading was tried. ACM's certificates are read in us-east-1
+ * too, for CloudFront's, whether the pane shows it or not: there the list decides, as in the
+ * pane's regions.
+ */
+export function itemUnread(
+  service: AwsService,
+  r: AwsReadings,
+  region: string | null,
+  tried: (reading: 'list' | 'sweep') => boolean,
+): boolean {
+  if (region === null || readGlobally(service, r))
+    return readState(service, r) !== 'read' && !tried('list')
+  const listed = r.regions.includes(region) || (service === 'acm' && region === GLOBAL)
+  if (listed) return !readIn(service, r, region) && !tried('list')
+  if (!r.res.sweepOn) return false
+  const swept = r.res.sweep[region]
+  return (swept === null || swept === undefined) && !tried('sweep')
 }
 
 export function drillItem(

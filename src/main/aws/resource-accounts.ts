@@ -258,7 +258,11 @@ export class ResourceAccounts {
       usage: Object.fromEntries(
         [...new Set([...regions, ...useRegions])].map((r) => [r, this.#usage(account, r)]),
       ),
-      sweep: stored.sweepOn ? this.#perRegion(account, 'res-sweep', sweepRegions) : {},
+      // Off, a press's one reading is still shown (its line says the day).
+      sweep:
+        stored.sweepOn || stored.sweepAsked !== null
+          ? this.#perRegion(account, 'res-sweep', sweepRegions)
+          : {},
       sweepAt:
         Math.max(0, ...sweepRegions.map((r) => stored.reads['res-sweep']?.[r]?.at ?? 0)) || null,
       sweepOn: stored.sweepOn,
@@ -311,13 +315,19 @@ export class ResourceAccounts {
     return true
   }
 
-  /** The sweep: its switch, or a press that reads every other region again. */
+  /**
+   * The sweep: its switch, or a press that reads every other region again. The press is once,
+   * whatever the switch says: pressed while ELSEWHERE is off, it read and then turned the weekly
+   * sweep on for good. OFF forgets a press not yet read.
+   */
   sweep(account: string, what: 'now' | 'on' | 'off'): void {
     this.#bump(account)
     this.#inventory.update(account, (current) =>
       what === 'now'
-        ? { ...current, sweepOn: true, sweepAsked: this.#now() }
-        : { ...current, sweepOn: what === 'on' },
+        ? { ...current, sweepAsked: this.#now() }
+        : what === 'on'
+          ? { ...current, sweepOn: true }
+          : { ...current, sweepOn: false, sweepAsked: null },
     )
   }
 

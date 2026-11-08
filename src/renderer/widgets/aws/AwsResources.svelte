@@ -11,6 +11,7 @@ import type {
 } from '@shared/aws/types'
 import { untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
+import { keyboardFocused } from '../../lib/hover-card.ts'
 import { keepRow } from './keep.ts'
 import {
   alsoText,
@@ -122,18 +123,10 @@ $effect(() => {
 })
 
 /** A card on focus only when the keyboard put it there: Back after a click leaves none up. */
-function keyboardFocus(el: HTMLElement): boolean {
-  try {
-    return el.matches(':focus-visible')
-  } catch {
-    return true
-  }
-}
-
 function cardOn(id: string, event: PointerEvent | FocusEvent, make: () => Card): void {
   const target = event.currentTarget as HTMLElement
   if (event instanceof PointerEvent) oncard(id, target, event.clientX, make)
-  else if (keyboardFocus(target)) oncard(id, target, null, make)
+  else if (keyboardFocused(target)) oncard(id, target, null, make)
 }
 
 /* ---- LOOKS FORGOTTEN ---- */

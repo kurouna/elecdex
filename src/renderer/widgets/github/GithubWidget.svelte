@@ -12,6 +12,7 @@ import {
   type CardSize,
   cardTime,
   HoverRest,
+  keyboardFocused,
 } from '../../lib/hover-card.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -25,6 +26,7 @@ import {
   linkView,
   MASKED,
   periodText,
+  shownProblem,
 } from '../cloud/cloud-view.ts'
 import IncidentBand from '../cloud/IncidentBand.svelte'
 import CardRows from '../common/CardRows.svelte'
@@ -41,8 +43,10 @@ import {
   QUEUE_GROUPS,
   type QueueFilter,
   queueMatches,
+  refreshNote,
   repoLabel,
   titleOf,
+  viewsText,
 } from './github-view.ts'
 
 /**
@@ -101,6 +105,8 @@ let inboxFilter = $state<string>('all')
 
 function selectTab(tab: Tab): void {
   sfx.play('panel')
+  // Left by a tab, the repository is not where the focus comes back to later.
+  returnTo = null
   patch({ tab: tab === 'repos' ? undefined : tab, drill: undefined })
 }
 
@@ -119,9 +125,15 @@ const inbox = $derived(
 
 /** Set by a press into a repository: its way back takes the focus, so Escape goes up. */
 let drilled = false
+/**
+ * The tile a repository was opened from: back on REPOS it takes the focus again, so the keyboard
+ * goes on from where it was. The page's own memory: a remount forgets it.
+ */
+let returnTo: string | null = null
 async function drillInto(repo: RepoTile): Promise<void> {
   sfx.play('expand')
   drilled = true
+  returnTo = repo.name
   patch({ drill: repo.name })
 }
 /** The tile pressed is gone with the list: without this, focus falls to the page and Escape with it. */
@@ -130,15 +142,35 @@ function takeFocus(el: HTMLElement): void {
   drilled = false
   el.focus({ preventScroll: true })
 }
+/** As the tiles come back: the one the repository was opened from takes the focus. */
+function regain(name: string) {
+  return (el: HTMLElement) => {
+    if (returnTo !== name) return
+    returnTo = null
+    el.focus({ preventScroll: true })
+  }
+}
+/**
+ * What the drill-down's reading waits on: the list of repositories and the link. A drill kept
+ * over a restart asks before the first list and is answered `waiting`; it asks again as the list
+ * comes (or the sign-in), and a repository the list no longer has goes back to REPOS.
+ */
+const reposRead = $derived(
+  board === null ? null : `${board.link}|${board.repos.map((repo) => repo.name).join(' ')}`,
+)
 $effect(() => {
   const repo = choices.drill
   const k = key
+  const listed = reposRead
   if (!visible || repo === null) {
     detail = null
     return
   }
   void window.elecdex.github.detail(k, repo).then((next) => {
-    if (choices.drill === repo) detail = next
+    if (choices.drill !== repo || next === 'waiting') return
+    // Not watched, once this page has its board: the step above, as an item gone does on AWS.
+    if (next === null && listed !== null) patch({ drill: undefined })
+    else detail = next
   })
 })
 /**
@@ -191,22 +223,30 @@ function copySignIn(button: HTMLElement): void {
   })
 }
 
+/** What REFRESH reads while the rate limit holds the board back, in the foot (github.md §3). */
+const refreshing = $derived(board === null ? null : refreshNote(board))
+/** When REFRESH may be pressed again (main's answer), or 0: the button is disabled until then. */
 let waitUntil = $state(0)
+// The wait ends on a second's boundary, not a timer of the pane's own (one outlived the pane).
+$effect(() => {
+  if (waitUntil === 0) return
+  return onBoundary(1000, () => {
+    if (Date.now() >= waitUntil) waitUntil = 0
+  })
+})
 /**
  * REFRESH blinks its three beats as every choice does, then asks: the button is disabled for the
  * wait main answers, which cut the held press's own blink to one beat.
  */
 function pressRefresh(button: HTMLElement): void {
-  if (now < waitUntil) return
+  if (waitUntil > 0) return
   afterBlink(button, () => void refresh())
 }
 async function refresh(): Promise<void> {
-  if (now < waitUntil) return
+  if (waitUntil > 0) return
   sfx.play('panel')
   const left = await window.elecdex.github.refresh(key)
-  waitUntil = Date.now() + left
-  now = Date.now()
-  setTimeout(() => (now = Date.now()), left + 50)
+  waitUntil = left > 0 ? Date.now() + left : 0
 }
 
 /* ---- Settings ---- */
@@ -266,6 +306,11 @@ function card(
     pointerX === null,
   )
 }
+/** A row's card on focus, only when the keyboard put it there: Back with the mouse opens none. */
+function focusCard(id: string, event: FocusEvent, make: Parameters<typeof card>[3]): void {
+  const target = event.currentTarget as HTMLElement
+  if (keyboardFocused(target)) card(id, target, null, make)
+}
 function leave(id: string): void {
   resting.leave(id)
 }
@@ -282,12 +327,29 @@ $effect(() => {
 })
 $effect(() => () => resting.dispose())
 
+/**
+ * The repository's whole name, as the row has no room for it (the user's own go by their name
+ * alone there) - but under MASK the owner is the login the subtitle hides, so not then.
+ */
+const fullName = (repo: string, isPrivate: boolean) =>
+  repoLabel(repo, masked ? me : null, isPrivate, masked)
+
+/**
+ * A private repository's own words under MASK - a branch, a workflow, a release tag - which say
+ * as much about it as its name does.
+ */
+const hidden = (text: string, isPrivate: boolean) => (masked && isPrivate ? MASKED : text)
+
+/** A queue row's card: what the row has no room for - since when, by whom, the whole name, why. */
 function queueCard(item: QueueItem) {
   return {
-    head: `${KIND_LABEL[item.kind]} · ${repoLabel(item.repo, null, item.private, masked)}${item.number !== null ? ` #${item.number}` : ''}`,
+    head: `waiting since ${cardTime(item.since)}`,
     side: item.by !== null ? `by ${masked ? MASKED : item.by}` : item.mine ? 'yours' : '',
     rows: [
-      { label: 'waiting since', value: cardTime(item.since) },
+      {
+        label: 'repository',
+        value: `${fullName(item.repo, item.private)}${item.number !== null ? ` #${item.number}` : ''}`,
+      },
       { label: 'opens', value: 'github.com, in your browser' },
     ],
     note: item.why,
@@ -295,7 +357,7 @@ function queueCard(item: QueueItem) {
 }
 function tileCard(tile: RepoTile) {
   return {
-    head: repoLabel(tile.name, null, tile.private, masked),
+    head: fullName(tile.name, tile.private),
     side: tile.private ? 'private' : 'public',
     rows: [
       {
@@ -304,14 +366,11 @@ function tileCard(tile: RepoTile) {
       },
       {
         label: 'default branch',
-        value: `${tile.defaultBranch} · ${tile.red ? 'latest run failed' : 'green'}`,
+        value: `${hidden(tile.defaultBranch, tile.private)} · ${tile.red ? 'latest run failed' : 'green'}`,
       },
       {
         label: 'views 14 d',
-        value:
-          tile.views14 === null
-            ? 'not shown: needs push access'
-            : tile.views14.reduce((a, b) => a + b, 0).toLocaleString('en'),
+        value: viewsText(tile.views14, true),
       },
       {
         label: 'alerts',
@@ -376,7 +435,7 @@ const short = $derived(height < 30 * 16)
     <span class="spacer"></span>
     {#if !narrow && board?.nextInboxAt}<span class="when">inbox next <b>{clockText(board.nextInboxAt)}</b></span>{/if}
     <button type="button" class="tool" class:on={masked} aria-pressed={masked} onclick={() => patch({ mask: masked ? undefined : true })} data-testid="github-mask">MASK</button>
-    <button type="button" class="tool" disabled={now < waitUntil} onclick={(e) => pressRefresh(e.currentTarget)} data-testid="github-refresh">REFRESH</button>
+    <button type="button" class="tool" disabled={waitUntil > 0} onclick={(e) => pressRefresh(e.currentTarget)} data-testid="github-refresh">REFRESH</button>
   </header>
 
   {#if board?.link === 'signed-out' && board.signIn !== null}
@@ -454,7 +513,7 @@ const short = $derived(height < 30 * 16)
                   onkeydown={(e) => onRowKey(e, item.id)}
                   onpointerenter={(e) => card(item.id, e.currentTarget as HTMLElement, e.clientX, () => queueCard(item))}
                   onpointerleave={() => leave(item.id)}
-                  onfocus={(e) => card(item.id, e.currentTarget as HTMLElement, null, () => queueCard(item))}
+                  onfocus={(e) => focusCard(item.id, e, () => queueCard(item))}
                   onblur={() => leave(item.id)}
                   data-testid="github-queue-row"
                 >
@@ -512,7 +571,7 @@ const short = $derived(height < 30 * 16)
             {/each}
           {/if}
         {:else if choices.drill !== null}
-          {#if detail === null}
+          {#if detail === null || detail.repo !== choices.drill}
             <p class="empty">…</p>
           {:else}
             {@const tile = board.repos.find((repo) => repo.name === choices.drill)}
@@ -520,7 +579,7 @@ const short = $derived(height < 30 * 16)
               <div class="facts">
                 <div><small>STARS</small><b>{tile.stars.toLocaleString('en')}</b></div>
                 <div><small>FORKS</small><b>{tile.forks.toLocaleString('en')}</b></div>
-                <div><small>VIEWS 14 D</small><b>{tile.views14 === null ? '—' : tile.views14.reduce((a, b) => a + b, 0).toLocaleString('en')}</b></div>
+                <div><small>VIEWS 14 D</small><b>{viewsText(tile.views14)}</b></div>
                 <div><small>OPEN ISSUES</small><b>{tile.issues}</b></div>
                 <div><small>OPEN PRS</small><b>{tile.pulls}</b></div>
               </div>
@@ -531,8 +590,8 @@ const short = $derived(height < 30 * 16)
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div class="row r" data-weight={run.state === 'failure' ? 'danger' : run.state === 'action' ? 'warn' : 'quiet'} tabindex="0" role="link" onclick={() => void open(run.id)} onkeydown={(e) => onRowKey(e, run.id)}>
                 <span class="ci" data-state={run.state}></span>
-                <span class="mono">{run.workflow}</span>
-                <span class="mono c-branch">{run.branch}</span>
+                <span class="mono">{hidden(run.workflow, drilledPrivate)}</span>
+                <span class="mono c-branch">{hidden(run.branch, drilledPrivate)}</span>
                 <span class="title">{titleOf(run.title, drilledPrivate, masked)}{#if run.state === 'action'} <span class="warn">· awaiting approval</span>{/if}</span>
                 <span class="mono c-event">{run.event}</span>
                 <span class="mono c-took">{run.seconds === null ? '—' : run.seconds >= 60 ? `${Math.floor(run.seconds / 60)}m ${run.seconds % 60}s` : `${run.seconds}s`}</span>
@@ -554,7 +613,7 @@ const short = $derived(height < 30 * 16)
             <div class="sep">releases</div>
             {#each detail.releases as release (release.id)}
               <div class="row l">
-                <span class="mono strong">{release.tag}{#if release.prerelease}<span class="pre">PRE</span>{/if}</span>
+                <span class="mono strong">{hidden(release.tag, drilledPrivate)}{#if release.prerelease}<span class="pre">PRE</span>{/if}</span>
                 <span class="mono">{release.ahead ? `+${release.ahead} commits since` : ''}</span>
                 <span class="mono right">↓ {compact(release.downloads)}</span>
                 <span class="age">{ageText(release.at, now)}</span>
@@ -571,13 +630,16 @@ const short = $derived(height < 30 * 16)
                 onclick={() => void drillInto(tile)}
                 onpointerenter={(e) => card(`tile:${tile.name}`, e.currentTarget as HTMLElement, e.clientX, () => tileCard(tile))}
                 onpointerleave={() => leave(`tile:${tile.name}`)}
+                onfocus={(e) => focusCard(`tile:${tile.name}`, e, () => tileCard(tile))}
+                onblur={() => leave(`tile:${tile.name}`)}
+                {@attach regain(tile.name)}
                 data-testid="github-tile"
               >
                 <span class="nm"><span class="ci" data-state={tile.runs[tile.runs.length - 1] ?? 'none'}></span><span class="t">{repoLabel(tile.name, me, tile.private, masked)}</span>{#if tile.private}<span class="lock">PRIVATE</span>{/if}</span>
                 <span class="stars"><b>★ {compact(tile.stars)}</b><span class:zero={!tile.starsDelta7}>{tile.starsDelta7 === null ? '' : `${tile.starsDelta7 >= 0 ? '+' : ''}${tile.starsDelta7} 7d`}</span></span>
                 <span class="tfacts"><span>forks<b>{compact(tile.forks)}</b></span><span>issues<b>{tile.issues}</b></span><span>PRs<b>{tile.pulls}</b></span><span>alerts<b class:danger={typeof tile.alerts === 'number' && tile.alerts > 0} class:dim={typeof tile.alerts !== 'number'}>{alertsText(tile.alerts)}</b></span></span>
                 <span class="runs"><small>runs</small>{#each tile.runs as state, i (i)}<span class="ci" data-state={state}></span>{:else}<small>none</small>{/each}</span>
-                <span class="rl">{#if tile.release}<span class="t">release <b>{tile.release.tag}</b>{#if tile.release.prerelease}<span class="pre">PRE</span>{/if} · {ageText(tile.release.at, now)}{#if tile.release.ahead} · +{tile.release.ahead} since{/if}</span><span>↓ <b>{compact(tile.release.downloads)}</b></span>{:else}<span class="t">no release</span>{/if}</span>
+                <span class="rl">{#if tile.release}<span class="t">release <b>{hidden(tile.release.tag, tile.private)}</b>{#if tile.release.prerelease}<span class="pre">PRE</span>{/if} · {ageText(tile.release.at, now)}{#if tile.release.ahead} · +{tile.release.ahead} since{/if}</span><span>↓ <b>{compact(tile.release.downloads)}</b></span>{:else}<span class="t">no release</span>{/if}</span>
               </button>
             {/each}
           </div>
@@ -607,7 +669,7 @@ const short = $derived(height < 30 * 16)
       <div class="opt"><span>Contribution band</span>
         <span class="seg"><button type="button" class="tool" class:on={choices.band} onclick={() => patch({ band: undefined })}>on</button><button type="button" class="tool" class:on={!choices.band} onclick={() => patch({ band: false })}>off</button></span>
       </div>
-      <p>The account is gh's own; elecdex never sees the token. Read only while this pane is shown, within 5% of an hour's rate limit; an unchanged answer (304) costs nothing.</p>
+      <p>The account is gh's own; elecdex never sees the token. Read only while this pane is shown. However many repositories it watches, an hour stays under 5% of the REST rate limit (from eight repositories their events and runs are read every 10 minutes), far less as an unchanged answer (304) costs nothing; under 10% left every reading waits four times as long, and a refusal for the limit waits as GitHub says.</p>
       <h5>Every GITHUB STATUS pane</h5>
       <div class="opt"><span>Incident toasts</span>
         <span class="seg"><button type="button" class="tool" class:on={incidents.notify} onclick={() => setIncidents({ notify: true })}>on</button><button type="button" class="tool" class:on={!incidents.notify} onclick={() => setIncidents({ notify: false })}>off</button></span>
@@ -637,7 +699,13 @@ const short = $derived(height < 30 * 16)
     onpointerleave={() => leave('ledger')}
     data-testid="github-foot"
   >
-    <span>{board === null ? 'read only while shown' : board.problem !== null ? board.problem : ledgerLine(board.ledger, 'gh')}</span>
+    {#if board !== null && board.problem !== null}
+      <!-- The problem is a sentence to read; under MASK only its kind, since gh's words can name a private repository. -->
+      <span class="problem" data-testid="github-problem">{shownProblem(board.problem, masked)}</span>
+    {:else}
+      <span>{board === null ? 'read only while shown' : ledgerLine(board.ledger, 'gh')}</span>
+    {/if}
+    {#if refreshing !== null}<span class="note" data-testid="github-refresh-note">{refreshing}</span>{/if}
     {#if !narrow}<span>read only · only while shown{board?.ghVersion ? ` · gh ${board.ghVersion}` : ''}</span>{/if}
   </footer>
 </div>

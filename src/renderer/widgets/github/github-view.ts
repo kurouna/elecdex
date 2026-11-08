@@ -1,5 +1,5 @@
 import type { GithubBoard, ItemKind, QueueItem, RepoTile, Weight } from '@shared/github/types'
-import type { Tone } from '../cloud/cloud-view.ts'
+import { clockText, type Tone } from '../cloud/cloud-view.ts'
 
 /** GITHUB STATUS's view helpers (docs/github.md §5), pure. */
 
@@ -64,6 +64,27 @@ export function titleOf(title: string, isPrivate: boolean, masked: boolean): str
 
 export function alertsText(alerts: RepoTile['alerts']): string {
   return alerts === 'off' ? 'off' : alerts === null ? '—' : String(alerts)
+}
+
+/**
+ * What REFRESH does while the rate limit holds the board back (github.md §3): GitHub asked to
+ * wait (a press reads only the sign-in and the limit itself), or under 10% is left (it reads
+ * only what the four-times-longer periods have due). The pane says so instead of a press that
+ * seems to do nothing. Null otherwise.
+ */
+export function refreshNote(board: Pick<GithubBoard, 'heldUntil' | 'rate'>): string | null {
+  if (board.heldUntil !== null)
+    return `GitHub asked to wait: REFRESH reads only the rate limit until ${clockText(board.heldUntil)}`
+  if (board.rate?.low === true)
+    return `rate low: readings 4× apart until the reset at ${clockText(board.rate.reset)}, and REFRESH reads only what is due`
+  return null
+}
+
+/** The 14 days' views: the sum, or what stands for it (the card's longer words when `long`). */
+export function viewsText(views: RepoTile['views14'], long = false): string {
+  if (views === 'unread') return long ? 'not read yet' : '—'
+  if (views === null) return long ? 'not shown: needs push access' : '—'
+  return views.reduce((a, b) => a + b, 0).toLocaleString('en')
 }
 
 export function compact(n: number): string {

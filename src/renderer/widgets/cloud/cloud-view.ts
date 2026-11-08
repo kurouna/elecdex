@@ -1,3 +1,4 @@
+import { PROBLEM_WORDS } from '@shared/cloud-cli/errors'
 import type { CliLink, LedgerSummary } from '@shared/cloud-cli/ledger'
 
 /**
@@ -77,3 +78,15 @@ export function periodText(ms: number): string {
  * GitHub; the account, alias, ARNs, names and addresses on AWS (aws-view.ts adds those).
  */
 export const MASKED = '•••••'
+
+/**
+ * The foot's problem under MASK: only its kind. A CLI's first line, redacted of ids and keys, can
+ * still name a stack or a private repository ("Stack with id prod-billing does not exist").
+ */
+export const PROBLEM_MASKED = 'LINK ERROR · the CLI’s words are hidden under MASK'
+
+/** The foot's problem as shown: elecdex's own words always, a CLI's only without MASK. */
+export function shownProblem(problem: string, masked: boolean): string {
+  const own: readonly string[] = Object.values(PROBLEM_WORDS)
+  return masked && !own.includes(problem) ? PROBLEM_MASKED : problem
+}

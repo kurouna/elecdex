@@ -1,4 +1,4 @@
-import { type CliProblem, signInCommand } from '@shared/cloud-cli/errors'
+import { type CliProblem, problemText, signInCommand } from '@shared/cloud-cli/errors'
 import {
   emptyLedger,
   type LedgerState,
@@ -43,8 +43,17 @@ import type {
 } from '@shared/github/types'
 import type { TimerDeps } from '../boundary-timer.js'
 import { evictStopped, gapLeft, REFRESH_GAP_MS } from '../cloud-cli/boards.js'
-import { isPartialAnswer, ProbeScheduler } from '../cloud-cli/scheduler.js'
-import { type GhContext, GITHUB_PROBES, type InboxReading, type ReposReading } from './probes.js'
+import { isPartialAnswer, type ProbeOutcome, ProbeScheduler } from '../cloud-cli/scheduler.js'
+import {
+  type GhContext,
+  GITHUB_PROBES,
+  graphqlLimited,
+  type InboxReading,
+  inboxWait,
+  probePeriods,
+  type ReposReading,
+  SECONDARY_WAIT_MS,
+} from './probes.js'
 
 /**
  * GITHUB STATUS in main (docs/github.md): one board per key, read while a page subscribes to it
@@ -68,6 +77,9 @@ export interface GithubServiceDeps extends TimerDeps {
   executable: () => string | null
 }
 
+/** How long a repository's inside is kept once read (§5.3). */
+const DETAIL_KEEP_MS = 5 * 60_000
+
 interface Board {
   key: string
   ctx: GhContext
@@ -81,6 +93,11 @@ interface Board {
 export class GithubService {
   readonly #deps: GithubServiceDeps
   readonly #boards = new Map<string, Board>()
+  /**
+   * No call that spends the rate limit before this time (github.md §3). GitHub's limit is the
+   * user's, not a board's: a second pane called on until its own refusal while the first waited.
+   */
+  #holdUntil = 0
 
   constructor(deps: GithubServiceDeps) {
     this.#deps = deps
@@ -106,7 +123,21 @@ export class GithubService {
         ledger: emptyLedger(this.#deps.now()),
         refreshedAt: 0,
         detail: new Map(),
-        ctx: { spec, conditional: new Map(), repos: () => this.#watchedRepos(created) },
+        ctx: {
+          spec,
+          conditional: new Map(),
+          repos: () => this.#watchedRepos(created),
+          now: () => this.#deps.now(),
+          rateLow: () => created.scheduler.outcome<RateState | null>('rate').value?.low === true,
+          readAt: (id) => created.scheduler.outcome(id).at,
+          refreshedAt: () => created.refreshedAt,
+          heldUntil: () => this.#holdUntil,
+          hold: (until) => this.#hold(until),
+          heldBack: new Set(),
+          tried: new Map(),
+          fullAt: new Map(),
+          unheard: new Map(),
+        },
         scheduler: undefined as unknown as ProbeScheduler<GhContext>,
       }
       created.scheduler = new ProbeScheduler<GhContext>(
@@ -141,8 +172,9 @@ export class GithubService {
     const left = gapLeft(board.refreshedAt, this.#deps.now())
     if (left > 0) return left
     board.refreshedAt = this.#deps.now()
-    // A press reads a repository's inside again too, not five minutes on.
-    board.detail.clear()
+    // A press reads a repository's inside again too, not five minutes on - but not while GitHub
+    // asked to wait or the limit runs low, when a press reads only what is due (github.md §3).
+    if (!this.#held() && !board.ctx.rateLow()) board.detail.clear()
     board.scheduler.refresh()
     return REFRESH_GAP_MS
   }
@@ -161,15 +193,25 @@ export class GithubService {
     return url === undefined ? null : htmlUrlOf(url)
   }
 
-  /** One repository's inside, read when its drill-down opens and kept five minutes (§5.3). */
-  async detail(key: string, repo: string): Promise<RepoDetail | null> {
+  /**
+   * One repository's inside, read when its drill-down opens and kept five minutes (§5.3).
+   * `waiting` until it can be read: before the first list of repositories (a drill kept over a
+   * restart asks at once), or while the board is stopped at a sign-in, which starts no CLI on
+   * demand either. Null for a repository the board does not watch.
+   */
+  async detail(key: string, repo: string): Promise<RepoDetail | 'waiting' | null> {
     const board = this.#boards.get(key)
-    // A board stopped at a sign-in starts no CLI, on demand either.
-    if (board === undefined || !board.scheduler.active || board.scheduler.halted) return null
+    if (board === undefined || !board.scheduler.active) return null
+    if (!readable(board)) return 'waiting'
     if (!this.#watchedRepos(board).some((entry) => entry.name === repo)) return null
     const kept = board.detail.get(repo)
     const now = this.#deps.now()
-    if (kept !== undefined && now - kept.readAt < 5 * 60_000) return kept
+    // It spends the rate limit as the probes do: nothing while GitHub asked to wait (the one last
+    // read stands), and kept four times as long while the limit runs low.
+    const held = this.#held()
+    const keep = (board.ctx.rateLow() ? 4 : 1) * DETAIL_KEEP_MS
+    if (kept !== undefined && (held || now - kept.readAt < keep)) return kept
+    if (held) return 'waiting'
     const [owner, name] = repo.split('/') as [string, string]
     const call = {
       tool: 'gh' as const,
@@ -178,6 +220,9 @@ export class GithubService {
     }
     const result = await this.#deps.limit(() => this.#deps.cli(call))
     const answered = result.ok || isPartialAnswer(call, result)
+    // Refused for a rate limit: every board holds, and the next open shows `waiting`, not a
+    // reading again on every open.
+    if (!answered && graphqlLimited(result)) this.#hold(this.#deps.now() + SECONDARY_WAIT_MS)
     board.ledger = recordReading(
       board.ledger,
       { probe: 'detail', cost: 'free', requests: 1, failed: !answered },
@@ -232,6 +277,17 @@ export class GithubService {
     this.#boards.clear()
   }
 
+  #held(): boolean {
+    return this.#deps.now() < this.#holdUntil
+  }
+
+  /** GitHub asked to wait: every board holds, and those shown say THROTTLED at once. */
+  #hold(until: number): void {
+    if (until <= this.#holdUntil) return
+    this.#holdUntil = until
+    for (const board of this.#boards.values()) this.#publish(board)
+  }
+
   #watchedRepos(board: Board) {
     const reading = board.scheduler?.outcome<ReposReading | null>('repos').value ?? null
     if (reading === null) {
@@ -259,7 +315,23 @@ export class GithubService {
   }
 
   #publish(board: Board): void {
-    if (board.scheduler.active) this.#deps.publish(this.#build(board))
+    if (!board.scheduler.active) return
+    this.#resumeHeldBack(board)
+    this.#deps.publish(this.#build(board))
+  }
+
+  /**
+   * The probes a hold kept from reading, run on the board's first publish after it ends (the
+   * inbox's timer publishes every minute): otherwise a board opened during a hold had no
+   * repositories until their next 15-minute boundary, and a probe that met the refusal lost its
+   * retry. No timer of its own: the scheduler's runs start them.
+   */
+  #resumeHeldBack(board: Board): void {
+    const held = board.ctx.heldBack
+    if (this.#held() || held.size === 0) return
+    const ids = [...held]
+    held.clear()
+    for (const id of ids) board.scheduler.runNow(id)
   }
 
   #build(board: Board): GithubBoard {
@@ -268,9 +340,12 @@ export class GithubService {
     const auth = s.outcome<AuthState>('auth').value
     const me = auth?.login ?? null
     const inbox = s.outcome<InboxReading | null>('inbox')
-    const runs = s.outcome<Record<string, Run[] | null>>('runs').value ?? {}
-    const advisories = s.outcome<Record<string, number | null>>('advisories').value ?? {}
     const privacy = new Map(this.#watchedRepos(board).map((repo) => [repo.name, repo.private]))
+    const runs = watchedOnly(s.outcome<Record<string, Run[] | null>>('runs').value, privacy)
+    const advisories = watchedOnly(
+      s.outcome<Record<string, number | null>>('advisories').value,
+      privacy,
+    )
     const tiles = this.#tiles(s, runs, advisories, now)
     const notifications = inbox.value?.notifications ?? []
     const queueAnswer = s.outcome<ReturnType<typeof parseQueueAnswer>>('queue').value
@@ -285,7 +360,7 @@ export class GithubService {
       advisories: Object.entries(advisories).map(([repo, count]) => ({
         repo,
         count: count ?? 0,
-        private: privacy.get(repo) ?? false,
+        private: privacy.get(repo) ?? true,
       })),
       me,
       now,
@@ -295,10 +370,13 @@ export class GithubService {
     board.urls = new Map([...board.urls].filter(([id]) => /^(run|pull|release):/.test(id)))
     for (const [id, url] of [...queue.urls, ...inboxed.urls]) board.urls.set(id, url)
     for (const tile of tiles) board.urls.set(`repo:${tile.name}`, `https://github.com/${tile.name}`)
-    const events = s.outcome<Record<string, RepoEvent[] | null>>('events').value ?? {}
+    const events = watchedOnly(
+      s.outcome<Record<string, RepoEvent[] | null>>('events').value,
+      privacy,
+    )
     return {
       key: board.key,
-      ...linkFields(s.problems(), s.anyReading(), auth),
+      ...linkFields(s.problems(), s.anyReading(), auth, now < this.#holdUntil),
       login: me,
       scopes: auth?.scopes ?? [],
       queue: queue.items,
@@ -309,12 +387,16 @@ export class GithubService {
       contrib: contribOf(s.outcome<{ total: number; days: number[] } | null>('contrib').value),
       rate: s.outcome<RateState | null>('rate').value,
       incidents: this.#deps.incidents(),
-      ledger: summarize(board.ledger, GITHUB_PROBES),
+      ledger: summarize(board.ledger, probePeriods(this.#watchedRepos(board).length)),
       ghVersion: this.#deps.ghVersion(),
       executable: this.#deps.executable(),
       readAt: s.outcome('queue').at,
-      nextInboxAt:
-        inbox.triedAt === null ? null : inbox.triedAt + (inbox.value?.pollSeconds ?? 60) * 1000,
+      nextInboxAt: nextInboxAt(
+        inbox,
+        s.outcome<RateState | null>('rate').value?.low === true,
+        this.#holdUntil,
+      ),
+      heldUntil: now < this.#holdUntil ? this.#holdUntil : null,
     }
   }
 
@@ -343,13 +425,34 @@ export class GithubService {
           stars: starDelta(history, day, node.stargazerCount),
           runs: onDefault.slice(0, 10).map(runState).reverse(),
           red: latest !== undefined && runState(latest) === 'failure',
-          views: traffic[name] ?? null,
+          // A repository left out of the reading (never read, or met the rate limit) is unread.
+          views: name in traffic ? (traffic[name] ?? null) : 'unread',
           advisories: advisories[name] ?? null,
           ahead: ahead[name] ?? null,
         }),
       ]
     })
   }
+}
+
+/** Whether a repository's inside can be read now: the board not halted, its repositories listed. */
+function readable(board: Board): boolean {
+  const listed = board.scheduler.outcome('repos').at !== null || board.ctx.spec.repos !== 'auto'
+  return listed && !board.scheduler.halted
+}
+
+/**
+ * From the last answer: X-Poll-Interval in whole minutes of the inbox's timer (`inboxWait`), or
+ * four minutes while the rate limit runs low; never before a hold GitHub asked for ends.
+ */
+function nextInboxAt(
+  inbox: ProbeOutcome<InboxReading | null>,
+  low: boolean,
+  holdUntil: number,
+): number | null {
+  if (inbox.at === null) return null
+  const wait = Math.max(inboxWait(inbox.value?.pollSeconds ?? 60), low ? 4 * 60_000 : 0)
+  return Math.max(inbox.at + wait, holdUntil)
 }
 
 /** Watched repositories whose default branch's latest finished run failed, with the run of failures. */
@@ -373,6 +476,19 @@ function redBranches(tiles: readonly RepoTile[], runs: Record<string, Run[] | nu
     })
 }
 
+/**
+ * A per-repository reading's watched repositories only. One that left the list stays in the
+ * last reading until the probe reads again, its privacy no longer known: under MASK its name
+ * went out as a public one's in the events, the run approvals and the vulnerability reports.
+ * Anything still of unknown privacy is taken as private, as the drill-down does.
+ */
+function watchedOnly<T>(
+  reading: Record<string, T | null> | null | undefined,
+  privacy: ReadonlyMap<string, boolean>,
+): Record<string, T | null> {
+  return Object.fromEntries(Object.entries(reading ?? {}).filter(([repo]) => privacy.has(repo)))
+}
+
 /** Runs that wait for a maintainer's approval, in every watched repository. */
 function approvalsOf(runs: Record<string, Run[] | null>, privacy: ReadonlyMap<string, boolean>) {
   return Object.entries(runs).flatMap(([repo, list]) =>
@@ -383,7 +499,7 @@ function approvalsOf(runs: Record<string, Run[] | null>, privacy: ReadonlyMap<st
         title: run.display_title ?? run.name ?? 'a workflow',
         at: time(run.created_at),
         url: run.html_url,
-        private: privacy.get(repo) ?? false,
+        private: privacy.get(repo) ?? true,
         id: run.id,
       })),
   )
@@ -397,7 +513,7 @@ function foldedEvents(
 ) {
   return Object.entries(events)
     .flatMap(([repo, list]) => {
-      const one = foldEvents(repo, list ?? [], me, since, privacy.get(repo) ?? false)
+      const one = foldEvents(repo, list ?? [], me, since, privacy.get(repo) ?? true)
       return one === null ? [] : [one]
     })
     .sort((a, b) => b.at - a.at)
@@ -408,18 +524,17 @@ function linkFields(
   problems: readonly (CliProblem | null)[],
   anyReading: boolean,
   auth: AuthState | null,
+  held: boolean,
 ): Pick<GithubBoard, 'link' | 'signIn' | 'problem'> {
   // No gh at all says so first: there is nothing to sign in with.
   const signedOut =
     !problems.some((p) => p?.kind === 'no-cli') &&
     ((auth !== null && !auth.signedIn) || problems.some((p) => p?.kind === 'signed-out'))
-  const error = problems.find(
-    (p): p is Extract<CliProblem, { kind: 'error' }> => p?.kind === 'error',
-  )
   return {
-    link: signedOut ? 'signed-out' : linkOf(problems, anyReading),
+    // Waiting as GitHub asked is THROTTLED, though the probes that skipped met no problem.
+    link: signedOut ? 'signed-out' : held ? 'throttled' : linkOf(problems, anyReading),
     signIn: signedOut ? signInCommand({ kind: 'signed-out', via: 'gh' }, 'github.com') : null,
-    problem: error?.text ?? null,
+    problem: problemText(problems),
   }
 }
 
@@ -461,7 +576,7 @@ function tileOf(
     stars: { delta: number | null; since: string | null; spark: number[] }
     runs: RepoTile['runs']
     red: boolean
-    views: number[] | null
+    views: RepoTile['views14']
     advisories: number | null
     ahead: number | null
   },

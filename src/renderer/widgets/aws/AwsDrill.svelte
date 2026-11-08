@@ -30,6 +30,8 @@ interface Props {
   narrow: boolean
   /** The ELSEWHERE sweep's last reading, for its list's line. */
   sweptAt?: number | null
+  /** The pane reads CloudTrail (ACTIVITY on): HISTORY has something to ask. */
+  activity?: boolean
   onplace: (next: DrillPlace | null) => void
   onopen: (id: string) => void
 }
@@ -43,6 +45,7 @@ const {
   now,
   narrow,
   sweptAt = null,
+  activity = true,
   onplace,
   onopen,
 }: Props = $props()
@@ -51,6 +54,8 @@ let rows = $state.raw<DrillRow[] | null>(null)
 let item = $state.raw<DrillItem | null>(null)
 let history = $state.raw<HistoryEvent[] | 'failed' | null>(null)
 let gone = $state<number | null>(null)
+/** Main has not read what the item would be in yet: the step waits, saying so. */
+let unread = $state(false)
 
 const def = $derived(drillDef(place))
 /** A list across services: its rows say their service, and its items carry it (board.ts). */
@@ -126,6 +131,9 @@ $effect(() => {
   }
   void window.elecdex.aws.item(boardKey, one.service, one.id, itemRegion).then((next) => {
     if (place.item !== id) return
+    // Not read yet (the board's first reading after a restart): asked again at the next revision.
+    unread = next === 'unread'
+    if (next === 'unread') return
     if (next === null) {
       // Gone since the last reading: back to the list, saying when (aws.md §5.1).
       gone = Date.now()
@@ -353,7 +361,10 @@ function takeFocus(el: HTMLElement): void {
       {/each}
     {/if}
     <div class="sep">history</div>
-    {#if history === null}
+    {#if !activity}
+      <!-- Main reads no CloudTrail for a pane whose ACTIVITY is off: no press would answer. -->
+      <p class="none" data-testid="aws-history-off">ACTIVITY is off for this pane (⚙): CloudTrail is not read</p>
+    {:else if history === null}
       <button type="button" class="tool" onclick={() => void readHistory()} data-testid="aws-history">HISTORY · CloudTrail, free</button>
     {:else if history === 'failed'}
       <p class="none">CloudTrail did not answer (refused, or timed out) · <button type="button" class="tool" onclick={() => void readHistory()}>TRY AGAIN</button></p>
@@ -365,6 +376,8 @@ function takeFocus(el: HTMLElement): void {
       {/each}
     {/if}
   </div>
+{:else}
+  <p class="none" role="status" data-testid="aws-item-waiting">{unread ? '… not read yet: shown once AWS answers' : '…'}</p>
 {/if}
 
 <style>

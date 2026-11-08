@@ -37,7 +37,7 @@ import {
 } from '@shared/aws/parse'
 import type { AwsReadings, Certificate, CpuWeek, PerRegion } from '@shared/aws/readings'
 import { GLOBAL } from '@shared/aws/resources'
-import { parseTrail, TRAIL_MAX } from '@shared/aws/trail'
+import { parseTrailRead, TRAIL_MAX } from '@shared/aws/trail'
 import type { AwsBoardSpec, Budget, PlanView } from '@shared/aws/types'
 import type { CliResult, Probe, ProbeCost, RunCli } from '@shared/cloud-cli/probe'
 import { DAY, HOUR, MINUTE } from '@shared/cloud-cli/probe'
@@ -663,7 +663,7 @@ const stacksProbe = regional('stacks', 15 * MINUTE, 'free', async (cli, ctx, reg
 })
 
 const trailProbe = regional('trail', 15 * MINUTE, 'free', async (cli, ctx, region) => {
-  if (!ctx.spec.activity) return []
+  if (!ctx.spec.activity) return { events: [], capped: false }
   const result = await cli(
     awsCall(ctx, region, [
       'cloudtrail',
@@ -676,7 +676,7 @@ const trailProbe = regional('trail', 15 * MINUTE, 'free', async (cli, ctx, regio
       'Events[].{id:EventId,t:EventTime,n:EventName,s:EventSource,u:Username,e:CloudTrailEvent}',
     ]),
   )
-  return result.ok ? parseTrail(result.stdout, region) : null
+  return result.ok ? parseTrailRead(result.stdout, region) : null
 })
 
 const instancesProbe = regional('instances', HOUR, 'free', (cli, ctx, region) =>

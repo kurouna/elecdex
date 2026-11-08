@@ -99,7 +99,14 @@ export class CloudAlerts {
       return
     }
     const due = shown.filter((incident) => toastDue(incident, said, choice.minSeverity))
-    if (due.length === 0 || !choice.notify) return
+    if (due.length === 0) return
+    if (!choice.notify) {
+      // Toasts off: what came meanwhile counts as said, or turning them on later toasted it then,
+      // however old - the band showed it all along.
+      for (const incident of due) file.said[incident.id] = { weight: incident.weight, at: now }
+      this.#deps.save(file)
+      return
+    }
     if (now - (file.lastAt[source] ?? 0) < GATHER_MS) return
     for (const incident of due) file.said[incident.id] = { weight: incident.weight, at: now }
     file.lastAt[source] = now

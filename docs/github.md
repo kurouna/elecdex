@@ -66,8 +66,8 @@ git ペイン（§5.9）とは別物: あちらは手元の 1 リポジトリの
 | inbox | `gh api -i -X GET notifications?per_page=50` ＋ `If-Modified-Since` | `X-Poll-Interval`（実測 60 秒） | 生の通知 |
 | queue | GraphQL 1 本（§3.1） | 5 分 | レビュー依頼、自分の PR、アサイン、TRIAGE |
 | repos | GraphQL 1 本（見張るリポジトリを別名で並べる） | 15 分 | 数、最新のリリース（プレリリースを含む）、既定ブランチの CI、警告の有無 |
-| events | `gh api -i -X GET repos/{o}/{r}/events?per_page=30` ＋ `If-None-Match` | 5 分 | EVENTS（304 は数えない） |
-| runs | `gh api -i -X GET repos/{o}/{r}/actions/runs?per_page=10` ＋ `If-None-Match` | 5 分 | タイルの点の列、承認待ち（`action_required`） |
+| events | `gh api -i -X GET repos/{o}/{r}/events?per_page=30` ＋ `If-None-Match` | 5 分（見張るリポジトリが 8 個以上なら 10 分） | EVENTS（304 は数えない） |
+| runs | `gh api -i -X GET repos/{o}/{r}/actions/runs?per_page=20` ＋ `If-None-Match` | 5 分（見張るリポジトリが 8 個以上なら 10 分） | タイルの点の列、承認待ち（`action_required`） |
 | advisories | `gh api -i -X GET repos/{o}/{r}/security-advisories?state=triage` ＋ `If-None-Match` | 1 時間 | 非公開の脆弱性報告（管理者だけ。ほかは「—」） |
 | ahead | GraphQL 1 本（リポジトリごとの別名で `ref(qualifiedName: "refs/tags/{tag}") { compare(headRef: "{default}") { aheadBy } }`。REST の compare は範囲のコミットと差分をすべて返していた） | 1 時間 | 前のリリースからのコミット数 |
 | traffic | `gh api -i -X GET repos/{o}/{r}/traffic/views` ＋ `If-None-Match` | 6 時間 | 14 日の訪問とクローン（push 権のあるものだけ） |
@@ -77,12 +77,84 @@ git ペイン（§5.9）とは別物: あちらは手元の 1 リポジトリの
   `Last-Modified` / `ETag` を main のメモリに持ち、変化の無い読み取りをほぼ無料にする。`gh` は 304 で終了コード 1
   を返すので、`-i` の状態行で 304 を「変化なし」と読む。events・runs・traffic・compare・advisories は ETag を
   返すことを確かめた
-- `X-Poll-Interval` が示す秒より短く通知を読まない（GitHub の指示）
-- 予算: 1 ペインが 1 時間に使うのは REST 5%（250）、GraphQL 5%（250 点）まで。時刻表の単体テストが、見張る
-  リポジトリ 12 個（上限）で計算して確かめる。残りが 10% を切ったら周期を 4 倍にし、上段に「RATE LOW · reset 15:04」
+- `X-Poll-Interval` が示す秒より短く通知を読まない（GitHub の指示）。inbox の時刻表は 1 分ごとに起きるが、前の
+  答えから `X-Poll-Interval` を時刻表の 1 分単位に切り上げた間（90 秒なら 2 分、`inboxWait`）が経っていなければ
+  読まずに前の答えを残す。前の答えの時刻は読み取りの終わりなので、余裕は時刻表の半周期（30 秒、`heldToRate` と
+  同じ）。以前の 5 秒では 5 秒を超える読み取りのたびに次の分を飛ばし、2 分ごとにしか読まなかった。上段の
+  「inbox next」も前の答えの時刻からこの間（RATE LOW なら 4 分）で言い、待てと言われた間はその終わりより前を
+  言わない（`heldToRate`、`inboxProbe`、`nextInboxAt`。github-rate.test.ts）
+- 予算（利用者の決定 2026-11-08）: **見張るリポジトリがいくつでも（上限 12）、304 が 1 つも無い最悪の 1 時間で
+  REST の 5% 未満**（5,000 のうち 250 回未満）。そのため events と runs は、リポジトリが 7 個までは 5 分ごと、
+  8 個からは 10 分ごとに読む（`repoEvery`、`FRESH_REPOS`）。時刻表は 5 分ごとに起き、前の読み取りから
+  10 分（2 分半の余裕）経っていなければ読まずに前の答えを残す。ただし REFRESH の後と、一覧に新しいリポジトリが
+  加わったときは待たずに読む。最悪の 1 時間は 7 個で約 237 回（inbox 60、events と runs が各 84、advisories 7、
+  traffic 約 2、**4.7%**）、12 個で約 218 回（inbox 60、events と runs が各 72、advisories 12、traffic 2、
+  **4.4%**）。どちらも 5 分ごとのままなら 12 個で約 362 回（7.2%）だった。8 個（自分のリポジトリを読む既定の
+  上限）を 5 分ごとにすると約 261 回（5.2%）で越えるので、境目は 7 個。台帳のカードの周期もこの値を言う。
+  GraphQL は 1 時間に約 18 本（queue 12、repos 4、ahead と contrib が各 1）。時刻表の単体テスト
+  （github-rate.test.ts）が 7・8・12 リポジトリで 6 時間を回して確かめる
+- 残りが 10% を切ったら（`rate` の読み取りの `low`）、`auth` と `rate` のほかの probe はどれも周期の 4 倍待つ
+  （`heldToRate`。events と runs は上の周期の 4 倍）。上段に「RATE LOW · REST … · GQL … · reset 15:04」
   （`x-ratelimit-reset` から）
-- GraphQL の応答の `rateLimit { cost remaining resetAt }` を台帳に足す
-- 二次のレート制限（同時の要求、短い間の多すぎる要求）に当たったら `retry-after` に従い、THROTTLED
+- RATE LOW の間と GitHub が待てと言った間（下）、REFRESH は 4 倍の周期で期限の来たもの（待てと言われた間は
+  サインインと `rate_limit` だけ）しか読まない。30 秒ごとに押せば 4 倍の周期が省いた分を使い、待てと言われた
+  間に呼べば GitHub の指示に背くため。押してもほとんど何も読まないことを、足元が「rate low: readings 4× apart
+  until the reset at 15:04, and REFRESH reads only what is due」「GitHub asked to wait: REFRESH reads only the
+  rate limit until 15:04」と言う（`refreshNote`、`GithubBoard.heldUntil`）
+- レート制限の拒否はリポジトリや通知の答えではない。通知の 403 がレート制限なら（`waitAsked` が待ちを返す）
+  「notifications のスコープが無い」とは読まず前の読み取りを残し、traffic・advisories・events・runs の
+  そのリポジトリも前の答えを残す（一度も読めていなければ一覧から外し、タイルは「not read yet」。「needs push
+  access」はそのリポジトリへのレート制限でない 403 か 404 だけ）。ほかの理由の失敗（オフライン、時間切れ、
+  5xx、状態行の無い答え）も同じで、前の答えを残し、一度も読めていなければ一覧から外す。通知も 401・403・404
+  のほかの失敗では前の読み取りを残す（5xx を空の受信箱と読まない）。`X-Poll-Interval` が空・0・数でなければ
+  60 秒とする
+- 許容される gh の呼び出し（リポジトリごとの読み取りと通知、どれも `-i`）が許すのは、状態行が 403 か 404 の
+  自分の「いいえ」だけ。オフライン、時間切れ、5xx、状態行の無い答えはその probe の失敗で（スケジューラの
+  `toleratedFailure`）、リンクの語が言い、退きの待ち（1、2、4…分）で読み直す。以前は何の印も付けず、リンクは
+  LINKED、どのリポジトリも答えなかった読み取りが `{}` として読めたことになり、traffic は 6 時間、advisories は
+  1 時間、タイルの「not read yet」のまま待った。どのリポジトリも答えなかった読み取りは読み取りにしない
+  （`perRepo` が null: 前の答えが残り、読んだ時刻も進まない）
+- events と runs の 10 分の歩調は、前の読み取りが**問い合わせた**リポジトリ（`GhContext.tried`）で決める。答えた
+  ものでなく問い合わせたもので数えるので、答えないリポジトリが 1 つあってもほかを 5 分ごとに読まない（12 個で
+  1 時間約 290 回になり 5% を越えていた）。加わったばかりのリポジトリはすぐ読む。歩調は全部を問い合わせた
+  読み取り（`GhContext.fullAt`）から、その周期の境界で数える。`tried`・`fullAt`・`unheard` は呼び出しの後、
+  読み取りが残るときだけ書く: ボードを隠して並んでいた呼び出しが起動されずに戻った読み取りはスケジューラが
+  捨てるので、何も書かない（以前は呼ぶ前に「いま全部を問い合わせた」と書き、隠している間に捨てられた events を、
+  もう一度見せても歩調の 10 分先まで読まず、何も残っていなかった）。前の読み取りが聞けなかったリポジトリ
+  （`GhContext.unheard`）があれば、全部を読む番の前に走ったとき（退きの待ちの後、待ちが終わった後の
+  `heldBack`）にそれだけを読み直す。以前は「前の読み取りが失敗した」（`GhContext.failed`）も要り、読み直しが
+  レート制限の待ちの中に落ちると問題無しで片付くので、待ちが終わっても events はその 1 つを歩調の 10 分先まで
+  読まず、traffic と advisories は全部を読み直して歩調を動かした。聞けなかったものが無く全部を読む番でもなければ
+  何も読まない（traffic と advisories も。全部を読めた後に残っていた読み直しが、もう一度全部を読んでいた）。ほかは前の答えを残し、読み直しは歩調を動かさない（全部を読み直し、そこから歩調を数えていたので、
+  12 個で 1 回ごとに 2% の 502 があると 1 時間 252 回（5.04%）、1 つのリポジトリが 1 回おきに失敗すると
+  356 回（7.1%）だった。直して 215 回と 224 回）。全部を読む番は退きの待ちの中でも来る（`dueThroughBackoff`）。
+  周期の境界の「いま読んだばかり」も全部を問い合わせた読み取り（`readAllAt`、`fullAt`）から数える: 境界の
+  1、2 分前に落ちた 1 つのリポジトリの読み直し（退きの後、待ちが終わった後の `heldBack`）がその境界を飛ばさせ、
+  ほかの runs が 300 秒でなく 600 秒おきになっていた。リストから外れたリポジトリは、何も読まない番でも前の答えから
+  落とす（`perRepo`。以前は全部を読む番まで残り、advisories は 1 時間）
+  いつも答えないリポジトリが 1 つあると probe 全体が退き、ほかは 1・3・7・15・35 分…と約 30 分ごとにしか
+  読まれなかった。どのリポジトリも答えなかったとき（オフライン）だけ、待ちが全部を止める（traffic と
+  advisories も同じ: 周期の境界の前の読み直しは聞けなかったものだけ。github-rate.test.ts）
+- レート制限で拒まれたら（403 か 429、`API rate limit exceeded` / `secondary rate limit`）、THROTTLED にして
+  その probe を退かせる。リポジトリごとの許容される呼び出し（push 権や管理者の要るもの）でも同じ（許容では
+  拒否が何も印を付けず、次の分にまた呼んでいた）。答えが `retry-after` を持てばその秒まで、使い切った制限
+  （`x-ratelimit-remaining: 0`）なら `x-ratelimit-reset` まで、どちらの見出しも無い 403・429 でも本文か gh の
+  標準エラーが「rate limit」と言えば（二次的な制限はそう来ることがある）1 分（`SECONDARY_WAIT_MS`）、制限を
+  使う probe を 1 つも呼ばず THROTTLED のまま待つ（`waitAsked`）。`x-ratelimit-reset` がもう過ぎていれば
+  （この時計が GitHub より進んでいる、古い見出し）何も待たないことになるので 1 分。GraphQL（probe の
+  `graphql` と掘り下げの `detail`）がデータ無しにレート制限で拒まれたら（gh の標準エラーの「rate limit」か
+  `HTTP 429`、本文の `"type": "RATE_LIMITED"`。`-i` を付けないので見出しは無い、`graphqlLimited`）も 1 分待つ。
+  待ちのために読まなかった probe は `GhContext.heldBack` に残り、待ちが終わった後のボードの最初の publish
+  （inbox の時刻表が毎分起こす）で `runNow` する。以前は「新しいものは無い」として片付き、次の自分の境界
+  （repos 15 分、contrib・ahead・advisories 1 時間、traffic 6 時間）まで読まず、待ちの間に開いた 2 枚目の
+  ボードは約 14 分リポジトリが無く、拒否を受けた probe の 1 分後の読み直しも失われた。タイマーは持たない。制限はボードのものでなく利用者のものなので、
+  待ちはサービスが 1 つ持ち（`GithubService` の `#holdUntil`、`GhContext.heldUntil`/`hold`）、どのボードも待つ
+  （以前はボードごとで、2 枚目のペインは自分が 403 を受けるまで呼び続けた）。リポジトリの掘り下げ（§5.3）も
+  待ちの間は読まず、前に読んだもの（5 分を過ぎていても）か `waiting` を答え、REFRESH も掘り下げの読み取りを
+  捨てない。RATE LOW の間は掘り下げを 4 倍の 20 分持つ。`rate_limit` と `auth status` は制限を使わないので
+  待たない
+- GraphQL の応答の `rateLimit { cost remaining resetAt }` は台帳に足していない（台帳は要求の数だけ。GraphQL の
+  残りは 5 分ごとの `rate_limit` で読む）
 
 ### 3.1 queue のクエリ（要旨）
 
@@ -196,7 +268,8 @@ REST の `open_issues_count` は PR を含むので使わない）、`pullReques
   - RUNS: 直近 20 回（ワークフロー、ブランチ、イベント、所要時間、結果。承認待ちは warn）
   - PULLS: 開いた PR（`prVerdict`、作者、待ち日数）
   - RELEASES: 直近 5 つ（プレリリースの札、資産のダウンロード数、それからのコミット数）
-- 読み取りは開いたときだけ（runs と PR の一覧を GraphQL 1 本、リリースは REST 1 回、ETag 付き）。5 分持つ
+- 読み取りは開いたときだけ（PR とリリースの一覧を GraphQL 1 本、runs は probe の最後の答え）。5 分持つ（RATE
+  LOW の間は 20 分、GitHub が待てと言った間は読まない。§3）
 
 ## 6. スターの推移（ディスクに書く唯一のもの）
 
@@ -218,7 +291,9 @@ REST の `open_issues_count` は PR を含むので使わない）、`pullReques
 - 件名、番号、リポジトリ名、作者のログイン名、日時、数、状態、項目の id だけ。本文、コメント、差分、ファイル、
   メールアドレス、URL そのものは渡さない（開くのは main）
 - 件名・ブランチ名・ワークフロー名・タグ名は他人が書いた文字: Svelte の文字としてだけ描く
-- プライベートのリポジトリは `isPrivate` を添え、MASK でその名前と件名を伏せる
+- プライベートのリポジトリは `isPrivate` を添え、MASK でその名前と件名を伏せる。events・runs・advisories の
+  答えは見張っているリポジトリのものだけを渡し、どれがプライベートか分からないものはプライベートとして扱う
+  （`watchedOnly`。リストから外れたプライベートのリポジトリが前の答えに残り、公開として MASK でも名前が出ていた）
 
 ## 9. 後で
 
@@ -235,6 +310,6 @@ info の帯だけで、トーストは出さない。ペインの状態: 見張�
 [cloud-cli.md](cloud-cli.md) §9 に加えて: `queueItems`（重複の畳み込み、重さ、並び）、`prVerdict`（全組み合わせ、
 UNKNOWN）、`repoEvents`（畳み方、自分の操作）、`htmlUrlOf`（ホストと形を外れるものを断る）、スターの推移（日の
 切り替わり、欠けた日、90 日の刈り込み、プライベートを書かない）、ストリーク、304 の読み方（終了コード 1 と状態行）、
-`X-Poll-Interval` に従う時刻表、レートの予算（12 リポジトリで 5% 以内）、トークンの種類ごとの言い方、
+`X-Poll-Interval` に従う時刻表、RATE LOW の 4 倍、レート制限の拒否での THROTTLED と待ち、レートの予算（7・8・12 リポジトリ、304 無しで REST 5% 未満。8 個からの 10 分の歩調、REFRESH と加わったリポジトリはすぐ読む。github-rate.test.ts）、レート制限の拒否を通知のスコープや push 権と読まない、トークンの種類ごとの言い方、
 Dependabot の OFF / — / 数、プレリリース、GraphQL の本文がすべて `query`。e2e は `github.spec.ts`（代役の `demo` /
 `signedout` / `finegrained` / `envtoken` / `ratelow` / `offline`、リポジトリの往復）。

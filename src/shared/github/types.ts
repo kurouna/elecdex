@@ -103,7 +103,8 @@ export interface RepoTile {
   /** The default branch's last runs, oldest first. */
   runs: RunState[]
   red: boolean
-  views14: number[] | null
+  /** The last 14 days' views; null when GitHub refused them (push access); 'unread' before an answer. */
+  views14: number[] | null | 'unread'
   advisories: number | null
 }
 
@@ -148,6 +149,8 @@ export interface GithubBoard {
   executable: string | null
   readAt: number | null
   nextInboxAt: number | null
+  /** Until when GitHub asked to wait (`retry-after`, or the spent limit's reset); null when it did not. */
+  heldUntil: number | null
 }
 
 /** One repository's inside, read when the page opens it (§5.3). */

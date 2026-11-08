@@ -71,12 +71,27 @@ function eventOf(row: TrailRow, region: string): TrailEvent | null {
 
 /** One region's lookup-events answer, AWS's own automation dropped. */
 export function parseTrail(text: string, region: string): TrailEvent[] {
-  const out: TrailEvent[] = []
-  for (const row of parseWith(TrailSchema, text) ?? []) {
+  return parseTrailRead(text, region).events
+}
+
+/**
+ * One region's reading: its events, and whether CloudTrail gave as many as were asked for
+ * (TRAIL_MAX) - counted before AWS's own events are dropped, so a region whose last 50 writes
+ * were mostly AWS's own still says the 24 hours may not all be there.
+ */
+export interface TrailRead {
+  events: TrailEvent[]
+  capped: boolean
+}
+
+export function parseTrailRead(text: string, region: string): TrailRead {
+  const rows = parseWith(TrailSchema, text) ?? []
+  const events: TrailEvent[] = []
+  for (const row of rows) {
     const event = eventOf(row, region)
-    if (event !== null) out.push(event)
+    if (event !== null) events.push(event)
   }
-  return out
+  return { events, capped: rows.length >= TRAIL_MAX }
 }
 
 const QUARTER = 15 * 60_000

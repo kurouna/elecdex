@@ -95,7 +95,7 @@ Wi-Fi ペインが PowerShell を使うのは、Win32 の API（`wlanapi`、`Get
 - 見つからない: NO CLI。`aws.cmd`（pip で入れた v1）だけが見つかったときは「AWS CLI v1 found; the pane needs
   v2」と言う。インストールしたのに見つからないのは、elecdex が古い `PATH` のまま動いているため（サインイン時に
   起動したとき）なので、「elecdex を起動し直してください」と添える
-- gh は版を確かめる（`auth status --json` は新しい。2.60 未満なら OLD CLI）
+- 版は足元とカードに出すだけで、古いことを語にはしない（OLD CLI という語は作らなかった。`auth status --json` の無い古い gh は、その読み取りが LINK ERROR になる）
 
 ### 2.3 走らせ方（`runCli`）
 
@@ -113,8 +113,13 @@ Wi-Fi ペインが PowerShell を使うのは、Win32 の API（`wlanapi`、`Get
     `--region us-east-1` を明示する）
 - 標準入力: GraphQL の本文だけ（`gh api graphql --input -`。本文は JSON `{"query": …, "variables": …}`）。
   ほかは閉じる
-- 同時に走らせるのは全体で 4 本まで（`CLI_LANES`。2 本では新しいアカウントの最初の 1 周に約 6 分半かかった、decisions.md 2026-11-08）。同じ問い合わせ（同じ probe と同じ引数）は重ねない（走っている
-  ものの結果を待つ）
+- 同時に走らせるのは全体で 4 本まで（`CLI_LANES`。2 本では新しいアカウントの最初の 1 周に約 6 分半かかった、decisions.md 2026-11-08）。同じ問い合わせを重ねないのは
+  RESOURCES の `res-*` だけ（アカウントごとの `turn`、aws-inventory.json）。アカウント全体の読み取り（sts、IAM の
+  まとめと資格情報レポート、エイリアス、Budgets、ドメイン、請求メトリクス）はボードごとで、同じアカウントの
+  ペインが 2 枚あれば 2 度呼ぶ（請求メトリクスは 12 本が 24 本）。**これは利用者の決定（2026-11-08）**: アカウント
+  全体の読み取りはボードごとに分けたまま共有せず、IAM ユーザーについては何もディスクに書かない。共有すれば資格情報
+  レポートの IAM ユーザー名や ARN を aws-inventory.json に書くことになり、拒否（PARTIAL の操作名）も共有された値に
+  付いてこない。同じアカウントのペインを 2 枚並べる人は少なく、増えるのは無料の呼び出しだけ
 
 ### 2.4 許可リスト（probe の表）
 
@@ -180,13 +185,33 @@ interface Probe<T> {
   probe が境界で一斉に起動しないよう、probe の id から決まるずれ（周期の 1/4 まで、秒単位）を足す**
   （AWS CLI は 1 回ごとに重いので、15 分の境界で 40 本が並ぶと 20〜40 秒の塊になる）
 - 最初の購読では、手元の結果がその周期より古いものだけを呼ぶ（タブを行き来するたびに呼び直さない）
-- **最後に良かった結果を残す**。失敗しても画面は消さず、その項目の時刻を淡くし「STALE · 12m」と添える
-- 失敗は probe ごとに退く（1 → 2 → 4 → … 最大 30 分、境界に合わせる）。THROTTLED は「retry 14:31」
-  （AWS は解除の時刻を返さない。GitHub は `x-ratelimit-reset` があればそれ）
+- **最後に良かった結果を残す**。失敗しても画面は消さない。項目ごとの古さの印（「STALE · 12m」）は作らなかった:
+  リンクの語（PARTIAL、OFFLINE…）と足元の 1 行がボード全体の状態を言い、読んだ時刻は各タブの「read 14:23」が言う
+- 失敗は probe ごとに退く（1 → 2 → 4 → … 最大 30 分、境界に合わせる）。THROTTLED に再試行の時刻は出さない。
+  GitHub が `retry-after` か使い切った制限の `x-ratelimit-reset` を返したら、その時刻まで制限を使う probe を
+  呼ばずに THROTTLED のまま待つ（[github.md](github.md) §3）。gh の許容される呼び出し（リポジトリごと）でも、
+  レート制限の拒否は THROTTLED にして退く。gh の許容される呼び出しが許すのは状態行が 403 か 404 の自分の
+  「いいえ」だけで、オフライン・時間切れ・5xx はその probe の失敗として退く（`toleratedFailure`）。待ちのために
+  読まなかった probe は待ちが終わればすぐ読む（github.md §3）。AWS の許容される呼び出し（RESOURCES はすべて）の throttle は前と
+  同じく印を付けない。AWS の throttle は API ごとで、RESOURCES には有料の GetMetricData と従量の list-buckets も
+  あり、退けば 1・3・7・15 分…ごとに予約して払い直していた（2 時間で 8 回、本来 1 回）。**お金のかかる probe
+  （`PaidCost` と `metered-tiny`）は、失敗しても退かずに自分の周期を待つ**（`isFree`、aws.md §14.4a）。
+  いくつもの部分を読む probe（GitHub のリポジトリごと）は `dueThroughBackoff` を持てる: 退きの待ちが止めるのは
+  失敗した部分の読み直しだけで、全部を読む番が来たら待ちの中でも読む（1 つのリポジトリの失敗がほかを退かせない。
+  どの部分も答えなかったとき、オフラインのときは待つ。github.md §3）。`readAllAt` も持てる: 周期の境界の
+  「いま読んだばかり」はそこ（全部を読んだ時刻）から数え、いくつかの部分の読み直しでは数えない。
+  時間切れと 4 MB を超えた答えはその読み取りだけのことで、ほかが
+  読めていれば PARTIAL（足元に決まった文）。OFFLINE は接続できないときだけ
 - **SIGNED OUT・MFA・時間切れのボードは時刻表から外す**。`credential_process`（aws-vault、granted、
   1Password など）は起動のたびに鍵束や MFA の窓を開きうる（`windowsHide` でその窓が隠れ、時間切れまで
   待つこともある）。REFRESH を押すまで呼ばない、と notice に書く。`aws configure get credential_process
-  --profile=<名前>`（手元のファイルを読むだけ）で、あれば最初の起動の前に一度言う
+  --profile=<名前>`（手元のファイルを読むだけ）で、あれば最初の起動の前に一度言う。
+  読み取りの途中で自分のサインアウトがボードを止め、後ろに並んでいた呼び出しが起動されずに戻っても
+  （リポジトリが CLI の枠より多い）、その問題は読み取りのものとして残す（`#haltedBy`）。捨てると、何も読まない
+  ボードが LINKED と言い、リポジトリの中は「waiting」のままだった。止めた読み取りの終わる前にペインを隠しても
+  同じ: 止めは REFRESH までのもので、隠すことでは解けない。スケジューラは止めた世代（`#haltedIn`）を覚え、
+  その読み取りが隠した後や見せ直した後に終わっても、止めが立っていれば問題を残して失敗に数える（以前は世代が
+  変わると捨て、止まったまま問題の無いボードが LINKED・LINKING と言った。cloud-cli.test.ts）
 - REFRESH はページのボタンだが、**30 秒に 1 度の制限は main がボードごとに持つ**。ページの見た目（下線が
   減る）は main の答えた残り時間に従う
 - SLOW（ペインの設定）: すべての周期を 4 倍にする。CloudTrail に出る自分の読み取りを減らしたい人のため（§3.2）
@@ -229,10 +254,11 @@ metrics の utilityProcess（collector）へ移す。probe の表と解析は純
 | STANDBY | 見えていない | 淡色 |
 | LINKING | 最初の読み取りの最中。REFRESH の間もこの語 | アクセント（点滅、`--ambient-play-state` に従う） |
 | LINKED | 直近の probe がすべて成功 | ok |
-| PARTIAL | 一部の probe が DENIED（権限が無いだけ） | warn |
-| NO CLI / OLD CLI | 実行ファイルが無い・古い | danger |
+| PARTIAL | 一部の probe が DENIED（権限が無いだけ）、または 1 つの読み取りが時間切れか 4 MB 超え（ほかは読めた） | warn |
+| NO CLI | 実行ファイルが無い | danger |
 | SIGNED OUT | 認証が無い・切れた・MFA が要る | warn（コピーできるコマンド付き） |
-| THROTTLED / RATE LOW | レート制限 | warn（「retry 14:31」） |
+| THROTTLED | レート制限で拒まれた、または GitHub の言う時刻まで待っている | warn |
+| RATE LOW | GitHub の残りが 10% 未満（上段に別に出し、周期を 4 倍） | warn |
 | OFFLINE | 接続できない | 淡色（最後の結果を残す） |
 | LINK ERROR | それ以外 | danger |
 
@@ -240,10 +266,12 @@ metrics の utilityProcess（collector）へ移す。probe の表と解析は純
   （「1 alarm」danger、「sso expired」warn）を出す（DOCKER・Ethernet と同じ）。タブの裏にいても見える
 - 分類（`classifyCliError`）は純粋関数で、aws と gh の標準エラーの決まり文句から決める。**標準エラーの文は
   ページへも、トーストへも、ログへも渡さない**。渡すのは分類と、決まった形で取り出したものだけ:
-  DENIED なら操作名（`perform: ([\w-]+:[\w*]+)` の 1 つ）、THROTTLED なら次の時刻。分類できないものは
+  DENIED なら操作名（`perform: ([\w-]+:[\w*]+)` の 1 つ）。分類できないものは
   LINK ERROR とし、`redactCliText`（ARN、12 桁の数字、メールアドレス、`AKIA…` を伏せる純粋関数）を通した
-  先頭 120 字だけを出す。COPY DETAILS がトーストを写すので、MASK の有無によらず必ず伏せる
-- 読めなかったものは `problems` としてトーストに 1 度ずつ（Wi-Fi と同じ）
+  先頭 120 字だけを足元に出す。MASK の有無によらず必ず伏せ、MASK の間はその 1 行も出さず「LINK ERROR · the
+  CLI’s words are hidden under MASK」とだけ言う（スタック名や非公開リポジトリの名前が残りうる。レビュー
+  2026-11-08）。時間切れと大きすぎる答えは elecdex の決まった文（`PROBLEM_WORDS`）で、MASK でも出す
+- 読めなかったものはトーストにしない。リンクの語と足元の 1 行で言う（トーストは公開ステータスの障害と QUOTA だけ、§12.5）
 
 ## 5. 実測と確かめたこと（2026-11-07、gh 2.100.0）
 
@@ -460,7 +488,7 @@ PaneHost の見出しと二重になる、常に動くアニメーション、Cl
 | 障害 | `https://status.aws.amazon.com/rss/all.rss`（AWS Health Dashboard の公式の RSS、サインイン不要） | `https://www.githubstatus.com/api/v2/incidents/unresolved.json`（Statuspage の公開 API） |
 | 計画保守 | なし | `…/api/v2/scheduled-maintenances/active.json`（173 B） |
 | 大きさ | 約 60 KB、42 項目（3 月まで遡る） | 平常時 160 B と 173 B |
-| 条件付き要求 | **効かない**: ETag と Last-Modified を返すが、`If-None-Match` も `If-Modified-Since` も 200 で 59,917 B。gzip も無い | 効く（弱い ETag で 304） |
+| 条件付き要求 | **効かない**: ETag と Last-Modified を返すが、`If-None-Match` も `If-Modified-Since` も 200 で 59,917 B。gzip も無い | 効く（弱い ETag で 304）が、使っていない。平常時 160 B と 173 B なので検証子を持たずに毎回取る |
 | 周期 | 見えている間だけ 5 分（フィードの `<ttl>` は 5。1 回 60 KB、条件付き要求が効かない） | 見えている間だけ 5 分 |
 | 呼ばないもの | `health.aws.amazon.com/public/currentevents`（ダッシュボードの JSON。260 KB の UTF-16 で、文書の無い内部の形） | `summary.json`（全部品の状態。要るのは障害と保守だけ）、`shortlink`（`stspg.io` で main のホストの確かめに通らない） |
 

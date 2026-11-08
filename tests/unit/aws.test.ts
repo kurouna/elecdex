@@ -511,7 +511,16 @@ describe('console URLs', () => {
       '#LoadBalancer:loadBalancerArn=arn',
     )
     expect(consoleUrl('ec2', 'nowhere', 'i-0')).toBeNull()
-    expect(consoleUrl('ec2', R, 'i-0 <script>')).toBeNull()
+    // Any printable id goes in encoded on the fixed host: an alarm's name has spaces and
+    // parentheses, and ↗ CONSOLE did nothing for one. Control characters are still refused.
+    expect(consoleUrl('alarms', R, 'CPU high (prod)')).toBe(
+      `https://${R}.console.aws.amazon.com/cloudwatch/home?region=${R}#alarmsV2:alarm/CPU%20high%20(prod)`,
+    )
+    expect(consoleUrl('ec2', R, 'i-0 <script>')).toBe(
+      `https://${R}.console.aws.amazon.com/ec2/home?region=${R}#InstanceDetails:instanceId=i-0%20%3Cscript%3E`,
+    )
+    expect(consoleUrl('alarms', R, 'a\nb')).toBeNull()
+    expect(consoleUrl('alarms', R, 'x'.repeat(1025))).toBeNull()
     for (const service of Object.keys(DRILL) as (keyof typeof DRILL)[]) {
       const url = consoleUrl(
         service,
@@ -707,6 +716,9 @@ function service(
     },
   }
 }
+
+/** An item main answered, or null: "not read yet" is no item either. */
+const found = <T>(item: T | 'unread' | null): T | null => (item === 'unread' ? null : item)
 
 const KEY = awsBoardKey({
   profile: 'default',
@@ -937,7 +949,7 @@ describe('AwsService on the stand-in AWS CLI', () => {
     const rows = await s.aws.drill(KEY, 'cloudfront')
     const first = rows?.[0]
     expect(first).toBeDefined()
-    const item = await s.aws.item(KEY, 'cloudfront', first?.id ?? '')
+    const item = found(s.aws.item(KEY, 'cloudfront', first?.id ?? ''))
     expect(item?.fields.filter((f) => f.label === 'id')).toHaveLength(1)
   })
 
@@ -1106,7 +1118,7 @@ describe('AwsService on the stand-in AWS CLI', () => {
     expect(s.aws.urlOf(KEY, 'https://example.com')).toBeNull()
     expect(s.aws.drill(KEY, 'iam')).toBeNull()
     expect(s.aws.drill(KEY, 'ec2')?.length).toBe(6)
-    expect(s.aws.item(KEY, 'ec2', 'i-0a1b2c3d4e5f60003')?.name).toBe('dev-box')
+    expect(found(s.aws.item(KEY, 'ec2', 'i-0a1b2c3d4e5f60003'))?.name).toBe('dev-box')
   })
 
   it('stops at the sign-in with the command to run', async () => {
@@ -1358,10 +1370,10 @@ describe('RESOURCES on the stand-in AWS CLI (aws.md §14)', () => {
         ?.map((r) => `${r.service}:${r.region}`)
         .sort(),
     ).toEqual(['ebs:us-west-2', 'ec2:us-west-2', 'nat:ap-southeast-1'])
-    const item = s.aws.item(KEY, 'logs', '/aws/lambda/old-resizer')
+    const item = found(s.aws.item(KEY, 'logs', '/aws/lambda/old-resizer'))
     expect(item?.forgotten).toMatchObject({ reason: 'orphan-log-group' })
     expect(item?.kept).toBe(false)
-    expect(s.aws.item(KEY, 'ec2', 'i-0b7c6d5e4f3a20001')?.region).toBe('us-west-2')
+    expect(found(s.aws.item(KEY, 'ec2', 'i-0b7c6d5e4f3a20001'))?.region).toBe('us-west-2')
     expect(s.aws.urlOf(KEY, `item:logs:${R}:/aws/lambda/old-resizer`)).toBe(
       `https://${R}.console.aws.amazon.com/cloudwatch/home?region=${R}#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fold-resizer`,
     )
@@ -1385,7 +1397,7 @@ describe('RESOURCES on the stand-in AWS CLI (aws.md §14)', () => {
     expect(res?.forgotten.some((f) => f.key === row?.key)).toBe(false)
     expect(res?.kept.map((k) => k.key)).toEqual([row?.key])
     expect(res?.figures.forgotten.kept).toBe(1)
-    expect(s.aws.item(KEY, 'snapshots', 'snap-0orphan01')?.kept).toBe(true)
+    expect(found(s.aws.item(KEY, 'snapshots', 'snap-0orphan01'))?.kept).toBe(true)
     expect(s.aws.keep(KEY, row?.key, false)).toBe(true)
     expect(s.aws.keep(KEY, row?.key, false)).toBe(false)
     expect(s.aws.keep('nope', row?.key, true)).toBe(false)

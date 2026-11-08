@@ -1147,6 +1147,14 @@ const isGlobal = (v: PerRegion<unknown> | { global: unknown }): v is { global: u
   Object.keys(v).length === 1 && 'global' in v
 
 /** Whether the service's list answered in that region (or, global, at all). */
+/**
+ * Whether the service is read once for the whole account (S3's buckets, CloudFront, Route 53):
+ * its rows carry a region (a bucket's own, us-east-1), its reading does not.
+ */
+export function readGlobally(service: AwsService, r: AwsReadings): boolean {
+  return isGlobal(READING[service](r))
+}
+
 export function readIn(service: AwsService, r: AwsReadings, region: string): boolean {
   const reading = READING[service](r)
   if (isGlobal(reading)) return reading.global !== null && reading.global !== undefined

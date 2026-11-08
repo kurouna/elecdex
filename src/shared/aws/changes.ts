@@ -10,11 +10,13 @@ export type IdSets = Partial<Record<AwsService, Record<string, string>>>
 
 /** The ids (to their names) the changes line compares: what runs or bills. */
 export function idSets(r: AwsReadings): IdSets {
+  // Keyed by region and id: a database or a NAT of one name in two regions is two, and one of
+  // them going is a change (keyed by id alone, the other one hid it).
   const named = <T extends { region: string }>(
     rows: T[],
     id: (row: T) => string,
     name: (row: T) => string,
-  ) => Object.fromEntries(rows.map((row) => [id(row), name(row)]))
+  ) => Object.fromEntries(rows.map((row) => [`${row.region}:${id(row)}`, name(row)]))
   return {
     ec2: named(
       everywhere(r.instances).filter((i) => i.state === 'running'),

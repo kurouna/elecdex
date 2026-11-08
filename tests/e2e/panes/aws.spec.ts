@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 import { captureOpens, cloudMode, opened } from '../support/cloud.js'
 import { test } from '../support/shared.js'
-import { beside, launch, tabbed } from '../support.js'
+import { beside, launch, reloadWorkspace, tabbed } from '../support.js'
 
 /**
  * AWS STATUS (docs/aws.md), on main's stand-in AWS CLI (support.ts sets ELECDEX_CLOUD_STUB=1):
@@ -156,17 +156,39 @@ test('ELSEWHERE opens the regions the pane does not show, with a sweep on demand
 })
 
 test("asks once about Cost Explorer, and the answer is the account's", async () => {
-  const { page, close } = await launch(undefined, { layout: layout('aws') })
+  // Two panes on one profile with other regions: two boards of one account. An answer in one
+  // takes the question out of the other too - the answer is the account's, not the pane's.
+  const pane = (id: string, regions: string[]) => ({
+    kind: 'pane',
+    id,
+    widget: 'aws',
+    state: { regions },
+  })
+  const two = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 'root',
+      direction: 'row',
+      sizes: [50, 50],
+      children: [pane('aws-a', ['ap-northeast-1']), pane('aws-b', ['us-east-1'])],
+    },
+  }
+  const { page, close } = await launch(undefined, { layout: two })
   try {
-    await expect(page.getByTestId('aws-ce-ask')).toBeVisible()
-    await page.getByTestId('aws-ce-off').click({ delay: 20 })
-    await expect(page.getByTestId('aws-ce-ask')).toHaveCount(0)
-    await page.getByTestId('aws-tab-cost').click({ delay: 20 })
-    await expect(page.getByTestId('aws-ce-off-line')).toContainText('Cost Explorer is off')
-    // A pane shown again asks no more.
-    await tab(page, 1).click({ delay: 20 })
-    await tab(page, 0).click({ delay: 20 })
-    await expect(page.getByTestId('aws-link')).toContainText('LINKED')
+    const a = page.getByTestId('aws').nth(0)
+    const b = page.getByTestId('aws').nth(1)
+    await expect(a.getByTestId('aws-ce-ask')).toBeVisible()
+    await expect(b.getByTestId('aws-ce-ask')).toBeVisible()
+    await a.getByTestId('aws-ce-off').click({ delay: 20 })
+    await expect(a.getByTestId('aws-ce-ask')).toHaveCount(0)
+    await expect(b.getByTestId('aws-ce-ask')).toHaveCount(0)
+    await b.getByTestId('aws-tab-cost').click({ delay: 20 })
+    await expect(b.getByTestId('aws-ce-off-line')).toContainText('Cost Explorer is off')
+    // A page reloaded asks no more: main kept the answer, not the page.
+    await reloadWorkspace(page)
+    for (const i of [0, 1])
+      await expect(page.getByTestId('aws-link').nth(i)).toContainText('LINKED')
     await expect(page.getByTestId('aws-ce-ask')).toHaveCount(0)
   } finally {
     await close()
@@ -187,6 +209,12 @@ test('stops reading behind a tab, and keeps what it showed', async () => {
     await tab(page, 0).click({ delay: 20 })
     await expect(page.getByTestId('aws-attention-row').first()).toContainText('ALARM')
     await expect.poll(() => watching(page)).toHaveLength(1)
+    // The tabbed pane stayed mounted, so that alone could be the page's memory: a reload drops
+    // it, and the rows that come back with the CLI still gone can only be main's.
+    await reloadWorkspace(page)
+    // The tab chosen may not be saved yet: it is chosen again, which reads nothing.
+    await page.getByTestId('aws-tab-attention').click({ delay: 20 })
+    await expect(page.getByTestId('aws-attention-row').first()).toContainText('ALARM')
   } finally {
     await cloudMode(app, 'aws', null)
     await close()

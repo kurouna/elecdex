@@ -280,7 +280,16 @@ describe('the ledger', () => {
     expect(linkOf([], false)).toBe('linking')
     expect(linkOf([null], true)).toBe('linked')
     expect(linkOf([{ kind: 'denied', action: null }], true)).toBe('partial')
-    expect(linkOf([{ kind: 'denied', action: null }, { kind: 'timeout' }], true)).toBe('offline')
+    // One slow call or one answer too large is that reading's: the rest was read, PARTIAL. The
+    // whole board turned OFFLINE for a single timeout.
+    expect(linkOf([{ kind: 'denied', action: null }, { kind: 'timeout' }], true)).toBe('partial')
+    expect(linkOf([null, { kind: 'timeout' }], true)).toBe('partial')
+    expect(linkOf([{ kind: 'too-large' }], true)).toBe('partial')
+    expect(linkOf([{ kind: 'timeout' }, { kind: 'offline' }], true)).toBe('offline')
+    expect(linkOf([{ kind: 'timeout' }, { kind: 'error', text: 'x' }], true)).toBe('error')
+    // Nothing read at all: a timeout may be the network; an answer too large is not.
+    expect(linkOf([{ kind: 'timeout' }], false)).toBe('offline')
+    expect(linkOf([{ kind: 'too-large' }], false)).toBe('error')
     expect(linkOf([{ kind: 'throttled' }, { kind: 'signed-out', via: 'gh' }], true)).toBe(
       'signed-out',
     )
@@ -475,8 +484,11 @@ describe('ProbeScheduler', () => {
     expect(s.denied()).toEqual(['guardduty:ListDetectors'])
   })
 
-  it('a tolerated failure sets no problem', async () => {
-    const h = harness(() => result({ stderr: 'gh: Must have push access (HTTP 403)' }))
+  it.each([
+    ['403', 'HTTP/2.0 403 Forbidden\r\n\r\n{"message":"Must have push access"}'],
+    ['404', 'HTTP/2.0 404 Not Found\r\n\r\n{"message":"Not Found"}'],
+  ])('a tolerated failure of its own (a %s) sets no problem', async (_, stdout) => {
+    const h = harness(() => result({ stdout, stderr: 'gh: Must have push access (HTTP 403)' }))
     const s = new ProbeScheduler(h.deps, [
       probe('a', {}, async (_ctx, cli) => {
         await cli({ tool: 'gh', argv: ['a'], tolerated: true })
@@ -486,6 +498,113 @@ describe('ProbeScheduler', () => {
     s.start()
     await h.flush()
     expect(s.outcome('a').problem).toBeNull()
+  })
+
+  it.each([
+    ['offline', result({ stderr: 'error connecting to api.github.com' }), 'offline'],
+    ['timed out', result({ code: -1, timedOut: true }), 'timeout'],
+    [
+      'a 502',
+      result({
+        stdout: 'HTTP/2.0 502 Bad Gateway\r\n\r\n{"message":"Server Error"}',
+        stderr: 'gh: Server Error (HTTP 502)',
+      }),
+      'error',
+    ],
+  ])(
+    "a tolerated gh call %s is the probe's failure, retried on its back-off",
+    async (_, answer, kind) => {
+      // It said nothing about the repository, yet set no problem and no back-off: the board said
+      // LINKED and traffic was not read again for six hours (github.md §3).
+      const h = harness(() => answer)
+      let runs = 0
+      const s = new ProbeScheduler(h.deps, [
+        probe('a', { every: 60 * MINUTE }, async (_ctx, cli) => {
+          runs += 1
+          await cli({ tool: 'gh', argv: ['a'], tolerated: true })
+          return null
+        }),
+      ])
+      s.start()
+      await h.flush()
+      expect(s.outcome('a').problem?.kind).toBe(kind)
+      await h.advance(MINUTE)
+      expect(runs).toBe(2)
+    },
+  )
+
+  it("a tolerated AWS call's failure still sets no problem", async () => {
+    const h = harness(() => result({ stderr: 'Could not connect to the endpoint URL' }))
+    const s = new ProbeScheduler(h.deps, [
+      probe('a', {}, async (_ctx, cli) => {
+        await cli({ tool: 'aws', argv: ['a'], tolerated: true })
+        return {}
+      }),
+    ])
+    s.start()
+    await h.flush()
+    expect(s.outcome('a').problem).toBeNull()
+  })
+
+  describe('a probe that bills waits for its period after a failure (aws.md §14.4a)', () => {
+    const DAY = 24 * 60 * MINUTE
+    const AWS_THROTTLED =
+      'An error occurred (Throttling) when calling the GetMetricData operation: Rate exceeded'
+    /** Two hours of a daily probe whose every call fails; how many calls it started. */
+    const twoHours = async (
+      cost: Probe<object, unknown>['cost'],
+      tolerated: boolean,
+      stderr: string,
+    ) => {
+      const h = harness(() => result({ code: 254, stderr }))
+      const s = new ProbeScheduler(h.deps, [
+        probe('paid', { every: DAY, cost }, async (_ctx, cli) => {
+          await cli({ tool: 'aws', argv: ['paid'], tolerated })
+          // RESOURCES' shared reading answers what it had, whatever a call met.
+          return {}
+        }),
+      ])
+      s.start()
+      await h.flush()
+      await h.advance(2 * 60 * MINUTE)
+      s.stop()
+      return { calls: h.calls.length, problem: s.outcome('paid').problem }
+    }
+
+    it('GetMetricData throttled is called once in two hours, not at minutes 1, 3, 7, 15…', async () => {
+      const gmd = { setting: 'aws.getMetricData', perMetricUsd: 0.00001 }
+      expect(await twoHours(gmd, true, AWS_THROTTLED)).toEqual({ calls: 1, problem: null })
+    })
+
+    it("S3's metered list throttled is called once in two hours", async () => {
+      const metered = { metered: 'tiny', monthlyCap: 31, decided: '2026-11-08' } as const
+      const answer = await twoHours(
+        metered,
+        true,
+        AWS_THROTTLED.replace('GetMetricData', 'ListBuckets'),
+      )
+      expect(answer).toEqual({ calls: 1, problem: null })
+    })
+
+    it('a paid call that is not tolerated fails, and still waits for its period', async () => {
+      const ce = { setting: 'aws.costExplorer', perRequestUsd: 0.01 }
+      const answer = await twoHours(
+        ce,
+        false,
+        'Could not connect to the endpoint URL: "https://ce.us-east-1.amazonaws.com/"',
+      )
+      expect(answer.calls).toBe(1)
+      expect(answer.problem).not.toBeNull()
+    })
+
+    it('a free probe is still tried again within minutes', async () => {
+      const answer = await twoHours(
+        'free',
+        false,
+        'Could not connect to the endpoint URL: "https://x/"',
+      )
+      expect(answer.calls).toBeGreaterThan(4)
+    })
   })
 
   it('runs a probe after one without a key once that one has read for the first time', async () => {
@@ -532,6 +651,72 @@ describe('ProbeScheduler', () => {
     expect(s.halted).toBe(true)
     expect(h.calls).toEqual(['a'])
   })
+
+  it('keeps the sign-out of a reading whose own queued calls it dropped', async () => {
+    // Five calls in four lanes: the fifth came back not started, the reading was dropped as if
+    // the board had stopped, and the halted board had no problem - LINKED, reading nothing.
+    const h = harness(() => result({ stderr: 'gh: Bad credentials (HTTP 401)' }), 4)
+    const each = probe('each', {}, async (_ctx, cli) => {
+      const answers = await Promise.all(
+        ['r0', 'r1', 'r2', 'r3', 'r4'].map((repo) => cli({ tool: 'gh', argv: [repo] })),
+      )
+      return answers.some((answer) => answer.ok) ? 'x' : null
+    })
+    const s = new ProbeScheduler(h.deps, [each])
+    s.start()
+    await h.flush()
+    expect(h.calls.length).toBe(4)
+    expect(s.halted).toBe(true)
+    expect(s.outcome('each').problem).toEqual({ kind: 'signed-out', via: 'gh' })
+    expect(s.outcome('each').triedAt).not.toBeNull()
+    await h.advance(30 * MINUTE)
+    expect(h.calls.length).toBe(4)
+  })
+
+  it.each([
+    ['ends while hidden', true],
+    ['ends after it is shown again', false],
+  ] as const)(
+    'keeps the sign-out of a halting reading hidden before it %s',
+    async (_, endsHidden) => {
+      // The halt stood, but the reading ended in a later generation: dropped, with no problem
+      // noted, and the board shown again said LINKED while it read nothing until REFRESH.
+      const waiting: (() => void)[] = []
+      const signedOut = result({ stderr: 'gh: Bad credentials (HTTP 401)' })
+      const h = harness(
+        (call) =>
+          call.argv[0] === 'r0'
+            ? signedOut
+            : new Promise<CliResult>((resolve) => waiting.push(() => resolve(signedOut))),
+        4,
+      )
+      const each = probe('each', {}, async (_ctx, cli) => {
+        await Promise.all(
+          ['r0', 'r1', 'r2', 'r3', 'r4'].map((repo) => cli({ tool: 'gh', argv: [repo] })),
+        )
+        return null
+      })
+      const s = new ProbeScheduler(h.deps, [each])
+      s.start()
+      await h.flush()
+      expect(s.halted).toBe(true)
+      expect(waiting.length).toBe(3)
+      s.stop()
+      if (!endsHidden) s.start()
+      for (const release of waiting) release()
+      await h.flush()
+      if (endsHidden) s.start()
+      await h.flush()
+      expect(s.halted).toBe(true)
+      expect(s.problems()).toEqual([{ kind: 'signed-out', via: 'gh' }])
+      await h.advance(30 * MINUTE)
+      expect(h.calls.length).toBe(4)
+      // REFRESH still reads again.
+      s.refresh()
+      await h.flush()
+      expect(h.calls.length).toBeGreaterThan(4)
+    },
+  )
 
   it('starts no queued call once the board has stopped', async () => {
     let release: (() => void) | null = null
@@ -620,6 +805,39 @@ describe('ProbeScheduler', () => {
     // The one whose call had started answered: it stands, read once.
     expect(s.outcome('slow').value).toBe('old')
     expect(h.calls.filter((c) => c === 'slow')).toHaveLength(1)
+  })
+
+  it('reads again when a run of a few parts ends after the board was shown again, counting from the last reading of all', async () => {
+    // A retry of one repository was running as the board went away and came back: it ended as
+    // a resumed run, and counting from its time put off the whole reading due by a period.
+    const SIX_HOURS = 6 * 60 * MINUTE
+    let full: number | null = null
+    let release: (() => void) | null = null
+    let hang = false
+    const h = harness((call) => {
+      if (call.argv[0] === 'parts' && hang)
+        return new Promise<CliResult>((resolve) => {
+          hang = false
+          release = () => resolve(result({ ok: true, code: 0, stdout: 'retry' }))
+        })
+      return result({ ok: true, code: 0, stdout: 'x' })
+    }, 1)
+    const s = new ProbeScheduler(h.deps, [
+      probe('parts', { every: SIX_HOURS, readAllAt: () => full }),
+    ])
+    s.start()
+    await h.flush()
+    full = h.deps.now()
+    // Its next run reads only a few parts (readAllAt stays), and hangs.
+    hang = true
+    await h.advance(SIX_HOURS)
+    expect(h.calls).toHaveLength(2)
+    s.stop()
+    s.start()
+    ;(release as (() => void) | null)?.()
+    await h.flush()
+    expect(s.outcome('parts').value).toBe('x')
+    expect(h.calls).toHaveLength(3)
   })
 
   it('starts a probe due while what it reads for still runs only once that has answered', async () => {

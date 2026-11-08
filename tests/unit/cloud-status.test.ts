@@ -170,6 +170,23 @@ describe('CloudAlerts', () => {
     expect(h.page).toEqual([])
   })
 
+  it('counts what came while toasts were off as said, so turning them on toasts only what is new', () => {
+    // Found in review: incidents were never marked while off, and turning toasts on later
+    // toasted an incident the band had shown for hours.
+    const h = harness()
+    h.alerts.incidents('aws', [], null)
+    h.choice.notify = false
+    h.alerts.incidents('aws', [open('while-off')], null)
+    expect(h.file().said['while-off']).toBeDefined()
+    h.choice.notify = true
+    h.later(20 * 60_000)
+    h.alerts.incidents('aws', [open('while-off')], null)
+    expect(h.page).toEqual([])
+    // One that came after it is toasted, alone.
+    h.alerts.incidents('aws', [open('while-off'), open('after')], null)
+    expect(h.page).toEqual(['AWS incident: incident after'])
+  })
+
   it("says a quota step once, and out of the window in the system's words, never naming the account", () => {
     const h = harness(false)
     const quota = {

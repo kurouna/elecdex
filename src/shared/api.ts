@@ -609,8 +609,12 @@ export interface GithubApi {
   subscribe(key: string, handler: (board: GithubBoard) => void): () => void
   /** Every reading now, at most once in 30 s per board: answers the wait left (ms). */
   refresh(key: string): Promise<number>
-  /** One watched repository's runs, open PRs and releases (read when opened, kept 5 min). */
-  detail(key: string, repo: string): Promise<RepoDetail | null>
+  /**
+   * One watched repository's runs, open PRs and releases (read when opened, kept 5 min).
+   * `waiting` until the board can read it (its first list of repositories, a sign-in); null for
+   * a repository the board does not watch.
+   */
+  detail(key: string, repo: string): Promise<RepoDetail | 'waiting' | null>
   /** Opens an item the board showed, in the browser. */
   open(key: string, id: string): Promise<boolean>
   /** Diagnostics: the boards main reads now, sorted; empty when idle. */
@@ -628,8 +632,16 @@ export interface AwsApi {
   refresh(key: string): Promise<number>
   /** A service's list for the drill-down, or one of RESOURCES' lists, from main's last reading. */
   drill(key: string, service: AwsService | AwsList): Promise<DrillRow[] | null>
-  /** One resource of that list: its fields, what is related, its findings. */
-  item(key: string, service: AwsService, id: string, region?: string): Promise<DrillItem | null>
+  /**
+   * One resource of that list: its fields, what is related, its findings. `unread` while the
+   * reading it would be in has not answered yet; null when it is gone, or not this board's.
+   */
+  item(
+    key: string,
+    service: AwsService,
+    id: string,
+    region?: string,
+  ): Promise<DrillItem | 'unread' | null>
   /** Its CloudTrail, read when HISTORY is pressed (free; kept five minutes). */
   history(
     key: string,
@@ -642,7 +654,10 @@ export interface AwsApi {
   /** Cost Explorer's answer for the board's account (a paid API, asked once; aws.md §3.3). */
   costExplorer(
     key: string,
-    answer: { state: 'on' | 'off' | 'later'; every?: 'manual' | 'day' | '12h'; cap?: number },
+    answer:
+      | { state: 'on' | 'off' | 'later'; every?: 'manual' | 'day' | '12h'; cap?: number }
+      /** The monthly cap alone: the account's answer stays as it is. */
+      | { cap: number },
   ): Promise<boolean>
   /** The cost QUOTA of the board's account, USD (0 is off). */
   quota(key: string, quota: { usd: number; steps: '80-100' | '100' }): Promise<boolean>

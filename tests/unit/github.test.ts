@@ -277,7 +277,7 @@ describe('streaks', () => {
 
 /** The service on the stand-in gh, on a clock that moves only when the test says. */
 function service(mode = 'demo') {
-  const now = NOW
+  let now = NOW
   const calls: CliCall[] = []
   const boards: GithubBoard[] = []
   const stub = stubGithub(mode)
@@ -299,10 +299,17 @@ function service(mode = 'demo') {
   const flush = async () => {
     for (let i = 0; i < 400; i++) await Promise.resolve()
   }
-  return { github, calls, boards, flush, last: () => boards.at(-1) }
+  /** Moves the clock on (no timer runs: they are never set). */
+  const pass = (ms: number) => {
+    now += ms
+  }
+  return { github, calls, boards, flush, pass, last: () => boards.at(-1) }
 }
 
 const AUTO = boardKey({ repos: 'auto', inbox: 'all' })
+
+/** A repository's inside main answered, or null: `waiting` is none either. */
+const inside = <T>(detail: T | 'waiting' | null): T | null => (detail === 'waiting' ? null : detail)
 
 describe('GithubService on the stand-in gh', () => {
   it('reads a whole board at once when shown, the per-repository readings included', async () => {
@@ -389,7 +396,10 @@ describe('GithubService on the stand-in gh', () => {
     expect(s.calls.some((c) => c.argv.some((a) => a.includes('/compare/')))).toBe(false)
     expect(s.calls.filter((c) => (c.stdin ?? '').includes('query Ahead'))).toHaveLength(1)
     expect(s.last()?.repos.find((tile) => tile.name === 'octo-aki/tern')?.release?.ahead).toBe(38)
-    // The advisories and the traffic carry their ETag the second time: a 304 is free.
+    // The advisories and the traffic carry their ETag the second time: a 304 is free. A press a
+    // second after the readings, not in the same millisecond: what a reading began at or after
+    // a press has read for it.
+    s.pass(1_000)
     expect(s.github.refresh(AUTO)).toBe(30_000)
     await s.flush()
     for (const part of ['/security-advisories', '/traffic/views']) {
@@ -533,10 +543,10 @@ describe("GithubService's drill-down", () => {
     )
     s.github.watch(AUTO)
     await flush()
-    expect((await s.github.detail(AUTO, 'octo-aki/tern'))?.pulls).toEqual([])
+    expect(inside(await s.github.detail(AUTO, 'octo-aki/tern'))?.pulls).toEqual([])
     fail = false
     // Within five minutes: the failure was not kept, so it is read again.
-    expect((await s.github.detail(AUTO, 'octo-aki/tern'))?.pulls.length).toBeGreaterThan(0)
+    expect(inside(await s.github.detail(AUTO, 'octo-aki/tern'))?.pulls.length).toBeGreaterThan(0)
     const asked = s.calls.filter((c) => (c.stdin ?? '').includes('query RepoPulls')).length
     expect(s.github.refresh(AUTO)).toBe(30_000)
     await flush()
@@ -544,6 +554,45 @@ describe("GithubService's drill-down", () => {
     expect(s.calls.filter((c) => (c.stdin ?? '').includes('query RepoPulls'))).toHaveLength(
       asked + 1,
     )
+  })
+
+  it('waits for the first list of repositories, then reads; one not watched is null', async () => {
+    // A drill kept over a restart asked before the first repos reading: main answered null, and
+    // the page asked no more, "…" for good.
+    const s = changed((_call, answer) => answer)
+    s.github.watch(AUTO)
+    expect(await s.github.detail(AUTO, 'octo-aki/lumen-cli')).toBe('waiting')
+    await flush()
+    expect(await s.github.detail(AUTO, 'octo-aki/lumen-cli')).toMatchObject({
+      repo: 'octo-aki/lumen-cli',
+    })
+    expect(await s.github.detail(AUTO, 'someone/else')).toBeNull()
+  })
+
+  it('waits while the board is stopped at a sign-in, starting no CLI', async () => {
+    const stub = stubGithub('signedout')
+    const calls: CliCall[] = []
+    const github = new GithubService({
+      cli: async (call) => {
+        calls.push(call)
+        return stub(call)
+      },
+      limit: concurrencyLimit(2),
+      stars: { note: () => {}, history: () => ({}) },
+      now: () => NOW,
+      setTimer: () => 0,
+      clearTimer: () => {},
+      publish: () => {},
+      incidents: () => [],
+      ghVersion: () => '2.83.0',
+      executable: () => 'stub',
+    })
+    const pinned = boardKey({ repos: ['octo-aki/tern'], inbox: 'all' })
+    github.watch(pinned)
+    await flush()
+    const before = calls.length
+    expect(await github.detail(pinned, 'octo-aki/tern')).toBe('waiting')
+    expect(calls.length).toBe(before)
   })
 
   it('opens only github.com pages, whatever an answer said a run, a pull or a release is at', async () => {
@@ -557,7 +606,7 @@ describe("GithubService's drill-down", () => {
     )
     s.github.watch(AUTO)
     await flush()
-    const detail = await s.github.detail(AUTO, 'octo-aki/tern')
+    const detail = inside(await s.github.detail(AUTO, 'octo-aki/tern'))
     const ids = [
       ...(detail?.runs ?? []).map((run) => run.id),
       ...(detail?.pulls ?? []).map((pull) => pull.id),

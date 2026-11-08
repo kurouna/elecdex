@@ -109,7 +109,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | Escape | 对话框、操作面板、弹出窗格、拖动中 | 关闭或取消 |
 | Enter | AWS STATUS 或 GITHUB STATUS 的一行，焦点在窗格内时 | 打开该行：在 AWS STATUS 中下钻一层（先是服务，再是单个资源），在 GITHUB STATUS 中在浏览器里打开该项；在故障横带上打开状态页面 |
 | Escape 或 Backspace | 正在下钻的 AWS STATUS 或 GITHUB STATUS，焦点在窗格内且不在输入框中时 | 返回一层 |
-| 方向键 | AWS STATUS 的 RESOURCES 标签页中的磁贴或 LOOKS FORGOTTEN 的一行（*未发布*） | 上下键在行间移动；在磁贴上则跨分组移到该方向最近的磁贴 |
+| 方向键 | AWS STATUS 的 RESOURCES 标签页中的磁贴或 LOOKS FORGOTTEN 的一行 | 上下键在行间移动；在磁贴上则跨分组移到该方向最近的磁贴 |
 
 ## 其他键盘布局上的按键
 

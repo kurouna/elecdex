@@ -1,5 +1,5 @@
 import { CE_PRICE_USD as CE_PRICE } from '@shared/aws/billing'
-import type { AttentionItem, AwsBoard, Weight } from '@shared/aws/types'
+import type { AccountView, AttentionItem, AwsBoard, Weight } from '@shared/aws/types'
 import type { Tone } from '../cloud/cloud-view.ts'
 import { MASKED } from '../cloud/cloud-view.ts'
 
@@ -131,4 +131,29 @@ export function refusedPolicy(actions: readonly string[]): string {
     null,
     2,
   )
+}
+
+/** What the credential report's lines say when it was not read: refused, or not yet. */
+export const NO_REPORT = '— · credential report not read'
+
+/**
+ * ACCOUNT's three lines from the credential report. Without the report each says "—", never
+ * "never" or "none": a refused report is no all-clear.
+ */
+export function credentialLines(
+  view: AccountView,
+  masked: boolean,
+  now: number,
+): { rootUsed: string; mfaLess: string; oldKeys: string } {
+  if (!view.credentialReport || view.mfaLessUsers === null || view.oldKeys === null)
+    return { rootUsed: NO_REPORT, mfaLess: '—', oldKeys: '—' }
+  const users = view.mfaLessUsers
+  return {
+    rootUsed: view.rootUsedAt === null ? 'never' : dateCell(view.rootUsedAt, now),
+    mfaLess: users.length === 0 ? 'none' : masked ? `${users.length} users` : users.join(', '),
+    oldKeys:
+      view.oldKeys.length === 0
+        ? 'none'
+        : view.oldKeys.map((k) => `${masked ? MASKED : k.user} ${k.days}d`).join(', '),
+  }
 }

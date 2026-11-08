@@ -8,8 +8,14 @@ import type { AwsService } from './types.js'
  * credentials never go with it.
  */
 
-// `#` is in log group names; every id goes into the URL encoded.
-const SAFE_ID = /^[A-Za-z0-9._:/@+=,#-]{1,512}$/
+/**
+ * Any printable id: every id goes into the URL encoded and the host is fixed, so what an id may
+ * hold is AWS's to say. Alarm names take spaces and parentheses ("CPU high (prod)"), and a
+ * narrower set left ↗ CONSOLE doing nothing for them. Control characters and a very long id
+ * (no resource's) are still refused.
+ */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what it refuses.
+const SAFE_ID = /^[^\u0000-\u001f\u007f]{1,1024}$/
 
 const GLOBAL_CONSOLE = 'https://console.aws.amazon.com'
 

@@ -348,7 +348,12 @@ Cost Explorer（API 1 要求の価格）、Budgets（監視と通知は無料）
   ペインの中にフォーカスがあるときだけ。全体のショートカットではない）
 - 段を移るたびに CRT の点灯（タブの切り替えと同じ）。下へは上から、戻るときは下から点く
 - いまの段（サービス、リージョン、絞り込み、並べ替え、id）はペインの状態に持つ。再マウントしても同じ所に
-  戻る。id は main の直前の一覧にあるものだけが効く（無ければ 2 段目に戻り「gone since 14:05」と言う）
+  戻る。id は main の直前の一覧にあるものだけが効く（無ければ 2 段目に戻り「gone since 14:05」と言う）。
+  その一覧の probe がまだ試されていなければ「not read yet」で待つ（`itemUnread`）。S3・CloudFront・Route 53 は
+  アカウントで 1 つの読み取りなので、行のリージョン（バケットの自分のリージョン、us-east-1）がペインに無くても、
+  見回りでなくその読み取りと probe の試し（res-buckets・res-cloudfront・res-zones）で決める。ACM の証明書は
+  CloudFront 用に us-east-1 もペインに関わらず読むので、us-east-1 の証明書は見回りでなく certificates の
+  読み取りとその試しで決める
 - 3 段目からは「関係するもの」で横へ移れる（インスタンス → そのボリューム → そのスナップショット）。
   パンくずは横へ移った道を残す（最大 5 つ、それより前は `…`）
 
@@ -659,7 +664,7 @@ D と E を数だけに、short（30 rem 未満）は A と B だけ。
   `empty-cluster`・`alarm-orphan`…）で返し、文・札・2 段目のファセットはそこから作る（文字列を分けて作らない）
 - **静かさの窓は種類ごとに違い、文に実際の窓を書く**: list-metrics は「過去 14 日にデータ点の無いメトリクスを返さない」
   （CloudWatch の文書）ので `no data 14 d+`、main の記録でそれより長く言えるときは `no data since 10-02`。EC2 の CPU は
-  7 日。静かな日数の既定は 30 日（⚙ で 30 · 60 · 90）で、窓が 30 日に満たないものは確信度を下げて並べる
+  7 日。静かな日数は 30 日（`AWS_LIMITS.quietDays`、固定。60・90 日の選択は作らなかった）で、窓が 30 日に満たないものは確信度を下げて並べる
 - 「付いていない日数」（EBS・EIP）は、describe に外した時刻が無いので、**main が最初に付いていないのを見た日から**
   数え、そう書く（`not attached since 11-01 (first seen)`）
 
@@ -758,6 +763,9 @@ D と E を数だけに、short（30 rem 未満）は A と B だけ。
   測る）。`PAID_PROBES` に行を足し（Cost Explorer と同じ型: 設定の鍵 `getMetricData`、単価、月の上限）、既定は **ON・
   月の上限 100,000 本（1 USD）**。上限に達したら、その月は list-metrics の 14 日の判定に戻り、台帳の paid に
   `GMD CAP REACHED` と出す
+- **失敗しても周期を待つ**: お金のかかる probe（GetMetricData、Cost Explorer、従量の list-buckets）は、失敗や
+  throttle でスケジューラの退き（1・2・4 … 分）に乗らず、自分の周期まで呼ばない（`isFree`、cloud-cli.md §3.1。
+  再レビュー 2026-11-08: throttle の度に予約して払い直し、2 時間で 8 回になっていた）
 - **台帳**: paid の欄に Cost Explorer と並べて数える（要求の回数でなくメトリクスの本数とその額）。⚙ の「This account」に
   ON · OFF と上限（25,000 · 100,000 · 500,000 本）。OFF なら §14.4 の無料の手だけで判定する（窓は 14 日）
 - **リージョン**: GetMetricData はリージョンごと。Bedrock は全リージョンの list-metrics で見つかったリージョンだけ、
@@ -820,7 +828,7 @@ D と E を数だけに、short（30 rem 未満）は A と B だけ。
 
 ### 14.7 設定（§8 への追加）
 
-このペイン: ELSEWHERE（ON · OFF、既定 ON、週 1 回）、静かな日数（30 · 60 · 90）。このアカウント: KEEP の一覧（解除できる）。
+このアカウント（ペインごとではない。同じアカウントのペインはすべて同じに従う）: ELSEWHERE（ON · OFF、既定 ON、週 1 回。`aws-inventory.json`）、GetMetricData（ON · OFF と月の上限）、KEEP の一覧（解除できる）。静かな日数は 30 日に固定で、⚙ はその日数を言うだけ。ELSEWHERE の一覧の *check other regions now* は ON · OFF によらず 1 度だけ読み、OFF なら OFF のまま（ON にしてしまっていた。レビュー 2026-11-08）。OFF にすると、まだ読まれていない押下も忘れる。
 
 ### 14.8 テスト（§13 への追加）
 
@@ -870,8 +878,8 @@ IPC と数と出し直し、ATTENTION・ACTIVE との重複、MASK の範囲を�
 
 - **ELSEWHERE の見回り**は 13 リージョンで切らず、見ていない有効なリージョンを全部（上限 16）読む。名前の順で 13 に
   切ると us-west-2 が落ちるため。4 リージョンを見ていれば 13 になる
-- **静かな日数**は main が 30 日（`AWS_LIMITS.quietDays`）で判定する。60・90 日はボードの key に入れず、行の
-  `window` でページが絞る
+- **静かな日数**は main が 30 日（`AWS_LIMITS.quietDays`）で判定する。60・90 日の選択は作らなかった（行の
+  `window` は判定に使った窓を言うだけ）
 - **S3 の「変わらない」**は容量の履歴だけで判定し、オブジェクト数は読まない（main の 90 日の記録が要るので、代役では
   すぐには出ない）
 - **NEW 7 D**: EC2 の LaunchTime、Lambda の LastModified、CloudFront の LastModifiedTime は作成日ではないので、

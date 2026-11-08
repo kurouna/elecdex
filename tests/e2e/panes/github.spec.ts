@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 import { captureOpens, cloudMode, opened } from '../support/cloud.js'
 import { test } from '../support/shared.js'
-import { launch, tabbed } from '../support.js'
+import { launch, reloadWorkspace, tabbed } from '../support.js'
 
 /**
  * GITHUB STATUS (docs/github.md), on main's stand-in gh (support.ts sets ELECDEX_CLOUD_STUB=1):
@@ -58,6 +58,10 @@ test('stops reading behind a tab, and keeps what it showed', async () => {
     await tab(page, 0).click({ delay: 20 })
     await expect(page.getByTestId('github-tile').first()).toBeVisible()
     await expect.poll(() => watching(page)).toHaveLength(1)
+    // The tabbed pane stayed mounted, so that alone could be the page's memory: a reload drops
+    // it, and the tiles that come back with gh still gone can only be main's.
+    await reloadWorkspace(page)
+    await expect(page.getByTestId('github-tile').first()).toBeVisible()
   } finally {
     await cloudMode(app, 'github', null)
     await close()

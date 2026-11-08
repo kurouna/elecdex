@@ -560,3 +560,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* The ledger's line is chrome; the problem in its place is a sentence the user must read (§7). */
+.cloudpane .foot .problem {
+  font-size: var(--step--1);
+  letter-spacing: 0;
+  color: var(--warn);
+}
+
+/* What a press does while the rate limit holds the board back: a sentence too. */
+.cloudpane .foot .note {
+  font-size: var(--step--1);
+  letter-spacing: 0;
+}

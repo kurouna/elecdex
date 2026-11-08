@@ -11,6 +11,7 @@ import {
   readAwsPane,
 } from '@shared/aws/board'
 import { DRILL } from '@shared/aws/drill'
+import { TRAIL_MAX } from '@shared/aws/trail'
 import type {
   AttentionItem,
   AwsBoard,
@@ -19,6 +20,7 @@ import type {
   ForgottenRow,
   TrailEvent,
 } from '@shared/aws/types'
+import { untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
@@ -30,6 +32,7 @@ import {
   type CardSize,
   cardTime,
   HoverRest,
+  keyboardFocused,
 } from '../../lib/hover-card.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -43,6 +46,7 @@ import {
   linkView,
   MASKED,
   periodText,
+  shownProblem,
 } from '../cloud/cloud-view.ts'
 import IncidentBand from '../cloud/IncidentBand.svelte'
 import CardRows from '../common/CardRows.svelte'
@@ -58,7 +62,7 @@ import {
   awsBadge,
   capText,
   ceEstimate,
-  dateCell,
+  credentialLines,
   money,
   refusedPolicy,
   regionShort,
@@ -131,6 +135,8 @@ const tabValue = (tab: AwsTab): AwsTab | undefined => (tab === 'resources' ? und
 
 function selectTab(tab: AwsTab): void {
   sfx.play('panel')
+  // Another tab chosen: nothing is gone back to.
+  returnTo = null
   patch({ tab: tabValue(tab), drill: undefined, from: undefined })
 }
 
@@ -155,6 +161,7 @@ function drillTo(place: DrillPlace | null, from: DrillFrom = choices.from): void
 }
 function drillService(service: AwsService, from: DrillFrom = 'active'): void {
   sfx.play('expand')
+  returnTo = `active:${service}`
   drillTo(
     { service, filters: choices.region ? { region: choices.region } : {}, sort: null, item: null },
     from,
@@ -162,10 +169,24 @@ function drillService(service: AwsService, from: DrillFrom = 'active'): void {
 }
 
 /**
- * Where RESOURCES was pressed (a tile, a row, a figure, a line), so that Back from the step
- * below puts the focus there again (aws.md §14.2). The page's own memory: a remount forgets it.
+ * Where RESOURCES was pressed (a tile, a row, a figure, a line), or the ACTIVE or ATTENTION row
+ * (`active:<service>`, `attention:<id>`), so that Back from the step below puts the focus there
+ * again (aws.md §14.2). The page's own memory: a remount forgets it.
  */
 let returnTo = $state<string | null>(null)
+
+/**
+ * As an ACTIVE or ATTENTION row comes back with its tab: the one the drill-down was opened from
+ * takes the focus, so the keyboard goes on from there instead of from the page. Read untracked,
+ * so setting it as the row is pressed does not take the focus back at once.
+ */
+function regain(id: string) {
+  return (el: HTMLElement) => {
+    if (untrack(() => returnTo) !== id) return
+    returnTo = null
+    el.focus({ preventScroll: true })
+  }
+}
 
 function fromResources(focus: string, place: DrillPlace): void {
   sfx.play('expand')
@@ -223,6 +244,7 @@ function attentionOpen(item: AttentionItem): void {
   }
   if (item.item === null) return
   sfx.play('expand')
+  returnTo = `attention:${item.id}`
   // The resource at once: Back goes straight to ATTENTION, as from a LOOKS FORGOTTEN row.
   drillTo(
     {
@@ -271,22 +293,28 @@ function copyText(button: HTMLElement, which: 'signin' | 'policy', text: string)
   })
 }
 
+/** When REFRESH may be pressed again (main's answer), or 0: the button is disabled until then. */
 let waitUntil = $state(0)
+// The wait ends on a second's boundary, not a timer of the pane's own (one outlived the pane).
+$effect(() => {
+  if (waitUntil === 0) return
+  return onBoundary(1000, () => {
+    if (Date.now() >= waitUntil) waitUntil = 0
+  })
+})
 /**
  * REFRESH blinks its three beats as every choice does, then asks: the button is disabled for the
  * wait main answers, which cut the held press's own blink to one beat.
  */
 function pressRefresh(button: HTMLElement): void {
-  if (now < waitUntil) return
+  if (waitUntil > 0) return
   afterBlink(button, () => void refresh())
 }
 async function refresh(): Promise<void> {
-  if (now < waitUntil) return
+  if (waitUntil > 0) return
   sfx.play('panel')
   const left = await window.elecdex.aws.refresh(key)
-  waitUntil = Date.now() + left
-  now = Date.now()
-  setTimeout(() => (now = Date.now()), left + 50)
+  waitUntil = left > 0 ? Date.now() + left : 0
 }
 
 /* ---- Cost Explorer's question, and the quota ---- */
@@ -388,6 +416,11 @@ function card(id: string, target: HTMLElement, pointerX: number | null, make: ()
     pointerX === null,
   )
 }
+/** A row's card on focus, only when the keyboard put it there: Back with the mouse opens none. */
+function focusCard(id: string, event: FocusEvent, make: () => Card): void {
+  const target = event.currentTarget as HTMLElement
+  if (keyboardFocused(target)) card(id, target, null, make)
+}
 const leave = (id: string) => resting.leave(id)
 $effect(() => {
   if (!visible) resting.leave()
@@ -410,10 +443,11 @@ $effect(() => {
 })
 $effect(() => () => resting.dispose())
 
+/** An ATTENTION row's card: what the row has no room for - since when, its whole region, where it leads, why. */
 function attentionCard(item: AttentionItem) {
   return {
-    head: `${item.tag}${item.region ? ` · ${item.region}` : ''}`,
-    side: cardTime(item.since),
+    head: `since ${cardTime(item.since)}`,
+    side: item.region ?? 'global',
     rows: [
       {
         label: 'opens',
@@ -528,7 +562,7 @@ const TABS: readonly [AwsTab, string][] = [
       <button type="button" class="figure" onclick={() => selectTab('cost')} data-testid="aws-mtd">
         <small>MTD</small>
         <span>
-          {#if board.cost.mtd === null}{board.cost.billing ? '—' : 'billing alerts off'}{:else}{money(board.cost.mtd, false)}{#if !narrow && budget !== null && budget.forecast !== null} · <b class:warn={budget.forecast > budget.limit}>forecast {Math.round((budget.forecast / budget.limit) * 100)}% of budget</b>{/if}{#if board.cost.quota.share !== null} · <b class:warn={board.cost.quota.share >= 0.8} class:danger={board.cost.quota.share >= 1}>{Math.round(board.cost.quota.share * 100)}% of quota</b>{/if}{/if}
+          {#if board.cost.mtd === null}{board.cost.billing === false ? 'billing alerts off' : '—'}{:else}{money(board.cost.mtd, false)}{#if !narrow && budget !== null && budget.forecast !== null} · <b class:warn={budget.forecast > budget.limit}>forecast {Math.round((budget.forecast / budget.limit) * 100)}% of budget</b>{/if}{#if board.cost.quota.share !== null} · <b class:warn={board.cost.quota.share >= 0.8} class:danger={board.cost.quota.share >= 1}>{Math.round(board.cost.quota.share * 100)}% of quota</b>{/if}{/if}
         </span>
       </button>
       {#if board.regions.length > 1}
@@ -544,7 +578,7 @@ const TABS: readonly [AwsTab, string][] = [
     {/if}
     <span class="spacer"></span>
     <button type="button" class="tool" class:on={masked} aria-pressed={masked} onclick={() => patch({ mask: masked ? undefined : true })} data-testid="aws-mask">MASK</button>
-    <button type="button" class="tool" disabled={now < waitUntil} onclick={(e) => pressRefresh(e.currentTarget)} data-testid="aws-refresh">REFRESH</button>
+    <button type="button" class="tool" disabled={waitUntil > 0} onclick={(e) => pressRefresh(e.currentTarget)} data-testid="aws-refresh">REFRESH</button>
   </header>
 
   {#if board?.link === 'signed-out' && board.signIn !== null}
@@ -602,7 +636,7 @@ const TABS: readonly [AwsTab, string][] = [
 
     {#if choices.pulse && !short && board?.pulse}
       <section class="band" data-testid="aws-pulse">
-        <div class="phead"><small>ACCOUNT PULSE · 24 H</small>{#if !narrow}<small class="legend"><span class="w">writes</span><span class="e">errors</span><span class="l">sign-ins</span><span>CloudTrail ~5 min late</span></small>{/if}</div>
+        <div class="phead"><small>ACCOUNT PULSE · 24 H{#if board.activityCapped} · <span data-testid="aws-pulse-capped">the last {TRAIL_MAX} writes a region</span>{/if}</small>{#if !narrow}<small class="legend"><span class="w">writes</span><span class="e">errors</span><span class="l">sign-ins</span><span>CloudTrail ~5 min late</span></small>{/if}</div>
         <PulseBand bins={board.pulse} alarms={alarmStarts} onbin={onBin} />
         {#if pulseTip !== null}<span class="tip" role="status">{pulseTip.text}</span>{/if}
       </section>
@@ -643,7 +677,7 @@ const TABS: readonly [AwsTab, string][] = [
         {#if board === null}
           <p class="empty">…</p>
         {:else if choices.drill !== null}
-          <AwsDrill boardKey={key} place={choices.drill} readAt={board.readAt} revision={board.revision} sweptAt={board.resources.elsewhere.readAt} {masked} {now} {narrow} onplace={(next) => drillTo(next)} onopen={(id) => void open(id)} />
+          <AwsDrill boardKey={key} activity={board.activity !== null} place={choices.drill} readAt={board.readAt} revision={board.revision} sweptAt={board.resources.elsewhere.readAt} {masked} {now} {narrow} onplace={(next) => drillTo(next)} onopen={(id) => void open(id)} />
         {:else if choices.tab === 'resources'}
           <AwsResources
             res={board.resources}
@@ -680,8 +714,9 @@ const TABS: readonly [AwsTab, string][] = [
                 onkeydown={(e) => onRowKey(e, () => attentionOpen(item))}
                 onpointerenter={(e) => card(item.id, e.currentTarget as HTMLElement, e.clientX, () => attentionCard(item))}
                 onpointerleave={() => leave(item.id)}
-                onfocus={(e) => card(item.id, e.currentTarget as HTMLElement, null, () => attentionCard(item))}
+                onfocus={(e) => focusCard(item.id, e, () => attentionCard(item))}
                 onblur={() => leave(item.id)}
+                {@attach regain(`attention:${item.id}`)}
                 data-testid="aws-attention-row"
               >
                 <span class="tag" data-weight={item.weight}>{item.tag}</span>
@@ -721,6 +756,9 @@ const TABS: readonly [AwsTab, string][] = [
               onkeydown={(e) => onRowKey(e, () => drillService(service.service))}
               onpointerenter={(e) => card(`svc:${service.service}`, e.currentTarget as HTMLElement, e.clientX, () => serviceCard(service))}
               onpointerleave={() => leave(`svc:${service.service}`)}
+              onfocus={(e) => focusCard(`svc:${service.service}`, e, () => serviceCard(service))}
+              onblur={() => leave(`svc:${service.service}`)}
+              {@attach regain(`active:${service.service}`)}
               data-testid="aws-active-row"
             >
               <span class="title">{service.label}</span>
@@ -732,8 +770,11 @@ const TABS: readonly [AwsTab, string][] = [
           {/each}
           {#if board.active.quiet.length > 0}<p class="quietline">NOT BILLING NOW · {board.active.quiet.join(' · ')}</p>{/if}
         {:else if choices.tab === 'cost'}
-          {#if !board.cost.billing && board.cost.mtd === null}
+          {#if board.cost.billing === false && board.cost.mtd === null}
             <div class="empty"><b class="warn">BILLING ALERTS ARE OFF</b><span>Billing preferences → Receive CloudWatch billing alerts (free). Budgets still show.</span><button type="button" class="tool" onclick={() => void open('account:billingPreferences')}>BILLING PREFERENCES ↗</button></div>
+          {:else if board.cost.billing === null}
+            <!-- Not read yet, refused or offline: no answer is no "alerts off" either (the link word says which). -->
+            <p class="ask-text" data-testid="aws-billing-unread">The billing metric has not been read: not yet, refused, or offline · {link.word}</p>
           {/if}
           <section class="facts">
             <div><small>THIS MONTH (UTC)</small><b>{money(board.cost.mtd, false)}</b></div>
@@ -766,7 +807,7 @@ const TABS: readonly [AwsTab, string][] = [
           {#if board.activity === null}
             <div class="empty"><b class="dim">ACTIVITY IS OFF</b><span>CloudTrail is not read for this pane (⚙).</span></div>
           {:else if activity.length === 0}
-            <div class="empty"><b class="ok">QUIET</b><span>no write in CloudTrail's last 50 per region</span></div>
+            <div class="empty"><b class="ok">QUIET</b><span>no write in CloudTrail's last {TRAIL_MAX} per region</span></div>
           {:else}
             {#each activity as event (event.id)}
               <div class="row t" data-weight={event.mark === 'root' || event.mark === 'failed' || event.mark === 'denied' ? 'danger' : event.mark ? 'warn' : undefined} data-testid="aws-activity-row">
@@ -776,9 +817,10 @@ const TABS: readonly [AwsTab, string][] = [
                 <span class="repo">{regionShort(event.region)}</span>
               </div>
             {/each}
-            {#if board.activityCapped}<p class="quietline">50 shown a region · older ones not read</p>{/if}
+            {#if board.activityCapped}<p class="quietline">CloudTrail's last {TRAIL_MAX} writes a region were read · older ones were not</p>{/if}
           {/if}
         {:else if choices.tab === 'account'}
+          {@const lines = credentialLines(board.accountView, masked, now)}
           <section class="facts">
             <div><small>ACCOUNT</small><b class="mono">{masked ? MASKED : (board.account?.id ?? '—')}</b></div>
             <div><small>ALIAS</small><b>{masked ? MASKED : (board.account?.alias ?? '—')}</b></div>
@@ -788,9 +830,9 @@ const TABS: readonly [AwsTab, string][] = [
             <dt>signed in as</dt><dd class="mono">{masked ? MASKED : (board.account?.arn ?? '—')}</dd>
             <dt>root MFA</dt><dd class:danger={board.accountView.rootMfa === false}>{board.accountView.rootMfa === null ? '—' : board.accountView.rootMfa ? 'on' : 'OFF'}</dd>
             <dt>root access keys</dt><dd class:danger={board.accountView.rootKeys === true}>{board.accountView.rootKeys === null ? '—' : board.accountView.rootKeys ? 'present' : 'none'}</dd>
-            <dt>root last signed in</dt><dd>{board.accountView.rootUsedAt === null ? 'never' : dateCell(board.accountView.rootUsedAt, now)}</dd>
-            <dt>console without MFA</dt><dd class:warn={board.accountView.mfaLessUsers.length > 0}>{board.accountView.mfaLessUsers.length === 0 ? 'none' : masked ? `${board.accountView.mfaLessUsers.length} users` : board.accountView.mfaLessUsers.join(', ')}</dd>
-            <dt>keys over 90 days</dt><dd class:warn={board.accountView.oldKeys.length > 0}>{board.accountView.oldKeys.length === 0 ? 'none' : board.accountView.oldKeys.map((k) => `${masked ? MASKED : k.user} ${k.days}d`).join(', ')}</dd>
+            <dt>root last signed in</dt><dd data-testid="aws-root-used">{lines.rootUsed}</dd>
+            <dt>console without MFA</dt><dd class:warn={(board.accountView.mfaLessUsers?.length ?? 0) > 0} data-testid="aws-mfa-less">{lines.mfaLess}</dd>
+            <dt>keys over 90 days</dt><dd class:warn={(board.accountView.oldKeys?.length ?? 0) > 0} data-testid="aws-old-keys">{lines.oldKeys}</dd>
             <dt>GuardDuty</dt><dd>{board.accountView.guardduty === null ? 'not enabled, or not readable' : `high ${board.accountView.guardduty.high} · medium ${board.accountView.guardduty.medium} · low ${board.accountView.guardduty.low}`}</dd>
             <dt>regions read</dt><dd class="mono">{board.regions.join(' · ')}</dd>
           </dl>
@@ -848,7 +890,8 @@ const TABS: readonly [AwsTab, string][] = [
           <span class="seg">{#each [['off', 'OFF'], ['manual', 'MANUAL'], ['day', '1 DAY'], ['12h', '12 H']] as [id, label] (id)}<button type="button" class="tool" class:on={id === 'off' ? board.cost.ce.state !== 'on' : board.cost.ce.state === 'on' && board.cost.ce.every === id} onclick={() => void window.elecdex.aws.costExplorer(key, id === 'off' ? { state: 'off' } : { state: 'on', every: id as 'manual' | 'day' | '12h', cap: board?.cost.ce.cap ?? 100 })}>{label}</button>{/each}</span>
         </div>
         <div class="opt"><span>Monthly cap</span>
-          <select value={board.cost.ce.cap} onchange={(e) => void window.elecdex.aws.costExplorer(key, { state: board?.cost.ce.state === 'on' ? 'on' : 'off', cap: Number((e.currentTarget as HTMLSelectElement).value) })}>
+          <!-- The cap alone: main keeps the account's answer, so a cap chosen before the question is no KEEP OFF. -->
+          <select value={board.cost.ce.cap} onchange={(e) => void window.elecdex.aws.costExplorer(key, { cap: Number((e.currentTarget as HTMLSelectElement).value) })} data-testid="aws-ce-cap">
             {#each CE_CAPS as cap (cap)}<option value={cap}>{capText(cap)}</option>{/each}
           </select>
         </div>
@@ -885,7 +928,12 @@ const TABS: readonly [AwsTab, string][] = [
     onpointerleave={() => leave('ledger')}
     data-testid="aws-foot"
   >
-    <span>{board === null ? 'read only while shown' : board.problem !== null ? board.problem : ledgerLine(board.ledger, 'aws')}</span>
+    {#if board !== null && board.problem !== null}
+      <!-- The problem is a sentence to read; under MASK only its kind, since a CLI's words can name a stack. -->
+      <span class="problem" data-testid="aws-problem">{shownProblem(board.problem, masked)}</span>
+    {:else}
+      <span>{board === null ? 'read only while shown' : ledgerLine(board.ledger, 'aws')}</span>
+    {/if}
     {#if !narrow}<span>read only · only while shown{board?.cliVersion ? ` · aws-cli ${board.cliVersion}` : ''}</span>{/if}
   </footer>
 </div>

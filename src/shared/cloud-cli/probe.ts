@@ -14,7 +14,10 @@ export interface CliCall {
   tool: CliTool
   argv: readonly string[]
   stdin?: string
-  /** A call that often fails for a reason of its own (traffic needs push access): its failure marks nothing. */
+  /**
+   * A call that often fails for a reason of its own (traffic needs push access): its failure marks
+   * nothing. For gh only a 403 or 404 is its own; offline, a timeout or a 5xx is the probe's.
+   */
   tolerated?: boolean
   /**
    * A call into a region the pane does not show (the weekly sweep, Bedrock's use everywhere): an
@@ -63,6 +66,11 @@ export interface MeteredTiny {
 
 export type ProbeCost = 'free' | 'free-tier' | MeteredTiny | PaidCost
 
+/** Whether a probe's calls cost nothing: neither paid nor metered under a fixed cap. */
+export function isFree(cost: ProbeCost): cost is 'free' | 'free-tier' {
+  return cost === 'free' || cost === 'free-tier'
+}
+
 /**
  * Which of the shared CLI limit's two queues a probe's calls wait in (aws.md §14.4): `first`
  * goes ahead of `later`, so alarms, the sign-in, health, the trail and GitHub are never stuck
@@ -87,6 +95,20 @@ export interface Probe<C, T> {
   keyOf?(value: T): string
   /** Its calls go ahead of the others' (alarms, identity, health, trail). */
   first?: boolean
+  /**
+   * A reading of many parts (a repository each) that is due for all of them though the back-off
+   * of its last failure still holds: the back-off is for the retry of the parts that failed, and
+   * one broken part must not back off the others (github.md §3). Without it, the back-off holds
+   * every reading.
+   */
+  dueThroughBackoff?(ctx: C): boolean
+  /**
+   * When a reading of many parts last read all of them (null: never), if a retry of a few may
+   * read in between: a period's boundary counts "just read" from it, not from the retry. A retry
+   * of one repository a minute before the boundary once kept the others a whole period longer.
+   * Without it, the last reading counts.
+   */
+  readAllAt?(ctx: C): number | null
   /**
    * A bulk reading of RESOURCES (aws.md §14.4): one at a time across every board. `count`
    * readings (the lists and describes) go before `judge` ones (the metrics), and a board's judge

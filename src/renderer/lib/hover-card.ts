@@ -91,6 +91,19 @@ export function anchorOf(
 }
 
 /**
+ * Whether the keyboard put the focus on `el`: a card opens on focus only then, so a click, or
+ * Back pressed with the mouse handing the focus to the row it came from, leaves none up.
+ */
+export function keyboardFocused(el: Element): boolean {
+  try {
+    return el.matches(':focus-visible')
+  } catch {
+    // A DOM without the selector (an old jsdom): the focus is taken as the keyboard's.
+    return true
+  }
+}
+
+/**
  * When a card opens and closes. The pointer coming to rest on something opens
  * its card after HOVER_REST_MS; moving on to the next thing while a card is
  * open opens the next at once (the user is reading cards, not passing by); the

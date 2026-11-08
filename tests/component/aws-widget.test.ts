@@ -10,7 +10,7 @@ import { finishAnimations, inertDom } from './support/dom.ts'
 import { mergePatch, stubElecdex } from './support/elecdex.ts'
 import { settle } from './support/settle.ts'
 
-const { ceEstimate, money, refusedPolicy, regionShort } = await import(
+const { ceEstimate, credentialLines, money, NO_REPORT, refusedPolicy, regionShort } = await import(
   '../../src/renderer/widgets/aws/aws-view.ts'
 )
 const { default: AwsWidget } = await import('../../src/renderer/widgets/aws/AwsWidget.svelte')
@@ -155,6 +155,18 @@ async function mount(state: Record<string, unknown> = {}, visible = true) {
 async function push(board: AwsBoard): Promise<void> {
   deliver?.(structuredClone(board))
   await settle()
+}
+
+/**
+ * The focus as Tab gives it. jsdom has no Tab between elements, and a row focused by a script
+ * is not `:focus-visible` there, so the element says it is, as Chromium's would.
+ */
+function keyFocus(el: HTMLElement): void {
+  const own = el.matches.bind(el)
+  Object.defineProperty(el, 'matches', {
+    value: (selector: string) => selector === ':focus-visible' || own(selector),
+  })
+  el.focus()
 }
 
 describe('AwsWidget', () => {
@@ -785,5 +797,242 @@ describe('aws-view', () => {
         },
       ],
     })
+  })
+
+  it('says "—" without the credential report, and "never" and "none" only with it', () => {
+    const view = {
+      rootMfa: true,
+      rootKeys: false,
+      credentialReport: false,
+      rootUsedAt: null,
+      users: 3,
+      roles: 9,
+      mfaLessUsers: null,
+      oldKeys: null,
+      guardduty: null,
+    }
+    expect(credentialLines(view, false, Date.now())).toEqual({
+      rootUsed: NO_REPORT,
+      mfaLess: '—',
+      oldKeys: '—',
+    })
+    const read = { ...view, credentialReport: true, mfaLessUsers: [], oldKeys: [] }
+    expect(credentialLines(read, false, Date.now())).toEqual({
+      rootUsed: 'never',
+      mfaLess: 'none',
+      oldKeys: 'none',
+    })
+    const some = { ...read, mfaLessUsers: ['ci-bot'], oldKeys: [{ user: 'ops', days: 120 }] }
+    expect(credentialLines(some, true, Date.now())).toEqual({
+      rootUsed: 'never',
+      mfaLess: '1 users',
+      oldKeys: '••••• 120d',
+    })
+  })
+})
+
+describe('found in review (2026-11-08)', () => {
+  const EC2 = { service: 'ec2', filters: {}, sort: null }
+  const ITEM = 'i-0a1b2c3d4e5f60003'
+
+  it('waits for an item not read yet, without "gone since", and shows it once it is read', async () => {
+    // A drill kept over a restart asked before the first reading, was told null, said "gone
+    // since" and went up a step.
+    const board = await boardOf()
+    let read = false
+    item.mockImplementation(async (key, which, id, region) =>
+      read ? service.item(key, which, id, region) : 'unread',
+    )
+    await mount({ tab: 'active', drill: { ...EC2, item: ITEM } })
+    await push(board)
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('aws-item-waiting').textContent).toContain('not read yet'),
+    )
+    expect(held.drill).toBeUndefined()
+    read = true
+    await push({ ...board, revision: `${board.revision}+1` })
+    await vi.waitFor(() => expect(screen.getByTestId('aws-drill-item')).toBeTruthy())
+    expect(screen.queryByText(/gone since/)).toBeNull()
+    expect(held.drill).toBeUndefined()
+    item.mockImplementation(async (key, which, id, region) => service.item(key, which, id, region))
+  })
+
+  it('says HISTORY has nothing to ask while ACTIVITY is off, instead of a press that fails', async () => {
+    const board = await boardOf()
+    await mount({ tab: 'active', drill: { ...EC2, item: ITEM } })
+    await push({ ...board, activity: null })
+    await vi.waitFor(() => expect(screen.getByTestId('aws-drill-item')).toBeTruthy())
+    expect(screen.getByTestId('aws-history-off').textContent).toContain('ACTIVITY is off')
+    expect(screen.queryByTestId('aws-history')).toBeNull()
+  })
+
+  it('says "—", never "billing alerts off", for a billing metric not read', async () => {
+    const board = await boardOf()
+    const view = await mount()
+    await push({ ...board, cost: { ...board.cost, billing: null, mtd: null } })
+    expect(screen.getByTestId('aws-mtd').textContent).not.toContain('billing alerts off')
+    expect(screen.getByTestId('aws-mtd').textContent).toContain('—')
+    await view.rerender({ state: { regions: REGIONS, tab: 'cost' } })
+    await settle()
+    expect(screen.getByTestId('aws-view-cost').textContent).not.toContain('BILLING ALERTS ARE OFF')
+    expect(screen.getByTestId('aws-billing-unread')).toBeTruthy()
+    await push({ ...board, cost: { ...board.cost, billing: false, mtd: null } })
+    expect(screen.getByTestId('aws-view-cost').textContent).toContain('BILLING ALERTS ARE OFF')
+  })
+
+  it('says the credential lines are not read without the report, never "never" or "none"', async () => {
+    const board = await boardOf()
+    await mount({ tab: 'account' })
+    await push({
+      ...board,
+      accountView: {
+        ...board.accountView,
+        credentialReport: false,
+        rootUsedAt: null,
+        mfaLessUsers: null,
+        oldKeys: null,
+      },
+    })
+    expect(screen.getByTestId('aws-root-used').textContent).toContain('credential report not read')
+    for (const id of ['aws-root-used', 'aws-mfa-less', 'aws-old-keys'])
+      expect(screen.getByTestId(id).textContent, id).not.toMatch(/never|none/)
+  })
+
+  it("sends ⚙'s Monthly cap alone, so an account not asked yet is not answered KEEP OFF", async () => {
+    await mount()
+    await push(await boardOf())
+    await fireEvent.click(screen.getByTestId('aws-settings-toggle'))
+    await settle()
+    const select = screen.getByTestId('aws-ce-cap') as HTMLSelectElement
+    const last = select.options[select.options.length - 1] as HTMLOptionElement
+    select.value = last.value
+    await fireEvent.change(select)
+    expect(costExplorer).toHaveBeenLastCalledWith(KEY, { cap: Number(last.value) })
+  })
+
+  it("shows a CLI's words in the foot at a size to read, under MASK only their kind", async () => {
+    const board = await boardOf()
+    const view = await mount()
+    const problem = 'Stack with id prod-billing does not exist'
+    await push({ ...board, link: 'error', problem })
+    expect(screen.getByTestId('aws-problem').classList.contains('problem')).toBe(true)
+    expect(screen.getByTestId('aws-problem').textContent).toBe(problem)
+    await view.rerender({ state: { regions: REGIONS, mask: true } })
+    await settle()
+    expect(screen.getByTestId('aws-foot').textContent).not.toContain('prod-billing')
+    // elecdex's own words say nothing of the account: shown under MASK too.
+    const words = 'a reading took over 20 s and was stopped: tried again later'
+    await push({ ...board, link: 'partial', problem: words })
+    expect(screen.getByTestId('aws-problem').textContent).toBe(words)
+  })
+
+  it('gives the focus back to the ACTIVE or ATTENTION row a drill-down was opened from', async () => {
+    // Back from a drill-down opened from ACTIVE or ATTENTION left the focus on the page's body.
+    const board = await boardOf()
+    const view = await mount({ tab: 'active' })
+    await push(board)
+    const row = screen.getAllByTestId('aws-active-row')[1] as HTMLElement
+    const label = row.querySelector('.title')?.textContent ?? ''
+    row.focus()
+    await fireEvent.keyDown(row, { key: 'Enter' })
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await fireEvent.click(screen.getByRole('button', { name: 'back a step' }))
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await vi.waitFor(() =>
+      expect((document.activeElement as HTMLElement).querySelector('.title')?.textContent).toBe(
+        label,
+      ),
+    )
+    await view.rerender({ state: { regions: REGIONS, tab: 'attention' } })
+    await settle()
+    const alarm = screen
+      .getAllByTestId('aws-attention-row')
+      .find((r) => r.textContent?.includes('orders-db-cpu-high')) as HTMLElement
+    await fireEvent.click(alarm)
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await fireEvent.click(screen.getByRole('button', { name: 'back a step' }))
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await vi.waitFor(() =>
+      expect(document.activeElement?.textContent).toContain('orders-db-cpu-high'),
+    )
+  })
+
+  it("gives the focus back after a mouse Back without opening the row's card", async () => {
+    // The ACTIVE and ATTENTION rows' cards opened on any focus, so the focus given back after a
+    // click on Back put a card up that nobody asked for.
+    const board = await boardOf()
+    const view = await mount({ tab: 'active' })
+    await push(board)
+    const back = async () => {
+      await view.rerender({ state: { regions: REGIONS, ...held } })
+      await settle()
+      await fireEvent.click(screen.getByRole('button', { name: 'back a step' }))
+      await view.rerender({ state: { regions: REGIONS, ...held } })
+      await settle()
+    }
+    const row = screen.getAllByTestId('aws-active-row')[1] as HTMLElement
+    const label = row.querySelector('.title')?.textContent ?? ''
+    await fireEvent.click(row)
+    await back()
+    await vi.waitFor(() =>
+      expect((document.activeElement as HTMLElement).querySelector('.title')?.textContent).toBe(
+        label,
+      ),
+    )
+    await settle()
+    expect(screen.queryByTestId('aws-card')).toBeNull()
+    await view.rerender({ state: { regions: REGIONS, tab: 'attention' } })
+    await settle()
+    const alarm = screen
+      .getAllByTestId('aws-attention-row')
+      .find((r) => r.textContent?.includes('orders-db-cpu-high')) as HTMLElement
+    await fireEvent.click(alarm)
+    await back()
+    await vi.waitFor(() =>
+      expect(document.activeElement?.textContent).toContain('orders-db-cpu-high'),
+    )
+    await settle()
+    expect(screen.queryByTestId('aws-card')).toBeNull()
+  })
+
+  it("gives an ACTIVE row's card to the keyboard, and an ATTENTION card says what its row does not", async () => {
+    const board = await boardOf()
+    const view = await mount({ tab: 'active' })
+    await push(board)
+    keyFocus(screen.getAllByTestId('aws-active-row')[0] as HTMLElement)
+    await vi.waitFor(() => expect(screen.getByTestId('aws-card')).toBeTruthy())
+    await view.rerender({ state: { regions: REGIONS, tab: 'attention' } })
+    await settle()
+    const row = screen.getAllByTestId('aws-attention-row')[0] as HTMLElement
+    const tag = row.querySelector('.tag')?.textContent ?? ''
+    keyFocus(row)
+    await vi.waitFor(() => expect(screen.getByTestId('aws-card')).toBeTruthy())
+    // The head was the row's tag again; it says since when, which the row has only as an age.
+    const head = screen.getByTestId('aws-card').querySelector('.chead')?.textContent ?? ''
+    expect(head).not.toContain(tag)
+    expect(head).toMatch(/^since /)
+  })
+
+  it('marks the pulse when CloudTrail gave as many writes as were asked for', async () => {
+    const board = await boardOf()
+    await mount()
+    await push({ ...board, activityCapped: true })
+    expect(screen.getByTestId('aws-pulse-capped').textContent).toContain('50')
+  })
+
+  it("waits out REFRESH's 30 s on the seconds' boundaries, with no timer of its own", async () => {
+    // REFRESH armed a setTimeout of its own (30 s and 50 ms), never cleared on unmount.
+    await mount()
+    await push(await boardOf())
+    const timeout = vi.spyOn(globalThis, 'setTimeout')
+    await fireEvent.click(screen.getByTestId('aws-refresh'))
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    await settle()
+    expect((screen.getByTestId('aws-refresh') as HTMLButtonElement).disabled).toBe(true)
+    expect(timeout.mock.calls.filter(([, ms]) => (ms ?? 0) > 1000)).toEqual([])
   })
 })

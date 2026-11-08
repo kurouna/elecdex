@@ -144,8 +144,11 @@ export interface QuotaView {
 }
 
 export interface CostView {
-  /** The billing metric is there ("Receive CloudWatch billing alerts"). */
-  billing: boolean
+  /**
+   * The billing metric is there ("Receive CloudWatch billing alerts"): false when its reading
+   * said it is not, null when there is no reading (not yet, refused, offline) - never "off" then.
+   */
+  billing: boolean | null
   /** Month to date, USD, from the UTC month's points only. */
   mtd: number | null
   /** Last month to the same day. */
@@ -195,11 +198,19 @@ export interface PulseBin {
 export interface AccountView {
   rootMfa: boolean | null
   rootKeys: boolean | null
+  /**
+   * The credential report was read: without it, "never", "none" and an empty list would be an
+   * all-clear nobody checked (refused, or not read yet), so those say "—" instead.
+   */
+  credentialReport: boolean
+  /** The root user's last sign-in; null with a report read is "never". */
   rootUsedAt: number | null
   users: number | null
   roles: number | null
-  mfaLessUsers: string[]
-  oldKeys: { user: string; days: number }[]
+  /** Console users without MFA; null without a report. */
+  mfaLessUsers: string[] | null
+  /** Active access keys over 90 days; null without a report. */
+  oldKeys: { user: string; days: number }[] | null
   guardduty: { high: number; medium: number; low: number } | null
 }
 

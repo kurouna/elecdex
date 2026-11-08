@@ -170,6 +170,8 @@ export type CliLink =
 /**
  * The worst of the probes' problems decides: no CLI, then signed out, then throttled, offline,
  * an error, and denials (which leave the rest readable) last. No problem and a reading: linked.
+ * A timeout or an answer too large is one reading's, not the network's: the rest was read, so
+ * the board is PARTIAL with its words in the foot, never OFFLINE for one slow call.
  * A service a region does not offer is no problem at all (aws.md §14.4): its tile leaves that
  * region out.
  */
@@ -178,8 +180,10 @@ export function linkOf(problems: readonly (CliProblem | null)[], anyReading: boo
   if (kinds.has('no-cli')) return 'no-cli'
   if (kinds.has('signed-out')) return 'signed-out'
   if (kinds.has('throttled')) return 'throttled'
-  if (kinds.has('offline') || kinds.has('timeout')) return 'offline'
+  if (kinds.has('offline')) return 'offline'
   if (kinds.has('error')) return 'error'
   if (kinds.has('denied')) return 'partial'
+  if (kinds.has('timeout') || kinds.has('too-large'))
+    return anyReading ? 'partial' : kinds.has('timeout') ? 'offline' : 'error'
   return anyReading ? 'linked' : 'linking'
 }

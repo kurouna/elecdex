@@ -10,14 +10,14 @@ import {
 import { isAwsService, parseAwsBoardKey } from '@shared/aws/board'
 import { changesSince, type IdSets, idSets } from '@shared/aws/changes'
 import { ACCOUNT_PAGES, consoleUrl, isConsoleUrl, permissionsUrl } from '@shared/aws/console-url'
-import { drillItem, drillRows } from '@shared/aws/drill'
+import { drillItem, drillRows, itemUnread } from '@shared/aws/drill'
 import { isAwsList, listRows } from '@shared/aws/drill-resources'
 import { forgotten } from '@shared/aws/forgotten'
 import { resourcesView } from '@shared/aws/inventory'
 import { ms, parseWith, TrailSchema } from '@shared/aws/parse'
-import { type AwsReadings, emptyReadings, everywhere } from '@shared/aws/readings'
+import { type AwsReadings, emptyReadings, everywhere, type PerRegion } from '@shared/aws/readings'
 import { elsewhereRows, GLOBAL } from '@shared/aws/resources'
-import { pulseBins, trailName } from '@shared/aws/trail'
+import { pulseBins, type TrailRead, trailName } from '@shared/aws/trail'
 import type {
   AccountView,
   AwsBoard,
@@ -25,9 +25,10 @@ import type {
   DrillItem,
   DrillRow,
   HistoryEvent,
+  AwsService as ServiceName,
   TrailEvent,
 } from '@shared/aws/types'
-import { type CliProblem, signInCommand } from '@shared/cloud-cli/errors'
+import { type CliProblem, problemText, signInCommand } from '@shared/cloud-cli/errors'
 import {
   emptyLedger,
   type LedgerState,
@@ -120,6 +121,49 @@ export const BOARD_PROBES: readonly Probe<AwsContext, unknown>[] = [
 ]
 
 const value = <T>(s: ProbeScheduler<AwsContext>, id: string): T | null => s.outcome<T>(id).value
+
+/**
+ * The probe whose reading holds a drill-down's service (`READING` in shared/aws/resources.ts):
+ * an item not found is "not read yet" only until it has been tried (`itemUnread`).
+ */
+export const LIST_PROBE: Record<ServiceName, string> = {
+  ec2: 'instances',
+  ebs: 'volumes',
+  eip: 'addresses',
+  s3: 'res-buckets',
+  nat: 'nats',
+  elb: 'balancers',
+  rds: 'databases',
+  eks: 'clusters',
+  lambda: 'functions',
+  stacks: 'stacks',
+  acm: 'certificates',
+  alarms: 'res-alarms',
+  ecs: 'res-ecs',
+  dynamodb: 'res-ddb',
+  sqs: 'res-sqs',
+  sns: 'res-sns',
+  apigw: 'res-apis',
+  cloudfront: 'res-cloudfront',
+  bedrock: 'res-bedrock',
+  aoss: 'res-aoss',
+  logs: 'res-logs',
+  vpce: 'res-vpce',
+  tgw: 'res-tgw',
+  vpn: 'res-vpn',
+  sagemaker: 'res-sagemaker',
+  snapshots: 'res-images',
+  amis: 'res-images',
+  ecr: 'res-ecr',
+  elasticache: 'res-caches',
+  opensearch: 'res-osdomains',
+  redshift: 'res-redshift',
+  kinesis: 'res-kinesis',
+  transfer: 'res-transfer',
+  kms: 'res-kms',
+  route53: 'res-zones',
+  vpc: 'res-vpcs',
+}
 
 export class AwsService {
   readonly #deps: AwsServiceDeps
@@ -264,11 +308,21 @@ export class AwsService {
     return drillRows(service, r, attention(r))
   }
 
-  item(key: string, service: unknown, id: unknown, region?: unknown): DrillItem | null {
+  /**
+   * One resource of the last reading; `unread` while the reading it would be in has not answered
+   * yet (a drill kept over a restart), so the page tells "not read yet" from "gone" (aws.md §5.1).
+   */
+  item(key: string, service: unknown, id: unknown, region?: unknown): DrillItem | 'unread' | null {
     const board = this.#active(key)
     if (board === null || !isAwsService(service) || typeof id !== 'string') return null
     const r = this.#readings(board)
-    return drillItem(service, id, r, attention(r), typeof region === 'string' ? region : null)
+    const where = typeof region === 'string' ? region : null
+    const found = drillItem(service, id, r, attention(r), where)
+    const tried = (reading: 'list' | 'sweep') =>
+      board.scheduler.outcome(reading === 'list' ? LIST_PROBE[service] : 'res-sweep').triedAt !==
+      null
+    if (found === null && itemUnread(service, r, where, tried)) return 'unread'
+    return found
   }
 
   /** The CloudTrail of one resource of the last reading, read when HISTORY is pressed; kept 5 min. */
@@ -282,7 +336,8 @@ export class AwsService {
     if (board === null || !isAwsService(service) || typeof id !== 'string') return null
     const found = this.item(key, service, id, region)
     // A board stopped at a sign-in starts no CLI, on demand either.
-    if (found === null || !board.ctx.spec.activity || board.scheduler.halted) return null
+    if (typeof found !== 'object' || found === null) return null
+    if (!board.ctx.spec.activity || board.scheduler.halted) return null
     const kept = board.history.get(`${service}:${found.region}:${id}`)
     const now = this.#deps.now()
     if (kept !== undefined && now - kept.at < 5 * 60_000) return kept.events
@@ -357,10 +412,20 @@ export class AwsService {
     if (board === null || account === null || typeof answer !== 'object' || answer === null)
       return false
     const { state, every, cap } = answer as Record<string, unknown>
-    if (state !== 'on' && state !== 'off' && state !== 'later') return false
+    if (state !== undefined && state !== 'on' && state !== 'off' && state !== 'later') return false
     if (every !== undefined && every !== 'manual' && every !== 'day' && every !== '12h')
       return false
     if (cap !== undefined && !(CE_CAPS as readonly unknown[]).includes(cap)) return false
+    // A cap alone (⚙'s Monthly cap) keeps the account's answer: no question answered for it.
+    if (state === undefined) {
+      if (cap === undefined || every !== undefined) return false
+      this.#deps.billing.update(account, (current) => ({
+        ...current,
+        ce: { ...current.ce, cap: cap as number },
+      }))
+      this.#everyBoardOf(account, (other) => this.#publish(other))
+      return true
+    }
     this.#deps.billing.update(account, (current) => ({
       ...current,
       ce: {
@@ -561,6 +626,13 @@ export class AwsService {
     return {
       ...r,
       ...regional,
+      // The events alone: whether a region hit CloudTrail's cap is the board's (`activityCapped`).
+      trail: Object.fromEntries(
+        Object.entries(value<PerRegion<TrailRead>>(s, 'trail') ?? {}).map(([region, read]) => [
+          region,
+          read?.events ?? null,
+        ]),
+      ),
       identity: value(s, 'identity'),
       alias: value<{ alias: string | null }>(s, 'alias')?.alias ?? null,
       summary: value(s, 'summary'),
@@ -629,7 +701,9 @@ export class AwsService {
       active: activeCost(r),
       cost: this.#costView(board, r),
       activity: board.ctx.spec.activity ? trail : null,
-      activityCapped: Object.values(r.trail).some((rows) => (rows ?? []).length >= 50),
+      activityCapped: Object.values(value<PerRegion<TrailRead>>(s, 'trail') ?? {}).some(
+        (read) => read?.capped === true,
+      ),
       pulse: board.ctx.spec.activity ? pulseBins(trail as TrailEvent[], now) : null,
       accountView: accountView(r),
       changes: this.#changes(board, r),
@@ -671,7 +745,7 @@ export class AwsService {
     const top = services.slice(0, 12)
     const other = services.slice(12).reduce((sum, x) => sum + x.usd, 0)
     return {
-      billing: r.billingThere === true,
+      billing: r.billingThere,
       mtd: month.mtd,
       lastSameDay: month.lastSameDay,
       projected: month.projected,
@@ -736,7 +810,6 @@ const REGIONAL = [
   ['alarms', 'alarms'],
   ['impaired', 'impaired'],
   ['stacks', 'stacks'],
-  ['trail', 'trail'],
   ['instances', 'instances'],
   ['volumes', 'volumes'],
   ['addresses', 'addresses'],
@@ -803,26 +876,24 @@ function paidOfAccount(ledger: LedgerSummary, account: AccountBilling | null): L
 }
 
 function accountView(r: AwsReadings): AccountView {
+  // A report refused or not read yet is kept apart from an empty one, as GuardDuty's is.
+  const report = r.credentials !== null
   const rows = r.credentials ?? []
   const root = rows.find((row) => row.user === '<root_account>')
   const gd = Object.values(r.guardduty).filter((x) => x !== null)
   return {
     rootMfa: r.summary?.mfa == null ? null : r.summary.mfa > 0,
     rootKeys: r.summary?.keys == null ? null : r.summary.keys > 0,
+    credentialReport: report,
     rootUsedAt: root?.passwordUsed ?? null,
     users: r.summary?.users ?? null,
     roles: r.summary?.roles ?? null,
-    mfaLessUsers: rows
-      .filter((row) => row.user !== '<root_account>' && row.password && !row.mfa)
-      .map((row) => row.user),
-    oldKeys: rows.flatMap((row) =>
-      row.keys
-        .filter((k) => k.active && k.rotated !== null && r.now - k.rotated > 90 * 86_400_000)
-        .map((k) => ({
-          user: row.user,
-          days: Math.floor((r.now - (k.rotated ?? r.now)) / 86_400_000),
-        })),
-    ),
+    mfaLessUsers: !report
+      ? null
+      : rows
+          .filter((row) => row.user !== '<root_account>' && row.password && !row.mfa)
+          .map((row) => row.user),
+    oldKeys: !report ? null : oldKeysOf(rows, r.now),
     guardduty:
       gd.length === 0
         ? null
@@ -832,6 +903,18 @@ function accountView(r: AwsReadings): AccountView {
             low: gd.reduce((n, x) => n + (x?.low ?? 0), 0),
           },
   }
+}
+
+/** The active access keys of the credential report not rotated for 90 days. */
+function oldKeysOf(rows: NonNullable<AwsReadings['credentials']>, now: number) {
+  return rows.flatMap((row) =>
+    row.keys
+      .filter((k) => k.active && k.rotated !== null && now - k.rotated > 90 * 86_400_000)
+      .map((k) => ({
+        user: row.user,
+        days: Math.floor((now - (k.rotated ?? now)) / 86_400_000),
+      })),
+  )
 }
 
 /**
@@ -849,9 +932,6 @@ function linkFields(
   const signedOut = problems.find(
     (p): p is Extract<CliProblem, { kind: 'signed-out' }> => p?.kind === 'signed-out',
   )
-  const error = problems.find(
-    (p): p is Extract<CliProblem, { kind: 'error' }> => p?.kind === 'error',
-  )
   const denied = refused.filter((action) => !QUIET_DENIALS.has(action))
   const link = linkOf(problems, anyReading)
   return {
@@ -859,7 +939,7 @@ function linkFields(
     link: link === 'linked' && denied.length > 0 ? 'partial' : link,
     signIn:
       signedOut !== undefined && link === 'signed-out' ? signInCommand(signedOut, profile) : null,
-    problem: error?.text ?? null,
+    problem: problemText(problems),
     denied,
   }
 }

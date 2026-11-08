@@ -21,8 +21,8 @@ import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
 
 /**
- * The two CLI panes (docs/cloud-cli.md): one runner and one limit of two CLI starts at once for
- * both, the public status of each read while one of its panes is shown, and their toasts.
+ * The two CLI panes (docs/cloud-cli.md): one runner and one limit of four CLI starts at once
+ * (`CLI_LANES`) for both, the public status of each read while one of its panes is shown, and their toasts.
  * ELECDEX_CLOUD_STUB puts stand-ins in place of both CLIs (and the tests point the status URLs
  * at a closed port).
  */
