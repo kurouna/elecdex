@@ -133,7 +133,8 @@ describe('board keys', () => {
   it('reads the pane state with its defaults', () => {
     expect(readGithubPane(undefined)).toEqual({
       spec: { repos: 'auto', inbox: 'all' },
-      tab: 'queue',
+      // REPOS is the tab a pane opens on (the user's decision 2026-11-08).
+      tab: 'repos',
       mask: false,
       band: true,
       drill: null,
@@ -141,14 +142,14 @@ describe('board keys', () => {
     expect(
       readGithubPane({
         repos: ['octo/tern', '..'],
-        tab: 'repos',
+        tab: 'queue',
         mask: true,
         band: false,
         drill: '../x',
       }),
     ).toMatchObject({
       spec: { repos: ['octo/tern'] },
-      tab: 'repos',
+      tab: 'queue',
       mask: true,
       band: false,
       drill: null,

@@ -124,7 +124,7 @@ describe('GithubWidget', () => {
   })
 
   it("shows main's QUEUE and opens a row by its id, never by a URL", async () => {
-    await mount()
+    await mount({ tab: 'queue' })
     const board = await boardOf('demo')
     await push(board)
     expect(screen.getByTestId('github-link').textContent).toContain('LINKED')
@@ -138,16 +138,20 @@ describe('GithubWidget', () => {
   it('switches tabs through the pane state', async () => {
     await mount()
     await push(await boardOf('demo'))
-    // REPOS at the left (the user's decision); QUEUE is still the tab a pane opens on.
+    // REPOS at the left, and the tab a pane opens on (the user's decision 2026-11-08).
     expect(screen.getAllByRole('tab').map((t) => t.dataset.testid)).toEqual([
       'github-tab-repos',
       'github-tab-queue',
       'github-tab-inbox',
       'github-tab-events',
     ])
-    expect(screen.getByTestId('github-tab-queue').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByTestId('github-tab-repos').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getAllByTestId('github-tile').length).toBeGreaterThan(0)
+    // QUEUE is stored, REPOS (the default) is not.
+    await fireEvent.click(screen.getByTestId('github-tab-queue'))
+    expect(held.tab).toBe('queue')
     await fireEvent.click(screen.getByTestId('github-tab-repos'))
-    expect(held.tab).toBe('repos')
+    expect(held.tab).toBeUndefined()
   })
 
   it("takes a repository's card away as its tile is pressed into the runs", async () => {

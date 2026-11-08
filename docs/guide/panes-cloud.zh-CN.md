@@ -17,7 +17,7 @@ elecdex 是一个科幻风格的终端模拟器和系统监视器，是用 Elect
 ## cloud 预设
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统列；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、两个区域的指示灯、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带，以及显示 27 个服务、23 个看起来被遗忘且在计费的资源及其中最贵的 5 个、每个服务一张显示使用中 / 总数的卡片的 RESOURCES 标签页；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和按“损坏或受阻”“等待过久”“给你的”“待分拣”分组的 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统列；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、两个区域的指示灯、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带，以及显示 27 个服务、23 个看起来被遗忘且在计费的资源及其中最贵的 5 个、每个服务一张显示使用中 / 总数的卡片的 RESOURCES 标签页；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和每个仓库的磁贴；其下是一个 shell，旁边是 LOG WATCH 标签页">
   <br><sub>cloud · Business (Light) · 替身 AWS CLI 和 gh，虚构的账户和用户</sub>
 </p>
 
@@ -155,8 +155,8 @@ AWS 托管策略 `ReadOnlyAccess`（或 `ViewOnlyAccess` 加 `AWSBillingReadOnly
 ## GITHUB STATUS
 
 <p align="center">
-  <img src="../screenshots/pane-github.jpg" alt="单独显示的 GITHUB STATUS 窗格，虚构用户 octo-aki：顶行为 QUEUE 12（其中 danger 4）、REVIEW 3、MAIN RED 1，以及下一次读取收件箱的时间；最近一年的贡献格子，1,495 次贡献、连续 3 天；带筛选的 QUEUE 标签页，按“损坏或受阻”（等待 8 天的拉取请求、失败的拉取请求、变红的默认分支、私密漏洞报告）、“等待过久”（待批准的工作流、等待 4 天的审查、冲突）、“给你的”（指派、提及、审查请求）和“待分拣”分组">
-  <br><sub>GITHUB STATUS · QUEUE · 替身 gh，虚构用户</sub>
+  <img src="../screenshots/pane-github.jpg" alt="单独显示的 GITHUB STATUS 窗格，虚构用户 octo-aki：顶行为 QUEUE 12（其中 danger 4）、REVIEW 3、MAIN RED 1，以及下一次读取收件箱的时间；最近一年的贡献格子，1,495 次贡献、连续 3 天；REPOS 标签页，每个仓库一个磁贴（4,823 星的 tern、1,290 星且默认分支变红的 lumen-cli、wasm-sketch、dotfiles 和私有的 infra-notes，各自显示复刻、议题、拉取请求、警报、最近的运行和最新发布）">
+  <br><sub>GITHUB STATUS · REPOS · 替身 gh，虚构用户</sub>
 </p>
 
 | | |
@@ -174,7 +174,7 @@ AWS 托管策略 `ReadOnlyAccess`（或 `ViewOnlyAccess` 加 `AWSBillingReadOnly
 
 | 标签页 | 显示内容 |
 | --- | --- |
-| **REPOS** | 每个仓库一个图块：星标及其 7 天变化、复刻、issue、拉取请求、警报、默认分支最近的运行、最新发布（含预发布）及其后的提交数，以及有推送权限时 14 天的访问量。可从图块下钻到它的运行、打开的拉取请求和发布 |
+| **REPOS**（*未发布：* 第一个标签页，窗格从这里打开） | 每个仓库一个图块：星标及其 7 天变化、复刻、issue、拉取请求、警报、默认分支最近的运行、最新发布（含预发布）及其后的提交数，以及有推送权限时 14 天的访问量。可从图块下钻到它的运行、打开的拉取请求和发布 |
 | **QUEUE** | 等你处理的事，每件一行，最重的在前：变红的默认分支、私密漏洞报告、失败、有冲突或被要求修改的你的拉取请求、等待批准的工作流运行、审查请求（3 天后为 warn，7 天后为 danger）、提及、指派，以及 TRIAGE——你的仓库中无人回应的 issue。筛选 ALL、MINE、REVIEW、SECURITY、MENTION、TRIAGE |
 | **INBOX** | 原始通知。窗格不标记任何已读。细粒度（fine-grained）令牌无法读取通知，标签页会注明 |
 | **EVENTS** | 所关注仓库最近 24 小时的事件，按仓库和类型（星标、复刻、issue、拉取请求、发布、推送）折叠 |

@@ -17,7 +17,7 @@ On this page:
 ## The cloud preset
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="The cloud preset in the Business (Light) theme: the system column on the left; an AWS STATUS pane on a made-up account acme-prod with one alarm, the month to date and its forecast against the budget, two region lamps, the one-line Cost Explorer question, the ACCOUNT PULSE band and the RESOURCES tab with 27 services, 23 resources that look forgotten and are billed, the five dearest of them, and a card per service with how many are in use of all; on the right a GITHUB STATUS pane of a made-up user octo-aki with the contribution grid and the QUEUE grouped as broken or blocked, waiting too long, for you and triage; under it a shell with a LOG WATCH tab beside it">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="The cloud preset in the Business (Light) theme: the system column on the left; an AWS STATUS pane on a made-up account acme-prod with one alarm, the month to date and its forecast against the budget, two region lamps, the one-line Cost Explorer question, the ACCOUNT PULSE band and the RESOURCES tab with 27 services, 23 resources that look forgotten and are billed, the five dearest of them, and a card per service with how many are in use of all; on the right a GITHUB STATUS pane of a made-up user octo-aki with the contribution grid and a tile per repository; under it a shell with a LOG WATCH tab beside it">
   <br><sub>cloud · Business (Light) · a stand-in AWS CLI and gh, made-up account and user</sub>
 </p>
 
@@ -155,8 +155,8 @@ AWS's managed policy `ReadOnlyAccess` (or `ViewOnlyAccess` with `AWSBillingReadO
 ## GITHUB STATUS
 
 <p align="center">
-  <img src="../screenshots/pane-github.jpg" alt="The GITHUB STATUS pane on its own, for a made-up user octo-aki: the top row with QUEUE 12 of which 4 danger, REVIEW 3 and MAIN RED 1, the next inbox reading; the contribution grid of the last year with 1,495 contributions and a 3-day streak; the QUEUE tab with its filters, grouped as broken or blocked (a pull request waiting 8 days, one failing, a default branch red, a private vulnerability report), waiting too long (workflows to approve, a review waiting 4 days, a conflict), for you (an assignment, a mention, a review request) and triage">
-  <br><sub>GITHUB STATUS · QUEUE · a stand-in gh, a made-up user</sub>
+  <img src="../screenshots/pane-github.jpg" alt="The GITHUB STATUS pane on its own, for a made-up user octo-aki: the top row with QUEUE 12 of which 4 danger, REVIEW 3 and MAIN RED 1, the next inbox reading; the contribution grid of the last year with 1,495 contributions and a 3-day streak; the REPOS tab, a tile per repository: tern with 4,823 stars, lumen-cli with 1,290 and its default branch red, wasm-sketch, dotfiles and the private infra-notes, each with forks, issues, pull requests, alerts, its last runs and its latest release">
+  <br><sub>GITHUB STATUS · REPOS · a stand-in gh, a made-up user</sub>
 </p>
 
 | | |
@@ -174,7 +174,7 @@ The tabs:
 
 | Tab | What it shows |
 | --- | --- |
-| **REPOS** | A tile per repository: stars and their 7-day change, forks, issues, pull requests, alerts, the default branch's last runs, the latest release (prereleases included) and the commits since, and views over 14 days where you have push access. A tile drills into its runs, open pull requests and releases |
+| **REPOS** (*unreleased:* the first tab, and the one a pane opens on) | A tile per repository: stars and their 7-day change, forks, issues, pull requests, alerts, the default branch's last runs, the latest release (prereleases included) and the commits since, and views over 14 days where you have push access. A tile drills into its runs, open pull requests and releases |
 | **QUEUE** | What waits on you, one row per thing, heaviest first: a default branch red, private vulnerability reports, your pull requests failing, conflicting or with changes requested, workflow runs waiting for approval, review requests (warn after 3 days, danger after 7), mentions, assignments, and TRIAGE - issues nobody has answered in your repositories. Filters ALL, MINE, REVIEW, SECURITY, MENTION, TRIAGE |
 | **INBOX** | The raw notifications. The pane marks nothing read. A fine-grained token cannot read notifications, and the tab says so |
 | **EVENTS** | The last 24 hours in the watched repositories, folded by repository and kind (stars, forks, issues, pull requests, releases, pushes) |

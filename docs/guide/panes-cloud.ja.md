@@ -17,7 +17,7 @@ elecdex は SF 風のターミナルエミュレーター兼システムモニ�
 ## cloud プリセット
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、2 つのリージョンのランプ、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、27 のサービス、忘れていそうでお金のかかる 23 件とその上位 5 件、サービスごとに使用中 / 総数を示すカードを見せる RESOURCES のタブ）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と、壊れている・止まっている、待たせすぎ、あなたに、トリアージに分けた QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、2 つのリージョンのランプ、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、27 のサービス、忘れていそうでお金のかかる 23 件とその上位 5 件、サービスごとに使用中 / 総数を示すカードを見せる RESOURCES のタブ）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と、リポジトリごとのタイル）。その下にシェルと、その横の LOG WATCH のタブ">
   <br><sub>cloud · Business (Light) · 代役の AWS CLI と gh、架空のアカウントと利用者</sub>
 </p>
 
@@ -155,8 +155,8 @@ AWS 管理ポリシーの `ReadOnlyAccess`（または `ViewOnlyAccess` と `AWS
 ## GITHUB STATUS
 
 <p align="center">
-  <img src="../screenshots/pane-github.jpg" alt="GITHUB STATUS ペインを単独で表示したところ。架空の利用者 octo-aki：上段に QUEUE 12（うち danger 4）、REVIEW 3、MAIN RED 1、次の受信箱の読み取りの時刻。直近 1 年の貢献の格子（1,495 件、3 日のストリーク）。絞り込み付きの QUEUE のタブを、壊れている・止まっている（8 日待たせている PR、失敗している PR、赤い既定ブランチ、非公開の脆弱性報告）、待たせすぎ（承認待ちのワークフロー、4 日待っているレビュー、衝突）、あなたに（アサイン、メンション、レビュー依頼）、トリアージに分けて表示">
-  <br><sub>GITHUB STATUS · QUEUE · 代役の gh、架空の利用者</sub>
+  <img src="../screenshots/pane-github.jpg" alt="GITHUB STATUS ペインを単独で表示したところ。架空の利用者 octo-aki：上段に QUEUE 12（うち danger 4）、REVIEW 3、MAIN RED 1、次の受信箱の読み取りの時刻。直近 1 年の貢献の格子（1,495 件、3 日のストリーク）。REPOS のタブに、リポジトリごとのタイル（スター 4,823 の tern、スター 1,290 で既定ブランチが赤い lumen-cli、wasm-sketch、dotfiles、非公開の infra-notes。それぞれフォーク、イシュー、プルリクエスト、アラート、最近の実行、最新のリリース）">
+  <br><sub>GITHUB STATUS · REPOS · 代役の gh、架空の利用者</sub>
 </p>
 
 | | |
@@ -174,7 +174,7 @@ AWS 管理ポリシーの `ReadOnlyAccess`（または `ViewOnlyAccess` と `AWS
 
 | タブ | 見せるもの |
 | --- | --- |
-| **REPOS** | リポジトリごとのタイル: スターとその 7 日の増減、フォーク、Issue、PR、警告、既定ブランチの直近の実行、最新のリリース（プレリリースを含む）とそれ以後のコミット数、push 権のあるものは 14 日の訪問。タイルから、その実行、開いた PR、リリースへ掘れます |
+| **REPOS**（*未リリース:* 先頭のタブで、ペインはここで開きます） | リポジトリごとのタイル: スターとその 7 日の増減、フォーク、Issue、PR、警告、既定ブランチの直近の実行、最新のリリース（プレリリースを含む）とそれ以後のコミット数、push 権のあるものは 14 日の訪問。タイルから、その実行、開いた PR、リリースへ掘れます |
 | **QUEUE** | 自分を待っているものを、1 つにつき 1 行、重い順に: 赤い既定ブランチ、非公開の脆弱性報告、失敗・衝突・変更依頼のある自分の PR、承認待ちのワークフローの実行、レビュー依頼（3 日で warn、7 日で danger）、メンション、アサイン、そして TRIAGE（自分のリポジトリで誰も答えていない Issue）。絞り込みは ALL、MINE、REVIEW、SECURITY、MENTION、TRIAGE |
 | **INBOX** | 生の通知。ペインは何も既読にしません。fine-grained のトークンでは通知を読めず、タブがそう書きます |
 | **EVENTS** | 見張るリポジトリの直近 24 時間を、リポジトリと種類（スター、フォーク、Issue、PR、リリース、プッシュ）で畳んで |

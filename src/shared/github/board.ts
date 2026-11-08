@@ -55,7 +55,8 @@ export function readGithubPane(state: Record<string, unknown> | undefined): {
   const pinned = Array.isArray(s.repos)
     ? s.repos.filter((r): r is string => repoName(r) !== null)
     : []
-  const tab = s.tab === 'inbox' || s.tab === 'events' || s.tab === 'repos' ? s.tab : 'queue'
+  // REPOS is the tab a pane opens on (the user's decision 2026-11-08); the others are stored.
+  const tab = s.tab === 'queue' || s.tab === 'inbox' || s.tab === 'events' ? s.tab : 'repos'
   return {
     spec: {
       repos: pinned.length > 0 ? pinned : 'auto',

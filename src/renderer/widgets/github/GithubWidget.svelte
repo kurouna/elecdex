@@ -101,7 +101,7 @@ let inboxFilter = $state<string>('all')
 
 function selectTab(tab: Tab): void {
   sfx.play('panel')
-  patch({ tab: tab === 'queue' ? undefined : tab, drill: undefined })
+  patch({ tab: tab === 'repos' ? undefined : tab, drill: undefined })
 }
 
 const queue = $derived((board?.queue ?? []).filter((item) => queueMatches(item, filter)))
@@ -401,7 +401,7 @@ const short = $derived(height < 30 * 16)
     {/if}
 
     <div class="tabs" role="tablist" aria-label="github status">
-      <!-- REPOS first, at the left (the user's decision 2026-11-08); QUEUE stays the tab a new pane opens on. -->
+      <!-- REPOS first, at the left, and the tab a pane opens on (the user's decision 2026-11-08). -->
       {#each [['repos', 'REPOS', board?.repos.length], ['queue', 'QUEUE', board?.queue.length], ['inbox', 'INBOX', board?.inbox.readable ? board.inbox.items.filter((item) => item.unread).length : '—'], ['events', 'EVENTS', board?.events.length]] as [id, label, count] (id)}
         <button type="button" role="tab" aria-selected={choices.tab === id} onclick={() => selectTab(id as Tab)} data-testid="github-tab-{id}">{label}{#if count !== undefined}<em>{count}</em>{/if}</button>
       {/each}

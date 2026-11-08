@@ -451,7 +451,7 @@ The machine behind its tab is paused while it is out of sight.
 | Status | Released in v0.0.60 |
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="The cloud preset in the Business (Light) theme: the system column on the left; an AWS STATUS pane on a made-up account acme-prod with one alarm, the month to date and its forecast against the budget, the one-line Cost Explorer question, the ACCOUNT PULSE band and the RESOURCES tab of what looks forgotten and a card per service, in use of all; on the right a GITHUB STATUS pane of a made-up user octo-aki with the contribution grid and its QUEUE; under it a shell with a LOG WATCH tab beside it">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="The cloud preset in the Business (Light) theme: the system column on the left; an AWS STATUS pane on a made-up account acme-prod with one alarm, the month to date and its forecast against the budget, the one-line Cost Explorer question, the ACCOUNT PULSE band and the RESOURCES tab of what looks forgotten and a card per service, in use of all; on the right a GITHUB STATUS pane of a made-up user octo-aki with the contribution grid and its repositories; under it a shell with a LOG WATCH tab beside it">
   <br><sub>cloud · Business (Light) — a stand-in AWS CLI and gh, made-up account and user</sub>
 </p>
 

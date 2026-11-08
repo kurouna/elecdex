@@ -17,11 +17,14 @@ const tab = (page: Page, index: 0 | 1) => page.getByTestId('tab').nth(index)
 
 const watching = (page: Page) => page.evaluate(() => window.elecdex.github.watching())
 
-test('reads the queue from gh while shown, and opens a row on github.com', async () => {
+test('opens on the repositories, reads the queue from gh while shown, and opens a row on github.com', async () => {
   const { app, page, close } = await launch(undefined, { layout: inTabs('github') })
   try {
     await captureOpens(app)
     await expect(page.getByTestId('github-link')).toContainText('LINKED')
+    // REPOS is the tab a pane opens on (the user's decision 2026-11-08).
+    await expect(page.getByTestId('github-tile').first()).toBeVisible()
+    await page.getByTestId('github-tab-queue').click({ delay: 20 })
     await expect(page.getByTestId('github-queue-row').first()).toBeVisible()
     // The red default branch comes from the runs, read on the first showing.
     await expect(page.getByTestId('github-red')).toBeVisible()
@@ -47,13 +50,13 @@ test('stops reading behind a tab, and keeps what it showed', async () => {
   const { app, page, close } = await launch(undefined, { layout: inTabs('github') })
   try {
     await expect(page.getByTestId('github-link')).toContainText('LINKED')
-    await expect(page.getByTestId('github-queue-row').first()).toBeVisible()
+    await expect(page.getByTestId('github-tile').first()).toBeVisible()
     await tab(page, 1).click({ delay: 20 })
     await expect.poll(() => watching(page)).toEqual([])
     // gh gone while hidden: what shows again is what main kept.
     await cloudMode(app, 'github', 'offline')
     await tab(page, 0).click({ delay: 20 })
-    await expect(page.getByTestId('github-queue-row').first()).toBeVisible()
+    await expect(page.getByTestId('github-tile').first()).toBeVisible()
     await expect.poll(() => watching(page)).toHaveLength(1)
   } finally {
     await cloudMode(app, 'github', null)

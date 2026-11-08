@@ -3,15 +3,16 @@
  * with English captions at the bottom.
  *
  * The take:
- *   OPEN     QUEUE, the first tab: what waits on you, grouped as broken or blocked, waiting too
- *            long, for you and triage; the top row's QUEUE, REVIEW and MAIN RED
+ *   OPEN     REPOS, the tab a pane opens on: a tile per repository (stars and their 7-day change,
+ *            runs, the latest release, views); one opened: its runs, pull requests and releases
+ *   QUEUE    what waits on you, grouped as broken or blocked, waiting too long, for you and
+ *            triage; the top row's QUEUE, REVIEW and MAIN RED
  *   CARD     a row's card: what it is and how long it has waited
  *   FILTERS  REVIEW, SECURITY, TRIAGE, then ALL
  *   BAND     the contribution grid of the last year, its count and streak
  *   INCIDENT githubstatus.com's open incident as a band at the top
  *   INBOX    the raw notifications, filtered; nothing is marked read
  *   EVENTS   the last 24 hours in the watched repositories, folded
- *   REPOS    a tile per repository; one opened: its runs, pull requests and releases; back
  *   MASK     names hidden at a press
  *   SETTINGS ⚙: AUTO or PINNED repositories, the band, the incident toasts
  *   FOOT     the ledger: requests, 304s that cost nothing, the rate limit
@@ -89,8 +90,14 @@ const away = () => page.mouse.move(options.width / 2, 8)
 async function open() {
   say('open')
   await caption('GITHUB STATUS reads github.com through your own gh - read only')
-  await page.getByTestId('github-queue-row').first().waitFor({ timeout: 30_000 })
+  await page.getByTestId('github-tile').first().waitFor({ timeout: 30_000 })
   await wait(3000)
+}
+
+async function queue() {
+  say('queue')
+  await tab('queue')
+  await page.getByTestId('github-queue-row').first().waitFor()
   await caption('QUEUE: what waits on you - broken or blocked first, then waiting too long')
   await wait(3400)
 }
@@ -165,7 +172,6 @@ async function events() {
 async function repos() {
   say('repos')
   await caption('REPOS: stars and their 7-day change, runs, the latest release, views')
-  await tab('repos')
   await wait(1600)
   const tiles = page.getByTestId('github-tile')
   await tiles.first().hover()
@@ -177,8 +183,6 @@ async function repos() {
   await wait(3600)
   await page.keyboard.press('Escape')
   await wait(1000)
-  await tab('queue')
-  await wait(900)
 }
 
 async function mask() {
@@ -209,13 +213,14 @@ await run(async () => {
   const begun = Date.now()
   await away()
   await open()
+  await repos()
+  await queue()
   await card()
   await filters()
   await band()
   await incident()
   await inbox()
   await events()
-  await repos()
   await mask()
   await settings()
   await caption('elecdex · GITHUB STATUS')
