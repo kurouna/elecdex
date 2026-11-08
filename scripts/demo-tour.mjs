@@ -10,6 +10,8 @@
  *               back; the quakes, the weather
  *   dev         coding agents at work, a container stopped (asked twice), a commit's card,
  *               LOG WATCH behind GIT's tab lighting ERROR BURST on a made-up log
+ *   cloud       the cloud preset by its key on the stand-in CLIs: AWS STATUS's RESOURCES, a
+ *               forgotten row's card read, then GITHUB STATUS from REPOS to its QUEUE
  *   media       the television and the timeline (stand-ins); KEYSTREAM's BOOT SEQUENCE playing,
  *               then FEVER CALL from the next button, the spectrum moving with what is heard
  *   desk        copies landing in the clipboard history, a QR code typed
@@ -29,9 +31,9 @@
  *               `npm run demo:tour-black` takes the whole tour in Black)
  *
  * Everything shown is made up or a stand-in (demo-take.mjs): the home, the repository, the Claude
- * Code folder, the sockets, the Wi-Fi link, the clipboard, the media session and its covers, the
- * music (KEYSTREAM's own tracks, rendered here and played by the spectrum's stand-in), the Docker
- * engine, the web pages, and the council's answers, served from here with no model and no key;
+ * Code folder, the AWS account and GitHub (main's stand-in CLIs), the sockets, the Wi-Fi link,
+ * the clipboard, the media session and its covers, the music (KEYSTREAM's own tracks, rendered
+ * here and played by the spectrum's stand-in), the Docker engine, the web pages, and the council's answers, served from here with no model and no key;
  * KEYSTREAM is copied into the profile from examples/ and typed by the take. Only the orbital
  * elements, the weather, the markets and the earthquakes are real, fetched as the panes would.
  * Nothing of this machine is read, pressed or kept awake.
@@ -65,7 +67,7 @@ const exit = process.argv.includes('--exit')
 
 /** The presets the tour keeps as saved layouts, in the layouts dialog's order. */
 const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk']
-/** Every preset in the dialog's order, for its key: Ctrl+Shift+F1 .. F9 (shared/layout-presets.ts). */
+/** Every preset in the dialog's order, for its key: Ctrl+Shift+F1 .. F10 (shared/layout-presets.ts). */
 const PRESET_KEYS = [
   'standard',
   'network',
@@ -76,6 +78,7 @@ const PRESET_KEYS = [
   'ai',
   'cockpit',
   'retro',
+  'cloud',
 ]
 
 const council = await startCouncil()
@@ -206,7 +209,7 @@ const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 async function toPreset(id) {
   say(`preset: ${id}`)
   await beat.letGo()
-  // A preset the tour does not keep (cockpit) is added by its key, as a user's first press would.
+  // A preset the tour does not keep (cockpit, cloud) is added by its key, as a user's first press would.
   await page.keyboard.press(`Control+Shift+F${PRESET_KEYS.indexOf(id) + 1}`)
   await wait(300)
   await settled()
@@ -255,6 +258,9 @@ await run(async () => {
   await beat.commitCard(2000)
   await caption(CAPTIONS.logwatch)
   await beat.logWatch(2600)
+  await caption(CAPTIONS.cloud)
+  await toPreset('cloud')
+  await beat.cloud(1800, { queued: () => caption(CAPTIONS.queue) })
   await caption(CAPTIONS.media)
   await toPreset('media')
   await beat.musicPlays()

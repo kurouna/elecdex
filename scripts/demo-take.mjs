@@ -235,6 +235,11 @@ export async function openTake({
       // A made-up GPU: never this machine's adapter or its load.
       ELECDEX_GPU_STUB: 'demo',
       ELECDEX_AUDIO_STUB: 'demo',
+      // A made-up AWS account and gh (the cloud preset): never this machine's CLIs or accounts,
+      // and the public status at a closed port.
+      ELECDEX_CLOUD_STUB: 'demo',
+      ELECDEX_AWS_STATUS_URL: 'http://127.0.0.1:9/aws',
+      ELECDEX_GITHUB_STATUS_URL: 'http://127.0.0.1:9/github',
       ELECDEX_WEB_HOMES: standIn.homes,
       // No tray icon or system-wide shortcut from a recording run, and nothing kept awake.
       ELECDEX_BACKGROUND_STUB: '1',

@@ -31,7 +31,7 @@ npm run demo:wifi      # the Wi-Fi pane on the train stub, 9:16, cards opening o
 npm run demo:panes     # DOCKER, CLIPBOARD, NOW PLAYING and UTILITY at work, 16:9, under 30 s (Windows; build first)
 npm run demo:panefx    # the panes at work in the dev preset: the switch, Ctrl+Shift+Arrow and the flare, Ctrl+Tab's flicker, a split, a drag that flies, a drop as a tab, forward, close and undo, captioned, 16:9 (Windows; build first)
 npm run demo:cockpit   # the cockpit preset: CLUSTER's cards, a load on every core, forward, resized, Black (Windows; build first)
-npm run demo:tour      # the introduction video: boot, presets, ETHERNET, ORBIT, agents, Docker, media, the palette, ELEC, themes (Windows; build first)
+npm run demo:tour      # the introduction video: boot, presets, ETHERNET, ORBIT, agents, Docker, AWS STATUS and GITHUB STATUS, media, the palette, ELEC, themes (Windows; build first)
 npm run demo:tour-black # the same tour in the Black theme (--theme=black), its themes ending on Black (Windows; build first)
 npm run demo:tour-shorts # the same tour, 9:16 in two tiers, under 2 min, for Shorts (Windows; build first)
 npm run demo:emacs     # Windows Emacs (emacs -nw) in the standard preset's shell, split with C-x 3 and brought forward: windows, dired, C-SPC, C-M-SPC, C-/, org, tetris, 16:9, ~30 s, no captions (needs Windows Emacs: ELECDEX_DEMO_EMACS or %LOCALAPPDATA%\emacs-*; Windows; build first)

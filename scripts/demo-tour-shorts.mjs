@@ -10,6 +10,8 @@
  *               card, and put back
  *   dev         coding agents at work over the repository, a commit's card, LOG WATCH
  *               behind GIT's tab lighting ERROR BURST on a made-up log
+ *   cloud       AWS STATUS over GITHUB STATUS on the stand-in CLIs: RESOURCES, a forgotten
+ *               row's card read, then GITHUB STATUS from REPOS to its QUEUE
  *   docker      a container stopped (asked twice), copies landing in the clipboard history
  *   media       the television (a stand-in) over KEYSTREAM's tracks playing, the next one
  *               from the button, and the spectrum moving with them
@@ -81,7 +83,7 @@ const stack = (top, bottom, share) => ({
 })
 
 /*
- * The layouts, in the order the tour goes through them (Ctrl+Shift+1 .. 9 by their place). The
+ * The layouts, in the order the tour goes through them (Ctrl+Shift+1 .. 9 and 0 by their place). The
  * map and the television are given the width's own proportions; the lists the height they need.
  */
 const LAYOUTS = [
@@ -89,6 +91,7 @@ const LAYOUTS = [
   ['network', () => stack(pane('wifi', { window: '1m' }), pane('ethernet', { window: '1m' }), 0.5)],
   ['earth', () => stack(pane('orbit'), pane('quakes'), 0.56)],
   ['dev', () => stack(pane('agents'), tabs(pane('git'), pane('logwatch', { file: LOG_ID })), 0.42)],
+  ['cloud', () => stack(pane('aws'), pane('github'), 0.56)],
   ['docker', () => stack(pane('docker'), pane('clipboard'), 0.52)],
   [
     'media',
@@ -122,7 +125,8 @@ const LAYOUTS = [
         0.7,
       ),
   ],
-  // The tenth and eleventh: past the number keys, reached through the layouts dialog, a row down.
+  // The eleventh and twelfth: past the number keys, reached through the palette and the layouts
+  // dialog, a row down.
   ['cockpit', () => stack(pane('cluster'), pane('terminal'), 0.8)],
   ['council', () => stack(pane('elec'), pane('globe'), 0.74)],
 ]
@@ -167,13 +171,13 @@ await run(async () => {
   await caption(CAPTIONS.layouts)
   await beat.throughTheDialog('network')
   await caption(CAPTIONS.network)
-  await beat.forward('ethernet', 500, { during: () => beat.etherCard(1300) })
+  await beat.forward('ethernet', 500, { during: () => beat.etherCard(1000) })
   await caption(CAPTIONS.earth)
   await beat.toLayout(slot('earth'), 'earth')
   await wait(600)
   // ORBIT brought forward, the ISS's card read on the map at its largest.
   await caption(CAPTIONS.orbit)
-  await beat.forward('orbit', 600, { during: () => beat.issCard(1500) })
+  await beat.forward('orbit', 600, { during: () => beat.issCard(1200) })
   await wait(800)
   // Errors start coming as the layout arrives: ERROR BURST is lit when LOG WATCH comes forward.
   live.burst(9000)
@@ -181,35 +185,37 @@ await run(async () => {
   await beat.toLayout(slot('dev'), 'dev')
   await wait(900)
   await caption(CAPTIONS.commit)
-  await beat.commitCard(1100)
+  await beat.commitCard(900)
   await caption(CAPTIONS.logwatch)
   await beat.logWatch(900)
+  await caption(CAPTIONS.cloud)
+  await beat.toLayout(slot('cloud'), 'cloud')
+  await beat.cloud(300, { card: 1300, queue: 800, queued: () => caption(CAPTIONS.queue) })
   await caption(CAPTIONS.copies)
   await beat.toLayout(slot('docker'), 'docker')
   await wait(700)
   await beat.stopContainer()
   await beat.copies()
-  await wait(300)
   await caption(CAPTIONS.media)
   await beat.toLayout(slot('media'), 'media')
   await beat.musicPlays()
-  await wait(1000)
-  await beat.nextTrack(1200)
+  await wait(700)
+  await beat.nextTrack(900)
   await beat.musicStops()
   await caption(CAPTIONS.tasks)
   await beat.toLayout(slot('utility'), 'utility')
   await wait(800)
-  await beat.qrCode(800)
+  await beat.qrCode(600)
   await caption(CAPTIONS.keystream)
   await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
     previews: [],
-    play: 2_000,
+    play: 1_500,
   })
   await caption(CAPTIONS.retro)
   await beat.toLayout(slot('retro'), 'retro')
   await beat.elec16(700)
   await caption(CAPTIONS.play)
-  await beat.aircombat(1800, { nth: 1, title: 1500, controls: 900, briefing: 900 })
+  await beat.aircombat(1100, { nth: 1, title: 1100, controls: 600, briefing: 600 })
   await caption(CAPTIONS.chip8)
   await beat.toTab('CHIP-8')
   await beat.chip8(700, { mem: false })
@@ -221,13 +227,13 @@ await run(async () => {
   await caption(CAPTIONS.council)
   await beat.throughTheDialog('council')
   await wait(800)
-  await beat.councilSits(500)
+  await beat.councilSits(300)
   await caption(null)
   await beat.toLayout(slot('shell'), 'shell')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()
   await caption(CAPTIONS.themes)
-  await beat.themes(400)
+  await beat.themes(300)
   await caption(CAPTIONS.outro)
   await wait(400)
   say(`tour: ${((Date.now() - started) / 1000).toFixed(0)} s after the boot`)

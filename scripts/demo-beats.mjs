@@ -51,7 +51,7 @@ export const OPENING = {
 
 /** A caption for each beat, by name. The vertical cut's own layouts have a few of their own. */
 export const CAPTIONS = {
-  presets: 'Nine layout presets to start from',
+  presets: 'Eleven layout presets to start from',
   palette: 'Ctrl+Shift+P: find any action by typing',
   network: 'network — Wi-Fi and the cable, segment by segment',
   earth: 'earth — satellites, earthquakes and the weather',
@@ -60,6 +60,8 @@ export const CAPTIONS = {
   container: 'Stop a container with two presses',
   commit: 'Every commit has its card',
   logwatch: 'LOG WATCH: logs as they grow, error bursts lit',
+  cloud: 'cloud — an AWS account and GitHub, read through your own CLIs',
+  queue: 'GITHUB STATUS: what waits on you, broken first',
   media: 'media — what is playing, and the sound as a spectrum',
   desk: 'desk — notes, tasks and what you copied',
   qr: 'A QR code from what you type',
@@ -207,7 +209,8 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
   async function toLayout(slot, name) {
     say(`layout: ${name}`)
     await letGo()
-    await page.keyboard.press(`Control+Shift+Digit${slot}`)
+    // The tenth is on 0.
+    await page.keyboard.press(`Control+Shift+Digit${slot % 10}`)
     await wait(300)
     await settled()
   }
@@ -343,6 +346,37 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
       .waitFor({ timeout: 6000 })
       .catch(() => {})
     await wait(hold)
+  }
+
+  /**
+   * AWS STATUS and GITHUB STATUS on main's stand-in CLIs (demo-take.mjs): RESOURCES' cards with a
+   * forgotten row's card read - what it bills and why it looks forgotten - then GITHUB STATUS
+   * from REPOS to its QUEUE. `queued` runs as the QUEUE comes (its caption).
+   */
+  async function cloud(hold = 1800, { card = 2400, queue = 2200, queued = null } = {}) {
+    say('aws: RESOURCES')
+    const rows = page.getByTestId('aws-forgotten-row')
+    await rows
+      .first()
+      .waitFor({ timeout: 20_000 })
+      .catch(() => {})
+    await wait(hold)
+    if ((await rows.count()) > 1) {
+      say('aws: a forgotten row')
+      await rows.nth(1).hover()
+      await wait(card)
+      await away()
+    }
+    if (queued !== null) await queued()
+    say('github: QUEUE')
+    await press(page.getByTestId('github-tab-queue'))
+    await page
+      .getByTestId('github-queue-row')
+      .first()
+      .waitFor({ timeout: 10_000 })
+      .catch(() => {})
+    await away()
+    await wait(queue)
   }
 
   /** Copies made elsewhere, landing in the clipboard history one after another. */
@@ -727,6 +761,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     stopContainer,
     commitCard,
     logWatch,
+    cloud,
     copies,
     musicPlays,
     nextTrack,
