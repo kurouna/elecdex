@@ -85,6 +85,8 @@
     "demo:elec16-intro": "node scripts/demo-elec16-intro.mjs",
     "demo:games": "node scripts/demo-games.mjs",
     "demo:logwatch": "node scripts/demo-logwatch.mjs",
+    "demo:aws": "node scripts/demo-aws.mjs",
+    "demo:github": "node scripts/demo-github.mjs",
     "demo:translate": "node scripts/demo-translate.mjs"
   },
   "devDependencies": {
