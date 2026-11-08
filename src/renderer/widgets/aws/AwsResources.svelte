@@ -327,7 +327,7 @@ const regionDots = (tile: ResourceTile) =>
       </p>
     {/if}
     {#if res.none.length > 0}<p class="rnone" data-testid="aws-res-none">Checked, none here: {noneLine(res)}</p>{/if}
-    {#if res.denied.length > 0}<p class="rnone" data-testid="aws-res-denied">Denied: <span class="denied">{deniedLine(res)}</span> · not counted</p>{/if}
+    {#if res.denied.length > 0}<p class="rnone" data-testid="aws-res-denied">Denied: <span class="denied">{deniedLine(res)}</span> · not counted (PARTIAL lists the operations)</p>{/if}
     {#if res.notOffered.length > 0}<p class="rnone">Not offered: {notOfferedLine(res)} · left out of the count</p>{/if}
     {#if elsewhere !== null}
       <button type="button" class="rline" data-focus="elsewhere" onclick={() => onlist('elsewhere', 'elsewhere')} data-testid="aws-elsewhere">

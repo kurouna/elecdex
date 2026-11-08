@@ -20,6 +20,7 @@ import type {
   TrailEvent,
 } from '@shared/aws/types'
 import { afterBlink } from '../../lib/blink.ts'
+import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import {
@@ -59,6 +60,7 @@ import {
   ceEstimate,
   dateCell,
   money,
+  refusedPolicy,
   regionShort,
   regionTone,
 } from './aws-view.ts'
@@ -235,14 +237,15 @@ async function open(id: string): Promise<void> {
   await window.elecdex.aws.open(key, id)
 }
 
-let copied = $state(false)
-async function copySignIn(): Promise<void> {
-  if (board?.signIn == null) return
-  if (await window.elecdex.utility.copy({ kind: 'text', text: board.signIn })) {
-    sfx.play('folder')
-    copied = true
-    setTimeout(() => (copied = false), 1500)
-  }
+/** The notices' COPY buttons: the sign-in command, and PARTIAL's policy. */
+const copies = new CopyFlag()
+$effect(() => () => copies.dispose())
+function copyText(which: 'signin' | 'policy', text: string): void {
+  void copies.through(which, async () => {
+    const done = await window.elecdex.utility.copy({ kind: 'text', text })
+    if (done) sfx.play('folder')
+    return done
+  })
 }
 
 let waitUntil = $state(0)
@@ -510,7 +513,7 @@ const TABS: readonly [AwsTab, string][] = [
     <div class="notice crt-on" role="status" data-testid="aws-signin">
       <span>The profile <b>{board.profile}</b> is signed out, or its credentials expired. Sign in from a shell; the pane reads again at REFRESH.</span>
       <code>{board.signIn}</code>
-      <button type="button" class="tool" onclick={() => void copySignIn()}>{copied ? 'COPIED' : 'COPY'}</button>
+      <button type="button" class="tool" onclick={() => board?.signIn != null && copyText('signin', board.signIn)}>{copies.key === 'signin' ? 'COPIED' : 'COPY'}</button>
     </div>
   {:else if board?.credentialProcess}
     <div class="notice crt-on quiet" role="status" data-testid="aws-credential-process">
@@ -519,6 +522,7 @@ const TABS: readonly [AwsTab, string][] = [
   {:else if board !== null && board.denied.length > 0}
     <div class="notice crt-on quiet" role="status" data-testid="aws-denied">
       <span class="denied">PARTIAL · this role may not read: <span class="ops">{#each board.denied as op (op)}<span class="op">{op}</span>{/each}</span>. The rest is read.</span>
+      <button type="button" class="tool" aria-label="copy an IAM policy that allows these reads" onclick={() => board && copyText('policy', refusedPolicy(board.denied))} data-testid="aws-copy-policy">{copies.key === 'policy' ? 'COPIED' : 'COPY POLICY'}</button>
     </div>
   {/if}
 

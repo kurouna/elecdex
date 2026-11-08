@@ -57,6 +57,21 @@ describe('classifyCliError', () => {
     expect(classifyCliError('aws', result({ stderr }))).toEqual({ kind: 'signed-out', via })
   })
 
+  it('spells a refused action as IAM does, though SQS names it in lower case', () => {
+    const denial = (operation: string, action: string) =>
+      `An error occurred (AccessDenied) when calling the ${operation} operation: User: arn:aws:iam::123456789012:user/x is not authorized to perform: ${action} on resource: arn:aws:sqs:ap-northeast-1:123456789012: because no identity-based policy allows the ${action} action`
+    expect(
+      classifyCliError('aws', result({ stderr: denial('ListQueues', 'sqs:listqueues') })),
+    ).toEqual({
+      kind: 'denied',
+      action: 'sqs:ListQueues',
+    })
+    // An action that is not the operation's own word is kept as AWS wrote it.
+    expect(
+      classifyCliError('aws', result({ stderr: denial('ListQueues', 'kms:Decrypt') })),
+    ).toEqual({ kind: 'denied', action: 'kms:Decrypt' })
+  })
+
   it('reads gh signed out, throttled, denied with the action, and offline', () => {
     expect(classifyCliError('gh', result({ stderr: 'gh: Bad credentials (HTTP 401)' }))).toEqual({
       kind: 'signed-out',

@@ -149,7 +149,7 @@ RESOURCES 的读取由同一账户的所有窗格共享，并保存在 `aws-inve
 
 ### 权限
 
-AWS 托管策略 `ReadOnlyAccess`（或 `ViewOnlyAccess` 加 `AWSBillingReadOnlyAccess`）涵盖所有读取。被拒绝的读取显示 **PARTIAL** 和操作名。自行编写策略所需的操作列表见[网络访问与数据来源](data-sources.zh-CN.md#aws-status-的权限)。
+AWS 托管策略 `ReadOnlyAccess`（或 `ViewOnlyAccess` 加 `AWSBillingReadOnlyAccess`）涵盖所有读取。被拒绝的读取显示 **PARTIAL** 和操作名。*未发布：* 旁边的 **COPY POLICY** 复制一个只允许这些读取的 IAM 策略（只有操作，不含账户或 ARN），RESOURCES 在磁贴下方只列一次被拒绝的服务名。自行编写策略所需的操作列表见[网络访问与数据来源](data-sources.zh-CN.md#aws-status-的权限)。
 
 ## GITHUB STATUS
 

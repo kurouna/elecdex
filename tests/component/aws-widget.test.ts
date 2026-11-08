@@ -10,7 +10,7 @@ import { finishAnimations, inertDom } from './support/dom.ts'
 import { mergePatch, stubElecdex } from './support/elecdex.ts'
 import { settle } from './support/settle.ts'
 
-const { ceEstimate, money, regionShort } = await import(
+const { ceEstimate, money, refusedPolicy, regionShort } = await import(
   '../../src/renderer/widgets/aws/aws-view.ts'
 )
 const { default: AwsWidget } = await import('../../src/renderer/widgets/aws/AwsWidget.svelte')
@@ -66,6 +66,7 @@ const costExplorer = vi.fn(async (_key: string, _answer: unknown) => true)
 const keep = vi.fn(async (key: string, id: string, on: boolean) => service.keep(key, id, on))
 const sweep = vi.fn(async (_key: string, _what?: string) => 30_000)
 const metricData = vi.fn(async (_key: string, _answer: unknown) => true)
+const copy = vi.fn(async (_what: { kind: string; text: string }) => true)
 let held: Record<string, unknown> = {}
 
 beforeEach(() => {
@@ -76,6 +77,7 @@ beforeEach(() => {
   keep.mockClear()
   sweep.mockClear()
   metricData.mockClear()
+  copy.mockClear()
   inertDom()
   finishAnimations()
   stubElecdex({
@@ -104,7 +106,7 @@ beforeEach(() => {
       profiles: async () => ['default'],
       watching: async () => [],
     },
-    utility: { copy: async () => true },
+    utility: { copy: (what: { kind: string; text: string }) => copy(structuredClone(what)) },
     settings: { patch: async () => ({}) },
   })
   vi.spyOn(widgetState, 'patch').mockImplementation((_id, change) => {
@@ -222,6 +224,21 @@ describe('AwsWidget', () => {
     await mount()
     await push(await boardOf('signedout'))
     expect(screen.getByTestId('aws-signin').textContent).toContain('aws login --profile=default')
+  })
+
+  it('copies an IAM policy of exactly the refused reads, and names the services once on RESOURCES', async () => {
+    await mount()
+    const board = await boardOf('partial')
+    expect(board.denied.length).toBeGreaterThan(0)
+    await push(board)
+    await fireEvent.click(screen.getByTestId('aws-copy-policy'))
+    await vi.waitFor(() => expect(screen.getByTestId('aws-copy-policy').textContent).toBe('COPIED'))
+    const policy = JSON.parse(copy.mock.calls[0]?.[0].text ?? '{}')
+    expect(policy.Statement[0].Action).toEqual([...board.denied].sort((a, b) => a.localeCompare(b)))
+    expect(policy.Statement[0].Effect).toBe('Allow')
+    // The operations are PARTIAL's list; RESOURCES says only which services, not them again.
+    const line = screen.queryByTestId('aws-res-denied')
+    for (const op of board.denied) expect(line?.textContent ?? '').not.toContain(op)
   })
 })
 
@@ -444,5 +461,22 @@ describe('aws-view', () => {
     expect(regionShort('us-east-1')).toBe('us-e-1')
     expect(ceEstimate('day', 100)).toEqual({ requests: 60, usd: 0.6, stopsOn: null })
     expect(ceEstimate('12h', 100)).toMatchObject({ requests: 120, stopsOn: 25 })
+  })
+
+  it('writes a policy of the refused reads alone, sorted and once each', () => {
+    const policy = JSON.parse(
+      refusedPolicy(['sqs:ListQueues', 'acm:ListCertificates', 'sqs:ListQueues']),
+    )
+    expect(policy).toEqual({
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Sid: 'ElecdexAwsStatusReads',
+          Effect: 'Allow',
+          Action: ['acm:ListCertificates', 'sqs:ListQueues'],
+          Resource: '*',
+        },
+      ],
+    })
   })
 })

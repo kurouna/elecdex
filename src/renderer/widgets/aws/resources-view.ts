@@ -383,9 +383,12 @@ export function nearestBox(from: Box, others: readonly Box[], key: string): numb
 export const noneLine = (res: ResourcesView): string =>
   res.none.map((s) => TILE[s].label).join(' · ')
 
-/** "Denied: dynamodb:ListTables · sqs:ListQueues". */
+/**
+ * "Denied: DynamoDB · SQS": the services, by name. The operations are PARTIAL's list at the top
+ * (with COPY POLICY); written here too, a role refused a dozen reads showed them twice.
+ */
 export const deniedLine = (res: ResourcesView): string =>
-  res.denied.flatMap((d) => d.actions).join(' · ')
+  res.denied.map((d) => TILE[d.service].label).join(' · ')
 
 /** "Not offered: Bedrock in eu-north-1 · …": regions left out of a tile's count. */
 export const notOfferedLine = (res: ResourcesView): string =>

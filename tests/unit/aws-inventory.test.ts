@@ -118,6 +118,21 @@ describe('the tiles', () => {
     expect(v.judging).toBe(true)
   })
 
+  it('puts a refused list of the services ACTIVE reads too under Denied, never a tile reading for good', () => {
+    // A role refused eks:ListClusters showed EKS as a skeleton tile "reading…" forever: the
+    // refusal had no tile to go to, and the list was never read.
+    const v = view(readings({}), [
+      'eks:ListClusters',
+      'ec2:DescribeInstances',
+      'rds:DescribeDBInstances',
+    ])
+    for (const service of ['eks', 'ec2', 'rds'] as const) {
+      expect(v.pending).not.toContain(service)
+      expect(v.denied.map((d) => d.service)).toContain(service)
+    }
+    expect(v.denied.find((d) => d.service === 'eks')?.actions).toEqual(['eks:ListClusters'])
+  })
+
   it('puts the free ledger kinds in one line under the tiles', () => {
     const r = readings(
       {

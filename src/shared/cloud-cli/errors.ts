@@ -64,11 +64,28 @@ export function classifyCliError(tool: CliTool, result: CliResult): CliProblem {
   const via = SIGNED_OUT[tool].find(([pattern]) => pattern.test(text))?.[1]
   if (via !== undefined) return { kind: 'signed-out', via }
   if (THROTTLED.test(text)) return { kind: 'throttled' }
-  if (DENIED.test(text)) return { kind: 'denied', action: DENIED_ACTION.exec(text)?.[1] ?? null }
+  if (DENIED.test(text)) return { kind: 'denied', action: deniedAction(text) }
   const notOffered = tool === 'aws' ? NOT_EVERYWHERE.exec(text)?.[1] : undefined
   if (notOffered !== undefined) return { kind: 'not-offered', service: notOffered }
   if (OFFLINE.test(text)) return { kind: 'offline' }
   return { kind: 'error', text: firstLine(redactCliText(text)) }
+}
+
+const OPERATION = /when calling the (\w+) operation/
+
+/**
+ * The refused IAM action, as IAM spells it. SQS names it in lower case ("sqs:listqueues"), so
+ * when the operation the CLI called is the same word, its spelling is taken ("sqs:ListQueues"):
+ * the PARTIAL list and the policy it copies read like every other action.
+ */
+function deniedAction(text: string): string | null {
+  const action = DENIED_ACTION.exec(text)?.[1]
+  if (action === undefined) return null
+  const [service, name] = action.split(':') as [string, string]
+  const operation = OPERATION.exec(text)?.[1]
+  return operation !== undefined && operation.toLowerCase() === name.toLowerCase()
+    ? `${service}:${operation}`
+    : action
 }
 
 /**

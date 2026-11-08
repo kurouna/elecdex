@@ -113,3 +113,22 @@ export const gibText = (gib: number | null): string =>
     : gib >= 1024
       ? `${(gib / 1024).toFixed(1)} TiB`
       : `${Math.round(gib).toLocaleString('en-US')} GiB`
+
+/**
+ * PARTIAL's COPY POLICY: an IAM policy that allows exactly the reads this role was refused, to
+ * paste into the IAM console (or attach AWS's ReadOnlyAccess instead). Actions only, sorted and
+ * once each; never the account, the user or an ARN, which the page does not have.
+ */
+export function refusedPolicy(actions: readonly string[]): string {
+  const allowed = [...new Set(actions)].sort((a, b) => a.localeCompare(b))
+  return JSON.stringify(
+    {
+      Version: '2012-10-17',
+      Statement: [
+        { Sid: 'ElecdexAwsStatusReads', Effect: 'Allow', Action: allowed, Resource: '*' },
+      ],
+    },
+    null,
+    2,
+  )
+}

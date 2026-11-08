@@ -56,8 +56,19 @@ export { TILE } from './labels.js'
 /** What costs nothing and belongs to ATTENTION's side: one line under the tiles (§14.2 C). */
 export const ALSO_HERE: readonly AwsService[] = ['vpc', 'acm', 'stacks', 'alarms']
 
-/** The IAM prefix of each service's reads, to sort the board's refusals onto its tiles. */
+/**
+ * The IAM prefix of each service's reads, to sort the board's refusals onto its tiles. Every
+ * tiled service has its row, the ones ACTIVE reads too: a refused list with no row here left its
+ * tile "reading…" for good.
+ */
 const IAM: Partial<Record<AwsService, readonly string[]>> = {
+  ec2: ['ec2:DescribeInstances'],
+  ebs: ['ec2:DescribeVolumes'],
+  eip: ['ec2:DescribeAddresses'],
+  nat: ['ec2:DescribeNatGateways'],
+  elb: ['elasticloadbalancing:'],
+  rds: ['rds:'],
+  lambda: ['lambda:'],
   s3: ['s3:'],
   ecs: ['ecs:'],
   dynamodb: ['dynamodb:'],
@@ -82,7 +93,7 @@ const IAM: Partial<Record<AwsService, readonly string[]>> = {
   transfer: ['transfer:'],
   kms: ['kms:'],
   route53: ['route53:'],
-  eks: ['eks:ListNodegroups', 'eks:ListFargateProfiles'],
+  eks: ['eks:'],
 }
 
 const count = (rows: readonly Res[], test: (x: Res) => boolean) => rows.filter(test).length
