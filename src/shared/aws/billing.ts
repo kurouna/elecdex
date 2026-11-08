@@ -96,3 +96,14 @@ export const billingMonthKey = (now: number): string => new Date(now).toISOStrin
 export const CE_PRICE_USD = 0.01
 export const CE_CAPS = [10, 50, 100, 200, 500, 1000] as const
 export const CE_DEFAULT_CAP = 100
+
+/**
+ * GetMetricData (aws.md §14.4a, user decision 2026-11-08): USD a metric asked for (0.01 USD per
+ * 1,000), and the monthly caps offered in metrics; ON with 100,000 (1 USD) unless turned off.
+ */
+export const GMD_PRICE_USD = 0.00001
+export const GMD_CAPS = [25_000, 100_000, 500_000] as const
+export const GMD_DEFAULT_CAP = 100_000
+
+/** S3's ListBuckets and the like: requests a month at most (aws.md §14.4, no setting). */
+export const METERED_TINY_CAP = 31

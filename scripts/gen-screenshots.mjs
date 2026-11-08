@@ -1031,7 +1031,7 @@ await shoot('tron', 'elecdex-retro', {
 await shoot('business-light', 'elecdex-cloud', {
   layout: withState(preset('cloud'), { aws: { regions: ['ap-northeast-1', 'us-east-1'] } }),
   extra: async (page) => {
-    await page.getByTestId('aws-attention-row').first().waitFor()
+    await page.getByTestId('aws-forgotten-row').first().waitFor()
     await page.mouse.move(W / 2, 4)
     await page.waitForTimeout(900)
   },
@@ -1228,8 +1228,11 @@ if (only.length === 0 || only.includes('panes') || only.some((n) => n.startsWith
   await shootPane('docker', 'medium', { extra: offCards })
   await shootPane('github', 'wide', { extra: offCards })
   await shootPane('aws', 'wide', {
-    state: { regions: ['ap-northeast-1', 'us-east-1'], tab: 'active' },
-    extra: offCards,
+    state: { regions: ['ap-northeast-1', 'us-east-1'] },
+    extra: async (page) => {
+      await page.getByTestId('aws-forgotten-row').first().waitFor()
+      await offCards(page)
+    },
   })
   if (only.length === 0 || only.includes('panes') || only.includes('pane-logwatch')) {
     const council = await startCouncil({ chat: LOGWATCH_ANSWER })

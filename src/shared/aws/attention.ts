@@ -1,31 +1,14 @@
+import { AWS_LIMITS, onExtendedSupport } from './facts.js'
+import { forgotten } from './forgotten.js'
 import { type AwsReadings, type Certificate, everywhere } from './readings.js'
 import type { AttentionItem, AwsService, Weight } from './types.js'
+
+export { AWS_LIMITS, onExtendedSupport, stoppedAt } from './facts.js'
 
 /**
  * ATTENTION (aws.md §4.1): what the account's readings say needs someone, heaviest first. Pure;
  * the limits have names, and each row's card says the one it met.
  */
-
-export const AWS_LIMITS = {
-  /** A certificate or domain in use this close to its end is danger, then warn. */
-  expiryDangerDays: 7,
-  expiryWarnDays: 30,
-  /** Access keys older than this. */
-  keyAgeDays: 90,
-  /** Standard support ending this soon (EKS). */
-  supportWarnDays: 90,
-  /** A stopped instance's EBS goes on billing: warn after this many days stopped. */
-  stoppedDays: 30,
-  /** The root user signed in this recently. */
-  rootUseHours: 24,
-  /** Budgets: actual over this share of the limit. */
-  budgetActual: 0.8,
-  /** The new plan's credits end this soon; the legacy free tier is this used. */
-  planDays: 30,
-  freeTierShare: 0.85,
-  /** The same refused operation this many times in 15 minutes. */
-  deniedBurst: 10,
-} as const
 
 const DAY = 86_400_000
 
@@ -114,7 +97,31 @@ function healthFindings(r: AwsReadings): AttentionItem[] {
       why: 'AWS Backup: a job FAILED in the last 24 hours.',
     }),
   )
-  return [...impaired, ...backups]
+  return [...impaired, ...backups, ...deadLetterFindings(r)]
+}
+
+/**
+ * Messages waiting in a dead-letter queue (one another queue's redrive policy sends to): they
+ * failed and wait for somebody, so HEALTH, not "forgotten" (aws.md §14.3).
+ */
+function deadLetterFindings(r: AwsReadings): AttentionItem[] {
+  return Object.entries(r.res.sqs).flatMap(([region, queues]) => {
+    const targets = new Set((queues ?? []).flatMap((q) => (q.dlq ? [q.dlq] : [])))
+    return (queues ?? [])
+      .filter((q) => targets.has(q.n) && (q.m ?? 0) > 0)
+      .map((q) =>
+        finding({
+          id: `health:dlq:${region}:${q.n}`,
+          weight: 'warn',
+          tag: 'HEALTH',
+          title: `${(q.m ?? 0).toLocaleString('en-US')} in dead-letter queue ${q.n}`,
+          region,
+          item: { service: 'sqs', id: q.n },
+          since: r.now,
+          why: 'A queue another queue redrives to has messages (ApproximateNumberOfMessages).',
+        }),
+      )
+  })
 }
 
 function stackFindings(r: AwsReadings): AttentionItem[] {
@@ -398,67 +405,6 @@ function supportFindings(r: AwsReadings): AttentionItem[] {
   return out
 }
 
-/** When a stopped instance stopped, from its transition reason ("User initiated (2026-10-01 …)"). */
-export function stoppedAt(reason: string | null | undefined): number | null {
-  const match = /\((\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) GMT\)/.exec(reason ?? '')
-  return match ? Date.parse(`${match[1]?.replace(' ', 'T')}Z`) : null
-}
-
-const unattachedFindings = (r: AwsReadings): AttentionItem[] => [
-  ...everywhere(r.volumes)
-    .filter((volume) => volume.state === 'available')
-    .map((volume) =>
-      finding({
-        id: `cost:volume:${volume.region}:${volume.id}`,
-        weight: 'warn',
-        tag: 'COST',
-        title: `${volume.name ?? volume.id} · ${volume.size} GiB attached to nothing`,
-        region: volume.region,
-        item: { service: 'ebs', id: volume.id },
-        since: Date.parse(volume.created ?? '') || r.now,
-        why: 'An unattached volume bills its GiB every month.',
-      }),
-    ),
-  ...everywhere(r.addresses)
-    .filter((address) => !address.associated)
-    .map((address) =>
-      finding({
-        id: `cost:eip:${address.region}:${address.ip}`,
-        weight: 'warn',
-        tag: 'COST',
-        title: `Elastic IP ${address.ip} attached to nothing`,
-        region: address.region,
-        item: { service: 'eip', id: address.ip },
-        since: r.now,
-        why: 'Every public IPv4 address bills by the hour, attached or not.',
-      }),
-    ),
-]
-
-const stoppedFindings = (r: AwsReadings): AttentionItem[] =>
-  everywhere(r.instances).flatMap((instance) => {
-    const at = instance.state === 'stopped' ? stoppedAt(instance.reason) : null
-    if (at === null || days(r.now - at) <= AWS_LIMITS.stoppedDays) return []
-    return [
-      finding({
-        id: `cost:stopped:${instance.region}:${instance.id}`,
-        weight: 'warn',
-        tag: 'COST',
-        title: `${instance.name ?? instance.id} stopped ${days(r.now - at)} days ago`,
-        region: instance.region,
-        item: { service: 'ec2', id: instance.id },
-        since: at,
-        why: `Stopped over ${AWS_LIMITS.stoppedDays} days: its EBS volumes go on billing.`,
-      }),
-    ]
-  })
-
-/** An EKS cluster billed at the extended price: its version past standard support. */
-export const onExtendedSupport = (
-  cluster: { support: string | null; standardEnds: number | null },
-  now: number,
-) => cluster.support === 'EXTENDED' && cluster.standardEnds !== null && cluster.standardEnds < now
-
 const extendedFindings = (r: AwsReadings): AttentionItem[] =>
   everywhere(r.clusters)
     .filter((cluster) => onExtendedSupport(cluster, r.now))
@@ -475,11 +421,38 @@ const extendedFindings = (r: AwsReadings): AttentionItem[] =>
       }),
     )
 
-const costFindings = (r: AwsReadings): AttentionItem[] => [
-  ...unattachedFindings(r),
-  ...stoppedFindings(r),
-  ...extendedFindings(r),
-]
+/**
+ * What looks forgotten, as one line pointing at RESOURCES (user decision 2026-11-08, aws.md
+ * §14.1): the count of the billed ones and their ≈ $ a month, judged by forgotten.ts alone so
+ * ATTENTION, ACTIVE and RESOURCES agree. Nothing billed, no line.
+ */
+export function forgottenSummary(r: AwsReadings): AttentionItem | null {
+  const rows = forgotten(r).rows.filter((row) => row.billed)
+  if (rows.length === 0) return null
+  const usd = rows.reduce((sum, row) => sum + (row.monthly ?? 0), 0)
+  const unpriced = rows.filter((row) => row.notPriced).length
+  return finding({
+    id: 'cost:forgotten',
+    weight: usd >= AWS_LIMITS.forgottenDangerUsd ? 'danger' : 'warn',
+    tag: 'COST',
+    title: `${rows.length} look forgotten · ≈ ${usdText(usd)}/mo${unpriced > 0 ? ` + ${unpriced} not priced` : ''} › RESOURCES`,
+    since: r.now,
+    why: 'Billed and quiet by what was read (RESOURCES lists each, with what it was judged by). Nothing is stopped or deleted.',
+  })
+}
+
+/** "$1.6k", "$412", "$8.20". */
+export function usdText(usd: number): string {
+  if (usd >= 10_000) return `$${Math.round(usd / 1000)}k`
+  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}k`
+  if (usd >= 100) return `$${Math.round(usd)}`
+  return `$${usd.toFixed(2)}`
+}
+
+const costFindings = (r: AwsReadings): AttentionItem[] => {
+  const summary = forgottenSummary(r)
+  return [...(summary === null ? [] : [summary]), ...extendedFindings(r)]
+}
 
 const budgetFindings = (r: AwsReadings): AttentionItem[] =>
   (r.budgets ?? []).flatMap((budget) => {

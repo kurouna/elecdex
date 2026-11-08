@@ -27,8 +27,9 @@ const REGIONS = ['ap-northeast-1', 'us-east-1']
 const KEY = awsBoardKey({ profile: 'default', regions: REGIONS, activity: true, slow: false })
 
 let service: AwsService
+let last: AwsBoard | null = null
 async function boardOf(mode = 'demo'): Promise<AwsBoard> {
-  let last: AwsBoard | null = null
+  last = null
   let file = {}
   service = new AwsService({
     cli: stubAws(mode),
@@ -52,9 +53,19 @@ async function boardOf(mode = 'demo'): Promise<AwsBoard> {
   return last
 }
 
+/** The board main published last: after a KEEP, say. */
+async function boardAgain(): Promise<AwsBoard> {
+  for (let i = 0; i < 100; i++) await Promise.resolve()
+  if (last === null) throw new Error('no board')
+  return last
+}
+
 let deliver: ((board: AwsBoard) => void) | null = null
 let subscribed: string[] = []
 const costExplorer = vi.fn(async (_key: string, _answer: unknown) => true)
+const keep = vi.fn(async (key: string, id: string, on: boolean) => service.keep(key, id, on))
+const sweep = vi.fn(async (_key: string, _what?: string) => 30_000)
+const metricData = vi.fn(async (_key: string, _answer: unknown) => true)
 let held: Record<string, unknown> = {}
 
 beforeEach(() => {
@@ -62,6 +73,9 @@ beforeEach(() => {
   subscribed = []
   held = {}
   costExplorer.mockClear()
+  keep.mockClear()
+  sweep.mockClear()
+  metricData.mockClear()
   inertDom()
   finishAnimations()
   stubElecdex({
@@ -82,6 +96,11 @@ beforeEach(() => {
       costExplorer: (key: string, answer: unknown) =>
         costExplorer(structuredClone(key), structuredClone(answer)),
       quota: async () => true,
+      keep: (key: string, id: string, on: boolean) =>
+        keep(structuredClone(key), structuredClone(id), structuredClone(on)),
+      sweep: (key: string, what?: string) => sweep(structuredClone(key), structuredClone(what)),
+      metricData: (key: string, answer: unknown) =>
+        metricData(structuredClone(key), structuredClone(answer)),
       profiles: async () => ['default'],
       watching: async () => [],
     },
@@ -135,7 +154,7 @@ describe('AwsWidget', () => {
   })
 
   it('shows ATTENTION, heaviest first, and the alarm in the top row', async () => {
-    await mount()
+    await mount({ tab: 'attention' })
     await push(await boardOf())
     expect(screen.getByTestId('aws-link').textContent).toContain('LINKED')
     expect(screen.getByTestId('aws-alarms').textContent).toContain('1')
@@ -203,6 +222,192 @@ describe('AwsWidget', () => {
     await mount()
     await push(await boardOf('signedout'))
     expect(screen.getByTestId('aws-signin').textContent).toContain('aws login --profile=default')
+  })
+})
+
+/** Lays the tiles out as a grid of four, in their order, for the arrows (jsdom draws nothing). */
+function tileBoxes(): HTMLElement[] {
+  const tiles = screen.getAllByTestId('aws-tile')
+  tiles.forEach((tile, i) => {
+    const box = { left: (i % 4) * 200, top: Math.floor(i / 4) * 80, width: 190, height: 70 }
+    tile.getBoundingClientRect = () =>
+      ({ ...box, right: box.left + box.width, bottom: box.top + box.height }) as DOMRect
+  })
+  return tiles
+}
+
+describe('RESOURCES (aws.md §14)', () => {
+  it('is the tab a pane opens on, with its four figures', async () => {
+    await mount()
+    const board = await boardOf()
+    await push(board)
+    expect(screen.getByTestId('aws-tab-resources').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByTestId('aws-view-resources')).toBeTruthy()
+    const figures = screen.getByTestId('aws-res-figures').textContent ?? ''
+    expect(figures).toContain(String(board.resources.figures.services))
+    expect(screen.getByTestId('aws-res-forgotten').textContent).toContain(
+      String(board.resources.figures.forgotten.billed),
+    )
+    expect(screen.getByTestId('aws-res-newest').textContent).toContain('pt-claude-batch')
+    // The figures that lead somewhere are buttons: BILLED BY THE HOUR is ACTIVE, the next two lists.
+    await fireEvent.click(screen.getByTestId('aws-res-hourly'))
+    expect(held.tab).toBe('active')
+    await fireEvent.click(screen.getByTestId('aws-res-forgotten'))
+    expect(held).toMatchObject({ from: 'resources', drill: { service: 'forgotten', item: null } })
+    await fireEvent.click(screen.getByTestId('aws-res-new'))
+    expect(held.drill).toMatchObject({ service: 'new' })
+  })
+
+  it('lists five that look forgotten, dearest first, and KEEP sends the row key', async () => {
+    await mount()
+    const board = await boardOf()
+    await push(board)
+    const rows = screen.getAllByTestId('aws-forgotten-row')
+    expect(rows).toHaveLength(5)
+    expect(rows[0]?.textContent).toContain(board.resources.forgotten[0]?.name)
+    expect(screen.getByTestId('aws-forgotten-head').textContent).toContain(
+      `${board.resources.figures.forgotten.billed} billing`,
+    )
+    expect(screen.getByTestId('aws-forgotten-all').textContent).toContain(
+      `all ${board.resources.forgottenTotal}`,
+    )
+    // Arrow keys between the rows.
+    rows[0]?.focus()
+    await fireEvent.keyDown(rows[0] as HTMLElement, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(rows[1])
+    const button = screen.getAllByRole('button', { name: 'keep: I meant to leave it' })[1]
+    await fireEvent.click(button as HTMLElement)
+    // KEEP takes the row off the list: it blinks before it goes, and opens nothing.
+    expect(keep).not.toHaveBeenCalled()
+    await vi.waitFor(() =>
+      expect(keep).toHaveBeenCalledWith(KEY, board.resources.forgotten[1]?.key, true),
+    )
+    expect(held.drill).toBeUndefined()
+    expect(await keep.mock.results[0]?.value).toBe(true)
+  })
+
+  it('opens a LOOKS FORGOTTEN row as its resource, and Back goes straight to RESOURCES', async () => {
+    const view = await mount()
+    const board = await boardOf()
+    await push(board)
+    const first = board.resources.forgotten[0] as (typeof board.resources.forgotten)[number]
+    await fireEvent.keyDown(screen.getAllByTestId('aws-forgotten-row')[0] as HTMLElement, {
+      key: 'Enter',
+    })
+    expect(held.drill).toEqual({
+      service: first.service,
+      filters: {},
+      sort: null,
+      item: first.id,
+      direct: true,
+    })
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('aws-item-quiet').textContent).toContain(first.quietFor),
+    )
+    expect(screen.getByTestId('aws-crumbs').textContent).toContain('RESOURCES')
+    await fireEvent.click(screen.getByRole('button', { name: 'back a step' }))
+    expect(held.drill).toBeUndefined()
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    expect((document.activeElement as HTMLElement | null)?.dataset.focus).toBe(`row:${first.key}`)
+  })
+
+  it('moves between the tiles with the arrows, opens one with Enter, and comes back to it', async () => {
+    const view = await mount()
+    await push(await boardOf())
+    const tiles = tileBoxes()
+    tiles[0]?.focus()
+    await fireEvent.keyDown(tiles[0] as HTMLElement, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(tiles[1])
+    await fireEvent.keyDown(tiles[1] as HTMLElement, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(tiles[5])
+    await fireEvent.keyDown(tiles[5] as HTMLElement, { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(tiles[4])
+    // Nothing that way: the focus stays.
+    await fireEvent.keyDown(tiles[4] as HTMLElement, { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(tiles[4])
+    const service = tiles[4]?.dataset.tile
+    await fireEvent.keyDown(tiles[4] as HTMLElement, { key: 'Enter' })
+    expect(held).toMatchObject({ from: 'resources', drill: { service, item: null } })
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row').length).toBeGreaterThan(0))
+    await fireEvent.keyDown(screen.getByTestId('aws-drill-list'), { key: 'Escape' })
+    expect(held.drill).toBeUndefined()
+    expect(held.tab).toBeUndefined()
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    expect((document.activeElement as HTMLElement | null)?.dataset.tile).toBe(service)
+  })
+
+  it('MASK names no resource on RESOURCES, in its lists or its cards', async () => {
+    const view = await mount({ mask: true })
+    const board = await boardOf()
+    await push(board)
+    const text = screen.getByTestId('aws-resources').textContent ?? ''
+    for (const row of board.resources.forgotten.slice(0, 5)) {
+      expect(text).not.toContain(row.name)
+      // The reason keeps its numbers.
+      expect(text).toContain(row.quietFor)
+    }
+    expect(screen.getByTestId('aws-res-newest').textContent).not.toContain('pt-claude-batch')
+    // The list across services masks its names too.
+    await fireEvent.click(screen.getByTestId('aws-res-forgotten'))
+    await view.rerender({ state: { regions: REGIONS, mask: true, ...held } })
+    await settle()
+    await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row').length).toBeGreaterThan(5))
+    const list = screen.getByTestId('aws-drill-list').textContent ?? ''
+    for (const row of board.resources.forgotten) expect(list).not.toContain(row.name)
+  })
+
+  it('opens the forgotten list from ATTENTION, whose one line stands for them all', async () => {
+    await mount({ tab: 'attention' })
+    await push(await boardOf())
+    const rows = screen.getAllByTestId('aws-attention-row')
+    const line = rows.filter((row) => row.textContent?.includes('look forgotten'))
+    // One line, never a row a resource (user decision 2026-11-08).
+    expect(line).toHaveLength(1)
+    expect(
+      rows.filter((row) => /not attached|low use|stopped \d+ d/.test(row.textContent ?? '')),
+    ).toEqual([])
+    expect(line[0]?.getAttribute('role')).toBe('link')
+    await fireEvent.click(line[0] as HTMLElement)
+    expect(held).toMatchObject({ from: 'resources', drill: { service: 'forgotten', item: null } })
+    expect(held.tab).toBeUndefined()
+  })
+
+  it('ELSEWHERE opens the list of the other regions, which reads them again on a press', async () => {
+    const view = await mount()
+    await push(await boardOf())
+    expect(screen.getByTestId('aws-elsewhere').textContent).toContain('us-west-2')
+    await fireEvent.click(screen.getByTestId('aws-elsewhere'))
+    expect(held.drill).toMatchObject({ service: 'elsewhere', item: null })
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row')).toHaveLength(3))
+    await fireEvent.click(screen.getByTestId('aws-sweep-now'))
+    await vi.waitFor(() => expect(sweep).toHaveBeenCalledWith(KEY, 'now'))
+  })
+
+  it('⚙ sets ELSEWHERE and GetMetricData for the account, and lists what is kept', async () => {
+    await mount()
+    const board = await boardOf()
+    const row = board.resources.forgotten[0] as (typeof board.resources.forgotten)[number]
+    expect(service.keep(KEY, row.key, true)).toBe(true)
+    for (let i = 0; i < 50; i++) await Promise.resolve()
+    await push(await boardAgain())
+    await fireEvent.click(screen.getByTestId('aws-settings-toggle'))
+    await fireEvent.click(screen.getByTestId('aws-sweep-off'))
+    expect(sweep).toHaveBeenCalledWith(KEY, 'off')
+    await fireEvent.click(screen.getByTestId('aws-gmd-cap-25000'))
+    expect(metricData).toHaveBeenCalledWith(KEY, { on: true, cap: 25_000 })
+    await fireEvent.click(screen.getByTestId('aws-gmd-off'))
+    expect(metricData).toHaveBeenLastCalledWith(KEY, { on: false, cap: 100_000 })
+    expect(screen.getByTestId('aws-kept').textContent).toContain(row.name)
+    await fireEvent.click(screen.getByTestId('aws-unkeep'))
+    await vi.waitFor(() => expect(keep).toHaveBeenCalledWith(KEY, row.key, false))
   })
 })
 

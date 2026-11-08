@@ -1,4 +1,4 @@
-import { billingMonthKey, CE_DEFAULT_CAP } from '@shared/aws/billing'
+import { billingMonthKey, CE_DEFAULT_CAP, GMD_CAPS, GMD_DEFAULT_CAP } from '@shared/aws/billing'
 import { z } from 'zod'
 import type { CostExplorerSettings } from './probes.js'
 
@@ -7,7 +7,29 @@ import type { CostExplorerSettings } from './probes.js'
  * Cost Explorer's question with its frequency and monthly cap, this UTC month's paid requests,
  * the last answer it gave, and the cost QUOTA with the steps already said this month. Shared by
  * every pane on the account; main is its only writer.
+ *
+ * RESOURCES added (aws.md §14.4, §14.4a): GetMetricData's setting (ON unless turned off, user
+ * decision 2026-11-08), its monthly cap in metrics and this month's count, and the metered-tiny
+ * calls' count this month. An older file has neither and reads with the defaults.
  */
+
+const freshGmd = (month: string) => ({
+  on: true,
+  cap: GMD_DEFAULT_CAP,
+  month,
+  used: 0,
+  capReached: false,
+  readAt: null,
+})
+
+const GmdSchema = z.object({
+  on: z.boolean(),
+  cap: z.number().refine((n) => (GMD_CAPS as readonly number[]).includes(n)),
+  month: z.string(),
+  used: z.number().int().min(0),
+  capReached: z.boolean(),
+  readAt: z.number().nullable(),
+})
 
 const AccountSchema = z.object({
   ce: z.object({
@@ -29,6 +51,11 @@ const AccountSchema = z.object({
     month: z.string(),
     said: z.array(z.number()),
   }),
+  gmd: GmdSchema.default(freshGmd('')),
+  /** Metered-tiny requests this UTC month, by probe. */
+  tiny: z
+    .object({ month: z.string(), used: z.record(z.string(), z.number()) })
+    .default({ month: '', used: {} }),
 })
 export type AccountBilling = z.infer<typeof AccountSchema>
 
@@ -50,14 +77,21 @@ export const freshAccount = (now: number): AccountBilling => ({
     forecast: null,
   },
   quota: { usd: 0, steps: '80-100', month: billingMonthKey(now), said: [] },
+  gmd: freshGmd(billingMonthKey(now)),
+  tiny: { month: billingMonthKey(now), used: {} },
 })
 
-/** The account brought to this UTC month: the paid count and the said steps start again. */
+/** The account brought to this UTC month: the paid counts and the said steps start again. */
 export function rolled(account: AccountBilling, now: number): AccountBilling {
   const month = billingMonthKey(now)
   return {
     ce: account.ce.month === month ? account.ce : { ...account.ce, month, used: 0 },
     quota: account.quota.month === month ? account.quota : { ...account.quota, month, said: [] },
+    gmd:
+      account.gmd.month === month
+        ? account.gmd
+        : { ...account.gmd, month, used: 0, capReached: false },
+    tiny: account.tiny.month === month ? account.tiny : { month, used: {} },
   }
 }
 

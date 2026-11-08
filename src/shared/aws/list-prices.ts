@@ -7,7 +7,8 @@
  * with each release). Another region is the same price times its usual ratio (`REGION_RATIO`) - an
  * approximation, which every figure says with its `≈`. Savings Plans, reservations, the free
  * tier, discounts, requests and data transfer are left out. A type not in the table is counted,
- * not priced.
+ * not priced; so is what has no list price to look up (Bedrock's Provisioned Throughput, a
+ * SageMaker endpoint, whose instance its list does not say, Fargate tasks; aws.md §14.3).
  */
 
 export const PRICES_AS_OF = '2026-11'
@@ -129,6 +130,90 @@ const HOURLY = {
   clb: 0.025,
   eks: 0.1,
   eksExtended: 0.6,
+  /** A VPC interface endpoint, per Availability Zone it is in. */
+  vpceAz: 0.01,
+  tgwAttachment: 0.05,
+  vpn: 0.05,
+  /** Kinesis Data Streams: a provisioned shard, or an on-demand stream. */
+  kinesisShard: 0.015,
+  kinesisOnDemand: 0.04,
+  /** Transfer Family: a server, per protocol it serves (one is counted). */
+  transfer: 0.3,
+  /** OpenSearch Serverless: one OCU (indexing or search). */
+  aossOcu: 0.24,
+  /** DynamoDB provisioned capacity: one read or write capacity unit. */
+  ddbRcu: 0.00013,
+  ddbWcu: 0.00065,
+}
+
+/** USD a month. */
+const MONTHLY = {
+  /** A KMS customer managed key (AWS managed keys are free). */
+  kmsKey: 1,
+  /** A Route 53 hosted zone (the first 25). */
+  route53Zone: 0.5,
+  /** A CloudWatch alarm (standard resolution; the first ten are free). */
+  alarm: 0.1,
+  /** A Bedrock custom model's storage. */
+  customModel: 1.95,
+}
+
+/** USD a GB-month (or a GB, for ingestion). */
+const PER_GB = {
+  ecr: 0.1,
+  snapshot: 0.05,
+  snapshotArchive: 0.0125,
+  logsStored: 0.03,
+  /** CloudWatch Logs ingestion, Standard class; Infrequent Access is half. */
+  logsIngested: 0.5,
+  ddbStandard: 0.25,
+  ddbIa: 0.1,
+}
+
+/** ElastiCache nodes (Redis OSS / Valkey list price), USD an hour. */
+const CACHE: Record<string, number> = {
+  'cache.t3.micro': 0.017,
+  'cache.t3.small': 0.034,
+  'cache.t3.medium': 0.068,
+  'cache.t4g.micro': 0.016,
+  'cache.t4g.small': 0.032,
+  'cache.t4g.medium': 0.065,
+  'cache.m5.large': 0.156,
+  'cache.m6g.large': 0.149,
+  'cache.m7g.large': 0.158,
+  'cache.r5.large': 0.216,
+  'cache.r6g.large': 0.206,
+  'cache.r7g.large': 0.219,
+}
+
+/** OpenSearch Service domain instances, USD an hour. */
+const SEARCH: Record<string, number> = {
+  't3.small.search': 0.036,
+  't3.medium.search': 0.073,
+  'm5.large.search': 0.142,
+  'm6g.large.search': 0.128,
+  'c6g.large.search': 0.113,
+  'r6g.large.search': 0.167,
+}
+
+/** Redshift provisioned nodes, USD an hour. */
+const REDSHIFT: Record<string, number> = {
+  'dc2.large': 0.25,
+  'ra3.large': 0.543,
+  'ra3.xlplus': 1.086,
+  'ra3.4xlarge': 3.26,
+}
+
+/** SageMaker notebook and Studio instances, USD an hour. */
+const SAGEMAKER: Record<string, number> = {
+  'ml.t2.medium': 0.0464,
+  'ml.t3.medium': 0.05,
+  'ml.t3.large': 0.1,
+  'ml.t3.xlarge': 0.2,
+  'ml.m5.large': 0.115,
+  'ml.m5.xlarge': 0.23,
+  'ml.g4dn.xlarge': 0.7364,
+  'ml.g5.xlarge': 1.408,
 }
 
 /** A region's prices as a share of US East's: the usual ratio, not each price. */
@@ -156,6 +241,8 @@ export const HOURS_A_MONTH = 730
 
 const ratio = (region: string) => REGION_RATIO[region] ?? OTHER_REGION
 
+const NODE_TABLES = { cache: CACHE, search: SEARCH, redshift: REDSHIFT, sagemaker: SAGEMAKER }
+
 export const prices = {
   ec2Hour: (type: string, region: string): number | null => {
     const base = EC2[type]
@@ -176,4 +263,16 @@ export const prices = {
     return base === undefined ? null : ((base * bytes) / 1024 ** 3) * ratio(region)
   },
   hour: (what: keyof typeof HOURLY, region: string): number => HOURLY[what] * ratio(region),
+  month: (what: keyof typeof MONTHLY, region: string): number => MONTHLY[what] * ratio(region),
+  perGb: (what: keyof typeof PER_GB, gb: number, region: string): number =>
+    PER_GB[what] * gb * ratio(region),
+  /** A node type of a table (ElastiCache, OpenSearch, Redshift, SageMaker), or null. */
+  nodeHour: (
+    table: 'cache' | 'search' | 'redshift' | 'sagemaker',
+    type: string | null | undefined,
+    region: string,
+  ): number | null => {
+    const base = type ? NODE_TABLES[table][type] : undefined
+    return base === undefined ? null : base * ratio(region)
+  },
 }

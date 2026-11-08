@@ -1,7 +1,7 @@
 import path from 'node:path'
 import type { CloudAlertView } from '@shared/api'
 import { CH } from '@shared/channels'
-import type { CliCall, RunCli } from '@shared/cloud-cli/probe'
+import type { CliCall, CliPriority, RunCli } from '@shared/cloud-cli/probe'
 import { app, Notification, net } from 'electron'
 import { appWindows } from '../app-windows.js'
 import type { CloudAlert } from '../aws/service.js'
@@ -30,7 +30,7 @@ import { registerTable } from './table.js'
 export interface CloudShared {
   cli: RunCli
   executable: (tool: 'aws' | 'gh') => string | null
-  limit: <T>(work: () => Promise<T>) => Promise<T>
+  limit: <T>(work: () => Promise<T>, priority?: CliPriority) => Promise<T>
   status: StatusWatch
   alerts: CloudAlerts
   /** A pane's source is shown or no longer is: its public status follows. */

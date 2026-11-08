@@ -4,6 +4,7 @@ import type { AwsBoard } from '@shared/aws/types'
 import { CH } from '@shared/channels'
 import { app } from 'electron'
 import { BillingFileSchema, billingStore } from '../aws/billing-store.js'
+import { InventoryFileSchema, inventoryStore } from '../aws/inventory-store.js'
 import { AwsService } from '../aws/service.js'
 import { cacheFile } from '../store/cache-file.js'
 import { openExternalIfSafe } from '../window.js'
@@ -24,10 +25,20 @@ export function registerAwsIpc(shared: CloudShared): { dispose: () => void } {
     cacheFile(path.join(app.getPath('userData'), 'aws-billing.json'), BillingFileSchema, {}),
     () => Date.now(),
   )
+  const timers = {
+    setTimer: (fn: () => void, ms: number) => setTimeout(fn, ms),
+    clearTimer: (handle: unknown) => clearTimeout(handle as NodeJS.Timeout),
+  }
+  // RESOURCES' readings and memory per account (aws.md §14.4), written two seconds after a change.
+  const inventory = inventoryStore(
+    cacheFile(path.join(app.getPath('userData'), 'aws-inventory.json'), InventoryFileSchema, {}),
+    timers,
+  )
   const service = new AwsService({
     cli,
     limit: shared.limit,
     billing,
+    inventory,
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
@@ -66,6 +77,12 @@ export function registerAwsIpc(shared: CloudShared): { dispose: () => void } {
         holds(event.sender, key) ? service.answerCostExplorer(key, answer) : false,
       [CH.aws.quota]: (event, key, quota) =>
         holds(event.sender, key) ? service.setQuota(key, quota) : false,
+      [CH.aws.keep]: (event, key, id, on) =>
+        holds(event.sender, key) ? service.keep(key, id, on) : false,
+      [CH.aws.sweep]: (event, key, what) =>
+        holds(event.sender, key) ? service.sweep(key, what ?? 'now') : 0,
+      [CH.aws.metricData]: (event, key, answer) =>
+        holds(event.sender, key) ? service.metricData(key, answer) : false,
       [CH.aws.profiles]: async () => {
         const result = await shared.limit(() =>
           cli({ tool: 'aws', argv: ['configure', 'list-profiles'] }),

@@ -1125,6 +1125,32 @@ export const IPC_ROWS: IpcRow[] = [
     refused: { resolves: false },
   },
   {
+    // Not subscribed: nothing is kept, swept or turned on for these keys.
+    method: 'aws.keep',
+    bad: [
+      ['x', 'ec2:ap-northeast-1:i-0', true],
+      [123, 456, 'yes'],
+      ['x', big(10_000), false],
+    ],
+    refused: { resolves: false },
+    probe: { call: 'aws.watching' },
+  },
+  {
+    method: 'aws.sweep',
+    bad: [['x'], [123, 'now'], ['x', 'everywhere'], [big(10_000), 'on']],
+    refused: { resolves: 0 },
+    probe: { call: 'aws.watching' },
+  },
+  {
+    method: 'aws.metricData',
+    bad: [
+      ['x', { on: true }],
+      [123, null],
+      ['x', { on: true, cap: 1e9 }],
+    ],
+    refused: { resolves: false },
+  },
+  {
     method: 'cloud.open',
     bad: [['x'], [123], ['https://example.com'], [UP]],
     refused: { resolves: false },

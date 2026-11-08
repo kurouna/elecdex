@@ -109,6 +109,7 @@ On Linux, IBus may keep Ctrl+Shift+U for typing a character by its code, so the 
 | Escape | A dialog, the palette, a popped-up pane, a drag | Closes or cancels |
 | Enter | A row of AWS STATUS or GITHUB STATUS, with the focus in the pane | Opens the row: in AWS STATUS a step down its drill-down (a service, then one resource), in GITHUB STATUS the item in your browser; on the incident band, the status page |
 | Escape or Backspace | AWS STATUS or GITHUB STATUS while drilled down, with the focus in the pane and not in a text field | A step up |
+| Arrow keys | AWS STATUS's RESOURCES tab, on a tile or a LOOKS FORGOTTEN row (*unreleased*) | Up and Down move between rows; on the tiles, to the nearest tile that way, across groups |
 
 ## Keys on other keyboard layouts
 

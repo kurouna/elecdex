@@ -1,4 +1,5 @@
 import type { CredentialRow, DbInstance, Identity, Instance, Summary, Volume } from './parse.js'
+import { emptyResourceReadings, type ResourceReadings } from './resource-readings.js'
 import type { Budget, PlanView, TrailEvent } from './types.js'
 
 /**
@@ -125,6 +126,8 @@ export interface AwsReadings {
   cpu: PerRegion<Record<string, CpuWeek>>
   guardduty: PerRegion<{ high: number; medium: number; low: number }>
   reserved: PerRegion<{ id: string; end: number | null; type: string | null; count: number }[]>
+  /** RESOURCES' readings and main's memory of the account (aws.md §14). */
+  res: ResourceReadings
 }
 
 /** A per-region reading's rows, each with its region. */
@@ -167,4 +170,5 @@ export const emptyReadings = (now: number, regions: string[]): AwsReadings => ({
   cpu: {},
   guardduty: {},
   reserved: {},
+  res: emptyResourceReadings(),
 })

@@ -3,6 +3,7 @@ import type { LedgerEntry } from '@shared/cloud-cli/ledger'
 import {
   backoffMs,
   type CliCall,
+  type CliPriority,
   type CliResult,
   isDue,
   type Probe,
@@ -37,8 +38,15 @@ export interface ProbeOutcome<T = unknown> {
 
 export interface SchedulerDeps<C> extends TimerDeps {
   cli: RunCli
-  /** Two starts at most, across every board (§2.3). */
-  limit: <T>(work: () => Promise<T>) => Promise<T>
+  /** Two starts at most, across every board (§2.3); `first` calls go ahead of `later` ones. */
+  limit: <T>(work: () => Promise<T>, priority?: CliPriority) => Promise<T>
+  /** The queue a probe without `first` waits in: AWS's are `later`, GitHub's all `first`. */
+  priority?: CliPriority
+  /**
+   * One bulk reading at a time, shared by every board (aws.md §14.4): a `count` reading goes
+   * ahead of a `judge` one. Without it, bulk readings run as any other.
+   */
+  bulk?: <T>(work: () => Promise<T>, priority?: CliPriority) => Promise<T>
   record: (entry: LedgerEntry) => void
   changed: () => void
   context: () => C
@@ -180,9 +188,30 @@ export class ProbeScheduler<C> {
   #mayRun(probe: Probe<C, unknown>): boolean {
     if (!this.#started || this.#halted || this.#running.has(probe.id)) return false
     if (probe.after !== undefined && this.outcome(probe.after).at === null) return false
+    if (probe.bulk === 'judge' && !this.#countsTried()) return false
     const failures = this.#failures.get(probe.id) ?? 0
     const tried = this.outcome(probe.id).triedAt
     return failures === 0 || tried === null || this.#deps.now() - tried >= backoffMs(failures)
+  }
+
+  /**
+   * Whether every bulk count reading has been tried once (or cannot run, what it reads for having
+   * failed): the first cycle reads what is there before it judges how it is used (aws.md §14.4).
+   */
+  #countsTried(): boolean {
+    return this.#probes.every((probe) => {
+      if (probe.bulk !== 'count' || this.outcome(probe.id).triedAt !== null) return true
+      if (probe.after === undefined) return false
+      const before = this.outcome(probe.after)
+      return before.at === null && before.triedAt !== null
+    })
+  }
+
+  /** A bulk probe waits its turn in the shared lane; any other runs at once. */
+  #lane<T>(probe: Probe<C, unknown>, work: () => Promise<T>): Promise<T> {
+    const bulk = this.#deps.bulk
+    if (probe.bulk === undefined || bulk === undefined) return work()
+    return bulk(work, probe.bulk === 'count' ? 'first' : 'later')
   }
 
   /** Whether a run started in `generation` may still start the CLI. */
@@ -194,6 +223,7 @@ export class ProbeScheduler<C> {
     if (!this.#mayRun(probe)) return
     this.#running.add(probe.id)
     const generation = this.#generation
+    const priority: CliPriority = probe.first === true ? 'first' : (this.#deps.priority ?? 'first')
     const calls = {
       problem: null as CliProblem | null,
       requests: 0,
@@ -204,8 +234,9 @@ export class ProbeScheduler<C> {
     // A call that waited for a slot while the board stopped, halted or was refreshed is not
     // started: a signed-out profile must not open a credential window per queued call.
     const cli: RunCli = async (call) => {
-      const result = await this.#deps.limit(() =>
-        this.#live(generation) ? this.#deps.cli(call) : Promise.resolve(SKIPPED),
+      const result = await this.#deps.limit(
+        () => (this.#live(generation) ? this.#deps.cli(call) : Promise.resolve(SKIPPED)),
+        priority,
       )
       if (result === SKIPPED) {
         calls.skipped = true
@@ -222,7 +253,9 @@ export class ProbeScheduler<C> {
     }
     const before = this.outcome(probe.id)
     try {
-      const value = await probe.run(this.#deps.context(), cli, before.value)
+      const value = await this.#lane(probe, () =>
+        probe.run(this.#deps.context(), cli, before.value),
+      )
       if (!calls.skipped)
         this.#outcomes.set(probe.id, settled(before, value, calls, this.#deps.now()))
     } catch (error) {
@@ -257,6 +290,7 @@ export class ProbeScheduler<C> {
       else if (failures > 0 && this.#started && backoffMs(failures) < probe.every)
         this.#later(probe, backoffMs(failures))
       this.#runDependents(probe)
+      if (probe.bulk === 'count') this.#startJudges()
     }
     this.#deps.record({
       probe: probe.id,
@@ -267,6 +301,13 @@ export class ProbeScheduler<C> {
     })
     this.#deps.changed()
     if (this.#again.delete(probe.id)) void this.#run(probe)
+  }
+
+  /** The judge readings never tried, once the last count reading has been. */
+  #startJudges(): void {
+    if (!this.#countsTried()) return
+    for (const judge of this.#probes)
+      if (judge.bulk === 'judge' && this.outcome(judge.id).triedAt === null) void this.#run(judge)
   }
 
   /**
@@ -297,7 +338,10 @@ function noteFailure(
   call: CliCall,
   result: CliResult,
 ): void {
+  if (call.silent === true) return
   const problem = classifyCliError(call.tool, result)
+  // A region without the service is an answer, not a failure: no backoff, no OFFLINE (§14.4).
+  if (problem.kind === 'not-offered') return
   if (problem.kind === 'denied' && problem.action !== null) calls.denied.push(problem.action)
   if (calls.problem === null && call.tolerated !== true) calls.problem = problem
 }
@@ -318,18 +362,23 @@ function settled(
   }
 }
 
-/** A limit on how many CLI starts run at once, shared by every board. */
-export function concurrencyLimit(max: number): <T>(work: () => Promise<T>) => Promise<T> {
+/**
+ * A limit on how many CLI starts run at once, shared by every board. A `first` call waiting
+ * starts before any `later` one (aws.md §14.4); within a queue, in the order they came.
+ */
+export function concurrencyLimit(
+  max: number,
+): <T>(work: () => Promise<T>, priority?: CliPriority) => Promise<T> {
   let running = 0
-  const queue: (() => void)[] = []
+  const queues: Record<CliPriority, (() => void)[]> = { first: [], later: [] }
   const next = (): void => {
     if (running >= max) return
-    const start = queue.shift()
+    const start = queues.first.shift() ?? queues.later.shift()
     if (start !== undefined) start()
   }
-  return (work) =>
+  return (work, priority = 'first') =>
     new Promise((resolve, reject) => {
-      queue.push(() => {
+      queues[priority].push(() => {
         running += 1
         work()
           .then(resolve, reject)

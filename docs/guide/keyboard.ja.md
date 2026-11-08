@@ -109,6 +109,7 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 | Escape | ダイアログ、パレット、ポップアップしたペイン、ドラッグ中 | 閉じる、または取り消す |
 | Enter | AWS STATUS か GITHUB STATUS の行（フォーカスがペインにあるとき） | 行を開く: AWS STATUS では掘り下げの 1 段下（サービス、次に 1 つのリソース）、GITHUB STATUS ではその項目をブラウザーで。障害の帯ではステータスのページ |
 | Escape か Backspace | 掘り下げている AWS STATUS か GITHUB STATUS（フォーカスがペインにあり、入力欄にないとき） | 1 段上へ |
+| 矢印キー | AWS STATUS の RESOURCES タブのタイルか LOOKS FORGOTTEN の行（*未リリース*） | 上下で行を移る。タイルでは、分類をまたいでその向きのいちばん近いタイルへ |
 
 ## ほかのキー配列でのキー
 

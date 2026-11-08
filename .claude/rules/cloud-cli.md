@@ -37,12 +37,19 @@ the files above is read or edited.
 - **Read only.** Every call is a read named in a probe table (main/aws/probes.ts,
   main/github/probes.ts) or the drill-down's on-demand reads; the catalog tests (tests/unit/aws.test.ts,
   github.test.ts) hold every argv to the allowed verbs. gh's REST calls always say `-X GET` (`-f`
-  would make a POST); GraphQL sends queries only. AWS never calls S3's own API, GetMetricData,
-  logs, secrets, Health or Support.
-- **Free APIs only, but Cost Explorer.** The one paid probe has a `PaidCost` (its setting and its
-  price), runs only when the account's answer is ON, under its monthly cap, at its frequency, and
-  is asked about once per account in the pane (TURN ON and KEEP OFF alike). A new paid call is a
-  new `PaidCost` row and a user decision.
+  would make a POST); GraphQL sends queries only. Of S3's own API AWS calls only
+  `s3api list-buckets`, of CloudWatch Logs only `describe-log-groups` (user decision 2026-11-08,
+  aws.md §14.4); never secrets, Health, Support, or CloudWatch's widget images and rule reports.
+- **Free APIs only, but the `PAID_PROBES` rows.** Cost Explorer (opt-in, asked once per account in
+  the pane, TURN ON and KEEP OFF alike) and GetMetricData (user decision 2026-11-08, aws.md §14.4a:
+  ON by default, counted by metric, capped by month, back to `list-metrics` and the statistics at
+  the cap). Each has a `PaidCost` (its setting, its price, its cap) and runs only when ON, under
+  its cap, at its frequency. `s3api list-buckets` is `metered-tiny`: a fixed cap of 31 a month, no
+  setting. A new paid call is a new `PaidCost` row and a user decision.
+- **RESOURCES' reads are per account and one at a time.** The daily and six-hourly lists are
+  shared by every pane on the account (aws-inventory.json); bulk reads run one at a time across
+  panes, after the alarms, identity, health, trail and GitHub; a region that does not offer a
+  service is `not-offered`, never OFFLINE, PARTIAL or a back-off.
 - **Only while seen.** A board is subscribed while the pane is `seen`; nothing is in
   `keepWhileHidden`. The public status and the QUOTA ride on the same subscription (user decision
   2026-11-08: no reading while hidden; toast when shown). `watching()` answers `board:<key>` and
@@ -57,6 +64,6 @@ the files above is read or edited.
 - A probe that reads for another's answer says `after`, and the other's `keyOf` decides when it
   reads again; a per-region or per-repository probe never waits a whole period on an empty list.
 - Tests: `ELECDEX_CLOUD_STUB=1` (`=demo`, `=signedout`, `=nocli`, `=offline`, AWS `=partial`,
-  `=nobilling`, GitHub `=ratelow`, `=finegrained`), `globalThis.__elecdexCloud` changes it
+  `=nobilling`, `=quiet` (nothing looks forgotten), `=noregion` (a region offers no service), GitHub `=ratelow`, `=finegrained`), `globalThis.__elecdexCloud` changes it
   (tests/e2e/support/cloud.ts); the status URLs point at a closed port. Nothing here ever reaches
   a real account or the network.

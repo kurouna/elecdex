@@ -586,3 +586,140 @@ describe('ProbeScheduler', () => {
     expect(seen).toEqual([null, 'v'])
   })
 })
+
+describe('RESOURCES in the shared core (aws.md §14.4)', () => {
+  it("sends a region without the service to not-offered, not OFFLINE, and the network's failure to OFFLINE still", () => {
+    const text = (host: string) => `Could not connect to the endpoint URL: "https://${host}/"`
+    for (const service of ['bedrock', 'bedrock-agent', 'bedrock-agentcore-control', 'aoss'])
+      expect(
+        classifyCliError(
+          'aws',
+          result({ stderr: text(`${service}.ap-northeast-1.amazonaws.com`) }),
+        ),
+      ).toEqual({
+        kind: 'not-offered',
+        service,
+      })
+    expect(
+      classifyCliError('aws', result({ stderr: text('ec2.ap-northeast-1.amazonaws.com') })),
+    ).toEqual({ kind: 'offline' })
+    expect(classifyCliError('aws', result({ stderr: text('sts.amazonaws.com') }))).toEqual({
+      kind: 'offline',
+    })
+    // Not a problem for the link word: the board is linked, not PARTIAL nor OFFLINE.
+    expect(linkOf([{ kind: 'not-offered', service: 'bedrock' }], true)).toBe('linked')
+  })
+
+  it('counts a metered-tiny call on its own, and a price by the metric outside the requests', () => {
+    const at = Date.UTC(2026, 10, 8, 12)
+    const tiny = { metered: 'tiny' as const, monthlyCap: 31, decided: '2026-11-08' }
+    const gmd = { setting: 'aws.getMetricData', perMetricUsd: 0.00001 }
+    let state = recordReading(emptyLedger(at), { probe: 'buckets', cost: tiny, requests: 1 }, at)
+    state = recordReading(state, { probe: 'gmd', cost: gmd, requests: 3 }, at)
+    expect(state.paidRequests).toBe(0)
+    expect(
+      summarize(state, [
+        { id: 'buckets', every: MINUTE, cost: tiny },
+        { id: 'gmd', every: MINUTE, cost: gmd },
+      ]),
+    ).toMatchObject({ requests: 4, meteredTiny: 1, paidRequests: 0, paidMetrics: 0, paidNotes: [] })
+  })
+
+  it('starts a waiting first call before any later one', async () => {
+    const limit = concurrencyLimit(1)
+    const order: string[] = []
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const all = [
+      limit(() => gate),
+      limit(async () => void order.push('later-1'), 'later'),
+      limit(async () => void order.push('later-2'), 'later'),
+      limit(async () => void order.push('first'), 'first'),
+    ]
+    release()
+    await Promise.all(all)
+    expect(order).toEqual(['first', 'later-1', 'later-2'])
+  })
+
+  it("gives a probe without `first` the scheduler's queue, and a `first` one the first", async () => {
+    const h = harness(() => result({ ok: true, code: 0, stdout: 'x' }))
+    const seen: string[] = []
+    const limit = h.deps.limit
+    const s = new ProbeScheduler(
+      {
+        ...h.deps,
+        priority: 'later',
+        limit: (work, priority) => {
+          seen.push(priority ?? 'none')
+          return limit(work, priority)
+        },
+      },
+      [probe('alarms', { first: true }), probe('stacks')],
+    )
+    s.start()
+    await h.flush()
+    expect(seen).toEqual(['first', 'later'])
+  })
+
+  it('runs bulk readings one at a time, the counts before the judgements, which wait for every count', async () => {
+    const h = harness(() => result({ ok: true, code: 0, stdout: 'x' }))
+    let running = 0
+    let most = 0
+    const order: string[] = []
+    const ends: (() => void)[] = []
+    const slow =
+      (id: string): Probe<object, unknown>['run'] =>
+      async (_ctx, cli) => {
+        running += 1
+        most = Math.max(most, running)
+        order.push(id)
+        await new Promise<void>((resolve) => ends.push(resolve))
+        running -= 1
+        return (await cli({ tool: 'aws', argv: [id] })).stdout
+      }
+    const s = new ProbeScheduler({ ...h.deps, bulk: concurrencyLimit(1) }, [
+      probe('judge', { bulk: 'judge' }, slow('judge')),
+      probe('count-1', { bulk: 'count' }, slow('count-1')),
+      probe('count-2', { bulk: 'count' }, slow('count-2')),
+      probe('other'),
+    ])
+    s.start()
+    await h.flush()
+    // The judgement does not even queue before the counts were tried; the others go at once.
+    expect(order).toEqual(['count-1'])
+    expect(h.calls).toEqual(['other'])
+    while (ends.length > 0) {
+      ends.shift()?.()
+      await h.flush()
+    }
+    expect(order).toEqual(['count-1', 'count-2', 'judge'])
+    expect(most).toBe(1)
+  })
+
+  it('a silent call marks nothing, not even PARTIAL, and a region without the service backs nothing off', async () => {
+    const denied = result({
+      stderr: 'AccessDenied … not authorized to perform: ec2:DescribeInstances',
+    })
+    const absent = result({
+      stderr:
+        'Could not connect to the endpoint URL: "https://bedrock.me-central-1.amazonaws.com/"',
+    })
+    const h = harness((call) => (call.argv[0] === 'sweep' ? denied : absent))
+    const s = new ProbeScheduler(h.deps, [
+      probe('sweep', {}, async (_ctx, cli) => {
+        await cli({ tool: 'aws', argv: ['sweep'], silent: true })
+        return 'read'
+      }),
+      probe('bedrock', {}, async (_ctx, cli) => {
+        await cli({ tool: 'aws', argv: ['bedrock'] })
+        return 'read'
+      }),
+    ])
+    s.start()
+    await h.flush()
+    expect(s.denied()).toEqual([])
+    expect(s.problems()).toEqual([null, null])
+  })
+})

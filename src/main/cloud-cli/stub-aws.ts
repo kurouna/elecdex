@@ -1,4 +1,12 @@
 import type { CliCall, CliResult, RunCli } from '@shared/cloud-cli/probe'
+import {
+  allAlarms,
+  listMetrics,
+  metricData,
+  resourceRoutes,
+  resourceStatistics,
+  sweepAnswer,
+} from './stub-aws-resources.js'
 
 /**
  * A stand-in AWS CLI for tests and screenshots (`ELECDEX_CLOUD_STUB`): never the real CLI, never
@@ -6,10 +14,21 @@ import type { CliCall, CliResult, RunCli } from '@shared/cloud-cli/probe'
  * against AWS CLI 2.39.6, 2026-11-07), for a made-up account "acme-prod". The mode comes from the
  * variable, or from `globalThis.__elecdexCloud.aws` so an e2e spec can change it while the app
  * runs: demo (the default), signedout, partial, nobilling, nocli, offline, process (a profile
- * signing in through credential_process).
+ * signing in through credential_process), and RESOURCES' quiet (nothing looks forgotten) and
+ * noregion (Bedrock and OpenSearch Serverless offered nowhere the pane reads but us-east-1);
+ * RESOURCES' answers are in stub-aws-resources.ts.
  */
 
-type Mode = 'demo' | 'signedout' | 'partial' | 'nobilling' | 'nocli' | 'offline' | 'process'
+type Mode =
+  | 'demo'
+  | 'signedout'
+  | 'partial'
+  | 'nobilling'
+  | 'nocli'
+  | 'offline'
+  | 'process'
+  | 'quiet'
+  | 'noregion'
 const MODES: readonly Mode[] = [
   'demo',
   'signedout',
@@ -18,6 +37,8 @@ const MODES: readonly Mode[] = [
   'nocli',
   'offline',
   'process',
+  'quiet',
+  'noregion',
 ]
 
 const ACCOUNT = '482913507216'
@@ -289,9 +310,16 @@ const credentialReport = (now: number) =>
 type Route = (call: CliCall, region: string, now: number, mode: Mode) => CliResult
 
 const regional =
-  <T>(table: (now: number) => Record<string, T[]>): Route =>
-  (_c, region, now) =>
-    ok(table(now)[region] ?? [])
+  <T>(
+    table: (now: number) => Record<string, T[]>,
+    quiet: (row: T) => T | null = (row) => row,
+  ): Route =>
+  (_c, region, now, mode) =>
+    ok(
+      (table(now)[region] ?? [])
+        .map((row) => (mode === 'quiet' ? quiet(row) : row))
+        .filter((row): row is T => row !== null),
+    )
 
 const ROUTES: Record<string, Route> = {
   // The region; credential_process is not set (exit 1, as the real CLI answers a missing key).
@@ -309,6 +337,8 @@ const ROUTES: Record<string, Route> = {
   'iam generate-credential-report': () => ok('COMPLETE'),
   'iam get-credential-report': (_c, _r, now) => ok(credentialReport(now)),
   'cloudwatch list-metrics': (call, region, _now, mode) => {
+    const resources = listMetrics(call, region, mode)
+    if (resources !== null) return resources
     const namespace = call.argv[call.argv.indexOf('--namespace') + 1]
     if (namespace === 'AWS/Billing')
       return ok(
@@ -329,7 +359,9 @@ const ROUTES: Record<string, Route> = {
       ]),
     )
   },
-  'cloudwatch get-metric-statistics': (call, region, now) => statistics(call, region, now),
+  'cloudwatch get-metric-statistics': (call, region, now, mode) =>
+    resourceStatistics(call, now, mode) ?? statistics(call, region, now, mode),
+  'cloudwatch get-metric-data': (call, _region, now, mode) => metricData(call, now, mode),
   'budgets describe-budgets': (_c, _r, _n, mode) =>
     mode === 'partial'
       ? denied('budgets:ViewBudget')
@@ -343,23 +375,25 @@ const ROUTES: Record<string, Route> = {
     ok([{ n: 'acme.example', auto: true, exp: iso(now + 200 * DAY) }]),
   'savingsplans describe-savings-plans': (_c, _r, now) =>
     ok([{ id: 'sp-0acme1', end: iso(now + 19 * DAY), type: 'Compute' }]),
-  'cloudwatch describe-alarms': (_c, region, now) =>
-    ok(
-      region === 'ap-northeast-1'
-        ? {
-            m: [
-              {
-                n: 'orders-db-cpu-high',
-                s: iso(now - 42 * 60_000),
-                ns: 'AWS/RDS',
-                metric: 'CPUUtilization',
-                dim: 'orders-db',
-              },
-            ],
-            c: [],
-          }
-        : { m: [], c: [] },
-    ),
+  'cloudwatch describe-alarms': (call, region, now, mode) =>
+    !call.argv.includes('--state-value')
+      ? allAlarms(region, mode)
+      : ok(
+          region === 'ap-northeast-1'
+            ? {
+                m: [
+                  {
+                    n: 'orders-db-cpu-high',
+                    s: iso(now - 42 * 60_000),
+                    ns: 'AWS/RDS',
+                    metric: 'CPUUtilization',
+                    dim: 'orders-db',
+                  },
+                ],
+                c: [],
+              }
+            : { m: [], c: [] },
+        ),
   'ec2 describe-instance-status': () => ok([]),
   'cloudformation list-stacks': (_c, region, now) =>
     ok(
@@ -394,11 +428,11 @@ const ROUTES: Record<string, Route> = {
       ])
     return ok(region === 'ap-northeast-1' ? TRAIL(now) : [])
   },
-  'ec2 describe-instances': regional(INSTANCES),
-  'ec2 describe-volumes': regional(VOLUMES),
-  'ec2 describe-addresses': (_c, region) =>
+  'ec2 describe-instances': regional(INSTANCES, (i) => (i.state === 'stopped' ? null : i)),
+  'ec2 describe-volumes': regional(VOLUMES, (v) => (v.state === 'available' ? null : v)),
+  'ec2 describe-addresses': (_c, region, _n, mode) =>
     ok(
-      region === 'ap-northeast-1'
+      region === 'ap-northeast-1' && mode !== 'quiet'
         ? [
             {
               ip: '203.0.113.10',
@@ -544,7 +578,7 @@ const ROUTES: Record<string, Route> = {
   'ce get-cost-forecast': () => ok({ Total: { Amount: '1080.40' } }),
 }
 
-function statistics(call: CliCall, region: string, now: number): CliResult {
+function statistics(call: CliCall, region: string, now: number, mode: Mode): CliResult {
   const namespace = call.argv[call.argv.indexOf('--namespace') + 1]
   const dims = call.argv.filter((a) => a.startsWith('Name='))
   if (namespace === 'AWS/Billing') {
@@ -561,7 +595,7 @@ function statistics(call: CliCall, region: string, now: number): CliResult {
     return ok(found ? [[iso(now - DAY), found[2]]] : [])
   }
   const id = dims[0]?.split('Value=')[1] ?? ''
-  const idle = id === 'i-0a1b2c3d4e5f60003'
+  const idle = id === 'i-0a1b2c3d4e5f60003' && mode !== 'quiet'
   return ok(
     Array.from({ length: 7 }, (_, i) => ({
       t: iso(now - (7 - i) * DAY),
@@ -570,6 +604,8 @@ function statistics(call: CliCall, region: string, now: number): CliResult {
     })),
   )
 }
+
+const RESOURCES: Record<string, Route> = resourceRoutes()
 
 const regionOf = (call: CliCall) => call.argv[call.argv.indexOf('--region') + 1] ?? 'us-east-1'
 
@@ -597,9 +633,12 @@ export function stubAws(initial: string): RunCli {
         '',
         "aws: [ERROR]: Unable to refresh login credentials because of a change in your password. Please reauthenticate with your new password using 'aws login'.",
       )
-    const route = ROUTES[verb]
+    const now = Date.now()
+    const swept = sweepAnswer(call, regionOf(call), now, mode)
+    if (swept !== null) return swept
+    const route = ROUTES[verb] ?? RESOURCES[verb]
     return route === undefined
       ? result(false, '', `aws: [ERROR]: the stand-in does not answer ${verb}`)
-      : route(call, regionOf(call), Date.now(), mode)
+      : route(call, regionOf(call), now, mode)
   }
 }

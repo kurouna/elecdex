@@ -11,7 +11,14 @@ import type {
 import type { AttachmentView, AttachResult, AttachUpload } from './ai-attach.js'
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
-import type { AwsBoard, AwsService, DrillItem, DrillRow, HistoryEvent } from './aws/types.js'
+import type {
+  AwsBoard,
+  AwsList,
+  AwsService,
+  DrillItem,
+  DrillRow,
+  HistoryEvent,
+} from './aws/types.js'
 import type { BackgroundState } from './background.js'
 import type {
   Chip8ImportChange,
@@ -619,8 +626,8 @@ export interface AwsApi {
   subscribe(key: string, handler: (board: AwsBoard) => void): () => void
   /** Every reading now, at most once in 30 s per board: answers the wait left (ms). */
   refresh(key: string): Promise<number>
-  /** A service's list for the drill-down, from main's last reading. */
-  drill(key: string, service: AwsService): Promise<DrillRow[] | null>
+  /** A service's list for the drill-down, or one of RESOURCES' lists, from main's last reading. */
+  drill(key: string, service: AwsService | AwsList): Promise<DrillRow[] | null>
   /** One resource of that list: its fields, what is related, its findings. */
   item(key: string, service: AwsService, id: string): Promise<DrillItem | null>
   /** Its CloudTrail, read when HISTORY is pressed (free; kept five minutes). */
@@ -634,6 +641,21 @@ export interface AwsApi {
   ): Promise<boolean>
   /** The cost QUOTA of the board's account, USD (0 is off). */
   quota(key: string, quota: { usd: number; steps: '80-100' | '100' }): Promise<boolean>
+  /**
+   * KEEP (aws.md §14.3): marks a row of RESOURCES' LOOKS FORGOTTEN, by its `key`, as meant to
+   * stay (`on`), or takes a mark off. Main takes only keys of its own last list and marks.
+   */
+  keep(key: string, id: string, on: boolean): Promise<boolean>
+  /**
+   * ELSEWHERE's sweep of the regions the pane does not show: `now` reads them again (at most
+   * once in 30 s; answers the wait left, ms), `on` and `off` set the account's weekly sweep.
+   */
+  sweep(key: string, what?: 'now' | 'on' | 'off'): Promise<number>
+  /** GetMetricData for the board's account (a paid API, ON by default; aws.md §14.4a). */
+  metricData(
+    key: string,
+    answer: { on: boolean; cap?: 25_000 | 100_000 | 500_000 },
+  ): Promise<boolean>
   /** The profiles AWS CLI knows (`aws configure list-profiles`, a local read). */
   profiles(): Promise<string[]>
   watching(): Promise<string[]>

@@ -9,7 +9,7 @@ import type { StatusIncident } from '../cloud-cli/status.js'
 
 export type Weight = 'danger' | 'warn' | 'info' | 'quiet'
 
-/** The services the pane counts and drills into (aws.md §5.5). */
+/** The services the pane counts and drills into (aws.md §5.5, §14.4b). */
 export type AwsService =
   | 'ec2'
   | 'ebs'
@@ -23,6 +23,33 @@ export type AwsService =
   | 'stacks'
   | 'acm'
   | 'alarms'
+  | 'ecs'
+  | 'dynamodb'
+  | 'sqs'
+  | 'sns'
+  | 'apigw'
+  | 'cloudfront'
+  | 'bedrock'
+  | 'aoss'
+  | 'logs'
+  | 'vpce'
+  | 'tgw'
+  | 'vpn'
+  | 'sagemaker'
+  | 'snapshots'
+  | 'amis'
+  | 'ecr'
+  | 'elasticache'
+  | 'opensearch'
+  | 'redshift'
+  | 'kinesis'
+  | 'transfer'
+  | 'kms'
+  | 'route53'
+  | 'vpc'
+
+/** RESOURCES' lists across services (aws.md §14.5): the page drills into them like a service. */
+export type AwsList = 'forgotten' | 'new' | 'elsewhere'
 
 /** A pane's board: one profile, up to four regions (aws.md §2, §8). */
 export interface AwsBoardSpec {
@@ -177,6 +204,184 @@ export interface ChangeLine {
   parts: { service: AwsService; added: string[]; removed: string[] }[]
 }
 
+/**
+ * Why a resource looks forgotten (aws.md §14.3): one word, from which its sentence, its tag and
+ * the drill-down's facet are all made (shared/aws/forgotten.ts) - never a string of its own.
+ */
+export type ForgottenReason =
+  | 'low-use'
+  | 'stopped'
+  | 'unattached'
+  | 'no-traffic'
+  | 'no-targets'
+  | 'no-requests'
+  | 'no-connections'
+  | 'desired-0'
+  | 'empty-cluster'
+  | 'no-nodes'
+  | 'empty'
+  | 'unchanged'
+  | 'orphan-log-group'
+  | 'no-events'
+  | 'unused-capacity'
+  | 'no-messages'
+  | 'no-subscribers'
+  | 'not-invoked'
+  | 'pt-unused'
+  | 'unused-model'
+  | 'no-searches'
+  | 'alarm-orphan'
+  | 'orphan-snapshot'
+  | 'unused-ami'
+  | 'no-pulls'
+  | 'elsewhere'
+  | 'tunnel-down'
+  | 'left-running'
+  | 'key-disabled'
+  | 'empty-zone'
+  | 'no-records'
+  | 'no-transfers'
+
+/** One row of LOOKS FORGOTTEN (aws.md §14.2 B): what was seen, never "delete it". */
+export interface ForgottenRow {
+  /** `kind:region:id`: what the page sends back for KEEP. */
+  key: string
+  service: AwsService
+  /** The resource's id, for the third step (`aws.item`). */
+  id: string
+  region: string
+  name: string
+  reason: ForgottenReason
+  /** The sentence ("no traffic 30 d", "not attached since 11-01 (first seen)"). */
+  why: string
+  /** "14 d+", "120 d", "since 11-01" or "unknown": time only, never the source. */
+  quietFor: string
+  /** Days the judgement covers; under the quiet days (30) it is ranked lower. */
+  window: number
+  /** It costs money now (by the hour or the month), not only by use. */
+  billed: boolean
+  /** ≈ USD a month from now at list price; null when not billed or not priced. */
+  monthly: number | null
+  notPriced: boolean
+  /** danger from `AWS_LIMITS.forgottenDangerUsd` a month, warn when billed, quiet when not. */
+  weight: Weight
+  /** What it was judged by, for the card ("AWS/NATGateway · no data point in 14 d"). */
+  source: string
+  /** Its KEEP was taken off: its ≈ $ more than doubled since it was marked. */
+  reshown: boolean
+}
+
+export type TileGroup =
+  | 'COMPUTE'
+  | 'STORAGE'
+  | 'DATABASE'
+  | 'NETWORK'
+  | 'AI'
+  | 'EDGE & API'
+  | 'INTEGRATION'
+  | 'SECURITY'
+  | 'LOGS'
+
+/** A part of a tile's thin state line: how many, and its tone. */
+export interface TileSegment {
+  n: number
+  tone: 'ok' | 'warn' | 'danger' | 'off' | 'second'
+  label: string
+}
+
+/** One service's tile (aws.md §14.2 C). */
+export interface ResourceTile {
+  service: AwsService
+  label: string
+  /** The big number and its noun: "10 running", "9 buckets", "152 log groups". */
+  count: number
+  noun: string
+  segments: TileSegment[]
+  /** The legend's facts: "2 idle", "1.2 TB", "3 kept forever". */
+  legend: { text: string; tone: 'ok' | 'warn' | 'danger' | null }[]
+  /** The pane's regions it has something in. */
+  regions: string[]
+  forgottenBilled: number
+  forgottenQuiet: number
+  /** The forgotten ones' ≈ $ a month; the frame warns from `AWS_LIMITS.tileWarnUsd`. */
+  forgottenUsd: number
+  frame: 'danger' | 'warn' | null
+  /** ≈ $ a month of what bills by the hour or the month; null when usage-based only. */
+  monthly: number | null
+  /** "12.4 TB" for what is counted by size. */
+  size: string | null
+  usageBased: boolean
+  /** Came and went in seven days (NEW 7 D). */
+  added: number
+  removed: number
+}
+
+/** The Bedrock tile's two halves: the models used in 30 days, and what is placed (aws.md §14.2 C). */
+export interface BedrockTile {
+  models: {
+    id: string
+    name: string
+    /** 30 days, when GetMetricData or the statistics read them; null when only seen listed. */
+    invocations: number | null
+    tokensIn: number | null
+    tokensOut: number | null
+    regions: string[]
+  }[]
+  placed: {
+    kind: 'pt' | 'custom' | 'imported' | 'kb' | 'agent' | 'guardrail' | 'profile' | 'runtime'
+    count: number
+    weight: Weight | null
+  }[]
+}
+
+export interface ResourcesView {
+  /** The usage metrics are not read for every region yet: "judging… (within 10 min)". */
+  judging: boolean
+  figures: {
+    services: number
+    resources: number
+    regions: number
+    billedByHour: { perHour: number; perMonth: number; count: number }
+    forgotten: { billed: number; usd: number; notPriced: number; free: number; kept: number }
+    added: number
+    removed: number
+    newest: { service: AwsService; name: string; at: number } | null
+  }
+  /** Ranked; the first 20 (the drill-down's `forgotten` list has them all). */
+  forgotten: ForgottenRow[]
+  forgottenTotal: number
+  groups: { group: TileGroup; tiles: ResourceTile[] }[]
+  bedrock: BedrockTile | null
+  /** Read, and nothing there: "Checked, none here: ECS · …". */
+  none: AwsService[]
+  /** Not read for the first time yet (a skeleton tile). */
+  pending: AwsService[]
+  /** Refused, by operation: "Denied: dynamodb:ListTables". */
+  denied: { service: AwsService; actions: string[] }[]
+  /** Regions that do not offer a service: left out of its count. */
+  notOffered: { service: AwsService; regions: string[] }[]
+  alsoHere: { service: AwsService; count: number; noun: string; note: string | null }[]
+  elsewhere: {
+    on: boolean
+    readAt: number | null
+    regions: { region: string; parts: { service: AwsService; count: number; text: string }[] }[]
+  }
+  /** Billed this month (the metric's ServiceName) and not read here; under $1 left out. */
+  billedNotListed: { name: string; usd: number }[]
+  /** The resources marked KEEP, for ⚙ (aws.md §14.3). */
+  kept: { key: string; service: AwsService; name: string; at: number; usd: number }[]
+  gmd: {
+    on: boolean
+    cap: number
+    used: number
+    usd: number
+    capReached: boolean
+    readAt: number | null
+  }
+  quietDays: number
+  prices: { asOf: string }
+}
+
 export interface AwsBoard {
   key: string
   link: CliLink
@@ -190,6 +395,8 @@ export interface AwsBoard {
   account: { id: string; alias: string | null; arn: string } | null
   regions: string[]
   attention: AttentionItem[]
+  /** RESOURCES, the first tab (aws.md §14). */
+  resources: ResourcesView
   /** How many checks ran, for "nothing needs attention · 31 checks". */
   checks: number
   alarms: number
@@ -211,6 +418,8 @@ export interface AwsBoard {
 /** A drill-down list's row (the second step): main's reading, the columns by `DRILL`. */
 export interface DrillRow {
   id: string
+  /** A row of a list across services (forgotten, new, elsewhere): the service its id is of. */
+  service?: AwsService
   region: string
   name: string
   weight: Weight | null
@@ -227,6 +436,9 @@ export interface DrillItem {
   fields: { label: string; value: string; masked?: boolean }[]
   related: { service: AwsService; id: string; name: string; note: string }[]
   attention: AttentionItem[]
+  /** Why it looks forgotten, if it does (aws.md §14.5), and whether it is kept. */
+  forgotten?: ForgottenRow | null
+  kept?: boolean
 }
 
 export interface HistoryEvent {

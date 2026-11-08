@@ -47,11 +47,12 @@ export function ledgerLine(ledger: LedgerSummary, tool: 'aws' | 'gh'): string {
   const parts = [`requests today ${ledger.requests}`]
   if (tool === 'gh') parts.push(`304 free ${ledger.notModified}`)
   else parts.push(`free ${ledger.free}`, `free tier ${ledger.freeTier}`)
-  parts.push(
-    ledger.paidRequests > 0
-      ? `paid APIs ${ledger.paidRequests} · $${ledger.paidUsd.toFixed(2)} this month`
-      : 'paid APIs 0',
-  )
+  // GetMetricData is counted by the metric, not the request (aws.md §14.4a): its own figure.
+  const paid = [`paid APIs ${ledger.paidRequests}`]
+  if (ledger.paidMetrics > 0) paid.push(`GMD ${ledger.paidMetrics.toLocaleString('en-US')} metrics`)
+  if (ledger.paidRequests > 0 || ledger.paidMetrics > 0)
+    paid.push(`$${ledger.paidUsd.toFixed(2)} this month`)
+  parts.push(...paid, ...ledger.paidNotes)
   return parts.join(' · ')
 }
 

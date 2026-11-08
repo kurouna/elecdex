@@ -146,11 +146,13 @@ interface Probe<T> {
   呼び出しを集めて調べる）:
   - aws の操作はすべて `FREE_OPERATIONS`（名前の表）にある。名前の形は `describe-` `list-` `get-` `lookup-`
     で、例外は `iam generate-credential-report` だけ（読み取りの区分の操作。名前で許す）
-  - **有料の呼び出しは `PAID_PROBES` の表にあるものだけ**（今は AWS の Cost Explorer の 3 つ、[aws.md](aws.md) §3.3）。
+  - **有料の呼び出しは `PAID_PROBES` の表にあるものだけ**（今は AWS の Cost Explorer の 3 つ（[aws.md](aws.md) §3.3）と、
+    RESOURCES の GetMetricData（§14.4a、利用者の決定 2026-11-08: 既定 ON、本数で数え、月の上限で無料の読み取りに戻る））。
+    `s3api list-buckets` は別の区分 `metered-tiny`（固定の上限 月 31 回、設定なし）。
     それぞれが、既定 OFF の設定の鍵、1 要求の値段、月の上限の鍵を持ち、時刻表は設定が OFF なら呼ばず、上限に
     達したら呼ばない（単体テスト）。`PAID_PROBES` の外で有料の操作（`FREE_OPERATIONS` に無いもの）を出せば落ちる
-  - 禁止の表（`ce` の `PAID_PROBES` 以外、`cloudwatch get-metric-data`・`get-metric-widget-image`・`get-insight-rule-report`、
-    `s3api`、`s3`、`logs`、`ssm get-parameter*`、`secretsmanager`、`--endpoint-url`、`--debug`）に当たらない
+  - 禁止の表（`ce` の `PAID_PROBES` 以外、`cloudwatch get-metric-widget-image`・`get-insight-rule-report`、
+    `list-buckets` 以外の `s3api`、`s3`、`describe-log-groups` 以外の `logs`、`ssm get-parameter*`、`secretsmanager`、`--endpoint-url`、`--debug`）に当たらない
   - aws の呼び出しはすべて `--query` と `--max-items` と `--region` を持つ
   - gh は `api` と `auth status` だけ。REST の `api` は必ず `-X GET`（`-f` / `-F` を付けると gh は黙って POST に
     する: §5）。`graphql` は本文が queries.ts の定数で、テストがそれを GraphQL として構文解析し、操作の種類が

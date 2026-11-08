@@ -399,7 +399,7 @@ elecdex 启动时的默认布局。
 | 状态 | 于 v0.0.60 发布 |
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统栏；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带和 ATTENTION 列表；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统栏；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带和显示看起来被遗忘的资源与服务磁贴的 RESOURCES 标签页；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
   <br><sub>cloud · Business (Light) — 替身 AWS CLI 和 gh，虚构的账户和用户</sub>
 </p>
 

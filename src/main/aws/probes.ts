@@ -34,19 +34,21 @@ import {
   SummarySchema,
   VolumesSchema,
 } from '@shared/aws/parse'
-import type { Certificate, CpuWeek, PerRegion } from '@shared/aws/readings'
+import type { AwsReadings, Certificate, CpuWeek, PerRegion } from '@shared/aws/readings'
 import { parseTrail, TRAIL_MAX } from '@shared/aws/trail'
 import type { AwsBoardSpec, Budget, PlanView } from '@shared/aws/types'
 import type { CliResult, Probe, ProbeCost, RunCli } from '@shared/cloud-cli/probe'
 import { DAY, HOUR, MINUTE } from '@shared/cloud-cli/probe'
 import { z } from 'zod'
+import type { SharedReads } from './resource-probes.js'
 
 /**
  * AWS STATUS's probes (aws.md §3): every call is a read named here, with `--query` keeping only
  * the fields the pane shows and `--max-items` bounding it, against the pane's profile and a
  * region named on the call. Global services are asked in us-east-1. Nothing here writes, and the
- * forbidden table (aws.md §3.4: S3's own API, GetMetricData, logs, secrets) has no entry - the
- * catalog test holds every call to this file's verbs.
+ * forbidden table (aws.md §3.4: S3's own API but ListBuckets, logs but describe-log-groups,
+ * secrets, Health, Support) has no entry - the catalog test holds every call to this file's and
+ * resource-probes.ts's verbs. GetMetricData is RESOURCES' paid probe (aws.md §14.4a).
  */
 
 export const GLOBAL_REGION = 'us-east-1'
@@ -84,6 +86,16 @@ export interface AwsContext {
   /** The running instances of the last reading, for their CPU weeks. */
   running(): { id: string; region: string; launch: number }[]
   now(): number
+  /** RESOURCES' readings, the account's (aws.md §14.4); null until the account is known. */
+  shared(): SharedReads | null
+  /** The board's last readings, as RESOURCES' judgements take them. */
+  readings(): AwsReadings
+  /** A probe's period on this board (SLOW makes it four times as long). */
+  every(id: string): number
+  /** When REFRESH was last pressed (0: never). */
+  refreshedAt(): number
+  /** The EKS clusters of the last reading in a region. */
+  clusterNames(region: string): string[]
 }
 
 /** One AWS CLI call against the pane's profile in `region`. */
@@ -169,6 +181,7 @@ export const setupProbe: Probe<AwsContext, { region: string | null; credentialPr
 
 export const identityProbe: Probe<AwsContext, z.infer<typeof IdentitySchema> | null> = {
   id: 'identity',
+  first: true,
   every: 15 * MINUTE,
   cost: 'free',
   run: (ctx, cli) =>
@@ -1161,6 +1174,11 @@ const reservedProbe = regional('reserved', DAY, 'free', async (cli, ctx, region)
     ? null
     : rows.map((r) => ({ id: r.id, end: ms(r.end ?? null), type: r.type ?? null, count: r.n ?? 1 }))
 })
+
+// The sign-in, alarms, health and the trail go ahead of RESOURCES' bulk reads (aws.md §14.4).
+alarmsProbe.first = true
+impairedProbe.first = true
+trailProbe.first = true
 
 /* ---- Paid: Cost Explorer, only when the user turned it on (aws.md §3.3) ---- */
 

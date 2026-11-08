@@ -17,7 +17,7 @@ elecdex 是一个科幻风格的终端模拟器和系统监视器，是用 Elect
 ## cloud 预设
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统列；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、两个区域的指示灯、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带，以及列出告警、到期、安全发现和费用的 ATTENTION 列表；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和按“损坏或受阻”“等待过久”“给你的”“待分拣”分组的 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统列；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、两个区域的指示灯、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带，以及显示 27 个服务、23 个看起来被遗忘且在计费的资源及其中最贵的 5 个、按被遗忘金额分组的服务磁贴的 RESOURCES 标签页；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和按“损坏或受阻”“等待过久”“给你的”“待分拣”分组的 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
   <br><sub>cloud · Business (Light) · 替身 AWS CLI 和 gh，虚构的账户和用户</sub>
 </p>
 
@@ -31,7 +31,7 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 | 右侧下方 | shell 在前，其后的标签页是 LOG WATCH |
 
 - 两个 CLI 窗格只在可见时读取，所以在预设显示到屏幕上之前它什么也不读；标签页后面的 LOG WATCH 在被选中之前也什么都不读。
-- 预设不开启任何东西：AWS STATUS 以配置文件 `default` 开始免费读取（每次调用都用 `--profile` 指明配置文件，因此 `AWS_PROFILE` 不起作用；在 ⚙ 中选择），并在第一次显示某个账户时询问唯一的付费 API。没有 CLI 时，两个窗格都显示 **NO CLI** 以及安装方法。
+- AWS STATUS 以配置文件 `default` 开始免费读取（每次调用都用 `--profile` 指明配置文件，因此 `AWS_PROFILE` 不起作用；在 ⚙ 中选择），并在第一次显示某个账户时询问 Cost Explorer（*未发布：* RESOURCES 的 `GetMetricData` 默认开启，每个账户每月上限 1.00 美元；可在 ⚙ 中关闭）。没有 CLI 时，两个窗格都显示 **NO CLI** 以及安装方法。
 - 预设是模板：选择一个预设会添加一个已保存的布局，此后它跟随你的改动。新安装时包含全部十一个预设，前十个有数字键；已有的布局列表不会被追加。
 
 ## 两个窗格如何读取
@@ -56,18 +56,18 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 ## AWS STATUS
 
 <p align="center">
-  <img src="../screenshots/pane-aws.jpg" alt="单独显示的 AWS STATUS 窗格，虚构账户 acme-prod，两个区域：顶行有一个告警、ATTENTION 的 danger 4 和 warn 11、本月迄今 191 美元及预算 110% 的预测、区域指示灯；询问 Cost Explorer 的一行；ACCOUNT PULSE 横带；ACTIVE 标签页显示每小时约 3.27 美元、每月约 2,390 美元、按服务堆叠的横条，以及 EC2、EKS、RDS、S3、EBS、NAT 网关、负载均衡器、公网 IPv4 和 Lambda 各行及其 IDLE 和 WASTE 数">
-  <br><sub>AWS STATUS · ACTIVE · 替身 AWS CLI，虚构账户</sub>
+  <img src="../screenshots/pane-aws.jpg" alt="单独显示的 AWS STATUS 窗格，虚构账户 acme-prod，两个区域：顶行有一个告警、ATTENTION 的 danger 5 和 warn 8、本月迄今 218 美元及预算 110% 的预测、区域指示灯；询问 Cost Explorer 的一行；ACCOUNT PULSE 横带；RESOURCES 标签页显示 27 个服务、按小时计费约每小时 4.50 美元、23 个看起来被遗忘且在计费的资源、其中最贵的 5 个（没有调用的 Bedrock 预置吞吐量、在不显示的区域运行的 EC2、没有搜索的 OpenSearch Serverless 集合、没有连接的缓存、已运行 40 天的 SageMaker 笔记本），以及分为 AI、计算、数据库和存储的服务磁贴">
+  <br><sub>AWS STATUS · RESOURCES · 替身 AWS CLI，虚构账户</sub>
 </p>
 
 | | |
 | --- | --- |
 | 位置 | cloud 预设（Ctrl+Shift+F10）；选择器（Ctrl+Shift+A）中的 "aws status"。可以添加多个。可以弹出和前置显示（Ctrl+Shift+Z）。 |
-| 读取 | 每个窗格一个 AWS 配置文件（⚙ 中列出 `aws configure list-profiles`），最多 4 个区域（未选时为该配置文件自身的区域）；全局服务向 us-east-1 查询。只用免费 API，加上 CloudWatch 免费额度内的调用，以及你开启后的 Cost Explorer。 |
+| 读取 | 每个窗格一个 AWS 配置文件（⚙ 中列出 `aws configure list-profiles`），最多 4 个区域（未选时为该配置文件自身的区域）；全局服务向 us-east-1 查询。只用免费 API，加上 CloudWatch 免费额度内的调用，以及你开启后的 Cost Explorer。*未发布：* RESOURCES 增加它显示的所有服务的列表、S3 的存储桶列表、CloudWatch Logs 的日志组，以及有每月上限的 CloudWatch 付费 `GetMetricData`（默认开启）。 |
 | 更新 | 只在窗格可见时，每项读取按各自的周期（见下表）。 |
 | 平台 | AWS CLI v2 能运行的地方。未在 macOS 或 Linux 上手动验证。 |
-| 隐私 | 只读；从不调用 S3、Logs、Secrets Manager、Health 或 Support。CloudTrail 只保留时间、操作者、操作、区域、错误，以及控制台登录的结果和 MFA。账户信息不会到达任何插件。 |
-| 设置 | 每个窗格（⚙）：配置文件、区域、ACCOUNT PULSE 开关、ACTIVITY（CloudTrail）开关、SLOW ×4。每个账户：Cost Explorer 和成本 QUOTA（`aws-billing.json`）。所有窗格共用：故障通知，即 `settings.json` 中的 `aws.incidents`。 |
+| 隐私 | 只读；从不调用 Secrets Manager、Health 或 Support，S3 和 CloudWatch Logs 只读取存储桶列表和日志组（*未发布*），从不读取对象、日志或消息。MASK 隐藏 RESOURCES 和下钻中的所有资源名称（*未发布*）。CloudTrail 只保留时间、操作者、操作、区域、错误，以及控制台登录的结果和 MFA。账户信息不会到达任何插件。 |
+| 设置 | 每个窗格（⚙）：配置文件、区域、ACCOUNT PULSE 开关、ACTIVITY（CloudTrail）开关、SLOW ×4。每个账户：Cost Explorer 和成本 QUOTA（`aws-billing.json`）；*未发布：* GetMetricData 及其上限（`aws-billing.json`）、ELSEWHERE 和标记为 KEEP 的资源（`aws-inventory.json`）。所有窗格共用：故障通知，即 `settings.json` 中的 `aws.incidents`。 |
 
 顶行：链接状态、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（来自账单指标的本月迄今金额，附预算的预测和占 QUOTA 的比例；按下打开 COST）、区域指示灯（ALL 或单个区域，每个灯为该区域最重发现的颜色）、**MASK**、**REFRESH**、⚙。
 
@@ -77,25 +77,40 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 
 | 标签页 | 显示内容 |
 | --- | --- |
-| **ATTENTION** | 需要人处理的事，最重的在前：告警（包括复合告警）、受损实例、失败的备份、失败的 CloudFormation 堆栈；没有 MFA、有访问密钥或在最近 24 小时内被使用的根用户；GuardDuty 高危发现；被实例使用、并向全世界开放 22、3389 或所有端口的安全组；没有 MFA 的控制台用户；15 分钟内被拒绝 10 次以上的操作；正在使用且即将到期的证书（7 天内为 danger，30 天内为 warn）；关闭自动续订且即将到期的域名；30 天内结束的 Savings Plans 和预留实例；超过 90 天的访问密钥；标准支持在 90 天内结束或已结束的 EKS；已弃用的 Lambda 运行时；未挂载的 EBS 卷和弹性 IP；停止超过 30 天的实例；处于延长支持的 EKS；预测超过 100% 或实际超过 80% 的预算；30 天内到期的免费计划额度，或超过 85% 的旧版免费套餐 |
+| **RESOURCES**（*未发布*，第一个标签页） | 账户里有什么、哪些看起来被遗忘了（见下文） |
+| **ATTENTION** | 需要人处理的事，最重的在前：告警（包括复合告警）、受损实例、失败的备份、失败的 CloudFormation 堆栈；没有 MFA、有访问密钥或在最近 24 小时内被使用的根用户；GuardDuty 高危发现；被实例使用、并向全世界开放 22、3389 或所有端口的安全组；没有 MFA 的控制台用户；15 分钟内被拒绝 10 次以上的操作；正在使用且即将到期的证书（7 天内为 danger，30 天内为 warn）；关闭自动续订且即将到期的域名；30 天内结束的 Savings Plans 和预留实例；超过 90 天的访问密钥；标准支持在 90 天内结束或已结束的 EKS；已弃用的 Lambda 运行时；未挂载的 EBS 卷和弹性 IP；停止超过 30 天的实例；处于延长支持的 EKS；预测超过 100% 或实际超过 80% 的预算；30 天内到期的免费计划额度，或超过 85% 的旧版免费套餐；*未发布：* 一行汇总看起来被遗忘且在计费的资源，点击打开 RESOURCES 的列表 |
 | **ACTIVE** | 此刻正在运行并计费的资源：按标价计算的 ≈ 美元/小时和 ≈ 美元/月，按服务堆叠的横条，按服务分行、最贵的在前，并附 **IDLE**（7 天 CPU 平均低于 2% 且最高低于 10% 的运行中实例）和 **WASTE** 的数量；*NOT BILLING NOW* 一行；自当天第一次读取以来新增和消失的资源。下方始终是固定的一行 *≈ Estimates at list prices, not your bill · prices shipped with elecdex, 2026-11* |
 | **COST** | 本 UTC 月、上月同日为止、由已结束的日子画到月底的直线、预算、成本 QUOTA 的仪表及其美元输入框，以及按账单指标的 `ServiceName` 分的服务（开启 Cost Explorer 时则来自 Cost Explorer） |
 | **ACTIVITY** | CloudTrail 写入事件，每个区域最近 50 条；筛选 ALL、WRITES、LOGINS、ERRORS；不含 AWS 自身的自动化操作 |
 | **ACCOUNT** | 账户、别名、用户和角色、当前登录的 ARN；根用户的 MFA、密钥和最后登录；没有 MFA 的控制台用户；超过 90 天的密钥；GuardDuty 计数；区域 |
 
+### RESOURCES
+
+*未发布。* 第一个标签页，新窗格从这里打开。它回答账户里有什么、哪些是创建后被遗忘的。它不停止也不删除任何东西，只说明读到了什么。
+
+- **数字**：SERVICES（附资源数和区域数）、BILLED BY THE HOUR（按小时计费的资源的 ≈ $/小时和 ≈ $/月；点击打开 ACTIVE）、LOOKS FORGOTTEN · BILLING（数量、≈ $/月以及不花钱的数量；点击打开完整列表）、NEW 7 D（7 天内出现和消失的资源；点击打开它们）。
+- **LOOKS FORGOTTEN**：前 5 条，按今后 ≈ 每月金额排序（判断天数短于静默天数的排在后面）。每行：类型、名称、用平常话写的原因（"no traffic 30 d"、"not attached since 11-01"）、静默了多久和 ≈ $/月；卡片说明依据什么判断。**keep**（"我是有意留着的"）把这一行从该账户的列表中移除；金额超过两倍时会再次出现。上下方向键在行间移动。
+- **磁贴**按分组排列（计算、存储、数据库、网络、AI、边缘与 API、集成、安全、日志），被遗忘金额最多的分组在前。一块磁贴：数量和名词、一条细的状态线、区域、图例、看起来被遗忘的数量和 ≈ $/月。被遗忘资源达到 ≈ $50/月 时边框变为 warn，达到 ≈ $500/月 时变为 danger。Bedrock 的磁贴分两半：30 天内使用的模型，以及放置的资源（预置吞吐量、自定义模型和导入的模型、知识库、代理、护栏、推理配置文件、AgentCore 运行时）。方向键移到该方向最近的磁贴；Enter 打开。
+- 磁贴下方：**Also here**（VPC、证书、堆栈、告警）、**Checked, none here**、**Denied**（被拒绝的操作）、**ELSEWHERE**（窗格不显示的区域中的资源，来自每周一次的巡查；其列表中有 *check other regions now*）以及 **Billed this month, not read here**（账单指标中有、但没有磁贴覆盖的服务；点击打开 COST）。
+- 服务：EC2、ECS、EKS、Lambda、S3、EBS、EBS 快照、AMI、ECR、RDS、DynamoDB、ElastiCache、OpenSearch、Redshift、NAT 网关、负载均衡器、公网 IPv4、VPC 终端节点、Transit Gateway 挂载、Site-to-Site VPN、CloudFront、API Gateway、SQS、SNS、Kinesis Data Streams、Transfer Family、Bedrock、OpenSearch Serverless、SageMaker、KMS、Route 53 托管区域和 CloudWatch Logs。
+- 是否看起来被遗忘，依据读到的内容判断：使用指标在静默天数（30 天）内没有数据点（没有流量、请求、连接、调用或消息）、停止超过 30 天的实例、未挂载的卷或地址、空的存储桶、函数已不存在的日志组、卷已不存在的快照、监视已不存在资源的告警。`GetMetricData` 关闭时，改用 `ListMetrics` 的 14 天判断。预置吞吐量只有在它自身和其基础模型都没有调用时才算被遗忘。
+- 窗格越窄，磁贴的列越少；窗格较矮时磁贴变为每个一行，非常矮时只保留数字和列表。
+
 ### 逐层深入
 
-从 ACTIVE 或 ATTENTION 的某一行，可以在窗格内打开一个服务：
+从 RESOURCES、ACTIVE 或 ATTENTION 的某一行，可以在窗格内打开一个服务：
 
 - **一个服务**：分面横条——点击按某个值筛选，其他分组按该筛选重新计数（交叉筛选）——以及一个列表，点击表头排序。
 - **一个资源**：它的字段；相关的资源（实例的卷、弹性 IP 和告警；卷所属的实例）；它的发现；**HISTORY**，即该资源的 CloudTrail，按下时读取（免费）；**↗ CONSOLE**，打开主进程根据自己的读取结果构造的 AWS 控制台页面。
 - 用面包屑的 ‹ 返回。焦点在窗格内时，Enter 下钻一层，Escape 或 Backspace 返回一层。
-- 可下钻的服务：EC2、EBS、公网 IPv4（弹性 IP）、S3、NAT 网关、负载均衡器、RDS、EKS、Lambda、CloudFormation、ACM 和告警。S3 的容量来自 CloudWatch 每日的 `BucketSizeBytes`：从不调用 S3 自身的 API，因为它的 LIST 请求要计费。
+- 可下钻的服务：EC2、EBS、公网 IPv4（弹性 IP）、S3、NAT 网关、负载均衡器、RDS、EKS、Lambda、CloudFormation、ACM 和告警。*未发布：* RESOURCES 的所有服务，以及跨服务的列表（forgotten、new、elsewhere，带服务列）。从 RESOURCES 打开的资源还会显示静默了多久、依据什么判断，以及 **KEEP**。S3 的容量来自 CloudWatch 每日的 `BucketSizeBytes`；S3 自身的 API 只调用存储桶列表，每天最多一次（*未发布*）。
 
 ### 费用
 
-- **免费 API**，以及 CloudWatch 的 `GetMetricStatistics`、`ListMetrics` 和 `DescribeAlarms`，后者计入整个账户共享的 CloudWatch 免费额度（每月 100 万次请求；台账中记为 *free tier*）。从不调用 `GetMetricData`。
-- **Cost Explorer**（每次请求 0.01 美元）是唯一的付费 API，在窗格第一次显示某个账户时，以窗格内的一行卡片询问：**TURN ON**、**KEEP OFF**、**LATER**（elecdex 重启后再问，每天最多一次）和 **▸ more**，展开后可选择频率（MANUAL · ONCE A DAY（默认）· EVERY 12 H）和每月上限（10 · 50 · 100（默认，1.00 美元）· 200 · 500 · 1,000 次请求），并显示当月估算（每天一次 ≈ 60 次请求，0.60 美元）。
+- **免费 API**，以及 CloudWatch 的 `GetMetricStatistics`、`ListMetrics` 和 `DescribeAlarms`，后者计入整个账户共享的 CloudWatch 免费额度（每月 100 万次请求；台账中记为 *free tier*）。
+- **GetMetricData**（*未发布*，仅 RESOURCES）始终收费，每 1,000 个指标 0.01 美元。默认开启，按指标数计数，达到每个账户的每月上限（⚙ 中 25,000 · 100,000（默认，1.00 美元）· 500,000 个指标）即停止，之后改用免费额度内的调用判断。台账显示本月的指标数和金额，以及 *GMD CAP REACHED*。
+- **S3 的存储桶列表**（*未发布*）可能按 LIST 请求计费：每天一次，每月最多 31 次。
+- **Cost Explorer**（每次请求 0.01 美元）在你开启前保持关闭，在窗格第一次显示某个账户时，以窗格内的一行卡片询问：**TURN ON**、**KEEP OFF**、**LATER**（elecdex 重启后再问，每天最多一次）和 **▸ more**，展开后可选择频率（MANUAL · ONCE A DAY（默认）· EVERY 12 H）和每月上限（10 · 50 · 100（默认，1.00 美元）· 200 · 500 · 1,000 次请求），并显示当月估算（每天一次 ≈ 60 次请求，0.60 美元）。
 - 一次 Cost Explorer 读取是两次请求：按服务的本月数据，以及 AWS 的预测。达到上限后，到下一个 UTC 月之前不再调用。被拒绝时（没有 `ce:GetCostAndUsage`，或未启用 Cost Explorer），它会自行关闭并说明原因。
 - 回答、上限、计数和 QUOTA 按账户保存在 `aws-billing.json` 中。
 
@@ -123,6 +138,12 @@ ACTIVE 的估算使用随 elecdex 附带的单价（`src/shared/aws/list-prices.
 | 免费计划 | 12 小时 |
 | 证书、域名、Savings Plans、预留实例、EKS、S3 容量、EC2 的 7 天 CPU | 1 天 |
 | Cost Explorer（开启时） | 每天一次或每 12 小时，或仅在 REFRESH 时（MANUAL） |
+| RESOURCES（*未发布*）：ECS、Bedrock 的预置吞吐量、OpenSearch Serverless | 1 小时 |
+| RESOURCES：大多数列表（日志组、表、队列、主题、API、缓存、流…） | 6 小时 |
+| RESOURCES：存储桶、镜像、仓库、密钥、使用指标和 GetMetricData | 1 天 |
+| RESOURCES：ELSEWHERE（不显示的区域） | 1 周 |
+
+RESOURCES 的读取由同一账户的所有窗格共享，并保存在 `aws-inventory.json` 中，所以第二个窗格不会重新读取。
 
 ⚙ 中的 **SLOW ×4** 使除账单指标以外的所有周期延长为四倍。
 

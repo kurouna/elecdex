@@ -17,7 +17,7 @@ elecdex は SF 風のターミナルエミュレーター兼システムモニ�
 ## cloud プリセット
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、2 つのリージョンのランプ、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、アラーム・期限・セキュリティ・費用を並べた ATTENTION の一覧）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と、壊れている・止まっている、待たせすぎ、あなたに、トリアージに分けた QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、2 つのリージョンのランプ、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、27 のサービス、忘れていそうでお金のかかる 23 件とその上位 5 件、忘れものの額の順に分類したサービスのタイルを見せる RESOURCES のタブ）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と、壊れている・止まっている、待たせすぎ、あなたに、トリアージに分けた QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
   <br><sub>cloud · Business (Light) · 代役の AWS CLI と gh、架空のアカウントと利用者</sub>
 </p>
 
@@ -31,7 +31,7 @@ cloud プリセット（Ctrl+Shift+F10）は、アカウント、リポジトリ
 | 右の下 | シェルが前面、その後ろのタブに LOG WATCH |
 
 - 2 つの CLI のペインは見えている間だけ読むので、プリセットは画面に出るまで何も読みません。タブの後ろの LOG WATCH も、選ぶまで何も読みません。
-- プリセットは何もオンにしません。AWS STATUS は プロファイル `default` で無料の読み取りを始め（どの呼び出しも `--profile` でプロファイルを名指しするので、`AWS_PROFILE` では選ばれません。選ぶのは ⚙）、唯一の有料の API については、あるアカウントを初めて表示したときに尋ねます。CLI が無ければ、どちらのペインも **NO CLI** と入れ方を出します。
+- AWS STATUS は プロファイル `default` で無料の読み取りを始め（どの呼び出しも `--profile` でプロファイルを名指しするので、`AWS_PROFILE` では選ばれません。選ぶのは ⚙）、Cost Explorer については、あるアカウントを初めて表示したときに尋ねます（*未リリース:* RESOURCES の `GetMetricData` は既定で ON、アカウントごとに月 1.00 USD の上限付き。⚙ で OFF にできます）。CLI が無ければ、どちらのペインも **NO CLI** と入れ方を出します。
 - プリセットはひな形です。選ぶと保存レイアウトが 1 つ加わり、以後はその変更に付いていきます。新しくインストールしたときは 11 個のプリセットがすべて入り、先頭の 10 個に番号のキーが付きます。既存のレイアウトの一覧に後から足されることはありません。
 
 ## 2 つのペインの読み方
@@ -56,18 +56,18 @@ cloud プリセット（Ctrl+Shift+F10）は、アカウント、リポジトリ
 ## AWS STATUS
 
 <p align="center">
-  <img src="../screenshots/pane-aws.jpg" alt="AWS STATUS ペインを単独で表示したところ。架空のアカウント acme-prod、2 つのリージョン：上段にアラーム 1 件、ATTENTION の danger 4 と warn 11、今月ここまでの 191 ドルと予算の 110% の予測、リージョンのランプ。Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯。ACTIVE のタブに 1 時間あたり約 3.27 ドル、1 か月あたり約 2,390 ドル、サービスごとの積み上げの帯と、EC2・EKS・RDS・S3・EBS・NAT ゲートウェイ・ロードバランサー・パブリック IPv4・Lambda の行、その IDLE と WASTE の数">
-  <br><sub>AWS STATUS · ACTIVE · 代役の AWS CLI、架空のアカウント</sub>
+  <img src="../screenshots/pane-aws.jpg" alt="AWS STATUS ペインを単独で表示したところ。架空のアカウント acme-prod、2 つのリージョン：上段にアラーム 1 件、ATTENTION の danger 5 と warn 8、今月ここまでの 218 ドルと予算の 110% の予測、リージョンのランプ。Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯。RESOURCES のタブに 27 のサービス、時間課金の約 4.50 ドル/時、忘れていそうでお金のかかる 23 件、その上位 5 件（呼び出しの無い Bedrock のプロビジョンドスループット、表示しないリージョンで動く EC2、検索の無い OpenSearch Serverless のコレクション、接続の無いキャッシュ、40 日動いている SageMaker のノートブック）、AI・コンピュート・データベース・ストレージに分けたサービスのタイル">
+  <br><sub>AWS STATUS · RESOURCES · 代役の AWS CLI、架空のアカウント</sub>
 </p>
 
 | | |
 | --- | --- |
 | 場所 | cloud プリセット（Ctrl+Shift+F10）、ピッカー（Ctrl+Shift+A）の "aws status"。いくつでも置けます。ポップアップと前面表示（Ctrl+Shift+Z）ができます。 |
-| 読むもの | ペインごとに 1 つの AWS のプロファイル（⚙ に `aws configure list-profiles` の一覧）、リージョンは 4 つまで（選ばなければプロファイル自身のリージョン）。グローバルなサービスは us-east-1 に尋ねます。無料の API と、CloudWatch の無料枠の中の呼び出し、それに有効にしたときだけの Cost Explorer。 |
+| 読むもの | ペインごとに 1 つの AWS のプロファイル（⚙ に `aws configure list-profiles` の一覧）、リージョンは 4 つまで（選ばなければプロファイル自身のリージョン）。グローバルなサービスは us-east-1 に尋ねます。無料の API と、CloudWatch の無料枠の中の呼び出し、それに有効にしたときだけの Cost Explorer。*未リリース:* RESOURCES は、表示するサービスすべての一覧、S3 のバケットの一覧、CloudWatch Logs のロググループ、月の上限付きの CloudWatch の有料の `GetMetricData`（既定で ON）を足します。 |
 | 更新 | ペインが見えている間だけ。読み取りごとに自分の周期で（下の表）。 |
 | プラットフォーム | AWS CLI v2 が動く環境。macOS と Linux では手で確かめていません。 |
-| プライバシー | 読むだけです。S3、Logs、Secrets Manager、Health、Support は呼びません。CloudTrail からは、時刻、誰、操作、リージョン、エラーと、コンソールのサインインの結果と MFA だけを残します。アカウントの情報はプラグインに届きません。 |
-| 設定 | ペインごと（⚙）: プロファイル、リージョン、ACCOUNT PULSE の ON / OFF、ACTIVITY（CloudTrail）の ON / OFF、SLOW ×4。アカウントごと: Cost Explorer とコストの QUOTA（`aws-billing.json`）。全ペイン共通: 障害のトースト（`settings.json` の `aws.incidents`）。 |
+| プライバシー | 読むだけです。Secrets Manager、Health、Support は呼ばず、S3 と CloudWatch Logs はバケットの一覧とロググループだけ（*未リリース*）で、オブジェクト、ログ、メッセージは読みません。MASK は RESOURCES と掘り下げのリソース名をすべて伏せます（*未リリース*）。CloudTrail からは、時刻、誰、操作、リージョン、エラーと、コンソールのサインインの結果と MFA だけを残します。アカウントの情報はプラグインに届きません。 |
+| 設定 | ペインごと（⚙）: プロファイル、リージョン、ACCOUNT PULSE の ON / OFF、ACTIVITY（CloudTrail）の ON / OFF、SLOW ×4。アカウントごと: Cost Explorer とコストの QUOTA（`aws-billing.json`）。*未リリース:* GetMetricData とその上限（`aws-billing.json`）、ELSEWHERE と KEEP の印（`aws-inventory.json`）。全ペイン共通: 障害のトースト（`settings.json` の `aws.incidents`）。 |
 
 上段: リンクの語、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（請求メトリクスによる今月ここまでの額と、予算の予測、QUOTA に対する割合。押すと COST）、リージョンのランプ（ALL か 1 つのリージョン。各ランプはそのリージョンでいちばん重いものの色）、**MASK**、**REFRESH**、⚙。
 
@@ -77,25 +77,40 @@ cloud プリセット（Ctrl+Shift+F10）は、アカウント、リポジトリ
 
 | タブ | 見せるもの |
 | --- | --- |
-| **ATTENTION** | 手を要するものを重い順に: アラーム（複合アラームも）、状態の確認に落ちたインスタンス、失敗したバックアップ、失敗した CloudFormation のスタック。MFA の無い・アクセスキーのある・直近 24 時間に使われたルートユーザー。GuardDuty の重大な検出。インスタンスが使っていて 22・3389・全ポートを世界に開いたセキュリティグループ。MFA の無いコンソールのユーザー。15 分に 10 回以上拒まれた操作。使っている証明書の期限（7 日以内は danger、30 日以内は warn）。自動更新が OFF で期限の来るドメイン。30 日以内に終わる Savings Plans と リザーブドインスタンス。90 日より古いアクセスキー。標準サポートが 90 日以内に終わる・終わった EKS。すでに非推奨の Lambda のランタイム。付いていない EBS ボリュームと Elastic IP。30 日より長く止めたままのインスタンス。延長サポートの EKS。予測が 100% を超える・実績が 80% を超える予算。30 日以内に切れる無料プランのクレジット、または 85% を超えた旧来の無料枠 |
+| **RESOURCES**（*未リリース*、先頭のタブ） | アカウントに何があり、何を忘れていそうか（下） |
+| **ATTENTION** | 手を要するものを重い順に: アラーム（複合アラームも）、状態の確認に落ちたインスタンス、失敗したバックアップ、失敗した CloudFormation のスタック。MFA の無い・アクセスキーのある・直近 24 時間に使われたルートユーザー。GuardDuty の重大な検出。インスタンスが使っていて 22・3389・全ポートを世界に開いたセキュリティグループ。MFA の無いコンソールのユーザー。15 分に 10 回以上拒まれた操作。使っている証明書の期限（7 日以内は danger、30 日以内は warn）。自動更新が OFF で期限の来るドメイン。30 日以内に終わる Savings Plans と リザーブドインスタンス。90 日より古いアクセスキー。標準サポートが 90 日以内に終わる・終わった EKS。すでに非推奨の Lambda のランタイム。付いていない EBS ボリュームと Elastic IP。30 日より長く止めたままのインスタンス。延長サポートの EKS。予測が 100% を超える・実績が 80% を超える予算。30 日以内に切れる無料プランのクレジット、または 85% を超えた旧来の無料枠。*未リリース:* 忘れていそうでお金のかかるものの 1 行（押すと RESOURCES の一覧） |
 | **ACTIVE** | いま動いていて料金のかかっているもの: 定価での ≈ $/時と ≈ $/月、サービスごとの積み上げの帯、サービスごとの行（高い順）と、**IDLE**（7 日の CPU の平均が 2% 未満かつ最大が 10% 未満の動いているインスタンス）と **WASTE** の数。*NOT BILLING NOW* の行。その日最初の読み取りから増えたもの・消えたもの。下には必ず固定の 1 行 *≈ Estimates at list prices, not your bill · prices shipped with elecdex, 2026-11* |
 | **COST** | UTC の今月、先月の同じ日まで、済んだ日から月末まで引いた直線、予算、コストの QUOTA のゲージと USD の入力欄、請求メトリクスの `ServiceName` によるサービス別（Cost Explorer が ON なら Cost Explorer から） |
 | **ACTIVITY** | CloudTrail の書き込みのイベント、リージョンごとに直近 50 件。絞り込みは ALL、WRITES、LOGINS、ERRORS。AWS 自身の自動の操作は除きます |
 | **ACCOUNT** | アカウント、エイリアス、ユーザーとロール、サインインしている ARN。ルートユーザーの MFA・キー・最後のサインイン。MFA の無いコンソールのユーザー。90 日を超えたキー。GuardDuty の件数。リージョン |
 
+### RESOURCES
+
+*未リリース。* 先頭のタブで、新しいペインはここで開きます。アカウントに何があるか、作って置いたままのものは何かに答えます。止めも消しもせず、読んだことを言うだけです。
+
+- **数字**: SERVICES（リソースとリージョンの数も）、BILLED BY THE HOUR（時間課金のものの ≈ $/時と ≈ $/月。押すと ACTIVE）、LOOKS FORGOTTEN · BILLING（数、≈ $/月、お金のかからないものの数。押すと全件の一覧）、NEW 7 D（7 日で現れたものと消えたもの。押すとその一覧）。
+- **LOOKS FORGOTTEN**: 上位 5 件を、これからの ≈ $/月の順に（静かな日数より短い日数での判定は下げます）。1 行: 種類、名前、理由の文（「no traffic 30 d」「not attached since 11-01」）、静かな期間、≈ $/月。カードには何で判定したかを出します。**keep**（「わざと置いている」）でその行をこのアカウントの一覧から外します。額が 2 倍を超えるとまた出ます。上下の矢印で行を移ります。
+- **タイル**を分類ごとに（コンピュート、ストレージ、データベース、ネットワーク、AI、エッジと API、連携、セキュリティ、ログ）、忘れものの額の大きい分類から並べます。1 枚: 数と名詞、状態の細い線、リージョン、凡例、忘れていそうな数と ≈ $/月。忘れものが ≈ $50/月 以上で枠が warn、≈ $500/月 以上で danger になります。Bedrock のタイルは 2 段で、30 日に使ったモデルと、置いてあるもの（プロビジョンドスループット、カスタムモデルと取り込んだモデル、ナレッジベース、エージェント、ガードレール、推論プロファイル、AgentCore のランタイム）。矢印キーでその向きのいちばん近いタイルへ、Enter で開きます。
+- タイルの下に: **Also here**（VPC、証明書、スタック、アラーム）、**Checked, none here**、**Denied**（拒まれた操作）、**ELSEWHERE**（ペインが表示しないリージョンにあるもの。週 1 回の見回りで読み、その一覧に *check other regions now*）、**Billed this month, not read here**（請求メトリクスにあり、どのタイルにも当たらないサービス。押すと COST）。
+- サービス: EC2、ECS、EKS、Lambda、S3、EBS、EBS のスナップショット、AMI、ECR、RDS、DynamoDB、ElastiCache、OpenSearch、Redshift、NAT ゲートウェイ、ロードバランサー、パブリック IPv4、VPC エンドポイント、Transit Gateway のアタッチメント、Site-to-Site VPN、CloudFront、API Gateway、SQS、SNS、Kinesis Data Streams、Transfer Family、Bedrock、OpenSearch Serverless、SageMaker、KMS、Route 53 のホストゾーン、CloudWatch Logs。
+- 忘れていそうかは読んだものから判定します: 使用のメトリクスに静かな日数（30 日）データ点が無い（通信、要求、接続、呼び出し、メッセージが無い）、30 日より長く止めたままのインスタンス、付いていないボリュームやアドレス、空のバケット、関数の無くなったロググループ、ボリュームの無くなったスナップショット、無くなったものを見張るアラーム。`GetMetricData` が OFF なら、`ListMetrics` の 14 日で判定します。プロビジョンドスループットは、それ自身にも元のモデルにも呼び出しが無いときだけ忘れものにします。
+- ペインが狭いほどタイルの列が減り、低いペインではタイルが 1 行ずつになり、とても低いペインでは数字と一覧だけが残ります。
+
 ### 掘り下げ
 
-ACTIVE か ATTENTION の行から、サービスをペインの中で開けます。
+RESOURCES、ACTIVE、ATTENTION の行から、サービスをペインの中で開けます。
 
 - **サービス**: ファセットの棒（クリックでその値に絞り、ほかの群もその絞り込みで数え直します。クロスフィルター）と一覧（見出しのクリックで並べ替え）。
 - **1 つのリソース**: その欄、関係するもの（インスタンスのボリューム・Elastic IP・アラーム、ボリュームのインスタンス）、その検出、**HISTORY**（そのリソースの CloudTrail。押したときに読みます。無料）、**↗ CONSOLE**（main が自分の読み取りから組んだ AWS のコンソールのページを開きます）。
 - パンくずの ‹ で戻ります。フォーカスがペインにあるとき、Enter で 1 段下へ、Escape か Backspace で 1 段上へ。
-- 掘れるサービス: EC2、EBS、パブリック IPv4（Elastic IP）、S3、NAT ゲートウェイ、ロードバランサー、RDS、EKS、Lambda、CloudFormation、ACM、アラーム。S3 の容量は CloudWatch の 1 日ごとの `BucketSizeBytes` から読み、S3 自身の API は呼びません（LIST の要求は課金されるため）。
+- 掘れるサービス: EC2、EBS、パブリック IPv4（Elastic IP）、S3、NAT ゲートウェイ、ロードバランサー、RDS、EKS、Lambda、CloudFormation、ACM、アラーム。*未リリース:* RESOURCES のサービスすべてと、サービスをまたぐ一覧（forgotten、new、elsewhere。サービスの列付き）。RESOURCES から開いたリソースには、静かな期間、その判定の根拠、**KEEP** も出ます。S3 の容量は CloudWatch の 1 日ごとの `BucketSizeBytes` から読み、S3 自身の API はバケットの一覧だけを 1 日 1 回まで呼びます（*未リリース*）。
 
 ### 費用
 
-- **無料の API** と、CloudWatch の `GetMetricStatistics`・`ListMetrics`・`DescribeAlarms`。後者はアカウント全体で共有する CloudWatch の無料枠（月 100 万要求）に数えられます（台帳では *free tier*）。`GetMetricData` は呼びません。
-- **Cost Explorer**（1 要求 0.01 USD）が唯一の有料の API で、あるアカウントを初めて表示したときに、ペインの中の 1 行のカードで尋ねます: **TURN ON**、**KEEP OFF**、**LATER**（elecdex を起動し直したあと、1 日に 1 度まで、また尋ねます）、**▸ more**（頻度 MANUAL · ONCE A DAY（既定）· EVERY 12 H と、月の上限 10 · 50 · 100（既定、1.00 USD）· 200 · 500 · 1,000 要求を、月の見込み（1 日 1 回 ≈ 60 要求、0.60 USD）とともに選べます）。
+- **無料の API** と、CloudWatch の `GetMetricStatistics`・`ListMetrics`・`DescribeAlarms`。後者はアカウント全体で共有する CloudWatch の無料枠（月 100 万要求）に数えられます（台帳では *free tier*）。
+- **GetMetricData**（*未リリース*、RESOURCES だけ）は常に有料で、1,000 メトリクスあたり 0.01 USD。既定で ON、本数で数え、アカウントごとの月の上限（⚙ で 25,000 · 100,000（既定、1.00 USD）· 500,000 本）で止まり、そのあとは無料枠の呼び出しで判定します。台帳に今月の本数と額、*GMD CAP REACHED* を出します。
+- **S3 のバケットの一覧**（*未リリース*）は LIST の要求として課金されうるので、1 日 1 回、月 31 回まで。
+- **Cost Explorer**（1 要求 0.01 USD）は有効にするまで OFF で、あるアカウントを初めて表示したときに、ペインの中の 1 行のカードで尋ねます: **TURN ON**、**KEEP OFF**、**LATER**（elecdex を起動し直したあと、1 日に 1 度まで、また尋ねます）、**▸ more**（頻度 MANUAL · ONCE A DAY（既定）· EVERY 12 H と、月の上限 10 · 50 · 100（既定、1.00 USD）· 200 · 500 · 1,000 要求を、月の見込み（1 日 1 回 ≈ 60 要求、0.60 USD）とともに選べます）。
 - Cost Explorer の 1 回の読み取りは 2 要求（月のサービス別と、AWS の予測）。上限に達したら、次の UTC の月まで呼びません。拒まれたら（`ce:GetCostAndUsage` が無い、Cost Explorer が有効でない）自分で OFF に戻り、理由を出します。
 - 答え、上限、数、QUOTA は、アカウントごとに `aws-billing.json` に持ちます。
 
@@ -123,6 +138,12 @@ ACTIVE の推定は elecdex に同梱した単価（`src/shared/aws/list-prices.
 | 無料プラン | 12 時間 |
 | 証明書、ドメイン、Savings Plans、リザーブドインスタンス、EKS、S3 の容量、EC2 の 7 日の CPU | 1 日 |
 | Cost Explorer（ON のとき） | 1 日 1 回か 12 時間ごと、または REFRESH のときだけ（MANUAL） |
+| RESOURCES（*未リリース*）: ECS、Bedrock のプロビジョンドスループット、OpenSearch Serverless | 1 時間 |
+| RESOURCES: たいていの一覧（ロググループ、テーブル、キュー、トピック、API、キャッシュ、ストリーム…） | 6 時間 |
+| RESOURCES: バケット、イメージ、リポジトリ、鍵、使用のメトリクスと GetMetricData | 1 日 |
+| RESOURCES: ELSEWHERE（表示しないリージョン） | 1 週間 |
+
+RESOURCES の読み取りは同じアカウントのペインすべてで共有し、`aws-inventory.json` に持つので、2 枚目のペインは読み直しません。
 
 ⚙ の **SLOW ×4** で、請求メトリクスのほかは周期がすべて 4 倍になります。
 

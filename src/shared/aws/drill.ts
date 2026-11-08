@@ -1,8 +1,10 @@
-import { isIdle } from './active.js'
-import { onExtendedSupport, stoppedAt } from './attention.js'
+import { RESOURCE_DRILL, resourceRows } from './drill-resources.js'
+import { onExtendedSupport, stoppedAt } from './facts.js'
+import { forgotten, forgottenOf } from './forgotten.js'
 import { HOURS_A_MONTH, prices } from './list-prices.js'
 import type { Instance } from './parse.js'
 import { type AwsReadings, type CpuWeek, everywhere } from './readings.js'
+import { elsewhereRows, resourcesOf, SERVICES } from './resources.js'
 import type { AttentionItem, AwsService, DrillItem, DrillRow, Weight } from './types.js'
 
 /**
@@ -29,7 +31,11 @@ export interface DrillDef {
   sort: string
 }
 
+/** The services RESOURCES added (aws.md §14.5): their lists come from resources.ts. */
+const ADDED = SERVICES.filter((s) => RESOURCE_DRILL[s] !== undefined)
+
 export const DRILL: Record<AwsService, DrillDef> = {
+  ...(RESOURCE_DRILL as Record<AwsService, DrillDef>),
   ec2: {
     label: 'EC2',
     facets: [
@@ -81,11 +87,13 @@ export const DRILL: Record<AwsService, DrillDef> = {
     facets: [
       { key: 'class', label: 'CLASS' },
       { key: 'size', label: 'SIZE' },
+      { key: 'empty', label: 'EMPTY' },
     ],
     columns: [
       { key: 'name', label: 'bucket', kind: 'text', masked: true },
       { key: 'gib', label: 'GB', kind: 'gib' },
       { key: 'class', label: 'main class', kind: 'text' },
+      { key: 'created', label: 'created', kind: 'date' },
       { key: 'monthly', label: '≈ $/month', kind: 'money' },
     ],
     sort: 'monthly',
@@ -217,9 +225,10 @@ const weekAverage = (week: CpuWeek | undefined) =>
 function ec2Row(
   i: Instance & { region: string },
   week: CpuWeek | undefined,
+  idle: boolean,
 ): Omit<DrillRow, 'weight'> {
   const running = i.state === 'running'
-  const activity = running ? (isIdle(week) ? 'idle' : 'running') : 'stopped'
+  const activity = running ? (idle ? 'idle' : 'running') : 'stopped'
   return {
     id: i.id,
     region: i.region,
@@ -238,9 +247,21 @@ function ec2Row(
 }
 
 const ROWS: Record<AwsService, Builder> = {
+  ...(Object.fromEntries(ADDED.map((s) => [s, (r: AwsReadings) => resourceRows(s, r)])) as Record<
+    AwsService,
+    Builder
+  >),
   ec2: (r) => {
     const cpu = new Map(Object.values(r.cpu).flatMap((per) => Object.entries(per ?? {})))
-    return everywhere(r.instances).map((i) => ec2Row(i, cpu.get(i.id)))
+    // IDLE is forgotten.ts's low use, as ACTIVE and RESOURCES say it (aws.md §14.1).
+    const idle = new Set(
+      forgotten(r)
+        .rows.filter((f) => f.reason === 'low-use')
+        .map((f) => `${f.region}:${f.id}`),
+    )
+    return everywhere(r.instances).map((i) =>
+      ec2Row(i, cpu.get(i.id), idle.has(`${i.region}:${i.id}`)),
+    )
   },
   ebs: (r) =>
     everywhere(r.volumes).map((v) => ({
@@ -290,6 +311,20 @@ const ROWS: Record<AwsService, Builder> = {
       }
       row.cells.size = sizeClass(row.cells.gib as number)
       byBucket.set(size.bucket, row)
+    }
+    // The bucket list adds the empty ones and the creation dates (aws.md §14.5).
+    for (const x of resourcesOf('s3', r)) {
+      const row = byBucket.get(x.id) ?? {
+        id: x.id,
+        region: x.region,
+        name: x.name,
+        weight: null,
+        top: -1,
+        cells: { name: x.name, gib: null, class: null, size: null, monthly: null },
+      }
+      row.cells.created = x.created
+      row.cells.empty = String(x.cells.empty ?? 'unknown')
+      byBucket.set(x.id, row)
     }
     return [...byBucket.values()].map(({ top: _top, weight: _w, ...row }) => row)
   },
@@ -407,9 +442,18 @@ export function drillRows(
   r: AwsReadings,
   attention: readonly AttentionItem[],
 ): DrillRow[] {
+  // A row's weight is its heaviest finding, or how it looks forgotten (no longer in ATTENTION).
+  const judged = new Map(
+    forgotten(r)
+      .rows.filter((f) => f.service === service)
+      .map((f) => [`${f.region}:${f.id}`, f.weight]),
+  )
   return ROWS[service](r)
     .slice(0, 1000)
-    .map((row) => ({ ...row, weight: weightOf(attention, service, row.id) }))
+    .map((row) => ({
+      ...row,
+      weight: weightOf(attention, service, row.id) ?? judged.get(`${row.region}:${row.id}`) ?? null,
+    }))
 }
 
 /** The value a facet counts a row under. */
@@ -493,8 +537,22 @@ export function drillItem(
   r: AwsReadings,
   attention: readonly AttentionItem[],
 ): DrillItem | null {
-  const row = ROWS[service](r).find((entry) => entry.id === id)
+  // Outside the pane's regions only the sweep's describe is known: its few fields.
+  const row =
+    ROWS[service](r).find((entry) => entry.id === id) ??
+    elsewhereRows(r)
+      .filter((x) => x.service === service && x.id === id)
+      .map((x) => ({
+        id: x.id,
+        region: x.region,
+        name: x.name,
+        cells: { ...x.cells, name: x.name, state: x.state, monthly: x.monthly } as Record<
+          string,
+          string | number | null
+        >,
+      }))[0]
   if (row === undefined) return null
+  const judged = forgottenOf(r, service, row.region, id)
   const def = DRILL[service]
   const base: DrillItem = {
     service,
@@ -520,6 +578,8 @@ export function drillItem(
     ],
     related: [],
     attention: attention.filter((a) => a.item?.service === service && a.item.id === id),
+    forgotten: judged?.row ?? null,
+    kept: judged?.kept === true,
   }
   if (service === 'ec2') ec2Extra(base, r)
   if (service === 'ebs') {

@@ -711,6 +711,10 @@ const api: ElecdexApi = {
     costExplorer: (key, answer) =>
       ipcRenderer.invoke(CH.aws.costExplorer, key, answer) as Promise<boolean>,
     quota: (key, quota) => ipcRenderer.invoke(CH.aws.quota, key, quota) as Promise<boolean>,
+    keep: (key, id, on) => ipcRenderer.invoke(CH.aws.keep, key, id, on) as Promise<boolean>,
+    sweep: (key, what) => ipcRenderer.invoke(CH.aws.sweep, key, what) as Promise<number>,
+    metricData: (key, answer) =>
+      ipcRenderer.invoke(CH.aws.metricData, key, answer) as Promise<boolean>,
     profiles: () => ipcRenderer.invoke(CH.aws.profiles) as Promise<string[]>,
     watching: () => ipcRenderer.invoke(CH.aws.watching) as Promise<string[]>,
   },

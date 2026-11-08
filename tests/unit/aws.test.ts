@@ -7,20 +7,34 @@ import {
   rolled,
 } from '../../src/main/aws/billing-store'
 import { AWS_PROBES, costExplorerDue, openPorts } from '../../src/main/aws/probes'
-import { AwsService, type CloudAlert } from '../../src/main/aws/service'
+import { batches, GMD_MAX_CHARS, GMD_MAX_QUERIES } from '../../src/main/aws/resource-probes'
+import { AwsService, BOARD_PROBES, type CloudAlert } from '../../src/main/aws/service'
 import { concurrencyLimit } from '../../src/main/cloud-cli/scheduler'
 import { stubAws } from '../../src/main/cloud-cli/stub-aws'
 import { activeCost, isIdle } from '../../src/shared/aws/active'
 import { attention, stoppedAt } from '../../src/shared/aws/attention'
 import { billingMonth, quotaCrossed } from '../../src/shared/aws/billing'
-import { awsBoardKey, parseAwsBoardKey, readAwsPane } from '../../src/shared/aws/board'
+import {
+  awsBoardKey,
+  itemOf,
+  listItem,
+  parseAwsBoardKey,
+  readAwsPane,
+} from '../../src/shared/aws/board'
 import { changesSince } from '../../src/shared/aws/changes'
 import { consoleUrl, isConsoleUrl } from '../../src/shared/aws/console-url'
 import { DRILL, facets, filterRows, sortRows } from '../../src/shared/aws/drill'
-import { parseCredentialReport } from '../../src/shared/aws/parse'
+import { parseCredentialReport, parseWith } from '../../src/shared/aws/parse'
+import {
+  BucketListSchema,
+  DistributionsSchema,
+  LogGroupsSchema,
+  lastPart,
+  modelIdOf,
+} from '../../src/shared/aws/parse-resources'
 import { type AwsReadings, emptyReadings } from '../../src/shared/aws/readings'
 import { parseTrail, pulseBins } from '../../src/shared/aws/trail'
-import type { AwsBoard, DrillRow } from '../../src/shared/aws/types'
+import type { AwsBoard, AwsService as AwsKind, DrillRow } from '../../src/shared/aws/types'
 import type { CliCall } from '../../src/shared/cloud-cli/probe'
 
 /** AWS STATUS (docs/aws.md): the judgements, the money, the drill-down, and the board on the stand-in. */
@@ -78,11 +92,17 @@ describe('the board key', () => {
   })
 
   it('reads the pane state with defaults, and a drill place only of a known service', () => {
+    // RESOURCES is the first tab (aws.md §14.0): no tab in the state opens it; the others stay.
     expect(readAwsPane(undefined)).toMatchObject({
       spec: { profile: 'default', regions: [], activity: true, slow: false },
-      tab: 'attention',
+      tab: 'resources',
       drill: null,
     })
+    for (const tab of ['attention', 'active', 'cost', 'activity', 'account'])
+      expect(readAwsPane({ tab }).tab).toBe(tab)
+    expect(readAwsPane({ tab: 'billing' }).tab).toBe('resources')
+    expect(readAwsPane({ from: 'resources' }).from).toBe('resources')
+    expect(readAwsPane({ from: 'elsewhere' }).from).toBe('active')
     expect(
       readAwsPane({ drill: { service: 'ec2', filters: { state: 'running', x: 1 }, item: 'i-1' } })
         .drill,
@@ -93,6 +113,28 @@ describe('the board key', () => {
       item: 'i-1',
     })
     expect(readAwsPane({ drill: { service: 'iam' } }).drill).toBeNull()
+    // RESOURCES' lists across services are places too; their items carry the service.
+    const list = readAwsPane({
+      drill: { service: 'forgotten', filters: {}, item: listItem('bedrock', 'pt:q7x') },
+    }).drill
+    expect(list).toEqual({ service: 'forgotten', filters: {}, sort: null, item: 'bedrock:pt:q7x' })
+    expect(list && itemOf(list)).toEqual({ service: 'bedrock', id: 'pt:q7x' })
+    expect(itemOf({ service: 'new', filters: {}, sort: null, item: 'iam:x' })).toBeNull()
+    expect(itemOf({ service: 'ec2', filters: {}, sort: null, item: 'i-1' })).toEqual({
+      service: 'ec2',
+      id: 'i-1',
+    })
+    // `direct` (Back straight to RESOURCES) is kept only with an item.
+    expect(readAwsPane({ drill: { service: 'ec2', item: 'i-1', direct: true } }).drill).toEqual({
+      service: 'ec2',
+      filters: {},
+      sort: null,
+      item: 'i-1',
+      direct: true,
+    })
+    expect(readAwsPane({ drill: { service: 'ec2', direct: true } }).drill).not.toHaveProperty(
+      'direct',
+    )
   })
 })
 
@@ -150,14 +192,15 @@ describe('ATTENTION', () => {
         },
       }),
     )
+    // The forgotten ones are one line pointing at RESOURCES (user decision 2026-11-08): the
+    // volume and the address bill; the instance stopped in September has no volume to bill.
     expect(items.map((i) => i.id)).toEqual([
       `alarm:${R}:cpu-high`,
       `security:sg:${R}:sg-1`,
-      // COST by the oldest first: the instance stopped in September, then today's two by id.
-      `cost:stopped:${R}:i-2`,
-      `cost:eip:${R}:203.0.113.1`,
-      `cost:volume:${R}:vol-1`,
+      'cost:forgotten',
     ])
+    expect(items[2]?.title).toBe('2 look forgotten · ≈ $14.80/mo › RESOURCES')
+    expect(items[2]?.weight).toBe('warn')
   })
 
   it('weighs a certificate by days left: danger in seven, warn in thirty, nothing after, nothing unused', () => {
@@ -474,10 +517,14 @@ describe('the probes', () => {
     expect(costExplorerDue({ ...on, failedAt: NOW - 3_600_000 }, false, NOW)).toBe(true)
   })
 
-  it('marks only Cost Explorer as paid, with its setting', () => {
-    const paid = AWS_PROBES.filter((p) => typeof p.cost !== 'string')
-    expect(paid.map((p) => p.id)).toEqual(['cost-explorer'])
-    expect(paid[0]?.cost).toEqual({ setting: 'aws.costExplorer', perRequestUsd: 0.01 })
+  it('marks only Cost Explorer and GetMetricData as paid, with their settings, and ListBuckets as metered-tiny', () => {
+    const priced = BOARD_PROBES.filter((p) => typeof p.cost !== 'string')
+    expect(priced.map((p) => [p.id, p.cost])).toEqual([
+      ['cost-explorer', { setting: 'aws.costExplorer', perRequestUsd: 0.01 }],
+      ['res-buckets', { metered: 'tiny', monthlyCap: 31, decided: '2026-11-08' }],
+      ['res-gmd', { setting: 'aws.getMetricData', perMetricUsd: 0.00001 }],
+    ])
+    expect(AWS_PROBES.some((p) => p.id.startsWith('res-'))).toBe(false)
   })
 })
 
@@ -544,11 +591,11 @@ describe('the credential report', () => {
 })
 
 /** The service on the stand-in AWS CLI, its clock still. */
-function service(mode = 'demo') {
+function service(mode = 'demo', initial: BillingFile = {}) {
   const calls: CliCall[] = []
   const boards: AwsBoard[] = []
   const alerts: CloudAlert[] = []
-  let file: BillingFile = {}
+  let file: BillingFile = initial
   let current = mode
   let clock = Date.now()
   const stubs = new Map<string, ReturnType<typeof stubAws>>()
@@ -574,8 +621,9 @@ function service(mode = 'demo') {
     executable: () => 'stub',
     startedAt: Date.now(),
   })
+  // RESOURCES' first reading goes one bulk probe at a time: many turns of the microtask queue.
   const flush = async () => {
-    for (let i = 0; i < 3000; i++) await Promise.resolve()
+    for (let i = 0; i < 20_000; i++) await Promise.resolve()
   }
   return {
     aws,
@@ -637,7 +685,79 @@ const READS = new Set([
   'backup list-backup-jobs',
   'guardduty list-detectors',
   'guardduty get-findings-statistics',
+  // RESOURCES (aws.md §14.4, §14.4a, §14.4b): lists and describes, list-metrics and GetMetricData.
+  'apigateway get-rest-apis',
+  'apigatewayv2 get-apis',
+  'bedrock list-custom-models',
+  'bedrock list-foundation-models',
+  'bedrock list-guardrails',
+  'bedrock list-imported-models',
+  'bedrock list-inference-profiles',
+  'bedrock list-provisioned-model-throughputs',
+  'bedrock-agent get-knowledge-base',
+  'bedrock-agent list-agents',
+  'bedrock-agent list-knowledge-bases',
+  'bedrock-agentcore-control list-agent-runtimes',
+  'cloudfront list-distributions',
+  'cloudwatch get-metric-data',
+  'dynamodb describe-table',
+  'dynamodb list-tables',
+  'ec2 describe-images',
+  'ec2 describe-regions',
+  'ec2 describe-snapshots',
+  'ec2 describe-transit-gateway-attachments',
+  'ec2 describe-vpc-endpoints',
+  'ec2 describe-vpcs',
+  'ec2 describe-vpn-connections',
+  'ecr describe-images',
+  'ecr describe-repositories',
+  'ecs describe-clusters',
+  'ecs describe-services',
+  'ecs list-clusters',
+  'ecs list-services',
+  'eks list-fargate-profiles',
+  'eks list-nodegroups',
+  'elasticache describe-cache-clusters',
+  'elasticache describe-serverless-caches',
+  'elb describe-load-balancers',
+  'elbv2 describe-target-groups',
+  'elbv2 describe-target-health',
+  'kinesis describe-stream-summary',
+  'kinesis list-streams',
+  'kms describe-key',
+  'kms list-aliases',
+  'kms list-keys',
+  'logs describe-log-groups',
+  'opensearch describe-domains',
+  'opensearch list-domain-names',
+  'opensearchserverless batch-get-collection',
+  'opensearchserverless list-collections',
+  'redshift describe-clusters',
+  'redshift-serverless list-workgroups',
+  'route53 list-hosted-zones',
+  's3api list-buckets',
+  'sagemaker list-apps',
+  'sagemaker list-endpoints',
+  'sagemaker list-notebook-instances',
+  'sns list-subscriptions',
+  'sns list-topics',
+  'sqs get-queue-attributes',
+  'sqs list-queues',
+  'transfer list-servers',
 ])
+
+/** What stays forbidden (aws.md §3.4): every other S3 and Logs call, secrets, Health, Support, and CloudWatch's widget and rule reports. */
+const FORBIDDEN = [
+  /^s3 /,
+  /^s3api (?!list-buckets$)/,
+  /^logs (?!describe-log-groups$)/,
+  /^secretsmanager /,
+  /^health /,
+  /^support /,
+  /^cloudwatch get-metric-widget-image$/,
+  /^cloudwatch get-insight-rule-report$/,
+  /^(\S+) (create|delete|put|update|start|stop|modify|tag|untag)-/,
+]
 
 describe('AwsService on the stand-in AWS CLI', () => {
   it('reads a whole board when shown, every call a read of the table with the profile and a region', async () => {
@@ -656,6 +776,7 @@ describe('AwsService on the stand-in AWS CLI', () => {
     for (const call of s.calls) {
       const verb = call.argv.slice(0, 2).join(' ')
       expect(READS.has(verb), verb).toBe(true)
+      for (const forbidden of FORBIDDEN) expect(forbidden.test(verb), verb).toBe(false)
       if (verb === 'configure get') continue
       expect(call.argv).toContain('--profile')
       expect(call.argv[call.argv.indexOf('--region') + 1]).toMatch(/^[a-z]{2}-[a-z]+-\d$/)
@@ -775,5 +896,285 @@ describe('AwsService on the stand-in AWS CLI', () => {
     await s.flush()
     expect(s.last()?.cost).toMatchObject({ billing: false, mtd: null })
     expect(s.last()?.cost.quota.unavailable).toMatch(/billing alerts/)
+  })
+})
+
+/** acme-prod's account on the stand-in, with a billing entry set beforehand. */
+const ACME = '482913507216'
+const withBilling = (
+  change: (a: ReturnType<typeof freshAccount>) => ReturnType<typeof freshAccount>,
+): BillingFile => ({ [ACME]: change(freshAccount(Date.now())) })
+const verbs = (calls: CliCall[], verb: string) =>
+  calls.filter((c) => c.argv.slice(0, 2).join(' ') === verb)
+const metricsAsked = (calls: CliCall[]) =>
+  verbs(calls, 'cloudwatch get-metric-data').reduce(
+    (n, c) =>
+      n +
+      (JSON.parse(c.argv[c.argv.indexOf('--metric-data-queries') + 1] ?? '[]') as unknown[]).length,
+    0,
+  )
+
+describe('RESOURCES on the stand-in AWS CLI (aws.md §14)', () => {
+  it('reads what is there and what looks forgotten, sums it into ATTENTION, and counts GetMetricData by the metric', async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    const board = s.last()
+    const res = board?.resources
+    expect(res?.judging).toBe(false)
+    expect(res?.figures.forgotten.billed).toBeGreaterThan(10)
+    expect(res?.forgotten.map((f) => f.reason)).toEqual(
+      expect.arrayContaining([
+        'pt-unused',
+        'no-searches',
+        'low-use',
+        'no-connections',
+        'left-running',
+        'unattached',
+        'elsewhere',
+        'no-records',
+        'unused-capacity',
+        'stopped',
+        'orphan-snapshot',
+        'no-traffic',
+        'no-events',
+        'unused-ami',
+      ]),
+    )
+    expect(s.aws.drill(KEY, 'forgotten')?.map((r) => r.cells.reason)).toContain('orphan-log-group')
+    // The unpriced Provisioned Throughput first among the billed (aws.md §14.2 B).
+    expect(res?.forgotten[0]).toMatchObject({
+      service: 'bedrock',
+      reason: 'pt-unused',
+      notPriced: true,
+    })
+    expect(board?.attention.find((a) => a.id === 'cost:forgotten')?.title).toMatch(
+      /^\d+ look forgotten · ≈ \$[\d.]+k\/mo \+ 1 not priced › RESOURCES$/,
+    )
+    expect(board?.attention.some((a) => a.id === `health:dlq:${R}:orders-dlq`)).toBe(true)
+    expect(res?.elsewhere.regions.map((x) => x.region)).toEqual(['ap-southeast-1', 'us-west-2'])
+    expect(res?.alsoHere.map((x) => x.service)).toEqual(['vpc', 'acm', 'stacks', 'alarms'])
+    expect(board?.ledger.paidMetrics).toBe(metricsAsked(s.calls))
+    expect(board?.ledger.paidMetrics).toBeGreaterThan(0)
+    expect(board?.ledger.meteredTiny).toBe(1)
+    expect(verbs(s.calls, 's3api list-buckets')).toHaveLength(1)
+    // Names only: no queue URL or topic ARN reaches the page.
+    const text = JSON.stringify(board)
+    expect(text).not.toContain('sqs.ap-northeast-1.amazonaws.com')
+    expect(text).not.toContain(':sns:')
+  })
+
+  it('reads the account once for two panes, and their lists agree', async () => {
+    const s = service()
+    const other = awsBoardKey({ profile: 'default', regions: [R], activity: false, slow: false })
+    s.aws.watch(KEY)
+    s.aws.watch(other)
+    await s.flush()
+    const tokyo = (verb: string) => verbs(s.calls, verb).filter((c) => c.argv.includes(R))
+    expect(tokyo('logs describe-log-groups')).toHaveLength(1)
+    expect(tokyo('dynamodb list-tables')).toHaveLength(1)
+    expect(verbs(s.calls, 's3api list-buckets')).toHaveLength(1)
+    expect(s.aws.drill(other, 'logs')?.map((r) => r.id)).toContain('vpc-flow-logs')
+  })
+
+  it('lists across services, opens what it showed, and tells the third step why', async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    const rows = s.aws.drill(KEY, 'forgotten') ?? []
+    expect(rows.length).toBe(s.last()?.resources.forgottenTotal)
+    expect(rows.every((row) => row.service !== undefined)).toBe(true)
+    expect(
+      s.aws
+        .drill(KEY, 'elsewhere')
+        ?.map((r) => `${r.service}:${r.region}`)
+        .sort(),
+    ).toEqual(['ebs:us-west-2', 'ec2:us-west-2', 'nat:ap-southeast-1'])
+    const item = s.aws.item(KEY, 'logs', '/aws/lambda/old-resizer')
+    expect(item?.forgotten).toMatchObject({ reason: 'orphan-log-group' })
+    expect(item?.kept).toBe(false)
+    expect(s.aws.item(KEY, 'ec2', 'i-0b7c6d5e4f3a20001')?.region).toBe('us-west-2')
+    expect(s.aws.urlOf(KEY, `item:logs:${R}:/aws/lambda/old-resizer`)).toBe(
+      `https://${R}.console.aws.amazon.com/cloudwatch/home?region=${R}#logsV2:log-groups/log-group/$252Faws$252Flambda$252Fold-resizer`,
+    )
+    expect(s.aws.urlOf(KEY, 'item:ec2:us-west-2:i-0b7c6d5e4f3a20001')).toMatch(
+      /^https:\/\/us-west-2\.console/,
+    )
+    expect(s.aws.urlOf(KEY, 'item:ec2:us-west-2:i-nothere')).toBeNull()
+  })
+
+  it('keeps only a row of its own last list, takes a mark off, and refuses anything else', async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    const row = s.last()?.resources.forgotten.find((f) => f.reason === 'orphan-snapshot')
+    expect(row).toBeDefined()
+    expect(s.aws.keep(KEY, 'ec2:ap-northeast-1:i-not-listed', true)).toBe(false)
+    expect(s.aws.keep(KEY, row?.key, 'yes')).toBe(false)
+    expect(s.aws.keep(KEY, row?.key, true)).toBe(true)
+    await s.flush()
+    const res = s.last()?.resources
+    expect(res?.forgotten.some((f) => f.key === row?.key)).toBe(false)
+    expect(res?.kept.map((k) => k.key)).toEqual([row?.key])
+    expect(res?.figures.forgotten.kept).toBe(1)
+    expect(s.aws.item(KEY, 'snapshots', 'snap-0orphan01')?.kept).toBe(true)
+    expect(s.aws.keep(KEY, row?.key, false)).toBe(true)
+    expect(s.aws.keep(KEY, row?.key, false)).toBe(false)
+    expect(s.aws.keep('nope', row?.key, true)).toBe(false)
+  })
+
+  it('sweeps again when asked, at most once in 30 s, and stops sweeping when turned off', async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    const nats = () =>
+      verbs(s.calls, 'ec2 describe-nat-gateways').filter((c) => c.argv.includes('ap-southeast-1'))
+        .length
+    const before = nats()
+    s.later(1000)
+    expect(s.aws.sweep(KEY)).toBe(30_000)
+    expect(s.aws.sweep(KEY)).toBeGreaterThan(0)
+    await s.flush()
+    expect(nats()).toBe(before + 1)
+    expect(s.aws.sweep(KEY, 'off')).toBe(0)
+    await s.flush()
+    expect(s.last()?.resources.elsewhere).toMatchObject({ on: false, regions: [] })
+    expect(s.last()?.resources.forgotten.some((f) => f.reason === 'elsewhere')).toBe(false)
+    expect(s.aws.sweep(KEY, 'everywhere')).toBe(0)
+  })
+
+  it('falls back to the statistics without GetMetricData, and stops at its cap with GMD CAP REACHED', async () => {
+    const off = service(
+      'demo',
+      withBilling((a) => ({ ...a, gmd: { ...a.gmd, on: false } })),
+    )
+    off.aws.watch(KEY)
+    await off.flush()
+    expect(verbs(off.calls, 'cloudwatch get-metric-data')).toHaveLength(0)
+    expect(
+      verbs(off.calls, 'cloudwatch get-metric-statistics').some((c) =>
+        c.argv.includes('AWS/ElastiCache'),
+      ),
+    ).toBe(true)
+    expect(
+      off
+        .last()
+        ?.resources.forgotten.some(
+          (f) => f.service === 'elasticache' && f.why === 'no connections 14 d',
+        ),
+    ).toBe(true)
+    const capped = service(
+      'demo',
+      withBilling((a) => ({ ...a, gmd: { ...a.gmd, used: 99_990 } })),
+    )
+    capped.aws.watch(KEY)
+    await capped.flush()
+    expect(verbs(capped.calls, 'cloudwatch get-metric-data')).toHaveLength(0)
+    expect(capped.last()?.ledger.paidNotes).toEqual(['GMD CAP REACHED'])
+    expect(capped.last()?.resources.gmd).toMatchObject({ capReached: true, used: 99_990 })
+    expect(capped.aws.metricData(KEY, { on: true, cap: 500_000 })).toBe(true)
+    expect(capped.aws.metricData(KEY, { on: true, cap: 123 })).toBe(false)
+    expect(capped.aws.metricData(KEY, { on: 'yes' })).toBe(false)
+  })
+
+  it('asks S3 for its list 31 times a month at most', async () => {
+    const s = service(
+      'demo',
+      withBilling((a) => ({ ...a, tiny: { ...a.tiny, used: { 'res-buckets': 31 } } })),
+    )
+    s.aws.watch(KEY)
+    await s.flush()
+    expect(verbs(s.calls, 's3api list-buckets')).toHaveLength(0)
+  })
+
+  it('stays linked where a region does not offer Bedrock or OpenSearch Serverless', async () => {
+    const s = service('noregion')
+    s.aws.watch(KEY)
+    await s.flush()
+    expect(s.last()?.link).toBe('linked')
+    expect(s.last()?.denied).toEqual([])
+    expect(s.last()?.resources.notOffered).toEqual([
+      { service: 'bedrock', regions: [R] },
+      { service: 'aoss', regions: [R] },
+    ])
+  })
+
+  it('says nothing looks forgotten on a tidy account', async () => {
+    const s = service('quiet')
+    s.aws.watch(KEY)
+    await s.flush()
+    expect(s.last()?.resources.forgotten).toEqual([])
+    expect(s.last()?.attention.some((a) => a.id === 'cost:forgotten')).toBe(false)
+  })
+})
+
+describe('GetMetricData batches (aws.md §14.4a)', () => {
+  it('asks 500 metrics a call at most, within a command line Windows takes', () => {
+    const query = (i: number) => ({
+      key: `k${i}`,
+      ns: 'AWS/Logs',
+      metric: 'IncomingBytes',
+      dims: [{ Name: 'LogGroupName', Value: `/aws/lambda/function-with-a-long-name-${i}` }],
+      stat: 'Sum' as const,
+      days: 30,
+    })
+    const out = batches(Array.from({ length: 1200 }, (_, i) => query(i)))
+    expect(out.flat()).toHaveLength(1200)
+    for (const batch of out) {
+      expect(batch.length).toBeLessThanOrEqual(GMD_MAX_QUERIES)
+      expect(JSON.stringify(batch).length).toBeLessThan(GMD_MAX_CHARS * 1.5)
+    }
+    expect(out.length).toBeGreaterThan(3)
+  })
+})
+
+describe('the parsers of RESOURCES', () => {
+  it('reads the --query shapes and keeps names, never ARNs or URLs', () => {
+    expect(
+      parseWith(BucketListSchema, '[["b","2024-01-01T00:00:00+00:00","ap-northeast-1"]]'),
+    ).toEqual([['b', '2024-01-01T00:00:00+00:00', 'ap-northeast-1']])
+    expect(
+      parseWith(
+        LogGroupsSchema,
+        '[["/aws/lambda/x",1700000000000,null,1024,"STANDARD"]]',
+      )?.[0]?.[0],
+    ).toBe('/aws/lambda/x')
+    expect(
+      parseWith(DistributionsSchema, '[["E1",true,"Deployed","2024-01-01T00:00:00Z",null]]'),
+    ).toHaveLength(1)
+    expect(parseWith(BucketListSchema, '[{"Name":"b"}]')).toBeNull()
+    expect(lastPart('https://sqs.ap-northeast-1.amazonaws.com/482913507216/orders')).toBe('orders')
+    expect(lastPart('arn:aws:sns:ap-northeast-1:482913507216:alerts')).toBe('alerts')
+    expect(
+      modelIdOf(
+        'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-haiku-20240307-v1:0',
+      ),
+    ).toBe('anthropic.claude-3-haiku-20240307-v1:0')
+    expect(modelIdOf(null)).toBeNull()
+  })
+})
+
+describe('console URLs of RESOURCES', () => {
+  it('opens each new kind on the console', () => {
+    const cases: [AwsKind, string, string][] = [
+      ['ecs', 'web/frontend', `/ecs/v2/clusters/web/services/frontend/health?region=${R}`],
+      ['dynamodb', 'orders', `/dynamodbv2/home?region=${R}#table?name=orders`],
+      ['bedrock', 'pt:abc', `/bedrock/home?region=${R}#/provisioned-throughput`],
+      ['vpce', 'vpce-1', '#EndpointDetails:vpcEndpointId=vpce-1'],
+      ['sagemaker', 'notebook:exp', '#/notebook-instances/exp'],
+      ['kinesis', 's', '#/streams/details/s/monitoring'],
+      ['kms', 'k-1', '#/kms/keys/k-1'],
+    ]
+    for (const [service, id, tail] of cases) {
+      const url = consoleUrl(service, R, id)
+      expect(url, service).toContain(tail)
+      expect(url !== null && isConsoleUrl(url), service).toBe(true)
+    }
+    expect(consoleUrl('route53', R, 'Z1')).toBe(
+      'https://console.aws.amazon.com/route53/v2/hostedzones#ListRecordSets/Z1',
+    )
+    expect(consoleUrl('cloudfront', R, 'E1')).toBe(
+      'https://console.aws.amazon.com/cloudfront/v4/home#/distributions/E1',
+    )
   })
 })

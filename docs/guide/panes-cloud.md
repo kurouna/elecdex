@@ -17,7 +17,7 @@ On this page:
 ## The cloud preset
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="The cloud preset in the Business (Light) theme: the system column on the left; an AWS STATUS pane on a made-up account acme-prod with one alarm, the month to date and its forecast against the budget, two region lamps, the one-line Cost Explorer question, the ACCOUNT PULSE band and the ATTENTION list of alarms, expiries, security findings and costs; on the right a GITHUB STATUS pane of a made-up user octo-aki with the contribution grid and the QUEUE grouped as broken or blocked, waiting too long, for you and triage; under it a shell with a LOG WATCH tab beside it">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="The cloud preset in the Business (Light) theme: the system column on the left; an AWS STATUS pane on a made-up account acme-prod with one alarm, the month to date and its forecast against the budget, two region lamps, the one-line Cost Explorer question, the ACCOUNT PULSE band and the RESOURCES tab with 27 services, 23 resources that look forgotten and are billed, the five dearest of them, and the service tiles grouped by forgotten money; on the right a GITHUB STATUS pane of a made-up user octo-aki with the contribution grid and the QUEUE grouped as broken or blocked, waiting too long, for you and triage; under it a shell with a LOG WATCH tab beside it">
   <br><sub>cloud · Business (Light) · a stand-in AWS CLI and gh, made-up account and user</sub>
 </p>
 
@@ -31,7 +31,7 @@ The cloud preset (Ctrl+Shift+F10) is the account, the repositories and a shell f
 | Right, bottom | A shell in front, LOG WATCH in a tab behind it |
 
 - Both CLI panes read only while they are shown, so the preset reads nothing until it is on screen, and LOG WATCH behind its tab reads nothing until chosen.
-- The preset turns nothing on: AWS STATUS starts with the free reads under the profile `default` (every call names its profile with `--profile`, so `AWS_PROFILE` does not choose it; ⚙ does), and asks about the one paid API the first time it shows an account. Without the CLIs each pane shows **NO CLI** and how to install it.
+- AWS STATUS starts with the free reads under the profile `default` (every call names its profile with `--profile`, so `AWS_PROFILE` does not choose it; ⚙ does), and asks about Cost Explorer the first time it shows an account (*unreleased:* RESOURCES' `GetMetricData` is on by default, under a cap of $1.00 a month per account; off in ⚙). Without the CLIs each pane shows **NO CLI** and how to install it.
 - Presets are templates: choosing one adds a saved layout that then follows your changes. A new install starts with all eleven presets, the first ten on the number keys; an existing list of layouts is never added to.
 
 ## How both panes read
@@ -56,18 +56,18 @@ The cloud preset (Ctrl+Shift+F10) is the account, the repositories and a shell f
 ## AWS STATUS
 
 <p align="center">
-  <img src="../screenshots/pane-aws.jpg" alt="The AWS STATUS pane on its own, on a made-up account acme-prod with two regions: the top row with one alarm, ATTENTION 4 danger and 11 warn, the month to date of 191 dollars with its forecast at 110% of budget, the region lamps; the one-line Cost Explorer question; the ACCOUNT PULSE band; the ACTIVE tab with about 3.27 dollars an hour and 2,390 a month, a stacked bar by service and rows for EC2, EKS, RDS, S3, EBS, NAT gateways, load balancers, public IPv4 and Lambda with their IDLE and WASTE counts">
-  <br><sub>AWS STATUS · ACTIVE · a stand-in AWS CLI, a made-up account</sub>
+  <img src="../screenshots/pane-aws.jpg" alt="The AWS STATUS pane on its own, on a made-up account acme-prod with two regions: the top row with one alarm, ATTENTION 5 danger and 8 warn, the month to date of 218 dollars with its forecast at 110% of budget, the region lamps; the one-line Cost Explorer question; the ACCOUNT PULSE band; the RESOURCES tab with 27 services, about 4.50 dollars an hour billed by the hour, 23 resources that look forgotten and are billed, the five dearest (a Bedrock Provisioned Throughput with no calls, an EC2 instance running in a region not shown, an OpenSearch Serverless collection with no searches, a cache with no connections, a SageMaker notebook in service for 40 days) and the service tiles grouped as AI, compute, database and storage">
+  <br><sub>AWS STATUS · RESOURCES · a stand-in AWS CLI, a made-up account</sub>
 </p>
 
 | | |
 | --- | --- |
 | Where | cloud preset (Ctrl+Shift+F10); picker (Ctrl+Shift+A) "aws status". Several panes can be added. Can be popped up and brought forward (Ctrl+Shift+Z). |
-| Reads | One AWS profile per pane (⚙ lists `aws configure list-profiles`) in up to 4 regions (none chosen: the profile's own region); global services are asked in us-east-1. Free APIs only, plus CloudWatch calls inside its free tier, plus Cost Explorer if you turn it on. |
+| Reads | One AWS profile per pane (⚙ lists `aws configure list-profiles`) in up to 4 regions (none chosen: the profile's own region); global services are asked in us-east-1. Free APIs only, plus CloudWatch calls inside its free tier, plus Cost Explorer if you turn it on. *Unreleased:* RESOURCES adds the lists of every service it shows, S3's bucket list, CloudWatch Logs' log groups, and CloudWatch's paid `GetMetricData` under a monthly cap (on by default). |
 | Updates | Only while the pane is seen, each reading at its own period (below). |
 | Platforms | Wherever AWS CLI v2 runs. Not verified by hand on macOS or Linux. |
-| Privacy | Read only; never an S3, Logs, Secrets Manager, Health or Support call. Of CloudTrail, only time, who, operation, region, error and a console sign-in's result and MFA are kept. Nothing of the account reaches a plugin. |
-| Settings | Per pane in ⚙: profile, regions, ACCOUNT PULSE on or off, ACTIVITY (CloudTrail) on or off, SLOW ×4. Per account: Cost Explorer and the cost QUOTA (`aws-billing.json`). For every pane: the incident toasts, `aws.incidents` in `settings.json`. |
+| Privacy | Read only; never a Secrets Manager, Health or Support call, and of S3 and CloudWatch Logs only the bucket list and the log groups (*unreleased*), never an object, a log or a message. MASK hides every resource name on RESOURCES and in the drill-down (*unreleased*). Of CloudTrail, only time, who, operation, region, error and a console sign-in's result and MFA are kept. Nothing of the account reaches a plugin. |
+| Settings | Per pane in ⚙: profile, regions, ACCOUNT PULSE on or off, ACTIVITY (CloudTrail) on or off, SLOW ×4. Per account: Cost Explorer and the cost QUOTA (`aws-billing.json`); *unreleased:* GetMetricData and its cap (`aws-billing.json`), ELSEWHERE and the resources marked KEEP (`aws-inventory.json`). For every pane: the incident toasts, `aws.incidents` in `settings.json`. |
 
 The top row: the link word, **ALARMS**, **ATTENTION** (danger · warn), **MTD** (the month to date from the billing metric, with the budget's forecast and the quota's share; a press opens COST), the region lamps (ALL or one region, each lamp the colour of its heaviest finding), **MASK**, **REFRESH**, ⚙.
 
@@ -77,25 +77,40 @@ The tabs:
 
 | Tab | What it shows |
 | --- | --- |
-| **ATTENTION** | What needs someone, heaviest first: alarms (composite ones too), impaired instances, failed backups, failed CloudFormation stacks; the root user without MFA, with access keys, or used in the last 24 hours; GuardDuty high findings; a security group open to the world on 22, 3389 or all ports that an instance uses; console users without MFA; an operation refused 10 or more times in 15 minutes; certificates in use expiring (danger within 7 days, warn within 30); domains expiring with auto-renew off; Savings Plans and Reserved Instances ending within 30 days; access keys older than 90 days; EKS standard support ending within 90 days or past; Lambda runtimes already deprecated; unattached EBS volumes and Elastic IPs; instances stopped over 30 days; EKS on extended support; budgets forecast over 100% or actual over 80%; free plan credits ending within 30 days, or the legacy free tier over 85% |
+| **RESOURCES** (*unreleased*, the first tab) | What the account has and what looks forgotten (below) |
+| **ATTENTION** | What needs someone, heaviest first: alarms (composite ones too), impaired instances, failed backups, failed CloudFormation stacks; the root user without MFA, with access keys, or used in the last 24 hours; GuardDuty high findings; a security group open to the world on 22, 3389 or all ports that an instance uses; console users without MFA; an operation refused 10 or more times in 15 minutes; certificates in use expiring (danger within 7 days, warn within 30); domains expiring with auto-renew off; Savings Plans and Reserved Instances ending within 30 days; access keys older than 90 days; EKS standard support ending within 90 days or past; Lambda runtimes already deprecated; unattached EBS volumes and Elastic IPs; instances stopped over 30 days; EKS on extended support; budgets forecast over 100% or actual over 80%; free plan credits ending within 30 days, or the legacy free tier over 85%; *unreleased:* one line for what looks forgotten and is billed, which opens RESOURCES' list |
 | **ACTIVE** | What runs and bills now: ≈ $/hour and ≈ $/month at list prices, a stacked bar by service, and rows by service, dearest first, with **IDLE** (a running instance whose 7-day CPU average is under 2% and maximum under 10%) and **WASTE** counts; a *NOT BILLING NOW* line; what came and went since the day's first reading. Always under it the fixed line *≈ Estimates at list prices, not your bill · prices shipped with elecdex, 2026-11* |
 | **COST** | This UTC month, last month to the same day, a straight line to the month's end from the full days, budgets, the cost QUOTA gauge and its USD input, and by service from the billing metric's `ServiceName` (or from Cost Explorer when it is on) |
 | **ACTIVITY** | CloudTrail write events, the last 50 per region; filters ALL, WRITES, LOGINS, ERRORS; AWS's own automation left out |
 | **ACCOUNT** | The account, its alias, users and roles, the ARN signed in as; the root user's MFA, keys and last sign-in; console users without MFA; keys over 90 days; GuardDuty counts; the regions |
 
+### RESOURCES
+
+*Unreleased.* The first tab, and the one a new pane opens on. It answers what is in the account and what was made and left behind. Nothing is stopped or deleted; it only says what was read.
+
+- **Figures**: SERVICES (with resources and regions), BILLED BY THE HOUR (≈ $/hour and ≈ $/month of what bills by the hour; a press opens ACTIVE), LOOKS FORGOTTEN · BILLING (how many, ≈ $/month, and how many cost nothing; a press opens the whole list), NEW 7 D (what came and went in seven days; a press opens them).
+- **LOOKS FORGOTTEN**: the first five, sorted by ≈ $ a month from now (a judgement on fewer days than the quiet days ranks lower). Each row: the kind, the name, why in plain words ("no traffic 30 d", "not attached since 11-01"), how long it has been quiet, and ≈ $/month; the card says what it was judged by. **keep** ("I meant to leave it") takes a row off the list for this account; it comes back if its cost more than doubles. Up and Down move between rows.
+- **Tiles**, grouped (compute, storage, databases, network, AI, edge and API, integration, security, logs), the groups with the most forgotten money first. A tile: the count and its noun, a thin line of its states, the regions, a legend, how many look forgotten and ≈ $/month. Its frame turns warn from ≈ $50 a month of forgotten resources and danger from ≈ $500. Bedrock's tile has two halves: the models used in 30 days, and what is placed (Provisioned Throughput, custom and imported models, knowledge bases, agents, guardrails, inference profiles, AgentCore runtimes). The arrow keys go to the nearest tile that way; Enter opens it.
+- Under the tiles: **Also here** (VPCs, certificates, stacks, alarms), **Checked, none here**, **Denied** (an operation refused), **ELSEWHERE** (what is in the regions the pane does not show, from a weekly sweep; its list has *check other regions now*), and **Billed this month, not read here** (a service in the billing metric that no tile covers; a press opens COST).
+- Services: EC2, ECS, EKS, Lambda, S3, EBS, EBS snapshots, AMIs, ECR, RDS, DynamoDB, ElastiCache, OpenSearch, Redshift, NAT gateways, load balancers, public IPv4, VPC endpoints, Transit Gateway attachments, Site-to-Site VPN, CloudFront, API Gateway, SQS, SNS, Kinesis Data Streams, Transfer Family, Bedrock, OpenSearch Serverless, SageMaker, KMS, Route 53 hosted zones and CloudWatch Logs.
+- What looks forgotten is judged by what was read: a usage metric with no data point (no traffic, requests, connections, invocations or messages) over the quiet days (30), an instance stopped over 30 days, a volume or address not attached, an empty bucket, a log group whose function is gone, a snapshot whose volume is gone, an alarm watching something gone. With `GetMetricData` off, the judgement falls back to `ListMetrics`' 14 days. Provisioned Throughput counts as forgotten only when neither it nor its base model has calls.
+- The narrower the pane, the fewer columns of tiles; on a low pane the tiles become one line each, and on a very low one only the figures and the list stay.
+
 ### Drilling down
 
-From ACTIVE, or from an ATTENTION row, a service opens inside the pane:
+From RESOURCES, from ACTIVE, or from an ATTENTION row, a service opens inside the pane:
 
 - **A service**: facet bars - a click filters by a value, and the other groups count again under that filter (cross-filtering) - and a list, sorted by a click on its header.
 - **One resource**: its fields; what is related (an instance's volumes, Elastic IPs and alarms; a volume's instance); its findings; **HISTORY**, that resource's CloudTrail, read when pressed (free); **↗ CONSOLE**, which opens the AWS console page main builds from its own reading.
 - Crumbs with ‹ lead back. With the focus in the pane, Enter goes a step down, Escape or Backspace a step up.
-- Services: EC2, EBS, public IPv4 (Elastic IPs), S3, NAT gateways, load balancers, RDS, EKS, Lambda, CloudFormation, ACM and alarms. S3's sizes come from CloudWatch's daily `BucketSizeBytes`: S3's own API is never called, since its LIST requests are billed.
+- Services: EC2, EBS, public IPv4 (Elastic IPs), S3, NAT gateways, load balancers, RDS, EKS, Lambda, CloudFormation, ACM and alarms; *unreleased:* every RESOURCES service, and the lists across services (forgotten, new, elsewhere) with a service column. One resource from RESOURCES also shows how long it has been quiet, what that was judged by, and **KEEP**. S3's sizes come from CloudWatch's daily `BucketSizeBytes`; of S3's own API only the bucket list is called (*unreleased*), at most once a day.
 
 ### What it costs
 
-- **Free APIs**, and CloudWatch's `GetMetricStatistics`, `ListMetrics` and `DescribeAlarms`, which count against CloudWatch's free tier of 1 million requests a month, shared by the whole account (the ledger counts them as *free tier*). Never `GetMetricData`.
-- **Cost Explorer** ($0.01 a request) is the one paid API, and is asked about the first time the pane shows an account, in a one-line card inside the pane: **TURN ON**, **KEEP OFF**, **LATER** (asked again after elecdex restarts, at most once a day) and **▸ more**, which opens the frequency (MANUAL · ONCE A DAY, the default · EVERY 12 H) and the monthly cap (10 · 50 · 100, the default, $1.00 · 200 · 500 · 1,000 requests), with the month's estimate (once a day ≈ 60 requests, $0.60).
+- **Free APIs**, and CloudWatch's `GetMetricStatistics`, `ListMetrics` and `DescribeAlarms`, which count against CloudWatch's free tier of 1 million requests a month, shared by the whole account (the ledger counts them as *free tier*).
+- **GetMetricData** (*unreleased*, RESOURCES only) is always paid, $0.01 per 1,000 metrics. It is on by default, counted by metric, and stops at a monthly cap per account (25,000 · 100,000, the default, $1.00 · 500,000 metrics in ⚙), after which the judgement falls back to the free tier's calls. The ledger shows the metrics and the dollars this month, and *GMD CAP REACHED*.
+- **S3's bucket list** (*unreleased*) may be billed as a LIST request: once a day, at most 31 a month.
+- **Cost Explorer** ($0.01 a request) is off until you turn it on, and is asked about the first time the pane shows an account, in a one-line card inside the pane: **TURN ON**, **KEEP OFF**, **LATER** (asked again after elecdex restarts, at most once a day) and **▸ more**, which opens the frequency (MANUAL · ONCE A DAY, the default · EVERY 12 H) and the monthly cap (10 · 50 · 100, the default, $1.00 · 200 · 500 · 1,000 requests), with the month's estimate (once a day ≈ 60 requests, $0.60).
 - A Cost Explorer reading is two requests: the month by service, and AWS's forecast. It stops at the cap until the next UTC month. Refused (no `ce:GetCostAndUsage`, or Cost Explorer not enabled), it turns itself off and says why.
 - The answer, the cap, the count and the quota are kept per account in `aws-billing.json`.
 
@@ -123,6 +138,12 @@ ACTIVE's estimates use unit prices shipped with elecdex (`src/shared/aws/list-pr
 | Free plan | 12 h |
 | Certificates, domains, Savings Plans, Reserved Instances, EKS, S3 sizes, EC2's 7-day CPU | 1 day |
 | Cost Explorer (when on) | Once a day or every 12 h, or only on REFRESH (MANUAL) |
+| RESOURCES (*unreleased*): ECS, Bedrock's Provisioned Throughput, OpenSearch Serverless | 1 h |
+| RESOURCES: most lists (log groups, tables, queues, topics, APIs, caches, streams…) | 6 h |
+| RESOURCES: buckets, images, repositories, keys, usage metrics and GetMetricData | 1 day |
+| RESOURCES: ELSEWHERE, the regions not shown | 1 week |
+
+RESOURCES' readings are shared by every pane on the same account and kept in `aws-inventory.json`, so a second pane reads nothing again.
 
 **SLOW ×4** in ⚙ makes every period four times as long, except the billing metric's.
 

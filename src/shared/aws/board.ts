@@ -1,4 +1,4 @@
-import type { AwsBoardSpec, AwsService } from './types.js'
+import type { AwsBoardSpec, AwsList, AwsService } from './types.js'
 
 /**
  * An AWS STATUS board's key: what a pane subscribes to and the only thing it sends. Main reads
@@ -48,15 +48,25 @@ export function parseAwsBoardKey(raw: unknown): AwsBoardSpec | null {
   return awsBoardKey(spec) === raw ? spec : null
 }
 
-export type AwsTab = 'attention' | 'active' | 'cost' | 'activity' | 'account'
+/** RESOURCES first: the tab a pane opens on when its state names none (aws.md §14.0). */
+export type AwsTab = 'resources' | 'attention' | 'active' | 'cost' | 'activity' | 'account'
 
-/** Where a pane has drilled to (aws.md §5.1): a service, its filters and sort, one item. */
+/**
+ * Where a pane has drilled to (aws.md §5.1): a service or one of RESOURCES' lists across
+ * services, its filters and sort, one item. A list's item carries its service before the id
+ * (`ec2:i-0abc`, see `itemOf`), so the list stays the step above it. `direct` marks an item
+ * opened from RESOURCES' first step (a LOOKS FORGOTTEN row): Back goes straight there.
+ */
 export interface DrillPlace {
-  service: AwsService
+  service: AwsService | AwsList
   filters: Record<string, string>
   sort: { column: string; down: boolean } | null
   item: string | null
+  direct?: true
 }
+
+/** Where a drill-down was entered from: a tab, for its crumbs and for Back. */
+export type DrillFrom = 'resources' | 'active' | 'cost' | 'attention'
 
 const SERVICES: readonly AwsService[] = [
   'ec2',
@@ -71,18 +81,63 @@ const SERVICES: readonly AwsService[] = [
   'stacks',
   'acm',
   'alarms',
+  'ecs',
+  'dynamodb',
+  'sqs',
+  'sns',
+  'apigw',
+  'cloudfront',
+  'bedrock',
+  'aoss',
+  'logs',
+  'vpce',
+  'tgw',
+  'vpn',
+  'sagemaker',
+  'snapshots',
+  'amis',
+  'ecr',
+  'elasticache',
+  'opensearch',
+  'redshift',
+  'kinesis',
+  'transfer',
+  'kms',
+  'route53',
+  'vpc',
 ]
 export const isAwsService = (raw: unknown): raw is AwsService =>
   typeof raw === 'string' && (SERVICES as readonly string[]).includes(raw)
 
+/** As drill-resources.ts's `isAwsList`: kept here too, since what that file imports imports this. */
+const isList = (raw: unknown): raw is AwsList =>
+  raw === 'forgotten' || raw === 'new' || raw === 'elsewhere'
+
+/** A list item's place: its service, then its id (`itemOf` reads it back). */
+export const listItem = (service: AwsService, id: string): string => `${service}:${id}`
+
+/** The resource a place's item is: a service's own, or a list's with its service in front. */
+export function itemOf(place: DrillPlace): { service: AwsService; id: string } | null {
+  if (place.item === null) return null
+  if (isAwsService(place.service)) return { service: place.service, id: place.item }
+  const at = place.item.indexOf(':')
+  const service = place.item.slice(0, at)
+  return at > 0 && isAwsService(service) ? { service, id: place.item.slice(at + 1) } : null
+}
+
+function readFilters(raw: unknown): Record<string, string> {
+  const filters: Record<string, string> = {}
+  if (typeof raw === 'object' && raw !== null)
+    for (const [k, v] of Object.entries(raw))
+      if (typeof v === 'string' && k.length < 40 && v.length < 200) filters[k] = v
+  return filters
+}
+
 function readDrill(raw: unknown): DrillPlace | null {
   if (typeof raw !== 'object' || raw === null) return null
   const d = raw as Record<string, unknown>
-  if (!isAwsService(d.service)) return null
-  const filters: Record<string, string> = {}
-  if (typeof d.filters === 'object' && d.filters !== null)
-    for (const [k, v] of Object.entries(d.filters))
-      if (typeof v === 'string' && k.length < 40 && v.length < 200) filters[k] = v
+  if (!isAwsService(d.service) && !isList(d.service)) return null
+  const filters = readFilters(d.filters)
   const sort =
     typeof d.sort === 'object' &&
     d.sort !== null &&
@@ -92,15 +147,18 @@ function readDrill(raw: unknown): DrillPlace | null {
           down: (d.sort as { down?: unknown }).down === true,
         }
       : null
+  const item = typeof d.item === 'string' && d.item.length < 300 ? d.item : null
   return {
     service: d.service,
     filters,
     sort,
-    item: typeof d.item === 'string' && d.item.length < 300 ? d.item : null,
+    item,
+    ...(d.direct === true && item !== null ? { direct: true as const } : {}),
   }
 }
 
-const TABS: readonly AwsTab[] = ['attention', 'active', 'cost', 'activity', 'account']
+const TABS: readonly AwsTab[] = ['resources', 'attention', 'active', 'cost', 'activity', 'account']
+const FROM: readonly DrillFrom[] = ['resources', 'cost', 'attention']
 
 /** The pane's choices, read from its state with defaults. */
 export function readAwsPane(state: Record<string, unknown> | undefined): {
@@ -110,8 +168,8 @@ export function readAwsPane(state: Record<string, unknown> | undefined): {
   mask: boolean
   pulse: boolean
   drill: DrillPlace | null
-  /** Where the drill-down was entered from (ACTIVE or COST), for its crumbs. */
-  from: 'active' | 'cost' | 'attention'
+  /** Where the drill-down was entered from, for its crumbs. */
+  from: DrillFrom
 } {
   const s = state ?? {}
   const regions = Array.isArray(s.regions)
@@ -120,7 +178,9 @@ export function readAwsPane(state: Record<string, unknown> | undefined): {
         MAX_REGIONS,
       )
     : []
-  const tab = TABS.includes(s.tab as AwsTab) ? (s.tab as AwsTab) : 'attention'
+  // No tab in the state is RESOURCES. The other tabs were saved by name and stay; ATTENTION, the
+  // default before RESOURCES, was saved as none and opens on RESOURCES now (aws.md §14.0).
+  const tab = TABS.includes(s.tab as AwsTab) ? (s.tab as AwsTab) : 'resources'
   const region = regionName(s.region)
   return {
     spec: {
@@ -134,6 +194,6 @@ export function readAwsPane(state: Record<string, unknown> | undefined): {
     mask: s.mask === true,
     pulse: s.pulse !== false,
     drill: readDrill(s.drill),
-    from: s.from === 'cost' || s.from === 'attention' ? s.from : 'active',
+    from: FROM.includes(s.from as DrillFrom) ? (s.from as DrillFrom) : 'active',
   }
 }

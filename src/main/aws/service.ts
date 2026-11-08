@@ -1,12 +1,22 @@
 import { activeCost } from '@shared/aws/active'
 import { attention, checksRun } from '@shared/aws/attention'
-import { billingMonth, CE_CAPS, CE_PRICE_USD, quotaCrossed } from '@shared/aws/billing'
+import {
+  billingMonth,
+  CE_CAPS,
+  CE_PRICE_USD,
+  GMD_PRICE_USD,
+  quotaCrossed,
+} from '@shared/aws/billing'
 import { isAwsService, parseAwsBoardKey } from '@shared/aws/board'
 import { changesSince, type IdSets, idSets } from '@shared/aws/changes'
 import { ACCOUNT_PAGES, consoleUrl, isConsoleUrl } from '@shared/aws/console-url'
 import { drillItem, drillRows } from '@shared/aws/drill'
+import { isAwsList, listRows } from '@shared/aws/drill-resources'
+import { forgotten } from '@shared/aws/forgotten'
+import { resourcesView } from '@shared/aws/inventory'
 import { ms, parseWith, TrailSchema } from '@shared/aws/parse'
 import { type AwsReadings, emptyReadings, everywhere } from '@shared/aws/readings'
+import { elsewhereRows } from '@shared/aws/resources'
 import { pulseBins } from '@shared/aws/trail'
 import type {
   AccountView,
@@ -27,10 +37,10 @@ import {
   recordReading,
   summarize,
 } from '@shared/cloud-cli/ledger'
-import type { RunCli } from '@shared/cloud-cli/probe'
+import type { CliPriority, Probe, RunCli } from '@shared/cloud-cli/probe'
 import { incidentsFor, type StatusIncident } from '@shared/cloud-cli/status'
 import type { TimerDeps } from '../boundary-timer.js'
-import { ProbeScheduler } from '../cloud-cli/scheduler.js'
+import { concurrencyLimit, ProbeScheduler } from '../cloud-cli/scheduler.js'
 import {
   type AccountBilling,
   asksNow,
@@ -38,6 +48,7 @@ import {
   ceSettings,
   freshAccount,
 } from './billing-store.js'
+import { type InventoryStore, memoryInventory } from './inventory-store.js'
 import {
   AWS_PROBES,
   type AwsContext,
@@ -47,6 +58,8 @@ import {
   GLOBAL_REGION,
   slowed,
 } from './probes.js'
+import { ResourceAccounts } from './resource-accounts.js'
+import { RESOURCE_PROBES } from './resource-probes.js'
 
 /**
  * AWS STATUS in main (docs/aws.md): one board per key (a profile, its regions, two flags), read
@@ -68,8 +81,10 @@ export interface CloudAlert {
 
 export interface AwsServiceDeps extends TimerDeps {
   cli: RunCli
-  limit: <T>(work: () => Promise<T>) => Promise<T>
+  limit: <T>(work: () => Promise<T>, priority?: CliPriority) => Promise<T>
   billing: BillingStore
+  /** RESOURCES' per-account readings and memory (`aws-inventory.json`); in memory when absent. */
+  inventory?: InventoryStore
   publish: (board: AwsBoard) => void
   incidents: () => StatusIncident[]
   alert: (alert: CloudAlert) => void
@@ -85,6 +100,8 @@ interface Board {
   scheduler: ProbeScheduler<AwsContext>
   ledger: LedgerState
   refreshedAt: number
+  /** The last "check other regions now". */
+  sweptAt: number
   refreshing: boolean
   first: { day: string; at: number; sets: IdSets } | null
   history: Map<string, { at: number; events: HistoryEvent[] }>
@@ -93,6 +110,12 @@ interface Board {
 }
 
 const REFRESH_GAP_MS = 30_000
+
+/** Every probe of a board: the panes' readings, then RESOURCES' (aws.md §14.4). */
+export const BOARD_PROBES: readonly Probe<AwsContext, unknown>[] = [
+  ...AWS_PROBES,
+  ...RESOURCE_PROBES,
+]
 
 /**
  * Boards kept for a quick showing again: the stopped ones beyond a few go, oldest first, so a
@@ -114,9 +137,17 @@ export class AwsService {
   readonly #boards = new Map<string, Board>()
   /** The accounts whose Cost Explorer reading is under way. */
   readonly #ceReading = new Set<string>()
+  readonly #resources: ResourceAccounts
+  /** RESOURCES' bulk readings, one at a time across every board (aws.md §14.4). */
+  readonly #bulk = concurrencyLimit(1)
 
   constructor(deps: AwsServiceDeps) {
     this.#deps = deps
+    this.#resources = new ResourceAccounts({
+      inventory: deps.inventory ?? memoryInventory(),
+      billing: deps.billing,
+      now: deps.now,
+    })
   }
 
   watching(): string[] {
@@ -135,6 +166,7 @@ export class AwsService {
         key,
         ledger: emptyLedger(this.#deps.now()),
         refreshedAt: 0,
+        sweptAt: 0,
         refreshing: false,
         first: null,
         history: new Map(),
@@ -152,10 +184,29 @@ export class AwsService {
             .filter((i) => i.state === 'running')
             .map((i) => ({ id: i.id, region: i.region, launch: Date.parse(i.launch ?? '') || 0 })),
         now: () => this.#deps.now(),
+        shared: () => {
+          const account = created.ctx.account()
+          return account === null
+            ? null
+            : this.#resources.shared(account, () => this.#accountChanged(account))
+        },
+        readings: () => this.#readings(created),
+        every: (id) => probes.find((probe) => probe.id === id)?.every ?? 0,
+        refreshedAt: () => created.refreshedAt,
+        clusterNames: (region) =>
+          (
+            value<Record<string, { name: string }[] | null>>(created.scheduler, 'clusters')?.[
+              region
+            ] ?? []
+          ).map((c) => c.name),
       }
+      const probes = spec.slow ? slowed(BOARD_PROBES) : BOARD_PROBES
       created.scheduler = new ProbeScheduler<AwsContext>(
         {
           ...this.#deps,
+          // The panes' reads wait behind the sign-in, alarms, health, the trail and GitHub.
+          priority: 'later',
+          bulk: this.#bulk,
           context: () => created.ctx,
           record: (entry) => {
             created.ledger = recordReading(created.ledger, entry, this.#deps.now())
@@ -164,7 +215,7 @@ export class AwsService {
           },
           changed: () => this.#publish(created),
         },
-        spec.slow ? slowed(AWS_PROBES) : AWS_PROBES,
+        probes,
       )
       this.#boards.set(key, created)
       evictStopped(this.#boards)
@@ -193,10 +244,12 @@ export class AwsService {
     return REFRESH_GAP_MS
   }
 
-  /** A drill-down's list, from main's last reading (aws.md §5.2). */
+  /** A drill-down's list, from main's last reading (aws.md §5.2), or one of RESOURCES' lists. */
   drill(key: string, service: unknown): DrillRow[] | null {
     const board = this.#active(key)
-    if (board === null || !isAwsService(service)) return null
+    if (board === null) return null
+    if (isAwsList(service)) return listRows(service, this.#readings(board)).slice(0, 1000)
+    if (!isAwsService(service)) return null
     const r = this.#readings(board)
     return drillRows(service, r, attention(r))
   }
@@ -270,9 +323,9 @@ export class AwsService {
     const [, service, region, itemId] = match as unknown as [string, string, string, string]
     if (!isAwsService(service)) return null
     const r = this.#readings(board)
-    const known = drillRows(service, r, []).some(
-      (row) => row.id === itemId && row.region === region,
-    )
+    const known =
+      drillRows(service, r, []).some((row) => row.id === itemId && row.region === region) ||
+      elsewhereRows(r).some((x) => x.service === service && x.id === itemId && x.region === region)
     const url = known ? consoleUrl(service, region, itemId) : null
     return url !== null && isConsoleUrl(url) ? url : null
   }
@@ -324,6 +377,57 @@ export class AwsService {
     return true
   }
 
+  /**
+   * KEEP (aws.md §14.3): `on` marks a row of the board's last forgotten list as meant to stay;
+   * off takes a mark of the account off. The page sends the row's key, nothing else.
+   */
+  keep(key: string, id: unknown, on: unknown): boolean {
+    const board = this.#active(key)
+    const account = board?.ctx.account() ?? null
+    if (board === null || account === null || typeof id !== 'string' || id.length > 600)
+      return false
+    if (typeof on !== 'boolean') return false
+    const r = this.#readings(board)
+    const done = this.#resources.keep(account, id, on, forgotten(r).rows)
+    if (done) this.#accountChanged(account)
+    return done
+  }
+
+  /**
+   * ELSEWHERE's sweep (aws.md §14.2 D): `now` reads the other regions again (at most once in
+   * 30 s, like REFRESH, answering the wait left); `on` and `off` set the account's switch.
+   */
+  sweep(key: string, what: unknown = 'now'): number {
+    const board = this.#active(key)
+    const account = board?.ctx.account() ?? null
+    if (board === null || account === null) return 0
+    if (what === 'on' || what === 'off') {
+      this.#resources.sweep(account, what)
+      this.#everyBoardOf(account, (other) => {
+        if (what === 'on') other.scheduler.runNow('res-sweep')
+        this.#publish(other)
+      })
+      return 0
+    }
+    if (what !== 'now') return 0
+    const left = board.sweptAt + REFRESH_GAP_MS - this.#deps.now()
+    if (left > 0) return left
+    board.sweptAt = this.#deps.now()
+    this.#resources.sweep(account, 'now')
+    board.scheduler.runNow('res-sweep')
+    return REFRESH_GAP_MS
+  }
+
+  /** GetMetricData's answer for the board's account (ON · OFF and the cap, aws.md §14.4a). */
+  metricData(key: string, answer: unknown): boolean {
+    const board = this.#active(key)
+    const account = board?.ctx.account() ?? null
+    if (board === null || account === null || !this.#resources.setMetricData(account, answer))
+      return false
+    this.#everyBoardOf(account, (other) => this.#publish(other))
+    return true
+  }
+
   incidentsChanged(): void {
     for (const board of this.#boards.values()) if (board.scheduler.active) this.#publish(board)
   }
@@ -342,6 +446,12 @@ export class AwsService {
   dispose(): void {
     for (const board of this.#boards.values()) board.scheduler.stop()
     this.#boards.clear()
+    this.#resources.flush()
+  }
+
+  /** A RESOURCES reading of the account came in: every board of it shows it. */
+  #accountChanged(account: string): void {
+    this.#everyBoardOf(account, (other) => this.#publish(other))
   }
 
   #active(key: unknown): Board | null {
@@ -419,7 +529,21 @@ export class AwsService {
       plan: value(s, 'plan'),
       domains: value(s, 'domains'),
       savings: value(s, 'savings'),
+      res: this.#resources.readings(
+        value<{ account: string }>(s, 'identity')?.account ?? null,
+        r.regions,
+        this.#judging(board, r.regions),
+      ),
     }
+  }
+
+  /** The judgement's first reading is still to come for one of the board's regions (§14.4). */
+  #judging(board: Board, regions: readonly string[]): boolean {
+    const quiet = value<Record<string, unknown>>(board.scheduler, 'res-quiet')
+    return (
+      quiet === null ||
+      regions.some((region) => quiet[region] === null || quiet[region] === undefined)
+    )
   }
 
   #publish(board: Board): void {
@@ -433,6 +557,7 @@ export class AwsService {
     const items = attention(r)
     const trail = everywhere(r.trail).sort((a, b) => b.at - a.at)
     const identity = r.identity
+    if (identity !== null) this.#resources.remember(identity.account, r, forgotten(r).released)
     return {
       key: board.key,
       ...linkFields(s.problems(), s.anyReading(), board.ctx.spec.profile, s.denied()),
@@ -443,6 +568,7 @@ export class AwsService {
         identity === null ? null : { id: identity.account, alias: r.alias, arn: identity.arn },
       regions: r.regions,
       attention: items,
+      resources: resourcesView(r, { denied: s.denied(), perMetricUsd: GMD_PRICE_USD }),
       checks: checksRun(r),
       alarms: items.filter((item) => item.tag === 'ALARM').length,
       active: activeCost(r),
@@ -454,7 +580,7 @@ export class AwsService {
       changes: this.#changes(board, r),
       incidents: incidentsFor(this.#deps.incidents(), r.regions),
       ledger: paidOfAccount(
-        summarize(board.ledger, AWS_PROBES),
+        summarize(board.ledger, BOARD_PROBES),
         identity === null ? null : this.#deps.billing.get(identity.account),
       ),
       cliVersion: this.#deps.cliVersion(),
@@ -609,10 +735,14 @@ function quotaView(
  */
 function paidOfAccount(ledger: LedgerSummary, account: AccountBilling | null): LedgerSummary {
   if (account === null) return ledger
+  // GetMetricData is counted by the metric (aws.md §14.4a), beside Cost Explorer's requests.
   return {
     ...ledger,
     paidRequests: account.ce.used,
-    paidUsd: Math.round(account.ce.used * CE_PRICE_USD * 100) / 100,
+    paidMetrics: account.gmd.used,
+    paidUsd:
+      Math.round((account.ce.used * CE_PRICE_USD + account.gmd.used * GMD_PRICE_USD) * 100) / 100,
+    paidNotes: account.gmd.capReached ? ['GMD CAP REACHED'] : [],
   }
 }
 

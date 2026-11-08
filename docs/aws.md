@@ -44,7 +44,7 @@
 | ある 1 つのリソースの全部は | ドリルダウンの 3 段目（§5） | そのリソースの describe と、関係するものと、その CloudTrail |
 
 非目的: 変更・停止・削除、利用者が有効にしていない有料の呼び出し（§3.3）、メトリクスのグラフ（GetMetricData は
-有料）、S3 のオブジェクトの一覧と中身（LIST は課金）、ログの中身、AWS Health の API（Business サポートが要る）。
+有料。RESOURCES の判定にだけ §14.4a の上限付きで使う）、S3 のオブジェクトの一覧と中身（LIST は課金）、ログの中身、AWS Health の API（Business サポートが要る）。
 
 ## 2. 認証とプロファイル
 
@@ -98,7 +98,7 @@
 | commit G＋R | `savingsplans describe-savings-plans`、`ec2 describe-reserved-instances`、`rds describe-reserved-db-instances` | 1 日 | 無料 | 期限の近い RI / SP |
 | backup R | `backup list-backup-jobs --by-state FAILED --by-created-after <24 時間前>` | 1 時間 | 無料 | 失敗したバックアップ |
 | quota R | `service-quotas get-service-quota`（L-1216C47A）、`ec2 describe-account-attributes`（EIP の上限）、使っている型だけの `describe-instance-types --instance-types …` | 1 日 | 無料 | vCPU と EIP の上限と使用 |
-| s3size R | `cloudwatch list-metrics --namespace AWS/S3 --metric-name BucketSizeBytes` → バケットと保存クラスごとの `get-metric-statistics`（日ごと、`NumberOfObjects` も） | 1 日 | 無料枠 | S3 の容量と保存クラス。**S3 の API は呼ばない**（`list-buckets` も LIST として課金されうる）。メトリクスは S3 が 1 日 1 回出すもの |
+| s3size R | `cloudwatch list-metrics --namespace AWS/S3 --metric-name BucketSizeBytes` → バケットと保存クラスごとの `get-metric-statistics`（日ごと、`NumberOfObjects` も） | 1 日 | 無料枠 | S3 の容量と保存クラス。S3 の API は RESOURCES の `list-buckets`（§14.4、`metered-tiny`）だけ。メトリクスは S3 が 1 日 1 回出すもの |
 | ec2cpu R | 動いているインスタンスごとの `cloudwatch get-metric-statistics`（`CPUUtilization`、7 日、1 日ごとの平均と最大） | 1 日 | 無料枠 | IDLE の判定（7 日の平均 2% 未満かつ最大 10% 未満）。50 台まで（多い順でなく、動いている時間の長い順） |
 | prices G | `pricing get-products --region us-east-1`（使っている型・クラス・ボリュームの種類だけ、On-Demand・Linux・共有テナンシー） | 7 日（`aws-prices.json` に持つ） | 料金の記載なし（**要確認**。有料なら同梱の単価表に替える） | ACTIVE の推定額 |
 | guardduty R | `guardduty list-detectors` → `get-findings-statistics --group-by SEVERITY` | 1 時間 | 無料 | 重さ別の件数（古い `--finding-statistic-types COUNT_BY_SEVERITY` ではなく `--group-by`） |
@@ -553,7 +553,7 @@ spot を除く、単価が無い型）、Cost Explorer（既定 OFF、頻度、�
 `consoleUrl`、禁止の表。e2e は `aws.spec.ts`（代役の `demo` / `signedout` / `mfa` / `partial` / `nobilling` /
 `newplan` / `nocli`、ドリルダウンの往復とキーボード）。
 
-## 14. RESOURCES: いま何があり、何を忘れていそうか（修正案 2026-11-08、レビュー済み・利用者の決定済み・実装前）
+## 14. RESOURCES: いま何があり、何を忘れていそうか（2026-11-08、レビュー済み・利用者の決定済み・実装済み、未リリース）
 
 利用者の指定（2026-11-08）: 「アラーム・セキュリティ・期限切れ・課金だけでなく、**アクティブなリソース**（起動している
 EC2、作られた S3、有効な CloudWatch Logs など）を、**メインとしてダッシュボード的に**表示したい」「AWS の利用状況・
@@ -863,3 +863,19 @@ ATTENTION へ、SNS の宛先を入れない、WebSocket の API、Classic ELB �
 階層（SERVICES、Also here、quiet for）、理由の列挙、ELSEWHERE はメトリクスを読まない、NEW 7 D の基準、KEEP の
 IPC と数と出し直し、ATTENTION・ACTIVE との重複、MASK の範囲を問いに、権限の表（§9）、アラームの全状態、
 数字を button に、矢印とフォーカス、最初の表示の順。
+
+### 14.11 実装で決めたこと（2026-11-08）
+
+- **ELSEWHERE の見回り**は 13 リージョンで切らず、見ていない有効なリージョンを全部（上限 16）読む。名前の順で 13 に
+  切ると us-west-2 が落ちるため。4 リージョンを見ていれば 13 になる
+- **静かな日数**は main が 30 日（`AWS_LIMITS.quietDays`）で判定する。60・90 日はボードの key に入れず、行の
+  `window` でページが絞る
+- **S3 の「変わらない」**は容量の履歴だけで判定し、オブジェクト数は読まない（main の 90 日の記録が要るので、代役では
+  すぐには出ない）
+- **NEW 7 D**: EC2 の LaunchTime、Lambda の LastModified、CloudFront の LastModifiedTime は作成日ではないので、
+  main が初めて見た日で数える
+- **GetMetricData の dimension**: dimension が 1 つで決まるメトリクス（NAT、RDS、Redshift、EC2、DynamoDB、Logs…）
+  だけを直接組み立て、複数の dimension のもの（ElastiCache、OpenSearch、VPC エンドポイント、TGW、SageMaker、AOSS）は
+  list-metrics が見つけた組だけを問う。でたらめな dimension で 0 になり、誤って「静か」と出るのを避けるため
+- **REFRESH** で RESOURCES の共有の読み取りを読み直すのは、押す前から 5 分以上古いものだけ
+- **代役**の「忘れた GPU」は us-west-2 の g5.xlarge（ELSEWHERE）。既存の e2e（`1 IDLE`、EC2 の 6 行）を保つため

@@ -1,16 +1,21 @@
 <script lang="ts">
-import type { DrillPlace } from '@shared/aws/board'
+import { type DrillPlace, isAwsService, itemOf, listItem } from '@shared/aws/board'
 import { DRILL, type DrillColumn, facets, filterRows, sortRows } from '@shared/aws/drill'
 import type { AwsService, DrillItem, DrillRow, HistoryEvent } from '@shared/aws/types'
+import { afterBlink } from '../../lib/blink.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import { toasts } from '../../stores/toasts.svelte.ts'
 import { ageText, clockText, MASKED } from '../cloud/cloud-view.ts'
 import { dateCell, gibText, money } from './aws-view.ts'
+import { dayText, drillDef, keptToast, maskIn, shownName } from './resources-view.ts'
 
 /**
  * The drill-down's second and third steps (docs/aws.md §5): a service's facet bars and its list,
  * then one resource. The list comes from main's last reading once per reading; the facets, the
  * cross-filtering and the sort are worked out here. Where the pane has drilled to lives in its
  * state, so a remount comes back to the same place; an id main no longer has goes back a step.
+ * RESOURCES' lists across services (FORGOTTEN, NEW 7 D, ELSEWHERE) are drilled the same way,
+ * each row saying its service; under MASK no resource is named, at either step (aws.md §14.6).
  */
 interface Props {
   boardKey: string
@@ -20,18 +25,36 @@ interface Props {
   masked: boolean
   now: number
   narrow: boolean
+  /** The ELSEWHERE sweep's last reading, for its list's line. */
+  sweptAt?: number | null
   onplace: (next: DrillPlace | null) => void
   onopen: (id: string) => void
 }
 
-const { boardKey, place, readAt, masked, now, narrow, onplace, onopen }: Props = $props()
+const {
+  boardKey,
+  place,
+  readAt,
+  masked,
+  now,
+  narrow,
+  sweptAt = null,
+  onplace,
+  onopen,
+}: Props = $props()
 
 let rows = $state.raw<DrillRow[] | null>(null)
 let item = $state.raw<DrillItem | null>(null)
 let history = $state.raw<HistoryEvent[] | 'failed' | null>(null)
 let gone = $state<number | null>(null)
 
-const def = $derived(DRILL[place.service])
+const def = $derived(drillDef(place))
+/** A list across services: its rows say their service, and its items carry it (board.ts). */
+const isList = $derived(!isAwsService(place.service))
+/** The resource the item step shows. */
+const target = $derived(itemOf(place))
+/** Bumped by KEEP's answer: the item is read again for its Kept. */
+let kept = $state(0)
 
 $effect(() => {
   const service = place.service
@@ -44,14 +67,15 @@ $effect(() => {
 
 $effect(() => {
   const id = place.item
-  const service = place.service
+  const one = target
   void readAt
+  void kept
   history = null
-  if (id === null) {
+  if (id === null || one === null) {
     item = null
     return
   }
-  void window.elecdex.aws.item(boardKey, service, id).then((next) => {
+  void window.elecdex.aws.item(boardKey, one.service, one.id).then((next) => {
     if (place.item !== id) return
     if (next === null) {
       // Gone since the last reading: back to the list, saying when (aws.md §5.1).
@@ -111,10 +135,15 @@ function sortBy(column: string): void {
   onplace({ ...place, sort: { column, down } })
 }
 
+/** A list's row opens its resource under the list; a row of something gone (NEW's) does not. */
+const opens = (row: DrillRow): boolean => !isList || row.service !== undefined
+
 function choose(row: DrillRow): void {
+  if (!opens(row)) return
   sfx.play('expand')
   gone = null
-  onplace({ ...place, item: row.id })
+  const { direct: _direct, ...rest } = place
+  onplace({ ...rest, item: isList && row.service ? listItem(row.service, row.id) : row.id })
 }
 
 function onRowKey(event: KeyboardEvent, row: DrillRow): void {
@@ -138,20 +167,50 @@ async function readHistory(): Promise<void> {
   oneEl?.focus({ preventScroll: true })
 }
 
+function numberCell(column: DrillColumn, value: number): string {
+  if (column.kind === 'money') return money(value)
+  if (column.kind === 'gib') return gibText(value)
+  if (column.kind === 'date')
+    return column.key === 'up' ? ageText(value, now) : dateCell(value, now)
+  return String(value)
+}
+
 function cell(column: DrillColumn, row: DrillRow): string {
   const value = row.cells[column.key]
   if (column.masked && masked) return MASKED
-  if (column.kind === 'money') return typeof value === 'number' ? money(value) : '—'
-  if (column.kind === 'gib') return typeof value === 'number' ? gibText(value) : '—'
-  if (column.kind === 'date') {
-    if (typeof value !== 'number') return '—'
-    return column.key === 'up' ? ageText(value, now) : dateCell(value, now)
-  }
-  return value === null || value === undefined ? '—' : String(value)
+  if (typeof value === 'number') return numberCell(column, value)
+  if (value === null || value === undefined) return '—'
+  if (column.kind !== 'text' && column.kind !== 'num') return '—'
+  // A sentence about the row (a reason) keeps its numbers and loses the row's own name.
+  return maskIn(value, [row.name], masked)
 }
 
-const shown = (name: string, i: number) =>
-  masked && def.columns[0]?.masked && i === 0 ? MASKED : name
+/** The name column: every resource's name goes under MASK, whatever its kind (aws.md §14.6). */
+const shown = (name: string, i: number, row: DrillRow) =>
+  i === 0 && masked ? shownName(row.name, true) : name
+
+/* ---- KEEP, and ELSEWHERE's sweep ---- */
+
+function keep(button: HTMLElement, on: boolean): void {
+  const row = item?.forgotten
+  if (row == null) return
+  // Kept or not changes what the step shows: the press blinks first (lib/blink.ts).
+  afterBlink(button, () => {
+    void window.elecdex.aws.keep(boardKey, row.key, on).then((done) => {
+      if (!done) return
+      sfx.play('folder')
+      if (on) toasts.show({ ...keptToast(row, masked), tone: 'ok' })
+      kept += 1
+    })
+  })
+}
+
+let sweepWait = $state(0)
+async function sweepNow(): Promise<void> {
+  if (now < sweepWait) return
+  sfx.play('panel')
+  sweepWait = Date.now() + (await window.elecdex.aws.sweep(boardKey, 'now'))
+}
 
 /** Takes the focus as the list or the item appears, so Escape goes up from the keyboard. */
 function takeFocus(el: HTMLElement): void {
@@ -161,6 +220,9 @@ function takeFocus(el: HTMLElement): void {
 
 {#if place.item === null}
   <div class="drill" data-testid="aws-drill-list">
+    {#if place.service === 'elsewhere'}
+      <p class="sweep" data-testid="aws-sweep-line">Read by a weekly sweep of the regions this pane does not show, describe only · last {dayText(sweptAt)} <button type="button" class="tool" onclick={() => void sweepNow()} data-testid="aws-sweep-now">check other regions now</button>{#if sweepWait > 0}<span class="dim"> · asked: the other regions are read in the background</span>{/if}</p>
+    {/if}
     {#if gone !== null}<p class="gone" role="status">gone since {clockText(gone)}: not in the last reading</p>{/if}
     <div class="facets" class:narrow>
       {#each groups as group (group.key)}
@@ -183,13 +245,13 @@ function takeFocus(el: HTMLElement): void {
           </button>
         {/each}
       </div>
-      {#each sorted as row (row.id)}
+      {#each sorted as row (`${row.service ?? ''}:${row.id}`)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="row" style:grid-template-columns={template} data-weight={row.weight} tabindex="0" role="link" onclick={() => choose(row)} onkeydown={(e) => onRowKey(e, row)} data-testid="aws-drill-row">
+        <div class="row" style:grid-template-columns={template} data-weight={row.weight} tabindex={opens(row) ? 0 : undefined} role={opens(row) ? 'link' : 'listitem'} onclick={() => choose(row)} onkeydown={(e) => onRowKey(e, row)} data-testid="aws-drill-row">
           {#each columns as column, i (column.key)}
             <span class:num={column.kind !== 'text'} class:lead={i === 0}>
               {#if maxOf[column.key]}<i class="bg" style:--share={(typeof row.cells[column.key] === 'number' ? (row.cells[column.key] as number) : 0) / (maxOf[column.key] || 1)}></i>{/if}
-              {i === 0 ? shown(cell(column, row), i) : cell(column, row)}
+              {i === 0 ? shown(cell(column, row), i, row) : cell(column, row)}
             </span>
           {/each}
         </div>
@@ -203,9 +265,13 @@ function takeFocus(el: HTMLElement): void {
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div class="drill one" data-testid="aws-drill-item" tabindex="-1" bind:this={oneEl} {@attach takeFocus}>
     <header class="ihead">
-      <span class="state" data-state={item.state ?? ''}><i></i>{item.state ?? item.service}</span>
-      <b>{masked && def.columns[0]?.masked ? MASKED : item.name}</b>
+      <span class="state" data-state={item.state ?? ''} data-testid="aws-item-state"><i></i>{item.state ?? item.service}</span>
+      <b>{shownName(item.name, masked)}</b>
+      {#if item.forgotten}<span class="tag" data-weight={item.forgotten.weight}>{item.kept ? 'kept' : 'looks forgotten'}</span>{/if}
       <span class="spacer"></span>
+      {#if item.forgotten}
+        <button type="button" class="tool" class:on={item.kept} aria-pressed={item.kept === true} aria-label={item.kept ? 'kept: show it in LOOKS FORGOTTEN again' : 'keep: I meant to leave it'} onclick={(e) => keep(e.currentTarget, item?.kept !== true)} data-testid="aws-item-keep">{item.kept ? 'KEPT' : 'KEEP'}</button>
+      {/if}
       <button type="button" class="tool" onclick={() => item && onopen(`item:${item.service}:${item.region}:${item.id}`)} data-testid="aws-console">↗ CONSOLE</button>
     </header>
     {#if item.attention.length > 0}
@@ -216,15 +282,19 @@ function takeFocus(el: HTMLElement): void {
       </div>
     {/if}
     <dl class="fields">
+      {#if item.forgotten}
+        <dt>quiet for</dt><dd class="mono" class:warn={item.forgotten.billed} data-testid="aws-item-quiet">{item.forgotten.quietFor} · {maskIn(item.forgotten.why, [item.name, item.id], masked)}</dd>
+        <dt>seen by</dt><dd class="mono">{maskIn(item.forgotten.source, [item.name, item.id], masked)} · read {clockText(readAt)}</dd>
+      {/if}
       {#each item.fields as field (field.label)}
-        <dt>{field.label}</dt><dd class:mono={true}>{field.masked && masked ? MASKED : field.value}</dd>
+        <dt>{field.label}</dt><dd class:mono={true}>{field.masked && masked ? MASKED : maskIn(field.value, [item.name], masked)}</dd>
       {/each}
     </dl>
     {#if item.related.length > 0}
       <div class="sep">related</div>
       {#each item.related as other (`${other.service}:${other.id}`)}
         <button type="button" class="rel" onclick={() => related(other.service, other.id)} data-testid="aws-related">
-          <span class="svc">{DRILL[other.service].label}</span><span class="mono">{other.name}</span><span class="dim">{other.note}</span>
+          <span class="svc">{DRILL[other.service].label}</span><span class="mono">{shownName(other.name, masked)}</span><span class="dim">{other.note}</span>
         </button>
       {/each}
     {/if}
@@ -246,6 +316,8 @@ function takeFocus(el: HTMLElement): void {
 <style>
 .drill { display: flex; flex-direction: column; gap: 0.4rem; min-height: 0; }
 .gone { margin: 0; color: var(--warn); font-size: var(--step--1); }
+.sweep { margin: 0; color: var(--text-dim); font-size: var(--step--1); }
+.warn { color: var(--warn); }
 .facets { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.4rem 1rem; }
 .facets.narrow { grid-template-columns: 1fr; }
 .facet { display: flex; flex-direction: column; gap: 0.12rem; }

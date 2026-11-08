@@ -165,6 +165,10 @@ export const CH = {
     open: 'aws:open',
     costExplorer: 'aws:cost-explorer',
     quota: 'aws:quota',
+    /** RESOURCES (aws.md §14): KEEP a forgotten row, the sweep, GetMetricData's setting. */
+    keep: 'aws:keep',
+    sweep: 'aws:sweep',
+    metricData: 'aws:metric-data',
     profiles: 'aws:profiles',
     watching: 'aws:watching',
   },

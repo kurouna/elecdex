@@ -1,9 +1,24 @@
 <script lang="ts">
 import { serviceLabel } from '@shared/aws/active'
 import { CE_CAPS } from '@shared/aws/billing'
-import { awsBoardKey, type DrillPlace, MAX_REGIONS, readAwsPane } from '@shared/aws/board'
+import {
+  type AwsTab,
+  awsBoardKey,
+  type DrillFrom,
+  type DrillPlace,
+  itemOf,
+  MAX_REGIONS,
+  readAwsPane,
+} from '@shared/aws/board'
 import { DRILL } from '@shared/aws/drill'
-import type { AttentionItem, AwsBoard, AwsService, TrailEvent } from '@shared/aws/types'
+import type {
+  AttentionItem,
+  AwsBoard,
+  AwsList,
+  AwsService,
+  ForgottenRow,
+  TrailEvent,
+} from '@shared/aws/types'
 import { afterBlink } from '../../lib/blink.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
@@ -34,6 +49,8 @@ import HoverCard from '../common/HoverCard.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import AwsDrill from './AwsDrill.svelte'
+import AwsResources from './AwsResources.svelte'
+import AwsResourcesSettings from './AwsResourcesSettings.svelte'
 import {
   ATTENTION_TAGS,
   accountLabel,
@@ -46,10 +63,12 @@ import {
   regionTone,
 } from './aws-view.ts'
 import PulseBand from './PulseBand.svelte'
+import { type Card, drillCrumb, FROM_CRUMB, listPlace, opensForgotten } from './resources-view.ts'
 
 /**
- * AWS STATUS (docs/aws.md): what needs someone in one AWS account, what runs and bills now, the
- * month's cost, who changed what, and the account's own settings - read through the user's own
+ * AWS STATUS (docs/aws.md): what there is in one AWS account and what looks forgotten (RESOURCES,
+ * the first tab), what needs someone, what runs and bills now, the month's cost, who changed
+ * what, and the account's own settings - read through the user's own
  * AWS CLI, by main, only while a pane like this is seen. The page sends a board key and ids;
  * main builds every list, item and URL from its own last reading.
  */
@@ -94,13 +113,15 @@ function patch(change: Record<string, unknown>): void {
 
 /* ---- Tabs, the region filter, the drill-down ---- */
 
-type Tab = 'attention' | 'active' | 'cost' | 'activity' | 'account'
 let tagFilter = $state<string>('all')
 let activityFilter = $state<'all' | 'writes' | 'logins' | 'errors'>('all')
 
-function selectTab(tab: Tab): void {
+/** RESOURCES, the default, is kept in the state as no tab at all (board.ts). */
+const tabValue = (tab: AwsTab): AwsTab | undefined => (tab === 'resources' ? undefined : tab)
+
+function selectTab(tab: AwsTab): void {
   sfx.play('panel')
-  patch({ tab: tab === 'attention' ? undefined : tab, drill: undefined, from: undefined })
+  patch({ tab: tabValue(tab), drill: undefined, from: undefined })
 }
 
 const inRegion = <T extends { region: string | null }>(rows: readonly T[]): T[] =>
@@ -115,35 +136,56 @@ const shownAttention = $derived(
 const dangerCount = $derived(attention.filter((a) => a.weight === 'danger').length)
 const warnCount = $derived(attention.filter((a) => a.weight === 'warn').length)
 
-function drillTo(
-  place: DrillPlace | null,
-  from: 'active' | 'cost' | 'attention' = choices.from,
-): void {
+function drillTo(place: DrillPlace | null, from: DrillFrom = choices.from): void {
   patch({
     drill: place === null ? undefined : $state.snapshot(place),
     from: from === 'active' ? undefined : from,
-    tab:
-      place === null
-        ? choices.tab === 'attention'
-          ? undefined
-          : choices.tab
-        : from === 'attention'
-          ? undefined
-          : from,
+    tab: tabValue(place === null ? choices.tab : from),
   })
 }
-function drillService(service: AwsService, from: 'active' | 'cost' | 'attention' = 'active'): void {
+function drillService(service: AwsService, from: DrillFrom = 'active'): void {
   sfx.play('expand')
   drillTo(
     { service, filters: choices.region ? { region: choices.region } : {}, sort: null, item: null },
     from,
   )
 }
+
+/**
+ * Where RESOURCES was pressed (a tile, a row, a figure, a line), so that Back from the step
+ * below puts the focus there again (aws.md §14.2). The page's own memory: a remount forgets it.
+ */
+let returnTo = $state<string | null>(null)
+
+function fromResources(focus: string, place: DrillPlace): void {
+  sfx.play('expand')
+  returnTo = focus
+  drillTo(place, 'resources')
+}
+const openList = (list: AwsList, focus: string) =>
+  fromResources(focus, listPlace(list, choices.region))
+const openTile = (service: AwsService, focus: string) =>
+  fromResources(focus, {
+    service,
+    filters: choices.region ? { region: choices.region } : {},
+    sort: null,
+    item: null,
+  })
+// A LOOKS FORGOTTEN row is its resource at once; Back goes straight to RESOURCES (`direct`).
+const openForgotten = (row: ForgottenRow, focus: string) =>
+  fromResources(focus, {
+    service: row.service,
+    filters: {},
+    sort: null,
+    item: row.id,
+    direct: true,
+  })
+
 function up(): void {
   const drill = choices.drill
   if (drill === null) return
   sfx.play('collapse')
-  drillTo(drill.item === null ? null : { ...drill, item: null })
+  drillTo(drill.item === null || drill.direct ? null : { ...drill, item: null })
 }
 function onPaneKey(event: KeyboardEvent): void {
   if ((event.key === 'Escape' || event.key === 'Backspace') && choices.drill !== null) {
@@ -159,7 +201,15 @@ function onPaneKey(event: KeyboardEvent): void {
   }
 }
 
+/** Whether an ATTENTION row leads somewhere: a resource, or the one line of what looks forgotten. */
+const opens = (item: AttentionItem) => item.item !== null || opensForgotten(item)
+
 function attentionOpen(item: AttentionItem): void {
+  if (opensForgotten(item)) {
+    sfx.play('expand')
+    drillTo(listPlace('forgotten', null), 'resources')
+    return
+  }
   if (item.item === null) return
   sfx.play('expand')
   drillTo({ service: item.item.service, filters: {}, sort: null, item: item.item.id }, 'attention')
@@ -282,12 +332,7 @@ let hover = $state.raw<{
 } | null>(null)
 const resting = new HoverRest<string>(() => (hover = null))
 
-function card(
-  id: string,
-  target: HTMLElement,
-  pointerX: number | null,
-  make: () => { head: string; side: string; rows: CardRow[]; note: string | null },
-): void {
+function card(id: string, target: HTMLElement, pointerX: number | null, make: () => Card): void {
   resting.enter(
     id,
     () => {
@@ -315,8 +360,9 @@ function attentionCard(item: AttentionItem) {
     rows: [
       {
         label: 'opens',
-        value:
-          item.item === null
+        value: opensForgotten(item)
+          ? 'RESOURCES › FORGOTTEN: each one, with what it was judged by'
+          : item.item === null
             ? 'the account (no resource)'
             : `${DRILL[item.item.service].label}: the resource's page in this pane`,
       },
@@ -337,6 +383,17 @@ function serviceCard(service: AwsBoard['active']['services'][number]) {
         ? 'Billed by use only: not estimated here. COST has the real amount.'
         : 'The biggest five, at list prices.',
   }
+}
+/** The ledger card's GetMetricData line: counted by the metric, under its monthly cap (§14.4a). */
+function gmdRows(): CardRow[] {
+  const gmd = board?.resources.gmd
+  if (gmd === undefined || (!gmd.on && gmd.used === 0)) return []
+  return [
+    {
+      label: 'GetMetricData',
+      value: `${gmd.used.toLocaleString('en-US')} of ${gmd.cap.toLocaleString('en-US')} metrics this month · ${gmd.usd.toFixed(2)}${gmd.capReached ? ' · GMD CAP REACHED' : ''}`,
+    },
+  ]
 }
 const ESTIMATE_NOTE =
   'On-Demand list prices for what is switched on. Savings Plans, RIs, the free tier, discounts, data transfer and requests are left out. The bill is under COST.'
@@ -385,9 +442,17 @@ const narrow = $derived(width < 32 * 16)
 const short = $derived(height < 30 * 16)
 const budget = $derived(board?.cost.budgets[0] ?? null)
 const total = $derived(board?.active.perMonth ?? 0)
-const crumbsFrom = $derived(
-  choices.from === 'cost' ? 'COST' : choices.from === 'attention' ? 'ATTENTION' : 'ACTIVE',
-)
+const crumbsFrom = $derived(FROM_CRUMB[choices.from])
+/** The item the crumbs end with: its name is not known here, its id's last part is. */
+const crumbItem = $derived(choices.drill === null ? null : itemOf(choices.drill))
+const TABS: readonly [AwsTab, string][] = [
+  ['resources', 'RESOURCES'],
+  ['attention', 'ATTENTION'],
+  ['active', 'ACTIVE'],
+  ['cost', 'COST'],
+  ['activity', 'ACTIVITY'],
+  ['account', 'ACCOUNT'],
+]
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -484,8 +549,8 @@ const crumbsFrom = $derived(
     {/if}
 
     <div class="tabs" role="tablist" aria-label="aws status">
-      {#each [['attention', 'ATTENTION', attention.length], ['active', 'ACTIVE', undefined], ['cost', 'COST', undefined], ['activity', 'ACTIVITY', undefined], ['account', 'ACCOUNT', undefined]] as [id, label, count] (id)}
-        <button type="button" role="tab" aria-selected={choices.drill === null ? choices.tab === id : choices.from === id || (id === 'active' && choices.from === 'active')} onclick={() => selectTab(id as Tab)} data-testid="aws-tab-{id}">{label}{#if count !== undefined}<em>{count}</em>{/if}</button>
+      {#each TABS as [id, label] (id)}
+        <button type="button" role="tab" aria-selected={choices.drill === null ? choices.tab === id : choices.from === id} onclick={() => selectTab(id)} data-testid="aws-tab-{id}">{label}{#if id === 'attention'}<em>{attention.length}</em>{/if}</button>
       {/each}
     </div>
 
@@ -493,11 +558,11 @@ const crumbsFrom = $derived(
       <div class="bar crumbs" data-testid="aws-crumbs">
         <button type="button" class="back" onclick={up} aria-label="back a step">‹</button>
         <button type="button" onclick={() => drillTo(null)}>{crumbsFrom}</button><span class="gt">›</span>
-        <button type="button" onclick={() => choices.drill && drillTo({ ...choices.drill, item: null })}>{DRILL[choices.drill.service].label}</button>
+        <button type="button" onclick={() => { if (!choices.drill) return; const { direct: _direct, ...rest } = choices.drill; drillTo({ ...rest, item: null }) }}>{drillCrumb(choices.drill)}</button>
         {#each Object.entries(choices.drill.filters) as [k, v] (k)}
           <button type="button" class="chip on" onclick={() => { if (!choices.drill) return; const { [k]: _gone, ...rest } = choices.drill.filters; drillTo({ ...choices.drill, filters: rest }) }}>{k}: {v} ×</button>
         {/each}
-        {#if choices.drill.item !== null}<span class="gt">›</span><span class="here">{masked ? MASKED : choices.drill.item.split('/').at(-1)}</span>{/if}
+        {#if crumbItem !== null}<span class="gt">›</span><span class="here">{masked ? MASKED : crumbItem.id.split('/').at(-1)}</span>{/if}
       </div>
     {:else if choices.tab === 'attention' && board !== null}
       <div class="bar">
@@ -518,7 +583,25 @@ const crumbsFrom = $derived(
         {#if board === null}
           <p class="empty">…</p>
         {:else if choices.drill !== null}
-          <AwsDrill boardKey={key} place={choices.drill} readAt={board.readAt} {masked} {now} {narrow} onplace={(next) => drillTo(next)} onopen={(id) => void open(id)} />
+          <AwsDrill boardKey={key} place={choices.drill} readAt={board.readAt} sweptAt={board.resources.elsewhere.readAt} {masked} {now} {narrow} onplace={(next) => drillTo(next)} onopen={(id) => void open(id)} />
+        {:else if choices.tab === 'resources'}
+          <AwsResources
+            res={board.resources}
+            boardKey={key}
+            regions={board.regions}
+            region={choices.region}
+            {masked}
+            {width}
+            {height}
+            focus={returnTo}
+            onfocused={() => (returnTo = null)}
+            ontab={(tab) => selectTab(tab)}
+            onlist={openList}
+            onservice={openTile}
+            onitem={openForgotten}
+            oncard={card}
+            onleave={leave}
+          />
         {:else if choices.tab === 'attention'}
           {#if shownAttention.length === 0}
             <div class="empty"><b class="ok">NOTHING NEEDS ATTENTION</b><span>{board.checks} checks across {board.regions.length} region{board.regions.length === 1 ? '' : 's'} · read {clockText(board.readAt)}</span></div>
@@ -529,8 +612,8 @@ const crumbsFrom = $derived(
               <div
                 class="row a"
                 data-weight={item.weight}
-                tabindex={item.item === null ? undefined : 0}
-                role={item.item === null ? 'listitem' : 'link'}
+                tabindex={opens(item) ? 0 : undefined}
+                role={opens(item) ? 'link' : 'listitem'}
                 onclick={() => attentionOpen(item)}
                 onkeydown={(e) => onRowKey(e, () => attentionOpen(item))}
                 onpointerenter={(e) => card(item.id, e.currentTarget as HTMLElement, e.clientX, () => attentionCard(item))}
@@ -654,7 +737,7 @@ const crumbsFrom = $derived(
       </div>
     {/key}
 
-    {#if board !== null && (choices.tab === 'active' || choices.drill !== null) && choices.from !== 'attention'}
+    {#if board !== null && (choices.tab === 'active' || choices.tab === 'resources' || choices.drill !== null) && choices.from !== 'attention'}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <p
         class="estimate"
@@ -711,6 +794,7 @@ const crumbsFrom = $derived(
           <span class="seg"><button type="button" class="tool" class:on={board.cost.quota.steps === '80-100'} onclick={() => void saveQuota('80-100')}>80% + 100%</button><button type="button" class="tool" class:on={board.cost.quota.steps === '100'} onclick={() => void saveQuota('100')}>100% only</button></span>
         </div>
         <p>Checked every 6 hours while this pane is shown: a toast can come half a day after the money was spent, or later if the pane is not shown. AWS Budgets is the alarm AWS keeps; this one is elecdex's own, on screen. The month is AWS's (UTC). On the payer account this is the whole organization's bill.</p>
+        <AwsResourcesSettings res={board.resources} boardKey={key} {masked} />
       {/if}
       <h5>Every AWS STATUS pane</h5>
       <div class="opt"><span>Incident toasts</span>
@@ -732,7 +816,7 @@ const crumbsFrom = $derived(
     onpointerenter={(e) => board && card('ledger', e.currentTarget as HTMLElement, e.clientX, () => ({
       head: 'requests today · by probe',
       side: String(board?.ledger.requests ?? 0),
-      rows: (board?.ledger.probes ?? []).filter((p) => p.requests > 0).map((p) => ({ label: p.id, value: `${p.requests} · every ${periodText(p.every)} · ${p.cost}` })),
+      rows: [...gmdRows(), ...(board?.ledger.probes ?? []).filter((p) => p.requests > 0).map((p) => ({ label: p.id, value: `${p.requests} · every ${periodText(p.every)} · ${p.cost}` }))],
       note: `Free tier is CloudWatch's million requests a month, shared by the whole account. aws: ${board?.executable ?? 'not found'}${board?.cliVersion ? ` · ${board.cliVersion}` : ''}.`,
     }))}
     onpointerleave={() => leave('ledger')}
@@ -817,4 +901,8 @@ const crumbsFrom = $derived(
 .seg.wrap { flex-wrap: wrap; margin-bottom: 0.3rem; }
 select { background: var(--surface-1); color: var(--text); border: 1px solid var(--panel-rule); font-family: var(--font-mono); font-size: var(--step--1); }
 .settings { max-height: calc(100% - 2.5rem); overflow-y: auto; }
+/* Six tabs since RESOURCES: closer together where the pane is narrow, and onto a second line
+   rather than past its edge. */
+.aws :global(.tabs) { flex-wrap: wrap; }
+.aws.narrow :global(.tabs button) { padding: 0.1rem 0.4rem; }
 </style>

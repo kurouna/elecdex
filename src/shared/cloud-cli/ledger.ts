@@ -8,9 +8,10 @@ import type { ProbeCost } from './probe.js'
  * per account on disk in `aws-billing.json`; the page shows a summary.
  */
 
-export type CostKind = 'free' | 'free-tier' | 'paid'
+export type CostKind = 'free' | 'free-tier' | 'metered-tiny' | 'paid'
 
-export const costKind = (cost: ProbeCost): CostKind => (typeof cost === 'string' ? cost : 'paid')
+export const costKind = (cost: ProbeCost): CostKind =>
+  typeof cost === 'string' ? cost : 'metered' in cost ? 'metered-tiny' : 'paid'
 
 export interface ProbeCount {
   /** CLI starts today. */
@@ -81,7 +82,9 @@ export function recordReading(state: LedgerState, entry: LedgerEntry, now: numbe
     notModified: before.notModified + (entry.notModified === true ? 1 : 0),
     failed: before.failed + (entry.failed === true ? 1 : 0),
   }
-  const paid = typeof entry.cost === 'string' ? null : entry.cost
+  // Only a price by the request is counted here: a price by the metric is counted by its probe,
+  // which alone knows how many metrics a request asked for (aws.md §14.4a).
+  const paid = typeof entry.cost !== 'string' && 'perRequestUsd' in entry.cost ? entry.cost : null
   return {
     ...rolled,
     today: { ...rolled.today, [entry.probe]: after },
@@ -98,6 +101,12 @@ export interface LedgerSummary {
   notModified: number
   paidRequests: number
   paidUsd: number
+  /** Today's requests of the metered-tiny calls (S3's ListBuckets). */
+  meteredTiny: number
+  /** GetMetricData this UTC month: the metrics asked for (aws.md §14.4a); 0 for GitHub. */
+  paidMetrics: number
+  /** What the paid column says besides its numbers, e.g. "GMD CAP REACHED". */
+  paidNotes: string[]
   probes: { id: string; every: number; cost: CostKind; requests: number }[]
 }
 
@@ -109,6 +118,7 @@ export function summarize(
   let free = 0
   let freeTier = 0
   let notModified = 0
+  let meteredTiny = 0
   const rows = probes.map((probe) => {
     const count = state.today[probe.id]
     const n = count?.requests ?? 0
@@ -117,6 +127,7 @@ export function summarize(
     const kind = costKind(probe.cost)
     if (kind === 'free') free += n
     else if (kind === 'free-tier') freeTier += n
+    else if (kind === 'metered-tiny') meteredTiny += n
     return { id: probe.id, every: probe.every, cost: kind, requests: n }
   })
   return {
@@ -126,6 +137,9 @@ export function summarize(
     notModified,
     paidRequests: state.paidRequests,
     paidUsd: Math.round(state.paidUsd * 100) / 100,
+    meteredTiny,
+    paidMetrics: 0,
+    paidNotes: [],
     probes: rows,
   }
 }
@@ -145,6 +159,8 @@ export type CliLink =
 /**
  * The worst of the probes' problems decides: no CLI, then signed out, then throttled, offline,
  * an error, and denials (which leave the rest readable) last. No problem and a reading: linked.
+ * A service a region does not offer is no problem at all (aws.md §14.4): its tile leaves that
+ * region out.
  */
 export function linkOf(problems: readonly (CliProblem | null)[], anyReading: boolean): CliLink {
   const kinds = new Set(problems.filter((p): p is CliProblem => p !== null).map((p) => p.kind))

@@ -29,6 +29,7 @@ test('shows what needs attention, and drills from ACTIVE to one instance and bac
     await captureOpens(app)
     await expect(page.getByTestId('aws-link')).toContainText('LINKED')
     await expect(page.getByTestId('aws-alarms')).toContainText('1')
+    await page.getByTestId('aws-tab-attention').click({ delay: 20 })
     await expect(page.getByTestId('aws-attention-row').first()).toContainText('ALARM')
     expect(await watching(page)).toHaveLength(1)
 
@@ -69,6 +70,69 @@ test('shows what needs attention, and drills from ACTIVE to one instance and bac
   }
 })
 
+/** What RESOURCES says has the focus now (its `data-focus`). */
+const focused = (page: Page) =>
+  page.evaluate(() => {
+    const el = document.activeElement as HTMLElement | null
+    return el?.dataset.focus ?? null
+  })
+
+test('opens on RESOURCES: a tile to its list and back, a forgotten row to its resource and KEEP', async () => {
+  const { page, close } = await launch(undefined, { layout: layout('aws') })
+  try {
+    // RESOURCES is the first tab, and a pane whose state names none opens on it (aws.md §14.0).
+    await expect(page.getByTestId('aws-tab-resources')).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByTestId('aws-forgotten-row').first()).toBeVisible()
+    await expect(page.getByTestId('aws-res-figures')).toContainText('LOOKS FORGOTTEN')
+    await expect(page.getByTestId('aws-tile').first()).toBeVisible()
+
+    // A tile from the keyboard: its list, then Escape back to the same tile.
+    const tile = page.getByTestId('aws-tile').first()
+    const service = await tile.getAttribute('data-tile')
+    await tile.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('aws-crumbs')).toContainText('RESOURCES')
+    await expect(page.getByTestId('aws-drill-row').first()).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('aws-resources')).toBeVisible()
+    await expect.poll(() => focused(page)).toBe(`tile:${service}`)
+
+    // A LOOKS FORGOTTEN row is its resource at once: why it looks forgotten, and KEEP.
+    const row = page.getByTestId('aws-forgotten-row').first()
+    const name = (await row.locator('.nm').textContent()) ?? ''
+    expect(name.length).toBeGreaterThan(0)
+    await row.click({ delay: 20 })
+    await expect(page.getByTestId('aws-drill-item')).toContainText(name)
+    await expect(page.getByTestId('aws-item-quiet')).toBeVisible()
+    await page.getByTestId('aws-item-keep').click({ delay: 20 })
+    await expect(page.getByTestId('aws-item-keep')).toHaveText('KEPT')
+    // Back goes straight to RESOURCES, where the kept one is off the list and counted.
+    await page.getByRole('button', { name: 'back a step' }).click({ delay: 20 })
+    await expect(page.getByTestId('aws-forgotten-head')).toContainText('1 kept')
+    await expect(page.getByTestId('aws-forgotten-row').filter({ hasText: name })).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('ELSEWHERE opens the regions the pane does not show, with a sweep on demand', async () => {
+  const { page, close } = await launch(undefined, { layout: layout('aws') })
+  try {
+    await expect(page.getByTestId('aws-elsewhere')).toContainText('us-west-2')
+    await page.getByTestId('aws-elsewhere').click({ delay: 20 })
+    await expect(page.getByTestId('aws-crumbs')).toContainText('ELSEWHERE')
+    await expect(page.getByTestId('aws-drill-row')).toHaveCount(3)
+    await expect(page.getByTestId('aws-facet-bar').filter({ hasText: 'us-west-2' })).toHaveCount(1)
+    await expect(page.getByTestId('aws-sweep-now')).toBeEnabled()
+    await page.getByTestId('aws-sweep-now').click({ delay: 20 })
+    await expect(page.getByTestId('aws-sweep-line')).toContainText('asked')
+    await page.keyboard.press('Escape')
+    await expect.poll(() => focused(page)).toBe('elsewhere')
+  } finally {
+    await close()
+  }
+})
+
 test("asks once about Cost Explorer, and the answer is the account's", async () => {
   const { page, close } = await launch(undefined, { layout: layout('aws') })
   try {
@@ -91,6 +155,7 @@ test('stops reading behind a tab, and keeps what it showed', async () => {
   const { app, page, close } = await launch(undefined, { layout: layout('aws') })
   try {
     await expect(page.getByTestId('aws-link')).toContainText('LINKED')
+    await page.getByTestId('aws-tab-attention').click({ delay: 20 })
     await expect(page.getByTestId('aws-attention-row').first()).toBeVisible()
     await tab(page, 1).click({ delay: 20 })
     await expect.poll(() => watching(page)).toEqual([])
