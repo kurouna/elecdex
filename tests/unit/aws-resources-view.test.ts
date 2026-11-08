@@ -275,7 +275,7 @@ describe('CARDS (aws.md §14.12)', () => {
     use: use({ total: 12, inUse: 9, forgotten: 2, stopped: 1, usd: 1130, frame: 'danger' }),
   })
 
-  it('lays the cards out in the fixed order, with the ones being read and the ones refused', () => {
+  it('lays the cards out in the fixed order, with the ones being read, and none for the ones refused', () => {
     const v = view({
       groups: [
         { group: 'NETWORK', tiles: [tile({ service: 'nat', label: 'NAT gateways' })] },
@@ -287,7 +287,7 @@ describe('CARDS (aws.md §14.12)', () => {
     // Main ranks the groups by money for DETAIL; the cards never move.
     expect(
       cardSlots(v).map((s) => `${s.kind}:${s.kind === 'card' ? s.tile.service : s.service}`),
-    ).toEqual(['card:ec2', 'pending:lambda', 'denied:dynamodb', 'card:nat'])
+    ).toEqual(['card:ec2', 'pending:lambda', 'card:nat'])
   })
 
   it('says the rest and its money in the foot, and has no foot when all is in use', () => {

@@ -925,8 +925,8 @@ STATUS のように、サービスごとに `2 / 3`（アクティブ数 / 総�
    ≈ $/月、静かさの窓。最後に `A press opens the list.`
 9. **Bedrock**: `6 / 8`（置いたもののうち 30 日に使われたもの）、語の行に `placed, used in 30 d · 4 models · 31M tok`、
    モデルごとの量は hover のカード
-10. **読み取り中と拒否もカード**: 読み取り中は比を `–`、語 `reading…`、下 `first read ≤ 10 min`。拒否されて 0 件の
-    サービスは比を `?`、語 `denied: not counted`、下に操作名（mono、warn）。0 件と提供の無いリージョンは今の 1 行のまま
+10. **読み取り中はカード、拒否はカードにしない**（拒否は利用者の決定 2026-11-08: DETAIL にタイルが無いのと同じく、`?` のカードが十数枚並んでアカウントのものを埋めた）: 読み取り中は比を `–`、語 `reading…`、下 `first read ≤ 10 min`。拒否されて 0 件の
+    サービスは Denied の行だけに名前を出す（操作名は PARTIAL と COPY POLICY）。0 件と提供の無いリージョンも今の 1 行のまま
 11. **切り替えはフォーカスを保つ**: 押したボタンにフォーカスを戻し、2 段目から戻るときは開いたカードへ
 12. **読み上げの名前**: `EC2: 9 of 12 instances running, not idle, 2 forgotten?, 1 stopped, about $1.1k a month`
 13. **カードの最小幅は 13 rem**（wide で 4 列）。10.5 rem の 5 列では下の行が `2 forgotten? · 1…` と切れた

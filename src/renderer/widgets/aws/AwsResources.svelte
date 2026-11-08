@@ -308,13 +308,6 @@ function pickView(button: HTMLElement, next: ResourcesViewChoice): void {
             <span class="u">reading…</span>
             <span class="ft"><span>first read ≤ 10 min</span></span>
           </div>
-        {:else if slot.kind === 'denied'}
-          <div class="rcard denied" data-testid="aws-rcard-denied">
-            <span class="hd"><span class="lb">{TILE[slot.service].label}</span></span>
-            <span class="ratio"><b>?</b></span>
-            <span class="u">denied: not counted</span>
-            <span class="ft"><span>{slot.actions.join(' · ')}</span></span>
-          </div>
         {:else}
           {@const tile = slot.tile}
           {@const word = cardWord(tile, res.bedrock)}
@@ -515,9 +508,8 @@ function pickView(button: HTMLElement, next: ResourcesViewChoice): void {
 .rcard > .ft .r { flex: none; margin-left: auto; color: var(--text-dim); }
 .rcard[data-frame='warn'] > .ft .r { color: var(--warn); }
 .rcard[data-frame='danger'] > .ft .r { color: var(--danger); }
-.rcard.denied .ratio b, .rcard.skel .ratio b { color: var(--text-dim); }
-.rcard.denied > .ft { color: var(--warn); }
-.rcard.skel, .rcard.denied { cursor: default; }
+.rcard.skel .ratio b { color: var(--text-dim); }
+.rcard.skel { cursor: default; }
 .rgroups { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-flow: row dense; gap: 0.55rem 0.45rem; padding: 0.4rem 0 0.2rem; }
 .rgroup { display: grid; grid-template-columns: subgrid; row-gap: 0.25rem; min-width: 0; align-content: start; }
 .rgroup > h6 { grid-column: 1 / -1; margin: 0; display: flex; align-items: center; gap: 0.5rem; font-weight: 400; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }

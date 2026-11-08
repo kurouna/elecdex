@@ -338,11 +338,14 @@ export function bedrockUse(bedrock: BedrockTile): {
 
 /* ---- C. CARDS: each service as in use of all (§14.12) ---- */
 
-/** A card: a service with something there, one still being read, or one refused with nothing read. */
+/**
+ * A card: a service with something there, or one still being read. A service refused with nothing
+ * read has no card, as it has no tile in DETAIL: it is named once in the Denied line, and PARTIAL
+ * lists its operations (the user's decision 2026-11-08: a dozen "?" cards hid the account's own).
+ */
 export type CardSlot =
   | { kind: 'card'; tile: ResourceTile }
   | { kind: 'pending'; service: AwsService }
-  | { kind: 'denied'; service: AwsService; actions: string[] }
 
 /**
  * The cards in the groups' fixed order, always (§14.12, 4): a card keeps its place, and the
@@ -352,12 +355,9 @@ export type CardSlot =
 export function cardSlots(res: ResourcesView): CardSlot[] {
   const tiles = new Map(res.groups.flatMap((g) => g.tiles).map((t) => [t.service, t]))
   const pending = new Set(res.pending)
-  const denied = new Map(res.denied.map((d) => [d.service, d.actions]))
   return GROUPS.flatMap((g) => g.services).flatMap((service): CardSlot[] => {
     const tile = tiles.get(service)
     if (tile !== undefined) return [{ kind: 'card', tile }]
-    const actions = denied.get(service)
-    if (actions !== undefined) return [{ kind: 'denied', service, actions }]
     return pending.has(service) ? [{ kind: 'pending', service }] : []
   })
 }

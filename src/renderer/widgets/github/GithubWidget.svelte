@@ -2,6 +2,8 @@
 import { boardKey, readGithubPane } from '@shared/github/board'
 import { GH_LIMITS, repoName } from '@shared/github/derive'
 import type { GithubBoard, QueueItem, RepoDetail, RepoTile } from '@shared/github/types'
+import { afterBlink } from '../../lib/blink.ts'
+import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import {
   anchorOf,
@@ -166,15 +168,20 @@ function onRowKey(event: KeyboardEvent, id: string): void {
   }
 }
 
-let copied = $state(false)
-async function copySignIn(): Promise<void> {
+/** The sign-in command's COPY: the press blinks its three beats, as every choice does, then copies. */
+const copies = new CopyFlag()
+$effect(() => () => copies.dispose())
+const copied = $derived(copies.key === 'signin')
+function copySignIn(button: HTMLElement): void {
   const text = board?.signIn ?? (board?.inbox.readable === false ? board.inbox.command : null)
   if (text == null) return
-  if (await window.elecdex.utility.copy({ kind: 'text', text })) {
-    sfx.play('folder')
-    copied = true
-    setTimeout(() => (copied = false), 1500)
-  }
+  afterBlink(button, () => {
+    void copies.through('signin', async () => {
+      const done = await window.elecdex.utility.copy({ kind: 'text', text })
+      if (done) sfx.play('folder')
+      return done
+    })
+  })
 }
 
 let waitUntil = $state(0)
@@ -361,7 +368,7 @@ const short = $derived(height < 30 * 16)
     <div class="notice crt-on" role="status" data-testid="github-signin">
       <span>gh is not signed in to github.com, or its token expired. Sign in from a shell; the pane reads again at REFRESH.</span>
       <code>{board.signIn}</code>
-      <button type="button" class="tool" onclick={() => void copySignIn()}>{copied ? 'COPIED' : 'COPY'}</button>
+      <button type="button" class="tool" onclick={(e) => copySignIn(e.currentTarget)}>{copied ? 'COPIED' : 'COPY'}</button>
     </div>
   {/if}
 
@@ -456,7 +463,7 @@ const short = $derived(height < 30 * 16)
                     ? 'The token comes from GH_TOKEN in the environment, so gh auth refresh cannot add a scope. Give that token the notifications scope, or unset GH_TOKEN and sign in with gh.'
                     : 'The token has no notifications scope.'}
               </span>
-              {#if board.inbox.command !== null}<code>{board.inbox.command}</code><button type="button" class="tool" onclick={() => void copySignIn()}>{copied ? 'COPIED' : 'COPY'}</button>{/if}
+              {#if board.inbox.command !== null}<code>{board.inbox.command}</code><button type="button" class="tool" onclick={(e) => copySignIn(e.currentTarget)}>{copied ? 'COPIED' : 'COPY'}</button>{/if}
             </div>
           {:else if inbox.length === 0}
             <div class="empty"><b class="ok">INBOX ZERO</b><span>next read {clockText(board.nextInboxAt)}</span></div>

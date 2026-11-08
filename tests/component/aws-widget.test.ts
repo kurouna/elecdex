@@ -231,8 +231,13 @@ describe('AwsWidget', () => {
     const board = await boardOf('partial')
     expect(board.denied.length).toBeGreaterThan(0)
     await push(board)
-    await fireEvent.click(screen.getByTestId('aws-copy-policy'))
-    await vi.waitFor(() => expect(screen.getByTestId('aws-copy-policy').textContent).toBe('COPIED'))
+    const button = screen.getByTestId('aws-copy-policy')
+    await fireEvent.click(button)
+    // The press blinks its three beats first, as every other button does, then copies.
+    expect(button.classList.contains('blinking')).toBe(true)
+    expect(copy).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(button.textContent).toBe('COPIED'))
+    expect(button.classList.contains('blinking')).toBe(false)
     const policy = JSON.parse(copy.mock.calls[0]?.[0].text ?? '{}')
     expect(policy.Statement[0].Action).toEqual([...board.denied].sort((a, b) => a.localeCompare(b)))
     expect(policy.Statement[0].Effect).toBe('Allow')
@@ -488,10 +493,12 @@ describe('RESOURCES (aws.md §14)', () => {
     expect(reading.textContent).toContain('–')
     expect(reading.textContent).toContain('reading…')
     expect(reading.textContent).toContain('first read ≤ 10 min')
-    const refused = screen.getByTestId('aws-rcard-denied')
-    expect(refused.textContent).toContain('?')
-    expect(refused.textContent).toContain('denied: not counted')
-    expect(refused.textContent).toContain('redshift:DescribeClusters')
+    // A service refused with nothing read has no card, as it has no tile in DETAIL: the Denied
+    // line names it once.
+    expect(
+      screen.queryAllByTestId('aws-rcard').some((c) => c.textContent?.includes('Redshift')),
+    ).toBe(false)
+    expect(screen.getByTestId('aws-res-denied').textContent).toContain('Redshift')
     expect(screen.getByTestId('aws-res-none').textContent).toContain('Transit Gateway')
   })
 

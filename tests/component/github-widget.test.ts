@@ -175,7 +175,14 @@ describe('GithubWidget', () => {
     expect(notice.textContent).toContain('gh auth login')
     const button = notice.querySelector('button') as HTMLButtonElement
     await fireEvent.click(button)
-    expect(copy).toHaveBeenCalledWith({ kind: 'text', text: 'gh auth login' })
+    // The press blinks its three beats first, as every other button does, then copies.
+    expect(button.classList.contains('blinking')).toBe(true)
+    expect(copy).not.toHaveBeenCalled()
+    await vi.waitFor(() =>
+      expect(copy).toHaveBeenCalledWith({ kind: 'text', text: 'gh auth login' }),
+    )
+    await vi.waitFor(() => expect(button.textContent).toBe('COPIED'))
+    expect(button.classList.contains('blinking')).toBe(false)
   })
 
   it('says there is no gh, without a sign-in', async () => {
