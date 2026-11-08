@@ -537,6 +537,30 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
 .rtile .ft .fg { color: var(--warn); } .rtile .ft .fg.d { color: var(--danger); } .rtile .ft .r { margin-left: auto; color: var(--text); }
 .rtile .rgd { display: flex; gap: 0.28rem; } .rtile .rgd i { width: 0.34rem; height: 0.34rem; transform: rotate(45deg); background: var(--panel-rule); } .rtile .rgd i.on { background: var(--accent); }
 .rtile.wide2 { grid-column: span 2; }
+/* CARDS (the default): one card a service, in use / all at a glance, the GitHub REPOS tile's build. */
+.vswitch { display: inline-flex; gap: 0; margin-left: auto; order: 2; }
+.sep.svc::after { order: 1; }
+.vswitch button { border: 1px solid var(--panel-rule); background: transparent; color: var(--text-dim); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); padding: 0 0.45rem; cursor: pointer; }
+.vswitch button + button { border-left: 0; }
+.vswitch button.on { color: var(--text); background: var(--accent-faint); border-color: var(--accent-dim); }
+.rcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.45rem; padding: 0.3rem 0.4rem 0.2rem; }
+.narrow .rcards { grid-template-columns: 1fr 1fr; }
+.rcard { position: relative; display: flex; flex-direction: column; gap: 0.18rem; padding: 0.32rem 0.5rem 0.36rem; border: 1px solid var(--panel-rule); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.rcard:hover, .rcard:focus-visible { background: var(--accent-faint); outline: 1px solid var(--accent); outline-offset: -1px; }
+.rcard.w { border-color: hsl(var(--hue-warn) 85% var(--status-l) / 0.55); } .rcard.d { border-color: hsl(var(--hue-danger) 80% var(--status-l) / 0.6); }
+.rcard .hd { display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); min-width: 0; }
+.rcard .hd span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rcard .hd .dl { color: var(--text-dim); }
+.rcard .ratio { display: flex; align-items: baseline; gap: 0.3rem; }
+.rcard .ratio b { font-family: var(--font-display); font-size: var(--step-2); font-weight: 500; line-height: 1; color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+.rcard .ratio .of { font-family: var(--font-display); font-size: var(--step-1); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.rcard .ratio.none b { color: var(--text); }
+.rcard .u { font-size: var(--step--1); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rcard .ft { display: flex; justify-content: space-between; gap: 0.4rem; border-top: 1px dashed var(--panel-rule); padding-top: 0.16rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); white-space: nowrap; min-width: 0; }
+.rcard .ft > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rcard .ft .rest { color: var(--text); } .rcard .ft .r { flex: none; color: var(--text-dim); } .rcard.w .ft .r { color: var(--warn); } .rcard.d .ft .r { color: var(--danger); }
+.rcard.denied .ratio b { color: var(--text-dim); } .rcard.denied .ft { color: var(--warn); }
+.rcard.skel { cursor: default; } .rcard.skel .ratio b { color: var(--text-dim); }
 .rtile .two { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 0.7rem; }
 .rtile .models { display: grid; grid-template-columns: minmax(0, 1fr) 4rem 3.2rem; gap: 0.1rem 0.4rem; align-items: center; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); }
 .rtile .models span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rtile .models .n { text-align: right; color: var(--text); }
@@ -1017,6 +1041,61 @@ function tileOf(svc, items) {
     default: return { big: items.length, unit: DRILL[svc]?.noun || '', segs: [[items.length, '']], leg: [], ft };
   }
 }
+// "In use" (CARDS): what is not stopped and not judged quiet or forgotten - the same predicate as
+// LOOKS FORGOTTEN - over the regions shown only (what is elsewhere stays in the ELSEWHERE line), so
+// total - in use = forgotten + stopped + quiet, always, and the card never disagrees with the list.
+// The word line names the noun the total counts, in one grammar: <noun> <predicate>.
+const OFF = { EC2: (x) => x.state !== 'running', RDS: (x) => x.state !== 'available', ECS: (x) => x.desired === 0 };
+const IN_USE_WORD = { EC2: 'instances running, not idle', ECS: 'services running', EKS: 'clusters with nodes', Lambda: 'functions invoked in 30 d', S3: 'buckets not empty, not stale', EBS: 'volumes attached', RDS: 'databases available, connected', DynamoDB: 'tables with requests', NAT: 'gateways with traffic', ELB: 'balancers with targets', EIP: 'addresses attached', CloudFront: 'distributions with requests', APIGW: 'APIs with requests', SQS: 'queues with messages', SNS: 'topics with subscribers', AOSS: 'collections searched', Logs: 'log groups receiving', Bedrock: 'placed, used in 30 d' };
+// The card's money as the list writes it: no "/mo" (the band says "a month" once), cents only under $10.
+const cardUsd = (v) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v >= 10 ? `$${Math.round(v)}` : `$${v.toFixed(2)}`);
+function cardCounts(svc, items) {
+  const off = OFF[svc] || (() => false);
+  const judged = items.map((x) => ({ x, f: forgottenOf(svc, x) })).map(({ x, f }) => ({ x, f: f && f.r !== 'elsewhere' ? f : null }));
+  const forgotten = judged.filter(({ f }) => f && f.w !== 'free');
+  const quiet = judged.filter(({ f }) => f && f.w === 'free').length;
+  const stopped = judged.filter(({ x, f }) => !f && off(x)).length;
+  const money = forgotten.reduce((a, { x, f }) => a + (f.cost ?? (x.$ || 0)), 0);
+  const notPriced = forgotten.some(({ f }) => f.notPriced);
+  return { total: items.length, inUse: items.length - forgotten.length - quiet - stopped, forgotten: forgotten.length, quiet, stopped, money, notPriced };
+}
+const cardTone = (c) => (c.money >= FORGOT_DANGER_USD ? 'd' : c.money >= TILE_WARN_USD || c.notPriced ? 'w' : '');
+function cardEl(svc, items, dl) {
+  const el = document.createElement('button'); el.type = 'button';
+  const c = cardCounts(svc, items);
+  el.className = `rcard${cardTone(c) ? ` ${cardTone(c)}` : ''}`;
+  const parts = [c.forgotten ? `${c.forgotten} forgotten?` : '', c.stopped ? `${c.stopped} stopped` : '', c.quiet ? `${c.quiet} quiet` : ''].filter(Boolean);
+  const amount = c.forgotten ? (c.notPriced && !c.money ? 'not priced' : `≈ ${cardUsd(c.money)}`) : c.quiet && !c.stopped ? 'free' : '';
+  // A card with a foot is a card with a remainder: a tidy board reads calm.
+  const foot = parts.length ? `<div class="ft"><span class="rest">${parts.join(' · ')}</span>${amount ? `<span class="r">${amount}</span>` : ''}</div>` : '';
+  const word = svc === 'Bedrock' ? `placed, used in 30 d · ${BEDROCK_USE.length} models · ${cnt(Math.round(BEDROCK_USE.reduce((a, u) => a + u[1] + u[2], 0) / 1e6))}M tok` : IN_USE_WORD[svc] || 'in use';
+  el.innerHTML = `<div class="hd"><span>${esc(nice(svc))}</span><span class="dl">${dl > 0 ? `+${dl}` : dl < 0 ? dl : ''}</span></div>
+    <div class="ratio${c.inUse === 0 ? ' none' : ''}"><b>${cnt(c.inUse)}</b><span class="of">/ ${cnt(c.total)}</span></div>
+    <div class="u">${esc(word)}</div>${foot}`;
+  el.setAttribute('aria-label', `${nice(svc)}: ${c.inUse} of ${c.total} ${word}${parts.length ? `, ${parts.join(', ')}` : ''}${c.forgotten && c.money ? `, about ${cardUsd(c.money)} a month` : ''}`);
+  return el;
+}
+// The hover card: what the card has no room for - its states, size, regions with counts, its run-rate.
+function cardHover(svc, items) {
+  const t = svc === 'Bedrock' ? null : tileOf(svc, items);
+  const regions = Object.entries(items.reduce((a, x) => ({ ...a, [x.region]: (a[x.region] || 0) + 1 }), {})).map(([r, n]) => `${r} ${n}`).join(' · ');
+  const runRate = items.reduce((a, x) => a + (x.$ || 0), 0);
+  const states = t ? t.leg.join(' · ') : BEDROCK_USE.map(([m, i, o]) => `${m} ${cnt(Math.round((i + o) / 1e5) / 10)}M`).join(' · ');
+  return `<h4><span>${esc(nice(svc))}</span><span>${items.length} ${DRILL[svc].noun}</span></h4><dl><dt>states</dt><dd>${states}</dd><dt>regions</dt><dd>${esc(regions)}</dd>${runRate ? `<dt>a month</dt><dd>≈ ${usd(runRate)} at list price</dd>` : t?.ft ? `<dt>billed</dt><dd>${esc(t.ft)}</dd>` : ''}<dt>quiet means</dt><dd>no data point in 30 d (GetMetricData)</dd></dl><div class="why">A press opens the list.</div>`;
+}
+// Arrows move to the nearest card or tile that way, across the groups (as the eye reads the board).
+function arrowTo(e, el, v, selector) {
+  const dir = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] }[e.key];
+  if (!dir) return;
+  const r0 = el.getBoundingClientRect(); const c0 = [r0.left + r0.width / 2, r0.top + r0.height / 2];
+  let best = null; let bestD = Infinity;
+  for (const o of v.querySelectorAll(selector)) {
+    if (o === el) continue; const r = o.getBoundingClientRect(); const dx = r.left + r.width / 2 - c0[0]; const dy = r.top + r.height / 2 - c0[1];
+    const along = dx * dir[0] + dy * dir[1]; if (along <= 4) continue;
+    const d = along + 3 * Math.abs(dir[0] ? dy : dx); if (d < bestD) { bestD = d; best = o; }
+  }
+  if (best) { e.preventDefault(); best.focus(); }
+}
 function viewResources(v) {
   const inShown = (x) => (state.region === 'all' ? shownRegion(x) : x.region === state.region || x.region === 'global');
   const reading = state.res === 'reading';
@@ -1063,6 +1142,37 @@ function viewResources(v) {
 
   // C, D, E: the tiles, what is outside the regions shown, what bills without a tile
   const rest = document.createElement('div'); rest.className = 'res-more';
+  const head = document.createElement('div'); head.className = 'sep svc';
+  head.innerHTML = `Services <b>${svcCount}</b>`;
+  const sw = document.createElement('span'); sw.className = 'vswitch'; sw.setAttribute('role', 'group'); sw.setAttribute('aria-label', 'how the services are shown');
+  for (const [id, word] of [['cards', 'CARDS'], ['detail', 'DETAIL']]) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = word; b.className = state.resView === id ? 'on' : ''; b.setAttribute('aria-pressed', String(state.resView === id));
+    b.onclick = () => { state.resView = id; renderView(); document.querySelector(`.vswitch button:nth-child(${id === 'cards' ? 1 : 2})`)?.focus(); };
+    sw.appendChild(b);
+  }
+  head.appendChild(sw); rest.appendChild(head);
+  let cardZero = [];
+  if (state.resView === 'cards') {
+    const cards = document.createElement('div'); cards.className = 'rcards';
+    // The fixed order, always: a card keeps its place, and the coloured borders find the costly ones
+    // (ranking by money is LOOKS FORGOTTEN's job).
+    const order = TILE_GROUPS.flatMap((g) => g[1]);
+    const zeroC = [];
+    for (const svc of order) {
+      if (reading && READING_LATE.includes(svc)) { cards.insertAdjacentHTML('beforeend', `<div class="rcard skel"><div class="hd"><span>${esc(nice(svc))}</span></div><div class="ratio"><b>–</b></div><div class="u">reading…</div><div class="ft"><span>first read ≤ 10 min</span></div></div>`); continue; }
+      if (state.link === 'partial' && svc === 'SNS') { cards.insertAdjacentHTML('beforeend', `<div class="rcard denied"><div class="hd"><span>${esc(nice(svc))}</span></div><div class="ratio"><b>?</b></div><div class="u">denied: not counted</div><div class="ft"><span>sns:ListTopics</span></div></div>`); continue; }
+      const items = R[svc].filter(inShown);
+      if (!items.length) { zeroC.push(nice(svc)); continue; }
+      const el = cardEl(svc, items, RES_DELTA[svc] || 0);
+      const open = () => drillTo({ lv: 2, svc, region: state.region, filters: {}, sort: null });
+      el.onclick = open;
+      el.onkeydown = (e) => arrowTo(e, el, v, '.rcard:not(.skel):not(.denied)');
+      hover(el, () => cardHover(svc, items));
+      cards.appendChild(el);
+    }
+    rest.appendChild(cards);
+    cardZero = zeroC;
+  }
   const zero = [];
   const grid = document.createElement('div'); grid.className = 'rgroups';
   const cols = $('pane').classList.contains('narrow') ? 2 : $('pane').classList.contains('medium') ? 3 : 4;
@@ -1070,7 +1180,7 @@ function viewResources(v) {
   // The groups with the most forgotten money first; the fixed order breaks ties.
   const groupMoney = (list) => forg.filter((f) => list.includes(f.svc) && f.w !== 'free').reduce((a, f) => a + f.cost + (f.notPriced ? 1e6 : 0), 0);
   const groups = TILE_GROUPS.map((g, i) => [...g, i]).sort((a, b) => groupMoney(b[1]) - groupMoney(a[1]) || a[2] - b[2]);
-  for (const [gname, list] of groups) {
+  for (const [gname, list] of state.resView === 'detail' ? groups : []) {
     const tiles = document.createElement('div'); tiles.className = 'rgroup';
     tiles.innerHTML = `<h6>${gname}</h6>`;
     let any = false; let slots = 0;
@@ -1130,7 +1240,8 @@ function viewResources(v) {
     }
     if (any) { tiles.style.gridColumn = `span ${Math.min(slots, cols)}`; grid.appendChild(tiles); }
   }
-  rest.appendChild(grid);
+  if (state.resView === 'detail') rest.appendChild(grid);
+  zero.push(...cardZero);
   const also = document.createElement('div'); also.className = 'rnone also';
   also.append('Also here: ');
   ALSO_HERE.forEach(([svc, noun, bad, word], i) => {
@@ -1198,7 +1309,7 @@ function worstIn(region) {
 // ---------- state ----------
 const state = { link: 'linked', acct: 'busy', mask: false, tab: 'resources', region: 'all', actFilter: 'all', calls: 214, extra: [], wait: 0,
   // the drill stack per tab: [{lv:2, svc, filters, sort}] or [{lv:3, svc, id}] ... the app keeps it in pane state
-  drill: { resources: [], active: [], cost: [] }, histOpen: false, newIds: new Set(), res: 'busy', kept: new Set() };
+  drill: { resources: [], active: [], cost: [] }, histOpen: false, newIds: new Set(), res: 'busy', kept: new Set(), resView: 'cards' };
 
 const LINKS = {
   linked: { lamp: 'ok', text: 'LINKED', sub: '' },

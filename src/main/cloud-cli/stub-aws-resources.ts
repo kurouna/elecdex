@@ -565,7 +565,7 @@ export function resourceRoutes(): Record<string, Route> {
     'ec2 describe-snapshots': (_c, region, now, mode) =>
       ok(
         inTokyo(region, [
-          { id: 'snap-0ami01', v: 'vol-0a1b2c3d', g: 50, c: iso(now - 400 * DAY), t: 'standard' },
+          { id: 'snap-0ami01', v: 'vol-0a1b2c3d1', g: 50, c: iso(now - 400 * DAY), t: 'standard' },
           ...(mode === 'quiet'
             ? []
             : [

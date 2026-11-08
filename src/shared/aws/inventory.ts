@@ -2,6 +2,7 @@ import { localDay } from '../cloud-cli/ledger.js'
 import { bytesText } from './active.js'
 import { AWS_LIMITS } from './facts.js'
 import { forgotten, seriesKey, USE } from './forgotten.js'
+import { serviceUse } from './in-use.js'
 import { TILE } from './labels.js'
 import { HOURS_A_MONTH } from './list-prices.js'
 import { lastPart } from './parse-resources.js'
@@ -223,6 +224,7 @@ function tileOf(
   service: AwsService,
   rows: readonly Res[],
   found: readonly ForgottenRow[],
+  kept: readonly ForgottenRow[],
   delta: { added: number; removed: number },
 ): ResourceTile {
   const mine = found.filter((f) => f.service === service)
@@ -259,6 +261,7 @@ function tileOf(
     monthly: priced.length === 0 ? null : priced.reduce((s, x) => s + (x.monthly ?? 0), 0),
     added: delta.added,
     removed: delta.removed,
+    use: serviceUse(service, rows, found, kept),
   }
 }
 
@@ -554,6 +557,7 @@ function deniedOf(service: AwsService, denied: readonly string[]): string[] {
 function groupsOf(
   all: ReadonlyMap<AwsService, Res[]>,
   found: readonly ForgottenRow[],
+  kept: readonly ForgottenRow[],
   changes: Changes7d,
 ): ResourcesView['groups'] {
   const delta = (service: AwsService) => ({
@@ -570,7 +574,7 @@ function groupsOf(
       group: g.group,
       tiles: g.services
         .filter((s) => (all.get(s) ?? []).length > 0)
-        .map((s) => tileOf(s, all.get(s) ?? [], found, delta(s))),
+        .map((s) => tileOf(s, all.get(s) ?? [], found, kept, delta(s))),
     }))
     .filter((g) => g.tiles.length > 0)
 }
@@ -627,7 +631,7 @@ export function resourcesView(r: AwsReadings, options: ViewOptions): ResourcesVi
     figures: figures(all, list, changes),
     forgotten: list.rows.slice(0, 20),
     forgottenTotal: list.rows.length,
-    groups: groupsOf(all, list.rows, changes),
+    groups: groupsOf(all, list.rows, list.kept, changes),
     bedrock: bedrockTile(r, all.get('bedrock') ?? [], list.rows),
     none: tiled.filter(
       (s) =>

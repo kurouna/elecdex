@@ -422,7 +422,7 @@ elecdex を最初に開いたときの配置です。
 | 状態 | v0.0.60 でリリース |
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、忘れていそうなものとサービスのタイルの RESOURCES のタブ）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、忘れていそうなものと、サービスごとに使用中 / 総数を示すカードの RESOURCES のタブ）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
   <br><sub>cloud · Business (Light) — 代役の AWS CLI と gh、架空のアカウントと利用者</sub>
 </p>
 

@@ -242,9 +242,9 @@ describe('AwsWidget', () => {
   })
 })
 
-/** Lays the tiles out as a grid of four, in their order, for the arrows (jsdom draws nothing). */
-function tileBoxes(): HTMLElement[] {
-  const tiles = screen.getAllByTestId('aws-tile')
+/** Lays the tiles or cards out as a grid of four, in their order, for the arrows (jsdom draws nothing). */
+function tileBoxes(testid = 'aws-tile'): HTMLElement[] {
+  const tiles = screen.getAllByTestId(testid)
   tiles.forEach((tile, i) => {
     const box = { left: (i % 4) * 200, top: Math.floor(i / 4) * 80, width: 190, height: 70 }
     tile.getBoundingClientRect = () =>
@@ -276,7 +276,7 @@ describe('RESOURCES (aws.md §14)', () => {
   })
 
   it("takes a tile's card away as the tile is pressed into its list", async () => {
-    const view = await mount()
+    const view = await mount({ resView: 'detail' })
     await push(await boardOf())
     const tile = screen.getAllByTestId('aws-tile')[0] as HTMLElement
     await fireEvent.pointerEnter(tile, { clientX: 40 })
@@ -284,7 +284,7 @@ describe('RESOURCES (aws.md §14)', () => {
     await fireEvent.click(tile)
     expect(held).toMatchObject({ from: 'resources', drill: { service: tile.dataset.tile } })
     // RESOURCES goes for the list, and an element taken away sends no pointerleave.
-    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await view.rerender({ state: { regions: REGIONS, resView: 'detail', ...held } })
     await settle()
     await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row').length).toBeGreaterThan(0))
     await vi.waitFor(() => expect(screen.queryByTestId('aws-card')).toBeNull())
@@ -357,7 +357,7 @@ describe('RESOURCES (aws.md §14)', () => {
   })
 
   it('moves between the tiles with the arrows, opens one with Enter, and comes back to it', async () => {
-    const view = await mount()
+    const view = await mount({ resView: 'detail' })
     await push(await boardOf())
     const tiles = tileBoxes()
     tiles[0]?.focus()
@@ -373,15 +373,126 @@ describe('RESOURCES (aws.md §14)', () => {
     const service = tiles[4]?.dataset.tile
     await fireEvent.keyDown(tiles[4] as HTMLElement, { key: 'Enter' })
     expect(held).toMatchObject({ from: 'resources', drill: { service, item: null } })
-    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await view.rerender({ state: { regions: REGIONS, resView: 'detail', ...held } })
     await settle()
     await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row').length).toBeGreaterThan(0))
     await fireEvent.keyDown(screen.getByTestId('aws-drill-list'), { key: 'Escape' })
     expect(held.drill).toBeUndefined()
     expect(held.tab).toBeUndefined()
-    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await view.rerender({ state: { regions: REGIONS, resView: 'detail', ...held } })
     await settle()
     expect((document.activeElement as HTMLElement | null)?.dataset.tile).toBe(service)
+  })
+
+  it('shows the services as cards by default, in use of all, and remembers DETAIL', async () => {
+    const view = await mount()
+    const board = await boardOf()
+    await push(board)
+    expect(screen.queryAllByTestId('aws-tile')).toHaveLength(0)
+    const cards = screen.getAllByTestId('aws-rcard')
+    const tiles = board.resources.groups.flatMap((g) => g.tiles)
+    expect(cards).toHaveLength(tiles.length)
+    const ec2 = tiles.find((t) => t.service === 'ec2')
+    const card = cards.find((c) => c.dataset.card === 'ec2') as HTMLElement
+    expect(card.textContent).toContain(`${ec2?.use.inUse}/ ${ec2?.use.total}`)
+    expect(card.getAttribute('aria-label')).toMatch(/^EC2: \d+ of \d+ instances running, not idle/)
+    expect(screen.getByTestId('aws-services-head').textContent).toContain(
+      String(board.resources.figures.services),
+    )
+    // The lines under the services stay in both views.
+    // Its parts keep their separators and spaces: Svelte trims a span's own edge spaces, and the
+    // line once read "2 VPCs1 certificates3 stacks(1 failed)".
+    expect(screen.getByTestId('aws-also-here').textContent).toMatch(/VPCs? · \d+ certificates?/)
+    expect(screen.getByTestId('aws-also-here').textContent).toMatch(/stacks? \(\d+ failed\)/)
+    expect(screen.getByTestId('aws-elsewhere')).toBeTruthy()
+    // DETAIL: the press blinks, the choice is the pane's, and the focus stays on the switch.
+    const detail = screen.getByTestId('aws-res-view-detail')
+    expect(detail.getAttribute('aria-pressed')).toBe('false')
+    detail.focus()
+    await fireEvent.click(detail)
+    expect(detail.classList.contains('blinking')).toBe(true)
+    await vi.waitFor(() => expect(held.resView).toBe('detail'))
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    expect(screen.getAllByTestId('aws-tile').length).toBe(tiles.length)
+    expect(screen.queryAllByTestId('aws-rcard')).toHaveLength(0)
+    expect(document.activeElement).toBe(screen.getByTestId('aws-res-view-detail'))
+    expect(screen.getByTestId('aws-also-here')).toBeTruthy()
+    expect(screen.getByTestId('aws-elsewhere')).toBeTruthy()
+    // CARDS again: the default, so the state keeps nothing.
+    await fireEvent.click(screen.getByTestId('aws-res-view-cards'))
+    await vi.waitFor(() => expect('resView' in held).toBe(false))
+  })
+
+  it('moves between the cards with the arrows, opens one with Enter, and comes back to it', async () => {
+    const view = await mount()
+    await push(await boardOf())
+    const cards = tileBoxes('aws-rcard')
+    cards[0]?.focus()
+    await fireEvent.keyDown(cards[0] as HTMLElement, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(cards[1])
+    await fireEvent.keyDown(cards[1] as HTMLElement, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(cards[5])
+    const service = cards[5]?.dataset.card
+    await fireEvent.keyDown(cards[5] as HTMLElement, { key: 'Enter' })
+    expect(held).toMatchObject({ from: 'resources', drill: { service, item: null } })
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row').length).toBeGreaterThan(0))
+    await fireEvent.keyDown(screen.getByTestId('aws-drill-list'), { key: 'Escape' })
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    expect((document.activeElement as HTMLElement | null)?.dataset.card).toBe(service)
+  })
+
+  it("puts on a card's card its states and regions, and says a press opens the list", async () => {
+    await mount()
+    await push(await boardOf())
+    const card = screen
+      .getAllByTestId('aws-rcard')
+      .find((c) => c.dataset.card === 'ec2') as HTMLElement
+    await fireEvent.pointerEnter(card, { clientX: 40 })
+    await vi.waitFor(() => expect(screen.getByTestId('aws-card')).toBeTruthy())
+    const text = screen.getByTestId('aws-card').textContent ?? ''
+    expect(text).toContain('states')
+    expect(text).toContain('ap-northeast-1')
+    expect(text).toContain('A press opens the list.')
+  })
+
+  it('has a foot only where something is not in use', async () => {
+    await mount()
+    const board = await boardOf()
+    await push(board)
+    for (const tile of board.resources.groups.flatMap((g) => g.tiles)) {
+      const card = screen
+        .getAllByTestId('aws-rcard')
+        .find((c) => c.dataset.card === tile.service) as HTMLElement
+      const foot = card.querySelector('[data-testid="aws-rcard-foot"]')
+      expect(foot === null, tile.service).toBe(tile.use.inUse === tile.use.total)
+    }
+    const tidy = screen.getAllByTestId('aws-rcard').find((c) => c.dataset.card === 'eks')
+    expect(tidy?.textContent).toContain('1/ 1')
+  })
+
+  it('draws a card being read and a card refused, and leaves the empty kinds in their line', async () => {
+    await mount()
+    const board = await boardOf()
+    board.resources.pending = ['opensearch']
+    board.resources.none = board.resources.none.filter(
+      (s) => s !== 'opensearch' && s !== 'redshift',
+    )
+    board.resources.denied = [{ service: 'redshift', actions: ['redshift:DescribeClusters'] }]
+    await push(board)
+    const reading = screen.getByTestId('aws-rcard-pending')
+    expect(reading.textContent).toContain('OpenSearch')
+    expect(reading.textContent).toContain('–')
+    expect(reading.textContent).toContain('reading…')
+    expect(reading.textContent).toContain('first read ≤ 10 min')
+    const refused = screen.getByTestId('aws-rcard-denied')
+    expect(refused.textContent).toContain('?')
+    expect(refused.textContent).toContain('denied: not counted')
+    expect(refused.textContent).toContain('redshift:DescribeClusters')
+    expect(screen.getByTestId('aws-res-none').textContent).toContain('Transit Gateway')
   })
 
   it('MASK names no resource on RESOURCES, in its lists or its cards', async () => {

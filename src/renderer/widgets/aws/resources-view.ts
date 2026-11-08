@@ -193,7 +193,7 @@ export function forgottenCard(row: ForgottenRow, masked: boolean): Card {
 export function keptToast(row: ForgottenRow, masked: boolean): { title: string; body: string } {
   return {
     title: `Kept · ${shownName(row.name, masked)}`,
-    body: 'Off LOOKS FORGOTTEN for this account; still in its tile. ⚙ lists what you keep.',
+    body: 'Off LOOKS FORGOTTEN for this account; counted as kept on its service. ⚙ lists what you keep.',
   }
 }
 
@@ -333,6 +333,156 @@ export function bedrockUse(bedrock: BedrockTile): {
     totals: read
       ? `${tokensText(sum('tokensIn'))} tokens in · ${tokensText(sum('tokensOut'))} out`
       : 'tokens not read',
+  }
+}
+
+/* ---- C. CARDS: each service as in use of all (§14.12) ---- */
+
+/** A card: a service with something there, one still being read, or one refused with nothing read. */
+export type CardSlot =
+  | { kind: 'card'; tile: ResourceTile }
+  | { kind: 'pending'; service: AwsService }
+  | { kind: 'denied'; service: AwsService; actions: string[] }
+
+/**
+ * The cards in the groups' fixed order, always (§14.12, 4): a card keeps its place, and the
+ * coloured borders find the costly ones - ranking by money is LOOKS FORGOTTEN's job. A kind read
+ * and empty, or not offered, stays in its line under the cards.
+ */
+export function cardSlots(res: ResourcesView): CardSlot[] {
+  const tiles = new Map(res.groups.flatMap((g) => g.tiles).map((t) => [t.service, t]))
+  const pending = new Set(res.pending)
+  const denied = new Map(res.denied.map((d) => [d.service, d.actions]))
+  return GROUPS.flatMap((g) => g.services).flatMap((service): CardSlot[] => {
+    const tile = tiles.get(service)
+    if (tile !== undefined) return [{ kind: 'card', tile }]
+    const actions = denied.get(service)
+    if (actions !== undefined) return [{ kind: 'denied', service, actions }]
+    return pending.has(service) ? [{ kind: 'pending', service }] : []
+  })
+}
+
+/** A card's money as the list writes it, without "/mo" (the band says "a month" once): cents under $10. */
+export function cardUsd(usd: number): string {
+  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}k`
+  if (usd >= 10) return `$${Math.round(usd)}`
+  return `$${usd.toFixed(2)}`
+}
+
+/** What is not in use, in the foot's order: "2 forgotten?", "1 stopped", "1 quiet", "1 kept". */
+export function cardRest(tile: ResourceTile): string[] {
+  const u = tile.use
+  return [
+    u.forgotten > 0 ? `${u.forgotten} forgotten?` : '',
+    u.stopped > 0 ? `${u.stopped} stopped` : '',
+    u.quiet > 0 ? `${u.quiet} quiet` : '',
+    u.kept > 0 ? `${u.kept} kept` : '',
+  ].filter(Boolean)
+}
+
+/**
+ * The foot, only when something is not in use (a tidy board reads calm, §14.12, 7): the rest,
+ * and the forgotten ones' ≈ $ - or that they are not priced, or `free` when all of it is quiet.
+ */
+export function cardFoot(tile: ResourceTile): { rest: string; amount: string } | null {
+  const rest = cardRest(tile)
+  if (rest.length === 0) return null
+  const u = tile.use
+  const amount =
+    u.forgotten > 0
+      ? u.notPriced && u.usd === 0
+        ? 'not priced'
+        : // A Provisioned Throughput with no unit price is more than the priced part says.
+          `≈ ${cardUsd(u.usd)}${u.notPriced ? ' +' : ''}`
+      : u.quiet > 0 && u.stopped + u.kept === 0
+        ? 'free'
+        : ''
+  return { rest: rest.join(' · '), amount }
+}
+
+/** Tokens as a card's word line says them: 31M, 840k. */
+const tokensShort = (n: number): string => (n >= 1e6 ? `${Math.round(n / 1e6)}M` : tokensText(n))
+
+/** The word line; Bedrock's says the models too: "placed, used in 30 d · 4 models · 31M tok". */
+export function cardWord(tile: ResourceTile, bedrock: BedrockTile | null): string {
+  if (tile.service !== 'bedrock' || bedrock === null || bedrock.models.length === 0)
+    return tile.use.inUseWord
+  const read = bedrock.models.some((m) => m.tokensIn !== null || m.tokensOut !== null)
+  const tokens = bedrock.models.reduce((n, m) => n + (m.tokensIn ?? 0) + (m.tokensOut ?? 0), 0)
+  return [
+    tile.use.inUseWord,
+    plural(bedrock.models.length, 'model'),
+    ...(read ? [`${tokensShort(tokens)} tok`] : []),
+  ].join(' · ')
+}
+
+/** What a reader hears (§14.12, 12): "EC2: 9 of 12 instances running, not idle, 2 forgotten?, …". */
+export function cardLabel(tile: ResourceTile, word: string): string {
+  const u = tile.use
+  const money = u.forgotten > 0 && u.usd > 0 ? [`about ${cardUsd(u.usd)} a month`] : []
+  return [`${tile.label}: ${u.inUse} of ${u.total} ${word}`, ...cardRest(tile), ...money].join(', ')
+}
+
+/**
+ * A card's detail card (§14.12, 8): what the card has no room for - the states (DETAIL's
+ * legend), the size, the regions with their counts, the service's ≈ $ a month and what quiet
+ * means - never its ratio again.
+ */
+export function serviceCard(tile: ResourceTile, res: ResourcesView): Card {
+  const bedrock = tile.service === 'bedrock' ? res.bedrock : null
+  const states =
+    bedrock === null
+      ? tile.segments.map((s) => `${s.n} ${s.label}`).join(' · ')
+      : bedrock.placed
+          .filter((p) => p.count > 0)
+          .map((p) => `${p.count} ${PLACED_WORD[p.kind]}`)
+          .join(' · ')
+  const models =
+    bedrock === null || bedrock.models.length === 0
+      ? []
+      : [
+          {
+            label: 'models',
+            value: bedrockUse(bedrock)
+              .models.map((m) => `${m.name} ${m.tokens}`)
+              .join(' · '),
+          },
+        ]
+  // The legend's facts the states and the size do not already say ("12 tasks", "3 kept forever").
+  const said = new Set(tile.segments.map((s) => `${s.n} ${s.label}`))
+  const facts = tile.legend
+    .map((l) => l.text)
+    .filter((t) => !said.has(t) && (tile.size === null || !t.startsWith(tile.size)))
+  const gmd = res.gmd.on && !res.gmd.capReached
+  return {
+    head: tile.label,
+    side: plural(tile.use.regions.length, 'region'),
+    rows: [
+      ...(states === '' ? [] : [{ label: 'states', value: states }]),
+      ...models,
+      ...(facts.length > 0 ? [{ label: 'facts', value: facts.join(' · ') }] : []),
+      ...(tile.size === null ? [] : [{ label: 'size', value: tile.size }]),
+      {
+        label: 'regions',
+        value: tile.use.regions.map((r) => `${r.region} ${r.count}`).join(' · '),
+      },
+      {
+        label: 'a month',
+        value:
+          tile.monthly !== null && tile.monthly > 0
+            ? `≈ ${usdText(tile.monthly)} at list price`
+            : tile.usageBased
+              ? 'billed by use: COST has the real amount'
+              : 'nothing priced by the hour or the month',
+      },
+      {
+        label: 'quiet means',
+        value: gmd
+          ? `no use seen in ${res.quietDays} d (GetMetricData)`
+          : 'no data point in 14 d (list-metrics)',
+      },
+    ],
+    note: 'A press opens the list.',
   }
 }
 

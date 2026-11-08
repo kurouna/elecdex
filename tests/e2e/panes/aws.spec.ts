@@ -77,25 +77,47 @@ const focused = (page: Page) =>
     return el?.dataset.focus ?? null
   })
 
-test('opens on RESOURCES: a tile to its list and back, a forgotten row to its resource and KEEP', async () => {
+test('opens on RESOURCES: a card or a tile to its list and back, a forgotten row to its resource and KEEP', async () => {
   const { page, close } = await launch(undefined, { layout: layout('aws') })
   try {
     // RESOURCES is the first tab, and a pane whose state names none opens on it (aws.md §14.0).
     await expect(page.getByTestId('aws-tab-resources')).toHaveAttribute('aria-selected', 'true')
     await expect(page.getByTestId('aws-forgotten-row').first()).toBeVisible()
     await expect(page.getByTestId('aws-res-figures')).toContainText('LOOKS FORGOTTEN')
-    await expect(page.getByTestId('aws-tile').first()).toBeVisible()
+    // The services are cards by default (aws.md §14.12): in use of all.
+    await expect(page.getByTestId('aws-rcard').first()).toBeVisible()
+    await expect(page.getByTestId('aws-tile')).toHaveCount(0)
+    await expect(page.getByTestId('aws-rcard-ratio').first()).toHaveText(/^\d+$/)
 
-    // A tile from the keyboard: its list, then Escape back to the same tile.
-    const tile = page.getByTestId('aws-tile').first()
-    const service = await tile.getAttribute('data-tile')
-    await tile.focus()
+    // A card from the keyboard: its list, then Escape back to the same card.
+    const card = page.getByTestId('aws-rcard').nth(1)
+    const kind = await card.getAttribute('data-card')
+    await card.focus()
     await page.keyboard.press('Enter')
     await expect(page.getByTestId('aws-crumbs')).toContainText('RESOURCES')
     await expect(page.getByTestId('aws-drill-row').first()).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('aws-resources')).toBeVisible()
+    await expect.poll(() => focused(page)).toBe(`card:${kind}`)
+
+    // DETAIL: the tiles, the choice kept by the pane, the focus still on the switch.
+    await page.getByTestId('aws-res-view-detail').click({ delay: 20 })
+    await expect(page.getByTestId('aws-tile').first()).toBeVisible()
+    await expect(page.getByTestId('aws-rcard')).toHaveCount(0)
+    await expect(page.getByTestId('aws-res-view-detail')).toBeFocused()
+    await expect(page.getByTestId('aws-elsewhere')).toBeVisible()
+
+    // A tile from the keyboard: its list, then Escape back to the same tile, still in DETAIL.
+    const tile = page.getByTestId('aws-tile').first()
+    const service = await tile.getAttribute('data-tile')
+    await tile.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('aws-drill-row').first()).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('aws-resources')).toBeVisible()
     await expect.poll(() => focused(page)).toBe(`tile:${service}`)
+    await page.getByTestId('aws-res-view-cards').click({ delay: 20 })
+    await expect(page.getByTestId('aws-rcard').first()).toBeVisible()
 
     // A LOOKS FORGOTTEN row is its resource at once: why it looks forgotten, and KEEP.
     const row = page.getByTestId('aws-forgotten-row').first()

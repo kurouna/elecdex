@@ -97,10 +97,10 @@ async function forgotten() {
   await wait(3200)
 }
 
-async function tiles() {
-  say('tiles')
-  await caption('Every service as a tile, the groups with the most forgotten money first')
-  const first = page.getByTestId('aws-tile').first()
+async function cards() {
+  say('cards')
+  await caption('Every service as a card: in use of all, what looks forgotten and its money')
+  const first = page.getByTestId('aws-rcard').first()
   await first.focus()
   await wait(1200)
   for (const key of ['ArrowRight', 'ArrowRight', 'ArrowDown', 'ArrowLeft']) {
@@ -108,8 +108,8 @@ async function tiles() {
     await wait(700)
   }
   await wait(900)
-  await caption('A tile opens its service: facets that filter each other, and a list')
-  await press(page.getByTestId('aws-tile').filter({ hasText: 'EC2' }).first())
+  await caption('A card opens its service: facets that filter each other, and a list')
+  await press(page.locator('[data-testid="aws-rcard"][data-card="ec2"]'))
   await page.getByTestId('aws-drill-list').waitFor()
   await away()
   await wait(2400)
@@ -215,7 +215,7 @@ await run(async () => {
   await away()
   await open()
   await forgotten()
-  await tiles()
+  await cards()
   await all()
   await elsewhere()
   await tabs()

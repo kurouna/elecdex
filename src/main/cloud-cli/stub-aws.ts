@@ -70,6 +70,13 @@ const INSTANCES = (now: number) => ({
   ],
 })
 
+/**
+ * An instance's root volume: unique, as AWS's are. The first eight of the id alone made the
+ * Tokyo instances' volumes one id five times, and EBS's list repeated a key.
+ */
+const volumeOf = (instanceId: string): string =>
+  `vol-${instanceId.slice(2, 10)}${instanceId.slice(-1)}`
+
 function instance(
   id: string,
   name: string,
@@ -92,7 +99,7 @@ function instance(
     name,
     platform: 'Linux/UNIX',
     reason: '',
-    vols: [`vol-${id.slice(2, 10)}`],
+    vols: [volumeOf(id)],
     sgs,
     vpc: 'vpc-0acme',
     subnet: 'subnet-0a',
@@ -108,7 +115,7 @@ const VOLUMES = (now: number) => ({
       .flat()
       .filter((i) => !i.id.startsWith('i-0f'))
       .map((i) => ({
-        id: `vol-${i.id.slice(2, 10)}`,
+        id: volumeOf(i.id),
         size: i.name === 'batch-old' ? 200 : 50,
         type: 'gp3',
         state: 'in-use',
@@ -140,7 +147,7 @@ const VOLUMES = (now: number) => ({
   ],
   'us-east-1': [
     {
-      id: 'vol-0f9e8d7c',
+      id: 'vol-0f9e8d7c1',
       size: 400,
       type: 'gp3',
       state: 'in-use',

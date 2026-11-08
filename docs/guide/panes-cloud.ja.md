@@ -17,7 +17,7 @@ elecdex は SF 風のターミナルエミュレーター兼システムモニ�
 ## cloud プリセット
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、2 つのリージョンのランプ、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、27 のサービス、忘れていそうでお金のかかる 23 件とその上位 5 件、忘れものの額の順に分類したサービスのタイルを見せる RESOURCES のタブ）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と、壊れている・止まっている、待たせすぎ、あなたに、トリアージに分けた QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) テーマの cloud プリセット：左にシステムの列。架空のアカウント acme-prod の AWS STATUS ペイン（アラーム 1 件、今月ここまでの額と予算に対する予測、2 つのリージョンのランプ、Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯、27 のサービス、忘れていそうでお金のかかる 23 件とその上位 5 件、サービスごとに使用中 / 総数を示すカードを見せる RESOURCES のタブ）。右に架空の利用者 octo-aki の GITHUB STATUS ペイン（貢献の格子と、壊れている・止まっている、待たせすぎ、あなたに、トリアージに分けた QUEUE）。その下にシェルと、その横の LOG WATCH のタブ">
   <br><sub>cloud · Business (Light) · 代役の AWS CLI と gh、架空のアカウントと利用者</sub>
 </p>
 
@@ -56,7 +56,7 @@ cloud プリセット（Ctrl+Shift+F10）は、アカウント、リポジトリ
 ## AWS STATUS
 
 <p align="center">
-  <img src="../screenshots/pane-aws.jpg" alt="AWS STATUS ペインを単独で表示したところ。架空のアカウント acme-prod、2 つのリージョン：上段にアラーム 1 件、ATTENTION の danger 5 と warn 8、今月ここまでの 218 ドルと予算の 110% の予測、リージョンのランプ。Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯。RESOURCES のタブに 27 のサービス、時間課金の約 4.50 ドル/時、忘れていそうでお金のかかる 23 件、その上位 5 件（呼び出しの無い Bedrock のプロビジョンドスループット、表示しないリージョンで動く EC2、検索の無い OpenSearch Serverless のコレクション、接続の無いキャッシュ、40 日動いている SageMaker のノートブック）、AI・コンピュート・データベース・ストレージに分けたサービスのタイル">
+  <img src="../screenshots/pane-aws.jpg" alt="AWS STATUS ペインを単独で表示したところ。架空のアカウント acme-prod、2 つのリージョン：上段にアラーム 1 件、ATTENTION の danger 5 と warn 8、今月ここまでの 218 ドルと予算の 110% の予測、リージョンのランプ。Cost Explorer を尋ねる 1 行、ACCOUNT PULSE の帯。RESOURCES のタブに 27 のサービス、時間課金の約 4.50 ドル/時、忘れていそうでお金のかかる 23 件、その上位 5 件（呼び出しの無い Bedrock のプロビジョンドスループット、表示しないリージョンで動く EC2、検索の無い OpenSearch Serverless のコレクション、接続の無いキャッシュ、40 日動いている SageMaker のノートブック）、サービスごとに使用中 / 総数を示すカード（EC2 は 6 台中 4、ECS は 4 中 2、S3 は 6 中 4、EBS は 8 中 6）と、忘れていそうな数と額">
   <br><sub>AWS STATUS · RESOURCES · 代役の AWS CLI、架空のアカウント</sub>
 </p>
 
@@ -90,11 +90,12 @@ cloud プリセット（Ctrl+Shift+F10）は、アカウント、リポジトリ
 
 - **数字**: SERVICES（リソースとリージョンの数も）、BILLED BY THE HOUR（時間課金のものの ≈ $/時と ≈ $/月。押すと ACTIVE）、LOOKS FORGOTTEN · BILLING（数、≈ $/月、お金のかからないものの数。押すと全件の一覧）、NEW 7 D（7 日で現れたものと消えたもの。押すとその一覧）。
 - **LOOKS FORGOTTEN**: 上位 5 件を、これからの ≈ $/月の順に（静かな日数より短い日数での判定は下げます）。1 行: 種類、名前、理由の文（「no traffic 30 d」「not attached since 11-01」）、静かな期間、≈ $/月。カードには何で判定したかを出します。**keep**（「わざと置いている」）でその行をこのアカウントの一覧から外します。額が 2 倍を超えるとまた出ます。上下の矢印で行を移ります。
-- **タイル**を分類ごとに（コンピュート、ストレージ、データベース、ネットワーク、AI、エッジと API、連携、セキュリティ、ログ）、忘れものの額の大きい分類から並べます。1 枚: 数と名詞、状態の細い線、リージョン、凡例、忘れていそうな数と ≈ $/月。忘れものが ≈ $50/月 以上で枠が warn、≈ $500/月 以上で danger になります。Bedrock のタイルは 2 段で、30 日に使ったモデルと、置いてあるもの（プロビジョンドスループット、カスタムモデルと取り込んだモデル、ナレッジベース、エージェント、ガードレール、推論プロファイル、AgentCore のランタイム）。矢印キーでその向きのいちばん近いタイルへ、Enter で開きます。
-- タイルの下に: **Also here**（VPC、証明書、スタック、アラーム）、**Checked, none here**、**Denied**（拒まれた操作）、**ELSEWHERE**（ペインが表示しないリージョンにあるもの。週 1 回の見回りで読み、その一覧に *check other regions now*）、**Billed this month, not read here**（請求メトリクスにあり、どのタイルにも当たらないサービス。押すと COST）。
+- **SERVICES** の見出しと、その右の **CARDS · DETAIL** の切り替え（*未リリース*。選んだほうをペインが覚え、既定は CARDS）。**CARDS**: サービスごとに 1 枚のカードを、いつも同じ順（コンピュート、ストレージ、データベース、ネットワーク、AI、エッジと API、連携、セキュリティ、ログ）に並べます。1 枚: 名前と 7 日の増減、表示しているリージョンでの **使用中 / 総数**（`9 / 12`）、使用中が何を指すか（`instances running, not idle`）、そして使用中でないものがあるときだけ、その残り（`2 forgotten? · 1 stopped · 1 quiet · 1 kept`）と忘れていそうなものの ≈ $/月（残りがすべて静かなだけなら `free`）。使用中は、止まっておらず LOOKS FORGOTTEN にも無い（KEEP したものでもない）もので、カードと一覧は食い違いません。ほかのリージョンのものは ELSEWHERE に残ります。枠はタイルと同じく warn と danger になります。Bedrock のカードは、置いてあるもののうち 30 日に使われたものを数え、モデルとそのトークンも出します。読み取り中のサービスは `–` と *reading…*、拒まれて何も読めていないサービスは `?` と操作名。カードの詳細カードには、状態、容量、リージョンごとの数、≈ $/月、静かの意味を出します。矢印キーでいちばん近いカードへ、Enter で開きます。
+- **DETAIL**: **タイル**を分類ごとに（コンピュート、ストレージ、データベース、ネットワーク、AI、エッジと API、連携、セキュリティ、ログ）、忘れものの額の大きい分類から並べます。1 枚: 数と名詞、状態の細い線、リージョン、凡例、忘れていそうな数と ≈ $/月。忘れものが ≈ $50/月 以上で枠が warn、≈ $500/月 以上で danger になります。Bedrock のタイルは 2 段で、30 日に使ったモデルと、置いてあるもの（プロビジョンドスループット、カスタムモデルと取り込んだモデル、ナレッジベース、エージェント、ガードレール、推論プロファイル、AgentCore のランタイム）。矢印キーでその向きのいちばん近いタイルへ、Enter で開きます。
+- カードやタイルの下に: **Also here**（VPC、証明書、スタック、アラーム）、**Checked, none here**、**Denied**（拒まれた操作）、**ELSEWHERE**（ペインが表示しないリージョンにあるもの。週 1 回の見回りで読み、その一覧に *check other regions now*）、**Billed this month, not read here**（請求メトリクスにあり、どのタイルにも当たらないサービス。押すと COST）。
 - サービス: EC2、ECS、EKS、Lambda、S3、EBS、EBS のスナップショット、AMI、ECR、RDS、DynamoDB、ElastiCache、OpenSearch、Redshift、NAT ゲートウェイ、ロードバランサー、パブリック IPv4、VPC エンドポイント、Transit Gateway のアタッチメント、Site-to-Site VPN、CloudFront、API Gateway、SQS、SNS、Kinesis Data Streams、Transfer Family、Bedrock、OpenSearch Serverless、SageMaker、KMS、Route 53 のホストゾーン、CloudWatch Logs。
 - 忘れていそうかは読んだものから判定します: 使用のメトリクスに静かな日数（30 日）データ点が無い（通信、要求、接続、呼び出し、メッセージが無い）、30 日より長く止めたままのインスタンス、付いていないボリュームやアドレス、空のバケット、関数の無くなったロググループ、ボリュームの無くなったスナップショット、無くなったものを見張るアラーム。`GetMetricData` が OFF なら、`ListMetrics` の 14 日で判定します。プロビジョンドスループットは、それ自身にも元のモデルにも呼び出しが無いときだけ忘れものにします。
-- ペインが狭いほどタイルの列が減り、低いペインではタイルが 1 行ずつになり、とても低いペインでは数字と一覧だけが残ります。
+- ペインが狭いほどカード（1 枚 13 rem 以上、狭いペインでは 2 列）やタイルの列が減り、低いペインではタイルが 1 行ずつになり、とても低いペインでは数字と一覧だけが残ります。
 
 ### 掘り下げ
 

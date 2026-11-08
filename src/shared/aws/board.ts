@@ -157,6 +157,9 @@ function readDrill(raw: unknown): DrillPlace | null {
   }
 }
 
+/** How RESOURCES shows the services: `in use / all` cards, or the tiles with their state lines. */
+export type ResourcesViewChoice = 'cards' | 'detail'
+
 const TABS: readonly AwsTab[] = ['resources', 'attention', 'active', 'cost', 'activity', 'account']
 const FROM: readonly DrillFrom[] = ['resources', 'cost', 'attention']
 
@@ -167,6 +170,8 @@ export function readAwsPane(state: Record<string, unknown> | undefined): {
   region: string | null
   mask: boolean
   pulse: boolean
+  /** RESOURCES' services as cards (the default) or as the detailed tiles (aws.md §14.12). */
+  resView: ResourcesViewChoice
   drill: DrillPlace | null
   /** Where the drill-down was entered from, for its crumbs. */
   from: DrillFrom
@@ -193,6 +198,8 @@ export function readAwsPane(state: Record<string, unknown> | undefined): {
     region: region !== null && (regions.length === 0 || regions.includes(region)) ? region : null,
     mask: s.mask === true,
     pulse: s.pulse !== false,
+    // CARDS, the default, is kept as nothing; only DETAIL is stored.
+    resView: s.resView === 'detail' ? 'detail' : 'cards',
     drill: readDrill(s.drill),
     from: FROM.includes(s.from as DrillFrom) ? (s.from as DrillFrom) : 'active',
   }

@@ -1,8 +1,13 @@
-import type { ForgottenRow, ResourcesView, ResourceTile } from '@shared/aws/types'
+import type { ForgottenRow, ResourcesView, ResourceTile, ServiceUse } from '@shared/aws/types'
 import type { LedgerSummary } from '@shared/cloud-cli/ledger'
 import { describe, expect, it } from 'vitest'
 import {
   billedLine,
+  cardFoot,
+  cardLabel,
+  cardSlots,
+  cardUsd,
+  cardWord,
   drillCrumb,
   elsewhereLine,
   figuresText,
@@ -16,6 +21,7 @@ import {
   nearestBox,
   opensForgotten,
   resourcesLayout,
+  serviceCard,
   shownName,
   tileGroups,
   tileMoney,
@@ -45,6 +51,21 @@ const row = (over: Partial<ForgottenRow> = {}): ForgottenRow => ({
   ...over,
 })
 
+const use = (over: Partial<ServiceUse> = {}): ServiceUse => ({
+  total: 5,
+  inUse: 5,
+  inUseWord: 'instances running, not idle',
+  forgotten: 0,
+  stopped: 0,
+  quiet: 0,
+  kept: 0,
+  usd: 0,
+  notPriced: false,
+  frame: null,
+  regions: [{ region: 'ap-northeast-1', count: 5 }],
+  ...over,
+})
+
 const tile = (over: Partial<ResourceTile> = {}): ResourceTile => ({
   service: 'ec2',
   label: 'EC2',
@@ -62,6 +83,7 @@ const tile = (over: Partial<ResourceTile> = {}): ResourceTile => ({
   usageBased: false,
   added: 0,
   removed: 0,
+  use: use(),
   ...over,
 })
 
@@ -244,6 +266,121 @@ describe('the RESOURCES screen (aws.md §14.2)', () => {
     expect(drillCrumb(listPlace('forgotten', null))).toBe('FORGOTTEN')
     expect(drillCrumb({ service: 'logs', filters: {}, sort: null, item: null })).toBe(
       'CloudWatch Logs',
+    )
+  })
+})
+
+describe('CARDS (aws.md §14.12)', () => {
+  const ec2 = tile({
+    use: use({ total: 12, inUse: 9, forgotten: 2, stopped: 1, usd: 1130, frame: 'danger' }),
+  })
+
+  it('lays the cards out in the fixed order, with the ones being read and the ones refused', () => {
+    const v = view({
+      groups: [
+        { group: 'NETWORK', tiles: [tile({ service: 'nat', label: 'NAT gateways' })] },
+        { group: 'COMPUTE', tiles: [tile()] },
+      ],
+      pending: ['lambda'],
+      denied: [{ service: 'dynamodb', actions: ['dynamodb:ListTables'] }],
+    })
+    // Main ranks the groups by money for DETAIL; the cards never move.
+    expect(
+      cardSlots(v).map((s) => `${s.kind}:${s.kind === 'card' ? s.tile.service : s.service}`),
+    ).toEqual(['card:ec2', 'pending:lambda', 'denied:dynamodb', 'card:nat'])
+  })
+
+  it('says the rest and its money in the foot, and has no foot when all is in use', () => {
+    expect(cardFoot(ec2)).toEqual({ rest: '2 forgotten? · 1 stopped', amount: '≈ $1.1k' })
+    expect(cardFoot(tile({ use: use({ inUse: 3, quiet: 2 }) }))).toEqual({
+      rest: '2 quiet',
+      amount: 'free',
+    })
+    expect(
+      cardFoot(tile({ use: use({ inUse: 4, forgotten: 1, usd: 0, notPriced: true }) })),
+    ).toEqual({ rest: '1 forgotten?', amount: 'not priced' })
+    // A priced part beside an unpriced Provisioned Throughput is less than the whole: it says so.
+    expect(
+      cardFoot(tile({ use: use({ inUse: 2, forgotten: 2, usd: 2.48, notPriced: true }) }))?.amount,
+    ).toBe('≈ $2.48 +')
+    expect(cardFoot(tile({ use: use({ inUse: 3, stopped: 1, quiet: 1 }) }))).toEqual({
+      rest: '1 stopped · 1 quiet',
+      amount: '',
+    })
+    expect(cardFoot(tile({ use: use({ inUse: 4, kept: 1 }) }))?.rest).toBe('1 kept')
+    expect(cardFoot(tile())).toBeNull()
+  })
+
+  it('writes the money as the list does, cents only under $10', () => {
+    expect(cardUsd(1130)).toBe('$1.1k')
+    expect(cardUsd(19.4)).toBe('$19')
+    expect(cardUsd(3.65)).toBe('$3.65')
+  })
+
+  it('reads out the ratio, the rest and the money', () => {
+    expect(cardLabel(ec2, cardWord(ec2, null))).toBe(
+      'EC2: 9 of 12 instances running, not idle, 2 forgotten?, 1 stopped, about $1.1k a month',
+    )
+    expect(cardLabel(tile(), 'instances running, not idle')).toBe(
+      'EC2: 5 of 5 instances running, not idle',
+    )
+  })
+
+  it("says Bedrock's models and tokens on its word line", () => {
+    const bedrock = tile({
+      service: 'bedrock',
+      label: 'Bedrock',
+      use: use({ total: 8, inUse: 6, inUseWord: 'placed, used in 30 d' }),
+    })
+    const models = {
+      placed: [],
+      models: [
+        { id: 'a', name: 'Claude Sonnet', tokensIn: 25e6, tokensOut: 3e6 },
+        { id: 'b', name: 'Nova Lite', tokensIn: 2.6e6, tokensOut: 0.4e6 },
+      ],
+    }
+    expect(cardWord(bedrock, models)).toBe('placed, used in 30 d · 2 models · 31M tok')
+    expect(cardWord(bedrock, null)).toBe('placed, used in 30 d')
+    expect(cardWord(ec2, models)).toBe('instances running, not idle')
+  })
+
+  it("puts on a card's card what the card has no room for, and that a press opens the list", () => {
+    const card = serviceCard(
+      tile({
+        segments: [
+          { n: 7, tone: 'ok', label: 'busy' },
+          { n: 2, tone: 'warn', label: 'idle' },
+        ],
+        legend: [
+          { text: '7 busy', tone: null },
+          { text: '12 tasks', tone: null },
+        ],
+        monthly: 1200,
+        use: use({
+          regions: [
+            { region: 'ap-northeast-1', count: 9 },
+            { region: 'us-east-1', count: 3 },
+          ],
+        }),
+      }),
+      view(),
+    )
+    const value = (label: string) => card.rows.find((r) => r.label === label)?.value
+    expect(value('states')).toBe('7 busy · 2 idle')
+    // The legend only where it says more than the states.
+    expect(value('facts')).toBe('12 tasks')
+    expect(value('regions')).toBe('ap-northeast-1 9 · us-east-1 3')
+    expect(value('a month')).toBe('≈ $1.2k at list price')
+    expect(value('quiet means')).toBe('no use seen in 30 d (GetMetricData)')
+    expect(card.note).toBe('A press opens the list.')
+    // Never the ratio again.
+    expect(JSON.stringify(card)).not.toContain(' of ')
+    const capped = serviceCard(
+      tile(),
+      view({ gmd: { on: true, cap: 1, used: 1, usd: 0, capReached: true } }),
+    )
+    expect(capped.rows.find((r) => r.label === 'quiet means')?.value).toBe(
+      'no data point in 14 d (list-metrics)',
     )
   })
 })

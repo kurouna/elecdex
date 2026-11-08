@@ -1,4 +1,5 @@
 <script lang="ts">
+import type { ResourcesViewChoice } from '@shared/aws/board'
 import { dayText } from '@shared/aws/facts'
 import { TILE } from '@shared/aws/inventory'
 import type {
@@ -9,12 +10,17 @@ import type {
   ResourceTile,
 } from '@shared/aws/types'
 import { untrack } from 'svelte'
+import { afterBlink } from '../../lib/blink.ts'
 import { keepRow } from './keep.ts'
 import {
   alsoText,
   bedrockUse,
   billedLine,
   type Card,
+  cardFoot,
+  cardLabel,
+  cardSlots,
+  cardWord,
   deniedLine,
   elsewhereLine,
   figuresText,
@@ -31,6 +37,7 @@ import {
   PLACED_WORD,
   resourcesLayout,
   segmentShares,
+  serviceCard,
   shownName,
   slotSpan,
   tileCard,
@@ -56,6 +63,9 @@ interface Props {
   masked: boolean
   width: number
   height: number
+  /** The services as cards (the default) or as the detailed tiles (aws.md §14.12). */
+  view: ResourcesViewChoice
+  onview: (view: ResourcesViewChoice) => void
   /** Where the focus goes back to as the step above is left (null: nowhere). */
   focus: string | null
   onfocused: () => void
@@ -75,6 +85,8 @@ const {
   masked,
   width,
   height,
+  view,
+  onview,
   focus,
   onfocused,
   ontab,
@@ -92,6 +104,7 @@ const groups = $derived(tileGroups(res))
 const elsewhere = $derived(elsewhereLine(res, lay.countsOnly))
 const billed = $derived(billedLine(res, lay.countsOnly))
 const bedrock = $derived(res.bedrock === null ? null : bedrockUse(res.bedrock))
+const cards = $derived(cardSlots(res))
 
 let rootEl = $state<HTMLElement | null>(null)
 
@@ -152,16 +165,25 @@ function onRowKey(event: KeyboardEvent, row: ForgottenRow): void {
 
 /* ---- The tiles ---- */
 
-/** Arrows go to the nearest tile that way, across the groups; Enter opens the list. */
-function onTileKey(event: KeyboardEvent, service: AwsService): void {
+/**
+ * Arrows go to the nearest tile or card that way, across the groups; Enter opens the list. A
+ * card is `card:` and a tile `tile:`, so Back finds the one of the view it left from.
+ */
+function onTileKey(
+  event: KeyboardEvent,
+  service: AwsService,
+  kind: 'tile' | 'card' = 'tile',
+): void {
   if (event.key === 'Enter') {
     event.preventDefault()
-    onservice(service, `tile:${service}`)
+    onservice(service, `${kind}:${service}`)
     return
   }
   if (rootEl === null || !event.key.startsWith('Arrow')) return
   const from = event.currentTarget as HTMLElement
-  const tiles = [...rootEl.querySelectorAll<HTMLElement>('[data-tile]')].filter((t) => t !== from)
+  const tiles = [...rootEl.querySelectorAll<HTMLElement>(`[data-${kind}]`)].filter(
+    (t) => t !== from,
+  )
   const best = nearestBox(
     from.getBoundingClientRect(),
     tiles.map((t) => t.getBoundingClientRect()),
@@ -181,6 +203,21 @@ const hourlyCard = (): Card => ({
 
 const regionDots = (tile: ResourceTile) =>
   regions.map((r) => ({ region: r, on: tile.regions.includes(r) }))
+
+const VIEWS: readonly [ResourcesViewChoice, string][] = [
+  ['cards', 'CARDS'],
+  ['detail', 'DETAIL'],
+]
+
+/**
+ * The switch blinks before the services change under it, as every choice that changes what is
+ * shown does (lib/blink.ts). The buttons stay where they are, so the focus stays on the one
+ * pressed (§14.12, 11).
+ */
+function pickView(button: HTMLElement, next: ResourcesViewChoice): void {
+  if (next === view) return
+  afterBlink(button, () => onview(next))
+}
 </script>
 
 <div class="res" class:wide={lay.cols === 4} class:narrow={lay.cols === 2} data-testid="aws-resources" bind:this={rootEl}>
@@ -252,6 +289,64 @@ const regionDots = (tile: ResourceTile) =>
   {/if}
 
   {#if !lay.short}
+    <div class="sep svc" data-testid="aws-services-head">Services <b>{res.figures.services}</b>
+      <span class="vswitch" role="group" aria-label="how the services are shown">
+        {#each VIEWS as [id, word] (id)}
+          <button type="button" class:on={view === id} aria-pressed={view === id} onclick={(e) => pickView(e.currentTarget, id)} data-testid="aws-res-view-{id}">{word}</button>
+        {/each}
+      </span>
+    </div>
+  {/if}
+
+  {#if !lay.short && view === 'cards'}
+    <div class="rcards" data-testid="aws-cards">
+      {#each cards as slot (`${slot.kind}:${slot.kind === 'card' ? slot.tile.service : slot.service}`)}
+        {#if slot.kind === 'pending'}
+          <div class="rcard skel" data-testid="aws-rcard-pending">
+            <span class="hd"><span class="lb">{TILE[slot.service].label}</span></span>
+            <span class="ratio"><b>–</b></span>
+            <span class="u">reading…</span>
+            <span class="ft"><span>first read ≤ 10 min</span></span>
+          </div>
+        {:else if slot.kind === 'denied'}
+          <div class="rcard denied" data-testid="aws-rcard-denied">
+            <span class="hd"><span class="lb">{TILE[slot.service].label}</span></span>
+            <span class="ratio"><b>?</b></span>
+            <span class="u">denied: not counted</span>
+            <span class="ft"><span>{slot.actions.join(' · ')}</span></span>
+          </div>
+        {:else}
+          {@const tile = slot.tile}
+          {@const word = cardWord(tile, res.bedrock)}
+          {@const foot = cardFoot(tile)}
+          <button
+            type="button"
+            class="rcard"
+            data-frame={tile.use.frame}
+            data-card={tile.service}
+            data-focus="card:{tile.service}"
+            aria-label={cardLabel(tile, word)}
+            onclick={() => onservice(tile.service, `card:${tile.service}`)}
+            onkeydown={(e) => onTileKey(e, tile.service, 'card')}
+            onpointerenter={(e) => cardOn(`c:${tile.service}`, e, () => serviceCard(tile, res))}
+            onpointerleave={() => onleave(`c:${tile.service}`)}
+            onfocus={(e) => cardOn(`c:${tile.service}`, e, () => serviceCard(tile, res))}
+            onblur={() => onleave(`c:${tile.service}`)}
+            data-testid="aws-rcard"
+          >
+            <span class="hd"><span class="lb">{tile.label}</span><span class="dl">{tileDelta(tile)}</span></span>
+            <span class="ratio" class:none={tile.use.inUse === 0}><b data-testid="aws-rcard-ratio">{tile.use.inUse.toLocaleString('en-US')}</b><span class="of">/ {tile.use.total.toLocaleString('en-US')}</span></span>
+            <span class="u">{word}</span>
+            {#if foot !== null}
+              <span class="ft" data-testid="aws-rcard-foot"><span class="rest">{foot.rest}</span>{#if foot.amount}<span class="r">{foot.amount}</span>{/if}</span>
+            {/if}
+          </button>
+        {/if}
+      {/each}
+    </div>
+  {/if}
+
+  {#if !lay.short && view === 'detail'}
     <div class="rgroups" class:dense={lay.dense} style:--cols={lay.dense ? lay.denseCols : lay.cols} data-testid="aws-tiles">
       {#each groups as g (g.group)}
         <div class="rgroup" style:grid-column="span {lay.dense ? lay.denseCols : groupSpan(g.slots, res.bedrock, lay.cols)}">
@@ -320,10 +415,12 @@ const regionDots = (tile: ResourceTile) =>
         </div>
       {/each}
     </div>
+  {/if}
 
+  {#if !lay.short}
     {#if res.alsoHere.length > 0}
       <p class="rnone also" data-testid="aws-also-here">Also here:
-        {#each res.alsoHere as also, i (also.service)}{#if i > 0}<span class="dot"> · </span>{/if}<button type="button" data-focus="also:{also.service}" onclick={() => onservice(also.service, `also:${also.service}`)} data-testid="aws-also">{alsoText(also)}{#if also.note}<span class:danger={also.service === 'alarms' || also.service === 'stacks'}> ({also.note})</span>{/if}</button>{/each}
+        {#each res.alsoHere as also, i (also.service)}{#if i > 0}<span class="dot">{' · '}</span>{/if}<button type="button" data-focus="also:{also.service}" onclick={() => onservice(also.service, `also:${also.service}`)} data-testid="aws-also">{alsoText(also)}{#if also.note}<span class:danger={also.service === 'alarms' || also.service === 'stacks'}>{` (${also.note})`}</span>{/if}</button>{/each}
       </p>
     {/if}
     {#if res.none.length > 0}<p class="rnone" data-testid="aws-res-none">Checked, none here: {noneLine(res)}</p>{/if}
@@ -389,6 +486,38 @@ const regionDots = (tile: ResourceTile) =>
 .rnone.also button { border: 0; background: transparent; padding: 0; cursor: pointer; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text); }
 .rnone.also button:hover, .rnone.also button:focus-visible { text-decoration: underline; }
 .rnone .denied { font-family: var(--font-mono); color: var(--warn); }
+/* The services heading and its CARDS · DETAIL switch, at the right of its rule. */
+.sep.svc::after { order: 1; }
+.vswitch { display: inline-flex; order: 2; margin-left: auto; }
+.vswitch button { border: 1px solid var(--panel-rule); background: transparent; color: var(--text-dim); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); padding: 0 0.45rem; cursor: pointer; }
+.vswitch button + button { border-left: 0; }
+.vswitch button.on { color: var(--text); background: var(--accent-faint); border-color: var(--accent-dim); }
+.vswitch button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+/* CARDS (aws.md §14.12): in use of all, a card a service, in the groups' fixed order. 13 rem is
+   the narrowest card whose foot ("2 forgotten? · 1 stopped   ≈ $1.1k") is not cut. */
+.rcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.45rem; padding: 0.3rem 0 0.2rem; }
+.narrow .rcards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rcard { position: relative; display: flex; flex-direction: column; gap: 0.18rem; min-width: 0; padding: 0.32rem 0.5rem 0.36rem; border: 1px solid var(--panel-rule); background: transparent; color: var(--text); font-family: var(--font-ui); text-align: left; cursor: pointer; }
+.rcard:hover, .rcard:focus-visible { background: var(--accent-faint); outline: 1px solid var(--accent); outline-offset: -1px; }
+.rcard[data-frame='warn'] { border-color: color-mix(in srgb, var(--warn) 55%, transparent); }
+.rcard[data-frame='danger'] { border-color: color-mix(in srgb, var(--danger) 60%, transparent); }
+.rcard > span { display: flex; min-width: 0; }
+.rcard > .hd { font-family: var(--font-mono); font-size: var(--step--1); letter-spacing: 0; text-transform: none; color: var(--text-muted); }
+.rcard > .hd .dl { color: var(--text-dim); }
+.ratio { align-items: baseline; gap: 0.3rem; }
+.ratio b { font-family: var(--font-display); font-size: var(--step-2); font-weight: 500; line-height: 1; color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+.ratio .of { font-family: var(--font-display); font-size: var(--step-1); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.ratio.none b { color: var(--text); }
+.rcard > .u { display: block; font-size: var(--step--1); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rcard > .ft { justify-content: space-between; gap: 0.4rem; border-top: 1px dashed var(--panel-rule); padding-top: 0.16rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); white-space: nowrap; }
+.rcard > .ft > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rcard > .ft .rest { color: var(--text); }
+.rcard > .ft .r { flex: none; margin-left: auto; color: var(--text-dim); }
+.rcard[data-frame='warn'] > .ft .r { color: var(--warn); }
+.rcard[data-frame='danger'] > .ft .r { color: var(--danger); }
+.rcard.denied .ratio b, .rcard.skel .ratio b { color: var(--text-dim); }
+.rcard.denied > .ft { color: var(--warn); }
+.rcard.skel, .rcard.denied { cursor: default; }
 .rgroups { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-flow: row dense; gap: 0.55rem 0.45rem; padding: 0.4rem 0 0.2rem; }
 .rgroup { display: grid; grid-template-columns: subgrid; row-gap: 0.25rem; min-width: 0; align-content: start; }
 .rgroup > h6 { grid-column: 1 / -1; margin: 0; display: flex; align-items: center; gap: 0.5rem; font-weight: 400; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }

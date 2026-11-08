@@ -28,6 +28,7 @@ import { consoleUrl, isConsoleUrl } from '../../src/shared/aws/console-url'
 import { DRILL, facets, filterRows, sortRows } from '../../src/shared/aws/drill'
 import { stoppedAt } from '../../src/shared/aws/facts'
 import { isIdle } from '../../src/shared/aws/forgotten'
+import { GROUPS } from '../../src/shared/aws/inventory'
 import { parseCredentialReport, parseWith } from '../../src/shared/aws/parse'
 import {
   BucketListSchema,
@@ -966,6 +967,17 @@ describe('RESOURCES on the stand-in AWS CLI (aws.md §14)', () => {
     const text = JSON.stringify(board)
     expect(text).not.toContain('sqs.ap-northeast-1.amazonaws.com')
     expect(text).not.toContain(':sns:')
+  })
+
+  it("gives every row of a service's list its own id, as the page keys them", async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    // The stand-in once gave the Tokyo instances' root volumes one id: EBS's list threw.
+    for (const which of [...GROUPS.flatMap((g) => g.services), 'forgotten', 'new', 'elsewhere']) {
+      const keys = (s.aws.drill(KEY, which) ?? []).map((row) => `${row.service ?? ''}:${row.id}`)
+      expect(new Set(keys).size, which).toBe(keys.length)
+    }
   })
 
   it('reads the account once for two panes, and their lists agree', async () => {

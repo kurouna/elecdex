@@ -216,7 +216,7 @@ function takeFocus(el: HTMLElement): void {
 {#if place.item === null}
   <div class="drill" data-testid="aws-drill-list">
     {#if place.service === 'elsewhere'}
-      <p class="sweep" data-testid="aws-sweep-line">Read by a weekly sweep of the regions this pane does not show, describe only · last {dayText(sweptAt)} <button type="button" class="tool" onclick={() => void sweepNow()} data-testid="aws-sweep-now">check other regions now</button>{#if sweepWait > 0}<span class="dim"> · asked: the other regions are read in the background</span>{/if}</p>
+      <p class="sweep" data-testid="aws-sweep-line">Read by a weekly sweep of the regions this pane does not show, describe only · last {dayText(sweptAt)} <button type="button" class="tool" onclick={() => void sweepNow()} data-testid="aws-sweep-now">check other regions now</button>{#if sweepWait > 0}<span class="dim">{' · asked: the other regions are read in the background'}</span>{/if}</p>
     {/if}
     {#if gone !== null}<p class="gone" role="status">gone since {clockText(gone)}: not in the last reading</p>{/if}
     <div class="facets" class:narrow>

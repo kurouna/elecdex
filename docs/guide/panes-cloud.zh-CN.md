@@ -17,7 +17,7 @@ elecdex 是一个科幻风格的终端模拟器和系统监视器，是用 Elect
 ## cloud 预设
 
 <p align="center">
-  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统列；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、两个区域的指示灯、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带，以及显示 27 个服务、23 个看起来被遗忘且在计费的资源及其中最贵的 5 个、按被遗忘金额分组的服务磁贴的 RESOURCES 标签页；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和按“损坏或受阻”“等待过久”“给你的”“待分拣”分组的 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
+  <img src="../screenshots/elecdex-cloud.jpg" alt="Business (Light) 主题下的 cloud 预设：左侧是系统列；虚构账户 acme-prod 的 AWS STATUS 窗格，显示一个告警、本月迄今金额及其相对预算的预测、两个区域的指示灯、询问 Cost Explorer 的一行、ACCOUNT PULSE 横带，以及显示 27 个服务、23 个看起来被遗忘且在计费的资源及其中最贵的 5 个、每个服务一张显示使用中 / 总数的卡片的 RESOURCES 标签页；右侧是虚构用户 octo-aki 的 GITHUB STATUS 窗格，显示贡献格子和按“损坏或受阻”“等待过久”“给你的”“待分拣”分组的 QUEUE；其下是一个 shell，旁边是 LOG WATCH 标签页">
   <br><sub>cloud · Business (Light) · 替身 AWS CLI 和 gh，虚构的账户和用户</sub>
 </p>
 
@@ -56,7 +56,7 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 ## AWS STATUS
 
 <p align="center">
-  <img src="../screenshots/pane-aws.jpg" alt="单独显示的 AWS STATUS 窗格，虚构账户 acme-prod，两个区域：顶行有一个告警、ATTENTION 的 danger 5 和 warn 8、本月迄今 218 美元及预算 110% 的预测、区域指示灯；询问 Cost Explorer 的一行；ACCOUNT PULSE 横带；RESOURCES 标签页显示 27 个服务、按小时计费约每小时 4.50 美元、23 个看起来被遗忘且在计费的资源、其中最贵的 5 个（没有调用的 Bedrock 预置吞吐量、在不显示的区域运行的 EC2、没有搜索的 OpenSearch Serverless 集合、没有连接的缓存、已运行 40 天的 SageMaker 笔记本），以及分为 AI、计算、数据库和存储的服务磁贴">
+  <img src="../screenshots/pane-aws.jpg" alt="单独显示的 AWS STATUS 窗格，虚构账户 acme-prod，两个区域：顶行有一个告警、ATTENTION 的 danger 5 和 warn 8、本月迄今 218 美元及预算 110% 的预测、区域指示灯；询问 Cost Explorer 的一行；ACCOUNT PULSE 横带；RESOURCES 标签页显示 27 个服务、按小时计费约每小时 4.50 美元、23 个看起来被遗忘且在计费的资源、其中最贵的 5 个（没有调用的 Bedrock 预置吞吐量、在不显示的区域运行的 EC2、没有搜索的 OpenSearch Serverless 集合、没有连接的缓存、已运行 40 天的 SageMaker 笔记本），以及每个服务一张卡片，显示使用中 / 总数（EC2 6 台中 4 台、ECS 4 个中 2 个、S3 6 个中 4 个、EBS 8 个中 6 个）、看起来被遗忘的数量和金额">
   <br><sub>AWS STATUS · RESOURCES · 替身 AWS CLI，虚构账户</sub>
 </p>
 
@@ -90,11 +90,12 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 
 - **数字**：SERVICES（附资源数和区域数）、BILLED BY THE HOUR（按小时计费的资源的 ≈ $/小时和 ≈ $/月；点击打开 ACTIVE）、LOOKS FORGOTTEN · BILLING（数量、≈ $/月以及不花钱的数量；点击打开完整列表）、NEW 7 D（7 天内出现和消失的资源；点击打开它们）。
 - **LOOKS FORGOTTEN**：前 5 条，按今后 ≈ 每月金额排序（判断天数短于静默天数的排在后面）。每行：类型、名称、用平常话写的原因（"no traffic 30 d"、"not attached since 11-01"）、静默了多久和 ≈ $/月；卡片说明依据什么判断。**keep**（"我是有意留着的"）把这一行从该账户的列表中移除；金额超过两倍时会再次出现。上下方向键在行间移动。
-- **磁贴**按分组排列（计算、存储、数据库、网络、AI、边缘与 API、集成、安全、日志），被遗忘金额最多的分组在前。一块磁贴：数量和名词、一条细的状态线、区域、图例、看起来被遗忘的数量和 ≈ $/月。被遗忘资源达到 ≈ $50/月 时边框变为 warn，达到 ≈ $500/月 时变为 danger。Bedrock 的磁贴分两半：30 天内使用的模型，以及放置的资源（预置吞吐量、自定义模型和导入的模型、知识库、代理、护栏、推理配置文件、AgentCore 运行时）。方向键移到该方向最近的磁贴；Enter 打开。
-- 磁贴下方：**Also here**（VPC、证书、堆栈、告警）、**Checked, none here**、**Denied**（被拒绝的操作）、**ELSEWHERE**（窗格不显示的区域中的资源，来自每周一次的巡查；其列表中有 *check other regions now*）以及 **Billed this month, not read here**（账单指标中有、但没有磁贴覆盖的服务；点击打开 COST）。
+- **SERVICES** 标题及其右侧的 **CARDS · DETAIL** 切换（*未发布*；窗格记住所选，默认为 CARDS）。**CARDS**：每个服务一张卡片，始终按同样的顺序排列（计算、存储、数据库、网络、AI、边缘与 API、集成、安全、日志）。一张卡片：名称和 7 天内的增减、所显示区域中的 **使用中 / 总数**（`9 / 12`）、"使用中"指什么（`instances running, not idle`），并且只有在有未使用的资源时才显示其余部分（`2 forgotten? · 1 stopped · 1 quiet · 1 kept`）以及看起来被遗忘的资源的 ≈ $/月（其余全是静默时为 `free`）。使用中是指既未停止、也不在 LOOKS FORGOTTEN 中（也未标记 KEEP）的资源，因此卡片与列表一致；其他区域的资源留在 ELSEWHERE。边框与磁贴一样变为 warn 和 danger。Bedrock 的卡片统计放置的资源中 30 天内被使用的数量，并显示模型及其令牌数。仍在读取的服务显示 `–` 和 *reading…*；被拒绝且什么也没读到的服务显示 `?` 和操作名。卡片的详情卡显示状态、容量、各区域的数量、≈ $/月以及静默的含义。方向键移到最近的卡片；Enter 打开。
+- **DETAIL**：**磁贴**按分组排列（计算、存储、数据库、网络、AI、边缘与 API、集成、安全、日志），被遗忘金额最多的分组在前。一块磁贴：数量和名词、一条细的状态线、区域、图例、看起来被遗忘的数量和 ≈ $/月。被遗忘资源达到 ≈ $50/月 时边框变为 warn，达到 ≈ $500/月 时变为 danger。Bedrock 的磁贴分两半：30 天内使用的模型，以及放置的资源（预置吞吐量、自定义模型和导入的模型、知识库、代理、护栏、推理配置文件、AgentCore 运行时）。方向键移到该方向最近的磁贴；Enter 打开。
+- 卡片或磁贴下方：**Also here**（VPC、证书、堆栈、告警）、**Checked, none here**、**Denied**（被拒绝的操作）、**ELSEWHERE**（窗格不显示的区域中的资源，来自每周一次的巡查；其列表中有 *check other regions now*）以及 **Billed this month, not read here**（账单指标中有、但没有磁贴覆盖的服务；点击打开 COST）。
 - 服务：EC2、ECS、EKS、Lambda、S3、EBS、EBS 快照、AMI、ECR、RDS、DynamoDB、ElastiCache、OpenSearch、Redshift、NAT 网关、负载均衡器、公网 IPv4、VPC 终端节点、Transit Gateway 挂载、Site-to-Site VPN、CloudFront、API Gateway、SQS、SNS、Kinesis Data Streams、Transfer Family、Bedrock、OpenSearch Serverless、SageMaker、KMS、Route 53 托管区域和 CloudWatch Logs。
 - 是否看起来被遗忘，依据读到的内容判断：使用指标在静默天数（30 天）内没有数据点（没有流量、请求、连接、调用或消息）、停止超过 30 天的实例、未挂载的卷或地址、空的存储桶、函数已不存在的日志组、卷已不存在的快照、监视已不存在资源的告警。`GetMetricData` 关闭时，改用 `ListMetrics` 的 14 天判断。预置吞吐量只有在它自身和其基础模型都没有调用时才算被遗忘。
-- 窗格越窄，磁贴的列越少；窗格较矮时磁贴变为每个一行，非常矮时只保留数字和列表。
+- 窗格越窄，卡片（每张至少 13 rem，窄窗格为 2 列）或磁贴的列越少；窗格较矮时磁贴变为每个一行，非常矮时只保留数字和列表。
 
 ### 逐层深入
 

@@ -614,6 +614,8 @@ const TABS: readonly [AwsTab, string][] = [
             {masked}
             {width}
             {height}
+            view={choices.resView}
+            onview={(next) => patch({ resView: next === 'detail' ? 'detail' : undefined })}
             focus={returnTo}
             onfocused={() => (returnTo = null)}
             ontab={(tab) => selectTab(tab)}

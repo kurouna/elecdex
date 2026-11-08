@@ -312,6 +312,37 @@ export interface ResourceTile {
   /** Came and went in seven days (NEW 7 D). */
   added: number
   removed: number
+  /** The CARDS view's count (aws.md §14.12): in use of all, over the pane's regions. */
+  use: ServiceUse
+}
+
+/**
+ * A service in use of all (aws.md §14.12), counted by main over the pane's regions only (what is
+ * elsewhere stays in ELSEWHERE) with LOOKS FORGOTTEN's own predicate, so that always
+ * `total − inUse = forgotten + stopped + quiet + kept`.
+ */
+export interface ServiceUse {
+  /** Every resource of the service in the pane's regions. */
+  total: number
+  inUse: number
+  /** What "in use" means, noun first: "instances running, not idle". */
+  inUseWord: string
+  /** Judged forgotten and billing (LOOKS FORGOTTEN's billing rows). */
+  forgotten: number
+  /** Not running, available or desired, and not judged forgotten: "1 stopped". */
+  stopped: number
+  /** Judged forgotten and costing nothing now. */
+  quiet: number
+  /** Judged forgotten and marked KEEP: off LOOKS FORGOTTEN, so not counted as forgotten here. */
+  kept: number
+  /** The forgotten ones' ≈ $ a month. */
+  usd: number
+  /** A forgotten one bills without a price in the table (a Provisioned Throughput). */
+  notPriced: boolean
+  /** By the forgotten ≈ $: warn from `AWS_LIMITS.tileWarnUsd`, danger from `forgottenDangerUsd`. */
+  frame: 'danger' | 'warn' | null
+  /** How many in each of the pane's regions it has something in, for the card. */
+  regions: { region: string; count: number }[]
 }
 
 /** The Bedrock tile's two halves: the models used in 30 days, and what is placed (aws.md §14.2 C). */

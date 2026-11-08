@@ -879,3 +879,57 @@ IPC と数と出し直し、ATTENTION・ACTIVE との重複、MASK の範囲を�
   list-metrics が見つけた組だけを問う。でたらめな dimension で 0 になり、誤って「静か」と出るのを避けるため
 - **REFRESH** で RESOURCES の共有の読み取りを読み直すのは、押す前から 5 分以上古いものだけ
 - **代役**の「忘れた GPU」は us-west-2 の g5.xlarge（ELSEWHERE）。既存の e2e（`1 IDLE`、EC2 の 6 行）を保つため
+
+### 14.12 CARDS: サービスを「使用中 / 総数」のカードで（案、2026-11-08）
+
+利用者の提案（2026-11-08）: 「すべてのリソースをバーで表示しようとしているが、デモを見る限り情報がビジー。GITHUB
+STATUS のように、サービスごとに `2 / 3`（アクティブ数 / 総数）をカード型で出したほうがわかりやすい。今の表示と
+切り替えられるようにし、既定をカード型に」。モックは docs/aws-mock の RESOURCES（既定で CARDS）。
+
+- **切り替え**: C（サービス）の見出し `SERVICES 18` の右に `CARDS · DETAIL`。既定は CARDS。DETAIL は今のタイル
+  （分類の見出し、状態の積み上げ線、凡例）。選んだほうはペインの状態に持つ（`resView`、既定は持たない）。A の数字、
+  B の LOOKS FORGOTTEN、Also here、ELSEWHERE、BILLED NOT LISTED はどちらでも同じ
+- **カード 1 枚**（GITHUB STATUS の REPOS のタイルと同じ作り）: サービス名と 7 日の増減、大きく `使用中 / 総数`
+  （`9 / 12`）、その下に「使用中」が何を指すかの短い語（`running, not idle`）、下の行に忘れていそうなもの
+  （`3 forgotten?` と `≈ $/mo`。お金のかからないものだけなら `1 quiet · free`、無ければ `all in use`）。枠の色は
+  DETAIL のタイルと同じ規則（忘れものの ≈ $ が $50/月 以上で warn、$500/月 以上で danger、単価の無い PT は warn）
+- **「使用中」の定義**: 総数から、止まっているもの（EC2 の running 以外、RDS の available 以外、ECS の desired 0）と、
+  §14.3 の判定で忘れていそう・静かなものを引いた数。LOOKS FORGOTTEN と同じ述語なので、カードと一覧が食い違わない。
+  語はサービスごと（EC2 `running, not idle`、S3 `buckets not empty`、EBS `volumes attached`、Lambda `invoked in 30 d`、
+  SQS `queues with messages`、CloudWatch Logs `groups receiving`…）。main が `ResourceTile` に `inUse` と `inUseWord`
+  を足して送り、ページは数えない。純粋な関数の 1 か所で決め、単体テストで縛る
+- **並び**: 分類の見出しは出さず、忘れものの額の大きい分類の順にサービスを平らに並べる（同じ額なら固定の順）。
+  幅に合わせて `auto-fill`（最小 10.5 rem）、narrow は 2 列。矢印キーはいちばん近いカードへ、Enter で 2 段目
+- **カード**（hover・フォーカス）: 総数と名詞、使用中とその語、使用中でない数（止まっている、または読んだかぎり
+  静か）、リージョン。「DETAIL が状態・容量・凡例を見せる」と一言
+- **Bedrock**: DETAIL の 2 段のタイルの代わりに、置いてあるもの（PT、カスタムモデル…）の使用中 / 総数
+- **読み取りは増えない**。MASK はカードに名前が無いので変わらない
+
+**Fable 5.1 の UX/UI レビューで直したもの（2026-11-08、上の箇条より優先）**:
+
+1. **計算が閉じる**: `総数 − 使用中 = forgotten? + stopped + quiet`。どれも見ているリージョンのものだけで数え、
+   ELSEWHERE（見ていないリージョン）は ELSEWHERE の行に残す（モックで `EBS 18 / 19` に `2 forgotten?` と出て、
+   引き算が合わなかった）。下の行は残り全部を言う: `2 forgotten? · 1 stopped   ≈ $1.1k`、`6 quiet   free`。
+   main の純粋な関数が数え、全タイルでこの式が成り立つことを単体テストで縛る
+2. **色はお金だけ、枠と同じしきい値**: `n forgotten?` は `--text`。`≈ $` だけを、枠が色づくとき（$50/月 以上で
+   warn、$500/月 以上で danger、単価の無い PT は warn）に同じ色に、それ未満は `--text-dim`。7 日の増減は
+   お金ではないので `--text-dim`
+3. **サービス名は読む大きさ**: `--step--1`、mono、大文字にしない（`CloudWatch Logs`）。色は muted のまま
+4. **並びは固定**: COMPUTE・STORAGE・DATABASE・NETWORK・AI・EDGE & API・INTEGRATION・SECURITY・LOGS の順に平らに。
+   カードの場所が額で動かないので覚えられる。額の順は LOOKS FORGOTTEN の仕事
+5. **語は名詞から**: `<名詞> <述語>`（`instances running, not idle`、`gateways with traffic`、
+   `buckets not empty, not stale`…）。表は 1 つ、全種類にあることをテストで縛る
+6. **カードの額は一覧と同じ書き方**: `/mo` を付けない（帯が「a month」を 1 度言う）。$10 未満だけセントまで
+7. **何も無ければ下の行を出さない**: 片付いた盤面が静かに読める。`0 / 3` の 0 は暗くしない
+8. **hover のカードはカードに無いことを言う**: 状態の内訳（DETAIL の凡例）、容量、リージョンごとの数、そのサービスの
+   ≈ $/月、静かさの窓。最後に `A press opens the list.`
+9. **Bedrock**: `6 / 8`（置いたもののうち 30 日に使われたもの）、語の行に `placed, used in 30 d · 4 models · 31M tok`、
+   モデルごとの量は hover のカード
+10. **読み取り中と拒否もカード**: 読み取り中は比を `–`、語 `reading…`、下 `first read ≤ 10 min`。拒否されて 0 件の
+    サービスは比を `?`、語 `denied: not counted`、下に操作名（mono、warn）。0 件と提供の無いリージョンは今の 1 行のまま
+11. **切り替えはフォーカスを保つ**: 押したボタンにフォーカスを戻し、2 段目から戻るときは開いたカードへ
+12. **読み上げの名前**: `EC2: 9 of 12 instances running, not idle, 2 forgotten?, 1 stopped, about $1.1k a month`
+13. **カードの最小幅は 13 rem**（wide で 4 列）。10.5 rem の 5 列では下の行が `2 forgotten? · 1…` と切れた
+
+見送ったもの: 低い高さでカードを 1 行にする案と、30 rem 未満で 1 行のチップを出す案（任意、後で）。帯の `SERVICES 18`
+と見出しの `SERVICES 18` の重なりはそのまま。
