@@ -9,7 +9,7 @@ import {
 } from '@shared/aws/billing'
 import { isAwsService, parseAwsBoardKey } from '@shared/aws/board'
 import { changesSince, type IdSets, idSets } from '@shared/aws/changes'
-import { ACCOUNT_PAGES, consoleUrl, isConsoleUrl } from '@shared/aws/console-url'
+import { ACCOUNT_PAGES, consoleUrl, isConsoleUrl, permissionsUrl } from '@shared/aws/console-url'
 import { drillItem, drillRows } from '@shared/aws/drill'
 import { isAwsList, listRows } from '@shared/aws/drill-resources'
 import { forgotten } from '@shared/aws/forgotten'
@@ -328,6 +328,11 @@ export class AwsService {
       | keyof typeof ACCOUNT_PAGES
       | undefined
     if (page !== undefined) return ACCOUNT_PAGES[page]
+    // The signed-in identity's permissions, from main's own reading of who it is.
+    if (id === 'account:permissions') {
+      const arn = value<{ arn: string }>(board.scheduler, 'identity')?.arn
+      return arn === undefined ? null : permissionsUrl(arn)
+    }
     const incident = /^incident:(.+)$/.exec(id)?.[1]
     if (incident !== undefined) {
       const url = this.#deps.incidents().find((i) => i.id === incident)?.url ?? null

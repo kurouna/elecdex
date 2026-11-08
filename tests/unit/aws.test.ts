@@ -29,7 +29,7 @@ import {
   readAwsPane,
 } from '../../src/shared/aws/board'
 import { changesSince } from '../../src/shared/aws/changes'
-import { consoleUrl, isConsoleUrl } from '../../src/shared/aws/console-url'
+import { consoleUrl, isConsoleUrl, permissionsUrl } from '../../src/shared/aws/console-url'
 import { DRILL, facets, filterRows, itemColumns, sortRows } from '../../src/shared/aws/drill'
 import { stoppedAt } from '../../src/shared/aws/facts'
 import { isIdle, seriesKey } from '../../src/shared/aws/forgotten'
@@ -1059,6 +1059,37 @@ describe('AwsService on the stand-in AWS CLI', () => {
     expect(s.aws.setQuota(KEY, { usd: -1, steps: '100' })).toBe(false)
   })
 
+  it("opens the signed-in identity's permissions page, whoever it is", () => {
+    const pages = [
+      [
+        'arn:aws:iam::123456789012:user/shinsaku',
+        'https://console.aws.amazon.com/iam/home#/users/details/shinsaku?section=permissions',
+      ],
+      [
+        'arn:aws:iam::123456789012:user/team/ops/aki',
+        'https://console.aws.amazon.com/iam/home#/users/details/aki?section=permissions',
+      ],
+      [
+        'arn:aws:sts::123456789012:assumed-role/ReadOnly/aki',
+        'https://console.aws.amazon.com/iam/home#/roles/details/ReadOnly?section=permissions',
+      ],
+      // Identity Center's roles: their permission sets are changed there, not in IAM.
+      [
+        'arn:aws:sts::123456789012:assumed-role/AWSReservedSSO_Admin_0123abcd/aki@example.com',
+        'https://console.aws.amazon.com/singlesignon/home',
+      ],
+      ['arn:aws:iam::123456789012:root', 'https://console.aws.amazon.com/iam/home#/home'],
+      [
+        'arn:aws:sts::123456789012:federated-user/aki',
+        'https://console.aws.amazon.com/iam/home#/home',
+      ],
+    ] as const
+    for (const [arn, url] of pages) {
+      expect(permissionsUrl(arn), arn).toBe(url)
+      expect(isConsoleUrl(url), url).toBe(true)
+    }
+  })
+
   it('opens only what it read, on the console', async () => {
     const s = service()
     s.aws.watch(KEY)
@@ -1068,6 +1099,10 @@ describe('AwsService on the stand-in AWS CLI', () => {
     )
     expect(s.aws.urlOf(KEY, `item:ec2:${R}:i-nothere`)).toBeNull()
     expect(s.aws.urlOf(KEY, 'account:billing')).toBe('https://console.aws.amazon.com/billing/home')
+    // PARTIAL's ↗ IAM: the stand-in signs in as the role ReadOnly.
+    expect(s.aws.urlOf(KEY, 'account:permissions')).toBe(
+      'https://console.aws.amazon.com/iam/home#/roles/details/ReadOnly?section=permissions',
+    )
     expect(s.aws.urlOf(KEY, 'https://example.com')).toBeNull()
     expect(s.aws.drill(KEY, 'iam')).toBeNull()
     expect(s.aws.drill(KEY, 'ec2')?.length).toBe(6)

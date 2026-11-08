@@ -250,6 +250,11 @@ async function open(id: string): Promise<void> {
   await window.elecdex.aws.open(key, id)
 }
 
+/** PARTIAL's ↗ IAM: the signed-in identity's permissions page, after the press's blink. */
+function openPermissions(button: HTMLElement): void {
+  afterBlink(button, () => void open('account:permissions'))
+}
+
 /**
  * The notices' COPY buttons: the sign-in command, and PARTIAL's policy. A press blinks its three
  * beats, as every choice does, before the label turns to COPIED.
@@ -556,6 +561,7 @@ const TABS: readonly [AwsTab, string][] = [
     <div class="notice crt-on quiet" role="status" data-testid="aws-denied">
       <span class="denied">PARTIAL · this role may not read: <span class="ops">{#each board.denied as op (op)}<span class="op">{op}</span>{/each}</span>. The rest is read.</span>
       <button type="button" class="tool" aria-label="copy an IAM policy that allows these reads" onclick={(e) => board && copyText(e.currentTarget, 'policy', refusedPolicy(board.denied))} data-testid="aws-copy-policy">{copies.key === 'policy' ? 'COPIED' : 'COPY POLICY'}</button>
+      <button type="button" class="tool" aria-label="open the permissions of the signed-in identity in the IAM console" onclick={(e) => openPermissions(e.currentTarget)} data-testid="aws-open-iam">↗ IAM</button>
     </div>
   {/if}
 

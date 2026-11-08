@@ -174,6 +174,24 @@ export const ACCOUNT_PAGES = {
   iam: 'https://console.aws.amazon.com/iam/home#/home',
 } as const
 
+/**
+ * PARTIAL's ↗ IAM: the permissions page of who the profile signs in as, from its ARN, where
+ * COPY POLICY's policy is pasted. An IAM user's own page; an assumed role's; IAM Identity Center
+ * for its `AWSReservedSSO_` roles, whose permission sets IAM cannot change; IAM's home for the root
+ * or anything else.
+ */
+export function permissionsUrl(arn: string): string {
+  const iam = 'https://console.aws.amazon.com/iam/home#'
+  const user = /^arn:aws[\w-]*:iam::\d{12}:user\/(?:.+\/)?([\w+=,.@-]{1,64})$/.exec(arn)?.[1]
+  if (user !== undefined)
+    return `${iam}/users/details/${encodeURIComponent(user)}?section=permissions`
+  const role = /^arn:aws[\w-]*:sts::\d{12}:assumed-role\/([\w+=,.@-]{1,64})\/[^/]+$/.exec(arn)?.[1]
+  if (role?.startsWith('AWSReservedSSO_')) return 'https://console.aws.amazon.com/singlesignon/home'
+  if (role !== undefined)
+    return `${iam}/roles/details/${encodeURIComponent(role)}?section=permissions`
+  return ACCOUNT_PAGES.iam
+}
+
 /** Whether main may open a URL as the console: https on the console's own hosts only. */
 export function isConsoleUrl(raw: string): boolean {
   let url: URL

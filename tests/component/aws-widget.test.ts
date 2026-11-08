@@ -67,6 +67,7 @@ const keep = vi.fn(async (key: string, id: string, on: boolean) => service.keep(
 const sweep = vi.fn(async (_key: string, _what?: string) => 30_000)
 const metricData = vi.fn(async (_key: string, _answer: unknown) => true)
 const copy = vi.fn(async (_what: { kind: string; text: string }) => true)
+const open = vi.fn(async (_key: string, _id: string) => true)
 const item = vi.fn(async (key: string, which: string, id: string, region?: string) =>
   service.item(key, which, id, region),
 )
@@ -82,6 +83,7 @@ beforeEach(() => {
   sweep.mockClear()
   metricData.mockClear()
   copy.mockClear()
+  open.mockClear()
   item.mockClear()
   refresh.mockClear()
   inertDom()
@@ -106,7 +108,7 @@ beforeEach(() => {
           structuredClone(region),
         ),
       history: async () => [],
-      open: async () => true,
+      open: (key: string, id: string) => open(structuredClone(key), structuredClone(id)),
       costExplorer: (key: string, answer: unknown) =>
         costExplorer(structuredClone(key), structuredClone(answer)),
       quota: async () => true,
@@ -316,6 +318,12 @@ describe('AwsWidget', () => {
     const policy = JSON.parse(copy.mock.calls[0]?.[0].text ?? '{}')
     expect(policy.Statement[0].Action).toEqual([...board.denied].sort((a, b) => a.localeCompare(b)))
     expect(policy.Statement[0].Effect).toBe('Allow')
+    // ↗ IAM opens the signed-in identity's permissions, where the policy is pasted, after its blink.
+    const iam = screen.getByTestId('aws-open-iam')
+    await fireEvent.click(iam)
+    expect(iam.classList.contains('blinking')).toBe(true)
+    expect(open).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(open).toHaveBeenCalledWith(KEY, 'account:permissions'))
     // The operations are PARTIAL's list; RESOURCES says only which services, not them again.
     const line = screen.queryByTestId('aws-res-denied')
     for (const op of board.denied) expect(line?.textContent ?? '').not.toContain(op)

@@ -150,7 +150,7 @@ RESOURCES' readings are shared by every pane on the same account and kept in `aw
 
 ### Permissions
 
-AWS's managed policy `ReadOnlyAccess` (or `ViewOnlyAccess` with `AWSBillingReadOnlyAccess`) covers every read. A refused read shows **PARTIAL** and the operation's name only; *unreleased:* **COPY POLICY** beside it copies an IAM policy that allows exactly those reads (actions only, no account or ARN), and RESOURCES names the refused services once, under its tiles. The actions, for a policy of your own, are in [Network access and data sources](data-sources.md#aws-status-permissions).
+AWS's managed policy `ReadOnlyAccess` (or `ViewOnlyAccess` with `AWSBillingReadOnlyAccess`) covers every read. A refused read shows **PARTIAL** and the operation's name only; *unreleased:* **COPY POLICY** beside it copies an IAM policy that allows exactly those reads (actions only, no account or ARN), **↗ IAM** opens the permissions page of who the profile signs in as (an IAM user's or an assumed role's; IAM Identity Center for its roles) to paste it into, and RESOURCES names the refused services once, under its tiles. The actions, for a policy of your own, are in [Network access and data sources](data-sources.md#aws-status-permissions).
 
 ## GITHUB STATUS
 

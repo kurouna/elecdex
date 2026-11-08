@@ -150,7 +150,7 @@ RESOURCES の読み取りは同じアカウントのペインすべてで共有�
 
 ### 権限
 
-AWS 管理ポリシーの `ReadOnlyAccess`（または `ViewOnlyAccess` と `AWSBillingReadOnlyAccess`）で、読み取りはすべてまかなえます。拒まれた読み取りは **PARTIAL** と操作名だけを出します。*未リリース:* その横の **COPY POLICY** で、拒まれた読み取りだけを許す IAM ポリシーをコピーできます（操作だけで、アカウントや ARN は含みません）。RESOURCES は拒まれたサービスの名前を、タイルの下に 1 度だけ出します。自分でポリシーを作るための操作の一覧は [ネットワークの利用とデータソース](data-sources.ja.md#aws-status-の権限) にあります。
+AWS 管理ポリシーの `ReadOnlyAccess`（または `ViewOnlyAccess` と `AWSBillingReadOnlyAccess`）で、読み取りはすべてまかなえます。拒まれた読み取りは **PARTIAL** と操作名だけを出します。*未リリース:* その横の **COPY POLICY** で、拒まれた読み取りだけを許す IAM ポリシーをコピーできます（操作だけで、アカウントや ARN は含みません）。**↗ IAM** は、そのプロファイルでサインインしている本人の権限のページ（IAM ユーザーか、引き受けたロールのもの。Identity Center のロールなら IAM Identity Center）を開き、そこに貼れます。RESOURCES は拒まれたサービスの名前を、タイルの下に 1 度だけ出します。自分でポリシーを作るための操作の一覧は [ネットワークの利用とデータソース](data-sources.ja.md#aws-status-の権限) にあります。
 
 ## GITHUB STATUS
 
