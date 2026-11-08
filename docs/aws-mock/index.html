@@ -488,6 +488,73 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
 .estbar { display: none; padding: 0.2rem 0.6rem; border-top: 1px dashed var(--panel-border); font-size: var(--step--1); color: var(--text-dim); cursor: default; }
 .estbar.show { display: flex; gap: 0.4rem; align-items: baseline; }
 .estbar b { color: var(--text); font-weight: 500; }
+
+/* RESOURCES (aws.md §14): four figures, what looks forgotten, a tile per service, two lines */
+.meter.res { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.medium .meter.res, .narrow .meter.res { grid-template-columns: 1fr 1fr; gap: 0.4rem 0.8rem; }
+.medium .meter.res .lbl.sub2 { display: none; }
+.meter.res .mfig { min-width: 0; border: 0; border-left: 1px solid var(--panel-rule); padding: 0 0 0 0.6rem; background: transparent; color: inherit; font: inherit; text-align: left; }
+.meter.res .mfig.go { cursor: pointer; } .meter.res .mfig.go:hover .big, .meter.res .mfig.go:focus-visible .big { color: var(--text); }
+.meter.res .mfig.go:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.meter.res .big { font-size: var(--step-2); }
+.meter.res .lbl.sub2 { text-transform: none; letter-spacing: 0; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meter.res .lbl.sub2 b.p { color: var(--ok); } .meter.res .lbl.sub2 b.m { color: var(--warn); }
+.frow { display: grid; grid-template-columns: 5.4rem minmax(6rem, 12rem) minmax(0, 1fr) 7rem 5rem 2.8rem; gap: 0.6rem; align-items: center; padding: 0.16rem 0.4rem; border-left: 2px solid var(--warn); border-bottom: 1px solid var(--accent-faint); font-size: var(--step--1); cursor: pointer; }
+.frow.d { border-left-color: var(--danger); } .frow.free { border-left-color: var(--panel-rule); }
+.frow:hover, .frow:focus-visible { background: var(--accent-faint); outline: none; }
+.frow .kd { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; border: 1px solid var(--panel-rule); padding: 0 0.3rem; text-align: center; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frow .nm { font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frow .why { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .frow.free .why { color: var(--text-dim); }
+.frow .last { font-family: var(--font-mono); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frow .usd { font-family: var(--font-mono); text-align: right; white-space: nowrap; }
+.frow .keep { border: 1px solid var(--panel-rule); background: transparent; color: var(--text-dim); font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; padding: 0 0.25rem; cursor: pointer; opacity: 0; }
+.frow:hover .keep, .frow:focus-within .keep { opacity: 1; }
+.medium .frow { grid-template-columns: 5.4rem minmax(6rem, 10rem) minmax(0, 1fr) 5rem 2.8rem; } .medium .frow .last { display: none; }
+.narrow .frow { grid-template-columns: 4.4rem minmax(0, 1fr) 4.6rem; row-gap: 0; } .narrow .frow .why { grid-column: 2 / 4; grid-row: 2; } .narrow .frow .last, .narrow .frow .keep { display: none; }
+.fmore { display: flex; justify-content: space-between; margin: 0 0.4rem; padding: 0.12rem 0.4rem; font-size: var(--step--1); color: var(--text-dim); }
+.fmore button { border: 0; background: transparent; color: var(--text); font-family: var(--font-mono); font-size: var(--step--1); cursor: pointer; padding: 0; } .fmore button:hover { text-decoration: underline; }
+.rgroups { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-auto-flow: row dense; gap: 0.55rem 0.45rem; padding: 0.3rem 0.4rem 0.2rem; }
+.rgroup { display: grid; grid-template-columns: subgrid; grid-template-rows: auto 1fr; row-gap: 0.15rem; min-width: 0; }
+.rgroup > h6 { grid-column: 1 / -1; margin: 0; display: flex; align-items: center; gap: 0.5rem; font-weight: 400; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.rgroup > h6::after { content: ''; flex: 1; border-top: 1px dashed var(--panel-rule); }
+.rtile { position: relative; border: 1px solid var(--panel-rule); padding: 0.3rem 0.5rem 0.32rem; display: flex; flex-direction: column; gap: 0.22rem; cursor: pointer; background: transparent; text-align: left; font-family: var(--font-ui); color: var(--text); min-width: 0; }
+.rtile::before, .rtile::after { content: ""; position: absolute; width: 0.4rem; height: 0.4rem; border-color: var(--accent); border-style: solid; }
+.rtile::before { left: -1px; top: -1px; border-width: 1px 0 0 1px; } .rtile::after { right: -1px; bottom: -1px; border-width: 0 1px 1px 0; }
+.rtile:hover, .rtile:focus-visible { background: var(--accent-faint); outline: none; }
+.rtile.w { border-color: hsl(var(--hue-warn) 85% var(--status-l) / 0.55); } .rtile.w::before, .rtile.w::after { border-color: var(--warn); }
+.rtile.d { border-color: hsl(var(--hue-danger) 80% var(--status-l) / 0.6); } .rtile.d::before, .rtile.d::after { border-color: var(--danger); }
+.rtile .hd { display: flex; justify-content: space-between; gap: 0.4rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.rtile .hd .dl { font-family: var(--font-mono); letter-spacing: 0; color: var(--ok); } .rtile .hd .dl.m { color: var(--warn); }
+.rtile .fig { display: flex; align-items: baseline; gap: 0.35rem; min-width: 0; }
+.rtile .fig .n { font-family: var(--font-display); font-size: var(--step-2); line-height: 1; color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+.rtile .fig .u { font-size: var(--step--1); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rtile .line { display: flex; height: 0.3rem; gap: 1px; background: var(--accent-faint); }
+.rtile .line i { min-width: 2px; background: var(--accent-dim); } .rtile .line i.s2 { background: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.6); } .rtile .line i.off { background: var(--panel-rule); } .rtile .line i.w { background: var(--warn); } .rtile .line i.d { background: var(--danger); }
+.rtile .leg { display: flex; flex-wrap: nowrap; overflow: hidden; gap: 0 0.6rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); white-space: nowrap; }
+.rtile .leg b { color: var(--text); font-weight: 400; } .rtile .leg b.w { color: var(--warn); } .rtile .leg b.d { color: var(--danger); }
+.rtile .ft { display: flex; align-items: center; gap: 0.5rem; border-top: 1px dashed var(--panel-rule); padding-top: 0.18rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); white-space: nowrap; min-width: 0; }
+.rtile .ft > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; } .rtile .ft > .fg, .rtile .ft > .r { flex: none; }
+.rtile .ft .fg { color: var(--warn); } .rtile .ft .fg.d { color: var(--danger); } .rtile .ft .r { margin-left: auto; color: var(--text); }
+.rtile .rgd { display: flex; gap: 0.28rem; } .rtile .rgd i { width: 0.34rem; height: 0.34rem; transform: rotate(45deg); background: var(--panel-rule); } .rtile .rgd i.on { background: var(--accent); }
+.rtile.wide2 { grid-column: span 2; }
+.rtile .two { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 0.7rem; }
+.rtile .models { display: grid; grid-template-columns: minmax(0, 1fr) 4rem 3.2rem; gap: 0.1rem 0.4rem; align-items: center; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); }
+.rtile .models span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rtile .models .n { text-align: right; color: var(--text); }
+.rtile .models .bar { height: 0.3rem; background: var(--accent-faint); position: relative; } .rtile .models .bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-dim); }
+.rtile .placed { display: grid; grid-template-columns: auto 1fr; gap: 0.05rem 0.5rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); }
+.rtile .placed b { color: var(--text); font-weight: 400; text-align: right; } .rtile .placed b.d { color: var(--danger); } .rtile .placed b.w { color: var(--warn); }
+.narrow .rtile .two { grid-template-columns: 1fr; }
+.rtile.skel { cursor: default; } .rtile.skel .fig .n, .rtile.skel .fig .u { color: var(--text-muted); } .rtile.skel .line { background: transparent; border-top: 1px dashed var(--panel-rule); height: 0; }
+.rline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.8rem; margin: 0.3rem 0.4rem 0.1rem; padding: 0.2rem 0.5rem; border: 1px solid var(--panel-rule); border-left: 2px solid var(--warn); font-size: var(--step--1); cursor: pointer; background: transparent; color: var(--text); text-align: left; width: calc(100% - 0.8rem); font-family: var(--font-ui); }
+.rline.i { border-left-color: var(--info); }
+.rline:hover, .rline:focus-visible { background: var(--accent-faint); outline: none; }
+.rline .k { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.rline .m { font-family: var(--font-mono); } .rline .m b { color: var(--warn); font-weight: 400; } .rline.i .m b { color: var(--text); }
+.rline .go { margin-left: auto; color: var(--text-dim); font-family: var(--font-mono); }
+.rnone { margin: 0.05rem 0.4rem 0.3rem; padding: 0 0.4rem; color: var(--text-dim); font-size: var(--step--1); }
+.rnone.also button { border: 0; background: transparent; padding: 0; cursor: pointer; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); } .rnone.also button:hover { color: var(--text); text-decoration: underline; }
+.rnone.also b { color: var(--text); font-weight: 400; } .rnone.also .d { color: var(--danger); } .rnone.also .w { color: var(--warn); }
+.short .res-more { display: none; }
 .toast .act { align-self: flex-end; margin-top: 0.15rem; font-size: var(--step--2); }
 .ask { display: none; margin: 0 0.4rem 0.35rem; padding: 0.45rem 0.7rem 0.5rem; border: 1px solid var(--accent); background: var(--surface-2); font-size: var(--step--1); line-height: 1.5; flex-direction: column; gap: 0.35rem; }
 .ask.show { display: flex; animation: crt 0.22s ease-out; }
@@ -520,6 +587,7 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
   <div class="grp"><span>Cost Explorer</span><button type="button" data-ce="ask" aria-pressed="true">Not asked yet</button><button type="button" data-ce="off">Off</button><button type="button" data-ce="day">1 day</button><button type="button" data-ce="cap">Cap reached</button><button type="button" data-ce="refused">Refused by AWS</button></div>
   <div class="grp"><span>Quota</span><button type="button" data-quota="0" aria-pressed="true">Off ($0)</button><button type="button" data-quota="1000">$1,000 (82%)</button><button type="button" data-quota="800">$800 (over)</button></div>
   <div class="grp"><span>AWS public status</span><button type="button" data-inc="none" aria-pressed="true">No incident</button><button type="button" data-inc="one">Incident in ap-northeast-1</button></div>
+  <div class="grp"><span>Resources</span><button type="button" data-res="busy" aria-pressed="true">Some forgotten</button><button type="button" data-res="tidy">Nothing forgotten</button><button type="button" data-res="reading">First read</button></div>
   <div class="grp"><span>Simulate</span><button type="button" id="sim-alarm">Alarm fires</button><button type="button" id="sim-launch">Instance launched</button><button type="button" id="sim-quota">Quota passed (toast)</button><button type="button" id="sim-inc">Incident starts (toast)</button></div>
 </div>
 
@@ -562,7 +630,8 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
   </div>
 
   <div class="tabs" id="tabs">
-    <button type="button" class="tab" data-tab="attention" aria-selected="true">Attention<em id="t-att"></em></button>
+    <button type="button" class="tab" data-tab="resources" aria-selected="true">Resources<em id="t-res"></em></button>
+    <button type="button" class="tab" data-tab="attention" aria-selected="false">Attention<em id="t-att"></em></button>
     <button type="button" class="tab" data-tab="active" aria-selected="false">Active</button>
     <button type="button" class="tab" data-tab="cost" aria-selected="false">Cost</button>
     <button type="button" class="tab" data-tab="activity" aria-selected="false">Activity</button>
@@ -603,6 +672,7 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
     <p>The profile is the AWS CLI's own (<code>aws configure list-profiles</code>); elecdex holds no key. Only Cost Explorer has a per-request price, and only if you turn it on. Reads appear in the account's CloudTrail.</p>
   </div>
 </section>
+<p class="note"><b>RESOURCES（2026-11-08 の修正案、aws.md §14、レビュー待ち）</b>: 先頭の既定のタブ。上の 4 つの数字（全リソース・時間課金・忘れていそうなもの・7 日の増減）、LOOKS FORGOTTEN の上位 5 行（推定の月額 × 静かな日数の順、keep で外せる）、分類ごとのサービスのタイル（数・状態の線・リージョンの点・忘れていそうな数）、見ていないリージョンにあるもの（ELSEWHERE）、請求があるのにタイルの無いサービス（BILLED, NOT LISTED）。タイルは矢印キーで移り、押すと 2 段目、行で 3 段目（Last used と根拠、KEEP）。上の Resources で「忘れものなし」「最初の読み取り中」に切り替えられる。</p>
 <p class="note">モック: すべて架空のアカウントと数字で、AWS には何も問い合わせません。<b>2026-11-08 の決定</b>: 名前は AWS STATUS。初めて表示したアカウントでは Cost Explorer を ON にするかを上段の下の 1 枚で尋ねる（上の Cost Explorer で状態を替えられる）。Quota で月の見込み額の QUOTA（USD、既定 0 = OFF）、AWS public status で公開ステータスの障害の帯（障害のときだけ）、Simulate で QUOTA 超えと障害のトースト（読むのは見えている間だけ。ウィンドウが前に無いときは OS の通知）。ACTIVE の下部に推定であることを明記。<b>ACTIVE</b> はいま動いていて料金の発生しているものを推定の月額の大きい順に（立ち上げっぱなしの GPU インスタンス、12 TB の S3 バケットなど。推定は定価で、割引や無料枠は入れない）。<b>ドリルダウン</b>: ACTIVE でサービスの行（または上の積み上げの帯）を押すと 2 段目（上の棒を押すとクロスフィルタ、列の見出しで並べ替え）、行を押すと 3 段目（関係するものを押すと横へ掘れる、HISTORY でそのリソースの CloudTrail）。COST はサービスの棒から日ごとの曲線へ、その下の使用の種類・リージョン別は有料の Cost Explorer（上の Cost Explorer で ON にして試せる。押すたびに $0.01 と台帳に数える）。ATTENTION の行は該当リソースの 3 段目へ飛び、↗ は実物ではコンソールを開きます。Enter で下へ、Escape / Backspace で上へ。行・セル・帯・足元の台帳にマウスを止めると詳細カード。</p>
 
 <script>
@@ -617,6 +687,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 const ACCT = { profile: 'prod-readonly', alias: 'acme-prod', id: '482913507216', role: 'ReadOnly', session: 'aki' };
 const REGIONS = ['ap-northeast-1', 'us-east-1', 'eu-west-1'];
+const HOURS = 730;
 const SHORT = { 'ap-northeast-1': 'ap-ne-1', 'us-east-1': 'us-e-1', 'eu-west-1': 'eu-w-1' };
 
 // ---------- the made-up resources ----------
@@ -666,8 +737,99 @@ for (const x of R.EC2) if (x.state === 'running' && !x.cpu) { const base = 6 + r
 R.S3 = [];
 for (const [n, rg, std, ia, gl, obj] of [['ml-training-snapshots-2024', 'ap-northeast-1', 12400, 0, 0, 1.9e6], ['acme-prod-logs', 'ap-northeast-1', 3840, 6200, 0, 48e6], ['acme-backups', 'us-east-1', 210, 0, 18400, 0.6e6], ['shop-assets', 'us-east-1', 96, 0, 0, 2.1e5], ['cdk-hnb659fds-assets', 'ap-northeast-1', 4, 0, 0, 3200], ['athena-results-acme', 'eu-west-1', 61, 0, 0, 8.2e4], ['terraform-state-acme', 'ap-northeast-1', 0.2, 0, 0, 410]]) R.S3.push({ id: n, region: rg, std, ia, gl, gb: std + ia + gl, obj, cls: gl > std ? 'GLACIER' : ia > std ? 'STANDARD_IA' : 'STANDARD', days: 0 });
 
+// ---------- RESOURCES (aws.md §14): what is there, and what looks forgotten ----------
+// Bucket ages from s3api list-buckets (CreationDate); 'unchanged' = BucketSizeBytes and NumberOfObjects flat for that many days.
+const S3META = { 'ml-training-snapshots-2024': [410, 180], 'acme-prod-logs': [1210, 0], 'acme-backups': [980, 0], 'shop-assets': [700, 0], 'cdk-hnb659fds-assets': [520, 0], 'athena-results-acme': [300, 0], 'terraform-state-acme': [890, 0] };
+for (const b of R.S3) { const [c, u] = S3META[b.id] || [100, 0]; b.created = c; b.unchanged = u; b.empty = 'no'; }
+// In list-buckets but no size metric: empty (made more than two days ago).
+for (const [n, rg, c] of [['tmp-export-2023', 'ap-northeast-1', 640], ['acme-prod-cfn-templates-old', 'us-east-1', 1120]]) R.S3.push({ id: n, region: rg, std: 0, ia: 0, gl: 0, gb: 0, obj: 0, cls: '—', days: 0, created: c, unchanged: 0, empty: 'yes' });
+// Marks on resources the earlier sections already made: what CloudWatch's 30 days said about them.
+R.NAT[3].quiet = 30; R.ELB[3].quiet = 41; R.RDS[1].conn0 = 30;
+R.ECS.push({ id: 'old-cron', cluster: 'poc-batch', running: 0, desired: 0, launch: 'FARGATE', region: 'ap-northeast-1' });
+R.Lambda.forEach((f, i) => { if (i % 9 === 4) { f.notInvoked = 30 + i; f.days = Math.max(f.days, 120); } });
+// Outside the regions this pane shows: found by the daily sweep (or Resource Explorer).
+R.EC2.push({ id: 'i-0de1e7ec0ffee5678', name: 'test-vpn-box', type: 't3.medium', state: 'running', az: 'us-west-2b', region: 'us-west-2', platform: 'linux/unix', days: 290, vcpu: 2, ip: '10.9.1.7', imds: 'optional', sgOpen: false, cpu: [0.3, 0.2, 0.2, 0.4, 0.2, 0.3, 0.2] });
+for (const g of [30, 200]) R.EBS.push({ id: `vol-0${hex(16)}`, name: g === 30 ? 'test-vpn-box-root' : '', gib: g, type: 'gp3', state: g === 30 ? 'in-use' : 'available', attached: g === 30 ? 'i-0de1e7ec0ffee5678' : null, region: 'us-west-2', days: 290 });
+R.NAT.push({ id: `nat-0${hex(16)}`, vpc: 'vpc-0ee1', state: 'available', region: 'ap-southeast-1', quiet: 30 });
+const REGION_CPU = { 'us-west-2': true };
+void REGION_CPU;
+
+// CloudWatch Logs: describe-log-groups (name, created, retention, stored bytes, class); the last event of the 30 largest from describe-log-streams.
+R.Logs = [];
+const LOGP = 0.03; // USD per GB-month stored (made up for the mock)
+for (const [rg, n] of [['ap-northeast-1', 96], ['us-east-1', 31], ['eu-west-1', 19]]) for (let i = 0; i < n; i++) {
+  const gb = +(rnd() < 0.15 ? 5 + rnd() * 40 : rnd() * 2).toFixed(2);
+  R.Logs.push({ id: `${pick(['/aws/lambda/', '/aws/lambda/', '/aws/ecs/prod/', '/aws/rds/instance/', '/aws/apigateway/'])}${pick(['image', 'order', 'mail', 'auth', 'sync', 'report', 'hook', 'web', 'api'])}-${pick(['resize', 'notify', 'export', 'check', 'handler', 'worker'])}${i ? `-${i}` : ''}`, region: rg, gb, retention: pick(['never', '30 d', '30 d', '90 d', '1 y', 'never']), cls: rnd() < 0.1 ? 'INFREQUENT_ACCESS' : 'STANDARD', last: Math.floor(rnd() * 3), days: Math.floor(rnd() * 700) + 1 });
+}
+R.Logs.push({ id: '/aws/lambda/legacy-thumbnailer', region: 'ap-northeast-1', gb: 38, retention: 'never', cls: 'STANDARD', last: 214, days: 1400, orphan: true });
+R.Logs.push({ id: 'vpc-flow-logs-2023', region: 'ap-northeast-1', gb: 124, retention: 'never', cls: 'STANDARD', last: 410, days: 1050 });
+R.Logs.push({ id: '/aws/eks/platform/cluster', region: 'ap-northeast-1', gb: 61, retention: 'never', cls: 'STANDARD', last: 0, days: 420 });
+for (const [n, h] of [['/aws/lambda/report-v2', 2], ['/aws/lambda/report-v2-dlq', 2], ['/aws/ecs/prod/ingest-2', 30]]) R.Logs.push({ id: n, region: 'ap-northeast-1', gb: 0.01, retention: '30 d', cls: 'STANDARD', last: 0, days: 0, newH: h });
+for (const g of R.Logs) g.cost = g.gb * LOGP;
+
+// DynamoDB: list-tables -> describe-table; use from ConsumedRead/WriteCapacityUnits over 30 days.
+R.DynamoDB = [
+  { id: 'sessions', mode: 'PAY_PER_REQUEST', cls: 'STANDARD', gb: 2.1, items: 1.2e6, region: 'ap-northeast-1', days: 300, quiet: 0 },
+  { id: 'feature-flags', mode: 'PAY_PER_REQUEST', cls: 'STANDARD', gb: 0.01, items: 140, region: 'ap-northeast-1', days: 520, quiet: 0 },
+  { id: 'orders-archive', mode: 'PROVISIONED', cls: 'STANDARD', gb: 41, items: 9.1e6, rcu: 50, wcu: 25, region: 'ap-northeast-1', days: 760, quiet: 120 },
+  { id: 'carts', mode: 'PAY_PER_REQUEST', cls: 'STANDARD', gb: 0.8, items: 4.4e5, region: 'us-east-1', days: 410, quiet: 0 },
+  { id: 'poc-chat-history', mode: 'PAY_PER_REQUEST', cls: 'STANDARD', gb: 0.02, items: 3100, region: 'us-east-1', days: 230, quiet: 200 },
+];
+for (const t of R.DynamoDB) t.cost = t.gb * 0.25 + (t.mode === 'PROVISIONED' ? (t.rcu * 0.00013 + t.wcu * 0.00065) * HOURS : 0);
+
+// SQS (list-queues -> get-queue-attributes) and SNS (list-topics, list-subscriptions counted only).
+R.SQS = [
+  { id: 'orders-events', type: 'standard', waiting: 0, oldest: 0, region: 'ap-northeast-1', days: 610, quiet: 0 },
+  { id: 'orders-events-dlq', type: 'standard', waiting: 2140, oldest: 9, region: 'ap-northeast-1', days: 610, quiet: 0 },
+  { id: 'image-jobs.fifo', type: 'fifo', waiting: 3, oldest: 0, region: 'ap-northeast-1', days: 330, quiet: 0 },
+  { id: 'mail-outbox', type: 'standard', waiting: 0, oldest: 0, region: 'us-east-1', days: 280, quiet: 0 },
+  { id: 'old-import-queue', type: 'standard', waiting: 0, oldest: 0, region: 'ap-northeast-1', days: 900, quiet: 260 },
+];
+R.SNS = [
+  { id: 'alarms-ops', subs: 3, region: 'ap-northeast-1', days: 900, quiet: 0 },
+  { id: 'deploy-notify', subs: 1, region: 'ap-northeast-1', days: 400, quiet: 0 },
+  { id: 'billing-alerts', subs: 2, region: 'us-east-1', days: 1000, quiet: 0 },
+  { id: 'test-topic-aki', subs: 0, region: 'ap-northeast-1', days: 540, quiet: 540 },
+];
+// API Gateway (REST, HTTP, WebSocket) and CloudFront (global): use from Count / Requests over 30 days.
+R.APIGW = [
+  { id: 'orders-api', type: 'REST', region: 'ap-northeast-1', days: 700, quiet: 0 },
+  { id: 'webhooks', type: 'HTTP', region: 'ap-northeast-1', days: 240, quiet: 0 },
+  { id: 'chat-ws-poc', type: 'WebSocket', region: 'us-east-1', days: 380, quiet: 190 },
+];
+R.CloudFront = [
+  { id: 'E2QWERTY12345', alias: 'cdn.example.com', enabled: 'yes', region: 'global', days: 800, quiet: 0 },
+  { id: 'E3ASDFGH67890', alias: 'shop.example.com', enabled: 'yes', region: 'global', days: 610, quiet: 0 },
+  { id: 'E1ZXCVBN13579', alias: 'campaign-2024.example.com', enabled: 'yes', region: 'global', days: 520, quiet: 300 },
+];
+// Bedrock: what is placed (list-* in bedrock, bedrock-agent, bedrock-agentcore-control) and what was used (AWS/Bedrock metrics, 30 days).
+R.Bedrock = [
+  { id: 'claude-pt-prod', kind: 'provisioned throughput', model: 'claude (anthropic)', state: 'InService', units: 1, region: 'us-east-1', days: 26, calls7: 0, hourly: true },
+  { id: 'acme-tuned-titan', kind: 'custom model', model: 'titan text (amazon)', state: 'Active', region: 'us-east-1', days: 150, unused: 60 },
+  { id: 'support-kb', kind: 'knowledge base', model: 'titan embed (amazon)', state: 'ACTIVE', store: 'kb-vectors', region: 'us-east-1', days: 120 },
+  { id: 'faq-kb', kind: 'knowledge base', model: 'titan embed (amazon)', state: 'ACTIVE', store: 'S3 Vectors', region: 'ap-northeast-1', days: 40 },
+  { id: 'triage-agent', kind: 'agent', model: 'claude (anthropic)', state: 'PREPARED', region: 'ap-northeast-1', days: 60 },
+  { id: 'billing-agent', kind: 'agent', model: 'claude (anthropic)', state: 'PREPARED', region: 'us-east-1', days: 200 },
+  { id: 'pii-guard', kind: 'guardrail', model: '—', state: 'READY', region: 'ap-northeast-1', days: 90 },
+  { id: 'chat-runtime', kind: 'agentcore runtime', model: '—', state: 'READY', region: 'us-east-1', days: 18 },
+];
+const BEDROCK_USE = [['claude sonnet (anthropic)', 18.4e6, 2.1e6], ['claude haiku (anthropic)', 6.2e6, 0.9e6], ['titan embed v2 (amazon)', 3.1e6, 0], ['rerank (cohere)', 0.4e6, 0]];
+R.AOSS = [
+  { id: 'kb-vectors', type: 'VECTORSEARCH', state: 'ACTIVE', ocu: 2, region: 'us-east-1', days: 120, quiet: 34 },
+  { id: 'app-search', type: 'SEARCH', state: 'ACTIVE', ocu: 2, region: 'ap-northeast-1', days: 300, quiet: 0 },
+];
+for (const c of R.AOSS) c.cost = c.ocu * 0.24 * HOURS;
+// Every alarm (describe-alarms without a state filter): one long in INSUFFICIENT_DATA may watch something gone.
+R.Alarms = [];
+for (let i = 0; i < 22; i++) R.Alarms.push({ id: `${pick(['web', 'api', 'orders', 'worker', 'db'])}-${pick(['cpu-high', '5xx-rate', 'latency-p99', 'queue-depth', 'errors'])}${i ? `-${i}` : ''}`, state: 'OK', since: Math.floor(rnd() * 40), region: pick(['ap-northeast-1', 'ap-northeast-1', 'us-east-1', 'eu-west-1']) });
+R.Alarms[0].id = 'api-5xx-rate'; R.Alarms[0].state = 'ALARM'; R.Alarms[0].since = 0;
+for (const [n, d] of [['legacy-mysql-cpu', 64], ['bastion-old-status', 41], ['etl-duration', 33]]) R.Alarms.push({ id: n, state: 'INSUFFICIENT_DATA', since: d, region: 'ap-northeast-1', gone: n === 'bastion-old-status' ? 'i-0b77… (terminated)' : n === 'etl-duration' ? 'function etl-nightly' : null });
+// What appeared and went in the last 7 days (main keeps the first-seen day in aws-inventory.json).
+const NEW7 = { plus: [['Logs', '/aws/lambda/report-v2', '2 h'], ['Logs', '/aws/lambda/report-v2-dlq', '2 h'], ['Lambda', 'report-v2', '2 h'], ['Logs', '/aws/ecs/prod/ingest-2', '1 d'], ['EC2', 'web-5', '3 d'], ['Bedrock', 'chat-runtime', '6 d']], minus: [['NAT', 'nat-0b… (eu-west-1)', '2 d'], ['EC2', 'batch-7', '5 d']] };
+// Billed this month (billing metric by service) with no tile here.
+const NOT_LISTED = [['Amazon Kinesis', 41.2], ['AWS Glue', 3.1]];
+
 // ---------- list prices (made up for the mock; the app reads Price List weekly, On-Demand, Linux) ----------
-const HOURS = 730;
 const P = { ec2: { 'm7g.large': 0.105, 'm7g.xlarge': 0.21, 'c7i.2xlarge': 0.428, 't3.small': 0.0272, 't3.medium': 0.0544, 'r7g.large': 0.137, 'g5.xlarge': 1.459 }, ebs: { gp3: 0.096, gp2: 0.12, io2: 0.142 }, snap: 0.05, eip: 0.005, nat: 0.062, elb: 0.0243, rds: { 'db.r7g.large': 0.30, 'db.t3.medium': 0.105, 'db.m7g.large': 0.226 }, rdsExt: 0.1, eks: 0.10, eksExt: 0.60, task: 0.031, s3: { std: 0.025, ia: 0.0138, gl: 0.0045 } };
 const idle = (x) => x.state === 'running' && x.cpu && x.cpu.reduce((a, b) => a + b, 0) / 7 < 2 && Math.max(...x.cpu) < 10;
 // What one resource costs a month at list price, or null for what is not billed by the hour (shared/aws/active-cost.ts in the app).
@@ -683,7 +845,8 @@ function monthly(svc, x) {
     case 'EKS': return (x.ext === 'EXTENDED' ? P.eksExt : P.eks) * HOURS;
     case 'ECS': return x.launch === 'FARGATE' ? x.running * P.task * HOURS : 0;
     case 'S3': return x.std * P.s3.std + x.ia * P.s3.ia + x.gl * P.s3.gl;
-    default: return null;
+    // RESOURCES' kinds carry their own estimate (made up here; the app's list-prices.ts).
+    default: return x.cost ?? null;
   }
 }
 const usd = (v) => (v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v >= 100 ? `$${v.toFixed(0)}` : `$${v.toFixed(2)}`);
@@ -718,8 +881,285 @@ const DRILL = {
   Snapshots: { noun: 'snapshots', facets: [['agebin', 'Age', (x) => bucket(x.days, [30, 90], ['≤30 d', '≤90 d', '>90 d'])]], cols: [['id', 'Id', 'mono'], ['vol', 'Volume', 'mono'], ['gib', 'GiB', 'num'], ['days', 'Created', 'age']], weight: () => '' },
 };
 DRILL.NAT.cols.push(['$', '≈ $/month', 'usd']); DRILL.ELB.cols.push(['$', '≈ $/month', 'usd']); DRILL.EKS.cols.push(['$', '≈ $/month', 'usd']); DRILL.Snapshots.cols.push(['$', '≈ $/month', 'usd']); DRILL.ECS.cols.push(['$', '≈ $/month', 'usd']);
+// RESOURCES' new kinds (aws.md §14.5): their facets and columns
+const useWord = (x) => (x.quiet >= 30 ? `quiet ${x.quiet} d` : 'active');
+Object.assign(DRILL, {
+  Logs: { noun: 'log groups', facets: [['retention', 'Retention'], ['last', 'Last event', (x) => bucket(x.last, [1, 30, 90], ['today', '≤30 d', '≤90 d', 'older'])], ['size', 'Stored', (x) => bucket(x.gb, [1, 10, 50], ['<1 GB', '<10 GB', '<50 GB', '≥50 GB'])], ['cls', 'Class']],
+    cols: [['id', 'Log group', 'lg'], ['retention', 'Retention'], ['gb', 'Stored', 'gb'], ['last', 'Last event', 'ago'], ['days', 'Created', 'age'], ['$', '≈ $/month', 'usd']], weight: (x) => (x.last > 30 ? 'warn' : '') },
+  DynamoDB: { noun: 'tables', facets: [['mode', 'Billing'], ['use', 'Use', useWord], ['cls', 'Class']],
+    cols: [['id', 'Table'], ['mode', 'Billing'], ['gb', 'Size', 'gb'], ['items', 'Items', 'cnt'], ['use', 'Use 30 d', 'use'], ['$', '≈ $/month', 'usd']], weight: (x) => (x.quiet >= 30 && x.mode === 'PROVISIONED' ? 'warn' : '') },
+  SQS: { noun: 'queues', facets: [['type', 'Type'], ['wait', 'Waiting', (x) => (x.waiting ? (x.oldest > 7 ? 'stuck' : 'some') : 'none')], ['use', 'Use', useWord]],
+    cols: [['id', 'Queue', 'q'], ['type', 'Type'], ['waiting', 'Waiting', 'cnt'], ['oldest', 'Oldest (d)', 'num'], ['use', 'Use 30 d', 'use']], weight: (x) => (x.oldest > 7 ? 'warn' : '') },
+  SNS: { noun: 'topics', facets: [['subs', 'Subscribers', (x) => (x.subs ? '1+' : '0')], ['use', 'Use', useWord]], cols: [['id', 'Topic', 'q'], ['subs', 'Subscribers', 'num'], ['use', 'Use 30 d', 'use']], weight: () => '' },
+  APIGW: { noun: 'APIs', facets: [['type', 'Type'], ['use', 'Use', useWord]], cols: [['id', 'API', 'q'], ['type', 'Type'], ['use', 'Use 30 d', 'use'], ['days', 'Created', 'age']], weight: () => '' },
+  CloudFront: { noun: 'distributions', facets: [['enabled', 'Enabled'], ['use', 'Use', useWord]], cols: [['alias', 'Alias', 'dom'], ['id', 'Id', 'mono'], ['enabled', 'Enabled'], ['use', 'Use 30 d', 'use']], weight: () => '' },
+  Bedrock: { noun: 'resources', facets: [['kind', 'Kind'], ['model', 'Model'], ['state', 'State']], cols: [['id', 'Name'], ['kind', 'Kind'], ['model', 'Model'], ['state', 'State', 'st'], ['days', 'Created', 'age'], ['$', '≈ $/month', 'usd']], weight: (x) => (x.hourly && x.calls7 === 0 ? 'danger' : x.unused ? 'warn' : '') },
+  AOSS: { noun: 'collections', facets: [['type', 'Type'], ['use', 'Use', useWord]], cols: [['id', 'Collection'], ['type', 'Type'], ['ocu', 'OCU', 'num'], ['use', 'Searches 30 d', 'use'], ['$', '≈ $/month', 'usd']], weight: (x) => (x.quiet >= 30 ? 'warn' : '') },
+  Alarms: { noun: 'alarms', facets: [['state', 'State']], cols: [['id', 'Alarm'], ['state', 'State', 'st'], ['since', 'Since (d)', 'num']], weight: (x) => (x.state === 'ALARM' ? 'danger' : x.state === 'INSUFFICIENT_DATA' && x.since > 30 ? 'warn' : '') },
+});
 for (const svc of Object.keys(DRILL)) for (const x of R[svc]) x.$ = monthly(svc, x) ?? 0;
 const SERVICES = Object.keys(DRILL);
+const NICE = { APIGW: 'API Gateway', AOSS: 'OpenSearch', Logs: 'CloudWatch Logs', DynamoDB: 'DynamoDB', CloudFront: 'CloudFront' };
+const nice = (svc) => NICE[svc] || svc;
+
+// ---------- what looks forgotten (shared/aws/forgotten.ts in the app): what was seen, never "delete it" ----------
+const shownRegion = (x) => x.region === 'global' || REGIONS.includes(x.region);
+function forgottenOf(svc, x) {
+  // Outside the regions shown only describe is read (the weekly sweep): no metric, so no word about use.
+  if (!shownRegion(x)) {
+    if (svc === 'EC2' && x.state === 'running') return { w: 'w', r: 'elsewhere', why: `in ${x.region} · running ${age(x.days)} · use not read (region not shown)`, last: 'unknown', src: 'weekly sweep · describe-instances' };
+    if (svc === 'EBS' && x.state === 'available') return { w: 'w', r: 'elsewhere', why: `in ${x.region} · not attached · ${x.gib} GiB`, last: 'unknown', src: 'weekly sweep · describe-volumes' };
+    if (svc === 'NAT') return { w: 'w', r: 'elsewhere', why: `in ${x.region} · NAT gateway · use not read (region not shown)`, last: 'unknown', cost: P.nat * HOURS, src: 'weekly sweep · describe-nat-gateways' };
+    return null;
+  }
+  switch (svc) {
+    case 'EC2':
+      if (x.state === 'running' && x.cpu && idle(x)) return { w: 'w', r: 'low-use', why: `low use 4 of 14 d · ${(x.cpu.reduce((a, b) => a + b, 0) / 7).toFixed(1)} % CPU, < 5 MB out`, last: '14 d', days: 14, src: 'CPUUtilization and NetworkOut · daily (get-metric-statistics, this one only)' };
+      if (x.stoppedDays > 30) return { w: 'w', r: 'stopped', why: `stopped ${x.stoppedDays} d · EBS still billed`, last: `${x.stoppedDays} d`, days: x.stoppedDays, cost: R.EBS.filter((b) => b.attached === x.id).reduce((a, b) => a + b.$, 0), src: 'describe-instances · StateTransitionReason' };
+      return null;
+    case 'EBS': return x.state === 'available' && x.days > 7 ? { w: 'w', r: 'unattached', why: `not attached since 11-01 (first seen) · ${x.gib} GiB`, last: 'since 11-01', days: 7, src: 'describe-volumes · state available · first seen by elecdex' } : null;
+    case 'EIP': return x.assoc ? null : { w: 'w', r: 'unattached', why: 'not associated since 10-20 (first seen)', last: 'since 10-20', days: 19, src: 'describe-addresses · first seen by elecdex' };
+    case 'NAT': return x.quiet ? { w: 'w', r: 'no-traffic', why: 'no traffic 14 d+', last: '14 d+', days: 14, cost: P.nat * HOURS, src: 'BytesOutToDestination · no data point in 14 d' } : null;
+    case 'ELB': return x.quiet ? { w: 'w', r: 'no-targets', why: 'no targets · no requests 14 d+', last: '14 d+', days: 14, src: 'describe-target-health · RequestCount not in list-metrics' } : null;
+    case 'RDS': return x.conn0 ? { w: 'w', r: 'no-connections', why: `no connections ${x.conn0} d`, last: `${x.conn0} d`, days: x.conn0, src: 'DatabaseConnections · 30 d maximum 0' } : null;
+    case 'ECS': return x.desired === 0 ? { w: 'free', r: 'desired-0', why: 'desired 0 · nothing runs', last: 'unknown', days: 0, src: 'describe-services' } : null;
+    case 'S3':
+      if (x.empty === 'yes') return { w: 'free', r: 'empty', why: `empty · created ${age(x.created)} ago`, last: 'unknown', days: x.created, src: 'in list-buckets, no BucketSizeBytes in its region' };
+      if (x.unchanged >= 90) return { w: 'w', r: 'unchanged', why: `unchanged since 05-12 · ${gbText(x.gb)} in STANDARD`, last: 'reads unknown', days: x.unchanged, src: 'BucketSizeBytes and NumberOfObjects flat since 05-12 (elecdex\'s own record) · mostly STANDARD, no lifecycle seen' };
+      return null;
+    case 'Logs':
+      if (x.orphan) return { w: 'w', r: 'orphan-log-group', why: `function gone · ${gbText(x.gb)} kept forever`, last: `${x.last} d`, days: x.last, src: `no Lambda function named ${x.id.split('/').pop()} · no call needed` };
+      return x.last > 30 && x.retention === 'never' ? { w: 'w', r: 'no-events', why: `no events 14 d+ · ${gbText(x.gb)} kept forever`, last: '14 d+', days: 14, src: 'IncomingBytes for this group not in list-metrics' } : null;
+    case 'DynamoDB': return x.quiet >= 30 ? { w: x.mode === 'PROVISIONED' ? 'w' : 'free', r: x.mode === 'PROVISIONED' ? 'unused-capacity' : 'no-requests', why: x.mode === 'PROVISIONED' ? `provisioned ${x.rcu}/${x.wcu}, unused 14 d+` : 'no reads or writes 14 d+', last: '14 d+', days: 14, src: 'ConsumedRead/WriteCapacityUnits not in list-metrics' } : null;
+    case 'SQS': return x.quiet >= 30 ? { w: 'free', r: 'no-messages', why: 'no messages 14 d+', last: '14 d+', days: 14, src: 'NumberOfMessagesSent not in list-metrics (SQS sends none for a queue idle 6 h)' } : null;
+    case 'SNS': return x.subs === 0 ? { w: 'free', r: 'no-subscribers', why: 'no subscribers', last: 'unknown', days: 0, src: 'list-subscriptions (topic ARNs only)' } : null;
+    case 'APIGW': return x.quiet >= 30 ? { w: 'free', r: 'no-requests', why: `no ${x.type === 'WebSocket' ? 'connections' : 'requests'} 14 d+`, last: '14 d+', days: 14, src: x.type === 'WebSocket' ? 'ConnectCount not in list-metrics' : 'Count not in list-metrics' } : null;
+    case 'CloudFront': return x.quiet >= 30 ? { w: 'free', r: 'no-requests', why: 'no requests 14 d+ · still enabled', last: '14 d+', days: 14, src: 'Requests (us-east-1, Region=Global) not in list-metrics' } : null;
+    case 'Lambda': return x.notInvoked ? { w: 'free', r: 'not-invoked', why: 'not invoked 14 d+', last: '14 d+', days: 14, src: 'Invocations not in list-metrics' } : null;
+    case 'Bedrock':
+      if (x.hourly && x.calls7 === 0) return { w: 'w', r: 'pt-unused', why: 'PT billed by the hour · no calls seen 14 d+ · commitment ends 12-03', last: '14 d+', days: 14, notPriced: true, src: 'its PT ARN not in AWS/Bedrock list-metrics (how a PT shows there is to be checked: else "use unknown")' };
+      return x.unused ? { w: 'w', r: 'unused-model', why: 'custom model unused 14 d+ · stored monthly', last: '14 d+', days: 14, src: 'Invocations not in list-metrics' } : null;
+    case 'AOSS': return x.quiet >= 30 ? { w: 'w', r: 'no-searches', why: 'no searches 14 d+ · shares 4 OCU with 1 collection', last: '14 d+', days: 14, src: 'SearchRequestRate not in list-metrics · OCU from AWS/AOSS SearchOCU, IndexingOCU (per KMS key group)' } : null;
+    case 'Alarms': return x.gone ? { w: 'w', r: 'alarm-orphan', why: `watches ${x.gone}, which is gone`, last: 'unknown', days: 0, cost: 0.1, src: 'describe-alarms (all states) · its dimension against the lists' } : null;
+    default: return null;
+  }
+}
+const FORGOT_KINDS = ['EC2', 'EBS', 'EIP', 'NAT', 'ELB', 'RDS', 'ECS', 'S3', 'Logs', 'DynamoDB', 'SQS', 'SNS', 'APIGW', 'CloudFront', 'Lambda', 'Bedrock', 'AOSS', 'Alarms'];
+// Money first: what it will cost a month from now (the same list prices as ACTIVE); a window not yet
+// filled ranks lower; quiet days only break ties. Danger is an amount (AWS_LIMITS), never a kind.
+const FORGOT_DANGER_USD = 500;
+const TILE_WARN_USD = 50;
+function forgottenList() {
+  if (state.res === 'tidy') return [];
+  const out = [];
+  for (const svc of FORGOT_KINDS) for (const x of R[svc]) {
+    if (state.kept.has(`${svc}:${x.id}`)) continue;
+    if (state.region !== 'all' && x.region !== state.region) continue;
+    const f = forgottenOf(svc, x);
+    if (!f) continue;
+    const cost = f.cost ?? (x.$ || 0);
+    const w = f.w === 'free' ? 'free' : cost >= FORGOT_DANGER_USD ? 'd' : 'w';
+    out.push({ ...f, w, svc, x, cost, days: f.days || 0, id: `${svc}:${x.id}`, name: svc === 'S3' && state.mask ? 'bucket-••' : svc === 'CloudFront' ? domMask(x.alias) : label(svc, x), region: x.region, billed: f.w === 'free' ? 'no' : 'yes', kind: f.r });
+  }
+  const g = { d: 0, w: 1, free: 2 };
+  return out.sort((a, b) => g[a.w] - g[b.w] || Number(!!b.notPriced) - Number(!!a.notPriced) || b.cost - a.cost || b.days - a.days);
+}
+// Short words for the 2nd level's flag column.
+function forgottenWhy(svc, x) { const f = forgottenOf(svc, x); return f ? f.why.replace(/^in [a-z0-9-]+ \(not shown\) · /, '') : ''; }
+
+// The lists that cross services (RESOURCES › FORGOTTEN, NEW 7 D, ELSEWHERE): rows that point at a resource (go).
+const VIRTUAL = {
+  Forgotten: () => forgottenList().map((f) => ({ id: f.id, name: f.name, svc: nice(f.svc), why: f.why, last: f.last, region: f.region, billed: f.billed, kind: f.kind, $: f.cost, w: f.w, go: [f.svc, f.x.id] })),
+  New: () => NEW7.plus.map(([svc, n, when]) => { const x = R[svc].find((r) => r.id === n || r.name === n) || { id: n }; return { id: `${svc}:${n}`, name: n, svc: nice(svc), when, region: x.region || 'ap-northeast-1', go: R[svc].includes(x) ? [svc, x.id] : null }; }),
+  Elsewhere: () => [...['EC2', 'EBS', 'NAT'].flatMap((svc) => R[svc].filter((x) => !shownRegion(x)).map((x) => ({ id: `${svc}:${x.id}`, name: label(svc, x), svc, region: x.region, state: x.state || '', $: x.$, go: [svc, x.id] })))],
+};
+Object.assign(DRILL, {
+  Forgotten: { noun: 'resources that look forgotten', facets: [['svc', 'Service'], ['billed', 'Billed'], ['region', 'Region'], ['kind', 'Reason']], cols: [['name', 'Name'], ['svc', 'Service'], ['why', 'Why'], ['last', 'Quiet for', 'mono'], ['$', '≈ $/month', 'usd']], weight: (x) => (x.w === 'd' ? 'danger' : x.w === 'w' ? 'warn' : '') },
+  New: { noun: 'new in 7 days', facets: [['svc', 'Service']], cols: [['name', 'Name'], ['svc', 'Service'], ['when', 'First seen', 'mono'], ['region', 'Region', 'mono']], weight: () => '' },
+  Elsewhere: { noun: 'outside the regions shown', facets: [['region', 'Region'], ['svc', 'Service']], cols: [['name', 'Name'], ['svc', 'Service'], ['region', 'Region', 'mono'], ['state', 'State', 'st'], ['$', '≈ $/month', 'usd']], weight: () => 'warn' },
+});
+
+// ---------- RESOURCES level 1 ----------
+// One tile per service: the big number, a thin line of its states, the region dots, what looks forgotten.
+const TILE_GROUPS = [['Compute', ['EC2', 'ECS', 'EKS', 'Lambda']], ['Storage', ['S3', 'EBS']], ['Database', ['RDS', 'DynamoDB']], ['Network', ['NAT', 'ELB', 'EIP']], ['AI', ['Bedrock', 'AOSS']], ['Edge & API', ['CloudFront', 'APIGW']], ['Integration', ['SQS', 'SNS']], ['Logs', ['Logs']]];
+// Kinds that cost nothing and belong to ATTENTION's side: one line under the tiles, not tiles.
+const ALSO_HERE = [['VPC', 'VPCs'], ['ACM', 'certificates'], ['Stacks', 'stacks', (xs) => xs.filter((x) => x.status.includes('FAILED')).length, 'failed'], ['Alarms', 'alarms', (xs) => xs.filter((x) => x.state === 'ALARM').length, 'in ALARM']];
+const RES_DELTA = { EC2: 3, Lambda: 1, Logs: 3, NAT: -1, Bedrock: 1 };
+const READING_LATE = ['DynamoDB', 'SQS', 'SNS', 'APIGW', 'CloudFront', 'Bedrock', 'AOSS', 'Logs'];
+const cnt = (n) => Number(n).toLocaleString('en', { notation: n >= 10000 ? 'compact' : 'standard' });
+function tileOf(svc, items) {
+  const n = (f) => items.filter(f).length;
+  const sum = (k) => items.reduce((a, x) => a + (x[k] || 0), 0);
+  const money = sum('$');
+  const ft = money ? `≈ ${usd(money)}/mo` : '';
+  switch (svc) {
+    case 'EC2': { const idl = n((x) => x.state === 'running' && idle(x)); const run = n((x) => x.state === 'running'); const st = items.length - run; return { big: run, unit: 'running', segs: [[run - idl, ''], [idl, 'w'], [st, 'off']], leg: [`<b>${run - idl}</b> busy`, `<b class="w">${idl}</b> idle`, `<b>${st}</b> stopped`], ft }; }
+    case 'ECS': { const tasks = sum('running'); const fg = n((x) => x.launch === 'FARGATE'); return { big: items.length, unit: 'services', segs: [[n((x) => x.running >= x.desired), ''], [n((x) => x.running < x.desired), 'w']], leg: [`<b>${tasks}</b> tasks`, `<b>${fg}</b> on Fargate`], ft }; }
+    case 'EKS': return { big: items.length, unit: 'cluster' + (items.length === 1 ? '' : 's'), segs: [[items.length, 'w']], leg: ['<b class="w">1</b> support ends in 19 d'], ft };
+    case 'Lambda': { const q = n((x) => x.notInvoked); return { big: items.length, unit: 'functions', segs: [[items.length - q, ''], [q, 'off']], leg: [`<b>${q}</b> not invoked 14 d+`, `<b>${n((x) => x.runtime === 'nodejs18.x')}</b> old runtime`], ft: 'usage-based' }; }
+    case 'S3': { const e = n((x) => x.empty === 'yes'); return { big: items.length, unit: 'buckets', segs: [[sum('std'), ''], [sum('ia'), 's2'], [sum('gl'), 'off']], leg: [`<b>${gbText(sum('gb'))}</b>`, `<b>${e}</b> empty`], ft: ft || gbText(sum('gb')) }; }
+    case 'EBS': { const loose = n((x) => x.state === 'available'); return { big: items.length, unit: 'volumes', segs: [[items.length - loose, ''], [loose, 'w']], leg: [`<b>${cnt(sum('gib'))}</b> GiB`, `<b class="w">${loose}</b> loose`], ft }; }
+    case 'RDS': { const on = n((x) => x.state === 'available'); return { big: on, unit: 'available', segs: [[on, ''], [items.length - on, 'off']], leg: [`<b>${items.length - on}</b> stopped`, `<b class="w">${n((x) => x.ext === 'EXTENDED')}</b> ext. support`], ft }; }
+    case 'DynamoDB': { const p = n((x) => x.mode === 'PROVISIONED'); return { big: items.length, unit: 'tables', segs: [[items.length - p, ''], [p, 's2']], leg: [`<b>${gbText(sum('gb'))}</b>`, `<b>${p}</b> provisioned`], ft }; }
+    case 'VPC': return { big: items.length, unit: 'VPCs', segs: [[items.length, '']], leg: [`<b>${n((x) => x.def === 'yes')}</b> default`], ft: 'free' };
+    case 'NAT': return { big: items.length, unit: 'gateways', segs: [[n((x) => !x.quiet), ''], [n((x) => x.quiet), 'w']], leg: [`<b class="w">${n((x) => x.quiet)}</b> no traffic 14 d+`], ft };
+    case 'ELB': return { big: items.length, unit: 'load balancers', segs: [[n((x) => !x.quiet), ''], [n((x) => x.quiet), 'w']], leg: [`<b>${n((x) => x.type === 'application')}</b> ALB`, `<b>${n((x) => x.type === 'network')}</b> NLB`], ft };
+    case 'EIP': { const loose = n((x) => !x.assoc); return { big: items.length, unit: 'addresses', segs: [[items.length - loose, ''], [loose, 'w']], leg: [`<b class="w">${loose}</b> not associated`], ft }; }
+    case 'CloudFront': return { big: items.length, unit: 'distributions', segs: [[n((x) => !(x.quiet >= 30)), ''], [n((x) => x.quiet >= 30), 'off']], leg: [`<b>${n((x) => x.enabled === 'yes')}</b> enabled`], ft: 'usage-based' };
+    case 'APIGW': return { big: items.length, unit: 'APIs', segs: [[n((x) => !(x.quiet >= 30)), ''], [n((x) => x.quiet >= 30), 'off']], leg: ['REST', 'HTTP', 'WebSocket'].map((t) => `<b>${n((x) => x.type === t)}</b> ${t}`), ft: 'usage-based' };
+    case 'SQS': return { big: items.length, unit: 'queues', segs: [[n((x) => !x.oldest && !(x.quiet >= 30)), ''], [n((x) => x.oldest > 7), 'w'], [n((x) => x.quiet >= 30), 'off']], leg: [`<b>${cnt(sum('waiting'))}</b> waiting`, `<b class="w">${n((x) => x.oldest > 7)}</b> stuck`], ft: 'usage-based' };
+    case 'SNS': return { big: items.length, unit: 'topics', segs: [[n((x) => x.subs), ''], [n((x) => !x.subs), 'off']], leg: [`<b>${sum('subs')}</b> subscriptions`], ft: 'usage-based' };
+    case 'AOSS': return { big: items.length, unit: 'collections', segs: [[n((x) => !(x.quiet >= 30)), ''], [n((x) => x.quiet >= 30), 'w']], leg: [`<b>${sum('ocu')}</b> OCU by the hour`], ft };
+    case 'Logs': { const fe = n((x) => x.retention === 'never'); const old = n((x) => x.last > 30); return { big: items.length, unit: 'log groups', segs: [[items.length - fe, ''], [fe - old, 's2'], [old, 'w']], leg: [`<b>${gbText(sum('gb'))}</b> stored`, `<b>${fe}</b> kept forever`], ft }; }
+    case 'Alarms': { const a = n((x) => x.state === 'ALARM'); const ins = n((x) => x.state === 'INSUFFICIENT_DATA'); return { big: items.length, unit: 'alarms', segs: [[items.length - a - ins, ''], [ins, 'off'], [a, 'd']], leg: [`<b class="d">${a}</b> in ALARM`, `<b>${ins}</b> no data`], ft: '' }; }
+    case 'ACM': return { big: items.length, unit: 'certificates', segs: [[n((x) => x.expires > 30), ''], [n((x) => x.expires <= 30), 'w']], leg: [`<b class="w">${n((x) => x.expires <= 30)}</b> expire in 30 d`], ft: 'free' };
+    case 'Stacks': return { big: items.length, unit: 'stacks', segs: [[n((x) => !x.status.includes('FAILED')), ''], [n((x) => x.status.includes('FAILED')), 'd']], leg: [`<b class="d">${n((x) => x.status.includes('FAILED'))}</b> failed`], ft: 'free' };
+    default: return { big: items.length, unit: DRILL[svc]?.noun || '', segs: [[items.length, '']], leg: [], ft };
+  }
+}
+function viewResources(v) {
+  const inShown = (x) => (state.region === 'all' ? shownRegion(x) : x.region === state.region || x.region === 'global');
+  const reading = state.res === 'reading';
+  const svcs = TILE_GROUPS.flatMap(([, s]) => s).filter((s) => !(reading && READING_LATE.includes(s)));
+  const all = svcs.flatMap((s) => R[s].filter(inShown));
+  const forg = forgottenList();
+  const forgMoney = forg.reduce((a, f) => a + (f.cost || 0), 0);
+  const forgBilled = forg.filter((f) => f.w !== 'free').length;
+  const hourly = R.EC2.filter((x) => inShown(x) && x.state === 'running').length + R.RDS.filter((x) => inShown(x) && x.state === 'available').length + R.NAT.filter(inShown).length + R.ELB.filter(inShown).length + R.EKS.filter(inShown).length + R.ECS.filter((x) => inShown(x) && x.launch === 'FARGATE').reduce((a, x) => a + x.running, 0) + R.AOSS.filter(inShown).length + R.Bedrock.filter((x) => inShown(x) && x.hourly).length;
+  const perHour = activeBoard().reduce((a, r) => a + r.cost, 0) / HOURS + R.AOSS.filter(inShown).reduce((a, x) => a + x.cost, 0) / HOURS;
+  const regionsUsed = new Set(all.map((x) => x.region).filter((r) => r !== 'global')).size;
+  const svcCount = svcs.filter((s) => R[s].some(inShown)).length;
+  const m = document.createElement('div'); m.className = 'meter res';
+  m.innerHTML = `<div class="mfig"><div class="lbl">Services</div><div class="big">${svcCount}</div><div class="lbl sub2"><b>${all.length.toLocaleString('en')}</b> resources · <b>${regionsUsed}</b> regions${reading ? ' · reading 8 more…' : ''}</div></div>
+    <button type="button" class="mfig go" data-go="active"><div class="lbl">Billed by the hour</div><div class="big">≈ ${perHour.toFixed(2)}<small>/ h</small></div><div class="lbl sub2"><b>${hourly}</b> resources · ≈ ${usd(perHour * HOURS)} a month</div></button>
+    <button type="button" class="mfig go" data-go="forgotten"><div class="lbl">Looks forgotten · billing</div><div class="big${forgBilled ? ' w' : ''}">${forgBilled}</div><div class="lbl sub2">${forg.length ? `≈ <b class="m">${usd(forgMoney)}</b> a month · +${forg.length - forgBilled} not billing${forg.some((f) => f.notPriced) ? ` · +${forg.filter((f) => f.notPriced).length} not priced` : ''}` : 'nothing, 18 kinds checked'}</div></button>
+    <button type="button" class="mfig go" data-go="new"><div class="lbl">New · 7 days</div><div class="big">+${NEW7.plus.length}<small>· −${NEW7.minus.length}</small></div><div class="lbl sub2">${esc(state.mask ? 'log group /aws/lambda/••' : NEW7.plus[0][1])} · ${NEW7.plus[0][2]}</div></button>`;
+  for (const f of m.querySelectorAll('.mfig.go')) {
+    const go = () => (f.dataset.go === 'active' ? selectTab('active') : drillTo({ lv: 2, svc: f.dataset.go === 'new' ? 'New' : 'Forgotten', region: state.region, filters: {}, sort: null }));
+    f.onclick = go;
+  }
+  v.appendChild(m);
+
+  // B. what looks forgotten: the five that cost the most, longest quiet
+  v.insertAdjacentHTML('beforeend', `<div class="sep">Looks forgotten <b>${forgBilled}</b> billing · <b>${forg.length - forgBilled}</b> not billing${state.kept.size ? ` · <b>${state.kept.size}</b> kept` : ''}</div>`);
+  if (!forg.length) v.insertAdjacentHTML('beforeend', `<div class="rnone">Nothing looks forgotten · 18 kinds checked across ${REGIONS.length} regions · quiet means 30 days (⚙)</div>`);
+  const narrow = $('pane').classList.contains('narrow');
+  for (const f of forg.slice(0, narrow ? 3 : 5)) {
+    const el = document.createElement('div'); el.className = `frow${f.w === 'd' ? ' d' : f.w === 'free' ? ' free' : ''}`; el.tabIndex = 0;
+    el.innerHTML = `<span class="kd">${esc(nice(f.svc))}</span><span class="nm"></span><span class="why"></span><span class="last">${esc(f.last)}</span><span class="usd">${f.notPriced ? 'not priced' : f.cost ? `≈ ${usd(f.cost)}` : '—'}</span><button type="button" class="keep" aria-label="keep: I meant to leave it">keep</button>`;
+    el.querySelector('.nm').textContent = f.name; el.querySelector('.why').textContent = f.why;
+    const open = () => drillTo({ lv: 3, svc: f.svc, id: f.x.id });
+    el.onclick = (e) => { if (e.target.classList.contains('keep')) { state.kept.add(f.id); toast('', `Kept · ${f.name}`, 'Off this list for this account; still in its tile. ⚙ lists what you keep.'); renderView(); renderTop(); return; } open(); };
+    el.onkeydown = (e) => { if (e.key === 'Enter') open(); const to = e.key === 'ArrowDown' ? el.nextElementSibling : e.key === 'ArrowUp' ? el.previousElementSibling : null; if (to?.classList.contains('frow')) { e.preventDefault(); to.focus(); } };
+    hover(el, () => `<h4><span>${esc(nice(f.svc))} · ${esc(f.region)}</span><span>${f.w === 'free' ? 'not billing' : 'billing'}</span></h4><dl><dt>seen</dt><dd>${esc(f.src)}</dd><dt>quiet for</dt><dd>${esc(f.last)}</dd>${f.cost ? `<dt>a month</dt><dd>≈ ${usd(f.cost)} at list price</dd>` : ''}</dl><div class="why">What was seen, not a verdict: elecdex never stops or deletes anything. Keep takes it off this list if you meant it.</div>`);
+    v.appendChild(el);
+  }
+  if (forg.length > (narrow ? 3 : 5)) {
+    const more = document.createElement('div'); more.className = 'fmore';
+    more.innerHTML = `<span>${forg.filter((f) => f.w === 'free').length} of them cost nothing now · sorted by ≈ $ a month from now</span>`;
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = `all ${forg.length} ›`; b.onclick = () => drillTo({ lv: 2, svc: 'Forgotten', region: state.region, filters: {}, sort: null });
+    more.appendChild(b); v.appendChild(more);
+  }
+
+  // C, D, E: the tiles, what is outside the regions shown, what bills without a tile
+  const rest = document.createElement('div'); rest.className = 'res-more';
+  const zero = [];
+  const grid = document.createElement('div'); grid.className = 'rgroups';
+  const cols = $('pane').classList.contains('narrow') ? 2 : $('pane').classList.contains('medium') ? 3 : 4;
+  grid.style.setProperty('--cols', String(cols));
+  // The groups with the most forgotten money first; the fixed order breaks ties.
+  const groupMoney = (list) => forg.filter((f) => list.includes(f.svc) && f.w !== 'free').reduce((a, f) => a + f.cost + (f.notPriced ? 1e6 : 0), 0);
+  const groups = TILE_GROUPS.map((g, i) => [...g, i]).sort((a, b) => groupMoney(b[1]) - groupMoney(a[1]) || a[2] - b[2]);
+  for (const [gname, list] of groups) {
+    const tiles = document.createElement('div'); tiles.className = 'rgroup';
+    tiles.innerHTML = `<h6>${gname}</h6>`;
+    let any = false; let slots = 0;
+    for (const svc of list) {
+      const items = R[svc].filter(inShown);
+      if (reading && READING_LATE.includes(svc)) {
+        any = true;
+        slots += svc === 'Bedrock' ? 2 : 1;
+        tiles.insertAdjacentHTML('beforeend', `<div class="rtile skel${svc === 'Bedrock' ? ' wide2' : ''}"><div class="hd"><span>${esc(nice(svc))}</span></div><div class="fig"><span class="n">·</span><span class="u">reading…</span></div><div class="line"></div><div class="ft">first read within 10 min</div></div>`);
+        continue;
+      }
+      if (!items.length) { zero.push(nice(svc)); continue; }
+      any = true; slots += svc === 'Bedrock' ? 2 : 1;
+      const t = svc === 'Bedrock' ? null : tileOf(svc, items);
+      const nf = forg.filter((f) => f.svc === svc);
+      const el = document.createElement('div'); el.tabIndex = 0;
+      // Only what bills marks a tile; the quiet ones that cost nothing are said in its foot, dimmer.
+      const nfMoney = nf.reduce((a, f) => a + (f.w === 'free' ? 0 : f.cost), 0);
+      el.className = `rtile${nfMoney >= FORGOT_DANGER_USD ? ' d' : nfMoney >= TILE_WARN_USD || nf.some((f) => f.notPriced) ? ' w' : ''}${svc === 'Bedrock' ? ' wide2' : ''}`;
+      const dl = RES_DELTA[svc] || 0;
+      const dots = REGIONS.map((r) => `<i class="${items.some((x) => x.region === r) ? 'on' : ''}"></i>`).join('');
+      const nb = nf.filter((f) => f.w !== 'free').length; const nq = nf.length - nb;
+      const fgTxt = `${nb ? `<span class="fg${nf.some((f) => f.w === 'd') ? ' d' : ''}">${nb} forgotten?</span>` : ''}${nq ? `<span>${nq} quiet</span>` : ''}`;
+      if (svc === 'Bedrock') {
+        const maxT = Math.max(...BEDROCK_USE.map((u) => u[1] + u[2]));
+        const kinds = [['provisioned throughput', 'PT'], ['custom model', 'custom models'], ['knowledge base', 'knowledge bases'], ['agent', 'agents'], ['guardrail', 'guardrails'], ['agentcore runtime', 'runtimes']];
+        el.innerHTML = `<div class="hd"><span>Bedrock · used 30 d · placed</span><span class="dl">${dl ? `+${dl}` : ''}</span></div>
+          <div class="two"><div class="models">${BEDROCK_USE.map(([mdl, i, o]) => `<span>${esc(mdl)}</span><span class="bar"><i style="width:${((i + o) / maxT) * 100}%"></i></span><span class="n">${cnt(Math.round((i + o) / 1e5) / 10)}M</span>`).join('')}</div>
+          <div class="placed">${kinds.map(([k, word]) => { const c = items.filter((x) => x.kind === k); const w = c.some((x) => x.hourly && x.calls7 === 0) ? 'd' : c.some((x) => x.unused) ? 'w' : ''; return `<span>${word}</span><b class="${w}">${c.length}</b>`; }).join('')}</div></div>
+          <div class="ft">${fgTxt}<span>${cnt(28.1)}M tokens in · ${cnt(3.0)}M out</span><span class="r">real cost › COST</span></div>`;
+      } else {
+        const tot = t.segs.reduce((a, s) => a + s[0], 0) || 1;
+        el.innerHTML = `<div class="hd"><span>${esc(nice(svc))}</span><span class="rgd">${dots}</span><span class="dl${dl < 0 ? ' m' : ''}">${dl > 0 ? `+${dl}` : dl < 0 ? dl : ''}</span></div>
+          <div class="fig"><span class="n">${cnt(t.big)}</span><span class="u">${esc(t.unit)}</span></div>
+          <div class="line">${t.segs.filter((s) => s[0] > 0).map((s) => `<i class="${s[1]}" style="flex:${s[0] / tot}"></i>`).join('')}</div>
+          <div class="leg">${t.leg.map((l) => `<span>${l}</span>`).join('')}</div>
+          <div class="ft">${fgTxt}<span class="r">${esc(t.ft)}</span></div>`;
+      }
+      const open = () => drillTo({ lv: 2, svc, region: state.region, filters: {}, sort: null });
+      el.onclick = open;
+      el.onkeydown = (e) => {
+        if (e.key === 'Enter') { open(); return; }
+        // Arrows move to the nearest tile that way, across the groups (as the eye reads the board).
+        const dir = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] }[e.key];
+        if (!dir) return;
+        const r0 = el.getBoundingClientRect(); const c0 = [r0.left + r0.width / 2, r0.top + r0.height / 2];
+        let best = null; let bestD = Infinity;
+        for (const o of v.querySelectorAll('.rtile:not(.skel)')) {
+          if (o === el) continue; const r = o.getBoundingClientRect(); const dx = r.left + r.width / 2 - c0[0]; const dy = r.top + r.height / 2 - c0[1];
+          const along = dx * dir[0] + dy * dir[1]; if (along <= 4) continue;
+          const d = along + 3 * Math.abs(dir[0] ? dy : dx); if (d < bestD) { bestD = d; best = o; }
+        }
+        if (best) { e.preventDefault(); best.focus(); }
+      };
+      hover(el, () => { const top5 = items.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (b.gb || 0) - (a.gb || 0)).slice(0, 5); return `<h4><span>${esc(nice(svc))} · the largest</span><span>${items.length} ${DRILL[svc].noun}</span></h4><table>${top5.map((x) => `<tr><td>${esc(svc === 'S3' && state.mask ? 'bucket-••' : svc === 'CloudFront' ? domMask(x.alias) : label(svc, x))}</td><td>${esc(forgottenWhy(svc, x) || x.state || x.kind || x.mode || x.type || '')}</td><td class="n">${x.$ ? `≈ ${usd(x.$)}` : x.gb ? gbText(x.gb) : ''}</td></tr>`).join('')}</table>`; });
+      tiles.appendChild(el);
+    }
+    if (any) { tiles.style.gridColumn = `span ${Math.min(slots, cols)}`; grid.appendChild(tiles); }
+  }
+  rest.appendChild(grid);
+  const also = document.createElement('div'); also.className = 'rnone also';
+  also.append('Also here: ');
+  ALSO_HERE.forEach(([svc, noun, bad, word], i) => {
+    const xs = R[svc].filter(inShown); const b = document.createElement('button'); b.type = 'button';
+    const n = bad ? bad(xs) : 0; b.innerHTML = `<b>${xs.length}</b> ${noun}${n ? ` <span class="${svc === 'Alarms' || svc === 'Stacks' ? 'd' : 'w'}">(${n} ${word})</span>` : ''}`;
+    b.onclick = () => drillTo({ lv: 2, svc, region: state.region, filters: {}, sort: null });
+    if (i) also.append(' · '); also.appendChild(b);
+  });
+  rest.appendChild(also);
+  if (zero.length) rest.insertAdjacentHTML('beforeend', `<div class="rnone">Checked, none here: ${zero.map(esc).join(' · ')}</div>`);
+  if (state.link === 'partial') rest.insertAdjacentHTML('beforeend', '<div class="rnone">Denied: <span class="denied">bedrock-agent:ListAgents</span> · agents are not counted</div>');
+  // D. outside the regions shown (the daily sweep)
+  const away = VIRTUAL.Elsewhere();
+  if (away.length && state.region === 'all') {
+    const by = {}; for (const a of away) { by[a.region] ??= {}; const k = a.svc === 'EC2' ? (a.state === 'running' ? 'EC2 running' : 'EC2 stopped') : a.svc === 'EBS' ? 'volumes' : 'NAT'; by[a.region][k] = (by[a.region][k] || 0) + 1; }
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'rline';
+    b.innerHTML = `<span class="k">Elsewhere</span><span class="m">${Object.entries(by).map(([r, ks]) => `${r}: <b>${Object.entries(ks).map(([k, n]) => `${n} ${k}`).join(', ')}</b>`).join(' · ')}</span><span class="go">outside the ${REGIONS.length} regions shown · read daily ›</span>`;
+    b.onclick = () => drillTo({ lv: 2, svc: 'Elsewhere', region: 'all', filters: {}, sort: null });
+    rest.appendChild(b);
+  }
+  // E. billed this month with no tile (billing metric by service, nothing new read)
+  if (state.acct !== 'nobilling') {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'rline i';
+    b.innerHTML = `<span class="k">Billed, not listed</span><span class="m">${NOT_LISTED.map(([s, a]) => `${s} <b>$${a.toFixed(2)}</b>`).join(' · ')}</span><span class="go">this month · not read here › COST</span>`;
+    b.onclick = () => { state.drill.cost = []; selectTab('cost'); };
+    rest.appendChild(b);
+  }
+  v.appendChild(rest);
+}
 const label = (svc, x) => x.name || x.id;
 
 // ---------- attention, derived from the resources (the app does this in shared/aws/attention.ts) ----------
@@ -755,9 +1195,9 @@ function worstIn(region) {
 }
 
 // ---------- state ----------
-const state = { link: 'linked', acct: 'busy', mask: false, tab: 'attention', region: 'all', actFilter: 'all', calls: 214, extra: [], wait: 0,
+const state = { link: 'linked', acct: 'busy', mask: false, tab: 'resources', region: 'all', actFilter: 'all', calls: 214, extra: [], wait: 0,
   // the drill stack per tab: [{lv:2, svc, filters, sort}] or [{lv:3, svc, id}] ... the app keeps it in pane state
-  drill: { active: [], cost: [] }, histOpen: false, newIds: new Set() };
+  drill: { resources: [], active: [], cost: [] }, histOpen: false, newIds: new Set(), res: 'busy', kept: new Set() };
 
 const LINKS = {
   linked: { lamp: 'ok', text: 'LINKED', sub: '' },
@@ -865,7 +1305,7 @@ function stack() { return state.drill[state.tab] || []; }
 function renderBar2() {
   const b = $('bar2'); b.innerHTML = '';
   const st = stack();
-  if ((state.tab === 'active' || state.tab === 'cost') && st.length) {
+  if ((state.tab === 'resources' || state.tab === 'active' || state.tab === 'cost') && st.length) {
     const c = document.createElement('span'); c.className = 'crumbs';
     const back = document.createElement('button'); back.type = 'button'; back.className = 'back'; back.textContent = '‹'; back.title = ''; back.onclick = up; c.appendChild(back);
     const root = document.createElement('button'); root.type = 'button'; root.textContent = state.tab; root.onclick = () => { state.drill[state.tab] = []; renderView('up'); }; c.appendChild(root);
@@ -900,6 +1340,11 @@ function renderBar2() {
 function crumbName(s) { const x = R[s.svc].find((r) => r.id === s.id); return x ? (s.svc === 'ACM' ? domMask(x.id) : s.svc === 'EIP' ? ipMask(x.ip) : s.svc === 'S3' && state.mask ? 'bucket-••' : label(s.svc, x)) : s.id; }
 // Why a row is flagged, in a word or three: the list says it, not only its red or amber edge.
 function flagOf(svc, x) {
+  if (svc === 'Forgotten') return '';
+  if (svc === 'New' || svc === 'Elsewhere') return '';
+  return flagOf0(svc, x) || (FORGOT_KINDS.includes(svc) ? forgottenWhy(svc, x) : '');
+}
+function flagOf0(svc, x) {
   switch (svc) {
     case 'EC2': return x.sgOpen && x.state === 'running' ? '22 open to world' : idle(x) ? 'idle 7 d' : x.stoppedDays > 30 ? `stopped ${x.stoppedDays} d` : '';
     case 'EBS': return x.state === 'available' ? 'not attached' : '';
@@ -930,16 +1375,17 @@ function renderView(dir) {
   v.classList.add(dir === 'up' ? 'up' : 'on');
   v.innerHTML = '';
   renderBar2();
-  $('estbar').classList.toggle('show', state.tab === 'active' && !L().empty);
+  $('estbar').classList.toggle('show', (state.tab === 'active' || state.tab === 'resources') && !L().empty);
   if (L().empty) { v.innerHTML = '<div class="empty"><b class="d">NO CLI</b>AWS CLI v2 was not found on PATH or in its install folders.<br>Install it, then restart elecdex (a running app keeps its old PATH).<code>winget install Amazon.AWSCLI</code></div>'; return; }
   const st = stack(); const top = st[st.length - 1];
+  if (state.tab === 'resources') return !top ? viewResources(v) : top.lv === 2 ? viewService(v, top) : viewOne(v, top);
   if (state.tab === 'attention') return viewAttention(v);
   if (state.tab === 'active') return !top ? viewActive(v) : top.lv === 2 ? viewService(v, top) : viewOne(v, top);
   if (state.tab === 'cost') return !top ? viewCost(v) : viewCostService(v, top);
   if (state.tab === 'activity') return viewActivity(v);
   return viewAccount(v);
 }
-function drillTo(entry, tab = 'active') {
+function drillTo(entry, tab = state.tab === 'resources' ? 'resources' : 'active') {
   if (state.tab !== tab) selectTab(tab, false);
   state.drill[tab].push(entry); state.histOpen = false; renderView();
 }
@@ -1030,7 +1476,7 @@ function viewActive(v) {
 function viewService(v, top) {
   const def = DRILL[top.svc];
   const region = top.region && top.region !== 'all' ? top.region : null;
-  const all = R[top.svc].filter((x) => !region || x.region === region);
+  const all = (VIRTUAL[top.svc] ? VIRTUAL[top.svc]() : R[top.svc]).filter((x) => !region || x.region === region);
   const val = (f, x) => (f[2] ? f[2](x) : String(x[f[0]]));
   const match = (x, except) => Object.entries(top.filters).every(([k, want]) => k === except || val(def.facets.find((f) => f[0] === k), x) === want);
   const fx = document.createElement('div'); fx.className = 'facets';
@@ -1081,13 +1527,17 @@ function viewService(v, top) {
       else if (c[2] === 'cpu') td.innerHTML = raw ? cpuSpark(raw, idle(x)) : '<span class="mono">—</span>';
       else if (c[2] === 'bkt') td.textContent = state.mask ? `bucket-${String(x.id.length).padStart(2, '0')}` : raw;
       else if (c[2] === 'age') td.textContent = age(raw);
+      else if (c[2] === 'ago') td.textContent = raw === 0 ? 'today' : `${age(raw)} ago`;
+      else if (c[2] === 'use') td.innerHTML = x.quiet >= 30 ? `<span style="color:var(--warn)">quiet ${x.quiet} d</span>` : 'active';
+      else if (c[2] === 'lg') td.textContent = state.mask ? raw.replace(/[^/]+$/, '••') : raw;
+      else if (c[2] === 'q') td.textContent = state.mask ? `${raw.slice(0, 3)}••` : raw;
       else if (c[2] === 'ip') td.textContent = ipMask(raw);
       else if (c[2] === 'dom') td.textContent = domMask(raw);
       else td.textContent = raw == null ? '—' : String(raw);
       tr.appendChild(td);
       if (i === 0) { const f = document.createElement('td'); f.className = 'flag'; const why = flagOf(top.svc, x); if (why) f.innerHTML = `<span class="tag ${def.weight(x) || 'warn'}">${esc(why)}</span>`; tr.appendChild(f); }
     });
-    tr.onclick = () => drillTo({ lv: 3, svc: top.svc, id: x.id });
+    tr.onclick = () => (x.go ? drillTo({ lv: 3, svc: x.go[0], id: x.go[1] }) : drillTo({ lv: 3, svc: top.svc, id: x.id }));
     tr.onkeydown = (e) => { if (e.key === 'Enter') tr.onclick(); };
     tb.appendChild(tr);
   }
@@ -1102,7 +1552,8 @@ function viewOne(v, top) {
   const def = DRILL[top.svc]; const wt = def.weight(x);
   const box = document.createElement('div'); box.className = 'one';
   const name = top.svc === 'ACM' ? domMask(x.id) : top.svc === 'EIP' ? ipMask(x.ip) : top.svc === 'S3' && state.mask ? 'bucket-••' : label(top.svc, x);
-  const stateWord = x.state || x.status || (x.inuse ? `in use: ${x.inuse}` : '');
+  // The lamp says the resource's own state; a log group's is its retention, never a vague "listed".
+  const stateWord = x.state || x.status || (x.inuse ? `in use: ${x.inuse}` : '') || (x.retention ? (x.retention === 'never' ? 'kept forever' : `${x.retention} retention`) : '') || x.mode || x.type || (x.subs !== undefined ? `${x.subs} subscribers` : '');
   // The lamp says the state; why it is flagged is a tag of its own (a red "running" read as a failure).
   const lampKind = /FAILED/.test(stateWord) ? 'danger' : /stopped/.test(stateWord) || (top.svc === 'EBS' && stateWord === 'available') ? 'muted' : 'ok';
   box.innerHTML = `<div class="hd"><span class="lamp ${lampKind}"><i></i>${esc(stateWord || 'listed')}</span><span class="nm"></span>${wt ? `<span class="tag ${wt}">${esc(flagOf(top.svc, x))}</span>` : ''}<span class="kind">${top.svc} · ${x.region}${x.az ? ` · ${x.az}` : ''}</span><span class="acts"><button type="button" class="btn" id="b-hist" aria-pressed="${state.histOpen}">History</button><button type="button" class="btn">↗ Console</button></span></div>`;
@@ -1113,15 +1564,22 @@ function viewOne(v, top) {
   for (const c of def.cols) {
     const raw = x[c[0]];
     if (c[2] === 'cpu') { if (raw) dl += `<dt>${c[1]}</dt><dd>${cpuSpark(raw, idle(x))} avg ${(raw.reduce((a, b) => a + b, 0) / 7).toFixed(1)}% · max ${Math.max(...raw)}%${idle(x) ? ' · <b style="color:var(--warn);font-weight:500">IDLE</b>' : ''}</dd>`; continue; }
-    const text = c[2] === 'age' ? `${age(raw)} ago` : c[2] === 'run' ? (x.state === 'running' ? `${age(raw)} since its last start` : '—') : c[2] === 'usd' ? (raw ? `≈ ${usd(raw)} at list price` : '—') : c[2] === 'gb' ? gbText(raw) : c[2] === 'cnt' ? Number(raw).toLocaleString('en') : c[2] === 'bkt' ? (state.mask ? 'bucket-••' : raw) : c[2] === 'ip' ? ipMask(raw) : c[2] === 'dom' ? domMask(raw) : raw ?? '—';
+    const text = c[2] === 'use' ? useWord(x) : c[2] === 'ago' ? (raw === 0 ? 'today' : `${age(raw)} ago`) : c[2] === 'age' ? `${age(raw)} ago` : c[2] === 'run' ? (x.state === 'running' ? `${age(raw)} since its last start` : '—') : c[2] === 'usd' ? (raw ? `≈ ${usd(raw)} at list price` : '—') : c[2] === 'gb' ? gbText(raw) : c[2] === 'cnt' ? Number(raw).toLocaleString('en') : c[2] === 'bkt' ? (state.mask ? 'bucket-••' : raw) : c[2] === 'ip' ? ipMask(raw) : c[2] === 'dom' ? domMask(raw) : raw ?? '—';
     dl += `<dt>${c[1]}</dt><dd${c[2] === 'usd' && idle(x) ? ' class="w"' : ''}>${esc(text)}</dd>`;
   }
   if (top.svc === 'S3') dl += `<dt>Standard</dt><dd>${gbText(x.std)}</dd><dt>Standard-IA</dt><dd>${gbText(x.ia)}</dd><dt>Glacier</dt><dd>${gbText(x.gl)}</dd><dt>Read</dt><dd>CloudWatch BucketSizeBytes · once a day · no S3 call</dd>`;
   if (top.svc === 'EC2') dl += `<dt>Private IP</dt><dd>${ipMask(x.ip)}</dd><dt>IMDS v2</dt><dd class="${x.imds === 'optional' ? 'w' : 'o'}">${x.imds}</dd><dt>Platform</dt><dd>${x.platform}</dd>${x.stoppedDays ? `<dt>Stopped</dt><dd class="w">${x.stoppedDays} days ago · User initiated</dd>` : ''}`;
   if (top.svc === 'RDS' && x.maint) dl += `<dt>Maintenance</dt><dd class="w">forced ${x.maint}</dd>`;
   if (top.svc === 'EKS') dl += '<dt>Upgrade policy</dt><dd>STANDARD</dd><dt>Next version</dt><dd>1.32 · standard to 2027-03-23</dd>';
+  const fg = FORGOT_KINDS.includes(top.svc) ? forgottenOf(top.svc, x) : null;
+  if (fg) dl += `<dt>Last used</dt><dd class="w">${esc(fg.last)} · ${esc(fg.why)}</dd><dt>Seen by</dt><dd>${esc(fg.src)} · read 11-08</dd>`;
   dl += '</dl>';
   fields.innerHTML = dl;
+  if (fg) {
+    const k = document.createElement('button'); k.type = 'button'; k.className = 'btn'; k.textContent = state.kept.has(`${top.svc}:${x.id}`) ? 'Kept' : 'Keep';
+    k.onclick = () => { state.kept.add(`${top.svc}:${x.id}`); k.textContent = 'Kept'; toast('', `Kept · ${label(top.svc, x)}`, 'Off LOOKS FORGOTTEN for this account; still in its tile. ⚙ lists what you keep.'); };
+    box.querySelector('.acts').prepend(k);
+  }
   grid.appendChild(fields);
   const side = document.createElement('div');
   const rel = relations(top.svc, x);
@@ -1324,6 +1782,7 @@ function group(attr, fn) { for (const b of document.querySelectorAll(`.mockbar [
 group('theme', (v) => { if (v === 'tron') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v; renderPulse(); });
 group('width', (v) => { const p = $('pane'); p.classList.remove('medium', 'narrow', 'short'); if (v !== 'wide') p.classList.add(v); render(); });
 group('link', (v) => { state.link = v; render(); });
+group('res', (v) => { state.res = v; state.drill.resources = []; render(); });
 group('acct', (v) => { state.acct = v; state.extra = []; const q = $('quota-in'); q.disabled = v === 'nobilling'; q.title = ''; $('quota-why').textContent = v === 'nobilling' ? 'Not available: this account has no billing metric (Billing preferences → Receive CloudWatch billing alerts; for a member account, the payer turns it on).' : ''; render(); });
 $('b-mask').onclick = () => { state.mask = !state.mask; $('b-mask').setAttribute('aria-pressed', String(state.mask)); renderTop(); renderView(); };
 $('b-set').onclick = () => { const s = $('settings'); const on = !s.classList.contains('show'); s.classList.toggle('show', on); $('b-set').setAttribute('aria-pressed', String(on)); };

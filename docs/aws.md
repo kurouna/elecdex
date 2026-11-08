@@ -25,6 +25,7 @@
 | 2026-11-08 | **コストの QUOTA**: あらかじめ決めた金額を今月の見込み額が超えたらトースト。既定は 0（OFF）（§5.6） | 利用者の指定 |
 | 2026-11-08 | QUOTA は USD でよい。障害の通知と QUOTA は**ペインが見えている間だけ読み、その時点でトースト**（隠れている間には読まない） | 利用者の決定 |
 | 2026-11-08 | **実装**: ACTIVE の単価は同梱の表（Price List の API は呼ばない）。拒否された読み取りは許容の呼び出しでも操作名を集めて PARTIAL（Free Tier の API だけは出さない）。リージョンごと・インスタンスごとの probe は `after` で先の答えを待つ。実物の 1 リージョンで最初の 1 周が 36 回・45 秒。見送ったもの: ECS、スナップショット、VPC、RDS の保守と延長サポートの判定、vCPU・EIP の上限、COST の 2 段目の曲線、Cost Explorer の使用の種類別、3 段目の横への道の記録。サービス別の請求は 6 時間ごとに読む（COST を開いている間だけ、ではなく） | 実装（decisions.md） |
+| 2026-11-08 | **RESOURCES**（修正案、§14、Opus 5.5 のレビューで直した版）: いま何があるか・作って忘れていそうなものをダッシュボードで見せる新しい先頭のタブ（既定のタブ）。CloudWatch Logs（`describe-log-groups`・`describe-log-streams`）と S3 の `list-buckets` を禁止の表から外す。DynamoDB・ECS・SQS・SNS・API Gateway・CloudFront・Bedrock を足す | 利用者の指定と決定 |
 
 ## 1. 何を見せるか（インフラのエンジニアの問い）
 
@@ -187,9 +188,9 @@
 |---|---|
 | Cost Explorer の §3.3 以外（`ce` のほかの操作、時間ごとの粒度、リソースごと） | 有料で、要る理由が無い |
 | `cloudwatch get-metric-data`、`get-metric-widget-image`、`get-insight-rule-report` | 無料枠の外で常に課金 |
-| `s3api *`、`s3 *` | S3 は LIST 要求を課金する。バケットの数は後で（§11） |
+| `s3api *`、`s3 *`（`s3api list-buckets` だけは §14.4 で許す案、利用者の決定 2026-11-08） | S3 は LIST 要求を課金する。オブジェクトの一覧と中身は読まない |
 | `health *`、`support *`（Trusted Advisor） | Business 以上のサポートプランが要る |
-| `logs *` | 読んだデータ量に課金しうる（Logs Insights）。ログの中身はそもそも読まない |
+| `logs *`（`describe-log-groups` だけは §14.4 で許す案、利用者の決定 2026-11-08） | 読んだデータ量に課金しうる（Logs Insights）。ログの中身はそもそも読まない |
 | `ssm get-parameter*`、`secretsmanager *`、`kms decrypt` | 秘密を読む。費用以前に読まない |
 | 書き込みのすべて | 非目的 |
 
@@ -517,7 +518,7 @@ CloudTrail を呼ばない）、SLOW（周期 4 倍）。MASK、タブ、ドリ�
 `acm:ListCertificates`、`route53domains:ListDomains`、`savingsplans:DescribeSavingsPlans`、`backup:ListBackupJobs`、
 `servicequotas:GetServiceQuota`、`guardduty:ListDetectors`、`guardduty:GetFindingsStatistics`、
 `cloudtrail:LookupEvents`、`pricing:GetProducts`。Cost Explorer を有効にするなら `ce:GetCostAndUsage`、
-`ce:GetCostForecast`。ガイドの data-sources.md にこの表を載せる。
+`ce:GetCostForecast`。ガイドの data-sources.md にこの表を載せる。RESOURCES（§14）は加えて `s3:ListAllMyBuckets`、`logs:DescribeLogGroups`、`dynamodb:ListTables`・`DescribeTable`、`sqs:ListQueues`・`GetQueueAttributes`、`sns:ListTopics`・`ListSubscriptions`、`apigateway:GET`、`cloudfront:ListDistributions`、`bedrock:List*`・`bedrock:GetKnowledgeBase` 相当の `bedrock-agent` の List・Get、`bedrock-agentcore:ListAgentRuntimes`、`aoss:ListCollections`・`BatchGetCollection`、`eks:ListNodegroups`・`ListFargateProfiles`、`elasticloadbalancing:DescribeTargetHealth`。
 
 ## 10. ページに渡すもの
 
@@ -531,6 +532,7 @@ CloudTrail を呼ばない）、SLOW（周期 4 倍）。MASK、タブ、ドリ�
 複数プロファイルを 1 枚に（測ってから）、Cost Optimization Hub と Compute Optimizer の提案（無料だが登録が要る）、
 CUR による資源ごとの実額、Security Hub、IAM Access Analyzer の外部アクセス、Compute Optimizer の提案、
 Organizations の横断、SSO・login のセッションの残り時間、QUOTA を円で決める（為替の取得が要る）。
+RESOURCES の追加の候補（§14.9）。
 
 ## 12. 利用者の決定（2026-11-08、§0 にも）
 
@@ -550,3 +552,261 @@ spot を除く、単価が無い型）、Cost Explorer（既定 OFF、頻度、�
 認証情報レポートの CSV、CloudTrail の解析（決めた欄だけ、AWSService を落とす、ConsoleLogin の失敗と MFA）、
 `consoleUrl`、禁止の表。e2e は `aws.spec.ts`（代役の `demo` / `signedout` / `mfa` / `partial` / `nobilling` /
 `newplan` / `nocli`、ドリルダウンの往復とキーボード）。
+
+## 14. RESOURCES: いま何があり、何を忘れていそうか（修正案 2026-11-08、レビュー済み・利用者の決定待ち）
+
+利用者の指定（2026-11-08）: 「アラーム・セキュリティ・期限切れ・課金だけでなく、**アクティブなリソース**（起動している
+EC2、作られた S3、有効な CloudWatch Logs など）を、**メインとしてダッシュボード的に**表示したい」「AWS の利用状況・
+使用状況をできるかぎりダッシュボード的に。**作ったことを忘れて放置しているもの**を可視化したい」「見やすい UX/UI に
+こだわる」。ACTIVE（§5.0）は「お金を使っているものを額の順に」、RESOURCES は**種類と放置**を受け持つ、新しい先頭のタブ。
+初版はサブエージェント（Opus 5.5）のレビューで 26 件の指摘を受け、この版で直した（§14.10）。
+
+### 14.0 決めたこと（利用者、2026-11-08）
+
+| 決定 | 中身 |
+|---|---|
+| 置き場所 | **新しい先頭のタブ RESOURCES**。ペインを開くと最初に出る（ペインの状態にタブが無いとき）。ATTENTION・ACTIVE・COST・ACTIVITY・ACCOUNT はそのまま |
+| 新しい読み取り | **CloudWatch Logs**（`logs describe-log-groups`。中身と Logs Insights は使わない）と **S3 のバケット一覧**（`s3api list-buckets`）を、§3.4 の禁止の表から外す |
+| 足すサービス | DynamoDB、ECS、SQS と SNS、API Gateway と CloudFront、**Bedrock で使っているもの** |
+| 進め方 | 設計とモックをサブエージェントがレビューし、直してから実装 |
+
+### 14.1 何に答えるか
+
+| 問い | 答える場所 |
+|---|---|
+| 作って忘れていて、いまお金のかかっているものは | LOOKS FORGOTTEN（§14.2 B、判定は §14.3）。**いちばん上** |
+| このアカウントにいま何があるか（サービスごとの数、状態、場所） | 数字の帯とサービスのタイル（§14.2 A・C） |
+| 見ていないリージョンに何か残っていないか | ELSEWHERE の 1 行（§14.2 D） |
+| このペインが読まないサービスにお金が出ていないか | BILLED, NOT LISTED の 1 行（§14.2 E） |
+| この 1 週間で何が増え、何が消えたか | NEW 7 D（§14.2 A） |
+
+非目的は §1 と同じ（変更・停止・削除はしない、中身は読まない）。**「消してよい」とは言わない**: 見えたこと
+（何日動きが無いか、何で確かめたか）だけを言い、決めるのは利用者。
+
+**ATTENTION・ACTIVE との関係**（重複を作らない）: 判定は `forgotten.ts` の 1 つの述語、しきい値は `AWS_LIMITS` に
+名前で置く。ACTIVE の IDLE / WASTE の数もそれを使い、言葉も 3 か所で同じにする。ATTENTION の COST の行のうち
+忘れもの（idle の EC2、付いていない EBS・EIP、止めたままのインスタンス）は、1 行の要約「9 look forgotten ·
+≈ $1.6k/mo › RESOURCES」に替える案（§14.9-6）。延長サポートや予算は ATTENTION に残す。タブに留まるとカードで
+役割を言う（RESOURCES = 種類と放置、ACTIVE = いまの額の順）。
+
+### 14.2 画面（1 段目）
+
+上から 5 つ。どれも押すと（Enter でも）ドリルダウン（§5）の 2 段目か 3 段目へ。2 段目から戻ると、来たタイルや行に
+フォーカスを戻す。
+
+**A. 数字の帯**（4 つ。押せるものは button）:
+
+| 数字 | 中身 | 押すと |
+|---|---|---|
+| SERVICES `22` | 何かがあるサービスの数。下に `365 resources · 3 regions`（数は小さく: 問いに答えるのは種類と額） | — |
+| BILLED BY THE HOUR `≈ $7.11 / h` | 時間課金のもの（EC2 running、RDS、NAT、ELB、EKS、Fargate のタスク、パブリック IPv4、OpenSearch Serverless の OCU、Bedrock の PT…）のいまの推定。下に `39 resources · ≈ $5.2k a month`。カードで何を数えたかを言う | ACTIVE |
+| LOOKS FORGOTTEN · BILLING `19` | §14.3 に当たり、お金のかかるものの数（warn）。下に `≈ $2.2k a month · +16 not billing`。額に入らないもの（単価の無い PT）は `+ 1 not priced` と書き足す | B の全件 |
+| NEW 7 D `+6 · −2` | 7 日で現れた・消えたもの。下に一番新しいもの | 2 段目、作成日の新しい順 |
+
+- NEW の基準: 作成日の取れる種類（`CreationDate`・`creationTime`・`CreatedTimestamp`・`CreationDateTime`）は作成日、
+  取れない種類は main が最初に見た日。**観測を始めた日（最初の起動）は数えない**（すべてが新しくなるので）。Lambda と
+  一緒に自動でできるロググループは、その関数に畳む。消えたものは id を `aws-inventory.json` に覚え、消えて 30 日で捨てる
+
+**B. LOOKS FORGOTTEN**（上位 5 行。narrow は 3 行。見出しに `19 billing · 16 not billing · 3 kept`）:
+1 行 = 種類の札、名前、**理由の文**（読ませたいので `--text` の色・通常の太さ。色は左の縁だけ）、**quiet for**（`14 d+`・
+`120 d`・`unknown` のどれか。時間と出どころを混ぜない）、`≈ $/mo`。並びは **これからの ≈ $/月** の大きい順で、
+判定の窓を満たしていないもの（観測を始めて日が浅い）は下げ、静かな日数は同点の決め手。お金のかからないものは後ろ。
+danger の縁は種類でなく額で決める（`AWS_LIMITS.forgottenDangerUsd`、既定 $500/月）。右端に `all 35 ›`。行に
+留まるとカード: 判定の根拠（`AWS/NAT · no BytesOutToDestination data point in 14 d`）。行の `keep`（button、
+読み上げの名前は「keep: I meant to leave it」）で B から外す（§14.3）。行の間は矢印キーで動く。
+
+**C. サービスのタイル**（GITHUB STATUS の REPOS のタイルと同じ型。分類の見出しの下に並べる）:
+
+- 分類と並び: **忘れものの額の大きい分類から**（同じなら固定の順: COMPUTE・STORAGE・DATABASE・NETWORK・AI・
+  EDGE & API・INTEGRATION・LOGS）。お金のかからない台帳もの（VPC、ACM、CloudFormation、アラーム）はタイルに
+  せず、格子の下に 1 行: `Also here: 6 VPCs · 5 certificates · 27 stacks (1 failed) · 25 alarms (1 in ALARM)`（押すと
+  それぞれの 2 段目）
+- 1 枚: サービス名、**大きな数と名詞**（`10 running`、`9 buckets`、`152 log groups`）、**状態の細い積み上げ線**、
+  リージョンの点、凡例の 1 行、下の行に `n forgotten?`（お金のかかるもの、warn）と `n quiet`（かからないもの、dim）、
+  時間課金なら `≈ $/mo`、容量のものは合計
+- **タイルの枠が warn になるのは、そのサービスの忘れものの ≈ $ が `AWS_LIMITS.tileWarnUsd`（既定 $50/月）以上の
+  ときだけ**（色は「お金がかかる」の 1 つの意味。レビューで 22 枚中 14 枚が warn で壁紙になっていた）
+- Bedrock のタイルは 2 段: **使ったモデル**（30 日のトークン、モデルごとの細い棒。表示名は推論プロファイルと
+  基盤モデルの一覧で引く）と**置いてあるもの**（PT・カスタムモデル・取り込んだモデル・ナレッジベース・エージェント・
+  ガードレール・アプリケーションの推論プロファイル・AgentCore のランタイム）。PT があれば、その額で枠を決める
+- 数が 0 のサービスは `Checked, none here: ECS · …`、提供されていないリージョンは数えない（§14.4）、拒否されたものは
+  `Denied: dynamodb:ListTables`
+- 矢印キーで、その向きのいちばん近いタイルへ（分類をまたいで）。Enter で 2 段目
+- 中くらいの高さでは、タイルを **1 行 1 サービスの密な形**（名前・数・状態の線・忘れもの・額）に替える。cloud
+  プリセットの実際の高さで A と B が最初の画面に入り、密な形のタイルが続けて見えること
+
+**D. ELSEWHERE**（1 行。見ているリージョンの外にリソースがあるときだけ）: `us-west-2: 1 EC2 running, 1 volume ·
+ap-southeast-1: 1 NAT · read 11-05`。外のリージョンは describe だけなので、理由は `running 9 mo · use not read
+(region not shown)`。押すと 2 段目。手動の `check other regions now` を 2 段目に置く。
+
+**E. BILLED, NOT LISTED**（1 行）: `Billed this month, not read here: Amazon Kinesis $41.20 · AWS Glue $3.10 › COST`。
+請求メトリクスのサービス別（§3.1 の billsvc）を、**ServiceName → タイルの対応表**（`shared/aws/service-names.ts`、
+テストで縛る。AmazonEC2 は EC2・EBS・NAT・EIP、AmazonCloudWatch は Logs とアラーム、AmazonVPC は IPv4 と
+エンドポイント…）と突き合わせる。読まないと決めたもの（CloudTrail、KMS、Route 53、Config、税、Cost Explorer
+自身…）は**除外の表**に入れ、$1 未満は出さない。billing alerts が OFF なら出さない。新しい呼び出しは無い。
+
+**幅と高さ**（§6.1 と同じ境目）: wide はタイル 4 列、medium は 3 列で A の下の行を落とす、narrow は 2 列で B を 3 行・
+D と E を数だけに、short（30 rem 未満）は A と B だけ。
+
+### 14.3 「忘れていそう」の判定（純粋、`shared/aws/forgotten.ts`）
+
+- **理由は列挙**（`idle-cpu`・`stopped`・`unattached`・`no-traffic`・`no-requests`・`no-connections`・`empty`・
+  `unchanged`・`no-events`・`orphan-log-group`・`unused-capacity`・`dlq-backlog`・`no-subscribers`・`pt-unused`・
+  `empty-cluster`・`alarm-orphan`…）で返し、文・札・2 段目のファセットはそこから作る（文字列を分けて作らない）
+- **静かさの窓は種類ごとに違い、文に実際の窓を書く**: list-metrics は「過去 14 日にデータ点の無いメトリクスを返さない」
+  （CloudWatch の文書）ので `no data 14 d+`、main の記録でそれより長く言えるときは `no data since 10-02`。EC2 の CPU は
+  7 日。静かな日数の既定は 30 日（⚙ で 30 · 60 · 90）で、窓が 30 日に満たないものは確信度を下げて並べる
+- 「付いていない日数」（EBS・EIP）は、describe に外した時刻が無いので、**main が最初に付いていないのを見た日から**
+  数え、そう書く（`not attached since 11-01 (first seen)`）
+
+| 種類 | 判定 | 文の例 | 根拠 |
+|---|---|---|---|
+| EC2 | running で 14 日中 4 日以上「CPU 10% 以下かつ NetworkOut 5 MB 以下」（Trusted Advisor の低使用率と同じ形）／止めて 30 日超 | `low use 4 of 14 d · 0.4 % CPU`／`stopped 41 d · 100 GiB still billed` | CPU と NetworkOut の日ごと（1 件ずつ、お金のかかる候補だけ） |
+| EBS・EIP | 付いていない | `not attached since 11-01` | describe と main の記録 |
+| NAT | `BytesOutToDestination` のデータ点が無いか 0 | `no traffic 14 d+` | 1 件ずつ（0 でも出続けるメトリクス） |
+| ELB（ALB・NLB・Classic） | ターゲット 0（`describe-target-health`）／`RequestCount`・`ProcessedBytes` が 14 日データ無し | `no targets`／`no requests 14 d+` | list-metrics |
+| RDS | `DatabaseConnections` の 30 日の最大 0（保守的: 監視や複製で 1 以上になり見逃すが、誤検知は少ない） | `no connections 30 d` | 1 件ずつ |
+| EKS | ノードグループも Fargate プロファイルも無いクラスタ（制御プレーンだけが課金） | `no nodes · control plane billed` | `list-nodegroups`・`list-fargate-profiles` |
+| ECS | desired 0 のサービス、サービスの無いクラスタ（低い CPU は使わない: 小さなサービスでは普通） | `desired 0`／`empty cluster` | describe |
+| S3 | 一覧にあり容量のメトリクスが無い＝空（**見ているリージョンのバケットだけ**。外は `size not read (region not shown)`）／main の記録で容量と数が 90 日動かず、大半が STANDARD のまま（ライフサイクルが無い兆し） | `empty · created 2 y ago`／`unchanged since 08-10 · 12.4 TB in STANDARD` | list-buckets、s3size、main の記録 |
+| CloudWatch Logs | `/aws/lambda/<名>`・`/aws/rds/instance/<id>` などで、元のリソースがもう無い（**呼び出し 0 回で言える**）／`IncomingBytes` が 14 日データ無し、かつ保持が無期限 | `function gone · 38 GB kept forever`／`no events 14 d+ · 124 GB kept forever` | 名前の突き合わせ、list-metrics |
+| DynamoDB | プロビジョンドで `Consumed*` が 14 日データ無し（容量の分だけ課金）／オンデマンドで同じ | `provisioned 50/25, unused 14 d+`／`no reads or writes 14 d+` | list-metrics |
+| SQS | DLQ（`RedrivePolicy` で見分ける）にメッセージがたまっている → **ATTENTION の HEALTH（warn）**へ、忘れものではない／`NumberOfMessagesSent` が 14 日データ無し（SQS は 6 時間活動の無いキューのメトリクスを出さない: 無い＝0） | `2,140 in dead-letter queue`／`no messages 14 d+` | get-queue-attributes、list-metrics |
+| SNS | 購読 0／`NumberOfMessagesPublished` が 14 日データ無し | `no subscribers` | list-subscriptions（数だけ） |
+| API Gateway | REST は `Count`（ApiName）、HTTP は `Count`（ApiId）、**WebSocket は `ConnectCount`・`MessageCount`** が 14 日データ無し | `no requests 14 d+` | list-metrics |
+| CloudFront | `Requests`（us-east-1、`Region=Global`）が 14 日データ無しで有効のまま | `no requests 14 d+ · still enabled` | list-metrics |
+| Lambda | `Invocations` が 14 日データ無し（お金はかからない） | `not invoked 14 d+` | list-metrics |
+| Bedrock PT | InService で、その PT の呼び出しが見えない。**PT の呼び出しが ModelId 次元に PT の ARN として出るかは未確認**: list-metrics に PT の ARN か id が無ければ `use unknown` と書き、danger にしない。契約中は `commitment ends 12-03` を添える（契約期間中は消せない） | `PT billed by the hour · no calls seen 14 d+ · commitment ends 12-03` | list-provisioned-model-throughputs、list-metrics |
+| Bedrock カスタム・取り込んだモデル | 14 日呼ばれていない（保存の月額） | `custom model unused 14 d+` | list-metrics |
+| OpenSearch Serverless | **OCU はコレクションごとでなく、同じ KMS キーの群で共有**。群の OCU は `AWS/AOSS` の `SearchOCU`・`IndexingOCU`（アカウント単位）。コレクションは `SearchRequestRate` が 14 日データ無し | `no searches 14 d+ · shares 4 OCU with 1 collection` | list-metrics、batch-get-collection |
+| アラーム | 見ている次元のリソースが、もう一覧に無い（追加の呼び出し無し。1 本 $0.10/月、最初の 10 本は無料） | `watches i-0ab… which is gone` | `describe-alarms`（全状態） |
+
+- **並び**: これからの ≈ $/月が主、窓の確信度と静かな日数が従。額は ACTIVE と同じ単価の表（`list-prices.ts`）。
+  **PT の model unit の単価を表に足す**。足せない型は `not priced` とし、A の合計にそう書く
+- **KEEP**: B の行と 3 段目で「意図して置いている」と印を付けると B から外れる（タイルには残る）。ページは id だけを送り、
+  main は直前の一覧にあるものだけを受ける（新しい IPC、`registerTable` の 1 行）。印は `aws-inventory.json` に
+  アカウントとリソースごとに、付けた日とそのときの ≈ $ と一緒に持ち、**額が 2 倍を超えたら解いて出し直す**。数は
+  B の見出しに出し、⚙ で一覧と解除
+
+### 14.4 読み取り（§3.1 への追加）
+
+**原則**（レビューの指摘 1〜4）:
+
+- **使われているかは `cloudwatch list-metrics` でまとめて判定する**: 名前空間ごと・リージョンごとに 1〜2 回（500 件
+  ずつの頁）で、14 日データの無いリソースが全部分かる。1 件ずつの `get-metric-statistics` は、0 でも出続ける
+  メトリクス（RDS `DatabaseConnections`、NAT の `Bytes*`、EC2 の CPU と NetworkOut）で、しかもお金のかかる候補
+  だけ。それより長い静かさは、main が毎日の答えから「最後に list-metrics に出た日」を `aws-inventory.json` に持って
+  延ばす
+- **1 日・6 時間の読み取りはアカウントごと**に main が持ち、`aws-inventory.json` に残す（Cost Explorer の取り分けと
+  同じ形）。リージョンの違うペインが 2 枚でも、再起動しても、やり直さない
+- **CLI の枠の優先度**: 枠（2 本、両ペインで共有）に 2 段の優先度を付け、alarms・identity・health・trail と GITHUB
+  STATUS を先に通す。RESOURCES の一括の読み取りは同時 1 本まで。最初の 1 周は件数の list / describe を先、判定の
+  メトリクスを後にし、B は判定が揃うまで `judging… (within 10 min)` と出す
+- **提供されていないリージョン**: bedrock・bedrock-agent・bedrock-agentcore-control・opensearchserverless は提供の
+  無いリージョンがある。そこでの `Could not connect to the endpoint URL` を OFFLINE に数えない（errors.ts の
+  正規表現に当たるので、同じボードのほかの probe が通っているときは `not offered in this region` に分類し、PARTIAL
+  にも数えない）。テストを足す
+- 新しい費用の区分 **`metered-tiny`**（`PAID_PROBES` の paid ではない）: 固定の上限（月 31 回）、設定なし、利用者の
+  決定の日付を持つ。`s3api list-buckets` がこれ。台帳はこの区分で数え、カタログのテストを直す
+
+| probe | CLI（`--query` で残す欄） | 周期 | 費用 | 1 リージョンの回数 |
+|---|---|---|---|---|
+| buckets G | `s3api list-buckets --query Buckets[].[Name,CreationDate,BucketRegion]`（ディレクトリバケットは出ない。CreationDate は概算として扱い、実物で確かめる） | 1 日 | `metered-tiny`（S3 の LIST の単価で課金されるかは未確認、§3.7 で確かめる） | 1（G） |
+| loggroups R | `logs describe-log-groups --query logGroups[].[logGroupName,creationTime,retentionInDays,storedBytes,logGroupClass]` | 6 時間 | API の料金の行が料金表に無い（無料と考えるが未確認、**実装の前に確かめる**） | 1〜2 |
+| ddb R | `dynamodb list-tables` → お金のかかる候補（プロビジョンド）を知るための `describe-table`（`--query` で名前・状態・作成日・容量・件数・課金の方式・RCU・WCU・クラス） | 6 時間 | 無料 | 1 ＋ テーブル数（50 まで） |
+| ecs R | §3.1 の ecs（`describe-clusters` は数だけ、`describe-services` は desired と running） | 1 時間 | 無料 | 2〜4 |
+| eksnodes R | `eks list-nodegroups`・`list-fargate-profiles`（クラスタごと） | 1 日 | 無料 | クラスタ × 2 |
+| elbtg R | `elbv2 describe-target-groups` → `describe-target-health`（ターゲット 0 を知る）、`elb describe-load-balancers`（Classic） | 6 時間 | 無料 | 2 ＋ グループ数 |
+| sqs R | `sqs list-queues`（URL からキュー名だけ、アカウント ID は落とす）→ `get-queue-attributes --attribute-names ApproximateNumberOfMessages CreatedTimestamp RedrivePolicy` | 6 時間 | SQS の要求（月 100 万の無料枠） | 1 ＋ キュー数（50 まで） |
+| sns R | `sns list-topics`、`list-subscriptions --query Subscriptions[].TopicArn`（**宛先は main にも入れない**） | 6 時間 | 管理 API の料金は未確認（料金表の requests は publish と理解） | 2 |
+| apis R | `apigateway get-rest-apis`、`apigatewayv2 get-apis`（名前・種類・作成日） | 6 時間 | 無料 | 2 |
+| cloudfront G | `cloudfront list-distributions --query DistributionList.Items[].[Id,Enabled,Status,LastModifiedTime,Aliases.Items[0]]` | 6 時間 | 無料 | 1（G） |
+| bedrock R | `bedrock list-provisioned-model-throughputs`（`commitmentDuration`・`commitmentExpirationTime` も、1 時間）、`list-custom-models`、`list-imported-models`、`list-inference-profiles`（APPLICATION と SYSTEM_DEFINED: 表示名のため）、`list-foundation-models`（表示名、1 週）、`list-guardrails`、`bedrock-agent list-agents`、`list-knowledge-bases` → `get-knowledge-base`（ベクトルストアをつなぐ）、`bedrock-agentcore-control list-agent-runtimes` | 1・6 時間 | 無料 | 約 10 ＋ KB 数 |
+| aoss R | `opensearchserverless list-collections` → `batch-get-collection`（種類・状態・作成日・KMS キー） | 1 時間 | 無料 | 2 |
+| quiet R | `cloudwatch list-metrics` を名前空間とメトリクスごとに（AWS/Lambda Invocations、AWS/SQS NumberOfMessagesSent、AWS/SNS NumberOfMessagesPublished、AWS/ApiGateway Count・ConnectCount、AWS/ApplicationELB RequestCount、AWS/NetworkELB ProcessedBytes、AWS/Logs IncomingBytes、AWS/DynamoDB ConsumedReadCapacityUnits、AWS/AOSS SearchRequestRate、AWS/CloudFront Requests は us-east-1） | 1 日 | 無料枠 | 約 10〜15 |
+| bedrockuse **全リージョン** | `cloudwatch list-metrics --namespace AWS/Bedrock --metric-name Invocations`（クロスリージョン推論は呼んだ側に出るので、見ているリージョンの外も）→ 見つかったモデルだけ `Invocations`・`InputTokenCount`・`OutputTokenCount` の 30 日 | 1 日 | 無料枠 | 全リージョン × 1 ＋ モデル × 3 |
+| lastuse R | 0 でも出続けるメトリクスを、お金のかかる候補だけ 1 件ずつ（NAT、RDS、EC2 の CPU と NetworkOut） | 1 日 | 無料枠 | 候補の数（20 まで） |
+| sweep G | 見ていないリージョンごとに `ec2 describe-instances`（running の数と型）・`describe-volumes`・`describe-nat-gateways`・`describe-addresses`（4 種） | **週 1 回**（と手動）。SCP で拒否されたリージョンは黙って飛ばす | 無料 | 13 リージョン × 4 = 52 |
+
+- **回数と時間**（実測の 1 回 1.5〜3.5 秒、CPU 約 0.6 秒、decisions.md）: 1 リージョンの最初の 1 周は、今の約 36 回に
+  約 40〜60 回（テーブル・キューの数による）。4 リージョンで約 200 回、同時 1 本で **10 分前後**かけて読む（CPU は
+  2 分程度）。2 周目からは、1 時間あたり今の約 1.3 倍、1 日の読み取りは約 80 回。実装の後に実物で測り decisions.md に
+  書く。SLOW（×4）はこれにも効く
+- **CloudWatch の無料枠**: quiet・bedrockuse・lastuse で 1 日 約 150 回（4 リージョン）＝月 約 5,000 回。今の分と
+  合わせて月 100 万の約 4%
+- **GetMetricData を使えば**（1 回で 500 メトリクス、$0.01 / 1,000 メトリクス、月に数セント程度）1 件ずつの読み取りが
+  ほぼ無くなる。§3.4 で禁止しているので、使うかは利用者に尋ねる（§14.9-5）。黙って入れない
+- **Resource Explorer** は状態（running か）や大きさを返さないので sweep の代わりにならない。集約インデックスがある
+  ときだけ「どのリージョンを読むか」の絞り込みに使う
+- 拒否は今と同じく PARTIAL に操作名を出す。`ReadOnlyAccess` が AgentCore と aoss を含むかは未確認: 実装の前に
+  ポリシーの版で確かめる
+
+### 14.5 2 段目・3 段目
+
+- 新しいサービスごとに `DRILL` の定義（§5.5 の型）: ファセットと列
+  - CloudWatch Logs: 保持（never · 1 y · 30 d …）、クラス、保存量の区分、取り込み（14 d あり・無し）、元のリソース
+    （あり・無し）。列に **30 日の取り込みの推定額**（`IncomingBytes` の合計 × 単価。保管より大きいことが多い）
+  - S3: §5.5 に「作成日」「空」の列、ファセット `empty`
+  - DynamoDB: 課金の方式、テーブルのクラス、容量の区分、使用
+  - SQS: 種類（standard · fifo · DLQ）、待ち、使用
+  - SNS: 購読の数（0 · 1+）、使用
+  - API Gateway: 種類（REST · HTTP · WebSocket）、使用
+  - CloudFront: 有効、使用
+  - Bedrock: 種類、モデル、状態
+- **サービスをまたぐ一覧** `RESOURCES › FORGOTTEN`: ファセットはサービス・理由（列挙の語）・リージョン・課金、列は
+  名前・サービス・理由・quiet for・≈ $/mo
+- 3 段目: ランプの語はそのリソースの状態（ロググループなら `kept forever` や `30 d retention`。「listed」は使わない）、
+  `Quiet for` の行と根拠、KEEP。ロググループの RELATED に元の関数や RDS（あれば、無ければ `gone`）
+- ↗ のコンソールの URL を新しい種類ごとに `consoleUrl` へ（単体テストが全種類を確かめる、§7）
+
+### 14.6 ページに渡すもの・MASK
+
+- §10 と同じく `--query` が残した欄だけ。ログの中身、キューのメッセージ、SNS の宛先、Bedrock のプロンプトは読まない。
+  キューの URL はキュー名だけに、ARN はリソース名だけに main で削る
+- MASK の範囲は利用者に尋ねる（§14.9-4）: (a) RESOURCES のリソース名をすべて伏せる（スクリーンショットを共有する
+  用途）か、(b) ドメインらしい文字列（FQDN の正規表現）はどこでも伏せ、ほかは名前の種類の表で決めるか。どちらでも
+  hover のカード、NEW 7 D の副題、3 段目、トーストも対象。`mask.ts` の単体テストの一覧に足す
+
+### 14.7 設定（§8 への追加）
+
+このペイン: ELSEWHERE（ON · OFF、既定 ON、週 1 回）、静かな日数（30 · 60 · 90）。このアカウント: KEEP の一覧（解除できる）。
+
+### 14.8 テスト（§13 への追加）
+
+`forgotten.test.ts`（理由の列挙ごとの境目、窓の確信度、分からないときの文、額のしきい値で danger・warn、並び、
+KEEP と 2 倍での出し直し）、`inventory.test.ts`（タイルの数と状態の線、0 件・拒否・提供されていないリージョン、
+ELSEWHERE、NEW 7 D の基準日、Also here）、`service-names.test.ts`（ServiceName の対応と除外の表）、エンドポイントの
+失敗を OFFLINE にしない errors のテスト、カタログの argv（許す動詞に `list-buckets`・`describe-log-groups`・
+`list-metrics` の新しい名前空間だけを足す）、`metered-tiny` の区分、スケジューラの優先度と同時 1 本、
+アカウントごとの 1 日の読み取りが 2 枚のペインで 1 回、代役 `demo` に新しいサービスと忘れもの（`elsewhere`・
+`quiet`・`noregion` のモード）。component はタイルの格子とキーボード（矢印、戻ったときのフォーカス）。e2e は
+RESOURCES が既定のタブ、タイル → 2 段目 → 戻る、B の行 → 3 段目 → KEEP、ELSEWHERE。lifecycle の契約は変わらない。
+
+### 14.9 未決（利用者に尋ねる）
+
+1. **追加のサービス**（どれも無料の describe / list で 1 リージョン 1〜2 回、忘れて高くつくもの）。レビューの推奨は
+   最初の版に VPC のインターフェースエンドポイント、SageMaker（エンドポイント・ノートブック・Studio のアプリ）、
+   Classic ELB（§14.4 に入れた）、EKS の空のクラスタ（入れた）、EBS のスナップショットと AMI。後に回すもの:
+   ElastiCache、OpenSearch のドメイン、Redshift、Kinesis、TGW、VPN、Transfer Family、KMS、Route 53、ECR。
+   Secrets Manager は禁止のまま（メタデータでも同じ API 群で境界が曖昧になる）
+2. ELSEWHERE の掃引: 週 1 回（52 回）と手動、既定 ON でよいか
+3. KEEP の印を持つか（推奨: 持つ。額が 2 倍で出し直す）
+4. **MASK の範囲**: (a) すべてのリソース名、(b) ドメインらしいものと種類の表
+5. **GetMetricData を許すか**（月に数セント程度で、1 日の CLI の起動を 1 桁減らせる。今は §3.4 で禁止）
+6. **ATTENTION の COST の行のうち忘れものを、RESOURCES への 1 行の要約に替えるか**（3 か所に同じものが出るのを
+   やめる）
+7. 静かな日数の既定 30 日（窓は種類ごとに 7〜14 日、main の記録でそれより長く）でよいか
+8. CloudWatch Logs の Describe と SNS の管理 API の値段は公式の記載が見つからない（2026-11-08）。実装の前に確かめ、
+   有料なら外す
+
+### 14.10 レビューで直したもの（Opus 5.5、2026-11-08）
+
+読み取りの回数の見積もりが 1 桁小さかった（list-metrics でまとめる、アカウントごとに 1 日 1 回、枠の優先度、同時 1 本）、
+提供されていないリージョンが OFFLINE に見える、Bedrock の PT の判定の不確かさ・契約期間・単価・全リージョンの使用、
+OpenSearch Serverless の OCU は群で共有、見ていないリージョンの S3 が「空」に見える、`list-buckets` の費用の区分、
+Logs の判定（孤児のロググループ、IncomingBytes、lastIngestionTime）、SQS の最古のメッセージはメトリクスで DLQ は
+ATTENTION へ、SNS の宛先を入れない、WebSocket の API、Classic ELB とターゲット 0、ECS と EC2 の CPU だけの判定を
+やめる、空の EKS、BILLED NOT LISTED の対応表、並びを「これからの額」に、warn の色を額のしきい値に、1 段目の
+階層（SERVICES、Also here、quiet for）、理由の列挙、ELSEWHERE はメトリクスを読まない、NEW 7 D の基準、KEEP の
+IPC と数と出し直し、ATTENTION・ACTIVE との重複、MASK の範囲を問いに、権限の表（§9）、アラームの全状態、
+数字を button に、矢印とフォーカス、最初の表示の順。
