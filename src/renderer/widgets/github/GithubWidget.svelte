@@ -250,6 +250,14 @@ function leave(id: string): void {
 $effect(() => {
   if (!visible) resting.leave()
 })
+/** The view shown: a tab, or a repository drilled into. */
+const viewKey = $derived(`${choices.tab}:${choices.drill ?? ''}`)
+// A press that opens another view (a repository's tile) takes away the element under the
+// pointer, and an element taken away sends no pointerleave: its card goes with the view.
+$effect(() => {
+  void viewKey
+  resting.leave()
+})
 $effect(() => () => resting.dispose())
 
 function queueCard(item: QueueItem) {
@@ -402,7 +410,7 @@ const short = $derived(height < 30 * 16)
       </div>
     {/if}
 
-    {#key `${choices.tab}:${choices.drill ?? ''}`}
+    {#key viewKey}
       <div class="view crt-on" data-testid="github-view-{choices.tab}" onscroll={() => resting.leave()}>
         {#if board === null}
           <p class="empty">…</p>

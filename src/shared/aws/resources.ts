@@ -1005,9 +1005,18 @@ export const SERVICES = Object.keys(ROWS) as AwsService[]
 /** One service's resources in the pane's regions (and the global ones). */
 export const resourcesOf = (service: AwsService, r: AwsReadings): Res[] => ROWS[service](r)
 
-/** Every resource, by service. */
+const built = new WeakMap<AwsReadings, Map<AwsService, Res[]>>()
+
+/**
+ * Every resource, by service: built once a reading, since the view, the forgotten list, main's
+ * memory and the usage probes each take it from the same readings.
+ */
 export function allResources(r: AwsReadings): Map<AwsService, Res[]> {
-  return new Map(SERVICES.map((service) => [service, ROWS[service](r)]))
+  const known = built.get(r)
+  if (known !== undefined) return known
+  const all = new Map(SERVICES.map((service) => [service, ROWS[service](r)]))
+  built.set(r, all)
+  return all
 }
 
 /** The key a resource is remembered and kept by. */

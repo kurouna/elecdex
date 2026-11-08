@@ -1,4 +1,5 @@
 <script lang="ts">
+import { dayText } from '@shared/aws/facts'
 import { TILE } from '@shared/aws/inventory'
 import type {
   AwsList,
@@ -8,15 +9,12 @@ import type {
   ResourceTile,
 } from '@shared/aws/types'
 import { untrack } from 'svelte'
-import { afterBlink } from '../../lib/blink.ts'
-import { sfx } from '../../stores/sound.svelte.ts'
-import { toasts } from '../../stores/toasts.svelte.ts'
+import { keepRow } from './keep.ts'
 import {
   alsoText,
   bedrockUse,
   billedLine,
   type Card,
-  dayText,
   deniedLine,
   elsewhereLine,
   figuresText,
@@ -26,7 +24,6 @@ import {
   forgottenShown,
   groupSpan,
   HOURLY_NOTE,
-  keptToast,
   maskIn,
   nearestBox,
   noneLine,
@@ -128,16 +125,9 @@ function cardOn(id: string, event: PointerEvent | FocusEvent, make: () => Card):
 
 /* ---- LOOKS FORGOTTEN ---- */
 
-function keep(button: HTMLElement, row: ForgottenRow): void {
-  // The row leaves the list with the answer: the press blinks first (lib/blink.ts).
-  afterBlink(button, () => {
-    void window.elecdex.aws.keep(boardKey, row.key, true).then((done) => {
-      if (!done) return
-      sfx.play('folder')
-      toasts.show({ ...keptToast(row, masked), tone: 'ok' })
-    })
-  })
-}
+/** The row leaves the list with the answer. */
+const keep = (button: HTMLElement, row: ForgottenRow) =>
+  keepRow(button, boardKey, row, true, masked)
 
 /** Up and down between the rows, Enter opens one; the keep button inside keeps its own keys. */
 function onRowKey(event: KeyboardEvent, row: ForgottenRow): void {

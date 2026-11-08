@@ -68,7 +68,6 @@ export interface GmdState {
   used: number
   /** The cap stopped a reading this month: the judgement fell back to the free means. */
   capReached: boolean
-  readAt: number | null
 }
 
 export interface ResourceReadings {
@@ -103,6 +102,9 @@ export interface ResourceReadings {
   /** list-metrics per region; CloudFront's in us-east-1 is under `cloudfront`. */
   presence: PerRegion<Presence>
   cloudfrontPresence: Presence | null
+  /** When each list-metrics answer was read: the day a metric was last listed (§14.4). */
+  presenceAt: PerRegion<number>
+  cloudfrontPresenceAt: number | null
   /** Model ids with Bedrock Invocations in the last 14 days, in every enabled region. */
   bedrockUse: PerRegion<string[]>
   /** Daily values read per region (GetMetricData, or statistics as the fallback). */
@@ -158,12 +160,14 @@ export const emptyResourceReadings = (): ResourceReadings => ({
   alarmsAll: {},
   presence: {},
   cloudfrontPresence: null,
+  presenceAt: {},
+  cloudfrontPresenceAt: null,
   bedrockUse: {},
   usage: {},
   sweep: {},
   sweepAt: null,
   sweepOn: true,
   memory: emptyMemory(),
-  gmd: { on: true, cap: 100_000, used: 0, capReached: false, readAt: null },
+  gmd: { on: true, cap: 100_000, used: 0, capReached: false },
   judging: true,
 })

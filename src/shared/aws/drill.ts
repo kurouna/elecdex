@@ -1,6 +1,7 @@
 import { RESOURCE_DRILL, resourceRows } from './drill-resources.js'
 import { onExtendedSupport, stoppedAt } from './facts.js'
 import { forgotten, forgottenOf } from './forgotten.js'
+import { TILE } from './labels.js'
 import { HOURS_A_MONTH, prices } from './list-prices.js'
 import type { Instance } from './parse.js'
 import { type AwsReadings, type CpuWeek, everywhere } from './readings.js'
@@ -37,7 +38,7 @@ const ADDED = SERVICES.filter((s) => RESOURCE_DRILL[s] !== undefined)
 export const DRILL: Record<AwsService, DrillDef> = {
   ...(RESOURCE_DRILL as Record<AwsService, DrillDef>),
   ec2: {
-    label: 'EC2',
+    label: TILE.ec2.label,
     facets: [
       { key: 'activity', label: 'ACTIVITY' },
       { key: 'state', label: 'STATE' },
@@ -56,7 +57,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'monthly',
   },
   ebs: {
-    label: 'EBS',
+    label: TILE.ebs.label,
     facets: [
       { key: 'state', label: 'STATE' },
       { key: 'type', label: 'TYPE' },
@@ -73,7 +74,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'monthly',
   },
   eip: {
-    label: 'Public IPv4',
+    label: TILE.eip.label,
     facets: [{ key: 'associated', label: 'ASSOCIATED' }],
     columns: [
       { key: 'name', label: 'address', kind: 'text', masked: true },
@@ -83,7 +84,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'monthly',
   },
   s3: {
-    label: 'S3',
+    label: TILE.s3.label,
     facets: [
       { key: 'class', label: 'CLASS' },
       { key: 'size', label: 'SIZE' },
@@ -99,7 +100,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'monthly',
   },
   nat: {
-    label: 'NAT gateways',
+    label: TILE.nat.label,
     facets: [{ key: 'state', label: 'STATE' }],
     columns: [
       { key: 'name', label: 'name', kind: 'text' },
@@ -110,7 +111,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'monthly',
   },
   elb: {
-    label: 'Load balancers',
+    label: TILE.elb.label,
     facets: [
       { key: 'type', label: 'TYPE' },
       { key: 'scheme', label: 'SCHEME' },
@@ -124,7 +125,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'monthly',
   },
   rds: {
-    label: 'RDS',
+    label: TILE.rds.label,
     facets: [
       { key: 'engine', label: 'ENGINE' },
       { key: 'class', label: 'CLASS' },
@@ -140,7 +141,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'monthly',
   },
   eks: {
-    label: 'EKS',
+    label: TILE.eks.label,
     facets: [
       { key: 'version', label: 'VERSION' },
       { key: 'support', label: 'SUPPORT' },
@@ -154,7 +155,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'monthly',
   },
   lambda: {
-    label: 'Lambda',
+    label: TILE.lambda.label,
     facets: [
       { key: 'runtime', label: 'RUNTIME' },
       { key: 'memory', label: 'MEMORY' },
@@ -168,7 +169,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'modified',
   },
   stacks: {
-    label: 'CloudFormation',
+    label: TILE.stacks.label,
     facets: [{ key: 'status', label: 'STATUS' }],
     columns: [
       { key: 'name', label: 'stack', kind: 'text' },
@@ -179,7 +180,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'at',
   },
   acm: {
-    label: 'ACM',
+    label: TILE.acm.label,
     facets: [
       { key: 'type', label: 'TYPE' },
       { key: 'use', label: 'IN USE' },
@@ -192,7 +193,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     sort: 'expires',
   },
   alarms: {
-    label: 'Alarms',
+    label: TILE.alarms.label,
     facets: [{ key: 'namespace', label: 'NAMESPACE' }],
     columns: [
       { key: 'name', label: 'alarm', kind: 'text' },

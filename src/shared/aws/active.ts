@@ -5,8 +5,6 @@ import { HOURS_A_MONTH, PRICES_AS_OF, prices } from './list-prices.js'
 import { type AwsReadings, everywhere } from './readings.js'
 import type { ActiveService, ActiveView, AwsService, ForgottenReason } from './types.js'
 
-export { IDLE, isIdle } from './forgotten.js'
-
 /**
  * ACTIVE (aws.md §5.0): what is switched on and billing now, at list prices, the dearest first.
  * Pure: `activeCost(readings)`. Every figure is an estimate (≈): On-Demand list prices from the

@@ -35,6 +35,7 @@ import {
   VolumesSchema,
 } from '@shared/aws/parse'
 import type { AwsReadings, Certificate, CpuWeek, PerRegion } from '@shared/aws/readings'
+import { GLOBAL } from '@shared/aws/resources'
 import { parseTrail, TRAIL_MAX } from '@shared/aws/trail'
 import type { AwsBoardSpec, Budget, PlanView } from '@shared/aws/types'
 import type { CliResult, Probe, ProbeCost, RunCli } from '@shared/cloud-cli/probe'
@@ -50,8 +51,6 @@ import type { SharedReads } from './resource-probes.js'
  * secrets, Health, Support) has no entry - the catalog test holds every call to this file's and
  * resource-probes.ts's verbs. GetMetricData is RESOURCES' paid probe (aws.md §14.4a).
  */
-
-export const GLOBAL_REGION = 'us-east-1'
 
 export interface CostExplorerSettings {
   state: 'unasked' | 'on' | 'off' | 'later' | 'refused'
@@ -96,6 +95,11 @@ export interface AwsContext {
   refreshedAt(): number
   /** The EKS clusters of the last reading in a region. */
   clusterNames(region: string): string[]
+  /**
+   * Whether a call of this board in `region` reached AWS lately and none failed for the network
+   * since: what tells a region without a service from the network being down (aws.md §14.4).
+   */
+  reached(region: string): boolean
 }
 
 /** One AWS CLI call against the pane's profile in `region`. */
@@ -188,7 +192,7 @@ export const identityProbe: Probe<AwsContext, z.infer<typeof IdentitySchema> | n
     read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       ['sts', 'get-caller-identity', '--query', '{account:Account,arn:Arn}'],
       IdentitySchema,
     ),
@@ -203,7 +207,7 @@ const aliasProbe: Probe<AwsContext, { alias: string | null } | null> = {
     const alias = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       ['iam', 'list-account-aliases', '--query', 'AccountAliases[0]'],
       nullable(z.string()),
       true,
@@ -220,7 +224,7 @@ const summaryProbe: Probe<AwsContext, z.infer<typeof SummarySchema> | null> = {
     read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'iam',
         'get-account-summary',
@@ -237,13 +241,11 @@ const credentialsProbe: Probe<AwsContext, ReturnType<typeof parseCredentialRepor
   cost: 'free',
   run: async (ctx, cli) => {
     // Generating is asked first; a report still being made answers next time (six hours).
-    await cli(
-      awsCall(ctx, GLOBAL_REGION, ['iam', 'generate-credential-report', '--query', 'State'], true),
-    )
+    await cli(awsCall(ctx, GLOBAL, ['iam', 'generate-credential-report', '--query', 'State'], true))
     const content = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       ['iam', 'get-credential-report', '--query', 'Content'],
       z.string(),
       true,
@@ -266,7 +268,7 @@ export const billingProbe: Probe<
     const metrics = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'cloudwatch',
         'list-metrics',
@@ -292,7 +294,7 @@ export const billingProbe: Probe<
     const points = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'cloudwatch',
         'get-metric-statistics',
@@ -335,7 +337,7 @@ const billingServicesProbe: Probe<AwsContext, { name: string; usd: number }[] | 
     const metrics = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'cloudwatch',
         'list-metrics',
@@ -368,7 +370,7 @@ const billingServicesProbe: Probe<AwsContext, { name: string; usd: number }[] | 
       const points = await read(
         cli,
         ctx,
-        GLOBAL_REGION,
+        GLOBAL,
         [
           'cloudwatch',
           'get-metric-statistics',
@@ -411,7 +413,7 @@ const budgetsProbe: Probe<AwsContext, Budget[] | null> = {
     const rows = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'budgets',
         'describe-budgets',
@@ -442,7 +444,7 @@ const planProbe: Probe<AwsContext, PlanView | null> = {
     const state = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       ['freetier', 'get-account-plan-state'],
       PlanStateSchema,
       true,
@@ -460,7 +462,7 @@ const planProbe: Probe<AwsContext, PlanView | null> = {
     const usage = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'freetier',
         'get-free-tier-usage',
@@ -495,7 +497,7 @@ const domainsProbe: Probe<
     const rows = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'route53domains',
         'list-domains',
@@ -524,7 +526,7 @@ const savingsProbe: Probe<
     const rows = await read(
       cli,
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'savingsplans',
         'describe-savings-plans',
@@ -930,7 +932,7 @@ export const certificatesProbe: Probe<AwsContext, PerRegion<Certificate[]>> = {
   after: 'setup',
   run: async (ctx, cli, previous) => {
     const out: PerRegion<Certificate[]> = {}
-    for (const region of [...new Set([...ctx.regions(), GLOBAL_REGION])]) {
+    for (const region of [...new Set([...ctx.regions(), GLOBAL])]) {
       const rows = await read(
         cli,
         ctx,
@@ -946,7 +948,7 @@ export const certificatesProbe: Probe<AwsContext, PerRegion<Certificate[]>> = {
           'CertificateSummaryList[].{arn:CertificateArn,d:DomainName,t:Type,exp:NotAfter,use:InUse,k:KeyAlgorithm,s:Status}',
         ],
         CertificatesSchema,
-        region === GLOBAL_REGION && !ctx.regions().includes(GLOBAL_REGION),
+        region === GLOBAL && !ctx.regions().includes(GLOBAL),
       )
       out[region] =
         rows === null
@@ -1233,7 +1235,7 @@ async function readCostExplorer(ctx: AwsContext, cli: RunCli): Promise<CostExplo
   const month = await cli(
     awsCall(
       ctx,
-      GLOBAL_REGION,
+      GLOBAL,
       [
         'ce',
         'get-cost-and-usage',
@@ -1263,7 +1265,7 @@ async function readCostExplorer(ctx: AwsContext, cli: RunCli): Promise<CostExplo
   const forecast = await read(
     cli,
     ctx,
-    GLOBAL_REGION,
+    GLOBAL,
     [
       'ce',
       'get-cost-forecast',

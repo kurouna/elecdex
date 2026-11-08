@@ -218,6 +218,67 @@ describe('NEW 7 D and the memory', () => {
     expect(after.firstAt.ebs).toBe(NOW)
   })
 
+  it('keeps "unattached since" until its kind is read again in its region and it is attached', () => {
+    const before = {
+      ...emptyMemory(),
+      unattached: {
+        [`ebs:${R}:vol-1`]: NOW - 9 * DAY,
+        [`ebs:${R}:vol-2`]: NOW - 9 * DAY,
+        'ebs:us-east-1:vol-far': NOW - 9 * DAY,
+        [`eip:${R}:eipalloc-1`]: NOW - 9 * DAY,
+      },
+    }
+    // After a restart the volumes and addresses have not read yet: nothing is forgotten.
+    expect(memoryAfter(readings({}, { memory: before }), before).unattached).toEqual(
+      before.unattached,
+    )
+    // Read: vol-1 is attached now, vol-2 still loose since its first day; the region not
+    // shown and the addresses not read keep theirs.
+    const r = readings(
+      { volumes: { [R]: [volume('vol-1', 'in-use'), volume('vol-2', 'available')] } },
+      { memory: before },
+    )
+    expect(memoryAfter(r, before).unattached).toEqual({
+      [`ebs:${R}:vol-2`]: NOW - 9 * DAY,
+      'ebs:us-east-1:vol-far': NOW - 9 * DAY,
+      [`eip:${R}:eipalloc-1`]: NOW - 9 * DAY,
+    })
+  })
+
+  it("marks a bucket gone only when the account's list has it no more, whatever the pane's regions", () => {
+    const before = {
+      ...emptyMemory(),
+      seen: { 's3:us-west-2:far': NOW - 40 * DAY, [`s3:${R}:old`]: NOW - 40 * DAY },
+    }
+    const r = readings(
+      {},
+      {
+        buckets: [
+          ['far', iso(NOW - 900 * DAY), 'us-west-2'],
+          ['here', iso(NOW - 900 * DAY), R],
+        ],
+        memory: before,
+      },
+    )
+    const after = memoryAfter(r, before)
+    expect(Object.keys(after.gone)).toEqual([`s3:${R}:old`])
+    expect(after.seen['s3:us-west-2:far']).toBe(NOW - 40 * DAY)
+  })
+
+  it("stamps a metric's last listing with list-metrics' own time, so a later build changes nothing", () => {
+    const listedAt = NOW - 3 * 3_600_000
+    const r = readings(
+      { functions: { [R]: [{ name: 'f', runtime: null, memory: null, modified: NOW }] } },
+      {
+        presence: { [R]: { 'AWS/Lambda Invocations': [[{ Name: 'FunctionName', Value: 'f' }]] } },
+        presenceAt: { [R]: listedAt },
+      },
+    )
+    const once = memoryAfter(r, emptyMemory())
+    expect(Object.values(once.lastMetric)).toEqual([listedAt])
+    expect(memoryAfter({ ...r, now: NOW + 60_000 }, once)).toEqual(once)
+  })
+
   it("keeps a bucket's size history: a change starts it again, a wobble does not", () => {
     const r = (bytes: number, s3: Record<string, { bytes: number; since: number }>) =>
       readings(

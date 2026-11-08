@@ -1,4 +1,4 @@
-import { AWS_LIMITS } from './facts.js'
+import { AWS_LIMITS, dayText } from './facts.js'
 import type { Presence, Series } from './parse-resources.js'
 import type { AwsReadings, CpuWeek } from './readings.js'
 import { allResources, elsewhereRows, type Res, readIn, resKey } from './resources.js'
@@ -18,7 +18,6 @@ import type { AwsService, ForgottenReason, ForgottenRow, Weight } from './types.
 
 const DAY = 86_400_000
 const days = (ms: number) => Math.floor(ms / DAY)
-const mmdd = (at: number) => new Date(at).toISOString().slice(5, 10)
 
 /** IDLE when GetMetricData is off: a running instance's 7-day CPU under both (ACTIVE's rule). */
 export const IDLE = { avgPercent: 2, maxPercent: 10 } as const
@@ -158,7 +157,7 @@ function presenceUse(
   return {
     state: 'quiet',
     window: longer ? days(now - lastSeen) : 14,
-    quietFor: longer ? `since ${mmdd(lastSeen)}` : '14 d+',
+    quietFor: longer ? `since ${dayText(lastSeen)}` : '14 d+',
     source: `${spec.ns} ${spec.metric} not in list-metrics (no data point in 14 d)`,
   }
 }
@@ -447,12 +446,12 @@ function unattached(x: Res, c: Ctx): Finding | null {
   return {
     reason: 'unattached',
     billed: true,
-    quietFor: `since ${mmdd(since)}`,
+    quietFor: `since ${dayText(since)}`,
     window: days(c.r.now - since),
     cost: x.monthly,
     notPriced: x.monthly === null,
     source: `${x.service === 'ebs' ? 'describe-volumes · state available' : 'describe-addresses · no association'} · first seen by elecdex`,
-    facts: { since: mmdd(since), ...(gib === null ? {} : { gib }) },
+    facts: { since: dayText(since), ...(gib === null ? {} : { gib }) },
   }
 }
 
@@ -502,12 +501,12 @@ function s3(x: Res, c: Ctx): Finding | null {
   return {
     reason: 'unchanged',
     billed: true,
-    quietFor: `since ${mmdd(kept.since)}`,
+    quietFor: `since ${dayText(kept.since)}`,
     window: d,
     cost: x.monthly,
     source:
       "BucketSizeBytes flat since then (elecdex's own record) · mostly STANDARD, no lifecycle seen",
-    facts: { since: mmdd(kept.since), size: gbText(bytes / 1024 ** 3) },
+    facts: { since: dayText(kept.since), size: gbText(bytes / 1024 ** 3) },
   }
 }
 
@@ -618,7 +617,7 @@ function provisionedThroughput(x: Res, c: Ctx, called: readonly string[]): Findi
     notPriced: true,
     source:
       'neither its id nor its base model in AWS/Bedrock Invocations (list-metrics, every enabled region)',
-    facts: { quiet: '14 d+', ...(ends !== null && ends > c.r.now ? { ends: mmdd(ends) } : {}) },
+    facts: { quiet: '14 d+', ...(ends !== null && ends > c.r.now ? { ends: dayText(ends) } : {}) },
   }
 }
 
@@ -914,7 +913,6 @@ function rowOf(x: Res, f: Finding): ForgottenRow {
     notPriced: f.billed && (f.notPriced === true || f.cost === null),
     weight: weightOf(f.billed, f.cost),
     source: f.source,
-    reshown: false,
   }
 }
 
@@ -945,7 +943,7 @@ export interface ForgottenList {
   rows: ForgottenRow[]
   /** Marked KEEP and still under twice their amount then. */
   kept: ForgottenRow[]
-  /** KEEP marks to take off: their ≈ $ more than doubled (their rows are in `rows`, `reshown`). */
+  /** KEEP marks to take off: their ≈ $ more than doubled (their rows are back in `rows`). */
   released: string[]
 }
 
@@ -1000,7 +998,7 @@ export function applyKeep(
     if (mark === undefined) shown.push(row)
     else if ((row.monthly ?? 0) > mark.usd * AWS_LIMITS.keepReshow && (row.monthly ?? 0) > 0) {
       released.push(row.key)
-      shown.push({ ...row, reshown: true })
+      shown.push(row)
     } else kept.push(row)
   }
   return { rows: shown, kept, released }

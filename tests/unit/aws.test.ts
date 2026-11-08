@@ -6,13 +6,15 @@ import {
   freshAccount,
   rolled,
 } from '../../src/main/aws/billing-store'
+import { memoryInventory } from '../../src/main/aws/inventory-store'
 import { AWS_PROBES, costExplorerDue, openPorts } from '../../src/main/aws/probes'
+import { ResourceAccounts } from '../../src/main/aws/resource-accounts'
 import { batches, GMD_MAX_CHARS, GMD_MAX_QUERIES } from '../../src/main/aws/resource-probes'
 import { AwsService, BOARD_PROBES, type CloudAlert } from '../../src/main/aws/service'
 import { concurrencyLimit } from '../../src/main/cloud-cli/scheduler'
 import { stubAws } from '../../src/main/cloud-cli/stub-aws'
-import { activeCost, isIdle } from '../../src/shared/aws/active'
-import { attention, stoppedAt } from '../../src/shared/aws/attention'
+import { activeCost } from '../../src/shared/aws/active'
+import { attention } from '../../src/shared/aws/attention'
 import { billingMonth, quotaCrossed } from '../../src/shared/aws/billing'
 import {
   awsBoardKey,
@@ -24,6 +26,8 @@ import {
 import { changesSince } from '../../src/shared/aws/changes'
 import { consoleUrl, isConsoleUrl } from '../../src/shared/aws/console-url'
 import { DRILL, facets, filterRows, sortRows } from '../../src/shared/aws/drill'
+import { stoppedAt } from '../../src/shared/aws/facts'
+import { isIdle } from '../../src/shared/aws/forgotten'
 import { parseCredentialReport, parseWith } from '../../src/shared/aws/parse'
 import {
   BucketListSchema,
@@ -1099,12 +1103,98 @@ describe('RESOURCES on the stand-in AWS CLI (aws.md §14)', () => {
     ])
   })
 
+  it('keeps Bedrock and its Provisioned Throughput offline: no other call reached the region, so nothing is "not offered"', async () => {
+    const s = service('demo')
+    s.aws.watch(KEY)
+    await s.flush()
+    const pts = () =>
+      s.last()?.resources.bedrock?.placed.find((p) => p.kind === 'pt')?.count ?? null
+    expect(pts()).toBe(1)
+    // The network goes: AWS CLI says the very words it says where Bedrock has no endpoint.
+    s.setMode('offline')
+    s.later(7 * 3_600_000)
+    s.aws.refresh(KEY)
+    await s.flush()
+    expect(s.last()?.link).toBe('offline')
+    expect(s.last()?.resources.notOffered).toEqual([])
+    expect(pts()).toBe(1)
+    expect(s.last()?.resources.none).not.toContain('bedrock')
+  })
+
+  it('reads GetMetricData and the bucket list again only for their period, never for REFRESH', async () => {
+    const s = service('demo')
+    s.aws.watch(KEY)
+    await s.flush()
+    const count = () => ({
+      gmd: verbs(s.calls, 'cloudwatch get-metric-data').length,
+      buckets: verbs(s.calls, 's3api list-buckets').length,
+      logs: verbs(s.calls, 'logs describe-log-groups').length,
+    })
+    const before = count()
+    expect(before.gmd).toBeGreaterThan(0)
+    expect(before.buckets).toBe(1)
+    s.later(6 * 60_000)
+    s.aws.refresh(KEY)
+    await s.flush()
+    const after = count()
+    expect(after.gmd).toBe(before.gmd)
+    expect(after.buckets).toBe(before.buckets)
+    // A free list is read again for the press.
+    expect(after.logs).toBeGreaterThan(before.logs)
+  })
+
+  it('keeps GMD CAP REACHED for the same cap sent again, and lets the month go on for a raised one', async () => {
+    const s = service(
+      'demo',
+      withBilling((a) => ({ ...a, gmd: { ...a.gmd, used: 99_990 } })),
+    )
+    s.aws.watch(KEY)
+    await s.flush()
+    expect(s.last()?.resources.gmd.capReached).toBe(true)
+    // ⚙ sends the cap with every press, ON or OFF alike.
+    expect(s.aws.metricData(KEY, { on: true, cap: 100_000 })).toBe(true)
+    expect(s.last()?.resources.gmd.capReached).toBe(true)
+    expect(s.aws.metricData(KEY, { on: false, cap: 100_000 })).toBe(true)
+    expect(s.last()?.resources.gmd.capReached).toBe(true)
+    expect(s.aws.metricData(KEY, { on: true, cap: 500_000 })).toBe(true)
+    expect(s.last()?.resources.gmd.capReached).toBe(false)
+  })
+
   it('says nothing looks forgotten on a tidy account', async () => {
     const s = service('quiet')
     s.aws.watch(KEY)
     await s.flush()
     expect(s.last()?.resources.forgotten).toEqual([])
     expect(s.last()?.attention.some((a) => a.id === 'cost:forgotten')).toBe(false)
+  })
+})
+
+describe("RESOURCES' readings of every region (aws.md §14.4)", () => {
+  it('takes a region disabled since, or not read for long, neither for ELSEWHERE nor for Bedrock', () => {
+    const now = Date.UTC(2026, 10, 8, 3)
+    const inventory = memoryInventory()
+    let file: BillingFile = {}
+    const accounts = new ResourceAccounts({
+      inventory,
+      billing: billingStore({ load: () => file, save: (next) => (file = next) }, () => now),
+      now: () => now,
+    })
+    const day = 86_400_000
+    const sweep = { instances: [], volumes: [], nats: [], addresses: [] }
+    inventory.write(ACME, 'res-regions', 'global', [R, 'us-west-2', 'eu-west-1'], now - day)
+    // us-west-2 is enabled and read lately; eu-west-1 read two months ago; me-south-1 since disabled.
+    for (const [region, at] of [
+      ['us-west-2', now - day],
+      ['eu-west-1', now - 60 * day],
+      ['me-south-1', now - day],
+    ] as const) {
+      inventory.write(ACME, 'res-sweep', region, sweep, at)
+      inventory.write(ACME, 'res-bedrockuse', region, ['amazon.titan-embed-text-v2:0'], at)
+    }
+    const r = accounts.readings(ACME, [R], false)
+    expect(Object.keys(r.sweep)).toEqual(['us-west-2'])
+    expect(Object.keys(r.bedrockUse)).toEqual(['us-west-2'])
+    expect(Object.keys(r.usage).sort()).toEqual([R, 'us-west-2'])
   })
 })
 

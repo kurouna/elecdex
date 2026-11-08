@@ -1,13 +1,13 @@
 <script lang="ts">
 import { type DrillPlace, isAwsService, itemOf, listItem } from '@shared/aws/board'
 import { DRILL, type DrillColumn, facets, filterRows, sortRows } from '@shared/aws/drill'
+import { dayText } from '@shared/aws/facts'
 import type { AwsService, DrillItem, DrillRow, HistoryEvent } from '@shared/aws/types'
-import { afterBlink } from '../../lib/blink.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
-import { toasts } from '../../stores/toasts.svelte.ts'
 import { ageText, clockText, MASKED } from '../cloud/cloud-view.ts'
 import { dateCell, gibText, money } from './aws-view.ts'
-import { dayText, drillDef, keptToast, maskIn, shownName } from './resources-view.ts'
+import { keepRow } from './keep.ts'
+import { drillDef, maskIn, shownName } from './resources-view.ts'
 
 /**
  * The drill-down's second and third steps (docs/aws.md §5): a service's facet bars and its list,
@@ -194,14 +194,9 @@ const shown = (name: string, i: number, row: DrillRow) =>
 function keep(button: HTMLElement, on: boolean): void {
   const row = item?.forgotten
   if (row == null) return
-  // Kept or not changes what the step shows: the press blinks first (lib/blink.ts).
-  afterBlink(button, () => {
-    void window.elecdex.aws.keep(boardKey, row.key, on).then((done) => {
-      if (!done) return
-      sfx.play('folder')
-      if (on) toasts.show({ ...keptToast(row, masked), tone: 'ok' })
-      kept += 1
-    })
+  // Kept or not changes what the step shows: it is read again once main took the press.
+  keepRow(button, boardKey, row, on, masked, () => {
+    kept += 1
   })
 }
 

@@ -201,7 +201,9 @@ async function costs() {
   await page.getByTestId('aws-settings').waitFor()
   await wait(3600)
   await press(page.getByTestId('aws-settings-toggle'))
-  await caption('The foot counts every call: free, free tier and paid - read only, only while shown')
+  await caption(
+    'The foot counts every call: free, free tier and paid - read only, only while shown',
+  )
   await page.getByTestId('aws-foot').hover()
   await wait(3200)
   await away()

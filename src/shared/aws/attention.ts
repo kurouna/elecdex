@@ -3,8 +3,6 @@ import { forgotten } from './forgotten.js'
 import { type AwsReadings, type Certificate, everywhere } from './readings.js'
 import type { AttentionItem, AwsService, Weight } from './types.js'
 
-export { AWS_LIMITS, onExtendedSupport, stoppedAt } from './facts.js'
-
 /**
  * ATTENTION (aws.md §4.1): what the account's readings say needs someone, heaviest first. Pure;
  * the limits have names, and each row's card says the one it met.
@@ -426,13 +424,16 @@ const extendedFindings = (r: AwsReadings): AttentionItem[] =>
  * §14.1): the count of the billed ones and their ≈ $ a month, judged by forgotten.ts alone so
  * ATTENTION, ACTIVE and RESOURCES agree. Nothing billed, no line.
  */
+/** ATTENTION's one line of what looks forgotten: the page opens the list from it. */
+export const FORGOTTEN_ID = 'cost:forgotten'
+
 export function forgottenSummary(r: AwsReadings): AttentionItem | null {
   const rows = forgotten(r).rows.filter((row) => row.billed)
   if (rows.length === 0) return null
   const usd = rows.reduce((sum, row) => sum + (row.monthly ?? 0), 0)
   const unpriced = rows.filter((row) => row.notPriced).length
   return finding({
-    id: 'cost:forgotten',
+    id: FORGOTTEN_ID,
     weight: usd >= AWS_LIMITS.forgottenDangerUsd ? 'danger' : 'warn',
     tag: 'COST',
     title: `${rows.length} look forgotten · ≈ ${usdText(usd)}/mo${unpriced > 0 ? ` + ${unpriced} not priced` : ''} › RESOURCES`,

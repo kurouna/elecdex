@@ -1,3 +1,4 @@
+import type { ColumnKind, DrillColumn, DrillDef } from './drill.js'
 import { forgotten, seriesKey, USE, useOf } from './forgotten.js'
 import { changes7d } from './inventory.js'
 import { TILE } from './labels.js'
@@ -12,17 +13,8 @@ import type { AwsList, AwsService, DrillRow } from './types.js'
  * model (resources.ts), so a tile's count and its list never disagree.
  */
 
-type ColumnKind = 'text' | 'num' | 'money' | 'date' | 'gib'
-
-export interface ResourceDrillDef {
-  label: string
-  facets: { key: string; label: string }[]
-  columns: { key: string; label: string; kind: ColumnKind; masked?: boolean }[]
-  sort: string
-}
-
 const f = (key: string, label: string) => ({ key, label })
-const c = (key: string, label: string, kind: ColumnKind = 'text', masked = false) =>
+const c = (key: string, label: string, kind: ColumnKind = 'text', masked = false): DrillColumn =>
   masked ? { key, label, kind, masked: true } : { key, label, kind }
 const NAME = (label: string) => c('name', label, 'text', true)
 const MONEY = c('monthly', '≈ $/month', 'money')
@@ -30,12 +22,12 @@ const USE_COL = c('use', 'use', 'text')
 
 const def = (
   service: AwsService,
-  facets: ResourceDrillDef['facets'],
-  columns: ResourceDrillDef['columns'],
+  facets: DrillDef['facets'],
+  columns: DrillDef['columns'],
   sort = 'monthly',
-): ResourceDrillDef => ({ label: TILE[service].label, facets, columns, sort })
+): DrillDef => ({ label: TILE[service].label, facets, columns, sort })
 
-export const RESOURCE_DRILL: Partial<Record<AwsService, ResourceDrillDef>> = {
+export const RESOURCE_DRILL: Partial<Record<AwsService, DrillDef>> = {
   ecs: def(
     'ecs',
     [f('kind', 'KIND'), f('launch', 'LAUNCH'), f('state', 'STATE')],
@@ -263,7 +255,7 @@ export const RESOURCE_DRILL: Partial<Record<AwsService, ResourceDrillDef>> = {
 }
 
 /** The lists across services (aws.md §14.5). */
-export const LIST_DRILL: Record<AwsList, ResourceDrillDef> = {
+export const LIST_DRILL: Record<AwsList, DrillDef> = {
   forgotten: {
     label: 'Looks forgotten',
     facets: [

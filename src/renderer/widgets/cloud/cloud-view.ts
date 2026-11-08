@@ -46,7 +46,11 @@ export function clockText(at: number | null): string {
 export function ledgerLine(ledger: LedgerSummary, tool: 'aws' | 'gh'): string {
   const parts = [`requests today ${ledger.requests}`]
   if (tool === 'gh') parts.push(`304 free ${ledger.notModified}`)
-  else parts.push(`free ${ledger.free}`, `free tier ${ledger.freeTier}`)
+  else {
+    parts.push(`free ${ledger.free}`, `free tier ${ledger.freeTier}`)
+    // S3's ListBuckets is metered (a fixed cap of 31 a month): counted on its own when it ran.
+    if (ledger.meteredTiny > 0) parts.push(`metered ${ledger.meteredTiny}`)
+  }
   // GetMetricData is counted by the metric, not the request (aws.md §14.4a): its own figure.
   const paid = [`paid APIs ${ledger.paidRequests}`]
   if (ledger.paidMetrics > 0) paid.push(`GMD ${ledger.paidMetrics.toLocaleString('en-US')} metrics`)

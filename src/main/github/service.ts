@@ -41,6 +41,7 @@ import type {
   RepoTile,
 } from '@shared/github/types'
 import type { TimerDeps } from '../boundary-timer.js'
+import { evictStopped, gapLeft, REFRESH_GAP_MS } from '../cloud-cli/boards.js'
 import { ProbeScheduler } from '../cloud-cli/scheduler.js'
 import { type GhContext, GITHUB_PROBES, type InboxReading, type ReposReading } from './probes.js'
 
@@ -74,21 +75,6 @@ interface Board {
   ledger: LedgerState
   refreshedAt: number
   detail: Map<string, RepoDetail>
-}
-
-const REFRESH_GAP_MS = 30_000
-
-/**
- * Boards kept for a quick showing again: the stopped ones beyond a few go, oldest first, so a
- * pane whose key changes (regions, repositories) does not leave every old board in memory.
- */
-const KEPT_BOARDS = 6
-
-function evictStopped(boards: Map<string, { scheduler: { active: boolean } }>): void {
-  for (const [key, board] of boards) {
-    if (boards.size <= KEPT_BOARDS) return
-    if (!board.scheduler.active) boards.delete(key)
-  }
 }
 
 export class GithubService {
@@ -151,7 +137,7 @@ export class GithubService {
   refresh(key: string): number {
     const board = this.#boards.get(key)
     if (board === undefined || !board.scheduler.active) return 0
-    const left = board.refreshedAt + REFRESH_GAP_MS - this.#deps.now()
+    const left = gapLeft(board.refreshedAt, this.#deps.now())
     if (left > 0) return left
     board.refreshedAt = this.#deps.now()
     board.scheduler.refresh()

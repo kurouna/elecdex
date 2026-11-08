@@ -1,4 +1,5 @@
 import type { CliCall, CliResult, RunCli } from '@shared/cloud-cli/probe'
+import { DAY, HOUR, iso, result } from './stub-common.js'
 
 /**
  * A stand-in gh for tests and screenshots (`ELECDEX_CLOUD_STUB`): never the real CLI, never the
@@ -10,35 +11,16 @@ import type { CliCall, CliResult, RunCli } from '@shared/cloud-cli/probe'
 type Mode = 'demo' | 'signedout' | 'nocli' | 'offline' | 'ratelow' | 'finegrained'
 
 const ME = 'octo-aki'
-const HOUR = 3_600_000
-const DAY = 24 * HOUR
 
-const ok = (stdout: string): CliResult => ({
-  ok: true,
-  code: 0,
-  stdout,
-  stderr: '',
-  missing: false,
-  timedOut: false,
-  tooLarge: false,
-})
-const fail = (stderr: string, stdout = ''): CliResult => ({
-  ok: false,
-  code: 1,
-  stdout,
-  stderr,
-  missing: false,
-  timedOut: false,
-  tooLarge: false,
-})
+/** gh answers its text as it is; a failure ends with 1. */
+const ok = (stdout: string): CliResult => result(true, stdout)
+const fail = (stderr: string, stdout = ''): CliResult => result(false, stdout, stderr, 1)
 const http = (status: number, body: unknown, headers: Record<string, string> = {}): string =>
   `HTTP/2.0 ${status} ${status === 200 ? 'OK' : status === 304 ? 'Not Modified' : 'Forbidden'}\r\n${Object.entries(
     headers,
   )
     .map(([k, v]) => `${k}: ${v}\r\n`)
     .join('')}\r\n${status === 304 ? '' : JSON.stringify(body)}`
-
-const iso = (ms: number) => new Date(ms).toISOString()
 
 const REPOS = [
   {

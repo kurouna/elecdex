@@ -267,8 +267,6 @@ export interface ForgottenRow {
   weight: Weight
   /** What it was judged by, for the card ("AWS/NATGateway · no data point in 14 d"). */
   source: string
-  /** Its KEEP was taken off: its ≈ $ more than doubled since it was marked. */
-  reshown: boolean
 }
 
 export type TileGroup =
@@ -322,10 +320,8 @@ export interface BedrockTile {
     id: string
     name: string
     /** 30 days, when GetMetricData or the statistics read them; null when only seen listed. */
-    invocations: number | null
     tokensIn: number | null
     tokensOut: number | null
-    regions: string[]
   }[]
   placed: {
     kind: 'pt' | 'custom' | 'imported' | 'kb' | 'agent' | 'guardrail' | 'profile' | 'runtime'
@@ -376,10 +372,8 @@ export interface ResourcesView {
     used: number
     usd: number
     capReached: boolean
-    readAt: number | null
   }
   quietDays: number
-  prices: { asOf: string }
 }
 
 export interface AwsBoard {

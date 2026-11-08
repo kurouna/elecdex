@@ -4,6 +4,7 @@ import type { Usage } from '@shared/aws/parse-resources'
 import type { AwsReadings, PerRegion } from '@shared/aws/readings'
 import { emptyResourceReadings, type ResourceReadings } from '@shared/aws/resource-readings'
 import type { ForgottenRow } from '@shared/aws/types'
+import { DAY } from '@shared/cloud-cli/probe'
 import type { z } from 'zod'
 import type { BillingStore } from './billing-store.js'
 import type { InventoryStore } from './inventory-store.js'
@@ -19,12 +20,17 @@ import { GLOBAL_KEY, type SharedReads, STORED } from './resource-probes.js'
 type StoredId = keyof typeof STORED
 type StoredValue<K extends StoredId> = z.infer<(typeof STORED)[K]>
 
+/**
+ * How old a reading of a region outside the board's own may be and still count: twice the
+ * probe's period under SLOW. Older, the region was disabled or left the sweep, and its answer is
+ * no longer the account's (ELSEWHERE's rows, Bedrock's use and the GetMetricData it asks for).
+ */
+const KEPT_FOR = { 'res-bedrockuse': 8 * DAY, 'res-sweep': 56 * DAY } as const
+
 export class ResourceAccounts {
   readonly #inventory: InventoryStore
   readonly #billing: BillingStore
   readonly #now: () => number
-  /** `account|probe|region` readings under way. */
-  readonly #reading = new Set<string>()
   /**
    * Each account's changes counted, and the readings put together at a count: a board is built
    * after every probe, and putting the readings back checks every kept value against its schema.
@@ -42,27 +48,26 @@ export class ResourceAccounts {
     this.#now = deps.now
   }
 
-  /** The per-account readings a board's probes go through. */
+  /** The account's count of changes: what a board's readings were put together at. */
+  version(account: string | null): number {
+    return account === null ? 0 : (this.#version.get(account) ?? 0)
+  }
+
+  /**
+   * The per-account readings a board's probes go through. No claim is needed: every shared
+   * probe runs in AwsService's one-at-a-time bulk lane, so two boards never read one at once,
+   * and the second finds the first's answer in the store.
+   */
   shared(account: string, changed: () => void): SharedReads {
     const inventory = this.#inventory
     const billing = this.#billing
     const now = this.#now
-    const claimKey = (probe: string, region: string) => `${account}|${probe}|${region}`
     return {
       get: (probe, region, schema) => inventory.read(account, probe, region, schema),
-      claim: (probe, region) => {
-        const key = claimKey(probe, region)
-        if (this.#reading.has(key)) return false
-        this.#reading.add(key)
-        return true
-      },
       put: (probe, region, value) => {
         inventory.write(account, probe, region, value, now())
         this.#bump(account)
         changed()
-      },
-      release: (probe, region) => {
-        this.#reading.delete(claimKey(probe, region))
       },
       sweep: () => {
         const entry = inventory.get(account)
@@ -123,9 +128,24 @@ export class ResourceAccounts {
     )
   }
 
-  /** Every region a probe has a reading kept for (Bedrock's use, the sweep). */
-  #keptRegions(account: string, probe: StoredId): string[] {
-    return Object.keys(this.#inventory.get(account).reads[probe] ?? {})
+  /**
+   * The regions a probe of every region has a reading kept for (Bedrock's use, the sweep): only
+   * those still enabled, once the account's region list is known, and read lately.
+   */
+  #keptRegions(account: string, probe: keyof typeof KEPT_FOR): string[] {
+    const enabled = this.#value(account, 'res-regions', GLOBAL_KEY)
+    const now = this.#now()
+    return Object.entries(this.#inventory.get(account).reads[probe] ?? {})
+      .filter(
+        ([region, kept]) =>
+          now - kept.at <= KEPT_FOR[probe] && (enabled === null || enabled.includes(region)),
+      )
+      .map(([region]) => region)
+  }
+
+  /** When a region's list-metrics answer was read. */
+  #presenceAt(account: string, region: string): number | null {
+    return this.#inventory.read(account, 'res-quiet', region, STORED['res-quiet'])?.at ?? null
   }
 
   /** The usage series of a region: GetMetricData's and the statistics', the newer one winning. */
@@ -196,6 +216,10 @@ export class ResourceAccounts {
       alarmsAll: per('res-alarms'),
       presence: per('res-quiet'),
       cloudfrontPresence: this.#value(account, 'res-cf-quiet', GLOBAL_KEY),
+      presenceAt: Object.fromEntries(regions.map((r) => [r, this.#presenceAt(account, r)])),
+      cloudfrontPresenceAt:
+        this.#inventory.read(account, 'res-cf-quiet', GLOBAL_KEY, STORED['res-cf-quiet'])?.at ??
+        null,
       bedrockUse: this.#perRegion(account, 'res-bedrockuse', useRegions),
       usage: Object.fromEntries(
         [...new Set([...regions, ...useRegions])].map((r) => [r, this.#usage(account, r)]),
@@ -205,13 +229,7 @@ export class ResourceAccounts {
         Math.max(0, ...sweepRegions.map((r) => stored.reads['res-sweep']?.[r]?.at ?? 0)) || null,
       sweepOn: stored.sweepOn,
       memory: stored.memory,
-      gmd: {
-        on: gmd.on,
-        cap: gmd.cap,
-        used: gmd.used,
-        capReached: gmd.capReached,
-        readAt: gmd.readAt,
-      },
+      gmd: { on: gmd.on, cap: gmd.cap, used: gmd.used, capReached: gmd.capReached },
       judging,
     }
   }
@@ -282,9 +300,14 @@ export class ResourceAccounts {
         ...current.gmd,
         on,
         ...(cap === undefined ? {} : { cap: cap as number }),
-        // A higher cap lets this month go on; the same or lower one keeps what was reached.
+        // Only a raised cap lets this month go on: the settings send the cap with every press,
+        // so the same or a lower one keeps what was reached.
         capReached:
-          cap !== undefined && (cap as number) > current.gmd.used ? false : current.gmd.capReached,
+          cap !== undefined &&
+          (cap as number) > current.gmd.cap &&
+          (cap as number) > current.gmd.used
+            ? false
+            : current.gmd.capReached,
       },
     }))
     return true

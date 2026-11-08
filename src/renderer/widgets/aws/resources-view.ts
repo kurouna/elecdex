@@ -1,7 +1,8 @@
-import { usdText } from '@shared/aws/attention'
+import { FORGOTTEN_ID, usdText } from '@shared/aws/attention'
 import { type DrillFrom, type DrillPlace, isAwsService } from '@shared/aws/board'
 import { DRILL, type DrillDef } from '@shared/aws/drill'
 import { LIST_DRILL } from '@shared/aws/drill-resources'
+import { dayText } from '@shared/aws/facts'
 import { GROUPS, TILE } from '@shared/aws/inventory'
 import type {
   AttentionItem,
@@ -97,10 +98,6 @@ export function resourcesLayout(width: number, height: number): ResourcesLayout 
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
-/** A day as the pane's lines say it: 11-05. */
-export const dayText = (at: number | null): string =>
-  at === null ? '—' : new Date(at).toISOString().slice(5, 10)
-
 export interface FiguresText {
   services: { big: string; sub: string }
   hourly: { big: string; sub: string }
@@ -187,9 +184,6 @@ export function forgottenCard(row: ForgottenRow, masked: boolean): Card {
         : row.notPriced
           ? [{ label: 'a month', value: 'not priced: no unit price in the table' }]
           : []),
-      ...(row.reshown
-        ? [{ label: 'kept', value: 'shown again: its ≈ $ more than doubled since it was kept' }]
-        : []),
     ],
     note: 'What was seen, not a verdict: elecdex never stops or deletes anything. KEEP takes it off this list if you meant to leave it.',
   }
@@ -423,6 +417,10 @@ export function billedLine(res: ResourcesView, countsOnly: boolean): string | nu
   return rows.map((r) => `${r.name} $${r.usd.toFixed(2)}`).join(' · ')
 }
 
+/** GetMetricData this month, as ⚙ and the ledger's card say it (aws.md §14.4a). */
+export const gmdText = (gmd: ResourcesView['gmd']): string =>
+  `${gmd.used.toLocaleString('en-US')} of ${gmd.cap.toLocaleString('en-US')} metrics this month · $${gmd.usd.toFixed(2)}`
+
 /* ---- The drill-down's names and ATTENTION's line ---- */
 
 /** The lists' crumbs, as RESOURCES › FORGOTTEN says them. */
@@ -447,7 +445,7 @@ export const FROM_CRUMB: Record<DrillFrom, string> = {
 }
 
 /** ATTENTION's one line of what looks forgotten (user decision 2026-11-08): it opens the list. */
-export const opensForgotten = (item: AttentionItem): boolean => item.id === 'cost:forgotten'
+export const opensForgotten = (item: AttentionItem): boolean => item.id === FORGOTTEN_ID
 
 /** A list's place, as the figures, `all N ›` and ATTENTION's line open it. */
 export const listPlace = (list: AwsList, region: string | null): DrillPlace => ({

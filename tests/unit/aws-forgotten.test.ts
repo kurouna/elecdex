@@ -468,7 +468,6 @@ const row = (over: Partial<ForgottenRow>): ForgottenRow => ({
   notPriced: false,
   weight: 'warn',
   source: '',
-  reshown: false,
   ...over,
 })
 
@@ -496,10 +495,7 @@ describe('the order and KEEP', () => {
       row({ key: 'c', monthly: 5 }),
     ]
     const kept = applyKeep(list, { a: { usd: 10 }, b: { usd: 10 }, c: { usd: 0 } })
-    expect(kept.rows.map((x) => [x.key, x.reshown])).toEqual([
-      ['b', true],
-      ['c', true],
-    ])
+    expect(kept.rows.map((x) => x.key)).toEqual(['b', 'c'])
     expect(kept.kept.map((x) => x.key)).toEqual(['a'])
     expect(kept.released).toEqual(['b', 'c'])
   })

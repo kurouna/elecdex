@@ -33,6 +33,7 @@ import {
   type Presence,
   PresenceSchema,
   PtSchema,
+  QueueAttributesSchema,
   RedshiftSchema,
   RegionListSchema,
   RestApisSchema,
@@ -53,7 +54,7 @@ import {
   ZonesSchema,
 } from '@shared/aws/parse-resources'
 import type { PerRegion } from '@shared/aws/readings'
-import { allResources, balancerDimension, type Res } from '@shared/aws/resources'
+import { allResources, balancerDimension, GLOBAL, type Res } from '@shared/aws/resources'
 import { classifyCliError } from '@shared/cloud-cli/errors'
 import type { CliCall, CliResult, Probe, ProbeCost, RunCli } from '@shared/cloud-cli/probe'
 import { DAY, HOUR, MINUTE } from '@shared/cloud-cli/probe'
@@ -75,18 +76,13 @@ import type { AwsContext } from './probes.js'
 
 const WEEK = 7 * DAY
 const NAME_TAG = 'Tags[?Key==`Name`]|[0].Value'
-/** Where global services are asked. */
-const GLOBAL_REGION = 'us-east-1'
 /** The key a global reading is kept under. */
 export const GLOBAL_KEY = 'global'
 
 /** The per-account readings a board shares with the others of its account (aws.md §14.4). */
 export interface SharedReads {
   get<T>(probe: string, region: string, schema: z.ZodType<T>): { at: number; value: T } | null
-  /** Takes the reading for this board, when no other board of the account is reading it. */
-  claim(probe: string, region: string): boolean
   put(probe: string, region: string, value: unknown): void
-  release(probe: string, region: string): void
   sweep(): { on: boolean; asked: number | null }
   /** GetMetricData's cap: whether `n` more metrics may be asked for this month. */
   gmdAllows(n: number): boolean
@@ -109,7 +105,12 @@ const call = (ctx: AwsContext, region: string, argv: string[], options: Options 
   ...(options.silent === true ? { silent: true } : {}),
 })
 
-/** A read of one call: the parsed answer, or null; `notOffered` when the region lacks the service. */
+/**
+ * A read of one call: the parsed answer, or null; `notOffered` when the region lacks the
+ * service. The CLI's words for that are its words offline too, so they count only while another
+ * call of the board in that region has just reached AWS (aws.md §14.4); otherwise it is the
+ * network, and nothing is kept as "not offered".
+ */
 async function ask<T>(
   cli: RunCli,
   ctx: AwsContext,
@@ -120,7 +121,10 @@ async function ask<T>(
 ): Promise<{ value: T | null; notOffered: boolean }> {
   const result: CliResult = await cli(call(ctx, region, argv, options))
   if (!result.ok)
-    return { value: null, notOffered: classifyCliError('aws', result).kind === 'not-offered' }
+    return {
+      value: null,
+      notOffered: classifyCliError('aws', result).kind === 'not-offered' && ctx.reached(region),
+    }
   const text = result.stdout.trim() === '' ? 'null' : result.stdout
   return { value: parseWith(schema, text), notOffered: false }
 }
@@ -156,17 +160,22 @@ interface SharedSpec<T> {
 
 /**
  * Whether a kept reading may stand: younger than the board's period for it, and not older than
- * a REFRESH press by five minutes (a press reads again what is not a few minutes old).
+ * a REFRESH press by five minutes (a press reads again what is not a few minutes old). Like Cost
+ * Explorer (`costExplorerDue`), a call that costs money - paid, or metered under its fixed cap -
+ * never reads again for a press, only for its period.
  */
-function fresh(ctx: AwsContext, id: string, at: number): boolean {
+function fresh(ctx: AwsContext, id: string, cost: ProbeCost, at: number): boolean {
   const now = ctx.now()
   if (now - at >= ctx.every(id)) return false
+  if (cost !== 'free' && cost !== 'free-tier') return true
   return !(ctx.refreshedAt() > at && now - at > 5 * MINUTE)
 }
 
 /**
- * One region's reading for the account: this board reads it when no other board of the account
- * is (that one's answer comes through the store), keeps it, and falls back to what it had.
+ * One region's reading for the account, kept for every board of it, or what it had when the
+ * reading fails. No board of the account reads it at the same time as another: every shared
+ * probe runs in the one-at-a-time bulk lane (AwsService's `#bulk`), and the second finds the
+ * first's answer in the store.
  */
 async function readOnce<T>(
   store: SharedReads,
@@ -175,14 +184,9 @@ async function readOnce<T>(
   fallback: T | null,
   read: () => Promise<T | null>,
 ): Promise<T | null> {
-  if (!store.claim(id, region)) return fallback
-  try {
-    const value = await read()
-    if (value !== null) store.put(id, region, value)
-    return value ?? fallback
-  } finally {
-    store.release(id, region)
-  }
+  const value = await read()
+  if (value !== null) store.put(id, region, value)
+  return value ?? fallback
 }
 
 /** A probe whose readings are the account's, per region, kept and shared (aws.md §14.4). */
@@ -201,14 +205,14 @@ function shared<T>(spec: SharedSpec<T>): Probe<AwsContext, PerRegion<T>> {
       for (const region of regions) {
         const kept = store.get(spec.id, region, spec.schema)
         out[region] =
-          kept !== null && fresh(ctx, spec.id, kept.at)
+          kept !== null && fresh(ctx, spec.id, spec.cost, kept.at)
             ? kept.value
             : await readOnce(
                 store,
                 spec.id,
                 region,
                 kept?.value ?? previous?.[region] ?? null,
-                () => spec.read(cli, ctx, region === GLOBAL_KEY ? GLOBAL_REGION : region),
+                () => spec.read(cli, ctx, region === GLOBAL_KEY ? GLOBAL : region),
               )
       }
       return out
@@ -453,12 +457,6 @@ const elbTargetsProbe = count('res-elb', 6 * HOUR, ElbTargetsSchema, async (cli,
   return { groups: out, classic: classic ?? [] }
 })
 
-const QueueAttrs = z.object({
-  m: z.string().nullable().optional(),
-  c: z.string().nullable().optional(),
-  r: z.string().nullable().optional(),
-})
-
 /** The dead-letter target's name from a redrive policy's JSON (its ARN's last part). */
 function redriveTarget(policy: string | null | undefined): string | null {
   if (policy === null || policy === undefined) return null
@@ -497,7 +495,7 @@ const sqsProbe = count('res-sqs', 6 * HOUR, SqsSchema, async (cli, ctx, region) 
         '--query',
         'Attributes.{m:ApproximateNumberOfMessages,c:CreatedTimestamp,r:RedrivePolicy}',
       ],
-      QueueAttrs,
+      QueueAttributesSchema,
     )
     out.push({
       n: lastPart(url),
@@ -1947,7 +1945,6 @@ async function readStatistics(cli: RunCli, ctx: AwsContext, region: string): Pro
       points.map(([t]) => new Date(ms(t) ?? 0).toISOString()),
       points.map(([, v]) => v),
     )
-    if (!into.has(query.key)) into.set(query.key, { days: 14, byDay: new Map() })
   }
   return toUsage(into, 'stat')
 }

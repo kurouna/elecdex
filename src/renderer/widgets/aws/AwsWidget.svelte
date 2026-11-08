@@ -63,7 +63,14 @@ import {
   regionTone,
 } from './aws-view.ts'
 import PulseBand from './PulseBand.svelte'
-import { type Card, drillCrumb, FROM_CRUMB, listPlace, opensForgotten } from './resources-view.ts'
+import {
+  type Card,
+  drillCrumb,
+  FROM_CRUMB,
+  gmdText,
+  listPlace,
+  opensForgotten,
+} from './resources-view.ts'
 
 /**
  * AWS STATUS (docs/aws.md): what there is in one AWS account and what looks forgotten (RESOURCES,
@@ -351,6 +358,16 @@ const leave = (id: string) => resting.leave(id)
 $effect(() => {
   if (!visible) resting.leave()
 })
+/** The view shown: a tab, or a place of the drill-down. */
+const viewKey = $derived(
+  `${choices.tab}:${choices.drill?.service ?? ''}:${choices.drill?.item ?? ''}`,
+)
+// A press that opens another view (a tile, a row, a figure) takes away the element under the
+// pointer, and an element taken away sends no pointerleave: its card goes with the view.
+$effect(() => {
+  void viewKey
+  resting.leave()
+})
 $effect(() => () => resting.dispose())
 
 function attentionCard(item: AttentionItem) {
@@ -391,7 +408,7 @@ function gmdRows(): CardRow[] {
   return [
     {
       label: 'GetMetricData',
-      value: `${gmd.used.toLocaleString('en-US')} of ${gmd.cap.toLocaleString('en-US')} metrics this month · ${gmd.usd.toFixed(2)}${gmd.capReached ? ' · GMD CAP REACHED' : ''}`,
+      value: `${gmdText(gmd)}${gmd.capReached ? ' · GMD CAP REACHED' : ''}`,
     },
   ]
 }
@@ -578,7 +595,7 @@ const TABS: readonly [AwsTab, string][] = [
       </div>
     {/if}
 
-    {#key `${choices.tab}:${choices.drill?.service ?? ''}:${choices.drill?.item ?? ''}`}
+    {#key viewKey}
       <div class="view crt-on" data-testid="aws-view-{choices.drill === null ? choices.tab : 'drill'}" onscroll={() => resting.leave()}>
         {#if board === null}
           <p class="empty">…</p>

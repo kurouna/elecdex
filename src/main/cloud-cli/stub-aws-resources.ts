@@ -1,4 +1,5 @@
 import type { CliCall, CliResult } from '@shared/cloud-cli/probe'
+import { ACCOUNT, DAY, HOUR, iso, ok, result } from './stub-common.js'
 
 /**
  * The stand-in's answers for RESOURCES (aws.md §14; `ELECDEX_CLOUD_STUB`): the made-up account
@@ -16,24 +17,10 @@ import type { CliCall, CliResult } from '@shared/cloud-cli/probe'
 
 export type ResourceMode = 'demo' | 'quiet' | 'noregion' | string
 
-const ACCOUNT = '482913507216'
-const HOUR = 3_600_000
-const DAY = 24 * HOUR
 const GB = 1024 ** 3
 const TOKYO = 'ap-northeast-1'
 const VIRGINIA = 'us-east-1'
 
-const answer = (ok: boolean, stdout: string, stderr = ''): CliResult => ({
-  ok,
-  code: ok ? 0 : 254,
-  stdout,
-  stderr,
-  missing: false,
-  timedOut: false,
-  tooLarge: false,
-})
-const ok = (value: unknown) => answer(true, JSON.stringify(value))
-const iso = (at: number) => new Date(at).toISOString()
 const arg = (call: CliCall, name: string): string | undefined => {
   const eq = call.argv.find((a) => a.startsWith(`${name}=`))
   if (eq !== undefined) return eq.slice(name.length + 1)
@@ -47,7 +34,7 @@ const inTokyo = <T>(region: string, rows: T[]): T[] => (region === TOKYO ? rows 
 
 /** Where Bedrock and OpenSearch Serverless are said to have no endpoint, in `noregion`. */
 const unreachable = (service: string, region: string): CliResult =>
-  answer(
+  result(
     false,
     '',
     `Could not connect to the endpoint URL: "https://${service}.${region}.amazonaws.com/"`,

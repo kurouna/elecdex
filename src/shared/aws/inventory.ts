@@ -1,15 +1,16 @@
+import { localDay } from '../cloud-cli/ledger.js'
 import { bytesText } from './active.js'
-import { usdText } from './attention.js'
 import { AWS_LIMITS } from './facts.js'
 import { forgotten, seriesKey, USE } from './forgotten.js'
 import { TILE } from './labels.js'
-import { HOURS_A_MONTH, PRICES_AS_OF } from './list-prices.js'
+import { HOURS_A_MONTH } from './list-prices.js'
 import { lastPart } from './parse-resources.js'
 import type { AwsReadings } from './readings.js'
 import type { InventoryMemory } from './resource-readings.js'
 import {
   allResources,
   elsewhereRows,
+  GLOBAL,
   notOfferedIn,
   type Res,
   readIn,
@@ -252,11 +253,6 @@ function tileOf(
 
 /* ---- NEW 7 D (aws.md §14.2 A) ---- */
 
-const localDay = (at: number) => {
-  const d = new Date(at)
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-}
-
 /** A Lambda function's own log group, folded into the function when counting what is new. */
 const ownLogGroup = (x: Res, functions: ReadonlySet<string>) =>
   x.service === 'logs' &&
@@ -307,19 +303,27 @@ export function memoryAfter(r: AwsReadings, before: InventoryMemory): InventoryM
     firstAt: { ...before.firstAt },
     seen: { ...before.seen },
     gone: {},
-    unattached: {},
+    // Kept whole and taken off only where its kind was read again (`forgetAttached`): a build
+    // before the volumes have read, a failed read or a pane of other regions forgets nothing.
+    unattached: { ...before.unattached },
     lastMetric: { ...before.lastMetric },
     s3: { ...before.s3 },
     keep: { ...before.keep },
   }
-  const present = rememberRows(next, before, r)
+  const { present, loose } = rememberRows(next, before, r)
   markGone(next, before, r, present)
+  forgetAttached(next, r, loose)
   return next
 }
 
 /** What is there now: first sightings, unattached since, sizes, last listings. */
-function rememberRows(next: InventoryMemory, before: InventoryMemory, r: AwsReadings): Set<string> {
+function rememberRows(
+  next: InventoryMemory,
+  before: InventoryMemory,
+  r: AwsReadings,
+): { present: Set<string>; loose: Set<string> } {
   const present = new Set<string>()
+  const loose = new Set<string>()
   for (const [service, rows] of allResources(r)) {
     if (readState(service, r) === 'unread') continue
     next.firstAt[service] ??= r.now
@@ -327,15 +331,41 @@ function rememberRows(next: InventoryMemory, before: InventoryMemory, r: AwsRead
       const key = resKey(x)
       present.add(key)
       next.seen[key] ??= r.now
-      const loose =
+      if (
         (x.service === 'ebs' && x.state === 'available') ||
         (x.service === 'eip' && x.state === 'not associated')
-      if (loose) next.unattached[key] = before.unattached[key] ?? r.now
+      ) {
+        loose.add(key)
+        next.unattached[key] = before.unattached[key] ?? r.now
+      }
       if (x.service === 's3') rememberSize(next, x, r.now)
-      rememberMetrics(next, r, x, r.now)
+      rememberMetrics(next, r, x)
     }
   }
-  return present
+  return { present, loose }
+}
+
+/** "Unattached since" goes only where its kind was read in its region and it is loose no more. */
+function forgetAttached(next: InventoryMemory, r: AwsReadings, loose: ReadonlySet<string>): void {
+  for (const key of Object.keys(next.unattached)) {
+    const [service, region] = key.split(':') as [AwsService, string]
+    if (!loose.has(key) && SERVICES.includes(service) && readIn(service, r, region))
+      delete next.unattached[key]
+  }
+}
+
+/**
+ * Whether a remembered resource went: its list answered there and does not have it. S3's list
+ * is the account's, so a bucket goes only when that list no longer has it - never because its
+ * region is not one of this pane's.
+ */
+function isGone(key: string, r: AwsReadings, present: ReadonlySet<string>): boolean {
+  if (present.has(key)) return false
+  const [service, region] = key.split(':') as [AwsService, string]
+  if (!SERVICES.includes(service) || !readIn(service, r, region)) return false
+  if (service !== 's3') return true
+  const name = key.split(':').slice(2).join(':')
+  return !(r.res.buckets ?? []).some(([b, , at]) => b === name && (at ?? GLOBAL) === region)
 }
 
 /**
@@ -349,8 +379,7 @@ function markGone(
   present: ReadonlySet<string>,
 ): void {
   for (const key of Object.keys(before.seen)) {
-    const [service, region] = key.split(':') as [AwsService, string]
-    if (present.has(key) || !SERVICES.includes(service) || !readIn(service, r, region)) continue
+    if (!isGone(key, r, present)) continue
     delete next.seen[key]
     next.gone[key] = before.gone[key] ?? {
       at: r.now,
@@ -370,13 +399,23 @@ function rememberSize(next: InventoryMemory, x: Res, now: number): void {
     next.s3[x.id] = { bytes, since: now }
 }
 
-function rememberMetrics(next: InventoryMemory, r: AwsReadings, x: Res, now: number): void {
-  const presence = x.service === 'cloudfront' ? r.res.cloudfrontPresence : r.res.presence[x.region]
-  if (presence === null || presence === undefined) return
+/**
+ * The day a metric was last listed is the day list-metrics answered, never the build's: a board
+ * is built every few seconds, and the build's time would change the memory each time.
+ */
+function rememberMetrics(next: InventoryMemory, r: AwsReadings, x: Res): void {
+  const cloudfront = x.service === 'cloudfront'
+  const presence = cloudfront ? r.res.cloudfrontPresence : r.res.presence[x.region]
+  const at = cloudfront ? r.res.cloudfrontPresenceAt : r.res.presenceAt[x.region]
+  if (presence === null || presence === undefined || at === null || at === undefined) return
   for (const spec of USE[x.service]?.(x) ?? []) {
     const listed = presence[`${spec.ns} ${spec.metric}`]
-    if (listed?.some((dims) => dims.some((d) => d.Name === spec.dim && d.Value === spec.value)))
-      next.lastMetric[`${x.region}|${seriesKey(spec)}`] = now
+    const key = `${x.region}|${seriesKey(spec)}`
+    if (
+      at > (next.lastMetric[key] ?? 0) &&
+      listed?.some((dims) => dims.some((d) => d.Name === spec.dim && d.Value === spec.value))
+    )
+      next.lastMetric[key] = at
   }
 }
 
@@ -388,13 +427,7 @@ function bedrockTile(
   found: readonly ForgottenRow[],
 ): BedrockTile | null {
   const names = r.res.bedrockNames
-  const models = new Map<string, { regions: Set<string> }>()
-  for (const [region, ids] of Object.entries(r.res.bedrockUse))
-    for (const id of ids ?? []) {
-      const m = models.get(id) ?? { regions: new Set<string>() }
-      m.regions.add(region)
-      models.set(id, m)
-    }
+  const models = new Set(Object.values(r.res.bedrockUse).flatMap((ids) => ids ?? []))
   if (models.size === 0 && rows.length === 0) return null
   const sum = (id: string, metric: string): number | null => {
     let total: number | null = null
@@ -415,18 +448,16 @@ function bedrockTile(
     'runtime',
   ] as const
   return {
-    models: [...models.entries()]
-      .map(([id, m]) => ({
+    models: [...models]
+      .map((id) => ({
         id,
         name:
           names?.profiles[id] ??
           names?.models[id] ??
           names?.models[id.replace(/^[a-z]{2,4}\./, '')] ??
           id,
-        invocations: sum(id, 'Invocations'),
         tokensIn: sum(id, 'InputTokenCount'),
         tokensOut: sum(id, 'OutputTokenCount'),
-        regions: [...m.regions].sort(),
       }))
       .sort(
         (a, b) =>
@@ -625,12 +656,7 @@ export function resourcesView(r: AwsReadings, options: ViewOptions): ResourcesVi
       used: r.res.gmd.used,
       usd: Math.round(r.res.gmd.used * options.perMetricUsd * 100) / 100,
       capReached: r.res.gmd.capReached,
-      readAt: r.res.gmd.readAt,
     },
     quietDays: AWS_LIMITS.quietDays,
-    prices: { asOf: PRICES_AS_OF },
   }
 }
-
-/** "≈ $1.6k a month" for a figure's small line. */
-export const monthText = (usd: number): string => `≈ ${usdText(usd)} a month`

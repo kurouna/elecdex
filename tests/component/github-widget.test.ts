@@ -140,6 +140,22 @@ describe('GithubWidget', () => {
     expect(held.tab).toBe('repos')
   })
 
+  it("takes a repository's card away as its tile is pressed into the runs", async () => {
+    const view = await mount({ tab: 'repos' })
+    const board = await boardOf('demo')
+    await push(board)
+    const tile = screen.getAllByTestId('github-tile')[0] as HTMLElement
+    await fireEvent.pointerEnter(tile, { clientX: 40 })
+    await vi.waitFor(() => expect(screen.getByTestId('github-card')).toBeTruthy())
+    await fireEvent.click(tile)
+    expect(held.drill).toBe(board.repos[0]?.name)
+    // The tile goes with the list, and an element taken away sends no pointerleave.
+    await view.rerender({ state: { tab: 'repos', ...held } })
+    await settle()
+    expect(screen.queryAllByTestId('github-tile')).toEqual([])
+    await vi.waitFor(() => expect(screen.queryByTestId('github-card')).toBeNull())
+  })
+
   it('MASK hides the login and private repositories', async () => {
     const board = await boardOf('demo')
     await mount({ tab: 'repos', mask: true })

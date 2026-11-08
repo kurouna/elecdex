@@ -42,7 +42,6 @@ const row = (over: Partial<ForgottenRow> = {}): ForgottenRow => ({
   notPriced: false,
   weight: 'warn',
   source: 'no Lambda function named old-resizer in its region · no call needed',
-  reshown: false,
   ...over,
 })
 
@@ -109,9 +108,8 @@ const view = (over: Partial<ResourcesView> = {}): ResourcesView => ({
     { name: 'AWS Glue', usd: 3.1 },
   ],
   kept: [],
-  gmd: { on: true, cap: 100_000, used: 0, usd: 0, capReached: false, readAt: null },
+  gmd: { on: true, cap: 100_000, used: 0, usd: 0, capReached: false },
   quietDays: 30,
-  prices: { asOf: '2026-11-07' },
   ...over,
 })
 
@@ -267,10 +265,13 @@ describe("the ledger's line", () => {
 
   it('counts GetMetricData by the metric beside the paid requests, and says its cap', () => {
     expect(ledgerLine(ledger(), 'aws')).toBe(
+      'requests today 258 · free 197 · free tier 58 · metered 1 · paid APIs 0',
+    )
+    expect(ledgerLine(ledger({ meteredTiny: 0 }), 'aws')).toBe(
       'requests today 258 · free 197 · free tier 58 · paid APIs 0',
     )
     expect(ledgerLine(ledger({ paidMetrics: 35_000, paidUsd: 0.35 }), 'aws')).toBe(
-      'requests today 258 · free 197 · free tier 58 · paid APIs 0 · GMD 35,000 metrics · $0.35 this month',
+      'requests today 258 · free 197 · free tier 58 · metered 1 · paid APIs 0 · GMD 35,000 metrics · $0.35 this month',
     )
     expect(
       ledgerLine(

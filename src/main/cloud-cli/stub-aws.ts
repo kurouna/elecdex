@@ -7,6 +7,7 @@ import {
   resourceStatistics,
   sweepAnswer,
 } from './stub-aws-resources.js'
+import { ACCOUNT, DAY, HOUR, iso, ok, result } from './stub-common.js'
 
 /**
  * A stand-in AWS CLI for tests and screenshots (`ELECDEX_CLOUD_STUB`): never the real CLI, never
@@ -41,28 +42,12 @@ const MODES: readonly Mode[] = [
   'noregion',
 ]
 
-const ACCOUNT = '482913507216'
-const HOUR = 3_600_000
-const DAY = 24 * HOUR
-
-const result = (ok: boolean, stdout: string, stderr = ''): CliResult => ({
-  ok,
-  code: ok ? 0 : 254,
-  stdout,
-  stderr,
-  missing: false,
-  timedOut: false,
-  tooLarge: false,
-})
-const ok = (value: unknown) => result(true, JSON.stringify(value))
 const denied = (action: string) =>
   result(
     false,
     '',
     `An error occurred (AccessDeniedException) when calling the operation: User: arn:aws:sts::${ACCOUNT}:assumed-role/ReadOnly/aki is not authorized to perform: ${action} on resource: arn:aws:${action.split(':')[0]}::${ACCOUNT}:*`,
   )
-
-const iso = (at: number) => new Date(at).toISOString()
 
 /** The made-up account's things, in the region they live in. */
 const INSTANCES = (now: number) => ({
@@ -609,6 +594,25 @@ const RESOURCES: Record<string, Route> = resourceRoutes()
 
 const regionOf = (call: CliCall) => call.argv[call.argv.indexOf('--region') + 1] ?? 'us-east-1'
 
+/** The endpoint's first label where it is not the command's name. */
+const ENDPOINT: Record<string, string> = {
+  opensearchserverless: 'aoss',
+  sagemaker: 'api.sagemaker',
+}
+
+/**
+ * Offline, AWS CLI names the endpoint of the call it could not reach: Bedrock's offline reads
+ * just like a region without Bedrock (aws.md §14.4), which the probes must tell apart.
+ */
+const unreachable = (call: CliCall): CliResult => {
+  const service = call.argv[0] ?? 'sts'
+  return result(
+    false,
+    '',
+    `Could not connect to the endpoint URL: "https://${ENDPOINT[service] ?? service}.${regionOf(call)}.amazonaws.com/"`,
+  )
+}
+
 export function stubAws(initial: string): RunCli {
   const modeNow = (): Mode => {
     const live = (globalThis as { __elecdexCloud?: { aws?: string } }).__elecdexCloud?.aws
@@ -618,12 +622,7 @@ export function stubAws(initial: string): RunCli {
   return async (call: CliCall) => {
     const mode = modeNow()
     if (mode === 'nocli') return { ...result(false, ''), missing: true }
-    if (mode === 'offline')
-      return result(
-        false,
-        '',
-        'Could not connect to the endpoint URL: "https://sts.amazonaws.com/"',
-      )
+    if (mode === 'offline') return unreachable(call)
     const verb = `${call.argv[0]} ${call.argv[1]}`
     if (call.argv[0] === '--version')
       return result(true, 'aws-cli/2.39.6 Python/3.13.7 Windows/11 exe/AMD64\n')

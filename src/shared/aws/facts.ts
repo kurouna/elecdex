@@ -46,6 +46,10 @@ export const AWS_LIMITS = {
   keepReshow: 2,
 } as const
 
+/** A day as the pane's lines say it (UTC): 11-05, or — when not known. */
+export const dayText = (at: number | null): string =>
+  at === null ? '—' : new Date(at).toISOString().slice(5, 10)
+
 /** When a stopped instance stopped, from its transition reason ("User initiated (2026-10-01 …)"). */
 export function stoppedAt(reason: string | null | undefined): number | null {
   const match = /\((\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) GMT\)/.exec(reason ?? '')

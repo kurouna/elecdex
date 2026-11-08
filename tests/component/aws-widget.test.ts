@@ -258,6 +258,31 @@ describe('RESOURCES (aws.md §14)', () => {
     expect(held.drill).toMatchObject({ service: 'new' })
   })
 
+  it("takes a tile's card away as the tile is pressed into its list", async () => {
+    const view = await mount()
+    await push(await boardOf())
+    const tile = screen.getAllByTestId('aws-tile')[0] as HTMLElement
+    await fireEvent.pointerEnter(tile, { clientX: 40 })
+    await vi.waitFor(() => expect(screen.getByTestId('aws-card')).toBeTruthy())
+    await fireEvent.click(tile)
+    expect(held).toMatchObject({ from: 'resources', drill: { service: tile.dataset.tile } })
+    // RESOURCES goes for the list, and an element taken away sends no pointerleave.
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row').length).toBeGreaterThan(0))
+    await vi.waitFor(() => expect(screen.queryByTestId('aws-card')).toBeNull())
+  })
+
+  it("says GetMetricData's month in dollars on the ledger's card", async () => {
+    await mount()
+    await push(await boardOf())
+    await fireEvent.pointerEnter(screen.getByTestId('aws-foot'), { clientX: 40 })
+    await vi.waitFor(() => expect(screen.getByTestId('aws-card')).toBeTruthy())
+    expect(screen.getByTestId('aws-card').textContent).toMatch(
+      /[\d,]+ of 100,000 metrics this month · \$\d+\.\d\d/,
+    )
+  })
+
   it('lists five that look forgotten, dearest first, and KEEP sends the row key', async () => {
     await mount()
     const board = await boardOf()

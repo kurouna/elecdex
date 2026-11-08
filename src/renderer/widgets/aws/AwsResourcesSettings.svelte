@@ -1,10 +1,11 @@
 <script lang="ts">
 import { GMD_CAPS, GMD_PRICE_USD } from '@shared/aws/billing'
+import { dayText } from '@shared/aws/facts'
 import { TILE } from '@shared/aws/inventory'
 import type { ResourcesView } from '@shared/aws/types'
 import { afterBlink } from '../../lib/blink.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
-import { dayText, shownName } from './resources-view.ts'
+import { gmdText, shownName } from './resources-view.ts'
 
 /**
  * RESOURCES' part of ⚙ (docs/aws.md §14.4a, §14.7): ELSEWHERE's weekly sweep, GetMetricData
@@ -24,13 +25,10 @@ function sweep(on: boolean): void {
   void window.elecdex.aws.sweep(boardKey, on ? 'on' : 'off')
 }
 
+/** The cap goes with every press: one of `GMD_CAPS`, as the account's own always is. */
 function metricData(on: boolean, cap: number = res.gmd.cap): void {
   sfx.play('panel')
-  const allowed = (GMD_CAPS as readonly number[]).includes(cap)
-  void window.elecdex.aws.metricData(
-    boardKey,
-    allowed ? { on, cap: cap as (typeof GMD_CAPS)[number] } : { on },
-  )
+  void window.elecdex.aws.metricData(boardKey, { on, cap: cap as (typeof GMD_CAPS)[number] })
 }
 
 /** Taking a mark off puts the row back in LOOKS FORGOTTEN: the press blinks first. */
@@ -54,7 +52,7 @@ const capWords = (cap: number) =>
 <div class="opt"><span>Monthly cap, metrics</span>
   <span class="seg">{#each GMD_CAPS as cap (cap)}<button type="button" class="tool" class:on={res.gmd.cap === cap} onclick={() => metricData(res.gmd.on, cap)} data-testid="aws-gmd-cap-{cap}">{capWords(cap)}</button>{/each}</span>
 </div>
-<p data-testid="aws-gmd-line">{res.gmd.used.toLocaleString('en-US')} of {res.gmd.cap.toLocaleString('en-US')} metrics this month · ${res.gmd.usd.toFixed(2)}{#if res.gmd.capReached} · <b class="warn">GMD CAP REACHED</b>: quiet is judged by list-metrics' 14 days until the month ends{/if}. Off: only the free reads judge, over 14 days. Quiet means {res.quietDays} days. ELSEWHERE read {dayText(res.elsewhere.readAt)}.</p>
+<p data-testid="aws-gmd-line">{gmdText(res.gmd)}{#if res.gmd.capReached} · <b class="warn">GMD CAP REACHED</b>: quiet is judged by list-metrics' 14 days until the month ends{/if}. Off: only the free reads judge, over 14 days. Quiet means {res.quietDays} days. ELSEWHERE read {dayText(res.elsewhere.readAt)}.</p>
 <div class="opt"><span>Kept off LOOKS FORGOTTEN ({res.kept.length})</span></div>
 {#each res.kept as mark (mark.key)}
   <div class="kept" data-testid="aws-kept">

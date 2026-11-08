@@ -16,7 +16,7 @@ import { forgotten } from '@shared/aws/forgotten'
 import { resourcesView } from '@shared/aws/inventory'
 import { ms, parseWith, TrailSchema } from '@shared/aws/parse'
 import { type AwsReadings, emptyReadings, everywhere } from '@shared/aws/readings'
-import { elsewhereRows } from '@shared/aws/resources'
+import { elsewhereRows, GLOBAL } from '@shared/aws/resources'
 import { pulseBins } from '@shared/aws/trail'
 import type {
   AccountView,
@@ -37,9 +37,10 @@ import {
   recordReading,
   summarize,
 } from '@shared/cloud-cli/ledger'
-import type { CliPriority, Probe, RunCli } from '@shared/cloud-cli/probe'
+import { type CliPriority, MINUTE, type Probe, type RunCli } from '@shared/cloud-cli/probe'
 import { incidentsFor, type StatusIncident } from '@shared/cloud-cli/status'
 import type { TimerDeps } from '../boundary-timer.js'
+import { evictStopped, gapLeft, REFRESH_GAP_MS } from '../cloud-cli/boards.js'
 import { concurrencyLimit, ProbeScheduler } from '../cloud-cli/scheduler.js'
 import {
   type AccountBilling,
@@ -55,9 +56,9 @@ import {
   awsCall,
   type CostExplorerAnswer,
   costExplorerDue,
-  GLOBAL_REGION,
   slowed,
 } from './probes.js'
+import { RegionReach } from './region-reach.js'
 import { ResourceAccounts } from './resource-accounts.js'
 import { RESOURCE_PROBES } from './resource-probes.js'
 
@@ -105,30 +106,18 @@ interface Board {
   refreshing: boolean
   first: { day: string; at: number; sets: IdSets } | null
   history: Map<string, { at: number; events: HistoryEvent[] }>
-  /** The incidents a board has already shown, so the first reading's stay a band. */
-  regions: string[]
+  /** Which regions this board's calls reach (aws.md §14.4: not offered, or offline). */
+  reach: RegionReach
+  /** Readings that settled: with the account's count, what `readings` was put together at. */
+  settled: number
+  readings: { at: string; value: AwsReadings } | null
 }
-
-const REFRESH_GAP_MS = 30_000
 
 /** Every probe of a board: the panes' readings, then RESOURCES' (aws.md §14.4). */
 export const BOARD_PROBES: readonly Probe<AwsContext, unknown>[] = [
   ...AWS_PROBES,
   ...RESOURCE_PROBES,
 ]
-
-/**
- * Boards kept for a quick showing again: the stopped ones beyond a few go, oldest first, so a
- * pane whose key changes (regions, repositories) does not leave every old board in memory.
- */
-const KEPT_BOARDS = 6
-
-function evictStopped(boards: Map<string, { scheduler: { active: boolean } }>): void {
-  for (const [key, board] of boards) {
-    if (boards.size <= KEPT_BOARDS) return
-    if (!board.scheduler.active) boards.delete(key)
-  }
-}
 
 const value = <T>(s: ProbeScheduler<AwsContext>, id: string): T | null => s.outcome<T>(id).value
 
@@ -140,6 +129,11 @@ export class AwsService {
   readonly #resources: ResourceAccounts
   /** RESOURCES' bulk readings, one at a time across every board (aws.md §14.4). */
   readonly #bulk = concurrencyLimit(1)
+  /**
+   * The accounts a shared reading was kept for since a probe last settled: the boards of the
+   * account are shown again once, when it settles, not at every region's answer.
+   */
+  readonly #putFor = new Set<string>()
 
   constructor(deps: AwsServiceDeps) {
     this.#deps = deps
@@ -170,7 +164,9 @@ export class AwsService {
         refreshing: false,
         first: null,
         history: new Map(),
-        regions: spec.regions,
+        reach: new RegionReach(),
+        settled: 0,
+        readings: null,
       } as unknown as Board
       created.ctx = {
         spec,
@@ -188,7 +184,7 @@ export class AwsService {
           const account = created.ctx.account()
           return account === null
             ? null
-            : this.#resources.shared(account, () => this.#accountChanged(account))
+            : this.#resources.shared(account, () => this.#putFor.add(account))
         },
         readings: () => this.#readings(created),
         every: (id) => probes.find((probe) => probe.id === id)?.every ?? 0,
@@ -199,11 +195,19 @@ export class AwsService {
               region
             ] ?? []
           ).map((c) => c.name),
+        // Within two of the alarms' periods: they read every region of the board each time.
+        reached: (region) =>
+          created.reach.reached(region, this.#deps.now(), 2 * created.ctx.every('alarms')),
       }
       const probes = spec.slow ? slowed(BOARD_PROBES) : BOARD_PROBES
       created.scheduler = new ProbeScheduler<AwsContext>(
         {
           ...this.#deps,
+          cli: async (call) => {
+            const result = await this.#deps.cli(call)
+            created.reach.note(call, result, this.#deps.now())
+            return result
+          },
           // The panes' reads wait behind the sign-in, alarms, health, the trail and GitHub.
           priority: 'later',
           bulk: this.#bulk,
@@ -213,7 +217,7 @@ export class AwsService {
             if (entry.probe === 'cost-explorer' && entry.requests > 0)
               this.#costExplorerPaid(created, entry.requests)
           },
-          changed: () => this.#publish(created),
+          changed: () => this.#settled(created),
         },
         probes,
       )
@@ -232,7 +236,7 @@ export class AwsService {
   refresh(key: string): number {
     const board = this.#boards.get(key)
     if (board === undefined || !board.scheduler.active) return 0
-    const left = board.refreshedAt + REFRESH_GAP_MS - this.#deps.now()
+    const left = gapLeft(board.refreshedAt, this.#deps.now())
     if (left > 0) return left
     board.refreshedAt = this.#deps.now()
     board.refreshing = true
@@ -410,7 +414,7 @@ export class AwsService {
       return 0
     }
     if (what !== 'now') return 0
-    const left = board.sweptAt + REFRESH_GAP_MS - this.#deps.now()
+    const left = gapLeft(board.sweptAt, this.#deps.now())
     if (left > 0) return left
     board.sweptAt = this.#deps.now()
     this.#resources.sweep(account, 'now')
@@ -467,7 +471,7 @@ export class AwsService {
   #regionsOf(board: Board): string[] {
     if (board.ctx.spec.regions.length > 0) return board.ctx.spec.regions
     const own = value<{ region: string | null }>(board.scheduler, 'setup')?.region ?? null
-    return [own ?? GLOBAL_REGION]
+    return [own ?? GLOBAL]
   }
 
   /** One reading per account at a time, when due (aws.md §3.3): the claim is the account's. */
@@ -505,9 +509,24 @@ export class AwsService {
     }))
   }
 
+  /**
+   * The board's readings, put together again only when a probe settled, the account's readings
+   * changed or a minute turned: the usage probes ask for them per region, and a fresh object
+   * would build every resource row (and the forgotten list) again each time.
+   */
   #readings(board: Board): AwsReadings {
+    const now = this.#deps.now()
+    const account = value<{ account: string }>(board.scheduler, 'identity')?.account ?? null
+    const at = `${board.settled}|${this.#resources.version(account)}|${Math.floor(now / MINUTE)}`
+    if (board.readings?.at === at) return board.readings.value
+    const r = this.#readingsNow(board, now, account)
+    board.readings = { at, value: r }
+    return r
+  }
+
+  #readingsNow(board: Board, now: number, account: string | null): AwsReadings {
     const s = board.scheduler
-    const r = emptyReadings(this.#deps.now(), this.#regionsOf(board))
+    const r = emptyReadings(now, this.#regionsOf(board))
     const billing = value<{ points: [number, number][]; there: boolean; usd: boolean }>(
       s,
       'billing',
@@ -529,11 +548,7 @@ export class AwsService {
       plan: value(s, 'plan'),
       domains: value(s, 'domains'),
       savings: value(s, 'savings'),
-      res: this.#resources.readings(
-        value<{ account: string }>(s, 'identity')?.account ?? null,
-        r.regions,
-        this.#judging(board, r.regions),
-      ),
+      res: this.#resources.readings(account, r.regions, this.#judging(board, r.regions)),
     }
   }
 
@@ -550,6 +565,23 @@ export class AwsService {
     if (board.scheduler.active) this.#deps.publish(this.#build(board))
   }
 
+  /**
+   * A probe of the board settled: main's memory of the account follows the reading, once, and
+   * the board is shown again - every board of the account when a shared reading was kept.
+   */
+  #settled(board: Board): void {
+    board.settled += 1
+    const account = board.ctx.account()
+    if (account === null) {
+      this.#publish(board)
+      return
+    }
+    const r = this.#readings(board)
+    this.#resources.remember(account, r, forgotten(r).released)
+    if (this.#putFor.delete(account)) this.#accountChanged(account)
+    else this.#publish(board)
+  }
+
   #build(board: Board): AwsBoard {
     const s = board.scheduler
     const now = this.#deps.now()
@@ -557,7 +589,6 @@ export class AwsService {
     const items = attention(r)
     const trail = everywhere(r.trail).sort((a, b) => b.at - a.at)
     const identity = r.identity
-    if (identity !== null) this.#resources.remember(identity.account, r, forgotten(r).released)
     return {
       key: board.key,
       ...linkFields(s.problems(), s.anyReading(), board.ctx.spec.profile, s.denied()),

@@ -76,7 +76,13 @@ const { app, page, wait, settled, run, caption } = await openTake({
 const press = (locator) => locator.click({ delay: 20 })
 const pane = () => page.getByTestId('github')
 const tab = (id) => press(page.getByTestId(`github-tab-${id}`))
-const chip = (name) => press(pane().locator('button.chip').filter({ hasText: new RegExp(`^${name}`, 'i') }).first())
+const chip = (name) =>
+  press(
+    pane()
+      .locator('button.chip')
+      .filter({ hasText: new RegExp(`^${name}`, 'i') })
+      .first(),
+  )
 /** The pointer out of the way: over the window's top, where it opens no card. */
 const away = () => page.mouse.move(options.width / 2, 8)
 
