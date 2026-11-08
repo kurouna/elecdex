@@ -114,14 +114,25 @@ function hourlyLines(
       detail: a.associated ? 'attached' : 'unattached',
       waste: judged.get(`eip:${a.region}:${a.ip}`) === 'unattached',
     })),
-    elb: everywhere(r.balancers)
-      .filter((b) => b.state === null || b.state === 'active')
-      .map((b) => ({
-        name: b.name,
-        monthly: prices.hour(elbKind(b.type), b.region) * HOURS_A_MONTH,
-        region: b.region,
-        detail: b.type,
-      })),
+    elb: [
+      ...everywhere(r.balancers)
+        .filter((b) => b.state === null || b.state === 'active')
+        .map((b) => ({
+          name: b.name,
+          monthly: prices.hour(elbKind(b.type), b.region) * HOURS_A_MONTH,
+          region: b.region,
+          detail: b.type,
+        })),
+      // Classic ones too, as RESOURCES' "billed by the hour" counts them (RESOURCES reads them).
+      ...Object.entries(r.res.elbTargets).flatMap(([region, read]) =>
+        (read?.classic ?? []).map((c) => ({
+          name: c.n,
+          monthly: prices.hour('clb', region) * HOURS_A_MONTH,
+          region,
+          detail: 'classic',
+        })),
+      ),
+    ],
     eks: everywhere(r.clusters).map((c) => {
       const extended = onExtendedSupport(c, r.now)
       return {

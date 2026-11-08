@@ -121,6 +121,12 @@ export class ProbeScheduler<C> {
    * the old generation, so when it ends they go again if still due, and let their dependents go.
    */
   readonly #resume = new Set<string>()
+  /**
+   * Bulk probes whose `after` was running when they came due: they start once it settles, so
+   * RESOURCES' chain (res-quiet → res-bedrockuse → res-gmd → res-lastuse) keeps its order on every
+   * cycle, not only the first.
+   */
+  readonly #afterParent = new Set<string>()
   #started = false
   #halted = false
   /** Starts, stops and refreshes: a run from an older one may no longer start the CLI. */
@@ -187,6 +193,7 @@ export class ProbeScheduler<C> {
     this.#generation += 1
     this.#again.clear()
     this.#resume.clear()
+    this.#afterParent.clear()
     for (const timer of this.#timers.values()) timer.stop()
     this.#timers.clear()
     for (const handle of this.#pending) this.#deps.clearTimer(handle)
@@ -245,6 +252,12 @@ export class ProbeScheduler<C> {
   #mayRun(probe: Probe<C, unknown>): boolean {
     if (!this.#started || this.#halted || this.#running.has(probe.id)) return false
     if (probe.after !== undefined && this.outcome(probe.after).at === null) return false
+    // Only RESOURCES' bulk chain waits: a probe a REFRESH press starts (MANUAL Cost Explorer)
+    // must start inside the press, not after its parent answers.
+    if (probe.bulk !== undefined && probe.after !== undefined && this.#running.has(probe.after)) {
+      this.#afterParent.add(probe.id)
+      return false
+    }
     if (probe.bulk === 'judge' && !this.#countsTried()) return false
     const failures = this.#failures.get(probe.id) ?? 0
     const tried = this.outcome(probe.id).triedAt
@@ -344,6 +357,7 @@ export class ProbeScheduler<C> {
       if (probe.bulk === 'count') this.#startJudges()
     }
     this.#counted(probe, calls)
+    this.#startWaiting(probe)
     if (this.#again.delete(probe.id)) void this.#run(probe)
     else if (resumed && isDue(this.outcome(probe.id).at, probe.every, this.#deps.now()))
       void this.#run(probe)
@@ -386,6 +400,14 @@ export class ProbeScheduler<C> {
    * The probes after this one, when what they read for changed or was read for the first time
    * (a probe without `keyOf` has one key: its first reading lets its dependents go, once).
    */
+  /** The probes that came due while this one, their `after`, ran: now, in its order. */
+  #startWaiting(parent: Probe<C, unknown>): void {
+    for (const dependent of this.#probes) {
+      if (dependent.after === parent.id && this.#afterParent.delete(dependent.id))
+        void this.#run(dependent)
+    }
+  }
+
   #runDependents(probe: Probe<C, unknown>): void {
     const value = this.outcome(probe.id).value
     if (value === null) return

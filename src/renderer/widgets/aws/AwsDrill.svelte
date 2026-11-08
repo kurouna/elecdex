@@ -241,7 +241,7 @@ function cell(column: DrillColumn, row: DrillRow): string {
   if (value === null || value === undefined) return '—'
   if (column.kind !== 'text' && column.kind !== 'num') return '—'
   // A sentence about the row (a reason) keeps its numbers and loses the row's own name.
-  return maskIn(value, [row.name], masked)
+  return maskIn(value, row.names ?? [row.name], masked)
 }
 
 /** The name column: every resource's name goes under MASK, whatever its kind (aws.md §14.6). */
@@ -337,8 +337,8 @@ function takeFocus(el: HTMLElement): void {
     {/if}
     <dl class="fields">
       {#if item.forgotten}
-        <dt>quiet for</dt><dd class="mono" class:warn={item.forgotten.billed} data-testid="aws-item-quiet">{item.forgotten.quietFor} · {maskIn(item.forgotten.why, [item.name, item.id], masked)}</dd>
-        <dt>seen by</dt><dd class="mono">{maskIn(item.forgotten.source, [item.name, item.id], masked)} · read {clockText(readAt)}</dd>
+        <dt>quiet for</dt><dd class="mono" class:warn={item.forgotten.billed} data-testid="aws-item-quiet">{item.forgotten.quietFor} · {maskIn(item.forgotten.why, item.forgotten.names, masked)}</dd>
+        <dt>seen by</dt><dd class="mono">{maskIn(item.forgotten.source, item.forgotten.names, masked)} · read {clockText(readAt)}</dd>
       {/if}
       {#each item.fields as field, i (i)}
         <dt>{field.label}</dt><dd class:mono={true}>{field.masked && masked ? MASKED : maskIn(field.value, [item.name], masked)}</dd>

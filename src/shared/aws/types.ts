@@ -272,6 +272,11 @@ export interface ForgottenRow {
   weight: Weight
   /** What it was judged by, for the card ("AWS/NATGateway · no data point in 14 d"). */
   source: string
+  /**
+   * Every name its sentences hold, for MASK: its own name and id, and another resource's where the
+   * sentence names one (an orphan alarm "watches db-old, which is gone").
+   */
+  names: string[]
 }
 
 export type TileGroup =
@@ -456,6 +461,8 @@ export interface DrillRow {
   id: string
   /** A row of a list across services (forgotten, new, elsewhere): the service its id is of. */
   service?: AwsService
+  /** The names its cells hold beyond its own, for MASK (a forgotten row's sentence). */
+  names?: string[]
   region: string
   name: string
   weight: Weight | null

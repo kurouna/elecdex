@@ -649,8 +649,9 @@ export function drillItem(
   }
   if (service === 'ec2') ec2Extra(base, r)
   if (service === 'ebs') {
-    const volume = everywhere(r.volumes).find((v) => v.id === id)
-    const instance = everywhere(r.instances).find((i) => i.id === volume?.at)
+    // The item's own region: what it relates to is there (ids are AWS's, but read only there).
+    const volume = (r.volumes[base.region] ?? []).find((v) => v.id === id)
+    const instance = (r.instances[base.region] ?? []).find((i) => i.id === volume?.at)
     if (instance)
       base.related.push({
         service: 'ec2',
@@ -663,7 +664,7 @@ export function drillItem(
 }
 
 function ec2Extra(item: DrillItem, r: AwsReadings): void {
-  const instance = everywhere(r.instances).find((i) => i.id === item.id)
+  const instance = (r.instances[item.region] ?? []).find((i) => i.id === item.id)
   if (instance === undefined) return
   item.fields.push(
     { label: 'platform', value: fmt(instance.platform) },
@@ -677,17 +678,22 @@ function ec2Extra(item: DrillItem, r: AwsReadings): void {
     { label: 'security groups', value: String(instance.sgs?.length ?? 0) },
     { label: 'IMDSv2', value: instance.imds === 'required' ? 'required' : 'optional' },
   )
-  for (const volume of everywhere(r.volumes).filter((v) => v.at === instance.id))
+  ec2Related(item, instance.id, r)
+}
+
+/** What an instance's item relates to, in its own region: its volumes, addresses and alarms. */
+function ec2Related(item: DrillItem, id: string, r: AwsReadings): void {
+  for (const volume of (r.volumes[item.region] ?? []).filter((v) => v.at === id))
     item.related.push({
       service: 'ebs',
       id: volume.id,
       name: volume.name ?? volume.id,
       note: `${volume.size} GiB ${volume.type}`,
     })
-  for (const address of everywhere(r.addresses).filter((a) => a.instance === instance.id))
+  for (const address of (r.addresses[item.region] ?? []).filter((a) => a.instance === id))
     item.related.push({ service: 'eip', id: address.ip, name: address.ip, note: 'Elastic IP' })
   for (const [region, alarms] of Object.entries(r.alarms))
     for (const alarm of alarms?.metric ?? [])
-      if (alarm.dim === instance.id && region === instance.region)
+      if (alarm.dim === id && region === item.region)
         item.related.push({ service: 'alarms', id: alarm.name, name: alarm.name, note: 'in ALARM' })
 }

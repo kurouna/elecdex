@@ -172,7 +172,7 @@ export interface Card {
 
 /** A LOOKS FORGOTTEN row's card: what it was judged by, which the row has no room for. */
 export function forgottenCard(row: ForgottenRow, masked: boolean): Card {
-  const names = [row.name, row.id]
+  const names = row.names
   return {
     head: `${TILE[row.service].label} · ${row.region}`,
     side: row.billed ? 'billing' : 'not billing',

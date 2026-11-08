@@ -622,6 +622,39 @@ describe('ProbeScheduler', () => {
     expect(h.calls.filter((c) => c === 'slow')).toHaveLength(1)
   })
 
+  it('starts a probe due while what it reads for still runs only once that has answered', async () => {
+    // After the first cycle a chain's links came due by their own timers: res-gmd could run while
+    // res-bedrockuse was still reading, on yesterday's models.
+    let release: (() => void) | null = null
+    const order: string[] = []
+    const h = harness(async (call) => {
+      if (call.argv[0] === 'parent' && order.includes('parent')) {
+        await new Promise<void>((resolve) => {
+          release = resolve
+        })
+      }
+      order.push(call.argv[0] ?? '')
+      return result({ ok: true, code: 0, stdout: 'x' })
+    })
+    const s = new ProbeScheduler(h.deps, [
+      probe('parent', { bulk: 'count' }),
+      probe('child', { after: 'parent', bulk: 'count' }),
+    ])
+    s.start()
+    await h.flush()
+    expect(order).toEqual(['parent', 'child'])
+    // A second cycle: the parent starts and hangs; the child comes due meanwhile.
+    s.runNow('parent')
+    await h.flush()
+    s.runNow('child')
+    await h.flush()
+    expect(order).toEqual(['parent', 'child'])
+    ;(release as (() => void) | null)?.()
+    await h.flush()
+    expect(order).toEqual(['parent', 'child', 'parent', 'child'])
+    s.stop()
+  })
+
   it('does not read again on a boundary a few seconds after it read', async () => {
     const h = harness(() => result({ ok: true, code: 0, stdout: 'x' }))
     const s = new ProbeScheduler(h.deps, [probe('a', { every: 15 * MINUTE })])

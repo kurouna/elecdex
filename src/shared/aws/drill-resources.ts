@@ -402,6 +402,7 @@ export function listRows(which: AwsList, r: AwsReadings): DrillRow[] {
       service: row.service,
       region: row.region,
       name: row.name,
+      names: row.names,
       weight: row.weight,
       cells: {
         name: row.name,

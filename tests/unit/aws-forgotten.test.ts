@@ -363,6 +363,8 @@ describe('the predicates', () => {
     expect(rows(r).find((x) => x.reason === 'alarm-orphan')?.why).toBe(
       'watches i-gone, which is gone',
     )
+    // The sentence names another resource: MASK hides it with the alarm's own name.
+    expect(rows(r).find((x) => x.reason === 'alarm-orphan')?.names).toContain('i-gone')
   })
 
   it('says what the sweep found elsewhere without a word about use', () => {
@@ -456,6 +458,7 @@ describe('how quiet is read', () => {
 
 const row = (over: Partial<ForgottenRow>): ForgottenRow => ({
   key: 'ebs:r:x',
+  names: ['x'],
   service: 'ebs',
   id: 'x',
   region: R,
@@ -539,6 +542,23 @@ describe("the drill-down's lists agree with RESOURCES (aws.md §14.5)", () => {
     name: null,
   })
 
+  it('relates an item to what is in its own region only', () => {
+    // The lookups searched every region: the same ids read in two regions mixed their volumes.
+    const r = {
+      ...readings({
+        instances: { [R]: [instance()], 'us-east-1': [instance({ name: 'east' })] },
+        volumes: {
+          [R]: [volume({ id: 'vol-tokyo', at: 'i-1', state: 'in-use' })],
+          'us-east-1': [volume({ id: 'vol-east', at: 'i-1', state: 'in-use' })],
+        },
+      } as never),
+      regions: [R, 'us-east-1'],
+    }
+    const east = drillItem('ec2', 'i-1', r, [], 'us-east-1')
+    expect(east?.related.map((x) => x.id)).toEqual(['vol-east'])
+    expect(drillItem('ebs', 'vol-tokyo', r, [], R)?.related.map((x) => x.name)).toEqual(['web-1'])
+  })
+
   it('opens the copy of a name two regions share in the region asked for', () => {
     // CDKToolkit is in every bootstrapped region: the item once opened the first region's copy,
     // whatever row or ATTENTION line was pressed.
@@ -589,6 +609,10 @@ describe("the drill-down's lists agree with RESOURCES (aws.md §14.5)", () => {
     expect(elb.map((row) => row.id)).toEqual(['old-clb'])
     expect(elb[0]?.cells).toMatchObject({ type: 'classic', scheme: 'internet-facing' })
     expect(drillItem('elb', 'old-clb', r, [])?.name).toBe('old-clb')
+    // ACTIVE bills it by the hour too, as RESOURCES does.
+    const active = activeCost(r).services.find((x) => x.service === 'elb')
+    expect(active?.count).toBe('1')
+    expect(active?.top.map((t) => t.name)).toContain('old-clb')
     // A pending NAT gateway bills as soon as it is created: priced alike in both places.
     const tile = new Map(
       allResources(r)

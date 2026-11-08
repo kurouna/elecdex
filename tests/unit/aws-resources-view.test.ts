@@ -35,6 +35,7 @@ import { ledgerLine, MASKED } from '../../src/renderer/widgets/cloud/cloud-view.
 
 const row = (over: Partial<ForgottenRow> = {}): ForgottenRow => ({
   key: 'logs:ap-northeast-1:/aws/lambda/old-resizer',
+  names: ['old-resizer', '/aws/lambda/old-resizer'],
   service: 'logs',
   id: '/aws/lambda/old-resizer',
   region: 'ap-northeast-1',

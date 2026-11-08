@@ -272,7 +272,7 @@ function pickView(button: HTMLElement, next: ResourcesViewChoice): void {
       >
         <span class="kd">{TILE[row.service].label}</span>
         <span class="nm">{shownName(row.name, masked)}</span>
-        <span class="why">{maskIn(row.why, [row.name], masked)}</span>
+        <span class="why">{maskIn(row.why, row.names, masked)}</span>
         <span class="last">{row.quietFor}</span>
         <span class="usd">{forgottenMoney(row)}</span>
         <button type="button" class="keep" aria-label="keep: I meant to leave it" onclick={(e) => { e.stopPropagation(); keep(e.currentTarget, row) }} data-testid="aws-keep">keep</button>

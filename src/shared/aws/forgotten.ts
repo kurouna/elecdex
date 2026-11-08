@@ -913,6 +913,7 @@ function rowOf(x: Res, f: Finding): ForgottenRow {
     notPriced: f.billed && (f.notPriced === true || f.cost === null),
     weight: weightOf(f.billed, f.cost),
     source: f.source,
+    names: [x.name, x.id, ...(typeof f.facts?.gone === 'string' ? [f.facts.gone] : [])],
   }
 }
 
