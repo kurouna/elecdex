@@ -672,7 +672,7 @@ button.figure:hover span { text-decoration: underline; text-underline-offset: 3p
     <p>The profile is the AWS CLI's own (<code>aws configure list-profiles</code>); elecdex holds no key. Only Cost Explorer has a per-request price, and only if you turn it on. Reads appear in the account's CloudTrail.</p>
   </div>
 </section>
-<p class="note"><b>RESOURCES（2026-11-08 の修正案、aws.md §14、レビュー待ち）</b>: 先頭の既定のタブ。上の 4 つの数字（全リソース・時間課金・忘れていそうなもの・7 日の増減）、LOOKS FORGOTTEN の上位 5 行（推定の月額 × 静かな日数の順、keep で外せる）、分類ごとのサービスのタイル（数・状態の線・リージョンの点・忘れていそうな数）、見ていないリージョンにあるもの（ELSEWHERE）、請求があるのにタイルの無いサービス（BILLED, NOT LISTED）。タイルは矢印キーで移り、押すと 2 段目、行で 3 段目（Last used と根拠、KEEP）。上の Resources で「忘れものなし」「最初の読み取り中」に切り替えられる。</p>
+<p class="note"><b>RESOURCES（2026-11-08 の修正案、aws.md §14、レビュー済み・利用者の決定済み）</b>: MASK はリソース名をすべて伏せる。§14.4b で足すサービス（VPC エンドポイント、SageMaker、スナップショットと AMI、ElastiCache ほか）はモックに無く、同じ型のタイルで並ぶ。先頭の既定のタブ。上の 4 つの数字（全リソース・時間課金・忘れていそうなもの・7 日の増減）、LOOKS FORGOTTEN の上位 5 行（推定の月額 × 静かな日数の順、keep で外せる）、分類ごとのサービスのタイル（数・状態の線・リージョンの点・忘れていそうな数）、見ていないリージョンにあるもの（ELSEWHERE）、請求があるのにタイルの無いサービス（BILLED, NOT LISTED）。タイルは矢印キーで移り、押すと 2 段目、行で 3 段目（Last used と根拠、KEEP）。上の Resources で「忘れものなし」「最初の読み取り中」に切り替えられる。</p>
 <p class="note">モック: すべて架空のアカウントと数字で、AWS には何も問い合わせません。<b>2026-11-08 の決定</b>: 名前は AWS STATUS。初めて表示したアカウントでは Cost Explorer を ON にするかを上段の下の 1 枚で尋ねる（上の Cost Explorer で状態を替えられる）。Quota で月の見込み額の QUOTA（USD、既定 0 = OFF）、AWS public status で公開ステータスの障害の帯（障害のときだけ）、Simulate で QUOTA 超えと障害のトースト（読むのは見えている間だけ。ウィンドウが前に無いときは OS の通知）。ACTIVE の下部に推定であることを明記。<b>ACTIVE</b> はいま動いていて料金の発生しているものを推定の月額の大きい順に（立ち上げっぱなしの GPU インスタンス、12 TB の S3 バケットなど。推定は定価で、割引や無料枠は入れない）。<b>ドリルダウン</b>: ACTIVE でサービスの行（または上の積み上げの帯）を押すと 2 段目（上の棒を押すとクロスフィルタ、列の見出しで並べ替え）、行を押すと 3 段目（関係するものを押すと横へ掘れる、HISTORY でそのリソースの CloudTrail）。COST はサービスの棒から日ごとの曲線へ、その下の使用の種類・リージョン別は有料の Cost Explorer（上の Cost Explorer で ON にして試せる。押すたびに $0.01 と台帳に数える）。ATTENTION の行は該当リソースの 3 段目へ飛び、↗ は実物ではコンソールを開きます。Enter で下へ、Escape / Backspace で上へ。行・セル・帯・足元の台帳にマウスを止めると詳細カード。</p>
 
 <script>
@@ -1160,7 +1160,8 @@ function viewResources(v) {
   }
   v.appendChild(rest);
 }
-const label = (svc, x) => x.name || x.id;
+// MASK on RESOURCES hides every resource name (the user's decision 2026-11-08): the kind stays, the name goes.
+const label = (svc, x) => (state.mask && state.tab === 'resources' ? `${String(svc).toLowerCase()}-••` : x.name || x.id);
 
 // ---------- attention, derived from the resources (the app does this in shared/aws/attention.ts) ----------
 function attention() {
@@ -1530,7 +1531,7 @@ function viewService(v, top) {
       else if (c[2] === 'ago') td.textContent = raw === 0 ? 'today' : `${age(raw)} ago`;
       else if (c[2] === 'use') td.innerHTML = x.quiet >= 30 ? `<span style="color:var(--warn)">quiet ${x.quiet} d</span>` : 'active';
       else if (c[2] === 'lg') td.textContent = state.mask ? raw.replace(/[^/]+$/, '••') : raw;
-      else if (c[2] === 'q') td.textContent = state.mask ? `${raw.slice(0, 3)}••` : raw;
+      else if (c[2] === 'q') td.textContent = state.mask ? '••' : raw;
       else if (c[2] === 'ip') td.textContent = ipMask(raw);
       else if (c[2] === 'dom') td.textContent = domMask(raw);
       else td.textContent = raw == null ? '—' : String(raw);

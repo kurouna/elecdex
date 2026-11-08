@@ -187,7 +187,7 @@
 | もの | 理由 |
 |---|---|
 | Cost Explorer の §3.3 以外（`ce` のほかの操作、時間ごとの粒度、リソースごと） | 有料で、要る理由が無い |
-| `cloudwatch get-metric-data`、`get-metric-widget-image`、`get-insight-rule-report` | 無料枠の外で常に課金 |
+| `cloudwatch get-metric-widget-image`、`get-insight-rule-report`（`get-metric-data` は利用者の決定 2026-11-08 で §14.4a の有料の probe として許す） | 無料枠の外で常に課金 |
 | `s3api *`、`s3 *`（`s3api list-buckets` だけは §14.4 で許す案、利用者の決定 2026-11-08） | S3 は LIST 要求を課金する。オブジェクトの一覧と中身は読まない |
 | `health *`、`support *`（Trusted Advisor） | Business 以上のサポートプランが要る |
 | `logs *`（`describe-log-groups` だけは §14.4 で許す案、利用者の決定 2026-11-08） | 読んだデータ量に課金しうる（Logs Insights）。ログの中身はそもそも読まない |
@@ -553,7 +553,7 @@ spot を除く、単価が無い型）、Cost Explorer（既定 OFF、頻度、�
 `consoleUrl`、禁止の表。e2e は `aws.spec.ts`（代役の `demo` / `signedout` / `mfa` / `partial` / `nobilling` /
 `newplan` / `nocli`、ドリルダウンの往復とキーボード）。
 
-## 14. RESOURCES: いま何があり、何を忘れていそうか（修正案 2026-11-08、レビュー済み・利用者の決定待ち）
+## 14. RESOURCES: いま何があり、何を忘れていそうか（修正案 2026-11-08、レビュー済み・利用者の決定済み・実装前）
 
 利用者の指定（2026-11-08）: 「アラーム・セキュリティ・期限切れ・課金だけでなく、**アクティブなリソース**（起動している
 EC2、作られた S3、有効な CloudWatch Logs など）を、**メインとしてダッシュボード的に**表示したい」「AWS の利用状況・
@@ -569,6 +569,10 @@ EC2、作られた S3、有効な CloudWatch Logs など）を、**メインと�
 | 新しい読み取り | **CloudWatch Logs**（`logs describe-log-groups`。中身と Logs Insights は使わない）と **S3 のバケット一覧**（`s3api list-buckets`）を、§3.4 の禁止の表から外す |
 | 足すサービス | DynamoDB、ECS、SQS と SNS、API Gateway と CloudFront、**Bedrock で使っているもの** |
 | 進め方 | 設計とモックをサブエージェントがレビューし、直してから実装 |
+| 追加のサービス（レビューの後） | **追加できるものすべて**: VPC のインターフェースエンドポイント、SageMaker、EBS のスナップショットと AMI、ElastiCache・OpenSearch のドメイン・Redshift・Kinesis Data Streams、Transit Gateway のアタッチメント・Site-to-Site VPN・Transfer Family、KMS のカスタマーキー、Route 53 のホストゾーン、ECR（§14.4b）。Secrets Manager は §3.4 の禁止のまま（秘密の API 群には触れない、CLAUDE.md の境界） |
+| GetMetricData | **許す**（§3.4 から外す）。有料の probe として台帳に数え、月の上限を持つ（§14.4a） |
+| MASK | **RESOURCES のリソース名をすべて**伏せる（§14.6） |
+| ATTENTION との重複 | ATTENTION の忘れもの（idle の EC2、付いていない EBS・EIP、止めたままのインスタンス）は、**RESOURCES への 1 行の要約**に替える（§14.1） |
 
 ### 14.1 何に答えるか
 
@@ -586,7 +590,7 @@ EC2、作られた S3、有効な CloudWatch Logs など）を、**メインと�
 **ATTENTION・ACTIVE との関係**（重複を作らない）: 判定は `forgotten.ts` の 1 つの述語、しきい値は `AWS_LIMITS` に
 名前で置く。ACTIVE の IDLE / WASTE の数もそれを使い、言葉も 3 か所で同じにする。ATTENTION の COST の行のうち
 忘れもの（idle の EC2、付いていない EBS・EIP、止めたままのインスタンス）は、1 行の要約「9 look forgotten ·
-≈ $1.6k/mo › RESOURCES」に替える案（§14.9-6）。延長サポートや予算は ATTENTION に残す。タブに留まるとカードで
+≈ $1.6k/mo › RESOURCES」に替える（利用者の決定 2026-11-08）。延長サポートや予算は ATTENTION に残す。タブに留まるとカードで
 役割を言う（RESOURCES = 種類と放置、ACTIVE = いまの額の順）。
 
 ### 14.2 画面（1 段目）
@@ -734,12 +738,55 @@ D と E を数だけに、short（30 rem 未満）は A と B だけ。
   書く。SLOW（×4）はこれにも効く
 - **CloudWatch の無料枠**: quiet・bedrockuse・lastuse で 1 日 約 150 回（4 リージョン）＝月 約 5,000 回。今の分と
   合わせて月 100 万の約 4%
-- **GetMetricData を使えば**（1 回で 500 メトリクス、$0.01 / 1,000 メトリクス、月に数セント程度）1 件ずつの読み取りが
-  ほぼ無くなる。§3.4 で禁止しているので、使うかは利用者に尋ねる（§14.9-5）。黙って入れない
+- **GetMetricData**（利用者の決定 2026-11-08）で、quiet の後半と lastuse・bedrockuse の 1 件ずつの読み取りを置き換える
+  （§14.4a）。list-metrics は「どれがあるか」を知るためだけに残す
 - **Resource Explorer** は状態（running か）や大きさを返さないので sweep の代わりにならない。集約インデックスがある
   ときだけ「どのリージョンを読むか」の絞り込みに使う
 - 拒否は今と同じく PARTIAL に操作名を出す。`ReadOnlyAccess` が AgentCore と aoss を含むかは未確認: 実装の前に
   ポリシーの版で確かめる
+
+### 14.4a GetMetricData（有料の probe、利用者の決定 2026-11-08）
+
+- **何に使うか**: §14.3 の使用の判定と Bedrock のトークン。list-metrics で見つけたメトリクスを、1 回 500 本まで
+  まとめて `cloudwatch get-metric-data` で読む（30 日、1 日ごとの合計か最大）。14 日の窓に頼らず 30 日を直接言える
+  （`no data 30 d` / `no traffic 30 d`）。1 件ずつの `get-metric-statistics`（lastuse、bedrockuse の後半、EC2 の CPU と
+  NetworkOut、S3 の容量の日ごと）もここに寄せる
+- **値段と上限**: CloudWatch の料金は 1,000 メトリクスあたり 0.01 USD（GetMetricData は無料枠の外、§3.4 の理由）。
+  1 日 1 回、4 リージョンで 1 日 数百〜2,000 本、月 数万本 ＝ **月 0.1〜0.6 USD 程度**の見込み（実装の後に実物で
+  測る）。`PAID_PROBES` に行を足し（Cost Explorer と同じ型: 設定の鍵 `getMetricData`、単価、月の上限）、既定は **ON・
+  月の上限 100,000 本（1 USD）**。上限に達したら、その月は list-metrics の 14 日の判定に戻り、台帳の paid に
+  `GMD CAP REACHED` と出す
+- **台帳**: paid の欄に Cost Explorer と並べて数える（要求の回数でなくメトリクスの本数とその額）。⚙ の「This account」に
+  ON · OFF と上限（25,000 · 100,000 · 500,000 本）。OFF なら §14.4 の無料の手だけで判定する（窓は 14 日）
+- **リージョン**: GetMetricData はリージョンごと。Bedrock は全リージョンの list-metrics で見つかったリージョンだけ、
+  CloudFront は us-east-1
+- **テスト**: 本数の数え方、上限で止まること、OFF で無料の手に戻ること、カタログ（`get-metric-data` だけを許し、
+  `get-metric-widget-image` と `get-insight-rule-report` は禁止のまま）
+
+### 14.4b 追加のサービス（利用者の決定 2026-11-08: 追加できるものすべて）
+
+どれも無料の describe / list で、1 リージョン 1〜2 回（6 時間ごと、件数の多いものは 1 日）。使用の判定は §14.4a。
+
+| 分類 | サービス | CLI | 忘れものの判定 |
+|---|---|---|---|
+| NETWORK | VPC のインターフェースエンドポイント | `ec2 describe-vpc-endpoints --filters Name=vpc-endpoint-type,Values=Interface` | 30 日 `BytesProcessed` 0（AWS/PrivateLinkEndpoints）。AZ ごとの時間課金 |
+| NETWORK | Transit Gateway のアタッチメント | `ec2 describe-transit-gateway-attachments` | 30 日 `BytesIn` 0（AWS/TransitGateway）。アタッチメントごとの時間課金 |
+| NETWORK | Site-to-Site VPN | `ec2 describe-vpn-connections` | トンネルが 30 日 DOWN（`TunnelState`）。接続ごとの時間課金 |
+| AI | SageMaker | `sagemaker list-endpoints`・`list-notebook-instances`・`list-apps`（InService のもの） | エンドポイントは 30 日 `Invocations` 0、ノートブックは InService のまま 7 日超、Studio のアプリは InService のまま 1 日超 |
+| STORAGE | EBS のスナップショット・AMI | `ec2 describe-snapshots --owner-ids self`、`describe-images --owners self` | 元のボリュームが無いスナップショット、どのインスタンスも起動していない 90 日超の AMI（`LastLaunchedTime`） |
+| STORAGE | ECR | `ecr describe-repositories` → 大きいものだけ `describe-images`（容量の合計） | 90 日 push も pull も無い（`lastRecordedPullTime`） |
+| DATABASE | ElastiCache | `elasticache describe-cache-clusters`・`describe-serverless-caches` | 30 日 `CurrConnections` の最大 0 |
+| DATABASE | OpenSearch のドメイン | `opensearch list-domain-names` → `describe-domains` | 30 日 `SearchRate` と `IndexingRate` 0 |
+| DATABASE | Redshift | `redshift describe-clusters`、`redshift-serverless list-workgroups` | 30 日 `DatabaseConnections` の最大 0（止めたクラスタは課金されない旨を書く） |
+| INTEGRATION | Kinesis Data Streams | `kinesis list-streams`（`StreamModeDetails` も） | 30 日 `IncomingRecords` 0。シャードかストリームの時間課金 |
+| INTEGRATION | Transfer Family | `transfer list-servers` | 30 日 `BytesIn`・`BytesOut` 0。サーバーごとの時間課金 |
+| SECURITY | KMS のカスタマーキー | `kms list-keys` → `describe-key`（`KeyManager=CUSTOMER` だけ、1 日） | 無効化されたまま、または削除の予定の無い 1 鍵 月 1 USD。使用は CloudTrail を引かないので `use unknown` |
+| SECURITY | Route 53 のホストゾーン | `route53 list-hosted-zones`（G） | レコードが NS と SOA だけのゾーン（1 ゾーン 月 0.5 USD） |
+
+- 回数: 1 リージョン 約 15 回が加わる（6 時間ごと）。最初の 1 周は件数の list / describe を先に、判定は GetMetricData の
+  1 日 1 回にまとめる。§14.4 の「回数と時間」と同じく、実装の後に実物で測る
+- 単価の表（`list-prices.ts`）にこれらの時間課金と月額を足す。足せないものは `not priced`
+- 権限: `ReadOnlyAccess` に含まれるかを、実装の前にポリシーの版で確かめる（`kms:DescribeKey` など）。拒否は PARTIAL
 
 ### 14.5 2 段目・3 段目
 
@@ -763,9 +810,11 @@ D と E を数だけに、short（30 rem 未満）は A と B だけ。
 
 - §10 と同じく `--query` が残した欄だけ。ログの中身、キューのメッセージ、SNS の宛先、Bedrock のプロンプトは読まない。
   キューの URL はキュー名だけに、ARN はリソース名だけに main で削る
-- MASK の範囲は利用者に尋ねる（§14.9-4）: (a) RESOURCES のリソース名をすべて伏せる（スクリーンショットを共有する
-  用途）か、(b) ドメインらしい文字列（FQDN の正規表現）はどこでも伏せ、ほかは名前の種類の表で決めるか。どちらでも
-  hover のカード、NEW 7 D の副題、3 段目、トーストも対象。`mask.ts` の単体テストの一覧に足す
+- **MASK は RESOURCES のリソース名をすべて伏せる**（利用者の決定 2026-11-08: スクリーンショットを人に見せる用途に
+  安全なほう）。バケット・ロググループ・テーブル・関数・キュー・トピック・API・ディストリビューションとその別名・
+  EC2 の Name・Bedrock の KB とエージェント・コレクション・そのほか §14.4b の名前。種類と数、額、理由の文の数字は
+  残す（`bucket-••`、`log group /aws/lambda/••`）。hover のカード、NEW 7 D の副題、2 段目・3 段目、トーストも対象。
+  `mask.ts` の単体テストの一覧に足す
 
 ### 14.7 設定（§8 への追加）
 
@@ -782,22 +831,26 @@ ELSEWHERE、NEW 7 D の基準日、Also here）、`service-names.test.ts`（Serv
 `quiet`・`noregion` のモード）。component はタイルの格子とキーボード（矢印、戻ったときのフォーカス）。e2e は
 RESOURCES が既定のタブ、タイル → 2 段目 → 戻る、B の行 → 3 段目 → KEEP、ELSEWHERE。lifecycle の契約は変わらない。
 
-### 14.9 未決（利用者に尋ねる）
+### 14.9 決まったことと、実装の前に確かめること
 
-1. **追加のサービス**（どれも無料の describe / list で 1 リージョン 1〜2 回、忘れて高くつくもの）。レビューの推奨は
-   最初の版に VPC のインターフェースエンドポイント、SageMaker（エンドポイント・ノートブック・Studio のアプリ）、
-   Classic ELB（§14.4 に入れた）、EKS の空のクラスタ（入れた）、EBS のスナップショットと AMI。後に回すもの:
-   ElastiCache、OpenSearch のドメイン、Redshift、Kinesis、TGW、VPN、Transfer Family、KMS、Route 53、ECR。
-   Secrets Manager は禁止のまま（メタデータでも同じ API 群で境界が曖昧になる）
-2. ELSEWHERE の掃引: 週 1 回（52 回）と手動、既定 ON でよいか
-3. KEEP の印を持つか（推奨: 持つ。額が 2 倍で出し直す）
-4. **MASK の範囲**: (a) すべてのリソース名、(b) ドメインらしいものと種類の表
-5. **GetMetricData を許すか**（月に数セント程度で、1 日の CLI の起動を 1 桁減らせる。今は §3.4 で禁止）
-6. **ATTENTION の COST の行のうち忘れものを、RESOURCES への 1 行の要約に替えるか**（3 か所に同じものが出るのを
-   やめる）
-7. 静かな日数の既定 30 日（窓は種類ごとに 7〜14 日、main の記録でそれより長く）でよいか
-8. CloudWatch Logs の Describe と SNS の管理 API の値段は公式の記載が見つからない（2026-11-08）。実装の前に確かめ、
-   有料なら外す
+利用者が決めた（2026-11-08、§14.0）:
+
+1. 追加のサービスは**追加できるものすべて**（§14.4b）。Secrets Manager だけは §3.4 の禁止のまま
+2. **GetMetricData を許す**（§14.4a、既定 ON、月 100,000 本 = 1 USD の上限）
+3. MASK は**リソース名をすべて**（§14.6）
+4. ATTENTION の忘れものは **RESOURCES への 1 行の要約**に（§14.1）
+
+尋ねず、レビューの推奨どおりにしたもの（実装の前なら変えられる）:
+
+5. ELSEWHERE の掃引は週 1 回（52 回）と手動、既定 ON
+6. KEEP の印を持ち、額が 2 倍で出し直す
+7. 静かな日数の既定 30 日（GetMetricData で 30 日を直接読む。OFF なら 14 日の窓）
+
+実装の前に確かめる:
+
+8. CloudWatch Logs の Describe と SNS の管理 API の値段（公式の記載が見つからない、2026-11-08）。有料なら外す
+9. Bedrock の PT の呼び出しがメトリクスにどう出るか（§14.3）、`list-buckets` の課金と CreationDate（§14.4）
+10. `ReadOnlyAccess` が AgentCore・aoss・§14.4b の各操作を含むか
 
 ### 14.10 レビューで直したもの（Opus 5.5、2026-11-08）
 
