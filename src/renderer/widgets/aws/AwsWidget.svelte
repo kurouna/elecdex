@@ -254,6 +254,14 @@ function copyText(button: HTMLElement, which: 'signin' | 'policy', text: string)
 }
 
 let waitUntil = $state(0)
+/**
+ * REFRESH blinks its three beats as every choice does, then asks: the button is disabled for the
+ * wait main answers, which cut the held press's own blink to one beat.
+ */
+function pressRefresh(button: HTMLElement): void {
+  if (now < waitUntil) return
+  afterBlink(button, () => void refresh())
+}
 async function refresh(): Promise<void> {
   if (now < waitUntil) return
   sfx.play('panel')
@@ -511,7 +519,7 @@ const TABS: readonly [AwsTab, string][] = [
     {/if}
     <span class="spacer"></span>
     <button type="button" class="tool" class:on={masked} aria-pressed={masked} onclick={() => patch({ mask: masked ? undefined : true })} data-testid="aws-mask">MASK</button>
-    <button type="button" class="tool" disabled={now < waitUntil} onclick={() => void refresh()} data-testid="aws-refresh">REFRESH</button>
+    <button type="button" class="tool" disabled={now < waitUntil} onclick={(e) => pressRefresh(e.currentTarget)} data-testid="aws-refresh">REFRESH</button>
   </header>
 
   {#if board?.link === 'signed-out' && board.signIn !== null}

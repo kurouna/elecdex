@@ -704,7 +704,7 @@ D と E を数だけに、short（30 rem 未満）は A と B だけ。
 - **1 日・6 時間の読み取りはアカウントごと**に main が持ち、`aws-inventory.json` に残す（Cost Explorer の取り分けと
   同じ形）。リージョンの違うペインが 2 枚でも、再起動しても、やり直さない
 - **CLI の枠の優先度**: 枠（2 本、両ペインで共有）に 2 段の優先度を付け、alarms・identity・health・trail と GITHUB
-  STATUS を先に通す。RESOURCES の一括の読み取りは同時 1 本まで。最初の 1 周は件数の list / describe を先、判定の
+  STATUS を先に通す。RESOURCES の一括の読み取りは同時 3 本まで（`BULK_LANES`、2026-11-08 に 1 本から。ELSEWHERE の見回りは件数のあと、判定と同じ段）。最初の 1 周は件数の list / describe を先、判定の
   メトリクスを後にし、B は判定が揃うまで `judging… (within 10 min)` と出す
 - **提供されていないリージョン**: bedrock・bedrock-agent・bedrock-agentcore-control・opensearchserverless は提供の
   無いリージョンがある。そこでの `Could not connect to the endpoint URL` を OFFLINE に数えない（errors.ts の
@@ -733,7 +733,7 @@ D と E を数だけに、short（30 rem 未満）は A と B だけ。
 | sweep G | 見ていないリージョンごとに `ec2 describe-instances`（running の数と型）・`describe-volumes`・`describe-nat-gateways`・`describe-addresses`（4 種） | **週 1 回**（と手動）。SCP で拒否されたリージョンは黙って飛ばす | 無料 | 13 リージョン × 4 = 52 |
 
 - **回数と時間**（実測の 1 回 1.5〜3.5 秒、CPU 約 0.6 秒、decisions.md）: 1 リージョンの最初の 1 周は、今の約 36 回に
-  約 40〜60 回（テーブル・キューの数による）。4 リージョンで約 200 回、同時 1 本で **10 分前後**かけて読む（CPU は
+  約 40〜60 回（テーブル・キューの数による）。4 リージョンで約 200 回、同時 1 本で **10 分前後**かけて読む（実装の後の測定: 2 リージョンで 253 回、1 回 1.2 秒、CLI 2 本・一括 1 本で約 6 分半、4 本・3 本で約 3 分、decisions.md 2026-11-08）（CPU は
   2 分程度）。2 周目からは、1 時間あたり今の約 1.3 倍、1 日の読み取りは約 80 回。実装の後に実物で測り decisions.md に
   書く。SLOW（×4）はこれにも効く
 - **CloudWatch の無料枠**: quiet・bedrockuse・lastuse で 1 日 約 150 回（4 リージョン）＝月 約 5,000 回。今の分と

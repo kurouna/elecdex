@@ -67,6 +67,7 @@ const keep = vi.fn(async (key: string, id: string, on: boolean) => service.keep(
 const sweep = vi.fn(async (_key: string, _what?: string) => 30_000)
 const metricData = vi.fn(async (_key: string, _answer: unknown) => true)
 const copy = vi.fn(async (_what: { kind: string; text: string }) => true)
+const refresh = vi.fn(async (_key: string) => 30_000)
 let held: Record<string, unknown> = {}
 
 beforeEach(() => {
@@ -78,6 +79,7 @@ beforeEach(() => {
   sweep.mockClear()
   metricData.mockClear()
   copy.mockClear()
+  refresh.mockClear()
   inertDom()
   finishAnimations()
   stubElecdex({
@@ -90,7 +92,7 @@ beforeEach(() => {
           deliver = null
         }
       },
-      refresh: async () => 30_000,
+      refresh: (key: string) => refresh(structuredClone(key)),
       drill: async (key: string, which: string) => service.drill(key, which),
       item: async (key: string, which: string, id: string) => service.item(key, which, id),
       history: async () => [],
@@ -218,6 +220,17 @@ describe('AwsWidget', () => {
     const text = screen.getByTestId('aws-view-account').textContent ?? ''
     expect(text).not.toContain('482913507216')
     expect(text).not.toContain('acme-prod')
+  })
+
+  it('blinks REFRESH three beats before it asks, as every other button does', async () => {
+    await mount()
+    await push(await boardOf())
+    const button = screen.getByTestId('aws-refresh')
+    await fireEvent.click(button)
+    expect(button.classList.contains('blinking')).toBe(true)
+    expect(refresh).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    expect(button.classList.contains('blinking')).toBe(false)
   })
 
   it('says the command to sign in with', async () => {

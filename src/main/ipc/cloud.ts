@@ -8,7 +8,7 @@ import type { CloudAlert } from '../aws/service.js'
 import { USER_AGENT } from '../build-info.js'
 import { AlertFileSchema, CloudAlerts } from '../cloud-cli/alerts.js'
 import { createCliRunner } from '../cloud-cli/run.js'
-import { concurrencyLimit } from '../cloud-cli/scheduler.js'
+import { CLI_LANES, concurrencyLimit } from '../cloud-cli/scheduler.js'
 import { type StatusSource, StatusWatch } from '../cloud-cli/status.js'
 import { stubAws } from '../cloud-cli/stub-aws.js'
 import { stubGithub } from '../cloud-cli/stub-github.js'
@@ -97,7 +97,7 @@ export function registerCloudIpc(settings: SettingsHandle): { dispose: () => voi
   const shared: CloudShared = {
     cli,
     executable: (tool) => (stubbed ? 'stub' : runner.executable(tool)),
-    limit: concurrencyLimit(2),
+    limit: concurrencyLimit(CLI_LANES),
     status: undefined as unknown as StatusWatch,
     alerts,
     shown: (source, shown) => shared.status.set(source, shown),

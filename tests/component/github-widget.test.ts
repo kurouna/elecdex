@@ -51,6 +51,7 @@ let deliver: ((board: GithubBoard) => void) | null = null
 let subscribed: string[] = []
 const open = vi.fn(async (_key: string, _id: string) => true)
 const copy = vi.fn(async (_what: unknown) => true)
+const refresh = vi.fn(async (_key: string) => 30_000)
 let held: Record<string, unknown> = {}
 
 beforeEach(() => {
@@ -59,6 +60,7 @@ beforeEach(() => {
   held = {}
   open.mockClear()
   copy.mockClear()
+  refresh.mockClear()
   inertDom()
   finishAnimations()
   stubElecdex({
@@ -71,7 +73,7 @@ beforeEach(() => {
           deliver = null
         }
       },
-      refresh: async () => 30_000,
+      refresh: (key: string) => refresh(structuredClone(key)),
       detail: async () => null,
       open: (key: string, id: string) => open(structuredClone(key), structuredClone(id)),
       watching: async () => [],
@@ -136,6 +138,14 @@ describe('GithubWidget', () => {
   it('switches tabs through the pane state', async () => {
     await mount()
     await push(await boardOf('demo'))
+    // REPOS at the left (the user's decision); QUEUE is still the tab a pane opens on.
+    expect(screen.getAllByRole('tab').map((t) => t.dataset.testid)).toEqual([
+      'github-tab-repos',
+      'github-tab-queue',
+      'github-tab-inbox',
+      'github-tab-events',
+    ])
+    expect(screen.getByTestId('github-tab-queue').getAttribute('aria-selected')).toBe('true')
     await fireEvent.click(screen.getByTestId('github-tab-repos'))
     expect(held.tab).toBe('repos')
   })
@@ -166,6 +176,17 @@ describe('GithubWidget', () => {
     )
     expect(text).not.toContain('infra-notes')
     expect(text).toContain('tern')
+  })
+
+  it('blinks REFRESH three beats before it asks, as every other button does', async () => {
+    await mount()
+    await push(await boardOf('demo'))
+    const button = screen.getByTestId('github-refresh')
+    await fireEvent.click(button)
+    expect(button.classList.contains('blinking')).toBe(true)
+    expect(refresh).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    expect(button.classList.contains('blinking')).toBe(false)
   })
 
   it('says the command to sign in with, and copies it', async () => {

@@ -41,7 +41,7 @@ import { type CliPriority, MINUTE, type Probe, type RunCli } from '@shared/cloud
 import { incidentsFor, type StatusIncident } from '@shared/cloud-cli/status'
 import type { TimerDeps } from '../boundary-timer.js'
 import { evictStopped, gapLeft, REFRESH_GAP_MS } from '../cloud-cli/boards.js'
-import { concurrencyLimit, ProbeScheduler } from '../cloud-cli/scheduler.js'
+import { BULK_LANES, concurrencyLimit, ProbeScheduler } from '../cloud-cli/scheduler.js'
 import {
   type AccountBilling,
   asksNow,
@@ -127,8 +127,12 @@ export class AwsService {
   /** The accounts whose Cost Explorer reading is under way. */
   readonly #ceReading = new Set<string>()
   readonly #resources: ResourceAccounts
-  /** RESOURCES' bulk readings, one at a time across every board (aws.md §14.4). */
-  readonly #bulk = concurrencyLimit(1)
+  /**
+   * RESOURCES' bulk readings, three at a time across every board (aws.md §14.4), inside the
+   * shared CLI lanes: with one, a new account took about four minutes to count its services
+   * (decisions.md, measured 2026-11-08).
+   */
+  readonly #bulk = concurrencyLimit(BULK_LANES)
   /**
    * The accounts a shared reading was kept for since a probe last settled: the boards of the
    * account are shown again once, when it settles, not at every region's answer.

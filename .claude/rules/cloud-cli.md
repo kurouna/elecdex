@@ -46,8 +46,8 @@ the files above is read or edited.
   the cap). Each has a `PaidCost` (its setting, its price, its cap) and runs only when ON, under
   its cap, at its frequency. `s3api list-buckets` is `metered-tiny`: a fixed cap of 31 a month, no
   setting. A new paid call is a new `PaidCost` row and a user decision.
-- **RESOURCES' reads are per account and one at a time.** The daily and six-hourly lists are
-  shared by every pane on the account (aws-inventory.json); bulk reads run one at a time across
+- **RESOURCES' reads are per account, in their own lanes.** The daily and six-hourly lists are
+  shared by every pane on the account (aws-inventory.json); bulk reads run three at a time across
   panes, after the alarms, identity, health, trail and GitHub; a region that does not offer a
   service is `not-offered`, never OFFLINE, PARTIAL or a back-off.
 - **Only while seen.** A board is subscribed while the pane is `seen`; nothing is in

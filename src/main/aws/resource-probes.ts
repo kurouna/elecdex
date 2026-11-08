@@ -1510,7 +1510,9 @@ export const sweepProbe: Probe<AwsContext, PerRegion<SweepRegion>> = {
   every: WEEK,
   cost: 'free',
   after: 'res-regions',
-  bulk: 'count',
+  // Behind every count: some 50 describes of regions the pane does not show once held up the
+  // shown regions' own lists for a minute on a new account.
+  bulk: 'judge',
   run: async (ctx, cli, previous) => {
     const store = ctx.shared()
     if (store === null) return previous ?? {}
@@ -1960,7 +1962,7 @@ const lastUseProbe = shared({
   read: readStatistics,
 })
 
-/** RESOURCES' probes: the lists first (one at a time, `bulk`), then the judgement. */
+/** RESOURCES' probes: the lists first (`bulk` count), then the judgement and the sweep. */
 export const RESOURCE_PROBES: readonly Probe<AwsContext, unknown>[] = [
   regionsProbe,
   bucketListProbe,

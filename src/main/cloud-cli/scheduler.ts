@@ -43,7 +43,7 @@ export interface SchedulerDeps<C> extends TimerDeps {
   /** The queue a probe without `first` waits in: AWS's are `later`, GitHub's all `first`. */
   priority?: CliPriority
   /**
-   * One bulk reading at a time, shared by every board (aws.md §14.4): a `count` reading goes
+   * Bulk readings in their own lane, shared by every board (aws.md §14.4): a `count` reading goes
    * ahead of a `judge` one. Without it, bulk readings run as any other.
    */
   bulk?: <T>(work: () => Promise<T>, priority?: CliPriority) => Promise<T>
@@ -361,6 +361,15 @@ function settled(
     triedAt: now,
   }
 }
+
+/**
+ * How many CLI starts run at once across both panes, and how many of them RESOURCES' bulk
+ * readings may hold. An AWS CLI call costs about 1.2 s on Windows (0.5 s of it starting Python),
+ * and a new account's first cycle is some 250 calls: 2 and 1 took about six and a half minutes,
+ * 4 and 3 under three, with the figures in 8 s instead of 33 (decisions.md, 2026-11-08).
+ */
+export const CLI_LANES = 4
+export const BULK_LANES = 3
 
 /**
  * A limit on how many CLI starts run at once, shared by every board. A `first` call waiting

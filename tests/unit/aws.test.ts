@@ -9,9 +9,14 @@ import {
 import { memoryInventory } from '../../src/main/aws/inventory-store'
 import { AWS_PROBES, costExplorerDue, openPorts } from '../../src/main/aws/probes'
 import { ResourceAccounts } from '../../src/main/aws/resource-accounts'
-import { batches, GMD_MAX_CHARS, GMD_MAX_QUERIES } from '../../src/main/aws/resource-probes'
+import {
+  batches,
+  GMD_MAX_CHARS,
+  GMD_MAX_QUERIES,
+  sweepProbe,
+} from '../../src/main/aws/resource-probes'
 import { AwsService, BOARD_PROBES, type CloudAlert } from '../../src/main/aws/service'
-import { concurrencyLimit } from '../../src/main/cloud-cli/scheduler'
+import { BULK_LANES, CLI_LANES, concurrencyLimit } from '../../src/main/cloud-cli/scheduler'
 import { stubAws } from '../../src/main/cloud-cli/stub-aws'
 import { activeCost } from '../../src/shared/aws/active'
 import { attention } from '../../src/shared/aws/attention'
@@ -626,7 +631,7 @@ function service(mode = 'demo', initial: BillingFile = {}) {
     executable: () => 'stub',
     startedAt: Date.now(),
   })
-  // RESOURCES' first reading goes one bulk probe at a time: many turns of the microtask queue.
+  // RESOURCES' first reading goes a few bulk probes at a time: many turns of the microtask queue.
   const flush = async () => {
     for (let i = 0; i < 20_000; i++) await Promise.resolve()
   }
@@ -920,6 +925,16 @@ const metricsAsked = (calls: CliCall[]) =>
   )
 
 describe('RESOURCES on the stand-in AWS CLI (aws.md §14)', () => {
+  it('sweeps the regions the pane does not show behind every count, in the lanes sized for a new account', () => {
+    // Some 50 describes of other regions once ran among the counts and, with the bulk lane one
+    // wide, held the shown regions' lists up for a minute; the scheduler starts a judge only once
+    // every count was tried (its own test). Measured 2026-11-08: decisions.md.
+    expect(sweepProbe.bulk).toBe('judge')
+    expect(CLI_LANES).toBeGreaterThanOrEqual(4)
+    expect(BULK_LANES).toBeLessThan(CLI_LANES)
+    expect(BULK_LANES).toBeGreaterThan(1)
+  })
+
   it('reads what is there and what looks forgotten, sums it into ATTENTION, and counts GetMetricData by the metric', async () => {
     const s = service()
     s.aws.watch(KEY)

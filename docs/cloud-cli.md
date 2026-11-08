@@ -113,7 +113,7 @@ Wi-Fi ペインが PowerShell を使うのは、Win32 の API（`wlanapi`、`Get
     `--region us-east-1` を明示する）
 - 標準入力: GraphQL の本文だけ（`gh api graphql --input -`。本文は JSON `{"query": …, "variables": …}`）。
   ほかは閉じる
-- 同時に走らせるのは全体で 2 本まで。同じ問い合わせ（同じ probe と同じ引数）は重ねない（走っている
+- 同時に走らせるのは全体で 4 本まで（`CLI_LANES`。2 本では新しいアカウントの最初の 1 周に約 6 分半かかった、decisions.md 2026-11-08）。同じ問い合わせ（同じ probe と同じ引数）は重ねない（走っている
   ものの結果を待つ）
 
 ### 2.4 許可リスト（probe の表）

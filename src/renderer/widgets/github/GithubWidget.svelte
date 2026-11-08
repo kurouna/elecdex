@@ -185,6 +185,14 @@ function copySignIn(button: HTMLElement): void {
 }
 
 let waitUntil = $state(0)
+/**
+ * REFRESH blinks its three beats as every choice does, then asks: the button is disabled for the
+ * wait main answers, which cut the held press's own blink to one beat.
+ */
+function pressRefresh(button: HTMLElement): void {
+  if (now < waitUntil) return
+  afterBlink(button, () => void refresh())
+}
 async function refresh(): Promise<void> {
   if (now < waitUntil) return
   sfx.play('panel')
@@ -361,7 +369,7 @@ const short = $derived(height < 30 * 16)
     <span class="spacer"></span>
     {#if !narrow && board?.nextInboxAt}<span class="when">inbox next <b>{clockText(board.nextInboxAt)}</b></span>{/if}
     <button type="button" class="tool" class:on={masked} aria-pressed={masked} onclick={() => patch({ mask: masked ? undefined : true })} data-testid="github-mask">MASK</button>
-    <button type="button" class="tool" disabled={now < waitUntil} onclick={() => void refresh()} data-testid="github-refresh">REFRESH</button>
+    <button type="button" class="tool" disabled={now < waitUntil} onclick={(e) => pressRefresh(e.currentTarget)} data-testid="github-refresh">REFRESH</button>
   </header>
 
   {#if board?.link === 'signed-out' && board.signIn !== null}
@@ -393,7 +401,8 @@ const short = $derived(height < 30 * 16)
     {/if}
 
     <div class="tabs" role="tablist" aria-label="github status">
-      {#each [['queue', 'QUEUE', board?.queue.length], ['inbox', 'INBOX', board?.inbox.readable ? board.inbox.items.filter((item) => item.unread).length : '—'], ['events', 'EVENTS', board?.events.length], ['repos', 'REPOS', board?.repos.length]] as [id, label, count] (id)}
+      <!-- REPOS first, at the left (the user's decision 2026-11-08); QUEUE stays the tab a new pane opens on. -->
+      {#each [['repos', 'REPOS', board?.repos.length], ['queue', 'QUEUE', board?.queue.length], ['inbox', 'INBOX', board?.inbox.readable ? board.inbox.items.filter((item) => item.unread).length : '—'], ['events', 'EVENTS', board?.events.length]] as [id, label, count] (id)}
         <button type="button" role="tab" aria-selected={choices.tab === id} onclick={() => selectTab(id as Tab)} data-testid="github-tab-{id}">{label}{#if count !== undefined}<em>{count}</em>{/if}</button>
       {/each}
     </div>
