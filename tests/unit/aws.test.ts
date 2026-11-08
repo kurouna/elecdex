@@ -7,7 +7,7 @@ import {
   rolled,
 } from '../../src/main/aws/billing-store'
 import { memoryInventory } from '../../src/main/aws/inventory-store'
-import { AWS_PROBES, costExplorerDue, openPorts } from '../../src/main/aws/probes'
+import { AWS_PROBES, costExplorerDue, cpuByMetricData, openPorts } from '../../src/main/aws/probes'
 import { ResourceAccounts } from '../../src/main/aws/resource-accounts'
 import {
   batches,
@@ -30,9 +30,9 @@ import {
 } from '../../src/shared/aws/board'
 import { changesSince } from '../../src/shared/aws/changes'
 import { consoleUrl, isConsoleUrl } from '../../src/shared/aws/console-url'
-import { DRILL, facets, filterRows, sortRows } from '../../src/shared/aws/drill'
+import { DRILL, facets, filterRows, itemColumns, sortRows } from '../../src/shared/aws/drill'
 import { stoppedAt } from '../../src/shared/aws/facts'
-import { isIdle } from '../../src/shared/aws/forgotten'
+import { isIdle, seriesKey } from '../../src/shared/aws/forgotten'
 import { GROUPS } from '../../src/shared/aws/inventory'
 import { parseCredentialReport, parseWith } from '../../src/shared/aws/parse'
 import {
@@ -41,11 +41,12 @@ import {
   LogGroupsSchema,
   lastPart,
   modelIdOf,
+  type Series,
 } from '../../src/shared/aws/parse-resources'
 import { type AwsReadings, emptyReadings } from '../../src/shared/aws/readings'
-import { parseTrail, pulseBins } from '../../src/shared/aws/trail'
+import { parseTrail, pulseBins, trailName } from '../../src/shared/aws/trail'
 import type { AwsBoard, AwsService as AwsKind, DrillRow } from '../../src/shared/aws/types'
-import type { CliCall } from '../../src/shared/cloud-cli/probe'
+import type { CliCall, CliResult } from '../../src/shared/cloud-cli/probe'
 
 /** AWS STATUS (docs/aws.md): the judgements, the money, the drill-down, and the board on the stand-in. */
 
@@ -173,9 +174,7 @@ describe('ATTENTION', () => {
           ],
         },
         addresses: {
-          [R]: [
-            { ip: '203.0.113.1', alloc: null, associated: false, instance: null, domain: 'vpc' },
-          ],
+          [R]: [{ ip: '203.0.113.1', associated: false, instance: null }],
         },
         instances: {
           [R]: [
@@ -230,6 +229,23 @@ describe('ATTENTION', () => {
       ['danger', 'x.example expires in 6d'],
       ['warn', 'x.example expires in 29d'],
     ])
+  })
+
+  it('says a budget near its limit or forecast over it in dollars, naming the budget', () => {
+    // The "spent" title once lost its dollar signs to an edit, the forecast one keeping them.
+    const items = attention(
+      readings({
+        budgets: [
+          { name: 'monthly', limit: 1000, actual: 824, forecast: 900 },
+          { name: 'team', limit: 500, actual: 100, forecast: 620 },
+        ],
+      }),
+    )
+    const titles = items.filter((i) => i.tag === 'BUDGET').map((i) => i.title)
+    expect(titles).toEqual(
+      expect.arrayContaining(['monthly: $824 of $1000 spent', 'team: forecast $620 over $500']),
+    )
+    expect(items.find((i) => i.title.startsWith('monthly'))?.names).toEqual(['monthly'])
   })
 
   it('reads the root, MFA-less users and old keys from the summary and the report', () => {
@@ -481,6 +497,19 @@ describe('console URLs', () => {
     expect(
       consoleUrl('acm', R, 'arn:aws:acm:x:1:certificate/0b3f9f0c-1d2e-4f5a-8b7c-9d0e1f2a3b4c'),
     ).toContain('#/certificates/0b3f9f0c-1d2e-4f5a-8b7c-9d0e1f2a3b4c')
+    // Each list is sorted at first by one of its own columns, so the header shows the order.
+    for (const [service, def] of Object.entries(DRILL))
+      expect(
+        def.columns.map((c) => c.key),
+        service,
+      ).toContain(def.sort)
+    // A classic load balancer goes by its name, a v2 one by its ARN.
+    expect(consoleUrl('elb', R, 'old-clb')).toBe(
+      `https://${R}.console.aws.amazon.com/ec2/home?region=${R}#LoadBalancers:search=old-clb`,
+    )
+    expect(consoleUrl('elb', R, 'arn:aws:elasticloadbalancing:x:1:loadbalancer/app/w/1')).toContain(
+      '#LoadBalancer:loadBalancerArn=arn',
+    )
     expect(consoleUrl('ec2', 'nowhere', 'i-0')).toBeNull()
     expect(consoleUrl('ec2', R, 'i-0 <script>')).toBeNull()
     for (const service of Object.keys(DRILL) as (keyof typeof DRILL)[]) {
@@ -525,6 +554,15 @@ describe('the probes', () => {
     // A failed reading is tried again an hour on, not at once.
     expect(costExplorerDue({ ...on, failedAt: NOW - 60_000 }, false, NOW)).toBe(false)
     expect(costExplorerDue({ ...on, failedAt: NOW - 3_600_000 }, false, NOW)).toBe(true)
+  })
+
+  it('never makes a `first` probe wait for one in the later queue', () => {
+    // The alarms, the impaired check and the trail read after setup: once a later probe, it
+    // waited behind another pane's first cycle of RESOURCES.
+    for (const probe of BOARD_PROBES.filter((p) => p.first === true && p.after !== undefined)) {
+      const before = BOARD_PROBES.find((p) => p.id === probe.after)
+      expect(before?.first, `${probe.id} after ${probe.after}`).toBe(true)
+    }
   })
 
   it('marks only Cost Explorer and GetMetricData as paid, with their settings, and ListBuckets as metered-tiny', () => {
@@ -600,16 +638,27 @@ describe('the credential report', () => {
   })
 })
 
-/** The service on the stand-in AWS CLI, its clock still. */
-function service(mode = 'demo', initial: BillingFile = {}) {
+/**
+ * The service on the stand-in AWS CLI, its clock still. `hold` keeps the calls it picks waiting
+ * for their answer until `release`, as a slow CLI would.
+ */
+function service(
+  mode = 'demo',
+  initial: BillingFile = {},
+  hold?: (call: CliCall) => boolean,
+  answer?: (call: CliCall) => CliResult | null,
+) {
   const calls: CliCall[] = []
   const boards: AwsBoard[] = []
   const alerts: CloudAlert[] = []
   let file: BillingFile = initial
   let current = mode
   let clock = Date.now()
+  const held: (() => void)[] = []
   const stubs = new Map<string, ReturnType<typeof stubAws>>()
   const stub = (call: CliCall) => {
+    const own = answer?.(call)
+    if (own !== undefined && own !== null) return Promise.resolve(own)
     const run = stubs.get(current) ?? stubAws(current)
     stubs.set(current, run)
     return run(call)
@@ -617,7 +666,8 @@ function service(mode = 'demo', initial: BillingFile = {}) {
   const aws = new AwsService({
     cli: (call) => {
       calls.push(call)
-      return stub(call)
+      if (hold?.(call) !== true) return stub(call)
+      return new Promise((resolve) => held.push(() => resolve(stub(call))))
     },
     limit: concurrencyLimit(2),
     billing: billingStore({ load: () => file, save: (next) => (file = next) }, () => Date.now()),
@@ -643,6 +693,11 @@ function service(mode = 'demo', initial: BillingFile = {}) {
     flush,
     last: () => boards.at(-1),
     file: () => file,
+    /** How many held calls wait; releasing answers them all. */
+    held: () => held.length,
+    release: () => {
+      for (const answer of held.splice(0)) answer()
+    },
     setMode: (next: string) => {
       current = next
     },
@@ -783,6 +838,12 @@ describe('AwsService on the stand-in AWS CLI', () => {
     expect(board?.active.services[0]?.service).toBe('ec2')
     expect(board?.cost.services.length).toBeGreaterThan(0)
     expect(board?.cost.ce.ask).toBe(true)
+    // The on-demand reads too: HISTORY and the sweep's "check other regions now".
+    const one = s.aws.drill(KEY, 'ec2')?.[0]
+    await s.aws.history(KEY, 'ec2', one?.id, one?.region)
+    s.aws.sweep(KEY, 'now')
+    await s.flush()
+    expect(verbs(s.calls, 'cloudtrail lookup-events').length).toBeGreaterThan(0)
     for (const call of s.calls) {
       const verb = call.argv.slice(0, 2).join(' ')
       expect(READS.has(verb), verb).toBe(true)
@@ -793,6 +854,148 @@ describe('AwsService on the stand-in AWS CLI', () => {
     }
     // Nothing paid before the user says so.
     expect(s.calls.some((c) => c.argv[0] === 'ce')).toBe(false)
+  })
+
+  it("leaves an instance's CPU to GetMetricData only when it read the NetworkOut too", () => {
+    // Low use is judged on the pair; with the CPU alone (the cap stopped the batches between the
+    // two) forgotten.ts falls back to the CPU probe's week, which must then be read.
+    const key = (metric: string) =>
+      seriesKey({ ns: 'AWS/EC2', metric, dim: 'InstanceId', value: 'i-1' })
+    const gmd: Series = { v: [1, 2], d: 2, via: 'gmd' }
+    const ctx = (usage: Record<string, Series>) => ({
+      readings: () => readings({ res: { ...readings().res, usage: { [R]: usage } } }),
+    })
+    const one = { id: 'i-1', region: R }
+    expect(cpuByMetricData(ctx({ [key('CPUUtilization')]: gmd }), one)).toBe(false)
+    expect(
+      cpuByMetricData(ctx({ [key('CPUUtilization')]: gmd, [key('NetworkOut')]: gmd }), one),
+    ).toBe(true)
+    expect(
+      cpuByMetricData(
+        ctx({
+          [key('CPUUtilization')]: { ...gmd, via: 'stat' },
+          [key('NetworkOut')]: gmd,
+        }),
+        one,
+      ),
+    ).toBe(false)
+  })
+
+  it("masks the columns that name another resource: a service's cluster, a VPC, a gateway, a volume", () => {
+    // Under MASK these once showed while the row's own name was hidden.
+    const masked = (service: keyof typeof DRILL, key: string) =>
+      DRILL[service].columns.find((c) => c.key === key)?.masked === true
+    expect(masked('ecs', 'cluster')).toBe(true)
+    expect(masked('vpce', 'vpc')).toBe(true)
+    expect(masked('tgw', 'tgw')).toBe(true)
+    expect(masked('snapshots', 'volume')).toBe(true)
+  })
+
+  it("reads a resource's history in its own region, where two regions share its name", async () => {
+    // The stand-in's `web` stack, in us-east-1 too: one name, two regions.
+    const s = service('demo', {}, undefined, (call) =>
+      call.argv[1] === 'list-stacks' && call.argv.includes('us-east-1')
+        ? {
+            ok: true,
+            code: 0,
+            stdout: JSON.stringify([
+              { n: 'web', s: 'CREATE_COMPLETE', t: new Date().toISOString(), d: 'NOT_CHECKED' },
+            ]),
+            stderr: '',
+            missing: false,
+            timedOut: false,
+            tooLarge: false,
+          }
+        : null,
+    )
+    s.aws.watch(KEY)
+    await s.flush()
+    expect(s.aws.drill(KEY, 'stacks')?.filter((row) => row.id === 'web')).toHaveLength(2)
+    const regionOf = () => {
+      const asked = verbs(s.calls, 'cloudtrail lookup-events').at(-1)?.argv ?? []
+      return asked[asked.indexOf('--region') + 1]
+    }
+    await s.aws.history(KEY, 'stacks', 'web', 'us-east-1')
+    expect(regionOf()).toBe('us-east-1')
+    await s.aws.history(KEY, 'stacks', 'web', R)
+    expect(regionOf()).toBe(R)
+  })
+
+  it('gives every service an item step whose fields are named once each', () => {
+    // CloudFront's list has an id column, and its item once had "id" twice: the item's keyed
+    // list threw, and every distribution opened into a pane fault.
+    for (const [service, def] of Object.entries(DRILL)) {
+      const labels = ['id', 'region', ...itemColumns(def).map((c) => c.label)]
+      expect(new Set(labels).size, service).toBe(labels.length)
+    }
+  })
+
+  it('opens a CloudFront distribution as its item, with its id once', async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    const rows = await s.aws.drill(KEY, 'cloudfront')
+    const first = rows?.[0]
+    expect(first).toBeDefined()
+    const item = await s.aws.item(KEY, 'cloudfront', first?.id ?? '')
+    expect(item?.fields.filter((f) => f.label === 'id')).toHaveLength(1)
+  })
+
+  it('asks nothing twice and nothing it does not use', async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    // The billing metric's list once: billing-services takes the billing reading's.
+    const billing = s.calls.filter(
+      (c) => c.argv[1] === 'list-metrics' && c.argv.includes('AWS/Billing'),
+    )
+    expect(billing).toHaveLength(1)
+    expect(s.last()?.cost.services.length).toBeGreaterThan(0)
+    // A target group behind no load balancer: its health judges nothing.
+    const health = verbs(s.calls, 'elbv2 describe-target-health')
+    expect(health.map((c) => c.argv.find((a) => a.startsWith('--target-group-arn=')))).toEqual([
+      expect.stringContaining('targetgroup/web-tg/'),
+    ])
+    // Deleted NAT gateways are not asked for.
+    for (const call of verbs(s.calls, 'ec2 describe-nat-gateways'))
+      expect(call.argv[call.argv.indexOf('--filter') + 1]).toMatch(/^Name=state,Values=/)
+    // A day on, GetMetricData's fourteen days of CPU stand for the cpu probe's seven.
+    const cpu = () =>
+      verbs(s.calls, 'cloudwatch get-metric-statistics').filter((c) => c.argv.includes('AWS/EC2'))
+        .length
+    const before = cpu()
+    s.later(25 * 3_600_000)
+    s.aws.refresh(KEY)
+    await s.flush()
+    expect(cpu()).toBe(before)
+    expect(s.aws.drill(KEY, 'ec2')?.find((r) => r.id === 'i-0a1b2c3d4e5f60003')?.cells.cpu).toBe(
+      0.4,
+    )
+  })
+
+  it('sends what it took from an answer so that it can only be read as a value', async () => {
+    // GetMetricData off: the statistics run too, with the dimensions list-metrics found.
+    const s = service(
+      'demo',
+      withBilling((a) => ({ ...a, gmd: { ...a.gmd, on: false } })),
+    )
+    s.aws.watch(KEY)
+    await s.flush()
+    const dimensioned = s.calls.filter((c) => c.argv.includes('--dimensions'))
+    expect(dimensioned.length).toBeGreaterThan(10)
+    for (const call of dimensioned) {
+      // A JSON list: an API's name with a comma or an equals sign in it is one value.
+      const list = JSON.parse(call.argv[call.argv.indexOf('--dimensions') + 1] ?? '') as unknown
+      expect(Array.isArray(list), call.argv.join(' ')).toBe(true)
+      expect(
+        call.argv.some((a) => a.startsWith('Name=')),
+        call.argv.join(' '),
+      ).toBe(false)
+    }
+    // A single name from an answer goes as --option=value: one beginning with "-" is no option.
+    for (const call of s.calls)
+      for (const option of ['--name', '--detector-id', '--account-id'])
+        expect(call.argv, call.argv.join(' ')).not.toContain(option)
   })
 
   it('calls Cost Explorer only after TURN ON, counts its requests, and asks no more', async () => {
@@ -1006,6 +1209,105 @@ describe('RESOURCES on the stand-in AWS CLI (aws.md §14)', () => {
     expect(tokyo('dynamodb list-tables')).toHaveLength(1)
     expect(verbs(s.calls, 's3api list-buckets')).toHaveLength(1)
     expect(s.aws.drill(other, 'logs')?.map((r) => r.id)).toContain('vpc-flow-logs')
+  })
+
+  it('reads a shared list once for two boards of one account that reach it in the bulk lanes together', async () => {
+    // Three bulk lanes: while one board's bucket list waited for S3, the other board's came in
+    // a second lane and asked again - a metered call, twice.
+    const s = service('demo', {}, (call) => call.argv[1] === 'list-buckets')
+    const other = awsBoardKey({ profile: 'default', regions: [R], activity: false, slow: false })
+    s.aws.watch(KEY)
+    s.aws.watch(other)
+    await s.flush()
+    expect(s.held()).toBe(1)
+    s.release()
+    await s.flush()
+    expect(verbs(s.calls, 's3api list-buckets')).toHaveLength(1)
+    expect(s.file()[ACME]?.tiny.used['res-buckets']).toBe(1)
+    // The second board took the first one's answer.
+    expect(s.aws.drill(other, 's3')?.length).toBeGreaterThan(0)
+  })
+
+  it("never passes GetMetricData's cap when two boards of one account read other regions at once", async () => {
+    // How many metrics each region asks for, read alone first.
+    const alone = service()
+    alone.aws.watch(KEY)
+    await alone.flush()
+    const asked = (calls: CliCall[], region: string) =>
+      metricsAsked(calls.filter((c) => c.argv.includes(region)))
+    const tokyo = asked(alone.calls, R)
+    const virginia = asked(alone.calls, 'us-east-1')
+    expect(Math.min(tokyo, virginia)).toBeGreaterThan(0)
+    // Room for the bigger of the two only: each fits, both do not.
+    const room = Math.max(tokyo, virginia)
+    const cap = 100_000
+    const s = service(
+      'demo',
+      withBilling((a) => ({ ...a, gmd: { ...a.gmd, cap, used: cap - room } })),
+      (call) => call.argv[1] === 'get-metric-data',
+    )
+    const other = awsBoardKey({
+      profile: 'default',
+      regions: ['us-east-1'],
+      activity: false,
+      slow: false,
+    })
+    s.aws.watch(KEY)
+    s.aws.watch(other)
+    for (let i = 0; i < 5; i++) {
+      await s.flush()
+      s.release()
+    }
+    await s.flush()
+    expect(metricsAsked(s.calls)).toBeLessThanOrEqual(room)
+    expect(s.file()[ACME]?.gmd.used).toBeLessThanOrEqual(cap)
+  })
+
+  it("asks GetMetricData for Bedrock's tokens on the first cycle, and the statistics only once it is off", async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    const bedrock = (c: CliCall) =>
+      (c.argv[c.argv.indexOf('--metric-data-queries') + 1] ?? '').includes('AWS/Bedrock')
+    // The models used come from res-bedrockuse: the first reading waits for it, not a day.
+    expect(verbs(s.calls, 'cloudwatch get-metric-data').some(bedrock)).toBe(true)
+    // Read while GetMetricData was on, the statistics kept nothing: turned off, they read now.
+    const before = verbs(s.calls, 'cloudwatch get-metric-statistics').filter((c) =>
+      c.argv.includes('AWS/ElastiCache'),
+    ).length
+    expect(before).toBe(0)
+    expect(s.aws.metricData(KEY, { on: false })).toBe(true)
+    await s.flush()
+    expect(
+      verbs(s.calls, 'cloudwatch get-metric-statistics').some((c) =>
+        c.argv.includes('AWS/ElastiCache'),
+      ),
+    ).toBe(true)
+  })
+
+  it("asks CloudTrail for a resource's history by its name, without the kind its id starts with", async () => {
+    const s = service()
+    s.aws.watch(KEY)
+    await s.flush()
+    const notebook = s.aws.drill(KEY, 'sagemaker')?.find((row) => row.id.startsWith('notebook:'))
+    expect(notebook).toBeDefined()
+    await s.aws.history(KEY, 'sagemaker', notebook?.id)
+    const asked = verbs(s.calls, 'cloudtrail lookup-events').at(-1)?.argv ?? []
+    // As JSON: a name with a comma once split into another key of the CLI's shorthand.
+    expect(asked).toContain(
+      JSON.stringify([
+        { AttributeKey: 'ResourceName', AttributeValue: notebook?.id.slice('notebook:'.length) },
+      ]),
+    )
+    expect(trailName('bedrock', 'pt:abc123')).toBe('abc123')
+    expect(trailName('sagemaker', 'app:d-1/aki/JupyterLab/default')).toBe('default')
+    // Only those services' kinds: an alarm or a stack named with a colon keeps its whole name.
+    expect(trailName('alarms', 'prod:cpu-high')).toBe('prod:cpu-high')
+    expect(trailName('alarms', 'app:latency-high')).toBe('app:latency-high')
+    expect(trailName('stacks', 'kb:docs')).toBe('kb:docs')
+    expect(trailName('elb', 'orders/api')).toBe('api')
+    expect(trailName('acm', 'arn:aws:acm:us-east-1:1:certificate/0f0e')).toBe('0f0e')
+    expect(trailName('logs', '/aws/lambda/old-resizer')).toBe('old-resizer')
   })
 
   it('lists across services, opens what it showed, and tells the third step why', async () => {

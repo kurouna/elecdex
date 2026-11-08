@@ -151,7 +151,6 @@ const pr = (
 const rollup = (state: string | null) => ({
   commits: { nodes: [{ commit: { statusCheckRollup: state === null ? null : { state } } }] },
 })
-const rate = { cost: 1, remaining: 4950, limit: 5000, resetAt: '2026-11-08T15:00:00Z' }
 
 /** A made-up day of the contribution calendar: quieter weekends, a busier last quarter. */
 function contribDay(w: number, d: number, now: number) {
@@ -254,7 +253,6 @@ function graphql(body: string, now: number): string {
             },
           ],
         },
-        rateLimit: rate,
       },
     })
   }
@@ -262,12 +260,11 @@ function graphql(body: string, now: number): string {
     return JSON.stringify({
       data: {
         viewer: { login: ME, repositories: { nodes: REPOS.map((repo) => repoNode(repo, now)) } },
-        rateLimit: rate,
       },
     })
   }
   if (body.includes('query PinnedRepos')) {
-    const data: Record<string, unknown> = { viewer: { login: ME }, rateLimit: rate }
+    const data: Record<string, unknown> = { viewer: { login: ME } }
     REPOS.forEach((repo, i) => {
       data[`r${i}`] = repoNode(repo, now)
     })
@@ -283,7 +280,6 @@ function graphql(body: string, now: number): string {
           contributionsCollection: { contributionCalendar: { totalContributions: 1495, weeks } },
         },
       },
-      rateLimit: rate,
     })
   }
   if (body.includes('query RepoPulls')) {
@@ -314,7 +310,19 @@ function graphql(body: string, now: number): string {
       },
     })
   }
+  if (body.includes('query Ahead')) return aheadAnswer(body)
   return JSON.stringify({ data: null })
+}
+
+/** Each alias of the Ahead query, by the repository it names: 38 commits for tern, 4 for the rest. */
+function aheadAnswer(body: string): string {
+  const query = (JSON.parse(body) as { query: string }).query
+  const data: Record<string, unknown> = {}
+  for (const [, alias, name] of query.matchAll(
+    /(r\d+): repository\(owner: "[^"]+", name: "([^"]+)"\)/g,
+  ))
+    data[alias ?? ''] = { ref: { compare: { aheadBy: name === 'tern' ? 38 : 4 } } }
+  return JSON.stringify({ data })
 }
 
 function run(
@@ -638,26 +646,32 @@ const REPO_ROUTES: [string, (repo: string, conditional: boolean, now: number) =>
   ],
   [
     '/traffic/views',
-    (repo, _conditional, now) =>
-      repo === 'octo-aki/tern'
-        ? ok(
-            JSON.stringify({
-              count: 3850,
-              uniques: 940,
-              views: TERN_VIEWS.map((count, i) => ({
-                timestamp: iso(now - (13 - i) * DAY),
-                count,
-                uniques: Math.round(count / 4),
-              })),
-            }),
-          )
-        : fail('gh: Must have push access to repository (HTTP 403)'),
+    (repo, conditional, now) => {
+      if (repo !== 'octo-aki/tern')
+        return fail(
+          'gh: Must have push access to repository (HTTP 403)',
+          http(403, { message: 'Must have push access to repository' }),
+        )
+      if (conditional) return fail('', http(304, null))
+      const views = TERN_VIEWS.map((count, i) => ({
+        timestamp: iso(now - (13 - i) * DAY),
+        count,
+        uniques: Math.round(count / 4),
+      }))
+      return ok(http(200, { count: 3850, uniques: 940, views }, { ETag: `W/"t-${repo}"` }))
+    },
   ],
   [
     '/security-advisories',
-    (repo) => ok(repo === 'octo-aki/tern' ? JSON.stringify([{ ghsa_id: 'GHSA-xxxx' }]) : '[]'),
+    (repo, conditional) =>
+      conditional
+        ? fail('', http(304, null))
+        : ok(
+            http(200, repo === 'octo-aki/tern' ? [{ ghsa_id: 'GHSA-xxxx' }] : [], {
+              ETag: `W/"a-${repo}"`,
+            }),
+          ),
   ],
-  ['/compare/', (repo) => ok(JSON.stringify({ ahead_by: repo === 'octo-aki/tern' ? 38 : 4 }))],
 ]
 
 function repoAnswer(path: string, conditional: boolean, now: number): CliResult {

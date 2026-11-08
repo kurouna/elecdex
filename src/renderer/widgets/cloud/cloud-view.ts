@@ -60,12 +60,16 @@ export function ledgerLine(ledger: LedgerSummary, tool: 'aws' | 'gh'): string {
   return parts.join(' · ')
 }
 
-/** A period for the ledger's card: 60 s, 5 min, 1 h, 1 day. */
+/**
+ * A probe's period for the ledger's card: every 60 s, 5 min, 1 h, 1 day; a reading made on
+ * demand (HISTORY, a repository's inside) has none.
+ */
 export function periodText(ms: number): string {
-  if (ms < 60_000) return `${Math.round(ms / 1000)} s`
-  if (ms < 3_600_000) return `${Math.round(ms / 60_000)} min`
-  if (ms < 86_400_000) return `${Math.round(ms / 3_600_000)} h`
-  return `${Math.round(ms / 86_400_000)} day`
+  if (ms <= 0) return 'on demand'
+  if (ms < 60_000) return `every ${Math.round(ms / 1000)} s`
+  if (ms < 3_600_000) return `every ${Math.round(ms / 60_000)} min`
+  if (ms < 86_400_000) return `every ${Math.round(ms / 3_600_000)} h`
+  return `every ${Math.round(ms / 86_400_000)} day`
 }
 
 /**
@@ -73,7 +77,3 @@ export function periodText(ms: number): string {
  * GitHub; the account, alias, ARNs, names and addresses on AWS (aws-view.ts adds those).
  */
 export const MASKED = '•••••'
-
-export function maskName(name: string, masked: boolean): string {
-  return masked ? MASKED : name
-}

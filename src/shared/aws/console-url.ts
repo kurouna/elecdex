@@ -142,8 +142,11 @@ export function consoleUrl(service: AwsService, region: string, id: string): str
       return `https://s3.console.aws.amazon.com/s3/buckets/${e}?region=${r}`
     case 'nat':
       return `${host}/vpcconsole/home?region=${r}#NatGatewayDetails:natGatewayId=${e}`
+    // A classic load balancer has no ARN in the list: it is found by its name.
     case 'elb':
-      return `${host}/ec2/home?region=${r}#LoadBalancer:loadBalancerArn=${e}`
+      return id.startsWith('arn:')
+        ? `${host}/ec2/home?region=${r}#LoadBalancer:loadBalancerArn=${e}`
+        : `${host}/ec2/home?region=${r}#LoadBalancers:search=${e}`
     case 'rds':
       return `${host}/rds/home?region=${r}#database:id=${e}`
     case 'eks':

@@ -71,6 +71,7 @@ import {
   FROM_CRUMB,
   gmdText,
   listPlace,
+  maskIn,
   opensForgotten,
 } from './resources-view.ts'
 
@@ -187,6 +188,7 @@ const openForgotten = (row: ForgottenRow, focus: string) =>
     filters: {},
     sort: null,
     item: row.id,
+    region: row.region,
     direct: true,
   })
 
@@ -221,7 +223,18 @@ function attentionOpen(item: AttentionItem): void {
   }
   if (item.item === null) return
   sfx.play('expand')
-  drillTo({ service: item.item.service, filters: {}, sort: null, item: item.item.id }, 'attention')
+  // The resource at once: Back goes straight to ATTENTION, as from a LOOKS FORGOTTEN row.
+  drillTo(
+    {
+      service: item.item.service,
+      filters: {},
+      sort: null,
+      item: item.item.id,
+      ...(item.region !== null ? { region: item.region } : {}),
+      direct: true,
+    },
+    'attention',
+  )
 }
 function onRowKey(event: KeyboardEvent, run: () => void): void {
   if (event.key === 'Enter') {
@@ -378,6 +391,12 @@ $effect(() => {
 const viewKey = $derived(
   `${choices.tab}:${choices.drill?.service ?? ''}:${choices.drill?.item ?? ''}`,
 )
+/**
+ * What the view is mounted for: a tab, or a service's drill-down. A list and its item are one
+ * mount, so the list is not asked for again on every step and "gone since" survives the step
+ * back; AwsDrill powers each step on itself.
+ */
+const mountKey = $derived(`${choices.tab}:${choices.drill?.service ?? ''}`)
 // A press that opens another view (a tile, a row, a figure) takes away the element under the
 // pointer, and an element taken away sends no pointerleave: its card goes with the view.
 $effect(() => {
@@ -408,7 +427,8 @@ function serviceCard(service: AwsBoard['active']['services'][number]) {
     head: service.label,
     side: service.monthly === null ? 'usage-based' : `${money(service.monthly)} / month`,
     rows: service.top.map((t) => ({
-      label: masked && (service.service === 's3' || service.service === 'eip') ? MASKED : t.name,
+      // Every service's names, as on RESOURCES and in the drill-down (MASK hides them all).
+      label: masked ? MASKED : t.name,
       value: `${t.detail} · ${money(t.monthly)}`,
     })),
     note:
@@ -612,12 +632,12 @@ const TABS: readonly [AwsTab, string][] = [
       </div>
     {/if}
 
-    {#key viewKey}
+    {#key mountKey}
       <div class="view crt-on" data-testid="aws-view-{choices.drill === null ? choices.tab : 'drill'}" onscroll={() => resting.leave()}>
         {#if board === null}
           <p class="empty">…</p>
         {:else if choices.drill !== null}
-          <AwsDrill boardKey={key} place={choices.drill} readAt={board.readAt} sweptAt={board.resources.elsewhere.readAt} {masked} {now} {narrow} onplace={(next) => drillTo(next)} onopen={(id) => void open(id)} />
+          <AwsDrill boardKey={key} place={choices.drill} readAt={board.readAt} revision={board.revision} sweptAt={board.resources.elsewhere.readAt} {masked} {now} {narrow} onplace={(next) => drillTo(next)} onopen={(id) => void open(id)} />
         {:else if choices.tab === 'resources'}
           <AwsResources
             res={board.resources}
@@ -659,7 +679,7 @@ const TABS: readonly [AwsTab, string][] = [
                 data-testid="aws-attention-row"
               >
                 <span class="tag" data-weight={item.weight}>{item.tag}</span>
-                <span class="title">{item.title}</span>
+                <span class="title">{maskIn(item.title, item.names, masked)}</span>
                 <span class="repo">{item.region ? regionShort(item.region) : 'global'}</span>
                 <span class="age">{ageText(item.since, now)}</span>
               </div>
@@ -679,7 +699,7 @@ const TABS: readonly [AwsTab, string][] = [
           {#if board.changes !== null}
             <p class="changes" data-testid="aws-changes">
               {#each board.changes.parts as part (part.service)}
-                <span>{#if part.added.length}<b class="ok">+{part.added.length}</b>{/if}{#if part.removed.length}<b class="warn">−{part.removed.length}</b>{/if} {serviceLabel(part.service)} <span class="dim">({masked && (part.service === 'eip') ? MASKED : [...part.added, ...part.removed].slice(0, 3).join(', ')})</span></span>
+                <span>{#if part.added.length}<b class="ok">+{part.added.length}</b>{/if}{#if part.removed.length}<b class="warn">−{part.removed.length}</b>{/if} {serviceLabel(part.service)} <span class="dim">({masked ? MASKED : [...part.added, ...part.removed].slice(0, 3).join(', ')})</span></span>
               {/each}
               <span class="dim">since {clockText(board.changes.since)}</span>
             </p>
@@ -716,7 +736,7 @@ const TABS: readonly [AwsTab, string][] = [
             {#if board.cost.ce.forecast !== null}<div><small>AWS FORECAST</small><b>{money(board.cost.ce.forecast, false)}</b></div>{/if}
           </section>
           {#each board.cost.budgets as b (b.name)}
-            <div class="gauge" data-testid="aws-budget"><span>budget · {b.name}</span><span class="track"><i style:--share={Math.min(1, b.actual / (b.limit || 1))}></i>{#if b.forecast !== null}<em style:--share={Math.min(1, b.forecast / (b.limit || 1))}></em>{/if}</span><span class="mono">{money(b.actual, false)} of {money(b.limit, false)}</span></div>
+            <div class="gauge" data-testid="aws-budget"><span>budget · {masked ? MASKED : b.name}</span><span class="track"><i style:--share={Math.min(1, b.actual / (b.limit || 1))}></i>{#if b.forecast !== null}<em style:--share={Math.min(1, b.forecast / (b.limit || 1))}></em>{/if}</span><span class="mono">{money(b.actual, false)} of {money(b.limit, false)}</span></div>
           {/each}
           <div class="gauge" data-testid="aws-quota">
             <span>quota · elecdex's own</span>
@@ -773,7 +793,8 @@ const TABS: readonly [AwsTab, string][] = [
       </div>
     {/key}
 
-    {#if board !== null && (choices.tab === 'active' || choices.tab === 'resources' || choices.drill !== null) && choices.from !== 'attention'}
+    <!-- On ACTIVE and RESOURCES, and in every step of a drill-down, wherever it was opened from: its lists and items say ≈ $ (aws.md §5.0). -->
+    {#if board !== null && (choices.tab === 'active' || choices.tab === 'resources' || choices.drill !== null)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <p
         class="estimate"
@@ -852,7 +873,7 @@ const TABS: readonly [AwsTab, string][] = [
     onpointerenter={(e) => board && card('ledger', e.currentTarget as HTMLElement, e.clientX, () => ({
       head: 'requests today · by probe',
       side: String(board?.ledger.requests ?? 0),
-      rows: [...gmdRows(), ...(board?.ledger.probes ?? []).filter((p) => p.requests > 0).map((p) => ({ label: p.id, value: `${p.requests} · every ${periodText(p.every)} · ${p.cost}` }))],
+      rows: [...gmdRows(), ...(board?.ledger.probes ?? []).filter((p) => p.requests > 0).map((p) => ({ label: p.id, value: `${p.requests} · ${periodText(p.every)} · ${p.cost}` }))],
       note: `Free tier is CloudWatch's million requests a month, shared by the whole account. aws: ${board?.executable ?? 'not found'}${board?.cliVersion ? ` · ${board.cliVersion}` : ''}.`,
     }))}
     onpointerleave={() => leave('ledger')}

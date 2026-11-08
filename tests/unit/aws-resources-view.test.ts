@@ -248,6 +248,7 @@ describe('the RESOURCES screen (aws.md §14.2)', () => {
       weight: 'warn' as const,
       tag: 'COST' as const,
       title: '9 look forgotten',
+      names: [],
       region: null,
       item: null,
       since: 0,

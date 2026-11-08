@@ -80,9 +80,9 @@ export function htmlUrlOf(raw: string): string | null {
   if (url.protocol !== 'https:' || url.username !== '' || url.password !== '' || url.port !== '')
     return null
   if (url.hostname === 'api.github.com') {
-    const match = /^\/repos\/([^/]+\/[^/]+)\/(pulls|issues)\/(\d+)$/.exec(url.pathname)
+    const match = /^\/repos\/([^/]+\/[^/]+)\/(pulls|issues|discussions)\/(\d+)$/.exec(url.pathname)
     if (match === null || repoName(match[1]) === null) return null
-    return `https://github.com/${match[1]}/${match[2] === 'pulls' ? 'pull' : 'issues'}/${match[3]}`
+    return `https://github.com/${match[1]}/${match[2] === 'pulls' ? 'pull' : match[2]}/${match[3]}`
   }
   if (url.hostname === 'www.githubstatus.com') {
     return /^\/incidents\/[a-z0-9]{6,20}$/.test(url.pathname)
@@ -90,8 +90,9 @@ export function htmlUrlOf(raw: string): string | null {
       : null
   }
   if (url.hostname !== 'github.com') return null
+  // A release's tag may hold slashes (changesets' `@scope/name@1.2.3`): the rest of the path is its.
   const match =
-    /^\/([^/]+\/[^/]+)(\/(pull|issues)\/\d+|\/actions\/runs\/\d+|\/actions|\/releases\/tag\/[^/]+|\/security\/advisories|\/security)?\/?$/.exec(
+    /^\/([^/]+\/[^/]+)(\/(pull|issues|discussions)\/\d+|\/actions\/runs\/\d+|\/actions|\/releases\/tag\/.+|\/security\/advisories|\/security)?\/?$/.exec(
       url.pathname,
     )
   if (match === null || repoName(match[1]) === null) return null
@@ -459,22 +460,23 @@ export function streaks(days: readonly number[]): { streak: number; best: number
   return { streak, best }
 }
 
-/** Stars today minus seven days ago, from the daily notes (`date` → count); null until seven days are noted. */
+/**
+ * Stars now minus seven days ago, from the daily notes (`date` → count): with fewer days noted,
+ * since the first of them (`since`). Today's own note is no base: it is the count of this very
+ * reading (noted as it is built), so a first look and the rest of that day have no change yet.
+ */
 export function starDelta(
   notes: Readonly<Record<string, number>>,
   today: string,
   current: number,
 ): { delta: number | null; since: string | null; spark: number[] } {
   const dates = Object.keys(notes).sort()
-  if (dates.length === 0) return { delta: null, since: null, spark: [current] }
+  const spark = dates.length === 0 ? [current] : dates.slice(-30).map((date) => notes[date] ?? 0)
+  const past = dates.filter((date) => date < today)
+  if (past.length === 0) return { delta: null, since: null, spark }
   const weekAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * DAY_MS).toISOString().slice(0, 10)
-  const base = dates.filter((date) => date <= weekAgo).pop()
-  const spark = dates.slice(-30).map((date) => notes[date] ?? 0)
+  const base = past.filter((date) => date <= weekAgo).pop()
   if (base === undefined)
-    return {
-      delta: current - (notes[dates[0] ?? today] ?? current),
-      since: dates[0] ?? null,
-      spark,
-    }
+    return { delta: current - (notes[past[0] ?? today] ?? current), since: past[0] ?? null, spark }
   return { delta: current - (notes[base] ?? current), since: null, spark }
 }

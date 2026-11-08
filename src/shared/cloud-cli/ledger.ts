@@ -68,7 +68,8 @@ export interface LedgerEntry {
   probe: string
   cost: ProbeCost
   requests: number
-  notModified?: boolean
+  /** How many of its answers said "unchanged": a reading of eight repositories may get eight. */
+  notModified?: number
   failed?: boolean
 }
 
@@ -79,7 +80,7 @@ export function recordReading(state: LedgerState, entry: LedgerEntry, now: numbe
   const after: ProbeCount = {
     calls: before.calls + 1,
     requests: before.requests + entry.requests,
-    notModified: before.notModified + (entry.notModified === true ? 1 : 0),
+    notModified: before.notModified + (entry.notModified ?? 0),
     failed: before.failed + (entry.failed === true ? 1 : 0),
   }
   // Only a price by the request is counted here: a price by the metric is counted by its probe,
@@ -112,13 +113,23 @@ export interface LedgerSummary {
 
 export function summarize(
   state: LedgerState,
-  probes: readonly { id: string; every: number; cost: ProbeCost }[],
+  table: readonly { id: string; every: number; cost: ProbeCost }[],
 ): LedgerSummary {
   let requests = 0
   let free = 0
   let freeTier = 0
   let notModified = 0
   let meteredTiny = 0
+  // The readings made on demand (a resource's HISTORY, a repository's inside) are no probe of
+  // the table, yet their requests are today's too: free, with no period (`every` 0).
+  const known = new Set(table.map((probe) => probe.id))
+  const probes = [
+    ...table,
+    ...Object.keys(state.today)
+      .filter((id) => !known.has(id))
+      .sort()
+      .map((id) => ({ id, every: 0, cost: 'free' as const })),
+  ]
   const rows = probes.map((probe) => {
     const count = state.today[probe.id]
     const n = count?.requests ?? 0

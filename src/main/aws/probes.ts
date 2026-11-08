@@ -1,5 +1,6 @@
 import { CE_PRICE_USD } from '@shared/aws/billing'
 import { regionName } from '@shared/aws/board'
+import { seriesKey } from '@shared/aws/forgotten'
 import {
   AddressesSchema,
   AlarmsSchema,
@@ -82,6 +83,8 @@ export interface AwsContext {
   costExplorerAnswered(answer: CostExplorerAnswer): void
   /** A REFRESH press is reading now (MANUAL Cost Explorer runs then). */
   refreshing(): boolean
+  /** The services the billing reading listed with a USD series; null before it read. */
+  billedServices(): string[] | null
   /** The running instances of the last reading, for their CPU weeks. */
   running(): { id: string; region: string; launch: number }[]
   now(): number
@@ -128,7 +131,8 @@ const read = async <T>(
 
 const nullable = <T>(schema: z.ZodType<T>) => schema.nullable()
 
-const iso = (at: number) => new Date(at).toISOString().replace(/\.\d{3}Z$/, 'Z')
+/** A time as AWS CLI takes it: ISO 8601 to the second, in UTC. */
+export const iso = (at: number) => new Date(at).toISOString().replace(/\.\d{3}Z$/, 'Z')
 
 /** A probe that reads each region in turn; a region that fails is null, the others stay. */
 function regional<T>(
@@ -152,7 +156,16 @@ function regional<T>(
   }
 }
 
-const NAME_TAG = 'Tags[?Key==`Name`]|[0].Value'
+/**
+ * CloudWatch's `--dimensions` as JSON, never the `Name=…,Value=…` shorthand: a value taken from
+ * an answer (an API's name, a bucket's) may hold a comma or an equals sign, which the shorthand
+ * would read as another key.
+ */
+export const dimensionsArg = (dims: readonly { Name: string; Value: string }[]): string =>
+  JSON.stringify(dims.map((d) => ({ Name: d.Name, Value: d.Value })))
+
+/** The Name tag of a resource, the only tag a `--query` keeps. */
+export const NAME_TAG = 'Tags[?Key==`Name`]|[0].Value'
 
 /* ---- Global ---- */
 
@@ -162,6 +175,9 @@ export const setupProbe: Probe<AwsContext, { region: string | null; credentialPr
     id: 'setup',
     every: DAY,
     cost: 'free',
+    // The alarms, the impaired check and the trail are `first` and read after it: it goes ahead
+    // of RESOURCES' reads too, or another pane's first cycle would hold them all up.
+    first: true,
     run: async (ctx, cli) => {
       const result = await cli({
         tool: 'aws',
@@ -256,11 +272,17 @@ const credentialsProbe: Probe<AwsContext, ReturnType<typeof parseCredentialRepor
   },
 }
 
+/** What the billing reading found: the month's points, and the services the metric lists. */
+export interface BillingReading {
+  points: [number, number][]
+  there: boolean
+  usd: boolean
+  /** The services with a USD series (ServiceName), forty at most: billing-services reads them. */
+  services: string[]
+}
+
 /** The month so far and last month, from the billing metric (free tier; us-east-1 only). */
-export const billingProbe: Probe<
-  AwsContext,
-  { points: [number, number][]; there: boolean; usd: boolean } | null
-> = {
+export const billingProbe: Probe<AwsContext, BillingReading | null> = {
   id: 'billing',
   every: 6 * HOUR,
   cost: 'free-tier',
@@ -287,7 +309,10 @@ export const billingProbe: Probe<
     const currencies = new Set(
       metrics.flatMap((dims) => dims.filter((d) => d.Name === 'Currency').map((d) => d.Value)),
     )
-    if (metrics.length === 0) return { points: [], there: false, usd: false }
+    const services = billedServices(metrics)
+    if (metrics.length === 0) return { points: [], there: false, usd: false, services }
+    // Billed in another currency only: the USD series is not there to ask for.
+    if (!currencies.has('USD')) return { points: [], there: true, usd: false, services }
     const now = ctx.now()
     const d = new Date(now)
     const lastMonth = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)
@@ -303,7 +328,7 @@ export const billingProbe: Probe<
         '--metric-name',
         'EstimatedCharges',
         '--dimensions',
-        'Name=Currency,Value=USD',
+        dimensionsArg([{ Name: 'Currency', Value: 'USD' }]),
         '--start-time',
         iso(lastMonth),
         '--end-time',
@@ -322,46 +347,37 @@ export const billingProbe: Probe<
         .map(([t, usd]): [number, number] => [ms(t) ?? 0, usd])
         .sort((a, b) => a[0] - b[0]),
       there: true,
-      usd: currencies.has('USD'),
+      usd: true,
+      services,
     }
   },
 }
 
-/** This month by service: the metric's ServiceName dimension, one statistic each (free tier). */
+/** The services of the billing metric's USD series by service, forty at most. */
+function billedServices(metrics: { Name: string; Value: string }[][]): string[] {
+  return [
+    ...new Set(
+      metrics.flatMap((dims) =>
+        dims.length === 2 && dims.some((d) => d.Name === 'Currency' && d.Value === 'USD')
+          ? dims.filter((d) => d.Name === 'ServiceName').map((d) => d.Value)
+          : [],
+      ),
+    ),
+  ].slice(0, 40)
+}
+
+/**
+ * This month by service: a statistic each for the services the billing reading listed (free
+ * tier). After it, from its answer: the same list-metrics twice was a call for nothing.
+ */
 const billingServicesProbe: Probe<AwsContext, { name: string; usd: number }[] | null> = {
   id: 'billing-services',
   every: 6 * HOUR,
   cost: 'free-tier',
   after: 'billing',
   run: async (ctx, cli) => {
-    const metrics = await read(
-      cli,
-      ctx,
-      GLOBAL,
-      [
-        'cloudwatch',
-        'list-metrics',
-        '--namespace',
-        'AWS/Billing',
-        '--metric-name',
-        'EstimatedCharges',
-        '--max-items',
-        '200',
-        '--query',
-        'Metrics[].Dimensions',
-      ],
-      BillingMetricsSchema,
-    )
-    if (metrics === null) return null
-    const services = [
-      ...new Set(
-        metrics.flatMap((dims) =>
-          dims.length === 2 && dims.some((d) => d.Name === 'Currency' && d.Value === 'USD')
-            ? dims.filter((d) => d.Name === 'ServiceName').map((d) => d.Value)
-            : [],
-        ),
-      ),
-    ].slice(0, 40)
+    const services = ctx.billedServices()
+    if (services === null) return null
     const now = ctx.now()
     const d = new Date(now)
     const start = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
@@ -379,8 +395,10 @@ const billingServicesProbe: Probe<AwsContext, { name: string; usd: number }[] | 
           '--metric-name',
           'EstimatedCharges',
           '--dimensions',
-          `Name=ServiceName,Value=${name}`,
-          'Name=Currency,Value=USD',
+          dimensionsArg([
+            { Name: 'ServiceName', Value: name },
+            { Name: 'Currency', Value: 'USD' },
+          ]),
           '--start-time',
           iso(start),
           '--end-time',
@@ -417,8 +435,7 @@ const budgetsProbe: Probe<AwsContext, Budget[] | null> = {
       [
         'budgets',
         'describe-budgets',
-        '--account-id',
-        account,
+        `--account-id=${account}`,
         '--max-items',
         '50',
         '--query',
@@ -562,7 +579,7 @@ const alarmsProbe = regional('alarms', 5 * MINUTE, 'free-tier', async (cli, ctx,
       '--max-items',
       '100',
       '--query',
-      '{m:MetricAlarms[].{n:AlarmName,s:StateUpdatedTimestamp,ns:Namespace,metric:MetricName,dim:Dimensions[0].Value},c:CompositeAlarms[].{n:AlarmName,s:StateUpdatedTimestamp}}',
+      '{m:MetricAlarms[].{n:AlarmName,s:StateUpdatedTimestamp,ns:Namespace,dim:Dimensions[0].Value},c:CompositeAlarms[].{n:AlarmName,s:StateUpdatedTimestamp}}',
     ],
     AlarmsSchema,
   )
@@ -673,7 +690,7 @@ const instancesProbe = regional('instances', HOUR, 'free', (cli, ctx, region) =>
       '--max-items',
       '1000',
       '--query',
-      `Reservations[].Instances[].{id:InstanceId,type:InstanceType,state:State.Name,launch:LaunchTime,az:Placement.AvailabilityZone,life:InstanceLifecycle,name:${NAME_TAG},platform:PlatformDetails,reason:StateTransitionReason,vols:BlockDeviceMappings[].Ebs.VolumeId,sgs:SecurityGroups[].GroupId,vpc:VpcId,subnet:SubnetId,ip:PrivateIpAddress,pub:PublicIpAddress,imds:MetadataOptions.HttpTokens}`,
+      `Reservations[].Instances[].{id:InstanceId,type:InstanceType,state:State.Name,launch:LaunchTime,az:Placement.AvailabilityZone,life:InstanceLifecycle,name:${NAME_TAG},platform:PlatformDetails,reason:StateTransitionReason,sgs:SecurityGroups[].GroupId,vpc:VpcId,subnet:SubnetId,ip:PrivateIpAddress,pub:PublicIpAddress,imds:MetadataOptions.HttpTokens}`,
     ],
     InstancesSchema,
   ),
@@ -711,7 +728,7 @@ const addressesProbe = regional('addresses', HOUR, 'free', async (cli, ctx, regi
       'ec2',
       'describe-addresses',
       '--query',
-      'Addresses[].{ip:PublicIp,alloc:AllocationId,assoc:AssociationId,inst:InstanceId,eni:NetworkInterfaceId,domain:Domain}',
+      'Addresses[].{ip:PublicIp,assoc:AssociationId,inst:InstanceId}',
     ],
     AddressesSchema,
   )
@@ -719,10 +736,8 @@ const addressesProbe = regional('addresses', HOUR, 'free', async (cli, ctx, regi
     ? null
     : rows.map((a) => ({
         ip: a.ip,
-        alloc: a.alloc ?? null,
         associated: a.assoc != null,
         instance: a.inst ?? null,
-        domain: a.domain ?? null,
       }))
 })
 
@@ -734,6 +749,9 @@ const natsProbe = regional('nats', HOUR, 'free', async (cli, ctx, region) => {
     [
       'ec2',
       'describe-nat-gateways',
+      // A deleted gateway stays in the answer for about an hour: not asked for at all.
+      '--filter',
+      'Name=state,Values=pending,available,deleting,failed',
       '--max-items',
       '200',
       '--query',
@@ -837,7 +855,7 @@ const databasesProbe = regional('databases', HOUR, 'free', (cli, ctx, region) =>
       '--max-items',
       '200',
       '--query',
-      'DBInstances[].{id:DBInstanceIdentifier,engine:Engine,version:EngineVersion,class:DBInstanceClass,state:DBInstanceStatus,multi:MultiAZ,storage:AllocatedStorage,support:EngineLifecycleSupport,created:InstanceCreateTime}',
+      'DBInstances[].{id:DBInstanceIdentifier,engine:Engine,version:EngineVersion,class:DBInstanceClass,state:DBInstanceStatus,multi:MultiAZ,support:EngineLifecycleSupport,created:InstanceCreateTime}',
     ],
     DbInstancesSchema,
   ),
@@ -887,7 +905,7 @@ const clustersProbe = regional('clusters', DAY, 'free', async (cli, ctx, region)
         'eks',
         'describe-cluster-versions',
         '--query',
-        'clusterVersions[].{v:clusterVersion,end:endOfStandardSupportDate,ext:endOfExtendedSupportDate,s:status}',
+        'clusterVersions[].{v:clusterVersion,end:endOfStandardSupportDate}',
       ],
       ClusterVersionsSchema,
       true,
@@ -902,10 +920,9 @@ const clustersProbe = regional('clusters', DAY, 'free', async (cli, ctx, region)
       [
         'eks',
         'describe-cluster',
-        '--name',
-        name,
+        `--name=${name}`,
         '--query',
-        'cluster.{v:version,s:status,p:upgradePolicy.supportType,c:createdAt}',
+        'cluster.{v:version,s:status,p:upgradePolicy.supportType}',
       ],
       ClusterSchema,
       true,
@@ -945,7 +962,7 @@ export const certificatesProbe: Probe<AwsContext, PerRegion<Certificate[]>> = {
           '--max-items',
           '500',
           '--query',
-          'CertificateSummaryList[].{arn:CertificateArn,d:DomainName,t:Type,exp:NotAfter,use:InUse,k:KeyAlgorithm,s:Status}',
+          'CertificateSummaryList[].{arn:CertificateArn,d:DomainName,t:Type,exp:NotAfter,use:InUse,s:Status}',
         ],
         CertificatesSchema,
         region === GLOBAL && !ctx.regions().includes(GLOBAL),
@@ -959,7 +976,6 @@ export const certificatesProbe: Probe<AwsContext, PerRegion<Certificate[]>> = {
               type: c.t ?? null,
               expires: ms(c.exp ?? null),
               inUse: c.use === true,
-              key: c.k ?? null,
               status: c.s ?? null,
             }))
     }
@@ -1037,8 +1053,10 @@ const bucketsProbe = regional('buckets', DAY, 'free-tier', async (cli, ctx, regi
         '--metric-name',
         'BucketSizeBytes',
         '--dimensions',
-        `Name=BucketName,Value=${pair.bucket}`,
-        `Name=StorageType,Value=${pair.storage}`,
+        dimensionsArg([
+          { Name: 'BucketName', Value: pair.bucket },
+          { Name: 'StorageType', Value: pair.storage },
+        ]),
         '--start-time',
         iso(now - 3 * DAY),
         '--end-time',
@@ -1077,6 +1095,8 @@ export const cpuProbe: Probe<AwsContext, PerRegion<Record<string, CpuWeek>>> = {
     const now = ctx.now()
     const out: PerRegion<Record<string, CpuWeek>> = {}
     for (const instance of running) {
+      // GetMetricData already read its CPU, fourteen days of it, in one call for the region.
+      if (cpuByMetricData(ctx, instance)) continue
       const kept = previous?.[instance.region]?.[instance.id]
       if (kept?.at !== undefined && now - kept.at < DAY) {
         out[instance.region] = { ...out[instance.region], [instance.id]: kept }
@@ -1094,7 +1114,7 @@ export const cpuProbe: Probe<AwsContext, PerRegion<Record<string, CpuWeek>>> = {
           '--metric-name',
           'CPUUtilization',
           '--dimensions',
-          `Name=InstanceId,Value=${instance.id}`,
+          dimensionsArg([{ Name: 'InstanceId', Value: instance.id }]),
           '--start-time',
           iso(now - 7 * DAY),
           '--end-time',
@@ -1123,6 +1143,24 @@ export const cpuProbe: Probe<AwsContext, PerRegion<Record<string, CpuWeek>>> = {
   },
 }
 
+/**
+ * Whether RESOURCES' GetMetricData has an instance's daily CPU and its NetworkOut both, the pair
+ * forgotten.ts judges low use by. With the CPU alone (the month's cap stopped the batches between
+ * the two) it falls back to this probe's week, which must then be read.
+ */
+export function cpuByMetricData(
+  ctx: Pick<AwsContext, 'readings'>,
+  instance: { id: string; region: string },
+): boolean {
+  const usage = ctx.readings().res.usage[instance.region]
+  const read = (metric: string) => {
+    const series =
+      usage?.[seriesKey({ ns: 'AWS/EC2', metric, dim: 'InstanceId', value: instance.id })]
+    return series !== undefined && series.via === 'gmd' && series.v.length > 0
+  }
+  return read('CPUUtilization') && read('NetworkOut')
+}
+
 const guarddutyProbe = regional('guardduty', HOUR, 'free', async (cli, ctx, region) => {
   const detector = await read(
     cli,
@@ -1140,8 +1178,7 @@ const guarddutyProbe = regional('guardduty', HOUR, 'free', async (cli, ctx, regi
     [
       'guardduty',
       'get-findings-statistics',
-      '--detector-id',
-      detector,
+      `--detector-id=${detector}`,
       '--group-by',
       'SEVERITY',
       '--query',

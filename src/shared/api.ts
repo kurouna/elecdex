@@ -629,9 +629,14 @@ export interface AwsApi {
   /** A service's list for the drill-down, or one of RESOURCES' lists, from main's last reading. */
   drill(key: string, service: AwsService | AwsList): Promise<DrillRow[] | null>
   /** One resource of that list: its fields, what is related, its findings. */
-  item(key: string, service: AwsService, id: string): Promise<DrillItem | null>
+  item(key: string, service: AwsService, id: string, region?: string): Promise<DrillItem | null>
   /** Its CloudTrail, read when HISTORY is pressed (free; kept five minutes). */
-  history(key: string, service: AwsService, id: string): Promise<HistoryEvent[] | null>
+  history(
+    key: string,
+    service: AwsService,
+    id: string,
+    region?: string,
+  ): Promise<HistoryEvent[] | null>
   /** Opens a console page main builds from its own reading (item:… or account:… ids). */
   open(key: string, id: string): Promise<boolean>
   /** Cost Explorer's answer for the board's account (a paid API, asked once; aws.md §3.3). */

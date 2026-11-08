@@ -3,7 +3,8 @@ import type { CardRow } from '../../lib/hover-card.ts'
 
 /**
  * A detail card's facts as rows: a small label, and what it says, wrapped where
- * it must (a path, a command). Under a card's heading, set off by a rule.
+ * it must (a path, a command). Under a card's heading, set off by a rule. Keyed by place:
+ * labels repeat when they are names under MASK (every one ••••), and a repeated key throws.
  */
 interface Props {
   rows: readonly CardRow[]
@@ -13,7 +14,7 @@ const { rows }: Props = $props()
 </script>
 
 <dl data-testid="card-rows">
-  {#each rows as row (row.label)}
+  {#each rows as row, i (i)}
     <dt>{row.label}</dt>
     <dd class:muted={row.muted === true} data-label={row.label}>{row.value}</dd>
   {/each}

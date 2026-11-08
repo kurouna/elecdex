@@ -141,6 +141,13 @@ $effect(() => {
     if (choices.drill === repo) detail = next
   })
 })
+/**
+ * Whether the repository drilled into is private: until the board says it is not, it is taken
+ * to be, so MASK hides its name, runs and pulls from the first frame.
+ */
+const drilledPrivate = $derived(
+  board?.repos.find((repo) => repo.name === choices.drill)?.private ?? true,
+)
 function up(): void {
   if (choices.drill === null) return
   sfx.play('collapse')
@@ -410,7 +417,7 @@ const short = $derived(height < 30 * 16)
     {#if choices.tab === 'repos' && choices.drill !== null}
       <div class="bar crumbs" data-testid="github-crumbs">
         <button type="button" class="back" onclick={up} aria-label="back to the repositories" {@attach takeFocus}>‹</button>
-        <button type="button" onclick={up}>REPOS</button><span class="gt">›</span><span class="here">{repoLabel(choices.drill, me, false, masked)}</span>
+        <button type="button" onclick={up}>REPOS</button><span class="gt">›</span><span class="here">{repoLabel(choices.drill, me, drilledPrivate, masked)}</span>
       </div>
     {:else if choices.tab === 'queue' && board !== null}
       <div class="bar">
@@ -526,7 +533,7 @@ const short = $derived(height < 30 * 16)
                 <span class="ci" data-state={run.state}></span>
                 <span class="mono">{run.workflow}</span>
                 <span class="mono c-branch">{run.branch}</span>
-                <span class="title">{titleOf(run.title, false, masked)}{#if run.state === 'action'} <span class="warn">· awaiting approval</span>{/if}</span>
+                <span class="title">{titleOf(run.title, drilledPrivate, masked)}{#if run.state === 'action'} <span class="warn">· awaiting approval</span>{/if}</span>
                 <span class="mono c-event">{run.event}</span>
                 <span class="mono c-took">{run.seconds === null ? '—' : run.seconds >= 60 ? `${Math.floor(run.seconds / 60)}m ${run.seconds % 60}s` : `${run.seconds}s`}</span>
                 <span class="age">{ageText(run.at, now)}</span>
@@ -539,7 +546,7 @@ const short = $derived(height < 30 * 16)
               <div class="row p" tabindex="0" role="link" onclick={() => void open(pull.id)} onkeydown={(e) => onRowKey(e, pull.id)}>
                 <span class="tag" data-weight={pull.verdictWeight}>{pull.verdict}</span>
                 <span class="ci" data-state={pull.ci}></span>
-                <span class="title"><span class="num">#{pull.number}</span>{pull.title}</span>
+                <span class="title"><span class="num">#{pull.number}</span>{titleOf(pull.title, drilledPrivate, masked)}</span>
                 <span class="mono">{masked ? MASKED : pull.by}</span>
                 <span class="age">{ageText(pull.since, now)}</span>
               </div>
@@ -624,7 +631,7 @@ const short = $derived(height < 30 * 16)
     onpointerenter={(e) => board && card('ledger', e.currentTarget as HTMLElement, e.clientX, () => ({
       head: 'requests today · by probe',
       side: String(board?.ledger.requests ?? 0),
-      rows: (board?.ledger.probes ?? []).map((probe) => ({ label: probe.id, value: `${probe.requests} · every ${periodText(probe.every)} · ${probe.cost}` })),
+      rows: (board?.ledger.probes ?? []).map((probe) => ({ label: probe.id, value: `${probe.requests} · ${periodText(probe.every)} · ${probe.cost}` })),
       note: `${board?.ledger.notModified ?? 0} answered 304 (unchanged) and used no rate limit. gh: ${board?.executable ?? 'not found'}${board?.ghVersion ? ` · ${board.ghVersion}` : ''}.`,
     }))}
     onpointerleave={() => leave('ledger')}

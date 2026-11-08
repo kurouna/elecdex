@@ -182,6 +182,51 @@ describe('GithubWidget', () => {
     expect(text).toContain('tern')
   })
 
+  it("MASK hides a private repository's name, runs and pulls in its drill-down", async () => {
+    const board = await boardOf('demo')
+    const repo = 'octo-aki/infra-notes'
+    const detail = vi.fn(async () => ({
+      key: AUTO,
+      repo,
+      runs: [
+        {
+          id: `run:${repo}:1`,
+          state: 'success' as const,
+          workflow: 'ci',
+          branch: 'main',
+          title: 'Rotate the vault keys',
+          event: 'push',
+          seconds: 40,
+          at: Date.now(),
+        },
+      ],
+      pulls: [
+        {
+          id: `pull:${repo}#3`,
+          number: 3,
+          title: 'Move the backups bucket',
+          by: 'octo-aki',
+          verdict: 'Waiting',
+          verdictWeight: 'quiet' as const,
+          ci: 'none' as const,
+          since: Date.now(),
+        },
+      ],
+      releases: [],
+      readAt: Date.now(),
+    }))
+    vi.mocked(window.elecdex.github).detail = detail
+    await mount({ tab: 'repos', mask: true, drill: repo })
+    await push(board)
+    await vi.waitFor(() => expect(detail).toHaveBeenCalled())
+    await settle()
+    const text = `${screen.getByTestId('github-crumbs').textContent}${screen.getByTestId('github-view-repos').textContent}`
+    for (const secret of ['infra-notes', 'Rotate the vault keys', 'Move the backups bucket'])
+      expect(text, secret).not.toContain(secret)
+    // What is no name stays: the pull's number.
+    expect(text).toContain('#3')
+  })
+
   it('blinks REFRESH three beats before it asks, as every other button does', async () => {
     await mount()
     await push(await boardOf('demo'))

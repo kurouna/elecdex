@@ -54,14 +54,22 @@ export class ResourceAccounts {
   }
 
   /**
-   * The per-account readings a board's probes go through. No claim is needed: every shared
-   * probe runs in AwsService's one-at-a-time bulk lane, so two boards never read one at once,
-   * and the second finds the first's answer in the store.
+   * The per-account readings a board's probes go through. The bulk lanes run three readings at
+   * once (`BULK_LANES`), so two boards of one account may come to the same reading together:
+   * each probe and region is one turn at a time (`turn`), and the paid and metered counts are
+   * checked and taken in one step before their call.
    */
   shared(account: string, changed: () => void): SharedReads {
     const inventory = this.#inventory
     const billing = this.#billing
     const now = this.#now
+    const spend = (n: number) => {
+      this.#bump(account)
+      billing.update(account, (current) => ({
+        ...current,
+        gmd: { ...current.gmd, used: Math.max(0, current.gmd.used + n), readAt: now() },
+      }))
+    }
     return {
       get: (probe, region, schema) => inventory.read(account, probe, region, schema),
       put: (probe, region, value) => {
@@ -69,6 +77,7 @@ export class ResourceAccounts {
         this.#bump(account)
         changed()
       },
+      turn: (probe, region, work) => this.#turn(`${account}\u0000${probe}\u0000${region}`, work),
       sweep: () => {
         const entry = inventory.get(account)
         return { on: entry.sweepOn, asked: entry.sweepAsked }
@@ -77,17 +86,13 @@ export class ResourceAccounts {
         const gmd = billing.get(account).gmd
         return gmd.on && !gmd.capReached && gmd.used < gmd.cap
       },
-      gmdAllows: (n) => {
+      gmdReserve: (n) => {
         const gmd = billing.get(account).gmd
-        return gmd.on && gmd.used + n <= gmd.cap
+        if (!gmd.on || gmd.used + n > gmd.cap) return false
+        spend(n)
+        return true
       },
-      gmdSpent: (n) => {
-        this.#bump(account)
-        billing.update(account, (current) => ({
-          ...current,
-          gmd: { ...current.gmd, used: current.gmd.used + n, readAt: now() },
-        }))
-      },
+      gmdRefund: (n) => spend(-n),
       gmdCapReached: () => {
         this.#bump(account)
         billing.update(account, (current) => ({
@@ -104,7 +109,36 @@ export class ResourceAccounts {
         }))
         return true
       },
+      tinyRefund: (probe) =>
+        billing.update(account, (current) => ({
+          ...current,
+          tiny: {
+            ...current.tiny,
+            used: {
+              ...current.tiny.used,
+              [probe]: Math.max(0, (current.tiny.used[probe] ?? 0) - 1),
+            },
+          },
+        })),
     }
+  }
+
+  /** The turns under way or waiting, by account, probe and region: the last one's end. */
+  readonly #turns = new Map<string, Promise<unknown>>()
+
+  /** Runs `work` once the turns before it on the same key have ended, failed or not. */
+  #turn<T>(key: string, work: () => Promise<T>): Promise<T> {
+    const before = this.#turns.get(key) ?? Promise.resolve()
+    const mine = before.then(work)
+    const end = mine.then(
+      () => undefined,
+      () => undefined,
+    )
+    this.#turns.set(key, end)
+    void end.then(() => {
+      if (this.#turns.get(key) === end) this.#turns.delete(key)
+    })
+    return mine
   }
 
   #value<K extends StoredId>(account: string, probe: K, region: string): StoredValue<K> | null {

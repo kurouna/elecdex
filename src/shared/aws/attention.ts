@@ -30,12 +30,18 @@ export const DEPRECATED_RUNTIMES: Record<string, string> = {
 
 const ORDER: Record<Weight, number> = { danger: 0, warn: 1, info: 2, quiet: 3 }
 
-type Finding = Omit<AttentionItem, 'region' | 'item'> & {
+type Finding = Omit<AttentionItem, 'region' | 'item' | 'names'> & {
   region?: string | null
   item?: { service: AwsService; id: string } | null
+  names?: (string | null | undefined)[]
 }
 
-const finding = (f: Finding): AttentionItem => ({ region: null, item: null, ...f })
+const finding = ({ names = [], ...f }: Finding): AttentionItem => ({
+  region: null,
+  item: null,
+  ...f,
+  names: names.filter((name): name is string => typeof name === 'string' && name !== ''),
+})
 
 const days = (ms: number) => Math.floor(ms / DAY)
 
@@ -47,6 +53,7 @@ function alarmFindings(r: AwsReadings): AttentionItem[] {
         weight: 'danger',
         tag: 'ALARM',
         title: alarm.name,
+        names: [alarm.name],
         region,
         item: { service: 'alarms', id: alarm.name },
         since: alarm.since ?? r.now,
@@ -59,6 +66,7 @@ function alarmFindings(r: AwsReadings): AttentionItem[] {
         weight: 'danger',
         tag: 'ALARM',
         title: `${alarm.name} (composite)`,
+        names: [alarm.name],
         region,
         item: { service: 'alarms', id: alarm.name },
         since: alarm.since ?? r.now,
@@ -77,6 +85,7 @@ function healthFindings(r: AwsReadings): AttentionItem[] {
         weight: 'danger',
         tag: 'HEALTH',
         title: `${names.get(id) ?? id} failed its status check`,
+        names: [names.get(id), id],
         region,
         item: { service: 'ec2', id },
         since: r.now,
@@ -113,6 +122,7 @@ function deadLetterFindings(r: AwsReadings): AttentionItem[] {
           weight: 'warn',
           tag: 'HEALTH',
           title: `${(q.m ?? 0).toLocaleString('en-US')} in dead-letter queue ${q.n}`,
+          names: [q.n],
           region,
           item: { service: 'sqs', id: q.n },
           since: r.now,
@@ -131,6 +141,7 @@ function stackFindings(r: AwsReadings): AttentionItem[] {
         weight: 'danger',
         tag: 'STACK',
         title: `${stack.name} · ${stack.status}`,
+        names: [stack.name],
         region: stack.region,
         item: { service: 'stacks', id: stack.name },
         since: stack.at ?? r.now,
@@ -205,6 +216,7 @@ function openGroupFindings(r: AwsReadings): AttentionItem[] {
         weight: 'danger',
         tag: 'SECURITY',
         title: `${group.name ?? group.id} opens ${group.ports.map((p) => p.toUpperCase()).join(', ')} to the world`,
+        names: [group.name, group.id],
         region: group.region,
         since: r.now,
         why: '0.0.0.0/0 or ::/0 on port 22, 3389 or every port, on a group an instance uses.',
@@ -221,6 +233,7 @@ const noMfaFindings = (r: AwsReadings): AttentionItem[] =>
         weight: 'warn',
         tag: 'SECURITY',
         title: `${row.user} signs in to the console without MFA`,
+        names: [row.user],
         since: r.now,
         why: 'The credential report: password enabled, MFA not active.',
       }),
@@ -274,6 +287,7 @@ function certificateFinding(
     weight: left <= AWS_LIMITS.expiryDangerDays ? 'danger' : 'warn',
     tag: 'EXPIRY',
     title: `${cert.domain ?? 'A certificate'} ${left < 0 ? `expired ${-left}d ago` : `expires in ${left}d`}`,
+    names: [cert.domain],
     region: cert.region,
     item: { service: 'acm', id: cert.arn },
     since: now,
@@ -298,6 +312,7 @@ function domainFinding(
       weight: danger ? 'danger' : 'warn',
       tag: 'EXPIRY',
       title: `${domain.name} expires in ${left}d${domain.auto ? '' : ' · auto-renew off'}`,
+      names: [domain.name],
       since: now,
       why: 'Route 53 Domains: the registration ends.',
     }),
@@ -349,6 +364,7 @@ const keyFindings = (r: AwsReadings): AttentionItem[] =>
           weight: 'warn',
           tag: 'EXPIRY',
           title: `${row.user === '<root_account>' ? 'root' : row.user}'s access key is ${days(r.now - (key.rotated ?? r.now))} days old`,
+          names: row.user === '<root_account>' ? [] : [row.user],
           since: key.rotated ?? r.now,
           why: `Older than ${AWS_LIMITS.keyAgeDays} days.`,
         }),
@@ -377,6 +393,7 @@ function supportFindings(r: AwsReadings): AttentionItem[] {
           left < 0
             ? `EKS ${cluster.name} ${cluster.version ?? ''} is past standard support`
             : `EKS ${cluster.name} ${cluster.version ?? ''}: standard support ends in ${left}d`,
+        names: [cluster.name],
         region: cluster.region,
         item: { service: 'eks', id: cluster.name },
         since: r.now,
@@ -393,6 +410,7 @@ function supportFindings(r: AwsReadings): AttentionItem[] {
         weight: 'warn',
         tag: 'SUPPORT',
         title: `${fn.name} runs ${fn.runtime}, deprecated ${since}`,
+        names: [fn.name],
         region: fn.region,
         item: { service: 'lambda', id: fn.name },
         since: Date.parse(since),
@@ -412,6 +430,7 @@ const extendedFindings = (r: AwsReadings): AttentionItem[] =>
         weight: 'warn',
         tag: 'COST',
         title: `EKS ${cluster.name} bills extended support`,
+        names: [cluster.name],
         region: cluster.region,
         item: { service: 'eks', id: cluster.name },
         since: cluster.standardEnds ?? r.now,
@@ -468,6 +487,7 @@ const budgetFindings = (r: AwsReadings): AttentionItem[] =>
         title: over
           ? `${budget.name}: forecast $${Math.round(budget.forecast ?? 0)} over $${Math.round(budget.limit)}`
           : `${budget.name}: $${Math.round(budget.actual)} of $${Math.round(budget.limit)} spent`,
+        names: [budget.name],
         since: r.now,
         why: `AWS Budgets: the forecast over 100%, or the actual over ${AWS_LIMITS.budgetActual * 100}%.`,
       }),
@@ -510,11 +530,22 @@ const moneyFindings = (r: AwsReadings): AttentionItem[] => [
   ...planFindings(r),
 ]
 
+const found = new WeakMap<AwsReadings, AttentionItem[]>()
+
 /**
  * Every finding, heaviest first, then by tag, then the oldest: a reading again never reorders
- * what stays (cloud-cli.md §7).
+ * what stays (cloud-cli.md §7). Worked out once a reading: the board, the drill-down's list and
+ * its item each ask for it.
  */
 export function attention(r: AwsReadings): AttentionItem[] {
+  const known = found.get(r)
+  if (known !== undefined) return known
+  const items = findingsOf(r)
+  found.set(r, items)
+  return items
+}
+
+function findingsOf(r: AwsReadings): AttentionItem[] {
   const byId = new Map<string, AttentionItem>()
   for (const item of [
     ...alarmFindings(r),

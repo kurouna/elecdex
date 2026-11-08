@@ -1,5 +1,5 @@
 import type { CliCall, CliResult } from '@shared/cloud-cli/probe'
-import { ACCOUNT, DAY, HOUR, iso, ok, result } from './stub-common.js'
+import { ACCOUNT, DAY, dimensionsOf, HOUR, iso, ok, result } from './stub-common.js'
 
 /**
  * The stand-in's answers for RESOURCES (aws.md §14; `ELECDEX_CLOUD_STUB`): the made-up account
@@ -360,10 +360,7 @@ export function resourceStatistics(
   const namespace = arg(call, '--namespace') ?? ''
   if (['AWS/Billing', 'AWS/S3', 'AWS/EC2'].includes(namespace)) return null
   const metric = arg(call, '--metric-name') ?? ''
-  const dimensions = call.argv
-    .filter((a) => a.startsWith('Name='))
-    .map((a) => ({ Name: a.slice(5, a.indexOf(',')), Value: a.slice(a.indexOf('Value=') + 6) }))
-  const value = dailyValue(metric, dimensions, mode)
+  const value = dailyValue(metric, dimensionsOf(call.argv), mode)
   return ok(
     value === 0 ? [] : Array.from({ length: 14 }, (_, i) => [iso(now - (14 - i) * DAY), value]),
   )
@@ -478,6 +475,12 @@ export function resourceRoutes(): Record<string, Route> {
             n: 'web-tg',
             arn: tokyoArn('elasticloadbalancing', 'targetgroup/web-tg/6d0ecf831eec9f09'),
             lbs: [tokyoArn('elasticloadbalancing', 'loadbalancer/app/web-alb/50dc6c495c0c9188')],
+          },
+          // A group left behind by a load balancer deleted: its targets are not asked for.
+          {
+            n: 'old-tg',
+            arn: tokyoArn('elasticloadbalancing', 'targetgroup/old-tg/1a2b3c4d5e6f7a8b'),
+            lbs: [],
           },
         ]),
       ),

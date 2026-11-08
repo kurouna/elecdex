@@ -59,7 +59,8 @@ import { classifyCliError } from '@shared/cloud-cli/errors'
 import type { CliCall, CliResult, Probe, ProbeCost, RunCli } from '@shared/cloud-cli/probe'
 import { DAY, HOUR, MINUTE } from '@shared/cloud-cli/probe'
 import { z } from 'zod'
-import type { AwsContext } from './probes.js'
+import { notStarted } from '../cloud-cli/scheduler.js'
+import { type AwsContext, dimensionsArg, iso, NAME_TAG } from './probes.js'
 
 /**
  * RESOURCES' probes (aws.md §14.4, §14.4a, §14.4b): free describes and lists with `--query`
@@ -70,12 +71,13 @@ import type { AwsContext } from './probes.js'
  * reads it first (`AwsContext.shared`).
  *
  * Every call is tolerated: a refusal is still PARTIAL by its operation's name, a region without
- * the service is `not-offered`, and a failure keeps the last answer. Values a call takes from an
- * answer (a table's name) go as `--option=value`, so a name can never read as an option.
+ * the service is `not-offered`, and a failure keeps the last answer. A single value a call takes
+ * from an answer (a table's name) goes as `--option=value`, so a name can never read as an
+ * option; a list of them (`--clusters`, `--ids`, `--services`, `--domain-names`) cannot, and holds
+ * only ARNs and ids AWS makes, none of which begins with "-". Dimensions go as JSON.
  */
 
 const WEEK = 7 * DAY
-const NAME_TAG = 'Tags[?Key==`Name`]|[0].Value'
 /** The key a global reading is kept under. */
 export const GLOBAL_KEY = 'global'
 
@@ -83,14 +85,27 @@ export const GLOBAL_KEY = 'global'
 export interface SharedReads {
   get<T>(probe: string, region: string, schema: z.ZodType<T>): { at: number; value: T } | null
   put(probe: string, region: string, value: unknown): void
+  /**
+   * One board of the account at a time per probe and region: a second board waits for the
+   * first's turn to end and then finds its answer in the store. The bulk lanes run three
+   * readings at once, so two boards of one account would otherwise call the CLI twice for one
+   * reading - and twice under a paid cap.
+   */
+  turn<T>(probe: string, region: string, work: () => Promise<T>): Promise<T>
   sweep(): { on: boolean; asked: number | null }
-  /** GetMetricData's cap: whether `n` more metrics may be asked for this month. */
-  gmdAllows(n: number): boolean
   gmdAvailable(): boolean
-  gmdSpent(n: number): void
+  /**
+   * GetMetricData's cap, checked and taken in one step before the call: `n` metrics reserved
+   * when this month has room for them, false (the cap reached) when it has not.
+   */
+  gmdReserve(n: number): boolean
+  /** Metrics reserved for a call that was never started (the board stopped while it waited). */
+  gmdRefund(n: number): void
   gmdCapReached(): void
   /** One more metered-tiny request this month, under its fixed cap; false when none is left. */
   tiny(probe: string, cap: number): boolean
+  /** A metered-tiny request taken for a call that was never started. */
+  tinyRefund(probe: string): void
 }
 
 interface Options {
@@ -125,9 +140,12 @@ async function ask<T>(
       value: null,
       notOffered: classifyCliError('aws', result).kind === 'not-offered' && ctx.reached(region),
     }
-  const text = result.stdout.trim() === '' ? 'null' : result.stdout
-  return { value: parseWith(schema, text), notOffered: false }
+  return { value: parseWith(schema, answerText(result)), notOffered: false }
 }
+
+/** An empty answer is the `--query` of an absent key: JSON's null. */
+const answerText = (result: CliResult): string =>
+  result.stdout.trim() === '' ? 'null' : result.stdout
 
 const q = async <T>(
   cli: RunCli,
@@ -140,8 +158,6 @@ const q = async <T>(
 
 /** A list that answers null when empty (`--query` of an absent key). */
 const list = <T>(schema: z.ZodType<T[]>) => schema.nullable().transform((v) => v ?? [])
-
-const iso = (at: number) => new Date(at).toISOString().replace(/\.\d{3}Z$/, 'Z')
 
 type ReadRegion<T> = (cli: RunCli, ctx: AwsContext, region: string) => Promise<T | null>
 
@@ -172,21 +188,29 @@ function fresh(ctx: AwsContext, id: string, cost: ProbeCost, at: number): boolea
 }
 
 /**
- * One region's reading for the account, kept for every board of it, or what it had when the
- * reading fails. No board of the account reads it at the same time as another: every shared
- * probe runs in the one-at-a-time bulk lane (AwsService's `#bulk`), and the second finds the
- * first's answer in the store.
+ * One region's reading for the account, kept for every board of it: the kept answer while
+ * `keep` says it may stand, else read now, or what it had when the reading fails. The look at
+ * the store and the reading are one turn of the account's (`SharedReads.turn`): a board that
+ * comes while another reads waits, and then takes that answer instead of calling the CLI.
  */
-async function readOnce<T>(
+function readOnce<T>(
   store: SharedReads,
   id: string,
   region: string,
-  fallback: T | null,
-  read: () => Promise<T | null>,
+  spec: {
+    schema: z.ZodType<T>
+    keep: (kept: { at: number; value: T }) => boolean
+    fallback: T | null
+    read: () => Promise<T | null>
+  },
 ): Promise<T | null> {
-  const value = await read()
-  if (value !== null) store.put(id, region, value)
-  return value ?? fallback
+  return store.turn(id, region, async () => {
+    const kept = store.get(id, region, spec.schema)
+    if (kept !== null && spec.keep(kept)) return kept.value
+    const value = await spec.read()
+    if (value !== null) store.put(id, region, value)
+    return value ?? kept?.value ?? spec.fallback
+  })
 }
 
 /** A probe whose readings are the account's, per region, kept and shared (aws.md §14.4). */
@@ -202,19 +226,13 @@ function shared<T>(spec: SharedSpec<T>): Probe<AwsContext, PerRegion<T>> {
       if (store === null) return previous ?? {}
       const out: PerRegion<T> = {}
       const regions = spec.global === true ? [GLOBAL_KEY] : (spec.regions?.(ctx) ?? ctx.regions())
-      for (const region of regions) {
-        const kept = store.get(spec.id, region, spec.schema)
-        out[region] =
-          kept !== null && fresh(ctx, spec.id, spec.cost, kept.at)
-            ? kept.value
-            : await readOnce(
-                store,
-                spec.id,
-                region,
-                kept?.value ?? previous?.[region] ?? null,
-                () => spec.read(cli, ctx, region === GLOBAL_KEY ? GLOBAL : region),
-              )
-      }
+      for (const region of regions)
+        out[region] = await readOnce(store, spec.id, region, {
+          schema: spec.schema,
+          keep: (kept) => fresh(ctx, spec.id, spec.cost, kept.at),
+          fallback: previous?.[region] ?? null,
+          read: () => spec.read(cli, ctx, region === GLOBAL_KEY ? GLOBAL : region),
+        })
       return out
     },
   }
@@ -239,21 +257,21 @@ export const bucketListProbe = shared({
   global: true,
   bulk: 'count',
   read: async (cli, ctx, region) => {
-    if (ctx.shared()?.tiny('res-buckets', METERED_TINY_CAP) !== true) return null
-    return q(
-      cli,
-      ctx,
-      region,
-      [
+    const store = ctx.shared()
+    if (store?.tiny('res-buckets', METERED_TINY_CAP) !== true) return null
+    const result = await cli(
+      call(ctx, region, [
         's3api',
         'list-buckets',
         '--max-items',
         '1000',
         '--query',
         'Buckets[].[Name,CreationDate,BucketRegion]',
-      ],
-      list(BucketListSchema),
+      ]),
     )
+    // Taken before the call; a call never started is given back.
+    if (notStarted(result)) store.tinyRefund('res-buckets')
+    return result.ok ? parseWith(list(BucketListSchema), answerText(result)) : null
   },
 })
 
@@ -434,10 +452,13 @@ const elbTargetsProbe = count('res-elb', 6 * HOUR, ElbTargetsSchema, async (cli,
   )
   if (groups === null && classic === null) return null
   const out = []
-  for (const [i, group] of (groups ?? []).entries()) {
-    // Fifty groups' targets at most; the rest are not judged by their targets.
+  let asked = 0
+  for (const group of groups ?? []) {
+    // Only a group behind a load balancer is judged by its targets ("no targets" is the
+    // balancer's), fifty of them at most; the rest are listed without.
+    const behind = (group.lbs ?? []).length > 0
     const targets =
-      i < 50
+      behind && asked++ < 50
         ? await q(
             cli,
             ctx,
@@ -1469,6 +1490,9 @@ async function sweepRegion(
     [
       'ec2',
       'describe-nat-gateways',
+      // What bills by the hour only (ELSEWHERE counts no other).
+      '--filter',
+      'Name=state,Values=pending,available',
       '--max-items',
       '50',
       '--query',
@@ -1519,17 +1543,15 @@ export const sweepProbe: Probe<AwsContext, PerRegion<SweepRegion>> = {
     const { on, asked } = store.sweep()
     if (!on) return {}
     const out: PerRegion<SweepRegion> = {}
-    for (const region of otherRegions(ctx)) {
-      const kept = store.get('res-sweep', region, SweepRegionSchema)
-      const pressed = asked !== null && (kept === null || kept.at < asked)
-      const young = kept !== null && ctx.now() - kept.at < ctx.every('res-sweep')
-      out[region] =
-        kept !== null && young && !pressed
-          ? kept.value
-          : await readOnce(store, 'res-sweep', region, kept?.value ?? null, () =>
-              sweepRegion(cli, ctx, region),
-            )
-    }
+    for (const region of otherRegions(ctx))
+      out[region] = await readOnce(store, 'res-sweep', region, {
+        schema: SweepRegionSchema,
+        // Young, and not older than the last "check other regions now".
+        keep: (kept) =>
+          ctx.now() - kept.at < ctx.every('res-sweep') && (asked === null || kept.at >= asked),
+        fallback: null,
+        read: () => sweepRegion(cli, ctx, region),
+      })
     return out
   },
 }
@@ -1597,7 +1619,7 @@ const cloudfrontQuietProbe = shared({
         '--metric-name',
         'Requests',
         '--dimensions',
-        'Name=Region,Value=Global',
+        dimensionsArg([{ Name: 'Region', Value: 'Global' }]),
         '--max-items',
         '500',
         '--query',
@@ -1622,13 +1644,18 @@ const modelIds = (dims: Dimensions): string[] =>
     ...new Set(dims.flatMap((set) => set.filter((d) => d.Name === 'ModelId').map((d) => d.Value))),
   ].sort()
 
+/**
+ * The models called, per region. After res-quiet, so that the usage readings, after this one,
+ * have both what list-metrics found and which models to ask for (the enabled regions it reads,
+ * res-regions, is a count, read before any judgement).
+ */
 const bedrockUseProbe = shared({
   id: 'res-bedrockuse',
   every: DAY,
   cost: 'free-tier',
   schema: z.array(z.string()),
   bulk: 'judge',
-  after: 'res-regions',
+  after: 'res-quiet',
   regions: bedrockRegions,
   read: async (cli, ctx, region) => {
     const silent = !ctx.regions().includes(region)
@@ -1830,24 +1857,29 @@ async function readMetricData(cli: RunCli, ctx: AwsContext, region: string): Pro
   if (queries.length === 0) return {}
   const into: Collected = new Map()
   for (const batch of batches(queries)) {
-    if (!store.gmdAllows(batch.length)) {
+    // Taken before the call, in the same step as the check: another board's reading of another
+    // region, running in another bulk lane meanwhile, finds what is left after this one.
+    if (!store.gmdReserve(batch.length)) {
       // The month's cap: the rest is judged by list-metrics and the statistics until the 1st.
       store.gmdCapReached()
       return toUsage(into, 'gmd')
     }
-    if (!(await readBatch(cli, ctx, region, batch, into))) return null
+    if (!(await readBatch(cli, ctx, region, { batch, store }, into))) return null
   }
   return toUsage(into, 'gmd')
 }
 
 type Collected = Map<string, { days: number; byDay: Map<string, number> }>
 
-/** One call of up to 500 metrics; its count is spent whatever it answers. */
+/**
+ * One call of up to 500 metrics, reserved by the caller: its count is spent whatever it
+ * answers, and given back only when the call was never started.
+ */
 async function readBatch(
   cli: RunCli,
   ctx: AwsContext,
   region: string,
-  batch: readonly MetricQuery[],
+  { batch, store }: { batch: readonly MetricQuery[]; store: SharedReads },
   into: Collected,
 ): Promise<boolean> {
   const now = ctx.now()
@@ -1867,7 +1899,7 @@ async function readBatch(
       'MetricDataResults[].{id:Id,t:Timestamps,v:Values}',
     ]),
   )
-  ctx.shared()?.gmdSpent(batch.length)
+  if (notStarted(result)) store.gmdRefund(batch.length)
   if (!result.ok) return false
   for (const row of parseWith(MetricDataSchema, result.stdout) ?? []) {
     const query = batch[Number(row.id.slice(1))]
@@ -1888,21 +1920,26 @@ const gmdRegions = (ctx: AwsContext): string[] => [
   ]),
 ]
 
+/** GetMetricData reads what res-quiet listed and the models res-bedrockuse found, after both. */
 export const metricDataProbe = shared({
   id: 'res-gmd',
   every: DAY,
   cost: { setting: 'aws.getMetricData', perMetricUsd: GMD_PRICE_USD },
   schema: UsageSchema,
   bulk: 'judge',
-  after: 'res-quiet',
+  after: 'res-bedrockuse',
   regions: gmdRegions,
   read: readMetricData,
 })
 
-/** Without GetMetricData: a statistic each for twenty billed candidates at most (free tier). */
+/**
+ * Without GetMetricData: a statistic each for twenty billed candidates at most (free tier).
+ * While GetMetricData is there it reads nothing and keeps nothing: an empty reading kept for a
+ * day would stand for the statistics after the cap is reached or GetMetricData turned off.
+ */
 async function readStatistics(cli: RunCli, ctx: AwsContext, region: string): Promise<Usage | null> {
   const store = ctx.shared()
-  if (store === null || store.gmdAvailable()) return {}
+  if (store === null || store.gmdAvailable()) return null
   const now = ctx.now()
   const queries = metricQueries(ctx, region).filter(
     (query) => query.ns !== 'AWS/EC2' && query.ns !== 'AWS/Logs',
@@ -1926,7 +1963,7 @@ async function readStatistics(cli: RunCli, ctx: AwsContext, region: string): Pro
         '--metric-name',
         query.metric,
         '--dimensions',
-        ...query.dims.map((d) => `Name=${d.Name},Value=${d.Value}`),
+        dimensionsArg(query.dims),
         '--start-time',
         iso(dayStart(now) - 14 * DAY),
         '--end-time',
@@ -1951,13 +1988,14 @@ async function readStatistics(cli: RunCli, ctx: AwsContext, region: string): Pro
   return toUsage(into, 'stat')
 }
 
+/** After GetMetricData's reading: it reads only what the cap left, or when it is off. */
 const lastUseProbe = shared({
   id: 'res-lastuse',
   every: DAY,
   cost: 'free-tier',
   schema: UsageSchema,
   bulk: 'judge',
-  after: 'res-quiet',
+  after: 'res-gmd',
   regions: gmdRegions,
   read: readStatistics,
 })

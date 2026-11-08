@@ -30,7 +30,6 @@ export const QUEUE_QUERY = `query Queue($triage: String!) {
       ... on PullRequest { number title url createdAt repository { nameWithOwner isPrivate } author { login } }
     }
   }
-  rateLimit { cost remaining limit resetAt }
 }`
 
 const REPO_FIELDS = `
@@ -52,7 +51,6 @@ export const OWN_REPOS_QUERY = `query OwnRepos {
       nodes { ${REPO_FIELDS} }
     }
   }
-  rateLimit { cost remaining limit resetAt }
 }`
 
 /** PINNED repositories, one alias each; `names` are checked owner/name pairs (cloud-cli.md §2.5). */
@@ -61,7 +59,7 @@ export function pinnedReposQuery(names: readonly string[]): string {
     const [owner, repo] = name.split('/')
     return `r${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) { ${REPO_FIELDS} }`
   })
-  return `query PinnedRepos {\n  viewer { login }\n  ${parts.join('\n  ')}\n  rateLimit { cost remaining limit resetAt }\n}`
+  return `query PinnedRepos {\n  viewer { login }\n  ${parts.join('\n  ')}\n}`
 }
 
 export const CONTRIB_QUERY = `query Contributions {
@@ -70,7 +68,6 @@ export const CONTRIB_QUERY = `query Contributions {
       contributionCalendar { totalContributions weeks { contributionDays { date contributionCount } } }
     }
   }
-  rateLimit { cost remaining limit resetAt }
 }`
 
 /** One repository's open pull requests, for its drill-down (§5.3). */
@@ -84,8 +81,22 @@ export const REPO_PULLS_QUERY = `query RepoPulls($owner: String!, $name: String!
       nodes { tagName isPrerelease publishedAt createdAt url releaseAssets(first: 20) { nodes { downloadCount } } }
     }
   }
-  rateLimit { cost remaining limit resetAt }
 }`
+
+/**
+ * The commits on each default branch since its latest release, one alias a repository: `compare`'s
+ * count alone, where REST's compare answers every commit and diff of the range (megabytes).
+ */
+export function aheadQuery(
+  repos: readonly { name: string; release: string; defaultBranch: string }[],
+): string {
+  const parts = repos.map((repo, i) => {
+    const [owner, name] = repo.name.split('/')
+    const tag = JSON.stringify(`refs/tags/${repo.release}`)
+    return `r${i}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { ref(qualifiedName: ${tag}) { compare(headRef: ${JSON.stringify(repo.defaultBranch)}) { aheadBy } } }`
+  })
+  return `query Ahead {\n  ${parts.join('\n  ')}\n}`
+}
 
 export const ALL_QUERIES: readonly string[] = [
   QUEUE_QUERY,
@@ -93,6 +104,7 @@ export const ALL_QUERIES: readonly string[] = [
   CONTRIB_QUERY,
   REPO_PULLS_QUERY,
   pinnedReposQuery(['octo/one', 'octo/two']),
+  aheadQuery([{ name: 'octo/one', release: 'v1.0.0', defaultBranch: 'main' }]),
 ]
 
 /** The body `gh api graphql --input -` reads: JSON with the query and its variables. */

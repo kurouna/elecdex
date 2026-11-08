@@ -34,7 +34,7 @@ export const RESOURCE_DRILL: Partial<Record<AwsService, DrillDef>> = {
     [
       NAME('name'),
       c('kind', 'kind'),
-      c('cluster', 'cluster'),
+      c('cluster', 'cluster', 'text', true),
       c('desired', 'desired', 'num'),
       c('running', 'running', 'num'),
       c('launch', 'launch'),
@@ -82,8 +82,15 @@ export const RESOURCE_DRILL: Partial<Record<AwsService, DrillDef>> = {
   cloudfront: def(
     'cloudfront',
     [f('enabled', 'ENABLED'), f('use', 'USE')],
-    [NAME('alias'), c('id', 'id', 'text', true), c('enabled', 'enabled'), USE_COL],
-    'created',
+    [
+      NAME('alias'),
+      c('id', 'id', 'text', true),
+      c('enabled', 'enabled'),
+      c('modified', 'modified', 'date'),
+      USE_COL,
+    ],
+    // A distribution's list says when it last changed, not when it was made.
+    'modified',
   ),
   bedrock: def(
     'bedrock',
@@ -128,7 +135,7 @@ export const RESOURCE_DRILL: Partial<Record<AwsService, DrillDef>> = {
       NAME('endpoint'),
       c('service', 'service'),
       c('azs', 'AZs', 'num'),
-      c('vpc', 'vpc'),
+      c('vpc', 'vpc', 'text', true),
       USE_COL,
       MONEY,
     ],
@@ -136,7 +143,13 @@ export const RESOURCE_DRILL: Partial<Record<AwsService, DrillDef>> = {
   tgw: def(
     'tgw',
     [f('state', 'STATE'), f('type', 'TYPE'), f('use', 'USE')],
-    [NAME('attachment'), c('tgw', 'transit gateway'), c('type', 'type'), USE_COL, MONEY],
+    [
+      NAME('attachment'),
+      c('tgw', 'transit gateway', 'text', true),
+      c('type', 'type'),
+      USE_COL,
+      MONEY,
+    ],
   ),
   vpn: def(
     'vpn',
@@ -160,7 +173,7 @@ export const RESOURCE_DRILL: Partial<Record<AwsService, DrillDef>> = {
     [f('state', 'TIER'), f('ami', 'AN IMAGE USES IT'), f('age', 'AGE')],
     [
       NAME('snapshot'),
-      c('volume', 'volume'),
+      c('volume', 'volume', 'text', true),
       c('gib', 'GiB', 'gib'),
       c('created', 'created', 'date'),
       MONEY,

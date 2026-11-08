@@ -66,7 +66,7 @@ The cloud preset (Ctrl+Shift+F10) is the account, the repositories and a shell f
 | Reads | One AWS profile per pane (⚙ lists `aws configure list-profiles`) in up to 4 regions (none chosen: the profile's own region); global services are asked in us-east-1. Free APIs only, plus CloudWatch calls inside its free tier, plus Cost Explorer if you turn it on. *Unreleased:* RESOURCES adds the lists of every service it shows, S3's bucket list, CloudWatch Logs' log groups, and CloudWatch's paid `GetMetricData` under a monthly cap (on by default). |
 | Updates | Only while the pane is seen, each reading at its own period (below). |
 | Platforms | Wherever AWS CLI v2 runs. Not verified by hand on macOS or Linux. |
-| Privacy | Read only; never a Secrets Manager, Health or Support call, and of S3 and CloudWatch Logs only the bucket list and the log groups (*unreleased*), never an object, a log or a message. MASK hides every resource name on RESOURCES and in the drill-down (*unreleased*). Of CloudTrail, only time, who, operation, region, error and a console sign-in's result and MFA are kept. Nothing of the account reaches a plugin. |
+| Privacy | Read only; never a Secrets Manager, Health or Support call, and of S3 and CloudWatch Logs only the bucket list and the log groups (*unreleased*), never an object, a log or a message. MASK hides every resource name on RESOURCES and in the drill-down, an item's id, VPC and subnet, the names in ATTENTION's rows and the ids of ACTIVE's line of what came and went (*unreleased*). Of CloudTrail, only time, who, operation, region, error and a console sign-in's result and MFA are kept. Nothing of the account reaches a plugin. |
 | Settings | Per pane in ⚙: profile, regions, ACCOUNT PULSE on or off, ACTIVITY (CloudTrail) on or off, SLOW ×4. Per account: Cost Explorer and the cost QUOTA (`aws-billing.json`); *unreleased:* GetMetricData and its cap (`aws-billing.json`), ELSEWHERE and the resources marked KEEP (`aws-inventory.json`). For every pane: the incident toasts, `aws.incidents` in `settings.json`. |
 
 The top row: the link word, **ALARMS**, **ATTENTION** (danger · warn), **MTD** (the month to date from the billing metric, with the budget's forecast and the quota's share; a press opens COST), the region lamps (ALL or one region, each lamp the colour of its heaviest finding), **MASK**, **REFRESH**, ⚙.
@@ -103,7 +103,7 @@ From RESOURCES, from ACTIVE, or from an ATTENTION row, a service opens inside th
 
 - **A service**: facet bars - a click filters by a value, and the other groups count again under that filter (cross-filtering) - and a list, sorted by a click on its header.
 - **One resource**: its fields; what is related (an instance's volumes, Elastic IPs and alarms; a volume's instance); its findings; **HISTORY**, that resource's CloudTrail, read when pressed (free); **↗ CONSOLE**, which opens the AWS console page main builds from its own reading.
-- Crumbs with ‹ lead back. With the focus in the pane, Enter goes a step down, Escape or Backspace a step up.
+- Crumbs with ‹ lead back. With the focus in the pane, Enter goes a step down, Escape or Backspace a step up. *Unreleased:* a resource opened from an ATTENTION row goes back to ATTENTION, as one opened from LOOKS FORGOTTEN goes back to RESOURCES; the alarms list holds every alarm (its STATE facet shows which are in ALARM), and the load balancers list the classic ones too.
 - Services: EC2, EBS, public IPv4 (Elastic IPs), S3, NAT gateways, load balancers, RDS, EKS, Lambda, CloudFormation, ACM and alarms; *unreleased:* every RESOURCES service, and the lists across services (forgotten, new, elsewhere) with a service column. One resource from RESOURCES also shows how long it has been quiet, what that was judged by, and **KEEP**. S3's sizes come from CloudWatch's daily `BucketSizeBytes`; of S3's own API only the bucket list is called (*unreleased*), at most once a day.
 
 ### What it costs
@@ -192,8 +192,9 @@ The tabs:
 | Repositories | one GraphQL query | 15 min |
 | Events, workflow runs | `gh api -i -X GET` per repository, with If-None-Match | 5 min |
 | Contributions | one GraphQL query | 1 h |
-| Private vulnerability reports, commits since the release | `gh api -X GET` per repository | 1 h |
-| Traffic (views) | `gh api -X GET` per repository with push access | 6 h |
+| Private vulnerability reports | `gh api -i -X GET` per repository, with If-None-Match (*unreleased*) | 1 h |
+| Commits since the release | one GraphQL query for every repository (*unreleased*) | 1 h |
+| Traffic (views) | `gh api -i -X GET` per repository with push access, with If-None-Match (*unreleased*) | 6 h |
 
 A token without the scope a reading needs shows **PARTIAL** for that reading alone.
 

@@ -67,6 +67,9 @@ const keep = vi.fn(async (key: string, id: string, on: boolean) => service.keep(
 const sweep = vi.fn(async (_key: string, _what?: string) => 30_000)
 const metricData = vi.fn(async (_key: string, _answer: unknown) => true)
 const copy = vi.fn(async (_what: { kind: string; text: string }) => true)
+const item = vi.fn(async (key: string, which: string, id: string, region?: string) =>
+  service.item(key, which, id, region),
+)
 const refresh = vi.fn(async (_key: string) => 30_000)
 let held: Record<string, unknown> = {}
 
@@ -79,6 +82,7 @@ beforeEach(() => {
   sweep.mockClear()
   metricData.mockClear()
   copy.mockClear()
+  item.mockClear()
   refresh.mockClear()
   inertDom()
   finishAnimations()
@@ -94,7 +98,13 @@ beforeEach(() => {
       },
       refresh: (key: string) => refresh(structuredClone(key)),
       drill: async (key: string, which: string) => service.drill(key, which),
-      item: async (key: string, which: string, id: string) => service.item(key, which, id),
+      item: (key: string, which: string, id: string, region?: string) =>
+        item(
+          structuredClone(key),
+          structuredClone(which),
+          structuredClone(id),
+          structuredClone(region),
+        ),
       history: async () => [],
       open: async () => true,
       costExplorer: (key: string, answer: unknown) =>
@@ -199,6 +209,58 @@ describe('AwsWidget', () => {
     await push(await boardOf())
     await fireEvent.click(screen.getAllByTestId('aws-active-row')[0] as HTMLElement)
     expect(held.drill).toEqual({ service: 'ec2', filters: {}, sort: null, item: null })
+  })
+
+  it('lists a name two regions share twice, and opens the one pressed in its own region', async () => {
+    // The rows were keyed by service and id only: two CDKToolkit stacks threw, a pane fault.
+    const row = (region: string) => ({
+      id: 'CDKToolkit',
+      region,
+      name: 'CDKToolkit',
+      weight: null,
+      cells: { name: 'CDKToolkit', status: 'CREATE_COMPLETE' },
+    })
+    const elecdex = window.elecdex as unknown as { aws: { drill: unknown } }
+    elecdex.aws.drill = async () => [row('ap-northeast-1'), row('us-east-1')]
+    const view = await mount({
+      tab: 'active',
+      drill: { service: 'stacks', filters: {}, sort: null, item: null },
+    })
+    await push(await boardOf())
+    await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row')).toHaveLength(2))
+    // The list shows no region column: the second row is us-east-1's by main's order (the rows
+    // tie on the sort), and the place's region below says which one was pressed.
+    await fireEvent.click(screen.getAllByTestId('aws-drill-row')[1] as HTMLElement)
+    expect(held.drill).toMatchObject({ item: 'CDKToolkit', region: 'us-east-1' })
+    // And main is asked for that region's copy, not the first one it has.
+    await view.rerender({ state: { regions: REGIONS, tab: 'active', ...held } })
+    await settle()
+    await vi.waitFor(() =>
+      expect(item).toHaveBeenCalledWith(expect.any(String), 'stacks', 'CDKToolkit', 'us-east-1'),
+    )
+  })
+
+  it('opens an item at its top, and brings the list back where it was left', async () => {
+    // A list and its items share the pane's scroller: an item once opened scrolled past its
+    // header when its row was near the bottom of a long list.
+    const view = await mount({
+      tab: 'active',
+      drill: { service: 'ec2', filters: {}, sort: null, item: null },
+    })
+    await push(await boardOf())
+    await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row').length).toBeGreaterThan(0))
+    const scroller = screen.getByTestId('aws-drill-list').closest('.view') as HTMLElement
+    scroller.scrollTop = 480
+    await fireEvent.click(screen.getAllByTestId('aws-drill-row')[0] as HTMLElement)
+    await view.rerender({ state: { regions: REGIONS, tab: 'active', ...held } })
+    await settle()
+    await vi.waitFor(() => expect(screen.getByTestId('aws-drill-item')).toBeTruthy())
+    expect(scroller.scrollTop).toBe(0)
+    await fireEvent.click(screen.getByRole('button', { name: 'back a step' }))
+    await view.rerender({ state: { regions: REGIONS, tab: 'active', ...held } })
+    await settle()
+    await vi.waitFor(() => expect(screen.getByTestId('aws-drill-list')).toBeTruthy())
+    expect(scroller.scrollTop).toBe(480)
   })
 
   it('lists the drilled service and cross-filters by a facet bar', async () => {
@@ -359,6 +421,7 @@ describe('RESOURCES (aws.md §14)', () => {
       filters: {},
       sort: null,
       item: first.id,
+      region: first.region,
       direct: true,
     })
     await view.rerender({ state: { regions: REGIONS, ...held } })
@@ -581,6 +644,111 @@ describe('RESOURCES (aws.md §14)', () => {
     expect(screen.getByTestId('aws-kept').textContent).toContain(row.name)
     await fireEvent.click(screen.getByTestId('aws-unkeep'))
     await vi.waitFor(() => expect(keep).toHaveBeenCalledWith(KEY, row.key, false))
+  })
+})
+
+describe('the drill-down', () => {
+  const EC2 = { service: 'ec2', filters: {}, sort: null }
+
+  it('says an item is gone since the last reading, back on its list', async () => {
+    const board = await boardOf()
+    const view = await mount({ tab: 'active', drill: { ...EC2, item: 'i-gone' } })
+    await push(board)
+    await vi.waitFor(() => expect(held.drill).toMatchObject({ item: null }))
+    // The pane state follows; the list must still say why it came back.
+    await view.rerender({ state: { regions: REGIONS, tab: 'active', ...held } })
+    await settle()
+    expect(screen.getByTestId('aws-drill-list').textContent).toMatch(/gone since \d\d:\d\d/)
+  })
+
+  it('asks main for its list once a list and its item away, and again when main reads more', async () => {
+    const board = await boardOf()
+    const drill = vi.spyOn(window.elecdex.aws, 'drill')
+    const view = await mount({ tab: 'active', drill: { ...EC2, item: null } })
+    await push(board)
+    await vi.waitFor(() => expect(screen.getAllByTestId('aws-drill-row')).toHaveLength(6))
+    const asked = drill.mock.calls.length
+    for (const item of ['i-0a1b2c3d4e5f60003', null]) {
+      await view.rerender({ state: { regions: REGIONS, tab: 'active', drill: { ...EC2, item } } })
+      await settle()
+    }
+    expect(drill.mock.calls.length).toBe(asked)
+    // A probe settled, or a KEEP or the sweep changed the account: the same sign-in time, a new
+    // revision.
+    await push({ ...board, revision: `${board.revision}+1` })
+    expect(drill.mock.calls.length).toBe(asked + 1)
+  })
+
+  it('goes back from an ATTENTION item to ATTENTION, and shows the estimate line there', async () => {
+    const board = await boardOf()
+    const view = await mount({ tab: 'attention' })
+    await push(board)
+    const row = screen
+      .getAllByTestId('aws-attention-row')
+      .find((r) => r.textContent?.includes('orders-db-cpu-high')) as HTMLElement
+    await fireEvent.click(row)
+    expect(held).toMatchObject({ from: 'attention', drill: { item: expect.any(String) } })
+    expect((held.drill as { direct?: boolean }).direct).toBe(true)
+    await view.rerender({ state: { regions: REGIONS, ...held } })
+    await settle()
+    expect(screen.getByTestId('aws-estimate')).toBeTruthy()
+  })
+
+  it("MASK names no resource in ACTIVE's service card, nor the budget on COST", async () => {
+    const board = await boardOf()
+    const view = await mount({ tab: 'active', mask: true })
+    await push(board)
+    // ACTIVE's card once masked only S3 and Elastic IPs: EC2's own names showed.
+    const ec2 = screen.getAllByTestId('aws-active-row').find((r) => r.textContent?.includes('EC2'))
+    await fireEvent.pointerEnter(ec2 as HTMLElement, { clientX: 40 })
+    await vi.waitFor(() => expect(screen.getByTestId('aws-card')).toBeTruthy())
+    const card = screen.getByTestId('aws-card').textContent ?? ''
+    for (const name of ['ml-train', 'web-1', 'dev-box', 'bastion'])
+      expect(card, name).not.toContain(name)
+    await view.rerender({ state: { regions: REGIONS, mask: true, tab: 'cost' } })
+    await settle()
+    expect(screen.getByTestId('aws-budget').textContent).not.toContain('monthly')
+    // ATTENTION's line for it masks the name and keeps the money, with its dollar signs.
+    await view.rerender({ state: { regions: REGIONS, mask: true, tab: 'attention' } })
+    await settle()
+    const budget = screen
+      .getAllByTestId('aws-attention-row')
+      .find((r) => r.textContent?.includes('BUDGET'))
+    expect(budget?.textContent).toContain('forecast $1102 over $1000')
+    expect(budget?.textContent).not.toContain('monthly')
+  })
+
+  it('MASK names no resource of an ATTENTION row, an item step or the changes line', async () => {
+    const board = await boardOf()
+    const view = await mount({ tab: 'attention', mask: true })
+    await push(board)
+    const attention = screen.getByTestId('aws-view-attention').textContent ?? ''
+    for (const name of ['orders-db-cpu-high', 'bastion-ssh', 'payments', 'ci-bot', 'legacy-cron'])
+      expect(attention).not.toContain(name)
+    // The finding's words stay.
+    expect(attention).toMatch(/stopped|open|ALARM/)
+    await view.rerender({
+      state: {
+        regions: REGIONS,
+        mask: true,
+        tab: 'active',
+        drill: { ...EC2, item: 'i-0a1b2c3d4e5f60003' },
+      },
+    })
+    await settle()
+    await vi.waitFor(() => expect(screen.getByTestId('aws-drill-item')).toBeTruthy())
+    const item = screen.getByTestId('aws-drill-item').textContent ?? ''
+    for (const text of ['i-0a1b2c3d4e5f60003', 'vpc-', 'subnet-', 'dev-box'])
+      expect(item, text).not.toContain(text)
+    await view.rerender({ state: { regions: REGIONS, mask: true, tab: 'active' } })
+    await push({
+      ...board,
+      changes: {
+        since: board.readAt ?? 0,
+        parts: [{ service: 'ec2', added: ['i-0new'], removed: ['i-0old'] }],
+      },
+    })
+    expect(screen.getByTestId('aws-changes').textContent).not.toContain('i-0new')
   })
 })
 

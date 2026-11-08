@@ -10,6 +10,26 @@ import type { PulseBin, TrailEvent } from './types.js'
 
 export const TRAIL_MAX = 50
 
+/**
+ * A resource's name as CloudTrail's ResourceName knows it, for HISTORY: the last part of an ARN
+ * or a path, without the kind a row's id starts with where one service lists several kinds
+ * (`endpoint:`, `serverless:`, `workgroup:`, Bedrock's `pt:`), which no event carries. Only
+ * those services' kinds: an alarm or a stack named `app:latency` or `prod:cpu-high` keeps its
+ * whole name.
+ */
+const ROW_KINDS: Partial<Record<string, RegExp>> = {
+  sagemaker: /^(endpoint|notebook|app):/,
+  elasticache: /^serverless:/,
+  redshift: /^workgroup:/,
+  bedrock: /^(pt|custom|imported|kb|agent|guardrail|profile|runtime):/,
+}
+
+export function trailName(service: string, id: string): string {
+  const kinds = ROW_KINDS[service]
+  const bare = id.startsWith('arn:') || kinds === undefined ? id : id.replace(kinds, '')
+  return bare.split('/').at(-1) ?? bare
+}
+
 const MARKED_SOURCES = /^(iam|kms|sts)\.amazonaws\.com$/
 const SG_CHANGES = /SecurityGroup(Ingress|Egress)|CreateSecurityGroup|DeleteSecurityGroup/
 

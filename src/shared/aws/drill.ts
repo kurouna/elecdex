@@ -1,6 +1,6 @@
 import { RESOURCE_DRILL, resourceRows } from './drill-resources.js'
 import { onExtendedSupport, stoppedAt } from './facts.js'
-import { forgotten, forgottenOf } from './forgotten.js'
+import { forgotten, forgottenOf, seriesKey } from './forgotten.js'
 import { TILE } from './labels.js'
 import { HOURS_A_MONTH, prices } from './list-prices.js'
 import type { Instance } from './parse.js'
@@ -46,7 +46,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
       { key: 'az', label: 'AZ' },
     ],
     columns: [
-      { key: 'name', label: 'name', kind: 'text' },
+      { key: 'name', label: 'name', kind: 'text', masked: true },
       { key: 'type', label: 'type', kind: 'text' },
       { key: 'state', label: 'state', kind: 'text' },
       { key: 'az', label: 'az', kind: 'text' },
@@ -64,11 +64,11 @@ export const DRILL: Record<AwsService, DrillDef> = {
       { key: 'size', label: 'SIZE' },
     ],
     columns: [
-      { key: 'name', label: 'name', kind: 'text' },
+      { key: 'name', label: 'name', kind: 'text', masked: true },
       { key: 'gib', label: 'GiB', kind: 'gib' },
       { key: 'type', label: 'type', kind: 'text' },
       { key: 'state', label: 'state', kind: 'text' },
-      { key: 'attached', label: 'attached to', kind: 'text' },
+      { key: 'attached', label: 'attached to', kind: 'text', masked: true },
       { key: 'monthly', label: '≈ $/month', kind: 'money' },
     ],
     sort: 'monthly',
@@ -78,7 +78,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     facets: [{ key: 'associated', label: 'ASSOCIATED' }],
     columns: [
       { key: 'name', label: 'address', kind: 'text', masked: true },
-      { key: 'attached', label: 'attached to', kind: 'text' },
+      { key: 'attached', label: 'attached to', kind: 'text', masked: true },
       { key: 'monthly', label: '≈ $/month', kind: 'money' },
     ],
     sort: 'monthly',
@@ -103,8 +103,8 @@ export const DRILL: Record<AwsService, DrillDef> = {
     label: TILE.nat.label,
     facets: [{ key: 'state', label: 'STATE' }],
     columns: [
-      { key: 'name', label: 'name', kind: 'text' },
-      { key: 'vpc', label: 'vpc', kind: 'text' },
+      { key: 'name', label: 'name', kind: 'text', masked: true },
+      { key: 'vpc', label: 'vpc', kind: 'text', masked: true },
       { key: 'state', label: 'state', kind: 'text' },
       { key: 'monthly', label: '≈ $/month', kind: 'money' },
     ],
@@ -117,7 +117,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
       { key: 'scheme', label: 'SCHEME' },
     ],
     columns: [
-      { key: 'name', label: 'name', kind: 'text' },
+      { key: 'name', label: 'name', kind: 'text', masked: true },
       { key: 'type', label: 'type', kind: 'text' },
       { key: 'scheme', label: 'scheme', kind: 'text' },
       { key: 'monthly', label: '≈ $/month', kind: 'money' },
@@ -132,7 +132,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
       { key: 'state', label: 'STATE' },
     ],
     columns: [
-      { key: 'name', label: 'name', kind: 'text' },
+      { key: 'name', label: 'name', kind: 'text', masked: true },
       { key: 'engine', label: 'engine', kind: 'text' },
       { key: 'class', label: 'class', kind: 'text' },
       { key: 'state', label: 'state', kind: 'text' },
@@ -147,7 +147,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
       { key: 'support', label: 'SUPPORT' },
     ],
     columns: [
-      { key: 'name', label: 'cluster', kind: 'text' },
+      { key: 'name', label: 'cluster', kind: 'text', masked: true },
       { key: 'version', label: 'version', kind: 'text' },
       { key: 'ends', label: 'standard support ends', kind: 'date' },
       { key: 'monthly', label: '≈ $/month', kind: 'money' },
@@ -161,7 +161,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
       { key: 'memory', label: 'MEMORY' },
     ],
     columns: [
-      { key: 'name', label: 'function', kind: 'text' },
+      { key: 'name', label: 'function', kind: 'text', masked: true },
       { key: 'runtime', label: 'runtime', kind: 'text' },
       { key: 'memory', label: 'MB', kind: 'num' },
       { key: 'modified', label: 'modified', kind: 'date' },
@@ -172,7 +172,7 @@ export const DRILL: Record<AwsService, DrillDef> = {
     label: TILE.stacks.label,
     facets: [{ key: 'status', label: 'STATUS' }],
     columns: [
-      { key: 'name', label: 'stack', kind: 'text' },
+      { key: 'name', label: 'stack', kind: 'text', masked: true },
       { key: 'status', label: 'status', kind: 'text' },
       { key: 'at', label: 'updated', kind: 'date' },
       { key: 'drift', label: 'drift', kind: 'text' },
@@ -194,9 +194,13 @@ export const DRILL: Record<AwsService, DrillDef> = {
   },
   alarms: {
     label: TILE.alarms.label,
-    facets: [{ key: 'namespace', label: 'NAMESPACE' }],
+    facets: [
+      { key: 'state', label: 'STATE' },
+      { key: 'namespace', label: 'NAMESPACE' },
+    ],
     columns: [
-      { key: 'name', label: 'alarm', kind: 'text' },
+      { key: 'name', label: 'alarm', kind: 'text', masked: true },
+      { key: 'state', label: 'state', kind: 'text' },
       { key: 'namespace', label: 'namespace', kind: 'text' },
       { key: 'since', label: 'since', kind: 'date' },
     ],
@@ -207,12 +211,19 @@ export const DRILL: Record<AwsService, DrillDef> = {
 const sizeClass = (gib: number) =>
   gib < 100 ? '< 100 GiB' : gib < 1000 ? '100 GiB – 1 TiB' : '≥ 1 TiB'
 
+/**
+ * Whether a finding is about this resource: its service and id, and its region where it says one
+ * (a name two regions share, CDKToolkit, a stack set's alarm, is two resources).
+ */
+const findingOf = (a: AttentionItem, service: AwsService, id: string, region: string) =>
+  a.item?.service === service && a.item.id === id && (a.region === null || a.region === region)
+
 const weightOf = (
   attention: readonly AttentionItem[],
   service: AwsService,
   id: string,
-): Weight | null =>
-  attention.find((a) => a.item?.service === service && a.item.id === id)?.weight ?? null
+  region: string,
+): Weight | null => attention.find((a) => findingOf(a, service, id, region))?.weight ?? null
 
 const month = (hour: number | null) => (hour === null ? null : hour * HOURS_A_MONTH)
 
@@ -247,6 +258,18 @@ function ec2Row(
   }
 }
 
+/**
+ * An instance's last seven daily CPU averages from GetMetricData, when the cpu probe left it to
+ * that reading (it reads only what GetMetricData did not).
+ */
+function metricWeek(r: AwsReadings, i: { id: string; region: string }): CpuWeek | undefined {
+  const key = seriesKey({ ns: 'AWS/EC2', metric: 'CPUUtilization', dim: 'InstanceId', value: i.id })
+  const series = r.res.usage[i.region]?.[key]
+  if (series === undefined || series.v.length === 0) return undefined
+  const avg = series.v.slice(-7)
+  return { avg, max: avg, at: r.now }
+}
+
 const ROWS: Record<AwsService, Builder> = {
   ...(Object.fromEntries(ADDED.map((s) => [s, (r: AwsReadings) => resourceRows(s, r)])) as Record<
     AwsService,
@@ -261,7 +284,7 @@ const ROWS: Record<AwsService, Builder> = {
         .map((f) => `${f.region}:${f.id}`),
     )
     return everywhere(r.instances).map((i) =>
-      ec2Row(i, cpu.get(i.id), idle.has(`${i.region}:${i.id}`)),
+      ec2Row(i, cpu.get(i.id) ?? metricWeek(r, i), idle.has(`${i.region}:${i.id}`)),
     )
   },
   ebs: (r) =>
@@ -329,32 +352,25 @@ const ROWS: Record<AwsService, Builder> = {
     }
     return [...byBucket.values()].map(({ top: _top, weight: _w, ...row }) => row)
   },
+  // NAT gateways and load balancers (the classic ones too) are RESOURCES' rows, priced as its
+  // tiles price them: a tile's count and its list never disagree.
   nat: (r) =>
-    everywhere(r.nats).map((n) => ({
-      id: n.id,
-      region: n.region,
-      name: n.name ?? n.id,
-      cells: {
-        name: n.name ?? n.id,
-        vpc: n.vpc,
-        state: n.state,
-        monthly: n.state === 'available' ? prices.hour('nat', n.region) * HOURS_A_MONTH : null,
-      },
+    resourcesOf('nat', r).map((x) => ({
+      id: x.id,
+      region: x.region,
+      name: x.name,
+      cells: { name: x.name, vpc: x.cells.vpc ?? null, state: x.state, monthly: x.monthly },
     })),
   elb: (r) =>
-    everywhere(r.balancers).map((b) => ({
-      id: b.arn,
-      region: b.region,
-      name: b.name,
+    resourcesOf('elb', r).map((x) => ({
+      id: x.id,
+      region: x.region,
+      name: x.name,
       cells: {
-        name: b.name,
-        type: b.type,
-        scheme: b.scheme,
-        monthly:
-          prices.hour(
-            b.type === 'network' ? 'nlb' : b.type === 'gateway' ? 'gwlb' : 'alb',
-            b.region,
-          ) * HOURS_A_MONTH,
+        name: x.name,
+        type: x.cells.type ?? null,
+        scheme: x.cells.scheme ?? null,
+        monthly: x.monthly,
       },
     })),
   rds: (r) =>
@@ -420,21 +436,55 @@ const ROWS: Record<AwsService, Builder> = {
         expires: c.expires,
       },
     })),
-  alarms: (r) =>
+  alarms: alarmRows,
+}
+
+/**
+ * Every alarm the Also-here line counts (RESOURCES' list of every state), each in ALARM with
+ * the time it rang; then those in ALARM the list does not have (a composite alarm, or the list
+ * not read yet), so an ATTENTION row always opens.
+ */
+function alarmRows(r: AwsReadings): Omit<DrillRow, 'weight'>[] {
+  const ringing = new Map(
     Object.entries(r.alarms).flatMap(([region, alarms]) => [
-      ...(alarms?.metric ?? []).map((a) => ({
-        id: a.name,
-        region,
-        name: a.name,
-        cells: { name: a.name, namespace: a.namespace, since: a.since },
-      })),
-      ...(alarms?.composite ?? []).map((a) => ({
-        id: a.name,
-        region,
-        name: a.name,
-        cells: { name: a.name, namespace: 'composite', since: a.since },
-      })),
+      ...(alarms?.metric ?? []).map(
+        (a) =>
+          [
+            `${region}:${a.name}`,
+            { region, name: a.name, ns: a.namespace, since: a.since },
+          ] as const,
+      ),
+      ...(alarms?.composite ?? []).map(
+        (a) =>
+          [
+            `${region}:${a.name}`,
+            { region, name: a.name, ns: 'composite', since: a.since },
+          ] as const,
+      ),
     ]),
+  )
+  const listed = resourcesOf('alarms', r).map((x) => {
+    const on = ringing.get(`${x.region}:${x.id}`)
+    ringing.delete(`${x.region}:${x.id}`)
+    return {
+      id: x.id,
+      region: x.region,
+      name: x.name,
+      cells: {
+        name: x.name,
+        state: on === undefined ? x.state : 'ALARM',
+        namespace: x.cells.namespace ?? null,
+        since: on?.since ?? null,
+      },
+    }
+  })
+  const rest = [...ringing.values()].map((a) => ({
+    id: a.name,
+    region: a.region,
+    name: a.name,
+    cells: { name: a.name, state: 'ALARM', namespace: a.ns, since: a.since },
+  }))
+  return [...listed, ...rest]
 }
 
 /** A service's rows from main's last reading, at most 1,000, each with its heaviest finding. */
@@ -453,7 +503,10 @@ export function drillRows(
     .slice(0, 1000)
     .map((row) => ({
       ...row,
-      weight: weightOf(attention, service, row.id) ?? judged.get(`${row.region}:${row.id}`) ?? null,
+      weight:
+        weightOf(attention, service, row.id, row.region) ??
+        judged.get(`${row.region}:${row.id}`) ??
+        null,
     }))
 }
 
@@ -532,17 +585,31 @@ const fmt = (value: string | number | null | undefined) =>
   value === null || value === undefined ? '—' : String(value)
 
 /** One resource for the third step: its fields, what is related, and its findings. */
+/**
+ * The list's columns an item step shows under its own id and region: not the name (its heading)
+ * nor a column that says the id or the region again. CloudFront's list has an id column, and the
+ * item's fields once carried "id" twice, which the item's keyed list threw on.
+ */
+export function itemColumns(def: DrillDef): DrillColumn[] {
+  return def.columns.filter((c) => c.key !== 'name' && c.label !== 'id' && c.label !== 'region')
+}
+
 export function drillItem(
   service: AwsService,
   id: string,
   r: AwsReadings,
   attention: readonly AttentionItem[],
+  region: string | null = null,
 ): DrillItem | null {
+  // The region picks the copy of a name two regions share. Without one (an old saved place) the
+  // first; with one, never another region's copy: that one gone is "gone since", not a swap.
+  const rows = ROWS[service](r).filter((entry) => entry.id === id)
+  const here = (entry: { region: string }) => region === null || entry.region === region
   // Outside the pane's regions only the sweep's describe is known: its few fields.
   const row =
-    ROWS[service](r).find((entry) => entry.id === id) ??
+    rows.find(here) ??
     elsewhereRows(r)
-      .filter((x) => x.service === service && x.id === id)
+      .filter((x) => x.service === service && x.id === id && here(x))
       .map((x) => ({
         id: x.id,
         region: x.region,
@@ -564,21 +631,19 @@ export function drillItem(
     fields: [
       { label: 'id', value: id, masked: def.columns[0]?.masked === true },
       { label: 'region', value: row.region },
-      ...def.columns
-        .filter((c) => c.key !== 'name')
-        .map((c) => ({
-          label: c.label,
-          value:
-            c.kind === 'money' && typeof row.cells[c.key] === 'number'
-              ? `≈ $${(row.cells[c.key] as number).toFixed(2)}`
-              : c.kind === 'date' && typeof row.cells[c.key] === 'number'
-                ? new Date(row.cells[c.key] as number).toISOString().slice(0, 10)
-                : fmt(row.cells[c.key]),
-          ...(c.masked ? { masked: true } : {}),
-        })),
+      ...itemColumns(def).map((c) => ({
+        label: c.label,
+        value:
+          c.kind === 'money' && typeof row.cells[c.key] === 'number'
+            ? `≈ $${(row.cells[c.key] as number).toFixed(2)}`
+            : c.kind === 'date' && typeof row.cells[c.key] === 'number'
+              ? new Date(row.cells[c.key] as number).toISOString().slice(0, 10)
+              : fmt(row.cells[c.key]),
+        ...(c.masked ? { masked: true } : {}),
+      })),
     ],
     related: [],
-    attention: attention.filter((a) => a.item?.service === service && a.item.id === id),
+    attention: attention.filter((a) => findingOf(a, service, id, row.region)),
     forgotten: judged?.row ?? null,
     kept: judged?.kept === true,
   }
@@ -602,7 +667,11 @@ function ec2Extra(item: DrillItem, r: AwsReadings): void {
   if (instance === undefined) return
   item.fields.push(
     { label: 'platform', value: fmt(instance.platform) },
-    { label: 'vpc / subnet', value: `${fmt(instance.vpc)} / ${fmt(instance.subnet)}` },
+    {
+      label: 'vpc / subnet',
+      value: `${fmt(instance.vpc)} / ${fmt(instance.subnet)}`,
+      masked: true,
+    },
     { label: 'private ip', value: fmt(instance.ip), masked: true },
     { label: 'public ip', value: instance.pub ? 'yes' : 'no' },
     { label: 'security groups', value: String(instance.sgs?.length ?? 0) },

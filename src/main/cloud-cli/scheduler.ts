@@ -6,6 +6,7 @@ import {
   type CliPriority,
   type CliResult,
   isDue,
+  MINUTE,
   type Probe,
   type RunCli,
   staggerMs,
@@ -63,6 +64,12 @@ const SKIPPED: CliResult = {
   tooLarge: false,
 }
 
+/**
+ * Whether a call's answer is the one of a call never started: what a probe that reserved a paid
+ * or metered request before the call gives back.
+ */
+export const notStarted = (result: CliResult): boolean => result === SKIPPED
+
 /** A probe whose CLI could not even be started, signed out or not there: nothing else will work. */
 const stopsTheBoard = (problem: CliProblem | null): boolean =>
   problem !== null && (problem.kind === 'no-cli' || problem.kind === 'signed-out')
@@ -70,6 +77,32 @@ const stopsTheBoard = (problem: CliProblem | null): boolean =>
 /** A gh answer read with `-i` whose status line says 304: unchanged, and free of rate limit. */
 export const isNotModified = (call: CliCall, result: CliResult): boolean =>
   call.tool === 'gh' && /^HTTP\/[\d.]+ 304/.test(result.stdout)
+
+/**
+ * A GraphQL answer that carries data beside its errors: a pinned repository deleted, a field the
+ * token may not read (vulnerabilityAlerts). GitHub answers 200 and gh exits 1, but the data is
+ * an answer, and the probe reads what is there; only an answer without data is a failure.
+ */
+export function isPartialAnswer(call: CliCall, result: CliResult): boolean {
+  if (call.tool !== 'gh' || call.argv[1] !== 'graphql' || result.stdout.trim() === '') return false
+  try {
+    const data = (JSON.parse(result.stdout) as { data?: unknown } | null)?.data
+    return typeof data === 'object' && data !== null
+  } catch {
+    return false
+  }
+}
+
+/** What one reading's calls met, counted as they answer. */
+interface Calls {
+  problem: CliProblem | null
+  requests: number
+  /** The answers that said 304, each counted. */
+  notModified: number
+  denied: string[]
+  /** A call was not started: the board stopped, halted or was refreshed while it waited. */
+  skipped: boolean
+}
 
 export class ProbeScheduler<C> {
   readonly #deps: SchedulerDeps<C>
@@ -83,6 +116,11 @@ export class ProbeScheduler<C> {
   readonly #keys = new Map<string, string>()
   /** Probes asked to run while they were running: they go once more when they end. */
   readonly #again = new Set<string>()
+  /**
+   * Probes still running from before a stop when the board started again: their run belongs to
+   * the old generation, so when it ends they go again if still due, and let their dependents go.
+   */
+  readonly #resume = new Set<string>()
   #started = false
   #halted = false
   /** Starts, stops and refreshes: a run from an older one may no longer start the CLI. */
@@ -132,10 +170,14 @@ export class ProbeScheduler<C> {
     this.#started = true
     this.#generation += 1
     for (const probe of this.#probes) {
-      const timer = new BoundaryTimer(this.#deps, probe.every, () => this.#later(probe))
+      const timer = new BoundaryTimer(this.#deps, probe.every, () => this.#onBoundary(probe))
       this.#timers.set(probe.id, timer)
       timer.start()
-      if (isDue(this.outcome(probe.id).at, probe.every, this.#deps.now())) void this.#run(probe)
+      // A run left from before the stop is of the old generation: its calls still waiting are
+      // dropped, so the probe is looked at again when that run ends.
+      if (this.#running.has(probe.id)) this.#resume.add(probe.id)
+      else if (isDue(this.outcome(probe.id).at, probe.every, this.#deps.now()))
+        void this.#run(probe)
     }
   }
 
@@ -144,6 +186,7 @@ export class ProbeScheduler<C> {
     this.#started = false
     this.#generation += 1
     this.#again.clear()
+    this.#resume.clear()
     for (const timer of this.#timers.values()) timer.stop()
     this.#timers.clear()
     for (const handle of this.#pending) this.#deps.clearTimer(handle)
@@ -171,6 +214,20 @@ export class ProbeScheduler<C> {
     if (probe === undefined) return
     if (this.#running.has(probe.id)) this.#again.add(probe.id)
     else void this.#run(probe)
+  }
+
+  /**
+   * A period's boundary. A reading taken just before it (the board was shown a few seconds before
+   * the boundary) stands until the next one: it would be read twice in a row. "Just" is the
+   * stagger's own span (a quarter of the period, five minutes at most): half a period once let a
+   * daily reading taken at 13:00 skip midnight and stand 35 hours.
+   */
+  #onBoundary(probe: Probe<C, unknown>): void {
+    const { at } = this.outcome(probe.id)
+    const failing = (this.#failures.get(probe.id) ?? 0) > 0
+    const just = Math.min(probe.every / 4, 5 * MINUTE)
+    if (!failing && at !== null && this.#deps.now() - at < just) return
+    this.#later(probe)
   }
 
   #later(probe: Probe<C, unknown>, ms = staggerMs(probe.id, probe.every)): void {
@@ -224,11 +281,11 @@ export class ProbeScheduler<C> {
     this.#running.add(probe.id)
     const generation = this.#generation
     const priority: CliPriority = probe.first === true ? 'first' : (this.#deps.priority ?? 'first')
-    const calls = {
-      problem: null as CliProblem | null,
+    const calls: Calls = {
+      problem: null,
       requests: 0,
-      notModified: false,
-      denied: [] as string[],
+      notModified: 0,
+      denied: [],
       skipped: false,
     }
     // A call that waited for a slot while the board stopped, halted or was refreshed is not
@@ -243,8 +300,8 @@ export class ProbeScheduler<C> {
         return result
       }
       calls.requests += 1
-      if (isNotModified(call, result)) calls.notModified = true
-      else if (!result.ok) {
+      if (isNotModified(call, result)) calls.notModified += 1
+      else if (!result.ok && !isPartialAnswer(call, result)) {
         noteFailure(calls, call, result)
         // At once, not when the probe ends: the calls queued behind this one must not start.
         if (stopsTheBoard(calls.problem) && generation === this.#generation) this.#halted = true
@@ -276,31 +333,46 @@ export class ProbeScheduler<C> {
   }
 
   /** After a run: failures and the halt, the dependents, the ledger, and a retry or a rerun. */
-  #settle(
-    probe: Probe<C, unknown>,
-    calls: { problem: CliProblem | null; requests: number; notModified: boolean; skipped: boolean },
-    generation: number,
-  ): void {
+  #settle(probe: Probe<C, unknown>, calls: Calls, generation: number): void {
     const current = generation === this.#generation
-    if (!calls.skipped && current) {
-      const failures = calls.problem === null ? 0 : (this.#failures.get(probe.id) ?? 0) + 1
-      this.#failures.set(probe.id, failures)
-      if (stopsTheBoard(calls.problem)) this.#halted = true
-      // After a failure, try again when the wait is over, not only on the period's boundary.
-      else if (failures > 0 && this.#started && backoffMs(failures) < probe.every)
-        this.#later(probe, backoffMs(failures))
+    // A run of before a stop, the board shown again since: what it read stands, but what it met
+    // cannot halt the new generation or back it off (as after a REFRESH).
+    const resumed = !current && this.#started && this.#resume.delete(probe.id)
+    if (!calls.skipped && current) this.#failed(probe, calls.problem)
+    if (!calls.skipped && (current || (resumed && calls.problem === null))) {
       this.#runDependents(probe)
       if (probe.bulk === 'count') this.#startJudges()
     }
-    this.#deps.record({
-      probe: probe.id,
-      cost: probe.cost,
-      requests: calls.requests,
-      notModified: calls.notModified,
-      failed: calls.problem !== null,
-    })
-    this.#deps.changed()
+    this.#counted(probe, calls)
     if (this.#again.delete(probe.id)) void this.#run(probe)
+    else if (resumed && isDue(this.outcome(probe.id).at, probe.every, this.#deps.now()))
+      void this.#run(probe)
+  }
+
+  /**
+   * The ledger and the board told. A reading that started no CLI (every answer from the
+   * account's store, or every call dropped) is no call of the day's; dropped, it changed nothing.
+   */
+  #counted(probe: Probe<C, unknown>, calls: Calls): void {
+    if (calls.requests > 0 || calls.problem !== null)
+      this.#deps.record({
+        probe: probe.id,
+        cost: probe.cost,
+        requests: calls.requests,
+        notModified: calls.notModified,
+        failed: calls.problem !== null,
+      })
+    if (!calls.skipped || calls.requests > 0) this.#deps.changed()
+  }
+
+  /** A failure counted (or the count cleared), the board halted, or a retry after the wait. */
+  #failed(probe: Probe<C, unknown>, problem: CliProblem | null): void {
+    const failures = problem === null ? 0 : (this.#failures.get(probe.id) ?? 0) + 1
+    this.#failures.set(probe.id, failures)
+    if (stopsTheBoard(problem)) this.#halted = true
+    // After a failure, try again when the wait is over, not only on the period's boundary.
+    else if (failures > 0 && this.#started && backoffMs(failures) < probe.every)
+      this.#later(probe, backoffMs(failures))
   }
 
   /** The judge readings never tried, once the last count reading has been. */
@@ -346,18 +418,13 @@ function noteFailure(
   if (calls.problem === null && call.tolerated !== true) calls.problem = problem
 }
 
-function settled(
-  before: ProbeOutcome,
-  value: unknown,
-  calls: { problem: CliProblem | null; notModified: boolean; denied: string[] },
-  now: number,
-): ProbeOutcome {
+function settled(before: ProbeOutcome, value: unknown, calls: Calls, now: number): ProbeOutcome {
   const read = value !== null && value !== undefined
   return {
     denied: calls.denied,
     value: read ? value : before.value,
     problem: calls.problem,
-    at: read || (calls.notModified && calls.problem === null) ? now : before.at,
+    at: read || (calls.notModified > 0 && calls.problem === null) ? now : before.at,
     triedAt: now,
   }
 }

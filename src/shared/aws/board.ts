@@ -62,11 +62,16 @@ export interface DrillPlace {
   filters: Record<string, string>
   sort: { column: string; down: boolean } | null
   item: string | null
+  /**
+   * The item's region. Ids of the kinds known by name (stacks, functions, alarms, queues…) repeat
+   * across regions: without it, an item opened the first region's copy.
+   */
+  region?: string
   direct?: true
 }
 
 /** Where a drill-down was entered from: a tab, for its crumbs and for Back. */
-export type DrillFrom = 'resources' | 'active' | 'cost' | 'attention'
+export type DrillFrom = 'resources' | 'active' | 'attention'
 
 const SERVICES: readonly AwsService[] = [
   'ec2',
@@ -148,11 +153,16 @@ function readDrill(raw: unknown): DrillPlace | null {
         }
       : null
   const item = typeof d.item === 'string' && d.item.length < 300 ? d.item : null
+  const region =
+    item !== null && typeof d.region === 'string' && /^[a-z0-9-]{1,32}$/.test(d.region)
+      ? d.region
+      : null
   return {
     service: d.service,
     filters,
     sort,
     item,
+    ...(region !== null ? { region } : {}),
     ...(d.direct === true && item !== null ? { direct: true as const } : {}),
   }
 }
@@ -161,7 +171,8 @@ function readDrill(raw: unknown): DrillPlace | null {
 export type ResourcesViewChoice = 'cards' | 'detail'
 
 const TABS: readonly AwsTab[] = ['resources', 'attention', 'active', 'cost', 'activity', 'account']
-const FROM: readonly DrillFrom[] = ['resources', 'cost', 'attention']
+/** 'active', the default, is stored as nothing (AwsWidget's drillTo). */
+const FROM: readonly DrillFrom[] = ['resources', 'attention']
 
 /** The pane's choices, read from its state with defaults. */
 export function readAwsPane(state: Record<string, unknown> | undefined): {

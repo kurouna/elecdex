@@ -703,10 +703,12 @@ const api: ElecdexApi = {
     refresh: (key) => ipcRenderer.invoke(CH.aws.refresh, key) as Promise<number>,
     drill: (key, service) =>
       ipcRenderer.invoke(CH.aws.drill, key, service) as Promise<DrillRow[] | null>,
-    item: (key, service, id) =>
-      ipcRenderer.invoke(CH.aws.item, key, service, id) as Promise<DrillItem | null>,
-    history: (key, service, id) =>
-      ipcRenderer.invoke(CH.aws.history, key, service, id) as Promise<HistoryEvent[] | null>,
+    item: (key, service, id, region) =>
+      ipcRenderer.invoke(CH.aws.item, key, service, id, region) as Promise<DrillItem | null>,
+    history: (key, service, id, region) =>
+      ipcRenderer.invoke(CH.aws.history, key, service, id, region) as Promise<
+        HistoryEvent[] | null
+      >,
     open: (key, id) => ipcRenderer.invoke(CH.aws.open, key, id) as Promise<boolean>,
     costExplorer: (key, answer) =>
       ipcRenderer.invoke(CH.aws.costExplorer, key, answer) as Promise<boolean>,

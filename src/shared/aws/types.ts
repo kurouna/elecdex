@@ -68,6 +68,11 @@ export interface AttentionItem {
   weight: Weight
   tag: 'ALARM' | 'HEALTH' | 'STACK' | 'SECURITY' | 'EXPIRY' | 'SUPPORT' | 'COST' | 'BUDGET' | 'PLAN'
   title: string
+  /**
+   * The names its title says (a resource, a user, a domain, a budget): MASK takes them out of
+   * the title and keeps the rest of its words (aws.md §14.6).
+   */
+  names: string[]
   region: string | null
   /** The resource it is about, for the drill-down's third step; null for the account's own. */
   item: { service: AwsService; id: string } | null
@@ -438,6 +443,12 @@ export interface AwsBoard {
   cliVersion: string | null
   executable: string | null
   readAt: number | null
+  /**
+   * Changes whenever main's readings of the board do: a probe settled, a shared reading of the
+   * account came in (the sweep's too), a KEEP. The drill-down asks for its list and item again
+   * then; `readAt` is the sign-in's time and moves only every fifteen minutes.
+   */
+  revision: string
 }
 
 /** A drill-down list's row (the second step): main's reading, the columns by `DRILL`. */

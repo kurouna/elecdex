@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { concurrencyLimit } from '../../src/main/cloud-cli/scheduler'
+import { concurrencyLimit, isPartialAnswer } from '../../src/main/cloud-cli/scheduler'
 import { stubGithub } from '../../src/main/cloud-cli/stub-github'
-import { GithubService } from '../../src/main/github/service'
-import type { CliCall } from '../../src/shared/cloud-cli/probe'
+import { contribOf, GithubService } from '../../src/main/github/service'
+import type { CliCall, CliResult } from '../../src/shared/cloud-cli/probe'
 import { boardKey, parseBoardKey, readGithubPane } from '../../src/shared/github/board'
 import {
   buildQueue,
@@ -10,10 +10,11 @@ import {
   prVerdict,
   type QueueInput,
   repoName,
+  starDelta,
   streaks,
   waitingTag,
 } from '../../src/shared/github/derive'
-import type { Pull } from '../../src/shared/github/parse'
+import { type Pull, subjectNumber } from '../../src/shared/github/parse'
 import { ALL_QUERIES } from '../../src/shared/github/queries'
 import type { GithubBoard } from '../../src/shared/github/types'
 
@@ -21,6 +22,15 @@ import type { GithubBoard } from '../../src/shared/github/types'
 
 const DAY = 86_400_000
 const NOW = Date.UTC(2026, 10, 8, 3)
+const ANSWER = {
+  ok: false,
+  code: 1,
+  stdout: '',
+  stderr: '',
+  missing: false,
+  timedOut: false,
+  tooLarge: false,
+}
 
 const pull = (over: Partial<Pull> = {}): Pull => ({
   number: 7,
@@ -84,11 +94,18 @@ describe('repoName and htmlUrlOf', () => {
     expect(htmlUrlOf('https://api.github.com/repos/octo/tern/issues/9')).toBe(
       'https://github.com/octo/tern/issues/9',
     )
+    // A Discussion's notification opens the discussion, with its number.
+    expect(htmlUrlOf('https://api.github.com/repos/octo/tern/discussions/5')).toBe(
+      'https://github.com/octo/tern/discussions/5',
+    )
+    expect(subjectNumber('https://api.github.com/repos/octo/tern/discussions/5')).toBe(5)
     for (const ok of [
       'https://github.com/octo/tern',
       'https://github.com/octo/tern/pull/1',
       'https://github.com/octo/tern/actions/runs/123',
       'https://github.com/octo/tern/releases/tag/v1.0.0',
+      // A tag with a slash (changesets' scoped tags) once failed the check and opened nothing.
+      'https://github.com/octo/tern/releases/tag/%40octo/cli%402.27.1',
       'https://github.com/octo/tern/security/advisories',
       'https://www.githubstatus.com/incidents/abc123def',
     ])
@@ -364,11 +381,83 @@ describe('GithubService on the stand-in gh', () => {
     expect(s.calls.length).toBe(before)
   })
 
+  it('counts the commits since every release in one GraphQL query, and asks the rest conditionally', async () => {
+    const s = service()
+    s.github.watch(AUTO)
+    await s.flush()
+    // No REST compare: it answered the range's commits and diffs for one number, a call each.
+    expect(s.calls.some((c) => c.argv.some((a) => a.includes('/compare/')))).toBe(false)
+    expect(s.calls.filter((c) => (c.stdin ?? '').includes('query Ahead'))).toHaveLength(1)
+    expect(s.last()?.repos.find((tile) => tile.name === 'octo-aki/tern')?.release?.ahead).toBe(38)
+    // The advisories and the traffic carry their ETag the second time: a 304 is free.
+    expect(s.github.refresh(AUTO)).toBe(30_000)
+    await s.flush()
+    for (const part of ['/security-advisories', '/traffic/views']) {
+      const asked = s.calls.filter((c) => c.argv.some((a) => a.includes(`octo-aki/tern${part}`)))
+      expect(asked.length, part).toBeGreaterThan(1)
+      expect(
+        asked.at(-1)?.argv.some((a) => a.startsWith('If-None-Match:')),
+        part,
+      ).toBe(true)
+    }
+    expect(s.last()?.repos.find((tile) => tile.name === 'octo-aki/tern')?.views14?.length).toBe(14)
+    expect(s.last()?.queue.some((item) => item.id === 'advisory:octo-aki/tern')).toBe(true)
+  })
+
   it('says NO CLI when gh is not there', async () => {
     const s = service('nocli')
     s.github.watch(AUTO)
     await s.flush()
     expect(s.last()?.link).toBe('no-cli')
+  })
+
+  it('reads the data of a GraphQL answer that carries errors too, and goes on with the rest', async () => {
+    // A pinned repository deleted: GitHub answers 200 with data and errors, and gh exits 1.
+    const stub = stubGithub('demo')
+    const calls: CliCall[] = []
+    let last: GithubBoard | undefined
+    const github = new GithubService({
+      cli: async (call) => {
+        calls.push(call)
+        const answer = await stub(call)
+        if (!(call.stdin ?? '').includes('query PinnedRepos')) return answer
+        const body = JSON.parse(answer.stdout) as { data: Record<string, unknown> }
+        body.data.r1 = null
+        return {
+          ...answer,
+          ok: false,
+          code: 1,
+          stdout: JSON.stringify({
+            ...body,
+            errors: [{ type: 'NOT_FOUND', path: ['r1'], message: 'Could not resolve' }],
+          }),
+          stderr: 'gh: Could not resolve to a Repository with the name octo-aki/gone.',
+        }
+      },
+      limit: concurrencyLimit(2),
+      stars: { note: () => {}, history: () => ({}) },
+      now: () => NOW,
+      setTimer: () => 0,
+      clearTimer: () => {},
+      publish: (board) => {
+        last = board
+      },
+      incidents: () => [],
+      ghVersion: () => '2.83.0',
+      executable: () => 'stub',
+    })
+    const key = boardKey({ repos: ['octo-aki/tern', 'octo-aki/gone'], inbox: 'all' })
+    github.watch(key)
+    for (let i = 0; i < 400; i++) await Promise.resolve()
+    expect(last?.link).toBe('linked')
+    expect(last?.problem).toBeNull()
+    expect(last?.repos.map((tile) => tile.name)).toEqual(['octo-aki/tern'])
+    // The probes after the repositories went on.
+    expect(calls.some((c) => (c.stdin ?? '').includes('query Queue'))).toBe(true)
+    expect(calls.some((c) => c.argv.some((a) => a.includes('octo-aki/tern/actions/runs')))).toBe(
+      true,
+    )
+    expect(isPartialAnswer(calls[0] as CliCall, { ...ANSWER, stdout: '{"data":null}' })).toBe(false)
   })
 
   it('says why the inbox is closed to a fine-grained token, and reads the rest', async () => {
@@ -378,5 +467,103 @@ describe('GithubService on the stand-in gh', () => {
     const board = s.last()
     expect(board?.inbox).toMatchObject({ readable: false, why: 'fine-grained' })
     expect(board?.repos.length).toBeGreaterThan(0)
+  })
+})
+
+describe('stars and contributions', () => {
+  it('has no 7-day change before a day before today was noted', () => {
+    // The first look notes today's count before it is compared: 0, said as a change, was wrong.
+    expect(starDelta({ '2026-11-08': 5 }, '2026-11-08', 7).delta).toBeNull()
+    expect(starDelta({}, '2026-11-08', 7).delta).toBeNull()
+    expect(starDelta({ '2026-11-06': 5, '2026-11-08': 6 }, '2026-11-08', 7)).toMatchObject({
+      delta: 2,
+      since: '2026-11-06',
+    })
+    expect(starDelta({ '2026-10-30': 3, '2026-11-08': 6 }, '2026-11-08', 7)).toMatchObject({
+      delta: 4,
+      since: null,
+    })
+  })
+
+  it('counts a short calendar of this week and last week without counting a day twice', () => {
+    expect(contribOf({ total: 5, days: [1, 1, 1, 1, 1] })).toMatchObject({ week: 5, lastWeek: 0 })
+    const days = [...Array(7).fill(2), ...Array(7).fill(1)]
+    expect(contribOf({ total: 21, days })).toMatchObject({ week: 7, lastWeek: 14 })
+  })
+})
+
+describe("GithubService's drill-down", () => {
+  /** The service on the stand-in gh, whose answers `change` may turn. */
+  function changed(change: (call: CliCall, answer: CliResult) => CliResult) {
+    const stub = stubGithub('demo')
+    const calls: CliCall[] = []
+    const github = new GithubService({
+      cli: async (call) => {
+        calls.push(call)
+        return change(call, await stub(call))
+      },
+      limit: concurrencyLimit(2),
+      stars: { note: () => {}, history: () => ({}) },
+      now: () => NOW,
+      setTimer: () => 0,
+      clearTimer: () => {},
+      publish: () => {},
+      incidents: () => [],
+      ghVersion: () => '2.83.0',
+      executable: () => 'stub',
+    })
+    return { github, calls }
+  }
+  const flush = async () => {
+    for (let i = 0; i < 400; i++) await Promise.resolve()
+  }
+
+  it("keeps no failed reading of a repository's inside, and REFRESH reads it again", async () => {
+    let fail = true
+    const s = changed((call, answer) =>
+      fail && (call.stdin ?? '').includes('query RepoPulls')
+        ? {
+            ...answer,
+            ok: false,
+            code: 1,
+            stdout: '',
+            stderr: 'error connecting to api.github.com',
+          }
+        : answer,
+    )
+    s.github.watch(AUTO)
+    await flush()
+    expect((await s.github.detail(AUTO, 'octo-aki/tern'))?.pulls).toEqual([])
+    fail = false
+    // Within five minutes: the failure was not kept, so it is read again.
+    expect((await s.github.detail(AUTO, 'octo-aki/tern'))?.pulls.length).toBeGreaterThan(0)
+    const asked = s.calls.filter((c) => (c.stdin ?? '').includes('query RepoPulls')).length
+    expect(s.github.refresh(AUTO)).toBe(30_000)
+    await flush()
+    await s.github.detail(AUTO, 'octo-aki/tern')
+    expect(s.calls.filter((c) => (c.stdin ?? '').includes('query RepoPulls'))).toHaveLength(
+      asked + 1,
+    )
+  })
+
+  it('opens only github.com pages, whatever an answer said a run, a pull or a release is at', async () => {
+    const s = changed((_call, answer) =>
+      answer.ok
+        ? {
+            ...answer,
+            stdout: answer.stdout.replaceAll('https://github.com/', 'https://evil.example/'),
+          }
+        : answer,
+    )
+    s.github.watch(AUTO)
+    await flush()
+    const detail = await s.github.detail(AUTO, 'octo-aki/tern')
+    const ids = [
+      ...(detail?.runs ?? []).map((run) => run.id),
+      ...(detail?.pulls ?? []).map((pull) => pull.id),
+      ...(detail?.releases ?? []).map((release) => release.id),
+    ]
+    expect(ids.length).toBeGreaterThan(3)
+    for (const id of ids) expect(s.github.urlOf(AUTO, id), id).toBeNull()
   })
 })

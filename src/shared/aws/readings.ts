@@ -36,10 +36,8 @@ export interface Balancer {
 
 export interface Address {
   ip: string
-  alloc: string | null
   associated: boolean
   instance: string | null
-  domain: string | null
 }
 
 export interface OpenGroup {
@@ -71,7 +69,6 @@ export interface Certificate {
   type: string | null
   expires: number | null
   inUse: boolean
-  key: string | null
   status: string | null
 }
 

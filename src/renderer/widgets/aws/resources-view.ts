@@ -593,7 +593,6 @@ export const drillCrumb = (place: DrillPlace): string =>
 export const FROM_CRUMB: Record<DrillFrom, string> = {
   resources: 'RESOURCES',
   active: 'ACTIVE',
-  cost: 'COST',
   attention: 'ATTENTION',
 }
 

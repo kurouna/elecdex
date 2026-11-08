@@ -61,10 +61,10 @@ export function registerAwsIpc(shared: CloudShared): { dispose: () => void } {
       [CH.aws.refresh]: (event, key) => (holds(event.sender, key) ? service.refresh(key) : 0),
       [CH.aws.drill]: (event, key, which) =>
         holds(event.sender, key) ? service.drill(key, which) : null,
-      [CH.aws.item]: (event, key, which, id) =>
-        holds(event.sender, key) ? service.item(key, which, id) : null,
-      [CH.aws.history]: (event, key, which, id) =>
-        holds(event.sender, key) ? service.history(key, which, id) : null,
+      [CH.aws.item]: (event, key, which, id, region) =>
+        holds(event.sender, key) ? service.item(key, which, id, region) : null,
+      [CH.aws.history]: (event, key, which, id, region) =>
+        holds(event.sender, key) ? service.history(key, which, id, region) : null,
       [CH.aws.open]: async (event, key, id) => {
         if (!holds(event.sender, key)) return false
         const url = service.urlOf(key, id)

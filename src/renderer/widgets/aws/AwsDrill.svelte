@@ -3,6 +3,7 @@ import { type DrillPlace, isAwsService, itemOf, listItem } from '@shared/aws/boa
 import { DRILL, type DrillColumn, facets, filterRows, sortRows } from '@shared/aws/drill'
 import { dayText } from '@shared/aws/facts'
 import type { AwsService, DrillItem, DrillRow, HistoryEvent } from '@shared/aws/types'
+import { untrack } from 'svelte'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { ageText, clockText, MASKED } from '../cloud/cloud-view.ts'
 import { dateCell, gibText, money } from './aws-view.ts'
@@ -20,8 +21,10 @@ import { drillDef, maskIn, shownName } from './resources-view.ts'
 interface Props {
   boardKey: string
   place: DrillPlace
-  /** The board's reading time: a new one fetches the list again. */
+  /** The sign-in's reading time, as the list's line says it. */
   readAt: number | null
+  /** Main's readings changed (a probe settled, KEEP, the sweep): the list and item are asked again. */
+  revision: string
   masked: boolean
   now: number
   narrow: boolean
@@ -35,6 +38,7 @@ const {
   boardKey,
   place,
   readAt,
+  revision,
   masked,
   now,
   narrow,
@@ -53,29 +57,74 @@ const def = $derived(drillDef(place))
 const isList = $derived(!isAwsService(place.service))
 /** The resource the item step shows. */
 const target = $derived(itemOf(place))
+/**
+ * The place's parts the readings follow, as values: the pane state is a new object at every
+ * change (a filter, a sort), which must not ask main again.
+ */
+const service = $derived(place.service)
+const itemId = $derived(place.item)
+/** As a value too: the item effect must not follow every new place object (a MASK press). */
+const itemRegion = $derived(place.region)
+const targetKey = $derived(
+  target === null ? null : `${target.service}:${place.region ?? ''}:${target.id}`,
+)
 /** Bumped by KEEP's answer: the item is read again for its Kept. */
 let kept = $state(0)
 
 $effect(() => {
-  const service = place.service
-  void readAt
+  const asked = service
+  void revision
   const key = boardKey
-  void window.elecdex.aws.drill(key, service).then((next) => {
-    if (place.service === service) rows = next ?? []
+  void window.elecdex.aws.drill(key, asked).then((next) => {
+    if (place.service === asked) rows = next ?? []
   })
 })
 
+// HISTORY is the item's: another item, or the list, forgets it; a new reading does not.
 $effect(() => {
-  const id = place.item
-  const one = target
-  void readAt
-  void kept
+  void itemId
   history = null
+})
+
+/**
+ * Each step powers on as it appears (the pane's view is mounted once for a list and its items);
+ * the first, with the view, does not twice.
+ */
+let moved = $state(false)
+let shownStep: boolean | null = null
+$effect(() => {
+  const step = itemId === null
+  if (shownStep !== null && shownStep !== step) moved = true
+  shownStep = step
+})
+
+/**
+ * A list and its items share the pane's scroller now that they share a mount: an item opens at
+ * its top, and the list comes back where it was left (a row near the bottom of a long list once
+ * opened its item scrolled past its header).
+ */
+let tableEl = $state<HTMLElement | null>(null)
+let listTop = 0
+const scrollerOf = (el: HTMLElement | null): HTMLElement | null => el?.closest('.view') ?? null
+/** As each step's element arrives: the list where it was left, an item at its top. */
+function keepPlace(el: HTMLElement, toList: boolean): void {
+  const scroller = scrollerOf(el)
+  if (scroller !== null) scroller.scrollTop = toList ? listTop : 0
+}
+const atList = (el: HTMLElement) => keepPlace(el, true)
+const atItem = (el: HTMLElement) => keepPlace(el, false)
+
+$effect(() => {
+  const id = itemId
+  void targetKey
+  const one = untrack(() => target)
+  void revision
+  void kept
   if (id === null || one === null) {
     item = null
     return
   }
-  void window.elecdex.aws.item(boardKey, one.service, one.id).then((next) => {
+  void window.elecdex.aws.item(boardKey, one.service, one.id, itemRegion).then((next) => {
     if (place.item !== id) return
     if (next === null) {
       // Gone since the last reading: back to the list, saying when (aws.md §5.1).
@@ -142,8 +191,13 @@ function choose(row: DrillRow): void {
   if (!opens(row)) return
   sfx.play('expand')
   gone = null
+  listTop = scrollerOf(tableEl)?.scrollTop ?? 0
   const { direct: _direct, ...rest } = place
-  onplace({ ...rest, item: isList && row.service ? listItem(row.service, row.id) : row.id })
+  onplace({
+    ...rest,
+    item: isList && row.service ? listItem(row.service, row.id) : row.id,
+    region: row.region,
+  })
 }
 
 function onRowKey(event: KeyboardEvent, row: DrillRow): void {
@@ -155,14 +209,19 @@ function onRowKey(event: KeyboardEvent, row: DrillRow): void {
 
 function related(service: AwsService, id: string): void {
   sfx.play('expand')
-  onplace({ service, filters: {}, sort: null, item: id })
+  // Another item, in the same step: it opens at its top too.
+  const scroller = scrollerOf(oneEl)
+  if (scroller !== null) scroller.scrollTop = 0
+  // Related things (an instance's volumes and addresses) are in its region.
+  onplace({ service, filters: {}, sort: null, item: id, ...(item ? { region: item.region } : {}) })
 }
 
 let oneEl = $state<HTMLElement | null>(null)
 async function readHistory(): Promise<void> {
   if (item === null) return
   sfx.play('panel')
-  history = (await window.elecdex.aws.history(boardKey, item.service, item.id)) ?? 'failed'
+  history =
+    (await window.elecdex.aws.history(boardKey, item.service, item.id, item.region)) ?? 'failed'
   // The button pressed is gone with the answer: the focus stays in the pane, so Escape still goes up.
   oneEl?.focus({ preventScroll: true })
 }
@@ -214,7 +273,7 @@ function takeFocus(el: HTMLElement): void {
 </script>
 
 {#if place.item === null}
-  <div class="drill" data-testid="aws-drill-list">
+  <div class="drill" class:crt-on={moved} data-testid="aws-drill-list">
     {#if place.service === 'elsewhere'}
       <p class="sweep" data-testid="aws-sweep-line">Read by a weekly sweep of the regions this pane does not show, describe only · last {dayText(sweptAt)} <button type="button" class="tool" onclick={() => void sweepNow()} data-testid="aws-sweep-now">check other regions now</button>{#if sweepWait > 0}<span class="dim">{' · asked: the other regions are read in the background'}</span>{/if}</p>
     {/if}
@@ -232,7 +291,7 @@ function takeFocus(el: HTMLElement): void {
       {/each}
     </div>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-    <div class="table" tabindex="-1" {@attach takeFocus}>
+    <div class="table" tabindex="-1" bind:this={tableEl} {@attach atList} {@attach takeFocus}>
       <div class="row head" style:grid-template-columns={template}>
         {#each columns as column (column.key)}
           <button type="button" class:num={column.kind !== 'text'} onclick={() => sortBy(column.key)} data-testid="aws-sort">
@@ -240,7 +299,7 @@ function takeFocus(el: HTMLElement): void {
           </button>
         {/each}
       </div>
-      {#each sorted as row (`${row.service ?? ''}:${row.id}`)}
+      {#each sorted as row (`${row.service ?? ''}:${row.region}:${row.id}`)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="row" style:grid-template-columns={template} data-weight={row.weight} tabindex={opens(row) ? 0 : undefined} role={opens(row) ? 'link' : 'listitem'} onclick={() => choose(row)} onkeydown={(e) => onRowKey(e, row)} data-testid="aws-drill-row">
           {#each columns as column, i (column.key)}
@@ -258,7 +317,7 @@ function takeFocus(el: HTMLElement): void {
   </div>
 {:else if item !== null}
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-  <div class="drill one" data-testid="aws-drill-item" tabindex="-1" bind:this={oneEl} {@attach takeFocus}>
+  <div class="drill one" class:crt-on={moved} data-testid="aws-drill-item" tabindex="-1" bind:this={oneEl} {@attach atItem} {@attach takeFocus}>
     <header class="ihead">
       <span class="state" data-state={item.state ?? ''} data-testid="aws-item-state"><i></i>{item.state ?? item.service}</span>
       <b>{shownName(item.name, masked)}</b>
@@ -272,7 +331,7 @@ function takeFocus(el: HTMLElement): void {
     {#if item.attention.length > 0}
       <div class="findings">
         {#each item.attention as finding (finding.id)}
-          <p data-weight={finding.weight}><span class="tag" data-weight={finding.weight}>{finding.tag}</span> {finding.title}</p>
+          <p data-weight={finding.weight}><span class="tag" data-weight={finding.weight}>{finding.tag}</span> {maskIn(finding.title, finding.names, masked)}</p>
         {/each}
       </div>
     {/if}
@@ -281,7 +340,7 @@ function takeFocus(el: HTMLElement): void {
         <dt>quiet for</dt><dd class="mono" class:warn={item.forgotten.billed} data-testid="aws-item-quiet">{item.forgotten.quietFor} · {maskIn(item.forgotten.why, [item.name, item.id], masked)}</dd>
         <dt>seen by</dt><dd class="mono">{maskIn(item.forgotten.source, [item.name, item.id], masked)} · read {clockText(readAt)}</dd>
       {/if}
-      {#each item.fields as field (field.label)}
+      {#each item.fields as field, i (i)}
         <dt>{field.label}</dt><dd class:mono={true}>{field.masked && masked ? MASKED : maskIn(field.value, [item.name], masked)}</dd>
       {/each}
     </dl>
@@ -301,7 +360,7 @@ function takeFocus(el: HTMLElement): void {
     {:else if history.length === 0}
       <p class="none">no write in CloudTrail's 90 days for this name</p>
     {:else}
-      {#each history as event (`${event.at}:${event.name}`)}
+      {#each history as event, i (i)}
         <p class="hist"><span class="mono">{dateCell(event.at, now)}</span><span>{masked ? MASKED : event.who}</span><span class="mono">{event.name}</span></p>
       {/each}
     {/if}

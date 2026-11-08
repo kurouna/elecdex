@@ -149,7 +149,7 @@ function elbRows(r: AwsReadings): Res[] {
       created: b.created,
       monthly: on ? prices.hour(ELB_KIND[b.type] ?? 'alb', b.region) * HOURS_A_MONTH : null,
       hourly: on,
-      cells: { type: b.type, dimension: balancerDimension(b.arn) },
+      cells: { type: b.type, scheme: b.scheme, dimension: balancerDimension(b.arn) },
     })
   })
   const classic = inRegions(r, r.res.elbTargets).flatMap(([region, reading]) =>
@@ -163,7 +163,7 @@ function elbRows(r: AwsReadings): Res[] {
         created: ms(c.c ?? null),
         monthly: prices.hour('clb', region) * HOURS_A_MONTH,
         hourly: true,
-        cells: { type: 'classic', instances: c.i ?? 0, dimension: c.n },
+        cells: { type: 'classic', scheme: c.s ?? null, instances: c.i ?? 0, dimension: c.n },
       }),
     ),
   )
@@ -319,19 +319,22 @@ const vpcRows = (r: AwsReadings): Res[] =>
     ),
   )
 
+/**
+ * Every certificate read: us-east-1's too when the pane does not show it, since those are
+ * CloudFront's (the probe reads them for it) and the drill-down and ATTENTION list them.
+ */
 const acmRows = (r: AwsReadings): Res[] =>
-  everywhere(r.certificates)
-    .filter((c) => r.regions.includes(c.region))
-    .map((c) =>
-      res({
-        service: 'acm',
-        id: c.arn,
-        region: c.region,
-        name: c.domain ?? lastPart(c.arn),
-        state: c.status,
-        cells: { inUse: c.inUse ? 'yes' : 'no' },
-      }),
-    )
+  everywhere(r.certificates).map((c) =>
+    res({
+      service: 'acm',
+      id: c.arn,
+      region: c.region,
+      name: c.domain ?? lastPart(c.arn),
+      state: c.status,
+      ...(r.regions.includes(c.region) ? {} : { global: true }),
+      cells: { inUse: c.inUse ? 'yes' : 'no' },
+    }),
+  )
 
 const stackRows = (r: AwsReadings): Res[] =>
   everywhere(r.stacks).map((s) =>
@@ -1023,8 +1026,21 @@ export function allResources(r: AwsReadings): Map<AwsService, Res[]> {
 export const resKey = (row: { service: AwsService; region: string; id: string }): string =>
   `${row.service}:${row.region}:${row.id}`
 
-/** The resources the weekly sweep found outside the pane's regions (describe only, aws.md §14.2 D). */
+const swept = new WeakMap<AwsReadings, Res[]>()
+
+/**
+ * The resources the weekly sweep found outside the pane's regions (describe only, aws.md §14.2
+ * D), once a reading: the view, the drill-down and the console links each ask for them.
+ */
 export function elsewhereRows(r: AwsReadings): Res[] {
+  const known = swept.get(r)
+  if (known !== undefined) return known
+  const rows = sweptRows(r)
+  swept.set(r, rows)
+  return rows
+}
+
+function sweptRows(r: AwsReadings): Res[] {
   return Object.entries(r.res.sweep).flatMap(([region, s]) => {
     if (s === null || r.regions.includes(region)) return []
     return [

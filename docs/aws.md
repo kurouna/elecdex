@@ -122,7 +122,7 @@
 | サービスの一覧 | §3.1 の結果（一覧に要る欄まで `--query` で取ってある）。足りない欄は `describe-*` を 1 回 | 2 段目を開いたとき、手元が 5 分より古ければ | 無料 |
 | 1 件の詳細 | そのリソースの `describe-*`（`--instance-ids i-…` など、id は直前の一覧のもの） | 3 段目を開いたとき。5 分持つ | 無料 |
 | 関係するもの | 付いているボリューム・EIP・SG の名前・それを見るアラーム（`describe-alarms --query` で次元に id を含むもの）・スタックのイベント（`describe-stack-events`）・EKS のノードグループ・VPC のサブネット | 3 段目を開いたとき | 無料（アラームは無料枠） |
-| そのリソースの操作の履歴 | `cloudtrail lookup-events --lookup-attributes AttributeKey=ResourceName,AttributeValue=<id>` | 3 段目で HISTORY を開いたとき | 無料（2 TPS の制限に従い 1 回） |
+| そのリソースの操作の履歴 | `cloudtrail lookup-events --lookup-attributes '[{"AttributeKey":"ResourceName","AttributeValue":"<名前>"}]'`（JSON。名前にカンマがあっても省略記法のキーに割れない。名前は `trailName` が行の種類の接頭辞を外したもの、そのリソースのリージョンで） | 3 段目で HISTORY を開いたとき | 無料（2 TPS の制限に従い 1 回） |
 
 ### 3.3 有料で、利用者が有効にしたときだけ呼ぶもの: Cost Explorer
 
@@ -702,7 +702,9 @@ D と E を数だけに、short（30 rem 未満）は A と B だけ。
   だけ。それより長い静かさは、main が毎日の答えから「最後に list-metrics に出た日」を `aws-inventory.json` に持って
   延ばす
 - **1 日・6 時間の読み取りはアカウントごと**に main が持ち、`aws-inventory.json` に残す（Cost Explorer の取り分けと
-  同じ形）。リージョンの違うペインが 2 枚でも、再起動しても、やり直さない
+  同じ形）。リージョンの違うペインが 2 枚でも、再起動しても、やり直さない。一括の枠が 3 本なので、同じアカウントの
+  2 枚が同じ読み取りに同時に来ることがある: アカウント・probe・リージョンごとに 1 度に 1 つの番（`SharedReads.turn`）で、
+  後の 1 枚は先の答えを待って店から取る。GetMetricData の上限と S3 の回数は呼ぶ前に確かめて取る（2026-11-08）
 - **CLI の枠の優先度**: 枠（2 本、両ペインで共有）に 2 段の優先度を付け、alarms・identity・health・trail と GITHUB
   STATUS を先に通す。RESOURCES の一括の読み取りは同時 3 本まで（`BULK_LANES`、2026-11-08 に 1 本から。ELSEWHERE の見回りは件数のあと、判定と同じ段）。最初の 1 周は件数の list / describe を先、判定の
   メトリクスを後にし、B は判定が揃うまで `judging… (within 10 min)` と出す

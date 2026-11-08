@@ -68,15 +68,13 @@ export const DomainsSchema = z.array(
 export const SavingsSchema = z.array(z.object({ id: z.string(), end: str, type: str }))
 
 export const AlarmsSchema = z.object({
-  m: z.array(z.object({ n: z.string(), s: str, ns: str, metric: str, dim: str })).nullable(),
+  m: z.array(z.object({ n: z.string(), s: str, ns: str, dim: str })).nullable(),
   c: z.array(z.object({ n: z.string(), s: str })).nullable(),
 })
 
 export const IdsSchema = z.array(z.string())
 
-export const StacksSchema = z.array(
-  z.object({ n: z.string(), s: z.string(), t: str, d: str, why: str }),
-)
+export const StacksSchema = z.array(z.object({ n: z.string(), s: z.string(), t: str, d: str }))
 
 export const TrailSchema = z.array(
   z.object({
@@ -112,7 +110,6 @@ export const InstancesSchema = z.array(
     name: str,
     platform: str,
     reason: str,
-    vols: z.array(z.string()).nullable().optional(),
     sgs: z.array(z.string()).nullable().optional(),
     vpc: str,
     subnet: str,
@@ -137,9 +134,7 @@ export const VolumesSchema = z.array(
 )
 export type Volume = z.infer<typeof VolumesSchema>[number]
 
-export const AddressesSchema = z.array(
-  z.object({ ip: z.string(), alloc: str, assoc: str, inst: str, eni: str, domain: str }),
-)
+export const AddressesSchema = z.array(z.object({ ip: z.string(), assoc: str, inst: str }))
 export type Address = z.infer<typeof AddressesSchema>[number]
 
 export const NatsSchema = z.array(
@@ -166,7 +161,6 @@ export const DbInstancesSchema = z.array(
     class: z.string(),
     state: z.string(),
     multi: bool,
-    storage: num,
     support: str,
     created: str,
   }),
@@ -175,19 +169,9 @@ export type DbInstance = z.infer<typeof DbInstancesSchema>[number]
 
 export const FunctionsSchema = z.array(z.object({ n: z.string(), r: str, m: num, t: str }))
 
-export const ClusterSchema = z.object({
-  v: str,
-  s: str,
-  p: str,
-  c: z.union([z.string(), z.number()]).nullable().optional(),
-})
+export const ClusterSchema = z.object({ v: str, s: str, p: str })
 export const ClusterVersionsSchema = z.array(
-  z.object({
-    v: z.string(),
-    end: z.union([z.string(), z.number()]).nullable().optional(),
-    ext: z.union([z.string(), z.number()]).nullable().optional(),
-    s: str,
-  }),
+  z.object({ v: z.string(), end: z.union([z.string(), z.number()]).nullable().optional() }),
 )
 
 export const CertificatesSchema = z.array(
@@ -197,7 +181,6 @@ export const CertificatesSchema = z.array(
     t: str,
     exp: z.union([z.string(), z.number()]).nullable().optional(),
     use: bool,
-    k: str,
     s: str,
   }),
 )
@@ -205,7 +188,6 @@ export const CertificatesSchema = z.array(
 export const BackupJobsSchema = z.array(
   z.object({
     id: z.string(),
-    r: str,
     t: z.union([z.string(), z.number()]).nullable().optional(),
     type: str,
   }),

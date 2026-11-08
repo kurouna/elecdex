@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { activeCost } from '../../src/shared/aws/active'
 import { attention } from '../../src/shared/aws/attention'
+import { drillItem, drillRows } from '../../src/shared/aws/drill'
 import { AWS_LIMITS } from '../../src/shared/aws/facts'
 import {
   applyKeep,
@@ -526,5 +527,121 @@ describe('the order and KEEP', () => {
       },
     )
     expect(attention(kept).map((i) => i.id)).toEqual([])
+  })
+})
+
+describe("the drill-down's lists agree with RESOURCES (aws.md §14.5)", () => {
+  const nat = (id: string, state: string) => ({
+    id,
+    state,
+    vpc: 'vpc-1',
+    connectivity: 'public',
+    name: null,
+  })
+
+  it('opens the copy of a name two regions share in the region asked for', () => {
+    // CDKToolkit is in every bootstrapped region: the item once opened the first region's copy,
+    // whatever row or ATTENTION line was pressed.
+    const stack = (status: string) => ({ name: 'CDKToolkit', status, at: NOW, drift: null })
+    const r = {
+      ...readings({
+        stacks: { [R]: [stack('CREATE_COMPLETE')], 'us-east-1': [stack('UPDATE_FAILED')] },
+      }),
+      regions: [R, 'us-east-1'],
+    }
+    const rows = drillRows('stacks', r, [])
+    expect(rows.map((row) => `${row.region}:${row.id}`)).toEqual([
+      `${R}:CDKToolkit`,
+      'us-east-1:CDKToolkit',
+    ])
+    expect(drillItem('stacks', 'CDKToolkit', r, [], 'us-east-1')?.region).toBe('us-east-1')
+    expect(drillItem('stacks', 'CDKToolkit', r, [], R)?.region).toBe(R)
+    // With no region (an old saved place), the first copy, as before.
+    expect(drillItem('stacks', 'CDKToolkit', r, [])?.region).toBe(R)
+    // A finding is its own region's: the failed us-east-1 copy marks neither the healthy row
+    // nor the healthy item.
+    const found = attention(r)
+    const weights = drillRows('stacks', r, found).map((row) => `${row.region}:${row.weight}`)
+    expect(weights).toEqual([`${R}:null`, 'us-east-1:danger'])
+    expect(drillItem('stacks', 'CDKToolkit', r, found, R)?.attention).toEqual([])
+    expect(drillItem('stacks', 'CDKToolkit', r, found, 'us-east-1')?.attention).toHaveLength(1)
+    // The copy asked for gone, another region's copy is not shown in its place.
+    const gone = { ...r, stacks: { [R]: [stack('CREATE_COMPLETE')] } }
+    expect(drillItem('stacks', 'CDKToolkit', gone, [], 'us-east-1')).toBeNull()
+  })
+
+  it('lists classic load balancers, opens a forgotten one, and prices a NAT as RESOURCES does', () => {
+    const r = readings(
+      {
+        nats: { [R]: [nat('nat-on', 'available'), nat('nat-new', 'pending')] },
+        balancers: { [R]: [] },
+      },
+      {
+        elbTargets: {
+          [R]: {
+            groups: [],
+            classic: [{ n: 'old-clb', c: iso(NOW - 400 * DAY), i: 0, s: 'internet-facing' }],
+          },
+        },
+      },
+    )
+    const elb = drillRows('elb', r, [])
+    expect(elb.map((row) => row.id)).toEqual(['old-clb'])
+    expect(elb[0]?.cells).toMatchObject({ type: 'classic', scheme: 'internet-facing' })
+    expect(drillItem('elb', 'old-clb', r, [])?.name).toBe('old-clb')
+    // A pending NAT gateway bills as soon as it is created: priced alike in both places.
+    const tile = new Map(
+      allResources(r)
+        .get('nat')
+        ?.map((x) => [x.id, x.monthly]),
+    )
+    for (const row of drillRows('nat', r, []))
+      expect(row.cells.monthly, row.id).toBe(tile.get(row.id))
+    expect(tile.get('nat-new')).toBeGreaterThan(0)
+  })
+
+  it('lists every alarm the Also-here line counts, in every state, and the certificates it counts', () => {
+    const r = readings(
+      {
+        alarms: {
+          [R]: {
+            metric: [{ name: 'cpu-high', since: NOW - DAY, namespace: 'AWS/EC2', dim: 'i-1' }],
+            composite: [],
+          },
+        },
+        certificates: {
+          [R]: [],
+          'us-east-1': [
+            {
+              arn: 'arn:aws:acm:us-east-1:1:certificate/0b3f9f0c-1d2e-4f5a-8b7c-9d0e1f2a3b4c',
+              domain: 'cdn.example.com',
+              type: 'AMAZON_ISSUED',
+              expires: NOW + 90 * DAY,
+              inUse: true,
+              status: 'ISSUED',
+            },
+          ],
+        },
+      },
+      {
+        alarmsAll: {
+          [R]: [
+            { n: 'cpu-high', s: 'ALARM', ns: 'AWS/EC2', d: 'InstanceId', v: 'i-1' },
+            { n: 'disk-low', s: 'OK', ns: 'AWS/EC2', d: 'InstanceId', v: 'i-1' },
+            { n: 'queue-deep', s: 'INSUFFICIENT_DATA', ns: 'AWS/SQS', d: null, v: null },
+          ],
+        },
+      },
+    )
+    const all = allResources(r)
+    const alarms = drillRows('alarms', r, [])
+    expect(alarms.map((row) => row.id).sort()).toEqual(['cpu-high', 'disk-low', 'queue-deep'])
+    expect(alarms.length).toBe(all.get('alarms')?.length)
+    expect(alarms.find((row) => row.id === 'cpu-high')?.cells).toMatchObject({
+      state: 'ALARM',
+      since: NOW - DAY,
+    })
+    // us-east-1's certificates are read for CloudFront even when the pane does not show it.
+    expect(drillRows('acm', r, []).length).toBe(all.get('acm')?.length)
   })
 })

@@ -116,9 +116,9 @@ export function parseNotifications(json: string): Notification[] {
   return parsed.success ? parsed.data : []
 }
 
-/** The number at the end of a notification's API URL (…/pulls/412, …/issues/88), if any. */
+/** The number at the end of a notification's API URL (…/pulls/412, …/issues/88, …/discussions/5). */
 export function subjectNumber(url: string | null): number | null {
-  const match = url === null ? null : /\/(?:pulls|issues)\/(\d+)$/.exec(url)
+  const match = url === null ? null : /\/(?:pulls|issues|discussions)\/(\d+)$/.exec(url)
   return match === null ? null : Number(match[1])
 }
 
@@ -164,11 +164,6 @@ export const IssueSchema = z.object({
 
 export type Issue = z.infer<typeof IssueSchema>
 
-const RateLimitSchema = z
-  .object({ cost: z.number(), remaining: z.number(), limit: z.number(), resetAt: z.string() })
-  .nullable()
-  .optional()
-
 /** Search nodes come as `{}` for a type the fragment did not match: those are dropped. */
 const nodesOf = <T extends z.ZodTypeAny>(schema: T) =>
   z.object({ nodes: z.array(z.unknown()) }).transform((value) =>
@@ -184,7 +179,6 @@ const QueueAnswer = z.object({
     mine: nodesOf(PullSchema),
     assigned: nodesOf(IssueSchema),
     triage: nodesOf(IssueSchema),
-    rateLimit: RateLimitSchema,
   }),
 })
 
@@ -357,9 +351,17 @@ export function parseTraffic(json: string): number[] | null {
   return parsed.success ? parsed.data.views.map((day) => day.count).slice(-14) : null
 }
 
-export function parseCompare(json: string): number | null {
-  const parsed = z.object({ ahead_by: z.number() }).safeParse(safeJson(json))
-  return parsed.success ? parsed.data.ahead_by : null
+const AheadSchema = z.object({
+  ref: z.object({ compare: z.object({ aheadBy: z.number() }).nullable() }).nullable(),
+})
+
+/** The `aheadQuery` answer: each alias's count, or null (no such tag, or no compare read). */
+export function parseAheadAnswer(json: string, count: number): (number | null)[] {
+  const data = (safeJson(json) as { data?: Record<string, unknown> | null } | null)?.data ?? null
+  return Array.from({ length: count }, (_, i) => {
+    const parsed = AheadSchema.safeParse(data?.[`r${i}`])
+    return parsed.success ? (parsed.data.ref?.compare?.aheadBy ?? null) : null
+  })
 }
 
 export function parseAdvisories(json: string): number | null {

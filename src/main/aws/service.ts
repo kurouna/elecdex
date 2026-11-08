@@ -17,7 +17,7 @@ import { resourcesView } from '@shared/aws/inventory'
 import { ms, parseWith, TrailSchema } from '@shared/aws/parse'
 import { type AwsReadings, emptyReadings, everywhere } from '@shared/aws/readings'
 import { elsewhereRows, GLOBAL } from '@shared/aws/resources'
-import { pulseBins } from '@shared/aws/trail'
+import { pulseBins, trailName } from '@shared/aws/trail'
 import type {
   AccountView,
   AwsBoard,
@@ -179,6 +179,8 @@ export class AwsService {
         claimCostExplorer: () => this.#claimCostExplorer(created),
         costExplorerAnswered: (answer) => this.#costExplorerAnswered(created, answer),
         refreshing: () => created.refreshing,
+        billedServices: () =>
+          value<{ services?: string[] }>(created.scheduler, 'billing')?.services ?? null,
         running: () =>
           everywhere(this.#readings(created).instances)
             .filter((i) => i.state === 'running')
@@ -262,32 +264,37 @@ export class AwsService {
     return drillRows(service, r, attention(r))
   }
 
-  item(key: string, service: unknown, id: unknown): DrillItem | null {
+  item(key: string, service: unknown, id: unknown, region?: unknown): DrillItem | null {
     const board = this.#active(key)
     if (board === null || !isAwsService(service) || typeof id !== 'string') return null
     const r = this.#readings(board)
-    return drillItem(service, id, r, attention(r))
+    return drillItem(service, id, r, attention(r), typeof region === 'string' ? region : null)
   }
 
   /** The CloudTrail of one resource of the last reading, read when HISTORY is pressed; kept 5 min. */
-  async history(key: string, service: unknown, id: unknown): Promise<HistoryEvent[] | null> {
+  async history(
+    key: string,
+    service: unknown,
+    id: unknown,
+    region?: unknown,
+  ): Promise<HistoryEvent[] | null> {
     const board = this.#active(key)
     if (board === null || !isAwsService(service) || typeof id !== 'string') return null
-    const found = this.item(key, service, id)
+    const found = this.item(key, service, id, region)
     // A board stopped at a sign-in starts no CLI, on demand either.
     if (found === null || !board.ctx.spec.activity || board.scheduler.halted) return null
-    const kept = board.history.get(`${service}:${id}`)
+    const kept = board.history.get(`${service}:${found.region}:${id}`)
     const now = this.#deps.now()
     if (kept !== undefined && now - kept.at < 5 * 60_000) return kept.events
-    // The resource's name as CloudTrail knows it: the last part of an ARN.
-    const name = id.includes('/') ? (id.split('/').at(-1) ?? id) : id
+    const name = trailName(service, id)
     const result = await this.#deps.limit(() =>
       this.#deps.cli(
         awsCall(board.ctx, found.region, [
           'cloudtrail',
           'lookup-events',
+          // JSON, not the shorthand: a name may hold a comma, which the shorthand reads as a key.
           '--lookup-attributes',
-          `AttributeKey=ResourceName,AttributeValue=${name}`,
+          JSON.stringify([{ AttributeKey: 'ResourceName', AttributeValue: name }]),
           '--max-items',
           '50',
           '--query',
@@ -309,7 +316,7 @@ export class AwsService {
       name: row.n,
       error: null,
     }))
-    board.history.set(`${service}:${id}`, { at: now, events })
+    board.history.set(`${service}:${found.region}:${id}`, { at: now, events })
     return events
   }
 
@@ -432,7 +439,15 @@ export class AwsService {
     const account = board?.ctx.account() ?? null
     if (board === null || account === null || !this.#resources.setMetricData(account, answer))
       return false
-    this.#everyBoardOf(account, (other) => this.#publish(other))
+    // Turned on or off: the usage is read again by whichever of the two now applies (each keeps a
+    // reading younger than its day, so nothing is paid twice). A raised cap goes on at the next
+    // day's reading: the one taken at the cap stands for its day, as a paid reading always does,
+    // and the statistics read when the cap was hit stay in use until then.
+    this.#everyBoardOf(account, (other) => {
+      other.scheduler.runNow('res-gmd')
+      other.scheduler.runNow('res-lastuse')
+      this.#publish(other)
+    })
     return true
   }
 
@@ -621,6 +636,7 @@ export class AwsService {
       cliVersion: this.#deps.cliVersion(),
       executable: this.#deps.executable(),
       readAt: s.outcome('identity').at,
+      revision: `${board.settled}|${this.#resources.version(identity?.account ?? null)}`,
     }
   }
 

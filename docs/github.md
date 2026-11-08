@@ -68,9 +68,9 @@ git ペイン（§5.9）とは別物: あちらは手元の 1 リポジトリの
 | repos | GraphQL 1 本（見張るリポジトリを別名で並べる） | 15 分 | 数、最新のリリース（プレリリースを含む）、既定ブランチの CI、警告の有無 |
 | events | `gh api -i -X GET repos/{o}/{r}/events?per_page=30` ＋ `If-None-Match` | 5 分 | EVENTS（304 は数えない） |
 | runs | `gh api -i -X GET repos/{o}/{r}/actions/runs?per_page=10` ＋ `If-None-Match` | 5 分 | タイルの点の列、承認待ち（`action_required`） |
-| advisories | `gh api -X GET repos/{o}/{r}/security-advisories?state=triage` | 1 時間 | 非公開の脆弱性報告（管理者だけ。ほかは「—」） |
-| ahead | `gh api -X GET repos/{o}/{r}/compare/{tag}...{default}`（`--jq .ahead_by` 相当を main で） | 1 時間 | 前のリリースからのコミット数 |
-| traffic | `gh api -X GET repos/{o}/{r}/traffic/views`、`…/clones` | 6 時間 | 14 日の訪問とクローン（push 権のあるものだけ） |
+| advisories | `gh api -i -X GET repos/{o}/{r}/security-advisories?state=triage` ＋ `If-None-Match` | 1 時間 | 非公開の脆弱性報告（管理者だけ。ほかは「—」） |
+| ahead | GraphQL 1 本（リポジトリごとの別名で `ref(qualifiedName: "refs/tags/{tag}") { compare(headRef: "{default}") { aheadBy } }`。REST の compare は範囲のコミットと差分をすべて返していた） | 1 時間 | 前のリリースからのコミット数 |
+| traffic | `gh api -i -X GET repos/{o}/{r}/traffic/views` ＋ `If-None-Match` | 6 時間 | 14 日の訪問とクローン（push 権のあるものだけ） |
 | contrib | GraphQL（`contributionsCollection`） | 1 時間 | 帯の格子 |
 
 - **304 はレート制限を減らさない**（実測 2026-11-07: 残り 4996 のまま）。inbox・events・runs は前回の

@@ -230,7 +230,7 @@ describe('the ledger', () => {
   it('counts calls, requests, 304s and failures per probe, and paid requests with their price', () => {
     let state = emptyLedger(at)
     state = recordReading(state, entry({ requests: 3 }), at)
-    state = recordReading(state, entry({ notModified: true }), at)
+    state = recordReading(state, entry({ notModified: 1 }), at)
     state = recordReading(
       state,
       entry({
@@ -253,6 +253,13 @@ describe('the ledger', () => {
       paidRequests: 1,
       paidUsd: 0.01,
     })
+  })
+
+  it('counts the on-demand readings (HISTORY, a repository inside) in the day, with no period', () => {
+    const state = recordReading(emptyLedger(at), entry({ probe: 'history', requests: 2 }), at)
+    const summary = summarize(state, [{ id: 'queue', every: MINUTE, cost: 'free' }])
+    expect(summary).toMatchObject({ requests: 2, free: 2 })
+    expect(summary.probes).toContainEqual({ id: 'history', every: 0, cost: 'free', requests: 2 })
   })
 
   it('starts the day again on a new local day, and the paid counts on a new UTC month', () => {
@@ -582,6 +589,90 @@ describe('ProbeScheduler', () => {
     await h.advance(MINUTE + 1000)
     expect(h.calls).toEqual(['daily', 'daily'])
     expect(s.outcome('daily').value).toBe('x')
+  })
+
+  it('reads a probe again once its old run ends, when the pane was put away and shown again while it ran', async () => {
+    // The pane went behind a tab and came back while a probe waited for its answer: the old
+    // run's calls are dropped, and the probe was left unread until its next boundary (a day).
+    let release: (() => void) | null = null
+    const h = harness((call) => {
+      if (call.argv[0] === 'slow' && release === null)
+        return new Promise<CliResult>((resolve) => {
+          release = () => resolve(result({ ok: true, code: 0, stdout: 'old' }))
+        })
+      return result({ ok: true, code: 0, stdout: 'x' })
+    }, 1)
+    const s = new ProbeScheduler(h.deps, [
+      probe('slow', { every: 24 * 60 * MINUTE }),
+      probe('queued', { every: 24 * 60 * MINUTE }),
+      probe('after', { every: 24 * 60 * MINUTE, after: 'queued' }),
+    ])
+    s.start()
+    await h.flush()
+    expect(h.calls).toEqual(['slow'])
+    s.stop()
+    s.start()
+    ;(release as (() => void) | null)?.()
+    await h.flush()
+    // The one waiting for a slot was dropped and is read now; so is the one after it.
+    expect(s.outcome('queued').value).toBe('x')
+    expect(s.outcome('after').value).toBe('x')
+    // The one whose call had started answered: it stands, read once.
+    expect(s.outcome('slow').value).toBe('old')
+    expect(h.calls.filter((c) => c === 'slow')).toHaveLength(1)
+  })
+
+  it('does not read again on a boundary a few seconds after it read', async () => {
+    const h = harness(() => result({ ok: true, code: 0, stdout: 'x' }))
+    const s = new ProbeScheduler(h.deps, [probe('a', { every: 15 * MINUTE })])
+    // The harness starts at 03:00:07; move to 03:14:58, just before the 03:15 boundary.
+    await h.advance(14 * MINUTE + 51_000)
+    s.start()
+    await h.flush()
+    expect(h.calls).toEqual(['a'])
+    await h.advance(5 * MINUTE)
+    expect(h.calls).toEqual(['a'])
+    // The next boundary reads it, as ever.
+    await h.advance(15 * MINUTE)
+    expect(h.calls).toEqual(['a', 'a'])
+    s.stop()
+  })
+
+  it('reads a daily probe again at the next midnight, though the pane was shown that afternoon', async () => {
+    // Half a period was once the window: a reading at 13:00 skipped midnight and stood 35 hours.
+    const h = harness(() => result({ ok: true, code: 0, stdout: 'x' }))
+    const s = new ProbeScheduler(h.deps, [probe('a', { every: 24 * 60 * MINUTE })])
+    // The harness starts at 03:00:07; move to the afternoon.
+    await h.advance(10 * 60 * MINUTE)
+    s.start()
+    await h.flush()
+    expect(h.calls).toEqual(['a'])
+    // Past midnight and its stagger (at most five minutes), not the next midnight.
+    await h.advance(11 * 60 * MINUTE + 10 * MINUTE)
+    expect(h.calls).toEqual(['a', 'a'])
+    s.stop()
+  })
+
+  it('counts every 304 of a reading, and nothing for a reading that started no CLI', async () => {
+    const entries: LedgerEntry[] = []
+    let calls = 0
+    const h = harness(() => {
+      calls += 1
+      return result({ stdout: 'HTTP/2.0 304 Not Modified\r\n\r\n' })
+    })
+    const s = new ProbeScheduler({ ...h.deps, record: (entry) => entries.push(entry) }, [
+      probe('three', {}, async (_ctx, cli) => {
+        for (const part of ['a', 'b', 'c']) await cli({ tool: 'gh', argv: ['api', '-i', part] })
+        return null
+      }),
+      probe('kept', {}, async () => 'from the store'),
+    ])
+    s.start()
+    await h.flush()
+    expect(calls).toBe(3)
+    expect(entries).toEqual([
+      { probe: 'three', cost: 'free', requests: 3, notModified: 3, failed: false },
+    ])
   })
 
   it('hands a probe its last good value, so a failing part can keep what it had', async () => {

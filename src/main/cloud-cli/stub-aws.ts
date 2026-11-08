@@ -7,7 +7,7 @@ import {
   resourceStatistics,
   sweepAnswer,
 } from './stub-aws-resources.js'
-import { ACCOUNT, DAY, HOUR, iso, ok, result } from './stub-common.js'
+import { ACCOUNT, DAY, dimensionsOf, HOUR, iso, ok, result } from './stub-common.js'
 
 /**
  * A stand-in AWS CLI for tests and screenshots (`ELECDEX_CLOUD_STUB`): never the real CLI, never
@@ -99,7 +99,6 @@ function instance(
     name,
     platform: 'Linux/UNIX',
     reason: '',
-    vols: [volumeOf(id)],
     sgs,
     vpc: 'vpc-0acme',
     subnet: 'subnet-0a',
@@ -378,7 +377,6 @@ const ROUTES: Record<string, Route> = {
                     n: 'orders-db-cpu-high',
                     s: iso(now - 42 * 60_000),
                     ns: 'AWS/RDS',
-                    metric: 'CPUUtilization',
                     dim: 'orders-db',
                   },
                 ],
@@ -398,7 +396,11 @@ const ROUTES: Record<string, Route> = {
         : [],
     ),
   'cloudtrail lookup-events': (call, region, now) => {
-    const byResource = call.argv.some((a) => a.startsWith('AttributeKey=ResourceName'))
+    // HISTORY asks by the resource's name, as JSON (a name may hold a comma); ACTIVITY asks by none.
+    const byResource = call.argv.some(
+      (a) =>
+        a.startsWith('AttributeKey=ResourceName') || a.includes('"AttributeKey":"ResourceName"'),
+    )
     if (byResource)
       return ok([
         {
@@ -428,19 +430,13 @@ const ROUTES: Record<string, Route> = {
         ? [
             {
               ip: '203.0.113.10',
-              alloc: 'eipalloc-01',
               assoc: 'eipassoc-01',
               inst: 'i-0a1b2c3d4e5f60004',
-              eni: 'eni-01',
-              domain: 'vpc',
             },
             {
               ip: '203.0.113.77',
-              alloc: 'eipalloc-02',
               assoc: null,
               inst: null,
-              eni: null,
-              domain: 'vpc',
             },
           ]
         : [],
@@ -495,7 +491,6 @@ const ROUTES: Record<string, Route> = {
               class: 'db.r6g.large',
               state: 'available',
               multi: true,
-              storage: 200,
               support: 'open-source-rds-extended-support',
               created: iso(now - 500 * DAY),
             },
@@ -517,18 +512,13 @@ const ROUTES: Record<string, Route> = {
       {
         v: '1.29',
         end: '2025-03-23T00:00:00Z',
-        ext: '2026-03-23T00:00:00Z',
-        s: 'EXTENDED_SUPPORT',
       },
       {
         v: '1.33',
         end: '2026-07-29T00:00:00Z',
-        ext: '2027-07-29T00:00:00Z',
-        s: 'STANDARD_SUPPORT',
       },
     ]),
-  'eks describe-cluster': () =>
-    ok({ v: '1.29', s: 'ACTIVE', p: 'EXTENDED', c: '2024-02-01T00:00:00Z' }),
+  'eks describe-cluster': () => ok({ v: '1.29', s: 'ACTIVE', p: 'EXTENDED' }),
   'acm list-certificates': (_c, region, now) =>
     ok(
       region === 'ap-northeast-1'
@@ -539,7 +529,6 @@ const ROUTES: Record<string, Route> = {
               t: 'IMPORTED',
               exp: iso(now + 5 * DAY),
               use: true,
-              k: 'RSA_2048',
               s: 'ISSUED',
             },
           ]
@@ -572,21 +561,21 @@ const ROUTES: Record<string, Route> = {
 
 function statistics(call: CliCall, region: string, now: number, mode: Mode): CliResult {
   const namespace = call.argv[call.argv.indexOf('--namespace') + 1]
-  const dims = call.argv.filter((a) => a.startsWith('Name='))
+  const dims = dimensionsOf(call.argv)
   if (namespace === 'AWS/Billing') {
-    const service = dims.find((d) => d.startsWith('Name=ServiceName'))?.split('Value=')[1]
+    const service = dims.find((d) => d.Name === 'ServiceName')?.Value
     const points = billingPoints(now)
     if (service === undefined) return ok(points)
     const share = SERVICES.find(([name]) => name === service)?.[1] ?? 0
     return ok(points.slice(-1).map(([t, usd]) => [t, Math.round(usd * share * 100) / 100]))
   }
   if (namespace === 'AWS/S3') {
-    const bucket = dims[0]?.split('Value=')[1]
-    const storage = dims[1]?.split('Value=')[1]
+    const bucket = dims.find((d) => d.Name === 'BucketName')?.Value
+    const storage = dims.find((d) => d.Name === 'StorageType')?.Value
     const found = (BUCKETS[region] ?? []).find(([b, s]) => b === bucket && s === storage)
     return ok(found ? [[iso(now - DAY), found[2]]] : [])
   }
-  const id = dims[0]?.split('Value=')[1] ?? ''
+  const id = dims[0]?.Value ?? ''
   const idle = id === 'i-0a1b2c3d4e5f60003' && mode !== 'quiet'
   return ok(
     Array.from({ length: 7 }, (_, i) => ({

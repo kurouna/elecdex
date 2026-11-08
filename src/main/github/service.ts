@@ -24,6 +24,7 @@ import {
   type AuthState,
   type parseQueueAnswer,
   parseRepoPullsAnswer,
+  type Release,
   type RepoEvent,
   type RepoNode,
   type Run,
@@ -42,7 +43,7 @@ import type {
 } from '@shared/github/types'
 import type { TimerDeps } from '../boundary-timer.js'
 import { evictStopped, gapLeft, REFRESH_GAP_MS } from '../cloud-cli/boards.js'
-import { ProbeScheduler } from '../cloud-cli/scheduler.js'
+import { isPartialAnswer, ProbeScheduler } from '../cloud-cli/scheduler.js'
 import { type GhContext, GITHUB_PROBES, type InboxReading, type ReposReading } from './probes.js'
 
 /**
@@ -140,6 +141,8 @@ export class GithubService {
     const left = gapLeft(board.refreshedAt, this.#deps.now())
     if (left > 0) return left
     board.refreshedAt = this.#deps.now()
+    // A press reads a repository's inside again too, not five minutes on.
+    board.detail.clear()
     board.scheduler.refresh()
     return REFRESH_GAP_MS
   }
@@ -153,7 +156,9 @@ export class GithubService {
       const url = this.#deps.incidents().find((i) => i.id === incident)?.url ?? null
       return url === null ? null : htmlUrlOf(url)
     }
-    return board.urls.get(id) ?? null
+    // Every URL an answer gave (a run's, a pull's, a release's) is held to github.com's shapes.
+    const url = board.urls.get(id)
+    return url === undefined ? null : htmlUrlOf(url)
   }
 
   /** One repository's inside, read when its drill-down opens and kept five minutes (§5.3). */
@@ -166,37 +171,21 @@ export class GithubService {
     const now = this.#deps.now()
     if (kept !== undefined && now - kept.readAt < 5 * 60_000) return kept
     const [owner, name] = repo.split('/') as [string, string]
-    const result = await this.#deps.limit(() =>
-      this.#deps.cli({
-        tool: 'gh',
-        argv: ['api', 'graphql', '--input', '-'],
-        stdin: graphqlBody(REPO_PULLS_QUERY, { owner, name }),
-      }),
-    )
+    const call = {
+      tool: 'gh' as const,
+      argv: ['api', 'graphql', '--input', '-'],
+      stdin: graphqlBody(REPO_PULLS_QUERY, { owner, name }),
+    }
+    const result = await this.#deps.limit(() => this.#deps.cli(call))
+    const answered = result.ok || isPartialAnswer(call, result)
     board.ledger = recordReading(
       board.ledger,
-      { probe: 'detail', cost: 'free', requests: 1, failed: !result.ok },
+      { probe: 'detail', cost: 'free', requests: 1, failed: !answered },
       now,
     )
-    const answer = result.ok ? parseRepoPullsAnswer(result.stdout) : null
-    const runs = (
-      board.scheduler.outcome<Record<string, Run[] | null>>('runs').value?.[repo] ?? []
-    ).map((run) => ({
-      id: `run:${repo}:${run.id}`,
-      state: runState(run),
-      workflow: run.name ?? 'workflow',
-      branch: run.head_branch ?? '',
-      title: run.display_title ?? '',
-      event: run.event,
-      seconds: run.run_started_at
-        ? Math.max(0, Math.round((time(run.updated_at) - time(run.run_started_at)) / 1000))
-        : null,
-      at: time(run.created_at),
-    }))
-    for (const run of board.scheduler.outcome<Record<string, Run[] | null>>('runs').value?.[repo] ??
-      []) {
-      board.urls.set(`run:${repo}:${run.id}`, run.html_url)
-    }
+    const answer = answered ? parseRepoPullsAnswer(result.stdout) : null
+    const runs = board.scheduler.outcome<Record<string, Run[] | null>>('runs').value?.[repo] ?? []
+    for (const run of runs) board.urls.set(`run:${repo}:${run.id}`, run.html_url)
     const pulls = (answer?.pullRequests ?? []).map((pull) => {
       const verdict = prVerdict(pull)
       const id = `pull:${repo}#${pull.number}`
@@ -217,17 +206,18 @@ export class GithubService {
     const releases = (answer?.releases.nodes ?? []).map((release, i) => {
       const id = `release:${repo}:${release.tagName}`
       board.urls.set(id, release.url)
-      return {
-        id,
-        tag: release.tagName,
-        prerelease: release.isPrerelease,
-        at: time(release.publishedAt ?? release.createdAt),
-        downloads: release.releaseAssets.nodes.reduce((sum, asset) => sum + asset.downloadCount, 0),
-        ahead: i === 0 ? ahead : null,
-      }
+      return { id, ...releaseOf(release, i === 0 ? ahead : null) }
     })
-    const detail: RepoDetail = { key, repo, runs, pulls, releases, readAt: now }
-    board.detail.set(repo, detail)
+    const detail: RepoDetail = {
+      key,
+      repo,
+      runs: runs.map((run) => runRow(repo, run)),
+      pulls,
+      releases,
+      readAt: now,
+    }
+    // A failed reading is shown (the runs are the probes'), never kept: the next look reads again.
+    if (answer !== null) board.detail.set(repo, detail)
     this.#publish(board)
     return detail
   }
@@ -452,11 +442,15 @@ function inboxState(
   return { readable: true, items, pollSeconds: reading?.pollSeconds ?? 60 }
 }
 
-function contribOf(reading: { total: number; days: number[] } | null): Contributions | null {
+/** The calendar's figures: this week is the last seven days, last week the seven before them. */
+export function contribOf(reading: { total: number; days: number[] } | null): Contributions | null {
   if (reading === null) return null
   const days = reading.days
+  // Both ends held at the start: a calendar shorter than two weeks must not count from its end.
   const sum = (from: number, to: number) =>
-    days.slice(Math.max(0, days.length - to), days.length - from).reduce((a, b) => a + b, 0)
+    days
+      .slice(Math.max(0, days.length - to), Math.max(0, days.length - from))
+      .reduce((a, b) => a + b, 0)
   return { total: reading.total, days, week: sum(0, 7), lastWeek: sum(7, 14), ...streaks(days) }
 }
 
@@ -488,23 +482,38 @@ function tileOf(
       node.hasVulnerabilityAlertsEnabled === false
         ? 'off'
         : (node.vulnerabilityAlerts?.totalCount ?? null),
-    release:
-      release === undefined
-        ? null
-        : {
-            tag: release.tagName,
-            prerelease: release.isPrerelease,
-            at: time(release.publishedAt ?? release.createdAt),
-            downloads: release.releaseAssets.nodes.reduce(
-              (sum, asset) => sum + asset.downloadCount,
-              0,
-            ),
-            ahead,
-          },
+    release: release === undefined ? null : releaseOf(release, ahead),
     defaultBranch: node.defaultBranchRef?.name ?? 'main',
     runs,
     red,
     views14: views,
     advisories,
+  }
+}
+
+/** A release as a tile and the drill-down show it: its assets' downloads summed. */
+function releaseOf(release: Release, ahead: number | null) {
+  return {
+    tag: release.tagName,
+    prerelease: release.isPrerelease,
+    at: time(release.publishedAt ?? release.createdAt),
+    downloads: release.releaseAssets.nodes.reduce((sum, asset) => sum + asset.downloadCount, 0),
+    ahead,
+  }
+}
+
+/** A workflow run in a repository's drill-down. */
+function runRow(repo: string, run: Run): RepoDetail['runs'][number] {
+  return {
+    id: `run:${repo}:${run.id}`,
+    state: runState(run),
+    workflow: run.name ?? 'workflow',
+    branch: run.head_branch ?? '',
+    title: run.display_title ?? '',
+    event: run.event,
+    seconds: run.run_started_at
+      ? Math.max(0, Math.round((time(run.updated_at) - time(run.run_started_at)) / 1000))
+      : null,
+    at: time(run.created_at),
   }
 }

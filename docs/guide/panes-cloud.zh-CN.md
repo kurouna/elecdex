@@ -66,7 +66,7 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 | 读取 | 每个窗格一个 AWS 配置文件（⚙ 中列出 `aws configure list-profiles`），最多 4 个区域（未选时为该配置文件自身的区域）；全局服务向 us-east-1 查询。只用免费 API，加上 CloudWatch 免费额度内的调用，以及你开启后的 Cost Explorer。*未发布：* RESOURCES 增加它显示的所有服务的列表、S3 的存储桶列表、CloudWatch Logs 的日志组，以及有每月上限的 CloudWatch 付费 `GetMetricData`（默认开启）。 |
 | 更新 | 只在窗格可见时，每项读取按各自的周期（见下表）。 |
 | 平台 | AWS CLI v2 能运行的地方。未在 macOS 或 Linux 上手动验证。 |
-| 隐私 | 只读；从不调用 Secrets Manager、Health 或 Support，S3 和 CloudWatch Logs 只读取存储桶列表和日志组（*未发布*），从不读取对象、日志或消息。MASK 隐藏 RESOURCES 和下钻中的所有资源名称（*未发布*）。CloudTrail 只保留时间、操作者、操作、区域、错误，以及控制台登录的结果和 MFA。账户信息不会到达任何插件。 |
+| 隐私 | 只读；从不调用 Secrets Manager、Health 或 Support，S3 和 CloudWatch Logs 只读取存储桶列表和日志组（*未发布*），从不读取对象、日志或消息。MASK 隐藏 RESOURCES 和下钻中的所有资源名称，以及单个资源的 ID、VPC 和子网、ATTENTION 各行中的名称、ACTIVE 增减一行中的 ID（*未发布*）。CloudTrail 只保留时间、操作者、操作、区域、错误，以及控制台登录的结果和 MFA。账户信息不会到达任何插件。 |
 | 设置 | 每个窗格（⚙）：配置文件、区域、ACCOUNT PULSE 开关、ACTIVITY（CloudTrail）开关、SLOW ×4。每个账户：Cost Explorer 和成本 QUOTA（`aws-billing.json`）；*未发布：* GetMetricData 及其上限（`aws-billing.json`）、ELSEWHERE 和标记为 KEEP 的资源（`aws-inventory.json`）。所有窗格共用：故障通知，即 `settings.json` 中的 `aws.incidents`。 |
 
 顶行：链接状态、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（来自账单指标的本月迄今金额，附预算的预测和占 QUOTA 的比例；按下打开 COST）、区域指示灯（ALL 或单个区域，每个灯为该区域最重发现的颜色）、**MASK**、**REFRESH**、⚙。
@@ -103,7 +103,7 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 
 - **一个服务**：分面横条——点击按某个值筛选，其他分组按该筛选重新计数（交叉筛选）——以及一个列表，点击表头排序。
 - **一个资源**：它的字段；相关的资源（实例的卷、弹性 IP 和告警；卷所属的实例）；它的发现；**HISTORY**，即该资源的 CloudTrail，按下时读取（免费）；**↗ CONSOLE**，打开主进程根据自己的读取结果构造的 AWS 控制台页面。
-- 用面包屑的 ‹ 返回。焦点在窗格内时，Enter 下钻一层，Escape 或 Backspace 返回一层。
+- 用面包屑的 ‹ 返回。焦点在窗格内时，Enter 下钻一层，Escape 或 Backspace 返回一层。*未发布：* 从 ATTENTION 的行打开的资源返回 ATTENTION（与从 LOOKS FORGOTTEN 打开的返回 RESOURCES 一样）；告警列表包含所有告警（STATE 分面显示哪些处于 ALARM），负载均衡器列表也包含经典负载均衡器。
 - 可下钻的服务：EC2、EBS、公网 IPv4（弹性 IP）、S3、NAT 网关、负载均衡器、RDS、EKS、Lambda、CloudFormation、ACM 和告警。*未发布：* RESOURCES 的所有服务，以及跨服务的列表（forgotten、new、elsewhere，带服务列）。从 RESOURCES 打开的资源还会显示静默了多久、依据什么判断，以及 **KEEP**。S3 的容量来自 CloudWatch 每日的 `BucketSizeBytes`；S3 自身的 API 只调用存储桶列表，每天最多一次（*未发布*）。
 
 ### 费用
@@ -192,8 +192,9 @@ AWS 托管策略 `ReadOnlyAccess`（或 `ViewOnlyAccess` 加 `AWSBillingReadOnly
 | 仓库 | 一次 GraphQL 查询 | 15 分钟 |
 | 事件、工作流运行 | 每个仓库一次 `gh api -i -X GET`，带 If-None-Match | 5 分钟 |
 | 贡献 | 一次 GraphQL 查询 | 1 小时 |
-| 私密漏洞报告、发布以来的提交 | 每个仓库一次 `gh api -X GET` | 1 小时 |
-| 流量（访问量） | 每个有推送权限的仓库一次 `gh api -X GET` | 6 小时 |
+| 私密漏洞报告 | 每个仓库一次 `gh api -i -X GET`，带 If-None-Match（*未发布*） | 1 小时 |
+| 发布以来的提交 | 所有仓库一次 GraphQL 查询（*未发布*） | 1 小时 |
+| 流量（访问量） | 每个有推送权限的仓库一次 `gh api -i -X GET`，带 If-None-Match（*未发布*） | 6 小时 |
 
 令牌缺少某项读取所需的范围时，只有该项读取显示 **PARTIAL**。
 

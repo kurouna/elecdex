@@ -4,8 +4,8 @@ import {
   type HttpAnswer,
   type Notification,
   parseAdvisories,
+  parseAheadAnswer,
   parseAuth,
-  parseCompare,
   parseContribAnswer,
   parseEvents,
   parseHttp,
@@ -20,6 +20,7 @@ import {
   type Run,
 } from '@shared/github/parse'
 import {
+  aheadQuery,
   CONTRIB_QUERY,
   graphqlBody,
   OWN_REPOS_QUERY,
@@ -28,6 +29,7 @@ import {
   triageSearch,
 } from '@shared/github/queries'
 import type { GithubBoardSpec, RateState } from '@shared/github/types'
+import { isPartialAnswer } from '../cloud-cli/scheduler.js'
 
 /**
  * GITHUB STATUS's probe table (docs/github.md §3): every call is `gh api -X GET …`, `gh api graphql
@@ -80,13 +82,18 @@ export async function conditionalGet(
   return http
 }
 
+/**
+ * A GraphQL query's answer: its data, also when it carries errors beside it (gh exits 1 for a
+ * pinned repository deleted, or a field the token may not read; the parsers read what is there).
+ */
 const graphql = async (cli: RunCli, query: string, variables: Record<string, string> = {}) => {
-  const result = await cli({
-    tool: 'gh',
+  const call = {
+    tool: 'gh' as const,
     argv: ['api', 'graphql', '--input', '-'],
     stdin: graphqlBody(query, variables),
-  })
-  return result.ok ? result.stdout : null
+  }
+  const result = await cli(call)
+  return result.ok || isPartialAnswer(call, result) ? result.stdout : null
 }
 
 /**
@@ -101,20 +108,22 @@ async function perRepo<T>(
   conditional: boolean,
   previous: Record<string, T | null> | null,
 ): Promise<Record<string, T | null>> {
-  const out: Record<string, T | null> = {}
-  for (const repo of ctx.repos()) {
-    const path = pathOf(repo.name)
-    let read: T | null = null
+  // All at once: the shared CLI lanes bound how many run, and a board of twelve repositories
+  // no longer reads them one after another.
+  const read = async (name: string): Promise<[string, T | null]> => {
+    const path = pathOf(name)
+    let value: T | null = null
     if (conditional) {
       const http = await conditionalGet(cli, ctx, path, true)
-      read = http !== null && (http.status === 200 || http.status === 304) ? parse(http.body) : null
+      value =
+        http !== null && (http.status === 200 || http.status === 304) ? parse(http.body) : null
     } else {
       const result = await cli({ tool: 'gh', argv: ['api', '-X', 'GET', path], tolerated: true })
-      read = result.ok ? parse(result.stdout) : null
+      value = result.ok ? parse(result.stdout) : null
     }
-    out[repo.name] = read ?? previous?.[repo.name] ?? null
+    return [name, value ?? previous?.[name] ?? null]
   }
-  return out
+  return Object.fromEntries(await Promise.all(ctx.repos().map((repo) => read(repo.name))))
 }
 
 export interface InboxReading {
@@ -245,7 +254,8 @@ export const trafficProbe: Probe<GhContext, Record<string, number[] | null>> = {
       ctx,
       (repo) => `repos/${repo}/traffic/views`,
       (body) => parseTraffic(body) ?? [],
-      false,
+      // Conditional like the others: an unchanged answer is a 304, free of the rate limit.
+      true,
       previous,
     ),
 }
@@ -261,33 +271,31 @@ export const advisoriesProbe: Probe<GhContext, Record<string, number | null>> = 
       ctx,
       (repo) => `repos/${repo}/security-advisories?state=triage`,
       (body) => parseAdvisories(body) ?? 0,
-      false,
+      true,
       previous,
     ),
 }
 
-export const aheadProbe: Probe<GhContext, Record<string, number | null>> = {
+/**
+ * The commits since each latest release, one GraphQL query for every watched repository: REST's
+ * compare answered the range's commits and diffs (megabytes) for one number, a call each.
+ */
+export const aheadProbe: Probe<GhContext, Record<string, number | null> | null> = {
   id: 'ahead',
   after: 'repos',
   every: HOUR,
   cost: 'free',
-  run: async (ctx, cli) => {
-    const out: Record<string, number | null> = {}
-    for (const repo of ctx.repos()) {
-      if (repo.release === null) continue
-      const result = await cli({
-        tool: 'gh',
-        argv: [
-          'api',
-          '-X',
-          'GET',
-          `repos/${repo.name}/compare/${encodeURIComponent(repo.release)}...${encodeURIComponent(repo.defaultBranch)}`,
-        ],
-        tolerated: true,
-      })
-      out[repo.name] = result.ok ? parseCompare(result.stdout) : null
-    }
-    return out
+  run: async (ctx, cli, previous) => {
+    const repos = ctx
+      .repos()
+      .flatMap((repo) => (repo.release === null ? [] : [{ ...repo, release: repo.release }]))
+    if (repos.length === 0) return {}
+    const answer = await graphql(cli, aheadQuery(repos))
+    if (answer === null) return null
+    const counts = parseAheadAnswer(answer, repos.length)
+    return Object.fromEntries(
+      repos.map((repo, i) => [repo.name, counts[i] ?? previous?.[repo.name] ?? null]),
+    )
   },
 }
 

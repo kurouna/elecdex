@@ -66,7 +66,7 @@ cloud プリセット（Ctrl+Shift+F10）は、アカウント、リポジトリ
 | 読むもの | ペインごとに 1 つの AWS のプロファイル（⚙ に `aws configure list-profiles` の一覧）、リージョンは 4 つまで（選ばなければプロファイル自身のリージョン）。グローバルなサービスは us-east-1 に尋ねます。無料の API と、CloudWatch の無料枠の中の呼び出し、それに有効にしたときだけの Cost Explorer。*未リリース:* RESOURCES は、表示するサービスすべての一覧、S3 のバケットの一覧、CloudWatch Logs のロググループ、月の上限付きの CloudWatch の有料の `GetMetricData`（既定で ON）を足します。 |
 | 更新 | ペインが見えている間だけ。読み取りごとに自分の周期で（下の表）。 |
 | プラットフォーム | AWS CLI v2 が動く環境。macOS と Linux では手で確かめていません。 |
-| プライバシー | 読むだけです。Secrets Manager、Health、Support は呼ばず、S3 と CloudWatch Logs はバケットの一覧とロググループだけ（*未リリース*）で、オブジェクト、ログ、メッセージは読みません。MASK は RESOURCES と掘り下げのリソース名をすべて伏せます（*未リリース*）。CloudTrail からは、時刻、誰、操作、リージョン、エラーと、コンソールのサインインの結果と MFA だけを残します。アカウントの情報はプラグインに届きません。 |
+| プライバシー | 読むだけです。Secrets Manager、Health、Support は呼ばず、S3 と CloudWatch Logs はバケットの一覧とロググループだけ（*未リリース*）で、オブジェクト、ログ、メッセージは読みません。MASK は RESOURCES と掘り下げのリソース名をすべて伏せ、1 件の ID・VPC・サブネット、ATTENTION の行の名前、ACTIVE の増えた・消えたの行の ID も伏せます（*未リリース*）。CloudTrail からは、時刻、誰、操作、リージョン、エラーと、コンソールのサインインの結果と MFA だけを残します。アカウントの情報はプラグインに届きません。 |
 | 設定 | ペインごと（⚙）: プロファイル、リージョン、ACCOUNT PULSE の ON / OFF、ACTIVITY（CloudTrail）の ON / OFF、SLOW ×4。アカウントごと: Cost Explorer とコストの QUOTA（`aws-billing.json`）。*未リリース:* GetMetricData とその上限（`aws-billing.json`）、ELSEWHERE と KEEP の印（`aws-inventory.json`）。全ペイン共通: 障害のトースト（`settings.json` の `aws.incidents`）。 |
 
 上段: リンクの語、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（請求メトリクスによる今月ここまでの額と、予算の予測、QUOTA に対する割合。押すと COST）、リージョンのランプ（ALL か 1 つのリージョン。各ランプはそのリージョンでいちばん重いものの色）、**MASK**、**REFRESH**、⚙。
@@ -103,7 +103,7 @@ RESOURCES、ACTIVE、ATTENTION の行から、サービスをペインの中で�
 
 - **サービス**: ファセットの棒（クリックでその値に絞り、ほかの群もその絞り込みで数え直します。クロスフィルター）と一覧（見出しのクリックで並べ替え）。
 - **1 つのリソース**: その欄、関係するもの（インスタンスのボリューム・Elastic IP・アラーム、ボリュームのインスタンス）、その検出、**HISTORY**（そのリソースの CloudTrail。押したときに読みます。無料）、**↗ CONSOLE**（main が自分の読み取りから組んだ AWS のコンソールのページを開きます）。
-- パンくずの ‹ で戻ります。フォーカスがペインにあるとき、Enter で 1 段下へ、Escape か Backspace で 1 段上へ。
+- パンくずの ‹ で戻ります。フォーカスがペインにあるとき、Enter で 1 段下へ、Escape か Backspace で 1 段上へ。*未リリース:* ATTENTION の行から開いたリソースは ATTENTION へ戻ります（LOOKS FORGOTTEN から開いたものが RESOURCES へ戻るのと同じ）。アラームの一覧はすべてのアラームを持ち（STATE のファセットで ALARM のものが分かります）、ロードバランサーの一覧はクラシックのものも持ちます。
 - 掘れるサービス: EC2、EBS、パブリック IPv4（Elastic IP）、S3、NAT ゲートウェイ、ロードバランサー、RDS、EKS、Lambda、CloudFormation、ACM、アラーム。*未リリース:* RESOURCES のサービスすべてと、サービスをまたぐ一覧（forgotten、new、elsewhere。サービスの列付き）。RESOURCES から開いたリソースには、静かな期間、その判定の根拠、**KEEP** も出ます。S3 の容量は CloudWatch の 1 日ごとの `BucketSizeBytes` から読み、S3 自身の API はバケットの一覧だけを 1 日 1 回まで呼びます（*未リリース*）。
 
 ### 費用
@@ -192,8 +192,9 @@ AWS 管理ポリシーの `ReadOnlyAccess`（または `ViewOnlyAccess` と `AWS
 | リポジトリ | GraphQL のクエリ 1 本 | 15 分 |
 | イベント、ワークフローの実行 | リポジトリごとの `gh api -i -X GET`、If-None-Match 付き | 5 分 |
 | 貢献 | GraphQL のクエリ 1 本 | 1 時間 |
-| 非公開の脆弱性報告、リリース以後のコミット | リポジトリごとの `gh api -X GET` | 1 時間 |
-| トラフィック（訪問） | push 権のあるリポジトリごとの `gh api -X GET` | 6 時間 |
+| 非公開の脆弱性報告 | リポジトリごとの `gh api -i -X GET`、If-None-Match 付き（*未リリース*） | 1 時間 |
+| リリース以後のコミット | すべてのリポジトリで GraphQL のクエリ 1 本（*未リリース*） | 1 時間 |
+| トラフィック（訪問） | push 権のあるリポジトリごとの `gh api -i -X GET`、If-None-Match 付き（*未リリース*） | 6 時間 |
 
 読み取りに要るスコープがトークンに無ければ、その読み取りだけを **PARTIAL** にします。
 
