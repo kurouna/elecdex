@@ -58,6 +58,7 @@ import {
   noGamepads,
   padOf,
 } from './demo-play-kit.mjs'
+import { starHistory } from './github-stars.mjs'
 import { deskFiles, mediaStandIn, presetTrees, withState } from './preset-shots.mjs'
 
 const OUT = path.resolve('docs/screenshots')
@@ -1030,6 +1031,8 @@ await shoot('tron', 'elecdex-retro', {
 // in Business Light, so the light ground's legibility is in the gallery too.
 await shoot('business-light', 'elecdex-cloud', {
   layout: withState(preset('cloud'), { aws: { regions: ['ap-northeast-1', 'us-east-1'] } }),
+  // A month of stars, so the REPOS tiles draw their line (github-stars.mjs).
+  prepare: starHistory,
   extra: async (page) => {
     await page.getByTestId('aws-forgotten-row').first().waitFor()
     await page.mouse.move(W / 2, 4)
@@ -1226,7 +1229,7 @@ if (only.length === 0 || only.includes('panes') || only.some((n) => n.startsWith
     })
   }
   await shootPane('docker', 'medium', { extra: offCards })
-  await shootPane('github', 'wide', { extra: offCards })
+  await shootPane('github', 'wide', { prepare: starHistory, extra: offCards })
   await shootPane('aws', 'wide', {
     state: { regions: ['ap-northeast-1', 'us-east-1'] },
     extra: async (page) => {
