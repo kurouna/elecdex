@@ -165,13 +165,14 @@ query Queue {
     … on PullRequest { isDraft reviewDecision mergeable
       commits(last: 1) { nodes { commit { statusCheckRollup { state } } } } } }
   assigned: search(query: "is:open assignee:@me archived:false", type: ISSUE, first: 20) { … }
-  triage:   search(query: "is:open no:assignee no:label comments:0 repo:… repo:…", type: ISSUE, first: 20) { … }
+  triage:   search(query: "is:open no:assignee no:label comments:0 -author:@me repo:… repo:…", type: ISSUE, first: 20) { … }
   rateLimit { cost remaining resetAt }
 }
 ```
 
 PR の欄: `number title url createdAt updatedAt isDraft additions deletions repository { nameWithOwner isPrivate }
-author { login }`。本文（`body`）は読まない。
+author { login } authorAssociation`（アサインと TRIAGE の Issue・PR も `author` と `authorAssociation`）。本文（`body`）は読まない。
+TRIAGE は自分が開いたものを除く（`-author:@me`。自分のものは自分の用事で、「誰も答えていない」ではない）。
 
 repos のクエリはリポジトリごとに: `stargazerCount forkCount issues(states: OPEN) { totalCount }`（PR を含まない。
 REST の `open_issues_count` は PR を含むので使わない）、`pullRequests(states: OPEN) { totalCount }`、
@@ -207,9 +208,13 @@ REST の `open_issues_count` は PR を含むので使わない）、`pullReques
 
 - **QUEUE**（`queueItems`）: 同じものは 1 行にまとめる（レビュー依頼の PR が通知にもある、など）。種類と重さ:
   - danger: 自分のリポジトリの既定ブランチの CI が赤い、自分の PR が FAILING、非公開の脆弱性報告（triage）
-  - warn: 7 日を超えたレビュー依頼、自分の PR に CHANGES / CONFLICT、承認待ちの実行（初めての人の PR）
+  - warn: 7 日を超えたレビュー依頼、自分の PR に CHANGES / CONFLICT、承認待ちの実行（初めての人の PR）、
+    開いている Dependabot の警告（タイルの数から、リポジトリごとに 1 行。開く先は `/security/dependabot`）
   - info: レビュー依頼、メンション、アサイン
   - 淡色: TRIAGE（誰も答えていない Issue・PR、古い順）
+  - 初めての貢献（`authorAssociation` が FIRST_TIME_CONTRIBUTOR か FIRST_TIMER）のレビュー依頼と Issue に
+    **1ST** の印（`newcomer`）。グループの見出しは Needs you now / Needs you soon / For you /
+    Triage · nobody has answered。始まりの分からない行（advisory など）は年齢を作らず `—`
 - **PR の状態の札**（`prVerdict`）: FAILING（rollup が FAILURE / ERROR）、CONFLICT（mergeable が CONFLICTING）、
   CHANGES（CHANGES_REQUESTED）、APPROVED、PENDING（CI が走っている、**または mergeable が UNKNOWN**: GitHub が
   最初の問い合わせで計算を始め、次の読み取りで答える）、DRAFT、WAITING。一番悪いものを 1 つ札に、全部をカードに
@@ -288,7 +293,7 @@ REST の `open_issues_count` は PR を含むので使わない）、`pullReques
 
 ## 8. ページに渡すもの
 
-- 件名、番号、リポジトリ名、作者のログイン名、日時、数、状態、項目の id だけ。本文、コメント、差分、ファイル、
+- 件名、番号、リポジトリ名、作者のログイン名（と初めての貢献かどうか）、日時、数、状態、項目の id だけ。本文、コメント、差分、ファイル、
   メールアドレス、URL そのものは渡さない（開くのは main）
 - 件名・ブランチ名・ワークフロー名・タグ名は他人が書いた文字: Svelte の文字としてだけ描く
 - プライベートのリポジトリは `isPrivate` を添え、MASK でその名前と件名を伏せる。events・runs・advisories の
