@@ -16,7 +16,8 @@
  * reaching the page.
  *
  * Shots for posting (`social-elec-sitting`, `social-elec-approved`, `social-ethernet-popup`,
- * `social-paper-cockpit`, `social-paper-earth`, `social-black-translate`) are taken only when named,
+ * `social-paper-cockpit`, `social-paper-earth`, `social-black-translate`, `social-aws-popup` and
+ * `social-github-popup`, the last two each with an `-alone`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
  * so nothing of the machine is in them.
  */
@@ -739,6 +740,7 @@ async function shoot(
     paneOnly = null,
     fullscreen = false,
     claude = false,
+    scale = null,
   } = {},
 ) {
   const named = only.includes(name) || (name.startsWith('pane-') && only.includes('panes'))
@@ -761,6 +763,8 @@ async function shoot(
   // Full screen (a preset whose calculator shows only its LCD in a smaller window): the app as
   // it starts, on this display; else a window of W x H.
   const windowed = fullscreen ? [] : ['--windowed']
+  // A sharper picture for posting: the same layout drawn at `scale` device pixels per pixel.
+  if (scale !== null) windowed.push(`--force-device-scale-factor=${scale}`)
   const app = await electron.launch({
     args: [MAIN, ...windowed, '--no-intro', `--user-data-dir=${dir}`, '--lang=en-US'],
     // Run from the demo home: PowerShell writes a module cache relative to it.
@@ -1515,6 +1519,45 @@ if (only.includes('social-ethernet-popup')) {
       await page.waitForTimeout(800)
     },
   })
+}
+// For posting: AWS STATUS and GITHUB STATUS each popped up over the standard layout, on their
+// stand-ins (a made-up account, a made-up gh user) and a month of made-up stars. Only when named.
+// `-alone` is the pop-up's own box at twice the pixels, so its text reads on a phone and nothing
+// of the layout behind is in it (the window, twice as large, would not fit the screen, so it is
+// smaller there and the pop-up with it).
+async function popUp(page, widget, ready, alone) {
+  await page.keyboard.press('Control+Shift+KeyA')
+  const picker = page.getByTestId('pane-picker')
+  await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
+  await picker.locator(`[data-testid=pane-picker-item][data-widget=${widget}]`).click()
+  await page.getByTestId('popup-pane').getByTestId(ready).first().waitFor({ timeout: 30_000 })
+  await page.waitForTimeout(1500)
+  await page.mouse.move(W / 2, 5)
+  await page.waitForTimeout(800)
+  if (alone === null) return
+  mkdirSync(SOCIAL, { recursive: true })
+  await page.getByTestId('popup-pane').screenshot({ path: path.join(SOCIAL, `${alone}.png`) })
+}
+for (const [widget, ready, prepare] of [
+  ['aws', 'aws-forgotten-row', undefined],
+  ['github', 'github-tile', starHistory],
+]) {
+  const name = `social-${widget}-popup`
+  if (only.includes(name)) {
+    await shoot('tron', name, {
+      social: true,
+      prepare,
+      extra: (page) => popUp(page, widget, ready, null),
+    })
+  }
+  if (only.includes(`${name}-alone`)) {
+    await shoot('tron', `${name}-alone`, {
+      save: false,
+      scale: 2,
+      prepare,
+      extra: (page) => popUp(page, widget, ready, `${name}-alone`),
+    })
+  }
 }
 // For posting: TRANSLATE in the room the standard layout gives everything but its system
 // column, in the Black theme, the stand-in engine's notes translated and one paragraph of the
