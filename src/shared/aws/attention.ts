@@ -1,4 +1,4 @@
-import { AWS_LIMITS, onExtendedSupport } from './facts.js'
+import { AWS_LIMITS, onExtendedSupport, stackTrouble } from './facts.js'
 import { forgotten } from './forgotten.js'
 import { type AwsReadings, type Certificate, everywhere } from './readings.js'
 import type { AttentionItem, AwsService, Weight } from './types.js'
@@ -132,22 +132,59 @@ function deadLetterFindings(r: AwsReadings): AttentionItem[] {
   })
 }
 
+/**
+ * A rolled-back stack in words rather than its status, which MASK would leave as all there is:
+ * the deploy (or the first create, or an import) failed and CloudFormation undid it.
+ */
+function rolledBack(status: string): { what: string; why: string } {
+  if (status.startsWith('UPDATE_'))
+    return {
+      what: 'deploy',
+      why: 'UPDATE_ROLLBACK_COMPLETE: the deploy failed (or was cancelled) and was rolled back; the stack runs its previous template until a deploy succeeds.',
+    }
+  if (status.startsWith('IMPORT_'))
+    return {
+      what: 'import',
+      why: 'IMPORT_ROLLBACK_COMPLETE: a resource import failed and was undone.',
+    }
+  return {
+    what: 'create',
+    why: 'ROLLBACK_COMPLETE: the first create failed and was rolled back; the stack holds nothing and can only be deleted.',
+  }
+}
+
+/** Stacks in a *_FAILED state (danger), and those a failed deploy left rolled back (warn). */
 function stackFindings(r: AwsReadings): AttentionItem[] {
-  return everywhere(r.stacks)
-    .filter((stack) => /_FAILED$/.test(stack.status))
-    .map((stack) =>
+  return everywhere(r.stacks).flatMap((stack) => {
+    const trouble = stackTrouble(stack.status)
+    if (trouble === null) return []
+    const base = {
+      id: `stack:${stack.region}:${stack.name}`,
+      tag: 'STACK' as const,
+      names: [stack.name],
+      region: stack.region,
+      item: { service: 'stacks' as const, id: stack.name },
+      since: stack.at ?? r.now,
+    }
+    if (trouble === 'failed')
+      return [
+        finding({
+          ...base,
+          weight: 'danger',
+          title: `${stack.name} · ${stack.status}`,
+          why: 'A CloudFormation stack in a *_FAILED state.',
+        }),
+      ]
+    const { what, why } = rolledBack(stack.status)
+    return [
       finding({
-        id: `stack:${stack.region}:${stack.name}`,
-        weight: 'danger',
-        tag: 'STACK',
-        title: `${stack.name} · ${stack.status}`,
-        names: [stack.name],
-        region: stack.region,
-        item: { service: 'stacks', id: stack.name },
-        since: stack.at ?? r.now,
-        why: 'A CloudFormation stack in a *_FAILED state.',
+        ...base,
+        weight: 'warn',
+        title: `${stack.name}: the ${what} failed and was rolled back`,
+        why,
       }),
-    )
+    ]
+  })
 }
 
 function rootFindings(r: AwsReadings): AttentionItem[] {

@@ -61,3 +61,16 @@ export const onExtendedSupport = (
   cluster: { support: string | null; standardEnds: number | null },
   now: number,
 ) => cluster.support === 'EXTENDED' && cluster.standardEnds !== null && cluster.standardEnds < now
+
+/**
+ * What a CloudFormation stack's status says went wrong, for ATTENTION and RESOURCES' Also here
+ * alike: a `*_FAILED` state, or a deploy, create or import that failed and was rolled back
+ * (`*ROLLBACK_COMPLETE`, which stays until the next good deploy or a delete). A rollback still
+ * running is neither: it ends in one of the two within minutes, and stacks are read every 15.
+ */
+export function stackTrouble(status: string | null): 'failed' | 'rolled-back' | null {
+  if (status === null) return null
+  if (/_FAILED$/.test(status)) return 'failed'
+  if (/ROLLBACK_COMPLETE$/.test(status)) return 'rolled-back'
+  return null
+}

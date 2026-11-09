@@ -408,7 +408,14 @@ export interface ResourcesView {
   denied: { service: AwsService; actions: string[] }[]
   /** Regions that do not offer a service: left out of its count. */
   notOffered: { service: AwsService; regions: string[] }[]
-  alsoHere: { service: AwsService; count: number; noun: string; note: string | null }[]
+  alsoHere: {
+    service: AwsService
+    count: number
+    noun: string
+    /** Stacks failed or rolled back, alarms in ALARM; danger, or warn for rollbacks alone. */
+    note: string | null
+    noteWeight: Weight | null
+  }[]
   elsewhere: {
     on: boolean
     readAt: number | null

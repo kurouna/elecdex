@@ -81,7 +81,7 @@
 | plan G | `freetier get-account-plan-state`（新プラン）、`get-free-tier-usage`（旧プラン） | 12 時間 | 無料 | クレジットの残りと期限、または無料枠の使用率 |
 | alarms R | `cloudwatch describe-alarms --state-value ALARM --alarm-types CompositeAlarm MetricAlarm` | 5 分 | 無料枠 | 鳴っているアラーム（複合も） |
 | health R | `ec2 describe-instance-status --filters Name=instance-status.status,Values=impaired` ほか | 5 分 | 無料 | 状態の確認に落ちたインスタンス |
-| stacks R | `cloudformation list-stacks`（失敗・ロールバックの状態に絞る） | 15 分 | 無料 | 失敗したスタック |
+| stacks R | `cloudformation list-stacks`（消したもののほか、すべての状態） | 15 分 | 無料 | 失敗したスタック、失敗してロールバックしたスタック |
 | trail R | `cloudtrail lookup-events --lookup-attributes AttributeKey=ReadOnly,AttributeValue=false --max-items 50` | 15 分 | 無料（管理イベント） | ACTIVITY と PULSE（§4.2） |
 | ec2 R | `ec2 describe-instances` | 1 時間 | 無料 | 台数・型・止めた日・ライフサイクル（spot を除くため） |
 | volumes R | `ec2 describe-volumes` | 1 時間 | 無料 | 付いていないもの |
@@ -248,6 +248,7 @@ Cost Explorer（API 1 要求の価格）、Budgets（監視と通知は無料）
 | danger | ALARM | アラームが ALARM（複合も） |
 | danger | HEALTH | インスタンスの状態の確認が impaired、ECS のサービスが running 0 で desired > 0 |
 | danger | STACK | スタックが `*_FAILED` / `UPDATE_ROLLBACK_FAILED` |
+| warn | STACK | デプロイ・作成・インポートが失敗してロールバックした（`*ROLLBACK_COMPLETE`。次に成功するデプロイか削除まで残る。題は状態でなく「the deploy failed and was rolled back」の語。2026-11-09 ユーザー判断: 期間などの条件を付けず、ロールバックが成功したことを出す） |
 | danger | SECURITY | ルートに MFA が無い・アクティブなキーがある・直近 24 時間にルートが使われた、GuardDuty の重さ 7 以上、22 / 3389 / 全ポートが世界に開いた SG がインスタンスに付いている |
 | danger | EXPIRY | 使われている証明書・ドメインが 7 日以内に切れる、または切れている |
 | warn | EXPIRY | IMPORTED の証明書が 30 日以内、AMAZON_ISSUED が 30 日以内（＝自動更新が 60 日前に済んでいない）、ドメインが 30 日以内で自動更新が OFF、RI / SP が 30 日以内、アクセスキーが 90 日より古い、RDS の強制適用日が 14 日以内 |
@@ -628,7 +629,7 @@ danger の縁は種類でなく額で決める（`AWS_LIMITS.forgottenDangerUsd`
 
 - 分類と並び: **忘れものの額の大きい分類から**（同じなら固定の順: COMPUTE・STORAGE・DATABASE・NETWORK・AI・
   EDGE & API・INTEGRATION・LOGS）。お金のかからない台帳もの（VPC、ACM、CloudFormation、アラーム）はタイルに
-  せず、格子の下に 1 行: `Also here: 6 VPCs · 5 certificates · 27 stacks (1 failed) · 25 alarms (1 in ALARM)`（押すと
+  せず、格子の下に 1 行: `Also here: 6 VPCs · 5 certificates · 27 stacks (1 failed · 2 rolled back) · 25 alarms (1 in ALARM)`（ロールバックだけなら warn）（押すと
   それぞれの 2 段目）
 - 1 枚: サービス名、**大きな数と名詞**（`10 running`、`9 buckets`、`152 log groups`）、**状態の細い積み上げ線**、
   リージョンの点、凡例の 1 行、下の行に `n forgotten?`（お金のかかるもの、warn）と `n quiet`（かからないもの、dim）、

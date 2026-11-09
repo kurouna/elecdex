@@ -31,7 +31,7 @@ import {
 import { changesSince } from '../../src/shared/aws/changes'
 import { consoleUrl, isConsoleUrl, permissionsUrl } from '../../src/shared/aws/console-url'
 import { DRILL, facets, filterRows, itemColumns, sortRows } from '../../src/shared/aws/drill'
-import { stoppedAt } from '../../src/shared/aws/facts'
+import { stackTrouble, stoppedAt } from '../../src/shared/aws/facts'
 import { isIdle, seriesKey } from '../../src/shared/aws/forgotten'
 import { GROUPS } from '../../src/shared/aws/inventory'
 import { parseCredentialReport, parseWith } from '../../src/shared/aws/parse'
@@ -229,6 +229,56 @@ describe('ATTENTION', () => {
       ['danger', 'x.example expires in 6d'],
       ['warn', 'x.example expires in 29d'],
     ])
+  })
+
+  it('says a stack a failed deploy, create or import rolled back, as warn after the failed ones', () => {
+    // A CDK or SAM deploy that fails usually rolls back cleanly: UPDATE_ROLLBACK_COMPLETE was in
+    // no *_FAILED state, so ATTENTION said nothing of a failed CD.
+    const stack = (name: string, status: string) => ({
+      name,
+      status,
+      at: NOW - 3_600_000,
+      drift: null,
+    })
+    const items = attention(
+      readings({
+        stacks: {
+          [R]: [
+            stack('api', 'UPDATE_ROLLBACK_COMPLETE'),
+            stack('first', 'ROLLBACK_COMPLETE'),
+            stack('moved', 'IMPORT_ROLLBACK_COMPLETE'),
+            stack('broken', 'UPDATE_ROLLBACK_FAILED'),
+            stack('fine', 'UPDATE_COMPLETE'),
+            stack('going', 'UPDATE_ROLLBACK_IN_PROGRESS'),
+            stack('tidying', 'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS'),
+            stack('new', 'CREATE_IN_PROGRESS'),
+          ],
+        },
+      }),
+    ).filter((i) => i.tag === 'STACK')
+    expect(items.map((i) => [i.weight, i.id, i.title])).toEqual([
+      ['danger', `stack:${R}:broken`, 'broken · UPDATE_ROLLBACK_FAILED'],
+      ['warn', `stack:${R}:api`, 'api: the deploy failed and was rolled back'],
+      ['warn', `stack:${R}:first`, 'first: the create failed and was rolled back'],
+      ['warn', `stack:${R}:moved`, 'moved: the import failed and was rolled back'],
+    ])
+    const api = items.find((i) => i.id === `stack:${R}:api`)
+    // MASK takes the name out of the title; the words say what happened without it.
+    expect(api?.names).toEqual(['api'])
+    expect(api?.item).toEqual({ service: 'stacks', id: 'api' })
+    expect(api?.why).toMatch(/previous template/)
+  })
+
+  it('judges a stack by one rule for ATTENTION and RESOURCES alike', () => {
+    expect(stackTrouble('CREATE_FAILED')).toBe('failed')
+    expect(stackTrouble('UPDATE_ROLLBACK_FAILED')).toBe('failed')
+    expect(stackTrouble('UPDATE_ROLLBACK_COMPLETE')).toBe('rolled-back')
+    expect(stackTrouble('ROLLBACK_COMPLETE')).toBe('rolled-back')
+    expect(stackTrouble('IMPORT_ROLLBACK_COMPLETE')).toBe('rolled-back')
+    expect(stackTrouble('UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS')).toBeNull()
+    expect(stackTrouble('ROLLBACK_IN_PROGRESS')).toBeNull()
+    expect(stackTrouble('UPDATE_COMPLETE')).toBeNull()
+    expect(stackTrouble(null)).toBeNull()
   })
 
   it('says a budget near its limit or forecast over it in dollars, naming the budget', () => {

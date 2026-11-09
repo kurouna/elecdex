@@ -1,6 +1,6 @@
 import { localDay } from '../cloud-cli/ledger.js'
 import { bytesText } from './active.js'
-import { AWS_LIMITS } from './facts.js'
+import { AWS_LIMITS, stackTrouble } from './facts.js'
 import { forgotten, seriesKey, USE } from './forgotten.js'
 import { serviceUse } from './in-use.js'
 import { TILE } from './labels.js'
@@ -28,6 +28,7 @@ import type {
   ResourceTile,
   TileGroup,
   TileSegment,
+  Weight,
 } from './types.js'
 
 /**
@@ -497,14 +498,22 @@ function bedrockTile(
 }
 
 function alsoHere(r: AwsReadings, all: ReadonlyMap<AwsService, Res[]>): ResourcesView['alsoHere'] {
-  const notes: Partial<Record<AwsService, (rows: Res[]) => string | null>> = {
+  type Note = { note: string; noteWeight: Weight } | null
+  const notes: Partial<Record<AwsService, (rows: Res[]) => Note>> = {
     stacks: (rows) => {
-      const failed = count(rows, (x) => /_FAILED$/.test(x.state ?? ''))
-      return failed > 0 ? `${failed} failed` : null
+      const failed = count(rows, (x) => stackTrouble(x.state) === 'failed')
+      const back = count(rows, (x) => stackTrouble(x.state) === 'rolled-back')
+      const parts = [
+        ...(failed > 0 ? [`${failed} failed`] : []),
+        ...(back > 0 ? [`${back} rolled back`] : []),
+      ]
+      return parts.length === 0
+        ? null
+        : { note: parts.join(' · '), noteWeight: failed > 0 ? 'danger' : 'warn' }
     },
     alarms: (rows) => {
       const on = count(rows, (x) => x.state === 'ALARM')
-      return on > 0 ? `${on} in ALARM` : null
+      return on > 0 ? { note: `${on} in ALARM`, noteWeight: 'danger' } : null
     },
   }
   return ALSO_HERE.flatMap((service) => {
@@ -515,7 +524,7 @@ function alsoHere(r: AwsReadings, all: ReadonlyMap<AwsService, Res[]>): Resource
         service,
         count: rows.length,
         noun: TILE[service].noun,
-        note: notes[service]?.(rows) ?? null,
+        ...(notes[service]?.(rows) ?? { note: null, noteWeight: null }),
       },
     ]
   })

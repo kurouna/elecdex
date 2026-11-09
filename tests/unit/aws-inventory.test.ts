@@ -133,6 +133,27 @@ describe('the tiles', () => {
     expect(v.denied.find((d) => d.service === 'eks')?.actions).toEqual(['eks:ListClusters'])
   })
 
+  it('counts stacks a failed deploy rolled back beside the failed ones, warn when only those', () => {
+    const stacks = (...statuses: string[]) =>
+      readings({
+        stacks: {
+          [R]: statuses.map((status, i) => ({ name: `s${i}`, status, at: null, drift: null })),
+        },
+      })
+    const note = (r: AwsReadings) => view(r).alsoHere.find((x) => x.service === 'stacks')
+    expect(
+      note(stacks('UPDATE_ROLLBACK_COMPLETE', 'ROLLBACK_COMPLETE', 'UPDATE_COMPLETE')),
+    ).toMatchObject({
+      note: '2 rolled back',
+      noteWeight: 'warn',
+    })
+    expect(note(stacks('CREATE_FAILED', 'UPDATE_ROLLBACK_COMPLETE'))).toMatchObject({
+      note: '1 failed · 1 rolled back',
+      noteWeight: 'danger',
+    })
+    expect(note(stacks('UPDATE_COMPLETE'))).toMatchObject({ note: null, noteWeight: null })
+  })
+
   it('puts the free ledger kinds in one line under the tiles', () => {
     const r = readings(
       {
@@ -149,9 +170,9 @@ describe('the tiles', () => {
       },
     )
     expect(view(r).alsoHere).toEqual([
-      { service: 'vpc', count: 1, noun: 'VPCs', note: null },
-      { service: 'stacks', count: 2, noun: 'stacks', note: '1 failed' },
-      { service: 'alarms', count: 1, noun: 'alarms', note: '1 in ALARM' },
+      { service: 'vpc', count: 1, noun: 'VPCs', note: null, noteWeight: null },
+      { service: 'stacks', count: 2, noun: 'stacks', note: '1 failed', noteWeight: 'danger' },
+      { service: 'alarms', count: 1, noun: 'alarms', note: '1 in ALARM', noteWeight: 'danger' },
     ])
     expect(
       view(r)

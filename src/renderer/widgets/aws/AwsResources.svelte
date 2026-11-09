@@ -406,7 +406,7 @@ function pickView(button: HTMLElement, next: ResourcesViewChoice): void {
   {#if !lay.short}
     {#if res.alsoHere.length > 0}
       <p class="rnone also" data-testid="aws-also-here">Also here:
-        {#each res.alsoHere as also, i (also.service)}{#if i > 0}<span class="dot">{' · '}</span>{/if}<button type="button" data-focus="also:{also.service}" onclick={() => onservice(also.service, `also:${also.service}`)} data-testid="aws-also">{alsoText(also)}{#if also.note}<span class:danger={also.service === 'alarms' || also.service === 'stacks'}>{` (${also.note})`}</span>{/if}</button>{/each}
+        {#each res.alsoHere as also, i (also.service)}{#if i > 0}<span class="dot">{' · '}</span>{/if}<button type="button" data-focus="also:{also.service}" onclick={() => onservice(also.service, `also:${also.service}`)} data-testid="aws-also">{alsoText(also)}{#if also.note}<span class:danger={also.noteWeight === 'danger'} class:warn={also.noteWeight === 'warn'}>{` (${also.note})`}</span>{/if}</button>{/each}
       </p>
     {/if}
     {#if res.none.length > 0}<p class="rnone" data-testid="aws-res-none">Checked, none here: {noneLine(res)}</p>{/if}
