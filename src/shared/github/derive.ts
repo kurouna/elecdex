@@ -316,6 +316,12 @@ function approvalCandidates(input: QueueInput): Candidate[] {
   }))
 }
 
+/** A first contribution, as GitHub says it: worth a sooner, kinder look. */
+const newcomer = (association: string | null | undefined): { newcomer?: true } =>
+  association === 'FIRST_TIME_CONTRIBUTOR' || association === 'FIRST_TIMER'
+    ? { newcomer: true }
+    : {}
+
 function reviewCandidates(input: QueueInput): Candidate[] {
   return input.review.map((pull) => {
     const since = time(pull.createdAt)
@@ -335,6 +341,7 @@ function reviewCandidates(input: QueueInput): Candidate[] {
         tagWeight: wait.weight,
         since,
         by: pull.author?.login ?? null,
+        ...newcomer(pull.authorAssociation),
         mine: false,
         why: `Review requested. Warn after ${GH_LIMITS.reviewWarnDays} days, danger after ${GH_LIMITS.reviewDangerDays}. +${pull.additions ?? 0} −${pull.deletions ?? 0}.`,
         private: pull.repository.isPrivate,
@@ -389,6 +396,7 @@ function issueCandidates(issues: readonly Issue[], prefix: 'assigned' | 'triage'
         tagWeight: assigned ? 'info' : 'quiet',
         since: time(issue.createdAt),
         by: issue.author?.login ?? null,
+        ...newcomer(issue.authorAssociation),
         mine: false,
         why: assigned
           ? 'Assigned to you.'

@@ -15,7 +15,7 @@ import {
   waitingTag,
 } from '../../src/shared/github/derive'
 import { type Pull, subjectNumber } from '../../src/shared/github/parse'
-import { ALL_QUERIES } from '../../src/shared/github/queries'
+import { ALL_QUERIES, triageSearch } from '../../src/shared/github/queries'
 import type { GithubBoard } from '../../src/shared/github/types'
 
 /** GITHUB STATUS (docs/github.md): what main derives, and the board it builds on the stand-in gh. */
@@ -174,6 +174,15 @@ describe('board keys', () => {
   })
 })
 
+describe('the TRIAGE search', () => {
+  it('leaves out issues you opened yourself: they are your to-do, not unanswered', () => {
+    expect(triageSearch(['octo/tern', 'octo/lumen'])).toBe(
+      'is:open no:assignee no:label comments:0 -author:@me repo:octo/tern repo:octo/lumen',
+    )
+    expect(triageSearch([])).toBe('is:open no:assignee no:label comments:0 -author:@me user:@me')
+  })
+})
+
 describe('buildQueue', () => {
   const input = (over: Partial<QueueInput> = {}): QueueInput => ({
     review: [],
@@ -188,6 +197,48 @@ describe('buildQueue', () => {
     me: 'octo',
     now: NOW,
     ...over,
+  })
+
+  it('marks a review or a triage issue whose author contributes for the first time', () => {
+    // A maintainer sorts outside contributions by who sent them: a first PR wants a kinder,
+    // sooner look. GraphQL's authorAssociation says it, in the query the queue already sends.
+    const issue = (n: number, association: string) => ({
+      number: n,
+      title: 'x',
+      url: `https://github.com/octo/tern/issues/${n}`,
+      createdAt: new Date(NOW - DAY).toISOString(),
+      repository: { nameWithOwner: 'octo/tern', isPrivate: false },
+      author: { login: `u${n}` },
+      authorAssociation: association,
+    })
+    const { items } = buildQueue(
+      input({
+        review: [
+          pull({
+            number: 1,
+            url: 'https://github.com/octo/tern/pull/1',
+            authorAssociation: 'FIRST_TIME_CONTRIBUTOR',
+          }),
+          pull({
+            number: 2,
+            url: 'https://github.com/octo/tern/pull/2',
+            authorAssociation: 'MEMBER',
+          }),
+          pull({ number: 3, url: 'https://github.com/octo/tern/pull/3' }),
+        ],
+        triage: [issue(4, 'FIRST_TIMER'), issue(5, 'CONTRIBUTOR')],
+      }),
+    )
+    const newcomer = (id: string) => items.find((item) => item.id === id)?.newcomer ?? false
+    expect(newcomer('pr:octo/tern#1')).toBe(true)
+    expect(newcomer('pr:octo/tern#2')).toBe(false)
+    expect(newcomer('pr:octo/tern#3')).toBe(false)
+    expect(newcomer('triage:octo/tern#4')).toBe(true)
+    expect(newcomer('triage:octo/tern#5')).toBe(false)
+    // Asked for in every search that lists someone else's work.
+    expect(
+      ALL_QUERIES.find((q) => q.includes('query Queue'))?.match(/authorAssociation/g)?.length,
+    ).toBeGreaterThanOrEqual(3)
   })
 
   it('says open Dependabot alerts in SECURITY beside the private reports, with no made-up age', () => {

@@ -166,6 +166,19 @@ describe('GithubWidget', () => {
     expect(held.tab).toBeUndefined()
   })
 
+  it('marks a first contribution in QUEUE, and a Dependabot row, with no made-up age', async () => {
+    await mount({ tab: 'queue' })
+    await push(await boardOf('demo'))
+    // The stand-in's Korean translation is a first contribution.
+    const marks = screen.getAllByTestId('github-newcomer')
+    expect(marks).toHaveLength(1)
+    expect(marks[0]?.closest('[data-testid=github-queue-row]')?.textContent).toMatch(/Korean/)
+    const alerts = screen
+      .getAllByTestId('github-queue-row')
+      .find((row) => /Dependabot alert/.test(row.textContent ?? ''))
+    expect(alerts?.querySelector('.age')?.textContent).toBe('—')
+  })
+
   it("takes a repository's card away as its tile is pressed into the runs", async () => {
     const view = await mount({ tab: 'repos' })
     const board = await boardOf('demo')

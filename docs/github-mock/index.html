@@ -550,7 +550,7 @@ function viewQueue(v) {
   const q = queue().filter((x) => qMatch(x, state.filter));
   if (!q.length) { v.innerHTML = '<div class="empty"><b>Nothing waits on you</b>last read 14:22 · next 14:25</div>'; return; }
   let group = null;
-  const groups = { danger: 'Broken or blocked', warn: 'Waiting too long', info: 'For you', '': 'Triage · nobody has answered' };
+  const groups = { danger: 'Needs you now', warn: 'Needs you soon', info: 'For you', '': 'Triage · nobody has answered' };
   for (const x of q) {
     if (x.w !== group) { group = x.w; v.insertAdjacentHTML('beforeend', `<div class="sep">${groups[group]} <b>${q.filter((y) => y.w === group).length}</b></div>`); }
     const el = document.createElement('div'); el.className = `row r-q ${x.w}${x.w === '' ? ' quiet' : ''}${state.fresh.has(x) ? ' fx-fresh' : ''}`; el.tabIndex = 0;

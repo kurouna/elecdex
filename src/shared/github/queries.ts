@@ -8,7 +8,7 @@
 const PR_FIELDS = `
   number title url createdAt updatedAt isDraft additions deletions
   repository { nameWithOwner isPrivate }
-  author { login }`
+  author { login } authorAssociation`
 
 export const QUEUE_QUERY = `query Queue($triage: String!) {
   review: search(query: "is:open is:pr review-requested:@me archived:false", type: ISSUE, first: 20) {
@@ -20,14 +20,14 @@ export const QUEUE_QUERY = `query Queue($triage: String!) {
   }
   assigned: search(query: "is:open assignee:@me archived:false", type: ISSUE, first: 20) {
     nodes {
-      ... on Issue { number title url createdAt repository { nameWithOwner isPrivate } author { login } }
-      ... on PullRequest { number title url createdAt repository { nameWithOwner isPrivate } author { login } }
+      ... on Issue { number title url createdAt repository { nameWithOwner isPrivate } author { login } authorAssociation }
+      ... on PullRequest { number title url createdAt repository { nameWithOwner isPrivate } author { login } authorAssociation }
     }
   }
   triage: search(query: $triage, type: ISSUE, first: 20) {
     nodes {
-      ... on Issue { number title url createdAt repository { nameWithOwner isPrivate } author { login } }
-      ... on PullRequest { number title url createdAt repository { nameWithOwner isPrivate } author { login } }
+      ... on Issue { number title url createdAt repository { nameWithOwner isPrivate } author { login } authorAssociation }
+      ... on PullRequest { number title url createdAt repository { nameWithOwner isPrivate } author { login } authorAssociation }
     }
   }
 }`
@@ -112,8 +112,12 @@ export function graphqlBody(query: string, variables: Record<string, string> = {
   return JSON.stringify({ query, variables })
 }
 
-/** The TRIAGE search over the watched repositories: open, unanswered, unlabelled, unassigned. */
+/**
+ * The TRIAGE search over the watched repositories: open, unanswered, unlabelled, unassigned, and
+ * not opened by you (your own are your to-do, not unanswered).
+ */
 export function triageSearch(repos: readonly string[]): string {
-  if (repos.length === 0) return 'is:open no:assignee no:label comments:0 user:@me'
-  return `is:open no:assignee no:label comments:0 ${repos.map((repo) => `repo:${repo}`).join(' ')}`
+  const base = 'is:open no:assignee no:label comments:0 -author:@me'
+  if (repos.length === 0) return `${base} user:@me`
+  return `${base} ${repos.map((repo) => `repo:${repo}`).join(' ')}`
 }

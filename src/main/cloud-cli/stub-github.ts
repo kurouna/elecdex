@@ -183,6 +183,8 @@ function graphql(body: string, now: number): string {
               'jiho-k',
               4 * DAY,
               now,
+              // A first contribution, so QUEUE's 1ST mark shows in the stand-in's queue.
+              { authorAssociation: 'FIRST_TIME_CONTRIBUTOR' },
             ),
             pr(
               'starfield-org/starfield',

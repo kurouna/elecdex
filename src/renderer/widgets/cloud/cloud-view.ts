@@ -73,6 +73,15 @@ export function periodText(ms: number): string {
   return `every ${Math.round(ms / 86_400_000)} day`
 }
 
+/**
+ * A tab's count in the colour of the heaviest row behind it (danger, then warn), so the tab to
+ * look at shows from the tab strip; none when only info and quiet rows are there.
+ */
+export function heaviest(rows: readonly { weight: string }[]): 'danger' | 'warn' | null {
+  if (rows.some((row) => row.weight === 'danger')) return 'danger'
+  return rows.some((row) => row.weight === 'warn') ? 'warn' : null
+}
+
 /** The ledger card's rows at most: the busiest probes, then one line for the rest. */
 export const LEDGER_CARD_ROWS = 12
 

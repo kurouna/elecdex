@@ -11,6 +11,7 @@ import {
   readAwsPane,
 } from '@shared/aws/board'
 import { DRILL } from '@shared/aws/drill'
+import { billedName } from '@shared/aws/service-names'
 import { TRAIL_MAX } from '@shared/aws/trail'
 import type {
   AttentionItem,
@@ -42,6 +43,7 @@ import { seen } from '../../stores/window-state.svelte.ts'
 import {
   ageText,
   clockText,
+  heaviest,
   ledgerCardRows,
   ledgerLine,
   linkView,
@@ -67,6 +69,7 @@ import {
   refusedPolicy,
   regionShort,
   regionTone,
+  shareText,
 } from './aws-view.ts'
 import PulseBand from './PulseBand.svelte'
 import {
@@ -146,6 +149,10 @@ const inRegion = <T extends { region: string | null }>(rows: readonly T[]): T[] 
     : rows.filter((row) => row.region === null || row.region === choices.region)
 
 const attention = $derived(inRegion(board?.attention ?? []))
+/** COST's month across its services, for each one's share. */
+const costTotal = $derived(
+  (board?.cost.ce.services ?? board?.cost.services ?? []).reduce((sum, x) => sum + x.usd, 0),
+)
 const shownAttention = $derived(
   tagFilter === 'all' ? attention : attention.filter((a) => a.tag === tagFilter),
 )
@@ -446,7 +453,12 @@ $effect(() => () => resting.dispose())
 /** An ATTENTION row's card: what the row has no room for - since when, its whole region, where it leads, why. */
 function attentionCard(item: AttentionItem) {
   return {
-    head: item.since === null ? 'as of the last reading' : `since ${cardTime(item.since)}`,
+    head:
+      item.since !== null
+        ? `since ${cardTime(item.since)}`
+        : item.due !== undefined
+          ? `runs out ${cardTime(item.due)}`
+          : 'as of the last reading',
     side: item.region ?? 'global',
     rows: [
       {
@@ -644,7 +656,7 @@ const TABS: readonly [AwsTab, string][] = [
 
     <div class="tabs" role="tablist" aria-label="aws status">
       {#each TABS as [id, label] (id)}
-        <button type="button" role="tab" aria-selected={choices.drill === null ? choices.tab === id : choices.from === id} onclick={() => selectTab(id)} data-testid="aws-tab-{id}">{label}{#if id === 'attention'}<em>{attention.length}</em>{/if}</button>
+        <button type="button" role="tab" aria-selected={choices.drill === null ? choices.tab === id : choices.from === id} onclick={() => selectTab(id)} data-testid="aws-tab-{id}">{label}{#if id === 'attention'}<em data-weight={heaviest(attention)}>{attention.length}</em>{/if}</button>
       {/each}
     </div>
 
@@ -793,7 +805,7 @@ const TABS: readonly [AwsTab, string][] = [
           {#if board.cost.quota.unavailable}<p class="ask-text">{board.cost.quota.unavailable}</p>{/if}
           <div class="sep">by service · {board.cost.ce.services ? 'Cost Explorer, to yesterday' : 'the billing metric'}</div>
           {#each board.cost.ce.services ?? board.cost.services as s (s.name)}
-            <div class="row c"><span class="title">{s.name}</span><span class="meterbar"><i style:--share={s.usd / Math.max(1, ...(board.cost.ce.services ?? board.cost.services).map((x) => x.usd))}></i></span><span class="mono right">{money(s.usd, false)}</span></div>
+            <div class="row c"><span class="title">{billedName(s.name)}</span><span class="mono right">{money(s.usd, false)}</span><span class="mono right dim">{shareText(s.usd, costTotal)}</span><span class="meterbar"><i style:--share={s.usd / Math.max(1, ...(board.cost.ce.services ?? board.cost.services).map((x) => x.usd))}></i></span></div>
           {:else}
             <p class="ask-text">No service reported yet this month.</p>
           {/each}
@@ -966,7 +978,9 @@ const TABS: readonly [AwsTab, string][] = [
 .tip { position: absolute; top: 0.1rem; left: 30%; font-family: var(--font-mono); font-size: var(--step--1); background: var(--surface-2); border: 1px solid var(--panel-border); padding: 0 0.4rem; }
 .row.a { grid-template-columns: 6rem minmax(0, 1fr) 6rem 3rem; }
 .row.s { grid-template-columns: 9rem 9rem 8rem minmax(0, 1fr) 7rem; }
-.row.c { grid-template-columns: 12rem minmax(0, 1fr) 6rem; }
+/* Name, amount and share together, the bar after them and no longer than it needs to be: on a
+   wide pane the amount once sat at the far end, a pane's width from its name. */
+.row.c { grid-template-columns: 12rem 6rem 3.5rem minmax(0, 24rem); }
 .row.t { grid-template-columns: 3.4rem 8rem minmax(0, 1fr) 5rem; }
 @container cloudview (max-width: 42rem) {
   .row.s { grid-template-columns: 8rem 7rem minmax(0, 1fr) 6rem; }

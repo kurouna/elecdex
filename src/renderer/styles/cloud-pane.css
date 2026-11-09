@@ -228,6 +228,36 @@
   margin-left: 0.3rem;
 }
 
+/* The count takes the colour of the heaviest row behind its tab (heaviest, cloud-view.ts). */
+.cloudpane .tabs em[data-weight="danger"] {
+  color: var(--danger);
+}
+
+.cloudpane .tabs em[data-weight="warn"] {
+  color: var(--warn);
+}
+
+/* On the selected tab's filled ground the colour would vanish: a small pip says it instead. */
+.cloudpane .tabs [aria-selected="true"] em[data-weight] {
+  color: inherit;
+}
+
+.cloudpane .tabs [aria-selected="true"] em[data-weight]::before {
+  content: "";
+  display: inline-block;
+  width: 0.4em;
+  height: 0.4em;
+  margin-right: 0.25em;
+  vertical-align: 0.1em;
+  background: var(--danger);
+  /* Outlined in the tab's own text colour, so it shows on any theme's filled tab. */
+  box-shadow: 0 0 0 1px currentColor;
+}
+
+.cloudpane .tabs [aria-selected="true"] em[data-weight="warn"]::before {
+  background: var(--warn);
+}
+
 .cloudpane .bar {
   display: flex;
   flex-wrap: wrap;

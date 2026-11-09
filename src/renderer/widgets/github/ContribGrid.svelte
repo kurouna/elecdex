@@ -1,6 +1,6 @@
 <script lang="ts">
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { heatLevel } from './github-view.ts'
+import { heatLevel, heatPad } from './github-view.ts'
 
 /**
  * The contribution grid, GITHUB STATUS's own band (docs/github.md §5): 53 weeks by 7 days on one
@@ -60,14 +60,18 @@ $effect(() => {
   g.clearRect(0, 0, width, height)
   const style = getComputedStyle(target)
   const accent = style.getPropertyValue('--accent').trim() || '#9fd'
-  const alphas = [0.08, 0.3, 0.5, 0.75, 1]
   for (let i = 0; i < weeks * 7; i++) {
     const level = heatLevel(days[start + i] ?? 0)
+    const pad = heatPad(level)
     const x = Math.floor(i / 7) * (cell + GAP)
     const y = (i % 7) * (cell + GAP)
-    g.globalAlpha = alphas[level] ?? 1
+    g.globalAlpha = pad.alpha
     g.fillStyle = accent
+    // The busiest days glow like lit pads; drawn once, as the rest of the grid is.
+    g.shadowColor = accent
+    g.shadowBlur = pad.glow * cell * 0.45
     g.fillRect(x, y, cell, cell)
+    g.shadowBlur = 0
     if (level === 4 && cell > 5) {
       // A lit pad: the busiest days get a bright core rather than only a solid square.
       g.globalAlpha = 1

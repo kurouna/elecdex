@@ -26,6 +26,8 @@ export interface QueueItem {
   /** When it started waiting (ms), or null when no reading says (a count of alerts or reports). */
   since: number | null
   by: string | null
+  /** Its author's first contribution to the repository (FIRST_TIME_CONTRIBUTOR, FIRST_TIMER). */
+  newcomer?: true
   mine: boolean
   /** One sentence for its card: why it is here. */
   why: string

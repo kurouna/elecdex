@@ -328,7 +328,8 @@ function certificateFinding(
     names: [cert.domain],
     region: cert.region,
     item: { service: 'acm', id: cert.arn },
-    since: now,
+    since: null,
+    due: cert.expires,
     why:
       cert.type === 'IMPORTED'
         ? 'An imported certificate is never renewed by ACM.'
@@ -351,7 +352,8 @@ function domainFinding(
       tag: 'EXPIRY',
       title: `${domain.name} expires in ${left}d${domain.auto ? '' : ' · auto-renew off'}`,
       names: [domain.name],
-      since: now,
+      since: null,
+      due: domain.expires,
       why: 'Route 53 Domains: the registration ends.',
     }),
   ]
@@ -383,6 +385,7 @@ function commitmentFindings(r: AwsReadings): AttentionItem[] {
         title: `${c.what} ends in ${left}d`,
         region: c.region,
         since: null,
+        ...(c.end === null ? {} : { due: c.end }),
         why: 'After it ends the usage it covered bills On-Demand.',
       }),
     ]
@@ -583,6 +586,23 @@ export function attention(r: AwsReadings): AttentionItem[] {
   return items
 }
 
+/**
+ * Within a weight, what to look at first: what is happening now, then what is open to the world,
+ * then what runs out on a date (soonest first), then money, then support. The tag's spelling
+ * once ordered them, a budget's forecast above a certificate ending in ten days.
+ */
+const TAG_ORDER: readonly AttentionItem['tag'][] = [
+  'ALARM',
+  'HEALTH',
+  'STACK',
+  'SECURITY',
+  'EXPIRY',
+  'BUDGET',
+  'COST',
+  'PLAN',
+  'SUPPORT',
+]
+
 function findingsOf(r: AwsReadings): AttentionItem[] {
   const byId = new Map<string, AttentionItem>()
   for (const item of [
@@ -599,7 +619,8 @@ function findingsOf(r: AwsReadings): AttentionItem[] {
   return [...byId.values()].sort(
     (a, b) =>
       ORDER[a.weight] - ORDER[b.weight] ||
-      a.tag.localeCompare(b.tag) ||
+      TAG_ORDER.indexOf(a.tag) - TAG_ORDER.indexOf(b.tag) ||
+      sinceOrder(a.due ?? null, b.due ?? null) ||
       sinceOrder(a.since, b.since) ||
       a.id.localeCompare(b.id),
   )

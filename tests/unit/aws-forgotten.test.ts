@@ -517,9 +517,9 @@ describe('the order and KEEP', () => {
       },
     )
     const items = attention(r)
-    // Both warn: by tag, COST before HEALTH.
-    expect(items.map((i) => i.id)).toEqual(['cost:forgotten', `health:dlq:${R}:orders-dlq`])
-    expect(items[1]?.title).toBe('2,140 in dead-letter queue orders-dlq')
+    // HEALTH before COST within a weight: what is happening first, then money.
+    expect(items.map((i) => i.id)).toEqual([`health:dlq:${R}:orders-dlq`, 'cost:forgotten'])
+    expect(items[0]?.title).toBe('2,140 in dead-letter queue orders-dlq')
     const kept = readings(
       { volumes: { [R]: [volume()] } },
       {

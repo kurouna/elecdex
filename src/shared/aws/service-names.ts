@@ -1,3 +1,4 @@
+import { TILE } from './labels.js'
 import type { AwsService } from './types.js'
 
 /**
@@ -78,6 +79,26 @@ export function billedNotListed(
       return tiles === undefined || !tiles.some((t) => present.has(t))
     })
     .sort((a, b) => b.usd - a.usd)
+}
+
+/**
+ * A billed service as ACTIVE and RESOURCES name it ("AWSELB" → "Load balancers"): its tile's
+ * label when it bills for one tile, a short name for those that bill for several, else the
+ * product code made readable. COST once listed the codes themselves.
+ */
+const BILLED_AS: Partial<Record<string, string>> = {
+  AmazonEC2: 'EC2',
+  AmazonVPC: 'VPC',
+  AmazonCloudWatch: 'CloudWatch',
+  AmazonES: 'OpenSearch',
+}
+
+export function billedName(name: string): string {
+  const fixed = BILLED_AS[name]
+  if (fixed !== undefined) return fixed
+  const tiles = SERVICE_TILES[name]
+  const only = tiles?.length === 1 ? tiles[0] : undefined
+  return only === undefined ? serviceNameText(name) : TILE[only].label
 }
 
 /** The name as people read it: "AmazonKinesis" → "Amazon Kinesis". */

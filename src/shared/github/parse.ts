@@ -138,6 +138,8 @@ export const PullSchema = z.object({
   deletions: z.number().optional(),
   repository: Repo,
   author: Who,
+  /** FIRST_TIME_CONTRIBUTOR, FIRST_TIMER, CONTRIBUTOR, MEMBER, OWNER… (GraphQL's CommentAuthorAssociation). */
+  authorAssociation: z.string().nullable().optional(),
   reviewDecision: z.string().nullable().optional(),
   mergeable: z.string().nullable().optional(),
   commits: z
@@ -160,6 +162,7 @@ export const IssueSchema = z.object({
   createdAt: z.string(),
   repository: Repo,
   author: Who,
+  authorAssociation: z.string().nullable().optional(),
 })
 
 export type Issue = z.infer<typeof IssueSchema>

@@ -157,3 +157,10 @@ export function credentialLines(
         : view.oldKeys.map((k) => `${masked ? MASKED : k.user} ${k.days}d`).join(', '),
   }
 }
+
+/** COST's share of the month beside a service's amount: "36%", "<1%", nothing for an empty month. */
+export function shareText(usd: number, total: number): string {
+  if (total <= 0) return ''
+  const pct = (usd / total) * 100
+  return pct > 0 && pct < 0.5 ? '<1%' : `${Math.round(pct)}%`
+}

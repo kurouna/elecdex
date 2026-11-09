@@ -27,6 +27,7 @@ import {
   tileMoney,
 } from '../../src/renderer/widgets/aws/resources-view.js'
 import {
+  heaviest,
   LEDGER_CARD_ROWS,
   ledgerCardRows,
   ledgerLine,
@@ -453,5 +454,16 @@ describe('the ledger card', () => {
     expect(shown.every((p) => rows.some((r) => r.label === p.id))).toBe(true)
     // A few probes are listed whole, and one that called nothing is left out.
     expect(ledgerCardRows(probes.slice(0, 3)).map((r) => r.label)).toEqual(['p2', 'p1'])
+  })
+})
+
+describe("a tab's count", () => {
+  it('takes the colour of the heaviest row behind it, and none when nothing weighs', () => {
+    const w = (...weights: ('danger' | 'warn' | 'info' | 'quiet')[]) =>
+      weights.map((weight) => ({ weight }))
+    expect(heaviest(w('info', 'danger', 'warn'))).toBe('danger')
+    expect(heaviest(w('quiet', 'warn'))).toBe('warn')
+    expect(heaviest(w('info', 'quiet'))).toBeNull()
+    expect(heaviest([])).toBeNull()
   })
 })

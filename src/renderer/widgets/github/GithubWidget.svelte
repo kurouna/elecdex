@@ -22,6 +22,7 @@ import { seen } from '../../stores/window-state.svelte.ts'
 import {
   ageText,
   clockText,
+  heaviest,
   ledgerCardRows,
   ledgerLine,
   linkView,
@@ -36,6 +37,7 @@ import type { WidgetProps } from '../registry.ts'
 import ContribGrid from './ContribGrid.svelte'
 import {
   alertsText,
+  barShares,
   compact,
   githubBadge,
   KIND_LABEL,
@@ -45,6 +47,7 @@ import {
   queueMatches,
   refreshNote,
   repoLabel,
+  sparkPoints,
   titleOf,
   viewsText,
 } from './github-view.ts'
@@ -350,6 +353,9 @@ function queueCard(item: QueueItem) {
         label: 'repository',
         value: `${fullName(item.repo, item.private)}${item.number !== null ? ` #${item.number}` : ''}`,
       },
+      ...(item.newcomer
+        ? [{ label: 'author', value: 'a first contribution to the repository' }]
+        : []),
       { label: 'opens', value: 'github.com, in your browser' },
     ],
     note: item.why,
@@ -469,7 +475,7 @@ const short = $derived(height < 30 * 16)
     <div class="tabs" role="tablist" aria-label="github status">
       <!-- REPOS first, at the left, and the tab a pane opens on (the user's decision 2026-11-08). -->
       {#each [['repos', 'REPOS', board?.repos.length], ['queue', 'QUEUE', board?.queue.length], ['inbox', 'INBOX', board?.inbox.readable ? board.inbox.items.filter((item) => item.unread).length : '—'], ['events', 'EVENTS', board?.events.length]] as [id, label, count] (id)}
-        <button type="button" role="tab" aria-selected={choices.tab === id} onclick={() => selectTab(id as Tab)} data-testid="github-tab-{id}">{label}{#if count !== undefined}<em>{count}</em>{/if}</button>
+        <button type="button" role="tab" aria-selected={choices.tab === id} onclick={() => selectTab(id as Tab)} data-testid="github-tab-{id}">{label}{#if count !== undefined}<em data-weight={id === 'queue' ? heaviest(board?.queue ?? []) : null}>{count}</em>{/if}</button>
       {/each}
     </div>
 
@@ -519,7 +525,7 @@ const short = $derived(height < 30 * 16)
                 >
                   <span class="kind" data-kind={item.kind}>{KIND_LABEL[item.kind]}</span>
                   <span class="repo">{repoLabel(item.repo, me, item.private, masked)}</span>
-                  <span class="title">{#if item.number !== null}<span class="num">#{item.number}</span>{/if}{titleOf(item.title, item.private, masked)}</span>
+                  <span class="title">{#if item.number !== null}<span class="num">#{item.number}</span>{/if}{#if item.newcomer}<span class="first" data-testid="github-newcomer">1ST</span>{/if}{titleOf(item.title, item.private, masked)}</span>
                   <span class="tag" data-weight={item.tagWeight}>{item.tag}</span>
                   <span class="age">{item.since === null ? '—' : ageText(item.since, now)}</span>
                   <span class="go" aria-hidden="true">↗</span>
@@ -636,9 +642,9 @@ const short = $derived(height < 30 * 16)
                 data-testid="github-tile"
               >
                 <span class="nm"><span class="ci" data-state={tile.runs[tile.runs.length - 1] ?? 'none'}></span><span class="t">{repoLabel(tile.name, me, tile.private, masked)}</span>{#if tile.private}<span class="lock">PRIVATE</span>{/if}</span>
-                <span class="stars"><b>★ {compact(tile.stars)}</b><span class:zero={!tile.starsDelta7}>{tile.starsDelta7 === null ? '' : `${tile.starsDelta7 >= 0 ? '+' : ''}${tile.starsDelta7} 7d`}</span></span>
+                <span class="stars"><b>★ {compact(tile.stars)}</b><span class:zero={!tile.starsDelta7}>{tile.starsDelta7 === null ? '' : `${tile.starsDelta7 >= 0 ? '+' : ''}${tile.starsDelta7} 7d`}</span>{#if sparkPoints(tile.starSpark, 60, 14) !== ''}<svg class="spark" viewBox="-1 -1 62 16" preserveAspectRatio="none" aria-hidden="true" data-testid="github-spark"><polyline points={sparkPoints(tile.starSpark, 60, 14)} /></svg>{/if}</span>
                 <span class="tfacts"><span>forks<b>{compact(tile.forks)}</b></span><span>issues<b>{tile.issues}</b></span><span>PRs<b>{tile.pulls}</b></span><span>alerts<b class:danger={typeof tile.alerts === 'number' && tile.alerts > 0} class:dim={typeof tile.alerts !== 'number'}>{alertsText(tile.alerts)}</b></span></span>
-                <span class="runs"><small>runs</small>{#each tile.runs as state, i (i)}<span class="ci" data-state={state}></span>{:else}<small>none</small>{/each}</span>
+                <span class="runs"><small>runs</small>{#each tile.runs as state, i (i)}<span class="ci" data-state={state}></span>{:else}<small>none</small>{/each}{#if Array.isArray(tile.views14) && barShares(tile.views14).length > 0}<small class="vlabel">views</small><svg class="views" viewBox="0 0 {tile.views14.length * 3} 10" preserveAspectRatio="none" aria-hidden="true" data-testid="github-views">{#each barShares(tile.views14) as share, i (i)}<rect x={i * 3} y={10 - Math.max(0.6, share * 10)} width="2" height={Math.max(0.6, share * 10)} />{/each}</svg>{/if}</span>
                 <span class="rl">{#if tile.release}<span class="t">release&nbsp;<b>{hidden(tile.release.tag, tile.private)}</b>{#if tile.release.prerelease}<span class="pre">PRE</span>{/if} · {ageText(tile.release.at, now)}{#if tile.release.ahead} · +{tile.release.ahead}&nbsp;since{/if}</span><span>↓ <b>{compact(tile.release.downloads)}</b></span>{:else}<span class="t">no release</span>{/if}</span>
               </button>
             {/each}
@@ -835,11 +841,25 @@ const short = $derived(height < 30 * 16)
 
 .runs { display: flex; align-items: center; gap: 0.22rem; }
 
+/* The month's stars as a line, and fourteen days of views as bars: shapes the numbers lack. */
+.spark { width: 4.5rem; height: 1rem; margin-left: auto; overflow: visible; }
+
+.spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.4; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+
+.runs .vlabel { margin-left: auto; }
+
+.views { width: 3.6rem; height: 0.7rem; }
+
+.views rect { fill: color-mix(in srgb, var(--accent) 65%, transparent); }
+
 .runs small { font-size: var(--step--2); color: var(--text-muted); margin-right: 0.3rem; letter-spacing: var(--tracking-wide); text-transform: uppercase; }
 
 .rl { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); border-top: 1px dashed var(--panel-rule); padding-top: 0.2rem; white-space: nowrap; }
 
 .rl b { color: var(--text); font-weight: 400; }
+
+/* A first contribution: a small mark before the title, in the accent's quiet outline. */
+.first { margin-right: 0.4rem; padding: 0 0.25rem; border: 1px solid var(--accent); color: var(--accent); font-size: var(--step--2); letter-spacing: var(--tracking-wide); }
 
 /* The release line wraps at its dots rather than cutting "+38 since" short in a narrow tile. */
 .rl { flex-wrap: wrap; row-gap: 0; }

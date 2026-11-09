@@ -34,6 +34,7 @@ import { DRILL, facets, filterRows, itemColumns, sortRows } from '../../src/shar
 import { stackTrouble, stoppedAt } from '../../src/shared/aws/facts'
 import { isIdle, seriesKey } from '../../src/shared/aws/forgotten'
 import { GROUPS } from '../../src/shared/aws/inventory'
+import { TILE } from '../../src/shared/aws/labels'
 import { parseCredentialReport, parseWith } from '../../src/shared/aws/parse'
 import {
   BucketListSchema,
@@ -44,6 +45,7 @@ import {
   type Series,
 } from '../../src/shared/aws/parse-resources'
 import { type AwsReadings, emptyReadings } from '../../src/shared/aws/readings'
+import { billedName } from '../../src/shared/aws/service-names'
 import { parseTrail, pulseBins, trailName } from '../../src/shared/aws/trail'
 import type { AwsBoard, AwsService as AwsKind, DrillRow } from '../../src/shared/aws/types'
 import { sinceOrder } from '../../src/shared/cloud-cli/ledger'
@@ -297,6 +299,46 @@ describe('ATTENTION', () => {
     expect(DRILL.ec2.columns.find((c) => c.key === 'up')?.kind).toBe('date')
     expect(label('up')).toBe('up since')
     expect(label('cpu')).toBe('cpu % 7d')
+  })
+
+  it('names a billed service as ACTIVE and RESOURCES do, not by its product code', () => {
+    // COST listed "AmazonEC2" and "AWSELB" beside ACTIVE's "EC2" and "Load balancers".
+    expect(billedName('AmazonEC2')).toBe('EC2')
+    expect(billedName('AWSELB')).toBe(TILE.elb.label)
+    expect(billedName('AmazonRDS')).toBe(TILE.rds.label)
+    expect(billedName('AmazonVPC')).toBe('VPC')
+    expect(billedName('AmazonCloudWatch')).toBe('CloudWatch')
+    expect(billedName('AmazonES')).toBe('OpenSearch')
+    expect(billedName('AmazonFooBar')).toBe('Amazon FooBar')
+    expect(billedName('Tax')).toBe('Tax')
+  })
+
+  it("orders a weight by what is most pressing, not by the tag's spelling", () => {
+    // Within a weight the rows went by the tag alphabetically: BUDGET above EXPIRY, a
+    // certificate ending in 10 days under a budget's forecast.
+    const cert = (days: number) => ({
+      arn: `arn:${days}`,
+      domain: `d${days}.example`,
+      type: 'AMAZON_ISSUED',
+      expires: NOW + days * DAY,
+      inUse: true,
+      key: 'RSA_2048',
+      status: 'ISSUED',
+    })
+    const items = attention(
+      readings({
+        certificates: { [R]: [cert(20), cert(10)] },
+        budgets: [{ name: 'monthly', limit: 1000, actual: 100, forecast: 1200 }],
+      }),
+    ).filter((i) => i.weight === 'warn')
+    expect(items.map((i) => i.title)).toEqual([
+      'd10.example expires in 10d',
+      'd20.example expires in 20d',
+      'monthly: forecast $1200 over $1000',
+    ])
+    // Nor do they make up an age: the card says when they run out.
+    expect(items[0]?.since).toBeNull()
+    expect(items[0]?.due).toBe(NOW + 10 * DAY)
   })
 
   it('judges a stack by one rule for ATTENTION and RESOURCES alike', () => {

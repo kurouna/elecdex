@@ -14,8 +14,8 @@ export const KIND_LABEL: Record<ItemKind, string> = {
 }
 
 export const QUEUE_GROUPS: { weight: Weight; label: string }[] = [
-  { weight: 'danger', label: 'Broken or blocked' },
-  { weight: 'warn', label: 'Waiting too long' },
+  { weight: 'danger', label: 'Needs you now' },
+  { weight: 'warn', label: 'Needs you soon' },
   { weight: 'info', label: 'For you' },
   { weight: 'quiet', label: 'Triage · nobody has answered' },
 ]
@@ -111,4 +111,41 @@ export function githubBadge(
   const incident = board.incidents[0]
   if (incident === undefined) return {}
   return { badge: 'GitHub incident', badgeKind: incident.weight === 'danger' ? 'danger' : 'warn' }
+}
+
+/**
+ * A REPOS tile's star line: the month's daily totals as SVG points in a `w`×`h` box, the lowest
+ * at the bottom and a flat month through the middle; '' when there is no line to draw.
+ */
+export function sparkPoints(values: readonly number[], w: number, h: number): string {
+  if (values.length < 2) return ''
+  const low = Math.min(...values)
+  const span = Math.max(...values) - low
+  const step = w / (values.length - 1)
+  const y = (v: number) => (span === 0 ? h / 2 : h - ((v - low) / span) * h)
+  return values.map((v, i) => `${round(i * step)},${round(y(v))}`).join(' ')
+}
+
+const round = (n: number) => Math.round(n * 10) / 10
+
+/** A tile's views bars: each day's share of the busiest; none when no day had a view. */
+export function barShares(values: readonly number[]): number[] {
+  const top = Math.max(0, ...values)
+  return top === 0 ? [] : values.map((v) => v / top)
+}
+
+/**
+ * How a contribution level is drawn: the accent at `alpha`, and a glow of `glow` × the cell for
+ * the two busiest levels, lit pads on the board (github.md §5). The steps once sat close
+ * (0.08 to 1 through 0.3 and 0.5), so a pale accent drew grey squares with nothing standing out.
+ */
+export function heatPad(level: number): { alpha: number; glow: number } {
+  const pads = [
+    { alpha: 0.07, glow: 0 },
+    { alpha: 0.32, glow: 0 },
+    { alpha: 0.55, glow: 0 },
+    { alpha: 0.82, glow: 0.6 },
+    { alpha: 1, glow: 1 },
+  ]
+  return pads[Math.max(0, Math.min(4, level))] ?? { alpha: 1, glow: 1 }
 }

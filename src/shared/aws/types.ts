@@ -81,6 +81,8 @@ export interface AttentionItem {
    * when no reading says: the row shows no age then, never "now" for a state found long before.
    */
   since: number | null
+  /** When it runs out (a certificate, a domain, a commitment): the soonest goes first. */
+  due?: number
   /** The limit or rule behind it, in words (the card says it). */
   why: string
 }
