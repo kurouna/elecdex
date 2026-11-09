@@ -42,10 +42,10 @@ import { seen } from '../../stores/window-state.svelte.ts'
 import {
   ageText,
   clockText,
+  ledgerCardRows,
   ledgerLine,
   linkView,
   MASKED,
-  periodText,
   shownProblem,
 } from '../cloud/cloud-view.ts'
 import IncidentBand from '../cloud/IncidentBand.svelte'
@@ -446,7 +446,7 @@ $effect(() => () => resting.dispose())
 /** An ATTENTION row's card: what the row has no room for - since when, its whole region, where it leads, why. */
 function attentionCard(item: AttentionItem) {
   return {
-    head: `since ${cardTime(item.since)}`,
+    head: item.since === null ? 'as of the last reading' : `since ${cardTime(item.since)}`,
     side: item.region ?? 'global',
     rows: [
       {
@@ -515,7 +515,7 @@ const activity = $derived(
   ),
 )
 const alarmStarts = $derived(
-  (board?.attention ?? []).filter((a) => a.tag === 'ALARM').map((a) => a.since),
+  (board?.attention ?? []).flatMap((a) => (a.tag === 'ALARM' && a.since !== null ? [a.since] : [])),
 )
 
 let width = $state(1000)
@@ -722,7 +722,7 @@ const TABS: readonly [AwsTab, string][] = [
                 <span class="tag" data-weight={item.weight}>{item.tag}</span>
                 <span class="title">{maskIn(item.title, item.names, masked)}</span>
                 <span class="repo">{item.region ? regionShort(item.region) : 'global'}</span>
-                <span class="age">{ageText(item.since, now)}</span>
+                <span class="age">{item.since === null ? '—' : ageText(item.since, now)}</span>
               </div>
             {/each}
           {/if}
@@ -922,7 +922,7 @@ const TABS: readonly [AwsTab, string][] = [
     onpointerenter={(e) => board && card('ledger', e.currentTarget as HTMLElement, e.clientX, () => ({
       head: 'requests today · by probe',
       side: String(board?.ledger.requests ?? 0),
-      rows: [...gmdRows(), ...(board?.ledger.probes ?? []).filter((p) => p.requests > 0).map((p) => ({ label: p.id, value: `${p.requests} · ${periodText(p.every)} · ${p.cost}` }))],
+      rows: [...gmdRows(), ...ledgerCardRows(board?.ledger.probes ?? [])],
       note: `Free tier is CloudWatch's million requests a month, shared by the whole account. aws: ${board?.executable ?? 'not found'}${board?.cliVersion ? ` · ${board.cliVersion}` : ''}.`,
     }))}
     onpointerleave={() => leave('ledger')}

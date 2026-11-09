@@ -175,7 +175,7 @@ AWS 托管策略 `ReadOnlyAccess`（或 `ViewOnlyAccess` 加 `AWSBillingReadOnly
 | 标签页 | 显示内容 |
 | --- | --- |
 | **REPOS**（第一个标签页，窗格从这里打开） | 每个仓库一个图块：星标及其 7 天变化、复刻、issue、拉取请求、警报、默认分支最近的运行、最新发布（含预发布）及其后的提交数，以及有推送权限时 14 天的访问量。可从图块下钻到它的运行、打开的拉取请求和发布 |
-| **QUEUE** | 等你处理的事，每件一行，最重的在前：变红的默认分支、私密漏洞报告、失败、有冲突或被要求修改的你的拉取请求、等待批准的工作流运行、审查请求（3 天后为 warn，7 天后为 danger）、提及、指派，以及 TRIAGE——你的仓库中无人回应的 issue。筛选 ALL、MINE、REVIEW、SECURITY、MENTION、TRIAGE |
+| **QUEUE** | 等你处理的事，每件一行，最重的在前：变红的默认分支、私密漏洞报告、*未发布：* 未关闭的 Dependabot 警报（warn，每个仓库一行）、失败、有冲突或被要求修改的你的拉取请求、等待批准的工作流运行、审查请求（3 天后为 warn，7 天后为 danger）、提及、指派，以及 TRIAGE——你的仓库中无人回应的 issue。筛选 ALL、MINE、REVIEW、SECURITY、MENTION、TRIAGE |
 | **INBOX** | 原始通知。窗格不标记任何已读。细粒度（fine-grained）令牌无法读取通知，标签页会注明 |
 | **EVENTS** | 所关注仓库最近 24 小时的事件，按仓库和类型（星标、复刻、issue、拉取请求、发布、推送）折叠 |
 

@@ -362,6 +362,11 @@ export class GithubService {
         count: count ?? 0,
         private: privacy.get(repo) ?? true,
       })),
+      alerts: tiles.flatMap((tile) =>
+        typeof tile.alerts === 'number'
+          ? [{ repo: tile.name, count: tile.alerts, private: tile.private }]
+          : [],
+      ),
       me,
       now,
     })

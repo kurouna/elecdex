@@ -73,6 +73,39 @@ export function periodText(ms: number): string {
   return `every ${Math.round(ms / 86_400_000)} day`
 }
 
+/** The ledger card's rows at most: the busiest probes, then one line for the rest. */
+export const LEDGER_CARD_ROWS = 12
+
+/**
+ * The foot's card, a row a probe that called today: busiest first, at most `max` of them and a
+ * line for the rest. AWS STATUS has some fifty probes; listed whole, the card ran past its pane
+ * and lost the rows under the cut.
+ */
+export function ledgerCardRows(
+  probes: LedgerSummary['probes'],
+  max = LEDGER_CARD_ROWS,
+): { label: string; value: string }[] {
+  const called = probes
+    .filter((p) => p.requests > 0)
+    .sort((a, b) => b.requests - a.requests || a.id.localeCompare(b.id))
+  const shown = called.length > max ? called.slice(0, max - 1) : called
+  const rest = called.slice(shown.length)
+  return [
+    ...shown.map((p) => ({
+      label: p.id,
+      value: `${p.requests} · ${periodText(p.every)} · ${p.cost}`,
+    })),
+    ...(rest.length === 0
+      ? []
+      : [
+          {
+            label: `+ ${rest.length} more`,
+            value: `${rest.reduce((sum, p) => sum + p.requests, 0)} requests`,
+          },
+        ]),
+  ]
+}
+
 /**
  * What MASK hides (docs/cloud-cli.md §7): logins and private repositories' names and titles on
  * GitHub; the account, alias, ARNs, names and addresses on AWS (aws-view.ts adds those).

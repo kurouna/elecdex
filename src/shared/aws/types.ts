@@ -76,7 +76,11 @@ export interface AttentionItem {
   region: string | null
   /** The resource it is about, for the drill-down's third step; null for the account's own. */
   item: { service: AwsService; id: string } | null
-  since: number
+  /**
+   * When it began (an alarm's state change, a stack's last update, a key's creation), or null
+   * when no reading says: the row shows no age then, never "now" for a state found long before.
+   */
+  since: number | null
   /** The limit or rule behind it, in words (the card says it). */
   why: string
 }

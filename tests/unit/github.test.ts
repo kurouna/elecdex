@@ -184,9 +184,30 @@ describe('buildQueue', () => {
     red: [],
     approvals: [],
     advisories: [],
+    alerts: [],
     me: 'octo',
     now: NOW,
     ...over,
+  })
+
+  it('says open Dependabot alerts in SECURITY beside the private reports, with no made-up age', () => {
+    // github.md §2 put Dependabot's alerts in QUEUE's SECURITY; only the private reports were
+    // there, each aged "now" for ever.
+    const { items, urls } = buildQueue(
+      input({
+        advisories: [{ repo: 'octo/tern', count: 1, private: false }],
+        alerts: [
+          { repo: 'octo/tern', count: 3, private: false },
+          { repo: 'octo/quiet', count: 0, private: false },
+        ],
+      }),
+    )
+    const security = items.filter((item) => item.kind === 'security')
+    expect(security.map((item) => [item.weight, item.tag, item.title, item.since])).toEqual([
+      ['danger', 'Security', '1 private vulnerability report to triage', null],
+      ['warn', 'Dependabot', '3 open Dependabot alerts', null],
+    ])
+    expect(urls.get('alerts:octo/tern')).toBe('https://github.com/octo/tern/security/dependabot')
   })
 
   it('shows the same thing once, in its heavier place, heaviest and oldest first', () => {

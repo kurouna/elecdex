@@ -22,10 +22,10 @@ import { seen } from '../../stores/window-state.svelte.ts'
 import {
   ageText,
   clockText,
+  ledgerCardRows,
   ledgerLine,
   linkView,
   MASKED,
-  periodText,
   shownProblem,
 } from '../cloud/cloud-view.ts'
 import IncidentBand from '../cloud/IncidentBand.svelte'
@@ -343,7 +343,7 @@ const hidden = (text: string, isPrivate: boolean) => (masked && isPrivate ? MASK
 /** A queue row's card: what the row has no room for - since when, by whom, the whole name, why. */
 function queueCard(item: QueueItem) {
   return {
-    head: `waiting since ${cardTime(item.since)}`,
+    head: item.since === null ? 'as of the last reading' : `waiting since ${cardTime(item.since)}`,
     side: item.by !== null ? `by ${masked ? MASKED : item.by}` : item.mine ? 'yours' : '',
     rows: [
       {
@@ -521,7 +521,7 @@ const short = $derived(height < 30 * 16)
                   <span class="repo">{repoLabel(item.repo, me, item.private, masked)}</span>
                   <span class="title">{#if item.number !== null}<span class="num">#{item.number}</span>{/if}{titleOf(item.title, item.private, masked)}</span>
                   <span class="tag" data-weight={item.tagWeight}>{item.tag}</span>
-                  <span class="age">{ageText(item.since, now)}</span>
+                  <span class="age">{item.since === null ? '—' : ageText(item.since, now)}</span>
                   <span class="go" aria-hidden="true">↗</span>
                 </div>
               {/each}
@@ -639,7 +639,7 @@ const short = $derived(height < 30 * 16)
                 <span class="stars"><b>★ {compact(tile.stars)}</b><span class:zero={!tile.starsDelta7}>{tile.starsDelta7 === null ? '' : `${tile.starsDelta7 >= 0 ? '+' : ''}${tile.starsDelta7} 7d`}</span></span>
                 <span class="tfacts"><span>forks<b>{compact(tile.forks)}</b></span><span>issues<b>{tile.issues}</b></span><span>PRs<b>{tile.pulls}</b></span><span>alerts<b class:danger={typeof tile.alerts === 'number' && tile.alerts > 0} class:dim={typeof tile.alerts !== 'number'}>{alertsText(tile.alerts)}</b></span></span>
                 <span class="runs"><small>runs</small>{#each tile.runs as state, i (i)}<span class="ci" data-state={state}></span>{:else}<small>none</small>{/each}</span>
-                <span class="rl">{#if tile.release}<span class="t">release <b>{hidden(tile.release.tag, tile.private)}</b>{#if tile.release.prerelease}<span class="pre">PRE</span>{/if} · {ageText(tile.release.at, now)}{#if tile.release.ahead} · +{tile.release.ahead} since{/if}</span><span>↓ <b>{compact(tile.release.downloads)}</b></span>{:else}<span class="t">no release</span>{/if}</span>
+                <span class="rl">{#if tile.release}<span class="t">release&nbsp;<b>{hidden(tile.release.tag, tile.private)}</b>{#if tile.release.prerelease}<span class="pre">PRE</span>{/if} · {ageText(tile.release.at, now)}{#if tile.release.ahead} · +{tile.release.ahead}&nbsp;since{/if}</span><span>↓ <b>{compact(tile.release.downloads)}</b></span>{:else}<span class="t">no release</span>{/if}</span>
               </button>
             {/each}
           </div>
@@ -693,7 +693,7 @@ const short = $derived(height < 30 * 16)
     onpointerenter={(e) => board && card('ledger', e.currentTarget as HTMLElement, e.clientX, () => ({
       head: 'requests today · by probe',
       side: String(board?.ledger.requests ?? 0),
-      rows: (board?.ledger.probes ?? []).map((probe) => ({ label: probe.id, value: `${probe.requests} · ${periodText(probe.every)} · ${probe.cost}` })),
+      rows: ledgerCardRows(board?.ledger.probes ?? []),
       note: `${board?.ledger.notModified ?? 0} answered 304 (unchanged) and used no rate limit. gh: ${board?.executable ?? 'not found'}${board?.ghVersion ? ` · ${board.ghVersion}` : ''}.`,
     }))}
     onpointerleave={() => leave('ledger')}
@@ -840,6 +840,11 @@ const short = $derived(height < 30 * 16)
 .rl { display: flex; justify-content: space-between; gap: 0.5rem; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-dim); border-top: 1px dashed var(--panel-rule); padding-top: 0.2rem; white-space: nowrap; }
 
 .rl b { color: var(--text); font-weight: 400; }
+
+/* The release line wraps at its dots rather than cutting "+38 since" short in a narrow tile. */
+.rl { flex-wrap: wrap; row-gap: 0; }
+
+.tile .rl .t { white-space: normal; overflow: visible; }
 
 .facts { display: flex; flex-wrap: wrap; gap: 1.4rem; padding: 0.3rem 0; border-bottom: 1px solid var(--panel-rule); }
 

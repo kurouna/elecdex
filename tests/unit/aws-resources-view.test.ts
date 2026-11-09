@@ -26,7 +26,12 @@ import {
   tileGroups,
   tileMoney,
 } from '../../src/renderer/widgets/aws/resources-view.js'
-import { ledgerLine, MASKED } from '../../src/renderer/widgets/cloud/cloud-view.js'
+import {
+  LEDGER_CARD_ROWS,
+  ledgerCardRows,
+  ledgerLine,
+  MASKED,
+} from '../../src/renderer/widgets/cloud/cloud-view.js'
 
 /**
  * RESOURCES' page side (docs/aws.md §14.2, §14.6): what it words, masks and lays out from
@@ -423,5 +428,30 @@ describe("the ledger's line", () => {
         'aws',
       ),
     ).toContain('paid APIs 4 · GMD 100,000 metrics · $1.04 this month · GMD CAP REACHED')
+  })
+})
+
+describe('the ledger card', () => {
+  it('lists the busiest probes and one line for the rest, so it fits its pane', () => {
+    // AWS STATUS's fifty-odd probes ran the card past the pane, the rows under the cut lost.
+    const probes = Array.from({ length: 40 }, (_, i) => ({
+      id: `p${i}`,
+      every: 3_600_000,
+      cost: 'free' as const,
+      requests: i % 10 === 0 ? 0 : i,
+    }))
+    const rows = ledgerCardRows(probes)
+    expect(rows).toHaveLength(LEDGER_CARD_ROWS)
+    expect(rows[0]).toEqual({ label: 'p39', value: '39 · every 1 h · free' })
+    const called = probes.filter((p) => p.requests > 0)
+    const shown = called.sort((a, b) => b.requests - a.requests).slice(0, LEDGER_CARD_ROWS - 1)
+    const rest = called.slice(LEDGER_CARD_ROWS - 1)
+    expect(rows.at(-1)).toEqual({
+      label: `+ ${rest.length} more`,
+      value: `${rest.reduce((sum, p) => sum + p.requests, 0)} requests`,
+    })
+    expect(shown.every((p) => rows.some((r) => r.label === p.id))).toBe(true)
+    // A few probes are listed whole, and one that called nothing is left out.
+    expect(ledgerCardRows(probes.slice(0, 3)).map((r) => r.label)).toEqual(['p2', 'p1'])
   })
 })

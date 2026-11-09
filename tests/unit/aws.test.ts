@@ -46,6 +46,7 @@ import {
 import { type AwsReadings, emptyReadings } from '../../src/shared/aws/readings'
 import { parseTrail, pulseBins, trailName } from '../../src/shared/aws/trail'
 import type { AwsBoard, AwsService as AwsKind, DrillRow } from '../../src/shared/aws/types'
+import { sinceOrder } from '../../src/shared/cloud-cli/ledger'
 import type { CliCall, CliResult } from '../../src/shared/cloud-cli/probe'
 
 /** AWS STATUS (docs/aws.md): the judgements, the money, the drill-down, and the board on the stand-in. */
@@ -267,6 +268,35 @@ describe('ATTENTION', () => {
     expect(api?.names).toEqual(['api'])
     expect(api?.item).toEqual({ service: 'stacks', id: 'api' })
     expect(api?.why).toMatch(/previous template/)
+  })
+
+  it('gives a finding no age when no reading says when it began, after those with one', () => {
+    // Every finding without a date of its own said "now" for ever: a world-open SSH found
+    // months ago read as if it had just happened.
+    const items = attention(
+      readings({
+        stacks: {
+          [R]: [
+            { name: 'api', status: 'UPDATE_ROLLBACK_COMPLETE', at: NOW - 3_600_000, drift: null },
+          ],
+        },
+        summary: { mfa: 0, keys: 0, users: 1, roles: 1 },
+      }),
+    )
+    expect(items.find((i) => i.id === 'security:root-mfa')?.since).toBeNull()
+    expect(items.find((i) => i.tag === 'STACK')?.since).toBe(NOW - 3_600_000)
+    expect(sinceOrder(1, null)).toBeLessThan(0)
+    expect(sinceOrder(null, 1)).toBeGreaterThan(0)
+    expect(sinceOrder(null, null)).toBe(0)
+    expect(sinceOrder(1, 2)).toBeLessThan(0)
+  })
+
+  it("labels EC2's columns by what they hold: a date as since, the CPU in percent", () => {
+    // "running for" headed a date, and "cpu 7d" a percentage with no unit.
+    const label = (key: string) => DRILL.ec2.columns.find((c) => c.key === key)?.label
+    expect(DRILL.ec2.columns.find((c) => c.key === 'up')?.kind).toBe('date')
+    expect(label('up')).toBe('up since')
+    expect(label('cpu')).toBe('cpu % 7d')
   })
 
   it('judges a stack by one rule for ATTENTION and RESOURCES alike', () => {

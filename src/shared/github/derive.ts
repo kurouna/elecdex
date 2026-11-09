@@ -1,3 +1,4 @@
+import { sinceOrder } from '../cloud-cli/ledger.js'
 import type { Issue, Notification, Pull, RepoEvent } from './parse.js'
 import { subjectNumber, time } from './parse.js'
 import type {
@@ -92,7 +93,7 @@ export function htmlUrlOf(raw: string): string | null {
   if (url.hostname !== 'github.com') return null
   // A release's tag may hold slashes (changesets' `@scope/name@1.2.3`): the rest of the path is its.
   const match =
-    /^\/([^/]+\/[^/]+)(\/(pull|issues|discussions)\/\d+|\/actions\/runs\/\d+|\/actions|\/releases\/tag\/.+|\/security\/advisories|\/security)?\/?$/.exec(
+    /^\/([^/]+\/[^/]+)(\/(pull|issues|discussions)\/\d+|\/actions\/runs\/\d+|\/actions|\/releases\/tag\/.+|\/security\/advisories|\/security\/dependabot|\/security)?\/?$/.exec(
       url.pathname,
     )
   if (match === null || repoName(match[1]) === null) return null
@@ -170,6 +171,8 @@ export interface QueueInput {
     id: number
   }[]
   advisories: readonly { repo: string; count: number; private: boolean }[]
+  /** Open Dependabot alerts on watched repositories (the tiles' count). */
+  alerts: readonly { repo: string; count: number; private: boolean }[]
   me: string | null
   now: number
 }
@@ -209,6 +212,35 @@ function redCandidates(input: QueueInput): Candidate[] {
   }))
 }
 
+/**
+ * A repository's open Dependabot alerts, one row a repository (github.md §2: QUEUE's SECURITY
+ * says them as well as the private reports). The count is what the tile already reads; each
+ * alert's severity is not read, so warn rather than danger.
+ */
+function alertCandidates(input: QueueInput): Candidate[] {
+  return input.alerts
+    .filter((alert) => alert.count > 0)
+    .map((alert) => ({
+      key: `alerts:${alert.repo}`,
+      url: `https://github.com/${alert.repo}/security/dependabot`,
+      item: {
+        id: `alerts:${alert.repo}`,
+        kind: 'security',
+        weight: 'warn',
+        repo: alert.repo,
+        number: null,
+        title: `${alert.count} open Dependabot alert${alert.count > 1 ? 's' : ''}`,
+        tag: 'Dependabot',
+        tagWeight: 'warn',
+        since: null,
+        by: null,
+        mine: true,
+        why: 'Dependabot alerts open on the repository (vulnerabilityAlerts, OPEN).',
+        private: alert.private,
+      },
+    }))
+}
+
 function advisoryCandidates(input: QueueInput): Candidate[] {
   return input.advisories
     .filter((advisory) => advisory.count > 0)
@@ -224,7 +256,7 @@ function advisoryCandidates(input: QueueInput): Candidate[] {
         title: `${advisory.count} private vulnerability report${advisory.count > 1 ? 's' : ''} to triage`,
         tag: 'Security',
         tagWeight: 'danger',
-        since: input.now,
+        since: null,
         by: null,
         mine: true,
         why: 'Reported privately (security-advisories?state=triage): nobody else can see it yet.',
@@ -376,6 +408,7 @@ export function buildQueue(input: QueueInput): { items: QueueItem[]; urls: Map<s
   const candidates = [
     ...redCandidates(input),
     ...advisoryCandidates(input),
+    ...alertCandidates(input),
     ...mineCandidates(input),
     ...approvalCandidates(input),
     ...reviewCandidates(input),
@@ -393,7 +426,7 @@ export function buildQueue(input: QueueInput): { items: QueueItem[]; urls: Map<s
     const safe = htmlUrlOf(url)
     if (safe !== null) urls.set(item.id, safe)
   }
-  items.sort((a, b) => ORDER[a.weight] - ORDER[b.weight] || a.since - b.since)
+  items.sort((a, b) => ORDER[a.weight] - ORDER[b.weight] || sinceOrder(a.since, b.since))
   return { items, urls }
 }
 

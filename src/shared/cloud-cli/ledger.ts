@@ -187,3 +187,9 @@ export function linkOf(problems: readonly (CliProblem | null)[], anyReading: boo
     return anyReading ? 'partial' : kinds.has('timeout') ? 'offline' : 'error'
   return anyReading ? 'linked' : 'linking'
 }
+
+/** ATTENTION and QUEUE alike: oldest first, a row with no known start after those that have one. */
+export function sinceOrder(a: number | null, b: number | null): number {
+  if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1
+  return a - b
+}

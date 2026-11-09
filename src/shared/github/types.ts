@@ -23,8 +23,8 @@ export interface QueueItem {
   /** The verdict or the reason: FAILING, CONFLICT, REVIEW, WAITING 4D, MENTION, TRIAGE… */
   tag: string
   tagWeight: Weight
-  /** When it started waiting (ms). */
-  since: number
+  /** When it started waiting (ms), or null when no reading says (a count of alerts or reports). */
+  since: number | null
   by: string | null
   mine: boolean
   /** One sentence for its card: why it is here. */

@@ -175,7 +175,7 @@ The tabs:
 | Tab | What it shows |
 | --- | --- |
 | **REPOS** (the first tab, and the one a pane opens on) | A tile per repository: stars and their 7-day change, forks, issues, pull requests, alerts, the default branch's last runs, the latest release (prereleases included) and the commits since, and views over 14 days where you have push access. A tile drills into its runs, open pull requests and releases |
-| **QUEUE** | What waits on you, one row per thing, heaviest first: a default branch red, private vulnerability reports, your pull requests failing, conflicting or with changes requested, workflow runs waiting for approval, review requests (warn after 3 days, danger after 7), mentions, assignments, and TRIAGE - issues nobody has answered in your repositories. Filters ALL, MINE, REVIEW, SECURITY, MENTION, TRIAGE |
+| **QUEUE** | What waits on you, one row per thing, heaviest first: a default branch red, private vulnerability reports, *unreleased:* open Dependabot alerts (warn, a row a repository), your pull requests failing, conflicting or with changes requested, workflow runs waiting for approval, review requests (warn after 3 days, danger after 7), mentions, assignments, and TRIAGE - issues nobody has answered in your repositories. Filters ALL, MINE, REVIEW, SECURITY, MENTION, TRIAGE |
 | **INBOX** | The raw notifications. The pane marks nothing read. A fine-grained token cannot read notifications, and the tab says so |
 | **EVENTS** | The last 24 hours in the watched repositories, folded by repository and kind (stars, forks, issues, pull requests, releases, pushes) |
 

@@ -1,3 +1,4 @@
+import { sinceOrder } from '../cloud-cli/ledger.js'
 import { AWS_LIMITS, onExtendedSupport, stackTrouble } from './facts.js'
 import { forgotten } from './forgotten.js'
 import { type AwsReadings, type Certificate, everywhere } from './readings.js'
@@ -88,7 +89,7 @@ function healthFindings(r: AwsReadings): AttentionItem[] {
         names: [names.get(id), id],
         region,
         item: { service: 'ec2', id },
-        since: r.now,
+        since: null,
         why: 'The instance status check is impaired (describe-instance-status).',
       }),
     ),
@@ -125,7 +126,7 @@ function deadLetterFindings(r: AwsReadings): AttentionItem[] {
           names: [q.n],
           region,
           item: { service: 'sqs', id: q.n },
-          since: r.now,
+          since: null,
           why: 'A queue another queue redrives to has messages (ApproximateNumberOfMessages).',
         }),
       )
@@ -196,7 +197,7 @@ function rootFindings(r: AwsReadings): AttentionItem[] {
         weight: 'danger',
         tag: 'SECURITY',
         title: 'The root user has no MFA',
-        since: r.now,
+        since: null,
         why: 'iam get-account-summary: AccountMFAEnabled is 0.',
       }),
     )
@@ -207,7 +208,7 @@ function rootFindings(r: AwsReadings): AttentionItem[] {
         weight: 'danger',
         tag: 'SECURITY',
         title: 'The root user has access keys',
-        since: r.now,
+        since: null,
         why: 'iam get-account-summary: AccountAccessKeysPresent.',
       }),
     )
@@ -236,7 +237,7 @@ const guarddutyFindings = (r: AwsReadings): AttentionItem[] =>
             tag: 'SECURITY',
             title: `GuardDuty: ${counts?.high} high-severity finding${counts?.high === 1 ? '' : 's'}`,
             region,
-            since: r.now,
+            since: null,
             why: 'Severity 7 or more (get-findings-statistics --group-by SEVERITY).',
           }),
         ]
@@ -255,7 +256,7 @@ function openGroupFindings(r: AwsReadings): AttentionItem[] {
         title: `${group.name ?? group.id} opens ${group.ports.map((p) => p.toUpperCase()).join(', ')} to the world`,
         names: [group.name, group.id],
         region: group.region,
-        since: r.now,
+        since: null,
         why: '0.0.0.0/0 or ::/0 on port 22, 3389 or every port, on a group an instance uses.',
       }),
     )
@@ -271,7 +272,7 @@ const noMfaFindings = (r: AwsReadings): AttentionItem[] =>
         tag: 'SECURITY',
         title: `${row.user} signs in to the console without MFA`,
         names: [row.user],
-        since: r.now,
+        since: null,
         why: 'The credential report: password enabled, MFA not active.',
       }),
     )
@@ -381,7 +382,7 @@ function commitmentFindings(r: AwsReadings): AttentionItem[] {
         tag: 'EXPIRY',
         title: `${c.what} ends in ${left}d`,
         region: c.region,
-        since: r.now,
+        since: null,
         why: 'After it ends the usage it covered bills On-Demand.',
       }),
     ]
@@ -433,7 +434,7 @@ function supportFindings(r: AwsReadings): AttentionItem[] {
         names: [cluster.name],
         region: cluster.region,
         item: { service: 'eks', id: cluster.name },
-        since: r.now,
+        since: null,
         why: 'describe-cluster-versions: endOfStandardSupportDate. Extended support costs six times as much.',
       }),
     )
@@ -493,7 +494,7 @@ export function forgottenSummary(r: AwsReadings): AttentionItem | null {
     weight: usd >= AWS_LIMITS.forgottenDangerUsd ? 'danger' : 'warn',
     tag: 'COST',
     title: `${rows.length} look forgotten · ≈ ${usdText(usd)}/mo${unpriced > 0 ? ` + ${unpriced} not priced` : ''} › RESOURCES`,
-    since: r.now,
+    since: null,
     why: 'Billed and quiet by what was read (RESOURCES lists each, with what it was judged by). Nothing is stopped or deleted.',
   })
 }
@@ -525,7 +526,7 @@ const budgetFindings = (r: AwsReadings): AttentionItem[] =>
           ? `${budget.name}: forecast $${Math.round(budget.forecast ?? 0)} over $${Math.round(budget.limit)}`
           : `${budget.name}: $${Math.round(budget.actual)} of $${Math.round(budget.limit)} spent`,
         names: [budget.name],
-        since: r.now,
+        since: null,
         why: `AWS Budgets: the forecast over 100%, or the actual over ${AWS_LIMITS.budgetActual * 100}%.`,
       }),
     ]
@@ -542,7 +543,7 @@ function planFindings(r: AwsReadings): AttentionItem[] {
             weight: 'warn',
             tag: 'PLAN',
             title: `The free plan's credits end in ${left}d`,
-            since: r.now,
+            since: null,
             why: 'freetier get-account-plan-state.',
           }),
         ]
@@ -556,7 +557,7 @@ function planFindings(r: AwsReadings): AttentionItem[] {
         weight: 'warn',
         tag: 'PLAN',
         title: `${item.service} free tier ${Math.round(item.share * 100)}% used`,
-        since: r.now,
+        since: null,
         why: `Over ${AWS_LIMITS.freeTierShare * 100}% of this month's free tier (get-free-tier-usage).`,
       }),
     )
@@ -599,7 +600,7 @@ function findingsOf(r: AwsReadings): AttentionItem[] {
     (a, b) =>
       ORDER[a.weight] - ORDER[b.weight] ||
       a.tag.localeCompare(b.tag) ||
-      a.since - b.since ||
+      sinceOrder(a.since, b.since) ||
       a.id.localeCompare(b.id),
   )
 }
