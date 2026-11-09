@@ -55,8 +55,6 @@ export function maskIn(text: string, names: readonly string[], masked: boolean):
 
 /* ---- The pane's size (aws.md §6.1, §14.2) ---- */
 
-const REM = 16
-
 export interface ResourcesLayout {
   /** Tile columns: wide 4, medium 3, narrow 2. */
   cols: 2 | 3 | 4
@@ -80,16 +78,17 @@ export interface ResourcesLayout {
  * 60 rem high at 1920x1080 and must show the figures, LOOKS FORGOTTEN and tiles after them on
  * its first screen (§14.2 C); taller panes have room for the full tiles.
  */
-export function resourcesLayout(width: number, height: number): ResourcesLayout {
-  const wide = width >= 56 * REM
-  const narrow = width < 32 * REM
+/** `rem` is the page's own (`rootRem`), which follows the window's height. */
+export function resourcesLayout(width: number, height: number, rem = 16): ResourcesLayout {
+  const wide = width >= 56 * rem
+  const narrow = width < 32 * rem
   return {
     cols: wide ? 4 : narrow ? 2 : 3,
     rows: narrow ? 3 : 5,
     sublines: wide,
     countsOnly: narrow,
-    short: height < 30 * REM,
-    dense: height < 64 * REM,
+    short: height < 30 * rem,
+    dense: height < 64 * rem,
     denseCols: wide ? 3 : narrow ? 1 : 2,
   }
 }

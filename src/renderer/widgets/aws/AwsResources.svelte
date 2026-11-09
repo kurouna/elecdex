@@ -64,6 +64,8 @@ interface Props {
   masked: boolean
   width: number
   height: number
+  /** The page's rem in px (`rootRem`), for the edges in rem. */
+  rem: number
   /** The services as cards (the default) or as the detailed tiles (aws.md §14.12). */
   view: ResourcesViewChoice
   onview: (view: ResourcesViewChoice) => void
@@ -86,6 +88,7 @@ const {
   masked,
   width,
   height,
+  rem,
   view,
   onview,
   focus,
@@ -98,7 +101,7 @@ const {
   onleave,
 }: Props = $props()
 
-const lay = $derived(resourcesLayout(width, height))
+const lay = $derived(resourcesLayout(width, height, rem))
 const figures = $derived(figuresText(res, masked))
 const rows = $derived(forgottenShown(res, region, lay.rows))
 const groups = $derived(tileGroups(res))

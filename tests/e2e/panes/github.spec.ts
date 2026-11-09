@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test'
-import { captureOpens, cloudMode, opened } from '../support/cloud.js'
+import { captureOpens, cloudMode, nineHundredHigh, opened, popUp } from '../support/cloud.js'
 import { test } from '../support/shared.js'
-import { launch, reloadWorkspace, tabbed } from '../support.js'
+import { launch, reloadWorkspace, single, tabbed } from '../support.js'
 
 /**
  * GITHUB STATUS (docs/github.md), on main's stand-in gh (support.ts sets ELECDEX_CLOUD_STUB=1):
@@ -41,6 +41,20 @@ test('opens on the repositories, reads the queue from gh while shown, and opens 
     await expect(page.getByTestId('github-crumbs')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('github-crumbs')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+// The pane measured its 30 rem in 16 px, but the page's rem follows the window's height (13.3 px
+// on a 900-high window), so a popped-up GITHUB STATUS, 36 rem high, dropped its contribution band.
+test('popped up on a 900-high window, it keeps its contribution band', async () => {
+  const { app, page, close } = await launch(undefined, { layout: single('clock') })
+  try {
+    await nineHundredHigh(app, page)
+    const popup = await popUp(page, 'github')
+    await expect(popup.getByTestId('github-tile').first()).toBeVisible()
+    await expect(popup.getByTestId('github-band')).toBeVisible()
   } finally {
     await close()
   }

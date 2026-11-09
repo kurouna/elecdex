@@ -82,6 +82,27 @@ export function heaviest(rows: readonly { weight: string }[]): 'danger' | 'warn'
   return rows.some((row) => row.weight === 'warn') ? 'warn' : null
 }
 
+/**
+ * The page's own rem in px. reset.css ties it to the window's height (1.48vh, 11 to 26 px): 16 px
+ * only on a 1080-high window, 13.3 px on a 900-high one.
+ */
+export function rootRem(): number {
+  return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+}
+
+/**
+ * Narrow under 32 rem wide, short under 30 rem high (aws.md §6.1), in the page's own rem. Counted
+ * in 16 px, a 900-high window took a pane of 30 rem for a short one, and a pop-up (36 rem high)
+ * lost RESOURCES' cards and the contribution band.
+ */
+export function paneFit(
+  width: number,
+  height: number,
+  rem: number,
+): { narrow: boolean; short: boolean } {
+  return { narrow: width < 32 * rem, short: height < 30 * rem }
+}
+
 /** The ledger card's rows at most: the busiest probes, then one line for the rest. */
 export const LEDGER_CARD_ROWS = 12
 

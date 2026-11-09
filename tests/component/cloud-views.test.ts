@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { shareText } from '../../src/renderer/widgets/aws/aws-view.ts'
+import { paneFit } from '../../src/renderer/widgets/cloud/cloud-view.ts'
 import {
   barShares,
   heatPad,
@@ -8,6 +9,16 @@ import {
 } from '../../src/renderer/widgets/github/github-view.ts'
 
 /** The two cloud panes' view helpers that draw: pure, run where the renderer's modules type. */
+
+describe("the panes' edges", () => {
+  it("measures narrow and short in the page's own rem, not 16 px", () => {
+    // 32 and 30 rem: at 13.3 px to the rem (a 900-high window) 430 x 405 px is neither.
+    expect(paneFit(430, 405, 13.3)).toEqual({ narrow: false, short: false })
+    expect(paneFit(430, 405, 16)).toEqual({ narrow: true, short: true })
+    expect(paneFit(511, 479, 16)).toEqual({ narrow: true, short: true })
+    expect(paneFit(512, 480, 16)).toEqual({ narrow: false, short: false })
+  })
+})
 
 describe("a tile's little charts", () => {
   it('draws the stars as a line in its box, lowest at the bottom', () => {

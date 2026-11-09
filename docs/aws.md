@@ -482,6 +482,10 @@ Cost Explorer（API 1 要求の価格）、Budgets（監視と通知は無料）
   一覧は名前・状態・数の 1 つだけ
 - 低い（30 rem 未満）: 帯を落とす
 
+rem はページのもの（`rootRem`。reset.css で窓の高さの 1.48vh、11〜26 px）で数える。16 px 固定で数えていたときは、
+高さ 900 の窓（13.3 px）で 30 rem のペインを低いとし、ポップアップ（高さ 36 rem）が RESOURCES のカードを落とした
+（GITHUB STATUS も同じ `paneFit`）。
+
 ### 6.2 何も無いとき
 
 - ATTENTION が 0 件: 「nothing needs attention · 31 checks across 3 regions」（空であることに意味がある）

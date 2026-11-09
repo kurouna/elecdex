@@ -1,7 +1,7 @@
 import { expect, type Page } from '@playwright/test'
-import { captureOpens, cloudMode, opened } from '../support/cloud.js'
+import { captureOpens, cloudMode, nineHundredHigh, opened, popUp } from '../support/cloud.js'
 import { test } from '../support/shared.js'
-import { beside, launch, reloadWorkspace, tabbed } from '../support.js'
+import { beside, launch, reloadWorkspace, single, tabbed } from '../support.js'
 
 /**
  * AWS STATUS (docs/aws.md), on main's stand-in AWS CLI (support.ts sets ELECDEX_CLOUD_STUB=1):
@@ -150,6 +150,20 @@ test('ELSEWHERE opens the regions the pane does not show, with a sweep on demand
     await expect(page.getByTestId('aws-sweep-line')).toContainText('asked')
     await page.keyboard.press('Escape')
     await expect.poll(() => focused(page)).toBe('elsewhere')
+  } finally {
+    await close()
+  }
+})
+
+// The pane measured its 30 rem in 16 px, but the page's rem follows the window's height (13.3 px
+// on a 900-high window), so a popped-up AWS STATUS, 36 rem high, dropped its cards there.
+test('popped up on a 900-high window, RESOURCES still shows the service cards', async () => {
+  const { app, page, close } = await launch(undefined, { layout: single('clock') })
+  try {
+    await nineHundredHigh(app, page)
+    const popup = await popUp(page, 'aws')
+    await expect(popup.getByTestId('aws-resources')).toBeVisible()
+    await expect(popup.getByTestId('aws-rcard').first()).toBeVisible()
   } finally {
     await close()
   }

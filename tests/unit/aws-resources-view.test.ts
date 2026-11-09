@@ -190,6 +190,16 @@ describe('the RESOURCES screen (aws.md §14.2)', () => {
     expect(resourcesLayout(1000, 400).short).toBe(true)
   })
 
+  it("measures its edges in the page's own rem, which follows the window's height", () => {
+    // A 900-high window draws 13.3 px to the rem: 420 px is over 30 rem there, so the cards stay,
+    // and 760 px is over 56 rem, so the tiles go four to a row. At 16 px neither would.
+    expect(resourcesLayout(760, 420, 13.3)).toMatchObject({ short: false, cols: 4, dense: true })
+    expect(resourcesLayout(760, 420, 16)).toMatchObject({ short: true, cols: 3 })
+    // The smallest rem (11 px): 400 px is over 32 rem, three columns, not the narrow two.
+    expect(resourcesLayout(400, 900, 11)).toMatchObject({ cols: 3, short: false })
+    expect(resourcesLayout(400, 900, 16)).toMatchObject({ cols: 2 })
+  })
+
   it('words the figures and the heading', () => {
     const text = figuresText(view(), false)
     expect(text.services).toEqual({ big: '22', sub: '365 resources · 3 regions' })

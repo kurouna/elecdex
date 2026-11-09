@@ -27,6 +27,8 @@ import {
   ledgerLine,
   linkView,
   MASKED,
+  paneFit,
+  rootRem,
   shownProblem,
 } from '../cloud/cloud-view.ts'
 import IncidentBand from '../cloud/IncidentBand.svelte'
@@ -405,18 +407,22 @@ function onDay(index: number | null, x: number): void {
 
 let width = $state(1000)
 let height = $state(600)
+/** The page's rem, read with the size: it changes only as the window's height does. */
+let rem = $state(16)
 function observe(node: HTMLElement): () => void {
   const observer = new ResizeObserver((entries) => {
     const box = entries[0]?.contentRect
     if (box === undefined) return
     width = box.width
     height = box.height
+    rem = rootRem()
   })
   observer.observe(node)
   return () => observer.disconnect()
 }
-const narrow = $derived(width < 32 * 16)
-const short = $derived(height < 30 * 16)
+const fit = $derived(paneFit(width, height, rem))
+const narrow = $derived(fit.narrow)
+const short = $derived(fit.short)
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
