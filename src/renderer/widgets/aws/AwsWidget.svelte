@@ -287,6 +287,15 @@ function openPermissions(button: HTMLElement): void {
 }
 
 /**
+ * CONSOLE: the console's home in the region chosen in the top row, else the pane's first; main
+ * opens it only for one of the board's own regions.
+ */
+function openConsole(button: HTMLElement): void {
+  const region = choices.region ?? board?.regions[0] ?? null
+  afterBlink(button, () => void open(region === null ? 'console' : `console:${region}`))
+}
+
+/**
  * The notices' COPY buttons: the sign-in command, and PARTIAL's policy. A press blinks its three
  * beats, as every choice does, before the label turns to COPIED.
  */
@@ -595,6 +604,7 @@ const TABS: readonly [AwsTab, string][] = [
       {/if}
     {/if}
     <span class="spacer"></span>
+    <button type="button" class="tool" onclick={(e) => openConsole(e.currentTarget)} data-testid="aws-console-home">CONSOLE</button>
     <button type="button" class="tool" class:on={masked} aria-pressed={masked} onclick={() => patch({ mask: masked ? undefined : true })} data-testid="aws-mask">MASK</button>
     <button type="button" class="tool" disabled={waitUntil > 0} onclick={(e) => pressRefresh(e.currentTarget)} data-testid="aws-refresh">REFRESH</button>
   </header>

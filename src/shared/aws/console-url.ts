@@ -198,6 +198,15 @@ export function permissionsUrl(arn: string): string {
   return ACCOUNT_PAGES.iam
 }
 
+/**
+ * The top row's CONSOLE: the console's home in a region the pane shows, or the console's own home
+ * (the region the browser last used) when there is none.
+ */
+export function consoleHomeUrl(region: string | null): string {
+  if (region === null) return 'https://console.aws.amazon.com/console/home'
+  return `https://${region}.console.aws.amazon.com/console/home?region=${region}`
+}
+
 /** Whether main may open a URL as the console: https on the console's own hosts only. */
 export function isConsoleUrl(raw: string): boolean {
   let url: URL

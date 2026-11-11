@@ -59,6 +59,15 @@ test('shows what needs attention, and drills from ACTIVE to one instance and bac
     await page.getByTestId('aws-history').click({ delay: 20 })
     await expect(page.getByTestId('aws-drill-item')).toContainText('StartInstances')
 
+    // CONSOLE, left of MASK: the console's home, in the first of the pane's regions (none chosen).
+    await page.getByTestId('aws-console-home').click({ delay: 20 })
+    await expect.poll(() => opened(app)).toHaveLength(2)
+    expect((await opened(app))[1]).toBe(
+      'https://ap-northeast-1.console.aws.amazon.com/console/home?region=ap-northeast-1',
+    )
+    // The pane stays where it was.
+    await expect(page.getByTestId('aws-drill-item')).toContainText('StartInstances')
+
     // Escape goes up a step at a time.
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('aws-drill-list')).toBeVisible()

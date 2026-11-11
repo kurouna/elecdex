@@ -69,7 +69,7 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 | 隐私 | 只读；从不调用 Secrets Manager、Health 或 Support，S3 和 CloudWatch Logs 只读取存储桶列表和日志组，从不读取对象、日志或消息。MASK 隐藏 RESOURCES 和下钻中的所有资源名称，以及单个资源的 ID、VPC 和子网、ATTENTION 各行中的名称、ACTIVE 增减一行中的 ID。CloudTrail 只保留时间、操作者、操作、区域、错误，以及控制台登录的结果和 MFA。账户信息不会到达任何插件。 |
 | 设置 | 每个窗格（⚙）：配置文件、区域、ACCOUNT PULSE 开关、ACTIVITY（CloudTrail）开关、SLOW ×4。每个账户：Cost Explorer 和成本 QUOTA（`aws-billing.json`）；GetMetricData 及其上限（`aws-billing.json`）、ELSEWHERE 和标记为 KEEP 的资源（`aws-inventory.json`）。所有窗格共用：故障通知，即 `settings.json` 中的 `aws.incidents`。 |
 
-顶行：链接状态、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（来自账单指标的本月迄今金额，附预算的预测和占 QUOTA 的比例；按下打开 COST）、区域指示灯（ALL 或单个区域，每个灯为该区域最重发现的颜色）、**MASK**、**REFRESH**、⚙。
+顶行：链接状态、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（来自账单指标的本月迄今金额，附预算的预测和占 QUOTA 的比例；按下打开 COST）、区域指示灯（ALL 或单个区域，每个灯为该区域最重发现的颜色）、*未发布：* **CONSOLE**（在所选区域打开 AWS 控制台首页，未选时用窗格的第一个区域）、**MASK**、**REFRESH**、⚙。
 
 **ACCOUNT PULSE** 是一条横带，以 15 分钟为一根柱显示最近 24 小时的 CloudTrail 写入事件：错误为 danger，控制台登录为菱形，正在响的告警为一条横条。CloudTrail 约晚 5 分钟送达，横带上会注明。每个区域只读取最新的 50 条写入事件；某个区域返回了全部 50 条时，横带会注明 24 小时可能不完整。可在 ⚙ 中关闭，窗格高度不够时不显示。
 

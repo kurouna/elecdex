@@ -1238,6 +1238,14 @@ describe('AwsService on the stand-in AWS CLI', () => {
       'https://console.aws.amazon.com/iam/home#/roles/details/ReadOnly?section=permissions',
     )
     expect(s.aws.urlOf(KEY, 'https://example.com')).toBeNull()
+    // CONSOLE: the console's home in one of the pane's regions, or the console's own when none
+    // is chosen; never a region the pane does not show, nor a made-up one.
+    expect(s.aws.urlOf(KEY, `console:${R}`)).toBe(
+      `https://${R}.console.aws.amazon.com/console/home?region=${R}`,
+    )
+    expect(s.aws.urlOf(KEY, 'console')).toBe('https://console.aws.amazon.com/console/home')
+    expect(s.aws.urlOf(KEY, 'console:eu-west-3')).toBeNull()
+    expect(s.aws.urlOf(KEY, 'console:evil.example.com/x')).toBeNull()
     expect(s.aws.drill(KEY, 'iam')).toBeNull()
     expect(s.aws.drill(KEY, 'ec2')?.length).toBe(6)
     expect(found(s.aws.item(KEY, 'ec2', 'i-0a1b2c3d4e5f60003'))?.name).toBe('dev-box')

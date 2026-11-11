@@ -9,7 +9,13 @@ import {
 } from '@shared/aws/billing'
 import { isAwsService, parseAwsBoardKey } from '@shared/aws/board'
 import { changesSince, type IdSets, idSets } from '@shared/aws/changes'
-import { ACCOUNT_PAGES, consoleUrl, isConsoleUrl, permissionsUrl } from '@shared/aws/console-url'
+import {
+  ACCOUNT_PAGES,
+  consoleHomeUrl,
+  consoleUrl,
+  isConsoleUrl,
+  permissionsUrl,
+} from '@shared/aws/console-url'
 import { drillItem, drillRows, itemUnread } from '@shared/aws/drill'
 import { isAwsList, listRows } from '@shared/aws/drill-resources'
 import { forgotten } from '@shared/aws/forgotten'
@@ -379,20 +385,40 @@ export class AwsService {
   urlOf(key: string, id: unknown): string | null {
     const board = this.#active(key)
     if (board === null || typeof id !== 'string') return null
+    const url =
+      this.#accountUrl(board, id) ??
+      this.#homeUrl(board, id) ??
+      this.#incidentUrl(id) ??
+      this.#itemUrl(board, id)
+    return url !== null && isConsoleUrl(url) ? url : null
+  }
+
+  /** The account's pages, and the signed-in identity's permissions from main's own reading. */
+  #accountUrl(board: Board, id: string): string | null {
     const page = /^account:(billing|costExplorer|billingPreferences|iam)$/.exec(id)?.[1] as
       | keyof typeof ACCOUNT_PAGES
       | undefined
     if (page !== undefined) return ACCOUNT_PAGES[page]
-    // The signed-in identity's permissions, from main's own reading of who it is.
-    if (id === 'account:permissions') {
-      const arn = value<{ arn: string }>(board.scheduler, 'identity')?.arn
-      return arn === undefined ? null : permissionsUrl(arn)
-    }
+    if (id !== 'account:permissions') return null
+    const arn = value<{ arn: string }>(board.scheduler, 'identity')?.arn
+    return arn === undefined ? null : permissionsUrl(arn)
+  }
+
+  /** CONSOLE: the home in one of the board's own regions, never one the page made up. */
+  #homeUrl(board: Board, id: string): string | null {
+    if (id === 'console') return consoleHomeUrl(null)
+    const home = /^console:(.+)$/.exec(id)?.[1]
+    return home !== undefined && this.#regionsOf(board).includes(home) ? consoleHomeUrl(home) : null
+  }
+
+  #incidentUrl(id: string): string | null {
     const incident = /^incident:(.+)$/.exec(id)?.[1]
-    if (incident !== undefined) {
-      const url = this.#deps.incidents().find((i) => i.id === incident)?.url ?? null
-      return url !== null && isConsoleUrl(url) ? url : null
-    }
+    if (incident === undefined) return null
+    return this.#deps.incidents().find((i) => i.id === incident)?.url ?? null
+  }
+
+  /** A resource's console page, only for one the board read. */
+  #itemUrl(board: Board, id: string): string | null {
     const match = /^item:([a-z0-9]+):([a-z0-9-]+):(.+)$/.exec(id)
     if (match === null) return null
     const [, service, region, itemId] = match as unknown as [string, string, string, string]
@@ -401,8 +427,7 @@ export class AwsService {
     const known =
       drillRows(service, r, []).some((row) => row.id === itemId && row.region === region) ||
       elsewhereRows(r).some((x) => x.service === service && x.id === itemId && x.region === region)
-    const url = known ? consoleUrl(service, region, itemId) : null
-    return url !== null && isConsoleUrl(url) ? url : null
+    return known ? consoleUrl(service, region, itemId) : null
   }
 
   /** Cost Explorer's answer for the board's account (aws.md §3.3): every pane on it sees it. */

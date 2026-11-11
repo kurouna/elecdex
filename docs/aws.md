@@ -462,7 +462,8 @@ Cost Explorer（API 1 要求の価格）、Budgets（監視と通知は無料）
 - **上段**: ◆ランプと語、ALARMS、ATTENTION（danger · warn）、**MTD**（`$824 · forecast 110% of budget`。QUOTA が
   あれば `· 82% of quota`。押すと COST タブ）、
   リージョンのランプの選び（`ALL · ap-ne-1 · us-e-1 · eu-w-1`。1 つだけ選ぶ絞り込みで、各ランプはその
-  リージョンのいちばん重い注意の色）、右端に MASK・REFRESH・⚙
+  リージョンのいちばん重い注意の色）、右端に CONSOLE・MASK・REFRESH・⚙（CONSOLE はコンソールのホームを、選んだリージョン、無ければペインの最初のリージョンで開く。
+  ページは `console:<region>` を渡すだけで、main はボードのリージョンのときだけ URL を作る）
 - **障害の帯**（AWS の公開ステータスに障害があるときだけ、1 行。cloud-cli.md §12）
 - **Cost Explorer の 1 枚**（このアカウントを初めて表示したときだけ。§3.3）
 - **帯 ACCOUNT PULSE**（このペインの印。2D canvas 1 枚、文字は HTML。高さが足りないときと設定で消える）:

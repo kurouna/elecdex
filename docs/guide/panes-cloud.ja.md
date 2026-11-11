@@ -69,7 +69,7 @@ cloud プリセット（Ctrl+Shift+F10）は、アカウント、リポジトリ
 | プライバシー | 読むだけです。Secrets Manager、Health、Support は呼ばず、S3 と CloudWatch Logs はバケットの一覧とロググループだけで、オブジェクト、ログ、メッセージは読みません。MASK は RESOURCES と掘り下げのリソース名をすべて伏せ、1 件の ID・VPC・サブネット、ATTENTION の行の名前、ACTIVE の増えた・消えたの行の ID も伏せます。CloudTrail からは、時刻、誰、操作、リージョン、エラーと、コンソールのサインインの結果と MFA だけを残します。アカウントの情報はプラグインに届きません。 |
 | 設定 | ペインごと（⚙）: プロファイル、リージョン、ACCOUNT PULSE の ON / OFF、ACTIVITY（CloudTrail）の ON / OFF、SLOW ×4。アカウントごと: Cost Explorer とコストの QUOTA（`aws-billing.json`）。GetMetricData とその上限（`aws-billing.json`）、ELSEWHERE と KEEP の印（`aws-inventory.json`）。全ペイン共通: 障害のトースト（`settings.json` の `aws.incidents`）。 |
 
-上段: リンクの語、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（請求メトリクスによる今月ここまでの額と、予算の予測、QUOTA に対する割合。押すと COST）、リージョンのランプ（ALL か 1 つのリージョン。各ランプはそのリージョンでいちばん重いものの色）、**MASK**、**REFRESH**、⚙。
+上段: リンクの語、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（請求メトリクスによる今月ここまでの額と、予算の予測、QUOTA に対する割合。押すと COST）、リージョンのランプ（ALL か 1 つのリージョン。各ランプはそのリージョンでいちばん重いものの色）、*未リリース:* **CONSOLE**（AWS コンソールのホームを、選んだリージョン、選んでいなければペインの最初のリージョンで開く）、**MASK**、**REFRESH**、⚙。
 
 **ACCOUNT PULSE** は、直近 24 時間の CloudTrail の書き込みのイベントを 15 分ごとの棒にした帯です。エラーは danger、コンソールのサインインは菱形、鳴っているアラームは帯で描きます。CloudTrail は約 5 分遅れて届き、帯がそう書きます。読むのはリージョンごとに最新の書き込み 50 件までです。あるリージョンが 50 件すべてを返したときは、24 時間がそろっていないかもしれないと帯が言います。⚙ で消せ、ペインの高さが足りないときは出しません。
 

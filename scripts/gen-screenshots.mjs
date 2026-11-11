@@ -1520,42 +1520,58 @@ if (only.includes('social-ethernet-popup')) {
     },
   })
 }
-// For posting: AWS STATUS and GITHUB STATUS each popped up over the standard layout, on their
-// stand-ins (a made-up account, a made-up gh user) and a month of made-up stars. Only when named.
+// For posting: AWS STATUS and GITHUB STATUS each popped up over the standard layout in
+// Business Light, on their stand-ins (a made-up account, a made-up gh user) and a month of made-up
+// stars. Only when named.
 // `-alone` is the pop-up's own box at twice the pixels, so its text reads on a phone and nothing
 // of the layout behind is in it (the window, twice as large, would not fit the screen, so it is
 // smaller there and the pop-up with it).
-async function popUp(page, widget, ready, alone) {
+// AWS STATUS in a pop-up: Cost Explorer's question put off (LATER) and the pulse band off in ⚙,
+// so the room under LOOKS FORGOTTEN goes to the service cards.
+async function tidyAws(popup, page) {
+  await popup.getByTestId('aws-ce-later').click()
+  await page.waitForTimeout(800)
+  await popup.getByTestId('aws-settings-toggle').click()
+  await popup
+    .getByTestId('aws-settings')
+    .locator('.opt', { hasText: 'Pulse band' })
+    .getByRole('button', { name: 'off' })
+    .click()
+  await popup.getByTestId('aws-settings-toggle').click()
+  await page.waitForTimeout(800)
+}
+async function popUp(page, widget, ready, alone, tidy) {
   await page.keyboard.press('Control+Shift+KeyA')
   const picker = page.getByTestId('pane-picker')
   await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
   await picker.locator(`[data-testid=pane-picker-item][data-widget=${widget}]`).click()
   await page.getByTestId('popup-pane').getByTestId(ready).first().waitFor({ timeout: 30_000 })
   await page.waitForTimeout(1500)
+  await tidy?.(page.getByTestId('popup-pane'), page)
   await page.mouse.move(W / 2, 5)
   await page.waitForTimeout(800)
   if (alone === null) return
   mkdirSync(SOCIAL, { recursive: true })
   await page.getByTestId('popup-pane').screenshot({ path: path.join(SOCIAL, `${alone}.png`) })
 }
-for (const [widget, ready, prepare] of [
-  ['aws', 'aws-forgotten-row', undefined],
-  ['github', 'github-tile', starHistory],
+for (const [widget, ready, prepare, tidy] of [
+  ['aws', 'aws-forgotten-row', undefined, tidyAws],
+  ['github', 'github-tile', starHistory, undefined],
 ]) {
   const name = `social-${widget}-popup`
   if (only.includes(name)) {
-    await shoot('tron', name, {
+    await shoot('business-light', name, {
       social: true,
       prepare,
-      extra: (page) => popUp(page, widget, ready, null),
+      extra: (page) => popUp(page, widget, ready, null, tidy),
     })
   }
   if (only.includes(`${name}-alone`)) {
-    await shoot('tron', `${name}-alone`, {
+    await shoot('business-light', `${name}-alone`, {
       save: false,
       scale: 2,
       prepare,
-      extra: (page) => popUp(page, widget, ready, `${name}-alone`),
+      extra: (page) => popUp(page, widget, ready, `${name}-alone`, tidy),
     })
   }
 }
