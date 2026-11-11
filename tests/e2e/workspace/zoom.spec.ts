@@ -134,14 +134,22 @@ test('it is at its full size from the first frame, and flies there rather than g
     // laid-out size (offsetWidth, which a transform does not change) is already
     // the final one: that is what keeps a terminal from sending ConPTY a size
     // per frame, and the flight itself is a transform the compositor plays.
+    // The flight is read as its class comes (getAnimations resolves the style there), not a
+    // frame later: a loaded macOS runner has drawn its next frame after a flight had ended.
     const first = await page.evaluate(async () => {
+      const el = document.querySelector<HTMLElement>('[data-widget=clock]')
+      let running: string[] = []
+      const watch = new MutationObserver(() => {
+        if (el?.classList.contains('crt-zoom') !== true || running.length > 0) return
+        running = document
+          .getAnimations()
+          .filter((a) => (a as CSSAnimation).animationName === 'crt-zoom')
+          .map((a) => a.playState)
+      })
+      if (el !== null) watch.observe(el, { attributes: true, attributeFilter: ['class'] })
       document.querySelector<HTMLElement>('[data-testid=pane-zoom]')?.click()
       await new Promise((resolve) => requestAnimationFrame(resolve))
-      const el = document.querySelector<HTMLElement>('[data-widget=clock]')
-      const running = document
-        .getAnimations()
-        .filter((a) => (a as CSSAnimation).animationName === 'crt-zoom')
-        .map((a) => a.playState)
+      watch.disconnect()
       return { width: el?.offsetWidth ?? 0, height: el?.offsetHeight ?? 0, running }
     })
     expect(first.running).toContain('running')
@@ -282,11 +290,21 @@ test('a tab with no zoom of its own takes the group back in a flight, not a snap
     await zoomSettled(page)
 
     // The flight home is keyed to the tab that was forward, which is no longer the one
-    // shown: the group must still be the one flying, one frame after the switch.
+    // shown: the group must still be the one flying. Watched as its class changes, not
+    // looked at a frame later: the flight is 220 ms, and a loaded macOS runner drew that
+    // frame 264 and 381 ms after the click, when a flight played had already ended.
     const flying = await page.evaluate(async () => {
+      const host = document.querySelector('[data-testid=tabs-host]')
+      if (host === null) return false
+      let flew = false
+      const watch = new MutationObserver(() => {
+        if (host.classList.contains('crt-zoom-out')) flew = true
+      })
+      watch.observe(host, { attributes: true, attributeFilter: ['class'] })
       document.querySelectorAll<HTMLElement>('[data-testid=tab]')[1]?.click()
       await new Promise((resolve) => requestAnimationFrame(resolve))
-      return document.querySelector('[data-testid=tabs-host]')?.classList.contains('crt-zoom-out')
+      watch.disconnect()
+      return flew
     })
     expect(flying).toBe(true)
     await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
