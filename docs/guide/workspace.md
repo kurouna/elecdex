@@ -165,13 +165,13 @@ as it was - it is not saved, and **Escape**, the × or a click beside it puts it
 
 | | |
 | --- | --- |
-| Shortcut | **Ctrl+Shift+G** (the LAYOUTS dialog); **Ctrl+Shift+1** … **9** (the first nine; *unreleased:* not a tenth on **0**); **Ctrl+Shift+F1** … **F11** (presets) |
+| Shortcut | **Ctrl+Shift+G** (the LAYOUTS dialog); **Ctrl+Shift+1** … **9** (the first nine; not a tenth on **0**); **Ctrl+Shift+F1** … **F11** (presets) |
 | Stored in | `layouts.json`, at most 20 entries |
 | Settings | *Settings → General → Layouts* → *ask before switching layout* (on by default) |
 | Design | [architecture.md §5.6](../architecture.md) (Japanese) |
 
 An arrangement worth keeping can be saved by name - **Ctrl+Shift+G**, or *layouts* in the status
-bar - and returned to later; the first nine are on Ctrl+Shift+1 to 9 (*unreleased:* the tenth is no longer on 0), and on the numbered
+bar - and returned to later; the first nine are on Ctrl+Shift+1 to 9 (the tenth is no longer on 0), and on the numbered
 buttons at the left of the status bar.
 
 - **A layout follows the work.** The one you are in is marked, and whatever you do to the
@@ -370,7 +370,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+← / → / ↑ / ↓ | focus the pane that way; with none there, the key goes to the pane |
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open) |
 | Ctrl+Shift+G | saved layouts |
-| Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them; an empty slot leaves the keys to the focused pane (*unreleased:* no tenth on 0) |
+| Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them; an empty slot leaves the keys to the focused pane (no tenth on 0) |
 | Ctrl+Shift+F1 … F11 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro, cloud, blank |
 | Ctrl+Shift+L | search the launcher (pops one up if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up; pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |

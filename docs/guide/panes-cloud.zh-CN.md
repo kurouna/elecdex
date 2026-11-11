@@ -32,7 +32,7 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 
 - 两个 CLI 窗格只在可见时读取，所以在预设显示到屏幕上之前它什么也不读；标签页后面的 LOG WATCH 在被选中之前也什么都不读。
 - AWS STATUS 以配置文件 `default` 开始免费读取（每次调用都用 `--profile` 指明配置文件，因此 `AWS_PROFILE` 不起作用；在 ⚙ 中选择），并在第一次显示某个账户时询问 Cost Explorer（RESOURCES 的 `GetMetricData` 默认开启，每个账户每月上限 1.00 美元；可在 ⚙ 中关闭）。没有 CLI 时，两个窗格都显示 **NO CLI** 以及安装方法。
-- 预设是模板：选择一个预设会添加一个已保存的布局，此后它跟随你的改动。新安装时包含全部十一个预设，前九个有数字键（*未发布：* 第十个 cloud 不再在 0 上）；已有的布局列表不会被追加。
+- 预设是模板：选择一个预设会添加一个已保存的布局，此后它跟随你的改动。新安装时包含全部十一个预设，前九个有数字键（第十个 cloud 不再在 0 上）；已有的布局列表不会被追加。
 
 ## 两个窗格如何读取
 
@@ -69,7 +69,7 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 | 隐私 | 只读；从不调用 Secrets Manager、Health 或 Support，S3 和 CloudWatch Logs 只读取存储桶列表和日志组，从不读取对象、日志或消息。MASK 隐藏 RESOURCES 和下钻中的所有资源名称，以及单个资源的 ID、VPC 和子网、ATTENTION 各行中的名称、ACTIVE 增减一行中的 ID。CloudTrail 只保留时间、操作者、操作、区域、错误，以及控制台登录的结果和 MFA。账户信息不会到达任何插件。 |
 | 设置 | 每个窗格（⚙）：配置文件、区域、ACCOUNT PULSE 开关、ACTIVITY（CloudTrail）开关、SLOW ×4。每个账户：Cost Explorer 和成本 QUOTA（`aws-billing.json`）；GetMetricData 及其上限（`aws-billing.json`）、ELSEWHERE 和标记为 KEEP 的资源（`aws-inventory.json`）。所有窗格共用：故障通知，即 `settings.json` 中的 `aws.incidents`。 |
 
-顶行：链接状态、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（来自账单指标的本月迄今金额，附预算的预测和占 QUOTA 的比例；按下打开 COST）、区域指示灯（ALL 或单个区域，每个灯为该区域最重发现的颜色）、*未发布：* **CONSOLE**（在所选区域打开 AWS 控制台首页，未选时用窗格的第一个区域）、**MASK**、**REFRESH**、⚙。
+顶行：链接状态、**ALARMS**、**ATTENTION**（danger · warn）、**MTD**（来自账单指标的本月迄今金额，附预算的预测和占 QUOTA 的比例；按下打开 COST）、区域指示灯（ALL 或单个区域，每个灯为该区域最重发现的颜色）、**CONSOLE**（在所选区域打开 AWS 控制台首页，未选时用窗格的第一个区域）、**MASK**、**REFRESH**、⚙。
 
 **ACCOUNT PULSE** 是一条横带，以 15 分钟为一根柱显示最近 24 小时的 CloudTrail 写入事件：错误为 danger，控制台登录为菱形，正在响的告警为一条横条。CloudTrail 约晚 5 分钟送达，横带上会注明。每个区域只读取最新的 50 条写入事件；某个区域返回了全部 50 条时，横带会注明 24 小时可能不完整。可在 ⚙ 中关闭，窗格高度不够时不显示。
 
@@ -168,7 +168,7 @@ AWS 托管策略 `ReadOnlyAccess`（或 `ViewOnlyAccess` 加 `AWSBillingReadOnly
 | 隐私 | 只读：不标记已读、不合并、不评论、不批准。不读取正文、评论、diff 和文件。写入磁盘的只有公开仓库每天的星标数（`github-stars.json`，90 天）。 |
 | 设置 | 每个窗格（⚙）：仓库 AUTO 或 PINNED、贡献横带开关。所有窗格共用：故障通知，即 `settings.json` 中的 `github.incidents`。 |
 
-顶行：链接状态、**QUEUE**（数量及 danger 数量）、**REVIEW**（等你审查的拉取请求）、**MAIN RED**（默认分支变红的仓库数）、仅在不足时显示的速率限制余量、下一次读取收件箱的时间、*未发布：* **REPOSITORIES**（打开已登录账户在 github.com 上的仓库列表）、**MASK**、**REFRESH**、⚙。其下是**贡献横带**：把最近一年画成格子（最多的日子会发光），附一年的总数和连续天数；可在 ⚙ 中关闭，窗格高度不够时不显示。
+顶行：链接状态、**QUEUE**（数量及 danger 数量）、**REVIEW**（等你审查的拉取请求）、**MAIN RED**（默认分支变红的仓库数）、仅在不足时显示的速率限制余量、下一次读取收件箱的时间、**REPOSITORIES**（打开已登录账户在 github.com 上的仓库列表）、**MASK**、**REFRESH**、⚙。其下是**贡献横带**：把最近一年画成格子（最多的日子会发光），附一年的总数和连续天数；可在 ⚙ 中关闭，窗格高度不够时不显示。
 
 标签页：
 

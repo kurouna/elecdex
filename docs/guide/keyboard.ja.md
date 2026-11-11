@@ -58,7 +58,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | キー | Action | id | 動作 |
 | --- | --- | --- | --- |
 | Ctrl+Shift+G | Saved layouts | `layout.saved` | レイアウトのダイアログを開く: 今の配置に名前を付けて残す、または保存した配置に戻る |
-| Ctrl+Shift+1 … 9 | Apply the 1st … 9th saved layout | `layout.saved1` … `layout.saved9` | 保存したレイアウトのうち、ダイアログに並ぶ順で最初の九を適用。空いている番号のキーはフォーカス中のペインに渡る。*未リリース:* 十番目は、それ以降と同じくキーを持たない（以前は 0。日本語の入力方式を入れた Windows が Ctrl+Shift+0 を自分のものにする） |
+| Ctrl+Shift+1 … 9 | Apply the 1st … 9th saved layout | `layout.saved1` … `layout.saved9` | 保存したレイアウトのうち、ダイアログに並ぶ順で最初の九を適用。空いている番号のキーはフォーカス中のペインに渡る。十番目は、それ以降と同じくキーを持たない（以前は 0。日本語の入力方式を入れた Windows が Ctrl+Shift+0 を自分のものにする） |
 | Ctrl+Shift+F1 … F11 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | プリセットへ切り替え: F1 standard、F2 network、F3 earth、F4 dev、F5 media、F6 desk、F7 ai、F8 cockpit、F9 retro、F10 cloud（`layout.preset.cloud`）、F11 blank *（v0.0.60 より前は blank が F10）* |
 | Ctrl+Shift+Backspace | Reset layout | `layout.reset` | 既定のレイアウトに戻す。シェルが開いていれば、切り替えと同じく先に確認する |
 
@@ -225,7 +225,7 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 
 | | |
 | --- | --- |
-| 場所 | Ctrl+Shift+G、またはステータスバーの *layouts*。最初の九は Ctrl+Shift+1 から 9（*未リリース:* 0 の十番目はなし）、ステータスバーの番号付きボタン |
+| 場所 | Ctrl+Shift+G、またはステータスバーの *layouts*。最初の九は Ctrl+Shift+1 から 9（0 の十番目はなし）、ステータスバーの番号付きボタン |
 | ファイル | アプリのデータフォルダーの `layouts.json`（保存したレイアウト）と `layout.json`（今の配置）。[テーマと設定](themes-settings.ja.md#レイアウトのファイル) を参照 |
 | 設定 | `layout.confirmSwitch`（既定 `true`）: *Settings → General → Layouts* |
 
@@ -257,7 +257,7 @@ Linux の IBus がこのキーを Unicode のコード入力に使う環境で�
 - cockpit と blank 以外は左端にシステムの列を持つので、切り替えても計器はそのままで、舞台だけが替わります。
 - プリセットを選ぶと、そこから作ったレイアウトが追加されてそこへ切り替わり、以後は作業に追従する自分のレイアウトになります。もう一度選ぶと、別のものを追加せずにそのレイアウトへ戻ります。↺ でプリセットの状態に戻せます。
 - プリセットのキーを使えば、どこからでも同じことができます。
-- 新しくインストールしたときは 11 個すべてが入り、先頭の 9 個が Ctrl+Shift+1 から 9 に並びます。*未リリース:* 10 個目の cloud と 11 個目の blank には番号のキーが付きません（cloud は以前 0）。すでにある一覧に足されることはありません。
+- 新しくインストールしたときは 11 個すべてが入り、先頭の 9 個が Ctrl+Shift+1 から 9 に並びます。10 個目の cloud と 11 個目の blank には番号のキーが付きません（cloud は以前 0）。すでにある一覧に足されることはありません。
 
 ## タブグループ
 

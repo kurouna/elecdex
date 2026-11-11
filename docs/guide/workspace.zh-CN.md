@@ -136,13 +136,13 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
 
 | | |
 | --- | --- |
-| 快捷键 | **Ctrl+Shift+G**（LAYOUTS 对话框）；**Ctrl+Shift+1** … **9**（前九个；*未发布：* 不再有 **0** 上的第十个）；**Ctrl+Shift+F1** … **F11**（预设） |
+| 快捷键 | **Ctrl+Shift+G**（LAYOUTS 对话框）；**Ctrl+Shift+1** … **9**（前九个；不再有 **0** 上的第十个）；**Ctrl+Shift+F1** … **F11**（预设） |
 | 保存位置 | `layouts.json`，最多 20 项 |
 | 设置 | *Settings → General → Layouts* → *ask before switching layout*（默认开启） |
 | 设计 | [architecture.md §5.6](../architecture.md)（日文） |
 
 值得保留的排布可以命名保存——**Ctrl+Shift+G**，或状态栏中的 *layouts*——以后再回到它；前九个对应 Ctrl+Shift+1 到 9
-（*未发布：* 第十个不再在 0 上），也对应状态栏左侧的编号按钮。
+（第十个不再在 0 上），也对应状态栏左侧的编号按钮。
 
 - **布局跟随工作。** 当前所在的布局会被标记，你对工作区所做的一切都保存在其中，回来时一切如你离开时一样。它不是
   快照。
@@ -303,7 +303,7 @@ Ctrl+Shift+@ / [）。应用自己的列表和提示会按你的键盘印字显�
 | Ctrl+Shift+← / → / ↑ / ↓ | 焦点移到该方向的窗格；该方向没有窗格时，按键传给窗格 |
 | Ctrl+Shift+Backspace | 重置为默认布局（有 shell 打开时先询问） |
 | Ctrl+Shift+G | 已保存布局 |
-| Ctrl+Shift+1 … 9 | 按对话框中的顺序应用前九个已保存布局；空位时按键留给当前窗格（*未发布：* 不再有 0 上的第十个） |
+| Ctrl+Shift+1 … 9 | 按对话框中的顺序应用前九个已保存布局；空位时按键留给当前窗格（不再有 0 上的第十个） |
 | Ctrl+Shift+F1 … F11 | 转到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud、blank |
 | Ctrl+Shift+L | 搜索启动器（布局中没有时弹出一个） |
 | Ctrl+Shift+U | 实用工具窗格：布局中的下一个，没有则弹出；再按一次收起（Linux 上 IBus 可能占用这组按键来按编码输入字符：请重新绑定） |

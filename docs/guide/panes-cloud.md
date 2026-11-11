@@ -32,7 +32,7 @@ The cloud preset (Ctrl+Shift+F10) is the account, the repositories and a shell f
 
 - Both CLI panes read only while they are shown, so the preset reads nothing until it is on screen, and LOG WATCH behind its tab reads nothing until chosen.
 - AWS STATUS starts with the free reads under the profile `default` (every call names its profile with `--profile`, so `AWS_PROFILE` does not choose it; ⚙ does), and asks about Cost Explorer the first time it shows an account (RESOURCES' `GetMetricData` is on by default, under a cap of $1.00 a month per account; off in ⚙). Without the CLIs each pane shows **NO CLI** and how to install it.
-- Presets are templates: choosing one adds a saved layout that then follows your changes. A new install starts with all eleven presets, the first nine on the number keys (*unreleased:* cloud, the tenth, is no longer on 0); an existing list of layouts is never added to.
+- Presets are templates: choosing one adds a saved layout that then follows your changes. A new install starts with all eleven presets, the first nine on the number keys (cloud, the tenth, is no longer on 0); an existing list of layouts is never added to.
 
 ## How both panes read
 
@@ -69,7 +69,7 @@ The cloud preset (Ctrl+Shift+F10) is the account, the repositories and a shell f
 | Privacy | Read only; never a Secrets Manager, Health or Support call, and of S3 and CloudWatch Logs only the bucket list and the log groups, never an object, a log or a message. MASK hides every resource name on RESOURCES and in the drill-down, an item's id, VPC and subnet, the names in ATTENTION's rows and the ids of ACTIVE's line of what came and went. Of CloudTrail, only time, who, operation, region, error and a console sign-in's result and MFA are kept. Nothing of the account reaches a plugin. |
 | Settings | Per pane in ⚙: profile, regions, ACCOUNT PULSE on or off, ACTIVITY (CloudTrail) on or off, SLOW ×4. Per account: Cost Explorer and the cost QUOTA (`aws-billing.json`); GetMetricData and its cap (`aws-billing.json`), ELSEWHERE and the resources marked KEEP (`aws-inventory.json`). For every pane: the incident toasts, `aws.incidents` in `settings.json`. |
 
-The top row: the link word, **ALARMS**, **ATTENTION** (danger · warn), **MTD** (the month to date from the billing metric, with the budget's forecast and the quota's share; a press opens COST), the region lamps (ALL or one region, each lamp the colour of its heaviest finding), *unreleased:* **CONSOLE** (the AWS console's home in the region chosen, else the pane's first), **MASK**, **REFRESH**, ⚙.
+The top row: the link word, **ALARMS**, **ATTENTION** (danger · warn), **MTD** (the month to date from the billing metric, with the budget's forecast and the quota's share; a press opens COST), the region lamps (ALL or one region, each lamp the colour of its heaviest finding), **CONSOLE** (the AWS console's home in the region chosen, else the pane's first), **MASK**, **REFRESH**, ⚙.
 
 **ACCOUNT PULSE** is a band of the last 24 hours of CloudTrail write events in 15-minute bars: errors in danger, console sign-ins as diamonds, alarms ringing as a bar. CloudTrail is about 5 minutes late, and the band says so. Only the latest 50 write events of each region are read; when a region gave all 50 the band says so, as the 24 hours may not all be there. It can be turned off in ⚙, and is dropped when the pane is too low.
 
@@ -168,7 +168,7 @@ AWS's managed policy `ReadOnlyAccess` (or `ViewOnlyAccess` with `AWSBillingReadO
 | Privacy | Read only: marks nothing read, merges, comments or approves nothing. Bodies, comments, diffs and files are not read. Written to disk: only daily star counts of public repositories (`github-stars.json`, 90 days). |
 | Settings | Per pane in ⚙: repositories AUTO or PINNED, the contribution band on or off. For every pane: the incident toasts, `github.incidents` in `settings.json`. |
 
-The top row: the link word, **QUEUE** (its count and danger count), **REVIEW** (pull requests waiting on you), **MAIN RED** (repositories whose default branch is red), the rate limit only while it runs low, the next inbox reading, *unreleased:* **REPOSITORIES** (the signed-in account's list of repositories on github.com), **MASK**, **REFRESH**, ⚙. Under it the **contribution band**: the last year as a grid (the busiest days glow), with the year's count and the streak; ⚙ turns it off, and it is dropped when the pane is too low.
+The top row: the link word, **QUEUE** (its count and danger count), **REVIEW** (pull requests waiting on you), **MAIN RED** (repositories whose default branch is red), the rate limit only while it runs low, the next inbox reading, **REPOSITORIES** (the signed-in account's list of repositories on github.com), **MASK**, **REFRESH**, ⚙. Under it the **contribution band**: the last year as a grid (the busiest days glow), with the year's count and the streak; ⚙ turns it off, and it is dropped when the pane is too low.
 
 The tabs:
 

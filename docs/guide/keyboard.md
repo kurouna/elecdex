@@ -58,7 +58,7 @@ A shortcut that does nothing in the current state (*Applies when* below) is not 
 | Chord | Action | id | What it does |
 | --- | --- | --- | --- |
 | Ctrl+Shift+G | Saved layouts | `layout.saved` | Opens the layouts dialog: keep this arrangement by name, or go back to one |
-| Ctrl+Shift+1 … 9 | Apply the 1st … 9th saved layout | `layout.saved1` … `layout.saved9` | Applies the first nine saved layouts, in the order the dialog lists them. A key whose slot is empty is left to the focused pane. *Unreleased:* the tenth has no key, like the ones after it (it was on 0, which Windows with a Japanese input method takes for itself) |
+| Ctrl+Shift+1 … 9 | Apply the 1st … 9th saved layout | `layout.saved1` … `layout.saved9` | Applies the first nine saved layouts, in the order the dialog lists them. A key whose slot is empty is left to the focused pane. The tenth has no key, like the ones after it (it was on 0, which Windows with a Japanese input method takes for itself) |
 | Ctrl+Shift+F1 … F11 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | Goes to a preset: F1 standard, F2 network, F3 earth, F4 dev, F5 media, F6 desk, F7 ai, F8 cockpit, F9 retro, F10 cloud (`layout.preset.cloud`), F11 blank *(blank on F10 before v0.0.60)* |
 | Ctrl+Shift+Backspace | Reset layout | `layout.reset` | Resets to the default layout; asks first while shells are open, as a switch does |
 
@@ -225,7 +225,7 @@ Chords are stored as physical keys (`KeyboardEvent.code`, such as `Ctrl+Shift+Ke
 
 | | |
 | --- | --- |
-| Where | Ctrl+Shift+G, or *layouts* in the status bar; the first nine on Ctrl+Shift+1 to 9 (*unreleased:* not a tenth on 0), and on the numbered status bar buttons |
+| Where | Ctrl+Shift+G, or *layouts* in the status bar; the first nine on Ctrl+Shift+1 to 9 (not a tenth on 0), and on the numbered status bar buttons |
 | Files | `layouts.json` (the saved layouts) and `layout.json` (the live arrangement) in the app's data folder; see [Themes and settings](themes-settings.md#layout-files) |
 | Settings | `layout.confirmSwitch` (default `true`): *Settings → General → Layouts* |
 
@@ -257,7 +257,7 @@ Eleven presets sit under the list in the layouts dialog, each drawn as a small m
 - Every preset but cockpit and blank keeps the system column on the left, so a switch changes the stage and leaves the instruments where they were.
 - Choosing a preset adds a layout made from it and goes there; from then on it is one of your layouts, following your work. Choosing it again goes back to that layout rather than adding another. ↺ puts it back to the preset.
 - Each preset's key does the same from anywhere.
-- A new install starts with all eleven, the first nine on Ctrl+Shift+1 to 9; *unreleased:* cloud, the tenth, and blank, the eleventh, have no number key (cloud was on 0). An existing list is never added to.
+- A new install starts with all eleven, the first nine on Ctrl+Shift+1 to 9; cloud, the tenth, and blank, the eleventh, have no number key (cloud was on 0). An existing list is never added to.
 
 ## Tab groups
 

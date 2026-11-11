@@ -64,7 +64,7 @@ network traffic, top to bottom, in 18% of the window's width.
 A preset is a **template**, never a second kind of layout:
 
 - **Choosing a preset adds a saved layout made from it and goes there.** From then on it is one of
-  your saved layouts: it has a number key (Ctrl+Shift+1 to 9, by its place in the list; *unreleased:* not 0), and
+  your saved layouts: it has a number key (Ctrl+Shift+1 to 9, by its place in the list; not 0), and
   it follows your work - whatever you do to the workspace is kept in it, so coming back finds it as
   you left it.
 - **Choosing it again goes back to that layout** rather than adding another. The layout remembers
@@ -78,7 +78,7 @@ A preset is a **template**, never a second kind of layout:
   are added. They carry Ctrl+Shift because bare F keys belong to the tasks pane (F2 edits) and to
   programs in the shell such as htop or mc.
 - **A new install starts with all eleven**, standard active. The first nine are on Ctrl+Shift+1 to 9;
-  *unreleased:* cloud, the tenth, has no number key (it was on 0), and blank, the eleventh, has none
+  cloud, the tenth, has no number key (it was on 0), and blank, the eleventh, has none
   *(on 0 before v0.0.60)*; blank is
   reached with Ctrl+Shift+F11 or from the shelf. A new install is
   one with neither `layout.json` nor `layouts.json`. An existing list of saved layouts is never
