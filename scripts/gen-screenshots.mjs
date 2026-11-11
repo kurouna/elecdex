@@ -1521,10 +1521,9 @@ if (only.includes('social-ethernet-popup')) {
 // preset, in Business Light, on their stand-ins (a made-up account, a made-up gh user) and a month
 // of made-up stars. Beside the whole window, `-alone` is the pane's own box, nothing of the
 // machine's column in it. Only when named.
-// GITHUB STATUS on its QUEUE, which fills the frame where five REPOS tiles left most of it empty.
 for (const [widget, ready, tab] of [
   ['aws', 'aws-rcard', null],
-  ['github', 'github-tile', 'github-tab-queue'],
+  ['github', 'github-tile', null],
 ]) {
   const name = `social-${widget}-forward`
   if (!only.includes(name)) continue
