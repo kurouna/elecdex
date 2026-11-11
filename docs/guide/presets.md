@@ -64,7 +64,7 @@ network traffic, top to bottom, in 18% of the window's width.
 A preset is a **template**, never a second kind of layout:
 
 - **Choosing a preset adds a saved layout made from it and goes there.** From then on it is one of
-  your saved layouts: it has a number key (Ctrl+Shift+1 to 9 and 0, by its place in the list), and
+  your saved layouts: it has a number key (Ctrl+Shift+1 to 9, by its place in the list; *unreleased:* not 0), and
   it follows your work - whatever you do to the workspace is kept in it, so coming back finds it as
   you left it.
 - **Choosing it again goes back to that layout** rather than adding another. The layout remembers
@@ -77,8 +77,9 @@ A preset is a **template**, never a second kind of layout:
   bound to the preset, not to its place, so a key you rebind stays on the same preset when presets
   are added. They carry Ctrl+Shift because bare F keys belong to the tasks pane (F2 edits) and to
   programs in the shell such as htop or mc.
-- **A new install starts with all eleven**, standard active. The first ten are on Ctrl+Shift+1 to 9
-  and 0; blank, the eleventh, has no number key *(on 0 before v0.0.60)* and is
+- **A new install starts with all eleven**, standard active. The first nine are on Ctrl+Shift+1 to 9;
+  *unreleased:* cloud, the tenth, has no number key (it was on 0), and blank, the eleventh, has none
+  *(on 0 before v0.0.60)*; blank is
   reached with Ctrl+Shift+F11 or from the shelf. A new install is
   one with neither `layout.json` nor `layouts.json`. An existing list of saved layouts is never
   added to: add a preset from the shelf.
@@ -91,14 +92,14 @@ A preset is a **template**, never a second kind of layout:
 The LAYOUTS dialog:
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (cloud on 0 and blank, with no number key, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F11">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (cloud and blank, with no number key, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F11">
   <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 - Each row of the list and each card on the shelf is drawn as a small map of its panes; the
   system column is drawn faint so the differences stand out.
 - A card says where its preset stands: **on 3** (the layout made from it is on that number key),
-  **kept** (among your layouts, past the first ten), **in this one** (the layout you are in) or
+  **kept** (among your layouts, past the first nine), **in this one** (the layout you are in) or
   **+ add** (not among them). The card shows its preset's key underneath.
 - The shelf is one row that scrolls sideways; the mouse wheel scrolls it. **Tab** moves from the
   list to the shelf, **←** / **→** between cards, **↑** back to the list. At the 1920x1080 design

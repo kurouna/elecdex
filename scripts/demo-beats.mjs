@@ -209,8 +209,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
   async function toLayout(slot, name) {
     say(`layout: ${name}`)
     await letGo()
-    // The tenth is on 0.
-    await page.keyboard.press(`Control+Shift+Digit${slot % 10}`)
+    await page.keyboard.press(`Control+Shift+Digit${slot}`)
     await wait(300)
     await settled()
   }

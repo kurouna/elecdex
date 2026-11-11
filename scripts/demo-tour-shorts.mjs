@@ -83,12 +83,11 @@ const stack = (top, bottom, share) => ({
 })
 
 /*
- * The layouts, in the order the tour goes through them (Ctrl+Shift+1 .. 9 and 0 by their place). The
+ * The layouts, in the order the tour goes through them (Ctrl+Shift+1 .. 9 by their place). The
  * map and the television are given the width's own proportions; the lists the height they need.
  */
 const LAYOUTS = [
   ['shell', () => stack(tabs(pane('terminal'), pane('terminal')), pane('globe'), 0.6)],
-  ['network', () => stack(pane('wifi', { window: '1m' }), pane('ethernet', { window: '1m' }), 0.5)],
   ['earth', () => stack(pane('orbit'), pane('quakes'), 0.56)],
   ['dev', () => stack(pane('agents'), tabs(pane('git'), pane('logwatch', { file: LOG_ID })), 0.42)],
   ['cloud', () => stack(pane('aws'), pane('github'), 0.56)],
@@ -125,6 +124,8 @@ const LAYOUTS = [
         0.7,
       ),
   ],
+  // The tenth: no key, reached through the layouts dialog.
+  ['network', () => stack(pane('wifi', { window: '1m' }), pane('ethernet', { window: '1m' }), 0.5)],
   // The eleventh and twelfth: past the number keys, reached through the palette and the layouts
   // dialog, a row down.
   ['cockpit', () => stack(pane('cluster'), pane('terminal'), 0.8)],

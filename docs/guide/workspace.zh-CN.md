@@ -25,7 +25,7 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
 - [状态栏和窗口](#状态栏和窗口)
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：预设作为已保存布局，可见编号 1 到 9（编号 0 的 cloud 和没有编号的 blank 在更下方），每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F11（blank 是空框）">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：预设作为已保存布局，可见编号 1 到 9（没有编号的 cloud 和 blank 在更下方），每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F11（blank 是空框）">
   <br><sub>布局 (Ctrl+Shift+G) · Tron</sub>
 </p>
 
@@ -136,18 +136,18 @@ elecdex 是一款科幻风格的桌面终端模拟器兼系统监视器，用 El
 
 | | |
 | --- | --- |
-| 快捷键 | **Ctrl+Shift+G**（LAYOUTS 对话框）；**Ctrl+Shift+1** … **9**、**0**（前十个）；**Ctrl+Shift+F1** … **F11**（预设） |
+| 快捷键 | **Ctrl+Shift+G**（LAYOUTS 对话框）；**Ctrl+Shift+1** … **9**（前九个；*未发布：* 不再有 **0** 上的第十个）；**Ctrl+Shift+F1** … **F11**（预设） |
 | 保存位置 | `layouts.json`，最多 20 项 |
 | 设置 | *Settings → General → Layouts* → *ask before switching layout*（默认开启） |
 | 设计 | [architecture.md §5.6](../architecture.md)（日文） |
 
-值得保留的排布可以命名保存——**Ctrl+Shift+G**，或状态栏中的 *layouts*——以后再回到它；前十个对应 Ctrl+Shift+1 到 9
-和 0，也对应状态栏左侧的编号按钮。
+值得保留的排布可以命名保存——**Ctrl+Shift+G**，或状态栏中的 *layouts*——以后再回到它；前九个对应 Ctrl+Shift+1 到 9
+（*未发布：* 第十个不再在 0 上），也对应状态栏左侧的编号按钮。
 
 - **布局跟随工作。** 当前所在的布局会被标记，你对工作区所做的一切都保存在其中，回来时一切如你离开时一样。它不是
   快照。
 - 重置布局不会删除任何已保存布局；之后的排布在你保存或应用某个布局之前不属于任何一个。
-- 在对话框中可以重命名布局，也可以上下移动——它在列表中的位置*就是*它的数字键。最多保存 20 个；第十个之后的没有
+- 在对话框中可以重命名布局，也可以上下移动——它在列表中的位置*就是*它的数字键。最多保存 20 个；第九个之后的没有
   按键，从对话框中应用。
 - **应用布局会替换工作区**，被替换窗格中的 shell 会结束，就像关闭这些窗格一样。有 shell 打开时会先询问，问题中附有
   不再询问的方法（*Settings → General → Layouts*）。所应用布局中的 shell 会重新启动。
@@ -303,7 +303,7 @@ Ctrl+Shift+@ / [）。应用自己的列表和提示会按你的键盘印字显�
 | Ctrl+Shift+← / → / ↑ / ↓ | 焦点移到该方向的窗格；该方向没有窗格时，按键传给窗格 |
 | Ctrl+Shift+Backspace | 重置为默认布局（有 shell 打开时先询问） |
 | Ctrl+Shift+G | 已保存布局 |
-| Ctrl+Shift+1 … 9、0 | 按对话框中的顺序应用前十个已保存布局（0 为第十个）；空位时按键留给当前窗格 |
+| Ctrl+Shift+1 … 9 | 按对话框中的顺序应用前九个已保存布局；空位时按键留给当前窗格（*未发布：* 不再有 0 上的第十个） |
 | Ctrl+Shift+F1 … F11 | 转到预设：standard、network、earth、dev、media、desk、ai、cockpit、retro、cloud、blank |
 | Ctrl+Shift+L | 搜索启动器（布局中没有时弹出一个） |
 | Ctrl+Shift+U | 实用工具窗格：布局中的下一个，没有则弹出；再按一次收起（Linux 上 IBus 可能占用这组按键来按编码输入字符：请重新绑定） |

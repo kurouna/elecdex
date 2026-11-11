@@ -58,7 +58,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | 按键 | Action | id | 操作 |
 | --- | --- | --- | --- |
 | Ctrl+Shift+G | Saved layouts | `layout.saved` | 打开布局对话框：给当前排布命名保存，或回到某个布局 |
-| Ctrl+Shift+1 … 9、0 | Apply the 1st … 10th saved layout | `layout.saved1` … `layout.saved10` | 应用前十个已保存布局，顺序与对话框中的列表一致（0 为第十个）。对应位置为空时，按键交给当前窗格 |
+| Ctrl+Shift+1 … 9 | Apply the 1st … 9th saved layout | `layout.saved1` … `layout.saved9` | 应用前九个已保存布局，顺序与对话框中的列表一致。对应位置为空时，按键交给当前窗格。*未发布：* 第十个与之后的一样没有按键（原先在 0 上，而装有日语输入法的 Windows 会自行占用 Ctrl+Shift+0） |
 | Ctrl+Shift+F1 … F11 | Go to the standard … blank preset | `layout.preset.standard` … `layout.preset.blank` | 切换到预设：F1 standard、F2 network、F3 earth、F4 dev、F5 media、F6 desk、F7 ai、F8 cockpit、F9 retro、F10 cloud（`layout.preset.cloud`）、F11 blank *（v0.0.60 之前 blank 在 F10）* |
 | Ctrl+Shift+Backspace | Reset layout | `layout.reset` | 重置为默认布局（有 shell 打开时，与切换布局一样先询问） |
 
@@ -225,7 +225,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 | | |
 | --- | --- |
-| 位置 | Ctrl+Shift+G，或状态栏中的 *layouts*；前十个对应 Ctrl+Shift+1 到 9 和 0，以及状态栏的编号按钮 |
+| 位置 | Ctrl+Shift+G，或状态栏中的 *layouts*；前九个对应 Ctrl+Shift+1 到 9（*未发布：* 不再有 0 上的第十个），以及状态栏的编号按钮 |
 | 文件 | 应用数据文件夹中的 `layouts.json`（已保存布局）和 `layout.json`（实时排布）；见[主题与设置](themes-settings.zh-CN.md#布局文件) |
 | 设置 | `layout.confirmSwitch`（默认 `true`）：*Settings → General → Layouts* |
 
@@ -257,7 +257,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 - 除 cockpit 和 blank 外，每个预设都把系统栏留在左侧，所以切换时换的是舞台，仪表仍在原处。
 - 选择一个预设会用它新建一个布局并切换过去——此后它就是你的布局之一，跟随你的工作——再次选择它会回到那个布局，而不会再新建一个；↺ 把它恢复为预设原样。
 - 每个预设的按键在任何地方都能做同样的事。
-- 全新安装时会得到全部十一个预设，前十个占据 Ctrl+Shift+1 到 0；第十一个 blank 没有数字键。已有的列表不会被追加。
+- 全新安装时会得到全部十一个预设，前九个占据 Ctrl+Shift+1 到 9；*未发布：* 第十个 cloud 和第十一个 blank 没有数字键（cloud 原先在 0 上）。已有的列表不会被追加。
 
 ## 标签组
 

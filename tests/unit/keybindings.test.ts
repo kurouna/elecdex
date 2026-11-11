@@ -154,6 +154,9 @@ describe('the saved layout slots', () => {
     // many buttons; an action added in one place and not the other would leave a
     // number on screen that no key answers.
     const slots = KEYBINDING_ACTIONS.filter((action) => /^layout\.saved\d+$/.test(action.id))
+    // Nine (user decision 2026-11-11): Windows with a Japanese input method takes Ctrl+Shift+0
+    // before the page sees it, so a tenth on 0 was a number no key answered.
+    expect(KEYED_LAYOUTS).toBe(9)
     expect(slots).toHaveLength(KEYED_LAYOUTS)
     expect(slots.map((action) => action.id)).toEqual(
       Array.from({ length: KEYED_LAYOUTS }, (_, i) => `layout.saved${i + 1}`),
@@ -165,10 +168,13 @@ describe('the saved layout slots', () => {
       (action) => action.chord,
     )
     expect(chords).toEqual(
-      // Along the row of number keys: 1 to 9, then 0 for the tenth.
-      Array.from({ length: KEYED_LAYOUTS }, (_, i) => `Ctrl+Shift+Digit${(i + 1) % 10}`),
+      // Along the row of number keys, 1 to 9; never 0.
+      Array.from({ length: KEYED_LAYOUTS }, (_, i) => `Ctrl+Shift+Digit${i + 1}`),
     )
     expect(new Set(chords).size).toBe(chords.length)
+    expect(KEYBINDING_ACTIONS.map((action): string => action.chord)).not.toContain(
+      'Ctrl+Shift+Digit0',
+    )
   })
 })
 

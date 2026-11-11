@@ -32,7 +32,7 @@ The cloud preset (Ctrl+Shift+F10) is the account, the repositories and a shell f
 
 - Both CLI panes read only while they are shown, so the preset reads nothing until it is on screen, and LOG WATCH behind its tab reads nothing until chosen.
 - AWS STATUS starts with the free reads under the profile `default` (every call names its profile with `--profile`, so `AWS_PROFILE` does not choose it; ⚙ does), and asks about Cost Explorer the first time it shows an account (RESOURCES' `GetMetricData` is on by default, under a cap of $1.00 a month per account; off in ⚙). Without the CLIs each pane shows **NO CLI** and how to install it.
-- Presets are templates: choosing one adds a saved layout that then follows your changes. A new install starts with all eleven presets, the first ten on the number keys; an existing list of layouts is never added to.
+- Presets are templates: choosing one adds a saved layout that then follows your changes. A new install starts with all eleven presets, the first nine on the number keys (*unreleased:* cloud, the tenth, is no longer on 0); an existing list of layouts is never added to.
 
 ## How both panes read
 

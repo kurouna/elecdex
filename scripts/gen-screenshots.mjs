@@ -16,8 +16,8 @@
  * reaching the page.
  *
  * Shots for posting (`social-elec-sitting`, `social-elec-approved`, `social-ethernet-popup`,
- * `social-paper-cockpit`, `social-paper-earth`, `social-black-translate`, `social-aws-popup` and
- * `social-github-popup`, the last two each with an `-alone`) are taken only when named,
+ * `social-paper-cockpit`, `social-paper-earth`, `social-black-translate`, `social-aws-forward` and
+ * `social-github-forward`, the last two each with an `-alone`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
  * so nothing of the machine is in them.
  */
@@ -740,7 +740,6 @@ async function shoot(
     paneOnly = null,
     fullscreen = false,
     claude = false,
-    scale = null,
   } = {},
 ) {
   const named = only.includes(name) || (name.startsWith('pane-') && only.includes('panes'))
@@ -763,8 +762,6 @@ async function shoot(
   // Full screen (a preset whose calculator shows only its LCD in a smaller window): the app as
   // it starts, on this display; else a window of W x H.
   const windowed = fullscreen ? [] : ['--windowed']
-  // A sharper picture for posting: the same layout drawn at `scale` device pixels per pixel.
-  if (scale !== null) windowed.push(`--force-device-scale-factor=${scale}`)
   const app = await electron.launch({
     args: [MAIN, ...windowed, '--no-intro', `--user-data-dir=${dir}`, '--lang=en-US'],
     // Run from the demo home: PowerShell writes a module cache relative to it.
@@ -1520,60 +1517,31 @@ if (only.includes('social-ethernet-popup')) {
     },
   })
 }
-// For posting: AWS STATUS and GITHUB STATUS each popped up over the standard layout in
-// Business Light, on their stand-ins (a made-up account, a made-up gh user) and a month of made-up
-// stars. Only when named.
-// `-alone` is the pop-up's own box at twice the pixels, so its text reads on a phone and nothing
-// of the layout behind is in it (the window, twice as large, would not fit the screen, so it is
-// smaller there and the pop-up with it).
-// AWS STATUS in a pop-up: Cost Explorer's question put off (LATER) and the pulse band off in ⚙,
-// so the room under LOOKS FORGOTTEN goes to the service cards.
-async function tidyAws(popup, page) {
-  await popup.getByTestId('aws-ce-later').click()
-  await page.waitForTimeout(800)
-  await popup.getByTestId('aws-settings-toggle').click()
-  await popup
-    .getByTestId('aws-settings')
-    .locator('.opt', { hasText: 'Pulse band' })
-    .getByRole('button', { name: 'off' })
-    .click()
-  await popup.getByTestId('aws-settings-toggle').click()
-  await page.waitForTimeout(800)
-}
-async function popUp(page, widget, ready, alone, tidy) {
-  await page.keyboard.press('Control+Shift+KeyA')
-  const picker = page.getByTestId('pane-picker')
-  await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
-  await picker.locator(`[data-testid=pane-picker-item][data-widget=${widget}]`).click()
-  await page.getByTestId('popup-pane').getByTestId(ready).first().waitFor({ timeout: 30_000 })
-  await page.waitForTimeout(1500)
-  await tidy?.(page.getByTestId('popup-pane'), page)
-  await page.mouse.move(W / 2, 5)
-  await page.waitForTimeout(800)
-  if (alone === null) return
-  mkdirSync(SOCIAL, { recursive: true })
-  await page.getByTestId('popup-pane').screenshot({ path: path.join(SOCIAL, `${alone}.png`) })
-}
-for (const [widget, ready, prepare, tidy] of [
-  ['aws', 'aws-forgotten-row', undefined, tidyAws],
-  ['github', 'github-tile', starHistory, undefined],
+// For posting: AWS STATUS and GITHUB STATUS each brought forward (Ctrl+Shift+Z) in the cloud
+// preset, in Business Light, on their stand-ins (a made-up account, a made-up gh user) and a month
+// of made-up stars. Beside the whole window, `-alone` is the pane's own box, nothing of the
+// machine's column in it. Only when named.
+for (const [widget, ready] of [
+  ['aws', 'aws-rcard'],
+  ['github', 'github-tile'],
 ]) {
-  const name = `social-${widget}-popup`
-  if (only.includes(name)) {
-    await shoot('business-light', name, {
-      social: true,
-      prepare,
-      extra: (page) => popUp(page, widget, ready, null, tidy),
-    })
-  }
-  if (only.includes(`${name}-alone`)) {
-    await shoot('business-light', `${name}-alone`, {
-      save: false,
-      scale: 2,
-      prepare,
-      extra: (page) => popUp(page, widget, ready, `${name}-alone`, tidy),
-    })
-  }
+  const name = `social-${widget}-forward`
+  if (!only.includes(name)) continue
+  await shoot('business-light', name, {
+    layout: withState(preset('cloud'), { aws: { regions: ['ap-northeast-1', 'us-east-1'] } }),
+    prepare: starHistory,
+    social: true,
+    extra: async (page) => {
+      const pane = page.locator(`[data-testid=pane][data-widget=${widget}]`).first()
+      await pane.getByTestId(ready).first().waitFor({ timeout: 30_000 })
+      await pane.getByTestId('pane-zoom').click()
+      await page.waitForTimeout(1500)
+      await page.mouse.move(W / 2, 5)
+      await page.waitForTimeout(800)
+      mkdirSync(SOCIAL, { recursive: true })
+      await pane.screenshot({ path: path.join(SOCIAL, `${name}-alone.png`) })
+    },
+  })
 }
 // For posting: TRANSLATE in the room the standard layout gives everything but its system
 // column, in the Black theme, the stand-in engine's notes translated and one paragraph of the

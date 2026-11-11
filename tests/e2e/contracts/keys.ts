@@ -57,7 +57,6 @@ export const KEY_ROWS = {
   'layout.saved7': { world: 'slots' },
   'layout.saved8': { world: 'slots' },
   'layout.saved9': { world: 'slots' },
-  'layout.saved10': { world: 'slots' },
   'layout.preset.standard': { world: 'presets' },
   'layout.preset.network': { world: 'presets' },
   'layout.preset.earth': { world: 'presets' },

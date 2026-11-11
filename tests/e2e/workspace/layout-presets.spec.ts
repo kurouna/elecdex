@@ -79,8 +79,8 @@ test('a first start has every preset on the number keys, and only a first start'
 
     await showStatusBar(first.page)
     const slots = first.page.getByTestId('layout-slot')
-    // Ten number keys: the eleventh preset is kept without one.
-    await expect(slots).toHaveCount(Math.min(PRESETS.length, 10))
+    // Nine number keys: the tenth and eleventh presets are kept without one.
+    await expect(slots).toHaveCount(Math.min(PRESETS.length, 9))
     await expect(slots.nth(2)).toHaveAttribute('data-name', 'earth')
     await expect(slots.nth(0)).toHaveAttribute('aria-pressed', 'true')
 
@@ -99,8 +99,9 @@ test('a first start has every preset on the number keys, and only a first start'
     await expect(card(first.page, 'ai').getByTestId('layouts-preset-badge')).toHaveText('on 7')
     await expect(card(first.page, 'cockpit').getByTestId('layouts-preset-badge')).toHaveText('on 8')
     await expect(card(first.page, 'retro').getByTestId('layouts-preset-badge')).toHaveText('on 9')
-    // Tenth, on the last number key; the eleventh is kept with no key (user decision 2026-11-08).
-    await expect(card(first.page, 'cloud').getByTestId('layouts-preset-badge')).toHaveText('on 0')
+    // The tenth and the eleventh are kept with no key: the number keys stop at 9 (user decision
+    // 2026-11-11: Windows with a Japanese input method takes Ctrl+Shift+0).
+    await expect(card(first.page, 'cloud').getByTestId('layouts-preset-badge')).toHaveText('kept')
     await expect(card(first.page, 'blank').getByTestId('layouts-preset-badge')).toHaveText('kept')
     const remove = first.page.getByTestId('layouts-remove').nth(PRESETS.length - 1)
     await remove.click()

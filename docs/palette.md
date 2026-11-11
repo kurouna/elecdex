@@ -161,7 +161,7 @@ main がキーを取ってページへ送り、Workspace が開く（`web.onShor
 | 種類 | 出どころ | 除くもの・注意 |
 |------|----------|----------------|
 | ACTION | `KEYBINDING_ACTIONS`、`effectiveBindings` で書式、`commands.applies` | `scope: 'global'`、`palette.open` 自身、`layout.savedN`（LAYOUT の行になる）、`layout.preset.*`（PRESET の行になる）、この機械にないもの（`availableOn`）。`pane.zoom` は前に出ているペインがあれば戻す（`layout.zoom.paneId ?? focusedPaneId`）ので、説明は「前に出す、または戻す」 |
-| LAYOUT | `layout.saved.list`。最初の 10 件は `layout.savedN` のキー | 使用中（`entry.active`）は `current` |
+| LAYOUT | `layout.saved.list`。最初の 9 件は `layout.savedN` のキー（`KEYED_LAYOUTS`） | 使用中（`entry.active`）は `current` |
 | PRESET | `LAYOUT_PRESETS` と `layoutFromPreset`。キーは `layout.preset.<id>` | 説明は「〜へ移る」か「レイアウトを足す」 |
 | THEME | `appearance.catalog.themes`（組み込みと利用者のテーマ） | 使用中は `appearance.theme.id`（実際に当たっているもの）で決める。`settings.theme` はもう無いテーマを指していることがある |
 | PANE | `listWidgets()`。ピッカーと同じ絞り込み（`plugins.usable`、`unlisted`） | 置き場所はウィジェットごとに `w.popup ? 'popup' : 'right'` を選び、`pickerChoice(w, placement, existing)` に渡す（Q5）。`pickerChoice` は `popup` の置き場所をポップアップできないウィジェットに `none` で返すので、一律に `popup` を渡さない |

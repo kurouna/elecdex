@@ -79,8 +79,8 @@ describe('shortcutApplies', () => {
     expect(shortcutApplies('layout.saved1', facts)).toBe(true)
     expect(shortcutApplies('layout.saved2', facts)).toBe(true)
     expect(shortcutApplies('layout.saved3', facts)).toBe(false)
-    expect(shortcutApplies('layout.saved10', facts)).toBe(false)
-    expect(shortcutApplies('layout.saved10', { ...ALL, savedCount: 10 })).toBe(true)
+    expect(shortcutApplies('layout.saved9', facts)).toBe(false)
+    expect(shortcutApplies('layout.saved9', { ...ALL, savedCount: 9 })).toBe(true)
     // The dialog's key is not a slot.
     expect(shortcutApplies('layout.saved', { ...ALL, savedCount: 0 })).toBe(true)
   })
@@ -121,7 +121,6 @@ describe('shortcutsLeftToPage', () => {
       'layout.saved7',
       'layout.saved8',
       'layout.saved9',
-      'layout.saved10',
       'shell.find',
       'shell.clear',
       'shell.fontBigger',

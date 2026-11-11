@@ -163,14 +163,16 @@ const summary = (id: string, name: string, extra: Partial<SavedLayoutSummary> = 
   ({ id, name, active: false, preset: null, shape: [], ...extra }) satisfies SavedLayoutSummary
 
 describe('layoutItems', () => {
-  it('names each saved layout with its number key, the first ten only, the one in use current', () => {
+  it('names each saved layout with its number key, the first nine only, the one in use current', () => {
     const saved = Array.from({ length: 11 }, (_, i) =>
       summary(`l${i}`, `Layout ${i}`, { active: i === 1 }),
     )
     const items = layoutItems(saved, WIN, {})
     expect(ids(items)).toEqual(saved.map((s) => `layout:${s.id}`))
     expect(items[0]).toMatchObject({ kind: 'layout', label: 'Layout 0', chord: 'Ctrl+Shift+1' })
-    expect(items[9]?.chord).toBe('Ctrl+Shift+0')
+    expect(items[8]?.chord).toBe('Ctrl+Shift+9')
+    // No tenth on 0 (user decision 2026-11-11).
+    expect(items[9]?.chord).toBeNull()
     expect(items[10]?.chord).toBeNull()
     expect(items[1]?.state).toEqual({ kind: 'current' })
     expect(items[0]?.state).toEqual({ kind: 'ready' })

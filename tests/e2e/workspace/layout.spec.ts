@@ -866,18 +866,20 @@ test('a hand edit made while the app is running survives a reload', async ({ sha
   }
 })
 
-test('Ctrl+Shift+0 applies the tenth saved layout, shown as 0', async () => {
+// Nine keys (user decision 2026-11-11): Windows with a Japanese input method takes Ctrl+Shift+0
+// before the page sees it, so the tenth layout, like the eleventh, has no key.
+test('the number keys stop at 9: the tenth saved layout has none, shown as ·', async () => {
   let launched = await launch(undefined, {
     layout: SINGLE_TERMINAL,
     settings: NO_SWITCH_PROMPT,
   })
   try {
-    // Nine calendars, then a notes pane tenth and a clock eleventh: only the
-    // tenth answers the key, and the eleventh has none.
-    const items = Array.from({ length: 11 }, (_, i) => ({
+    // Eight calendars, then a notes pane ninth and a clock tenth: the ninth answers 9, and
+    // the tenth has no key.
+    const items = Array.from({ length: 10 }, (_, i) => ({
       id: `slot${String(i + 1).padStart(2, '0')}`,
       name: `layout ${i + 1}`,
-      tree: single(i === 9 ? 'notes' : i === 10 ? 'clock' : 'calendar', { id: 'p' }),
+      tree: single(i === 8 ? 'notes' : i === 9 ? 'clock' : 'calendar', { id: 'p' }),
     }))
     writeFileSync(
       path.join(launched.userData, 'layouts.json'),
@@ -889,22 +891,28 @@ test('Ctrl+Shift+0 applies the tenth saved layout, shown as 0', async () => {
 
     await showStatusBar(page)
     const slots = page.getByTestId('layout-slot')
-    await expect(slots).toHaveCount(10)
+    await expect(slots).toHaveCount(9)
     await expect(slots.nth(8)).toHaveText('9')
-    await expect(slots.nth(9)).toHaveText('0')
-    await expect(slots.nth(9)).toHaveAttribute('data-name', 'layout 10')
+    await expect(slots.nth(8)).toHaveAttribute('data-name', 'layout 9')
 
     await page.keyboard.press('Control+Shift+KeyG')
     const rows = page.getByTestId('layouts-slot')
-    await expect(rows).toHaveCount(11)
-    await expect(rows.nth(9)).toHaveText('0')
-    await expect(rows.nth(10)).toHaveText('·')
+    await expect(rows).toHaveCount(10)
+    await expect(rows.nth(8)).toHaveText('9')
+    await expect(rows.nth(9)).toHaveText('·')
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
 
-    await page.keyboard.press('Control+Shift+Digit0')
+    await page.keyboard.press('Control+Shift+Digit9')
     await expect(page.locator('[data-testid=pane][data-widget=notes]')).toHaveCount(1)
     await expect(terminalPane(page)).toHaveCount(0)
+    // 0 applies nothing: the ninth stays.
+    await page.keyboard.press('Control+Shift+Digit0')
+    // wait: nothing is meant to happen, so no signal says it has not; a layout the key applied
+    // would have powered on within this time.
+    await page.waitForTimeout(500)
+    await expect(page.locator('[data-testid=pane][data-widget=clock]')).toHaveCount(0)
+    await expect(page.locator('[data-testid=pane][data-widget=notes]')).toHaveCount(1)
   } finally {
     await launched.close()
   }

@@ -408,11 +408,14 @@ describe('seededLayouts', () => {
     expect(seen).toEqual(LAYOUT_PRESETS.map((_, i) => i))
   })
 
-  it('fits on the number keys, all but blank (user decision 2026-11-08: cloud took its place)', () => {
+  it('puts the first nine on the number keys; cloud and blank have their F keys only (user decision 2026-11-11)', () => {
     const keyed = LAYOUT_PRESETS.slice(0, KEYED_LAYOUTS).map((preset) => preset.id)
     expect(keyed).toHaveLength(KEYED_LAYOUTS)
-    expect(keyed.at(-1)).toBe('cloud')
-    expect(LAYOUT_PRESETS.slice(KEYED_LAYOUTS).map((preset) => preset.id)).toEqual(['blank'])
+    expect(keyed.at(-1)).toBe('retro')
+    expect(LAYOUT_PRESETS.slice(KEYED_LAYOUTS).map((preset) => preset.id)).toEqual([
+      'cloud',
+      'blank',
+    ])
   })
 })
 

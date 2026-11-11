@@ -41,7 +41,6 @@ export const KEYBINDING_ACTIONS = [
   { id: 'layout.saved7', label: 'Apply the 7th saved layout', chord: 'Ctrl+Shift+Digit7' },
   { id: 'layout.saved8', label: 'Apply the 8th saved layout', chord: 'Ctrl+Shift+Digit8' },
   { id: 'layout.saved9', label: 'Apply the 9th saved layout', chord: 'Ctrl+Shift+Digit9' },
-  { id: 'layout.saved10', label: 'Apply the 10th saved layout', chord: 'Ctrl+Shift+Digit0' },
   // One per preset (shared/layout-presets.ts), by its id rather than its place, so
   // a key the user moved stays on the same preset when presets are added. Each
   // goes to the layout made from the preset, or adds one, as the dialog's card does.

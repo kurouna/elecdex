@@ -28,7 +28,7 @@ they are not sufficiently verified.
 - [The status bar and the window](#the-status-bar-and-the-window)
 
 <p align="center">
-  <img src="../screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (cloud on 0 and blank, with no number key, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F11">
+  <img src="../screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the presets as saved layouts, 1 to 9 in view (cloud and blank, with no number key, further down), each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails - blank's an empty frame - where each stands, and their keys Ctrl+Shift+F1 to F11">
   <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
 </p>
 
@@ -165,13 +165,13 @@ as it was - it is not saved, and **Escape**, the × or a click beside it puts it
 
 | | |
 | --- | --- |
-| Shortcut | **Ctrl+Shift+G** (the LAYOUTS dialog); **Ctrl+Shift+1** … **9**, **0** (the first ten); **Ctrl+Shift+F1** … **F11** (presets) |
+| Shortcut | **Ctrl+Shift+G** (the LAYOUTS dialog); **Ctrl+Shift+1** … **9** (the first nine; *unreleased:* not a tenth on **0**); **Ctrl+Shift+F1** … **F11** (presets) |
 | Stored in | `layouts.json`, at most 20 entries |
 | Settings | *Settings → General → Layouts* → *ask before switching layout* (on by default) |
 | Design | [architecture.md §5.6](../architecture.md) (Japanese) |
 
 An arrangement worth keeping can be saved by name - **Ctrl+Shift+G**, or *layouts* in the status
-bar - and returned to later; the first ten are on Ctrl+Shift+1 to 9 and 0, and on the numbered
+bar - and returned to later; the first nine are on Ctrl+Shift+1 to 9 (*unreleased:* the tenth is no longer on 0), and on the numbered
 buttons at the left of the status bar.
 
 - **A layout follows the work.** The one you are in is marked, and whatever you do to the
@@ -179,7 +179,7 @@ buttons at the left of the status bar.
 - Resetting the layout leaves all of them, and what you arrange after that belongs to none until
   you save it or apply one.
 - In the dialog a layout can be renamed, and moved up or down - its place in the list *is* its
-  number key. Up to 20 are kept; the ones past the tenth have no key and are applied from the
+  number key. Up to 20 are kept; the ones past the ninth have no key and are applied from the
   dialog.
 - **Applying a layout replaces the workspace**, which ends the shells of the panes it replaces,
   exactly as closing those panes would. While shells are open you are asked first, and the question
@@ -370,7 +370,7 @@ them as your keyboard prints them, as they are bound now.
 | Ctrl+Shift+← / → / ↑ / ↓ | focus the pane that way; with none there, the key goes to the pane |
 | Ctrl+Shift+Backspace | reset to the default layout (asks first while shells are open) |
 | Ctrl+Shift+G | saved layouts |
-| Ctrl+Shift+1 … 9, 0 | apply the first ten saved layouts, in the order the dialog lists them (0 is the tenth); an empty slot leaves the keys to the focused pane |
+| Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them; an empty slot leaves the keys to the focused pane (*unreleased:* no tenth on 0) |
 | Ctrl+Shift+F1 … F11 | go to a preset: standard, network, earth, dev, media, desk, ai, cockpit, retro, cloud, blank |
 | Ctrl+Shift+L | search the launcher (pops one up if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up; pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
