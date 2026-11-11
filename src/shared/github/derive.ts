@@ -71,6 +71,16 @@ export function repoName(raw: unknown): string | null {
  * A URL main may open for an item: github.com only, in the shapes the pane links to. API URLs of
  * notifications (api.github.com/repos/o/r/pulls/n) become their pages. Anything else is null.
  */
+/**
+ * The top row's REPOSITORIES: the signed-in account's list of repositories on github.com. A login
+ * is letters, digits and single hyphens inside, at most 39 (GitHub's own shape): anything else
+ * makes no URL.
+ */
+export function repositoriesUrl(login: string): string | null {
+  if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(login)) return null
+  return `https://github.com/${login}?tab=repositories`
+}
+
 export function htmlUrlOf(raw: string): string | null {
   let url: URL
   try {

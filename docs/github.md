@@ -237,7 +237,9 @@ REST の `open_issues_count` は PR を含むので使わない）、`pullReques
   incident since 13:40」と添える（自分のせいかどうかを見分けるため）
 - **上段**: ◆ランプと語、QUEUE（数、danger の数）、REVIEW（自分を待つ PR）、MAIN RED（既定ブランチが赤い
   リポジトリの数、0 なら淡く）、RATE LOW のときだけ REST / GQL の残り、右に「inbox next 14:23」（時刻を、
-  変わったときだけ書く）、右端に MASK・REFRESH・⚙
+  変わったときだけ書く）、右端に REPOSITORIES・MASK・REFRESH・⚙（REPOSITORIES はサインインしているアカウントの
+  `https://github.com/<login>?tab=repositories` を開く。ページは `repositories` という id を渡すだけで、login は main が
+  自分の `auth` の読み取りから取り、GitHub の形（英数字と内側の 1 つずつのハイフン、39 字まで）のときだけ URL を作る）
 - **帯（このペインの印）**: 53 週 × 7 日の貢献の格子（2D canvas 1 枚）。GitHub の緑の草ではなく、アクセントの
   濃淡の四角を回路の基板のように並べ、月の区切りは HTML の細い線と文字。左に年の数、右に STREAK。マスに留まると
   その日の数。高さが足りないとき・狭いとき（26 週に）・設定で消える

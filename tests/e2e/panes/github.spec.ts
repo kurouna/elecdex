@@ -34,6 +34,11 @@ test('opens on the repositories, reads the queue from gh while shown, and opens 
     await expect.poll(() => opened(app)).toHaveLength(1)
     expect((await opened(app))[0]).toMatch(/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\//)
 
+    // REPOSITORIES, left of MASK: the signed-in account's list of repositories on github.com.
+    await page.getByTestId('github-repositories').click({ delay: 20 })
+    await expect.poll(() => opened(app)).toHaveLength(2)
+    expect((await opened(app))[1]).toBe('https://github.com/octo-aki?tab=repositories')
+
     // The repositories and their drill-down.
     await page.getByTestId('github-tab-repos').click({ delay: 20 })
     await expect(page.getByTestId('github-tile').first()).toBeVisible()

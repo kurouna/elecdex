@@ -168,7 +168,7 @@ AWS's managed policy `ReadOnlyAccess` (or `ViewOnlyAccess` with `AWSBillingReadO
 | Privacy | Read only: marks nothing read, merges, comments or approves nothing. Bodies, comments, diffs and files are not read. Written to disk: only daily star counts of public repositories (`github-stars.json`, 90 days). |
 | Settings | Per pane in ⚙: repositories AUTO or PINNED, the contribution band on or off. For every pane: the incident toasts, `github.incidents` in `settings.json`. |
 
-The top row: the link word, **QUEUE** (its count and danger count), **REVIEW** (pull requests waiting on you), **MAIN RED** (repositories whose default branch is red), the rate limit only while it runs low, the next inbox reading, **MASK**, **REFRESH**, ⚙. Under it the **contribution band**: the last year as a grid (the busiest days glow), with the year's count and the streak; ⚙ turns it off, and it is dropped when the pane is too low.
+The top row: the link word, **QUEUE** (its count and danger count), **REVIEW** (pull requests waiting on you), **MAIN RED** (repositories whose default branch is red), the rate limit only while it runs low, the next inbox reading, *unreleased:* **REPOSITORIES** (the signed-in account's list of repositories on github.com), **MASK**, **REFRESH**, ⚙. Under it the **contribution band**: the last year as a grid (the busiest days glow), with the year's count and the streak; ⚙ turns it off, and it is dropped when the pane is too low.
 
 The tabs:
 

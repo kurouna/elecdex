@@ -10,6 +10,7 @@ import {
   prVerdict,
   type QueueInput,
   repoName,
+  repositoriesUrl,
   starDelta,
   streaks,
   waitingTag,
@@ -85,6 +86,12 @@ describe('repoName and htmlUrlOf', () => {
     expect(repoName('octo/tern')).toBe('octo/tern')
     for (const bad of ['../etc', 'octo/..', './x', 'a/b/c', 'a', '', 'a b/c', 123, null])
       expect(repoName(bad)).toBeNull()
+  })
+
+  it("REPOSITORIES: the signed-in account's list of repositories, for a login of GitHub's shape only", () => {
+    expect(repositoriesUrl('octo-aki')).toBe('https://github.com/octo-aki?tab=repositories')
+    for (const bad of ['', '-octo', 'octo-', 'evil.com', 'a/b', 'a?b', 'x'.repeat(40), '..'])
+      expect(repositoriesUrl(bad), bad).toBeNull()
   })
 
   it('opens github.com pages of the shapes the pane links to, and nothing else', () => {
@@ -437,6 +444,11 @@ describe('GithubService on the stand-in gh', () => {
     const id = s.last()?.queue[0]?.id ?? ''
     expect(s.github.urlOf(AUTO, id)).toMatch(/^https:\/\/github\.com\//)
     expect(s.github.urlOf(AUTO, 'repo:someone/else')).toBeNull()
+    // REPOSITORIES: main's own reading of who is signed in, never a login the page names.
+    expect(s.github.urlOf(AUTO, 'repositories')).toBe(
+      'https://github.com/octo-aki?tab=repositories',
+    )
+    expect(s.github.urlOf(AUTO, 'repositories:someone')).toBeNull()
     expect(s.github.urlOf('{"repos":"auto","inbox":"participating"}', id)).toBeNull()
     expect(await s.github.detail(AUTO, 'someone/else')).toBeNull()
   })

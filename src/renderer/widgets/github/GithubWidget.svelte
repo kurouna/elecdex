@@ -205,6 +205,10 @@ async function open(id: string): Promise<void> {
   sfx.play('panel')
   await window.elecdex.github.open(key, id)
 }
+/** REPOSITORIES: the signed-in account's list of repositories, after the press's blink. */
+function openRepositories(button: HTMLElement): void {
+  afterBlink(button, () => void open('repositories'))
+}
 function onRowKey(event: KeyboardEvent, id: string): void {
   if (event.key === 'Enter') {
     event.preventDefault()
@@ -446,6 +450,7 @@ const short = $derived(fit.short)
     {/if}
     <span class="spacer"></span>
     {#if !narrow && board?.nextInboxAt}<span class="when">inbox next <b>{clockText(board.nextInboxAt)}</b></span>{/if}
+    <button type="button" class="tool" disabled={!board?.login} onclick={(e) => openRepositories(e.currentTarget)} data-testid="github-repositories">REPOSITORIES</button>
     <button type="button" class="tool" class:on={masked} aria-pressed={masked} onclick={() => patch({ mask: masked ? undefined : true })} data-testid="github-mask">MASK</button>
     <button type="button" class="tool" disabled={waitUntil > 0} onclick={(e) => pressRefresh(e.currentTarget)} data-testid="github-refresh">REFRESH</button>
   </header>

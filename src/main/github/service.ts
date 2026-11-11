@@ -17,6 +17,7 @@ import {
   htmlUrlOf,
   inboxItems,
   prVerdict,
+  repositoriesUrl,
   starDelta,
   streaks,
 } from '@shared/github/derive'
@@ -183,6 +184,11 @@ export class GithubService {
   urlOf(key: string, id: string): string | null {
     const board = this.#boards.get(key)
     if (board === undefined) return null
+    // REPOSITORIES: who is signed in, from main's own reading, never a login the page names.
+    if (id === 'repositories') {
+      const login = board.scheduler.outcome<AuthState>('auth').value?.login ?? null
+      return login === null ? null : repositoriesUrl(login)
+    }
     const incident = /^incident:(.+)$/.exec(id)?.[1]
     if (incident !== undefined) {
       const url = this.#deps.incidents().find((i) => i.id === incident)?.url ?? null
