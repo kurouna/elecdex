@@ -1521,9 +1521,10 @@ if (only.includes('social-ethernet-popup')) {
 // preset, in Business Light, on their stand-ins (a made-up account, a made-up gh user) and a month
 // of made-up stars. Beside the whole window, `-alone` is the pane's own box, nothing of the
 // machine's column in it. Only when named.
-for (const [widget, ready] of [
-  ['aws', 'aws-rcard'],
-  ['github', 'github-tile'],
+// GITHUB STATUS on its QUEUE, which fills the frame where five REPOS tiles left most of it empty.
+for (const [widget, ready, tab] of [
+  ['aws', 'aws-rcard', null],
+  ['github', 'github-tile', 'github-tab-queue'],
 ]) {
   const name = `social-${widget}-forward`
   if (!only.includes(name)) continue
@@ -1536,6 +1537,10 @@ for (const [widget, ready] of [
       await pane.getByTestId(ready).first().waitFor({ timeout: 30_000 })
       await pane.getByTestId('pane-zoom').click()
       await page.waitForTimeout(1500)
+      if (tab !== null) {
+        await pane.getByTestId(tab).click()
+        await page.waitForTimeout(1200)
+      }
       await page.mouse.move(W / 2, 5)
       await page.waitForTimeout(800)
       mkdirSync(SOCIAL, { recursive: true })
