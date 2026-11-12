@@ -301,12 +301,12 @@ describe('backdropShade', () => {
     ui.openPanePicker()
     const node = leavingNode()
     const config = backdropShade(node)
-    expect(node.style.background).toContain('transparent')
+    expect(node.style.backgroundColor).toBe('transparent')
     expect(node.style.zIndex).toBe('901')
     // Svelte's first frame passes t = 1; the handover holds.
     config.tick?.(1, 0)
     config.tick?.(0.4, 0.6)
-    expect(node.style.background).toContain('transparent')
+    expect(node.style.backgroundColor).toBe('transparent')
     expect(node.style.zIndex).toBe('901')
   })
 
@@ -316,10 +316,10 @@ describe('backdropShade', () => {
     config.tick?.(0.8, 0.2)
     expect(node.style.zIndex).toBe('')
     expect(backdropShade(openingNode())).toEqual({ duration: 0 })
-    expect(node.style.background).toContain('transparent')
+    expect(node.style.backgroundColor).toBe('transparent')
     expect(node.style.zIndex).toBe('901')
     config.tick?.(0.6, 0.4)
-    expect(node.style.background).toContain('transparent')
+    expect(node.style.backgroundColor).toBe('transparent')
   })
 
   it('is handed over only while it is leaving', () => {

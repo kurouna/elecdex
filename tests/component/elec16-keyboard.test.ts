@@ -92,6 +92,8 @@ describe("the ELEC-16's keys", () => {
     const { container } = render(Keyboard, props(300, SKINS.mochi))
     await tick()
     const mode = container.querySelector<HTMLElement>('[data-key=mode] .cap')?.style.transform ?? ''
-    expect(mode).toBe(`scaleX(${SKINS.mochi.body.fitFloor.toFixed(3)})`)
+    // Read as a number: jsdom 31, like browsers, drops the trailing zeros toFixed wrote.
+    const scale = Number(/^scaleX\(([\d.]+)\)$/.exec(mode)?.[1])
+    expect(scale).toBeCloseTo(SKINS.mochi.body.fitFloor, 3)
   })
 })
