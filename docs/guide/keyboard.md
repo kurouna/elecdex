@@ -96,7 +96,7 @@ On Linux, IBus may keep Ctrl+Shift+U for typing a character by its code, so the 
 | --- | --- | --- | --- |
 | F11 | Toggle fullscreen | `window.fullscreen` | All |
 | Ctrl+Shift+M | Minimize window | `window.minimize` | Windows, Linux (macOS does not minimise a fullscreen window) |
-| Ctrl+Shift+Q | Quit | `app.quit` | All. Quits even when closing only hides elecdex to the notification area. Asks first, yes or no, with the keyboard on no (Enter and Escape stay) |
+| Ctrl+Shift+Q | Quit | `app.quit` | All. Quits even when closing only hides elecdex to the notification area. Asks first, yes or no, with the keyboard on no (Enter and Escape stay); *unreleased:* → then Enter quits |
 | Ctrl+Alt+Shift+E | Show or hide elecdex | `window.toggle` | Works from any app. Off until turned on in *Settings → Window*; not in a Wayland session |
 
 ### Keys that are not rebindable
@@ -122,6 +122,7 @@ Chords are stored as physical keys (`KeyboardEvent.code`, such as `Ctrl+Shift+Ke
 - A match the search bar moves to is not copied; only what you select yourself is.
 - Shortcuts are taken before the focused shell sees the key. That is why every chord must include Ctrl or Alt (Cmd on macOS) or be a function key: every other key, plain or with Shift, still reaches the shell.
 - While a dialog is open, shortcuts do nothing except *Quit* and *Toggle fullscreen*, so nothing behind the dialog changes unseen. Over a popped-up pane, the shortcuts that call up a pane and the action palette's also work.
+- *unreleased:* The questions with a row of answers - quit, switching or resetting a layout while shells are open, pasting several lines - start the keyboard on one answer, shown filled. ← and → move along the row, Tab goes round the question's buttons and never behind it, Enter presses the answer the keyboard is on, and Escape is no. Quit starts on no; the switch and the paste start on going ahead, so Enter does what it did before.
 - When a web pane has the keyboard, main takes the shortcuts from the page and runs them; a shortcut that does nothing at that moment is left to the page (a web page zooms with Ctrl+Shift+=, for example).
 
 ## Rebinding shortcuts

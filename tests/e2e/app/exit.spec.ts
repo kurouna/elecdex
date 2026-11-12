@@ -61,6 +61,7 @@ test('a window still asking for sessions while the app quits gets an answer', as
 })
 
 test('Ctrl+Shift+Q asks first, even with a terminal focused: no stays, yes quits', async () => {
+  // Answering yes needed the mouse until ← and → chose (lib/question-keys.ts): found by hand.
   // Q lies under 1 and 2: a slip while switching layouts with Ctrl+Shift+1..9 quit at once.
   const { app, page, close } = await launch()
   try {
@@ -71,18 +72,22 @@ test('Ctrl+Shift+Q asks first, even with a terminal focused: no stays, yes quits
     const dialog = page.getByTestId('quit-dialog')
     await page.keyboard.press('Control+Shift+KeyQ')
     await expect(dialog).toBeVisible()
-    // The keyboard starts on no: a stray Enter stays.
+    // The keyboard starts on no, out of the shell: a stray Enter stays.
+    await expect(page.getByTestId('quit-no')).toBeFocused()
     await page.keyboard.press('Enter')
     await expect(dialog).toHaveCount(0)
     expect(await page.evaluate(() => document.visibilityState)).toBe('visible')
     await page.keyboard.press('Control+Shift+KeyQ')
     await expect(dialog).toBeVisible()
+    // Answered from the keyboard alone: → to yes, back to no and over again, then Enter.
+    await page.keyboard.press('ArrowRight')
+    await expect(page.getByTestId('quit-yes')).toBeFocused()
+    await page.keyboard.press('ArrowLeft')
+    await expect(page.getByTestId('quit-no')).toBeFocused()
+    await page.keyboard.press('ArrowRight')
     const gone = exited(app)
-    // The window can close before the click's release is delivered, which rejects it.
-    await page
-      .getByTestId('quit-yes')
-      .click({ delay: 20 })
-      .catch(() => {})
+    // The window can close before the key's release is delivered, which rejects it.
+    await page.keyboard.press('Enter').catch(() => {})
     await gone
   } finally {
     await close().catch(() => {})

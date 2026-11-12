@@ -1,5 +1,6 @@
 <script lang="ts">
 import { backdropShade, crtPower, dialogDelay } from '../../lib/crt-transitions.ts'
+import { focusStart, type Question, questionKey } from '../../lib/question-keys.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 
@@ -11,10 +12,21 @@ import { ui } from '../../stores/ui.svelte.ts'
 
 const request = $derived(ui.paste)
 let dialog = $state<HTMLDivElement | null>(null)
+let stop = $state<HTMLButtonElement | null>(null)
+let go = $state<HTMLButtonElement | null>(null)
+
+// The keyboard starts on paste, so Enter pastes, as it always has here; ← then Enter does not
+// (lib/question-keys.ts).
+const question = (): Question => ({
+  box: dialog,
+  row: [stop, go],
+  start: go,
+  cancel: () => ui.answerPaste(false),
+})
 
 $effect(() => {
   if (request === null) return
-  queueMicrotask(() => dialog?.focus())
+  focusStart(question)
 })
 
 function always(): void {
@@ -24,13 +36,7 @@ function always(): void {
 
 function onKeydown(event: KeyboardEvent): void {
   if (request === null) return
-  // Enter on a button presses that button: on "don't paste" it pasted (found in review).
-  if (event.key === 'Enter' && event.target instanceof HTMLButtonElement) return
-  if (event.key === 'Escape' || event.key === 'Enter') {
-    event.preventDefault()
-    event.stopPropagation()
-    ui.answerPaste(event.key === 'Enter')
-  }
+  questionKey(event, question())
 }
 </script>
 
@@ -57,7 +63,7 @@ function onKeydown(event: KeyboardEvent): void {
     >
       <header class="hud-label">
         <span>paste</span>
-        <span>enter paste · esc stop</span>
+        <span>← → choose · esc stop</span>
       </header>
       <div class="shell-frame body">
         <p class="cost" data-testid="paste-lines">
@@ -66,10 +72,21 @@ function onKeydown(event: KeyboardEvent): void {
         <pre class="preview" data-testid="paste-preview">{request.preview}</pre>
         {#if request.more > 0}<p class="more" data-testid="paste-more">and {request.more} more {request.more === 1 ? 'line' : 'lines'}</p>{/if}
         <div class="buttons">
-          <button type="button" onclick={() => ui.answerPaste(false)} data-testid="paste-cancel">
+          <button
+            bind:this={stop}
+            type="button"
+            onclick={() => ui.answerPaste(false)}
+            data-testid="paste-cancel"
+          >
             don't paste
           </button>
-          <button type="button" class="go" onclick={() => ui.answerPaste(true)} data-testid="paste-go">
+          <button
+            bind:this={go}
+            type="button"
+            class="go"
+            onclick={() => ui.answerPaste(true)}
+            data-testid="paste-go"
+          >
             paste
           </button>
         </div>
@@ -157,6 +174,14 @@ button:hover {
 .go {
   border-color: var(--accent-strong);
   color: var(--accent-strong);
+}
+
+/* The answer the keyboard is on, which Enter presses: filled, not a hairline round it. */
+.buttons button:focus {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--text-inverse);
+  outline: none;
 }
 
 .more {

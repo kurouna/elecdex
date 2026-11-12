@@ -1,5 +1,6 @@
 <script lang="ts">
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
+import { focusStart, type Question, questionKey } from '../lib/question-keys.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 
@@ -18,10 +19,21 @@ const request = $derived(ui.layoutSwitch)
 /** The keyboard's reset asks the same question (layout.confirmReset), in its own words. */
 const verb = $derived(request?.reset === true ? 'reset' : 'switch')
 let dialog = $state<HTMLDivElement | null>(null)
+let stay = $state<HTMLButtonElement | null>(null)
+let go = $state<HTMLButtonElement | null>(null)
+
+// The keyboard starts on the switch, so Enter switches, as it always has here; ← then Enter
+// stays (lib/question-keys.ts).
+const question = (): Question => ({
+  box: dialog,
+  row: [stay, go],
+  start: go,
+  cancel: () => answer(false),
+})
 
 $effect(() => {
   if (request === null) return
-  queueMicrotask(() => dialog?.focus())
+  focusStart(question)
 })
 
 function answer(go: boolean): void {
@@ -36,13 +48,7 @@ function always(): void {
 
 function onKeydown(event: KeyboardEvent): void {
   if (request === null) return
-  // Enter on a button presses that button: on "stay here" it switched, ending the shells.
-  if (event.key === 'Enter' && event.target instanceof HTMLButtonElement) return
-  if (event.key === 'Escape' || event.key === 'Enter') {
-    event.preventDefault()
-    event.stopPropagation()
-    answer(event.key === 'Enter')
-  }
+  questionKey(event, question())
 }
 </script>
 
@@ -69,7 +75,7 @@ function onKeydown(event: KeyboardEvent): void {
     >
       <header class="hud-label">
         <span>{verb} layout</span>
-        <span>enter go · esc stay</span>
+        <span>← → choose · esc stay</span>
       </header>
       <div class="shell-frame body">
         <p class="what">
@@ -81,10 +87,16 @@ function onKeydown(event: KeyboardEvent): void {
           if you closed their panes.
         </p>
         <div class="buttons">
-          <button type="button" onclick={() => answer(false)} data-testid="switch-layout-cancel">
+          <button
+            bind:this={stay}
+            type="button"
+            onclick={() => answer(false)}
+            data-testid="switch-layout-cancel"
+          >
             stay here
           </button>
           <button
+            bind:this={go}
             type="button"
             class="go"
             onclick={() => answer(true)}
@@ -164,6 +176,14 @@ button:hover {
 .go {
   border-color: var(--accent-strong);
   color: var(--accent-strong);
+}
+
+/* The answer the keyboard is on, which Enter presses: filled, not a hairline round it. */
+.buttons button:focus {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--text-inverse);
+  outline: none;
 }
 
 .always {

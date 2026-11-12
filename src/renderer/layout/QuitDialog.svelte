@@ -1,31 +1,35 @@
 <script lang="ts">
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
+import { focusStart, type Question, questionKey } from '../lib/question-keys.ts'
 import { ui } from '../stores/ui.svelte.ts'
 
 /**
  * The question Ctrl+Shift+Q asks before elecdex quits (user decision 2026-10-31). Q lies under
  * 1 and 2, so a slip while switching layouts with Ctrl+Shift+1..9 ended the app and every shell
- * in it. The keyboard starts on no, and Enter presses only the button it is on: a stray Enter,
- * typed for the shell a moment before, stays rather than quits.
+ * in it. The keyboard starts on no, and Enter presses the answer it is on (lib/question-keys.ts):
+ * a stray Enter, typed for the shell a moment before, stays rather than quits; → then Enter quits.
  */
 
 const request = $derived(ui.quit)
+let box = $state<HTMLDivElement | null>(null)
 let no = $state<HTMLButtonElement | null>(null)
+let yes = $state<HTMLButtonElement | null>(null)
+
+const question = (): Question => ({
+  box,
+  row: [no, yes],
+  start: no,
+  cancel: () => ui.answerQuit(false),
+})
 
 $effect(() => {
   if (request === null) return
-  queueMicrotask(() => no?.focus())
+  focusStart(question)
 })
 
 function onKeydown(event: KeyboardEvent): void {
   if (request === null) return
-  // Enter on a button presses that button; anywhere else in the dialog it is no.
-  if (event.key === 'Enter' && event.target instanceof HTMLButtonElement) return
-  if (event.key === 'Escape' || event.key === 'Enter') {
-    event.preventDefault()
-    event.stopPropagation()
-    ui.answerQuit(false)
-  }
+  questionKey(event, question())
 }
 </script>
 
@@ -40,6 +44,7 @@ function onKeydown(event: KeyboardEvent): void {
     onpointerdown={(e) => e.target === e.currentTarget && ui.answerQuit(false)}
   >
     <div
+      bind:this={box}
       class="dialog crt-on"
       style:--crt-delay={dialogDelay()}
       transition:crtPower
@@ -51,7 +56,7 @@ function onKeydown(event: KeyboardEvent): void {
     >
       <header class="hud-label">
         <span>quit</span>
-        <span>esc stay</span>
+        <span>← → choose · esc stay</span>
       </header>
       <div class="shell-frame body">
         <p class="what">Quit elecdex?</p>
@@ -65,7 +70,13 @@ function onKeydown(event: KeyboardEvent): void {
           >
             no
           </button>
-          <button type="button" class="go" onclick={() => ui.answerQuit(true)} data-testid="quit-yes">
+          <button
+            bind:this={yes}
+            type="button"
+            class="go"
+            onclick={() => ui.answerQuit(true)}
+            data-testid="quit-yes"
+          >
             yes
           </button>
         </div>
@@ -130,13 +141,20 @@ button {
   cursor: pointer;
 }
 
-button:hover,
-button:focus-visible {
+button:hover {
   background: var(--surface-2);
 }
 
 .go {
   border-color: var(--accent-strong);
   color: var(--accent-strong);
+}
+
+/* The answer the keyboard is on, which Enter presses: filled, not a hairline round it. */
+.buttons button:focus {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: var(--text-inverse);
+  outline: none;
 }
 </style>
