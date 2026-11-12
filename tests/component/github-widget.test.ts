@@ -268,6 +268,8 @@ describe('GithubWidget', () => {
     await push(await boardOf('signedout'))
     const notice = screen.getByTestId('github-signin')
     expect(notice.textContent).toContain('gh auth login')
+    // The board reads nothing until REFRESH, as AWS STATUS's: say to press it once signed in.
+    expect(notice.textContent).toContain('then press REFRESH above')
     const button = notice.querySelector('button') as HTMLButtonElement
     await fireEvent.click(button)
     // The press blinks its three beats first, as every other button does, then copies.

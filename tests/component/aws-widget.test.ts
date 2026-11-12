@@ -309,10 +309,14 @@ describe('AwsWidget', () => {
     expect(button.classList.contains('blinking')).toBe(false)
   })
 
-  it('says the command to sign in with', async () => {
+  it('says the command to sign in with, and to press REFRESH after it', async () => {
     await mount()
     await push(await boardOf('signedout'))
-    expect(screen.getByTestId('aws-signin').textContent).toContain('aws login --profile=default')
+    const notice = screen.getByTestId('aws-signin').textContent
+    expect(notice).toContain('aws login --profile=default')
+    // The board reads nothing until REFRESH: signed in from a shell, the pane went on saying
+    // SIGNED OUT, and the old words only said it "reads again at REFRESH" (found by hand).
+    expect(notice).toContain('then press REFRESH above')
   })
 
   it('copies an IAM policy of exactly the refused reads, and names the services once on RESOURCES', async () => {

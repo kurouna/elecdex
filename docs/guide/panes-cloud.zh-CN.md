@@ -40,7 +40,7 @@ cloud 预设（Ctrl+Shift+F10）摆放的是：账户、仓库，以及供两个
 | --- | --- |
 | 运行什么 | 你自己的 AWS CLI v2（`aws`）和 GitHub CLI（`gh`），由 elecdex 的主进程直接启动：不经过 shell，也不经过 PowerShell，参数以列表传递。 |
 | 如何找到 | 在 `PATH` 中，只看绝对路径的条目（从不搜索 elecdex 所在的文件夹），然后是安装位置：Windows 上为 `%LOCALAPPDATA%\Programs\Amazon\AWSCLIV2\aws.exe` 或 `%ProgramFiles%\Amazon\AWSCLIV2`，以及 `C:\Program Files\GitHub CLI\gh.exe`；其他系统为 `/opt/homebrew/bin`、`/usr/local/bin`、`/usr/bin`。在 elecdex 启动之后安装的 CLI，可能要重启 elecdex 才能找到。 |
-| 登录 | 从不代为登录。elecdex 从不接触凭据或令牌：由 CLI 按其惯常方式登录。未登录时，窗格只显示可复制的命令（`aws login --profile=<名称>`、`aws sso login --profile=<名称>`、`gh auth login`），从不执行它，并在按下 **REFRESH** 之前停止读取。 |
+| 登录 | 从不代为登录。elecdex 从不接触凭据或令牌：由 CLI 按其惯常方式登录。未登录时，窗格只显示可复制的命令（`aws login --profile=<名称>`、`aws sso login --profile=<名称>`、`gh auth login`），从不执行它，并在按下 **REFRESH** 之前停止读取。*未发布：* 提示中会写明登录后请按 REFRESH。 |
 | 写入 | 不在账户的任何地方写入任何内容：只读。GITHUB STATUS 也不会把通知标为已读。 |
 | 更新 | 只在窗格可见时：不在标签页后面，窗口未最小化也未隐藏。后台什么都不读，通知也不例外。 |
 

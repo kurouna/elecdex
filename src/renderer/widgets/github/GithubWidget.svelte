@@ -457,7 +457,7 @@ const short = $derived(fit.short)
 
   {#if board?.link === 'signed-out' && board.signIn !== null}
     <div class="notice crt-on" role="status" data-testid="github-signin">
-      <span>gh is not signed in to github.com, or its token expired. Sign in from a shell; the pane reads again at REFRESH.</span>
+      <span>gh is not signed in to github.com, or its token expired. Sign in from a shell with this command, then press <b>REFRESH</b> above: until then the pane reads nothing.</span>
       <code>{board.signIn}</code>
       <button type="button" class="tool" onclick={(e) => copySignIn(e.currentTarget)}>{copied ? 'COPIED' : 'COPY'}</button>
     </div>

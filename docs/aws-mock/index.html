@@ -1314,7 +1314,7 @@ const state = { link: 'linked', acct: 'busy', mask: false, tab: 'resources', reg
 const LINKS = {
   linked: { lamp: 'ok', text: 'LINKED', sub: '' },
   partial: { lamp: 'warn', text: 'PARTIAL', sub: '2 checks denied', badge: ['warn', 'partial'] },
-  login: { lamp: 'warn', text: 'SIGNED OUT', sub: 'aws login expired', stale: true, badge: ['warn', 'signed out'], notice: ['The console sign-in of this profile has run out and could not be renewed. Sign in again from a shell; the pane reads again at REFRESH.', 'aws login --profile=prod-readonly'] },
+  login: { lamp: 'warn', text: 'SIGNED OUT', sub: 'aws login expired', stale: true, badge: ['warn', 'signed out'], notice: ['The console sign-in of this profile has run out and could not be renewed. Sign in again from a shell with this command, then press REFRESH above: until then the pane reads nothing.', 'aws login --profile=prod-readonly'] },
   mfa: { lamp: 'warn', text: 'SIGNED OUT', sub: 'MFA code needed', stale: true, badge: ['warn', 'mfa'], notice: ['This profile asks for an MFA code, which the pane cannot type. Run any command once in a shell; the CLI keeps the session. The pane waits for REFRESH.', 'aws sts get-caller-identity --profile=prod-readonly'] },
   throttled: { lamp: 'warn', text: 'THROTTLED', sub: 'retry 14:31', stale: true, badge: ['warn', 'throttled'] },
   offline: { lamp: 'muted', text: 'OFFLINE', sub: 'last good 14:14', stale: true, badge: ['warn', 'offline'] },

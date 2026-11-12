@@ -250,6 +250,7 @@ test('says the way out when signed out, and when the CLI is not there', async ()
     await cloudMode(app, 'aws', 'signedout')
     await tab(page, 0).click({ delay: 20 })
     await expect(page.getByTestId('aws-signin')).toContainText('aws login --profile=default')
+    await expect(page.getByTestId('aws-signin')).toContainText('then press REFRESH above')
     await expect(page.getByTestId('aws-link')).toContainText('SIGNED OUT')
 
     await cloudMode(app, 'aws', 'nocli')

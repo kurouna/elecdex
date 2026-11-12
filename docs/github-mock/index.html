@@ -406,7 +406,7 @@ const LINKS = {
   linked: { lamp: 'ok', text: 'LINKED', sub: '' },
   finegrained: { lamp: 'warn', text: 'PARTIAL', sub: 'inbox needs a classic token', badge: ['warn', 'partial'], noInbox: 'A fine-grained token cannot read notifications at all. Sign in with gh (it uses an OAuth token) or use a classic token; everything else is read.', cmd: 'gh auth login' },
   envtoken: { lamp: 'warn', text: 'PARTIAL', sub: 'GH_TOKEN lacks notifications', badge: ['warn', 'partial'], noInbox: 'The token comes from GH_TOKEN in the environment, so gh auth refresh cannot add a scope. Give that token the notifications scope, or unset GH_TOKEN and sign in with gh.', cmd: 'gh auth status' },
-  signedout: { lamp: 'warn', text: 'SIGNED OUT', sub: 'github.com', stale: true, badge: ['warn', 'signed out'], notice: ['gh is not signed in to github.com, or its token expired and could not be renewed. Sign in from a shell; the pane reads again at REFRESH.', 'gh auth login'] },
+  signedout: { lamp: 'warn', text: 'SIGNED OUT', sub: 'github.com', stale: true, badge: ['warn', 'signed out'], notice: ['gh is not signed in to github.com, or its token expired and could not be renewed. Sign in from a shell with this command, then press REFRESH above: until then the pane reads nothing.', 'gh auth login'] },
   ratelow: { lamp: 'warn', text: 'RATE LOW', sub: 'slowed ×4 · reset 15:04', badge: ['warn', 'rate low'], rate: true },
   offline: { lamp: 'muted', text: 'OFFLINE', sub: 'last good 14:18', stale: true, badge: ['warn', 'offline'] },
   nocli: { lamp: 'danger', text: 'NO CLI', sub: '', empty: true, badge: ['danger', 'no cli'] },

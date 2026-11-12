@@ -93,6 +93,7 @@ test('says the way out when signed out, and when gh is not there', async () => {
     await cloudMode(app, 'github', 'signedout')
     await tab(page, 0).click({ delay: 20 })
     await expect(page.getByTestId('github-signin')).toContainText('gh auth login')
+    await expect(page.getByTestId('github-signin')).toContainText('then press REFRESH above')
     await expect(page.getByTestId('github-link')).toContainText('SIGNED OUT')
 
     // gh uninstalled meanwhile: REFRESH reads at once, even a board stopped at the sign-in.

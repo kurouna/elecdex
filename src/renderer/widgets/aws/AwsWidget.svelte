@@ -611,7 +611,7 @@ const TABS: readonly [AwsTab, string][] = [
 
   {#if board?.link === 'signed-out' && board.signIn !== null}
     <div class="notice crt-on" role="status" data-testid="aws-signin">
-      <span>The profile <b>{board.profile}</b> is signed out, or its credentials expired. Sign in from a shell; the pane reads again at REFRESH.</span>
+      <span>The profile <b>{board.profile}</b> is signed out, or its credentials expired. Sign in from a shell with this command, then press <b>REFRESH</b> above: until then the pane reads nothing.</span>
       <code>{board.signIn}</code>
       <button type="button" class="tool" onclick={(e) => board?.signIn != null && copyText(e.currentTarget, 'signin', board.signIn)}>{copies.key === 'signin' ? 'COPIED' : 'COPY'}</button>
     </div>
