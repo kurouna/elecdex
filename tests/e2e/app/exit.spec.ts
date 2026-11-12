@@ -65,10 +65,10 @@ test('Ctrl+Shift+Q asks first, even with a terminal focused: no stays, yes quits
   // Q lies under 1 and 2: a slip while switching layouts with Ctrl+Shift+1..9 quit at once.
   const { app, page, close } = await launch()
   try {
-    await page
+    const shell = page
       .locator('[data-testid=pane][data-widget=terminal]:not(.hidden) .xterm-helper-textarea')
       .first()
-      .focus()
+    await shell.focus()
     const dialog = page.getByTestId('quit-dialog')
     await page.keyboard.press('Control+Shift+KeyQ')
     await expect(dialog).toBeVisible()
@@ -77,6 +77,8 @@ test('Ctrl+Shift+Q asks first, even with a terminal focused: no stays, yes quits
     await page.keyboard.press('Enter')
     await expect(dialog).toHaveCount(0)
     expect(await page.evaluate(() => document.visibilityState)).toBe('visible')
+    // And the shell has the keyboard again: it was left on nothing (found in review).
+    await expect(shell).toBeFocused()
     await page.keyboard.press('Control+Shift+KeyQ')
     await expect(dialog).toBeVisible()
     // Answered from the keyboard alone: → to yes, back to no and over again, then Enter.

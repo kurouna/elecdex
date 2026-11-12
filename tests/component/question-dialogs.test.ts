@@ -20,7 +20,9 @@ const { default: PasteDialog } = await import(
  * The keyboard of every question asked over the workspace with a row of answers
  * (lib/question-keys.ts): it starts on an answer, ← and → move along the row, Tab goes round the
  * question's buttons and never behind it, Enter presses the answer it is on, Escape is no. Found
- * by hand: the quit question could only be answered yes with the mouse.
+ * by hand: the quit question could only be answered yes with the mouse. Found in review: the
+ * keyboard was left on nothing when the question went, so the shell it was asked over took no
+ * keys until clicked.
  */
 
 interface QuestionCase {
@@ -104,6 +106,21 @@ const focused = (): string | null =>
 const press = (key: string, init: KeyboardEventInit = {}): Promise<boolean> =>
   fireEvent.keyDown(document.activeElement ?? window, { key, ...init })
 
+/** A field of the workspace behind the question: the shell's, where the keyboard was. */
+function behindField(): HTMLTextAreaElement {
+  const field = document.createElement('textarea')
+  field.dataset.testid = 'behind'
+  document.body.append(field)
+  field.focus()
+  return field
+}
+
+/** Lets the question's going run its clean-up. */
+async function gone(): Promise<void> {
+  await tick()
+  await Promise.resolve()
+}
+
 describe.each(CASES)('the $name question', (question) => {
   const start = question.start === 'no' ? question.no : question.yes
 
@@ -173,9 +190,9 @@ describe.each(CASES)('the $name question', (question) => {
     expect(await again).toBe(false)
   })
 
-  it('brings a keyboard left outside back to the starting answer with an arrow or Tab', async () => {
+  it('brings a keyboard left outside back to the starting answer with an arrow, Tab or Space', async () => {
     const { asked } = await open(question)
-    for (const key of ['ArrowLeft', 'ArrowRight', 'Tab']) {
+    for (const key of ['ArrowLeft', 'ArrowRight', 'Tab', ' ']) {
       ;(document.activeElement as HTMLElement | null)?.blur()
       expect(await press(key)).toBe(false)
       expect(focused()).toBe(start)
@@ -189,6 +206,63 @@ describe.each(CASES)('the $name question', (question) => {
     expect(await press('ArrowRight', { ctrlKey: true })).toBe(true)
     expect(await press('Tab', { altKey: true })).toBe(true)
     expect(focused()).toBe(start)
+    question.answerNo()
+    expect(await asked).toBe(false)
+  })
+
+  it('gives the keyboard back to where it was asked over, however it is answered', async () => {
+    const shell = behindField()
+    render(question.component)
+    const answers: [string, () => unknown][] = [
+      ['Escape', () => press('Escape')],
+      ['no', () => screen.getByTestId(question.no).click()],
+      ['yes', () => screen.getByTestId(question.yes).click()],
+    ]
+    for (const [name, answer] of answers) {
+      shell.focus()
+      const asked = question.ask()
+      await gone()
+      expect(focused(), name).toBe(start)
+      await answer()
+      await asked
+      await gone()
+      expect(document.activeElement, name).toBe(shell)
+    }
+  })
+
+  it('leaves the keyboard where an answer put it, and on no question that went before it came', async () => {
+    const shell = behindField()
+    const { asked } = await open(question)
+    const elsewhere = document.createElement('button')
+    elsewhere.dataset.testid = 'behind'
+    document.body.append(elsewhere)
+    // A layout switched to focuses its own pane: the question going must not take that back.
+    screen.getByTestId(question.yes).click()
+    elsewhere.focus()
+    await asked
+    await gone()
+    expect(document.activeElement).toBe(elsewhere)
+    // Answered before its keyboard came (another dialog opening at once): nothing is moved.
+    shell.focus()
+    const again = question.ask()
+    question.answerNo()
+    expect(await again).toBe(false)
+    await gone()
+    expect(document.activeElement).toBe(shell)
+  })
+
+  it('keeps the keyboard on its answer when the question itself is clicked', async () => {
+    const { asked } = await open(question)
+    const dialog = screen.getByTestId(question.dialog)
+    // A click on its text (the paste's preview) focuses the box, which has tabindex -1.
+    dialog.focus()
+    expect(focused()).toBe(start)
+    const other = question.start === 'no' ? question.yes : question.no
+    screen.getByTestId(other).focus()
+    dialog.focus()
+    expect(focused()).toBe(other)
+    // Space on an answer is the browser's to press, as Enter is.
+    expect(await press(' ')).toBe(true)
     question.answerNo()
     expect(await asked).toBe(false)
   })

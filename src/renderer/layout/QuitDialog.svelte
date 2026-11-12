@@ -1,6 +1,6 @@
 <script lang="ts">
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
-import { focusStart, type Question, questionKey } from '../lib/question-keys.ts'
+import { focusStart, type Question, questionFocus, questionKey } from '../lib/question-keys.ts'
 import { ui } from '../stores/ui.svelte.ts'
 
 /**
@@ -24,7 +24,7 @@ const question = (): Question => ({
 
 $effect(() => {
   if (request === null) return
-  focusStart(question)
+  return focusStart(question)
 })
 
 function onKeydown(event: KeyboardEvent): void {
@@ -48,6 +48,7 @@ function onKeydown(event: KeyboardEvent): void {
       class="dialog crt-on"
       style:--crt-delay={dialogDelay()}
       transition:crtPower
+      onfocusin={(e) => questionFocus(e, question())}
       role="alertdialog"
       aria-modal="true"
       aria-label="Quit elecdex"

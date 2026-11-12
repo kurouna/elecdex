@@ -1,6 +1,6 @@
 <script lang="ts">
 import { backdropShade, crtPower, dialogDelay } from '../../lib/crt-transitions.ts'
-import { focusStart, type Question, questionKey } from '../../lib/question-keys.ts'
+import { focusStart, type Question, questionFocus, questionKey } from '../../lib/question-keys.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 
@@ -26,7 +26,7 @@ const question = (): Question => ({
 
 $effect(() => {
   if (request === null) return
-  focusStart(question)
+  return focusStart(question)
 })
 
 function always(): void {
@@ -55,6 +55,7 @@ function onKeydown(event: KeyboardEvent): void {
       class="dialog crt-on"
       style:--crt-delay={dialogDelay()}
       transition:crtPower
+      onfocusin={(e) => questionFocus(e, question())}
       role="alertdialog"
       aria-modal="true"
       aria-label="Paste several lines"
@@ -197,7 +198,9 @@ button:hover {
   text-decoration: underline;
 }
 
-.always:hover {
+/* Reached by Tab: lit as by the pointer, besides the outline every focused control has. */
+.always:hover,
+.always:focus-visible {
   background: transparent;
   color: var(--text);
 }

@@ -87,8 +87,8 @@ const REPO_URL = 'https://github.com/kurouna/elecdex'
  * They took the place of the list of shortcuts that used to fill this bar: a
  * list of keys is read once and then never again, while these are the one thing
  * here that is worth reaching for twice. The number is the key that applies it
- * (Ctrl+Shift+1 and so on, 0 for the tenth), so the bar also teaches the shortcut.
- * Only the first ten have a key, and only those are shown.
+ * (Ctrl+Shift+1 and so on), so the bar also teaches the shortcut. Only the first
+ * nine have a key (`KEYED_LAYOUTS`), and only those are shown.
  */
 const layoutButtons = $derived(layout.saved.list.slice(0, KEYED_LAYOUTS))
 const layoutChords = $derived.by(() => {
