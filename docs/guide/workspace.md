@@ -339,7 +339,7 @@ has neither says so instead of showing a switch that does nothing. All off until
   app. *Start in the background* starts elecdex hidden at sign-in.
 - **Ctrl+Shift+Q** quits, also when closing only hides elecdex to the notification area. An
   explicit quit always quits. It asks first, yes or no, since Q lies under 1 and 2,
-  the layouts' keys. The keyboard starts on no, so Enter and Escape stay; *unreleased:* → then
+  the layouts' keys. The keyboard starts on no, so Enter and Escape stay; → then
   Enter quits.
 - Whatever happens, starting elecdex again brings the running one back, so the window is never out
   of reach.

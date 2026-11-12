@@ -40,7 +40,7 @@ The cloud preset (Ctrl+Shift+F10) is the account, the repositories and a shell f
 | --- | --- |
 | Runs | Your own AWS CLI v2 (`aws`) and GitHub CLI (`gh`), started directly by elecdex's main process: no shell, no PowerShell, the arguments passed as a list. |
 | Finds them | On `PATH`, absolute entries only (the folder elecdex runs in is never searched), then the install folders: on Windows `%LOCALAPPDATA%\Programs\Amazon\AWSCLIV2\aws.exe` or `%ProgramFiles%\Amazon\AWSCLIV2`, and `C:\Program Files\GitHub CLI\gh.exe`; elsewhere `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin`. A CLI installed after elecdex started may need elecdex restarted. |
-| Signs in | Never. elecdex never sees a credential or token: the CLI signs in as it always does. Signed out, the pane shows the command to copy (`aws login --profile=<name>`, `aws sso login --profile=<name>`, `gh auth login`), never runs it, and stops reading until **REFRESH**; *unreleased:* the notice says to press it once signed in. |
+| Signs in | Never. elecdex never sees a credential or token: the CLI signs in as it always does. Signed out, the pane shows the command to copy (`aws login --profile=<name>`, `aws sso login --profile=<name>`, `gh auth login`), never runs it, and stops reading until **REFRESH**; the notice says to press it once signed in. |
 | Writes | Nothing, anywhere in the account: read only. GITHUB STATUS marks no notification read. |
 | Updates | Only while the pane is seen: not behind a tab, not with the window minimised or hidden. Nothing in the background, notifications included. |
 

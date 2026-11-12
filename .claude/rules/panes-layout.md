@@ -94,6 +94,11 @@ the files above is read or edited.
   main's OS registrations, out of the page keymap, the list and "reset all", and `conflicts`
   reports the app action as the loser while the OS holds the keys. A tooltip names a chord
   through `chordHint` (lib/chord-hint.ts), as it is bound now - never a chord written out.
+- **A question with a row of answers** (quit, a layout switch or reset, a paste of several lines)
+  takes its keys from lib/question-keys.ts (`focusStart`, `questionKey`, `questionFocus`): the
+  keyboard starts on an answer, shown filled; ← → move along the row, Tab stays inside, Enter
+  presses the answer it is on, Escape is no; when the question goes the keyboard goes back where
+  it was. A new one gets a row in `CASES` of tests/component/question-dialogs.test.ts.
 - **The action palette** (§5.24, docs/palette.md, palette/, shared/palette.ts) never imports
   the workspace: an action or preset row goes through `commands` (lib/commands.ts) to
   Workspace's own `run`, so it does what its key does; a row that cannot run stays, with its

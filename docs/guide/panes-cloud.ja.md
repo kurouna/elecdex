@@ -40,7 +40,7 @@ cloud プリセット（Ctrl+Shift+F10）は、アカウント、リポジトリ
 | --- | --- |
 | 起動するもの | 自分の AWS CLI v2（`aws`）と GitHub CLI（`gh`）。elecdex の main プロセスが直接起動します。シェルも PowerShell も通さず、引数は配列で渡します。 |
 | 見つけ方 | `PATH` の絶対パスの項目だけ（elecdex が動いているフォルダーは探しません）、次にインストール先: Windows では `%LOCALAPPDATA%\Programs\Amazon\AWSCLIV2\aws.exe` か `%ProgramFiles%\Amazon\AWSCLIV2`、`C:\Program Files\GitHub CLI\gh.exe`。ほかでは `/opt/homebrew/bin`、`/usr/local/bin`、`/usr/bin`。elecdex の起動後に入れた CLI は、elecdex を起動し直すまで見つからないことがあります。 |
-| サインイン | しません。elecdex は資格情報もトークンも見ず、サインインは CLI がいつもどおり行います。サインインしていなければ、コピーするコマンド（`aws login --profile=<名前>`、`aws sso login --profile=<名前>`、`gh auth login`）を出すだけで実行はせず、**REFRESH** を押すまで読みません。*未リリース:* サインインしたら REFRESH を押すよう、案内に書きます。 |
+| サインイン | しません。elecdex は資格情報もトークンも見ず、サインインは CLI がいつもどおり行います。サインインしていなければ、コピーするコマンド（`aws login --profile=<名前>`、`aws sso login --profile=<名前>`、`gh auth login`）を出すだけで実行はせず、**REFRESH** を押すまで読みません。サインインしたら REFRESH を押すよう、案内に書きます。 |
 | 書き込み | アカウントのどこにも何も書きません。読むだけです。GITHUB STATUS は通知を既読にもしません。 |
 | 更新 | ペインが見えている間だけ。タブの後ろ、ウィンドウの最小化中や非表示のときは読みません。バックグラウンドでは何も読まず、通知も例外ではありません。 |
 

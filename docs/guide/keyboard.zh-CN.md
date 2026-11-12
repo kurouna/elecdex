@@ -96,7 +96,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | --- | --- | --- | --- |
 | F11 | Toggle fullscreen | `window.fullscreen` | 全部 |
 | Ctrl+Shift+M | Minimize window | `window.minimize` | Windows、Linux（macOS 不会最小化全屏窗口） |
-| Ctrl+Shift+Q | Quit | `app.quit` | 全部。即使关闭窗口只会把 elecdex 隐藏到通知区域，此键也会退出。先以 yes / no 确认，键盘焦点在 no 上（Enter 和 Escape 不会退出）；*未发布：* 按 → 再按 Enter 即退出 |
+| Ctrl+Shift+Q | Quit | `app.quit` | 全部。即使关闭窗口只会把 elecdex 隐藏到通知区域，此键也会退出。先以 yes / no 确认，键盘焦点在 no 上（Enter 和 Escape 不会退出）；按 → 再按 Enter 即退出 |
 | Ctrl+Alt+Shift+E | Show or hide elecdex | `window.toggle` | 在任何应用中都有效。默认关闭，需在 *Settings → Window* 中开启；Wayland 会话中不可用 |
 
 ### 不能重新绑定的按键
@@ -121,7 +121,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 - 在 shell 中，选中文本即复制，右键粘贴，与 PuTTY 或 Windows Terminal 相同；Ctrl+C 仍是 shell 的中断键。
 - 搜索栏跳到的匹配项不会被复制——只有你自己选中的内容才会。
 - 快捷键会在当前 shell 收到按键之前被截取。因此每个组合都必须包含 Ctrl 或 Alt（macOS 上为 Cmd），或者是功能键：其他所有按键，无论单独按还是加 Shift，都会传给 shell。
-- *未发布：* 带一排回答按钮的询问（退出、有 shell 打开时切换或重置布局、粘贴多行）会把键盘焦点放在其中一个回答上，并以填充显示。← 和 → 在这一排中移动，Tab 只在询问的按钮间循环、不会跑到背后，Enter 按下焦点所在的回答，Escape 即 no。退出从 no 开始；切换和粘贴从继续的一侧开始，所以 Enter 的作用与以前相同。询问关闭后，键盘焦点回到原来的位置（打开询问时所在的 shell）。
+- 带一排回答按钮的询问（退出、有 shell 打开时切换或重置布局、粘贴多行）会把键盘焦点放在其中一个回答上，并以填充显示。← 和 → 在这一排中移动，Tab 只在询问的按钮间循环、不会跑到背后，Enter 按下焦点所在的回答，Escape 即 no。退出从 no 开始；切换和粘贴从继续的一侧开始，所以 Enter 的作用与以前相同。询问关闭后，键盘焦点回到原来的位置（打开询问时所在的 shell）。
 - 对话框打开时，除 *Quit* 和 *Toggle fullscreen* 外，快捷键都不起作用，以免对话框背后在看不见的情况下发生变化。在弹出窗格之上，召唤窗格的快捷键和操作面板的快捷键也有效。
 - 网页窗格拥有键盘时，主进程会从页面中取出快捷键并执行；此时不起作用的快捷键留给页面（例如网页用 Ctrl+Shift+= 放大）。
 
