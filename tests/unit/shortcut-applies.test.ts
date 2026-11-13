@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest'
 /** Everything the conditional shortcuts look for is there. */
 const ALL: ShortcutFacts = {
   focusedIsShell: true,
+  focusedReads: true,
   zoomable: true,
   savedCount: 10,
   anyShell: true,
@@ -28,6 +29,7 @@ const ALL: ShortcutFacts = {
 /** A web pane on its own, with no shell anywhere and nothing saved. */
 const LONE_WEB_PANE: ShortcutFacts = {
   focusedIsShell: false,
+  focusedReads: false,
   zoomable: true,
   savedCount: 0,
   anyShell: false,
@@ -86,7 +88,13 @@ describe('shortcutApplies', () => {
   })
 
   it('takes the shell keys only where there is a shell for them', () => {
-    const noShell = { ...ALL, focusedIsShell: false, anyShell: false, shellToFind: false }
+    const noShell = {
+      ...ALL,
+      focusedIsShell: false,
+      focusedReads: false,
+      anyShell: false,
+      shellToFind: false,
+    }
     expect(shortcutApplies('shell.fontBigger', noShell)).toBe(false)
     expect(shortcutApplies('shell.fontSmaller', noShell)).toBe(false)
     expect(shortcutApplies('shell.find', noShell)).toBe(false)
@@ -98,6 +106,15 @@ describe('shortcutApplies', () => {
     expect(shortcutApplies('shell.previous', { ...ALL, otherShell: false })).toBe(false)
     // Calling a shell up adds one when there is none.
     expect(shortcutApplies('shell.focus', noShell)).toBe(true)
+  })
+
+  it('takes the type keys for a focused reading pane, with no shell open', () => {
+    const reading = { ...LONE_WEB_PANE, focusedReads: true }
+    expect(shortcutApplies('shell.fontBigger', reading)).toBe(true)
+    expect(shortcutApplies('shell.fontSmaller', reading)).toBe(true)
+    // The other shell keys are not the reading pane's.
+    expect(shortcutApplies('shell.find', reading)).toBe(false)
+    expect(shortcutApplies('shell.clear', reading)).toBe(false)
   })
 
   it('brings forward only a widget that is brought forward', () => {

@@ -20,6 +20,8 @@ export interface ShortcutFacts {
   zoomable: boolean
   /** How many saved layouts there are: the number keys are the first ten. */
   savedCount: number
+  /** The focused pane is one whose reading text the type keys size (settings.ts `READING_PANES`). */
+  focusedReads: boolean
   /** The layout holds a shell pane. */
   anyShell: boolean
   /** There is a shell the keys could go to (the layout's `shellToFocus`). */
@@ -61,7 +63,8 @@ export function shortcutApplies(action: KeybindingAction, facts: ShortcutFacts):
       return facts.focusedIsShell
     case 'shell.fontBigger':
     case 'shell.fontSmaller':
-      return facts.anyShell
+      // The focused reading pane's text, or else the shells' (Workspace.svelte `stepType`).
+      return facts.focusedReads || facts.anyShell
     // Ctrl+Tab, which a text field has no use for: the tabs move from one as well.
     case 'tab.next':
     case 'tab.previous':

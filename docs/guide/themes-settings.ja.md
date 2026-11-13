@@ -124,7 +124,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 
 | セクション | 内容 |
 | --- | --- |
-| general | appearance（テーマ、themes folder、モーション）、sound、terminal（開始フォルダー、文字の大きさ、複数行の貼り付けの確認、ベル）、git（ファイルを開くコマンド）、chip-8（コアの表示、ブザーの音量）、elec-16（ブザーの音量、新しいペインのスキン）、layouts（レイアウト切り替えの確認）、launcher（インストール済みアプリの一覧）、web panes（ページにテーマの色を付ける、すべてのサイトからサインアウト） |
+| general | appearance（テーマ、themes folder、モーション）、sound、terminal（開始フォルダー、文字の大きさ、複数行の貼り付けの確認、ベル）、reading type（*unreleased*: ai chat、elec system、translate）、git（ファイルを開くコマンド）、chip-8（コアの表示、ブザーの音量）、elec-16（ブザーの音量、新しいペインのスキン）、layouts（レイアウト切り替えの確認）、launcher（インストール済みアプリの一覧）、web panes（ページにテーマの色を付ける、すべてのサイトからサインアウト） |
 | window | ウィンドウの外のアイコン、そこへの最小化と格納、システム全体の表示 / 非表示ショートカット、サインイン時の起動とバックグラウンドでの開始。マシンが何かを提供できるときだけ表示されます（[キーボードとレイアウト](keyboard.ja.md#バックグラウンド実行)） |
 | keyboard | すべてのショートカット。割り当てを変えられます（[キーボードとレイアウト](keyboard.ja.md#ショートカットの割り当て変更)） |
 | alerts | 地震と津波: ソース、速報、しきい値、システム通知、警告音 |
@@ -167,6 +167,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `motion` | `"system"` | `system`、`full`、`reduced` |
 | `terminal.startDirectory` | `""` | 新しいシェルを開くフォルダー。空ならホーム、先頭の `~` はホームを表します。存在しないフォルダー（やネットワーク共有）なら、代わりにホームで開きます |
 | `terminal.fontSize` | `13` | シェルの文字の大きさ（ピクセル）、8〜32 |
+| `reading.aichat`、`reading.elec`、`reading.translate` | `100` | *unreleased*: AI CHAT、ELEC SYSTEM、TRANSLATE ペインの本文の大きさ。本来の大きさに対するパーセントで、80〜200、10 刻み。ペインの種類ごとに 1 つ。枠やラベルの大きさは変わりません |
 | `terminal.confirmPaste` | `true` | 2 行以上のテキストを貼り付ける前に確認する（改行ごとにコマンドが実行されるため） |
 | `terminal.bell` | `"both"` | `both`、`flash`、`sound`、`off` |
 | `terminal.win32InputMode` | `true` | Windows: ConPTY が求めたとき、キーを Windows のキーイベントとして送る（win32-input-mode）。Ctrl+Space などがそのキーのままコンソールのプログラムに届く |

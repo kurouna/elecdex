@@ -470,6 +470,7 @@ function telemetry(ballot: Ballot): string | null {
 
 <div
   class="elec"
+  style:--read-scale={appearance.settings.reading.elec / 100}
   data-testid="elec"
   data-busy={busy}
   data-outcome={outcome ?? undefined}
@@ -1076,7 +1077,7 @@ select:focus {
   border: 0;
   background: transparent;
   font-family: var(--font-ui);
-  font-size: var(--step-1);
+  font-size: calc(var(--step-1) * var(--read-scale));
   line-height: 1.35;
   text-align: left;
   color: var(--accent-strong);
@@ -1253,9 +1254,24 @@ header {
   margin: var(--space-1) 0 0;
   padding-left: var(--space-2);
   border-left: 1px dashed var(--panel-rule);
+  font-size: calc(var(--step--2) * var(--read-scale));
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.4;
+}
+
+/*
+ * What a unit said is read at length: it, the motion and the line typed in follow
+ * `--read-scale`, the pane kind's scale (Ctrl+Shift+= and Ctrl+Shift+-, settings.reading).
+ * The stage, the resolution and the labels keep their sizes: the stage is laid out in rem.
+ */
+.ballot :global(.markdown) {
+  font-size: calc(var(--step--1) * var(--read-scale));
+}
+
+.ballot :global(.markdown .heading[data-level='1']),
+.ballot :global(.markdown .heading[data-level='2']) {
+  font-size: calc(var(--step-0) * var(--read-scale));
 }
 
 /* The caret at the end of what is being written, on the shared pulse (as in the chat pane). */
@@ -1370,7 +1386,7 @@ textarea {
   background: transparent;
   color: var(--text);
   font-family: var(--font-ui);
-  font-size: var(--step--1);
+  font-size: calc(var(--step--1) * var(--read-scale));
   line-height: 1.4;
   field-sizing: content;
   min-height: 1.4em;

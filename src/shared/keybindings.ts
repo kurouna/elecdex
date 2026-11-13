@@ -67,8 +67,16 @@ export const KEYBINDING_ACTIONS = [
   { id: 'shell.focus', label: 'Focus the shell', chord: 'Ctrl+Shift+KeyS' },
   { id: 'shell.find', label: 'Search the shell', chord: 'Ctrl+Shift+KeyF' },
   { id: 'shell.clear', label: "Clear the shell's scrollback", chord: 'Ctrl+Shift+KeyK' },
-  { id: 'shell.fontBigger', label: 'Larger type in the shells', chord: 'Ctrl+Shift+Equal' },
-  { id: 'shell.fontSmaller', label: 'Smaller type in the shells', chord: 'Ctrl+Shift+Minus' },
+  {
+    id: 'shell.fontBigger',
+    label: 'Larger type in this pane or the shells',
+    chord: 'Ctrl+Shift+Equal',
+  },
+  {
+    id: 'shell.fontSmaller',
+    label: 'Smaller type in this pane or the shells',
+    chord: 'Ctrl+Shift+Minus',
+  },
   // As a browser's tabs (user decision 2026-10-29): the arrows are the panes' own.
   { id: 'tab.next', label: 'Next tab', chord: 'Ctrl+Tab' },
   { id: 'tab.previous', label: 'Previous tab', chord: 'Ctrl+Shift+Tab' },

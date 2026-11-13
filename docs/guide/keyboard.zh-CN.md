@@ -71,10 +71,10 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | Ctrl+Shift+S | Focus the shell | `shell.focus` | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
 | Ctrl+Shift+F | Search the shell | `shell.find` | 在 shell 的回滚缓冲区中查找（Enter / Shift+Enter 下一个和上一个，Escape 关闭）。有可搜索的 shell 时生效 |
 | Ctrl+Shift+K | Clear the shell's scrollback | `shell.clear` | 清除当前 shell 的回滚缓冲区，无法撤销。只能在 shell 中使用 |
-| Ctrl+Shift+= | Larger type in the shells | `shell.fontBigger` | 放大所有 shell 的字号。有 shell 打开时生效 |
-| Ctrl+Shift+- | Smaller type in the shells | `shell.fontSmaller` | 缩小所有 shell 的字号 |
+| Ctrl+Shift+= | Larger type in this pane or the shells | `shell.fontBigger` | 放大所有 shell 的字号。*unreleased*：焦点在 AI CHAT、ELEC SYSTEM 或 TRANSLATE 窗格时（弹出时也是），改为放大其正文，同类窗格一起放大。有 shell 打开或焦点在此类窗格时生效 |
+| Ctrl+Shift+- | Smaller type in this pane or the shells | `shell.fontSmaller` | 缩小所有 shell 的字号，或如上缩小焦点所在阅读窗格的正文 |
 
-字号保存在 `settings.json` 的 `terminal.fontSize` 中：默认 13 px，范围 8 到 32。
+字号保存在 `settings.json` 的 `terminal.fontSize` 中：默认 13 px，范围 8 到 32。*unreleased*：阅读窗格的缩放按种类保存在 `reading.aichat`、`reading.elec`、`reading.translate` 中：默认 100 %，范围 80 到 200，步长 10。只有长时间阅读的正文会变大（对话及其输入行、各单元的投票、议题和评议的输入行、原文和译文）；边框、标签和评议的舞台大小不变。
 
 ### 查找与打开
 

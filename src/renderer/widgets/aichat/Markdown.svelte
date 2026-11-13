@@ -98,7 +98,8 @@ p {
 ul,
 ol {
   margin: 0;
-  padding-left: 1.4rem;
+  /* Room for the markers, which grow with a reading pane's scale (1 where there is none). */
+  padding-left: calc(1.4rem * var(--read-scale, 1));
 }
 
 li > :global(* + *) {

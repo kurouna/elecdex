@@ -55,6 +55,31 @@ export function linkSettings(raw: unknown): unknown {
 /** The shells' type size: where it starts, and how small and large it goes. */
 export const TERMINAL_FONT = { base: 13, min: 8, max: 32 } as const
 
+/**
+ * The panes whose reading text Ctrl+Shift+= and Ctrl+Shift+- size, by widget id, as they do
+ * the shells' type: what is read at length there - an answer, a council's ballots, a text
+ * and its translation. Their frames, labels and stages keep the sizes they are designed at.
+ */
+export const READING_PANES = ['aichat', 'elec', 'translate'] as const
+export type ReadingPane = (typeof READING_PANES)[number]
+
+/** A reading pane's scale, in percent of its designed size: where it starts, its range, its step. */
+export const READING_SCALE = { base: 100, min: 80, max: 200, step: 10 } as const
+
+const readingScale = z
+  .number()
+  .int()
+  .min(READING_SCALE.min)
+  .max(READING_SCALE.max)
+  .catch(READING_SCALE.base)
+  .default(READING_SCALE.base)
+
+const READING_DEFAULT = {
+  aichat: READING_SCALE.base,
+  elec: READING_SCALE.base,
+  translate: READING_SCALE.base,
+}
+
 export const SettingsSchema = z.object({
   version: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
   /** Theme id; an id no theme has falls back to the default theme. */
@@ -102,6 +127,11 @@ export const SettingsSchema = z.object({
       bell: 'both',
       win32InputMode: true,
     }),
+  /** Each reading pane's type scale, in percent: kept per kind of pane, as the shells' size is. */
+  reading: z
+    .object({ aichat: readingScale, elec: readingScale, translate: readingScale })
+    .catch(READING_DEFAULT)
+    .default(READING_DEFAULT),
   launcher: z
     .object({
       /** List the platform's own applications (Start Menu, /Applications, .desktop files). */
@@ -407,6 +437,7 @@ export interface SettingsPatch {
   motion?: Settings['motion']
   launcher?: { showSystem?: boolean }
   terminal?: Partial<Settings['terminal']>
+  reading?: Partial<Settings['reading']>
   /** Replaces the whole override map. */
   keybindings?: Settings['keybindings']
   layout?: Partial<Settings['layout']>
@@ -472,6 +503,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     translate: merge(current.translate, p.translate),
     elec16: merge(current.elec16, p.elec16),
     terminal: merge(current.terminal, p.terminal),
+    reading: merge(current.reading, p.reading),
     plugins: mergePlugins(current.plugins, p.plugins),
     // Only showSystem: the launcher's own entries are edited in settings.json.
     launcher:
@@ -486,3 +518,25 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
 /** The shells' type size a step larger or smaller, within its range. */
 export const stepFontSize = (size: number, step: number): number =>
   Math.min(TERMINAL_FONT.max, Math.max(TERMINAL_FONT.min, Math.round(size) + step))
+
+/**
+ * A reading pane's scale a step larger (1) or smaller (-1), on the step's grid and within its
+ * range: a value written by hand off the grid goes to the next mark the way it is stepped.
+ */
+export function stepReadingScale(scale: number, step: number): number {
+  const { min, max, step: by } = READING_SCALE
+  const marks = scale / by
+  const next = (step > 0 ? Math.floor(marks) + 1 : Math.ceil(marks) - 1) * by
+  return Math.min(max, Math.max(min, next))
+}
+
+/** A reading scale typed in, on the nearest mark of the step's grid and within its range. */
+export const snapReadingScale = (scale: number): number =>
+  Math.min(
+    READING_SCALE.max,
+    Math.max(READING_SCALE.min, Math.round(scale / READING_SCALE.step) * READING_SCALE.step),
+  )
+
+/** The widget id as a reading pane, or null for any other pane. */
+export const readingPaneOf = (widget: string | undefined): ReadingPane | null =>
+  (READING_PANES as readonly string[]).includes(widget ?? '') ? (widget as ReadingPane) : null

@@ -558,6 +558,12 @@ $effect(() => () => {
   if (pending !== null) clearTimeout(pending)
 })
 
+/**
+ * The text and its translation follow the pane kind's reading scale (Ctrl+Shift+= and
+ * Ctrl+Shift+-, settings.reading); the frame, the labels and the buttons keep their sizes.
+ */
+const scale = $derived(appearance.settings.reading.translate / 100)
+
 $effect(() => {
   // What moves the blocks.
   void run
@@ -565,6 +571,7 @@ $effect(() => {
   void narrow
   void mode
   void text
+  void scale
   schedule()
 })
 
@@ -580,7 +587,8 @@ function layoutLinks(): void {
   const x3 = g.offsetLeft + g.offsetWidth
   const x1 = x0 + 5
   const x2 = x3 - 5
-  const lead = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+  const lead =
+    scale * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16)
   const y = (seg: HTMLElement, box: HTMLElement): number => {
     const con = box.parentElement as HTMLElement
     const top = con.offsetTop + box.offsetTop
@@ -619,7 +627,8 @@ function layoutLinks(): void {
 function sourceY(box: HTMLElement): (index: number) => number | null {
   const con = box.parentElement as HTMLElement
   const top = con.offsetTop + box.offsetTop
-  const lead = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+  const lead =
+    scale * (Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16)
   const clamp = (v: number) => Math.max(top + 4, Math.min(top + box.clientHeight - 4, v))
   const area = textarea
   if (!showBlocks && area && mirror && editWrap) {
@@ -686,7 +695,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="text-view" class:narrow bind:this={root} onkeydown={onKey} tabindex="-1" data-testid="translate-text">
+<div class="text-view" class:narrow style:--read-scale={scale} bind:this={root} onkeydown={onKey} tabindex="-1" data-testid="translate-text">
   <div class="toolbar">
     <ViewSwitch view="text" onchange={(next) => next === 'history' && onhistory()} />
     {#snippet language(side: 'src' | 'tgt', code: string)}
@@ -980,7 +989,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 .acts button { border: 0; background: transparent; color: var(--text-muted); padding: 0 0.3rem; font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; line-height: 1.6; }
 .acts button:hover { color: var(--accent); }
 .block-edit { width: 100%; min-height: 4rem; resize: vertical; background: color-mix(in srgb, var(--info) 8%, transparent); border: 1px dashed var(--info); color: var(--text); font: inherit; padding: 0.2rem 0.3rem; outline: none; }
-.trip { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: baseline; margin-top: 0.2rem; padding-top: 0.2rem; border-top: 1px dashed var(--panel-rule); font-family: var(--font-ui); font-size: var(--step--1); line-height: 1.45; color: var(--text-muted); white-space: pre-wrap; }
+.trip { display: grid; grid-template-columns: 1fr auto; gap: 0.6rem; align-items: baseline; margin-top: 0.2rem; padding-top: 0.2rem; border-top: 1px dashed var(--panel-rule); font-family: var(--font-ui); font-size: calc(var(--step--1) * var(--read-scale)); line-height: 1.45; color: var(--text-muted); white-space: pre-wrap; }
 .trip .tl { font-size: var(--step--2); letter-spacing: var(--tracking-wide); margin-right: 0.35rem; }
 .match { display: inline-flex; align-items: center; gap: 0.3rem; font-family: var(--font-mono); font-size: var(--step--2); white-space: nowrap; color: var(--ok); }
 .match .bar { width: 2.6rem; height: 0.3rem; background: var(--accent-faint); position: relative; }
@@ -1007,7 +1016,7 @@ const bootLines = $derived(board.engine.bootLines.slice(-12))
 /* Clipped: the mirror is as tall as the text, and would make the box scroll beside the textarea. */
 .edit-wrap { position: relative; height: 100%; overflow: hidden; }
 /* Laid out alike in one rule, so the mirror wraps the text where the textarea does. */
-.mirror, textarea { box-sizing: border-box; padding: 0 0.6rem; font-family: var(--font-ui); font-size: var(--step-1); font-weight: normal; line-height: 1.75; letter-spacing: normal; word-spacing: normal; text-transform: none; white-space: pre-wrap; overflow-wrap: break-word; }
+.mirror, textarea { box-sizing: border-box; padding: 0 0.6rem; font-family: var(--font-ui); font-size: calc(var(--step-1) * var(--read-scale)); font-weight: normal; line-height: 1.75; letter-spacing: normal; word-spacing: normal; text-transform: none; white-space: pre-wrap; overflow-wrap: break-word; }
 .mirror { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; }
 textarea { width: 100%; height: 100%; resize: none; border: 0; outline: none; background: transparent; color: var(--text); }
 textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
@@ -1023,7 +1032,7 @@ textarea::placeholder { color: var(--text-muted); opacity: 0.7; }
 .btn.warn { border-color: var(--warn); color: var(--warn); }
 kbd { font-family: var(--font-mono); font-size: var(--step--2); color: var(--text-muted); border: 1px solid var(--panel-rule); padding: 0 0.3rem; }
 
-.seg { position: relative; padding: 0.15rem 0.6rem 0.2rem 0.7rem; margin: 0; font-size: var(--step-1); line-height: 1.75; border-left: 2px solid transparent; overflow-wrap: anywhere; white-space: pre-wrap; }
+.seg { position: relative; padding: 0.15rem 0.6rem 0.2rem 0.7rem; margin: 0; font-size: calc(var(--step-1) * var(--read-scale)); line-height: 1.75; border-left: 2px solid transparent; overflow-wrap: anywhere; white-space: pre-wrap; }
 .seg + .seg { margin-top: 0.45rem; }
 .src .seg { border-left: 0; border-right: 2px solid transparent; padding: 0.15rem 0.7rem 0.2rem 0.6rem; }
 .seg.hot { background: var(--accent-faint); }

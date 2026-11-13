@@ -462,6 +462,41 @@ test('TRANSLATE writes every block, with the source laid out on the spine', asyn
   }
 })
 
+test('Ctrl+Shift+= and - size the text and its translation, not the frame, and keep them joined', async () => {
+  const { page, close } = await launch(undefined, withModel())
+  try {
+    await translate(page, 'Hello.\n\nAgain.')
+    await expect(blocks(page).nth(1)).toHaveAttribute('data-st', 'done', { timeout: 15_000 })
+    const px = (target: Locator) =>
+      target.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))
+    const block = blocks(page).first()
+    const source = page.getByTestId('translate-source-blocks').locator('.seg').first()
+    const label = page.getByTestId('translate-pane').locator('.hud-label').first()
+    const node = page.getByTestId('translate-node').nth(1)
+    const before = { block: await px(block), source: await px(source), label: await px(label) }
+    const nodeTop = async () => (await node.boundingBox())?.y ?? 0
+    const placed = await nodeTop()
+
+    // A press on the frame's label gives the pane the keyboard and leaves the text as it is.
+    await label.click()
+    await page.keyboard.press('Control+Shift+Equal')
+    await page.keyboard.press('Control+Shift+Equal')
+    await expect
+      .poll(() => page.evaluate(async () => (await window.elecdex.settings.get()).reading))
+      .toEqual({ aichat: 100, elec: 100, translate: 120 })
+    await expect.poll(() => px(block)).toBeCloseTo(before.block * 1.2, 1)
+    expect(await px(source)).toBeCloseTo(before.source * 1.2, 1)
+    expect(await px(label)).toBe(before.label)
+    // The second block moved down with the larger first one, and its link with it.
+    await expect.poll(nodeTop).toBeGreaterThan(placed)
+    expect(
+      await page.evaluate(async () => (await window.elecdex.settings.get()).terminal.fontSize),
+    ).toBe(13)
+  } finally {
+    await close()
+  }
+})
+
 test('STOP (Ctrl+.) keeps the block being written and leaves the rest untranslated', async () => {
   const { page, close } = await launch(undefined, withModel())
   try {

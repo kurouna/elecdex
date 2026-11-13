@@ -71,10 +71,10 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | Ctrl+Shift+S | Focus the shell | `shell.focus` | 選択中のタブのシェルにフォーカス（シェルペインがなければ追加） |
 | Ctrl+Shift+F | Search the shell | `shell.find` | シェルのスクロールバックを検索（Enter / Shift+Enter で次と前、Escape で閉じる）。検索できるシェルがあるときに効く |
 | Ctrl+Shift+K | Clear the shell's scrollback | `shell.clear` | フォーカス中のシェルのスクロールバックを消す。取り消せない。シェルからだけ |
-| Ctrl+Shift+= | Larger type in the shells | `shell.fontBigger` | すべてのシェルの文字を大きく。シェルが開いているときに効く |
-| Ctrl+Shift+- | Smaller type in the shells | `shell.fontSmaller` | すべてのシェルの文字を小さく |
+| Ctrl+Shift+= | Larger type in this pane or the shells | `shell.fontBigger` | すべてのシェルの文字を大きく。*unreleased*: AI CHAT、ELEC SYSTEM、TRANSLATE ペインにフォーカスがあるとき（ポップアップしているときも）は、代わりにその本文を、同じ種類のすべてのペインで大きく。シェルが開いているか、そのようなペインにフォーカスがあるときに効く |
+| Ctrl+Shift+- | Smaller type in this pane or the shells | `shell.fontSmaller` | すべてのシェル、または上と同じくフォーカスのある読むペインの文字を小さく |
 
-文字の大きさは `settings.json` の `terminal.fontSize` に保たれます。既定は 13 px で、8 から 32 までです。
+文字の大きさは `settings.json` の `terminal.fontSize` に保たれます。既定は 13 px で、8 から 32 までです。*unreleased*: 読むペインの倍率は種類ごとに `reading.aichat`、`reading.elec`、`reading.translate` に保たれます。既定は 100 % で、80 から 200 まで 10 刻みです。大きくなるのは長く読む本文だけ（会話とその入力欄、各ユニットの票、議題と評議の入力欄、原文と訳文）で、枠、ラベル、評議の舞台は大きさを変えません。
 
 ### 探す・開く
 

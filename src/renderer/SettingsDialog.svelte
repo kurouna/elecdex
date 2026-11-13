@@ -20,7 +20,15 @@ import {
   withBinding,
 } from '@shared/keybindings'
 import { INTENSITIES, intensityLabel, MAGNITUDES, resolveQuakeSource } from '@shared/quakes'
-import { type Settings, type SettingsPatch, stepFontSize, TERMINAL_FONT } from '@shared/settings'
+import {
+  READING_SCALE,
+  type ReadingPane,
+  type Settings,
+  type SettingsPatch,
+  snapReadingScale,
+  stepFontSize,
+  TERMINAL_FONT,
+} from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
 import { chordHint } from './lib/chord-hint.ts'
@@ -47,6 +55,12 @@ import AiSettings from './widgets/aichat/AiSettings.svelte'
 
 type Section = SettingsSection
 const platform = window.elecdex.system.platform
+/** The reading panes' rows, named as their panes are titled. */
+const READING_ROWS: ReadonlyArray<{ pane: ReadingPane; label: string }> = [
+  { pane: 'aichat', label: 'ai chat' },
+  { pane: 'elec', label: 'elec system' },
+  { pane: 'translate', label: 'translate' },
+]
 /** What this machine can do in the background; main found it out (stores/background). */
 const capabilities = $derived(background.capabilities)
 const SECTIONS = $derived(settingsSections(capabilities))
@@ -517,6 +531,31 @@ function describeUpdate(status: UpdateStatus): string {
                   />
                 </label>
               {/if}
+            </section>
+
+            <!-- The panes read at length: their text, not their frames, at a scale per kind of
+                 pane, stepped by the shells' keys while one of them has the keyboard. -->
+            <section>
+              <h3>reading type</h3>
+              {#each READING_ROWS as row (row.pane)}
+                <label class="row">
+                  <span>{row.label}</span>
+                  <input
+                    type="number"
+                    min={READING_SCALE.min}
+                    max={READING_SCALE.max}
+                    step={READING_SCALE.step}
+                    value={settings.reading[row.pane]}
+                    onchange={(e) => {
+                      const scale = Number(e.currentTarget.value)
+                      if (Number.isFinite(scale)) patch({ reading: { [row.pane]: snapReadingScale(scale) } })
+                    }}
+                    data-testid={`settings-reading-${row.pane}`}
+                  />
+                  <output>% · {chordHint('larger', 'shell.fontBigger')} · {chordHint('smaller', 'shell.fontSmaller')}</output>
+                </label>
+              {/each}
+              <p class="note">The keys size the pane that has the keyboard, and every pane of its kind.</p>
             </section>
 
             <section>

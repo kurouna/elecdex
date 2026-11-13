@@ -42,6 +42,7 @@ const ids = (items: readonly PaletteItem[]) => items.map((i) => i.key)
 /** Nothing any conditional shortcut looks for is there. */
 const NOTHING: ShortcutFacts = {
   focusedIsShell: false,
+  focusedReads: false,
   zoomable: false,
   savedCount: 0,
   anyShell: false,

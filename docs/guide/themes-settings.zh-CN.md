@@ -124,7 +124,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 | 分区 | 内容 |
 | --- | --- |
-| general | appearance（主题、themes folder、动效）、sound、terminal（起始文件夹、字号、粘贴多行前询问、响铃）、git（打开文件的方式）、chip-8（显示核心、蜂鸣器音量）、elec-16（蜂鸣器音量、新窗格的皮肤）、layouts（切换布局前询问）、launcher（列出已安装的应用）、web panes（按主题颜色给页面着色、退出所有网站的登录） |
+| general | appearance（主题、themes folder、动效）、sound、terminal（起始文件夹、字号、粘贴多行前询问、响铃）、reading type（*unreleased*：ai chat、elec system、translate）、git（打开文件的方式）、chip-8（显示核心、蜂鸣器音量）、elec-16（蜂鸣器音量、新窗格的皮肤）、layouts（切换布局前询问）、launcher（列出已安装的应用）、web panes（按主题颜色给页面着色、退出所有网站的登录） |
 | window | 窗口之外的图标、最小化和关闭到图标、全局显示/隐藏快捷键、登录时启动和在后台启动。只在机器能提供某些功能时显示（[键盘与布局](keyboard.zh-CN.md#在后台运行)） |
 | keyboard | 所有快捷键，可重新绑定（[键盘与布局](keyboard.zh-CN.md#重新绑定快捷键)） |
 | alerts | 地震和海啸：数据源、警报、阈值、系统通知、提示音 |
@@ -167,6 +167,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `motion` | `"system"` | `system`、`full`、`reduced` |
 | `terminal.startDirectory` | `""` | 新 shell 的起始文件夹；为空表示主目录，开头的 `~` 代表主目录。文件夹不存在（或是网络共享）时，shell 改从主目录启动 |
 | `terminal.fontSize` | `13` | shell 的字号（像素），8 到 32 |
+| `reading.aichat`、`reading.elec`、`reading.translate` | `100` | *unreleased*：AI CHAT、ELEC SYSTEM、TRANSLATE 窗格正文的大小，以设计大小的百分比表示，80 到 200，步长 10；每种窗格一个值。边框和标签的大小不变 |
 | `terminal.confirmPaste` | `true` | 粘贴多于一行的文本前询问（每个换行都会执行一条命令） |
 | `terminal.bell` | `"both"` | `both`、`flash`、`sound`、`off` |
 | `terminal.win32InputMode` | `true` | Windows：当 ConPTY 请求时，按键以 Windows 键盘事件发送（win32-input-mode），使 Ctrl+Space 等以原本的按键到达控制台程序 |

@@ -671,6 +671,7 @@ const exportChat = oneAtATime(async (id: string): Promise<void> => {
 
 <div
   class="chat"
+  style:--read-scale={appearance.settings.reading.aichat / 100}
   data-testid="aichat"
   data-busy={busy}
   data-pulse={busy && visible ? pulse.phase : undefined}
@@ -1367,16 +1368,18 @@ summary.cut::-webkit-details-marker {
 /*
  * What was asked and what came back is read at length: a step larger than the HUD's text
  * (user's request 2026-11-06). Markdown is shared with ELEC and LOG WATCH, so it is set here; its
- * top headings, sized for the smaller text, keep up with it.
+ * top headings, sized for the smaller text, keep up with it. All of it, the reasoning and the
+ * line typed in follow `--read-scale`, the pane kind's scale (Ctrl+Shift+= and Ctrl+Shift+-,
+ * settings.reading); the frame and its labels keep their sizes.
  */
 .said,
 .message > :global(.markdown) {
-  font-size: var(--step-1);
+  font-size: calc(var(--step-1) * var(--read-scale));
 }
 
 .message > :global(.markdown .heading[data-level='1']),
 .message > :global(.markdown .heading[data-level='2']) {
-  font-size: var(--step-1);
+  font-size: calc(var(--step-1) * var(--read-scale));
 }
 
 .said {
@@ -1405,7 +1408,7 @@ summary.cut::-webkit-details-marker {
 /* The reasoning is read, at the reading size; its summary line is a label (user decision 2026-10-14). */
 .thinking p {
   margin: var(--space-1) 0 0;
-  font-size: var(--step--1);
+  font-size: calc(var(--step--1) * var(--read-scale));
   padding-left: var(--space-2);
   border-left: 1px dashed var(--panel-rule);
   white-space: pre-wrap;
@@ -1489,7 +1492,7 @@ textarea {
   background: transparent;
   color: var(--text);
   font-family: var(--font-ui);
-  font-size: var(--step--1);
+  font-size: calc(var(--step--1) * var(--read-scale));
   line-height: 1.4;
   field-sizing: content;
   min-height: 1.4em;

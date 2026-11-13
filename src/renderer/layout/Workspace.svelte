@@ -13,7 +13,7 @@ import {
   neighbourTab,
   SHELL_WIDGET,
 } from '@shared/layout-ops'
-import { stepFontSize } from '@shared/settings'
+import { type ReadingPane, readingPaneOf, stepFontSize, stepReadingScale } from '@shared/settings'
 import { type ShortcutFacts, shortcutApplies, shortcutsLeftToPage } from '@shared/shortcut-applies'
 import { WEB_WIDGET_PREFIX } from '@shared/web'
 import { chordHint } from '../lib/chord-hint.ts'
@@ -225,8 +225,8 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'shell.find': () => findInShell(),
   'shell.clear': () => clearShell(),
   // Every shell's type size, from the settings: no shell needs the keyboard for it.
-  'shell.fontBigger': () => stepShellFont(1),
-  'shell.fontSmaller': () => stepShellFont(-1),
+  'shell.fontBigger': () => stepType(1),
+  'shell.fontSmaller': () => stepType(-1),
   // Only in a tab group: elsewhere the keys are the pane's.
   'tab.next': () => layout.cycleTab(1),
   'tab.previous': () => layout.cycleTab(-1),
@@ -302,6 +302,31 @@ function clearShell(): void {
   ui.clearShell()
 }
 
+/**
+ * The reading pane the type keys size: the one popped up over the workspace while nothing is
+ * over it, or else the focused pane (`widget`), when it is one; null for the shells.
+ */
+function typeTarget(widget: string | undefined): ReadingPane | null {
+  if (ui.popupOnTop) return readingPaneOf(ui.popup ?? undefined)
+  return readingPaneOf(widget)
+}
+
+/**
+ * Larger or smaller type: the reading text of the pane that has the keyboard, when it is a
+ * reading pane, for every pane of its kind (settings.reading); otherwise the shells'.
+ */
+function stepType(step: number): void {
+  const focused = layout.panes.find((p) => p.id === layout.focusedPaneId)
+  const target = typeTarget(focused?.widget)
+  if (target === null) {
+    stepShellFont(step)
+    return
+  }
+  const scale = appearance.settings.reading[target]
+  const next = stepReadingScale(scale, step)
+  if (next !== scale) void appearance.patch({ reading: { [target]: next } })
+}
+
 /** The shells' type size a step larger or smaller (settings.terminal.fontSize). */
 function stepShellFont(step: number): void {
   // With no shell open the keys are left to the pane that has them (`shortcutApplies`): a
@@ -328,6 +353,7 @@ function shortcutFacts(paneId: string | null, editing: boolean): ShortcutFacts {
   const zoomTarget = layout.zoom.paneId ?? paneId
   return {
     focusedIsShell: focused !== undefined && isShellWidget(focused.widget),
+    focusedReads: typeTarget(focused?.widget) !== null,
     zoomable: zoomTarget !== null && layout.zoom.modeFor(zoomTarget) !== null,
     savedCount: layout.saved.list.length,
     anyShell: layout.panes.some((p) => isShellWidget(p.widget)),
@@ -371,7 +397,12 @@ function run(action: KeybindingAction, editing: boolean): boolean {
  */
 const throughDialog = (action: KeybindingAction): boolean =>
   THROUGH_DIALOGS.has(action) ||
-  (ui.popupOnTop && (isSummonAction(action) || action === 'palette.open'))
+  (ui.popupOnTop && (isSummonAction(action) || action === 'palette.open' || sizesPopup(action)))
+
+/** The type keys reach a reading pane popped up: its text is what they size (`typeTarget`). */
+const sizesPopup = (action: KeybindingAction): boolean =>
+  (action === 'shell.fontBigger' || action === 'shell.fontSmaller') &&
+  readingPaneOf(ui.popup ?? undefined) !== null
 
 // The action palette runs the shortcuts through here (lib/commands.ts), as their keys would.
 // Whether one applies is asked of the facts alone: `run` refuses everything while the palette,
