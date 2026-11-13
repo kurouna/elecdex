@@ -124,7 +124,7 @@ Its sections, in order:
 
 | Section | What is in it |
 | --- | --- |
-| general | appearance (theme, themes folder, motion), sound, terminal (start folder, type size, ask before pasting several lines, bell), reading type (*unreleased*: ai chat, elec system, translate), git (open files with), chip-8 (show the core, buzzer volume), elec-16 (buzzer volume, skin of a new pane), layouts (ask before switching layout), launcher (list installed applications), web panes (tint pages in the theme's colour, sign out of all sites) |
+| general | appearance (theme, themes folder, motion), sound, terminal (start folder, type size, ask before pasting several lines, bell), reading type (ai chat, elec system, translate), git (open files with), chip-8 (show the core, buzzer volume), elec-16 (buzzer volume, skin of a new pane), layouts (ask before switching layout), launcher (list installed applications), web panes (tint pages in the theme's colour, sign out of all sites) |
 | window | The icon outside the window, minimising and closing to it, the system-wide show/hide shortcut, launching at sign-in and starting in the background. Shown only where the machine offers something ([Keyboard and layouts](keyboard.md#running-in-the-background)) |
 | keyboard | Every shortcut, rebindable ([Keyboard and layouts](keyboard.md#rebinding-shortcuts)) |
 | alerts | Earthquakes and tsunamis: source, alerts, thresholds, system notification, alert sound |
@@ -167,7 +167,7 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `motion` | `"system"` | `system`, `full`, `reduced` |
 | `terminal.startDirectory` | `""` | The folder a new shell starts in; empty for home, `~` stands for home at the start. A folder that does not exist (or a network share) starts the shell at home instead |
 | `terminal.fontSize` | `13` | The shells' type size in pixels, 8 to 32 |
-| `reading.aichat`, `reading.elec`, `reading.translate` | `100` | *unreleased*: the reading text of the AI CHAT, ELEC SYSTEM and TRANSLATE panes, in percent of its designed size, 80 to 200 in steps of 10; one scale per kind of pane. Their frames and labels keep their sizes |
+| `reading.aichat`, `reading.elec`, `reading.translate` | `100` | The reading text of the AI CHAT, ELEC SYSTEM and TRANSLATE panes, in percent of its designed size, 80 to 200 in steps of 10; one scale per kind of pane. Their frames and labels keep their sizes |
 | `terminal.confirmPaste` | `true` | Ask before pasting text of more than one line (each line break would run a command) |
 | `terminal.bell` | `"both"` | `both`, `flash`, `sound`, `off` |
 | `terminal.win32InputMode` | `true` | Windows: send keys as Windows key events when ConPTY asks (win32-input-mode), so Ctrl+Space and the like reach console programs as themselves |

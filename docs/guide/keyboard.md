@@ -71,10 +71,10 @@ The preset keys are tied to the preset's id, not to its place, so a key you move
 | Ctrl+Shift+S | Focus the shell | `shell.focus` | Focuses the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | Search the shell | `shell.find` | Finds in the shell's scrollback: Enter / Shift+Enter for next and previous, Escape closes. Applies when there is a shell to search |
 | Ctrl+Shift+K | Clear the shell's scrollback | `shell.clear` | Clears the focused shell's scrollback; cannot be undone. Only from a shell |
-| Ctrl+Shift+= | Larger type in this pane or the shells | `shell.fontBigger` | Larger type in every shell. *unreleased*: with an AI CHAT, ELEC SYSTEM or TRANSLATE pane focused (or popped up), its reading text instead, in every pane of that kind. Applies when a shell is open or such a pane is focused |
+| Ctrl+Shift+= | Larger type in this pane or the shells | `shell.fontBigger` | Larger type in every shell. With an AI CHAT, ELEC SYSTEM or TRANSLATE pane focused (or popped up), its reading text instead, in every pane of that kind. Applies when a shell is open or such a pane is focused |
 | Ctrl+Shift+- | Smaller type in this pane or the shells | `shell.fontSmaller` | Smaller type in every shell, or in the focused reading pane, as above |
 
-The type size is kept as `terminal.fontSize` in `settings.json`: 13 px by default, from 8 to 32. *unreleased*: the reading panes' scale is kept per kind as `reading.aichat`, `reading.elec` and `reading.translate`: 100 % by default, from 80 to 200 in steps of 10. Only the text read at length grows (the conversation and its input line, the ballots, the motion and the council's input line, the text and its translation); frames, labels and the council's stage keep their sizes.
+The type size is kept as `terminal.fontSize` in `settings.json`: 13 px by default, from 8 to 32. The reading panes' scale is kept per kind as `reading.aichat`, `reading.elec` and `reading.translate`: 100 % by default, from 80 to 200 in steps of 10. Only the text read at length grows (the conversation and its input line, the ballots, the motion and the council's input line, the text and its translation); frames, labels and the council's stage keep their sizes.
 
 ### Find and open
 
