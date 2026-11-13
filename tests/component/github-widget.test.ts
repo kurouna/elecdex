@@ -488,14 +488,20 @@ describe('found in review (2026-11-08)', () => {
 
   it("waits out REFRESH's 30 s on the seconds' boundaries, with no timer of its own", async () => {
     // REFRESH armed a setTimeout of its own for the wait (30 s and 50 ms), never cleared when
-    // the pane unmounted.
-    await mount()
-    await push(await boardOf('demo'))
-    const timeout = vi.spyOn(globalThis, 'setTimeout')
-    await fireEvent.click(screen.getByTestId('github-refresh'))
-    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
-    await settle()
-    expect((screen.getByTestId('github-refresh') as HTMLButtonElement).disabled).toBe(true)
-    expect(timeout.mock.calls.filter(([, ms]) => (ms ?? 0) > 1000)).toEqual([])
+    // the pane unmounted. The wall clock stands still in the middle of a minute: a minute that
+    // turned while the test ran re-armed the pane's minute clock (60 s), which is not the wait.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 10, 14, 12, 0, 30, 500) })
+    try {
+      await mount()
+      await push(await boardOf('demo'))
+      const timeout = vi.spyOn(globalThis, 'setTimeout')
+      await fireEvent.click(screen.getByTestId('github-refresh'))
+      await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+      await settle()
+      expect((screen.getByTestId('github-refresh') as HTMLButtonElement).disabled).toBe(true)
+      expect(timeout.mock.calls.filter(([, ms]) => (ms ?? 0) > 1000)).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
