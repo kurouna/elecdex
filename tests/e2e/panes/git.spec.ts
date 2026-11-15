@@ -397,11 +397,23 @@ test('shows a changed image as before and after, and a file only named as one as
     await page.getByTestId('image-back').click()
     await expect(page.getByTestId('diff-images')).toBeVisible()
     await expect(page.getByTestId('image-back')).toHaveCount(0)
-    // Escape goes back too.
+    // Escape goes back too - with the pane forward as well: the viewer has Escape first, and the
+    // next one puts the pane back (before, the first put the pane back and left the viewer open).
     await page.getByTestId('diff-image-open').first().click()
     await expect(viewer).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('diff-images')).toBeVisible()
+    await page.getByTestId('diff-image-open').first().click()
+    await expect(viewer).toBeFocused()
+    await page.keyboard.press('Control+Shift+KeyZ')
+    const forward = page.locator('[data-testid=pane].pane-pinned')
+    await expect(forward).toHaveCount(1)
+    await viewer.focus()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('diff-images')).toBeVisible()
+    await expect(forward).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(forward).toHaveCount(0)
 
     // Bytes that are not an image never reach an <img>, whatever the name says.
     writeFileSync(path.join(repo, 'fake.png'), '<svg onload="window.__gitOwned = true"></svg>')

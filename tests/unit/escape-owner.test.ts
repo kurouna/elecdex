@@ -24,7 +24,11 @@ function svelteFiles(dir: string): string[] {
   })
 }
 
-const HANDLES_ESCAPE = /key\s*[!=]==\s*'Escape'/
+/**
+ * An Escape handled: a comparison of the key, a map of keys to what they do (`Escape: () =>`),
+ * or a switch. The map was missed at first, and with it the image viewer (found in review).
+ */
+const HANDLES_ESCAPE = /key\s*[!=]==\s*'Escape'|\bEscape\s*:\s*\(|case\s+'Escape'/
 
 describe('widgets with an Escape of their own', () => {
   const files = svelteFiles(WIDGETS)

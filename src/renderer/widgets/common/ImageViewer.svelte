@@ -171,6 +171,7 @@ function open(_node: Element): TransitionConfig {
   tabindex="0"
   role="application"
   aria-label="{alt}. Wheel or + and - to zoom, drag or the arrows to move, 0 to fit, Escape to go back."
+  data-owns-escape
   data-testid="image-viewer"
   data-scale={view.scale.toFixed(3)}
   onpointerdown={down}

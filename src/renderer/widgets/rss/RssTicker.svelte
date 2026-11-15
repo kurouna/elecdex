@@ -29,10 +29,15 @@ const item = $derived(items[index])
 const fallback: Mark = { tag: '··', turn: 0 }
 
 /**
- * Held still while the pointer or the keyboard is on it: a headline being read or stepped to by
- * hand is not taken away by the next beat (the beat once landed between two presses of ‹).
+ * Held still while the pointer is on it, or the keyboard was brought to it: a headline being
+ * read or stepped to by hand is not taken away by the next beat (the beat once landed between
+ * two presses of ‹). The two are kept apart - a pointer passing over and away let go of what the
+ * keyboard held - and the keyboard's counts only as the browser shows it (:focus-visible): the
+ * focus a click leaves on ‹ › is no one reading, and must not hold the ticker on its own.
  */
-let held = $state(false)
+let pointerHeld = $state(false)
+let keyboardHeld = $state(false)
+const held = $derived(pointerHeld || keyboardHeld)
 
 $effect(() => {
   if (!running || held || items.length < 2) return
@@ -54,10 +59,14 @@ const SLOTS = 20
     class="ticker"
     role="group"
     aria-label="headlines, one at a time"
-    onpointerenter={() => (held = true)}
-    onpointerleave={() => (held = false)}
-    onfocusin={() => (held = true)}
-    onfocusout={() => (held = false)}
+    onpointerenter={() => (pointerHeld = true)}
+    onpointerleave={() => (pointerHeld = false)}
+    onfocusin={(event) => (keyboardHeld = (event.target as Element).matches(':focus-visible'))}
+    onfocusout={(event) => {
+      // Moving on within the ticker (‹ to ›) is still the keyboard there.
+      const next = event.relatedTarget
+      if (!(next instanceof Node && event.currentTarget.contains(next))) keyboardHeld = false
+    }}
     data-held={held || undefined}
     data-testid="rss-ticker"
   >

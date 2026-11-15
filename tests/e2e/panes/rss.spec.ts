@@ -397,6 +397,22 @@ test('CARD shows pictures, TICKER one headline at a time; the choice is kept', a
     }
     await expect(pane.getByTestId('rss-ticker-title')).toHaveText('alpha story 1')
 
+    // The pointer gone, a button clicked does not keep it still: the focus a click leaves is no
+    // one reading it (it once held the ticker until something else was clicked).
+    await page.mouse.move(0, 0)
+    await expect(ticker).not.toHaveAttribute('data-held')
+    await expect(count).not.toHaveText('1/20', { timeout: 9000 })
+    // Reached by the keyboard, it holds while the keyboard is there.
+    await pane.getByTestId('rss-ticker-prev').focus()
+    await page.keyboard.press('Shift+Tab')
+    await page.keyboard.press('Tab')
+    await expect(pane.getByTestId('rss-ticker-prev')).toBeFocused()
+    await expect(ticker).toHaveAttribute('data-held', 'true')
+    // A pointer passing over and away does not let go of what the keyboard holds.
+    await ticker.hover()
+    await page.mouse.move(0, 0)
+    await expect(ticker).toHaveAttribute('data-held', 'true')
+
     await waitForSaved(userData, (text) => text.replace(/\s/g, '').includes('"view":"ticker"'))
   } finally {
     await launched.close()
