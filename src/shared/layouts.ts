@@ -123,9 +123,11 @@ export const summarize = (
  * shell is created - which would rewrite the file for nothing - and it is the
  * one thing in a layout that cannot mean anything on another machine. A chat
  * pane's files waiting to be sent are the same: main holds them under the draft
- * id in memory, for this run only.
+ * id in memory, for this run only. An RSS pane's last look (`seenAt`) changes every time the
+ * pane is shown: kept in a saved copy it would rewrite layouts.json on every look, for a line
+ * that only means something on this machine (found in review).
  */
-const VOLATILE_PANE_STATE: readonly string[] = ['sessionId', 'filesDraft']
+const VOLATILE_PANE_STATE: readonly string[] = ['sessionId', 'filesDraft', 'seenAt']
 
 /**
  * A tree fit to be saved and carried to another machine: the arrangement, with

@@ -1,33 +1,56 @@
 <script lang="ts">
 import {
   FEED_MAX_URLS,
+  type FeedItem,
   type FeedUpdate,
   feedItemKey,
-  formatItemTime,
   mergeFeeds,
   paneFeeds,
-  parseFeedList,
+  type ShownItem,
 } from '@shared/feeds'
+import {
+  cleanTag,
+  type FeedView,
+  feedMarks,
+  freeTurn,
+  isMuted,
+  matchesFind,
+  paneSeenAt,
+  paneView,
+  paneWords,
+  type StoredMark,
+  storedMarks,
+  wordPattern,
+} from '@shared/feeds-view'
 import { untrack } from 'svelte'
-import { flip } from 'svelte/animate'
+import { afterBlink } from '../../lib/blink.ts'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
+import { handOver } from '../../lib/hand-over.svelte.ts'
 import { NewAbove } from '../../lib/new-above.svelte.ts'
-import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
-import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { sfx } from '../../stores/sound.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
-import NewPill from '../common/NewPill.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
+import FeedMark from './FeedMark.svelte'
+import RssArticle from './RssArticle.svelte'
+import RssCards from './RssCards.svelte'
+import RssList from './RssList.svelte'
+import RssSettings, { type NewFeed, type SettingsTab } from './RssSettings.svelte'
+import RssTicker from './RssTicker.svelte'
 
 /**
- * Headlines from the RSS and Atom feeds the user lists, newest first.
+ * Headlines from the RSS and Atom feeds the user lists, newest first (docs/architecture.md
+ * §5.27, the look in docs/rss-mock).
  *
- * The feed URLs are pane state; main fetches each listed feed every 15 minutes
- * (see main/feeds/service.ts) and this pane merges them. It is not in the default
- * layout and starts with no feeds, so nothing is fetched until the user adds one.
- * Plain text and no timers beyond one at midnight, so it costs nothing at idle.
+ * The feed URLs and the pane's choices are pane state - `feeds`, each feed's mark (`marks`),
+ * the view (`view`: LIST, CARD or TICKER), the `highlight` and `mute` words, and when the
+ * list was last seen (`seenAt`). Main fetches each listed feed every 15 minutes (see
+ * main/feeds/service.ts) and keeps the read marks; this pane merges, filters and draws. It is
+ * not in the default layout and starts with no feeds - with ADD and the starter packs in
+ * front - so nothing is fetched until the user adds one. No timers of its own beyond one at
+ * midnight; TICKER steps on the wall clock's grid only while shown.
  */
 const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
 /** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
@@ -39,13 +62,26 @@ const feeds = $derived(paneFeeds(paneState?.feeds))
  * not every new array the pane state produces (a save of an identical list).
  */
 const feedKey = $derived(feeds.join('\n'))
+const view = $derived(paneView(paneState?.view))
+const stored = $derived(storedMarks(paneState?.marks))
+const highlightWords = $derived(paneWords(paneState?.highlight))
+const muteWords = $derived(paneWords(paneState?.mute))
+const highlight = $derived(wordPattern(highlightWords))
+const mute = $derived(wordPattern(muteWords))
 
 let updates = $state.raw<Record<string, FeedUpdate>>({})
-let editing = $state(false)
-let draft = $state(untrack(() => recallTyped(paneId, 'feed')))
-// Kept through a move, which remounts the pane (lib/pane-memory.ts).
-$effect(() => keepTyped(paneId, 'feed', draft))
-let problem = $state<string | null>(null)
+
+/** Settings open, and on which tab. */
+let settingsOpen = $state(false)
+let tab = $state<SettingsTab>('feeds')
+/** The feed the chips narrow the list to, or null for all. */
+let only = $state<string | null>(null)
+/** What the find box searches for. */
+let find = $state('')
+/** The article open over the list, by its key. */
+let openKey = $state<string | null>(null)
+/** The row the article came from, to give the keyboard back to. */
+let cameFrom: HTMLElement | null = null
 
 /**
  * One subscription per listed feed, kept across edits of the list: only feeds
@@ -64,6 +100,9 @@ let fresh = $state.raw<ReadonlySet<string>>(new Set())
 const trackers = new Map<string, FreshTracker>()
 const above = new NewAbove()
 
+/** What a headline must pass to be shown at all: not muted, and what is searched. */
+const keepItem = (item: FeedItem): boolean => !isMuted(item, mute) && matchesFind(item, find)
+
 function receive(url: string, update: FeedUpdate): void {
   const next = { ...updates, [url]: update }
   // A feed never downloaded has no items to compare with yet.
@@ -71,11 +110,18 @@ function receive(url: string, update: FeedUpdate): void {
     const tracker = trackers.get(url) ?? new FreshTracker()
     trackers.set(url, tracker)
     const added = tracker.next(update.items.map((item) => feedItemKey(update, item)))
-    // Only what makes the merged list counts: an item too old for it is not news.
-    const listed = mergeFeeds(listedUpdates(next)).map((item) => item.key)
-    const shownAdded = added.filter((key) => listed.includes(key))
-    fresh = carryFresh(fresh, shownAdded, listed)
-    above.arrived(shownAdded.length)
+    // Only LIST plays the arrival and its "n new"; in CARD or TICKER a key kept for it would
+    // light up when LIST came back, maybe an hour later (found in review).
+    if (view === 'list') {
+      // Only what makes the list as shown counts - the chip's feed, past the mute and the
+      // search: an item too old for it, or another feed's, is not news here.
+      const listed = mergeFeeds(narrowed(listedUpdates(next)), undefined, keepItem).map(
+        (item) => item.key,
+      )
+      const shownAdded = added.filter((key) => listed.includes(key))
+      fresh = carryFresh(fresh, shownAdded, listed)
+      above.arrived(shownAdded.length)
+    }
   }
   updates = next
 }
@@ -106,6 +152,7 @@ $effect(() => {
   untrack(() => {
     updates = Object.fromEntries(Object.entries(updates).filter(([url]) => urls.has(url)))
     for (const url of trackers.keys()) if (!urls.has(url)) trackers.delete(url)
+    if (only !== null && !urls.has(only)) only = null
   })
 })
 
@@ -126,12 +173,50 @@ $effect(() => {
   return () => clearTimeout(timer)
 })
 
+/**
+ * The last look: the LAST SEEN line marks where the list stood when the pane was last shown.
+ * As the pane comes into view the previous look is read and this one written, so the line is
+ * about the previous look, never this one. Written as a look begins, never as it ends: a pane
+ * writing its state while it is closed held the close up (the pane stayed), found by the e2e.
+ */
+let lastLook = $state<number | null>(null)
+$effect(() => {
+  if (!visible) return
+  untrack(() => {
+    lastLook = paneSeenAt(paneState?.seenAt)
+    if (feeds.length > 0) widgetState.patch(paneId, { seenAt: Date.now() })
+  })
+})
+
 /** The updates of the listed feeds, in list order. */
 const listedUpdates = (from: Record<string, FeedUpdate>): FeedUpdate[] =>
   feeds.map((url) => from[url]).filter((u) => u !== undefined)
 
 const received = $derived(listedUpdates(updates))
-const shown = $derived(mergeFeeds(received))
+const titles = $derived(Object.fromEntries(received.map((u) => [u.url, u.title])))
+const marks = $derived(feedMarks(feeds, stored, titles))
+/** The feeds the chips leave: all, or the one chosen. */
+const narrowed = (from: FeedUpdate[]): FeedUpdate[] =>
+  only === null ? from : from.filter((u) => u.url === only)
+const shown = $derived(mergeFeeds(narrowed(received), undefined, keepItem))
+/** Every listed item, before the chips and the search: what the bar counts. */
+const everything = $derived(mergeFeeds(received, Number.POSITIVE_INFINITY, () => true))
+const mutedCount = $derived(everything.filter((item) => isMuted(item, mute)).length)
+const unreadCount = $derived(
+  mergeFeeds(received, undefined, (item) => !isMuted(item, mute)).filter((item) => !item.read)
+    .length,
+)
+const article = $derived(
+  openKey === null
+    ? null
+    : (shown.find((i) => i.key === openKey) ?? everything.find((i) => i.key === openKey) ?? null),
+)
+// The article's headline gone from every feed (the twenty move on): nothing is open any more,
+// so TICKER, which waits while one is, goes on again (found in review).
+$effect(() => {
+  if (openKey !== null && article === null) openKey = null
+})
+
 /** When every listed feed has failed and none has items, say why instead of waiting. */
 const failure = $derived(
   received.length === feeds.length &&
@@ -147,238 +232,465 @@ $effect(() => {
   }
   const latest = Math.max(0, ...received.map((u) => u.fetchedAt ?? 0))
   const time = latest ? new Date(latest).toTimeString().slice(0, 5) : null
-  const stale = received.some((u) => u.error !== null)
+  const failing = received.filter((u) => u.error !== null).length
   const count = `${feeds.length} ${feeds.length === 1 ? 'feed' : 'feeds'}`
+  const parts = [count, time ? `updated ${time}` : null, failing > 0 ? `${failing} failing` : null]
   paneMeta.set(paneId, {
-    subtitle: time ? `${count} · updated ${time}` : count,
-    ...(stale ? { badge: 'stale', badgeKind: 'warn' as const } : {}),
+    subtitle: parts.filter((p) => p !== null).join(' · '),
+    ...(failing > 0 ? { badge: 'stale', badgeKind: 'warn' as const } : {}),
   })
 })
 
-function startEditing(): void {
-  draft = feeds.join('\n')
-  problem = null
-  editing = true
+/* ---- Choices ---- */
+
+function setView(next: FeedView, button: HTMLElement): void {
+  if (next === view && !settingsOpen) return
+  afterBlink(button, () => {
+    sfx.play('panel')
+    settingsOpen = false
+    fresh = new Set()
+    // TICKER shows neither the chips nor the find box, so it keeps none of their narrowing:
+    // a search left from LIST would empty it with no way to see why (found in review).
+    if (next === 'ticker') {
+      only = null
+      find = ''
+    }
+    widgetState.patch(paneId, { view: next === 'list' ? undefined : next })
+  })
 }
 
-function saveDraft(): void {
-  const { urls, invalid } = parseFeedList(draft)
-  if (invalid.length > 0) {
-    problem = `not a feed URL: ${invalid[0]}`
-    return
-  }
-  if (urls.length > FEED_MAX_URLS) {
-    problem = `up to ${FEED_MAX_URLS} feeds`
-    return
-  }
-  widgetState.patch(paneId, { feeds: urls })
-  editing = false
+function setOnly(next: string | null, button: HTMLElement): void {
+  afterBlink(button, () => {
+    sfx.play('panel')
+    only = next
+  })
 }
+
+function toggleSettings(): void {
+  sfx.play(settingsOpen ? 'collapse' : 'expand')
+  openKey = null
+  if (!settingsOpen) tab = 'feeds'
+  settingsOpen = !settingsOpen
+}
+
+/* ---- The article ---- */
+
+function pick(item: ShownItem, row: HTMLElement): void {
+  afterBlink(row, () => {
+    sfx.play('expand')
+    cameFrom = row
+    openKey = item.key
+    if (!item.read) void window.elecdex.feeds.markRead(item.feed, item.key, true)
+  })
+}
+
+function closeArticle(): void {
+  sfx.play('collapse')
+  openKey = null
+  const back = cameFrom
+  cameFrom = null
+  // The row may have gone (redrawn, filtered); then the list keeps the keyboard.
+  if (back?.isConnected) back.focus({ preventScroll: true })
+}
+
+/** The article as text for another pane: its headline, its summary, and where it is. */
+function articleText(item: ShownItem): string {
+  return [item.title, item.summary, item.link]
+    .filter((part) => part !== undefined && part !== null)
+    .join('\n\n')
+}
+
+/* ---- The list of feeds ---- */
+
+function patchFeeds(next: string[], nextMarks: Record<string, StoredMark>): void {
+  widgetState.patch(paneId, {
+    feeds: next,
+    marks: Object.keys(nextMarks).length > 0 ? nextMarks : undefined,
+  })
+}
+
+/** Adds feeds not listed yet, each with a free turn of the colour wheel; says why some could not be. */
+function addFeeds(list: NewFeed[]): string | null {
+  const next = [...feeds]
+  const nextMarks = { ...stored }
+  let refused = 0
+  for (const feed of list) {
+    if (next.includes(feed.url)) continue
+    if (next.length >= FEED_MAX_URLS) {
+      refused += 1
+      continue
+    }
+    next.push(feed.url)
+    const taken = next
+      .map((url) => nextMarks[url]?.turn ?? marks[url]?.turn)
+      .filter((t): t is number => t !== undefined)
+    nextMarks[feed.url] = { turn: freeTurn(taken) }
+  }
+  if (next.length !== feeds.length) patchFeeds(next, nextMarks)
+  return refused > 0 ? `up to ${FEED_MAX_URLS} feeds: ${refused} not added` : null
+}
+
+function removeFeed(url: string): void {
+  const nextMarks = { ...stored }
+  delete nextMarks[url]
+  patchFeeds(
+    feeds.filter((u) => u !== url),
+    nextMarks,
+  )
+}
+
+function moveFeed(url: string, by: -1 | 1): void {
+  const at = feeds.indexOf(url)
+  const to = at + by
+  if (at < 0 || to < 0 || to >= feeds.length) return
+  const next = [...feeds]
+  next.splice(at, 1)
+  next.splice(to, 0, url)
+  // Every listed feed keeps the turn it shows now, so moving one recolours nothing.
+  const nextMarks: Record<string, StoredMark> = {}
+  for (const u of next) {
+    const mark = marks[u]
+    if (mark === undefined) continue
+    const tag = stored[u]?.tag
+    nextMarks[u] = tag === undefined ? { turn: mark.turn } : { tag, turn: mark.turn }
+  }
+  patchFeeds(next, nextMarks)
+}
+
+function setTag(url: string, raw: string): void {
+  const mark = marks[url]
+  if (mark === undefined) return
+  const tag = cleanTag(raw)
+  patchFeeds(feeds, {
+    ...stored,
+    [url]: tag === null ? { turn: mark.turn } : { tag, turn: mark.turn },
+  })
+}
+
+function setWords(kind: 'highlight' | 'mute', words: string[]): void {
+  widgetState.patch(paneId, { [kind]: words.length > 0 ? words : undefined })
+}
+
+const VIEWS: Array<[FeedView, string]> = [
+  ['list', 'list'],
+  ['card', 'card'],
+  ['ticker', 'ticker'],
+]
 </script>
 
-<div class="rss" data-testid="rss">
+<div class="rss" class:ticker={view === 'ticker' && !settingsOpen} data-testid="rss">
+  {#if feeds.length > 0}
+    <div class="top">
+      <span class="lamps" aria-label="feeds" data-testid="rss-lamps">
+        {#each feeds as url (url)}
+          {@const update = updates[url]}
+          <i class:warn={update?.error != null} class:wait={update === undefined || update.fetchedAt === null} title={update?.title ?? url}></i>
+        {/each}
+      </span>
+      <span class="figure"><small>unread</small><span class="a" data-testid="rss-unread">{unreadCount}</span></span>
+      <span class="figure wide"><small>muted</small><span class="z" data-testid="rss-muted">{mutedCount}</span></span>
+      <span class="spacer"></span>
+      {#if view !== 'ticker' && !settingsOpen}
+        <input class="find" bind:value={find} placeholder="find…" spellcheck="false" aria-label="find in headlines" data-testid="rss-search" />
+      {/if}
+      <span class="seg" role="radiogroup" aria-label="view">
+        {#each VIEWS as [id, label] (id)}
+          <button type="button" role="radio" aria-checked={view === id && !settingsOpen} onclick={(e) => setView(id, e.currentTarget)} data-testid="rss-view-{id}">{label}</button>
+        {/each}
+      </span>
+    </div>
+  {/if}
   <SettingsButton
-    open={editing}
+    open={settingsOpen}
     label="rss settings"
     testid="rss-settings-toggle"
-    ontoggle={() => (editing ? (editing = false) : startEditing())}
+    ontoggle={toggleSettings}
   />
 
-  {#if editing}
-    <form
-      class="editor"
-      onsubmit={(e) => {
-        e.preventDefault()
-        saveDraft()
+  {#if feeds.length === 0 || settingsOpen}
+    <RssSettings
+      {paneId}
+      first={feeds.length === 0}
+      {feeds}
+      {updates}
+      {marks}
+      tags={Object.fromEntries(Object.entries(stored).map(([url, mark]) => [url, mark.tag]))}
+      highlight={highlightWords}
+      mute={muteWords}
+      {tab}
+      ontab={(next) => {
+        sfx.play('panel')
+        tab = next
       }}
-    >
-      <textarea
-        bind:value={draft}
-        rows="4"
-        spellcheck="false"
-        placeholder="https://example.com/feed.xml"
-        data-testid="rss-feeds"
-      ></textarea>
-      <div class="editor-bar">
-        <span class:problem={problem !== null} data-testid="rss-problem">
-          {problem ?? `RSS or Atom feed URLs, one per line, up to ${FEED_MAX_URLS} · checked every 15 minutes`}
-        </span>
-        <button type="submit" data-testid="rss-save">save</button>
-      </div>
-    </form>
-  {/if}
-
-  {#if feeds.length === 0}
-    {#if !editing}
-      <p class="note" data-testid="rss-empty">No feeds yet. Open the settings at the top right to add RSS or Atom feed URLs.</p>
-    {/if}
-  {:else if shown.length === 0}
-    <p class="note" data-testid="rss-status">
-      {failure === null ? 'fetching feeds…' : `could not read the feeds: ${failure}`}
-    </p>
+      onadd={addFeeds}
+      onremove={removeFeed}
+      onmove={moveFeed}
+      ontag={setTag}
+      onwords={setWords}
+    />
   {:else}
-    <div class="list-frame">
-      <NewPill count={above.count} onjump={() => above.jump(!appearance.reducedMotion)} testid="rss-new" />
-      <ul class="items" bind:this={above.list} onscroll={() => above.scrolled()} data-testid="rss-items">
-        {#each shown as item (item.key)}
-          <li
-            class:fx-fresh={fresh.has(item.key)}
-            animate:flip={{ duration: appearance.reducedMotion ? 0 : 360 }}
-            onanimationend={(e) => settled(item.key, e)}
-            data-fresh={fresh.has(item.key) || undefined}
-          >
-            <button
-              type="button"
-              class="item"
-              disabled={item.link === null}
-              title={item.title}
-              onclick={() => {
-                if (item.link !== null) void window.elecdex.system.openExternal(item.link)
-              }}
-              data-testid="rss-item"
-            >
-              <span class="title">{item.title}</span>
-              <span class="meta">
-                {item.source}{item.at === null ? '' : ` · ${formatItemTime(item.at, clock)}`}
-              </span>
-            </button>
-          </li>
+    {#if view !== 'ticker' && feeds.length > 1}
+      <div class="chips" role="radiogroup" aria-label="feeds shown" data-testid="rss-chips">
+        <button type="button" role="radio" class="chip" aria-checked={only === null} onclick={(e) => setOnly(null, e.currentTarget)} data-testid="rss-chip">all</button>
+        {#each feeds as url (url)}
+          {@const update = updates[url]}
+          <button
+            type="button"
+            role="radio"
+            class="chip"
+            class:stale={update?.error != null}
+            aria-checked={only === url}
+            onclick={(e) => setOnly(only === url ? null : url, e.currentTarget)}
+            data-feed={url}
+            data-testid="rss-chip"
+          ><FeedMark mark={marks[url] ?? { tag: '··', turn: 0 }} /><span>{update?.title ?? new URL(url).hostname}</span></button>
         {/each}
-      </ul>
+      </div>
+    {/if}
+    <div class="body">
+      {#if shown.length === 0}
+        <p class="note" data-testid="rss-status">
+          {#if failure !== null}could not read the feeds: {failure}
+          {:else if received.length < feeds.length && everything.length === 0}fetching feeds…
+          {:else}nothing matches{/if}
+        </p>
+      {:else}
+        {#key view}
+          <div class="view crt-on" data-testid="rss-view">
+            {#if view === 'list'}
+              <RssList items={shown} {marks} now={clock} seenAt={lastLook} {fresh} selected={openKey} {highlight} {find} {above} onpick={pick} onsettled={settled} />
+            {:else if view === 'card'}
+              <RssCards items={shown} {marks} now={clock} selected={openKey} {highlight} {find} onpick={pick} />
+            {:else}
+              <RssTicker items={shown} {marks} now={clock} running={visible && openKey === null} {highlight} {find} onpick={pick} />
+            {/if}
+          </div>
+        {/key}
+      {/if}
+      {#if article !== null}
+        <RssArticle
+          item={article}
+          mark={marks[article.feed] ?? { tag: '··', turn: 0 }}
+          {highlight}
+          {find}
+          onclose={closeArticle}
+          onopen={() => {
+            if (article.link !== null) void window.elecdex.system.openExternal(article.link)
+          }}
+          ontranslate={() => void handOver('translate', articleText(article))}
+          onask={() => void handOver('aichat', `Summarise this article in a few lines.\n\n${articleText(article)}`)}
+          onread={(read) => void window.elecdex.feeds.markRead(article.feed, article.key, read)}
+        />
+      {/if}
     </div>
   {/if}
 </div>
 
 <style>
 .rss {
+  container: rss / inline-size;
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 0.3rem;
   height: 100%;
   min-height: 0;
-  /* The top clears the settings button in the corner. */
-  position: relative;
-  padding: 1.5rem var(--space-1) 0;
+  padding: var(--space-1);
   font-family: var(--font-ui);
 }
 
-.editor button {
-  padding: 0 var(--space-2);
-  border: 1px solid var(--panel-border);
-  background: var(--app-bg);
+.top {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  padding-right: 1.7rem;
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.lamps {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.lamps i {
+  width: 0.45rem;
+  height: 0.45rem;
+  transform: rotate(45deg);
+  background: var(--ok);
+  box-shadow: 0 0 calc(var(--glow) * 0.4rem) var(--ok);
+}
+
+.lamps i.warn {
+  background: var(--warn);
+  box-shadow: 0 0 calc(var(--glow) * 0.4rem) var(--warn);
+}
+
+.lamps i.wait {
+  background: transparent;
+  outline: 1px solid var(--text-muted);
+  box-shadow: none;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.figure small {
   color: var(--text-muted);
-  font: inherit;
+  font-size: var(--step--2);
+}
+
+.figure span {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.figure .a {
+  color: var(--accent-strong);
+}
+
+.figure .z {
+  color: var(--text-muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.find {
+  width: 8rem;
+  min-width: 0;
+  padding: 0 0.2rem;
+  border: 0;
+  border-bottom: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0;
+  text-transform: none;
+  outline: none;
+}
+
+.find:focus {
+  border-color: var(--accent);
+}
+
+.find::placeholder {
+  color: var(--text-muted);
+}
+
+.seg {
+  display: flex;
+}
+
+.seg button {
+  margin-left: -1px;
+  padding: 0 0.45rem;
+  border: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
   font-size: var(--step--2);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   cursor: pointer;
 }
 
-.editor button:hover {
-  color: var(--accent);
+.seg button[aria-checked="true"] {
+  background: var(--accent);
   border-color: var(--accent);
+  color: var(--text-inverse);
 }
 
-.editor {
+@container rss (max-width: 30rem) {
+  .figure.wide,
+  .find {
+    display: none;
+  }
+}
+
+.chips {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  flex: none;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 0.05rem;
 }
 
-.editor textarea {
-  resize: none;
-  border: 1px solid var(--panel-border);
-  background: transparent;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  padding: var(--space-1);
-}
-
-.editor-bar {
-  display: flex;
-  justify-content: space-between;
+.chip {
+  display: inline-flex;
+  flex: none;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--step--2);
-  color: var(--text-muted);
-}
-
-.editor-bar .problem {
-  color: var(--warn);
-}
-
-.note {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--step--1);
-}
-
-/* The list takes the pane's height and scrolls past it. */
-.list-frame {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-}
-
-.items {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-dim) transparent;
-}
-
-.items li + li {
-  border-top: 1px solid var(--panel-rule);
-}
-
-.item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  width: 100%;
-  padding: var(--space-1);
-  border: 0;
+  gap: 0.35rem;
+  max-width: 14rem;
+  padding: 0 0.45rem 0 0;
+  border: 1px solid var(--panel-rule);
   background: transparent;
-  color: var(--text);
-  font: inherit;
-  text-align: left;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
   cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
 }
 
-.item:disabled {
-  cursor: default;
+.chip:first-child {
+  padding-left: 0.45rem;
 }
 
-.item:not(:disabled):hover .title,
-.item:focus-visible .title {
-  color: var(--accent);
-  text-decoration: underline;
-}
-
-.item:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
-}
-
-.title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  font-size: var(--step--1);
-  line-height: 1.3;
-}
-
-.meta {
+.chip span {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: var(--step--2);
+}
+
+.chip :global([data-testid="rss-mark"]) {
+  width: auto;
+  padding: 0 0.25rem;
+  border-width: 0 1px 0 0;
+}
+
+.chip[aria-checked="true"] {
+  border-color: var(--accent-dim);
+  background: var(--accent-faint);
+  color: var(--text);
+}
+
+.chip.stale span {
+  color: var(--warn);
+}
+
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--panel-rule);
+}
+
+.view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  transform-origin: 50% 0;
+}
+
+.note {
+  margin: 0.4rem 0 0;
   color: var(--text-muted);
+  font-size: var(--step--1);
 }
 </style>

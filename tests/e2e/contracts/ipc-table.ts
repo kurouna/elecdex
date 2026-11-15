@@ -97,6 +97,7 @@ export const NO_ARGUMENT = [
   'markets.watching',
   'markets.charts',
   'feeds.watching',
+  'feeds.importOpml',
   'clipboard.clear',
   'clipboard.watching',
   'snippets.list',
@@ -410,6 +411,50 @@ export const IPC_ROWS: IpcRow[] = [
     refused: { ignored: true },
     probe: { call: 'feeds.watching' },
     subscribes: true,
+  },
+  {
+    method: 'feeds.discover',
+    bad: [
+      ['file:///C:/Windows/win.ini'],
+      ['javascript:alert(1)'],
+      ['github:../..'],
+      [123],
+      [big(10_000)],
+    ],
+    refused: { matches: { ok: false } },
+  },
+  {
+    // Only a picture a watched feed names is fetched: none is watched here, so nothing goes out.
+    method: 'feeds.image',
+    bad: [
+      ['https://example.invalid/picture.png'],
+      ['file:///C:/Windows/win.ini'],
+      [123],
+      [big(10_000)],
+    ],
+    refused: { resolves: null },
+  },
+  {
+    method: 'feeds.markRead',
+    bad: [
+      ['https://example.invalid/feed', 'https://example.invalid/1', true],
+      ['not a url', 'k', true],
+      [123, 'k', true],
+      ['https://example.invalid/feed', big(10_000), true],
+      ['https://example.invalid/feed', 'k', 'yes'],
+    ],
+    refused: { resolves: false },
+  },
+  {
+    method: 'feeds.exportOpml',
+    bad: [
+      [123],
+      ['feeds'],
+      [[{ url: 'file:///C:/Windows/win.ini', title: 'x' }]],
+      [[]],
+      [[{ url: 'https://example.invalid/feed' }, 7]],
+    ],
+    refused: { resolves: null },
   },
   {
     method: 'orbits.subscribe',

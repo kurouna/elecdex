@@ -18,6 +18,8 @@ import { type ShortcutFacts, shortcutApplies, shortcutsLeftToPage } from '@share
 import { WEB_WIDGET_PREFIX } from '@shared/web'
 import { chordHint } from '../lib/chord-hint.ts'
 import { commands } from '../lib/commands.ts'
+import { escapeOwned } from '../lib/escape-owner.ts'
+import { provideSummoner } from '../lib/hand-over.svelte.ts'
 import { forgetGonePanes } from '../lib/pane-memory.ts'
 import { editingText } from '../lib/text-field.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
@@ -407,6 +409,8 @@ const sizesPopup = (action: KeybindingAction): boolean =>
 // The action palette runs the shortcuts through here (lib/commands.ts), as their keys would.
 // Whether one applies is asked of the facts alone: `run` refuses everything while the palette,
 // a dialog, is open.
+// The panes that hand text to another (lib/hand-over.svelte.ts) call it up through here.
+$effect(() => provideSummoner(summon))
 $effect(() =>
   commands.provide({
     run: (action) => run(action, false),
@@ -420,7 +424,12 @@ function onKeydown(event: KeyboardEvent): void {
   // Escape puts a pane that is forward back, as it closes a dialog. Not a
   // binding: a chord must hold Ctrl or Alt (keybindings.ts), so Escape cannot be
   // one, and a dialog over the workspace has the key first.
-  if (event.key === 'Escape' && layout.zoom.paneId !== null && !ui.dialogOpen) {
+  if (
+    event.key === 'Escape' &&
+    layout.zoom.paneId !== null &&
+    !ui.dialogOpen &&
+    !escapeOwned(event)
+  ) {
     layout.zoom.putBack()
     claim(event)
     return

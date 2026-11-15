@@ -62,6 +62,13 @@
   --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
   --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
 
+  /* A source's mark (the RSS pane's feeds): the accent's hue turned by `--mark-turn` degrees,
+     set on the element, at a stronger saturation so neighbours tell apart. A theme with no
+     saturation (Black) gives grey marks, told apart by their tags. */
+  --mark-h: var(--accent-h);
+  --mark-s: calc(var(--accent-s) * 2.4);
+  --mark-l: var(--accent-l);
+
   --danger: hsl(var(--hue-danger) 80% 60%);
   --warn: hsl(var(--hue-warn) 85% 58%);
   --ok: hsl(var(--hue-ok) 60% 52%);

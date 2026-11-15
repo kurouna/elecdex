@@ -7,6 +7,7 @@ import {
   cacheHintMs,
   decodeFeed,
   type FeedCache,
+  FeedCacheSchema,
   FeedService,
   MAX_CONCURRENT,
   MAX_INTERVAL_MS,
@@ -35,7 +36,7 @@ const parsedFeed = (title: string, ttlMinutes: number | null = null): ParsedFeed
 })
 
 /** A fake world: a clock, timers that run when the clock passes them, and a scripted server per URL. */
-function harness(opts: { cache?: FeedCache; now?: number } = {}) {
+function harness(opts: { cache?: FeedCache; now?: number; read?: Set<string> } = {}) {
   let now = opts.now ?? START
   const timers: Array<{ at: number; fn: () => void; id: number }> = []
   let nextId = 1
@@ -78,6 +79,7 @@ function harness(opts: { cache?: FeedCache; now?: number } = {}) {
     loadCache: () => opts.cache ?? {},
     saveCache: (cache) => saved.push(cache),
     publish: (update) => published.push(update),
+    ...(opts.read === undefined ? {} : { isRead: (key: string) => opts.read?.has(key) ?? false }),
   })
 
   const settle = async () => {
@@ -383,5 +385,102 @@ describe('feeds no pane watches', () => {
     expect(h.service.snapshot(`https://f${CACHE_MAX_FEEDS + 9}.test/feed.xml`).items).toHaveLength(
       1,
     )
+  })
+})
+
+describe('read marks and pictures', () => {
+  const withPicture = (title: string): ParsedFeed => ({
+    title,
+    items: [
+      {
+        title: `${title} one`,
+        link: `https://${title}.test/1`,
+        at: START,
+        image: `https://${title}.test/p.jpg`,
+      },
+      { title: `${title} two`, link: `https://${title}.test/2`, at: START - 1 },
+    ],
+    ttlMinutes: null,
+  })
+
+  it('names the read items of a feed in every update, and none without a store', async () => {
+    const read = new Set(['https://a.test/2'])
+    const h = harness({ read })
+    h.reply(A, { status: 200, parsed: withPicture('a') })
+    h.service.watch(A)
+    await h.settle()
+    expect(h.published.at(-1)?.read).toEqual(['https://a.test/2'])
+    expect(h.service.snapshot(A).read).toEqual(['https://a.test/2'])
+    expect(harness().service.snapshot(A).read).toEqual([])
+  })
+
+  it('finds the watched feeds holding an item, and sends them again on request', async () => {
+    const h = harness({ read: new Set() })
+    h.reply(A, { status: 200, parsed: withPicture('a') })
+    h.service.watch(A)
+    await h.settle()
+    expect(h.service.feedsWith('https://a.test/1')).toEqual([A])
+    expect(h.service.feedsWith('https://elsewhere.test/1')).toEqual([])
+    const before = h.published.length
+    h.service.republish(A)
+    expect(h.published).toHaveLength(before + 1)
+    h.service.unwatch(A)
+    expect(h.service.feedsWith('https://a.test/1')).toEqual([])
+    h.service.republish(A)
+    expect(h.published).toHaveLength(before + 1)
+  })
+
+  it('lets a picture be fetched only while a watched feed names it', async () => {
+    const h = harness()
+    h.reply(A, { status: 200, parsed: withPicture('a') })
+    h.service.watch(A)
+    await h.settle()
+    expect(h.service.imageFeed('https://a.test/p.jpg')).toBe(A)
+    expect(h.service.imageFeed('https://evil.test/p.jpg')).toBeNull()
+    h.service.unwatch(A)
+    expect(h.service.imageFeed('https://a.test/p.jpg')).toBeNull()
+  })
+
+  it('drops only the field that does not fit, never the whole cache', () => {
+    const entry = (link: string, image: string) => ({
+      title: 'a',
+      items: [{ title: 'one', link, at: START, image, summary: 'kept' }],
+      etag: '"e"',
+      lastModified: null,
+      hintMs: null,
+      fetchedAt: START,
+      checkedAt: START,
+    })
+    const parsed = FeedCacheSchema.safeParse({
+      [A]: entry('https://a.test/1', `https://cdn.test/${'x'.repeat(3000)}`),
+      [B]: entry('https://b.test/1', 'https://cdn.test/b.jpg'),
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data?.[A]?.items[0]).toEqual({
+      title: 'one',
+      link: 'https://a.test/1',
+      at: START,
+      summary: 'kept',
+    })
+    expect(parsed.data?.[B]?.items[0]?.image).toBe('https://cdn.test/b.jpg')
+  })
+
+  it('reads a cache written before items had pictures and summaries', async () => {
+    const h = harness({
+      cache: {
+        [A]: {
+          title: 'a',
+          items: [{ title: 'old', link: 'https://a.test/old', at: START }],
+          etag: null,
+          lastModified: null,
+          hintMs: null,
+          fetchedAt: START,
+          checkedAt: START,
+        },
+      },
+    })
+    expect(h.service.snapshot(A).items).toEqual([
+      { title: 'old', link: 'https://a.test/old', at: START },
+    ])
   })
 })

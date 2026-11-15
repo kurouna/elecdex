@@ -22,9 +22,11 @@ import { tick, untrack } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { takeHandOver } from '../../lib/hand-over.svelte.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
+import { onSummoned } from '../../lib/summoned.svelte.ts'
 import { ai } from '../../stores/ai.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -341,6 +343,18 @@ async function send(): Promise<void> {
     hover = null
   }
 }
+
+// Called up with text another pane handed over (the RSS pane's ASK AI): it goes into the
+// composer, after what was being written, for the person to send. Nothing is sent by itself.
+onSummoned(
+  () => paneId,
+  () => {
+    const handed = takeHandOver('aichat')
+    if (handed === null) return
+    draft = draft.trim() === '' ? handed : `${draft.trimEnd()}\n\n${handed}`
+    void tick().then(() => composer?.focus())
+  },
+)
 
 function edit(message: ChatMessage): void {
   editing = message.id

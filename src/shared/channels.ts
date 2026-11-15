@@ -95,6 +95,16 @@ export const CH = {
     /** main -> renderer: a FeedUpdate. */
     update: 'feeds:update',
     watching: 'feeds:watching',
+    /** Finds the feeds a site, feed, github: or youtube: name gives (ADD). */
+    discover: 'feeds:discover',
+    /** An item's picture as a data URL, only for a watched feed's items. */
+    image: 'feeds:image',
+    /** Marks an item read or unread, in every pane. */
+    markRead: 'feeds:mark-read',
+    /** Main's own picker, then the OPML file's feeds. */
+    importOpml: 'feeds:import-opml',
+    /** Main's own save dialog for the pane's feeds as OPML. */
+    exportOpml: 'feeds:export-opml',
   },
   /** The clipboard pane (shared/clipboard.ts): one history, read only while a pane is seen. */
   clipboard: {

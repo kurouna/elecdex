@@ -62,13 +62,35 @@ const HEADLINES = [
   ['Ten years of GPU-accelerated terminals, measured', 26],
 ]
 
-function feed() {
+/** Two more made-up feeds for the RSS pane's own shot, so its marks show their hues. */
+const MORE_FEEDS = {
+  '/kernel.xml': [
+    'Kernel Notes',
+    [
+      ['Why a 10 fps frame loop is enough for a dashboard that never sleeps', 2],
+      ['Reading a feed in Shift_JIS without guessing', 6],
+      ['A WebGL context budget, and what happens when you run out', 22],
+    ],
+  ],
+  '/orbit.xml': [
+    'Orbit Weekly',
+    [
+      ['Satellite operators publish a shared conjunction data feed', 4],
+      ['Starlink shells, mapped by inclination', 9],
+      ['ISS reboost window moves to Thursday', 30],
+    ],
+  ],
+}
+
+function feed(title = 'Demo Wire', headlines = HEADLINES) {
   const now = Date.now()
-  const items = HEADLINES.map(
-    ([title, hours], i) =>
-      `<item><title>${title}</title><link>https://example.com/demo/${i}</link><pubDate>${new Date(now - hours * 3_600_000).toUTCString()}</pubDate></item>`,
-  ).join('')
-  return `<?xml version="1.0"?><rss version="2.0"><channel><title>Demo Wire</title>${items}</channel></rss>`
+  const items = headlines
+    .map(
+      ([headline, hours], i) =>
+        `<item><title>${headline}</title><link>https://example.com/demo/${encodeURIComponent(title)}/${i}</link><pubDate>${new Date(now - hours * 3_600_000).toUTCString()}</pubDate><description>A made-up story for the screenshots: ${headline.toLowerCase()}.</description><author>desk@example.com (${title} desk)</author></item>`,
+    )
+    .join('')
+  return `<?xml version="1.0"?><rss version="2.0"><channel><title>${title}</title>${items}</channel></rss>`
 }
 
 /** The media shot's stand-ins: the television pane's page, X's, and a feed. */
@@ -77,6 +99,12 @@ export function mediaStandIn() {
     if (req.url?.startsWith('/feed.xml')) {
       res.writeHead(200, { 'content-type': 'application/rss+xml' })
       res.end(feed())
+      return
+    }
+    const more = MORE_FEEDS[req.url ?? '']
+    if (more !== undefined) {
+      res.writeHead(200, { 'content-type': 'application/rss+xml' })
+      res.end(feed(...more))
       return
     }
     const page = standInPage(req.url ?? '')
@@ -90,6 +118,7 @@ export function mediaStandIn() {
         server,
         homes: `youtubetv=${base}/tv/,x=${base}/x/`,
         feedUrl: `${base}/feed.xml`,
+        feedUrls: [`${base}/feed.xml`, ...Object.keys(MORE_FEEDS).map((p) => `${base}${p}`)],
       })
     })
   })

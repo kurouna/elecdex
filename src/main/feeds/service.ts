@@ -1,4 +1,14 @@
-import { FEED_INTERVAL_MS, FEED_ITEMS_PER_FEED, type FeedUpdate } from '@shared/feeds'
+import {
+  FEED_AUTHOR_MAX,
+  FEED_CATEGORIES_MAX,
+  FEED_CATEGORY_MAX,
+  FEED_IMAGE_URL_MAX,
+  FEED_INTERVAL_MS,
+  FEED_ITEMS_PER_FEED,
+  FEED_SUMMARY_MAX,
+  type FeedUpdate,
+  feedItemKey,
+} from '@shared/feeds'
 import { z } from 'zod'
 import { readLimited as readBody } from '../read-limited.js'
 import type { ParsedFeed } from './parse.js'
@@ -37,6 +47,8 @@ export interface FeedDeps {
   saveCache(cache: FeedCache): void
   /** Delivers an update to every page watching the feed. */
   publish(update: FeedUpdate): void
+  /** Whether an item (by feedItemKey) has been read; none are without it. */
+  isRead?(key: string): boolean
 }
 
 /** The longest a feed's own caching hint may stretch the interval. */
@@ -54,10 +66,21 @@ export const CACHE_TTL_MS = 30 * 24 * 60 * 60_000
 /** And at most this many are kept, the most recently checked. */
 export const CACHE_MAX_FEEDS = 50
 
+// The fields after `at` came later (v0.0.66): a cache written before has none, and reads fine.
+// Each of them that does not fit is dropped alone (`catch`), never the whole file: one feed's
+// odd picture address once cost every feed its cache (found in review).
 const CachedItem = z.object({
   title: z.string(),
   link: z.string().nullable(),
   at: z.number().nullable(),
+  summary: z.string().max(FEED_SUMMARY_MAX).optional().catch(undefined),
+  image: z.string().max(FEED_IMAGE_URL_MAX).optional().catch(undefined),
+  author: z.string().max(FEED_AUTHOR_MAX).optional().catch(undefined),
+  categories: z
+    .array(z.string().max(FEED_CATEGORY_MAX))
+    .max(FEED_CATEGORIES_MAX)
+    .optional()
+    .catch(undefined),
 })
 const CachedFeed = z.object({
   title: z.string(),
@@ -173,13 +196,44 @@ export class FeedService {
   /** The feed as a newly watching page should first see it. */
   snapshot(url: string): FeedUpdate {
     const s = this.feeds.get(url)
+    const title = s?.title ?? hostOf(url)
+    const items = s?.items ?? []
+    const isRead = this.deps.isRead
     return {
       url,
-      title: s?.title ?? hostOf(url),
-      items: s?.items ?? [],
+      title,
+      items,
       fetchedAt: s?.fetchedAt ?? null,
       error: s?.error ?? null,
+      read:
+        isRead === undefined
+          ? []
+          : items.map((item) => feedItemKey({ title }, item)).filter((key) => isRead(key)),
     }
+  }
+
+  /** The watched feeds holding an item with this key (feedItemKey), for a read mark. */
+  feedsWith(key: string): string[] {
+    return [...this.watched].filter((url) => {
+      const s = this.feeds.get(url)
+      return s?.items.some((item) => feedItemKey({ title: s.title }, item) === key) ?? false
+    })
+  }
+
+  /** Sends a watched feed's state again, as after a read mark. */
+  republish(url: string): void {
+    if (!this.disposed && this.watched.has(url)) this.deps.publish(this.snapshot(url))
+  }
+
+  /**
+   * The watched feed one of whose items names this picture, or null: the only pictures main
+   * fetches, and the feed decides whether one on the local network may be (images.ts).
+   */
+  imageFeed(image: string): string | null {
+    for (const url of this.watched) {
+      if (this.feeds.get(url)?.items.some((item) => item.image === image)) return url
+    }
+    return null
   }
 
   /** Starts keeping a feed up to date: now, if its last check is older than its interval. */

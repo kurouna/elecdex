@@ -38,4 +38,22 @@ describe('a portable layout', () => {
       },
     ])
   })
+
+  it("leaves out an RSS pane's last look, which changes every time it is shown", () => {
+    const tree = portableTree({
+      version: 1,
+      root: {
+        kind: 'pane',
+        id: 'r',
+        widget: 'rss',
+        state: { feeds: ['https://a.test/feed'], view: 'card', seenAt: 1_700_000_000_000 },
+      },
+    })
+    expect(tree.root).toEqual({
+      kind: 'pane',
+      id: 'r',
+      widget: 'rss',
+      state: { feeds: ['https://a.test/feed'], view: 'card' },
+    })
+  })
 })

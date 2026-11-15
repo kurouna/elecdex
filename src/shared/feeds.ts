@@ -24,7 +24,23 @@ export interface FeedItem {
   link: string | null
   /** Publication time, ms since epoch; null when the feed gives none. */
   at: number | null
+  /** The feed's summary as plain text, cut to FEED_SUMMARY_MAX; absent when it gives none. */
+  summary?: string | undefined
+  /** A picture for the article (enclosure, media:thumbnail, or the first image), http(s) only. */
+  image?: string | undefined
+  /** Who wrote it, as the feed names them. */
+  author?: string | undefined
+  /** The feed's categories for it, at most FEED_CATEGORIES_MAX. */
+  categories?: string[] | undefined
 }
+
+/** The longest summary kept: enough for the article view's few lines, never the article. */
+export const FEED_SUMMARY_MAX = 400
+export const FEED_AUTHOR_MAX = 80
+export const FEED_CATEGORIES_MAX = 4
+export const FEED_CATEGORY_MAX = 32
+/** The longest picture address kept: a longer one is dropped (the cache and the image channel take none). */
+export const FEED_IMAGE_URL_MAX = 2048
 
 export interface FeedUpdate {
   url: string
@@ -36,6 +52,8 @@ export interface FeedUpdate {
   fetchedAt: number | null
   /** Why the last check failed; the items are those of the last good one. */
   error: string | null
+  /** The keys (feedItemKey) of its items that have been read, in any pane. */
+  read?: string[]
 }
 
 /**
@@ -87,8 +105,12 @@ export const feedItemKey = (update: Pick<FeedUpdate, 'title'>, item: FeedItem): 
 export interface ShownItem extends FeedItem {
   /** The title of the feed it came from. */
   source: string
+  /** The URL of the feed it came from, as the pane lists it. */
+  feed: string
   /** A key unique within the merged list. */
   key: string
+  /** Opened, here or in another pane. */
+  read: boolean
 }
 
 /**
@@ -97,16 +119,24 @@ export interface ShownItem extends FeedItem {
  * The same article in two feeds (by link, or by source and title when it has no
  * link) is shown once. Items without a date go after dated ones, in feed order,
  * so a feed that dates nothing still shows but cannot push dated news down.
+ *
+ * `keep` leaves items out before the limit is taken (a muted word, a search), so
+ * what it drops makes room for older items instead of shortening the list.
  */
-export function mergeFeeds(updates: readonly FeedUpdate[], limit = FEED_MAX_SHOWN): ShownItem[] {
+export function mergeFeeds(
+  updates: readonly FeedUpdate[],
+  limit = FEED_MAX_SHOWN,
+  keep: (item: FeedItem) => boolean = () => true,
+): ShownItem[] {
   const seen = new Set<string>()
   const items: ShownItem[] = []
   for (const update of updates) {
+    const read = new Set(update.read ?? [])
     for (const item of update.items) {
       const key = feedItemKey(update, item)
-      if (seen.has(key)) continue
+      if (seen.has(key) || !keep(item)) continue
       seen.add(key)
-      items.push({ ...item, source: update.title, key })
+      items.push({ ...item, source: update.title, feed: update.url, key, read: read.has(key) })
     }
   }
   // Array.prototype.sort is stable, so undated items keep their order.

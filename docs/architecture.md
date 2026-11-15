@@ -55,7 +55,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 | GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb` + `mmdb-lib` | 2.3 / 3.0 | データは **CC BY 4.0（NRO）**、統合版 7.8MB のみ同梱。アカウント・APIキー・初回DL・同意が全て不要で完全オフライン |
 | 設定検証 | `zod` | 4.x | 設定・テーマ・IPC入力の全検証 |
 | ファイル監視 | `node:fs` の `watch` + mtime のポーリング | — | 設定 / テーマ / プラグインのホットリロード（`main/store/watch-user-file.ts`）。`fs.watch` が取りこぼす環境があるため更新時刻も見る。chokidar は使っていない |
-| RSS / Atom | `fast-xml-parser` | 5.x | main でのみ使用。RSS ペインができるまで import しない |
+| RSS / Atom / OPML | `fast-xml-parser` | 5.x | main でのみ使用。フィードは最初のダウンロードまで、OPML は IMPORT / EXPORT を押すまで import しない（§5.27） |
 | プラグインの変換 | `sucrase` | 3.35 | TypeScript を剥がすだけ。main は変換するだけで実行しない |
 | 相場 | `yahoo-finance2` | 4.x | Node 専用（ブラウザでは CORS と cookie で動かない）。main にバンドル |
 | AI チャット | `@anthropic-ai/sdk` | 0.133 | Anthropic の Messages API 用。main でのみ使い、anthropic 種別のプロバイダに最初に問い合わせるまで import しない。OpenAI 互換側は依存を足さず素の fetch + SSE（§5.7） |
@@ -1739,6 +1739,26 @@ Ctrl+Shift+P で開くダイアログ（palette/ActionPalette.svelte）。ショ
 
 設計、決定の記録、モックは **[cloud-cli.md](cloud-cli.md)**（共通）、**[aws.md](aws.md)**、**[github.md](github.md)** と [aws-mock/index.html](aws-mock/index.html)、[github-mock/index.html](github-mock/index.html)。
 
+### 5.27 RSS ペイン（見出しを読む・探す・渡す）
+
+組み込みペイン `rss`（既定のレイアウトには入れず、media プリセットの X のタブに置く）。2026-11-15 に利用者の依頼で作り直した（未リリース）。フィードの取得の決まり（15 分ごと、ペインあたり 10 フィード、見せるのは 20 件、条件付きリクエスト、同時 2 本、失敗の退き、`feeds-cache.json`）は変えていない。見た目は [rss-mock/index.html](rss-mock/index.html) で合意した。
+
+- **役割の分け方**: main（`main/feeds/`、`main/ipc/feeds.ts`）が取得・解析・既読の印・画像・OPML を持ち、ページは受け取ったフィードごとの更新をまとめ、絞り、描く。見せ方の判断は純粋関数（`shared/feeds-view.ts`: ビュー、マーク、キーワード、日の区切り、LAST SEEN）で、ウィジェット（`widgets/rss/`）は描くだけ
+- **ペインの状態**: `feeds`、`marks`（フィードごとの色相の回し `turn` と、利用者が書いたときだけタグ）、`view`（`list`・`card`・`ticker`、既定の list は書かない）、`highlight`・`mute`（各 20 語まで）、`seenAt`。既読の印はペインではなく main（`feeds-read.json`）が持つ。机のデータは main に置く決まりと同じで、1 つのペインで開いた記事はほかのペインでも、再起動後も既読
+- **最初の一目**: フィードがないペインは NO FEEDS、ADD の欄、スターターパック（`shared/feed-packs.ts`）を出す。何も取得しないまま入口を見せるため。パックは配信元自身の公開フィードだけで、登録されるまで取得しない。利用条件を確かめられなかったもの（NHK、2026-11-15 に確認）は入れない
+- **ADD**（`shared/feeds-discover.ts` が入力を読み、`main/feeds/discover.ts` が探す）: 取得は FIND を押したときだけ、1 回の押下で 1 ページずつ（10 秒、2 MB、Cookie なし、elecdex の User-Agent）。フィードならそれが答え、Web ページなら `<link rel="alternate">` の RSS / Atom と `rel="feed"`（8 件まで）、何も示さないページはそのサイトの `/feed`・`/rss.xml`・`/atom.xml`・`/index.xml`・`/feed.xml` を順に試して最初のフィードで止める（追加の要求は最大 5）。`github:owner/repo` は `releases.atom`、`youtube:UC…` はチャンネルのフィードで、どちらも何も取得しない。`youtube:@handle` だけチャンネルのページを読む。ページが送るのは入力の文字列だけで、URL にするのも取得先を決めるのも main
+- **OPML**（`main/feeds/opml.ts`、使うときに import）: 読むのは main 自身のファイル選択で選んだファイル（1 MB まで、アウトライン 2000 個まで、実体参照は展開しない）、書くのは main の保存ダイアログで選んだ場所。ページはパスを渡さない。読んだフィードは 10 件の上限まで登録し、入らなかった数を示す。IMPORT はフィードのない最初の画面にも置く（他のリーダーから移る人は、まずその一覧から始めるため）
+- **画像**（`main/feeds/images.ts`）: ページの CSP は `img-src 'self' data:` でネットワークの画像を読めないので、main が取得して data URL で渡す。求めるのは CARD と記事ビューだけ。取得するのは、どこかのペインが購読しているフィードの項目が示す画像だけ（`FeedService.imageFeed`。ページが任意のアドレスを main に取得させられないため）。画像のアドレスはフィード（信用できない）から来るので、この PC やローカルネットワーク（ループバック・プライベート・リンクローカルのアドレス、`localhost`、`.local`、ドットのない名前など）の画像は、同じホストのフィードのものに限る（インターネットのフィードに LAN の中へ要求を出させないため。リダイレクトの行き先がそうなら捨てる）。1 MB まで、JPEG・PNG・WebP・GIF だけ（SVG は文書なので取らない。AVIF はヘッダから大きさを読めないので取らない）、デコードの前にヘッダの大きさを読み、1 辺 8192 px・計 2400 万画素を超えるものは断る（1 MB 未満でも何 GB にも展開される画像があるため。レビューで見つかった）、`nativeImage` が読める PNG と JPEG は JPEG に描き直し、幅 480 px を超えるものは縮める、メモリにだけ最後の 60 枚、同時 2 本、失敗はそのセッションの間覚えて求め直さない。画像の出どころは `parse.ts` が項目ごとに `media:thumbnail`、画像の `media:content`、画像の enclosure、Atom の `link rel="enclosure"`、要約か本文の最初の `<img>` の順に探す（YouTube は `media:group` の中）
+- **項目の中身**: 解析は要約（タグを落としたプレーンテキスト、400 文字まで）、著者、カテゴリー（4 つまで）、画像のアドレスを足した。キャッシュの形はそれらを省略可能として足したので、前の版の `feeds-cache.json` もそのまま読める
+- **既読**（`main/feeds/read-marks.ts`）: 鍵は `feedItemKey`（リンク、なければフィード名と見出し）。main は今購読中のフィードが持つ項目の鍵だけを受け付け、ファイルがページの文字列の置き場にならないようにする。最大 3000 件、120 日で忘れる。印が変わると、その項目を持つフィードを全ページに送り直す
+- **ビュー**: LIST（日の区切りが上端に留まる、LAST SEEN、新着の滑り込みと *↑ n new*）、CARD（画像か、フィードの色の板）、TICKER（`onBoundary(6000)` で次へ。見えていて記事を開いていない間だけ。タイマーを自分で持たない）。日の区切りは今日・昨日・月/日で、ペインは日付を真夜中に 1 回だけ読み直す。「5 分前」のような相対時刻は使わない（真であり続けるのにタイマーが要る、利用者の決定のまま）
+- **LAST SEEN**: ペインが見え始めるたびに前回の `seenAt` を読み、今回の時刻を書く。見え終わりではなく見え始めに書く。ウィジェットは片付け（teardown）の中で自分のペインの状態を書いてはならない: 閉じるときに `seenAt` を書くと、閉じたはずのペインが残った（e2e で見つかった）。`seenAt` は `VOLATILE_PANE_STATE`（shared/layouts.ts）に入れ、保存したレイアウト（layouts.json）には残さない。見るたびに変わる値で layouts.json を書き直さないため（レビューで見つかった）。そのためレイアウトを切り替えて戻ると LAST SEEN は消える
+- **マーク**: タグ（タイトルの最初の 2 つのラテン文字の単語の頭文字、なければ最初の 2 文字）を、テーマのアクセントの色相を回した枠に入れる。回しは `MARK_TURNS`（0・140・260・320・70・200・30・100・230・290 度）を登録順に空いているものから。色は tokens.css の `--mark-h`・`--mark-s`・`--mark-l`（彩度はアクセントの 1.6 倍）で、彩度のない Black ではタグで見分ける
+- **キーワード**: 強調語はどのビューでも見出しの中で光らせ、ミュート語を含む見出しは 20 件に数える前に外す（より古いものが入る）。検索も同じく、保持しているすべての項目の見出しと要約から探す。大文字小文字を問わず、ラテン文字の語は単語全体にだけ、ほかの文字はどこでも一致する
+- **記事ビューと渡し**（`lib/hand-over.svelte.ts`）: 見出しのクリックで記事を開く（以前はブラウザーを直接開いた）。TRANSLATE と ASK AI は文をここに置き、Workspace の `summon` でショートカットと同じく相手を呼び、相手は `onSummoned` で受け取る（2 秒より古い渡しは捨てる）。クリップボードは使わない: 利用者がコピーしたものを上書きしないため。TRANSLATE はクリップボードの代わりにその文を訳し、AI チャットは入力欄に入れるだけで送らない
+- **押したときの効果**: 見せ方を変える選択は `afterBlink` で 3 拍点滅してから変わり、ビューは `crt-on` で点く。ほかのペインと同じ
+- **テスト**: 単体は `feeds-main.test.ts`（ADD の入力、`feedLinks`、`discover`、項目の中身、`ReadMarks`、`FeedImages`、OPML）、`feeds-view.test.ts`、`hand-over.test.ts`、`feed-service.test.ts`。e2e は `tests/e2e/panes/rss.spec.ts`（フィードはローカルのスタブサーバー）
+
 ## 6. ターミナル設計
 
 ### 6.1 構成
@@ -1970,6 +1990,7 @@ launcher-catalog.json # ランチャーが最後に走査したアプリの一�
 launcher-icons/     # ランチャーのアイコン。項目 id ごとの PNG（30 日で取り直す。アイコンなしと Windows の代わりのアイコンは残さない）
 quake-alerts.json   # 通知済みの地震・津波（再起動で同じものを知らせ直さない）
 feeds-cache.json / weather-cache.json / weather-cache-points.json   # 最後に取れたデータ
+feeds-read.json     # RSS の既読の印（main 所有。全 RSS ペイン共通、3000 件・120 日まで。§5.27）
 themes/             # ユーザーテーマ（内蔵へのオーバーレイ）
 plugins/            # プラグイン本体と elecdex-plugin.d.ts（plugins.md）
 plugin-data/        # プラグインごとの保存領域
@@ -2084,7 +2105,7 @@ elecdex/
 | 入力検証 | renderer 由来の全入力を main 側で zod 検証。パスは `path.resolve` 正規化 + allowlist |
 | ナビゲーション | `will-navigate` / `setWindowOpenHandler` で外部遷移を拒否し、`shell.openExternal` に委譲 |
 | ページの配信 | 本番はページを file:// でなく `app://elecdex/` から配る（main/app-protocol.ts・app-scheme.ts、issue 29）。standard・secure の特権スキームで、main のウィンドウとキャプチャのウィンドウのセッションだけが答え、out/renderer の中の html・js・css・フォントだけを返す（`rendererFile` がフォルダの外を断る）。file:// の文書では CSP の `'self'` が file スキーム全体で、ページとプラグインの Worker が `import()` でディスクのどのファイルも読めた（plugin-containment.spec.ts で測った）。いまはその spec が断られることを確かめる。fuse の `grantFileProtocolExtraPrivileges` も切る。開発時は Vite の http のまま |
-| 外部通信 | すべて main が行い、renderer の CSP は `connect-src 'self'` のまま。行き先は、更新チェック（GitHub API。設定で無効化可能）、天気（気象庁 / MET Norway / NWS）、相場（Yahoo Finance）、地震と津波（気象庁、または USGS と NOAA）、利用者が並べた RSS フィード、利用者が設定に並べた AI プロバイダ（メッセージを送ったとき・「test」・モデル一覧を開いたときだけ。§5.7）、同意したプラグインが名指ししたホスト、Web ペインで開いたサイト。**どれも、それを必要とするペインがある間（地震は通知が有効な間も）だけ**通信し、条件付きリクエストでまとめて取り、失敗時は間隔を空けて最後のデータを画面に残す。相場は1分に1回の一括リクエスト（全市場クローズ中は5分に1回、チャートは期間に応じて5分〜1時間に1回）、天気は発表時刻の前後だけ。GeoIP は同梱データベースを引くだけで、更新のダウンロードも問い合わせもしない。取得間隔と各サービスの規約は README「Data sources」と [weather-providers.md](weather-providers.md) |
+| 外部通信 | すべて main が行い、renderer の CSP は `connect-src 'self'` のまま。行き先は、更新チェック（GitHub API。設定で無効化可能）、天気（気象庁 / MET Norway / NWS）、相場（Yahoo Finance）、地震と津波（気象庁、または USGS と NOAA）、利用者が並べた RSS フィード（と、ADD の FIND で読むページ、ペインが見せる記事の画像。§5.27）、利用者が設定に並べた AI プロバイダ（メッセージを送ったとき・「test」・モデル一覧を開いたときだけ。§5.7）、同意したプラグインが名指ししたホスト、Web ペインで開いたサイト。**どれも、それを必要とするペインがある間（地震は通知が有効な間も）だけ**通信し、条件付きリクエストでまとめて取り、失敗時は間隔を空けて最後のデータを画面に残す。相場は1分に1回の一括リクエスト（全市場クローズ中は5分に1回、チャートは期間に応じて5分〜1時間に1回）、天気は発表時刻の前後だけ。GeoIP は同梱データベースを引くだけで、更新のダウンロードも問い合わせもしない。取得間隔と各サービスの規約は README「Data sources」と [weather-providers.md](weather-providers.md) |
 | Web ペイン | workspace とは別の `WebContentsView`（パーティション `persist:web`、preload なし、sandbox）。権限はクリップボード書き込みとフルスクリーンのみ、ダウンロードは取り消し、遷移は http/https のみでプリセットの `hosts` 外は既定のブラウザへ（§5.4）。workspace の CSP は変えない |
 | XSS | `innerHTML` 使用禁止（Biome ルールで機械的に禁止）。原版の `_escapeHtml` / `_purifyCSS` 自作ヘルパは不要になる |
 

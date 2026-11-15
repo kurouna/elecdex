@@ -48,6 +48,7 @@ import type {
   Elec16UnitSeed,
 } from './elec16-units.js'
 import type { FeedUpdate } from './feeds.js'
+import type { DiscoverResult } from './feeds-discover.js'
 import type { DirResult, DriveInfo } from './fs.js'
 import type {
   GitDiff,
@@ -428,6 +429,21 @@ export interface FeedsApi {
   subscribe(url: string, handler: (update: FeedUpdate) => void): () => void
   /** Diagnostics: feeds main is currently keeping up to date. */
   watching(): Promise<string[]>
+  /**
+   * The feeds behind what the ADD box was given: a site or feed URL, `github:owner/repo`,
+   * `youtube:@handle`. Fetches the page once (and a few usual places when it names none).
+   */
+  discover(input: string): Promise<DiscoverResult>
+  /** An item's picture as a data URL; null unless a watched feed names it and it could be read. */
+  image(url: string): Promise<string | null>
+  /** Marks an item (feedItemKey) of a watched feed read or unread; every pane hears it. */
+  markRead(feed: string, key: string, read: boolean): Promise<boolean>
+  /** Main's own file picker, then the feeds the OPML file lists; null when cancelled. */
+  importOpml(): Promise<
+    { ok: true; feeds: { url: string; title: string }[] } | { ok: false; error: string } | null
+  >
+  /** Main's own save dialog, then the feeds written as OPML; the path, or null when cancelled. */
+  exportOpml(feeds: { url: string; title: string }[]): Promise<string | null>
 }
 
 /**

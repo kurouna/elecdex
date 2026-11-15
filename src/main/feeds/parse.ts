@@ -1,4 +1,12 @@
-import { FEED_ITEMS_PER_FEED, type FeedItem } from '@shared/feeds'
+import {
+  FEED_AUTHOR_MAX,
+  FEED_CATEGORIES_MAX,
+  FEED_CATEGORY_MAX,
+  FEED_IMAGE_URL_MAX,
+  FEED_ITEMS_PER_FEED,
+  FEED_SUMMARY_MAX,
+  type FeedItem,
+} from '@shared/feeds'
 import { XMLParser } from 'fast-xml-parser'
 
 /**
@@ -180,6 +188,136 @@ function dateOf(node: XmlNode): number | null {
   return null
 }
 
+/* ---- What the article view shows beside the headline ---- */
+
+/** Text cut to `max` characters, with an ellipsis when cut; empty stays empty. */
+function cut(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
+}
+
+/**
+ * Any HTML a summary carries, as text: every tag goes (a summary is never shown as HTML), and
+ * what script and style elements hold goes with them.
+ */
+function summaryText(value: unknown): string {
+  const html = rawText(value)
+    .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+  return decodeEntities(html).replace(/\s+/g, ' ').trim()
+}
+
+const SUMMARY_FIELDS = ['description', 'summary', 'encoded', 'content'] as const
+
+function summaryOf(node: XmlNode): string | undefined {
+  // YouTube's description is media:description, inside its media:group.
+  for (const holder of [node, ...asArray(node.group).filter(isNode)]) {
+    for (const field of SUMMARY_FIELDS) {
+      if (holder[field] === undefined) continue
+      const text = summaryText(holder[field])
+      if (text !== '') return cut(text, FEED_SUMMARY_MAX)
+    }
+  }
+  return undefined
+}
+
+/** An image's URL from a media element, enclosure or `<img>`: http(s) only, resolved. */
+function isImageType(type: unknown, medium: unknown): boolean {
+  if (medium === 'image') return true
+  return typeof type === 'string' && type.toLowerCase().startsWith('image/')
+}
+
+/** The first of `values` that `accept` takes and whose `attribute` is a usable URL. */
+function firstUrl(
+  values: unknown,
+  attribute: string,
+  accept: (node: XmlNode) => boolean,
+  base: string,
+): string | null {
+  for (const value of asArray(values)) {
+    if (!isNode(value) || typeof value[attribute] !== 'string' || !accept(value)) continue
+    const url = safeUrl(decodeEntities(value[attribute]).trim(), base)
+    if (url) return url
+  }
+  return null
+}
+
+function mediaImage(node: XmlNode, base: string): string | null {
+  return (
+    // media:thumbnail first: it is the picture the feed meant for a list.
+    firstUrl(node.thumbnail, '@url', () => true, base) ??
+    firstUrl(node.content, '@url', (m) => isImageType(m['@type'], m['@medium']), base) ??
+    firstUrl(node.enclosure, '@url', (e) => isImageType(e['@type'], undefined), base) ??
+    // Atom's link rel="enclosure" with an image type.
+    firstUrl(
+      node.link,
+      '@href',
+      (l) => l['@rel'] === 'enclosure' && isImageType(l['@type'], undefined),
+      base,
+    )
+  )
+}
+
+const IMG_SRC = /<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i
+
+function imageOf(node: XmlNode, base: string): string | undefined {
+  // YouTube puts its media in a media:group.
+  for (const holder of [node, ...asArray(node.group).filter(isNode)]) {
+    const url = mediaImage(holder, base)
+    if (url) return url
+  }
+  for (const field of SUMMARY_FIELDS) {
+    if (node[field] === undefined) continue
+    const match = IMG_SRC.exec(rawText(node[field]))
+    const src = match?.[1] ?? match?.[2]
+    if (src === undefined) continue
+    const url = safeUrl(decodeEntities(src).trim(), base)
+    if (url) return url
+  }
+  return undefined
+}
+
+function authorOf(node: XmlNode): string | undefined {
+  for (const field of ['author', 'creator'] as const) {
+    for (const value of asArray(node[field])) {
+      // Atom's author is an element with a name; RSS's is text, often "mail (Name)".
+      const text = plainText(isNode(value) && value.name !== undefined ? value.name : value)
+      // RSS 2.0 asks for "mail (Name)": the name is what a reader wants, not the address.
+      const named = /^\S+@\S+\s*\((.+)\)$/.exec(text)?.[1]?.trim()
+      if (named) return cut(named, FEED_AUTHOR_MAX)
+      if (text !== '') return cut(text, FEED_AUTHOR_MAX)
+    }
+  }
+  return undefined
+}
+
+function categoriesOf(node: XmlNode): string[] | undefined {
+  const out: string[] = []
+  for (const value of asArray(node.category)) {
+    // Atom puts the name in term (or label), RSS in the text.
+    const raw = isNode(value) ? (value['@label'] ?? value['@term'] ?? value) : value
+    const text = cut(plainText(raw), FEED_CATEGORY_MAX)
+    if (text !== '' && !out.some((c) => c.toLowerCase() === text.toLowerCase())) out.push(text)
+    if (out.length === FEED_CATEGORIES_MAX) break
+  }
+  return out.length > 0 ? out : undefined
+}
+
+/** The fields an item has beyond its title, link and date; absent ones are left out. */
+function extrasOf(node: XmlNode, base: string): Partial<FeedItem> {
+  const extras: Partial<FeedItem> = {}
+  const summary = summaryOf(node)
+  if (summary !== undefined) extras.summary = summary
+  const image = imageOf(node, base)
+  // A picture's address past FEED_IMAGE_URL_MAX is dropped: the cache refuses it whole (a signed CDN
+  // link of 3000 characters lost every feed's cache at the next start, found in review).
+  if (image !== undefined && image.length <= FEED_IMAGE_URL_MAX) extras.image = image
+  const author = authorOf(node)
+  if (author !== undefined) extras.author = author
+  const categories = categoriesOf(node)
+  if (categories !== undefined) extras.categories = categories
+  return extras
+}
+
 function rootOf(doc: XmlNode): XmlNode | null {
   for (const name of ['rss', 'RDF', 'feed']) {
     const root = doc[name]
@@ -202,7 +340,7 @@ export function parseFeed(xml: string, feedUrl: string): ParsedFeed {
   for (const node of nodes) {
     const title = plainText(node.title)
     if (title === '') continue
-    items.push({ title, link: linkOf(node, feedUrl), at: dateOf(node) })
+    items.push({ title, link: linkOf(node, feedUrl), at: dateOf(node), ...extrasOf(node, feedUrl) })
   }
   // Newest first; a feed that dates nothing keeps its own order.
   items.sort((a, b) => (b.at ?? Number.NEGATIVE_INFINITY) - (a.at ?? Number.NEGATIVE_INFINITY))

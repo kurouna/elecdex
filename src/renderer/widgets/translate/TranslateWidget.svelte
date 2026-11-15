@@ -2,6 +2,7 @@
 import type { TranslateBoard } from '@shared/translate/board'
 import type { HistoryRow } from '@shared/translate/history'
 import { untrack } from 'svelte'
+import { takeHandOver } from '../../lib/hand-over.svelte.ts'
 import { onSummoned } from '../../lib/summoned.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -120,6 +121,13 @@ let summons = 0
 onSummoned(
   () => paneId,
   () => {
+    // Text another pane handed over (the RSS pane's TRANSLATE) comes before the clipboard.
+    const handed = takeHandOver('translate')
+    if (handed !== null) {
+      view = 'text'
+      summon = { seq: ++summons, text: handed }
+      return
+    }
     void window.elecdex.translate.clipboardText().then((text) => {
       view = 'text'
       summon = { seq: ++summons, text: text ?? '' }

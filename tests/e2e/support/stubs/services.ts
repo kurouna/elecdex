@@ -16,7 +16,7 @@ export interface StubRequest {
 
 export interface StubReply {
   status: number
-  body?: string
+  body?: string | Buffer
   headers?: Record<string, string>
 }
 

@@ -24,7 +24,8 @@
       "!docs/elec16-sci-mock",
       "!docs/translate-mock",
       "!docs/aws-mock",
-      "!docs/github-mock"
+      "!docs/github-mock",
+      "!docs/rss-mock"
     ]
   },
   "formatter": {

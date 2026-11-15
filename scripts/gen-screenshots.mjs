@@ -1294,7 +1294,7 @@ if (only.length === 0 || only.includes('panes') || only.some((n) => n.startsWith
     only.includes('pane-web')
   ) {
     const standIn = await mediaStandIn()
-    await shootPane('rss', 'low', { state: { feeds: [standIn.feedUrl] }, extra: offCards })
+    await shootPane('rss', 'low', { state: { feeds: standIn.feedUrls }, extra: offCards })
     await shootPane('web.x', 'wide', {
       name: 'web',
       env: { ELECDEX_WEB_HOMES: standIn.homes },

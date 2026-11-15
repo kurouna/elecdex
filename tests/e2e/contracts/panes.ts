@@ -249,7 +249,6 @@ export const PANES: PaneRow[] = [
   { widget: 'orbit', seen: { modules: ['orbits'] }, popup: true, zoom: 'full' },
   {
     widget: 'rss',
-    pressless: 'with no headline, only the settings icon, left out',
     state: { feeds: [FEED] },
     seen: { modules: ['feeds'] },
     popup: true,
