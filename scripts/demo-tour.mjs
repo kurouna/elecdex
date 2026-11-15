@@ -13,7 +13,8 @@
  *   cloud       the cloud preset by its key on the stand-in CLIs: AWS STATUS's RESOURCES, a
  *               forgotten row's card read, then GITHUB STATUS from REPOS to its QUEUE
  *   media       the television and the timeline (stand-ins); KEYSTREAM's BOOT SEQUENCE playing,
- *               then FEVER CALL from the next button, the spectrum moving with what is heard
+ *               then FEVER CALL from the next button, the spectrum moving with what is heard;
+ *               then RSS, the tab behind the timeline, its marked headlines and an article opened
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
  *   cockpit     the cockpit preset found in the action palette (Ctrl+Shift+P), typed: CLUSTER,
@@ -267,6 +268,9 @@ await run(async () => {
   await wait(3200)
   await beat.nextTrack(3600)
   await beat.musicStops()
+  // RSS is the tab behind X: brought forward, an article opened.
+  await caption(CAPTIONS.rss)
+  await beat.rss(2600)
   await caption(CAPTIONS.desk)
   await toPreset('desk')
   await wait(1200)

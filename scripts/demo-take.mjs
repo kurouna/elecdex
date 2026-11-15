@@ -140,7 +140,8 @@ export function withDemoState(tree, standIn) {
     orbit: { starlink: true },
     agents: { open: SESSION },
     git: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
-    rss: { feeds: [standIn.feedUrl] },
+    // The stand-in's three feeds, so the marks show their hues (preset-shots.mjs).
+    rss: { feeds: standIn.feedUrls },
     spectrum: { bands: 16 },
     // The made-up log (demo-logfeed.mjs): written only while a take runs its writer.
     logwatch: { file: LOG_ID },

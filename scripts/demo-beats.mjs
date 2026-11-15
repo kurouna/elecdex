@@ -63,6 +63,7 @@ export const CAPTIONS = {
   cloud: 'cloud — an AWS account and GitHub, read through your own CLIs',
   queue: 'GITHUB STATUS: what waits on you, broken first',
   media: 'media — what is playing, and the sound as a spectrum',
+  rss: 'RSS — your feeds in one list, each with its mark; an article a click away',
   desk: 'desk — notes, tasks and what you copied',
   qr: 'A QR code from what you type',
   keystream: 'Plugins: KEYSTREAM, a rhythm game',
@@ -230,8 +231,20 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await page.keyboard.press('Control+Shift+KeyG')
     await page.getByTestId('layouts-dialog').waitFor()
     await wait(800)
-    await page.keyboard.press('ArrowDown')
-    await wait(500)
+    // Down the list to the row named, as a hand would: not a fixed count of rows - the vertical
+    // cut's network moved to the tenth row (8d95497f) while this went on pressing ↓ once, and
+    // the take landed on the next layout instead.
+    const selected = () =>
+      page
+        .locator('[data-testid=layouts-item][aria-selected=true]')
+        .getAttribute('data-name', { timeout: 2000 })
+        .catch(() => null)
+    for (let step = 0; step < 16 && (await selected()) !== name; step++) {
+      await page.keyboard.press('ArrowDown')
+      await wait(step === 0 ? 400 : 110)
+    }
+    if ((await selected()) !== name) throw new Error(`the layouts dialog has no row ${name}`)
+    await wait(300)
     await page.keyboard.press('Enter')
     await wait(300)
     await settled()
@@ -418,6 +431,28 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
    */
   async function musicStops() {
     if (music !== null) await app.evaluate(() => globalThis.__elecdexAudio.play(null))
+  }
+
+  /**
+   * The RSS pane behind its group's tab (v0.0.66): brought forward, its marked headlines, one
+   * opened as the article view for `hold`, then closed. The feeds are the stand-in's.
+   */
+  async function rss(hold = 2600, { list = 1800 } = {}) {
+    say('rss')
+    await press(page.getByTestId('tab').filter({ hasText: /^\s*rss\s*$/i }))
+    await wait(300)
+    await settled()
+    await away()
+    const pane = paneOf('rss')
+    const items = pane.getByTestId('rss-item')
+    await items.first().waitFor({ timeout: 15_000 })
+    await wait(list)
+    await press(items.nth(1))
+    await pane.getByTestId('rss-article').waitFor({ timeout: 5_000 })
+    await wait(hold)
+    await page.keyboard.press('Escape')
+    await wait(500)
+    await away()
   }
 
   /** An address typed into the utility pane's QR module (open on URL). */
@@ -765,6 +800,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     musicPlays,
     nextTrack,
     musicStops,
+    rss,
     qrCode,
     keystream,
     chip8,

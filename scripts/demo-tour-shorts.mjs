@@ -14,7 +14,8 @@
  *               row's card read, then GITHUB STATUS from REPOS to its QUEUE
  *   docker      a container stopped (asked twice), copies landing in the clipboard history
  *   media       the television (a stand-in) over KEYSTREAM's tracks playing, the next one
- *               from the button, and the spectrum moving with them
+ *               from the button, and the spectrum moving with them; then RSS behind the
+ *               television, its marked headlines and an article opened
  *   utility     a QR code typed, over the tasks
  *   keystream   the sample plugin over the processor's chart: a track typed on time
  *   retro       the ELEC-16 and the CHIP-8 behind one tab strip over the spectrum, as the retro
@@ -96,7 +97,8 @@ const LAYOUTS = [
     'media',
     () =>
       stack(
-        pane('web.youtubetv'),
+        // RSS behind the television, brought forward after the music (v0.0.66).
+        tabs(pane('web.youtubetv'), pane('rss')),
         split('column', [pane('nowplaying'), pane('spectrum')], [0.55, 0.45]),
         0.38,
       ),
@@ -168,7 +170,7 @@ const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 await run(async () => {
   const started = Date.now()
   // Each caption goes up as its beat begins and stays until the next: none of them waits.
-  await wait(600)
+  await wait(300)
   await caption(CAPTIONS.layouts)
   await beat.throughTheDialog('network')
   await caption(CAPTIONS.network)
@@ -179,12 +181,12 @@ await run(async () => {
   // ORBIT brought forward, the ISS's card read on the map at its largest.
   await caption(CAPTIONS.orbit)
   await beat.forward('orbit', 600, { during: () => beat.issCard(1200) })
-  await wait(800)
+  await wait(500)
   // Errors start coming as the layout arrives: ERROR BURST is lit when LOG WATCH comes forward.
   live.burst(9000)
   await caption(CAPTIONS.agents)
   await beat.toLayout(slot('dev'), 'dev')
-  await wait(900)
+  await wait(700)
   await caption(CAPTIONS.commit)
   await beat.commitCard(900)
   await caption(CAPTIONS.logwatch)
@@ -194,18 +196,21 @@ await run(async () => {
   await beat.cloud(300, { card: 1300, queue: 800, queued: () => caption(CAPTIONS.queue) })
   await caption(CAPTIONS.copies)
   await beat.toLayout(slot('docker'), 'docker')
-  await wait(700)
+  await wait(500)
   await beat.stopContainer()
   await beat.copies()
   await caption(CAPTIONS.media)
   await beat.toLayout(slot('media'), 'media')
   await beat.musicPlays()
-  await wait(700)
-  await beat.nextTrack(900)
+  await wait(400)
+  await beat.nextTrack(700)
   await beat.musicStops()
+  await caption(CAPTIONS.rss)
+  // RSS's beat (v0.0.66) paid for by shorter rests elsewhere: the cut stays under two minutes.
+  await beat.rss(1200, { list: 300 })
   await caption(CAPTIONS.tasks)
   await beat.toLayout(slot('utility'), 'utility')
-  await wait(800)
+  await wait(600)
   await beat.qrCode(600)
   await caption(CAPTIONS.keystream)
   await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
@@ -227,7 +232,7 @@ await run(async () => {
   await beat.cluster(300, { cards: 650, which: ['cpu', 'spec'] })
   await caption(CAPTIONS.council)
   await beat.throughTheDialog('council')
-  await wait(800)
+  await wait(600)
   await beat.councilSits(300)
   await caption(null)
   await beat.toLayout(slot('shell'), 'shell')
