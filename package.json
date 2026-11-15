@@ -1,7 +1,7 @@
 {
   "name": "elecdex",
   "productName": "elecdex",
-  "version": "0.0.65",
+  "version": "0.0.66",
   "private": true,
   "description": "A science-fiction desktop terminal emulator and system monitor. A modern rewrite of eDEX-UI.",
   "keywords": [
@@ -87,7 +87,8 @@
     "demo:logwatch": "node scripts/demo-logwatch.mjs",
     "demo:aws": "node scripts/demo-aws.mjs",
     "demo:github": "node scripts/demo-github.mjs",
-    "demo:translate": "node scripts/demo-translate.mjs"
+    "demo:translate": "node scripts/demo-translate.mjs",
+    "demo:rss": "node scripts/demo-rss.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.7",
