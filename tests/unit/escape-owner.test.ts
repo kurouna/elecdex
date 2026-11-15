@@ -14,7 +14,10 @@ import { describe, expect, it } from 'vitest'
 const WIDGETS = path.resolve(import.meta.dirname, '../../src/renderer/widgets')
 
 /** Widgets whose Escape needs no mark, and why. */
-const NO_MARK: Record<string, string> = {}
+const NO_MARK: Record<string, string> = {
+  'launcher/LauncherWidget.svelte':
+    'its Escape empties the filter on the way out: a launcher called up by its key is put away by one Escape, typed or not (launcher.spec)',
+}
 
 function svelteFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

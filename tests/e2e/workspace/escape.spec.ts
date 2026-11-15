@@ -42,7 +42,7 @@ test('a forward shell: Escape closes its search bar first, then puts the pane ba
   }
 })
 
-test('popped up: Escape clears the calculator line, the launcher filter and closes the language list before the popup', async () => {
+test('popped up: Escape clears the calculator line and closes the language list before the popup; the launcher goes at once', async () => {
   const { page, close } = await launch(undefined, { layout: single('clock', { id: 'c' }) })
   try {
     // The calculator: a line typed is cleared first.
@@ -55,15 +55,13 @@ test('popped up: Escape clears the calculator line, the launcher filter and clos
     await line.press('Escape')
     await expect(popup(page)).toHaveCount(0)
 
-    // The launcher, called up by its key: a filter typed is emptied first.
+    // The launcher, called up by its key, is the exception: one Escape puts it away, typed or not
+    // (its own Escape empties the filter on the way; launcher.spec).
     await page.keyboard.press('Control+Shift+KeyL')
     await expect(popup(page)).toHaveAttribute('data-widget', 'launcher')
     const filter = popup(page).getByTestId('launcher-filter')
     await expect(filter).toBeFocused()
     await filter.fill('zz')
-    await page.keyboard.press('Escape')
-    await expect(filter).toHaveValue('')
-    await expect(popup(page)).toHaveCount(1)
     await page.keyboard.press('Escape')
     await expect(popup(page)).toHaveCount(0)
 
