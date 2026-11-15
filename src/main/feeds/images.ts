@@ -41,6 +41,8 @@ export interface ImageResponse {
   url: string
   /** The body, cut off at the size limit (throws past it). */
   bytes(): Promise<Uint8Array>
+  /** Lets go of a body that will not be read, so its connection is freed. */
+  cancel(): void
 }
 
 export interface ImageDeps {
@@ -52,7 +54,19 @@ export interface ImageDeps {
   shrink(bytes: Uint8Array, width: number): string | null
   /** The URL of a watched feed naming this picture now, or null when none does. */
   feedOf(url: string): string | null
+  now(): number
 }
+
+/**
+ * How long a picture that could not be had for a passing reason (no answer, a server error,
+ * too many requests) waits before it is asked for again. A refusal - not a picture, too large,
+ * on the local network - is kept for the session: asking again would get the same answer.
+ * Before, a picture missed while offline stayed missing until a restart (found in review).
+ */
+export const IMAGE_RETRY_MS = 10 * 60_000
+
+/** A failure that asking again later may not repeat. */
+class PassingFailure extends Error {}
 
 /* ---- Where a picture may come from ---- */
 
@@ -72,13 +86,48 @@ function ipv4Private(host: string): boolean {
   )
 }
 
+/** An IPv6 address as its eight 16-bit groups, a dotted IPv4 tail included; null if it is none. */
+export function ipv6Groups(address: string): number[] | null {
+  let h = address.replace(/^\[|\]$/g, '').toLowerCase()
+  const dotted = /(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(h)
+  if (dotted !== null) {
+    const [a, b, c, d] = dotted.slice(1).map(Number) as [number, number, number, number]
+    if ([a, b, c, d].some((n) => n > 255)) return null
+    h = `${h.slice(0, dotted.index)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`
+  }
+  const halves = h.split('::')
+  if (halves.length > 2) return null
+  const part = (s: string | undefined) => (s === undefined || s === '' ? [] : s.split(':'))
+  const head = part(halves[0])
+  const tail = part(halves[1])
+  const missing = 8 - head.length - tail.length
+  if (halves.length === 1 ? missing !== 0 : missing < 1) return null
+  const groups = [...head, ...new Array(halves.length === 2 ? missing : 0).fill('0'), ...tail]
+  if (groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return null
+  return groups.map((g) => Number.parseInt(g, 16))
+}
+
+/**
+ * Whether an IPv6 address is this machine or the local network. An IPv4 address carried in one
+ * (mapped ::ffff:a.b.c.d, the old compatible ::a.b.c.d, NAT64's 64:ff9b::/96) is judged as that
+ * IPv4 address: the URL parser writes [::ffff:127.0.0.1] as [::ffff:7f00:1], so a test of the
+ * dotted form alone let loopback and 169.254.169.254 through (found in review).
+ */
 function ipv6Private(host: string): boolean {
-  const h = host.replace(/^\[|\]$/g, '').toLowerCase()
-  if (!h.includes(':')) return false
-  if (h === '::1' || h === '::') return true
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(h)?.[1]
-  if (mapped !== undefined) return ipv4Private(mapped)
-  return /^f[cd]/.test(h) || /^fe[89ab]/.test(h)
+  const g = ipv6Groups(host)
+  if (g === null) return false
+  const [g0 = 0, g1 = 0, g2 = 0, g3 = 0, g4 = 0, g5 = 0, g6 = 0, g7 = 0] = g
+  const v4 = `${g6 >> 8}.${g6 & 255}.${g7 >> 8}.${g7 & 255}`
+  const zeroHead = g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0
+  // :: and ::1, then IPv4 mapped (::ffff:a.b.c.d) and the old compatible form (::a.b.c.d).
+  if (zeroHead && g5 === 0 && g6 === 0) return true
+  if (zeroHead && (g5 === 0xffff || g5 === 0)) return ipv4Private(v4)
+  // NAT64's well-known prefix 64:ff9b::/96 reaches the IPv4 address in its tail.
+  if (g0 === 0x64 && g1 === 0xff9b && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0) {
+    return ipv4Private(v4)
+  }
+  // Unique local fc00::/7 and link-local fe80::/10.
+  return (g0 & 0xfe00) === 0xfc00 || (g0 & 0xffc0) === 0xfe80
 }
 
 /** Whether a host is this machine or the local network, by its name or address. */
@@ -86,7 +135,7 @@ export function isLocalHost(host: string): boolean {
   const h = host.toLowerCase().replace(/\.$/, '')
   if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true
   if (h.endsWith('.internal') || h.endsWith('.lan') || h.endsWith('.home.arpa')) return true
-  if (ipv4Private(h) || ipv6Private(h)) return true
+  if (ipv4Private(h) || (h.includes(':') && ipv6Private(h))) return true
   // A single label ("router", "nas") is resolved on the local network.
   return !h.includes('.') && !h.includes(':')
 }
@@ -163,10 +212,22 @@ export function sizeAllowed(size: { width: number; height: number } | null): boo
   return size.width * size.height <= MAX_IMAGE_PIXELS
 }
 
+/** Why an answer is not taken before its body is read, or null when it may be. */
+function refusalOf(response: ImageResponse, type: string, url: string, feed: string): Error | null {
+  if (response.status === 429 || response.status >= 500) {
+    return new PassingFailure(`HTTP ${response.status}`)
+  }
+  if (response.status !== 200 || !IMAGE_TYPES.includes(type)) return new Error('not an image')
+  // Redirected onto this machine or the local network: not taken.
+  if (!mayFetchImage(response.url || url, feed)) return new Error('redirected to a local host')
+  return null
+}
+
 export class FeedImages {
   private readonly deps: ImageDeps
   private readonly kept = new Map<string, string>()
-  private readonly failed = new Set<string>()
+  /** Failed pictures, with when they may be asked for again (Infinity: not this session). */
+  private readonly failed = new Map<string, number>()
   private readonly pending = new Map<string, Promise<string | null>>()
   private readonly waiting: Array<() => void> = []
   private running = 0
@@ -178,7 +239,7 @@ export class FeedImages {
   /** The picture as a data URL, or null when it is not one main will fetch or could not. */
   get(url: string): Promise<string | null> {
     const feed = this.deps.feedOf(url)
-    if (feed === null || !mayFetchImage(url, feed) || this.failed.has(url)) {
+    if (feed === null || !mayFetchImage(url, feed) || this.resting(url)) {
       return Promise.resolve(null)
     }
     const hit = this.kept.get(url)
@@ -211,27 +272,54 @@ export class FeedImages {
     }
   }
 
+  /** Whether a failed picture is still to be left alone. */
+  private resting(url: string): boolean {
+    const until = this.failed.get(url)
+    if (until === undefined) return false
+    if (this.deps.now() < until) return true
+    this.failed.delete(url)
+    return false
+  }
+
   private async load(url: string, feed: string): Promise<string | null> {
     try {
-      const response = await this.deps.fetch(url)
-      const type = (response.type ?? '').split(';')[0]?.trim().toLowerCase() ?? ''
-      if (response.status !== 200 || !IMAGE_TYPES.includes(type)) throw new Error('not an image')
-      // Redirected onto this machine or the local network: not taken.
-      if (!mayFetchImage(response.url || url, feed)) throw new Error('redirected to a local host')
-      const bytes = await response.bytes()
-      if (!sizeAllowed(imageSize(bytes))) throw new Error('picture too large or unreadable')
-      const data =
-        this.deps.shrink(bytes, IMAGE_WIDTH) ??
-        `data:${type};base64,${Buffer.from(bytes).toString('base64')}`
+      const data = await this.fetchPicture(url, feed)
       this.keep(url, data)
       return data
-    } catch {
-      this.failed.add(url)
-      if (this.failed.size > FAILURES_KEPT) {
-        const first = this.failed.values().next().value
-        if (first !== undefined) this.failed.delete(first)
-      }
+    } catch (error) {
+      this.fail(url, error instanceof PassingFailure)
       return null
+    }
+  }
+
+  /** The picture as a data URL; throws a PassingFailure for what may go another time. */
+  private async fetchPicture(url: string, feed: string): Promise<string> {
+    let response: ImageResponse
+    try {
+      response = await this.deps.fetch(url)
+    } catch (error) {
+      throw new PassingFailure(error instanceof Error ? error.message : String(error))
+    }
+    const type = (response.type ?? '').split(';')[0]?.trim().toLowerCase() ?? ''
+    const refusal = refusalOf(response, type, url, feed)
+    if (refusal !== null) {
+      // Not read: let the body go, so the connection is not held for nothing.
+      response.cancel()
+      throw refusal
+    }
+    const bytes = await response.bytes()
+    if (!sizeAllowed(imageSize(bytes))) throw new Error('picture too large or unreadable')
+    return (
+      this.deps.shrink(bytes, IMAGE_WIDTH) ??
+      `data:${type};base64,${Buffer.from(bytes).toString('base64')}`
+    )
+  }
+
+  private fail(url: string, passing: boolean): void {
+    this.failed.set(url, passing ? this.deps.now() + IMAGE_RETRY_MS : Number.POSITIVE_INFINITY)
+    if (this.failed.size > FAILURES_KEPT) {
+      const first = this.failed.keys().next().value
+      if (first !== undefined) this.failed.delete(first)
     }
   }
 

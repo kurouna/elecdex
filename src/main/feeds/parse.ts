@@ -8,6 +8,9 @@ import {
   type FeedItem,
 } from '@shared/feeds'
 import { XMLParser } from 'fast-xml-parser'
+import { decodeEntities } from './entities.js'
+
+export { decodeEntities }
 
 /**
  * Turns an RSS 2.0, RSS 1.0 (RDF) or Atom document into items.
@@ -58,49 +61,6 @@ const isNode = (value: unknown): value is XmlNode =>
 
 const asArray = (value: unknown): unknown[] =>
   value === undefined ? [] : Array.isArray(value) ? value : [value]
-
-const NAMED: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-  hellip: '…',
-  mdash: '—',
-  ndash: '–',
-  lsquo: '‘',
-  rsquo: '’',
-  ldquo: '“',
-  rdquo: '”',
-  laquo: '«',
-  raquo: '»',
-  middot: '·',
-  bull: '•',
-  copy: '©',
-  reg: '®',
-  trade: '™',
-}
-
-function codePoint(value: number): string {
-  return Number.isInteger(value) &&
-    value > 0 &&
-    value <= 0x10ffff &&
-    !(value >= 0xd800 && value <= 0xdfff)
-    ? String.fromCodePoint(value)
-    : ''
-}
-
-/** Decodes entity and character references; unknown names are left as written. */
-export function decodeEntities(text: string): string {
-  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, ref: string) => {
-    if (ref[0] === '#') {
-      const hex = ref[1] === 'x' || ref[1] === 'X'
-      return codePoint(Number.parseInt(ref.slice(hex ? 2 : 1), hex ? 16 : 10))
-    }
-    return NAMED[ref.toLowerCase()] ?? whole
-  })
-}
 
 /**
  * An element's text. The parser gives a string, an object with text and CDATA

@@ -438,6 +438,8 @@ export interface FeedsApi {
   image(url: string): Promise<string | null>
   /** Marks an item (feedItemKey) of a watched feed read or unread; every pane hears it. */
   markRead(feed: string, key: string, read: boolean): Promise<boolean>
+  /** Marks the items given read, each by its watched feed and key; the file is written once. */
+  markAllRead(entries: { feed: string; key: string }[]): Promise<boolean>
   /** Main's own file picker, then the feeds the OPML file lists; null when cancelled. */
   importOpml(): Promise<
     { ok: true; feeds: { url: string; title: string }[] } | { ok: false; error: string } | null

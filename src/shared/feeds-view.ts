@@ -4,7 +4,7 @@
  * (docs/architecture.md §5.27; the look is docs/rss-mock.)
  */
 
-import type { FeedItem, ShownItem } from './feeds.js'
+import { type FeedItem, feedHost, type ShownItem } from './feeds.js'
 
 /** LIST: two lines a headline. CARD: a picture and a summary. TICKER: one headline at a time. */
 export const FEED_VIEWS = ['list', 'card', 'ticker'] as const
@@ -101,17 +101,9 @@ export function feedMarks(
       turn = freeTurn(taken)
       taken.push(turn)
     }
-    out[url] = { turn, tag: stored[url]?.tag ?? autoTag(titles[url] ?? hostName(url)) }
+    out[url] = { turn, tag: stored[url]?.tag ?? autoTag(titles[url] ?? feedHost(url)) }
   }
   return out
-}
-
-function hostName(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return url
-  }
 }
 
 /* ---- Keywords ---- */

@@ -5,10 +5,12 @@ import { describe, expect, it } from 'vitest'
 import { discover, FALLBACK_PATHS, feedLinks } from '../../src/main/feeds/discover.js'
 import {
   FeedImages,
+  IMAGE_RETRY_MS,
   IMAGE_WIDTH,
   IMAGES_AT_ONCE,
   IMAGES_KEPT,
   imageSize,
+  ipv6Groups,
   isLocalHost,
   MAX_IMAGE_SIDE,
   mayFetchImage,
@@ -206,6 +208,33 @@ describe('discover', () => {
     expect(await discover(fakeWeb({}).deps, 'file:///x')).toMatchObject({ ok: false })
   })
 
+  it('stops trying the usual places once the site stops answering', async () => {
+    const asked: string[] = []
+    const deps = {
+      fetch: async (url: string) => {
+        asked.push(url)
+        if (url === 'https://slow.test/')
+          return { status: 200, url, text: async () => '<html></html>' }
+        throw new Error('timed out')
+      },
+      parse: async (xml: string, url: string) => parseFeed(xml, url),
+    }
+    expect(await discover(deps, 'slow.test')).toEqual({
+      ok: false,
+      error: 'the site stopped answering: timed out',
+    })
+    // One fallback, not five times the timeout.
+    expect(asked).toEqual(['https://slow.test/', 'https://slow.test/feed'])
+  })
+
+  it('reads numeric references in a link tag', () => {
+    const html =
+      '<link rel="alternate" type="application/rss+xml" title="R&#38;D &#x2014; news" href="/f&#x3f;a=1&#38;b=2">'
+    expect(feedLinks(html, 'https://s.test/')).toEqual([
+      { url: 'https://s.test/f?a=1&b=2', title: 'R&D — news', format: 'rss' },
+    ])
+  })
+
   it('reports a network failure instead of throwing', async () => {
     const deps = {
       fetch: async () => {
@@ -358,6 +387,16 @@ describe('ReadMarks', () => {
     expect(Object.keys(f.saved.at(-1) ?? {})).toHaveLength(READ_MAX)
   })
 
+  it('marks many at once with one write, answering only what changed', () => {
+    const h = harness({ a: 999_999_999_000 })
+    expect(h.marks.setMany(['a', 'b', 'c', 'b'], true)).toEqual(['b', 'c'])
+    expect(h.saved).toHaveLength(1)
+    expect(h.marks.setMany(['a', 'b'], true)).toEqual([])
+    expect(h.saved).toHaveLength(1)
+    expect(h.marks.setMany(['a', 'z'], false)).toEqual(['a'])
+    expect(h.marks.has('a')).toBe(false)
+  })
+
   it('goes on when the file cannot be written', () => {
     const marks = new ReadMarks({
       load: () => ({}),
@@ -476,6 +515,30 @@ describe('what a picture may be', () => {
       expect(isLocalHost(host), host).toBe(false)
   })
 
+  it('sees an IPv4 address written as IPv6, however the URL parser spells it', () => {
+    // URL turns [::ffff:127.0.0.1] into [::ffff:7f00:1]: the dotted form never reaches the check.
+    for (const url of [
+      'http://[::ffff:127.0.0.1]/p.png',
+      'http://[::ffff:169.254.169.254]/latest/meta-data',
+      'http://[0:0:0:0:0:ffff:c0a8:0101]/p.png',
+      'http://[::127.0.0.1]/p.png',
+      'http://[64:ff9b::10.0.0.1]/p.png',
+      'http://[::]/p.png',
+    ]) {
+      expect(isLocalHost(new URL(url).hostname), url).toBe(true)
+      expect(mayFetchImage(url, 'https://news.example.com/feed'), url).toBe(false)
+    }
+    for (const url of [
+      'http://[::ffff:8.8.8.8]/p.png',
+      'http://[64:ff9b::8.8.8.8]/p.png',
+      'http://[2606:4700::6810:84e5]/p.png',
+    ])
+      expect(isLocalHost(new URL(url).hostname), url).toBe(false)
+    expect(ipv6Groups('::ffff:7f00:1')).toEqual([0, 0, 0, 0, 0, 0xffff, 0x7f00, 1])
+    expect(ipv6Groups('1::2::3')).toBeNull()
+    expect(ipv6Groups('1:2:3')).toBeNull()
+  })
+
   it('fetches a local picture only for a feed on the same host', () => {
     expect(mayFetchImage('https://cdn.example.com/p.jpg', 'https://news.example.com/feed')).toBe(
       true,
@@ -495,6 +558,7 @@ describe('FeedImages', () => {
     type,
     url,
     bytes: async () => bytes,
+    cancel: () => {},
   })
   const ours = () => 'https://a.test/feed'
 
@@ -511,6 +575,7 @@ describe('FeedImages', () => {
         return 'data:image/jpeg;base64,AA=='
       },
       feedOf: (url) => (url === 'https://a.test/not-ours.png' ? null : ours()),
+      now: () => 0,
     })
     expect(await images.get('https://a.test/not-ours.png')).toBeNull()
     expect(await images.get('https://a.test/p.jpg')).toBe('data:image/jpeg;base64,AA==')
@@ -533,12 +598,53 @@ describe('FeedImages', () => {
       },
       shrink: () => null,
       feedOf: ours,
+      now: () => 0,
     })
     expect(await images.get('https://a.test/w.webp')).toMatch(/^data:image\/webp;base64,/)
     expect(await images.get('https://a.test/s.svg')).toBeNull()
     expect(await images.get('https://a.test/gone.png')).toBeNull()
     expect(await images.get('https://a.test/gone.png')).toBeNull()
     expect(asked.filter((u) => u.endsWith('gone.png'))).toHaveLength(1)
+  })
+
+  it('asks again after a passing failure, never after a refusal, and frees what it will not read', async () => {
+    let now = 0
+    const asked: string[] = []
+    let cancelled = 0
+    let offline = true
+    const images = new FeedImages({
+      fetch: async (url) => {
+        asked.push(url)
+        if (url.endsWith('net.png') && offline) throw new Error('net::ERR_INTERNET_DISCONNECTED')
+        if (url.endsWith('busy.png') && offline)
+          return { ...image(503, 'text/html'), cancel: () => cancelled++ }
+        if (url.endsWith('page.png'))
+          return { ...image(200, 'text/html'), cancel: () => cancelled++ }
+        return image()
+      },
+      shrink: () => 'data:,',
+      feedOf: () => 'https://a.test/feed',
+      now: () => now,
+    })
+    for (const name of ['net', 'busy', 'page']) {
+      expect(await images.get(`https://a.test/${name}.png`)).toBeNull()
+    }
+    expect(cancelled).toBe(2)
+    offline = false
+    now = IMAGE_RETRY_MS - 1
+    for (const name of ['net', 'busy', 'page']) await images.get(`https://a.test/${name}.png`)
+    expect(asked).toHaveLength(3)
+    now = IMAGE_RETRY_MS
+    expect(await images.get('https://a.test/net.png')).toBe('data:,')
+    expect(await images.get('https://a.test/busy.png')).toBe('data:,')
+    expect(await images.get('https://a.test/page.png')).toBeNull()
+    expect(asked).toEqual([
+      'https://a.test/net.png',
+      'https://a.test/busy.png',
+      'https://a.test/page.png',
+      'https://a.test/net.png',
+      'https://a.test/busy.png',
+    ])
   })
 
   it('never decodes a picture declaring too many pixels, nor one a feed on the internet puts on the LAN', async () => {
@@ -557,6 +663,7 @@ describe('FeedImages', () => {
         return 'data:,'
       },
       feedOf: () => 'https://news.example.com/feed',
+      now: () => 0,
     })
     expect(await images.get('https://cdn.example.com/bomb.png')).toBeNull()
     expect(await images.get('http://192.168.1.1/router.png')).toBeNull()
@@ -581,6 +688,7 @@ describe('FeedImages', () => {
       },
       shrink: () => 'data:,',
       feedOf: ours,
+      now: () => 0,
     })
     /** Lets every request waiting go, a turn at a time, until `job` is done. */
     const finish = async (job: Promise<unknown>) => {

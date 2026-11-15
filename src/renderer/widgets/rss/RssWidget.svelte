@@ -3,6 +3,7 @@ import {
   FEED_MAX_URLS,
   type FeedItem,
   type FeedUpdate,
+  feedHost,
   feedItemKey,
   mergeFeeds,
   paneFeeds,
@@ -68,6 +69,8 @@ const highlightWords = $derived(paneWords(paneState?.highlight))
 const muteWords = $derived(paneWords(paneState?.mute))
 const highlight = $derived(wordPattern(highlightWords))
 const mute = $derived(wordPattern(muteWords))
+/** Only the headlines not yet read, when the bar's UNREAD is on. */
+const unreadOnly = $derived(paneState?.unreadOnly === true)
 
 let updates = $state.raw<Record<string, FeedUpdate>>({})
 
@@ -100,8 +103,9 @@ let fresh = $state.raw<ReadonlySet<string>>(new Set())
 const trackers = new Map<string, FreshTracker>()
 const above = new NewAbove()
 
-/** What a headline must pass to be shown at all: not muted, and what is searched. */
-const keepItem = (item: FeedItem): boolean => !isMuted(item, mute) && matchesFind(item, find)
+/** What a headline must pass to be shown at all: not muted, what is searched, and unread if asked. */
+const keepItem = (item: FeedItem, read: boolean): boolean =>
+  !isMuted(item, mute) && matchesFind(item, find) && !(unreadOnly && read)
 
 function receive(url: string, update: FeedUpdate): void {
   const next = { ...updates, [url]: update }
@@ -249,6 +253,8 @@ function setView(next: FeedView, button: HTMLElement): void {
     sfx.play('panel')
     settingsOpen = false
     fresh = new Set()
+    // LIST comes back at its top, so what the pill counted is in sight (found in review).
+    above.clear()
     // TICKER shows neither the chips nor the find box, so it keeps none of their narrowing:
     // a search left from LIST would empty it with no way to see why (found in review).
     if (next === 'ticker') {
@@ -283,6 +289,51 @@ function pick(item: ShownItem, row: HTMLElement): void {
     if (!item.read) void window.elecdex.feeds.markRead(item.feed, item.key, true)
   })
 }
+
+/** The arrow keys in the article: the next or previous headline of the list as shown. */
+function step(by: -1 | 1): void {
+  // Over the list as shown but for UNREAD, which drops the article from it as it is read.
+  const list = mergeFeeds(narrowed(received), undefined, (item) => keepItem(item, false))
+  const at = list.findIndex((item) => item.key === openKey)
+  const next = at === -1 ? undefined : list[at + by]
+  if (next === undefined) return
+  sfx.play('panel')
+  openKey = next.key
+  // The keyboard comes back to the row of the article last shown, if the list has it.
+  cameFrom =
+    [...(root?.querySelectorAll<HTMLElement>('[data-testid=rss-item]') ?? [])].find(
+      (row) => row.dataset.key === next.key,
+    ) ?? cameFrom
+  if (!next.read) void window.elecdex.feeds.markRead(next.feed, next.key, true)
+}
+
+function toggleUnreadOnly(button: HTMLElement): void {
+  afterBlink(button, () => {
+    sfx.play('panel')
+    widgetState.patch(paneId, { unreadOnly: unreadOnly ? undefined : true })
+  })
+}
+
+/** Every headline shown that is not read yet, read at once (in every pane). */
+function markAllRead(button: HTMLElement): void {
+  const entries = shown
+    .filter((item) => !item.read)
+    .map((item) => ({ feed: item.feed, key: item.key }))
+  if (entries.length === 0) return
+  afterBlink(button, () => {
+    sfx.play('folder')
+    void window.elecdex.feeds.markAllRead(entries)
+  })
+}
+
+/** A lamp's tooltip: the feed, and why it fails when it does. */
+function lampTitle(url: string): string {
+  const update = updates[url]
+  const name = update?.title ?? url
+  return update?.error ? `${name} - ${update.error}` : name
+}
+
+let root = $state<HTMLElement | null>(null)
 
 function closeArticle(): void {
   sfx.play('collapse')
@@ -378,20 +429,30 @@ const VIEWS: Array<[FeedView, string]> = [
 ]
 </script>
 
-<div class="rss" class:ticker={view === 'ticker' && !settingsOpen} data-testid="rss">
+<div class="rss" bind:this={root} data-testid="rss">
   {#if feeds.length > 0}
     <div class="top">
       <span class="lamps" aria-label="feeds" data-testid="rss-lamps">
         {#each feeds as url (url)}
           {@const update = updates[url]}
-          <i class:warn={update?.error != null} class:wait={update === undefined || update.fetchedAt === null} title={update?.title ?? url}></i>
+          <i class:warn={update?.error != null} class:wait={update === undefined || update.fetchedAt === null} title={lampTitle(url)}></i>
         {/each}
       </span>
       <span class="figure"><small>unread</small><span class="a" data-testid="rss-unread">{unreadCount}</span></span>
       <span class="figure wide"><small>muted</small><span class="z" data-testid="rss-muted">{mutedCount}</span></span>
       <span class="spacer"></span>
+      {#if !settingsOpen}
+        <button type="button" class="tool" aria-pressed={unreadOnly} onclick={(e) => toggleUnreadOnly(e.currentTarget)} title="only the headlines not yet read" data-testid="rss-unread-only">unread</button>
+        <button type="button" class="tool" disabled={unreadCount === 0} onclick={(e) => markAllRead(e.currentTarget)} title="mark every headline shown read" data-testid="rss-mark-all-read">mark all read</button>
+      {/if}
       {#if view !== 'ticker' && !settingsOpen}
-        <input class="find" bind:value={find} placeholder="find…" spellcheck="false" aria-label="find in headlines" data-testid="rss-search" />
+        <!-- A search going on keeps its box, however narrow the pane: else the list is short for no reason seen (found in review). -->
+        <span class="find-box" class:active={find.trim() !== ''}>
+          <input class="find" class:active={find.trim() !== ''} bind:value={find} placeholder="find…" spellcheck="false" aria-label="find in headlines" data-testid="rss-search" />
+          {#if find.trim() !== ''}
+            <button type="button" class="clear" aria-label="clear the search" onclick={() => (find = '')} data-testid="rss-search-clear">×</button>
+          {/if}
+        </span>
       {/if}
       <span class="seg" role="radiogroup" aria-label="view">
         {#each VIEWS as [id, label] (id)}
@@ -399,13 +460,14 @@ const VIEWS: Array<[FeedView, string]> = [
         {/each}
       </span>
     </div>
+    <!-- With no feeds the settings are the pane itself: an icon there would do nothing (found in review). -->
+    <SettingsButton
+      open={settingsOpen}
+      label="rss settings"
+      testid="rss-settings-toggle"
+      ontoggle={toggleSettings}
+    />
   {/if}
-  <SettingsButton
-    open={settingsOpen}
-    label="rss settings"
-    testid="rss-settings-toggle"
-    ontoggle={toggleSettings}
-  />
 
   {#if feeds.length === 0 || settingsOpen}
     <RssSettings
@@ -443,7 +505,7 @@ const VIEWS: Array<[FeedView, string]> = [
             onclick={(e) => setOnly(only === url ? null : url, e.currentTarget)}
             data-feed={url}
             data-testid="rss-chip"
-          ><FeedMark mark={marks[url] ?? { tag: '··', turn: 0 }} /><span>{update?.title ?? new URL(url).hostname}</span></button>
+          ><FeedMark mark={marks[url] ?? { tag: '··', turn: 0 }} /><span>{update?.title ?? feedHost(url)}</span></button>
         {/each}
       </div>
     {/if}
@@ -468,6 +530,9 @@ const VIEWS: Array<[FeedView, string]> = [
         {/key}
       {/if}
       {#if article !== null}
+        <!-- Keyed: another headline's article is a new one, and takes the keyboard (with Escape)
+             from the row clicked, as the first did (found in review). -->
+        {#key article.key}
         <RssArticle
           item={article}
           mark={marks[article.feed] ?? { tag: '··', turn: 0 }}
@@ -480,7 +545,9 @@ const VIEWS: Array<[FeedView, string]> = [
           ontranslate={() => void handOver('translate', articleText(article))}
           onask={() => void handOver('aichat', `Summarise this article in a few lines.\n\n${articleText(article)}`)}
           onread={(read) => void window.elecdex.feeds.markRead(article.feed, article.key, read)}
+          onstep={step}
         />
+        {/key}
       {/if}
     </div>
   {/if}
@@ -613,9 +680,53 @@ const VIEWS: Array<[FeedView, string]> = [
 
 @container rss (max-width: 30rem) {
   .figure.wide,
-  .find {
+  .find-box:not(.active),
+  .tool {
     display: none;
   }
+}
+
+.find-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.find.active {
+  border-color: var(--accent);
+}
+
+.clear,
+.tool {
+  border: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.clear {
+  padding: 0 0.3rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+}
+
+.tool {
+  padding: 0 0.45rem;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.tool[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse);
+}
+
+.tool:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .chips {

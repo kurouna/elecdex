@@ -51,23 +51,29 @@ export class ReadMarks {
 
   /** Marks or unmarks; false when nothing changed. */
   set(key: string, read: boolean): boolean {
+    return this.setMany([key], read).length > 0
+  }
+
+  /** Marks or unmarks several at once, saving the file once; answers the keys that changed. */
+  setMany(keys: readonly string[], read: boolean): string[] {
     const marks = this.all()
-    if (read === marks.has(key)) return false
-    if (read) {
-      marks.set(key, this.deps.now())
-      while (marks.size > READ_MAX) {
-        const oldest = marks.keys().next().value
-        if (oldest === undefined) break
-        marks.delete(oldest)
-      }
-    } else {
-      marks.delete(key)
+    const changed = [...new Set(keys)].filter((key) => read !== marks.has(key))
+    if (changed.length === 0) return []
+    const now = this.deps.now()
+    for (const key of changed) {
+      if (read) marks.set(key, now)
+      else marks.delete(key)
+    }
+    while (marks.size > READ_MAX) {
+      const oldest = marks.keys().next().value
+      if (oldest === undefined) break
+      marks.delete(oldest)
     }
     try {
       this.deps.save(Object.fromEntries(marks))
     } catch (error) {
       console.warn('[elecdex] could not save the read marks', error)
     }
-    return true
+    return changed
   }
 }

@@ -5,6 +5,7 @@ import {
   type DiscoverResult,
   discoverTarget,
 } from '@shared/feeds-discover'
+import { decodeEntities } from './entities.js'
 import type { ParsedFeed } from './parse.js'
 
 /**
@@ -48,15 +49,6 @@ function attributes(tag: string): Record<string, string> {
   return out
 }
 
-function decodeAttribute(text: string): string {
-  return text
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-}
-
 function formatOf(type: string): DiscoveredFeed['format'] | null {
   const t = type.toLowerCase().split(';')[0]?.trim() ?? ''
   if (t === 'application/rss+xml' || t === 'application/rdf+xml') return 'rss'
@@ -88,7 +80,7 @@ function linkFeed(tag: string, base: string): DiscoveredFeed | null {
   if (!isFeed || attrs.href === undefined) return null
   let url: URL
   try {
-    url = new URL(decodeAttribute(attrs.href).trim(), base)
+    url = new URL(decodeEntities(attrs.href).trim(), base)
   } catch {
     return null
   }
@@ -97,7 +89,7 @@ function linkFeed(tag: string, base: string): DiscoveredFeed | null {
   url.hash = ''
   // What the pane would refuse to list (too long, odd form) is not offered: ADD would do nothing.
   if (feedUrl(url.href) !== url.href) return null
-  const title = decodeAttribute(attrs.title ?? '')
+  const title = decodeEntities(attrs.title ?? '')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 120)
@@ -150,15 +142,24 @@ export async function discover(deps: DiscoverDeps, input: unknown): Promise<Disc
   const named = feedLinks(page.text, page.url)
   if (named.length > 0) return { ok: true, feeds: named }
   const origin = new URL(page.url).origin
+  return tryUsualPlaces(deps, origin)
+}
+
+/** The usual places on a site, one after another, stopping at the first feed. */
+async function tryUsualPlaces(deps: DiscoverDeps, origin: string): Promise<DiscoverResult> {
   for (const path of FALLBACK_PATHS) {
     const url = `${origin}${path}`
+    let tried: { url: string; text: string } | null
     try {
-      const tried = await read(deps, url)
-      const feed = tried === null ? null : await asFeed(deps, tried.url, tried.text)
-      if (feed !== null) return { ok: true, feeds: [feed] }
-    } catch {
-      // The next place.
+      tried = await read(deps, url)
+    } catch (error) {
+      // A site that has stopped answering will not answer the next place either: each try
+      // waits out the timeout, five of them were a minute of FIND (found in review).
+      const why = error instanceof Error ? error.message : String(error)
+      return { ok: false, error: `the site stopped answering: ${why}` }
     }
+    const feed = tried === null ? null : await asFeed(deps, tried.url, tried.text)
+    if (feed !== null) return { ok: true, feeds: [feed] }
   }
   return { ok: false, error: 'no feed found on that page' }
 }

@@ -657,6 +657,7 @@ const api: ElecdexApi = {
     discover: (input) => ipcRenderer.invoke(CH.feeds.discover, input),
     image: (url) => ipcRenderer.invoke(CH.feeds.image, url),
     markRead: (feed, key, read) => ipcRenderer.invoke(CH.feeds.markRead, feed, key, read),
+    markAllRead: (entries) => ipcRenderer.invoke(CH.feeds.markAllRead, entries),
     importOpml: () => ipcRenderer.invoke(CH.feeds.importOpml),
     exportOpml: (feeds) => ipcRenderer.invoke(CH.feeds.exportOpml, feeds),
   },

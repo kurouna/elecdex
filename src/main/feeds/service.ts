@@ -7,6 +7,7 @@ import {
   FEED_ITEMS_PER_FEED,
   FEED_SUMMARY_MAX,
   type FeedUpdate,
+  feedHost,
   feedItemKey,
 } from '@shared/feeds'
 import { z } from 'zod'
@@ -125,15 +126,6 @@ class FeedError extends Error {
   }
 }
 
-/** A feed's host, shown until (or unless) the feed names itself. */
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return url
-  }
-}
-
 /** How long a response asks to be cached, from Cache-Control max-age or Expires, in ms. */
 export function cacheHintMs(headers: FeedResponse['headers'], now: number): number | null {
   const maxAge = /(?:^|,)\s*max-age\s*=\s*(\d+)/i.exec(headers.get('cache-control') ?? '')
@@ -196,7 +188,7 @@ export class FeedService {
   /** The feed as a newly watching page should first see it. */
   snapshot(url: string): FeedUpdate {
     const s = this.feeds.get(url)
-    const title = s?.title ?? hostOf(url)
+    const title = s?.title ?? feedHost(url)
     const items = s?.items ?? []
     const isRead = this.deps.isRead
     return {
@@ -293,7 +285,7 @@ export class FeedService {
     let s = this.feeds.get(url)
     if (!s) {
       s = {
-        title: hostOf(url),
+        title: feedHost(url),
         items: [],
         etag: null,
         lastModified: null,
@@ -384,7 +376,7 @@ export class FeedService {
     const parsed = await this.deps.parse(xml, url)
     const ttlMs = parsed.ttlMinutes === null ? null : parsed.ttlMinutes * 60_000
     const hint = cacheHintMs(response.headers, now)
-    state.title = parsed.title ?? hostOf(url)
+    state.title = parsed.title ?? feedHost(url)
     state.items = parsed.items
     state.etag = response.headers.get('etag')
     state.lastModified = response.headers.get('last-modified')

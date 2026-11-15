@@ -32,9 +32,10 @@ const fallback: Mark = { tag: '··', turn: 0 }
       {@const mark = marks[item.feed] ?? fallback}
       <button
         type="button"
-        class="card"
+        class="card feed-tone"
         class:read={item.read}
         class:sel={selected === item.key}
+        aria-current={selected === item.key || undefined}
         style:--mark-turn={mark.turn}
         onclick={(e) => onpick(item, e.currentTarget)}
         data-key={item.key}
@@ -71,44 +72,9 @@ const fallback: Mark = { tag: '··', turn: 0 }
 
 .day {
   grid-column: 1 / -1;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin: 0;
-  padding: 0.3rem 0.2rem 0.15rem;
-  background: var(--app-bg);
-  color: var(--text-muted);
-  font-size: var(--step--2);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
-}
-
-.day::before {
-  content: "";
-  width: 0.8rem;
-  border-top: 1px solid var(--accent-dim);
-}
-
-.day::after {
-  content: "";
-  flex: 1;
-  order: 3;
-  border-top: 1px solid var(--accent-dim);
-}
-
-.day b {
-  order: 2;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--text);
 }
 
 .card {
-  --tone: hsl(calc(var(--mark-h) + var(--mark-turn, 0)) var(--mark-s) var(--mark-l));
   position: relative;
   display: flex;
   flex-direction: column;

@@ -28,8 +28,14 @@ const index = $derived(items.length === 0 ? 0 : at % items.length)
 const item = $derived(items[index])
 const fallback: Mark = { tag: '··', turn: 0 }
 
+/**
+ * Held still while the pointer or the keyboard is on it: a headline being read or stepped to by
+ * hand is not taken away by the next beat (the beat once landed between two presses of ‹).
+ */
+let held = $state(false)
+
 $effect(() => {
-  if (!running || items.length < 2) return
+  if (!running || held || items.length < 2) return
   return onBoundary(TICKER_PERIOD_MS, () => {
     at = (at + 1) % Math.max(1, items.length)
   })
@@ -44,9 +50,19 @@ const SLOTS = 20
 </script>
 
 {#if item !== undefined}
-  <div class="ticker" data-testid="rss-ticker">
+  <div
+    class="ticker"
+    role="group"
+    aria-label="headlines, one at a time"
+    onpointerenter={() => (held = true)}
+    onpointerleave={() => (held = false)}
+    onfocusin={() => (held = true)}
+    onfocusout={() => (held = false)}
+    data-held={held || undefined}
+    data-testid="rss-ticker"
+  >
     <button type="button" class="line" onclick={(e) => onpick(item, e.currentTarget)} data-key={item.key} data-testid="rss-item">
-      <FeedMark mark={marks[item.feed] ?? fallback} solid />
+      <FeedMark mark={marks[item.feed] ?? fallback} solid read={item.read} />
       {#key item.key}
         <span class="title crt-on" data-testid="rss-ticker-title"><LitText text={item.title} {highlight} {find} /></span>
       {/key}

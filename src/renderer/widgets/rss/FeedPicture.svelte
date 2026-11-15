@@ -35,14 +35,13 @@ const glow = $derived.by(() => {
 })
 </script>
 
-<span class="pic" style:--mark-turn={turn} data-testid="rss-picture" data-loaded={data !== null || undefined}>
+<span class="pic feed-tone" style:--mark-turn={turn} data-testid="rss-picture" data-loaded={data !== null || undefined}>
   <span class="plate" style:--gx="{glow.x}%" style:--gy="{glow.y}%"></span>
   {#if data !== null}<img src={data} alt="" draggable="false" />{/if}
 </span>
 
 <style>
 .pic {
-  --tone: hsl(calc(var(--mark-h) + var(--mark-turn, 0)) var(--mark-s) var(--mark-l));
   position: relative;
   display: block;
   overflow: hidden;

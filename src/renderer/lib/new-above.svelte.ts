@@ -9,8 +9,22 @@ const AT_TOP_PX = 4
  */
 export class NewAbove {
   count = $state(0)
-  /** The scrolling list; bind it with bind:this. */
-  list = $state<HTMLElement | null>(null)
+  #list = $state<HTMLElement | null>(null)
+
+  /**
+   * The scrolling list; bind it with bind:this. Another list (or none) starts the count afresh:
+   * a list drawn again starts at its top, with what the count stood for in sight. The RSS pane's
+   * pill outlived its list behind the settings or another view (found in review).
+   */
+  get list(): HTMLElement | null {
+    return this.#list
+  }
+
+  set list(element: HTMLElement | null) {
+    if (element === this.#list) return
+    this.#list = element
+    this.count = 0
+  }
 
   /** Call with the number of new rows before they are rendered. */
   arrived(rows: number): void {

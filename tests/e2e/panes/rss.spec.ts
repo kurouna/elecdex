@@ -289,6 +289,17 @@ test('a headline opens its article: picture, summary, OPEN in the browser, and i
     await expect(again).toHaveCount(15)
     await expect(again.nth(0)).toHaveAttribute('data-read', 'true')
     await expect(again.nth(1)).not.toHaveAttribute('data-read')
+
+    // UNREAD shows only what is not read; MARK ALL READ reads every headline shown, through main.
+    const pane2 = rssPane(launched.page)
+    await pane2.getByTestId('rss-unread-only').click()
+    await expect(again).toHaveCount(14)
+    await pane2.getByTestId('rss-unread-only').click()
+    await expect(again).toHaveCount(15)
+    await pane2.getByTestId('rss-mark-all-read').click()
+    await expect(pane2.locator('[data-testid=rss-item][data-read]')).toHaveCount(15)
+    await expect(pane2.getByTestId('rss-unread')).toHaveText('0')
+    await expect(pane2.getByTestId('rss-mark-all-read')).toBeDisabled()
   } finally {
     await launched.close()
   }
@@ -361,16 +372,30 @@ test('CARD shows pictures, TICKER one headline at a time; the choice is kept', a
     const ticker = pane.getByTestId('rss-ticker')
     await expect(ticker).toBeVisible()
     await expect(pane.getByTestId('rss-item')).toHaveCount(1)
-    await expect(pane.getByTestId('rss-ticker-count')).toHaveText('1/20')
-    await expect(pane.getByTestId('rss-ticker-title')).toHaveText('alpha story 1')
+    const count = pane.getByTestId('rss-ticker-count')
+    // Held first: until the pointer is on it the ticker steps on its own 6 s beat, which could
+    // land between a step pressed here and its check (a test once read the beat's step for its own).
+    await ticker.hover()
+    await expect(ticker).toHaveAttribute('data-held', 'true')
+    const at = Number(((await count.textContent()) ?? '').split('/')[0])
+    const from = (n: number) => `${((((at - 1 + n) % 20) + 20) % 20) + 1}/20`
     await pane.getByTestId('rss-ticker-next').click()
-    await expect(pane.getByTestId('rss-ticker-title')).toHaveText('beta post 1')
-    await expect(pane.getByTestId('rss-ticker-count')).toHaveText('2/20')
+    await expect(count).toHaveText(from(1))
     // A step blinks its three beats first, as every choice does; a press during it is dropped.
     await pane.getByTestId('rss-ticker-prev').click()
-    await expect(pane.getByTestId('rss-ticker-count')).toHaveText('1/20')
+    await expect(count).toHaveText(from(0))
     await pane.getByTestId('rss-ticker-prev').click()
-    await expect(pane.getByTestId('rss-ticker-count')).toHaveText('20/20')
+    await expect(count).toHaveText(from(-1))
+    // Held, it does not move past its 6 s beat.
+    const held = await quietFor(6500, () => count.textContent(), 'the ticker')
+    expect(held).toBe(from(-1))
+    // The first headline is the newest of all the feeds, with the search cleared.
+    while ((await count.textContent()) !== '1/20') {
+      const before = (await count.textContent()) ?? ''
+      await pane.getByTestId('rss-ticker-next').click()
+      await expect(count).not.toHaveText(before)
+    }
+    await expect(pane.getByTestId('rss-ticker-title')).toHaveText('alpha story 1')
 
     await waitForSaved(userData, (text) => text.replace(/\s/g, '').includes('"view":"ticker"'))
   } finally {

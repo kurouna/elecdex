@@ -1,5 +1,6 @@
 import { FEED_MAX_URLS, feedUrl } from '@shared/feeds'
 import { XMLParser } from 'fast-xml-parser'
+import { decodeEntities } from './entities.js'
 
 /**
  * OPML, the file feed readers move their subscriptions in: read on IMPORT OPML, written on
@@ -24,20 +25,6 @@ const parser = new XMLParser({
   parseAttributeValue: false,
   isArray: (name) => name === 'outline',
 })
-
-const decode = (text: string) =>
-  text
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&#(x[0-9a-f]+|\d+);/gi, (whole, n: string) => {
-      const code = n[0] === 'x' || n[0] === 'X' ? Number.parseInt(n.slice(1), 16) : Number(n)
-      return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)
-        ? String.fromCodePoint(code)
-        : whole
-    })
-    .replace(/&amp;/g, '&')
 
 type Node = Record<string, unknown>
 const isNode = (v: unknown): v is Node => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -64,10 +51,10 @@ export function parseOpml(xml: string): OpmlFeed[] {
 /** An outline as a feed: its xmlUrl, if it is one, and its title or text. */
 function outlineFeed(outline: Node): OpmlFeed | null {
   const raw = outline['@xmlUrl']
-  const url = typeof raw === 'string' ? feedUrl(decode(raw)) : null
+  const url = typeof raw === 'string' ? feedUrl(decodeEntities(raw)) : null
   if (url === null) return null
   const title = outline['@title'] ?? outline['@text']
-  return { url, title: typeof title === 'string' ? decode(title).trim().slice(0, 300) : '' }
+  return { url, title: typeof title === 'string' ? decodeEntities(title).trim().slice(0, 300) : '' }
 }
 
 const escapeXml = (text: string) =>

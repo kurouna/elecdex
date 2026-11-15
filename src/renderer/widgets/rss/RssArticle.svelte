@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { ShownItem } from '@shared/feeds'
+import { clockTime, feedHost, type ShownItem } from '@shared/feeds'
 import type { FeedMark as Mark } from '@shared/feeds-view'
 import { afterBlink } from '../../lib/blink.ts'
 import FeedMark from './FeedMark.svelte'
@@ -10,7 +10,8 @@ import LitText from './LitText.svelte'
  * One article, over the pane's right side (the whole pane when narrow): its picture, headline,
  * when and by whom, the feed's summary and categories, and what to do with it - OPEN in the
  * browser, TRANSLATE in the TRANSLATE pane, ASK AI in the AI chat, or put it back unread.
- * Escape or ESC closes it, and the keyboard goes back to the row it came from.
+ * Escape or ESC closes it, and the keyboard goes back to the row it came from; ↑ ↓ open the
+ * previous or next headline's article.
  */
 interface Props {
   item: ShownItem
@@ -22,34 +23,44 @@ interface Props {
   ontranslate: () => void
   onask: () => void
   onread: (read: boolean) => void
+  /** ↑ and ↓: the previous or next headline's article. */
+  onstep: (by: -1 | 1) => void
 }
 
-const { item, mark, highlight, find, onclose, onopen, ontranslate, onask, onread }: Props = $props()
+const { item, mark, highlight, find, onclose, onopen, ontranslate, onask, onread, onstep }: Props =
+  $props()
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const published = $derived.by(() => {
   if (item.at === null) return null
   const d = new Date(item.at)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${clockTime(item.at)}`
 })
-const site = $derived.by(() => {
-  if (item.link === null) return null
-  try {
-    return new URL(item.link).hostname.replace(/^www\./, '')
-  } catch {
-    return null
-  }
-})
+const site = $derived(item.link === null ? null : feedHost(item.link))
 
 function takeFocus(node: HTMLElement): void {
   node.focus({ preventScroll: true })
 }
 
+/** What the article's own keys do; none with a modifier held, which is a shortcut's. */
+const KEYS: Record<string, () => void> = {
+  Escape: () => onclose(),
+  ArrowDown: () => onstep(1),
+  ArrowUp: () => onstep(-1),
+}
+
+/**
+ * Keys inside the article: Escape closes it (it owns Escape, lib/escape-owner.ts), ↑ ↓ step
+ * through the list without going back to it. Not shortcuts: they act only where the article
+ * has the keyboard.
+ */
 function onkeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape') return
+  if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return
+  const action = KEYS[event.key]
+  if (action === undefined) return
   event.preventDefault()
   event.stopPropagation()
-  onclose()
+  action()
 }
 </script>
 

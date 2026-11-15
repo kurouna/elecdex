@@ -1,9 +1,15 @@
 <script lang="ts">
 import { FEED_PACKS, type FeedPackEntry } from '@shared/feed-packs'
-import { FEED_MAX_URLS, type FeedUpdate } from '@shared/feeds'
+import { clockTime, FEED_MAX_URLS, type FeedUpdate, feedHost } from '@shared/feeds'
 import type { DiscoveredFeed } from '@shared/feeds-discover'
 import { discoverTarget } from '@shared/feeds-discover'
-import { MARK_TAG_MAX, type FeedMark as Mark, WORDS_MAX } from '@shared/feeds-view'
+import {
+  cleanTag,
+  MARK_TAG_MAX,
+  type FeedMark as Mark,
+  WORD_MAX_LENGTH,
+  WORDS_MAX,
+} from '@shared/feeds-view'
 import { untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
 import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
@@ -70,6 +76,7 @@ const fallback: Mark = { tag: '··', turn: 0 }
 let input = $state(untrack(() => recallTyped(paneId, 'feed')))
 $effect(() => keepTyped(paneId, 'feed', input))
 let finding = $state(false)
+let findButton = $state<HTMLButtonElement | null>(null)
 let found = $state.raw<DiscoveredFeed[]>([])
 let foundFor = $state('')
 let problem = $state<string | null>(null)
@@ -142,7 +149,7 @@ async function importOpml(): Promise<void> {
 
 async function exportOpml(): Promise<void> {
   opmlNote = null
-  const list = feeds.map((url) => ({ url, title: updates[url]?.title ?? new URL(url).hostname }))
+  const list = feeds.map((url) => ({ url, title: updates[url]?.title ?? feedHost(url) }))
   try {
     const path = await window.elecdex.feeds.exportOpml(list)
     if (path !== null) opmlNote = `saved ${path}`
@@ -155,11 +162,30 @@ async function exportOpml(): Promise<void> {
 /* ---- KEYWORDS ---- */
 
 let words = $state({ highlight: '', mute: '' })
+/** Why the last word was not taken, per list; null when it was. */
+let wordNote = $state<{ highlight: string | null; mute: string | null }>({
+  highlight: null,
+  mute: null,
+})
+/**
+ * Takes a word as the pane state keeps it (paneWords): spaces closed up, and refused with a
+ * reason - too long, already there, the list full - instead of being saved and then silently
+ * dropped (found in review).
+ */
 function addWord(kind: 'highlight' | 'mute'): void {
-  const word = words[kind].trim()
+  const word = words[kind].trim().replace(/s+/g, ' ')
   if (word === '') return
   const list = kind === 'highlight' ? highlight : mute
-  if (list.length >= WORDS_MAX || list.some((w) => w.toLowerCase() === word.toLowerCase())) return
+  const note =
+    word.length > WORD_MAX_LENGTH
+      ? `up to ${WORD_MAX_LENGTH} characters`
+      : list.some((w) => w.toLowerCase() === word.toLowerCase())
+        ? `"${word}" is already listed`
+        : list.length >= WORDS_MAX
+          ? `up to ${WORDS_MAX} words`
+          : null
+  wordNote[kind] = note
+  if (note !== null) return
   onwords(kind, [...list, word])
   words[kind] = ''
 }
@@ -172,10 +198,9 @@ function feedState(url: string): { tone: 'ok' | 'warn' | 'wait'; text: string } 
     return update?.error ? { tone: 'warn', text: update.error } : { tone: 'wait', text: 'waiting' }
   }
   if (update.error !== null) return { tone: 'warn', text: update.error }
-  const d = new Date(update.fetchedAt)
   return {
     tone: 'ok',
-    text: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+    text: clockTime(update.fetchedAt),
   }
 }
 
@@ -199,10 +224,10 @@ const TABS: Array<[SettingsTab, string]> = [
         addWord(kind)
       }}
     >
-      <input bind:value={words[kind]} placeholder="add a word…" spellcheck="false" aria-label="add a word to {kind}" data-testid="rss-word-input-{kind}" />
+      <input bind:value={words[kind]} maxlength={WORD_MAX_LENGTH} placeholder="add a word…" spellcheck="false" aria-label="add a word to {kind}" data-testid="rss-word-input-{kind}" />
     </form>
   </div>
-  <p class="hint">In titles, any case, {note}. A Latin word matches only whole.</p>
+  <p class="hint" class:problem={wordNote[kind] !== null} data-testid="rss-word-note-{kind}">{wordNote[kind] ?? `In titles, any case, ${note}. A Latin word matches only whole. Up to ${WORDS_MAX}.`}</p>
 {/snippet}
 
 <div class="set crt-on" data-testid="rss-settings">
@@ -231,7 +256,7 @@ const TABS: Array<[SettingsTab, string]> = [
         class="addline"
         onsubmit={(e) => {
           e.preventDefault()
-          afterBlink(e.currentTarget.querySelector('button'), () => void find())
+          afterBlink(findButton, () => void find())
         }}
       >
         <input
@@ -241,7 +266,7 @@ const TABS: Array<[SettingsTab, string]> = [
           aria-label="site or feed to add"
           data-testid="rss-add-input"
         />
-        <button type="submit" class="act primary" disabled={finding} data-testid="rss-find">{finding ? 'finding…' : 'find'}</button>
+        <button type="submit" class="act primary" disabled={finding} bind:this={findButton} data-testid="rss-find">{finding ? 'finding…' : 'find'}</button>
       </form>
       <p class="hint" class:problem={problem !== null} data-testid="rss-problem">
         {#if problem !== null}{problem}{:else}A site's feeds are found from its page. Also <code>github:owner/repo</code> (releases) and <code>youtube:@handle</code> (uploads). Nothing is fetched until FIND.{/if}
@@ -267,7 +292,7 @@ const TABS: Array<[SettingsTab, string]> = [
       <div class="row-btns">
         <button type="button" class="act" onclick={(e) => afterBlink(e.currentTarget, () => void importOpml())} data-testid="rss-opml-import">import opml…</button>
         {#if !first}
-          <button type="button" class="act" disabled={feeds.length === 0} onclick={(e) => afterBlink(e.currentTarget, () => void exportOpml())} data-testid="rss-opml-export">export opml…</button>
+          <button type="button" class="act" onclick={(e) => afterBlink(e.currentTarget, () => void exportOpml())} data-testid="rss-opml-export">export opml…</button>
         {/if}
       </div>
       <p class="hint" data-testid="rss-opml-note">{opmlNote ?? `Move from another reader: its OPML file lists every feed. Up to ${FEED_MAX_URLS} are taken.`}</p>
@@ -314,7 +339,7 @@ const TABS: Array<[SettingsTab, string]> = [
         {@const s = feedState(url)}
         <div class="frow" data-testid="rss-feed-row">
           <FeedMark mark={marks[url] ?? fallback} />
-          <span class="nm"><b>{updates[url]?.title ?? new URL(url).hostname}</b><small>{url}</small></span>
+          <span class="nm"><b>{updates[url]?.title ?? feedHost(url)}</b><small>{url}</small></span>
           <span class="st {s.tone}" title={s.text}><i></i>{s.tone === 'ok' ? 'ok' : s.tone === 'warn' ? 'stale' : 'wait'} <small>{s.text}</small></span>
           <span class="ops">
             <input
@@ -324,7 +349,11 @@ const TABS: Array<[SettingsTab, string]> = [
               maxlength={MARK_TAG_MAX}
               spellcheck="false"
               aria-label="tag for {updates[url]?.title ?? url}"
-              onchange={(e) => ontag(url, e.currentTarget.value)}
+              onchange={(e) => {
+                ontag(url, e.currentTarget.value)
+                // What was not a tag (spaces) leaves the field as the tag kept, not as typed.
+                e.currentTarget.value = cleanTag(e.currentTarget.value) ?? ''
+              }}
               data-testid="rss-tag"
             />
             <button type="button" class="mini" disabled={i === 0} aria-label="move up" onclick={() => onmove(url, -1)} data-testid="rss-feed-up">↑</button>
@@ -719,14 +748,17 @@ button.mini:hover:not(:disabled) {
   text-align: center;
 }
 
+/* Narrow, a feed takes three lines - name, state, tools - rather than losing the state and the
+   tag field, which left a failing feed's reason and its tag out of reach (found in review). */
 @container rss (max-width: 30rem) {
   .frow {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 0.15rem;
   }
 
   .st,
-  .ops .tag {
-    display: none;
+  .ops {
+    grid-column: 2;
   }
 }
 

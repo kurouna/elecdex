@@ -98,6 +98,24 @@ export function parseFeedList(text: string): { urls: string[]; invalid: string[]
   return { urls, invalid }
 }
 
+/**
+ * A feed's or an article's host as shown in place of a title, without "www."; the text as it
+ * is when it is no URL. One helper: four copies, two of them unguarded, were found in review.
+ */
+export function feedHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www./, '')
+  } catch {
+    return url
+  }
+}
+
+/** A time as HH:MM on the local clock. */
+export function clockTime(at: number): string {
+  const d = new Date(at)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 /** An item's key in the merged list: its link, or its feed and title when it has none. */
 export const feedItemKey = (update: Pick<FeedUpdate, 'title'>, item: FeedItem): string =>
   item.link ?? `${update.title}\n${item.title}`
@@ -120,13 +138,14 @@ export interface ShownItem extends FeedItem {
  * link) is shown once. Items without a date go after dated ones, in feed order,
  * so a feed that dates nothing still shows but cannot push dated news down.
  *
- * `keep` leaves items out before the limit is taken (a muted word, a search), so
- * what it drops makes room for older items instead of shortening the list.
+ * `keep` leaves items out before the limit is taken (a muted word, a search, the read ones
+ * when only the unread are asked for), so what it drops makes room for older items instead
+ * of shortening the list. It is told whether the item has been read.
  */
 export function mergeFeeds(
   updates: readonly FeedUpdate[],
   limit = FEED_MAX_SHOWN,
-  keep: (item: FeedItem) => boolean = () => true,
+  keep: (item: FeedItem, read: boolean) => boolean = () => true,
 ): ShownItem[] {
   const seen = new Set<string>()
   const items: ShownItem[] = []
@@ -134,7 +153,7 @@ export function mergeFeeds(
     const read = new Set(update.read ?? [])
     for (const item of update.items) {
       const key = feedItemKey(update, item)
-      if (seen.has(key) || !keep(item)) continue
+      if (seen.has(key) || !keep(item, read.has(key))) continue
       seen.add(key)
       items.push({ ...item, source: update.title, feed: update.url, key, read: read.has(key) })
     }

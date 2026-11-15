@@ -14,11 +14,10 @@ interface Props {
 const { mark, solid = false, read = false }: Props = $props()
 </script>
 
-<span class="mark" class:solid class:read style:--mark-turn={mark.turn} data-testid="rss-mark">{mark.tag}</span>
+<span class="mark feed-tone" class:solid class:read style:--mark-turn={mark.turn} data-testid="rss-mark">{mark.tag}</span>
 
 <style>
 .mark {
-  --tone: hsl(calc(var(--mark-h) + var(--mark-turn, 0)) var(--mark-s) var(--mark-l));
   display: inline-block;
   flex: none;
   width: 2.4rem;

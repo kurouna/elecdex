@@ -446,6 +446,20 @@ export const IPC_ROWS: IpcRow[] = [
     refused: { resolves: false },
   },
   {
+    // Only items watched feeds hold are marked; none is watched here, so nothing is written.
+    method: 'feeds.markAllRead',
+    bad: [
+      [[{ feed: 'https://example.invalid/feed', key: 'https://example.invalid/1' }]],
+      [[{ feed: 'not a url', key: 'k' }]],
+      [[{ feed: 'https://example.invalid/feed', key: big(10_000) }]],
+      [[]],
+      ['feeds'],
+      [123],
+      [Array.from({ length: 201 }, () => ({ feed: 'https://example.invalid/feed', key: 'k' }))],
+    ],
+    refused: { resolves: false },
+  },
+  {
     method: 'feeds.exportOpml',
     bad: [
       [123],

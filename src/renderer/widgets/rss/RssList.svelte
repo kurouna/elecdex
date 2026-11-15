@@ -1,5 +1,5 @@
 <script lang="ts">
-import { formatItemTime, type ShownItem } from '@shared/feeds'
+import { clockTime, formatItemTime, type ShownItem } from '@shared/feeds'
 import { daySections, lastSeenKey, type FeedMark as Mark } from '@shared/feeds-view'
 import { flip } from 'svelte/animate'
 import type { NewAbove } from '../../lib/new-above.svelte.ts'
@@ -44,12 +44,7 @@ const {
 
 const sections = $derived(daySections(items, now))
 const seenKey = $derived(lastSeenKey(items, seenAt))
-const pad = (n: number) => String(n).padStart(2, '0')
-const seenLabel = $derived.by(() => {
-  if (seenAt === null) return ''
-  const d = new Date(seenAt)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-})
+const seenLabel = $derived(seenAt === null ? '' : clockTime(seenAt))
 const fallback: Mark = { tag: '··', turn: 0 }
 </script>
 
@@ -109,42 +104,6 @@ const fallback: Mark = { tag: '··', turn: 0 }
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--accent-dim) transparent;
-}
-
-.day {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.3rem 0.2rem 0.15rem;
-  background: var(--app-bg);
-  color: var(--text-muted);
-  font-size: var(--step--2);
-  letter-spacing: var(--tracking-wider);
-  text-transform: uppercase;
-}
-
-.day::before {
-  content: "";
-  width: 0.8rem;
-  border-top: 1px solid var(--accent-dim);
-}
-
-.day::after {
-  content: "";
-  flex: 1;
-  border-top: 1px solid var(--accent-dim);
-  order: 3;
-}
-
-.day b {
-  order: 2;
-  font-family: var(--font-mono);
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--text);
 }
 
 .seen {

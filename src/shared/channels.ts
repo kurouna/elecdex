@@ -101,6 +101,8 @@ export const CH = {
     image: 'feeds:image',
     /** Marks an item read or unread, in every pane. */
     markRead: 'feeds:mark-read',
+    /** Marks several items read at once (MARK ALL READ), in every pane. */
+    markAllRead: 'feeds:mark-all-read',
     /** Main's own picker, then the OPML file's feeds. */
     importOpml: 'feeds:import-opml',
     /** Main's own save dialog for the pane's feeds as OPML. */
