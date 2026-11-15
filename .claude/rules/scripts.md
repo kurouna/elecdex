@@ -49,6 +49,7 @@ npm run demo:elec16-intro # the pocket and the calculator side by side, no games
 npm run demo:logwatch  # LOG WATCH alone: a made-up log followed, a burst, filter, PATTERNS, MASK, two lines EXPLAINed by the stand-in, captioned, 16:9, ~55 s (Windows; build first)
 npm run demo:aws       # AWS STATUS alone on the stand-in account: RESOURCES, forgotten rows and KEEP, the service cards and the drill-down, ELSEWHERE, the tabs, MASK, the paid calls and caps, captioned, 16:9, ~80 s (Windows; build first)
 npm run demo:github    # GITHUB STATUS alone on the stand-in gh: QUEUE and its filters, the contribution grid, a stand-in githubstatus incident, INBOX, EVENTS, REPOS and a drill-down, MASK, captioned, 16:9, ~60 s (Windows; build first)
+npm run demo:rss       # the RSS pane in the standard preset, its shells swapped for it: marks, LAST SEEN, the article, CARD, chips and find, TICKER, UNREAD, ADD finding a site's feeds, PACKS shown; made-up feeds, site and pictures served on 127.0.0.1, captioned, 16:9, ~61 s (Windows; build first)
 npm run demo:translate # TRANSLATE alone: SET UP with a pretended FETCH, LIVE on the spine, Easy Japanese, ROUND TRIP, HISTORY, Ctrl+Shift+Y, captioned, 16:9, ~115 s; the model and engine are this PC's (--from, --mbps; Windows; build first)
 npm run demo:games     # the PLAY-320's three games played, bodies and themes changing, CORE beside (Windows; build first)
 node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)
