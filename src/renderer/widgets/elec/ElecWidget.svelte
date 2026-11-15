@@ -727,6 +727,7 @@ function telemetry(ballot: Ballot): string | null {
         maxlength={ELEC_LIMITS.motion}
         placeholder="motion · enter to submit, shift+enter for a new line"
         onkeydown={onComposerKey}
+        data-owns-escape={(busy && choice.session !== null) || undefined}
         data-testid="elec-input"
       ></textarea>
       {#if busy}

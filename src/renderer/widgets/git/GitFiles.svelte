@@ -167,7 +167,8 @@ $effect(() => () => resting.dispose())
 
   {#if menu !== null}
     {@const file = menu.file}
-    <div class="menu" role="menu" style:left="{menu.x}px" style:top="{menu.y}px" data-testid="git-menu" bind:this={menuEl}>
+    <!-- Opened by the pointer, the menu has Escape wherever the keyboard is (lib/escape-owner.ts). -->
+    <div class="menu" role="menu" style:left="{menu.x}px" style:top="{menu.y}px" data-owns-escape="anywhere" data-testid="git-menu" bind:this={menuEl}>
       {#if opensInTree(file, commit)}
         <button type="button" role="menuitem" onclick={() => { onopen(file); menu = null }}>Open</button>
       {/if}

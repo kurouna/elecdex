@@ -402,10 +402,15 @@ const exportNote = oneAtATime(async (id: string): Promise<void> => {
     <div class="find">
       <input
         bind:value={search}
+        data-owns-escape
         onkeydown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
             findNext()
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
+            search = null
+            area?.focus()
           }
         }}
         placeholder="find"
@@ -425,6 +430,7 @@ const exportNote = oneAtATime(async (id: string): Promise<void> => {
         bind:value={draft}
         oninput={edited}
         onkeydown={onKeydown}
+        data-owns-escape={search !== null || undefined}
         onblur={flushNow}
         class:nowrap={!wrap}
         style:--note-size={zoom === 0 ? 'var(--step--1)' : zoom === 2 ? 'var(--step-1)' : 'var(--step-0)'}

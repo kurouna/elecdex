@@ -575,7 +575,7 @@ const TABS: readonly [AwsTab, string][] = [
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="aws cloudpane" class:narrow data-testid="aws" data-pane-id={paneId} bind:this={rootEl} onkeydown={onPaneKey} {@attach observe}>
+<div class="aws cloudpane" class:narrow data-testid="aws" data-pane-id={paneId} bind:this={rootEl} onkeydown={onPaneKey} data-owns-escape={choices.drill !== null || undefined} {@attach observe}>
   <SettingsButton open={settingsOpen} label="aws status settings" testid="aws-settings-toggle" ontoggle={() => (settingsOpen = !settingsOpen)} />
   <header class="top" data-testid="aws-top">
     <span class="link" data-tone={link.tone} data-testid="aws-link"><i></i>{link.word}</span>

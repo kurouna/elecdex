@@ -331,6 +331,7 @@ const where = $derived.by(() => {
             }}
             onblur={() => (editing = false)}
             onkeydown={onAddressKey}
+            data-owns-escape={editing || undefined}
             placeholder="address · enter to open"
             spellcheck="false"
             autocomplete="off"

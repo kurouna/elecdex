@@ -480,6 +480,7 @@ $effect(() => {
         }
         if (e.key === 'Escape') draft = ''
       }}
+      data-owns-escape={draft !== '' || undefined}
       maxlength="200"
       spellcheck="false"
       placeholder="new task · 明日 9:00 · fri 18:30 · weekly"
@@ -533,6 +534,7 @@ $effect(() => {
             <!-- svelte-ignore a11y_autofocus -->
             <input
               class="edit title"
+              data-owns-escape
               autofocus
               bind:value={editing.value}
               onkeydown={(event) => {
@@ -557,6 +559,7 @@ $effect(() => {
             <!-- svelte-ignore a11y_autofocus -->
             <input
               class="edit when"
+              data-owns-escape
               autofocus
               bind:value={editing.value}
               placeholder="明日 9:00 · fri 18:30 · empty to clear"

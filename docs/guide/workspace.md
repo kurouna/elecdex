@@ -150,6 +150,8 @@ window over the other panes, which keep their place behind a shade.
 **▣ pop up** shows a widget over the workspace instead, framed with only a ×, and leaves the layout
 as it was - it is not saved, and **Escape**, the × or a click beside it puts it away.
 
+*unreleased*: Escape goes first to what a pane has open of its own - a search bar, a menu, a list of choices, a line being typed or edited, an article, a drill-down - and only then puts a forward pane back or a popped-up one away. A second Escape does that.
+
 - It has no zoom, drag, split or tabs. Opening any dialog puts it away.
 - Every built-in pane can be popped up except the shell (a session nobody holds is ended), the
   timer (a countdown put away could not ring), the file browser (it follows a shell of the layout),

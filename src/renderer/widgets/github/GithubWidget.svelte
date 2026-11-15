@@ -430,7 +430,7 @@ const short = $derived(fit.short)
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="github cloudpane" class:narrow data-testid="github" data-pane-id={paneId} bind:this={rootEl} onkeydown={onPaneKey} {@attach observe}>
+<div class="github cloudpane" class:narrow data-testid="github" data-pane-id={paneId} bind:this={rootEl} onkeydown={onPaneKey} data-owns-escape={choices.drill !== null || undefined} {@attach observe}>
   <SettingsButton open={settingsOpen} label="github status settings" testid="github-settings-toggle" ontoggle={() => (settingsOpen = !settingsOpen)} />
   <header class="top" data-testid="github-top">
     <span class="link" data-tone={link.tone} data-testid="github-link"><i></i>{link.word}</span>

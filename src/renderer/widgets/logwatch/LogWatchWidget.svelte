@@ -531,6 +531,7 @@ $effect(() => {
         placeholder="filter — text, or /regex/"
         spellcheck="false"
         bind:value={filterText}
+        data-owns-escape={filterText !== '' || undefined}
         onkeydown={(event) => {
           // Escape empties a filter typed, as a search field does.
           if (event.key === 'Escape' && filterText !== '') {

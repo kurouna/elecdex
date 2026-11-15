@@ -56,6 +56,7 @@ function onkey(event: KeyboardEvent): void {
   tabindex="-1"
   transition:crtPower
   onkeydown={onkey}
+  data-owns-escape
 >
   <input
     bind:this={input}

@@ -100,6 +100,7 @@ function onkeydown(event: KeyboardEvent): void {
   tabindex="-1"
   transition:crtPower
   {onkeydown}
+  data-owns-escape
   data-testid="chip8-import-sheet"
   data-program={program.id}
 >

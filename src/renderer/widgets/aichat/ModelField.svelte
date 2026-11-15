@@ -132,6 +132,7 @@ function keydown(event: KeyboardEvent): void {
       selected = -1
     }}
     onkeydown={keydown}
+    data-owns-escape={open || undefined}
     onblur={leave}
     data-testid={testid}
   />

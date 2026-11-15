@@ -374,6 +374,7 @@ const histogram = $derived.by<Bar[]>(() => {
         bind:this={inputEl}
         bind:value={input}
         onkeydown={onKeydown}
+        data-owns-escape={helpOpen || input !== '' || undefined}
         oninput={() => {
           error = null
         }}

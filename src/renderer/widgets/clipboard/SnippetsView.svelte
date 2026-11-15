@@ -402,6 +402,7 @@ $effect(() => () => resting.dispose())
   <ul
     class="list"
     class:dragging={drag !== null}
+    data-owns-escape={drag !== null ? 'anywhere' : undefined}
     bind:this={listEl}
     onkeydown={onListKey}
     onscroll={() => resting.leave()}

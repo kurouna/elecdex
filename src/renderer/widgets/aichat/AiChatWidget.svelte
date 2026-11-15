@@ -937,6 +937,7 @@ const exportChat = oneAtATime(async (id: string): Promise<void> => {
         rows="1"
         placeholder={editing === null ? 'message · enter to send, shift+enter for a new line' : 'rewriting an earlier message · esc to leave it as it was'}
         onkeydown={onComposerKey}
+        data-owns-escape={(busy && choice.chat !== null) || editing !== null || undefined}
         onpaste={pasted}
         data-testid="aichat-input"
       ></textarea>

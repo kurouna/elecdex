@@ -188,6 +188,7 @@ const initial = (name: string) =>
       bind:this={filterInput}
       bind:value={filter}
       onkeydown={onFilterKey}
+      data-owns-escape={filter !== '' || undefined}
       placeholder="type to find · enter to launch"
       spellcheck="false"
       data-testid="launcher-filter"

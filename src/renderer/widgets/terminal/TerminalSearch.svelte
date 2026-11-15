@@ -112,7 +112,7 @@ const tally = $derived.by(() => {
 })
 </script>
 
-<div class="search" data-testid="terminal-search">
+<div class="search" data-owns-escape data-testid="terminal-search">
   <input
     bind:this={box}
     bind:value={query}

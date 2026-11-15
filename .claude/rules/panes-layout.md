@@ -133,6 +133,11 @@ the files above is read or edited.
   `text`. Never assume a dark ground: `mode: 'light'` sets `data-mode="light"` (darker status
   colours, xterm's minimum contrast); check both Business themes, Black and Paper. Every theme sets every variable
   (`themeVariables`).
+- **Escape is the widget's first** (lib/escape-owner.ts): the workspace's Escape (a forward
+  pane back) and a popup's (closing it) run in the capture phase, before any widget's. An element
+  whose Escape closes or clears something of its own carries `data-owns-escape` while it does
+  (`="anywhere"` for a pointer's menu or a drag); tests/unit/escape-owner.test.ts holds every
+  widget with an Escape handler to it, tests/e2e/workspace/escape.spec.ts plays it.
 - **Detail cards** (§7.4) are `widgets/common/HoverCard.svelte`, placed and timed by
   lib/hover-card.ts (`cardPlacement`, `anchorOf`, `HoverRest`) - never a widget's own card or a
   `title`. A card keeps inside its pane, opens after a rest (at once for the keyboard or from an

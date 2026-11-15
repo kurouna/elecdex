@@ -60,7 +60,7 @@ function onkeydown(event: KeyboardEvent): void {
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="editor" data-testid="snip-editor" {onkeydown}>
+<div class="editor" data-testid="snip-editor" {onkeydown} data-owns-escape>
   <div class="head">
     <span class="label">{heading === 'new' ? 'NEW SNIPPET' : `EDIT ${heading}`}</span>
     <input
