@@ -210,6 +210,12 @@ const unreadCount = $derived(
   mergeFeeds(received, undefined, (item) => !isMuted(item, mute)).filter((item) => !item.read)
     .length,
 )
+/**
+ * Whether MARK ALL READ has anything to do: it reads what is shown, so it asks the list as
+ * shown, not the bar's count - narrowed to a feed read through, it pressed and did nothing
+ * (found in review).
+ */
+const shownUnread = $derived(shown.some((item) => !item.read))
 const article = $derived(
   openKey === null
     ? null
@@ -252,6 +258,10 @@ function setView(next: FeedView, button: HTMLElement): void {
   afterBlink(button, () => {
     sfx.play('panel')
     settingsOpen = false
+    // An article open goes with the view it came from: its way back was a row of that view,
+    // and TICKER, which waits while one is open, stood still under it (found in review).
+    openKey = null
+    cameFrom = null
     fresh = new Set()
     // LIST comes back at its top, so what the pill counted is in sight (found in review).
     above.clear()
@@ -270,6 +280,16 @@ function setOnly(next: string | null, button: HTMLElement): void {
     sfx.play('panel')
     only = next
   })
+}
+
+/**
+ * Escape empties a search typed, as a search field does, before the pane is put back or its
+ * popup closed (lib/escape-owner.ts): those went first, the search staying (found in review).
+ */
+function onFindKey(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || find === '') return
+  event.stopPropagation()
+  find = ''
 }
 
 function toggleSettings(): void {
@@ -443,12 +463,12 @@ const VIEWS: Array<[FeedView, string]> = [
       <span class="spacer"></span>
       {#if !settingsOpen}
         <button type="button" class="tool" aria-pressed={unreadOnly} onclick={(e) => toggleUnreadOnly(e.currentTarget)} title="only the headlines not yet read" data-testid="rss-unread-only">unread</button>
-        <button type="button" class="tool" disabled={unreadCount === 0} onclick={(e) => markAllRead(e.currentTarget)} title="mark every headline shown read" data-testid="rss-mark-all-read">mark all read</button>
+        <button type="button" class="tool" disabled={!shownUnread} onclick={(e) => markAllRead(e.currentTarget)} title="mark every headline shown read" data-testid="rss-mark-all-read">mark all read</button>
       {/if}
       {#if view !== 'ticker' && !settingsOpen}
         <!-- A search going on keeps its box, however narrow the pane: else the list is short for no reason seen (found in review). -->
         <span class="find-box" class:active={find.trim() !== ''}>
-          <input class="find" class:active={find.trim() !== ''} bind:value={find} placeholder="find…" spellcheck="false" aria-label="find in headlines" data-testid="rss-search" />
+          <input class="find" class:active={find.trim() !== ''} bind:value={find} placeholder="find…" spellcheck="false" aria-label="find in headlines" data-owns-escape={find !== '' || undefined} onkeydown={onFindKey} data-testid="rss-search" />
           {#if find.trim() !== ''}
             <button type="button" class="clear" aria-label="clear the search" onclick={() => (find = '')} data-testid="rss-search-clear">×</button>
           {/if}

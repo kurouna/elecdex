@@ -323,6 +323,11 @@ test('Escape closes the article first, popped up or forward, and only then the p
     await page.keyboard.press('Escape')
     await expect(pane.getByTestId('rss-article')).toHaveCount(0)
     await expect(forward).toHaveCount(1)
+    // A search typed is emptied by Escape before the pane goes back (found in review).
+    await pane.getByTestId('rss-search').fill('alpha')
+    await page.keyboard.press('Escape')
+    await expect(pane.getByTestId('rss-search')).toHaveValue('')
+    await expect(forward).toHaveCount(1)
     await page.keyboard.press('Escape')
     await expect(forward).toHaveCount(0)
 

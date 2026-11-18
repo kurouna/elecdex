@@ -111,13 +111,20 @@ export function feedMarks(
 export const WORDS_MAX = 20
 export const WORD_MAX_LENGTH = 40
 
+/**
+ * A keyword as a list keeps it: trimmed, each run of white space one space. One function for the
+ * settings' field and the saved list, so the two cannot differ: the field's own copy closed up
+ * /s+/, the letter s, and took "rss" as "r " (found in review).
+ */
+export const cleanWord = (raw: string): string => raw.trim().replace(/\s+/g, ' ')
+
 /** A pane's highlight or mute list: trimmed, distinct ignoring case, at most twenty. */
 export function paneWords(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
   const out: string[] = []
   for (const value of raw) {
     if (typeof value !== 'string') continue
-    const word = value.trim().replace(/\s+/g, ' ')
+    const word = cleanWord(value)
     if (word === '' || word.length > WORD_MAX_LENGTH) continue
     if (out.some((w) => w.toLowerCase() === word.toLowerCase())) continue
     out.push(word)
@@ -135,15 +142,16 @@ const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&
  */
 export function wordPattern(words: readonly string[]): RegExp | null {
   if (words.length === 0) return null
-  const edge = /[\p{L}\p{N}]/u
+  // Every character of the Latin script is a letter or a number, so this alone says the edge
+  // is a word's.
   const latin = /[\p{Script=Latin}\d]/u
   const parts = [...words]
     .sort((a, b) => b.length - a.length)
     .map((word) => {
       const head = [...word][0] ?? ''
       const tail = [...word].at(-1) ?? ''
-      const before = latin.test(head) && edge.test(head) ? '(?<![\\p{L}\\p{N}])' : ''
-      const after = latin.test(tail) && edge.test(tail) ? '(?![\\p{L}\\p{N}])' : ''
+      const before = latin.test(head) ? '(?<![\\p{L}\\p{N}])' : ''
+      const after = latin.test(tail) ? '(?![\\p{L}\\p{N}])' : ''
       return `${before}${escapeRegExp(word)}${after}`
     })
   return new RegExp(parts.join('|'), 'giu')

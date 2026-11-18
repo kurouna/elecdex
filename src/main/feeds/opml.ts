@@ -35,12 +35,17 @@ export function parseOpml(xml: string): OpmlFeed[] {
   const body = isNode(doc) && isNode(doc.opml) ? doc.opml.body : undefined
   if (!isNode(body)) throw new Error('not an OPML file')
   const out: OpmlFeed[] = []
+  // The URLs taken, so a file of MAX_OUTLINES is not searched through once per outline.
+  const urls = new Set<string>()
   let seen = 0
   const walk = (outlines: unknown): void => {
     for (const outline of Array.isArray(outlines) ? outlines : []) {
       if (!isNode(outline) || ++seen > MAX_OUTLINES) return
       const feed = outlineFeed(outline)
-      if (feed !== null && !out.some((f) => f.url === feed.url)) out.push(feed)
+      if (feed !== null && !urls.has(feed.url)) {
+        urls.add(feed.url)
+        out.push(feed)
+      }
       walk(outline.outline)
     }
   }

@@ -115,6 +115,13 @@ const SLOTS = 20
   background: var(--accent-faint);
 }
 
+/* The keyboard's ring inside the line and the buttons, as LIST's rows and CARD's cards draw it. */
+.line:focus-visible,
+.step:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .title {
   overflow: hidden;
   white-space: nowrap;

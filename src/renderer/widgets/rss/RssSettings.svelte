@@ -5,6 +5,7 @@ import type { DiscoveredFeed } from '@shared/feeds-discover'
 import { discoverTarget } from '@shared/feeds-discover'
 import {
   cleanTag,
+  cleanWord,
   MARK_TAG_MAX,
   type FeedMark as Mark,
   WORD_MAX_LENGTH,
@@ -173,7 +174,7 @@ let wordNote = $state<{ highlight: string | null; mute: string | null }>({
  * dropped (found in review).
  */
 function addWord(kind: 'highlight' | 'mute'): void {
-  const word = words[kind].trim().replace(/s+/g, ' ')
+  const word = cleanWord(words[kind])
   if (word === '') return
   const list = kind === 'highlight' ? highlight : mute
   const note =

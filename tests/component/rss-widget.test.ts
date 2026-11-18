@@ -242,6 +242,58 @@ describe('RssWidget', () => {
     expect(markedAll).toEqual([[`${A}/1`, `${A}/3`, `${A}/4`].map((key) => ({ feed: A, key }))])
   })
 
+  it('offers MARK ALL READ only while the list as shown has an unread headline', async () => {
+    const view = await mount({ feeds: [A, B] })
+    await send(feed(A, 'alpha', 2))
+    await send(feed(B, 'beta', 2, { read: [`${B}/1`, `${B}/2`] }))
+    const button = byId(view.container, 'rss-mark-all-read') as HTMLButtonElement
+    expect(button.disabled).toBe(false)
+    // Narrowed to the feed read through, the button pressed and did nothing (found in review).
+    const chip = view.container.querySelector<HTMLElement>(
+      `[data-testid=rss-chip][data-feed="${B}"]`,
+    )
+    await fireEvent.click(chip as HTMLElement)
+    await settle()
+    expect(button.disabled).toBe(true)
+    // So with a search that leaves only read headlines.
+    await fireEvent.click(byId(view.container, 'rss-chip') as HTMLElement)
+    await settle()
+    expect(button.disabled).toBe(false)
+    await fireEvent.input(byId(view.container, 'rss-search') as HTMLElement, {
+      target: { value: 'beta' },
+    })
+    await settle()
+    expect(button.disabled).toBe(true)
+  })
+
+  it('closes the article as the view changes, so no other view keeps it open', async () => {
+    const view = await mount({ feeds: [A] })
+    await send(feed(A, 'alpha', 3))
+    await fireEvent.click(items(view.container)[0] as HTMLElement)
+    await settle()
+    expect(byId(view.container, 'rss-article')).not.toBeNull()
+    // Left open, its way back was a row of the view gone, and TICKER stood still under it
+    // (found in review).
+    await fireEvent.click(byId(view.container, 'rss-view-card') as HTMLElement)
+    await settle()
+    expect(byId(view.container, 'rss-article')).toBeNull()
+  })
+
+  it('empties the find box with Escape, and owns Escape only while there is a search', async () => {
+    const view = await mount({ feeds: [A] })
+    await send(feed(A, 'alpha', 3))
+    const box = byId(view.container, 'rss-search') as HTMLInputElement
+    expect(box.hasAttribute('data-owns-escape')).toBe(false)
+    await fireEvent.input(box, { target: { value: 'alpha 2' } })
+    await settle()
+    expect(box.hasAttribute('data-owns-escape')).toBe(true)
+    await fireEvent.keyDown(box, { key: 'Escape' })
+    await settle()
+    expect(box.value).toBe('')
+    expect(box.hasAttribute('data-owns-escape')).toBe(false)
+    expect(items(view.container)).toHaveLength(3)
+  })
+
   it('keeps the find box while a search narrows the list, however narrow the pane', async () => {
     const view = await mount({ feeds: [A] })
     await send(feed(A, 'alpha', 3))
@@ -274,6 +326,29 @@ describe('RssWidget settings', () => {
     await fireEvent.change(tag)
     await settle()
     expect(tag.value).toBe('')
+  })
+
+  it('closes up the spaces in a keyword and leaves its letters alone', async () => {
+    // The spaces were closed up with /s+/, which took the letter s: "rss" was "r " (found in
+    // review). With "rss" listed, typing it again is a repeat only if it stays "rss".
+    const view = await mount({ feeds: [A], mute: ['rss', 'deep space'] })
+    await send(feed(A, 'alpha', 1))
+    await openTab(view.container, 'keywords')
+    const input = byId(view.container, 'rss-word-input-mute') as HTMLInputElement
+    input.value = 'rss'
+    await fireEvent.input(input)
+    await fireEvent.submit(input.closest('form') as HTMLFormElement)
+    await settle()
+    expect(byId(view.container, 'rss-word-note-mute')?.textContent).toMatch(
+      /"rss" is already listed/,
+    )
+    input.value = '  deep \t  space '
+    await fireEvent.input(input)
+    await fireEvent.submit(input.closest('form') as HTMLFormElement)
+    await settle()
+    expect(byId(view.container, 'rss-word-note-mute')?.textContent).toMatch(
+      /"deep space" is already listed/,
+    )
   })
 
   it('says why a keyword was not taken: too long, a repeat, or the list full', async () => {
