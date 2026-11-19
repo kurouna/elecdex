@@ -185,6 +185,28 @@ test('a shell that ended by itself does not hold the quit up', async () => {
   }
 })
 
+test('asked to end by the system (SIGTERM), the app quits, shells and all', async () => {
+  // Found on v0.1.0's tag (2026-11-19): on macOS the packaged app, sent SIGTERM as a logout or
+  // `kill` sends it, ran on - Electron's own quit for the signal stopped at the shells' gate.
+  test.skip(process.platform === 'win32', 'Windows ends a program without a signal')
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    await shellReady(page)
+    const child = app.process()
+    const code = new Promise<number | string | null>((resolve) => {
+      child.once('exit', (exitCode, signal) => resolve(exitCode ?? signal))
+      setTimeout(() => resolve('still running after 10 s'), 10_000)
+    })
+    child.kill('SIGTERM')
+    expect(await code, 'how the app ended').toBe(0)
+  } finally {
+    await close().catch(() => {})
+  }
+})
+
 test('a rearrangement made a moment before quitting is still saved, live and in its layout', async () => {
   // The save is debounced, so quitting straight after a change is the case that
   // loses it if the page does not write out on its way down - and with a layout
