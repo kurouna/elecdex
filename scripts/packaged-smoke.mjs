@@ -1,7 +1,7 @@
 // The packaged app, started as a user would get it, checked once: it comes up on a new profile
 // with the presets, a real shell answers through the unpacked node-pty, a preset is applied, the
-// runAsNode fuse holds, and it quits. Run after `npm run package` (CI's package jobs) or
-// `npm run package:dir`: node scripts/packaged-smoke.mjs [path to the executable].
+// runAsNode fuse holds, and it quits with exit code 0. Run after `npm run package` (CI's package
+// jobs) or `npm run package:dir`: node scripts/packaged-smoke.mjs [path to the executable].
 //
 // Playwright's _electron.launch cannot drive the packaged build (its fuses turn off --inspect), so
 // the app is started with --remote-debugging-port and reached through CDP (docs/decisions.md,
@@ -182,12 +182,61 @@ async function smoke(exe) {
     const faults = await page.locator('[data-testid=pane-fault]').count()
     if (faults > 0) throw new Error(`${faults} panes faulted on the "${first.name}" layout`)
     log(`the "${first.name}" layout drew without a fault`)
-    await browser.close()
+    // The app is gone after this, and the debugging connection with it: nothing to close.
+    await quitsCleanly(page, child)
   } finally {
     kill(child.pid)
     await sleep(1000)
     rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
   }
+}
+
+/**
+ * The app quits as asked, with shells in the state that crashed it on its way out: shells ended
+ * a moment before, one that ended by itself, and the layout's own (0xC0000409, Windows holding
+ * the dying process seconds for its error report; docs/decisions.md, 終了時のクラッシュ). The exit
+ * code is 0, in a few seconds. This was a kill until 2026-11-19: the quit itself was never seen.
+ */
+async function quitsCleanly(page, child) {
+  const exited = new Promise((resolve) => {
+    if (child.exitCode !== null) resolve(child.exitCode)
+    child.once('exit', (code) => resolve(code))
+  })
+  await page.evaluate(async () => {
+    // One that ends by itself, as `exit` typed does, waited for.
+    const alone = await window.elecdex.pty.create({ cols: 80, rows: 24 })
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, 20_000)
+      let typed = false
+      void window.elecdex.pty.attach(alone.id, {
+        onData: () => {
+          if (typed) return
+          typed = true
+          window.elecdex.pty.write(alone.id, 'exit\r')
+        },
+        onExit: () => {
+          clearTimeout(timer)
+          resolve(undefined)
+        },
+        onCwd: () => {},
+        onCommandEnd: () => {},
+        onIntegrationUnavailable: () => {},
+      })
+    })
+    // Two closed a moment before the quit.
+    for (let i = 0; i < 2; i++) {
+      const session = await window.elecdex.pty.create({ cols: 80, rows: 24 })
+      await window.elecdex.pty.dispose(session.id)
+    }
+  })
+  const started = Date.now()
+  // The page goes as the app quits: the call may not come back.
+  void page.evaluate(() => window.elecdex.system.quit()).catch(() => {})
+  const code = await Promise.race([exited, sleep(10_000).then(() => 'still running after 10 s')])
+  const took = Date.now() - started
+  if (code !== 0) throw new Error(`the quit did not end cleanly: ${code} (after ${took} ms)`)
+  if (took > 5000) throw new Error(`the quit took ${took} ms`)
+  log(`quit cleanly in ${took} ms`)
 }
 
 /** Whether the node started with `<count>` as its argument is running: the count tells it apart. */
