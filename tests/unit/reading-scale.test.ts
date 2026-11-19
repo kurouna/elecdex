@@ -3,11 +3,15 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   applySettingsPatch,
+  fieldNumber,
+  LEAD_MINUTES,
+  minutesWithin,
   READING_PANES,
   READING_SCALE,
   readingFieldScale,
   readingPaneOf,
   SettingsSchema,
+  SNOOZE_MINUTES,
   snapReadingScale,
   stepReadingScale,
 } from '../../src/shared/settings'
@@ -69,6 +73,34 @@ describe('readingFieldScale', () => {
     expect(readingFieldScale('95', 100)).toBe(100)
     expect(readingFieldScale(' 124 ', 100)).toBe(120)
     expect(readingFieldScale('0', 100)).toBe(READING_SCALE.min)
+  })
+})
+
+describe('fieldNumber', () => {
+  const fit = (n: number) => Math.min(10, Math.max(1, Math.round(n)))
+  it('fits a number typed, and keeps the value for an empty field or no number', () => {
+    expect(fieldNumber('7.6', 3, fit)).toBe(8)
+    expect(fieldNumber('-4', 3, fit)).toBe(1)
+    expect(fieldNumber('', 3, fit)).toBe(3)
+    expect(fieldNumber(' ', 3, fit)).toBe(3)
+    expect(fieldNumber('Infinity', 3, fit)).toBe(3)
+  })
+
+  it('holds the reminders’ minutes to what the settings take', () => {
+    const snooze = minutesWithin(SNOOZE_MINUTES)
+    const lead = minutesWithin(LEAD_MINUTES)
+    expect([snooze(0), snooze(2.4), snooze(5000)]).toEqual([1, 2, 1440])
+    expect([lead(-1), lead(0), lead(1440.4)]).toEqual([0, 0, 1440])
+    for (const [range, fitted] of [
+      [SNOOZE_MINUTES, snooze],
+      [LEAD_MINUTES, lead],
+    ] as const) {
+      const key = range === SNOOZE_MINUTES ? 'snoozeMinutes' : 'leadMinutes'
+      for (const typed of [-5, 0, 1, 99.6, 99999])
+        expect(SettingsSchema.shape.reminders.parse({ [key]: fitted(typed) })[key]).toBe(
+          fitted(typed),
+        )
+    }
   })
 })
 

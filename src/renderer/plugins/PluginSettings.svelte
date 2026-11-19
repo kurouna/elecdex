@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { SettingValue } from '@shared/plugin-api'
 import { grantFor, type Permissions, type PluginSettings, type SettingDef } from '@shared/plugins'
+import { fieldNumber } from '@shared/settings'
 import ConfirmButton from '../ConfirmButton.svelte'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
@@ -118,6 +119,28 @@ function setValue(id: string, def: SettingDef, value: SettingValue): void {
 }
 
 const currentValue = (id: string, key: string) => plugins.values(id)[key]
+
+/**
+ * A number setting as typed, held to its range, or the value kept for an empty field - and the
+ * field given the value back: emptied it stayed blank, and a number past the range stayed as
+ * typed while the plugin had the range's end (`fieldNumber`; found in review).
+ */
+function setNumber(
+  id: string,
+  def: SettingDef & { type: 'number' },
+  input: HTMLInputElement,
+  kept: SettingValue | undefined,
+): void {
+  const current = typeof kept === 'number' ? kept : def.default
+  const next = fieldNumber(input.value, current, (typed) =>
+    Math.min(
+      def.max ?? Number.POSITIVE_INFINITY,
+      Math.max(def.min ?? Number.NEGATIVE_INFINITY, typed),
+    ),
+  )
+  if (next !== current) setValue(id, def, next)
+  input.value = String(next)
+}
 const optionsOf = (id: string, def: SettingDef & { type: 'select' }) =>
   plugins.options.get(id)?.[def.key] ?? def.options ?? []
 
@@ -272,10 +295,7 @@ async function install(): Promise<void> {
                 min={def.min}
                 max={def.max}
                 step={def.step ?? 1}
-                onchange={(e) => {
-                  const n = e.currentTarget.valueAsNumber
-                  if (Number.isFinite(n)) setValue(d.id, def, n)
-                }}
+                onchange={(e) => setNumber(d.id, def, e.currentTarget, value)}
                 data-testid="plugin-setting"
                 data-key={def.key}
               />

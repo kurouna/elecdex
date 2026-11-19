@@ -272,6 +272,17 @@ describe('RssWidget', () => {
     expect(title()).toBe('alpha 1')
   })
 
+  it('lights a lamp in the warning colour for a feed whose first fetch failed, not as waiting (found in review)', async () => {
+    const view = await mount({ feeds: [A, B] })
+    await send({ ...feed(A, 'alpha', 0), fetchedAt: null })
+    await send({ ...feed(B, 'beta', 0), fetchedAt: null, error: 'HTTP 503' })
+    const lamps = [...view.container.querySelectorAll('[data-testid=rss-lamps] i')]
+    const state = (lamp: Element | undefined) =>
+      ['wait', 'warn'].filter((name) => lamp?.classList.contains(name))
+    expect(state(lamps[0])).toEqual(['wait'])
+    expect(state(lamps[1])).toEqual(['warn'])
+  })
+
   it('says why a feed fails on its lamp', async () => {
     const view = await mount({ feeds: [A, B] })
     await send(feed(A, 'alpha', 2))

@@ -64,6 +64,10 @@ export const TERMINAL_FONT = { base: 13, min: 8, max: 32 } as const
 export const READING_PANES = ['aichat', 'elec', 'translate', 'rss'] as const
 export type ReadingPane = (typeof READING_PANES)[number]
 
+/** How long snooze puts a task off, and how early a reminder may come, in minutes. */
+export const SNOOZE_MINUTES = { min: 1, max: 1440 } as const
+export const LEAD_MINUTES = { min: 0, max: 1440 } as const
+
 /** A reading pane's scale, in percent of its designed size: where it starts, its range, its step. */
 export const READING_SCALE = { base: 100, min: 80, max: 200, step: 10 } as const
 
@@ -297,9 +301,9 @@ export const SettingsSchema = z.object({
       /** A sound, when interface sounds are on. */
       sound: z.boolean().default(true),
       /** How long "snooze" puts a task off for. */
-      snoozeMinutes: z.number().int().min(1).max(1440).default(10),
+      snoozeMinutes: z.number().int().min(SNOOZE_MINUTES.min).max(SNOOZE_MINUTES.max).default(10),
       /** Announce this many minutes before the deadline itself. */
-      leadMinutes: z.number().int().min(0).max(1440).default(0),
+      leadMinutes: z.number().int().min(LEAD_MINUTES.min).max(LEAD_MINUTES.max).default(0),
     })
     .default({ notify: true, system: true, sound: true, snoozeMinutes: 10, leadMinutes: 0 }),
   /**
@@ -545,14 +549,26 @@ export const snapReadingScale = (scale: number): number =>
   )
 
 /**
- * The scale a reading type field asks for: what was typed, snapped, or the scale kept when the
- * field is empty or no number - Number('') is 0, and an emptied field became 80% (found in
- * review).
+ * What a number field of the settings asks for: what was typed, fitted to what the setting
+ * takes, or the value kept when the field is empty or no number - Number('') is 0, and an
+ * emptied field became the smallest value (found in review: the reading scales, the shells'
+ * type size, the reminders' minutes). The field is then given the value back, since one fitted
+ * to the value kept changes nothing that would draw it again.
  */
-export function readingFieldScale(text: string, current: number): number {
+export function fieldNumber(text: string, current: number, fit: (typed: number) => number): number {
   const typed = text.trim() === '' ? Number.NaN : Number(text)
-  return Number.isFinite(typed) ? snapReadingScale(typed) : current
+  return Number.isFinite(typed) ? fit(typed) : current
 }
+
+/** The scale a reading type field asks for (`fieldNumber`, snapped to the grid). */
+export const readingFieldScale = (text: string, current: number): number =>
+  fieldNumber(text, current, snapReadingScale)
+
+/** A whole number of minutes within a range, for the reminders' fields. */
+export const minutesWithin =
+  (range: { min: number; max: number }) =>
+  (typed: number): number =>
+    Math.min(range.max, Math.max(range.min, Math.round(typed)))
 
 /** The widget id as a reading pane, or null for any other pane. */
 export const readingPaneOf = (widget: string | undefined): ReadingPane | null =>

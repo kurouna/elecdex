@@ -756,9 +756,11 @@ test('a new headline slides in with a highlight; a feed added later, or an item 
     await expect(pane.getByTestId('rss-article')).toHaveCount(0)
     await pane.getByTestId('rss-view-ticker').click()
     const count = pane.getByTestId('rss-ticker-count')
-    await expect(count).toHaveText(/^1\/\d+$/)
-    // TICKER waits while an article is open; with none open now, it steps on its 6 s beat.
-    await expect(count).not.toHaveText(/^1\/\d+$/, { timeout: 9000 })
+    await expect(count).toHaveText(/^\d+\/\d+$/)
+    // TICKER waits while an article is open; with none open now, it steps on its 6 s beat. From
+    // where it is read, not from 1/: a beat may land between the click and the first look.
+    const start = (await count.textContent()) ?? ''
+    await expect(count).not.toHaveText(start, { timeout: 9000 })
   } finally {
     await close()
   }

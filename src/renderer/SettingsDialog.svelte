@@ -21,6 +21,7 @@ import {
 } from '@shared/keybindings'
 import { INTENSITIES, intensityLabel, MAGNITUDES, resolveQuakeSource } from '@shared/quakes'
 import {
+  fieldNumber,
   READING_SCALE,
   type ReadingPane,
   readingFieldScale,
@@ -492,8 +493,10 @@ function describeUpdate(status: UpdateStatus): string {
                   max={TERMINAL_FONT.max}
                   value={settings.terminal.fontSize}
                   onchange={(e) => {
-                    const size = Number(e.currentTarget.value)
-                    if (Number.isFinite(size)) patch({ terminal: { fontSize: stepFontSize(size, 0) } })
+                    const kept = settings.terminal.fontSize
+                    const size = fieldNumber(e.currentTarget.value, kept, (typed) => stepFontSize(typed, 0))
+                    if (size !== kept) patch({ terminal: { fontSize: size } })
+                    e.currentTarget.value = String(size)
                   }}
                   data-testid="settings-terminal-font"
                 />

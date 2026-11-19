@@ -698,6 +698,37 @@ describe('the plugin settings', () => {
     ])
   })
 
+  it('keep a number emptied at its value, and show a number past its range as it is kept (found in review)', async () => {
+    const RANGED = `export default {
+      apiVersion: 1, id: 'ranged', title: 'ranged',
+      settings: [{ key: 'level', type: 'number', label: 'Level', default: 2, min: 1, max: 10 }],
+      view() {},
+    }`
+    await startHost([source('ranged.ts', RANGED)], {
+      ranged: {
+        enabled: true,
+        key: 'ranged.ts',
+        granted: grantFor(NO_PERMISSIONS),
+        values: { level: 4 },
+      },
+    })
+    render(PluginSettings)
+    await settle()
+    const field = screen
+      .getAllByTestId('plugin-setting')
+      .find((el) => el.dataset.key === 'level') as HTMLInputElement
+    expect(field.value).toBe('4')
+    patches.length = 0
+    field.value = ''
+    await fireEvent.change(field)
+    expect(field.value).toBe('4')
+    expect(patches).toEqual([])
+    field.value = '99'
+    await fireEvent.change(field)
+    expect(field.value).toBe('10')
+    expect(patches.at(-1)).toMatchObject({ plugins: { ranged: { values: { level: 10 } } } })
+  })
+
   it('warn when a plugin could send personal readings to the hosts it reaches', async () => {
     const spy = (permissions: string) =>
       source(

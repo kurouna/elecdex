@@ -232,12 +232,11 @@ $effect(() => {
   if (openKey !== null && article === null) openKey = null
 })
 
-/** When every listed feed has failed and none has items, say why instead of waiting. */
 /**
  * Whether a feed listed has yet to answer with a download or a failure. Main answers a
  * subscription at once with what it has, often nothing yet (fetchedAt null): counted as an
  * answer, that said "nothing matches" through the first fetch (found in review). The lamps wait
- * the same way.
+ * the same way: a first fetch that failed is the warning colour, not a lamp still waiting.
  */
 const waiting = $derived(
   feeds.some((url) => {
@@ -246,6 +245,7 @@ const waiting = $derived(
   }),
 )
 
+/** When every listed feed has failed and none has items, say why instead of waiting. */
 const failure = $derived(
   received.length === feeds.length &&
     received.every((u) => u.error !== null && u.items.length === 0)
@@ -484,7 +484,7 @@ const VIEWS: Array<[FeedView, string]> = [
       <span class="lamps" aria-label="feeds" data-testid="rss-lamps">
         {#each feeds as url (url)}
           {@const update = updates[url]}
-          <i class:warn={update?.error != null} class:wait={update === undefined || update.fetchedAt === null} title={lampTitle(url)}></i>
+          <i class:warn={update?.error != null} class:wait={update === undefined || (update.fetchedAt === null && update.error === null)} title={lampTitle(url)}></i>
         {/each}
       </span>
       <span class="figure"><small>unread</small><span class="a" data-testid="rss-unread">{unreadCount}</span></span>

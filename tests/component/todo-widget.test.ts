@@ -141,6 +141,48 @@ describe('TodoWidget', () => {
     expect(screen.queryByTestId('todo-decoded')).toBeNull()
   })
 
+  it('adds nothing with the Enter that ends an IME conversion, nor clears the line with its Escape (found in review)', async () => {
+    render(TodoWidget, { props: { paneId: 'p', state: {} } as never })
+    await settle()
+    await fireEvent.input(input(), { target: { value: '明日 9:00 歯医者' } })
+    await fireEvent.keyDown(input(), { key: 'Enter', isComposing: true })
+    await fireEvent.keyDown(input(), { key: 'Escape', isComposing: true })
+    await settle()
+    expect(add).not.toHaveBeenCalled()
+    expect(input().value).toBe('明日 9:00 歯医者')
+  })
+
+  it('keeps a reminder minute field emptied or out of range at what is kept, and shows it (found in review)', async () => {
+    const patch = vi.mocked(window.elecdex.settings.patch)
+    appearance.settings = {
+      ...defaultSettings(),
+      reminders: { ...defaultSettings().reminders, snoozeMinutes: 15, leadMinutes: 5 },
+    }
+    render(TodoWidget, { props: { paneId: 'p', state: {} } as never })
+    await settle()
+    await fireEvent.click(screen.getByTestId('todo-settings-toggle'))
+    await settle()
+    const snooze = screen.getByTestId('todo-snooze-minutes') as HTMLInputElement
+    const warn = screen.getByTestId('todo-warn-minutes') as HTMLInputElement
+    for (const [field, kept] of [
+      [snooze, '15'],
+      [warn, '5'],
+    ] as const) {
+      field.value = ''
+      await fireEvent.change(field)
+      expect(field.value).toBe(kept)
+    }
+    expect(patch).not.toHaveBeenCalled()
+    snooze.value = '0'
+    await fireEvent.change(snooze)
+    expect(patch).toHaveBeenLastCalledWith({ reminders: { snoozeMinutes: 1 } })
+    expect(snooze.value).toBe('1')
+    warn.value = '2.6'
+    await fireEvent.change(warn)
+    expect(patch).toHaveBeenLastCalledWith({ reminders: { leadMinutes: 3 } })
+    expect(warn.value).toBe('3')
+  })
+
   it('adds the task with the deadline it showed, and clears the line', async () => {
     render(TodoWidget, { props: { paneId: 'p', state: {} } as never })
     await settle()

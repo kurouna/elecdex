@@ -57,11 +57,37 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-async function field(pane: string): Promise<HTMLInputElement> {
+async function fieldOf(testid: string): Promise<HTMLInputElement> {
   render(SettingsDialog)
   await settle()
-  return screen.getByTestId(`settings-reading-${pane}`) as HTMLInputElement
+  return screen.getByTestId(testid) as HTMLInputElement
 }
+
+const field = (pane: string) => fieldOf(`settings-reading-${pane}`)
+
+describe('the shells’ type size field', () => {
+  // The same field, the same faults (found in review): emptied it became 8 px, and a size
+  // rounded or held to the one kept left what was typed in the field.
+  it('keeps the size when emptied, and shows the size kept for what rounds or is held to it', async () => {
+    appearance.settings = {
+      ...appearance.settings,
+      terminal: { ...appearance.settings.terminal, fontSize: 13 },
+    }
+    const input = await fieldOf('settings-terminal-font')
+    for (const typed of ['', '13.4', 'x']) {
+      input.value = typed
+      await fireEvent.change(input)
+      await settle()
+      expect(input.value, typed).toBe('13')
+    }
+    expect(patches).toEqual([])
+    input.value = '5'
+    await fireEvent.change(input)
+    await settle()
+    expect(patches).toEqual([{ terminal: { fontSize: 8 } }])
+    expect(input.value).toBe('8')
+  })
+})
 
 describe('the reading type fields', () => {
   it('keep the scale when the field is emptied, and show it again', async () => {

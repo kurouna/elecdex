@@ -1,4 +1,5 @@
 <script lang="ts">
+import { fieldNumber, LEAD_MINUTES, minutesWithin, SNOOZE_MINUTES } from '@shared/settings'
 import { parseTask } from '@shared/task-parse'
 import {
   BAND_LABELS,
@@ -333,6 +334,22 @@ function patchReminders(change: Record<string, unknown>): void {
   void appearance.patch({ reminders: change })
 }
 
+/**
+ * A reminder's minutes as typed: fitted to what the setting takes, the minutes kept for an
+ * empty field, and the field given the value back (`fieldNumber`; found in review: emptied, the
+ * warning became 0 minutes and snooze was refused with the field left blank).
+ */
+function minutesField(
+  input: HTMLInputElement,
+  key: 'snoozeMinutes' | 'leadMinutes',
+  range: { min: number; max: number },
+): void {
+  const kept = appearance.settings.reminders[key]
+  const minutes = fieldNumber(input.value, kept, minutesWithin(range))
+  if (minutes !== kept) patchReminders({ [key]: minutes })
+  input.value = String(minutes)
+}
+
 $effect(() => {
   paneMeta.set(paneId, {
     subtitle: list === null ? '' : list.name,
@@ -441,7 +458,7 @@ $effect(() => {
           min="1"
           max="1440"
           value={appearance.settings.reminders.snoozeMinutes}
-          onchange={(e) => patchReminders({ snoozeMinutes: Number(e.currentTarget.value) })}
+          onchange={(e) => minutesField(e.currentTarget, 'snoozeMinutes', SNOOZE_MINUTES)}
           data-testid="todo-snooze-minutes"
         />
         <span>min</span>
@@ -453,7 +470,8 @@ $effect(() => {
           min="0"
           max="1440"
           value={appearance.settings.reminders.leadMinutes}
-          onchange={(e) => patchReminders({ leadMinutes: Number(e.currentTarget.value) })}
+          onchange={(e) => minutesField(e.currentTarget, 'leadMinutes', LEAD_MINUTES)}
+          data-testid="todo-warn-minutes"
         />
         <span>min early</span>
       </label>
@@ -474,6 +492,9 @@ $effect(() => {
     <input
       bind:value={draft}
       onkeydown={(e) => {
+        // The Enter and Escape that end or cancel an IME conversion are the IME's (found in
+        // review: a line typed in Japanese was added as its conversion was taken).
+        if (e.isComposing) return
         if (e.key === 'Enter') {
           e.preventDefault()
           add()
