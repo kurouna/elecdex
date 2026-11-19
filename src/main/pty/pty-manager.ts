@@ -259,15 +259,17 @@ export class PtyManager {
    * shells had come and gone with the layouts, and Windows held it seconds for its error report
    * (found by hand, 2026-11-19). The workers are left to node-pty to end: ended early, one not
    * yet connected to left node-pty connecting to a pipe that was gone, an uncaught error.
-   * Shells closed or ended a moment before are waited for too (`workers`).
+   * Shells closed or ended a moment before are waited for too (`workers`). Null when no worker
+   * runs (always outside Windows): the quit is then not held at all, since a quit held and asked
+   * again, as SIGTERM starts it, never went on on macOS (found on v0.1.0's tag, 2026-11-19).
    */
-  disposeAll(): Promise<void> {
+  disposeAll(): Promise<void> | null {
     listConsolesNoMore()
     for (const id of [...this.sessions.keys()]) this.dispose(id)
     const ended = [...this.workers]
       .filter((worker) => worker.threadId !== -1)
       .map((worker) => new Promise((resolve) => worker.once('exit', resolve)))
-    if (ended.length === 0) return Promise.resolve()
+    if (ended.length === 0) return null
     let timer: NodeJS.Timeout | undefined
     return Promise.race([
       Promise.all(ended),

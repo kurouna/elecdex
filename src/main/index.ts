@@ -227,12 +227,6 @@ app.on(
   }),
 )
 
-// A system asks a program to end with SIGTERM (a logout, a shutdown, `kill`). Electron answers it
-// with a quit of its own, which on macOS never went on once the gate above had held it: the app
-// ran on, asked to end (v0.1.0 tag, packaged-smoke.mjs; 2026-11-19). Taken here, it is the quit
-// that is known to go on. Windows ends a program without a signal.
-if (process.platform !== 'win32') process.on('SIGTERM', () => app.quit())
-
 // Handlers must outlive the windows: a closing renderer flushes its pending
 // layout save from beforeunload, and the terminal reaper may still list
 // sessions. Removing them in before-quit made those calls fail with "no

@@ -23,8 +23,8 @@ vi.mock('electron', () => ({
 const sessions = new Map<string, { id: string }>()
 const created: string[] = []
 const asked: unknown[] = []
-/** What disposeAll answers: the end of the shells' output workers, held by the test. */
-let workersEnded: Promise<void> = Promise.resolve()
+/** What disposeAll answers: the end of the shells' output workers, held by the test; null for none. */
+let workersEnded: Promise<void> | null = Promise.resolve()
 let disposedAll = 0
 vi.mock('../../src/main/pty/pty-manager.js', () => ({
   PtyManager: class {
@@ -117,13 +117,25 @@ describe('pty IPC while quitting', () => {
     expect(second).toBe(first)
     expect(disposedAll).toBe(1)
     let done = false
-    void second.then(() => {
+    void second?.then(() => {
       done = true
     })
     await Promise.resolve()
     expect(done).toBe(false)
     end()
     await second
+  })
+
+  it('answers nothing to wait for when no worker runs, the first close and every one after', async () => {
+    // The quit is then not held (quit-gate.ts): held, the quit SIGTERM starts never went on on
+    // macOS (found on v0.1.0's tag, 2026-11-19).
+    workersEnded = null
+    const ipc = registerPtyIpc(settings)
+    await invoke(CH.pty.create, {})
+    expect(ipc.closeSessions()).toBeNull()
+    expect(ipc.closeSessions()).toBeNull()
+    expect(disposedAll).toBe(1)
+    expect(await invoke(CH.pty.list)).toEqual([])
   })
 
   it('starts no new shell after the sessions are closed', async () => {

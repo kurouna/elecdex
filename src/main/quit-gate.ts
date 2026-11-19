@@ -7,7 +7,10 @@
  */
 
 export interface QuitGateParts {
-  /** Closes the shells; null when there are none to close (the IPC is gone). */
+  /**
+   * Closes the shells; null when there is nothing to wait for (no output worker running, or the
+   * IPC gone): the quit then goes on as it was asked, never held and asked again.
+   */
   closeShells: () => Promise<void> | null
   /** What ends with the app at once, without waiting. Called once. */
   endAtOnce: () => void

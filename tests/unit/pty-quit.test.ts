@@ -74,8 +74,9 @@ const noEvents = {
   onIntegrationUnavailable() {},
 }
 
-/** Whether a promise has settled, after the microtasks queued so far. */
-async function settled(promise: Promise<unknown>): Promise<boolean> {
+/** Whether a promise has settled, after the microtasks queued so far; there must be one to wait for. */
+async function settled(promise: Promise<unknown> | null): Promise<boolean> {
+  if (promise === null) throw new Error('nothing to wait for')
   let done = false
   void promise.then(() => {
     done = true
@@ -142,7 +143,7 @@ describe('closing every shell as the app quits', () => {
     exits[0]?.()
     await vi.advanceTimersByTimeAsync(1000)
     expect(workers[0]?.threadId).toBe(-1)
-    expect(await settled(manager.disposeAll())).toBe(true)
+    expect(manager.disposeAll()).toBeNull()
   })
 
   it(`waits no longer than ${QUIT_WAIT_MS} ms for a worker that does not end`, async () => {
@@ -161,17 +162,20 @@ describe('closing every shell as the app quits', () => {
     warn.mockRestore()
   })
 
-  it('answers at once with no shell, a worker already ended, or no ConPTY worker at all', async () => {
-    expect(await settled(new PtyManager(noEvents).disposeAll())).toBe(true)
+  it('has nothing to wait for with no shell, a worker already ended, or no ConPTY worker at all', () => {
+    // Nothing, not a promise already settled: the quit is then not held at all. Held and asked
+    // again, the quit that SIGTERM starts never went on on macOS, which has no workers (found on
+    // v0.1.0's tag, 2026-11-19; e2e: exit.spec).
+    expect(new PtyManager(noEvents).disposeAll()).toBeNull()
 
     const manager = new PtyManager(noEvents)
     manager.create({ shell: 'pwsh.exe' })
     workers[0]?.end()
-    expect(await settled(manager.disposeAll())).toBe(true)
+    expect(manager.disposeAll()).toBeNull()
 
     shape = 'unix'
     const unix = new PtyManager(noEvents)
     unix.create({ shell: '/bin/bash' })
-    expect(await settled(unix.disposeAll())).toBe(true)
+    expect(unix.disposeAll()).toBeNull()
   })
 })
