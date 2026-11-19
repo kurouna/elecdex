@@ -63,6 +63,21 @@ describe('the quit held for the shells', () => {
     expect(h.endAtOnce).toHaveBeenCalledTimes(1)
   })
 
+  it('still quits when closing the shells fails', async () => {
+    // A failed close must not leave an app that cannot quit (found in review).
+    const quit = vi.fn()
+    const gate = quitGate({
+      closeShells: () => Promise.reject(new Error('gone')),
+      endAtOnce: () => {},
+      quit,
+    })
+    gate({ preventDefault: vi.fn() })
+    await vi.waitFor(() => expect(quit).toHaveBeenCalledTimes(1))
+    const again = { preventDefault: vi.fn() }
+    gate(again)
+    expect(again.preventDefault).not.toHaveBeenCalled()
+  })
+
   it('lets the quit straight through with no shells to close', () => {
     const quit = vi.fn()
     const endAtOnce = vi.fn()

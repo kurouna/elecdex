@@ -31,9 +31,13 @@ export function quitGate(parts: QuitGateParts): (event: { preventDefault(): void
     }
     phase = 'closing'
     event.preventDefault()
-    void shells.then(() => {
+    // Quits whether the close ended well or not: a failed close must never leave an app that
+    // cannot quit (found in review). Taken as both outcomes, not `finally`, so a failure is not
+    // left unhandled either.
+    const goOn = (): void => {
       phase = 'closed'
       parts.quit()
-    })
+    }
+    void shells.then(goOn, goOn)
   }
 }
