@@ -168,9 +168,9 @@ test('a shell that ended by itself does not hold the quit up', async () => {
     await typeInto(page, pane, 'exit')
     await expect(pane.getByTestId('pane-badge')).toContainText('exited', { timeout: 20_000 })
     // Past node-pty's second of draining, so the quit itself is what is timed: a worker ended is
-    // gone by then, one left on still holds the quit its whole QUIT_WAIT_MS. Only a floor -
-    // waiting longer cannot turn the answer - and a slow runner's drain is not counted against
-    // the limit (advised in review).
+    // gone by then, one left on still holds the quit its whole QUIT_WAIT_MS. A slow runner's
+    // drain is not counted against the limit (advised in review).
+    // wait: the worker's end is main's, with no signal in the page; only a floor, never the answer.
     await page.waitForTimeout(WORKER_DRAIN_MS)
     const child = app.process()
     const gone = new Promise<number>((resolve) => child.once('exit', () => resolve(Date.now())))
