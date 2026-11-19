@@ -46,15 +46,21 @@ vi.mock('node-pty', () => ({
   },
 }))
 
+/** Whether the utilityProcess answers: on a CI runner, one asked as shells closed never did. */
+let answers = true
+
 /** A utilityProcess that answers a list for each shell it is asked about. */
 class FakeChild extends EventEmitter {
   asked: number[] = []
   kill = vi.fn()
   postMessage(message: { pids: number[] }): void {
     this.asked = message.pids
-    queueMicrotask(() =>
-      this.emit('message', Object.fromEntries(message.pids.map((pid) => [pid, [pid, pid + 1]]))),
-    )
+    if (!answers) return
+    // As the worker: it answers, then exits.
+    queueMicrotask(() => {
+      this.emit('message', Object.fromEntries(message.pids.map((pid) => [pid, [pid, pid + 1]])))
+      this.emit('exit', 0)
+    })
   }
 }
 
@@ -85,6 +91,7 @@ const settle = async () => {
 }
 
 afterEach(() => {
+  answers = true
   killed.length = 0
   forked.length = 0
 })
@@ -115,6 +122,32 @@ describe('closing a shell', () => {
     await settle()
     expect(forked).toHaveLength(1)
     expect(killed).toHaveLength(6)
+  })
+
+  it('ends a list still being asked as the app quits, and the quit waits for it to go', async () => {
+    // Found on CI (2026-11-19): shells closed by a layout switch a moment before the quit left
+    // their utilityProcess unanswered, and the app crashed after node's exit with it still
+    // running (0xC0000409; e2e: exit.spec, its trace in docs/decisions.md).
+    answers = false
+    const manager = new PtyManager(noEvents)
+    const { id } = manager.create({ shell: 'pwsh.exe' })
+    manager.dispose(id)
+    await settle()
+    expect(forked).toHaveLength(1)
+    const ended = manager.disposeAll()
+    expect(forked[0]?.kill).toHaveBeenCalled()
+    expect(ended).not.toBeNull()
+    let done = false
+    void ended?.then(() => {
+      done = true
+    })
+    await settle()
+    expect(done).toBe(false)
+    forked[0]?.emit('exit', 0)
+    await settle()
+    expect(done).toBe(true)
+    // Ended without a list, the shell alone is killed, as node-pty does when none comes.
+    expect(killed).toEqual([4321])
   })
 
   it('asks no new process while the app quits, which would hold the quit up', async () => {

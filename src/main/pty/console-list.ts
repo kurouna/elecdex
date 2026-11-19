@@ -40,9 +40,23 @@ export function listConsoleOutOfProcess(pty: IPty): void {
  */
 let quitting = false
 
-/** From now on, a console's list is its shell alone: the app is quitting. */
-export function listConsolesNoMore(): void {
+/** The utility processes still asked for a list. */
+const running = new Set<Electron.UtilityProcess>()
+
+/**
+ * From now on, a console's list is its shell alone: the app is quitting. A list still being asked
+ * is ended, and the quit waits for it to go (null when none runs): shells closed by a layout
+ * switch a moment before left one unanswered on a CI runner, and the app crashed after node's
+ * exit with it still running (0xC0000409, found 2026-11-19 by a trace of the quit).
+ */
+export function listConsolesNoMore(): Promise<void> | null {
   quitting = true
+  if (running.size === 0) return null
+  const gone = [...running].map(
+    (child) => new Promise<void>((resolve) => child.once('exit', () => resolve())),
+  )
+  for (const child of running) child.kill()
+  return Promise.all(gone).then(() => {})
 }
 
 /** The shells asked about in this turn: closed together, as a layout switch closes them. */
@@ -76,6 +90,8 @@ function ask(pids: readonly number[]): Promise<Map<number, number[]>> {
       resolve(alone)
       return
     }
+    running.add(child)
+    child.once('exit', () => running.delete(child))
     const timer = setTimeout(() => {
       child.kill()
       resolve(alone)
