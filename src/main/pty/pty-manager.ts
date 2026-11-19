@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { EventEmitter } from 'node:events'
+import type { Worker } from 'node:worker_threads'
 import type { PtyCreateOptions, PtySessionSummary } from '@shared/api'
 import type { IPty } from 'node-pty'
 import { spawn } from 'node-pty'
@@ -19,6 +21,25 @@ import { buildInjection, defaultShell, terminalEnv } from './shell-integration.j
  * the localhost WebSocket the original project used - so there are no ports to
  * allocate, no 5-session cap, and nothing on the machine can read the stream.
  */
+
+/**
+ * The longest the quit waits for the shells' output workers to end (`disposeAll`): node-pty ends
+ * each a second after its kill, once the output has drained.
+ */
+export const QUIT_WAIT_MS = 2000
+
+/**
+ * node-pty's worker thread carrying a ConPTY session's output (its ConoutConnection), while it
+ * runs; null on other platforms, with winpty, or once it has ended.
+ */
+function outputWorker(pty: IPty): Worker | null {
+  const agent = (pty as unknown as { _agent?: { _conoutSocketWorker?: { _worker?: unknown } } })
+    ._agent
+  const worker = agent?._conoutSocketWorker?._worker
+  return worker instanceof EventEmitter && (worker as Worker).threadId !== -1
+    ? (worker as Worker)
+    : null
+}
 
 /** How long after the last OSC before we decide shell integration is not working. */
 export const INTEGRATION_GRACE_MS = 10_000
@@ -199,10 +220,30 @@ export class PtyManager {
     session.mirror.dispose()
   }
 
-  /** Every session, as the app quits. */
-  disposeAll(): void {
+  /**
+   * Every session, as the app quits; answers once node-pty has ended each one's output worker,
+   * or after QUIT_WAIT_MS. The quit waits for it (main/index.ts): ending the process with the
+   * workers still being torn down crashed it on its way out (0xC0000409), most times after
+   * shells had come and gone with the layouts, and Windows held it seconds for its error report
+   * (found by hand, 2026-11-19). The workers are left to node-pty to end: ended early, one not
+   * yet connected to left node-pty connecting to a pipe that was gone, an uncaught error.
+   */
+  disposeAll(): Promise<void> {
     listConsolesNoMore()
-    for (const id of [...this.sessions.keys()]) this.dispose(id)
+    const ended: Array<Promise<unknown>> = []
+    for (const [id, session] of [...this.sessions]) {
+      const worker = outputWorker(session.pty)
+      if (worker !== null) ended.push(new Promise((resolve) => worker.once('exit', resolve)))
+      this.dispose(id)
+    }
+    if (ended.length === 0) return Promise.resolve()
+    let timer: NodeJS.Timeout | undefined
+    return Promise.race([
+      Promise.all(ended),
+      new Promise((resolve) => {
+        timer = setTimeout(resolve, QUIT_WAIT_MS)
+      }),
+    ]).then(() => clearTimeout(timer))
   }
 
   list(): PtySessionSummary[] {

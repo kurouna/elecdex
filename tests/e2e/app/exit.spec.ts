@@ -96,6 +96,54 @@ test('Ctrl+Shift+Q asks first, even with a terminal focused: no stays, yes quits
   }
 })
 
+test('shells opened and ended through layout switches leave a quit that ends cleanly', async () => {
+  // Found by hand (2026-11-19): after shells had come and gone with the layouts, the app crashed
+  // on its way out (0xC0000409, after the node environment's exit) most times: each shell's
+  // output worker was still being torn down by node-pty as the process ended, and Windows held
+  // the dying process for its error report - a quit of seconds, and an exit code that is not 0.
+  // Three rounds: the crash came about five quits in six.
+  test.setTimeout(150_000)
+  for (let round = 1; round <= 3; round++) {
+    const { app, page, close } = await launch(undefined, {
+      layout: SINGLE_TERMINAL,
+      settings: NO_SWITCH_PROMPT,
+    })
+    try {
+      const split = async () => {
+        const before = await terminalPane(page).count()
+        await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+        await page.keyboard.press('Control+Shift+KeyE')
+        await expect(terminalPane(page)).toHaveCount(before + 1)
+      }
+      await keepLayout(page, 'one')
+      await keepLayout(page, 'two')
+      await split()
+      await split()
+      await page.keyboard.press('Control+Shift+Digit1')
+      await expect(terminalPane(page)).toHaveCount(1)
+      await page.keyboard.press('Control+Shift+Digit2')
+      await expect(terminalPane(page)).toHaveCount(3)
+      await page.keyboard.press('Control+Shift+Backspace')
+      await expect(page.locator('[data-testid=pane]')).toHaveCount(17)
+      await page.keyboard.press('Control+Shift+Digit2')
+      await expect(terminalPane(page)).toHaveCount(3)
+
+      const child = app.process()
+      // Not past ten seconds: a crash held by the error report took twenty and more.
+      const code = new Promise<number | string | null>((resolve) => {
+        child.once('exit', (exitCode) => resolve(exitCode))
+        setTimeout(() => resolve('still running after 10 s'), 10_000)
+      })
+      const started = Date.now()
+      await page.evaluate(() => window.elecdex.system.quit())
+      expect(await code, `round ${round}: the exit code`).toBe(0)
+      expect(Date.now() - started, `round ${round}: how long the quit took`).toBeLessThan(5000)
+    } finally {
+      await close().catch(() => {})
+    }
+  }
+})
+
 test('a rearrangement made a moment before quitting is still saved, live and in its layout', async () => {
   // The save is debounced, so quitting straight after a change is the case that
   // loses it if the page does not write out on its way down - and with a layout

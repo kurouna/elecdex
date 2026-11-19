@@ -42,9 +42,10 @@ export interface PtyIpc {
   /**
    * Ends every shell and refuses new ones, keeping the handlers: the window is
    * still open while the app quits, and a pane or the orphan reaper asking then
-   * must get an answer (no sessions), not a "no handler registered" error.
+   * must get an answer (no sessions), not a "no handler registered" error. Answers once the
+   * shells' output workers have ended (`PtyManager.disposeAll`), which the quit waits for.
    */
-  closeSessions(): void
+  closeSessions(): Promise<void>
   /** Removes the handlers, once the windows are gone. */
   dispose(): void
 }
@@ -145,18 +146,19 @@ export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
     },
   })
 
-  const closeSessions = (): void => {
+  const closeSessions = (): Promise<void> => {
     closing = true
-    manager.disposeAll()
+    const ended = manager.disposeAll()
     removeShellStaging()
     for (const set of ports.values()) for (const { port } of set) port.close()
     ports.clear()
+    return ended
   }
 
   return {
     closeSessions,
     dispose: () => {
-      closeSessions()
+      void closeSessions()
       unregister()
     },
   }

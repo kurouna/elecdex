@@ -212,10 +212,22 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('before-quit', () => {
-  // Kill every shell before the app tears down, so no orphaned pty survives.
+/** Set once the shells are closed and their output workers ended: the quit then goes on. */
+let shellsClosed = false
+
+app.on('before-quit', (event) => {
+  // Kill every shell before the app tears down, so no orphaned pty survives, and hold the quit
+  // until node-pty has ended their output workers (at most PtyManager's QUIT_WAIT_MS): ended
+  // with them still being torn down, the process crashed on its way out (PtyManager.disposeAll).
   // The handlers stay until will-quit: the window can still ask for sessions.
-  ptyIpc?.closeSessions()
+  if (!shellsClosed && ptyIpc !== null) {
+    event.preventDefault()
+    void ptyIpc.closeSessions().then(() => {
+      shellsClosed = true
+      app.quit()
+    })
+    return
+  }
   // llama-server, a model download and its hashing end with the app, never outlive it (translate.md §4.3).
   translateIpc?.quit()
 })
