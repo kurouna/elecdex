@@ -1,4 +1,4 @@
-import type { CandlePoint, ChartRange } from '@shared/markets'
+import { type CandlePoint, type ChartRange, tradingDays } from '@shared/markets'
 
 /**
  * Drawing shared by the market board's two charts. Both place their points by
@@ -202,9 +202,11 @@ function tickUnit(t: number, unit: 'hour' | 'day' | 'month' | 'year'): number {
 }
 
 /**
- * The labels under a chart whose bars sit in even slots: one where the hour (1D),
- * day, month or year changes in local time, leaving out any that would start
- * within `minGap` pixels of the one before.
+ * The labels under a chart whose bars sit in even slots: one where the hour (1D)
+ * changes in local time, or the trading day, month or year (`tradingDays`), so
+ * a day's label stands where its session begins, under the divider, and names
+ * the date it began on. Labels that would start within `minGap` pixels of the
+ * one before are left out.
  */
 export function timeTicks(
   candles: readonly { t: number }[],
@@ -215,11 +217,12 @@ export function timeTicks(
 ): TimeTick[] {
   const unit = TICK_UNITS[range]
   const format = new Intl.DateTimeFormat(locale, TICK_FORMATS[unit])
+  const times = unit === 'hour' ? candles.map((c) => c.t) : tradingDays(candles)
   const out: TimeTick[] = []
   let lastX = Number.NEGATIVE_INFINITY
-  for (let i = 1; i < candles.length; i++) {
-    const t = (candles[i] as { t: number }).t
-    if (tickUnit((candles[i - 1] as { t: number }).t, unit) === tickUnit(t, unit)) continue
+  for (let i = 1; i < times.length; i++) {
+    const t = times[i] as number
+    if (tickUnit(times[i - 1] as number, unit) === tickUnit(t, unit)) continue
     if (i * slot - lastX < minGap) continue
     out.push({ index: i, text: format.format(t) })
     lastX = i * slot

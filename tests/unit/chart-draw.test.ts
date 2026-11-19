@@ -227,6 +227,23 @@ describe('timeTicks', () => {
     expect(timeTicks(months, '5y', 100, 50, 'en-US')).toEqual([{ index: 3, text: '2027' }])
   })
 
+  it('labels a 5D or 1M day where its session begins, with the date it began', () => {
+    // New York's sessions seen from Tokyo, 23:30 to 05:30: three each, half-hourly.
+    const session = (day: number) => [
+      at(11, day, 23, 30),
+      at(11, day + 1, 0, 0),
+      at(11, day + 1, 0, 30),
+    ]
+    const bars = [...session(17), ...session(18), ...session(19)]
+    expect(timeTicks(bars, '5d', 100, 50, 'en-US')).toEqual([
+      { index: 3, text: '11/18' },
+      { index: 6, text: '11/19' },
+    ])
+    // One session alone gets no label in its middle at local midnight.
+    expect(timeTicks(session(19), '5d', 100, 50, 'en-US')).toEqual([])
+    expect(timeTicks(bars, '1mo', 100, 50, 'en-US').map((t) => t.index)).toEqual([3, 6])
+  })
+
   it('gives nothing for one bar or none', () => {
     expect(timeTicks([], '1d', 10, 40)).toEqual([])
     expect(timeTicks([at(9, 1)], '5y', 10, 40)).toEqual([])

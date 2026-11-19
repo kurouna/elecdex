@@ -19,6 +19,7 @@ import {
   parseWatchlist,
   rangeChange,
   rangeSpec,
+  rangeTitle,
   type WatchSymbol,
 } from '@shared/markets'
 import { untrack } from 'svelte'
@@ -402,13 +403,15 @@ function sparkOf(candles: readonly CandlePoint[], range: Parameters<typeof divid
           type="button"
           role="radio"
           aria-checked={range === option.id}
-          title={`${option.label} · ${option.bar} bars`}
+          title={rangeTitle(option)}
           onclick={() => setRange(option.id)}
           data-range={option.id}
         >{option.label}</button>
       {/each}
     </div>
-    <span class="bar-width" title="Bar width" data-testid="markets-range">{spec.bar}</span>
+    <span class="bar-width" title={`One bar per ${spec.barName}`} data-testid="markets-range"
+      >{spec.bar}</span
+    >
     {#if focused}
       <ViewToggle view={detailView} views={DETAIL_VIEWS} onchange={setDetailView} testid="markets-view" />
     {:else}

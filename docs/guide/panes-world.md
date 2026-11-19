@@ -104,15 +104,18 @@ How to use it:
 - Click a symbol and its chart takes the whole pane - with a price axis, the time along the bottom, the range's high, low and base, and a readout of the bar under the pointer - until the arrow takes you back to the list.
 - The strip above the board picks the range:
 
-  | Range | Bar |
-  | --- | --- |
-  | 1D | 5 minutes |
-  | 5D | 30 minutes |
-  | 1M | 1 hour |
-  | 6M | 1 day |
-  | 1Y | 1 week |
-  | 5Y | 1 month |
+  | Range | Shows | Bar |
+  | --- | --- | --- |
+  | 1D | the last trading session | 5 minutes |
+  | 5D | the last five trading sessions | 30 minutes |
+  | 1M | the last month | 1 hour |
+  | 6M | the last six months | 1 day |
+  | 1Y | the last year | 1 week |
+  | 5Y | the last five years | 1 month |
 
+- 1D and 5D count trading sessions, not calendar days. A market open around the clock (a currency, Bitcoin) has no sessions, so it shows the last 24 hours or five days. A symbol with less history than the range - one listed yesterday - shows what there is.
+- The bars stand side by side at even spacing: nights, weekends and holidays take no room, and the bars there are fill the width. *Unreleased:* a faint line marks where a new trading day (1M: week; 6M and 1Y: month; 5Y: year) begins, and the opened chart puts its date under it. A session that runs past local midnight - New York's, seen from Tokyo - is one day, dated by when it began.
+- *Unreleased:* hovering over a range button says what it covers and how wide its bars are; the bar width also stands beside the buttons.
 - 1D measures from the previous close; longer ranges from the close before the range began.
 - The settings button edits the list, each symbol optionally followed by a label: `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`.
 - The default board: `^N225`, `TPY=F`, `^GSPC`, `^DJI`, `^IXIC`, `JPY=X`, `EURJPY=X`, `BTC-USD`. Yahoo has no live TOPIX index, so it shows the CME yen TOPIX future (`TPY=F`).

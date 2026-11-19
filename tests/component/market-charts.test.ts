@@ -334,6 +334,14 @@ describe('MarketsWidget ranges', () => {
       '1Y',
       '5Y',
     ])
+    // The tooltips say what a range covers, in sessions where the market closes, and the bar.
+    expect(ranges.querySelector('[data-range="5d"]')?.getAttribute('title')).toBe(
+      '5D: the last 5 trading sessions, or as many as there are (5 days where trading never stops) · one bar per 30 minutes',
+    )
+    expect(ranges.querySelector('[data-range="1y"]')?.getAttribute('title')).toBe(
+      '1Y: the last year · one bar per week',
+    )
+    expect(screen.getByTestId('markets-range').getAttribute('title')).toBe('One bar per 5 minutes')
     await fireEvent.click(ranges.querySelector('[data-range="1mo"]') as HTMLElement)
     // Only the change is sent; the layout store keeps the rest of the pane state.
     expect(vi.mocked(layout.patchPaneState)).toHaveBeenLastCalledWith('p', { range: '1mo' })

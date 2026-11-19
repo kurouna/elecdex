@@ -55,6 +55,10 @@ export interface ChartRangeSpec {
   label: string
   /** The bar width as the settings show it: "30m". */
   bar: string
+  /** What the range covers, for its button's tooltip: "the last 5 trading sessions ...". */
+  about: string
+  /** The bar width in words: "30 minutes". */
+  barName: string
   interval: BarInterval
   /** The nominal bar width in ms (a month counts as 28 days, shorter than any month). */
   barMs: number
@@ -83,6 +87,8 @@ export const CHART_RANGES: readonly ChartRangeSpec[] = [
     id: '1d',
     label: '1D',
     bar: '5m',
+    about: 'the last trading session (24 hours where trading never stops)',
+    barName: '5 minutes',
     interval: '5m',
     barMs: 5 * MINUTE,
     fetchMs: 5 * DAY,
@@ -94,6 +100,9 @@ export const CHART_RANGES: readonly ChartRangeSpec[] = [
     id: '5d',
     label: '5D',
     bar: '30m',
+    about:
+      'the last 5 trading sessions, or as many as there are (5 days where trading never stops)',
+    barName: '30 minutes',
     interval: '30m',
     barMs: 30 * MINUTE,
     fetchMs: 12 * DAY,
@@ -105,6 +114,8 @@ export const CHART_RANGES: readonly ChartRangeSpec[] = [
     id: '1mo',
     label: '1M',
     bar: '1h',
+    about: 'the last month',
+    barName: 'hour',
     interval: '60m',
     barMs: HOUR,
     fetchMs: 40 * DAY,
@@ -115,6 +126,8 @@ export const CHART_RANGES: readonly ChartRangeSpec[] = [
     id: '6mo',
     label: '6M',
     bar: '1d',
+    about: 'the last 6 months',
+    barName: 'day',
     interval: '1d',
     barMs: DAY,
     fetchMs: 195 * DAY,
@@ -125,6 +138,8 @@ export const CHART_RANGES: readonly ChartRangeSpec[] = [
     id: '1y',
     label: '1Y',
     bar: '1wk',
+    about: 'the last year',
+    barName: 'week',
     interval: '1wk',
     barMs: 7 * DAY,
     fetchMs: 380 * DAY,
@@ -135,6 +150,8 @@ export const CHART_RANGES: readonly ChartRangeSpec[] = [
     id: '5y',
     label: '5Y',
     bar: '1mo',
+    about: 'the last 5 years',
+    barName: 'month',
     interval: '1mo',
     barMs: 28 * DAY,
     fetchMs: 5 * 366 * DAY + 45 * DAY,
@@ -151,6 +168,13 @@ export const isChartRange = (value: unknown): value is ChartRange =>
 export function rangeSpec(range: ChartRange): ChartRangeSpec {
   return CHART_RANGES.find((r) => r.id === range) ?? (CHART_RANGES[0] as ChartRangeSpec)
 }
+
+/**
+ * A range button's tooltip: what "5D" covers - trading sessions, not calendar
+ * days, for anything that closes - and how wide its bars are.
+ */
+export const rangeTitle = (spec: ChartRangeSpec): string =>
+  `${spec.label}: ${spec.about} · one bar per ${spec.barName}`
 
 /** Whether a range's bars are shorter than a day. */
 export const isIntraday = (spec: ChartRangeSpec): boolean => spec.barMs < DAY
@@ -472,6 +496,49 @@ export const DIVIDER_UNITS: Readonly<Record<ChartRange, DividerUnit | null>> = {
   '5y': 'year',
 }
 
+/**
+ * A run of bars without a pause longer than this trades around the clock (a
+ * currency, a coin, a future): no exchange's regular session is half a day long.
+ */
+const AROUND_THE_CLOCK_MS = 12 * HOUR
+
+/** The middle gap between neighbouring bars, 0 for fewer than two. */
+function medianSpacing(candles: readonly { t: number }[]): number {
+  const gaps: number[] = []
+  for (let i = 1; i < candles.length; i++) {
+    gaps.push((candles[i] as { t: number }).t - (candles[i - 1] as { t: number }).t)
+  }
+  gaps.sort((a, b) => a - b)
+  return gaps[Math.floor(gaps.length / 2)] ?? 0
+}
+
+/**
+ * The trading day each bar belongs to, as a time within it: the first bar of
+ * its session. A session is a run of bars with no pause longer than
+ * SESSION_GAP_MS, the cut `lastSession` makes - or twice the usual spacing, so
+ * bars a narrow pane merged are not each a session of their own. Dated by the
+ * session's start, a session that runs past local midnight (New York's, seen
+ * from Tokyo) stays one day, and the next day begins where trading resumes.
+ * A run longer than AROUND_THE_CLOCK_MS has no sessions to go by, so each of
+ * its bars keeps its own time and the calendar's days divide it.
+ */
+export function tradingDays(candles: readonly { t: number }[]): number[] {
+  const gap = Math.max(SESSION_GAP_MS, 2 * medianSpacing(candles))
+  const out: number[] = []
+  let start = 0
+  for (let i = 1; i <= candles.length; i++) {
+    const next = candles[i]
+    const previous = candles[i - 1] as { t: number }
+    if (next !== undefined && next.t - previous.t <= gap) continue
+    const first = (candles[start] as { t: number }).t
+    const aroundTheClock = previous.t - first > AROUND_THE_CLOCK_MS
+    for (let j = start; j < i; j++)
+      out.push(aroundTheClock ? (candles[j] as { t: number }).t : first)
+    start = i
+  }
+  return out
+}
+
 function unitOf(t: number, unit: DividerUnit): number {
   const d = new Date(t)
   switch (unit) {
@@ -490,18 +557,18 @@ function unitOf(t: number, unit: DividerUnit): number {
 }
 
 /**
- * The indices of bars that start a new day, week, month or year in local time.
- * With bars drawn evenly the nights and weekends between them are closed up, so
- * a faint line marks where the calendar moved on.
+ * The indices of bars that start a new trading day, week, month or year
+ * (`tradingDays`, in local time). With bars drawn evenly the nights and
+ * weekends between them are closed up, so a faint line marks where the
+ * calendar moved on - between two sessions, never through one.
  */
 export function dividerIndices(candles: readonly { t: number }[], range: ChartRange): number[] {
   const unit = DIVIDER_UNITS[range]
   if (unit === null) return []
+  const days = tradingDays(candles)
   const out: number[] = []
-  for (let i = 1; i < candles.length; i++) {
-    const previous = candles[i - 1] as { t: number }
-    const current = candles[i] as { t: number }
-    if (unitOf(previous.t, unit) !== unitOf(current.t, unit)) out.push(i)
+  for (let i = 1; i < days.length; i++) {
+    if (unitOf(days[i - 1] as number, unit) !== unitOf(days[i] as number, unit)) out.push(i)
   }
   return out
 }

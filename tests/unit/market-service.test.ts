@@ -20,6 +20,7 @@ import {
   rangeChange,
   rangeSpec,
   rangeWindow,
+  tradingDays,
 } from '@shared/markets'
 import { describe, expect, it } from 'vitest'
 import {
@@ -308,6 +309,57 @@ describe('dividerIndices', () => {
     // Friday 2026-09-11, Monday 14th, Tuesday 15th, Sunday 20th, Monday 21st.
     const points = [11, 14, 15, 20, 21].map((d) => ({ t: local(2026, 8, d) }))
     expect(dividerIndices(points, '1mo')).toEqual([1, 4])
+  })
+
+  /** `count` bars `step` minutes apart from a local time; minutes past 59 roll into the next hour. */
+  const run = (d: number, h: number, min: number, count: number, step = 30) =>
+    Array.from({ length: count }, (_, i) => ({
+      t: new Date(2026, 10, d, h, min + i * step).getTime(),
+    }))
+
+  it('keeps a session that runs past local midnight in one day, and divides where the next begins', () => {
+    // New York's 09:30-16:00 seen from Tokyo: 23:30 to 05:30 the next morning, two sessions.
+    const first = run(18, 23, 30, 13)
+    const second = run(19, 23, 30, 13)
+    const points = [...first, ...second]
+    expect(dividerIndices(points, '5d')).toEqual([13])
+    // The day of every bar is its session's start, so the first session is the 18th throughout.
+    const days = tradingDays(points).map((t) => new Date(t).getDate())
+    expect(days).toEqual([...Array(13).fill(18), ...Array(13).fill(19)])
+  })
+
+  it('draws nothing through a session that began yesterday when it is the only one', () => {
+    // The day a stock listed: one session, across local midnight.
+    expect(dividerIndices(run(19, 23, 30, 16), '5d')).toEqual([])
+  })
+
+  it('divides a market open around the clock at local midnight', () => {
+    // Two days of a coin, half-hourly from 20:00: the calendar is all there is to go by.
+    const points = run(18, 20, 0, 96)
+    const midnights = points.flatMap((p, i) =>
+      i > 0 && new Date(p.t).getHours() === 0 && new Date(p.t).getMinutes() === 0 ? [i] : [],
+    )
+    expect(midnights).toHaveLength(2)
+    expect(dividerIndices(points, '5d')).toEqual(midnights)
+  })
+
+  it('reads the sessions from bars a narrow pane merged', () => {
+    // Two-hour bars, four 30-minute bars merged: wider apart than the 90-minute pause.
+    const points = [...run(18, 23, 30, 4, 120), ...run(19, 23, 30, 4, 120)]
+    expect(dividerIndices(points, '5d')).toEqual([4])
+  })
+
+  it('starts a 1M week where the Monday session begins', () => {
+    // Hourly bars of Friday's and Monday's sessions, from 23:30 local: the week turns at Monday's.
+    const friday = run(13, 23, 30, 7, 60)
+    const monday = run(16, 23, 30, 7, 60)
+    expect(dividerIndices([...friday, ...monday], '1mo')).toEqual([7])
+  })
+
+  it('gives every bar a day, and none for no bars', () => {
+    expect(tradingDays([])).toEqual([])
+    const one = run(18, 10, 0, 1)
+    expect(tradingDays(one)).toEqual([one[0]?.t])
   })
 
   it('marks months for 6M and 1Y, years for 5Y', () => {
