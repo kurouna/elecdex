@@ -13,9 +13,11 @@ import {
   typeInto,
 } from '../support.js'
 
+/** node-pty's drain before it ends a worker (FLUSH_DATA_INTERVAL), with room to spare. */
+const WORKER_DRAIN_MS = 1500
 /**
- * The quit after a shell ended by itself, at most. Measured (2026-11-19): about 750 ms with its
- * worker ended, about 2250 ms with it left on for QUIT_WAIT_MS.
+ * The quit after a shell ended by itself and its worker's drain, at most: QUIT_WAIT_MS (2 s) and
+ * more when the worker is left on. Measured (2026-11-19): about 250 ms ended, about 2240 ms left on.
  */
 const QUIT_LIMIT_MS = 1500
 
@@ -165,6 +167,11 @@ test('a shell that ended by itself does not hold the quit up', async () => {
     const pane = terminalPane(page).first()
     await typeInto(page, pane, 'exit')
     await expect(pane.getByTestId('pane-badge')).toContainText('exited', { timeout: 20_000 })
+    // Past node-pty's second of draining, so the quit itself is what is timed: a worker ended is
+    // gone by then, one left on still holds the quit its whole QUIT_WAIT_MS. Only a floor -
+    // waiting longer cannot turn the answer - and a slow runner's drain is not counted against
+    // the limit (advised in review).
+    await page.waitForTimeout(WORKER_DRAIN_MS)
     const child = app.process()
     const gone = new Promise<number>((resolve) => child.once('exit', () => resolve(Date.now())))
     const started = Date.now()
