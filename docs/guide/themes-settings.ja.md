@@ -167,7 +167,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `motion` | `"system"` | `system`、`full`、`reduced` |
 | `terminal.startDirectory` | `""` | 新しいシェルを開くフォルダー。空ならホーム、先頭の `~` はホームを表します。存在しないフォルダー（やネットワーク共有）なら、代わりにホームで開きます |
 | `terminal.fontSize` | `13` | シェルの文字の大きさ（ピクセル）、8〜32 |
-| `reading.aichat`、`reading.elec`、`reading.translate`、`reading.rss`（*unreleased*） | `100` | AI CHAT、ELEC SYSTEM、TRANSLATE ペインと RSS ペインの記事の本文の大きさ。本来の大きさに対するパーセントで、80〜200、10 刻み。ペインの種類ごとに 1 つ。枠やラベルの大きさは変わりません |
+| `reading.aichat`、`reading.elec`、`reading.translate`、`reading.rss` | `100` | AI CHAT、ELEC SYSTEM、TRANSLATE ペインと RSS ペインの記事の本文の大きさ。本来の大きさに対するパーセントで、80〜200、10 刻み。ペインの種類ごとに 1 つ。枠やラベルの大きさは変わりません |
 | `terminal.confirmPaste` | `true` | 2 行以上のテキストを貼り付ける前に確認する（改行ごとにコマンドが実行されるため） |
 | `terminal.bell` | `"both"` | `both`、`flash`、`sound`、`off` |
 | `terminal.win32InputMode` | `true` | Windows: ConPTY が求めたとき、キーを Windows のキーイベントとして送る（win32-input-mode）。Ctrl+Space などがそのキーのままコンソールのプログラムに届く |

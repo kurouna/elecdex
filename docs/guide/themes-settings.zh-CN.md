@@ -167,7 +167,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `motion` | `"system"` | `system`、`full`、`reduced` |
 | `terminal.startDirectory` | `""` | 新 shell 的起始文件夹；为空表示主目录，开头的 `~` 代表主目录。文件夹不存在（或是网络共享）时，shell 改从主目录启动 |
 | `terminal.fontSize` | `13` | shell 的字号（像素），8 到 32 |
-| `reading.aichat`、`reading.elec`、`reading.translate`、`reading.rss`（*unreleased*） | `100` | AI CHAT、ELEC SYSTEM、TRANSLATE 窗格及 RSS 窗格文章正文的大小，以设计大小的百分比表示，80 到 200，步长 10；每种窗格一个值。边框和标签的大小不变 |
+| `reading.aichat`、`reading.elec`、`reading.translate`、`reading.rss` | `100` | AI CHAT、ELEC SYSTEM、TRANSLATE 窗格及 RSS 窗格文章正文的大小，以设计大小的百分比表示，80 到 200，步长 10；每种窗格一个值。边框和标签的大小不变 |
 | `terminal.confirmPaste` | `true` | 粘贴多于一行的文本前询问（每个换行都会执行一条命令） |
 | `terminal.bell` | `"both"` | `both`、`flash`、`sound`、`off` |
 | `terminal.win32InputMode` | `true` | Windows：当 ConPTY 请求时，按键以 Windows 键盘事件发送（win32-input-mode），使 Ctrl+Space 等以原本的按键到达控制台程序 |

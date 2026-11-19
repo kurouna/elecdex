@@ -167,7 +167,7 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `motion` | `"system"` | `system`, `full`, `reduced` |
 | `terminal.startDirectory` | `""` | The folder a new shell starts in; empty for home, `~` stands for home at the start. A folder that does not exist (or a network share) starts the shell at home instead |
 | `terminal.fontSize` | `13` | The shells' type size in pixels, 8 to 32 |
-| `reading.aichat`, `reading.elec`, `reading.translate`, `reading.rss` (*unreleased*) | `100` | The reading text of the AI CHAT, ELEC SYSTEM and TRANSLATE panes and of the RSS pane's article, in percent of its designed size, 80 to 200 in steps of 10; one scale per kind of pane. Their frames and labels keep their sizes |
+| `reading.aichat`, `reading.elec`, `reading.translate`, `reading.rss` | `100` | The reading text of the AI CHAT, ELEC SYSTEM and TRANSLATE panes and of the RSS pane's article, in percent of its designed size, 80 to 200 in steps of 10; one scale per kind of pane. Their frames and labels keep their sizes |
 | `terminal.confirmPaste` | `true` | Ask before pasting text of more than one line (each line break would run a command) |
 | `terminal.bell` | `"both"` | `both`, `flash`, `sound`, `off` |
 | `terminal.win32InputMode` | `true` | Windows: send keys as Windows key events when ConPTY asks (win32-input-mode), so Ctrl+Space and the like reach console programs as themselves |
