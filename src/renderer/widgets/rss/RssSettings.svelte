@@ -81,6 +81,11 @@ let findButton = $state<HTMLButtonElement | null>(null)
 let found = $state.raw<DiscoveredFeed[]>([])
 let foundFor = $state('')
 let problem = $state<string | null>(null)
+/** Set as the settings close: an answer arriving after is not one to sound for (found in review). */
+let gone = false
+$effect(() => () => {
+  gone = true
+})
 
 async function find(): Promise<void> {
   const text = input.trim()
@@ -95,6 +100,7 @@ async function find(): Promise<void> {
   found = []
   try {
     const result = await window.elecdex.feeds.discover(text)
+    if (gone) return
     if (result.ok) {
       found = result.feeds
       foundFor = text
@@ -257,6 +263,8 @@ const TABS: Array<[SettingsTab, string]> = [
         class="addline"
         onsubmit={(e) => {
           e.preventDefault()
+          // Enter in the box while FIND is dark: the button would blink for a press it ignores.
+          if (finding) return
           afterBlink(findButton, () => void find())
         }}
       >
@@ -333,9 +341,6 @@ const TABS: Array<[SettingsTab, string]> = [
     {/if}
 
     {#if !first && tab === 'feeds'}
-      {#if feeds.length === 0}
-        <p class="hint">No feeds. ADD or PACKS brings some in.</p>
-      {/if}
       {#each feeds as url, i (url)}
         {@const s = feedState(url)}
         <div class="frow" data-testid="rss-feed-row">

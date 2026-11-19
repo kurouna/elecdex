@@ -537,6 +537,16 @@ export const snapReadingScale = (scale: number): number =>
     Math.max(READING_SCALE.min, Math.round(scale / READING_SCALE.step) * READING_SCALE.step),
   )
 
+/**
+ * The scale a reading type field asks for: what was typed, snapped, or the scale kept when the
+ * field is empty or no number - Number('') is 0, and an emptied field became 80% (found in
+ * review).
+ */
+export function readingFieldScale(text: string, current: number): number {
+  const typed = text.trim() === '' ? Number.NaN : Number(text)
+  return Number.isFinite(typed) ? snapReadingScale(typed) : current
+}
+
 /** The widget id as a reading pane, or null for any other pane. */
 export const readingPaneOf = (widget: string | undefined): ReadingPane | null =>
   (READING_PANES as readonly string[]).includes(widget ?? '') ? (widget as ReadingPane) : null

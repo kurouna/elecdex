@@ -23,9 +23,9 @@ import { INTENSITIES, intensityLabel, MAGNITUDES, resolveQuakeSource } from '@sh
 import {
   READING_SCALE,
   type ReadingPane,
+  readingFieldScale,
   type Settings,
   type SettingsPatch,
-  snapReadingScale,
   stepFontSize,
   TERMINAL_FONT,
 } from '@shared/settings'
@@ -547,8 +547,12 @@ function describeUpdate(status: UpdateStatus): string {
                     step={READING_SCALE.step}
                     value={settings.reading[row.pane]}
                     onchange={(e) => {
-                      const scale = Number(e.currentTarget.value)
-                      if (Number.isFinite(scale)) patch({ reading: { [row.pane]: snapReadingScale(scale) } })
+                      const kept = settings.reading[row.pane]
+                      const scale = readingFieldScale(e.currentTarget.value, kept)
+                      if (scale !== kept) patch({ reading: { [row.pane]: scale } })
+                      // The field says the scale kept: typed 95 where 100 was kept, nothing
+                      // changed to draw it again, and it went on saying 95 (found in review).
+                      e.currentTarget.value = String(scale)
                     }}
                     data-testid={`settings-reading-${row.pane}`}
                   />

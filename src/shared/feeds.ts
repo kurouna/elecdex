@@ -104,7 +104,7 @@ export function parseFeedList(text: string): { urls: string[]; invalid: string[]
  */
 export function feedHost(url: string): string {
   try {
-    return new URL(url).hostname.replace(/^www./, '')
+    return new URL(url).hostname.replace(/^www\./, '')
   } catch {
     return url
   }
@@ -175,8 +175,6 @@ export function formatItemTime(at: number, now: number): string {
     date.getFullYear() === today.getFullYear() &&
     date.getMonth() === today.getMonth() &&
     date.getDate() === today.getDate()
-  if (sameDay) {
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-  }
+  if (sameDay) return clockTime(at)
   return `${date.getMonth() + 1}/${date.getDate()}`
 }

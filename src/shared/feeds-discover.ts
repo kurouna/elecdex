@@ -23,7 +23,9 @@ export const DISCOVER_INPUT_MAX = 2048
 export function discoverTarget(raw: unknown): DiscoverTarget | null {
   if (typeof raw !== 'string' || raw.length > DISCOVER_INPUT_MAX) return null
   const text = raw.trim()
-  if (/^(github|youtube):/i.test(text)) return nameTarget(text)
+  // The prefix in any case ("YouTube:"); what follows keeps its own, as a channel id's does.
+  if (/^(github|youtube):/i.test(text))
+    return nameTarget(text.replace(/^\w+:/, (p) => p.toLowerCase()))
   return pageTarget(text)
 }
 

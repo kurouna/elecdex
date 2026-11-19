@@ -321,6 +321,38 @@ describe('found in review (2026-11-08)', () => {
     readAt: Date.now(),
   })
 
+  it('leaves Escape to the workspace while the settings are open over a drill-down, and goes up only from the drill-down (found in review)', async () => {
+    const { escapeOwned } = await import('../../src/renderer/lib/escape-owner.ts')
+    const board = await boardOf('demo')
+    await mount({ drill: board.repos[0]?.name })
+    await push(board)
+    const root = screen.getByTestId('github')
+    /** Escape on `target`: whether the workspace leaves it to the pane, then the pane's own. */
+    const press = (target: Element) => {
+      const owned = escapeOwned({ target } as unknown as KeyboardEvent)
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      return owned
+    }
+    const drilled = () =>
+      vi.mocked(widgetState.patch).mock.calls.filter(([, change]) => 'drill' in change).length
+    expect(root.hasAttribute('data-owns-escape')).toBe(true)
+    const before = drilled()
+
+    await fireEvent.click(screen.getByTestId('github-settings-toggle'))
+    await settle()
+    // Settings open: in the pinned list, where the pane once kept Escape and did nothing, and on
+    // a button, where the drill-down hidden behind went up.
+    expect(root.hasAttribute('data-owns-escape')).toBe(false)
+    expect(press(root.querySelector('textarea') as Element)).toBe(false)
+    expect(press(screen.getByTestId('github-settings-toggle'))).toBe(false)
+    expect(drilled()).toBe(before)
+
+    await fireEvent.click(screen.getByTestId('github-settings-toggle'))
+    await settle()
+    expect(press(screen.getByTestId('github-settings-toggle'))).toBe(true)
+    expect(drilled()).toBe(before + 1)
+  })
+
   it('asks for a kept drill again as the repositories come, and goes up from one not watched', async () => {
     // Asked before the first repos reading, the drill-down showed "…" for good: it never asked again.
     const board = await boardOf('demo')

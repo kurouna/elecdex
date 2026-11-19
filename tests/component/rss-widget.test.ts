@@ -1,9 +1,14 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import type { FeedUpdate } from '@shared/feeds'
 import { cleanup, fireEvent, render } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { inertDom } from './support/dom.ts'
 import { stubElecdex } from './support/elecdex.ts'
 import { settle } from './support/settle.ts'
+
+vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
+const { sfx } = await import('../../src/renderer/stores/sound.svelte.ts')
 
 const { default: RssWidget } = await import('../../src/renderer/widgets/rss/RssWidget.svelte')
 const { windowState } = await import('../../src/renderer/stores/window-state.svelte.ts')
@@ -45,6 +50,8 @@ let handlers: Map<string, (u: FeedUpdate) => void>
 let last: Map<string, FeedUpdate>
 let marked: Array<[string, string, boolean]>
 let markedAll: Array<Array<{ feed: string; key: string }>>
+/** ADD's FIND, answered when a test says so. */
+let discovering: Array<(result: unknown) => void>
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -59,6 +66,8 @@ beforeEach(() => {
   // jsdom has no Web Animations; the list's flip asks for them as rows move.
   Element.prototype.getAnimations ??= () => []
   markedAll = []
+  discovering = []
+  vi.mocked(sfx.play).mockClear()
   stubElecdex({
     feeds: {
       subscribe: (url: string, handler: (u: FeedUpdate) => void) => {
@@ -66,6 +75,7 @@ beforeEach(() => {
         return () => handlers.delete(url)
       },
       image: async () => null,
+      discover: () => new Promise((answer) => discovering.push(answer)),
       markRead: async (feed: string, key: string, read: boolean) => {
         marked.push([feed, key, read])
         const update = last.get(feed)
@@ -219,6 +229,49 @@ describe('RssWidget', () => {
     expect(items(view.container)[0]?.hasAttribute('aria-current')).toBe(false)
   })
 
+  it('says it is fetching while every feed answered only with what it has not yet read (found in review)', async () => {
+    // Main answers a subscription at once, before any download: no items, fetchedAt null.
+    const view = await mount({ feeds: [A, B] })
+    await send({ ...feed(A, 'alpha', 0), fetchedAt: null })
+    await send({ ...feed(B, 'beta', 0), fetchedAt: null })
+    expect(byId(view.container, 'rss-status')?.textContent?.trim()).toBe('fetching feeds…')
+    await send({ ...feed(A, 'alpha', 0), fetchedAt: null, error: 'HTTP 503' })
+    expect(byId(view.container, 'rss-status')?.textContent?.trim()).toBe('fetching feeds…')
+    await send({ ...feed(B, 'beta', 0), fetchedAt: null, error: 'HTTP 503' })
+    expect(byId(view.container, 'rss-status')?.textContent).toMatch(/could not read the feeds/)
+    // Every feed answered, with nothing: the list is empty, not waiting.
+    await send(feed(A, 'alpha', 0))
+    await send(feed(B, 'beta', 0))
+    expect(byId(view.container, 'rss-status')?.textContent?.trim()).toBe('nothing matches')
+  })
+
+  it('steps through the unread with the arrow keys while UNREAD is on, not the read the list hides (found in review)', async () => {
+    const view = await mount({ feeds: [A], unreadOnly: true })
+    await send(feed(A, 'alpha', 5, { read: [`${A}/2`, `${A}/4`] }))
+    expect(items(view.container)).toHaveLength(3)
+    await fireEvent.click(items(view.container)[0] as HTMLElement)
+    await settle()
+    const article = () => byId(view.container, 'rss-article') as HTMLElement
+    const title = () => byId(view.container, 'rss-article-title')?.textContent
+    expect(title()).toBe('alpha 1')
+    await fireEvent.keyDown(article(), { key: 'ArrowDown' })
+    await settle()
+    expect(title()).toBe('alpha 3')
+    await fireEvent.keyDown(article(), { key: 'ArrowDown' })
+    await settle()
+    expect(title()).toBe('alpha 5')
+    // Back over those read meanwhile, so the place is not lost - but not those read before.
+    await fireEvent.keyDown(article(), { key: 'ArrowUp' })
+    await settle()
+    expect(title()).toBe('alpha 3')
+    await fireEvent.keyDown(article(), { key: 'ArrowUp' })
+    await settle()
+    expect(title()).toBe('alpha 1')
+    await fireEvent.keyDown(article(), { key: 'ArrowUp' })
+    await settle()
+    expect(title()).toBe('alpha 1')
+  })
+
   it('says why a feed fails on its lamp', async () => {
     const view = await mount({ feeds: [A, B] })
     await send(feed(A, 'alpha', 2))
@@ -294,6 +347,23 @@ describe('RssWidget', () => {
     expect(items(view.container)).toHaveLength(3)
   })
 
+  it('keeps UNREAD, while it is on, in a pane too narrow for the tools (found in review)', async () => {
+    // jsdom draws no container query: the rule itself is read. Hidden while on, the list said
+    // only "nothing matches" once all was read, with no way to turn the filter off.
+    const source = readFileSync(
+      path.resolve(import.meta.dirname, '../../src/renderer/widgets/rss/RssWidget.svelte'),
+      'utf8',
+    )
+    const narrow = /@container rss \(max-width: 30rem\) \{([^}]*)\}/.exec(source)?.[1] ?? ''
+    expect(narrow).toContain('.find-box:not(.active)')
+    expect(narrow).toContain('.tool:not([aria-pressed="true"])')
+    expect(narrow).not.toMatch(/\.tool\s*[,{]/)
+    const view = await mount({ feeds: [A], unreadOnly: true })
+    await send(feed(A, 'alpha', 1))
+    expect(byId(view.container, 'rss-unread-only')?.getAttribute('aria-pressed')).toBe('true')
+    expect(byId(view.container, 'rss-mark-all-read')?.hasAttribute('aria-pressed')).toBe(false)
+  })
+
   it('keeps the find box while a search narrows the list, however narrow the pane', async () => {
     const view = await mount({ feeds: [A] })
     await send(feed(A, 'alpha', 3))
@@ -316,6 +386,34 @@ describe('RssWidget settings', () => {
     await fireEvent.click(byId(container, `rss-tab-${tab}`) as HTMLElement)
     await settle()
   }
+
+  it('FIND neither blinks again while it is finding nor sounds once the settings are closed (found in review)', async () => {
+    const view = await mount({ feeds: [A] })
+    await send(feed(A, 'alpha', 1))
+    await openTab(view.container, 'add')
+    const input = byId(view.container, 'rss-add-input') as HTMLInputElement
+    input.value = 'example.com'
+    await fireEvent.input(input)
+    await fireEvent.submit(input.closest('form') as HTMLFormElement)
+    await settle()
+    expect(discovering).toHaveLength(1)
+    const button = byId(view.container, 'rss-find') as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    ;(appearance.settings as { motion: string }).motion = 'full'
+    try {
+      await fireEvent.submit(input.closest('form') as HTMLFormElement)
+      expect(button.classList.contains('blinking')).toBe(false)
+    } finally {
+      ;(appearance.settings as { motion: string }).motion = 'reduced'
+    }
+    await fireEvent.click(byId(view.container, 'rss-settings-toggle') as HTMLElement)
+    await settle()
+    vi.mocked(sfx.play).mockClear()
+    discovering[0]?.({ ok: true, feeds: [{ url: B, title: 'beta' }] })
+    await settle()
+    expect(sfx.play).not.toHaveBeenCalledWith('granted')
+    expect(discovering).toHaveLength(1)
+  })
 
   it('clears a tag of spaces from its field instead of leaving them there', async () => {
     const view = await mount({ feeds: [A] })

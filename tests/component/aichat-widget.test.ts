@@ -116,6 +116,38 @@ const emit = async (event: ChatEvent): Promise<void> => {
 }
 
 describe('AiChatWidget', () => {
+  it('takes text handed over as a new question, leaving an earlier one being rewritten as it was', async () => {
+    // Found in review: ASK AI while a past question was being rewritten added the article to it,
+    // and RESEND would have replaced that question with it.
+    const { provideSummoner, handOver } = await import('../../src/renderer/lib/hand-over.svelte.ts')
+    const { ui } = await import('../../src/renderer/stores/ui.svelte.ts')
+    withProvider()
+    mount({ chat: CHAT_ID })
+    await settle()
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      chat: chat([
+        { id: 'q', role: 'user', text: 'hi', at: 1 },
+        { id: 'a', role: 'assistant', text: 'hello', at: 2 },
+      ]),
+      run: null,
+    })
+    await fireEvent.click(screen.getByTestId('aichat-edit'))
+    await settle()
+    const input = screen.getByTestId('aichat-input') as HTMLTextAreaElement
+    expect(input.value).toBe('hi')
+    const giveBack = provideSummoner(() => ui.summon('p', false))
+    try {
+      handOver('aichat', 'Summarise this article')
+      await settle()
+    } finally {
+      giveBack()
+    }
+    expect(input.value).toBe('Summarise this article')
+    expect(input.closest('.composer')?.classList.contains('editing')).toBe(false)
+  })
+
   it('with no provider listed it asks for one and follows nothing', async () => {
     mount()
     await settle()

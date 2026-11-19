@@ -175,6 +175,16 @@ function jpegSize(b: Uint8Array): { width: number; height: number } | null {
   while (at + 9 < b.length) {
     if (b[at] !== 0xff) return null
     const marker = b[at + 1] ?? 0
+    // Fill bytes (0xFF repeated) may come before a marker, and TEM (01) and RST0-7 (D0-D7)
+    // stand alone, with no length: read past them, or the size is lost (found in review).
+    if (marker === 0xff) {
+      at += 1
+      continue
+    }
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      at += 2
+      continue
+    }
     // Start-of-frame markers carry the size; DHT (C4), JPG (C8) and DAC (CC) do not.
     if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
       return { height: u16be(b, at + 5), width: u16be(b, at + 7) }
@@ -262,13 +272,16 @@ export class FeedImages {
   }
 
   private async turn<T>(work: () => Promise<T>): Promise<T> {
+    // A slot freed goes straight to the one waiting longest, never back to the count: a request
+    // coming in before that one has woken took it too, and three ran at once (found in review).
     if (this.running >= IMAGES_AT_ONCE) await new Promise<void>((go) => this.waiting.push(go))
-    this.running += 1
+    else this.running += 1
     try {
       return await work()
     } finally {
-      this.running -= 1
-      this.waiting.shift()?.()
+      const next = this.waiting.shift()
+      if (next) next()
+      else this.running -= 1
     }
   }
 

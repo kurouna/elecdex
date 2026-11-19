@@ -1,5 +1,5 @@
 import { FEED_PACKS } from '@shared/feed-packs'
-import { FEED_MAX_URLS, FEED_SUMMARY_MAX, feedUrl } from '@shared/feeds'
+import { FEED_ITEMS_PER_FEED, FEED_MAX_URLS, FEED_SUMMARY_MAX, feedUrl } from '@shared/feeds'
 import { DISCOVER_MAX, discoverTarget } from '@shared/feeds-discover'
 import { describe, expect, it } from 'vitest'
 import { discover, FALLBACK_PATHS, feedLinks } from '../../src/main/feeds/discover.js'
@@ -19,6 +19,8 @@ import {
 import { exportList, parseOpml, writeOpml } from '../../src/main/feeds/opml.js'
 import { parseFeed } from '../../src/main/feeds/parse.js'
 import {
+  heldItems,
+  READ_KEY_MAX,
   READ_MAX,
   READ_TTL_MS,
   ReadMarks,
@@ -44,6 +46,17 @@ describe('what the ADD box takes', () => {
       url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCLA_DiR1FfKNvjuUpBHmylQ',
       title: 'YouTube UCLA_DiR1FfKNvjuUpBHmylQ',
     })
+  })
+
+  it('reads a youtube: channel id whatever the case of its prefix (found in review: YouTube:UC... became a handle)', () => {
+    for (const prefix of ['YouTube:', 'YOUTUBE: ', 'youtube:'])
+      expect(discoverTarget(`${prefix}UCLA_DiR1FfKNvjuUpBHmylQ`), prefix).toEqual({
+        kind: 'feed',
+        url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCLA_DiR1FfKNvjuUpBHmylQ',
+        title: 'YouTube UCLA_DiR1FfKNvjuUpBHmylQ',
+      })
+    // The id itself keeps its case: a lower-case "uc" is a handle, as before.
+    expect(discoverTarget('youtube:ucLA_DiR1FfKNvjuUpBHmylQ')).toMatchObject({ kind: 'page' })
   })
 
   it('refuses github: and youtube: names that are not ones', () => {
@@ -344,6 +357,59 @@ describe('what an item carries beyond its title', () => {
   })
 })
 
+describe("MARK ALL READ's list (heldItems)", () => {
+  const A = 'https://a.test/feed'
+  const B = 'https://b.test/feed'
+  const held: Record<string, string[]> = { 'a-1': [A], 'a-2': [A], both: [A, B] }
+  const feedsWith = (key: string) => held[key] ?? []
+
+  it('takes the items watched feeds hold, with every feed holding one', () => {
+    expect(
+      heldItems(feedsWith, [
+        { feed: A, key: 'a-1' },
+        { feed: B, key: 'both' },
+      ]),
+    ).toEqual({ keys: ['a-1', 'both'], feeds: new Set([A, B]) })
+  })
+
+  it('skips an item a refresh has just pushed out, marking the rest (found in review)', () => {
+    expect(
+      heldItems(feedsWith, [
+        { feed: A, key: 'a-1' },
+        { feed: A, key: 'gone' },
+        { feed: B, key: 'a-2' },
+        { feed: A, key: 'a-2' },
+      ]),
+    ).toEqual({ keys: ['a-1', 'a-2'], feeds: new Set([A]) })
+    expect(heldItems(feedsWith, [{ feed: A, key: 'gone' }])).toBeNull()
+  })
+
+  it('refuses the whole list when an entry is not the shape of one', () => {
+    const big = FEED_MAX_URLS * FEED_ITEMS_PER_FEED + 1
+    for (const bad of [
+      [],
+      'feeds',
+      123,
+      null,
+      [{ feed: A, key: 'a-1' }, null],
+      [
+        { feed: A, key: 'a-1' },
+        { feed: 'not a url', key: 'a-2' },
+      ],
+      [
+        { feed: A, key: 'a-1' },
+        { feed: A, key: 7 },
+      ],
+      [
+        { feed: A, key: 'a-1' },
+        { feed: A, key: 'x'.repeat(READ_KEY_MAX + 1) },
+      ],
+      Array.from({ length: big }, () => ({ feed: A, key: 'a-1' })),
+    ])
+      expect(heldItems(feedsWith, bad), JSON.stringify(bad).slice(0, 60)).toBeNull()
+  })
+})
+
 describe('ReadMarks', () => {
   const harness = (file: ReadMarksFile = {}, now = 1_000_000_000_000) => {
     const saved: ReadMarksFile[] = []
@@ -473,6 +539,22 @@ describe('what a picture may be', () => {
       imageSize(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')),
     ).toBeNull()
     expect(imageSize(new Uint8Array([0xff, 0xd8, 0x00]))).toBeNull()
+  })
+
+  it('reads a JPEG through fill bytes and markers without a length (found in review)', () => {
+    const plain = jpeg(800, 600)
+    const head = plain.subarray(0, 20)
+    const sof = plain.subarray(20)
+    // 0xFF fill before a marker, and a TEM (0x01) and an RST (0xD3) standing alone.
+    for (const between of [
+      [0xff, 0xff],
+      [0xff, 0x01],
+      [0xff, 0xd3],
+      [0xff, 0xff, 0xff, 0x01],
+    ]) {
+      const b = new Uint8Array([...head, ...between, ...sof])
+      expect(imageSize(b), between.join(',')).toEqual({ width: 800, height: 600 })
+    }
   })
 
   it('refuses what declares more pixels than may be decoded, before decoding it', () => {
@@ -708,6 +790,41 @@ describe('FeedImages', () => {
     expect(images.size()).toBe(4)
     for (let n = 5; n < IMAGES_KEPT + 10; n++) await finish(images.get(url(n)))
     expect(images.size()).toBe(IMAGES_KEPT)
+  })
+
+  it(`stays at ${IMAGES_AT_ONCE} when a picture is asked for as one ends and a waiting one has not begun (found in review)`, async () => {
+    // A request may come any number of microtasks after one ends; one of the depths below lands
+    // between the slot freed and the waiting request taking it.
+    for (let depth = 0; depth < 24; depth++) {
+      let running = 0
+      let most = 0
+      const release = new Map<string, () => void>()
+      const images = new FeedImages({
+        fetch: async (url) => {
+          running += 1
+          most = Math.max(most, running)
+          await new Promise<void>((go) => release.set(url, go))
+          running -= 1
+          return image()
+        },
+        shrink: () => 'data:,',
+        feedOf: ours,
+        now: () => 0,
+      })
+      const url = (n: number) => `https://a.test/${depth}-${n}.jpg`
+      const jobs: Array<Promise<unknown>> = [1, 2, 3].map((n) => images.get(url(n)))
+      await new Promise((r) => setTimeout(r, 0))
+      release.get(url(1))?.()
+      let later: Promise<unknown> = Promise.resolve()
+      for (let i = 0; i < depth; i++) later = later.then(() => undefined)
+      jobs.push(later.then(() => images.get(url(4))))
+      for (let turn = 0; turn < 10; turn++) {
+        await new Promise((r) => setTimeout(r, 0))
+        for (const go of release.values()) go()
+      }
+      await Promise.all(jobs)
+      expect(most, `depth ${depth}`).toBeLessThanOrEqual(IMAGES_AT_ONCE)
+    }
   })
 })
 

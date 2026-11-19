@@ -190,10 +190,17 @@ function up(): void {
   sfx.play('collapse')
   patch({ drill: undefined })
 }
+/**
+ * Escape and Backspace go up from a drill-down, but not from the settings drawn over it: there
+ * the drill-down is out of sight. Escape is the pane's exactly while `ownsEscape` says so (the
+ * root's `data-owns-escape`), even in a field - else the workspace left it to the pane, which
+ * did nothing with it (found in review). Backspace in a field is the field's.
+ */
 function onPaneKey(event: KeyboardEvent): void {
-  if ((event.key === 'Escape' || event.key === 'Backspace') && choices.drill !== null) {
-    const target = event.target as HTMLElement | null
-    if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT') return
+  if ((event.key === 'Escape' || event.key === 'Backspace') && ownsEscape) {
+    const tag = (event.target as HTMLElement | null)?.tagName
+    if (event.key === 'Backspace' && (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT'))
+      return
     event.preventDefault()
     up()
   }
@@ -261,6 +268,8 @@ async function refresh(): Promise<void> {
 /* ---- Settings ---- */
 
 let settingsOpen = $state(false)
+/** Whether Escape is the pane's: a drill-down shown, not under the settings (onPaneKey). */
+const ownsEscape = $derived(choices.drill !== null && !settingsOpen)
 let pinnedText = $state('')
 $effect(() => {
   if (settingsOpen) pinnedText = choices.spec.repos === 'auto' ? '' : choices.spec.repos.join('\n')
@@ -430,7 +439,7 @@ const short = $derived(fit.short)
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="github cloudpane" class:narrow data-testid="github" data-pane-id={paneId} bind:this={rootEl} onkeydown={onPaneKey} data-owns-escape={choices.drill !== null || undefined} {@attach observe}>
+<div class="github cloudpane" class:narrow data-testid="github" data-pane-id={paneId} bind:this={rootEl} onkeydown={onPaneKey} data-owns-escape={ownsEscape || undefined} {@attach observe}>
   <SettingsButton open={settingsOpen} label="github status settings" testid="github-settings-toggle" ontoggle={() => (settingsOpen = !settingsOpen)} />
   <header class="top" data-testid="github-top">
     <span class="link" data-tone={link.tone} data-testid="github-link"><i></i>{link.word}</span>

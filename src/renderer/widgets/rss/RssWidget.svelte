@@ -1,5 +1,7 @@
 <script lang="ts">
 import {
+  clockTime,
+  FEED_MAX_SHOWN,
   FEED_MAX_URLS,
   type FeedItem,
   type FeedUpdate,
@@ -154,7 +156,10 @@ $effect(() => {
   }
   // Forget feeds no longer listed; their items must not linger in memory.
   untrack(() => {
-    updates = Object.fromEntries(Object.entries(updates).filter(([url]) => urls.has(url)))
+    // Only when one goes: a new object each time the pane is shown or hidden recomputed every
+    // list derived from it for nothing (found in review).
+    if (Object.keys(updates).some((url) => !urls.has(url)))
+      updates = Object.fromEntries(Object.entries(updates).filter(([url]) => urls.has(url)))
     for (const url of trackers.keys()) if (!urls.has(url)) trackers.delete(url)
     if (only !== null && !urls.has(only)) only = null
   })
@@ -228,6 +233,19 @@ $effect(() => {
 })
 
 /** When every listed feed has failed and none has items, say why instead of waiting. */
+/**
+ * Whether a feed listed has yet to answer with a download or a failure. Main answers a
+ * subscription at once with what it has, often nothing yet (fetchedAt null): counted as an
+ * answer, that said "nothing matches" through the first fetch (found in review). The lamps wait
+ * the same way.
+ */
+const waiting = $derived(
+  feeds.some((url) => {
+    const update = updates[url]
+    return update === undefined || (update.fetchedAt === null && update.error === null)
+  }),
+)
+
 const failure = $derived(
   received.length === feeds.length &&
     received.every((u) => u.error !== null && u.items.length === 0)
@@ -241,7 +259,7 @@ $effect(() => {
     return
   }
   const latest = Math.max(0, ...received.map((u) => u.fetchedAt ?? 0))
-  const time = latest ? new Date(latest).toTimeString().slice(0, 5) : null
+  const time = latest ? clockTime(latest) : null
   const failing = received.filter((u) => u.error !== null).length
   const count = `${feeds.length} ${feeds.length === 1 ? 'feed' : 'feeds'}`
   const parts = [count, time ? `updated ${time}` : null, failing > 0 ? `${failing} failing` : null]
@@ -301,24 +319,35 @@ function toggleSettings(): void {
 
 /* ---- The article ---- */
 
+/** The headlines opened since the article was opened from the list, read here (for step). */
+let openedHere = new Set<string>()
+
 function pick(item: ShownItem, row: HTMLElement): void {
   afterBlink(row, () => {
     sfx.play('expand')
     cameFrom = row
     openKey = item.key
+    openedHere = new Set([item.key])
     if (!item.read) void window.elecdex.feeds.markRead(item.feed, item.key, true)
   })
 }
 
 /** The arrow keys in the article: the next or previous headline of the list as shown. */
 function step(by: -1 | 1): void {
-  // Over the list as shown but for UNREAD, which drops the article from it as it is read.
-  const list = mergeFeeds(narrowed(received), undefined, (item) => keepItem(item, false))
+  // Over the list as shown, but for the headlines opened since the article was, which UNREAD
+  // drops as they are read: the place is not lost. Not over every read headline: those read
+  // before, which the list hides, opened one after another (found in review).
+  const list = mergeFeeds(narrowed(received), Number.POSITIVE_INFINITY, (item) =>
+    keepItem(item, false),
+  )
+    .filter((item) => !unreadOnly || !item.read || openedHere.has(item.key))
+    .slice(0, FEED_MAX_SHOWN)
   const at = list.findIndex((item) => item.key === openKey)
   const next = at === -1 ? undefined : list[at + by]
   if (next === undefined) return
   sfx.play('panel')
   openKey = next.key
+  openedHere.add(next.key)
   // The keyboard comes back to the row of the article last shown, if the list has it.
   cameFrom =
     [...(root?.querySelectorAll<HTMLElement>('[data-testid=rss-item]') ?? [])].find(
@@ -533,7 +562,7 @@ const VIEWS: Array<[FeedView, string]> = [
       {#if shown.length === 0}
         <p class="note" data-testid="rss-status">
           {#if failure !== null}could not read the feeds: {failure}
-          {:else if received.length < feeds.length && everything.length === 0}fetching feeds…
+          {:else if waiting && everything.length === 0}fetching feeds…
           {:else}nothing matches{/if}
         </p>
       {:else}
@@ -701,7 +730,7 @@ const VIEWS: Array<[FeedView, string]> = [
 @container rss (max-width: 30rem) {
   .figure.wide,
   .find-box:not(.active),
-  .tool {
+  .tool:not([aria-pressed="true"]) {
     display: none;
   }
 }

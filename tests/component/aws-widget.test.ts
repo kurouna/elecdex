@@ -218,6 +218,40 @@ describe('AwsWidget', () => {
     }
   })
 
+  it('leaves Escape to the workspace while the settings are open over a drill-down, and goes up only from the drill-down (found in review)', async () => {
+    const { escapeOwned } = await import('../../src/renderer/lib/escape-owner.ts')
+    await mount({
+      tab: 'active',
+      drill: { service: 'ec2', filters: {}, sort: null, item: null },
+    })
+    await push(await boardOf())
+    const root = screen.getByTestId('aws')
+    /** Escape on `target`: whether the workspace leaves it to the pane, then the pane's own. */
+    const press = (target: HTMLElement) => {
+      const owned = escapeOwned({ target } as unknown as KeyboardEvent)
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      return owned
+    }
+    const drilled = () =>
+      vi.mocked(widgetState.patch).mock.calls.filter(([, change]) => 'drill' in change).length
+    expect(root.hasAttribute('data-owns-escape')).toBe(true)
+
+    await fireEvent.click(screen.getByTestId('aws-settings-toggle'))
+    await settle()
+    // Settings open: the workspace has Escape, and the drill-down behind them stays where it is -
+    // on a <select>, where the pane once kept Escape and did nothing, and on a button.
+    expect(root.hasAttribute('data-owns-escape')).toBe(false)
+    expect(press(screen.getByTestId('aws-profile'))).toBe(false)
+    expect(press(screen.getByTestId('aws-settings-toggle'))).toBe(false)
+    expect(drilled()).toBe(0)
+
+    await fireEvent.click(screen.getByTestId('aws-settings-toggle'))
+    await settle()
+    // Settings closed: Escape is the pane's, and it goes up.
+    expect(press(screen.getByTestId('aws-settings-toggle'))).toBe(true)
+    expect(drilled()).toBe(1)
+  })
+
   it("drills from an ACTIVE row into main's list for that service", async () => {
     await mount({ tab: 'active' })
     await push(await boardOf())

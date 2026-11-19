@@ -351,6 +351,9 @@ onSummoned(
   () => {
     const handed = takeHandOver('aichat')
     if (handed === null) return
+    // An earlier question being rewritten is left as it was: else the text joined it, and RESEND
+    // replaced that question with it (found in review).
+    if (editing !== null) leaveEdit()
     draft = draft.trim() === '' ? handed : `${draft.trimEnd()}\n\n${handed}`
     void tick().then(() => composer?.focus())
   },

@@ -1,3 +1,4 @@
+import { FEED_ITEMS_PER_FEED, FEED_MAX_URLS, feedUrl } from '@shared/feeds'
 import { z } from 'zod'
 
 /**
@@ -76,4 +77,32 @@ export class ReadMarks {
     }
     return changed
   }
+}
+
+/**
+ * MARK ALL READ's list as keys watched feeds hold now, with every feed holding one. The list is
+ * refused whole when an entry is not the shape of one - as for one mark, the file is never a
+ * store for the page's strings - but an item a refresh pushed out of its feed between the press
+ * and here is only skipped: one such item once left every other headline unread (found in
+ * review). Null when nothing is left to mark. At most every item a pane can show: ten feeds of
+ * twenty.
+ */
+export function heldItems(
+  feedsWith: (key: string) => readonly string[],
+  raw: unknown,
+): { keys: string[]; feeds: Set<string> } | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null
+  if (raw.length > FEED_MAX_URLS * FEED_ITEMS_PER_FEED) return null
+  const keys: string[] = []
+  const touched = new Set<string>()
+  for (const entry of raw as unknown[]) {
+    const feed = (entry as { feed?: unknown } | null)?.feed
+    const key = (entry as { key?: unknown } | null)?.key
+    if (feedUrl(feed) !== feed || typeof key !== 'string' || key.length > READ_KEY_MAX) return null
+    const holders = feedsWith(key)
+    if (!holders.includes(feed as string)) continue
+    keys.push(key)
+    for (const url of holders) touched.add(url)
+  }
+  return keys.length === 0 ? null : { keys, feeds: touched }
 }

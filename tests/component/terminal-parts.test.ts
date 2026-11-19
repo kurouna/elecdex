@@ -103,6 +103,23 @@ describe('TerminalSearch, with a pattern half typed', () => {
 })
 
 describe('TerminalSearch', () => {
+  it('closes with Escape wherever the keyboard is in the bar, as the workspace leaves it there (found in review)', async () => {
+    const { escapeOwned } = await import('../../src/renderer/lib/escape-owner.ts')
+    const addon = { onDidChangeResults: () => ({ dispose() {} }), clearDecorations: vi.fn() }
+    const onclose = vi.fn()
+    render(TerminalSearch, {
+      props: { addon: addon as never, find: () => true, focusToken: 0, onclose },
+    })
+    const bar = screen.getByTestId('terminal-search')
+    // The box, a switch and the arrows: Escape on a button once did nothing at all.
+    for (const target of [...bar.querySelectorAll<HTMLElement>('input, button')]) {
+      onclose.mockClear()
+      expect(escapeOwned({ target } as unknown as KeyboardEvent)).toBe(true)
+      await fireEvent.keyDown(target, { key: 'Escape' })
+      expect(onclose, target.textContent ?? target.tagName).toHaveBeenCalledTimes(1)
+    }
+  })
+
   it('searches again with a switch turned, by case, word or regular expression', async () => {
     const find = vi.fn(() => true)
     const addon = { onDidChangeResults: () => ({ dispose() {} }), clearDecorations: vi.fn() }

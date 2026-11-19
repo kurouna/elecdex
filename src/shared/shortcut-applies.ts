@@ -18,7 +18,7 @@ export interface ShortcutFacts {
   focusedIsShell: boolean
   /** The pane brought forward, or else the focused one, is a widget that can be brought forward. */
   zoomable: boolean
-  /** How many saved layouts there are: the number keys are the first ten. */
+  /** How many saved layouts there are: the number keys are the first nine (`KEYED_LAYOUTS`). */
   savedCount: number
   /** The focused pane is one whose reading text the type keys size (settings.ts `READING_PANES`). */
   focusedReads: boolean

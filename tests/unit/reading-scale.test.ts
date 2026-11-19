@@ -5,6 +5,7 @@ import {
   applySettingsPatch,
   READING_PANES,
   READING_SCALE,
+  readingFieldScale,
   readingPaneOf,
   SettingsSchema,
   snapReadingScale,
@@ -54,6 +55,20 @@ describe('snapReadingScale', () => {
     expect(snapReadingScale(124)).toBe(120)
     expect(snapReadingScale(10)).toBe(READING_SCALE.min)
     expect(snapReadingScale(999)).toBe(READING_SCALE.max)
+  })
+})
+
+describe('readingFieldScale', () => {
+  it('keeps the scale for a field left empty or not a number (found in review: empty became 80%)', () => {
+    expect(readingFieldScale('', 130)).toBe(130)
+    expect(readingFieldScale('  ', 130)).toBe(130)
+    expect(readingFieldScale('abc', 130)).toBe(130)
+  })
+
+  it('snaps a number typed, as snapReadingScale does', () => {
+    expect(readingFieldScale('95', 100)).toBe(100)
+    expect(readingFieldScale(' 124 ', 100)).toBe(120)
+    expect(readingFieldScale('0', 100)).toBe(READING_SCALE.min)
   })
 })
 

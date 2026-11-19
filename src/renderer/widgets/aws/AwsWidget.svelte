@@ -228,14 +228,16 @@ function up(): void {
   sfx.play('collapse')
   drillTo(drill.item === null || drill.direct ? null : { ...drill, item: null })
 }
+/**
+ * Escape and Backspace go up from a drill-down, but not from the settings drawn over it: there
+ * the drill-down is out of sight. Escape is the pane's exactly while `ownsEscape` says so (the
+ * root's `data-owns-escape`), even in a field - else the workspace left it to the pane, which
+ * did nothing with it (found in review). Backspace in a field is the field's.
+ */
 function onPaneKey(event: KeyboardEvent): void {
-  if ((event.key === 'Escape' || event.key === 'Backspace') && choices.drill !== null) {
-    const target = event.target as HTMLElement | null
-    if (
-      target?.tagName === 'TEXTAREA' ||
-      target?.tagName === 'INPUT' ||
-      target?.tagName === 'SELECT'
-    )
+  if ((event.key === 'Escape' || event.key === 'Backspace') && ownsEscape) {
+    const tag = (event.target as HTMLElement | null)?.tagName
+    if (event.key === 'Backspace' && (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT'))
       return
     event.preventDefault()
     up()
@@ -377,6 +379,8 @@ async function saveQuota(
 /* ---- Settings ---- */
 
 let settingsOpen = $state(false)
+/** Whether Escape is the pane's: a drill-down shown, not under the settings (onPaneKey). */
+const ownsEscape = $derived(choices.drill !== null && !settingsOpen)
 let profiles = $state<string[]>([])
 $effect(() => {
   if (!settingsOpen) return
@@ -575,7 +579,7 @@ const TABS: readonly [AwsTab, string][] = [
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="aws cloudpane" class:narrow data-testid="aws" data-pane-id={paneId} bind:this={rootEl} onkeydown={onPaneKey} data-owns-escape={choices.drill !== null || undefined} {@attach observe}>
+<div class="aws cloudpane" class:narrow data-testid="aws" data-pane-id={paneId} bind:this={rootEl} onkeydown={onPaneKey} data-owns-escape={ownsEscape || undefined} {@attach observe}>
   <SettingsButton open={settingsOpen} label="aws status settings" testid="aws-settings-toggle" ontoggle={() => (settingsOpen = !settingsOpen)} />
   <header class="top" data-testid="aws-top">
     <span class="link" data-tone={link.tone} data-testid="aws-link"><i></i>{link.word}</span>

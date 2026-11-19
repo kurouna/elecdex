@@ -91,15 +91,19 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Enter') {
     event.preventDefault()
     step(event.shiftKey)
-    return
   }
-  if (event.key === 'Escape') {
-    // Kept from the workspace, which would otherwise put a pane brought forward
-    // back while the user only meant to close this bar.
-    event.preventDefault()
-    event.stopPropagation()
-    onclose()
-  }
+}
+
+/**
+ * Escape anywhere in the bar closes it: the bar is what carries `data-owns-escape`, so on a
+ * switch or an arrow the workspace leaves the key here too - handled on the box alone, it then
+ * did nothing (found in review). Kept from the shell under the bar as well.
+ */
+function onBarKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape') return
+  event.preventDefault()
+  event.stopPropagation()
+  onclose()
 }
 
 /** "3/12", or "no matches" once something has been typed. */
@@ -112,7 +116,8 @@ const tally = $derived.by(() => {
 })
 </script>
 
-<div class="search" data-owns-escape data-testid="terminal-search">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="search" data-owns-escape onkeydown={onBarKeydown} data-testid="terminal-search">
   <input
     bind:this={box}
     bind:value={query}

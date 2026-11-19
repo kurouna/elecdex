@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
 import {
+  clockTime,
   FEED_MAX_SHOWN,
   FEED_MAX_URLS,
   type FeedUpdate,
+  feedHost,
   feedUrl,
   formatItemTime,
   mergeFeeds,
@@ -107,6 +109,22 @@ describe('formatItemTime', () => {
     expect(formatItemTime(new Date(2026, 8, 14, 9, 5).getTime(), now)).toBe('09:05')
     expect(formatItemTime(new Date(2026, 8, 13, 23, 59).getTime(), now)).toBe('9/13')
     expect(formatItemTime(new Date(2025, 8, 14, 9, 5).getTime(), now)).toBe('9/14')
+  })
+
+  it("shows today's time as clockTime does", () => {
+    const now = new Date(2026, 8, 14, 18, 0).getTime()
+    const at = new Date(2026, 8, 14, 0, 7).getTime()
+    expect(formatItemTime(at, now)).toBe(clockTime(at))
+  })
+})
+
+describe('feedHost', () => {
+  it('drops a leading "www." and nothing else (found in review: www2. lost its first four letters)', () => {
+    expect(feedHost('https://www.example.com/feed')).toBe('example.com')
+    expect(feedHost('https://www2.nhk.or.jp/rss')).toBe('www2.nhk.or.jp')
+    expect(feedHost('https://wwwx.example.com/')).toBe('wwwx.example.com')
+    expect(feedHost('https://news.example.com/')).toBe('news.example.com')
+    expect(feedHost('not a url')).toBe('not a url')
   })
 })
 

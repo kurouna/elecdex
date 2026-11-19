@@ -1,13 +1,13 @@
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { CH } from '@shared/channels'
-import { FEED_ITEMS_PER_FEED, FEED_MAX_URLS, type FeedUpdate, feedUrl } from '@shared/feeds'
+import { FEED_IMAGE_URL_MAX, type FeedUpdate, feedUrl } from '@shared/feeds'
 import type { DiscoverResult } from '@shared/feeds-discover'
 import { app, BrowserWindow, dialog, nativeImage, net, type WebContents } from 'electron'
 import { USER_AGENT } from '../build-info.js'
 import { discover } from '../feeds/discover.js'
 import { FeedImages, MAX_IMAGE_BYTES } from '../feeds/images.js'
-import { READ_KEY_MAX, ReadMarks, ReadMarksSchema } from '../feeds/read-marks.js'
+import { heldItems, READ_KEY_MAX, ReadMarks, ReadMarksSchema } from '../feeds/read-marks.js'
 import { decodeFeed, FeedCacheSchema, FeedService, readLimited } from '../feeds/service.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { readLimited as readBody } from '../read-limited.js'
@@ -130,31 +130,6 @@ export function registerFeedsIpc(): { dispose: () => void } {
   /** Only a URL already in canonical form is a key; anything else is not ours to fetch. */
   const asFeed = (raw: unknown): string | null => (feedUrl(raw) === raw ? (raw as string) : null)
 
-  /**
-   * MARK ALL READ's list as keys watched feeds hold now, with every feed holding one; null when
-   * any entry is not such an item - as for one mark, the file is never a store for the page's
-   * strings. At most every item a pane can show: ten feeds of twenty.
-   */
-  const heldItems = (
-    feeds: FeedService,
-    raw: unknown,
-  ): { keys: string[]; feeds: Set<string> } | null => {
-    if (!Array.isArray(raw) || raw.length === 0) return null
-    if (raw.length > FEED_MAX_URLS * FEED_ITEMS_PER_FEED) return null
-    const keys: string[] = []
-    const touched = new Set<string>()
-    for (const entry of raw as unknown[]) {
-      const feed = asFeed((entry as { feed?: unknown } | null)?.feed)
-      const key = (entry as { key?: unknown } | null)?.key
-      if (feed === null || typeof key !== 'string' || key.length > READ_KEY_MAX) return null
-      const holders = feeds.feedsWith(key)
-      if (!holders.includes(feed)) return null
-      keys.push(key)
-      for (const url of holders) touched.add(url)
-    }
-    return { keys, feeds: touched }
-  }
-
   const findFeeds = (input: unknown): Promise<DiscoverResult> =>
     discover(
       {
@@ -196,7 +171,9 @@ export function registerFeedsIpc(): { dispose: () => void } {
       [CH.feeds.watching]: () => service?.watching() ?? [],
       [CH.feeds.discover]: (_event, raw): Promise<DiscoverResult> => findFeeds(raw),
       [CH.feeds.image]: (_event, raw): Promise<string | null> =>
-        typeof raw === 'string' && raw.length <= 2048 ? images.get(raw) : Promise.resolve(null),
+        typeof raw === 'string' && raw.length <= FEED_IMAGE_URL_MAX
+          ? images.get(raw)
+          : Promise.resolve(null),
       [CH.feeds.markRead]: (_event, rawFeed, rawKey, rawRead): boolean => {
         const feed = asFeed(rawFeed)
         if (feed === null || service === null) return false
@@ -209,7 +186,8 @@ export function registerFeedsIpc(): { dispose: () => void } {
         return true
       },
       [CH.feeds.markAllRead]: (_event, raw): boolean => {
-        const held = service === null ? null : heldItems(service, raw)
+        const held =
+          service === null ? null : heldItems((key) => service?.feedsWith(key) ?? [], raw)
         if (service === null || held === null) return false
         if (marks.setMany(held.keys, true).length > 0) {
           for (const url of held.feeds) service.republish(url)
