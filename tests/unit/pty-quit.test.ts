@@ -38,7 +38,13 @@ vi.mock('node-pty', () => ({
             _agent: {
               _innerPid: 4321,
               _getConsoleProcessList: async () => [4321],
-              _conoutSocketWorker: { _worker: worker },
+              _conoutSocketWorker: {
+                _worker: worker,
+                // As node-pty's ConoutConnection: the worker ends a second later, once drained.
+                dispose: vi.fn(() => {
+                  setTimeout(() => worker.end(), 1000)
+                }),
+              },
             },
           }
         : {}),
@@ -125,6 +131,18 @@ describe('closing every shell as the app quits', () => {
     expect(await settled(ended)).toBe(false)
     workers[0]?.end()
     expect(await settled(ended)).toBe(true)
+  })
+
+  it('ends the worker of a shell that ended by itself, so a later quit does not wait', async () => {
+    // Found in self-review: node-pty ends a worker only on kill, and a shell that ended by
+    // itself (exit typed) is never killed - its worker went on for the app's life, and every
+    // quit after waited the whole QUIT_WAIT_MS for it.
+    const manager = new PtyManager(noEvents)
+    manager.create({ shell: 'pwsh.exe' })
+    exits[0]?.()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(workers[0]?.threadId).toBe(-1)
+    expect(await settled(manager.disposeAll())).toBe(true)
   })
 
   it(`waits no longer than ${QUIT_WAIT_MS} ms for a worker that does not end`, async () => {

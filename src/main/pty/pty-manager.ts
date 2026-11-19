@@ -41,6 +41,26 @@ function outputWorker(pty: IPty): Worker | null {
     : null
 }
 
+/**
+ * Has node-pty end a ConPTY session's output worker, as its kill does: a second later, once the
+ * output has drained. node-pty does it only on kill, and a shell that ended by itself (exit
+ * typed) is never killed: its worker went on for the app's life, and every quit after waited
+ * QUIT_WAIT_MS for it (found in self-review, measured: still running five seconds after the
+ * exit). Not the kill itself: that also kills the console's processes by pid, ended already and
+ * free to be another's. The session's output socket is connected by then: its close is the exit.
+ */
+function endOutputWorker(pty: IPty): void {
+  const agent = (pty as unknown as { _agent?: { _conoutSocketWorker?: { dispose?: unknown } } })
+    ._agent
+  const connection = agent?._conoutSocketWorker
+  if (typeof connection?.dispose !== 'function') return
+  try {
+    connection.dispose()
+  } catch {
+    // Already gone.
+  }
+}
+
 /** How long after the last OSC before we decide shell integration is not working. */
 export const INTEGRATION_GRACE_MS = 10_000
 
@@ -175,6 +195,7 @@ export class PtyManager {
       this.events.onExit(id, exitCode, signal)
       this.sessions.delete(id)
       session.mirror.dispose()
+      endOutputWorker(pty)
     })
 
     // A shell with nothing injected is resolved at once (stateFor): a pane attaching is told so.

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
+import { shellReady } from '../support/terminal.js'
 import {
   exited,
   keepLayout,
@@ -9,7 +10,14 @@ import {
   SINGLE_TERMINAL,
   showStatusBar,
   terminalPane,
+  typeInto,
 } from '../support.js'
+
+/**
+ * The quit after a shell ended by itself, at most. Measured (2026-11-19): about 750 ms with its
+ * worker ended, about 2250 ms with it left on for QUIT_WAIT_MS.
+ */
+const QUIT_LIMIT_MS = 1500
 
 /**
  * Leaving the app. In fullscreen the window has no frame and no close button,
@@ -141,6 +149,29 @@ test('shells opened and ended through layout switches leave a quit that ends cle
     } finally {
       await close().catch(() => {})
     }
+  }
+})
+
+test('a shell that ended by itself does not hold the quit up', async () => {
+  // Found in self-review (2026-11-19): node-pty ends a shell's output worker only on kill, and a
+  // shell ended by `exit` is never killed - its worker went on, and the quit waited the whole
+  // QUIT_WAIT_MS (2 s) for it. Ended as the shell ends, it is gone a second later at most.
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    await shellReady(page)
+    const pane = terminalPane(page).first()
+    await typeInto(page, pane, 'exit')
+    await expect(pane.getByTestId('pane-badge')).toContainText('exited', { timeout: 20_000 })
+    const child = app.process()
+    const gone = new Promise<number>((resolve) => child.once('exit', () => resolve(Date.now())))
+    const started = Date.now()
+    await page.evaluate(() => window.elecdex.system.quit())
+    expect((await gone) - started, 'how long the quit took').toBeLessThan(QUIT_LIMIT_MS)
+  } finally {
+    await close().catch(() => {})
   }
 })
 
