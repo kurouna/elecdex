@@ -107,6 +107,12 @@ interface Session {
 
 export class PtyManager {
   private readonly sessions = new Map<string, Session>()
+  /**
+   * Every shell's output worker until node-pty has ended it, kept apart from the sessions: a
+   * shell closed or ended a moment before the quit has left `sessions`, its worker not yet
+   * (found in review).
+   */
+  private readonly workers = new Set<Worker>()
   private readonly events: PtySessionEvents
 
   constructor(events: PtySessionEvents) {
@@ -155,6 +161,11 @@ export class PtyManager {
       createdAt: Date.now(),
     }
     this.sessions.set(id, session)
+    const worker = outputWorker(pty)
+    if (worker !== null) {
+      this.workers.add(worker)
+      worker.once('exit', () => this.workers.delete(worker))
+    }
 
     pty.onData((data) => this.handleData(session, data))
     pty.onExit(({ exitCode, signal }) => {
@@ -227,15 +238,14 @@ export class PtyManager {
    * shells had come and gone with the layouts, and Windows held it seconds for its error report
    * (found by hand, 2026-11-19). The workers are left to node-pty to end: ended early, one not
    * yet connected to left node-pty connecting to a pipe that was gone, an uncaught error.
+   * Shells closed or ended a moment before are waited for too (`workers`).
    */
   disposeAll(): Promise<void> {
     listConsolesNoMore()
-    const ended: Array<Promise<unknown>> = []
-    for (const [id, session] of [...this.sessions]) {
-      const worker = outputWorker(session.pty)
-      if (worker !== null) ended.push(new Promise((resolve) => worker.once('exit', resolve)))
-      this.dispose(id)
-    }
+    for (const id of [...this.sessions.keys()]) this.dispose(id)
+    const ended = [...this.workers]
+      .filter((worker) => worker.threadId !== -1)
+      .map((worker) => new Promise((resolve) => worker.once('exit', resolve)))
     if (ended.length === 0) return Promise.resolve()
     let timer: NodeJS.Timeout | undefined
     return Promise.race([

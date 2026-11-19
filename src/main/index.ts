@@ -36,6 +36,7 @@ import { registerUtilityIpc, type UtilityIpc } from './ipc/utility.js'
 import { registerWeatherIpc } from './ipc/weather.js'
 import { registerWebIpc } from './ipc/web.js'
 import { registerMetricsIpc } from './metrics/broker.js'
+import { quitGate } from './quit-gate.js'
 import { createMainWindow } from './window.js'
 import { showMainWindow } from './window-control.js'
 
@@ -212,25 +213,19 @@ app.whenReady().then(() => {
   })
 })
 
-/** Set once the shells are closed and their output workers ended: the quit then goes on. */
-let shellsClosed = false
-
-app.on('before-quit', (event) => {
-  // Kill every shell before the app tears down, so no orphaned pty survives, and hold the quit
-  // until node-pty has ended their output workers (at most PtyManager's QUIT_WAIT_MS): ended
-  // with them still being torn down, the process crashed on its way out (PtyManager.disposeAll).
-  // The handlers stay until will-quit: the window can still ask for sessions.
-  if (!shellsClosed && ptyIpc !== null) {
-    event.preventDefault()
-    void ptyIpc.closeSessions().then(() => {
-      shellsClosed = true
-      app.quit()
-    })
-    return
-  }
-  // llama-server, a model download and its hashing end with the app, never outlive it (translate.md §4.3).
-  translateIpc?.quit()
-})
+// Kill every shell before the app tears down, so no orphaned pty survives, and hold the quit
+// until node-pty has ended their output workers (at most PtyManager's QUIT_WAIT_MS; quit-gate.ts).
+// The handlers stay until will-quit: the window can still ask for sessions.
+app.on(
+  'before-quit',
+  quitGate({
+    closeShells: () => ptyIpc?.closeSessions() ?? null,
+    // llama-server, a model download and its hashing end with the app, never outlive it
+    // (translate.md §4.3), and do not wait behind the shells.
+    endAtOnce: () => translateIpc?.quit(),
+    quit: () => app.quit(),
+  }),
+)
 
 // Handlers must outlive the windows: a closing renderer flushes its pending
 // layout save from beforeunload, and the terminal reaper may still list

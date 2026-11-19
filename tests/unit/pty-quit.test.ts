@@ -24,6 +24,8 @@ class FakeWorker extends EventEmitter {
 }
 
 let workers: FakeWorker[] = []
+/** Each shell's exit, as node-pty reports a shell that ended by itself. */
+let exits: Array<() => void> = []
 let shape: 'conpty' | 'unix' = 'conpty'
 
 vi.mock('node-pty', () => ({
@@ -41,7 +43,10 @@ vi.mock('node-pty', () => ({
           }
         : {}),
       onData: () => ({ dispose() {} }),
-      onExit: () => ({ dispose() {} }),
+      onExit: (listener: (e: { exitCode: number }) => void) => {
+        exits.push(() => listener({ exitCode: 0 }))
+        return { dispose() {} }
+      },
       pause() {},
       resume() {},
       write() {},
@@ -75,6 +80,7 @@ async function settled(promise: Promise<unknown>): Promise<boolean> {
 
 beforeEach(() => {
   workers = []
+  exits = []
   shape = 'conpty'
   vi.useFakeTimers()
 })
@@ -96,6 +102,29 @@ describe('closing every shell as the app quits', () => {
     workers[1]?.end()
     expect(await settled(ended)).toBe(true)
     for (const worker of workers) expect(worker.terminate).not.toHaveBeenCalled()
+  })
+
+  it('waits too for the worker of a shell closed a moment before the quit', async () => {
+    // Found in review: a pane closed, or a layout without shells chosen, just before quitting
+    // left no session to find the worker by, and the quit went on with it still being torn down.
+    const manager = new PtyManager(noEvents)
+    const { id } = manager.create({ shell: 'pwsh.exe' })
+    manager.dispose(id)
+    const ended = manager.disposeAll()
+    expect(await settled(ended)).toBe(false)
+    workers[0]?.end()
+    expect(await settled(ended)).toBe(true)
+  })
+
+  it('waits too for the worker of a shell that ended by itself a moment before', async () => {
+    const manager = new PtyManager(noEvents)
+    manager.create({ shell: 'pwsh.exe' })
+    exits[0]?.()
+    expect(manager.list()).toEqual([])
+    const ended = manager.disposeAll()
+    expect(await settled(ended)).toBe(false)
+    workers[0]?.end()
+    expect(await settled(ended)).toBe(true)
   })
 
   it(`waits no longer than ${QUIT_WAIT_MS} ms for a worker that does not end`, async () => {

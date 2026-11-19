@@ -23,6 +23,9 @@ vi.mock('electron', () => ({
 const sessions = new Map<string, { id: string }>()
 const created: string[] = []
 const asked: unknown[] = []
+/** What disposeAll answers: the end of the shells' output workers, held by the test. */
+let workersEnded: Promise<void> = Promise.resolve()
+let disposedAll = 0
 vi.mock('../../src/main/pty/pty-manager.js', () => ({
   PtyManager: class {
     create(opts: unknown) {
@@ -42,7 +45,9 @@ vi.mock('../../src/main/pty/pty-manager.js', () => ({
       sessions.delete(id)
     }
     disposeAll() {
+      disposedAll += 1
       sessions.clear()
+      return workersEnded
     }
   },
 }))
@@ -64,6 +69,8 @@ beforeEach(() => {
   sessions.clear()
   created.length = 0
   asked.length = 0
+  workersEnded = Promise.resolve()
+  disposedAll = 0
 })
 
 describe('pty.create from the page', () => {
@@ -94,6 +101,29 @@ describe('pty IPC while quitting', () => {
     expect(await invoke(CH.pty.attach, 's1')).toBe(false)
     await expect(invoke(CH.pty.dispose, 's1')).resolves.toBeUndefined()
     expect(handlers.has(CH.settings.startDirectory)).toBe(true)
+  })
+
+  it("answers a second close with the first one's wait, never at once", async () => {
+    // Found in review: a second quit while the first waited for the workers found no session
+    // left, answered at once, and the quit went on without waiting.
+    let end = () => {}
+    workersEnded = new Promise((resolve) => {
+      end = resolve
+    })
+    const ipc = registerPtyIpc(settings)
+    await invoke(CH.pty.create, {})
+    const first = ipc.closeSessions()
+    const second = ipc.closeSessions()
+    expect(second).toBe(first)
+    expect(disposedAll).toBe(1)
+    let done = false
+    void second.then(() => {
+      done = true
+    })
+    await Promise.resolve()
+    expect(done).toBe(false)
+    end()
+    await second
   })
 
   it('starts no new shell after the sessions are closed', async () => {

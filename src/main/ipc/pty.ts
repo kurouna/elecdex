@@ -146,13 +146,17 @@ export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
     },
   })
 
+  // The first close's wait, answered to every later one: a second quit while the first waited
+  // found no session left and answered at once, and the quit went on (found in review).
+  let closed: Promise<void> | null = null
   const closeSessions = (): Promise<void> => {
+    if (closed !== null) return closed
     closing = true
-    const ended = manager.disposeAll()
+    closed = manager.disposeAll()
     removeShellStaging()
     for (const set of ports.values()) for (const { port } of set) port.close()
     ports.clear()
-    return ended
+    return closed
   }
 
   return {
