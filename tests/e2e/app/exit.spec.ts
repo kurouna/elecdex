@@ -118,6 +118,9 @@ test('shells opened and ended through layout switches leave a quit that ends cle
       layout: SINGLE_TERMINAL,
       settings: NO_SWITCH_PROMPT,
     })
+    // What main says on its way out, in the failure: a crash on CI is otherwise only its code.
+    const said: string[] = []
+    app.process().stderr?.on('data', (chunk: Buffer) => said.push(chunk.toString()))
     try {
       const split = async () => {
         const before = await terminalPane(page).count()
@@ -146,7 +149,7 @@ test('shells opened and ended through layout switches leave a quit that ends cle
       })
       const started = Date.now()
       await page.evaluate(() => window.elecdex.system.quit())
-      expect(await code, `round ${round}: the exit code`).toBe(0)
+      expect(await code, `round ${round}: the exit code; main said: ${said.join('')}`).toBe(0)
       expect(Date.now() - started, `round ${round}: how long the quit took`).toBeLessThan(5000)
     } finally {
       await close().catch(() => {})

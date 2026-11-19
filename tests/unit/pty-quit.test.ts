@@ -151,8 +151,14 @@ describe('closing every shell as the app quits', () => {
     const ended = manager.disposeAll()
     await vi.advanceTimersByTimeAsync(QUIT_WAIT_MS - 1)
     expect(await settled(ended)).toBe(false)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await vi.advanceTimersByTimeAsync(1)
     expect(await settled(ended)).toBe(true)
+    // Said, so a quit that crashes after it can be told from one that waited out every worker.
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringMatching(/quitting with 1 output worker still running/),
+    )
+    warn.mockRestore()
   })
 
   it('answers at once with no shell, a worker already ended, or no ConPTY worker at all', async () => {

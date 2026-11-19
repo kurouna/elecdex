@@ -271,8 +271,15 @@ export class PtyManager {
     let timer: NodeJS.Timeout | undefined
     return Promise.race([
       Promise.all(ended),
-      new Promise((resolve) => {
-        timer = setTimeout(resolve, QUIT_WAIT_MS)
+      new Promise<void>((resolve) => {
+        timer = setTimeout(() => {
+          // Said, so a quit that crashes after it can be told from one that waited them out.
+          const left = [...this.workers].filter((worker) => worker.threadId !== -1).length
+          console.warn(
+            `[elecdex] quitting with ${left} output worker${left === 1 ? '' : 's'} still running after ${QUIT_WAIT_MS} ms`,
+          )
+          resolve()
+        }, QUIT_WAIT_MS)
       }),
     ]).then(() => clearTimeout(timer))
   }
