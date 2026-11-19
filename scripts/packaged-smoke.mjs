@@ -307,19 +307,45 @@ async function closedShellEndsItsWork(page, said) {
   log('closing a shell ended what ran in it')
 }
 
-/** The runAsNode fuse: told to run as Node, the executable must not. */
-function fuse(exe) {
+/**
+ * The runAsNode fuse: told to run as Node, the executable must not. It starts as the app instead,
+ * and is asked to end as a system asks a program to (SIGTERM; TerminateProcess on Windows), which
+ * it must: a spawnSync that waited on it hung the macOS job for hours on v0.1.0's tag, with no
+ * word of where (2026-11-19). What main said is in the failure.
+ */
+async function fuse(exe) {
   const profile = mkdtempSync(path.join(tmpdir(), 'elecdex-packaged-'))
+  const child = spawn(
+    exe,
+    ['-e', 'console.log("RAN-AS-NODE")', `--user-data-dir=${profile}`, ...sandbox],
+    {
+      env: { ...env, ELECTRON_RUN_AS_NODE: '1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  )
+  const said = []
+  child.stdout.on('data', (chunk) => said.push(chunk.toString()))
+  child.stderr.on('data', (chunk) => said.push(chunk.toString()))
+  const ended = new Promise((resolve) =>
+    child.once('exit', (code, signal) => resolve(signal ?? code)),
+  )
+  const within = (ms) => Promise.race([ended, sleep(ms).then(() => null)])
   try {
-    const result = spawnSync(
-      exe,
-      ['-e', 'console.log("RAN-AS-NODE")', `--user-data-dir=${profile}`, ...sandbox],
-      { env: { ...env, ELECTRON_RUN_AS_NODE: '1' }, timeout: 15_000, encoding: 'utf8' },
-    )
-    kill(result.pid)
-    if ((result.stdout ?? '').includes('RAN-AS-NODE')) throw new Error('the runAsNode fuse is off')
+    if ((await within(15_000)) === null) {
+      child.kill('SIGTERM')
+      const started = Date.now()
+      if ((await within(10_000)) === null) {
+        throw new Error(
+          `asked to end, the app was still running after 10 s; it said:\n${said.join('')}`,
+        )
+      }
+      log(`asked to end, the app ended in ${Date.now() - started} ms`)
+    }
+    if (said.join('').includes('RAN-AS-NODE')) throw new Error('the runAsNode fuse is off')
     log('the runAsNode fuse holds')
   } finally {
+    kill(child.pid)
+    await sleep(1000)
     rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
   }
 }
@@ -327,5 +353,5 @@ function fuse(exe) {
 const exe = process.argv[2] ? path.resolve(process.argv[2]) : findExecutable()
 log(`checking ${exe}`)
 await smoke(exe)
-fuse(exe)
+await fuse(exe)
 log('passed')
