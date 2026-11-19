@@ -25,7 +25,7 @@ beforeEach(() => {
     ...defaultSettings(),
     sound: { enabled: false, volume: 0 },
     motion: 'reduced',
-    reading: { aichat: 130, elec: 100, translate: 100 },
+    reading: { aichat: 130, elec: 100, translate: 100, rss: 100 },
   }
   stubElecdex({
     system: {
@@ -81,6 +81,13 @@ describe('the reading type fields', () => {
     await settle()
     expect(patches).toEqual([])
     expect(input.value).toBe('100')
+  })
+
+  it('offer a field for every reading pane, the RSS article included', async () => {
+    render(SettingsDialog)
+    await settle()
+    for (const pane of ['aichat', 'elec', 'translate', 'rss'])
+      expect(screen.getByTestId(`settings-reading-${pane}`)).toBeTruthy()
   })
 
   it('store a scale typed on its mark, within the range', async () => {

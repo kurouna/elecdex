@@ -182,7 +182,7 @@ describe('settings', () => {
         bell: 'both',
         win32InputMode: true,
       },
-      reading: { aichat: 100, elec: 100, translate: 100 },
+      reading: { aichat: 100, elec: 100, translate: 100, rss: 100 },
       launcher: { showSystem: true, items: [] },
       keybindings: {},
       window: {

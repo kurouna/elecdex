@@ -305,6 +305,50 @@ test('a headline opens its article: picture, summary, OPEN in the browser, and i
   }
 })
 
+test('the type keys size the article’s title and summary, for every RSS pane, and leave the shells’ type', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: beside('rss', {
+      id: 'r',
+      state: { feeds: [`${origin}/alpha.xml`] },
+      sizes: [0.5, 0.5],
+    }),
+  })
+  try {
+    const pane = rssPane(page)
+    const items = pane.getByTestId('rss-item')
+    await expect(items).toHaveCount(15, { timeout: 20_000 })
+    await items.nth(0).click()
+    const article = pane.getByTestId('rss-article')
+    await expect(article).toBeFocused()
+    const px = (testid: string) =>
+      article.getByTestId(testid).evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))
+    const before = {
+      title: await px('rss-article-title'),
+      summary: await px('rss-article-summary'),
+    }
+    const open = article.getByTestId('rss-open')
+    const button = await open.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize))
+    const reading = () =>
+      page.evaluate(async () => {
+        const s = await window.elecdex.settings.get()
+        return { rss: s.reading.rss, shell: s.terminal.fontSize }
+      })
+    await page.keyboard.press('Control+Shift+Equal')
+    await page.keyboard.press('Control+Shift+Equal')
+    await expect.poll(reading).toEqual({ rss: 120, shell: 13 })
+    await expect.poll(() => px('rss-article-title')).toBeCloseTo(before.title * 1.2, 1)
+    await expect.poll(() => px('rss-article-summary')).toBeCloseTo(before.summary * 1.2, 1)
+    // The frame keeps its size: the buttons are not what is read.
+    expect(
+      await open.evaluate((el) => Number.parseFloat(getComputedStyle(el).fontSize)),
+    ).toBeCloseTo(button, 1)
+    await page.keyboard.press('Control+Shift+Minus')
+    await expect.poll(reading).toEqual({ rss: 110, shell: 13 })
+  } finally {
+    await close()
+  }
+})
+
 test('Escape closes the article first, popped up or forward, and only then the popup or the zoom', async () => {
   const launched = await launch(undefined, {
     layout: layout('rss', { feeds: [`${origin}/alpha.xml`] }),

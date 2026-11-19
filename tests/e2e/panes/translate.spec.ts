@@ -483,7 +483,7 @@ test('Ctrl+Shift+= and - size the text and its translation, not the frame, and k
     await page.keyboard.press('Control+Shift+Equal')
     await expect
       .poll(() => page.evaluate(async () => (await window.elecdex.settings.get()).reading))
-      .toEqual({ aichat: 100, elec: 100, translate: 120 })
+      .toEqual({ aichat: 100, elec: 100, translate: 120, rss: 100 })
     await expect.poll(() => px(block)).toBeCloseTo(before.block * 1.2, 1)
     expect(await px(source)).toBeCloseTo(before.source * 1.2, 1)
     expect(await px(label)).toBe(before.label)

@@ -6,9 +6,10 @@ import { launch, paneById, single } from '../support.js'
 
 /**
  * Ctrl+Shift+= and Ctrl+Shift+- size the reading text of the pane that has the keyboard when it
- * is AI CHAT, ELEC or TRANSLATE - every pane of that kind, and nothing else - and the shells'
+ * is AI CHAT, ELEC, TRANSLATE or RSS - every pane of that kind, and nothing else - and the shells'
  * type otherwise (settings.reading, settings.terminal.fontSize). TRANSLATE's text is checked in
- * panes/translate.spec.ts, where its engine is stood in for.
+ * panes/translate.spec.ts, where its engine is stood in for, and the RSS article's in
+ * panes/rss.spec.ts, where its feed is served.
  */
 
 // A provider no test asks: a pane asks only on send, and nothing is sent here.
@@ -50,7 +51,7 @@ test('the type keys size the focused reading pane’s text, per kind, and the sh
     await page.keyboard.press('Control+Shift+Equal')
     await expect
       .poll(() => settings(page))
-      .toEqual({ reading: { aichat: 120, elec: 100, translate: 100 }, shell: 13 })
+      .toEqual({ reading: { aichat: 120, elec: 100, translate: 100, rss: 100 }, shell: 13 })
     await expect.poll(() => px(chatInput)).toBeCloseTo(before.chat * 1.2, 1)
     expect(await px(elecInput)).toBeCloseTo(before.elec, 1)
 
@@ -58,7 +59,7 @@ test('the type keys size the focused reading pane’s text, per kind, and the sh
     await page.keyboard.press('Control+Shift+Minus')
     await expect
       .poll(() => settings(page))
-      .toEqual({ reading: { aichat: 120, elec: 90, translate: 100 }, shell: 13 })
+      .toEqual({ reading: { aichat: 120, elec: 90, translate: 100, rss: 100 }, shell: 13 })
     await expect.poll(() => px(elecInput)).toBeCloseTo(before.elec * 0.9, 1)
 
     // From a shell, the shells' type, as before.
@@ -66,7 +67,7 @@ test('the type keys size the focused reading pane’s text, per kind, and the sh
     await page.keyboard.press('Control+Shift+Equal')
     await expect
       .poll(() => settings(page))
-      .toEqual({ reading: { aichat: 120, elec: 90, translate: 100 }, shell: 14 })
+      .toEqual({ reading: { aichat: 120, elec: 90, translate: 100, rss: 100 }, shell: 14 })
   } finally {
     await close()
   }
@@ -85,7 +86,7 @@ test('the type keys reach a reading pane popped up over the workspace', async ()
     await page.keyboard.press('Control+Shift+Equal')
     await expect
       .poll(() => settings(page))
-      .toEqual({ reading: { aichat: 110, elec: 100, translate: 100 }, shell: 13 })
+      .toEqual({ reading: { aichat: 110, elec: 100, translate: 100, rss: 100 }, shell: 13 })
     await expect.poll(() => px(input)).toBeCloseTo(before * 1.1, 1)
   } finally {
     await close()

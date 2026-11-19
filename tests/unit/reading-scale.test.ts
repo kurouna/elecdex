@@ -13,7 +13,7 @@ import {
 } from '../../src/shared/settings'
 
 /**
- * The reading panes' type scale (settings.reading): AI CHAT, ELEC and TRANSLATE size their
+ * The reading panes' type scale (settings.reading): AI CHAT, ELEC, TRANSLATE and the RSS article size their
  * reading text with the shells' type keys, a scale per kind of pane.
  */
 
@@ -21,17 +21,17 @@ const base = () => SettingsSchema.parse({})
 
 describe('reading scale settings', () => {
   it('starts every reading pane at its designed size', () => {
-    expect(base().reading).toEqual({ aichat: 100, elec: 100, translate: 100 })
+    expect(base().reading).toEqual({ aichat: 100, elec: 100, translate: 100, rss: 100 })
   })
 
   it('takes a patch of one pane kind and keeps the others', () => {
     const next = applySettingsPatch(base(), { reading: { elec: 130 } })
-    expect(next?.reading).toEqual({ aichat: 100, elec: 130, translate: 100 })
+    expect(next?.reading).toEqual({ aichat: 100, elec: 130, translate: 100, rss: 100 })
   })
 
   it('reads a broken or out-of-range value from disk as the designed size', () => {
     const read = SettingsSchema.parse({ reading: { aichat: 500, elec: 'big', translate: 120 } })
-    expect(read.reading).toEqual({ aichat: 100, elec: 100, translate: 120 })
+    expect(read.reading).toEqual({ aichat: 100, elec: 100, translate: 120, rss: 100 })
     expect(SettingsSchema.parse({ reading: 'x' }).reading).toEqual(base().reading)
   })
 })
@@ -87,6 +87,7 @@ describe('the scaled sizes', () => {
     aichat: 'widgets/aichat/AiChatWidget.svelte',
     elec: 'widgets/elec/ElecWidget.svelte',
     translate: 'widgets/translate/TextView.svelte',
+    rss: 'widgets/rss/RssArticle.svelte',
   }
 
   it('are a step of the scale times the pane kind’s scale, set on the pane', () => {

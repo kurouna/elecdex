@@ -2,6 +2,7 @@
 import { clockTime, feedHost, type ShownItem } from '@shared/feeds'
 import type { FeedMark as Mark } from '@shared/feeds-view'
 import { afterBlink } from '../../lib/blink.ts'
+import { appearance } from '../../stores/appearance.svelte.ts'
 import FeedMark from './FeedMark.svelte'
 import FeedPicture from './FeedPicture.svelte'
 import LitText from './LitText.svelte'
@@ -72,6 +73,7 @@ function onkeydown(event: KeyboardEvent): void {
   tabindex="-1"
   {onkeydown}
   {@attach takeFocus}
+  style:--read-scale={appearance.settings.reading.rss / 100}
   data-testid="rss-article"
 >
   <header class="hd">
@@ -181,11 +183,16 @@ function onkeydown(event: KeyboardEvent): void {
   border: 1px solid var(--panel-rule);
 }
 
+/*
+ * What is read - the headline and the summary - follows `--read-scale`, the RSS panes' scale
+ * (Ctrl+Shift+= and Ctrl+Shift+-, settings.reading); the facts, the tags and the buttons keep
+ * their sizes.
+ */
 h3 {
   margin: 0;
   font-family: var(--font-ui);
   font-weight: 500;
-  font-size: var(--step-0);
+  font-size: calc(var(--step-0) * var(--read-scale));
   line-height: 1.35;
   color: var(--accent-strong);
 }
@@ -216,7 +223,7 @@ h3 {
 
 .sum {
   margin: 0;
-  font-size: var(--step--1);
+  font-size: calc(var(--step--1) * var(--read-scale));
   line-height: 1.6;
 }
 

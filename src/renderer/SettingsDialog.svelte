@@ -60,6 +60,7 @@ const READING_ROWS: ReadonlyArray<{ pane: ReadingPane; label: string }> = [
   { pane: 'aichat', label: 'ai chat' },
   { pane: 'elec', label: 'elec system' },
   { pane: 'translate', label: 'translate' },
+  { pane: 'rss', label: 'rss article' },
 ]
 /** What this machine can do in the background; main found it out (stores/background). */
 const capabilities = $derived(background.capabilities)

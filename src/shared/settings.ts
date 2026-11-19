@@ -58,9 +58,10 @@ export const TERMINAL_FONT = { base: 13, min: 8, max: 32 } as const
 /**
  * The panes whose reading text Ctrl+Shift+= and Ctrl+Shift+- size, by widget id, as they do
  * the shells' type: what is read at length there - an answer, a council's ballots, a text
- * and its translation. Their frames, labels and stages keep the sizes they are designed at.
+ * and its translation, an article's headline and summary. Their frames, labels and stages keep
+ * the sizes they are designed at.
  */
-export const READING_PANES = ['aichat', 'elec', 'translate'] as const
+export const READING_PANES = ['aichat', 'elec', 'translate', 'rss'] as const
 export type ReadingPane = (typeof READING_PANES)[number]
 
 /** A reading pane's scale, in percent of its designed size: where it starts, its range, its step. */
@@ -78,6 +79,7 @@ const READING_DEFAULT = {
   aichat: READING_SCALE.base,
   elec: READING_SCALE.base,
   translate: READING_SCALE.base,
+  rss: READING_SCALE.base,
 }
 
 export const SettingsSchema = z.object({
@@ -129,7 +131,12 @@ export const SettingsSchema = z.object({
     }),
   /** Each reading pane's type scale, in percent: kept per kind of pane, as the shells' size is. */
   reading: z
-    .object({ aichat: readingScale, elec: readingScale, translate: readingScale })
+    .object({
+      aichat: readingScale,
+      elec: readingScale,
+      translate: readingScale,
+      rss: readingScale,
+    })
     .catch(READING_DEFAULT)
     .default(READING_DEFAULT),
   launcher: z
