@@ -11,6 +11,7 @@ import {
   WEEKDAY_NAMES,
 } from '@shared/alarms'
 import { untrack } from 'svelte'
+import { composing } from '../../lib/ime.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { alarms } from '../../stores/alarms.svelte.ts'
@@ -239,6 +240,7 @@ function nudge(alarm: Alarm, minutes: number): void {
     <input
       bind:value={draftTime}
       onkeydown={(event) => {
+        if (composing(event)) return
         if (event.key === 'Enter') {
           event.preventDefault()
           void add()
@@ -253,6 +255,7 @@ function nudge(alarm: Alarm, minutes: number): void {
     <input
       bind:value={draftLabel}
       onkeydown={(event) => {
+        if (composing(event)) return
         if (event.key === 'Enter') {
           event.preventDefault()
           void add()

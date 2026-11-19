@@ -11,6 +11,7 @@ import {
 } from '@shared/tasks'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { composing } from '../../lib/ime.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
@@ -455,8 +456,8 @@ $effect(() => {
         <span>snooze</span>
         <input
           type="number"
-          min="1"
-          max="1440"
+          min={SNOOZE_MINUTES.min}
+          max={SNOOZE_MINUTES.max}
           value={appearance.settings.reminders.snoozeMinutes}
           onchange={(e) => minutesField(e.currentTarget, 'snoozeMinutes', SNOOZE_MINUTES)}
           data-testid="todo-snooze-minutes"
@@ -467,8 +468,8 @@ $effect(() => {
         <span>warn</span>
         <input
           type="number"
-          min="0"
-          max="1440"
+          min={LEAD_MINUTES.min}
+          max={LEAD_MINUTES.max}
           value={appearance.settings.reminders.leadMinutes}
           onchange={(e) => minutesField(e.currentTarget, 'leadMinutes', LEAD_MINUTES)}
           data-testid="todo-warn-minutes"
@@ -494,7 +495,7 @@ $effect(() => {
       onkeydown={(e) => {
         // The Enter and Escape that end or cancel an IME conversion are the IME's (found in
         // review: a line typed in Japanese was added as its conversion was taken).
-        if (e.isComposing) return
+        if (composing(e)) return
         if (e.key === 'Enter') {
           e.preventDefault()
           add()
@@ -559,6 +560,7 @@ $effect(() => {
               autofocus
               bind:value={editing.value}
               onkeydown={(event) => {
+                if (composing(event)) return
                 if (event.key === 'Enter') commitEdit(task)
                 if (event.key === 'Escape') editing = null
               }}
@@ -585,6 +587,7 @@ $effect(() => {
               bind:value={editing.value}
               placeholder="明日 9:00 · fri 18:30 · empty to clear"
               onkeydown={(event) => {
+                if (composing(event)) return
                 if (event.key === 'Enter') commitEdit(task)
                 if (event.key === 'Escape') editing = null
               }}

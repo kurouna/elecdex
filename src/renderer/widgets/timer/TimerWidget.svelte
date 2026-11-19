@@ -20,6 +20,7 @@ import {
 } from '@shared/timer'
 import { untrack } from 'svelte'
 import { onBoundary, onFrame } from '../../lib/frame-loop.ts'
+import { composing } from '../../lib/ime.ts'
 import { alarms } from '../../stores/alarms.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -557,6 +558,7 @@ $effect(() => {
       <input
         bind:value={custom}
         onkeydown={(e) => {
+          if (composing(e)) return
           if (e.key === 'Enter') {
             e.preventDefault()
             addCustom()

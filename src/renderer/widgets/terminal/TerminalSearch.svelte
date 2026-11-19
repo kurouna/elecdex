@@ -8,6 +8,7 @@ export interface SearchHow {
 </script>
 
 <script lang="ts">
+import { composing } from '../../lib/ime.ts'
 import type { SearchAddon } from '@xterm/addon-search'
 
 /**
@@ -88,6 +89,7 @@ function onInput(): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key === 'Enter') {
     event.preventDefault()
     step(event.shiftKey)
@@ -100,6 +102,7 @@ function onKeydown(event: KeyboardEvent): void {
  * did nothing (found in review). Kept from the shell under the bar as well.
  */
 function onBarKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key !== 'Escape') return
   event.preventDefault()
   event.stopPropagation()

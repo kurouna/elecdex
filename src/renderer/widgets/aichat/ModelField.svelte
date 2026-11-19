@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { AiModel } from '@shared/ai'
+import { composing } from '../../lib/ime.ts'
 
 /**
  * The model field: free text, completed from the provider's list.
@@ -91,6 +92,7 @@ function move(by: number): void {
 }
 
 function keydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault()
     move(event.key === 'ArrowDown' ? 1 : -1)

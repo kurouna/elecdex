@@ -103,6 +103,20 @@ describe('TerminalSearch, with a pattern half typed', () => {
 })
 
 describe('TerminalSearch', () => {
+  it('leaves the IME its Enter and Escape in the box (found in review)', async () => {
+    const find = vi.fn(() => true)
+    const addon = { onDidChangeResults: () => ({ dispose() {} }), clearDecorations: vi.fn() }
+    const onclose = vi.fn()
+    render(TerminalSearch, { props: { addon: addon as never, find, focusToken: 0, onclose } })
+    const box = screen.getByTestId('terminal-search-box') as HTMLInputElement
+    await fireEvent.input(box, { target: { value: 'エラー' } })
+    find.mockClear()
+    await fireEvent.keyDown(box, { key: 'Enter', isComposing: true })
+    await fireEvent.keyDown(box, { key: 'Escape', isComposing: true })
+    expect(find).not.toHaveBeenCalled()
+    expect(onclose).not.toHaveBeenCalled()
+  })
+
   it('closes with Escape wherever the keyboard is in the bar, as the workspace leaves it there (found in review)', async () => {
     const { escapeOwned } = await import('../../src/renderer/lib/escape-owner.ts')
     const addon = { onDidChangeResults: () => ({ dispose() {} }), clearDecorations: vi.fn() }

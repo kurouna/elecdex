@@ -52,6 +52,20 @@ test('popped up: Escape clears the calculator line and closes the language list 
     await line.press('Escape')
     await expect(line).toHaveValue('')
     await expect(popup(page)).toHaveCount(1)
+    // The Escape that cancels an IME conversion in the empty line is the IME's: the popup stays
+    // (found in review). Dispatched as the IME's key arrives: keyCode 229, isComposing.
+    await line.evaluate((el) =>
+      el.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Escape',
+          isComposing: true,
+          keyCode: 229,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    )
+    await expect(popup(page)).toHaveCount(1)
     await line.press('Escape')
     await expect(popup(page)).toHaveCount(0)
 

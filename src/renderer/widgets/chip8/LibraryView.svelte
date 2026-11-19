@@ -12,6 +12,7 @@ import { afterBlink } from '../../lib/blink.ts'
 import { POWER_OFF_MS } from '../../lib/crt-timing.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { composing } from '../../lib/ime.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -271,7 +272,8 @@ export function key(event: KeyboardEvent): boolean {
 
 /** In the search, the list is still walked and loaded from; left and right move the caret. */
 function searchKey(event: KeyboardEvent): void {
-  if (event.ctrlKey || event.altKey || event.metaKey) return
+  // A conversion's keys carry their code too: its Enter loaded the program chosen.
+  if (composing(event) || event.ctrlKey || event.altKey || event.metaKey) return
   const walk = event.code === 'ArrowDown' || event.code === 'ArrowUp' || event.code === 'Enter'
   if (walk && key(event)) event.preventDefault()
 }

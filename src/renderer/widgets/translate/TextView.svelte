@@ -10,6 +10,7 @@ import { type BlockView, HIDDEN_REASON, type RunView } from '@shared/translate/r
 import { tick, untrack } from 'svelte'
 import { chordHint } from '../../lib/chord-hint.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { composing } from '../../lib/ime.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
@@ -357,7 +358,7 @@ function copy(): void {
 
 /** Enter on the source's blocks edits them, as a click does; focus alone does not. */
 function onBlocksKey(event: KeyboardEvent): void {
-  if (event.key === 'Enter' && !event.ctrlKey && !event.isComposing) {
+  if (event.key === 'Enter' && !event.ctrlKey && !composing(event)) {
     event.preventDefault()
     editFromKey()
   }
@@ -381,7 +382,7 @@ $effect(() => {
 })
 
 function onSourceKey(event: KeyboardEvent): void {
-  if (event.key === 'Enter' && event.ctrlKey && !event.isComposing) {
+  if (event.key === 'Enter' && event.ctrlKey && !composing(event)) {
     event.preventDefault()
     void translate()
   }
@@ -496,7 +497,7 @@ function onBlockEditKey(event: KeyboardEvent): void {
     event.preventDefault()
     event.stopPropagation()
     editingBlock = null
-  } else if (event.key === 'Enter' && event.ctrlKey && !event.isComposing) {
+  } else if (event.key === 'Enter' && event.ctrlKey && !composing(event)) {
     event.preventDefault()
     event.stopPropagation()
     saveBlock()

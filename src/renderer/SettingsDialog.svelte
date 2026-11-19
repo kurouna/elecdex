@@ -34,6 +34,7 @@ import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
 import { chordHint } from './lib/chord-hint.ts'
 import { backdropShade, crtPower, dialogDelay } from './lib/crt-transitions.ts'
+import { composing } from './lib/ime.ts'
 import { keyLabels } from './lib/key-labels.svelte.ts'
 import PluginSettings from './plugins/PluginSettings.svelte'
 import { type SettingsSection, settingsSections } from './settings-sections.ts'
@@ -233,6 +234,7 @@ function setBinding(action: KeybindingAction, chord: string | null | undefined):
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (!ui.settingsOpen) return
   if (recording !== null) {
     event.preventDefault()

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { crtPower } from '../../lib/crt-transitions.ts'
+import { composing } from '../../lib/ime.ts'
 import { pickerRows } from './translate-view.ts'
 
 /**
@@ -38,7 +39,7 @@ function onkey(event: KeyboardEvent): void {
     onclose()
     return
   }
-  if (event.key === 'Enter' && !event.isComposing) {
+  if (event.key === 'Enter' && !composing(event)) {
     const first = rows[0]
     if (first) onpick(first.code)
   }

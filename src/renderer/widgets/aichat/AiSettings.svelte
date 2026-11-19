@@ -13,6 +13,7 @@ import {
 } from '@shared/ai'
 import { ELEC_LIMITS, ELEC_UNITS, UNIT_INDICES, type UnitIndex, unitLabel } from '@shared/elec'
 import ConfirmButton from '../../ConfirmButton.svelte'
+import { composing } from '../../lib/ime.ts'
 import { ai } from '../../stores/ai.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import ModelField from './ModelField.svelte'
@@ -291,6 +292,7 @@ function addressProblem(provider: AiProvider): string | null {
         oninput={(e) => note(provider.id, { typed: e.currentTarget.value })}
         onblur={() => void saveKey(provider.id)}
         onkeydown={(e) => {
+          if (composing(e)) return
           if (e.key === 'Enter') void saveKey(provider.id)
         }}
         data-testid="ai-key"

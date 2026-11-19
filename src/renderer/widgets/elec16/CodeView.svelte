@@ -3,6 +3,7 @@ import { CODE_END, CODE_START, MEASURE_LIMIT, SAMPLE } from '@shared/e16c/code-a
 import { sourceFromMachine, sourceToMachine } from '@shared/elec16/charset'
 import { onDestroy, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
+import { composing } from '../../lib/ime.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { compileCode, holdCompiler } from './code/compiler.ts'
 import type { LevelResult } from './code/protocol.ts'
@@ -189,6 +190,7 @@ onDestroy(() => {
       spellcheck="false"
       bind:value={naming}
       onkeydown={(e) => {
+        if (composing(e)) return
         if (e.key === 'Enter') void open(naming)
       }}
       data-testid="elec16-code-new"

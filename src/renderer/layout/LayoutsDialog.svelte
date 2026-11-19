@@ -12,6 +12,7 @@ import { cleanLayoutName, KEYED_LAYOUTS, MAX_SAVED_LAYOUTS, slotKey } from '@sha
 import { tick } from 'svelte'
 import ConfirmButton from '../ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
+import { composing } from '../lib/ime.ts'
 import { keyLabels } from '../lib/key-labels.svelte.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
@@ -223,6 +224,7 @@ async function commitRename(): Promise<void> {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (!ui.layoutsOpen) return
   const take = (): void => {
     event.preventDefault()
@@ -249,6 +251,7 @@ function onKeydown(event: KeyboardEvent): void {
 
 /** The list's keys: ↑ ↓ to choose, Enter to apply (or, in the name box, to save). */
 function onListKey(event: KeyboardEvent, take: () => void): void {
+  if (composing(event)) return
   if (saved.length === 0) return
   const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
   if (step !== 0) {
@@ -268,6 +271,7 @@ function onListKey(event: KeyboardEvent, take: () => void): void {
 
 /** The shelf's keys: ← → along the cards, ↑ back to the list, Enter to choose. */
 function onShelfKey(event: KeyboardEvent, at: number, take: () => void): void {
+  if (composing(event)) return
   const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
   if (step !== 0) {
     take()
@@ -371,6 +375,7 @@ function revealFile(): void {
                   aria-label="New name"
                   onblur={() => void commitRename()}
                   onkeydown={(e) => {
+                    if (composing(e)) return
                     e.stopPropagation()
                     if (e.key === 'Enter') void commitRename()
                     if (e.key === 'Escape') renaming = null

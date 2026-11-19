@@ -2,6 +2,7 @@
 import { pageToKeep, presetOfWidget, type WebRect, type WebState } from '@shared/web'
 import { untrack } from 'svelte'
 import { paneDrag } from '../../layout/pane-drag.svelte.ts'
+import { composing } from '../../lib/ime.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { boot } from '../../stores/boot.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
@@ -258,6 +259,7 @@ function submit(event: SubmitEvent): void {
 }
 
 function onAddressKey(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key !== 'Escape') return
   editing = false
   address = page?.url ?? ''

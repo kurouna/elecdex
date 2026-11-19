@@ -8,6 +8,7 @@ import {
   evaluateLine,
   tally,
 } from '@shared/calc'
+import { composing } from '../../lib/ime.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
@@ -154,6 +155,7 @@ function recall(delta: number): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key === 'Enter') {
     event.preventDefault()
     submit()

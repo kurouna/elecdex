@@ -20,6 +20,7 @@ import { chordHint } from '../lib/chord-hint.ts'
 import { commands } from '../lib/commands.ts'
 import { escapeOwned } from '../lib/escape-owner.ts'
 import { provideSummoner } from '../lib/hand-over.svelte.ts'
+import { composing } from '../lib/ime.ts'
 import { forgetGonePanes } from '../lib/pane-memory.ts'
 import { editingText } from '../lib/text-field.ts'
 import { appearance } from '../stores/appearance.svelte.ts'
@@ -419,6 +420,7 @@ $effect(() =>
 )
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   // While a shortcut is being recorded in the settings, every key goes there.
   if (ui.recordingShortcut) return
   // Escape puts a pane that is forward back, as it closes a dialog. Not a

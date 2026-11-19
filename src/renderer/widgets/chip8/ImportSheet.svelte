@@ -6,6 +6,7 @@ import { untrack } from 'svelte'
 import { fade } from 'svelte/transition'
 import { POWER_OFF_MS } from '../../lib/crt-timing.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
+import { composing } from '../../lib/ime.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { GUESS_WORDS, PLATFORM_NAMES } from './labels.ts'
@@ -78,6 +79,7 @@ async function remove(): Promise<void> {
 }
 
 function onkeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   // The sheet's own keys, kept from the library under it.
   event.stopPropagation()
   if (event.key === 'Escape') {

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { SNIPPET_LIMITS } from '@shared/snippets'
 import { untrack } from 'svelte'
+import { composing } from '../../lib/ime.ts'
 
 /**
  * Writing a snippet by hand, or changing one: a name (optional - the first line
@@ -48,6 +49,7 @@ function save(): void {
 }
 
 function onkeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key === 'Escape') {
     event.preventDefault()
     event.stopPropagation()

@@ -15,6 +15,7 @@ const exportSession = oneAtATime(async (id: string): Promise<void> => {
 </script>
 
 <script lang="ts">
+import { composing } from '../../lib/ime.ts'
 import { compactCount, FAILED_STOPS, STOP_CODES, usageText } from '@shared/ai'
 import {
   applyElecEvent,
@@ -411,7 +412,7 @@ async function send(): Promise<void> {
 
 function onComposerKey(event: KeyboardEvent): void {
   // Enter that confirms an IME conversion is not the Enter that submits.
-  if (event.isComposing || event.keyCode === 229) return
+  if (composing(event)) return
   if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
     event.preventDefault()
     void send()

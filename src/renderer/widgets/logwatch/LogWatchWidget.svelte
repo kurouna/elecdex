@@ -22,6 +22,7 @@ import { tick, untrack } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { composing } from '../../lib/ime.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
@@ -533,6 +534,7 @@ $effect(() => {
         bind:value={filterText}
         data-owns-escape={filterText !== '' || undefined}
         onkeydown={(event) => {
+          if (composing(event)) return
           // Escape empties a filter typed, as a search field does.
           if (event.key === 'Escape' && filterText !== '') {
             event.stopPropagation()

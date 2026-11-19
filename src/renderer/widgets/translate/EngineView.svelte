@@ -3,6 +3,7 @@ import type { Settings } from '@shared/settings'
 import { CHOSEN_MEANWHILE, type TranslateBoard } from '@shared/translate/board'
 import { MODELS } from '@shared/translate/models'
 import { CTX_SIZES, IDLE_MINUTES } from '@shared/translate/settings'
+import { composing } from '../../lib/ime.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import {
   FIT_WORD,
@@ -141,7 +142,7 @@ function copyLog(): void {
         <span class="pick"><i class="rd"></i><b>A server already running</b></span>
         {#if board.engine.externalOrigin}<span class="mono" data-testid="translate-external-saved">{external ? 'In use' : 'Tested'}: {board.engine.externalOrigin}</span>{/if}
         <span class="row">
-          <input class="field" bind:value={address} placeholder={board.engine.externalOrigin ?? 'http://192.168.1.20:8080'} aria-label="Server address" onkeydown={(e) => { if (e.key === 'Enter' && !e.isComposing) void test() }} />
+          <input class="field" bind:value={address} placeholder={board.engine.externalOrigin ?? 'http://192.168.1.20:8080'} aria-label="Server address" onkeydown={(e) => { if (e.key === 'Enter' && !composing(e)) void test() }} />
           <button type="button" class="btn" onclick={() => void test()}>Test</button>
         </span>
         <span class="small">Test checks the address and, when it runs PLaMo 3 Translate, sends every translation there.</span>

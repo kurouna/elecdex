@@ -2,6 +2,7 @@
 import ConfirmButton from '../ConfirmButton.svelte'
 import { chordHint } from '../lib/chord-hint.ts'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
+import { composing } from '../lib/ime.ts'
 import { revealSelected } from '../lib/list-selection.ts'
 import { plugins } from '../plugins/plugins.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
@@ -108,6 +109,7 @@ function choose(row: PickerRow<WidgetDefinition> | undefined): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (!ui.panePickerOpen) return
   const take = () => {
     event.preventDefault()

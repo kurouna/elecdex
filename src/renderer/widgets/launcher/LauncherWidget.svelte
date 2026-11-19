@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { LauncherEntry } from '@shared/launcher'
 import { untrack } from 'svelte'
+import { composing } from '../../lib/ime.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { keepTyped, recallTyped } from '../../lib/pane-memory.ts'
 import { onSummoned } from '../../lib/summoned.svelte.ts'
@@ -159,6 +160,7 @@ const launch = oneAtATime(async (entry: LauncherEntry | undefined): Promise<void
 })
 
 function onFilterKey(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key === 'Enter') {
     event.preventDefault()
     void launch(visible[0])

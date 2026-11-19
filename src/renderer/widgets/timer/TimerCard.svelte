@@ -7,6 +7,7 @@ import {
   TIMER_STEPS,
   type TimerEntry,
 } from '@shared/timer'
+import { composing } from '../../lib/ime.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import Readout from '../common/Readout.svelte'
 import SegmentMeter from '../common/SegmentMeter.svelte'
@@ -174,6 +175,7 @@ function setCustom(): void {
         <input
           bind:value={custom}
           onkeydown={(e) => {
+            if (composing(e)) return
             if (e.key === 'Enter') {
               e.preventDefault()
               setCustom()

@@ -1,5 +1,5 @@
 import type { LauncherEntry } from '@shared/launcher'
-import { render, screen } from '@testing-library/svelte'
+import { fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubIntersectionObserver } from './support/dom.ts'
 import { settle } from './support/settle.ts'
@@ -38,7 +38,7 @@ beforeEach(() => {
     launcher: {
       list,
       icon,
-      launch: vi.fn(),
+      launch: vi.fn(async () => ({ ok: true })),
       onChange: (handler: () => void) => {
         changed = handler
         return unsubscribe
@@ -54,6 +54,22 @@ afterEach(() => {
 const names = () => screen.queryAllByTestId('launcher-entry').map((el) => el.textContent?.trim())
 
 describe('LauncherWidget', () => {
+  it('launches nothing with the Enter that takes an IME conversion (found in review)', async () => {
+    list.mockResolvedValue([entry('メモ帳')])
+    render(LauncherWidget, { props: { paneId: 'p' } as never })
+    await settle()
+    const filter = screen.getByTestId('launcher-filter')
+    await fireEvent.input(filter, { target: { value: 'メモ' } })
+    await fireEvent.keyDown(filter, { key: 'Enter', isComposing: true })
+    await settle()
+    const launch = (window.elecdex as unknown as { launcher: { launch: ReturnType<typeof vi.fn> } })
+      .launcher.launch
+    expect(launch).not.toHaveBeenCalled()
+    await fireEvent.keyDown(filter, { key: 'Enter' })
+    await settle()
+    expect(launch).toHaveBeenCalledTimes(1)
+  })
+
   it('asks again when main reports a changed list, keeping the tiles until the answer', async () => {
     let answer: (entries: LauncherEntry[]) => void = () => {}
     list

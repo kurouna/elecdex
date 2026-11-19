@@ -3,6 +3,7 @@ import cities from '@shared/geo/cities.json'
 import type { OfficeInfo } from '@shared/weather'
 import { type CityRow, type PlaceChoice, searchPlaces, sourceName } from '@shared/weather-places'
 import { backdropShade, crtPower, dialogDelay } from './lib/crt-transitions.ts'
+import { composing } from './lib/ime.ts'
 import { revealSelected } from './lib/list-selection.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
@@ -72,6 +73,7 @@ function choose(choice: PlaceChoice | undefined): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (request === null) return
   const take = () => {
     event.preventDefault()

@@ -29,6 +29,7 @@ import { untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
 import { handOver } from '../../lib/hand-over.svelte.ts'
+import { composing } from '../../lib/ime.ts'
 import { NewAbove } from '../../lib/new-above.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -305,6 +306,7 @@ function setOnly(next: string | null, button: HTMLElement): void {
  * popup closed (lib/escape-owner.ts): those went first, the search staying (found in review).
  */
 function onFindKey(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key !== 'Escape' || find === '') return
   event.stopPropagation()
   find = ''

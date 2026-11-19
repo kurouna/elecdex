@@ -24,6 +24,7 @@ import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { takeHandOver } from '../../lib/hand-over.svelte.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
+import { composing } from '../../lib/ime.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { onSummoned } from '../../lib/summoned.svelte.ts'
@@ -380,7 +381,7 @@ function leaveEdit(): void {
 
 function onComposerKey(event: KeyboardEvent): void {
   // Enter that confirms an IME conversion is not the Enter that sends.
-  if (event.isComposing || event.keyCode === 229) return
+  if (composing(event)) return
   if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.altKey) {
     event.preventDefault()
     void send()

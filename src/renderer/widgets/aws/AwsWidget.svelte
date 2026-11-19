@@ -35,6 +35,7 @@ import {
   HoverRest,
   keyboardFocused,
 } from '../../lib/hover-card.ts'
+import { composing } from '../../lib/ime.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -235,6 +236,7 @@ function up(): void {
  * did nothing with it (found in review). Backspace in a field is the field's.
  */
 function onPaneKey(event: KeyboardEvent): void {
+  if (composing(event)) return
   if ((event.key === 'Escape' || event.key === 'Backspace') && ownsEscape) {
     const tag = (event.target as HTMLElement | null)?.tagName
     if (event.key === 'Backspace' && (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT'))
@@ -270,6 +272,7 @@ function attentionOpen(item: AttentionItem): void {
   )
 }
 function onRowKey(event: KeyboardEvent, run: () => void): void {
+  if (composing(event)) return
   if (event.key === 'Enter') {
     event.preventDefault()
     run()

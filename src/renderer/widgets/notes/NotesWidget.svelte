@@ -1,6 +1,7 @@
 <script lang="ts">
 import { evaluateAt } from '@shared/calc'
 import { type Note, noteTitle } from '@shared/notes'
+import { composing } from '../../lib/ime.ts'
 import { oneAtATime } from '../../lib/one-at-a-time.ts'
 import { notes } from '../../stores/notes.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -202,6 +203,7 @@ function removeNote(target?: Note): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   if (event.key === 'Escape' && search !== null) {
     event.preventDefault()
     search = null
@@ -404,6 +406,7 @@ const exportNote = oneAtATime(async (id: string): Promise<void> => {
         bind:value={search}
         data-owns-escape
         onkeydown={(e) => {
+          if (composing(e)) return
           if (e.key === 'Enter') {
             e.preventDefault()
             findNext()

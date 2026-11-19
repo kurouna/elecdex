@@ -1,6 +1,7 @@
 <script lang="ts">
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
 import { escapeOwned } from '../lib/escape-owner.ts'
+import { composing } from '../lib/ime.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import { widgetState } from '../stores/widget-state.svelte.ts'
@@ -67,6 +68,7 @@ $effect(() => {
 })
 
 function onKeydown(event: KeyboardEvent): void {
+  if (composing(event)) return
   // A dialog the popped-up widget opened over it (a place to choose) has the key first.
   if (!ui.popupOnTop || event.key !== 'Escape' || escapeOwned(event)) return
   event.preventDefault()

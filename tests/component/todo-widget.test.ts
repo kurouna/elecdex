@@ -280,6 +280,23 @@ describe('TodoWidget', () => {
     expect(patched).toHaveBeenLastCalledWith('p', { showCompleted: true })
   })
 
+  it('leaves the IME its Enter and Escape in the task editor (found in review)', async () => {
+    file = { ...file, tasks: [task({ title: 'buy milk' })] }
+    await mount()
+    await fireEvent.click(screen.getByTestId('todo-title'))
+    await settle()
+    const field = screen.getByTestId('todo-edit-title')
+    await fireEvent.input(field, { target: { value: '牛乳を買う' } })
+    await fireEvent.keyDown(field, { key: 'Enter', isComposing: true })
+    await fireEvent.keyDown(field, { key: 'Escape', keyCode: 229 })
+    await settle()
+    expect(update).not.toHaveBeenCalled()
+    expect(screen.getByTestId('todo-edit-title')).toBeTruthy()
+    await fireEvent.keyDown(screen.getByTestId('todo-edit-title'), { key: 'Enter' })
+    await settle()
+    expect(update).toHaveBeenCalledWith('t1', { title: '牛乳を買う' })
+  })
+
   it('renames a task where it is read', async () => {
     file = { ...file, tasks: [task({ title: 'buy milk' })] }
     await mount()

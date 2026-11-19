@@ -15,6 +15,7 @@ import {
 } from '@shared/palette'
 import { commands } from '../lib/commands.ts'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
+import { composing } from '../lib/ime.ts'
 import { keyLabels } from '../lib/key-labels.svelte.ts'
 import { revealSelected } from '../lib/list-selection.ts'
 import { plugins } from '../plugins/plugins.svelte.ts'
@@ -209,7 +210,7 @@ const KEYS: Record<string, (event: KeyboardEvent) => void> = {
 function onKeydown(event: KeyboardEvent): void {
   if (!ui.paletteOpen) return
   // A word being composed (an IME) has the keys until it is put down.
-  if (event.isComposing || event.keyCode === 229) return
+  if (composing(event)) return
   // With Ctrl, Alt or the system key it is a shortcut, not one of the palette's keys.
   if (event.ctrlKey || event.altKey || event.metaKey) return
   const handle = KEYS[event.key]
