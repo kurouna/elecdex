@@ -82,6 +82,10 @@ export function consoleProcessList(pid: number): Promise<number[]> {
 /** Asks one utility process for every shell's list; each shell alone when it cannot answer. */
 function ask(pids: readonly number[]): Promise<Map<number, number[]>> {
   const alone = new Map(pids.map((pid) => [pid, [pid]]))
+  // Asked at the end of the turn its shells closed in: a quit begun in that same turn has found
+  // nothing running to wait for, and a utility process started now would outlive it (found in
+  // review, 2026-11-20).
+  if (quitting) return Promise.resolve(alone)
   return new Promise((resolve) => {
     let child: Electron.UtilityProcess
     try {
