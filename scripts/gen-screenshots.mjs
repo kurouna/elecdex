@@ -16,8 +16,8 @@
  * reaching the page.
  *
  * Shots for posting (`social-elec-sitting`, `social-elec-approved`, `social-ethernet-popup`,
- * `social-paper-cockpit`, `social-paper-earth`, `social-black-translate`, `social-aws-forward` and
- * `social-github-forward`, the last two each with an `-alone`) are taken only when named,
+ * `social-paper-cockpit`, `social-paper-earth`, `social-black-translate`, `social-aws-forward`,
+ * `social-github-forward` and `social-markets-forward`, the last three each with an `-alone`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
  * so nothing of the machine is in them.
  */
@@ -1540,6 +1540,31 @@ for (const [widget, ready, tab] of [
         await pane.getByTestId(tab).click()
         await page.waitForTimeout(1200)
       }
+      await page.mouse.move(W / 2, 5)
+      await page.waitForTimeout(800)
+      mkdirSync(SOCIAL, { recursive: true })
+      await pane.screenshot({ path: path.join(SOCIAL, `${name}-alone.png`) })
+    },
+  })
+}
+// For posting: MARKETS brought forward in the default layout, in Business Light, the S&P 500's
+// chart on 5D, its dividers and day labels on the trading sessions (v0.1.2). `-alone` is the
+// pane's own box. Live quotes, as in the README's shots. Only when named.
+if (only.includes('social-markets-forward')) {
+  const name = 'social-markets-forward'
+  await shoot('business-light', name, {
+    social: true,
+    extra: async (page) => {
+      const pane = page.locator('[data-testid=pane][data-widget=markets]').first()
+      await pane.locator('[data-testid=market-row][data-symbol="^GSPC"]').first().waitFor()
+      await pane.getByTestId('pane-zoom').click()
+      await page.waitForTimeout(1500)
+      await pane
+        .locator('[data-testid=market-row][data-symbol="^GSPC"] [data-testid=market-open]')
+        .click()
+      await pane.locator('[data-testid=markets-ranges] [data-range="5d"]').click()
+      await pane.getByTestId('market-detail-chart').waitFor()
+      await page.waitForTimeout(5000)
       await page.mouse.move(W / 2, 5)
       await page.waitForTimeout(800)
       mkdirSync(SOCIAL, { recursive: true })
