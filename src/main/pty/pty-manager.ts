@@ -6,6 +6,7 @@ import type { IPty } from 'node-pty'
 import { spawn } from 'node-pty'
 import { APP_VERSION } from '../build-info.js'
 import { listConsoleOutOfProcess, listConsolesNoMore } from './console-list.js'
+import { nativeExit } from './native-exit.js'
 import { OscParser } from './osc-parser.js'
 import { ScreenMirror } from './screen-mirror.js'
 import { buildInjection, defaultShell, terminalEnv } from './shell-integration.js'
@@ -23,10 +24,13 @@ import { buildInjection, defaultShell, terminalEnv } from './shell-integration.j
  */
 
 /**
- * The longest the quit waits for the shells' output workers to end (`disposeAll`): node-pty ends
- * each a second after its kill, once the output has drained.
+ * The longest the quit waits for the shells (`disposeAll`): their output workers, which node-pty
+ * ends a second after its kill once the output has drained, and their native exit notices. A
+ * ceiling only - a quit waits as long as these take. Measured (2026-11-20): about 1 s here, 1.0
+ * to 3.4 s (median 2.1 s) on GitHub's Windows runners, where the 2 s this was before cut the wait
+ * short and the app crashed on its way out.
  */
-export const QUIT_WAIT_MS = 2000
+export const QUIT_WAIT_MS = 5000
 
 /**
  * node-pty's worker thread carrying a ConPTY session's output (its ConoutConnection), while it
@@ -133,6 +137,11 @@ export class PtyManager {
    * (found in review).
    */
   private readonly workers = new Set<Worker>()
+  /**
+   * Every shell whose native exit notice has not reached JS yet (native-exit.ts), closed or not:
+   * one still queued as node frees its environment crashes the app on its way out.
+   */
+  private readonly nativeExits = new Set<Promise<void>>()
   private readonly events: PtySessionEvents
 
   constructor(events: PtySessionEvents) {
@@ -181,6 +190,11 @@ export class PtyManager {
       createdAt: Date.now(),
     }
     this.sessions.set(id, session)
+    const exited = nativeExit(pty)
+    if (exited !== null) {
+      this.nativeExits.add(exited)
+      void exited.then(() => this.nativeExits.delete(exited))
+    }
     const worker = outputWorker(pty)
     if (worker !== null) {
       this.workers.add(worker)
@@ -253,16 +267,17 @@ export class PtyManager {
   }
 
   /**
-   * Every session, as the app quits; answers once node-pty has ended each one's output worker,
-   * or after QUIT_WAIT_MS. The quit waits for it (main/index.ts): ending the process with the
-   * workers still being torn down crashed it on its way out (0xC0000409), most times after
-   * shells had come and gone with the layouts, and Windows held it seconds for its error report
-   * (found by hand, 2026-11-19). The workers are left to node-pty to end: ended early, one not
-   * yet connected to left node-pty connecting to a pipe that was gone, an uncaught error.
-   * Shells closed or ended a moment before are waited for too (`workers`), and so is a console
-   * list still being asked, ended (console-list.ts). Null when neither runs (always outside
-   * Windows): the quit is then not held at all, since a quit held and asked again, as SIGTERM
-   * starts it, never went on on macOS (found on v0.1.0's tag, 2026-11-19).
+   * Every session, as the app quits; answers once each shell's native exit notice has reached JS
+   * and node-pty has ended each one's output worker, or after QUIT_WAIT_MS. The quit waits for it
+   * (main/index.ts). A notice still queued as node frees its environment is delivered when JS can
+   * no longer run, and the app crashed on its way out (0xC0000409, abort from an uncaught C++
+   * exception in node-pty's conpty.node: crash dumps from GitHub's Windows runners, 2026-11-20;
+   * native-exit.ts). The workers are left to node-pty to end: ended early, one not yet connected
+   * to left node-pty connecting to a pipe that was gone, an uncaught error. Shells closed or ended
+   * a moment before are waited for too, and so is a console list still being asked, ended
+   * (console-list.ts). Null when there is nothing to wait for (always outside Windows): the quit
+   * is then not held at all, since a quit held and asked again, as SIGTERM starts it, never went
+   * on on macOS (found on v0.1.0's tag, 2026-11-19).
    */
   disposeAll(): Promise<void> | null {
     const lists = listConsolesNoMore()
@@ -270,6 +285,7 @@ export class PtyManager {
     const ended: Promise<unknown>[] = [...this.workers]
       .filter((worker) => worker.threadId !== -1)
       .map((worker) => new Promise((resolve) => worker.once('exit', resolve)))
+    ended.push(...this.nativeExits)
     if (lists !== null) ended.push(lists)
     if (ended.length === 0) return null
     let timer: NodeJS.Timeout | undefined
@@ -279,8 +295,9 @@ export class PtyManager {
         timer = setTimeout(() => {
           // Said, so a quit that crashes after it can be told from one that waited them out.
           const left = [...this.workers].filter((worker) => worker.threadId !== -1).length
+          const notices = this.nativeExits.size
           console.warn(
-            `[elecdex] quitting with ${left} output worker${left === 1 ? '' : 's'} still running after ${QUIT_WAIT_MS} ms`,
+            `[elecdex] quitting with ${left} output worker${left === 1 ? '' : 's'} still running and ${notices} shell exit notice${notices === 1 ? '' : 's'} not delivered after ${QUIT_WAIT_MS} ms`,
           )
           resolve()
         }, QUIT_WAIT_MS)

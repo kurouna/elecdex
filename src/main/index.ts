@@ -214,7 +214,8 @@ app.whenReady().then(() => {
 })
 
 // Kill every shell before the app tears down, so no orphaned pty survives, and hold the quit
-// until node-pty has ended their output workers (at most PtyManager's QUIT_WAIT_MS; quit-gate.ts).
+// until node-pty has ended their output workers and delivered their exit notices (at most
+// PtyManager's QUIT_WAIT_MS; quit-gate.ts, pty/native-exit.ts).
 // The handlers stay until will-quit: the window can still ask for sessions.
 app.on(
   'before-quit',

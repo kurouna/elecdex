@@ -1,8 +1,8 @@
 /**
  * before-quit, held for the shells: the first quit ends at once what ends at once (TRANSLATE's
  * engine and fetch), closes the shells, and holds the quit until their output workers have ended
- * (PtyManager.disposeAll: ended with them still being torn down, the process crashed on its way
- * out); then it quits again, and that quit goes through. A quit asked while it waits (the tray,
+ * and their exit notices have reached JS (PtyManager.disposeAll: ended with them still on their
+ * way, the process crashed on its way out); then it quits again, and that quit goes through. A quit asked while it waits (the tray,
  * the window, Ctrl+Shift+Q) is held too, never let through early (found in review).
  */
 

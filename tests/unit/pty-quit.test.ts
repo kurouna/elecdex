@@ -24,6 +24,12 @@ class FakeWorker extends EventEmitter {
 }
 
 let workers: FakeWorker[] = []
+/**
+ * Each shell's native exit notice, as node-pty's addon hands it to the agent (_$onProcessExit),
+ * and what the agent's own handler was given.
+ */
+let notices: Array<() => void> = []
+let noticed: unknown[] = []
 /** Each shell's exit, as node-pty reports a shell that ended by itself. */
 let exits: Array<() => void> = []
 let shape: 'conpty' | 'unix' = 'conpty'
@@ -32,11 +38,14 @@ vi.mock('node-pty', () => ({
   spawn: () => {
     const worker = new FakeWorker()
     workers.push(worker)
-    return {
+    const pty = {
       ...(shape === 'conpty'
         ? {
             _agent: {
               _innerPid: 4321,
+              _$onProcessExit(code: unknown) {
+                noticed.push(code)
+              },
               _getConsoleProcessList: async () => [4321],
               _conoutSocketWorker: {
                 _worker: worker,
@@ -59,12 +68,17 @@ vi.mock('node-pty', () => ({
       resize() {},
       kill() {},
     }
+    // As the addon calls it: looked up on the agent when the shell's process has ended.
+    const agent = (pty as { _agent?: { _$onProcessExit(code: number): void } })._agent
+    if (agent) notices.push(() => agent._$onProcessExit(0))
+    return pty
   },
 }))
 
 vi.mock('electron', () => ({ utilityProcess: { fork: vi.fn() } }))
 
 const { PtyManager, QUIT_WAIT_MS } = await import('../../src/main/pty/pty-manager.js')
+const { nativeExit } = await import('../../src/main/pty/native-exit.js')
 
 const noEvents = {
   onData() {},
@@ -87,6 +101,8 @@ async function settled(promise: Promise<unknown> | null): Promise<boolean> {
 
 beforeEach(() => {
   workers = []
+  notices = []
+  noticed = []
   exits = []
   shape = 'conpty'
   vi.useFakeTimers()
@@ -96,12 +112,18 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+/** Every shell's native exit notice delivered, as the addon does once each process has ended. */
+const noticeAll = (): void => {
+  for (const notice of notices) notice()
+}
+
 describe('closing every shell as the app quits', () => {
   it('answers once every output worker has ended, leaving them to node-pty to end', async () => {
     const manager = new PtyManager(noEvents)
     manager.create({ shell: 'pwsh.exe' })
     manager.create({ shell: 'pwsh.exe' })
     const ended = manager.disposeAll()
+    noticeAll()
     expect(manager.list()).toEqual([])
     expect(await settled(ended)).toBe(false)
     workers[0]?.end()
@@ -118,6 +140,7 @@ describe('closing every shell as the app quits', () => {
     const { id } = manager.create({ shell: 'pwsh.exe' })
     manager.dispose(id)
     const ended = manager.disposeAll()
+    noticeAll()
     expect(await settled(ended)).toBe(false)
     workers[0]?.end()
     expect(await settled(ended)).toBe(true)
@@ -126,6 +149,7 @@ describe('closing every shell as the app quits', () => {
   it('waits too for the worker of a shell that ended by itself a moment before', async () => {
     const manager = new PtyManager(noEvents)
     manager.create({ shell: 'pwsh.exe' })
+    notices[0]?.()
     exits[0]?.()
     expect(manager.list()).toEqual([])
     const ended = manager.disposeAll()
@@ -140,6 +164,7 @@ describe('closing every shell as the app quits', () => {
     // quit after waited the whole QUIT_WAIT_MS for it.
     const manager = new PtyManager(noEvents)
     manager.create({ shell: 'pwsh.exe' })
+    notices[0]?.()
     exits[0]?.()
     await vi.advanceTimersByTimeAsync(1000)
     expect(workers[0]?.threadId).toBe(-1)
@@ -162,7 +187,7 @@ describe('closing every shell as the app quits', () => {
     warn.mockRestore()
   })
 
-  it('has nothing to wait for with no shell, a worker already ended, or no ConPTY worker at all', () => {
+  it('has nothing to wait for with no shell, a shell already gone, or no ConPTY worker at all', async () => {
     // Nothing, not a promise already settled: the quit is then not held at all. Held and asked
     // again, the quit that SIGTERM starts never went on on macOS, which has no workers (found on
     // v0.1.0's tag, 2026-11-19; e2e: exit.spec).
@@ -171,11 +196,70 @@ describe('closing every shell as the app quits', () => {
     const manager = new PtyManager(noEvents)
     manager.create({ shell: 'pwsh.exe' })
     workers[0]?.end()
+    noticeAll()
+    await Promise.resolve()
     expect(manager.disposeAll()).toBeNull()
 
     shape = 'unix'
     const unix = new PtyManager(noEvents)
     unix.create({ shell: '/bin/bash' })
     expect(unix.disposeAll()).toBeNull()
+  })
+})
+
+describe("the shells' native exit notices", () => {
+  // Found in crash dumps from GitHub's Windows runners (2026-11-20): a shell killed at the quit
+  // ended late, and node-pty's addon delivered its exit notice while node was freeing its
+  // environment, when JS could no longer run - an uncaught C++ exception, abort, 0xC0000409.
+  // About one quit in ten crashed there after layout switches; none in 72 once the quit waited.
+
+  it('waits for every shell to have its exit noticed, even with every worker ended', async () => {
+    const manager = new PtyManager(noEvents)
+    manager.create({ shell: 'pwsh.exe' })
+    manager.create({ shell: 'pwsh.exe' })
+    const ended = manager.disposeAll()
+    for (const worker of workers) worker.end()
+    expect(await settled(ended)).toBe(false)
+    notices[0]?.()
+    expect(await settled(ended)).toBe(false)
+    notices[1]?.()
+    expect(await settled(ended)).toBe(true)
+  })
+
+  it('waits too for a shell closed a moment before the quit, its worker already ended', async () => {
+    // As a layout switch leaves them: closed, not yet ended.
+    const manager = new PtyManager(noEvents)
+    const { id } = manager.create({ shell: 'pwsh.exe' })
+    manager.dispose(id)
+    workers[0]?.end()
+    const ended = manager.disposeAll()
+    expect(await settled(ended)).toBe(false)
+    notices[0]?.()
+    expect(await settled(ended)).toBe(true)
+  })
+
+  it("leaves node-pty's own handling of the notice as it was", () => {
+    new PtyManager(noEvents).create({ shell: 'pwsh.exe' })
+    notices[0]?.()
+    expect(noticed).toEqual([0])
+  })
+
+  it(`waits no longer than ${QUIT_WAIT_MS} ms for a notice that never comes, and says so`, async () => {
+    const manager = new PtyManager(noEvents)
+    manager.create({ shell: 'pwsh.exe' })
+    workers[0]?.end()
+    const ended = manager.disposeAll()
+    await vi.advanceTimersByTimeAsync(QUIT_WAIT_MS - 1)
+    expect(await settled(ended)).toBe(false)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await settled(ended)).toBe(true)
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/1 shell exit notice not delivered/))
+    warn.mockRestore()
+  })
+
+  it('has no notice to wait for from a pty without a ConPTY agent', () => {
+    expect(nativeExit({} as never)).toBeNull()
+    expect(nativeExit({ _agent: {} } as never)).toBeNull()
   })
 })

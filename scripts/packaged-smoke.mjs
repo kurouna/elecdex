@@ -235,7 +235,8 @@ async function quitsCleanly(page, child) {
   const code = await Promise.race([exited, sleep(10_000).then(() => 'still running after 10 s')])
   const took = Date.now() - started
   if (code !== 0) throw new Error(`the quit did not end cleanly: ${code} (after ${took} ms)`)
-  if (took > 5000) throw new Error(`the quit took ${took} ms`)
+  // The shells' wait is QUIT_WAIT_MS (5 s) at most; up to 3.4 s was measured on GitHub's runners.
+  if (took > 8000) throw new Error(`the quit took ${took} ms`)
   log(`quit cleanly in ${took} ms`)
 }
 

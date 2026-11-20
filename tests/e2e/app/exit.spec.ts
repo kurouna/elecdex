@@ -16,8 +16,8 @@ import {
 /** node-pty's drain before it ends a worker (FLUSH_DATA_INTERVAL), with room to spare. */
 const WORKER_DRAIN_MS = 1500
 /**
- * The quit after a shell ended by itself and its worker's drain, at most: QUIT_WAIT_MS (2 s) and
- * more when the worker is left on. Measured (2026-11-19): about 250 ms ended, about 2240 ms left on.
+ * The quit after a shell ended by itself and its worker's drain, at most: QUIT_WAIT_MS and more
+ * when the worker is left on. Measured (2026-11-19): about 250 ms ended, about 2240 ms left on.
  */
 const QUIT_LIMIT_MS = 1500
 
@@ -108,10 +108,12 @@ test('Ctrl+Shift+Q asks first, even with a terminal focused: no stays, yes quits
 
 test('shells opened and ended through layout switches leave a quit that ends cleanly', async () => {
   // Found by hand (2026-11-19): after shells had come and gone with the layouts, the app crashed
-  // on its way out (0xC0000409, after the node environment's exit) most times: each shell's
-  // output worker was still being torn down by node-pty as the process ended, and Windows held
-  // the dying process for its error report - a quit of seconds, and an exit code that is not 0.
-  // Three rounds: the crash came about five quits in six.
+  // on its way out (0xC0000409, after the node environment's exit), and Windows held the dying
+  // process for its error report - a quit of seconds, and an exit code that is not 0. Here the
+  // output workers still being torn down did it five quits in six. GitHub's Windows runners kept
+  // crashing about one quit in ten after that was fixed: their crash dumps showed node-pty
+  // delivering a killed shell's exit notice while node freed its environment (native-exit.ts).
+  // Three rounds.
   test.setTimeout(150_000)
   for (let round = 1; round <= 3; round++) {
     const { app, page, close } = await launch(undefined, {
@@ -142,15 +144,17 @@ test('shells opened and ended through layout switches leave a quit that ends cle
       await expect(terminalPane(page)).toHaveCount(3)
 
       const child = app.process()
-      // Not past ten seconds: a crash held by the error report took twenty and more.
+      // Not past fifteen seconds: a crash held by the error report took twenty and more.
       const code = new Promise<number | string | null>((resolve) => {
         child.once('exit', (exitCode) => resolve(exitCode))
-        setTimeout(() => resolve('still running after 10 s'), 10_000)
+        setTimeout(() => resolve('still running after 15 s'), 15_000)
       })
       const started = Date.now()
       await page.evaluate(() => window.elecdex.system.quit())
       expect(await code, `round ${round}: the exit code; main said: ${said.join('')}`).toBe(0)
-      expect(Date.now() - started, `round ${round}: how long the quit took`).toBeLessThan(5000)
+      // The shells' wait (QUIT_WAIT_MS at most: 1 s here, up to 3.4 s on GitHub's runners) and the
+      // rest of the quit.
+      expect(Date.now() - started, `round ${round}: how long the quit took`).toBeLessThan(8000)
     } finally {
       await close().catch(() => {})
     }
@@ -160,7 +164,7 @@ test('shells opened and ended through layout switches leave a quit that ends cle
 test('a shell that ended by itself does not hold the quit up', async () => {
   // Found in self-review (2026-11-19): node-pty ends a shell's output worker only on kill, and a
   // shell ended by `exit` is never killed - its worker went on, and the quit waited the whole
-  // QUIT_WAIT_MS (2 s) for it. Ended as the shell ends, it is gone a second later at most.
+  // QUIT_WAIT_MS for it. Ended as the shell ends, it is gone a second later at most.
   const { app, page, close } = await launch(undefined, {
     layout: SINGLE_TERMINAL,
     settings: NO_SWITCH_PROMPT,
