@@ -99,9 +99,22 @@ describe('lastSession over several sessions', () => {
     expect(lastSession(bars, 10 * DAY, 90 * MIN, 1).map((b) => b.c)).toEqual([50, 51, 52, 53, 54])
   })
 
-  it('never reaches back further than the span', () => {
-    const cut = lastSession(bars, 2 * DAY, 90 * MIN, 5)
-    expect(cut.every((b) => b.t >= (bars.at(-1)?.t ?? 0) - 2 * DAY)).toBe(true)
+  it('keeps n sessions across a weekend, past the span in calendar days', () => {
+    // Found on the 5D chart (2026-11-20): five sessions with a weekend among them cover seven
+    // days, and the five-day span cut the oldest one off - 5D showed four sessions.
+    const five = lastSession(bars, 5 * DAY, 90 * MIN, 5)
+    expect(five).toHaveLength(25)
+    expect(five[0]?.c).toBe(10)
+    expect(rangeWindow(bars, rangeSpec('5d'), null).candles).toHaveLength(25)
+  })
+
+  it('keeps a market that trades around the clock to the span, even past a pause', () => {
+    // Half-hourly bars for ten days, with a two-hour outage on the eighth.
+    const allDay = Array.from({ length: 10 * 48 }, (_, i) => flat(i * 30 * MIN, i)).filter(
+      (b) => b.t < 8 * DAY || b.t >= 8 * DAY + 2 * HOUR,
+    )
+    const kept = lastSession(allDay, 5 * DAY, 90 * MIN, 5)
+    expect((kept.at(-1)?.t ?? 0) - (kept[0]?.t ?? 0)).toBeLessThanOrEqual(5 * DAY)
   })
 
   it('keeps a market that never pauses to the span', () => {

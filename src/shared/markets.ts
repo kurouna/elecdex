@@ -302,17 +302,26 @@ export function toMarketState(raw: unknown): MarketState {
   }
 }
 
+/**
+ * A run of bars without a pause longer than this trades around the clock (a
+ * currency, a coin, a future): no exchange's regular session is half a day long.
+ */
+const AROUND_THE_CLOCK_MS = 12 * HOUR
+
 /** A pause in trading longer than this separates two sessions. */
 export const SESSION_GAP_MS = 90 * 60 * 1000
 
 /**
  * The last trading sessions from a multi-day intraday series: walking back from
  * the newest point until trading has paused `sessions` times for longer than
- * `gap`, and never more than `span`. Asking Yahoo for several days and keeping
+ * `gap`. Asking Yahoo for several days and keeping
  * the tail shows Friday's session on a Sunday instead of an empty chart; cutting
  * at the gap keeps yesterday's close from being drawn as a long line into
  * today's open. Markets that trade around the clock (currencies, crypto) simply
- * get the last `span`.
+ * get the last `span`: their newest run outlasts AROUND_THE_CLOCK_MS, and a pause
+ * in it is an outage, not a session's end. A market with sessions is not held to
+ * `span`, which counts calendar days: five sessions with a weekend among them
+ * cover seven, and the 5D chart showed four (2026-11-20).
  */
 export function lastSession<T extends { t: number }>(
   points: readonly T[],
@@ -324,11 +333,13 @@ export function lastSession<T extends { t: number }>(
   if (newest === undefined) return []
   let start = points.length - 1
   let pauses = 0
+  let aroundTheClock = true
   while (start > 0) {
     const previous = points[start - 1] as T
     const current = points[start] as T
-    if (previous.t < newest.t - span) break
+    if (aroundTheClock && previous.t < newest.t - span) break
     if (current.t - previous.t > gap) {
+      if (pauses === 0) aroundTheClock = newest.t - current.t > AROUND_THE_CLOCK_MS
       pauses += 1
       if (pauses >= sessions) break
     }
@@ -495,12 +506,6 @@ export const DIVIDER_UNITS: Readonly<Record<ChartRange, DividerUnit | null>> = {
   '1y': 'month',
   '5y': 'year',
 }
-
-/**
- * A run of bars without a pause longer than this trades around the clock (a
- * currency, a coin, a future): no exchange's regular session is half a day long.
- */
-const AROUND_THE_CLOCK_MS = 12 * HOUR
 
 /** The middle gap between neighbouring bars, 0 for fewer than two. */
 function medianSpacing(candles: readonly { t: number }[]): number {
