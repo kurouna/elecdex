@@ -109,7 +109,9 @@ describe('ClockWidget behind another tab', () => {
 describe('ClockWidget, the zone and what a screen reader hears', () => {
   it('names the minute and the full zone, the same for every face', () => {
     zoneOverride = 'Asia/Tokyo'
-    vi.setSystemTime(new Date('2026-09-14T01:20:30.010Z'))
+    // A local moment: the digits follow the process's own zone (UTC on CI), whatever name the
+    // zone override gives it.
+    vi.setSystemTime(new Date(2026, 8, 14, 10, 20, 30))
     for (const face of ['digital', 'week', 'dial']) {
       useFace(face)
       render(ClockWidget, { props: { paneId: 'p' } as never })
