@@ -33,6 +33,21 @@ describe('upgradeDefaultHeights', () => {
     expect(upgraded.children.slice(1)).toEqual(saved.children.slice(1))
   })
 
+  it('gives the column as v0.1.2 left it a taller clock, taken from CPU and the processes', () => {
+    const v012 = [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165]
+    const root = defaultLayoutNode()
+    if (root.kind !== 'split') throw new Error('expected a split')
+    const saved: LayoutNode = {
+      ...root,
+      children: [{ ...leftColumn(root), sizes: v012 }, ...root.children.slice(1)],
+    }
+    const after = leftColumn(upgradeDefaultHeights(saved)).sizes
+    expect(after).toEqual(leftColumn(defaultLayoutNode()).sizes)
+    // About 90 px of a 1080 window, where a single line of 0.04 was too small to read.
+    expect(after[0]).toBeGreaterThanOrEqual(0.08)
+    expect(after.reduce((a, b) => a + b, 0)).toBeCloseTo(1)
+  })
+
   it('recognises the old heights after they were normalised and saved', () => {
     const saved = normalize(savedByOldVersion())
     if (!saved) throw new Error('normalised to nothing')

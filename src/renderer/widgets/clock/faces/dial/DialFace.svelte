@@ -1,7 +1,7 @@
 <script lang="ts">
 import Readout from '../../parts/Readout.svelte'
 import type { ClockFaceProps } from '../../types.ts'
-import { dialTicks, handAngles } from './dial.ts'
+import { dialLayout, dialTicks, handAngles } from './dial.ts'
 
 /**
  * DIAL: a thin-lined analogue dial, and beside it the time in figures on one line - HH:MM, the
@@ -16,13 +16,14 @@ const { now, zone }: ClockFaceProps = $props()
 let width = $state(0)
 let height = $state(0)
 
-const diameter = $derived(Math.max(16, Math.min(height - 8, width * 0.45)))
-const size = $derived(Math.max(12, Math.min(height * 0.66, diameter * 0.42, width * 0.11)))
+const layout = $derived(dialLayout(width, height))
+const diameter = $derived(layout.diameter)
+const size = $derived(layout.size)
 const hands = $derived(handAngles(now))
 const ticks = $derived(dialTicks(diameter))
 </script>
 
-<div class="face" bind:clientWidth={width} bind:clientHeight={height}>
+<div class="face" class:stacked={layout.stacked} bind:clientWidth={width} bind:clientHeight={height}>
   <svg class="dial" width={diameter} height={diameter} viewBox="-50 -50 100 100" data-testid="clock-dial">
     <circle class="rim" r="48" />
     {#each ticks as t (t.angle)}
@@ -51,6 +52,11 @@ const ticks = $derived(dialTicks(diameter))
   height: 100%;
   padding: 0 12px;
   box-sizing: border-box;
+}
+
+.face.stacked {
+  flex-direction: column;
+  gap: 8px;
 }
 
 .dial {

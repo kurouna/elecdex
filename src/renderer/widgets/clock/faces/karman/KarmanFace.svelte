@@ -120,8 +120,11 @@ $effect(() => {
   tunnelId = untrack(() => tunnelId) + 1
 })
 
-// The obstacle follows the second (and the font, once it has loaded, and the layout). With
-// motion reduced this is also the only time the smoke moves.
+// The obstacle follows the second, the layout and the theme's font. It is drawn again every
+// second because the text changes every second, so a web font that loads after the first frame
+// is in the mask within a second, motion reduced or not; nothing waits on the font itself
+// (review 2026-11-22: an earlier comment promised that it did). With motion reduced this is also
+// the only time the smoke moves.
 $effect(() => {
   void text
   void place

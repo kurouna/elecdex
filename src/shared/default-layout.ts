@@ -6,8 +6,9 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
  *
  * Laid out by what the panes are for, not by eDEX-UI's original grid:
  *
- *  - Left, "this machine": the clock and system strip (kept short - a clock
- *    needs a line, not a quarter of the column), CPU, memory, the busiest
+ *  - Left, "this machine": the clock and system strip (the clock a strip of its
+ *    own, tall enough to read across the room and for its face to use the width),
+ *    CPU, memory, the busiest
  *    disks, processes, then its network: connection status and traffic.
  *  - Centre, "work": the shell, three tabs of it, and beneath it the launcher
  *    beside the file browser. The file grid needs half the width, not all of it.
@@ -72,8 +73,12 @@ export const LEFT_COLUMN: readonly string[] = [
   'throughput',
 ]
 
-/** Their heights, the same fractions the upgrade below brings older layouts to. */
-const LEFT_COLUMN_SIZES: readonly number[] = [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165]
+/**
+ * Their heights, the same fractions the upgrade below brings older layouts to. The clock has
+ * about 90 px of a 1080 window, taken from CPU and the process list (user request 2026-11-22:
+ * at 0.04 its digits were too small to read at a glance).
+ */
+const LEFT_COLUMN_SIZES: readonly number[] = [0.085, 0.13, 0.165, 0.12, 0.116, 0.164, 0.055, 0.165]
 
 /**
  * Left-column heights earlier versions shipped, each with the heights that replace
@@ -82,7 +87,12 @@ const LEFT_COLUMN_SIZES: readonly number[] = [0.04, 0.125, 0.19, 0.12, 0.116, 0.
 const LEFT_COLUMN_UPGRADES: ReadonlyArray<{ from: number[]; to: number[] }> = [
   {
     from: [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165],
-    to: [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
+    to: [...LEFT_COLUMN_SIZES],
+  },
+  {
+    // Until v0.1.2: the clock a single line of 0.04.
+    from: [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
+    to: [...LEFT_COLUMN_SIZES],
   },
 ]
 

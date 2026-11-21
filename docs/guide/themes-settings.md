@@ -214,7 +214,7 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `git.openCommand` | `""` | How the git pane opens a double-clicked file (`{file}`, `{line}`, `{dir}` filled in; run as a program, never through a shell); empty for the system's application. Set in this file only |
 | `logWatch.keepLines` | `5000` | Lines kept to scroll back: 1000, 5000, 20000 or 50000 |
 | `logWatch.initialLines` | `500` | Lines read from the end when a pane opens a file: 100, 500 or 2000 |
-| `clock.face` | `"week"` | The face every clock pane draws: `week`, `ahead`, `tape`, `longitude`, `digital`, `segment`, `vector`, `dial` or `karman` ([Clock](panes-system.md#clock)). *unreleased* |
+| `clock.face` | `"longitude"` | The face every clock pane draws: `longitude`, `week`, `ahead`, `tape`, `digital`, `segment`, `vector`, `dial` or `karman` ([Clock](panes-system.md#clock)). *unreleased* |
 | `chip8.core` | `true` | A new CHIP-8 pane shows its CORE view |
 | `chip8.volume` | `0.5` | The CHIP-8 buzzer, 0 to 1 |
 | `elec16.volume` | `0.5` | The ELEC-16 buzzer, 0 to 1 |

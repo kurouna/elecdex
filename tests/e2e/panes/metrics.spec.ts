@@ -257,7 +257,8 @@ test('the system pane fits its rows in a layout saved before the OS row', async 
     expect(lastRow.y + lastRow.height).toBeLessThanOrEqual(pane.y + pane.height + 0.5)
     const loaded = await page.evaluate(() => window.elecdex.layout.load())
     const column = loaded.root.kind === 'split' ? loaded.root.children[0] : null
-    expect(column?.kind === 'split' ? column.sizes[1] : 0).toBeCloseTo(0.125)
+    // Brought to the current heights (default-layout.ts): 0.13 since the clock grew (2026-11-22).
+    expect(column?.kind === 'split' ? column.sizes[1] : 0).toBeCloseTo(0.13)
   } finally {
     await close()
   }

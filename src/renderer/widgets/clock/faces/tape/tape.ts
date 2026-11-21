@@ -1,3 +1,5 @@
+import { WEEKDAYS } from '../../parts/words.js'
+
 /**
  * TAPE's scale: the day as a tape of ticks between two moments, hours labelled, midnight named
  * by the day it begins, and the night (18:00 to 06:00) as bands. Pure, so the face only places
@@ -6,7 +8,6 @@
 
 const HOUR_MS = 3_600_000
 const QUARTER_MS = HOUR_MS / 4
-const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const
 
 export interface TapeMark {
   at: number
@@ -22,9 +23,10 @@ export interface TapeMark {
  */
 export function tapeMarks(from: number, to: number, quarters = true): TapeMark[] {
   const marks: TapeMark[] = []
-  const first = new Date(from)
-  first.setMinutes(Math.ceil(first.getMinutes() / 15) * 15, 0, 0)
-  for (let at = first.getTime(); at <= to; at += QUARTER_MS) {
+  // The first quarter at or after `from`, seconds and all: rounding the minutes alone put a mark
+  // before `from` when it had seconds (review 2026-11-22). Every zone's offset is a whole number
+  // of quarter hours, so a quarter of UTC is a quarter of the local clock too.
+  for (let at = Math.ceil(from / QUARTER_MS) * QUARTER_MS; at <= to; at += QUARTER_MS) {
     const d = new Date(at)
     const minutes = d.getMinutes()
     if (minutes !== 0) {

@@ -435,6 +435,9 @@ function describeUpdate(status: UpdateStatus): string {
                   {/each}
                 </select>
               </label>
+              <p class="note" data-testid="settings-clock-summary">
+                {clockFace(settings.clock.face).summary}
+              </p>
               <p class="note">
                 Every clock pane draws this face. One marked "uses more CPU" runs a simulation while
                 it is on screen; it stops while the window is hidden.

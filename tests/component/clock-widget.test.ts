@@ -147,12 +147,11 @@ describe('ClockWidget, the zone and what a screen reader hears', () => {
 })
 
 describe('ClockWidget, the face', () => {
-  it('draws WEEK when no face is chosen', () => {
+  it('draws LONGITUDE when no face is chosen', () => {
     appearance.settings = defaultSettings()
     render(ClockWidget, { props: { paneId: 'p' } as never })
     flushSync()
-    expect(screen.getByTestId('clock').dataset.face).toBe('week')
-    expect(screen.getByTestId('clock-week').querySelectorAll('li')).toHaveLength(7)
+    expect(screen.getByTestId('clock').dataset.face).toBe('longitude')
   })
 
   it('follows the setting at once, every clock pane alike', () => {
@@ -164,11 +163,11 @@ describe('ClockWidget, the face', () => {
     expect(screen.getAllByTestId('clock-dial')).toHaveLength(2)
   })
 
-  it('draws a face it does not know as WEEK', () => {
+  it('draws a face it does not know as LONGITUDE', () => {
     useFace('gone-in-a-later-version')
     render(ClockWidget, { props: { paneId: 'p' } as never })
     flushSync()
-    expect(screen.getByTestId('clock').dataset.face).toBe('week')
+    expect(screen.getByTestId('clock').dataset.face).toBe('longitude')
   })
 
   it('mounts and ticks every face in the table, and takes each down cleanly', () => {

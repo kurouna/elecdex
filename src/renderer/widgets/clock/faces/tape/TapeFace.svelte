@@ -1,5 +1,7 @@
 <script lang="ts">
 import Readout from '../../parts/Readout.svelte'
+import Strip from '../../parts/Strip.svelte'
+import { besideMark, stripMetrics } from '../../parts/strip.js'
 import type { ClockFaceProps } from '../../types.ts'
 import { nightSpans, tapeHours, tapeMarks } from './tape.ts'
 
@@ -18,15 +20,11 @@ let height = $state(0)
 let readoutWidth = $state(0)
 
 const minute = $derived(Math.floor(now.getTime() / 60_000) * 60_000)
-const tall = $derived(height >= 90)
-const size = $derived(
-  tall
-    ? Math.min(height * 0.36, width * 0.17)
-    : Math.max(12, Math.min(height * 0.66, width * 0.11)),
-)
-
+const metrics = $derived(stripMetrics(width, height, readoutWidth))
+const tall = $derived(metrics.tall)
+const size = $derived(metrics.size)
 // The tape's own box: beside the readout in the strip, under it when tall.
-const tapeWidth = $derived(Math.max(0, tall ? width - 24 : width - readoutWidth - 24))
+const tapeWidth = $derived(metrics.bandWidth)
 const tapeHeight = $derived(
   tall ? Math.max(24, Math.min(height * 0.26, 140)) : Math.max(16, height - 6),
 )
@@ -40,8 +38,8 @@ const cursor = $derived(x(minute))
 const label = $derived(Math.max(10, Math.min(tapeHeight * (tall ? 0.2 : 0.42), tall ? 24 : 14)))
 </script>
 
-<div class="face" class:tall bind:clientWidth={width} bind:clientHeight={height}>
-  <div class="time" bind:clientWidth={readoutWidth}><Readout {now} {zone} {size} /></div>
+<Strip {tall} bind:width bind:height bind:readoutWidth>
+  {#snippet time()}<Readout {now} {zone} {size} />{/snippet}
   {#if tapeWidth > 0}
     <svg class="tape" width={tapeWidth} height={tapeHeight} data-testid="clock-tape">
       {#each nights as n (n.from)}
@@ -59,9 +57,11 @@ const label = $derived(Math.max(10, Math.min(tapeHeight * (tall ? 0.2 : 0.42), t
           y2={tapeHeight * (1 - len)}
         />
         {#if m.label}
+          {@const place = besideMark(x(m.at), tapeWidth, m.label.length, label)}
           <text
             class="label {m.kind}"
-            x={x(m.at) + 3}
+            x={place.x}
+            text-anchor={place.anchor}
             y={tall ? tapeHeight * (1 - len) + label * 0.9 : label}
             font-size={label}>{m.label}</text
           >
@@ -70,28 +70,9 @@ const label = $derived(Math.max(10, Math.min(tapeHeight * (tall ? 0.2 : 0.42), t
       <line class="cursor" x1={cursor} x2={cursor} y1="0" y2={tapeHeight} />
     </svg>
   {/if}
-</div>
+</Strip>
 
 <style>
-.face {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 100%;
-  padding: 0 12px;
-  box-sizing: border-box;
-}
-
-.face.tall {
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-}
-
-.time {
-  flex: none;
-}
-
 .tape {
   flex: none;
   overflow: hidden;

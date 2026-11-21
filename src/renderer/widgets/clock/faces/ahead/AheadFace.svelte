@@ -1,7 +1,11 @@
 <script lang="ts">
+import { formatClock } from '../../../../lib/format.ts'
 import { alarms } from '../../../../stores/alarms.svelte.ts'
 import { tasks } from '../../../../stores/tasks.svelte.ts'
 import Readout from '../../parts/Readout.svelte'
+import Strip from '../../parts/Strip.svelte'
+import { besideMark, stripMetrics } from '../../parts/strip.js'
+import { WEEKDAYS } from '../../parts/words.js'
 import type { ClockFaceProps } from '../../types.ts'
 import { AHEAD_TICKS, aheadEvents, aheadX, nextMidnight, untilLabel } from './ahead.ts'
 
@@ -32,13 +36,10 @@ let height = $state(0)
 let readoutWidth = $state(0)
 
 const minute = $derived(Math.floor(now.getTime() / 60_000) * 60_000)
-const tall = $derived(height >= 90)
-const size = $derived(
-  tall
-    ? Math.min(height * 0.32, width * 0.16)
-    : Math.max(12, Math.min(height * 0.66, width * 0.11)),
-)
-const bandWidth = $derived(Math.max(0, tall ? width - 24 : width - readoutWidth - 24))
+const metrics = $derived(stripMetrics(width, height, readoutWidth))
+const tall = $derived(metrics.tall)
+const size = $derived(metrics.size)
+const bandWidth = $derived(metrics.bandWidth)
 const bandHeight = $derived(
   tall ? Math.max(30, Math.min(height * 0.2, 120)) : Math.max(16, height - 6),
 )
@@ -46,9 +47,7 @@ const text = $derived(Math.max(10, Math.min(bandHeight * 0.36, tall ? 22 : 13)))
 const events = $derived(aheadEvents(alarms.items, tasks.items, minute))
 const nearest = $derived(events[0] ?? null)
 const midnight = $derived(nextMidnight(minute))
-const midnightName = $derived(
-  ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][new Date(midnight).getDay()] ?? '',
-)
+const midnightName = $derived(WEEKDAYS[new Date(midnight).getDay()] ?? '')
 const x = (at: number): number => aheadX(at - minute, bandWidth)
 // The ticks' labels only where they do not crowd: the scale is dense at the far end.
 const ticks = $derived(
@@ -60,13 +59,21 @@ const ticks = $derived(
 )
 const listed = $derived(events.slice(0, 4))
 const clockOf = (at: number): string => {
-  const d = new Date(at)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const { hh, mm } = formatClock(new Date(at))
+  return `${hh}:${mm}`
 }
+const nearestLabel = $derived(
+  nearest === null ? '' : `${nearest.label.slice(0, 24)} · ${untilLabel(nearest.at - minute)}`,
+)
+// 7 px clear of its marker on whichever side it fits: right-aligned at the band's end it once
+// ended 7 px right of the marker, over it (review 2026-11-22).
+const nearestPlace = $derived(
+  nearest === null ? null : besideMark(x(nearest.at), bandWidth, nearestLabel.length, text, 7),
+)
 </script>
 
-<div class="face" class:tall bind:clientWidth={width} bind:clientHeight={height}>
-  <div class="time" bind:clientWidth={readoutWidth}><Readout {now} {zone} {size} /></div>
+<Strip {tall} bind:width bind:height bind:readoutWidth>
+  {#snippet time()}<Readout {now} {zone} {size} />{/snippet}
   {#if bandWidth > 0}
     <svg class="band" width={bandWidth} height={bandHeight} data-testid="clock-ahead">
       <line class="base" x1="0" x2={bandWidth} y1={bandHeight - 0.5} y2={bandHeight - 0.5} />
@@ -81,7 +88,10 @@ const clockOf = (at: number): string => {
       {/each}
       {#if midnight - minute < 24 * 3_600_000}
         <line class="midnight" x1={x(midnight)} x2={x(midnight)} y1="0" y2={bandHeight} />
-        <text class="midnight-label" x={x(midnight) + 3} y={text} font-size={text}>{midnightName}</text>
+        {@const place = besideMark(x(midnight), bandWidth, midnightName.length, text)}
+        <text class="midnight-label" x={place.x} y={text} font-size={text} text-anchor={place.anchor}
+          >{midnightName}</text
+        >
       {/if}
       {#each events as e (e.key)}
         {@const ex = x(e.at)}
@@ -98,14 +108,14 @@ const clockOf = (at: number): string => {
           <circle class="mark task" cx={ex} cy={bandHeight / 2} r="3.5" />
         {/if}
       {/each}
-      {#if nearest}
+      {#if nearest && nearestPlace}
         <text
           class="nearest"
-          x={Math.min(x(nearest.at) + 7, bandWidth - 4)}
+          x={nearestPlace.x}
           y={bandHeight / 2 + text * 0.36}
           font-size={text}
-          text-anchor={x(nearest.at) > bandWidth * 0.6 ? 'end' : 'start'}
-          data-testid="clock-ahead-next">{nearest.label.slice(0, 24)} · {untilLabel(nearest.at - minute)}</text
+          text-anchor={nearestPlace.anchor}
+          data-testid="clock-ahead-next">{nearestLabel}</text
         >
       {:else}
         <text class="none" x="4" y={bandHeight / 2 + text * 0.36} font-size={text}>nothing in 24h</text>
@@ -119,30 +129,9 @@ const clockOf = (at: number): string => {
       {/each}
     </ol>
   {/if}
-</div>
+</Strip>
 
 <style>
-.face {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 100%;
-  padding: 0 12px;
-  box-sizing: border-box;
-  font-family: var(--font-ui);
-}
-
-.face.tall {
-  flex-direction: column;
-  justify-content: center;
-  gap: 8px;
-}
-
-.time,
-.band {
-  flex: none;
-}
-
 .base,
 .tick {
   stroke: var(--panel-rule);
@@ -185,7 +174,11 @@ text {
   fill: var(--text-muted);
 }
 
+/* One line an event, whatever its name: a long task name ends in an ellipsis rather than
+   wrapping past the pane's edge (review 2026-11-22). */
 .list {
+  align-self: stretch;
+  min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -197,6 +190,12 @@ text {
 .glyph,
 .until {
   color: var(--accent-strong);
+}
+
+.list li {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .what {

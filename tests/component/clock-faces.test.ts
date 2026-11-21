@@ -31,9 +31,10 @@ describe('the clock face table', () => {
     )
   })
 
-  it('has the default face, WEEK (user decision 2026-11-21)', () => {
-    expect(DEFAULT_CLOCK_FACE).toBe('week')
-    expect(clockFace(DEFAULT_CLOCK_FACE).id).toBe('week')
+  it('has the default face, LONGITUDE, first in the list (user decision 2026-11-22)', () => {
+    expect(DEFAULT_CLOCK_FACE).toBe('longitude')
+    expect(clockFace(DEFAULT_CLOCK_FACE).id).toBe('longitude')
+    expect(CLOCK_FACES[0]?.id).toBe('longitude')
   })
 
   it('draws a face it does not know as the default, rather than nothing', () => {
@@ -50,17 +51,19 @@ describe('the clock face table', () => {
     }
   })
 
-  it('names every face with a label for the list and a component to draw', () => {
+  it('names every face with a label for the list, a line saying what it shows, and a component', () => {
     for (const face of CLOCK_FACES) {
       expect(face.label).toMatch(/^[a-z]+$/)
+      expect(face.summary.length).toBeGreaterThan(20)
+      expect(face.summary).toMatch(/.$/)
       expect(face.component).toBeTypeOf('function')
     }
   })
 })
 
 describe('the clock.face setting', () => {
-  it('is WEEK until one is chosen', () => {
-    expect(defaultSettings().clock.face).toBe('week')
+  it('is LONGITUDE until one is chosen', () => {
+    expect(defaultSettings().clock.face).toBe('longitude')
   })
 
   it('keeps an id the page does not know, so a later version can still read it', () => {
@@ -68,8 +71,8 @@ describe('the clock.face setting', () => {
   })
 
   it('falls back to the default for what is not an id at all', () => {
-    expect(SettingsSchema.parse({ clock: { face: 42 } }).clock.face).toBe('week')
-    expect(SettingsSchema.parse({ clock: { face: 'x'.repeat(41) } }).clock.face).toBe('week')
+    expect(SettingsSchema.parse({ clock: { face: 42 } }).clock.face).toBe('longitude')
+    expect(SettingsSchema.parse({ clock: { face: 'x'.repeat(41) } }).clock.face).toBe('longitude')
   })
 
   it('is changed by a patch, leaving the rest of the settings alone', () => {

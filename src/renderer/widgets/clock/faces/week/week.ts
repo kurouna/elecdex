@@ -1,25 +1,10 @@
 import { isoWeek } from '../../../../lib/calendar.js'
+import { MONTHS, WEEKDAYS } from '../../parts/words.js'
 
 /**
  * WEEK's days: the seven days of the week `now` is in, from the week's first day, each with
  * how much of it has gone - so the seven bars under them read as the week's progress.
  */
-
-const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const
-const MONTHS = [
-  'JAN',
-  'FEB',
-  'MAR',
-  'APR',
-  'MAY',
-  'JUN',
-  'JUL',
-  'AUG',
-  'SEP',
-  'OCT',
-  'NOV',
-  'DEC',
-] as const
 
 export interface WeekDay {
   /** Local midnight of the day, as a key. */

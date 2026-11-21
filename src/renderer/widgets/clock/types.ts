@@ -23,6 +23,11 @@ export interface ClockFace {
   /** The name in the settings dialog's list. */
   label: string
   /**
+   * What it shows, in a line under the list: the dialog covers the clock, so the name alone
+   * would not say how the faces differ (review 2026-11-22).
+   */
+  summary: string
+  /**
    * Runs a simulation between seconds and so uses noticeably more CPU than the others: the
    * settings dialog says so beside its name, so no one finds the machine busier without knowing why.
    */

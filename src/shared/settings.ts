@@ -86,8 +86,11 @@ const READING_DEFAULT = {
   rss: READING_SCALE.base,
 }
 
-/** The CLOCK pane's face when none is chosen: the week beside the time (user decision 2026-11-21). */
-export const DEFAULT_CLOCK_FACE = 'week'
+/**
+ * The CLOCK pane's face when none is chosen: the world's time zones beside the time (user
+ * decision 2026-11-22, after WEEK on 2026-11-21).
+ */
+export const DEFAULT_CLOCK_FACE = 'longitude'
 
 export const SettingsSchema = z.object({
   version: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),

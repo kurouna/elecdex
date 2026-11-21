@@ -27,11 +27,14 @@ the files above is read or edited.
   steps once a second instead.
 - **What a screen reader hears is the pane's**, the same for every face (the minute and the zone,
   on the root's `aria-label`); a face is a picture.
-- **The default strip is the design size**: about 340 x 32-48 at the top of the system column.
+- **The default strip is the design size**: about 340 x 70-90 at the top of the system column
+  (0.085 of its height, user request 2026-11-22); a face becomes a block from `TALL_FROM`
+  (parts/layout.ts), the one height every face changes shape at.
   A face uses its width (user request 2026-11-21) and fits it, and lays itself out again when
   taller or brought forward (clock.spec.ts checks every face in the strip).
 - **A face that uses noticeably more CPU is `heavy: true`**, and the settings list says so
   ("(uses more CPU)"); measure it at idle and record the numbers in docs/decisions.md.
-- The default face is `week` (user decision 2026-11-21). AHEAD reads the alarms and the tasks'
+- The default face is `longitude` (user decision 2026-11-22; `week` the day before), first in
+  the list. AHEAD reads the alarms and the tasks'
   due times only, through their shared stores, only while seen; the timer pane's countdowns stay
   out of it (user decision).

@@ -214,7 +214,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `git.openCommand` | `""` | git 窗格打开双击文件的方式（填入 `{file}`、`{line}`、`{dir}`；作为程序运行，从不经过 shell）；为空则使用系统的应用。只能在此文件中设置 |
 | `logWatch.keepLines` | `5000` | 可回滚的行数：1000、5000、20000 或 50000 |
 | `logWatch.initialLines` | `500` | 窗格打开文件时从末尾读取的行数：100、500 或 2000 |
-| `clock.face` | `"week"` | 所有 CLOCK 窗格绘制的表盘：`week`、`ahead`、`tape`、`longitude`、`digital`、`segment`、`vector`、`dial` 或 `karman`（[Clock](panes-system.zh-CN.md#clock)）。*unreleased* |
+| `clock.face` | `"longitude"` | 所有 CLOCK 窗格绘制的表盘：`longitude`、`week`、`ahead`、`tape`、`digital`、`segment`、`vector`、`dial` 或 `karman`（[Clock](panes-system.zh-CN.md#clock)）。*unreleased* |
 | `chip8.core` | `true` | 新的 CHIP-8 窗格显示 CORE 视图 |
 | `chip8.volume` | `0.5` | CHIP-8 蜂鸣器，0 到 1 |
 | `elec16.volume` | `0.5` | ELEC-16 蜂鸣器，0 到 1 |

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { firstDayOfWeek } from '../../../../lib/calendar.ts'
 import Readout from '../../parts/Readout.svelte'
+import { TALL_FROM } from '../../parts/strip.js'
 import type { ClockFaceProps } from '../../types.ts'
 import { weekCaption, weekDays } from './week.ts'
 
@@ -22,7 +23,7 @@ let height = $state(0)
 const minute = $derived(Math.floor(now.getTime() / 60_000))
 const days = $derived(weekDays(new Date(minute * 60_000), weekStart))
 const caption = $derived(weekCaption(new Date(minute * 60_000)))
-const tall = $derived(height >= 90)
+const tall = $derived(height >= TALL_FROM)
 const size = $derived(
   tall
     ? Math.min(height * 0.32, width * 0.16)

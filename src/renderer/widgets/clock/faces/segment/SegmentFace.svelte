@@ -55,7 +55,7 @@ const viewBox = (box: readonly number[]): string => box.join(' ')
     <svg class="hm" viewBox={viewBox(HM_BOX)} height={size} width={(size * HM_BOX[2]) / HM_BOX[3]} aria-hidden="true">
       {@render digits(hm, HM_OFFSETS)}
       <g class="lit">
-        {#each COLON_DOTS as [x, y] (x)}<rect {x} {y} width={DOT_WIDTH} height={DOT_HEIGHT} />{/each}
+        {#each COLON_DOTS as [x, y] (y)}<rect {x} {y} width={DOT_WIDTH} height={DOT_HEIGHT} />{/each}
       </g>
     </svg>
     <span class="side">

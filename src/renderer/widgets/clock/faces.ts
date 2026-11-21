@@ -16,15 +16,65 @@ import type { ClockFace } from './types.js'
  * touches nothing else. The designs, and the faces not taken, are in docs/clock-faces-mock.
  */
 export const CLOCK_FACES: readonly ClockFace[] = [
-  { id: 'week', label: 'week', component: WeekFace },
-  { id: 'ahead', label: 'ahead', component: AheadFace },
-  { id: 'tape', label: 'tape', component: TapeFace },
-  { id: 'longitude', label: 'longitude', component: LongitudeFace },
-  { id: 'digital', label: 'digital', component: DigitalFace },
-  { id: 'segment', label: 'segment', component: SegmentFace },
-  { id: 'vector', label: 'vector', component: VectorFace },
-  { id: 'dial', label: 'dial', component: DialFace },
-  { id: 'karman', label: 'karman', heavy: true, component: KarmanFace },
+  {
+    id: 'longitude',
+    label: 'longitude',
+    summary:
+      "The time, and the world's time zones lit where it is day, with cities and their times.",
+    component: LongitudeFace,
+  },
+  {
+    id: 'week',
+    label: 'week',
+    summary:
+      "The time, and this week's days with their dates, today lit and each day filling as it goes.",
+    component: WeekFace,
+  },
+  {
+    id: 'ahead',
+    label: 'ahead',
+    summary:
+      'The time, and the next 24 hours on a log scale with your alarms and tasks falling due.',
+    component: AheadFace,
+  },
+  {
+    id: 'tape',
+    label: 'tape',
+    summary: 'The time, and the day as a tape of ticks running ahead, the night as a band.',
+    component: TapeFace,
+  },
+  {
+    id: 'digital',
+    label: 'digital',
+    summary: 'Large rolling digits with the zone beside them: the face elecdex began with.',
+    component: DigitalFace,
+  },
+  {
+    id: 'segment',
+    label: 'segment',
+    summary: 'Seven-segment digits, like a vacuum fluorescent display.',
+    component: SegmentFace,
+  },
+  {
+    id: 'vector',
+    label: 'vector',
+    summary: 'Thin single-stroke digits, redrawn as if by a plotter as they change.',
+    component: VectorFace,
+  },
+  {
+    id: 'dial',
+    label: 'dial',
+    summary: 'An analogue dial, with the time, seconds and zone on one line beside it.',
+    component: DialFace,
+  },
+  {
+    id: 'karman',
+    label: 'karman',
+    summary:
+      'A wind tunnel: smoke flows round the digits into vortices, solved ten times a second.',
+    heavy: true,
+    component: KarmanFace,
+  },
 ]
 
 const byId = new Map(CLOCK_FACES.map((face) => [face.id, face]))

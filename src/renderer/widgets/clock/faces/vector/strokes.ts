@@ -1,3 +1,4 @@
+import { TALL_FROM } from '../../parts/strip.js'
 /**
  * VECTOR's numerals and their places: single strokes in a 10 x 16 box, as a plotter's pen or a
  * vector-scan tube would draw them, one path each so the pen can be seen to draw a digit from
@@ -80,7 +81,7 @@ export interface VectorLayout {
   line: { x1: number; x2: number; y: number }
 }
 
-export const COMPACT_BELOW = 90
+export const COMPACT_BELOW = TALL_FROM
 
 /**
  * Lays the face out in a `w` x `h` pane with a zone of `zoneChars` letters, set at `zonePx`.

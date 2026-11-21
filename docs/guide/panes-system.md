@@ -152,20 +152,20 @@ Shortcuts are written as bound by default; they can be rebound in *Settings → 
 | Where | System column (top); picker: *clock* |
 | Reads | The system clock and time zone, in the page; the AHEAD face also reads the alarms and tasks elecdex keeps |
 | Updates | Every second, on the second boundary, only while the pane is seen |
-| Setting | `clock.face`, in the settings dialog's general section (default `week`) |
+| Setting | `clock.face`, in the settings dialog's general section (default `longitude`) |
 
-The clock has **faces** (*unreleased*): one look for every clock pane, chosen in the settings dialog (general › clock › face). Most of them give the low strip at the top of the system column a use across its whole width, rather than centring digits in it.
+The clock has **faces** (*unreleased*): one look for every clock pane, chosen in the settings dialog (general › clock › face), which says in a line what the chosen face shows. Most of them give the low strip at the top of the system column a use across its whole width, rather than centring digits in it.
 
 | Face | What it shows |
 | --- | --- |
-| week (default) | The time on the left; this week's seven days with their dates across the rest, today lit, a bar under each day filling as it goes. Taller, the month, the year and the ISO week under them |
+| longitude (default) | The time on the left; the world's time zones from UTC-11 to UTC+14, lit where it is day, with cities at their offsets and their times |
+| week | The time on the left; this week's seven days with their dates across the rest, today lit, a bar under each day filling as it goes. Taller, the month, the year and the ISO week under them |
 | ahead | The time on the left; the next 24 hours on a logarithmic scale (the coming minutes widest), with alarms (◆) and tasks falling due (●), the nearest named with how long until it |
 | tape | The time on the left; the day as a tape of ticks running ahead of it, the night (18:00-06:00) as a band, midnight named by its day. Taller, the tape is centred on now |
-| longitude | The time on the left; the world's time zones from UTC-11 to UTC+14, lit where it is day, with cities at their offsets and their times |
 | digital | Large `HH:MM:SS` in fixed-width cells, a digit rolling as it changes, the zone beside it: the face elecdex began with |
 | segment | Seven-segment digits like a vacuum fluorescent display, unlit segments faintly visible |
 | vector | Thin single-stroke digits, redrawn as if by a plotter as they change, with a line filling over the minute |
-| dial | An analogue dial, and beside it `HH:MM`, the seconds and the zone on one line |
+| dial | An analogue dial, and beside it `HH:MM`, the seconds and the zone on one line (under the dial in a pane taller than it is wide) |
 | karman (uses more CPU) | A wind tunnel: the digits are obstacles, and smoke from the left flows round them into vortices. The flow is solved for real (Navier-Stokes) ten times a second while the pane is seen, so it uses noticeably more CPU than the others; with motion reduced it moves on once a second |
 
 - The zone is read again every minute, so a zone changed in the system while elecdex runs is named within a minute. A screen reader hears the time as hours and minutes and the zone by its full IANA name, whatever the face.

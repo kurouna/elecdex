@@ -1,3 +1,5 @@
+import { TALL_FROM } from '../../parts/strip.js'
+
 /**
  * Where KARMAN sets its digits, in pixels: the same place for the obstacle mask (scaled to the
  * grid) and the text drawn over it, so what is read is what the wind meets.
@@ -19,7 +21,7 @@ const TEXT_EMS = 4.4
  * into; a low strip gives them most of its height, a tall pane half.
  */
 export function karmanText(width: number, height: number): KarmanText {
-  const tall = height >= 100
+  const tall = height >= TALL_FROM
   const lead = tall ? 0.18 : 0.24
   const fs = Math.max(
     0,

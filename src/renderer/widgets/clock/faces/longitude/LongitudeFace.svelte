@@ -1,6 +1,8 @@
 <script lang="ts">
 import { zoneOffsetMinutes } from '../../../../lib/time-zone.ts'
 import Readout from '../../parts/Readout.svelte'
+import Strip from '../../parts/Strip.svelte'
+import { stripMetrics } from '../../parts/strip.js'
 import type { ClockFaceProps } from '../../types.ts'
 import { bandLight, cityMarks, offsetX } from './longitude.ts'
 
@@ -20,13 +22,10 @@ let height = $state(0)
 let readoutWidth = $state(0)
 
 const minute = $derived(Math.floor(now.getTime() / 60_000) * 60_000)
-const tall = $derived(height >= 90)
-const size = $derived(
-  tall
-    ? Math.min(height * 0.34, width * 0.16)
-    : Math.max(12, Math.min(height * 0.66, width * 0.11)),
-)
-const bandWidth = $derived(Math.max(0, tall ? width - 24 : width - readoutWidth - 24))
+const metrics = $derived(stripMetrics(width, height, readoutWidth))
+const tall = $derived(metrics.tall)
+const size = $derived(metrics.size)
+const bandWidth = $derived(metrics.bandWidth)
 const bandHeight = $derived(
   tall ? Math.max(30, Math.min(height * 0.24, 160)) : Math.max(16, height - 6),
 )
@@ -44,8 +43,8 @@ const inside = (cx: number, chars: number): number => {
 const cities = $derived(cityMarks(minute, here, bandWidth, text * (twoLines ? 3.2 : 4.6)))
 </script>
 
-<div class="face" class:tall bind:clientWidth={width} bind:clientHeight={height}>
-  <div class="time" bind:clientWidth={readoutWidth}><Readout {now} {zone} {size} /></div>
+<Strip {tall} bind:width bind:height bind:readoutWidth>
+  {#snippet time()}<Readout {now} {zone} {size} />{/snippet}
   {#if bandWidth > 0}
     <svg class="band" width={bandWidth} height={bandHeight} data-testid="clock-longitude">
       {#each light as l, i (i)}
@@ -81,32 +80,9 @@ const cities = $derived(cityMarks(minute, here, bandWidth, text * (twoLines ? 3.
       />
     </svg>
   {/if}
-</div>
+</Strip>
 
 <style>
-.face {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 100%;
-  padding: 0 12px;
-  box-sizing: border-box;
-}
-
-.face.tall {
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-}
-
-.time {
-  flex: none;
-}
-
-.band {
-  flex: none;
-}
-
 /* Day is the accent, faint; night is the panel showing through. */
 .sky {
   fill: color-mix(in srgb, var(--accent) 22%, transparent);
