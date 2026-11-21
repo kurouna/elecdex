@@ -154,7 +154,9 @@ Shortcuts are written as bound by default; they can be rebound in *Settings → 
 | Updates | Every second, on the second boundary, only while the pane is seen |
 
 - The time in 24-hour `HH:MM:SS`, in large digits in fixed-width cells so the time does not jitter. A digit rolls as it changes; only the column that changed moves.
-- Beside it is the time zone's abbreviation (for example `JST`); hovering it shows the full IANA zone name.
+- Beside it is the time zone's abbreviation (for example `JST`).
+- The zone is read again every minute, so a zone changed in the system while elecdex runs is named within a minute. A screen reader reads the time as hours and minutes, not digit by digit, and the zone by its full IANA name.
+- In a narrow pane the digits get smaller rather than the zone running out of the pane or shrinking below the smallest label size; a long zone name such as `UTC+5:45` is counted in the room the digits take.
 - It ticks on the shared second boundary, not on a timer of its own, so it does not drift behind the system clock. Behind a tab or with the window minimised it does not tick, and it is right again as soon as it is seen.
 - The pane has no title bar; drag it by the rule along its top to move it.
 - It can be brought forward (**Ctrl+Shift+Z**) to fill the window, and popped up from the picker.

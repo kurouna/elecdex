@@ -2,6 +2,7 @@ import cities from '@shared/geo/cities.json'
 import centroids from '@shared/geo/country-centroids.json'
 import zones from '@shared/geo/timezone-countries.json'
 import type { Quake } from '@shared/quakes'
+import { zoneOffsetMinutes } from '../../lib/time-zone'
 
 /**
  * The globe's geometry, as pure functions: where a latitude/longitude sits on
@@ -94,25 +95,11 @@ export function homeFromTimeZone(zone: string): Home | null {
 /** Minutes east of UTC for a zone at a moment. */
 function offsetMinutes(zone: string, at: Date): number | null {
   const key = `${zone}@${Math.floor(at.getTime() / 3_600_000)}`
-  if (!offsets.has(key)) offsets.set(key, readOffset(zone, at))
+  if (!offsets.has(key)) offsets.set(key, zoneOffsetMinutes(zone, at.getTime()))
   return offsets.get(key) ?? null
 }
 
 const offsets = new Map<string, number | null>()
-
-function readOffset(zone: string, at: Date): number | null {
-  try {
-    const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
-      .formatToParts(at)
-      .find((part) => part.type === 'timeZoneName')?.value
-    if (!name) return null
-    if (name === 'GMT') return 0
-    const m = /GMT([+-])(\d{2}):(\d{2})/.exec(name)
-    return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : null
-  } catch {
-    return null
-  }
-}
 
 type CityRow = [string, string, string, number, number, string]
 

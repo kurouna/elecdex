@@ -1,6 +1,7 @@
 <script lang="ts">
 import { formatClock, zoneAbbreviation } from '../../lib/format.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { systemTimeZone } from '../../lib/time-zone.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import Digits from '../common/Digits.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -33,22 +34,34 @@ $effect(() => {
   })
 })
 
-const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-// The abbreviation changes only with daylight saving; once a minute is plenty. It
-// must read only the minute: reading `now` too would rebuild its Intl formatters
-// every second, the costliest script this widget runs.
+// The zone and its abbreviation change only with daylight saving or the system's zone being
+// changed; once a minute is plenty. They must read only the minute: reading `now` too would
+// rebuild their Intl formatters every second, the costliest script this widget runs. The zone is
+// asked again each minute rather than once, so a zone changed in the system (a trip) is named
+// as the digits follow it, not the zone the app started in.
 const minute = $derived(Math.floor(now.getTime() / 60_000))
+const timeZone = $derived.by(() => {
+  void minute
+  return systemTimeZone()
+})
 const zone = $derived(zoneAbbreviation(timeZone, new Date(minute * 60_000)))
 
 const parts = $derived(formatClock(now))
 const shown = $derived(`${parts.hh}:${parts.mm}:${parts.ss}`)
+// What a screen reader says: the minute, not the second, and not digit by digit as the rolling
+// cells would be read.
+const spoken = $derived(`${parts.hh}:${parts.mm}`)
 </script>
 
 <div class="clock" data-testid="clock" data-pane-id={paneId}>
-  <time datetime={now.toISOString()}>
-    <Digits value={shown} />
-    {#if zone}<small class="zone" title={timeZone} data-testid="clock-zone">{zone}</small>{/if}
-  </time>
+  <div class="face" style:--zone-chars={zone.length}>
+    <time datetime={now.toISOString()} role="img" aria-label={spoken}>
+      <Digits value={shown} />
+    </time>
+    {#if zone}<small class="zone" role="img" aria-label="time zone {zone}, {timeZone}" data-testid="clock-zone"
+        >{zone}</small
+      >{/if}
+  </div>
 </div>
 
 <style>
@@ -60,13 +73,27 @@ const shown = $derived(`${parts.hh}:${parts.mm}:${parts.ss}`)
   min-height: 2rem;
 }
 
-time {
+/*
+ * The digits and the zone, sized to fill the pane: bounded by its height and its width. The
+ * zone's room is counted by its letters (--zone-chars), so a long one ("UTC+5:45") shrinks the
+ * digits rather than running out of the pane, and its floor at --step--2 is counted too, so a
+ * narrow pane makes the digits smaller rather than the zone unreadable. Every digit is 0.62em
+ * and every colon 0.4em (4.52em for the six and two); a letter of the zone at most 0.8 of its
+ * own em, with 0.3 of it before. For three or four letters the third and fourth bounds are
+ * looser than 16.5cqw, so the usual clock is drawn as it always was.
+ */
+.face {
+  --zone-em: calc(var(--zone-chars, 0) * 0.8 + 0.3);
   display: flex;
   align-items: center;
   font-family: var(--font-ui);
   font-weight: 300;
-  /* Fill the pane: bounded by both its height and its width. */
-  font-size: min(92cqh, 16.5cqw);
+  font-size: min(
+    92cqh,
+    16.5cqw,
+    calc(100cqw / (4.52 + 0.38 * var(--zone-em))),
+    calc((100cqw - var(--step--2) * var(--zone-em)) / 4.52)
+  );
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -78,13 +105,21 @@ time {
   --separator-opacity: 0.8;
 }
 
-/* The zone sits on the digits' baseline, small enough not to compete with them. */
+time {
+  display: flex;
+  align-items: center;
+}
+
+/* The zone sits on the digits' baseline, small enough not to compete with them, and never
+   below the smallest step a label may take. */
 .zone {
   align-self: flex-end;
   margin: 0 0 0.1em 0.3em;
-  font-size: 0.38em;
+  font-size: max(0.38em, var(--step--2));
   font-weight: 400;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+  white-space: nowrap;
 }
+
 </style>
