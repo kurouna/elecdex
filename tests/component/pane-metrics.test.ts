@@ -2,6 +2,7 @@ import { pane } from '@shared/layout-ops'
 import { render } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubResizeObserver } from './support/dom.ts'
 import { stubElecdex } from './support/elecdex.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
@@ -11,9 +12,7 @@ document.adoptedStyleSheets = []
 CSSStyleSheet.prototype.replaceSync ??= () => {}
 
 const { default: PaneHost } = await import('../../src/renderer/layout/PaneHost.svelte')
-const { default: ClockWidget } = await import(
-  '../../src/renderer/widgets/monitor/ClockWidget.svelte'
-)
+const { default: ClockWidget } = await import('../../src/renderer/widgets/clock/ClockWidget.svelte')
 const { registerBuiltin } = await import('../../src/renderer/widgets/registry.ts')
 await import('../../src/renderer/widgets/builtins.ts')
 
@@ -26,6 +25,8 @@ const subscribed = new Map<string, number>()
 const changes: Array<[string, 'on' | 'off']> = []
 
 beforeEach(() => {
+  // The clock is only a stand-in widget here; its face measures itself.
+  stubResizeObserver()
   subscribed.clear()
   changes.length = 0
   stubElecdex({

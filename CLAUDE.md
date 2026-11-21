@@ -25,6 +25,7 @@ alone tends to break a promise the code quietly depends on. The design is in
 |---|---|---|
 | Panes, layout, dialogs, shortcuts, palette, CRT transitions, themes, cards, type sizes | [panes-layout.md](.claude/rules/panes-layout.md) | architecture.md §5.5, §5.6, §5.13, §5.24, §7; docs/palette.md |
 | Shell panes: sizing, the folder | [terminal.md](.claude/rules/terminal.md) | §6.2 |
+| CLOCK and its faces | [clock.md](.claude/rules/clock.md) | decisions.md; docs/clock-faces-mock |
 | Running in the background (tray, shortcut, sign-in entry) | [background.md](.claude/rules/background.md) | decisions.md |
 | The metrics collector: sockets, GPU | [metrics.md](.claude/rules/metrics.md) | §5.22 |
 | Wi-Fi and Ethernet panes | [wifi-ethernet.md](.claude/rules/wifi-ethernet.md) | §5.12, §5.23; docs/ethernet-mock |

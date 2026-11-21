@@ -47,7 +47,6 @@ describe('the type scale', () => {
       'widgets/common/DiffView.svelte',
       'widgets/common/Readout.svelte',
       'widgets/elec/Stage.svelte',
-      'widgets/monitor/ClockWidget.svelte',
       'widgets/weather/WeatherWidget.svelte',
     ])
     const relative = files(RENDERER)

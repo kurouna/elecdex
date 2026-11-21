@@ -150,16 +150,30 @@ Shortcuts are written as bound by default; they can be rebound in *Settings → 
 | | |
 | --- | --- |
 | Where | System column (top); picker: *clock* |
-| Reads | The system clock and time zone, in the page |
+| Reads | The system clock and time zone, in the page; the AHEAD face also reads the alarms and tasks elecdex keeps |
 | Updates | Every second, on the second boundary, only while the pane is seen |
+| Setting | `clock.face`, in the settings dialog's general section (default `week`) |
 
-- The time in 24-hour `HH:MM:SS`, in large digits in fixed-width cells so the time does not jitter. A digit rolls as it changes; only the column that changed moves.
-- Beside it is the time zone's abbreviation (for example `JST`).
-- The zone is read again every minute, so a zone changed in the system while elecdex runs is named within a minute. A screen reader reads the time as hours and minutes, not digit by digit, and the zone by its full IANA name.
-- In a narrow pane the digits get smaller rather than the zone running out of the pane or shrinking below the smallest label size; a long zone name such as `UTC+5:45` is counted in the room the digits take.
-- It ticks on the shared second boundary, not on a timer of its own, so it does not drift behind the system clock. Behind a tab or with the window minimised it does not tick, and it is right again as soon as it is seen.
+The clock has **faces** (*unreleased*): one look for every clock pane, chosen in the settings dialog (general › clock › face). Most of them give the low strip at the top of the system column a use across its whole width, rather than centring digits in it.
+
+| Face | What it shows |
+| --- | --- |
+| week (default) | The time on the left; this week's seven days with their dates across the rest, today lit, a bar under each day filling as it goes. Taller, the month, the year and the ISO week under them |
+| ahead | The time on the left; the next 24 hours on a logarithmic scale (the coming minutes widest), with alarms (◆) and tasks falling due (●), the nearest named with how long until it |
+| tape | The time on the left; the day as a tape of ticks running ahead of it, the night (18:00-06:00) as a band, midnight named by its day. Taller, the tape is centred on now |
+| longitude | The time on the left; the world's time zones from UTC-11 to UTC+14, lit where it is day, with cities at their offsets and their times |
+| digital | Large `HH:MM:SS` in fixed-width cells, a digit rolling as it changes, the zone beside it: the face elecdex began with |
+| segment | Seven-segment digits like a vacuum fluorescent display, unlit segments faintly visible |
+| vector | Thin single-stroke digits, redrawn as if by a plotter as they change, with a line filling over the minute |
+| dial | An analogue dial, and beside it `HH:MM`, the seconds and the zone on one line |
+| karman (uses more CPU) | A wind tunnel: the digits are obstacles, and smoke from the left flows round them into vortices. The flow is solved for real (Navier-Stokes) ten times a second while the pane is seen, so it uses noticeably more CPU than the others; with motion reduced it moves on once a second |
+
+- The zone is read again every minute, so a zone changed in the system while elecdex runs is named within a minute. A screen reader hears the time as hours and minutes and the zone by its full IANA name, whatever the face.
+- It ticks on the shared second boundary, not on a timer of its own, so it does not drift behind the system clock. Behind a tab or with the window minimised it does not tick (and karman's smoke stops), and it is right again as soon as it is seen.
+- AHEAD reads the alarms (TIMER pane) and the tasks with a due time (TASKS pane) only while it is seen; the timer pane's countdowns are not on it.
+- WEEK starts its week on the same day as the calendar pane.
 - The pane has no title bar; drag it by the rule along its top to move it.
-- It can be brought forward (**Ctrl+Shift+Z**) to fill the window, and popped up from the picker.
+- It can be brought forward (**Ctrl+Shift+Z**) to fill the window, and popped up from the picker; each face lays itself out again for the room.
 
 ## System
 

@@ -44,6 +44,7 @@ import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 import { updates } from './stores/updates.svelte.ts'
 import AiSettings from './widgets/aichat/AiSettings.svelte'
+import { CLOCK_FACES, clockFace, clockFaceName } from './widgets/clock/faces.ts'
 
 /**
  * Settings, in the app: appearance and sound, the terminal's start folder, the
@@ -418,6 +419,26 @@ function describeUpdate(status: UpdateStatus): string {
                   </label>
                 {/each}
               </div>
+            </section>
+
+            <section>
+              <h3>clock</h3>
+              <label class="row">
+                <span>face</span>
+                <select
+                  value={clockFace(settings.clock.face).id}
+                  onchange={(e) => patch({ clock: { face: e.currentTarget.value } })}
+                  data-testid="settings-clock-face"
+                >
+                  {#each CLOCK_FACES as face (face.id)}
+                    <option value={face.id}>{clockFaceName(face)}</option>
+                  {/each}
+                </select>
+              </label>
+              <p class="note">
+                Every clock pane draws this face. One marked "uses more CPU" runs a simulation while
+                it is on screen; it stops while the window is hidden.
+              </p>
             </section>
 
             <section>

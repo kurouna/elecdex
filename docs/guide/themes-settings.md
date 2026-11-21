@@ -124,7 +124,7 @@ Its sections, in order:
 
 | Section | What is in it |
 | --- | --- |
-| general | appearance (theme, themes folder, motion), sound, terminal (start folder, type size, ask before pasting several lines, bell), reading type (ai chat, elec system, translate, rss article), git (open files with), chip-8 (show the core, buzzer volume), elec-16 (buzzer volume, skin of a new pane), layouts (ask before switching layout), launcher (list installed applications), web panes (tint pages in the theme's colour, sign out of all sites) |
+| general | appearance (theme, themes folder, motion), clock (face, *unreleased*), sound, terminal (start folder, type size, ask before pasting several lines, bell), reading type (ai chat, elec system, translate, rss article), git (open files with), chip-8 (show the core, buzzer volume), elec-16 (buzzer volume, skin of a new pane), layouts (ask before switching layout), launcher (list installed applications), web panes (tint pages in the theme's colour, sign out of all sites) |
 | window | The icon outside the window, minimising and closing to it, the system-wide show/hide shortcut, launching at sign-in and starting in the background. Shown only where the machine offers something ([Keyboard and layouts](keyboard.md#running-in-the-background)) |
 | keyboard | Every shortcut, rebindable ([Keyboard and layouts](keyboard.md#rebinding-shortcuts)) |
 | alerts | Earthquakes and tsunamis: source, alerts, thresholds, system notification, alert sound |
@@ -214,6 +214,7 @@ The keys and their defaults (from `src/shared/settings.ts`):
 | `git.openCommand` | `""` | How the git pane opens a double-clicked file (`{file}`, `{line}`, `{dir}` filled in; run as a program, never through a shell); empty for the system's application. Set in this file only |
 | `logWatch.keepLines` | `5000` | Lines kept to scroll back: 1000, 5000, 20000 or 50000 |
 | `logWatch.initialLines` | `500` | Lines read from the end when a pane opens a file: 100, 500 or 2000 |
+| `clock.face` | `"week"` | The face every clock pane draws: `week`, `ahead`, `tape`, `longitude`, `digital`, `segment`, `vector`, `dial` or `karman` ([Clock](panes-system.md#clock)). *unreleased* |
 | `chip8.core` | `true` | A new CHIP-8 pane shows its CORE view |
 | `chip8.volume` | `0.5` | The CHIP-8 buzzer, 0 to 1 |
 | `elec16.volume` | `0.5` | The ELEC-16 buzzer, 0 to 1 |

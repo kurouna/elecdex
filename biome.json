@@ -25,7 +25,8 @@
       "!docs/translate-mock",
       "!docs/aws-mock",
       "!docs/github-mock",
-      "!docs/rss-mock"
+      "!docs/rss-mock",
+      "!docs/clock-faces-mock"
     ]
   },
   "formatter": {

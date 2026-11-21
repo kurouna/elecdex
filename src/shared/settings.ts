@@ -86,6 +86,9 @@ const READING_DEFAULT = {
   rss: READING_SCALE.base,
 }
 
+/** The CLOCK pane's face when none is chosen: the week beside the time (user decision 2026-11-21). */
+export const DEFAULT_CLOCK_FACE = 'week'
+
 export const SettingsSchema = z.object({
   version: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
   /** Theme id; an id no theme has falls back to the default theme. */
@@ -378,6 +381,15 @@ export const SettingsSchema = z.object({
    * main start a program or send text to a host.
    */
   translate: TranslateSettingsSchema.default(TRANSLATE_DEFAULTS),
+  /**
+   * The CLOCK pane: which face every clock pane draws. A face id the page does not know (one
+   * removed later, or a hand edit) is drawn as the default face, and kept, so nothing is lost.
+   */
+  clock: z
+    .object({
+      face: z.string().min(1).max(40).catch(DEFAULT_CLOCK_FACE).default(DEFAULT_CLOCK_FACE),
+    })
+    .default({ face: DEFAULT_CLOCK_FACE }),
   /** The CHIP-8 pane (docs/architecture.md section 5.18). */
   chip8: z
     .object({
@@ -466,6 +478,7 @@ export interface SettingsPatch {
   ai?: Partial<Settings['ai']>
   /** `seats` and `personas` replace the whole list. */
   elec?: Partial<Settings['elec']>
+  clock?: Partial<Settings['clock']>
   chip8?: Partial<Settings['chip8']>
   logWatch?: Partial<Settings['logWatch']>
   translate?: Partial<Settings['translate']>
@@ -508,6 +521,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     github: merge(current.github, p.github),
     ai: merge(current.ai, p.ai),
     elec: merge(current.elec, p.elec),
+    clock: merge(current.clock, p.clock),
     chip8: merge(current.chip8, p.chip8),
     logWatch: merge(current.logWatch, p.logWatch),
     // The schema keeps its six keys and drops any other: nothing of the engine's source gets in.

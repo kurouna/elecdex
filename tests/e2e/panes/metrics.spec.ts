@@ -51,9 +51,11 @@ const without = (widgets: string[]) => (text: string) =>
 test('every monitoring widget shows live data', async ({ shared }) => {
   const { page, close } = await shared()
   try {
-    // The time, then the zone's short name (JST, EDT, UTC+5:45).
-    await expect(page.getByTestId('clock')).toHaveText(
-      /^\d{2}:\d{2}:\d{2}( ?[A-Z][A-Za-z0-9+:-]*)?$/,
+    // The time, and the zone's short name (JST, EDT, UTC+5:45), whatever the face.
+    await expect(page.getByTestId('clock')).toHaveAttribute('data-time', /^\d{2}:\d{2}:\d{2}$/)
+    await expect(page.getByTestId('clock')).toHaveAttribute(
+      'data-zone',
+      /^([A-Z][A-Za-z0-9+:-]*)?$/,
     )
     await expect(page.getByTestId('sysinfo-date')).toHaveText(
       /^[A-Z]{3} \d{1,2} (SUN|MON|TUE|WED|THU|FRI|SAT)$/,

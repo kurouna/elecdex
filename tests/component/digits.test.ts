@@ -3,9 +3,9 @@ import { flushSync } from 'svelte'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const { default: Digits } = await import('../../src/renderer/widgets/common/Digits.svelte')
-const { default: ClockWidget } = await import(
-  '../../src/renderer/widgets/monitor/ClockWidget.svelte'
-)
+const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
+const { defaultSettings } = await import('@shared/settings')
+const { default: ClockWidget } = await import('../../src/renderer/widgets/clock/ClockWidget.svelte')
 
 /**
  * The rolling digits the clock, the markets and a plugin's countdown share.
@@ -64,7 +64,8 @@ describe('Digits', () => {
 })
 
 describe('the clock', () => {
-  it('rolls the second without disturbing the hour', () => {
+  it('rolls the second without disturbing the hour (DIGITAL)', () => {
+    appearance.settings = { ...defaultSettings(), clock: { face: 'digital' } }
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 8, 19, 9, 41, 12))
     try {
@@ -94,6 +95,7 @@ describe('the clock', () => {
       expect(after.at(-2)).toBe(before.at(-2))
     } finally {
       vi.useRealTimers()
+      appearance.settings = defaultSettings()
     }
   })
 })

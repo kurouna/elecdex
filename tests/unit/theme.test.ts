@@ -206,6 +206,7 @@ describe('settings', () => {
         live: true,
         saveHistory: true,
       },
+      clock: { face: 'week' },
       chip8: { core: true, volume: 0.5 },
       elec16: {
         volume: 0.5,

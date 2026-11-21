@@ -16,11 +16,28 @@ vi.mock('../../src/renderer/lib/time-zone.ts', async (original) => {
 })
 
 const loop = await import('../../src/renderer/lib/frame-loop.ts')
-const { default: ClockWidget } = await import(
-  '../../src/renderer/widgets/monitor/ClockWidget.svelte'
+const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
+const { defaultSettings } = await import('@shared/settings')
+const { CLOCK_FACES } = await import('../../src/renderer/widgets/clock/faces.ts')
+const { canvasContext, stubCanvas, stubMatchMedia, stubResizeObserver } = await import(
+  './support/dom.ts'
 )
+const { stubElecdex } = await import('./support/elecdex.ts')
+
+/** Draws every clock pane with `face`, as the settings dialog would. */
+const useFace = (face: string): void => {
+  appearance.settings = { ...defaultSettings(), clock: { face } }
+}
+const { default: ClockWidget } = await import('../../src/renderer/widgets/clock/ClockWidget.svelte')
 
 beforeEach(() => {
+  // The faces measure themselves, and AHEAD reads the alarms and tasks main keeps.
+  stubResizeObserver()
+  stubElecdex({
+    alarms: { list: async () => ({ alarms: [] }), onChange: () => () => {} },
+    tasks: { list: async () => ({ tasks: [], lists: [] }), onChange: () => () => {} },
+  })
+  useFace('digital')
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-09-14T10:20:30.010Z'))
 })
@@ -30,6 +47,9 @@ afterEach(() => {
   loop.setWindowHidden(false)
   vi.useRealTimers()
   zoneOverride = null
+  appearance.settings = defaultSettings()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 const shown = (): string => screen.getByTestId('clock').querySelector('time')?.textContent ?? ''
@@ -73,15 +93,21 @@ describe('ClockWidget behind another tab', () => {
   })
 })
 
-describe('ClockWidget, the zone', () => {
-  it('names the full zone to a screen reader, with no tooltip of its own', () => {
+describe('ClockWidget, the zone and what a screen reader hears', () => {
+  it('names the minute and the full zone, the same for every face', () => {
     zoneOverride = 'Asia/Tokyo'
-    render(ClockWidget, { props: { paneId: 'p' } as never })
-    flushSync()
-    const zone = screen.getByTestId('clock-zone')
-    // A title is not how elecdex says more (architecture.md §7.4); the abbreviation says enough.
-    expect(zone.getAttribute('title')).toBeNull()
-    expect(zone.getAttribute('aria-label')).toBe('time zone JST, Asia/Tokyo')
+    vi.setSystemTime(new Date('2026-09-14T01:20:30.010Z'))
+    for (const face of ['digital', 'week', 'dial']) {
+      useFace(face)
+      render(ClockWidget, { props: { paneId: 'p' } as never })
+      flushSync()
+      const clock = screen.getByTestId('clock')
+      expect(clock.getAttribute('role')).toBe('img')
+      expect(clock.getAttribute('aria-label')).toBe('10:20, time zone JST, Asia/Tokyo')
+      // A title is not how elecdex says more (architecture.md §7.4).
+      expect(clock.querySelector('[title]')).toBeNull()
+      cleanup()
+    }
   })
 
   it('names the zone the system changes to, within the minute', () => {
@@ -94,29 +120,150 @@ describe('ClockWidget, the zone', () => {
     vi.advanceTimersByTime(60_000)
     flushSync()
     expect(screen.getByTestId('clock-zone').textContent).toBe('EDT')
-    expect(screen.getByTestId('clock-zone').getAttribute('aria-label')).toBe(
+    expect(screen.getByTestId('clock').dataset.zone).toBe('EDT')
+    expect(screen.getByTestId('clock').getAttribute('aria-label')).toContain(
       'time zone EDT, America/New_York',
     )
   })
 
-  it('is read as the minute, not digit by digit', () => {
+  it('is read as the minute: the seconds go by without a new label', () => {
     render(ClockWidget, { props: { paneId: 'p' } as never })
     flushSync()
-    const time = screen.getByTestId('clock').querySelector('time')
-    const label = time?.getAttribute('aria-label') ?? ''
-    expect(label).toMatch(/^\d{2}:\d{2}$/)
-    expect(time?.getAttribute('role')).toBe('img')
-    // Only the minute: the seconds go by without a new label.
+    const clock = screen.getByTestId('clock')
+    const label = clock.getAttribute('aria-label')
+    expect(label).toMatch(/^\d{2}:\d{2}/)
     vi.advanceTimersByTime(5000)
     flushSync()
-    expect(time?.getAttribute('aria-label')).toBe(label)
+    expect(clock.getAttribute('aria-label')).toBe(label)
   })
 
-  it('counts a long zone name in the room the digits take', () => {
+  it('counts a long zone name in the room DIGITAL’s digits take', () => {
     render(ClockWidget, { props: { paneId: 'p' } as never })
     flushSync()
     const face = screen.getByTestId('clock').querySelector<HTMLElement>('.face')
     const zone = screen.getByTestId('clock-zone').textContent ?? ''
     expect(face?.style.getPropertyValue('--zone-chars')).toBe(String(zone.length))
+  })
+})
+
+describe('ClockWidget, the face', () => {
+  it('draws WEEK when no face is chosen', () => {
+    appearance.settings = defaultSettings()
+    render(ClockWidget, { props: { paneId: 'p' } as never })
+    flushSync()
+    expect(screen.getByTestId('clock').dataset.face).toBe('week')
+    expect(screen.getByTestId('clock-week').querySelectorAll('li')).toHaveLength(7)
+  })
+
+  it('follows the setting at once, every clock pane alike', () => {
+    render(ClockWidget, { props: { paneId: 'a' } as never })
+    render(ClockWidget, { props: { paneId: 'b' } as never })
+    useFace('dial')
+    flushSync()
+    for (const clock of screen.getAllByTestId('clock')) expect(clock.dataset.face).toBe('dial')
+    expect(screen.getAllByTestId('clock-dial')).toHaveLength(2)
+  })
+
+  it('draws a face it does not know as WEEK', () => {
+    useFace('gone-in-a-later-version')
+    render(ClockWidget, { props: { paneId: 'p' } as never })
+    flushSync()
+    expect(screen.getByTestId('clock').dataset.face).toBe('week')
+  })
+
+  it('mounts and ticks every face in the table, and takes each down cleanly', () => {
+    // Measured as the default strip, so every face lays itself out and KARMAN builds its tunnel:
+    // building it once looped (an effect read the count it wrote) and stopped the pane.
+    stubResizeObserver({ width: 340, height: 48 })
+    vi.stubGlobal(
+      'ImageData',
+      class {
+        readonly data: Uint8ClampedArray
+        readonly width: number
+        readonly height: number
+        constructor(width: number, height: number) {
+          this.width = width
+          this.height = height
+          this.data = new Uint8ClampedArray(width * height * 4)
+        }
+      },
+    )
+    stubMatchMedia(false)
+    // KARMAN reads its obstacle mask back from a canvas and paints its smoke into one.
+    const context: Record<string | symbol, unknown> = {
+      ...(canvasContext() as object),
+      getImageData: (_x: number, _y: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4),
+        width: w,
+        height: h,
+      }),
+      putImageData: () => {},
+    }
+    // Any other drawing call is a no-op: only that nothing throws or loops is asked here.
+    stubCanvas(new Proxy(context, { get: (t, k) => (k in t ? t[k] : () => {}) }))
+    for (const face of CLOCK_FACES) {
+      useFace(face.id)
+      const view = render(ClockWidget, { props: { paneId: face.id } as never })
+      flushSync()
+      vi.advanceTimersByTime(2000)
+      flushSync()
+      expect(screen.getByTestId('clock').dataset.face).toBe(face.id)
+      view.unmount()
+    }
+  })
+})
+
+describe('ClockWidget, AHEAD', () => {
+  it('reads the alarms and tasks only while the pane is seen, and lets go when it is not', async () => {
+    const stops = { alarms: vi.fn(), tasks: vi.fn() }
+    const api = stubElecdex({
+      alarms: { list: vi.fn(async () => ({ alarms: [] })), onChange: vi.fn(() => stops.alarms) },
+      tasks: {
+        list: vi.fn(async () => ({ tasks: [], lists: [] })),
+        onChange: vi.fn(() => stops.tasks),
+      },
+    })
+    useFace('ahead')
+    const { rerender } = render(ClockWidget, { props: { paneId: 'p', visible: false } as never })
+    flushSync()
+    expect(api.alarms.onChange).not.toHaveBeenCalled()
+    expect(api.tasks.onChange).not.toHaveBeenCalled()
+
+    await rerender({ paneId: 'p', visible: true } as never)
+    flushSync()
+    expect(api.alarms.onChange).toHaveBeenCalledTimes(1)
+    expect(api.tasks.onChange).toHaveBeenCalledTimes(1)
+
+    await rerender({ paneId: 'p', visible: false } as never)
+    flushSync()
+    expect(stops.alarms).toHaveBeenCalledTimes(1)
+    expect(stops.tasks).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the nearest alarm and how long until it', async () => {
+    vi.setSystemTime(new Date(2026, 8, 14, 6, 50, 0))
+    stubElecdex({
+      alarms: {
+        list: async () => ({
+          alarms: [{ id: 'a', label: 'wake', hour: 7, minute: 0, days: [], enabled: true }],
+        }),
+        onChange: () => () => {},
+      },
+      tasks: { list: async () => ({ tasks: [], lists: [] }), onChange: () => () => {} },
+    })
+    // The default strip, 340 by 48, with the time taking 80 of it.
+    stubResizeObserver('once')
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains('time') ? 80 : 340
+    })
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(48)
+    useFace('ahead')
+    render(ClockWidget, { props: { paneId: 'p' } as never })
+    await vi.waitFor(() => {
+      flushSync()
+      expect(screen.getByTestId('clock-ahead-next').textContent).toBe('wake · 10m')
+    })
   })
 })
