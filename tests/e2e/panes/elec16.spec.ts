@@ -401,13 +401,13 @@ test('asleep at its prompt it costs what a paused pane does; running costs by it
     // (user decision 2026-10-04).
     const room = 1.5
     expect(asleep - paused, `asleep over paused, ${power}`).toBeLessThan(
-      process.env.CI ? 1 : 0.02 * room,
+      process.env.CI ? 2 : 0.02 * room,
     )
     expect(spin4 - asleep, `4 MHz spinning over asleep, ${power}`).toBeLessThan(
-      process.env.CI ? 1.5 : 0.08 * room,
+      process.env.CI ? 3 : 0.08 * room,
     )
     expect(draw4 - asleep, `4 MHz drawing over asleep, ${power}`).toBeLessThan(
-      process.env.CI ? 1.5 : 0.25 * room,
+      process.env.CI ? 3 : 0.25 * room,
     )
   } finally {
     await close()

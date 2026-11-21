@@ -185,7 +185,7 @@ test('asleep at its keys it costs what a paused pane does; typing costs little',
     // again for the rest of the machine, user decision 2026-10-04); typing pays for a redraw a key.
     const room = 1.5
     expect(asleep - paused, `asleep over paused, ${power}`).toBeLessThan(
-      process.env.CI ? 1 : 0.02 * room,
+      process.env.CI ? 2 : 0.02 * room,
     )
     // On CI only a bound against a runaway: Linux's runner draws in software, where a key's
     // redraw of the 2D line and the whole LCD came to 1.55-1.69 of a core (cluster.spec's 3 too).

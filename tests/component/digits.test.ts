@@ -94,6 +94,10 @@ describe('the clock', () => {
       expect(after[0]).toBe(before[0])
       expect(after.at(-2)).toBe(before.at(-2))
     } finally {
+      // The clock goes before the settings change back: still mounted, it redrew itself with
+      // the default face, whose strip needs a ResizeObserver jsdom does not have, and the throw
+      // landed after the test, as an unhandled error that failed the run on CI.
+      cleanup()
       vi.useRealTimers()
       appearance.settings = defaultSettings()
     }
