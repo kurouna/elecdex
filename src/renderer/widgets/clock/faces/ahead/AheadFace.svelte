@@ -166,8 +166,13 @@ text {
   stroke-width: 1.5;
 }
 
+/* Haloed in the pane's ground: the name runs over the markers of the events after it. */
 .nearest {
   fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--app-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .none {

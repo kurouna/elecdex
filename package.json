@@ -88,7 +88,8 @@
     "demo:aws": "node scripts/demo-aws.mjs",
     "demo:github": "node scripts/demo-github.mjs",
     "demo:translate": "node scripts/demo-translate.mjs",
-    "demo:rss": "node scripts/demo-rss.mjs"
+    "demo:rss": "node scripts/demo-rss.mjs",
+    "demo:clock": "node scripts/demo-clock.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.8",
