@@ -15,6 +15,19 @@ vi.mock('../../src/renderer/lib/time-zone.ts', async (original) => {
   return { ...real, systemTimeZone: () => zoneOverride ?? real.systemTimeZone() }
 })
 
+/** Who takes the shared frame loop: KARMAN, only while its smoke moves. */
+const frameTakers = vi.hoisted(() => ({ count: 0 }))
+vi.mock('../../src/renderer/lib/frame-loop.ts', async (original) => {
+  const real = await original<typeof import('../../src/renderer/lib/frame-loop.ts')>()
+  return {
+    ...real,
+    onFrame: (...args: Parameters<typeof real.onFrame>) => {
+      frameTakers.count++
+      return real.onFrame(...args)
+    },
+  }
+})
+
 const loop = await import('../../src/renderer/lib/frame-loop.ts')
 const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
 const { defaultSettings } = await import('@shared/settings')
@@ -264,5 +277,120 @@ describe('ClockWidget, AHEAD', () => {
       flushSync()
       expect(screen.getByTestId('clock-ahead-next').textContent).toBe('wake · 10m')
     })
+  })
+})
+
+describe('ClockWidget, KARMAN', () => {
+  /** A ResizeObserver the test reports sizes through, by hand. */
+  function handResize(): (width: number, height: number) => void {
+    const callbacks: Array<{ cb: ResizeObserverCallback; target: Element }> = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        readonly #cb: ResizeObserverCallback
+        constructor(cb: ResizeObserverCallback) {
+          this.#cb = cb
+        }
+        observe(target: Element): void {
+          callbacks.push({ cb: this.#cb, target })
+        }
+        unobserve(): void {}
+        disconnect(): void {}
+      },
+    )
+    return (width, height) => {
+      for (const { cb, target } of callbacks) {
+        cb([{ target, contentRect: { width, height } } as never], {} as ResizeObserver)
+      }
+    }
+  }
+
+  function karmanStubs(): void {
+    stubMatchMedia(false)
+    vi.stubGlobal(
+      'ImageData',
+      class {
+        readonly data: Uint8ClampedArray
+        readonly width: number
+        readonly height: number
+        constructor(width: number, height: number) {
+          this.width = width
+          this.height = height
+          this.data = new Uint8ClampedArray(width * height * 4)
+        }
+      },
+    )
+    const context: Record<string | symbol, unknown> = {
+      getImageData: (_x: number, _y: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4),
+      }),
+    }
+    stubCanvas(new Proxy(context, { get: (t, k) => (k in t ? t[k] : () => {}) }))
+  }
+
+  const tunnelOf = (): string | undefined => screen.getByTestId('karman-canvas').dataset.tunnel
+
+  it('keeps its tunnel, and the flow in it, across a turn behind another tab', () => {
+    const report = handResize()
+    karmanStubs()
+    useFace('karman')
+    render(ClockWidget, { props: { paneId: 'p' } as never })
+    report(340, 80)
+    flushSync()
+    const first = tunnelOf()
+    expect(first).toBe('1')
+    // Behind a tab the pane is display: none and measures 0 x 0; back, it is its old size.
+    report(0, 0)
+    flushSync()
+    vi.advanceTimersByTime(1000)
+    report(340, 80)
+    flushSync()
+    vi.advanceTimersByTime(1000)
+    flushSync()
+    expect(tunnelOf()).toBe(first)
+  })
+
+  it('builds a tunnel for a new size only once the size has held', () => {
+    const report = handResize()
+    karmanStubs()
+    useFace('karman')
+    render(ClockWidget, { props: { paneId: 'p' } as never })
+    report(340, 80)
+    flushSync()
+    // A divider dragged through many sizes: no tunnel for each of them.
+    for (let w = 360; w <= 900; w += 60) {
+      report(w, 300)
+      flushSync()
+      vi.advanceTimersByTime(50)
+    }
+    expect(tunnelOf()).toBe('1')
+    vi.advanceTimersByTime(400)
+    flushSync()
+    expect(tunnelOf()).toBe('2')
+  })
+
+  it('takes the frame loop while its smoke moves, and not with motion reduced', () => {
+    handResize()(340, 80)
+    karmanStubs()
+    useFace('karman')
+    frameTakers.count = 0
+    const report = handResize()
+    const view = render(ClockWidget, { props: { paneId: 'p' } as never })
+    report(340, 80)
+    flushSync()
+    expect(frameTakers.count).toBeGreaterThan(0)
+    view.unmount()
+
+    appearance.settings = { ...defaultSettings(), motion: 'reduced', clock: { face: 'karman' } }
+    frameTakers.count = 0
+    const reportStill = handResize()
+    render(ClockWidget, { props: { paneId: 'q' } as never })
+    reportStill(340, 80)
+    flushSync()
+    vi.advanceTimersByTime(3000)
+    flushSync()
+    expect(frameTakers.count).toBe(0)
+    // Still, it moves on with the second: the tunnel is there and painted.
+    expect(tunnelOf()).toBe('1')
   })
 })

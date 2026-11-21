@@ -1,6 +1,7 @@
 <script lang="ts">
 import { describeMarks, HOLIDAY_CALENDARS, holidayChoice, holidayLookup } from '@shared/holidays'
 import {
+  CALENDAR_LOCALE,
   firstDayOfWeek,
   isoWeek,
   monthGrid,
@@ -37,7 +38,7 @@ import type { WidgetProps } from '../registry.ts'
  */
 const { paneId, state: paneState }: WidgetProps = $props()
 
-const locale = 'en-US'
+const locale = CALENDAR_LOCALE
 const weekStart = firstDayOfWeek(locale)
 const countries = $derived(holidayChoice(paneState))
 const lookup = $derived(holidayLookup(countries))

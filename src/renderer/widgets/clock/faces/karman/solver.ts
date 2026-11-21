@@ -329,7 +329,7 @@ export interface Grid {
 /**
  * Most cells a tunnel may have. A step costs about its cells times the pressure sweeps, and
  * a zoomed 1920 x 1080 pane at 4 px a cell would be 130 000 cells: capped, it is drawn
- * coarser and stays a few milliseconds a frame.
+ * coarser, and a step costs about 7-8 ms (measured in node, 2026-11-22) - one step a frame there.
  */
 export const MAX_CELLS = 20_000
 

@@ -411,7 +411,8 @@ test('what keeps its power-on class holds nothing once it has played: a note, a 
 test('a clock stands still while the window is minimised, and is right the moment it is back', async () => {
   const { app, page, close } = await launch(undefined, { layout: single('clock', { id: 'k' }) })
   try {
-    const shown = () => page.locator('[data-testid=clock] time').getAttribute('datetime')
+    // The moment the pane holds, whatever its face draws it with.
+    const shown = () => page.getByTestId('clock').getAttribute('data-datetime')
     await expect(page.getByTestId('clock')).toBeVisible()
     await putWindowAway(app, page)
     // Nothing of the page is rewritten for a window nobody can see.

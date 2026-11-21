@@ -93,13 +93,21 @@ export function vectorLayout(w: number, h: number, zoneChars: number, zonePx = 1
   const compact = h < COMPACT_BELOW
   const q = compact ? 0.7 : 0.5
   const units = SS_START + (SS_PITCH + 10) * q
-  const zoneW = compact && zoneChars > 0 ? zoneChars * zonePx * 0.62 + 8 : 0
+  // In the strip the zone is set at 0.3 of the digits' height, or the label floor `zonePx`: its
+  // width grows with the digits it sits beside, so the two are solved together. Counting it at
+  // the floor alone once let an 8-letter zone ("UTC+5:45") run past the pane's edge.
+  const zoneEms = zoneChars * 0.62
+  const byHeight = (h - 10) / NUMERAL_HEIGHT
+  const scaled = (w - 20 - (zoneChars > 0 ? 8 : 0)) / (units + zoneEms * 0.3 * NUMERAL_HEIGHT)
+  const floored = (w - 20 - (zoneChars > 0 ? zoneEms * zonePx + 8 : 0)) / units
   const k = Math.max(
     0,
     compact
-      ? Math.min((h - 10) / NUMERAL_HEIGHT, (w - 20 - zoneW) / units)
+      ? Math.min(byHeight, scaled, floored)
       : Math.min((h * 0.6) / NUMERAL_HEIGHT, (w * 0.86) / units),
   )
+  const zoneW =
+    compact && zoneChars > 0 ? zoneEms * Math.max(0.3 * NUMERAL_HEIGHT * k, zonePx) + 8 : 0
   const digitH = NUMERAL_HEIGHT * k
   const x0 = (w - units * k - zoneW) / 2
   // A tall pane keeps room under the digits for the line, so the pair is centred together.

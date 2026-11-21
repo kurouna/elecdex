@@ -45,6 +45,12 @@ export const sameDay = (a: Date, b: Date): boolean =>
   a.getDate() === b.getDate()
 
 /**
+ * The locale the calendar pane and the clock's WEEK face lay out a week in: one place, so the two
+ * cannot start their weeks on different days.
+ */
+export const CALENDAR_LOCALE = 'en-US'
+
+/**
  * The first day of the week for a locale (0 Sunday … 6 Saturday), from
  * Intl.Locale week info where the engine has it. Sunday otherwise, as in Japan
  * and the US.

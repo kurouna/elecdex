@@ -40,9 +40,15 @@ let height = $state(0)
 const parts = $derived(formatClock(now))
 const text = $derived(`${parts.hh}:${parts.mm}:${parts.ss}`)
 const place = $derived(karmanText(width, height))
-const grid = $derived(tunnelGrid(width, height))
-// The grid's size apart, as numbers: a resize of a pixel or two that leaves the grid as it was
-// must not make a new tunnel and lose the flow.
+/** How long the pane's size must hold before the tunnel is built again for it. */
+const SETTLE_MS = 300
+/**
+ * The grid the tunnel is built on. It follows the pane only once the pane's size has held for
+ * SETTLE_MS: a new grid is a new tunnel and a warm-up of WARM_UP steps (about 130 ms on the
+ * largest grid), and dragging a divider or bringing the pane forward passes through many sizes
+ * (review 2026-11-22). Between them CSS stretches the last frame.
+ */
+let grid = $state.raw({ W: 0, H: 0 })
 const gridW = $derived(grid.W)
 const gridH = $derived(grid.H)
 const sized = $derived(width > 0 && height > 0)
@@ -61,15 +67,31 @@ let tunnelId = $state(0)
 $effect(() => {
   const el = box
   if (el === null) return
+  let settle: ReturnType<typeof setTimeout> | null = null
+  const regrid = (): void => {
+    settle = null
+    const next = tunnelGrid(width, height)
+    if (next.W !== grid.W || next.H !== grid.H) grid = next
+  }
   const observer = new ResizeObserver(([entry]) => {
     if (entry === undefined) return
     const w = Math.round(entry.contentRect.width)
     const h = Math.round(entry.contentRect.height)
+    // A pane behind a tab is display: none and measures 0 x 0: that is not a size to build a
+    // tunnel for, and building one there threw the flow away at every return to the tab.
+    if (w === 0 || h === 0) return
     if (w !== width) width = w
     if (h !== height) height = h
+    if (settle !== null) clearTimeout(settle)
+    // The first size builds at once; later ones wait for the size to hold.
+    if (untrack(() => grid.W) === 0) regrid()
+    else settle = setTimeout(regrid, SETTLE_MS)
   })
   observer.observe(el)
-  return () => observer.disconnect()
+  return () => {
+    observer.disconnect()
+    if (settle !== null) clearTimeout(settle)
+  }
 })
 
 $effect(() => {
@@ -107,7 +129,7 @@ $effect(() => {
   const el = canvas
   const W = gridW
   const H = gridH
-  if (el === null || !sized) return
+  if (el === null || !sized || W === 0 || H === 0) return
   el.width = W
   el.height = H
   tunnel = new Tunnel(W, H)
@@ -159,7 +181,7 @@ $effect(() => {
 </script>
 
 <div class="face" bind:this={box} style:--fs="{place.fs}px">
-  <canvas bind:this={canvas} aria-hidden="true"></canvas>
+  <canvas bind:this={canvas} aria-hidden="true" data-testid="karman-canvas" data-tunnel={tunnelId}></canvas>
   {#if width > 0 && height > 0}
     <svg {width} {height} aria-hidden="true">
       <text class="time" x={place.x} y={place.y}>{text}</text>

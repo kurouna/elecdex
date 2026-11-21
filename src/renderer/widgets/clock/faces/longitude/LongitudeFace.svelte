@@ -32,7 +32,10 @@ const bandHeight = $derived(
 // Two lines (the code over the time) where there is room; one ("NYC 07") in a low strip.
 const twoLines = $derived(bandHeight >= 30)
 const text = $derived(Math.max(10, Math.min(bandHeight * (twoLines ? 0.22 : 0.55), tall ? 26 : 14)))
-const columns = $derived(Math.max(24, Math.floor(bandWidth / 4)))
+const columns = $derived(Math.max(24, Math.floor(bandWidth / 8)))
+/** The sky gradient's id, unique to this pane: two clock panes each draw their own. */
+const uid = $props.id()
+const skyId = `longitude-sky-${uid}`
 const light = $derived(bandLight(minute, columns))
 const here = $derived(zoneOffsetMinutes(timeZone, minute) ?? 0)
 // A label centred on a city at the band's end would be cut by it: kept inside, by half its width.
@@ -47,16 +50,16 @@ const cities = $derived(cityMarks(minute, here, bandWidth, text * (twoLines ? 3.
   {#snippet time()}<Readout {now} {zone} {size} />{/snippet}
   {#if bandWidth > 0}
     <svg class="band" width={bandWidth} height={bandHeight} data-testid="clock-longitude">
-      {#each light as l, i (i)}
-        <rect
-          class="sky"
-          x={(i / columns) * bandWidth}
-          y="0"
-          width={bandWidth / columns + 0.5}
-          height={bandHeight}
-          opacity={0.12 + l * 0.88}
-        />
-      {/each}
+      <!-- One rect and a gradient: rects a column each, overlapped half a pixel to hide their
+           seams, showed the overlaps as stripes every 4 px (review 2026-11-22). -->
+      <defs>
+        <linearGradient id={skyId} x1="0" x2="1" y1="0" y2="0">
+          {#each light as l, i (i)}
+            <stop class="sky" offset={columns > 1 ? i / (columns - 1) : 0} stop-opacity={0.12 + l * 0.88} />
+          {/each}
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width={bandWidth} height={bandHeight} fill="url(#{skyId})" />
       <rect class="frame" x="0.5" y="0.5" width={bandWidth - 1} height={bandHeight - 1} />
       {#each cities as c (c.code)}
         {@const cx = offsetX(c.offset, bandWidth)}
@@ -85,7 +88,7 @@ const cities = $derived(cityMarks(minute, here, bandWidth, text * (twoLines ? 3.
 <style>
 /* Day is the accent, faint; night is the panel showing through. */
 .sky {
-  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stop-color: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .frame {
@@ -102,13 +105,17 @@ text {
   text-anchor: middle;
 }
 
+/* In the text colour: muted, a code sank into the lit band of a dark theme (review 2026-11-22).
+   The time under it is told apart by its weight. */
 .code {
-  fill: var(--text-muted);
+  fill: var(--text);
+  opacity: 0.8;
   letter-spacing: 0.06em;
 }
 
 .at {
   fill: var(--text);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 

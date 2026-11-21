@@ -5,7 +5,7 @@ import { openSettings } from '../support/workspace.js'
 
 /**
  * The CLOCK pane's faces: chosen in the settings dialog, drawn by every clock pane at once, and
- * each one fitting the default layout's low strip - the pane is about 340 by 32-48 there, and a
+ * each one fitting the default layout's low strip - the pane is about 340 by 70-90 there, and a
  * face that spills out of it or leaves it blank is the first thing anyone would see.
  */
 
@@ -92,22 +92,23 @@ test('every face fits the default layout’s clock strip, and the pane brought f
   shared,
 }) => {
   const { page, close } = await shared()
-  let alarm: string | null = null
+  const alarms: string[] = []
   try {
-    // A long name for AHEAD's list, ten minutes from now.
-    const soon = new Date(Date.now() + 10 * 60_000)
-    alarm = await page.evaluate(
-      async ([hour, minute]) =>
-        (
-          await window.elecdex.alarms.add({
-            label: 'A rather long alarm name that would wrap past the edge of a pane',
-            hour,
-            minute,
-            days: [],
-          })
-        )?.id ?? null,
-      [soon.getHours(), soon.getMinutes()] as const,
-    )
+    // Long names for AHEAD's label and list: one in English ten minutes from now, one in
+    // Japanese three hours from now - a label too long for either side of its marker once ran
+    // off the band's left (review 2026-11-22).
+    for (const [label, ahead] of [
+      ['A rather long alarm name that would wrap past the edge of a pane', 10],
+      ['朝会の準備をする定例ミーティングの資料', 180],
+    ] as const) {
+      const at = new Date(Date.now() + ahead * 60_000)
+      const id = await page.evaluate(
+        async ([name, hour, minute]) =>
+          (await window.elecdex.alarms.add({ label: name, hour, minute, days: [] }))?.id ?? null,
+        [label, at.getHours(), at.getMinutes()] as const,
+      )
+      if (id !== null) alarms.push(id)
+    }
     const clock = page.getByTestId('clock').first()
     await expect(clock).toBeVisible()
     for (const forward of [false, true]) {
@@ -120,14 +121,33 @@ test('every face fits the default layout’s clock strip, and the pane brought f
         await page.evaluate((f) => window.elecdex.settings.patch({ clock: { face: f } }), face)
         await expect(clock).toHaveAttribute('data-face', face)
         await expect.poll(() => spills(clock, face)).toEqual({ drawn: true, out: [] })
+        if (face === 'ahead') {
+          // The nearest's name inside its band, cut short where it must be.
+          await expect
+            .poll(() =>
+              page.getByTestId('clock-ahead-next').evaluate((el) => {
+                const band = el.closest('svg')?.getBoundingClientRect()
+                const r = el.getBoundingClientRect()
+                return band !== undefined && r.left >= band.left - 1 && r.right <= band.right + 1
+              }),
+            )
+            .toBe(true)
+        }
+        if (face === 'tape' && forward) {
+          // The hours gone are dimmed: the past's shade is not transparent.
+          const fill = await page
+            .getByTestId('clock-tape-past')
+            .evaluate((el) => getComputedStyle(el).fill)
+          expect(fill).not.toMatch(/\/ 0\)$|rgba\(0, 0, 0, 0\)|transparent/)
+        }
       }
     }
     await page.keyboard.press('Escape')
   } finally {
-    await page.evaluate(async (id) => {
-      if (id !== null) await window.elecdex.alarms.remove(id)
+    await page.evaluate(async (ids) => {
+      for (const id of ids) await window.elecdex.alarms.remove(id)
       await window.elecdex.settings.patch({ clock: { face: 'longitude' } })
-    }, alarm)
+    }, alarms)
     await close()
   }
 })

@@ -56,6 +56,7 @@ const spoken = $derived(`${parts.hh}:${parts.mm}${zone ? `, time zone ${zone}, $
   data-pane-id={paneId}
   data-face={face.id}
   data-time="{parts.hh}:{parts.mm}:{parts.ss}"
+  data-datetime={now.toISOString()}
   data-zone={zone}
 >
   <face.component {now} {zone} {timeZone} {visible} />

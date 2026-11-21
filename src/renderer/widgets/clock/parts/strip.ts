@@ -36,17 +36,50 @@ export function stripMetrics(width: number, height: number, readoutWidth: number
 }
 
 /**
- * Where a short label beside a mark at `x` goes in a band `width` wide: `gap` px to the mark's
- * right, or as far to its left, right-aligned, where it would run past the band's end - so it
- * never covers the mark and never leaves the band. `chars` and `size` estimate its width.
+ * About how wide `text` is at `size` px: a full-width character (kana, kanji, hangul) about an
+ * em, any other about 0.62 of one - the faces' condensed figures and capitals. An estimate, for
+ * where a label goes; the band clips anything it gets wrong.
+ */
+export function labelWidth(text: string, size: number): number {
+  let ems = 0
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0
+    ems += code >= 0x1100 && !(code >= 0x2000 && code <= 0x206f) ? 1 : 0.62
+  }
+  return ems * size
+}
+
+/**
+ * Where a label beside a mark at `x` goes in a band `width` wide, and what of it is shown:
+ * `gap` px to the mark's right where it fits, or as far to its left, right-aligned; where it fits
+ * on neither side it goes on the side with more room, cut short with an ellipsis to fit. It never
+ * covers its mark and never leaves the band: a long alarm name once ran off the band's left,
+ * and a right-aligned one once ended on its own marker (reviews 2026-11-22).
  */
 export function besideMark(
   x: number,
   width: number,
-  chars: number,
+  label: string,
   size: number,
   gap = 3,
-): { x: number; anchor: 'start' | 'end' } {
-  const room = chars * size * 0.62 + gap
-  return x + room <= width ? { x: x + gap, anchor: 'start' } : { x: x - gap, anchor: 'end' }
+): { x: number; anchor: 'start' | 'end'; text: string } {
+  const right = width - x - gap
+  const left = x - gap
+  const full = labelWidth(label, size)
+  if (full <= right) return { x: x + gap, anchor: 'start', text: label }
+  if (full <= left) return { x: x - gap, anchor: 'end', text: label }
+  const start = right >= left
+  const room = Math.max(0, start ? right : left)
+  return {
+    x: start ? x + gap : x - gap,
+    anchor: start ? 'start' : 'end',
+    text: cutTo(label, room, size),
+  }
+}
+
+/** `label` cut short, an ellipsis at its end, to fit `room` px. */
+function cutTo(label: string, room: number, size: number): string {
+  const chars = [...label]
+  while (chars.length > 0 && labelWidth(`${chars.join('')}…`, size) > room) chars.pop()
+  return chars.length > 0 ? `${chars.join('').trimEnd()}…` : ''
 }

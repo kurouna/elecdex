@@ -68,7 +68,7 @@ const nearestLabel = $derived(
 // 7 px clear of its marker on whichever side it fits: right-aligned at the band's end it once
 // ended 7 px right of the marker, over it (review 2026-11-22).
 const nearestPlace = $derived(
-  nearest === null ? null : besideMark(x(nearest.at), bandWidth, nearestLabel.length, text, 7),
+  nearest === null ? null : besideMark(x(nearest.at), bandWidth, nearestLabel, text, 7),
 )
 </script>
 
@@ -79,7 +79,8 @@ const nearestPlace = $derived(
       <line class="base" x1="0" x2={bandWidth} y1={bandHeight - 0.5} y2={bandHeight - 0.5} />
       {#each ticks as [ms, label] (ms)}
         <line class="tick" x1={aheadX(ms, bandWidth)} x2={aheadX(ms, bandWidth)} y1={bandHeight} y2={bandHeight - 5} />
-        {#if tall}
+        <!-- Not where it would sit on midnight's line and its day (24h, just after midnight). -->
+        {#if tall && Math.abs(aheadX(ms, bandWidth) - x(midnight)) > text * 2.4}
           <text
             class="tick-label"
             x={Math.min(aheadX(ms, bandWidth), bandWidth - text * 0.9)}
@@ -88,9 +89,9 @@ const nearestPlace = $derived(
       {/each}
       {#if midnight - minute < 24 * 3_600_000}
         <line class="midnight" x1={x(midnight)} x2={x(midnight)} y1="0" y2={bandHeight} />
-        {@const place = besideMark(x(midnight), bandWidth, midnightName.length, text)}
+        {@const place = besideMark(x(midnight), bandWidth, midnightName, text)}
         <text class="midnight-label" x={place.x} y={text} font-size={text} text-anchor={place.anchor}
-          >{midnightName}</text
+          >{place.text}</text
         >
       {/if}
       {#each events as e (e.key)}
@@ -115,7 +116,7 @@ const nearestPlace = $derived(
           y={bandHeight / 2 + text * 0.36}
           font-size={text}
           text-anchor={nearestPlace.anchor}
-          data-testid="clock-ahead-next">{nearestLabel}</text
+          data-testid="clock-ahead-next">{nearestPlace.text}</text
         >
       {:else}
         <text class="none" x="4" y={bandHeight / 2 + text * 0.36} font-size={text}>nothing in 24h</text>
@@ -123,7 +124,7 @@ const nearestPlace = $derived(
     </svg>
   {/if}
   {#if tall && listed.length > 0}
-    <ol class="list">
+    <ol class="list" style:--list-size="{text}px">
       {#each listed as e (e.key)}
         <li><span class="glyph">{e.kind === 'alarm' ? '◆' : '●'}</span> {clockOf(e.at)} <span class="what">{e.label}</span> <span class="until">{untilLabel(e.at - minute)}</span></li>
       {/each}
@@ -187,7 +188,9 @@ text {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: var(--step--1);
+  /* As large as the axis's labels, which grow with the room: at a fixed step it was a line
+     too small to read under a large forward pane (review 2026-11-22). */
+  font-size: max(var(--list-size), var(--step--1));
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }

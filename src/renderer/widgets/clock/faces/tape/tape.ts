@@ -16,28 +16,52 @@ export interface TapeMark {
   label: string | null
 }
 
+/** What the local clock reads at a moment: the tape's marks are where it reads :00 and :15. */
+export type TapeClock = (at: number) => {
+  hour: number
+  minute: number
+  date: number
+  weekday: number
+}
+
+const localClock: TapeClock = (at) => {
+  const d = new Date(at)
+  return { hour: d.getHours(), minute: d.getMinutes(), date: d.getDate(), weekday: d.getDay() }
+}
+
 /**
- * The ticks from `from` to `to`: every quarter hour, labelled hours, and midnight as the day it
- * starts. Local time: an hour mark is where the local clock reads :00, so a half-hour zone's
- * marks fall where its own clock says the hour.
+ * The ticks from `from` to `to`: every quarter hour, labelled hours, and the first hour of each
+ * day named by that day. Local time: an hour mark is where the local clock reads :00, so a
+ * half-hour zone's marks fall where its own clock says the hour.
+ *
+ * A new day is where the date changes, not where the clock reads 00:00: a zone whose daylight
+ * saving begins at midnight (Santiago, Beirut) has no 00:00 that day, and its day went unmarked
+ * (review 2026-11-22). `clock` reads the local clock; a test hands in one of its own.
  */
-export function tapeMarks(from: number, to: number, quarters = true): TapeMark[] {
+export function tapeMarks(
+  from: number,
+  to: number,
+  quarters = true,
+  clock: TapeClock = localClock,
+): TapeMark[] {
   const marks: TapeMark[] = []
   // The first quarter at or after `from`, seconds and all: rounding the minutes alone put a mark
   // before `from` when it had seconds (review 2026-11-22). Every zone's offset is a whole number
   // of quarter hours, so a quarter of UTC is a quarter of the local clock too.
-  for (let at = Math.ceil(from / QUARTER_MS) * QUARTER_MS; at <= to; at += QUARTER_MS) {
-    const d = new Date(at)
-    const minutes = d.getMinutes()
-    if (minutes !== 0) {
+  const first = Math.ceil(from / QUARTER_MS) * QUARTER_MS
+  let date = clock(first - QUARTER_MS).date
+  for (let at = first; at <= to; at += QUARTER_MS) {
+    const c = clock(at)
+    const newDay = c.date !== date
+    date = c.date
+    if (c.minute !== 0 && !newDay) {
       if (quarters) marks.push({ at, kind: 'quarter', label: null })
       continue
     }
-    const hour = d.getHours()
     marks.push(
-      hour === 0
-        ? { at, kind: 'day', label: WEEKDAYS[d.getDay()] as string }
-        : { at, kind: 'hour', label: String(hour).padStart(2, '0') },
+      newDay
+        ? { at, kind: 'day', label: WEEKDAYS[c.weekday] as string }
+        : { at, kind: 'hour', label: String(c.hour).padStart(2, '0') },
     )
   }
   return marks

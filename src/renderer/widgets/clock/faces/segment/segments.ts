@@ -1,3 +1,4 @@
+import { TALL_FROM } from '../../parts/strip.js'
 /**
  * SEGMENT's digits: a vacuum fluorescent display's seven segments, drawn as polygons of our own
  * rather than taken from a font, so every digit is the same shape on every machine and an unlit
@@ -146,6 +147,8 @@ export function segmentSize(
   const zoneRatio = zoneChars * 0.6 * 0.28
   const byWidth = (width - pad) / (hmRatio + gap + Math.max(ssRatio, zoneRatio))
   const byFloor = (width - pad - zoneChars * 0.6 * labelPx) / (hmRatio + gap)
-  const byHeight = height * (height < 80 ? 0.82 : 0.6)
+  // Most of a strip's height, less of a block's: changing at TALL_FROM, the height every face
+  // changes shape at - at a height of its own (80) the digits once fell 17 px mid-strip.
+  const byHeight = height * (height < TALL_FROM ? 0.82 : 0.6)
   return Math.max(0, Math.min(byWidth, byFloor, byHeight))
 }

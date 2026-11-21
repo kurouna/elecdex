@@ -29,7 +29,7 @@ the files above is read or edited.
   on the root's `aria-label`); a face is a picture.
 - **The default strip is the design size**: about 340 x 70-90 at the top of the system column
   (0.085 of its height, user request 2026-11-22); a face becomes a block from `TALL_FROM`
-  (parts/layout.ts), the one height every face changes shape at.
+  (parts/strip.ts), the one height every face changes shape at.
   A face uses its width (user request 2026-11-21) and fits it, and lays itself out again when
   taller or brought forward (clock.spec.ts checks every face in the strip).
 - **A face that uses noticeably more CPU is `heavy: true`**, and the settings list says so

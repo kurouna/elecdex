@@ -103,9 +103,9 @@ describe('the strip the band faces share (AHEAD, TAPE, LONGITUDE)', () => {
 
   it('puts a label beside a mark with the gap asked for, or before it at the band’s end', () => {
     // The nearest event's name: 7 px from its marker, never over it (review 2026-11-22).
-    expect(besideMark(100, 300, 10, 10, 7)).toEqual({ x: 107, anchor: 'start' })
-    const end = besideMark(280, 300, 10, 10, 7)
-    expect(end).toEqual({ x: 273, anchor: 'end' })
+    expect(besideMark(100, 300, 'x'.repeat(10), 10, 7)).toMatchObject({ x: 107, anchor: 'start' })
+    const end = besideMark(280, 300, 'x'.repeat(10), 10, 7)
+    expect(end).toMatchObject({ x: 273, anchor: 'end' })
   })
 
   it('names the days and months once, for every face', () => {
@@ -265,9 +265,9 @@ describe('AHEAD', () => {
   })
 
   it('puts a label beside its mark, or before it at the band’s end', () => {
-    expect(besideMark(100, 300, 3, 10)).toEqual({ x: 103, anchor: 'start' })
+    expect(besideMark(100, 300, 'MON', 10)).toMatchObject({ x: 103, anchor: 'start' })
     // Found in the e2e at 00:25: midnight's day ran past the right edge.
-    expect(besideMark(295, 300, 3, 10)).toEqual({ x: 292, anchor: 'end' })
+    expect(besideMark(295, 300, 'MON', 10)).toMatchObject({ x: 292, anchor: 'end' })
   })
 
   it('marks the next midnight', () => {

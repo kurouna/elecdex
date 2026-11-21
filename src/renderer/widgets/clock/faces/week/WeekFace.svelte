@@ -1,5 +1,5 @@
 <script lang="ts">
-import { firstDayOfWeek } from '../../../../lib/calendar.ts'
+import { CALENDAR_LOCALE, firstDayOfWeek } from '../../../../lib/calendar.ts'
 import Readout from '../../parts/Readout.svelte'
 import { TALL_FROM } from '../../parts/strip.js'
 import type { ClockFaceProps } from '../../types.ts'
@@ -16,7 +16,7 @@ import { weekCaption, weekDays } from './week.ts'
  */
 const { now, zone }: ClockFaceProps = $props()
 
-const weekStart = firstDayOfWeek('en-US')
+const weekStart = firstDayOfWeek(CALENDAR_LOCALE)
 let width = $state(0)
 let height = $state(0)
 

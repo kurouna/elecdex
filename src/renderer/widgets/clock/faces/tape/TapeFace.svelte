@@ -45,7 +45,6 @@ const label = $derived(Math.max(10, Math.min(tapeHeight * (tall ? 0.2 : 0.42), t
       {#each nights as n (n.from)}
         <rect class="night" x={x(n.from)} y="0" width={x(n.to) - x(n.from)} height={tapeHeight} />
       {/each}
-      {#if tall}<rect class="past" x="0" y="0" width={cursor} height={tapeHeight} />{/if}
       <line class="base" x1="0" x2={tapeWidth} y1={tapeHeight - 0.5} y2={tapeHeight - 0.5} />
       {#each marks as m (m.at)}
         {@const len = m.kind === 'day' ? 0.75 : m.kind === 'hour' ? 0.45 : 0.2}
@@ -57,16 +56,18 @@ const label = $derived(Math.max(10, Math.min(tapeHeight * (tall ? 0.2 : 0.42), t
           y2={tapeHeight * (1 - len)}
         />
         {#if m.label}
-          {@const place = besideMark(x(m.at), tapeWidth, m.label.length, label)}
+          {@const place = besideMark(x(m.at), tapeWidth, m.label, label)}
           <text
             class="label {m.kind}"
             x={place.x}
             text-anchor={place.anchor}
             y={tall ? tapeHeight * (1 - len) + label * 0.9 : label}
-            font-size={label}>{m.label}</text
+            font-size={label}>{place.text}</text
           >
         {/if}
       {/each}
+      <!-- Over the ticks and their labels, so the hours gone are dimmed with the band. -->
+      {#if tall}<rect class="past" x="0" y="0" width={cursor} height={tapeHeight} data-testid="clock-tape-past" />{/if}
       <line class="cursor" x1={cursor} x2={cursor} y1="0" y2={tapeHeight} />
     </svg>
   {/if}
@@ -82,8 +83,10 @@ const label = $derived(Math.max(10, Math.min(tapeHeight * (tall ? 0.2 : 0.42), t
   fill: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 
+/* The past, dimmed: the pane's own ground laid over it. --panel-bg is transparent in every theme,
+   and mixing it dimmed nothing (review 2026-11-22). */
 .past {
-  fill: color-mix(in srgb, var(--panel-bg, transparent) 45%, transparent);
+  fill: color-mix(in srgb, var(--app-bg) 55%, transparent);
 }
 
 .base {
