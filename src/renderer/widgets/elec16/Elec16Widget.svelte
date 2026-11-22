@@ -1,11 +1,8 @@
 <script lang="ts">
-import type { Elec16 } from '@shared/elec16/machine'
 import { DEFAULT_MODEL, MODELS, modelName, paneTitle, type RomId } from '@shared/elec16/map'
 import { pasteKeys } from '@shared/elec16/paste'
-import type { Elec16PngSave } from '@shared/elec16-units'
 import { onDestroy, tick, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
-import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { POWER_OFF_MS } from '../../lib/crt-timing.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { colourReader } from '../../lib/css-colour.ts'
@@ -49,8 +46,7 @@ import { loadRoms } from './roms.ts'
 import { browserElec16Host, Elec16Runner } from './runner.svelte.ts'
 import SciDevice from './SciDevice.svelte'
 import { SCI_SKIN_COLOURS } from './sci-body.ts'
-import { screenImage } from './screen-image.ts'
-import { copyText, screenLines } from './screen-text.ts'
+import { type CaptureKind, ScreenCapture } from './screen-capture.svelte.ts'
 import { SKINS } from './skins.ts'
 import TuneView from './TuneView.svelte'
 import { type Elec16Roms, UnitSession } from './unit-session.svelte.ts'
@@ -326,72 +322,35 @@ function oncontextmenu(event: MouseEvent): void {
   if (canType || runner.pasting > 0) void paste()
 }
 
-/** COPY TEXT, COPY IMAGE and SAVE PNG say so for a moment; main does the copy and the save. */
-const captured = new CopyFlag()
-onDestroy(() => captured.dispose())
-/** Why the last of them did nothing, said in TUNE until the next or until the machine changes. */
-let captureNote = $state('')
+/** TUNE's SCREEN: main does the copy and the save, one at a time (screen-capture). */
+const screen = new ScreenCapture({
+  copy: (what) => window.elecdex.utility.copy(what),
+  savePng: (png, model) => window.elecdex.elec16.savePng(png, model),
+  png: (image) => pngBytes(image.data, image.width, image.height),
+  done: () => sfx.play('folder'),
+})
+onDestroy(() => screen.dispose())
+// What SCREEN said is about the machine it said it of.
 $effect(() => {
   void runner.model
   void runner.off
   void session.unit?.id
-  untrack(() => {
-    if (captureNote !== '') captureNote = ''
-  })
+  untrack(() => screen.clearNote())
 })
 /** The LCD as the model's body draws it: its colours, gaps and unlit dots. */
 const lcdSkin = $derived(sci ? SCI_SKIN_COLOURS[pane.sciSkin].lcd : skin.lcd)
 /** How the LCD is drawn (gaps, unlit dots): its picture is drawn the same. */
 const lcdLook = $derived({ gap: !lcdSkin.flat, unlit: lcdSkin.unlit })
 
-/**
- * The screen as the machine holds it at the press (docs/elec16.md section 7): its text read
- * back through the font, or its picture in the LCD's colours, to the clipboard or a file.
- */
-async function capture(what: 'text' | 'image' | 'png'): Promise<void> {
+/** COPY TEXT, COPY IMAGE or SAVE PNG of the screen as the machine holds it at the press. */
+function capture(what: CaptureKind): void {
   const machine = runner.machine
   if (machine === null) return
-  captureNote = ''
-  const note = what === 'text' ? await captureText(machine) : await capturePicture(machine, what)
-  if (note === null) sfx.play('folder')
-  else captureNote = note
-}
-
-/** COPY TEXT: null when it is on the clipboard, else why not. */
-async function captureText(machine: Elec16): Promise<string | null> {
-  const text = copyText(screenLines(MODELS[runner.model], machine.state))
-  if (text === '') return 'there is no text on the screen'
-  const done = await captured.through('text', () =>
-    window.elecdex.utility.copy({ kind: 'text', text }),
+  void screen.take(
+    what,
+    { model: MODELS[runner.model], state: machine.state, pixels: () => machine.pixels() },
+    { colours: lcdColours, paneContrast: pane.contrast, lcd: lcdLook },
   )
-  return done ? null : 'the clipboard could not be written'
-}
-
-/** COPY IMAGE or SAVE PNG: null when done, else why not ('' when the save was called off). */
-async function capturePicture(machine: Elec16, what: 'image' | 'png'): Promise<string | null> {
-  const image = screenImage(
-    MODELS[runner.model],
-    machine.state,
-    () => machine.pixels(),
-    lcdColours,
-    pane.contrast,
-    lcdLook,
-  )
-  const data = await pngBytes(image.data, image.width, image.height)
-  if (data === null) return 'the picture could not be made'
-  if (what === 'image') {
-    const done = await captured.through('image', () =>
-      window.elecdex.utility.copy({ kind: 'png', data }),
-    )
-    return done ? null : 'the clipboard could not be written'
-  }
-  let saved = 'failed' as Elec16PngSave
-  await captured.through('png', async () => {
-    saved = await window.elecdex.elec16.savePng(data, runner.model)
-    return saved === 'saved'
-  })
-  if (saved === 'failed') return 'the picture could not be saved'
-  return saved === 'saved' ? null : ''
 }
 
 function power(): void {
@@ -709,9 +668,10 @@ onDestroy(() => {
               canPaste={canType}
               onpaste={() => void paste()}
               canCapture={runner.status !== 'empty' && !runner.off}
-              captured={captured.key}
-              {captureNote}
-              oncapture={(what) => void capture(what)}
+              captureBusy={screen.busy}
+              captured={screen.flag.key}
+              captureNote={screen.note}
+              oncapture={capture}
             />
           {/if}
         </div>

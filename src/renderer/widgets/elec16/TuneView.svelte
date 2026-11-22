@@ -57,6 +57,8 @@ interface Props {
   onpaste: () => void
   /** A machine is on to take the screen from: COPY TEXT, COPY IMAGE and SAVE PNG can be pressed. */
   canCapture: boolean
+  /** One of them is under way (a save dialog open, say): the others wait for it. */
+  captureBusy: boolean
   /** The button that just did its work ('text', 'image', 'png'), while it says so. */
   captured: string | null
   /** Why the last press did nothing (no text on the screen), until the next. */
@@ -79,6 +81,7 @@ const {
   canPaste,
   onpaste,
   canCapture,
+  captureBusy,
   captured,
   captureNote,
   oncapture,
@@ -217,7 +220,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
         <button
           type="button"
           class="e16-chip"
-          disabled={!canCapture}
+          disabled={!canCapture || captureBusy}
           onclick={() => oncapture(c.what)}
           data-testid="elec16-capture"
           data-what={c.what}>{captured === c.what ? c.done : c.label}</button

@@ -33,6 +33,10 @@ export interface LcdLook {
   unlit: number
 }
 
+/** A colour, rounded, as an opaque little-endian RGBA word (as a Uint32Array over the image). */
+const opaque = ([r = 0, g = 0, b = 0]: readonly number[]): number =>
+  ((255 << 24) | (Math.round(b) << 16) | (Math.round(g) << 8) | Math.round(r)) >>> 0
+
 /** `pixels`: a shade a dot (machine.pixels). */
 export function lcdImage(
   pixels: Uint8Array,
@@ -42,30 +46,28 @@ export function lcdImage(
   look: LcdLook,
 ): ScreenImage {
   const { width, height, depth } = model
-  const out = new Uint8ClampedArray(width * LCD_SCALE * height * LCD_SCALE * 4)
-  const row = width * LCD_SCALE * 4
-  const ground = colours.ground
+  const data = new Uint8ClampedArray(width * LCD_SCALE * height * LCD_SCALE * 4)
+  const out = new Uint32Array(data.buffer)
+  const row = width * LCD_SCALE
   const lit = Math.max(0, LCD_SCALE - (look.gap ? 1 : 0))
   // The unlit dot under each dot shows only between the gaps, as on the page.
   const under = look.gap ? look.unlit : 0
+  // A dot shows one of a few levels: each level's colour is worked out once, as an RGBA word.
+  const ground = opaque(colours.ground)
+  const shades = Array.from({ length: 1 << depth }, (_, shade) => {
+    const alpha = 1 - (1 - under) * (1 - dotAlpha(shadeLevel(shade, depth), contrast))
+    return opaque(colours.ground.map((g, i) => g + ((colours.dot[i] ?? 0) - g) * alpha))
+  })
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const over = dotAlpha(shadeLevel(pixels[y * width + x] ?? 0, depth), contrast)
-      const alpha = 1 - (1 - under) * (1 - over)
-      const rgb = colours.dot.map((d, i) => (ground[i] ?? 0) + (d - (ground[i] ?? 0)) * alpha)
+      const dot = shades[pixels[y * width + x] ?? 0] ?? ground
       for (let dy = 0; dy < LCD_SCALE; dy++) {
-        for (let dx = 0; dx < LCD_SCALE; dx++) {
-          const shown = dx < lit && dy < lit ? rgb : ground
-          const k = (y * LCD_SCALE + dy) * row + (x * LCD_SCALE + dx) * 4
-          out[k] = Math.round(shown[0] ?? 0)
-          out[k + 1] = Math.round(shown[1] ?? 0)
-          out[k + 2] = Math.round(shown[2] ?? 0)
-          out[k + 3] = 255
-        }
+        const at = (y * LCD_SCALE + dy) * row + x * LCD_SCALE
+        for (let dx = 0; dx < LCD_SCALE; dx++) out[at + dx] = dx < lit && dy < lit ? dot : ground
       }
     }
   }
-  return { width: width * LCD_SCALE, height: height * LCD_SCALE, data: out }
+  return { width: row, height: height * LCD_SCALE, data }
 }
 
 /** PLAY-320's screen as paintPlay draws it, each dot PLAY_SCALE pixels each way. */
