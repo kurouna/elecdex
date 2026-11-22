@@ -308,11 +308,11 @@ const copies = new CopyFlag()
 $effect(() => () => copies.dispose())
 function copyText(button: HTMLElement, which: 'signin' | 'policy', text: string): void {
   afterBlink(button, () => {
-    void copies.through(which, async () => {
-      const done = await window.elecdex.utility.copy({ kind: 'text', text })
-      if (done) sfx.play('folder')
-      return done
-    })
+    void copies
+      .through(which, () => window.elecdex.utility.copy({ kind: 'text', text }))
+      .then((done) => {
+        if (done) sfx.play('folder')
+      })
   })
 }
 

@@ -105,8 +105,12 @@ let copied = $state<string | null>(null)
 let copiedTimer: ReturnType<typeof setTimeout> | undefined
 let problem = $state<string | null>(null)
 
+/** The pane is gone: an answer that comes after it says nothing and arms no timer. */
+let gone = false
+
 async function restore(id: string): Promise<void> {
   const result = await window.elecdex.clipboard.restore(id)
+  if (gone) return
   if (result !== 'ok') {
     problem = result === 'failed' ? 'the clipboard is busy: try again' : null
     return
@@ -187,6 +191,7 @@ function clearPressed(): void {
 }
 
 $effect(() => () => {
+  gone = true
   clearTimeout(copiedTimer)
   clearTimeout(armTimer)
   clearTimeout(bumpTimer)

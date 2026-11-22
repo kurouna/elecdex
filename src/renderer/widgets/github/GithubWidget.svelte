@@ -234,11 +234,11 @@ function copySignIn(button: HTMLElement): void {
   const text = board?.signIn ?? (board?.inbox.readable === false ? board.inbox.command : null)
   if (text == null) return
   afterBlink(button, () => {
-    void copies.through('signin', async () => {
-      const done = await window.elecdex.utility.copy({ kind: 'text', text })
-      if (done) sfx.play('folder')
-      return done
-    })
+    void copies
+      .through('signin', () => window.elecdex.utility.copy({ kind: 'text', text }))
+      .then((done) => {
+        if (done) sfx.play('folder')
+      })
   })
 }
 

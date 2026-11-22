@@ -110,7 +110,11 @@ async function seek(to: number): Promise<void> {
   tell(result)
 }
 
+/** The pane is gone: an answer that comes after it says nothing and arms no timer. */
+let gone = false
+
 function tell(result: NowPlayingControlResult): void {
+  if (gone) return
   clearTimeout(noteTimer)
   note = result === 'ok' ? null : NOTES[result]
   if (note !== null)
@@ -119,7 +123,10 @@ function tell(result: NowPlayingControlResult): void {
     }, 3000)
 }
 
-$effect(() => () => clearTimeout(noteTimer))
+$effect(() => () => {
+  gone = true
+  clearTimeout(noteTimer)
+})
 
 const byline = $derived(session === null ? '' : (session.artist ?? ''))
 

@@ -122,11 +122,16 @@ async function press(container: DockerContainer, action: DockerAction): Promise<
 let copied = $state.raw<{ id: string; what: 'name' | 'exec' } | null>(null)
 let copiedTimer: ReturnType<typeof setTimeout> | undefined
 
+/** The pane is gone: an answer that comes after it says nothing and arms no timer. */
+let gone = false
+
 async function copy(container: DockerContainer, what: 'name' | 'exec'): Promise<void> {
   const text = what === 'name' ? container.name : execCommand(container)
   if (text === null) return
   // Through main, as the utility pane copies: the tests' stand-in clipboard catches it.
-  if (!(await window.elecdex.utility.copy({ kind: 'text', text }))) {
+  const done = await window.elecdex.utility.copy({ kind: 'text', text })
+  if (gone) return
+  if (!done) {
     problem = 'the clipboard is busy: try again'
     return
   }
@@ -144,6 +149,7 @@ function open(url: string): void {
 }
 
 $effect(() => () => {
+  gone = true
   clearTimeout(armTimer)
   clearTimeout(copiedTimer)
 })

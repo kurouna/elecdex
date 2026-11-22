@@ -4,12 +4,14 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { finishAnimations, inertDom } from './support/dom.ts'
 import { stubElecdex } from './support/elecdex.ts'
+import { later, timersArmed } from './support/late.ts'
 import { settle } from './support/settle.ts'
 
 const { default: ClipboardWidget } = await import(
   '../../src/renderer/widgets/clipboard/ClipboardWidget.svelte'
 )
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+const { sfx } = await import('../../src/renderer/stores/sound.svelte.ts')
 
 /**
  * The clipboard pane: it follows main's history only while seen, puts an entry
@@ -470,5 +472,40 @@ describe('ClipboardWidget: snippets', () => {
     await tell([snippet('sa', 'one'), snippet('sb', 'two')])
     expect(rows()).toEqual(['one', 'two'])
     expect(screen.getByTestId('clip-snippet-count').textContent).toBe('2')
+  })
+})
+
+describe('ClipboardWidget closed while main is still answering', () => {
+  it('says nothing and arms nothing for an entry put back after the pane went', async () => {
+    const late = later<'ok'>()
+    restore.mockImplementationOnce(() => late.promise)
+    const view = await mount()
+    await push(board([entry('c1', 'one')]))
+    await fireEvent.click(screen.getByTestId('clip-entry'))
+    view.unmount()
+    const played = vi.spyOn(sfx, 'play')
+    const armed = await timersArmed(1500, async () => {
+      late.resolve('ok')
+      await settle()
+    })
+    expect(armed).toBe(0)
+    expect(played).not.toHaveBeenCalled()
+  })
+
+  it('says nothing and arms nothing for a snippet copied after the pane went', async () => {
+    const late = later<'ok'>()
+    snippets.copy.mockImplementationOnce(() => late.promise)
+    kept = [snippet('sa', 'one')]
+    const view = await mount({ view: 'snippets' })
+    await push(board([]))
+    await fireEvent.click(screen.getByTestId('snip-copy'))
+    view.unmount()
+    const played = vi.spyOn(sfx, 'play')
+    const armed = await timersArmed(1500, async () => {
+      late.resolve('ok')
+      await settle()
+    })
+    expect(armed).toBe(0)
+    expect(played).not.toHaveBeenCalled()
   })
 })

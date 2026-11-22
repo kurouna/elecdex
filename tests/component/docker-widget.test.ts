@@ -8,12 +8,14 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { finishAnimations, inertDom } from './support/dom.ts'
 import { stubElecdex } from './support/elecdex.ts'
+import { later, timersArmed } from './support/late.ts'
 import { settle } from './support/settle.ts'
 
 const { default: DockerWidget } = await import(
   '../../src/renderer/widgets/docker/DockerWidget.svelte'
 )
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+const { sfx } = await import('../../src/renderer/stores/sound.svelte.ts')
 const { widgetState } = await import('../../src/renderer/stores/widget-state.svelte.ts')
 
 /**
@@ -318,5 +320,23 @@ describe('DockerWidget', () => {
     expect(card.textContent).toContain('shop-api-1')
     expect(card.textContent).toContain('/home/dev/shop')
     expect(card.textContent).toContain('shop · service api')
+  })
+})
+
+describe('DockerWidget closed while main is still copying', () => {
+  it('says nothing and arms nothing for a name copied after the pane went', async () => {
+    const late = later<boolean>()
+    copy.mockImplementationOnce(() => late.promise)
+    const view = await mount()
+    await push(board())
+    await fireEvent.click(within(row('shop-api-1'), 'docker-name'))
+    view.unmount()
+    const played = vi.spyOn(sfx, 'play')
+    const armed = await timersArmed(1500, async () => {
+      late.resolve(true)
+      await settle()
+    })
+    expect(armed).toBe(0)
+    expect(played).not.toHaveBeenCalled()
   })
 })

@@ -8,6 +8,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { finishAnimations, inertDom } from './support/dom.ts'
 import { stubElecdex } from './support/elecdex.ts'
+import { later, timersArmed } from './support/late.ts'
 import { settle } from './support/settle.ts'
 
 const { default: NowPlayingWidget } = await import(
@@ -258,5 +259,21 @@ describe('NowPlayingWidget', () => {
     await push(state({ session: session({ duration: null }) }))
     expect(screen.queryByTestId('np-bar')).toBeNull()
     expect(screen.getByTestId('np-time').textContent).toBe('1:24')
+  })
+})
+
+describe('NowPlayingWidget closed while the player is still answering', () => {
+  it('arms no note for a press the player refused after the pane went', async () => {
+    const late = later<'refused'>()
+    control.mockImplementationOnce(() => late.promise as never)
+    const view = await mount()
+    await push(state({ session: session() }))
+    await fireEvent.click(screen.getByTestId('np-next'))
+    view.unmount()
+    const armed = await timersArmed(3000, async () => {
+      late.resolve('refused')
+      await settle()
+    })
+    expect(armed).toBe(0)
   })
 })
