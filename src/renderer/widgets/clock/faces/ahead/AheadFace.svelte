@@ -7,7 +7,14 @@ import Strip from '../../parts/Strip.svelte'
 import { besideMark, stripMetrics } from '../../parts/strip.js'
 import { WEEKDAYS } from '../../parts/words.js'
 import type { ClockFaceProps } from '../../types.ts'
-import { AHEAD_TICKS, aheadEvents, aheadX, nextMidnight, untilLabel } from './ahead.ts'
+import {
+  AHEAD_SPAN_MS,
+  AHEAD_TICKS,
+  aheadEvents,
+  aheadX,
+  nextMidnight,
+  untilLabel,
+} from './ahead.ts'
 
 /**
  * AHEAD: the time on the left, and the rest of the strip is the next 24 hours - on a log scale,
@@ -87,7 +94,7 @@ const nearestPlace = $derived(
             y={bandHeight - 7} font-size={text}>{label}</text>
         {/if}
       {/each}
-      {#if midnight - minute < 24 * 3_600_000}
+      {#if midnight - minute < AHEAD_SPAN_MS}
         <line class="midnight" x1={x(midnight)} x2={x(midnight)} y1="0" y2={bandHeight} />
         {@const place = besideMark(x(midnight), bandWidth, midnightName, text)}
         <text class="midnight-label" x={place.x} y={text} font-size={text} text-anchor={place.anchor}

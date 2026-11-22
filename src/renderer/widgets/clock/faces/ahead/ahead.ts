@@ -25,7 +25,7 @@ export const AHEAD_TICKS: ReadonlyArray<readonly [ms: number, label: string]> = 
   [3_600_000, '1h'],
   [4 * 3_600_000, '4h'],
   [12 * 3_600_000, '12h'],
-  [24 * 3_600_000, '24h'],
+  [AHEAD_SPAN_MS, '24h'],
 ]
 
 export interface AheadEvent {
