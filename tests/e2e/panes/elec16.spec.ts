@@ -633,8 +633,10 @@ test("the PC's keys hold the body's keys down until they are let go, and PASTE's
     await expect(key('enter')).toHaveClass(held)
     await page.keyboard.up('Enter')
     await expect(key('enter')).not.toHaveClass(held)
-    // A character on a shifted face holds SHIFT down beside its own key.
+    // The PC's Shift alone is drawn as SHIFT; a character on a shifted face holds SHIFT down
+    // beside its own key.
     await page.keyboard.down('Shift')
+    await expect(key('shift')).toHaveClass(held)
     await page.keyboard.down('Digit1')
     await expect(key('shift')).toHaveClass(held)
     await page.keyboard.up('Digit1')

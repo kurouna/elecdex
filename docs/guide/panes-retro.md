@@ -143,7 +143,7 @@ Each model is chosen in the panel's TUNE. A change restarts the machine.
 ### Keys and PASTE
 
 - The PC's keyboard types into the machine while the pane has the focus. In KANA mode, kana are typed by the JIS layout.
-- *unreleased*: a key on the body goes down while the PC key that pressed it is held: SHIFT beside a character on its shifted face, BRK while Pause is held. PASTE's keys are not drawn, nor the かな key's, which only switches KANA (an input method keeps its key-up).
+- *unreleased*: a key on the body goes down while the PC key that pressed it is held: SHIFT beside a character on its shifted face, BRK while Pause is held. The PC's Shift alone is drawn as SHIFT, without sending it to the machine. The かな key switches KANA and its key lights for a moment (an input method keeps its key-up). PASTE's keys are not drawn.
 - The pane never takes Esc, Tab, function keys, or keys with Ctrl, Alt or the system key: those stay with the app.
 - **PASTE** (or a right-click on the machine) types the clipboard as key presses. Text the machine cannot type is skipped and counted. Ctrl+V is not taken.
 

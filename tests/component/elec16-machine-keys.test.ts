@@ -3,7 +3,7 @@ import { sciKeyCode } from '@shared/elec16/sci-keys'
 import { ANNUNCIATORS } from '@shared/elec16/state'
 import { flushSync } from 'svelte'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { BRK_SHOWN } from '../../src/renderer/widgets/elec16/machine-keys.svelte.ts'
+import { BRK_SHOWN, TAP_SHOWN_MS } from '../../src/renderer/widgets/elec16/machine-keys.svelte.ts'
 import type { Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
 import { machineKeysHost } from './elec16-machine-keys-host.svelte.ts'
 
@@ -75,17 +75,35 @@ describe('the PC keys on a pocket model', () => {
     expect(codes(keys.pcDown)).toEqual([keyCode('q')])
   })
 
-  it('taps KANA from the PC kana key, whose key-up an input method keeps, and draws it held at no time', () => {
+  it('taps KANA from the PC kana key, whose key-up an input method keeps, and draws it for a moment', () => {
+    vi.useFakeTimers()
+    try {
+      const { keys, fake } = host()
+      keys.down(key('keydown', 'KanaMode', 'KanaMode'))
+      expect(fake.down).toHaveBeenCalledWith(keyCode('kana'), false)
+      expect(fake.release).toHaveBeenCalledWith(keyCode('kana'))
+      expect(codes(keys.pcDown)).toEqual([keyCode('kana')])
+      // No key-up comes: the key goes up by itself, and the next key is held as any other.
+      keys.down(key('keydown', 'KeyQ', 'q'))
+      vi.advanceTimersByTime(TAP_SHOWN_MS)
+      expect(codes(keys.pcDown)).toEqual([keyCode('q')])
+      keys.up(key('keyup', 'KeyQ', 'q'))
+      expect(keys.pcDown.size).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('draws SHIFT held while the PC Shift is, sending the machine nothing', () => {
     const { keys, fake } = host()
-    keys.down(key('keydown', 'KanaMode', 'KanaMode'))
-    expect(fake.down).toHaveBeenCalledWith(keyCode('kana'), false)
-    expect(fake.release).toHaveBeenCalledWith(keyCode('kana'))
+    keys.down(key('keydown', 'ShiftLeft', 'Shift', { shiftKey: true }))
+    expect(codes(keys.pcDown)).toEqual([keyCode('shift')])
+    keys.down(key('keydown', 'ShiftLeft', 'Shift', { shiftKey: true, repeat: true }))
+    expect(fake.down).not.toHaveBeenCalled()
+    expect(fake.press).not.toHaveBeenCalled()
+    keys.up(key('keyup', 'ShiftLeft', 'Shift'))
     expect(keys.pcDown.size).toBe(0)
-    // No key-up comes; the next key is held and let go as any other.
-    keys.down(key('keydown', 'KeyQ', 'q'))
-    expect([...keys.pcDown]).toEqual([keyCode('q')])
-    keys.up(key('keyup', 'KeyQ', 'q'))
-    expect(keys.pcDown.size).toBe(0)
+    expect(fake.release).not.toHaveBeenCalled()
   })
 
   it('does not set the held keys again while the PC repeats a key', () => {
@@ -171,6 +189,15 @@ describe('the PC keys on SCI-128', () => {
     const { keys } = host('calc')
     keys.down(key('keydown', 'Digit1', '!', { shiftKey: true }))
     expect(codes(keys.pcDown)).toEqual(codes(new Set([sciKeyCode('shift'), sciKeyCode('inv')])))
+  })
+
+  it('draws SHIFT held while the PC Shift is', () => {
+    const { keys, fake } = host('calc')
+    keys.down(key('keydown', 'ShiftRight', 'Shift', { shiftKey: true }))
+    expect(codes(keys.pcDown)).toEqual([sciKeyCode('shift')])
+    keys.up(key('keyup', 'ShiftRight', 'Shift'))
+    expect(keys.pcDown.size).toBe(0)
+    expect(fake.press).not.toHaveBeenCalled()
   })
 
   it('holds ON down while Pause is', () => {

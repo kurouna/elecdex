@@ -45,6 +45,10 @@ const SCI_SHIFT = sciKeyCode('shift')
  * by hand (2026-11-22). They tap their machine key instead of holding it.
  */
 const TAPPED: ReadonlySet<string> = new Set(['KanaMode'])
+/** How long a tapped key is drawn held, in ms: about a quick press. */
+export const TAP_SHOWN_MS = 150
+/** The PC's Shift keys. */
+const SHIFTS: ReadonlySet<string> = new Set(['ShiftLeft', 'ShiftRight'])
 
 export class MachineKeys {
   /** The body's keys the PC holds down, by the machine's key codes (and `BRK_SHOWN`). */
@@ -58,10 +62,14 @@ export class MachineKeys {
   readonly #padKeys = new Map<string, number>()
   /** What each held PC key shows held on the body, by its code: drawn only. */
   readonly #shownBy = new Map<string, readonly number[]>()
+  /** The timers that let a tapped key's drawing go up, by the PC key's code. */
+  readonly #flashes = new Map<string, ReturnType<typeof setTimeout>>()
 
   constructor(runner: Elec16Runner, options: MachineKeysOptions) {
     this.#runner = runner
     this.#options = options
+    // Gone with the pane: no timer outlives it.
+    $effect(() => () => this.#stopFlashes())
     // The keyboard left: every key goes up, as no key-up will come.
     $effect(() => {
       if (options.listening()) return
@@ -98,6 +106,13 @@ export class MachineKeys {
       this.#padDown(event)
       return
     }
+    // The PC's Shift alone is drawn as the body's SHIFT while held, and sends the machine
+    // nothing: the machine's SHIFT is a key pressed once for the next, and a character typed
+    // with the PC's Shift takes it as it needs it.
+    if (SHIFTS.has(event.code) && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      this.#show(event.code, [input === 'calc' ? SCI_SHIFT : SHIFT])
+      return
+    }
     if (input === 'calc') {
       this.#calcDown(event)
       return
@@ -116,6 +131,7 @@ export class MachineKeys {
     if (TAPPED.has(event.code)) {
       runner.down(fate.code, fate.shift)
       runner.release(fate.code)
+      this.#flash(event.code, [fate.code])
       return
     }
     // The same PC key now pressing another machine key (Shift or KANA changed under it): the
@@ -193,11 +209,33 @@ export class MachineKeys {
 
   /** Every key up and nothing drawn held: the pane stopped listening, or the machine changed. */
   #letGoAll(): void {
+    this.#stopFlashes()
     this.#held.clear()
     this.#padKeys.clear()
     this.#shownBy.clear()
     if (this.pcDown.size > 0) this.pcDown = NO_KEYS
     this.#runner.releaseAll()
+  }
+
+  /**
+   * A tapped key drawn held for TAP_SHOWN_MS, as no key-up comes to let it go; tapped again,
+   * it is drawn for that long from the new tap.
+   */
+  #flash(code: string, keys: readonly number[]): void {
+    clearTimeout(this.#flashes.get(code))
+    this.#show(code, keys)
+    this.#flashes.set(
+      code,
+      setTimeout(() => {
+        this.#flashes.delete(code)
+        this.#show(code, null)
+      }, TAP_SHOWN_MS),
+    )
+  }
+
+  #stopFlashes(): void {
+    for (const timer of this.#flashes.values()) clearTimeout(timer)
+    this.#flashes.clear()
   }
 
   /**
