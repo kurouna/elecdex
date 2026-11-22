@@ -143,7 +143,7 @@ elecdex 是用 Electron 重写 eDEX-UI 而成的科幻风格终端模拟器兼�
 ### 按键与 PASTE
 
 - 窗格获得焦点时可以用 PC 键盘输入。KANA 模式下按 JIS 假名布局输入假名。
-- *unreleased*：按住 PC 按键时，它按下的机身按键也会下沉。SHIFT 面上的字符连 SHIFT 一起下沉，按住 Pause 时 BRK 下沉。PASTE 敲入的按键不会下沉。
+- *unreleased*：按住 PC 按键时，它按下的机身按键也会下沉。SHIFT 面上的字符连 SHIFT 一起下沉，按住 Pause 时 BRK 下沉。PASTE 敲入的按键和「かな」键（只切换 KANA，因为输入法不传递松开按键的事件）不会下沉。
 - 窗格不接收 Esc、Tab、功能键以及与 Ctrl、Alt 或系统键的组合，这些留给应用。
 - **PASTE**（或在机器上右键单击）把剪贴板的文字作为按键敲进去。无法输入的字符会被跳过并计数。不接收 Ctrl+V。
 

@@ -75,6 +75,19 @@ describe('the PC keys on a pocket model', () => {
     expect(codes(keys.pcDown)).toEqual([keyCode('q')])
   })
 
+  it('taps KANA from the PC kana key, whose key-up an input method keeps, and draws it held at no time', () => {
+    const { keys, fake } = host()
+    keys.down(key('keydown', 'KanaMode', 'KanaMode'))
+    expect(fake.down).toHaveBeenCalledWith(keyCode('kana'), false)
+    expect(fake.release).toHaveBeenCalledWith(keyCode('kana'))
+    expect(keys.pcDown.size).toBe(0)
+    // No key-up comes; the next key is held and let go as any other.
+    keys.down(key('keydown', 'KeyQ', 'q'))
+    expect([...keys.pcDown]).toEqual([keyCode('q')])
+    keys.up(key('keyup', 'KeyQ', 'q'))
+    expect(keys.pcDown.size).toBe(0)
+  })
+
   it('does not set the held keys again while the PC repeats a key', () => {
     const { keys } = host()
     keys.down(key('keydown', 'KeyA', 'a'))

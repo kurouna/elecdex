@@ -40,6 +40,11 @@ export const BRK_SHOWN = -1
 export const NO_KEYS: ReadonlySet<number> = new Set()
 const SHIFT = keyCode('shift')
 const SCI_SHIFT = sciKeyCode('shift')
+/**
+ * PC keys an input method takes the key-up of: the JIS かな key (`KanaMode`) on Windows, seen
+ * by hand (2026-11-22). They tap their machine key instead of holding it.
+ */
+const TAPPED: ReadonlySet<string> = new Set(['KanaMode'])
 
 export class MachineKeys {
   /** The body's keys the PC holds down, by the machine's key codes (and `BRK_SHOWN`). */
@@ -104,6 +109,13 @@ export class MachineKeys {
     if (fate.kind === 'brk') {
       runner.brk()
       this.#show(event.code, [BRK_SHOWN])
+      return
+    }
+    // A key whose key-up the input method keeps (かな on Windows) is pressed and let go at
+    // once: held, it stayed down in the machine and on the body until the focus left.
+    if (TAPPED.has(event.code)) {
+      runner.down(fate.code, fate.shift)
+      runner.release(fate.code)
       return
     }
     // The same PC key now pressing another machine key (Shift or KANA changed under it): the
