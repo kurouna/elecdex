@@ -165,8 +165,8 @@ The clock has **faces** (*unreleased*): one look for every clock pane, chosen in
 | digital | Large `HH:MM:SS` in fixed-width cells, a digit rolling as it changes, the zone beside it: the face elecdex began with |
 | segment | Seven-segment digits like a vacuum fluorescent display, unlit segments faintly visible |
 | vector | Thin single-stroke digits, redrawn as if by a plotter as they change, with a line filling over the minute |
-| dial | An analogue dial, and beside it `HH:MM`, the seconds and the zone on one line (under the dial in a pane taller than it is wide) |
-| karman (uses more CPU) | A wind tunnel: the digits are obstacles, and smoke from the left flows round them into vortices. The flow is solved for real (Navier-Stokes) ten times a second while the pane is seen, so it uses noticeably more CPU than the others; with motion reduced it moves on once a second |
+| dial | An analog dial, and beside it `HH:MM`, the seconds and the zone on one line (under the dial in a pane taller than it is wide) |
+| karman (uses more CPU) | A wind tunnel: the digits are obstacles, and smoke from the left flows around them into vortices. The flow is solved for real (Navier-Stokes) ten times a second while the pane is seen, so it uses noticeably more CPU than the others; with motion reduced it moves on once a second |
 
 - The zone is read again every minute, so a zone changed in the system while elecdex runs is named within a minute. A screen reader hears the time as hours and minutes and the zone by its full IANA name, whatever the face.
 - It ticks on the shared second boundary, not on a timer of its own, so it does not drift behind the system clock. Behind a tab or with the window minimised it does not tick (and karman's smoke stops), and it is right again as soon as it is seen.

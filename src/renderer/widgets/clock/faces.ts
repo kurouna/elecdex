@@ -64,14 +64,14 @@ export const CLOCK_FACES: readonly ClockFace[] = [
   {
     id: 'dial',
     label: 'dial',
-    summary: 'An analogue dial, with the time, seconds and zone on one line beside it.',
+    summary: 'An analog dial, with the time, seconds and zone on one line beside it.',
     component: DialFace,
   },
   {
     id: 'karman',
     label: 'karman',
     summary:
-      'A wind tunnel: smoke flows round the digits into vortices, solved ten times a second.',
+      'A wind tunnel: smoke flows around the digits into vortices, solved ten times a second.',
     heavy: true,
     component: KarmanFace,
   },

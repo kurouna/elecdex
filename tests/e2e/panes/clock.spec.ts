@@ -45,7 +45,7 @@ test('the faces are listed in settings, the heavy one says so, and choosing one 
     await select.selectOption('dial')
     await expect(clock).toHaveAttribute('data-face', 'dial')
     // What the chosen face shows, under the list: the dialog covers the clock itself.
-    await expect(dialog.getByTestId('settings-clock-summary')).toContainText('analogue dial')
+    await expect(dialog.getByTestId('settings-clock-summary')).toContainText('analog dial')
     await expect(page.getByTestId('clock-dial')).toBeVisible()
     await select.selectOption('longitude')
     await expect(clock).toHaveAttribute('data-face', 'longitude')
