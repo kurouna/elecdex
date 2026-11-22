@@ -1,4 +1,4 @@
-import { expect, type Locator } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import { single } from '../support/layouts.js'
 import { test } from '../support/shared.js'
 import { openSettings } from '../support/workspace.js'
@@ -88,6 +88,29 @@ async function spills(clock: Locator, face: string): Promise<{ drawn: boolean; o
   }, face)
 }
 
+/** What one face must show beyond fitting: AHEAD's label in its band, TAPE's past shaded. */
+async function facesOwnChecks(page: Page, face: string, forward: boolean): Promise<void> {
+  if (face === 'ahead') {
+    // The nearest's name inside its band, cut short where it must be.
+    await expect
+      .poll(() =>
+        page.getByTestId('clock-ahead-next').evaluate((el) => {
+          const band = el.closest('svg')?.getBoundingClientRect()
+          const r = el.getBoundingClientRect()
+          return band !== undefined && r.left >= band.left - 1 && r.right <= band.right + 1
+        }),
+      )
+      .toBe(true)
+  }
+  if (face === 'tape' && forward) {
+    // The hours gone are dimmed: the past's shade is not transparent.
+    const fill = await page
+      .getByTestId('clock-tape-past')
+      .evaluate((el) => getComputedStyle(el).fill)
+    expect(fill).not.toMatch(/\/ 0\)$|rgba\(0, 0, 0, 0\)|transparent/)
+  }
+}
+
 test('every face fits the default layout’s clock strip, and the pane brought forward', async ({
   shared,
 }) => {
@@ -121,25 +144,7 @@ test('every face fits the default layout’s clock strip, and the pane brought f
         await page.evaluate((f) => window.elecdex.settings.patch({ clock: { face: f } }), face)
         await expect(clock).toHaveAttribute('data-face', face)
         await expect.poll(() => spills(clock, face)).toEqual({ drawn: true, out: [] })
-        if (face === 'ahead') {
-          // The nearest's name inside its band, cut short where it must be.
-          await expect
-            .poll(() =>
-              page.getByTestId('clock-ahead-next').evaluate((el) => {
-                const band = el.closest('svg')?.getBoundingClientRect()
-                const r = el.getBoundingClientRect()
-                return band !== undefined && r.left >= band.left - 1 && r.right <= band.right + 1
-              }),
-            )
-            .toBe(true)
-        }
-        if (face === 'tape' && forward) {
-          // The hours gone are dimmed: the past's shade is not transparent.
-          const fill = await page
-            .getByTestId('clock-tape-past')
-            .evaluate((el) => getComputedStyle(el).fill)
-          expect(fill).not.toMatch(/\/ 0\)$|rgba\(0, 0, 0, 0\)|transparent/)
-        }
+        await facesOwnChecks(page, face, forward)
       }
     }
     await page.keyboard.press('Escape')
