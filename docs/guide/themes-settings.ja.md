@@ -124,7 +124,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 
 | セクション | 内容 |
 | --- | --- |
-| general | appearance（テーマ、themes folder、モーション）、clock（文字盤、*unreleased*）、sound、terminal（開始フォルダー、文字の大きさ、複数行の貼り付けの確認、ベル）、reading type（ai chat、elec system、translate、rss article）、git（ファイルを開くコマンド）、chip-8（コアの表示、ブザーの音量）、elec-16（ブザーの音量、新しいペインのスキン）、layouts（レイアウト切り替えの確認）、launcher（インストール済みアプリの一覧）、web panes（ページにテーマの色を付ける、すべてのサイトからサインアウト） |
+| general | appearance（テーマ、themes folder、モーション）、clock（文字盤）、sound、terminal（開始フォルダー、文字の大きさ、複数行の貼り付けの確認、ベル）、reading type（ai chat、elec system、translate、rss article）、git（ファイルを開くコマンド）、chip-8（コアの表示、ブザーの音量）、elec-16（ブザーの音量、新しいペインのスキン）、layouts（レイアウト切り替えの確認）、launcher（インストール済みアプリの一覧）、web panes（ページにテーマの色を付ける、すべてのサイトからサインアウト） |
 | window | ウィンドウの外のアイコン、そこへの最小化と格納、システム全体の表示 / 非表示ショートカット、サインイン時の起動とバックグラウンドでの開始。マシンが何かを提供できるときだけ表示されます（[キーボードとレイアウト](keyboard.ja.md#バックグラウンド実行)） |
 | keyboard | すべてのショートカット。割り当てを変えられます（[キーボードとレイアウト](keyboard.ja.md#ショートカットの割り当て変更)） |
 | alerts | 地震と津波: ソース、速報、しきい値、システム通知、警告音 |
@@ -214,7 +214,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 | `git.openCommand` | `""` | git ペインでダブルクリックしたファイルを開く方法（`{file}`、`{line}`、`{dir}` を埋める。シェルを通さずプログラムとして実行）。空ならシステムのアプリ。このファイルでだけ設定します |
 | `logWatch.keepLines` | `5000` | さかのぼれる行数: 1000、5000、20000、50000 |
 | `logWatch.initialLines` | `500` | ペインがファイルを開いたときに末尾から読む行数: 100、500、2000 |
-| `clock.face` | `"longitude"` | すべての CLOCK ペインが描く文字盤：`longitude`、`week`、`ahead`、`tape`、`digital`、`segment`、`vector`、`dial`、`karman`（[Clock](panes-system.ja.md#clock)）。*unreleased* |
+| `clock.face` | `"longitude"` | すべての CLOCK ペインが描く文字盤：`longitude`、`week`、`ahead`、`tape`、`digital`、`segment`、`vector`、`dial`、`karman`（[Clock](panes-system.ja.md#clock)）。 |
 | `chip8.core` | `true` | 新しい CHIP-8 ペインで CORE 表示を出す |
 | `chip8.volume` | `0.5` | CHIP-8 のブザー、0〜1 |
 | `elec16.volume` | `0.5` | ELEC-16 のブザー、0〜1 |

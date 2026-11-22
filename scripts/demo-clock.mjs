@@ -52,10 +52,7 @@ const clock = paneOf('clock')
 
 /** The faces after the opening's WEEK, each with what its caption says. */
 const FACES = [
-  [
-    'longitude',
-    'LONGITUDE, the default: where in the world it is day, cities at their own times',
-  ],
+  ['longitude', 'LONGITUDE, the default: where in the world it is day, cities at their own times'],
   ['ahead', 'AHEAD: the next 24 hours on a log scale - your alarms and the tasks falling due'],
   ['tape', 'TAPE: the day as a tape of ticks running ahead of you, the night as a band'],
   ['digital', 'DIGITAL: the face elecdex began with, its digits rolling as they change'],

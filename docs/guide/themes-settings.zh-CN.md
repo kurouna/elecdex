@@ -124,7 +124,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 
 | 分区 | 内容 |
 | --- | --- |
-| general | appearance（主题、themes folder、动效）、clock（表盘，*unreleased*）、sound、terminal（起始文件夹、字号、粘贴多行前询问、响铃）、reading type（ai chat、elec system、translate、rss article）、git（打开文件的方式）、chip-8（显示核心、蜂鸣器音量）、elec-16（蜂鸣器音量、新窗格的皮肤）、layouts（切换布局前询问）、launcher（列出已安装的应用）、web panes（按主题颜色给页面着色、退出所有网站的登录） |
+| general | appearance（主题、themes folder、动效）、clock（表盘）、sound、terminal（起始文件夹、字号、粘贴多行前询问、响铃）、reading type（ai chat、elec system、translate、rss article）、git（打开文件的方式）、chip-8（显示核心、蜂鸣器音量）、elec-16（蜂鸣器音量、新窗格的皮肤）、layouts（切换布局前询问）、launcher（列出已安装的应用）、web panes（按主题颜色给页面着色、退出所有网站的登录） |
 | window | 窗口之外的图标、最小化和关闭到图标、全局显示/隐藏快捷键、登录时启动和在后台启动。只在机器能提供某些功能时显示（[键盘与布局](keyboard.zh-CN.md#在后台运行)） |
 | keyboard | 所有快捷键，可重新绑定（[键盘与布局](keyboard.zh-CN.md#重新绑定快捷键)） |
 | alerts | 地震和海啸：数据源、警报、阈值、系统通知、提示音 |
@@ -214,7 +214,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 | `git.openCommand` | `""` | git 窗格打开双击文件的方式（填入 `{file}`、`{line}`、`{dir}`；作为程序运行，从不经过 shell）；为空则使用系统的应用。只能在此文件中设置 |
 | `logWatch.keepLines` | `5000` | 可回滚的行数：1000、5000、20000 或 50000 |
 | `logWatch.initialLines` | `500` | 窗格打开文件时从末尾读取的行数：100、500 或 2000 |
-| `clock.face` | `"longitude"` | 所有 CLOCK 窗格绘制的表盘：`longitude`、`week`、`ahead`、`tape`、`digital`、`segment`、`vector`、`dial` 或 `karman`（[Clock](panes-system.zh-CN.md#clock)）。*unreleased* |
+| `clock.face` | `"longitude"` | 所有 CLOCK 窗格绘制的表盘：`longitude`、`week`、`ahead`、`tape`、`digital`、`segment`、`vector`、`dial` 或 `karman`（[Clock](panes-system.zh-CN.md#clock)）。 |
 | `chip8.core` | `true` | 新的 CHIP-8 窗格显示 CORE 视图 |
 | `chip8.volume` | `0.5` | CHIP-8 蜂鸣器，0 到 1 |
 | `elec16.volume` | `0.5` | ELEC-16 蜂鸣器，0 到 1 |

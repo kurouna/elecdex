@@ -154,7 +154,7 @@ Shortcuts are written as bound by default; they can be rebound in *Settings → 
 | Updates | Every second, on the second boundary, only while the pane is seen |
 | Setting | `clock.face`, in the settings dialog's general section (default `longitude`) |
 
-The clock has **faces** (*unreleased*): one look for every clock pane, chosen in the settings dialog (general › clock › face), which says in a line what the chosen face shows. Most of them give the low strip at the top of the system column a use across its whole width, rather than centring digits in it.
+The clock has **faces**: one look for every clock pane, chosen in the settings dialog (general › clock › face), which says in a line what the chosen face shows. Most of them give the low strip at the top of the system column a use across its whole width, rather than centring digits in it.
 
 | Face | What it shows |
 | --- | --- |
