@@ -133,6 +133,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 | `tests/e2e/contracts/` | Playwright | 覆盖每个窗格、按键、对话框和 IPC 方法的表驱动检查：mount、lifecycle、持久化、动效、主题、快捷键、IPC、故障、署名、无外部请求 |
 
 - Playwright 有两个项目：`e2e`（除 `@perf` 外的全部）和随后运行的 `perf`（空闲预算和 CPU 测量）。
+- 在 GitHub Actions 上，每个系统的整套测试分成五部分，各自在独立的运行器上执行：`e2e` 的四个分片（`--shard`）和单独的 `perf`（`--project=perf --no-deps`）。每台机器只运行一个应用。某部分失败时，`e2e report` 作业把该系统各部分的结果合并成一份 HTML 报告（`playwright-report-<os>`）。
 - 桩服务通过 `tests/e2e/support.ts` 设置的环境变量（`STUB_ENV`）启用，例如 `ELECDEX_AUDIO_STUB=1`、`ELECDEX_WIFI_STUB=1` 或 `ELECDEX_DOCKER_STUB=1`。
 - 端到端测试套件的设计（每类检查放在哪里以及原因）：[docs/e2e-design.md](../e2e-design.md)（日文）。
 - 如果测试之外还有 elecdex 在运行（已安装的应用，或开着的 `npm run dev`），启动和拖动会失败；报告器会把这一情况记录到 `test-results/elecdex-running.log`。

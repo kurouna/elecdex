@@ -64,13 +64,22 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y zsh fish
       - run: npm test
 
+  # Each system's suite is run in parts, each on a runner of its own: four shares of the e2e
+  # project and the perf project apart. One app per machine, as on a desk - running specs side by
+  # side on one machine made the load-sensitive ones fail (docs/e2e-design.md section 6.5) - and
+  # about a quarter of the hour the whole suite took on windows-latest (docs/decisions.md,
+  # 2026-11-22). perf measures on a runner nothing else is loading. A narrowed run is one part.
   e2e:
-    name: e2e (${{ matrix.os }})
+    name: e2e (${{ matrix.os }} ${{ matrix.part }})
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.e2e_os || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+        part: ${{ fromJSON(inputs.e2e_specs && '["chosen"]' || '["1", "2", "3", "4", "perf"]') }}
     runs-on: ${{ matrix.os }}
+    env:
+      # The narrowing comes in through the environment, never pasted into the command line.
+      E2E_ARGS: ${{ inputs.e2e_specs || (matrix.part == 'perf' && '--project=perf --no-deps' || format('--project=e2e --shard={0}/4', matrix.part)) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -90,18 +99,46 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y openbox
       - name: Run Electron e2e (headless)
         if: runner.os == 'Linux'
-        # The narrowing comes in through the environment, never pasted into the command line.
-        env:
-          E2E_SPECS: ${{ inputs.e2e_specs }}
-        run: xvfb-run --auto-servernum bash -c 'openbox --sm-disable & sleep 2 && npm run test:e2e -- $E2E_SPECS'
+        run: xvfb-run --auto-servernum bash -c 'openbox --sm-disable & sleep 2 && npm run test:e2e -- $E2E_ARGS'
       - name: Run Electron e2e
         if: runner.os != 'Linux'
-        env:
-          E2E_SPECS: ${{ inputs.e2e_specs }}
         shell: bash
-        run: npm run test:e2e -- $E2E_SPECS
+        run: npm run test:e2e -- $E2E_ARGS
+      # Each part's results, for the report below to put together when something failed.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: failure()
+        if: ${{ !cancelled() }}
+        with:
+          name: blob-${{ matrix.os }}-${{ matrix.part }}
+          path: blob-report/
+          retention-days: 1
+
+  # One HTML report per system from its parts' results, as the single job used to leave.
+  e2e-report:
+    name: e2e report (${{ matrix.os }})
+    needs: e2e
+    if: ${{ !cancelled() && needs.e2e.result == 'failure' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.e2e_os || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      # Only Playwright's own merge runs here: no Electron, no install scripts.
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: blob-${{ matrix.os }}-*
+          path: all-blob-reports
+          merge-multiple: true
+      - run: npx playwright merge-reports --reporter html ./all-blob-reports
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-${{ matrix.os }}
           path: playwright-report/

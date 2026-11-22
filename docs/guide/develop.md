@@ -133,6 +133,7 @@ End-to-end tests never contact a real service, and never touch the machine they 
 | `tests/e2e/contracts/` | Playwright | Table-driven checks over every pane, key, dialog and IPC method: mount, lifecycle, persistence, motion, themes, keybindings, IPC, faults, attribution, no external requests |
 
 - Playwright runs two projects: `e2e` (everything but `@perf`) and `perf` (the idle budget and CPU measurements), which runs after it.
+- On GitHub Actions each system's suite runs in five parts, each on a runner of its own: four shares of `e2e` (`--shard`) and `perf` alone (`--project=perf --no-deps`). One app runs per machine. When a part fails, the `e2e report` job merges that system's parts into one HTML report (`playwright-report-<os>`).
 - The stubs are environment variables set by `tests/e2e/support.ts` (`STUB_ENV`), such as `ELECDEX_AUDIO_STUB=1`, `ELECDEX_WIFI_STUB=1` or `ELECDEX_DOCKER_STUB=1`.
 - The design of the e2e suite, where each kind of check lives and why: [docs/e2e-design.md](../e2e-design.md) (Japanese).
 - If an elecdex runs outside the tests (an installed app, or `npm run dev` left open), launches and drags fail; the reporter logs it to `test-results/elecdex-running.log`.

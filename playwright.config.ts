@@ -16,9 +16,11 @@ export default defineConfig({
   failOnFlakyTests: false,
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  // reporter.ts: on a failure, whether an elecdex runs outside the tests (logged).
+  // reporter.ts: on a failure, whether an elecdex runs outside the tests (logged). CI runs each
+  // system's suite in parts on runners of their own (.github/workflows/ci.yml): each leaves a
+  // blob, and the e2e-report job merges a system's blobs into one HTML report.
   reporter: process.env.CI
-    ? [['github'], ['html', { open: 'never' }], ['./tests/e2e/reporter.ts']]
+    ? [['github'], ['blob'], ['./tests/e2e/reporter.ts']]
     : [['list'], ['./tests/e2e/reporter.ts']],
   use: {
     trace: 'retain-on-failure',
