@@ -15,7 +15,7 @@
  *
  * Windows only, like the other takes. Run `npm run build` first, then `npm run demo:clock`.
  * The window is 1600x900, a 16:9 frame; record the window. The take starts after the lead
- * (`--lead`, 8 s) and ends by itself in about 65 s; pass `--exit` to close the window when it
+ * (`--lead`, 8 s) and ends by itself in about 60 s; pass `--exit` to close the window when it
  * is over. The options are demo-take.mjs's (`takeOptions`): `--pace`, `--theme`,
  * `--shots=<dir>`, `--no-captions`.
  */
@@ -117,12 +117,13 @@ async function opening() {
   await caption('The clock has faces now. WEEK: this week beside the time, today lit')
   await bringForward()
   await wait(3600)
-  await caption('Each day fills as it goes - and the face lays itself out again for the room')
+  await caption('Each face lays itself out for the room: forward a block, in its strip a band')
   await wait(3000)
+  // Straight on to the next face: a caption of its own back in the strip held the take up
+  // (user request 2026-11-22).
   await page.keyboard.press('Escape')
   await away()
-  await caption('Back in the strip at the top of the system column, it uses the whole width')
-  await wait(2600)
+  await wait(400)
 }
 
 async function faces() {
