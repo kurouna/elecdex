@@ -3,6 +3,7 @@ import { KEY_BY_ID, type MachineKey } from '@shared/elec16/keys'
 import { capScale, emOf, keyWidth } from './cap-fit.ts'
 import { faceFamily, faceReady } from './faces.ts'
 import { BRK, COMPACT_ROW, FULL_ROWS, HALF_COLUMNS, KEY_GAP, type KeySlot } from './layout.ts'
+import { BRK_SHOWN, NO_KEYS } from './machine-keys.svelte.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
 import type { Skin } from './skins.ts'
 
@@ -10,7 +11,7 @@ import type { Skin } from './skins.ts'
  * The ELEC-16's keys on its body (docs/elec16.md section 7): the whole keyboard, or the one
  * row a compact body keeps. A key is held while the pointer holds it, as KEYMAT reads it;
  * BRK/ON is its own line. The keys never take the focus: the pane keeps it, so the PC's
- * keyboard goes on typing into the machine.
+ * keyboard goes on typing into the machine, and a key the PC holds is drawn held too (`pcDown`).
  *
  * The arrows are drawn, not typed: no bundled face has all four (Fontsource's Latin subsets
  * hold ↑ and ↓ but not ← and →), and the system's would differ from key to key. A label wider
@@ -28,9 +29,15 @@ interface Props {
   /** The keyboard's width, in CSS pixels (the case's inside). */
   width: number
   skin: Skin
+  /** The keys the PC holds, by key code and `BRK_SHOWN` (machine-keys): drawn held too. */
+  pcDown?: ReadonlySet<number> | undefined
 }
 
-const { runner, mode, legends, big, rowHeight, width, skin }: Props = $props()
+const { runner, mode, legends, big, rowHeight, width, skin, pcDown = NO_KEYS }: Props = $props()
+
+/** Whether the PC holds the key `id`, BRK by its mark. */
+const pcHolds = (id: string): boolean =>
+  pcDown.has(id === BRK ? BRK_SHOWN : (keyOf(id)?.code ?? NaN))
 
 /** The key each pointer holds, to let go of whatever happens to the pointer. */
 const held = new Map<number, number>()
@@ -157,7 +164,7 @@ const squeeze = $derived.by((): ReadonlyMap<string, number> => {
     class:pad={pad && !isFn(slot.id)}
     class:brk={slot.id === BRK}
     class:enter={slot.id === 'enter'}
-    class:down={down.has(slot.id)}
+    class:down={down.has(slot.id) || pcHolds(slot.id)}
     tabindex="-1"
     style:grid-column="{column} / span {slot.span}"
     aria-label={spoken(slot.id)}

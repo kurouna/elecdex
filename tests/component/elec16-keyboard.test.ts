@@ -1,7 +1,9 @@
+import { keyCode } from '@shared/elec16/keys'
 import { cleanup, render } from '@testing-library/svelte'
 import { tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Keyboard from '../../src/renderer/widgets/elec16/Keyboard.svelte'
+import { BRK_SHOWN } from '../../src/renderer/widgets/elec16/machine-keys.svelte.ts'
 import { Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
 import { SKINS } from '../../src/renderer/widgets/elec16/skins.ts'
 import { browserLoop } from '../../src/renderer/widgets/emu/runner.svelte.ts'
@@ -95,5 +97,29 @@ describe("the ELEC-16's keys", () => {
     // Read as a number: jsdom 31, like browsers, drops the trailing zeros toFixed wrote.
     const scale = Number(/^scaleX\(([\d.]+)\)$/.exec(mode)?.[1])
     expect(scale).toBeCloseTo(SKINS.mochi.body.fitFloor, 3)
+  })
+})
+
+describe("the ELEC-16's keys held from the PC", () => {
+  it('draws pressed the keys the PC holds, BRK among them, and lets them up again', async () => {
+    const held = new Set([keyCode('a'), keyCode('shift'), BRK_SHOWN])
+    const { container, rerender } = render(Keyboard, { ...props(600), pcDown: held })
+    await tick()
+    const down = () =>
+      [...container.querySelectorAll('.key.down')].map((k) => k.getAttribute('data-key')).sort()
+    expect(down()).toEqual(['a', 'brk', 'shift'])
+    await rerender({ ...props(600), pcDown: new Set<number>() })
+    expect(down()).toEqual([])
+  })
+
+  it('draws nothing for a held key the compact row does not have', async () => {
+    const { container } = render(Keyboard, {
+      ...props(600),
+      mode: 'compact' as const,
+      pcDown: new Set([keyCode('a'), keyCode('enter')]),
+    })
+    await tick()
+    const down = [...container.querySelectorAll('.key.down')].map((k) => k.getAttribute('data-key'))
+    expect(down).toEqual(['enter'])
   })
 })

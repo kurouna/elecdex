@@ -29,6 +29,12 @@ const call = (page: Page, method: string, args: unknown[], subscribes: boolean):
         if (typeof value !== 'object' || value === null) return value
         if ('$str' in value) return 'x'.repeat((value as { $str: number }).$str)
         if ('$bytes' in value) return new Uint8Array((value as { $bytes: number }).$bytes)
+        if ('$png' in value) {
+          // A PNG's signature, then zeros: past a signature check, to what is checked next.
+          const png = new Uint8Array((value as { $png: number }).$png)
+          png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+          return png
+        }
         return value
       }
       const out = (value: unknown) => (value === undefined ? UNDEFINED : value)

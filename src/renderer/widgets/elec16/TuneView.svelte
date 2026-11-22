@@ -55,6 +55,14 @@ interface Props {
   canPaste: boolean
   /** PASTE, or its stop while it types. */
   onpaste: () => void
+  /** A machine is on to take the screen from: COPY TEXT, COPY IMAGE and SAVE PNG can be pressed. */
+  canCapture: boolean
+  /** The button that just did its work ('text', 'image', 'png'), while it says so. */
+  captured: string | null
+  /** Why the last press did nothing (no text on the screen), until the next. */
+  captureNote: string
+  /** COPY TEXT, COPY IMAGE or SAVE PNG. */
+  oncapture: (what: 'text' | 'image' | 'png') => void
 }
 
 const {
@@ -70,7 +78,18 @@ const {
   pasteSkipped,
   canPaste,
   onpaste,
+  canCapture,
+  captured,
+  captureNote,
+  oncapture,
 }: Props = $props()
+
+/** The three ways the screen leaves the machine, and what each button says once it has. */
+const CAPTURES = [
+  { what: 'text', label: 'copy text', done: 'copied' },
+  { what: 'image', label: 'copy image', done: 'copied' },
+  { what: 'png', label: 'save png', done: 'saved' },
+] as const
 
 const clockWords = (c: Elec16Clock): string => (c === 'max' ? 'MAX' : `${c} MHz`)
 /** How the unit's machine is typed to: the pocket keyboard, PLAY-320's pad, SCI-128's keys. */
@@ -191,6 +210,27 @@ function pick<T>(now: T, next: T, apply: () => void): void {
     </p>
   </section>
   {/if}
+  <section>
+    <h3>screen</h3>
+    <div class="chips">
+      {#each CAPTURES as c (c.what)}
+        <button
+          type="button"
+          class="e16-chip"
+          disabled={!canCapture}
+          onclick={() => oncapture(c.what)}
+          data-testid="elec16-capture"
+          data-what={c.what}>{captured === c.what ? c.done : c.label}</button
+        >
+      {/each}
+    </div>
+    <p class="note">
+      {#if !canCapture}Switch the machine on to take its screen{:else}The screen's text, or its picture{#if !play}
+          in the LCD's colours{/if}{/if}{#if captureNote !== ''}<span data-testid="elec16-capture-note"
+          >; {captureNote}</span
+        >{/if}.
+    </p>
+  </section>
   <section>
     <h3>unit</h3>
     <div class="chips" role="radiogroup" aria-label="unit">

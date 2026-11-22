@@ -1,11 +1,13 @@
 <script lang="ts">
+import { MODELS } from '@shared/elec16/map'
 import { BITMAP_HEIGHT, BITMAP_WIDTH } from '@shared/elec16/video'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { deviceRoom, type Room } from '../emu/screen.ts'
 import { playScale } from './play-body.ts'
-import { paintKey, paintPlay, playText, screenShows } from './play-painter.ts'
+import { paintKey, paintPlay } from './play-painter.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
+import { screenLines } from './screen-text.ts'
 
 /**
  * PLAY-320's screen alone (docs/elec16-play.md, G2: the body comes in G3), as PLAIN draws its
@@ -96,12 +98,7 @@ function readText(now = false): void {
   const s = runner.machine?.state
   if (s !== undefined && s.screenRevision !== readAt) {
     readAt = s.screenRevision
-    const read =
-      screenShows(s.video, s.off) === 'bitmap'
-        ? playText(s.video?.mem ?? [])
-            .join('\n')
-            .trimEnd()
-        : ''
+    const read = screenLines(MODELS[runner.model], s).join('\n').trimEnd()
     if (read !== text) text = read
   }
   const rested = now || text === resting

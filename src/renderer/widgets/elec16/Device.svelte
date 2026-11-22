@@ -34,9 +34,11 @@ interface Props {
   seen: boolean
   /** LINK is on: the LCD shows its mark. */
   link: boolean
+  /** The keys the PC holds (machine-keys), drawn held on the keyboard. */
+  pcDown?: ReadonlySet<number>
 }
 
-const { runner, skin, lcdColours, mode, ghost, contrast, seen, link }: Props = $props()
+const { runner, skin, lcdColours, mode, ghost, contrast, seen, link, pcDown }: Props = $props()
 
 let host = $state<HTMLDivElement | null>(null)
 let room = $state({ w: 0, h: 0, ratio: 1 })
@@ -187,6 +189,7 @@ const grilleHoles = $derived(
         big={fit.keyRow >= 32}
         width={keysWidth}
         {skin}
+        {pcDown}
       />
     {/if}
   </div>

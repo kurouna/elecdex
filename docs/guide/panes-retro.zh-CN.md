@@ -102,7 +102,7 @@ elecdex 是用 Electron 重写 eDEX-UI 而成的科幻风格终端模拟器兼�
 | 读取内容 | 除了通过 main 的文件选择器导入的内容，不读取机器之外的任何东西；LINK 只有在你打开后才会连到 AI |
 | 更新 | 只在开机、未休眠且可见时运行；在提示符处休眠；液晶每秒最多绘制 30 次 |
 | 平台 | Windows、macOS、Linux（macOS 和 Linux 未经手动验证） |
-| 隐私 | 用户的代码只作为机器码运行，绝不作为 JavaScript 运行；API 密钥从不到达页面或机器；LINK 只发送问题，且只在有人按键之后 |
+| 隐私 | 用户的代码只作为机器码运行，绝不作为 JavaScript 运行；API 密钥从不到达页面或机器；LINK 只发送问题，且只在有人按键之后；TUNE 的 SCREEN 只在按下时把画面写到剪贴板，或写成你选择位置的 PNG（*unreleased*） |
 | 设置 | *Settings → General → elec-16*：buzzer volume、skin of a new pane；每台机器在面板的 TUNE 和 LINK 中设置 |
 
 这是为 elecdex 设计的 16 位袖珍电脑，并非仿制任何真实机型。CPU（E16，混用 32 位和 16 位指令的 RISC）、ROM、字体和 BASIC 全部自行编写。窗格的标签页显示机器的种类：ELEC-16 POCKET、HANDHELD、PLAY 或 SCI。
@@ -143,8 +143,18 @@ elecdex 是用 Electron 重写 eDEX-UI 而成的科幻风格终端模拟器兼�
 ### 按键与 PASTE
 
 - 窗格获得焦点时可以用 PC 键盘输入。KANA 模式下按 JIS 假名布局输入假名。
+- *unreleased*：按住 PC 按键时，它按下的机身按键也会下沉。SHIFT 面上的字符连 SHIFT 一起下沉，按住 Pause 时 BRK 下沉。PASTE 敲入的按键不会下沉。
 - 窗格不接收 Esc、Tab、功能键以及与 Ctrl、Alt 或系统键的组合，这些留给应用。
 - **PASTE**（或在机器上右键单击）把剪贴板的文字作为按键敲进去。无法输入的字符会被跳过并计数。不接收 Ctrl+V。
+
+### 画面的文字与图像
+
+*unreleased*：
+
+- 面板 TUNE 的 **SCREEN** 有三个按钮。**COPY TEXT** 用字体读回画面上的文字并放到剪贴板：图形读作 `?`，每行末尾的空格以及文字上下的空行会被去掉。**COPY IMAGE** 把画面的图像放到剪贴板。**SAVE PNG** 把图像保存到你选择的位置，文件名为 `elec16-<机型>-<日期>-<时间>.png`。
+- 图像只有点阵本身，保持液晶的颜色和对比度，每点 4 像素，点之间留有间隙，并带有外观中未点亮点的淡色（PLAIN 没有间隙）；PLAY-320 为 2 倍大小。不包含机身、指示符号、光标和点的阴影。
+- 所有机型都有。SCI-128 的大号数字答案也会读成文字；PLAY-320 只有在绘制位图时才能读出文字，绘制图块时不能。
+- 复制与其他窗格一样经由应用进行；关机时不写入任何内容。无法复制或保存时，SCREEN 会显示原因。
 
 ### 液晶与外观
 
@@ -188,7 +198,7 @@ elecdex 是用 Electron 重写 eDEX-UI 而成的科幻风格终端模拟器兼�
 | CORE | 寄存器和代码，带断点、STEP 和 HALT |
 | MEM | 内存，跟随 PC、SP、VRAM 或任意地址 |
 | FILES | 存储卡和 SOFT CARD；LOAD ▸ 替你敲入 `LOAD` 那一行 |
-| TUNE | PASTE、时钟（1 至 32 MHz、MAX）、机型和液晶、机身绘制方式、对比度、残影、外观、自动关机 |
+| TUNE | PASTE、SCREEN（*unreleased*）、时钟（1 至 32 MHz、MAX）、机型和液晶、机身绘制方式、对比度、残影、外观、自动关机 |
 | LINK | LINK 整体和每项服务的开关、AI 提供方、已发送数、上一次失败的原因 |
 | GAMES | 仅 PLAY-320：卡槽和游戏架 |
 
@@ -375,7 +385,8 @@ SOFT CARD 附带十三个程序，以只读方式叠加在每台单元的存储�
 
 - 从 PC 输入：数字、`+ - * / ^ ( ) .`、Enter（=）、Backspace（DEL）、Delete（AC）和方向键。
 - 字母键输入函数：`s` SIN、`c` COS、`t` TAN、`l` LN、`g` LOG、`r` √、`f` a/b、`e` EXP、`!` x!。按住 Shift 输入字母则输入该键的 SHIFT 面。
-- 面板有 CORE、MEM 和 TUNE；没有 FILES、GAMES、LINK 和 PASTE。
+- *unreleased*：按住 PC 按键时，它按下的机身按键也会下沉；SHIFT 面连 SHIFT 一起下沉，按住 Pause 时 ON 下沉。
+- 面板有 CORE、MEM 和 TUNE，TUNE 的 SCREEN 可以把画面作为文字或图像复制，并保存为 PNG（*unreleased*）；没有 FILES、GAMES、LINK 和 PASTE。
 - 屏幕和其他机型一样可供屏幕阅读器读出。
 - 参见 [SCI-128 使用说明书](../elec16-sci-manual.md)（日文）。
 

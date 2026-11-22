@@ -243,15 +243,20 @@ export const COPY_LIMITS = { text: 1_000_000, png: 4 * 1024 * 1024 } as const
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
 
+/** PNG bytes from the page, checked by their signature and within the clipboard's limit. */
+export function isPngData(data: unknown): data is Uint8Array {
+  return (
+    data instanceof Uint8Array &&
+    data.length > PNG_SIGNATURE.length &&
+    data.length <= COPY_LIMITS.png &&
+    PNG_SIGNATURE.every((byte, i) => data[i] === byte)
+  )
+}
+
 /** A copy from the page, checked: text within bounds, or a PNG by its signature. */
 export function isUtilityCopy(value: unknown): value is UtilityCopy {
   if (typeof value !== 'object' || value === null) return false
   const { kind, text: body, data } = value as { kind?: unknown; text?: unknown; data?: unknown }
   if (kind === 'text') return typeof body === 'string' && body.length <= COPY_LIMITS.text
-  if (kind !== 'png' || !(data instanceof Uint8Array)) return false
-  return (
-    data.length > PNG_SIGNATURE.length &&
-    data.length <= COPY_LIMITS.png &&
-    PNG_SIGNATURE.every((byte, i) => data[i] === byte)
-  )
+  return kind === 'png' && isPngData(data)
 }

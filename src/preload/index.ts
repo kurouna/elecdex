@@ -41,6 +41,7 @@ import type {
   Elec16Game,
   Elec16GameImport,
   Elec16ImportResult,
+  Elec16PngSave,
   Elec16Unit,
 } from '@shared/elec16-units'
 import type { FeedUpdate } from '@shared/feeds'
@@ -796,6 +797,8 @@ const api: ElecdexApi = {
     import: (unit) =>
       ipcRenderer.invoke(CH.elec16.import, unit) as Promise<Elec16ImportResult | null>,
     export: (unit, name) => ipcRenderer.invoke(CH.elec16.export, unit, name) as Promise<boolean>,
+    savePng: (png, model) =>
+      ipcRenderer.invoke(CH.elec16.savePng, png, model) as Promise<Elec16PngSave>,
     onChange: (handler) => listen<Elec16Board>(CH.elec16.changed, handler),
     onFilesChange: (handler) => listen<string>(CH.elec16.filesChanged, handler),
     onGiveBack: (handler) => listen<string>(CH.elec16.giveBack, handler),

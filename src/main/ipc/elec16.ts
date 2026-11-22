@@ -1,4 +1,5 @@
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { AiProviderKind } from '@shared/ai'
@@ -8,7 +9,7 @@ import { CARD_FILE_MAX, CARD_STATUS, type CardAnswer, isCardName } from '@shared
 import { cardNameOf, fromMachineText, toMachineText } from '@shared/elec16/charset'
 import type { LinkAnswer } from '@shared/elec16/link'
 import { LINK_SERVICE, LINK_STATUS } from '@shared/elec16/link-services'
-import { CODE_AREA, CODE_AREA_END, MODELS, UNIT_MODEL_IDS } from '@shared/elec16/map'
+import { CODE_AREA, CODE_AREA_END, MODELS, type ModelId, UNIT_MODEL_IDS } from '@shared/elec16/map'
 import {
   ELEC16_CLOCKS,
   type Elec16Board,
@@ -20,6 +21,7 @@ import {
   type Elec16Game,
   type Elec16GameImport,
   type Elec16ImportResult,
+  type Elec16PngSave,
   type Elec16Unit,
   type Elec16UnitSeed,
 } from '@shared/elec16-units'
@@ -34,7 +36,9 @@ import { kitLibFiles } from '../elec16/kit-lib.js'
 import { AiLinkService } from '../elec16/link/ai.js'
 import { CartLinkService } from '../elec16/link/cart.js'
 import { LinkHub } from '../elec16/link/hub.js'
+import { isScreenPng, screenPngName, withPngExtension } from '../elec16/screen-png.js'
 import { Elec16Units, findElec16Dir, type Holder, readSoftCard } from '../elec16/units.js'
+import { showSaveDialogFor } from '../save-dialog.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
@@ -291,6 +295,22 @@ export function registerElec16Ipc(
         const text = name.endsWith('.BAS') || name.endsWith('.TS')
         writeFileSync(target, text ? fromMachineText(bytes) : bytes)
         return true
+      },
+      [CH.elec16.savePng]: async (event, png: unknown, model: unknown): Promise<Elec16PngSave> => {
+        if (!isScreenPng(png, model)) return 'failed'
+        // The renderer has no filesystem; the path comes from the user's own dialog.
+        const picked = await showSaveDialogFor(event.sender, {
+          title: 'Save the ELEC-16 screen',
+          defaultPath: screenPngName(model as ModelId, new Date()),
+          filters: [{ name: 'PNG image', extensions: ['png'] }],
+        })
+        if (picked.canceled || picked.filePath === '') return 'canceled'
+        try {
+          await writeFile(withPngExtension(picked.filePath), png)
+          return 'saved'
+        } catch {
+          return 'failed'
+        }
       },
       [CH.elec16.games]: (): Elec16Game[] => games.list(),
       [CH.elec16.gamesImport]: async (event): Promise<Elec16GameImport | null> => {

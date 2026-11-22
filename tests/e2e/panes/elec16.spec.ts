@@ -18,6 +18,8 @@ import { test } from '../support/shared.js'
 import {
   atDesignSize,
   bringWindowBack,
+  clipboardImageHead,
+  clipboardText,
   cpuSeconds,
   launch,
   pickerAnswers,
@@ -25,6 +27,7 @@ import {
   putWindowAway,
   quietFor,
   saveDialogAnswers,
+  saveDialogNames,
   settleLayout,
   single,
 } from '../support.js'
@@ -617,6 +620,132 @@ test('a right-click on the machine types the clipboard as PASTE does, and anothe
   }
 })
 
+test("the PC's keys hold the body's keys down until they are let go, and PASTE's keys press none", async () => {
+  const { page, close } = await launchBeside()
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const key = (id: string) => page.locator(`[data-testid=elec16-key][data-key="${id}"]`)
+    const held = /(^| )down( |$)/
+    await page.getByTestId('elec16').focus()
+    // ENTER, SHIFT and BRK are on every body, the compact row too.
+    await page.keyboard.down('Enter')
+    await expect(key('enter')).toHaveClass(held)
+    await page.keyboard.up('Enter')
+    await expect(key('enter')).not.toHaveClass(held)
+    // A character on a shifted face holds SHIFT down beside its own key.
+    await page.keyboard.down('Shift')
+    await page.keyboard.down('Digit1')
+    await expect(key('shift')).toHaveClass(held)
+    await page.keyboard.up('Digit1')
+    await page.keyboard.up('Shift')
+    await expect(key('shift')).not.toHaveClass(held)
+    // Pause is BRK, held while it is.
+    await page.keyboard.down('Pause')
+    await expect(key('brk')).toHaveClass(held)
+    await page.keyboard.up('Pause')
+    await expect(key('brk')).not.toHaveClass(held)
+    // The focus going lets every key up.
+    await page.keyboard.down('Enter')
+    await expect(key('enter')).toHaveClass(held)
+    await page.getByTestId('elec16-panel-toggle').focus()
+    await expect(key('enter')).not.toHaveClass(held)
+    await page.keyboard.up('Enter')
+
+    // PASTE types through the machine's keys, drawing none of them pressed.
+    await page.evaluate(() => {
+      const seen: string[] = []
+      ;(window as unknown as { __heldSeen: string[] }).__heldSeen = seen
+      new MutationObserver((changes) => {
+        for (const c of changes) {
+          const el = c.target as HTMLElement
+          if (el.classList.contains('down')) seen.push(el.dataset.key ?? '')
+        }
+      }).observe(document.querySelector('[data-testid=elec16-keys]') as Node, {
+        subtree: true,
+        attributeFilter: ['class'],
+      })
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => 'PRINT 6*7\n',
+        configurable: true,
+      })
+    })
+    await page.getByTestId('elec16-device').click({ button: 'right' })
+    await expect.poll(() => lcdLines(page)).toContain('42')
+    expect(
+      await page.evaluate(() => (window as unknown as { __heldSeen: string[] }).__heldSeen),
+    ).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
+test("TUNE's SCREEN copies the screen's text and picture through main, and saves the picture as a PNG", async () => {
+  const { app, page, close } = await launchBeside()
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-png-'))
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'PRINT 6*7')
+    await expect.poll(() => lcdLines(page)).toContain('42')
+    await elec16Tab(page, 'tune').click()
+    const capture = (what: string) =>
+      page.locator(`[data-testid=elec16-capture][data-what=${what}]`)
+
+    // COPY TEXT: the lines as the screen shows them, without the spaces after them.
+    await capture('text').click()
+    await expect(capture('text')).toHaveText('copied')
+    const text = (await clipboardText(app)) ?? ''
+    expect(text.split('\n')).toContain('42')
+    expect(text).toBe(
+      (await lcdLines(page))
+        .map((l) => l.trimEnd())
+        .join('\n')
+        .replace(/^\n+|\n+$/g, ''),
+    )
+
+    // COPY IMAGE: a PNG on main's clipboard.
+    const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+    await capture('image').click()
+    await expect(capture('image')).toHaveText('copied')
+    expect(await clipboardImageHead(app)).toEqual(PNG)
+
+    // SAVE PNG: where the save dialog says, four pixels a dot of the 240 x 48 LCD, under the
+    // name main offers; a name typed without .png gets it.
+    const target = path.join(outside, 'screen')
+    await saveDialogAnswers(app, target)
+    await capture('png').click()
+    await expect(capture('png')).toHaveText('saved')
+    expect(await saveDialogNames(app)).toEqual([
+      expect.stringMatching(/^elec16-pocket-48-\d{8}-\d{6}\.png$/),
+    ])
+    const png = readFileSync(`${target}.png`)
+    expect([...png.subarray(0, 8)]).toEqual(PNG)
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([960, 192])
+    // Owned by the elecdex window, as every save dialog main opens.
+    const opened = await saveDialogAnswers(app, null)
+    await capture('png').click()
+    await expect.poll(async () => (await opened()).length).toBe(1)
+    expect((await opened())[0]?.owned).toBe(true)
+    // Called off in the dialog: nothing said. Not written: SCREEN says so.
+    await expect(page.getByTestId('elec16-capture-note')).toHaveCount(0)
+    await saveDialogAnswers(app, path.join(outside, 'no such folder', 'screen.png'))
+    await capture('png').click()
+    await expect(page.getByTestId('elec16-capture-note')).toContainText('could not be saved')
+
+    // Off, there is no screen to take, and SCREEN says what to do.
+    await page.getByTestId('elec16-power').click()
+    await expect(capture('text')).toBeDisabled()
+    await expect(page.getByTestId('elec16-tune')).toContainText(
+      'Switch the machine on to take its screen',
+    )
+  } finally {
+    await close()
+    rmSync(outside, { recursive: true, force: true })
+  }
+})
+
 test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboard not read', async () => {
   // PLAY-320 has no keys to type on, so PASTE's right-click has nothing to do there; and a
   // button pressed by the right button once held the pad as the left one does.
@@ -1000,7 +1129,8 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, an
   // below in the app, and tests/unit/elec16-give-code.test.ts and elec16-play-rom.test.ts
   // below it (BRK bringing the start screen back too).
   test.setTimeout(180_000)
-  const { page, close } = await launchBeside()
+  const { app, page, close } = await launchBeside()
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-play-png-'))
   try {
     await settleLayout(page)
     await booted(page)
@@ -1019,6 +1149,16 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, an
     await expect(page.getByTestId('elec16-xram')).toHaveCount(4)
     await page.locator('[data-testid=elec16-xram][data-kb="128"]').click()
     await expect.poll(() => playLines(page)).toContain('RAM 32K  XRAM 128K')
+    // SCREEN: the start screen's text, and its picture twice the size, in its own colours.
+    await page.locator('[data-testid=elec16-capture][data-what=text]').click()
+    await expect.poll(async () => (await clipboardText(app)) ?? '').toContain('ELEC-16 PLAY')
+    await expect(page.getByTestId('elec16-tune')).not.toContainText("in the LCD's colours")
+    const shot = path.join(outside, 'play.png')
+    await saveDialogAnswers(app, shot)
+    await page.locator('[data-testid=elec16-capture][data-what=png]').click()
+    await expect(page.locator('[data-testid=elec16-capture][data-what=png]')).toHaveText('saved')
+    const png = readFileSync(shot)
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([640, 576])
 
     await tab('mem').click()
     await expect(page.getByTestId('elec16-mem-space')).toHaveCount(3)
@@ -1035,6 +1175,7 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, an
       .toEqual(expect.arrayContaining([expect.stringMatching(/^7000: 00/)]))
   } finally {
     await close()
+    rmSync(outside, { recursive: true, force: true })
   }
 })
 

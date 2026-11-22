@@ -21,6 +21,9 @@ export const big = (n: number) => ({ $str: n })
 /** `n` zero bytes as a Uint8Array, made in the page. */
 export const bytes = (n: number) => ({ $bytes: n })
 
+/** `n` bytes that start as a PNG does (its signature), made in the page. */
+export const png = (n: number) => ({ $png: n })
+
 /** How main refuses. */
 export type Refusal =
   /** The call throws or its promise rejects. */
@@ -963,6 +966,18 @@ export const IPC_ROWS: IpcRow[] = [
       ['nope', UP],
     ],
     refused: { resolves: false },
+  },
+  {
+    // Refused before main's save dialog opens (the spec catches any dialog).
+    method: 'elec16.savePng',
+    bad: [
+      ['x', 'pocket-48'],
+      [bytes(64), 'pocket-48'],
+      [png(64), 'pocket-99'],
+      [png(64), UP],
+      [png(64), 123],
+    ],
+    refused: { resolves: 'failed' },
   },
   {
     method: 'elec16.readFile',

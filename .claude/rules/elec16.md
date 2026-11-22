@@ -179,4 +179,9 @@ the files above is read or edited.
     no script), are made from the manuals: a change a user can see updates them with the manual,
     and their pictures are retaken by `node scripts/elec16-guide-shots.mjs`, never by hand.
   - The page reads its screen for a screen reader by its dots (`dotText`, shared/elec16/font.ts:
-    text on any row, big digits): keep it cheap (measured 0.3 ms a screen).
+    text on any row, big digits): keep it cheap (measured 0.3 ms a screen). Each model's reading
+    is `screenLines` (screen-text.ts), once, for the screen reader and TUNE's SCREEN alike.
+  - TUNE's SCREEN copies through `utility.copy` and saves through `elec16.savePng`, whose name
+    main makes; the picture is the screen alone (screen-image.ts, the LCD painter's `dotAlpha`).
+  - The keys the PC holds are drawn held (`MachineKeys.pcDown`, key codes): only drawn, PASTE's
+    never; a PC key now pressing another machine key lets the first go.

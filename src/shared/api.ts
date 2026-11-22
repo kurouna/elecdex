@@ -33,6 +33,7 @@ import type { DockerAction, DockerBoard, DockerControlResult } from './docker.js
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
 import type { CardAnswer, CardRequest } from './elec16/card.js'
 import type { LinkAnswer, LinkRequest } from './elec16/link.js'
+import type { ModelId } from './elec16/map.js'
 import type {
   Elec16Board,
   Elec16Claim,
@@ -43,6 +44,7 @@ import type {
   Elec16Game,
   Elec16GameImport,
   Elec16ImportResult,
+  Elec16PngSave,
   Elec16Unit,
   Elec16UnitChange,
   Elec16UnitSeed,
@@ -572,6 +574,11 @@ export interface Elec16Api {
   import(unit: string): Promise<Elec16ImportResult | null>
   /** Saves a card file where the user picks; false when nothing was saved. */
   export(unit: string, name: string): Promise<boolean>
+  /**
+   * SAVE PNG: the screen's picture (PNG bytes) of a model, saved where the user picks under a
+   * name main gives it: how it ended (`failed` too for what main refuses).
+   */
+  savePng(png: Uint8Array, model: ModelId): Promise<Elec16PngSave>
   /** CODE: a card file's bytes (the SOFT CARD's too); null when there is no such file. */
   readFile(unit: string, name: string): Promise<Uint8Array | null>
   /** CODE: a .TS source or a .BIN program written to the card: the card's status (0 ok). */

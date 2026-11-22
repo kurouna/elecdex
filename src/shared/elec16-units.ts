@@ -188,3 +188,6 @@ export const CardRequestSchema = z.object({
     .nullable(),
   address: z.number().int().min(0).max(0xffff),
 }) satisfies z.ZodType<CardRequest>
+
+/** How SAVE PNG ended: written, called off in the save dialog, or not written. */
+export type Elec16PngSave = 'saved' | 'canceled' | 'failed'

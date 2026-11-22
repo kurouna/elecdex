@@ -145,7 +145,7 @@ HELLO3</code></pre>
 <p>記号の多くはテンキーや句読点のキーの SHIFT 面にあります。よく使うのは、引用符 <code>"</code> が <kbd>SHIFT</kbd> と <kbd>*</kbd>、コロン <code>:</code> が <kbd>SHIFT</kbd> と <kbd>;</kbd>、<code>$</code> が <kbd>SHIFT</kbd> と <kbd>4</kbd> です。</p>
 
 <h3>PC のキーボードから打つ</h3>
-<p>ペインにフォーカスがある間は、PC のキーボードで打てます。SHIFT 面の記号は、自動で SHIFT を付けて送ります。このガイドでは、本体のキーを <kbd>ENTER</kbd>、PC のキーボードのキーを <kbd class="pc">Enter</kbd> のように枠だけで書きます。</p>
+<p>ペインにフォーカスがある間は、PC のキーボードで打てます。SHIFT 面の記号は、自動で SHIFT を付けて送ります。PC のキーを押している間は、本体の同じキーも沈みます（SHIFT 面の記号では SHIFT も。<em>unreleased</em>）。このガイドでは、本体のキーを <kbd>ENTER</kbd>、PC のキーボードのキーを <kbd class="pc">Enter</kbd> のように枠だけで書きます。</p>
 <table>
   <tr><th>PC のキー</th><th>ELEC-16 のキー</th></tr>
   <tr><td>英字、数字、記号</td><td>そのキー</td></tr>
@@ -573,12 +573,13 @@ A pulsar is a spinning neutron star that sends out beams of radio waves.</code><
 
 <h3>TUNE</h3>
 <figure>
-  <img src="shots/pocket-tune.png" alt="PANEL の TUNE タブ: paste、unit、clock、auto off、model、body、skin、lcd glass の欄">
+  <img src="shots/pocket-tune.png" alt="PANEL の TUNE タブ: paste、screen、unit、clock、auto off、model、body、skin、lcd glass の欄">
   <figcaption>TUNE タブ。本体とペインの設定</figcaption>
 </figure>
 <table>
   <tr><th>欄</th><th>働き</th></tr>
   <tr><td>keys（PASTE）</td><td>クリップボードの文を打ち込む（<a href="#keys">本体とキー</a>）</td></tr>
+  <tr><td>screen</td><td><em>unreleased</em>: <strong>copy text</strong> は画面の文字（<code>LIST</code> や出力）をクリップボードへ。各行の後ろの空白は落とす。<strong>copy image</strong> は画面の絵をクリップボードへ、<strong>save png</strong> は絵を PNG で保存</td></tr>
   <tr><td>unit</td><td>このペインで動かすユニットを選ぶ。<strong>+ new</strong> で新しいユニット。ほかのユニットの <strong>×</strong> を 2 回押すと、その RAM とカードごと消す</td></tr>
   <tr><td>clock</td><td>1、2、4、8、16、32 MHz と MAX（既定 4 MHz）。上げるほど速く、PC の CPU も使う</td></tr>
   <tr><td>auto off</td><td>自動電源 OFF: 10 min、30 min、never</td></tr>

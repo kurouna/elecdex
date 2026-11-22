@@ -1,7 +1,7 @@
-import { expect } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import { atSize, ELEC16_BESIDE_CLOCK } from '../support/elec16.js'
 import { test } from '../support/shared.js'
-import { cpuSeconds, launch, powerNote, settleLayout } from '../support.js'
+import { clipboardText, cpuSeconds, launch, powerNote, settleLayout } from '../support.js'
 
 /**
  * ELEC-16 SCI in the running app (docs/elec16-sci.md section 10, S2 to S7): the picker's own
@@ -129,18 +129,7 @@ test('asleep at its keys it costs what a paused pane does; typing costs little',
   const launched = await atSize(await launch(undefined, { layout: ELEC16_BESIDE_CLOCK }))
   const { app, page, close } = launched
   try {
-    await settleLayout(page)
-    const pocket = page.locator('[data-testid=elec16]:not(:has([data-testid=elec16-sci-device]))')
-    await pocket.click({ delay: 20 })
-    await page.keyboard.press('Control+Shift+KeyA')
-    await page.getByTestId('pane-picker-filter').fill('sci')
-    await page.locator('[data-testid=pane-picker-placement][data-placement=tab]').click()
-    await page
-      .locator('[data-testid=pane-picker-item][data-widget=elec16][data-variant=sci]')
-      .click()
-    const sci = page.locator('[data-testid=elec16]', { has: page.getByTestId('elec16-sci-device') })
-    await expect(sci).toHaveAttribute('data-asleep', 'true', { timeout: 15_000 })
-    await settleLayout(page)
+    const sci = await openCalculator(page)
     const WINDOW_MS = 8_000
     const measure = async (during: () => Promise<void> = async () => {}) => {
       const start = await cpuSeconds(app)
@@ -173,6 +162,7 @@ test('asleep at its keys it costs what a paused pane does; typing costs little',
     // The same keys to the pocket pane's BASIC beside it, for what typing costs any ELEC-16.
     // The pocket is the group's first tab, behind the calculator.
     await page.getByTestId('tab').first().click({ delay: 20 })
+    const pocket = page.locator('[data-testid=elec16]:not(:has([data-testid=elec16-sci-device]))')
     await expect(pocket).toBeVisible()
     await pocket.focus()
     const pocketTyping = await measure(tenKeys)
@@ -192,6 +182,66 @@ test('asleep at its keys it costs what a paused pane does; typing costs little',
     expect(typing - asleep, `typing over asleep, ${power}`).toBeLessThan(
       process.env.CI ? 3 : 0.1 * room,
     )
+  } finally {
+    await close()
+  }
+})
+
+/** A calculator opened from the picker as a tab of the pocket pane, asleep at its keys. */
+async function openCalculator(page: Page): Promise<Locator> {
+  await settleLayout(page)
+  const pocket = page.locator('[data-testid=elec16]:not(:has([data-testid=elec16-sci-device]))')
+  await pocket.click({ delay: 20 })
+  await page.keyboard.press('Control+Shift+KeyA')
+  await page.getByTestId('pane-picker-filter').fill('sci')
+  await page.locator('[data-testid=pane-picker-placement][data-placement=tab]').click()
+  await page.locator('[data-testid=pane-picker-item][data-widget=elec16][data-variant=sci]').click()
+  const sci = page.locator('[data-testid=elec16]', { has: page.getByTestId('elec16-sci-device') })
+  await expect(sci).toHaveAttribute('data-asleep', 'true', { timeout: 15_000 })
+  await settleLayout(page)
+  return sci
+}
+
+test("the PC's keys hold the calculator's keys down, and SCREEN copies its answer", async () => {
+  const launched = await atSize(await launch(undefined, { layout: ELEC16_BESIDE_CLOCK }))
+  const { app, page, close } = launched
+  try {
+    const sci = await openCalculator(page)
+    const key = (id: string) => sci.locator(`[data-testid=elec16-sci-key][data-key="${id}"]`)
+    const held = /(^| )down( |$)/
+    await sci.focus()
+    // A letter holds its function's key; a SHIFT face holds SHIFT beside its key (! is x!).
+    await page.keyboard.down('s')
+    await expect(key('sin')).toHaveClass(held)
+    await page.keyboard.up('s')
+    await expect(key('sin')).not.toHaveClass(held)
+    await page.keyboard.down('Shift')
+    await page.keyboard.down('Digit1')
+    await expect(key('shift')).toHaveClass(held)
+    await expect(key('inv')).toHaveClass(held)
+    await page.keyboard.up('Digit1')
+    await page.keyboard.up('Shift')
+    await expect(key('inv')).not.toHaveClass(held)
+    // The cursor pad's ends too.
+    await page.keyboard.down('ArrowUp')
+    await expect(key('up')).toHaveClass(held)
+    await page.keyboard.up('ArrowUp')
+
+    // An answer, copied as the screen shows it.
+    await page.keyboard.press('Delete')
+    await page.keyboard.type('6*7')
+    await page.keyboard.press('Enter')
+    const text = async () => (await sci.getByTestId('elec16-text').textContent()) ?? ''
+    await expect.poll(text).toContain('42')
+    await sci.getByRole('tab', { name: 'tune' }).click()
+    await sci.locator('[data-testid=elec16-capture][data-what=text]').click()
+    await expect.poll(async () => (await clipboardText(app)) ?? '').toContain('42')
+    // ON is Pause, held while it is (last: ON shows the calculator's name for a moment).
+    await sci.focus()
+    await page.keyboard.down('Pause')
+    await expect(key('on')).toHaveClass(held)
+    await page.keyboard.up('Pause')
+    await expect(key('on')).not.toHaveClass(held)
   } finally {
     await close()
   }

@@ -96,15 +96,23 @@ export async function saveDialogAnswers(
 ): Promise<() => Promise<{ owned: boolean }[]>> {
   await app.evaluate(({ BrowserWindow, dialog }, filePath) => {
     const opened: { owned: boolean }[] = []
+    const names: string[] = []
     ;(globalThis as { __saveDialogs?: unknown }).__saveDialogs = opened
+    ;(globalThis as { __saveDialogNames?: unknown }).__saveDialogNames = names
     dialog.showSaveDialog = (async (...args: unknown[]) => {
       opened.push({ owned: args.length === 2 && args[0] instanceof BrowserWindow })
+      const options = args[args.length - 1] as { defaultPath?: string } | undefined
+      names.push(options?.defaultPath ?? '')
       return { canceled: filePath === null, filePath: filePath ?? '' }
     }) as never
   }, answer)
   return () =>
     app.evaluate(() => (globalThis as { __saveDialogs?: { owned: boolean }[] }).__saveDialogs ?? [])
 }
+
+/** The name each save dialog since `saveDialogAnswers` offered (its `defaultPath`). */
+export const saveDialogNames = (app: ElectronApplication): Promise<string[]> =>
+  app.evaluate(() => (globalThis as { __saveDialogNames?: string[] }).__saveDialogNames ?? [])
 
 /**
  * Makes the page's copies (`navigator.clipboard.writeText`, the COPY buttons) land in a list

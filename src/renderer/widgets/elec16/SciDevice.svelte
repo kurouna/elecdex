@@ -3,6 +3,7 @@ import { SCI_KEY_BY_ID } from '@shared/elec16/sci-keys'
 import { watchRoom } from '../emu/screen.ts'
 import Lcd from './Lcd.svelte'
 import type { LcdColours } from './lcd-painter.ts'
+import { BRK_SHOWN, NO_KEYS } from './machine-keys.svelte.ts'
 import type { SciBodyMode } from './pane-state.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
 import {
@@ -21,7 +22,8 @@ import {
  * top keys round the cursor pad, the function keys and the number keys, each with its SHIFT
  * face printed above it on the left and its ALPHA face on the right. Every place comes from
  * sci-body.ts, the LCD at a whole number of device pixels a dot, never stretched. A key is
- * held while the pointer that pressed it is down; ON is the BRK line. The keys never take the
+ * held while the pointer that pressed it is down, or the PC key that pressed it (`pcDown`);
+ * ON is the BRK line. The keys never take the
  * focus, so the PC's keyboard goes on reaching the machine. PLAIN draws no case, as the pocket
  * models' PLAIN: no plate, no seam, flat keys outlined by the panel rule on the pane's ground.
  */
@@ -34,9 +36,15 @@ interface Props {
   ghost: boolean
   contrast: number
   seen: boolean
+  /** The keys the PC holds, by key code and `BRK_SHOWN` for ON (machine-keys): drawn held too. */
+  pcDown?: ReadonlySet<number>
 }
 
-const { runner, mode, skin, lcdColours, ghost, contrast, seen }: Props = $props()
+const { runner, mode, skin, lcdColours, ghost, contrast, seen, pcDown = NO_KEYS }: Props = $props()
+
+/** Whether the PC holds the key `id`, ON by its mark. */
+const pcHolds = (id: string): boolean =>
+  pcDown.has(id === 'on' ? BRK_SHOWN : (SCI_KEY_BY_ID.get(id)?.code ?? NaN))
 
 let host = $state<HTMLDivElement | null>(null)
 let room = $state({ w: 0, h: 0, ratio: 1 })
@@ -256,7 +264,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
             <button data-press="off"
               type="button"
               class="end"
-              class:down={down.has(arrow.id)}
+              class:down={down.has(arrow.id) || pcHolds(arrow.id)}
               tabindex="-1"
               style={PAD_ENDS[arrow.id]}
               aria-label={arrow.id}
@@ -289,7 +297,7 @@ const PAD_ENDS: Readonly<Record<string, string>> = {
           class:warm={k.id === 'del' || k.id === 'ac'}
           class:eq={k.id === 'eq'}
           class:op={OPERATORS.has(k.id)}
-          class:down={down.has(k.id)}
+          class:down={down.has(k.id) || pcHolds(k.id)}
           tabindex="-1"
           style={place(k.at)}
           aria-label={spoken(k.id)}

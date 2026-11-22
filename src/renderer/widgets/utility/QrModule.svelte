@@ -18,6 +18,7 @@ import {
   WIFI_AUTH,
 } from '@shared/utility'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
+import { pngBytes } from '../../lib/png.ts'
 import { qrBuild } from '../../lib/qr-code.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -197,13 +198,8 @@ $effect(() => () => copied.dispose())
 async function copy(): Promise<void> {
   if (built.kind !== 'code') return
   const { width, data: pixels } = qrPixels(built.code, colours, 8)
-  const out = document.createElement('canvas')
-  out.width = width
-  out.height = width
-  out.getContext('2d')?.putImageData(new ImageData(pixels, width, width), 0, 0)
-  const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, 'image/png'))
-  if (blob === null) return
-  const data = new Uint8Array(await blob.arrayBuffer())
+  const data = await pngBytes(pixels, width, width)
+  if (data === null) return
   if (await copied.through('qr', () => window.elecdex.utility.copy({ kind: 'png', data })))
     sfx.play('folder')
 }

@@ -293,6 +293,8 @@ export const CH = {
     soft: 'elec16:soft',
     import: 'elec16:import',
     export: 'elec16:export',
+    /** SAVE PNG: the screen's picture, saved where the user picks (main names it). */
+    savePng: 'elec16:save-png',
     /** CODE: a card file's bytes, and a .TS or .BIN written to the card. */
     readFile: 'elec16:read-file',
     writeFile: 'elec16:write-file',

@@ -1,5 +1,4 @@
 <script lang="ts">
-import { dotText, screenText } from '@shared/elec16/font'
 import { MODELS } from '@shared/elec16/map'
 import { annunciatorsOf } from '@shared/elec16/state'
 import { untrack } from 'svelte'
@@ -9,6 +8,7 @@ import { deviceRoom, drawDotGrid, type Room } from '../emu/screen.ts'
 import { GLASS } from './layout.ts'
 import { type Cursor, type LcdColours, LcdPainter } from './lcd-painter.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
+import { screenLines } from './screen-text.ts'
 
 /**
  * The ELEC-16's LCD (docs/elec16.md section 7): its glass in the ground's colour with the
@@ -169,9 +169,7 @@ function readText(): void {
   const s = runner.machine?.state
   if (s === undefined || s.screenRevision === readAt) return
   readAt = s.screenRevision
-  // The calculator sets its text on any dot row and its answers in big digits: read by dots.
-  const read = model.rom === 'sci' ? dotText : screenText
-  const now = s.lcd.on && !s.off ? read(s.vram, model.width, model.height).join('\n') : ''
+  const now = screenLines(model, s).join('\n')
   if (now !== text) text = now
 }
 

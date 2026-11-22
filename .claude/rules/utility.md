@@ -30,9 +30,10 @@ the files above is read or edited.
   - AWAKE: `powerSaveBlocker` only, OFF / SYSTEM / DISPLAY. The hold is main's (`AwakeService`,
     `awake.json`), never pane state, and goes on with no pane open (the status bar and tray say
     so); its end waits on one `setTimeout`, rechecked on `resume`, never a tick.
-  - Copies go through main (`utility.copy`). A Wi-Fi password is kept only sealed (`utility.seal`,
-    safeStorage, purpose-checked by `unseal`), unsealed only while its code is shown, never in
-    plain. CODEC's input is never written.
+  - Copies go through main (`utility.copy`), other panes' too (AWS, DOCKER, GITHUB, LOG WATCH,
+    the ELEC-16's SCREEN). A Wi-Fi password is kept only sealed (`utility.seal`, safeStorage,
+    purpose-checked by `unseal`), unsealed only while its code is shown, never in plain. CODEC's
+    input is never written.
   - A QR code is dark on light, in theme colours only when contrast holds (`qrColours`); a test
     reads every theme's code back.
   - Tests: `ELECDEX_AWAKE_STUB=1`, `globalThis.__elecdexAwake`.

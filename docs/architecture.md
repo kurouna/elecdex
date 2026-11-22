@@ -1435,7 +1435,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 
 - **器**: タイマーペインと同じく、上の切り替えボタン（`AWAKE | QR | CODEC`）で 1 つを出す。どれを出すかはペイン状態の `module`。モジュールの一覧は `UTILITY_MODULES`（shared/utility.ts）で、ペインではなくデータとして足す。ペイン状態の読み取りは純粋関数 `readUtilityPane`（型と長さを確かめ、足りないものは既定値）。ホールド中は、AWAKE 以外を出していても切り替えの行の右に `◆ hold · display · until 15:42` が出て、押すと AWAKE に切り替わる（タイマーの「もう一方のモードの様子」と同じ。期限は時刻で言い、数えないので毎秒の書き換えは無い）。ボタンの見た目（`u-row` / `u-label` / `u-chip`）は UTILITY ペインが 1 か所で持つ。**Ctrl+Shift+U**（`utility.focus`）はランチャーと同じ呼び出しの共通部（§5.13）で、レイアウトの UTILITY へフォーカス（複数なら押すたびに次へ）、無ければポップアップ、ポップアップが出ていれば閉じる（利用者の決定。閉じる判断は UTILITY の中で完結させ、共通部に分岐を持たせない）。ポップアップは前回のモジュールで開く。Linux の IBus は Ctrl+Shift+U を Unicode 入力に使うので、キーが届かない環境では設定で変えるペインの見出しのバッジ `hold` も同じ理由（裏のタブでも見える）。`multiple`、`popup: true`、`zoom: 'panel'`
 - **モジュールにしてよいもの**（規則は .claude/rules/utility.md）: ユーザーが明示した操作で始まるスイッチか一度きりの操作。main の中で Electron の API か既存の仕組みで行い、操作のたびにプロセスを起動しない。ネットワークを使わない。同意の要るものは読まない。プラグインからは届かない（plugin-api.ts に無い）。対応の可否はプラットフォーム名ではなく、main が確かめた結果で決める。入れないと決めたもの: カラーピッカー（画面のキャプチャが要る）、hosts の編集（管理者権限）、OCR、キーの割り当て変更、ロック画面の無効化
-- **コピー**: QR の画像と CODEC の結果は、ページの `navigator.clipboard` ではなく main の `utility.copy` で書く（テキストは 1 MB、PNG は署名を確かめて 4 MB まで）。main のクリップボードの層を通るので、テストでは `ELECDEX_CLIPBOARD_STUB` の代役に書かれ、実機のクリップボードに触れない
+- **コピー**: QR の画像と CODEC の結果（ほかのペインのコピーも: AWS、DOCKER、GITHUB、LOG WATCH、ELEC-16 の SCREEN）は、ページの `navigator.clipboard` ではなく main の `utility.copy` で書く（テキストは 1 MB、PNG は署名を確かめて 4 MB まで）。main のクリップボードの層を通るので、テストでは `ELECDEX_CLIPBOARD_STUB` の代役に書かれ、実機のクリップボードに触れない
 
 #### AWAKE（スリープの抑止）
 

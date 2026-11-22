@@ -53,6 +53,19 @@ export function strength(contrast: number): number {
   return Math.min(1, 0.4 + Math.max(0, Math.min(15, contrast)) * 0.075)
 }
 
+/**
+ * How strongly a dot at `level` (0..FULL) shows over the ground at a contrast of 0 to 15.
+ * Above the machine's own contrast, a dot that is out shows faintly, as on a real panel.
+ */
+export function dotAlpha(level: number, contrast: number): number {
+  const offTint = Math.max(0, contrast - 8) * 0.025
+  return Math.max(offTint, (level / FULL) * strength(contrast))
+}
+
+/** The level a dot of shade `shade` (0..3 on a two-plane screen, 0..1 on one) shows at. */
+export const shadeLevel = (shade: number, depth: number): number =>
+  Math.round(shade * (depth === 2 ? FULL / 3 : FULL))
+
 export class LcdPainter {
   width = 0
   height = 0
@@ -80,11 +93,8 @@ export class LcdPainter {
     this.height = height
     this.#dots = words(dots)
     this.#shadows = words(shadows)
-    const shown = strength(contrast)
-    // Above the machine's own contrast, a dot that is out shows faintly, as on a real panel.
-    const offTint = Math.max(0, contrast - 8) * 0.025
     for (let level = 0; level <= FULL; level++) {
-      this.#dot[level] = word(colours.dot, Math.max(offTint, (level / FULL) * shown))
+      this.#dot[level] = word(colours.dot, dotAlpha(level, contrast))
       this.#shadow[level] = word(colours.shadow, level / FULL)
     }
     // Unknown levels: every dot is drawn on the next paint.
@@ -104,7 +114,6 @@ export class LcdPainter {
     cursor: Cursor | null,
   ): { dirty: Rect | null; fading: boolean } {
     const { width, height } = this
-    const shadeStep = depth === 2 ? FULL / 3 : FULL
     const box = new Box(width, height)
     // The cursor is the page's mark, not the crystals': its cell, where it is now and where
     // it was, changes at once, or a blink would only dim it.
@@ -113,7 +122,7 @@ export class LcdPainter {
     let fading = false
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const shade = Math.round((pixels[y * width + x] ?? 0) * shadeStep)
+        const shade = shadeLevel(pixels[y * width + x] ?? 0, depth)
         const target = cursor === null ? shade : cursorLevel(shade, x, y, cursor)
         const fade = ghost && !inEither(x, y, cursor, last)
         const moved = this.#move(x, y, target, fade)
