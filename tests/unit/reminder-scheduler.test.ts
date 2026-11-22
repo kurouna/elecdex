@@ -41,6 +41,22 @@ describe('the scheduler', () => {
     scheduler.dispose()
   })
 
+  it('asks Date.now each time, so a clock moved after it was made is the one it waits by', () => {
+    // The e2e test of an alarm ringing moves main's clock forward instead of waiting out a minute.
+    const real = Date.now
+    const rung: string[] = []
+    const scheduler = createScheduler((id) => rung.push(id))
+    try {
+      Date.now = () => real() + 9 * MINUTE
+      scheduler.update([at('soon', 10)])
+      vi.advanceTimersByTime(MINUTE)
+      expect(rung).toEqual(['soon'])
+    } finally {
+      Date.now = real
+      scheduler.dispose()
+    }
+  })
+
   it('runs no timer at all when nothing is waiting', () => {
     const scheduler = createScheduler(() => {})
     scheduler.update([])

@@ -11,8 +11,19 @@ import path from 'node:path'
 const CHROMIUM =
   /^(Cache|Code Cache|GPUCache|GPUPersistentCache|GrShaderCache|ShaderCache|Dawn\w*|Local Storage|Session Storage|Network|blob_storage|Shared Dictionary|SharedStorage|IndexedDB|Partitions|WebStorage|Crashpad|Service Worker|Extension State|VideoDecodeStats|shared_proto_db|databases|Dictionaries|Trust Tokens|Local State|Preferences|DIPS.*|DevToolsActivePort|lockfile|declarative_performance_observer.*|.*\.log|Cookies.*|Network Persistent State|TransportSecurity)$/
 
-/** Files main manages through APIs the reset checks directly, or rewrites as it runs. */
-const CHECKED_ELSEWHERE = new Set(['layout.json', 'layouts.json', 'settings.json'])
+/**
+ * Files main manages through APIs the reset checks directly, or rewrites as it runs. The
+ * launcher's catalog and icons are this machine's list of apps, which main caches whenever a
+ * launcher pane has read it: no test leaves them, and counting them restarted the shared app
+ * after tests on the default layout (measured 2026-11-22: 7 of the 42 restarts in ten specs).
+ */
+const CHECKED_ELSEWHERE = new Set([
+  'layout.json',
+  'layouts.json',
+  'settings.json',
+  'launcher-catalog.json',
+  'launcher-icons',
+])
 
 /**
  * A write in flight: main writes a file whole beside it (`<file>.<pid>.tmp`, json-store.ts;

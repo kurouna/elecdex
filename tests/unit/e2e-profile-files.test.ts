@@ -47,6 +47,14 @@ describe('profileFiles', () => {
     expect(Object.keys(profileFiles(dir)).sort()).toEqual(['chip8/library.json', 'notes.json'])
   })
 
+  it("leaves out the launcher's cache of this machine's apps, which main rewrites as it runs", () => {
+    writeFileSync(path.join(dir, 'notes.json'), '{}')
+    writeFileSync(path.join(dir, 'launcher-catalog.json'), '{}')
+    mkdirSync(path.join(dir, 'launcher-icons'))
+    writeFileSync(path.join(dir, 'launcher-icons', 'a.png'), 'png')
+    expect(Object.keys(profileFiles(dir))).toEqual(['notes.json'])
+  })
+
   it('skips a file that went between the listing and the read', () => {
     writeFileSync(path.join(dir, 'notes.json'), '{}')
     writeFileSync(path.join(dir, 'tasks.json'), '[]')

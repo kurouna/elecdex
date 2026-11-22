@@ -299,4 +299,7 @@ No `[` `]`, no absolute paths, no attribution trailers. Update docs/decisions.md
   that drives what changed (a new shortcut: the specs that press shortcuts; the status bar or a
   dialog: the specs that open them). Say which specs were run.
 - **Before a release**, or for a change across the whole app (the layout tree, the settings
-  schema, the preload surface): the whole suite, `npx playwright test`.
+  schema, the preload surface): the whole suite. CI runs it on every push, on every system, in
+  about 20 minutes: push and read the run (a release is tagged only on a green run,
+  [.claude/rules/publishing.md](.claude/rules/publishing.md)). `npx playwright test` runs it
+  here, in about 50.

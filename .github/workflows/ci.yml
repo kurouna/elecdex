@@ -64,22 +64,29 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y zsh fish
       - run: npm test
 
-  # Each system's suite is run in parts, each on a runner of its own: four shares of the e2e
+  # Each system's suite is run in parts, each on a runner of its own: five shares of the e2e
   # project and the perf project apart. One app per machine, as on a desk - running specs side by
   # side on one machine made the load-sensitive ones fail (docs/e2e-design.md section 6.5) - and
-  # about a quarter of the hour the whole suite took on windows-latest (docs/decisions.md,
-  # 2026-11-22). perf measures on a runner nothing else is loading. A narrowed run is one part.
+  # a fifth of the hour the whole suite took on windows-latest (docs/decisions.md, 2026-11-22).
+  # perf measures on a runner nothing else is loading. A narrowed run is one part.
   e2e:
     name: e2e (${{ matrix.os }} ${{ matrix.part }})
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.e2e_os || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
-        part: ${{ fromJSON(inputs.e2e_specs && '["chosen"]' || '["1", "2", "3", "4", "perf"]') }}
+        part: ${{ fromJSON(inputs.e2e_specs && '["chosen"]' || '["1", "2", "3", "4", "5", "perf"]') }}
     runs-on: ${{ matrix.os }}
     env:
       # The narrowing comes in through the environment, never pasted into the command line.
-      E2E_ARGS: ${{ inputs.e2e_specs || (matrix.part == 'perf' && '--project=perf --no-deps' || format('--project=e2e --shard={0}/4', matrix.part)) }}
+      E2E_ARGS: ${{ inputs.e2e_specs || (matrix.part == 'perf' && '--project=perf --no-deps' || format('--project=e2e --shard={0}/5', matrix.part)) }}
+      # How many tests each share takes, in run order: Playwright shares by count, file by file,
+      # and the files' minutes per test differ by threefold, so equal counts left the longest
+      # share half again as long as the shortest. These counts cut where the minutes of the last
+      # windows-latest run are even (about 11 minutes each; docs/decisions.md, 2026-11-22). They
+      # drift as tests are added - re-cut when one share runs long. Playwright reads this variable
+      # without documenting it; without it the shares are equal counts again, nothing worse.
+      PWTEST_SHARD_WEIGHTS: ${{ !inputs.e2e_specs && '122:129:162:114:88' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

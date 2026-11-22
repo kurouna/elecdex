@@ -368,24 +368,31 @@ test('a task is renamed and given a deadline where it is read', async ({ shared 
 })
 
 test('an alarm goes off at its time, with the chrono pane closed', async () => {
-  // An alarm is a time of day, so the shortest honest wait is the turn of the
-  // next minute - which is the one thing in the suite worth waiting for: it is
-  // what says an alarm rings with nothing of its pane on screen.
-  test.setTimeout(180_000)
+  // An alarm is a time of day, which would mean waiting up to a minute for the next one to come
+  // round. Main's clock is moved instead, to a few seconds before the alarm's minute: what rings
+  // it is still main's own timer, counting real seconds, with nothing of its pane on screen.
   // Only a clock in the layout: nothing on screen knows about alarms.
-  const { page, close, userData } = await launch(undefined, { layout: single('clock') })
+  const { app, page, close, userData } = await launch(undefined, {
+    layout: single('clock'),
+  })
   try {
-    // Far enough into the next minute that the write lands before it comes round.
-    const soon = new Date(Date.now() + 65_000)
-    soon.setSeconds(0, 0)
+    // A minute boundary a little way off, and main's clock six seconds short of it: room for the
+    // write to land before it comes round.
+    const ringsAt = new Date(Date.now() + 120_000)
+    ringsAt.setSeconds(0, 0)
+    await app.evaluate((_electron, target) => {
+      const real = Date.now
+      const offset = target - real()
+      Date.now = () => real() + offset
+    }, ringsAt.getTime() - 6000)
     const alarms = {
       version: 1,
       alarms: [
         {
           id: 'lunch',
           label: 'lunch break',
-          hour: soon.getHours(),
-          minute: soon.getMinutes(),
+          hour: ringsAt.getHours(),
+          minute: ringsAt.getMinutes(),
           days: [],
           enabled: true,
         },
@@ -397,7 +404,7 @@ test('an alarm goes off at its time, with the chrono pane closed', async () => {
     writeFileSync(path.join(userData, 'alarms.json'), JSON.stringify(alarms))
 
     const toast = page.getByTestId('toast')
-    await expect(toast).toHaveCount(1, { timeout: 120_000 })
+    await expect(toast).toHaveCount(1, { timeout: 30_000 })
     await expect(toast).toContainText('lunch break')
 
     // A one-off has had its moment and switches itself off, as a phone's does.

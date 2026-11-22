@@ -39,7 +39,10 @@ export interface Scheduler {
 
 export function createScheduler(
   fire: (id: string, at: number) => void,
-  now: () => number = Date.now,
+  // Asked of `Date.now` each time, not the function it was when this was made: the e2e test
+  // of an alarm ringing moves main's clock to just before the alarm's minute, rather than
+  // waiting up to a minute for it (tests/e2e/panes/desk.spec.ts).
+  now: () => number = () => Date.now(),
 ): Scheduler {
   let timer: NodeJS.Timeout | null = null
   let entries: readonly ScheduleEntry[] = []

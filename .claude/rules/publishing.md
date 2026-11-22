@@ -48,18 +48,21 @@ the files above is read or edited.
   (scripts/gen-notices.mjs) from what each build bundled; the package puts it, and LICENSE,
   beside the executable. New bundled data goes into `DATA_SOURCES`
   (scripts/third-party-notices.mjs) and the README table.
-- **Releases** (the procedure, user decision 2026-10-18), in this order:
+- **Releases** (the procedure, user decision 2026-10-18; the whole suite moved to CI by user
+  decision 2026-11-22), in this order:
   1. Bump `package.json` (and package-lock.json, `npm version --no-git-tag-version`); in all
      three READMEs, name the new version in the status line and drop the *unreleased* marks of
      what it carries - in the READMEs and in docs/guide, all three languages.
-  2. Run every test: `npm run verify`, `npm run build`, then the whole `npx playwright test` (the
-     `perf` project last), then `npm run package:dir` and `npm run test:packaged`.
-     Only when all are green (a failure here is fixed, or shown to be this machine's, first).
-  3. Commit `chore(release): v<version> / v<version> をリリース`, tag `v<version>`, push the
-     branch and the tag (.github/workflows/release.yml makes a pre-release a person promotes).
-  4. Once the release workflow is done, read the release and its notes (`gh release view`):
+  2. Run here: `npm run verify`, `npm run build`, `npm run test:e2e:smoke`, then
+     `npm run package:dir` and `npm run test:packaged`. Not the whole e2e suite: CI runs it in
+     step 3, on every system.
+  3. Commit `chore(release): v<version> / v<version> をリリース` and push the branch, not the
+     tag yet. Wait for that commit's CI run (every system's whole suite, `perf` too, about 20
+     minutes) and read it: only when every job is green go on (a failure is fixed, committed
+     and pushed, and the new commit's run read again).
+  4. Tag the green commit `v<version>` and push the tag (.github/workflows/release.yml makes a
+     pre-release a person promotes).
+  5. Once the release workflow is done, read the release and its notes (`gh release view`):
      the assets for every platform, and the notes in English and Japanese.
-  5. Read the CI run of the pushed commit. A failing test is fixed, committed and pushed; a
-     fault in the shipped code that is not severe does not need a new release.
 - **The builds are unsigned**: the README's *If a warning appears* (per OS) and release.yml's
   notes (English and Japanese) say the same; change both.

@@ -120,7 +120,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 
 ## テスト
 
-エンドツーエンドテストは実際のサービスに接続せず、実行しているマシンにも手を触れません。天気、マーケット、更新確認は閉じたポートかローカルのスタブに向けられ（予報とともに気象庁の地震・津波の一覧、USGS と NOAA のフィードも同様です）、RSS フィード、AI プロバイダー、プラグインのホスト、Web ペインのサイトはローカルサーバーが応答します。サウンド、通知領域のアイコン、サインイン時の登録、ソケットの一覧、API キーの暗号化は代用品に置き換えられます。スイート全体には数分かかります。リリース前には全体を実行し、個々の変更ではその変更が影響しうるスペックを実行します。
+エンドツーエンドテストは実際のサービスに接続せず、実行しているマシンにも手を触れません。天気、マーケット、更新確認は閉じたポートかローカルのスタブに向けられ（予報とともに気象庁の地震・津波の一覧、USGS と NOAA のフィードも同様です）、RSS フィード、AI プロバイダー、プラグインのホスト、Web ペインのサイトはローカルサーバーが応答します。サウンド、通知領域のアイコン、サインイン時の登録、ソケットの一覧、API キーの暗号化は代用品に置き換えられます。スイート全体は 1 台で約 50 分かかります。CI は push のたびに全 OS で全体を約 20 分で実行し、リリースのタグは CI が緑の実行にだけ付けます。個々の変更ではその変更が影響しうるスペックを実行します。
 
 | フォルダー | 実行 | 内容 |
 | --- | --- | --- |
@@ -133,7 +133,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 | `tests/e2e/contracts/` | Playwright | すべてのペイン・キー・ダイアログ・IPC メソッドに対する表駆動の検査: mount、lifecycle、永続化、モーション、テーマ、キー割り当て、IPC、障害、出典表示、外部へのリクエストがないこと |
 
 - Playwright には 2 つのプロジェクトがあります: `e2e`（`@perf` 以外のすべて）と、その後に走る `perf`（アイドル時の予算と CPU の計測）。
-- GitHub Actions では、OS ごとの全件を 5 つに分け、それぞれ別のランナーで走らせます: `e2e` を 4 等分したもの（`--shard`）と、`perf` 単独（`--project=perf --no-deps`）。1 台で動くアプリは 1 つです。どれかが落ちると、`e2e report` ジョブがその OS の結果をまとめて 1 つの HTML レポート（`playwright-report-<os>`）にします。
+- GitHub Actions では、OS ごとの全件を 5 つに分け、それぞれ別のランナーで走らせます: `e2e` を 5 つに分けたもの（`--shard`。前回測った時間が均等になる件数で区切る: ワークフローの `PWTEST_SHARD_WEIGHTS`）と、`perf` 単独（`--project=perf --no-deps`）。1 台で動くアプリは 1 つです。どれかが落ちると、`e2e report` ジョブがその OS の結果をまとめて 1 つの HTML レポート（`playwright-report-<os>`）にします。
 - スタブは `tests/e2e/support.ts` が設定する環境変数（`STUB_ENV`）です。`ELECDEX_AUDIO_STUB=1`、`ELECDEX_WIFI_STUB=1`、`ELECDEX_DOCKER_STUB=1` など。
 - e2e スイートの設計（どの種類の検査をどこに置くか、その理由）: [docs/e2e-design.md](../e2e-design.md)。
 - テストの外で elecdex が動いていると（インストール済みのアプリや、開いたままの `npm run dev`）、起動やドラッグが失敗します。レポーターがそれを `test-results/elecdex-running.log` に記録します。
@@ -176,12 +176,12 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 ## リリース手順
 
 1. `package.json` の `version` を設定し、コミットして push します。
-2. そのコミットに `v<version>` のタグを付けて push します: `git tag v0.1.0 && git push origin v0.1.0`。
+2. そのコミットの CI が全 OS で緑になったら、`v<version>` のタグを付けて push します: `git tag v0.1.0 && git push origin v0.1.0`。
 3. Release ワークフローがタグと `package.json` の一致を確認し、lint、型チェック、ユニットテストを実行したうえで、自動生成したノート付きの GitHub プレリリースを作成し、Windows（x64、arm64）、macOS（arm64、x64）、Linux（AppImage と deb、x64 と arm64）のインストーラーを添付します。
 4. プレリリースを確認し、準備ができたら "Set as a pre-release" のチェックを外します。更新確認はプレリリースを無視するので、動いているアプリが新しいリリースを知らせるのはこの後です。
 
 - ワークフロー（[.github/workflows/release.yml](../../.github/workflows/release.yml)）は、ランナーが自分で作ったものを実行できる場合、各パッケージを利用者が受け取る形のまま 1 回起動します（クロスビルドの Windows arm64 と macOS x64 は除く）。
 - ビルドには署名がありません。各 OS で出る警告と、その先へ進む方法は README の *警告が表示されたら* にあります。
-- メンテナー向けの完全な手順（タグの前にテスト全体とパッケージ済みアプリを実行し、後でリリースを読む）は、[CLAUDE.md](../../CLAUDE.md) の *Releases* にあります。
+- メンテナー向けの完全な手順（手元で検査とパッケージ済みアプリを実行し、CI が緑になってからタグを付け、後でリリースを読む）は、[.claude/rules/publishing.md](../../.claude/rules/publishing.md) の *Releases* にあります。
 
 関連: [キーボードとレイアウト](keyboard.ja.md) · [テーマと設定](themes-settings.ja.md) · [プラグイン](plugins-use.ja.md)

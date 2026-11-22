@@ -120,7 +120,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 
 ## Tests
 
-End-to-end tests never contact a real service, and never touch the machine they run on: weather, markets and the update check are pointed at closed ports or local stubs (JMA's earthquake and tsunami lists with the forecasts, and the USGS and NOAA feeds), RSS feeds, AI providers, plugin hosts and the web panes' sites are served by a local server, and the sound, the notification-area icon, the sign-in entry, the socket table and the encryption of API keys are stand-ins. The whole suite takes minutes; it is run in full before a release, and a change runs the specs it can reach.
+End-to-end tests never contact a real service, and never touch the machine they run on: weather, markets and the update check are pointed at closed ports or local stubs (JMA's earthquake and tsunami lists with the forecasts, and the USGS and NOAA feeds), RSS feeds, AI providers, plugin hosts and the web panes' sites are served by a local server, and the sound, the notification-area icon, the sign-in entry, the socket table and the encryption of API keys are stand-ins. The whole suite takes about 50 minutes on one machine; CI runs it in full on every push, on every system, in about 20, a release is tagged only on a green run, and a change runs the specs it can reach.
 
 | Folder | Runner | What it holds |
 | --- | --- | --- |
@@ -133,7 +133,7 @@ End-to-end tests never contact a real service, and never touch the machine they 
 | `tests/e2e/contracts/` | Playwright | Table-driven checks over every pane, key, dialog and IPC method: mount, lifecycle, persistence, motion, themes, keybindings, IPC, faults, attribution, no external requests |
 
 - Playwright runs two projects: `e2e` (everything but `@perf`) and `perf` (the idle budget and CPU measurements), which runs after it.
-- On GitHub Actions each system's suite runs in five parts, each on a runner of its own: four shares of `e2e` (`--shard`) and `perf` alone (`--project=perf --no-deps`). One app runs per machine. When a part fails, the `e2e report` job merges that system's parts into one HTML report (`playwright-report-<os>`).
+- On GitHub Actions each system's suite runs in five parts, each on a runner of its own: five shares of `e2e` (`--shard`, cut by count where the last measured minutes are even: `PWTEST_SHARD_WEIGHTS` in the workflow) and `perf` alone (`--project=perf --no-deps`). One app runs per machine. When a part fails, the `e2e report` job merges that system's parts into one HTML report (`playwright-report-<os>`).
 - The stubs are environment variables set by `tests/e2e/support.ts` (`STUB_ENV`), such as `ELECDEX_AUDIO_STUB=1`, `ELECDEX_WIFI_STUB=1` or `ELECDEX_DOCKER_STUB=1`.
 - The design of the e2e suite, where each kind of check lives and why: [docs/e2e-design.md](../e2e-design.md) (Japanese).
 - If an elecdex runs outside the tests (an installed app, or `npm run dev` left open), launches and drags fail; the reporter logs it to `test-results/elecdex-running.log`.
@@ -176,12 +176,12 @@ The rules a change must keep - the security boundary, where the network lives, w
 ## Releasing
 
 1. Set `version` in `package.json`, commit, and push.
-2. Tag that commit `v<version>` and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
+2. Once that commit's CI run is green on every system, tag it `v<version>` and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
 3. The Release workflow checks the tag against `package.json`, runs lint, typecheck and unit tests, creates a GitHub pre-release with generated notes, and attaches installers for Windows (x64, arm64), macOS (arm64, x64) and Linux (AppImage and deb, x64 and arm64).
 4. Review the pre-release and, when it is ready, untick "Set as a pre-release". The update check ignores pre-releases, so only then do running copies announce it.
 
 - The workflow ([.github/workflows/release.yml](../../.github/workflows/release.yml)) also starts each package once as a user gets it, where the runner can run what it built (not the cross-built Windows arm64 and macOS x64).
 - The builds are unsigned; the README's *If a warning appears* says what each OS shows and how to get past it.
-- The maintainers' full checklist, which runs the whole test suite and the packaged app before tagging and reads the release afterwards, is under *Releases* in [CLAUDE.md](../../CLAUDE.md).
+- The maintainers' full checklist, which runs the checks and the packaged app here, waits for a green CI run before tagging and reads the release afterwards, is under *Releases* in [.claude/rules/publishing.md](../../.claude/rules/publishing.md).
 
 See also: [Keyboard and layouts](keyboard.md) · [Themes and settings](themes-settings.md) · [Plugins](plugins-use.md)
