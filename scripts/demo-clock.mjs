@@ -3,11 +3,11 @@
  * the clock is the top of: the system column gives it a strip of its own across the column's
  * width, and each face uses that width differently.
  *
- *   strip      LONGITUDE, the default: the world's time zones beside the time, lit by day
- *   forward    the clock brought forward (Ctrl+Shift+Z): the same face laid out as a block
+ *   opening    WEEK brought forward (Ctrl+Shift+Z) from the first frame, then back in the strip
  *   settings   the settings dialog's clock section: the list, the line under it saying what the
- *              chosen face shows, and WEEK chosen there
- *   faces      each face in turn, in the strip and then brought forward: WEEK, AHEAD (two alarms
+ *              chosen face shows, and LONGITUDE, the default, chosen there: the world's time
+ *              zones beside the time, lit by day, in the strip and brought forward
+ *   faces      each face in turn, in the strip and then brought forward: AHEAD (two alarms
  *              this take sets and the made-up tasks falling due), TAPE, DIGITAL, SEGMENT, VECTOR,
  *              DIAL, and KARMAN, the wind tunnel solved for real, last and longest
  *   back       LONGITUDE again
@@ -47,8 +47,8 @@ const { app, page, wait, settled, run, caption } = await openTake({
   items,
   options,
   standIn,
-  // The take begins on the default face, whatever a profile would have chosen.
-  settings: { clock: { face: 'longitude' } },
+  // The take begins on WEEK, brought forward at once (opening, below).
+  settings: { clock: { face: 'week' } },
 })
 const { paneOf, press, away } = beats({ app, page, wait, settled, theme: options.theme })
 const clock = paneOf('clock')
@@ -60,7 +60,7 @@ const FACES = [
   ['digital', 'DIGITAL: the face elecdex began with, its digits rolling as they change'],
   ['segment', 'SEGMENT: seven segments, like a vacuum fluorescent display'],
   ['vector', 'VECTOR: single strokes, redrawn as if by a plotter'],
-  ['dial', 'DIAL: an analogue dial, the figures beside it on one line'],
+  ['dial', 'DIAL: an analog dial, the figures beside it on one line'],
 ]
 
 const setFace = (face) =>
@@ -107,16 +107,21 @@ async function setAlarms() {
   )
 }
 
-async function strip() {
-  await caption('The clock has faces now. LONGITUDE: the time, and where in the world it is day')
-  await wait(4200)
-  await caption('Cities stand at their offsets, with their own times - the strip uses its width')
+/**
+ * The opening: WEEK brought forward at once, the first thing on screen, so the take shows a face
+ * before anyone has read a caption (a viewer leaves in the first seconds; user request
+ * 2026-11-22). Then back into the strip it was made for.
+ */
+async function opening() {
+  await caption('The clock has faces now. WEEK: this week beside the time, today lit')
+  await bringForward()
   await wait(3600)
-}
-
-async function brought() {
-  await caption('Brought forward, a face lays itself out again for the room')
-  await forward(4200)
+  await caption('Each day fills as it goes - and the face lays itself out again for the room')
+  await wait(3000)
+  await page.keyboard.press('Escape')
+  await away()
+  await caption('Back in the strip at the top of the system column, it uses the whole width')
+  await wait(3200)
 }
 
 async function settings() {
@@ -128,13 +133,14 @@ async function settings() {
   await select.scrollIntoViewIfNeeded()
   await wait(1600)
   await caption('A line under the list says what the chosen face shows')
-  await select.selectOption('week')
+  await select.selectOption('longitude')
   await wait(2800)
   await page.keyboard.press('Escape')
   await away()
-  await caption('WEEK: this week beside the time, today lit, each day filling as it goes')
+  await caption('LONGITUDE, the default: the time, and where in the world it is day')
   await wait(4000)
-  await forward(3000)
+  await caption('Cities stand at their offsets, with their own times')
+  await forward(3400)
 }
 
 async function faces() {
@@ -148,7 +154,7 @@ async function faces() {
 
 async function karman() {
   await setFace('karman')
-  await caption('KARMAN: a wind tunnel. The digits are the obstacles; the smoke flows round them')
+  await caption('KARMAN: a wind tunnel. The digits are the obstacles; the smoke flows around them')
   await wait(4400)
   await bringForward()
   await caption('Navier-Stokes, solved ten times a second - listed as using more CPU, and it does')
@@ -171,8 +177,7 @@ await run(async () => {
   await settled()
   await setAlarms()
   const started = Date.now()
-  await strip()
-  await brought()
+  await opening()
   await settings()
   await faces()
   await karman()
