@@ -84,6 +84,7 @@
     "demo:sci": "node scripts/demo-sci.mjs",
     "demo:elec16-intro": "node scripts/demo-elec16-intro.mjs",
     "demo:elec16-keys": "node scripts/demo-elec16-keys.mjs",
+    "demo:elec16-basic": "node scripts/demo-elec16-basic.mjs",
     "demo:games": "node scripts/demo-games.mjs",
     "demo:logwatch": "node scripts/demo-logwatch.mjs",
     "demo:aws": "node scripts/demo-aws.mjs",
