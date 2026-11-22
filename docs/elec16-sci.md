@@ -187,7 +187,7 @@ ELEC-16 の 3 つ目のモデルとして作る関数電卓の仕様です。**�
 - 数字、`+ - * /`、`^`（xʸ）、`(` `)`、`.`、`Enter`（=）、`Backspace`（DEL）、**`Delete`（AC）**、矢印。文字のキーは関数に（`s` SIN、`c` COS、`t` TAN、`l` LN、`g` LOG、`r` √、`f` a/b、`e` EXP、`!` x!）。CapsLock の大文字も同じキー、Shift を押しながらの文字はそのキーの SHIFT 面（レビューで、大文字が何も打たないと分かり、直した）
 - **Esc は取らない**。Ctrl・Alt・Meta 付き、Tab、ファンクションキーも取らない（pc-keys.ts の今の規則。アプリのショートカットとペインから出る道）。判断は PLAY の `play-input.ts` と同じ形の `sciKeyFate`
 - PASTE は SCI では出さない（数字と演算子だけを通す案もあるが、v1 では要らない）
-- PC のキーで押したキーも本体のキーが沈む（*unreleased*、2026-11-22 に作った。`MachineKeys.pcDown`、docs/elec16.md §7）。SHIFT 面（`!`、Shift＋文字）では SHIFT も、Pause の間は ON も沈む。十字キーの端も同じ
+- PC のキーで押したキーも本体のキーが沈む（2026-11-22 に作った。`MachineKeys.pcDown`、docs/elec16.md §7）。SHIFT 面（`!`、Shift＋文字）では SHIFT も、Pause の間は ON も沈む。十字キーの端も同じ
 
 ## 6. 電卓の ROM（`resources/elec16/sci`）
 
@@ -318,7 +318,7 @@ ROM で組めるものは ROM で組む。ユニットに足すのは、ROM で�
 
 - **入口はピッカーの「ELEC-16 SCI」**（§1 の 10）。ピッカーの別の行で、選ぶと main が SCI-128 の新しいユニットを作り（名前は `SCI 1`、`SCI 2` …）、そのユニットで ELEC-16 ペインを開く。ウィジェットは今の `elec16` のまま（ペインの種類は増やさない）で、入口は「どのモデルの新しいユニットで開くか」だけを持つ。今のユニットの BASIC のプログラムには触れない
 - **TUNE のモデルの一覧にも SCI-128** を足す。POCKET・PLAY との行き来は、PLAY と同じく再起動して RAM を消す（意味の違う RAM）。消える前に、二度押しで確かめる（S2 で済み: 1 度目でチップが「clear RAM?」になり、3 秒以内のもう 1 度で替わる。DELETE と同じ形）
-- パネル: **CORE**、**MEM**（電卓の状態の領域に名前）、**TUNE**（クロック、自動電源 OFF、本体、色、SCREEN（*unreleased*）: 答えを文字か絵でコピー、PNG で保存。docs/elec16.md §7））。FILES・GAMES・LINK は出さない（使わない）
+- パネル: **CORE**、**MEM**（電卓の状態の領域に名前）、**TUNE**（クロック、自動電源 OFF、本体、色、SCREEN: 答えを文字か絵でコピー、PNG で保存。docs/elec16.md §7））。FILES・GAMES・LINK は出さない（使わない）
 - **ROM の名前で分けている所をモデルの能力にする**: runner の `#forKey` と `#atPrompt`、TuneView の分け方は今 `rom === 'play'` で書かれている。SCI はキーを待つのがプロンプトで（自動電源 OFF は POCKET と同じに効く）、CODE の RUN は `CALL 28672` を打てないので PLAY と同じく直接呼ぶ。モデルのデータに `prompt: 'basic' | 'start' | 'key'` と `input: 'keyboard' | 'pad' | 'calc'` を置き、ROM 名での分岐を置き換えた（S2）。`prompt` は自動電源 OFF と CODE の RUN（`basic` は CALL を打つ、ほかは `code_return` に戻る直接呼び出し）、`input` は本体・PC のキー・PASTE・パネルのタブ
 - **CODE**: 上の直接呼び出しにすれば、e16c で書いたプログラムが電卓の液晶と鍵盤で動く。仕組みは既にあるので費用は小さい。入れる（§1）。RAM の 7000–7BFF は空けてある
 

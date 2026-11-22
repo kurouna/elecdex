@@ -102,7 +102,7 @@ Choosing the preset adds a saved layout that then follows your work. The desk pr
 | Reads | nothing outside the machine but what you import through main's picker; LINK reaches the AI only when you turn it on |
 | Updates | runs only while switched on, awake and seen; sleeps at its prompt; the LCD is drawn at most 30 times a second |
 | Platforms | Windows, macOS, Linux (macOS and Linux not verified by hand) |
-| Privacy | a person's code runs only as the machine's code, never as JavaScript; an API key never reaches the page or the machine; LINK sends only the question, and only after a person's key press; TUNE's SCREEN writes the screen to the clipboard, or to a PNG where you pick, only when pressed (*unreleased*) |
+| Privacy | a person's code runs only as the machine's code, never as JavaScript; an API key never reaches the page or the machine; LINK sends only the question, and only after a person's key press; TUNE's SCREEN writes the screen to the clipboard, or to a PNG where you pick, only when pressed |
 | Settings | *Settings → General → elec-16*: buzzer volume, skin of a new pane; per unit in the panel's TUNE and LINK |
 
 A 16-bit pocket computer designed for elecdex, not a copy of any real one. Its CPU (E16, a RISC with 32- and 16-bit instructions), ROM, font and BASIC are all its own. The pane's tab names the kind of machine: ELEC-16 POCKET, HANDHELD, PLAY or SCI.
@@ -143,13 +143,11 @@ Each model is chosen in the panel's TUNE. A change restarts the machine.
 ### Keys and PASTE
 
 - The PC's keyboard types into the machine while the pane has the focus. In KANA mode, kana are typed by the JIS layout.
-- *unreleased*: a key on the body goes down while the PC key that pressed it is held: SHIFT beside a character on its shifted face, BRK while Pause is held. The PC's Shift alone is drawn as SHIFT, without sending it to the machine. The かな key switches KANA and its key lights for a moment (an input method keeps its key-up). PASTE's keys are not drawn.
+- A key on the body goes down while the PC key that pressed it is held: SHIFT beside a character on its shifted face, BRK while Pause is held. The PC's Shift alone is drawn as SHIFT, without sending it to the machine. The かな key switches KANA and its key lights for a moment (an input method keeps its key-up). PASTE's keys are not drawn.
 - The pane never takes Esc, Tab, function keys, or keys with Ctrl, Alt or the system key: those stay with the app.
 - **PASTE** (or a right-click on the machine) types the clipboard as key presses. Text the machine cannot type is skipped and counted. Ctrl+V is not taken.
 
 ### The screen's text and picture
-
-*unreleased*:
 
 - **SCREEN** in the panel's TUNE has three buttons. **COPY TEXT** puts the screen's text on the clipboard, read back through the font: graphics read as `?`, the spaces after each line and the empty lines round the text are left out. **COPY IMAGE** puts its picture on the clipboard. **SAVE PNG** saves the picture where you pick, named `elec16-<model>-<date>-<time>.png`.
 - The picture is the dots alone, in the LCD's colours and contrast, four pixels a dot with the gaps between them and the skin's faint unlit dots (no gaps on PLAIN); PLAY-320's is twice its size. The body, the annunciators, the cursor and the dots' shadows are left out.
@@ -198,7 +196,7 @@ Each model is chosen in the panel's TUNE. A change restarts the machine.
 | CORE | the registers and the code, with breakpoints, STEP and HALT |
 | MEM | the memory, following PC, SP, VRAM or a free address |
 | FILES | the card and the SOFT CARD; LOAD ▸ types the `LOAD` line for you |
-| TUNE | PASTE, SCREEN (*unreleased*), the clock (1 to 32 MHz, MAX), the model and LCD, the body, contrast, afterglow, the skin, auto power-off |
+| TUNE | PASTE, SCREEN, the clock (1 to 32 MHz, MAX), the model and LCD, the body, contrast, afterglow, the skin, auto power-off |
 | LINK | a switch for LINK and for each service, the AI provider, requests sent, the last failure |
 | GAMES | PLAY-320 only: the cartridge slot and the game shelf |
 
@@ -385,8 +383,8 @@ A scientific calculator of its own design, the model SCI-128, on a 128×64 LCD w
 
 - From the PC: digits, `+ - * / ^ ( ) .`, Enter (=), Backspace (DEL), Delete (AC) and the arrows.
 - Letter keys type functions: `s` SIN, `c` COS, `t` TAN, `l` LN, `g` LOG, `r` √, `f` a/b, `e` EXP, `!` x!. Shift with a letter types that key's SHIFT face.
-- *unreleased*: a key on the body goes down while the PC key that pressed it is held, SHIFT beside it for a SHIFT face, ON while Pause is held.
-- The panel has CORE, MEM and TUNE, whose SCREEN copies the screen as text or a picture and saves it as a PNG (*unreleased*); there is no FILES, GAMES, LINK or PASTE.
+- A key on the body goes down while the PC key that pressed it is held, SHIFT beside it for a SHIFT face, ON while Pause is held.
+- The panel has CORE, MEM and TUNE, whose SCREEN copies the screen as text or a picture and saves it as a PNG; there is no FILES, GAMES, LINK or PASTE.
 - Its screen reads back for a screen reader, as the other models' do.
 - See [the SCI-128 manual](../elec16-sci-manual.md), in Japanese.
 

@@ -106,8 +106,8 @@ ELEC-16 のキーは次のとおりです。
 - MODE と ANS は PC のキーにありません。画面のキーを押してください
 - Esc、Tab、F キー、Ctrl・Alt との組み合わせは ELEC-16 に送りません（elecdex のショートカットのため）
 - 長いプログラムは、PANEL の TUNE にある **PASTE** か、機械の上の右クリックで、クリップボードの文を打ち込めます。改行は ENTER になります。ひらがなと全角カタカナは半角カナに、全角英数は半角にします。打てない文字は飛ばし、その数を TUNE に出します
-- *unreleased*：逆に、画面の文字（`LIST` や出力）は TUNE の **SCREEN** の **COPY TEXT** でクリップボードに取り出せます。各行の後ろの空白は落とします。**COPY IMAGE** と **SAVE PNG** は画面の絵です
-- *unreleased*：PC のキーを押している間、本体の同じキーも沈みます（SHIFT 面の記号では SHIFT も、Pause では BRK も）
+- 逆に、画面の文字（`LIST` や出力）は TUNE の **SCREEN** の **COPY TEXT** でクリップボードに取り出せます。各行の後ろの空白は落とします。**COPY IMAGE** と **SAVE PNG** は画面の絵です
+- PC のキーを押している間、本体の同じキーも沈みます（SHIFT 面の記号では SHIFT も、Pause では BRK も）
 
 ## 2. 電卓として使う
 
