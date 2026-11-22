@@ -15,7 +15,7 @@
  *
  * Windows only, like the other takes. Run `npm run build` first, then `npm run demo:clock`.
  * The window is 1600x900, a 16:9 frame; record the window. The take starts after the lead
- * (`--lead`, 8 s) and ends by itself in about 85 s; pass `--exit` to close the window when it
+ * (`--lead`, 8 s) and ends by itself in about 65 s; pass `--exit` to close the window when it
  * is over. The options are demo-take.mjs's (`takeOptions`): `--pace`, `--theme`,
  * `--shots=<dir>`, `--no-captions`.
  */
@@ -93,7 +93,7 @@ async function forward(ms) {
   await wait(ms)
   await page.keyboard.press('Escape')
   await away()
-  await wait(900)
+  await wait(400)
 }
 
 /** Two alarms for AHEAD: one in a few minutes, one tomorrow morning. */
@@ -129,7 +129,7 @@ async function faces() {
   for (const [face, text] of FACES) {
     await setFace(face)
     await caption(text)
-    await wait(3400)
+    await wait(1800)
     await forward(2600)
   }
 }
@@ -137,7 +137,7 @@ async function faces() {
 async function karman() {
   await setFace('karman')
   await caption('KARMAN: a wind tunnel. The digits are the obstacles; the smoke flows around them')
-  await wait(4400)
+  await wait(2600)
   await bringForward()
   await caption('Navier-Stokes, solved ten times a second - listed as using more CPU, and it does')
   await wait(7000)
@@ -145,7 +145,7 @@ async function karman() {
   await wait(5000)
   await page.keyboard.press('Escape')
   await away()
-  await wait(900)
+  await wait(400)
 }
 
 /**
