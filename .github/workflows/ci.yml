@@ -64,11 +64,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y zsh fish
       - run: npm test
 
-  # Each system's suite is run in parts, each on a runner of its own: five shares of the e2e
-  # project and the perf project apart. One app per machine, as on a desk - running specs side by
-  # side on one machine made the load-sensitive ones fail (docs/e2e-design.md section 6.5) - and
-  # a fifth of the hour the whole suite took on windows-latest (docs/decisions.md, 2026-11-22).
-  # perf measures on a runner nothing else is loading. A narrowed run is one part.
+  # Each system's suite is run in parts, each on a runner of its own: shares of the e2e project
+  # and the perf project apart. One app per machine, as on a desk - running specs side by side on
+  # one machine made the load-sensitive ones fail (docs/e2e-design.md section 6.5) - and a fifth
+  # of the hour the whole suite took on windows-latest (docs/decisions.md, 2026-11-22). perf
+  # measures on a runner nothing else is loading. Windows and Linux take five shares; macOS
+  # four, as the free plan runs five macOS jobs at once and a sixth waited for the first to end.
+  # A narrowed run is one part.
   e2e:
     name: e2e (${{ matrix.os }} ${{ matrix.part }})
     strategy:
@@ -76,17 +78,22 @@ jobs:
       matrix:
         os: ${{ fromJSON(inputs.e2e_os || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
         part: ${{ fromJSON(inputs.e2e_specs && '["chosen"]' || '["1", "2", "3", "4", "5", "perf"]') }}
+        exclude:
+          - os: macos-latest
+            part: '5'
     runs-on: ${{ matrix.os }}
     env:
       # The narrowing comes in through the environment, never pasted into the command line.
-      E2E_ARGS: ${{ inputs.e2e_specs || (matrix.part == 'perf' && '--project=perf --no-deps' || format('--project=e2e --shard={0}/5', matrix.part)) }}
+      E2E_ARGS: ${{ inputs.e2e_specs || (matrix.part == 'perf' && '--project=perf --no-deps' || format('--project=e2e --shard={0}/{1}', matrix.part, matrix.os == 'macos-latest' && '4' || '5')) }}
       # How many tests each share takes, in run order: Playwright shares by count, file by file,
       # and the files' minutes per test differ by threefold, so equal counts left the longest
-      # share half again as long as the shortest. These counts cut where the minutes of the last
-      # windows-latest run are even (about 11 minutes each; docs/decisions.md, 2026-11-22). They
-      # drift as tests are added - re-cut when one share runs long. Playwright reads this variable
-      # without documenting it; without it the shares are equal counts again, nothing worse.
-      PWTEST_SHARD_WEIGHTS: ${{ !inputs.e2e_specs && '122:129:162:114:88' || '' }}
+      # share half again as long as the shortest. These counts cut where the measured minutes
+      # are most even (about 11 each on windows-latest in five, 14 on macOS in four; worked out
+      # in docs/decisions.md, 2026-11-22). They drift as tests are added - re-cut when one share
+      # runs long. Playwright reads this variable without documenting it; without it the shares
+      # are equal counts again, nothing worse. Only for the shares: perf and a narrowed run take
+      # none.
+      PWTEST_SHARD_WEIGHTS: ${{ !inputs.e2e_specs && matrix.part != 'perf' && (matrix.os == 'macos-latest' && '122:168:202:123' || '122:129:162:114:88') || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -118,8 +125,22 @@ jobs:
           name: blob-${{ matrix.os }}-${{ matrix.part }}
           path: blob-report/
           retention-days: 1
+          if-no-files-found: ignore
+      # Which systems failed, so the report is made for those alone - and made at all only when a
+      # part got far enough to fail, whatever step it failed in.
+      - name: Mark the part failed
+        if: failure()
+        shell: bash
+        run: mkdir -p failed && echo "${{ matrix.part }}" > failed/part.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: failed-${{ matrix.os }}-${{ matrix.part }}
+          path: failed/
+          retention-days: 1
 
-  # One HTML report per system from its parts' results, as the single job used to leave.
+  # One HTML report for each system that failed, from its parts' results, as the single job used
+  # to leave.
   e2e-report:
     name: e2e report (${{ matrix.os }})
     needs: e2e
@@ -130,25 +151,47 @@ jobs:
         os: ${{ fromJSON(inputs.e2e_os || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      # Only Playwright's own merge runs here: no Electron, no install scripts.
-      - run: npm ci --ignore-scripts
+          pattern: failed-${{ matrix.os }}-*
+          path: failed
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: blob-${{ matrix.os }}-*
           path: all-blob-reports
           merge-multiple: true
-      - run: npx playwright merge-reports --reporter html ./all-blob-reports
+      # Nothing to say for a system that did not fail, or whose parts failed before leaving any
+      # results (an install or a build).
+      - name: Whether there is a report to make
+        id: made
+        shell: bash
+        run: |
+          if [ -n "$(ls -A failed 2>/dev/null)" ] && [ -n "$(ls -A all-blob-reports 2>/dev/null)" ]; then
+            echo "report=yes" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.made.outputs.report == 'yes'
+        with:
+          persist-credentials: false
+          path: repo
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.made.outputs.report == 'yes'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: repo/package-lock.json
+      # Only Playwright's own merge runs here: no Electron, no install scripts.
+      - if: steps.made.outputs.report == 'yes'
+        working-directory: repo
+        run: npm ci --ignore-scripts
+      - if: steps.made.outputs.report == 'yes'
+        working-directory: repo
+        run: npx playwright merge-reports --reporter html ../all-blob-reports
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.made.outputs.report == 'yes'
         with:
           name: playwright-report-${{ matrix.os }}
-          path: playwright-report/
+          path: repo/playwright-report/
           retention-days: 7
 
   package:

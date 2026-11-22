@@ -133,7 +133,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 | `tests/e2e/contracts/` | Playwright | 覆盖每个窗格、按键、对话框和 IPC 方法的表驱动检查：mount、lifecycle、持久化、动效、主题、快捷键、IPC、故障、署名、无外部请求 |
 
 - Playwright 有两个项目：`e2e`（除 `@perf` 外的全部）和随后运行的 `perf`（空闲预算和 CPU 测量）。
-- 在 GitHub Actions 上，每个系统的整套测试分成五部分，各自在独立的运行器上执行：`e2e` 的五个分片（`--shard`，按上次实测时间均衡的测试数切分：工作流中的 `PWTEST_SHARD_WEIGHTS`）和单独的 `perf`（`--project=perf --no-deps`）。每台机器只运行一个应用。某部分失败时，`e2e report` 作业把该系统各部分的结果合并成一份 HTML 报告（`playwright-report-<os>`）。
+- 在 GitHub Actions 上，每个系统的整套测试分成几部分，各自在独立的运行器上执行：`e2e` 的分片（`--shard`；Windows 和 Linux 五个，macOS 四个，因为免费计划同时最多运行五个 macOS 作业；按上次实测时间均衡的测试数切分：工作流中的 `PWTEST_SHARD_WEIGHTS`）和单独的 `perf`（`--project=perf --no-deps`），共六台运行器（macOS 五台）。每台机器只运行一个应用。某部分失败时，`e2e report` 作业为每个失败的系统把各部分的结果合并成一份 HTML 报告（`playwright-report-<os>`）。
 - 桩服务通过 `tests/e2e/support.ts` 设置的环境变量（`STUB_ENV`）启用，例如 `ELECDEX_AUDIO_STUB=1`、`ELECDEX_WIFI_STUB=1` 或 `ELECDEX_DOCKER_STUB=1`。
 - 端到端测试套件的设计（每类检查放在哪里以及原因）：[docs/e2e-design.md](../e2e-design.md)（日文）。
 - 如果测试之外还有 elecdex 在运行（已安装的应用，或开着的 `npm run dev`），启动和拖动会失败；报告器会把这一情况记录到 `test-results/elecdex-running.log`。
@@ -177,7 +177,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 
 1. 在 `package.json` 中设置 `version`，提交并推送。
 2. 该提交的 CI 在所有系统上通过后，给它打上 `v<version>` 标签并推送标签：`git tag v0.1.0 && git push origin v0.1.0`。
-3. Release 工作流会核对标签与 `package.json` 是否一致，运行 lint、类型检查和单元测试，创建一个带自动生成说明的 GitHub 预发布，并附上 Windows（x64、arm64）、macOS（arm64、x64）和 Linux（AppImage 和 deb，x64 和 arm64）的安装包。
+3. Release 工作流会核对标签与 `package.json` 是否一致、打标签的提交是否已通过 CI，运行 lint、类型检查和单元测试，创建一个带自动生成说明的 GitHub 预发布，并附上 Windows（x64、arm64）、macOS（arm64、x64）和 Linux（AppImage 和 deb，x64 和 arm64）的安装包。
 4. 检查预发布，准备好后取消勾选 "Set as a pre-release"。更新检查会忽略预发布，所以只有到那时，正在运行的副本才会提示新版本。
 
 - 工作流（[.github/workflows/release.yml](../../.github/workflows/release.yml)）还会在运行器能运行自己构建产物的情况下，把每个安装包按用户拿到的样子启动一次（交叉构建的 Windows arm64 和 macOS x64 除外）。

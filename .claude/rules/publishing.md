@@ -61,7 +61,7 @@ the files above is read or edited.
      minutes) and read it: only when every job is green go on (a failure is fixed, committed
      and pushed, and the new commit's run read again).
   4. Tag the green commit `v<version>` and push the tag (.github/workflows/release.yml makes a
-     pre-release a person promotes).
+     pre-release a person promotes, and stops if CI on that commit is not green).
   5. Once the release workflow is done, read the release and its notes (`gh release view`):
      the assets for every platform, and the notes in English and Japanese.
 - **The builds are unsigned**: the README's *If a warning appears* (per OS) and release.yml's

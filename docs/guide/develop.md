@@ -133,7 +133,7 @@ End-to-end tests never contact a real service, and never touch the machine they 
 | `tests/e2e/contracts/` | Playwright | Table-driven checks over every pane, key, dialog and IPC method: mount, lifecycle, persistence, motion, themes, keybindings, IPC, faults, attribution, no external requests |
 
 - Playwright runs two projects: `e2e` (everything but `@perf`) and `perf` (the idle budget and CPU measurements), which runs after it.
-- On GitHub Actions each system's suite runs in five parts, each on a runner of its own: five shares of `e2e` (`--shard`, cut by count where the last measured minutes are even: `PWTEST_SHARD_WEIGHTS` in the workflow) and `perf` alone (`--project=perf --no-deps`). One app runs per machine. When a part fails, the `e2e report` job merges that system's parts into one HTML report (`playwright-report-<os>`).
+- On GitHub Actions each system's suite runs in parts, each on a runner of its own: shares of `e2e` (`--shard`; five on Windows and Linux, four on macOS, whose free plan runs five macOS jobs at once; cut by count where the last measured minutes are even: `PWTEST_SHARD_WEIGHTS` in the workflow) and `perf` alone (`--project=perf --no-deps`), six runners in all (five on macOS). One app runs per machine. When a part fails, the `e2e report` job merges each failed system's parts into one HTML report (`playwright-report-<os>`).
 - The stubs are environment variables set by `tests/e2e/support.ts` (`STUB_ENV`), such as `ELECDEX_AUDIO_STUB=1`, `ELECDEX_WIFI_STUB=1` or `ELECDEX_DOCKER_STUB=1`.
 - The design of the e2e suite, where each kind of check lives and why: [docs/e2e-design.md](../e2e-design.md) (Japanese).
 - If an elecdex runs outside the tests (an installed app, or `npm run dev` left open), launches and drags fail; the reporter logs it to `test-results/elecdex-running.log`.
@@ -177,7 +177,7 @@ The rules a change must keep - the security boundary, where the network lives, w
 
 1. Set `version` in `package.json`, commit, and push.
 2. Once that commit's CI run is green on every system, tag it `v<version>` and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
-3. The Release workflow checks the tag against `package.json`, runs lint, typecheck and unit tests, creates a GitHub pre-release with generated notes, and attaches installers for Windows (x64, arm64), macOS (arm64, x64) and Linux (AppImage and deb, x64 and arm64).
+3. The Release workflow checks the tag against `package.json` and that CI passed on the tagged commit, runs lint, typecheck and unit tests, creates a GitHub pre-release with generated notes, and attaches installers for Windows (x64, arm64), macOS (arm64, x64) and Linux (AppImage and deb, x64 and arm64).
 4. Review the pre-release and, when it is ready, untick "Set as a pre-release". The update check ignores pre-releases, so only then do running copies announce it.
 
 - The workflow ([.github/workflows/release.yml](../../.github/workflows/release.yml)) also starts each package once as a user gets it, where the runner can run what it built (not the cross-built Windows arm64 and macOS x64).

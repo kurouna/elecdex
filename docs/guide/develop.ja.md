@@ -133,7 +133,7 @@ npx playwright test tests/e2e/<folder>/<file>.spec.ts -g "<name>"   # folders: a
 | `tests/e2e/contracts/` | Playwright | すべてのペイン・キー・ダイアログ・IPC メソッドに対する表駆動の検査: mount、lifecycle、永続化、モーション、テーマ、キー割り当て、IPC、障害、出典表示、外部へのリクエストがないこと |
 
 - Playwright には 2 つのプロジェクトがあります: `e2e`（`@perf` 以外のすべて）と、その後に走る `perf`（アイドル時の予算と CPU の計測）。
-- GitHub Actions では、OS ごとの全件を 5 つに分け、それぞれ別のランナーで走らせます: `e2e` を 5 つに分けたもの（`--shard`。前回測った時間が均等になる件数で区切る: ワークフローの `PWTEST_SHARD_WEIGHTS`）と、`perf` 単独（`--project=perf --no-deps`）。1 台で動くアプリは 1 つです。どれかが落ちると、`e2e report` ジョブがその OS の結果をまとめて 1 つの HTML レポート（`playwright-report-<os>`）にします。
+- GitHub Actions では、OS ごとの全件をいくつかに分け、それぞれ別のランナーで走らせます: `e2e` を分けたもの（`--shard`。Windows と Linux は 5 つ、macOS は 4 つ。macOS を減らすのは無料プランで同時に動く macOS のジョブが 5 つまでだからです。前回測った時間が均等になる件数で区切ります: ワークフローの `PWTEST_SHARD_WEIGHTS`）と、`perf` 単独（`--project=perf --no-deps`）で、合わせて 6 台（macOS は 5 台）です。1 台で動くアプリは 1 つです。どれかが落ちると、`e2e report` ジョブが落ちた OS ごとに結果をまとめて 1 つの HTML レポート（`playwright-report-<os>`）にします。
 - スタブは `tests/e2e/support.ts` が設定する環境変数（`STUB_ENV`）です。`ELECDEX_AUDIO_STUB=1`、`ELECDEX_WIFI_STUB=1`、`ELECDEX_DOCKER_STUB=1` など。
 - e2e スイートの設計（どの種類の検査をどこに置くか、その理由）: [docs/e2e-design.md](../e2e-design.md)。
 - テストの外で elecdex が動いていると（インストール済みのアプリや、開いたままの `npm run dev`）、起動やドラッグが失敗します。レポーターがそれを `test-results/elecdex-running.log` に記録します。
@@ -177,7 +177,7 @@ docs/           architecture.md (the design, in Japanese), decisions.md (the dec
 
 1. `package.json` の `version` を設定し、コミットして push します。
 2. そのコミットの CI が全 OS で緑になったら、`v<version>` のタグを付けて push します: `git tag v0.1.0 && git push origin v0.1.0`。
-3. Release ワークフローがタグと `package.json` の一致を確認し、lint、型チェック、ユニットテストを実行したうえで、自動生成したノート付きの GitHub プレリリースを作成し、Windows（x64、arm64）、macOS（arm64、x64）、Linux（AppImage と deb、x64 と arm64）のインストーラーを添付します。
+3. Release ワークフローがタグと `package.json` の一致と、タグを付けたコミットで CI が通ったことを確認し、lint、型チェック、ユニットテストを実行したうえで、自動生成したノート付きの GitHub プレリリースを作成し、Windows（x64、arm64）、macOS（arm64、x64）、Linux（AppImage と deb、x64 と arm64）のインストーラーを添付します。
 4. プレリリースを確認し、準備ができたら "Set as a pre-release" のチェックを外します。更新確認はプレリリースを無視するので、動いているアプリが新しいリリースを知らせるのはこの後です。
 
 - ワークフロー（[.github/workflows/release.yml](../../.github/workflows/release.yml)）は、ランナーが自分で作ったものを実行できる場合、各パッケージを利用者が受け取る形のまま 1 回起動します（クロスビルドの Windows arm64 と macOS x64 は除く）。
