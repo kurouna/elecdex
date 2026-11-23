@@ -399,7 +399,7 @@ TS の部分集合 (*.e16.ts)
   - 読み込んだ機械語は RAM なので、電池バックアップに入ります。電源を切っても残り、`CALL` で何度でも動かせます
 - e16c はページの Web Worker で動かし、CODE を初めて開いたときにだけ読み込みます（TypeScript のコンパイラ API は数 MB あるため）。**利用者のコードを JavaScript として実行することはありません**。コンパイル時の実行は e16c の中間表現を解釈する小さな実行器で、手数に上限があります。CSP（`unsafe-eval` なし）はそのまま
 - できた機械語は ELEC-16 の中だけで動きます。カードの読み書きも ECALL の ROM サービス経由で、機械の外には出ません
-- **WRITE**（*未リリース*、ポケコンのモデルだけ）: CODE の下の入力欄に言葉を打つと、AI が e16c を書き、コンパイルが通るまで 2 回まで直させる。設計は [elec16-write.md](elec16-write.md)
+- **WRITE**（ポケコンのモデルだけ）: CODE の下の入力欄に言葉を打つと、AI が e16c を書き、コンパイルが通るまで 2 回まで直させる。設計は [elec16-write.md](elec16-write.md)
 - CODE で使える部分集合は、ROM を書くのと同じものです（組み込み関数の `ecall` と `SVC` の表で、文字の表示、液晶、キー、音を使う）
 - **作ったもの（段階 6）**:
   - 組み立てと計測は純粋な `shared/e16c/program.ts`（`buildCode`、`measuringMachine`、`measure`）。定数と見本とライブラリは `shared/elec16/code-area.ts` に分け（2026-11-23 に e16c から移した: main の WRITE がライブラリを読むため）、ページはこちらだけを読む（program.ts を読むと TypeScript のパーサーが入口のチャンクに入り 5.9 MB になった）

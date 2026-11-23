@@ -241,11 +241,11 @@ The SOFT CARD brings thirteen programs, laid read-only over every unit's card:
 ### CODE
 
 - **CODE** compiles a program written in a subset of TypeScript (e16c) into the machine's code at three levels of optimisation side by side, with their bytes and cycles.
-- **NEW** (*unreleased*) starts a new program in the first free `NEWn.TS`, keeping the one open on the card first.
+- **NEW** starts a new program in the first free `NEWn.TS`, keeping the one open on the card first.
 - **RUN ▸** puts it in the machine and runs it; **LOAD ▸** puts it there for the monitor. SAVE TO CARD keeps it as a `.BIN`.
 - The compiler runs in a worker in the page. A person's code runs only as the machine's code, never as JavaScript.
 - CODE works on every model; on PLAY-320 and SCI-128, RUN calls the program directly from the start screen or the calculator.
-- **WRITE** (*unreleased*, pocket models only) is a line at the foot of CODE: type what you want ("a one-key game"), pick a provider and model from *Settings → AI*, and press SEND. The AI writes e16c into the open `.TS` file as it answers; CODE compiles it, and gives any errors back to the AI to fix, at most twice. The program goes on the card only once it builds, and RUN ▸ stays yours to press.
+- **WRITE** (pocket models only) is a line at the foot of CODE: type what you want ("a one-key game"), pick a provider and model from *Settings → AI*, and press SEND. The AI writes e16c into the open `.TS` file as it answers; CODE compiles it, and gives any errors back to the AI to fix, at most twice. The program goes on the card only once it builds, and RUN ▸ stays yours to press.
 - Type a change in the same line ("score at the top right") to have the AI change the code in the editor. Code you wrote yourself is replaced only after you answer REPLACE; UNDO puts the code from before back. WRITE does not need LINK's AI switch; it sends your words, the open program and e16c's errors, nothing else. Details: [elec16-write.md](../elec16-write.md).
 
 ### Cost
