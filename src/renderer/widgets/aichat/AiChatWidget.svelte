@@ -437,7 +437,13 @@ async function loadModels(): Promise<void> {
   const asked = modelsAsked
   modelsOf = id
   modelsLoading = true
-  const result = await window.elecdex.ai.models(id)
+  let result: Awaited<ReturnType<typeof window.elecdex.ai.models>>
+  try {
+    result = await window.elecdex.ai.models(id)
+  } catch (error) {
+    // Not asked at all: said as a list that could not be read, never "querying" for good.
+    result = { models: [], error: (error as Error).message }
+  }
   // An answer for a provider since left: the request that replaced it owns the state now.
   if (asked !== modelsAsked) return
   modelsLoading = false

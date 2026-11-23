@@ -112,4 +112,33 @@ describe("CODE's view", () => {
     expect(write).toHaveBeenCalledWith('u1', 'MAIN.TS', expect.any(Uint8Array))
     expect(onfile).toHaveBeenCalledWith('NEW1.TS')
   })
+
+  it('keeps what was typed while the card was being written, writing it when CODE goes', async () => {
+    // Found looking for WRITE's card race elsewhere (2026-11-23): what was typed during the
+    // write was taken as kept, and never written.
+    const view = render(CodeView, props('MAIN.TS'))
+    await settle(6)
+    const write = (
+      globalThis as unknown as { elecdex: { elec16: { writeFile: ReturnType<typeof vi.fn> } } }
+    ).elecdex.elec16.writeFile
+    let done: (status: number) => void = () => {}
+    write.mockImplementationOnce(
+      () =>
+        new Promise<number>((resolve) => {
+          done = resolve
+        }),
+    )
+    const editor = screen.getByTestId('elec16-source')
+    await fireEvent.input(editor, { target: { value: 'export function main(): void { putc(1) }' } })
+    await fireEvent.click(screen.getByTestId('elec16-compile'))
+    await settle(2)
+    await fireEvent.input(editor, { target: { value: 'export function main(): void { putc(2) }' } })
+    done(0)
+    await settle(6)
+    write.mockClear()
+    view.unmount()
+    await settle(2)
+    const bytes = write.mock.calls.at(-1)?.[2] as Uint8Array | undefined
+    expect(new TextDecoder().decode(bytes)).toContain('putc(2)')
+  })
 })

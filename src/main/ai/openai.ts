@@ -120,12 +120,13 @@ async function errorDetail(response: Response): Promise<string | null> {
     try {
       const parsed = JSON.parse(text) as unknown
       // Gemini's OpenAI-compatible address sends its error as a list of one.
-      const body = (Array.isArray(parsed) ? parsed[0] : parsed) as {
-        error?: { message?: unknown } | string
-        message?: unknown
-      }
+      const body = (Array.isArray(parsed) ? parsed[0] : parsed) as
+        | { error?: { message?: unknown } | string; message?: unknown }
+        | null
+        | undefined
+      // An empty list or null is no body to read words from.
       const said =
-        typeof body.error === 'string' ? body.error : (body.error?.message ?? body.message)
+        typeof body?.error === 'string' ? body.error : (body?.error?.message ?? body?.message)
       return typeof said === 'string' ? said : null
     } catch {
       return text.trim() === '' || text.trimStart().startsWith('<') ? null : text.trim()

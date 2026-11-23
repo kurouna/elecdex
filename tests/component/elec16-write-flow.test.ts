@@ -523,4 +523,118 @@ describe("WRITE's flow", () => {
     expect(long.api.write).not.toHaveBeenCalled()
     expect(long.flow.note).toMatch(/too long to send/)
   })
+
+  describe('found in review (2026-11-23)', () => {
+    /** writeFile answers when the test says, in the order asked. */
+    function heldCard(h: Harness) {
+      const held: ((status: number) => void)[] = []
+      h.api.writeFile.mockImplementation(
+        () =>
+          new Promise<number>((resolve) => {
+            held.push(resolve)
+          }),
+      )
+      return held
+    }
+
+    it('a card write that answers late never puts its text back over what came since', async () => {
+      const h = harness(GOOD)
+      const held = heldCard(h)
+      h.flow.words = 'x'
+      h.flow.send()
+      h.flow.replace()
+      await answer(h, fenced(`${GOOD}\n// new`))
+      expect(h.flow.state).toBe('ready')
+      // UNDO before READY's write has answered: the code before WRITE is in the editor...
+      h.flow.undo()
+      expect(h.view.text).toBe(GOOD)
+      // ...and READY's write, answering now, does not put WRITE's code back over it.
+      held[0]?.(0)
+      await settle()
+      expect(h.view.text).toBe(GOOD)
+      held[1]?.(0)
+      await settle()
+      expect(h.view.text).toBe(GOOD)
+      expect(h.view.kept).toBe(GOOD)
+    })
+
+    it('a card write failing late says nothing over a SEND begun since', async () => {
+      const h = harness()
+      const held = heldCard(h)
+      h.flow.words = 'x'
+      h.flow.send()
+      await answer(h, fenced(GOOD))
+      h.flow.words = 'y'
+      h.flow.send()
+      expect(h.flow.state).toBe('thinking')
+      held[0]?.(3)
+      await settle()
+      expect(h.flow.state).toBe('thinking')
+      expect(h.flow.note).toBe('')
+    })
+
+    it('a READY the card would not take leaves the code unkept, parked when CODE goes', async () => {
+      const h = harness()
+      h.api.writeFile.mockImplementation(async () => 3)
+      h.flow.words = 'x'
+      h.flow.send()
+      await answer(h, fenced(GOOD))
+      expect(h.flow.state).toBe('failed')
+      expect(h.flow.holdsUnkept).toBe(true)
+      expect(h.flow.park('u1', 'MAIN.TS', GOOD)).toBe(true)
+    })
+
+    it('REDO after a STOP puts the unfinished code back in the editor only, never on the card', async () => {
+      const h = harness(GOOD)
+      h.flow.words = 'x'
+      h.flow.send()
+      h.flow.replace()
+      h.pieces[0]?.({
+        pane: 'p1',
+        serial: 1,
+        round: 0,
+        text: '```ts\n// it’s\nexport function ma',
+      })
+      h.flow.stop()
+      h.flow.undo()
+      await settle()
+      expect(h.view.text).toBe(GOOD)
+      h.api.writeFile.mockClear()
+      h.flow.undo()
+      await settle()
+      // Its typographic marks made the machine's, as an answer's are.
+      expect(h.view.text).toBe("// it's\nexport function ma")
+      expect(h.api.writeFile).not.toHaveBeenCalled()
+      expect(h.flow.holdsUnkept).toBe(true)
+    })
+
+    it('says when UNDO could not write to the card', async () => {
+      const h = harness()
+      h.flow.words = 'x'
+      h.flow.send()
+      await answer(h, fenced(GOOD))
+      h.api.writeFile.mockImplementation(async () => 3)
+      h.flow.undo()
+      await settle()
+      expect(h.flow.note).toMatch(/could not be written to the card/)
+    })
+
+    it('a program too long to send clears what the last SEND showed', async () => {
+      const h = harness(SAMPLE, (s) => (s === BAD ? levels(['x is not known']) : levels()))
+      h.flow.words = 'x'
+      h.flow.send()
+      await answer(h, fenced(BAD))
+      await answer(h, fenced(BAD))
+      await answer(h, fenced(BAD))
+      expect(h.flow.state).toBe('failed')
+      expect(h.flow.fixes).toBe(2)
+      h.view.text = 'x'.repeat(40_001)
+      h.flow.words = 'y'
+      h.flow.send()
+      expect(h.flow.note).toMatch(/too long to send/)
+      expect(h.flow.fixes).toBe(0)
+      expect(h.flow.bytes).toBe(0)
+      expect(h.flow.errors).toEqual([])
+    })
+  })
 })

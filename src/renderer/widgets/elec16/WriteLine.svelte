@@ -42,7 +42,6 @@ let replaceButton = $state<HTMLButtonElement | null>(null)
 let cancelButton = $state<HTMLButtonElement | null>(null)
 let sendButton = $state<HTMLButtonElement | null>(null)
 
-const BUSY_STATES: ReadonlySet<string> = new Set(['thinking', 'writing', 'compiling', 'fixing'])
 const busy = $derived(flow.busy)
 const asking = $derived(flow.state === 'confirm')
 const sendable = $derived(
@@ -123,7 +122,8 @@ function send(): void {
 
 /** Escape anywhere in the line stops a SEND under way: the words, SEND/STOP, the model. */
 function onWriteKey(event: KeyboardEvent): void {
-  if (event.key !== 'Escape' || !busy) return
+  // An Escape that ends a word being composed (in the words or the model) is the IME's.
+  if (event.key !== 'Escape' || !busy || composing(event)) return
   event.preventDefault()
   flow.stop()
 }
@@ -175,7 +175,7 @@ let wasBusy = false
 $effect(() => {
   const now = flow.state
   const ended = wasBusy && now === 'ready'
-  wasBusy = BUSY_STATES.has(now)
+  wasBusy = flow.busy
   if (!ended) return
   const active = document.activeElement
   if (active === null || active === document.body || (box?.contains(active) ?? false)) {
@@ -193,7 +193,13 @@ async function loadModels(): Promise<void> {
   const id = provider.id
   modelsOf = id
   modelsLoading = true
-  const result = await window.elecdex.ai.models(id)
+  let result: Awaited<ReturnType<typeof window.elecdex.ai.models>>
+  try {
+    result = await window.elecdex.ai.models(id)
+  } catch (error) {
+    // Not asked at all: said as a list that could not be read, never "querying" for good.
+    result = { models: [], error: (error as Error).message }
+  }
   if (modelsOf !== id) return
   modelsLoading = false
   models = result.models
@@ -252,7 +258,6 @@ $effect(() => {
         disabled={provider === null}
         readonly={busy || asking}
         onkeydown={onWordsKey}
-        data-owns-escape={busy || undefined}
         data-testid="elec16-write-words"
       ></textarea>
     </span>
@@ -273,6 +278,7 @@ $effect(() => {
           <ModelField
             value={model}
             {models}
+            disabled={busy || asking}
             title={modelsProblem ?? 'the model to ask; the list is read from the provider when you open it'}
             wanting={model.trim() === ''}
             onopen={() => void loadModels()}
@@ -333,9 +339,11 @@ $effect(() => {
       {#if flow.undone}
         <span class="mark ok">undone</span>
         <span>The code before WRITE is back.</span>
+        {#if flow.note !== ''}<span class="bad">{flow.note}</span>{/if}
       {:else if flow.state === 'ready'}
         <span class="mark ok">ready</span>
         <span data-testid="elec16-write-result">{readyText}</span>
+        {#if flow.note !== ''}<span class="bad">{flow.note}</span>{/if}
       {:else}
         <span class="mark" class:bad={flow.state === 'failed'} class:warn={flow.state === 'stopped'}>{flow.state}</span>
         <span class:bad={flow.state === 'failed' && flow.errors.length === 0} data-testid="elec16-write-result">{flow.note}</span>

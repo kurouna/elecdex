@@ -432,6 +432,20 @@ describe('AiChatWidget', () => {
     expect(state.title).toBe('could not reach localhost:11434 - is it running?')
   })
 
+  it('stops querying when the model list could not be asked for at all', async () => {
+    // Found in review of the same field in CODE's WRITE (2026-11-23): a rejected call left
+    // "querying" for good.
+    withProvider()
+    ai.models?.mockRejectedValueOnce(new Error('no handler'))
+    mount()
+    await settle()
+    await fireEvent.focus(screen.getByTestId('aichat-model'))
+    await settle()
+    const state = screen.getByTestId('aichat-models-state')
+    expect(state.textContent).toBe('no list')
+    expect(state.title).toBe('no handler')
+  })
+
   it('an answer for the provider left behind does not end the wait for the one chosen since', async () => {
     withProvider()
     appearance.settings.ai.providers.push({

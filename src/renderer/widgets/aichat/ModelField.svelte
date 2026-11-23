@@ -27,6 +27,8 @@ interface Props {
   wanting?: boolean
   /** The list opens above the field (a field at the foot of its pane, as WRITE's). */
   up?: boolean
+  /** Not to be changed now (WRITE while it writes, or asks): neither typed in nor opened. */
+  disabled?: boolean
   testid: string
 }
 const {
@@ -39,6 +41,7 @@ const {
   size = 'bar',
   wanting = false,
   up = false,
+  disabled = false,
   testid,
 }: Props = $props()
 
@@ -122,6 +125,7 @@ function keydown(event: KeyboardEvent): void {
     aria-controls={`${testid}-list`}
     aria-autocomplete="list"
     aria-label="model"
+    {disabled}
     aria-invalid={wanting}
     value={shown}
     {placeholder}

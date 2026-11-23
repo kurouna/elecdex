@@ -107,6 +107,8 @@ export class WriteFlow {
 
   readonly #deps: WriteFlowDeps
   #serial = 0
+  /** Counts what changes the editor (a SEND, UNDO, another file): a card write answering late checks it. */
+  #edits = 0
   #round = 0
   #stream = ''
   #unit: string | null = null
@@ -139,6 +141,7 @@ export class WriteFlow {
     }
     this.#unit = unit
     this.#file = file
+    this.#edits++
     this.#pending = null
     this.holdsUnkept = false
     this.canUndo = false
@@ -194,6 +197,7 @@ export class WriteFlow {
     if (this.words.trim() === '' || this.#unit === null || this.#view === null) return
     if (this.#deps.choice() === null) return
     if (this.#view.source().length > WRITE_LIMITS.code) {
+      this.#clearShown()
       this.note = `The program in ${this.#file} is too long to send (over ${WRITE_LIMITS.code.toLocaleString('en-US')} characters).`
       this.state = 'failed'
       return
@@ -231,7 +235,8 @@ export class WriteFlow {
    * whole answer - stays there unkept, with UNDO to put the code from before back. False: none.
    */
   #keepShown(): boolean {
-    const shown = this.live
+    // As an answer's code is: typographic marks made the machine's.
+    const shown = this.live === null ? null : machineText(this.live)
     this.#settle()
     if (shown === null || shown === '') return false
     this.#after = shown
@@ -253,13 +258,21 @@ export class WriteFlow {
     }
     const to = this.undone ? this.#after : this.#before
     this.undone = !this.undone
+    this.#edits++
+    this.note = ''
     // The build shown was of the other text.
     this.#results = null
     this.#view?.began()
     // Back to what a READY wrote, a change asks no question; a STOP's or FAILED's code is unfinished.
-    this.lastWritten = !this.undone && this.state === 'ready' ? this.#after : null
+    const finished = this.undone || this.state === 'ready'
+    this.lastWritten = !this.undone && finished ? this.#after : null
     this.#leave(to)
-    void this.#keep(this.#unit, this.#file, to)
+    if (finished) {
+      void this.#keep(this.#unit, this.#file, to)
+      return
+    }
+    // REDO of what a STOP or FAILED left: back in the editor only, never over the card's program.
+    this.holdsUnkept = true
   }
 
   dispose(): void {
@@ -316,13 +329,8 @@ export class WriteFlow {
     }
   }
 
-  /** A SEND begun: what the pane shows reset, the compiler held; its serial. */
-  #begin(before: string): number {
-    this.#before = before
-    this.sentWords = this.words.trim()
-    this.#round = 0
-    this.#stream = ''
-    this.live = ''
+  /** What the last SEND showed - its steps, size, errors - cleared. */
+  #clearShown(): void {
     this.marks = []
     this.errors = []
     this.note = ''
@@ -331,8 +339,19 @@ export class WriteFlow {
     this.switched = null
     this.bytes = 0
     this.tokens = null
-    this.startedAt = this.#deps.now()
     this.took = 0
+  }
+
+  /** A SEND begun: what the pane shows reset, the compiler held; its serial. */
+  #begin(before: string): number {
+    this.#before = before
+    this.#edits++
+    this.sentWords = this.words.trim()
+    this.#round = 0
+    this.#stream = ''
+    this.live = ''
+    this.#clearShown()
+    this.startedAt = this.#deps.now()
     this.undone = false
     // UNDO was the last SEND's: this one offers its own, once it has something.
     this.canUndo = false
@@ -433,10 +452,13 @@ export class WriteFlow {
     this.#view?.built(levels)
     this.state = 'ready'
     this.#deps.sound?.(true)
+    const edits = this.#edits
     void this.#keep(unit, file, code).then((kept) => {
-      if (kept || this.state !== 'ready') return
-      // The card would not take it: it stays in the editor, unkept, and that is said.
+      if (kept || edits !== this.#edits) return
+      // The card would not take it: it stays in the editor, unkept - parked if CODE goes - and
+      // that is said.
       this.lastWritten = null
+      this.holdsUnkept = true
       this.state = 'failed'
     })
   }
@@ -470,18 +492,22 @@ export class WriteFlow {
     this.#deps.sound?.(false)
   }
 
-  /** The editor's text onto the card, and marked as what the card holds; false when it would not go. */
+  /**
+   * The editor's text onto the card, and marked as what the card holds; false when it would not
+   * go. Its answer acts only while nothing has come since (`#edits`): a write answering after an
+   * UNDO, another SEND or another file neither puts its text back nor speaks over what is shown.
+   */
   async #keep(unit: string, file: string, text: string): Promise<boolean> {
+    const asked = this.#edits
     const made = sourceToMachine(text)
     const status = 'problem' in made ? -1 : await this.#deps.api.writeFile(unit, file, made.bytes)
+    if (asked !== this.#edits) return status === 0
     if (status !== 0) {
       this.note = `${file} could not be written to the card.`
       return false
     }
-    if (unit === this.#unit && file === this.#file) {
-      this.#view?.replaced(text, true)
-      this.holdsUnkept = false
-    }
+    this.#view?.replaced(text, true)
+    this.holdsUnkept = false
     return true
   }
 

@@ -160,7 +160,10 @@ $effect(() => {
 /** The source onto the card, when it changed; false when it could not go there. */
 async function keep(): Promise<boolean> {
   if (unit === null || !loaded || source === kept) return true
-  const made = sourceToMachine(source)
+  // What is written is the text now: what is typed while the card writes is not kept by it.
+  const text = source
+  const at = `${unit}/${file}`
+  const made = sourceToMachine(text)
   if ('problem' in made) {
     said = { text: made.problem, bad: true }
     return false
@@ -170,7 +173,8 @@ async function keep(): Promise<boolean> {
     said = { text: `${file} could not be written to the card.`, bad: true }
     return false
   }
-  kept = source
+  // Another file open by now has its own kept text, read from the card.
+  if (`${unit}/${file}` === at) kept = text
   // On the card by the person's own COMPILE: whatever WRITE left there is theirs now.
   flow?.kept()
   return true

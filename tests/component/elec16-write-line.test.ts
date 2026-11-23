@@ -142,7 +142,8 @@ describe("CODE's WRITE line", () => {
     const words = screen.getByTestId('elec16-write-words')
     await fireEvent.input(words, { target: { value: 'a game' } })
     await fireEvent.click(screen.getByTestId('elec16-write-send'))
-    expect(words.hasAttribute('data-owns-escape')).toBe(true)
+    // The line owns Escape while it writes; the words are inside it (ownership is read up).
+    expect(words.closest('[data-owns-escape]')).toBe(screen.getByTestId('elec16-write'))
     await fireEvent.keyDown(words, { key: 'Escape' })
     expect(api.writeStop).toHaveBeenCalledWith('p1')
     expect(flow.state).toBe('stopped')
@@ -249,5 +250,80 @@ describe("CODE's WRITE line", () => {
     expect(flow.state).toBe('ready')
     expect(document.activeElement).toBe(outside)
     outside.remove()
+  })
+
+  describe('found in review (2026-11-23)', () => {
+    async function ready(flow: WriteFlow): Promise<void> {
+      await fireEvent.input(screen.getByTestId('elec16-write-words'), {
+        target: { value: 'a game' },
+      })
+      flow.send()
+      answers.shift()?.({
+        ok: true,
+        serial: 1,
+        text: '```ts\nexport function main(): void {}\n```',
+      })
+      await settle(10)
+      expect(flow.state).toBe('ready')
+    }
+
+    it('says when UNDO could not write to the card', async () => {
+      const flow = flowWith(SAMPLE)
+      render(WriteLine, props(flow))
+      await ready(flow)
+      api.writeFile.mockImplementation(async () => 3)
+      await fireEvent.click(screen.getByTestId('elec16-write-undo'))
+      await settle(6)
+      expect(screen.getByTestId('elec16-write-line').textContent).toMatch(
+        /could not be written to the card/,
+      )
+    })
+
+    it('leaves an Escape that ends a word being composed to the IME, never STOP', async () => {
+      const flow = flowWith(SAMPLE)
+      render(WriteLine, props(flow))
+      await fireEvent.input(screen.getByTestId('elec16-write-words'), {
+        target: { value: 'a game' },
+      })
+      flow.send()
+      await tick()
+      await fireEvent.keyDown(screen.getByTestId('elec16-write-words'), {
+        key: 'Escape',
+        isComposing: true,
+      })
+      expect(flow.state).toBe('thinking')
+    })
+
+    it('locks the model field while a SEND is under way or the question is asked', async () => {
+      const own = flowWith('export function main(): void {}')
+      render(WriteLine, props(own))
+      const model = () => screen.getByTestId('elec16-write-model') as HTMLInputElement
+      expect(model().disabled).toBe(false)
+      await fireEvent.input(screen.getByTestId('elec16-write-words'), {
+        target: { value: 'a game' },
+      })
+      own.send()
+      await tick()
+      expect(own.state).toBe('confirm')
+      expect(model().disabled).toBe(true)
+      own.replace()
+      await tick()
+      expect(model().disabled).toBe(true)
+    })
+
+    it('stops saying QUERYING when the model list could not be asked for', async () => {
+      vi.stubGlobal('elecdex', {
+        ai: {
+          models: vi.fn(async () => {
+            throw new Error('no handler')
+          }),
+        },
+      })
+      const flow = flowWith(SAMPLE)
+      render(WriteLine, props(flow))
+      await fireEvent.focus(screen.getByTestId('elec16-write-model'))
+      await settle(6)
+      expect(screen.getByTestId('elec16-write').textContent).not.toMatch(/querying/)
+    })
   })
 })
