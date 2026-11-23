@@ -120,9 +120,8 @@ $effect(() => {
   if (f === null) return
   const view: WriteView = {
     source: () => source,
-    replaced: (text, onCard) => {
+    replaced: (text) => {
       source = text
-      if (onCard) kept = text
     },
     onCard: (text) => {
       kept = text

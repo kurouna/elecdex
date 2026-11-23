@@ -97,9 +97,8 @@ function harness(
     source() {
       return this.text
     },
-    replaced(text: string, kept: boolean) {
+    replaced(text: string) {
       this.text = text
-      if (kept) this.kept = text
     },
     onCard(text: string) {
       this.kept = text

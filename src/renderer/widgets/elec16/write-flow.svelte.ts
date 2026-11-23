@@ -35,9 +35,9 @@ export type WriteState = WritePhase
 export interface WriteView {
   /** The editor's text now. */
   source(): string
-  /** The editor's text replaced; `kept` when it is what the card now holds. */
-  replaced(text: string, kept: boolean): void
-  /** The card now holds `text`; the editor, changed by a person meanwhile, keeps theirs. */
+  /** The editor's text replaced, not on the card (yet). */
+  replaced(text: string): void
+  /** The card now holds `text`; the editor is left as it is (typed into since, it keeps that). */
   onCard(text: string): void
   /** A build to show (levels, assembly). */
   built(levels: LevelResult[]): void
@@ -508,16 +508,16 @@ export class WriteFlow {
       this.note = `${file} could not be written to the card.`
       return false
     }
-    // Typed into since the write began: the person's text stays, only the card's is noted.
-    if (this.#view?.source() === text) this.#view.replaced(text, true)
-    else this.#view?.onCard(text)
+    // Only what the card holds is noted: the editor already shows the text, or what the person
+    // typed into it since the write began.
+    this.#view?.onCard(text)
     this.holdsUnkept = false
     return true
   }
 
   /** Text left in the editor unkept: the view's now, or the next view's on this file. */
   #leave(text: string): void {
-    if (this.#view !== null) this.#view.replaced(text, false)
+    if (this.#view !== null) this.#view.replaced(text)
     else if (this.#unit !== null) this.#pending = { unit: this.#unit, file: this.#file, text }
   }
 
