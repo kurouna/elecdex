@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="tron">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ELEC-16 CODE: write with AI - mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Saira+Condensed:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+ * A mock of the ELEC-16 pane's CODE view with WRITE: words in, e16c TypeScript out.
+ * Standalone - no elecdex code, nothing connected, every text and figure is made up.
+ * Colours follow tokens.css and the built-in themes of shared/theme.ts (copied from
+ * docs/translate-mock), so the theme buttons show the view in each of them.
+ */
+:root {
+  --accent-h: 183; --accent-s: 22%; --accent-l: 74%;
+  --surface-0: #000; --surface-1: #05080d; --surface-2: #0b1118; --line: #262828;
+  --text-base: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --text-muted-base: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --hue-danger: 0; --hue-warn: 45; --hue-ok: 130; --hue-info: 212;
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --glow: 0; --crt-glare: 1;
+
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+  --text: var(--text-base);
+  --text-muted: var(--text-muted-base);
+  --app-bg: var(--surface-1);
+  --panel-raised: var(--surface-2);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
+  --danger: hsl(var(--hue-danger) 80% 60%);
+  --warn: hsl(var(--hue-warn) 85% 58%);
+  --ok: hsl(var(--hue-ok) 60% 52%);
+  --info: hsl(var(--hue-info) 85% 66%);
+
+  --step--2: 0.625rem; --step--1: 0.75rem; --step-0: 0.875rem; --step-1: 1.125rem;
+  --step-2: 1.5rem; --step-3: 2.25rem; --step-4: 3.5rem;
+  --tracking-wide: 0.12em; --tracking-wider: 0.28em;
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
+  --dur-fast: 120ms; --dur-base: 240ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-scale: 1;
+  --frame-notch: 0.75rem; --tick-size: 0.5rem; --grid-cell: 1.35rem;
+  --corner-room: 2.5rem;
+  color-scheme: dark;
+}
+/* The built-in themes (shared/theme.ts). */
+:root[data-theme="amber"] { --accent-h: 36; --accent-s: 90%; --accent-l: 50%; --surface-1: #0a0603; --surface-2: #160e06; --line: #2b1c0c; --hue-danger: 4; --hue-warn: 52; --hue-ok: 88; --glow: 0.35; }
+:root[data-theme="phosphor"] { --accent-h: 128; --accent-s: 60%; --accent-l: 48%; --surface-1: #020703; --surface-2: #061109; --line: #10281a; --hue-danger: 8; --hue-warn: 58; --hue-ok: 150; --glow: 0.3; }
+:root[data-theme="white"] { --accent-h: 212; --accent-s: 31%; --accent-l: 88%; --surface-1: #0a0b0d; --surface-2: #15181c; --line: #262a30; --glow: 0.3; }
+:root[data-theme="black"] { --accent-h: 264; --accent-s: 24%; --accent-l: 4%; --surface-1: #d7e0ea; --surface-2: #e4eaf1; --line: #c4ceda; --glow: 0.1; }
+:root[data-theme="business-dark"] {
+  --accent-h: 199; --accent-s: 100%; --accent-l: 69%; --surface-1: #202020; --surface-2: #2c2c2c; --line: #202020;
+  --text-base: #ffffff; --text-muted-base: #9e9e9e; --hue-danger: 354; --hue-warn: 40; --hue-ok: 113; --hue-info: 206;
+}
+:root[data-theme="business-light"] {
+  --accent-h: 209; --accent-s: 100%; --accent-l: 36%; --surface-1: #f3f3f3; --surface-2: #ffffff; --line: #f3f3f3;
+  --text-base: #1a1a1a; --text-muted-base: #5f5f5f; --hue-danger: 354; --hue-warn: 32; --hue-ok: 120; --hue-info: 209;
+}
+:root[data-theme="paper"] {
+  --accent-h: 0; --accent-s: 0%; --accent-l: 7%; --surface-1: #e5e5e1; --surface-2: #efefeb; --line: #e5e5e1;
+  --text-base: #111111; --text-muted-base: #5c5c5c;
+}
+:root[data-theme^="business"] {
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, "JetBrains Mono", ui-monospace, monospace;
+}
+:root[data-theme="paper"] {
+  --font-display: "Segoe UI Variable Display", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Segoe UI Variable Text", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, "JetBrains Mono", ui-monospace, monospace;
+}
+/* A light theme: the status colours and the strong accent go darker (tokens.css). */
+:root[data-mode="light"] {
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) - 10%));
+  --danger: hsl(var(--hue-danger) 75% 44%);
+  --warn: hsl(var(--hue-warn) 95% 36%);
+  --ok: hsl(var(--hue-ok) 60% 32%);
+  --info: hsl(var(--hue-info) 80% 40%);
+  --crt-glare: 0;
+  color-scheme: light;
+}
+:root[data-theme="black"] { --accent-strong: hsl(264 24% 20%); }
+@media (prefers-reduced-motion: reduce) { :root { --motion-scale: 0; } }
+
+/* ---------- page ---------- */
+* { box-sizing: border-box; }
+html { font-size: clamp(11px, 1.48vh, 26px); }
+body {
+  margin: 0; min-height: 100%; padding: 1rem max(16px, 1.2rem) 2rem;
+  color: var(--text); font-family: var(--font-ui); font-size: var(--step-0); line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  background:
+    linear-gradient(90deg, var(--app-bg) calc(var(--grid-cell) - 1px), transparent 0) center / var(--grid-cell) var(--grid-cell),
+    linear-gradient(var(--app-bg) calc(var(--grid-cell) - 1px), transparent 0) center / var(--grid-cell) var(--grid-cell),
+    var(--line);
+  background-color: var(--app-bg);
+}
+:root[data-scanlines] body::after {
+  content: ""; position: fixed; inset: 0; z-index: 2000; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.22) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 60%, rgb(0 0 0 / 0.35) 100%);
+}
+:root[data-mode="light"][data-scanlines] body::after {
+  background: repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.06) 0 1px, transparent 1px 3px);
+}
+:root[data-glow] .pane { text-shadow: 0 0 calc(var(--glow) * 0.55rem) hsl(var(--accent-h) var(--accent-s) var(--accent-l) / calc(var(--glow) * 1.2)); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+.doc { display: flex; align-items: baseline; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.doc h1 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: var(--step-2); letter-spacing: 0.06em; color: var(--accent-strong); }
+.doc h1 span { font-family: var(--font-ui); font-size: var(--step-0); letter-spacing: var(--tracking-wide); color: var(--text-muted); margin-left: 0.4rem; }
+.doc p { margin: 0; color: var(--text-muted); font-size: var(--step--1); max-width: 60rem; line-height: 1.6; }
+
+.mockbar {
+  display: flex; flex-wrap: wrap; gap: 0.45rem 1.4rem; align-items: center; margin-bottom: 1rem;
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+  padding: 0.4rem 0.5rem; border: 1px dashed var(--panel-rule);
+}
+.mockbar .grp { display: flex; gap: 0.2rem; align-items: center; flex-wrap: wrap; }
+.mockbar .grp > span { margin-right: 0.35rem; }
+.mockbar button {
+  background: transparent; border: 1px solid var(--panel-rule); padding: 0.05rem 0.45rem;
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+}
+.mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--app-bg); border-color: var(--accent); }
+.mockbar .tag { border: 1px solid var(--warn); color: var(--warn); padding: 0 0.35rem; }
+
+/* ---------- the pane ---------- */
+.pane {
+  position: relative; display: flex; flex-direction: column; height: 46rem; max-width: 92rem;
+  border: 1px solid var(--panel-border); background: var(--app-bg);
+}
+.head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); }
+.head h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: var(--step-0); letter-spacing: 0.08em; color: var(--accent-strong); }
+.head .mhz { border: 1px solid var(--panel-rule); padding: 0 0.3rem; font-size: var(--step--2); color: var(--text-muted); }
+.head .gap { flex: 1; }
+.head .state { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.head .state b { color: var(--warn); font-weight: 500; }
+.e16-btn, .e16-chip {
+  border: 1px solid var(--panel-rule); background: transparent; padding: 0.05rem 0.55rem;
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text);
+}
+.e16-btn:disabled { opacity: 0.45; cursor: default; }
+.e16-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-strong); }
+.e16-chip[aria-checked="true"] { background: var(--accent); color: var(--app-bg); border-color: var(--accent); }
+.chips { display: flex; gap: 2px; }
+
+.code { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; min-height: 0; padding: var(--space-1) var(--space-2) var(--space-2); }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.bar .gap { flex: 1; }
+.bar select, .bar .name {
+  border: 0; border-bottom: 1px solid var(--panel-rule); background: transparent; color: var(--text);
+  font-family: var(--font-mono); font-size: var(--step--1); padding: 1px var(--space-1); outline: none;
+}
+.bar .name { width: 9ch; }
+.bar select option { background: var(--panel-raised); }
+.busy { padding: 0 var(--space-2); border: 1px solid var(--accent); color: var(--accent-strong); font-size: var(--step--2); letter-spacing: 0.12em; }
+
+.sides { flex: 1; min-height: 8rem; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); }
+.side { position: relative; display: flex; min-height: 0; min-width: 0; }
+.src, .asm {
+  flex: 1; margin: 0; padding: var(--space-1); border: 1px solid var(--panel-rule); background: transparent; color: var(--text);
+  font-family: var(--font-mono); font-size: var(--step-0); line-height: 1.45; overflow: auto; white-space: pre; resize: none; tab-size: 2;
+}
+.asm { color: var(--text-muted); }
+/* Being written: the editor is the model's until it is done - dashed, read-only, a caret at the end. */
+.src.writing { border-style: dashed; border-color: var(--accent); }
+.src .caret { display: inline-block; width: 0.55em; height: 1.1em; vertical-align: text-bottom; background: var(--accent); }
+.src .caret[data-phase="2"] { opacity: 0.2; }
+.src mark { background: hsl(var(--hue-danger) 80% 50% / 0.18); color: inherit; outline: 1px solid var(--danger); }
+.src .new { background: var(--accent-faint); }
+.side .tag {
+  position: absolute; top: 0; right: 0.9rem; transform: translateY(-50%); padding: 0 0.35rem; background: var(--app-bg);
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--accent);
+}
+
+.said { margin: 0; font-size: var(--step--1); color: var(--text-muted); display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
+.said.bad { color: var(--danger); }
+.said.ok { color: var(--text); }
+.said .link { border: 0; padding: 0; background: none; color: var(--accent); text-decoration: underline; font-size: var(--step--1); }
+.errors { margin: 0; padding: 0; list-style: none; font-family: var(--font-mono); font-size: var(--step--1); color: var(--danger); }
+.errors button { border: 0; padding: 0; background: none; font: inherit; color: var(--accent); text-decoration: underline; }
+.levels { border-collapse: collapse; font-family: var(--font-mono); font-size: var(--step--1); }
+.levels th { text-align: left; font-family: var(--font-ui); font-size: var(--step--2); font-weight: 400; letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); padding-right: var(--space-3); }
+.levels td { padding-right: var(--space-3); color: var(--text-muted); }
+.levels tr.chosen td { color: var(--accent-strong); }
+
+/* ---------- WRITE: the new line at the foot ---------- */
+.write { display: flex; flex-direction: column; gap: 2px; }
+/* The steps a SEND goes through, lit as they are reached - only while one is under way or just ended. */
+.steps { display: flex; align-items: center; gap: var(--space-2); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+.steps .step { display: flex; align-items: center; gap: 0.3rem; }
+.steps .step::before { content: ""; width: 0.45rem; height: 0.45rem; border: 1px solid currentColor; transform: rotate(45deg); }
+.steps .step.done { color: var(--text); }
+.steps .step.done::before { background: currentColor; }
+.steps .step.now { color: var(--accent-strong); }
+.steps .step.now::before { background: var(--accent); border-color: var(--accent); }
+.steps .step.now[data-phase="2"]::before { background: transparent; }
+.steps .step.bad { color: var(--danger); }
+.steps .step.bad::before { background: var(--danger); border-color: var(--danger); }
+.steps .rule { flex: 0 0 1.2rem; height: 1px; background: var(--panel-rule); }
+.steps .meta { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: var(--step--2); }
+
+.composer { display: flex; align-items: stretch; border: 1px solid var(--panel-border); }
+.composer:focus-within { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
+.composer .label {
+  flex: none; display: flex; align-items: center; padding: 0 var(--space-2); border-right: 1px solid var(--panel-rule);
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+}
+.composer:focus-within .label { color: var(--accent); }
+.composer .prompt { flex: none; padding: var(--space-1) 0 0 var(--space-2); font-family: var(--font-mono); line-height: 1.4; color: var(--accent); }
+.composer:not(:focus-within) .prompt { color: var(--text-muted); }
+.composer textarea {
+  flex: 1; min-width: 0; resize: none; padding: var(--space-1) var(--space-2); border: 0; outline: none; background: transparent;
+  color: var(--text); font-family: var(--font-ui); font-size: var(--step-1); line-height: 1.4; field-sizing: content; min-height: 1.4em; max-height: 8rem;
+}
+.composer textarea:disabled { color: var(--text-muted); }
+.composer select {
+  flex: none; border: 0; border-left: 1px solid var(--panel-rule); background: transparent; padding: 0 var(--space-2);
+  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+}
+.composer select option { background: var(--panel-raised); text-transform: none; }
+/* The model: the AI chat pane's ModelField - typed, or picked from the list the provider gives when it opens. */
+.composer .model { position: relative; flex: none; display: flex; align-items: center; border-left: 1px solid var(--panel-rule); }
+.composer .model input {
+  width: 13rem; border: 0; background: transparent; padding: 0 var(--space-2); outline: none;
+  font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted);
+}
+.composer .model input:focus { color: var(--text); }
+.composer .model .tag { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--accent); }
+.composer .model .list {
+  position: absolute; bottom: calc(100% + 2px); left: -1px; right: -1px; z-index: 5; margin: 0; padding: 2px 0; list-style: none;
+  border: 1px solid var(--accent); background: var(--panel-raised); font-family: var(--font-mono); font-size: var(--step--1);
+}
+.composer .model .list li { padding: 0.1rem var(--space-2); color: var(--text-muted); cursor: pointer; }
+.composer .model .list li[aria-selected="true"] { background: var(--accent-faint); color: var(--accent-strong); }
+
+/* The question before a WRITE replaces code of the person's own: a row of answers (lib/question-keys.ts). */
+.question {
+  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--warn); border-bottom: 0; font-size: var(--step--1); color: var(--text);
+}
+.question .mark { color: var(--warn); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.question .gap { flex: 1; }
+.question button {
+  border: 1px solid var(--panel-rule); background: transparent; padding: 0.05rem 0.7rem;
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text);
+}
+/* The answer the keyboard is on is shown filled. */
+.question button.on { background: var(--accent); border-color: var(--accent); color: var(--app-bg); }
+.question + .composer { border-top-color: var(--warn); }
+
+/* The press that blinks (styles/press.css, lib/blink.ts): 100 ms beats while held, three before the action. */
+.pane :is(button):not(:disabled):active, .pane .blinking { animation: press 100ms linear infinite; }
+@keyframes press { 50% { background: var(--accent); color: var(--app-bg); border-color: var(--accent); box-shadow: none; } }
+
+/* Scrollbars as the app's (styles/reset.css): thin, the accent's dim thumb, no track. */
+* { scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--accent-dim); }
+.cmd {
+  flex: none; display: flex; align-items: center; padding: 0 var(--space-3); border: 0; border-left: 1px solid var(--panel-border); background: transparent;
+  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+}
+.cmd.lit:not(:disabled) { color: var(--accent-strong); background: var(--accent-faint); box-shadow: inset 0 0 0 1px var(--accent); }
+.cmd.lit:not(:disabled):hover { background: var(--accent); color: var(--app-bg); }
+.cmd:disabled { opacity: 0.5; cursor: default; }
+.cmd.stop { color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
+.hint { margin: 0; font-size: var(--step--1); color: var(--text-muted); }
+.hint b { font-weight: 500; color: var(--text); }
+.hint .warn { color: var(--warn); }
+
+/* ---------- the notes under the mock ---------- */
+.notes { max-width: 92rem; margin-top: 1.4rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr)); gap: 1rem 2rem; font-size: var(--step--1); line-height: 1.7; }
+.notes h3 { margin: 0 0 0.3rem; font-family: var(--font-display); font-weight: 500; font-size: var(--step-0); letter-spacing: 0.06em; color: var(--accent-strong); }
+.notes ul, .notes ol { margin: 0; padding-left: 1.2rem; }
+.notes code { font-family: var(--font-mono); font-size: 0.95em; color: var(--accent); }
+.notes .q { border: 1px solid var(--warn); padding: 0.5rem 0.8rem; }
+.notes .q h3 { color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>ELEC-16 CODE <span>WRITE — 言葉から e16c を書く（モック）</span></h1>
+  <p>CODE 画面の下に AI チャットと同じ形の入力欄を置き、SEND で左のエディタに e16c の TypeScript が書かれる。COMPILE の誤りは自動で AI に返して直させる。数字と文は作り物。上の帯で状態とテーマを切り替えられる。</p>
+</div>
+
+<div class="mockbar">
+  <div class="grp"><span>state</span>
+    <button data-state="idle" aria-pressed="true">idle (sample)</button>
+    <button data-state="own">idle (own code)</button>
+    <button data-state="confirm">confirm</button>
+    <button data-state="models">model list</button>
+    <button data-state="writing">writing</button>
+    <button data-state="fixing">fixing</button>
+    <button data-state="done">done</button>
+    <button data-state="failed">failed</button>
+    <button data-state="refine">refine</button>
+    <button data-state="none">no provider</button>
+  </div>
+  <div class="grp"><span>theme</span>
+    <button data-theme="tron" aria-pressed="true">tron</button>
+    <button data-theme="amber">amber</button>
+    <button data-theme="phosphor">phosphor</button>
+    <button data-theme="business-dark">business dark</button>
+    <button data-theme="business-light" data-mode="light">business light</button>
+    <button data-theme="paper" data-mode="light">paper</button>
+  </div>
+  <span class="tag">mock</span>
+</div>
+
+<section class="pane" aria-label="ELEC-16 POCKET">
+  <div class="head">
+    <h2>ELEC-16 POCKET</h2><span class="mhz">4 MHZ</span>
+    <span class="gap"></span>
+    <span class="state"><b>paused</b> · unit 17 · pocket-32</span>
+  </div>
+  <div class="head" style="padding-top:0">
+    <span class="gap"></span>
+    <button class="e16-btn">▶</button><button class="e16-btn">brk</button><button class="e16-btn" aria-pressed="true">power</button>
+    <button class="e16-btn">reset</button><button class="e16-btn">▸ panel</button><button class="e16-btn" aria-pressed="true">machine</button>
+  </div>
+
+  <div class="code">
+    <div class="bar">
+      <select aria-label="source file"><option>MAIN.TS</option><option>JUMP.TS</option></select>
+      <input class="name" placeholder="new name">
+      <span class="gap"></span>
+      <span id="compileSlot"></span>
+      <div class="chips"><button class="e16-chip">-O0</button><button class="e16-chip">-O1</button><button class="e16-chip" aria-checked="true">-O2</button></div>
+      <button class="e16-btn run">run ▸</button><button class="e16-btn run">load ▸</button><button class="e16-btn run">save .bin</button>
+    </div>
+    <p id="said" class="said"></p>
+    <div class="sides">
+      <div class="side"><pre id="src" class="src" aria-label="TypeScript source"></pre><span id="srcTag" class="tag"></span></div>
+      <div class="side"><pre id="asm" class="asm" aria-label="E16 assembly"></pre></div>
+    </div>
+    <ul id="errors" class="errors"></ul>
+    <table id="levels" class="levels">
+      <thead><tr><th>level</th><th>bytes</th><th>cycles to return</th></tr></thead>
+      <tbody>
+        <tr><td>-O0</td><td>1,412</td><td>18,904 · waits for a key</td></tr>
+        <tr><td>-O1</td><td>1,036</td><td>12,377 · waits for a key</td></tr>
+        <tr class="chosen"><td>-O2</td><td>744</td><td>9,120 · waits for a key</td></tr>
+      </tbody>
+    </table>
+
+    <!-- WRITE: new -->
+    <div class="write">
+      <div id="steps" class="steps"></div>
+      <div id="question" class="question" role="group" aria-label="replace the code">
+        <span class="mark">replace?</span>
+        <span>WRITE replaces the code in <b>MAIN.TS</b> with what the AI writes. UNDO puts it back.</span>
+        <span class="gap"></span>
+        <button id="replace" class="on">replace</button><button id="keep">cancel</button>
+      </div>
+      <form class="composer" onsubmit="return false">
+        <span class="label">write</span>
+        <span class="prompt">&gt;</span>
+        <textarea id="ask" rows="1" placeholder="what to make · enter to send, shift+enter for a new line"></textarea>
+        <select id="provider" aria-label="AI provider"><option>Anthropic</option><option>OpenAI</option><option>LM Studio</option></select>
+        <span class="model">
+          <input id="model" aria-label="model" value="claude-sonnet-5-5" spellcheck="false">
+          <span id="modelTag" class="tag"></span>
+          <ul id="modelList" class="list" role="listbox"></ul>
+        </span>
+        <button id="send" class="cmd lit" type="submit">send</button>
+      </form>
+      <p id="hint" class="hint"></p>
+    </div>
+  </div>
+</section>
+
+<div class="notes">
+  <div>
+    <h3>見た目と操作</h3>
+    <ul>
+      <li>CODE 画面の一番下に <b>WRITE</b> の行。AI チャットの入力欄と同じ枠・<code>&gt;</code>・SEND。Enter で送り、Shift+Enter で改行。IME 変換中の Enter では送らない</li>
+      <li>右端で<b>プロバイダとモデル</b>を選ぶ。プロバイダは設定の AI にあるもの。モデルは AI チャットペインと同じ欄（<code>ModelField</code>）で、打つか、開いたときにプロバイダから読む一覧から選ぶ（読む間は QUERYING）。既定はそのプロバイダに設定で選んであるモデル。選んだものはペインの状態に残す。<b>LINK の AI スイッチとは無関係</b></li>
+      <li>SEND は他のボタンと同じく<b>3 拍点滅</b>してから動く（<code>afterBlink</code>）</li>
+      <li><b>上書きの確認</b>: エディタが CODE の最初の見本（<code>SAMPLE</code>）と同じか空なら確かめずに書く。違えば入力欄の上に「REPLACE? … UNDO puts it back」と REPLACE / CANCEL を出す。キーボードは REPLACE から、← → で移り、Enter で押し、Esc は CANCEL（<code>question-keys</code>）</li>
+      <li>書くとき、エディタは破線の枠になり読み出し専用。<b>答えが流れ込むように書かれる</b>。SEND は STOP（警告色）に変わる。Esc でも止まる</li>
+      <li>入力欄の上に段階: <b>WRITE → COMPILE → FIX n/2 → READY</b>。右端に経過時間とトークン</li>
+      <li>書き終えると自動で COMPILE。誤りがあれば、誤りの一覧と今のコードを AI に返して直させる（最大 2 回）。直した行は薄く光る</li>
+      <li>READY で右のアセンブリと段階表が出る。<b>RUN ▸ は人が押す</b>（勝手に走らせない）</li>
+      <li>直らなければ、誤りは今の CODE と同じく赤い一覧で行に飛べる。手で直すか、もう一度 SEND</li>
+      <li>前のソースは消えない: 「UNDO」で書く前に戻せる（1 段）。カードに書くのは今と同じく COMPILE のとき</li>
+      <li>2 回目からの SEND は<b>今のエディタのコードを添えて</b>送る（「スコアを出して」「もっと速く」で直していける）。会話は持たない</li>
+      <li>設定の AI にプロバイダがなければ、入力欄は無効で「Settings ▸ AI でプロバイダを足すと使える」と出す</li>
+    </ul>
+  </div>
+  <div>
+    <h3>作り（案）</h3>
+    <ul>
+      <li><b>main</b>: <code>main/elec16/write.ts</code>（<code>CodeWriter</code>）。AI チャットのプロバイダ・鍵・アダプタを使う（<code>targetFor</code>、<code>adapter.stream</code>）。鍵はページに来ない。チャンネル <code>elec16.write</code>（質問、今のソース、プロバイダ id）→ 差分を流す、<code>elec16.writeStop</code>。1 ペイン 1 つずつ、180 秒、ページが消えたら取り消し（<code>whenPageGoes</code>）</li>
+      <li><b>修正の往復はページ</b>が回す: コンパイラは CODE の worker にあるので、ページが COMPILE → 誤りを付けて main に 2 回目を頼む。main は「文を返す」だけで、コードを実行しない</li>
+      <li><b>システムプロンプト</b>: <code>shared/e16c/write-prompt.ts</code>（純粋）。e16c の部分集合、型と <code>u16()</code> などの読み方、<code>LIBRARY</code> の関数（code-area.ts から取る）、画面 240×48・40 桁 6 行、キー、2 KB（7000–77FF）、<code>export function main()</code>、例 2〜3 本。答えはコードブロック 1 つだけ。テストで、プロンプトの例が今の e16c で通ることを確かめる</li>
+      <li>答えから <code>```ts</code> の中だけを取り出す（<code>extractCode</code>、純粋）。モデルの文は信用しないデータとして、エディタの文字にだけなる</li>
+      <li><b>CodeView.svelte</b>: 下に <code>WriteLine.svelte</code> を足す。状態（idle / writing / compiling / fixing / ready / failed）は <code>write.svelte.ts</code> に分ける</li>
+      <li>POCKET だけ: PLAY-320 と SCI では WRITE の行を出さない</li>
+      <li>テスト: 単体（取り出し、プロンプト、往復の回数）、e2e は AI のスタブサーバーで「書かれる → 誤り → 直る → READY」と「プロバイダなし」</li>
+      <li>説明書 elec16-e16c.md、ガイド panes-retro.md（3 言語）、data-sources.md（何を送るか）、decisions.md</li>
+    </ul>
+  </div>
+  <div>
+    <h3>決まったこと（2026-11-23）</h3>
+    <ol>
+      <li>自動修正は 2 回まで（AI に頼むのは計 3 回まで）</li>
+      <li>今開いているファイルを置き換える。上書きの前に確かめる。最初の見本と同じなら確かめない</li>
+      <li>2 回目からの SEND は今のコードを添えて送る</li>
+      <li>プロバイダとモデルは入力欄で選ぶ</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+const GAME = `// ONE KEY JUMP: any key jumps. Clear the blocks; one hit ends it.
+const TITLE = str('ONE KEY JUMP  PRESS A KEY')
+const OVER = str('GAME OVER  SCORE ')
+
+let height: u16 = 0      // the runner's height, in rows
+let rising: u16 = 0      // rows still to climb
+let block: u16 = 39      // the block's column
+let score: u16 = 0
+
+function wait(n: u16): void {
+  for (let k: u16 = 0; k < n; k++) {}
+}
+
+function draw(): void {
+  cls()
+  locate(30, 0)
+  putnum(score)
+  locate(4, 5 - height)
+  putc(0x40)             // @
+  locate(block, 5)
+  putc(0x23)             // #
+}
+
+export function main(): void {
+  cls()
+  puts(TITLE)
+  getkey()
+  while (true) {
+    if (keyWaiting()) {
+      getkey()
+      if (height === 0) { rising = 3; beep(880, 20) }
+    }
+    if (rising > 0) { height++; rising-- } else if (height > 0) height--
+    if (block === 0) { block = 39; score++ } else block--
+    if (block === 4 && height === 0) break
+    draw()
+    wait(1200 - score * 20)
+  }
+  locate(0, 2)
+  puts(OVER)
+  putnum(score)
+  beep(220, 300)
+  getkey()
+}`;
+
+const ASM = `; -O2  MAIN.TS -> 7000
+7000  e16c_init:   LI    a0, 0
+7002               SW    a0, [gp+0]
+7004               ...
+7020  main:        ADDI  sp, sp, -4
+7022               SW    ra, [sp+2]
+7024               ECALL 3            ; cls
+7026               LI    a0, 0x7290   ; TITLE
+702A               ECALL 1            ; puts
+702C               ECALL 2            ; getkey
+702E  .L1:         LHU   t0, [0xFF12] ; keyWaiting
+7032               BEQZ  t0, .L2
+7034               ECALL 2
+7036               LHU   t1, [gp+0]   ; height
+703A               BNEZ  t1, .L2
+703C               LI    t1, 3
+703E               SH    t1, [gp+2]   ; rising
+7042               ...`;
+
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const $ = (id) => document.getElementById(id);
+let phase = 1;
+setInterval(() => { phase = phase === 1 ? 2 : 1; document.querySelectorAll('[data-phase]').forEach((e) => (e.dataset.phase = phase)); }, 500);
+
+function steps(list, meta) {
+  return list.map(([name, kind]) => `<span class="step ${kind}" data-phase="${phase}">${name}</span>`).join('<span class="rule"></span>') + `<span class="meta">${meta}</span>`;
+}
+
+const SAMPLE = `// A program for the ELEC-16, in the subset of TypeScript e16c compiles.
+// main() runs on CALL 28672 (BASIC) or G 7000 (the monitor), and returns to it.
+// The library: putc puts cls locate newline putnum puthex getkey keyWaiting beep pset
+// readline ask askAs askNew.
+
+const GREETING = str('HELLO FROM TYPESCRIPT')
+
+export function main(): void {
+  cls()
+  puts(GREETING)
+  newline()
+  for (let n: u16 = 1; n <= 10; n++) {
+    putnum(n * n)
+    putc(0x20)
+  }
+  newline()
+}`;
+const OWN = `// TABLE: times tables, a row a key.
+const HEAD = str('TIMES TABLE  ANY KEY')
+
+export function main(): void {
+  for (let a: u16 = 1; a <= 9; a++) {
+    cls()
+    puts(HEAD)
+    newline()
+    for (let b: u16 = 1; b <= 9; b++) {
+      putnum(a * b)
+      putc(0x20)
+    }
+    getkey()
+  }
+}`;
+const HINT_IDLE = 'Writes e16c TypeScript for this pocket into <b>MAIN.TS</b>. Sent: your words and the code in the editor.';
+const STATES = {
+  idle: () => ({
+    src: esc(SAMPLE), asm: '', levels: false, ask: 'ワンキーゲームを作って', send: 'send', steps: '',
+    hint: HINT_IDLE + ' The editor holds the first sample: SEND writes at once.',
+  }),
+  own: () => ({
+    src: esc(OWN), asm: '', levels: false, ask: 'ワンキーゲームを作って', send: 'send', steps: '',
+    hint: HINT_IDLE + ' The editor holds code of your own: SEND asks first.',
+  }),
+  confirm: () => ({
+    src: esc(OWN), asm: '', levels: false, ask: 'ワンキーゲームを作って', send: 'send', steps: '', question: true, locked: false, sendOff: true,
+    hint: '<b>Enter</b> replaces · <b>← →</b> move · <b>Esc</b> cancels.',
+  }),
+  models: () => ({
+    src: esc(SAMPLE), asm: '', levels: false, ask: 'ワンキーゲームを作って', send: 'send', steps: '', models: true,
+    hint: 'The list is read from Anthropic when it opens; a model can be typed too.',
+  }),
+  writing: () => {
+    const lines = GAME.split('\n').slice(0, 24).join('\n');
+    return {
+      src: esc(lines) + `<span class="caret" data-phase="${phase}"></span>`, writing: true, tag: 'writing · 0.9 KB',
+      asm: '', levels: false, ask: 'ワンキーゲームを作って', locked: true, send: 'stop',
+      steps: steps([['write', 'now'], ['compile', ''], ['fix', ''], ['ready', '']], '00:07 · 412 tokens'),
+      hint: 'The editor is the model’s until it is done · <b>Esc</b> or STOP keeps what has come and stops.',
+    };
+  },
+  fixing: () => ({
+    src: esc(GAME).replace('wait(1200 - score * 20)', '<mark>wait(1200 - score * 20)</mark>'), writing: true, tag: 'fixing · 1 of 2',
+    asm: '', levels: false, ask: 'ワンキーゲームを作って', locked: true, send: 'stop',
+    errors: ['MAIN.TS:41:10 1200 - score * 20 can fall below zero as u16: read it with i16() or keep score under 60'],
+    steps: steps([['write', 'done'], ['compile', 'done'], ['fix 1/2', 'now'], ['ready', '']], '00:14 · 1,380 tokens'),
+    hint: 'COMPILE found 1 error. It goes back to the model with the code, to be fixed.',
+  }),
+  done: () => ({
+    src: esc(GAME).replace('wait(1200 - score * 20)', '<span class="new">wait(score < 50 ? 1200 - score * 20 : 200)</span>'),
+    asm: esc(ASM), levels: true, ask: '', send: 'send', run: true, tag: '',
+    said: { ok: true, text: 'Written from “ワンキーゲームを作って” and compiled after 1 fix · 744 bytes at -O2 · RUN ▸ to play.', undo: true },
+    steps: steps([['write', 'done'], ['compile', 'done'], ['fix 1/2', 'done'], ['ready', 'done']], '00:19 · 2,104 tokens'),
+    hint: 'Send again to change it: “スコアを右上に”, “もっと速く”. The code in the editor goes with it.',
+  }),
+  failed: () => ({
+    src: esc(GAME).replace('let block: u16 = 39', '<mark>let block: u16 = 39</mark>').replace('if (block === 4 && height === 0) break', '<mark>if (block === 4 && height === 0) break</mark>'),
+    asm: '', levels: false, ask: '', send: 'send',
+    errors: ['MAIN.TS:6:5 block is a global and a function: names are one namespace', 'MAIN.TS:36:5 break is only inside a loop'],
+    said: { bad: true, text: 'Still 2 errors after 2 fixes. Fix them by hand, or send again.', undo: true },
+    steps: steps([['write', 'done'], ['compile', 'done'], ['fix 2/2', 'bad'], ['ready', '']], '00:41 · 4,880 tokens'),
+    hint: 'Nothing ran. The code stays in the editor as the model left it.',
+  }),
+  refine: () => ({
+    src: esc(GAME).replace(/locate\(30, 0\)\n  putnum\(score\)/, '<span class="new">locate(34, 0)\n  puts(SCORE)\n  putnum(score)</span>').replace("const OVER", "<span class=\"new\">const SCORE = str('SC ')</span>\nconst OVER"),
+    asm: esc(ASM), levels: true, ask: '', send: 'send', run: true,
+    said: { ok: true, text: 'Changed from “スコアを右上に SC つきで出して” · compiled at once · 760 bytes at -O2.', undo: true },
+    steps: steps([['write', 'done'], ['compile', 'done'], ['fix', ''], ['ready', 'done']], '00:09 · 1,622 tokens'),
+    hint: 'Changed lines are lit until the next edit.',
+  }),
+  none: () => ({
+    src: esc(`// A program for the ELEC-16, in the subset of TypeScript e16c compiles.
+
+const GREETING = str('HELLO FROM TYPESCRIPT')
+
+export function main(): void {
+  cls()
+  puts(GREETING)
+}`), asm: '', levels: false, ask: '', disabled: true, send: 'send',
+    hint: '<span class="warn">No AI provider is set.</span> Add one in <b>Settings ▸ AI</b> to write code from words.',
+  }),
+};
+
+let state = 'idle';
+function render() {
+  const s = STATES[state]();
+  $('src').innerHTML = s.src;
+  $('src').classList.toggle('writing', !!s.writing);
+  $('srcTag').textContent = s.tag || '';
+  $('srcTag').style.display = s.tag ? '' : 'none';
+  $('asm').innerHTML = s.asm;
+  $('levels').style.display = s.levels ? '' : 'none';
+  $('errors').innerHTML = (s.errors || []).map((e) => { const [at, ...m] = e.split(' '); return `<li><button>${at}</button> ${esc(m.join(' '))}</li>`; }).join('');
+  const said = $('said');
+  said.className = 'said' + (s.said?.bad ? ' bad' : s.said?.ok ? ' ok' : '');
+  said.innerHTML = s.said ? `<span>${esc(s.said.text)}</span>${s.said.undo ? '<button class="link">undo</button>' : ''}` : '';
+  said.style.display = s.said ? '' : 'none';
+  $('compileSlot').innerHTML = s.locked ? `<span class="busy">${state === 'writing' ? 'WRITING' : 'COMPILING'}</span>` : '<button class="e16-btn">compile</button>';
+  document.querySelectorAll('.run').forEach((b) => (b.disabled = !s.run));
+  $('ask').placeholder = s.disabled ? 'an AI provider in Settings ▸ AI is needed to write code' : 'what to make · enter to send, shift+enter for a new line'; $('ask').value = s.ask; $('ask').disabled = !!s.locked || !!s.disabled;
+  $('provider').disabled = !!s.locked || !!s.disabled;
+  $('provider').style.display = s.disabled ? 'none' : '';
+  $('model').disabled = !!s.locked || !!s.disabled;
+  $('model').parentElement.style.display = s.disabled ? 'none' : '';
+  showModels(!!s.models);
+  $('question').style.display = s.question ? '' : 'none';
+  if (s.question) { $('replace').classList.add('on'); $('keep').classList.remove('on'); $('replace').focus(); }
+  const send = $('send');
+  send.textContent = s.send; send.className = 'cmd ' + (s.send === 'stop' ? 'stop' : 'lit');
+  send.disabled = !!s.disabled || !!s.sendOff || (s.send === 'send' && !s.ask);
+  $('steps').innerHTML = s.steps; $('steps').style.display = s.steps ? '' : 'none';
+  $('hint').innerHTML = s.hint;
+}
+const MODELS = ['claude-fable-5-2', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
+let modelsTimer = 0;
+function showModels(open) {
+  clearTimeout(modelsTimer);
+  const list = $('modelList');
+  if (!open) { list.style.display = 'none'; $('modelTag').textContent = ''; return; }
+  // As the AI chat pane: QUERYING while the provider is asked, then the list.
+  list.style.display = 'none';
+  $('modelTag').textContent = 'querying';
+  modelsTimer = setTimeout(() => {
+    $('modelTag').textContent = '';
+    list.innerHTML = MODELS.map((m) => `<li role="option" aria-selected="${m === $('model').value}">${m}</li>`).join('');
+    list.style.display = '';
+  }, 700);
+}
+$('model').addEventListener('focus', () => showModels(true));
+$('model').addEventListener('blur', () => setTimeout(() => showModels(false), 150));
+$('modelList').addEventListener('mousedown', (e) => { if (e.target.tagName === 'LI') { $('model').value = e.target.textContent; showModels(false); } });
+
+// A press blinks three 100 ms beats before it acts (lib/blink.ts).
+function afterBlink(el, action) {
+  if (el.classList.contains('blinking')) return;
+  el.classList.add('blinking');
+  setTimeout(() => { el.classList.remove('blinking'); action(); }, 300);
+}
+function go(name) {
+  state = name;
+  document.querySelectorAll('[data-state]').forEach((x) => x.setAttribute('aria-pressed', x.dataset.state === name));
+  render();
+}
+$('send').addEventListener('click', (e) => afterBlink(e.currentTarget, () => {
+  if (state === 'idle' || state === 'models') go('writing');
+  else if (state === 'own') go('confirm');
+  else if (state === 'writing' || state === 'fixing') go('done');
+  else go('writing');
+}));
+$('replace').addEventListener('click', (e) => afterBlink(e.currentTarget, () => go('writing')));
+$('keep').addEventListener('click', (e) => afterBlink(e.currentTarget, () => go('own')));
+$('question').addEventListener('keydown', (e) => {
+  const on = $('replace').classList.contains('on') ? $('replace') : $('keep');
+  const other = on === $('replace') ? $('keep') : $('replace');
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { on.classList.remove('on'); other.classList.add('on'); other.focus(); e.preventDefault(); }
+  else if (e.key === 'Enter') { on.click(); e.preventDefault(); }
+  else if (e.key === 'Escape') { $('keep').click(); }
+});
+$('ask').addEventListener('input', () => { $('send').disabled = $('ask').value.trim() === '' && $('send').textContent === 'send'; });
+document.querySelectorAll('[data-state]').forEach((b) => b.addEventListener('click', () => go(b.dataset.state)));
+document.querySelectorAll('.mockbar [data-theme]').forEach((b) => b.addEventListener('click', () => {
+  document.documentElement.dataset.theme = b.dataset.theme;
+  if (b.dataset.mode) document.documentElement.dataset.mode = b.dataset.mode; else delete document.documentElement.dataset.mode;
+  document.querySelectorAll('.mockbar [data-theme]').forEach((x) => x.setAttribute('aria-pressed', x === b));
+}));
+setInterval(() => { if (state === 'writing' || state === 'fixing') document.querySelectorAll('[data-phase]').forEach((e) => (e.dataset.phase = phase)); }, 500);
+render();
+</script>
+</body>
+</html>
