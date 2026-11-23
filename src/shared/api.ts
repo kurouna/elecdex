@@ -49,6 +49,12 @@ import type {
   Elec16UnitChange,
   Elec16UnitSeed,
 } from './elec16-units.js'
+import type {
+  Elec16WriteFix,
+  Elec16WritePiece,
+  Elec16WriteRequest,
+  Elec16WriteResult,
+} from './elec16-write.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DiscoverResult } from './feeds-discover.js'
 import type { DirResult, DriveInfo } from './fs.js'
@@ -623,6 +629,19 @@ export interface Elec16Api {
   onDevChange(handler: (pane: string) => void): () => void
   /** For tests: the panes whose folders main watches. */
   devWatching(): Promise<string[]>
+  /**
+   * CODE's WRITE (docs/elec16-write.md): a SEND - the person's words and the editor's program to
+   * a provider of the AI settings - begins the pane's conversation; its answer's text comes by
+   * onWriteText as it is written, and the whole when it ends.
+   */
+  write(pane: string, request: Elec16WriteRequest): Promise<Elec16WriteResult>
+  /** e16c's errors for the last answer, in the same conversation: two fixes a SEND at most. */
+  writeFix(pane: string, fix: Elec16WriteFix): Promise<Elec16WriteResult>
+  /** Stops what the pane asked and forgets its conversation. */
+  writeStop(pane: string): void
+  onWriteText(handler: (piece: Elec16WritePiece) => void): () => void
+  /** For tests: the panes with a request under way, as page/pane. */
+  writing(): Promise<string[]>
 }
 
 /**

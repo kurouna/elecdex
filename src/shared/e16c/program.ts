@@ -1,5 +1,4 @@
 import { assemble, ramImage } from '../elec16/asm.js'
-import { Elec16 } from '../elec16/machine.js'
 import {
   CODE_END,
   CODE_START,
@@ -9,7 +8,8 @@ import {
   LIBRARY_FILE,
   MEASURE_LIMIT,
   RETURN_AT,
-} from './code-area.js'
+} from '../elec16/code-area.js'
+import { Elec16 } from '../elec16/machine.js'
 import { type CompileError, compile } from './compile.js'
 
 /**
@@ -19,7 +19,7 @@ import { type CompileError, compile } from './compile.js'
  * the person's code is ever run as JavaScript - it runs only as E16 code on the core.
  */
 
-export { CODE_END, CODE_START, LIBRARY_FILE, MEASURE_LIMIT, SAMPLE } from './code-area.js'
+export { CODE_END, CODE_START, LIBRARY_FILE, MEASURE_LIMIT, SAMPLE } from '../elec16/code-area.js'
 
 export type Level = 0 | 1 | 2
 

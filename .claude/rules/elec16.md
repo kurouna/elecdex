@@ -92,7 +92,13 @@ the files above is read or edited.
     (measured: it doubled a press's cost). GLASS follows the theme's mode and accent.
   - CODE compiles in a blob worker (`?worker&inline`, CSP unchanged); a person's code runs only
     as E16 code on the core, never as JavaScript. Only the worker and tests import
-    shared/e16c/program.ts (it pulls in TypeScript's parser); the page reads code-area.ts.
+    shared/e16c/program.ts (it pulls in TypeScript's parser); the page reads shared/elec16/code-area.ts.
+  - CODE's WRITE (docs/elec16-write.md) is for the pocket models: main keeps the conversation
+    and counts the fixes (two a SEND, main/elec16/write.ts), the page builds in memory and writes
+    the card only once it builds (write-flow.svelte.ts, owned by the widget: CODE's view goes with
+    the machine view). The prompt is shared/elec16/write-prompt.ts, built from `LIBRARY`; its
+    tests build its example and hold it to e16c. A model's text only ever becomes the editor's.
+    It uses the AI settings' providers, not LINK's switches.
   - The body follows the agreed mock (name plate but on Business and PLAIN, key layout, key
     tops) and is never stretched: `deviceFit` sizes it, the pane's room goes round it. PLAIN
     draws no case (`bare`) and a flat screen (`lcd.flat`), every colour the theme's.

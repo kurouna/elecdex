@@ -1,4 +1,4 @@
-import { CODE_START } from '@shared/e16c/code-area'
+import { CODE_START } from '@shared/elec16/code-area'
 import { ANNUNCIATORS } from '@shared/elec16/state'
 
 /**

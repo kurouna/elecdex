@@ -68,6 +68,10 @@ export interface Elec16Pane {
   playSkin: PlaySkin
   /** The calculator's colours (sci-body.ts); its body takes `body`'s modes. */
   sciSkin: SciSkin
+  /** CODE's WRITE (docs/elec16-write.md): the AI provider chosen (an id of the AI settings'). */
+  writeProvider: string | undefined
+  /** And the model chosen for each provider: a model is a provider's. */
+  writeModels: Record<string, string>
 }
 
 /** `skin` is a new pane's: the setting's, until the pane is given its own. */
@@ -98,7 +102,22 @@ export function readElec16Pane(
     playBody: oneOf(s.playBody, PLAY_BODY_MODES, 'auto'),
     playSkin: oneOf(s.playSkin, PLAY_SKINS, 'graphite'),
     sciSkin: oneOf(s.sciSkin, SCI_SKINS, 'slate'),
+    writeProvider:
+      typeof s.writeProvider === 'string' && s.writeProvider.length <= 64
+        ? s.writeProvider
+        : undefined,
+    writeModels: writeModelsOf(s.writeModels),
   }
+}
+
+/** WRITE's models by provider, as strings; anything else dropped (the settings decide at use). */
+function writeModelsOf(raw: unknown): Record<string, string> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [id, model] of Object.entries(raw).slice(0, 32)) {
+    if (id.length <= 64 && typeof model === 'string' && model.length <= 120) out[id] = model
+  }
+  return out
 }
 
 /** The side panel's width in CSS pixels. */

@@ -25,6 +25,7 @@ import {
   type Elec16Unit,
   type Elec16UnitSeed,
 } from '@shared/elec16-units'
+import type { Elec16WriteResult } from '@shared/elec16-write'
 import { app, BrowserWindow, dialog, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
 import type { KeyLookup } from '../ai/target.js'
@@ -38,6 +39,7 @@ import { CartLinkService } from '../elec16/link/cart.js'
 import { LinkHub } from '../elec16/link/hub.js'
 import { isScreenPng, screenPngName, withPngExtension } from '../elec16/screen-png.js'
 import { Elec16Units, findElec16Dir, type Holder, readSoftCard } from '../elec16/units.js'
+import { CodeWriter } from '../elec16/write.js'
 import { showSaveDialogFor } from '../save-dialog.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
@@ -62,6 +64,13 @@ export interface Elec16AiLinks {
 
 /** A text listing may be larger than the card file it makes (CRLF becomes CR). */
 const TEXT_MAX = 4 * CARD_FILE_MAX
+
+const writeRefused: Elec16WriteResult = {
+  ok: false,
+  serial: 0,
+  stop: 'refused',
+  note: 'that is not a pane',
+}
 
 const isPane = (pane: unknown): pane is string =>
   typeof pane === 'string' && pane.length > 0 && pane.length <= 64
@@ -129,6 +138,31 @@ export function registerElec16Ipc(
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
   })
+
+  // CODE's WRITE: the AI settings' providers, apart from LINK's switches (docs/elec16-write.md).
+  const writer = new CodeWriter({
+    providers: () => settings.current().ai.providers,
+    keyFor: (id) => aiLinks()?.keyFor(id) ?? null,
+    adapter: (kind) => {
+      const links = aiLinks()
+      if (links === null) return Promise.reject(new Error('the AI is not ready yet'))
+      return links.adapter(kind)
+    },
+    send: (page, piece) => {
+      const to = appWindows()
+        .map((w) => w.webContents)
+        .find((c) => !c.isDestroyed() && c.id === page)
+      to?.send(CH.elec16.writeText, piece)
+    },
+    setTimer: (fn, ms) => setTimeout(fn, ms),
+    clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
+  })
+  const writeOwner = {}
+  /** Who asks to write: the page and pane, its requests stopped when the page goes. */
+  const writerOf = (page: WebContents, pane: string) => {
+    whenPageGoes(page, writeOwner, () => writer.dropPage(page.id))
+    return { page: page.id, pane }
+  }
 
   const boardFor = (page: WebContents, seed?: Elec16UnitSeed): Elec16Board => ({
     units: units.list(seed),
@@ -354,6 +388,15 @@ export function registerElec16Ipc(
       ): Elec16GameImport => devDesk.install(event.sender, pane, gen, image),
       [CH.elec16.devClose]: (event, pane: unknown): void => devDesk.close(event.sender, pane),
       [CH.elec16.devWatching]: (): string[] => dev.watching(),
+      [CH.elec16.write]: (event, pane: unknown, request: unknown): Promise<Elec16WriteResult> =>
+        isPane(pane)
+          ? writer.write(writerOf(event.sender, pane), request)
+          : Promise.resolve(writeRefused),
+      [CH.elec16.writeFix]: (event, pane: unknown, fix: unknown): Promise<Elec16WriteResult> =>
+        isPane(pane)
+          ? writer.fix(writerOf(event.sender, pane), fix)
+          : Promise.resolve(writeRefused),
+      [CH.elec16.writing]: (): string[] => writer.watching(),
       [CH.elec16.gamesInsert]: (
         event,
         unit: unknown,
@@ -371,6 +414,9 @@ export function registerElec16Ipc(
     on: {
       [CH.elec16.devWatch]: (event, pane: unknown, on: unknown) =>
         devDesk.watch(event.sender, pane, on),
+      [CH.elec16.writeStop]: (event, pane: unknown) => {
+        if (isPane(pane)) writer.stop({ page: event.sender.id, pane })
+      },
       [CH.elec16.linkDrop]: (event, unit: unknown, pane: unknown, serial: unknown) => {
         if (!isPane(pane) || typeof unit !== 'string') return
         if (units.holds(unit, { page: event.sender.id, pane })) hub.drop(unit, serial)
@@ -382,6 +428,7 @@ export function registerElec16Ipc(
     dispose: () => {
       for (const key of dev.keys()) dev.close(key)
       hub.dispose()
+      writer.dispose()
       unregister()
     },
   }

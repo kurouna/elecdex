@@ -44,6 +44,7 @@ import type {
   Elec16PngSave,
   Elec16Unit,
 } from '@shared/elec16-units'
+import type { Elec16WritePiece, Elec16WriteResult } from '@shared/elec16-write'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
 import type { GitDiff, GitFile, GitLog, GitRepoRef, GitState } from '@shared/git'
@@ -826,6 +827,13 @@ const api: ElecdexApi = {
     devWatch: (pane, on) => ipcRenderer.send(CH.elec16.devWatch, pane, on),
     onDevChange: (handler) => listen<string>(CH.elec16.devChanged, handler),
     devWatching: () => ipcRenderer.invoke(CH.elec16.devWatching) as Promise<string[]>,
+    write: (pane, request) =>
+      ipcRenderer.invoke(CH.elec16.write, pane, request) as Promise<Elec16WriteResult>,
+    writeFix: (pane, fix) =>
+      ipcRenderer.invoke(CH.elec16.writeFix, pane, fix) as Promise<Elec16WriteResult>,
+    writeStop: (pane) => ipcRenderer.send(CH.elec16.writeStop, pane),
+    onWriteText: (handler) => listen<Elec16WritePiece>(CH.elec16.writeText, handler),
+    writing: () => ipcRenderer.invoke(CH.elec16.writing) as Promise<string[]>,
   },
   chip8: {
     list: () => ipcRenderer.invoke(CH.chip8.list) as Promise<Chip8Program[]>,

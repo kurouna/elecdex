@@ -1,6 +1,6 @@
-import { CODE_END, CODE_START, LIBRARY, MEASURE_LIMIT, SAMPLE } from '@shared/e16c/code-area'
 import { buildCode, measure, measuringMachine } from '@shared/e16c/program'
 import { fromMachineText, sourceFromMachine, sourceToMachine } from '@shared/elec16/charset'
+import { CODE_END, CODE_START, LIBRARY, MEASURE_LIMIT, SAMPLE } from '@shared/elec16/code-area'
 import { describe, expect, it } from 'vitest'
 import { built, settle, shown, switchOn, type } from './elec16-helpers'
 

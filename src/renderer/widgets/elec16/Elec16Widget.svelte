@@ -19,6 +19,7 @@ import { Elec16Apu } from './apu.ts'
 import { Elec16Buzzer } from './buzzer.ts'
 import CodeView from './CodeView.svelte'
 import CoreView from './CoreView.svelte'
+import { compileCode, holdCompiler } from './code/compiler.ts'
 import { type CodeTaker, giveCode as giveTo, typeAtBasic } from './code/give.ts'
 import { labelsOf } from './core.ts'
 import Device from './Device.svelte'
@@ -50,6 +51,7 @@ import { type CaptureKind, ScreenCapture } from './screen-capture.svelte.ts'
 import { SKINS } from './skins.ts'
 import TuneView from './TuneView.svelte'
 import { type Elec16Roms, UnitSession } from './unit-session.svelte.ts'
+import { WriteFlow } from './write-flow.svelte.ts'
 
 /**
  * The ELEC-16 pane (docs/elec16.md): a pocket computer of elecdex's own, its machine-code
@@ -148,6 +150,47 @@ const listening = $derived(
 function change(next: Partial<Elec16Pane>): void {
   widgetState.patch(paneId, next)
 }
+
+/**
+ * CODE's WRITE (docs/elec16-write.md): the pane's, not the view's - the view goes whenever the
+ * machine shows (RUN does), what WRITE wrote and UNDO stay. On the pocket models only.
+ */
+const writeFlow = new WriteFlow({
+  api: window.elecdex.elec16,
+  pane: untrack(() => paneId),
+  compile: (file, source) => {
+    const r = rom
+    return r === null
+      ? Promise.reject(new Error('the ROM is not read yet'))
+      : compileCode(r, file, source)
+  },
+  hold: holdCompiler,
+  level: () => pane.codeLevel,
+  setLevel: (codeLevel) => change({ codeLevel }),
+  choice: () => {
+    const p = writeProvider
+    return p === null || writeModel.trim() === ''
+      ? null
+      : { provider: p.id, model: writeModel, name: p.name }
+  },
+  now: () => Date.now(),
+  sound: (done) => {
+    if (visible) sfx.play(done ? 'granted' : 'glitch')
+  },
+})
+onDestroy(() => writeFlow.dispose())
+$effect(() => {
+  writeFlow.target(session.phase === 'running' ? (session.unit?.id ?? null) : null, pane.codeFile)
+})
+const aiProviders = $derived(appearance.settings.ai.providers)
+/** WRITE's provider: the pane's while the settings list it, else the first. */
+const writeProvider = $derived(
+  aiProviders.find((p) => p.id === pane.writeProvider) ?? aiProviders[0] ?? null,
+)
+/** Its model: the pane's for that provider, else the one the settings chose for it. */
+const writeModel = $derived(
+  writeProvider === null ? '' : (pane.writeModels[writeProvider.id] ?? writeProvider.model),
+)
 
 // The ROMs, loaded and decoded once for the page (roms.ts).
 void loadRoms().then((loaded) => {
@@ -548,6 +591,20 @@ onDestroy(() => {
         onlevel={(codeLevel) => change({ codeLevel })}
         notice={codeNotice}
         ongive={(image, how) => void giveCode(image, how)}
+        write={play || sci
+          ? null
+          : {
+              flow: writeFlow,
+              providers: aiProviders,
+              provider: writeProvider,
+              model: writeModel,
+              seen: visible,
+              onprovider: (writeProvider) => change({ writeProvider }),
+              onmodel: (model) => {
+                const id = writeProvider?.id
+                if (id !== undefined) change({ writeModels: { ...pane.writeModels, [id]: model } })
+              },
+            }}
       />
     </div>
   {/if}

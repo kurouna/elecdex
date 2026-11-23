@@ -2,7 +2,7 @@
 
 ELEC-16 POCKET の CODE 画面の下に入力欄（WRITE）を置き、「ワンキーゲームを作って」のような言葉から、AI が e16c の TypeScript を左のエディタに書く。書き終えると COMPILE し、誤りがあれば AI に返して直させる。モックは [elec16-ai-code-mock/index.html](elec16-ai-code-mock/index.html)。CODE 画面そのものは [elec16.md](elec16.md) の 6 章「CODE 画面」、e16c は [elec16-e16c.md](elec16-e16c.md)。
 
-状態: 設計中（2026-11-23）。版 2: Fable 5.2 のレビューを入れた（13 章）。プロンプトを試験した（14 章）。実装はまだない。
+状態: 実装済み（2026-11-23、*未リリース*）。版 2 で Fable 5.2 のレビューを入れ（13 章）、プロンプトを試験した（14 章）。実装で設計から変えたことは 15 章。
 
 ## 1. 決まっていること（2026-11-23、利用者の決定）
 
@@ -80,8 +80,8 @@ thinking / writing / fixing ─STOP→ stopped                       どこで�
   - `elec16.write(pane, { serial, provider, model, words, code })` → `Promise<WriteResult>`。新しい会話を始める
   - `elec16.writeFix(pane, { serial, errors })` → `Promise<WriteResult>`。同じ会話の続き。main が回数を数え、3 回目の依頼の後は断る
   - `elec16.writeStop(pane)`
-  - 届いた文字は `elec16:write-text`（`{ pane, serial, text }`、まとめて 100 ms ごと）で依頼したページにだけ送る。`thinking` の印も同じ口で（中身は送らない）。preload は `onWriteText(pane, handler)`
-  - `WriteResult`: `{ ok: true, serial, text, usage? }` か `{ ok: false, serial, stop: 'stopped' | 'failed' | 'refused' | 'timeout' | 'too-long', note }`
+  - 届いた文字は `elec16:write-text`（`{ pane, serial, round, text }`、まとめて 100 ms ごと。`round` は 0 が最初の依頼、1 と 2 が修正）で依頼したページにだけ送る。モデルの推論は送らない（ページは最初の文字が来るまで THINKING と出す）。推論が続く間も無音とは見なさない。preload は `onWriteText(handler)`
+  - `WriteResult`: `{ ok: true, serial, text, usage? }` か `{ ok: false, serial, stop: 'stopped' | 'failed' | 'refused' | 'timeout' | 'too-long' | 'spent', note }`（`spent` は 3 回目の修正を断ったとき。モデルの長さの上限で切れた答えは、直させずに `failed`）
   - zod: 言葉は 2,000 字、コードは 40,000 字、誤りは 20 件・各 300 字まで。プロバイダ id は設定にあるもの
 - 会話（言葉＋コード、答え、誤り、直した答え…）は main のメモリに 1 ペイン 1 つ。結果、STOP、ページが消えた（`whenPageGoes`）、次の `write` で捨てる。ファイルには書かない
 - 1 ペインに 1 つずつ。答えの文字が 64 KB を越えたら止めて `too-long`。時間は **最後の文字から 60 秒**（何も来ない間）と、全体で 10 分。`watching()` は動いている依頼の `page/pane` を並べる
@@ -195,3 +195,25 @@ thinking / writing / fixing ─STOP→ stopped                       どこで�
 - プロンプトの最後に「答える前に確かめること」の表（`/`、裸の文字列、型のない `let`、式の中の `++`、i16 と u16、配列、ASCII、main と終わり方、名前）を足すと、Haiku の取りこぼしがなくなった
 - 中身も依頼どおり: TCOUNT で待ち、毎こま `cls()` せず、Q か BRK で戻り、カーソルを隠して戻す。例に書いた形をよく真似る（例は規則どおりに書くこと）
 - 試していないもの: OpenAI 互換のプロバイダとローカルのモデル。実装の後、実際のプロバイダで確かめる
+
+## 15. 実装（2026-11-23）
+
+| 置き場所 | 中身 |
+|---|---|
+| `src/shared/elec16/write-prompt.ts` | システムプロンプト、最初の依頼、修正の依頼（`WRITE_LIMITS`、`BUILTIN_NAMES`、`PROMPT_EXAMPLE`） |
+| `src/shared/elec16/write-code.ts` | `extractCode`、`streamingCode`、`machineText` |
+| `src/shared/elec16/write-flow.ts` | `MAX_FIXES`、`needsConfirm`、`judge`、`charsetError`、`changedLineCount`、`writeSteps` |
+| `src/shared/elec16-write.ts` | IPC の型と zod（`shared/elec16` は自分と `shared/emu` しか読めないので、`elec16-units.ts` の隣） |
+| `src/main/elec16/write.ts` | `CodeWriter`（会話、回数、時間切れ、64 KB、100 ms ごとに送る `Relay`） |
+| `src/renderer/widgets/elec16/write-flow.svelte.ts` | `WriteFlow`（Elec16Widget が持つ） |
+| `src/renderer/widgets/elec16/WriteLine.svelte` | 段階の行、入力欄、説明の行 |
+
+設計から変えたこと:
+
+- CODE の `compile()` は分けなかった。WriteFlow は CODE の画面を通さず、Elec16Widget から渡されたコンパイラ（`compileCode`）で直接コンパイルする。画面が閉じていても続けられる
+- 送る依頼は、新しい SEND と修正の 2 つ（`write`、`writeFix`）。会話は main が持ち、修正の 3 回目を断る（`spent`）
+- READY でなければ、画面にないときに残ったコードは WriteFlow が控え、次に CODE を開いたときに渡す（`takePending`）
+- 段階の行の計算は純粋な `writeSteps` にした（テストのため）
+- テスト: `tests/unit/elec16-write.test.ts`、`elec16-write-main.test.ts`、`tests/component/elec16-write-flow.test.ts`、`elec16-write-line.test.ts`、`tests/e2e/panes/elec16-write.spec.ts`。確認の行は画面の上に出るダイアログではないので、`question-dialogs.test.ts` の `CASES` ではなく WriteLine のテストでキーを確かめる
+
+レビュー（Opus 5.5 と Fable 5.2、2026-11-23）で直したこと: 修正に送る誤りを 20 件・300 字に切る、READY でエディタにすぐ入れてからカードに書く（書けなければ FAILED）、修正中のプロバイダの失敗でも最後の答えと UNDO を残す、前の SEND の UNDO と build を新しい SEND で捨てる、確認のキーは確認の行の中だけ（キーボードが離れたら CANCEL）、STOP は点滅を待たない、Esc は WRITE の行のどこでも、READY でキーボードを奪わない、UNDO と REDO は手で直した分も入れ替える、STOP や FAILED の後に CODE を離れても書きかけをカードに書かない（`park`）、コンパイラの失敗はモデルに直させない、長さで切れた答えは失敗にする。

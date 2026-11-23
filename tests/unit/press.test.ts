@@ -54,7 +54,10 @@ const LEFT_OUT: Record<string, { count: number; why: string }> = {
     why: 'link and rise: the motion, its actions as text',
   },
   'widgets/elec/SeatsPanel.svelte': { count: 1, why: 'link' },
-  'widgets/elec16/CodeView.svelte': { count: 1, why: 'link: an error in the list' },
+  'widgets/elec16/CodeView.svelte': {
+    count: 2,
+    why: 'link: an error in the list, a build’s or WRITE’s',
+  },
   'widgets/elec16/CoreView.svelte': { count: 1, why: 'graphic: a breakpoint in the gutter' },
   'widgets/elec16/Keyboard.svelte': { count: 1, why: 'own: the key sinks, darkens or blinks' },
   'widgets/elec16/PlayDevice.svelte': { count: 2, why: 'own: the pads sink' },

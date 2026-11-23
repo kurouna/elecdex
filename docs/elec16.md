@@ -399,9 +399,10 @@ TS の部分集合 (*.e16.ts)
   - 読み込んだ機械語は RAM なので、電池バックアップに入ります。電源を切っても残り、`CALL` で何度でも動かせます
 - e16c はページの Web Worker で動かし、CODE を初めて開いたときにだけ読み込みます（TypeScript のコンパイラ API は数 MB あるため）。**利用者のコードを JavaScript として実行することはありません**。コンパイル時の実行は e16c の中間表現を解釈する小さな実行器で、手数に上限があります。CSP（`unsafe-eval` なし）はそのまま
 - できた機械語は ELEC-16 の中だけで動きます。カードの読み書きも ECALL の ROM サービス経由で、機械の外には出ません
+- **WRITE**（*未リリース*、ポケコンのモデルだけ）: CODE の下の入力欄に言葉を打つと、AI が e16c を書き、コンパイルが通るまで 2 回まで直させる。設計は [elec16-write.md](elec16-write.md)
 - CODE で使える部分集合は、ROM を書くのと同じものです（組み込み関数の `ecall` と `SVC` の表で、文字の表示、液晶、キー、音を使う）
 - **作ったもの（段階 6）**:
-  - 組み立てと計測は純粋な `shared/e16c/program.ts`（`buildCode`、`measuringMachine`、`measure`）。定数と見本とライブラリは `code-area.ts` に分け、ページはこちらだけを読む（program.ts を読むと TypeScript のパーサーが入口のチャンクに入り 5.9 MB になった）
+  - 組み立てと計測は純粋な `shared/e16c/program.ts`（`buildCode`、`measuringMachine`、`measure`）。定数と見本とライブラリは `shared/elec16/code-area.ts` に分け（2026-11-23 に e16c から移した: main の WRITE がライブラリを読むため）、ページはこちらだけを読む（program.ts を読むと TypeScript のパーサーが入口のチャンクに入り 5.9 MB になった）
   - 機械語と文字列は 7000–77FF（2 KB）、大域変数と配列は 7800–7BEF。7000 の入口が `e16c_init` を呼んでから `main()` を呼び、RET で戻る（`CALL 28672` も `G 7000` も同じ）。`main` がなければ、また領域に収まらなければ、そう言って書かない
   - ライブラリ（`LIBRARY`、ファイル名 `ELEC16`）は putc puts getkey cls locate puthex newline putnum keyWaiting beep pset readline ask askAs askNew。ROM サービスを ECALL で呼ぶ。export しないので -O2 は使わないものを落とす
   - 組み込み関数 `memcpy(to, from, n)` と `memset(to, value, n)` は MCPY と MSET 1 命令になる（引数は a0–a2 に置く）。TypeScript として動かすときも memmove と同じに写す

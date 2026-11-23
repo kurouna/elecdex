@@ -99,7 +99,7 @@ Choosing the preset adds a saved layout that then follows your work. The desk pr
 | | |
 |---|---|
 | Where | retro preset (tabs ELEC-16 and ELEC-16 SCI); desk preset (ELEC-16 SCI); picker: "elec-16" and "elec-16 sci"; several panes; can be brought forward |
-| Reads | nothing outside the machine but what you import through main's picker; LINK reaches the AI only when you turn it on |
+| Reads | nothing outside the machine but what you import through main's picker; LINK reaches the AI only when you turn it on; CODE's WRITE only when you press SEND |
 | Updates | runs only while switched on, awake and seen; sleeps at its prompt; the LCD is drawn at most 30 times a second |
 | Platforms | Windows, macOS, Linux (macOS and Linux not verified by hand) |
 | Privacy | a person's code runs only as the machine's code, never as JavaScript; an API key never reaches the page or the machine; LINK sends only the question, and only after a person's key press; TUNE's SCREEN writes the screen to the clipboard, or to a PNG where you pick, only when pressed |
@@ -244,6 +244,8 @@ The SOFT CARD brings thirteen programs, laid read-only over every unit's card:
 - **RUN ▸** puts it in the machine and runs it; **LOAD ▸** puts it there for the monitor. SAVE TO CARD keeps it as a `.BIN`.
 - The compiler runs in a worker in the page. A person's code runs only as the machine's code, never as JavaScript.
 - CODE works on every model; on PLAY-320 and SCI-128, RUN calls the program directly from the start screen or the calculator.
+- **WRITE** (*unreleased*, pocket models only) is a line at the foot of CODE: type what you want ("a one-key game"), pick a provider and model from *Settings → AI*, and press SEND. The AI writes e16c into the open `.TS` file as it answers; CODE compiles it, and gives any errors back to the AI to fix, at most twice. The program goes on the card only once it builds, and RUN ▸ stays yours to press.
+- Type a change in the same line ("score at the top right") to have the AI change the code in the editor. Code you wrote yourself is replaced only after you answer REPLACE; UNDO puts the code from before back. WRITE does not need LINK's AI switch; it sends your words, the open program and e16c's errors, nothing else. Details: [elec16-write.md](../elec16-write.md).
 
 ### Cost
 

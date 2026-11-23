@@ -279,7 +279,13 @@ export const PANES: PaneRow[] = [
     zoom: 'panel',
   },
   { widget: 'chip8', popup: false, zoom: 'full' },
-  { widget: 'elec16', popup: false, zoom: 'full' },
+  {
+    widget: 'elec16',
+    goesOn:
+      'a WRITE answer being written (CODE): main asks on, and the page builds it (elec16-write.spec)',
+    popup: false,
+    zoom: 'full',
+  },
   { widget: 'calc', popup: true, zoom: 'panel' },
   { widget: 'notes', popup: true, zoom: 'full' },
   {

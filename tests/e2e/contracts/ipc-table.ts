@@ -132,6 +132,7 @@ export const NO_ARGUMENT = [
   'elec16.games',
   'elec16.importGame',
   'elec16.devWatching',
+  'elec16.writing',
   'git.pick',
   'git.recent',
   'git.watching',
@@ -184,6 +185,7 @@ export const HANDLER_ONLY = [
   'elec16.onGiveBack',
   'elec16.onGamesChange',
   'elec16.onDevChange',
+  'elec16.onWriteText',
   'logwatch.onExplained',
   'agents.subscribe',
   'ai.onProviders',
@@ -1073,6 +1075,39 @@ export const IPC_ROWS: IpcRow[] = [
     ],
     refused: { resolves: NOT_OPEN },
     probe: { call: 'elec16.games' },
+  },
+  {
+    // Nothing is asked of a provider: a request main does not take is refused before any is chosen.
+    method: 'elec16.write',
+    bad: [
+      [123, {}],
+      ['p', null],
+      ['p', { serial: 1, provider: 'nope', model: 'm', words: '', code: '', file: 'MAIN.TS' }],
+      [
+        'p',
+        { serial: 1, provider: 'nope', model: 'm', words: big(5000), code: '', file: 'MAIN.TS' },
+      ],
+      ['p', { serial: -1, provider: 'nope', model: 'm', words: 'x', code: '', file: UP }],
+    ],
+    refused: { matches: { ok: false, stop: 'refused' } },
+    probe: { call: 'elec16.writing' },
+  },
+  {
+    method: 'elec16.writeFix',
+    bad: [
+      [123, {}],
+      ['p', 'x'],
+      ['p', { serial: 1, errors: [] }],
+      ['p', { serial: 1, errors: [{ file: 'MAIN.TS', line: 1, column: 1, message: 'x' }] }],
+    ],
+    refused: { matches: { ok: false, stop: 'refused' } },
+    probe: { call: 'elec16.writing' },
+  },
+  {
+    method: 'elec16.writeStop',
+    bad: [[123], ['p'], [big(100)]],
+    refused: { ignored: true },
+    probe: { call: 'elec16.writing' },
   },
   {
     method: 'elec16.devClose',

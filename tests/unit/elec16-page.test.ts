@@ -334,6 +334,19 @@ describe('the body and the pane', () => {
       playBody: 'auto',
       playSkin: 'graphite',
       sciSkin: 'slate',
+      writeProvider: undefined,
+      writeModels: {},
+    })
+    // WRITE's provider and its models by provider: strings only, the settings judge them at use.
+    expect(
+      readElec16Pane({
+        writeProvider: 'local',
+        writeModels: { local: 'm1', other: 7, [`${'x'.repeat(65)}`]: 'm' },
+      }),
+    ).toMatchObject({ writeProvider: 'local', writeModels: { local: 'm1' } })
+    expect(readElec16Pane({ writeProvider: 7, writeModels: ['m'] })).toMatchObject({
+      writeProvider: undefined,
+      writeModels: {},
     })
     // A pane opened to start afresh names a unit model; anything else starts as any pane.
     expect(readElec16Pane({ fresh: 'sci-128' }).fresh).toBe('sci-128')

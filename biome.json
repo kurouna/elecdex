@@ -26,7 +26,8 @@
       "!docs/aws-mock",
       "!docs/github-mock",
       "!docs/rss-mock",
-      "!docs/clock-faces-mock"
+      "!docs/clock-faces-mock",
+      "!docs/elec16-ai-code-mock"
     ]
   },
   "formatter": {

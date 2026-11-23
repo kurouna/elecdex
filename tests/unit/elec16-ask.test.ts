@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
-import { CODE_START } from '@shared/e16c/code-area'
 import { buildCode } from '@shared/e16c/program'
 import { assemble, ramImage } from '@shared/elec16/asm'
+import { CODE_START } from '@shared/elec16/code-area'
 import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
 import { AI_TYPES, LINK_STATUS } from '@shared/elec16/link-services'
 import type { Elec16 } from '@shared/elec16/machine'

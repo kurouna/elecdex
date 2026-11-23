@@ -330,6 +330,14 @@ export const CH = {
     devChanged: 'elec16:dev-changed',
     /** For tests: the panes whose folders are watched. */
     devWatching: 'elec16:dev-watching',
+    /** CODE's WRITE (docs/elec16-write.md): a SEND, a fix of its last answer, STOP. */
+    write: 'elec16:write',
+    writeFix: 'elec16:write-fix',
+    writeStop: 'elec16:write-stop',
+    /** main -> renderer: more of an answer, a batch at a time (Elec16WritePiece). */
+    writeText: 'elec16:write-text',
+    /** For tests: the panes with a WRITE request under way. */
+    writing: 'elec16:writing',
   },
   /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
   utility: {
