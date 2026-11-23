@@ -96,4 +96,20 @@ describe("CODE's view", () => {
     expect(screen.getByTestId('elec16-asm').textContent).toContain('MAIN.TS built')
     expect((screen.getByTestId('elec16-run') as HTMLButtonElement).disabled).toBe(false)
   })
+
+  it('NEW keeps what is typed and opens the first free NEWn.TS, empty', async () => {
+    const onfile = vi.fn()
+    render(CodeView, { ...props('MAIN.TS'), onfile })
+    await settle(6)
+    await fireEvent.input(screen.getByTestId('elec16-source'), {
+      target: { value: 'export function main(): void { beep(440, 9) }' },
+    })
+    await fireEvent.click(screen.getByTestId('elec16-code-new-file'))
+    await settle(6)
+    const write = (
+      globalThis as unknown as { elecdex: { elec16: { writeFile: ReturnType<typeof vi.fn> } } }
+    ).elecdex.elec16.writeFile
+    expect(write).toHaveBeenCalledWith('u1', 'MAIN.TS', expect.any(Uint8Array))
+    expect(onfile).toHaveBeenCalledWith('NEW1.TS')
+  })
 })

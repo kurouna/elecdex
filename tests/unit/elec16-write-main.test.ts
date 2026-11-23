@@ -8,7 +8,7 @@ import type {
   StreamResult,
   StreamSink,
 } from '../../src/main/ai/adapter'
-import { CodeWriter, WRITE_IDLE_MS } from '../../src/main/elec16/write'
+import { CodeWriter, WRITE_IDLE_MS, WRITE_TOTAL_MS } from '../../src/main/elec16/write'
 
 /**
  * WRITE in main (main/elec16/write.ts): one conversation a pane, the model asked through the
@@ -178,9 +178,34 @@ describe('WRITE in main', () => {
       new Promise((_resolve, reject) =>
         r.signal.addEventListener('abort', () => reject(new Error('aborted'))),
       )
-    const idle = writer(hang)
-    const waiting = idle.w.write(KEY, req())
+    // A model that thinks before it writes, saying nothing meanwhile (Gemini on its OpenAI-compatible
+    // address): no quiet minute cuts it before its first word - only the whole request's limit.
+    // Found trying WRITE on Gemini, cut at one minute while it thought.
+    const thinking = writer(hang)
+    let settled = false
+    const pondering = thinking.w.write(KEY, req()).then((r) => {
+      settled = true
+      return r
+    })
     await Promise.resolve()
+    thinking.fire(WRITE_IDLE_MS)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(settled).toBe(false)
+    thinking.fire(WRITE_TOTAL_MS)
+    expect(await pondering).toMatchObject({ ok: false, stop: 'timeout' })
+
+    // Once it has written, a quiet minute is a provider gone.
+    let hold: (sink: StreamSink) => void = () => {}
+    const idle = writer(
+      (r, sink) =>
+        new Promise((_resolve, reject) => {
+          hold = (s) => s.text('```ts\n')
+          hold(sink)
+          r.signal.addEventListener('abort', () => reject(new Error('aborted')))
+        }),
+    )
+    const waiting = idle.w.write(KEY, req())
+    await new Promise((r) => setTimeout(r, 0))
     idle.fire(WRITE_IDLE_MS)
     expect(await waiting).toMatchObject({ ok: false, stop: 'timeout' })
 

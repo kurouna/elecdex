@@ -1,6 +1,13 @@
 import { buildCode, measure, measuringMachine } from '@shared/e16c/program'
 import { fromMachineText, sourceFromMachine, sourceToMachine } from '@shared/elec16/charset'
-import { CODE_END, CODE_START, LIBRARY, MEASURE_LIMIT, SAMPLE } from '@shared/elec16/code-area'
+import {
+  CODE_END,
+  CODE_START,
+  LIBRARY,
+  MEASURE_LIMIT,
+  newFileName,
+  SAMPLE,
+} from '@shared/elec16/code-area'
 import { describe, expect, it } from 'vitest'
 import { built, settle, shown, switchOn, type } from './elec16-helpers'
 
@@ -86,5 +93,15 @@ describe('a source kept on the card', () => {
       'export function main(): void {\r\n\r\n  putc(65)\r\n}\r\n',
     )
     expect(sourceToMachine('// 漢字')).toMatchObject({ problem: expect.stringMatching(/Line 1/) })
+  })
+})
+
+describe("CODE's NEW", () => {
+  it('names a new source the first free NEWn.TS on the card', () => {
+    expect(newFileName([])).toBe('NEW1.TS')
+    expect(newFileName(['MAIN.TS', 'NEW1.TS', 'NEW3.TS'])).toBe('NEW2.TS')
+    expect(newFileName(['NEW1.TS', 'NEW2.TS'])).toBe('NEW3.TS')
+    // A card file name is at most eight letters and digits: NEW9999 is the last.
+    expect(newFileName(['NEW1.TS'])).toMatch(/^[A-Z0-9]{1,8}\.TS$/)
   })
 })

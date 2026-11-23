@@ -31,7 +31,7 @@ import { type KeyLookup, type Target, targetFor } from '../ai/target.js'
  * ever gets the model's text, which becomes the editor's: nothing here runs or reads it.
  */
 
-/** Nothing come for this long: the provider is taken to have gone quiet. */
+/** Nothing come for this long once it has begun: the provider is taken to have gone quiet. */
 export const WRITE_IDLE_MS = 60_000
 /** A request never takes longer than this, however steadily it comes. */
 export const WRITE_TOTAL_MS = 10 * 60_000
@@ -257,7 +257,8 @@ class Relay {
     this.#to = to
     this.#page = page
     this.#run = run
-    this.#heard()
+    // No quiet minute before the first word: a model may think for minutes and say nothing
+    // meanwhile (Gemini on its OpenAI-compatible address). Only the whole limit holds until then.
     this.#totalTimer = deps.setTimer(() => this.#cut('timeout'), WRITE_TOTAL_MS)
   }
 

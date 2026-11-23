@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { AiProvider } from '@shared/ai'
 import { sourceFromMachine, sourceToMachine } from '@shared/elec16/charset'
-import { CODE_END, CODE_START, MEASURE_LIMIT, SAMPLE } from '@shared/elec16/code-area'
+import { CODE_END, CODE_START, MEASURE_LIMIT, newFileName, SAMPLE } from '@shared/elec16/code-area'
 import { MAX_FIXES } from '@shared/elec16/write-flow'
 import { onDestroy, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
@@ -266,6 +266,13 @@ onDestroy(() => {
         <option value={name}>{name}</option>
       {/each}
     </select>
+    <button
+      type="button"
+      class="e16-btn"
+      disabled={unit === null || !loaded || writing}
+      onclick={(e) => afterBlink(e.currentTarget, () => void open(newFileName([file, ...sources])))}
+      data-testid="elec16-code-new-file">new</button
+    >
     <input
       class="name"
       placeholder="new name"

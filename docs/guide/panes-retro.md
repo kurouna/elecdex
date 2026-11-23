@@ -241,6 +241,7 @@ The SOFT CARD brings thirteen programs, laid read-only over every unit's card:
 ### CODE
 
 - **CODE** compiles a program written in a subset of TypeScript (e16c) into the machine's code at three levels of optimisation side by side, with their bytes and cycles.
+- **NEW** (*unreleased*) starts a new program in the first free `NEWn.TS`, keeping the one open on the card first.
 - **RUN ▸** puts it in the machine and runs it; **LOAD ▸** puts it there for the monitor. SAVE TO CARD keeps it as a `.BIN`.
 - The compiler runs in a worker in the page. A person's code runs only as the machine's code, never as JavaScript.
 - CODE works on every model; on PLAY-320 and SCI-128, RUN calls the program directly from the start screen or the calculator.

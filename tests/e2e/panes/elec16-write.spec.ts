@@ -82,6 +82,11 @@ test.beforeAll(async () => {
       raw += piece
     })
     req.on('end', () => {
+      if (req.url === '/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ data: [{ id: 'm1' }, { id: 'm2' }] }))
+        return
+      }
       if (req.url !== '/v1/chat/completions') {
         res.writeHead(404, { 'content-type': 'application/json' }).end('{}')
         return
@@ -131,11 +136,17 @@ test('WRITE writes a program from words over the sample, RUN runs it, and CODE k
   try {
     await openCode(page)
     await expect(line(page)).toContainText('to Local · m1')
+    // Another model, picked from the list the provider gives: it sticks, and is the one asked.
+    // Found by hand: the pane took the keyboard back as the list was pressed, closing it first.
+    await page.getByTestId('elec16-write-model').click()
+    await page.getByTestId('elec16-write-model-list').getByText('m2', { exact: true }).click()
+    await expect(line(page)).toContainText('to Local · m2')
+    await expect(page.getByTestId('elec16-write-model')).toHaveValue('m2')
     await send(page, 'show MADE BY AI')
     await expect(line(page)).toContainText('ready', { timeout: 60_000 })
     await expect(page.getByTestId('elec16-source')).toHaveValue(GOOD)
     expect(seen).toHaveLength(1)
-    expect(seen[0]?.model).toBe('m1')
+    expect(seen[0]?.model).toBe('m2')
     expect(seen[0]?.system).toMatch(/ELEC-16 POCKET/)
     expect(seen[0]?.users[0]).toContain('show MADE BY AI')
     await expect(page.getByTestId('elec16-write-steps')).toContainText('ready')

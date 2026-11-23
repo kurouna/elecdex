@@ -420,6 +420,9 @@ function onkeyup(event: KeyboardEvent): void {
 function onpointerup(event: PointerEvent): void {
   const target = event.target as HTMLElement | null
   if (target === null || target.closest('input, select, textarea') !== null) return
+  // CODE takes no machine keys: taking the keyboard there only shut a list being pressed (WRITE's
+  // models) or a question being answered before the press reached it.
+  if (target.closest('[data-testid=elec16-code-view]') !== null) return
   queueMicrotask(() => root?.focus({ preventScroll: true }))
 }
 

@@ -78,3 +78,13 @@ export function main(): void {
 
 /** The most cycles a measurement runs: past it, the program is said to be still going. */
 export const MEASURE_LIMIT = 20_000_000
+
+/** NEW's file: the first NEWn.TS the card does not hold (a card name is eight letters at most). */
+export function newFileName(names: readonly string[]): string {
+  const taken = new Set(names)
+  for (let n = 1; n <= 9999; n++) {
+    const name = `NEW${n}.TS`
+    if (!taken.has(name)) return name
+  }
+  return 'NEW.TS'
+}
