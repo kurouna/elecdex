@@ -20,6 +20,10 @@ const GOOD = [
   '  newline()',
   '}',
 ].join('\n')
+/** A program that waits for a key at its end, as a GAME OVER does. */
+const WAITS = ['export function main(): void {', "  puts(str('WAITING'))", '  getkey()', '}'].join(
+  '\n',
+)
 const BAD = 'export function main(): void { putnum(7 / 2) }'
 
 interface Seen {
@@ -58,7 +62,11 @@ function answer(req: IncomingMessage, res: ServerResponse, raw: string): void {
     return
   }
   const fixing = (users.at(-1) ?? '').includes('did not compile')
-  const code = first.includes('NEVER') || (first.includes('BROKEN') && !fixing) ? BAD : GOOD
+  const code = first.includes('WAITS')
+    ? WAITS
+    : first.includes('NEVER') || (first.includes('BROKEN') && !fixing)
+      ? BAD
+      : GOOD
   if (first.includes('LATER')) {
     // The start now, the rest when the test says.
     res.write(chunk(`\`\`\`ts\n${code.slice(0, 20)}`))
@@ -131,6 +139,10 @@ async function send(page: Page, words: string): Promise<void> {
 
 const line = (page: Page) => page.getByTestId('elec16-write-line')
 
+/** The editor's text, its last line end aside: a file read back from the card keeps one there. */
+const editorText = async (page: Page) =>
+  (await page.getByTestId('elec16-source').inputValue()).replace(/\n$/, '')
+
 test('WRITE writes a program from words over the sample, RUN runs it, and CODE keeps what it did', async () => {
   const { page, close } = await launch(undefined, { layout: LAYOUT, settings: settings(true) })
   try {
@@ -144,7 +156,7 @@ test('WRITE writes a program from words over the sample, RUN runs it, and CODE k
     await expect(page.getByTestId('elec16-write-model')).toHaveValue('m2')
     await send(page, 'show MADE BY AI')
     await expect(line(page)).toContainText('ready', { timeout: 60_000 })
-    await expect(page.getByTestId('elec16-source')).toHaveValue(GOOD)
+    await expect.poll(() => editorText(page)).toBe(GOOD)
     expect(seen).toHaveLength(1)
     expect(seen[0]?.model).toBe('m2')
     expect(seen[0]?.system).toMatch(/ELEC-16 POCKET/)
@@ -157,7 +169,7 @@ test('WRITE writes a program from words over the sample, RUN runs it, and CODE k
       .toMatch(/MADE BY AI/)
     // Back in CODE, what WRITE did is still there: its builds and UNDO.
     await page.getByTestId('elec16-view-toggle').click()
-    await expect(page.getByTestId('elec16-source')).toHaveValue(GOOD)
+    await expect.poll(() => editorText(page)).toBe(GOOD)
     await expect(page.getByTestId('elec16-write-undo')).toBeVisible()
     await expect(page.getByTestId('elec16-levels')).toBeVisible()
   } finally {
@@ -177,9 +189,29 @@ test('a SEND goes on while the pane shows the machine, and CODE shows what it wr
     later.shift()?.()
     await expect.poll(() => page.evaluate(() => window.elecdex.elec16.writing())).toEqual([])
     await page.getByTestId('elec16-view-toggle').click()
-    await expect(page.getByTestId('elec16-source')).toHaveValue(GOOD, { timeout: 30_000 })
+    await expect.poll(() => editorText(page), { timeout: 30_000 }).toBe(GOOD)
     await expect(line(page)).toContainText('ready')
     await expect(page.getByTestId('elec16-levels')).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
+test('RUN runs the program again while the last run still waits for a key', async () => {
+  // Found trying WRITE by hand: a program CALL started, asleep at getkey, looks like the prompt,
+  // and RUN typed CALL 28672 into it rather than running anything.
+  const { page, close } = await launch(undefined, { layout: LAYOUT, settings: settings(true) })
+  try {
+    await openCode(page)
+    await send(page, 'WAITS for a key')
+    await expect(line(page)).toContainText('ready', { timeout: 60_000 })
+    await page.getByTestId('elec16-run').click()
+    const lcd = async () => (await lcdLines(page)).join('\n')
+    await expect.poll(lcd, { timeout: 15_000 }).toMatch(/WAITING/)
+    await page.getByTestId('elec16-view-toggle').click()
+    await page.getByTestId('elec16-run').click()
+    // Stopped with BRK into the monitor, and run from there.
+    await expect.poll(lcd, { timeout: 15_000 }).toMatch(/G 7000[\s\S]*WAITING/)
   } finally {
     await close()
   }
@@ -196,7 +228,7 @@ test('a compile error goes back to the model, and its fix is taken', async () =>
     expect(seen[1]?.users.at(-1)).toMatch(
       /did not compile[\s\S]*MAIN\.TS:1:\d+ \/ gives a fraction/,
     )
-    await expect(page.getByTestId('elec16-source')).toHaveValue(GOOD)
+    await expect.poll(() => editorText(page)).toBe(GOOD)
   } finally {
     await close()
   }

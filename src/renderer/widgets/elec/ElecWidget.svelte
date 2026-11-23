@@ -823,8 +823,8 @@ select:focus {
   color: var(--warn);
 }
 
+/* STOP: in words of the warning colour; its rule stays the line's own, not a second colour. */
 .cmd.stop {
-  border-color: var(--warn);
   color: var(--warn);
 }
 

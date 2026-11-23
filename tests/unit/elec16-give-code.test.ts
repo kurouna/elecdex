@@ -33,10 +33,13 @@ function taker(over: Partial<CodeTaker> = {}) {
 const IMAGE = new Uint8Array([1, 2, 3])
 
 describe("CODE's RUN and LOAD", () => {
-  it('writes the code and types CALL at an idle prompt, with no BRK', async () => {
+  it('stops whatever runs with BRK first, even when the machine looks idle at a prompt', async () => {
+    // A program CALL started, asleep for a key (a GAME OVER waiting), sleeps as the prompt does:
+    // without BRK, CALL 28672 was typed into it. Found trying WRITE's games by hand. BRK at a
+    // prompt changes nothing but the line being typed (the monitor prints its prompt again).
     const { t, did } = taker()
     expect(await giveCode(t, IMAGE, 'run')).toBeNull()
-    expect(did).toEqual(['load', 'type CALL 28672\n'])
+    expect(did).toEqual(['brk', 'load', 'type CALL 28672\n'])
   })
 
   it('stops a BASIC program first, though it sleeps waiting at an INPUT', async () => {
@@ -77,15 +80,15 @@ describe("CODE's RUN and LOAD", () => {
   it('says why when there is no machine to write the code into', async () => {
     const { t, did } = taker({ loadCode: () => false })
     expect(await giveCode(t, IMAGE, 'load')).toMatch(/no machine running in this pane/)
-    expect(did).toEqual([])
+    expect(did).toEqual(['brk'])
   })
 })
 
 describe("FILES' LOAD", () => {
-  it('types the LOAD at an idle prompt', async () => {
+  it('types the LOAD at a prompt, a BRK first as for RUN', async () => {
     const { t, did } = taker()
     expect(await typeAtBasic(t, 'LOAD "CLOCK.BAS"')).toBeNull()
-    expect(did).toEqual(['type LOAD "CLOCK.BAS"\n'])
+    expect(did).toEqual(['brk', 'type LOAD "CLOCK.BAS"\n'])
   })
 
   it('stops a program waiting for a key first, which would have taken the L as its key', async () => {
@@ -97,7 +100,7 @@ describe("FILES' LOAD", () => {
   it('leaves the monitor for BASIC first, where LOAD is a word', async () => {
     const { t, did } = taker({ annunciators: bit('MON') })
     expect(await typeAtBasic(t, 'LOAD "X.BIN":CALL 28672')).toBeNull()
-    expect(did).toEqual(['type Q\nLOAD "X.BIN":CALL 28672\n'])
+    expect(did).toEqual(['brk', 'type Q\nLOAD "X.BIN":CALL 28672\n'])
   })
 
   it('says why when the machine does not come back to a prompt', async () => {

@@ -36,9 +36,16 @@ const lit = (t: CodeTaker, name: (typeof ANNUNCIATORS)[number]): boolean =>
 const NO_PROMPT = `The machine did not come back to its prompt within ${PROMPT_WAIT_MS / 1000} seconds; nothing was typed.`
 const NO_MACHINE = 'There is no machine running in this pane (MOVE HERE takes the unit).'
 
-/** The machine at a prompt, BASIC's or the monitor's; false when it did not get there. */
+/**
+ * The machine at a prompt, BASIC's or the monitor's; false when it did not get there. On the
+ * models typed at, always by BRK: a program CALL started and asleep for a key (a GAME OVER
+ * waiting) sleeps just as the prompt does, and lights no BUSY, so it would take what is typed
+ * as its keys. BRK at a prompt costs only the line being typed (the monitor prints its prompt
+ * again). The models RUN calls into (PLAY-320, SCI-128) tell their prompt by where they sleep.
+ */
 async function toPrompt(t: CodeTaker): Promise<boolean> {
-  if (t.off || !t.asleep || t.status === 'paused' || lit(t, 'BUSY')) t.brk()
+  const idle = !t.off && t.asleep && t.status !== 'paused' && !lit(t, 'BUSY')
+  if (!idle || t.callCode === undefined) t.brk()
   return t.whenAsleep(PROMPT_WAIT_MS)
 }
 

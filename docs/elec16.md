@@ -408,7 +408,7 @@ TS の部分集合 (*.e16.ts)
   - 組み込み関数 `memcpy(to, from, n)` と `memset(to, value, n)` は MCPY と MSET 1 命令になる（引数は a0–a2 に置く）。TypeScript として動かすときも memmove と同じに写す
   - Worker（`code/compile.worker.ts`、`?worker&inline` で blob。CSP の `worker-src blob:` のまま）は最初の CODE で読み込み、最後の CODE が閉じると終える（`holdCompiler`）。1 回の COMPILE で -O0〜-O2 を全部作り、同じ ROM の機械（プロンプトで眠った状態のスナップショット）で `main` を呼んでサイクル数を測る。キーを待てば「waits for a key」、2,000 万サイクルを越えれば打ち切り
   - ソースはユニットのカードの `.TS`（既定 `MAIN.TS`、空行も残す `sourceToMachine`）。COMPILE の前と CODE を離れるときに書く。SAVE は選んだ段階の `.BIN` も書く。main の口は `elec16.readFile` と `elec16.writeFile`（書けるのは `.TS` と `.BIN` だけ、32 KB まで）
-  - RUN ▸ / LOAD ▸: MACHINE に戻し、眠っていなければ BRK、プロンプトで眠るのを待って（`whenAsleep`）コアの `loadCode` で書き、BASIC なら `CALL 28672`、モニタなら `G 7000`（LOAD は `U 7000`、BASIC なら `MON` の後に）を PASTE と同じ仕組みで打つ
+  - RUN ▸ / LOAD ▸: MACHINE に戻し、いつも BRK（キーを待つ機械語のプログラムはプロンプトと同じく眠り、BUSY も点けないので見分けられない。2026-11-23）、プロンプトで眠るのを待って（`whenAsleep`）コアの `loadCode` で書き、BASIC なら `CALL 28672`、モニタなら `G 7000`（LOAD は `U 7000`、BASIC なら `MON` の後に）を PASTE と同じ仕組みで打つ
   - CODE が出ている間、機械は隠れたときと同じく一時停止する（プロンプトで眠っていたなら戻ると続く）
 
 ### 起動とモード
