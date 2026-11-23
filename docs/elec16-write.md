@@ -148,7 +148,7 @@ thinking / writing / fixing ─STOP→ stopped                       どこで�
 - elec16.md 6 章の CODE からこの文書へのリンク、decisions.md（code-area.ts を移したこと、推論、時間切れ）、.claude/rules/elec16.md に一行
 - デモ: 次のリリースで introduction デモに 1 拍
 
-## 11. モックに足すもの
+## 11. モックに足したもの（版 2、2026-11-23）
 
 - 状態: THINKING、STOPPED、プロバイダの失敗（言葉つき）、モデルなし
 - 段階の行の FIX は誤りが出てから。書いている間のトークン数は出さない（大きさと時間）。時間と大きさは `--step--1`、プロバイダの select も

@@ -138,6 +138,7 @@ button { cursor: pointer; }
 .mockbar button[aria-pressed="true"] { background: var(--accent); color: var(--app-bg); border-color: var(--accent); }
 .mockbar .tag { border: 1px solid var(--warn); color: var(--warn); padding: 0 0.35rem; }
 
+
 /* ---------- the pane ---------- */
 .pane {
   position: relative; display: flex; flex-direction: column; height: 46rem; max-width: 92rem;
@@ -153,7 +154,7 @@ button { cursor: pointer; }
   border: 1px solid var(--panel-rule); background: transparent; padding: 0.05rem 0.55rem;
   font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text);
 }
-.e16-btn:disabled { opacity: 0.45; cursor: default; }
+.e16-btn:disabled, .e16-chip:disabled, .bar select:disabled, .bar .name:disabled { opacity: 0.45; cursor: default; }
 .e16-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent-strong); }
 .e16-chip[aria-checked="true"] { background: var(--accent); color: var(--app-bg); border-color: var(--accent); }
 .chips { display: flex; gap: 2px; }
@@ -167,30 +168,28 @@ button { cursor: pointer; }
 }
 .bar .name { width: 9ch; }
 .bar select option { background: var(--panel-raised); }
+/* As the git pane's FETCHING: framed in the accent, stepping with the shared pulse. */
 .busy { padding: 0 var(--space-2); border: 1px solid var(--accent); color: var(--accent-strong); font-size: var(--step--2); letter-spacing: 0.12em; }
+.busy[data-phase="2"] { opacity: 0.45; }
 
-.sides { flex: 1; min-height: 8rem; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1); }
+.sides { flex: 1; min-height: 8rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--space-1); }
 .side { position: relative; display: flex; min-height: 0; min-width: 0; }
 .src, .asm {
   flex: 1; margin: 0; padding: var(--space-1); border: 1px solid var(--panel-rule); background: transparent; color: var(--text);
-  font-family: var(--font-mono); font-size: var(--step-0); line-height: 1.45; overflow: auto; white-space: pre; resize: none; tab-size: 2;
+  font-family: var(--font-mono); font-size: var(--step-0); line-height: 1.45; overflow: auto; white-space: pre; tab-size: 2;
 }
 .asm { color: var(--text-muted); }
-/* Being written: the editor is the model's until it is done - dashed, read-only, a caret at the end. */
+/* While the model writes, the editor is a <pre>, dashed: its text is the model's until it is done. */
 .src.writing { border-style: dashed; border-color: var(--accent); }
 .src .caret { display: inline-block; width: 0.55em; height: 1.1em; vertical-align: text-bottom; background: var(--accent); }
 .src .caret[data-phase="2"] { opacity: 0.2; }
 .src mark { background: hsl(var(--hue-danger) 80% 50% / 0.18); color: inherit; outline: 1px solid var(--danger); }
-.src .new { background: var(--accent-faint); }
 .side .tag {
   position: absolute; top: 0; right: 0.9rem; transform: translateY(-50%); padding: 0 0.35rem; background: var(--app-bg);
   font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--accent);
 }
 
-.said { margin: 0; font-size: var(--step--1); color: var(--text-muted); display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
-.said.bad { color: var(--danger); }
-.said.ok { color: var(--text); }
-.said .link { border: 0; padding: 0; background: none; color: var(--accent); text-decoration: underline; font-size: var(--step--1); }
+.said { margin: 0; font-size: var(--step--1); color: var(--text-muted); }
 .errors { margin: 0; padding: 0; list-style: none; font-family: var(--font-mono); font-size: var(--step--1); color: var(--danger); }
 .errors button { border: 0; padding: 0; background: none; font: inherit; color: var(--accent); text-decoration: underline; }
 .levels { border-collapse: collapse; font-family: var(--font-mono); font-size: var(--step--1); }
@@ -198,10 +197,10 @@ button { cursor: pointer; }
 .levels td { padding-right: var(--space-3); color: var(--text-muted); }
 .levels tr.chosen td { color: var(--accent-strong); }
 
-/* ---------- WRITE: the new line at the foot ---------- */
-.write { display: flex; flex-direction: column; gap: 2px; }
-/* The steps a SEND goes through, lit as they are reached - only while one is under way or just ended. */
-.steps { display: flex; align-items: center; gap: var(--space-2); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
+/* ---------- WRITE: the line at the foot ---------- */
+.write { display: flex; flex-direction: column; gap: 3px; }
+/* The steps a SEND goes through. Its height is kept while idle, so nothing above moves when it lights. */
+.steps { display: flex; align-items: center; gap: var(--space-2); min-height: 1.4rem; font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted); }
 .steps .step { display: flex; align-items: center; gap: 0.3rem; }
 .steps .step::before { content: ""; width: 0.45rem; height: 0.45rem; border: 1px solid currentColor; transform: rotate(45deg); }
 .steps .step.done { color: var(--text); }
@@ -211,28 +210,34 @@ button { cursor: pointer; }
 .steps .step.now[data-phase="2"]::before { background: transparent; }
 .steps .step.bad { color: var(--danger); }
 .steps .step.bad::before { background: var(--danger); border-color: var(--danger); }
+.steps .step.off { color: var(--warn); }
+.steps .step.off::before { border-color: var(--warn); }
 .steps .rule { flex: 0 0 1.2rem; height: 1px; background: var(--panel-rule); }
-.steps .meta { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: var(--step--2); }
+.steps .meta { margin-left: auto; text-transform: none; letter-spacing: 0; font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted); }
 
-.composer { display: flex; align-items: stretch; border: 1px solid var(--panel-border); }
+/* A command line as the AI chat pane's: the label, the prompt, the words, the provider and model, SEND. */
+.composer { display: flex; flex-wrap: wrap; align-items: stretch; border: 1px solid var(--panel-border); }
 .composer:focus-within { border-color: var(--accent); box-shadow: inset 2px 0 0 var(--accent); }
 .composer .label {
   flex: none; display: flex; align-items: center; padding: 0 var(--space-2); border-right: 1px solid var(--panel-rule);
   font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
 }
 .composer:focus-within .label { color: var(--accent); }
+.composer .words { flex: 1 1 16rem; display: flex; min-width: 0; }
 .composer .prompt { flex: none; padding: var(--space-1) 0 0 var(--space-2); font-family: var(--font-mono); line-height: 1.4; color: var(--accent); }
 .composer:not(:focus-within) .prompt { color: var(--text-muted); }
 .composer textarea {
   flex: 1; min-width: 0; resize: none; padding: var(--space-1) var(--space-2); border: 0; outline: none; background: transparent;
   color: var(--text); font-family: var(--font-ui); font-size: var(--step-1); line-height: 1.4; field-sizing: content; min-height: 1.4em; max-height: 8rem;
 }
-.composer textarea:disabled { color: var(--text-muted); }
+.composer textarea:disabled, .composer textarea[readonly] { color: var(--text-muted); }
+/* The provider, the model and SEND keep together: in a narrow pane they wrap under the words as one row. */
+.composer .ends { flex: 0 1 auto; display: flex; align-items: stretch; margin-left: auto; }
 .composer select {
   flex: none; border: 0; border-left: 1px solid var(--panel-rule); background: transparent; padding: 0 var(--space-2);
-  font-family: var(--font-ui); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
+  font-family: var(--font-ui); font-size: var(--step--1); color: var(--text-muted);
 }
-.composer select option { background: var(--panel-raised); text-transform: none; }
+.composer select option { background: var(--panel-raised); }
 /* The model: the AI chat pane's ModelField - typed, or picked from the list the provider gives when it opens. */
 .composer .model { position: relative; flex: none; display: flex; align-items: center; border-left: 1px solid var(--panel-rule); }
 .composer .model input {
@@ -240,6 +245,7 @@ button { cursor: pointer; }
   font-family: var(--font-mono); font-size: var(--step--1); color: var(--text-muted);
 }
 .composer .model input:focus { color: var(--text); }
+.composer .model input::placeholder { color: var(--warn); }
 .composer .model .tag { position: absolute; right: var(--space-1); top: 50%; transform: translateY(-50%); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--accent); }
 .composer .model .list {
   position: absolute; bottom: calc(100% + 2px); left: -1px; right: -1px; z-index: 5; margin: 0; padding: 2px 0; list-style: none;
@@ -247,30 +253,6 @@ button { cursor: pointer; }
 }
 .composer .model .list li { padding: 0.1rem var(--space-2); color: var(--text-muted); cursor: pointer; }
 .composer .model .list li[aria-selected="true"] { background: var(--accent-faint); color: var(--accent-strong); }
-
-/* The question before a WRITE replaces code of the person's own: a row of answers (lib/question-keys.ts). */
-.question {
-  display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--panel-border); border-bottom: 0; font-size: var(--step--1); color: var(--text);
-}
-.question .mark { color: var(--warn); font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
-.question .gap { flex: 1; }
-.question button {
-  border: 1px solid var(--panel-rule); background: transparent; padding: 0.05rem 0.7rem;
-  font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text);
-}
-/* The answer the keyboard is on is shown filled. */
-.question button.on { background: var(--accent); border-color: var(--accent); color: var(--app-bg); }
-
-/* The press that blinks (styles/press.css, lib/blink.ts): 100 ms beats while held, three before the action. */
-.pane :is(button):not(:disabled):active, .pane .blinking { animation: press 100ms linear infinite; }
-@keyframes press { 50% { background: var(--accent); color: var(--app-bg); border-color: var(--accent); box-shadow: none; } }
-
-/* Scrollbars as the app's (styles/reset.css): thin, the accent's dim thumb, no track. */
-* { scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--accent-dim); }
 .cmd {
   flex: none; display: flex; align-items: center; padding: 0 var(--space-3); border: 0; border-left: 1px solid var(--panel-border); background: transparent;
   font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; color: var(--text-muted);
@@ -279,23 +261,41 @@ button { cursor: pointer; }
 .cmd.lit:not(:disabled):hover { background: var(--accent); color: var(--app-bg); }
 .cmd:disabled { opacity: 0.5; cursor: default; }
 .cmd.stop { color: var(--warn); box-shadow: inset 0 0 0 1px var(--warn); }
-.hint { margin: 0; font-size: var(--step--1); color: var(--text-muted); }
-.hint b { font-weight: 500; color: var(--text); }
-.hint .warn { color: var(--warn); }
+
+/* One line under the composer: what is sent, the question before a REPLACE, or how the SEND ended. */
+.line { margin: 0; min-height: 1.6rem; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--step--1); color: var(--text-muted); }
+.line b { font-weight: 500; color: var(--text); }
+.line .mark { font-size: var(--step--2); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+.line .mark.warn, .line .warn { color: var(--warn); }
+.line .mark.ok { color: var(--accent-strong); }
+.line .mark.bad, .line .bad { color: var(--danger); }
+.line .gap { flex: 1; }
+.line .e16-btn.on { background: var(--accent); border-color: var(--accent); color: var(--app-bg); }
+
+/* The press that blinks (styles/press.css, lib/blink.ts): 100 ms beats while held, three before the action. */
+.pane button:not(:disabled):active, .pane .blinking { animation: press 100ms linear infinite; }
+@keyframes press { 50% { background: var(--accent); color: var(--app-bg); border-color: var(--accent); box-shadow: none; } }
+
+/* Scrollbars as the app's (styles/reset.css): thin, the accent's dim thumb, no track. */
+* { scrollbar-width: thin; scrollbar-color: var(--accent-dim) transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--accent-dim); }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------- the notes under the mock ---------- */
 .notes { max-width: 92rem; margin-top: 1.4rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr)); gap: 1rem 2rem; font-size: var(--step--1); line-height: 1.7; }
 .notes h3 { margin: 0 0 0.3rem; font-family: var(--font-display); font-weight: 500; font-size: var(--step-0); letter-spacing: 0.06em; color: var(--accent-strong); }
 .notes ul, .notes ol { margin: 0; padding-left: 1.2rem; }
 .notes code { font-family: var(--font-mono); font-size: 0.95em; color: var(--accent); }
-.notes .q { border: 1px solid var(--warn); padding: 0.5rem 0.8rem; }
-.notes .q h3 { color: var(--warn); }
+.mockbar .play { border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
 <div class="doc">
-  <h1>ELEC-16 CODE <span>WRITE — 言葉から e16c を書く（モック）</span></h1>
-  <p>CODE 画面の下に AI チャットと同じ形の入力欄を置き、SEND で左のエディタに e16c の TypeScript が書かれる。COMPILE の誤りは自動で AI に返して直させる。数字と文は作り物。上の帯で状態とテーマを切り替えられる。</p>
+  <h1>ELEC-16 CODE <span>WRITE — 言葉から e16c を書く（モック 版 2）</span></h1>
+  <p>CODE 画面の下の入力欄に言葉を入れて SEND すると、AI が左のエディタに e16c の TypeScript を書き、COMPILE が通るまで最大 3 回（最初の 1 回と自動修正 2 回）まで書き直させる。直してほしいことも同じ入力欄に打てば、今のコードを添えて同じ流れになる。数字と文は作り物。設計は docs/elec16-write.md。「▶ play」で SEND からの流れが動く。</p>
 </div>
 
 <div class="mockbar">
@@ -304,12 +304,20 @@ button { cursor: pointer; }
     <button data-state="own">idle (own code)</button>
     <button data-state="confirm">confirm</button>
     <button data-state="models">model list</button>
+    <button data-state="nomodel">no model</button>
+    <button data-state="thinking">thinking</button>
     <button data-state="writing">writing</button>
     <button data-state="fixing">fixing</button>
-    <button data-state="done">done</button>
+    <button data-state="done">ready</button>
+    <button data-state="refine">refined</button>
+    <button data-state="stopped">stopped</button>
     <button data-state="failed">failed</button>
-    <button data-state="refine">refine</button>
+    <button data-state="error">provider error</button>
     <button data-state="none">no provider</button>
+  </div>
+  <div class="grp"><span>flow</span>
+    <button class="play" data-play="first">▶ play: first send</button>
+    <button class="play" data-play="refine">▶ play: refine</button>
   </div>
   <div class="grp"><span>theme</span>
     <button data-theme="tron" aria-pressed="true">tron</button>
@@ -336,170 +344,160 @@ button { cursor: pointer; }
 
   <div class="code">
     <div class="bar">
-      <select aria-label="source file"><option>MAIN.TS</option><option>JUMP.TS</option></select>
-      <input class="name" placeholder="new name">
+      <select id="file" aria-label="source file"><option>MAIN.TS</option><option>JUMP.TS</option></select>
+      <input id="newName" class="name" placeholder="new name">
       <span class="gap"></span>
       <span id="compileSlot"></span>
       <div class="chips"><button class="e16-chip">-O0</button><button class="e16-chip">-O1</button><button class="e16-chip" aria-checked="true">-O2</button></div>
       <button class="e16-btn run">run ▸</button><button class="e16-btn run">load ▸</button><button class="e16-btn run">save .bin</button>
     </div>
-    <p id="said" class="said"></p>
     <div class="sides">
-      <div class="side"><pre id="src" class="src" aria-label="TypeScript source"></pre><span id="srcTag" class="tag"></span></div>
+      <div class="side"><pre id="src" class="src" aria-label="TypeScript source" tabindex="0"></pre><span id="srcTag" class="tag"></span></div>
       <div class="side"><pre id="asm" class="asm" aria-label="E16 assembly"></pre></div>
     </div>
     <ul id="errors" class="errors"></ul>
     <table id="levels" class="levels">
       <thead><tr><th>level</th><th>bytes</th><th>cycles to return</th></tr></thead>
       <tbody>
-        <tr><td>-O0</td><td>1,412</td><td>18,904 · waits for a key</td></tr>
-        <tr><td>-O1</td><td>1,036</td><td>12,377 · waits for a key</td></tr>
-        <tr class="chosen"><td>-O2</td><td>744</td><td>9,120 · waits for a key</td></tr>
+        <tr><td>-O0</td><td>—</td><td>— · 2,916 bytes: too big</td></tr>
+        <tr><td>-O1</td><td>1,002</td><td>&gt; 20,000,000</td></tr>
+        <tr class="chosen"><td>-O2</td><td>704</td><td>&gt; 20,000,000</td></tr>
       </tbody>
     </table>
 
-    <!-- WRITE: new -->
     <div class="write">
-      <div id="steps" class="steps"></div>
-      <div id="question" class="question" role="group" aria-label="replace the code">
-        <span class="mark">replace?</span>
-        <span>WRITE replaces the code in <b>MAIN.TS</b> with what the AI writes. UNDO puts it back.</span>
-        <span class="gap"></span>
-        <button id="replace" class="on">replace</button><button id="keep">cancel</button>
-      </div>
+      <div id="steps" class="steps" aria-hidden="true"></div>
       <form class="composer" onsubmit="return false">
         <span class="label">write</span>
-        <span class="prompt">&gt;</span>
-        <textarea id="ask" rows="1" placeholder="what to make · enter to send, shift+enter for a new line"></textarea>
-        <select id="provider" aria-label="AI provider"><option>Anthropic</option><option>OpenAI</option><option>LM Studio</option></select>
-        <span class="model">
-          <input id="model" aria-label="model" value="claude-sonnet-5-5" spellcheck="false">
-          <span id="modelTag" class="tag"></span>
-          <ul id="modelList" class="list" role="listbox"></ul>
+        <span class="words">
+          <span class="prompt">&gt;</span>
+          <textarea id="ask" rows="1" aria-label="what to write"></textarea>
         </span>
-        <button id="send" class="cmd lit" type="submit">send</button>
+        <span class="ends">
+          <select id="provider" aria-label="AI provider"><option>Anthropic</option><option>OpenAI</option><option>LM Studio</option></select>
+          <span class="model">
+            <input id="model" aria-label="model" value="claude-sonnet-5-5" spellcheck="false">
+            <span id="modelTag" class="tag"></span>
+            <ul id="modelList" class="list" role="listbox"></ul>
+          </span>
+          <button id="send" class="cmd lit" type="submit">send</button>
+        </span>
       </form>
-      <p id="hint" class="hint"></p>
+      <p id="line" class="line"></p>
+      <p id="live" class="sr" aria-live="polite"></p>
     </div>
   </div>
 </section>
 
 <div class="notes">
   <div>
-    <h3>見た目と操作</h3>
+    <h3>使い方の流れ</h3>
     <ul>
-      <li>CODE 画面の一番下に <b>WRITE</b> の行。AI チャットの入力欄と同じ枠・<code>&gt;</code>・SEND。Enter で送り、Shift+Enter で改行。IME 変換中の Enter では送らない</li>
-      <li>右端で<b>プロバイダとモデル</b>を選ぶ。プロバイダは設定の AI にあるもの。モデルは AI チャットペインと同じ欄（<code>ModelField</code>）で、打つか、開いたときにプロバイダから読む一覧から選ぶ（読む間は QUERYING）。既定はそのプロバイダに設定で選んであるモデル。選んだものはペインの状態に残す。<b>LINK の AI スイッチとは無関係</b></li>
-      <li>SEND は他のボタンと同じく<b>3 拍点滅</b>してから動く（<code>afterBlink</code>）</li>
-      <li><b>上書きの確認</b>: エディタが CODE の最初の見本（<code>SAMPLE</code>）と同じか空なら確かめずに書く。違えば入力欄の上に「REPLACE? … UNDO puts it back」と REPLACE / CANCEL を出す。キーボードは REPLACE から、← → で移り、Enter で押し、Esc は CANCEL（<code>question-keys</code>）</li>
-      <li>書くとき、エディタは破線の枠になり読み出し専用。<b>答えが流れ込むように書かれる</b>。SEND は STOP（警告色）に変わる。Esc でも止まる</li>
-      <li>入力欄の上に段階: <b>WRITE → COMPILE → FIX n/2 → READY</b>。右端に経過時間とトークン</li>
-      <li>書き終えると自動で COMPILE。誤りがあれば、誤りの一覧と今のコードを AI に返して直させる（最大 2 回）。直した行は薄く光る</li>
-      <li>READY で右のアセンブリと段階表が出る。<b>RUN ▸ は人が押す</b>（勝手に走らせない）</li>
-      <li>直らなければ、誤りは今の CODE と同じく赤い一覧で行に飛べる。手で直すか、もう一度 SEND</li>
-      <li>前のソースは消えない: 「UNDO」で書く前に戻せる（1 段）。カードに書くのは今と同じく COMPILE のとき</li>
-      <li>2 回目からの SEND は<b>今のエディタのコードを添えて</b>送る（「スコアを出して」「もっと速く」で直していける）。会話は持たない</li>
-      <li>設定の AI にプロバイダがなければ、入力欄は無効で「Settings ▸ AI でプロバイダを足すと使える」と出す</li>
+      <li>言葉を入れて SEND。<b>1 回の SEND の中で、COMPILE が通るまで最大 3 回</b>（最初の 1 回と自動修正 2 回）AI に頼む。誤りは e16c の言葉のまま返す</li>
+      <li><b>直してほしいことも同じ入力欄に打つ</b>（「スコアを右上に」「もっと速く」）。そのときのエディタのコードを添えて送り、また最大 3 回まで。会話は SEND ごとに新しい</li>
+      <li>エディタが最初の見本か、WRITE が最後に書いたまま（人が手を入れていない）なら、確かめずに書く。手を入れていれば説明の行が REPLACE? になる</li>
+      <li>RUN ▸ は人が押す。UNDO は書く前と入れ替える（もう一度押すと戻る）。MACHINE との行き来と RUN ▸ を越えて残る</li>
     </ul>
   </div>
   <div>
-    <h3>作り（案）</h3>
+    <h3>版 2 で変えたこと（レビュー）</h3>
     <ul>
-      <li><b>main</b>: <code>main/elec16/write.ts</code>（<code>CodeWriter</code>）。AI チャットのプロバイダ・鍵・アダプタを使う（<code>targetFor</code>、<code>adapter.stream</code>）。鍵はページに来ない。チャンネル <code>elec16.write</code>（質問、今のソース、プロバイダ id）→ 差分を流す、<code>elec16.writeStop</code>。1 ペイン 1 つずつ、180 秒、ページが消えたら取り消し（<code>whenPageGoes</code>）</li>
-      <li><b>修正の往復はページ</b>が回す: コンパイラは CODE の worker にあるので、ページが COMPILE → 誤りを付けて main に 2 回目を頼む。main は「文を返す」だけで、コードを実行しない</li>
-      <li><b>システムプロンプト</b>: <code>shared/e16c/write-prompt.ts</code>（純粋）。e16c の部分集合、型と <code>u16()</code> などの読み方、<code>LIBRARY</code> の関数（code-area.ts から取る）、画面 240×48・40 桁 6 行、キー、2 KB（7000–77FF）、<code>export function main()</code>、例 2〜3 本。答えはコードブロック 1 つだけ。テストで、プロンプトの例が今の e16c で通ることを確かめる</li>
-      <li>答えから <code>```ts</code> の中だけを取り出す（<code>extractCode</code>、純粋）。モデルの文は信用しないデータとして、エディタの文字にだけなる</li>
-      <li><b>CodeView.svelte</b>: 下に <code>WriteLine.svelte</code> を足す。状態（idle / writing / compiling / fixing / ready / failed）は <code>write.svelte.ts</code> に分ける</li>
-      <li>POCKET だけ: PLAY-320 と SCI では WRITE の行を出さない</li>
-      <li>テスト: 単体（取り出し、プロンプト、往復の回数）、e2e は AI のスタブサーバーで「書かれる → 誤り → 直る → READY」と「プロバイダなし」</li>
-      <li>説明書 elec16-e16c.md、ガイド panes-retro.md（3 言語）、data-sources.md（何を送るか）、decisions.md</li>
+      <li>状態を足した: THINKING、STOPPED、プロバイダの失敗（言葉つき）、モデルなし</li>
+      <li>段階の行は高さを取っておく。FIX は誤りが出てから。書いている間はトークン数でなく時間と大きさ。数字とプロバイダの select は <code>--step--1</code></li>
+      <li>確認と結果は入力欄の下の 1 行に。UNDO はボタン</li>
+      <li>直している間は、前の答えを誤りの印つきのまま出し、直した答えが全部届いてから入れ替える。変えた行は光らせず「4 lines changed」と数だけ</li>
+      <li>COMPILE の場所に FIXING。書いている間の入力欄は読み出し専用（Esc で STOP）</li>
+      <li>見本のゲームは、プロンプトの規則のとおりに書いたもの（試験で Sonnet が書いた答え）</li>
+      <li>狭いペインでは、プロバイダ・モデル・SEND が入力欄の下の行に折り返す</li>
     </ul>
-  </div>
-  <div>
-    <h3>決まったこと（2026-11-23）</h3>
-    <ol>
-      <li>自動修正は 2 回まで（AI に頼むのは計 3 回まで）</li>
-      <li>今開いているファイルを置き換える。上書きの前に確かめる。最初の見本と同じなら確かめない</li>
-      <li>2 回目からの SEND は今のコードを添えて送る</li>
-      <li>プロバイダとモデルは入力欄で選ぶ</li>
-    </ol>
   </div>
 </div>
 
 <script>
-const GAME = `// ONE KEY JUMP: any key jumps. Clear the blocks; one hit ends it.
-const TITLE = str('ONE KEY JUMP  PRESS A KEY')
-const OVER = str('GAME OVER  SCORE ')
+const GAME = `// ONE KEY: press SPACE when the star is inside the brackets. 3 misses end it. Q or BRK quits.
+const COLS: u16 = 40
 
-let height: u16 = 0      // the runner's height, in rows
-let rising: u16 = 0      // rows still to climb
-let block: u16 = 39      // the block's column
-let score: u16 = 0
+let x: u16 = 0
+let goRight: u16 = 1
+let hits: u16 = 0
+let miss: u16 = 0
 
-function wait(n: u16): void {
-  for (let k: u16 = 0; k < n; k++) {}
+function waitTicks(n: u16): void {
+  const start = peek16(0xff30)
+  while (wrap16(peek16(0xff30) - start) < n) {}
 }
 
-function draw(): void {
-  cls()
-  locate(30, 0)
-  putnum(score)
-  locate(4, 5 - height)
-  putc(0x40)             // @
-  locate(block, 5)
-  putc(0x23)             // #
+function put(col: u16, c: u16): void {
+  locate(col, 3)
+  putc(c)
+}
+
+function status(): void {
+  locate(0, 5)
+  puts(str('HIT '))
+  putnum(hits)
+  puts(str('  MISS '))
+  putnum(miss)
+}
+
+function step(): void {
+  put(x, 0x20)
+  if (goRight === 1) {
+    if (x >= COLS - 1) {
+      goRight = 0
+      x--
+    } else {
+      x++
+    }
+  } else {
+    if (x === 0) {
+      goRight = 1
+      x++
+    } else {
+      x--
+    }
+  }
+  put(17, 0x5b)
+  put(22, 0x5d)
+  put(x, 0x2a)
 }
 
 export function main(): void {
+  poke16(0xff2c, 0)
   cls()
-  puts(TITLE)
-  getkey()
-  while (true) {
+  puts(str('ONE KEY  SPACE:HIT  Q:QUIT'))
+  status()
+  for (;;) {
     if (keyWaiting()) {
-      getkey()
-      if (height === 0) { rising = 3; beep(880, 20) }
+      const k = getkey()
+      if (k === 0x03 || k === 0x51 || k === 0x71) break
+      if (k === 0x20) {
+        if (x >= 18 && x <= 21) {
+          hits++
+          beep(880, 50)
+        } else {
+          miss++
+          beep(150, 120)
+        }
+        status()
+        if (miss >= 3) break
+      }
     }
-    if (rising > 0) { height++; rising-- } else if (height > 0) height--
-    if (block === 0) { block = 39; score++ } else block--
-    if (block === 4 && height === 0) break
-    draw()
-    wait(1200 - score * 20)
+    step()
+    waitTicks(60)
   }
-  locate(0, 2)
-  puts(OVER)
-  putnum(score)
-  beep(220, 300)
-  getkey()
+  locate(0, 1)
+  puts(str('GAME OVER'))
+  poke16(0xff2c, 5)
 }`;
-
-const ASM = `; -O2  MAIN.TS -> 7000
-7000  e16c_init:   LI    a0, 0
-7002               SW    a0, [gp+0]
-7004               ...
-7020  main:        ADDI  sp, sp, -4
-7022               SW    ra, [sp+2]
-7024               ECALL 3            ; cls
-7026               LI    a0, 0x7290   ; TITLE
-702A               ECALL 1            ; puts
-702C               ECALL 2            ; getkey
-702E  .L1:         LHU   t0, [0xFF12] ; keyWaiting
-7032               BEQZ  t0, .L2
-7034               ECALL 2
-7036               LHU   t1, [gp+0]   ; height
-703A               BNEZ  t1, .L2
-703C               LI    t1, 3
-703E               SH    t1, [gp+2]   ; rising
-7042               ...`;
-
-const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-const $ = (id) => document.getElementById(id);
-let phase = 1;
-setInterval(() => { phase = phase === 1 ? 2 : 1; document.querySelectorAll('[data-phase]').forEach((e) => (e.dataset.phase = phase)); }, 500);
-
-function steps(list, meta) {
-  return list.map(([name, kind]) => `<span class="step ${kind}" data-phase="${phase}">${name}</span>`).join('<span class="rule"></span>') + `<span class="meta">${meta}</span>`;
-}
-
+// The first answer had one line e16c refused; the fix put it right.
+const BAD_LINE = '  put(COLS / 2 - 3, 0x5b)';
+const FIRST = GAME.replace('  put(17, 0x5b)', BAD_LINE);
+const REFINED = GAME.replace(`function status(): void {
+  locate(0, 5)
+  puts(str('HIT '))`, `function status(): void {
+  locate(26, 0)
+  puts(str('HIT '))`).replace("puts(str('ONE KEY  SPACE:HIT  Q:QUIT'))", "puts(str('ONE KEY'))\n  locate(0, 5)\n  puts(str('SPACE:HIT  Q:QUIT'))");
 const SAMPLE = `// A program for the ELEC-16, in the subset of TypeScript e16c compiles.
 // main() runs on CALL 28672 (BASIC) or G 7000 (the monitor), and returns to it.
 // The library: putc puts cls locate newline putnum puthex getkey keyWaiting beep pset
@@ -532,72 +530,93 @@ export function main(): void {
     getkey()
   }
 }`;
-const HINT_IDLE = 'Writes e16c TypeScript for this pocket into <b>MAIN.TS</b>. Sent: your words and the code in the editor.';
+const ASM = `; -O2  MAIN.TS -> 7000
+;   x at 0x7800, goRight at 0x7802, hits at 0x7804, miss at 0x7806
+; MAIN.TS:9 waitTicks(n) at -O2
+waitTicks:
+  lw t1, 0xff30(zero)
+.L1:
+  lw t0, 0xff30(zero)
+  sub t0, t0, t1
+  bltu t0, a0, .L1
+  ret
+; MAIN.TS:14 put(col, c) at -O2
+put:
+  li a1, 3
+  li t0, 4
+  ecall
+  ...`;
+const WORDS = 'ワンキーゲームを作って';
+const MORE = 'スコアを右上に出して';
+const SENT = (file) => `Sent: your words and the code in <b>${file}</b>, to Anthropic · claude-sonnet-5-5.`;
+
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const $ = (id) => document.getElementById(id);
+const lineNo = (code, text) => code.split('\n').indexOf(text) + 1;
+let phase = 1;
+
+function steps(list, meta) {
+  return list.map(([name, kind]) => `<span class="step ${kind}" data-phase="${phase}">${name}</span>`).join('<span class="rule"></span>') + `<span class="meta">${meta}</span>`;
+}
+const markLine = (code, text) => esc(code).replace(esc(text), `<mark>${esc(text)}</mark>`);
+const BAD_ERR = `MAIN.TS:${lineNo(FIRST, BAD_LINE)}:12 / gives a fraction in TypeScript: use div(a, b)`;
+
+// Each state as the pane would draw it. `run` enables RUN; `locked` is a SEND under way.
 const STATES = {
-  idle: () => ({
-    src: esc(SAMPLE), asm: '', levels: false, ask: 'ワンキーゲームを作って', send: 'send', steps: '',
-    hint: HINT_IDLE + ' The editor holds the first sample: SEND writes at once.',
-  }),
-  own: () => ({
-    src: esc(OWN), asm: '', levels: false, ask: 'ワンキーゲームを作って', send: 'send', steps: '',
-    hint: HINT_IDLE + ' The editor holds code of your own: SEND asks first.',
-  }),
+  idle: () => ({ src: esc(SAMPLE), ask: WORDS, line: SENT('MAIN.TS') + ' The editor holds the first sample: SEND writes at once.' }),
+  own: () => ({ src: esc(OWN), ask: WORDS, line: SENT('MAIN.TS') + ' The editor holds code of your own: SEND asks first.' }),
   confirm: () => ({
-    src: esc(OWN), asm: '', levels: false, ask: 'ワンキーゲームを作って', send: 'send', steps: '', question: true, locked: false, sendOff: true,
-    hint: '<b>Enter</b> replaces · <b>← →</b> move · <b>Esc</b> cancels.',
+    src: esc(OWN), ask: WORDS, sendOff: true, question: true,
+    line: '<span class="mark warn">replace?</span><span>WRITE replaces the code in <b>MAIN.TS</b> with what the AI writes. UNDO puts it back.</span><span class="gap"></span><button id="replace" class="e16-btn on">replace</button><button id="keep" class="e16-btn">cancel</button>',
   }),
-  models: () => ({
-    src: esc(SAMPLE), asm: '', levels: false, ask: 'ワンキーゲームを作って', send: 'send', steps: '', models: true,
-    hint: 'The list is read from Anthropic when it opens; a model can be typed too.',
+  models: () => ({ src: esc(SAMPLE), ask: WORDS, models: true, line: 'The list is read from Anthropic when it opens; a model can be typed too.' }),
+  nomodel: () => ({ src: esc(SAMPLE), ask: WORDS, noModel: true, sendOff: true, line: '<span class="warn">OpenAI has no model chosen:</span> pick one here or in Settings ▸ AI.' }),
+  thinking: () => ({
+    src: esc(SAMPLE), ask: WORDS, locked: true, slot: 'writing', live: 'Thinking',
+    steps: steps([['thinking', 'now'], ['write', ''], ['compile', ''], ['ready', '']], '00:04'),
+    line: SENT('MAIN.TS') + ' <b>Esc</b> or STOP stops.',
   }),
   writing: () => {
-    const lines = GAME.split('\n').slice(0, 24).join('\n');
+    const part = GAME.split('\n').slice(0, 30).join('\n');
     return {
-      src: esc(lines) + `<span class="caret" data-phase="${phase}"></span>`, writing: true, tag: 'writing · 0.9 KB',
-      asm: '', levels: false, ask: 'ワンキーゲームを作って', locked: true, send: 'stop',
-      steps: steps([['write', 'now'], ['compile', ''], ['fix', ''], ['ready', '']], '00:07 · 412 tokens'),
-      hint: 'The editor is the model’s until it is done · <b>Esc</b> or STOP keeps what has come and stops.',
+      src: esc(part) + `<span class="caret" data-phase="${phase}"></span>`, writing: true, tag: 'writing · 0.6 KB', ask: WORDS, locked: true, slot: 'writing', live: 'Writing',
+      steps: steps([['thinking', 'done'], ['write', 'now'], ['compile', ''], ['ready', '']], '00:09 · 0.6 KB'),
+      line: 'The editor is the model’s until it is done. <b>Esc</b> or STOP keeps what has come.',
     };
   },
   fixing: () => ({
-    src: esc(GAME).replace('wait(1200 - score * 20)', '<mark>wait(1200 - score * 20)</mark>'), writing: true, tag: 'fixing · 1 of 2',
-    asm: '', levels: false, ask: 'ワンキーゲームを作って', locked: true, send: 'stop',
-    errors: ['MAIN.TS:41:10 1200 - score * 20 can fall below zero as u16: read it with i16() or keep score under 60'],
-    steps: steps([['write', 'done'], ['compile', 'done'], ['fix 1/2', 'now'], ['ready', '']], '00:14 · 1,380 tokens'),
-    hint: 'COMPILE found 1 error. It goes back to the model with the code, to be fixed.',
+    src: markLine(FIRST, BAD_LINE), writing: true, tag: 'fixing · 1 of 2', ask: WORDS, locked: true, slot: 'fixing', errors: [BAD_ERR], live: 'Fixing, 1 of 2',
+    steps: steps([['thinking', 'done'], ['write', 'done'], ['compile', 'done'], ['fix 1/2', 'now'], ['ready', '']], '00:16 · 1.9 KB'),
+    line: 'COMPILE found 1 error at -O2. It goes back to the model; the code stays as it is until the fix has all come.',
   }),
   done: () => ({
-    src: esc(GAME).replace('wait(1200 - score * 20)', '<span class="new">wait(score < 50 ? 1200 - score * 20 : 200)</span>'),
-    asm: esc(ASM), levels: true, ask: '', send: 'send', run: true, tag: '',
-    said: { ok: true, text: 'Written from “ワンキーゲームを作って” and compiled after 1 fix · 744 bytes at -O2 · RUN ▸ to play.', undo: true },
-    steps: steps([['write', 'done'], ['compile', 'done'], ['fix 1/2', 'done'], ['ready', 'done']], '00:19 · 2,104 tokens'),
-    hint: 'Send again to change it: “スコアを右上に”, “もっと速く”. The code in the editor goes with it.',
-  }),
-  failed: () => ({
-    src: esc(GAME).replace('let block: u16 = 39', '<mark>let block: u16 = 39</mark>').replace('if (block === 4 && height === 0) break', '<mark>if (block === 4 && height === 0) break</mark>'),
-    asm: '', levels: false, ask: '', send: 'send',
-    errors: ['MAIN.TS:6:5 block is a global and a function: names are one namespace', 'MAIN.TS:36:5 break is only inside a loop'],
-    said: { bad: true, text: 'Still 2 errors after 2 fixes. Fix them by hand, or send again.', undo: true },
-    steps: steps([['write', 'done'], ['compile', 'done'], ['fix 2/2', 'bad'], ['ready', '']], '00:41 · 4,880 tokens'),
-    hint: 'Nothing ran. The code stays in the editor as the model left it.',
+    src: esc(GAME), asm: esc(ASM), levels: true, run: true, ask: '', live: 'Ready', lastWritten: true,
+    steps: steps([['thinking', 'done'], ['write', 'done'], ['compile', 'done'], ['fix 1/2', 'done'], ['ready', 'done']], '00:21 · 1.9 KB · 6,240 tokens'),
+    line: '<span class="mark ok">ready</span><span>Written from “' + WORDS + '”, compiled after 1 fix · 704 bytes at -O2 · 1 line changed by the fix.</span><span class="gap"></span><button class="e16-btn undo">undo</button>',
   }),
   refine: () => ({
-    src: esc(GAME).replace(/locate\(30, 0\)\n  putnum\(score\)/, '<span class="new">locate(34, 0)\n  puts(SCORE)\n  putnum(score)</span>').replace("const OVER", "<span class=\"new\">const SCORE = str('SC ')</span>\nconst OVER"),
-    asm: esc(ASM), levels: true, ask: '', send: 'send', run: true,
-    said: { ok: true, text: 'Changed from “スコアを右上に SC つきで出して” · compiled at once · 760 bytes at -O2.', undo: true },
-    steps: steps([['write', 'done'], ['compile', 'done'], ['fix', ''], ['ready', 'done']], '00:09 · 1,622 tokens'),
-    hint: 'Changed lines are lit until the next edit.',
+    src: esc(REFINED), asm: esc(ASM), levels: true, run: true, ask: '', live: 'Ready', lastWritten: true,
+    steps: steps([['thinking', 'done'], ['write', 'done'], ['compile', 'done'], ['ready', 'done']], '00:11 · 2.0 KB · 4,980 tokens'),
+    line: '<span class="mark ok">ready</span><span>Changed from “' + MORE + '”, compiled at once · 726 bytes at -O2 · 4 lines changed.</span><span class="gap"></span><button class="e16-btn undo">undo</button>',
+  }),
+  stopped: () => ({
+    src: esc(GAME.split('\n').slice(0, 30).join('\n')), ask: WORDS, live: 'Stopped',
+    steps: steps([['thinking', 'done'], ['write', 'off'], ['compile', ''], ['ready', '']], '00:09 · 0.6 KB'),
+    line: '<span class="mark warn">stopped</span><span>What had come is in the editor, not compiled.</span><span class="gap"></span><button class="e16-btn undo">undo</button>',
+  }),
+  failed: () => ({
+    src: markLine(FIRST, BAD_LINE), ask: WORDS, errors: [BAD_ERR], live: 'Failed',
+    steps: steps([['thinking', 'done'], ['write', 'done'], ['compile', 'done'], ['fix 2/2', 'bad'], ['ready', '']], '00:41 · 2.0 KB · 13,100 tokens'),
+    line: '<span class="mark bad">failed</span><span>Still 1 error after 2 fixes. Fix it by hand, or send again.</span><span class="gap"></span><button class="e16-btn undo">undo</button>',
+  }),
+  error: () => ({
+    src: esc(SAMPLE), ask: WORDS, live: 'Failed',
+    steps: steps([['thinking', 'bad'], ['write', ''], ['compile', ''], ['ready', '']], '00:01'),
+    line: '<span class="mark bad">failed</span><span class="bad">Anthropic: the key was refused (401): invalid x-api-key</span>',
   }),
   none: () => ({
-    src: esc(`// A program for the ELEC-16, in the subset of TypeScript e16c compiles.
-
-const GREETING = str('HELLO FROM TYPESCRIPT')
-
-export function main(): void {
-  cls()
-  puts(GREETING)
-}`), asm: '', levels: false, ask: '', disabled: true, send: 'send',
-    hint: '<span class="warn">No AI provider is set.</span> Add one in <b>Settings ▸ AI</b> to write code from words.',
+    src: esc(SAMPLE), ask: '', disabled: true,
+    line: '<span class="warn">No AI provider is set.</span> Add one in <b>Settings ▸ AI</b> to write code from words.',
   }),
 };
 
@@ -606,38 +625,58 @@ function render() {
   const s = STATES[state]();
   $('src').innerHTML = s.src;
   $('src').classList.toggle('writing', !!s.writing);
+  const marked = $('src').querySelector('mark');
+  if (marked) $('src').scrollTop = marked.offsetTop - $('src').clientHeight / 2;
+  else if (s.writing) $('src').scrollTop = $('src').scrollHeight;
   $('srcTag').textContent = s.tag || '';
   $('srcTag').style.display = s.tag ? '' : 'none';
-  $('asm').innerHTML = s.asm;
+  $('asm').innerHTML = s.asm || '';
   $('levels').style.display = s.levels ? '' : 'none';
   $('errors').innerHTML = (s.errors || []).map((e) => { const [at, ...m] = e.split(' '); return `<li><button>${at}</button> ${esc(m.join(' '))}</li>`; }).join('');
-  const said = $('said');
-  said.className = 'said' + (s.said?.bad ? ' bad' : s.said?.ok ? ' ok' : '');
-  said.innerHTML = s.said ? `<span>${esc(s.said.text)}</span>${s.said.undo ? '<button class="link">undo</button>' : ''}` : '';
-  said.style.display = s.said ? '' : 'none';
-  $('compileSlot').innerHTML = s.locked ? `<span class="busy">${state === 'writing' ? 'WRITING' : 'COMPILING'}</span>` : '<button class="e16-btn">compile</button>';
+  $('compileSlot').innerHTML = s.locked ? `<span class="busy" data-phase="${phase}">${s.slot.toUpperCase()}</span>` : '<button class="e16-btn">compile</button>';
   document.querySelectorAll('.run').forEach((b) => (b.disabled = !s.run));
-  $('ask').placeholder = s.disabled ? 'an AI provider in Settings ▸ AI is needed to write code' : 'what to make · enter to send, shift+enter for a new line'; $('ask').value = s.ask; $('ask').disabled = !!s.locked || !!s.disabled;
-  $('provider').disabled = !!s.locked || !!s.disabled;
-  $('provider').style.display = s.disabled ? 'none' : '';
-  $('model').disabled = !!s.locked || !!s.disabled;
-  $('model').parentElement.style.display = s.disabled ? 'none' : '';
+  $('file').disabled = $('newName').disabled = !!s.locked;
+  const ask = $('ask');
+  ask.placeholder = s.disabled ? 'an AI provider in Settings ▸ AI is needed to write code' : (s.lastWritten ? 'what to change · enter to send' : 'what to make · enter to send, shift+enter for a new line');
+  ask.value = s.ask;
+  ask.disabled = !!s.disabled;
+  // Read-only, never disabled, while a SEND is under way: the field keeps the keyboard, and its Esc stops.
+  ask.readOnly = !!s.locked;
+  ['provider', 'model'].forEach((id) => { $(id).disabled = !!s.locked; });
+  $('provider').style.display = $('model').parentElement.style.display = s.disabled ? 'none' : '';
+  $('model').value = s.noModel ? '' : 'claude-sonnet-5-5';
+  $('model').placeholder = s.noModel ? 'no model' : '';
   showModels(!!s.models);
-  $('question').style.display = s.question ? '' : 'none';
-  if (s.question) { $('replace').classList.add('on'); $('keep').classList.remove('on'); $('replace').focus(); }
   const send = $('send');
-  send.textContent = s.send; send.className = 'cmd ' + (s.send === 'stop' ? 'stop' : 'lit');
-  send.disabled = !!s.disabled || !!s.sendOff || (s.send === 'send' && !s.ask);
-  $('steps').innerHTML = s.steps; $('steps').style.display = s.steps ? '' : 'none';
-  $('hint').innerHTML = s.hint;
+  send.textContent = s.locked ? 'stop' : 'send';
+  send.className = 'cmd ' + (s.locked ? 'stop' : 'lit');
+  send.disabled = !!s.disabled || !!s.sendOff || (!s.locked && !s.ask);
+  $('steps').innerHTML = s.steps || '';
+  $('line').innerHTML = s.line || '';
+  $('live').textContent = s.live || '';
+  if (s.question) {
+    $('replace').focus();
+    $('replace').addEventListener('click', (e) => afterBlink(e.currentTarget, () => play('first')));
+    $('keep').addEventListener('click', (e) => afterBlink(e.currentTarget, () => go('own')));
+  }
+  document.querySelectorAll('.undo').forEach((b) => b.addEventListener('click', (e) => afterBlink(e.currentTarget, () => {
+    $('src').innerHTML = esc(SAMPLE);
+    $('line').innerHTML = '<span class="mark ok">undone</span><span>The code before WRITE is back.</span><span class="gap"></span><button class="e16-btn">redo</button>';
+  })));
 }
+
+// The steps and the caret step with the shared pulse, only while a SEND is under way.
+setInterval(() => {
+  phase = phase === 1 ? 2 : 1;
+  document.querySelectorAll('[data-phase]').forEach((e) => (e.dataset.phase = phase));
+}, 500);
+
 const MODELS = ['claude-fable-5-2', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'];
 let modelsTimer = 0;
 function showModels(open) {
   clearTimeout(modelsTimer);
   const list = $('modelList');
   if (!open) { list.style.display = 'none'; $('modelTag').textContent = ''; return; }
-  // As the AI chat pane: QUERYING while the provider is asked, then the list.
   list.style.display = 'none';
   $('modelTag').textContent = 'querying';
   modelsTimer = setTimeout(() => {
@@ -656,34 +695,79 @@ function afterBlink(el, action) {
   el.classList.add('blinking');
   setTimeout(() => { el.classList.remove('blinking'); action(); }, 300);
 }
+
+let timers = [];
+function halt() { timers.forEach(clearTimeout); timers = []; }
 function go(name) {
+  halt();
   state = name;
   document.querySelectorAll('[data-state]').forEach((x) => x.setAttribute('aria-pressed', x.dataset.state === name));
   render();
 }
+function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+
+// A SEND played through: thinking, the code coming in, COMPILE, a fix, READY.
+function play(kind) {
+  halt();
+  const words = kind === 'refine' ? MORE : WORDS;
+  const target = kind === 'refine' ? REFINED : GAME;
+  const first = kind === 'refine' ? REFINED : FIRST;
+  go('thinking');
+  $('ask').value = words;
+  const lines = first.split('\n');
+  const t0 = 900;
+  lines.forEach((_, k) => at(t0 + k * 28, () => {
+    state = 'writing';
+    const s = STATES.writing();
+    render();
+    $('ask').value = words;
+    $('src').innerHTML = esc(lines.slice(0, k + 1).join('\n')) + `<span class="caret" data-phase="${phase}"></span>`;
+    $('src').scrollTop = $('src').scrollHeight;
+    $('srcTag').textContent = `writing · ${((k + 1) * 0.03).toFixed(1)} KB`;
+  }));
+  const t1 = t0 + lines.length * 28 + 200;
+  at(t1, () => {
+    $('compileSlot').innerHTML = `<span class="busy" data-phase="${phase}">COMPILING</span>`;
+    $('steps').innerHTML = steps([['thinking', 'done'], ['write', 'done'], ['compile', 'now'], ['ready', '']], '00:14 · 1.9 KB');
+    $('src').innerHTML = esc(first);
+  });
+  if (kind === 'refine') {
+    at(t1 + 700, () => { go('refine'); });
+    return;
+  }
+  at(t1 + 700, () => { go('fixing'); $('ask').value = words; });
+  at(t1 + 2600, () => { $('compileSlot').innerHTML = `<span class="busy" data-phase="${phase}">COMPILING</span>`; $('src').innerHTML = esc(GAME); $('errors').innerHTML = ''; });
+  at(t1 + 3300, () => go('done'));
+}
+
 $('send').addEventListener('click', (e) => afterBlink(e.currentTarget, () => {
-  if (state === 'idle' || state === 'models') go('writing');
-  else if (state === 'own') go('confirm');
-  else if (state === 'writing' || state === 'fixing') go('done');
-  else go('writing');
+  if (STATES[state]().locked) { go('stopped'); return; }
+  if (state === 'own') { go('confirm'); return; }
+  if (state === 'done' || state === 'refine') { play('refine'); return; }
+  play('first');
 }));
-$('replace').addEventListener('click', (e) => afterBlink(e.currentTarget, () => go('writing')));
-$('keep').addEventListener('click', (e) => afterBlink(e.currentTarget, () => go('own')));
-$('question').addEventListener('keydown', (e) => {
-  const on = $('replace').classList.contains('on') ? $('replace') : $('keep');
-  const other = on === $('replace') ? $('keep') : $('replace');
+$('ask').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && STATES[state]().locked) { e.preventDefault(); go('stopped'); return; }
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !e.repeat) { e.preventDefault(); $('send').click(); }
+});
+$('ask').addEventListener('input', () => { if (!$('ask').readOnly) $('send').disabled = $('ask').value.trim() === ''; });
+$('line').addEventListener('keydown', (e) => {
+  const r = $('replace'), k = $('keep');
+  if (!r) return;
+  const on = r.classList.contains('on') ? r : k, other = on === r ? k : r;
   if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { on.classList.remove('on'); other.classList.add('on'); other.focus(); e.preventDefault(); }
   else if (e.key === 'Enter') { on.click(); e.preventDefault(); }
-  else if (e.key === 'Escape') { $('keep').click(); }
+  else if (e.key === 'Escape') { k.click(); }
 });
-$('ask').addEventListener('input', () => { $('send').disabled = $('ask').value.trim() === '' && $('send').textContent === 'send'; });
 document.querySelectorAll('[data-state]').forEach((b) => b.addEventListener('click', () => go(b.dataset.state)));
+document.querySelectorAll('[data-play]').forEach((b) => b.addEventListener('click', () => {
+  if (b.dataset.play === 'refine') { go('done'); setTimeout(() => play('refine'), 50); } else { go('idle'); setTimeout(() => play('first'), 50); }
+}));
 document.querySelectorAll('.mockbar [data-theme]').forEach((b) => b.addEventListener('click', () => {
   document.documentElement.dataset.theme = b.dataset.theme;
   if (b.dataset.mode) document.documentElement.dataset.mode = b.dataset.mode; else delete document.documentElement.dataset.mode;
   document.querySelectorAll('.mockbar [data-theme]').forEach((x) => x.setAttribute('aria-pressed', x === b));
 }));
-setInterval(() => { if (state === 'writing' || state === 'fixing') document.querySelectorAll('[data-phase]').forEach((e) => (e.dataset.phase = phase)); }, 500);
 render();
 </script>
 </body>
