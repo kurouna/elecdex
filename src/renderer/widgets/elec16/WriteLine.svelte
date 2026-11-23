@@ -277,6 +277,7 @@ $effect(() => {
             wanting={model.trim() === ''}
             onopen={() => void loadModels()}
             onchoose={onmodel}
+            up
             testid="elec16-write-model"
           />
           {#if modelsLoading}
@@ -502,36 +503,50 @@ textarea[readonly] {
   color: var(--text-muted);
 }
 
-/* The provider, the model and SEND keep together: in a narrow pane they wrap under the words as one row. */
+/*
+ * The provider, the model and SEND keep together, drawn as the AI chat pane's: the provider and
+ * the model as its bar's boxes, SEND and STOP as its composer's key. In a narrow pane they wrap
+ * under the words as one row.
+ */
 .ends {
   flex: 0 1 auto;
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: var(--space-1);
   margin-left: auto;
+  padding-left: var(--space-1);
 }
 
 select {
-  flex: none;
-  border: 0;
-  border-left: 1px solid var(--panel-rule);
-  background: transparent;
-  padding: 0 var(--space-2);
-  font-family: var(--font-ui);
-  font-size: var(--step--1);
-  color: var(--text-muted);
+  flex: 0 1 9rem;
+  min-width: 0;
+  align-self: center;
+  height: 1.5rem;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--panel-border);
+  background: var(--app-bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+}
+
+select:focus {
+  border-color: var(--accent);
   outline: none;
 }
 
+/* The list the system draws takes its ground from here: never transparent (white on Windows). */
 select option {
-  background: var(--panel-bg);
+  background: var(--app-bg);
+  color: var(--text);
 }
 
 .model {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   width: 14rem;
-  border-left: 1px solid var(--panel-rule);
+  height: 1.5rem;
 }
 
 .model .tag {
@@ -550,8 +565,10 @@ select option {
   color: var(--warn);
 }
 
+/* SEND and STOP: the AI chat composer's key, its rule down its left. */
 .cmd {
   flex: none;
+  align-self: stretch;
   display: flex;
   align-items: center;
   padding: 0 var(--space-3);
@@ -567,9 +584,9 @@ select option {
 }
 
 .cmd.lit:not(:disabled) {
+  border-color: var(--accent);
   color: var(--accent-strong);
   background: var(--accent-faint);
-  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .cmd.lit:not(:disabled):hover,
@@ -585,8 +602,8 @@ select option {
 }
 
 .cmd.stop {
+  border-color: var(--warn);
   color: var(--warn);
-  box-shadow: inset 0 0 0 1px var(--warn);
 }
 
 /* The answer the keyboard is on, which Enter presses: filled, as every question's (QuitDialog). */

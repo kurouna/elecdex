@@ -25,6 +25,8 @@ interface Props {
   size?: 'bar' | 'form'
   /** Marked as what is missing: nothing can be sent until a model is named. */
   wanting?: boolean
+  /** The list opens above the field (a field at the foot of its pane, as WRITE's). */
+  up?: boolean
   testid: string
 }
 const {
@@ -36,6 +38,7 @@ const {
   title,
   size = 'bar',
   wanting = false,
+  up = false,
   testid,
 }: Props = $props()
 
@@ -145,6 +148,7 @@ function keydown(event: KeyboardEvent): void {
          field: leaving the field is what closes the list. -->
     <ul
       class="list"
+      class:up
       role="listbox"
       id={`${testid}-list`}
       bind:this={list}
@@ -221,6 +225,14 @@ input:focus {
   border-top: 0;
   background: var(--app-bg);
   list-style: none;
+}
+
+/* Above the field, its open side down against it. */
+.list.up {
+  top: auto;
+  bottom: 100%;
+  border-top: 1px solid var(--accent);
+  border-bottom: 0;
 }
 
 li {

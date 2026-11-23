@@ -191,6 +191,24 @@ describe('the OpenAI dialect', () => {
     expect(words).not.toContain('sk-test')
   })
 
+  it('reads the error a server sends as a list, as Gemini’s OpenAI-compatible address does', async () => {
+    // Found trying WRITE on Gemini: the 400 came with no words, its body being an array.
+    reply = (_req, res) => {
+      res.writeHead(400, { 'content-type': 'application/json' })
+      res.end(
+        JSON.stringify([
+          { error: { code: 400, message: 'API key not valid. Please pass a valid API key.' } },
+        ]),
+      )
+    }
+    const failure = await openaiAdapter(nodeFetch)
+      .stream(ask(), collect().sink)
+      .catch((error: unknown) => error)
+    expect(describeFailure(failure, origin)).toBe(
+      'the request was not accepted (400): API key not valid. Please pass a valid API key.',
+    )
+  })
+
   it('an error sent inside the stream fails the answer', async () => {
     reply = (_req, res) =>
       sse(res, [chunk({ content: 'par' }), 'data: {"error":{"message":"model crashed"}}\n\n'])

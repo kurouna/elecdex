@@ -476,7 +476,8 @@ select,
 }
 
 select option {
-  background: var(--panel-bg);
+  /* Opaque: the list is drawn by the system, and a transparent ground shows it white. */
+  background: var(--app-bg);
 }
 
 .sides {

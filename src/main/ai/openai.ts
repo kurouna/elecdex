@@ -118,7 +118,12 @@ async function errorDetail(response: Response): Promise<string | null> {
     // Only what is shown is read: a provider's error page can be of any size.
     const text = new TextDecoder().decode(await readUpTo(response.body, ERROR_BODY_BYTES))
     try {
-      const body = JSON.parse(text) as { error?: { message?: unknown } | string; message?: unknown }
+      const parsed = JSON.parse(text) as unknown
+      // Gemini's OpenAI-compatible address sends its error as a list of one.
+      const body = (Array.isArray(parsed) ? parsed[0] : parsed) as {
+        error?: { message?: unknown } | string
+        message?: unknown
+      }
       const said =
         typeof body.error === 'string' ? body.error : (body.error?.message ?? body.message)
       return typeof said === 'string' ? said : null
