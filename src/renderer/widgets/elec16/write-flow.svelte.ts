@@ -37,6 +37,8 @@ export interface WriteView {
   source(): string
   /** The editor's text replaced; `kept` when it is what the card now holds. */
   replaced(text: string, kept: boolean): void
+  /** The card now holds `text`; the editor, changed by a person meanwhile, keeps theirs. */
+  onCard(text: string): void
   /** A build to show (levels, assembly). */
   built(levels: LevelResult[]): void
   /** A SEND began: the last build shown is not of what comes now. */
@@ -506,7 +508,9 @@ export class WriteFlow {
       this.note = `${file} could not be written to the card.`
       return false
     }
-    this.#view?.replaced(text, true)
+    // Typed into since the write began: the person's text stays, only the card's is noted.
+    if (this.#view?.source() === text) this.#view.replaced(text, true)
+    else this.#view?.onCard(text)
     this.holdsUnkept = false
     return true
   }

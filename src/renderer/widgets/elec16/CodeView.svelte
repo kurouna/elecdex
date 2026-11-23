@@ -124,6 +124,9 @@ $effect(() => {
       source = text
       if (onCard) kept = text
     },
+    onCard: (text) => {
+      kept = text
+    },
     built: (levels) => {
       results = levels
     },

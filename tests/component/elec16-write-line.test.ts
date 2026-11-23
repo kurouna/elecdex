@@ -60,7 +60,13 @@ function flowWith(source: string): WriteFlow {
     now: () => Date.now(),
   })
   flow.target('u1', 'MAIN.TS')
-  flow.attach({ source: () => source, replaced: () => {}, built: () => {}, began: () => {} })
+  flow.attach({
+    source: () => source,
+    replaced: () => {},
+    onCard: () => {},
+    built: () => {},
+    began: () => {},
+  })
   return flow
 }
 
@@ -302,13 +308,17 @@ describe("CODE's WRITE line", () => {
       await fireEvent.input(screen.getByTestId('elec16-write-words'), {
         target: { value: 'a game' },
       })
+      const provider = () => screen.getByTestId('elec16-write-provider') as HTMLSelectElement
       own.send()
       await tick()
       expect(own.state).toBe('confirm')
       expect(model().disabled).toBe(true)
+      // The provider beside it, as the model: neither changes under a question or a SEND.
+      expect(provider().disabled).toBe(true)
       own.replace()
       await tick()
       expect(model().disabled).toBe(true)
+      expect(provider().disabled).toBe(true)
     })
 
     it('stops saying QUERYING when the model list could not be asked for', async () => {

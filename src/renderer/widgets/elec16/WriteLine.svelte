@@ -265,7 +265,7 @@ $effect(() => {
       <span class="ends">
         <select
           value={provider.id}
-          disabled={busy}
+          disabled={busy || asking}
           onchange={(e) => onprovider(e.currentTarget.value)}
           aria-label="AI provider"
           data-testid="elec16-write-provider"

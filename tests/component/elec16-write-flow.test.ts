@@ -101,6 +101,9 @@ function harness(
       this.text = text
       if (kept) this.kept = text
     },
+    onCard(text: string) {
+      this.kept = text
+    },
     built(l: LevelResult[]) {
       this.builds.push(l)
     },
@@ -617,6 +620,20 @@ describe("WRITE's flow", () => {
       h.flow.undo()
       await settle()
       expect(h.flow.note).toMatch(/could not be written to the card/)
+    })
+
+    it('a card write answering after the person typed keeps what they typed, the written text the card’s', async () => {
+      const h = harness()
+      const held = heldCard(h)
+      h.flow.words = 'x'
+      h.flow.send()
+      await answer(h, fenced(GOOD))
+      // A key typed while READY's write is on its way.
+      h.view.text = `${GOOD} `
+      held[0]?.(0)
+      await settle()
+      expect(h.view.text).toBe(`${GOOD} `)
+      expect(h.view.kept).toBe(GOOD)
     })
 
     it('a program too long to send clears what the last SEND showed', async () => {
