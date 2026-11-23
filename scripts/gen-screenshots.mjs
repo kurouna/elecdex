@@ -1053,6 +1053,127 @@ await shoot('amber', 'elecdex-blank', {
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
 /*
+ * CODE's WRITE (docs/elec16-write.md): the pocket's CODE view filling the window, words sent to a
+ * stand-in speaking the OpenAI dialect as Ollama does - no model, no key, its program written
+ * here. Its first answer has an error e16c refuses, so the shot shows the fix taken and READY.
+ */
+const WRITE_GAME = `// ONE KEY: press SPACE when the star is inside the brackets. Q or BRK quits.
+const COLS: u16 = 40
+
+let x: u16 = 0
+let hits: u16 = 0
+let miss: u16 = 0
+
+function waitTicks(n: u16): void {
+  const start = peek16(0xff30)
+  while (wrap16(peek16(0xff30) - start) < n) {}
+}
+
+function put(col: u16, c: u16): void {
+  locate(col, 3)
+  putc(c)
+}
+
+function status(): void {
+  locate(0, 5)
+  puts(str('HIT '))
+  putnum(hits)
+  puts(str('  MISS '))
+  putnum(miss)
+}
+
+export function main(): void {
+  poke16(0xff2c, 0)
+  cls()
+  puts(str('ONE KEY  SPACE:HIT  Q:QUIT'))
+  status()
+  for (;;) {
+    if (keyWaiting()) {
+      const k = getkey()
+      if (k === 0x03 || k === 0x51 || k === 0x71) break
+      if (k === 0x20) {
+        if (x >= 18 && x <= 21) hits++
+        else miss++
+        status()
+        if (miss >= 3) break
+      }
+    }
+    put(x, 0x20)
+    x = x >= COLS - 1 ? 0 : x + 1
+    put(17, 0x5b)
+    put(22, 0x5d)
+    put(x, 0x2a)
+    waitTicks(60)
+  }
+  locate(0, 1)
+  puts(str('GAME OVER'))
+  poke16(0xff2c, 5)
+}`
+
+function writeStandIn() {
+  const server = createServer((req, res) => {
+    let raw = ''
+    req.on('data', (piece) => {
+      raw += piece
+    })
+    req.on('end', () => {
+      const body = JSON.parse(raw)
+      const fixing = lastAsk(body).includes('did not compile')
+      // The first answer divides with `/`, which e16c refuses; the fix is the program as it is.
+      const code = fixing ? WRITE_GAME : WRITE_GAME.replace('waitTicks(60)', 'waitTicks(120 / 2)')
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      const pieces = `\`\`\`ts\n${code}\n\`\`\``.match(/.{1,24}/gs) ?? []
+      const step = () => {
+        const piece = pieces.shift()
+        if (piece === undefined) {
+          const usage = { prompt_tokens: 2611, completion_tokens: 402 }
+          res.write(`data: ${JSON.stringify({ choices: [], usage })}\n\n`)
+          res.end('data: [DONE]\n\n')
+          return
+        }
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: piece } }] })}\n\n`)
+        setTimeout(step, 15)
+      }
+      step()
+    })
+  })
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve(server))
+  })
+}
+
+if (only.length === 0 || only.includes('elecdex-elec16-write')) {
+  const standIn = await writeStandIn()
+  const baseUrl = `http://127.0.0.1:${standIn.address().port}/v1`
+  await shoot('business-light', 'elecdex-elec16-write', {
+    layout: { version: 1, root: { ...pane('elec16'), state: { skin: 'classic', panel: false } } },
+    settings: {
+      ai: {
+        providers: [{ id: 'ollama', name: 'Ollama', kind: 'openai', baseUrl, model: 'qwen3:14b' }],
+      },
+    },
+    extra: async (page) => {
+      await page.waitForFunction(
+        () =>
+          document.querySelector('[data-testid=elec16]')?.getAttribute('data-asleep') === 'true',
+        null,
+        { timeout: 20_000 },
+      )
+      await page.getByTestId('elec16-view-toggle').click()
+      await page.getByTestId('elec16-source').waitFor()
+      await page.waitForTimeout(800)
+      await page
+        .getByTestId('elec16-write-words')
+        .fill('a one-key game: press SPACE when the star is in the brackets')
+      await page.getByTestId('elec16-write-send').click()
+      await page.getByTestId('elec16-write-result').waitFor({ timeout: 60_000 })
+      await page.mouse.move(W / 2, 5)
+      await page.waitForTimeout(1200)
+    },
+  })
+  standIn.close()
+}
+/*
  * The ELEC-16's five skins modelled in light, each a crop of the body alone with a margin of
  * the pane round it (nothing of the system column or this machine), SINEWAVE running: the five
  * on a dark theme, then GLASS again on a light one, as it follows the theme's mode.

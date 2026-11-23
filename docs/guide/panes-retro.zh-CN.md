@@ -240,6 +240,11 @@ SOFT CARD 附带十三个程序，以只读方式叠加在每台单元的存储�
 
 ### CODE
 
+<p align="center">
+  <img src="../screenshots/elecdex-elec16-write.jpg" alt="Business Light 主题下 ELEC-16 袖珍机的 CODE 画面占满窗口：左侧是替身模型写的一键游戏 TypeScript，右侧是 E16 汇编，下方是各优化级别的字节数和周期数，THINKING、WRITE、COMPILE、FIX 1/2、READY 各步骤均已亮起，WRITE 行显示提供方 Ollama 及其模型，READY 行说明修正一次后编译通过">
+  <br><sub>ELEC-16 · CODE 的 WRITE（由替身回答）</sub>
+</p>
+
 - **CODE** 把用 TypeScript 子集（e16c）写的程序以三级优化编译成机器码，并排显示各自的字节数和周期数。
 - **NEW**先把打开的程序写入存储卡，再用第一个空闲的 `NEWn.TS` 开始新程序。
 - **RUN ▸** 把它放进机器运行；**LOAD ▸** 把它放进去供监视器使用。SAVE TO CARD 将其保存为 `.BIN`。

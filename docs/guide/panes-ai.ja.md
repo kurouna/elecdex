@@ -10,6 +10,7 @@ elecdex は Windows・macOS・Linux 向けの SF 風ターミナルエミュレ�
 - [AI chat](#ai-chat)
 - [ELEC system](#elec-system)
 - [TRANSLATE](#translate)
+- [ELEC-16：WRITE と LINK](#elec-16write-と-link)
 - [関連項目](#関連項目)
 
 ## ai プリセット
@@ -264,6 +265,24 @@ TRANSLATE は、Preferred Networks の PLaMo 3 Translate を llama.cpp の `llam
 - ファイルは訳さない。文は打つか貼り付ける（20,000 字まで）。
 - 外部のサービスは使わない: モデルはこの PC か、名前を挙げた llama-server で動く。
 - 外部の llama-server のキーは持たない。キーを求めるサーバーは断る。
+
+## ELEC-16：WRITE と LINK
+
+<p align="center">
+  <img src="../screenshots/elecdex-elec16-write.jpg" alt="Business Light テーマで ELEC-16 のポケコンの CODE 画面がウィンドウいっぱいに出ている。左に代わりのモデルが書いたワンキーゲームの TypeScript、右に E16 のアセンブリ、下に段階ごとのバイト数とサイクル数、THINKING・WRITE・COMPILE・FIX 1/2・READY の段階がすべて点き、WRITE の行にプロバイダー Ollama とモデル、READY の行に 1 回直してコンパイルできたことが出ている">
+  <br><sub>ELEC-16 · CODE の WRITE（答えは代わりのもの）</sub>
+</p>
+
+| | |
+| --- | --- |
+| 開き方 | [ELEC-16](panes-retro.ja.md#elec-16) ペイン（retro プリセット、またはピッカーの "elec-16"）。WRITE はポケコンのモデルの CODE の下の行です。LINK は機械からの出口で、BASIC の `ASK` と e16c の `ask` が使います。 |
+| 読むもの・データの出どころ | AI チャットと同じプロバイダーとキー（*Settings → AI*）。WRITE は入力欄の横で、LINK はペインの LINK パネルでプロバイダーを選びます。 |
+| 更新 | WRITE は SEND を押したときだけ送ります（最初の 1 回と修正 2 回、最大 3 回）。LINK は LINK と AI が ON の間、機械のキーが押された後にだけ送ります。 |
+| プライバシー | キーはページにも機械にも届きません。WRITE が送るのは言葉、開いている `.TS` のプログラム、修正では e16c のエラーです。LINK が送るのはプログラムの問いだけです。カードのほかのファイルや機械の中身は送らず、どちらもディスクに何も残しません。モデルの文は、エディタの文字（WRITE）か液晶の文字（LINK）になるだけです。 |
+| 設定 | *Settings → AI*：プロバイダー。WRITE は LINK の AI スイッチとは関係ありません。 |
+
+- **WRITE** は、頼んだもの（「ワンキーゲーム」）から、ELEC-16 用の TypeScript の部分集合 e16c を書きます。すぐにコンパイルし、e16c のエラーをモデルに返して 2 回まで直させます。カードに書くのはコンパイルが通ってからで、RUN ▸ を押すのは人です。同じ行に変えてほしいことを打つと、モデルがプログラムを直します。使い方：[レトロ系ペイン：CODE](panes-retro.ja.md#code)。
+- **LINK** は、ELEC-16 で動くプログラムがモデルに問いを送り、答えを液晶に出す仕組みです。使い方：[レトロ系ペイン：LINK](panes-retro.ja.md#link)。
 
 ## 関連項目
 

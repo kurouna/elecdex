@@ -240,6 +240,11 @@ The SOFT CARD brings thirteen programs, laid read-only over every unit's card:
 
 ### CODE
 
+<p align="center">
+  <img src="../screenshots/elecdex-elec16-write.jpg" alt="The ELEC-16 pocket's CODE view filling the window in the Business Light theme: a one-key game in TypeScript written by a stand-in model on the left, its E16 assembly on the right, every level's bytes and cycles below, the steps THINKING, WRITE, COMPILE, FIX 1/2 and READY lit, and the WRITE line with the provider Ollama and its model, READY saying the program was compiled after one fix">
+  <br><sub>ELEC-16 · CODE’s WRITE, answered by a stand-in</sub>
+</p>
+
 - **CODE** compiles a program written in a subset of TypeScript (e16c) into the machine's code at three levels of optimisation side by side, with their bytes and cycles.
 - **NEW** starts a new program in the first free `NEWn.TS`, keeping the one open on the card first.
 - **RUN ▸** puts it in the machine and runs it; **LOAD ▸** puts it there for the monitor. SAVE TO CARD keeps it as a `.BIN`.

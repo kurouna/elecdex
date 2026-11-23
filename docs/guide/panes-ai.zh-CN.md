@@ -10,6 +10,7 @@ elecdex 是面向 Windows、macOS 和 Linux 的科幻风格终端模拟器兼系
 - [AI chat](#ai-chat)
 - [ELEC system](#elec-system)
 - [TRANSLATE](#translate)
+- [ELEC-16：WRITE 与 LINK](#elec-16write-与-link)
 - [另请参阅](#另请参阅)
 
 ## ai 预设
@@ -264,6 +265,24 @@ TRANSLATE 通过 llama.cpp 的 `llama-server` 在本机运行 Preferred Networks
 - 不翻译文件；文本靠输入或粘贴（最多 20,000 字）。
 - 不使用托管服务：模型在本机或你指定的 llama-server 上运行。
 - 不保存外部 llama-server 的密钥；要求密钥的服务器会被拒绝。
+
+## ELEC-16：WRITE 与 LINK
+
+<p align="center">
+  <img src="../screenshots/elecdex-elec16-write.jpg" alt="Business Light 主题下 ELEC-16 袖珍机的 CODE 画面占满窗口：左侧是替身模型写的一键游戏 TypeScript，右侧是 E16 汇编，下方是各优化级别的字节数和周期数，THINKING、WRITE、COMPILE、FIX 1/2、READY 各步骤均已亮起，WRITE 行显示提供方 Ollama 及其模型，READY 行说明修正一次后编译通过">
+  <br><sub>ELEC-16 · CODE 的 WRITE（由替身回答）</sub>
+</p>
+
+| | |
+| --- | --- |
+| 位置 | [ELEC-16](panes-retro.zh-CN.md#elec-16) 窗格（retro 预设，或选择器中的 "elec-16"）。WRITE 是袖珍机型 CODE 底部的一行；LINK 是机器自身的出口，BASIC 的 `ASK` 和 e16c 的 `ask` 使用它。 |
+| 读取 / 数据来源 | 与 AI 聊天相同的提供方和密钥（*Settings → AI*）。WRITE 在输入框旁选择提供方和模型；LINK 在窗格的 LINK 面板中选择。 |
+| 更新 | WRITE 仅在按下 SEND 时发送：最多三次请求（第一次和两次修正）。LINK 仅在 LINK 及其 AI 开启、且在机器上按键之后发送。 |
+| 隐私 | 密钥从不到达页面或机器。WRITE 发送你的文字、打开的 `.TS` 中的程序，以及修正时 e16c 的错误；LINK 只发送程序的提问。不发送存储卡上的其他文件或机器的内容，两者都不在磁盘上保存任何东西。模型的文字只会成为编辑器的文字（WRITE）或液晶的字符（LINK）。 |
+| 设置 | *Settings → AI*：提供方。WRITE 与 LINK 的 AI 开关无关。 |
+
+- **WRITE** 根据你的要求（“一键游戏”）编写 e16c——elecdex 为 ELEC-16 设计的 TypeScript 子集。程序立即编译，e16c 的错误交回模型修正，最多两次；只有编译通过后才写入存储卡，RUN ▸ 仍由你来按。在同一行输入要改的地方，模型就会修改程序。用法：[复古窗格：CODE](panes-retro.zh-CN.md#code)。
+- **LINK** 让 ELEC-16 上运行的程序向模型提问，并把回答显示在液晶上。用法：[复古窗格：LINK](panes-retro.zh-CN.md#link)。
 
 ## 另请参阅
 

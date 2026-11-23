@@ -240,6 +240,11 @@ SOFT CARD には 13 本のプログラムが入っていて、どのユニット
 
 ### CODE
 
+<p align="center">
+  <img src="../screenshots/elecdex-elec16-write.jpg" alt="Business Light テーマで ELEC-16 のポケコンの CODE 画面がウィンドウいっぱいに出ている。左に代わりのモデルが書いたワンキーゲームの TypeScript、右に E16 のアセンブリ、下に段階ごとのバイト数とサイクル数、THINKING・WRITE・COMPILE・FIX 1/2・READY の段階がすべて点き、WRITE の行にプロバイダー Ollama とモデル、READY の行に 1 回直してコンパイルできたことが出ている">
+  <br><sub>ELEC-16 · CODE の WRITE（答えは代わりのもの）</sub>
+</p>
+
 - **CODE** は、TypeScript の部分集合（e16c）で書いたプログラムを 3 段階の最適化で機械語にコンパイルし、大きさとサイクル数を並べて見せます。
 - **NEW**は、開いているプログラムをカードに書いてから、空いている最初の `NEWn.TS` で新しいプログラムを始めます。
 - **RUN ▸** で機械に入れて動かし、**LOAD ▸** でモニタ用に置きます。SAVE TO CARD で `.BIN` として残せます。

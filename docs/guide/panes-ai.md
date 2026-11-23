@@ -10,6 +10,7 @@ elecdex is a science-fiction terminal emulator and system monitor for Windows, m
 - [AI chat](#ai-chat)
 - [ELEC system](#elec-system)
 - [TRANSLATE](#translate)
+- [ELEC-16: WRITE and LINK](#elec-16-write-and-link)
 - [See also](#see-also)
 
 ## ai preset
@@ -264,6 +265,24 @@ The first time, **> set up translation** walks through five steps: **ENGINE** (t
 - It does not translate files; text is typed or pasted, up to 20,000 characters.
 - It does not use a hosted service: the model runs on this computer, or on a llama-server you name.
 - It does not keep a key for an external llama-server; one that asks for a key is refused.
+
+## ELEC-16: WRITE and LINK
+
+<p align="center">
+  <img src="../screenshots/elecdex-elec16-write.jpg" alt="The ELEC-16 pocket's CODE view filling the window in the Business Light theme: a one-key game in TypeScript written by a stand-in model on the left, its E16 assembly on the right, every level's bytes and cycles below, the steps THINKING, WRITE, COMPILE, FIX 1/2 and READY lit, and the WRITE line with the provider Ollama and its model, READY saying the program was compiled after one fix">
+  <br><sub>ELEC-16 · CODE’s WRITE, answered by a stand-in</sub>
+</p>
+
+| | |
+| --- | --- |
+| Where | The [ELEC-16](panes-retro.md#elec-16) pane (retro preset, or "elec-16" in the picker). WRITE is the line at the foot of CODE, on the pocket models; LINK is the machine's own way out, used by BASIC's `ASK` and e16c's `ask`. |
+| Reads / data source | The same providers and keys as the AI chat (*Settings → AI*). WRITE picks its provider and model beside its words; LINK, in the pane's LINK panel. |
+| Updates | WRITE sends only when SEND is pressed: at most three requests (the first and two fixes). LINK sends only after a key press on the machine, while LINK and its AI are on. |
+| Privacy | The key never reaches the page or the machine. WRITE sends your words, the program in the open `.TS` file and, for a fix, e16c's errors; LINK sends only the program's question. Nothing else of the card or the machine is sent, and neither keeps anything on disk. The model's text only ever becomes the editor's text (WRITE) or the LCD's characters (LINK). |
+| Settings | *Settings → AI*: the providers. WRITE does not need LINK's AI switch. |
+
+- **WRITE** writes e16c, elecdex's TypeScript subset for the ELEC-16, from what you ask for ("a one-key game"). The program is compiled at once and e16c's errors are given back to the model, at most twice; it goes onto the card only once it builds, and RUN ▸ stays yours to press. Type a change in the same line to have the model change the program. How it is used: [Retro panes: CODE](panes-retro.md#code).
+- **LINK** lets a program running on the ELEC-16 put a question to the model and show the answer on its LCD. How it is used: [Retro panes: LINK](panes-retro.md#link).
 
 ## See also
 
