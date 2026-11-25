@@ -1,7 +1,7 @@
 {
   "name": "elecdex",
   "productName": "elecdex",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "A science-fiction desktop terminal emulator and system monitor. A modern rewrite of eDEX-UI.",
   "keywords": [
@@ -94,7 +94,7 @@
     "demo:clock": "node scripts/demo-clock.mjs"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.8",
+    "@biomejs/biome": "2.6.9",
     "@fontsource-variable/jetbrains-mono": "5.3.0",
     "@fontsource/albert-sans": "5.3.0",
     "@fontsource/barlow-condensed": "5.3.0",
@@ -109,9 +109,9 @@
     "@fontsource/source-sans-3": "^5.3.1",
     "@playwright/test": "1.65.1",
     "@resvg/resvg-js": "^2.6.2",
-    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@sveltejs/vite-plugin-svelte": "7.3.2",
     "@testing-library/svelte": "5.4.2",
-    "@types/node": "24.19.2",
+    "@types/node": "24.19.4",
     "@types/three": "^0.187.0",
     "@types/topojson-client": "^3.1.5",
     "@typescript/native": "npm:typescript@7.0.2",
@@ -122,11 +122,11 @@
     "@xterm/addon-webgl": "^0.19.0",
     "@xterm/xterm": "^6.0.0",
     "countries-and-timezones": "^3.11.0",
-    "electron": "45.4.1",
+    "electron": "45.5.0",
     "electron-builder": "26.18.0",
     "electron-playwright-helpers": "3.1.2",
     "electron-vite": "6.0.0",
-    "fast-check": "^4.10.3",
+    "fast-check": "^4.11.0",
     "fflate": "^0.8.3",
     "highlight.js": "11.12.0",
     "i18n-iso-countries": "^7.14.0",
@@ -141,7 +141,7 @@
     "topojson-client": "^3.1.0",
     "typescript": "6.0.3",
     "vite": "8.3.8",
-    "vitest": "5.1.1",
+    "vitest": "5.1.2",
     "world-atlas": "^2.0.2",
     "yahoo-finance2": "^4.0.6"
   },
@@ -150,7 +150,7 @@
     "url": "https://github.com/kurouna"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "1.12.0",
+    "@anthropic-ai/sdk": "1.14.0",
     "@ip-location-db/geo-whois-asn-country-mmdb": "^2.3.2026061719",
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/addon-unicode11": "^0.9.0",
@@ -159,7 +159,7 @@
     "mmdb-lib": "^3.0.5",
     "node-pty": "1.2.0-beta.18",
     "sucrase": "3.35.1",
-    "systeminformation": "^5.33.23",
+    "systeminformation": "^5.33.26",
     "zod": "^4.6.7"
   },
   "overrides": {
