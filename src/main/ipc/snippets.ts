@@ -48,6 +48,8 @@ export function openSnippetShelf(changed: () => void): {
     // The user's own texts: a file that will not parse is left where it is, and
     // copied aside before anything overwrites it.
     keepInvalid: true,
+    // Read again by itself after a failed read: the shelf takes the file it then has.
+    readAgain: (read) => shelf.reload(read),
   })
   const shelf = new SnippetShelf({
     load: () => store.read(),
@@ -63,7 +65,13 @@ export function openSnippetShelf(changed: () => void): {
     store.invalidate()
     shelf.reload(store.read())
   })
-  return { shelf, close: () => watcher.close() }
+  return {
+    shelf,
+    close: () => {
+      watcher.close()
+      store.dispose()
+    },
+  }
 }
 
 export function registerSnippetsIpc(

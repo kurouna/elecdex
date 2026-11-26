@@ -38,6 +38,9 @@ export function registerNotesIpc(): { dispose: () => void } {
     // Notes are the user's own words: a file that will not parse is left exactly
     // where it is, and a copy is taken before anything overwrites it.
     keepInvalid: true,
+    // Read again by itself after a failed read (held open at start): the file it then has is
+    // taken in as a refused write's is.
+    readAgain: (read) => take(read),
   })
 
   let notes = store.read()
@@ -48,13 +51,16 @@ export function registerNotesIpc(): { dispose: () => void } {
     }
   }
 
+  /** The file, read again after a failed read, kept in place of the default. */
+  const take = (read: NotesFile): void => {
+    notes = read
+    broadcast()
+  }
+
   const commit = (next: NotesFile): void => {
     // Saved first: a refused write (the file could not be read when it was loaded) leaves what is
     // held, and shown, as it was. Read again then, the file is taken in place of the default.
-    store.writeHeld(next, (file) => {
-      notes = file
-      broadcast()
-    })
+    store.writeHeld(next, take)
     notes = next
     broadcast()
   }
@@ -130,6 +136,7 @@ export function registerNotesIpc(): { dispose: () => void } {
   return {
     dispose: () => {
       watcher.close()
+      store.dispose()
       unregister()
     },
   }

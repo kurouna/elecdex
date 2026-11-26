@@ -616,6 +616,8 @@ const api: ElecdexApi = {
     windowState: () => ipcRenderer.invoke(CH.system.windowState) as Promise<WindowState>,
     onWindowState: (handler) => listen<WindowState>(CH.system.windowStateChanged, handler),
     setTitleBarColors: (colors) => ipcRenderer.send(CH.system.setTitleBarColors, colors),
+    unreadableFiles: () => ipcRenderer.invoke(CH.system.unreadableFiles) as Promise<string[]>,
+    onUnreadableFiles: (handler) => listen<string[]>(CH.system.unreadableFilesChanged, handler),
   },
   background: {
     state: () => ipcRenderer.invoke(CH.background.state) as Promise<BackgroundState>,

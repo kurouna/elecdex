@@ -16,6 +16,7 @@ import Workspace from './layout/Workspace.svelte'
 import { chordHint } from './lib/chord-hint.ts'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
 import { keyLabels } from './lib/key-labels.svelte.ts'
+import { watchUnreadableFiles } from './lib/unreadable-notice.ts'
 import ActionPalette from './palette/ActionPalette.svelte'
 import { plugins } from './plugins/plugins.svelte.ts'
 import QuakeAlert from './QuakeAlert.svelte'
@@ -59,6 +60,9 @@ $effect(() => {
 $effect(() => watchReminders())
 $effect(() => watchAlarms())
 $effect(() => watchCloudAlerts())
+// A file of the user's main could not read is said, so a pane showing nothing of it is not taken
+// for the work gone.
+$effect(() => watchUnreadableFiles())
 
 // AWAKE's hold goes on with no pane open, so the status bar follows it for the whole window.
 $effect(() => void awake.init())

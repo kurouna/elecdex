@@ -19,6 +19,10 @@ export const CH = {
     windowState: 'system:window-state',
     windowStateChanged: 'system:window-state-changed',
     setTitleBarColors: 'system:set-title-bar-colors',
+    /** The user's files main could not read and is reading again (store/unreadable-files.ts). */
+    unreadableFiles: 'system:unreadable-files',
+    /** main -> renderer: that list, after it changed. */
+    unreadableFilesChanged: 'system:unreadable-files-changed',
   },
   /** Running in the background (Windows): sign-in launch, the system-wide shortcut. */
   background: {

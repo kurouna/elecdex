@@ -171,9 +171,22 @@ class Runner {
     }
     this.worker = worker
     worker.onMessage((data) => this.receive(worker, data))
-    const storage = this.descriptor.hasService
-      ? await window.elecdex.plugins.storageLoad(this.id).catch(() => ({}))
-      : {}
+    // Not started on nothing when what it stored cannot be read (another program holding the
+    // file): it would take that for what it had, and main refuses every change it made then.
+    // Stopped instead, said in its panes, and RESTART tries again.
+    let storage: Record<string, unknown> = {}
+    if (this.descriptor.hasService) {
+      try {
+        storage = await window.elecdex.plugins.storageLoad(this.id)
+      } catch {
+        if (this.worker !== worker) return
+        this.kill(
+          'failed',
+          'Its stored data could not be read: another program has the file open. Restart it once that program has let go.',
+        )
+        return
+      }
+    }
     if (this.worker !== worker) return
     const settings = this.host.values(this.id)
     this.sentSettings = JSON.stringify(settings)

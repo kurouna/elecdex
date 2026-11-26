@@ -76,6 +76,9 @@ export function registerSettingsIpc(): SettingsHandle {
     makeDefault: defaultSettings,
     // A broken settings.json stays where the user left it; see JsonStore.
     keepInvalid: true,
+    // Read again by itself after a failed read (held open at start): the file it then has is
+    // taken in as a refused write's is.
+    readAgain: (read) => take(read),
   })
   let settings = store.read()
   let catalog = loadThemes(themesDir)
@@ -92,6 +95,13 @@ export function registerSettingsIpc(): SettingsHandle {
   }
 
   let retry: NodeJS.Timeout | undefined
+  /** The file, read again after a failed read, kept in place of the default. */
+  const take = (read: Settings): void => {
+    settings = read
+    broadcast(CH.settings.changed, settings)
+    notify()
+  }
+
   const reloadSettings = (attempt = 0): void => {
     clearTimeout(retry)
     const next = readSettingsQuietly(settingsFile)
@@ -159,11 +169,7 @@ export function registerSettingsIpc(): SettingsHandle {
         if (next === null) return settings
         // Saved first: a refused write (the file could not be read when it was loaded) leaves what is
         // held, and shown, as it was. Read again then, the file is taken in place of the default.
-        store.writeHeld(next, (file) => {
-          settings = file
-          broadcast(CH.settings.changed, settings)
-          notify()
-        })
+        store.writeHeld(next, take)
         settings = next
         broadcast(CH.settings.changed, settings)
         notify()
@@ -192,6 +198,7 @@ export function registerSettingsIpc(): SettingsHandle {
       unwatchFile(settingsFile)
       clearTimeout(retry)
       for (const timer of timers.values()) clearTimeout(timer)
+      store.dispose()
       unregister()
     },
   }

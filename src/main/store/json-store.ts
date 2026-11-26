@@ -10,6 +10,11 @@ import {
 import path from 'node:path'
 import type { z } from 'zod'
 import { replaceFile, replacePending } from './replace-file.js'
+import { unreadableFiles } from './unreadable-files.js'
+
+/** How soon a file that could not be read is tried again, and how far the wait grows. */
+export const READ_AGAIN_FIRST_MS = 1000
+export const READ_AGAIN_MAX_MS = 30_000
 
 /**
  * A validated, atomically-written JSON file under userData.
@@ -45,17 +50,30 @@ export class JsonStore<T> {
    * again. The default answered then is not the file, so no write may replace the file with it.
    */
   #readFailed = false
+  readonly #readAgain: ((file: T) => void) | null
+  #retry: NodeJS.Timeout | null = null
+  #retryMs = READ_AGAIN_FIRST_MS
 
   constructor(opts: {
     file: string
     schema: z.ZodType<T>
     makeDefault: () => T
     keepInvalid?: boolean
+    /**
+     * For a module that read the file once and keeps it (see writeHeld): after a read that found
+     * the file but could not read it, the store tries again by itself - a second later, then
+     * less often, at most every READ_AGAIN_MAX_MS - and hands the file to this once it has it.
+     * Nothing else would read it: the lock going changes no time, so no watch hears of it, and
+     * the panes would show the default (an empty notes pane) until the user changed something.
+     * Meanwhile the file is on unreadableFiles, so the page can say so. dispose() stops it.
+     */
+    readAgain?: (file: T) => void
   }) {
     this.file = opts.file
     this.schema = opts.schema
     this.makeDefault = opts.makeDefault
     this.keepInvalid = opts.keepInvalid ?? false
+    this.#readAgain = opts.readAgain ?? null
   }
 
   get path(): string {
@@ -85,7 +103,7 @@ export class JsonStore<T> {
     this.bytes = null
 
     if (!existsSync(this.file)) {
-      this.#readFailed = false
+      this.#failed(false)
       this.cache = this.makeDefault()
       return this.cache
     }
@@ -96,17 +114,18 @@ export class JsonStore<T> {
     } catch (error) {
       if (isMissing(error)) {
         // Gone between the two calls: missing, as above.
-        this.#readFailed = false
+        this.#failed(false)
         this.cache = this.makeDefault()
         return this.cache
       }
       // There, but not readable now. The default stands in for this read alone - not cached,
       // so the next read tries the file again - and no write may replace the file meanwhile.
-      console.error(`[elecdex] cannot read ${this.file}`, error)
-      this.#readFailed = true
+      // Said once: a file read again by itself would say it every try.
+      if (!this.#readFailed) console.error(`[elecdex] cannot read ${this.file}`, error)
+      this.#failed(true)
       return this.makeDefault()
     }
-    this.#readFailed = false
+    this.#failed(false)
 
     const raw = bytes.toString('utf8')
     let parsed: unknown
@@ -192,6 +211,37 @@ export class JsonStore<T> {
       }
     }
     this.write(next)
+  }
+
+  /** Stops reading again, and takes the file off the list the page is told. */
+  dispose(): void {
+    this.#stopRetry()
+    if (this.#readAgain !== null) unreadableFiles.mark(this.file, false)
+  }
+
+  #failed(failed: boolean): void {
+    this.#readFailed = failed
+    if (this.#readAgain === null) return
+    unreadableFiles.mark(this.file, failed)
+    if (!failed) this.#stopRetry()
+    else if (this.#retry === null) this.#armRetry()
+  }
+
+  #armRetry(): void {
+    this.#retry = setTimeout(() => {
+      this.#retry = null
+      // Longer before the next try, which a failed read here arms; a read that works resets it.
+      this.#retryMs = Math.min(this.#retryMs * 2, READ_AGAIN_MAX_MS)
+      const file = this.read()
+      if (!this.#readFailed) this.#readAgain?.(file)
+    }, this.#retryMs)
+    this.#retry.unref?.()
+  }
+
+  #stopRetry(): void {
+    if (this.#retry !== null) clearTimeout(this.#retry)
+    this.#retry = null
+    this.#retryMs = READ_AGAIN_FIRST_MS
   }
 
   /**

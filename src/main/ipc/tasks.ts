@@ -41,6 +41,9 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
     schema: TasksFileSchema,
     makeDefault: emptyTasks,
     keepInvalid: true,
+    // Read again by itself after a failed read (held open at start): the file it then has is
+    // taken in as a refused write's is.
+    readAgain: (read) => take(read),
   })
 
   let tasks = withDefaultList(store.read())
@@ -67,14 +70,17 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
     if (task !== undefined) announce(task, at)
   })
 
+  /** The file, read again after a failed read, kept in place of the default, as at start. */
+  const take = (read: TasksFile): void => {
+    tasks = withDefaultList(read)
+    broadcast(CH.tasks.changed, tasks)
+    scheduler.update(moments())
+  }
+
   const commit = (next: TasksFile): void => {
     // Saved first: a refused write (the file could not be read when it was loaded) leaves what is
     // held, and shown, as it was. Read again then, the file is taken in place of the default.
-    store.writeHeld(next, (file) => {
-      tasks = withDefaultList(file)
-      broadcast(CH.tasks.changed, tasks)
-      scheduler.update(moments())
-    })
+    store.writeHeld(next, take)
     tasks = next
     broadcast(CH.tasks.changed, tasks)
     scheduler.update(moments())
@@ -224,6 +230,7 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
       powerMonitor.off('resume', onResume)
       scheduler.dispose()
       watcher.close()
+      store.dispose()
       unregister()
     },
   }

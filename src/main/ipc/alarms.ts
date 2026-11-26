@@ -41,6 +41,9 @@ export function registerAlarmsIpc(settings: SettingsHandle): { dispose: () => vo
     schema: AlarmsFileSchema,
     makeDefault: emptyAlarms,
     keepInvalid: true,
+    // Read again by itself after a failed read (held open at start): the file it then has is
+    // taken in as a refused write's is.
+    readAgain: (read) => take(read),
   })
 
   let alarms = store.read()
@@ -63,14 +66,17 @@ export function registerAlarmsIpc(settings: SettingsHandle): { dispose: () => vo
     if (alarm !== undefined) ring(alarm, at)
   })
 
+  /** The file, read again after a failed read, kept in place of the default. */
+  const take = (read: AlarmsFile): void => {
+    alarms = read
+    broadcast(CH.alarms.changed, alarms)
+    scheduler.update(moments())
+  }
+
   const commit = (next: AlarmsFile): void => {
     // Saved first: a refused write (the file could not be read when it was loaded) leaves what is
     // held, and shown, as it was. Read again then, the file is taken in place of the default.
-    store.writeHeld(next, (file) => {
-      alarms = file
-      broadcast(CH.alarms.changed, alarms)
-      scheduler.update(moments())
-    })
+    store.writeHeld(next, take)
     alarms = next
     broadcast(CH.alarms.changed, alarms)
     scheduler.update(moments())
@@ -174,6 +180,7 @@ export function registerAlarmsIpc(settings: SettingsHandle): { dispose: () => vo
       powerMonitor.off('resume', onResume)
       scheduler.dispose()
       watcher.close()
+      store.dispose()
       unregister()
     },
   }

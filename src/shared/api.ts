@@ -210,6 +210,13 @@ export interface SystemApi {
    * theme; the rest of the title bar is drawn by the page.
    */
   setTitleBarColors(colors: TitleBarColors): void
+  /**
+   * The names of the user's files main found there but could not read (another program holding
+   * them open) and is reading again by itself; their panes show the default meanwhile.
+   */
+  unreadableFiles(): Promise<string[]>
+  /** Called with that list whenever it changes. Returns an unsubscribe. */
+  onUnreadableFiles(handler: (files: string[]) => void): () => void
 }
 
 /** Running in the background, Windows only (shared/background.ts). */

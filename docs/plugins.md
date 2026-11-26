@@ -281,7 +281,7 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 
 ### 8.1 `ctx.storage`
 
-プラグイン単位のキーと値。main が `<userData>/plugin-data/<id>.json` に書く（1 秒デバウンス、終了時に書き出し）。JSON で合計 1 MiB 上限、超える `set` は例外。キーは `[A-Za-z0-9_.:-]` の 1〜100 文字で、`__proto__`・`constructor`・`prototype` は使えない（Worker と main の両方で確かめる）。起動時に全体を Worker に渡すので `get` は同期。
+プラグイン単位のキーと値。main が `<userData>/plugin-data/<id>.json` に書く（1 秒デバウンス、終了時に書き出し）。JSON で合計 1 MiB 上限、超える `set` は例外。キーは `[A-Za-z0-9_.:-]` の 1〜100 文字で、`__proto__`・`constructor`・`prototype` は使えない（Worker と main の両方で確かめる）。起動時に全体を Worker に渡すので `get` は同期。ファイルがあるのに読めない（他のプログラムが開いたまま）ときは、少し間をおいて何度か読み直し、それでも読めなければ service を起動しない。空として渡すと、プラグインはそれを自分の保存したものと取り違え、その間の `set` は main がすべて断るため。ペインは失敗と理由を表示し、restart でやり直す（2026-11-27）。
 
 ### 8.2 `ctx.notify`
 

@@ -158,7 +158,7 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
         }
       },
       [CH.plugins.storageLoad]: (_event, id: unknown) =>
-        grant(id) === null ? {} : storage.load(id as string),
+        grant(id) === null ? {} : storage.loadPatiently(id as string),
       [CH.plugins.storageSet]: (
         _event,
         id: unknown,

@@ -79,6 +79,7 @@ export const NO_ARGUMENT = [
   'system.closeWindow',
   'system.minimize',
   'system.windowState',
+  'system.unreadableFiles',
   'background.state',
   'pty.list',
   'layout.load',
@@ -167,6 +168,7 @@ export const NO_ARGUMENT = [
  */
 export const HANDLER_ONLY = [
   'system.onWindowState',
+  'system.onUnreadableFiles',
   'background.onChange',
   'background.onOpenSettings',
   'settings.onChange',

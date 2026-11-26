@@ -9,11 +9,16 @@ import { replaceFile } from '../store/replace-file.js'
  * The worker keeps the live copy and sends each change; this keeps the same object and
  * writes it a second after the last change, and at once on quit. A missing file, or one that
  * is not JSON, is an empty store. A file that is there but cannot be read now (held open by
- * another program) is not: nothing is kept for it and a change is refused, so what the plugin
- * stored is never replaced by a change made over nothing (see load and set).
+ * another program) is not: load throws, nothing is kept for it and a change is refused, so the
+ * plugin is never started on nothing it would take for what it had, and what it stored is never
+ * replaced by a change made over nothing (see load, loadPatiently and set).
  */
 
 const WRITE_DELAY_MS = 1000
+
+/** How often, and how far apart, a plugin's start tries a file it could not read. */
+const LOAD_TRIES = 4
+const LOAD_GAP_MS = 250
 
 /** An id is also a file name here: anything that is not one is refused outright. */
 function checkId(id: string): string {
@@ -44,11 +49,11 @@ export class PluginStorage {
       bytes = readFileSync(this.file(id), 'utf8')
     } catch (error) {
       if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
-        // There but not readable now (held open by another program): the plugin sees nothing
-        // stored this time, and nothing is kept for it, so no change made now replaces what is
-        // in the file (see set) and the next load reads the file again.
+        // There but not readable now (held open by another program): nothing is kept for it,
+        // so no change made now replaces what is in the file (see set), and the next load reads
+        // the file again.
         console.warn(`[elecdex] could not read plugin data for ${id}:`, error)
-        return value
+        throw new Error(`${id}'s stored data could not be read: another program has the file open`)
       }
       bytes = ''
     }
@@ -64,12 +69,33 @@ export class PluginStorage {
     return value
   }
 
-  /** Applies one change; false when it would take the store past its limit. */
+  /**
+   * load, for a plugin starting: a file held open for a moment (a virus scanner's look) is tried
+   * again a few times before the start is refused.
+   */
+  async loadPatiently(id: string): Promise<Record<string, unknown>> {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return this.load(id)
+      } catch (error) {
+        if (attempt >= LOAD_TRIES) throw error
+        await new Promise((resolve) => setTimeout(resolve, LOAD_GAP_MS))
+      }
+    }
+  }
+
+  /** Applies one change; false when it would take the store past its limit, or was not read. */
   set(id: string, key: string, value: unknown, remove: boolean): boolean {
     if (!isStorageKey(key)) return false
-    const current = this.load(id)
-    // Not read (see load): the change is refused rather than made over nothing.
-    if (!this.data.has(id)) return false
+    // An id that is not one is refused outright, as everywhere here; only a file not read is false.
+    checkId(id)
+    let current: Record<string, unknown>
+    try {
+      current = this.load(id)
+    } catch {
+      // Not read (see load): the change is refused rather than made over nothing.
+      return false
+    }
     const next = { ...current }
     if (remove) delete next[key]
     else next[key] = value

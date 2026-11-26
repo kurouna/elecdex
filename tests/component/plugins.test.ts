@@ -254,6 +254,34 @@ describe('a plugin pane', () => {
     expect(screen.getByText('0')).toBeTruthy()
   })
 
+  it('does not start a plugin on nothing when its stored data cannot be read, and restarts once it can', async () => {
+    // It used to be started on an empty store: the plugin took that for what it had kept, and
+    // every change it made was refused by main without a word.
+    let held = true
+    const load = vi.fn(async () => {
+      if (held) throw new Error('its stored data could not be read')
+      return { n: 1 }
+    })
+    ;(window.elecdex.plugins as { storageLoad: unknown }).storageLoad = load
+    await startHost([source('counter.ts', COUNTER)], {
+      counter: {
+        enabled: true,
+        key: 'counter.ts',
+        granted: grantFor({ ...NO_PERMISSIONS, notify: true }),
+        values: {},
+      },
+    })
+    pane('counter')
+    await settle()
+    expect(screen.getByTestId('plugin-stopped').textContent).toMatch(/failed/)
+    expect(screen.getByText(/stored data could not be read/)).toBeTruthy()
+    expect(screen.queryByText('0')).toBeNull()
+    held = false
+    await fireEvent.click(screen.getByTestId('plugin-restart'))
+    await settle()
+    expect(screen.getByText('0')).toBeTruthy()
+  })
+
   it('ends the worker when the last pane goes, unless the plugin runs in the background', async () => {
     const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
     await startHost([source('counter.ts', COUNTER)], {

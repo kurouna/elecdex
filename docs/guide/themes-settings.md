@@ -264,6 +264,14 @@ What is in it:
 | `feeds-cache.json` | The last RSS headlines per feed |
 | `Partitions/web` | The web panes' cookies and site data, until *sign out of all sites* |
 
+A file that is there but held open by another program (a backup tool or a virus scanner on
+Windows) is never taken for an empty one (*unreleased*). For the settings, notes, tasks, alarms,
+snippets, AI keys and TRANSLATE's glossaries and history, a red notice names the file while it
+cannot be read; its panes show the defaults and no change is saved to it. elecdex reads it again
+by itself, after a second and then less often, at most every 30 seconds; once it has, the panes
+show the file and a short notice says so. A plugin whose `plugin-data/<id>.json` cannot be read
+is not started: its pane says why, and *restart* tries again.
+
 ## Layout files
 
 | File | What it holds |

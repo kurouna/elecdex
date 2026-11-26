@@ -206,7 +206,13 @@ export function keyVaultOn(
   codec: KeyCodec,
   providers: readonly { id: string; origin: string | null }[],
 ): KeyVault {
-  const store = new JsonStore<KeyFile>({ file, schema: KeyFileSchema, makeDefault: emptyKeyFile })
+  const store = new JsonStore<KeyFile>({
+    file,
+    schema: KeyFileSchema,
+    makeDefault: emptyKeyFile,
+    // Read again by itself after a failed read; the vault is made by then (a timer's later).
+    readAgain: (fresh) => vault.reload(fresh),
+  })
   // Made before anything can save through it: `adopt` may write, and its save refers to the vault.
   const vault = new KeyVault({
     codec,

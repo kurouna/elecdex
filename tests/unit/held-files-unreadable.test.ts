@@ -52,6 +52,7 @@ const { registerNotesIpc } = await import('../../src/main/ipc/notes.js')
 const { registerTasksIpc } = await import('../../src/main/ipc/tasks.js')
 const { registerAlarmsIpc } = await import('../../src/main/ipc/alarms.js')
 const { registerSettingsIpc } = await import('../../src/main/ipc/settings.js')
+const { unreadableFiles } = await import('../../src/main/store/unreadable-files.js')
 
 const call = (channel: string, ...args: unknown[]): unknown => {
   const handler = handles.get(channel)
@@ -185,6 +186,56 @@ describe.each(MODULES)('$name, started on a file another program holds open', (m
   })
 })
 
+/**
+ * Nothing used to read the file again until the user changed something: the panes showed the
+ * default (an empty notes pane, as if every note were gone) without a word, and the first change
+ * after the file came free was refused to take the file in. Now the module reads it again by
+ * itself, a little less often each time, and the page is told which file could not be read.
+ */
+describe.each(MODULES)('$name, read again by itself', (module) => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('takes the file in once it is free, with no change made, and the next change is saved', async () => {
+    const mine = startOnHeldFile(module)
+    busy.files.clear()
+    await vi.advanceTimersByTimeAsync(60_000)
+    for (const kept of mine) expect(module.shown()).toContain(kept)
+    expect(tryChange(module, 3)).toBe('done')
+    for (const kept of mine) expect(module.onDisk()).toContain(kept)
+  })
+
+  it('says the file could not be read while it cannot, and no longer once it has been', async () => {
+    startOnHeldFile(module)
+    expect(unreadableFiles.list()).toEqual([module.file])
+    // Held for a long while: still tried, still said.
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+    expect(unreadableFiles.list()).toEqual([module.file])
+    busy.files.clear()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(unreadableFiles.list()).toEqual([])
+  })
+
+  it('settles the notice when a change takes the file in first', () => {
+    startOnHeldFile(module)
+    busy.files.clear()
+    tryChange(module, 3)
+    expect(unreadableFiles.list()).toEqual([])
+  })
+
+  it('stops trying, and says nothing more of the file, once the module is gone', () => {
+    startOnHeldFile(module)
+    running?.dispose()
+    running = null
+    expect(unreadableFiles.list()).toEqual([])
+    expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
 function tryChange(module: Held, n: number): 'done' | 'refused' {
   try {
     module.change(n)
@@ -231,11 +282,17 @@ describe('files of the user held in memory outside the store', () => {
     first.flush()
     busy.files.add(path.join(dir, 'pomodoro.json'))
     const held = new PluginStorage(dir)
-    expect(held.load('pomodoro')).toEqual({})
-    held.set('pomodoro', 'other', 1, false)
+    // Not an empty store: the plugin would start on nothing and take it for what it had.
+    expect(() => held.load('pomodoro')).toThrow(/could not be read/)
+    expect(held.set('pomodoro', 'other', 1, false)).toBe(false)
     held.flush()
     busy.files.clear()
-    expect(new PluginStorage(dir).load('pomodoro')).toMatchObject({ kept: 'mine' })
+    expect(new PluginStorage(dir).load('pomodoro')).toEqual({ kept: 'mine' })
+    // Free again, the same storage reads it, and a change lands beside what was kept.
+    expect(held.load('pomodoro')).toEqual({ kept: 'mine' })
+    expect(held.set('pomodoro', 'other', 1, false)).toBe(true)
+    held.flush()
+    expect(new PluginStorage(dir).load('pomodoro')).toEqual({ kept: 'mine', other: 1 })
   })
 })
 

@@ -4,8 +4,10 @@ import { HIDDEN_SWITCH } from '@shared/background'
 import { CH } from '@shared/channels'
 import { titleBarColors } from '@shared/title-bar'
 import { app, BrowserWindow } from 'electron'
+import { appWindows } from '../app-windows.js'
 import { APP_VERSION } from '../build-info.js'
 import { machineFacts } from '../machine-facts.js'
+import { unreadableFiles } from '../store/unreadable-files.js'
 import { openExternalIfSafe, setTitleBarColors, windowStateOf } from '../window.js'
 import { registerTable } from './table.js'
 
@@ -47,8 +49,16 @@ function asString(value: unknown): string | null {
 }
 
 export function registerSystemIpc(): void {
+  // Every window is told, as settings are: the list is short and changes seldom.
+  unreadableFiles.onChange((files) => {
+    for (const win of appWindows()) {
+      if (!win.webContents.isDestroyed())
+        win.webContents.send(CH.system.unreadableFilesChanged, files)
+    }
+  })
   registerTable({
     handle: {
+      [CH.system.unreadableFiles]: (): string[] => unreadableFiles.list(),
       [CH.system.info]: (): AppInfo => {
         return {
           name: app.getName(),

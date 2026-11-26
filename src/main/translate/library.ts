@@ -42,14 +42,16 @@ export class TranslateLibrary {
 
   constructor(root: string, deps: LibraryDeps) {
     this.#deps = deps
-    const store = (name: string) =>
+    const store = (name: string, take: (file: z.infer<typeof AnyFile>) => void) =>
       new JsonStore({
         file: path.join(root, name),
         schema: AnyFile,
         makeDefault: () => ({ version: 1 as const }),
+        // Read again by itself after a failed read: taken in as a refused write's file is.
+        readAgain: take,
       })
-    this.#glossaryFile = store('glossaries.json')
-    this.#historyFile = store('history.json')
+    this.#glossaryFile = store('glossaries.json', (file) => this.#takeGlossaries(file))
+    this.#historyFile = store('history.json', (file) => this.#takeHistory(file))
     this.#glossaries = readGlossaries(this.#glossaryFile.read())
     this.#history = readHistory(this.#historyFile.read())
   }
@@ -115,8 +117,10 @@ export class TranslateLibrary {
     this.#historyChanged()
   }
 
-  /** Writes what is waiting now: elecdex is quitting. */
+  /** Writes what is waiting now: elecdex is quitting. Nothing is read again after it. */
   flush(): void {
+    this.#glossaryFile.dispose()
+    this.#historyFile.dispose()
     if (this.#writeTimer === null) return
     this.#deps.clearTimer(this.#writeTimer)
     this.#writeTimer = null
@@ -130,10 +134,9 @@ export class TranslateLibrary {
    */
   #setGlossaries(next: Glossary[]): boolean {
     try {
-      this.#glossaryFile.writeHeld({ version: 1, glossaries: next }, (file) => {
-        this.#glossaries = readGlossaries(file)
-        this.#bump()
-      })
+      this.#glossaryFile.writeHeld({ version: 1, glossaries: next }, (file) =>
+        this.#takeGlossaries(file),
+      )
     } catch (error) {
       console.error('[elecdex] translate: could not write the glossaries', error)
       return false
@@ -141,6 +144,16 @@ export class TranslateLibrary {
     this.#glossaries = next
     this.#bump()
     return true
+  }
+
+  #takeGlossaries(file: z.infer<typeof AnyFile>): void {
+    this.#glossaries = readGlossaries(file)
+    this.#bump()
+  }
+
+  #takeHistory(file: z.infer<typeof AnyFile>): void {
+    this.#history = readHistory(file)
+    this.#bump()
   }
 
   #historyChanged(): void {
@@ -157,10 +170,9 @@ export class TranslateLibrary {
       // The history waits in memory before it is written, so it is kept before it is saved;
       // a file that could not be read when it was loaded is taken in when it can be, rather
       // than replaced by what was gathered on the default.
-      this.#historyFile.writeHeld({ version: 1, entries: this.#history }, (file) => {
-        this.#history = readHistory(file)
-        this.#bump()
-      })
+      this.#historyFile.writeHeld({ version: 1, entries: this.#history }, (file) =>
+        this.#takeHistory(file),
+      )
     } catch (error) {
       console.error('[elecdex] translate: could not write the history', error)
     }
