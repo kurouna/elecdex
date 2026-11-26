@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -229,6 +229,34 @@ describe('TranslateLibrary', () => {
     library.removeGlossary('g1')
     expect(make().glossaries()).toEqual([])
     expect(library.revision).toBe(before + 2)
+  })
+
+  it('keeps no glossary its file refused, and takes the file in once it can be read', () => {
+    // A file there but unreadable - held open by another program; here a folder in its place -
+    // reads as the default, and a write made from it is refused. The library used to keep (and
+    // show) the glossary anyway, though it was never saved, and log the refusal alone.
+    const glossary = (id: string) => ({
+      id,
+      name: id,
+      targetLang: 'ja',
+      terms: [{ source: 'pane', target: 'ペイン' }],
+    })
+    const file = path.join(dir, 'glossaries.json')
+    mkdirSync(file)
+    const library = make()
+    expect(library.saveGlossary(glossary('g1'))).toEqual({ problem: expect.any(String) })
+    expect(library.glossaries()).toEqual([])
+    // Readable now, with the user's own glossary in it.
+    rmSync(file, { recursive: true })
+    writeFileSync(file, JSON.stringify({ version: 1, glossaries: [glossary('g0')] }))
+    expect(library.saveGlossary(glossary('g1'))).toEqual({ problem: expect.any(String) })
+    expect(library.glossaries().map((g) => g.id)).toEqual(['g0'])
+    expect(library.saveGlossary(glossary('g1'))).toBeNull()
+    expect(
+      make()
+        .glossaries()
+        .map((g) => g.id),
+    ).toEqual(['g0', 'g1'])
   })
 
   it('reads a broken file as empty, and keeps the good entries of a damaged one', () => {

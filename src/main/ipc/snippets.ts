@@ -51,7 +51,8 @@ export function openSnippetShelf(changed: () => void): {
   })
   const shelf = new SnippetShelf({
     load: () => store.read(),
-    save: (next) => store.write(next),
+    // A refused write leaves the shelf as it was; the file, read again then, is what there is.
+    save: (next) => store.writeHeld(next, (file) => shelf.reload(file)),
     now: () => Date.now(),
     makeId: () => makeSnippetId(),
     changed,

@@ -68,8 +68,14 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
   })
 
   const commit = (next: TasksFile): void => {
+    // Saved first: a refused write (the file could not be read when it was loaded) leaves what is
+    // held, and shown, as it was. Read again then, the file is taken in place of the default.
+    store.writeHeld(next, (file) => {
+      tasks = file
+      broadcast(CH.tasks.changed, tasks)
+      scheduler.update(moments())
+    })
     tasks = next
-    store.write(next)
     broadcast(CH.tasks.changed, tasks)
     scheduler.update(moments())
   }

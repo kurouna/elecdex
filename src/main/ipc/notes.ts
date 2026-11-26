@@ -49,8 +49,13 @@ export function registerNotesIpc(): { dispose: () => void } {
   }
 
   const commit = (next: NotesFile): void => {
+    // Saved first: a refused write (the file could not be read when it was loaded) leaves what is
+    // held, and shown, as it was. Read again then, the file is taken in place of the default.
+    store.writeHeld(next, (file) => {
+      notes = file
+      broadcast()
+    })
     notes = next
-    store.write(next)
     broadcast()
   }
 

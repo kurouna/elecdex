@@ -29,7 +29,7 @@ import { exportFileName } from '@shared/validate'
 import { app, net, type WebContents } from 'electron'
 import type { FetchLike, ProviderAdapter } from '../ai/adapter.js'
 import { ChatFiles, notAFile } from '../ai/files.js'
-import { emptyKeyFile, KeyFileSchema, openKeyVault } from '../ai/keys.js'
+import { keyVaultOn } from '../ai/keys.js'
 import { AiChatService } from '../ai/service.js'
 import { ChatStore } from '../ai/store.js'
 import { KEY_MOVED, type KeyLookup } from '../ai/target.js'
@@ -37,7 +37,6 @@ import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { showSaveDialogFor } from '../save-dialog.js'
 import { secretCodec } from '../secrets/system.js'
-import { cacheFile } from '../store/cache-file.js'
 import { type ElecLinks, registerElecIpc } from './elec.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
@@ -105,13 +104,9 @@ export function registerAiIpc(settings: SettingsHandle): {
   const registry = new SubscriptionRegistry<WebContents>()
   const orphans = new Map<string, NodeJS.Timeout>()
 
-  const keyFile = cacheFile(
+  const vault = keyVaultOn(
     path.join(app.getPath('userData'), 'ai-keys.json'),
-    KeyFileSchema,
-    emptyKeyFile(),
-  )
-  const vault = openKeyVault(
-    { codec: secretCodec(), load: keyFile.load, save: keyFile.save },
+    secretCodec(),
     settings.current().ai.providers.map((p) => ({ id: p.id, origin: aiOrigin(p.baseUrl) })),
   )
 

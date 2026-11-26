@@ -76,19 +76,17 @@ export class TranslateLibrary {
     if (at < 0 && this.#glossaries.length >= MAX_GLOSSARIES) {
       return { problem: `At most ${MAX_GLOSSARIES} glossaries.` }
     }
-    this.#glossaries =
+    const next =
       at < 0
         ? [...this.#glossaries, glossary]
         : this.#glossaries.map((g, i) => (i === at ? glossary : g))
-    this.#writeGlossaries()
-    return null
+    return this.#setGlossaries(next) ? null : { problem: 'The glossary could not be saved.' }
   }
 
   removeGlossary(id: string): void {
     const next = this.#glossaries.filter((g) => g.id !== id)
     if (next.length === this.#glossaries.length) return
-    this.#glossaries = next
-    this.#writeGlossaries()
+    this.#setGlossaries(next)
   }
 
   history(): HistoryEntry[] {
@@ -125,13 +123,24 @@ export class TranslateLibrary {
     this.#writeHistory()
   }
 
-  #writeGlossaries(): void {
+  /**
+   * Writes the glossaries, then keeps them: a refused write (the file could not be read when it
+   * was loaded) is not a glossary kept, and the pane is not shown one. Read again then, the
+   * file is taken in place of the default. False when nothing was saved.
+   */
+  #setGlossaries(next: Glossary[]): boolean {
     try {
-      this.#glossaryFile.write({ version: 1, glossaries: this.#glossaries })
+      this.#glossaryFile.writeHeld({ version: 1, glossaries: next }, (file) => {
+        this.#glossaries = readGlossaries(file)
+        this.#bump()
+      })
     } catch (error) {
       console.error('[elecdex] translate: could not write the glossaries', error)
+      return false
     }
+    this.#glossaries = next
     this.#bump()
+    return true
   }
 
   #historyChanged(): void {
@@ -145,7 +154,13 @@ export class TranslateLibrary {
 
   #writeHistory(): void {
     try {
-      this.#historyFile.write({ version: 1, entries: this.#history })
+      // The history waits in memory before it is written, so it is kept before it is saved;
+      // a file that could not be read when it was loaded is taken in when it can be, rather
+      // than replaced by what was gathered on the default.
+      this.#historyFile.writeHeld({ version: 1, entries: this.#history }, (file) => {
+        this.#history = readHistory(file)
+        this.#bump()
+      })
     } catch (error) {
       console.error('[elecdex] translate: could not write the history', error)
     }

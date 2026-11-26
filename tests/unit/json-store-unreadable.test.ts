@@ -81,17 +81,58 @@ describe('JsonStore and a file that cannot be read', () => {
     expect(makeStore().read().items).toEqual(['a', 'b', 'c', 'd'])
   })
 
-  it('refuses even a write not read for, until the file has been read', () => {
+  it('goes on refusing, once the file is free, until it has been read again', () => {
     const store = makeStore()
     busy.files.add(file)
     store.read()
     busy.files.clear()
-    // Refused: the caller made it from the default.
+    // Free now, but nothing has read it: what is written is still made from the default. A
+    // module that keeps what it read in memory writes again and again without reading.
     expect(() => store.write({ version: 1, items: [] })).toThrow(/could not be read/)
+    expect(() => store.write({ version: 1, items: ['x'] })).toThrow(/could not be read/)
     expect(readFileSync(file, 'utf8')).toBe(MINE)
-    // Refusing reads the file again, so the write after it - made from the file - goes through.
-    store.write({ version: 1, items: ['x'] })
-    expect(makeStore().read().items).toEqual(['x'])
+    // Read again, it is the file's own: the write made from it goes through.
+    expect(store.read().items).toEqual(['a', 'b', 'c'])
+    store.write({ version: 1, items: ['a', 'b', 'c', 'x'] })
+    expect(makeStore().read().items).toEqual(['a', 'b', 'c', 'x'])
+  })
+
+  describe('writeHeld, for a module that keeps what it read in memory', () => {
+    it('writes as write does when the last read was the file', () => {
+      const store = makeStore()
+      store.read()
+      const take = vi.fn()
+      store.writeHeld({ version: 1, items: ['a', 'b', 'c', 'd'] }, take)
+      expect(take).not.toHaveBeenCalled()
+      expect(makeStore().read().items).toEqual(['a', 'b', 'c', 'd'])
+    })
+
+    it('refuses while the file still cannot be read, and gives nothing to take', () => {
+      const store = makeStore()
+      busy.files.add(file)
+      store.read()
+      const take = vi.fn()
+      expect(() => store.writeHeld({ version: 1, items: ['new'] }, take)).toThrow(
+        /could not be read/,
+      )
+      expect(take).not.toHaveBeenCalled()
+      busy.files.clear()
+      expect(readFileSync(file, 'utf8')).toBe(MINE)
+    })
+
+    it('refuses once the file is free, and gives it to take in place of the default', () => {
+      const store = makeStore()
+      busy.files.add(file)
+      store.read()
+      busy.files.clear()
+      const take = vi.fn()
+      expect(() => store.writeHeld({ version: 1, items: ['new'] }, take)).toThrow(/read again/)
+      expect(take).toHaveBeenCalledWith({ version: 1, items: ['a', 'b', 'c'] })
+      expect(readFileSync(file, 'utf8')).toBe(MINE)
+      // Taken in: the next change, made from the file, is written.
+      store.writeHeld({ version: 1, items: ['a', 'b', 'c', 'new'] }, take)
+      expect(makeStore().read().items).toEqual(['a', 'b', 'c', 'new'])
+    })
   })
 
   it('still takes a missing file for the default, and writes it', () => {

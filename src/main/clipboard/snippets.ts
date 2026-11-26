@@ -99,9 +99,10 @@ export class SnippetShelf {
 
   #commit(next: SnippetsFile): void {
     if (next === this.#file) return
+    // Saved first: a refused write is not a snippet kept, so the shelf stays as it was.
+    this.#deps.save(next)
     this.#file = next
     this.#reindex()
-    this.#deps.save(next)
     this.#deps.changed()
   }
 

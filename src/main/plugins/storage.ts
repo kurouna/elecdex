@@ -37,13 +37,26 @@ export class PluginStorage {
     const cached = this.data.get(id)
     if (cached) return cached
     let value: Record<string, unknown> = {}
+    let bytes: string
     try {
-      const parsed: unknown = JSON.parse(readFileSync(this.file(id), 'utf8'))
+      bytes = readFileSync(this.file(id), 'utf8')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException | null)?.code !== 'ENOENT') {
+        // There but not readable now (held open by another program): the plugin sees nothing
+        // stored this time, and nothing is kept for it, so no change made now replaces what is
+        // in the file (see set) and the next load reads the file again.
+        console.warn(`[elecdex] could not read plugin data for ${id}:`, error)
+        return value
+      }
+      bytes = ''
+    }
+    try {
+      const parsed: unknown = bytes === '' ? {} : JSON.parse(bytes)
       if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
         value = parsed as Record<string, unknown>
       }
     } catch {
-      // No file yet, or unreadable: start empty.
+      // Not JSON: start empty.
     }
     this.data.set(id, value)
     return value
@@ -53,6 +66,8 @@ export class PluginStorage {
   set(id: string, key: string, value: unknown, remove: boolean): boolean {
     if (!isStorageKey(key)) return false
     const current = this.load(id)
+    // Not read (see load): the change is refused rather than made over nothing.
+    if (!this.data.has(id)) return false
     const next = { ...current }
     if (remove) delete next[key]
     else next[key] = value

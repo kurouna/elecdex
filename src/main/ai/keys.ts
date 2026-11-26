@@ -1,5 +1,6 @@
 import { AI_LIMITS, AI_PROVIDER_ID, type AiKeyStorage } from '@shared/ai'
 import { z } from 'zod'
+import { JsonStore } from '../store/json-store.js'
 
 /**
  * API keys, by provider id.
@@ -169,9 +170,15 @@ export class KeyVault {
     return this.file
   }
 
-  private write(file: KeyFile): void {
+  /** The file as read again (see keyVaultOn): what is kept from now on. */
+  reload(file: KeyFile): void {
     this.file = file
+  }
+
+  private write(file: KeyFile): void {
+    // Saved first: a key the file refused is not a key stored.
     this.persist(file)
+    this.file = file
   }
 }
 
@@ -185,5 +192,28 @@ export function openKeyVault(
 ): KeyVault {
   const vault = new KeyVault(deps)
   vault.adopt(providers)
+  return vault
+}
+
+/**
+ * The vault on its file, ai-keys.json, as main opens it. The keys are the user's, not a cache:
+ * a file that cannot be read (held open by another program) is not taken for an empty one, and
+ * a key stored then never replaces the others (JsonStore's `writeHeld`). A file that will not
+ * parse is set aside as `.bak` rather than written over.
+ */
+export function keyVaultOn(
+  file: string,
+  codec: KeyCodec,
+  providers: readonly { id: string; origin: string | null }[],
+): KeyVault {
+  const store = new JsonStore<KeyFile>({ file, schema: KeyFileSchema, makeDefault: emptyKeyFile })
+  const vault: KeyVault = openKeyVault(
+    {
+      codec,
+      load: () => store.read(),
+      save: (next) => store.writeHeld(next, (fresh) => vault.reload(fresh)),
+    },
+    providers,
+  )
   return vault
 }

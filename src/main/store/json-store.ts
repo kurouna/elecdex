@@ -153,9 +153,9 @@ export class JsonStore<T> {
 
     if (this.#readFailed) {
       // Whatever is written now was made from the default the failed read answered, so it
-      // would replace the user's file whole. Refused; the file is looked at again, so the write
-      // after the next read - made from the file - goes through.
-      this.#readFailed = !this.readable()
+      // would replace the user's file whole. Refused until a read has had the file itself -
+      // the file coming free is not enough: a module that keeps what it read writes again
+      // without reading, and its next write would be made from the same default.
       throw new Error(
         `Refusing to write ${path.basename(this.file)}: it could not be read, and what is written would replace it`,
       )
@@ -174,6 +174,27 @@ export class JsonStore<T> {
   }
 
   /**
+   * `write` for a module that read the file once and keeps it in memory (notes, tasks, alarms,
+   * settings, snippets, the glossaries): `next` was made from what it keeps. While the last read
+   * failed, that is the default and not the file, so the change is refused; the file is read
+   * again, and when it can be read now, `take` is given it to keep in place of the default -
+   * the change after that is made from the file, and written. A module that never read again
+   * would otherwise have every change refused until a restart.
+   */
+  writeHeld(next: T, take: (file: T) => void): void {
+    if (this.#readFailed) {
+      const file = this.read()
+      if (!this.#readFailed) {
+        take(file)
+        throw new Error(
+          `Refusing to write ${path.basename(this.file)}: it could not be read before, and has been read again - make the change again`,
+        )
+      }
+    }
+    this.write(next)
+  }
+
+  /**
    * Whether the file holds exactly what this store last read or wrote. A
    * watcher sees the store's own writes too; this tells them apart from a hand
    * edit with one read and a byte comparison, where reading the file back
@@ -188,16 +209,6 @@ export class JsonStore<T> {
       return readFileSync(this.file).equals(this.bytes)
     } catch {
       return false
-    }
-  }
-
-  /** Whether the file can be read now, or is missing (which reads as the default). */
-  private readable(): boolean {
-    try {
-      readFileSync(this.file)
-      return true
-    } catch (error) {
-      return isMissing(error)
     }
   }
 

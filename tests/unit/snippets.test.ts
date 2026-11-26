@@ -231,6 +231,31 @@ describe('SnippetShelf', () => {
     expect(s.changed()).toBe(1)
   })
 
+  it('keeps and tells nothing of a change its file refused', () => {
+    // A refused write (snippets.json held open by another program) is not a snippet kept: the
+    // shelf used to show it, and go on from it, though it was never saved.
+    let refuse = true
+    let changed = 0
+    const shelf = new SnippetShelf({
+      load: () => fileOf('mine'),
+      save: () => {
+        if (refuse) throw new Error('refused')
+      },
+      now: () => 1000,
+      makeId: () => 'snew',
+      changed: () => {
+        changed += 1
+      },
+    })
+    expect(() => shelf.add(plain('new'))).toThrow('refused')
+    expect(shelf.views().map((view) => view.title)).toEqual(['mine'])
+    expect(shelf.idOf('new')).toBeNull()
+    expect(changed).toBe(0)
+    refuse = false
+    expect(shelf.add(plain('new'))).toEqual({ id: 'snew', added: true })
+    expect(shelf.views().map((view) => view.title)).toEqual(['mine', 'new'])
+  })
+
   it('never gives a new snippet an id one already has', () => {
     const s = shelf()
     s.shelf.add(plain('one'))

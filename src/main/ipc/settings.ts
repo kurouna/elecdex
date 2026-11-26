@@ -154,8 +154,14 @@ export function registerSettingsIpc(): SettingsHandle {
       [CH.settings.patch]: (_event, raw: unknown): Settings => {
         const next = applySettingsPatch(settings, raw)
         if (next === null) return settings
+        // Saved first: a refused write (the file could not be read when it was loaded) leaves what is
+        // held, and shown, as it was. Read again then, the file is taken in place of the default.
+        store.writeHeld(next, (file) => {
+          settings = file
+          broadcast(CH.settings.changed, settings)
+          notify()
+        })
         settings = next
-        store.write(next)
         broadcast(CH.settings.changed, settings)
         notify()
         return settings
