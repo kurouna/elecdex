@@ -102,6 +102,10 @@ export function registerLayoutIpc(): { dispose: () => void } {
         // running take effect on the next reload instead of being masked by a cache.
         store.invalidate()
         const tree = store.read(migrateLayout)
+        // There but not readable (held open by another program): the page then keeps the
+        // arrangement it has and holds its saves until a read works, rather than taking the
+        // default for the user's layout and saving it over the file.
+        if (store.readFailed) throw new Error('layout.json could not be read')
         return normalizeTree({ ...tree, root: upgradeDefaultHeights(tree.root) })
       },
       [CH.layout.save]: (_event, raw: unknown): LayoutTree => {
@@ -136,6 +140,9 @@ export function registerLayoutIpc(): { dispose: () => void } {
         // over from a stale copy in memory.
         saved.invalidate()
         const current = readSaved()
+        // An empty list would stand for a file that could not be read; the page keeps the list
+        // it has and says so.
+        if (saved.readFailed) throw new Error('layouts.json could not be read')
         return summarize(current.items, current.active)
       },
       [CH.layout.savedSave]: (_event, rawName: unknown, rawTree: unknown) => {

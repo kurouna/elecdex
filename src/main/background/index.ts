@@ -121,7 +121,13 @@ export function registerBackground(settings: SettingsHandle): Background {
   /** Once ever: where the window went, since Windows 11 tucks new icons under "^". */
   const hintOnce = (): void => {
     if (hints.read().trayHintShown) return
-    hints.write({ trayHintShown: true })
+    try {
+      hints.write({ trayHintShown: true })
+    } catch (error) {
+      // Not written (the file could not be read just now): the hint may show once more, which
+      // is better than the window's close or minimise failing over it.
+      console.error('[elecdex] could not note the tray hint', error)
+    }
     hintsShown += 1
     if (stub || !Notification.isSupported()) return
     const where =

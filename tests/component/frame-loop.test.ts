@@ -338,3 +338,70 @@ describe('onBoundary', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 })
+
+/**
+ * One subscriber's throw is that subscriber's: the shared timers go on for every other one, and
+ * the throw is still said, as an exception nothing caught (lib/fault-report.ts hears it). Before,
+ * a throw skipped the rest of the round and the re-arm, and every clock or chart on the loop
+ * stopped until a reload.
+ */
+describe('a callback that throws', () => {
+  let errors: string[]
+  const onError = (event: ErrorEvent): void => {
+    errors.push(event.error instanceof Error ? event.error.message : String(event.error))
+    event.preventDefault()
+  }
+  beforeEach(() => {
+    errors = []
+    window.addEventListener('error', onError)
+  })
+  afterEach(() => window.removeEventListener('error', onError))
+
+  /** Advances the clock, past a throw the old loop let escape from its timer. */
+  function advance(ms: number): void {
+    try {
+      vi.advanceTimersByTime(ms)
+    } catch {
+      // Escaped: the next step shows what it stopped.
+    }
+  }
+
+  function throwsOnce(): () => void {
+    let thrown = false
+    return () => {
+      if (thrown) return
+      thrown = true
+      throw new Error('boom')
+    }
+  }
+
+  it('stops no other onBoundary subscriber on its period, and is said', () => {
+    stops.push(loop.onBoundary(1000, throwsOnce()))
+    const other = vi.fn()
+    stops.push(loop.onBoundary(1000, other))
+    advance(1000)
+    advance(3000)
+    expect(other).toHaveBeenCalledTimes(4)
+    expect(errors).toEqual(['boom'])
+  })
+
+  it('stops no other onFrame subscriber, nor the loop', () => {
+    subscribe(throwsOnce())
+    const other = vi.fn()
+    subscribe(other)
+    advance(1000)
+    advance(1000)
+    expect(other.mock.calls.length).toBeGreaterThanOrEqual(19)
+    expect(errors).toEqual(['boom'])
+  })
+
+  it('loses no other nextFrame callback waiting for the same frame', () => {
+    subscribe(vi.fn())
+    const after = vi.fn()
+    loop.nextFrame(throwsOnce())
+    loop.nextFrame(after)
+    advance(1000)
+    expect(after).toHaveBeenCalledTimes(1)
+    expect(errors).toEqual(['boom'])
+  })
+})

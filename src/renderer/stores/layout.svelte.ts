@@ -146,6 +146,13 @@ class LayoutStore {
    * not the user's arrangement, so nothing is written back over it.
    */
   private unread = false
+  /**
+   * True from the moment main has made another layout the active one until the page has taken
+   * its tree (see replaceTree): the tree on screen then belongs to the layout being left, and main
+   * writes every save into the active one - a save sent meanwhile would put the arrangement being
+   * left into the layout switched to. What changes on screen then is dropped with that screen.
+   */
+  private leavingTree = false
 
   /** Unset, every close is immediate (and so it is in tests that do not set it). */
   closeMotion: CloseMotion | null = null
@@ -254,6 +261,7 @@ class LayoutStore {
   private adopt(tree: LayoutTree): void {
     this.dropUndo()
     this.tree = tree
+    this.leavingTree = false
     this.zoom.clear()
     this.effects.stop()
     this.focusedPaneId = initialFocus(tree)
@@ -270,8 +278,9 @@ class LayoutStore {
   }
 
   private scheduleSave(): void {
-    // Never over a layout that could not be read (see load).
-    if (this.unread) return
+    // Never over a layout that could not be read (see load), nor while the tree on screen is
+    // one main has already switched away from (see leavingTree).
+    if (this.unread || this.leavingTree) return
     if (this.saveTimer !== null) clearTimeout(this.saveTimer)
     this.saveTimer = setTimeout(() => {
       this.saveTimer = null
@@ -808,6 +817,11 @@ class LayoutStore {
    */
   private async replaceTree(next: LayoutTree): Promise<void> {
     const token = ++this.switchToken
+    // Main has made `next`'s layout the active one: nothing of the tree still on screen may be
+    // saved now (its own last save went out in the flush before the switch was asked for).
+    this.leavingTree = true
+    if (this.saveTimer !== null) clearTimeout(this.saveTimer)
+    this.saveTimer = null
     if (this.closeMotion?.animates() !== true) {
       this.leaving = EMPTY_IDS
       this.switchDelays = null

@@ -75,7 +75,13 @@ export function registerUtilityIpc(clipboard: ClipboardWriter): UtilityIpc {
       const { level, until, since } = file.read()
       // Only a change is written: a hold taken up again as it was is not one.
       if (level === hold.level && until === hold.until && since === hold.since) return
-      file.write({ version: 1, ...hold })
+      try {
+        file.write({ version: 1, ...hold })
+      } catch (error) {
+        // The hold itself is taken or let go regardless (it may run from its end's timer); only
+        // taking it up again after a restart depends on this.
+        console.error('[elecdex] could not save the awake hold', error)
+      }
     },
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),

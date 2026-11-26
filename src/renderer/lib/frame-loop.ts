@@ -109,13 +109,27 @@ let pendingStall: ReturnType<typeof setTimeout> | null = null
 /** Runs the loop's frame if its animation frame is late. */
 let loopStall: ReturnType<typeof setTimeout> | null = null
 
+/**
+ * Calls one subscriber. A throw is that subscriber's alone: it is said as an exception nothing
+ * caught (`reportError`, which lib/fault-report.ts turns into a toast), and the round, the next
+ * frame and the next boundary go on for everyone else - a throw used to skip all three, and every
+ * clock and chart on the loop stood still until a reload.
+ */
+function call<A extends unknown[]>(callback: (...args: A) => void, ...args: A): void {
+  try {
+    callback(...args)
+  } catch (error) {
+    reportError(error)
+  }
+}
+
 function runPending(now: number): void {
   if (pendingStall !== null) clearTimeout(pendingStall)
   pendingStall = null
   if (pending.size === 0) return
   const due = [...pending]
   pending.clear()
-  for (const callback of due) callback(now)
+  for (const callback of due) call(callback, now)
 }
 
 /** The shortest period anyone is waiting for. */
@@ -139,7 +153,7 @@ function frame(now: number): void {
     const slot = slotOf(wall, subscriber.period)
     if (slot === subscriber.slot) continue
     subscriber.slot = slot
-    callback(now)
+    call(callback, now)
   }
   schedule()
 }
@@ -192,7 +206,7 @@ function followVisibility(): void {
     schedule()
     // What they show is as old as the window was away: put right now, not at the next boundary.
     for (const [period, boundary] of boundaries) {
-      for (const callback of [...boundary.callbacks]) callback()
+      for (const callback of [...boundary.callbacks]) call(callback)
       arm(period, boundary)
     }
   }
@@ -256,7 +270,7 @@ function arm(period: number, boundary: Boundary): void {
   if (boundary.timer !== null || boundary.callbacks.size === 0 || offScreen()) return
   boundary.timer = setTimeout(() => {
     boundary.timer = null
-    for (const callback of [...boundary.callbacks]) callback()
+    for (const callback of [...boundary.callbacks]) call(callback)
     arm(period, boundary)
   }, msUntilBoundary(period))
 }

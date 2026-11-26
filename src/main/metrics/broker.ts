@@ -115,9 +115,12 @@ export class MetricsBroker {
     const child = utilityProcess.fork(WORKER, [], { serviceName: 'elecdex metrics' })
     this.worker = child
 
-    child.on('message', (message: WorkerMessage) => this.onWorkerMessage(message))
-    child.on('spawn', () => {
-      this.restarts = 0
+    child.on('message', (message: WorkerMessage) => {
+      // A reading is what shows a collector works, not its start: every collector that dies has
+      // started, and a count cleared on `spawn` kept one that died in its first reading coming
+      // back every half second.
+      if (message.t === 'sample') this.restarts = 0
+      this.onWorkerMessage(message)
     })
     child.on('exit', (code) => {
       if (this.worker !== child) return

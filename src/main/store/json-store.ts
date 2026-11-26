@@ -40,6 +40,11 @@ export class JsonStore<T> {
   private cache: T | null = null
   /** The bytes last read from or written to the file, to tell our own write from someone else's. */
   private bytes: Buffer | null = null
+  /**
+   * True from a read that found the file but could not read it until the file has been read
+   * again. The default answered then is not the file, so no write may replace the file with it.
+   */
+  #readFailed = false
 
   constructor(opts: {
     file: string
@@ -58,6 +63,15 @@ export class JsonStore<T> {
   }
 
   /**
+   * Whether the last read found the file there but could not read it - held open by another
+   * program (EBUSY, EPERM on Windows) - and answered the default in its place. Not cached: the
+   * next read tries the file again.
+   */
+  get readFailed(): boolean {
+    return this.#readFailed
+  }
+
+  /**
    * Reads and validates the file.
    *
    * `repair` is given a structurally-valid value that failed a higher-level
@@ -71,6 +85,7 @@ export class JsonStore<T> {
     this.bytes = null
 
     if (!existsSync(this.file)) {
+      this.#readFailed = false
       this.cache = this.makeDefault()
       return this.cache
     }
@@ -79,10 +94,19 @@ export class JsonStore<T> {
     try {
       bytes = readFileSync(this.file)
     } catch (error) {
+      if (isMissing(error)) {
+        // Gone between the two calls: missing, as above.
+        this.#readFailed = false
+        this.cache = this.makeDefault()
+        return this.cache
+      }
+      // There, but not readable now. The default stands in for this read alone - not cached,
+      // so the next read tries the file again - and no write may replace the file meanwhile.
       console.error(`[elecdex] cannot read ${this.file}`, error)
-      this.cache = this.makeDefault()
-      return this.cache
+      this.#readFailed = true
+      return this.makeDefault()
     }
+    this.#readFailed = false
 
     const raw = bytes.toString('utf8')
     let parsed: unknown
@@ -127,6 +151,16 @@ export class JsonStore<T> {
       )
     }
 
+    if (this.#readFailed) {
+      // Whatever is written now was made from the default the failed read answered, so it
+      // would replace the user's file whole. Refused; the file is looked at again, so the write
+      // after the next read - made from the file - goes through.
+      this.#readFailed = !this.readable()
+      throw new Error(
+        `Refusing to write ${path.basename(this.file)}: it could not be read, and what is written would replace it`,
+      )
+    }
+
     mkdirSync(path.dirname(this.file), { recursive: true })
     // A file still as this store left it was valid then: only someone else's edit needs checking.
     if (this.keepInvalid && !this.unchangedOnDisk()) this.backUpIfInvalid()
@@ -154,6 +188,16 @@ export class JsonStore<T> {
       return readFileSync(this.file).equals(this.bytes)
     } catch {
       return false
+    }
+  }
+
+  /** Whether the file can be read now, or is missing (which reads as the default). */
+  private readable(): boolean {
+    try {
+      readFileSync(this.file)
+      return true
+    } catch (error) {
+      return isMissing(error)
     }
   }
 
@@ -217,4 +261,9 @@ export class JsonStore<T> {
       console.error(`[elecdex] could not quarantine ${this.file}`, error)
     }
   }
+}
+
+/** Whether a file system error says the file is not there. */
+function isMissing(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT'
 }
