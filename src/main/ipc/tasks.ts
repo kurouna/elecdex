@@ -71,7 +71,7 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
     // Saved first: a refused write (the file could not be read when it was loaded) leaves what is
     // held, and shown, as it was. Read again then, the file is taken in place of the default.
     store.writeHeld(next, (file) => {
-      tasks = file
+      tasks = withDefaultList(file)
       broadcast(CH.tasks.changed, tasks)
       scheduler.update(moments())
     })

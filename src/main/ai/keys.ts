@@ -207,13 +207,12 @@ export function keyVaultOn(
   providers: readonly { id: string; origin: string | null }[],
 ): KeyVault {
   const store = new JsonStore<KeyFile>({ file, schema: KeyFileSchema, makeDefault: emptyKeyFile })
-  const vault: KeyVault = openKeyVault(
-    {
-      codec,
-      load: () => store.read(),
-      save: (next) => store.writeHeld(next, (fresh) => vault.reload(fresh)),
-    },
-    providers,
-  )
+  // Made before anything can save through it: `adopt` may write, and its save refers to the vault.
+  const vault = new KeyVault({
+    codec,
+    load: () => store.read(),
+    save: (next) => store.writeHeld(next, (fresh) => vault.reload(fresh)),
+  })
+  vault.adopt(providers)
   return vault
 }

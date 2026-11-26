@@ -104,7 +104,10 @@ export function registerSettingsIpc(): SettingsHandle {
     }
     if (JSON.stringify(next) === JSON.stringify(settings)) return
     settings = next
+    // The store reads it too: a read that failed before (the file held open at start) is
+    // settled by this one, and the next change, made from the file, is saved.
     store.invalidate()
+    store.read()
     broadcast(CH.settings.changed, settings)
     notify()
   }

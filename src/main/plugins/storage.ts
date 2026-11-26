@@ -7,8 +7,10 @@ import { replaceFile } from '../store/replace-file.js'
  * ctx.storage: one JSON file per plugin under userData/plugin-data (docs/plugins.md 8.1).
  *
  * The worker keeps the live copy and sends each change; this keeps the same object and
- * writes it a second after the last change, and at once on quit. A file that cannot be
- * read is an empty store - nothing in it is the user's own work.
+ * writes it a second after the last change, and at once on quit. A missing file, or one that
+ * is not JSON, is an empty store. A file that is there but cannot be read now (held open by
+ * another program) is not: nothing is kept for it and a change is refused, so what the plugin
+ * stored is never replaced by a change made over nothing (see load and set).
  */
 
 const WRITE_DELAY_MS = 1000

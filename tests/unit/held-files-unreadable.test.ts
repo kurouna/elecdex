@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { CH } from '@shared/channels'
@@ -236,5 +236,40 @@ describe('files of the user held in memory outside the store', () => {
     held.flush()
     busy.files.clear()
     expect(new PluginStorage(dir).load('pomodoro')).toMatchObject({ kept: 'mine' })
+  })
+})
+
+/**
+ * What a module does to its file as it reads it, it does to the file it takes in after a failed
+ * read as well, and a read of its own (a hand edit) settles the failed one.
+ */
+describe('a file taken in after a failed read', () => {
+  it('tasks: given its default list, as at start, when the file has none', () => {
+    const file = path.join(userData, 'tasks.json')
+    writeFileSync(file, JSON.stringify({ version: 1, lists: [], tasks: [] }))
+    busy.files.add(file)
+    running = registerTasksIpc(quietSettings as never)
+    busy.files.clear()
+    expect(tryChange(MODULES[1] as Held, 1)).toBe('refused')
+    const lists = (call(CH.tasks.list) as { lists: { id: string }[] }).lists
+    expect(lists.map((list) => list.id)).toEqual(['tasks'])
+    expect(tryChange(MODULES[1] as Held, 2)).toBe('done')
+  })
+
+  it('settings: a hand edit read while the file was failing lets the next change through', async () => {
+    const file = path.join(userData, 'settings.json')
+    writeFileSync(file, JSON.stringify({ theme: 'mine' }))
+    busy.files.add(file)
+    running = registerSettingsIpc()
+    expect((call(CH.settings.get) as { theme: string }).theme).not.toBe('mine')
+    busy.files.clear()
+    writeFileSync(file, JSON.stringify({ theme: 'by-hand' }))
+    await vi.waitFor(
+      () => expect((call(CH.settings.get) as { theme: string }).theme).toBe('by-hand'),
+      { timeout: 5000, interval: 50 },
+    )
+    // Read whole, by hand: the change made from it is the file's own, and is saved.
+    expect(tryChange(MODULES[3] as Held, 3)).toBe('done')
+    expect(read('settings.json').theme).toBe('by-hand')
   })
 })
